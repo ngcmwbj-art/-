@@ -162,7 +162,7 @@ svg, iframe { display: block; }
 .links {
   position: relative; overflow: hidden;
   background: var(--accent); color: #fff;
-  padding: clamp(4rem, 10vw, 7rem) var(--gut) clamp(9rem, 22vw, 12rem);
+  padding: clamp(4rem, 10vw, 7rem) var(--gut) clamp(10rem, 24vw, 13rem);
 }
 .links ul {
   position: relative; z-index: 1;
@@ -178,10 +178,11 @@ svg, iframe { display: block; }
 .links a:hover { opacity: .72; }
 .links a svg { width: 1.35em; height: 1.35em; flex: none; }
 
+/* 隅に置くハリネズミ。1匹だけなので端で切らず、全身を見せる */
 .doodle {
-  position: absolute; right: -1%; bottom: -2%;
-  width: clamp(17rem, 46vw, 29rem); height: auto;
-  color: rgba(255, 255, 255, .9);
+  position: absolute; right: clamp(1rem, 4vw, 3.5rem); bottom: 0;
+  width: clamp(11rem, 30vw, 18rem); height: auto;
+  opacity: .92;
   pointer-events: none;
 }
 
@@ -197,6 +198,6 @@ svg, iframe { display: block; }
   body { font-size: 14px; letter-spacing: .12em; }
   .hero { justify-content: flex-end; align-items: flex-end; padding-bottom: 7rem; }
   .hero-title { font-size: clamp(3rem, 17vw, 5.5rem); }
-  .doodle { right: -8%; bottom: -3%; width: 78vw; }
-  .links { padding-bottom: 12rem; }
+  .doodle { right: 0; bottom: 0; width: min(58vw, 13.5rem); }
+  .links { padding-bottom: 16rem; }
 }
