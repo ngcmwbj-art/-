@@ -25,36 +25,14 @@
        映像を用意できたら .hero-media を <video> に差し替えてください。
   ────────────────────────────────────────────────────── -->
   <section class="hero">
+    <!-- 背景のスライドショー。写真は Instagram の投稿から。
+         差し替えるときは assets/img/ の5枚を同じ順で置き換えてください。 -->
     <div class="hero-media" aria-hidden="true">
-      <svg class="hero-illust" viewBox="0 0 900 600" preserveAspectRatio="xMinYMax slice" role="presentation" focusable="false">
-        <defs>
-          <pattern id="grain" width="4" height="4" patternUnits="userSpaceOnUse">
-            <circle cx="1.4" cy="1.4" r=".45" fill="#c9b295" opacity=".3"/>
-          </pattern>
-        </defs>
-        <rect width="900" height="600" fill="#f4ece0"/>
-        <rect width="900" height="600" fill="url(#grain)"/>
-        <g fill="none" stroke="#cbb195" stroke-width="2" stroke-linecap="round" opacity=".9">
-          <path d="M96 600 Q121 425 214 250"/>
-          <path d="M121 481 Q116 460 99 448 Q104 468 121 481"/>
-          <path d="M129 452 Q145 438 166 436 Q150 450 129 452"/>
-          <path d="M139 423 Q135 402 119 389 Q123 409 139 423"/>
-          <path d="M149 394 Q165 381 186 380 Q170 394 149 394"/>
-          <path d="M160 366 Q157 344 142 330 Q145 351 160 366"/>
-          <path d="M172 337 Q189 324 210 324 Q193 337 172 337"/>
-          <path d="M185 308 Q184 287 169 271 Q171 292 185 308"/>
-          <path d="M199 279 Q217 267 238 269 Q220 281 199 279"/>
-          <path d="M214 250 Q213 229 200 213 Q200 234 214 250"/>
-          <path d="M150 600 Q208 461 302 322"/>
-          <path d="M194 505 Q193 487 181 474 Q182 492 194 505"/>
-          <path d="M209 475 Q225 465 243 467 Q227 477 209 475"/>
-          <path d="M226 444 Q226 426 215 412 Q215 430 226 444"/>
-          <path d="M244 414 Q259 405 277 407 Q262 416 244 414"/>
-          <path d="M262 383 Q263 365 252 351 Q252 369 262 383"/>
-          <path d="M282 353 Q298 344 315 348 Q299 356 282 353"/>
-          <path d="M302 322 Q304 304 293 289 Q292 307 302 322"/>
-        </g>
-      </svg>
+      <img class="hero-slide" src="assets/img/hero-1-soft-cream.jpg" alt="" fetchpriority="high">
+      <img class="hero-slide" src="assets/img/hero-2-cookies.jpg" alt="" loading="lazy">
+      <img class="hero-slide" src="assets/img/hero-3-cake.jpg" alt="" loading="lazy">
+      <img class="hero-slide" src="assets/img/hero-4-shelf.jpg" alt="" loading="lazy">
+      <img class="hero-slide" src="assets/img/hero-5-gift.jpg" alt="" loading="lazy">
     </div>
 
     <h1 class="hero-title">
