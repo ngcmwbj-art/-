@@ -1,0 +1,892 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Obsidian実用編。初期設定・フォルダ構成・テンプレート3種・検索・プラグイン・週次運用まで、牛舎ノートを実際に組み上げる28枚。">
+<style>
+  :root{color-scheme:light dark;}
+  body{margin:0;font:14px system-ui,sans-serif;background:#E8E6EC;}
+  img{max-width:100%;}
+  [hidden]{display:none!important;}
+</style>
+<title>牛舎ノートの作り方</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@400;600;900&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap">
+</head>
+<body>
+<style>
+:root{
+  --ground:#E8E6EC;
+  --surface:#F6F4F9;
+  --surface-2:#DDD9E6;
+  --ink:#191527;
+  --ink-2:#4C4560;
+  --ink-3:#7C7492;
+  --line:#CCC6DA;
+  --line-2:#B7AFC9;
+  --straw:#96620F;
+  --straw-fill:#F0DDB4;
+  --glass:#584AA3;
+  --glass-fill:#DCD5F2;
+  --good:#2C6B4E;
+  --good-fill:#D3E7DC;
+  --warn:#9A4413;
+  --warn-fill:#F3DCCB;
+  --shadow:0 1px 0 rgba(25,21,39,.06), 0 18px 40px -28px rgba(25,21,39,.5);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#131020;--surface:#1C1730;--surface-2:#272040;
+    --ink:#EFEBF8;--ink-2:#BAB3CF;--ink-3:#8B83A5;
+    --line:#332B4E;--line-2:#463C66;
+    --straw:#E6AC4E;--straw-fill:#42300F;
+    --glass:#A895F2;--glass-fill:#2C2452;
+    --good:#7CC7A3;--good-fill:#17352A;
+    --warn:#E8A06A;--warn-fill:#3B2314;
+    --shadow:0 1px 0 rgba(0,0,0,.4), 0 24px 50px -30px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#131020;--surface:#1C1730;--surface-2:#272040;
+  --ink:#EFEBF8;--ink-2:#BAB3CF;--ink-3:#8B83A5;
+  --line:#332B4E;--line-2:#463C66;
+  --straw:#E6AC4E;--straw-fill:#42300F;
+  --glass:#A895F2;--glass-fill:#2C2452;
+  --good:#7CC7A3;--good-fill:#17352A;
+  --warn:#E8A06A;--warn-fill:#3B2314;
+  --shadow:0 1px 0 rgba(0,0,0,.4), 0 24px 50px -30px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box;}
+body{
+  background:var(--ground);color:var(--ink);
+  font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  font-size:16px;line-height:1.72;min-height:100dvh;display:flex;flex-direction:column;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{margin:0;text-wrap:balance;line-height:1.34;font-weight:700;}
+h1,.mincho{font-family:"Zen Old Mincho","Hiragino Mincho ProN","Yu Mincho",serif;}
+p{margin:0;}
+ul,ol{margin:0;padding:0;list-style:none;}
+code{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.9em;background:var(--surface-2);padding:1px 5px;border-radius:3px;}
+.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums;}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px clamp(14px,3vw,30px);border-bottom:1px solid var(--line);}
+.brand{display:flex;align-items:center;gap:10px;min-width:0;}
+.shard{width:20px;height:24px;flex:none;}
+.brand b{font-family:"Zen Old Mincho",serif;font-weight:600;font-size:15px;letter-spacing:.04em;white-space:nowrap;}
+.brand span{color:var(--ink-3);font-size:12px;letter-spacing:.09em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tools{display:flex;align-items:center;gap:8px;flex:none;}
+button{font-family:inherit;color:inherit;cursor:pointer;}
+.btn{background:var(--surface);border:1px solid var(--line-2);border-radius:6px;padding:6px 12px;font-size:12.5px;letter-spacing:.06em;line-height:1.6;transition:background .15s ease;}
+.btn:hover{background:var(--surface-2);}
+.btn:focus-visible,.nav:focus-visible,.tocitem:focus-visible{outline:2px solid var(--glass);outline-offset:2px;}
+.btn[aria-pressed="true"]{background:var(--glass-fill);border-color:var(--glass);}
+
+.stagewrap{flex:1;display:flex;align-items:center;justify-content:center;padding:clamp(12px,2.4vw,26px);min-height:0;}
+.stage{position:relative;width:min(1140px,100%);aspect-ratio:16/9;max-height:100%;background:var(--surface);border:1px solid var(--line);border-radius:3px;box-shadow:var(--shadow);display:flex;overflow:hidden;}
+.slide{display:none;flex-direction:column;gap:clamp(10px,1.6vh,20px);width:100%;padding:clamp(18px,3.2vw,44px) clamp(20px,3.8vw,56px);overflow-y:auto;overscroll-behavior:contain;}
+.slide.is-on{display:flex;}
+
+.eyebrow{font-size:11.5px;letter-spacing:.2em;color:var(--straw);display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.eyebrow s{text-decoration:none;color:var(--ink-3);}
+.slide h2{font-size:clamp(21px,2.45vw,34px);}
+.lede{color:var(--ink-2);font-size:clamp(13.5px,1.12vw,16.5px);max-width:64ch;}
+.slide :where(p,li,td,th){font-size:clamp(13px,1.04vw,15.5px);}
+mark{background:var(--straw-fill);color:var(--ink);padding:0 .18em;border-radius:2px;}
+.wl{color:var(--glass);font-weight:500;}
+.foot{margin-top:auto;padding-top:8px;border-top:1px solid var(--line);color:var(--ink-3);font-size:clamp(11.5px,.92vw,13px);}
+.foot b{color:var(--straw);font-weight:700;}
+
+.bottombar{display:flex;align-items:center;gap:14px;padding:0 clamp(14px,3vw,30px) 14px;}
+.rail{flex:1;height:2px;background:var(--line);position:relative;}
+.rail i{position:absolute;inset:0 auto 0 0;background:var(--straw);transition:width .3s cubic-bezier(.4,0,.2,1);}
+.nav{background:none;border:1px solid var(--line-2);border-radius:50%;width:32px;height:32px;line-height:1;font-size:14px;color:var(--ink-2);}
+.nav:hover:not(:disabled){background:var(--surface-2);color:var(--ink);}
+.nav:disabled{opacity:.35;cursor:default;}
+.count{font-size:12.5px;color:var(--ink-3);letter-spacing:.1em;}
+.count b{color:var(--ink);font-weight:700;}
+
+.toc{position:fixed;inset:0;background:var(--ground);z-index:20;overflow-y:auto;padding:clamp(18px,4vw,44px);}
+.tocgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:9px;max-width:1140px;margin:16px auto 0;}
+.tocitem{display:flex;gap:11px;align-items:baseline;text-align:left;background:var(--surface);border:1px solid var(--line);border-left:2px solid var(--line-2);padding:10px 12px;font-size:13px;}
+.tocitem:hover{border-left-color:var(--straw);background:var(--surface-2);}
+.tocitem[aria-current="true"]{border-left-color:var(--straw);background:var(--straw-fill);}
+.tocitem em{font-style:normal;color:var(--ink-3);font-size:11.5px;flex:none;}
+
+.cols{display:grid;gap:clamp(9px,1.2vw,18px);}
+.c2{grid-template-columns:1fr 1fr;}
+.c3{grid-template-columns:repeat(3,1fr);}
+.c4{grid-template-columns:repeat(4,1fr);}
+.c-side{grid-template-columns:1.02fr .98fr;align-items:start;}
+.c-side-w{grid-template-columns:1.35fr .65fr;align-items:start;}
+.stack{display:flex;flex-direction:column;gap:clamp(8px,1vh,13px);}
+
+.card{background:var(--ground);border:1px solid var(--line);padding:clamp(10px,1.15vw,16px);display:flex;flex-direction:column;gap:5px;}
+.card h3{font-size:clamp(13.5px,1.1vw,16px);}
+.card p{color:var(--ink-2);font-size:clamp(12px,.95vw,14px);line-height:1.62;}
+.card .tag{font-size:10.5px;letter-spacing:.15em;color:var(--straw);}
+
+.big{display:flex;gap:13px;align-items:flex-start;}
+.big .num{font-family:"Zen Old Mincho",serif;font-size:clamp(18px,1.9vw,28px);color:var(--straw);line-height:1.1;flex:none;padding-top:1px;}
+.big h3{font-size:clamp(14px,1.2vw,17.5px);margin-bottom:2px;}
+.big p{color:var(--ink-2);font-size:clamp(12px,.97vw,14.5px);}
+
+.bullets li{display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px dotted var(--line);}
+.bullets li:last-child{border-bottom:0;}
+.bullets .k{color:var(--straw);flex:none;font-size:11px;letter-spacing:.1em;padding-top:2px;min-width:1.6em;}
+
+.slab{background:var(--ground);border:1px solid var(--line);padding:clamp(11px,1.3vw,18px);}
+.slab.accent{border-left:3px solid var(--straw);}
+.slab.glassy{border-left:3px solid var(--glass);}
+.callout{padding:clamp(10px,1.2vw,15px) clamp(12px,1.4vw,18px);border-left:3px solid var(--line-2);background:var(--ground);}
+.callout .ct{font-size:11px;letter-spacing:.16em;margin-bottom:3px;font-weight:700;}
+.callout p{color:var(--ink-2);}
+.callout.warn{border-left-color:var(--warn);background:var(--warn-fill);}
+.callout.warn .ct{color:var(--warn);}
+.callout.warn p{color:var(--ink);}
+.callout.tip{border-left-color:var(--good);background:var(--good-fill);}
+.callout.tip .ct{color:var(--good);}
+.callout.tip p{color:var(--ink);}
+
+kbd{font-family:"JetBrains Mono",monospace;font-size:.82em;background:var(--surface);border:1px solid var(--line-2);border-bottom-width:2px;border-radius:4px;padding:2px 7px;white-space:nowrap;color:var(--ink);display:inline-block;line-height:1.5;}
+.keyrow{display:flex;gap:10px;align-items:baseline;padding:6px 0;border-bottom:1px dotted var(--line);}
+.keyrow:last-child{border-bottom:0;}
+.keyrow .kk{flex:none;min-width:132px;}
+.keyrow .kd{color:var(--ink-2);font-size:clamp(12px,.96vw,14px);}
+.keyrow .kd b{color:var(--ink);font-weight:700;}
+
+.check li{display:flex;gap:9px;align-items:baseline;padding:4px 0;color:var(--ink-2);}
+.check .box{width:10px;height:10px;border:1.5px solid var(--straw);flex:none;display:inline-block;transform:translateY(1px);}
+
+pre{margin:0;background:var(--ground);border:1px solid var(--line);padding:clamp(10px,1.15vw,16px);overflow-x:auto;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:clamp(10px,.79vw,12px);line-height:1.7;color:var(--ink-2);}
+pre .fm{color:var(--ink-3);}
+pre .h{color:var(--ink);font-weight:700;}
+pre .l{color:var(--glass);}
+pre .c{color:var(--straw);}
+pre .g{color:var(--good);}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--line);background:var(--ground);}
+table{border-collapse:collapse;width:100%;min-width:620px;font-size:clamp(11.5px,.9vw,13px);}
+th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;}
+thead th{background:var(--surface-2);font-size:10.5px;letter-spacing:.1em;color:var(--ink-2);font-weight:500;white-space:nowrap;}
+tbody th{font-weight:700;white-space:nowrap;}
+tr.hi td,tr.hi th{background:var(--straw-fill);}
+tr:last-child td,tr:last-child th{border-bottom:0;}
+td .mono,th .mono{white-space:nowrap;}
+
+.chapter{justify-content:center;gap:14px;}
+.chapter .cn{font-family:"Zen Old Mincho",serif;font-size:clamp(50px,9vw,120px);line-height:.9;color:var(--straw-fill);letter-spacing:-.02em;}
+.chapter h2{font-size:clamp(26px,3.4vw,46px);}
+.chapter .cl{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.chip{font-size:12px;border:1px solid var(--line-2);padding:3px 11px;border-radius:999px;color:var(--ink-2);}
+
+.cover{justify-content:center;gap:clamp(13px,1.9vh,24px);position:relative;}
+.cover h1{font-size:clamp(31px,5vw,66px);font-weight:900;line-height:1.16;}
+.cover h1 em{font-style:normal;color:var(--straw);}
+.cover .sub{font-size:clamp(13px,1.16vw,16.5px);color:var(--ink-2);max-width:48ch;}
+.meta{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;letter-spacing:.13em;color:var(--ink-3);}
+.covershard{position:absolute;right:0;bottom:-8%;width:min(34%,300px);opacity:.85;pointer-events:none;}
+
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;}}
+@media (max-width:880px){
+  .stage{aspect-ratio:auto;height:auto;min-height:min(76dvh,600px);max-height:none;}
+  .stagewrap{align-items:stretch;}
+  .c2,.c3,.c4,.c-side,.c-side-w{grid-template-columns:1fr;}
+  .covershard{display:none;}
+  .brand span{display:none;}
+  .keyrow{flex-direction:column;gap:2px;}
+}
+</style>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="shard" viewBox="0 0 20 24" aria-hidden="true">
+      <polygon points="10,0 20,8 15,24 4,22 0,7" fill="var(--ink)"></polygon>
+      <polygon points="10,0 20,8 12,11" fill="var(--straw)"></polygon>
+      <polygon points="0,7 10,0 12,11" fill="var(--ink-2)"></polygon>
+    </svg>
+    <b>牛舎ノートの作り方</b>
+    <span>Obsidian 実用編 — 設定・テンプレ・検索・運用</span>
+  </div>
+  <div class="tools">
+    <button class="btn" id="tocBtn" aria-pressed="false">一覧</button>
+    <button class="btn" id="themeBtn" title="表示テーマを切り替え">◐</button>
+  </div>
+</header>
+
+<div class="stagewrap">
+<main class="stage" id="stage" tabindex="0" aria-label="スライド">
+
+  <!-- 01 -->
+  <section class="slide cover is-on" data-title="表紙">
+    <p class="eyebrow">Obsidian 実用編</p>
+    <h1>設定から日々の入力まで、<br><em>そのまま真似できる</em>手順書。</h1>
+    <p class="sub">前編は「Obsidianとは何か」でした。こちらは手を動かす側。インストール直後の設定、コピーして使えるテンプレート、探し方、拡張、そして続けるための運用まで。牛舎ノートを実際に組み上げます。</p>
+    <div class="meta mono"><span>5章／28枚</span><span>← → で移動</span><span>コピーして使えるテンプレ3種</span></div>
+    <svg class="covershard" viewBox="0 0 300 260" aria-hidden="true">
+      <polygon points="150,10 285,80 250,230 95,250 15,120" fill="var(--ink)"></polygon>
+      <polygon points="150,10 285,80 175,115" fill="var(--straw)"></polygon>
+      <polygon points="15,120 150,10 175,115" fill="var(--ink-2)"></polygon>
+      <polygon points="175,115 250,230 95,250" fill="var(--ink)" opacity=".55"></polygon>
+      <polygon points="15,120 175,115 95,250" fill="var(--ink-2)" opacity=".45"></polygon>
+    </svg>
+  </section>
+
+  <!-- 02 -->
+  <section class="slide" data-title="この28枚のゴール">
+    <p class="eyebrow">はじめに</p>
+    <h2>読み終えたとき、こうなっています</h2>
+    <div class="cols c2">
+      <ul class="check">
+        <li><i class="box"></i><span>Vaultが1つあり、<mark>バックアップの経路が決まっている</mark></span></li>
+        <li><i class="box"></i><span>設定7項目が済み、迷う画面がない</span></li>
+        <li><i class="box"></i><span>日誌・個体・投薬の<mark>3つのテンプレ</mark>が入っている</span></li>
+        <li><i class="box"></i><span>ショートカット8個で、マウスをほぼ使わない</span></li>
+        <li><i class="box"></i><span>「先月の抗生剤を使った牛」を10秒で出せる</span></li>
+        <li><i class="box"></i><span>週15分の見直しの型がある</span></li>
+      </ul>
+      <div class="stack">
+        <div class="slab accent">
+          <h3 style="font-size:16px;margin-bottom:6px;">読み方</h3>
+          <p style="color:var(--ink-2)">1章と2章だけで、実務は回ります。3章以降は、必要になったときに戻ってくる場所です。<mark>最初から全部やらないこと。</mark></p>
+        </div>
+        <div class="cols c2" style="gap:8px;">
+          <div class="card"><span class="tag mono">第1章</span><h3>組み立てる</h3><p>導入・設定・保険（03〜07）</p></div>
+          <div class="card"><span class="tag mono">第2章</span><h3>毎日ふれる</h3><p>操作・テンプレ（08〜15）</p></div>
+          <div class="card"><span class="tag mono">第3章</span><h3>探す・集める</h3><p>検索・タグ・一覧（16〜19）</p></div>
+          <div class="card"><span class="tag mono">第4・5章</span><h3>広げる・続ける</h3><p>拡張・運用・保守（20〜28）</p></div>
+        </div>
+      </div>
+    </div>
+    <p class="foot">画面のラベルは版によって少し違います。<b>言葉が違っても、場所はだいたい同じところにあります。</b></p>
+  </section>
+
+  <!-- 03 -->
+  <section class="slide chapter" data-title="第1章 組み立てる">
+    <p class="eyebrow">CHAPTER 1</p>
+    <div class="cn mono">01</div>
+    <h2>組み立てる — 最初の30分</h2>
+    <p class="lede">ここだけは順番があります。Vaultの置き場所とバックアップを先に決めておかないと、あとで全部やり直しになるからです。</p>
+    <div class="cl"><span class="chip">04 Vaultを置く</span><span class="chip">05 最初の設定7つ</span><span class="chip">06 フォルダを7つ</span><span class="chip">07 同期とバックアップ</span></div>
+  </section>
+
+  <!-- 04 -->
+  <section class="slide" data-title="Vaultを置く">
+    <p class="eyebrow"><span>第1章</span><s>組み立てる</s></p>
+    <h2>Vaultは「どこに置くか」だけ考える</h2>
+    <div class="cols c-side">
+      <div class="stack">
+        <div class="big"><span class="num">1</span><div><h3>obsidian.md からダウンロードして入れる</h3><p>Windows / Mac / iPhone / Android すべて無料。まずはパソコンから始めます。</p></div></div>
+        <div class="big"><span class="num">2</span><div><h3>「新しいVaultを作成」を選ぶ</h3><p>名前は <code>牛舎ノート</code>。名前は後から変えられます。</p></div></div>
+        <div class="big"><span class="num">3</span><div><h3>置き場所を、同期フォルダの中にする</h3><p>ここが唯一の重要な判断。<mark>OneDrive / iCloud Drive / Google ドライブ など、自動で複製される場所の中に作る</mark>。デスクトップ直下に作ると、パソコンが壊れた日に終わります。</p></div></div>
+      </div>
+      <div class="stack">
+        <pre><span class="c">▼ おすすめの置き場所（Windows）</span>
+C:\Users\自分\OneDrive\牛舎ノート\
+
+<span class="c">▼ おすすめの置き場所（Mac）</span>
+~/Library/Mobile Documents/
+   com~apple~CloudDocs/牛舎ノート/</pre>
+        <div class="callout warn">
+          <p class="ct">注意</p>
+          <p>Google ドライブのパソコン版は、ファイルを「必要なときだけ落とす」設定だとObsidianが不安定になることがあります。<b>常にこのデバイスに保存する</b>設定にしてください。</p>
+        </div>
+      </div>
+    </div>
+    <p class="foot">Vaultは後からいくつでも作れますが、<b>増やすほど「どっちに書いたか」で探す羽目になります。当面ひとつ。</b></p>
+  </section>
+
+  <!-- 05 -->
+  <section class="slide" data-title="最初の設定7つ">
+    <p class="eyebrow"><span>第1章</span><s>組み立てる</s></p>
+    <h2>最初にやる設定、7つだけ</h2>
+    <p class="lede">左下の歯車（<kbd>Ctrl</kbd>+<kbd>,</kbd>）を開いて、上から順に。5分で終わります。</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>場所</th><th>やること</th><th>なぜ</th></tr></thead>
+        <tbody>
+          <tr><th>一般</th><td>言語を日本語に</td><td>メニューが読める</td></tr>
+          <tr class="hi"><th>コアプラグイン</th><td><b>デイリーノート</b>／<b>テンプレート</b>／<b>ブックマーク</b>／<b>ファイルの復元</b> をON</td><td>毎日の入力と、事故ったときの保険</td></tr>
+          <tr><th>ファイルとリンク</th><td>添付ファイルの保存先を「指定したフォルダ」→ <code>99_添付</code></td><td>写真やPDFが散らばらない</td></tr>
+          <tr><th>ファイルとリンク</th><td>[[ ]]（Wikiリンク）を使う をON</td><td>リンクが打ちやすい</td></tr>
+          <tr><th>ファイルとリンク</th><td>「ファイル名変更時にリンクを自動更新」をON</td><td>牛の呼び名を変えても壊れない</td></tr>
+          <tr><th>デイリーノート</th><td>日付形式 <code class="mono">YYYY-MM-DD</code>／保存先 <code>00_日誌</code>／テンプレ <code>99_雛形/日誌</code></td><td>毎日のノートが自動で整う</td></tr>
+          <tr><th>外観</th><td>フォントサイズを 17〜18 に</td><td>牛舎の明るさでも読める</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout tip"><p class="ct">効く設定</p><p>「ファイルの復元」は、書いたものを一定間隔で自動的に控えておく機能です。<b>間隔を5分にしておくと、うっかり消した日誌が戻せます。</b></p></div>
+    <p class="foot">これ以外の設定は、触らないほうが早く慣れます。<b>不満が出てから直す。</b></p>
+  </section>
+
+  <!-- 06 -->
+  <section class="slide" data-title="フォルダを7つ作る">
+    <p class="eyebrow"><span>第1章</span><s>組み立てる</s></p>
+    <h2>フォルダは、この7つで足ります</h2>
+    <div class="cols c-side">
+      <pre>牛舎ノート/
+├ <span class="h">00_日誌/</span>      2026-09-07.md …毎日ここ
+├ <span class="h">10_個体/</span>      1234号.md …牛1頭に1枚
+├ <span class="h">20_飼料/</span>      配合B.md、飼料コスト 2026.md
+├ <span class="h">30_衛生/</span>      投薬 2026-09-02.md、◯◯獣医師.md
+├ <span class="h">40_出荷/</span>      出荷計画 2027年春.md、枝肉成績.md
+├ <span class="h">50_経営/</span>      補助金の書き方.md、取引先.md
+├ <span class="h">90_覚書/</span>      思いつき、読んだ記事
+├ <span class="h">99_雛形/</span>      日誌.md、個体.md、投薬.md
+└ <span class="h">99_添付/</span>      写真・PDF（自動で入る）</pre>
+      <div class="stack">
+        <ul class="bullets">
+          <li><span class="k mono">01</span><span>頭の数字は並び順のため。<mark>10刻み</mark>にしておくと、あとから間に足せます。</span></li>
+          <li><span class="k mono">02</span><span><code>99_雛形</code> と <code>99_添付</code> は「置き場」であって読む場所ではないので、末尾に。</span></li>
+          <li><span class="k mono">03</span><span>迷ったものは全部 <code>00_日誌</code> に書く。<mark>あとでリンクを張れば、置き場所は問題になりません。</mark></span></li>
+        </ul>
+        <div class="callout"><p class="ct">作り方</p><p>左のファイル一覧の上にある「新規フォルダ」ボタンを9回押すだけ。<b>ここが今日いちばんの作業です。</b></p></div>
+      </div>
+    </div>
+    <p class="foot">深い階層は作らないこと。<b>フォルダの中のフォルダは、ほぼ確実に忘れられます。</b></p>
+  </section>
+
+  <!-- 07 -->
+  <section class="slide" data-title="同期とバックアップ">
+    <p class="eyebrow"><span>第1章</span><s>組み立てる</s></p>
+    <h2>スマホでも使うなら、ここで方式を決める</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>方式</th><th>費用</th><th>スマホ</th><th>手間</th><th>向いている人</th></tr></thead>
+        <tbody>
+          <tr class="hi"><th>Obsidian Sync（公式）</th><td>月4ドル前後〜</td><td><b>確実に動く</b></td><td>ログインするだけ</td><td><b>牛舎でスマホ入力したい人</b>。過去の版に戻す機能つき</td></tr>
+          <tr><th>iCloud Drive</th><td>実質0円</td><td>iPhoneのみ可</td><td>置き場所を選ぶだけ</td><td>iPhone＋Macで完結する人</td></tr>
+          <tr><th>OneDrive / Google ドライブ</th><td>実質0円</td><td>スマホは不安定</td><td>やや設定が要る</td><td>パソコンだけで使う人</td></tr>
+          <tr><th>USB・外付けHDDへ手動コピー</th><td>0円</td><td>不可</td><td>自分で覚えておく</td><td>ネットに置きたくない人</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="cols c2">
+      <div class="callout warn"><p class="ct">同期は、バックアップではない</p><p>同期は「消した」も同期します。誤って消したノートは、同期先からも消えます。<b>月1回、Vaultフォルダを丸ごとコピーして外付けに置く</b>——これが本当のバックアップです。</p></div>
+      <div class="callout tip"><p class="ct">現実的な結論</p><p>スマホを使うなら公式のSync、パソコンだけならOneDrive。<b>迷ったら公式Sync。</b> 月数百円で、ノートを失う可能性がほぼ消えます。</p></div>
+    </div>
+    <p class="foot">牛の記録は、失うと二度と作れない資産です。<b>ここだけは、けちらない。</b></p>
+  </section>
+
+  <!-- 08 -->
+  <section class="slide chapter" data-title="第2章 毎日ふれる">
+    <p class="eyebrow">CHAPTER 2</p>
+    <div class="cn mono">02</div>
+    <h2>毎日ふれる — 操作とテンプレ</h2>
+    <p class="lede">ここが本体です。覚えるのはキー8個と、雛形3枚。あとは毎日そこに書くだけになります。</p>
+    <div class="cl"><span class="chip">09 ショートカット8個</span><span class="chip">10 デイリーノート</span><span class="chip">11 テンプレの仕組み</span><span class="chip">12-14 雛形3種</span><span class="chip">15 プロパティ</span></div>
+  </section>
+
+  <!-- 09 -->
+  <section class="slide" data-title="ショートカット8個">
+    <p class="eyebrow"><span>第2章</span><s>毎日ふれる</s></p>
+    <h2>これだけ覚えれば、手が止まりません</h2>
+    <div class="cols c2">
+      <div>
+        <div class="keyrow"><span class="kk"><kbd>Ctrl</kbd>+<kbd>O</kbd></span><span class="kd"><b>ノートを名前で開く</b>。打ち始めると候補が出ます。いちばん使うキー。</span></div>
+        <div class="keyrow"><span class="kk"><kbd>Ctrl</kbd>+<kbd>N</kbd></span><span class="kd">新しいノートを作る</span></div>
+        <div class="keyrow"><span class="kk"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd></span><span class="kd"><b>全ノートを串刺しで検索</b>。「鼻汁」で全部出ます。</span></div>
+        <div class="keyrow"><span class="kk"><kbd>Ctrl</kbd>+<kbd>P</kbd></span><span class="kd">機能を名前で呼ぶ（コマンドパレット）。忘れたらこれ。</span></div>
+      </div>
+      <div>
+        <div class="keyrow"><span class="kk"><kbd>Ctrl</kbd>+<kbd>E</kbd></span><span class="kd">編集画面と、清書された表示を切り替える</span></div>
+        <div class="keyrow"><span class="kk"><kbd>Ctrl</kbd>+<kbd>クリック</kbd></span><span class="kd">リンクを<b>隣に並べて開く</b>。牛のノートと飼料のノートを並べる時に。</span></div>
+        <div class="keyrow"><span class="kk"><kbd>Alt</kbd>+<kbd>←</kbd></span><span class="kd">ひとつ前に見ていたノートに戻る</span></div>
+        <div class="keyrow"><span class="kk"><kbd>Ctrl</kbd>+<kbd>G</kbd></span><span class="kd">グラフ（つながりの図）を開く</span></div>
+      </div>
+    </div>
+    <div class="callout tip"><p class="ct">Macの人へ</p><p><kbd>Ctrl</kbd> を <kbd>⌘</kbd> に読み替えてください。戻るは <kbd>⌘</kbd>+<kbd>[</kbd> です。</p></div>
+    <p class="foot">全部覚える必要はありません。<b>まず <kbd>Ctrl</kbd>+<kbd>O</kbd> だけ。これだけで速度が変わります。</b></p>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="デイリーノート">
+    <p class="eyebrow"><span>第2章</span><s>毎日ふれる</s></p>
+    <h2>入口は、今日の日付のノート1枚</h2>
+    <p class="lede">左のリボンにあるカレンダーのアイコンを押すと、その日のノートが開きます。<mark>無ければ勝手に作られる</mark>——これがこの機能の全部です。朝と晩に1回ずつ押す。それだけ。</p>
+    <div class="cols c3">
+      <div class="card"><span class="tag mono">朝</span><h3>今日やることを書く</h3><p>「1234号 削蹄」「配合Bの発注」。<code>- [ ]</code> で書けばチェック欄になります。</p></div>
+      <div class="card"><span class="tag mono">日中</span><h3>スマホで放り込む</h3><p>気づいたことを1行。誤字も気にしない。<mark>あとで直せる前提で書く。</mark></p></div>
+      <div class="card"><span class="tag mono">晩</span><h3>牛の名前をリンクにする</h3><p>書いた文の中の「1234号」を <span class="wl mono">[[ ]]</span> で囲む。この一手間だけが、明日以降を助けます。</p></div>
+    </div>
+    <div class="slab accent"><p><b style="color:var(--straw)">日誌が続かない人の共通点は、書く欄が多いこと。</b> 項目を減らしてください。天気と体感、それと気になった牛の番号。この3つで十分に価値が出ます。</p></div>
+    <p class="foot">日誌のノート名は <code class="mono">2026-09-07</code> のような日付そのもの。<b>だから <kbd>Ctrl</kbd>+<kbd>O</kbd> で「09-07」と打てば一発で開けます。</b></p>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="テンプレートの仕組み">
+    <p class="eyebrow"><span>第2章</span><s>毎日ふれる</s></p>
+    <h2>雛形は「ただのノート」です</h2>
+    <div class="cols c-side">
+      <div class="stack">
+        <div class="big"><span class="num">1</span><div><h3><code>99_雛形</code> に普通のノートを作る</h3><p>特別な形式は要りません。中身をいつも書く形にしておくだけ。</p></div></div>
+        <div class="big"><span class="num">2</span><div><h3>設定 → テンプレート で、そのフォルダを指定</h3><p>「テンプレートフォルダの場所」に <code>99_雛形</code> と入れる。</p></div></div>
+        <div class="big"><span class="num">3</span><div><h3>使うときは <kbd>Ctrl</kbd>+<kbd>P</kbd> →「テンプレートを挿入」</h3><p>よく使うなら、設定→ホットキーで <kbd>Ctrl</kbd>+<kbd>T</kbd> あたりに割り当てておくと楽です。</p></div></div>
+      </div>
+      <div class="stack">
+        <div class="slab glassy">
+          <h3 style="font-size:15px;margin-bottom:6px;">雛形の中で使える合言葉</h3>
+          <div class="keyrow"><span class="kk"><code class="mono">{{date}}</code></span><span class="kd">挿入した日の日付に置き換わる</span></div>
+          <div class="keyrow"><span class="kk"><code class="mono">{{time}}</code></span><span class="kd">時刻に置き換わる</span></div>
+          <div class="keyrow"><span class="kk"><code class="mono">{{title}}</code></span><span class="kd">そのノートの名前に置き換わる</span></div>
+        </div>
+        <div class="callout tip"><p class="ct">効かせどころ</p><p>デイリーノートの設定に雛形を指定しておくと、<b>今日のノートを開いた瞬間、書く欄がもう用意されている</b>状態になります。</p></div>
+      </div>
+    </div>
+    <p class="foot">次の3枚が、そのまま貼り付けて使える雛形です。<b>項目は削って構いません。むしろ削ってください。</b></p>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-title="雛形① 日誌">
+    <p class="eyebrow"><span>第2章</span><s>雛形 1 / 3</s></p>
+    <h2>雛形① 日誌 — 毎日ひらく1枚</h2>
+    <div class="cols c-side-w">
+      <pre><span class="fm">---
+天気:
+最高気温:
+---</span>
+
+<span class="h">## today</span>
+- [ ]
+
+<span class="h">## 牛の様子</span>
+<span class="c">（気になった番号だけ。無ければ「異常なし」）</span>
+-
+
+<span class="h">## 作業したこと</span>
+-
+
+<span class="h">## 気づき・数字</span>
+<span class="c">（食い込み、水、糞の状態、価格、思いつき）</span>
+-</pre>
+      <div class="stack">
+        <div class="card"><span class="tag mono">狙い</span><h3>「異常なし」も記録になる</h3><p>何も起きていない日を残すから、<mark>いつから様子が変わったか</mark>が後で分かります。</p></div>
+        <div class="card"><span class="tag mono">狙い</span><h3>気温を毎日1つ</h3><p>夏場の食い込みの落ち込みと突き合わせるための、いちばん安い指標です。</p></div>
+        <div class="callout"><p class="ct">1分ルール</p><p>この雛形は<b>1分で埋まる量</b>に抑えてあります。埋まらない日が続いたら、それは項目が多いということ。</p></div>
+      </div>
+    </div>
+    <p class="foot">保存先は <code class="mono">00_日誌</code>。<b>デイリーノートの設定でこの雛形を指定すれば、自動で挿入されます。</b></p>
+  </section>
+
+  <!-- 13 -->
+  <section class="slide" data-title="雛形② 個体">
+    <p class="eyebrow"><span>第2章</span><s>雛形 2 / 3</s></p>
+    <h2>雛形② 個体 — 導入から出荷まで1枚</h2>
+    <div class="cols c-side-w">
+      <pre><span class="fm">---
+耳標番号:
+導入日:
+導入市場:
+導入価格:
+性別:
+品種: F1（黒毛和種 × ホルスタイン）
+導入体重:
+出荷予定:
+出荷日:
+状態: 肥育中
+---</span>
+
+<span class="h">## 導入時メモ</span>
+<span class="c">（見た目、骨格、母牛、同時に入れた頭数）</span>
+
+<span class="h">## 飼料</span>
+- 導入〜 <span class="l">[[育成期 配合A]]</span>
+
+<span class="h">## 体重</span>
+| 日付 | 体重 | 備考 |
+| --- | --- | --- |
+|  |  |  |
+
+<span class="h">## 記録</span>
+<span class="c">（日誌から、この牛の話だけをここに集める）</span>
+-
+
+<span class="h">## 出荷・成績</span>
+枝肉重量: / 格付: / 単価:</pre>
+      <div class="stack">
+        <div class="card"><span class="tag mono">重要</span><h3>ノート名は耳標番号</h3><p><code>1234号</code> のように短く。<mark>短いほどリンクを張るのが億劫でなくなります。</mark></p></div>
+        <div class="card"><span class="tag mono">重要</span><h3><code>状態:</code> を必ず入れる</h3><p>肥育中／出荷済／死亡。この1項目があるだけで「今いる牛だけ」の一覧が作れます（19枚目）。</p></div>
+        <div class="callout tip"><p class="ct">出荷したら</p><p>ノートを消さないこと。<b>状態を「出荷済」に変えるだけ。</b> 過去の判断と結果の組が、次の導入の材料になります。</p></div>
+      </div>
+    </div>
+    <p class="foot">全頭ぶん一度に作る必要はありません。<b>気になった牛から1枚ずつ。</b></p>
+  </section>
+
+  <!-- 14 -->
+  <section class="slide" data-title="雛形③ 投薬・診療">
+    <p class="eyebrow"><span>第2章</span><s>雛形 3 / 3</s></p>
+    <h2>雛形③ 投薬・診療 — 休薬を落とさないために</h2>
+    <div class="cols c-side-w">
+      <pre><span class="fm">---
+日付:
+対象牛:
+獣医:
+症状:
+薬剤:
+用量:
+休薬期間:
+<span class="g">出荷可能日:</span>          <span class="c">← ここを必ず埋める</span>
+---</span>
+
+<span class="h"># 投薬 {{date}}</span>
+
+<span class="h">## 所見</span>
+<span class="c">（体温、呼吸、飼料摂取量、獣医の言葉をそのまま）</span>
+
+<span class="h">## 処置</span>
+-
+
+<span class="h">## 経過</span>
+- <span class="l">[[2026-09-03]]</span> 体温 / 食い込み
+- <span class="l">[[2026-09-05]]</span>
+
+<span class="h">## 関連</span>
+対象: <span class="l">[[1234号]]</span> ／ <span class="l">[[◯◯獣医師]]</span></pre>
+      <div class="stack">
+        <div class="callout warn"><p class="ct">この雛形の目的はひとつ</p><p><b>休薬期間の終わる日を、投薬した瞬間に日付で書き切ること。</b>「7日間」と書くのではなく「出荷可能日 2026-09-14」と書く。数えるのは後の自分ではなく、今の自分の仕事です。</p></div>
+        <div class="card"><span class="tag mono">効く</span><h3>牛のノートにも1行残す</h3><p>個体ノートの「記録」に <span class="wl mono">[[投薬 2026-09-02]]</span> と書いておけば、牛から診療へ、診療から牛へ、どちらからも辿れます。</p></div>
+        <div class="card"><span class="tag mono">効く</span><h3>獣医の言葉は要約しない</h3><p>言われたまま書く。<mark>意味が分かるのは、半年後に同じ症状が出たときです。</mark></p></div>
+      </div>
+    </div>
+    <p class="foot">出荷前の確認は「出荷可能日」で検索するだけ。<b>記録の形を決めておくと、確認が作業ではなく一瞬になります。</b></p>
+  </section>
+
+  <!-- 15 -->
+  <section class="slide" data-title="プロパティ">
+    <p class="eyebrow"><span>第2章</span><s>毎日ふれる</s></p>
+    <h2>先頭の <code>---</code> で挟んだ部分（プロパティ）の使いどころ</h2>
+    <p class="lede">ここに書いた項目は、Obsidianが<mark>「項目名と値」として扱ってくれます</mark>。ただの文章と違い、後から絞り込み・並べ替えの材料になる。だから、後で数えたいものだけをここに入れます。</p>
+    <div class="cols c3">
+      <div class="card"><span class="tag mono">日付として</span><h3><code>導入日: 2026-04-18</code></h3><p>この形で書くと日付と認識され、古い順に並べられます。<mark>スラッシュではなくハイフン</mark>で。</p></div>
+      <div class="card"><span class="tag mono">数値として</span><h3><code>導入体重: 285</code></h3><p>「285kg」と書くと文字になります。単位は項目名のほうへ（<code>導入体重kg:</code>）。</p></div>
+      <div class="card"><span class="tag mono">選択肢として</span><h3><code>状態: 肥育中</code></h3><p>言葉を毎回ゆらさないこと。「肥育中」と「肥育」が混ざると数えられません。</p></div>
+    </div>
+    <div class="cols c2">
+      <div class="callout tip"><p class="ct">迷ったら</p><p>プロパティは<b>後から足せます</b>。最初は <code>耳標番号</code>・<code>導入日</code>・<code>状態</code> の3つだけで始めて構いません。</p></div>
+      <div class="callout warn"><p class="ct">やりがちな失敗</p><p>項目を20個作って、埋めるのが苦痛になり、書かなくなる。<b>埋まらない項目は、要らない項目です。</b></p></div>
+    </div>
+    <p class="foot">プロパティは全ノート共通の背骨。<b>ここが揃っている牛だけが、後で一覧に出てきます。</b></p>
+  </section>
+
+  <!-- 16 -->
+  <section class="slide chapter" data-title="第3章 探す・集める">
+    <p class="eyebrow">CHAPTER 3</p>
+    <div class="cn mono">03</div>
+    <h2>探す・集める — 書いたものを取り出す</h2>
+    <p class="lede">記録は取り出せて初めて資産になります。この章の3枚が、Obsidianを「置き場」から「道具」に変えます。</p>
+    <div class="cl"><span class="chip">17 検索の書き方</span><span class="chip">18 タグとリンクの使い分け</span><span class="chip">19 一覧を自動で作る</span></div>
+  </section>
+
+  <!-- 17 -->
+  <section class="slide" data-title="検索の書き方">
+    <p class="eyebrow"><span>第3章</span><s>探す・集める</s></p>
+    <h2>検索は、書き方を8つ知るだけで別物になる</h2>
+    <p class="lede"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> の欄に、こう打ちます。</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>打つもの</th><th>意味</th><th>使う場面</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">鼻汁</td><td>この語を含むノート全部</td><td>とりあえず全部見たい</td></tr>
+          <tr><td class="mono">"食い込み 落ち"</td><td>この並びちょうどで一致</td><td>言い回しを覚えている時</td></tr>
+          <tr class="hi"><td class="mono">path:30_衛生 鼻汁</td><td>衛生フォルダの中だけ</td><td><b>雑音を消したい時</b></td></tr>
+          <tr><td class="mono">file:2026-08</td><td>ファイル名で探す</td><td>8月の日誌をまとめて</td></tr>
+          <tr><td class="mono">tag:#要観察</td><td>そのタグが付いたもの</td><td>状態で拾う</td></tr>
+          <tr><td class="mono">鼻汁 -削蹄</td><td>後ろの語を含むものを除く</td><td>邪魔なノートを外す</td></tr>
+          <tr class="hi"><td class="mono">line:(鼻汁 抗生)</td><td><b>同じ一行に両方ある</b></td><td>関係のある記述だけに絞る</td></tr>
+          <tr><td class="mono">task-todo:""</td><td>未完了のチェック項目</td><td>やり残しの棚卸し</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout tip"><p class="ct">組み合わせられます</p><p><code class="mono">path:00_日誌 line:(暑 食い込み)</code> — 日誌の中で、暑さと食い込みを同じ行に書いた日。<b>これが去年の夏の記録です。</b></p></div>
+    <p class="foot">検索窓の左の <b>「≡」から並び順や表示件数</b> を変えられます。<b>結果はそのまま次の枚で「貼り付け」られます。</b></p>
+  </section>
+
+  <!-- 18 -->
+  <section class="slide" data-title="タグとリンクの使い分け">
+    <p class="eyebrow"><span>第3章</span><s>探す・集める</s></p>
+    <h2>タグとリンク、どちらを使うか</h2>
+    <p class="lede">両方あるので迷います。基準はひとつ。<mark>「それ自体についてノートを書きたいか」</mark>——書きたいならリンク、書きたくないならタグです。</p>
+    <div class="cols c2">
+      <div class="slab glassy">
+        <h3 style="font-size:16px;margin-bottom:6px;"><span class="wl mono">[[ ]]</span> リンク ＝ 実体があるもの</h3>
+        <p style="color:var(--ink-2)">牛、人、飼料、市場、日付、計画。<br><b>それ自身のノートを持てるもの。</b></p>
+        <p style="color:var(--ink-2);margin-top:8px;"><span class="wl mono">[[1234号]]</span> <span class="wl mono">[[◯◯獣医師]]</span> <span class="wl mono">[[配合B]]</span> <span class="wl mono">[[◯◯家畜市場]]</span></p>
+      </div>
+      <div class="slab accent">
+        <h3 style="font-size:16px;margin-bottom:6px;"><code>#</code> タグ ＝ 状態・ラベル</h3>
+        <p style="color:var(--ink-2)">今どうなっているか、後で何をするか。<br><b>ノートを書くほどの中身は無いもの。</b></p>
+        <p style="color:var(--ink-2);margin-top:8px;"><code>#要観察</code> <code>#出荷待ち</code> <code>#要確認</code> <code>#来年やる</code></p>
+      </div>
+    </div>
+    <div class="cols c2">
+      <div class="callout"><p class="ct">運用のコツ</p><p>タグは<b>5個まで</b>に絞る。増えると、どれを付けたか思い出せなくなり、結局検索することになります。</p></div>
+      <div class="callout tip"><p class="ct">相性のいい使い方</p><p><code>#要観察</code> を付けた牛を毎朝ひとつの画面に出す。<b>直ったらタグを消す。</b> タグは、消すために付けるもの。</p></div>
+    </div>
+    <p class="foot">迷ったらリンクで構いません。<b>リンクは、書いた瞬間から相互に辿れます。</b></p>
+  </section>
+
+  <!-- 19 -->
+  <section class="slide" data-title="一覧を自動で作る">
+    <p class="eyebrow"><span>第3章</span><s>探す・集める</s></p>
+    <h2>「今いる牛の一覧」を、手で作らない</h2>
+    <div class="cols c2">
+      <div class="stack">
+        <div class="card"><span class="tag mono">方法A・追加不要</span><h3>検索結果をノートに埋め込む</h3><p>ノートの中にこう書くと、その場所に<mark>検索結果が常に最新の状態で表示されます</mark>。</p></div>
+        <pre>```query
+tag:#要観察 -path:"90_覚書"
+```</pre>
+        <p style="color:var(--ink-2);font-size:13px;">「観察中の牛」という名前のノートを1枚作り、これを貼っておくだけ。毎朝そこを開けば、今の状況が並びます。</p>
+      </div>
+      <div class="stack">
+        <div class="card"><span class="tag mono">方法B・プラグイン必要</span><h3>Dataview で表にする</h3><p>プロパティを集計して、<mark>表として並べられます</mark>。エクセルの代わりではなく、ノートから自動で作られる名簿です。</p></div>
+        <pre>```dataview
+TABLE 導入日, 導入体重, 出荷予定
+FROM "10_個体"
+WHERE 状態 = "肥育中"
+SORT 導入日 ASC
+```</pre>
+        <p style="color:var(--ink-2);font-size:13px;">牛のノートを1枚足すたび、この表に勝手に行が増えます。<b>名簿を更新する作業が消えます。</b></p>
+      </div>
+    </div>
+    <div class="callout tip"><p class="ct">先に方法A</p><p>Dataviewは強力ですが覚えることが増えます。<b>まず ```query から。</b> これだけで、日々の確認はかなり楽になります。</p></div>
+    <p class="foot">15枚目の「プロパティを揃える」が効いてくるのがここ。<b>揃っていないノートは、この表に出てきません。</b></p>
+  </section>
+
+  <!-- 20 -->
+  <section class="slide chapter" data-title="第4章 広げる">
+    <p class="eyebrow">CHAPTER 4</p>
+    <div class="cn mono">04</div>
+    <h2>広げる — 必要になってから</h2>
+    <p class="lede">この章は、2ヶ月続いてから読む場所です。先に手を出すと、道具いじりで終わります。</p>
+    <div class="cl"><span class="chip">21 入れる価値のある拡張5つ</span><span class="chip">22 スマホと写真</span><span class="chip">23 Canvasで考える</span></div>
+  </section>
+
+  <!-- 21 -->
+  <section class="slide" data-title="拡張5つ">
+    <p class="eyebrow"><span>第4章</span><s>広げる</s></p>
+    <h2>入れる価値のある拡張、5つだけ</h2>
+    <p class="lede">設定 → コミュニティプラグイン →「制限モード」を解除して、名前で検索して入れます。<mark>順番も大事です。</mark>上から必要になった順。</p>
+    <div class="cols c-side">
+      <div class="stack">
+        <div class="big"><span class="num">1</span><div><h3>Calendar</h3><p>カレンダーから日誌へ飛べる。「先月の20日ごろ何があったか」を探す動きが、格段に速くなります。</p></div></div>
+        <div class="big"><span class="num">2</span><div><h3>Advanced Tables</h3><p>体重表など、Markdownの表を書くのが楽になる。表を書く気があるなら必須です。</p></div></div>
+        <div class="big"><span class="num">3</span><div><h3>Dataview</h3><p>19枚目の表。牛が30頭を超えたあたりから効いてきます。</p></div></div>
+        <div class="big"><span class="num">4</span><div><h3>Templater</h3><p>雛形を強化。「出荷可能日 ＝ 今日＋7日」のような<mark>計算を雛形に埋め込めます</mark>。</p></div></div>
+        <div class="big"><span class="num">5</span><div><h3>Excalidraw</h3><p>手描きの図。牛舎の配置図、牛房ごとの頭数を絵で残したい時に。</p></div></div>
+      </div>
+      <div class="stack">
+        <div class="callout warn"><p class="ct">拡張の前に</p><p>拡張は他人が作ったものです。<b>入れすぎると、動かなくなった時に原因が分からなくなります。</b> 1つ入れたら1週間使ってみて、要らなければ消す。</p></div>
+        <div class="callout"><p class="ct">最初の3ヶ月</p><p><b>ゼロで構いません。</b> 標準機能だけで日誌と個体ノートは回ります。物足りなさを感じてから、上から順に。</p></div>
+      </div>
+    </div>
+    <p class="foot">プラグインを探している時間は、記録が増えない時間です。<b>不便を感じた時だけ、探しに行く。</b></p>
+  </section>
+
+  <!-- 22 -->
+  <section class="slide" data-title="スマホと写真">
+    <p class="eyebrow"><span>第4章</span><s>広げる</s></p>
+    <h2>牛舎で入力する — スマホと写真の運用</h2>
+    <div class="cols c3">
+      <div class="card"><span class="tag mono">入力</span><h3>音声で放り込む</h3><p>手が汚れている時は、スマホの音声入力で日誌に直接しゃべる。<mark>変換ミスは夜に直せばいい。</mark></p></div>
+      <div class="card"><span class="tag mono">写真</span><h3>撮ってその場で貼る</h3><p>ノートに写真を貼ると <code>99_添付</code> に自動で保存されます。皮膚の状態、糞、飼料の残り。</p></div>
+      <div class="card"><span class="tag mono">書類</span><h3>請求書・成績表はPDFで</h3><p>スマホで撮ってPDFにし、ノートにドラッグ。<mark>紙とノートが同じ場所に集まります。</mark></p></div>
+    </div>
+    <div class="cols c2">
+      <div class="slab accent">
+        <h3 style="font-size:15px;margin-bottom:6px;">写真の名前の付け方</h3>
+        <p style="color:var(--ink-2)"><code class="mono">2026-09-07_1234号_左後肢.jpg</code><br>日付・対象・部位。<b>後で検索できる名前にしておくと、あとで効きます。</b></p>
+      </div>
+      <div class="callout tip"><p class="ct">現実的な使い分け</p><p>スマホは<b>放り込む専用</b>。整えるのはパソコンで。この分担にすると、牛舎で立ち止まる時間がゼロになります。</p></div>
+    </div>
+    <p class="foot">枝肉成績表を撮って貼っておくと、格付の議論が具体的になります。<b>数字より、現物の写真が語ることがあります。</b></p>
+  </section>
+
+  <!-- 23 -->
+  <section class="slide" data-title="Canvasで考える">
+    <p class="eyebrow"><span>第4章</span><s>広げる</s></p>
+    <h2>Canvas — 文章にならない考えを置く場所</h2>
+    <p class="lede">標準機能のひとつ。<mark>無限に広い白紙</mark>に、ノートや付箋や画像を置いて線でつなげます。文章にする前の、頭の中の配置をそのまま置ける場所です。</p>
+    <div class="cols c3">
+      <div class="card"><span class="tag mono">使い道</span><h3>出荷計画の並べ替え</h3><p>牛のノートを月ごとに並べ、相場の見立てと突き合わせる。動かしながら考える。</p></div>
+      <div class="card"><span class="tag mono">使い道</span><h3>牛舎と牛房の配置</h3><p>どの房に何頭、どの群がどこ。図として持っておくと、人に説明するのも早い。</p></div>
+      <div class="card"><span class="tag mono">使い道</span><h3>資金と時期の見取り図</h3><p>導入・飼料・出荷の山と谷を並べる。<mark>表より、位置関係のほうが分かる場面があります。</mark></p></div>
+    </div>
+    <div class="slab glassy"><p><b>作り方は簡単です。</b> <kbd>Ctrl</kbd>+<kbd>P</kbd> →「新規キャンバスを作成」。あとは右クリックでカードを置き、既存のノートをドラッグで放り込むだけ。<mark>置いたノートは本物なので、キャンバス上で中身を読めます。</mark></p></div>
+    <p class="foot">使わなくても困りません。<b>ただ、考えが行き詰まった時にここを開くと、進むことがあります。</b></p>
+  </section>
+
+  <!-- 24 -->
+  <section class="slide chapter" data-title="第5章 続ける">
+    <p class="eyebrow">CHAPTER 5</p>
+    <div class="cn mono">05</div>
+    <h2>続ける — 3年使うために</h2>
+    <p class="lede">道具の勝負は、機能ではなく続くかどうかで決まります。最後の3枚は、そのための型と保険です。</p>
+    <div class="cl"><span class="chip">25 週15分の見直し</span><span class="chip">26 困った時の対処</span><span class="chip">27 やらないことリスト</span></div>
+  </section>
+
+  <!-- 25 -->
+  <section class="slide" data-title="週15分の見直し">
+    <p class="eyebrow"><span>第5章</span><s>続ける</s></p>
+    <h2>日曜の15分、この5つだけ</h2>
+    <div class="cols c-side">
+      <div class="stack">
+        <div class="big"><span class="num">1</span><div><h3>今週の日誌を7枚ざっと読む（5分）</h3><p>読むだけ。直さない。</p></div></div>
+        <div class="big"><span class="num">2</span><div><h3>牛の番号をリンクにする（3分）</h3><p>書きっぱなしの「1234号」を <span class="wl mono">[[ ]]</span> で囲む。<mark>ここが一週間で最も価値のある3分です。</mark></p></div></div>
+        <div class="big"><span class="num">3</span><div><h3>未完了を拾う（2分）</h3><p><code class="mono">task-todo:""</code> で検索。今週やらないものは消す。</p></div></div>
+        <div class="big"><span class="num">4</span><div><h3><code>#要観察</code> を見る（3分）</h3><p>直った牛のタグを外す。増えっぱなしにしない。</p></div></div>
+        <div class="big"><span class="num">5</span><div><h3>気づきを1枚のノートに移す（2分）</h3><p>日誌に書いた発見を、飼料や個体のノートへ。<mark>日誌は流れ、ノートは残る。</mark></p></div></div>
+      </div>
+      <div class="stack">
+        <div class="callout tip"><p class="ct">これが本番</p><p>書くことより、この15分がObsidianの価値を決めます。<b>読み返されないノートは、無いのと同じ。</b></p></div>
+        <div class="slab accent"><p><b style="color:var(--straw)">月に1回は、Vaultフォルダを丸ごと外付けにコピー。</b> 見直しのついでに。1年分でも、写真を除けば驚くほど小さいはずです。</p></div>
+      </div>
+    </div>
+    <p class="foot">15分が取れない週は、2番だけやってください。<b>リンクさえ張ってあれば、記録は後から掘り起こせます。</b></p>
+  </section>
+
+  <!-- 26 -->
+  <section class="slide" data-title="困った時の対処">
+    <p class="eyebrow"><span>第5章</span><s>続ける</s></p>
+    <h2>困った時、だいたいこの5つ</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>症状</th><th>原因</th><th>対処</th></tr></thead>
+        <tbody>
+          <tr><th>同じノートが2つに増えた</th><td>スマホとPCで同時に書いた（同期の衝突）</td><td>両方開いて、新しいほうに手で寄せて片方を消す。<b>片方を閉じてから書く癖をつける</b></td></tr>
+          <tr class="hi"><th>ノートを消してしまった</th><td>—</td><td><b>設定→ファイルの復元</b>で戻す。またはOSのゴミ箱、同期サービスの履歴</td></tr>
+          <tr><th>リンクが切れた（薄い色のまま）</th><td>ノート名が違う／まだ作っていない</td><td>クリックすればその名前で作られる。名前の揺れ（1234号／1234）を統一する</td></tr>
+          <tr><th>動きが重い</th><td>写真が多い／拡張の入れすぎ</td><td>グラフを閉じる。拡張を1つずつ切って原因を探す</td></tr>
+          <tr><th>スマホで開けない</th><td>同期方式が合っていない</td><td>7枚目の表に戻る。<b>公式Syncに切り替えると、ここで悩む時間が消えます</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout warn"><p class="ct">最悪の場合でも</p><p>Obsidianが起動しなくても、<b>ノートはただのテキストファイルとしてフォルダに残っています。</b> メモ帳でも開けます。これがローカルに置いてあることの意味です。</p></div>
+    <p class="foot">困ったら <kbd>Ctrl</kbd>+<kbd>P</kbd>。<b>ほとんどの機能は、名前で呼び出せば見つかります。</b></p>
+  </section>
+
+  <!-- 27 -->
+  <section class="slide" data-title="やらないことリスト">
+    <p class="eyebrow"><span>第5章</span><s>続ける</s></p>
+    <h2>やらないこと、7つ</h2>
+    <div class="cols c2">
+      <ul class="bullets">
+        <li><span class="k mono">×</span><span>人の完成されたVaultを真似する。<mark>その人の仕事の形であって、あなたのではない。</mark></span></li>
+        <li><span class="k mono">×</span><span>最初に分類を作り込む。溜まってから決まる。</span></li>
+        <li><span class="k mono">×</span><span>プラグインを一度に5個入れる。</span></li>
+        <li><span class="k mono">×</span><span>きれいに書こうとする。誤字のまま置く。</span></li>
+      </ul>
+      <ul class="bullets">
+        <li><span class="k mono">×</span><span>Excelでできることを移す。<mark>計算は表計算に任せる。</mark></span></li>
+        <li><span class="k mono">×</span><span>過去の記録を遡って全部入力する。今日から書く。</span></li>
+        <li><span class="k mono">×</span><span>バックアップを後回しにする。<b>これだけは今日。</b></span></li>
+      </ul>
+    </div>
+    <div class="slab accent"><p><b style="color:var(--straw)">続いている人の共通点は、書く量が少ないことです。</b> 毎日1行を3年続けたノートは、月1回の力作を3年続けたノートより、はるかに多くを教えてくれます。日誌は1000枚を超え、そのどこにでも検索で辿り着けるからです。</p></div>
+    <p class="foot">迷ったら、量を減らす。<b>減らして続くほうが、常に勝ちます。</b></p>
+  </section>
+
+  <!-- 28 -->
+  <section class="slide cover" data-title="明日の1手">
+    <p class="eyebrow">まとめ</p>
+    <h1>今日やるのは、<br><em>3つだけ</em>。</h1>
+    <div class="stack" style="max-width:52ch;">
+      <div class="big"><span class="num">1</span><div><h3>同期フォルダの中にVaultを作る</h3><p>失わないための一手。（04枚目）</p></div></div>
+      <div class="big"><span class="num">2</span><div><h3>デイリーノートをONにする</h3><p>入口を1つに決める。（05枚目）</p></div></div>
+      <div class="big"><span class="num">3</span><div><h3>今日の日付のノートに、1行書く</h3><p>「異常なし」でいい。（10枚目）</p></div></div>
+    </div>
+    <p class="sub">テンプレも検索もプラグインも、この3つが続いた人にしか出番が来ません。<mark>明日の朝、もう一度そのノートを開けたら、それでこの28枚は役目を果たしています。</mark></p>
+    <div class="meta mono"><span>雛形は 12–14 枚目</span><span>検索は 17 枚目</span><span>困ったら 26 枚目</span></div>
+  </section>
+
+</main>
+</div>
+
+<nav class="bottombar">
+  <button class="nav" id="prev" aria-label="前のスライド">←</button>
+  <button class="nav" id="next" aria-label="次のスライド">→</button>
+  <div class="rail"><i id="railFill" style="width:4%"></i></div>
+  <div class="count mono"><b id="cur">01</b> / <span id="tot">28</span></div>
+</nav>
+
+<div class="toc" id="toc" hidden>
+  <p class="eyebrow">スライド一覧</p>
+  <h2 class="mincho" style="font-size:26px;">どこからでも開けます</h2>
+  <div class="tocgrid" id="tocgrid"></div>
+</div>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var stage = document.getElementById('stage');
+  var railFill = document.getElementById('railFill');
+  var cur = document.getElementById('cur');
+  var prev = document.getElementById('prev');
+  var next = document.getElementById('next');
+  var toc = document.getElementById('toc');
+  var tocBtn = document.getElementById('tocBtn');
+  var tocgrid = document.getElementById('tocgrid');
+  var i = 0;
+
+  document.getElementById('tot').textContent = String(slides.length).padStart(2,'0');
+
+  slides.forEach(function(s, n){
+    var b = document.createElement('button');
+    b.className = 'tocitem';
+    b.innerHTML = '<em class="mono">' + String(n+1).padStart(2,'0') + '</em><span>' + (s.dataset.title || '') + '</span>';
+    b.addEventListener('click', function(){ go(n); closeToc(); });
+    tocgrid.appendChild(b);
+  });
+  var tocItems = Array.prototype.slice.call(tocgrid.children);
+
+  function go(n){
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach(function(s, k){ s.classList.toggle('is-on', k === i); });
+    tocItems.forEach(function(t, k){ t.setAttribute('aria-current', k === i ? 'true' : 'false'); });
+    cur.textContent = String(i+1).padStart(2,'0');
+    railFill.style.width = ((i+1) / slides.length * 100) + '%';
+    prev.disabled = i === 0;
+    next.disabled = i === slides.length - 1;
+    slides[i].scrollTop = 0;
+  }
+  function closeToc(){ toc.hidden = true; tocBtn.setAttribute('aria-pressed','false'); }
+
+  prev.addEventListener('click', function(){ go(i-1); });
+  next.addEventListener('click', function(){ go(i+1); });
+  tocBtn.addEventListener('click', function(){
+    var open = toc.hidden;
+    toc.hidden = !open;
+    tocBtn.setAttribute('aria-pressed', open ? 'true' : 'false');
+  });
+
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && !toc.hidden){ closeToc(); return; }
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' '){ e.preventDefault(); go(i+1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp'){ e.preventDefault(); go(i-1); }
+    else if (e.key === 'Home'){ go(0); }
+    else if (e.key === 'End'){ go(slides.length-1); }
+  });
+
+  var x0 = null;
+  stage.addEventListener('touchstart', function(e){ x0 = e.changedTouches[0].clientX; }, {passive:true});
+  stage.addEventListener('touchend', function(e){
+    if (x0 === null) return;
+    var dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 55) go(dx < 0 ? i+1 : i-1);
+    x0 = null;
+  }, {passive:true});
+
+  document.getElementById('themeBtn').addEventListener('click', function(){
+    var root = document.documentElement;
+    var isDark = root.getAttribute('data-theme') === 'dark' ||
+      (!root.hasAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    root.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  });
+
+  go(0);
+})();
+</script>
+</body>
+</html>
