@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Obsidianとは何か、何に使えるか、本質は何か。誰でも分かるように17枚のスライドで解説します。">
+<style>
+  :root{color-scheme:light dark;}
+  body{margin:0;font:14px system-ui,sans-serif;background:#E8E6EC;}
+  img{max-width:100%;}
+  [hidden]{display:none!important;}
+</style>
+<title>Obsidianの正体</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@400;600;900&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap">
+</head>
+<body>
+<style>
+:root{
+  --ground:#E8E6EC;
+  --surface:#F6F4F9;
+  --surface-2:#DDD9E6;
+  --ink:#191527;
+  --ink-2:#4C4560;
+  --ink-3:#7C7492;
+  --line:#CCC6DA;
+  --line-2:#B7AFC9;
+  --straw:#96620F;
+  --straw-fill:#F0DDB4;
+  --glass:#584AA3;
+  --glass-fill:#DCD5F2;
+  --good:#2F6B4F;
+  --warn:#8E4A17;
+  --shadow:0 1px 0 rgba(25,21,39,.06), 0 18px 40px -28px rgba(25,21,39,.5);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#131020;
+    --surface:#1C1730;
+    --surface-2:#272040;
+    --ink:#EFEBF8;
+    --ink-2:#BAB3CF;
+    --ink-3:#8B83A5;
+    --line:#332B4E;
+    --line-2:#463C66;
+    --straw:#E6AC4E;
+    --straw-fill:#42300F;
+    --glass:#A895F2;
+    --glass-fill:#2C2452;
+    --good:#79C4A0;
+    --warn:#E39A5E;
+    --shadow:0 1px 0 rgba(0,0,0,.4), 0 24px 50px -30px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#131020;
+  --surface:#1C1730;
+  --surface-2:#272040;
+  --ink:#EFEBF8;
+  --ink-2:#BAB3CF;
+  --ink-3:#8B83A5;
+  --line:#332B4E;
+  --line-2:#463C66;
+  --straw:#E6AC4E;
+  --straw-fill:#42300F;
+  --glass:#A895F2;
+  --glass-fill:#2C2452;
+  --good:#79C4A0;
+  --warn:#E39A5E;
+  --shadow:0 1px 0 rgba(0,0,0,.4), 0 24px 50px -30px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box;}
+body{
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  font-size:16px;
+  line-height:1.75;
+  min-height:100dvh;
+  display:flex;
+  flex-direction:column;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:"Zen Old Mincho","Hiragino Mincho ProN","Yu Mincho",serif;font-weight:600;margin:0;text-wrap:balance;line-height:1.3;}
+p{margin:0;}
+ul{margin:0;padding:0;list-style:none;}
+.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums;}
+
+/* ---------- 画面まわり ---------- */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:12px clamp(14px,3vw,30px);
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:10px;min-width:0;}
+.shard{width:20px;height:24px;flex:none;}
+.brand b{font-family:"Zen Old Mincho",serif;font-weight:600;font-size:15px;letter-spacing:.04em;white-space:nowrap;}
+.brand span{color:var(--ink-3);font-size:12px;letter-spacing:.09em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tools{display:flex;align-items:center;gap:8px;flex:none;}
+button{font-family:inherit;color:inherit;cursor:pointer;}
+.btn{
+  background:var(--surface);border:1px solid var(--line-2);border-radius:6px;
+  padding:6px 12px;font-size:12.5px;letter-spacing:.06em;line-height:1.6;
+  transition:background .15s ease,border-color .15s ease;
+}
+.btn:hover{background:var(--surface-2);}
+.btn:focus-visible,.nav:focus-visible,.tocitem:focus-visible{outline:2px solid var(--glass);outline-offset:2px;}
+.btn[aria-pressed="true"]{background:var(--glass-fill);border-color:var(--glass);color:var(--ink);}
+
+.stagewrap{flex:1;display:flex;align-items:center;justify-content:center;padding:clamp(12px,2.4vw,26px);min-height:0;}
+.stage{
+  position:relative;width:min(1140px,100%);aspect-ratio:16/9;max-height:100%;
+  background:var(--surface);border:1px solid var(--line);border-radius:3px;box-shadow:var(--shadow);
+  display:flex;overflow:hidden;
+}
+.slide{display:none;flex-direction:column;gap:clamp(12px,1.8vh,22px);width:100%;
+  padding:clamp(20px,3.4vw,46px) clamp(22px,4vw,58px);overflow-y:auto;overscroll-behavior:contain;}
+.slide.is-on{display:flex;}
+.eyebrow{font-size:11.5px;letter-spacing:.22em;color:var(--straw);text-transform:uppercase;}
+.slide h2{font-size:clamp(23px,2.7vw,38px);}
+.lede{color:var(--ink-2);font-size:clamp(14px,1.16vw,17px);max-width:62ch;}
+.slide :where(p,li){font-size:clamp(13.5px,1.08vw,16px);}
+mark{background:var(--straw-fill);color:var(--ink);padding:0 .18em;border-radius:2px;}
+.wl{color:var(--glass);font-weight:500;}
+.foot{margin-top:auto;padding-top:8px;border-top:1px solid var(--line);color:var(--ink-3);font-size:clamp(12px,.94vw,13.5px);}
+.foot b{color:var(--straw);font-weight:700;}
+
+/* ---------- 下部ナビ ---------- */
+.bottombar{display:flex;align-items:center;gap:14px;padding:0 clamp(14px,3vw,30px) 14px;}
+.rail{flex:1;height:2px;background:var(--line);position:relative;}
+.rail i{position:absolute;inset:0 auto 0 0;background:var(--straw);transition:width .3s cubic-bezier(.4,0,.2,1);}
+.nav{background:none;border:1px solid var(--line-2);border-radius:50%;width:32px;height:32px;line-height:1;font-size:14px;color:var(--ink-2);}
+.nav:hover:not(:disabled){background:var(--surface-2);color:var(--ink);}
+.nav:disabled{opacity:.35;cursor:default;}
+.count{font-size:12.5px;color:var(--ink-3);letter-spacing:.1em;}
+.count b{color:var(--ink);font-weight:700;}
+
+/* ---------- 一覧 ---------- */
+.toc{position:fixed;inset:0;background:var(--ground);z-index:20;overflow-y:auto;padding:clamp(18px,4vw,44px);}
+.tocgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:10px;max-width:1140px;margin:16px auto 0;}
+.tocitem{display:flex;gap:11px;align-items:baseline;text-align:left;background:var(--surface);
+  border:1px solid var(--line);border-left:2px solid var(--line-2);border-radius:0;padding:11px 13px;font-size:13.5px;}
+.tocitem:hover{border-left-color:var(--straw);background:var(--surface-2);}
+.tocitem[aria-current="true"]{border-left-color:var(--straw);background:var(--straw-fill);}
+.tocitem em{font-style:normal;color:var(--ink-3);font-size:11.5px;flex:none;}
+
+/* ---------- 部品 ---------- */
+.cols{display:grid;gap:clamp(10px,1.3vw,20px);}
+.c2{grid-template-columns:1fr 1fr;}
+.c3{grid-template-columns:repeat(3,1fr);}
+.c5{grid-template-columns:repeat(5,1fr);}
+.c-side{grid-template-columns:1.05fr .95fr;align-items:start;}
+.stack{display:flex;flex-direction:column;gap:clamp(8px,1.1vh,14px);}
+
+.card{background:var(--ground);border:1px solid var(--line);padding:clamp(11px,1.2vw,17px);display:flex;flex-direction:column;gap:6px;}
+.card h3{font-size:clamp(14px,1.15vw,17px);}
+.card p{color:var(--ink-2);font-size:clamp(12.5px,.98vw,14.5px);line-height:1.65;}
+.card .tag{font-size:11px;letter-spacing:.16em;color:var(--straw);}
+
+.big{display:flex;gap:14px;align-items:flex-start;}
+.big .num{font-size:clamp(20px,2vw,30px);color:var(--straw);line-height:1.1;flex:none;padding-top:2px;}
+.big h3{font-size:clamp(15px,1.3vw,19px);margin-bottom:3px;}
+.big p{color:var(--ink-2);font-size:clamp(12.5px,1vw,15px);}
+
+.bullets li{display:flex;gap:11px;align-items:baseline;padding:5px 0;border-bottom:1px dotted var(--line);}
+.bullets li:last-child{border-bottom:0;}
+.bullets .k{color:var(--straw);flex:none;font-size:11.5px;letter-spacing:.1em;padding-top:2px;}
+
+.slab{background:var(--ground);border:1px solid var(--line);padding:clamp(12px,1.4vw,20px);}
+.slab.accent{border-left:3px solid var(--straw);}
+.slab.glassy{border-left:3px solid var(--glass);}
+
+pre{margin:0;background:var(--ground);border:1px solid var(--line);padding:clamp(11px,1.2vw,17px);
+  overflow-x:auto;font-family:"JetBrains Mono",ui-monospace,monospace;
+  font-size:clamp(10.5px,.82vw,12.5px);line-height:1.72;color:var(--ink-2);}
+pre .fm{color:var(--ink-3);}
+pre .h{color:var(--ink);font-weight:700;}
+pre .l{color:var(--glass);}
+pre .c{color:var(--straw);}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--line);background:var(--ground);}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:clamp(11.5px,.92vw,13.5px);}
+th,td{padding:8px 11px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;}
+thead th{background:var(--surface-2);font-size:11px;letter-spacing:.1em;color:var(--ink-2);font-weight:500;white-space:nowrap;}
+tbody th{font-weight:700;white-space:nowrap;}
+tr.hi td,tr.hi th{background:var(--straw-fill);}
+tr:last-child td,tr:last-child th{border-bottom:0;}
+
+.pill{display:inline-block;font-size:11px;letter-spacing:.1em;padding:1px 8px;border:1px solid var(--line-2);border-radius:999px;color:var(--ink-2);}
+.pill.on{border-color:var(--straw);color:var(--straw);}
+
+/* 図: フォルダ */
+.filerow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.filebox{background:var(--surface);border:1px solid var(--line-2);padding:7px 11px;font-size:12px;}
+.arrow{color:var(--ink-3);font-size:16px;}
+
+/* タイトル */
+.cover{justify-content:center;gap:clamp(14px,2vh,26px);position:relative;}
+.cover h1{font-size:clamp(34px,5.6vw,76px);font-weight:900;letter-spacing:.01em;line-height:1.14;}
+.cover h1 em{font-style:normal;color:var(--straw);}
+.cover .sub{font-size:clamp(13px,1.2vw,17px);color:var(--ink-2);max-width:46ch;}
+.covershard{position:absolute;right:clamp(-40px,-2vw,0px);bottom:-6%;width:min(38%,340px);opacity:.85;pointer-events:none;}
+.meta{display:flex;gap:18px;flex-wrap:wrap;font-size:11.5px;letter-spacing:.14em;color:var(--ink-3);}
+
+.graph{width:100%;height:auto;}
+.gline{stroke:var(--line-2);stroke-width:1.4;}
+.gline.act{stroke:var(--glass);stroke-width:1.8;stroke-dasharray:4 4;animation:flow 2.6s linear infinite;}
+@keyframes flow{to{stroke-dashoffset:-16;}}
+.gnode{fill:var(--surface);stroke:var(--line-2);stroke-width:1.4;}
+.gnode.hub{fill:var(--straw-fill);stroke:var(--straw);}
+.glabel{fill:var(--ink-2);font-size:11px;font-family:"Zen Kaku Gothic New",sans-serif;}
+.glabel.hub{fill:var(--ink);font-weight:700;}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;}}
+
+@media (max-width:880px){
+  .stage{aspect-ratio:auto;height:auto;min-height:min(74dvh,560px);max-height:none;}
+  .stagewrap{align-items:stretch;}
+  .c2,.c3,.c5,.c-side{grid-template-columns:1fr;}
+  .covershard{display:none;}
+  .brand span{display:none;}
+}
+</style>
+
+<header class="topbar">
+  <div class="brand">
+    <svg class="shard" viewBox="0 0 20 24" aria-hidden="true">
+      <polygon points="10,0 20,8 15,24 4,22 0,7" fill="var(--ink)"></polygon>
+      <polygon points="10,0 20,8 12,11" fill="var(--glass)"></polygon>
+      <polygon points="0,7 10,0 12,11" fill="var(--ink-2)"></polygon>
+    </svg>
+    <b>Obsidianの正体</b>
+    <span>使っているのに、よく分かっていない人のための17枚</span>
+  </div>
+  <div class="tools">
+    <button class="btn" id="tocBtn" aria-pressed="false">一覧</button>
+    <button class="btn" id="themeBtn" title="表示テーマを切り替え">◐</button>
+  </div>
+</header>
+
+<div class="stagewrap">
+<main class="stage" id="stage" tabindex="0" aria-label="スライド">
+
+  <!-- 1 -->
+  <section class="slide cover is-on" data-title="表紙">
+    <p class="eyebrow">誰でも分かる Obsidian 入門</p>
+    <h1>ノートアプリ、<br>ではなく<em>自分の外付けの記憶</em>。</h1>
+    <p class="sub">Obsidian（オブシディアン）は、黒曜石という意味の名前を持つメモの道具です。使っている人ほど「で、これは結局なんなのか」を説明できない。その正体を、はじめから順に。</p>
+    <div class="meta mono"><span>17 SLIDES</span><span>← → で移動</span><span>牛の肥育経営の例つき</span></div>
+    <svg class="covershard" viewBox="0 0 300 260" aria-hidden="true">
+      <polygon points="150,10 285,80 250,230 95,250 15,120" fill="var(--ink)"></polygon>
+      <polygon points="150,10 285,80 175,115" fill="var(--glass)"></polygon>
+      <polygon points="15,120 150,10 175,115" fill="var(--ink-2)"></polygon>
+      <polygon points="175,115 250,230 95,250" fill="var(--ink)" opacity=".55"></polygon>
+      <polygon points="15,120 175,115 95,250" fill="var(--ink-2)" opacity=".45"></polygon>
+    </svg>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-title="結論を3行で">
+    <p class="eyebrow">結論をさきに</p>
+    <h2>3行でいうと、こうです</h2>
+    <div class="stack">
+      <div class="big"><span class="num mono">1</span><div><h3>正体は「自分のパソコンの中にある、テキストファイルの束」</h3><p>特殊な保存形式ではありません。フォルダを開けば、ファイルがそのまま並んでいます。</p></div></div>
+      <div class="big"><span class="num mono">2</span><div><h3>役割は「それを書き、探し、<mark>ノート同士を線でつなぐ</mark>」ための道具</h3><p>書く機能そのものより、つなぐ機能のほうが主役です。</p></div></div>
+      <div class="big"><span class="num mono">3</span><div><h3>本質は「保存する」ではなく「<mark>思い出せるようにする</mark>」</h3><p>記録を貯める道具は世に山ほどあります。Obsidianが違うのは、貯めた先の話をしている点です。</p></div></div>
+    </div>
+    <p class="foot">この3行が腑に落ちれば、あとは全部おまけです。<b>以降のスライドは、この3行の説明。</b></p>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-title="正体：ただのフォルダ">
+    <p class="eyebrow">どんなものか ①</p>
+    <h2>Vault（保管庫）とは、ただのフォルダです</h2>
+    <p class="lede">Obsidianを始めると最初に「Vaultを作る」と言われます。難しそうな言葉ですが、実体はパソコンの中の<mark>ふつうのフォルダを1つ選ぶ</mark>だけ。その中に、ノート1枚につきファイル1つが増えていきます。</p>
+    <div class="cols c-side">
+      <div class="slab">
+        <div class="filerow">
+          <span class="filebox mono">牛舎ノート/</span><span class="arrow">→</span>
+          <span class="filebox mono">1234号.md</span>
+          <span class="filebox mono">2026-09-05.md</span>
+          <span class="filebox mono">配合B.md</span>
+        </div>
+        <p style="margin-top:12px;color:var(--ink-2);">Obsidianは、このフォルダを開いて見せているだけの「窓」。ノートを持っているのはアプリではなく、<mark>あなたのパソコン</mark>です。</p>
+      </div>
+      <div class="stack">
+        <div class="card"><span class="tag mono">だから</span><h3>アプリを消しても、ノートは消えない</h3><p>メモ帳でも、スマホでも、10年後の別のソフトでも開けます。中身はただの文字だからです。</p></div>
+        <div class="card"><span class="tag mono">だから</span><h3>会社のサーバーに預けていない</h3><p>ネットがなくても書けて、読めます。同期は「したい人が、自分で選んで足す」もの。</p></div>
+      </div>
+    </div>
+    <p class="foot"><b>覚える言葉はひとつ。</b> Vault ＝ ノートを入れておくフォルダ。</p>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-title="Markdownとは">
+    <p class="eyebrow">どんなものか ②</p>
+    <h2>Markdown ＝ 記号で書式をつくる書き方</h2>
+    <p class="lede">Wordのようにボタンで太字にするのではなく、記号を打つと見た目が整う。だから中身は最後まで<mark>ただの文字</mark>のままでいられます。覚えるのは実質この4つだけ。</p>
+    <div class="cols c2">
+      <pre><span class="h"># 見出し</span>
+<span class="h">## 小見出し</span>
+
+- 箇条書き
+- もうひとつ
+
+**太字にしたい所**
+
+<span class="l">[[別のノートの名前]]</span></pre>
+      <div class="stack">
+        <ul class="bullets">
+          <li><span class="k mono">#</span><span>行の頭に付けると見出し。数が増えるほど小さい見出し。</span></li>
+          <li><span class="k mono">-</span><span>箇条書き。<code class="mono">- [ ]</code> と書けばチェックボックスになります。</span></li>
+          <li><span class="k mono">**</span><span>前後を挟んで太字。</span></li>
+          <li><span class="k mono">[[ ]]</span><span>これが主役。次のスライドで詳しく。</span></li>
+        </ul>
+        <div class="slab accent"><p>最初は記号を覚えなくても構いません。<b style="color:var(--straw)">ふつうに文章を打てば、それがもうMarkdownです。</b></p></div>
+      </div>
+    </div>
+    <p class="foot">Markdownは Obsidian の発明ではなく、世界共通の書き方。<b>だから他のソフトでも読めます。</b></p>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-title="核心：リンク">
+    <p class="eyebrow">核心</p>
+    <h2>[[二重かっこ]] が、この道具のすべて</h2>
+    <p class="lede">ノートの中で言葉を <span class="wl mono">[[ ]]</span> で囲むと、その言葉のノートへの入口になります。まだ存在しないノートでも構いません。<mark>クリックした瞬間に生まれます。</mark></p>
+    <div class="cols c-side">
+      <svg class="graph" viewBox="0 0 420 230" role="img" aria-label="1234号のノートを中心に、飼料・診療・出荷・市場のノートが線でつながった図">
+        <line class="gline act" x1="210" y1="115" x2="90" y2="45"></line>
+        <line class="gline act" x1="210" y1="115" x2="345" y2="42"></line>
+        <line class="gline act" x1="210" y1="115" x2="72" y2="180"></line>
+        <line class="gline act" x1="210" y1="115" x2="340" y2="185"></line>
+        <line class="gline" x1="90" y1="45" x2="345" y2="42"></line>
+        <line class="gline" x1="72" y1="180" x2="340" y2="185"></line>
+        <circle class="gnode hub" cx="210" cy="115" r="26"></circle>
+        <text class="glabel hub" x="210" y="119" text-anchor="middle">1234号</text>
+        <circle class="gnode" cx="90" cy="45" r="17"></circle><text class="glabel" x="90" y="20" text-anchor="middle">配合B</text>
+        <circle class="gnode" cx="345" cy="42" r="17"></circle><text class="glabel" x="345" y="17" text-anchor="middle">9/2 削蹄</text>
+        <circle class="gnode" cx="72" cy="180" r="17"></circle><text class="glabel" x="72" y="213" text-anchor="middle">◯◯家畜市場</text>
+        <circle class="gnode" cx="340" cy="185" r="17"></circle><text class="glabel" x="340" y="218" text-anchor="middle">2026春 出荷</text>
+      </svg>
+      <div class="stack">
+        <div class="card"><span class="tag mono">仕掛け 1</span><h3>バックリンク（逆から見える）</h3><p>「配合B」のノートを開くと、<mark>配合Bを使っている牛が一覧で出てくる</mark>。自分で名簿を作った覚えはないのに、です。リンクは自動的に往復します。</p></div>
+        <div class="card"><span class="tag mono">仕掛け 2</span><h3>グラフビュー（全体が見える）</h3><p>ノート同士の線を図にしたもの。見た目の派手さより、<mark>孤立している点＝放りっぱなしの記録</mark>が分かることに意味があります。</p></div>
+      </div>
+    </div>
+    <p class="foot">紙の台帳との決定的な差はここ。<b>1枚の記録が、何本でも別の記録とつながれる。</b></p>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-title="なぜフォルダでは足りないか">
+    <p class="eyebrow">核心の裏づけ</p>
+    <h2>フォルダ分けは、いつか必ず行き詰まる</h2>
+    <div class="cols c2">
+      <div class="slab">
+        <h3 style="font-size:16px;margin-bottom:8px;">紙・フォルダの世界</h3>
+        <p style="color:var(--ink-2)">1枚の書類は、<mark>ひとつの引き出しにしか入りません。</mark></p>
+        <p style="color:var(--ink-2);margin-top:10px;">「1234号の8月の鼻汁の記録」は、<br>・個体別ファイル？<br>・診療記録ファイル？<br>・8月の日誌？<br>どこに入れても、他の2箇所からは見えなくなる。</p>
+      </div>
+      <div class="slab accent">
+        <h3 style="font-size:16px;margin-bottom:8px;">リンクの世界</h3>
+        <p style="color:var(--ink-2)">記録は1枚だけ書いて、そこから<mark>3方向に線を張る</mark>。</p>
+        <p style="color:var(--ink-2);margin-top:10px;">個体からも、診療からも、日付からも、同じ1枚にたどり着く。<br>探す場所を<b style="color:var(--straw)">決めなくていい</b>。これが「整理が苦手な人ほど向いている」と言われる理由です。</p>
+      </div>
+    </div>
+    <p class="foot">Obsidianでもフォルダは使えます。ただし<b>フォルダは置き場所、リンクは意味のつながり</b>。役割が違います。</p>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-title="他の道具との違い">
+    <p class="eyebrow">位置づけ</p>
+    <h2>いま使っているものと、どう違うか</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>手段</th><th>保存場所</th><th>つながり</th><th>探す</th><th>10年後</th><th>費用</th></tr></thead>
+        <tbody>
+          <tr><th>紙の台帳・黒板</th><td>牛舎・事務所</td><td>なし</td><td>記憶と手めくり</td><td>色褪せ・紛失</td><td>ほぼ0円</td></tr>
+          <tr><th>Excel</th><td>PC・クラウド</td><td>行と列の中だけ</td><td>強い（数字）</td><td>だいたい開ける</td><td>ソフト代</td></tr>
+          <tr><th>LINEの自分宛メモ</th><td>会社のサーバー</td><td>なし</td><td>弱い（流れる）</td><td>遡れない</td><td>0円</td></tr>
+          <tr><th>クラウドのノートサービス</th><td>会社のサーバー</td><td>ものによる</td><td>強い</td><td>サービス次第</td><td>月額が多い</td></tr>
+          <tr class="hi"><th>Obsidian</th><td><b>自分のPC</b></td><td><b>リンクで自在</b></td><td>強い（文章）</td><td><b>ただの文字＝開ける</b></td><td>本体は0円</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="slab glassy"><p><b>置き換えではなく、住み分け。</b> 数字を計算するのはExcelの仕事。<mark>数字の理由を書き残すのがObsidianの仕事</mark>です。「増体が落ちた」は表で分かる。「なぜ落ちたか」は表には書けません。</p></div>
+    <p class="foot">Obsidian本体は個人でも仕事でも無料。<b>有料なのは公式の同期・公開サービスなどの追加機能だけ。</b></p>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-title="何に使えるか（一般）">
+    <p class="eyebrow">何に使えるか ①</p>
+    <h2>世の中の人は、こう使っています</h2>
+    <div class="cols c3">
+      <div class="card"><span class="tag mono">毎日</span><h3>デイリーノート</h3><p>今日の日付のノートが1クリックで開く。とりあえず全部ここに書く、という運用。</p></div>
+      <div class="card"><span class="tag mono">仕事</span><h3>案件・取引先ごとの記録</h3><p>電話の内容、決めたこと、次にやること。人名や会社名をリンクにしておく。</p></div>
+      <div class="card"><span class="tag mono">学ぶ</span><h3>読書・勉強のノート</h3><p>本と考えを結ぶ。同じ話題が別の本で出てきた瞬間に線がつながる。</p></div>
+      <div class="card"><span class="tag mono">手順</span><h3>自分用マニュアル</h3><p>年1回しかやらない手続き。来年の自分に向けた説明書として。</p></div>
+      <div class="card"><span class="tag mono">計画</span><h3>やることリスト</h3><p><code class="mono">- [ ]</code> でチェックボックス。ノートの中に散らばせても集められます。</p></div>
+      <div class="card"><span class="tag mono">貯める</span><h3>写真・PDFの置き場</h3><p>ドラッグして放り込めば、そのノートに貼りつく。書類の実物と記録が同居します。</p></div>
+    </div>
+    <p class="foot">共通しているのは <b>「あとで自分が読む」ためのもの</b> であること。人に見せる資料づくりは、そもそも守備範囲ではありません。</p>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-title="何に使えるか（肥育経営）">
+    <p class="eyebrow">何に使えるか ② — 肥育経営に引き寄せると</p>
+    <h2>牛1頭に、ノート1枚</h2>
+    <p class="lede">耳標番号をノートの名前にする。ここが出発点です。あとは日々の出来事を書くたびに、その牛を <span class="wl mono">[[1234号]]</span> と呼ぶだけ。</p>
+    <div class="cols c3">
+      <div class="card"><span class="tag mono">個体</span><h3>導入から出荷まで1枚</h3><p>導入日、導入価格、血統、体重推移。F1（黒毛和種×ホルスタイン）の素牛ごとの素性を1枚に集約。</p></div>
+      <div class="card"><span class="tag mono">飼料</span><h3>設計と切替の判断</h3><p>配合を変えた日と、変えた理由。食い込みの変化。値上がりへの対応メモ。</p></div>
+      <div class="card"><span class="tag mono">衛生</span><h3>診療・削蹄・ワクチン</h3><p>獣医所見をその日のノートに書き、牛と薬をリンク。休薬期間の起点が後から確実に追える。</p></div>
+      <div class="card"><span class="tag mono">出口</span><h3>枝肉成績と相場</h3><p>格付・枝肉重量を、その牛の導入時メモと同じ画面で見返せる。仮説の答え合わせ。</p></div>
+      <div class="card"><span class="tag mono">経営</span><h3>補助金・共済・申請書類</h3><p>「去年どう書いたか」を来年の自分に渡す。年1回の作業ほど効きます。</p></div>
+      <div class="card"><span class="tag mono">人</span><h3>取引先・獣医・市場</h3><p>誰に何を頼んだか。名前をリンクにしておくと、その人のノートに履歴が自動で集まります。</p></div>
+    </div>
+    <p class="foot"><b>効くのは3年目から。</b> 出荷して初めて、導入時の判断が正しかったか分かる。その時に導入時のメモが残っているかどうかが、勝負どころです。</p>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-title="ノートの実物">
+    <p class="eyebrow">実物を見る</p>
+    <h2>1枚のノートの中身は、これだけ</h2>
+    <div class="cols c-side">
+      <pre><span class="fm">---
+耳標番号: 1234-5678
+導入日: 2026-04-18
+性別: 去勢
+品種: F1（黒毛和種 × ホルスタイン）
+導入体重: 285kg
+---</span>
+
+<span class="h"># 1234号</span>
+
+<span class="h">## 導入</span>
+<span class="l">[[2026年4月 導入分]]</span> 6頭のうちの1頭。
+市場は <span class="l">[[◯◯家畜市場]]</span>、21.8万円。
+
+<span class="h">## 飼料</span>
+- 4/18〜 <span class="l">[[育成期 配合A]]</span>
+- 8/01〜 <span class="l">[[肥育前期 配合B]]</span> へ切替。食い込み良好。
+
+<span class="h">## 記録</span>
+- <span class="l">[[2026-08-14]]</span> 軽い鼻汁 → <span class="l">[[◯◯獣医師]]</span> に相談、経過観察
+- <span class="l">[[2026-09-02]]</span> 削蹄
+
+<span class="c">関連:</span> <span class="l">[[飼料コスト 2026]]</span> / <span class="l">[[出荷計画 2027年春]]</span></pre>
+      <div class="stack">
+        <div class="card"><span class="tag mono">上の --- で挟んだ部分</span><h3>プロパティ（決まった項目）</h3><p>毎回同じ項目を書いておくと、後から「体重300kg未満で導入した牛」だけを一覧にする、といった使い方ができます。まずは無しでも構いません。</p></div>
+        <div class="card"><span class="tag mono">紫の [[ ]]</span><h3>ここが線になる</h3><p>この1枚を書いただけで、市場・飼料・獣医・日付・出荷計画の各ノートから、この牛が見えるようになりました。<mark>一度書けば、五方向から届く。</mark></p></div>
+      </div>
+    </div>
+    <p class="foot">画面上ではもっと読みやすく表示されます。<b>これは中身（生のファイル）を開いたところ。</b></p>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide" data-title="Vaultの構成例">
+    <p class="eyebrow">運用イメージ</p>
+    <h2>フォルダは、これくらい大雑把でいい</h2>
+    <div class="cols c-side">
+      <pre>牛舎ノート/
+├ <span class="h">00_日誌/</span>        2026-09-05.md ...
+├ <span class="h">10_個体/</span>        1234号.md ...
+├ <span class="h">20_飼料/</span>        配合B.md、飼料コスト 2026.md
+├ <span class="h">30_衛生/</span>        削蹄.md、◯◯獣医師.md
+├ <span class="h">40_出荷/</span>        出荷計画 2027年春.md
+├ <span class="h">50_経営/</span>        補助金の書き方.md
+└ <span class="h">90_覚書/</span>        思いつき、読んだ記事</pre>
+      <div class="stack">
+        <ul class="bullets">
+          <li><span class="k mono">01</span><span>頭に数字を振ると、並び順が固定されて迷いません。</span></li>
+          <li><span class="k mono">02</span><span>フォルダは<mark>7個まで</mark>。増やすほど「どこに入れるか」で手が止まります。</span></li>
+          <li><span class="k mono">03</span><span>迷ったら全部 <code class="mono">00_日誌</code> へ。日付のノートは、迷いの受け皿です。</span></li>
+          <li><span class="k mono">04</span><span>整理は後でいい。<mark>検索とリンクがあるので、散らかっていても見つかります。</mark></span></li>
+        </ul>
+        <div class="slab accent"><p>最初から完璧な分類を作ろうとして力尽きる——これがObsidian挫折の最大の原因です。<b style="color:var(--straw)">分類は、溜まってから決まる。</b></p></div>
+      </div>
+    </div>
+    <p class="foot">写真も同じフォルダに入ります。<b>牛の写真、請求書のPDF、すべて同じ保管庫の中へ。</b></p>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide" data-title="本質①：所有">
+    <p class="eyebrow">本質は何か ①</p>
+    <h2>「記録を、自分の手元に置く」という思想</h2>
+    <p class="lede">Obsidianが他と一線を画すのは機能ではなく立場です。開発元は<mark>あなたのノートを預かりません</mark>。預かっていないので、値上げも、仕様変更も、サービス終了も、あなたの記録には届きません。</p>
+    <div class="cols c3">
+      <div class="card"><span class="tag mono">預ける場合</span><h3>サービスが終われば終わる</h3><p>便利さと引き換えに、記録の寿命を他人に握らせている状態。</p></div>
+      <div class="card"><span class="tag mono">手元に置く場合</span><h3>ソフトが消えても文字は残る</h3><p>バックアップは自分の責任。代わりに、誰の都合にも左右されない。</p></div>
+      <div class="card"><span class="tag mono">つまり</span><h3>紙の台帳と同じ思想</h3><p>金庫にしまった帳簿が誰のものかは明白です。それを検索できるようにしただけ、とも言えます。</p></div>
+    </div>
+    <div class="slab glassy"><p>裏返せば<b>責任も自分持ち</b>。パソコンが壊れればノートも消えます。フォルダごとクラウドや外付けHDDに複製する——<mark>これだけは最初にやってください。</mark></p></div>
+    <p class="foot">この考え方を <b>ローカルファースト</b> と呼びます。Obsidianを選ぶ人の多くは、機能ではなくここに惹かれています。</p>
+  </section>
+
+  <!-- 13 -->
+  <section class="slide" data-title="本質②：想起">
+    <p class="eyebrow">本質は何か ②</p>
+    <h2>目的は「整理」ではなく「想起」</h2>
+    <div class="cols c2">
+      <div class="stack">
+        <p class="lede">きれいに整理されたノートは気持ちがいい。しかし整理そのものは1円も生みません。<mark>必要な時に思い出せたかどうか</mark>だけが結果を変えます。</p>
+        <div class="slab accent"><p>「去年の夏、暑さで食い込みが落ちた時、何をしてどうなったか」<br><br>これを<b style="color:var(--straw)">出荷の判断をする瞬間に思い出せる</b>なら、そのノートは仕事をしています。読み返されないノートは、どれだけ整っていてもゼロです。</p></div>
+      </div>
+      <div class="stack">
+        <div class="card"><span class="tag mono">Obsidianの答え</span><h3>思い出すきっかけを、道具側が用意する</h3><p>牛のノートを開けば、その牛に関わる記録が下に自動で並ぶ（バックリンク）。探しに行かなくても、向こうから出てくる。</p></div>
+        <div class="card"><span class="tag mono">だから</span><h3>書く時に頑張らない</h3><p>整えるのは未来の自分。今日の自分の仕事は、一行でも残すこと。<mark>雑でいいから毎日</mark>が、整った月1回に勝ちます。</p></div>
+      </div>
+    </div>
+    <p class="foot">よく「第二の脳（Second Brain）」と呼ばれます。<b>覚える脳ではなく、思い出させる脳。</b></p>
+  </section>
+
+  <!-- 14 -->
+  <section class="slide" data-title="本質③：空っぽの器">
+    <p class="eyebrow">本質は何か ③</p>
+    <h2>Obsidianは、空っぽの器です</h2>
+    <p class="lede">Excelに「肥育経営の正解」が入っていないのと同じで、Obsidianにも決まった使い方はありません。<mark>あなたの仕事の型を、そのまま写す器</mark>。だから最初は戸惑い、慣れると手放せなくなります。</p>
+    <div class="cols c3">
+      <div class="big"><span class="num mono">器</span><div><h3>本体は驚くほど素っ気ない</h3><p>できることが少なく見えるのは、決めつけないためです。</p></div></div>
+      <div class="big"><span class="num mono">拡</span><div><h3>足りない機能は足せる</h3><p>有志が作った拡張（プラグイン）が数千種類。カレンダー、表計算風の一覧、地図。必要になってから入れれば十分です。</p></div></div>
+      <div class="big"><span class="num mono">育</span><div><h3>使うほど形が決まる</h3><p>3ヶ月使えば、自分の記録の癖が見えてきます。型はそこから作るもので、最初に借りてくるものではありません。</p></div></div>
+    </div>
+    <div class="slab glassy"><p><b>他人の完成された使い方を真似しないこと。</b> ネットで見かける美しいVaultは、その人の仕事の形です。肥育農家には肥育農家の型がある。<mark>器だけ借りて、中身は自分で決める。</mark></p></div>
+    <p class="foot">これがObsidianを「難しい」と感じさせる正体でもあります。<b>難しいのではなく、決まっていないだけ。</b></p>
+  </section>
+
+  <!-- 15 -->
+  <section class="slide" data-title="苦手なこと">
+    <p class="eyebrow">正直な話</p>
+    <h2>向いていないこと、誤解されがちなこと</h2>
+    <div class="cols c2">
+      <ul class="bullets">
+        <li><span class="k mono">△</span><span><b>複数人での同時編集</b>は不得意。従業員と同じノートを同時に触る用途なら、別のサービスのほうが素直です。</span></li>
+        <li><span class="k mono">△</span><span><b>集計・計算</b>は表計算に及びません。頭数や飼料費の計算はExcelへ。</span></li>
+        <li><span class="k mono">△</span><span><b>スマホとPCの同期は自動ではない</b>。公式の有料同期を使うか、クラウドのフォルダを使うか、自分で決めます。</span></li>
+        <li><span class="k mono">△</span><span><b>人に見せる資料作り</b>には向きません。あくまで自分用の記録です。</span></li>
+      </ul>
+      <div class="stack">
+        <div class="slab accent"><h3 style="font-size:16px;margin-bottom:6px;">よくある誤解</h3><p style="color:var(--ink-2)">「賢い人が高度に使うもの」——逆です。<mark>1行のメモを毎日置くだけで元が取れます。</mark>グラフビューもプラグインも、無くて構いません。</p></div>
+        <div class="slab"><h3 style="font-size:16px;margin-bottom:6px;">失敗の型</h3><p style="color:var(--ink-2)">① 最初にフォルダ構成を作り込んで力尽きる<br>② プラグインを入れすぎて何がどれか分からなくなる<br>③ 3日書いて、読み返さないまま忘れる</p></div>
+      </div>
+    </div>
+    <p class="foot">向き不向きを知っておくと、続きます。<b>足りない所は、他の道具に任せていい。</b></p>
+  </section>
+
+  <!-- 16 -->
+  <section class="slide" data-title="明日からの5歩">
+    <p class="eyebrow">はじめかた</p>
+    <h2>明日から、この5歩だけ</h2>
+    <div class="cols c5">
+      <div class="card"><span class="tag mono">STEP 1</span><h3>Vaultは1つ</h3><p>フォルダを1つ作って終わり。仕事用・私用で分けたくなっても、まずは1つ。</p></div>
+      <div class="card"><span class="tag mono">STEP 2</span><h3>今日の日付で1行</h3><p>「暑い。食い込み落ちた」で十分。書くことより、開く習慣。</p></div>
+      <div class="card"><span class="tag mono">STEP 3</span><h3>固有名詞を囲む</h3><p>耳標番号、獣医、市場、飼料名。出てきたら <span class="wl mono">[[ ]]</span> で囲むだけ。</p></div>
+      <div class="card"><span class="tag mono">STEP 4</span><h3>週1で読み返す</h3><p>日曜に5分。読み返した時に足したリンクが、一番効きます。</p></div>
+      <div class="card"><span class="tag mono">STEP 5</span><h3>3ヶ月後に全体を見る</h3><p>グラフを開く。線の集まっている所が、あなたの経営の要点です。</p></div>
+    </div>
+    <div class="slab accent"><p><b style="color:var(--straw)">最初の1ヶ月は、STEP 2 だけでいい。</b> 道具の勉強をしても牛は太りません。日付のノートに一行書く。それが続いた人だけが、次の景色を見ています。</p></div>
+    <p class="foot">バックアップだけは初日に。<b>フォルダごとクラウドか外付けへ複製する設定を、最初にひとつ。</b></p>
+  </section>
+
+  <!-- 17 -->
+  <section class="slide cover" data-title="まとめ">
+    <p class="eyebrow">まとめ</p>
+    <h1>覚えておく道具ではなく、<br><em>思い出せるようにする</em>道具。</h1>
+    <p class="sub">中身はただのテキストファイル。仕掛けはリンク一本。立場はローカルファースト。この3つが分かれば、Obsidianは分かったことになります。あとは、今日の日付のノートを開くだけ。</p>
+    <div class="meta mono"><span>VAULT ＝ フォルダ</span><span>[[ ]] ＝ つながり</span><span>毎日1行 ＞ 月1回の力作</span></div>
+  </section>
+
+</main>
+</div>
+
+<nav class="bottombar">
+  <button class="nav" id="prev" aria-label="前のスライド">←</button>
+  <button class="nav" id="next" aria-label="次のスライド">→</button>
+  <div class="rail"><i id="railFill" style="width:6%"></i></div>
+  <div class="count mono"><b id="cur">01</b> / <span id="tot">17</span></div>
+</nav>
+
+<div class="toc" id="toc" hidden>
+  <p class="eyebrow">スライド一覧</p>
+  <h2 style="font-size:26px;">17枚のどこからでも</h2>
+  <div class="tocgrid" id="tocgrid"></div>
+</div>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var stage = document.getElementById('stage');
+  var railFill = document.getElementById('railFill');
+  var cur = document.getElementById('cur');
+  var prev = document.getElementById('prev');
+  var next = document.getElementById('next');
+  var toc = document.getElementById('toc');
+  var tocBtn = document.getElementById('tocBtn');
+  var tocgrid = document.getElementById('tocgrid');
+  var i = 0;
+
+  document.getElementById('tot').textContent = String(slides.length).padStart(2,'0');
+
+  slides.forEach(function(s, n){
+    var b = document.createElement('button');
+    b.className = 'tocitem';
+    b.innerHTML = '<em class="mono">' + String(n+1).padStart(2,'0') + '</em><span>' + (s.dataset.title || '') + '</span>';
+    b.addEventListener('click', function(){ go(n); closeToc(); });
+    tocgrid.appendChild(b);
+  });
+  var tocItems = Array.prototype.slice.call(tocgrid.children);
+
+  function go(n){
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach(function(s, k){ s.classList.toggle('is-on', k === i); });
+    tocItems.forEach(function(t, k){ t.setAttribute('aria-current', k === i ? 'true' : 'false'); });
+    cur.textContent = String(i+1).padStart(2,'0');
+    railFill.style.width = ((i+1) / slides.length * 100) + '%';
+    prev.disabled = i === 0;
+    next.disabled = i === slides.length - 1;
+    slides[i].scrollTop = 0;
+  }
+
+  function closeToc(){ toc.hidden = true; tocBtn.setAttribute('aria-pressed','false'); }
+
+  prev.addEventListener('click', function(){ go(i-1); });
+  next.addEventListener('click', function(){ go(i+1); });
+  tocBtn.addEventListener('click', function(){
+    var open = toc.hidden;
+    toc.hidden = !open;
+    tocBtn.setAttribute('aria-pressed', open ? 'true' : 'false');
+  });
+
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && !toc.hidden){ closeToc(); return; }
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' '){ e.preventDefault(); go(i+1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp'){ e.preventDefault(); go(i-1); }
+    else if (e.key === 'Home'){ go(0); }
+    else if (e.key === 'End'){ go(slides.length-1); }
+  });
+
+  var x0 = null;
+  stage.addEventListener('touchstart', function(e){ x0 = e.changedTouches[0].clientX; }, {passive:true});
+  stage.addEventListener('touchend', function(e){
+    if (x0 === null) return;
+    var dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 55) go(dx < 0 ? i+1 : i-1);
+    x0 = null;
+  }, {passive:true});
+
+  var themeBtn = document.getElementById('themeBtn');
+  themeBtn.addEventListener('click', function(){
+    var root = document.documentElement;
+    var isDark = root.getAttribute('data-theme') === 'dark' ||
+      (!root.hasAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    root.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  });
+
+  go(0);
+})();
+</script>
+</body>
+</html>
