@@ -3,7 +3,6 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Obsidian実用編。初期設定・フォルダ構成・テンプレート3種・検索・プラグイン・週次運用まで、牛舎ノートを実際に組み上げる28枚。">
 <style>
   :root{color-scheme:light dark;}
   body{margin:0;font:14px system-ui,sans-serif;background:#E8E6EC;}
@@ -198,6 +197,42 @@ td .mono,th .mono{white-space:nowrap;}
   .covershard{display:none;}
   .brand span{display:none;}
   .keyrow{flex-direction:column;gap:2px;}
+}
+
+/* ---------- 印刷・PDF（1スライド＝1ページ） ---------- */
+@page{ size:13.333in 7.5in; margin:0; }
+@media print{
+  :root,:root[data-theme="dark"],:root:not([data-theme="light"]){
+    --ground:#E8E6EC;--surface:#F6F4F9;--surface-2:#DDD9E6;
+    --ink:#191527;--ink-2:#4C4560;--ink-3:#7C7492;
+    --line:#CCC6DA;--line-2:#B7AFC9;
+    --straw:#96620F;--straw-fill:#F0DDB4;
+    --glass:#584AA3;--glass-fill:#DCD5F2;
+    --good:#2C6B4E;--good-fill:#D3E7DC;
+    --warn:#9A4413;--warn-fill:#F3DCCB;
+    --shadow:none;
+  }
+  html,body{background:var(--surface);height:auto;min-height:0;display:block;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .topbar,.bottombar,.toc{display:none!important;}
+  .stagewrap{display:block;padding:0;min-height:0;}
+  .stage{display:block;width:100%;max-height:none;aspect-ratio:auto;
+    border:0;border-radius:0;box-shadow:none;overflow:visible;background:var(--surface);}
+  .slide{display:flex!important;width:100%;height:7.5in;overflow:hidden;
+    padding:0.44in 0.56in;background:var(--surface);break-after:page;page-break-after:always;}
+  .slide:last-child{break-after:auto;page-break-after:auto;}
+  .covershard{opacity:.85;}
+  /* Chromeは印刷時、メディアクエリを800px幅で評価するため画面用の段組を復元する */
+  .cols.c2{grid-template-columns:1fr 1fr;}
+  .cols.c3{grid-template-columns:repeat(3,1fr);}
+  .cols.c4{grid-template-columns:repeat(4,1fr);}
+  .cols.c5{grid-template-columns:repeat(5,1fr);}
+  .cols.c-side{grid-template-columns:1.03fr .97fr;}
+  .cols.c-side-w{grid-template-columns:1.35fr .65fr;}
+  .slide .covershard{display:block;}
+  .slide .keyrow{flex-direction:row;gap:10px;}
+  .slide .brand span{display:inline;}
+  a{color:inherit;text-decoration:none;}
 }
 </style>
 
