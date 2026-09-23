@@ -5,5 +5,8 @@ import './people/mother';
 import './people/maruyama';
 import './people/obaa';
 import './people/mamekichi';
+import './people/town1';
+import './people/town2';
+import './people/town3';
 import './portraits';
 import './gallery';

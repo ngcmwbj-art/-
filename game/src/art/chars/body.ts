@@ -182,6 +182,50 @@ export function legs(f: Fig, p: Pose, L: LegSpec): void {
   drawLeg(near, 0);
 }
 
+/**
+ * Seated legs (on a bench / chair edge). Front: short foreshortened thighs,
+ * shins straight down to the feet. Back: only the bottom of the seat is seen.
+ * Side (facing left): thighs forward, shins down. `seat` = y of the thighs.
+ */
+export function sitLegs(f: Fig, p: Pose, L: LegSpec, seat: number): void {
+  const w = L.w ?? 2;
+  const gap = L.gap ?? 2;
+  const foot = L.foot;
+  const lowH = L.low?.h ?? 0;
+  const band = (x: number, y: number, ww: number, yTop: number) => {
+    const fb = foot - y;
+    f.m(fb < (L.shoeH ?? 1) ? L.shoe : fb < (L.shoeH ?? 1) + lowH ? L.low!.mat : L.mat);
+    void yTop;
+    for (let i = 0; i < ww; i++) f.px(x + i, y);
+  };
+  if (p.view === 'down' || p.view === 'up') {
+    const lx = L.cx - Math.ceil(gap / 2) - w;
+    const rx = L.cx + Math.floor(gap / 2);
+    // thighs (toward the viewer): a slightly wider block
+    f.part(L.mat, { shade: 'rb', light: 't' });
+    f.rect(lx - 1, seat, rx + w - lx + 2, 2);
+    f.part(L.mat, { shade: 'r', light: '' });
+    for (let y = seat + 2; y <= foot; y++) band(lx, y, w, seat + 2);
+    f.part(L.mat, { shade: 'r', light: '', shift: -1 });
+    for (let y = seat + 2; y <= foot; y++) band(rx, y, w, seat + 2);
+    return;
+  }
+  const hipX = L.cx;
+  const kneeX = L.cx - 5;
+  // far leg (slightly behind)
+  f.part(L.mat, { shade: 'rb', light: '', shift: -1 });
+  f.rect(kneeX + 1, seat, hipX - kneeX, 2);
+  for (let y = seat + 2; y <= foot; y++) band(kneeX + 1, y, w, seat);
+  f.m(L.shoe);
+  f.px(kneeX, foot);
+  // near leg
+  f.part(L.mat, { shade: 'rb', light: 't' });
+  f.rect(kneeX, seat, hipX - kneeX + 1, 2);
+  for (let y = seat + 2; y <= foot; y++) band(kneeX, y, w, seat);
+  f.m(L.shoe);
+  f.px(kneeX - 1, foot);
+}
+
 // ---- arms -----------------------------------------------------------------
 
 export interface ArmSpec {

@@ -294,3 +294,25 @@ export function enemyDefIn(e: EnemyUnit): Pick<DamageIn, 'def' | 'defStage' | 'm
     hiraki: !!e.status.hiraki,
   };
 }
+
+/** Boss part state (13.2). */
+export interface BossPart {
+  id: string;
+  name: string;
+  box: [number, number, number, number];
+  action: string;
+  broken: boolean;
+  glow: boolean;
+  /** Fallen-part animation after breaking. */
+  fallY?: number;
+}
+
+export type PartyCmd =
+  | { kind: 'attack'; u: PartyUnit; target: EnemyUnit }
+  | { kind: 'hanko'; u: PartyUnit; skill: string; target: EnemyUnit | PartyUnit; part?: string }
+  | { kind: 'pr'; u: PartyUnit; skill: string }
+  | { kind: 'item'; u: PartyUnit; item: string; target: PartyUnit | null }
+  | { kind: 'guard'; u: PartyUnit }
+  | { kind: 'flee'; u: PartyUnit }
+  | { kind: 'nori'; u: PartyUnit }
+  | { kind: 'skip'; u: PartyUnit; reason: string };

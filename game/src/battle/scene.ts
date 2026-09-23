@@ -15,7 +15,7 @@ import type { BattleOpts, BattleResult } from './api';
 import { getEnemy } from '../data/battle';
 import { desaturate } from '../art/enemies/lib';
 import { makeBackground, type Background } from './bg';
-import { EnemyUnit, PartyUnit } from './model';
+import { EnemyUnit, PartyUnit, type BossPart } from './model';
 import { DamageNumber, type NumOpts } from './fx/numbers';
 import { MessageBand } from './ui/message';
 import {
@@ -75,6 +75,7 @@ export class BattleScene implements Scene {
   fx: Fx[] = [];
   boss: BossHooks | null = null;
   bossChime = { lit: 0, pops: [0, 0, 0, 0], gold: false };
+  bossParts: BossPart[] = [];
   isBoss: boolean;
   isEvent: boolean;
   // ui state
@@ -93,6 +94,8 @@ export class BattleScene implements Scene {
   dark = 0;
   tint: { color: string; alpha: number } | null = null;
   tint2: { color: string; alpha: number } | null = null;
+  /** Draw nothing but the transition overlay (before reveal / after the battle). */
+  hideAll = true;
   /** Transition overlay drawer (in/out). */
   transitionDraw: ((g: Gfx) => void) | null = null;
   // input buffer
@@ -102,6 +105,8 @@ export class BattleScene implements Scene {
   hideEnemyHp = false;
   /** Global per-battle rng seed for kakimoji jitter. */
   seed = rng.int(1, 9999);
+  /** Restored objects lying on the floor after defeats. */
+  dropFxs: { fx: Fx; st: { alpha: number } }[] = [];
   /** Enemy AI shared memory. */
   shared: Record<string, number> = {};
   /** Tutorial / misc flags for this battle. */
@@ -341,7 +346,7 @@ export class BattleScene implements Scene {
     this.flashes.push({ color, alpha, frames });
   }
 
-  addFx(f: Omit<Fx, 't'> & { t?: number }): Fx {
+  addFx(f: Omit<Fx, 't'> & { t?: number } & ThisType<Fx>): Fx {
     const fx = { t: 0, ...f } as Fx;
     this.fx.push(fx);
     return fx;
@@ -433,6 +438,10 @@ export class BattleScene implements Scene {
 
   draw(g: Gfx): void {
     const ctx = g.ctx;
+    if (this.hideAll) {
+      this.transitionDraw?.(g);
+      return;
+    }
     ctx.save();
     ctx.translate(this.shk.x, this.shk.y);
     this.bg.draw(g);
