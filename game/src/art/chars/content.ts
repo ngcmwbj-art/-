@@ -2,6 +2,8 @@
 import './people/minato';
 import './people/kanenari';
 import './people/mother';
-import './people/shops';
+import './people/maruyama';
+import './people/obaa';
+import './people/mamekichi';
 import './portraits';
 import './gallery';

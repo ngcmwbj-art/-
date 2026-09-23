@@ -126,7 +126,7 @@ function back(f: Fig, p: Pose) {
   f.t(-1).vl(8, 13 + u, 16 + b).t(null);
   hangArms(f, p, { lx: 2, rx: 13, sy: 13, hy: 18, segs: ARM }, u);
   towel(f, u, 'up');
-  head(f, p, HEAD, 5 + u);
+  head(f, p, HEAD, 4 + u);
   cookHat(f, u, 'up');
 }
 

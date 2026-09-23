@@ -10,7 +10,7 @@ const common = {
   blush: flat('#F4A08C'),
 };
 
-// // おばあ (npc_obaa): small, slightly stooped. White bun, white kappougi, deep
+// おばあ (npc_obaa): small, slightly stooped. White bun, white kappougi, deep
 // red monpe, reading glasses on a gold chain, red pen in the chest pocket.
 // Idle: breathes on her grading stamp (ha—) → glasses on, reads the ledger.
 // Extras: look_up, stamp, read.
