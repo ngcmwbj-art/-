@@ -85,7 +85,8 @@ export class BattleScene implements Scene {
   list: { rows: ListRow[]; index: number; scroll: number } | null = null;
   target: { kind: 'enemy'; e: EnemyUnit; part?: { x: number; y: number; w: number } } | { kind: 'party'; u: PartyUnit } | null = null;
   card: { data: CardData; t: number; closing: boolean } | null = null;
-  sticky: { text: string; t: number; pulse?: boolean } | null = null;
+  /** Tutorial sticky; `ttl` (ms) peels it off by itself. */
+  sticky: { text: string; t: number; pulse?: boolean; ttl?: number } | null = null;
   cursorPressed = 0;
   /** Directional screen shake. */
   private shk = { ax: 0, ay: 0, t: 0, dur: 0, x: 0, y: 0 };
@@ -267,7 +268,10 @@ export class BattleScene implements Scene {
       this.card.t += dt;
       if (this.card.closing && this.card.t > 160) this.card = null;
     }
-    if (this.sticky) this.sticky.t += dt;
+    if (this.sticky) {
+      this.sticky.t += dt;
+      if (this.sticky.ttl && this.sticky.t > this.sticky.ttl + 200) this.sticky = null;
+    }
   }
 
   /** Blocking message pages may be skipped with confirm. */
@@ -665,9 +669,11 @@ export class BattleScene implements Scene {
     }
     if (this.sticky) {
       const img = stickyCanvas(this.sticky.text);
-      const k = Math.min(1, this.sticky.t / 120);
-      const glow = this.sticky.pulse && Math.floor(this.rt / 200) % 2 === 0;
-      g.alpha(k, () => g.img(img, 8, 52 - Math.round((1 - k) * 6)));
+      const st = this.sticky;
+      const out = st.ttl && st.t > st.ttl ? Math.min(1, (st.t - st.ttl) / 200) : 0;
+      const k = Math.min(1, st.t / 120) * (1 - out);
+      const glow = st.pulse && Math.floor(this.rt / 200) % 2 === 0;
+      g.alpha(k, () => g.img(img, 8 - Math.round(out * 10), 52 - Math.round((1 - Math.min(1, st.t / 120)) * 6) + Math.round(out * out * 12)));
       if (glow) g.alpha(0.35 * k, () => g.rect(8, 52, img.width - 3, img.height - 3, '#FFFFFF'));
     }
   }

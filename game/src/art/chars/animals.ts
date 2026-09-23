@@ -699,3 +699,118 @@ registerChar('npc_cow_statue', () =>
     shadow: 14,
   }),
 );
+
+// =============================================================================
+// prop_sparrow: the tiny wire sparrow of fushigi_03 (body 5×4, 30_level_art
+// 9.4). Canvas 8×7, feet on the bottom row (hang it on the wire line).
+// Idle: turns its head, hops 1px; 'sing' opens the beak.
+
+const SPR: Mats = {
+  cap: mat('#8A5A3A', { shade: '#6A4228', light: '#AE7A52', rim: '#FFB070' }),
+  back: mat('#A8784A', { shade: '#7A5430', light: '#C8A06A', rim: '#FFC080' }),
+  belly: flat('#E8DCC8'),
+  cheek: flat('#F4F1E8'),
+  beak: flat('#4A3A3A'),
+  beakO: flat('#E8B070'),
+  eye: flat('#1A1420'),
+  foot: flat('#8A6A5A'),
+};
+
+function tinySparrow(f: Fig, p: Pose) {
+  const hop = p.act === 'hop' ? 1 : 0;
+  const sing = p.act === 'sing' && p.ph === 1;
+  const turn = p.act === 'turn';
+  const up = p.lookUp ? 1 : 0;
+  const y = 1 - hop;
+  f.part('foot', { flat: true, rim: false, ol: false });
+  if (!hop) f.px(3, 6).px(5, 6);
+  if (p.view === 'left') {
+    f.part('back', { shade: 'rb', light: 't' });
+    f.rows(2, y + 2, ['####.', '#####']);
+    f.part('belly', { flat: true, rim: false });
+    f.px(2, y + 3).px(3, y + 3);
+    f.part('cap', { shade: 'r', light: 't' });
+    f.rows(1, y + 1 - up, ['##', '##']);
+    f.part('cheek', { flat: true, rim: false });
+    f.px(1, y + 2 - up);
+    f.part('eye', { flat: true, rim: false });
+    if (!p.blink) f.px(1, y + 1 - up);
+    f.part(sing ? 'beakO' : 'beak', { flat: true, rim: false });
+    f.px(0, y + 1 - up * 2);
+    if (sing) f.px(0, y + 2 - up);
+    return;
+  }
+  f.part(p.view === 'up' ? 'back' : 'belly', { shade: 'rb', light: 't' });
+  f.rows(2, y + 2, ['####', '####']);
+  f.part('cap', { shade: 'r', light: 't' });
+  f.rows(2 + (turn ? 1 : 0), y + 1 - up, ['###.'.slice(0, 3), '###']);
+  if (p.view !== 'up') {
+    f.part('cheek', { flat: true, rim: false });
+    f.px(2 + (turn ? 1 : 0), y + 2 - up);
+    f.part(sing ? 'beakO' : 'beak', { flat: true, rim: false });
+    f.px(3 + (turn ? 1 : 0), y + 2 - up);
+  }
+}
+
+registerChar('prop_sparrow', () =>
+  buildSprite({
+    id: 'prop_sparrow',
+    w: 8,
+    h: 7,
+    mats: SPR,
+    draw: tinySparrow,
+    walkBob: [0, 0, 0, 0],
+    walkFrameMs: 90,
+    idle: [{}, {}, { act: 'turn' }, { act: 'turn' }, {}, { act: 'hop' }, {}, { blink: true }, {}, {}],
+    idleFrameMs: 260,
+    extras: { sing: { dirs: ['down', 'left', 'right'], p: { ph: 1 } }, hop: { dirs: ['down', 'left', 'right'] } },
+    anims: { sing: { frames: [{ ph: 1 }, { ph: 0 }], ms: 150, dir: 'left' } },
+    shadow: 0,
+  }),
+);
+
+// =============================================================================
+// prop_cat_kuro: the black cat loafing on the polybucket by the cat alley
+// (12×10 body). Violet sheen, gold eye. Tail flicks (2 frames).
+
+const KURO_M: Mats = {
+  fur: mat('#2A2440', { shade: '#1B1733', light: '#4A3A6E', dark: '#0B0B14', spec: '#6A5A90', rim: '#8A5A7A', ol: '#0B0B14' }),
+  eye: flat('#FFD23F'),
+  nose: flat('#8A5A7A'),
+};
+
+function kuro(f: Fig, p: Pose) {
+  const tail = p.act === 'tail' ? p.ph : p.mode === 'idle' ? p.tick % 2 : 0;
+  const up = p.lookUp ? 1 : 0;
+  // loaf body
+  f.part('fur', { shade: 'rb', light: 't' });
+  f.rows(3, 5, ['.########.', '##########', '##########', '.########.']);
+  // tail curling down the side / flicking up
+  f.part('fur', { shade: 'rb', light: '' });
+  if (tail) f.px(13, 6).px(14, 5).px(14, 4);
+  else f.px(13, 7).px(14, 8).px(14, 9);
+  // head
+  f.part('fur', { shade: 'rb', light: 't' });
+  f.rows(1, 2 - up, ['#..#.', '#####', '#####', '.###.']);
+  f.part('eye', { flat: true, rim: false });
+  if (!p.blink) f.px(2, 4 - up);
+  f.part('nose', { flat: true, rim: false });
+  f.px(1, 5 - up);
+}
+
+registerChar('prop_cat_kuro', () =>
+  buildSprite({
+    id: 'prop_cat_kuro',
+    w: 16,
+    h: 11,
+    mats: KURO_M,
+    draw: kuro,
+    walkFrames: 1,
+    idle: [{}, {}, {}, { blink: true }, {}, {}, {}, {}],
+    idleFrameMs: 400,
+    extras: { tail: { dirs: ['left', 'right'], p: { ph: 1 } } },
+    anims: { tail: { frames: [{ ph: 0 }, { ph: 1 }], ms: 400, dir: 'left' } },
+    views: { down: 'left', up: 'left' },
+    shadow: 10,
+  }),
+);

@@ -353,8 +353,8 @@ class ReportCard {
     });
     if (this.bigHana >= 0) {
       // the teacher's big hanamaru, swept over the corner of the right page
-      const img = hanamaruFrame(44, Math.min(1, this.bigHana / 200), false, 3);
-      g.alpha(0.92, () => g.img(img, 290, 164 + drop));
+      const img = hanamaruFrame(48, Math.min(1, this.bigHana / 200), false, 2.6);
+      g.alpha(0.92, () => g.img(img, 292, 162 + drop));
     }
   }
 

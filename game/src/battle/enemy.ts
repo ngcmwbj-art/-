@@ -283,8 +283,7 @@ function* tsukkomiAftermath(s: BattleScene, e: EnemyUnit, sk: SkillDef, st: ActS
   if (!st.anySuccess) {
     if (e.id === 'enemy_hato_kakaricho' && s.memo.tsukCount >= 1 && !s.memo.rhythmTip) {
       s.memo.rhythmTip = 1;
-      showSticky(s, 'rhythm');
-      s.memo.stickyUntil = s.t + 2500;
+      showSticky(s, 'rhythm', undefined, false, 2800);
     }
     return;
   }
@@ -299,8 +298,7 @@ function* tsukkomiAftermath(s: BattleScene, e: EnemyUnit, sk: SkillDef, st: ActS
   if (s.memo.kireJustFull && !flag('flag_tut_kire')) {
     s.memo.kireJustFull = 0;
     setFlag('flag_tut_kire', 1);
-    showSticky(s, 'kire');
-    s.memo.stickyUntil = s.t + 3000;
+    showSticky(s, 'kire', undefined, false, 3200);
   }
   void sk;
 }

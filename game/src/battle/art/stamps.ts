@@ -253,11 +253,11 @@ export function pekeMark(size: number, variant = 0, kasure = false): HTMLCanvasE
 /** Hanamaru swirl path points (spiral + scalloped petals), normalized to radius 1. */
 export function hanamaruPath(): [number, number][] {
   const pts: [number, number][] = [];
-  // inner spiral (2 turns)
+  // inner spiral (1.75 turns, open so it doesn't clog at small sizes)
   for (let i = 0; i <= 80; i++) {
     const t = i / 80;
-    const a = -Math.PI / 2 + t * Math.PI * 4;
-    const r = 0.06 + t * 0.34;
+    const a = -Math.PI / 2 - Math.PI * 3.5 + t * Math.PI * 3.5;
+    const r = 0.1 + t * 0.34;
     pts.push([Math.cos(a) * r, Math.sin(a) * r]);
   }
   // petals: 7 plump rounded lobes with pinched valleys (reads as a flower,

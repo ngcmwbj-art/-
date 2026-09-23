@@ -488,12 +488,12 @@ export function markDefeated(e: EnemyUnit): void {
 }
 
 /** Tutorial sticky helper (shows once per flag, or per battle when flagless). */
-export function showSticky(s: BattleScene, key: keyof typeof TUT, flagId?: string, pulse = false): boolean {
+export function showSticky(s: BattleScene, key: keyof typeof TUT, flagId?: string, pulse = false, ttl = 0): boolean {
   if (flagId && flag(flagId)) return false;
   if (!flagId && s.memo['stk_' + key]) return false;
   if (flagId) setFlag(flagId, 1);
   s.memo['stk_' + key] = 1;
-  s.sticky = { text: TUT[key], t: 0, pulse };
+  s.sticky = { text: TUT[key], t: 0, pulse, ttl: ttl || undefined };
   return true;
 }
 

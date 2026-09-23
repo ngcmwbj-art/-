@@ -248,7 +248,7 @@ function* strikeOnce(
   });
   hitFeel(s, e, crit ? 'crit' : good ? 'good' : 'normal', good);
   if (good) s.label(LABEL.iioto, e.coreX + 12 + 38, e.coreY - 12 - 12, 'shu', 520);
-  if (boke && s.enemies[0]?.id === 'enemy_hato_kakaricho') showSticky(s, 'bokemake');
+  if (boke && s.enemies[0]?.id === 'enemy_hato_kakaricho') showSticky(s, 'bokemake', undefined, false, 2600);
   const killed = hurtEnemy(s, e, dmg, { crit, stack: o.stack });
   return { killed, hit: true, boke };
 }
