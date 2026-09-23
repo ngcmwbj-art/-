@@ -1,2 +1,2 @@
-// Content data (party members, items, skills, enemies). Filled by the systems/battle team.
-export {};
+// Content data (party members, items, skills, enemies). Battle data lives in ./battle.
+export * from './battle';
