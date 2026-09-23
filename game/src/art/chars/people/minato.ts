@@ -10,7 +10,7 @@ import { registerChar } from '../registry';
 
 export const MINATO_MATS: Mats = {
   skin: mat('#FFD9B8', { shade: '#EBB08E', light: '#FFEBD8', dark: '#C98A6A', rim: '#FFC08E' }),
-  hair: mat('#33231F', { shade: '#231820', dark: '#170F16', light: '#553A30', spec: '#7C5644', rim: '#8E4E36' }),
+  hair: mat('#3A2824', { shade: '#291B20', dark: '#1A1118', light: '#5E4034', spec: '#8C6048', rim: '#A05A3C' }),
   shirt: mat('#3FA66B', { shade: '#2E7A52', light: '#6CC48A', dark: '#245A44', spec: '#A6DDB0', rim: '#A8C870' }),
   print: flat('#F4F1E8'),
   printD: flat('#2A5A48'),
@@ -55,51 +55,68 @@ function ahoge(f: Fig, x: number, y: number, sway: number) {
 
 function headFront(f: Fig, p: Pose, y: number) {
   const up = p.lookUp;
-  // face
+  // face (+ neck when the head tilts back)
   f.part('skin', { shade: 'rb', light: '' });
-  f.rows(3, y + 4, [
-    '.########.',
-    '##########',
-    '##########',
-    '##########',
-    '.########.',
-    '..######..',
-  ]);
+  if (!up)
+    f.rows(3, y + 4, [
+      '.########.',
+      '##########',
+      '##########',
+      '##########',
+      '.########.',
+      '..######..',
+    ]);
+  else
+    f.rows(3, y + 3, [
+      '.########.',
+      '##########',
+      '##########',
+      '##########',
+      '.########.',
+      '..######..',
+      '....##....',
+    ]);
   // hair (explicit form shading; front view is never mirrored)
   f.part('hair', { shade: '', light: '' });
-  f.rows(1, y, [
-    '.....HHhhh....',
-    '...HKKHhhhhd..',
-    '..HKHhhhhhhhd.',
-    '.HHhhhhhhhhhdd',
-    'hHhhhdhhhhhhdd',
-    '.hhd.hhd.hhdd.',
-    '.hd...d...dhd.',
-    '.h.........hd.',
-  ], HAIR);
-  if (up) f.erase(4, y + 6, 8, 1).erase(2, y + 7, 1, 1).erase(13, y + 7, 1, 1);
+  if (!up)
+    f.rows(1, y, [
+      '.....HHhhh....',
+      '...HKKHhhhhd..',
+      '..HKHhhhhhhhd.',
+      '.HHhhhhhhhhhdd',
+      'hHhhhdhhhhhhdd',
+      '.hhd.hhd.hhdd.',
+      '.hd...d...dhd.',
+      '.h.........hd.',
+    ], HAIR);
+  else
+    f.rows(1, y - 1, [
+      '.....HHhhh....',
+      '...HKKHhhhhd..',
+      '..HKHhhhhhhhd.',
+      '.HHhhhhhhhhhdd',
+      'hHhhdhhhdhhhdd',
+      '.hd.......hdd.',
+      '.h.........hd.',
+    ], HAIR);
   // eyes
+  const ey = y + (up ? 5 : 7);
   f.part('eye', { flat: true, rim: false });
-  const ey = y + (up ? 6 : 7);
-  if (p.blink) f.px(5, ey + 1).px(10, ey + 1);
-  else if (p.act === 'surprised') f.rect(5, ey, 1, 2).rect(10, ey, 1, 2);
-  else f.rect(5, ey, 1, 2).rect(10, ey, 1, 2);
-  if (!p.blink && p.act !== 'hurt') {
+  if (p.act === 'hurt') {
+    f.px(4, ey).px(5, ey + 1).px(11, ey).px(10, ey + 1);
+  } else if (p.blink) {
+    f.px(5, ey + 1).px(10, ey + 1);
+  } else {
+    f.rect(5, ey, 1, 2).rect(10, ey, 1, 2);
     f.part('shine', { flat: true, rim: false });
     f.px(5, ey).px(10, ey);
-    f.part('eye', { flat: true, rim: false });
-    f.px(5, ey + 1).px(10, ey + 1);
-  }
-  if (p.act === 'hurt') {
-    f.part('eye', { flat: true, rim: false });
-    f.erase(5, ey, 1, 2).erase(10, ey, 1, 2);
-    f.px(4, ey).px(5, ey + 1).px(11, ey).px(10, ey + 1);
   }
   // blush + mouth
   f.part('blush', { flat: true, rim: false });
-  f.px(4, y + 9).px(11, y + 9);
+  f.px(4, ey + 2).px(11, ey + 2);
   f.part('mouth', { flat: true, rim: false });
-  if (p.act === 'surprised' || p.act === 'hurt' || up) f.rect(7, y + 9, 2, 1);
+  if (up) f.rect(7, ey + 3, 2, 1);
+  else if (p.act === 'surprised' || p.act === 'hurt') f.rect(7, y + 9, 2, 1);
   else f.px(8, y + 9);
 }
 
@@ -127,61 +144,67 @@ function headSide(f: Fig, p: Pose, y: number) {
   f.part('skin', { shade: 'b', light: '' });
   if (!up)
     f.rows(2, y + 4, [
-      '.#####....',
+      '.####.....',
+      '######....',
       '######....',
       '#######...',
-      '.######...',
-      '..####....',
+      '.#####....',
+      '..###.....',
     ]);
   else
-    f.rows(2, y + 3, [
-      '..###.....',
-      '.#####....',
-      '######....',
-      '.######...',
-      '..#####...',
+    f.rows(1, y + 3, [
+      '...###.....',
+      '..#####....',
+      '.######....',
+      '#######....',
+      '.#######...',
+      '..#####....',
+      '....##.....',
     ]);
   f.part('hair', { shade: 'rb', light: 't' });
   if (!up)
     f.rows(1, y, [
-      '.....######...',
-      '...#########..',
-      '..###########.',
-      '.#############',
-      '##-#.#########',
-      '.#...#-#######',
+      '.....#####....',
+      '...########...',
+      '..##########..',
+      '.###########-.',
+      '##-##########.',
+      '.#..-########.',
       '......#######.',
-      '.......#####..',
-      '........##-...',
+      '.......######.',
+      '........###...',
     ]);
   else
     f.rows(1, y - 1, [
       '......#####...',
       '....########..',
       '...##########.',
-      '..############',
-      '.#-..#########',
-      '......########',
+      '..###########-',
+      '.#-.#########.',
+      '......#######.',
       '.......######.',
-      '........####..',
-      '.........#-...',
+      '.......######.',
+      '........###...',
     ]);
   // ear
   f.part('skin', { shade: '', light: '' });
   f.t(-1).px(8, y + (up ? 5 : 6)).t(0).px(8, y + (up ? 6 : 7)).t(null);
   // eye
   f.part('eye', { flat: true, rim: false });
-  const ey = y + (up ? 5 : 6);
-  if (p.blink) f.px(4, ey + 1);
+  const ey = y + (up ? 4 : 6);
+  const ex = up ? 3 : 4;
+  if (p.blink) f.px(ex, ey + 1);
+  else if (p.act === 'hurt') f.px(ex, ey + 1).px(ex + 1, ey);
   else {
-    f.rect(4, ey, 1, 2);
+    f.rect(ex, ey, 1, 2);
     f.part('shine', { flat: true, rim: false });
-    if (p.act !== 'hurt') f.px(4, ey);
+    f.px(ex, ey);
   }
   f.part('blush', { flat: true, rim: false });
   if (!up) f.px(5, y + 8);
   f.part('mouth', { flat: true, rim: false });
-  if (p.act === 'surprised' || p.act === 'hurt' || up) f.px(3, y + (up ? 8 : 9));
+  if (up) f.px(2, y + 7);
+  else if (p.act === 'surprised' || p.act === 'hurt') f.px(3, y + 9);
 }
 
 // ---- torso ------------------------------------------------------------------
@@ -323,12 +346,18 @@ function side(f: Fig, p: Pose) {
   legs(f, p, { ...LEGS, cx: 8 });
   f.part('shorts', { shade: 'rb', light: '' });
   f.rect(6, 18 + b, 5, 2);
-  // tee
+  // tee: narrow shoulders, loose flare toward the hem
   f.part('shirt', { shade: 'rb', light: 't' });
-  f.hl(5 + lean, 10 + lean, 12 + u);
-  f.rect(4 + lean, 13 + u, 8, 17 + b - (13 + u) + 1);
+  f.rows(3 + lean, 12 + u, [
+    '..#####..',
+    '.#######.',
+    '.#######.',
+    '.########',
+    '#########',
+  ]);
+  for (let yy = 17 + u; yy <= 17 + b; yy++) f.hl(3 + lean, 11 + lean, yy);
   f.part('shirt', { flat: true });
-  f.t(-2).px(6 + lean, 12 + u).t(-1).px(10 + lean, 16 + b).px(10 + lean, 17 + b).t(null);
+  f.t(-2).px(5 + lean, 12 + u).t(-1).px(10 + lean, 16 + b).px(10 + lean, 17 + b).px(4 + lean, 17 + b).t(null);
   if (p.run) {
     f.part('shirt', { shade: 'rb', light: '' });
     f.px(12, 16 + b).px(12, 17 + b).px(13, 17 + b - (p.step % 2));
@@ -337,10 +366,15 @@ function side(f: Fig, p: Pose) {
   f.px(5 + lean, 13 + u);
   f.part('key', { flat: true, rim: false });
   f.px(4 + lean, 14 + u);
-  // near arm: sleeve + forearm
+  // near arm: sleeve cap + forearm
+  const slv = (x: number, yy: number) => {
+    f.part('shirt', { shade: 'rb', light: 'tl' });
+    f.rows(x, yy, ['.##.', '####', '####']);
+    f.part('shirt', { flat: true });
+    f.t(-2).hl(x, x + 3, yy + 3).t(null);
+  };
   if (act === 'give' || act === 'stamp') {
-    f.part('shirt', { shade: 'rb', light: 't' });
-    f.rect(6 + lean, 13 + u, 4, 3);
+    slv(6 + lean, 12 + u);
     armTo(f, { sx: 6, sy: 15 + u, hx: 0, hy: 0, segs: FOREARM }, 3, 15 + u);
     if (act === 'give') {
       f.part('package', { shade: 'rb', light: 't' });
@@ -354,13 +388,14 @@ function side(f: Fig, p: Pose) {
       f.vl(0, 14 + u, 15 + u);
     }
   } else if (act === 'surprised') {
-    f.part('shirt', { shade: 'rb', light: 't' });
-    f.rect(6, 12 + u, 4, 3);
-    armTo(f, { sx: 6, sy: 12 + u, hx: 0, hy: 0, segs: FOREARM }, 4, 9 + u);
+    slv(6, 11 + u);
+    armTo(f, { sx: 6, sy: 13 + u, hx: 0, hy: 0, segs: FOREARM }, 4, 10 + u);
   } else {
-    f.part('shirt', { shade: 'rb', light: 't' });
-    f.rect(6 + lean - (sw > 0 ? 1 : 0), 13 + u, 4, 3);
-    armTo(f, { sx: 7 + lean, sy: 16 + u, hx: 0, hy: 1, segs: FOREARM }, 7 + lean - sw, 17 + u - (sw ? 1 : 0) + (sw ? 0 : 0));
+    const ax = 6 + lean - (sw > 0 ? 1 : sw < 0 ? -1 : 0);
+    slv(ax, 12 + u);
+    f.part('skin', { shade: '', light: '' });
+    const hx = 7 + lean - sw * 2;
+    f.t(0).line(ax + 1 + (sw > 0 ? 0 : 1), 16 + u, hx, 17 + u + (sw ? 0 : 1)).t(null);
   }
   headSide(f, p, headY);
   const sway = p.mode === 'idle' ? (p.tick % 4 < 2 ? 0 : 1) : p.mode === 'walk' ? (p.step % 2 ? 1 : 0) : 1;

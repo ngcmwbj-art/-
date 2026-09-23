@@ -20,6 +20,8 @@ export interface Mat {
   /** No automatic shading (explicit tones still apply). */
   flat: boolean;
   norim: boolean;
+  /** Dithered (soft, fluffy) outer outline. */
+  soft: boolean;
 }
 
 export interface MatOpts extends RampOpts {
@@ -27,6 +29,7 @@ export interface MatOpts extends RampOpts {
   ol?: string;
   flat?: boolean;
   norim?: boolean;
+  soft?: boolean;
 }
 
 /** Create a material from a base color (hue-shifted ramp) or an explicit ramp. */
@@ -38,12 +41,13 @@ export function mat(base: string | Ramp, o: MatOpts = {}): Mat {
     ol: o.ol ?? outlineOf(r[0]),
     flat: !!o.flat,
     norim: !!o.norim,
+    soft: !!o.soft,
   };
 }
 
 /** A single flat color material (details: eyes, prints, buttons). */
 export function flat(c: string, o: { rim?: string; ol?: string; norim?: boolean } = {}): Mat {
-  return { ramp: [c, c, c, c, c], rim: o.rim ?? c, ol: o.ol ?? C.ol, flat: true, norim: o.norim ?? true };
+  return { ramp: [c, c, c, c, c], rim: o.rim ?? c, ol: o.ol ?? C.ol, flat: true, norim: o.norim ?? true, soft: false };
 }
 
 export type Mats = Record<string, Mat>;
@@ -256,8 +260,9 @@ export class Fig {
 
   /**
    * Stamp rows of characters. Built-ins: '.'/' ' skip, '#' current material
-   * (auto tone), '+' light, '-' shade, '=' dark, '*' spec, 'o' base (explicit),
-   * 'x' erase. `map` adds letters → material name or [material|null, tone|null].
+   * (auto tone), '+'/'H' light, '-'/'d' shade, '='/'D' dark, '*'/'K' spec,
+   * 'o'/'h' base (explicit), 'x' erase. `map` adds letters → material name or
+   * [material|null, tone|null] (map entries win over built-ins).
    */
   rows(x: number, y: number, rows: string[], map: RowMap = {}): this {
     const saveMat = this.curMat;
@@ -282,11 +287,11 @@ export class Fig {
         }
         switch (ch) {
           case '#': break;
-          case '+': this.curTone = 1; break;
-          case '-': this.curTone = -1; break;
-          case '=': this.curTone = -2; break;
-          case '*': this.curTone = 2; break;
-          case 'o': this.curTone = 0; break;
+          case '+': case 'H': this.curTone = 1; break;
+          case '-': case 'd': this.curTone = -1; break;
+          case '=': case 'D': this.curTone = -2; break;
+          case '*': case 'K': this.curTone = 2; break;
+          case 'o': case 'h': this.curTone = 0; break;
           case 'x': this.erase(x + i, y + j); continue;
           default: continue;
         }
@@ -475,8 +480,10 @@ export class Fig {
             if (n < 0) n = olAt(x + 1, y + 1);
           }
           if (n < 0) continue;
-          if (mode === 'plain' || below >= 0) out.data[i] = plain;
-          else out.data[i] = rgba32(this.matList[this.mid[n]].ol);
+          const nm = this.matList[this.mid[n]];
+          if (nm.soft && (x + y) % 2 === 0) out.data[i] = rgba32(nm.ramp[0]);
+          else if (mode === 'plain' || below >= 0) out.data[i] = plain;
+          else out.data[i] = rgba32(nm.ol);
         }
     }
     for (const f of this.post) f(out);
