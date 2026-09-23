@@ -5,6 +5,7 @@ import { loadFont, warmGlyphs } from './engine/font';
 import { game } from './engine/game';
 import { unlockAudio } from './audio';
 import { installDebug } from './debug';
+import { installTouch } from './engine/touch';
 import { firstScene } from './boot';
 import './modules';
 
@@ -17,6 +18,7 @@ async function boot(): Promise<void> {
   warmGlyphs('あいうえおアイウエオ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ');
   game.init(canvas);
   game.input.onFirstGesture = () => unlockAudio();
+  installTouch(game.input);
   canvas.focus();
   installDebug();
   document.getElementById('boot')?.remove();

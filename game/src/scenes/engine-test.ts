@@ -6,6 +6,7 @@ import type { Gfx } from '../engine/gfx';
 import { PixelCanvas } from '../engine/pixel';
 import { Particles } from '../engine/particles';
 import { sfx } from '../audio';
+import { say, choose } from '../ui/dialog';
 
 export class EngineTestScene implements Scene {
   private art: HTMLCanvasElement;
@@ -24,6 +25,13 @@ export class EngineTestScene implements Scene {
 
   update(dt: number): void {
     this.t += dt;
+    if (game.input.pressed('menu')) {
+      game.scripts.run((function* () {
+        yield* say('夕方の五時になると、{c=#ffd35a}チャイム{/c}が鳴る。{w=400}\nでも今日は、{shake}なにかがおかしい。{/shake}', { name: 'ナレーション' });
+        const i = yield* choose(['しらべる', 'やめておく']);
+        yield* say(i === 0 ? '{wave}ふしぎな音がする……{/wave}これはとても長い文章なので自動的に改ページされるかどうかを確認するためのテストです。三行を超えたら次のページに送られるはず。' : 'やめておいた。');
+      })());
+    }
     this.parts.update(dt);
     if (game.input.pressed('confirm')) {
       sfx('se_confirm');
