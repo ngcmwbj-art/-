@@ -270,7 +270,8 @@ export interface Graph {
   musicDuck: GainNode;
   musicMute: GainNode;
   musicFilter: BiquadFilterNode;
-  musicRev: Reverb;
+  /** muffle (menu) level. */
+  musicMuffle: GainNode;
   sfxBus: GainNode;
   sfxDuck: GainNode;
   bellBus: GainNode;
@@ -358,11 +359,13 @@ export function buildGraph(ctx: BaseAudioContext, opts: { bypassDynamics?: boole
   const musicUser = ctx.createGain();
   musicUser.gain.value = volCurve(7);
   musicUser.connect(master);
+  const musicMuffle = ctx.createGain();
+  musicMuffle.connect(musicUser);
   const musicFilter = ctx.createBiquadFilter();
   musicFilter.type = 'lowpass';
   musicFilter.frequency.value = 20000;
   musicFilter.Q.value = 0.707;
-  musicFilter.connect(musicUser);
+  musicFilter.connect(musicMuffle);
   const musicMute = ctx.createGain();
   musicMute.connect(musicFilter);
   const musicDuck = ctx.createGain();
@@ -393,9 +396,6 @@ export function buildGraph(ctx: BaseAudioContext, opts: { bypassDynamics?: boole
   ambBus.connect(ambDuck);
 
   const sp = SPACES.outdoor;
-  const musicRev = new Reverb(ctx, makeIR(ctx, 1.6, 3.2, 11), 250);
-  musicRev.output.gain.value = 0.35;
-  musicRev.output.connect(musicBus);
   const fxRev = new Reverb(ctx, makeIR(ctx, sp.len, sp.decay, 5), sp.hp);
   const fxSend = ctx.createGain();
   fxSend.gain.value = sp.send / 0.35;
@@ -413,7 +413,7 @@ export function buildGraph(ctx: BaseAudioContext, opts: { bypassDynamics?: boole
     nd[i] = (s / 0x7fffffff) * 2 - 1;
   }
   return {
-    ctx, offline, master, comp, limiter, musicUser, seUser, musicBus, musicDuck, musicMute, musicFilter, musicRev,
+    ctx, offline, master, comp, limiter, musicUser, seUser, musicBus, musicDuck, musicMute, musicFilter, musicMuffle,
     sfxBus, sfxDuck, bellBus, voiceBus, ambBus, ambDuck, fxRev, fxSend, pa, noise, space: 'outdoor', preTap,
     bypassDynamics: !!opts.bypassDynamics,
   };
@@ -603,6 +603,12 @@ export function captureVoices<T>(list: VoiceHandle[], fn: () => T): T {
 }
 
 let noiseRot = 0;
+
+/** QA: when set, every voice() appends a record (offline piano-roll renders). */
+export let noteLog: { t: number; dur: number; freq: number; vol: number; wave: string }[] | null = null;
+export function setNoteLog(l: typeof noteLog): void {
+  noteLog = l;
+}
 
 function waveOf(w: Wave): Wave {
   switch (w) {
@@ -868,7 +874,7 @@ export function voice(o: VoiceOpts): VoiceHandle {
     const s = c.createGain();
     s.gain.value = o.reverb;
     out.connect(s);
-    s.connect(o.revDest ?? (o.bus === 'music' ? g.musicRev.input : g.fxSend));
+    s.connect(o.revDest ?? g.fxSend);
     nodes.push(s);
   }
   if (wave === 'noise') {
@@ -891,6 +897,7 @@ export function voice(o: VoiceOpts): VoiceHandle {
       }
   };
 
+  if (noteLog) noteLog.push({ t: t0, dur: gateEnd - t0, freq: wave === 'noise' ? 0 : f0, vol, wave });
   const h: VoiceHandle = {
     start: t0,
     end,

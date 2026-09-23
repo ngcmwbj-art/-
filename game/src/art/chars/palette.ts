@@ -53,5 +53,5 @@ export function rimOf(base: string, light: string): string {
 
 /** Outer outline tinted toward the material (selective outline). */
 export function outlineOf(dark: string): string {
-  return mix(dark, C.ol, 0.62);
+  return mix(dark, C.ol, 0.25);
 }

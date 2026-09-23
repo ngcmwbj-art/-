@@ -109,7 +109,9 @@ export function* ringStrike(s: BattleScene, cx: () => number, cy: () => number, 
       s.sticky = { text: '', t: 0 };
       showStickyRing(s);
     }
-    const pressed = s.takeConfirm();
+    let pressed = s.takeConfirm();
+    if (s.auto.ring === 'good' && f === hitF) pressed = true;
+    if (s.auto.ring === 'early' && f === lead + 2) pressed = true;
     if (pressed && q === 'none' && f >= lead && resolvedAt < 0) {
       if (f < hitF - win) {
         q = 'early';
@@ -245,7 +247,7 @@ function* strikeOnce(
     crit,
   });
   hitFeel(s, e, crit ? 'crit' : good ? 'good' : 'normal', good);
-  if (good) s.label(LABEL.iioto, e.coreX + 22, e.coreY - 14, 'shu', 520);
+  if (good) s.label(LABEL.iioto, e.coreX + 12 + 38, e.coreY - 12 - 12, 'shu', 520);
   if (boke && s.enemies[0]?.id === 'enemy_hato_kakaricho') showSticky(s, 'bokemake');
   const killed = hurtEnemy(s, e, dmg, { crit, stack: o.stack });
   return { killed, hit: true, boke };
@@ -311,8 +313,8 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
       dur: 0,
       draw: (g) => {
         if (!net.visible) return;
-        if (net.ghost >= 0) drawNet(g, net.x, net.y, net.ghost, { alpha: 0.5 * net.alpha, ghost: true });
-        drawNet(g, net.x, net.y, net.a, { alpha: net.alpha });
+        if (net.ghost >= 0) drawNet(g, net.x, net.y, net.ghost, { alpha: 0.5 * net.alpha, ghost: true, len: 71 });
+        drawNet(g, net.x, net.y, net.a, { alpha: net.alpha, len: 71 });
       },
     });
   } else {
@@ -480,7 +482,9 @@ export function* holdStamp(s: BattleScene, u: PartyUnit, forceKasure = false): C
   }
   // wait for a fresh press
   s.takeConfirm();
-  while (!s.takeConfirm()) yield null;
+  const autoHold = s.auto.hold;
+  if (!autoHold) while (!s.takeConfirm()) yield null;
+  else yield 200;
   if (tut) hideSticky(s);
   st.charging = true;
   let held = 0;
@@ -492,7 +496,11 @@ export function* holdStamp(s: BattleScene, u: PartyUnit, forceKasure = false): C
     st.amount = ph >= 4 ? 0 : k <= 1 ? k : 2 - k;
     st.inZone = st.amount >= kLo;
     if (s.frame % 5 === 0) s.sfx('se_hanko_charge', { pitch: 1 + 0.6 * st.amount, vol: 0.5 });
-    const released = !s.confirmDown();
+    let released = !s.confirmDown();
+    if (autoHold) {
+      const goal = autoHold === 'kukkiri' ? 0.95 : autoHold === 'futsuu' ? 0.62 : 0.2;
+      released = held / 800 < 1 && st.amount >= goal;
+    }
     if (released || ph >= 4) {
       const a = Math.floor(st.amount * 100);
       judge = a >= kLo * 100 ? 'kukkiri' : a >= 40 ? 'futsuu' : 'kasure';

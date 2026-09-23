@@ -52,6 +52,30 @@ export function flat(c: string, o: { rim?: string; ol?: string; norim?: boolean 
 
 export type Mats = Record<string, Mat>;
 
+// Palette law (30_level_art 7.2 / 7.5): no pure white (#FFF6D8 is the
+// brightest), no pure black (#0B0B14), eyes and mouths are #2A2440.
+const REMAP: Record<string, string> = { '#ffffff': '#FFF6D8', '#000000': '#0B0B14', '#2a1c28': '#2A2440' };
+function lawColor(c: string): string {
+  const k = c.toLowerCase();
+  const base = k.slice(0, 7);
+  const r = REMAP[base];
+  return r ? r + c.slice(7) : c;
+}
+function lawful(name: string, m: Mat): Mat {
+  if (name === 'mouth') return flat(C.ol);
+  return {
+    ...m,
+    ramp: m.ramp.map(lawColor) as Ramp,
+    rim: lawColor(m.rim),
+    ol: lawColor(m.ol),
+  };
+}
+
+/** Pixels of the left-edge rim are broken every third row (7.5: not continuous). */
+function rimOn(y: number, top: number): boolean {
+  return (y - top) % 3 !== 2;
+}
+
 export interface PartOpts {
   /** Edge sides that get shaded: r=right, b=bottom, l=left, t=top. Default 'rb'. */
   shade?: string;
@@ -123,7 +147,7 @@ export class Fig {
 
   addMat(name: string, m: Mat): number {
     const i = this.matList.length;
-    this.matList.push(m);
+    this.matList.push(lawful(name, m));
     this.matIndex.set(name, i);
     return i;
   }
@@ -139,6 +163,11 @@ export class Fig {
 
   has(name: string): boolean {
     return this.matIndex.has(name);
+  }
+
+  /** Material index of a registered material (-1 if missing). */
+  idOf(name: string): number {
+    return this.matIndex.get(name) ?? -1;
   }
 
   /** Begin a new part (drawn in front of everything so far). */
@@ -396,6 +425,10 @@ export class Fig {
       }
     }
 
+    // top row of every part (keeps the broken rim pattern stable while bobbing)
+    const partTop = new Int16Array(this.parts.length).fill(9999);
+    for (let i = 0; i < W * H; i++) if (pid[i]) partTop[pid[i]] = Math.min(partTop[pid[i]], (i / W) | 0);
+
     for (let y = 0; y < H; y++)
       for (let x = 0; x < W; x++) {
         const i = y * W + x;
@@ -446,7 +479,7 @@ export class Fig {
           tone = Math.max(-2, Math.min(2, tone));
         }
         let col = m.ramp[tone + 2];
-        if (part.rim && !m.norim && pidAt(x - 1, y) === 0 && tone > -2) col = m.rim;
+        if (part.rim && !m.norim && pidAt(x - 1, y) === 0 && tone > -2 && rimOn(y, partTop[p])) col = m.rim;
         out.set(x, y, col);
       }
 
@@ -467,12 +500,13 @@ export class Fig {
           const i = y * W + x;
           if (src[i] >>> 24 !== 0 && pid[i]) continue;
           if (src[i] >>> 24 !== 0) continue;
-          // priority: below (ground contact), right, above, left
-          let n = olAt(x, y - 1);
-          const below = n;
-          if (n < 0) n = olAt(x - 1, y);
-          if (n < 0) n = olAt(x, y + 1);
-          if (n < 0) n = olAt(x + 1, y);
+          // bottom and right edges: #2A2440; top and left: the fill's darkest (colored)
+          const up = olAt(x, y - 1);
+          const lf = olAt(x - 1, y);
+          const dn = olAt(x, y + 1);
+          const rt = olAt(x + 1, y);
+          let n = up >= 0 ? up : lf >= 0 ? lf : dn >= 0 ? dn : rt;
+          const plainSide = up >= 0 || lf >= 0;
           if (n < 0 && o.heavy) {
             n = olAt(x - 1, y - 1);
             if (n < 0) n = olAt(x + 1, y - 1);
@@ -482,7 +516,7 @@ export class Fig {
           if (n < 0) continue;
           const nm = this.matList[this.mid[n]];
           if (nm.soft && (x + y) % 2 === 0) out.data[i] = rgba32(nm.ramp[0]);
-          else if (mode === 'plain' || below >= 0) out.data[i] = plain;
+          else if (mode === 'plain' || plainSide) out.data[i] = plain;
           else out.data[i] = rgba32(nm.ol);
         }
     }

@@ -70,6 +70,7 @@ function noriAvailable(s: BattleScene): boolean {
 
 /** Collect this round's commands. */
 export function* inputCommands(s: BattleScene): Co<PartyCmd[]> {
+  if (s.cmdQueue.length) return queuedCommands(s);
   const actors = s.party.filter((u) => u.canAct && !(s.memo.bossFinal && u.id === 'kanenari'));
   const cmds: PartyCmd[] = [];
   const chosen: (PartyCmd | null)[] = actors.map(() => null);
@@ -115,6 +116,53 @@ export function* inputCommands(s: BattleScene): Co<PartyCmd[]> {
     if (reason) cmds.push({ kind: 'skip', u, reason });
   }
   return cmds;
+}
+
+/** QA: build commands from __game.cmd.bcmd([...]) without the UI. */
+function queuedCommands(s: BattleScene): PartyCmd[] {
+  const out: PartyCmd[] = [];
+  const q = s.cmdQueue;
+  s.cmdQueue = [];
+  for (const c of q) {
+    const u = s.party.find((p) => p.id === c.who);
+    if (!u) continue;
+    const enemy = (): EnemyUnit => {
+      const list = s.aliveEnemies;
+      return (typeof c.target === 'number' ? list[c.target] : undefined) ?? list[0];
+    };
+    const ally = (): PartyUnit => s.party.find((p) => p.id === c.target) ?? u;
+    switch (c.cmd) {
+      case 'attack':
+        out.push({ kind: 'attack', u, target: enemy() });
+        break;
+      case 'hanko': {
+        const def = getSkill(c.skill ?? '');
+        if (!def) break;
+        out.push({ kind: 'hanko', u, skill: def.id, target: def.target === 'ally' ? ally() : enemy(), part: c.part });
+        break;
+      }
+      case 'pr':
+        out.push({ kind: 'pr', u, skill: c.skill ?? 'skill_kane' });
+        break;
+      case 'item':
+        out.push({ kind: 'item', u, item: c.item ?? 'item_ramune', target: getItem(c.item ?? '')?.target === 'allies' ? null : ally() });
+        break;
+      case 'guard':
+        out.push({ kind: 'guard', u });
+        break;
+      case 'flee':
+        out.push({ kind: 'flee', u });
+        break;
+      case 'nori':
+        return [{ kind: 'nori', u }];
+    }
+  }
+  for (const u of s.party) {
+    if (out.some((c) => c.u === u)) continue;
+    const reason = !u.alive ? 'status_hebatta' : u.has('status_rusu') ? 'status_rusu' : u.has('status_nemuri') ? 'status_nemuri' : u.has('status_tsukamare') ? 'status_tsukamare' : u.has('status_toosenbo') ? 'status_toosenbo' : '';
+    if (reason) out.push({ kind: 'skip', u, reason });
+  }
+  return out;
 }
 
 function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: Record<string, number>): Co<PartyCmd | 'back'> {

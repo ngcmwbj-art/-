@@ -27,8 +27,10 @@ export const MINATO_MATS: Mats = {
   mouth: flat('#C87A64'),
   blush: flat('#F9A48A'),
   package: mat('#F4F1E8', { shade: '#D8CCB4', light: '#FFFFFF' }),
+  kraft: mat('#E8C890', { shade: '#C8A06A', light: '#F6E0B0', dark: '#8A6A3A' }),
   tape: flat('#E84E3C'),
   hanko: mat('#E23B2E', { shade: '#B8241E', light: '#FF6A4D' }),
+  hand: mat('#FFD9B8', { shade: '#EBB08E', light: '#FFE9D4', dark: '#C98A6A' }),
   wood: mat('#D9A441', { shade: '#A8742A', light: '#F6D98A' }),
 };
 
@@ -104,12 +106,14 @@ function headFront(f: Fig, p: Pose, y: number) {
   f.part('eye', { flat: true, rim: false });
   if (p.act === 'hurt') {
     f.px(4, ey).px(5, ey + 1).px(11, ey).px(10, ey + 1);
-  } else if (p.blink) {
+  } else if (p.blinkClosed) {
+    f.hl(4, 5, ey + 1).hl(10, 11, ey + 1);
+  } else if (p.blink || p.act === 'smug') {
+    // half-closed (smug = self-satisfied narrow eyes)
     f.px(5, ey + 1).px(10, ey + 1);
+    if (p.act === 'smug') f.px(4, ey + 1).px(11, ey + 1);
   } else {
     f.rect(5, ey, 1, 2).rect(10, ey, 1, 2);
-    f.part('shine', { flat: true, rim: false });
-    f.px(5, ey).px(10, ey);
   }
   // blush + mouth
   f.part('blush', { flat: true, rim: false });
@@ -117,6 +121,7 @@ function headFront(f: Fig, p: Pose, y: number) {
   f.part('mouth', { flat: true, rim: false });
   if (up) f.rect(7, ey + 3, 2, 1);
   else if (p.act === 'surprised' || p.act === 'hurt') f.rect(7, y + 9, 2, 1);
+  else if (p.act === 'smug') f.px(8, y + 9).px(9, y + 8);
   else f.px(8, y + 9);
 }
 
@@ -193,13 +198,10 @@ function headSide(f: Fig, p: Pose, y: number) {
   f.part('eye', { flat: true, rim: false });
   const ey = y + (up ? 4 : 6);
   const ex = up ? 3 : 4;
-  if (p.blink) f.px(ex, ey + 1);
+  if (p.blinkClosed) f.hl(ex, ex + 1, ey + 1);
+  else if (p.blink || p.act === 'smug') f.px(ex, ey + 1);
   else if (p.act === 'hurt') f.px(ex, ey + 1).px(ex + 1, ey);
-  else {
-    f.rect(ex, ey, 1, 2);
-    f.part('shine', { flat: true, rim: false });
-    f.px(ex, ey);
-  }
+  else f.rect(ex, ey, 1, 2);
   f.part('blush', { flat: true, rim: false });
   if (!up) f.px(5, y + 8);
   f.part('mouth', { flat: true, rim: false });
@@ -270,7 +272,11 @@ function front(f: Fig, p: Pose) {
   shortsFront(f, 18 + b);
   const armL: ArmSpec = { sx: 2, sy: 15 + u, hx: 0, hy: 2, segs: FOREARM };
   const armR: ArmSpec = { sx: 13, sy: 15 + u, hx: 0, hy: 2, segs: FOREARM, shift: -1 };
-  if (act === 'surprised' || act === 'hold_up') {
+  if (act === 'hold_up') {
+    teeFront(f, p, 12 + u, 17 + b, false);
+    armTo(f, armL, 3, 4, [1, 10 + u]);
+    armTo(f, armR, 12, 4, [14, 10 + u]);
+  } else if (act === 'surprised') {
     teeFront(f, p, 12 + u, 17 + b, false);
     armTo(f, armL, 1, 10 + u, [2, 13 + u]);
     armTo(f, armR, 14, 10 + u, [13, 13 + u]);
@@ -293,19 +299,39 @@ function front(f: Fig, p: Pose) {
     teeFront(f, p, 12 + u, 17 + b, false);
     armTo(f, armL, 4, 17 + u);
     armTo(f, armR, 11, 17 + u);
+  } else if (act === 'hold') {
+    // the warm korokke parcel held against his tummy with both hands
+    teeFront(f, p, 12 + u, 17 + b, false);
+    armTo(f, armL, 4, 16 + u, [2, 15 + u]);
+    armTo(f, armR, 11, 16 + u, [13, 15 + u]);
+    f.part('kraft', { shade: 'rb', light: 't' });
+    f.rect(4, 14 + u, 8, 3);
+    f.part('tape', { flat: true, rim: false });
+    f.vl(8, 14 + u, 16 + u).hl(4, 11, 15 + u);
+    f.part('hand', { shade: 'rb', light: '' });
+    f.px(4, 16 + u).px(11, 16 + u);
   } else {
     teeFront(f, p, 12 + u, 17 + b, false);
     armTo(f, armL, 2, 17 + u + swing(p, -1));
     armTo(f, armR, 13, 17 + u + swing(p, 1));
   }
+  if (act === 'bow') {
+    // a polite bow: the head dips 2px, eyes shut, ahoge flops forward
+    headFront(f, { ...p, blink: true, blinkClosed: true }, headY + 2);
+    ahoge(f, 6, headY + 1, -1);
+    return;
+  }
   headFront(f, p, headY);
   const sway = p.mode === 'idle' ? (p.tick % 4 < 2 ? 0 : 1) : p.mode === 'walk' ? (p.step % 2 ? 1 : 0) : p.run ? 1 : 0;
   ahoge(f, 7, headY - 2, sway);
   if (act === 'hold_up') {
-    f.part('package', { shade: 'rb', light: 't' });
-    f.rect(5, 6 + u, 6, 3);
+    // item get: the thing held high above his head
+    f.part('kraft', { shade: 'rb', light: 't' });
+    f.rect(5, 0, 6, 3);
     f.part('tape', { flat: true, rim: false });
-    f.vl(8, 6 + u, 8 + u);
+    f.vl(8, 0, 2);
+    f.part('hand', { shade: 'rb', light: 't' });
+    f.rect(3, 2, 2, 2).rect(11, 2, 2, 2);
   }
 }
 
@@ -323,11 +349,20 @@ function back(f: Fig, p: Pose) {
   headBack(f, p, headY);
   const sway = p.mode === 'idle' ? (p.tick % 4 < 2 ? 0 : -1) : p.mode === 'walk' ? (p.step % 2 ? -1 : 0) : 0;
   ahoge(f, 8, headY - 2, sway);
-  // bug net stuck in the collar: pole crosses the back of the head, hoop top-right
+  // key string: 1px at the nape
+  f.part('string', { flat: true, rim: false });
+  f.px(9, 11 + u);
+  // bug net stuck in the back of the tee: the pole crosses his back
+  // diagonally and the hoop sticks out top-left, same as from the front
   f.part('pole', { shade: '', light: '' });
-  f.t(0).line(8, 13 + u, 11, 5 + u).t(-1).px(8, 14 + u).t(null);
-  f.retone(9, 11 + u, 1).retone(10, 8 + u, 1);
-  netHoop(f, 11, 1 + u);
+  f.t(0).line(4, 4 + u, 10, 15 + u).t(-1).px(10, 16 + u).t(null);
+  f.retone(6, 7 + u, 1).retone(8, 11 + u, 1);
+  netHoop(f, 1, 0 + u);
+  if (p.act === 'hold') {
+    // package edges peeking out at his sides
+    f.part('kraft', { shade: 'rb', light: 't' });
+    f.rect(1, 15 + u, 1, 2).rect(14, 15 + u, 1, 2);
+  }
 }
 
 function side(f: Fig, p: Pose) {
@@ -390,6 +425,13 @@ function side(f: Fig, p: Pose) {
   } else if (act === 'surprised') {
     slv(6, 11 + u);
     armTo(f, { sx: 6, sy: 13 + u, hx: 0, hy: 0, segs: FOREARM }, 4, 10 + u);
+  } else if (act === 'hold') {
+    slv(6 + lean, 12 + u);
+    armTo(f, { sx: 7, sy: 15 + u, hx: 0, hy: 0, segs: FOREARM }, 4, 16 + u);
+    f.part('kraft', { shade: 'rb', light: 't' });
+    f.rect(1 + lean, 14 + u, 4, 3);
+    f.part('tape', { flat: true, rim: false });
+    f.vl(3 + lean, 14 + u, 16 + u);
   } else {
     const ax = 6 + lean - (sw > 0 ? 1 : sw < 0 ? -1 : 0);
     slv(ax, 12 + u);
@@ -422,8 +464,8 @@ function sleepPose(f: Fig, p: Pose) {
     ], HAIR);
     ahoge(f, 8, 2 + y, 1);
     f.part('pole', { shade: '', light: '' });
-    f.t(0).line(8, 13, 11, 5 + y).t(null);
-    netHoop(f, 11, 1 + y);
+    f.t(0).line(4, 5 + y, 10, 14).t(null);
+    netHoop(f, 1, 1 + y);
     f.part('shorts', { shade: 'rb', light: '' });
     f.rect(4, 19, 8, 2);
     f.part('skin', { shade: 'r', light: '' });
@@ -467,15 +509,16 @@ export const MINATO_SPEC: SpriteSpec = {
   mats: MINATO_MATS,
   draw,
   run: true,
-  walkFrameMs: 130,
-  runFrameMs: 85,
   idle: breathingIdle(16, [13]),
   extras: {
     surprised: { dirs: 'all', p: { bob: -1 } },
     hurt: { dirs: 'all' },
     give: { dirs: 'all' },
     stamp: { dirs: 'all' },
+    hold: { dirs: 'all' },
     hold_up: { dirs: ['down'] },
+    smug: { dirs: ['down', 'left', 'right'] },
+    bow: { dirs: ['down'] },
     sleep: { dirs: ['up', 'down'] },
   },
   anims: {
@@ -486,3 +529,15 @@ export const MINATO_SPEC: SpriteSpec = {
 };
 
 registerChar('minato', () => buildSprite(MINATO_SPEC));
+
+// Ending: walking to the crossing with the korokke parcel in both hands.
+registerChar('minato_hold', () =>
+  buildSprite({
+    ...MINATO_SPEC,
+    id: 'minato_hold',
+    run: false,
+    draw: (f, p) => draw(f, { ...p, act: p.act === '' || p.act === 'look_up' ? 'hold' : p.act }),
+    extras: { give: { dirs: 'all' } },
+    anims: {},
+  }),
+);

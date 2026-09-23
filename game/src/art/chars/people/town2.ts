@@ -26,7 +26,7 @@ const CHU: Mats = {
   ...base,
   skin: skinLight,
   hair: blackHair,
-  jersey: mat('#2E2E40', { shade: '#20202E', light: '#4A4A62', dark: '#14141E', spec: '#6A6A86', rim: '#8A5A5A' }),
+  jersey: mat('#3A3F48', { shade: '#282C36', light: '#555C68', dark: '#16181E', spec: '#7A8290', rim: '#9A6A5A' }),
   line: flat('#F4F1E8'),
   bandage: mat('#F4F1E8', { shade: '#CFC8BC', light: '#FFFFFF' }),
   sneaker: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFFFFF', dark: '#8E887E' }),
@@ -367,6 +367,13 @@ function gachaDraw(f: Fig, p: Pose) {
       const hyy = [15, 16, 17][p.ph];
       f.part('skin', { shade: '', light: '', shift: -1 });
       f.t(0).line(12, 13 + u, hx, hyy + u).t(null);
+    } else if (act === 'crank' && p.view === 'up') {
+      // facing the gacha machine: the right elbow goes round with the handle
+      hangArms(f, p, { lx: 3, rx: 12, sy: 13, hy: 16, segs: seg }, u, 'L');
+      const ex = [13, 13, 12][p.ph];
+      const ey = [14, 15, 16][p.ph];
+      f.part('skin', { shade: 'r', light: '', shift: -1 });
+      f.px(12, 13 + u).px(ex, ey + u).px(ex - 1, ey + u + (p.ph === 2 ? 0 : 1));
     } else if (act === 'shake' && p.view === 'down') {
       hangArms(f, p, { lx: 3, rx: 12, sy: 13, hy: 16, segs: seg }, u, 'L');
       f.part('skin', { shade: '', light: '', shift: -1 });

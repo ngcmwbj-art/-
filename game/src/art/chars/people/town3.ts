@@ -294,14 +294,14 @@ const OJII: Mats = {
 const OJII_HEAD: HeadT = {
   faceD: [4, 2, ['.######.', '########', '########', '########', '.######.', '..####..']],
   hairD: [4, 0, ['.HHhhhh.', 'Hhhhhhhd', 'h......d']],
-  eyesD: { x: 6, d: 3, y: 5, h: 1, brow: { dy: -1, mat: 'brow', w: 2 } },
+  eyesD: { x: 6, d: 3, y: 5, h: 1, closed: true, brow: { dy: -1, mat: 'brow', w: 2 } },
   mouthD: [7, 7, 2],
   neckD: [7, 8, 2],
   hairU: [4, 0, ['.HHhhhh.', 'Hhhhhhhd', 'hhhhhhhd', '.hhhhhd.']],
   napeU: [5, 4, ['######', '.####.']],
   faceL: [3, 2, ['.####...', '#####...', '######..', '#####...', '.####...', '..##....']],
   hairL: [4, 0, ['.#####..', '######d.', '...####.']],
-  eyeL: { x: 4, y: 5, h: 1, brow: { dy: -1, mat: 'brow', w: 2 } },
+  eyeL: { x: 4, y: 5, h: 1, closed: true, brow: { dy: -1, mat: 'brow', w: 2 } },
   earL: [8, 4],
   mouthL: [3, 7],
   neckL: [5, 8, 2],
@@ -400,7 +400,7 @@ const MIZU: Mats = {
   apron: mat('#E0567A', { shade: '#B03A5E', light: '#F07A9A', dark: '#7A2240', rim: '#FF9A8A' }),
   flower: flat('#F4F1E8'),
   pants: mat('#5A5060', { shade: '#443C4A', light: '#766C7E' }),
-  boot: mat('#F0A0B0', { shade: '#C87890', light: '#FFC8D0', dark: '#8E4A60' }),
+  boot: mat('#D9728A', { shade: '#B04A6A', light: '#F0A0B0', dark: '#7A2E48' }),
   hose: mat('#5FA85A', { shade: '#3E7A40', light: '#8ECC7A', dark: '#2A5A2E' }),
   nozzle: flat('#E8D060'),
   brow: flat('#4E3428'),
@@ -579,6 +579,34 @@ registerChar('npc_mizumaki', () =>
 const SHADOW = '#3A2B5CB3';
 const SHADOW_D = '#2A1E48C8';
 
+// Seated salaryman silhouette ('#' shadow, 'T' tie, 'x' gap). 24×24.
+const SHADOW_BODY = [
+  '.........####...........',
+  '........######..........',
+  '.......########.........',
+  '.......########.........',
+  '.......########.........',
+  '........######..........',
+  '.........####...........',
+  '.....###x.TT.x###.......',
+  '....######TT######......',
+  '...#######TT#######.....',
+  '...###x###TT###x###.....',
+  '...###x###TT###x###.....',
+  '...###x###TT###x###.....',
+  '...###x####T###x###.....',
+  '...###x#########x###....',
+  '...####x#######x####....',
+  '....################....',
+  '....################....',
+  '.....###........###.....',
+  '.....###........###.....',
+  '.....###........###.....',
+  '....####.......####.....',
+];
+// arm raised to check the wristwatch (replaces the left arm columns)
+const SHADOW_WATCH: [number, number][] = [[2, 9], [2, 8], [2, 7], [3, 6], [4, 5], [5, 5], [6, 5], [3, 7], [3, 8], [2, 10]];
+
 function shadowMan(f: Fig, p: Pose) {
   const act = p.act;
   const sink = act === 'sigh' ? 1 : 0;
@@ -586,24 +614,21 @@ function shadowMan(f: Fig, p: Pose) {
     const s = (x: number, y: number, w: number, h: number, c = SHADOW) => {
       for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) pc.set(x + i, y + j + sink, c);
     };
-    // head (a little flattened, as a cast shadow is)
-    s(9, 4, 5, 1); s(8, 5, 7, 4); s(9, 9, 5, 1);
-    // shoulders + torso on the bench back / seat
-    s(6, 11, 11, 2); s(5, 13, 13, 5);
-    // tie (darker strip) and collar notch
-    s(11, 11, 1, 1, '#00000000');
-    s(11, 12, 1, 4, SHADOW_D); s(11, 16, 1, 1, SHADOW_D);
-    // thighs + shins across the seat edge onto the ground
-    s(6, 18, 11, 2); s(6, 20, 3, 3); s(14, 20, 3, 3); s(5, 23, 4, 1); s(14, 23, 4, 1);
-    // arms
+    SHADOW_BODY.forEach((row, j) => {
+      [...row].forEach((ch, i) => {
+        if (ch === '#') s(i, j + 2, 1, 1);
+        else if (ch === 'T') s(i, j + 2, 1, 1, SHADOW_D);
+      });
+    });
     if (act === 'watch') {
-      s(3, 9, 3, 2); s(4, 11, 2, 3); s(6, 8, 3, 2);
-      s(5, 7, 2, 1, SHADOW_D);
-    } else {
-      s(3, 13, 2, 6); s(18, 13, 2, 6);
+      // lift the near arm: clear its hanging columns, draw it up at the face
+      for (let y = 12; y <= 18; y++) for (let x = 3; x <= 5; x++) pc.set(x, y + sink, '#00000000');
+      for (const [x, y] of SHADOW_WATCH) s(x, y + 2, 1, 1);
+      s(6, 6, 2, 1, SHADOW_D);
     }
-    // square briefcase beside him with its handle
-    s(19, 17, 5, 5); s(20, 16, 1, 1); s(22, 16, 1, 1); s(20, 15, 3, 1);
+    // square briefcase beside him (with its handle)
+    s(19, 16, 5, 6); s(20, 15, 1, 1); s(22, 15, 1, 1); s(20, 14, 3, 1);
+    s(19, 18, 5, 1, SHADOW_D);
     // soft edge
     for (let y = 0; y < 24; y++)
       for (let x = 0; x < 24; x++)

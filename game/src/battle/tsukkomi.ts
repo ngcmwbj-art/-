@@ -112,7 +112,7 @@ export function showKakimoji(s: BattleScene, text: string, just: boolean): void 
   const T3 = 500 + extra;
   const cx = 192 - img.width / 2;
   const y = 62 - 32 - 3;
-  const seal = just ? roundSeal('キマった', 36) : null;
+  const seal = just ? roundSeal('キマ\nった', 36) : null;
   s.addFx({
     layer: 'top',
     dur: T3,

@@ -7,6 +7,7 @@ import type { Co } from '../../engine/co';
 import { charWidth, drawGlyph } from '../../engine/font';
 import type { Gfx } from '../../engine/gfx';
 import { C, drawNote, tapeCanvas } from './note';
+import { miniText } from '../art/stamps';
 
 interface G {
   ch: string;
@@ -216,11 +217,15 @@ export class MessageBand {
     if (this.hidden) return;
     const h = Math.round(this.h);
     drawNote(g, this.x, this.y, this.w, h, { margin: 8 }, this.alpha);
-    if (this.tag) g.img(tapeCanvas(g.measure(this.tag) + 14, 18, this.tag, C.tape, 3), this.x - 4, this.y - 3);
+    if (this.tag) {
+      const t = miniText(this.tag, 0.62, C.ink);
+      g.img(tapeCanvas(t.width + 10, 12, '', C.tape, 3), this.x - 3, this.y + 4);
+      g.img(t, this.x + 2, this.y + 6);
+    }
     const L = this.cur ?? this.staticLayout;
     if (!L) return;
     const shown = this.cur ? this.shown : L.glyphs.length;
-    const ox = this.x + 14 + (this.tag ? 56 : 0);
+    const ox = this.x + 14 + (this.tag ? miniText(this.tag, 0.62, C.ink).width + 10 : 0);
     const oy = this.y + 5;
     const ctx = g.ctx;
     const prev = ctx.globalAlpha;

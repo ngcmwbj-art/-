@@ -24,9 +24,12 @@ export interface Pose {
   run: boolean;
   /** Whole upper body offset (+ = down). */
   bob: number;
-  /** Idle breathing: 1 = inhale (head & shoulders up 1px). */
+  /** Idle breathing offset: idle keys with breath 1 arrive here as -1, so
+   * `bob - breath` lowers the head and torso by 1px (exhale). */
   breath: number;
   blink: boolean;
+  /** Second blink frame (fully closed); blink alone = half-closed. */
+  blinkClosed: boolean;
   /** Head tilted back looking at the sky. */
   lookUp: boolean;
   /** Current action / pose name ('' = plain). */
@@ -50,6 +53,7 @@ export function pose(o: Partial<Pose> & { view: View }): Pose {
     bob: 0,
     breath: 0,
     blink: false,
+    blinkClosed: false,
     lookUp: false,
     act: '',
     ph: 0,
@@ -60,6 +64,9 @@ export function pose(o: Partial<Pose> & { view: View }): Pose {
 }
 
 const DIRS: Dir[] = ['down', 'up', 'left', 'right'];
+
+/** Idle frames are emitted on this uniform tick (ms). */
+export const TICK = 60;
 
 function viewOf(d: Dir): View {
   return d === 'right' ? 'left' : d;
@@ -154,23 +161,34 @@ export function buildSprite(spec: SpriteSpec): CharSprite {
   for (const d of DIRS) {
     const src = alias[d];
     if (src && src !== d) continue;
-    const frames: HTMLCanvasElement[] = [];
+    const wf: HTMLCanvasElement[] = [];
     for (let i = 0; i < nWalk; i++)
-      frames.push(renderFrame(spec, framePose(d, { step: i, bob: bobs[i % bobs.length], mode: 'walk' })));
-    walk[d] = frames;
-    // idle
+      wf.push(renderFrame(spec, framePose(d, { step: i, bob: bobs[i % bobs.length], mode: 'walk' })));
+    walk[d] = wf;
+    // idle: every key lasts idleFrameMs (nominal); frames are emitted on a
+    // uniform TICK so blinks can be half (60ms) → closed (60ms) → open.
     const keys = Array.isArray(spec.idle) ? spec.idle : (spec.idle?.[d] ?? (spec.idle ? undefined : breathingIdle()));
     const ks = keys ?? breathingIdle();
+    const ticks = Math.max(1, Math.round((spec.idleFrameMs ?? 250) / TICK));
     const cache = new Map<string, HTMLCanvasElement>();
-    idle[d] = ks.map((k, i) => {
-      const key = `${k.breath ?? 0}|${k.blink ? 1 : 0}|${k.act ?? ''}|${k.ph ?? 0}`;
+    const get = (k: IdleKey, i: number, blink: number) => {
+      const key = `${k.breath ?? 0}|${blink}|${k.act ?? ''}|${k.ph ?? 0}`;
       let c = cache.get(key);
       if (!c) {
-        c = renderFrame(spec, framePose(d, { breath: k.breath ?? 0, blink: !!k.blink, act: k.act ?? '', ph: k.ph ?? 0, tick: i, mode: 'idle' }));
+        // breathing lowers the head and torso by 1px (30_level_art 7.8)
+        c = renderFrame(spec, framePose(d, { breath: -(k.breath ?? 0), blink: blink > 0, blinkClosed: blink > 1, act: k.act ?? '', ph: k.ph ?? 0, tick: i, mode: 'idle' }));
         cache.set(key, c);
       }
       return c;
+    };
+    const frames: HTMLCanvasElement[] = [];
+    ks.forEach((k, i) => {
+      for (let t = 0; t < ticks; t++) {
+        const blink = k.blink ? (t === 0 ? 1 : t === 1 ? 2 : ticks > 3 && t === 2 ? 1 : 0) : 0;
+        frames.push(get(k, i, blink));
+      }
     });
+    idle[d] = frames;
     if (spec.run) {
       run ??= {} as Record<Dir, HTMLCanvasElement[]>;
       const rb = spec.runBob ?? [0, -1, 0, -1];
@@ -234,9 +252,9 @@ export function buildSprite(spec: SpriteSpec): CharSprite {
     extraDir,
     anims,
     run,
-    walkFrameMs: spec.walkFrameMs ?? 140,
-    runFrameMs: spec.runFrameMs ?? 90,
-    idleFrameMs: spec.idleFrameMs ?? 250,
+    walkFrameMs: spec.walkFrameMs ?? 150,
+    runFrameMs: spec.runFrameMs ?? 95,
+    idleFrameMs: TICK,
     shadow: spec.shadow ?? 10,
   };
 }

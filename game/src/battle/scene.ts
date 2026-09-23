@@ -111,6 +111,12 @@ export class BattleScene implements Scene {
   shared: Record<string, number> = {};
   /** Tutorial / misc flags for this battle. */
   memo: Record<string, number> = {};
+  /** QA: automatic inputs (tsukkomi / ring / hold). */
+  auto: { tsuk?: string; ring?: string; hold?: 'kukkiri' | 'futsuu' | 'kasure' } = {};
+  /** QA: queued party commands for the next input phase. */
+  cmdQueue: { who: string; cmd: string; skill?: string; item?: string; target?: number | string; part?: string }[] = [];
+  /** QA: forced enemy actions (in order). */
+  forceEnemy: string[] = [];
   private scratch: HTMLCanvasElement;
   private scratchCtx: CanvasRenderingContext2D;
   private scratch2: HTMLCanvasElement;

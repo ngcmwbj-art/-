@@ -279,6 +279,10 @@ export function knock(s: BattleScene, e: EnemyUnit, px = 4): void {
     dur: 160,
     draw: () => {},
     update() {
+      if (e.dying) {
+        this.done = true;
+        return;
+      }
       const p = Math.min(1, this.t / 150);
       e.offX = Math.round(px * (1 - ease.quadOut(p)));
       const q = Math.min(1, this.t / 120);
@@ -299,6 +303,10 @@ export function dodge(s: BattleScene, e: EnemyUnit): void {
     dur: 260,
     draw: () => {},
     update() {
+      if (e.dying) {
+        this.done = true;
+        return;
+      }
       const t = this.t;
       e.offX = t < 100 ? -Math.round(6 * ease.quadOut(t / 100)) : -Math.round(6 * (1 - ease.quadInOut(Math.min(1, (t - 100) / 150))));
       if (t >= 250) e.offX = 0;
@@ -323,6 +331,9 @@ export function restoredSprite(e: EnemyUnit): HTMLCanvasElement {
  */
 export function* defeatEnemy(s: BattleScene, e: EnemyUnit, dropDelay = 0, lastOne = true): Co {
   e.dying = true;
+  e.offX = 0;
+  e.sx = e.sy = 1;
+  e.shear = 0;
   s.hitstop(14);
   e.whiteFrames = 0;
   yield 1; // hitstop runs first (scene time frozen)

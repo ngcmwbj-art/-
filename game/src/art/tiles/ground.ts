@@ -1,0 +1,607 @@
+// Procedural ground art. Every pixel is computed in world space, so no two
+// tiles are ever identical: each material has per-tile variants (hash2 with
+// a "don't repeat the left/up neighbour" rule) that shift its pattern, plus
+// random and clumped decals. Soft materials (grass, dirt, sand...) meet with
+// warped, organic borders; paved ones meet with straight curbs.
+//
+// bakeGround(src, x0, y0, w, h) returns a canvas of that world-pixel rect.
+
+import { PixelCanvas, mix, rgba32 } from '../../engine/pixel';
+import type { Ground } from '../../world/types';
+import { fbm, h01, ihash, valueNoise } from './noise';
+import { P } from './palette';
+
+export interface GroundSource {
+  /** Map size in tiles. */
+  w: number;
+  h: number;
+  ground(tx: number, ty: number): Ground;
+  /** Art theme of a tile ('park', 'mallfront', 'home', ...). */
+  theme(tx: number, ty: number): string;
+  seed: number;
+}
+
+const c = (hex: string) => rgba32(hex);
+const C = {
+  asphalt: c(P.asphalt),
+  asphaltLt: c(mix(P.asphalt, P.steel, 0.3)),
+  asphaltDk: c(mix(P.asphalt, P.charcoal, 0.28)),
+  steel: c(P.steel),
+  charcoal: c(P.charcoal),
+  concrete: c(P.concrete),
+  concreteLt: c(P.concreteLt),
+  concreteMd: c(mix(P.concrete, P.steel, 0.4)),
+  white: c(P.white),
+  leafLt: c(P.leafLt),
+  leafYoung: c(P.leafYoung),
+  leaf: c(P.leaf),
+  leafDeep: c(P.leafDeep),
+  leafShade: c(P.leafShade),
+  woodLt: c(P.woodLt),
+  wood: c(P.wood),
+  woodDark: c(P.woodDark),
+  brassOld: c(P.brassOld),
+  brass: c(P.brass),
+  paperGrid: c(P.paperGrid),
+  goldPale: c(P.goldPale),
+  skin4: c(P.skin4),
+  skin3: c(P.skin3),
+  maroon: c(P.maroon),
+  ink: c(P.ink),
+  night: c(P.night),
+  nightShade: c(P.nightShade),
+  shade: c(P.shade),
+  dirt: c(mix(P.woodLt, P.brassOld, 0.25)),
+  dirtLt: c(P.woodLt),
+  dirtDk: c(mix(P.brassOld, P.wood, 0.35)),
+  sand: c(P.paperGrid),
+  sandDk: c(mix(P.paperGrid, P.woodLt, 0.55)),
+  lot: c(mix(P.asphalt, P.steel, 0.12)),
+  crimson: c(P.crimson),
+  verm: c(P.verm),
+  gold: c(P.gold),
+  navy: c(P.navy),
+  aqua: c(P.aqua),
+  paper: c(P.paper),
+  tatami: c(mix(P.leafYoung, P.goldPale, 0.55)),
+  tatamiDk: c(mix(P.leafYoung, P.brass, 0.45)),
+  tatamiLt: c(mix(P.goldPale, P.paper, 0.35)),
+  floorWood: c(mix(P.wood, P.woodLt, 0.45)),
+  floorWoodLt: c(mix(P.woodLt, P.goldPale, 0.25)),
+  floorWoodDk: c(P.wood),
+  kitchen: c(mix(P.concreteLt, P.paperGrid, 0.5)),
+  kitchenDk: c(mix(P.concrete, P.paperGrid, 0.4)),
+};
+
+// Material priority: higher spreads over lower at soft borders.
+const PRIO: Partial<Record<Ground, number>> = {
+  water: 0, paddy: 1, asphalt: 2, lot: 2, crosswalk: 2, crossing: 2, gutter: 3, bridge: 4, sidewalk: 4, plaza: 4,
+  arcade: 4, ballast: 3, rail: 3, gravel: 5, dirt: 6, sand: 7, grass: 8, weeds: 9, reeds: 9, hedge: 10,
+};
+const SOFT = new Set<Ground>(['grass', 'weeds', 'dirt', 'sand', 'gravel', 'reeds', 'hedge', 'paddy']);
+// Paved materials that sit one step above the road and get a curb.
+const RAISED = new Set<Ground>(['sidewalk', 'plaza', 'arcade', 'bridge']);
+const ROADISH = new Set<Ground>(['asphalt', 'lot', 'crosswalk', 'gutter']);
+const GREEN = new Set<Ground>(['grass', 'weeds', 'hedge', 'reeds']);
+
+function amp(a: Ground, b: Ground): number {
+  const sa = SOFT.has(a);
+  const sb = SOFT.has(b);
+  if (sa && sb) return 3.2;
+  if (sa || sb) return 2.2;
+  return 0;
+}
+
+const GIDS: Ground[] = [
+  'none', 'asphalt', 'gutter', 'sidewalk', 'arcade', 'crosswalk', 'grass', 'weeds', 'dirt', 'sand', 'gravel', 'lot',
+  'bridge', 'plaza', 'water', 'paddy', 'ballast', 'rail', 'crossing', 'hedge', 'reeds', 'wood', 'wood_bare', 'engawa',
+  'tatami', 'kitchen', 'genkan', 'shopwood', 'tile_floor', 'mall', 'void',
+];
+const GINDEX = new Map(GIDS.map((g, i) => [g, i]));
+
+// ---- per-tile variant with the no-repeat rule (6.1) --------------------------
+
+function variantOf(src: GroundSource, tx: number, ty: number, n: number, depth = 0): number {
+  const g = src.ground(tx, ty);
+  let v = ihash(tx, ty, src.seed + 7) % n;
+  if (depth > 1) return v;
+  const l1 = src.ground(tx - 1, ty) === g ? variantOf(src, tx - 1, ty, n, depth + 1) : -1;
+  const u1 = src.ground(tx, ty - 1) === g ? variantOf(src, tx, ty - 1, n, depth + 1) : -1;
+  for (let k = 0; k < n && (v === l1 || v === u1); k++) v = (v + 1) % n;
+  return v;
+}
+
+// ---- textures -----------------------------------------------------------------
+
+type Tex = (x: number, y: number, v: number, th: string) => number;
+
+/** Pebble / aggregate cluster test: is (x,y) inside the cluster of its cell? */
+function cluster(x: number, y: number, cell: number, seed: number, p: number): number {
+  const cx = Math.floor(x / cell);
+  const cy = Math.floor(y / cell);
+  const h = ihash(cx, cy, seed);
+  if ((h & 1023) / 1024 >= p) return 0;
+  const lx = x - cx * cell;
+  const ly = y - cy * cell;
+  const shape = (h >>> 10) & 3;
+  const ox = (h >>> 12) % Math.max(1, cell - 1);
+  const oy = (h >>> 16) % Math.max(1, cell - 1);
+  const dx = lx - ox;
+  const dy = ly - oy;
+  let inside = false;
+  if (shape === 0) inside = dy === 0 && (dx === 0 || dx === 1);
+  else if (shape === 1) inside = dx >= 0 && dx <= 1 && dy >= 0 && dy <= 1;
+  else if (shape === 2) inside = (dy === 0 && (dx === 0 || dx === 1)) || (dy === 1 && dx === 0);
+  else inside = (dy === 0 && dx === 1) || (dy === 1 && (dx === 0 || dx === 1));
+  if (!inside) return 0;
+  return 1 + ((h >>> 20) & 3);
+}
+
+const texAsphalt: Tex = (x, y, v) => {
+  const n = fbm(x / 22 + v * 3.1, y / 22, 31);
+  let col = n > 0.66 ? C.asphaltLt : n < 0.3 ? C.asphaltDk : C.asphalt;
+  const a = cluster(x, y, 4, 101 + v, 0.12);
+  if (a === 1 || a === 2) col = C.steel;
+  else if (a === 3) col = C.asphaltDk;
+  else if (a === 4) col = n > 0.5 ? C.asphaltLt : C.charcoal;
+  return col;
+};
+
+const texLot: Tex = (x, y, v) => {
+  const n = fbm(x / 26 + v, y / 26, 47);
+  let col = n > 0.6 ? C.asphaltLt : n < 0.28 ? C.asphalt : C.lot;
+  const a = cluster(x, y, 4, 131 + v, 0.1);
+  if (a === 1 || a === 2) col = C.steel;
+  else if (a === 3) col = C.asphalt;
+  else if (a === 4) col = C.concreteMd;
+  return col;
+};
+
+const texGutter: Tex = (x, y, v, th) => {
+  // Concrete U-channel lids, one per tile, with two lifting slots.
+  const lx = ((x % 16) + 16) % 16;
+  const ly = ((y % 16) + 16) % 16;
+  const kind = v; // 0 lid, 1 lid+moss, 2 grating, 3 chipped lid
+  if (th === 'kawabe' && ly < 2) return C.concreteMd;
+  if (lx === 15) return C.concreteMd; // seam
+  if (lx === 0) return C.concreteLt;
+  if (ly === 1) return C.concreteLt;
+  if (ly === 14) return C.concreteMd;
+  if (ly === 15 || ly === 0) return C.steel;
+  if (kind === 2) {
+    // steel grating
+    if (ly >= 3 && ly <= 12 && lx >= 2 && lx <= 13) {
+      if (ly === 3 || ly === 12 || lx === 2 || lx === 13) return C.asphalt;
+      return lx % 2 === 0 ? C.steel : C.charcoal;
+    }
+  } else {
+    // two lifting slots
+    if (ly >= 7 && ly <= 8 && ((lx >= 3 && lx <= 5) || (lx >= 10 && lx <= 12))) return ly === 7 ? C.charcoal : C.asphalt;
+    if (kind === 3 && lx >= 11 && ly >= 11 && lx + ly > 24) return C.asphalt;
+  }
+  const s = cluster(x, y, 5, 211 + v, 0.18);
+  if (s) return s > 2 ? C.concreteMd : C.concreteLt;
+  if (kind === 1 && ly > 9 && h01(x, y, 5) < 0.55 - (15 - ly) * 0.04) return (x + y) & 1 ? C.leafDeep : C.leaf;
+  return C.concrete;
+};
+
+const texSidewalk: Tex = (x, y, v, th) => {
+  if (th === 'mallfront') {
+    // interlocking pavers 8×4, running bond, faded two-tone
+    const row = Math.floor(y / 4);
+    const off = row % 2 ? 4 : 0;
+    const bx = Math.floor((x + off) / 8);
+    const lx = (x + off) % 8;
+    const ly = y % 4;
+    if (ly === 3 || lx === 7) return C.concreteMd;
+    const hh = ihash(bx, row, 91);
+    if (ly === 0 && lx < 6) return C.concreteLt;
+    return hh % 7 === 0 ? C.paperGrid : hh % 5 === 0 ? C.concreteMd : C.concrete;
+  }
+  if (th === 'kawabe' || th === 'station') {
+    // 32×16 concrete slabs, joints shift per row
+    const off = (Math.floor(y / 16) % 2) * 16 + v * 4;
+    const lx = (((x + off) % 32) + 32) % 32;
+    const ly = ((y % 16) + 16) % 16;
+    if (lx === 31 || ly === 15) return C.steel;
+    if (lx === 0 || ly === 0) return C.concreteLt;
+    const s = cluster(x, y, 4, 311, 0.08);
+    return s ? (s > 2 ? C.concreteMd : C.concreteLt) : C.concrete;
+  }
+  // 16×16 flagstones, joints shifted by variant
+  const off = [0, 8, 4][v % 3];
+  const lx = (((x + off) % 16) + 16) % 16;
+  const ly = ((y % 16) + 16) % 16;
+  if (lx === 15 || ly === 15) return C.steel;
+  if (lx === 0 || ly === 0) return C.concreteLt;
+  const s = cluster(x, y, 4, 331 + v, 0.1);
+  return s ? (s > 2 ? C.concreteMd : C.concreteLt) : C.concrete;
+};
+
+const texPlaza: Tex = (x, y) => {
+  // Park 石畳: irregular stones in staggered rows of varying width.
+  const rowH = 6;
+  const row = Math.floor(y / rowH);
+  const ly = y - row * rowH;
+  const rh = ihash(0, row, 77);
+  let bx = x + (rh % 11);
+  // stones of width 7..11
+  let start = 0;
+  let w = 0;
+  let idx = 0;
+  const base = Math.floor(bx / 40) * 40;
+  bx -= base;
+  for (let i = 0; i < 8; i++) {
+    w = 7 + (ihash(i + Math.floor((x + (rh % 11)) / 40) * 8, row, 78) % 5);
+    if (bx < start + w) {
+      idx = i;
+      break;
+    }
+    start += w;
+  }
+  const lx = bx - start;
+  const sh = ihash(idx + Math.floor((x + (rh % 11)) / 40) * 8, row, 79);
+  if (ly === rowH - 1 || lx === w - 1) return C.steel;
+  if (ly === 0 || lx === 0) return sh % 3 === 0 ? C.white : C.concreteLt;
+  if (ly === rowH - 2 && lx > w - 4) return C.concreteMd;
+  return sh % 5 === 0 ? C.concreteMd : sh % 4 === 0 ? C.concreteLt : C.concrete;
+};
+
+const texArcade: Tex = (x, y) => {
+  // 8px mosaic tiles; 32px diagonal pattern in terracotta / cream / brick.
+  const cx = Math.floor(x / 8);
+  const cy = Math.floor(y / 8);
+  const lx = x & 7;
+  const ly = y & 7;
+  if (lx === 7 || ly === 7) return C.brassOld; // grout
+  const k = ((cx + cy * 3) % 4 + 4) % 4;
+  const d = ((cx - cy) % 4 + 4) % 4;
+  let base = k === 0 ? C.paperGrid : d === 0 ? C.wood : C.skin4;
+  if (k === 0 && d === 2) base = C.skin4;
+  const hh = ihash(cx, cy, 55);
+  if (hh % 23 === 0) base = C.paperGrid;
+  if (lx === 0 || ly === 0) return base === C.wood ? C.skin4 : base === C.skin4 ? C.skin3 : C.white;
+  if (lx === 6 || ly === 6) return base === C.paperGrid ? C.goldPale : base === C.wood ? C.woodDark : C.wood;
+  return base;
+};
+
+const texCrosswalk: Tex = (x, y, v) => {
+  const base = texAsphalt(x, y, v, '');
+  // stripes run north–south, 5px white / 3px road
+  const lx = ((x % 8) + 8) % 8;
+  if (lx >= 1 && lx <= 5) {
+    // worn by tyres near the middle of each tile row
+    const wear = valueNoise(x / 3, y / 5, 88);
+    if (wear < 0.23) return base;
+    if (wear < 0.3) return C.concrete;
+    return lx === 1 ? C.concrete : C.concreteLt;
+  }
+  return base;
+};
+
+const texGrass: Tex = (x, y, v, th) => {
+  const big = fbm(x / 28, y / 28, 211 + (th === 'park' ? 9 : 0));
+  let col = big > 0.62 ? C.leafYoung : big < 0.3 ? C.leafDeep : C.leaf;
+  if (big > 0.62 && big < 0.66) col = (x + y) & 1 ? C.leafYoung : C.leaf;
+  // blades: 4×4 cells, a lit 1×2 stroke with a dark foot
+  const cx = Math.floor(x / 4);
+  const cy = Math.floor(y / 4);
+  const h = ihash(cx, cy, 223 + v);
+  const bx = cx * 4 + (h & 3);
+  const by = cy * 4 + ((h >>> 2) & 1);
+  const dens = big > 0.5 ? 0.55 : 0.35;
+  if ((h >>> 8 & 255) / 256 < dens) {
+    if (x === bx && (y === by || y === by + 1)) return y === by ? (big > 0.45 ? C.leafLt : C.leafYoung) : C.leafYoung;
+    if (x === bx + 1 && y === by + 2) return C.leafDeep;
+  }
+  // clover / flowers
+  const f = ihash(Math.floor(x / 8), Math.floor(y / 8), 239 + v);
+  if (f % 97 === 0) {
+    const fx = Math.floor(x / 8) * 8 + ((f >>> 8) % 6);
+    const fy = Math.floor(y / 8) * 8 + ((f >>> 12) % 6);
+    if (x === fx && y === fy) return (f >>> 16) & 1 ? C.white : C.gold;
+    if (x === fx + 1 && y === fy) return C.leafShade;
+  }
+  return col;
+};
+
+const texWeeds: Tex = (x, y, v) => {
+  const big = fbm(x / 18, y / 18, 251);
+  let col = big > 0.55 ? C.leaf : C.leafDeep;
+  const cx = Math.floor(x / 3);
+  const cy = Math.floor(y / 5);
+  const h = ihash(cx, cy, 263 + v);
+  const bx = cx * 3 + (h % 2);
+  const by = cy * 5 + ((h >>> 3) % 2);
+  if (x === bx && y >= by && y <= by + 2) return y === by ? C.leafYoung : C.leaf;
+  if (x === bx + 1 && y === by + 3) return C.leafShade;
+  if ((h >>> 9) % 13 === 0 && x === bx && y === by - 1) return C.goldPale;
+  return col;
+};
+
+const texDirt: Tex = (x, y, v, th) => {
+  const big = fbm(x / 20, y / 20, 277 + (th === 'park' ? 5 : 0));
+  let col = big > 0.64 ? C.dirtLt : big < 0.3 ? C.dirtDk : C.dirt;
+  const a = cluster(x, y, 5, 281 + v, 0.16);
+  if (a) {
+    // pebble with a lit top-left
+    return a === 1 ? C.paperGrid : a === 4 ? C.brassOld : C.dirtDk;
+  }
+  // faint footprints / ruts in the park ground
+  if (th === 'park') {
+    const r = valueNoise(x / 40, y / 7, 293);
+    if (r > 0.72 && ((x + y * 3) & 7) === 0) return C.dirtDk;
+  }
+  return col;
+};
+
+const texSand: Tex = (x, y, v) => {
+  const big = fbm(x / 12, y / 12, 307);
+  let col = big > 0.6 ? C.paper : big < 0.3 ? C.sandDk : C.sand;
+  const a = cluster(x, y, 4, 311 + v, 0.14);
+  if (a === 1) return C.white;
+  if (a === 2 || a === 3) return C.sandDk;
+  return col;
+};
+
+const texGravel: Tex = (x, y, v) => {
+  // dense rounded pebbles, each with a light top-left and a dark bottom-right
+  const cell = 3;
+  const cx = Math.floor(x / cell);
+  const cy = Math.floor(y / cell);
+  const h = ihash(cx, cy, 331 + v);
+  const lx = x - cx * cell;
+  const ly = y - cy * cell;
+  const tone = h % 5;
+  const base = tone === 0 ? C.concrete : tone === 1 ? C.asphaltLt : tone === 2 ? C.concreteMd : C.steel;
+  if (lx === 2 || ly === 2) return h & 32 ? C.asphalt : C.asphaltLt;
+  if (lx === 0 && ly === 0) return tone === 0 ? C.white : C.concreteLt;
+  if (lx === 1 && ly === 1) return tone === 0 ? C.concreteMd : C.asphaltLt;
+  return base;
+};
+
+const texBridge: Tex = (x, y) => {
+  const ly = ((y % 16) + 16) % 16;
+  const lx = ((x % 16) + 16) % 16;
+  if (ly === 0) return C.steel; // expansion joint
+  if (lx === 0) return C.concreteLt;
+  const a = cluster(x, y, 4, 351, 0.1);
+  if (a) return a > 2 ? C.concreteMd : C.concreteLt;
+  return C.concrete;
+};
+
+const texBallast: Tex = (x, y, v) => {
+  const t = texGravel(x, y, v, '');
+  if (t === C.concrete) return C.concreteMd;
+  if (ihash(Math.floor(x / 3), Math.floor(y / 3), 367) % 11 === 0) return C.brassOld; // rust
+  return t;
+};
+
+const texRail: Tex = (x, y, v) => {
+  // north–south track: sleepers every 8px, rails at 4 and 11
+  const lx = ((x % 16) + 16) % 16;
+  const ly = ((y % 8) + 8) % 8;
+  if (lx === 4 || lx === 11) return C.concreteLt;
+  if (lx === 5 || lx === 12) return C.steel;
+  if (lx === 3 || lx === 10) return C.charcoal;
+  if (ly <= 2 && lx >= 1 && lx <= 14) return ly === 0 ? C.wood : ly === 2 ? C.woodDark : C.wood;
+  return texBallast(x, y, v, '');
+};
+
+const texCrossing: Tex = (x, y, v) => {
+  // level crossing: asphalt with rubber panels between the rails
+  const lx = ((x % 16) + 16) % 16;
+  if (lx === 4 || lx === 11) return C.concreteLt;
+  if (lx === 5 || lx === 12) return C.charcoal;
+  if (lx > 5 && lx < 11) return ((y >> 2) & 1) ? C.charcoal : C.asphaltDk;
+  return texAsphalt(x, y, v, '');
+};
+
+// ---- indoor floors --------------------------------------------------------------
+
+const texWood: Tex = (x, y, v, th) => {
+  // boards run east–west, 4px tall, butt joints staggered per board
+  const bh = th === 'engawa' ? 5 : 4;
+  const row = Math.floor(y / bh);
+  const ly = y - row * bh;
+  const len = 40 + (ihash(0, row, 401) % 24);
+  const off = ihash(1, row, 402) % len;
+  const bx = Math.floor((x + off) / len);
+  const lx = (x + off) % len;
+  const hh = ihash(bx, row, 403 + v);
+  if (ly === bh - 1) return C.floorWoodDk;
+  if (lx === 0) return C.woodDark;
+  if (ly === 0) return th === 'engawa' ? C.goldPale : C.floorWoodLt;
+  // grain streaks
+  const g = valueNoise(x / 9, row * 3.3, 404 + (hh & 7));
+  if (g > 0.78) return C.floorWoodDk;
+  if (hh % 5 === 0) return th === 'engawa' ? C.floorWoodLt : C.floorWood;
+  return th === 'engawa' ? C.floorWoodLt : C.floorWood;
+};
+
+const texTatami: Tex = (x, y) => {
+  // 32×16 mats (rotated per cell), woven lines, cloth borders
+  const mx = Math.floor(x / 32);
+  const my = Math.floor(y / 16);
+  const lx = x - mx * 32;
+  const ly = y - my * 16;
+  if (ly === 15 || ly === 0) return C.leafShade; // cloth border
+  if (lx === 31) return C.tatamiDk;
+  if (lx === 0) return C.tatamiLt;
+  return x % 2 === 0 ? ((ly & 1) === 0 ? C.tatami : C.tatamiLt) : ly % 3 === 0 ? C.tatamiDk : C.tatami;
+};
+
+const texKitchen: Tex = (x, y) => {
+  const a = cluster(x, y, 3, 421, 0.2);
+  if (a === 1) return C.white;
+  if (a) return C.kitchenDk;
+  const n = valueNoise(x / 6, y / 6, 422);
+  return n > 0.7 ? C.concreteLt : C.kitchen;
+};
+
+const texGenkan: Tex = (x, y) => {
+  // washed-aggregate concrete (洗い出し)
+  const a = cluster(x, y, 3, 431, 0.5);
+  if (a === 1) return C.white;
+  if (a === 2) return C.dirtLt;
+  if (a === 3) return C.steel;
+  if (a === 4) return C.concreteMd;
+  return C.concrete;
+};
+
+const texTile: Tex = (x, y) => {
+  const lx = x & 15;
+  const ly = y & 15;
+  if (lx === 15 || ly === 15) return C.concreteMd;
+  if (lx === 0 || ly === 0) return C.white;
+  return (Math.floor(x / 16) + Math.floor(y / 16)) % 2 ? C.concreteLt : C.concrete;
+};
+
+const texMall: Tex = (x, y) => {
+  const cx = Math.floor(x / 16);
+  const cy = Math.floor(y / 16);
+  const lx = x & 15;
+  const ly = y & 15;
+  const hh = ihash(cx, cy, 441);
+  if (lx === 15 || ly === 15) return C.steel;
+  if (hh % 9 === 0) return C.steel;
+  const base = hh % 3 === 0 ? C.concrete : C.concreteLt;
+  if (lx === 0 || ly === 0) return C.white;
+  return base;
+};
+
+const texVoid: Tex = () => C.night;
+
+const TEX: Partial<Record<Ground, Tex>> = {
+  asphalt: texAsphalt, lot: texLot, gutter: texGutter, sidewalk: texSidewalk, plaza: texPlaza, arcade: texArcade,
+  crosswalk: texCrosswalk, grass: texGrass, weeds: texWeeds, reeds: texWeeds, hedge: texGrass, dirt: texDirt,
+  sand: texSand, gravel: texGravel, bridge: texBridge, ballast: texBallast, rail: texRail, crossing: texCrossing,
+  water: () => C.navy, paddy: () => C.navy, wood: texWood, wood_bare: texWood, engawa: texWood, shopwood: texWood,
+  tatami: texTatami, kitchen: texKitchen, genkan: texGenkan, tile_floor: texTile, mall: texMall, void: texVoid,
+  none: texVoid,
+};
+
+const NVAR: Partial<Record<Ground, number>> = {
+  asphalt: 4, lot: 3, gutter: 4, sidewalk: 3, grass: 4, weeds: 3, dirt: 3, sand: 2, gravel: 3, ballast: 2, rail: 2,
+};
+
+// ---- baking -----------------------------------------------------------------------
+
+/**
+ * Bake the ground of the world-pixel rect (x0,y0,w,h). Materials are blended
+ * with organic borders; curbs and grass lips are added.
+ */
+export function bakeGround(src: GroundSource, x0: number, y0: number, w: number, h: number): PixelCanvas {
+  const pc = new PixelCanvas(w, h);
+  const M = 2; // margin for neighbour tests
+  const bw = w + M * 2;
+  const bh = h + M * 2;
+  const ids = new Uint8Array(bw * bh);
+  const mapW = src.w * 16;
+  const mapH = src.h * 16;
+  const tileG = (tx: number, ty: number): Ground => {
+    if (tx < 0) tx = 0;
+    if (ty < 0) ty = 0;
+    if (tx >= src.w) tx = src.w - 1;
+    if (ty >= src.h) ty = src.h - 1;
+    return src.ground(tx, ty);
+  };
+  // pass 1: material per pixel
+  for (let j = 0; j < bh; j++) {
+    const wy = y0 + j - M;
+    for (let i = 0; i < bw; i++) {
+      const wx = x0 + i - M;
+      const tx = Math.floor(wx / 16);
+      const ty = Math.floor(wy / 16);
+      const g0 = tileG(tx, ty);
+      let g = g0;
+      const lx = wx - tx * 16;
+      const ly = wy - ty * 16;
+      if (lx < 4 || lx > 11 || ly < 4 || ly > 11) {
+        const nx = (valueNoise(wx / 5.3, wy / 5.3, src.seed + 11) - 0.5) * 2;
+        const ny = (valueNoise(wx / 5.3, wy / 5.3, src.seed + 23) - 0.5) * 2;
+        const sx = Math.floor((wx + nx * 3.2) / 16);
+        const sy = Math.floor((wy + ny * 3.2) / 16);
+        if (sx !== tx || sy !== ty) {
+          const g1 = tileG(sx, sy);
+          if (g1 !== g0 && (PRIO[g1] ?? 0) > (PRIO[g0] ?? 0)) {
+            const a = amp(g1, g0);
+            if (a > 0) {
+              const k = a / 3.2;
+              const sx2 = Math.floor((wx + nx * 3.2 * k) / 16);
+              const sy2 = Math.floor((wy + ny * 3.2 * k) / 16);
+              if (tileG(sx2, sy2) === g1) g = g1;
+            }
+          }
+        }
+      }
+      if (wx < 0 || wy < 0 || wx >= mapW || wy >= mapH) g = g0;
+      ids[j * bw + i] = GINDEX.get(g) ?? 0;
+    }
+  }
+  const idAt = (i: number, j: number): Ground => GIDS[ids[(j + M) * bw + (i + M)]];
+  const vcache = new Map<number, number>();
+  const variant = (tx: number, ty: number, g: Ground) => {
+    const n = NVAR[g] ?? 1;
+    if (n <= 1) return 0;
+    const key = ty * 4096 + tx;
+    let v = vcache.get(key);
+    if (v === undefined) {
+      v = src.ground(tx, ty) === g ? variantOf(src, tx, ty, n) : ihash(tx, ty, 3) % n;
+      vcache.set(key, v);
+    }
+    return v;
+  };
+  // pass 2: colour
+  for (let j = 0; j < h; j++) {
+    const wy = y0 + j;
+    for (let i = 0; i < w; i++) {
+      const wx = x0 + i;
+      const g = idAt(i, j);
+      const tx = Math.floor(wx / 16);
+      const ty = Math.floor(wy / 16);
+      const th = src.theme(Math.max(0, Math.min(src.w - 1, tx)), Math.max(0, Math.min(src.h - 1, ty)));
+      const tex = TEX[g] ?? texVoid;
+      let col = tex(wx, wy, variant(tx, ty, g), g === 'engawa' ? 'engawa' : th);
+      const up = idAt(i, j - 1);
+      const dn = idAt(i, j + 1);
+      const lf = idAt(i - 1, j);
+      const rt = idAt(i + 1, j);
+      // grass lip: darker bottom edge, lit top edge
+      if (GREEN.has(g)) {
+        if (!GREEN.has(dn)) col = C.leafDeep;
+        else if (!GREEN.has(idAt(i, j + 2)) && ((wx * 7 + wy) % 5 === 0)) col = C.leafDeep;
+        else if (!GREEN.has(up) && up !== 'none') col = C.leafYoung;
+      } else if (GREEN.has(up) && !GREEN.has(g) && g !== 'water') {
+        // soft shade cast by the grass mass onto what is below it
+        col = shadeOf(col);
+      }
+      // curbs: raised paving next to roads
+      if (RAISED.has(g)) {
+        if (ROADISH.has(dn)) col = C.steel;
+        else if (ROADISH.has(up)) col = C.white;
+        else if (ROADISH.has(lf)) col = C.concreteLt;
+        else if (ROADISH.has(rt)) col = C.concreteMd;
+      } else if (ROADISH.has(g)) {
+        if (RAISED.has(up)) col = C.charcoal;
+        else if (RAISED.has(lf)) col = C.asphaltDk;
+      }
+      // water / paddy edge: concrete lip
+      pc.data[j * w + i] = col;
+    }
+  }
+  return pc;
+}
+
+const shadeMap = new Map<number, number>([
+  [C.asphalt, C.asphaltDk], [C.asphaltLt, C.asphalt], [C.asphaltDk, C.charcoal], [C.steel, C.asphalt],
+  [C.dirt, C.dirtDk], [C.dirtLt, C.dirt], [C.dirtDk, C.brassOld], [C.paperGrid, C.dirt],
+  [C.sand, C.sandDk], [C.paper, C.sand], [C.sandDk, C.dirt],
+  [C.concrete, C.concreteMd], [C.concreteLt, C.concrete], [C.concreteMd, C.steel], [C.white, C.concreteLt],
+  [C.lot, C.asphalt],
+]);
+function shadeOf(col: number): number {
+  return shadeMap.get(col) ?? col;
+}
+
+export const GROUND_COLORS = C;

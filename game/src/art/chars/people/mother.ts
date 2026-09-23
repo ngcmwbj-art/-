@@ -134,12 +134,30 @@ function back(f: Fig, p: Pose) {
   f.px(5, 12 + u).px(6, 13 + u).px(10, 12 + u).px(9, 13 + u);
   f.hl(4, 11, 16 + p.bob);
   f.rows(6, 15 + p.bob, ['#..#', '.##.', '#..#']);
-  hangArms(f, p, { lx: 3, rx: 12, sy: 13, hy: 16, segs: SLEEVE }, u);
+  if (p.act === 'chop') {
+    // at the cutting board (facing north): the knife arm pumps up and down
+    hangArms(f, p, { lx: 3, rx: 12, sy: 13, hy: 16, segs: SLEEVE }, u, 'L');
+    const up = p.ph === 0;
+    f.part('blouse', { shade: 'rb', light: 't', shift: -1 });
+    f.rect(12, 12 + u, 2, 2);
+    f.part('skin', { shade: 'r', light: '', shift: -1 });
+    if (up) f.px(13, 14 + u).px(12, 14 + u).px(11, 13 + u);
+    else f.px(13, 14 + u).px(13, 15 + u).px(12, 16 + u);
+    f.part('blade', { flat: true, rim: false });
+    if (up) f.px(10, 12 + u);
+  } else hangArms(f, p, { lx: 3, rx: 12, sy: 13, hy: 16, segs: SLEEVE }, u);
+  if (p.act === 'turn') {
+    // glancing back over her shoulder: profile on the back view
+    head(f, { ...p, view: 'left' }, HEAD, 2 + u);
+    ponytailSide(f, 2 + u, 0);
+    return;
+  }
   head(f, p, HEAD, 2 + u);
-  // ponytail hanging down the back of the head
+  // ponytail hanging down the back of the head; it swings a beat behind
+  const sw = p.mode === 'idle' ? (p.tick % 4 < 2 ? 0 : 1) : p.mode === 'walk' ? [0, 1, 0, -1][p.step % 4] : 0;
   f.part('hair', { shade: 'r', light: '' });
-  f.rect(7, 8 + u, 2, 3);
-  f.px(7, 11 + u);
+  f.rect(7, 8 + u, 2, 2);
+  f.px(7 + sw, 10 + u).px(8 + sw, 10 + u).px(7 + sw, 11 + u);
 }
 
 function side(f: Fig, p: Pose) {
@@ -210,14 +228,14 @@ registerChar('npc_mother', () =>
     id: 'npc_mother',
     mats: M,
     draw,
-    idle: { left: CHOP, right: CHOP, down: breathingIdle(16, [9]), up: breathingIdle() },
+    idle: { left: CHOP, right: CHOP, down: breathingIdle(16, [9]), up: CHOP },
     extras: {
-      turn: { dirs: ['left', 'right'] },
-      chop: { dirs: ['left', 'right'] },
+      turn: { dirs: ['up', 'left', 'right'] },
+      chop: { dirs: ['up', 'left', 'right'] },
       surprised: { dirs: ['down'] },
     },
     anims: {
-      chop: { frames: [{ ph: 0 }, { ph: 1 }], ms: 250, dir: 'left' },
+      chop: { frames: [{ ph: 0 }, { ph: 1 }], ms: 250, dir: 'up' },
     },
   } satisfies SpriteSpec),
 );

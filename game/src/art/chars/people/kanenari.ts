@@ -13,6 +13,7 @@ import { C } from '../palette';
 export const KANENARI_MATS: Mats = {
   brass: mat('#D9A441', { shade: '#A8742A', light: '#F6D98A', spec: '#FFF6D8', dark: '#7A5424', rim: '#FFC46A', ol: '#4A2E22' }),
   brassD: mat('#B8843A', { shade: '#8A5E24', light: '#E0B45A', dark: '#5A3A1A', rim: '#F0A860', ol: '#4A2E22' }),
+  brassG: mat('#F6D98A', { shade: '#D9A441', light: '#FFF6D8', spec: '#FFF6D8', dark: '#A8742A', rim: '#FFE7A3', ol: '#4A2E22' }),
   bellIn: flat('#2E1C16'),
   clapper: mat('#9A6A2A', { shade: '#6A4A1A', light: '#C89A4A', dark: '#4A3010' }),
   fur: mat('#F2894B', { shade: '#C8643A', light: '#F7A86A', spec: '#FFC890', dark: '#A04E2E', rim: '#FFB878', ol: '#5A2A2E', soft: true }),
@@ -53,8 +54,8 @@ function bell(f: Fig, y0: number, sway: number, face: 'front' | 'side' | 'back',
   // hanging loop
   f.part('brassD', { shade: 'r', light: 't' });
   f.rows(x0 + 5 + sway, y0, ['.##.', '#..#']);
-  // dome
-  f.part('brass', { shade: '', light: '' });
+  // dome (one step brighter while it glows)
+  f.part(p.act === 'glow' ? 'brassG' : 'brass', { shade: '', light: '' });
   for (let j = 0; j < DOME.length; j++) {
     const sh = j < 2 ? sway : 0;
     f.rows(x0 + sh, y0 + 2 + j, [DOME[j]]);
@@ -115,14 +116,13 @@ function body(f: Fig, y: number, rx = 5.5, shift = 0) {
   f.retone(4, y + 3, 1).retone(5, y + 2, 1);
 }
 
+/** White sash from his left shoulder (screen-left) down to the right hip. */
 function sashFront(f: Fig, y: number) {
   f.part('sash', { shade: '', light: '' });
-  const pts: [number, number][] = [];
-  for (let i = 0; i < 7; i++) pts.push([11 - i, y + i], [12 - i, y + i]);
-  for (const [x, yy] of pts) f.t(x === 11 - (yy - y) ? 0 : -1).px(x, yy);
+  for (let i = 0; i < 7; i++) f.t(0).px(4 + i, y + i).t(-1).px(5 + i, y + i);
   f.t(null);
   f.part('red', { flat: true, rim: false });
-  f.px(10, y + 1).px(8, y + 3).px(6, y + 5);
+  f.px(5, y + 1).px(7, y + 3).px(9, y + 5);
 }
 
 function feet(f: Fig, p: Pose, side = false) {
@@ -172,11 +172,20 @@ function front(f: Fig, p: Pose) {
     f.part('fur', { shade: 'rb', light: '', shift: -1 });
     f.px(13, ay - 3).px(13, ay - 2);
   } else if (act === 'point') {
-    mitten(f, 2, ay, 0);
-    f.part('fur', { shade: 'rb', light: 't', shift: -1 });
-    f.px(13, ay - 1).px(14, ay - 2).px(14, ay - 3);
-    f.rect(14, ay - 5, 2, 2);
+    // pointing north-east (the mall): the raised arm is drawn after the bell
+    mitten(f, 1, ay, 0);
   } else if (act === 'flip') {
+    // both arms up to hold the 24×16 board over his head (board drawn by
+    // the caller with flipBoard(), see FLIP_ANCHOR)
+    f.part('fur', { shade: 'rb', light: 't' });
+    f.rect(1, bodyY + 1, 2, 3).rect(0, bodyY - 3, 2, 4);
+    f.part('fur', { shade: 'rb', light: 't', shift: -1 });
+    f.rect(13, bodyY + 1, 2, 3).rect(14, bodyY - 3, 2, 4);
+    mitten(f, 0, bodyY - 12, 0);
+    mitten(f, 14, bodyY - 12, -1);
+    f.part('fur', { shade: 'r', light: '' });
+    f.vl(0, bodyY - 10, bodyY - 4).vl(15, bodyY - 10, bodyY - 4);
+  } else if (act === 'flip_hold') {
     mitten(f, 2, ay - 2, 0);
     mitten(f, 12, ay - 2, -1);
     f.part('board', { shade: 'rb', light: 'tl' });
@@ -196,13 +205,21 @@ function front(f: Fig, p: Pose) {
     mitten(f, 13, ay - swing, -1);
   }
   bell(f, by, sway, 'front', p);
+  if (act === 'point') {
+    f.part('fur', { shade: 'rb', light: 't', sep: true });
+    f.rect(12, bodyY, 2, 2).rect(13, bodyY - 2, 2, 2).rect(14, bodyY - 4, 2, 2);
+    f.part('furD', { shade: 'r', light: 't' });
+    f.px(15, bodyY - 5).px(15, bodyY - 6);
+  }
   if (act === 'glow') {
+    // a 1px #FFE7A3 ring around the bell (30_level_art 9.2)
     f.after((pc) => {
-      for (let y = 0; y < 16; y++)
+      const top = by + 14;
+      for (let y = 0; y < top; y++)
         for (let x = 0; x < 16; x++) {
           if (pc.alpha(x, y) !== 0) continue;
           const n = [pc.alpha(x - 1, y), pc.alpha(x + 1, y), pc.alpha(x, y - 1), pc.alpha(x, y + 1)].some((a) => a > 0);
-          if (n) pc.set(x, y, (x + y) % 2 ? '#FFE7A3CC' : '#FFF6D8EE');
+          if (n) pc.set(x, y, '#FFE7A3');
         }
     });
   }
@@ -271,7 +288,7 @@ function side(f: Fig, p: Pose) {
     f.part('fur', { shade: 'rb', light: 't' });
     f.px(5, bodyY + 3).px(4, bodyY + 2);
     mitten(f, 2, bodyY - (act === 'wave' ? 1 + (p.ph % 2) : 1), 0);
-  } else if (act === 'flip') {
+  } else if (act === 'flip' || act === 'flip_hold') {
     f.part('board', { shade: 'rb', light: 'tl' });
     f.rect(0, bodyY - 1, 4, 8);
     f.part('boardE', { flat: true, rim: false });
@@ -335,7 +352,8 @@ export const KANENARI_SPEC: SpriteSpec = {
   walkBob: [0, -2, 0, -2],
   idle: { down: IDLE, left: IDLE, right: IDLE, up: rep([{ breath: 0 }, { breath: 0 }, { breath: 1 }, { breath: 1 }], 4) },
   extras: {
-    flip: { dirs: 'all' },
+    flip: { dirs: ['down'] },
+    flip_hold: { dirs: ['down', 'left', 'right'] },
     pose: { dirs: ['down'] },
     point: { dirs: ['down', 'left', 'right'] },
     wave: { dirs: ['down', 'left', 'right'] },

@@ -27,12 +27,12 @@ const INUI: Mats = {
   skin: skinLight,
   hair: blackHair,
   tee: mat('#9AA0A8', { shade: '#747A88', light: '#BCC2C8', dark: '#4E5262', rim: '#D8B8A0' }),
-  pants: mat('#B8A07A', { shade: '#8E7A5A', light: '#D4C09A', dark: '#655438', rim: '#E8B880' }),
+  pants: mat('#A8742A', { shade: '#7A5424', light: '#C89A52', dark: '#4A3218', rim: '#E8A060' }),
   sandal: mat('#6B4A3A', { shade: '#4A3228', light: '#8E6A52' }),
   frame: flat('#4A4E5E'),
   lens: flat('#DCEEF4'),
-  book: mat('#4AA8E0', { shade: '#2F7AB0', light: '#7CC8F0', dark: '#1E4A70' }),
-  page: flat('#FBF3DC'),
+  book: mat('#F4F1E8', { shade: '#CFC8BC', light: '#FFF6D8', dark: '#9E978C' }),
+  page: flat('#D8C8A0'),
 };
 
 const INUI_HEAD: HeadT = {
@@ -122,7 +122,8 @@ function inuiDraw(f: Fig, p: Pose) {
         f.rect(5, 15 + u, 6, 2);
       }
     } else hangArms(f, p, { lx: 3, rx: 12, sy: 12, hy: 16, segs: [{ mat: 'tee', n: 2 }, { mat: 'skin' }] }, u);
-    const hy = 2 + u;
+    // from behind (he sits facing dryer No.3), reading = head bowed 1px
+    const hy = 2 + u + (p.view === 'up' && reading && act !== 'look' ? 1 : 0);
     const pp = reading && act !== 'look' && p.view === 'down' ? { ...p, blink: true } : p;
     head(f, pp, INUI_HEAD, hy);
     if (act === 'look' && p.view === 'down') {
@@ -174,7 +175,7 @@ registerChar('npc_inui', () =>
     id: 'npc_inui',
     mats: INUI,
     draw: inuiDraw,
-    idle: { down: INUI_IDLE, left: INUI_IDLE, right: INUI_IDLE, up: rep([{ act: 'sit', breath: 0 }, { act: 'sit', breath: 1 }], 4) },
+    idle: { down: INUI_IDLE, left: INUI_IDLE, right: INUI_IDLE, up: INUI_IDLE },
     extras: {
       sit: { dirs: 'all' },
       look_up: { dirs: 'all', p: { lookUp: true, act: 'sit' } },
@@ -354,7 +355,7 @@ const SAE: Mats = {
   overall: mat('#7FD1E8', { shade: '#58A8C8', light: '#AEE6F4', dark: '#3A7A9A', rim: '#D8D0A8' }),
   sneaker: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFFFFF', dark: '#8E887E' }),
   sole: flat('#E84E3C'),
-  sketch: mat('#C8A06A', { shade: '#A07A48', light: '#E0C090', dark: '#6A4E2A' }),
+  sketch: mat('#D84A3C', { shade: '#A8302A', light: '#F07A5A', dark: '#6A1A1A' }),
   paper: flat('#FBF3DC'),
   pencil: flat('#FFD23F'),
   lead: flat('#3A3F48'),
@@ -472,16 +473,30 @@ function saeDraw(f: Fig, p: Pose) {
   f.rect(5, 13 + u, 6, 16 + b - (13 + u));
   f.part('overall', { shade: 'r', light: '' });
   f.rect(5, 14 + u, 2, 16 + b - (14 + u)).px(6, 13 + u);
-  // sketchbook held against the chest
-  f.part('sketch', { shade: 'rb', light: 't' });
-  f.rect(3, 13 + u, 2, 6);
-  f.part('paper', { flat: true, rim: false });
-  f.vl(4, 13 + u, 18 + u);
-  f.part('tee', { shade: 'rb', light: 'tl' });
-  f.rect(7, 13 + u, 3, 2);
-  f.part('skin', { shade: '', light: '' });
-  f.t(0).line(7, 15 + u, 5, 16 + u).t(null);
-  const pp = looking ? { ...p, lookUp: true } : p;
+  if (act === 'sketch') {
+    // sketchbook open on her forearm, pencil scratching (she faces the sun)
+    f.part('sketch', { shade: 'rb', light: 't' });
+    f.rect(1, 16 + u, 5, 1);
+    f.part('paper', { flat: true, rim: false });
+    f.rect(1, 15 + u, 5, 1);
+    f.part('tee', { shade: 'rb', light: 'tl' });
+    f.rect(7, 13 + u, 3, 2);
+    f.part('skin', { shade: '', light: '' });
+    f.t(0).line(7, 15 + u, 5, 16 + u).px(3 + p.ph, 14 + u).t(null);
+    f.part('pencil', { flat: true, rim: false });
+    f.px(2 + p.ph, 13 + u);
+  } else {
+    // sketchbook held against the chest
+    f.part('sketch', { shade: 'rb', light: 't' });
+    f.rect(3, 13 + u, 2, 6);
+    f.part('paper', { flat: true, rim: false });
+    f.vl(4, 13 + u, 18 + u);
+    f.part('tee', { shade: 'rb', light: 'tl' });
+    f.rect(7, 13 + u, 3, 2);
+    f.part('skin', { shade: '', light: '' });
+    f.t(0).line(7, 15 + u, 5, 16 + u).t(null);
+  }
+  const pp = looking ? { ...p, lookUp: true } : act === 'sketch' ? { ...p, blink: true } : p;
   head(f, pp, SAE_HEAD, hy);
   f.part('pencil', { flat: true, rim: false });
   f.px(9, hy + 5);
@@ -498,8 +513,8 @@ registerChar('npc_sae', () =>
     id: 'npc_sae',
     mats: SAE,
     draw: saeDraw,
-    idle: { down: SAE_IDLE, left: rep([{ breath: 0 }, { breath: 0 }, { act: 'look' }, { act: 'look' }], 4), right: rep([{ breath: 0 }, { breath: 0 }, { act: 'look' }, { act: 'look' }], 4), up: breathingIdle() },
-    extras: { sketch: { dirs: ['down'], p: { ph: 1 } }, surprised: { dirs: ['down'] }, happy: { dirs: ['down'] } },
+    idle: { down: SAE_IDLE, left: SAE_IDLE, right: SAE_IDLE, up: breathingIdle() },
+    extras: { sketch: { dirs: ['down', 'left', 'right'], p: { ph: 1 } }, surprised: { dirs: ['down'] }, happy: { dirs: ['down'] } },
     anims: { sketch: { frames: [{ ph: 0 }, { ph: 1 }], ms: 250 } },
   }),
 );
@@ -512,7 +527,8 @@ registerChar('npc_sae', () =>
 const JK: Mats = {
   ...base,
   skin: mat('#FCD6B6', { shade: '#E4AE8C', light: '#FFE8D4', dark: '#BC8468', rim: '#FFC090' }),
-  lit: flat('#C8F0F4'),
+  lit: flat('#BCD8D4'),
+  lit2: flat('#DCD8C8'),
   hair: mat('#241C24', { shade: '#181218', dark: '#0E0A10', light: '#443A48', spec: '#6A5E70', rim: '#7A4A4A' }),
   sailor: mat('#2F4A8A', { shade: '#223668', light: '#4766A8', dark: '#162048', rim: '#8A7AA0' }),
   collar: flat('#F4F1E8'),
@@ -520,7 +536,7 @@ const JK: Mats = {
   skirt: mat('#2A3E78', { shade: '#1E2E5C', light: '#3E5898', dark: '#141E40', rim: '#7A6A9A' }),
   sock: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFFFFF' }),
   loafer: mat('#2A2226', { shade: '#1A1418', light: '#4A3E44', spec: '#6A5E66' }),
-  bag: mat('#3A2F32', { shade: '#261E22', light: '#5A4A4E', dark: '#140E10' }),
+  bag: mat('#3A3F48', { shade: '#262A34', light: '#5A6270', dark: '#16181E' }),
   phone: flat('#3A3F48'),
   screen: flat('#5CE1FF'),
 };
@@ -610,8 +626,11 @@ function jkDraw(f: Fig, p: Pose) {
     head(f, pp, JK_HEAD, hy);
     if (phone && p.view === 'down' && !p.lookUp) {
       // screen light on the chin and cheeks
+      // cold screen light on the underside of the chin (#7FD1E8 blended into skin)
       f.part('lit', { flat: true, rim: false });
-      f.px(6, hy + 8).px(7, hy + 8).px(8, hy + 8).px(9, hy + 8).px(5, hy + 7).px(10, hy + 7);
+      f.px(7, hy + 8).px(8, hy + 8);
+      f.part('lit2', { flat: true, rim: false });
+      f.px(6, hy + 8).px(9, hy + 8);
     }
     return;
   }

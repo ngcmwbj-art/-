@@ -1,102 +1,204 @@
-// Public audio API used by the rest of the game. Other modules only ever call
-// sfx(), playBgm(), stopBgm(), duckMusic() and textBlip(); the sound team
-// owns everything behind these functions (src/audio/*).
+// Public audio API used by the rest of the game (40_audio 14). Other modules
+// only call the functions exported here; the sound team owns everything
+// behind them (src/audio/*). Content (songs, SFX recipes, voices, ambience)
+// registers itself from audio/content.ts.
 
-import { audioCtx, buses, initAudio, voice } from './engine';
+import { startClock } from './clock';
+import { audioCtx, hasGraph, initAudio, liveGraph, setSpaceOn, volCurve, type SpaceId } from './engine';
+import * as amb from './ambience';
+import * as music from './music';
+import { hooks, legacyBgm, loopTable, sfxTable, type LoopHandle, type SfxFn, type SfxOpts, type Song } from './registry';
+import type { SongDef } from './sequencer';
+import { songTable } from './registry';
 
-export type SfxFn = (opts?: { pitch?: number; pan?: number; vol?: number }) => void;
+export type { SfxFn, SfxOpts, Song, LoopHandle };
+export type { SpaceId };
+export type { MusicParam, PlayOpts } from './music';
 
-const sfxTable = new Map<string, SfxFn>();
-
-export interface Song {
-  /** Start playing; returns a stop function (fade seconds). */
-  start(): (fade: number) => void;
-}
-
-const bgmTable = new Map<string, Song>();
-let currentBgm: { id: string; stop: (fade: number) => void } | null = null;
-let pendingBgm: string | null = null;
+// ---- registration -------------------------------------------------------------
 
 export function registerSfx(id: string, fn: SfxFn): void {
   sfxTable.set(id, fn);
 }
 
-export function registerBgm(id: string, song: Song): void {
-  bgmTable.set(id, song);
+export function registerSfxLoop(id: string, fn: (opts?: SfxOpts) => LoopHandle): void {
+  loopTable.set(id, fn);
 }
 
+/** Register a song: either a sequencer SongDef or a legacy `{ start() }` object. */
+export function registerBgm(id: string, song: Song | SongDef): void {
+  if ('parts' in song) songTable.set(id, song);
+  else legacyBgm.set(id, song);
+}
+
+// ---- lifecycle -------------------------------------------------------------------
+
+let unlocked = false;
 export function unlockAudio(): void {
   initAudio();
-  if (pendingBgm) {
-    const id = pendingBgm;
-    pendingBgm = null;
-    playBgm(id);
+  startClock();
+  if (!unlocked) {
+    unlocked = true;
+    setVolume('bgm', volumes.bgm);
+    setVolume('se', volumes.se);
   }
+  music.flushPending();
+  amb.flushPendingAmbient();
 }
 
-export function sfx(id: string, opts?: { pitch?: number; pan?: number; vol?: number }): void {
+// ---- SFX ---------------------------------------------------------------------------
+
+export function sfx(id: string, opts?: SfxOpts): void {
   if (!audioCtx()) return;
   const f = sfxTable.get(id);
-  if (f) f(opts);
-  else if (import.meta.env.DEV) console.warn(`[audio] unknown sfx ${id}`);
+  if (f) {
+    f(opts);
+    hooks.onSfx?.(id);
+    music.notifySongSfx(id);
+  } else if (import.meta.env.DEV) console.warn(`[audio] unknown sfx ${id}`);
 }
 
-export function playBgm(id: string, opts: { fade?: number } = {}): void {
-  if (currentBgm?.id === id) return;
-  if (!audioCtx()) {
-    pendingBgm = id;
-    return;
-  }
-  stopBgm(opts.fade ?? 0.4);
-  const song = bgmTable.get(id);
-  if (!song) {
-    if (import.meta.env.DEV) console.warn(`[audio] unknown bgm ${id}`);
-    return;
-  }
-  currentBgm = { id, stop: song.start() };
+const NULL_LOOP: LoopHandle = { set() {}, stop() {} };
+
+/** Looping SFX with live parameters (se_hanko_charge, se_roulette). */
+export function sfxLoop(id: string, opts?: SfxOpts): LoopHandle {
+  if (!audioCtx()) return NULL_LOOP;
+  const f = loopTable.get(id);
+  if (f) return f(opts);
+  if (import.meta.env.DEV) console.warn(`[audio] unknown sfx loop ${id}`);
+  return NULL_LOOP;
+}
+
+// ---- BGM ---------------------------------------------------------------------------
+
+/**
+ * Play a song. Same id → nothing. `fade` fades in (and cross-fades the old
+ * song out), `resume` continues from the bar where it last stopped (12.2;
+ * town / home / shop / mall resume automatically within 90 s).
+ * `variant`: 'stage0'|'stage1'|'stage2' (also for 'bgm_town'), 'muffled'.
+ * Jingles (`bgm_jingle_*`) follow 40_audio 6.1 automatically.
+ */
+export function playBgm(id: string, opts: { fade?: number; resume?: boolean; variant?: string } = {}): void {
+  music.playBgm(id, opts);
 }
 
 export function stopBgm(fade = 0.5): void {
-  if (!audioCtx()) {
-    pendingBgm = null;
-    return;
-  }
-  currentBgm?.stop(fade);
-  currentBgm = null;
+  music.stopBgm(fade);
 }
 
 export function currentBgmId(): string | null {
-  return currentBgm?.id ?? pendingBgm;
+  return music.currentId();
 }
 
-/** Temporarily lower music (e.g. under a jingle). */
+/** Temporarily lower music (linear amount, e.g. −12 dB = 0.25). */
 export function duckMusic(amount: number, seconds: number): void {
-  const c = audioCtx();
-  if (!c) return;
-  const g = buses().musicDuck.gain;
-  const t = c.currentTime;
-  g.cancelScheduledValues(t);
-  g.setValueAtTime(g.value, t);
-  g.linearRampToValueAtTime(amount, t + 0.05);
-  g.setValueAtTime(amount, t + seconds);
-  g.linearRampToValueAtTime(1, t + seconds + 0.4);
+  music.duckMusic(amount, seconds);
 }
 
-/** Per-character dialog blip. `voiceId` selects a character's voice. */
-let blipHook: ((voiceId: string, ch: string) => void) | null = null;
+/** Bend the song down by `semitones` while it stops (17:00 → bgmTapeStop(0.4, -1)). */
+export function bgmTapeStop(seconds: number, semitones: number): void {
+  music.bgmTapeStop(seconds, semitones);
+}
+
+/** A silent gap in the music (the song keeps its place). */
+export function muteMusic(seconds: number): void {
+  music.muteMusic(seconds);
+}
+
+/** 'stage' 0..3, 'kire' 0..3, 'boss_phase' 1..3, 'muffle' 0..1 (40_audio 7). */
+export function setMusicParam(name: 'stage' | 'kire' | 'boss_phase' | 'muffle', value: number): void {
+  music.setMusicParam(name, value);
+}
+
+/** Alias used by some briefs: setMusicParam('detune', cents) bends the current song. */
+export function setMusicDetune(cents: number, ramp = 0.3): void {
+  music.currentPlayer()?.setBaseDetune(cents, ramp);
+}
+
+/** Contact with a field symbol: tape brake + remember the field song (12.1). */
+export function musicEncounter(): void {
+  music.musicEncounter();
+}
+
+/** Back to the field after a battle: field song continues from its bar (12.3). */
+export function musicReturnToField(fadeIn = 0.8): void {
+  music.musicReturnToField(fadeIn);
+}
+
+/** Fled from battle: the battle song trips (−300 cents, 200 ms). */
+export function musicFlee(): void {
+  music.musicFlee();
+}
+
+// ---- chime --------------------------------------------------------------------------
+
+export { playChimeMotif } from './chime';
+
+// ---- ambience & space ---------------------------------------------------------------
+
+export function playAmbient(id: string, opts?: { vol?: number; fade?: number; lp?: number }): void {
+  amb.playAmbient(id, opts);
+}
+export function stopAmbient(id: string, fade?: number): void {
+  amb.stopAmbient(id, fade);
+}
+export function stopAllAmbient(fade?: number): void {
+  amb.stopAllAmbient(fade);
+}
+export function setAmbientVol(id: string, v: number, ramp?: number): void {
+  amb.setAmbientVol(id, v, ramp);
+}
+export function ambientEvent(id: string, name: string, pan?: number): void {
+  amb.ambientEvent(id, name, pan);
+}
+/** Brief-compatible aliases. */
+export function playAmbience(id: string, opts?: { vol?: number; fade?: number; lp?: number }): void {
+  amb.playAmbient(id, opts);
+}
+export function stopAmbience(id?: string, fade?: number): void {
+  if (id) amb.stopAmbient(id, fade);
+  else amb.stopAllAmbient(fade);
+}
+
+let space: SpaceId = 'outdoor';
+export function setSpace(id: SpaceId): void {
+  space = id;
+  const g = liveGraph();
+  if (g) setSpaceOn(g, id);
+}
+export function currentSpace(): SpaceId {
+  return space;
+}
+
+// ---- dialog blips ----------------------------------------------------------------
+
+/** Per-character dialog blip implementation (installed by audio/voices.ts). */
 export function setTextBlip(fn: (voiceId: string, ch: string) => void): void {
-  blipHook = fn;
+  hooks.blip = fn;
 }
 export function textBlip(voiceId = 'default', ch = 'a'): void {
   if (!audioCtx()) return;
-  if (blipHook) blipHook(voiceId, ch);
-  else voice({ wave: 'square', freq: 660, dur: 0.02, vol: 0.06, release: 0.02 });
+  hooks.blip?.(voiceId, ch);
 }
 
-// Minimal defaults so the game is never silent before the sound pass lands.
-registerSfx('se_cursor', () => voice({ wave: 'pulse25', freq: 1320, dur: 0.02, vol: 0.12, release: 0.03 }));
-registerSfx('se_confirm', () => {
-  voice({ wave: 'pulse25', freq: 880, dur: 0.03, vol: 0.14 });
-  voice({ wave: 'pulse25', freq: 1760, dur: 0.05, vol: 0.12, at: (audioCtx()?.currentTime ?? 0) + 0.04 });
-});
-registerSfx('se_cancel', () => voice({ wave: 'pulse25', freq: 660, freqEnd: 330, dur: 0.06, vol: 0.12 }));
+// ---- settings --------------------------------------------------------------------
+
+const volumes = { bgm: 7, se: 8 };
+/** Settings sliders 0..10 (gain = (v/10)²; 11.6). */
+export function setVolume(kind: 'bgm' | 'se', value0to10: number): void {
+  volumes[kind] = Math.max(0, Math.min(10, value0to10));
+  const g = liveGraph();
+  if (!g) return;
+  const p = kind === 'bgm' ? g.musicUser.gain : g.seUser.gain;
+  const t = g.ctx.currentTime;
+  p.cancelScheduledValues(t);
+  p.setValueAtTime(p.value, t);
+  p.linearRampToValueAtTime(volCurve(volumes[kind]), t + 0.06);
+}
+export function getVolume(kind: 'bgm' | 'se'): number {
+  return volumes[kind];
+}
+
+export function audioReady(): boolean {
+  return hasGraph();
+}

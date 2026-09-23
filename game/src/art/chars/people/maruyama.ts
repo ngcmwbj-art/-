@@ -43,15 +43,16 @@ const HEAD: HeadT = {
   neckL: [5, 8, 3],
 };
 
+/** Tall toque: a puffed crown over a pleated band. */
 function cookHat(f: Fig, y: number, view: string) {
   f.part('hat', { shade: 'rb', light: 't' });
   f.rows(3, y, view === 'left'
-    ? ['..######..', '.########.', '.#########', '.########.', '..######..']
-    : ['..######..', '.########.', '##########', '.########.', '.########.']);
+    ? ['..#######.', '.#########', '##########', '..######..', '..######..']
+    : ['.########.', '##########', '##########', '..######..', '..######..']);
   f.part('hat', { flat: true });
-  // pleats + band
-  f.t(-1).px(5, y + 3).px(8, y + 3).px(11, y + 2).t(-2).hl(4, 11, y + 4).t(null);
-  if (view !== 'left') f.retone(4, y + 4, -1);
+  // puff creases + pleated band
+  f.t(-1).px(6, y + 1).px(9, y + 1).px(5, y + 2).px(8, y + 2).px(11, y + 2);
+  f.t(-1).px(6, y + 3).px(8, y + 3).px(10, y + 3).t(-2).hl(5, 10, y + 4).t(null);
 }
 
 const LEGS: LegSpec = { cx: 8, hip: 19, foot: 22, w: 3, gap: 2, mat: 'pants', low: { mat: 'boot', h: 1 }, shoe: 'boot', shoeLen: 4 };
@@ -65,13 +66,15 @@ function towel(f: Fig, u: number, view: string) {
 }
 
 function front(f: Fig, p: Pose) {
+  f.offset(2, 0);
   const u = upper(p);
   const act = p.act;
   const b = p.bob;
   legs(f, p, LEGS);
+  // coat: 14px shoulders (the biggest frame in town)
   f.part('coat', { shade: 'rb', light: 't' });
-  f.hl(3, 12, 12 + u);
-  f.rect(2, 13 + u, 12, 19 + b - (13 + u));
+  f.hl(2, 13, 12 + u);
+  f.rect(1, 13 + u, 14, 19 + b - (13 + u));
   f.part('apron', { shade: 'rb', light: 't' });
   f.rect(4, 14 + u, 8, 20 + b - (14 + u));
   f.rect(3, 17 + b, 10, 3);
@@ -79,24 +82,25 @@ function front(f: Fig, p: Pose) {
   f.t(-1).vl(8, 17 + b, 19 + b).px(5, 19 + b).t(null);
   const folded = (act === '' || act === 'peek') && p.mode !== 'walk';
   if (folded) {
+    // arms folded: rolled-up sleeves, thick forearms stacked across the chest
     f.part('coat', { shade: 'rb', light: 't' });
-    f.rect(2, 13 + u, 2, 3).rect(12, 13 + u, 2, 3);
-    f.part('skin', { shade: 'rb', light: 't' });
-    f.rect(3, 15 + u, 10, 2);
-    f.part('skin', { shade: 'b', light: '', shift: -1 });
-    f.rect(5, 16 + u, 6, 1);
+    f.rect(0, 13 + u, 2, 3).rect(14, 13 + u, 2, 3);
     f.part('coat', { flat: true });
-    f.t(1).px(2, 15 + u).t(-1).px(13, 15 + u).t(null);
+    f.t(1).px(0, 15 + u).t(-1).px(15, 15 + u).t(null);
+    f.part('skin', { shade: 'rb', light: 't' });
+    f.rect(1, 15 + u, 13, 2);
+    f.part('skin', { shade: 'b', light: '', shift: -1 });
+    f.rect(3, 16 + u, 11, 1).px(14, 15 + u).px(14, 16 + u);
   } else if (act === 'fry') {
     f.part('coat', { shade: 'rb', light: 't' });
-    f.rect(2, 13 + u, 2, 3).rect(12, 13 + u, 2, 3);
+    f.rect(0, 13 + u, 2, 3).rect(14, 13 + u, 2, 3);
     f.part('skin', { shade: 'rb', light: 't' });
-    f.rect(4, 16 + u, 2, 2).rect(10, 16 + u, 2, 2);
+    f.rect(2, 16 + u, 3, 2).rect(11, 16 + u, 3, 2);
     f.part('stick', { flat: true, rim: false });
-    f.line(6, 17 + u, 7, 21).line(9, 17 + u, 8, 21);
+    f.line(5, 17 + u, 7, 21).line(10, 17 + u, 8, 21);
     f.part('oil', { flat: true, rim: false });
     f.px(7, 22).px(8, 21);
-  } else hangArms(f, p, { lx: 2, rx: 13, sy: 13, hy: 18, segs: ARM }, u);
+  } else hangArms(f, p, { lx: 0, rx: 15, sy: 13, hy: 18, segs: ARM }, u);
   towel(f, u, 'down');
   const hy = 4 + u;
   head(f, p, HEAD, hy);
@@ -113,24 +117,26 @@ function front(f: Fig, p: Pose) {
 }
 
 function back(f: Fig, p: Pose) {
+  f.offset(2, 0);
   const u = upper(p);
   const b = p.bob;
   legs(f, p, LEGS);
   f.part('coat', { shade: 'rb', light: 't' });
-  f.hl(3, 12, 12 + u);
-  f.rect(2, 13 + u, 12, 19 + b - (13 + u));
+  f.hl(2, 13, 12 + u);
+  f.rect(1, 13 + u, 14, 19 + b - (13 + u));
   f.part('apron', { shade: 'b', light: '' });
-  f.hl(2, 13, 17 + b);
+  f.hl(1, 14, 17 + b);
   f.rows(6, 16 + b, ['#..#', '.##.', '#..#']);
   f.part('apron', { flat: true });
   f.t(-1).vl(8, 13 + u, 16 + b).t(null);
-  hangArms(f, p, { lx: 2, rx: 13, sy: 13, hy: 18, segs: ARM }, u);
+  hangArms(f, p, { lx: 0, rx: 15, sy: 13, hy: 18, segs: ARM }, u);
   towel(f, u, 'up');
   head(f, p, HEAD, 4 + u);
   cookHat(f, u, 'up');
 }
 
 function side(f: Fig, p: Pose) {
+  f.offset(2, 0);
   const u = upper(p);
   const b = p.bob;
   const sw = sideSwing(p);
@@ -171,6 +177,7 @@ const IDLE: IdleKey[] = [
 registerChar('npc_maruyama', () =>
   buildSprite({
     id: 'npc_maruyama',
+    w: 20,
     mats: M,
     draw: (f, p) => (p.view === 'down' ? front(f, p) : p.view === 'up' ? back(f, p) : side(f, p)),
     idle: { down: IDLE, left: IDLE, right: IDLE, up: breathingIdle() },

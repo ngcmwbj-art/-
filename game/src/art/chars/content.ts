@@ -8,5 +8,7 @@ import './people/mamekichi';
 import './people/town1';
 import './people/town2';
 import './people/town3';
+import './animals';
+import './enemies';
+import './restored';
 import './portraits';
-import './gallery';

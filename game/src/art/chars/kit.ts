@@ -94,18 +94,27 @@ function drawEyesFront(f: Fig, p: Pose, e: EyeSpec, dy: number, ex: Expr) {
     f.px(e.x - 1, y).px(e.x, y + 1).px(e.x + e.d + 1, y).px(e.x + e.d, y + 1);
     return;
   }
-  if (p.blink || e.closed || ex === 'happy') {
+  if (ex === 'happy' && h >= 2) {
     const yy = y + h - 1;
-    if (ex === 'happy' && h >= 2) f.px(e.x - 1, yy).px(e.x, yy - 1).px(e.x + e.d, yy - 1).px(e.x + e.d + 1, yy);
+    f.px(e.x - 1, yy).px(e.x, yy - 1).px(e.x + e.d, yy - 1).px(e.x + e.d + 1, yy);
+    return;
+  }
+  if (p.blinkClosed) {
+    // fully closed: a short lid line (outer corner down a touch)
+    const yy = y + h - 1;
+    f.px(e.x, yy).px(e.x - 1, yy).px(e.x + e.d, yy).px(e.x + e.d + 1, yy);
+    return;
+  }
+  if (p.blink || e.closed) {
+    // half-closed / narrow eyes: the lower pixel(s) only; old people get 2×1
+    const yy = y + h - 1;
+    if (e.closed) f.hl(e.x - 1, e.x, yy).hl(e.x + e.d, e.x + e.d + 1, yy);
     else f.px(e.x, yy).px(e.x + e.d, yy);
     return;
   }
   f.rect(e.x, y, 1, h).rect(e.x + e.d, y, 1, h);
   if (ex === 'surprised' && h === 1) f.px(e.x, y - 1).px(e.x + e.d, y - 1);
-  if (e.shine && h >= 2) {
-    f.part('shine', { flat: true, rim: false });
-    f.px(e.x, y).px(e.x + e.d, y);
-  }
+  // no catch-lights at 16px (30_level_art 7.7)
 }
 
 function drawEyeSide(f: Fig, p: Pose, e: SideEyeSpec, dx: number, dy: number, ex: Expr) {
@@ -122,15 +131,16 @@ function drawEyeSide(f: Fig, p: Pose, e: SideEyeSpec, dx: number, dy: number, ex
     f.px(x, y).px(x + 1, y + 1);
     return;
   }
+  if (p.blinkClosed) {
+    f.px(x, y + h - 1).px(x + 1, y + h - 1);
+    return;
+  }
   if (p.blink || e.closed || ex === 'happy') {
-    f.px(x, y + h - 1);
+    if (e.closed) f.hl(x, x + 1, y + h - 1);
+    else f.px(x, y + h - 1);
     return;
   }
   f.rect(x, y, 1, h);
-  if (e.shine && h >= 2) {
-    f.part('shine', { flat: true, rim: false });
-    f.px(x, y);
-  }
 }
 
 /**
@@ -203,16 +213,34 @@ export interface ArmsDef {
   w?: number;
   /** Side view: shoulder x and forward reach per swing unit. */
   sx?: number;
+  /** Hand size: 2 (default, 2×2 block) or 1 (small children). */
+  hand?: 1 | 2;
 }
 
-/** Two hanging arms (front/back views) with the walk swing. */
+/**
+ * Two hanging arms (front/back views) with the walk swing. Hands end in a
+ * 2×2 block of the last segment's material, widening outward (7.7).
+ */
 export function hangArms(f: Fig, p: Pose, a: ArmsDef, u: number, which: 'both' | 'L' | 'R' = 'both'): void {
   const back = p.view === 'up';
   const sl = swing(p, -1) * (back ? -1 : 1);
   const sr = swing(p, 1) * (back ? -1 : 1);
   const w = a.w ?? 1;
-  if (which !== 'R') armTo(f, { sx: a.lx, sy: a.sy + u, hx: 0, hy: 0, segs: a.segs, w, side: 1, shift: back ? -1 : 0 }, a.lx, a.hy + u + sl);
-  if (which !== 'L') armTo(f, { sx: a.rx, sy: a.sy + u, hx: 0, hy: 0, segs: a.segs, w, side: -1, shift: -1 }, a.rx, a.hy + u + sr);
+  const hand = a.segs[a.segs.length - 1].mat;
+  if (which !== 'R') {
+    armTo(f, { sx: a.lx, sy: a.sy + u, hx: 0, hy: 0, segs: a.segs, w, side: 1, shift: back ? -1 : 0 }, a.lx, a.hy + u + sl);
+    if (a.hand !== 1) {
+      f.part(hand, { shade: 'rb', light: 't', shift: back ? -1 : 0 });
+      f.rect(a.lx - 1, a.hy + u + sl - 1, 2, 2);
+    }
+  }
+  if (which !== 'L') {
+    armTo(f, { sx: a.rx, sy: a.sy + u, hx: 0, hy: 0, segs: a.segs, w, side: -1, shift: -1 }, a.rx, a.hy + u + sr);
+    if (a.hand !== 1) {
+      f.part(hand, { shade: 'rb', light: 't', shift: -1 });
+      f.rect(a.rx, a.hy + u + sr - 1, 2, 2);
+    }
+  }
 }
 
 /** Side-view swing offset (-1..1, doubled when running). */

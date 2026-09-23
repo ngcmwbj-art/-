@@ -1,2 +1,3 @@
-// Sound team: register all SFX (registerSfx) and BGM (registerBgm) here.
-export {};
+// Sound team: every song, SFX recipe, voice and ambience registers here.
+import './songs/town';
+import './report';

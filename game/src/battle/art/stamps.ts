@@ -134,8 +134,8 @@ function cached(key: string, f: () => HTMLCanvasElement): HTMLCanvasElement {
  * Oval seal with text (みました / おかえりなさい): double ellipse frame and
  * text in vermilion. `worn` 0..1 for かすれ.
  */
-export function ovalStamp(text: string, w: number, h: number, worn = 0, seed = 1): HTMLCanvasElement {
-  return cached(`oval:${text}:${w}x${h}:${worn}:${seed}`, () => {
+export function ovalStamp(text: string, w: number, h: number, worn = 0, seed = 1, halo = false): HTMLCanvasElement {
+  return cached(`oval:${text}:${w}x${h}:${worn}:${seed}:${halo}`, () => {
     const g = grid(w, h);
     const th = w >= 60 ? 3 : 2;
     ellipseRing(g, w / 2, h / 2, w / 2, h / 2, th);
@@ -147,7 +147,23 @@ export function ovalStamp(text: string, w: number, h: number, worn = 0, seed = 1
     blit(g, tm, Math.round((w - tm.w) / 2), Math.round((h - tm.h) / 2), 1);
     if (worn) wear(g, worn, seed);
     inkTone(g, seed);
-    return toCanvas(g, [SHU, SHU_D, SHU_L]);
+    if (halo) {
+      // 1px paper-coloured halo so the seal reads on any background
+      const src = g.d.slice();
+      for (let y = 0; y < h; y++)
+        for (let x = 0; x < w; x++) {
+          if (src[y * w + x]) continue;
+          let near = false;
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const xx = x + dx;
+            const yy = y + dy;
+            if (xx >= 0 && yy >= 0 && xx < w && yy < h && src[yy * w + xx]) near = true;
+          }
+          if (near) g.d[y * w + x] = 4;
+        }
+      // fill the inside of the oval with translucent paper
+    }
+    return toCanvas(g, [SHU, SHU_D, SHU_L, PAPER]);
   });
 }
 
@@ -241,15 +257,16 @@ export function hanamaruPath(): [number, number][] {
   for (let i = 0; i <= 80; i++) {
     const t = i / 80;
     const a = -Math.PI / 2 + t * Math.PI * 4;
-    const r = 0.08 + t * 0.42;
+    const r = 0.06 + t * 0.34;
     pts.push([Math.cos(a) * r, Math.sin(a) * r]);
   }
-  // petals: scalloped loop around
-  const n = 9;
-  for (let i = 0; i <= 180; i++) {
-    const t = i / 180;
-    const a = -Math.PI / 2 + t * Math.PI * 2 + Math.PI * 4;
-    const r = 0.62 + 0.3 * Math.abs(Math.sin((t * n * Math.PI) / 1));
+  // petals: 7 plump rounded lobes with pinched valleys (reads as a flower,
+  // not a gear, even at 24px)
+  const n = 7;
+  for (let i = 0; i <= 210; i++) {
+    const t = i / 210;
+    const a = -Math.PI / 2 + t * Math.PI * 2;
+    const r = 0.6 + 0.32 * Math.sqrt(Math.abs(Math.sin(t * n * Math.PI)));
     pts.push([Math.cos(a) * r, Math.sin(a) * r]);
   }
   return pts;
@@ -367,6 +384,26 @@ export function kakimoji(text: string, just = false, seed = 7, scale = 2): HTMLC
         if (src[i] === 1 && src[i - W] !== 1) g.d[i] = 5;
       }
     return toCanvas(g, [WHITE, SHU, INK, '#5B4A7A', '#FFF6D8']);
+  });
+}
+
+/** Text scaled down (area-coverage) into a single-color canvas (tags, tiny labels). */
+export function miniText(text: string, scale: number, color: string, thr = 0.3): HTMLCanvasElement {
+  return cached(`mini:${text}:${scale}:${color}:${thr}`, () => {
+    const g = textMask(text, scale, thr);
+    return toCanvas(g, [color]);
+  });
+}
+
+/** Hand-stamped grade mark: ◎ (vermilion double ring) or ○ (ink ring), 14×14. */
+export function gradeMark(excellent: boolean, seed = 1): HTMLCanvasElement {
+  return cached(`grade:${excellent}:${seed}`, () => {
+    const g = grid(14, 14);
+    ellipseRing(g, 7, 7, 6.8, 6.8, 1.6);
+    if (excellent) ellipseRing(g, 7, 7, 3.6, 3.6, 1.4);
+    wear(g, 0.08, seed + 20);
+    inkTone(g, seed);
+    return excellent ? toCanvas(g, [SHU, SHU_D, SHU_L]) : toCanvas(g, [INK, '#1B1733', '#4A3A6E']);
   });
 }
 

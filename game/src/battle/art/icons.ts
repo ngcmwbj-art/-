@@ -267,14 +267,14 @@ export function bowIcon(): HTMLCanvasElement {
 /** Tiny vermilion check stamp 8×8 (ready). */
 export function checkStamp(): HTMLCanvasElement {
   return icon('check', [
-    '.rrrrrr.',
-    'rr....rr',
-    'r....r.r',
-    'r...r..r',
-    'rr.r...r',
-    'r.r...rr',
-    'rr....rr',
-    '.rrrrrr.',
+    '..rrrr..',
+    '.rRRRRr.',
+    'rRRRRWRr',
+    'rRRRWRRr',
+    'rWRWRRRr',
+    'rRWRRRRr',
+    '.rRRRRr.',
+    '..rrrr..',
   ]);
 }
 

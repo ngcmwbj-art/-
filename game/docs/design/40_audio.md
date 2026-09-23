@@ -1399,12 +1399,12 @@ se_shop_shutter  店のシャッターを上げ下ろしする（任意。いま
 ### 9.4 町の音・イベント
 
 ```
-se_shutter       カメラのシャッター（写真館の「カシャ」。エンディングで遠くに1回）   180ms
+se_shutter       カメラのシャッター（予備。いまの台本では鳴らさない。エンディングの写真館は虫の声だけ。00_concept 16）   180ms
   L1 noise        env=0/15/0/8 dur=8 v=.06 flt=BP3200q1.5
   L2 tri   f=1400→900/20 env=0/25/0/10 dur=10 v=.03
   L3 noise        env=0/30/0/15 dur=15 v=.05 flt=BP1800q1.2 at=70
   L4 tri   f=1100→700/25 env=0/30/0/10 dur=10 v=.025 at=70
-  台本の「遠くで小さく」は vol .35、rev=.5
+  使うときは「遠くで小さく」vol .35、rev=.5
 se_chain         駐車場のチェーンが外れる（ジャラ……ガシャン）。遠くで   1300ms
   L1 金属の粒×9：sine 2100／3300／5200Hz（各 rnd=15%）env=0/35/0/10 v=.012／.008／.004。at=0,120,220,300,370,430,480,520,555（だんだん速く）
   L2 noise        env=0/300/0/100 dur=60 v=.06 flt=BP2000q1 at=900          ← ガシャン
@@ -1454,9 +1454,10 @@ se_crossing_up   遮断機が上がる（ギギ……）                        
   L3 sine  f=110 env=1/120/0/40 dur=20 v=.05 at=1100
   L4 noise        env=0/40/0/20 dur=10 v=.03 flt=LP1500 at=1100
 se_train_pass    明かりのない電車が通る（汽笛なし）                  2000ms
-  L1 noise        env=500/0/1/700 dur=1300 v=.08 flt=LP1200→400 pan=.8→-.8
+  線路は南北で、電車は画面の上から下へ通る（30_level_art 8.6）。左右には動かさず、近づいて遠ざかる音量とフィルタで通過を聞かせる
+  L1 noise        env=500/0/1/700 dur=1300 v=.08 flt=LP1200→400 pan=.25
   L2 ガタンゴトン：sine 70Hz（env=0/60/0/20）＋noise BP1kHz 20ms を、at=350,500,950,1100,1550,1700。v .06、パンは L1 に合わせる
-  L3 sine  f=880→820/2000 env=300/0/1/600 dur=1400 v=.01 pan=.8→-.8           ← ドップラーでわずかに下がる
+  L3 sine  f=880→820/2000 env=300/0/1/600 dur=1400 v=.01 pan=.25               ← ドップラーでわずかに下がる
   全体 rev=.3
 se_train_far     遠くの電車（段階2の踏切付近。「夜のほうから」）        5000ms
   se_train_pass を dur×2.5、全体 flt=LP300、v×.3、rev=.7、パンは +.9→+.5（東の遠く）
@@ -2181,7 +2182,7 @@ se_uwabaki       上履きキック（ゴム底の「キュッ」）            
 | | 最後の C5 が消えたら `se_higurashi_call`（1声だけ）→ 0.8秒後に `playBgm('bgm_ending', { fade: 1.0 })` |
 | | HUD 17:00→17:01 で `se_clock_flip` |
 | 2（肉屋） | 画面が切り替わる前から `se_fry`（先に聞こえる）。`setSpace('room')`。`bgm_jingle_item`（一時停止と再開は自動） |
-| 3（写真館） | `se_shutter`（vol .35、rev .5）。BGM はそのまま |
+| 3（写真館） | 効果音なし（三毛猫がしっぽをふるだけ）。BGM はそのまま |
 | 4（家） | `se_door`。母の台詞。BGM はそのまま |
 | 5（テレビ） | voice `tv` |
 | 6（踏切・暗転） | 暗転（0.4秒）で `bgm_ending` を 0.4秒でフェードアウト → `playBgm('bgm_night', { fade: 1.5 })`、`setSpace('night')`。0.8秒後 `se_crossing_up` → `se_train_pass` → `se_paper_bag`（包みを渡す）→ `se_zipper`（ファスナー）→ 1.5秒の間（虫の声だけ）→ voice `kanenari_voice` →1.0秒 → `se_bell_kanenari_short` → 星が止まる：`se_star` |
@@ -2333,12 +2334,12 @@ export function unlockAudio(): void;                                     // 既�
 
 | # | 相手 | 内容 |
 |---|---|---|
-| 1 | シナリオ（10）・UI | `evt_title` は `se_chime_note`／`se_chime_cut` を呼ばない。**`bgm_title` が曲の中でチャイムを鳴らして途切れさせる**（5.1）。台本の音の記述はそのままでよい |
-| 2 | シナリオ（10） | `se_shutter` は**カメラのシャッター**（写真館の「カシャ」）として作った。店のシャッターの音が必要なら `se_shop_shutter` |
-| 3 | シナリオ（10） | 放送の最後のページ「……だれか。」の voice は **`broadcast_child`**（`omukaemachi` の声を防災スピーカーに通したもの）にしてほしい |
-| 4 | シナリオ（10）・戦闘（20） | ボス戦の直前の1音は **E5**（10_narrative 5.18 のとおり、宙吊りの4音目）。20_systems_battle 13.1・16.1 の「G4」は E5 にそろえてほしい。ラウンドの終わりのカウントは G4 から（変更なし） |
+| 1 | シナリオ（10）・UI | `evt_title` は `se_chime_note`／`se_chime_cut` を呼ばない。**`bgm_title` が曲の中でチャイムを鳴らして途切れさせる**（5.1）。（10 5.1・30 11.3 に反映済み） |
+| 2 | シナリオ（10） | `se_shutter`（カメラのシャッター）は予備。エンディングの写真館では鳴らさない（MOTHER2 のエンディングの写真を連想させないため。10 5.20 に反映済み）。店のシャッターの音が必要なら `se_shop_shutter` |
+| 3 | シナリオ（10） | 放送の最後のページ「……だれか。」の voice は **`broadcast_child`**（`omukaemachi` の声を防災スピーカーに通したもの）。（10 1.5・5.13 に反映済み） |
+| 4 | シナリオ（10）・戦闘（20） | ボス戦の直前の1音は **E5**（10_narrative 5.18 のとおり、宙吊りの4音目）。20_systems_battle 13.1・16.1 も E5 にそろえた（鳴らすのは evt_boss_intro。戦闘側は鳴らさない）。ラウンドの終わりのカウントは G4 から（変更なし） |
 | 5 | 戦闘（20） | `se_mimashita` は判の音を含まない（照れの「ポッ」だけ）。判定別の判（`se_stamp_heavy`＋`se_thud_low`／`se_stamp`／`se_stamp_light`）を同時に鳴らす（20 の 6.2 の書き方どおり） |
-| 6 | 戦闘（20） | 通知表の行の判：`se_stamp_light` のピッチは**半音ずつではなく、9.5 の表（ハ長調の音階）**で上げてほしい。行の押すタイミングを **ジングル開始から 0.96秒＋0.12秒×i** にすると、`bgm_jingle_levelup` の16分の格子にそろう（推奨） |
+| 6 | 戦闘（20） | 通知表の行の判：`se_stamp_light` のピッチは**半音ずつではなく、9.5 の表（ハ長調の音階）**で上げてほしい。行の押すタイミングを **ジングル開始から 0.96秒＋0.12秒×i** にすると、`bgm_jingle_levelup` の16分の格子にそろう。（20 18.2 に反映済み） |
 | 7 | 戦闘（20） | 勝利の大判「みました」のSEは `bgm_jingle_victory` に内蔵している。別に判のSEを鳴らさない |
 | 8 | 戦闘（20） | 新しいSE：`se_ring`（`{dur}` に輪の縮む時間）、`se_hanko_zone`（くっきりゾーンに入った瞬間）、`se_peke_fall`、`se_shrink`、`se_part_glow`、`se_light_fly`、`se_nori_sing` `se_nori_flag`、`se_zipper`。`se_hanko_charge` と `se_roulette` は `sfxLoop` で |
 | 9 | 戦闘（20） | ボスの最終局面：忘れ物が光になって飛ぶ（+2500ms）ところで `stopBgm(2.0)`。結果の画面では `bgm_jingle_levelup` を鳴らさない（判の音だけ） |
