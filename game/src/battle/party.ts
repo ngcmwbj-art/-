@@ -9,12 +9,12 @@ import { ease } from '../engine/tween';
 import type { Gfx } from '../engine/gfx';
 import { CAPSULE_TABLE, fillAll, getItem, getSkill, ITEM_TEXT, LABEL, NORI, NORI_COMMON, SYS } from '../data/battle';
 import type { BattleScene } from './scene';
-import { FRAME } from './scene';
+import { FRAME, STAGE_TOP } from './scene';
 import {
   attrMul, calcDamage, critRate, enemyDefIn, fixedDamage, JUDGE_MUL, MIMA_COEF, sfxGrade, type EnemyUnit, type Judge, type PartyCmd, type PartyUnit,
 } from './model';
 import {
-  addKire, arrows, changeStage, cureStatus, defeatEnemy, dodge, fadeDrops, healParty, hideSticky, hurtEnemy, hurtParty, kireFullPages, knock,
+  addKire, arrows, cureStatus, defeatEnemy, dodge, fadeDrops, fadeDropsLater, healParty, hideSticky, hurtEnemy, hurtParty, kireFullPages, knock,
   markDefeated, resetKire, showSticky, statusText,
 } from './common';
 import { drawNet, balloon, crow, heart, poppedBalloon, sweatDrop, thickLine } from './art/fxart';
@@ -24,11 +24,11 @@ import { hankoCloseup } from './art/fxart';
 import { hanamaruFrame, kakimoji, kakimojiSmall, ovalStamp, pekeMark, roundSeal } from './art/stamps';
 void kakimojiSmall;
 import { itemIcon, kireIcon } from './art/icons';
-import { PANEL_POS } from './ui/panels';
+import { kireIconXY, PANEL_POS } from './ui/panels';
 import { C, tapeCanvas } from './ui/note';
 import { kanenariBack, kanenariFront } from '../art/enemies/kanenari';
 import { portrait } from '../art/chars';
-import { tsukkomiWindows } from './tsukkomi';
+import { bokemakeLabel, tsukkomiWindows } from './tsukkomi';
 import { onBossPartBreak, onBossBodyMimashita, bossUndo, doOkaerinasai } from './boss';
 
 // ---- helpers -----------------------------------------------------------------------
@@ -224,7 +224,7 @@ function* strikeOnce(
   }
   if (rng.next() >= hitRate) {
     s.sfx('se_whiff');
-    s.label(LABEL.miss, e.x, e.headY + 6, 'gray', 700);
+    s.label(LABEL.miss, e.coreX, Math.max(STAGE_TOP + 10, e.coreY - 14), 'gray', 700);
     dodge(s, e);
     s.post(rng.chance(0.5) ? fillAll(SYS.miss, { target: e.name }) : SYS.miss2);
     return { killed: false, hit: false, boke: false };
@@ -249,7 +249,7 @@ function* strikeOnce(
     crit,
   });
   hitFeel(s, e, crit ? 'crit' : good ? 'good' : 'normal', good);
-  if (good) s.labelUpRight(LABEL.iioto, e.coreX, e.coreY, 'shu', 560);
+  if (good) s.labelForHit(LABEL.iioto, e, crit, 'shu', 560);
   if (boke && s.enemies[0]?.id === 'enemy_hato_kakaricho') showSticky(s, 'bokemake', undefined, false, 2600);
   const killed = hurtEnemy(s, e, dmg, { crit, stack: o.stack });
   return { killed, hit: true, boke };
@@ -305,7 +305,7 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
   const tut = !tackle && !flag('flag_tut_ring');
   if (tut) setFlag('flag_tut_ring', 1);
   const shrink1 = tut ? 58 : 29;
-  const net = { x: 0, y: 0, a: 0, alpha: 0, ghost: -1, visible: true };
+  const net = { x: 0, y: 0, a: 0, alpha: 0, ghost: -1, visible: true, mesh: 1 };
   const back = { x: 300, y: 200, sc: 1, frame: 'idle' as string, visible: tackle, alpha: 1 };
   let netFx: ReturnType<typeof s.addFx> | null = null;
   if (!tackle) {
@@ -316,7 +316,7 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
       draw: (g) => {
         if (!net.visible) return;
         if (net.ghost >= 0) drawNet(g, net.x, net.y, net.ghost, { alpha: 0.5 * net.alpha, ghost: true, len: 71 });
-        drawNet(g, net.x, net.y, net.a, { alpha: net.alpha, len: 71 });
+        drawNet(g, net.x, net.y, net.a, { alpha: net.alpha, len: 71, mesh: net.mesh });
       },
     });
   } else {
@@ -339,12 +339,14 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
     target = retarget(s, target!);
     if (!target) break;
     const t = target;
-    const pivot = () => ({ x: t.coreX - 56 + (h === 1 ? 112 : 0), y: t.coreY + 44 });
+    const pivot = () => ({ x: t.coreX - 63 + (h === 1 ? 126 : 0), y: t.coreY + 33 });
     const hitAngle = () => {
       const p = pivot();
       return Math.atan2(t.coreY - p.y, t.coreX - p.x);
     };
-    const lead = h === 0 ? 7 : 9;
+    // 2段 (10.1): the second ring starts 150ms after the first hit's
+    // hitstop and shrinks in 360ms — no extra lead-in
+    const lead = h === 0 ? 7 : 1;
     const shrink = h === 0 ? shrink1 : 22;
     const r = yield* strikeOnce(
       s,
@@ -378,6 +380,7 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
         const ha = hitAngle();
         const dir = h === 1 ? -1 : 1;
         const windA = ha - dir * 1.2;
+        if (phase === 'pre' && f === 0) net.mesh = 1;
         if (f < 7 && h === 0) {
           // slides in from off-screen lower-left, tilted back 20°
           const k = ease.quadOut(Math.min(1, f / 7));
@@ -391,6 +394,12 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
           net.a = ha;
           net.ghost = -1;
           net.alpha = 1;
+          if (phase === 'post') {
+            // 2 frames after the hit the mesh thins out (the flash shows through)
+            s.addFx({ layer: 'top', dur: 2 * FRAME, ui: true, draw: () => {}, update() {
+              if (this.t >= 2 * FRAME - 1) net.mesh = 0.3;
+            } });
+          }
         } else if (f >= hitF - 2) {
           // swing smear (2 frames)
           net.x = p0.x;
@@ -477,6 +486,9 @@ export function* killSequence(s: BattleScene, list: EnemyUnit[]): Co {
   if (last) {
     const lastE = list[list.length - 1];
     if (lastE.def.texts.defeat.length) yield* s.say(lastE.def.texts.defeat);
+    // 16.12: the victory seal comes 200ms after the line — the objects fade meanwhile
+    fadeDropsLater(s);
+    return;
   }
   yield* fadeDrops(s);
 }
@@ -568,8 +580,10 @@ export function* holdStamp(s: BattleScene, u: PartyUnit, forceKasure = false): C
 }
 
 function drawHankoCloseup(g: Gfx, st: { rise: number; amount: number; charging: boolean; lift: number; drop: number; inZone: boolean }, kLo: number, rt: number): void {
+  // the close-up rises over the (idle) command window, on Minato's side, so
+  // neither the target nor the status panels are covered (15.9 moved)
   const baseY = 122 + Math.round((1 - st.rise) * 80) + Math.round(st.drop * 110);
-  const cx = 192;
+  const cx = HANKO_CX;
   const cy = 146 + (baseY - 122);
   // ring track + zone
   const R = 34;
@@ -605,8 +619,11 @@ function drawHankoCloseup(g: Gfx, st: { rise: number; amount: number; charging: 
   const squash = st.charging ? Math.min(3, Math.floor(st.amount / 0.25)) : 0;
   const img = hankoCloseup(squash);
   const sh = st.inZone && st.charging ? (Math.floor(rt / 33) % 2 ? 1 : -1) : 0;
-  g.img(img, 168 + sh, baseY - Math.round(st.lift));
+  g.img(img, HANKO_CX - 24 + sh, baseY - Math.round(st.lift));
 }
+
+/** Centre x of the hanko close-up and its ink ring. */
+const HANKO_CX = 52;
 
 // ---- hanko actions ---------------------------------------------------------------------
 
@@ -617,7 +634,12 @@ function addDecal(e: EnemyUnit, kind: 'peke' | 'mimashita', kasure: boolean): vo
   if (e.decals.length > 5) e.decals.shift();
 }
 
-function stampFeel(s: BattleScene, e: EnemyUnit | null, x: number, y: number, j: Judge, heavyRing = true): void {
+/** `numbered`: a damage number pops from `e` too, so the label pairs with it. */
+function stampFeel(s: BattleScene, e: EnemyUnit | null, x: number, y: number, j: Judge, heavyRing = true, numbered = false): void {
+  const label = (text: string, tone: 'shu' | 'gray', worn: boolean) => {
+    if (e && numbered) s.labelForHit(text, e, j === 'kukkiri', tone, 700, worn);
+    else s.labelUpRight(text, x, y, tone, 700, worn);
+  };
   if (j === 'kukkiri') {
     s.hitstop(10);
     s.shake(4, 4, 12);
@@ -638,7 +660,7 @@ function stampFeel(s: BattleScene, e: EnemyUnit | null, x: number, y: number, j:
       });
     s.sfx('se_stamp_heavy');
     s.sfx('se_thud_low');
-    s.labelUpRight(LABEL.kukkiri, x, y, 'shu', 700);
+    label(LABEL.kukkiri, 'shu', false);
   } else if (j === 'futsuu') {
     s.hitstop(6);
     s.shake(2, 2, 8);
@@ -650,7 +672,7 @@ function stampFeel(s: BattleScene, e: EnemyUnit | null, x: number, y: number, j:
     s.shake(1, 1, 4);
     s.shuSplash(x, y, 4, true);
     s.sfx('se_stamp_light');
-    s.labelUpRight(LABEL.kasure, x, y, 'gray', 700, true);
+    label(LABEL.kasure, 'gray', true);
   }
 }
 
@@ -722,7 +744,7 @@ function* hankoPeke(s: BattleScene, u: PartyUnit, e: EnemyUnit, j: Judge): Co {
   fx.done = true;
   const x = e.coreX;
   const y = e.coreY;
-  stampFeel(s, e, x, y, j);
+  stampFeel(s, e, x, y, j, true, !e.def.invulnerable && !e.status.shindafuri);
   // the big X shrinks 96 → 20 and sticks as a decal
   s.addFx({
     layer: 'top',
@@ -809,7 +831,9 @@ function* hankoMimashita(s: BattleScene, u: PartyUnit, e: EnemyUnit, j: Judge, p
   const resist = (['da', 'han', 'wara'] as const).filter((a) => w[a] < 1);
   let seen = 0;
   for (let n = 1; n <= e.def.tsukkomi.length; n++) if (flag(`flag_tsukkomi_${e.id}_${n}`)) seen++;
-  s.card = { data: { short: e.def.book.short, weak, resist, seen, total: e.def.tsukkomiCount, hpRate: e.hpRate }, t: 0, closing: false };
+  // slides in on the side away from the enemy and closes by itself at 1.4s
+  const side = e.x > 192 ? 'left' : 'right';
+  s.card = { data: { short: e.def.book.short, weak, resist, seen, total: e.def.tsukkomiCount, hpRate: e.hpRate, side }, t: 0, closing: false };
   yield 500;
   if (e.def.boss) yield* onBossBodyMimashita(s, e);
   else if (again) yield* s.say(fillAll(SYS.mimashitaAgain, { enemy: e.name }));
@@ -933,8 +957,14 @@ function* hankoYarinaoshi(s: BattleScene, e: EnemyUnit, j: Judge, partId?: strin
   if (e.status.tame) {
     const move = getSkill(e.status.tame === 'skill_ojigi_press' ? 'skill_ojigi_press' : e.status.tame)?.name ?? '';
     // sticky gets struck through and peels off
-    const hx = e.x;
-    const hy = e.headY - 26;
+    // the struck-through sticky sits where drawEnemyExtras drew it
+    let hx = e.x;
+    let hy = e.headY - 26;
+    if (hy < STAGE_TOP) {
+      hy = Math.max(STAGE_TOP + 4, e.top + Math.round(e.sizeH * 0.3));
+      hx = e.x + e.sizeW / 2 + 20;
+      if (hx + 26 > 381) hx = e.x - e.sizeW / 2 - 20;
+    }
     s.addFx({
       layer: 'top',
       dur: 700,
@@ -952,7 +982,7 @@ function* hankoYarinaoshi(s: BattleScene, e: EnemyUnit, j: Judge, partId?: strin
     if (e.id === 'enemy_ojigi_jihanki') e.setPose('idle');
     if (j === 'kukkiri') {
       e.status.bokemake = true;
-      s.label(LABEL.bokemake, e.x, e.headY - 8);
+      bokemakeLabel(s, e);
     }
     yield 300;
     yield* s.say(fillAll(SYS.yarinaoshi, { enemy: e.name, move }));
@@ -1089,12 +1119,14 @@ function* prKane(s: BattleScene, u: PartyUnit): Co {
       crowSt.x -= dt * 0.33;
     },
   });
-  yield* s.say([SYS.kane[1], SYS.kane[2]]);
-  s.msgInteractive = false;
-  // sweat drop beside Kanenari-kun's face
+  yield* s.say([SYS.kane[1]]);
+  // the flop lands: the kire "!" lights (with its pop and se_kire_up) as the
+  // line saying so appears, not after it
   const [px, py] = PANEL_POS[u.id];
   s.addFx({ layer: 'top', dur: 700, ui: true, draw: (g, t) => g.alpha(1 - t / 700, () => g.img(sweatDrop(), px + 34, py + 6 + Math.round(t / 70))) });
   addKire(s, 1);
+  yield* s.say([SYS.kane[2]]);
+  s.msgInteractive = false;
   for (let i = 0; i <= 8; i++) {
     back.y = 142 + 88 * ease.quadIn(i / 8);
     yield null;
@@ -1254,8 +1286,9 @@ export function* doNori(s: BattleScene): Co {
       const sc = t < 150 ? 1 + p : 2 + (t - 150) / 40;
       const a = t < 150 ? 1 : Math.max(0, 1 - (t - 150) / 80);
       for (let i = 0; i < 3; i++) {
-        const x = 224 + i * 13 + (187 - 224 - i * 13) * p;
-        const y = 140 + (96 - 140) * p;
+        const [ix, iy] = kireIconXY(i);
+        const x = ix + (187 - ix) * p;
+        const y = iy + (96 - iy) * p;
         const w = bang.width * sc;
         const h = bang.height * sc;
         g.alpha(a, () => g.ctx.drawImage(bang, Math.round(x + 5 - w / 2), Math.round(y + 7 - h / 2), Math.round(w), Math.round(h)));
@@ -1264,13 +1297,15 @@ export function* doNori(s: BattleScene): Co {
   });
   resetKire(s);
   // darken (0–150ms), then ease off as the performers take the stage
-  const dark = { a: 0 };
+  const dark = { a: 0, off: false };
   const darkFx = s.addFx({
     layer: 'world',
     dur: 0,
     draw: (g) => g.rect(0, 0, 384, 216, '#0B0B14', dark.a),
     update() {
-      dark.a = this.t < 150 ? 0.45 * (this.t / 150) : Math.max(0.18, 0.45 - ((this.t - 150) / 200) * 0.27);
+      // the enemies stay dimmed while Kanenari-kun performs (he is the stage)
+      if (dark.off) dark.a = Math.max(0, dark.a - 0.1);
+      else dark.a = this.t < 150 ? 0.5 * (this.t / 150) : 0.5;
     },
   });
   yield 150;
@@ -1301,15 +1336,32 @@ export function* doNori(s: BattleScene): Co {
   duckMusic(0.25, first ? 2.6 : 1.5);
   yield 200;
   // 350–1350 (or a 400ms cut): the boke
-  const kf = { x: 420, pose: nori.pose };
+  // Kanenari-kun performs on the right, in front of the dimmed enemies, on a
+  // warm spotlight so he reads as the one on stage
+  const KX = 312;
+  const kf = { x: 440, pose: nori.pose };
   const bokeFx = s.addFx({
     layer: 'top',
     dur: 0,
     draw: (g, t) => {
       const img = kanenariFront(kf.pose, t);
-      g.img(img, Math.round(kf.x - img.width / 2), 142 - img.height);
+      const ctx = g.ctx;
+      const lx = Math.round(kf.x);
+      ctx.save();
+      ctx.globalAlpha = 0.28;
+      ctx.fillStyle = '#FFE7A3';
+      ctx.beginPath();
+      ctx.moveTo(lx - 14, 50);
+      ctx.lineTo(lx + 14, 50);
+      ctx.lineTo(lx + 40, 138);
+      ctx.lineTo(lx - 40, 138);
+      ctx.fill();
+      ctx.globalAlpha = 0.35;
+      ctx.fillRect(lx - 38, 135, 76, 4);
+      ctx.restore();
+      g.img(img, Math.round(kf.x - img.width / 2), 138 - img.height);
       if (kf.pose === 'sing' && Math.floor(t / 200) % 2 === 0) {
-        g.text('♪', Math.round(kf.x + 20), 90 - Math.round((t % 400) / 40), { color: '#2A2440', outline: '#FFD23F' });
+        g.text('♪', Math.round(kf.x + 20), 84 - Math.round((t % 400) / 40), { color: '#2A2440', outline: '#FFD23F' });
       }
     },
   });
@@ -1319,7 +1371,7 @@ export function* doNori(s: BattleScene): Co {
   // 40_audio 13.3: each boke has its own sound (cut by the tsukkomi)
   s.sfx(nori.pose === 'sing' ? 'se_nori_sing' : nori.pose === 'flag' ? 'se_nori_flag' : 'se_zipper');
   for (let t = 0; t < bokeMs; t += FRAME) {
-    kf.x = Math.max(250, 420 - (t / 150) * 170);
+    kf.x = Math.max(KX, 440 - (t / 150) * 128);
     yield null;
   }
   if (!first) {
@@ -1349,13 +1401,14 @@ export function* doNori(s: BattleScene): Co {
       else g.text('ミ', fx + 32, 86, { color: C.ink, align: 'center' });
       g.img(tapeCanvas(18, 7, '', C.tape, 3), fx - 8, 58);
       g.img(tapeCanvas(18, 7, '', C.tape, 5), fx + 54, 124);
-      // two tiers: "……って、" small on top, the line slammed down underneath
-      g.img(upper, 96, 40);
+      // two tiers under the band: "……って、" small on top, the line slammed
+      // down underneath (y70–106, over the enemies' upper half)
+      g.img(upper, 96, 52);
       const sc = t < 60 ? 1.5 - 0.5 * (t / 60) : 1;
       const sh = t < 300 ? Math.round(Math.sin(t) * 1) : 0;
       const w = lower.width * sc;
       const h = lower.height * sc;
-      g.ctx.drawImage(lower, Math.round(192 - w / 2 + sh), Math.round(58 + (lower.height - h) / 2), Math.round(w), Math.round(h));
+      g.ctx.drawImage(lower, Math.round(192 - w / 2 + sh), Math.round(68 + (lower.height - h) / 2), Math.round(w), Math.round(h));
     },
   });
   s.sfx('se_bishi', { vol: 1.3 });
@@ -1378,20 +1431,28 @@ export function* doNori(s: BattleScene): Co {
   const atkM = s.minato?.m.atk ?? 0;
   const atkK = s.kanenari?.m.atk ?? 0;
   const killed: EnemyUnit[] = [];
-  targets.forEach((e, i) => {
+  const dealt: [EnemyUnit, number][] = [];
+  targets.forEach((e) => {
     e.whiteFrames = 2;
     if (e.def.invulnerable) return;
     const dmg = fixedDamage((atkM + atkK) * 2.5, attrMul(e, 'wara'));
-    if (hurtEnemy(s, e, dmg, { big: true, stack: 0 })) killed.push(e);
+    dealt.push([e, dmg]);
+    // the numbers wait until the lettering has gone (16.10: 2000–3000ms)
+    if (hurtEnemy(s, e, dmg, { big: true, stack: 0, noNumber: true })) killed.push(e);
     else e.status.bokemake = true;
     knock(s, e, 5);
-    void i;
   });
+  dark.off = true;
+  dark.a = 0.2;
   yield 300;
   tsFx.done = true;
   bokeFx.done = true;
   bgFx.done = true;
   darkFx.done = true;
+  dealt.forEach(([e, dmg], i) => {
+    const [nx, ny] = s.enemyNumberXY(e, true);
+    s.number(nx, ny, dmg, { big: true, delay: i * 60 });
+  });
   if (killed.length) {
     // everyone who fell shrinks together, dropping 100ms apart
     yield* s.say(NORI_COMMON.slice(0, 1));

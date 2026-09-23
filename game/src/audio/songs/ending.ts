@@ -2,7 +2,7 @@
 // the chime finally answers itself: bar 2 sings D C A C and bar 3 lands on C.
 
 import { arp, bass, drums, melody, pads, type BarCtx, type PartDef, type SongDef } from '../sequencer';
-import { registerSong, score } from './common';
+import { chimeQuote, registerSong, score } from './common';
 import { town } from './town';
 
 export const ENDING_MML = `
@@ -97,6 +97,13 @@ C9sus4 = C F G Bb D
 
 const night = score(NIGHT_MML, NIGHT_CHORDS);
 
+// Under N2's long G5 a bell asks the question once more, softly: the chime has
+// been answered, but the notebook says つづく. (The answer stays in bgm_ending.)
+const NIGHT_CHIME = chimeQuote(`
+@song bgm_night part=chime ins=ins_fm_vibes meter=4/4
+N2  Cmaj7/E        | G4:4 A4:4 C5:4 E5:4 |
+`);
+
 function nightDef(): SongDef {
   return {
     id: 'bgm_night',
@@ -107,6 +114,7 @@ function nightDef(): SongDef {
     loop: ['N1', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8'],
     parts: [
       melody({ id: 'stars', ins: 'ins_musicbox', bars: night.part('stars'), o: { vol: 0.09, rev: 0.7 } }),
+      melody({ id: 'chime', ins: 'ins_fm_vibes', bars: NIGHT_CHIME, o: { vol: 0.04, rev: 0.6 }, fx: { pan: 0.2, lp: 4000 } }),
       pads({ id: 'pad', o: { vol: 0.025, attack: 1.2, release: 2.0 }, fx: { lp: 900, q: 0.7 } }),
       bass({ id: 'sub', ins: 'ins_sub', pattern: 'R:16', o: { vol: 0.1 } }),
     ],

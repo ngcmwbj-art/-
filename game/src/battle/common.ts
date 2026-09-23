@@ -2,6 +2,7 @@
 // healing presentation, statuses and buffs, kire, and the もとにもどる defeat.
 
 import type { Co } from '../engine/co';
+import type { Gfx } from '../engine/gfx';
 import { all } from '../engine/co';
 import { charIds, charSprite } from '../art/chars';
 import { flag, setFlag } from '../game/state';
@@ -90,16 +91,18 @@ export function hurtParty(s: BattleScene, u: PartyUnit, dmg: number, o: PartyHit
   u.m.hp = Math.max(0, u.m.hp - dmg);
   u.trailWait = 400;
   u.hpTrail = Math.max(u.hpTrail, before);
-  const [px, py] = PANEL_POS[u.id];
   if (!o.silent && dmg > 0) {
+    // from the centre of the panel's top edge (over the tape row), full size:
+    // a halved (tsukkomi) hit is told by the lettering, not a tiny number
     const stack = o.stack ?? 0;
-    let nx = px + 22 + stack * 10;
-    let ny = py - 2 - stack * 6;
+    let [nx, ny] = partyNumberXY(u);
+    nx += stack * 10;
+    ny -= stack * 6;
     if (o.scatter) {
-      nx = px + 22 + rng.int(-12, 12);
-      ny = py - 2 + rng.int(-6, 4);
+      nx += rng.int(-12, 12);
+      ny += rng.int(-6, 4);
     }
-    s.number(nx, ny, dmg, { rise: 12, pop: o.tsukkomi ? 0.8 : 1 });
+    s.number(nx, ny, dmg, { rise: 12 });
   }
   if (u.has('status_nemuri') && dmg > 0) {
     delete u.m.status.status_nemuri;
@@ -137,14 +140,24 @@ export function tsukkomiFeel(s: BattleScene, u: PartyUnit | null, just: boolean)
   if (u) s.mood(u, 'tsukkomi', 700);
 }
 
-export function healParty(s: BattleScene, u: PartyUnit, amount: number, o: { mp?: boolean; stack?: number } = {}): number {
+/**
+ * Party number origin (15.9, moved): the centre of the panel, rising 12px to
+ * rest on the tape row over the panel's top edge — unmistakably the member's
+ * number, never floating among the enemies' feet.
+ */
+export function partyNumberXY(u: PartyUnit): [number, number] {
   const [px, py] = PANEL_POS[u.id];
+  return [px + 68, py + 18];
+}
+
+export function healParty(s: BattleScene, u: PartyUnit, amount: number, o: { mp?: boolean; stack?: number } = {}): number {
+  const [nx, ny] = partyNumberXY(u);
   if (o.mp) {
     if (u.m.maxMp <= 0) return 0;
     const before = u.m.mp;
     u.m.mp = Math.min(u.m.maxMp, u.m.mp + Math.round(amount));
     const n = u.m.mp - before;
-    s.number(px + 22, py - 2, n, { kind: 'mp', rise: 12 });
+    s.number(nx, ny, n, { kind: 'mp', rise: 12 });
     return n;
   }
   const wasDown = !u.alive;
@@ -160,7 +173,7 @@ export function healParty(s: BattleScene, u: PartyUnit, amount: number, o: { mp?
     u.drop = 0;
     s.memo['revived_' + u.id] = 1;
   }
-  s.number(px + 22 + (o.stack ?? 0) * 10, py - 2, n, { kind: 'heal', rise: 12 });
+  s.number(nx + (o.stack ?? 0) * 10, ny - (o.stack ?? 0) * 6, n, { kind: 'heal', rise: 12 });
   s.sfx('se_heal');
   return n;
 }
@@ -269,10 +282,9 @@ export interface EnemyHitOpts {
 
 /** Subtract HP and pop a number above the enemy. Returns true if it reached 0. */
 export function hurtEnemy(s: BattleScene, e: EnemyUnit, dmg: number, o: EnemyHitOpts = {}): boolean {
-  const x = e.coreX + (o.stack ?? 0) * 10;
-  const y = e.headY + Math.min(16, e.def.core[1] * 0.4) - (o.stack ?? 0) * 6;
+  const [x, y] = s.enemyNumberXY(e, !!(o.big || o.crit), o.stack ?? 0);
   if (o.zero) {
-    s.number(e.coreX, y, 0, { kind: 'zero' });
+    s.number(x, y, 0, { kind: 'zero' });
     return false;
   }
   if (e.def.invulnerable) return false;
@@ -426,8 +438,8 @@ export function* defeatEnemy(s: BattleScene, e: EnemyUnit, dropDelay = 0, lastOn
   if (e.id === 'enemy_semi_final') {
     yield* semiFlyAway(s, cx, cy);
   } else {
-    // lands on the foot line, kept clear of the name tags (y141–) so it reads
-    yield* dropObject(s, e, core.x, core.y, Math.min(fy, 140), x0);
+    // lands 8px above the tape row (y144) so nothing of the UI covers it
+    yield* dropObject(s, e, core.x, core.y, Math.min(fy, 136), x0);
   }
   if (lastOne) yield 100;
 }
@@ -442,43 +454,88 @@ function* animateMs(ms: number, fn: (p: number) => void): Co {
   }
 }
 
-/** Restored object drops to the foot line, bounces, gets a みました seal. */
+/** Soft warm halo behind a restored object (#FFE7A3, α50% at the core). */
+function drawHalo(g: Gfx, x: number, y: number, r: number, a: number): void {
+  const ctx = g.ctx;
+  for (let yy = -r; yy <= r; yy++) {
+    const hw = Math.round(Math.sqrt(Math.max(0, r * r - yy * yy)));
+    const k = 1 - Math.abs(yy) / (r + 1);
+    ctx.globalAlpha = a * 0.28;
+    ctx.fillStyle = '#FFE7A3';
+    ctx.fillRect(Math.round(x - hw), Math.round(y + yy), hw * 2, 1);
+    const hi = Math.round(hw * 0.62);
+    ctx.globalAlpha = a * 0.3 * k;
+    ctx.fillStyle = '#FFF6D8';
+    ctx.fillRect(Math.round(x - hi), Math.round(y + yy), hi * 2, 1);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/**
+ * Restored object drops to the foot line, bounces, gets a みました seal (16.8).
+ * Small objects are shown at 2x — this is the moment the whole game is about —
+ * over a warm halo with a floor shadow, and squash on landing.
+ */
 function* dropObject(s: BattleScene, e: EnemyUnit, x: number, y: number, floor: number, _x0: number): Co {
   const img = restoredSprite(e);
-  const st = { y, vy: -40, landed: false, bounce: 0, t: 0, alpha: 1, seal: 0 };
-  const ground = floor - img.height;
+  const sc = Math.max(img.width, img.height) <= 24 ? 2 : 1;
+  const W = img.width * sc;
+  const H = img.height * sc;
+  const st = { y, vy: -40, landed: false, bounce: 0, t: 0, alpha: 1, seal: 0, sq: 0, glow: 0.6 };
+  const ground = floor - H;
   const fx = s.addFx({
     layer: 'world',
     dur: 0,
     draw: (g) => {
-      g.alpha(st.alpha, () => {
-        g.alpha(0.3, () => g.rect(Math.round(x - img.width * 0.35 + 2), floor - 2, Math.round(img.width * 0.7), 2, '#2A2440'));
-        g.img(img, Math.round(x - img.width / 2), Math.round(st.y));
-        if (st.seal > 0) {
-          const seal = ovalStamp('みました', 40, 20, 0, 5);
-          const k = Math.min(1, st.seal / 67);
-          const sc = 1.6 - 0.6 * k;
-          const w = seal.width * sc;
-          const h = seal.height * sc;
-          g.ctx.drawImage(seal, Math.round(x + img.width / 2 + 2 + 20 - w / 2), Math.round(floor - 16 - h / 2), Math.round(w), Math.round(h));
-        }
-      });
+      const a = st.alpha;
+      if (a <= 0) return;
+      const ctx = g.ctx;
+      const prev = ctx.globalAlpha;
+      // halo (brightens on landing) and a floor shadow that grows as it falls
+      drawHalo(g, x, st.y + H / 2, Math.round(Math.max(14, Math.max(W, H) * 0.62)), a * st.glow);
+      const near = Math.max(0, Math.min(1, 1 - (ground - st.y) / 60));
+      ctx.globalAlpha = prev * a * (0.18 + 0.2 * near);
+      ctx.fillStyle = '#2A2440';
+      const sw = Math.round(W * (0.55 + 0.25 * near));
+      ctx.fillRect(Math.round(x - sw / 2 + 2), floor - 1, sw, 2);
+      ctx.fillRect(Math.round(x - sw / 2 + 4), floor + 1, sw - 4, 1);
+      // squash on landing: 1.25 / 0.8 → 1
+      const sx = 1 + 0.25 * st.sq;
+      const sy = 1 - 0.2 * st.sq;
+      const w = Math.round(W * sx);
+      const h = Math.round(H * sy);
+      ctx.globalAlpha = prev * a;
+      ctx.drawImage(img, Math.round(x - w / 2), Math.round(st.y + H - h), w, h);
+      if (st.seal > 0) {
+        const seal = ovalStamp('みました', 40, 20, 0, 5, true);
+        const k = Math.min(1, st.seal / 67);
+        const ss = 1.6 - 0.6 * k;
+        const sw2 = seal.width * ss;
+        const sh2 = seal.height * ss;
+        ctx.drawImage(seal, Math.round(x + W / 2 + 4 + 20 - sw2 / 2), Math.round(floor - 12 - sh2 / 2), Math.round(sw2), Math.round(sh2));
+      }
+      ctx.globalAlpha = prev;
     },
   });
   // fall with gravity 900 px/s²
-  let t = 0;
   while (st.y < ground) {
     yield null;
     const dt = 1 / 60;
-    t += dt;
     st.vy += 900 * dt;
     st.y = Math.min(ground, st.y + st.vy * dt);
   }
   s.sfx('se_poton');
-  // one 6px bounce (180ms)
-  yield* animateMs(180, (p) => (st.y = ground - 6 * Math.sin(p * Math.PI)));
+  s.burst(x, floor - 1, { count: 6, speed: [30, 70], angle: [-Math.PI * 0.95, -Math.PI * 0.05], life: [200, 320], colors: ['#FFF6D8', '#FFE7A3'], gravity: 260, shape: 'sq', size: [1, 2] });
+  st.glow = 1;
+  // squash, then one 6px bounce (180ms)
+  yield* animateMs(90, (p) => (st.sq = Math.sin(p * Math.PI)));
+  st.sq = 0;
+  yield* animateMs(180, (p) => {
+    st.y = ground - 6 * Math.sin(p * Math.PI);
+    st.glow = 1 - 0.3 * p;
+  });
   st.y = ground;
-  yield 40;
+  yield 20;
   st.seal = 1;
   s.sfx('se_stamp');
   s.sfx('se_defeat_chord');
@@ -495,6 +552,22 @@ export function* fadeDrops(s: BattleScene): Co {
   yield* animateMs(800, (p) => list.forEach((d) => (d.st.alpha = 1 - p)));
   list.forEach((d) => (d.fx.done = true));
   list.length = 0;
+}
+
+/** Same fade, but without holding the flow (the victory seal follows at +200ms). */
+export function fadeDropsLater(s: BattleScene): void {
+  const list = s.dropFxs.splice(0);
+  if (!list.length) return;
+  s.addFx({
+    layer: 'back',
+    dur: 800,
+    draw: () => {},
+    update() {
+      const p = Math.min(1, this.t / 800);
+      list.forEach((d) => (d.st.alpha = 1 - p));
+      if (p >= 1) list.forEach((d) => (d.fx.done = true));
+    },
+  });
 }
 
 /** セミファイナル: a tiny cicada flutters up and away instead of dropping. */
@@ -551,12 +624,15 @@ export function markDefeated(e: EnemyUnit): void {
 }
 
 /** Tutorial sticky helper (shows once per flag, or per battle when flagless). */
-export function showSticky(s: BattleScene, key: keyof typeof TUT, flagId?: string, pulse = false, ttl = 0): boolean {
+/** `delay` (ms): the sticky waits (e.g. until the lettering has crossed). */
+export function showSticky(s: BattleScene, key: keyof typeof TUT, flagId?: string, pulse = false, ttl = 0, delay = 0, pos: 'left' | 'right' = 'left'): boolean {
   if (flagId && flag(flagId)) return false;
   if (!flagId && s.memo['stk_' + key]) return false;
   if (flagId) setFlag(flagId, 1);
   s.memo['stk_' + key] = 1;
-  s.sticky = { text: TUT[key], t: 0, pulse, ttl: ttl || undefined };
+  // on the right the sticky is narrow: one phrase per line
+  const text = pos === 'right' ? TUT[key].replace(/ /g, '\n').replace(/\n+/g, '\n') : TUT[key];
+  s.sticky = { text, t: -delay, pulse, ttl: ttl ? ttl + delay : undefined, pos };
   return true;
 }
 

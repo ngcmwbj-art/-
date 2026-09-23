@@ -6,7 +6,7 @@ import { addTask, atTime, removeTask } from './clock';
 import { cur, dbToGain, hasGraph, liveGraph, type Graph } from './engine';
 import { songGainDb } from './mix';
 import { legacyBgm, songTable } from './registry';
-import { SongPlayer, type Params, type SongDef } from './sequencer';
+import { MUSIC_LOOKAHEAD, SongPlayer, type Params, type SongDef } from './sequencer';
 
 export type MusicParam = 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune';
 
@@ -35,6 +35,8 @@ let pending: { id: string; opts: PlayOpts } | null = null;
 /** Field BGM remembered at the encounter (12.1 / 12.3). */
 let fieldBgm: string | null | undefined;
 const RESUME_WINDOW = 90_000;
+/** Music is scheduled in slices of this many seconds (see startPlayer). */
+const BATCH = 0.15;
 
 /** Songs that continue where they left off by default (12.2). */
 const RESUMABLE = /^bgm_(town_s[012]|home|shop|mall)$/;
@@ -72,9 +74,18 @@ function startPlayer(def: SongDef, opts: { fadeIn?: number; fromLoopBar?: number
   const gr = g();
   const p = new SongPlayer(gr, def, gr.musicBus, { ...opts, params: { stage: params.stage, kire: params.kire, boss_phase: params.boss_phase } });
   if (params.detune) p.setUserDetune(params.detune, 0, p.startTime);
+  // Batching: the clock ticks every 25 ms, but every batch of new nodes makes
+  // the audio thread re-plan its graph. The song is topped up in 0.15 s
+  // slices instead: whenever less than MUSIC_LOOKAHEAD is scheduled, it is
+  // filled to MUSIC_LOOKAHEAD + 0.15 s (0.3–0.45 s ahead, ~7 batches a second).
+  let horizon = 0;
   const task = {
+    lookahead: MUSIC_LOOKAHEAD,
     pump: (until: number) => {
-      p.pump(until);
+      if (until > horizon || p.stopped) {
+        horizon = until + BATCH;
+        p.pump(horizon);
+      } else p.pump(-1);
       if (p.isDisposed) removeTask(task);
     },
   };
@@ -141,6 +152,9 @@ export function playBgm(idIn: string, opts: PlayOpts = {}): void {
     } else if (ls || opts.resume) fromLoopBar = 0; // expired: from the top, skipping the intro
   }
   if (hadSong && !fadeIn) fadeIn = 0.05;
+  // every boss fight (a retry after a loss too) opens in phase 1; the battle
+  // raises it to 2 and 3 as the fight goes on (7.3)
+  if (id === 'bgm_boss') params.boss_phase = 1;
   const p = startPlayer(def, { fadeIn, fromLoopBar });
   current = { id, player: p };
   applyVariant(p, opts.variant);

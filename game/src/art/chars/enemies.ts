@@ -13,9 +13,10 @@
 //  enemy_soujirou       24×12  robot vacuum, blinking blue LEDs, sock in the bin
 //  enemy_momisugi       24×32  massage chair, remote cord sways / beckons
 
-import { flat, mat, type Fig, type Mats } from './fig';
+import { flat, mat, type Fig, type Mats, type PartOpts, type RowMap } from './fig';
 import { buildSprite, rep, type IdleKey, type Pose } from './rig';
 import { registerChar } from './registry';
+import { polyPath } from './body';
 import { C } from './palette';
 import { mix } from '../../engine/pixel';
 
@@ -88,15 +89,15 @@ function hatoFrontK(f: Fig, p: Pose) {
   f.part('bar', { flat: true, rim: false });
   f.px(1, top + 4).px(14, top + 4);
   if (back) {
-    // back: grey wings over the back, the tail, the lanyard strap round the
-    // neck and the tie flung over the left shoulder, hanging down the back
+    // back: grey wings over the back and the tail; no tie (it hangs in
+    // front) — from behind he is all pigeon, the iridescent nape his only
+    // colour
     f.part('wing', { shade: 'rb', light: 't' });
     f.rows(3, top + 1, ['.###....###.', '#####..#####', '#####..#####', '.####..####.', '..##....##..']);
     f.part('bar', { flat: true, rim: false });
     f.px(4, top + 3).px(5, top + 3).px(10, top + 3).px(11, top + 3);
     f.part('wing', { shade: 'rb', light: '' });
     f.rows(6, top + 7, ['####', '.##.']);
-    hatoTie(f, 3, top - 1, top + 5, 1);
   } else {
     // tie: hangs against the chest upright; on the bow it swings free and
     // dangles below the belly
@@ -112,7 +113,8 @@ function hatoFrontK(f: Fig, p: Pose) {
   // iridescent neck (alternates for the sheen)
   const alt = p.tick % 2 === 1 || st % 2 === 1;
   f.part(alt ? 'neckB' : 'neckA', { flat: true, rim: false });
-  f.hl(5, 6, top - 1).hl(9, 10, top - 1);
+  if (back) f.hl(5, 10, top - 1).hl(6, 9, top);
+  else f.hl(5, 6, top - 1).hl(9, 10, top - 1);
   // head: small, on top; bowing drops it onto the chest (we see its crown)
   const hy = (bow ? 4 : 0) + hb + lu;
   f.part('head', { shade: 'rb', light: 't' });
@@ -260,96 +262,121 @@ registerChar('enemy_hato_kakaricho', () =>
 );
 
 // =============================================================================
-// セミファイナル: a giant アブラゼミ lying on its back, seen from the side, head
-// to the west: pale ribbed belly up, the long veined wings flat on the ground
-// sticking out past the tail, six thin legs in the air (they twitch). The
-// classic "dead bug" silhouette reads at 1x. Walk = the hop (legs flailing,
-// wings buzzing open).
+// セミファイナル: a giant cicada lying on its back, head to the west, seen from
+// above at the field's angle. The one exaggerated feature (30_level_art 9.5)
+// is the six thin legs (1px #2A2440 lines, bent once at the joint) sticking up
+// in the air and twitching. What makes it a cicada and not a beetle at 1x:
+// the clear wings fanning out on both sides of the body and past the tail
+// (pale water blue, translucent, a 1px light leading edge), and the wide head
+// with a bright compound eye at each corner. The ribbed belly is pale so the
+// body stands off brown ground. Walk = the hop (legs flailing, wings buzzing).
 
 const SEMI: Mats = {
-  belly: mat('#C9A36A', { shade: '#A8834A', light: '#E8C88A', dark: '#7A5A32', rim: '#FFC880' }),
-  seg: flat('#9A7442'),
-  thorax: mat('#5A3A22', { shade: '#3E2616', light: '#7A5A3A', dark: '#2A1A12', rim: '#C07A48' }),
-  head: mat('#4A3020', { shade: '#34200F', light: '#6A4A30', dark: '#22140A', rim: '#B87040' }),
-  eye: mat('#2A1A12', { shade: '#1A100A', light: '#5A4A3A' }),
-  glint: flat('#F4F1E8'),
-  wing: mat('#7A5A3A', { shade: '#5E4228', light: '#9A7A52', dark: '#3A2616', rim: '#D89A60' }),
-  wingHi: flat('#B4966A'),
-  vein: flat('#3A2616'),
-  leg: flat('#2A1A12'),
-  legFar: flat('#5A4030'),
-  claw: flat('#7A5A3A'),
+  belly: mat('#E8D9B5', { shade: '#C8A06A', light: '#FBF3DC', dark: '#8A5A3A' }),
+  seg: flat('#A8742A'),
+  // the thorax in two plates, lit from the west (no flat dark slab)
+  thorax: mat('#8A5A3A', { shade: '#5A3A2A', light: '#C8A06A', dark: '#3A2B24' }),
+  operc: mat('#C8A06A', { shade: '#A8742A', light: '#E8D9B5', dark: '#8A5A3A' }),
+  head: mat('#5A3A2A', { shade: '#3A2B24', light: '#8A5A3A', dark: '#2A2440' }),
+  eye: flat('#C8C2B4'),
+  glint: flat('#FFF6D8'),
+  beak: flat('#3A2B24'),
+  // clear wings: the ground shows through
+  wing: mat('#7FD1E899', { shade: '#4AA8E099', light: '#E8E4D8B3', dark: '#2F4A8A', ol: '#2F4A8A', norim: true }),
+  wingEdge: flat('#E8E4D8'),
+  wingHi: flat('#FFF6D8'),
+  vein: flat('#2F4A8A99'),
+  // legs: pale straw with a dark 1px outline, readable on any ground
+  leg: flat('#E8D9B5'),
+  legFar: flat('#C8A06A'),
+  legSh: flat('#2A2440'),
+  claw: flat('#3A2B24'),
 };
 
 function semi(f: Fig, p: Pose) {
   const walking = p.mode === 'walk';
   const st = p.step % 4;
   const hopping = walking || p.act === 'hop';
-  // the walk cycle carries its own jump arc; the 'hop' pose does not (the
-  // field lifts the actor itself while it hops)
-  // the 'hop' pose lifts 2px inside the frame too (legs splayed, wings
-  // flared) so it reads even before the field lifts the actor
-  const air = walking ? [0, 3, 5, 2][st] : p.act === 'hop' ? 2 : 0;
+  // the walk cycle carries its own jump arc; the 'hop' pose lifts 2px inside
+  // the frame too (legs splayed, wings flared) so it reads before the field
+  // lifts the actor
+  const air = walking ? [0, 2, 4, 1][st] : p.act === 'hop' ? 2 : 0;
   const tw = p.act === 'twitch' ? p.ph : 0;
   const buzz = hopping && (st === 1 || st === 2 || p.act === 'hop');
-  const y = 1 - air; // everything shifts up while airborne
-  // wings: flat on the ground under the body, poking out past the tail; when
-  // buzzing (mid-hop) they flare open into a V
-  f.part('wing', { shade: 'rb', light: 't' });
-  if (buzz) {
-    f.rows(7, 12 + y, ['..........#######', '......###########.', '...#############..', '..############....']);
-    f.rows(7, 15 + y, ['...##########.....', '......########....']);
-  } else {
-    f.rows(5, 13 + y, ['.......##############.', '....#################.', '..##################..', '.....############.....']);
-  }
-  f.part('vein', { flat: true, rim: false });
-  if (buzz) f.px(12, 13 + y).px(15, 13 + y).px(18, 13 + y).px(21, 12 + y).px(14, 16 + y).px(17, 16 + y);
-  else f.px(13, 14 + y).px(16, 14 + y).px(19, 14 + y).px(22, 14 + y).px(21, 13 + y).px(12, 15 + y).px(17, 15 + y);
+  const y = 4 - air; // body top row = 5 + y ... everything shifts up while airborne
+  // ---- wings (under the body): two long clear wings spreading in a V from
+  // the thorax, north-east and south-east, the tips well past the tail;
+  // flared wider while it buzzes
+  const fl = buzz ? 1 : 0;
+  const t0 = 5 + y;
+  f.part('wing', { shade: '', light: '' });
+  f.rows(8, t0 - 3 - fl, fl ? ['.........#######', '.....###########', '..##############', '.#############..'] : ['........#######.', '....############', '.##############.']);
+  f.rows(8, t0 + 5, fl ? ['.#############..', '..##############', '.....###########', '.........#######'] : ['.##############.', '....############', '........#######.']);
+  // leading edges (1px light) + a glint and a vein on each wing
+  f.part('wingEdge', { flat: true, rim: false, ol: false });
+  f.hl(16 + fl, 22 + fl, t0 - 3 - fl).hl(12, 15, t0 - 2 - fl);
+  f.hl(16 + fl, 22 + fl, t0 + 7 + fl).hl(12, 15, t0 + 6 + fl);
   f.part('wingHi', { flat: true, rim: false, ol: false });
-  if (!buzz) f.hl(14, 17, 13 + y);
-  // body: ribbed pale abdomen (right), dark thorax + head (left)
+  f.px(19, t0 - 2 - fl).px(19, t0 + 6 + fl);
+  f.part('vein', { flat: true, rim: false, ol: false });
+  f.hl(14, 18, t0 - 1).hl(14, 18, t0 + 5);
+  // ---- body, belly up: pale ribbed abdomen, the two opercula (the pale
+  // plates over its base), a two-plate thorax and the wide dark head
   f.part('belly', { shade: 'rb', light: 't' });
-  f.rows(8, 9 + y, ['..#######...', '###########.', '############', '############', '############', '###########.', '.########...']);
+  f.rows(10, 5 + y, ['########..', '##########', '###########', '##########', '#######...']);
   f.part('seg', { flat: true, rim: false });
-  for (const sx of [11, 13, 15, 17]) f.vl(sx, 10 + y, 14 + y - (sx === 17 ? 1 : 0));
-  f.part('thorax', { shade: 'rb', light: 't' });
-  f.rows(3, 10 + y, ['.######', '#######', '#######', '#######', '.#####.']);
+  for (const sx of [13, 15, 17]) f.vl(sx, 6 + y, 8 + y + (sx < 17 ? 1 : 0));
+  f.part('operc', { shade: 'rb', light: 'tl' });
+  f.rows(10, 5 + y, ['##', '#.', '..', '#.', '##']);
+  // thorax: two plates (the rear one first, so the front one's edge cuts a
+  // dark seam into it), each lit on its own top-left
+  f.part('thorax', { shade: 'rb', light: 'tl', sep: true });
+  f.rows(7, 5 + y, ['###', '###', '###', '###', '###']);
+  f.part('thorax', { shade: 'rb', light: 'tl' });
+  f.rows(5, 5 + y, ['.#', '##', '##', '##', '.#']);
   f.part('head', { shade: 'rb', light: 't' });
-  f.rows(1, 11 + y, ['.###', '####', '####', '.##.']);
-  // big compound eye with a catch-light
-  f.part('eye', { shade: 'r', light: '' });
-  f.rect(1, 11 + y, 2, 2);
+  f.rows(1, 4 + y, ['.###', '####', '####', '####', '####', '####', '.###']);
+  // compound eyes: one bright bump at each corner of the wide head
+  f.part('eye', { flat: true, rim: false });
+  f.px(1, 5 + y).px(1, 9 + y).px(2, 4 + y).px(2, 10 + y);
   f.part('glint', { flat: true, rim: false });
-  f.px(1, 11 + y);
-  // six legs in the air: far legs first (lighter), near legs on top
+  f.px(1, 5 + y).px(1, 9 + y);
+  // the beak lying along the belly between the legs
+  f.part('beak', { flat: true, rim: false });
+  f.hl(4, 6, 7 + y);
+  // ---- six legs in the air (1px, bent once), attached along the thorax
   const flail = hopping ? (walking ? st : p.ph + 1) % 2 : 0;
   const splay = p.act === 'hop' ? (p.ph === 0 ? 2 : 1) : 0;
-  const k = (i: number) => (splay ? (i - 1) * splay : flail ? (i % 2 ? 1 : -1) : 0);
-  const kick = (i: number) => (tw === 1 && i === 1 ? -2 : tw === 2 && i === 1 ? -1 : tw === 1 && i === 2 ? 1 : 0);
-  const far: [number, number, number, number, number, number][] = [
-    [5, 10, 5, 7, 4, 6],
-    [7, 10, 8, 7, 7, 5],
-    [9, 10, 11, 7, 12, 6],
+  const sway = (i: number) => (splay ? (i - 2.5 > 0 ? 1 : -1) * splay : flail ? (i % 2 ? 1 : -1) : 0);
+  const kick = (i: number) => (tw && i === 4 ? (tw === 1 ? -2 : -1) : tw === 1 && i === 5 ? 1 : 0);
+  // [base x, knee x, knee y, tip x, tip y] (rows relative to the body top):
+  // each leg goes up to a knee and bends back down (a row of Λ shapes in the
+  // air); forelegs lean over the head, hind legs over the belly
+  // far legs first (darker, shorter), then the near three (pale straw)
+  const LEGS: [number, number, number, number, number][] = [
+    [5, 4, -3, 4, -5],
+    [8, 9, -3, 10, -5],
+    [10, 15, -2, 16, -4],
+    [4, 2, -4, 0, -3],
+    [7, 7, -5, 5, -6],
+    [9, 12, -4, 14, -3],
   ];
-  far.forEach(([x0, y0, x1, y1, x2, y2], i) => {
-    f.part('legFar', { flat: true, rim: false, ol: false });
-    f.line(x0 + 1, y0 + y, x1 + 1 + k(i + 1), y1 + y);
-    f.line(x1 + 1 + k(i + 1), y1 + y, x2 + 1 + k(i + 1), y2 + y);
+  // each leg: a pale 1px line with its own dark shadow pixel on the
+  // east side (below-right), so it reads on light and dark ground alike
+  const legPx: [number, number, boolean][] = [];
+  LEGS.forEach(([bx, kx, ky, tx, ty], i) => {
+    const dx = sway(i) + kick(i);
+    const dy = tw && i === 4 ? -1 : 0;
+    const top = 5 + y;
+    for (const [px, py] of polyPath([[bx, top - 1], [kx + Math.round(dx / 2), top + ky + dy], [tx + dx, top + ty + dy]])) legPx.push([px, py, i < 3]);
   });
-  const near: [number, number, number, number, number, number][] = [
-    [4, 10, 3, 7, 2, 5],
-    [6, 10, 6, 6, 5, 4],
-    [8, 10, 9, 6, 10, 4],
-  ];
-  near.forEach(([x0, y0, x1, y1, x2, y2], i) => {
-    const dx = k(i) + kick(i);
-    const dy = tw && i === 1 ? -tw + 1 : splay === 2 ? -1 : 0;
-    f.part('leg', { flat: true, rim: false, ol: false });
-    f.line(x0, y0 + y, x1 + dx, y1 + y + dy);
-    f.line(x1 + dx, y1 + y + dy, x2 + dx, y2 + y + dy);
-    f.part('claw', { flat: true, rim: false, ol: false });
-    f.px(x2 + dx, y2 + y + dy);
-  });
+  const isLeg = new Set(legPx.map(([x, yy]) => x * 64 + yy));
+  f.part('legSh', { flat: true, rim: false, ol: false });
+  for (const [x, yy] of legPx) if (!isLeg.has((x + 1) * 64 + yy) && !f.filled(x + 1, yy)) f.px(x + 1, yy);
+  for (const far of [true, false]) {
+    f.part(far ? 'legFar' : 'leg', { flat: true, rim: false, ol: false });
+    for (const [x, yy, fr] of legPx) if (fr === far) f.px(x, yy);
+  }
 }
 
 registerChar('enemy_semi_final', () =>
@@ -470,29 +497,25 @@ function cone(f: Fig, p: Pose) {
   f.rect(5 + shTop + spot * 2, 2 + y + lu, 2, 1);
   if (spot === 1) f.px(7 + shTop, 1 + y + lu).px(8 + shTop, 1 + y + lu);
   f.after((pc) => {
-    // the beam (drawn after lighting, no outline): a fading wedge to the
-    // side it points at, or a flare when it faces the camera
+    // the beam (drawn after lighting, no outline): a wedge to the side it
+    // points at that thins out into loose pixels, or a 4-point flare when it
+    // faces the camera. Opaque #FFE7A3 only — the fade is the pattern.
     const cx = 8 + shTop;
     const cy = 2 + y + lu;
-    const put = (x: number, yy: number, a: string) => {
-      if (x >= 0 && yy >= 0 && x < pc.w && yy < pc.h && pc.alpha(x, yy) === 0) pc.set(x, yy, '#FFE7A3' + a);
+    const put = (x: number, yy: number) => {
+      if (pc.inside(x, yy) && pc.alpha(x, yy) === 0) pc.set(x, yy, '#FFE7A3');
     };
     if (spot === 1) {
-      put(cx - 4, cy, '88');
-      put(cx + 3, cy, '88');
-      put(cx - 1, cy - 2, 'AA');
-      put(cx, cy - 2, 'AA');
-      put(cx - 3, cy - 1, '55');
-      put(cx + 2, cy - 1, '55');
+      put(cx - 4, cy);
+      put(cx + 3, cy);
+      put(cx - 1, cy - 2);
+      put(cx, cy - 2);
     } else {
       const d = spot === 0 ? -1 : 1;
       const x0 = spot === 0 ? cx - 4 : cx + 3;
-      for (let i = 0; i < 5; i++) {
-        const a = ['CC', 'AA', '88', '66', '44'][i];
-        put(x0 + d * i, cy, a);
-        if (i >= 1) put(x0 + d * i, cy - 1, a);
-        if (i >= 3) put(x0 + d * i, cy + 1, a);
-      }
+      for (const i of [0, 1, 2, 4]) put(x0 + d * i, cy);
+      for (const i of [1, 3]) put(x0 + d * i, cy - 1);
+      put(x0 + d * 3, cy + 1);
     }
   });
 }
@@ -523,18 +546,20 @@ registerChar('enemy_cone_vocal', () =>
 // around its target (持ち主さがし). 16×30 (28px figure + 2px of hop room).
 
 const KASA: Mats = {
-  film: mat('#CFE3EA70', { shade: '#9AB8C480', light: '#EAF6FA80', dark: '#6E98A8A0', spec: '#FFFFFFCC', ol: '#4A6A7A', norim: true }),
-  filmD: flat('#8FB0C090'),
-  hem: flat('#DDEEF4C0'),
-  hi: flat('#FFFFFFCC'),
-  rib: mat('#9AA3AD', { shade: '#6B7186', light: '#C0C6CC', dark: '#4A4F63' }),
-  ribT: flat('#4A4F63'),
+  // clear vinyl, ~65% so the ground reads through it, tinted water blue
+  film: mat('#BDE8F2A6', { shade: '#7FD1E8A6', light: '#E4F6FAAE', dark: '#4A6A7A', ol: '#4A6A7A', norim: true }),
+  filmD: flat('#7FB4C8A0'),
+  hem: flat('#E4F6FAD0'),
+  hi: flat('#FFF6D8'),
+  rib: mat('#9AA0A8', { shade: '#6B7186', light: '#C8C2B4', dark: '#3A3F48' }),
+  ribT: flat('#3A3F48'),
+  ribSnap: flat('#3A3F48'),
   shaft: mat('#C0C6CC', { shade: '#9AA0A8', light: '#E8ECF0', dark: '#6B7186' }),
   shaftIn: flat('#6B718699'),
   tip: mat('#6B7186', { shade: '#4A4F63', light: '#9AA0A8' }),
   handle: mat('#8A5A3A', { shade: '#5A3A2A', light: '#AE7A52', dark: '#3A2618', spec: '#C8A06A' }),
-  sticker: mat('#F4F1E8', { shade: '#D8CCB8', light: '#FFF6D8' }),
-  q: flat('#2A2440'),
+  sticker: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFF6D8' }),
+  q: flat('#E23B2E'),
 };
 
 /** Canopy half-width per row below the crown: half-open dome / fully open / folded. */
@@ -583,10 +608,12 @@ function kasa(f: Fig, p: Pose) {
   f.part('shaft', { shade: 'r', light: '' });
   f.vl(C0, hemY + 1, Y - 8);
   if (!back) {
+    // the owner's name sticker: a white label with a red hand-written "?"
+    // (3×5) inside a 1px margin — no black grid that reads as noise at 1x
     f.part('sticker', { shade: 'rb', light: '' });
-    f.rect(C0 - 1, Y - 12, 3, 5);
+    f.rows(C0 - 2, Y - 14, ['.###.', '#####', '#####', '#####', '#####', '#####', '.###.']);
     f.part('q', { flat: true, rim: false });
-    f.rows(C0 - 1, Y - 12, ['##.', '..#', '.#.', '...', '.#.']);
+    f.rows(C0 - 1, Y - 13, ['##.', '..#', '.#.', '...', '.#.']);
   }
   // ---- vinyl membrane (translucent, no outline of its own: ribs carry it)
   f.part('film', { flat: true, rim: false, ol: false });
@@ -633,9 +660,9 @@ function kasa(f: Fig, p: Pose) {
       // the outer half kinks outward and sticks out past the canopy
       const x0 = ribX(fr, snapJ);
       const y0 = crown + snapJ;
-      f.t(-1).px(x0 + bs, y0).px(x0 + 2 * bs, y0 + 1).px(x0 + 3 * bs, y0 + 1);
-      f.part('ribT', { flat: true, rim: false });
-      f.px(x0 + 4 * bs, y0 + 2);
+      // (dark, so the one broken bone reads against the vinyl at 1x)
+      f.part('ribSnap', { flat: true, rim: false });
+      f.px(x0 + bs, y0).px(x0 + 2 * bs, y0 + 1).px(x0 + 3 * bs, y0 + 1).px(x0 + 4 * bs, y0 + 2);
     } else if (!hug) {
       f.part('ribT', { flat: true, rim: false });
       f.px(ribX(fr, n), crown + n + 1);
@@ -649,8 +676,9 @@ function kasa(f: Fig, p: Pose) {
   // vinyl glints (the only near-white pixels allowed: 7.2)
   f.part('hi', { flat: true, rim: false, ol: false });
   const g = (fr: number, j: number) => f.px(C0 + sh(j) + Math.round(fr * hw(j)), crown + j);
+  // a 2px reflection on the upper left of the vinyl (7.2 exception)
   if (hug) g(-0.5, 3), g(-0.5, 4);
-  else g(-0.75, 3), g(-0.75, 4), g(-0.75, 6), g(-0.25, 2);
+  else g(-0.5, 2), g(-0.75, 3);
   // crown cap + ferrule tip
   f.part('tip', { shade: 'r', light: 't' });
   f.hl(C0 - 1 + sh(0), C0 + 1 + sh(0), crown);
@@ -837,25 +865,29 @@ function vendCord(f: Fig, tug: number) {
   f.t(null);
 }
 
-/** Front face of the upper half squashed to `h` rows (the LED always keeps its full 5px digits). */
+/**
+ * Front face of the upper half, foreshortened to `h` rows and leaning toward
+ * the camera: it is `grow` px wider on each side at its top edge (the part
+ * nearest to us) than at the hinge. The LED keeps its full 5px digits.
+ */
 function vendUpperFace(f: Fig, yTop: number, h: number, grow: number, o: VendOpts) {
   const x = VX + o.hum;
-  const ext = (y: number) => Math.round(grow * (1 - (y - yTop) / h));
+  const ext = (y: number) => Math.round(grow * (1 - (y - yTop) / Math.max(1, h - 1)) * 0.5 + grow * 0.5);
   for (let y = yTop; y < yTop + h; y++) {
     const e = ext(y);
     f.part('side', { shade: '', light: '' });
     f.t(0).hl(x - e, x + 2 - e, y).t(1).px(x - e, y);
     f.part('body', { flat: true });
-    f.t(0).hl(x + 3 - e, x + 21 + e, y).t(-1).px(x + 21 + e, y);
+    f.t(0).hl(x + 3 - e, x + 21 + e, y).t(-1).px(x + 21 + e, y).px(x + 20 + e, y);
   }
   f.t(null);
   // LED strip, full size: the one thing it wants you to read
   const e0 = ext(yTop + 3);
   f.part('led', { flat: true, rim: false });
-  f.rect(x + 3 - e0, yTop + 1, 19 + e0 * 2, 7);
+  f.rect(x + 3 - e0 + 1, yTop + 1, 19 + e0 * 2 - 2, 7);
   ledText(f, x + 5, yTop + 2, o.ledOn, o.flicker);
   f.part('ledRim', { flat: true, rim: false });
-  f.hl(x + 3 - e0, x + 21 + e0, yTop + 7);
+  f.hl(x + 3 - e0 + 1, x + 21 + e0 - 1, yTop + 7);
   // the window of hot cans, squashed into what is left
   const wh = h - 10;
   if (wh >= 1) {
@@ -875,73 +907,104 @@ function vendUpperFace(f: Fig, yTop: number, h: number, grow: number, o: VendOpt
   }
 }
 
-/** Roof (天板) of the folded upper half, rows [yTop, yTop+h), widening toward the camera. */
+/**
+ * Roof (天板) of the tipped upper half, rows [yTop, yTop+h): a bright plane
+ * that faces the sky more and more as it bows, widening toward the camera
+ * (its lower edge is the near one). A sunlit front lip, vents, dust.
+ */
 function vendRoof(f: Fig, yTop: number, h: number, grow: number, dusty: boolean) {
   const x = VX;
   for (let j = 0; j < h; j++) {
     const y = yTop + j;
-    const e = Math.round(grow * (1 - j / Math.max(1, h)) + grow * 0.5);
+    const e = Math.round(grow * (0.5 + (0.5 * j) / Math.max(1, h - 1)));
     f.part('roof', { flat: true });
-    f.t(0).hl(x + 1 - e, x + 20 + e, y);
-    f.t(1).px(x + 1 - e, y).px(x + 2 - e, y);
-    f.t(-1).px(x + 20 + e, y);
-    if (j === 0) f.t(1).hl(x + 2 - e, x + 19 + e, y);
+    f.t(1).hl(x + 1 - e, x + 20 + e, y);
+    f.t(2).px(x + 1 - e, y).px(x + 2 - e, y);
+    f.t(0).px(x + 20 + e, y).px(x + 19 + e, y);
+    // the near (front) lip catches the sun
+    if (j === h - 1) f.t(2).hl(x + 2 - e, x + 18 + e, y);
   }
   f.t(null);
-  // vents across the roof (one every 3 rows) and a maker's plate
+  // vents across the roof and a maker's plate
   f.part('vent', { flat: true, rim: false });
-  for (let j = 2; j < h - 1; j += 3) f.hl(x + 6, x + 15, yTop + j);
+  for (let j = 1; j < h - 1; j += 3) f.hl(x + 6, x + 15, yTop + j);
   if (h >= 8) {
     f.part('header', { shade: 'b', light: '' });
     f.rect(x + 16, yTop + h - 4, 3, 2);
   }
   if (dusty) {
     f.part('dust', { flat: true, rim: false });
-    f.px(x + 4, yTop + 3).px(x + 5, yTop + 3).px(x + 12, yTop + 6).px(x + 18, yTop + 9).px(x + 9, yTop + 10);
+    f.px(x + 4, yTop + 2).px(x + 5, yTop + 2).px(x + 12, yTop + 4).px(x + 17, yTop + 6).px(x + 9, yTop + h - 3);
   }
 }
 
+// Bow stages: 0 upright, 1 = 30° (its resting pose), 2 = 60°, 3 = 90°.
+// The upper half tips toward the camera about the waist hinge, so in this
+// top-down view it drops, widens (it comes closer) and shows ever more of
+// its roof while the front face shortens; its lower edge overhangs the
+// cabinet and throws a dark shadow band across it. At 90° the whole upper
+// half lies toward us: only the roof and the back panel show, the LED faces
+// the ground and its green light spills out under the overhang.
+const BOW = {
+  grow: [0, 3, 4, 5],
+  roof: [0, 5, 8, 11],
+  face: [19, 12, 9, 0],
+  over: [0, 2, 3, 5],
+};
+
 function vend(f: Fig, p: Pose) {
-  const deg = p.act === 'bow' ? p.ph : p.act === 'bow_30' ? 1 : p.act === 'bow_60' ? 2 : p.act === 'bow_90' ? 3 : 0;
+  // its resting pose is already a servile 30° lean (9.5: the bow is the
+  // exaggerated feature); the bow goes on down to 90° and back. It only
+  // straightens up to stare at the sky at 17:00 ('upright' / look_up).
+  const deg = p.act === 'bow' ? p.ph : p.act === 'bow_30' ? 1 : p.act === 'bow_60' ? 2 : p.act === 'bow_90' ? 3 : p.act === 'upright' || p.lookUp || p.act === 'off' ? 0 : 1;
   const hum = p.mode === 'idle' && p.tick % 2 === 1 ? 1 : 0;
   const flicker = p.mode === 'idle' && p.tick % 7 === 5;
   const flap = p.mode === 'idle' && p.tick % 5 === 2 ? 1 : 0;
   const ledOn = p.act !== 'off';
   const o: VendOpts = { ledOn, flicker, flap, hum: deg ? 0 : hum };
   vendFront(f, VX, VY, o);
+  // the cord is tugged taut and lifts off the ground as it bows
   vendCord(f, deg ? deg : p.tick % 8 === 3 ? 1 : 0);
   if (deg === 0) return;
-  // bowing: the lower cabinet (buttons, slots, mouth) stays put; everything
-  // above the waist hinge folds toward the camera in three steps
   f.erase(0, 0, 48, HINGE);
-  const grow = [0, 1, 2, 3][deg];
+  const grow = BOW.grow[deg];
+  const over = BOW.over[deg];
+  const bottom = HINGE + over;
+  // the overhang's shadow on the cabinet front, under the tipped half
+  f.retone(VX + 3, bottom + 1, -2, 19, 1).retone(VX, bottom + 1, -1, 3, 1);
+  f.retone(VX + 3, bottom + 2, -1, 19, 1);
   if (deg < 3) {
-    const faceH = [19, 16, 12][deg];
-    const roofH = [0, 4, 9][deg];
-    const faceTop = HINGE - faceH;
+    const faceH = BOW.face[deg];
+    const roofH = BOW.roof[deg];
+    const faceTop = bottom + 1 - faceH;
     vendRoof(f, faceTop - roofH, roofH, grow, false);
     vendUpperFace(f, faceTop, faceH, grow, o);
-    // the crease at the waist: a dark fold line
+    // the crease at the waist, under the overhang's lower edge
     f.part('body', { flat: true });
-    f.t(-2).hl(VX + 3, VX + 21, HINGE).t(null);
-    f.part('side', { flat: true });
-    f.t(-1).hl(VX, VX + 2, HINGE).t(null);
+    f.t(-2).hl(VX + 3 - grow, VX + 21 + grow, bottom).t(null);
     return;
   }
-  // fully folded (90°): the upper half now juts out toward the camera — we
-  // see its dusty roof, overhanging the buttons. The LED faces the ground:
-  // its lit segments peek out as a green edge under the overhang and the
-  // glow washes down over the cabinet front.
-  const OVER = 3;
-  vendRoof(f, HINGE - 10, 11 + OVER, grow, true);
+  // 90°: back panel (a dark plane, now facing up) and the roof facing us
+  const roofH = BOW.roof[3];
+  const top = bottom + 1 - roofH - 4;
+  for (let j = 0; j < 4; j++) {
+    const e = Math.round(grow * (0.5 + j / 8));
+    f.part('body', { flat: true });
+    f.t(-1).hl(VX + 1 - e, VX + 20 + e, top + j).t(0).px(VX + 1 - e, top + j).px(VX + 2 - e, top + j);
+    if (j === 0) f.t(-2).hl(VX + 3 - e, VX + 18 + e, top);
+  }
+  f.t(null);
+  vendRoof(f, top + 4, roofH, grow, true);
+  // the LED faces the ground: its lit segments peek out as a green edge
+  // under the overhang and the glow washes down the cabinet front
   f.part('led', { flat: true, rim: false });
-  f.hl(VX + 2, VX + 21, HINGE + OVER + 1);
+  f.hl(VX + 2, VX + 21, bottom + 1);
   f.part('ledOn', { flat: true, rim: false });
-  for (const dx of [4, 5, 7, 8, 9, 12, 14, 15, 16, 18, 19, 20]) f.px(VX + dx, HINGE + OVER + 1);
+  for (const dx of [4, 5, 7, 8, 9, 12, 14, 15, 16, 18, 19, 20]) f.px(VX + dx, bottom + 1);
   f.after((pc) => {
     const glow = [0.55, 0.35, 0.18];
     for (let k = 0; k < glow.length; k++) {
-      const y = HINGE + OVER + 2 + k;
+      const y = bottom + 2 + k;
       for (let x = VX + 3; x <= VX + 21; x++) {
         const v = pc.data[y * pc.w + x];
         if (v >>> 24 === 0) continue;
@@ -960,15 +1023,17 @@ registerChar('enemy_ojigi_jihanki', () =>
     mats: VEND_MATS,
     draw: vend,
     walkFrames: 1,
-    idle: [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, { act: 'bow', ph: 1 }, { act: 'bow', ph: 1 }, { act: 'bow', ph: 1 }, {}],
+    // idle: LED flicker and flap twitch in the 30° lean, a nod to 60° now and then
+    idle: [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, { act: 'bow', ph: 2 }, { act: 'bow', ph: 2 }, { act: 'bow', ph: 1 }, {}],
     idleFrameMs: 200,
     extras: {
+      upright: { dirs: ['down'] },
       bow_30: { dirs: ['down'] },
       bow_60: { dirs: ['down'] },
       bow_90: { dirs: ['down'] },
     },
     anims: {
-      bow: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 2 }, { ph: 3 }, { ph: 3 }, { ph: 2 }, { ph: 1 }, { ph: 0 }], ms: [100, 90, 90, 500, 200, 90, 90, 200], loop: false },
+      bow: { frames: [{ ph: 1 }, { ph: 2 }, { ph: 3 }, { ph: 3 }, { ph: 2 }, { ph: 1 }], ms: [100, 90, 500, 200, 90, 200], loop: false },
     },
     views: { up: 'down', left: 'down', right: 'down' },
     shadow: 22,
@@ -1003,7 +1068,10 @@ function souji(f: Fig, p: Pose) {
   const v = p.view;
   // a squat disc seen from above-front: the wall shows as a band under the lid
   const jx = walking && st % 2 ? 1 : 0; // motor judder while driving
-  f.offset(jx, 0);
+  // look_up (17:00): the front wheels lift it 1px off the floor and the LED
+  // eyes slide up to the top of the bumper, peering at the sky
+  const lu = p.lookUp ? 1 : 0;
+  f.offset(jx, -lu);
   // wall (cylinder side)
   f.part('band', { shade: 'r', light: '' });
   f.ell(12, 6.7, 11.5, 4.3);
@@ -1039,12 +1107,17 @@ function souji(f: Fig, p: Pose) {
   if (v !== 'up') f.px(v === 'left' ? 9 : 12, v === 'left' ? 5 : 5).px(v === 'left' ? 10 : 11, 5);
   // LED eyes on the front edge (blink)
   f.part(blink ? 'ledHalo' : 'led', { flat: true, rim: false, ol: false });
-  if (v === 'down') f.hl(7, 8, 7).hl(15, 16, 7);
-  else if (v === 'left') f.px(2, 5).px(2, 6).px(4, 7);
+  if (v === 'down') {
+    if (lu) f.hl(8, 9, 6).hl(14, 15, 6);
+    else f.hl(7, 8, 7).hl(15, 16, 7);
+  } else if (v === 'left') {
+    if (lu) f.px(2, 4).px(2, 5).px(3, 4);
+    else f.px(2, 5).px(2, 6).px(4, 7);
+  }
   if (!blink && v !== 'up')
     f.after((pc) => {
       const glow = '#5CE1FF55';
-      const pts = v === 'down' ? [[6, 7], [9, 7], [14, 7], [17, 7]] : [[1, 5], [1, 6]];
+      const pts = v === 'down' ? (lu ? [[7, 5], [10, 5], [13, 5], [16, 5]] : [[6, 7], [9, 7], [14, 7], [17, 7]]) : lu ? [[1, 3], [1, 4]] : [[1, 5], [1, 6]];
       for (const [x, y] of pts) if (pc.alpha(x + jx, y) === 0) pc.set(x + jx, y, glow);
     });
   // side brush at the front-left corner, spinning
@@ -1074,111 +1147,141 @@ registerChar('enemy_soujirou', () =>
 );
 
 // =============================================================================
-// モミスギ: leather massage chair (from the front, a touch from the left).
-// Button dimples on the headrest look like sleepy eyes; rollers peek through
-// the back seams and move; the remote dangles on a coiled cord like a tail.
-// 'beckon' = the cord curls to beckon.
+// モミスギ: a leather massage chair seen from the front-left (30_level_art
+// 9.5: 24×32). Read at 1x from its chair signs, not a box: the big pillow
+// headrest on a reclined back, armrests sticking out on both sides, the pale
+// glossy seat cushion with a step down to its front, and the leg massager
+// jutting forward and down. Rollers ride up and down the back seams; the
+// remote hangs from the right armrest on a 1px cord like a tail and sways;
+// 'beckon' lifts it high on the cord and curls it toward the seat.
 
 export const CHAIR_MATS: Mats = {
-  leather: mat('#5A2E2A', { shade: '#3A1A18', light: '#8A4A3E', dark: '#2A1418', spec: '#AE6A5A', rim: '#F2894B' }),
-  pad: mat('#6A3A34', { shade: '#4A2622', light: '#8E5448', dark: '#2A1418' }),
-  seam: flat('#2A1418'),
-  stitch: flat('#7A3E36'),
-  roller: mat('#D9C8B0', { shade: '#A89880', light: '#F4E6D8' }),
-  dimple: flat('#3A1A18'),
-  chrome: mat('#C0C6CC', { shade: '#6B7186', light: '#F4F1E8', dark: '#4A4F63' }),
-  foam: flat('#F6D98A'),
-  tag: mat('#F6D98A', { shade: '#D9A441', light: '#FFF0B8' }),
+  // oxblood leather frame, cream padded cushions
+  leather: mat('#8A2E3A', { shade: '#5A2436', light: '#A8484A', dark: '#2A2440' }),
+  side: mat('#A8484A', { shade: '#8A2E3A', light: '#C86A5A', dark: '#5A2436' }),
+  seat: mat('#E8D9B5', { shade: '#C8A06A', light: '#FBF3DC', dark: '#8A5A3A' }),
+  gloss: flat('#FFF6D8'),
+  pad: mat('#8A5A3A', { shade: '#5A3A2A', light: '#C8A06A', dark: '#3A2B24' }),
+  seam: flat('#2A2440'),
+  stitch: flat('#8A5A3A'),
+  roller: mat('#E8D9B5', { shade: '#C8A06A', light: '#FBF3DC' }),
+  dimple: flat('#3A2B24'),
+  chrome: mat('#C8C2B4', { shade: '#6B7186', light: '#F4F1E8', dark: '#3A3F48' }),
+  tag: mat('#F6D98A', { shade: '#D9A441', light: '#FFE7A3' }),
   cordC: flat('#2A2440'),
-  remote: mat('#E8E4D8', { shade: '#C4BCB0', light: '#FAF6EC' }),
+  remote: mat('#E8E4D8', { shade: '#C8C2B4', light: '#FBF3DC' }),
   bR: flat('#E84E3C'),
   bG: flat('#5FA85A'),
   bB: flat('#4AA8E0'),
-  sign: mat('#F4F1E8', { shade: '#D8CCB8', light: '#FFF6D8' }),
+  sign: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFF6D8' }),
   signT: flat('#E23B2E'),
   string: flat('#9AA0A8'),
 };
 
+// 24×32, facing the viewer turned a little to the left. A two-tone chair:
+// a dark leather frame holding pale padded cushions (the look of every
+// massage chair in a mall). Letters: H pillow, B frame, b frame side panel,
+// Q back cushion, g roller seam, P arm pad, A arm, a arm side, S seat, G seat
+// gloss, s seat front step, L leg-rest frame, l its side, q leg-rest cushion,
+// k calf groove, C chrome base.
+const CHAIR_MAP = [
+  '........................',
+  '.........HHHHHH.........',
+  '........HHHHHHHH........',
+  '........HHHHHHHHH.......',
+  '........HHHHHHHHH.......',
+  '.........HHHHHHH........',
+  '.......bBQQQQQQQQB......',
+  '.......bBQQgQQQgQQB.....',
+  '......bbBQQgQQQgQQB.....',
+  '......bBQQQgQQQgQQBB....',
+  '......bBQQQgQQQgQQBB....',
+  '.....bbBQQQgQQQgQQBB....',
+  '.PPPPbBQQQQgQQQgQQBBPPP.',
+  'aAAAAAbBQQQQQQQQQQBAAAAA',
+  'aAAAAAbSSSSSSSSSSSSAAAAA',
+  'aAAAAAGGSSSSSSSSSSSAAAAA',
+  'aAAAAASSSSSSSSSSSSSAAAAA',
+  'aAAAAAsssssssssssssAAAA.',
+  '.aAAAA.LqqqqqqqqqL.AAA..',
+  '..aAA.lLqqkqqqkqqL......',
+  '......lLqqkqqqkqqL......',
+  '.....llLqqkqqqkqqLCCC...',
+  '.....lLqqqkqqqkqLCCCCC..',
+  '.....lLqqqkqqqkqLCCCCC..',
+  '....llLqqqqqqqqqLCCCC...',
+  '....lLLLLLLLLLLLL.......',
+  '.....LLLLLLLLLL.........',
+  '........................',
+];
+
+function chairLayer(f: Fig, letters: string, mat: string, o: PartOpts, dy = 0, map: RowMap = {}) {
+  f.part(mat, o);
+  const rows = CHAIR_MAP.map((r) => [...r].map((ch) => (letters.includes(ch) ? ch : '.')).join(''));
+  const m: RowMap = {};
+  for (const ch of letters) m[ch] = map[ch] ?? mat;
+  f.rows(0, 4 + dy, rows, m);
+}
+
 export function chair(f: Fig, p: Pose, restored = false) {
-  const roll = p.mode === 'idle' && !restored ? p.tick % 8 : 0;
+  const idle = p.mode === 'idle' && !restored;
+  const roll = idle ? p.tick % 8 : 0;
   const rollY = [0, 1, 2, 3, 4, 3, 2, 1][roll];
-  const breathe = p.mode === 'idle' && !restored && p.tick % 8 >= 4 ? 1 : 0;
-  const sway = restored ? 0 : p.mode === 'idle' ? p.tick % 4 : 0;
-  // chrome base + legs
-  f.part('chrome', { shade: 'r', light: 't' });
-  f.rect(4, 29, 16, 2).rect(5, 27, 2, 2).rect(17, 27, 2, 2);
-  // leg massager (front)
-  f.part('leather', { shade: 'rb', light: 't' });
-  f.rect(6, 21, 12, 6);
-  f.part('seam', { flat: true, rim: false });
-  f.vl(9, 22, 25).vl(14, 22, 25);
-  // seat
-  f.part('leather', { shade: 'rb', light: 't' });
-  f.rect(3, 18, 18, 4);
-  f.part('stitch', { flat: true, rim: false });
-  for (let x = 4; x < 20; x += 2) f.px(x, 19);
-  // backrest
-  f.part('leather', { shade: 'rb', light: 'tl' });
-  f.rect(5, 7 + breathe, 14, 11 - breathe);
-  // seams with rollers peeking through
-  f.part('seam', { flat: true, rim: false });
-  f.vl(9, 8 + breathe, 16).vl(14, 8 + breathe, 16);
+  const sway = restored ? 0 : p.mode === 'idle' ? Math.floor(p.tick / 2) % 2 : 0;
+  // the leg rest's tip stands on the bottom row
+  f.offset(0, 1);
+  // back to front: base, leg rest, back, pillow, seat, armrests
+  chairLayer(f, 'C', 'chrome', { shade: 'rb', light: 't' });
+  chairLayer(f, 'Ll', 'leather', { shade: 'rb', light: 't' }, 0, { l: ['side', null] });
+  chairLayer(f, 'qk', 'seat', { shade: 'rb', light: 't' }, 0, { k: ['stitch', null] });
+  chairLayer(f, 'Bb', 'leather', { shade: 'rb', light: 't' }, 0, { b: ['side', null] });
+  chairLayer(f, 'Qg', 'seat', { shade: 'rb', light: 't' }, 0, { g: ['stitch', null] });
+  // rollers riding up and down the back seams
   f.part('roller', { shade: 'r', light: 't' });
-  f.rect(9, 9 + rollY, 1, 2).rect(14, 13 - rollY, 1, 2);
-  // crack showing the yellow foam
-  f.part('foam', { flat: true, rim: false });
-  f.px(7, 12).px(7, 13);
-  // headrest with sleepy button "eyes"
-  f.part('leather', { shade: 'rb', light: 't' });
-  f.rows(6, 1 + breathe, ['.##########.', '############', '############', '############', '.##########.']);
+  f.rect(11, 11 + rollY, 1, 2).rect(15, 15 - rollY, 1, 2);
+  chairLayer(f, 'H', 'seat', { shade: 'rb', light: 't', sepAll: true });
+  // sleepy button dimples on the pillow (its "face")
   f.part('dimple', { flat: true, rim: false });
-  if (restored) f.px(8, 3 + breathe).px(9, 4 + breathe).px(10, 3 + breathe).px(13, 3 + breathe).px(14, 4 + breathe).px(15, 3 + breathe);
-  else f.hl(8, 10, 3 + breathe).hl(13, 15, 3 + breathe);
-  // armrests with air pads
-  f.part('leather', { shade: 'rb', light: 't' });
-  f.rect(1, 12, 4, 9).rect(19, 12, 4, 9);
-  f.part('pad', { shade: 'r', light: 't' });
-  f.rect(2, 13, 2, 6).rect(20, 13, 2, 6);
-  // "お試し" tag on the left armrest
+  if (restored) f.px(11, 8).px(15, 8);
+  else f.hl(10, 11, 8).hl(14, 15, 8);
+  chairLayer(f, 'SGs', 'seat', { shade: 'rb', light: 't' }, 0, { G: ['gloss', null], s: ['leather', 0] });
+  chairLayer(f, 'Aa', 'leather', { shade: 'rb', light: 't' }, 0, { a: ['side', null] });
+  chairLayer(f, 'P', 'pad', { shade: 'b', light: 't' });
+  // "お試し" tag hanging off the left armrest
   f.part('tag', { shade: 'b', light: '' });
-  f.rect(1, 15, 3, 2);
-  // remote on a coiled cord from the right armrest, swaying like a tail; when
-  // beckoning, the cord rears up like an arm and the remote curls toward the
-  // chair ("come, sit"), 3 poses
+  f.rect(2, 22, 2, 3);
+  f.part('string', { flat: true, rim: false });
+  f.px(2, 21);
+  // ---- the remote on its cord: a tail from the right armrest
   if (restored) {
     f.part('cordC', { flat: true, rim: false, ol: false });
-    f.px(22, 21).px(22, 22).px(23, 23);
-    // remote tidied onto the armrest
+    f.px(22, 21).px(23, 22).px(22, 23);
     f.part('remote', { shade: 'r', light: 't' });
-    f.rect(20, 10, 3, 2);
+    f.rect(19, 16, 3, 1);
   } else if (p.act === 'beckon') {
+    // the cord rears up like an arm: up → high over the armrest → curling in
     const ph = p.ph % 3;
     f.part('cordC', { flat: true, rim: false, ol: false });
-    f.px(22, 13).px(23, 12).px(23, 11).px(22, 10).px(23, 9);
+    const cord: [number, number][][] = [
+      [[22, 16], [23, 15], [23, 14], [22, 13], [22, 12]],
+      [[22, 16], [23, 15], [23, 14], [23, 13], [23, 12], [22, 11], [22, 10], [21, 9]],
+      [[22, 16], [23, 15], [23, 14], [23, 13], [22, 12], [22, 11]],
+    ];
+    for (const [x, y] of cord[ph]) f.px(x, y);
     f.part('remote', { shade: 'r', light: 't' });
-    if (ph === 0) {
-      f.rect(22, 4, 2, 5);
-      f.part('bR', { flat: true, rim: false }).px(22, 5);
-      f.part('bG', { flat: true, rim: false }).px(23, 5);
-      f.part('bB', { flat: true, rim: false }).px(22, 6);
-    } else if (ph === 1) {
-      f.rows(20, 5, ['##..', '###.', '.###', '..##']);
-      f.part('bR', { flat: true, rim: false }).px(21, 6);
-      f.part('bG', { flat: true, rim: false }).px(22, 7);
-    } else {
-      f.rect(18, 7, 5, 2);
-      f.px(23, 8);
-      f.part('bR', { flat: true, rim: false }).px(19, 7);
-      f.part('bG', { flat: true, rim: false }).px(20, 7);
-      f.part('bB', { flat: true, rim: false }).px(21, 7);
-    }
+    const [rx, ry] = ph === 0 ? [21, 8] : ph === 1 ? [18, 5] : [18, 9];
+    if (ph === 2) f.rect(rx, ry, 4, 2);
+    else f.rect(rx, ry, 2, 4);
+    f.part('bR', { flat: true, rim: false }).px(rx, ry + 1);
+    f.part('bG', { flat: true, rim: false }).px(rx + 1, ry + 1);
+    f.part('bB', { flat: true, rim: false }).px(ph === 2 ? rx + 2 : rx, ph === 2 ? ry : ry + 2);
   } else {
+    // hanging from the armrest's front, swaying on a two-frame beat
     f.part('cordC', { flat: true, rim: false, ol: false });
-    const swing = [0, 1, 0, -1][sway % 4];
-    const cordPts: [number, number][] = [[22, 20], [23, 21], [22, 22], [23, 23], [22 + (swing > 0 ? 1 : 0), 24]];
-    for (const [x, y] of cordPts) f.px(x, y);
-    const rx = 21 + swing;
-    const ry = 25;
+    const pts: [number, number][] = sway ? [[21, 22], [22, 23], [22, 24], [22, 25]] : [[21, 22], [21, 23], [22, 24], [21, 25]];
+    for (const [x, y] of pts) f.px(x, y);
+    const rx = sway ? 21 : 20;
+    const ry = 26;
     f.part('remote', { shade: 'r', light: 't' });
     f.rect(rx, ry, 2, 4);
     f.part('bR', { flat: true, rim: false }).px(rx, ry + 1);
@@ -1186,13 +1289,13 @@ export function chair(f: Fig, p: Pose, restored = false) {
     f.part('bB', { flat: true, rim: false }).px(rx, ry + 2);
   }
   if (restored) {
-    // 「お試し中止」 sign hanging from the headrest on a string
+    // 「お試し中止」 sign hanging from the pillow on a string
     f.part('string', { flat: true, rim: false });
-    f.px(9, 6).px(15, 6);
+    f.px(10, 10).px(16, 10);
     f.part('sign', { shade: 'rb', light: 't' });
-    f.rect(8, 7, 9, 6);
+    f.rect(9, 11, 9, 6);
     f.part('signT', { flat: true, rim: false });
-    f.hl(9, 15, 8).px(10, 10).px(11, 10).px(13, 10).px(14, 10).px(12, 11);
+    f.hl(10, 16, 12).px(11, 14).px(12, 14).px(14, 14).px(15, 14).px(13, 15);
   }
 }
 

@@ -3,7 +3,7 @@
 // signs, the girl's sand dike, pigeons, floating litter in stage 2.
 
 import type { Gfx } from '../../engine/gfx';
-import { PixelCanvas } from '../../engine/pixel';
+import { PixelCanvas, mix } from '../../engine/pixel';
 import { charSprite, idleFrame, poseFrame } from '../chars';
 import { P } from '../tiles/palette';
 import { ihash } from '../tiles/noise';
@@ -293,6 +293,42 @@ registerProp('prop_wisteria', () => {
     return p.toCanvas();
   });
   const img = posts.toCanvas();
+  // the trellis shadow: the leaf clusters' shape (not a box), 2px dithered
+  // edge, sun dapples punched through (2 twinkle phases, frozen in stage 1)
+  const shade = [0, 1].map((k) => {
+    const sw = 78;
+    const sh = 30;
+    const cov = new Float32Array(sw * sh);
+    for (let n = 0; n < 60; n++) {
+      const hh = ihash(n, 0, 2501);
+      const cx = 5 + (hh % 68);
+      const cy = 3 + ((hh >>> 8) % 22);
+      for (let y = -4; y <= 4; y++)
+        for (let x = -5; x <= 5; x++) {
+          const e = (x / 4.6) ** 2 + (y / 3.4) ** 2;
+          const xx = cx + x;
+          const yy = cy + y;
+          if (xx < 0 || yy < 0 || xx >= sw || yy >= sh) continue;
+          cov[yy * sw + xx] = Math.max(cov[yy * sw + xx], e <= 0.55 ? 2 : e <= 1 ? 1 : 0);
+        }
+    }
+    const sp = pc(sw, sh);
+    for (let y = 0; y < sh; y++)
+      for (let x = 0; x < sw; x++) {
+        const c = cov[y * sw + x];
+        if (c === 2 || (c === 1 && ((x + y) & 1) === 0)) sp.set(x, y, '#000000');
+      }
+    // dapples: 3–5px round holes
+    for (let d = 0; d < 9; d++) {
+      const hh = ihash(d, k, 2503);
+      const cx = 6 + (hh % 64);
+      const cy = 4 + ((hh >>> 8) % 20);
+      const r = 1.2 + ((hh >>> 16) % 3) * 0.5;
+      for (let y = -3; y <= 3; y++)
+        for (let x = -3; x <= 3; x++) if ((x / (r + 0.6)) ** 2 + (y / r) ** 2 <= 1) sp.set(cx + x, cy + y, 'transparent');
+    }
+    return sp.toCanvas();
+  });
   return {
     ox: 0,
     oy: 16 - 34,
@@ -310,10 +346,24 @@ registerProp('prop_wisteria', () => {
         fade: { x: -4, y: -30, w: 74, h: 44, alpha: 0.6 },
       },
     ],
-    shadowFn(ctx, x, y, dir, len) {
+    shadowFn(ctx, x, y, dir, len, env) {
       if (len <= 0.01) return;
-      const h = 32;
-      ctx.fillRect(Math.round(x - 4 + dir[0] * len * h), Math.round(y - 14 + dir[1] * len * h), 74, 22);
+      const h = 30;
+      // posts
+      for (const px of [5, 61]) {
+        const bx = x + px;
+        const by = y + 15;
+        ctx.beginPath();
+        ctx.moveTo(bx - 1, by);
+        ctx.lineTo(bx + 2, by);
+        ctx.lineTo(bx + 2 + dir[0] * len * h, by + dir[1] * len * h);
+        ctx.lineTo(bx - 1 + dir[0] * len * h, by + dir[1] * len * h);
+        ctx.closePath();
+        ctx.fill();
+      }
+      // the leafy roof, thrown with the sun
+      const k = env.stage === 1 ? 0 : Math.floor(env.mt / 900) % 2;
+      ctx.drawImage(shade[k], Math.round(x - 6 + dir[0] * len * h), Math.round(y - 12 + dir[1] * len * h));
     },
   };
 });
@@ -367,40 +417,131 @@ function floaty(img: HTMLCanvasElement, ox: number, oy: number): Partial<PropArt
 // ---------------------------------------------------------------- 砂場
 
 registerProp('prop_sandbox_frame', () => {
-  // wooden frame around the sand (x21–24, y8–10)
-  const w = 4 * 16 + 4;
-  const h = 3 * 16 + 4;
+  // timber curb (3px: lit top, inner face, outer face) around the sand
+  // (x21–24, y8–10), with mounds, holes and footprints in the sand
+  const w = 4 * 16 + 6;
+  const h = 3 * 16 + 6;
   const p = pc(w, h);
-  p.strokeRect(0, 0, w, h, P.wood);
-  p.strokeRect(1, 1, w - 2, h - 2, P.woodLt);
-  p.hline(1, w - 2, 1, P.goldPale);
-  p.hline(0, w - 1, h - 1, P.woodDark);
-  p.hline(1, w - 2, h - 2, P.wood);
-  for (let x = 8; x < w; x += 16) {
-    p.set(x, 0, P.woodDark);
+  const T = 3; // beam width
+  // sand life: mounds (lit NW, shaded SE), holes, footprints, a lost spade
+  const sandLt = P.white;
+  const sandDk = mix(P.paperGrid, P.woodLt, 0.8);
+  const mound = (cx: number, cy: number, r: number) => {
+    for (let y = -r; y <= r; y++)
+      for (let x = -r - 1; x <= r + 1; x++) {
+        const e = (x / (r + 1)) ** 2 + (y / r) ** 2;
+        if (e > 1) continue;
+        const c = x + y < -r * 0.4 ? sandLt : x + y > r * 0.5 ? sandDk : null;
+        if (c) p.set(cx + x, cy + y, c);
+      }
+    // shadow on the sand, east of the mound
+    for (let y = -r + 1; y <= r; y++) p.set(cx + r + 2, cy + y, sandDk);
+  };
+  const hole = (cx: number, cy: number) => {
+    p.ellipse(cx, cy, 3, 2, P.woodLt);
+    p.ellipse(cx - 0.5, cy - 0.5, 2, 1.2, P.brassOld);
+    p.hline(cx - 2, cx + 2, cy + 2, sandLt);
+    p.set(cx + 3, cy + 1, sandLt);
+  };
+  const foot = (x: number, y: number) => {
+    p.rect(x, y, 2, 3, sandDk);
+    p.set(x, y + 3, sandDk);
+    p.rect(x + 3, y + 2, 2, 3, sandDk);
+    p.set(x + 4, y + 5, sandDk);
+  };
+  mound(14, 16, 4);
+  mound(22, 13, 2);
+  hole(46, 20);
+  hole(12, 38);
+  for (let k = 0; k < 4; k++) foot(30 + k * 6, 30 + (k % 2) * 3);
+  foot(52, 40);
+  // a small green spade stuck in the mound
+  p.line(15, 9, 17, 13, P.woodDark);
+  p.rect(13, 7, 3, 3, P.leafDeep);
+  p.set(13, 7, P.leafYoung);
+  // the curb: west & north beams show their lit top, the inner faces show
+  // below/right of them; the south & east beams show their outer faces
+  for (let x = 0; x < w; x++) {
+    for (let t = 0; t < T; t++) {
+      p.set(x, t, t === 0 ? P.goldPale : P.woodLt); // north beam top
+      p.set(x, h - T - 2 + t, t === 0 ? P.goldPale : P.woodLt); // south beam top
+    }
+    p.set(x, T, P.wood); // north beam inner face (seen from the south)
+    p.set(x, T + 1, P.woodDark);
+    p.set(x, h - 2, P.wood); // south beam outer face
     p.set(x, h - 1, P.ink);
   }
-  return flat(p.toCanvas(), -2, -2);
+  for (let y = 0; y < h - 1; y++) {
+    for (let t = 0; t < T; t++) {
+      p.set(t, y, t === 0 ? P.goldPale : P.woodLt); // west beam top
+      p.set(w - T + t, y, t === T - 1 ? P.wood : P.woodLt); // east beam top
+    }
+    if (y > T + 1 && y < h - T - 2) {
+      // the west beam's shadow on the sand (sun from the west)
+      p.set(T, y, sandDk);
+      p.set(T + 1, y, (y & 1) ? sandDk : P.paperGrid);
+    }
+    p.set(w - 1, y, P.woodDark);
+  }
+  // board joints and corner posts
+  for (let x = 16; x < w - 4; x += 17) {
+    p.vline(x, 0, T - 1, P.wood);
+    p.vline(x + 3, h - T - 2, h - 3, P.wood);
+  }
+  for (const [x, y] of [[0, 0], [w - 4, 0], [0, h - 5], [w - 4, h - 5]] as [number, number][]) {
+    p.rect(x, y, 4, 4, P.wood);
+    p.hline(x, x + 3, y, P.woodLt);
+    p.set(x, y, P.goldPale);
+  }
+  return flat(p.toCanvas(), -3, -3);
 });
 
 registerProp('obj_sandbox', () => {
-  // the sand dike facing the girl, a moat, a bucket and a shovel
-  const p = pc(28, 16);
-  for (let x = 2; x < 24; x++) {
-    const hgt = 3 + Math.round(Math.sin(x / 3) * 1.5);
-    for (let y = 9 - hgt; y < 9; y++) p.set(x, y, y === 9 - hgt ? P.paper : P.paperGrid);
-    p.set(x, 9, P.woodLt);
+  // fushigi_07「夕日の堤防」: a sand dike 5px high facing the sunset (west),
+  // a moat behind it holding sky, a red bucket and a yellow shovel
+  const p = pc(32, 22);
+  const top0 = P.white;
+  const face = mix(P.paperGrid, P.woodLt, 0.7);
+  const faceDk = P.woodLt;
+  const shadow = mix(P.woodLt, P.brassOld, 0.5);
+  // moat (north of the dike) → glass, with a damp rim
+  for (let x = 4; x < 26; x++) {
+    p.set(x, 4, faceDk);
+    p.set(x, 5, P.navy);
+    p.set(x, 6, P.navy);
   }
-  for (let x = 3; x < 23; x++) p.set(x, 11, P.navy);
-  p.hline(3, 22, 12, P.woodLt);
+  for (let x = 3; x < 27; x++) {
+    const hgt = 5 + Math.round(Math.sin(x / 2.6) * 0.8);
+    const top = 13 - hgt;
+    // ridge (lit top), south face in two bands, foot shadow on the sand (east/south)
+    p.set(x, top, top0);
+    p.set(x, top + 1, P.paper);
+    for (let y = top + 2; y < 13; y++) p.set(x, y, y < top + 4 ? face : faceDk);
+    p.set(x, 13, shadow);
+    p.set(x + 1, 14, shadow);
+  }
+  // west end lit, east end in shade
+  p.vline(2, 9, 12, P.paper);
+  p.vline(27, 9, 13, shadow);
+  // a little castle bump with a flag stick
+  p.rect(13, 2, 4, 4, top0);
+  p.vline(16, 3, 5, face);
+  p.set(15, 1, P.woodDark);
+  p.set(15, 0, P.woodDark);
+  p.set(16, 0, P.verm);
+  p.set(17, 0, P.verm);
   // bucket (red) and shovel (yellow)
-  p.rect(23, 2, 4, 4, P.red);
-  p.hline(23, 26, 2, P.vermLt);
-  p.line(1, 14, 5, 12, P.gold);
-  p.set(1, 15, P.brass);
+  p.rect(27, 5, 5, 6, P.red);
+  p.hline(27, 31, 5, P.vermLt);
+  p.hline(27, 31, 10, P.vermShade);
+  p.vline(31, 6, 10, P.vermShade);
+  p.set(26, 4, P.steel);
+  p.hline(27, 31, 11, shadow);
+  p.line(0, 19, 5, 16, P.gold);
+  p.rect(0, 19, 2, 2, P.brass);
   const img = p.toCanvas();
-  const glass = maskOf(28, 16, (x, y) => y === 11 && x >= 3 && x < 23);
-  return flat(img, -8, 2, { glass });
+  const glass = maskOf(32, 22, (x, y) => (y === 5 || y === 6) && x >= 4 && x < 26);
+  return flat(img, -19, -1, { glass });
 });
 
 // ---------------------------------------------------------------- 水飲み場 obj_drinking_fountain
@@ -436,12 +577,16 @@ registerProp('obj_drinking_fountain', () =>
 // ---------------------------------------------------------------- 防災無線スピーカー柱 obj_speaker_pole (27,3)
 
 registerProp('obj_speaker_pole', () => {
+  // 60px tall so the horns, the solar panel and the beacon stay inside the
+  // map (the camera stops at y=0; the pole stands on row 3)
   const W = 30;
-  const H = 98;
+  const H = 60;
   const p = pc(W, H);
   const cx = 15;
   cylinder(p, cx - 2, 14, 5, H - 14, P.concrete);
-  for (let y = 30; y < H; y += 12) p.hline(cx - 2, cx + 2, y, P.steel);
+  for (let y = 32; y < H; y += 9) p.hline(cx - 2, cx + 2, y, P.steel);
+  // cable conduit down the pole
+  p.vline(cx + 3, 28, H - 2, P.steel);
   // horn speakers (4) around the top
   const horn = (x: number, y: number, flip: boolean) => {
     const d = flip ? -1 : 1;
@@ -461,10 +606,11 @@ registerProp('obj_speaker_pole', () => {
   p.line(cx - 1, 8, cx + 1, 13, P.nightShade);
   p.vline(cx, 11, 15, P.steel);
   // control box
-  p.rect(cx - 5, 52, 10, 12, P.concreteLt);
-  p.hline(cx - 5, cx + 4, 52, P.white);
-  p.hline(cx - 5, cx + 4, 63, P.steel);
-  tiny(p, 'SOS', cx - 5, 55, P.verm);
+  p.rect(cx - 5, 36, 10, 11, P.concreteLt);
+  p.hline(cx - 5, cx + 4, 36, P.white);
+  p.hline(cx - 5, cx + 4, 46, P.steel);
+  tiny(p, 'SOS', cx - 5, 39, P.verm);
+  castRight(p, cx - 5, 36, 10, 11, 2);
   // red rotating light
   p.rect(cx - 2, 1, 5, 4, P.verm);
   p.set(cx - 1, 1, P.vermLt);
@@ -472,7 +618,8 @@ registerProp('obj_speaker_pole', () => {
   finish(p, { soft: true });
   const img = p.toCanvas();
   const glass = maskOf(W, H, (x, y) => y >= 6 && y <= 15 && p.get(x, y) === p.get(cx - 5, 11) && x < cx + 9);
-  const a = stand(img, { cx: 8, base: 16, shadow: 96, contact: 8, extra: { glass } });
+  const a = stand(img, { cx: 8, base: 16, shadow: 58, contact: 8, extra: { glass } });
+  a.xray = 0.5;
   a.glow = (g, x, y, env) => {
     // rotating beacon during the broadcast (flag_broadcast_on)
     if (!env.flag('flag_broadcast_on')) return;

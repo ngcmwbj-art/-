@@ -107,7 +107,7 @@ export interface EnemyDef {
   size: [number, number];
   core: [number, number];
   face: [number, number];
-  /** Foot line (default 148). */
+  /** Foot line (default: core at y104, at most y136 — see stageFootY). */
   footY?: number;
   hp: number;
   atk: number;

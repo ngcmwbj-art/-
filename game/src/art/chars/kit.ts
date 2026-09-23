@@ -154,14 +154,25 @@ export function head(f: Fig, p: Pose, T: HeadT, y: number, xOff = 0): void {
   const up = ex === 'up';
   const ho = T.hairOpts ?? { shade: '', light: '' };
   if (p.view === 'down') {
+    // Looking up (17:00, 30_level_art 9.0): the head lifts 1px on a
+    // stretched neck, the underside of the jaw turns to shade, the eyes ride
+    // up under the bangs and the mouth hangs open — readable at 1x even
+    // with the face toward the camera.
+    const L = up ? 1 : 0;
+    const yy = y - L;
     if (up && T.neckD) {
       f.part(skin, { shade: 'r', light: '' });
-      f.rect(T.neckD[0] + xOff, T.neckD[1] + y, T.neckD[2], 1);
+      f.t(-1).rect(T.neckD[0] + xOff, T.neckD[1] + y - 1, T.neckD[2], 2).t(null);
     }
-    stamp(f, skin, T.faceD, xOff, y, { shade: 'rb', light: '' });
-    if (up && T.hairDUp) stamp(f, hair, T.hairDUp, xOff, y, ho);
-    else stamp(f, hair, T.hairD, xOff, y - (up ? 1 : 0), ho);
-    drawEyesFront(f, p, { ...T.eyesD, x: T.eyesD.x + xOff }, y, ex);
+    stamp(f, skin, T.faceD, xOff, yy, { shade: 'rb', light: '' });
+    if (up) {
+      const rows = T.faceD[2];
+      const last = rows.length - 1;
+      f.retone(T.faceD[0] + xOff, T.faceD[1] + yy + last, -1, rows[last].length, 1);
+    }
+    if (up && T.hairDUp) stamp(f, hair, T.hairDUp, xOff, yy, ho);
+    else stamp(f, hair, T.hairD, xOff, yy - (up ? 1 : 0), ho);
+    drawEyesFront(f, p, { ...T.eyesD, x: T.eyesD.x + xOff }, yy, ex);
     if (T.blushD && !up) {
       f.part('blush', { flat: true, rim: false });
       f.px(T.blushD[0] + xOff, T.blushD[2] + y).px(T.blushD[1] + xOff, T.blushD[2] + y);
@@ -169,13 +180,22 @@ export function head(f: Fig, p: Pose, T: HeadT, y: number, xOff = 0): void {
     if (T.mouthD) {
       const [mx, my, mw] = T.mouthD;
       f.part('mouth', { flat: true, rim: false });
-      if (ex === 'surprised' || ex === 'up') f.rect(mx + xOff + (mw === 1 ? -1 : 0), my + y - (up ? 1 : 0), 2, 1);
+      if (up) f.rect(mx + xOff + (mw === 1 ? 0 : Math.floor((mw - 1) / 2)), my + yy - 1, 1, 2);
+      else if (ex === 'surprised') f.rect(mx + xOff + (mw === 1 ? -1 : 0), my + y, 2, 1);
       else if (ex === 'hurt') f.hl(mx + xOff - 1, mx + xOff + mw, my + y);
       else f.rect(mx + xOff, my + y, mw, 1);
     }
   } else if (p.view === 'up') {
-    if (T.napeU) stamp(f, skin, T.napeU, xOff, y, { shade: 'r', light: '' });
-    stamp(f, hair, T.hairU, xOff, y, ho);
+    // from behind, looking up: the back of the head drops 1px over the nape
+    // and the corners of the jaw peek out below the hair on both sides
+    if (T.napeU && !up) stamp(f, skin, T.napeU, xOff, y, { shade: 'r', light: '' });
+    if (up && T.napeU) {
+      const [nx, ny, nr] = T.napeU;
+      f.part(skin, { shade: '', light: '' });
+      const w = nr[0].length;
+      f.t(-1).px(nx + xOff - 1, ny + y + 1).px(nx + xOff + w, ny + y + 1).t(null);
+    }
+    stamp(f, hair, T.hairU, xOff, y + (up ? 1 : 0), ho);
   } else {
     const dx = up ? -1 : 0;
     if (up && T.neckL) {
@@ -256,7 +276,47 @@ export function sideArm(f: Fig, sx: number, sy: number, len: number, sw: number,
   armTo(f, { sx, sy, hx: 0, hy: 0, segs, w, side: 1, shift }, hx, hy, sw ? [sx - Math.sign(sw), sy + Math.ceil(len / 2)] : undefined);
 }
 
+/**
+ * Vertical offset of a hat / cap for look_up: front and side lift with the
+ * head (-1); from behind the hat tips back and drops with the back of the
+ * head (+1).
+ */
+export function hatLift(p: Pose): number {
+  if (!p.lookUp) return 0;
+  return p.view === 'up' ? 1 : -1;
+}
+
 /** Upper-body offset for the pose (bob + breathing). */
 export function upper(p: Pose): number {
   return p.bob - p.breath;
+}
+
+// ---- hand-placed row art --------------------------------------------------
+
+/** Letter → [material, tone] (null = leave the pixel empty). */
+export type Legend = Record<string, [string, number] | null>;
+
+/**
+ * Paint hand-placed row art (every pixel's material and tone chosen by
+ * hand, as for small figures whose shapes the automatic shading cannot
+ * carry). One flat part per material, created in `order`; the outline and
+ * the sunset rim still come from the renderer.
+ */
+export function paintRows(f: Fig, x: number, y: number, rows: string[], legend: Legend, order: string[], o: PartOpts = {}): void {
+  for (const m of order) {
+    let started = false;
+    for (let j = 0; j < rows.length; j++) {
+      const r = rows[j];
+      for (let i = 0; i < r.length; i++) {
+        const L = legend[r[i]];
+        if (!L || L[0] !== m) continue;
+        if (!started) {
+          f.part(m, { flat: true, ...o });
+          started = true;
+        }
+        f.t(L[1]).px(x + i, y + j);
+      }
+    }
+  }
+  f.t(null);
 }

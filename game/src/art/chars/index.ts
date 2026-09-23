@@ -31,6 +31,17 @@
 //    the ojigi machine's cord): always centre on the feet.
 //  - Emotes: emoteFrames(kind) pops in, emoteLoopFrames(kind) keeps it alive.
 //    Kinds: exclaim question dots note sweat anger heart zzz light shy.
+//  - Palette (30_level_art 7.1): every sprite is snapped, when first built,
+//    to the 48-colour master palette plus at most 8 colours of its own
+//    (quant.ts); paletteReport(id) lists a sprite's own colours.
+//  - Rim light (7.3): the 1px sunset rim in the outline column follows the
+//    stage — #F2894B (stages 0–1), #E0567A (stage 2), #F4E6A8 (mall maps),
+//    none at night (plain outline). It tracks flag_stage / state.map by
+//    itself; setRimLight(color | null) overrides it (e.g. a street-lamp
+//    #FFE7A3 at night), autoRimLight() hands control back. Every built
+//    sprite is repainted in place, so held CharSprite objects update.
+//  - Enemy 'enemy_ojigi_jihanki' rests in a 30° bow; 'upright' / look_up
+//    straighten it, anim 'bow' goes 30° → 90° → 30°.
 //
 // The registry and helpers live in registry.ts; this module re-exports them
 // and imports every content module so a single import of 'art/chars'
@@ -40,6 +51,8 @@ export * from './registry';
 export { flipBoard, flipBoardEdge, flipBoardMini, flipBoardPanel, flipBoardText, flipIcon } from './flip';
 export { FLIP_ANCHOR } from './people/kanenari';
 export { glowRing, GLOW_RING_FRAMES, GLOW_CENTER_DY } from './glow';
+export { setRimLight, autoRimLight, rimForStage, currentRim, paletteReport } from './quant';
+export { headroomReport, PAD as HEADROOM } from './rig';
 export { emoteFrames, emoteLoopFrames, EMOTE_KINDS, EMOTE_FRAME_MS, type EmoteKind } from './emotes';
 import './content';
 import './gallery_reg';

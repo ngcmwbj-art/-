@@ -120,7 +120,7 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
     for (const c of cmds) {
       let spd = c.u.m.spd;
       if (c.kind === 'nori') spd = Math.max(s.minato?.m.spd ?? 0, s.kanenari?.m.spd ?? 0);
-      const prio = c.kind === 'guard' || c.kind === 'flee' ? 2 : 0;
+      const prio = (c.kind === 'guard' || c.kind === 'flee' ? 2 : 0) + (s.qaPartyFirst ? 10 : 0);
       acts.push({ side: 'party', prio, spd: spd * rng.range(0.9, 1.1), order: c.u.id === 'minato' ? -2 : -1, cmd: c });
     }
     acts.push(...plans);

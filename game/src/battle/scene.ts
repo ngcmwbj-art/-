@@ -13,7 +13,6 @@ import { sfx, type SfxOpts } from '../audio';
 import * as audio from '../audio';
 import type { BattleOpts, BattleResult } from './api';
 import { getEnemy } from '../data/battle';
-import { desaturate } from '../art/enemies/lib';
 import { makeBackground, type Background } from './bg';
 import { EnemyUnit, PartyUnit, type BossPart } from './model';
 import { DamageNumber, type NumOpts } from './fx/numbers';
@@ -23,7 +22,7 @@ import {
   drawChimeSticky, drawCommand, drawInfoCard, drawKire, drawList, drawPanel, PANEL_POS, type CardData, type CmdView, type ListRow,
 } from './ui/panels';
 import { C, cursorStamp, drawBar, labelCanvas, stickyCanvas, tapeCanvas } from './ui/note';
-import { ovalStamp, pekeMark } from './art/stamps';
+import { ovalStamp, pekeMark, petalSprites } from './art/stamps';
 import { sweatDrop } from './art/fxart';
 
 export const FRAME = 1000 / 60;
@@ -47,6 +46,12 @@ export interface BossHooks {
 
 /** Enemy x positions by count (15.4). */
 export const SLOTS: Record<number, number[]> = { 1: [192], 2: [140, 244], 3: [96, 192, 288] };
+/** Top of the stage: numbers and labels stay under the 2-line band (y4–48). */
+export const STAGE_TOP = 51;
+/** Heights of the damage number sprites (normal / big, incl. the 1px bounce). */
+const NUM_H = 16;
+const NUM_H_BIG = 19;
+const NUM_RISE = 16;
 
 export class BattleScene implements Scene {
   transparent = true;
@@ -91,7 +96,7 @@ export class BattleScene implements Scene {
   target: { kind: 'enemy'; e: EnemyUnit; part?: { x: number; y: number; w: number } } | { kind: 'party'; u: PartyUnit } | null = null;
   card: { data: CardData; t: number; closing: boolean } | null = null;
   /** Tutorial sticky; `ttl` (ms) peels it off by itself. */
-  sticky: { text: string; t: number; pulse?: boolean; ttl?: number } | null = null;
+  sticky: { text: string; t: number; pulse?: boolean; ttl?: number; pos?: 'left' | 'right' } | null = null;
   cursorPressed = 0;
   /** Directional screen shake. */
   private shk = { ax: 0, ay: 0, t: 0, dur: 0, x: 0, y: 0 };
@@ -123,11 +128,12 @@ export class BattleScene implements Scene {
   cmdQueue: { who: string; cmd: string; skill?: string; item?: string; target?: number | string; part?: string }[] = [];
   /** QA: forced enemy actions (in order). */
   forceEnemy: string[] = [];
+  /** QA: the party always acts before the enemies (deterministic frame captures). */
+  qaPartyFirst = false;
   private scratch: HTMLCanvasElement;
   private scratchCtx: CanvasRenderingContext2D;
   private scratch2: HTMLCanvasElement;
   private scratch2Ctx: CanvasRenderingContext2D;
-  private desatCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
   musicParams = typeof (audio as unknown as { setMusicParam?: unknown }).setMusicParam === 'function';
 
   constructor(public opts: BattleOpts) {
@@ -273,6 +279,11 @@ export class BattleScene implements Scene {
     if (this.hitstopMs > 0) for (const e of this.enemies) if (e.whiteFrames > 0 && e.whiteFrames < 900) e.whiteFrames--;
     if (this.card) {
       this.card.t += dt;
+      // 15.9: the card closes after 1.4s on its own (it never waits for the band)
+      if (!this.card.closing && this.card.t >= 1400) {
+        this.card.closing = true;
+        this.card.t = 0;
+      }
       if (this.card.closing && this.card.t > 160) this.card = null;
     }
     if (this.sticky) {
@@ -384,14 +395,16 @@ export class BattleScene implements Scene {
     return d;
   }
 
-  /** Ink-stamp label that pops and fades. */
-  label(text: string, x: number, y: number, tone: 'shu' | 'gray' = 'shu', ms = 600, worn = false): void {
+  /** Ink-stamp label that pops and fades (after `delay` ms). */
+  label(text: string, x: number, y: number, tone: 'shu' | 'gray' = 'shu', ms = 600, worn = false, delay = 0): void {
     const img = labelCanvas(text, tone, worn);
     this.addFx({
       layer: 'top',
-      dur: ms,
+      dur: ms + delay,
       ui: true,
-      draw: (g, t) => {
+      draw: (g, t0) => {
+        const t = t0 - delay;
+        if (t < 0) return;
         const pop = t < 70 ? 1.5 - 0.5 * (t / 70) : 1;
         const a = t > ms - 150 ? Math.max(0, (ms - t) / 150) : 1;
         const w = img.width * pop;
@@ -402,15 +415,50 @@ export class BattleScene implements Scene {
   }
 
   /**
-   * Label to the upper right of a point (the sight / the stamp), clear of the
-   * damage number that pops straight up from the same point. Flips to the
-   * left when it would leave the screen.
+   * Label to the upper right of a point (the sight / the stamp) when no
+   * number pops from it. Flips to the left when it would leave the screen.
    */
   labelUpRight(text: string, x: number, y: number, tone: 'shu' | 'gray' = 'shu', ms = 600, worn = false): void {
-    const w = labelCanvas(text, tone, worn).width;
-    let cx = x + 14 + w / 2;
-    if (cx + w / 2 > 380) cx = x - 14 - w / 2;
-    const cy = Math.max(60, y - 20);
+    const img = labelCanvas(text, tone, worn);
+    const w = img.width;
+    let cx = x + 12 + w / 2;
+    if (cx + w / 2 > 380) cx = x - 12 - w / 2;
+    const cy = Math.max(STAGE_TOP + img.height / 2, y - 18);
+    this.label(text, Math.round(cx), Math.round(cy), tone, ms, worn);
+  }
+
+  /**
+   * Where an enemy's damage number starts (16.4): the core (where the hit
+   * lands; the boss's beside it), clamped so the risen number and the hit
+   * label stacked above it stay under the band.
+   */
+  enemyNumberXY(e: EnemyUnit, big = false, stack = 0): [number, number] {
+    const h = big ? NUM_H_BIG : NUM_H;
+    const x = (e.def.boss ? e.coreX + 36 : e.coreX) + stack * 10;
+    const y = e.coreY - stack * 6;
+    return [Math.round(x), Math.round(Math.max(y, STAGE_TOP + NUM_RISE + h))];
+  }
+
+  /**
+   * Hit label (いい音！／くっきり！／かすれ……) paired with the enemy's damage
+   * number: stacked just above where the number comes to rest, or beside it
+   * when the band leaves no room above.
+   */
+  labelForHit(text: string, e: EnemyUnit, big = false, tone: 'shu' | 'gray' = 'shu', ms = 600, worn = false): void {
+    const img = labelCanvas(text, tone, worn);
+    const [x, y] = this.enemyNumberXY(e, big);
+    const h = big ? NUM_H_BIG : NUM_H;
+    const numTop = y - NUM_RISE - h;
+    const nx = x + 6; // the number drifts 6px right while rising
+    let cx = nx;
+    let cy = numTop - 1 - img.height / 2;
+    if (cy - img.height / 2 < STAGE_TOP - 1) {
+      const half = big ? 16 : 13;
+      cx = nx + half + 3 + img.width / 2;
+      if (cx + img.width / 2 > 381) cx = nx - half - 3 - img.width / 2;
+      cy = numTop + h / 2;
+    }
+    cx = Math.max(img.width / 2 + 3, Math.min(381 - img.width / 2, cx));
     this.label(text, Math.round(cx), Math.round(cy), tone, ms, worn);
   }
 
@@ -418,19 +466,29 @@ export class BattleScene implements Scene {
     (top ? this.partsTop : this.parts).burst(x, y, o);
   }
 
-  /** Paper bits (紙片). */
+  /**
+   * Paper bits (紙片): ink-outlined scraps drawn above the net and the UI, so
+   * they read on the bright sunset and never hide under the hoop's mesh.
+   */
   paper(x: number, y: number, n: number, speed: [number, number] = [60, 120]): void {
-    this.burst(x, y, { count: n, speed, angle: [-Math.PI * 0.95, -Math.PI * 0.05], life: [260, 360], colors: ['#FBF3DC', '#E8D9B5', '#F4F1E8'], gravity: 200, shape: 'sq', size: [2, 3], sizeEnd: 2 });
+    const bits = paperBits();
+    for (let i = 0; i < n; i++)
+      this.burst(x, y, { count: 1, speed, angle: [-Math.PI * 0.95, -Math.PI * 0.05], life: [260, 380], colors: ['#FBF3DC'], gravity: 200, shape: 'img', img: bits[i % bits.length] }, true);
   }
   stars(x: number, y: number, n: number, speed: [number, number] = [80, 160]): void {
-    this.burst(x, y, { count: n, speed, life: [260, 420], colors: ['#FFF6D8', '#FFD23F', '#FFD23F'], gravity: 60, drag: 2, shape: 'star', size: [2, 2], sizeEnd: 1 });
+    const st = starBits();
+    for (let i = 0; i < n; i++)
+      this.burst(x, y, { count: 1, speed, life: [280, 440], colors: ['#FFD23F'], gravity: 60, drag: 2, shape: 'img', img: st[i % st.length] }, true);
   }
   shuSplash(x: number, y: number, n: number, alpha70 = false): void {
     const cols = alpha70 ? ['#E86A5E', '#E86A5E'] : ['#E23B2E', '#E23B2E', '#E23B2E', '#FF6A4D', '#B8241E'];
     this.burst(x, y, { count: n, speed: [60, 160], life: [400, 700], colors: cols, gravity: 300, drag: 1, shape: 'sq', size: [1, 3], sizeEnd: 1 });
   }
+  /** Petals (16.0: 4×3 ovals in four colours). */
   petals(x: number, y: number, n: number, spread = 20, top = true): void {
-    this.burst(x, y, { count: n, speed: [40, 150], life: [700, 1300], colors: ['#FF6A4D', '#F7C27A', '#FFD9B8', '#E0567A'], gravity: 90, drag: 1.5, shape: 'sq', size: [2, 3], sizeEnd: 2, spread }, top);
+    const imgs = petalSprites();
+    for (let i = 0; i < n; i++)
+      this.burst(x, y, { count: 1, speed: [40, 150], life: [700, 1300], colors: ['#FF6A4D'], gravity: 90, drag: 1.5, shape: 'img', img: imgs[(i * 3 + (i >> 2)) % imgs.length], spread }, top);
   }
   sweat(x: number, y: number, n = 6): void {
     this.burst(x, y, { count: n, speed: [60, 140], angle: [-Math.PI, 0], life: [300, 500], colors: ['#E8F4F8', '#7FD1E8'], gravity: 400, shape: 'sq', size: [2, 2], sizeEnd: 1 }, true);
@@ -527,17 +585,7 @@ export class BattleScene implements Scene {
     if (!art) return null;
     const v = e.view(this.t);
     let src = art.frame(v);
-    if (e.status.bokemake && e.alive) {
-      if (art.dynamic) src = desaturate(src, 0.4, this.scratch2);
-      else {
-        let d = this.desatCache.get(src);
-        if (!d) {
-          d = desaturate(src, 0.4);
-          this.desatCache.set(src, d);
-        }
-        src = d;
-      }
-    }
+    if (e.status.bokemake && e.alive) src = this.bokeLook(src, !!e.def.boss);
     if (e.decals.length || e.blushT > 0) {
       const c = this.scratch;
       const ctx = this.scratchCtx;
@@ -563,6 +611,36 @@ export class BattleScene implements Scene {
       src = c;
     }
     return src;
+  }
+
+  /**
+   * ボケ負け colouring, composited on the GPU (no pixel readback, so dynamic
+   * sprites like the boss can be redone every frame): −40% saturation at the
+   * same lightness; the boss — whose shadow body is already dark — is instead
+   * pulled toward a grey violet, keeping its lightness, so it stays itself.
+   */
+  private bokeLook(src: HTMLCanvasElement, boss: boolean): HTMLCanvasElement {
+    const c = this.scratch2;
+    let ctx = this.scratch2Ctx;
+    if (c.width !== src.width || c.height !== src.height) {
+      c.width = src.width;
+      c.height = src.height;
+      ctx = this.scratch2Ctx = c.getContext('2d')!;
+      ctx.imageSmoothingEnabled = false;
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.clearRect(0, 0, c.width, c.height);
+    ctx.drawImage(src, 0, 0);
+    ctx.globalCompositeOperation = boss ? 'color' : 'saturation';
+    ctx.globalAlpha = boss ? 0.45 : 0.4;
+    ctx.fillStyle = boss ? '#7A6E96' : '#808080';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.drawImage(src, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    return c;
   }
 
   /** Screen-space top-left of the enemy canvas (before scaling). */
@@ -657,15 +735,17 @@ export class BattleScene implements Scene {
       const y = e.headY + 4 + Math.round((cyc / 600) * 10);
       g.alpha(cyc > 480 ? (600 - cyc) / 120 : 1, () => g.img(sweatDrop(), x, y));
     }
-    // 溜め中 sticky: 10px over the head, or pinned to the shoulder when the
-    // head is up under the message band
+    // 溜め中 sticky: 10px over the head; a tall enemy whose head is up under
+    // the band gets it stuck on its side instead, a third of the way down
+    // (clear of the band and of the vending machine's red ribbons)
     if (e.status.tame) {
       const img = tapeCanvas(52, 16, '溜め中', C.tape, 7);
       let y = e.headY - 10 - 16;
       let x = Math.round(e.x - 26 + e.jitterX);
-      if (y < this.msg.bottom + 4) {
-        y = this.msg.bottom + 6;
-        x = Math.min(380 - 52, Math.round(e.x + e.sizeW / 2 - 18 + e.jitterX));
+      if (y < STAGE_TOP) {
+        y = Math.max(STAGE_TOP + 4, e.top + Math.round(e.sizeH * 0.3));
+        x = Math.round(e.x + e.sizeW / 2 - 6 + e.jitterX);
+        if (x + 52 > 381) x = Math.round(e.x - e.sizeW / 2 - 46 + e.jitterX);
       }
       g.img(img, x, y);
     }
@@ -678,7 +758,9 @@ export class BattleScene implements Scene {
       for (const e of this.enemies) {
         if (!e.alive || !flag('flag_mimashita_' + e.id) || e.def.invulnerable) continue;
         const w = Math.min(40, e.sizeW);
-        drawBar(g, Math.round(e.x - w / 2), e.headY - 6 - 3, w, 3, e.hp / e.maxHp, C.shu, C.grid, e.hpTrail / e.maxHp, C.white);
+        // 6px over the head, but never inside the band (tall enemies, the boss)
+        const by = Math.max(this.msg.bottom + 3, e.headY - 6 - 3);
+        drawBar(g, Math.round(e.x - w / 2), by, w, 3, e.hp / e.maxHp, C.shu, C.grid, e.hpTrail / e.maxHp, C.white);
       }
     }
     this.msg.alpha = a;
@@ -695,7 +777,7 @@ export class BattleScene implements Scene {
       const e = this.target.e;
       const bob = Math.round(Math.sin(this.rt / 130) * 1) + (this.cursorPressed > 0 ? 1 : 0);
       const px = this.target.part ? this.target.part.x : e.x;
-      const py = this.target.part ? this.target.part.y : e.headY - (flag('flag_mimashita_' + e.id) ? 14 : 4);
+      const py = Math.max(this.msg.bottom + 14, this.target.part ? this.target.part.y : e.headY - (flag('flag_mimashita_' + e.id) ? 14 : 4));
       g.img(cursorStamp(this.cursorPressed > 0), Math.round(px - 4), Math.round(py - 12 + bob));
     }
     if (this.card) {
@@ -703,14 +785,19 @@ export class BattleScene implements Scene {
       const slide = this.card.closing ? Math.max(0, 1 - t / 160) : Math.min(1, t / 160);
       drawInfoCard(g, this.card.data, 1 - (1 - slide) * (1 - slide));
     }
-    if (this.sticky) {
+    if (this.sticky && this.sticky.t >= 0) {
       const img = stickyCanvas(this.sticky.text);
       const st = this.sticky;
       const out = st.ttl && st.t > st.ttl ? Math.min(1, (st.t - st.ttl) / 200) : 0;
       const k = Math.min(1, st.t / 120) * (1 - out);
       const glow = st.pulse && Math.floor(this.rt / 200) % 2 === 0;
-      g.alpha(k, () => g.img(img, 8 - Math.round(out * 10), 52 - Math.round((1 - Math.min(1, st.t / 120)) * 6) + Math.round(out * out * 12)));
-      if (glow) g.alpha(0.35 * k, () => g.rect(8, 52, img.width - 3, img.height - 3, '#FFFFFF'));
+      const right = st.pos === 'right';
+      // left: (8,52) under the band; right: under the boss's chime sticky
+      const sx = right ? 381 - img.width : 8;
+      const sy = right ? this.msg.bottom + 26 : 52;
+      const dir = right ? 1 : -1;
+      g.alpha(k, () => g.img(img, sx + dir * Math.round(out * 10), sy - Math.round((1 - Math.min(1, st.t / 120)) * 6) + Math.round(out * out * 12)));
+      if (glow) g.alpha(0.35 * k, () => g.rect(sx, sy, img.width - 3, img.height - 3, '#FFFFFF'));
     }
   }
 
@@ -724,6 +811,51 @@ export class BattleScene implements Scene {
     // free-research notebook, slightly tilted by a pixel of sag
     g.alpha(a * 0.92, () => g.img(emptySlotCanvas(), 248, 156));
   }
+}
+
+let paperBitsC: HTMLCanvasElement[] | null = null;
+/** Paper scraps 2×2 – 3×3 (#FBF3DC / #E8D9B5 / #F4F1E8) with an ink outline. */
+function paperBits(): HTMLCanvasElement[] {
+  if (paperBitsC) return paperBitsC;
+  const defs: [number, number, string, string][] = [
+    [3, 2, '#FBF3DC', '#E8D9B5'],
+    [2, 2, '#F4F1E8', '#F4F1E8'],
+    [3, 3, '#E8D9B5', '#FBF3DC'],
+    [2, 3, '#FBF3DC', '#E8D9B5'],
+  ];
+  paperBitsC = defs.map(([w, h, a, b]) => {
+    const [c, ctx] = makeCanvas(w + 2, h + 2);
+    ctx.fillStyle = C.ink;
+    ctx.fillRect(1, 0, w, h + 2);
+    ctx.fillRect(0, 1, w + 2, h);
+    ctx.fillStyle = a;
+    ctx.fillRect(1, 1, w, h);
+    ctx.fillStyle = b;
+    ctx.fillRect(w, h, 1, 1);
+    return c;
+  });
+  return paperBitsC;
+}
+
+let starBitsC: HTMLCanvasElement[] | null = null;
+/** 5px stars (#FFD23F, core #FFF6D8) with an ink outline; a small and a big one. */
+function starBits(): HTMLCanvasElement[] {
+  if (starBitsC) return starBitsC;
+  const mk = (rows: string[]) => {
+    const [c, ctx] = makeCanvas(rows[0].length, rows.length);
+    const pal: Record<string, string> = { k: C.ink, y: '#FFD23F', w: '#FFF6D8' };
+    rows.forEach((r, y) => [...r].forEach((ch, x) => {
+      if (!pal[ch]) return;
+      ctx.fillStyle = pal[ch];
+      ctx.fillRect(x, y, 1, 1);
+    }));
+    return c;
+  };
+  starBitsC = [
+    mk(['...k...', '..kyk..', '.kkykk.', 'kyywyyk', '.kkykk.', '..kyk..', '...k...']),
+    mk(['..k..', '.kyk.', 'kywyk', '.kyk.', '..k..']),
+  ];
+  return starBitsC;
 }
 
 function ellipse(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number): void {

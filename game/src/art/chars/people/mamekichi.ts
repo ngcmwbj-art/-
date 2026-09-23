@@ -1,4 +1,5 @@
 import { flat, mat, type Fig, type Mats } from '../fig';
+import { HAIR_BLACK, SKIN_LIGHT, SKIN_MID, SKIN_TAN } from '../mats';
 import { legs, type LegSpec, type Seg } from '../body';
 import { buildSprite, breathingIdle, rep, type IdleKey, type Pose } from '../rig';
 import { registerChar } from '../registry';
@@ -16,8 +17,8 @@ const common = {
 
 const MAME: Mats = {
   ...common,
-  skin: mat('#F2B894', { shade: '#D9977A', light: '#FFD2B0', dark: '#A8705A', rim: '#FFB080' }),
-  hair: mat('#2B2024', { shade: '#1E161C', light: '#4A3A3E', rim: '#7A4A3A' }),
+  skin: SKIN_MID,
+  hair: HAIR_BLACK,
   band: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFFFFF' }),
   bandN: flat('#2F4A8A'),
   tee: mat('#F4F1E8', { shade: '#CFC8BC', light: '#FFFFFF', dark: '#9E978C', rim: '#FFDCB4' }),

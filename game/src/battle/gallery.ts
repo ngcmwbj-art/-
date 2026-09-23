@@ -9,11 +9,14 @@ export class EnemyGalleryScene implements Scene {
   private t = 0;
   private ids: string[];
   private zoom: number;
+  /** Skip the first N gallery poses (QA paging at high zoom). */
+  private from: number;
 
   constructor(params: URLSearchParams) {
     const id = params.get('id');
     this.ids = id ? id.split(',') : enemyArtIds();
     this.zoom = Math.max(1, Number(params.get('zoom') ?? '1'));
+    this.from = Math.max(0, Number(params.get('from') ?? '0'));
   }
 
   update(dt: number): void {
@@ -31,7 +34,7 @@ export class EnemyGalleryScene implements Scene {
     for (const id of this.ids) {
       const art = enemyArt(id);
       if (!art) continue;
-      const poses = [...art.gallery, { pose: 'idle', flags: { bokemake: 1 } }];
+      const poses = [...art.gallery, { pose: 'idle', flags: { bokemake: 1 } }].slice(this.from);
       for (const gp of poses) {
         const v: EnemyView = { pose: gp.pose, t: gp.t ?? this.t % 1000, gt: this.t, skill: gp.skill, hpRate: 1, flags: gp.flags ?? {} };
         let c = art.frame(v);

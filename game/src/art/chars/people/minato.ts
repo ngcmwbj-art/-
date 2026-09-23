@@ -8,30 +8,32 @@ import { armTo, legs, swing, type ArmSpec, type LegSpec, type Seg } from '../bod
 import { buildSprite, breathingIdle, type Pose, type SpriteSpec } from '../rig';
 import { registerChar } from '../registry';
 
+// Colors follow the reference sprite of 30_level_art 9.1 (hair #2B1E1A /
+// #5A3A2A, tee #6CC48A / #3FA66B / #2E6B4A, skin #FFD9B8 / #E0A882 ...).
 export const MINATO_MATS: Mats = {
-  skin: mat('#FFD9B8', { shade: '#EBB08E', light: '#FFEBD8', dark: '#C98A6A', rim: '#FFC08E' }),
-  hair: mat('#3A2824', { shade: '#291B20', dark: '#1A1118', light: '#5E4034', spec: '#8C6048', rim: '#A05A3C' }),
-  shirt: mat('#3FA66B', { shade: '#2E7A52', light: '#6CC48A', dark: '#245A44', spec: '#A6DDB0', rim: '#A8C870' }),
+  skin: mat('#FFD9B8', { shade: '#E0A882', light: '#FFD9B8', dark: '#C98A6A' }),
+  hair: mat('#2B1E1A', { shade: '#2B1E1A', dark: '#2A2440', light: '#5A3A2A', spec: '#8A5A3A' }),
+  shirt: mat('#3FA66B', { shade: '#2E6B4A', light: '#6CC48A', dark: '#245A44' }),
   print: flat('#F4F1E8'),
-  printD: flat('#2A5A48'),
-  shorts: mat('#2F4A8A', { shade: '#243A72', light: '#4A6AAE', dark: '#1A2754', rim: '#7A6A9A' }),
-  sandal: mat('#E84E3C', { shade: '#B8302A', light: '#FF7A5A', dark: '#7A1A22' }),
+  printD: flat('#2E6B4A'),
+  shorts: mat('#2F4A8A', { shade: '#243A72', light: '#4A6AAE', dark: '#1B1733' }),
+  sandal: mat('#E84E3C', { shade: '#B8241E', light: '#FF6A4D', dark: '#8A2E3A' }),
   string: flat('#4AA8E0'),
   key: flat('#FFD23F'),
-  keyD: flat('#C8902A'),
-  pole: mat('#C8A06A', { shade: '#A8742A', light: '#E8C890', dark: '#7A5424' }),
-  hoop: mat('#B89A6A', { shade: '#8A6A3A', light: '#E0C890' }),
-  net: flat('#F4F1E8', { ol: '#5A4034' }),
-  netD: flat('#C8C2B4', { ol: '#5A4034' }),
-  eye: flat('#2A1C28'),
+  keyD: flat('#D9A441'),
+  pole: mat('#C8A06A', { shade: '#A8742A', light: '#F6D98A', dark: '#8A5A3A' }),
+  hoop: mat('#C8A06A', { shade: '#A8742A', light: '#F6D98A' }),
+  net: flat('#F4F1E8', { ol: '#5A3A2A' }),
+  netD: flat('#C8C2B4', { ol: '#5A3A2A' }),
+  eye: flat('#2A2440'),
   shine: flat('#FFF6D8'),
-  mouth: flat('#C87A64'),
-  blush: flat('#F9A48A'),
-  package: mat('#F4F1E8', { shade: '#D8CCB4', light: '#FFFFFF' }),
-  kraft: mat('#E8C890', { shade: '#C8A06A', light: '#F6E0B0', dark: '#8A6A3A' }),
+  mouth: flat('#2A2440'),
+  blush: flat('#F2B894'),
+  package: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFF6D8' }),
+  kraft: mat('#E8D9B5', { shade: '#C8A06A', light: '#FBF3DC', dark: '#8A5A3A' }),
   tape: flat('#E84E3C'),
   hanko: mat('#E23B2E', { shade: '#B8241E', light: '#FF6A4D' }),
-  hand: mat('#FFD9B8', { shade: '#EBB08E', light: '#FFE9D4', dark: '#C98A6A' }),
+  hand: mat('#FFD9B8', { shade: '#E0A882', light: '#FFD9B8', dark: '#C98A6A' }),
   wood: mat('#D9A441', { shade: '#A8742A', light: '#F6D98A' }),
 };
 
@@ -71,16 +73,20 @@ function headFront(f: Fig, p: Pose, y: number) {
       '.########.',
       '..######..',
     ]);
-  else
+  else {
+    // looking up: the face lifts on a stretched neck and the underside of
+    // the jaw turns to shade (readable at 1x from the front)
     f.rows(3, y + 3, [
       '.########.',
       '##########',
       '##########',
       '##########',
       '.########.',
-      '..######..',
-      '....##....',
-    ]);
+      '..SSSSSS..',
+      '....SS....',
+      '....SS....',
+    ], SKIN);
+  }
   // hair (explicit form shading; front view is never mirrored)
   f.part('hair', { shade: '', light: '' });
   if (!up)
@@ -115,6 +121,9 @@ function headFront(f: Fig, p: Pose, y: number) {
     // half-closed (smug = self-satisfied narrow eyes)
     f.px(5, ey + 1).px(10, ey + 1);
     if (p.act === 'smug') f.px(4, ey + 1).px(11, ey + 1);
+  } else if (p.act === 'surprised') {
+    // wide eyes (2×2), not the usual 1×2
+    f.rect(4, ey, 2, 2).rect(10, ey, 2, 2);
   } else {
     f.rect(5, ey, 1, 2).rect(10, ey, 1, 2);
   }
@@ -122,17 +131,22 @@ function headFront(f: Fig, p: Pose, y: number) {
   f.part('blush', { flat: true, rim: false });
   f.px(4, ey + 2).px(11, ey + 2);
   f.part('mouth', { flat: true, rim: false });
-  if (up) f.rect(7, ey + 3, 2, 1);
-  else if (p.act === 'surprised' || p.act === 'hurt') f.rect(7, y + 9, 2, 1);
+  if (up) f.rect(8, ey + 2, 1, 2);
+  else if (p.act === 'surprised') f.px(8, y + 9);
+  else if (p.act === 'hurt') f.rect(7, y + 9, 2, 1);
   else if (p.act === 'smug') f.px(8, y + 9).px(9, y + 8);
   else f.px(8, y + 9);
 }
 
 function headBack(f: Fig, p: Pose, y: number) {
+  // looking up from behind: the back of the head drops over the nape and
+  // the corners of the jaw peek out at both sides
+  const up = p.lookUp;
   f.part('skin', { shade: 'rb', light: '' });
-  f.rect(5, y + 8, 6, 2);
+  if (!up) f.rect(5, y + 8, 6, 2);
+  else f.t(-1).px(2, y + 9).px(13, y + 9).t(null);
   f.part('hair', { shade: '', light: '' });
-  f.rows(1, y, [
+  f.rows(1, y + (up ? 1 : 0), [
     '.....HHhhh....',
     '...HKKHhhhhd..',
     '..HKHhhhhhhhd.',
@@ -144,7 +158,6 @@ function headBack(f: Fig, p: Pose, y: number) {
     '..hdhhdhhdhd..',
     '...d..d..d....',
   ], HAIR);
-  void p;
 }
 
 function headSide(f: Fig, p: Pose, y: number) {
@@ -267,7 +280,8 @@ function front(f: Fig, p: Pose) {
   const b = p.bob;
   const u = b - p.breath;
   const act = p.act;
-  const headY = 2 + u + (act === 'hurt' ? 1 : 0);
+  // surprised: the head jerks up 1px
+  const headY = 2 + u + (act === 'hurt' ? 1 : act === 'surprised' ? -1 : 0);
   netHoop(f, 0, 0 + u);
   f.part('pole', { shade: 'r', light: '' });
   f.px(4, 4 + u);
@@ -445,6 +459,13 @@ function side(f: Fig, p: Pose) {
   headSide(f, p, headY);
   const sway = p.mode === 'idle' ? (p.tick % 4 < 2 ? 0 : 1) : p.mode === 'walk' ? (p.step % 2 ? 1 : 0) : 1;
   ahoge(f, 8 + lean, headY - 2 - (p.lookUp ? 1 : 0), sway);
+  // the net's pole, stuck down the back of his collar, runs diagonally past
+  // the back of his head up to the hoop (30_level_art 9.1: seen from the
+  // side the pole shows on the back side, not a hoop floating by his head)
+  f.part('pole', { flat: true, rim: false });
+  f.t(0).line(10 + lean, 13 + u, 13 + lean, 5 + u).t(null);
+  f.part('pole', { flat: true, rim: false });
+  f.t(1).px(12 + lean, 8 + u).t(null);
 }
 
 /** Slumped over a desk (opening). 'up' = seen from behind. */
@@ -477,27 +498,42 @@ function sleepPose(f: Fig, p: Pose) {
     f.rect(5, 22, 2, 1).rect(9, 22, 2, 1);
     return;
   }
-  f.part('shirt', { shade: 'rb', light: 't' });
-  f.rect(3, 13 + y, 10, 6 - y);
-  f.rect(2, 13, 12, 3);
-  f.part('skin', { shade: 'rb', light: 't' });
-  f.rect(4, 15, 8, 1);
-  f.part('hair', { shade: '', light: '' });
-  f.rows(2, 7 + y, [
-    '...HHhhh....',
-    '.HKKHhhhhd..',
-    'HKHhhhhhhhd.',
-    'HhhhhdhhhhdD',
-    '.hhdhhdhhdd.',
-  ], HAIR);
-  ahoge(f, 7, 5 + y, 1);
-  netHoop(f, 0, 4 + y);
+  // front: face buried in his folded arms on the desk (the desk itself is a
+  // world prop) — only the crown of his head, the hunched shoulders and the
+  // folded arms show; the whole upper body rises 1px with each breath
   f.part('shorts', { shade: 'rb', light: '' });
   f.rect(4, 19, 8, 2);
   f.part('skin', { shade: 'r', light: '' });
   f.rect(5, 21, 2, 1).rect(9, 21, 2, 1);
   f.part('sandal', {});
   f.rect(5, 22, 2, 1).rect(9, 22, 2, 1);
+  // hunched back and shoulders around the bowed head
+  f.part('shirt', { shade: 'rb', light: 't' });
+  f.rows(2, 11 + y, ['..########..', '.##########.', '############', '############']);
+  f.rect(3, 15 + y, 10, 4 - y);
+  // the crown of the bowed head (no face)
+  f.part('hair', { shade: '', light: '' });
+  f.rows(3, 7 + y, [
+    '...HHhh...',
+    '.HKKHhhhd.',
+    'HKHhhhhhhd',
+    'HhhhhdhhdD',
+    'hhdhhhhhdd',
+    '.hhhhhhdd.',
+  ], HAIR);
+  ahoge(f, 7, 5 + y, 1);
+  netHoop(f, 0, 3 + y);
+  f.part('pole', { shade: '', light: '' });
+  f.px(4, 7 + y).px(4, 8 + y);
+  // folded arms under the head: sleeves at the sides, two forearms crossed
+  f.part('shirt', { shade: 'rb', light: 't' });
+  f.rect(0, 13 + y, 3, 3).rect(13, 13 + y, 3, 3);
+  f.part('skin', { shade: 'b', light: 't', sepAll: true });
+  f.hl(3, 12, 14 + y);
+  f.part('skin', { shade: 'b', light: '', shift: -1 });
+  f.hl(2, 13, 15 + y);
+  f.part('shirt', { flat: true });
+  f.t(-2).px(0, 15 + y).px(15, 15 + y).t(null);
 }
 
 function draw(f: Fig, p: Pose) {

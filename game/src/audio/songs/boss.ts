@@ -4,9 +4,9 @@
 // Kanenari bell pulls back to C major.
 
 import { DRM, INS } from '../instruments';
-import { midiHz } from '../engine';
+import { captureVoices, type VoiceHandle } from '../engine';
 import { arp, bass, drums, hits, melody, pads, type BarCtx, type PartDef, type SongDef, type SongPlayer } from '../sequencer';
-import { hat8, kireLayers } from './battle';
+import { hat8, kireAware, kireLayers } from './battle';
 import { bar, registerSong, score } from './common';
 
 export const BOSS_MML = `
@@ -91,7 +91,6 @@ function bossDef(): SongDef {
   const kireUp = (b: BarCtx) => (b.p.kire >= 3 ? 12 : 0);
   const inAB = (b: BarCtx) => b.section !== 'BO' && (sec(b) === 'A' || sec(b) === 'B');
   const inC = (b: BarCtx) => b.section !== 'BO' && sec(b) === 'C';
-  let tickN = 0;
   const parts: PartDef[] = [
     melody({
       id: 'lead',
@@ -102,7 +101,9 @@ function bossDef(): SongDef {
       o: (b) => ({ vol: 0.085, wave: p2(b) ? 'pulse25' : 'square' }),
       gate: 0.95,
     }),
-    melody({ id: 'lead_mbox', ins: 'ins_musicbox', bars: boss.part('lead'), alias, transpose: (b) => up(b) + 12, o: { vol: 0.05 } }),
+    // the music box an octave over the lead; at kire 3 the p12 arpeggio takes
+    // that register, so the box steps aside instead of doubling the density
+    kireAware(melody({ id: 'lead_mbox', ins: 'ins_musicbox', bars: boss.part('lead'), alias, transpose: (b) => up(b) + 12, o: { vol: 0.05 }, when: (b) => b.p.kire < 3 })),
     melody({
       id: 'recorder',
       ins: 'ins_recorder',
@@ -128,15 +129,15 @@ function bossDef(): SongDef {
         fn: (b, t, rt, a) => INS.ins_choir({ t, midi: a === 0 ? 69 : 67, dur: b.time(a + 8) - t, vel: 1, dest: rt.input, rev: rt.rev, det: rt.song.det, o: { child: true, vol: 0.06 } }),
       },
     ]),
-    bass({
+    kireAware(bass({
       id: 'bass',
       ins: 'ins_fm_bass',
       pattern: (b) => (inC(b) ? 'R:4 5:4 R:4 5:4' : "R:2 R:2 R':2 R:2 5:2 R:2 R':2 5:2"),
       when: (b) => b.section !== 'BO',
       // phase-2 bars carry chords already moved +7; bassMidi keeps the register (= −5)
       transpose: kireUp,
-    }),
-    drums({
+    })),
+    kireAware(drums({
       id: 'drums',
       kit: {
         drm_kick: (b) =>
@@ -146,13 +147,15 @@ function bossDef(): SongDef {
         drm_hat_c: (b) => (b.section === 'BO' || inC(b) ? null : p2(b) ? (b.p.kire >= 2 ? 'xgxgxgxgxgxgxg.g' : 'xgxgxgxgxgxgxgxg') : sec(b) === 'B' ? hat8(b) : null),
       },
       vel: { drm_kick: 1.05 },
-    }),
+    })),
     // the clock instead of a hi-hat: tick / tock (reversed in phase 2)
     hits('clock', [
       {
         when: (b, s) => s % 2 === 0 && (b.section === 'BO' || sec(b) === 'A'),
         fn: (b, t, rt) => {
-          const odd = tickN++ % 2 === 0;
+          const n = (rt.state.tickN as number | undefined) ?? 0;
+          rt.state.tickN = n + 1;
+          const odd = n % 2 === 0;
           const tick = p2(b) ? !odd : odd;
           (tick ? DRM.drm_tick : DRM.drm_tock)({ t, vel: 1, vol: 0.04, dest: rt.input, rev: rt.rev });
         },
@@ -192,14 +195,40 @@ function bossDef(): SongDef {
     onSfx(sp, id) {
       if (id === 'se_bell_kanenari' && sp.state.drone) bellMorph(sp);
     },
+    onStop(sp, at, fade) {
+      stopDrone(sp, at, fade);
+    },
   };
 }
 
 // ---- final phase: every part fades, one pad holds Am(add9) -------------------
 
 interface Drone {
-  voices: { osc: OscillatorNode[]; }[];
-  gain: GainNode;
+  /** Sounding pad notes by MIDI number. */
+  notes: Map<number, VoiceHandle>;
+  input: GainNode;
+  out: GainNode;
+  lfo: OscillatorNode;
+}
+
+const PAD_VOL = 0.035;
+
+/** Start held ins_pad notes into the drone (fade in over `attack`). */
+function droneNotes(sp: SongPlayer, d: Drone, midis: number[], t: number, attack: number): void {
+  for (const m of midis) {
+    const hs: VoiceHandle[] = [];
+    captureVoices(hs, () =>
+      INS.ins_pad({ t, midi: m, dur: 3600, vel: 1, dest: d.input, rev: sp.wet, det: sp.det, o: { vol: PAD_VOL, attack, release: 1.2 } }),
+    );
+    if (hs[0]) d.notes.set(m, hs[0]);
+  }
+}
+
+function droneRelease(d: Drone, midis: number[], t: number, fade: number): void {
+  for (const m of midis) {
+    d.notes.get(m)?.stop(fade, t);
+    d.notes.delete(m);
+  }
 }
 
 function finalPhase(sp: SongPlayer): void {
@@ -207,15 +236,14 @@ function finalPhase(sp: SongPlayer): void {
   const c = sp.g.ctx;
   const t = c.currentTime;
   for (const rt of sp.parts) sp.partGain(rt.id, 0, 1.5, t);
-  setTimeout(() => (sp.halted = true), 1700);
-  const out = c.createGain();
-  out.gain.value = 0;
-  out.gain.setValueAtTime(0, t);
-  out.gain.linearRampToValueAtTime(1, t + 1.5);
+  sp.haltAt = t + 1.6;
+  // the drone: its own pad destination → LP opening and closing at 0.08 Hz (900–1600 Hz)
+  const input = c.createGain();
   const lp = c.createBiquadFilter();
   lp.type = 'lowpass';
   lp.frequency.value = 1250;
   lp.Q.value = 0.9;
+  lp.frequency.automationRate = 'k-rate';
   const lfo = c.createOscillator();
   lfo.frequency.value = 0.08;
   const lg = c.createGain();
@@ -223,69 +251,49 @@ function finalPhase(sp: SongPlayer): void {
   lfo.connect(lg);
   lg.connect(lp.frequency);
   lfo.start(t);
+  const out = c.createGain();
+  input.connect(lp);
   lp.connect(out);
   out.connect(sp.mix);
-  const send = c.createGain();
-  send.gain.value = 0.5;
-  out.connect(send);
-  send.connect(sp.wet);
-  const notes = [45, 52, 59, 60]; // A2 E3 B3 C4
-  const voices = notes.map((m, i) => {
-    const osc: OscillatorNode[] = [];
-    for (const [det, pan, type, mul, lvl] of [
-      [-12, -0.4, 'sawtooth', 1, 1],
-      [0, 0, 'sawtooth', 1, 1],
-      [12, 0.4, 'sawtooth', 1, 1],
-      [0, 0, 'square', 0.5, 0.3],
-    ] as [number, number, OscillatorType, number, number][]) {
-      const o = c.createOscillator();
-      o.type = type;
-      o.frequency.value = midiHz(m) * mul;
-      o.detune.value = det;
-      const g = c.createGain();
-      g.gain.value = 0.035 * 0.42 * lvl;
-      const p = c.createStereoPanner();
-      p.pan.value = pan;
-      o.connect(g);
-      g.connect(p);
-      p.connect(lp);
-      o.start(t + i * 0.05);
-      osc.push(o);
-    }
-    return { osc };
-  });
-  sp.state.drone = { voices, gain: out } as Drone;
-  sp.def.onStop = undefined;
-  const origStop = sp.stop.bind(sp);
-  sp.stop = (fade = 0.5, at = c.currentTime) => {
-    origStop(fade, at);
-    const end = Math.max(at, c.currentTime) + fade + 0.1;
-    for (const v of voices) for (const o of v.osc) o.stop(end);
-    lfo.stop(end);
-  };
+  const d: Drone = { notes: new Map(), input, out, lfo };
+  sp.state.drone = d;
+  // Am(add9): A2 E3 B3 C4, swelling in under the fading band
+  droneNotes(sp, d, [45, 52, 59, 60], t + 0.05, 1.5);
 }
 
-/** The Kanenari bell pulls the pad back home: F(#11) → Cadd9, −6 dB (5.9). */
+/**
+ * The Kanenari bell pulls the pad back home (5.9): Am(add9) → Fmaj7(#11) →
+ * Cadd9 over 4 s, −6 dB. Chords change by crossfading pad notes — never by
+ * gliding pitches — and every common tone is held (3.4 minimal motion):
+ *   Am(add9)    A2 E3 B3 C4
+ *   Fmaj7(#11)  F2 E3 B3 C4   the bell moves only the floor (A2 → F2)
+ *   Cadd9       C3 G3 D4 E4   the town's key, open and bright; each upper
+ *                             voice rises a third (E3→G3, B3→D4, C4→E4)
+ */
 function bellMorph(sp: SongPlayer): void {
-  const d = sp.state.drone as Drone;
+  const d = sp.state.drone as Drone | undefined;
   if (!d || sp.state.morphed) return;
   sp.state.morphed = true;
-  const t = sp.g.ctx.currentTime;
-  const mid = [41, 48, 52, 59]; // F2 C3 E3 B3
-  const end = [48, 55, 62, 64]; // C3 G3 D4 E4
-  d.voices.forEach((v, i) => {
-    for (const o of v.osc) {
-      const mul = o.type === 'square' ? 0.5 : 1;
-      o.frequency.cancelScheduledValues(t);
-      o.frequency.setValueAtTime(o.frequency.value, t);
-      o.frequency.exponentialRampToValueAtTime(midiHz(mid[i]) * mul, t + 1.8);
-      o.frequency.setValueAtTime(midiHz(mid[i]) * mul, t + 2.0);
-      o.frequency.exponentialRampToValueAtTime(midiHz(end[i]) * mul, t + 4.0);
-    }
-  });
-  d.gain.gain.cancelScheduledValues(t);
-  d.gain.gain.setValueAtTime(d.gain.gain.value, t);
-  d.gain.gain.linearRampToValueAtTime(0.5, t + 4.0);
+  const t = sp.g.ctx.currentTime + 0.02;
+  // 0–1.6 s: the bass sinks under the bell
+  droneRelease(d, [45], t, 1.6);
+  droneNotes(sp, d, [41], t, 1.2);
+  // 2.0–4.0 s: the upper voices and the bass cross into C
+  const t2 = t + 2.0;
+  droneRelease(d, [41, 52, 59, 60], t2, 2.0);
+  droneNotes(sp, d, [48, 55, 62, 64], t2, 1.8);
+  const g = d.out.gain;
+  g.cancelScheduledValues(t);
+  g.setValueAtTime(1, t);
+  g.linearRampToValueAtTime(0.5, t + 4.0);
+}
+
+function stopDrone(sp: SongPlayer, at: number, fade: number): void {
+  const d = sp.state.drone as Drone | undefined;
+  if (!d) return;
+  for (const h of d.notes.values()) h.stop(fade, at);
+  d.notes.clear();
+  d.lfo.stop(at + fade + 0.1);
 }
 
 export const BOSS_DEF = registerSong(bossDef());

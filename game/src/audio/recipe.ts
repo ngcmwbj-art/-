@@ -144,6 +144,15 @@ export interface SeCtx {
   det?: AudioNode | null;
 }
 
+/**
+ * ±amount random factor (11.5). Offline QA renders (report.ts) always take the
+ * centre value so every run measures the same sound.
+ */
+function jitter(amount: number | undefined): number {
+  if (!amount || cur().offline) return 1;
+  return 1 + (Math.random() * 2 - 1) * amount;
+}
+
 /** Play one recipe layer. `o` tweaks it (at/vol/pitch multipliers, overrides). */
 export function layer(c: SeCtx, spec: string | Layer, o: { at?: number; vol?: number; pitch?: number; dur?: number; set?: Partial<Layer> } = {}): VoiceHandle[] {
   const L0 = typeof spec === 'string' ? parseLayer(spec) : spec;
@@ -152,8 +161,8 @@ export function layer(c: SeCtx, spec: string | Layer, o: { at?: number; vol?: nu
   const reps = L.rep?.[0] ?? 1;
   for (let r = 0; r < reps; r++) {
     const atMs = (o.at ?? 0) + L.at + r * (L.rep?.[1] ?? 0);
-    const rf = L.rnd ? 1 + (Math.random() * 2 - 1) * L.rnd : 1;
-    const rv = L.rnd ? 1 + (Math.random() * 2 - 1) * L.rnd : 1;
+    const rf = jitter(L.rnd);
+    const rv = jitter(L.rnd);
     const p = c.pitch * (o.pitch ?? 1) * rf;
     const durMs = o.dur ?? L.dur;
     const vo: VoiceOpts = {
@@ -267,8 +276,8 @@ export function playSe(id: string, def: SeDef, opts: SfxOpts = {}): Inst | null 
   if (active.length >= GLOBAL_MAX) killInst(active[0], t);
 
   const [rp, rv] = def.rand ?? [0, 0];
-  const pitch = (opts.pitch ?? 1) * (rp ? 1 + (Math.random() * 2 - 1) * rp : 1);
-  const vol = (opts.vol ?? 1) * (rv ? 1 + (Math.random() * 2 - 1) * rv : 1);
+  const pitch = (opts.pitch ?? 1) * jitter(rp);
+  const vol = (opts.vol ?? 1) * jitter(rv);
   const gain = g.ctx.createGain();
   gain.gain.value = trimOr1(seTrim(id));
   const head: AudioNode = gain;

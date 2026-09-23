@@ -8,6 +8,11 @@
 import { loadFont } from '../../engine/font';
 import { game } from '../../engine/game';
 import { CharGallery } from './gallery';
+import * as registry from './registry';
+import * as quant from './quant';
+import * as flip from './flip';
+import * as emotes from './emotes';
+import * as glow from './glow';
 import './content';
 
 async function boot(): Promise<void> {
@@ -30,6 +35,8 @@ async function boot(): Promise<void> {
     scenes: () => game.scenes.map((s) => s.constructor.name),
     cmd: { chars: open },
   };
+  // the character API itself, for sheet / palette scripts
+  (window as unknown as { __chars: unknown }).__chars = { ...registry, ...quant, ...flip, ...emotes, ...glow };
   open(params.get('page') ?? undefined, {
     zoom: Number(params.get('zoom') ?? 1),
     bg: Number(params.get('bg') ?? 0),

@@ -1,10 +1,11 @@
 // Town NPCs (1): 乾 (laundry), 鶴見巡査, サエ, 女子高生.
 
 import { flat, mat, type Fig, type Mats } from '../fig';
+import { HAIR_BLACK, SKIN_LIGHT, SKIN_MID, SKIN_TAN } from '../mats';
 import { legs, sitLegs, type LegSpec, type Seg } from '../body';
 import { buildSprite, breathingIdle, rep, type IdleKey, type Pose } from '../rig';
 import { registerChar } from '../registry';
-import { hangArms, head, sideArm, sideSwing, upper, type HeadT } from '../kit';
+import { hangArms, hatLift, head, sideArm, sideSwing, upper, type HeadT } from '../kit';
 
 const base = {
   eye: flat('#2A1C28'),
@@ -13,9 +14,9 @@ const base = {
   mouth: flat('#B86A5A'),
 };
 
-const skinLight = mat('#FFD9B8', { shade: '#EBB08E', light: '#FFEBD8', dark: '#C98A6A', rim: '#FFC08E' });
-const skinMid = mat('#F7CFAE', { shade: '#E0A882', light: '#FFE4CC', dark: '#B87A5E', rim: '#FFBC8A' });
-const blackHair = mat('#2E2226', { shade: '#20171C', dark: '#150E14', light: '#4E3C3E', spec: '#6E5656', rim: '#8A4A3A' });
+const skinLight = SKIN_LIGHT;
+const skinMid = SKIN_MID;
+const blackHair = HAIR_BLACK;
 
 // =============================================================================
 // 乾 (npc_inui): 20s, slim. Round glasses, messy black hair, stretched grey
@@ -225,7 +226,7 @@ const TSURU_HEAD: HeadT = {
   neckL: [5, 9, 2],
 };
 
-function policeCap(f: Fig, view: string, y: number) {
+function policeCap(f: Fig, view: string, y: number, lu = false) {
   f.part('cap', { shade: 'rb', light: 't' });
   if (view === 'left') {
     f.rows(3, y, ['..######..', '.########.', '##########', '.#########']);
@@ -240,6 +241,8 @@ function policeCap(f: Fig, view: string, y: number) {
     if (view === 'down') {
       f.part('visor', { shade: '', light: '' });
       f.t(0).hl(4, 11, y + 4).t(2).px(5, y + 4).px(6, y + 4).t(null);
+      // looking up: the visor tips up and shows its dark underside
+      if (lu) f.t(-2).hl(4, 11, y + 5).t(null);
       f.part('badge', { flat: true, rim: false });
       f.px(7, y + 1).px(8, y + 1);
     }
@@ -274,11 +277,13 @@ function tsuruDraw(f: Fig, p: Pose) {
     }
     const arm: Seg[] = [{ mat: 'uni', n: 3 }, { mat: 'glove' }];
     if (p.view === 'down') {
-      // salute: right arm (viewer-left) out and up to the brim
+      // salute: right arm (viewer-left) with the elbow flung out past the
+      // shoulder, so the upper arm, forearm and head frame a gap of ground —
+      // the salute reads from the silhouette alone
       f.part('uni', { shade: 'rb', light: 't' });
-      f.rows(1, 9 + u, ['..#', '.##', '##.', '##.']);
+      f.rows(0, 8 + u, ['#...', '#...', '#...', '##..', '.###']);
       f.part('glove', { shade: 'rb', light: 't' });
-      f.rect(3, 6 + u, 2, 2).px(2, 8 + u);
+      f.px(1, 7 + u).px(0, 7 + u);
       if (note) {
         f.part('uni', { shade: 'rb', light: 't', shift: -1 });
         f.rect(12, 12 + u, 2, 3);
@@ -297,11 +302,11 @@ function tsuruDraw(f: Fig, p: Pose) {
       f.rows(12, 9 + u, ['#..', '##.', '.##', '.##']);
     }
     head(f, note && p.view === 'down' ? { ...p } : p, TSURU_HEAD, hy);
-    policeCap(f, p.view, hy - 1 + (p.lookUp ? -1 : 0));
+    policeCap(f, p.view, hy - 1 + hatLift(p), p.lookUp);
     if (p.view === 'down') {
-      // glove over the brim, on top of the cap
+      // glove flat against the brim, on top of the cap
       f.part('glove', { shade: 'rb', light: 't' });
-      f.rect(3, 5 + u + (p.lookUp ? -1 : 0), 2, 2);
+      f.rect(1, 5 + u + (p.lookUp ? -1 : 0), 3, 2);
     }
     return;
   }
@@ -318,10 +323,14 @@ function tsuruDraw(f: Fig, p: Pose) {
   f.rect(10, 16 + b, 2, 3);
   head(f, p, TSURU_HEAD, hy);
   policeCap(f, 'left', hy - 1 + (p.lookUp ? -1 : 0));
-  f.part('uni', { shade: 'rb', light: 'tl' });
-  f.rows(5, 8 + u, ['...##', '..##.', '.##..', '.##..', '..##.']);
+  // the saluting arm is on the far side: the forearm rises in front of the
+  // face and the glove sits flat on the forehead under the brim — above the
+  // eye, never across the face
+  const lu = p.lookUp ? -1 : 0;
+  f.part('uni', { shade: 'rb', light: 't', shift: -1 });
+  f.rows(1, 7 + u, ['#..', '#..', '##.', '.##']);
   f.part('glove', { shade: 'rb', light: 't' });
-  f.rect(4, 5 + u + (p.lookUp ? -1 : 0), 2, 2).px(5, 7 + u);
+  f.rect(1, 5 + u + lu, 2, 2);
 }
 
 const TSURU_IDLE: IdleKey[] = [
@@ -387,7 +396,7 @@ const SAE_HEAD: HeadT = {
   neckL: [5, 10, 2],
 };
 
-function strawHat(f: Fig, view: string, y: number) {
+function strawHat(f: Fig, view: string, y: number, lu = false) {
   f.part('straw', { shade: 'rb', light: 't' });
   if (view === 'left') {
     f.rows(1, y, ['.....######...', '....########..', '...##########.', '##############', '.############.']);
@@ -399,6 +408,11 @@ function strawHat(f: Fig, view: string, y: number) {
     f.part('ribbon', { shade: 'r', light: '' });
     f.hl(3, 12, y + 2);
     if (view === 'up') f.px(7, y + 3).px(8, y + 3).px(7, y + 4).px(9, y + 4);
+    // looking up: the underside of the brim shows as a shaded band
+    if (lu && view === 'down') {
+      f.part('straw', { flat: true });
+      f.t(-2).hl(2, 13, y + 5).t(null);
+    }
   }
   // weave texture
   f.part('straw', { flat: true });
@@ -461,7 +475,7 @@ function saeDraw(f: Fig, p: Pose) {
       f.part('pencil', { flat: true, rim: false });
       f.px(13, hy + 6);
     }
-    strawHat(f, p.view, hy - 2 + (pp.lookUp ? -1 : 0));
+    strawHat(f, p.view, hy - 2 + hatLift(pp), pp.lookUp);
     return;
   }
   const sw = sideSwing(p);
@@ -528,10 +542,10 @@ registerChar('npc_sae', () =>
 
 const JK: Mats = {
   ...base,
-  skin: mat('#FCD6B6', { shade: '#E4AE8C', light: '#FFE8D4', dark: '#BC8468', rim: '#FFC090' }),
+  skin: SKIN_LIGHT,
   lit: flat('#BCD8D4'),
   lit2: flat('#DCD8C8'),
-  hair: mat('#241C24', { shade: '#181218', dark: '#0E0A10', light: '#443A48', spec: '#6A5E70', rim: '#7A4A4A' }),
+  hair: HAIR_BLACK,
   sailor: mat('#2F4A8A', { shade: '#223668', light: '#4766A8', dark: '#162048', rim: '#8A7AA0' }),
   collar: flat('#F4F1E8'),
   scarf: mat('#F4F1E8', { shade: '#CFC8BC', light: '#FFFFFF' }),

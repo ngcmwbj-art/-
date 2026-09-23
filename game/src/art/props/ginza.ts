@@ -10,7 +10,7 @@ import { ihash } from '../tiles/noise';
 import { castRight, cylinder, dk, finish, glassPane, lt, maskOf, shadeRect } from './kit';
 import { flat, floatOffset, mkFrames, stand, standAnim } from './pkit';
 import { registerProp } from './registry';
-import { fontTextSmall, handGlyph, led, printLines, scribble, tiny } from './text';
+import { fontText, fontTextSmall, handGlyph, led, printLines, scribble, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
 const pc = (w: number, h: number) => new PixelCanvas(w, h);
@@ -44,29 +44,31 @@ function pipePost(h: number): PixelCanvas {
 }
 
 let ARCH_BOARD: HTMLCanvasElement | null = null;
+/** Welcome-arch board (80×30): 「ようこそ」 small, 「夕鳴銀座」 at full size (readable), a newer 「へ」. */
+const ARCH_W = 80;
+const ARCH_H = 30;
 function archBoard(): HTMLCanvasElement {
   if (ARCH_BOARD) return ARCH_BOARD;
-  const p = pc(72, 24);
+  const p = pc(ARCH_W, ARCH_H);
   // steel frame with bulbs, board facing the screen
-  p.rect(1, 1, 70, 20, P.steel);
-  p.rect(3, 3, 66, 16, P.white);
-  p.hline(3, 68, 3, P.glint);
-  p.rect(3, 15, 66, 4, P.concreteLt);
-  fontTextSmall(p, 'ようこそ', 5, 4, P.verm, 2);
-  fontTextSmall(p, '夕鳴銀座', 38, 4, P.navy, 1);
+  p.rect(1, 1, ARCH_W - 2, ARCH_H - 4, P.steel);
+  p.rect(3, 3, ARCH_W - 6, ARCH_H - 8, P.white);
+  p.hline(3, ARCH_W - 4, 3, P.glint);
+  fontTextSmall(p, 'ようこそ', 6, 4, P.verm, 1);
+  fontText(p, '夕鳴銀座', 5, 11, P.navy, { shadow: P.concrete });
   // 「へ」 painted newer (brighter white patch)
-  p.rect(62, 12, 6, 6, P.glint);
-  fontTextSmall(p, 'へ', 62, 11, P.navy, 1);
-  printLines(p, 6, 14, 30, 1, P.steel, 3);
-  for (let x = 3; x < 70; x += 5) {
+  p.rect(69, 13, 8, 9, P.glint);
+  fontTextSmall(p, 'へ', 69, 14, P.navy, 1);
+  printLines(p, 42, 6, 24, 1, P.concrete, 3);
+  for (let x = 3; x < ARCH_W - 2; x += 5) {
     p.set(x, 1, P.goldPale);
-    p.set(x, 21, P.goldPale);
+    p.set(x, ARCH_H - 4, P.goldPale);
   }
-  p.hline(0, 71, 21, P.charcoal);
-  p.hline(0, 71, 22, P.asphalt);
+  p.hline(0, ARCH_W - 1, ARCH_H - 3, P.charcoal);
+  p.hline(0, ARCH_W - 1, ARCH_H - 2, P.asphalt);
   // hangers
-  p.vline(12, 22, 23, P.steel);
-  p.vline(58, 22, 23, P.steel);
+  p.vline(14, ARCH_H - 2, ARCH_H - 1, P.steel);
+  p.vline(ARCH_W - 14, ARCH_H - 2, ARCH_H - 1, P.steel);
   finish(p, { soft: true });
   ARCH_BOARD = p.toCanvas();
   return ARCH_BOARD;
@@ -83,36 +85,37 @@ registerProp('obj_arch_sign', () => {
     return p.toCanvas();
   })();
   const topY = 16 - 60; // post top relative to the tile
-  const boardY = topY + 30;
+  const boardY = topY + 26;
+  const LY = boardY + ARCH_H - 1; // lanterns hang under the board
   const a = stand(post, { cx: 8, shadow: 60, contact: 6 });
   a.fg = [
     { ox: 6, oy: topY, img: () => beam },
-    { ox: 8 - 36, oy: boardY, img: () => archBoard() },
+    { ox: 8 - ARCH_W / 2, oy: boardY, img: () => archBoard() },
     {
-      ox: 8 - 26,
-      oy: boardY + 23,
+      ox: 8 - 28,
+      oy: LY,
       img: (env: PropEnv) => LANTERN_ARCH[env.stage === 1 ? 0 : env.stage >= 2 ? 0 : Math.floor(env.mt / 800) % 2],
     },
     {
-      ox: 8 + 14,
-      oy: boardY + 23,
+      ox: 8 + 16,
+      oy: LY,
       img: (env: PropEnv) => LANTERN_ARCH2[env.stage === 1 ? 0 : env.stage >= 2 ? 0 : Math.floor(env.mt / 800 + 0.5) % 2],
     },
   ];
   a.glow = (g, x, y, env) => {
     const n = env.grade.night;
     // stage 2: only the 銀 lantern glows; night: all + bulbs
-    if (env.stage === 2) glowBlob(g, x + 8 - 26 + 6, y + boardY + 23 + 8, 10, 0.35);
+    if (env.stage === 2) glowBlob(g, x + 8 - 28 + 6, y + LY + 8, 10, 0.35);
     if (n > 0.05) {
-      glowBlob(g, x + 8 - 26 + 6, y + boardY + 23 + 8, 12, 0.45 * n);
-      glowBlob(g, x + 8 + 14 + 6, y + boardY + 23 + 8, 12, 0.45 * n);
+      glowBlob(g, x + 8 - 28 + 6, y + LY + 8, 12, 0.45 * n);
+      glowBlob(g, x + 8 + 16 + 6, y + LY + 8, 12, 0.45 * n);
       const ctx = g.ctx;
       ctx.save();
       ctx.globalAlpha = n;
       ctx.fillStyle = P.horizon;
-      for (let k = 3; k < 70; k += 5) {
-        ctx.fillRect(Math.round(x + 8 - 36 + k), Math.round(y + boardY + 1), 1, 1);
-        ctx.fillRect(Math.round(x + 8 - 36 + k), Math.round(y + boardY + 21), 1, 1);
+      for (let k = 3; k < ARCH_W - 2; k += 5) {
+        ctx.fillRect(Math.round(x + 8 - ARCH_W / 2 + k), Math.round(y + boardY + 1), 1, 1);
+        ctx.fillRect(Math.round(x + 8 - ARCH_W / 2 + k), Math.round(y + boardY + ARCH_H - 4), 1, 1);
       }
       ctx.restore();
     }
@@ -149,27 +152,27 @@ const BANNERS: Record<string, { bg: string; fg: string; text: string }> = {
 };
 
 function nobori(kind: string, k: number): PixelCanvas {
-  // 14×44 flag on a pole; k: 0..3 flutter, 4 = leaning north-east (stage 2)
+  // 14×38 flag on a pole; k: 0..3 flutter, 4 = leaning north-east (stage 2)
   const b = BANNERS[kind] ?? BANNERS.matsuri;
-  const p = pc(16, 46);
-  p.vline(1, 0, 45, P.steel);
+  const p = pc(16, 40);
+  p.vline(1, 0, 39, P.steel);
   p.set(1, 0, P.glint);
   p.hline(1, 13, 2, P.steel);
-  const text = pc(12, 40);
-  text.rect(0, 0, 12, 40, b.bg);
-  text.vline(0, 0, 39, lt(b.bg));
-  text.vline(11, 0, 39, dk(b.bg));
-  // vertical text
-  let yy = 3;
+  const text = pc(12, 34);
+  text.rect(0, 0, 12, 34, b.bg);
+  text.vline(0, 0, 33, lt(b.bg));
+  text.vline(11, 0, 33, dk(b.bg));
+  // vertical text (4 glyphs at 8px: the flag is short enough to sit beside a 2.5-tile pillar)
+  let yy = 1;
   for (const ch of b.text) {
     fontTextSmall(text, ch, 2, yy, b.fg, 1);
-    yy += 9;
+    yy += 8;
   }
   // chichi (loops) on the pole side
-  for (let j = 2; j < 40; j += 6) text.set(0, j, P.white);
-  for (let j = 0; j < 40; j++) {
-    const wave = k === 4 ? (j > 20 ? 1 : 0) : Math.round(Math.sin(j / 5 + k * 1.6) * (j / 40) * 1.6);
-    const lift = k === 4 ? -Math.floor(j / 14) : 0;
+  for (let j = 2; j < 34; j += 6) text.set(0, j, P.white);
+  for (let j = 0; j < 34; j++) {
+    const wave = k === 4 ? (j > 17 ? 1 : 0) : Math.round(Math.sin(j / 5 + k * 1.6) * (j / 34) * 1.6);
+    const lift = k === 4 ? -Math.floor(j / 12) : 0;
     for (let i = 0; i < 12; i++) {
       const v = text.get(i, j);
       if (!(v >>> 24)) continue;
@@ -190,37 +193,45 @@ function noboriFrames(kind: string): HTMLCanvasElement[] {
   return f;
 }
 
+/** Pillar height (px): 2.5 tiles, so its top stays south of the y22 shop fronts. */
+const PILLAR_H = 42;
+
 registerProp('prop_arcade_pillar', (opts) => {
   const kind = String(opts.banner ?? 'matsuri');
-  const H = 58;
-  const p = pc(10, H);
-  // steel H-column
-  p.rect(2, 0, 6, H, P.asphalt);
-  p.vline(2, 0, H - 1, P.steel);
-  p.vline(3, 0, H - 1, P.concrete);
-  p.vline(7, 0, H - 1, P.charcoal);
-  for (let y = 0; y < H; y++) if (ihash(5, y, 2211) % 9 === 0) p.set(5, y, P.brassOld);
-  p.rect(1, H - 4, 8, 4, P.charcoal);
-  p.hline(1, 8, H - 4, P.asphalt);
-  p.rect(0, 0, 10, 3, P.steel);
+  const H = PILLAR_H;
+  // image: lantern bracket on the west (x 0..11), the column (x 10..19)
+  const p = pc(22, H);
+  const c0 = 10;
+  // steel H-column with a riveted capital
+  p.rect(c0 + 2, 0, 6, H, P.asphalt);
+  p.vline(c0 + 2, 0, H - 1, P.steel);
+  p.vline(c0 + 3, 0, H - 1, P.concrete);
+  p.vline(c0 + 7, 0, H - 1, P.charcoal);
+  for (let y = 0; y < H; y++) if (ihash(5, y, 2211) % 9 === 0) p.set(c0 + 5, y, P.brassOld);
+  p.rect(c0 + 1, H - 4, 8, 4, P.charcoal);
+  p.hline(c0 + 1, c0 + 8, H - 4, P.asphalt);
+  p.rect(c0, 0, 10, 3, P.steel);
+  p.hline(c0, c0 + 9, 0, P.concreteLt);
+  // lantern bracket at mid height (the lantern itself sways in over())
+  p.hline(c0 - 5, c0 + 1, 13, P.steel);
+  p.hline(c0 - 5, c0 + 1, 14, P.charcoal);
+  p.set(c0 - 5, 15, P.charcoal);
   finish(p, { soft: true });
   const img = p.toCanvas();
   const flags = noboriFrames(kind);
   const a = stand(img, { cx: 8, shadow: H, contact: 8 });
+  // the column (image x c0..c0+9) sits on x 3..12 of the tile; the bracket reaches west
+  a.ox = 8 - (c0 + 5);
   const topY = 16 - H;
   a.over = (g, x, y, env) => {
     const f = env.stage === 1 ? 1 : env.stage === 2 ? 4 : Math.floor((env.mt + env.seed * 640) / 160) % 4;
-    g.img(flags[f], x + 11, y + topY + 12);
+    g.img(flags[f], x + 13, y + topY + 2);
+    const lf = LANTERN[env.stage === 1 ? 0 : env.stage === 2 ? 1 : Math.floor((env.mt + env.seed * 900) / 900) % 2];
+    g.img(lf, x + a.ox + c0 - 11, y + topY + 14);
   };
-  a.fg = [
-    {
-      ox: 8 - 6,
-      oy: topY - 2,
-      img: (env: PropEnv) => LANTERN[env.stage === 1 ? 0 : env.stage === 2 ? 1 : Math.floor((env.mt + env.seed * 900) / 900) % 2],
-    },
-  ];
+  a.xray = 0.4;
   a.glow = (g, x, y, env) => {
-    if (env.grade.night > 0.05) glowBlob(g, x + 8, y + topY + 6, 12, 0.45 * env.grade.night);
+    if (env.grade.night > 0.05) glowBlob(g, x + a.ox + c0 - 5, y + topY + 22, 12, 0.45 * env.grade.night);
   };
   return a;
 });

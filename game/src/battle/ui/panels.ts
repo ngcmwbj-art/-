@@ -4,7 +4,7 @@
 import type { Gfx } from '../../engine/gfx';
 import { drawText } from '../../engine/font';
 import { portrait } from '../../art/chars';
-import { hanamaruFrame, miniText, roundSeal } from '../art/stamps';
+import { hanamaruFrame, roundSeal } from '../art/stamps';
 import { makeCanvas } from '../../engine/pixel';
 import {
   arrowIcon, attrIcon, balloonIcon, bellIcon, bowIcon, buffIcon, checkStamp, cmdIcon, inkPot, kireIcon, scrollArrow, statusIcon,
@@ -13,7 +13,21 @@ import type { PartyUnit } from '../model';
 import { C, cursorStamp, drawBar, drawNote, tapeCanvas, tapeCorner } from './note';
 
 export const PANEL_POS: Record<string, [number, number]> = { minato: [104, 150], kanenari: [244, 150] };
-export const TAG: Record<string, [number, number, number]> = { minato: [134, 141, 56], kanenari: [274, 141, 106] };
+/**
+ * The tape row (y144–161) straddles the panels' top edge: name tags start
+ * right of the photo (x+36) so they never cover the face, and the text
+ * inside the panels starts at y+13 (below the tape).
+ */
+export const TAG: Record<string, [number, number, number]> = { minato: [140, 144, 56], kanenari: [280, 144, 100] };
+/** Kire tab (15.8, moved into the tape row between the two name tags). */
+export const KIRE_TAB: [number, number] = [203, 144];
+/** A different (pale blue) washi tape, so the kire tab never reads as part of a name tag. */
+const KIRE_TAPE = '#AFD6E6';
+/** Panel rows (relative to the panel's top). */
+const ROW_HP = 13;
+const ROW_HPBAR = 29;
+const ROW_SUB = 36;
+const ROW_SUBBAR = 53;
 
 export interface PanelCtx {
   t: number;
@@ -76,25 +90,25 @@ export function drawPanel(g: Gfx, u: PartyUnit, pc: PanelCtx): void {
     if (u.hanamaruMark) g.img(hanamaruFrame(12, 1, false, 1), fx + 22, fy - 3);
     // HP
     const tx = x + 42;
-    g.text('HP', tx, y + 6, { color: C.ink });
+    g.text('HP', tx, y + ROW_HP, { color: C.ink });
     const hpStr = `${Math.round(u.hpShown)}/${u.m.maxHp}`;
-    g.text(hpStr, x + 130, y + 6, { color: heba ? C.shuDark : u.hpRate <= 0.25 ? C.shuDark : C.ink, align: 'right' });
+    g.text(hpStr, x + 130, y + ROW_HP, { color: heba ? C.shuDark : u.hpRate <= 0.25 ? C.shuDark : C.ink, align: 'right' });
     const rate = Math.max(0, Math.min(1, u.m.hp / u.m.maxHp));
     const trail = Math.max(0, Math.min(1, u.hpTrail / u.m.maxHp));
     let fill = hpColor(rate);
     if (u.hpGrowT > 0) fill = C.greenLight;
-    drawBar(g, tx, y + 25, 88, 5, rate, fill, C.grid, trail, C.white);
+    drawBar(g, tx, y + ROW_HPBAR, 88, 5, rate, fill, C.grid, trail, C.white);
     if (u.m.maxMp > 0) {
-      g.img(inkPot(), tx, y + 34);
-      g.text(`${Math.round(u.mpShown)}/${u.m.maxMp}`, x + 130, y + 32, { color: C.ink, align: 'right' });
-      drawBar(g, tx, y + 51, 88, 3, u.m.mp / u.m.maxMp, C.shu, C.grid);
+      g.img(inkPot(), tx, y + ROW_SUB + 2);
+      g.text(`${Math.round(u.mpShown)}/${u.m.maxMp}`, x + 130, y + ROW_SUB, { color: C.ink, align: 'right' });
+      drawBar(g, tx, y + ROW_SUBBAR, 88, 3, u.m.mp / u.m.maxMp, C.shu, C.grid);
     } else if (u.id === 'kanenari') {
       // PR cool-downs
       const slot = (ix: number, icon: HTMLCanvasElement, skill: string) => {
-        g.img(icon, ix, y + 34);
+        g.img(icon, ix, y + ROW_SUB + 2);
         const ct = u.ct[skill] ?? 0;
-        if (ct > 0) g.text(String(ct), ix + 13, y + 32, { color: C.gray });
-        else g.img(checkStamp(), ix + 13, y + 36);
+        if (ct > 0) g.text(String(ct), ix + 13, y + ROW_SUB, { color: C.gray });
+        else g.img(checkStamp(), ix + 13, y + ROW_SUB + 4);
       };
       slot(tx, balloonIcon(), 'skill_fuusen');
       if (u.m.skills.includes('skill_goaisatsu')) slot(tx + 46, bowIcon(), 'skill_goaisatsu');
@@ -142,20 +156,26 @@ export function drawPanel(g: Gfx, u: PartyUnit, pc: PanelCtx): void {
 
 /** Kire tab with three "!" icons. `pops[i]` = remaining pop time (ms). */
 export function drawKire(g: Gfx, kire: number, pops: number[], t: number, alpha: number): void {
-  g.img(tapeCanvas(44, 18, '', C.tape, 6), 220, 138, alpha < 1 ? { alpha } : {});
+  const [kx, ky] = KIRE_TAB;
+  g.img(tapeCanvas(44, 18, '', KIRE_TAPE, 6), kx, ky, alpha < 1 ? { alpha } : {});
   const pulse = kire >= 3 && Math.floor(t / 500) % 2 === 0;
   for (let i = 0; i < 3; i++) {
     const lit = i < kire;
     const ic = kireIcon(lit, lit && pulse);
-    const x = 224 + i * 13;
+    const [x, y] = kireIconXY(i);
     const p = pops[i] ?? 0;
     if (p > 0) {
       const s = 1 + 0.6 * (p / 100);
       const w = ic.width * s;
       const h = ic.height * s;
-      g.ctx.drawImage(ic, Math.round(x + 5 - w / 2), Math.round(147 - h / 2), Math.round(w), Math.round(h));
-    } else g.img(ic, x, 140, alpha < 1 ? { alpha } : {});
+      g.ctx.drawImage(ic, Math.round(x + 5 - w / 2), Math.round(y + 7 - h / 2), Math.round(w), Math.round(h));
+    } else g.img(ic, x, y, alpha < 1 ? { alpha } : {});
   }
+}
+
+/** Top-left of kire icon i (10×14) on the tab. */
+export function kireIconXY(i: number): [number, number] {
+  return [KIRE_TAB[0] + 4 + i * 13, KIRE_TAB[1] + 2];
 }
 
 export interface CmdView {
@@ -190,11 +210,12 @@ export function drawCommand(g: Gfx, v: CmdView, t: number, alpha: number): void 
       g.img(cursorStamp(v.pressed), x + 4, 144 + bob);
       const col = cur.dim ? C.gray : C.ink;
       if (g.measure(cur.name) > 78) {
-        // long names (おかえりなさい) wrap onto the second row
+        // long names (おかえりなさい) get their own two-line layout, centred
+        // under the icon and split between words (おかえり／なさい)
         const ch = [...cur.name];
-        const cut = Math.ceil(ch.length / 2) + 1;
-        g.text(ch.slice(0, cut).join(''), 10, 176, { color: col });
-        g.text(ch.slice(cut).join(''), 18, 193, { color: col });
+        const cut = Math.ceil(ch.length / 2);
+        g.text(ch.slice(0, cut).join(''), 52, 175, { color: col, align: 'center' });
+        g.text(ch.slice(cut).join(''), 52, 192, { color: col, align: 'center' });
       } else g.text(cur.name, 10, 176, { color: col });
       if (cur.sub && g.measure(cur.name) <= 78) {
         if (cur.sub.startsWith('ink:')) {
@@ -209,17 +230,19 @@ export function drawCommand(g: Gfx, v: CmdView, t: number, alpha: number): void 
     }
   });
   if (v.noriTab) {
+    // sits on the command window's top edge (y132–149)
     const pulse = 0.5 + 0.5 * Math.sin((t / 1000) * Math.PI * 2);
     const edge = pulse > 0.5 ? C.shuLight : C.shu;
-    g.rect(4, 131, 96, 18, C.ink);
-    g.rect(5, 132, 94, 16, edge);
-    g.rect(6, 133, 92, 14, C.shu);
-    g.rect(6, 133, 92, 1, C.shuLight);
-    g.text('ノリツッコミ', 52, 132, { color: C.white, align: 'center' });
+    const ty = 132;
+    g.rect(4, ty, 96, 18, C.ink);
+    g.rect(5, ty + 1, 94, 16, edge);
+    g.rect(6, ty + 2, 92, 14, C.shu);
+    g.rect(6, ty + 2, 92, 1, C.shuLight);
+    g.text('ノリツッコミ', 52, ty + 1, { color: C.white, align: 'center' });
     if (v.onTab) {
       const bob = Math.round(Math.sin(t / 130));
-      g.img(cursorStamp(v.pressed), 0, 128 + bob);
-      g.img(cursorStamp(v.pressed), 96, 128 + bob);
+      g.img(cursorStamp(v.pressed), 0, ty - 3 + bob);
+      g.img(cursorStamp(v.pressed), 96, ty - 3 + bob);
     }
   }
 }
@@ -291,11 +314,13 @@ export interface CardData {
   total: number;
   hpRate: number;
   hidden?: boolean;
+  /** Which side of the screen the card slides in on (away from the enemy). */
+  side?: 'left' | 'right';
 }
 
 /** みました info card, `slide` 0..1 (1 = in place). */
 export function drawInfoCard(g: Gfx, d: CardData, slide: number): void {
-  const x = Math.round(216 + (1 - slide) * 170);
+  const x = d.side === 'left' ? Math.round(8 - (1 - slide) * 172) : Math.round(216 + (1 - slide) * 170);
   const y = 50;
   drawNote(g, x, y, 160, 96);
   g.img(tapeCanvas(64, 16, 'みました', C.tape, 12), x + 48, y - 8);
@@ -317,9 +342,9 @@ export function drawInfoCard(g: Gfx, d: CardData, slide: number): void {
 let emptySlotC: HTMLCanvasElement | null = null;
 
 /**
- * A page torn out of Minato's still-blank free-research notebook, with the
- * theme line left empty, a pencil "？" doodle and the pencil lying on it.
- * 128×54, drawn once.
+ * A page torn out of Minato's notebook with a coloured-pencil sketch of the
+ * town at sunset — the sun half down behind the rooftops, a telephone pole
+ * and its wires, two crows — and the pencil lying on it. 128×54, drawn once.
  */
 export function emptySlotCanvas(): HTMLCanvasElement {
   if (emptySlotC) return emptySlotC;
@@ -331,17 +356,15 @@ export function emptySlotCanvas(): HTMLCanvasElement {
     ctx.fillRect(x, y, w, h);
   };
   const paper = '#F3E7C8';
-  const rule = '#E0CFA6';
-  const pencil = '#9A8E86';
-  const pencilD = '#7C7069';
+  const rule = '#E6D6AE';
+  const graphite = '#6E6480';
+  const graphiteL = '#A49AB2';
   // torn top edge: jagged fibres
   const topAt = (x: number) => 3 + Math.round(1.4 + Math.sin(x * 0.37) * 0.9 + Math.sin(x * 1.91 + 1) * 0.7 + (((x * 7919) % 13) / 13 - 0.5) * 1.4);
   for (let x = 0; x < W - 3; x++) {
     const ty = topAt(x);
-    r(x + 3, ty + 3, 1, H - ty - 3, '#5B4A7A'); // shadow (+3,+3) is drawn as its own darker sheet
+    r(x + 3, ty + 3, 1, H - ty - 3, '#5B4A7A');
   }
-  ctx.globalAlpha = 1;
-  // re-tint the shadow to α50 by overdrawing the gap with transparency later
   const shadow = ctx.getImageData(0, 0, W, H);
   for (let i = 3; i < shadow.data.length; i += 4) if (shadow.data[i]) shadow.data[i] = 110;
   ctx.putImageData(shadow, 0, 0);
@@ -351,34 +374,73 @@ export function emptySlotCanvas(): HTMLCanvasElement {
     r(x, ty, 1, 1, '#FFF8E6');
     if (x % 5 === 2) r(x, ty + 1, 1, 1, '#E6D5AE');
   }
-  // ruled lines + red margin
   for (let y = 14; y < H - 4; y += 9) r(1, y, W - 5, 1, rule);
-  r(12, 5, 1, H - 9, '#EBA6B2');
-  // bottom/right edge
-  r(0, H - 4, W - 3, 1, '#DCC99C');
   r(W - 4, 6, 1, H - 10, '#DCC99C');
-  // title "じゆうけんきゅう" in pencil
-  const title = miniText('じゆうけんきゅう', 0.62, pencilD);
-  ctx.drawImage(title, 17, 6);
-  // "テーマ：" + an empty line
-  const theme = miniText('テーマ', 0.62, pencil);
-  ctx.drawImage(theme, 17, 17 + 1);
-  r(17 + theme.width + 3, 26, 84 - (17 + theme.width + 3), 1, pencil);
-  // a scribbled-out first idea
-  for (let i = 0; i < 18; i++) r(20 + i, 36 + Math.round(Math.sin(i * 1.7) * 1.5), 1, 1, pencil);
-  for (let i = 0; i < 16; i++) r(22 + i, 38 + Math.round(Math.cos(i * 1.9) * 1.5), 1, 1, pencilD);
-  // pencil "？" doodle in a wobbly circle (right side)
-  const qx = 98;
-  const qy = 25;
-  for (let a = 0; a < 6.2; a += 0.08) {
-    const rad = 10 + Math.sin(a * 3) * 0.6;
-    r(Math.round(qx + Math.cos(a) * rad), Math.round(qy + Math.sin(a) * rad * 0.9), 1, 1, pencil);
+  r(0, H - 4, W - 3, 1, '#DCC99C');
+  // the drawing's frame, sketched loosely in graphite
+  const fx0 = 6;
+  const fy0 = 8;
+  const fx1 = 116;
+  const fy1 = 45;
+  // coloured-pencil sky: diagonal hatching, pink above, orange below
+  for (let y = fy0 + 1; y < fy1; y++)
+    for (let x = fx0 + 1; x < fx1; x++) {
+      const band = (x + y * 2) % 4;
+      if (band !== 0) continue;
+      const col = y < 18 ? '#EFA3B4' : y < 28 ? '#F4A574' : '#F7C27A';
+      if (((x * 31 + y * 17) % 11) < 9) r(x, y, 1, 1, col);
+    }
+  // the sun, half down behind the roofs: filled with denser strokes
+  const sx = 60;
+  const sy = 34;
+  for (let y = sy - 10; y <= sy; y++)
+    for (let x = sx - 10; x <= sx + 10; x++) {
+      const d = Math.hypot(x - sx, y - sy);
+      if (d > 10) continue;
+      if (d > 9) r(x, y, 1, 1, '#E0603A');
+      else if ((x + y) % 2 === 0) r(x, y, 1, 1, '#F28A5A');
+    }
+  // rooftops: a row of houses (graphite outline, light shading on the right)
+  const roofs: [number, number, number][] = [[8, 30, 18], [26, 33, 14], [40, 29, 16], [70, 31, 20], [90, 34, 12]];
+  for (const [x0, y0, w] of roofs) {
+    const peak = x0 + Math.round(w / 2);
+    for (let x = x0; x <= x0 + w; x++) {
+      const ry = y0 + Math.abs(x - peak) * 0.5 - 3;
+      for (let y = Math.round(ry); y < fy1; y++) if ((x + y) % 2 === 0 || x > peak) r(x, y, 1, 1, x > peak ? graphiteL : '#C4BBCC');
+      r(x, Math.round(ry), 1, 1, graphite);
+    }
+    r(x0, y0 - 3, 1, fy1 - y0 + 3, graphite);
+    // a lit window
+    r(peak - 1, y0 + 3, 2, 2, '#F7C27A');
   }
-  const q = miniText('？', 0.9, pencilD);
-  ctx.drawImage(q, Math.round(qx - q.width / 2), Math.round(qy - q.height / 2));
+  // telephone pole and sagging wires
+  r(104, 12, 1, fy1 - 12, graphite);
+  r(100, 15, 9, 1, graphite);
+  for (let x = fx0 + 1; x < 104; x++) {
+    const sag = Math.round(Math.sin(((x - fx0) / (104 - fx0)) * Math.PI) * 4);
+    if (x % 3 !== 0) r(x, 16 + sag, 1, 1, graphiteL);
+    if (x % 4 !== 1) r(x, 19 + sag, 1, 1, graphiteL);
+  }
+  // two crows heading home
+  for (const [bx, by] of [[24, 12], [33, 10]]) {
+    r(bx, by, 1, 1, graphite);
+    r(bx + 1, by + 1, 1, 1, graphite);
+    r(bx + 2, by, 1, 1, graphite);
+    r(bx + 3, by - 1, 1, 1, graphite);
+    r(bx - 1, by - 1, 1, 1, graphite);
+  }
+  // loose frame lines (overshooting at the corners, like a quick sketch)
+  for (let x = fx0 - 1; x <= fx1 + 1; x++) {
+    if (x % 17 !== 8) r(x, fy0, 1, 1, graphite);
+    r(x, fy1, 1, 1, graphite);
+  }
+  for (let y = fy0 - 1; y <= fy1 + 1; y++) {
+    r(fx0, y, 1, 1, graphite);
+    if (y % 13 !== 5) r(fx1, y, 1, 1, graphite);
+  }
   // the pencil lying diagonally across the bottom right
-  const px0 = 64;
-  const py0 = 47;
+  const px0 = 70;
+  const py0 = 51;
   const len = 46;
   for (let i = 0; i < len; i++) {
     const x = px0 + i;

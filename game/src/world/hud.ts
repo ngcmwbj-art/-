@@ -92,6 +92,39 @@ function hankoIcon(): HTMLCanvasElement[] {
   return stampIcon;
 }
 
+let scrapImg: HTMLCanvasElement | null = null;
+/** A torn scrap of the summer notebook under the hanko, so it reads as UI (10.1). */
+function noteScrap(): HTMLCanvasElement {
+  if (scrapImg) return scrapImg;
+  const w = 28;
+  const h = 28;
+  const p = new PixelCanvas(w, h);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      // torn right & bottom edges (zigzag), cut top & left
+      const tornR = w - 2 - ((y * 7) % 3);
+      const tornB = h - 2 - ((x * 5) % 3);
+      if (x > tornR || y > tornB) continue;
+      let c: string = P.paper;
+      if ((y - 3) % 6 === 0) c = P.aqua; // ruled lines
+      if (x === 5) c = P.peach; // margin
+      p.set(x, y, c);
+    }
+  // fold shadow and ink outline
+  for (let y = 1; y < h; y++) {
+    const tornR = w - 2 - ((y * 7) % 3);
+    if (tornR + 1 < w) p.set(tornR + 1, y, P.ink);
+  }
+  for (let x = 1; x < w; x++) {
+    const tornB = h - 2 - ((x * 5) % 3);
+    if (tornB + 1 < h) p.set(x, tornB + 1, P.ink);
+  }
+  p.hline(0, w - 4, 0, P.paperGrid);
+  p.vline(0, 0, h - 4, P.paperGrid);
+  scrapImg = p.toCanvas();
+  return scrapImg;
+}
+
 class DefaultHud implements FieldHud {
   private y = -24;
   private showT = 0;
@@ -165,12 +198,15 @@ class DefaultHud implements FieldHud {
       const secs = st >= 1 && st < 3 ? 12 - (this.back > 0 ? 1 : 0) : Math.floor((f.t / 1000) % 13);
       for (let i = 0; i < 12; i++) g.px(x + 8 + i * 3, y + 19, i < secs ? P.ink : P.concrete);
     }
-    if (flag('flag_got_hanko')) {
+    if (flag('flag_got_hanko') && !flag('flag_hud_hidden')) {
       const icons = hankoIcon();
       const near = !!this.fushigiNear;
       const shake = near ? (Math.floor(this.t / (1000 / 12)) % 2 ? 1 : -1) : 0;
       const img = near && Math.floor(this.t / 160) % 2 ? icons[1] : icons[0];
-      g.img(img, 8 + shake, 190, near ? {} : { alpha: 0.6 });
+      // UI, not a street prop: on a notebook scrap, α60% until a fushigi is near
+      const a = near ? 1 : 0.6;
+      g.img(noteScrap(), 4, 187, { alpha: a * 0.9 });
+      g.img(img, 8 + shake, 190, { alpha: a });
       if (near) {
         const dropT = (this.t % 900) / 900;
         g.px(18, 212 + Math.floor(dropT * 3), P.verm);

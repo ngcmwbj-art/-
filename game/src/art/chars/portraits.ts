@@ -95,8 +95,9 @@ function rgbaHex(p: PixelCanvas, x: number, y: number): string {
 const MIN: Mats = {
   skin: mat('#FFD9B8', { shade: '#EBB08E', light: '#FFEBD8', dark: '#C98A6A', rim: '#FFC08E' }),
   skinP: mat('#EED2C0', { shade: '#D0AE9A', light: '#FFE6D6', dark: '#A88878', rim: '#F4C4A8' }),
-  hair: mat('#3A2824', { shade: '#291B20', dark: '#1A1118', light: '#5E4034', spec: '#8C6048', rim: '#A05A3C' }),
-  shirt: mat('#3FA66B', { shade: '#2E7A52', light: '#6CC48A', dark: '#245A44', rim: '#A8C870' }),
+  // 30_level_art 9.1 colours: hair #2B1E1A / #5A3A2A, tee #3FA66B / #2E6B4A / #6CC48A
+  hair: mat('#2B1E1A', { shade: '#1B1733', dark: '#1B1733', light: '#5A3A2A', spec: '#8A5A3A' }),
+  shirt: mat('#3FA66B', { shade: '#2E6B4A', light: '#6CC48A', dark: '#245A44' }),
   string: flat('#4AA8E0'),
   key: flat('#FFD23F'),
   eye: flat('#2A2440'),
@@ -541,7 +542,7 @@ npcPortrait('npc_mother', {
   sky: { top: '#FFE7C8', bot: '#F7C27A' },
   mats: {
     skin: mat('#F7CFAE', { shade: '#E0A882', light: '#FFE4CC', dark: '#B87A5E', rim: '#FFBC8A' }),
-    hair: mat('#3A2622', { shade: '#291A1C', dark: '#1A1016', light: '#5A3C32', spec: '#7E5646', rim: '#9A5438' }),
+    hair: mat('#2B1E1A', { shade: '#1B1733', dark: '#1B1733', light: '#5A3A2A', spec: '#8A5A3A' }),
     blouse: mat('#E8E4D8', { shade: '#C4BCB0', light: '#FAF6EC', dark: '#9A9088', rim: '#FFD6A8' }),
     apron: mat('#F7C27A', { shade: '#D9974A', light: '#FFDCA0', dark: '#A8702E' }),
     band: flat('#B8302A'),

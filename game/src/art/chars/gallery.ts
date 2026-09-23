@@ -17,6 +17,7 @@ import { flipBoard, flipBoardEdge, flipBoardMini, flipBoardPanel, flipBoardText,
 import { tinyText, tinyWidth } from './tinyfont';
 import { MOODS } from './portraits';
 import { FLIP_ANCHOR } from './people/kanenari';
+import { autoRimLight, rimForStage, setRimLight } from './quant';
 
 const DIRS: Dir[] = ['down', 'left', 'up', 'right'];
 const MODES = ['idle', 'walk', 'look_up', 'run', 'walk4'];
@@ -89,18 +90,27 @@ function shortName(id: string): string {
   return id.replace(/^npc_/, '').replace(/^enemy_/, '').replace(/^restored_enemy_/, 'r:');
 }
 
-function spriteTile(s: CharSprite, label: string, z: number, frame: (t: number) => HTMLCanvasElement, shadowOn = true): Tile {
+/**
+ * One sprite tile. `frames` (all frames the tile can show) size the tile, so
+ * tall frames (Kanenari's flip with the board, 24×39) never poke into the
+ * row above.
+ */
+function spriteTile(s: CharSprite, label: string, z: number, frame: (t: number) => HTMLCanvasElement, shadowOn = true, frames: HTMLCanvasElement[] = []): Tile {
+  const fw = Math.max(s.w, ...frames.map((c) => c.width));
+  const fh = Math.max(s.h, ...frames.map((c) => c.height));
   return {
-    w: s.w * z,
-    h: s.h * z + 8,
+    w: fw * z,
+    h: fh * z + 8,
     label,
     draw: (g, x, y, t) => {
       const img = frame(t);
+      const cx = x + (fw * z) / 2;
+      const by = y + fh * z;
       if (shadowOn && (s.shadow ?? 0) > 0) {
         const sh = shadow(s.shadow!);
-        g.img(sh, x + (s.w * z) / 2 - (sh.width * z) / 2, y + s.h * z - 3 * z, { scale: z });
+        g.img(sh, cx - (sh.width * z) / 2, by - 3 * z, { scale: z });
       }
-      g.img(img, x + ((s.w - img.width) * z) / 2, y + (s.h - img.height) * z, { scale: z });
+      g.img(img, cx - (img.width * z) / 2, by - img.height * z, { scale: z });
     },
   };
 }
@@ -190,20 +200,20 @@ export class CharGallery implements Scene {
     for (const name of Object.keys(s.extra ?? {})) {
       if (s.anims?.[name]) continue;
       const byDir = s.extraDir?.[name];
-      if (byDir) for (const d of DIRS) { const c = byDir[d]; if (c) out.push(spriteTile(s, `${name}:${d[0]}`, z, () => c)); }
-      else out.push(spriteTile(s, name, z, () => s.extra![name]));
+      if (byDir) for (const d of DIRS) { const c = byDir[d]; if (c) out.push(spriteTile(s, `${name}:${d[0]}`, z, () => c, true, [c])); }
+      else out.push(spriteTile(s, name, z, () => s.extra![name], true, [s.extra![name]]));
     }
     for (const name of Object.keys(s.anims ?? {})) {
       const byDir = s.animsDir?.[name];
       if (byDir) {
         for (const d of DIRS) {
           const a = byDir[d];
-          if (a) out.push(spriteTile(s, `~${name}:${d[0]}`, z, (t) => a.frames[animIndex(a, t)]));
+          if (a) out.push(spriteTile(s, `~${name}:${d[0]}`, z, (t) => a.frames[animIndex({ ...a, loop: true }, t)], true, a.frames));
         }
         continue;
       }
       const a = s.anims![name];
-      out.push(spriteTile(s, `~${name}`, z, (t) => a.frames[animIndex(a, t)]));
+      out.push(spriteTile(s, `~${name}`, z, (t) => a.frames[animIndex({ ...a, loop: true }, t)], true, a.frames));
     }
     return out;
   }
@@ -264,6 +274,11 @@ export class CharGallery implements Scene {
         const c = flipBoardText('夕鳴町へ ようこそ！\n（引退しました）');
         return { w: c.width * z, h: c.height * z + 8, label: 'text', draw: (g, x, y) => g.img(c, x, y, { scale: z }) };
       })(),
+      // wrapping checks: breaks only at spaces, "3人" stays together, Latin spacing
+      ...([['なかのひとなど いません', 160], ['きょうは 3人来ました', 100], ['PR大使 カネナリ', 100]] as const).map(([txt, maxW]): Tile => {
+        const c = flipBoardText(txt, { maxW });
+        return { w: c.width * z, h: c.height * z + 8, label: 'wrap', draw: (g, x, y) => g.img(c, x, y, { scale: z }) };
+      }),
       { w: icon.width * z * 3, h: icon.height * z * 3 + 8, label: 'icon', draw: (g, x, y) => g.img(icon, x, y, { scale: z * 3 }) },
       { w: panel.width * z, h: panel.height * z + 8, label: 'panel 160x40', draw: (g, x, y) => g.img(panel, x, y, { scale: z }) },
       {
@@ -301,41 +316,65 @@ export class CharGallery implements Scene {
     const inp = game.input;
     if (inp.pressed('right')) { this.page = (this.page + 1) % this.pages.length; this.scroll = 0; }
     if (inp.pressed('left')) { this.page = (this.page + this.pages.length - 1) % this.pages.length; this.scroll = 0; }
-    if (inp.repeat('down')) this.scroll += 24;
-    if (inp.repeat('up')) this.scroll = Math.max(0, this.scroll - 24);
+    if (inp.repeat('down')) this.scroll += 1;
+    if (inp.repeat('up')) this.scroll = Math.max(0, this.scroll - 1);
     if (inp.pressed('menu')) this.zoom = (this.zoom % 3) + 1;
     if (inp.pressed('confirm')) this.mode = (this.mode + 1) % MODES.length;
     if (inp.pressed('cancel')) this.bg = (this.bg + 1) % BGS.length;
   }
 
+  exit(): void {
+    autoRimLight();
+  }
+
+  /** The sprites' rim light follows the ground being previewed (7.3). */
+  private rimFor(bg: BgDef): void {
+    const stage = bg.name === 'stage2' ? 2 : bg.name === 'night' ? 3 : bg.name === 'stage1' ? 1 : 0;
+    const [lo, hi] = rimForStage(stage, bg.name === 'mall' ? 'map_mall' : '');
+    setRimLight(lo, hi);
+  }
+
   draw(g: Gfx): void {
     const page = this.pages[this.page];
     const bg = page.plain ? BGS[5] : BGS[this.bg];
+    this.rimFor(bg);
     g.img(ground(bg), 0, 0);
     const tiles = page.tiles();
-    // flow layout
+    // flow layout into rows first; `scroll` counts rows, clamped so the last
+    // row of any page can be reached
+    type Placed = { tile: Tile; x: number; cw: number };
+    const rows: { items: Placed[]; h: number }[] = [];
+    let cur: { items: Placed[]; h: number } = { items: [], h: 0 };
     let x = 6;
-    let y = 16 - this.scroll;
-    let rowH = 0;
-    const t = this.t;
     for (const tile of tiles) {
       const cw = Math.max(tile.w, tinyWidth(tile.label)) + 6;
-      if (x + cw > 384 - 2) {
+      if (x + cw > 384 - 2 && cur.items.length) {
+        rows.push(cur);
+        cur = { items: [], h: 0 };
         x = 6;
-        y += rowH + 4;
-        rowH = 0;
       }
-      if (y + tile.h > 0 && y < 216) {
-        tile.draw(g, x + (cw - 6 - tile.w) / 2, y, t);
-        tinyText(g, tile.label, x + (cw - 6 - tinyWidth(tile.label)) / 2, y + tile.h - 6, bg.text);
-      }
+      cur.items.push({ tile, x, cw });
+      cur.h = Math.max(cur.h, tile.h);
       x += cw;
-      rowH = Math.max(rowH, tile.h);
     }
+    if (cur.items.length) rows.push(cur);
+    this.scroll = Math.min(this.scroll, Math.max(0, rows.length - 1));
+    let y = 16;
+    const t = this.t;
+    rows.slice(this.scroll).forEach((r) => {
+      if (y < 216)
+        for (const { tile, x: tx, cw } of r.items) {
+          tile.draw(g, tx + (cw - 6 - tile.w) / 2, y, t);
+          tinyText(g, tile.label, tx + (cw - 6 - tinyWidth(tile.label)) / 2, y + tile.h - 6, bg.text);
+        }
+      y += r.h + 4;
+    });
     // header
     g.rect(0, 0, 384, 11, '#2A2440', 0.85);
-    tinyText(g, `${this.page + 1}/${this.pages.length} ${page.title}  z${this.zoom} ${bg.name} ${MODES[this.mode]}`, 4, 3, '#FBF3DC');
-    tinyText(g, '<> page  z mode  x ground  c zoom', 384 - tinyWidth('<> page  z mode  x ground  c zoom') - 4, 3, '#C8C2B4');
+    const more = rows.length > 1 ? ` row ${this.scroll + 1}/${rows.length}` : '';
+    tinyText(g, `${this.page + 1}/${this.pages.length} ${page.title}  z${this.zoom} ${bg.name} ${MODES[this.mode]}${more}`, 4, 3, '#FBF3DC');
+    const keys = '<> page  up/dn row  z mode  x ground  c zoom';
+    tinyText(g, keys, 384 - tinyWidth(keys) - 4, 3, '#C8C2B4');
   }
 }
 

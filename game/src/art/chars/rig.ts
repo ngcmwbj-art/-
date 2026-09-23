@@ -148,13 +148,101 @@ export function rep(keys: IdleKey[], n: number): IdleKey[] {
   return out;
 }
 
+/**
+ * Headroom rendered above every frame (30_level_art 7.8: the walk bob and
+ * look_up lift the head by 1–2px). Frames are drawn into a canvas PAD rows
+ * taller than declared; buildSprite() then crops every frame of the sprite
+ * to the highest row any of them uses, so a sprite whose art never leaves
+ * its declared canvas keeps its size, and one that does is never clipped.
+ */
+export const PAD = 4;
+
+/** Top-most opaque row of each rendered frame (in its uncropped canvas). */
+const topRow = new WeakMap<HTMLCanvasElement, number>();
+
 export function renderFrame(spec: SpriteSpec, p: Pose): HTMLCanvasElement {
   const w = spec.w ?? 16;
   const h = spec.h ?? 24;
-  const f = new Fig(w, h, spec.mats);
+  const f = new Fig(w, h, spec.mats, PAD);
   spec.draw(f, p);
   if (p.mirror) f.flip();
-  return f.render(spec.render).toCanvas();
+  const pc = f.render(spec.render);
+  let top = pc.h;
+  for (let i = 0; i < pc.data.length; i++)
+    if (pc.data[i] >>> 24) {
+      top = (i / pc.w) | 0;
+      break;
+    }
+  const c = pc.toCanvas();
+  topRow.set(c, top);
+  return c;
+}
+
+export interface HeadroomReport {
+  /** Rows above the declared canvas the sprite needed (0 = none). */
+  used: number;
+  /** Frames whose art reached the top of the headroom (would be cut off). */
+  clipped: number;
+}
+
+const headroom = new Map<string, HeadroomReport>();
+
+/** How much headroom a built sprite used, and whether any frame still touches the top. */
+export function headroomReport(id: string): HeadroomReport | undefined {
+  return headroom.get(id);
+}
+
+/**
+ * Crop every frame of a freshly built sprite to a shared height: the
+ * declared height plus the headroom the highest frame needs. Frames stay
+ * anchored at the feet (bottom centre), as the contract requires.
+ */
+function cropHeadroom(s: CharSprite): void {
+  const all = new Set<HTMLCanvasElement>();
+  const add = (c: HTMLCanvasElement | undefined) => c && topRow.has(c) && all.add(c);
+  for (const d of DIRS) {
+    s.walk[d]?.forEach(add);
+    s.idle?.[d]?.forEach(add);
+    s.run?.[d]?.forEach(add);
+  }
+  for (const c of Object.values(s.extra ?? {})) add(c);
+  for (const o of Object.values(s.extraDir ?? {})) for (const c of Object.values(o)) add(c);
+  for (const a of Object.values(s.anims ?? {})) a.frames.forEach(add);
+  for (const o of Object.values(s.animsDir ?? {})) for (const a of Object.values(o)) a?.frames.forEach(add);
+  let top = PAD;
+  let clipped = 0;
+  for (const c of all) {
+    const t = topRow.get(c)!;
+    top = Math.min(top, t);
+    if (t === 0) clipped++;
+  }
+  headroom.set(s.id, { used: PAD - top, clipped });
+  const map = new Map<HTMLCanvasElement, HTMLCanvasElement>();
+  for (const c of all) {
+    const n = document.createElement('canvas');
+    n.width = c.width;
+    n.height = c.height - top;
+    n.getContext('2d')!.drawImage(c, 0, -top);
+    map.set(c, n);
+  }
+  const sw = (c: HTMLCanvasElement) => map.get(c) ?? c;
+  const swList = (l: HTMLCanvasElement[]) => l.map(sw);
+  for (const d of DIRS) {
+    if (s.walk[d]) s.walk[d] = swList(s.walk[d]);
+    if (s.idle?.[d]) s.idle[d] = swList(s.idle[d]);
+    if (s.run?.[d]) s.run[d] = swList(s.run[d]);
+  }
+  for (const k of Object.keys(s.extra ?? {})) s.extra![k] = sw(s.extra![k]);
+  for (const o of Object.values(s.extraDir ?? {})) for (const d of Object.keys(o) as Dir[]) o[d] = sw(o[d]!);
+  const anim = (a: CharAnim) => ({ ...a, frames: swList(a.frames) });
+  const done = new Map<CharAnim, CharAnim>();
+  const swA = (a: CharAnim) => {
+    let r = done.get(a);
+    if (!r) done.set(a, (r = anim(a)));
+    return r;
+  };
+  for (const k of Object.keys(s.anims ?? {})) s.anims![k] = swA(s.anims![k]);
+  for (const o of Object.values(s.animsDir ?? {})) for (const d of Object.keys(o) as Dir[]) if (o[d]) o[d] = swA(o[d]!);
 }
 
 function framePose(dir: Dir, o: Partial<Pose>): Pose {
@@ -310,7 +398,7 @@ export function buildSprite(spec: SpriteSpec): CharSprite {
       if (!extra[name]) extra[name] = byDir.down!.frames[0];
     }
 
-  return {
+  const sprite: CharSprite = {
     id: spec.id,
     w: spec.w ?? 16,
     h: spec.h ?? 24,
@@ -326,4 +414,6 @@ export function buildSprite(spec: SpriteSpec): CharSprite {
     idleFrameMs: TICK,
     shadow: spec.shadow ?? 10,
   };
+  cropHeadroom(sprite);
+  return sprite;
 }

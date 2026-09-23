@@ -158,6 +158,19 @@ if (!sceneNames().includes('title')) registerScene('title', (p) => makeField(p))
 
 // ---------------------------------------------------------------- debug commands
 
+/** Nearest tile (spiral search) where the player's feet box is free. */
+function nearestFree(f: FieldScene, x: number, y: number): [number, number] {
+  for (let r = 0; r < 8; r++)
+    for (let dy = -r; dy <= r; dy++)
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const tx = x + dx;
+        const ty = y + dy;
+        if (f.free(f.player, tx * 16 + 8, ty * 16 + 16)) return [tx, ty];
+      }
+  return [x, y];
+}
+
 registerDebug('warp', (map: string, x: number, y: number, dir?: Dir) => {
   const f = field();
   if (!hasMap(map)) return `unknown map ${map}; maps: ${mapIds().join(', ')}`;
@@ -238,11 +251,38 @@ registerDebug('screen', (id: string) => {
   }
   if (!f) return;
   if (f.map.id !== 'map_town') f.loadMap('map_town', c[0], c[1], 'down');
-  // stand on the nearest free tile so the camera centres on the screen
-  f.player.x = c[0] * 16 + 8;
-  f.player.y = c[1] * 16 + 16;
+  // stand on the nearest walkable tile (the camera still centres on the screen)
+  const [px, py] = nearestFree(f, c[0], c[1]);
+  f.player.x = px * 16 + 8;
+  f.player.y = py * 16 + 16;
+  f.player.dir = 'down';
+  f.syncFollower(true);
   f.camOverride = { x: c[0] * 16 + 8, y: c[1] * 16 + 8 };
   f.camX = Math.max(0, Math.min(f.map.w * 16 - 384, c[0] * 16 + 8 - 192));
   f.camY = Math.max(0, Math.min(f.map.h * 16 - 216, c[1] * 16 + 8 - 108));
   return id;
 });
+/** List the props, structures and actors whose art overlaps tile (x, y) (QA). */
+registerDebug('probe', (x: number, y: number) => {
+  const f = field();
+  if (!f) return 'field not active';
+  const x0 = x * 16;
+  const y0 = y * 16;
+  const hit = (ax: number, ay: number, w: number, h: number) => ax < x0 + 16 && ax + w > x0 && ay < y0 + 16 && ay + h > y0;
+  const out: string[] = [];
+  for (const p of f.props) {
+    const a = p.art;
+    if (!p.present || !hit(p.x + a.ox, p.y + a.oy, a.w, a.h)) continue;
+    const id = p.obj.t === 'prop' ? p.obj.prop : p.obj.prop ?? p.obj.id;
+    out.push(`${id}@${p.x / 16},${p.y / 16} foot=${p.y + a.foot}${a.flat ? ' flat' : ''}${a.xray !== undefined ? ' xray' : ''}${a.fg ? ' fg' : ''}`);
+  }
+  for (const s of f.structures) {
+    const sx = s.tx * 16 + s.art.ox;
+    const sy = s.ty * 16 + s.art.oy;
+    if (hit(sx, sy, s.art.img.width, s.art.img.height)) out.push(`struct@${s.tx},${s.ty} foot=${s.foot}`);
+  }
+  for (const a of [...f.actors, f.player]) if (hit(a.x - 8, a.y - 24, 16, 24)) out.push(`actor ${a.id} foot=${Math.round(a.y)}`);
+  return out;
+});
+/** The live FieldScene (QA scripting from the page console). */
+registerDebug('fieldRef', () => field());

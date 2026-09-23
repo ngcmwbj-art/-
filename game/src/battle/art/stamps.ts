@@ -120,6 +120,18 @@ function blit(dst: Grid, src: Grid, ox: number, oy: number, v: number): void {
     }
 }
 
+/** White glyph pixels (read back once per character, then reused). */
+const glyphPx = new Map<string, { width: number; height: number; d: Uint8ClampedArray }>();
+function glyphPixels(ch: string): { width: number; height: number; d: Uint8ClampedArray } {
+  let g = glyphPx.get(ch);
+  if (!g) {
+    const gi = glyphImage(ch, '#ffffff');
+    g = { width: gi.width, height: gi.height, d: gi.getContext('2d')!.getImageData(0, 0, gi.width, gi.height).data };
+    glyphPx.set(ch, g);
+  }
+  return g;
+}
+
 const cache = new Map<string, HTMLCanvasElement>();
 function cached(key: string, f: () => HTMLCanvasElement): HTMLCanvasElement {
   let c = cache.get(key);
@@ -356,9 +368,8 @@ export function kakimoji(text: string, just = false, seed = 7, scale = 2): HTMLC
     let x = 0;
     for (const ch of text) {
       const dy = rr.int(-1, 1);
-      const gi = glyphImage(ch, '#ffffff');
-      const gctx = gi.getContext('2d')!;
-      const d = gctx.getImageData(0, 0, gi.width, gi.height).data;
+      const gi = glyphPixels(ch);
+      const d = gi.d;
       for (let yy = 0; yy < gi.height; yy++)
         for (let xx = 0; xx < gi.width; xx++) {
           if (d[(yy * gi.width + xx) * 4 + 3] < 128) continue;
@@ -444,4 +455,119 @@ export function gradeMark(excellent: boolean, seed = 1): HTMLCanvasElement {
 /** Small 16px lettering with the same treatment (ノリツッコミ upper line). */
 export function kakimojiSmall(text: string): HTMLCanvasElement {
   return kakimoji(text, false, 3, 1);
+}
+
+// ---- the final seal ------------------------------------------------------------
+
+/**
+ * Bold lettering at 16px: every stroke one pixel wider, paper-white fill, a
+ * 2px vermilion edge and a 1px ink outline — the 書き文字 treatment at 1x, so
+ * it stays readable on the boss's dark body.
+ */
+export function boldLettering(text: string, seed = 5): HTMLCanvasElement {
+  return cached(`boldlet:${text}:${seed}`, () => {
+    const rr = new Rng(seed);
+    const pad = 4;
+    const W = measure(text) + 1 + pad * 2;
+    const H = 16 + pad * 2 + 2;
+    const g = grid(W, H);
+    let x = 0;
+    for (const ch of text) {
+      const dy = rr.int(0, 1);
+      const gi = glyphPixels(ch);
+      const d = gi.d;
+      for (let yy = 0; yy < gi.height; yy++)
+        for (let xx = 0; xx < gi.width; xx++) {
+          if (d[(yy * gi.width + xx) * 4 + 3] < 128) continue;
+          for (const bx of [0, 1]) {
+            const px = pad + x + xx + bx;
+            const py = pad + dy + yy;
+            if (px < W && py < H) g.d[py * W + px] = 1;
+          }
+        }
+      x += charWidth(ch);
+    }
+    const ring = (val: number, n: number, diag: boolean) => {
+      for (let t = 0; t < n; t++) {
+        const src = g.d.slice();
+        for (let y = 0; y < H; y++)
+          for (let xx = 0; xx < W; xx++) {
+            if (src[y * W + xx]) continue;
+            let hit = false;
+            for (let oy = -1; oy <= 1 && !hit; oy++)
+              for (let ox = -1; ox <= 1; ox++) {
+                if ((!ox && !oy) || (!diag && ox && oy)) continue;
+                const X = xx + ox;
+                const Y = y + oy;
+                if (X >= 0 && Y >= 0 && X < W && Y < H && src[Y * W + X]) {
+                  hit = true;
+                  break;
+                }
+              }
+            if (hit) g.d[y * W + xx] = val;
+          }
+      }
+    };
+    ring(2, 1, true);
+    ring(2, 1, false);
+    ring(3, 1, true);
+    // top row of each stroke catches the light
+    const src = g.d.slice();
+    for (let y = 1; y < H; y++)
+      for (let xx = 0; xx < W; xx++) if (src[y * W + xx] === 1 && src[(y - 1) * W + xx] !== 1) g.d[y * W + xx] = 4;
+    return toCanvas(g, [WHITE, SHU, INK, '#FFF6D8']);
+  });
+}
+
+/**
+ * The big 「おかえりなさい」 seal of the finale (13.7): a vermilion double oval
+ * with a dithered ink wash inside and the bold lettering on top. `worn` for
+ * a かすれ press (the frame breaks up; the words always stay readable).
+ */
+export function finalSeal(text: string, worn = 0): HTMLCanvasElement {
+  return cached(`finalseal:${text}:${worn}`, () => {
+    const let_ = boldLettering(text, 9);
+    const w = let_.width + 22;
+    const h = 52;
+    const g = grid(w, h);
+    ellipseRing(g, w / 2, h / 2, w / 2, h / 2, 3);
+    ellipseRing(g, w / 2, h / 2, w / 2 - 5, h / 2 - 5, 1);
+    // ink wash inside the inner ring (ordered 25% dither)
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const dx = (x + 0.5 - w / 2) / (w / 2 - 6);
+        const dy = (y + 0.5 - h / 2) / (h / 2 - 6);
+        if (dx * dx + dy * dy <= 1 && (x + y * 2) % 4 === 0) g.d[y * w + x] = 3;
+      }
+    if (worn) wear(g, worn, 13);
+    inkTone(g, 4);
+    const c = toCanvas(g, [SHU, SHU_D, SHU_L]);
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(let_, Math.round((w - let_.width) / 2), Math.round((h - let_.height) / 2));
+    return c;
+  });
+}
+
+const petalCache: HTMLCanvasElement[] = [];
+/** Petals (16.0): 4×3 ovals in #FF6A4D / #F7C27A / #FFD9B8 / #E0567A, plus a turned 3×4 of each. */
+export function petalSprites(): HTMLCanvasElement[] {
+  if (petalCache.length) return petalCache;
+  const cols: [string, string][] = [
+    ['#FF6A4D', '#E23B2E'],
+    ['#F7C27A', '#D9A441'],
+    ['#FFD9B8', '#F2A98A'],
+    ['#E0567A', '#A83A5A'],
+  ];
+  for (const [c0, c1] of cols) {
+    for (const rows of [['.##.', '####', '.#o.'], ['.#.', '###', '##o', '.#.']]) {
+      const [cv, ctx] = makeCanvas(rows[0].length, rows.length);
+      rows.forEach((r, y) => [...r].forEach((ch, x) => {
+        if (ch === '.') return;
+        ctx.fillStyle = ch === 'o' ? c1 : c0;
+        ctx.fillRect(x, y, 1, 1);
+      }));
+      petalCache.push(cv);
+    }
+  }
+  return petalCache;
 }

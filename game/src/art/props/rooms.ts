@@ -115,6 +115,23 @@ function wallpaper(base: string, accent: string, seed: number): RoomStyle['wall'
   };
 }
 
+/** Warm lamp light (emissive, after grading): a soft circle, screen blend. */
+function lampPool(g: Gfx, cx: number, cy: number, r: number, a: number, rgb = '246,217,138', squash = 0.7): void {
+  if (a <= 0.005) return;
+  const ctx = g.ctx;
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  ctx.translate(cx, cy);
+  ctx.scale(1, squash);
+  const grd = ctx.createRadialGradient(0, 0, 2, 0, 0, r);
+  grd.addColorStop(0, `rgba(${rgb},${a.toFixed(3)})`);
+  grd.addColorStop(0.55, `rgba(${rgb},${(a * 0.45).toFixed(3)})`);
+  grd.addColorStop(1, `rgba(${rgb},0)`);
+  ctx.fillStyle = grd;
+  ctx.fillRect(-r, -r, r * 2, r * 2);
+  ctx.restore();
+}
+
 /** Indoor light & depth overlay (flat layer, before characters). */
 function roomLight(g: Gfx, x: number, y: number, w: number, h: number, env: PropEnv, patches: [number, number, number, number, number][]): void {
   const ctx = g.ctx;
@@ -251,46 +268,100 @@ registerProp('obj_bed', () => {
   return stand(p.toCanvas(), { cx: 16, base: 48, shadow: 0, contact: 28 });
 });
 
-const NOTE = mkFrames(2, 12, 8, (p, k) => {
-  p.rect(1, 1, 10, 7, P.white);
-  p.hline(1, 10, 1, P.glint);
-  p.vline(1, 1, 7, P.concreteLt);
-  p.hline(3, 8, 3, P.concrete);
-  if (k) p.set(8, 2, P.glint);
-});
-
 registerProp('obj_desk_room', () => {
-  // desk spans x4–5; shelf on the wall above; lamp; the chair is a separate decoration
-  const p = pc(34, 46);
-  // shelf hutch on the wall
-  p.rect(1, 0, 32, 16, P.woodLt);
-  p.rect(3, 2, 28, 12, P.wood);
-  for (let k = 0; k < 7; k++) p.rect(4 + k * 3, 4, 2, 9, [P.red, P.blue, P.gold, P.leafDeep, P.white, P.aqua, P.verm][k]);
-  p.rect(26, 6, 4, 7, P.leafYoung); // pencil cup
-  // desk top and front
-  p.rect(1, 16, 32, 14, P.woodLt);
-  p.hline(1, 32, 16, P.goldPale);
-  p.rect(1, 30, 32, 14, P.wood);
-  p.rect(20, 32, 11, 5, P.woodLt);
-  p.rect(20, 38, 11, 5, P.woodLt);
-  p.set(25, 34, P.brass);
-  p.set(25, 40, P.brass);
-  p.hline(1, 32, 43, P.woodDark);
-  // desk lamp
-  p.vline(29, 12, 20, P.steel);
-  p.rect(26, 11, 6, 3, P.white);
-  // eraser crumbs mountain range
-  for (const x of [20, 21, 23]) p.set(x, 22 + (x % 2), P.peach);
+  // 学習机 x4–5, one floor tile deep (row 2) like its collision; the hutch
+  // hangs on the north wall. The blank notebook (obj_jiyukenkyu, left half)
+  // and its 1px twinkle are part of this layer so nothing of the desk is ever
+  // drawn over the player standing in row 3. The chair is pushed in under
+  // the knee space on the right.
+  const p = pc(34, 42); // world y 6..48 (anchor tile (5,2) top = 32)
+  const Y = 0;
+  // hutch on the wall: side panels, two shelves, books, a clock and a lamp
+  p.rect(1, Y, 32, 19, P.woodLt);
+  p.hline(1, 32, Y, P.goldPale);
+  p.rect(3, Y + 2, 28, 7, P.woodDark);
+  p.rect(3, Y + 10, 28, 7, P.woodDark);
+  p.hline(3, 30, Y + 9, P.woodLt);
+  const books = [P.red, P.navy, P.gold, P.leafDeep, P.white, P.aqua, P.verm, P.brass];
+  for (let k = 0; k < 8; k++) {
+    const h = 5 + (k % 3 === 1 ? 1 : 0);
+    p.rect(4 + k * 2 + (k > 4 ? 2 : 0), Y + 8 - h + 1, 2, h, books[k]);
+    p.set(4 + k * 2 + (k > 4 ? 2 : 0), Y + 8 - h + 1, lt(books[k]));
+  }
+  // lower shelf: dictionary lying flat, a pencil cup, a small alarm clock
+  p.rect(4, Y + 14, 9, 3, P.navy);
+  p.hline(4, 12, Y + 14, P.blue);
+  p.rect(15, Y + 12, 3, 5, P.leafYoung);
+  p.set(15, Y + 11, P.red);
+  p.set(17, Y + 10, P.gold);
+  p.ellipse(24, Y + 14, 2.5, 2.5, P.white);
+  p.set(24, Y + 13, P.ink);
+  p.set(25, Y + 14, P.ink);
+  p.set(22, Y + 11, P.verm);
+  p.set(26, Y + 11, P.verm);
+  p.vline(31, Y + 1, Y + 18, P.wood);
+  // desk top (seen from above): light wood, a pale mat on the left half
+  p.rect(0, Y + 19, 34, 9, P.woodLt);
+  p.hline(0, 33, Y + 19, P.goldPale);
+  p.rect(2, Y + 20, 16, 7, P.paperGrid);
+  p.hline(2, 17, Y + 26, P.brass);
+  // the blank notebook (obj_jiyukenkyu) on the mat
+  p.rect(4, Y + 20, 11, 6, P.white);
+  p.hline(4, 14, Y + 20, P.glint);
+  p.vline(4, Y + 20, Y + 25, P.concreteLt);
+  p.hline(6, 12, Y + 22, P.concrete);
+  p.hline(5, 14, Y + 26, P.concrete);
+  // pencil and eraser crumbs ("a small mountain range")
+  p.line(20, Y + 25, 25, Y + 23, P.gold);
+  p.set(25, Y + 23, P.woodDark);
+  for (const [x, y] of [[21, 21], [22, 22], [23, 21], [27, 22]] as const) p.set(x, Y + y, P.peach);
+  // desk lamp (right, clamped to the hutch) with its green shade
+  p.vline(29, Y + 12, Y + 22, P.steel);
+  p.rect(26, Y + 10, 6, 3, P.leafDeep);
+  p.hline(26, 31, Y + 10, P.leafYoung);
+  p.rect(27, Y + 22, 5, 2, P.steel);
+  // front face: drawers on the left, knee space with the chair on the right
+  p.rect(0, Y + 28, 34, 13, P.wood);
+  p.hline(0, 33, Y + 28, P.woodDark);
+  p.rect(2, Y + 29, 13, 5, P.woodLt);
+  p.rect(2, Y + 35, 13, 5, P.woodLt);
+  p.hline(2, 14, Y + 33, P.brassOld);
+  p.hline(2, 14, Y + 39, P.brassOld);
+  p.rect(7, Y + 31, 3, 1, P.brass);
+  p.rect(7, Y + 37, 3, 1, P.brass);
+  // knee space (dark) and the chair back tucked into it
+  p.rect(17, Y + 29, 15, 12, P.nightShade);
+  p.rect(17, Y + 29, 15, 2, P.ink);
+  p.rect(19, Y + 30, 11, 7, P.blue);
+  p.hline(19, 29, Y + 30, P.aqua);
+  p.vline(19, Y + 30, Y + 36, P.aqua);
+  p.hline(20, 29, Y + 36, P.navy);
+  p.rect(20, Y + 37, 9, 2, P.steel);
+  p.vline(21, Y + 39, Y + 40, P.charcoal);
+  p.vline(27, Y + 39, Y + 40, P.charcoal);
+  // legs
+  p.rect(0, Y + 41, 2, 1, P.woodDark);
+  p.rect(32, Y + 41, 2, 1, P.woodDark);
+  p.rect(15, Y + 29, 2, 12, P.woodDark);
   finish(p, { soft: true });
-  // anchored on (5,2): the desk spans x4–5
-  const a = stand(p.toCanvas(), { cx: 0, base: 16 + 16, shadow: 0, contact: 30 });
-  // obj_jiyukenkyu twinkle (4,2) is drawn by its own prop
-  return a;
-});
-
-registerProp('obj_jiyukenkyu', () => {
-  // blank notebook on the desk, twinkling 1px every second
-  const a = standAnim(NOTE, (env) => (Math.floor(env.t / 1000) % 2 ? 1 : 0), { cx: 10, base: 17, foot: 33, shadow: 0, contact: 0 });
+  const img = p.toCanvas();
+  // anchored on (5,2): cx 0 → x 4–5; bottom on the bottom edge of row 2
+  const a = stand(img, { cx: 0, base: 16, shadow: 0, contact: 0 });
+  a.glow = (g, x, y, env) => {
+    // night: the desk lamp is on (a warm cone on the desk and the floor)
+    const n = env.grade.night;
+    if (n < 0.05) return;
+    g.rect(x + a.ox + 27, y + a.oy + 13, 4, 1, P.glint, 0.9 * n);
+    lampPool(g, x + a.ox + 26, y + a.oy + 26, 34, 0.32 * n, '246,217,138', 0.6);
+  };
+  a.over = (g, x, y, env) => {
+    // 1px twinkle on the notebook's corner every other second (#FFF6D8)
+    if (Math.floor(env.t / 1000) % 2) {
+      g.rect(x + a.ox + 13, y + a.oy + 21, 1, 1, P.glint);
+      g.rect(x + a.ox + 12, y + a.oy + 21, 1, 1, P.glint);
+      g.rect(x + a.ox + 13, y + a.oy + 20, 1, 1, P.glint);
+    }
+  };
   return a;
 });
 
@@ -403,6 +474,13 @@ registerProp('prop_ceiling_light', () => {
     h: 10,
     foot: 0,
     img: () => null,
+    glow(g: Gfx, x: number, y: number, env: PropEnv) {
+      // night: the lamp is on — the room's warm centre (#F6D98A, α35% at the centre)
+      const n = env.grade.night;
+      if (n < 0.05) return;
+      g.rect(x - 2, y - 15, 20, 3, P.glint, 0.8 * n);
+      lampPool(g, x + 8, y + 12, 78, 0.35 * n);
+    },
     fg: [
       { ox: -4, oy: -18, img: () => li, fade: { x: -8, y: -18, w: 32, h: 40, alpha: 0.5 } },
       { ox: 6, oy: -9, img: (env: PropEnv) => (env.stage === 1 ? string[1] : string[[0, 1, 2, 1][Math.floor(env.mt / 400) % 4]]) },
@@ -492,6 +570,14 @@ registerProp('room_home_1f', () => {
         [16, 32, 30, 20, 0.18],
       ]);
     },
+    glow(g, x, y, env) {
+      // night: the kitchen's fluorescent tube (cool white, a rare flicker)
+      const n = env.grade.night;
+      if (n < 0.05) return;
+      const flick = Math.floor(env.t / 70) % 97 === 0 ? 0.4 : 1;
+      g.rect(x + 2 * 16, y + 2 * 16 - 10, 40, 2, P.glint, 0.9 * n * flick);
+      lampPool(g, x + 3 * 16 + 4, y + 3 * 16 + 8, 46, 0.22 * n * flick, '255,246,216', 0.6);
+    },
   };
 });
 
@@ -516,7 +602,7 @@ registerProp('obj_cabbage', () => {
   p.ellipse(8, 7, 5, 3, P.concrete);
   for (let i = 0; i < 9; i++) p.set(4 + i, 5 + (i % 3), i % 2 ? P.leafLt : P.leafYoung);
   p.rect(3, 16, 10, 8, P.wood);
-  return stand(p.toCanvas(), { base: 30, shadow: 0, contact: 0 });
+  return stand(p.toCanvas(), { base: 16, shadow: 0, contact: 0 });
 });
 
 const BOARD = mkFrames(2, 16, 32, (p, k) => {
@@ -528,7 +614,7 @@ const BOARD = mkFrames(2, 16, 32, (p, k) => {
   p.rect(10, k ? 2 : 4, 1, 4, P.concreteLt);
   p.rect(10, k ? 6 : 8, 2, 2, P.woodDark);
 });
-registerProp('prop_cutting_board', () => standAnim(BOARD, (env) => Math.floor(env.t / 180) % 2, { base: 30, shadow: 0, contact: 0 }));
+registerProp('prop_cutting_board', () => standAnim(BOARD, (env) => Math.floor(env.t / 180) % 2, { base: 16, shadow: 0, contact: 0 }));
 
 const COOKER = mkFrames(3, 16, 32, (p, k) => {
   counter(p, 0, 16);
@@ -539,7 +625,7 @@ const COOKER = mkFrames(3, 16, 32, (p, k) => {
   const s = [[7, 0], [8, -1], [7, -2]][k];
   p.set(s[0], 0 + s[1] + 1, P.concreteLt);
 });
-registerProp('obj_rice_cooker', () => standAnim(COOKER, (env) => (env.stage === 1 ? 0 : Math.floor(env.mt / 250) % 3), { base: 30, shadow: 0, contact: 0 }));
+registerProp('obj_rice_cooker', () => standAnim(COOKER, (env) => (env.stage === 1 ? 0 : Math.floor(env.mt / 250) % 3), { base: 16, shadow: 0, contact: 0 }));
 
 const STOVE = mkFrames(2, 16, 32, (p, k) => {
   counter(p, 0, 16, P.charcoal);
@@ -553,7 +639,7 @@ const STOVE = mkFrames(2, 16, 32, (p, k) => {
   p.rect(3, 16, 10, 10, P.charcoal);
   p.rect(4, 17, 8, 5, P.ink);
 });
-registerProp('prop_stove', () => standAnim(STOVE, (env) => (env.stage === 1 ? 0 : Math.floor(env.mt / 200) % 2), { base: 30, shadow: 0, contact: 0 }));
+registerProp('prop_stove', () => standAnim(STOVE, (env) => (env.stage === 1 ? 0 : Math.floor(env.mt / 200) % 2), { base: 16, shadow: 0, contact: 0 }));
 
 registerProp('obj_fridge', () => {
   const p = pc(16, 44);
@@ -570,7 +656,7 @@ registerProp('obj_fridge', () => {
   p.set(4, 8, P.red);
   p.set(8, 5, P.gold);
   p.hline(1, 14, 42, P.steel);
-  return stand(p.toCanvas(), { base: 30, shadow: 0, contact: 0 });
+  return stand(p.toCanvas(), { base: 16, shadow: 0, contact: 0 });
 });
 
 registerProp('obj_cat_calendar', () => {
@@ -579,7 +665,7 @@ registerProp('obj_cat_calendar', () => {
   p.rect(2, 0, 4, 31, P.wood);
   p.vline(2, 0, 30, P.woodLt);
   p.vline(5, 0, 30, P.woodDark);
-  return stand(p.toCanvas(), { base: 30, shadow: 0, contact: 0 });
+  return stand(p.toCanvas(), { base: 16, shadow: 0, contact: 0 });
 });
 
 registerProp('obj_tv', () => {
@@ -594,11 +680,11 @@ registerProp('obj_tv', () => {
   p.rect(4, 4, 24, 13, P.navy);
   p.rect(14, 19, 4, 1, P.charcoal);
   return {
-    ...stand(p.toCanvas(), { cx: 16, base: 30, shadow: 0, contact: 0 }),
+    ...stand(p.toCanvas(), { cx: 16, base: 16, shadow: 0, contact: 0 }),
     over(g: Gfx, x: number, y: number, env: PropEnv) {
       // flickering screen (news / looping / "please wait" / weather)
       const sx = x + 16 - 16 + 4;
-      const sy = y + 30 - 32 + 4;
+      const sy = y + 16 - 32 + 4;
       const f = Math.floor(env.t / 260) % 4;
       const cols = env.stage === 2 ? [P.lilac, P.lilac, P.shade, P.lilac] : [P.aqua, P.blue, P.aqua, P.glow];
       g.rect(sx, sy, 24, 13, cols[f]);
@@ -611,9 +697,11 @@ registerProp('obj_tv', () => {
       }
     },
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
-      // screen light on the tatami (#7FD1E8 α20%, flickers)
-      const a = 0.12 + (Math.floor(env.t / 260) % 3) * 0.04;
-      g.rect(x + 2, y + 32, 28, 12, P.aqua, a);
+      // screen light on the tatami (#7FD1E8, flickers with the picture; stronger at night)
+      const f = Math.floor(env.t / 260) % 3;
+      const n = env.grade.night;
+      g.rect(x + 2, y + 18, 28, 12, P.aqua, 0.12 + f * 0.04);
+      lampPool(g, x + 16, y + 20, 30 + n * 14, (0.1 + n * 0.16) * (0.8 + f * 0.1), '127,209,232', 0.55);
     },
   } as PropArt;
 });

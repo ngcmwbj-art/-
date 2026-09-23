@@ -11,17 +11,23 @@ import { CHAIR_MATS, VEND_MATS, chair, vendFront } from './enemies';
 const STATIC = { up: 'down', left: 'down', right: 'down' } as const;
 
 // =============================================================================
-// セミ: clinging to a tree trunk, head up (8×8 body in a 12×10 canvas).
-// anim 'fly': wings beating (the battle defeat flies it off-screen).
+// セミ: an ordinary cicada clinging to a tree trunk, seen from the side
+// (8×8 in a 12×10 canvas): the trunk is on the left, head up with its bright
+// compound eye, legs gripping the bark, and the folded wings as a long
+// triangle reaching down past the body — with a 1px pale leading edge so it
+// stands off the bark. anim 'fly': wings beating (the battle defeat flies it
+// off-screen).
 
 const CICADA: Mats = {
-  body: mat('#5A3A22', { shade: '#3E2616', light: '#7A5A3A', dark: '#2A1A12', rim: '#FFB070' }),
-  wing: mat('#7A5A3A', { shade: '#5A3E26', light: '#A88A5A', dark: '#3A2616' }),
-  wingF: flat('#C8A87A99'),
-  vein: flat('#3A2616'),
-  eye: flat('#2A1A12'),
-  glint: flat('#F4F1E8'),
-  belly: flat('#C9A36A'),
+  body: mat('#8A5A3A', { shade: '#5A3A2A', light: '#C8A06A', dark: '#3A2B24' }),
+  wing: mat('#A8742A', { shade: '#8A5A3A', light: '#C8A06A', dark: '#5A3A2A' }),
+  wingEdge: flat('#F6D98A'),
+  wingF: flat('#BDE8F2A0'),
+  vein: flat('#5A3A2A'),
+  eye: flat('#C8C2B4'),
+  glint: flat('#FFF6D8'),
+  leg: flat('#2A2440'),
+  belly: flat('#C8A06A'),
 };
 
 function cicada(f: Fig, p: Pose) {
@@ -36,20 +42,28 @@ function cicada(f: Fig, p: Pose) {
     else f.rows(0, 5, ['..##....##..', '.###....###.', '###......###']);
     return;
   }
-  // on the trunk: seen from behind, head up, wings folded tent-like
-  f.part('wing', { shade: 'r', light: 'l' });
-  f.rows(3, 2, ['.####.', '######', '######', '######', '.####.', '..##..']);
-  f.part('vein', { flat: true, rim: false });
-  f.vl(5, 3, 6).vl(6, 3, 6).px(4, 4).px(7, 4);
+  // x 3..10, y 1..8: belly against the trunk (screen left), back to the right
   f.part('body', { shade: 'rb', light: 't' });
-  f.rows(4, 0, ['.##.', '####']);
-  f.part('eye', { flat: true, rim: false });
-  f.px(3, 1).px(8, 1);
-  f.part('glint', { flat: true, rim: false });
-  f.px(3, 1);
-  // legs gripping the bark
+  f.rows(3, 1, ['.###', '####', '.###', '.###', '..##']);
+  f.part('belly', { flat: true, rim: false });
+  f.px(4, 3).px(4, 4).px(5, 5);
+  f.part('leg', { flat: true, rim: false });
+  f.hl(4, 6, 2);
+  // folded wings: a long triangle from the shoulder down past the tail
+  f.part('wing', { shade: 'rb', light: '' });
+  f.rows(5, 2, ['###..', '####.', '#####', '#####', '.####', '.###.', '..##.']);
   f.part('vein', { flat: true, rim: false });
-  f.px(2, 3).px(9, 3).px(2, 6).px(9, 6);
+  f.vl(7, 3, 6).px(8, 5);
+  f.part('wingEdge', { flat: true, rim: false });
+  f.px(8, 3).px(9, 4).px(9, 5).px(8, 7);
+  // head: the big compound eye catches the light
+  f.part('eye', { flat: true, rim: false });
+  f.px(4, 1);
+  f.part('glint', { flat: true, rim: false });
+  f.px(4, 1);
+  // legs gripping the bark
+  f.part('leg', { flat: true, rim: false });
+  f.px(2, 2).px(2, 4).px(2, 6).px(3, 6);
 }
 
 registerChar('restored_enemy_semi_final', () =>

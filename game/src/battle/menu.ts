@@ -444,8 +444,12 @@ export function* pickEnemy(s: BattleScene, o: { parts: boolean; skill?: string }
     const body = list.findIndex((t) => !t.part);
     if (body >= 0) index = body;
   }
+  // the skill list closes while a target is chosen: nothing may cover the
+  // enemies (or a glowing boss part) — cancel brings it back (runList)
+  s.list = null;
   if (s.memo.oshiraseTut && glowing >= 0) {
-    showSticky(s, 'oshirase');
+    // to the right of the boss, under the chime sticky, clear of every part
+    showSticky(s, 'oshirase', undefined, false, 0, 0, 'right');
     s.memo.oshiraseTut = 0;
   }
   const dimmed = (t: EnemyTarget) => o.skill === 'skill_yarinaoshi' && !canUndo(s, t.e, t.part);

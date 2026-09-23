@@ -46,8 +46,8 @@ const ROWS = [
   'wwwwwwwwww==wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwbRbww', // 36
   'wwwwwwwwww==wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwbRbww', // 37
   'HHHHHHoHHH==HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHFbRbF,', // 38
-  '~~~::o:o::::::::::::::~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 39
-  '~~~:::::::::::::::::::~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 40
+  '~~~:::::::::::::::::::~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 39
+  '~~~::o:o::::::::::::::~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 40 torii (5,40)–(7,40)
   '~~~~~~~~~~~~:~~~o~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 41
   '~~~~~~~~~~~~:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 42
   '~~~~~~~~~~~~:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 43
@@ -281,7 +281,7 @@ const OBJECTS: MapObj[] = [
 !flag flag_hidden_hokora 1
 [-]`, text2: `@narr
 きつねは、すまし顔の ままだ。` } as MapObj,
-  { t: 'prop', prop: 'prop_torii', x: 5, y: 39 },
+  { t: 'prop', prop: 'prop_torii', x: 5, y: 40 },
   O('obj_scarecrow', 16, 41, { face: 'down' }),
   O('obj_paddy', 13, 41, { w: 45, h: 3, face: 'down', flat: true }),
   { t: 'trig', id: 'trig_edge_south', x: 12, y: 43, w: 1, h: 1, on: 'bump', text: OBJ.obj_edge_south as string },
@@ -460,10 +460,12 @@ registerMap({
     { k: 'drain', x: 41, y: 33 },
   ],
   wires: [
+    // 3.7 (review round 1: two lines per span, five only on the staff; no
+    // span crosses the curve mirror, the vending machine or the koban)
     { pts: [[3, 23], [13, 23]], staff: true },
-    { pts: [[13, 23], [21, 15]] },
-    { pts: [[13, 23], [18, 28], [22, 35]] },
-    { pts: [[6, 35], [22, 35], [34, 35], [46, 35], [56, 21]] },
+    { pts: [[13, 23], [21, 15]], thin: true },
+    { pts: [[18, 28], [22, 35]] },
+    { pts: [[6, 35], [22, 35], [34, 35], [46, 35]] },
     { pts: [[3, 23]], to: [3 * 16 + 4, 25 * 16 + 2] },
     { pts: [[13, 23]], to: [11 * 16, 25 * 16 + 2] },
     { pts: [[18, 28]], to: [20 * 16 + 4, 26 * 16 + 2] },
@@ -471,6 +473,7 @@ registerMap({
     { pts: [[34, 35]], to: [33 * 16, 26 * 16 + 4] },
     { pts: [[46, 35]], to: [48 * 16, 26 * 16 + 4] },
     { pts: [[21, 15]], to: [16 * 16, 16 * 16 + 2] },
+    { pts: [[56, 21]], to: [54 * 16 + 6, 18 * 16 + 8] },
   ],
   structMats: [
     { x: 0, y: 23, w: 8, h: 1, mat: 'block_flower' },

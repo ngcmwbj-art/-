@@ -5,18 +5,18 @@ import type { Co } from '../engine/co';
 import { setFlag } from '../game/state';
 import { rng } from '../engine/rng';
 import { ease } from '../engine/tween';
-import { duckMusic, muteMusic, sfx, stopBgm } from '../audio';
+import { muteMusic, sfx, stopBgm } from '../audio';
 import { BOSS_PARTS, fillAll, SYS } from '../data/battle';
 import type { BattleScene } from './scene';
+import { STAGE_TOP } from './scene';
 import { FRAME } from './scene';
 import { fixedDamage, JUDGE_MUL, type BossPart, type EnemyUnit, type Judge, type PartyUnit } from './model';
-import { changeStage, hurtEnemy, hurtParty, knock, showSticky } from './common';
+import { changeStage, hurtEnemy, hurtParty, knock } from './common';
 import type { BossMoveCtx } from './enemy';
 import { doEnemyAction, hitLoop } from './enemy';
 import { glove, uwabaki } from './art/fxart';
-import { ovalStamp, roundSeal } from './art/stamps';
+import { finalSeal, ovalStamp, petalSprites } from './art/stamps';
 import { kanenariBack } from '../art/enemies/kanenari';
-import { PANEL_POS } from './ui/panels';
 import { labelCanvas } from './ui/note';
 import { LABEL } from '../data/battle';
 import { holdStamp } from './party';
@@ -416,7 +416,7 @@ export function* bossUndo(s: BattleScene, e: EnemyUnit, j: Judge, partId?: strin
   }
   if (j === 'kukkiri') {
     e.status.bokemake = true;
-    s.label(LABEL.bokemake, e.x, e.headY + 8);
+    s.label(LABEL.bokemake, e.x, Math.max(STAGE_TOP + 10, e.headY + 8));
   }
 }
 
@@ -561,13 +561,31 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
 }
 
 /** The final stamp (13.7). */
+/** Petals falling from above the top edge, drifting and swaying down. */
+function petalRain(s: BattleScene, n: number): void {
+  const imgs = petalSprites();
+  for (let i = 0; i < n; i++) {
+    s.burst(rng.range(-10, 394), rng.range(-14, -4), {
+      count: 1,
+      speed: [55, 105],
+      angle: [Math.PI * 0.32, Math.PI * 0.68],
+      life: [2600, 3600],
+      colors: ['#FF6A4D'],
+      gravity: 34,
+      drag: 0.45,
+      shape: 'img',
+      img: imgs[rng.int(0, imgs.length - 1)],
+    }, true);
+  }
+}
+
 export function* doOkaerinasai(s: BattleScene, u: PartyUnit): Co {
   const e = s.enemies.find((x) => x.def.boss);
   if (!e) return;
   // the prompt stays in the band while the stamp is held; any judgement works
   const j = yield* holdStamp(s, u);
   s.msg.clearStatic();
-  const big = ovalStamp('おかえりなさい', 96, 40, j === 'kasure' ? 0.3 : 0, 9, true);
+  const big = finalSeal('おかえりなさい', j === 'kasure' ? 0.3 : 0);
   const cx = e.left + 80;
   const cy = e.top + 64;
   const drop = { p: 0, stuck: false };
@@ -576,7 +594,7 @@ export function* doOkaerinasai(s: BattleScene, u: PartyUnit): Co {
     dur: 0,
     draw: (g) => {
       const y = -40 + (cy + 40) * ease.cubicIn(drop.p);
-      g.alpha(e.alpha, () => g.img(big, Math.round(cx - 48), Math.round(y - 20)));
+      g.alpha(e.alpha, () => g.img(big, Math.round(cx - big.width / 2), Math.round(y - big.height / 2)));
     },
   });
   for (let i = 1; i <= 5; i++) {
@@ -588,18 +606,20 @@ export function* doOkaerinasai(s: BattleScene, u: PartyUnit): Co {
   s.flash('#FFF6D8', 1, 3);
   sfx('se_stamp_heavy', { pitch: 0.9 });
   sfx('se_hanamaru', { grade: 'kukkiri' });
-  if (j === 'kukkiri') {
-    // 200 petals fill the screen over 1.5s
-    for (let i = 0; i < 20; i++) {
-      const d = i * 75;
-      s.addFx({ layer: 'top', dur: d + 1, ui: true, draw: () => {}, update() {
-        if (this.t >= d) {
-          s.petals(rng.range(0, 384), rng.range(-10, 120), 10, 30);
-          this.done = true;
-        }
-      } });
-    }
-  } else s.petals(cx, cy, 40, 30);
+  // petals (4×3 ovals) rain down from the top edge — くっきり fills the
+  // screen with 200 over 1.5s, otherwise a lighter shower of 60
+  const n = j === 'kukkiri' ? 200 : 60;
+  const waves = 20;
+  for (let i = 0; i < waves; i++) {
+    const d = i * 75;
+    s.addFx({ layer: 'top', dur: d + 1, ui: true, draw: () => {}, update() {
+      if (this.t >= d) {
+        petalRain(s, Math.round(n / waves));
+        this.done = true;
+      }
+    } });
+  }
+  s.petals(cx, cy, 24, 30);
   s.msg.post(e.def.texts.extra.finalStamp);
   yield 1000;
   // +1000ms: 「…………」「……ただいま。」

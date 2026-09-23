@@ -30,6 +30,21 @@ export function score(mml: string, chordTable: string, extraTables: Map<string, 
   };
 }
 
+/**
+ * The town chime's "question" (G A C E: +2 +3 +4 semitones, 1.3) woven into a
+ * song as a short bell figure. Written as an extra mml block with only the
+ * bars where it sounds; the sealed "answer" check sees it like any melody.
+ */
+export function chimeQuote(mml: string): MmlBar[] {
+  const bars = parseMml(mml).flatMap((b) => b.bars);
+  for (const b of bars) {
+    const seq = b.events.filter((e) => e.midis.length).map((e) => e.midis[0]);
+    const iv = seq.slice(1).map((m, i) => m - seq[i]);
+    if (iv.join() !== '2,3,4') mmlErrors.push(`chime quote ${b.label}: not the question shape (${iv.join()})`);
+  }
+  return bars;
+}
+
 /** A bar that has no melody of its own (drum-only intros etc.). */
 export function bar(label: string, steps: number, chords: [number, Chord][], bpm?: number): BarDef {
   return { label, steps, chords: chords.map(([step, chord]) => ({ step, chord })), bpm };

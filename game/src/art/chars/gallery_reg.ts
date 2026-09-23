@@ -5,6 +5,7 @@ import { game } from '../../engine/game';
 import { registerScene } from '../../boot';
 import { registerDebug } from '../../debug';
 import { CharGallery } from './gallery';
+import { autoRimLight, paletteReport, setRimLight } from './quant';
 
 let cur: CharGallery | null = null;
 queueMicrotask(() => {
@@ -21,5 +22,13 @@ queueMicrotask(() => {
     game.replaceAll(cur);
     return cur.pages.map((p) => p.title);
   });
+  // __game.cmd.charsRim('#E0567A' | null | 'auto'): force the sprites' rim light
+  registerDebug('charsRim', (c?: string | null) => {
+    if (c === 'auto' || c === undefined) autoRimLight();
+    else setRimLight(c);
+    return c ?? 'auto';
+  });
+  // __game.cmd.charsPalette(id): the sprite's own (non-master) colours
+  registerDebug('charsPalette', (id: string) => paletteReport(id) ?? 'not built yet');
 });
 

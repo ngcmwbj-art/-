@@ -3,7 +3,7 @@
 // shadow thrown with the sun (holes twinkle; frozen in stage 1).
 // Every species has its own silhouette, palette and per-instance variation.
 
-import { PixelCanvas } from '../../engine/pixel';
+import { PixelCanvas, rgba32 } from '../../engine/pixel';
 import { P } from '../tiles/palette';
 import { ihash, mulberry } from '../tiles/noise';
 import { dk, lt, outline } from './kit';
@@ -165,8 +165,8 @@ function clumpsFor(w: number, h: number, seed: number, count: number, rmin: numb
   return out;
 }
 
-/** Trunk image (sorted layer). */
-function trunk(kind: string, seed: number, h: number, wBase: number): PixelCanvas {
+/** Trunk image (sorted layer). Options: a name tag tied round it, weeds at the foot. */
+function trunk(kind: string, seed: number, h: number, wBase: number, deco: { tag?: boolean; weeds?: boolean } = {}): PixelCanvas {
   const w = wBase + 8;
   const p = new PixelCanvas(w, h);
   const cx = Math.floor(w / 2);
@@ -204,8 +204,50 @@ function trunk(kind: string, seed: number, h: number, wBase: number): PixelCanva
     }
   }
   outline(p, { bottom: false, soft: true });
+  if (deco.tag) {
+    // 樹名板: a white tag on a string round the trunk
+    const ty = Math.floor(h * 0.45);
+    const half = Math.max(1, Math.round((wBase / 2) * (0.65 + 0.35 * (ty / h))));
+    p.hline(cx - half, cx + half - 1, ty, P.concreteLt);
+    p.rect(cx - 1, ty + 1, 4, 5, P.white);
+    p.hline(cx - 1, cx + 2, ty + 3, P.steel);
+    p.vline(cx + 3, ty + 1, ty + 5, P.concrete);
+  }
+  if (deco.weeds) {
+    // weeds at the foot, both sides of the root flare
+    const tuft = (x: number, hgt: number) => {
+      for (let j = 0; j < hgt; j++) {
+        p.set(x, h - 1 - j, j > hgt - 2 ? P.leafYoung : P.leaf);
+        if (j < hgt - 1) p.set(x + 1, h - 1 - j, P.leafDeep);
+      }
+      p.set(x - 1, h - 2, P.leafYoung);
+    };
+    tuft(1, 4);
+    tuft(w - 3, 3);
+    p.set(2, h - 5, P.goldPale);
+  }
   return p;
 }
+
+/** Per-instance look of a species: shape, mirroring, size, decorations (6.1-6: no two alike in a row). */
+interface TreeVar {
+  shape?: TreeSpec['shape'];
+  flip?: boolean;
+  dw?: number;
+  dh?: number;
+  dlift?: number;
+  dtrunk?: number;
+  lean?: number;
+  tag?: boolean;
+  weeds?: boolean;
+  branch?: number;
+}
+const CHERRY_VARS: TreeVar[] = [
+  { shape: 'round', weeds: true, branch: -1 },
+  { shape: 'spread', flip: true, dw: 10, dh: -8, dlift: -4, dtrunk: -3, tag: true },
+  { shape: 'vase', dw: -8, dh: 6, dlift: 5, dtrunk: 4, weeds: true, branch: 1 },
+  { shape: 'round', flip: true, dw: 2, lean: 6, dlift: 1, tag: true, branch: -1 },
+];
 
 interface TreeSpec {
   cw: number;
@@ -238,19 +280,41 @@ const SPECS: Record<string, TreeSpec> = {
 };
 
 function treeArt(id: string, v: number): PropArt {
-  const s = SPECS[id];
+  const s0 = SPECS[id];
+  const tv: TreeVar = id === 'tree_cherry' ? CHERRY_VARS[v % CHERRY_VARS.length] : {};
+  const s: TreeSpec = { ...s0, shape: tv.shape ?? s0.shape, lift: s0.lift + (tv.dlift ?? 0), trunkH: s0.trunkH + (tv.dtrunk ?? 0) };
   const seed = (ihash(v, id.length, 1901) % 10000) + v * 131;
-  const cw = s.cw + (v % 2) * 4;
-  const ch = s.ch - (v % 3) * 2;
-  const cl = clumpsFor(cw, ch, seed, s.clumps, s.rmin, s.rmax, s.shape);
+  const cw = s.cw + (tv.dw ?? (v % 2) * 4);
+  const ch = s.ch + (tv.dh ?? -(v % 3) * 2);
+  let cl = clumpsFor(cw, ch, seed, s.clumps, s.rmin, s.rmax, s.shape);
+  // mirrored silhouette (the light still comes from the left: shading is per pixel)
+  if (tv.flip) cl = cl.map((c) => ({ ...c, x: cw - c.x }));
   const { frames, sparkle } = canopy(cw, ch, cl, PAL[s.pal], seed, { flowers: s.flowers, fruit: s.fruit, needle: s.needle, fan: s.fan });
+  // a branch showing through the shaded lower leaves
+  if (tv.branch) {
+    const darkA = rgba32(PAL[s.pal].dk);
+    const darkB = rgba32(PAL[s.pal].deep);
+    const bx0 = Math.floor(cw / 2) + (tv.lean ? -tv.lean : 0);
+    for (const f of frames) {
+      for (let j = 0; j < 16; j++) {
+        const x = Math.round(bx0 + tv.branch * j * 0.9);
+        const y = ch - 3 - j;
+        for (const xx of [x, x + 1]) {
+          if (!f.alpha(xx, y)) continue;
+          const px = f.get(xx, y);
+          // only where the leaves are in shade, so it peeks through gaps
+          if ((px === darkA || px === darkB) && ihash(xx, y, seed) % 3 !== 0) f.set(xx, y, j < 6 ? P.woodDark : P.wood);
+        }
+      }
+    }
+  }
   const fc = frames.map((f) => f.toCanvas());
   // trunk with a couple of branches reaching into the canopy
-  const tr = trunk(s.pal, seed, s.trunkH, s.trunkW);
+  const tr = trunk(s.pal, seed, s.trunkH, s.trunkW, { tag: tv.tag, weeds: tv.weeds });
   const tc = tr.toCanvas();
   const footX = 8;
   const footY = 15;
-  const cox = footX - Math.floor(cw / 2) + (s.shape === 'spread' ? 2 : 0);
+  const cox = footX - Math.floor(cw / 2) + (s.shape === 'spread' ? 2 : 0) + (tv.lean ?? 0);
   const coy = footY - s.lift - Math.floor(ch / 2);
   const sparkCanvas = (() => {
     const p = new PixelCanvas(2, 2);

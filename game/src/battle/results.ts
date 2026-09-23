@@ -13,7 +13,7 @@ import { duckMusic, playBgm, sfx, stopBgm } from '../audio';
 import { EXCELLENT, fillAll, gainExp, getItem, REPORT, SYS, type LevelUpResult, type StatKey } from '../data/battle';
 import type { BattleScene } from './scene';
 import { FRAME } from './scene';
-import { gradeMark, hanamaruFrame, miniText, ovalStamp, roundSeal } from './art/stamps';
+import { gradeMark, hanamaruFrame, miniText, ovalStamp } from './art/stamps';
 import { itemIcon } from './art/icons';
 import { C, tapeCanvas } from './ui/note';
 import { MessageBand } from './ui/message';
@@ -47,6 +47,9 @@ function* say(s: BattleScene, pages: string[]): Co {
   yield* s.msg.show(pages, { manual: true });
   s.msgInteractive = false;
 }
+
+/** Centre y of the big victory seal: above the restored objects on the floor. */
+const VSEAL_Y = 74;
 
 /** Victory sequence and all rewards. */
 export function* victory(s: BattleScene): Co {
@@ -85,11 +88,11 @@ export function* victory(s: BattleScene): Co {
         const sc = t < 67 ? 1.6 - 0.6 * (t / 67) : 1;
         const w = seal.width * sc;
         const h = seal.height * sc;
-        g.alpha(t > 1300 ? (1600 - t) / 300 : 1, () => g.ctx.drawImage(seal, Math.round(192 - w / 2), Math.round(92 - h / 2), Math.round(w), Math.round(h)));
+        g.alpha(t > 1300 ? (1600 - t) / 300 : 1, () => g.ctx.drawImage(seal, Math.round(192 - w / 2), Math.round(VSEAL_Y - h / 2), Math.round(w), Math.round(h)));
       },
     });
     s.hitstop(6);
-    s.shuSplash(192, 92, 12);
+    s.shuSplash(192, VSEAL_Y, 12);
     sfx('se_stamp_heavy');
     playBgm('bgm_jingle_victory');
     for (const u of s.party) {
@@ -370,7 +373,11 @@ class ReportCard {
     if (!withCover) this.rise = 1;
   }
 
+  /** The band is redrawn over the dimming so せんせいより stays at full contrast. */
+  private msg: MessageBand | null = null;
+
   *run(msg: MessageBand, confirm: () => boolean, hitstop: (ms: number) => void, petals: (x: number, y: number, n: number) => void): Co {
+    this.msg = msg;
     if (!this.quiet) playBgm('bgm_jingle_levelup');
     const tick = function* (self: ReportCard, ms: number, fn: (p: number) => void) {
       let t = 0;
@@ -431,6 +438,8 @@ class ReportCard {
 
   draw(g: Gfx): void {
     g.rect(0, 0, 384, 216, '#1B1733', 0.55 * this.dim * (1 - this.closing));
+    // せんせいより: the band sits above the dimming (full contrast), under the card
+    if (this.msg && this.msg.tag) this.msg.draw(g);
     const drop = Math.round(this.closing * 200);
     if (!this.opened) {
       // closed card rising from below to (120,44); then the cover turns over

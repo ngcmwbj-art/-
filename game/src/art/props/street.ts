@@ -186,41 +186,57 @@ registerProp('prop_utility_pole', poleArt);
 
 // ---------------------------------------------------------------- カーブミラー prop_curve_mirror
 
+/** Curve-mirror glass radius (px): the mirror face is 17px across (review round 1). */
+export const MIRROR_R = 7.5;
+
 registerProp('prop_curve_mirror', () => {
-  const p = pc(20, 44);
-  const cx = 10;
-  // post
-  p.vline(cx - 1, 14, 43, P.sun);
-  p.vline(cx, 14, 43, P.sunDeep);
-  p.set(cx - 1, 43, P.sunShade);
+  const W = 26;
+  const H = 52;
+  const p = pc(W, H);
+  const cx = 13;
+  const my = 10;
+  // post (orange steel pipe) with a collar under the head
+  p.vline(cx - 1, my + 8, H - 1, P.sun);
+  p.vline(cx, my + 8, H - 1, P.sunDeep);
+  p.set(cx - 1, H - 1, P.sunShade);
+  p.rect(cx - 2, my + 10, 4, 2, P.sunShade);
+  p.hline(cx - 2, cx + 1, my + 10, P.sunDeep);
   // speed plate
-  p.rect(cx - 4, 26, 8, 6, P.white);
-  p.strokeRect(cx - 4, 26, 8, 6, P.verm);
-  p.hline(cx - 2, cx + 1, 28, P.verm);
-  p.hline(cx - 2, cx + 1, 30, P.verm);
-  castRight(p, cx - 4, 26, 8, 6, 2);
-  // mirror: orange rim, glass
-  p.ellipse(cx, 8, 7.5, 7.5, P.sunDeep);
-  p.ellipse(cx, 8, 6.5, 6.5, P.sun);
-  p.ellipse(cx - 0.5, 7.5, 5.5, 5.5, P.shadeDeep);
-  p.set(cx - 5, 5, P.vermLt);
-  p.set(cx - 4, 4, P.vermLt);
-  p.hline(cx - 2, cx + 1, 15, P.sunShade);
+  p.rect(cx - 5, 30, 10, 7, P.white);
+  p.strokeRect(cx - 5, 30, 10, 7, P.verm);
+  p.hline(cx - 3, cx + 2, 32, P.verm);
+  p.hline(cx - 3, cx + 2, 34, P.verm);
+  castRight(p, cx - 5, 30, 10, 7, 2);
+  // mirror: orange rim (2px), dark glass, a small hood on top
+  p.ellipse(cx - 0.5, my, MIRROR_R + 2, MIRROR_R + 2, P.sunDeep);
+  p.ellipse(cx - 0.5, my, MIRROR_R + 1, MIRROR_R + 1, P.sun);
+  p.ellipse(cx - 0.5, my, MIRROR_R, MIRROR_R, P.shadeDeep);
+  for (let x = cx - 7; x <= cx + 6; x++) {
+    const dx = (x + 0.5 - (cx - 0.5)) / (MIRROR_R + 2);
+    const top = Math.round(my - Math.sqrt(Math.max(0, 1 - dx * dx)) * (MIRROR_R + 2));
+    p.set(x, top - 1, P.charcoal);
+    if (Math.abs(dx) < 0.7) p.set(x, top - 2, P.asphalt);
+  }
+  // rim highlights (upper-left) and shade (lower-right)
+  p.set(cx - 8, my - 3, P.vermLt);
+  p.set(cx - 7, my - 5, P.vermLt);
+  p.set(cx - 6, my - 6, P.vermLt);
+  p.set(cx + 6, my + 5, P.sunShade);
+  p.set(cx + 5, my + 6, P.sunShade);
   finish(p, { soft: true });
   const img = p.toCanvas();
-  const glass = maskOf(20, 44, (x, y) => Math.hypot(x + 0.5 - (cx - 0.5), y + 0.5 - 7.5) <= 5.4);
-  const a = stand(img, { shadow: 40, contact: 5 });
+  const a = stand(img, { shadow: 44, contact: 5 });
   a.over = (g, x, y, env) => {
     // mirror contents (fushigi_01) are drawn by the world module
     const hook = propHook('mirror');
-    const mx = x + a.ox + cx - 0.5;
-    const my = y + a.oy + 7.5;
-    if (hook) hook(g, Math.round(mx), Math.round(my), env);
-    // glass highlight 2px
-    g.rect(Math.round(mx) - 3, Math.round(my) - 4, 2, 1, P.glint);
-    g.rect(Math.round(mx) - 4, Math.round(my) - 3, 1, 1, P.aqua);
+    const mx = Math.round(x + a.ox + cx - 0.5);
+    const myy = Math.round(y + a.oy + my);
+    if (hook) hook(g, mx, myy, env);
+    // glass highlight 2px (sky)
+    g.rect(mx - 5, myy - 5, 3, 1, P.glint);
+    g.rect(mx - 6, myy - 4, 1, 2, P.aqua);
   };
-  void glass;
+  a.xray = 0.45;
   return a;
 });
 

@@ -226,33 +226,55 @@ registerEmote(
   () => [7, 8, 9, 10, 6].map((y) => frame((p) => drop(p, 11, y))),
 );
 
-/** Anger mark: four corner strokes bulging outward (the "vein" cross). */
+/**
+ * Anger mark (the "vein" cross): four curved strokes, each bending toward
+ * the empty centre — not four L corners pointing out (that read as a red
+ * square frame at 1x). s = 1 small, 2 normal, 3 throb.
+ */
+const ANGER: Record<number, Glyph> = {
+  1: ['..#.#..', '.#...#.', '#.....#', '.......', '#.....#', '.#...#.', '..#.#..'],
+  2: ['...#.#...', '...#.#...', '..#...#..', '##.....##', '.........', '##.....##', '..#...#..', '...#.#...', '...#.#...'],
+  3: [
+    '....#.#....',
+    '....#.#....',
+    '....#.#....',
+    '...#...#...',
+    '###.....###',
+    '...........',
+    '###.....###',
+    '...#...#...',
+    '....#.#....',
+    '....#.#....',
+    '....#.#....',
+  ],
+};
+
 function anger(p: PixelCanvas, cx: number, cy: number, s: number) {
-  const g = s <= 1 ? 1 : s === 2 ? 1 : 2; // gap from the center
-  const arm = s <= 1 ? 2 : 3;
-  for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as [number, number][]) {
-    for (let k = 0; k < arm; k++) {
-      // an "L" per quadrant, its corner pointing away from the center
-      p.set(cx + sx * (g + k), cy + sy * (g + arm - 1), k === 0 ? RED_L : RED);
-      p.set(cx + sx * (g + arm - 1), cy + sy * (g + k), RED);
+  const g = ANGER[Math.max(1, Math.min(3, s))];
+  const h = g.length >> 1;
+  for (let j = 0; j < g.length; j++)
+    for (let i = 0; i < g[j].length; i++) {
+      if (g[j][i] !== '#') continue;
+      // lit on the upper-left strokes, deep on the lower-right
+      const c = i < h && j < h ? RED_L : i > h && j > h ? RED_D : RED;
+      p.set(cx - h + i, cy - h + j, c);
     }
-    p.set(cx + sx * (g + arm - 1), cy + sy * (g + arm - 1), RED_D);
-  }
   p.outline(OL);
 }
 
 registerEmote(
   'anger',
-  () => [1, 2, 3, 2, 2].map((s) => frame((p) => anger(p, 12, 6, s))),
-  () => [2, 3, 2, 2].map((s) => frame((p) => anger(p, 12, 6, s))),
+  () => [1, 2, 3, 2, 2].map((s) => frame((p) => anger(p, 10, 7, s))),
+  () => [2, 3, 2, 2].map((s) => frame((p) => anger(p, 10, 7, s))),
 );
 
 function zzz(p: PixelCanvas, t: number) {
   // three Z's drifting up and to the right, growing
+  // (the smallest is still 4×4 with its diagonal: a 3×3 z read as an "I")
   const zs: [number, number, number][] = [
-    [9, 12, 3],
-    [11, 7, 4],
-    [12, 1, 5],
+    [8, 12, 4],
+    [10, 7, 4],
+    [11, 2, 5],
   ];
   zs.forEach(([x, y, w], k) => {
     if (k > t) return;

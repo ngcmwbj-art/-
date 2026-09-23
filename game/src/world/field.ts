@@ -30,6 +30,9 @@ import { strSeed } from '../art/tiles/noise';
 export const WALK_SPEED = 4.5 * 16; // px/s
 export const DASH_SPEED = 7 * 16;
 export const FOLLOW_DELAY = 14; // frames
+/** Minimum personal space between characters (px): 12 wide, one tile deep. */
+const CHAR_SPACE = 12;
+const CHAR_DEPTH = 16;
 
 export interface PropInst {
   obj: PropObj | ExamineObj;
@@ -133,6 +136,8 @@ export class FieldScene implements Scene {
     state.y = ty;
     state.dir = dir;
     this.trail = [];
+    this.camOverride = null;
+    this.camFollow = null;
     this.structures = buildStructures(m);
     this.buildProps();
     this.refreshPresence(true);
@@ -243,15 +248,30 @@ export class FieldScene implements Scene {
       this.follower = f;
     } else if (!want && this.follower) this.follower = null;
     if (snap && this.follower) {
-      const [dx, dy] = DIR_VEC[this.player.dir];
-      this.follower.x = this.player.x - dx * 14;
-      this.follower.y = this.player.y - dy * 14;
-      if (!this.free(this.follower, this.follower.x, this.follower.y, true)) {
-        this.follower.x = this.player.x;
-        this.follower.y = this.player.y;
+      // one tile behind the player (opposite the facing), else beside, else in front
+      const p = this.player;
+      const f = this.follower;
+      const [dx, dy] = DIR_VEC[p.dir];
+      const tries: [number, number][] = [[-dx, -dy], [dy, dx], [-dy, -dx], [dx, dy]];
+      f.x = p.x;
+      f.y = p.y;
+      for (const [ex, ey] of tries) {
+        const nx = p.x + ex * 16;
+        const ny = p.y + ey * 16;
+        if (this.free(f, nx, ny, true)) {
+          f.x = nx;
+          f.y = ny;
+          break;
+        }
       }
-      this.follower.dir = this.player.dir;
+      f.dir = p.dir;
+      f.moving = false;
       this.trail = [];
+      // seed the trail so the follower walks from where it stands
+      for (let i = 0; i <= FOLLOW_DELAY; i++) {
+        const k = i / FOLLOW_DELAY;
+        this.trail.push([f.x + (p.x - f.x) * k, f.y + (p.y - f.y) * k, p.dir, false]);
+      }
     }
   }
 
@@ -320,19 +340,26 @@ export class FieldScene implements Scene {
       for (const py of [t, b]) if (this.isSolidTile(Math.floor(px / 16), Math.floor(py / 16))) return false;
     if (ignoreActors) return true;
     const others = a === this.player ? this.actors : [...this.actors, this.player];
+    // characters keep a personal space of at least 12×12 px from each other
+    // (walls still use the small feet box), so nobody sinks half into an NPC
+    const person = (k: string) => k === 'player' || k === 'npc';
     for (const o of others) {
       if (o === a || !o.solid || !o.visible) continue;
       if (a.kind === 'follower' || o.kind === 'follower') continue;
-      const ol = o.x - o.bw / 2;
-      const or = o.x + o.bw / 2;
-      const ot = o.y - o.bh;
-      const ob = o.y;
-      if (l < or && r > ol && t < ob && b > ot) {
-        // already overlapping (spawned inside) → allow moving apart
-        const cl = a.x - a.bw / 2;
-        const cr = a.x + a.bw / 2;
-        const ct = a.y - a.bh;
-        if (cl < or && cr > ol && ct < ob && a.y > ot) continue;
+      const sp = person(a.kind) && person(o.kind) && !o.data.cart;
+      const pw = Math.max(a.bw, sp ? CHAR_SPACE : 0) / 2;
+      const ph = Math.max(a.bh, sp ? CHAR_DEPTH : 0);
+      const ow = Math.max(o.bw, sp ? CHAR_SPACE : 0) / 2;
+      const oh = Math.max(o.bh, sp ? CHAR_DEPTH : 0) / 2;
+      // centre distance test on the feet-anchored boxes
+      const need = [pw + ow, (ph + oh * 2) / 2];
+      const ddx = Math.abs(x - o.x);
+      const ddy = Math.abs(y - ph / 2 - (o.y - oh));
+      if (ddx < need[0] && ddy < need[1]) {
+        // already overlapping (spawned inside / pushed) → only moves that separate
+        const cdx = Math.abs(a.x - o.x);
+        const cdy = Math.abs(a.y - ph / 2 - (o.y - oh));
+        if (cdx < need[0] && cdy < need[1] && Math.hypot(ddx, ddy) > Math.hypot(cdx, cdy) + 1e-6) continue;
         return false;
       }
     }
@@ -589,7 +616,9 @@ export class FieldScene implements Scene {
   /** Point just in front of the player's feet. */
   probe(dist = 12): [number, number] {
     const [dx, dy] = DIR_VEC[this.player.dir];
-    return [this.player.x + dx * dist, this.player.y - 4 + dy * dist];
+    // y is measured from 1px above the feet so a player standing exactly on a
+    // tile's bottom edge probes into the next tile, not its own.
+    return [this.player.x + dx * dist, this.player.y - 1 - 4 + dy * dist];
   }
 
   actorAt(px: number, py: number, pad = 3): Actor | null {
@@ -618,19 +647,29 @@ export class FieldScene implements Scene {
     return null;
   }
 
+  /**
+   * The tile the player is facing: always the neighbour of the tile the feet
+   * are on (never the player's own tile, whatever the sub-tile position —
+   * right after a spawn the feet sit exactly on the tile's bottom edge).
+   */
+  facingTile(): [number, number] {
+    const p = this.player;
+    const [dx, dy] = DIR_VEC[p.dir];
+    return [p.tileX + dx, p.tileY + dy];
+  }
+
   private tryInteract(): void {
     const p = this.player;
     const [dx, dy] = DIR_VEC[p.dir];
     const [px, py] = this.probe();
-    // 1) actors in front
-    let a = this.actorAt(px, py);
+    let [tx, ty] = this.facingTile();
+    // 1) actors in front (probe point, then the centre of the facing tile)
+    let a = this.actorAt(px, py) ?? this.actorAt(tx * 16 + 8, ty * 16 + 12, 2);
     if (a && a.kind !== 'player') {
       this.startScript(interactActor(this, a));
       return;
     }
     // 2) objects on the tile in front (and through counters)
-    let tx = Math.floor(px / 16);
-    let ty = Math.floor(py / 16);
     for (let k = 0; k < 4; k++) {
       const o = this.objectAt(tx, ty, p.dir);
       if (o) {

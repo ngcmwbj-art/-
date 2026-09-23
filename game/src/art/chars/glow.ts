@@ -12,13 +12,15 @@ export const GLOW_RING_FRAMES = 8;
 export const GLOW_CENTER_DY = -18;
 
 const RADII = [8, 10, 12, 14];
-const ALPHA = [1, 0.8, 0.55, 0.3];
+/**
+ * How much of each ring is lit as it travels out: the fade is drawn with the
+ * pixel pattern (every pixel → 3 of 4 → every other → every third), never
+ * with alpha, so the ring stays the one color #FFE7A3 wherever it is drawn
+ * (over the ground or composited behind the sprite).
+ */
+const KEEP = [1, 0.75, 0.5, 0.34];
 
 const cache = new Map<number, HTMLCanvasElement>();
-
-function hexA(a: number): string {
-  return Math.round(Math.max(0, Math.min(1, a)) * 255).toString(16).padStart(2, '0');
-}
 
 /** Frame `i` (0..7) of the pulsing ring, 32×32. */
 export function glowRing(i: number): HTMLCanvasElement {
@@ -27,14 +29,30 @@ export function glowRing(i: number): HTMLCanvasElement {
   if (c) return c;
   const p = new PixelCanvas(32, 32);
   const r = RADII[k % 4];
-  const a = ALPHA[k % 4];
+  const keep = KEEP[k % 4];
+  // ring pixels in order around the circle, so the pattern is even
+  const ring: [number, number, number][] = [];
   for (let y = 0; y < 32; y++)
     for (let x = 0; x < 32; x++) {
       const d = Math.hypot(x + 0.5 - 16, y + 0.5 - 16);
-      // the ring (1px, pixel-perfect circle) with a faint inner glow
-      if (Math.abs(d - r) < 0.5) p.set(x, y, '#FFE7A3' + hexA(a));
-      else if (Math.abs(d - (r - 1)) < 0.5) p.set(x, y, '#FFE7A3' + hexA(a * 0.35));
+      if (Math.abs(d - r) < 0.5) ring.push([x, y, Math.atan2(y + 0.5 - 16, x + 0.5 - 16)]);
     }
+  ring.sort((a, b) => a[2] - b[2]);
+  let acc = 0;
+  for (const [x, y] of ring) {
+    acc += keep;
+    if (acc >= 1 - 1e-6) {
+      acc -= 1;
+      p.set(x, y, '#FFE7A3');
+    }
+  }
+  // the first, brightest ring gets a sparse inner glow (every 4th pixel)
+  if (k % 4 === 0)
+    for (let y = 0; y < 32; y++)
+      for (let x = 0; x < 32; x++) {
+        const d = Math.hypot(x + 0.5 - 16, y + 0.5 - 16);
+        if (Math.abs(d - (r - 1)) < 0.5 && (x + y * 3) % 4 === 0) p.set(x, y, '#FFE7A3');
+      }
   c = p.toCanvas();
   cache.set(k, c);
   return c;

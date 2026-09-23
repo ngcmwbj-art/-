@@ -43,8 +43,21 @@ export interface PropArt {
   fg?: PropPart[];
   /** Extra per-frame drawing on top of the base image (world px of anchor tile). */
   over?(g: Gfx, x: number, y: number, env: PropEnv): void;
-  /** Emissive layer drawn after grading (lamps, LEDs, neon). */
+  /**
+   * Emissive layer (lamps, LEDs, neon, lit window glass). It is painted into
+   * a separate buffer right after this prop in depth order, anything drawn
+   * later in front of it cuts it out, and the buffer is laid over the world
+   * after grading, so lights never darken and never paint over things that
+   * stand in front of them.
+   */
   glow?(g: Gfx, x: number, y: number, env: PropEnv): void;
+  /**
+   * Light cast onto the surroundings (pools under street lamps, window light
+   * on the pavement, lamp light on a floor). Drawn additively into the light
+   * map that multiplies the graded world, so it brightens the ground and
+   * whatever stands in it instead of painting a flat shape over it.
+   */
+  light?(g: Gfx, x: number, y: number, env: PropEnv): void;
   /** Long cast shadow from the silhouette of img() (height of the caster in px). */
   shadow?: number;
   /** Silhouette used for the cast shadow (defaults to img()). */
@@ -55,6 +68,14 @@ export interface PropArt {
   flat?: boolean;
   /** Sky-reflecting glass mask (same size/offset as img). */
   glass?: HTMLCanvasElement;
+  /**
+   * "X-ray": while the player (or the follower) stands behind this prop (feet
+   * above its foot line) and at least 30% of the character's pixels are
+   * hidden by the prop's pixels, fade the prop to this alpha in 0.15s so tall
+   * things (pillars, poles, flags) never hide characters. The hidden part of
+   * the character is also drawn as a dark silhouette over it.
+   */
+  xray?: number;
   /** Contact-shadow ellipse width (px) at the foot line. */
   contact?: number;
   /** Contact shadow centre x relative to anchor (px). */

@@ -560,17 +560,33 @@ class SoundTestScene implements Scene {
       title = 'しずか';
       id = 'z: play  x: stop';
     }
-    // title: scrolls when it does not fit
+    // title: scrolls when it does not fit (a slow ping-pong with rests at
+    // both ends); the cut edges fade back into the paper so no glyph is
+    // sliced off hard
+    const tw = textW(title);
+    let tx = CX;
     g.clip(CX, y0, CW, 18, () => {
-      const tw = textW(title);
-      let x = CX;
       if (tw > CW) {
-        const span = tw - CW + 24;
+        const span = tw - CW + 4;
         const ph = Math.max(0, (this.marquee - 900) / 40) % (span * 2 + 60);
-        x = CX - Math.round(Math.min(span, Math.max(0, ph < span + 30 ? ph : span * 2 + 30 - ph)));
+        tx = CX - Math.round(Math.min(span, Math.max(0, ph < span + 30 ? ph : span * 2 + 30 - ph)));
       }
-      g.text(title, x, y0, { color: C.ink });
+      g.text(title, tx, y0, { color: C.ink });
     });
+    if (tw > CW) {
+      const card = cardArt(CARD_W, NOW_H);
+      const FADE = 7;
+      const edge = (x: number, a: number) => {
+        ctx.globalAlpha = a;
+        ctx.drawImage(card, x - CARD_X, y0 - NOW_Y, 1, 18, x, y0, 1, 18);
+      };
+      for (let k = 0; k < FADE; k++) {
+        const a = Math.pow(1 - k / FADE, 1.4);
+        if (tx < CX) edge(CX + k, a);
+        if (tx + tw > CX + CW) edge(CX + CW - 1 - k, a);
+      }
+      ctx.globalAlpha = 1;
+    }
     f5(ctx, id, CX, y0 + 18, C.sys);
     f5(ctx, info, CX, y0 + 28, C.shadow);
 
@@ -640,16 +656,37 @@ class SoundTestScene implements Scene {
     if (!r) return;
     const vis = r.steps.map((s, i) => ({ s, i })).filter(({ s }) => s.text);
     const firedN = vis.filter(({ i }) => r.fired[i]).length;
-    const start = Math.max(0, Math.min(vis.length - 3, firedN - 1));
-    for (let k = 0; k < 3 && start + k < vis.length; k++) {
-      const { s, i } = vis[start + k];
+    // the step that just fired, then what comes next: each step's text
+    // word-wraps at 14 columns, three lines in all
+    const COLS = 14;
+    const wrapCue = (text: string): string[] => {
+      const out: string[] = [];
+      let line = '';
+      for (const w of text.split(' ')) {
+        const next = line ? `${line} ${w}` : w;
+        if (next.length <= COLS) line = next;
+        else {
+          if (line) out.push(line);
+          line = w.length > COLS ? w.slice(0, COLS) : w;
+        }
+      }
+      if (line) out.push(line);
+      return out;
+    };
+    let k = 0;
+    for (let v = Math.max(0, firedN - 1); v < vis.length && k < 3; v++) {
+      const { s, i } = vis[v];
       const done = r.fired[i];
-      const yy = y + k * 9;
-      f5(ctx, s.t.toFixed(1).padStart(4, ' '), CX, yy, done ? C.shu : C.dim);
-      let text = s.text;
-      while (text.length > 14) text = text.slice(0, -1);
-      if (text !== s.text) text = text.slice(0, -1) + '.';
-      f5(ctx, text, CX + 30, yy, done ? C.ink : C.dim);
+      const lines = wrapCue(s.text);
+      // a step that would spill past the card starts on the next page instead
+      if (k > 0 && k + Math.min(lines.length, 2) > 3) break;
+      lines.slice(0, 2).forEach((line, li) => {
+        if (k >= 3) return;
+        const yy = y + k * 9;
+        if (li === 0) f5(ctx, s.t.toFixed(1).padStart(4, ' '), CX, yy, done ? C.shu : C.dim);
+        f5(ctx, line, CX + 30, yy, done ? C.ink : C.dim);
+        k++;
+      });
     }
   }
 

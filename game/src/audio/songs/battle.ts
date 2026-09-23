@@ -4,7 +4,7 @@
 
 import { DRM } from '../instruments';
 import { arp, bass, comp, drums, hits, melody, pads, type BarCtx, type PartDef, type SongDef } from '../sequencer';
-import { registerSong, score } from './common';
+import { chimeQuote, registerSong, score } from './common';
 
 export const BATTLE_MML = `
 @song bgm_battle part=intro ins=ins_fm_slap meter=4/4
@@ -65,6 +65,14 @@ A7alt = A C# G Bb Eb
 
 export const battle = score(BATTLE_MML, BATTLE_CHORDS);
 
+// The town chime asked once in the break: in the bar the brass leaves empty,
+// a bell climbs the question over Dm9 (11–5–♭7–9) and hangs on the 9th while
+// the band waits for the tsukkomi.
+const BATTLE_CHIME = chimeQuote(`
+@song bgm_battle part=chime ins=ins_fm_vibes meter=4/4
+C4  Dm9            | -:8 G5:2 A5:2 C6:2 E6:2 |
+`);
+
 export const BATTLE_LOOP = [
   'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8',
   'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8',
@@ -72,6 +80,9 @@ export const BATTLE_LOOP = [
 ];
 
 export const SLAP_A = "R:2 R':1 R:1 -:2 R:2 R':2 5:2 R:1 5:1 R':2";
+
+/** Mark a part whose notes follow `kire` (re-scheduled when kire changes, 7.2). */
+export const kireAware = (p: PartDef): PartDef => ({ ...p, kireAware: true });
 
 /** The kire layers (7.2), shared by bgm_battle / bgm_midboss / bgm_boss. */
 export function kireLayers(o: { bassBoost?: never; arpLo?: number; transpose?: (b: BarCtx) => number } = {}): PartDef[] {
@@ -98,7 +109,7 @@ export function kireLayers(o: { bassBoost?: never; arpLo?: number; transpose?: (
       when: (b) => b.p.kire >= 3,
       fx: { pan: 0.3, lp: 6000 },
     }),
-  ];
+  ].map(kireAware);
 }
 
 /** Main hat pattern with the kire-2 open hat on step 14. */
@@ -110,6 +121,7 @@ function battleDef(): SongDef {
   const parts: PartDef[] = [
     melody({ id: 'lead', ins: 'ins_lead_p25', bars: battle.part('lead'), o: { vol: 0.09 }, fx: { delay: { steps: 3, fb: 0.22, send: 0.18 } } }),
     melody({ id: 'break', ins: 'ins_fm_brass', bars: battle.part('break'), o: { vol: 0.08 }, gate: 0.94 }),
+    melody({ id: 'chime', ins: 'ins_fm_vibes', bars: BATTLE_CHIME, o: { vol: 0.06, rev: 0.4 }, fx: { pan: 0.25 } }),
     // stabs: the hanko rhythm in the intro, then A / B
     comp({
       id: 'stab',
@@ -122,15 +134,15 @@ function battleDef(): SongDef {
       fx: { pan: -0.2 },
     }),
     pads({ id: 'pad', when: (b) => b.section === 'C', o: { vol: 0.03 }, fx: { lp: 1600, q: 0.8, lfo: { rate: 0.15, depth: 300 } } }),
-    melody({ id: 'bass_intro', ins: 'ins_fm_slap', bars: battle.part('intro'), gate: 0.85, transpose: kireUp }),
-    bass({
+    kireAware(melody({ id: 'bass_intro', ins: 'ins_fm_slap', bars: battle.part('intro'), gate: 0.85, transpose: kireUp })),
+    kireAware(bass({
       id: 'bass',
       ins: 'ins_fm_slap',
       pattern: (b) => (b.section === 'C' ? "R:6 R:2 -:4 5:2 R':2" : SLAP_A),
       when: (b) => b.label !== 'BI1',
       transpose: kireUp,
-    }),
-    drums({
+    })),
+    kireAware(drums({
       id: 'drums',
       kit: {
         drm_kick: (b) => (b.label === 'BI1' ? 'x.......x.......' : AB(b) ? 'x.....x...x..x..' : 'x.........x.....'),
@@ -139,7 +151,7 @@ function battleDef(): SongDef {
         drm_hat_c: (b) => (b.label === 'BI1' ? null : AB(b) ? hat8(b) : 'x...x...x...x...'),
       },
       vel: { drm_kick: 1.1 },
-    }),
+    })),
     hits('fx', [{ when: (b, s) => b.label === 'C1' && s === 0, fn: (_b, t, rt) => DRM.drm_crash({ t, vel: 1, dest: rt.input, rev: rt.rev }) }]),
     ...kireLayers(),
   ];

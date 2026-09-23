@@ -30,7 +30,7 @@ function spr(key: string, rows: string[]): HTMLCanvasElement {
  * Draw the bug net. (px, py) = the hand (pivot); angle = pole direction
  * (radians, 0 = right). Hoop centre ends up `len` px from the pivot.
  */
-export function drawNet(g: Gfx, px: number, py: number, angle: number, o: { alpha?: number; len?: number; ghost?: boolean } = {}): void {
+export function drawNet(g: Gfx, px: number, py: number, angle: number, o: { alpha?: number; len?: number; ghost?: boolean; mesh?: number } = {}): void {
   const len = o.len ?? 52;
   const ca = Math.cos(angle);
   const sa = Math.sin(angle);
@@ -45,7 +45,10 @@ export function drawNet(g: Gfx, px: number, py: number, angle: number, o: { alph
     ctx.globalAlpha = prevA;
     return;
   }
-  // net bag trailing behind the hoop (dither)
+  // net bag trailing behind the hoop (dither); `mesh` thins bag + mesh after a
+  // hit so the enemy's white flash and the paper bits show through
+  const meshA = o.mesh ?? 1;
+  ctx.globalAlpha = prevA * (o.alpha ?? 1) * meshA;
   const bx = hx - ca * 7 + sa * 3;
   const by = hy - sa * 7 - ca * 3 + 4;
   for (let yy = -8; yy <= 8; yy++)
@@ -56,6 +59,7 @@ export function drawNet(g: Gfx, px: number, py: number, angle: number, o: { alph
       const Y = Math.round(by + yy);
       if (((X + Y) & 1) === 0) g.px(X, Y, d1 > 0.7 ? '#C8C2B4' : '#F4F1E8');
     }
+  ctx.globalAlpha = prevA * (o.alpha ?? 1);
   // pole: 2px with dark lower edge
   const x2 = px + ca * (len - 9);
   const y2 = py + sa * (len - 9);
@@ -68,6 +72,7 @@ export function drawNet(g: Gfx, px: number, py: number, angle: number, o: { alph
   g.ring(hx, hy, 8, '#2A2440');
   g.ring(hx, hy, 9, '#F4F1E8');
   // net mesh inside hoop
+  ctx.globalAlpha = prevA * (o.alpha ?? 1) * meshA;
   for (let yy = -7; yy <= 7; yy++)
     for (let xx = -7; xx <= 7; xx++) {
       if (xx * xx + yy * yy > 49) continue;

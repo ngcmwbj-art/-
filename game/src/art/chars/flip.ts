@@ -199,13 +199,62 @@ const texts = new Map<string, HTMLCanvasElement>();
  * drawn twice, 1px apart; 30_level_art 10.4), sized to fit. Lines wrap at
  * maxW; '\n' forces a break. Cached by text (small LRU).
  */
+/** Half-width letters and digits get 1px of extra spacing (the doubled marker stroke fills the gap). */
+function isHalfAlnum(ch: string): boolean {
+  return /[A-Za-z0-9]/.test(ch);
+}
+
+function advance(ch: string, next?: string): number {
+  return measure(ch) + (isHalfAlnum(ch) && next !== undefined && next !== ' ' ? 1 : 0);
+}
+
+function markerWidth(s: string): number {
+  const cs = [...s];
+  let w = 0;
+  cs.forEach((ch, i) => (w += advance(ch, cs[i + 1])));
+  return w;
+}
+
+/**
+ * Line breaking for the board: spaces (half or full width) are the break
+ * points — a phrase never splits mid-word, and a number stays with its
+ * counter ("3人") because there is no space between them. Only a single
+ * phrase wider than the board goes to the engine's kinsoku wrap.
+ */
+function flipWrap(text: string, maxW: number): string[] {
+  const out: string[] = [];
+  for (const para of text.split('\n')) {
+    const parts = para.split(/([ \u3000])/);
+    let line = '';
+    for (let i = 0; i < parts.length; i += 2) {
+      const word = parts[i];
+      const sep = i > 0 ? parts[i - 1] : '';
+      if (!word) continue;
+      const cand = line ? line + sep + word : word;
+      if (markerWidth(cand) <= maxW) {
+        line = cand;
+        continue;
+      }
+      if (line) out.push(line);
+      if (markerWidth(word) <= maxW) line = word;
+      else {
+        const pieces = wrap(word, maxW);
+        out.push(...pieces.slice(0, -1));
+        line = pieces[pieces.length - 1] ?? '';
+      }
+    }
+    out.push(line);
+  }
+  return out;
+}
+
 export function flipBoardText(text: string, o: { maxW?: number; minW?: number; color?: string } = {}): HTMLCanvasElement {
   const key = `${text}|${o.maxW ?? 0}|${o.minW ?? 0}|${o.color ?? ''}`;
   const hit = texts.get(key);
   if (hit) return hit;
   const maxW = o.maxW ?? 160;
-  const lines = wrap(text, maxW);
-  const tw = Math.max(0, ...lines.map((l) => measure(l))) + 1;
+  const lines = flipWrap(text, maxW);
+  const tw = Math.max(0, ...lines.map((l) => markerWidth(l))) + 1;
   const w = Math.max(o.minW ?? 24, tw + 12);
   const h = Math.max(16, lines.length * LINE_H + 8);
   const base = flipBoardPanel(w, h);
@@ -216,17 +265,20 @@ export function flipBoardText(text: string, o: { maxW?: number; minW?: number; c
   g.drawImage(base, 0, 0);
   const color = o.color ?? INK;
   // written by hand in marker: every character drawn twice 1px apart
-  // (felt-tip weight) and bobbing up/down a pixel off the line
+  // (felt-tip weight) and bobbing up/down a pixel off the line; each line
+  // centred on its own width
   lines.forEach((l, i) => {
-    const x = Math.round((w - 3 - tw) / 2);
+    const lw = markerWidth(l) + 1;
+    const x = Math.round((w - 3 - lw) / 2);
     const y = 3 + i * LINE_H;
     let cx = x;
-    [...l].forEach((ch, k) => {
+    const cs = [...l];
+    cs.forEach((ch, k) => {
       const r = hh(k + i * 31, text.length);
       const dy = r < 0.22 ? -1 : r > 0.8 ? 1 : 0;
       drawText(g, ch, cx, y + dy, { color });
       drawText(g, ch, cx + 1, y + dy, { color });
-      cx += measure(ch);
+      cx += advance(ch, cs[k + 1]);
     });
   });
   if (texts.size > 48) texts.delete(texts.keys().next().value as string);

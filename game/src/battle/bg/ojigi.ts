@@ -99,9 +99,10 @@ export class OjigiBg extends Background {
 
   constructor() {
     super('bg_ojigi');
-    // 17.5: A=2, λ=32, f=0.5 with interlace. The interlaced rows swing ±1.4px so
-    // the 21px coins shimmer instead of turning into combs.
-    this.wave = { A: 1.4, lambda: 32, f: 0.5, A2: 0, lambda2: 40, f2: 0.3, interlace: true };
+    // 17.5 asks for A=2, λ=32, f=0.5 with interlace; on the 21px coins the
+    // interlaced rows smear the spin frames into blurry ovals, so the coins
+    // get a gentle whole-row sway instead (A=1.2, no interlace) and stay crisp.
+    this.wave = { A: 1.2, lambda: 32, f: 0.5, A2: 0, lambda2: 40, f2: 0.3, interlace: false };
     this.bottom = '#2A1418';
     const r = new Rng(8);
     for (let i = 0; i < 26; i++) this.leds.push({ x: r.range(0, 384), y: r.range(48, 150), ph: r.range(0, 10) });

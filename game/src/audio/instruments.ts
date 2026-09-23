@@ -3,7 +3,7 @@
 // Music notes pass `det` (the song's pitch bus: stage detune, tape wobble,
 // the mid-boss bow) so every oscillator — FM modulators included — follows it.
 
-import { cur, hasGraph, midiHz, noteLog, sharedLfo, voice, type VoiceOpts } from './engine';
+import { cachedWave, captured, cur, hasGraph, midiHz, noteLog, onRelease, sharedLfo, startTimeFor, voice, type VoiceHandle, type VoiceOpts } from './engine';
 
 export interface InsOpts {
   /** Override the patch's base v. */
@@ -59,6 +59,8 @@ export interface NoteCtx {
 
 export type Instrument = (n: NoteCtx) => void;
 
+// Music voices share their static filters per part and read filter sweeps
+// per render quantum (engine.ts voice(): shareFilter / krate, 15.3).
 const base = (n: NoteCtx, extra: VoiceOpts = {}): VoiceOpts => ({
   at: n.t,
   dest: n.dest,
@@ -66,6 +68,8 @@ const base = (n: NoteCtx, extra: VoiceOpts = {}): VoiceOpts => ({
   detuneSrc: n.det ?? null,
   detuneSrc2: n.det2 ?? null,
   pan: n.o?.pan,
+  shareFilter: true,
+  krate: true,
   ...extra,
 });
 
@@ -150,8 +154,8 @@ function leadBoss(n: NoteCtx): void {
     reverb: n.o?.rev ?? 0.22,
     detune: n.o?.detune,
   });
-  voice({ ...common, wave: n.o?.wave ?? 'square', vol: v * 0.55 });
-  voice({ ...common, wave: 'sawtooth', vol: v * 0.42, detune: (n.o?.detune ?? 0) + 7 });
+  // the square and the saw (+7 cents) share one envelope and one filter EG
+  voice({ ...common, wave: n.o?.wave ?? 'square', vol: v, layerMain: 0.55, layers: [{ wave: 'sawtooth', vol: 0.42, detune: 7 }] });
 }
 
 function recorder(n: NoteCtx): void {
@@ -169,8 +173,7 @@ function recorder(n: NoteCtx): void {
     vibrato: vib(n, 4.5, 8, 0.3),
     reverb: n.o?.rev ?? 0.25,
   });
-  voice({ ...common, wave: 'triangle', vol: v * 0.7 });
-  voice({ ...common, wave: 'sine', vol: v * 0.3 });
+  voice({ ...common, wave: 'triangle', vol: v, layerMain: 0.7, layers: [{ wave: 'sine', vol: 0.3 }] });
   // breath
   voice(
     base(n, {
@@ -219,8 +222,19 @@ function musicbox(n: NoteCtx): void {
     reverb: n.o?.rev ?? 0.45,
   });
   voice({ ...common, wave: 'triangle', freq: f, vol: v, decay: 0.9, vibrato: n.o?.vib ? vib(n, 0, 0, 0) : undefined });
-  voice({ ...common, wave: 'sine', freq: f * 4, vol: v * 0.18, decay: 0.38 });
-  voice({ ...common, wave: 'sine', freq: f * 3, vol: v * 0.06, decay: 0.55 });
+  // the comb's bright partials (×4 at 0.18, ×3 at 0.06) ring out together
+  voice({ ...common, wave: 'sine', periodic: combWave, freq: f, vol: v * 0.18, decay: 0.42 });
+}
+
+/** Partials 3 (1/3) and 4 (1) of the music box comb, one oscillator. */
+function combWave(c: BaseAudioContext): PeriodicWave {
+  return cachedWave(c, 'comb', () => {
+    const real = new Float32Array(5);
+    const imag = new Float32Array(5);
+    imag[3] = 1 / 3;
+    imag[4] = 1;
+    return { real, imag };
+  });
 }
 
 function epiano(n: NoteCtx): void {
@@ -236,8 +250,16 @@ function epiano(n: NoteCtx): void {
     reverb: n.o?.rev ?? 0.22,
     detune: n.o?.detune,
   });
-  voice({ ...common, wave: 'sine', vol: v, fm: { ratio: 1, index: n.o?.index ?? 1.8, indexEnd: n.o?.indexEnd ?? 0.3, indexTime: 1200 } });
-  voice({ ...common, wave: 'sine', vol: v * 0.25, decay: 0.5, sustain: 0, fm: { ratio: 14, index: 1.4, indexEnd: 0, indexTime: 60 } });
+  // FM② (the tine: ratio 14, gone in 60 ms) rides on the same carrier as a
+  // second modulator; its sidebands sit at the level the separate 0.25 tine
+  // operator gave them (J1(0.35) ≈ 0.25 × J1(1.4)), for half the oscillators
+  voice({
+    ...common,
+    wave: 'sine',
+    vol: v,
+    fm: { ratio: 1, index: n.o?.index ?? 1.8, indexEnd: n.o?.indexEnd ?? 0.3, indexTime: 1200 },
+    fm2: { ratio: 14, index: 0.35, indexEnd: 0, indexTime: 60 },
+  });
 }
 
 function marimba(n: NoteCtx): void {
@@ -266,8 +288,8 @@ function vibes(n: NoteCtx, extra: VoiceOpts = {}): void {
     ? { dur: hold, attack: 0.003, decay: 1.4, sustain: 0.35, release: 0.6 }
     : { dur: 0.01, attack: 0.002, decay: 1.4, sustain: 0, release: 0.3 };
   const common = base(n, { freq: f, ...env, reverb: n.o?.rev ?? 0.3, detune: n.o?.detune, ...extra });
-  voice({ ...common, wave: 'sine', vol: v, fm: { ratio: 4, index: 1.2, indexEnd: 0, indexTime: 150 } });
-  voice({ ...common, wave: 'sine', vol: v * 0.5 });
+  // the FM bar and the plain fundamental (0.5) under one envelope
+  voice({ ...common, wave: 'sine', vol: v, fm: { ratio: 4, index: 1.2, indexEnd: 0, indexTime: 150 }, layers: [{ wave: 'sine', vol: 0.5 }] });
 }
 
 function brass(n: NoteCtx): void {
@@ -401,23 +423,233 @@ function sub(n: NoteCtx): void {
   );
 }
 
-/** Pad oscillator stack (3 detuned saws + square an octave down). */
-function padStack(n: NoteCtx, env: VoiceOpts, perVoice: number, filter?: VoiceOpts['filter']): void {
+// ---------------------------------------------------------------------------
+// Pads and choir (3.3)
+
+function kRate(p: AudioParam): void {
+  try {
+    p.automationRate = 'k-rate';
+  } catch {
+    /* fixed-rate param */
+  }
+}
+
+/** A handle for voices built from raw nodes (the BGM voice cap can cut them). */
+function rawHandle(c: BaseAudioContext, t0: number, end: number, vol: number, osc: OscillatorNode, env: GainNode): VoiceHandle {
+  const eg = env.gain;
+  return captured({
+    start: t0,
+    end,
+    vol,
+    src: osc,
+    env,
+    freq: osc.frequency,
+    detune: osc.detune,
+    stop(fade = 0.02, at?: number) {
+      const t = Math.max(at ?? c.currentTime, c.currentTime);
+      if (t >= end) return;
+      try {
+        eg.cancelAndHoldAtTime(t);
+        if (t <= t0) eg.setValueAtTime(0, t);
+        else eg.linearRampToValueAtTime(0, t + Math.max(0.003, fade));
+        osc.stop(t + Math.max(0.003, fade) + 0.01);
+      } catch {
+        /* already stopped */
+      }
+    },
+  });
+}
+
+/**
+ * The pad's oscillator stack of 3.3 (three saws at −12 / 0 / +12 cents panned
+ * −0.4 / 0 / +0.4, plus a square an octave down at 0.3) as one oscillator per
+ * note and one shared effect per part:
+ *  · a PeriodicWave an octave below the note: the square's odd harmonics and
+ *    the saw on the even ones (= the note itself);
+ *  · the ensemble below turns that one saw into three: a dry voice in the
+ *    middle and two delay lines panned ∓0.45 whose slow drift detunes them by
+ *    about ±12 cents — the same shimmer, as a Juno-style chorus.
+ * A 4-note pad chord costs 4 oscillators and 4 envelopes instead of 16
+ * oscillators, 8 panners and 24 more nodes (15.3).
+ */
+function padWave(c: BaseAudioContext): PeriodicWave {
+  return cachedWave(c, 'pad', () => {
+    const N = 96;
+    const real = new Float32Array(N);
+    const imag = new Float32Array(N);
+    // the old stack summed three saws and one 0.3 square: after the ensemble
+    // triples the saw, the square keeps its share at 0.3 / √3
+    const sq = 0.3 / Math.sqrt(3);
+    for (let k = 1; k < N; k++) {
+      if (k % 2) imag[k] = (sq * 4) / (Math.PI * k);
+      else {
+        const m = k / 2;
+        imag[k] = ((m % 2 ? 1 : -1) * 2) / (Math.PI * m);
+      }
+    }
+    return { real, imag };
+  });
+}
+
+/**
+ * A stereo ensemble shared by every pad (or choir) note of one destination:
+ * dry in the middle, two modulated delay lines at the sides. Power-normalised
+ * (three equal voices at 1/√3), so a note should come in at √3 × its old
+ * single-saw level. The reverb send is taken from its output.
+ */
+const ENS: [number, number, number, number][] = [
+  // base delay (s), sweep (s), LFO rate (Hz), pan: 2π·rate·sweep ≈ 0.7 % ≈ ±12 cents
+  [0.014, 0.0034, 0.33, -0.45],
+  [0.019, 0.0028, 0.41, 0.45],
+];
+const ensembles = new WeakMap<AudioNode, WeakMap<AudioNode, Map<string, GainNode>>>();
+function ensemble(c: BaseAudioContext, dest: AudioNode, rev: AudioNode, revLevel: number): GainNode {
+  let byRev = ensembles.get(dest);
+  if (!byRev) ensembles.set(dest, (byRev = new WeakMap()));
+  let m = byRev.get(rev);
+  if (!m) byRev.set(rev, (m = new Map()));
+  const key = `${Math.round(revLevel * 1000)}`;
+  const hit = m.get(key);
+  if (hit) return hit;
+  const input = c.createGain();
+  const out = c.createGain();
+  out.connect(dest);
+  if (revLevel) {
+    const send = c.createGain();
+    send.gain.value = revLevel;
+    out.connect(send);
+    send.connect(rev);
+  }
+  const w = 1 / Math.sqrt(3);
+  const dry = c.createGain();
+  dry.gain.value = w;
+  input.connect(dry);
+  dry.connect(out);
+  const links: [AudioNode, AudioNode][] = [];
+  for (const [d0, sweep, rate, pan] of ENS) {
+    const d = c.createDelay(0.05);
+    d.delayTime.value = d0;
+    const l = sharedLfo(c, rate);
+    const lg = c.createGain();
+    lg.gain.value = sweep;
+    l.connect(lg);
+    lg.connect(d.delayTime);
+    links.push([l, lg]);
+    const wg = c.createGain();
+    wg.gain.value = w;
+    const p = c.createStereoPanner();
+    p.pan.value = pan;
+    input.connect(d);
+    d.connect(wg);
+    wg.connect(p);
+    p.connect(out);
+  }
+  onRelease(dest, () => {
+    for (const [l, g] of links) l.disconnect(g);
+    out.disconnect();
+  });
+  m.set(key, input);
+  return input;
+}
+
+/** One filter per chord for the reverse pad's sweep (all its notes start and end together). */
+const chordFilters = new WeakMap<AudioNode, { key: string; f: BiquadFilterNode; users: number }>();
+function chordFilter(c: BaseAudioContext, dest: AudioNode, t0: number, spec: { freq: number; freqEnd: number; time: number; q: number }): { f: BiquadFilterNode; done: () => void } {
+  const key = `${t0.toFixed(5)}|${spec.time.toFixed(5)}|${spec.freq}|${spec.freqEnd}|${spec.q}`;
+  let e = chordFilters.get(dest);
+  if (!e || e.key !== key) {
+    const fl = c.createBiquadFilter();
+    fl.type = 'lowpass';
+    kRate(fl.frequency);
+    kRate(fl.Q);
+    fl.Q.value = spec.q;
+    fl.frequency.setValueAtTime(spec.freq, t0);
+    fl.frequency.exponentialRampToValueAtTime(spec.freqEnd, t0 + Math.max(0.01, spec.time));
+    fl.connect(dest);
+    e = { key, f: fl, users: 0 };
+    chordFilters.set(dest, e);
+  }
+  const entry = e;
+  entry.users++;
+  return {
+    f: entry.f,
+    done: () => {
+      if (--entry.users <= 0)
+        try {
+          entry.f.disconnect();
+        } catch {
+          /* gone */
+        }
+    },
+  };
+}
+
+function padStack(
+  n: NoteCtx,
+  env: { dur: number; attack?: number; release: number; swell?: boolean },
+  perVoice: number,
+  filter?: { freq: number; freqEnd: number; time: number; q: number },
+): void {
+  if (!hasGraph()) return;
+  const g = cur();
+  const c = g.ctx;
+  const t0 = startTimeFor(c, n.t, env.dur);
+  if (t0 === null) return;
   const f = midiHz(n.midi);
-  const v = perVoice * n.vel;
-  const rev = n.o?.rev ?? 0.5;
-  const stack: [number, number, number][] = [
-    [-12, -0.4, 0.42],
-    [0, 0, 0.42],
-    [12, 0.4, 0.42],
-  ];
-  for (const [det, pan, lvl] of stack)
-    voice(base(n, { ...env, wave: 'sawtooth', freq: f, detune: det + (n.o?.detune ?? 0), pan, vol: v * lvl, reverb: rev, filter }));
-  voice(base(n, { ...env, wave: 'square', freq: f / 2, vol: v * 0.3 * 0.42, reverb: rev, filter, detune: n.o?.detune }));
+  // the old stack's per-oscillator level, ×√3 into the power-normalised ensemble
+  const v = perVoice * n.vel * 0.42 * Math.sqrt(3);
+  const atk = Math.max(0.002, env.attack ?? 0.002);
+  const rel = Math.max(0.004, env.release);
+  const gateEnd = t0 + Math.max(env.dur - (t0 - n.t), env.swell ? 0.001 : atk);
+  const end = gateEnd + rel + 0.05;
+  const osc = c.createOscillator();
+  osc.setPeriodicWave(padWave(c));
+  osc.frequency.value = f / 2;
+  kRate(osc.detune);
+  osc.detune.value = n.o?.detune ?? 0;
+  const links: AudioNode[] = [];
+  for (const src of [n.det, n.det2])
+    if (src) {
+      src.connect(osc.detune);
+      links.push(src);
+    }
+  const e = c.createGain();
+  const eg = e.gain;
+  eg.value = 0;
+  eg.setValueAtTime(0, t0);
+  if (env.swell) eg.linearRampToValueAtTime(v, gateEnd);
+  else {
+    eg.linearRampToValueAtTime(v, t0 + atk);
+    eg.setValueAtTime(v, gateEnd);
+  }
+  eg.linearRampToValueAtTime(0, gateEnd + rel);
+  osc.connect(e);
+  const ens = (globalThis as any).__PF?.noEns ? n.dest : ensemble(c, n.dest, n.rev ?? g.fxSend, n.o?.rev ?? 0.5);
+  const cf = filter ? chordFilter(c, ens, t0, filter) : null;
+  e.connect(cf ? cf.f : ens);
+  osc.start(t0);
+  osc.stop(end);
+  osc.onended = () => {
+    for (const a of links)
+      try {
+        a.disconnect(osc.detune);
+      } catch {
+        /* gone */
+      }
+    try {
+      osc.disconnect();
+      e.disconnect();
+    } catch {
+      /* gone */
+    }
+    cf?.done();
+  };
+  if (noteLog) noteLog.push({ t: t0, dur: gateEnd - t0, freq: f, vol: v, wave: 'sawtooth' });
+  rawHandle(c, t0, end, v, osc, e);
 }
 
 function pad(n: NoteCtx): void {
-  padStack(n, { dur: n.dur, attack: n.o?.attack ?? 0.6, decay: 0, sustain: 1, release: n.o?.release ?? 1.2, linear: true }, n.o?.vol ?? 0.035);
+  padStack(n, { dur: n.dur, attack: n.o?.attack ?? 0.6, release: n.o?.release ?? 1.2 }, n.o?.vol ?? 0.035);
 }
 
 function padReverse(n: NoteCtx): void {
@@ -425,41 +657,65 @@ function padReverse(n: NoteCtx): void {
     n,
     { dur: Math.max(0.05, n.dur - 0.04), swell: true, release: 0.04 },
     n.o?.vol ?? 0.04,
-    { type: 'lowpass', freq: 400, freqEnd: 2400, time: n.dur, q: 0.8 },
+    { freq: 400, freqEnd: 2400, time: n.dur, q: 0.8 },
   );
 }
 
 /**
- * ins_choir (3.3): two saws (±7 cents) through the 'u' formant bank. Built
- * from raw nodes so each note costs 2 oscillators + 1 shared vibrato LFO
- * (a voice() per band would be 16) — the boss chords hold 4 of these.
+ * ins_choir (3.3): a saw through the 'u' formant bank (325 Hz Q6 ×1.0,
+ * 700 Hz Q8 ×0.5, 2530 Hz Q10 ×0.15; children ×1.25) plus a little low body so
+ * high notes still carry. The bank is linear and the same for every note, so
+ * each destination owns one, feeding the same ensemble as the pads: the two
+ * ±7-cent saws of 3.3 become one saw per note and the ensemble's two drifting
+ * voices (15.3).
  */
+const choirBanks = new WeakMap<AudioNode, Map<string, GainNode>>();
+function choirBank(c: BaseAudioContext, ens: AudioNode, k: number): GainNode {
+  let m = choirBanks.get(ens);
+  if (!m) choirBanks.set(ens, (m = new Map()));
+  const key = `${k}`;
+  const hit = m.get(key);
+  if (hit) return hit;
+  const input = c.createGain();
+  const bank: [BiquadFilterType, number, number, number][] = [
+    ['bandpass', 325 * k, 6, 1.0 * 2.2],
+    ['bandpass', 700 * k, 8, 0.5 * 2.2],
+    ['bandpass', 2530 * k, 10, 0.15 * 2.2],
+    ['lowpass', 800, 0.5, 0.25],
+  ];
+  for (const [type, ff, q, lvl] of bank) {
+    const fl = c.createBiquadFilter();
+    fl.type = type;
+    fl.frequency.value = ff;
+    fl.Q.value = q;
+    const gg = c.createGain();
+    gg.gain.value = lvl;
+    input.connect(fl);
+    fl.connect(gg);
+    gg.connect(ens);
+  }
+  m.set(key, input);
+  return input;
+}
+
 function choir(n: NoteCtx): void {
   if (!hasGraph()) return;
   const g = cur();
   const c = g.ctx;
+  const t0 = startTimeFor(c, n.t, n.dur);
+  if (t0 === null) return;
   const f = midiHz(n.midi);
   const v = (n.o?.vol ?? 0.05) * n.vel;
+  // two incoherent saws at v → one at √2·v, ×√3 into the ensemble
+  const vv = v * Math.SQRT2 * Math.sqrt(3);
   const k = n.o?.child ? 1.25 : 1;
-  const t0 = Math.max(n.t, c.currentTime);
+  const ens = (globalThis as any).__PF?.noEns ? n.dest : ensemble(c, n.dest, n.rev ?? g.fxSend, n.o?.rev ?? 0.45);
+  const bank = choirBank(c, ens, k);
   const atk = 0.3;
   const rel = 0.8;
-  const gateEnd = t0 + Math.max(n.dur, atk);
+  const gateEnd = t0 + Math.max(n.dur - (t0 - n.t), atk);
   const end = gateEnd + rel + 0.05;
-  const nodes: AudioNode[] = [];
-  const env = c.createGain();
-  env.gain.value = 0;
-  env.gain.setValueAtTime(0, t0);
-  env.gain.linearRampToValueAtTime(1, t0 + atk);
-  env.gain.setValueAtTime(1, gateEnd);
-  env.gain.linearRampToValueAtTime(0, gateEnd + rel);
-  env.connect(n.dest);
-  const send = c.createGain();
-  send.gain.value = n.o?.rev ?? 0.45;
-  env.connect(send);
-  send.connect(n.rev ?? g.fxSend);
-  nodes.push(env, send);
-  // vibrato 5 Hz ±9 cents, fading in after 250 ms, shared by both saws
+  // vibrato 5 Hz ±9 cents, fading in after 250 ms
   const vb = vib(n, 5, 9, 0.25);
   const lfo = sharedLfo(c, vb.rate);
   const lg = c.createGain();
@@ -467,61 +723,36 @@ function choir(n: NoteCtx): void {
   lg.gain.setValueAtTime(0, t0 + vb.delay);
   lg.gain.linearRampToValueAtTime(vb.depth, t0 + vb.delay + 0.12);
   lfo.connect(lg);
-  nodes.push(lg);
-  const oscs: OscillatorNode[] = [];
-  const links: [AudioNode, AudioParam][] = [];
-  const bank: [BiquadFilterType, number, number, number][] = [
-    ['bandpass', 325 * k, 6, 1.0 * 2.2],
-    ['bandpass', 700 * k, 8, 0.5 * 2.2],
-    ['bandpass', 2530 * k, 10, 0.15 * 2.2],
-    // a little low body so high notes still carry
-    ['lowpass', Math.max(700, f * 1.6), 0.5, 0.25],
-  ];
-  for (const det of [-7, 7]) {
-    const o = c.createOscillator();
-    o.type = 'sawtooth';
-    o.frequency.value = f;
-    o.detune.value = det + (n.o?.detune ?? 0);
-    lg.connect(o.detune);
-    if (n.det) {
-      n.det.connect(o.detune);
-      links.push([n.det, o.detune]);
-    }
-    const pan = c.createStereoPanner();
-    pan.pan.value = det < 0 ? -0.2 : 0.2;
-    pan.connect(env);
-    nodes.push(o, pan);
-    for (const [type, ff, q, lvl] of bank) {
-      const fl = c.createBiquadFilter();
-      fl.type = type;
-      fl.frequency.value = ff;
-      fl.Q.value = q;
-      const gg = c.createGain();
-      gg.gain.value = v * lvl;
-      o.connect(fl);
-      fl.connect(gg);
-      gg.connect(pan);
-      nodes.push(fl, gg);
-    }
-    oscs.push(o);
-  }
-  for (const o of oscs) {
-    o.start(t0);
-    o.stop(end);
-  }
-  oscs[0].onended = () => {
+  const o = c.createOscillator();
+  o.type = 'sawtooth';
+  o.frequency.value = f;
+  kRate(o.detune);
+  o.detune.value = n.o?.detune ?? 0;
+  lg.connect(o.detune);
+  if (n.det) n.det.connect(o.detune);
+  const env = c.createGain();
+  env.gain.value = 0;
+  env.gain.setValueAtTime(0, t0);
+  env.gain.linearRampToValueAtTime(vv, t0 + atk);
+  env.gain.setValueAtTime(vv, gateEnd);
+  env.gain.linearRampToValueAtTime(0, gateEnd + rel);
+  o.connect(env);
+  env.connect(bank);
+  o.start(t0);
+  o.stop(end);
+  o.onended = () => {
     try {
       lfo.disconnect(lg);
     } catch {
       /* gone */
     }
-    for (const [a, p] of links)
+    if (n.det)
       try {
-        a.disconnect(p);
+        n.det.disconnect(o.detune);
       } catch {
         /* gone */
       }
-    for (const nd of nodes)
+    for (const nd of [lg, o, env])
       try {
         nd.disconnect();
       } catch {
@@ -529,6 +760,7 @@ function choir(n: NoteCtx): void {
       }
   };
   if (noteLog) noteLog.push({ t: t0, dur: gateEnd - t0, freq: f, vol: v, wave: 'sawtooth' });
+  rawHandle(c, t0, end, vv, o, env);
 }
 
 export const INS: Record<string, Instrument> = {
@@ -576,7 +808,7 @@ export interface DrumCtx {
 export type Drum = (d: DrumCtx) => void;
 
 const dv = (d: DrumCtx, v: number) => (d.vol ?? v) * d.vel;
-const dbase = (d: DrumCtx, extra: VoiceOpts): VoiceOpts => ({ at: d.t, dest: d.dest, revDest: d.rev, pan: d.pan, ...extra });
+const dbase = (d: DrumCtx, extra: VoiceOpts): VoiceOpts => ({ at: d.t, dest: d.dest, revDest: d.rev, pan: d.pan, shareFilter: true, krate: true, drum: true, ...extra });
 
 export const DRM: Record<string, Drum> = {
   drm_kick: (d) => {

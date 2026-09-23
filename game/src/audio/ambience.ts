@@ -5,7 +5,7 @@
 // spot never repeats the same way (8章).
 
 import { addTask } from './clock';
-import { cur, dbToGain, hasGraph, midiHz, noiseSource, onSample, PaChain, makeIR, voice, type Graph, type VoiceOpts } from './engine';
+import { cur, dbToGain, hasGraph, midiHz, noiseSource, onSample, PaChain, makeIRMono, monoSum, spread, voice, type Graph, type VoiceOpts } from './engine';
 import { chimeNote, DRM } from './instruments';
 import { ambTrim, trimOr1 } from './mix';
 import { musicParams, stageListeners } from './music';
@@ -334,13 +334,15 @@ const AMB: Record<string, AmbFactory> = {
     lp.frequency.value = 1200;
     const conv = g.ctx.createConvolver();
     conv.normalize = false;
-    conv.buffer = makeIR(g.ctx, 4.0, 2.2, 41, 0.7);
+    conv.buffer = makeIRMono(g.ctx, 4.0, 2.2, 41, 0.7);
     const wet = g.ctx.createGain();
     wet.gain.value = 0.9;
     const dry = g.ctx.createGain();
     dry.gain.value = 0.25;
-    lp.connect(conv);
-    conv.connect(wet);
+    const down = monoSum(g.ctx);
+    lp.connect(down);
+    down.connect(conv);
+    spread(g.ctx, conv, wet);
     wet.connect(c.dest);
     lp.connect(dry);
     dry.connect(c.dest);
@@ -848,10 +850,14 @@ let task = false;
 
 export const AMBIENCE_IDS = Object.keys(AMB);
 
+/** Ambience schedules 0.3 s ahead like the music (a stall must not bunch the insects). */
+const AMB_LOOKAHEAD = 0.3;
+
 function ensureTask(): void {
   if (task) return;
   task = true;
   addTask({
+    lookahead: AMB_LOOKAHEAD,
     pump(until) {
       for (const i of active.values()) i.impl.pump?.(until);
     },
@@ -885,7 +891,8 @@ export function createAmbient(g: Graph, id: string, opts: AmbOpts, dest: AudioNo
   out.connect(trim);
   trim.connect(lp);
   lp.connect(dest);
-  const seed = (Math.random() * 1e9) | 0;
+  // live: a new take every time; offline QA renders: the same take for the same id
+  const seed = g.offline ? [...id].reduce((h, ch) => (Math.imul(h, 31) + ch.charCodeAt(0)) | 0, 7) >>> 0 : (Math.random() * 1e9) | 0;
   const impl = f({ g, t0, dest: out, rng: new Rng(seed), stage: stage ?? musicParams().stage, seed });
   return { id, out, lp, impl, stopping: false };
 }
@@ -908,7 +915,7 @@ export function playAmbient(id: string, opts: AmbOpts = {}): void {
   const inst = createAmbient(g, id, opts, g.ambBus);
   if (inst) {
     active.set(id, inst);
-    inst.impl.pump?.(g.ctx.currentTime + 0.12);
+    inst.impl.pump?.(g.ctx.currentTime + AMB_LOOKAHEAD);
   }
 }
 

@@ -4,7 +4,8 @@
 //
 //   __game.cmd.audioReport()          → pass / fail summary + all numbers:
 //       · every song over a full loop: loudness (BS.1770 LUFS) vs the 11.2
-//         targets relative to bgm_battle (±3 dB), peaks, clipping
+//         targets relative to bgm_battle (±3 dB), peaks, clipping, loop-seam
+//         clicks; the home / shop songs also at stage 1 and 2
 //       · every SE: peak vs its category target, and "not buried": the SE's
 //         loudest 20 ms in some octave band must stand above the music's
 //         average level in that band (UI / battle cues +6 dB, events +3 dB)
@@ -13,6 +14,7 @@
 //       · mml bar lengths and the sealed chime answer (16.1)
 //   __game.cmd.audioMixSuggest()      → calibrates the mix.ts trims
 //   __game.cmd.audioRender(id, secs)  → stats + spectrogram / piano-roll PNGs
+//   __game.cmd.audioPerf()            → render speed of the densest songs (CPU budget, 15.3)
 //
 // Loudness is ITU-R BS.1770 (K-weighted, gated) so different songs compare the
 // way ears do, not just by peaks.
@@ -23,7 +25,7 @@ import { buildGraph, gainToDb, setNoteLog, volCurve, withGraph, type Graph } fro
 import { PART_TRIM, partRole, REF_PART, ROLE_TARGET, TARGET_OVERRIDE, AMB_NO_TRIM, ambTargetDb, BATTLE_PEAK_DB, BGM_TARGET, BGM_TRIM, mixState, seTargetDb, SE_NO_TRIM, SE_TRIM, AMB_TRIM, VOICE_TRIM, voiceTargetDb } from './mix';
 import { sfxInfo, sfxTable, songTable, type SfxOpts } from './registry';
 import { VOICE_SAMPLES, voiceCps } from './samples';
-import { SongPlayer, type Params, type SongDef } from './sequencer';
+import { MUSIC_LOOKAHEAD, SongPlayer, type Params, type SongDef } from './sequencer';
 import { findSealedAnswer, mmlErrors } from './theory';
 import { AMBIENCE_IDS } from './ambience';
 import { blip, resetVoiceState, VOICES } from './voices';
@@ -46,6 +48,8 @@ export interface Stats {
 interface RenderOut {
   buffer: AudioBuffer;
   notes: { t: number; dur: number; freq: number; vol: number; wave: string }[];
+  /** Wall ms spent in the JS scheduler (the page thread's share). */
+  scheduleMs: number;
 }
 
 interface RenderOpts {
@@ -56,21 +60,57 @@ interface RenderOpts {
   seVol?: number;
 }
 
-export async function render(seconds: number, schedule: (g: Graph) => void, o: RenderOpts = {}): Promise<RenderOut> {
+/**
+ * Render `seconds` offline with the game's own graph. `schedule` runs once at
+ * t = 0; `pump(until)` (songs, ambience) is then called in 0.5 s chunks with
+ * the same ~0.1 s look-ahead the live clock uses, the context suspended at
+ * each boundary (MUSIC_LOOKAHEAD, like the live clock). Scheduling everything up front instead would keep every note
+ * of the render connected from the first sample, which is both far slower to
+ * render and nothing like the live graph (the CPU figures of audioPerf()).
+ */
+export async function render(
+  seconds: number,
+  schedule: (g: Graph) => void,
+  o: RenderOpts = {},
+  pump?: (until: number) => void,
+): Promise<RenderOut> {
   const ctx = new OfflineAudioContext(2, Math.ceil(SR * seconds), SR);
   const g = buildGraph(ctx, { bypassDynamics: o.bypass });
   g.musicUser.gain.value = volCurve(o.bgmVol ?? 7);
   g.seUser.gain.value = volCurve(o.seVol ?? 8);
   const notes: RenderOut['notes'] = [];
-  setNoteLog(notes);
-  try {
-    withGraph(g, () => schedule(g));
-  } finally {
-    setNoteLog(null);
+  let scheduleMs = 0;
+  const run = (fn: () => void) => {
+    setNoteLog(notes);
+    const t0 = performance.now();
+    try {
+      withGraph(g, fn);
+    } finally {
+      setNoteLog(null);
+      scheduleMs += performance.now() - t0;
+    }
+  };
+  run(() => {
+    schedule(g);
+    pump?.(Math.min(seconds, CHUNK + LOOKAHEAD));
+  });
+  if (pump) {
+    const next = (t: number) => {
+      if (t >= seconds) return;
+      void ctx.suspend(t).then(() => {
+        run(() => pump(Math.min(seconds, t + CHUNK + LOOKAHEAD)));
+        next(t + CHUNK);
+        void ctx.resume();
+      });
+    };
+    next(CHUNK);
   }
   const buffer = await ctx.startRendering();
-  return { buffer, notes };
+  return { buffer, notes, scheduleMs };
 }
+
+const CHUNK = 0.5;
+const LOOKAHEAD = MUSIC_LOOKAHEAD;
 
 function startSong(g: Graph, def: SongDef, at: number, params: Partial<Params> = {}, solo?: string[]): SongPlayer {
   return new SongPlayer(g, def, g.musicBus, { at, params: { stage: 0, kire: 0, boss_phase: 1, ...params }, solo });
@@ -83,45 +123,50 @@ export async function renderSong(
 ): Promise<RenderOut> {
   const def = songTable.get(id);
   if (!def) throw new Error(`unknown song ${id}`);
+  let p: SongPlayer;
+  const changes = [...(opts.paramAt ?? [])].sort((a, b) => a[0] - b[0]);
   return render(
     seconds,
     (g) => {
-      const p = startSong(g, def, 0.05, opts.params, opts.solo);
-      const changes = [...(opts.paramAt ?? [])].sort((a, b) => a[0] - b[0]);
-      for (const [at, name, v] of changes) {
+      p = startSong(g, def, 0.05, opts.params, opts.solo);
+    },
+    opts,
+    (until) => {
+      while (changes.length && changes[0][0] <= until) {
+        const [at, name, v] = changes.shift()!;
         p.pump(at);
         p.setParam(name, v);
       }
-      p.pump(seconds);
+      p.pump(until);
     },
-    opts,
   );
 }
 
 export async function renderSfx(id: string, opts: SfxOpts = {}, seconds = 2.5, withBgm?: string, ro: RenderOpts = {}): Promise<RenderOut> {
   const fn = sfxTable.get(id);
   if (!fn) throw new Error(`unknown sfx ${id}`);
+  let p: SongPlayer | null = null;
   return render(
     seconds,
     (g) => {
-      if (withBgm) {
-        const def = songTable.get(withBgm);
-        if (def) startSong(g, def, 0).pump(seconds);
-      }
+      const def = withBgm ? songTable.get(withBgm) : undefined;
+      if (def) p = startSong(g, def, 0);
       fn({ ...opts, at: 0.1 });
     },
     ro,
+    (until) => p?.pump(until),
   );
 }
 
 export async function renderAmbient(id: string, seconds = 12, stage = 0, ro: RenderOpts = {}): Promise<RenderOut> {
+  let inst: ReturnType<typeof createAmbient> = null;
   return render(
     seconds,
     (g) => {
-      const inst = createAmbient(g, id, { fade: 0.05 }, g.ambBus, 0.02, stage);
-      inst?.impl.pump?.(seconds);
+      inst = createAmbient(g, id, { fade: 0.05 }, g.ambBus, 0.02, stage);
     },
     ro,
+    (until) => inst?.impl.pump?.(until),
   );
 }
 
@@ -465,17 +510,22 @@ interface SongRow extends Stats {
   rawPeak?: number;
 }
 
-async function songRows(ids: string[], maxSeconds: number, raw: boolean): Promise<Record<string, SongRow>> {
+/** Indoor songs follow the town's stage (5.4): their stage-1 / 2 versions are measured as rows of their own. */
+const STAGE_ROWS = ['bgm_home', 'bgm_shop'];
+
+async function songRows(ids: string[], maxSeconds: number, raw: boolean, stageRows = false): Promise<Record<string, SongRow>> {
   const out: Record<string, SongRow> = {};
-  for (const id of ids) {
+  const jobs: [string, string, Partial<Params>][] = ids.map((id) => [id, id, {}]);
+  if (stageRows) for (const id of STAGE_ROWS) if (ids.includes(id)) for (const stage of [1, 2]) jobs.push([`${id}@stage${stage}`, id, { stage }]);
+  for (const [key, id, params] of jobs) {
     const def = songTable.get(id);
     if (!def) continue;
     // one full pass (intro + loop); jingles: their length plus the tail
     // (the victory jingle is measured on its 1.5 s fanfare; the afterglow sits −6 dB under it by design)
-    const secs = def.jingle ? (def.jingle === 'replace' ? 1.9 : songLength(def) + 1.5) : Math.min(maxSeconds, songLength(def) + 0.5);
-    const r = await renderSong(id, secs, { bypass: raw });
-    out[id] = { ...measure(r.buffer, 0.1), seconds: round(secs), target: BGM_TARGET[id] ?? -3, clickAt: clickScan(r.buffer, 0.1).slice(0, 12) };
-    log(id, out[id].lufs, 'LUFS');
+    const secs = def.jingle ? (def.jingle === 'replace' ? 1.9 : songLength(def) + 1.5) : Math.min(maxSeconds, songLength(def) * (params.stage === 2 ? 1.12 : 1) + 0.5);
+    const r = await renderSong(id, secs, { bypass: raw, params });
+    out[key] = { ...measure(r.buffer, 0.1), seconds: round(secs), target: BGM_TARGET[id] ?? -3, clickAt: clickScan(r.buffer, 0.1).slice(0, 12) };
+    log(key, out[key].lufs, 'LUFS');
   }
   return out;
 }
@@ -496,7 +546,7 @@ export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sf
   const t0 = performance.now();
   // ---- BGM (processed, as the player hears it)
   const ids = o.songs ?? [...songTable.keys()];
-  const songs = await songRows(ids, o.maxSeconds ?? 75, false);
+  const songs = await songRows(ids, o.maxSeconds ?? 75, false, true);
   const maxDev = relate(songs);
   const bgmOff = Object.entries(songs).filter(([id, r]) => !/jingle/.test(id) && Math.abs(r.dev ?? 0) > 3).map(([id, r]) => `${id} (${r.dev} dB)`);
 
@@ -562,11 +612,11 @@ export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sf
   let stress: Stats | null = null;
   if (o.stress !== false) {
     const def = songTable.get('bgm_boss')!;
+    let p: SongPlayer;
     const r = await render(
       12,
       (g) => {
-        const p = startSong(g, def, 0.05, { kire: 3 });
-        p.pump(12);
+        p = startSong(g, def, 0.05, { kire: 3 });
         const hit = (id: string, at: number, opts: SfxOpts = {}) => sfxTable.get(id)?.({ ...opts, at });
         for (let k = 0; k < 5; k++) {
           const t = 2 + k * 1.8;
@@ -580,6 +630,7 @@ export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sf
         hit('se_bell_kanenari', 11);
       },
       { bgmVol: 10, seVol: 10 },
+      (until) => p.pump(until),
     );
     stress = measure(r.buffer);
   }
@@ -761,7 +812,92 @@ registerDebug('audioReport', ((o?: Parameters<typeof audioReport>[0]) => audioRe
 registerDebug('audioMixSuggest', ((o?: Parameters<typeof audioMixSuggest>[0]) => audioMixSuggest(o)) as never);
 registerDebug('audioTrims', (() => currentTrims()) as never);
 registerDebug('audioBalance', ((ids?: string[], seconds?: number) => audioBalance(ids, seconds)) as never);
-/** Loudness of each part alone (mix balance QA). */
+/**
+ * CPU budget (40_audio 15.3: the boss fight, the densest song, should stay
+ * near 5 % of a laptop core). Renders the heaviest songs offline, streamed in
+ * 0.5 s chunks with the live look-ahead, best of two runs, and splits the
+ * cost into
+ *  · audioPct — rendering (the audio thread's work; this is the 15.3 figure),
+ *  · schedulePct — the JS scheduler (the page thread's work),
+ * each as % of one core of this machine, plus the most voices sounding at
+ * once (the 40-voice cap of 11.5 holds it) and a machine reference (a bare
+ * graph of 40 filtered saws) so figures from different machines compare.
+ * `__game.cmd.audioLive()` measures the same songs in a real-time context.
+ */
+export async function audioPerf(o: { seconds?: number; songs?: [string, Partial<Params>][] } = {}) {
+  const seconds = o.seconds ?? 20;
+  const list = o.songs ?? [
+    ['bgm_boss', { kire: 3 }],
+    ['bgm_boss', { kire: 3, boss_phase: 2 }],
+    ['bgm_battle', { kire: 3 }],
+    ['bgm_midboss', { kire: 3 }],
+    ['bgm_town_s2', {}],
+    ['bgm_mall', {}],
+  ];
+  const ref = await (async () => {
+    let best = 0;
+    for (let k = 0; k < 3; k++) {
+      const ctx = new OfflineAudioContext(2, SR * 10, SR);
+      for (let i = 0; i < 40; i++) {
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.value = 110 + i * 7;
+        const f = ctx.createBiquadFilter();
+        const gn = ctx.createGain();
+        gn.gain.value = 0.01;
+        osc.connect(f);
+        f.connect(gn);
+        gn.connect(ctx.destination);
+        osc.start();
+      }
+      const t = performance.now();
+      await ctx.startRendering();
+      best = Math.max(best, 10000 / (performance.now() - t));
+    }
+    return best;
+  })();
+  // the mix graph alone (buses, dynamics, idle reverbs): the floor under every song
+  const idle = await (async () => {
+    let best = Infinity;
+    for (let k = 0; k < 2; k++) {
+      const t = performance.now();
+      await render(seconds, () => {}, {}, () => {});
+      best = Math.min(best, performance.now() - t);
+    }
+    return best / seconds / 10;
+  })();
+  const rows: Record<string, { audioPct: number; schedulePct: number; realtimeX: number; notes: number; maxVoices: number }> = {};
+  for (const [id, params] of list) {
+    let best: { ms: number; sched: number; notes: RenderOut['notes'] } | null = null;
+    for (let k = 0; k < 2; k++) {
+      const t = performance.now();
+      const r = await renderSong(id, seconds, { params });
+      const ms = performance.now() - t;
+      if (!best || ms < best.ms) best = { ms, sched: r.scheduleMs, notes: r.notes };
+    }
+    const ev: [number, number][] = [];
+    for (const n of best!.notes) ev.push([n.t, 1], [n.t + n.dur + 0.1, -1]);
+    ev.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    let now = 0;
+    let mx = 0;
+    for (const [, d] of ev) mx = Math.max(mx, (now += d));
+    rows[`${id}${Object.keys(params).length ? ' ' + JSON.stringify(params) : ''}`] = {
+      audioPct: round((best!.ms - best!.sched) / seconds / 10),
+      schedulePct: round(best!.sched / seconds / 10),
+      realtimeX: round((seconds * 1000) / best!.ms),
+      notes: best!.notes.length,
+      maxVoices: mx,
+    };
+  }
+  return {
+    machineRefX: round(ref),
+    graphIdlePct: round(idle),
+    note: 'audioPct = % of one core of this machine for rendering (incl. the mix graph, graphIdlePct); schedulePct = the page thread; a laptop core that renders the reference graph N× faster scales both by machineRefX / N',
+    songs: rows,
+  };
+}
+registerDebug('audioPerf', ((o?: Parameters<typeof audioPerf>[0]) => audioPerf(o)) as never);
+
 registerDebug('audioParts', (async (id: string, seconds = 20, params?: Partial<Params>) => {
   const def = songTable.get(id);
   if (!def) return null;

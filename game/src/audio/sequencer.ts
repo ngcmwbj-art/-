@@ -1,9 +1,16 @@
 // Look-ahead music sequencer (40_audio 15.2).
 //
-// A clock (clock.ts) calls pump(until) every 25 ms with until = now + 0.12 s;
-// the player walks the song one 16th-note step at a time and schedules every
-// note that starts before `until` at an exact ctx.currentTime. Offline
-// renders call pump() once with the whole duration.
+// A clock (clock.ts) calls pump(until) every 25 ms with until = now + 0.3 s
+// (MUSIC_LOOKAHEAD); the player walks the song one 16th-note step at a time
+// and schedules every note that starts before `until` at an exact
+// ctx.currentTime. Offline renders pump in 0.5 s chunks the same way.
+//
+// A long look-ahead survives main-thread stalls, but notes are then committed
+// early. Param changes that must land on a beat or bar therefore reach back
+// into what is already scheduled: every scheduled step keeps its voice
+// handles (StepRec), a kire rise re-schedules the kire-aware parts from the
+// next beat, and a change that waits for the next bar (stage, boss phase,
+// kire drop) rewinds that bar if it has not started sounding yet.
 //
 // A song is a list of bars (label → steps, chords, meter) played as
 // intro-once then loop, and a list of parts. Each part is called for every
@@ -11,7 +18,7 @@
 // stage / kire / boss_phase). Stage / kire / boss changes land on the next
 // beat or bar exactly as 40_audio 7 describes.
 
-import { dbToGain, makeIR, voice, type Graph } from './engine';
+import { captureVoices, dbToGain, makeIRMono, monoSum, releaseShared, sharedLfo, spread, voice, withLatePolicy, type Graph, type VoiceHandle } from './engine';
 import { DRM, INS, type InsOpts } from './instruments';
 import { partTrim, songGainDb } from './mix';
 import {
@@ -105,6 +112,11 @@ export interface PartDef {
   step(b: BarCtx, src: number, actual: number, rt: PartRt): void;
   /** Top-line pitches in score order (QA: sealed chime answer check). */
   melodySeq?(): number[];
+  /**
+   * The part's notes depend on `kire` and it keeps no state between steps:
+   * a kire change re-schedules it from the change point (7.2).
+   */
+  kireAware?: boolean;
 }
 
 export interface SongDef {
@@ -139,6 +151,38 @@ export interface SongDef {
   route?(s: SongPlayer, next: { intro: boolean; i: number }): { intro: boolean; i: number } | void;
   /** Mark: battle-type song (kire, no dialog ducking). */
   battle?: boolean;
+  /** Set false if the song's bar hooks cannot be replayed (no bar rewind). */
+  rewind?: boolean;
+}
+
+/** BGM voice cap (11.5): above this many sounding voices the quietest is cut. */
+export const BGM_VOICE_CAP = 40;
+/** Music look-ahead (s): survives a main-thread stall of ~0.27 s. */
+export const MUSIC_LOOKAHEAD = 0.3;
+/** Late notes (live only): short ones later than this are dropped, not bunched. */
+const LATE_TOL = 0.03;
+const LATE_LONG = 0.25;
+
+/** One scheduled step and the voices each part started on it. */
+interface StepRec {
+  t: number;
+  b: BarCtx;
+  src: number;
+  actual: number;
+  /** Voices started by part k: hs[k]. */
+  hs: (VoiceHandle[] | undefined)[];
+}
+
+interface BarSnap {
+  t0: number;
+  cursor: { intro: boolean; i: number };
+  barNo: number;
+  loopCount: number;
+  curLoopIndex: number;
+  bar: BarCtx | null;
+  prevBar: BarCtx | null;
+  parts: { prevMidi: number | null; prevEnd: number; state: Record<string, unknown> }[];
+  songState: Record<string, unknown>;
 }
 
 // ---------------------------------------------------------------------------
@@ -191,10 +235,8 @@ export class SongPlayer {
   readonly out: GainNode;
   /** The song's pitch bus in cents (stage detune, tape, bows, tape-stops). */
   readonly det: ConstantSourceNode;
-  private tapeSlow: OscillatorNode;
-  private tapeSlowG: GainNode;
-  private tapeFast: OscillatorNode;
-  private tapeFastG: GainNode;
+  /** Tape wow & flutter LFOs (created on first use). */
+  private tape: { slow: OscillatorNode; slowG: GainNode; fast: OscillatorNode; fastG: GainNode } | null = null;
   readonly parts: PartRt[] = [];
   readonly params: Params;
   private pending: Partial<Params> = {};
@@ -208,6 +250,8 @@ export class SongPlayer {
   loopCount = 0;
   barNo = 0;
   halted = false;
+  /** No new steps are scheduled from this ctx time on (boss final phase). */
+  haltAt = Infinity;
   ended = false;
   stopped = false;
   stopAt = Infinity;
@@ -243,17 +287,20 @@ export class SongPlayer {
     const post = c.createGain();
     this.mix.connect(post);
     const rv = def.reverb ?? { len: 1.6, decay: 3.2, level: 0.3 };
+    // the song's own reverb: a mono convolution spread to stereo (15.3)
     this.conv = c.createConvolver();
     this.conv.normalize = false;
-    this.conv.buffer = makeIR(c, rv.len, rv.decay, 31 + Math.round(rv.len * 10));
+    this.conv.buffer = makeIRMono(c, rv.len, rv.decay, 31 + Math.round(rv.len * 10));
+    const down = monoSum(c);
     const hp = c.createBiquadFilter();
     hp.type = 'highpass';
     hp.frequency.value = rv.hp ?? 220;
     const wetOut = c.createGain();
     wetOut.gain.value = rv.level;
-    this.wet.connect(hp);
+    this.wet.connect(down);
+    down.connect(hp);
     hp.connect(this.conv);
-    this.conv.connect(wetOut);
+    if (!(globalThis as any).__PF?.noRev) spread(c, this.conv, wetOut);
     wetOut.connect(post);
     post.connect(this.filter);
     this.filter.connect(this.pause);
@@ -268,18 +315,6 @@ export class SongPlayer {
     this.det = c.createConstantSource();
     this.det.offset.value = 0;
     this.det.start(t0 - 0.05 > c.currentTime ? t0 - 0.05 : c.currentTime);
-    this.tapeSlow = c.createOscillator();
-    this.tapeSlowG = c.createGain();
-    this.tapeSlowG.gain.value = 0;
-    this.tapeSlow.connect(this.tapeSlowG);
-    this.tapeSlowG.connect(this.det.offset);
-    this.tapeFast = c.createOscillator();
-    this.tapeFastG = c.createGain();
-    this.tapeFastG.gain.value = 0;
-    this.tapeFast.connect(this.tapeFastG);
-    this.tapeFastG.connect(this.det.offset);
-    this.tapeSlow.start();
-    this.tapeFast.start();
 
     for (const p of def.parts) this.parts.push(this.makePart(p));
     if (opts.fromLoopBar !== undefined && def.loop.length) {
@@ -311,15 +346,16 @@ export class SongPlayer {
       f.type = 'lowpass';
       f.frequency.value = fx.lp;
       f.Q.value = fx.q ?? 0.7;
+      // a 0.15 Hz sweep needs no per-sample coefficients (15.3)
+      kRate(f.frequency);
+      kRate(f.Q);
       if (fx.lfo) {
-        const l = c.createOscillator();
-        l.frequency.value = fx.lfo.rate;
+        const l = sharedLfo(c, fx.lfo.rate);
         const lg = c.createGain();
         lg.gain.value = fx.lfo.depth;
         l.connect(lg);
         lg.connect(f.frequency);
-        l.start();
-        this.lfos.push(l);
+        this.lfoLinks.push([l, lg]);
       }
       node.connect(f);
       node = f;
@@ -328,29 +364,26 @@ export class SongPlayer {
     if (fx?.tremolo) {
       const a = c.createGain();
       a.gain.value = 1 - fx.tremolo.depth;
-      const l = c.createOscillator();
-      l.frequency.value = fx.tremolo.rate;
+      const l = sharedLfo(c, fx.tremolo.rate);
       const lg = c.createGain();
       lg.gain.value = fx.tremolo.depth;
       l.connect(lg);
       lg.connect(a.gain);
-      l.start();
-      this.lfos.push(l);
+      this.lfoLinks.push([l, lg]);
       node.connect(a);
       node = a;
     }
     if (fx?.autopan || fx?.pan) {
       const pn = c.createStereoPanner();
       pn.pan.value = fx.pan ?? 0;
+      kRate(pn.pan);
       if (fx.autopan) {
-        const l = c.createOscillator();
-        l.frequency.value = fx.autopan.rate;
+        const l = sharedLfo(c, fx.autopan.rate);
         const lg = c.createGain();
         lg.gain.value = fx.autopan.depth;
         l.connect(lg);
         lg.connect(pn.pan);
-        l.start();
-        this.lfos.push(l);
+        this.lfoLinks.push([l, lg]);
       }
       node.connect(pn);
       node = pn;
@@ -391,11 +424,18 @@ export class SongPlayer {
     p.init?.(rt);
     return rt;
   }
-  private lfos: OscillatorNode[] = [];
+  /** Part LFOs are the context's shared ones (15.3); these links are ours. */
+  private lfoLinks: [AudioNode, AudioNode][] = [];
 
   // ---- params --------------------------------------------------------------
 
-  /** Queue a param change (applied on the next beat / bar per 40_audio 7). */
+  /**
+   * A param change (40_audio 7): kire rises land on the next beat, everything
+   * else on the next bar. When that beat / bar is already scheduled (the
+   * look-ahead is 0.3 s), the scheduled notes are corrected in place: a kire
+   * rise re-schedules the kire-aware parts from that beat; a bar change
+   * rewinds the bar if it has not started to sound.
+   */
   setParam(name: keyof Params, value: number): void {
     const old = this.pending[name] ?? this.params[name];
     if (old === value) return;
@@ -405,6 +445,78 @@ export class SongPlayer {
       this.applyStage(this.g.ctx.currentTime, false, value);
     }
     this.def.onParam?.(this, name, value, old);
+    this.landScheduled(name, value);
+  }
+
+  /** Apply a pending change to steps that are already scheduled (see setParam). */
+  private landScheduled(name: keyof Params, value: number): void {
+    if (this.pending[name] !== value || this.halted || this.stopped) return;
+    const now = this.g.ctx.currentTime + 0.008;
+    if (name === 'kire' && value > this.params.kire) {
+      const i = this.hist.findIndex((r) => r.t >= now && r.actual % 4 === 0);
+      if (i < 0) return;
+      this.params.kire = value;
+      delete this.pending.kire;
+      this.reschedule(i, (pd) => !!pd.kireAware);
+      return;
+    }
+    // bar-level: rewind the newest bar if its downbeat is still ahead
+    if (this.def.rewind === false || !this.snap || this.snap.t0 < now) return;
+    this.rewindBar();
+  }
+
+  /** Cancel and re-run the chosen parts for every scheduled step from hist[i]. */
+  private reschedule(from: number, pick: (pd: PartDef) => boolean): void {
+    for (let r = from; r < this.hist.length; r++) {
+      const rec = this.hist[r];
+      for (let k = 0; k < this.parts.length; k++) {
+        const pd = this.def.parts[k];
+        if (!pick(pd)) continue;
+        const hs = rec.hs[k];
+        if (hs) for (const h of hs) this.cancel(h);
+        rec.hs[k] = undefined;
+        if (this.solo && !this.solo.has(pd.id)) continue;
+        if (pd.when && !pd.when(rec.b, rec.src)) continue;
+        rec.hs[k] = this.runPart(k, rec.b, rec.src, rec.actual);
+      }
+    }
+  }
+
+  /** Throw away the newest bar (not yet sounding) and schedule it again. */
+  private rewindBar(): void {
+    const sn = this.snap!;
+    for (let r = this.hist.length - 1; r >= 0 && this.hist[r].t >= sn.t0 - 1e-6; r--) {
+      for (const hs of this.hist[r].hs) if (hs) for (const h of hs) this.cancel(h);
+      this.hist.pop();
+    }
+    this.det.offset.cancelScheduledValues(sn.t0);
+    this.cursor = { ...sn.cursor };
+    this.barNo = sn.barNo;
+    this.loopCount = sn.loopCount;
+    this.curLoopIndex = sn.curLoopIndex;
+    this.bar = sn.bar;
+    this.prevBar = sn.prevBar;
+    this.parts.forEach((rt, k) => {
+      rt.prevMidi = sn.parts[k].prevMidi;
+      rt.prevEnd = sn.parts[k].prevEnd;
+      for (const key of Object.keys(rt.state)) if (!(key in sn.parts[k].state)) delete rt.state[key];
+      Object.assign(rt.state, sn.parts[k].state);
+    });
+    for (const key of Object.keys(this.state)) if (!(key in sn.songState)) delete this.state[key];
+    Object.assign(this.state, sn.songState);
+    this.step = 0;
+    this.nextT = sn.t0;
+    this.ended = false;
+    this.snap = null;
+    this.rewinds++;
+  }
+  /** QA: how many bars were rewound for param changes. */
+  rewinds = 0;
+
+  private cancel(h: VoiceHandle): void {
+    h.stop(0.004, h.start);
+    const i = this.sounding.indexOf(h);
+    if (i >= 0) this.sounding.splice(i, 1);
   }
 
   /** Base pitch + tape wobble for the stage transforms (5.4). */
@@ -445,10 +557,27 @@ export class SongPlayer {
   }
 
   setTape(slowRate: number, slowDepth: number, fastRate: number, fastDepth: number, ramp = 0.3, at = this.g.ctx.currentTime): void {
-    this.tapeSlow.frequency.setValueAtTime(slowRate, at);
-    this.tapeFast.frequency.setValueAtTime(fastRate, at);
-    this.tapeSlowG.gain.setTargetAtTime(slowDepth, at, Math.max(0.01, ramp / 3));
-    this.tapeFastG.gain.setTargetAtTime(fastDepth, at, Math.max(0.01, ramp / 3));
+    if (!this.tape) {
+      if (!slowDepth && !fastDepth) return;
+      const c = this.g.ctx;
+      const mk = (): [OscillatorNode, GainNode] => {
+        const o = c.createOscillator();
+        const gn = c.createGain();
+        gn.gain.value = 0;
+        o.connect(gn);
+        gn.connect(this.det.offset);
+        o.start();
+        return [o, gn];
+      };
+      const [slow, slowG] = mk();
+      const [fast, fastG] = mk();
+      this.tape = { slow, slowG, fast, fastG };
+    }
+    const tp = this.tape;
+    tp.slow.frequency.setValueAtTime(slowRate, at);
+    tp.fast.frequency.setValueAtTime(fastRate, at);
+    tp.slowG.gain.setTargetAtTime(slowDepth, at, Math.max(0.01, ramp / 3));
+    tp.fastG.gain.setTargetAtTime(fastDepth, at, Math.max(0.01, ramp / 3));
   }
 
   private applyPending(onBar: boolean): void {
@@ -500,6 +629,19 @@ export class SongPlayer {
   }
 
   private beginBar(): boolean {
+    this.snap = {
+      t0: this.nextT,
+      cursor: { ...this.cursor },
+      barNo: this.barNo,
+      loopCount: this.loopCount,
+      curLoopIndex: this.curLoopIndex,
+      bar: this.bar,
+      prevBar: this.prevBar,
+      parts: this.parts.map((rt) => ({ prevMidi: rt.prevMidi, prevEnd: rt.prevEnd, state: { ...rt.state } })),
+      songState: { ...this.state },
+    };
+    // bar-level params first: the route (boss phases) must see the new phase
+    this.applyPending(true);
     if (this.forced) {
       this.cursor = this.forced;
       this.forced = null;
@@ -512,7 +654,6 @@ export class SongPlayer {
       this.ended = true;
       return false;
     }
-    this.applyPending(true);
     const bpm = def.bpm ?? this.def.tempo?.(this.params, this) ?? this.def.bpm;
     const stepDur = 60 / bpm / 4;
     const nxt = this.advanceCursor(this.cursor);
@@ -578,43 +719,98 @@ export class SongPlayer {
   /** Schedule everything that starts before `until`. */
   pump(until: number): void {
     if (this.disposed) return;
-    if (!this.halted && !this.ended) {
-      let guard = 0;
-      while (this.nextT < until && guard++ < 512) {
-        if (this.nextT >= this.stopAt) break;
-        if (this.step === 0 && !this.beginBar()) break;
-        const b = this.bar!;
-        const s = this.step;
-        if (s % 4 === 0 && s > 0) this.applyPending(false);
-        const src = b.src(s);
-        for (let i = 0; i < this.parts.length; i++) {
-          const pd = this.def.parts[i];
-          if (this.solo && !this.solo.has(pd.id)) continue;
-          if (pd.when && !pd.when(b, src)) continue;
-          pd.step(b, src, s, this.parts[i]);
-        }
-        this.step++;
-        if (this.step >= b.steps) {
-          this.step = 0;
-          this.nextT = b.t0 + b.steps * b.stepDur;
-          this.barNo++;
-          const n = this.advanceCursor(this.cursor);
-          if (!n) {
-            this.ended = true;
-            this.endTime = this.nextT;
-            break;
-          }
-          if (!this.cursor.intro && !n.intro && n.i === 0) this.loopCount++;
-          this.cursor = n;
-        } else this.nextT = b.t0 + this.step * b.stepDur;
-      }
-    }
+    if (this.g.offline) this.pumpSteps(until);
+    else withLatePolicy(LATE_TOL, LATE_LONG, () => this.pumpSteps(until));
     this.def.pumpFree?.(this, until);
     if (this.ended && this.onEnd && this.g.ctx.currentTime + 0.12 >= this.endTime) {
       const f = this.onEnd;
       this.onEnd = null;
       f(this.endTime);
     }
+  }
+
+  private pumpSteps(until: number): void {
+    // forget steps that have finished sounding
+    const old = this.g.ctx.currentTime - 0.3;
+    let drop = 0;
+    while (drop < this.hist.length && this.hist[drop].t < old) drop++;
+    if (drop) this.hist.splice(0, drop);
+    if (this.halted || this.ended) return;
+    let guard = 0;
+    while (this.nextT < until && guard++ < 512) {
+      if (this.nextT >= this.stopAt || this.nextT >= this.haltAt) break;
+      if (this.step === 0 && !this.beginBar()) break;
+      const b = this.bar!;
+      const s = this.step;
+      if (s % 4 === 0 && s > 0) this.applyPending(false);
+      const src = b.src(s);
+      const rec: StepRec = { t: b.time(s), b, src, actual: s, hs: [] };
+      for (let i = 0; i < this.parts.length; i++) {
+        const pd = this.def.parts[i];
+        if (this.solo && !this.solo.has(pd.id)) continue;
+        if (pd.when && !pd.when(b, src)) continue;
+        rec.hs[i] = this.runPart(i, b, src, s);
+      }
+      this.hist.push(rec);
+      this.step++;
+      if (this.step >= b.steps) {
+        this.step = 0;
+        this.nextT = b.t0 + b.steps * b.stepDur;
+        this.barNo++;
+        const n = this.advanceCursor(this.cursor);
+        if (!n) {
+          this.ended = true;
+          this.endTime = this.nextT;
+          break;
+        }
+        if (!this.cursor.intro && !n.intro && n.i === 0) this.loopCount++;
+        this.cursor = n;
+      } else this.nextT = b.t0 + this.step * b.stepDur;
+    }
+  }
+
+  /** Run one part for one step, keeping the voices it starts (cap + corrections). */
+  private runPart(i: number, b: BarCtx, src: number, actual: number): VoiceHandle[] | undefined {
+    const list: VoiceHandle[] = [];
+    captureVoices(list, () => this.def.parts[i].step(b, src, actual, this.parts[i]));
+    if (!list.length) return undefined;
+    for (const h of list) this.admit(h);
+    return list;
+  }
+
+  /**
+   * The BGM voice cap (11.5: 40 voices, FM modulators not counted): when a
+   * new voice would be the 41st sounding at its start, the quietest voice
+   * sounding then (the new one included) is cut with a 10 ms fade.
+   */
+  private admit(h: VoiceHandle): void {
+    if (!h.end) return;
+    const t = h.start;
+    const snd = this.sounding;
+    for (let k = snd.length - 1; k >= 0; k--) if (snd[k].end <= t) snd.splice(k, 1);
+    snd.push(h);
+    let over = 0;
+    for (const x of snd) if (x.start <= t) over++;
+    over -= BGM_VOICE_CAP;
+    while (over-- > 0) {
+      let q = -1;
+      for (let k = 0; k < snd.length; k++) if (snd[k].start <= t && (q < 0 || snd[k].vol < snd[q].vol)) q = k;
+      if (q < 0) break;
+      snd[q].stop(0.01, t);
+      snd.splice(q, 1);
+      this.capped++;
+    }
+  }
+  /** QA: voices cut by the cap. */
+  capped = 0;
+  private readonly sounding: VoiceHandle[] = [];
+  private readonly hist: StepRec[] = [];
+  private snap: BarSnap | null = null;
+
+  /** QA: most voices sounding at once so far (after the cap). */
+  get soundingNow(): number {
+    const t = this.g.ctx.currentTime;
+    return this.sounding.filter((h) => h.start <= t && h.end > t).length;
   }
 
   /** Fade out and release all nodes. */
@@ -645,12 +841,15 @@ export class SongPlayer {
     try {
       this.out.disconnect();
       this.det.stop();
-      this.tapeSlow.stop();
-      this.tapeFast.stop();
-      for (const l of this.lfos) l.stop();
+      this.tape?.slow.stop();
+      this.tape?.fast.stop();
+      for (const [l, g] of this.lfoLinks) l.disconnect(g);
     } catch {
       /* already */
     }
+    for (const rt of this.parts) releaseShared(rt.input);
+    this.hist.length = 0;
+    this.sounding.length = 0;
   }
 
   get isDisposed(): boolean {
@@ -662,11 +861,17 @@ export class SongPlayer {
   }
 
   private prevBar: BarCtx | null = null;
-  /** What is audible at ctx time t (the scheduler runs ~0.12 s ahead). */
-  audibleAt(t: number): { label: string; beat: number; bpm: number; intro: boolean } | null {
-    const b = this.bar && t >= this.bar.t0 ? this.bar : this.prevBar ?? this.bar;
+  /** The bar sounding at ctx time t (the scheduler runs up to 0.3 s ahead). */
+  barAt(t: number): BarCtx | null {
+    for (let r = this.hist.length - 1; r >= 0; r--) if (this.hist[r].t <= t) return this.hist[r].b;
+    return this.bar && t >= this.bar.t0 ? this.bar : this.prevBar ?? this.bar;
+  }
+  /** What is audible at ctx time t. */
+  audibleAt(t: number): { label: string; beat: number; bpm: number; intro: boolean; loop: number; loopIndex: number } | null {
+    const b = this.barAt(t);
     if (!b) return null;
-    return { label: b.label, beat: Math.max(0, (t - b.t0) / (b.stepDur * 4)), bpm: b.bpm, intro: b.inIntro };
+    const li = b.inIntro ? 0 : Math.max(0, this.def.loop.indexOf(b.label));
+    return { label: b.label, beat: Math.max(0, (t - b.t0) / (b.stepDur * 4)), bpm: b.bpm, intro: b.inIntro, loop: b.loop, loopIndex: li };
   }
 
   /** Pause gate for pausing jingles (sequencer keeps running). */
@@ -1084,3 +1289,11 @@ export function bed(id: string, start: (t: number, dest: AudioNode) => (at: numb
 }
 
 export { voice };
+
+function kRate(p: AudioParam): void {
+  try {
+    p.automationRate = 'k-rate';
+  } catch {
+    /* fixed-rate param */
+  }
+}

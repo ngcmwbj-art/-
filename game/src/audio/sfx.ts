@@ -112,7 +112,7 @@ se('se_step_wood_bare', stepDef('足音：家の床・はだし（とっ）', ['
 se('se_step_tatami', stepDef('足音：畳（すっ）', ['noise env=5/40/0/25 dur=30 v=.025 flt=BP700q0.8']));
 se('se_step_tile', stepDef('足音：タイル（ぺたっ）', ['noise env=1/25/0/15 dur=15 v=.035 flt=BP2400q1.2', BSAN(1.5, 2000)]));
 se('se_step_stone', stepDef('足音：歩道・石畳（こつ）', ['noise env=0/20/0/10 dur=10 v=.03 flt=BP2600q1', 'tri f=210→170/25 env=0/30/0/15 dur=10 v=.03', BSAN(1, 1800)]));
-se('se_step_dirt', stepDef('足音：土（ざ）', ['noise env=3/40/0/20 dur=30 v=.03 flt=LP1100', 'noise env=2/25/0/12 dur=15 v=.006 flt=BP3200q1.2', 'sine f=110→80/30 env=1/30/0/10 dur=10 v=.015', BSAN(0.5)]));
+se('se_step_dirt', stepDef('足音：土（ざ）', ['noise env=3/40/0/20 dur=30 v=.03 flt=LP1100', 'noise env=2/40/0/15 dur=25 v=.026 flt=BP3200q0.8 am=85/.6', 'sine f=110→80/30 env=1/30/0/10 dur=10 v=.015', BSAN(0.5)]));
 se('se_step_metal', stepDef('足音：側溝のふた（かん）', ['sine f=420 env=0/60/0/20 dur=10 v=.03', 'sine f=1130 env=0/40/0/15 dur=10 v=.015', 'noise env=0/15/0/8 dur=8 v=.02 flt=BP3000q1', BSAN()]));
 // 'se_step' (no surface): the battle's party steps forward on an unnamed
 // floor — the neutral "こつ" of the pavement, softer. Not listed in the

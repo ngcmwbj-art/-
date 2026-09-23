@@ -6,17 +6,22 @@ import { makeCanvas } from '../../engine/pixel';
 import { ease } from '../../engine/tween';
 import { C } from '../ui/note';
 
+/**
+ * Normal digits: 7×11 core with 2px strokes (the sprite is 11×15 with the
+ * vermilion edge and the ink outline). 16.4 asks for "8×12" digits; drawn
+ * with 1px strokes they read as a red price tag, so the strokes are doubled.
+ */
 const SMALL: string[][] = [
-  ['.##.', '#..#', '#..#', '#..#', '#..#', '#..#', '#..#', '.##.'],
-  ['..#.', '.##.', '..#.', '..#.', '..#.', '..#.', '..#.', '.###'],
-  ['.##.', '#..#', '...#', '..#.', '.#..', '#...', '#...', '####'],
-  ['###.', '...#', '...#', '.##.', '...#', '...#', '...#', '###.'],
-  ['..#.', '.##.', '#.#.', '#.#.', '####', '..#.', '..#.', '..#.'],
-  ['####', '#...', '#...', '###.', '...#', '...#', '#..#', '.##.'],
-  ['.##.', '#...', '#...', '###.', '#..#', '#..#', '#..#', '.##.'],
-  ['####', '...#', '..#.', '..#.', '.#..', '.#..', '.#..', '.#..'],
-  ['.##.', '#..#', '#..#', '.##.', '#..#', '#..#', '#..#', '.##.'],
-  ['.##.', '#..#', '#..#', '#..#', '.###', '...#', '..#.', '##..'],
+  ['..###..', '.##.##.', '##...##', '##...##', '##...##', '##...##', '##...##', '##...##', '##...##', '.##.##.', '..###..'],
+  ['...##..', '..###..', '.####..', '...##..', '...##..', '...##..', '...##..', '...##..', '...##..', '...##..', '.######'],
+  ['.#####.', '##...##', '.....##', '.....##', '....##.', '...##..', '..##...', '.##....', '##.....', '##.....', '#######'],
+  ['.#####.', '##...##', '.....##', '.....##', '..####.', '.....##', '.....##', '.....##', '.....##', '##...##', '.#####.'],
+  ['....##.', '...###.', '..####.', '.##.##.', '##..##.', '##..##.', '#######', '#######', '....##.', '....##.', '....##.'],
+  ['#######', '##.....', '##.....', '######.', '.....##', '.....##', '.....##', '.....##', '.....##', '##...##', '.#####.'],
+  ['..####.', '.##....', '##.....', '##.....', '######.', '##...##', '##...##', '##...##', '##...##', '##...##', '.#####.'],
+  ['#######', '#######', '.....##', '....##.', '....##.', '...##..', '...##..', '..##...', '..##...', '..##...', '..##...'],
+  ['.#####.', '##...##', '##...##', '##...##', '.#####.', '##...##', '##...##', '##...##', '##...##', '##...##', '.#####.'],
+  ['.#####.', '##...##', '##...##', '##...##', '##...##', '.######', '.....##', '.....##', '.....##', '....##.', '.####..'],
 ];
 
 const BIG: string[][] = [
@@ -55,10 +60,14 @@ function buildGlyph(d: number, big: boolean, pal: Palette): HTMLCanvasElement {
   const rows = (big ? BIG : SMALL)[d];
   const cw = rows[0].length;
   const ch = rows.length;
-  const W = cw + 4;
+  // big digits (くっきり, 100てん) are drawn bold: every stroke one pixel wider
+  const bold = big;
+  const W = cw + 4 + (bold ? 1 : 0);
   const H = ch + 4;
   const grid = new Uint8Array(W * H); // 0 none, 1 core, 2 edge, 3 outer
-  for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) if (rows[y][x] === '#') grid[(y + 2) * W + x + 2] = 1;
+  for (let y = 0; y < ch; y++)
+    for (let x = 0; x <= cw; x++)
+      if (rows[y][x] === '#' || (bold && x > 0 && rows[y][x - 1] === '#')) grid[(y + 2) * W + x + 2] = 1;
   const dilate = (from: number, to: number) => {
     const src = grid.slice();
     for (let y = 0; y < H; y++)
@@ -169,16 +178,23 @@ export function miniInkPot(): HTMLCanvasElement {
   return c;
 }
 
-/** Compose a number string into one canvas (advance 7px, big 11px). */
+/**
+ * Compose a number string into one canvas. Every digit keeps its own
+ * vermilion edge and ink outline (no shared plate behind the number); digits
+ * overlap by their outline, the left one on top, and every other digit sits
+ * 1px lower — a hand-written bounce.
+ */
 export function numberCanvas(n: number, kind: NumKind, big = false): HTMLCanvasElement {
   const s = String(Math.max(0, Math.round(n)));
-  const adv = big ? 11 : 7;
-  const gw = big ? 12 : 8;
-  const gh = big ? 18 : 12;
+  const g0 = glyph(0, big, kind);
+  const gw = g0.width;
+  const gh = g0.height;
+  const adv = gw - 2;
   const extra = kind === 'heal' ? 9 : kind === 'mp' ? 8 : 0;
   const w = adv * (s.length - 1) + gw + extra;
-  const [c, ctx] = makeCanvas(w, gh);
-  for (let i = s.length - 1; i >= 0; i--) ctx.drawImage(glyph(+s[i], big, kind), i * adv, 0);
+  const h = gh + 1;
+  const [c, ctx] = makeCanvas(w, h);
+  for (let i = s.length - 1; i >= 0; i--) ctx.drawImage(glyph(+s[i], big, kind), i * adv, (s.length - 1 - i) % 2);
   if (kind === 'heal') ctx.drawImage(miniHanamaru(), w - 9, Math.round(gh / 2) - 4);
   if (kind === 'mp') ctx.drawImage(miniInkPot(), w - 7, Math.round(gh / 2) - 4);
   return c;

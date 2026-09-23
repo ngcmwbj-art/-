@@ -4,25 +4,30 @@
 // Extras: look_up, fry (ending), peek.
 
 import { flat, mat, type Fig, type Mats } from '../fig';
+import { HAIR_BLACK, SKIN_LIGHT, SKIN_MID, SKIN_TAN } from '../mats';
 import { legs, type LegSpec, type Seg } from '../body';
 import { buildSprite, breathingIdle, rep, type IdleKey, type Pose } from '../rig';
 import { registerChar } from '../registry';
-import { hangArms, head, sideArm, sideSwing, upper, type HeadT } from '../kit';
+import { hangArms, hatLift, head, sideArm, sideSwing, upper, type HeadT } from '../kit';
 
 const M: Mats = {
   eye: flat('#2A1C28'),
   shine: flat('#FFF6D8'),
   blush: flat('#E89478'),
-  skin: mat('#E0A882', { shade: '#C4876A', light: '#F2BE98', dark: '#9A5E48', rim: '#FFB080' }),
-  hair: mat('#2B1E1A', { shade: '#1E1418', light: '#4A3430', dark: '#140E12', rim: '#7A4430' }),
+  skin: SKIN_TAN,
+  hair: HAIR_BLACK,
   hat: mat('#F4F1E8', { shade: '#CFC8BC', light: '#FFFFFF', dark: '#A8A096', rim: '#FFE0B8' }),
   coat: mat('#EDEAE0', { shade: '#C8C2B4', light: '#FFFFFF', dark: '#9A9488', rim: '#FFD8B0' }),
   apron: mat('#E84E3C', { shade: '#B8302A', light: '#FF7A5A', dark: '#7A1A22', rim: '#FF9A6A' }),
-  pants: mat('#3A3F48', { shade: '#2A2C38', light: '#555C68', dark: '#1C1D28' }),
+  pants: mat('#3A3F48', { shade: '#2A2440', light: '#6B7186', dark: '#1B1733' }),
   boot: mat('#E8E4D8', { shade: '#B8B2A6', light: '#FFFFFF', dark: '#8A857C' }),
   brow: flat('#2B1E1A'),
   nose: flat('#C4876A'),
   mouth: flat('#8A4A3A'),
+  // the neck towel: a warmer off-white with a blue border stripe so it reads
+  // against the white coat
+  towel: mat('#FBF3DC', { shade: '#E8D9B5', light: '#FFF6D8', dark: '#C8A06A' }),
+  stripe: flat('#4AA8E0'),
   stick: flat('#D9A441'),
   oil: flat('#F6D98A'),
 };
@@ -59,10 +64,23 @@ const LEGS: LegSpec = { cx: 8, hip: 19, foot: 22, w: 3, gap: 2, mat: 'pants', lo
 const ARM: Seg[] = [{ mat: 'coat', n: 2 }, { mat: 'skin' }];
 
 function towel(f: Fig, u: number, view: string) {
-  f.part('hat', { shade: 'b', light: '' });
-  if (view === 'down') f.hl(5, 10, 12 + u).px(5, 13 + u).px(10, 13 + u).px(10, 14 + u);
-  else if (view === 'up') f.hl(4, 11, 12 + u);
-  else f.hl(5, 9, 12 + u).px(5, 13 + u);
+  // 2px band round the neck, the ends hanging down on the chest
+  f.part('towel', { shade: 'b', light: 't' });
+  if (view === 'down') {
+    f.hl(4, 11, 11 + u).hl(4, 11, 12 + u);
+    f.rect(4, 13 + u, 2, 2).rect(10, 13 + u, 2, 2);
+    f.part('stripe', { flat: true, rim: false });
+    f.hl(4, 5, 14 + u).hl(10, 11, 14 + u);
+  } else if (view === 'up') {
+    f.hl(3, 12, 11 + u).hl(3, 12, 12 + u);
+    f.part('stripe', { flat: true, rim: false });
+    f.hl(4, 11, 12 + u);
+  } else {
+    f.hl(5, 10, 11 + u).hl(4, 10, 12 + u);
+    f.rect(4, 13 + u, 2, 2);
+    f.part('stripe', { flat: true, rim: false });
+    f.hl(4, 5, 14 + u);
+  }
 }
 
 function front(f: Fig, p: Pose) {
@@ -113,7 +131,7 @@ function front(f: Fig, p: Pose) {
     f.part('eye', { flat: true, rim: false });
     f.px(6, hy + 3).px(11, hy + 3);
   }
-  cookHat(f, u + (p.lookUp ? -1 : 0), 'down');
+  cookHat(f, u + hatLift(p), 'down');
 }
 
 function back(f: Fig, p: Pose) {
@@ -132,7 +150,7 @@ function back(f: Fig, p: Pose) {
   hangArms(f, p, { lx: 0, rx: 15, sy: 13, hy: 18, segs: ARM }, u);
   towel(f, u, 'up');
   head(f, p, HEAD, 4 + u);
-  cookHat(f, u, 'up');
+  cookHat(f, u + hatLift(p), 'up');
 }
 
 function side(f: Fig, p: Pose) {

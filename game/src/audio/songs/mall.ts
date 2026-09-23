@@ -4,7 +4,7 @@
 
 import { INS } from '../instruments';
 import { bass, comp, drums, hits, melody, type BarCtx, type PartDef, type SongDef, type SongPlayer } from '../sequencer';
-import { registerSong, score } from './common';
+import { chimeQuote, registerSong, score } from './common';
 
 export const MALL_MML = `
 @song bgm_mall part=lead ins=ins_lead_sq50 meter=4/4
@@ -46,6 +46,13 @@ Ab7 = Ab C Eb Gb
 `;
 
 const mall = score(MALL_MML, MALL_CHORDS);
+
+// B1, the drop to A major ("closed"): while the lead holds G#4, a chime from
+// the far end of the empty hall climbs the town question in A (E–F#–A–C#).
+const MALL_CHIME = chimeQuote(`
+@song bgm_mall part=chime ins=ins_fm_vibes meter=4/4
+B1  Amaj7          | -:8 E5:2 F#5:2 A5:2 C#6:2 |
+`);
 const A = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8'];
 const B = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8'];
 const A2 = A.map((l) => `A'${l.slice(1)}`);
@@ -87,6 +94,7 @@ function mallDef(): SongDef {
       },
       fx: { delay: { steps: 3, fb: 0.25, send: 0.12 } },
     }),
+    melody({ id: 'chime', ins: 'ins_fm_vibes', bars: MALL_CHIME, o: { vol: 0.04, rev: 0.7 }, fx: { pan: -0.35, lp: 3500 } }),
     comp({ id: 'epiano', ins: 'ins_fm_epiano', rhythm: 'x.....x...x.....', notes: 'full', len: 'next', o: { vol: 0.045 }, fx: { tremolo: { rate: 4.5, depth: 0.12 }, autopan: { rate: 0.15, depth: 0.25 } } }),
     bass({
       id: 'bass',

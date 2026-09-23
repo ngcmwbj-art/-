@@ -111,6 +111,18 @@ export interface EnemyStatus {
   hiraki?: number;
 }
 
+/**
+ * Where an enemy stands (15.4, revised). The tape row of name tags / kire tab
+ * sits at y144–161 and the 2-line band ends at y48, so the stage is y48–143.
+ * Enemies are placed so their core (the ring / stamp target) sits at y≈104 —
+ * the ring (r44) then never reaches the panels — and big ones stand on y136.
+ */
+export const STAGE_CORE_Y = 104;
+export const STAGE_FOOT_MAX = 136;
+export function stageFootY(def: EnemyDef): number {
+  return def.footY ?? Math.min(STAGE_FOOT_MAX, STAGE_CORE_Y + def.size[1] - def.core[1]);
+}
+
 /** Enemy battler. */
 export class EnemyUnit {
   readonly kind = 'enemy' as const;
@@ -171,7 +183,7 @@ export class EnemyUnit {
     this.name = def.name;
     this.x = x;
     this.xTarget = x;
-    this.footY = def.footY ?? 148;
+    this.footY = stageFootY(def);
     this.hpShown = def.hp;
     this.hpTrail = def.hp;
     this.uid = EnemyUnit.nextUid++;

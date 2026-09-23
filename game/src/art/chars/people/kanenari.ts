@@ -12,24 +12,28 @@ import { C } from '../palette';
 import { flipBoard, flipBoardEdge } from '../flip';
 import { glowRing, GLOW_CENTER_DY } from '../glow';
 
+// Colors follow the reference sprite of 30_level_art 9.2.
 export const KANENARI_MATS: Mats = {
-  brass: mat('#D9A441', { shade: '#A8742A', light: '#F6D98A', spec: '#FFF6D8', dark: '#7A5424', rim: '#FFC46A', ol: '#4A2E22' }),
-  brassD: mat('#B8843A', { shade: '#8A5E24', light: '#E0B45A', dark: '#5A3A1A', rim: '#F0A860', ol: '#4A2E22' }),
-  brassG: mat('#F6D98A', { shade: '#D9A441', light: '#FFF6D8', spec: '#FFF6D8', dark: '#A8742A', rim: '#FFE7A3', ol: '#4A2E22' }),
-  bellIn: flat('#2E1C16'),
-  clapper: mat('#9A6A2A', { shade: '#6A4A1A', light: '#C89A4A', dark: '#4A3010' }),
-  fur: mat('#F2894B', { shade: '#C8643A', light: '#F7A86A', spec: '#FFC890', dark: '#A04E2E', rim: '#FFB878', orim: '#F7C27A', ol: '#5A2A2E', soft: true }),
-  furD: mat('#C8643A', { shade: '#9A4A2A', light: '#E07848', dark: '#7A3A24', ol: '#4A2428' }),
-  sash: mat('#F4F1E8', { shade: '#D8CCB8', light: '#FFFFFF', dark: '#B8AC98' }),
+  brass: mat('#D9A441', { shade: '#A8742A', light: '#F6D98A', spec: '#FFF6D8', dark: '#8A5A3A', ol: '#5A3A2A' }),
+  brassD: mat('#A8742A', { shade: '#8A5A3A', light: '#D9A441', dark: '#5A3A2A', ol: '#5A3A2A' }),
+  brassG: mat('#F6D98A', { shade: '#D9A441', light: '#FFF6D8', spec: '#FFF6D8', dark: '#A8742A', ol: '#5A3A2A' }),
+  bellIn: flat(C.ink),
+  clapper: mat('#A8742A', { shade: '#8A5A3A', light: '#D9A441', dark: '#5A3A2A' }),
+  fur: mat('#F2894B', { shade: '#C8643A', light: '#F7C27A', dark: '#A04E2E', orim: '#F7C27A', ol: '#2A2440', soft: true }),
+  // arms and mittens: the same fur with a clean outline (only the body's
+  // edge is dithered fluff — dithered arms read as chains)
+  furA: mat('#F2894B', { shade: '#C8643A', light: '#F7C27A', dark: '#A04E2E', orim: '#F7C27A', ol: '#2A2440' }),
+  furD: mat('#C8643A', { shade: '#A04E2E', light: '#F2894B', dark: '#8A2E3A', ol: '#2A2440' }),
+  sash: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFF6D8', dark: '#9AA0A8' }),
   red: flat('#E84E3C'),
   zip: flat('#C0C6CC'),
-  zipD: flat('#8A909A'),
+  zipD: flat('#9AA0A8'),
   void: flat(C.ink),
   eye: flat('#2A1E1A'),
   cheek: flat('#F08A7A'),
-  board: mat('#F4F1E8', { shade: '#D8CCB8', light: '#FFFFFF', dark: '#A89C88' }),
-  kraft: mat('#E8C890', { shade: '#C8A06A', light: '#F6E0B0', dark: '#8A6A3A' }),
-  boardE: flat('#C8BCA8'),
+  board: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFF6D8', dark: '#9AA0A8' }),
+  kraft: mat('#E8D9B5', { shade: '#C8A06A', light: '#FBF3DC', dark: '#8A5A3A' }),
+  boardE: flat('#C8C2B4'),
   ink: flat('#2A2440'),
 };
 
@@ -96,7 +100,7 @@ function bell(f: Fig, y0: number, sway: number, face: 'front' | 'side' | 'back',
   f.rect(cx, y0 + 11, 2, 2);
   // face
   if (face === 'front') {
-    const ey = y0 + (p.lookUp ? 5 : 6);
+    const ey = y0 + (p.lookUp ? 5 : 6) + (p.act === 'bow30' ? 2 : 0);
     f.part('eye', { flat: true, rim: false });
     if (p.act === 'hurt') f.px(x0 + 3, ey).px(x0 + 4, ey + 1).px(x0 + 10, ey).px(x0 + 9, ey + 1);
     else if (p.blink) f.px(x0 + 4, ey + 1).px(x0 + 9, ey + 1);
@@ -125,9 +129,10 @@ const DOME_UP = [
   '##############',
   '##############',
 ];
+// The mouth only shows as a thin dark crescent under the lip: a wide black
+// band read as sunglasses at 1x (review), so the face stays on the dome.
 const MOUTH_UP = [
   'LLLLLLLLLLLLLL',
-  'LiiiiiiiiiiiiL',
   '.LiiiiiiiiiiL.',
   '..LLLLLLLLLL..',
 ];
@@ -153,12 +158,12 @@ function bellTilted(f: Fig, y0: number, face: 'front' | 'side', p: Pose) {
   f.rows(x0, y + 7, MOUTH_UP, { i: null });
   f.part('bellIn', { flat: true, rim: false });
   f.rows(x0, y + 7, MOUTH_UP.map((r) => r.replace(/L/g, '.')), { i: 'bellIn' });
-  // clapper hanging inside on its rod
+  // clapper: its round tip just shows in the crescent
   f.part('clapper', { shade: 'r', light: 'l' });
-  f.px(x0 + 6, y + 8).rect(x0 + 6, y + 9, 2, 2);
+  f.rect(x0 + 6, y + 8, 2, 1);
   f.part('brassG', { flat: true, rim: false });
-  f.px(x0 + 6, y + 9);
-  // face near the top edge, looking up
+  f.px(x0 + 6, y + 8);
+  // face in the upper half of the dome, eyes up at the sky
   const ey = y + 2;
   f.part('eye', { flat: true, rim: false });
   if (face === 'front') {
@@ -174,12 +179,17 @@ function bellTilted(f: Fig, y0: number, face: 'front' | 'side', p: Pose) {
   }
 }
 
-/** Fluffy body (soft dithered outline comes from the material). */
-function body(f: Fig, y: number, rx = 5.5, shift = 0, squash = 0) {
-  f.part('fur', { shade: 'rb', light: 't', shift });
+/**
+ * Fluffy body (soft dithered outline comes from the material). Only its own
+ * silhouette is shaded: mittens and the sash in front of it do not ring it
+ * with shade pixels (that ring read as orange noise at 1x).
+ */
+function body(f: Fig, y: number, rx = 5.5, shift = 0, squash = 0, side = false) {
+  f.part('fur', { shade: 'rb', light: 't', shift, inner: false });
   f.ell(8, y + 4.5 + squash * 0.5, rx + squash * 0.3, 4.6 - squash * 0.5);
-  // soft fur highlight on the upper-left of the tummy
-  f.retone(4, y + 3, 1).retone(5, y + 2, 1);
+  // soft fur highlight on the upper-left of the tummy (front only: from the
+  // side the lit top edge and the left fill column already carry it)
+  if (!side) f.retone(4, y + 3, 1).retone(5, y + 2, 1);
 }
 
 /** White sash from his left shoulder (screen-left) down to the right hip. */
@@ -191,27 +201,73 @@ function sashFront(f: Fig, y: number) {
   f.px(5, y + 1).px(7, y + 3).px(9, y + 5);
 }
 
-function feet(f: Fig, p: Pose, side = false) {
-  f.part('furD', { shade: 'rb', light: 't' });
+/**
+ * Side view (facing left): the sash comes over the near shoulder and runs
+ * down across the chest toward the front — a solid diagonal band, white on
+ * its lit upper edge with a 1px shade on the lower one, two red ticks on the
+ * shade edge (like the front view). Clipped to the body so it never pokes
+ * out of the fur.
+ */
+function sashSide(f: Fig, y: number) {
+  const band: [number, number, number][] = [];
+  for (let j = 0; j < 6; j++) {
+    const x = 10 - j;
+    band.push([x, y + 1 + j, 0], [x + 1, y + 1 + j, -1]);
+  }
+  const inside = band.filter(([x, yy]) => f.filled(x, yy));
+  f.part('sash', { shade: '', light: '' });
+  for (const [x, yy, t] of inside) f.t(t).px(x, yy);
+  f.t(null);
+  f.part('red', { flat: true, rim: false });
+  for (const [x, yy, t] of inside) if (t < 0 && (yy === y + 2 || yy === y + 5)) f.px(x, yy);
+}
+
+/**
+ * Feet, and on the 2px bounce the short legs that carry him: the stubs run
+ * from under the fur down to the feet, so the body can leave the ground
+ * without a gap. Front: both feet orange (the viewer-right one a step
+ * darker). Side: the near foot orange, the far one the fur's shade.
+ */
+function feet(f: Fig, p: Pose, bodyY: number, side = false) {
   const st = p.mode === 'walk' ? p.step % 4 : 0;
   const y = H - 3;
+  const hip = bodyY + 7;
   if (!side) {
     const l = st === 1 ? 1 : 0;
     const r = st === 3 ? 1 : 0;
+    f.part('furA', { shade: 'rb', light: 't' });
+    if (y - l > hip) f.rect(5, hip, 2, y - l - hip);
     f.rows(4, y - l, ['.##', '###']);
+    f.part('furA', { shade: 'rb', light: 't', shift: -1 });
+    if (y - r > hip) f.rect(9, hip, 2, y - r - hip);
     f.rows(9, y - r, ['##.', '###']);
   } else {
     const a = st === 1 ? -1 : st === 3 ? 1 : 0;
-    f.part('furD', { shade: 'rb', light: 't', shift: -1 });
-    f.rows(7 - a, y, ['.##', '###']);
     f.part('furD', { shade: 'rb', light: 't' });
+    if (y > hip) f.rect(8 - a, hip, 2, y - hip);
+    f.rows(7 - a, y, ['.##', '###']);
+    f.part('furA', { shade: 'rb', light: 't' });
+    if (y > hip) f.rect(6 + a, hip, 2, y - hip);
     f.rows(5 + a, y, ['.##', '###']);
   }
 }
 
 function mitten(f: Fig, x: number, y: number, shift: number) {
-  f.part('fur', { shade: 'rb', light: 't', shift });
+  f.part('furA', { shade: 'rb', light: 't', shift });
   f.rows(x, y, ['##', '##']);
+}
+
+/**
+ * A mitten held against the fur: the fur under and behind it (away from the
+ * sun: right and below on screen) takes a 1px shade so the arm separates
+ * from the body without an outline ring. `mirror`: the frame will be
+ * flipped, so "right" is drawn on the left.
+ */
+function mittenOnBody(f: Fig, x: number, y: number, mirror: boolean) {
+  mitten(f, x, y, 0);
+  const sx = mirror ? x - 1 : x + 2;
+  for (const [px, py] of [[sx, y], [sx, y + 1], [x, y + 2], [x + 1, y + 2]] as [number, number][])
+    if (f.filled(px, py)) f.retone(px, py, -1);
 }
 
 function front(f: Fig, p: Pose) {
@@ -221,19 +277,21 @@ function front(f: Fig, p: Pose) {
   const act = p.act;
   // waving rocks the bell against the arm (3-beat arc: in, up, out)
   const sway = walking ? (st === 1 ? -1 : st === 3 ? 1 : 0) : act === 'wave' ? [0, -1, 0][p.ph % 3] : 0;
-  const by = TOP + u + (act === 'hurt' ? 1 : 0) + (p.lookUp ? 1 : 0);
-  const bodyY = 14 + Math.max(u, -1);
-  feet(f, p);
+  // bow30: the first beat of the bow — the bell tips forward a notch
+  const by = TOP + u + (act === 'hurt' || act === 'bow30' ? 1 : 0) + (p.lookUp ? 1 : 0);
+  // the whole body rides the 2px waddle bounce (9.2); the legs stretch
+  const bodyY = 14 + u;
+  feet(f, p, bodyY);
   body(f, bodyY, 5.5, 0, p.lookUp ? 1 : 0);
   sashFront(f, bodyY + 1);
   const ay = bodyY + 4;
   if (act === 'pose') {
     // PR pose: both arms flung out wide, well past the body (20px frame)
     const up = p.ph === 1 ? 1 : 0;
-    f.part('fur', { shade: 'rb', light: 't' });
+    f.part('furA', { shade: 'rb', light: 't' });
     f.rect(1, bodyY + 1 - up, 2, 2).rect(-1, bodyY - up, 2, 2);
     mitten(f, -2, bodyY - 2 - up, 0);
-    f.part('fur', { shade: 'rb', light: 't', shift: -1 });
+    f.part('furA', { shade: 'rb', light: 't', shift: -1 });
     f.rect(13, bodyY + 1 - up, 2, 2).rect(15, bodyY - up, 2, 2);
     mitten(f, 16, bodyY - 2 - up, -1);
   } else if (act === 'wave') {
@@ -246,7 +304,7 @@ function front(f: Fig, p: Pose) {
       [[13, bodyY + 1], [14, bodyY], [15, bodyY - 1], [15, bodyY - 2], [16, bodyY - 3], [16, bodyY - 4], [16, bodyY - 5]],
       [[13, bodyY + 1], [14, bodyY], [15, bodyY - 1], [16, bodyY - 1]],
     ];
-    f.part('fur', { shade: 'rb', light: '', shift: -1 });
+    f.part('furA', { shade: 'rb', light: '', shift: -1 });
     for (const [x, y] of arms[ph]) f.px(x, y);
     const mits: [number, number][] = [[15, bodyY - 5], [16, bodyY - 7], [16, bodyY - 3]];
     const m = mits[ph];
@@ -257,14 +315,14 @@ function front(f: Fig, p: Pose) {
   } else if (act === 'flip') {
     // both arms up to hold the 24×16 board over his head (board drawn by
     // the caller with flipBoard(), see FLIP_ANCHOR)
-    f.part('fur', { shade: 'rb', light: 't' });
-    f.rect(1, bodyY + 1, 2, 3).rect(0, bodyY - 3, 2, 4);
-    f.part('fur', { shade: 'rb', light: 't', shift: -1 });
-    f.rect(13, bodyY + 1, 2, 3).rect(14, bodyY - 3, 2, 4);
+    // both arms straight up, 2px of flat fur all the way to the mittens
+    // (no rim flicker down a 1px arm: it read as a chain)
+    f.part('furA', { shade: 'rb', light: 't', rim: false });
+    f.rect(1, bodyY + 1, 2, 3).rect(0, bodyY - 10, 2, 12);
+    f.part('furA', { shade: 'rb', light: 't', shift: -1, rim: false });
+    f.rect(13, bodyY + 1, 2, 3).rect(14, bodyY - 10, 2, 12);
     mitten(f, 0, bodyY - 12, 0);
     mitten(f, 14, bodyY - 12, -1);
-    f.part('fur', { shade: 'r', light: '' });
-    f.vl(0, bodyY - 10, bodyY - 4).vl(15, bodyY - 10, bodyY - 4);
   } else if (act === 'flip_hold') {
     mitten(f, 2, ay - 2, 0);
     mitten(f, 12, ay - 2, -1);
@@ -294,7 +352,7 @@ function front(f: Fig, p: Pose) {
   }
   bell(f, by, sway, 'front', p);
   if (act === 'point') {
-    f.part('fur', { shade: 'rb', light: 't', sep: true });
+    f.part('furA', { shade: 'rb', light: 't', sep: true });
     f.rect(12, bodyY, 2, 2).rect(13, bodyY - 2, 2, 2).rect(14, bodyY - 4, 2, 2);
     f.part('furD', { shade: 'r', light: 't' });
     f.px(15, bodyY - 5).px(15, bodyY - 6);
@@ -325,8 +383,8 @@ function back(f: Fig, p: Pose) {
   // looking up from behind: the bell tips back toward us (its crown rises
   // and the lip drops out of sight into the fur)
   const by = TOP + u + (p.lookUp ? -1 : 0);
-  const bodyY = 14 + Math.max(u, -1);
-  feet(f, p);
+  const bodyY = 14 + u;
+  feet(f, p, bodyY);
   const swing = walking ? (st === 1 ? -1 : st === 3 ? 1 : 0) : 0;
   mitten(f, 1, bodyY + 4 + swing, -1);
   mitten(f, 13, bodyY + 4 - swing, -1);
@@ -361,34 +419,29 @@ function side(f: Fig, p: Pose) {
   const act = p.act;
   const sway = walking ? (st === 1 ? -1 : st === 3 ? 1 : 0) : act === 'wave' ? [0, 1, 0][p.ph % 3] : 0;
   const by = TOP + u + (act === 'hurt' ? 1 : 0) + (p.lookUp ? 1 : 0);
-  const bodyY = 14 + Math.max(u, -1);
+  const bodyY = 14 + u;
   const swing = walking ? (st === 1 ? 1 : st === 3 ? -1 : 0) : 0;
-  mitten(f, 9 + swing, bodyY + 4, -1);
-  feet(f, p, true);
-  body(f, bodyY, 5, 0, p.lookUp ? 1 : 0);
-  // zipper along the back seam: just the pull tab glinting on the edge
-  f.part('zipD', { flat: true, rim: false });
-  f.px(12, bodyY + 4);
+  // far arm: just its mitten peeking out behind the back on the swing
+  mitten(f, 10 + swing, bodyY + 5, -1);
+  feet(f, p, bodyY, true);
+  body(f, bodyY, 5, 0, p.lookUp ? 1 : 0, true);
+  // zipper: a single pull-tab pixel on the back seam, one in from the edge
+  // (clear of the rim column when mirrored)
   f.part('zip', { flat: true, rim: false });
-  f.px(12, bodyY + 3);
-  // sash over the near shoulder
-  f.part('sash', { shade: '', light: '' });
-  for (let i = 0; i < 5; i++) f.t(0).px(6 + i, bodyY + 1 + i).t(-1).px(5 + i, bodyY + 1 + i);
-  f.t(null);
-  f.part('red', { flat: true, rim: false });
-  f.px(7, bodyY + 2).px(9, bodyY + 4);
+  f.px(11, bodyY + 4);
+  sashSide(f, bodyY);
   // near arm
   if (act === 'wave') {
     // the near arm up in front of the bell, sweeping an arc past its rim
     const ph = p.ph % 3;
-    f.part('fur', { shade: 'rb', light: 't' });
+    f.part('furA', { shade: 'rb', light: 't' });
     f.px(5, bodyY + 3).px(4, bodyY + 2).px(3, bodyY + 1).px(2, bodyY);
     const m: [number, number] = [[0, bodyY - 3], [-1, bodyY - 5], [-2, bodyY - 2]][ph] as [number, number];
     if (ph === 1) f.px(1, bodyY - 1).px(0, bodyY - 2);
     else f.px(1, bodyY - 1);
     mitten(f, m[0], m[1], 0);
   } else if (act === 'point') {
-    f.part('fur', { shade: 'rb', light: 't' });
+    f.part('furA', { shade: 'rb', light: 't' });
     f.px(5, bodyY + 3).px(4, bodyY + 2);
     mitten(f, 2, bodyY - 1, 0);
   } else if (act === 'flip' || act === 'flip_hold') {
@@ -397,14 +450,14 @@ function side(f: Fig, p: Pose) {
     f.part('boardE', { flat: true, rim: false });
     f.vl(3, bodyY - 1, bodyY + 6);
     mitten(f, 3, bodyY + 2, 0);
-  } else mitten(f, 6 - swing, bodyY + 4, 0);
+  } else mittenOnBody(f, 7 - swing, bodyY + 5, p.mirror);
   bell(f, by, sway, 'side', p);
 }
 
 function bowPose(f: Fig, p: Pose) {
   // deep bow toward the viewer: the bell tips forward, we see its crown
   const d = p.ph;
-  feet(f, p);
+  feet(f, p, 15);
   body(f, 15);
   mitten(f, 2, 19, 0);
   mitten(f, 12, 19, -1);
@@ -475,7 +528,12 @@ export const KANENARI_SPEC: SpriteSpec = {
     zipper: { dirs: ['up'] },
   },
   anims: {
-    bow: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 1 }, { ph: 0 }], ms: [120, 500, 120, 120], loop: false },
+    // stand → 30° → deep → 90° held → back up through the same beats
+    bow: {
+      frames: [{ act: '' }, { act: 'bow30' }, { ph: 0 }, { ph: 1 }, { ph: 0 }, { act: 'bow30' }, { act: '' }],
+      ms: [80, 90, 100, 520, 100, 90, 120],
+      loop: false,
+    },
     wave: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 2 }, { ph: 1 }], ms: 150, dirs: ['down', 'left', 'right'] },
     // replaced in buildKanenari with the ring composited in (frames 0/1 are the sources)
     glow: { frames: [{ act: 'glow' }, { act: 'glow', ph: 1 }], ms: 120, loop: false },
@@ -511,14 +569,18 @@ function withBoard(raw: HTMLCanvasElement, board: HTMLCanvasElement | null, drop
   return c;
 }
 
-/** Kanenari's frame with a glow ring composited around the bell (32 wide, 8px taller). */
+/**
+ * Kanenari's frame with a glow ring composited around the bell (32 wide, 8px
+ * taller). The ring goes behind the figure so it never paints over the bell
+ * or its outline (the flash frame's halo hugs the bell instead).
+ */
 function withRing(frame: HTMLCanvasElement, ring: HTMLCanvasElement | null): HTMLCanvasElement {
   const c = document.createElement('canvas');
   c.width = 32;
-  c.height = H + 8;
+  c.height = Math.max(H, frame.height) + 8;
   const g = c.getContext('2d')!;
-  g.drawImage(frame, (32 - frame.width) >> 1, c.height - frame.height);
   if (ring) g.drawImage(ring, 0, c.height + GLOW_CENTER_DY - 16);
+  g.drawImage(frame, (32 - frame.width) >> 1, c.height - frame.height);
   return c;
 }
 

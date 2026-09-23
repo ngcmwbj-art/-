@@ -159,12 +159,18 @@ function buildAll(): NonNullable<typeof built> {
   for (let y = 120; y < 128; y++) for (let x = 20; x < 140; x++) if (!both.in(x, y) && hash2(x, y, 2) < 0.8 - (y - 120) * 0.08) back.set(x, y, '#2A2440');
   back.outline(K.outline);
   front.outline(K.outline);
+  // chime glow (13.8 "胴が黄色く光る"): a light inside the chest — strongest
+  // on the gym bag at the torso's centre, fading out before the head and the
+  // knees, so the shadow body keeps its colour
   const glowOf = (c: HTMLCanvasElement): HTMLCanvasElement => {
     const [gc, gx] = makeCanvas(160, 128);
     gx.drawImage(c, 0, 0);
     gx.globalCompositeOperation = 'source-atop';
-    gx.fillStyle = '#FFD23F';
-    gx.globalAlpha = 0.35;
+    const gr = gx.createRadialGradient(80, 74, 4, 80, 74, 38);
+    gr.addColorStop(0, 'rgba(255,210,63,0.55)');
+    gr.addColorStop(0.55, 'rgba(255,210,63,0.3)');
+    gr.addColorStop(1, 'rgba(255,210,63,0)');
+    gx.fillStyle = gr;
     gx.fillRect(0, 0, 160, 128);
     return gc;
   };

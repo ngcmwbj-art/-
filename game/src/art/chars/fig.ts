@@ -15,7 +15,7 @@
 // Explicit tones set while drawing override the automatic shading.
 
 import { PixelCanvas, rgba32 } from '../../engine/pixel';
-import { C, ramp, rimOf, outerRimOf, outlineOf, type Ramp, type RampOpts } from './palette';
+import { C, ramp, rimOf, outerRimOf, outlineOf, snapMaster, isMaster, RIM_MARK, RIM_MARK_HI, type Ramp, type RampOpts } from './palette';
 
 export interface Mat {
   ramp: Ramp;
@@ -29,6 +29,8 @@ export interface Mat {
   norim: boolean;
   /** Dithered (soft, fluffy) outer outline. */
   soft: boolean;
+  /** The outline color was chosen explicitly (else: the darkest tone). */
+  olSet?: boolean;
 }
 
 export interface MatOpts extends RampOpts {
@@ -47,45 +49,49 @@ export function mat(base: string | Ramp, o: MatOpts = {}): Mat {
   return {
     ramp: r,
     rim: o.rim ?? rimOf(r[2], r[3]),
-    orim: o.orim ?? (o.norim ? '' : outerRimOf(r[2])),
+    orim: o.orim === '' || o.norim ? '' : o.orim !== undefined ? RIM_MARK_HI : outerRimOf(r[2]),
     ol: o.ol ?? outlineOf(r[0]),
     flat: !!o.flat,
     norim: !!o.norim,
     soft: !!o.soft,
+    olSet: o.ol !== undefined,
   };
 }
 
 /** A single flat color material (details: eyes, prints, buttons). */
 export function flat(c: string, o: { rim?: string; orim?: string; ol?: string; norim?: boolean } = {}): Mat {
   const norim = o.norim ?? true;
-  return { ramp: [c, c, c, c, c], rim: o.rim ?? c, orim: o.orim ?? (norim ? '' : outerRimOf(c)), ol: o.ol ?? C.ol, flat: true, norim, soft: false };
+  return { ramp: [c, c, c, c, c], rim: o.rim ?? c, orim: o.orim ?? (norim ? '' : outerRimOf(c)), ol: o.ol ?? C.ol, flat: true, norim, soft: false, olSet: true };
 }
 
 export type Mats = Record<string, Mat>;
 
 // Palette law (30_level_art 7.2 / 7.5): no pure white (#FFF6D8 is the
-// brightest), no pure black (#0B0B14), eyes and mouths are #2A2440.
+// brightest), no pure black (#0B0B14), eyes and mouths are #2A2440. Every
+// material is four tones at most (darkest, shade, base, light): a highlight
+// fifth tone survives only when it is a master color (brass glints); tones
+// within a hair of a master color become that color; the lit left fill
+// pixel is the light tone and the colored outline is the darkest tone, so a
+// material adds no hidden in-between colors. The sunset rim in the outline
+// column is written as a marker that quant.ts paints per stage.
 const REMAP: Record<string, string> = { '#ffffff': '#FFF6D8', '#000000': '#0B0B14', '#2a1c28': '#2A2440' };
 function lawColor(c: string): string {
   const k = c.toLowerCase();
   const base = k.slice(0, 7);
   const r = REMAP[base];
-  return r ? r + c.slice(7) : c;
+  return snapMaster(r ? r + c.slice(7) : c, 5);
 }
 function lawful(name: string, m: Mat): Mat {
   if (name === 'mouth') return flat(C.ol);
+  const r = m.ramp.map(lawColor) as Ramp;
+  if (!m.flat && r[4] !== r[3] && !isMaster(r[4]) && r[4].length <= 7) r[4] = r[3];
   return {
     ...m,
-    ramp: m.ramp.map(lawColor) as Ramp,
-    rim: lawColor(m.rim),
-    orim: m.orim ? lawColor(m.orim) : '',
-    ol: lawColor(m.ol),
+    ramp: r,
+    rim: m.flat ? lawColor(m.rim) : r[3],
+    orim: m.orim ? (m.orim === RIM_MARK ? RIM_MARK : RIM_MARK_HI) : '',
+    ol: m.olSet ? lawColor(m.ol) : r[0],
   };
-}
-
-/** Pixels of the inner left-edge tint are broken every third row (7.5: not continuous). */
-function rimOn(y: number, top: number): boolean {
-  return (y - top) % 3 !== 2;
 }
 
 /** Outer rim rows: every 2nd–3rd row of a part (rows 0, 2, 5, 7, 10 ...). */
@@ -111,6 +117,12 @@ export interface PartOpts {
   rim?: boolean;
   /** Contributes to the outer outline. Default true. */
   ol?: boolean;
+  /**
+   * Parts drawn in front of this one count as its edges (a shade ring where
+   * an arm crosses the torso). Default true; false = only the part's own
+   * silhouette is shaded (soft round bodies, where that ring reads as noise).
+   */
+  inner?: boolean;
 }
 
 interface Part {
@@ -123,6 +135,7 @@ interface Part {
   flat: boolean;
   rim: boolean;
   ol: boolean;
+  inner: boolean;
 }
 
 const AUTO = 99;
@@ -136,13 +149,52 @@ export interface RenderOpts {
   heavy?: boolean;
 }
 
+/**
+ * PixelCanvas view handed to after()/before() callbacks: frame coordinates
+ * (row 0 = the top of the declared canvas, `data` starts there), while
+ * set/get/alpha also reach the headroom rows above it (y < 0).
+ */
+class PadView extends PixelCanvas {
+  private readonly full: PixelCanvas;
+  private readonly pad: number;
+  constructor(full: PixelCanvas, pad: number, h: number) {
+    super(full.w, 0);
+    this.full = full;
+    this.pad = pad;
+    (this as { h: number }).h = h;
+    (this as { data: Uint32Array }).data = full.data.subarray(pad * full.w);
+  }
+  inside(x: number, y: number): boolean {
+    return x >= 0 && y >= -this.pad && x < this.w && y < this.h;
+  }
+  set(x: number, y: number, c: string | number): void {
+    x |= 0;
+    y |= 0;
+    if (!this.inside(x, y)) return;
+    this.full.data[(y + this.pad) * this.w + x] = typeof c === 'number' ? c : rgba32(c);
+  }
+  get(x: number, y: number): number {
+    if (!this.inside(x, y)) return 0;
+    return this.full.data[((y | 0) + this.pad) * this.w + (x | 0)];
+  }
+}
+
 export class Fig {
   readonly w: number;
+  /** Declared height (frame coordinates run 0..h-1; the feet sit on row h-1). */
   readonly h: number;
+  /**
+   * Headroom rows above row 0 (y = -pad .. -1). Poses that rise above the
+   * declared canvas (walk bob, look_up, hops) draw there instead of being
+   * cut off; buildSprite() crops unused headroom away afterwards.
+   */
+  readonly pad: number;
+  /** Internal buffer height (h + pad). */
+  readonly H: number;
   readonly pid: Int16Array;
   readonly mid: Int16Array;
   readonly tone: Int8Array;
-  private parts: Part[] = [{ z: -1, shade: '', light: '', shift: 0, sep: false, sepAll: false, flat: true, rim: false, ol: false }];
+  private parts: Part[] = [{ z: -1, shade: '', light: '', shift: 0, sep: false, sepAll: false, flat: true, rim: false, ol: false, inner: false }];
   private matList: Mat[] = [];
   private matIndex = new Map<string, number>();
   private cur = 0;
@@ -154,12 +206,14 @@ export class Fig {
   private post: ((p: PixelCanvas) => void)[] = [];
   private pre: ((p: PixelCanvas) => void)[] = [];
 
-  constructor(w: number, h: number, mats: Mats) {
+  constructor(w: number, h: number, mats: Mats, pad = 0) {
     this.w = w;
     this.h = h;
-    this.pid = new Int16Array(w * h);
-    this.mid = new Int16Array(w * h);
-    this.tone = new Int8Array(w * h).fill(AUTO);
+    this.pad = pad;
+    this.H = h + pad;
+    this.pid = new Int16Array(w * this.H);
+    this.mid = new Int16Array(w * this.H);
+    this.tone = new Int8Array(w * this.H).fill(AUTO);
     for (const k of Object.keys(mats)) this.addMat(k, mats[k]);
   }
 
@@ -200,6 +254,7 @@ export class Fig {
       flat: !!o.flat,
       rim: o.rim ?? true,
       ol: o.ol ?? true,
+      inner: o.inner ?? true,
     });
     this.cur = this.parts.length - 1;
     this.curMat = this.matId(m);
@@ -226,14 +281,19 @@ export class Fig {
   }
 
   inside(x: number, y: number): boolean {
-    return x >= 0 && y >= 0 && x < this.w && y < this.h;
+    return x >= 0 && y >= -this.pad && x < this.w && y < this.h;
+  }
+
+  /** Buffer index of frame pixel (x, y). */
+  private at(x: number, y: number): number {
+    return (y + this.pad) * this.w + x;
   }
 
   px(x: number, y: number): this {
     x = Math.round(x + this.ox);
     y = Math.round(y + this.oy);
     if (!this.inside(x, y)) return this;
-    const i = y * this.w + x;
+    const i = this.at(x, y);
     this.pid[i] = this.cur;
     this.mid[i] = this.curMat;
     this.tone[i] = this.curTone;
@@ -356,7 +416,7 @@ export class Fig {
         const X = Math.round(x + i + this.ox);
         const Y = Math.round(y + j + this.oy);
         if (!this.inside(X, Y)) continue;
-        const k = Y * this.w + X;
+        const k = this.at(X, Y);
         this.pid[k] = 0;
         this.tone[k] = AUTO;
       }
@@ -370,7 +430,7 @@ export class Fig {
         const X = Math.round(x + i + this.ox);
         const Y = Math.round(y + j + this.oy);
         if (!this.inside(X, Y)) continue;
-        const k = Y * this.w + X;
+        const k = this.at(X, Y);
         if (this.pid[k]) this.tone[k] = tone;
       }
     return this;
@@ -380,13 +440,20 @@ export class Fig {
   filled(x: number, y: number): boolean {
     x = Math.round(x + this.ox);
     y = Math.round(y + this.oy);
-    return this.inside(x, y) && this.pid[y * this.w + x] !== 0;
+    return this.inside(x, y) && this.pid[this.at(x, y)] !== 0;
   }
 
-  /** Mirror horizontally (used to make right-facing frames from left ones). */
+  /**
+   * Mirror horizontally (used to make right-facing frames from left ones).
+   * Shapes and painted details (seams, zippers, stripes) mirror with the
+   * figure, but the light must not (30_level_art 7.5): the sun stays in the
+   * west. Automatic shading is computed after the flip anyway; explicit
+   * tones that model light — highlight toward one side of a part, shade
+   * toward the other — are re-oriented afterwards (see relight()).
+   */
   flip(): this {
     const W = this.w;
-    for (let y = 0; y < this.h; y++)
+    for (let y = 0; y < this.H; y++)
       for (let x = 0; x < W >> 1; x++) {
         const a = y * W + x;
         const b = y * W + (W - 1 - x);
@@ -394,7 +461,70 @@ export class Fig {
         t = this.mid[a]; this.mid[a] = this.mid[b]; this.mid[b] = t;
         t = this.tone[a]; this.tone[a] = this.tone[b]; this.tone[b] = t;
       }
+    this.relight();
     return this;
+  }
+
+  /**
+   * After a flip: every part whose explicit edge tones are lit from the
+   * right (light tones in the right-hand edge band of its rows, shade tones
+   * in the left-hand one) gets those edge bands mirrored back within each of
+   * its rows, so the highlight returns to the screen-left edge and the shade
+   * to the right. Interior tones (a shadow under a mitten, a fold, a seam)
+   * mirror with the shape and are left alone, and parts whose tones do not
+   * lean that way keep them where they are.
+   */
+  private relight(): void {
+    const W = this.w;
+    const n = this.parts.length;
+    const EDGE = 3;
+    const score = new Float64Array(n);
+    const count = new Int32Array(n);
+    const extent = (y: number, p: number): [number, number] => {
+      let l = -1;
+      let r = -1;
+      for (let x = 0; x < W; x++)
+        if (this.pid[y * W + x] === p) {
+          if (l < 0) l = x;
+          r = x;
+        }
+      return [l, r];
+    };
+    const edge = (k: number, l: number, r: number) => k - l < EDGE || r - k < EDGE;
+    for (let y = 0; y < this.H; y++) {
+      const seen = new Set<number>();
+      for (let x = 0; x < W; x++) {
+        const p = this.pid[y * W + x];
+        if (!p || seen.has(p)) continue;
+        seen.add(p);
+        const [l, r] = extent(y, p);
+        if (r - l < 1) continue;
+        const mid = (l + r) / 2;
+        const half = (r - l) / 2;
+        for (let k = l; k <= r; k++) {
+          const j = y * W + k;
+          const t = this.tone[j];
+          if (this.pid[j] !== p || t === AUTO || t === 0 || this.matList[this.mid[j]].flat || !edge(k, l, r)) continue;
+          score[p] += (t * (k - mid)) / half;
+          count[p]++;
+        }
+      }
+    }
+    for (let p = 1; p < n; p++) {
+      if (count[p] < 2 || score[p] <= 0.25) continue;
+      for (let y = 0; y < this.H; y++) {
+        const [l, r] = extent(y, p);
+        if (l < 0) continue;
+        const src: number[] = [];
+        for (let k = l; k <= r; k++) src.push(this.tone[y * W + k]);
+        for (let k = l; k <= r; k++) {
+          const j = y * W + k;
+          if (this.pid[j] !== p || !edge(k, l, r)) continue;
+          const from = l + r - k;
+          this.tone[j] = this.pid[y * W + from] === p ? src[from - l] : AUTO;
+        }
+      }
+    }
   }
 
   /** Callback on the finished PixelCanvas (glows, translucent effects, no outline). */
@@ -411,10 +541,11 @@ export class Fig {
 
   render(o: RenderOpts = {}): PixelCanvas {
     const W = this.w;
-    const H = this.h;
+    const H = this.H;
     const pid = this.pid;
     const out = new PixelCanvas(W, H);
-    for (const f of this.pre) f(out);
+    const view = this.pad ? new PadView(out, this.pad, this.h) : out;
+    for (const f of this.pre) f(view);
     const pidAt = (x: number, y: number) => (x < 0 || y < 0 || x >= W || y >= H ? 0 : pid[y * W + x]);
 
     // horizontal / vertical run extents per pixel (for "left half" / "upper half" tests)
@@ -464,7 +595,7 @@ export class Fig {
             const edge = (xx: number, yy: number) => {
               const q = pidAt(xx, yy);
               if (q === p) return false;
-              if (q && this.parts[q].z > part.z && (this.parts[q].flat || this.matList[this.mid[yy * W + xx]].flat)) return false;
+              if (q && this.parts[q].z > part.z && (!part.inner || this.parts[q].flat || this.matList[this.mid[yy * W + xx]].flat)) return false;
               return true;
             };
             const R = edge(x + 1, y);
@@ -506,7 +637,10 @@ export class Fig {
           tone = Math.max(-2, Math.min(2, tone));
         }
         let col = m.ramp[tone + 2];
-        if (part.rim && !m.norim && pidAt(x - 1, y) === 0 && tone > -2 && rimOn(y, partTop[p])) col = m.rim;
+        // the lit left fill column is continuous (a broken light/base
+        // alternation read as a checker on trousers and sleeves); the
+        // outline-column rim below is the one that breaks every 2–3 rows
+        if (part.rim && !m.norim && pidAt(x - 1, y) === 0 && tone > -2) col = m.rim;
         out.set(x, y, col);
       }
 
@@ -571,7 +705,7 @@ export class Fig {
           else out.data[i] = rgba32(nm.ol);
         }
     }
-    for (const f of this.post) f(out);
+    for (const f of this.post) f(view);
     return out;
   }
 }

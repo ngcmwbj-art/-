@@ -6,11 +6,13 @@
 
 import type { Co } from '../engine/co';
 import type { Gfx } from '../engine/gfx';
+import { game } from '../engine/game';
 import { W, H } from '../engine/screen';
 import { flag } from '../game/state';
 import { charSprite, idleFrame, poseFrame, walkFrame } from '../art/chars';
 import { setPropHook } from '../art/props/pkit';
-import { fontTextSmall } from '../art/props/text';
+import { fontSmallWidth, fontTextSmall, handGlyph, handText } from '../art/props/text';
+import { registerDebug } from '../debug';
 import { PixelCanvas } from '../engine/pixel';
 import { CART_FRAMES } from '../art/props/parking';
 import { lowPoint, staffPoint } from '../art/props/wires';
@@ -33,58 +35,135 @@ interface Snap {
 const hist: Snap[] = [];
 let stillT = 0;
 
+/** Default view of the mirror: the corner south-west of it (3.9). */
 const MIRROR_CENTER: [number, number] = [17 * 16, 28 * 16 + 8];
-const MIRROR_SCALE = 0.25;
+/** Foot of the mirror post (world px). */
+const MIRROR_POST: [number, number] = [17 * 16 + 8, 27 * 16 + 16];
+/** Mirror scale: 1/2 (the reflection of Minato is ~8×12px, his smug face readable). */
+const MIRROR_SCALE = 0.5;
+/** Smoothed centre of what the mirror shows (follows the player when near). */
+const viewC: [number, number] = [MIRROR_CENTER[0], MIRROR_CENTER[1]];
+/** Close-up inset (UI layer) visibility 0..1. */
+let insetA = 0;
+let mirrorScreen: [number, number] | null = null;
+
+/** The delayed reflection of the player (0.4s late until the fushigi is stamped). */
+function playerSnap(): { img: HTMLCanvasElement; x: number; y: number } | null {
+  const delay = fushigiDone('fushigi_01') ? 0 : 24;
+  const snap = hist.length > delay ? hist[hist.length - 1 - delay] : hist[0];
+  if (!snap) return null;
+  let img = snap.img;
+  // standing still: 0.4s later he looks smug in the mirror
+  if (stillT > 400) {
+    const spr = charSprite('minato');
+    if (spr.extra?.smug || spr.extraDir?.smug) img = poseFrame(spr, 'smug', 'down');
+  }
+  return { img, x: snap.x, y: snap.y };
+}
+
+/**
+ * Draw what the mirror sees inside a circle of radius r at screen (sx, sy):
+ * the ground, props and people around `c` (world), mirrored left-right.
+ */
+function mirrorView(g: Gfx, f: FieldScene, sx: number, sy: number, r: number, scale: number, c: [number, number]): void {
+  const ctx = g.ctx;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(sx + 0.5, sy + 0.5, r + 0.4, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = P.shadeDeep;
+  ctx.fillRect(sx - r - 1, sy - r - 1, r * 2 + 3, r * 2 + 3);
+  ctx.imageSmoothingEnabled = false;
+  ctx.translate(sx + 0.5, sy + 0.5);
+  ctx.scale(-scale, scale);
+  const half = (r + 2) / scale;
+  const [wx, wy] = c;
+  const CH = 256;
+  for (let ky = Math.floor((wy - half) / CH); ky <= Math.floor((wy + half) / CH); ky++)
+    for (let kx = Math.floor((wx - half) / CH); kx <= Math.floor((wx + half) / CH); kx++) {
+      if (kx < 0 || ky < 0 || kx * CH >= f.map.w * 16 || ky * CH >= f.map.h * 16) continue;
+      ctx.drawImage(f.ground.chunk(kx, ky), Math.round(kx * CH - wx), Math.round(ky * CH - wy));
+    }
+  // props and people near the view, back to front
+  const items: { foot: number; draw: () => void }[] = [];
+  for (const p of f.props) {
+    const a = p.art;
+    if (!p.present || a.flat || (p.obj.t === 'prop' && p.obj.prop === 'prop_curve_mirror')) continue; // not the mirror itself
+    if (p.x + a.ox + a.w < wx - half || p.x + a.ox > wx + half || p.y + a.oy > wy + half + 8 || p.y + a.foot < wy - half) continue;
+    const img = a.img(f.propEnv(p));
+    if (img) items.push({ foot: p.y + a.foot, draw: () => ctx.drawImage(img, Math.round(p.x + a.ox - wx), Math.round(p.y + a.oy - wy)) });
+  }
+  for (const a of f.actors) {
+    if (!a.visible || a.kind === 'sym' || a.data.cart || Math.abs(a.x - wx) > half + 12 || Math.abs(a.y - wy) > half + 24) continue;
+    const img = a.frame();
+    items.push({ foot: a.y, draw: () => ctx.drawImage(img, Math.round(a.x + a.ox - wx - img.width / 2), Math.round(a.y + a.oy - wy - img.height)) });
+  }
+  const snap = playerSnap();
+  if (snap) items.push({ foot: snap.y, draw: () => ctx.drawImage(snap.img, Math.round(snap.x - wx - snap.img.width / 2), Math.round(snap.y - wy - snap.img.height)) });
+  items.sort((a, b) => a.foot - b.foot);
+  for (const it of items) it.draw();
+  ctx.restore();
+  // convex-glass tint: sky colour at the top, darker at the rim
+  const gr = ctx.createRadialGradient(sx - r * 0.3, sy - r * 0.4, r * 0.2, sx, sy, r + 1);
+  gr.addColorStop(0, 'rgba(127,209,232,0.0)');
+  gr.addColorStop(0.75, 'rgba(127,209,232,0.12)');
+  gr.addColorStop(1, 'rgba(42,36,64,0.35)');
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(sx + 0.5, sy + 0.5, r + 0.4, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = gr;
+  ctx.fillRect(sx - r - 1, sy - r - 1, r * 2 + 3, r * 2 + 3);
+  ctx.restore();
+}
 
 setPropHook('mirror', (g, mx, my, env) => {
   const f = field();
   if (!f || f.map.id !== 'map_town') return;
-  const ctx = g.ctx;
-  const r = 5;
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(mx + 0.5, my + 0.5, r + 0.4, 0, Math.PI * 2);
-  ctx.clip();
-  ctx.imageSmoothingEnabled = false;
-  // the street behind the viewer, mirrored left-right, 1/4 size
-  const [wx, wy] = MIRROR_CENTER;
-  const span = (r * 2 + 2) / MIRROR_SCALE;
-  const sx0 = wx - span / 2;
-  const sy0 = wy - span / 2;
-  ctx.translate(mx + 0.5, my - r - 1);
-  ctx.scale(-MIRROR_SCALE, MIRROR_SCALE);
-  const CH = 256;
-  for (let ky = Math.floor(sy0 / CH); ky <= Math.floor((sy0 + span) / CH); ky++)
-    for (let kx = Math.floor(sx0 / CH); kx <= Math.floor((sx0 + span) / CH); kx++) {
-      if (kx < 0 || ky < 0) continue;
-      const chunk = f.ground.chunk(kx, ky);
-      ctx.drawImage(chunk, kx * CH - wx, ky * CH - sy0);
-    }
-  // actors: the player 0.4s late (no delay once stamped), others as they are
-  const delay = fushigiDone('fushigi_01') ? 0 : 24;
-  const snap = hist.length > delay ? hist[hist.length - 1 - delay] : hist[0];
-  const draw = (img: HTMLCanvasElement, ax: number, ay: number) => {
-    ctx.drawImage(img, Math.round(ax - wx - img.width / 2), Math.round(ay - sy0 - img.height));
-  };
-  for (const a of f.actors) {
-    if (!a.visible || Math.abs(a.x - wx) > span || Math.abs(a.y - wy) > span) continue;
-    if (a.kind === 'sym' || a.data.cart) continue;
-    draw(a.frame(), a.x, a.y + a.oy);
-  }
-  if (snap) {
-    let img = snap.img;
-    // standing still: 0.4s later he looks smug in the mirror
-    if (!delay || stillT > 400) {
-      const spr = charSprite('minato');
-      if (stillT > 400 && (spr.extra?.smug || spr.extraDir?.smug)) img = poseFrame(spr, 'smug', 'down');
-    }
-    draw(img, snap.x, snap.y);
-  }
-  ctx.restore();
-  // sky tint on the glass (top of the mirror) and the 2s glint
-  g.rect(mx - r + 1, my - r + 1, r * 2 - 1, 2, P.aqua, 0.35);
-  if (Math.floor(env.t / 2000) % 2 === 0 && env.t % 2000 < 120) g.rect(mx - 2, my - 3, 1, 1, P.glint);
+  mirrorScreen = [mx, my];
+  mirrorView(g, f, mx, my, 7, MIRROR_SCALE, viewC);
+  // the 2s glint
+  if (Math.floor(env.t / 2000) % 2 === 0 && env.t % 2000 < 120) g.rect(mx - 3, my - 4, 1, 1, P.glint);
 });
+
+function updateMirror(f: FieldScene, dt: number): void {
+  const p = f.player;
+  hist.push({ x: p.x, y: p.y, img: p.frame() });
+  if (hist.length > 40) hist.shift();
+  stillT = p.moving ? 0 : stillT + dt;
+  const d = Math.hypot(p.x - MIRROR_POST[0], p.y - MIRROR_POST[1]) / 16;
+  const tgt: [number, number] = d < 6 ? [p.x, p.y - 10] : MIRROR_CENTER;
+  const k = Math.min(1, dt / 120);
+  viewC[0] += (tgt[0] - viewC[0]) * k;
+  viewC[1] += (tgt[1] - viewC[1]) * k;
+  // close-up when examining it, or standing still within 2 tiles (0.2s pop)
+  const show = d <= 2.5 && (stillT > 300 || game.scripts.busy);
+  insetA = Math.max(0, Math.min(1, insetA + (show ? 1 : -1) * (dt / 200)));
+}
+
+function drawMirrorInset(f: FieldScene, g: Gfx): void {
+  if (insetA <= 0 || !mirrorScreen) return;
+  const e = 1 - (1 - insetA) * (1 - insetA);
+  const R = Math.round(22 * (0.6 + 0.4 * e));
+  const [mx, my] = mirrorScreen;
+  const sx = Math.max(R + 6, Math.min(W - R - 6, mx + 40));
+  const sy = Math.max(R + 6, Math.min(H - R - 6, my - 18));
+  const ctx = g.ctx;
+  ctx.save();
+  ctx.globalAlpha = insetA;
+  // a thin stem back to the real mirror
+  g.line(mx + 6, my, sx - R, sy + 4, P.sunDeep);
+  // rim: ink outline, orange ring, lit arc
+  g.circle(sx, sy, R + 3, P.ink);
+  g.circle(sx, sy, R + 2, P.sunDeep);
+  g.circle(sx, sy, R + 1, P.sun);
+  const p = f.player;
+  mirrorView(g, f, sx, sy, R, 1, [p.x, p.y - 12]);
+  ctx.globalAlpha = insetA;
+  g.rect(sx - R + 5, sy - R + 6, 4, 1, P.glint);
+  g.rect(sx - R + 4, sy - R + 7, 1, 3, P.glint);
+  ctx.restore();
+}
 
 // ---------------------------------------------------------------- per-map state
 
@@ -252,13 +331,8 @@ registerWorldFx({
   update(f, dt) {
     if (f.map.id !== lastMap) resetMap(f);
     const stage = flag('flag_stage');
-    // mirror history (player frames)
-    if (f.map.id === 'map_town') {
-      const p = f.player;
-      hist.push({ x: p.x, y: p.y, img: p.frame() });
-      if (hist.length > 40) hist.shift();
-      stillT = p.moving ? 0 : stillT + dt;
-    }
+    // mirror history (player frames), view centre and close-up
+    if (f.map.id === 'map_town') updateMirror(f, dt);
     // cat shadow lag (fushigi_02): 30 frames behind from stage 1 until stamped
     const cat = f.actors.find((a) => a.id === 'npc_cat_sauce');
     if (cat) {
@@ -319,6 +393,8 @@ registerWorldFx({
   draw(f, g, cx, cy, layer) {
     if (f.map.id !== 'map_town') return;
     const stage = flag('flag_stage');
+    if (layer === 'top') drawMirrorInset(f, g);
+    if (layer === 'ground') mirrorScreen = null;
     if (layer === 'fg') {
       drawSparrows(f, g, cx, cy, stage);
       drawFlies(g, cx, cy, f.t, stage);
@@ -399,20 +475,25 @@ function drawDust(g: Gfx, cx: number, cy: number, mt: number, stage: number): vo
 let MAIDO: HTMLCanvasElement | null = null;
 function maidoBalloon(): HTMLCanvasElement {
   if (MAIDO) return MAIDO;
-  const p = new PixelCanvas(40, 16);
-  p.rect(1, 1, 38, 11, P.white);
-  p.strokeRect(0, 0, 40, 13, P.ink);
-  p.set(0, 0, 'transparent');
-  p.set(39, 0, 'transparent');
-  p.set(0, 12, 'transparent');
-  p.set(39, 12, 'transparent');
+  // half-size kana (bold) + a hand-set ！ (the scaled font lost its dot)
+  const tw = fontSmallWidth('まいど') + 4;
+  const w = tw + 7;
+  const p = new PixelCanvas(w, 17);
+  p.rect(1, 1, w - 2, 11, P.white);
+  p.hline(2, w - 3, 1, P.glint);
+  p.strokeRect(0, 0, w, 13, P.ink);
+  for (const [x, y] of [[0, 0], [w - 1, 0], [0, 12], [w - 1, 12]]) p.set(x, y, 'transparent');
+  p.hline(2, w - 3, 11, P.concreteLt);
   // tail
-  p.set(17, 13, P.ink);
-  p.set(18, 13, P.white);
-  p.set(19, 13, P.ink);
-  p.set(18, 14, P.ink);
-  p.hline(18, 18, 12, P.white);
-  fontTextSmall(p, 'まいど！', 3, 2, P.verm, 1);
+  const tx = Math.floor(w / 2) - 1;
+  p.set(tx - 1, 13, P.ink);
+  p.hline(tx, tx + 1, 13, P.white);
+  p.set(tx + 2, 13, P.ink);
+  p.set(tx, 14, P.ink);
+  p.set(tx + 1, 14, P.ink);
+  p.hline(tx, tx + 1, 12, P.white);
+  fontTextSmall(p, 'まいど', 3, 2, P.verm, 1);
+  handGlyph(p, 'excl', 3 + tw - 2, 3, P.verm);
   MAIDO = p.toCanvas();
   return MAIDO;
 }
@@ -429,42 +510,143 @@ function drawMaido(f: FieldScene, g: Gfx, cx: number, cy: number): void {
 
 // ---------------------------------------------------------------- the night train (8.6)
 
-const train = { active: false, t: 0 };
+const train = { active: false, t: 0, y0: 0, v: 0 };
+/** Train geometry: 4 unlit cars on the x60 track, as wide as the ballast bed. */
+const TRAIN_W = 38;
+const CAR_L = 88;
+const GAP = 6;
+const NOSE = 12;
+const TRAIN_L = NOSE + 4 * CAR_L + 3 * GAP;
+const TRAIN_MS = 2800;
 
-function drawTrain(g: Gfx, cx: number, cy: number): void {
-  // four unlit cars, 160px long, travelling north → south along x=60, over 2.0s
-  const len = 160;
-  const y = -len + (train.t / 2000) * (44 * 16 + len * 2);
-  const x = 60 * 16 + 1 - cx;
-  const top = Math.round(y - cy);
-  for (let c = 0; c < 4; c++) {
-    const cyy = top + c * 40;
-    g.rect(x, cyy, 14, 38, P.charcoal);
-    g.rect(x + 1, cyy + 1, 12, 36, P.nightShade);
-    g.rect(x + 1, cyy + 1, 2, 36, P.shade);
-    for (let k = 0; k < 4; k++) g.rect(x + 3, cyy + 4 + k * 8, 8, 5, P.night);
-    g.rect(x, cyy + 38, 14, 2, P.ink);
-  }
-  // the head (south end) and its destination sign 「星見台」
-  const hy = top + 4 * 40;
-  g.rect(x, hy - 2, 14, 6, P.charcoal);
-  g.rect(x + 2, hy - 1, 10, 3, P.night);
-  g.text('星見台', x + 7, hy + 6, { color: P.horizon, align: 'center', outline: P.night });
+let TRAIN_IMG: HTMLCanvasElement[] | null = null;
+/** The whole train seen from above, lead car (southbound) at the bottom; 2 frames of the sign's backlight. */
+function trainImages(): HTMLCanvasElement[] {
+  if (TRAIN_IMG) return TRAIN_IMG;
+  const mk = (frame: number): HTMLCanvasElement => {
+    const w = TRAIN_W + 2;
+    const h = TRAIN_L + 2;
+    const p = new PixelCanvas(w, h);
+    for (let c = 0; c < 4; c++) {
+      // car c = 0 is the last (north) car; the lead car is c = 3
+      const y0 = 1 + c * (CAR_L + GAP);
+      const x0 = 1;
+      // body sides (the upper walls show as a strip with dark windows)
+      p.rect(x0, y0, TRAIN_W, CAR_L, P.steel);
+      p.vline(x0, y0, y0 + CAR_L - 1, P.concrete);
+      p.vline(x0 + TRAIN_W - 1, y0, y0 + CAR_L - 1, P.asphalt);
+      for (let k = 0; k < 8; k++) {
+        const wy = y0 + 6 + k * 10;
+        if (wy + 6 > y0 + CAR_L - 3) break;
+        for (const wx of [x0 + 1, x0 + TRAIN_W - 5]) {
+          p.rect(wx, wy, 4, 6, P.night);
+          p.set(wx + (wx === x0 + 1 ? 0 : 3), wy, P.shade);
+        }
+      }
+      // doors: a paler panel pair in the middle of each side
+      for (const wx of [x0 + 1, x0 + TRAIN_W - 5]) {
+        p.rect(wx, y0 + Math.floor(CAR_L / 2) - 4, 4, 9, P.asphalt);
+        p.hline(wx, wx + 3, y0 + Math.floor(CAR_L / 2), P.charcoal);
+      }
+      // roof: pale, a centre ridge, seams every 8px, a gutter each side
+      p.rect(x0 + 6, y0 + 1, TRAIN_W - 12, CAR_L - 2, P.concrete);
+      p.vline(x0 + 6, y0 + 1, y0 + CAR_L - 2, P.concreteLt);
+      p.vline(x0 + TRAIN_W - 7, y0 + 1, y0 + CAR_L - 2, P.steel);
+      p.vline(x0 + 5, y0, y0 + CAR_L - 1, P.charcoal);
+      p.vline(x0 + TRAIN_W - 6, y0, y0 + CAR_L - 1, P.charcoal);
+      for (let yy = y0 + 4; yy < y0 + CAR_L - 2; yy += 8) p.hline(x0 + 7, x0 + TRAIN_W - 8, yy, P.concreteLt);
+      p.vline(x0 + Math.floor(TRAIN_W / 2), y0 + 2, y0 + CAR_L - 3, P.concreteLt);
+      // roof units: an air conditioner on every car, a pantograph on cars 1 and 3
+      const ac = y0 + (c % 2 ? 58 : 18);
+      p.rect(x0 + 11, ac, TRAIN_W - 22, 12, P.concreteLt);
+      p.strokeRect(x0 + 11, ac, TRAIN_W - 22, 12, P.steel);
+      p.hline(x0 + 12, x0 + TRAIN_W - 13, ac + 1, P.white);
+      for (let k = 0; k < 3; k++) p.hline(x0 + 13, x0 + TRAIN_W - 14, ac + 4 + k * 3, P.steel);
+      if (c % 2) {
+        const py = y0 + 20;
+        const cxp = x0 + Math.floor(TRAIN_W / 2);
+        p.rect(cxp - 8, py, 16, 2, P.charcoal); // base frame
+        p.rect(cxp - 8, py + 14, 16, 2, P.charcoal);
+        p.line(cxp - 7, py + 2, cxp, py + 7, P.asphalt);
+        p.line(cxp + 7, py + 2, cxp, py + 7, P.asphalt);
+        p.line(cxp - 7, py + 13, cxp, py + 8, P.asphalt);
+        p.line(cxp + 7, py + 13, cxp, py + 8, P.asphalt);
+        p.hline(cxp - 11, cxp + 11, py + 7, P.steel); // the shoe
+        p.hline(cxp - 11, cxp + 11, py + 8, P.charcoal);
+      }
+      // coupling bellows to the next car
+      if (c < 3) {
+        p.rect(x0 + 10, y0 + CAR_L, TRAIN_W - 20, GAP, P.charcoal);
+        for (let k = 0; k < GAP; k += 2) p.hline(x0 + 10, x0 + TRAIN_W - 11, y0 + CAR_L + k, P.ink);
+      }
+      // ends: a darker line
+      p.hline(x0, x0 + TRAIN_W - 1, y0, P.asphalt);
+      p.hline(x0, x0 + TRAIN_W - 1, y0 + CAR_L - 1, P.charcoal);
+    }
+    // the lead car's front face (south end, facing the viewer)
+    const fy = 1 + 4 * CAR_L + 3 * GAP;
+    const fx = 1;
+    p.rect(fx, fy, TRAIN_W, NOSE, P.asphalt);
+    p.hline(fx, fx + TRAIN_W - 1, fy, P.steel);
+    // windscreen (two dark panes), the destination sign above the centre
+    p.rect(fx + 3, fy + 2, 13, 6, P.night);
+    p.rect(fx + TRAIN_W - 16, fy + 2, 13, 6, P.night);
+    p.set(fx + 4, fy + 3, P.shade);
+    p.set(fx + TRAIN_W - 15, fy + 3, P.shade);
+    // unlit headlights, the coupler
+    p.rect(fx + 2, fy + 9, 3, 2, P.charcoal);
+    p.rect(fx + TRAIN_W - 5, fy + 9, 3, 2, P.charcoal);
+    p.rect(fx + Math.floor(TRAIN_W / 2) - 2, fy + NOSE - 2, 4, 2, P.ink);
+    // outline
+    p.strokeRect(0, 0, w, h, P.ink);
+    // destination sign 「星見台」 — hand-set glyphs, the backlight flickers (2 frames)
+    const sw = 27;
+    const sx = fx + Math.floor((TRAIN_W - sw) / 2);
+    const sy = fy - 10;
+    p.rect(sx - 1, sy - 1, sw + 2, 11, P.ink);
+    p.rect(sx, sy, sw, 9, frame ? P.nightShade : P.night);
+    handText(p, '星見台', sx + 1, sy + 1, frame ? P.glint : P.horizon, { spacing: 2 });
+    return p.toCanvas();
+  };
+  TRAIN_IMG = [mk(0), mk(1)];
+  return TRAIN_IMG;
 }
 
-/** Run the unlit night train across the crossing (ending cut 6). */
+function drawTrain(g: Gfx, cx: number, cy: number): void {
+  const imgs = trainImages();
+  const img = imgs[Math.floor(train.t / 90) % 2];
+  // head at y0 + v·t, travelling south along x = 60 (the ballast bed x 59–61)
+  const headY = train.y0 + train.v * train.t;
+  const x = 60 * 16 + 8 - Math.floor(img.width / 2) - cx;
+  const y = Math.round(headY - img.height - cy);
+  // a soft shadow on the ballast (east side) and the train
+  g.rect(x + img.width, y + 4, 4, img.height - 8, P.night, 0.35);
+  g.img(img, x, y);
+}
+
+/** Run the unlit night train across the crossing (ending cut 6): on screen 2.8s. */
 export function* trainPass(): Co {
   const f = field();
   if (!f) return;
   snd.se('se_train_pass');
   train.active = true;
+  // enter just above the screen, leave once the last car has passed the bottom edge
+  train.y0 = f.camY - 8;
+  train.v = (H + 16 + TRAIN_L) / TRAIN_MS;
   const t0 = f.t;
   train.t = 0;
-  while (train.t < 2000) {
+  while (train.t < TRAIN_MS) {
     yield null;
     train.t = f.t - t0;
   }
   train.active = false;
 }
+
+registerDebug('train', () => {
+  const f = field();
+  if (!f) return 'no field';
+  f.startScript(trainPass());
+  return 'train';
+});
 
 export { hist as mirrorHistory };

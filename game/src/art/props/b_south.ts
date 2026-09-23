@@ -32,7 +32,7 @@ import {
 import { dk, glassPane, lt, shadeRect } from './kit';
 import { acUnit } from './b_houses';
 import { rimLeft } from './b_shops';
-import { fontText, fontTextSmall, fontWidth, handGlyph, printLines, scribble, tiny } from './text';
+import { fontText, fontTextSmall, fontWidth, handGlyph, handText, printLines, scribble, tiny } from './text';
 import type { PropEnv } from './types';
 
 // ---------------------------------------------------------------- コインランドリー ふわり
@@ -133,8 +133,9 @@ registerBuilding({
     // facade: warm grey mortar, sign, show window recess, half shutter
     fillWall(p, 0, fY, 80, 48, wallMortar(P.concrete, 29));
     eaveShadow(p, 0, fY, 80, 2);
-    signBoard(p, 3, fY + 1, 74, 11, P.paper, P.leafShade, 3);
-    fontTextSmall(p, '夕鳴写真館', 24, fY + 2, P.leafShade, 1);
+    signBoard(p, 3, fY, 74, 13, P.paper, P.leafShade, 3);
+    fontTextSmall(p, '夕鳴', 25, fY + 3, P.leafShade, 1);
+    handText(p, '写真館', 44, fY + 2, P.leafShade, { spacing: 2 });
     // camera icon
     p.rect(8, fY + 4, 10, 6, P.charcoal);
     p.rect(10, fY + 3, 3, 1, P.charcoal);
@@ -340,29 +341,31 @@ registerBuilding({
     fillWall(p, 0, fY + 30, 64, 18, wallTiles(P.concreteLt, P.concrete, 4));
     p.hline(0, 63, fY + 30, P.steel);
     eaveShadow(p, 0, fY, 64, 2);
-    // 交番 / KOBAN (the red lamp, obj_koban_lamp, hangs at x 34..45)
-    fontText(p, '交番', 2, fY + 1, P.navy, { shadow: P.concrete });
-    tiny(p, 'KOBAN', 45, fY + 4, P.navy);
+    // 交番 / KOBAN (the red lamp, obj_koban_lamp, hangs at x 34..45):
+    // hand-set glyphs (the font drops strokes of 交); KOBAN under the lamp
+    handText(p, '交番', 2, fY + 2, P.navy, { shadow: P.concrete, spacing: 1 });
+    tiny(p, 'KOBAN', 37, fY + 17, P.navy, P.concrete);
     // lamp bracket
     p.hline(38, 42, fY + 14, P.steel);
-    // gold badge
-    p.ellipse(54, fY + 13, 3, 3, P.brass);
-    p.set(53, fY + 12, P.goldPale);
-    p.set(54, fY + 13, P.gold);
+    // gold badge (right of the lamp)
+    p.ellipse(53, fY + 7, 3, 3, P.brass);
+    p.set(52, fY + 6, P.goldPale);
+    p.set(53, fY + 7, P.gold);
+    p.set(55, fY + 9, P.brassOld);
     // entrance (51,31) → x 16..31
     p.rect(15, fY + 17, 18, 31, P.steel);
     glassDoor(b, 16, fY + 18, 16, 30, P.steel);
     tiny(p, '110', 19, fY + 21, P.verm);
     // notice board
-    signBoard(p, 36, fY + 18, 24, 18, P.woodLt, P.woodDark, 3);
+    signBoard(p, 36, fY + 24, 24, 18, P.woodLt, P.woodDark, 3);
     for (let k = 0; k < 3; k++) {
       const nx = 38 + k * 7;
-      p.rect(nx, fY + 20, 6, 8, k === 1 ? P.paper : P.white);
-      p.rect(nx + 1, fY + 21, 4, 3, k === 0 ? P.skin3 : k === 1 ? P.leafYoung : P.aqua);
-      printLines(p, nx + 1, fY + 25, 4, 2, P.asphalt, 50 + k);
+      p.rect(nx, fY + 26, 6, 8, k === 1 ? P.paper : P.white);
+      p.rect(nx + 1, fY + 27, 4, 3, k === 0 ? P.skin3 : k === 1 ? P.leafYoung : P.aqua);
+      printLines(p, nx + 1, fY + 31, 4, 2, P.asphalt, 50 + k);
     }
-    p.rect(38, fY + 29, 20, 5, P.paper);
-    fontTextSmall(p, 'おとしもの', 38, fY + 29, P.verm, 2);
+    p.rect(38, fY + 35, 20, 5, P.paper);
+    fontTextSmall(p, 'おとしもの', 38, fY + 35, P.verm, 2);
     facadeFoot(p, 0, b.botY, 64, P.steel);
     rimLeft(p, fY, b.botY);
     drainPipe(p, 62, fY + 1, b.botY - 1);
@@ -381,6 +384,9 @@ registerBuilding({
 // ---------------------------------------------------------------- ショッピングプラザ・ユウナリ
 
 const DOOR_W = 26;
+/** Mall sign board top-left (building px) and the ユウナリ baseline offset. */
+const MALL_SIGN: [number, number] = [(48 - 34) * 16 - 8, 24];
+const MALL_TEXT_DY = 8;
 
 registerBuilding({
   id: 'bld_mall',
@@ -419,16 +425,20 @@ registerBuilding({
     }
     // rain stains under the band
     for (let i = 0; i < 384; i += 1) if (ihash(i, 1, 1703) % 9 === 0) shadeRect(p, i, fY + 9, 1, 4 + (ihash(i, 2, 1705) % 10));
-    // big sign (48,2) → x 224..351, y 32..55
-    const sx = (48 - 34) * 16;
-    const sy = 26;
-    signBoard(p, sx, sy, 128, 24, P.white, P.steel, 4);
-    p.rect(sx + 2, sy + 2, 124, 3, P.blue);
+    // pillars between bays (drawn before the signs so no mullion crosses a letter)
+    for (let k = 0; k <= 12; k++) {
+      const cx = k * 32;
+      p.vline(cx, fY + 10, b.botY - 1, P.concreteLt);
+    }
+    // big sign (48,2): hand-set ユウナリ (readable; the font turns ユ/ナ into コ/十)
+    const [sx, sy] = MALL_SIGN;
+    signBoard(p, sx, sy, 152, 26, P.white, P.steel, 4);
+    p.rect(sx + 2, sy + 2, 148, 3, P.blue);
     // bell logo
-    handGlyph(p, 'bell', sx + 6, sy + 8, P.brass, P.brassOld);
-    fontText(p, 'ユウナリ', sx + 20, sy + 6, P.navy, { shadow: P.concrete });
-    tiny(p, 'SHOPPING PLAZA', sx + 20 + 68, sy + 8, P.blue);
-    tiny(p, 'SINCE 1987', sx + 20 + 68, sy + 15, P.steel);
+    handGlyph(p, 'bell', sx + 6, sy + 10, P.brass, P.brassOld);
+    handText(p, 'ユウナリ', sx + 19, sy + MALL_TEXT_DY, P.navy, { shadow: P.concrete });
+    tiny(p, 'SHOPPING PLAZA', sx + 88, sy + 10, P.blue);
+    tiny(p, 'SINCE 1987', sx + 88, sy + 17, P.steel);
     // 毎日が夕やけ市: a faded banner on the left
     signBoard(p, 40, fY + 12, 120, 16, P.goldPale, P.brassOld, 3);
     fontText(p, '毎日が夕やけ市', 44, fY + 12, P.sunDeep);
@@ -486,11 +496,6 @@ registerBuilding({
     p.ellipse(px + 6, gy + 17, 3, 3, P.white);
     p.set(px + 6, gy + 17, P.verm);
     p.set(px + 11, gy + 6, P.goldPale); // peeling corner
-    // pillars between bays
-    for (let k = 0; k <= 12; k++) {
-      const cx = k * 32;
-      p.vline(cx, fY + 10, b.botY - 1, P.concreteLt);
-    }
     facadeFoot(p, 0, b.botY, 384, P.steel);
     rimLeft(p, fY, b.botY);
   },
@@ -510,8 +515,8 @@ registerBuilding({
   glow(g, x, y, env, b) {
     // stage 2: only the ユ of the neon sign is lit, flickering
     if (env.stage !== 2) return;
-    const sx = (48 - 34) * 16 + 20;
-    const sy = 26 + 6;
+    const sx = MALL_SIGN[0] + 19;
+    const sy = MALL_SIGN[1] + MALL_TEXT_DY;
     const f = Math.floor(env.t / 90);
     if (f % 37 === 0 || f % 53 === 3) return;
     g.img(neonYu(), x + sx - 2, y + sy - 2, { alpha: 0.95 });
@@ -540,8 +545,9 @@ let NEON: HTMLCanvasElement | null = null;
 function neonYu(): HTMLCanvasElement {
   if (!NEON) {
     const p = new PixelCanvas(20, 20);
-    fontText(p, 'ユ', 2, 2, P.crimson, { outline: P.peach });
-    fontText(p, 'ユ', 2, 2, P.glint);
+    // the same hand-set ユ as the sign (the neon tube follows the letter)
+    handText(p, 'ユ', 2, 2, P.crimson, { outline: P.peach });
+    handText(p, 'ユ', 2, 2, P.glint);
     NEON = p.toCanvas();
   }
   return NEON;

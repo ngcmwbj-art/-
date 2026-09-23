@@ -4,7 +4,7 @@
 
 import { bass, bed, comp, drums, melody, type BarCtx, type PartDef, type SongDef } from '../sequencer';
 import { brushSwirl } from '../instruments';
-import { registerSong, score } from './common';
+import { chimeQuote, registerSong, score } from './common';
 import { reversePads } from './town';
 
 const st = (b: BarCtx) => (b.p.stage >= 3 ? 0 : b.p.stage);
@@ -174,6 +174,13 @@ Ab7 = Ab C Eb Gb
 
 const shop = score(SHOP_MML, SHOP_CHORDS);
 
+// S8 rests on beat 4 (the half cadence): the bell over the shop door rings the
+// town question, fitted to D7 (A–B–D–F#: 5–13–R–3), then the tune goes on.
+const SHOP_CHIME = chimeQuote(`
+@song bgm_shop part=chime ins=ins_fm_vibes meter=4/4
+S8  D7             | -:12 A5:1 B5:1 D6:1 F#6:1 |
+`);
+
 function shopDef(): SongDef {
   const late = (b: BarCtx) => b.num >= 9;
   const last = (b: BarCtx) => b.label === 'S16';
@@ -191,6 +198,7 @@ function shopDef(): SongDef {
       gate: 0.9,
       keep: (b, e) => !hole(b, e.step),
     }),
+    melody({ id: 'chime', ins: 'ins_fm_vibes', bars: SHOP_CHIME, o: { vol: 0.036, rev: 0.35 }, fx: { pan: 0.3 } }),
     comp({
       id: 'vibes',
       ins: 'ins_fm_vibes',

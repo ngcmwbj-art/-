@@ -184,66 +184,188 @@ function hedgePalette(k: HedgeKind): { lt: string; mid: string; dk: string; deep
   }
 }
 
-/** Hedge mass: a lumpy volume, lit from the upper left, darker at the foot. */
+/**
+ * Hedge mass (7.9: texture from clumps, never 1px noise): the cell's volume
+ * is filled with overlapping leaf clumps (3–5px round tufts, 3 variants
+ * chosen by hash) placed on a jittered world-space grid, lit from the upper
+ * left. Clumps poke out of the top/side silhouette by 1–3px, the front face
+ * is one step darker, and here and there a gap shows a branch, or a flower /
+ * new shoot sits on top. World-space placement keeps runs seamless and never
+ * repeats a pattern along a row.
+ */
 function hedgeCell(kind: HedgeKind, tx: number, ty: number, m: CellMask): CellArt {
-  const H = kind === 'reeds' ? 14 : 12;
+  if (kind === 'reeds') return reedCell(tx, ty, m);
+  const H = 12;
   const W = 16;
   const h = 16 + H;
   const p = new PixelCanvas(W, h);
   const pal = hedgePalette(kind);
   const wx0 = tx * 16;
   const wy0 = ty * 16 + 16 - h; // world y of canvas top
-  // the mass: occupies the tile, raised by H; edges bulge with noise
-  for (let y = 0; y < h; y++)
-    for (let x = 0; x < W; x++) {
-      const wx = wx0 + x;
-      const wy = wy0 + y;
-      // top surface region: from y=0 to 16 (raised tile), front face from 16..h
-      const bump = valueNoise(wx / 4, wy / 4, 91) * 3;
-      const topEdge = m.n ? -2 : 1 + bump; // north edge lumpy
-      if (y < topEdge) continue;
-      const leftIn = m.w ? -1 : 1 + valueNoise(wx / 3, wy / 5, 92) * 2;
-      const rightIn = m.e ? W + 1 : W - 1 - valueNoise(wx / 3, wy / 5, 93) * 2;
-      if (x < leftIn || x > rightIn) continue;
-      const isFace = !m.s && y >= 16 - 2;
-      let col: string;
-      // leaf clumps: 4px cells with a lit upper-left and a shaded lower-right
-      const cx = Math.floor((wx + (Math.floor(wy / 4) % 2) * 2) / 4);
-      const cy = Math.floor(wy / 4);
-      const lx = ((wx + (Math.floor(wy / 4) % 2) * 2) % 4 + 4) % 4;
-      const ly = ((wy % 4) + 4) % 4;
-      const hh = ihash(cx, cy, 95);
-      if (kind === 'reeds') {
-        const blade = ((wx * 3 + (hh & 7)) % 5 === 0);
-        col = blade ? (ly < 2 ? pal.lt : pal.mid) : pal.dk;
-        if (hh % 17 === 0 && ly === 0) col = pal.accent!;
-        if (isFace && y > h - 4) col = pal.deep;
-      } else if (isFace) {
-        const depth = (y - 14) / (h - 14);
-        col = lx + ly <= 1 && depth < 0.6 ? pal.mid : depth > 0.75 ? pal.deep : pal.dk;
-        if (lx === 0 && ly === 0 && hh % 3 === 0 && depth < 0.5) col = pal.lt;
-      } else {
-        col = lx + ly <= 1 ? pal.lt : lx + ly >= 5 ? pal.dk : pal.mid;
-        if (hh % 5 === 0 && lx === 1 && ly === 1) col = pal.lt;
-        if (y > 13 && !m.s) col = lx + ly >= 4 ? pal.dk : pal.mid;
-      }
-      if (pal.accent && kind !== 'reeds' && hh % 29 === 0 && lx === 1 && ly === 1) col = pal.accent;
-      if (kind === 'kaname' && !isFace && y < 6 && hh % 3 === 0 && lx <= 1 && ly <= 1) col = pal.accent!;
-      p.set(x, y, col);
+  const faceTop = 14; // canvas row where the front face begins (when !m.s)
+  // core volume (clumps may bulge 1–3px out of it)
+  const xl = m.w ? -8 : 3;
+  const xr = m.e ? W + 8 : W - 4;
+  const yt = m.n ? -8 : 4;
+  const inCore = (x: number, y: number) => x >= xl && x <= xr && y >= yt && y < h;
+  const mass = new Uint8Array(W * h);
+  const col = new Array<string>(W * h);
+  const setPx = (x: number, y: number, c: string) => {
+    if (x < 0 || y < 0 || x >= W || y >= h) return;
+    mass[y * W + x] = 1;
+    col[y * W + x] = c;
+  };
+  // base fill of the core (deep shade between clumps)
+  for (let y = 0; y < h; y++) for (let x = 0; x < W; x++) if (inCore(x, y)) setPx(x, y, y >= faceTop && !m.s ? pal.deep : pal.dk);
+  // clumps on a jittered 4px world grid, drawn back (north) to front (south)
+  const darker = (c: string) => (c === pal.lt ? pal.mid : c === pal.mid ? pal.dk : pal.deep);
+  for (let gy = Math.floor((wy0 - 6) / 4); gy <= Math.floor((wy0 + h + 4) / 4); gy++)
+    for (let gx = Math.floor((wx0 - 6) / 4); gx <= Math.floor((wx0 + W + 6) / 4); gx++) {
+      const hh = ihash(gx, gy, 95 + (kind === 'kaname' ? 7 : kind === 'satsuki' ? 11 : 0));
+      const cxw = gx * 4 + (hh % 3) - 1;
+      const cyw = gy * 4 + ((hh >>> 3) % 3) - 1;
+      const lx = cxw - wx0;
+      const ly = cyw - wy0;
+      // the clump's centre must lie in (or just outside) the core
+      if (!(lx >= xl - 1 && lx <= xr + 1 && ly >= yt - 1 && ly < h - 1)) continue;
+      const variant = (hh >>> 6) % 3; // 0 round 2.5, 1 small 2, 2 wide 3×2
+      const rX = variant === 2 ? 2.6 : variant === 1 ? 1.8 : 2.3;
+      const rY = variant === 2 ? 1.9 : variant === 1 ? 1.8 : 2.3;
+      const face = !m.s && ly >= faceTop;
+      for (let dy = -3; dy <= 3; dy++)
+        for (let dx = -3; dx <= 3; dx++) {
+          const e = (dx / rX) ** 2 + (dy / rY) ** 2;
+          if (e > 1) continue;
+          const x = lx + dx;
+          const y = ly + dy;
+          // never bulge below the foot, and only 1–3px beyond the core
+          if (y >= h - 1 || x < 0 || x >= W) continue;
+          if (!inCore(x, y) && (x < xl - 3 || x > xr + 3 || y < yt - 3)) continue;
+          let c = dx + dy <= -2 ? pal.lt : dx + dy >= 2 || e > 0.8 ? pal.dk : pal.mid;
+          if (variant === 1 && c === pal.lt) c = pal.mid; // the small clumps sit a bit in shade
+          if (face || (y >= faceTop && !m.s)) c = darker(c);
+          if (!m.s && y > h - 5) c = darker(c);
+          setPx(x, y, c);
+        }
+      // a lit pair of leaves on some clumps
+      if ((hh >>> 9) % 4 === 0 && !face) setPx(lx - 1, ly - 1, pal.lt === P.leafLt ? P.leafLt : lt1(pal.lt));
     }
-  // lumpy outline: darker rim on the south/east side of the mass
+  // accents on the top surface: flowers (satsuki / tsutsuji), red new shoots (kaname)
+  for (let k = 0; k < 2; k++) {
+    const hh = ihash(tx * 3 + k, ty, 97);
+    if (!pal.accent || hh % 3 !== 0) continue;
+    const x = 3 + (hh >>> 4) % 10;
+    const y = (m.n ? 1 : yt + 1) + ((hh >>> 8) % 6);
+    if (!mass[y * W + x] || (y >= faceTop && !m.s)) continue;
+    if (kind === 'kaname') {
+      setPx(x, y, pal.accent);
+      setPx(x + 1, y, pal.accent);
+      setPx(x, y - 1, P.crimson);
+    } else {
+      setPx(x, y, pal.accent);
+      setPx(x + 1, y, pal.accent);
+      setPx(x, y + 1, pal.accent);
+      setPx(x + 1, y + 1, P.white);
+    }
+  }
+  // a gap in the face now and then, with a branch across it
+  if (!m.s) {
+    const hh = ihash(tx, ty, 99);
+    if (hh % 5 === 0) {
+      const gx = 3 + ((hh >>> 4) % 9);
+      for (let y = faceTop + 3; y < faceTop + 8; y++)
+        for (let x = gx; x < gx + 3; x++) if (mass[y * W + x]) col[y * W + x] = y === faceTop + 3 ? pal.deep : P.ink;
+      for (let x = gx - 1; x < gx + 4; x++) if (mass[(faceTop + 5 + ((x - gx) >> 1)) * W + x]) col[(faceTop + 5 + ((x - gx) >> 1)) * W + x] = P.woodDark;
+    }
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < W; x++) if (mass[y * W + x]) p.set(x, y, col[y * W + x]);
+  // silhouette: lit top rim, darker right rim, ink foot line
   const src = p.data.slice();
   const op = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < h && src[y * W + x] >>> 24 !== 0;
   for (let y = 0; y < h; y++)
     for (let x = 0; x < W; x++) {
       if (!op(x, y)) continue;
-      if (!op(x, y + 1) && y + 1 < h) p.set(x, y, pal.deep);
-      else if (!op(x + 1, y) && x + 1 < W && !m.e) p.set(x, y, pal.dk);
-      else if (!op(x, y - 1) && y > 0 && !m.n) p.set(x, y, P.leafLt);
+      if (!op(x, y - 1) && y > 0 && !m.n) p.set(x, y, (x + y) % 3 ? P.leafLt : pal.lt);
+      else if (!op(x + 1, y) && x + 1 < W && !m.e) p.set(x, y, pal.deep);
     }
-  // foot shadow line
   if (!m.s) for (let x = 0; x < W; x++) if (op(x, h - 1)) p.set(x, h - 1, P.ink);
   return { img: p.toCanvas(), ox: 0, oy: 16 - h, shadow: m.s ? 0 : H };
+}
+
+function lt1(c: string): string {
+  return c === P.leaf ? P.leafYoung : c === P.leafYoung ? P.leafLt : c === P.leafDeep ? P.leaf : P.leafLt;
+}
+
+/**
+ * Reeds on the canal's near bank: clumps (株) of 4–7 blades fanning from a
+ * dark base, three heights, some with brown ears (穂). The sprite stays in its
+ * own tile; only the tips rise 2–4px above it (the canal stays readable).
+ */
+function reedCell(tx: number, ty: number, m: CellMask): CellArt {
+  const W = 16;
+  const RISE = 4;
+  const h = 16 + RISE;
+  const p = new PixelCanvas(W, h);
+  const wx0 = tx * 16;
+  // dark undergrowth filling the tile (clumps read against it), lumpy top
+  for (let x = 0; x < W; x++) {
+    const top = RISE + 5 + (ihash(wx0 + x >> 1, ty, 301) % 3);
+    for (let y = top; y < h; y++) p.set(x, y, y === top ? P.leafDeep : ihash((wx0 + x) >> 1, y >> 1, 305) % 5 === 0 ? P.ink : P.leafShade);
+  }
+  // clumps (株) on a jittered 6px world grid, back to front; each is a mass
+  // shaped like a sheaf: narrow foot, widest at 60%, 2–3 pointed tips
+  for (let gx = Math.floor((wx0 - 8) / 6); gx <= Math.floor((wx0 + W + 8) / 6); gx++) {
+    const hh = ihash(gx, ty, 303);
+    const bx = gx * 6 + (hh % 3) - wx0; // centre
+    const variant = (hh >>> 3) % 3; // 0 short, 1 medium, 2 tall with a plume
+    const tall = variant === 0 ? 9 : variant === 1 ? 13 : 17 + ((hh >>> 6) % 2);
+    const baseY = h - 1 - ((hh >>> 9) % 2);
+    const half = variant === 0 ? 2.2 : 2.8;
+    const lean = ((hh >>> 12) % 3) - 1; // -1, 0, 1 (tips lean)
+    for (let j = 0; j < tall; j++) {
+      const k = j / tall;
+      const wdt = k < 0.6 ? 1.2 + (half - 1.2) * (k / 0.6) : half * (1 - (k - 0.6) / 0.55);
+      const cxj = bx + lean * Math.max(0, k - 0.5) * 3;
+      const y = baseY - j;
+      if (y < 0) break;
+      for (let x = Math.floor(cxj - wdt); x <= Math.ceil(cxj + wdt); x++) {
+        if (x < 0 || x >= W) continue;
+        const u = (x - (cxj - wdt)) / (2 * wdt + 0.01);
+        if (u < 0 || u > 1) continue;
+        let c: string = u < 0.3 ? P.leafYoung : u > 0.7 ? P.leafDeep : P.leaf;
+        if (k < 0.22) c = u < 0.3 ? P.leafDeep : P.leafShade;
+        else if (k > 0.75 && u < 0.5) c = P.leafLt;
+        // blade grooves every 2px in the body
+        if (k > 0.25 && k < 0.8 && ((x + gx) & 1) === 0 && u > 0.35 && u < 0.8) c = P.leafDeep;
+        p.set(x, y, c);
+      }
+    }
+    // 2–3 pointed blade tips above the mass
+    for (let b = -1; b <= 1; b++) {
+      if (b !== 0 && (hh >>> (15 + b + 1)) & 1) continue;
+      const x = Math.round(bx + lean * 1.5 + b * 1.5);
+      const y0 = baseY - tall - (b === 0 ? 2 : 1);
+      for (let j = 0; j < (b === 0 ? 3 : 2); j++) if (x >= 0 && x < W && y0 + j >= 0) p.set(x, y0 + j, j === 0 ? P.leafLt : P.leafYoung);
+    }
+    // plume (穂) on the tall clumps: a drooping brown-purple head
+    if (variant === 2) {
+      const ex = Math.round(bx + lean * 2 + (lean >= 0 ? 1 : -2));
+      const ey = baseY - tall - 1;
+      const plume = [
+        [0, 0, P.goldPale], [1, 0, P.brass], [0, 1, P.brassOld], [1, 1, P.brassOld], [2, 1, P.wood],
+        [0, 2, P.wood], [1, 2, P.sunShade], [1, 3, P.wood],
+      ] as const;
+      for (const [dx, dy, c] of plume) {
+        const x = ex + (lean < 0 ? -dx : dx);
+        const y = ey + dy;
+        if (x >= 0 && x < W && y >= 0 && y < h) p.set(x, y, c);
+      }
+    }
+  }
+  // foot line on the bank
+  for (let x = 0; x < W; x++) p.set(x, h - 1, P.leafShade);
+  void m;
+  return { img: p.toCanvas(), ox: 0, oy: -RISE, shadow: 0 };
 }
 
 // ---- fences --------------------------------------------------------------------------

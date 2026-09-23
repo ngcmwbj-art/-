@@ -123,17 +123,29 @@ function pigeonFront(f: Fig, p: Pose, card: boolean) {
     f.part(alt ? 'neckA' : 'neckB', { flat: true, rim: false });
     f.px(6, 6).px(9, 6);
   }
+  // The head is turned a little to the viewer's left (a pigeon never looks
+  // straight at you): one eye on the far side of the beak, the beak off
+  // centre. Two eyes side by side read as an owl at 1x.
+  // Looking up: the neck stretches (head 2px higher, the iridescent throat
+  // shows) and the beak points at the sky.
+  const hx = back ? 5 : 4;
   f.part('head', { shade: 'rb', light: 't' });
-  f.rows(5, 1 + hy, ['.####.', '######', '######', '.####.']);
+  f.rows(hx, 1 + hy, ['.####.', '######', '######', '.####.']);
+  if (up) {
+    // the stretched neck: a bare iridescent throat between head and chest
+    f.part(p.tick % 2 ? 'neckB' : 'neckA', { flat: true, rim: false });
+    f.hl(6, 9, 4);
+  }
   if (!back) {
-    f.part('eye', { flat: true, rim: false });
-    f.px(5, 2 + hy).px(10, 2 + hy);
-    f.part('pupil', { flat: true, rim: false });
-    if (!p.blink) f.px(6, 2 + hy).px(9, 2 + hy);
-    f.part('beak', { flat: true, rim: false });
-    f.px(7, 4 + hy - (up ? 1 : 0)).px(8, 4 + hy - (up ? 1 : 0));
     f.part('cere', { flat: true, rim: false });
-    f.px(7, 3 + hy).px(8, 3 + hy);
+    f.px(5, 2 + hy);
+    f.part('eye', { flat: true, rim: false });
+    f.px(7, 2 + hy);
+    f.part('pupil', { flat: true, rim: false });
+    if (!p.blink) f.px(6, 2 + hy);
+    f.part('beak', { flat: true, rim: false });
+    if (up) f.px(4, 1 + hy).px(3, 0 + hy + 1);
+    else f.px(4, 3 + hy).px(3, 4 + hy);
   }
   if (card || bow) {
     // the card at its feet (offered with the bow)
@@ -334,15 +346,30 @@ function crow(f: Fig, p: Pose) {
   f.rows(4, 5 + hopY, ['.######.', '########', '########', '########', '.######.', '..####..', '...##...']);
   f.part('gloss', { flat: true, rim: false });
   f.px(5, 6 + hopY).px(5, 7 + hopY).px(6, 6 + hopY).px(10, 7 + hopY).px(10, 8 + hopY);
-  const hy = up ? -1 : 0;
+  if (up) {
+    // looking up: the neck stretches (a glossy throat under the head) and the
+    // heavy bill points at the sky — from behind its tip pokes over the head
+    f.part('gloss', { flat: true, rim: false });
+    f.hl(6, 9, 4);
+    f.part('body', { shade: 'rb', light: 't' });
+    f.rows(5, 1, ['.####.', '######', '.####.']);
+    f.part('bill', { shade: 'r', light: 't' });
+    if (back) f.rows(7, 0, ['##']);
+    else {
+      f.rows(7, 0, ['##', '##']);
+      f.part('eye', { flat: true, rim: false });
+      if (!p.blink) f.px(6, 3).px(9, 3);
+    }
+    return;
+  }
   f.part('body', { shade: 'rb', light: 't' });
-  f.rows(5 + (tilt ? 1 : 0), 1 + hy + hopY, ['.####.', '######', '######', '.####.']);
+  f.rows(5 + (tilt ? 1 : 0), 1 + hopY, ['.####.', '######', '######', '.####.']);
   if (!back) {
     // heavy bill pointing at the viewer, a glint in each eye
     f.part('bill', { shade: 'b', light: 't' });
-    f.rows(6 + (tilt ? 1 : 0), 3 + hy + hopY - (up ? 1 : 0), ['.##.', '####', '.##.']);
+    f.rows(6 + (tilt ? 1 : 0), 3 + hopY, ['.##.', '####', '.##.']);
     f.part('eye', { flat: true, rim: false });
-    if (!p.blink) f.px(6 + (tilt ? 1 : 0), 2 + hy + hopY).px(9 + (tilt ? 1 : 0), 2 + hy + hopY);
+    if (!p.blink) f.px(6 + (tilt ? 1 : 0), 2 + hopY).px(9 + (tilt ? 1 : 0), 2 + hopY);
   }
 }
 
@@ -446,9 +473,14 @@ function catSide(f: Fig, p: Pose, c: CatCoat) {
   }
   f.part('paw', { flat: true, rim: false });
   f.px(1, 7 + hy - fat).px(2, 7 + hy - fat);
-  f.part('eye', { flat: true, rim: false });
-  if (p.blink || c.squint || yawn) f.px(2, 5 + hy - fat).px(3, 5 + hy - fat);
-  else f.px(2, 5 + hy - fat).px(2, 4 + hy - fat);
+  if (p.blink || c.squint || yawn) {
+    // narrow, content eye: a dark lid line, not a coloured bar
+    f.part('pupil', { flat: true, rim: false });
+    f.px(2, 5 + hy - fat).px(3, 4 + hy - fat);
+  } else {
+    f.part('eye', { flat: true, rim: false });
+    f.px(2, 5 + hy - fat).px(2, 4 + hy - fat);
+  }
   f.part('nose', { flat: true, rim: false });
   f.px(0, 6 + hy - fat);
   if (yawn) {
@@ -489,9 +521,10 @@ function catSit(f: Fig, p: Pose, c: CatCoat) {
     f.rect(7, 8, 2, 3);
   }
   if (c.stripe) {
+    // tabby stripes: three bands across the back, 2px dashes on the flanks
     f.part('stripe', { flat: true, rim: false });
-    if (back) f.px(6, 7).px(9, 7).px(6, 9).px(9, 9).px(7, 11);
-    else f.px(5 - fat, 9).px(10 + fat, 9);
+    if (back) f.hl(5 - fat, 10 + fat, 7 + br).hl(4 - fat, 11 + fat, 9).hl(5, 10, 11);
+    else f.hl(4 - fat, 5 - fat, 8).hl(10 + fat, 11 + fat, 8).hl(4 - fat, 5 - fat, 10).hl(10 + fat, 11 + fat, 10);
   }
   if (c.patch) {
     f.part('patch', { shade: 'rb', light: '' });
@@ -501,11 +534,14 @@ function catSit(f: Fig, p: Pose, c: CatCoat) {
     f.part('patch2', { shade: 'rb', light: '' });
     f.rect(back ? 9 : 5, 9, 2, 2);
   }
-  // head (from behind, the ears swivel toward a sound on the yawn beat)
-  const hy = (up ? -1 : 0) + br;
+  if (up && !back) return catLookUpFront(f, c);
+  // head (from behind, the ears swivel toward a sound on the yawn beat).
+  // Looking up from behind: the back of the head drops over the neck and
+  // the ears fold back toward us.
+  const hy = (up ? 1 : 0) + br;
   const swivel = back && act === 'yawn';
   f.part('fur', { shade: 'rb', light: 't' });
-  f.rows(4, 0 + hy, [swivel ? '.......#' : '#......#', swivel ? '#.....##' : '##....##', '########', '########', '########', '.######.']);
+  f.rows(4, 0 + hy, up ? ['.#....#.', '##....##', '########', '########', '########', '.######.'] : [swivel ? '.......#' : '#......#', swivel ? '#.....##' : '##....##', '########', '########', '########', '.######.']);
   if (swivel) f.px(3, 1 + hy);
   f.part('inner', { flat: true, rim: false });
   if (!back) f.px(5, 1 + hy).px(10, 1 + hy);
@@ -524,7 +560,11 @@ function catSit(f: Fig, p: Pose, c: CatCoat) {
   if (!back) {
     f.part('eye', { flat: true, rim: false });
     const ey = 3 + hy - (up ? 1 : 0);
-    if (p.blink || (c.squint && !up)) f.hl(5, 6, ey + 1).hl(9, 10, ey + 1);
+    // squinting tabby: content, narrow eyes as dark lids (not a colored bar)
+    if (p.blink || (c.squint && !up)) {
+      f.part('pupil', { flat: true, rim: false });
+      f.px(5, ey).px(6, ey + 1).px(9, ey + 1).px(10, ey);
+    }
     else {
       f.rect(5, ey, 2, 2).rect(9, ey, 2, 2);
       f.part('pupil', { flat: true, rim: false });
@@ -541,6 +581,42 @@ function catSit(f: Fig, p: Pose, c: CatCoat) {
     f.part('tag', { flat: true, rim: false });
     f.px(8, 7 + hy);
   }
+}
+
+/**
+ * Sitting cat seen from the front, gazing straight up (17:00): the face
+ * foreshortens under the ears, the eyes ride to the top of the head, the
+ * nose points up and the pale throat stretches between chin and collar.
+ */
+function catLookUpFront(f: Fig, c: CatCoat) {
+  f.part('fur', { shade: 'rb', light: 't' });
+  f.rows(4, 0, ['#......#', '##....##', '########', '########', '.######.']);
+  f.part('inner', { flat: true, rim: false });
+  f.px(5, 1).px(10, 1);
+  if (c.patch) {
+    f.part('patch', { shade: 'r', light: 't' });
+    f.rect(8, 2, 3, 2).px(4, 1);
+  }
+  if (c.patch2) {
+    f.part('patch2', { shade: 'r', light: 't' });
+    f.rect(4, 2, 2, 2);
+  }
+  // the throat, stretched: a pale bib between the chin and the collar
+  f.part('paw', { shade: 'r', light: '' });
+  f.rows(6, 5, ['####', '.##.']);
+  f.part('eye', { flat: true, rim: false });
+  f.hl(5, 6, 2).hl(9, 10, 2);
+  f.part('pupil', { flat: true, rim: false });
+  f.px(6, 2).px(10, 2);
+  // nose tipped up, the chin line under it
+  f.part('nose', { flat: true, rim: false });
+  f.px(7, 3).px(8, 3);
+  f.part('fur', { flat: true });
+  f.t(-2).px(7, 4).px(8, 4).t(null);
+  f.part('collar', { flat: true, rim: false });
+  f.hl(5, 10, 7);
+  f.part('tag', { flat: true, rim: false });
+  f.px(8, 8);
 }
 
 /**

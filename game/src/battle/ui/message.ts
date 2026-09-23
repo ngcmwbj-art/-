@@ -53,6 +53,14 @@ function layout(text: string): { glyphs: G[]; lines: number } {
   return { glyphs, lines: line + 1 };
 }
 
+/** 「せんせいより」→「せんせい」「より」: split a tag into two short lines. */
+function splitTag(t: string): string[] {
+  const ch = [...t];
+  if (ch.length <= 3) return [t];
+  const cut = t.endsWith('より') ? ch.length - 2 : Math.ceil(ch.length / 2);
+  return [ch.slice(0, cut).join(''), ch.slice(cut).join('')];
+}
+
 export interface BandPageOpts {
   /** Wait for confirm instead of auto-advancing. */
   manual?: boolean;
@@ -225,15 +233,25 @@ export class MessageBand {
     if (this.hidden) return;
     const h = Math.round(this.h);
     drawNote(g, this.x, this.y, this.w, h, { margin: 8 }, this.alpha);
+    let tagW = 0;
     if (this.tag) {
-      const t = miniText(this.tag, 0.62, C.ink);
-      g.img(tapeCanvas(t.width + 10, 12, '', C.tape, 3), this.x - 3, this.y + 4);
-      g.img(t, this.x + 2, this.y + 6);
+      // the tape tag (せんせいより) sits in the left margin, its words on two
+      // short lines, so the band keeps almost its full width for the text
+      const words = splitTag(this.tag);
+      const imgs = words.map((w) => miniText(w, 0.62, C.ink));
+      tagW = Math.max(...imgs.map((i) => i.width)) + 8;
+      const th = imgs.reduce((a, i) => a + i.height + 1, 3);
+      g.img(tapeCanvas(tagW, th, '', C.tape, 3), this.x - 3, this.y + Math.round((h - th) / 2));
+      let ty = this.y + Math.round((h - th) / 2) + 2;
+      for (const im of imgs) {
+        g.img(im, this.x - 3 + Math.round((tagW - im.width) / 2), ty);
+        ty += im.height + 1;
+      }
     }
     const L = this.cur ?? this.staticLayout;
     if (!L) return;
     const shown = this.cur ? this.shown : L.glyphs.length;
-    const ox = this.x + 14 + (this.tag ? miniText(this.tag, 0.62, C.ink).width + 10 : 0);
+    const ox = this.x + 14 + (this.tag ? tagW - 10 : 0);
     const oy = this.y + 5;
     const ctx = g.ctx;
     const prev = ctx.globalAlpha;

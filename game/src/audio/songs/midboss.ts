@@ -4,8 +4,8 @@
 
 import { DRM, INS } from '../instruments';
 import { bass, comp, drums, hits, melody, type BarCtx, type PartDef, type SongDef } from '../sequencer';
-import { BATTLE_LOOP, SLAP_A, battle, hat8, kireLayers } from './battle';
-import { registerSong, score, transposedBars } from './common';
+import { BATTLE_LOOP, SLAP_A, battle, hat8, kireAware, kireLayers } from './battle';
+import { chimeQuote, registerSong, score, transposedBars } from './common';
 
 export const MIDBOSS_MML = `
 @song bgm_midboss part=lead ins=ins_lead_p25 meter=4/4
@@ -46,6 +46,13 @@ B7(b13) = B D# A G
 `;
 
 const mid = score(MIDBOSS_MML, MIDBOSS_CHORDS);
+
+// The hold music's LED chime: over C4's held E5 the machine asks the town
+// question in E minor (D–E–G–B, the same +2 +3 +4 climb) and never answers.
+const MID_CHIME = chimeQuote(`
+@song bgm_midboss part=chime ins=ins_fm_vibes meter=4/4
+C4  Em             | -:8 D6:2 E6:2 G6:2 B6:2 |
+`);
 const OVERRIDE = new Set(['A4', 'A8', 'B4', 'B8']);
 
 const bars = new Map(mid.bars);
@@ -74,6 +81,7 @@ function midbossDef(): SongDef {
     melody({ id: 'lead78', ins: 'ins_lead_p25', bars: mid.part('lead'), o: { vol: 0.09 } }),
     melody({ id: 'roulette', ins: 'ins_lead_p12', bars: mid.part('intro'), o: { vol: 0.06 }, gate: 0.6, fx: { pan: 0.2 } }),
     melody({ id: 'vending', ins: 'ins_lead_p12', bars: mid.part('vending'), o: { vol: 0.07 }, gate: 0.85, fx: { delay: { steps: 3, fb: 0.3, send: 0.2 } } }),
+    melody({ id: 'chime', ins: 'ins_fm_vibes', bars: MID_CHIME, o: { vol: 0.035, rev: 0.35 }, fx: { pan: -0.25, lp: 7000 } }),
     comp({ id: 'epiano', ins: 'ins_fm_epiano', rhythm: (b) => (b.section === 'C' ? 'x.....x...x.....' : null), notes: 'full', len: 'next', o: { vol: 0.045 } }),
     comp({
       id: 'stab',
@@ -96,8 +104,8 @@ function midbossDef(): SongDef {
         fn: (b, t, rt) => INS.ins_fm_slap({ t, midi: 28, dur: b.stepDur * 7.5, vel: 1, dest: rt.input, rev: rt.rev, det: rt.song.det }),
       },
     ]),
-    bass({ id: 'bass', ins: 'ins_fm_slap', pattern: SLAP_A, when: (b) => b.section !== 'MI', transpose: kireUp }),
-    drums({
+    kireAware(bass({ id: 'bass', ins: 'ins_fm_slap', pattern: SLAP_A, when: (b) => b.section !== 'MI', transpose: kireUp })),
+    kireAware(drums({
       id: 'drums',
       kit: {
         drm_kick: (b) => (b.section === 'MI' ? null : AB(b) ? 'x.....x...x..x..' : 'x.......x.......'),
@@ -105,7 +113,7 @@ function midbossDef(): SongDef {
         drm_hat_c: (b) => (b.section === 'MI' ? null : hat8(b)),
       },
       vel: { drm_kick: 1.1 },
-    }),
+    })),
     hits('bow', [
       // the vending machine's "コン" (cowbell)
       {

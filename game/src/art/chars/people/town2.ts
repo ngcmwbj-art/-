@@ -1,10 +1,11 @@
 // Town NPCs (2): 中学生, 郵便屋さん, ガチャの男の子, 砂場の女の子.
 
 import { flat, mat, type Fig, type Mats } from '../fig';
+import { HAIR_BLACK, SKIN_LIGHT, SKIN_MID, SKIN_TAN } from '../mats';
 import { legs, type LegSpec, type Seg } from '../body';
 import { buildSprite, breathingIdle, rep, type IdleKey, type Pose } from '../rig';
 import { registerChar } from '../registry';
-import { hangArms, head, sideArm, sideSwing, upper, type HeadT } from '../kit';
+import { hangArms, hatLift, head, sideArm, sideSwing, upper, type HeadT } from '../kit';
 
 const base = {
   eye: flat('#2A1C28'),
@@ -13,8 +14,8 @@ const base = {
   mouth: flat('#B86A5A'),
 };
 const skinLight = mat('#FFD9B8', { shade: '#EBB08E', light: '#FFEBD8', dark: '#C98A6A', rim: '#FFC08E' });
-const skinTan = mat('#F2B894', { shade: '#D9977A', light: '#FFD2B0', dark: '#A8705A', rim: '#FFB080' });
-const blackHair = mat('#2E2226', { shade: '#20171C', dark: '#150E14', light: '#4E3C3E', spec: '#6E5656', rim: '#8A4A3A' });
+const skinTan = SKIN_MID;
+const blackHair = HAIR_BLACK;
 
 // =============================================================================
 // 中学生 (npc_chugaku): black tracksuit with two white chest lines, a white
@@ -187,7 +188,7 @@ const POST_HEAD: HeadT = {
   neckL: [5, 9, 2],
 };
 
-function helmet(f: Fig, view: string, y: number) {
+function helmet(f: Fig, view: string, y: number, lu = false) {
   f.part('helmet', { shade: 'rb', light: 'tl' });
   if (view === 'left') f.rows(2, y, ['...######..', '..########.', '.##########', '###########', '.#.....####']);
   else f.rows(3, y, ['..######..', '.########.', '##########', '##########', '#........#']);
@@ -196,6 +197,11 @@ function helmet(f: Fig, view: string, y: number) {
   f.part('strap', { flat: true, rim: false });
   if (view === 'down') f.px(4, y + 5).px(11, y + 5).px(5, y + 8).px(10, y + 8);
   else if (view === 'left') f.px(8, y + 5).px(7, y + 7);
+  if (lu && view === 'down') {
+    // looking up: the rim of the helmet shows its shaded underside
+    f.part('helmet', { flat: true, rim: false });
+    f.t(-2).hl(4, 11, y + 4).t(null);
+  }
 }
 
 const POST_LEGS: LegSpec = { cx: 8, hip: 17, foot: 22, w: 2, gap: 2, mat: 'pants', shoe: 'shoe', shoeLen: 3 };
@@ -252,7 +258,7 @@ function postDraw(f: Fig, p: Pose) {
       f.part('eye', { flat: true, rim: false });
       f.px(5, hy + 5).px(8, hy + 5);
     }
-    helmet(f, p.view, hy - 1 + (p.lookUp ? -1 : 0));
+    helmet(f, p.view, hy - 1 + hatLift(p), p.lookUp);
     return;
   }
   const sw = sideSwing(p);
@@ -305,11 +311,11 @@ registerChar('npc_postman', () =>
 
 const GACHA: Mats = {
   ...base,
-  skin: mat('#F7C8A2', { shade: '#DDA27E', light: '#FFE0C4', dark: '#B07A5A', rim: '#FFB888' }),
+  skin: SKIN_LIGHT,
   hair: mat('#5A4448', { shade: '#463438', light: '#6E585A', dark: '#2E2226', rim: '#9A6A52' }),
-  plaster: mat('#E8B67A', { shade: '#CC9660', light: '#F4CC94' }),
-  pad: flat('#FBF0D8'),
-  dot: flat('#CC9660'),
+  plaster: flat('#F4F1E8'),
+  pad: flat('#FBF3DC'),
+  dot: flat('#C98A6A'),
   tank: mat('#F4F1E8', { shade: '#CFC8BC', light: '#FFFFFF', dark: '#9E978C', rim: '#FFDCB4' }),
   shorts: mat('#F2894B', { shade: '#C8643A', light: '#F7A86A', dark: '#8E3E24', rim: '#FFB070' }),
   sandal: mat('#4AA8E0', { shade: '#2F7AB0', light: '#7CC8F0' }),
@@ -364,10 +370,13 @@ function gachaDraw(f: Fig, p: Pose) {
     const seg: Seg[] = [{ mat: 'skin' }];
     if (act === 'crank' && p.view === 'down') {
       hangArms(f, p, { lx: 3, rx: 12, sy: 13, hy: 16, segs: seg }, u, 'L');
-      const hx = [11, 12, 11][p.ph];
-      const hyy = [15, 16, 17][p.ph];
+      // the hand goes round with the handle: up → out → down (3 clear steps)
+      const hx = [13, 14, 12][p.ph];
+      const hyy = [12, 14, 16][p.ph];
       f.part('skin', { shade: '', light: '', shift: -1 });
       f.t(0).line(12, 13 + u, hx, hyy + u).t(null);
+      f.part('skin', { shade: 'rb', light: 't', shift: -1 });
+      f.rect(hx, hyy + u, 2, 2);
     } else if (act === 'crank' && p.view === 'up') {
       // facing the gacha machine: the right elbow goes round with the handle
       hangArms(f, p, { lx: 3, rx: 12, sy: 13, hy: 16, segs: seg }, u, 'L');
@@ -387,14 +396,13 @@ function gachaDraw(f: Fig, p: Pose) {
     const pp = act === 'shake' ? { ...p, blink: true } : p;
     head(f, pp, GACHA_HEAD, hy);
     if (p.view === 'down') {
-      // a big crooked plaster across the forehead: tan strip, pale pad
-      const py = hy + 3 - (p.lookUp ? 1 : 0);
-      f.part('plaster', { shade: '', light: '' });
-      f.t(-1).px(5, py).t(0).px(6, py).px(9, py + 1).t(-1).px(10, py + 1).t(null);
-      f.part('pad', { flat: true, rim: false });
-      f.px(7, py).px(8, py).px(7, py + 1).px(8, py + 1);
+      // a big white plaster on the forehead (4×2) with the gauze dot in
+      // the middle — white against skin so it reads at 1x
+      const py = hy + 3 - (p.lookUp ? 2 : 0);
+      f.part('plaster', { flat: true, rim: false });
+      f.hl(6, 9, py).hl(6, 9, py + 1);
       f.part('dot', { flat: true, rim: false });
-      f.px(6, py + 1).px(9, py);
+      f.px(8, py);
     }
     return;
   }
@@ -418,10 +426,10 @@ function gachaDraw(f: Fig, p: Pose) {
   }
   head(f, p, GACHA_HEAD, hy);
   const py = hy + 3 - (p.lookUp ? 1 : 0);
-  f.part('plaster', { shade: '', light: '' });
-  f.t(-1).px(2, py).t(null);
-  f.part('pad', { flat: true, rim: false });
-  f.px(3, py).px(4, py).px(3, py + 1);
+  f.part('plaster', { flat: true, rim: false });
+  f.hl(2, 4, py).hl(2, 4, py + 1);
+  f.part('dot', { flat: true, rim: false });
+  f.px(3, py);
 }
 
 const GACHA_IDLE: IdleKey[] = [
@@ -483,7 +491,7 @@ const SAND_HEAD: HeadT = {
   neckL: [5, 10, 2],
 };
 
-function gymCap(f: Fig, view: string, y: number) {
+function gymCap(f: Fig, view: string, y: number, lu = false) {
   f.part('cap', { shade: 'rb', light: 't' });
   if (view === 'left') f.rows(2, y, ['..######....', '.#########..', '###########.', '############']);
   else f.rows(2, y, ['...######...', '.##########.', '############', '############']);
@@ -492,6 +500,11 @@ function gymCap(f: Fig, view: string, y: number) {
   f.part('elastic', { flat: true, rim: false });
   if (view === 'down') f.px(3, y + 5).px(3, y + 6).px(12, y + 5).px(12, y + 6).px(4, y + 9).px(11, y + 9);
   else if (view === 'left') f.px(8, y + 5).px(7, y + 8);
+  if (lu && view === 'down') {
+    // looking up: the cap's red lining shows under the front edge
+    f.part('capR', { flat: true, rim: false });
+    f.hl(3, 12, y + 4);
+  }
 }
 
 const SAND_LEGS: LegSpec = { cx: 8, hip: 20, foot: 22, w: 2, gap: 2, mat: 'skin', shoe: 'shoe', shoeLen: 2 };
@@ -535,7 +548,7 @@ function sandStand(f: Fig, p: Pose) {
       }
     }
     head(f, proud ? { ...p, act: 'happy' } : p, SAND_HEAD, hy);
-    gymCap(f, p.view, hy + 1 + (p.lookUp ? -1 : 0));
+    gymCap(f, p.view, hy + 1 + hatLift(p), p.lookUp);
     return;
   }
   const sw = sideSwing(p);
@@ -605,7 +618,7 @@ function sandCrouch(f: Fig, p: Pose) {
       f.part('eye', { flat: true, rim: false });
       f.rect(4, hy + 4, 1, 2);
     }
-    gymCap(f, p.view, hy - 1 + (p.lookUp ? -1 : 0));
+    gymCap(f, p.view, hy - 1 + hatLift(p), p.lookUp);
     f.offset(0, 0);
     return;
   }

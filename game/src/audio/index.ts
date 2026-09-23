@@ -100,7 +100,7 @@ export function musicPosition(): { id: string; label: string; beat: number; bpm:
   const g = liveGraph();
   if (!p || !g) return null;
   const a = p.audibleAt(g.ctx.currentTime);
-  return a ? { id: p.def.id, loop: p.loopCount, ...a } : null;
+  return a ? { id: p.def.id, label: a.label, beat: a.beat, bpm: a.bpm, intro: a.intro, loop: a.loop } : null;
 }
 
 /** Temporarily lower music (linear amount, e.g. −12 dB = 0.25). */

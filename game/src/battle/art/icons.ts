@@ -293,20 +293,21 @@ export function scrollArrow(up: boolean): HTMLCanvasElement {
 /** Kire "!" icon 10×14: empty (outline) or lit. */
 export function kireIcon(lit: boolean, pulse = false): HTMLCanvasElement {
   if (!lit)
-    return icon('kire0', [
-      '..gggggg..',
-      '.g......g.',
-      'g..gggg..g',
-      'g..g..g..g',
-      'g..g..g..g',
-      'g..g..g..g',
-      'g...gg...g',
-      'g...gg...g',
-      'g........g',
-      'g...gg...g',
-      'g...gg...g',
-      '.g......g.',
-      '..gggggg..',
+    // an empty socket: pale fill, a slate rim and a faint "!" waiting to light up
+    return icon('kire0b', [
+      '..GGGGGG..',
+      '.GaaaaaaG.',
+      'GaaggggaaG',
+      'GaaggggaaG',
+      'GaaggggaaG',
+      'GaaaggaaaG',
+      'GaaaggaaaG',
+      'GaaaaaaaaG',
+      'GaaaggaaaG',
+      'GaaaggaaaG',
+      'GaaaaaaaaG',
+      '.GaaaaaaG.',
+      '..GGGGGG..',
       '..........',
     ]);
   return icon(pulse ? 'kire2' : 'kire1', [

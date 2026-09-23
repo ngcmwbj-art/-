@@ -5,11 +5,16 @@ import { flag, setFlag } from '../game/state';
 import { rng } from '../engine/rng';
 import { ease } from '../engine/tween';
 import type { BattleScene } from './scene';
+import { STAGE_TOP } from './scene';
 import type { EnemyUnit, PartyUnit } from './model';
 import { kakimoji, roundSeal } from './art/stamps';
 import { bangBubble, flipBoardText } from './art/fxart';
 import { PANEL_POS } from './ui/panels';
+import { labelCanvas, stickyCanvas } from './ui/note';
 import { LABEL } from '../data/battle';
+
+/** Top of the inner-voice lettering canvas (text ≈ y59–91). */
+export const KAKI_TOP = 54;
 
 export interface Windows {
   show: number;
@@ -111,7 +116,8 @@ export function showKakimoji(s: BattleScene, text: string, just: boolean): numbe
   const T2 = 400 + extra;
   const T3 = 500 + extra;
   const cx = 192 - img.width / 2;
-  const y = 62 - 32 - 3;
+  // over the enemies' upper half (baseline ≈ y90), clear of the band (y4–48)
+  const y = KAKI_TOP;
   const seal = just ? roundSeal('キマ\nった', 36) : null;
   s.addFx({
     layer: 'top',
@@ -150,9 +156,10 @@ export function showKakimoji(s: BattleScene, text: string, just: boolean): numbe
         for (let i = 0; i < 12; i++) {
           const a0 = (i / 12) * Math.PI * 2 + 0.2;
           ctx.beginPath();
-          ctx.moveTo(192 + Math.cos(a0) * 60, 46 + Math.sin(a0) * 40);
-          ctx.lineTo(192 + Math.cos(a0 - 0.05) * 300, 46 + Math.sin(a0 - 0.05) * 300);
-          ctx.lineTo(192 + Math.cos(a0 + 0.05) * 300, 46 + Math.sin(a0 + 0.05) * 300);
+          const fy = KAKI_TOP + 22;
+          ctx.moveTo(192 + Math.cos(a0) * 60, fy + Math.sin(a0) * 40);
+          ctx.lineTo(192 + Math.cos(a0 - 0.05) * 300, fy + Math.sin(a0 - 0.05) * 300);
+          ctx.lineTo(192 + Math.cos(a0 + 0.05) * 300, fy + Math.sin(a0 + 0.05) * 300);
           ctx.fill();
         }
         ctx.restore();
@@ -193,7 +200,20 @@ function wrapFlip(t: string): string {
   return chars.slice(0, best).join('') + '\n' + chars.slice(best).join('').trim();
 }
 
-/** Label "ボケ負け" over an enemy. */
-export function bokemakeLabel(s: BattleScene, e: EnemyUnit, long = false): void {
-  s.label(LABEL.bokemake, e.x, e.headY - 8, 'shu', long ? 1200 : 600);
+/**
+ * Label "ボケ負け" over an enemy — after the lettering has crossed (`delay`),
+ * so the two never sit on top of each other; kept under the band.
+ */
+export function bokemakeLabel(s: BattleScene, e: EnemyUnit, long = false, delay = 0): void {
+  const y = Math.max(STAGE_TOP + 10, e.headY - 8);
+  let x = e.x;
+  // keep clear of a tutorial sticky on the left (the first tsukkomi shows one)
+  const st = s.sticky;
+  if (st && st.pos !== 'right') {
+    const sc = stickyCanvas(st.text);
+    const w = labelCanvas(LABEL.bokemake).width;
+    const top = 52;
+    if (y + 10 > top && y - 10 < top + sc.height && x - w / 2 < 8 + sc.width + 4) x = 8 + sc.width + 4 + w / 2;
+  }
+  s.label(LABEL.bokemake, Math.round(x), y, 'shu', long ? 1200 : 600, false, delay);
 }

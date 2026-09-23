@@ -2,7 +2,7 @@
 // "！" → frame-exact tsukkomi windows → hit(s) → results.
 
 import type { Co } from '../engine/co';
-import { flag, setFlag } from '../game/state';
+import { flag } from '../game/state';
 import { rng } from '../engine/rng';
 import { ease } from '../engine/tween';
 import { fillAll, getEnemy, getSkill, SYS, type SkillDef } from '../data/battle';
@@ -147,7 +147,7 @@ export function* hitLoop(s: BattleScene, o: LoopOpts): Co<(Guarded | null)[]> {
         kabuse = true;
         s.sfx('se_kabuse');
         const [px, py] = PANEL_POS[o.bang(hi)[0]?.id ?? 'minato'];
-        s.label('かぶせた……', px + 68, py - 14, 'gray', 700, true);
+        s.label('かぶせた……', px + 68, py - 2, 'gray', 700, true);
       } else if (rel <= W.to) {
         pending = rel >= W.justFrom && rel <= W.justTo ? 'just' : 'ok';
         popBang(s, o.bang(hi), pending === 'just');
@@ -279,7 +279,7 @@ interface ActState {
 }
 
 /** Tsukkomi aftermath (bokemake, kire, lettering) once the move's hits are done. */
-function* tsukkomiAftermath(s: BattleScene, e: EnemyUnit, sk: SkillDef, st: ActState): Co {
+function* tsukkomiAftermath(s: BattleScene, e: EnemyUnit, sk: SkillDef, st: ActState, letterMs = 0): Co {
   if (!st.anySuccess) {
     if (e.id === 'enemy_hato_kakaricho' && s.memo.tsukCount >= 1 && !s.memo.rhythmTip) {
       s.memo.rhythmTip = 1;
@@ -291,8 +291,8 @@ function* tsukkomiAftermath(s: BattleScene, e: EnemyUnit, sk: SkillDef, st: ActS
     // the very first tsukkomi success: a longer ボケ負け label and its sticky (10.5)
     const first = !s.memo.bokeTut && e.id === 'enemy_hato_kakaricho';
     e.status.bokemake = true;
-    bokemakeLabel(s, e, first);
-    if (first) showSticky(s, 'tsukkomiOk', undefined, false, 2600);
+    if (first) showSticky(s, 'tsukkomiOk', undefined, false, 2600, letterMs);
+    bokemakeLabel(s, e, first, letterMs);
     s.memo.bokeTut = 1;
   }
   addKire(s, 1 + (st.lastJust ? 1 : 0));
@@ -674,7 +674,8 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
           resolveGuard(r, i);
           const d = damageTo(s, e, target!, 0.8, r);
           e.hp = Math.min(e.maxHp, e.hp + d);
-          s.number(e.coreX, e.headY + 4, d, { kind: 'heal' });
+          const [nx, ny] = s.enemyNumberXY(e);
+          s.number(nx, ny, d, { kind: 'heal' });
         },
       });
       telePages.push(...fillAll(e.def.texts.extra.teineiResult, { target: target!.name }));
@@ -766,7 +767,8 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
       yield* selfMove(s, common, resolveGuard, () => e.setPose('attack', skillId));
       const before = e.hp;
       e.hp = Math.min(e.maxHp, e.hp + 20);
-      s.number(e.coreX, e.headY + 4, e.hp - before, { kind: 'heal' });
+      const [nx, ny] = s.enemyNumberXY(e);
+      s.number(nx, ny, e.hp - before, { kind: 'heal' });
       s.sfx('se_heal');
       telePages.push(...e.def.texts.extra.otameshiResult);
       break;
@@ -806,7 +808,7 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
 function* flushAfter(s: BattleScene, e: EnemyUnit, sk: SkillDef, st: ActState, pages: string[], _tu: PartyUnit | null): Co {
   const shownMs = st.anySuccess ? letter(s, e, sk, st) : 0;
   const t0 = s.t;
-  yield* tsukkomiAftermath(s, e, sk, st);
+  yield* tsukkomiAftermath(s, e, sk, st, shownMs);
   for (const u of s.party) u.moodHold = null;
   yield 260;
   if (e.pose !== 'dead' && e.pose !== 'charge' && e.pose !== 'open') e.setPose('idle');

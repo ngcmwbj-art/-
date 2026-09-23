@@ -5,20 +5,22 @@
 // 0.25s. Extras: look_up, turn (glances back over her shoulder).
 
 import { flat, mat, type Fig, type Mats } from '../fig';
+import { HAIR_BLACK, SKIN_LIGHT, SKIN_MID, SKIN_TAN } from '../mats';
 import { legs, type LegSpec, type Seg } from '../body';
 import { buildSprite, breathingIdle, rep, type IdleKey, type Pose, type SpriteSpec } from '../rig';
 import { registerChar } from '../registry';
 import { HAIRMAP, hangArms, head, sideArm, sideSwing, upper, type HeadT } from '../kit';
 
 const M: Mats = {
-  skin: mat('#F7CFAE', { shade: '#E0A882', light: '#FFE4CC', dark: '#B87A5E', rim: '#FFBC8A' }),
-  hair: mat('#3A2622', { shade: '#291A1C', dark: '#1A1016', light: '#5A3C32', spec: '#7E5646', rim: '#9A5438' }),
-  blouse: mat('#E8E4D8', { shade: '#C4BCB0', light: '#FAF6EC', dark: '#9A9088', rim: '#FFD6A8' }),
-  apron: mat('#F7C27A', { shade: '#D9974A', light: '#FFDCA0', dark: '#A8702E', rim: '#FFD08A' }),
-  apronD: flat('#C8883C'),
+  // 30_level_art 9.3: hair #2B1E1A, blouse #E8E4D8, apron #F7C27A (shade #D9A441), skirt #3A3F48
+  skin: SKIN_MID,
+  hair: HAIR_BLACK,
+  blouse: mat('#E8E4D8', { shade: '#C8C2B4', light: '#F4F1E8', dark: '#9AA0A8' }),
+  apron: mat('#F7C27A', { shade: '#D9A441', light: '#FFE7A3', dark: '#A8742A' }),
+  apronD: flat('#D9A441'),
   mitt: mat('#E8603C', { shade: '#B8402A', light: '#FF8A5A' }),
-  skirt: mat('#3A3F48', { shade: '#2A2C38', light: '#555C68', dark: '#1C1D28', rim: '#7A5A60' }),
-  slipper: mat('#D9728A', { shade: '#B04A6A', light: '#F0A0B0' }),
+  skirt: mat('#3A3F48', { shade: '#2A2440', light: '#6B7186', dark: '#1B1733' }),
+  slipper: mat('#D9728A', { shade: '#B04A7A', light: '#E0A882' }),
   eye: flat('#2A1C28'),
   brow: flat('#4A322C'),
   mouth: flat('#C06A5A'),
@@ -129,11 +131,12 @@ function back(f: Fig, p: Pose) {
   f.hl(4, 11, 11 + u);
   f.rect(3, 12 + u, 10, 2);
   f.rect(4, 14 + u, 8, 16 + p.bob - (14 + u) + 1);
-  // apron straps crossing + bow at the waist
-  f.part('apron', { shade: 'rb', light: 't' });
-  f.px(5, 12 + u).px(6, 13 + u).px(10, 12 + u).px(9, 13 + u);
+  // apron straps: two clean lines crossing in an X on her back, the waist
+  // tie and a small bow (flat tones: shading these 1px lines read as noise)
+  f.part('apron', { shade: '', light: '' });
+  f.t(0).line(4, 12 + u, 10, 15 + u).line(11, 12 + u, 5, 15 + u);
   f.hl(4, 11, 16 + p.bob);
-  f.rows(6, 15 + p.bob, ['#..#', '.##.', '#..#']);
+  f.t(-1).hl(7, 8, 16 + p.bob).px(6, 17 + p.bob).px(9, 17 + p.bob).t(null);
   if (p.act === 'chop') {
     // at the cutting board (facing north): the knife arm pumps up and down
     hangArms(f, p, { lx: 3, rx: 12, sy: 13, hy: 16, segs: SLEEVE }, u, 'L');

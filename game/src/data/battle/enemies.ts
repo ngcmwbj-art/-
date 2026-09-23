@@ -215,7 +215,7 @@ const ojigi: EnemyDef = {
 };
 
 const souji: EnemyDef = {
-  id: 'enemy_soujirou', name: 'ソウジロウ', lvl: 3, size: [48, 24], core: [24, 12], face: [24, 9], footY: 144,
+  id: 'enemy_soujirou', name: 'ソウジロウ', lvl: 3, size: [48, 24], core: [24, 12], face: [24, 9],
   hp: 40, atk: 12, def: 9, spd: 10, luck: 4, exp: 18, money: 12, attr: { da: 1, han: 1, wara: 1.3 },
   drops: [{ item: 'item_stamp_pad', rate: 0.4 }], bg: 'bg_mall_floor', bgm: 'bgm_battle', tsukkomiCount: 2,
   tsukkomi: ['そこ 段差！', 'HPを 吸うな！'],
@@ -322,7 +322,7 @@ const kanenari: EnemyDef = {
 };
 
 const boss: EnemyDef = {
-  id: 'boss_omukaemachi', name: 'オムカエマチ', lvl: 4, size: [160, 128], core: [80, 64], face: [80, 40], footY: 156,
+  id: 'boss_omukaemachi', name: 'オムカエマチ', lvl: 4, size: [160, 128], core: [80, 64], face: [80, 40], footY: 153,
   hp: 380, atk: 15, def: 9, spd: 6, luck: 8, exp: 60, money: 0, attr: NO_WEAK, drops: [], noFlee: true, noCrit: true,
   bg: 'bg_boss', bgm: 'bgm_boss', tsukkomiCount: 3, boss: true,
   tsukkomi: ['片方ずつ かよ！', 'そこで 止めるな！', 'つられるな！'],

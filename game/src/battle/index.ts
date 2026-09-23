@@ -265,6 +265,11 @@ registerDebug('bforce', (skills: string[]) => {
   current.forceEnemy = [...skills];
   return skills;
 });
+registerDebug('bfirst', (on = true) => {
+  if (!current) return 'no battle';
+  current.qaPartyFirst = on;
+  return on;
+});
 registerDebug('bstate', () => {
   const s = current;
   if (!s) return null;

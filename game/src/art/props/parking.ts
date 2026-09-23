@@ -579,8 +579,8 @@ registerProp('prop_rail_bridge', () => {
 // ---------------------------------------------------------------- 鳥居と祠 / かかし / 水門 / 橋
 
 registerProp('prop_torii', () => {
-  // tall enough that the little shrine behind shows through the opening
-  const H = 40;
+  // low enough (34px) that the shrine two rows behind stays in view over it
+  const H = 34;
   const p = pc(50, H);
   for (const x of [6, 38]) {
     p.rect(x, 10, 5, H - 11, P.verm);
@@ -595,52 +595,112 @@ registerProp('prop_torii', () => {
   p.set(49, 1, P.ink);
   p.rect(2, 6, 46, 3, P.verm);
   p.hline(2, 47, 6, P.vermLt);
-  p.rect(4, 15, 42, 3, P.verm);
-  p.hline(4, 45, 15, P.vermLt);
-  p.hline(4, 45, 17, P.vermShade);
-  p.rect(22, 6, 6, 9, P.paper);
-  p.vline(25, 8, 12, P.ink);
+  p.rect(4, 13, 42, 3, P.verm);
+  p.hline(4, 45, 13, P.vermLt);
+  p.hline(4, 45, 15, P.vermShade);
+  p.rect(22, 6, 6, 7, P.paper);
+  p.strokeRect(22, 6, 6, 7, P.ink);
+  p.vline(25, 8, 10, P.ink);
   finish(p, { soft: true });
-  return stand(p.toCanvas(), { cx: 24, shadow: 46, contact: 0 });
+  const a = stand(p.toCanvas(), { cx: 24, shadow: 34, contact: 0 });
+  a.xray = 0.45;
+  return a;
 });
 
-const HOKORA = mkFrames(3, 30, 30, (p, k) => {
-  // stone base
-  p.rect(3, 22, 24, 7, P.concrete);
-  p.hline(3, 26, 22, P.concreteLt);
-  p.hline(3, 26, 28, P.steel);
-  // small wooden shrine
-  p.rect(8, 8, 14, 14, P.wood);
-  p.rect(10, 11, 10, 9, P.woodDark);
-  p.vline(8, 8, 21, P.woodLt);
-  p.poly([[4, 10], [15, 2], [26, 10]], P.charcoal);
-  p.line(4, 10, 15, 2, P.asphalt);
-  p.hline(4, 26, 10, P.ink);
-  // white foxes
-  for (const [x, flip] of [[4, false], [22, true]] as [number, boolean][]) {
-    p.rect(x, 16, 4, 6, P.white);
-    p.set(flip ? x + 3 : x, 15, P.white);
-    p.set(flip ? x : x + 3, 15, P.white);
-    p.set(x + 1, 17, P.verm);
-    p.set(x + (flip ? 0 : 3), 20, P.concreteLt);
-    p.set(flip ? x - 1 : x + 4, 20, P.white); // tail
+/** A white fox (稲荷の狐) on a pedestal, 8×12, facing the shrine's front. */
+function fox(p: PixelCanvas, x: number, y: number, flip: boolean): void {
+  const px = (dx: number, dy: number, c: string) => p.set(flip ? x + 7 - dx : x + dx, y + dy, c);
+  // pedestal
+  for (let dx = 0; dx < 8; dx++) {
+    px(dx, 10, dx < 2 ? P.concreteLt : P.concrete);
+    px(dx, 11, P.steel);
   }
-  // candles
-  for (const x of [12, 17]) {
-    p.rect(x, 17, 1, 3, P.white);
-    p.set(x + (k === 2 ? 1 : 0), 16 - (k === 1 ? 1 : 0), P.gold);
+  // body sitting upright, tail curled up behind
+  const W = P.white;
+  const S = P.concreteLt;
+  const rows = [
+    '..#..#..',
+    '..####..',
+    '.#o##o..',
+    '..###...',
+    '..###.t.',
+    '.####tt.',
+    '.#####t.',
+    '.######.',
+    '..####..',
+    '.##..##.',
+  ];
+  for (let dy = 0; dy < rows.length; dy++)
+    for (let dx = 0; dx < 8; dx++) {
+      const ch = rows[dy][dx];
+      if (ch === '.') continue;
+      let c: string = dx >= 5 && ch === '#' ? S : W;
+      if (ch === 'o') c = P.ink;
+      if (ch === 't') c = dx === 6 ? S : W;
+      px(dx, dy, c);
+    }
+  // red bib (前掛け)
+  px(2, 4, P.verm);
+  px(3, 4, P.verm);
+  px(4, 4, P.vermShade);
+  px(3, 5, P.verm);
+}
+
+const HOKORA = mkFrames(3, 40, 36, (p, k) => {
+  // two stone steps
+  p.rect(4, 29, 32, 6, P.concrete);
+  p.hline(4, 35, 29, P.concreteLt);
+  p.hline(4, 35, 34, P.steel);
+  p.rect(9, 25, 22, 4, P.concreteLt);
+  p.hline(9, 30, 25, P.white);
+  p.vline(30, 25, 28, P.steel);
+  // little shrine body: cypress wood, lattice doors (格子戸), dark inside
+  p.rect(12, 12, 16, 13, P.woodLt);
+  p.vline(12, 12, 24, P.goldPale);
+  p.vline(27, 12, 24, P.wood);
+  p.rect(14, 14, 12, 10, P.woodDark);
+  for (let x = 15; x < 26; x += 2) p.vline(x, 14, 23, P.wood);
+  for (let y = 16; y < 24; y += 3) p.hline(14, 25, y, P.wood);
+  p.vline(20, 14, 23, P.woodLt); // the doors' meeting stiles
+  p.rect(18, 20, 4, 3, P.night); // a peek of the dark inside
+  // gabled roof (copper, weathered to green) with a ridge
+  p.poly([[8, 13], [20, 4], [32, 13]], P.leafShade);
+  p.line(8, 13, 20, 4, P.leafDeep);
+  p.line(9, 13, 20, 5, P.leafDeep);
+  p.hline(8, 32, 13, P.ink);
+  p.hline(9, 31, 12, P.leafDeep);
+  p.rect(19, 3, 3, 2, P.brassOld);
+  p.set(19, 3, P.brass);
+  // shimenawa with shide
+  p.hline(12, 27, 14, P.goldPale);
+  p.set(16, 15, P.white);
+  p.set(16, 16, P.white);
+  p.set(23, 15, P.white);
+  p.set(23, 16, P.white);
+  // candles on the step, and an offering cup
+  for (const x of [11, 28]) {
+    p.rect(x, 21, 2, 4, P.white);
+    p.set(x + 1, 21, P.concreteLt);
+    const fl = k === 2 ? 1 : 0;
+    p.set(x + fl, 20 - (k === 1 ? 1 : 0), P.gold);
+    p.set(x + fl, 19 - (k === 1 ? 1 : 0), P.vermLt);
   }
+  p.rect(19, 23, 2, 2, P.white);
+  // the two white foxes on pedestals, facing each other
+  fox(p, 0, 23, false);
+  fox(p, 32, 23, true);
 }, (p) => finish(p, { soft: true }));
 
 registerProp('obj_hokora', () => {
-  const a = standAnim(HOKORA, (env) => (env.stage === 1 ? 0 : env.stage === 2 ? 2 : Math.floor(env.mt / 300) % 2), { shadow: 26, base: 6, foot: 17 });
+  // stands on the reed bank (row 38), its steps reaching the paddy path
+  const a = standAnim(HOKORA, (env) => (env.stage === 1 ? 0 : env.stage === 2 ? 2 : Math.floor(env.mt / 300) % 2), { shadow: 30, base: 15, foot: 17, contact: 30 });
   a.glow = (g, x, y, env) => {
     if (env.grade.night < 0.05) return;
     const ctx = g.ctx;
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    const gx = x + a.ox + 15;
-    const gy = y + a.oy + 17;
+    const gx = x + a.ox + 20;
+    const gy = y + a.oy + 20;
     const grd = ctx.createRadialGradient(gx, gy, 1, gx, gy, 16);
     grd.addColorStop(0, `rgba(255,210,63,${0.45 * env.grade.night})`);
     grd.addColorStop(1, 'rgba(255,210,63,0)');

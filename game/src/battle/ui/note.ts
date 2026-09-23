@@ -180,54 +180,69 @@ export function cursorStamp(pressed = false): HTMLCanvasElement {
 const labelCache = new Map<string, HTMLCanvasElement>();
 
 /**
- * Ink-stamp label: vermilion (or grey) double frame with the text inside on a
- * paper backing, a dark outline for legibility, and a slightly worn ink.
+ * Ink-stamp label (16.0): the 16px text in a thin stamp frame hugging the ink
+ * (1px frame, 1px paper margin, 1px ink outline — about 19px tall), so a
+ * label never outweighs the damage number or the enemy. The grey tone uses a
+ * darker slate on a cool paper (#E8E4D8) so かすれ／ミス stay readable.
  */
 export function labelCanvas(text: string, tone: 'shu' | 'gray' = 'shu', worn = false): HTMLCanvasElement {
-  const key = `${text}:${tone}:${worn}`;
+  const key = `${text}:${tone}:${worn}:v2`;
   let c = labelCache.get(key);
   if (c) return c;
-  const ink = tone === 'shu' ? C.shu : C.gray;
-  const inkDark = tone === 'shu' ? C.shuDark : C.grayDark;
+  const ink = tone === 'shu' ? C.shu : C.grayDark;
+  const inkDark = tone === 'shu' ? C.shuDark : '#4E5468';
+  const paper = tone === 'shu' ? C.paper : '#E8E4D8';
+  // measure the text's inked rows
   const tw = measure(text);
-  const w = tw + 12;
-  const h = 22;
-  const [cv, ctx] = makeCanvas(w + 2, h + 2);
+  const [tc, tctx] = makeCanvas(tw + 2, 18);
+  drawText(tctx, text, 0, 0, { color: '#000000' });
+  const td = tctx.getImageData(0, 0, tw + 2, 18).data;
+  let top = 18;
+  let bot = -1;
+  for (let y = 0; y < 18; y++)
+    for (let x = 0; x < tw + 2; x++)
+      if (td[(y * (tw + 2) + x) * 4 + 3]) {
+        top = Math.min(top, y);
+        bot = Math.max(bot, y);
+      }
+  if (bot < 0) {
+    top = 0;
+    bot = 13;
+  }
+  const inkH = bot - top + 1;
+  // outline(1) frame(1) pad(1 v / 2 h) text pad frame outline
+  const w = tw + 8;
+  const h = inkH + 6;
+  const [cv, ctx] = makeCanvas(w, h);
   const r = (x: number, y: number, ww: number, hh: number, col: string) => {
     ctx.fillStyle = col;
     ctx.fillRect(x, y, ww, hh);
   };
-  // outline
-  r(2, 0, w - 2, h + 2, C.ink);
-  r(0, 2, w + 2, h - 2, C.ink);
-  r(1, 1, w, h, C.ink);
-  // paper backing
-  r(2, 1, w - 2, h, C.paper);
-  r(1, 2, w, h - 2, C.paper);
-  // stamp frame (outer thick, inner thin)
-  const fx = 2, fy = 2, fw = w - 2, fh = h - 2;
-  r(fx + 1, fy, fw - 2, 2, ink);
-  r(fx + 1, fy + fh - 2, fw - 2, 2, ink);
-  r(fx, fy + 1, 2, fh - 2, ink);
-  r(fx + fw - 2, fy + 1, 2, fh - 2, ink);
+  // ink outline with clipped corners
+  r(1, 0, w - 2, h, C.ink);
+  r(0, 1, w, h - 2, C.ink);
+  // stamp frame
+  r(1, 1, w - 2, h - 2, ink);
+  // paper
+  r(2, 2, w - 4, h - 4, paper);
   // text
-  drawText(ctx, text, fx + 5, fy + 2, { color: ink });
-  // worn ink: knock out some pixels
-  const img = ctx.getImageData(0, 0, w + 2, h + 2);
+  drawText(ctx, text, 4, 3 - top, { color: ink });
+  // worn ink: knock out some pixels of the frame and text
+  const img = ctx.getImageData(0, 0, w, h);
   const d = img.data;
   const [ir, ig, ib] = hexRgb(ink);
-  const [pr, pg, pb] = hexRgb(C.paper);
+  const [pr, pg, pb] = hexRgb(paper);
   const [dr, dg, db] = hexRgb(inkDark);
-  for (let y = 0; y < h + 2; y++)
-    for (let x = 0; x < w + 2; x++) {
-      const i = (y * (w + 2) + x) * 4;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
       if (d[i] === ir && d[i + 1] === ig && d[i + 2] === ib) {
         const n = hash2(x, y, text.length * 13 + (worn ? 7 : 3));
-        if (n < (worn ? 0.3 : 0.06)) {
+        if (n < (worn ? 0.15 : 0.05)) {
           d[i] = pr;
           d[i + 1] = pg;
           d[i + 2] = pb;
-        } else if (n > 0.9) {
+        } else if (n > 0.88) {
           d[i] = dr;
           d[i + 1] = dg;
           d[i + 2] = db;
@@ -235,6 +250,7 @@ export function labelCanvas(text: string, tone: 'shu' | 'gray' = 'shu', worn = f
       }
     }
   ctx.putImageData(img, 0, 0);
+  void tc;
   labelCache.set(key, cv);
   return cv;
 }
@@ -249,7 +265,7 @@ export function stickyCanvas(text: string): HTMLCanvasElement {
   const lines = text.split('\n');
   const tw = Math.max(...lines.map((l) => measure(l)));
   const w = Math.min(200, tw + 14);
-  const h = lines.length > 1 ? 40 : 24;
+  const h = 6 + 18 * lines.length;
   const [cv, ctx] = makeCanvas(w + 3, h + 3);
   const r = (x: number, y: number, ww: number, hh: number, col: string, a = 1) => {
     ctx.globalAlpha = a;

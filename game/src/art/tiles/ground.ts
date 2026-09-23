@@ -363,7 +363,14 @@ const texDirt: Tex = (x, y, v, th) => {
 
 const texSand: Tex = (x, y, v) => {
   const big = fbm(x / 12, y / 12, 307);
-  let col = big > 0.6 ? C.paper : big < 0.3 ? C.sandDk : C.sand;
+  const col = big > 0.6 ? C.paper : big < 0.3 ? C.sandDk : C.sand;
+  // raked / scuffed ripples: wavy 1px lines (lit above, shaded below) in patches
+  const wob = Math.round(valueNoise(x / 9, y / 9, 313) * 5);
+  const r = (((y + wob) % 6) + 6) % 6;
+  if (fbm(x / 20, y / 20, 317) > 0.45) {
+    if (r === 0) return C.sandDk;
+    if (r === 5) return C.paper;
+  }
   const a = cluster(x, y, 4, 311 + v, 0.14);
   if (a === 1) return C.white;
   if (a === 2 || a === 3) return C.sandDk;
@@ -422,13 +429,25 @@ const texRail: Tex = (x, y, v) => {
 };
 
 const texCrossing: Tex = (x, y, v) => {
-  // level crossing: asphalt with rubber panels between the rails
-  const lx = ((x % 16) + 16) % 16;
-  if (lx === 4 || lx === 11) return C.concreteLt;
-  if (lx === 5 || lx === 12) return C.charcoal;
-  if (lx > 5 && lx < 11) return ((y >> 2) & 1) ? C.charcoal : C.asphaltDk;
+  // level crossing, off the track: the road's asphalt with a worn concrete
+  // edge strip every tile (the rail columns are painted by crossingRail())
+  const ly = ((y % 16) + 16) % 16;
+  if (ly === 0) return C.concreteMd;
   return texAsphalt(x, y, v, '');
 };
+
+/** Crossing pixels on a rail column: the rails continue exactly where the track's rails are. */
+function crossingRail(x: number, y: number, v: number): number {
+  const lx = ((x % 16) + 16) % 16;
+  // rails (same columns as texRail: 4 and 11), flange grooves inside them
+  if (lx === 4 || lx === 11) return C.concreteLt;
+  if (lx === 3 || lx === 12) return C.steel;
+  if (lx === 5 || lx === 10) return C.charcoal;
+  // rubber panels between the rails (joints every 8px), concrete outside
+  if (lx > 5 && lx < 10) return ((y & 7) === 0) ? C.charcoal : C.asphaltDk;
+  if (lx === 2 || lx === 13) return C.concreteMd;
+  return texAsphalt(x, y, v, '');
+}
 
 // ---- indoor floors --------------------------------------------------------------
 
@@ -551,8 +570,9 @@ export function bakeGround(src: GroundSource, x0: number, y0: number, w: number,
       const lx = wx - tx * 16;
       const ly = wy - ty * 16;
       if (lx < 4 || lx > 11 || ly < 4 || ly > 11) {
-        const nx = (valueNoise(wx / 5.3, wy / 5.3, src.seed + 11) - 0.5) * 2;
-        const ny = (valueNoise(wx / 5.3, wy / 5.3, src.seed + 23) - 0.5) * 2;
+        // low-frequency wander + 2px bumps (6.1-4: borders are never straight lines)
+        const nx = (valueNoise(wx / 5.3, wy / 5.3, src.seed + 11) - 0.5) * 2 + (valueNoise(wx / 2.2, wy / 2.2, src.seed + 31) - 0.5) * 1.3;
+        const ny = (valueNoise(wx / 5.3, wy / 5.3, src.seed + 23) - 0.5) * 2 + (valueNoise(wx / 2.2, wy / 2.2, src.seed + 37) - 0.5) * 1.3;
         const sx = Math.floor((wx + nx * 3.2) / 16);
         const sy = Math.floor((wy + ny * 3.2) / 16);
         if (sx !== tx || sy !== ty) {
@@ -585,6 +605,21 @@ export function bakeGround(src: GroundSource, x0: number, y0: number, w: number,
     }
     return v;
   };
+  // crossing tiles whose column is track (a 'rail' tile above or below the crossing)
+  const railCols = new Map<number, boolean>();
+  const railColumn = (tx: number, ty: number): boolean => {
+    const key = ty * 4096 + tx;
+    let r = railCols.get(key);
+    if (r === undefined) {
+      let a = ty;
+      while (a > 0 && tileG(tx, a) === 'crossing') a--;
+      let b = ty;
+      while (b < src.h - 1 && tileG(tx, b) === 'crossing') b++;
+      r = tileG(tx, a) === 'rail' || tileG(tx, b) === 'rail';
+      railCols.set(key, r);
+    }
+    return r;
+  };
   // pass 2: colour
   for (let j = 0; j < h; j++) {
     const wy = y0 + j;
@@ -596,18 +631,30 @@ export function bakeGround(src: GroundSource, x0: number, y0: number, w: number,
       const th = src.theme(Math.max(0, Math.min(src.w - 1, tx)), Math.max(0, Math.min(src.h - 1, ty)));
       const tex = TEX[g] ?? texVoid;
       let col = tex(wx, wy, variant(tx, ty, g), g === 'engawa' ? 'engawa' : th);
+      if (g === 'crossing' && railColumn(tx, ty)) col = crossingRail(wx, wy, variant(tx, ty, g));
       const up = idAt(i, j - 1);
       const dn = idAt(i, j + 1);
       const lf = idAt(i - 1, j);
       const rt = idAt(i + 1, j);
-      // grass lip: darker bottom edge, lit top edge
+      // grass lip: darker bottom edge, lit top edge, lit west / shaded east sides
       if (GREEN.has(g)) {
         if (!GREEN.has(dn)) col = C.leafDeep;
         else if (!GREEN.has(idAt(i, j + 2)) && ((wx * 7 + wy) % 5 === 0)) col = C.leafDeep;
         else if (!GREEN.has(up) && up !== 'none') col = C.leafYoung;
+        else if (!GREEN.has(rt) && rt !== 'none' && rt !== 'water') col = C.leafDeep;
+        else if (!GREEN.has(lf) && lf !== 'none' && lf !== 'water') col = C.leafYoung;
       } else if (GREEN.has(up) && !GREEN.has(g) && g !== 'water') {
         // soft shade cast by the grass mass onto what is below it
         col = shadeOf(col);
+      }
+      // bare ground next to grass: blades poking out, a pebble now and then
+      if ((g === 'dirt' || g === 'sand' || g === 'gravel') && (GREEN.has(lf) || GREEN.has(rt) || GREEN.has(up))) {
+        const hb = ihash(wx >> 1, wy >> 1, 1213);
+        if (hb % 3 === 0) col = (hb >>> 4) % 2 ? C.leaf : C.leafDeep;
+      } else if ((g === 'dirt' || g === 'sand') && (GREEN.has(idAt(i - 2, j)) || GREEN.has(idAt(i + 2, j)))) {
+        const hb = ihash(wx, wy, 1217);
+        if (hb % 17 === 0) col = C.concreteLt;
+        else if (hb % 17 === 1) col = C.steel;
       }
       // curbs: raised paving next to roads
       if (RAISED.has(g)) {

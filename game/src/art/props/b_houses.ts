@@ -165,6 +165,30 @@ registerBuilding({
     // left corner rim
     for (let j = fY; j < b.botY; j++) if (j % 3 !== 2) p.set(0, j, P.sun);
   },
+  glow(g, x, y, env, b) {
+    // 8.6: at night the Shiomi living room is the warmest window in town —
+    // an amber glow round the lace curtain and the porch lamp lit
+    const n = env.grade.night;
+    if (n < 0.05) return;
+    const gY = b.faceY + 16;
+    const ctx = g.ctx;
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    for (const [cx, cy, r, a] of [
+      [29, gY + 18, 34, 0.42],
+      [59, gY + 16, 16, 0.5],
+    ] as [number, number, number, number][]) {
+      const grd = ctx.createRadialGradient(x + cx, y + cy, 1, x + cx, y + cy, r);
+      grd.addColorStop(0, `rgba(255,190,110,${(a * n).toFixed(3)})`);
+      grd.addColorStop(0.5, `rgba(242,137,75,${(a * 0.45 * n).toFixed(3)})`);
+      grd.addColorStop(1, 'rgba(242,137,75,0)');
+      ctx.fillStyle = grd;
+      ctx.fillRect(x + cx - r, y + cy - r, r * 2, r * 2);
+    }
+    ctx.restore();
+    g.rect(x + 14, y + gY + 12, 30, 12, P.horizon, 0.35 * n);
+    g.rect(x + 58, y + gY + 14, 3, 4, P.glint, 0.9 * n);
+  },
 });
 
 // ---------------------------------------------------------------- 水まきの家

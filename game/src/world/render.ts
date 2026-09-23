@@ -9,13 +9,13 @@ import { H, W } from '../engine/screen';
 import { flag } from '../game/state';
 import type { PropEnv } from '../art/props/types';
 import { P } from '../art/tiles/palette';
-import { drawWires, type WireSet } from '../art/props/wires';
-import { drawWater, type WaterCtx } from '../art/tiles/water';
+import { drawWires, type WireOccluder, type WireSet } from '../art/props/wires';
+import { drawWater, type Reflector, type WaterCtx } from '../art/tiles/water';
 import { drawGroundLife } from '../art/tiles/groundlife';
 import { CHUNK } from './ground_cache';
 import type { FieldScene, PropInst } from './field';
 import { css, INDOOR_MUL, shadowDir } from './lighting';
-import { cellAt } from './maps';
+import { cellAt, groundAt } from './maps';
 import type { Actor } from './actor';
 import { hud } from './hud';
 import { fxDraw, fxUpdate } from './fx';
@@ -156,21 +156,26 @@ export class Renderer {
       if (!visible(x, y, s.art.img.width, s.art.img.height)) continue;
       list.push({ foot: s.foot, x, draw: () => wg.img(s.art.img, x - cx, y - cy) });
     }
+    // characters that tall props fade for (x-ray)
+    const seers: Actor[] = f.follower ? [f.player, f.follower] : [f.player];
     for (const p of f.props) {
       if (!p.present || p.art.flat) continue;
       const a = p.art;
       if (!visible(p.x + a.ox, p.y + a.oy, a.w, a.h)) continue;
+      const alpha = a.xray !== undefined ? this.xrayAlpha(p, seers) : 1;
       list.push({
         foot: p.y + a.foot,
         x: p.x,
         draw: () => {
           const e = envOf(p);
           const img = a.img(e);
+          if (alpha < 1) this.wctx.globalAlpha = alpha;
           if (img) {
             wg.img(img, p.x + a.ox - cx, p.y + a.oy - cy);
-            if (a.glass) this.drawGlass(a.glass, p.x + a.ox - cx, p.y + a.oy - cy);
+            if (a.glass && alpha >= 1) this.drawGlass(a.glass, p.x + a.ox - cx, p.y + a.oy - cy);
           }
           a.over?.(wg, p.x - cx, p.y - cy, e);
+          this.wctx.globalAlpha = 1;
         },
       });
     }
@@ -209,7 +214,17 @@ export class Renderer {
         wg.img(img, x - cx, y - cy, alpha < 1 ? { alpha } : {});
       }
     }
-    if (this.wires) drawWires(wg, this.wires, cx, cy, f.mt, flag('flag_stage'), f.t);
+    if (this.wires) {
+      // characters under a wire get that part of the wire faded (never hidden by it)
+      const occ: WireOccluder[] = [];
+      for (const a of actors) {
+        if (!a.visible || a.kind === 'restored' || a.drawFn) continue;
+        const img = a.frame();
+        const [ix, iy] = a.drawPos(img);
+        occ.push({ x: ix - cx - 1, y: iy - cy - 1, w: img.width + 2, h: img.height + 2, key: a });
+      }
+      drawWires(wg, this.wires, cx, cy, f.mt, flag('flag_stage'), f.t, occ);
+    }
     fxDraw(f, wg, cx, cy, 'fg');
 
     // 7. arcade stripes
@@ -247,6 +262,30 @@ export class Renderer {
     hud.draw(g, f);
   }
 
+  /** Current x-ray alpha of a tall prop (fades towards art.xray in 0.15s). */
+  private xrayAlpha(p: PropInst, seers: Actor[]): number {
+    const a = p.art;
+    const foot = p.y + a.foot;
+    let behind = false;
+    for (const s of seers) {
+      if (!s.visible || s.y > foot) continue;
+      const img = s.frame();
+      const [ix, iy] = s.drawPos(img);
+      const x0 = p.x + a.ox;
+      const y0 = p.y + a.oy;
+      if (ix + img.width - 3 > x0 && ix + 3 < x0 + a.w && iy + img.height > y0 && iy + 2 < y0 + a.h) {
+        behind = true;
+        break;
+      }
+    }
+    const cur = this.fade.get(p) ?? 1;
+    const tgt = behind ? a.xray! : 1;
+    const step = (16.7 / 150) * (1 - a.xray!);
+    const next = cur + Math.sign(tgt - cur) * Math.min(Math.abs(tgt - cur), step);
+    this.fade.set(p, next);
+    return next;
+  }
+
   // ---------------------------------------------------------------- water
 
   private waterMask(cxI: number, cyI: number): HTMLCanvasElement | null {
@@ -272,8 +311,38 @@ export class Renderer {
     return r;
   }
 
+  /** Tall things standing on a bank right above water (their reflections show in it). */
+  private reflectors(cx: number, cy: number): Reflector[] {
+    const f = this.f;
+    const out: Reflector[] = [];
+    for (const p of f.props) {
+      if (!p.present || p.art.flat) continue;
+      const a = p.art;
+      if (!a.shadow && !a.shadowFn && a.h < 20) continue;
+      const foot = p.y + a.foot;
+      const ftx = Math.floor((p.x + (a.contactX ?? 8)) / 16);
+      const fty = Math.floor(foot / 16);
+      if (groundAt(f.map, ftx, fty + 1) !== 'water') continue;
+      if (p.x + a.ox + a.w < cx - 48 || p.x + a.ox > cx + W + 48 || foot > cy + H + 64 || foot < cy - 48) continue;
+      const e = this.env(p);
+      const parts: Reflector['parts'] = [];
+      const img = (a.shadowImg ?? a.img)(e);
+      if (img) parts.push({ img, x: p.x + a.ox, top: p.y + a.oy });
+      for (const part of a.fg ?? []) {
+        const pi = part.img(e);
+        if (pi && pi.width > 4) parts.push({ img: pi, x: p.x + part.ox, top: p.y + part.oy });
+      }
+      if (!parts.length) continue;
+      const id = p.obj.t === 'prop' ? p.obj.prop : p.obj.prop ?? p.obj.id;
+      const lamp = id === 'prop_utility_pole' && (p.obj.opts?.lamp ?? true) !== false ? { h: 46, a: 1 } : undefined;
+      out.push({ parts, cx: p.x, foot, lamp });
+    }
+    return out;
+  }
+
   private drawWaterLayer(cx: number, cy: number): void {
     const f = this.f;
+    let refl: Reflector[] | null = null;
     const x0 = Math.max(0, Math.floor(cx / CHUNK));
     const y0 = Math.max(0, Math.floor(cy / CHUNK));
     const x1 = Math.min(Math.ceil((f.map.w * 16) / CHUNK) - 1, Math.floor((cx + W) / CHUNK));
@@ -311,6 +380,7 @@ export class Renderer {
           stage: flag('flag_stage'),
           map: f.map,
           vis: [vx, vy, vw, vh],
+          reflect: (refl ??= this.reflectors(cx, cy)),
         };
         drawWater(wctx);
         t.globalCompositeOperation = 'destination-in';
@@ -440,6 +510,8 @@ export class Renderer {
       if (!visible(x - 64, y, 16 + 128, st.art.img.height + 32)) continue;
       cast(st.art.img, st.tx * 16 + 8, st.foot, x, y, st.art.shadow, st.tx, st.ty);
     }
+    // shadows falling on water keep only 20% (7.4; the canal shows reflections, not blobs)
+    this.eraseOnWater(s, cx, cy, 0.8);
     // colourise and composite
     s.globalCompositeOperation = 'source-in';
     s.fillStyle = css(gd.shadow);
@@ -463,6 +535,25 @@ export class Renderer {
       if (!visible(x - 20, y - 4, 40, 8)) continue;
       ellipse(this.wctx, x - cx, y - cy - 1, p.art.contact, 4);
     }
+  }
+
+  /** Remove `amount` of whatever is in ctx over the water pixels on screen. */
+  private eraseOnWater(ctx: CanvasRenderingContext2D, cx: number, cy: number, amount: number): void {
+    const f = this.f;
+    const x0 = Math.max(0, Math.floor(cx / CHUNK));
+    const y0 = Math.max(0, Math.floor(cy / CHUNK));
+    const x1 = Math.min(Math.ceil((f.map.w * 16) / CHUNK) - 1, Math.floor((cx + W) / CHUNK));
+    const y1 = Math.min(Math.ceil((f.map.h * 16) / CHUNK) - 1, Math.floor((cy + H) / CHUNK));
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.globalAlpha = amount;
+    for (let ky = y0; ky <= y1; ky++)
+      for (let kx = x0; kx <= x1; kx++) {
+        const mask = this.waterMask(kx, ky);
+        if (mask) ctx.drawImage(mask, kx * CHUNK - cx, ky * CHUNK - cy);
+      }
+    ctx.restore();
   }
 
   // ---------------------------------------------------------------- arcade stripes (fx_arcade_stripes)
@@ -526,7 +617,7 @@ export class Renderer {
     ctx.fillRect(0, 0, W, H);
     // left sunset bleed
     ctx.globalCompositeOperation = 'screen';
-    const ga = indoor ? 0.12 : gd.glareA;
+    const ga = indoor ? 0.12 * (1 - gd.night) : gd.glareA;
     if (ga > 0.001) {
       const lg = ctx.createLinearGradient(0, 0, W * 0.45, 0);
       const col = indoor ? [247, 194, 122] as [number, number, number] : gd.glare;

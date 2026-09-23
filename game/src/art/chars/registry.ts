@@ -18,6 +18,7 @@
 
 import type { Dir } from '../../game/state';
 import { PixelCanvas } from '../../engine/pixel';
+import { finalizeSprite, syncRimLight } from './quant';
 
 export interface CharAnim {
   frames: HTMLCanvasElement[];
@@ -76,8 +77,10 @@ export function hasChar(id: string): boolean {
 export function charSprite(id: string): CharSprite {
   let s = cache.get(id);
   if (!s) {
+    syncRimLight();
     const b = builders.get(id);
-    s = b ? b() : fallback(id);
+    // palette budget + stage rim light (quant.ts)
+    s = finalizeSprite(b ? b() : fallback(id));
     cache.set(id, s);
   }
   return s;
@@ -87,11 +90,13 @@ export function charSprite(id: string): CharSprite {
 
 /** Best frame for a named pose facing `dir` (extraDir → extra → standing). */
 export function poseFrame(s: CharSprite, name: string, dir: Dir = 'down'): HTMLCanvasElement {
+  syncRimLight();
   return s.extraDir?.[name]?.[dir] ?? s.extra?.[name] ?? s.walk[dir][0];
 }
 
 /** Frame of a walk cycle at time t (ms). */
 export function walkFrame(s: CharSprite, dir: Dir, t: number, running = false): HTMLCanvasElement {
+  syncRimLight();
   const set = running && s.run ? s.run[dir] : s.walk[dir];
   const ms = running && s.run ? s.runFrameMs ?? 90 : s.walkFrameMs ?? 140;
   return set[Math.floor(t / ms) % set.length];
@@ -99,6 +104,7 @@ export function walkFrame(s: CharSprite, dir: Dir, t: number, running = false): 
 
 /** Frame of the idle loop at time t (ms); standing frame when no idle. */
 export function idleFrame(s: CharSprite, dir: Dir, t: number): HTMLCanvasElement {
+  syncRimLight();
   const set = s.idle?.[dir];
   if (!set || !set.length) return s.walk[dir][0];
   return set[Math.floor(t / (s.idleFrameMs ?? 250)) % set.length];
@@ -111,6 +117,7 @@ export function animOf(s: CharSprite, name: string, dir: Dir = 'down'): CharAnim
 
 /** Frame of a named anim at time t (ms). Missing anim → extra/standing. */
 export function animFrame(s: CharSprite, name: string, t: number, dir: Dir = 'down'): HTMLCanvasElement {
+  syncRimLight();
   const a = animOf(s, name, dir);
   if (!a) return poseFrame(s, name, dir);
   return a.frames[animIndex(a, t)];
