@@ -26,6 +26,7 @@ export const KANENARI_MATS: Mats = {
   eye: flat('#2A1E1A'),
   cheek: flat('#F08A7A'),
   board: mat('#F4F1E8', { shade: '#D8CCB8', light: '#FFFFFF', dark: '#A89C88' }),
+  kraft: mat('#E8C890', { shade: '#C8A06A', light: '#F6E0B0', dark: '#8A6A3A' }),
   boardE: flat('#C8BCA8'),
   ink: flat('#2A2440'),
 };
@@ -196,6 +197,14 @@ function front(f: Fig, p: Pose) {
     f.hl(4, 8, bodyY + 1).px(10, bodyY + 1).px(11, bodyY + 1).hl(4, 11, bodyY + 3).hl(5, 9, bodyY + 5);
     mitten(f, 1, bodyY + 1, 0);
     mitten(f, 13, bodyY + 1, -1);
+  } else if (act === 'hold') {
+    // receiving the korokke parcel in both mittens (ending)
+    f.part('kraft', { shade: 'rb', light: 't' });
+    f.rect(4, bodyY + 2, 8, 3);
+    f.part('red', { flat: true, rim: false });
+    f.vl(8, bodyY + 2, bodyY + 4);
+    mitten(f, 2, bodyY + 3, 0);
+    mitten(f, 12, bodyY + 3, -1);
   } else if (act === 'surprised') {
     mitten(f, 0, ay - 3, 0);
     mitten(f, 14, ay - 3, -1);
@@ -354,6 +363,7 @@ export const KANENARI_SPEC: SpriteSpec = {
   extras: {
     flip: { dirs: ['down'] },
     flip_hold: { dirs: ['down', 'left', 'right'] },
+    hold: { dirs: ['down'] },
     pose: { dirs: ['down'] },
     point: { dirs: ['down', 'left', 'right'] },
     wave: { dirs: ['down', 'left', 'right'] },
@@ -371,6 +381,13 @@ export const KANENARI_SPEC: SpriteSpec = {
   },
   shadow: 12,
 };
+
+/**
+ * Where to draw flipBoard() (24×16) for the 'flip' pose, relative to the
+ * actor's feet (anchor): board top-left = (x + dx, y + dy). The raised
+ * mittens sit just under the board's bottom corners.
+ */
+export const FLIP_ANCHOR = { dx: -12, dy: -39 };
 
 registerChar('kanenari', () => buildSprite(KANENARI_SPEC));
 registerChar('npc_kanenari', () => ({ ...charSprite('kanenari'), id: 'npc_kanenari' }));

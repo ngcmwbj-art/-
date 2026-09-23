@@ -56,6 +56,88 @@ export class ResidentialBg extends Background {
     }
     fillCircle(ctx, 96, 40, 28, '#FFE7A3');
     fillCircle(ctx, 90, 36, 20, '#FFF1C4');
+    // the town skyline sits in L0 so it stays solid while the wires wave
+    this.paintRoofs(ctx, t);
+  }
+
+  /** Low rooftops, water tanks and block walls with a few lit windows. */
+  private paintRoofs(ctx: CanvasRenderingContext2D, t: number): void {
+    const rs = (t * 6) % 520;
+    const lit = '#FFD98A';
+    const litDim = '#E8A86A';
+    for (const r of this.roofs) {
+      let x = Math.round(r.x - rs);
+      if (x + r.w < -10) x += 520;
+      if (x > 390) continue;
+      const top = BG_H - 14 - r.h;
+      const w = r.w;
+      ctx.fillStyle = SIL2;
+      if (r.kind === 0) {
+        // gabled tile roof with eaves and a TV antenna
+        for (let yy = 0; yy < 9; yy++) ctx.fillRect(x + 9 - yy, top + yy, w - 18 + yy * 2, 1);
+        ctx.fillRect(x - 1, top + 8, w + 2, 2); // eaves
+        ctx.fillRect(x + 2, top + 10, w - 4, BG_H - top - 10);
+        // ridge highlight (sun from the upper left)
+        ctx.fillStyle = SIL;
+        ctx.fillRect(x + 9, top, w - 18, 1);
+        for (let yy = 1; yy < 8; yy++) ctx.fillRect(x + 9 - yy, top + yy, 1, 1);
+        // antenna
+        ctx.fillStyle = SIL2;
+        const ax = x + Math.round(w * 0.35);
+        ctx.fillRect(ax, top - 9, 1, 9);
+        ctx.fillRect(ax - 4, top - 8, 9, 1);
+        ctx.fillRect(ax - 3, top - 5, 7, 1);
+        ctx.fillRect(ax - 2, top - 2, 5, 1);
+        // windows: two, one lit
+        const wy = top + 14;
+        const lightOn = (r.w * 7 + r.h) % 3 !== 0;
+        ctx.fillStyle = lightOn ? lit : '#3A2B5C';
+        ctx.fillRect(x + 6, wy, 5, 4);
+        ctx.fillStyle = '#3A2B5C';
+        ctx.fillRect(x + w - 12, wy, 5, 4);
+        if (lightOn) {
+          ctx.fillStyle = litDim;
+          ctx.fillRect(x + 6, wy + 3, 5, 1);
+          ctx.fillStyle = SIL2;
+          ctx.fillRect(x + 8, wy, 1, 4); // window frame
+        }
+      } else if (r.kind === 1) {
+        // flat-roofed apartment with a water tank and a row of windows
+        ctx.fillRect(x, top + 4, w, BG_H - top - 4);
+        ctx.fillRect(x - 1, top + 3, w + 2, 2);
+        ctx.fillRect(x + w - 12, top - 4, 8, 7);
+        ctx.fillRect(x + w - 11, top - 6, 6, 2);
+        ctx.fillRect(x + w - 11, top + 3, 1, 1);
+        ctx.fillStyle = SIL;
+        ctx.fillRect(x + w - 12, top - 4, 1, 7);
+        ctx.fillRect(x, top + 4, 1, BG_H - top - 4);
+        for (let wx = x + 4, i = 0; wx + 4 < x + w - 2; wx += 8, i++) {
+          const on = (i * 5 + r.w) % 4 === 0;
+          const blink = on && (i + r.h) % 5 === 0 && Math.floor(t * 0.5 + i) % 7 === 0;
+          ctx.fillStyle = on && !blink ? lit : '#3A2B5C';
+          ctx.fillRect(wx, top + 9, 4, 3);
+        }
+      } else {
+        // concrete block wall (with see-through blocks) and a garden tree
+        const wy = BG_H - 16;
+        fillCircle(ctx, x + w / 2, top + 3, 8, SIL2);
+        fillCircle(ctx, x + w / 2 - 6, top + 7, 6, SIL2);
+        fillCircle(ctx, x + w / 2 + 6, top + 6, 6, SIL2);
+        ctx.fillStyle = SIL;
+        for (let i = -5; i <= 1; i += 2) ctx.fillRect(Math.round(x + w / 2 - 7 + (i + 5)), top - 4 + Math.abs(i), 2, 1);
+        ctx.fillStyle = SIL2;
+        ctx.fillRect(x + w / 2 - 1, top + 8, 2, wy - top - 8);
+        ctx.fillRect(x, wy, w, 16);
+        ctx.fillStyle = SIL;
+        ctx.fillRect(x, wy, w, 1);
+        ctx.fillStyle = '#6A5486';
+        for (let bx = x + 4; bx + 5 < x + w; bx += 12) {
+          ctx.fillRect(bx, wy + 4, 5, 1);
+          ctx.fillRect(bx + 1, wy + 5, 1, 2);
+          ctx.fillRect(bx + 3, wy + 5, 1, 2);
+        }
+      }
+    }
   }
 
   protected paintL1(ctx: CanvasRenderingContext2D, t: number): void {
@@ -89,28 +171,6 @@ export class ResidentialBg extends Background {
       // insulators
       ctx.fillStyle = SIL;
       for (const ix of [-11, -5, 5, 11]) ctx.fillRect(p + ix, 55, 1, 2);
-    }
-    // low rooftops / block walls along the bottom (slower parallax)
-    const rs = (t * 6) % 520;
-    for (const r of this.roofs) {
-      let x = r.x - rs;
-      if (x + r.w < -10) x += 520;
-      const top = BG_H - 14 - r.h;
-      ctx.fillStyle = SIL2;
-      if (r.kind === 0) {
-        // gabled roof
-        for (let yy = 0; yy < 8; yy++) ctx.fillRect(Math.round(x + 8 - yy), top + yy, r.w - 16 + yy * 2, 1);
-        ctx.fillRect(Math.round(x), top + 8, r.w, BG_H - top);
-      } else if (r.kind === 1) {
-        // flat roof with a water tank
-        ctx.fillRect(Math.round(x), top + 4, r.w, BG_H - top);
-        ctx.fillRect(Math.round(x + r.w - 12), top - 4, 8, 8);
-        ctx.fillRect(Math.round(x + r.w - 11), top - 6, 6, 2);
-      } else {
-        // block wall with a little tree
-        ctx.fillRect(Math.round(x), BG_H - 16, r.w, 16);
-        fillCircle(ctx, x + r.w / 2, top + 4, 7, SIL2);
-      }
     }
     if (this.variant === 'semi') {
       // leaf clusters hanging in both upper corners

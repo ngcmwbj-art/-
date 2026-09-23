@@ -716,8 +716,11 @@ function* hankoPeke(s: BattleScene, u: PartyUnit, e: EnemyUnit, j: Judge): Co {
   const killed = hurtEnemy(s, e, dmg, { big: j === 'kukkiri' });
   knock(s, e, 3);
   consumeBokemake(e, boke);
-  yield 400;
-  if (killed) yield* killSequence(s, [e]);
+  // a finishing stamp goes straight into 思いだす (its hitstop overrides the hit's)
+  if (killed) {
+    yield 120;
+    yield* killSequence(s, [e]);
+  } else yield 400;
 }
 
 function sk(id: string) {

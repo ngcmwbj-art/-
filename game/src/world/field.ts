@@ -41,6 +41,11 @@ export interface PropInst {
 }
 
 let current: FieldScene | null = null;
+const extraSpots: ((f: FieldScene) => { id: string; x: number; y: number }[])[] = [];
+/** Add fushigi hotspots that aren't map objects (sparrows on wires, carts...). */
+export function addFushigiSpots(fn: (f: FieldScene) => { id: string; x: number; y: number }[]): void {
+  extraSpots.push(fn);
+}
 export function field(): FieldScene | null {
   return current;
 }
@@ -861,6 +866,20 @@ export class FieldScene implements Scene {
     const r = this.cameraTarget();
     this.camOverride = o;
     return r;
+  }
+
+  /** World-pixel centres of the fushigi on this map (for the HUD hint and the stamp). */
+  fushigiSpots(): { id: string; x: number; y: number }[] {
+    const out: { id: string; x: number; y: number }[] = [];
+    for (const o of this.map.objects) {
+      if (o.t === 'obj' && o.fushigi && condOk(o.cond)) out.push({ id: o.fushigi, x: (o.x + (o.w ?? 1) / 2) * 16, y: (o.y + (o.h ?? 1) / 2) * 16 });
+    }
+    for (const a of this.actors) {
+      const d = a.data.def as NpcObj | undefined;
+      if (d?.fushigi) out.push({ id: d.fushigi, x: a.x + a.ox, y: a.y + a.oy - 12 });
+    }
+    for (const fn of extraSpots) out.push(...fn(this));
+    return out;
   }
 
   // ------------------------------------------------------------------ drawing

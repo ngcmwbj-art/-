@@ -223,6 +223,8 @@ export interface MapDef {
   zones?: { id: string; x: number; y: number; w: number; h: number }[];
   /** Material zones for walls/hedges/fences: { x, y, w, h, mat, ch? }. */
   structMats?: { x: number; y: number; w: number; h: number; mat: string; ch?: string }[];
+  /** Overhead wires between poles (tile coords of pole footprints). */
+  wires?: import('../art/props/wires').WireLine[];
   /** Background color outside the map. */
   outside?: string;
   /** Indoor: which side the window light comes from (for grading). */

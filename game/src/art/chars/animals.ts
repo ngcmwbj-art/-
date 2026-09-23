@@ -125,7 +125,7 @@ function pigeonFront(f: Fig, p: Pose, card: boolean) {
     f.part('eye', { flat: true, rim: false });
     f.px(5, 2 + hy).px(10, 2 + hy);
     f.part('pupil', { flat: true, rim: false });
-    if (!p.blink) f.px(5, 2 + hy).px(10, 2 + hy);
+    if (!p.blink) f.px(6, 2 + hy).px(9, 2 + hy);
     f.part('beak', { flat: true, rim: false });
     f.px(7, 4 + hy - (up ? 1 : 0)).px(8, 4 + hy - (up ? 1 : 0));
     f.part('cere', { flat: true, rim: false });

@@ -16,6 +16,7 @@ import { EMOTE_KINDS, emoteFrames, EMOTE_FRAME_MS } from './emotes';
 import { flipBoard, flipBoardPanel, flipIcon } from './flip';
 import { tinyText, tinyWidth } from './tinyfont';
 import { MOODS } from './portraits';
+import { FLIP_ANCHOR } from './people/kanenari';
 
 const DIRS: Dir[] = ['down', 'left', 'up', 'right'];
 
@@ -179,7 +180,7 @@ export class CharGallery implements Scene {
     const out: Tile[] = [];
     const z = this.zoom;
     for (const id of portraitIds())
-      for (const m of MOODS) {
+      for (const m of id.startsWith('npc_') ? ['normal', 'happy', 'surprised'] : MOODS) {
         const c = portrait(id, m);
         if (!c) continue;
         out.push({ w: c.width * z, h: c.height * z + 8, label: `${id.slice(0, 4)}:${m.slice(0, 5)}`, draw: (g, x, y) => g.img(c, x, y, { scale: z }) });
@@ -225,7 +226,19 @@ export class CharGallery implements Scene {
       { w: b.width * z * 2, h: b.height * z * 2 + 8, label: 'flipboard', draw: (g, x, y) => g.img(b, x, y, { scale: z * 2 }) },
       { w: icon.width * z * 3, h: icon.height * z * 3 + 8, label: 'icon', draw: (g, x, y) => g.img(icon, x, y, { scale: z * 3 }) },
       { w: panel.width * z, h: panel.height * z + 8, label: 'panel 160x40', draw: (g, x, y) => g.img(panel, x, y, { scale: z }) },
-      spriteTile(k, 'kanenari flip', z * 2, () => k.extra?.flip ?? k.walk.down[0]),
+      {
+        // the 'flip' pose with flipBoard() overlaid at FLIP_ANCHOR
+        w: 24 * z * 2,
+        h: 44 * z * 2 + 8,
+        label: 'flip pose + board',
+        draw: (g, x, y) => {
+          const s = z * 2;
+          const fx = x + 12 * s; // feet x
+          const fy = y + 42 * s; // feet y
+          g.img(k.extra?.flip ?? k.walk.down[0], fx - 8 * s, fy - 26 * s, { scale: s });
+          g.img(b, fx + FLIP_ANCHOR.dx * s, fy + FLIP_ANCHOR.dy * s, { scale: s });
+        },
+      },
     ];
   }
 

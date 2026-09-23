@@ -136,10 +136,11 @@ function hatoFront(f: Fig, p: Pose) {
   f.part('head', { shade: 'rb', light: 't' });
   f.rows(5, 0 + hy, ['.####.', '######', '######', '.####.']);
   if (!back) {
+    // yellow eyes on the sides of the head, pupils looking at you
     f.part('eye', { flat: true, rim: false });
     f.px(5, 1 + hy).px(10, 1 + hy);
     f.part('pupil', { flat: true, rim: false });
-    if (!p.blink) f.px(5, 1 + hy).px(10, 1 + hy);
+    if (!p.blink) f.px(6, 1 + hy).px(9, 1 + hy);
     f.part('beak', { flat: true, rim: false });
     f.px(7, 3 + hy).px(8, 3 + hy);
     f.part('cere', { flat: true, rim: false });
@@ -183,9 +184,9 @@ const SEMI: Mats = {
   thorax: mat('#5A3A22', { shade: '#3E2616', light: '#7A5A3A', dark: '#2A1A12' }),
   eye: mat('#2A1A12', { shade: '#1A100A', light: '#6A5A4A' }),
   glint: flat('#F4F1E8'),
-  wing: mat('#7A5A3A', { shade: '#5A3E26', light: '#A88A5A', dark: '#3A2616' }),
-  vein: flat('#3A2616'),
-  leg: flat('#4A2E1A'),
+  wing: mat('#9A7A52', { shade: '#7A5A3A', light: '#BC9C6C', dark: '#4A3220', rim: '#E8B070' }),
+  vein: flat('#5A3E26'),
+  leg: flat('#2A1A12'),
   joint: flat('#7A5A3A'),
 };
 
@@ -194,35 +195,42 @@ function semi(f: Fig, p: Pose) {
   const st = p.step % 4;
   const air = walking ? [0, 3, 5, 1][st] : p.act === 'hop' ? 4 : 0;
   const flail = walking && st > 0;
+  const flutter = walking && (st === 1 || st === 2);
   const tw = p.act === 'twitch' ? p.ph : 0;
-  const y0 = 6 - air;
-  // wings sticking out beneath the body (both sides)
+  const y = 6 - air; // top row of the upper wing
+  // broad veined wings flaring out on both sides of the body
   f.part('wing', { shade: 'rb', light: 't' });
-  f.rows(3, y0 + 3, ['.....##############...', '...#################..', '.....###############..']);
+  const wUp = flutter ? ['.......########.......', '....#############.....', '..##################..'] : ['......###########.....', '....##############....', '..#################...'];
+  f.rows(2, y, wUp);
+  f.rows(2, y + 7, flutter ? ['..##################..', '....#############.....', '.......########.......'] : ['..#################...', '....##############....', '......###########.....']);
   f.part('vein', { flat: true, rim: false });
-  f.px(9, y0 + 4).px(13, y0 + 4).px(17, y0 + 4).px(20, y0 + 3).px(21, y0 + 5);
-  // body: head (left), thorax, belly with segments
+  for (const vx of [9, 13, 17]) f.px(vx, y + 1).px(vx + 1, y + 2).px(vx, y + 8).px(vx + 1, y + 7);
+  f.px(20, y + 2).px(20, y + 7);
+  // dark spots near the wing tips (アブラゼミ)
+  f.px(18, y + 1).px(18, y + 8);
+  // body: head + thorax (left), segmented belly (right)
   f.part('thorax', { shade: 'rb', light: 't' });
-  f.rows(2, y0 + 2, ['.####', '#####', '#####', '#####', '.####']);
+  f.rows(2, y + 3, ['.#####', '######', '######', '.#####']);
   f.part('belly', { shade: 'rb', light: 't' });
-  f.rows(6, y0 + 1, ['.############.', '##############', '###############', '##############', '.############.']);
+  f.rows(8, y + 3, ['###########.', '#############', '#############', '###########.']);
   f.part('seg', { flat: true, rim: false });
-  for (let x = 9; x <= 18; x += 3) f.vl(x, y0 + 2, y0 + 4);
-  // compound eyes
+  for (let x = 10; x <= 18; x += 2) f.vl(x, y + 4, y + 5);
+  // compound eyes, one on each side of the head
   f.part('eye', { shade: 'r', light: '' });
-  f.rect(1, y0 + 2, 2, 2).rect(1, y0 + 4, 2, 2);
+  f.rect(1, y + 3, 2, 1).rect(1, y + 6, 2, 1);
   f.part('glint', { flat: true, rim: false });
-  f.px(1, y0 + 2).px(1, y0 + 4);
-  // legs pointing up (1px lines with a joint)
-  f.part('leg', { flat: true, rim: false });
-  const legs: [number, number][] = [[7, 0], [10, 1], [13, 0], [8, 3], [11, 2], [14, 3]];
-  legs.forEach(([x, k], i) => {
-    const wig = flail ? ((i + st) % 2 ? 1 : -1) : tw && i === 2 ? -1 : 0;
-    const top = y0 - 3 + k + (i >= 3 ? 1 : 0);
-    f.px(x, y0).px(x + (i % 2 ? 0 : -1), y0 - 1).px(x + wig + (i % 2 ? 1 : -1), top);
-    f.part('joint', { flat: true, rim: false });
-    f.px(x + (i % 2 ? 0 : -1), y0 - 1);
+  f.px(1, y + 3).px(1, y + 6);
+  // six legs clawing at the sky over the thorax
+  const legs: [number, number, number, number][] = [
+    [4, y + 3, 3, y + 1], [6, y + 3, 6, y + 1], [8, y + 3, 9, y + 1],
+    [4, y + 6, 3, y + 8], [6, y + 6, 6, y + 8], [8, y + 6, 9, y + 8],
+  ];
+  legs.forEach(([x0, y0, x1, y1], i) => {
+    const wig = flail ? ((i + st) % 2 ? 1 : -1) : tw && i === 1 ? 1 : 0;
     f.part('leg', { flat: true, rim: false });
+    f.line(x0, y0, x1 + wig, y1);
+    f.part('joint', { flat: true, rim: false });
+    f.px(x1 + wig, y1);
   });
 }
 
@@ -371,8 +379,8 @@ function kasa(f: Fig, p: Pose) {
   const tilt = p.mode === 'idle' ? [0, 0, 1, 1][p.tick % 4] : 0;
   const open = p.act === 'open';
   const hug = p.act === 'hug';
-  const y0 = 28 - air;
-  const top = 6 - air + squash - stretch;
+  const y0 = 32 - air;
+  const top = 12 - air + squash - stretch;
   // tip + ferrule
   f.part('tip', { flat: true, rim: false });
   f.px(8, y0).px(8, y0 - 1);
@@ -407,25 +415,34 @@ function kasa(f: Fig, p: Pose) {
   f.vl(8, top - 2, top);
   f.part('handle', { shade: 'rb', light: 't' });
   const hx = hug ? -1 : tilt;
-  f.rows(3 + hx, top - 6 + (p.lookUp ? -1 : 0), ['..####.', '.##..##', '.#....#', '.......', '.......']);
-  f.vl(9 + hx, top - 5, top - 3);
-  f.px(4 + hx, top - 3 + (p.lookUp ? -1 : 0)).px(4 + hx, top - 2 + (p.lookUp ? -1 : 0));
-  // name sticker on the handle's straight part, with the red "?"
+  const lu = p.lookUp ? -1 : 0;
+  // 2px-thick J hook: straight grip up from the shaft, curling over to the
+  // left and hanging down like a tilted head
+  f.rows(3 + hx, top - 9 + lu, [
+    '..#####.',
+    '.##...##',
+    '##.....#',
+    '##.....#',
+    '##......',
+    '.#......',
+  ]);
+  f.rect(8 + hx, top - 6, 2, 5);
+  // name sticker on the grip, with the red "?"
   f.part('sticker', { shade: 'b', light: '' });
-  f.rect(7 + hx, top - 4, 3, 3);
+  f.rect(7 + hx, top - 5, 4, 4);
   f.part('q', { flat: true, rim: false });
-  f.px(8 + hx, top - 4).px(9 + hx, top - 3).px(8 + hx, top - 2);
+  f.px(8 + hx, top - 5).px(9 + hx, top - 5).px(9 + hx, top - 4).px(8 + hx, top - 3).px(8 + hx, top - 2);
   if (p.view === 'up') {
     // from behind: sticker hidden
     f.part('handle', { shade: 'rb', light: 't' });
-    f.rect(7 + hx, top - 4, 3, 3);
+    f.rect(7 + hx, top - 5, 4, 4);
   }
 }
 
 registerChar('enemy_wasuregasa', () =>
   buildSprite({
     id: 'enemy_wasuregasa',
-    h: 30,
+    h: 34,
     mats: KASA,
     draw: kasa,
     walkFrameMs: 130,

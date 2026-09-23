@@ -4,7 +4,8 @@
 import type { Gfx } from '../../engine/gfx';
 import { drawText } from '../../engine/font';
 import { portrait } from '../../art/chars';
-import { hanamaruFrame, roundSeal } from '../art/stamps';
+import { hanamaruFrame, miniText, roundSeal } from '../art/stamps';
+import { makeCanvas } from '../../engine/pixel';
 import {
   arrowIcon, attrIcon, balloonIcon, bellIcon, bowIcon, buffIcon, checkStamp, cmdIcon, inkPot, kireIcon, scrollArrow, statusIcon,
 } from '../art/icons';
@@ -302,4 +303,107 @@ export function drawInfoCard(g: Gfx, d: CardData, slide: number): void {
   icons(d.resist, 94);
   drawText(g.ctx, `ツッコミ ${d.seen}/${d.total}`, x + 10, 110 + 2, { color: C.ink });
   if (!d.hidden) drawBar(g, x + 20, y + 80, 120, 4, d.hpRate, C.shu, C.grid, 0);
+}
+
+// ---- empty right-hand slot (before Kanenari-kun joins) -------------------------
+
+let emptySlotC: HTMLCanvasElement | null = null;
+
+/**
+ * A page torn out of Minato's still-blank free-research notebook, with the
+ * theme line left empty, a pencil "？" doodle and the pencil lying on it.
+ * 128×54, drawn once.
+ */
+export function emptySlotCanvas(): HTMLCanvasElement {
+  if (emptySlotC) return emptySlotC;
+  const W = 128;
+  const H = 54;
+  const [c, ctx] = makeCanvas(W, H);
+  const r = (x: number, y: number, w: number, h: number, col: string) => {
+    ctx.fillStyle = col;
+    ctx.fillRect(x, y, w, h);
+  };
+  const paper = '#F3E7C8';
+  const rule = '#E0CFA6';
+  const pencil = '#9A8E86';
+  const pencilD = '#7C7069';
+  // torn top edge: jagged fibres
+  const topAt = (x: number) => 3 + Math.round(1.4 + Math.sin(x * 0.37) * 0.9 + Math.sin(x * 1.91 + 1) * 0.7 + (((x * 7919) % 13) / 13 - 0.5) * 1.4);
+  for (let x = 0; x < W - 3; x++) {
+    const ty = topAt(x);
+    r(x + 3, ty + 3, 1, H - ty - 3, '#5B4A7A'); // shadow (+3,+3) is drawn as its own darker sheet
+  }
+  ctx.globalAlpha = 1;
+  // re-tint the shadow to α50 by overdrawing the gap with transparency later
+  const shadow = ctx.getImageData(0, 0, W, H);
+  for (let i = 3; i < shadow.data.length; i += 4) if (shadow.data[i]) shadow.data[i] = 110;
+  ctx.putImageData(shadow, 0, 0);
+  for (let x = 0; x < W - 3; x++) {
+    const ty = topAt(x);
+    r(x, ty, 1, H - 3 - ty, paper);
+    r(x, ty, 1, 1, '#FFF8E6');
+    if (x % 5 === 2) r(x, ty + 1, 1, 1, '#E6D5AE');
+  }
+  // ruled lines + red margin
+  for (let y = 14; y < H - 4; y += 9) r(1, y, W - 5, 1, rule);
+  r(12, 5, 1, H - 9, '#EBA6B2');
+  // bottom/right edge
+  r(0, H - 4, W - 3, 1, '#DCC99C');
+  r(W - 4, 6, 1, H - 10, '#DCC99C');
+  // title "じゆうけんきゅう" in pencil
+  const title = miniText('じゆうけんきゅう', 0.62, pencilD);
+  ctx.drawImage(title, 17, 6);
+  // "テーマ：" + an empty line
+  const theme = miniText('テーマ', 0.62, pencil);
+  ctx.drawImage(theme, 17, 17 + 1);
+  r(17 + theme.width + 3, 26, 84 - (17 + theme.width + 3), 1, pencil);
+  // a scribbled-out first idea
+  for (let i = 0; i < 18; i++) r(20 + i, 36 + Math.round(Math.sin(i * 1.7) * 1.5), 1, 1, pencil);
+  for (let i = 0; i < 16; i++) r(22 + i, 38 + Math.round(Math.cos(i * 1.9) * 1.5), 1, 1, pencilD);
+  // pencil "？" doodle in a wobbly circle (right side)
+  const qx = 98;
+  const qy = 25;
+  for (let a = 0; a < 6.2; a += 0.08) {
+    const rad = 10 + Math.sin(a * 3) * 0.6;
+    r(Math.round(qx + Math.cos(a) * rad), Math.round(qy + Math.sin(a) * rad * 0.9), 1, 1, pencil);
+  }
+  const q = miniText('？', 0.9, pencilD);
+  ctx.drawImage(q, Math.round(qx - q.width / 2), Math.round(qy - q.height / 2));
+  // the pencil lying diagonally across the bottom right
+  const px0 = 64;
+  const py0 = 47;
+  const len = 46;
+  for (let i = 0; i < len; i++) {
+    const x = px0 + i;
+    const y = py0 - Math.round(i * 0.22);
+    let top = '#F4CF52';
+    let mid = '#E2B23A';
+    let bot = '#B98A2A';
+    if (i < 3) {
+      top = '#4A4458';
+      mid = '#4A4458';
+      bot = '#3A3448';
+    } else if (i < 9) {
+      top = '#EBC28A';
+      mid = '#D09A5A';
+      bot = '#A87440';
+    } else if (i >= len - 8 && i < len - 5) {
+      top = '#DCDCE4';
+      mid = '#B4B4C0';
+      bot = '#8A8A9A';
+    } else if (i >= len - 5) {
+      top = '#F29AAE';
+      mid = '#E0788E';
+      bot = '#B85A70';
+    }
+    const th = i < 3 ? 1 : i < 6 ? 2 : 3;
+    const oy = i < 6 ? (3 - th) >> 1 : 0;
+    if (th >= 1) r(x, y + oy, 1, 1, top);
+    if (th >= 2) r(x, y + oy + 1, 1, 1, mid);
+    if (th >= 3) r(x, y + 2, 1, 1, bot);
+    // pencil shadow on the paper
+    if (i > 2) r(x + 1, y + 3, 1, 1, '#D8C498');
+  }
+  emptySlotC = c;
+  return c;
 }

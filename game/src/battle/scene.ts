@@ -18,6 +18,7 @@ import { makeBackground, type Background } from './bg';
 import { EnemyUnit, PartyUnit, type BossPart } from './model';
 import { DamageNumber, type NumOpts } from './fx/numbers';
 import { MessageBand } from './ui/message';
+import { emptySlotCanvas } from './ui/panels';
 import {
   drawChimeSticky, drawCommand, drawInfoCard, drawKire, drawList, drawPanel, PANEL_POS, type CardData, type CmdView, type ListRow,
 } from './ui/panels';
@@ -684,18 +685,9 @@ export class BattleScene implements Scene {
   }
 
   private drawEmptySlot(g: Gfx, a: number): void {
-    // right-hand slot before Kanenari-kun joins: a torn-out page corner
-    g.alpha(a * 0.9, () => {
-      const x = 250;
-      const y = 158;
-      g.rect(x + 2, y + 2, 124, 48, C.shadow, 0.35);
-      g.rect(x, y, 124, 48, '#EFE3C4');
-      for (let yy = y + 7; yy < y + 48; yy += 8) g.rect(x + 1, yy, 122, 1, '#E3D3AE');
-      for (let i = 0; i < 124; i += 3) g.rect(x + i, y, 2, (i / 3) % 2 ? 2 : 1, '#DCCB9F');
-      g.rect(x + 12, y + 1, 1, 46, '#E8A0AE');
-      g.text('じゆうけんきゅう', x + 22, y + 10, { color: '#C8B48C' });
-      g.text('（まだ まっしろ）', x + 22, y + 28, { color: '#C8B48C' });
-    });
+    // right-hand slot before Kanenari-kun joins: a torn-out page of the blank
+    // free-research notebook, slightly tilted by a pixel of sag
+    g.alpha(a * 0.92, () => g.img(emptySlotCanvas(), 248, 156));
   }
 }
 

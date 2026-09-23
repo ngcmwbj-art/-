@@ -16,6 +16,7 @@
 
 export * from './registry';
 export { flipBoard, flipBoardPanel, flipIcon } from './flip';
+export { FLIP_ANCHOR } from './people/kanenari';
 export { emoteFrames, emoteLoopFrames, EMOTE_KINDS, EMOTE_FRAME_MS, type EmoteKind } from './emotes';
 import './content';
 import './gallery_reg';

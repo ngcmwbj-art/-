@@ -498,7 +498,42 @@ function simpleEyes(f: Fig, mood: string, xl: number, xr: number, y: number, h =
   }
 }
 
-// 母: ponytail, mustard apron straps
+/** Adult face on the shared layout (eyes y14–15, mouth y19–20). */
+function adultFace(f: Fig, skin: string, wide = 0) {
+  f.part(skin, { shade: 'r', light: '' });
+  f.rect(13, 21, 6, 5);
+  f.part(skin, { flat: true });
+  f.t(-1).hl(13, 18, 21).hl(14, 17, 22).t(null);
+  // ears
+  f.part(skin, { shade: 'rb', light: '' });
+  f.rect(7 - wide, 13, 2, 4).rect(23 + wide, 13, 2, 4);
+  // face
+  f.part(skin, { shade: 'rb', light: '' });
+  const spans: [number, number][] = [[12, 19], [10, 21], [9, 22], [9, 22], [9, 22], [9, 22], [9, 22], [9, 22], [9, 22], [9, 22], [9, 22], [10, 21], [11, 20], [12, 19], [13, 18]];
+  spans.forEach(([a, b], j) => f.hl(a - wide, b + wide, 8 + j));
+  f.part(skin, { flat: true });
+  f.t(-1).px(22 + wide, 18).px(21 + wide, 19).px(20 + wide, 20).px(19 + wide, 21).t(1).px(10 - wide, 11).px(10 - wide, 12).t(null);
+}
+
+function adultEyes(f: Fig, mood: string, narrow = false) {
+  f.part('eye', { flat: true, rim: false });
+  if (mood === 'happy') {
+    f.px(11, 15).px(12, 14).px(13, 15).px(18, 15).px(19, 14).px(20, 15);
+  } else if (mood === 'surprised') {
+    f.part('white', { flat: true, rim: false });
+    f.rect(11, 13, 3, 3).rect(18, 13, 3, 3);
+    f.part('eye', { flat: true, rim: false });
+    f.px(12, 14).px(19, 14);
+  } else if (narrow) {
+    f.hl(11, 13, 15).hl(18, 20, 15);
+  } else {
+    f.rect(11, 14, 2, 2).rect(19, 14, 2, 2);
+    f.part('white', { flat: true, rim: false });
+    f.px(11, 14).px(19, 14);
+  }
+}
+
+// 母: hair pulled back into one ponytail (red band), ivory blouse, mustard apron
 npcPortrait('npc_mother', {
   sky: { top: '#FFE7C8', bot: '#F7C27A' },
   mats: {
@@ -510,55 +545,67 @@ npcPortrait('npc_mother', {
     eye: flat('#2A2440'),
     white: flat('#FFF6D8'),
     brow: flat('#4A322C'),
-    mouth: flat('#2A2440'),
     lip: flat('#C0705E'),
+    lipD: flat('#8A3A3A'),
     blush: flat('#F4A08C'),
   },
   draw: (f, mood) => {
-    f.part('blouse', { shade: 'rb', light: 't' });
-    f.poly([[2, 32], [5, 26], [11, 24], [21, 24], [27, 26], [30, 32]]);
-    f.part('apron', { shade: 'rb', light: 't' });
-    f.poly([[10, 32], [11, 27], [21, 27], [22, 32]]);
-    f.rect(9, 24, 2, 4).rect(21, 24, 2, 4);
-    f.part('skin', { shade: 'r', light: '' });
-    f.rect(13, 21, 6, 4);
-    // ponytail behind (right)
+    // ponytail behind the head (her left, screen right)
     f.part('hair', { shade: 'rb', light: 't' });
-    f.ell(25, 16, 3, 5);
+    f.rows(22, 9, ['..##.', '.####', '#####', '#####', '.####', '.###.', '..##.', '..#..']);
     f.part('band', { flat: true, rim: false });
-    f.px(24, 11).px(25, 11);
-    f.part('skin', { shade: 'rb', light: 't' });
-    f.ell(16, 15, 8.5, 8.8);
-    f.poly([[9, 19], [23, 19], [19, 24], [13, 24]]);
-    f.part('hair', { shade: 'rb', light: 't' });
-    f.ell(16, 9, 10, 6.5);
-    f.poly([[6, 9], [9, 9], [8, 17], [6, 15]]);
-    f.poly([[23, 9], [26, 9], [26, 15], [24, 17]]);
-    // side-swept fringe with a part
-    f.poly([[7, 10], [15, 9], [9, 13]]);
-    f.part('hair', { flat: true });
-    f.t(1).px(11, 5).px(10, 6).px(9, 7).px(12, 5).t(2).px(11, 6).t(null);
-    simpleEyes(f, mood, 11, 19, 15);
+    f.px(23, 10).px(24, 10);
+    // shoulders: blouse + apron bib and straps
+    f.part('blouse', { shade: 'rb', light: 't' });
+    f.poly([[1, 32], [3, 27.5], [10, 25], [22, 25], [29, 27.5], [31, 32]]);
+    f.part('apron', { shade: 'rb', light: 't' });
+    f.poly([[9, 32], [10, 28], [22, 28], [23, 32]]);
+    f.rect(8, 25, 2, 4).rect(22, 25, 2, 4);
+    adultFace(f, 'skin');
+    // hair: smooth cap, side part on the viewer's left, pulled back behind the ears
+    f.part('hair', { shade: '', light: '' });
+    f.rows(7, 3, [
+      '.....HHhhhhd......',
+      '...HHKKHhhhhhd....',
+      '..HKKHhhhhhhhhd...',
+      '.HHHhhhhhhhhhhhd..',
+      '.HHhhhhdhhhhhhhdd.',
+      'HHhhhd...dhhhhhhd.',
+      'Hhhd.......dhhhhd.',
+      'hhd..........dhhd.',
+      'hd............dhd.',
+      'hd.............hd.',
+      'd..............d..',
+    ]);
+    adultEyes(f, mood);
     f.part('brow', { flat: true, rim: false });
-    f.hl(10, 12, 12).hl(19, 21, 12);
+    if (mood !== 'surprised') f.hl(10, 13, 12).hl(18, 21, 12);
+    else f.hl(10, 13, 11).hl(18, 21, 11);
     f.part('lip', { flat: true, rim: false });
-    if (mood === 'surprised') f.rect(15, 20, 2, 2);
-    else if (mood === 'happy') f.hl(14, 18, 20).hl(15, 17, 21);
-    else f.hl(14, 17, 20);
+    if (mood === 'surprised') {
+      f.part('lipD', { flat: true, rim: false });
+      f.rect(15, 19, 2, 2);
+    } else if (mood === 'happy') {
+      f.part('lipD', { flat: true, rim: false });
+      f.hl(14, 17, 19);
+      f.part('lip', { flat: true, rim: false });
+      f.hl(15, 16, 20);
+    } else f.hl(14, 17, 19);
     f.part('blush', { flat: true, rim: false });
-    f.hl(9, 10, 18).hl(21, 22, 18);
+    f.hl(10, 11, 17).hl(20, 21, 17);
   },
 });
 
-// おばあ: white bun, kappougi, glasses on a gold chain
+// おばあ: white bun, kind narrow eyes, kappougi, glasses on a gold chain
 npcPortrait('npc_obaa', {
   sky: { top: '#FFE7C8', bot: '#E8C890' },
   mats: {
     skin: mat('#F2C8A8', { shade: '#D8A688', light: '#FFE0C8', dark: '#A87A62', rim: '#FFBC90' }),
-    hair: mat('#E8E4D8', { shade: '#B8B0A6', light: '#FFF6D8', dark: '#8E887E', rim: '#FFD8B0' }),
+    hair: mat('#E8E4D8', { shade: '#B8B0A6', light: '#FFF6D8', dark: '#8E887E', spec: '#FFF6D8', rim: '#FFD8B0' }),
     smock: mat('#F4F1E8', { shade: '#CFC8BC', light: '#FFF6D8', dark: '#9E978C', rim: '#FFDCB4' }),
     chain: flat('#D9A441'),
     glass: flat('#9AA0A8'),
+    lens: flat('#E8F4F8'),
     pen: flat('#E23B2E'),
     eye: flat('#2A2440'),
     white: flat('#FFF6D8'),
@@ -568,43 +615,46 @@ npcPortrait('npc_obaa', {
   },
   draw: (f, mood) => {
     f.part('smock', { shade: 'rb', light: 't' });
-    f.poly([[2, 32], [5, 27], [11, 25], [21, 25], [27, 27], [30, 32]]);
+    f.poly([[1, 32], [3, 28], [10, 25.5], [22, 25.5], [29, 28], [31, 32]]);
     f.part('smock', { flat: true });
-    f.t(-1).px(15, 26).px(16, 27).px(15, 28).t(null);
+    f.t(-1).px(15, 26).px(16, 27).px(15, 28).px(16, 29).t(null);
     f.part('pen', { flat: true, rim: false });
-    f.vl(22, 27, 29);
+    f.vl(23, 27, 29);
     f.part('chain', { flat: true, rim: false });
-    f.px(11, 26).px(12, 27).px(13, 28).px(20, 26).px(19, 27).px(18, 28);
+    f.px(11, 26).px(12, 27).px(12, 28).px(20, 26).px(19, 27).px(19, 28);
     f.part('glass', { flat: true, rim: false });
-    f.rect(13, 29, 3, 2).rect(17, 29, 3, 2);
-    f.part('skin', { shade: 'r', light: '' });
-    f.rect(13, 22, 6, 4);
-    f.part('skin', { shade: 'rb', light: 't' });
-    f.ell(16, 16, 8.5, 8.5);
-    f.poly([[9, 20], [23, 20], [19, 25], [13, 25]]);
+    f.rows(11, 29, ['###..###', '#l#..#l#', '###..###'], { l: 'lens' });
+    f.hl(14, 16, 30);
+    adultFace(f, 'skin');
+    // soft white hair with a bun on top
     f.part('hair', { shade: 'rb', light: 't' });
-    f.ell(16, 3, 4, 3);
-    f.ell(16, 10, 9.5, 5.5);
-    f.poly([[6, 10], [9, 10], [8, 17], [6, 16]]);
-    f.poly([[23, 10], [26, 10], [26, 16], [24, 17]]);
+    f.ell(16, 3.5, 4, 3);
+    f.part('hair', { shade: '', light: '' });
+    f.rows(7, 5, [
+      '....HHHhhhhh......',
+      '..HHKHhhhhhhhd....',
+      '.HKHhhhhhhhhhhd...',
+      '.HHhhhdhhhhdhhhd..',
+      'HHhhd........dhhd.',
+      'Hhd............dd.',
+      'hd..............d.',
+      'd...............d.',
+    ]);
     f.part('hair', { flat: true });
-    f.t(-1).hl(13, 18, 5).px(16, 2).t(null);
-    // kind narrow eyes + smile lines
-    f.part('eye', { flat: true, rim: false });
-    if (mood === 'surprised') f.rect(11, 15, 2, 2).rect(19, 15, 2, 2);
-    else if (mood === 'happy') f.px(10, 16).px(11, 15).px(12, 15).px(13, 16).px(18, 16).px(19, 15).px(20, 15).px(21, 16);
-    else f.hl(11, 13, 16).hl(19, 21, 16);
+    f.t(-1).px(15, 5).px(16, 4).t(null);
+    // kind narrow eyes and laugh lines
+    adultEyes(f, mood, true);
     f.part('line', { flat: true, rim: false });
-    f.px(9, 17).px(22, 17).px(13, 19).px(19, 19);
+    f.px(10, 16).px(21, 16).px(13, 18).px(18, 18).px(12, 11).px(19, 11);
     f.part('lip', { flat: true, rim: false });
-    if (mood === 'surprised') f.rect(15, 21, 2, 1);
-    else f.hl(14, 17, 21).px(13, 20).px(18, 20);
+    if (mood === 'surprised') f.rect(15, 19, 2, 1);
+    else f.hl(14, 17, 20).px(13, 19).px(18, 19);
     f.part('blush', { flat: true, rim: false });
-    f.hl(9, 10, 19).hl(21, 22, 19);
+    f.hl(10, 11, 17).hl(20, 21, 17);
   },
 });
 
-// 丸山: tall cook hat, thick brows, towel
+// 丸山: tall toque, thick brows, tanned wide face, towel round the neck
 npcPortrait('npc_maruyama', {
   sky: { top: '#FFD8B0', bot: '#E8603C' },
   mats: {
@@ -619,37 +669,47 @@ npcPortrait('npc_maruyama', {
     brow: flat('#2B1E1A'),
     nose: flat('#C4876A'),
     lip: flat('#8A4A3A'),
+    stubble: flat('#C49070'),
   },
   draw: (f, mood) => {
     f.part('coat', { shade: 'rb', light: 't' });
-    f.poly([[0, 32], [3, 26], [10, 24], [22, 24], [29, 26], [32, 32]]);
+    f.poly([[0, 32], [1, 27], [8, 24.5], [24, 24.5], [31, 27], [32, 32]]);
     f.part('apron', { shade: 'rb', light: 't' });
-    f.poly([[9, 32], [10, 28], [22, 28], [23, 32]]);
-    f.part('skin', { shade: 'r', light: '' });
-    f.rect(12, 21, 8, 4);
+    f.poly([[8, 32], [9, 28], [23, 28], [24, 32]]);
+    adultFace(f, 'skin', 1);
     f.part('towel', { shade: 'b', light: '' });
-    f.poly([[9, 24], [23, 24], [21, 27], [11, 27]]);
-    f.part('skin', { shade: 'rb', light: 't' });
-    f.ell(16, 16.5, 9.5, 8);
-    f.poly([[8, 19], [24, 19], [20, 24], [12, 24]]);
+    f.poly([[8, 24], [24, 24], [22, 27.5], [10, 27.5]]);
+    f.part('towel', { flat: true });
+    f.t(-1).px(12, 26).px(20, 26).t(null);
+    // short sideburns under the toque
     f.part('hair', { shade: 'r', light: '' });
-    f.rect(6, 10, 3, 5).rect(23, 10, 3, 5);
-    // tall toque
+    f.rect(8, 9, 2, 5).rect(22, 9, 2, 5);
+    // tall toque: pleated band + puffed crown
     f.part('hat', { shade: 'rb', light: 't' });
-    f.rect(8, 6, 16, 5);
-    f.ell(16, 4, 9, 4.5);
+    f.rect(8, 6, 16, 4);
+    f.ell(16, 3.5, 10, 4);
     f.part('hat', { flat: true });
-    f.t(-1).vl(12, 3, 9).vl(16, 2, 9).vl(20, 3, 9).t(-2).hl(8, 23, 10).t(null);
-    // thick brows (2px)
+    f.t(-1).vl(11, 6, 9).vl(14, 6, 9).vl(17, 6, 9).vl(20, 6, 9).px(12, 2).px(19, 2).px(16, 4).t(-2).hl(8, 23, 9).t(null);
+    // thick 2px brows
     f.part('brow', { flat: true, rim: false });
     const lift = mood === 'surprised' ? -1 : 0;
-    f.rect(9, 12 + lift, 5, 2).rect(18, 12 + lift, 5, 2);
-    simpleEyes(f, mood, 11, 19, 15, 1);
+    f.rect(9, 11 + lift, 5, 2).rect(18, 11 + lift, 5, 2);
+    // small serious eyes
+    f.part('eye', { flat: true, rim: false });
+    if (mood === 'happy') f.px(10, 15).px(11, 14).px(12, 15).px(19, 15).px(20, 14).px(21, 15);
+    else if (mood === 'surprised') {
+      f.part('white', { flat: true, rim: false });
+      f.rect(10, 13, 3, 3).rect(19, 13, 3, 3);
+      f.part('eye', { flat: true, rim: false });
+      f.px(11, 14).px(20, 14);
+    } else f.rect(11, 14, 2, 1).rect(19, 14, 2, 1);
     f.part('nose', { flat: true, rim: false });
-    f.px(15, 18).px(16, 18);
+    f.px(15, 17).px(16, 17);
+    f.part('stubble', { flat: true, rim: false });
+    for (const x of [11, 13, 18, 20]) f.px(x, 20);
     f.part('lip', { flat: true, rim: false });
-    if (mood === 'happy') f.hl(12, 19, 20).hl(13, 18, 21);
-    else if (mood === 'surprised') f.rect(15, 20, 2, 2);
-    else f.hl(13, 18, 21);
+    if (mood === 'happy') f.hl(12, 19, 19).hl(13, 18, 20);
+    else if (mood === 'surprised') f.rect(15, 19, 2, 2);
+    else f.hl(13, 18, 19);
   },
 });

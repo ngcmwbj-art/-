@@ -15,7 +15,7 @@ import { FRAME } from './scene';
 import type { EnemyUnit, PartyCmd, PartyUnit } from './model';
 import { transitionIn, transitionOut } from './transition';
 import { inputCommands } from './menu';
-import { doAttack, doFlee, doGuard, doHanko, doItem, doNori, doPR } from './party';
+import { doAttack, doFlee, doGuard, doHanko, doItem, doNori, doPR, killSequence } from './party';
 import { decideEnemy, doEnemyAction } from './enemy';
 import { bossDecide, bossRoundEnd, bossRoundStart, checkBossPhase, initBoss } from './boss';
 import { restoreForRetry, victory, wipeOut } from './results';
@@ -134,6 +134,9 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
         if (!a.e.alive) continue;
         yield* doEnemyAction(s, a.e, a.skill);
       }
+      // anything knocked to 0 outside a strike (self-damage etc.) still gets its 思いだす
+      const fallen = s.enemies.filter((e) => e.hp <= 0 && !e.dead && !e.dying && !e.def.boss);
+      if (fallen.length) yield* killSequence(s, fallen);
       if (!result) result = yield* checkEnd(s);
     }
     if (result) break;
