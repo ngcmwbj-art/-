@@ -6,16 +6,23 @@
 //     top-left edge lighter) so the west sun always lights the left side,
 //     even for mirrored (right-facing) frames,
 //   - selective inner lines where a part overlaps another of the same color,
-//   - a 1px sunset rim on the left silhouette edge,
+//   - a warm tint on the lit left fill pixel, and the 1px sunset rim itself
+//     in the outline column on the screen-left edge (every 2nd–3rd row,
+//     30_level_art 7.5 / 9.1),
 //   - a colored outer outline (dark, tinted toward the adjacent material).
+// Flat details painted on a part (eyes, prints, stripes) do not count as
+// that part's edge, so they are not ringed with shade pixels.
 // Explicit tones set while drawing override the automatic shading.
 
 import { PixelCanvas, rgba32 } from '../../engine/pixel';
-import { C, ramp, rimOf, outlineOf, type Ramp, type RampOpts } from './palette';
+import { C, ramp, rimOf, outerRimOf, outlineOf, type Ramp, type RampOpts } from './palette';
 
 export interface Mat {
   ramp: Ramp;
+  /** Inner warm tint of the lit left fill pixel. */
   rim: string;
+  /** Sunset rim that replaces the left outline pixel ('' = none). */
+  orim: string;
   ol: string;
   /** No automatic shading (explicit tones still apply). */
   flat: boolean;
@@ -26,6 +33,8 @@ export interface Mat {
 
 export interface MatOpts extends RampOpts {
   rim?: string;
+  /** Outer rim color (in the outline column); '' disables it. */
+  orim?: string;
   ol?: string;
   flat?: boolean;
   norim?: boolean;
@@ -38,6 +47,7 @@ export function mat(base: string | Ramp, o: MatOpts = {}): Mat {
   return {
     ramp: r,
     rim: o.rim ?? rimOf(r[2], r[3]),
+    orim: o.orim ?? (o.norim ? '' : outerRimOf(r[2])),
     ol: o.ol ?? outlineOf(r[0]),
     flat: !!o.flat,
     norim: !!o.norim,
@@ -46,8 +56,9 @@ export function mat(base: string | Ramp, o: MatOpts = {}): Mat {
 }
 
 /** A single flat color material (details: eyes, prints, buttons). */
-export function flat(c: string, o: { rim?: string; ol?: string; norim?: boolean } = {}): Mat {
-  return { ramp: [c, c, c, c, c], rim: o.rim ?? c, ol: o.ol ?? C.ol, flat: true, norim: o.norim ?? true, soft: false };
+export function flat(c: string, o: { rim?: string; orim?: string; ol?: string; norim?: boolean } = {}): Mat {
+  const norim = o.norim ?? true;
+  return { ramp: [c, c, c, c, c], rim: o.rim ?? c, orim: o.orim ?? (norim ? '' : outerRimOf(c)), ol: o.ol ?? C.ol, flat: true, norim, soft: false };
 }
 
 export type Mats = Record<string, Mat>;
@@ -67,13 +78,20 @@ function lawful(name: string, m: Mat): Mat {
     ...m,
     ramp: m.ramp.map(lawColor) as Ramp,
     rim: lawColor(m.rim),
+    orim: m.orim ? lawColor(m.orim) : '',
     ol: lawColor(m.ol),
   };
 }
 
-/** Pixels of the left-edge rim are broken every third row (7.5: not continuous). */
+/** Pixels of the inner left-edge tint are broken every third row (7.5: not continuous). */
 function rimOn(y: number, top: number): boolean {
   return (y - top) % 3 !== 2;
+}
+
+/** Outer rim rows: every 2nd–3rd row of a part (rows 0, 2, 5, 7, 10 ...). */
+function outerRimOn(y: number, top: number): boolean {
+  const k = (((y - top) % 5) + 5) % 5;
+  return k === 0 || k === 2;
 }
 
 export interface PartOpts {
@@ -440,10 +458,19 @@ export class Fig {
         if (tone === AUTO) {
           tone = 0;
           if (!part.flat && !m.flat) {
-            const R = pidAt(x + 1, y) !== p;
-            const L = pidAt(x - 1, y) !== p;
-            const T = pidAt(x, y - 1) !== p;
-            const B = pidAt(x, y + 1) !== p;
+            // an edge is where this part ends — not where a flat detail
+            // (eye, mouth, print, stripe) is painted on top of it; those
+            // would otherwise ring every feature with shade pixels
+            const edge = (xx: number, yy: number) => {
+              const q = pidAt(xx, yy);
+              if (q === p) return false;
+              if (q && this.parts[q].z > part.z && (this.parts[q].flat || this.matList[this.mid[yy * W + xx]].flat)) return false;
+              return true;
+            };
+            const R = edge(x + 1, y);
+            const L = edge(x - 1, y);
+            const T = edge(x, y - 1);
+            const B = edge(x, y + 1);
             const sh = part.shade;
             const li = part.light;
             if ((R && sh.includes('r')) || (B && sh.includes('b')) || (L && sh.includes('l')) || (T && sh.includes('t'))) tone = -1;
@@ -495,11 +522,35 @@ export class Fig {
         return y * W + x;
       };
       const plain = rgba32(C.ol);
+      // outer sunset rim: the outline pixel on the lit (screen-left) side of
+      // the silhouette becomes the rim color every 2–3 rows; never more
+      // than two rim rows in a row along one edge
+      const rimAt = new Uint8Array(W * H);
+      const outerRim = (x: number, y: number): number => {
+        if (mode !== 'color' || x + 1 >= W) return 0;
+        if (pidAt(x - 1, y) !== 0) return 0;
+        const j = y * W + x + 1;
+        const q = pid[j];
+        if (!q || src[j] >>> 24 === 0) return 0;
+        const part = this.parts[q];
+        const m = this.matList[this.mid[j]];
+        if (!part.rim || !part.ol || m.norim || !m.orim) return 0;
+        if (!outerRimOn(y, partTop[q])) return 0;
+        const run = (yy: number) => yy >= 0 && (rimAt[yy * W + x] || (x > 0 && rimAt[yy * W + x - 1]) || (x + 1 < W && rimAt[yy * W + x + 1]));
+        if (run(y - 1) && run(y - 2)) return 0;
+        rimAt[y * W + x] = 1;
+        return rgba32(m.orim);
+      };
       for (let y = 0; y < H; y++)
         for (let x = 0; x < W; x++) {
           const i = y * W + x;
           if (src[i] >>> 24 !== 0 && pid[i]) continue;
           if (src[i] >>> 24 !== 0) continue;
+          const rc = outerRim(x, y);
+          if (rc) {
+            out.data[i] = rc;
+            continue;
+          }
           // bottom and right edges: #2A2440; top and left: the fill's darkest (colored)
           const up = olAt(x, y - 1);
           const lf = olAt(x - 1, y);

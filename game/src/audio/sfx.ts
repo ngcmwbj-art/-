@@ -7,8 +7,9 @@ import { cur, dbToGain, midiHz, noteMidi, voice, type VoiceHandle } from './engi
 import { chimeNote, INS } from './instruments';
 import { higurashiCall } from './ambience';
 import { currentId, currentPlayer, duck, duckAmbience, musicParams } from './music';
-import { layer, playSe, se, stopSe, sub, type SeCtx } from './recipe';
-import { loopTable, type LoopHandle, type SfxOpts } from './registry';
+import { seTrim, trimOr1 } from './mix';
+import { layer, playSe, se, seDefs, stopSe, sub, type SeCtx } from './recipe';
+import { loopTable, sfxTable, type LoopHandle, type SfxOpts } from './registry';
 import { Rng } from '../engine/rng';
 
 const STEP = [0.04, 0.12] as [number, number];
@@ -111,8 +112,14 @@ se('se_step_wood_bare', stepDef('足音：家の床・はだし（とっ）', ['
 se('se_step_tatami', stepDef('足音：畳（すっ）', ['noise env=5/40/0/25 dur=30 v=.025 flt=BP700q0.8']));
 se('se_step_tile', stepDef('足音：タイル（ぺたっ）', ['noise env=1/25/0/15 dur=15 v=.035 flt=BP2400q1.2', BSAN(1.5, 2000)]));
 se('se_step_stone', stepDef('足音：歩道・石畳（こつ）', ['noise env=0/20/0/10 dur=10 v=.03 flt=BP2600q1', 'tri f=210→170/25 env=0/30/0/15 dur=10 v=.03', BSAN(1, 1800)]));
-se('se_step_dirt', stepDef('足音：土（ざ）', ['noise env=3/40/0/20 dur=30 v=.03 flt=LP1100', 'sine f=110→80/30 env=1/30/0/10 dur=10 v=.015', BSAN(0.5)]));
+se('se_step_dirt', stepDef('足音：土（ざ）', ['noise env=3/40/0/20 dur=30 v=.03 flt=LP1100', 'noise env=2/25/0/12 dur=15 v=.006 flt=BP3200q1.2', 'sine f=110→80/30 env=1/30/0/10 dur=10 v=.015', BSAN(0.5)]));
 se('se_step_metal', stepDef('足音：側溝のふた（かん）', ['sine f=420 env=0/60/0/20 dur=10 v=.03', 'sine f=1130 env=0/40/0/15 dur=10 v=.015', 'noise env=0/15/0/8 dur=8 v=.02 flt=BP3000q1', BSAN()]));
+// 'se_step' (no surface): the battle's party steps forward on an unnamed
+// floor — the neutral "こつ" of the pavement, softer. Not listed in the
+// sound test (it is not a 40_audio ID), only a safety alias.
+sfxTable.set('se_step', (o) => {
+  playSe('se_step', seDefs.get('se_step_stone')!, { ...o, vol: (o?.vol ?? 1) * 0.9 });
+});
 se('se_step_kanenari', { label: '足音：カネナリくん（ぽふ＋コ）', group: STEPS, rand: STEP, max: 2, layers: ['sine f=110→80/50 env=3/60/0/30 dur=30 v=.04', 'noise env=2/30/0/15 dur=20 v=.02 flt=LP600', 'tri f=740 env=1/20/0/10 dur=8 v=.008 at=40'] });
 
 se('se_door', { label: '引き戸（ガラガラ）', group: STEPS, rev: 0.12, layers: ['noise env=10/300/.5/80 dur=320 v=.05 flt=BP900q0.8 am=22/.6', 'noise env=10/250/0/80 dur=250 v=.015 flt=BP3500q3 am=31/.8', 'sine f=120 env=1/60/0/40 dur=20 v=.05 at=340'] });
@@ -286,7 +293,9 @@ function train(c: SeCtx, k: number, pan0: number, pan1: number): void {
   }
   layer(c, `sine f=880→820/${2000 * k} env=${300 * k}/0/1/${600 * k} dur=${1400 * k} v=.01 pan=${pan0}→${pan1}`);
 }
-se('se_train_pass', { label: '明かりのない電車が通る', group: TOWN, rev: 0.3, fn: (c) => train(c, 1, 0.8, -0.8) });
+// the line runs north–south and the train crosses the screen top to bottom
+// (30_level_art 8.6): no left/right sweep — it comes and goes in level and tone
+se('se_train_pass', { label: '明かりのない電車が通る', group: TOWN, rev: 0.3, fn: (c) => train(c, 1, 0.25, 0.25) });
 se('se_train_far', { label: '遠くの電車（夜のほうから）', group: TOWN, rev: 0.7, lp: 300, fn: (c) => train({ ...c, vol: c.vol * 0.3 }, 2.5, 0.9, 0.5) });
 se('se_gacha', {
   label: 'ガチャを回す',
@@ -377,7 +386,8 @@ loopTable.set('se_hanko_charge', (opts?: SfxOpts): LoopHandle => {
   const c = g.ctx;
   const t = c.currentTime;
   const out = c.createGain();
-  out.gain.value = opts?.vol ?? 1;
+  const vol = (opts?.vol ?? 1) * trimOr1(seTrim('se_hanko_charge'));
+  out.gain.value = vol;
   out.connect(g.sfxBus);
   const saw = c.createOscillator();
   saw.type = 'sawtooth';
@@ -417,9 +427,10 @@ loopTable.set('se_hanko_charge', (opts?: SfxOpts): LoopHandle => {
   zam.connect(zg);
   zg.connect(out);
   const oscs = [saw, sine, z1, z2, zl];
+  out.gain.value = 0;
   for (const o of oscs) o.start(t);
   out.gain.setValueAtTime(0, t);
-  out.gain.linearRampToValueAtTime(opts?.vol ?? 1, t + 0.02);
+  out.gain.linearRampToValueAtTime(vol, t + 0.02);
   let stopped = false;
   return {
     set(param, value) {
@@ -522,6 +533,7 @@ function kanenariBell(c: SeCtx, decayK: number, volK: number): void {
       const o = ctx.createOscillator();
       o.frequency.value = f0 * ratio + beat;
       const e = ctx.createGain();
+      e.gain.value = 0;
       e.gain.setValueAtTime(0, t);
       e.gain.linearRampToValueAtTime(amp * 0.5, t + 0.004);
       // "減衰（音量が1/1000になるまで）": −60 dB at d seconds
@@ -919,7 +931,7 @@ se('se_uwabaki', { label: '上履きキック（キュッ）', group: ENEMY, lay
 loopTable.set('se_roulette', (opts?: SfxOpts): LoopHandle => {
   const g = cur();
   const out = g.ctx.createGain();
-  out.gain.value = opts?.vol ?? 1;
+  out.gain.value = (opts?.vol ?? 1) * trimOr1(seTrim('se_roulette'));
   out.connect(g.sfxBus);
   const seq = [2093, 2349, 2637, 2349];
   let n = 0;
@@ -958,29 +970,39 @@ loopTable.set('se_nori_sing', (opts?: SfxOpts): LoopHandle => {
 
 export { stopSe };
 
-// Fire-and-forget versions of the loops (sound test / safety): a 1.2 s demo.
+// One-shot se_hanko_charge: a ~100 ms grain of the charge tone. Callers that
+// poll it every few frames with pitch = 1 + 0.6 × amount (instead of holding an
+// sfxLoop) get a continuous, rising and falling hum; each grain crossfades
+// into the next so the polling rate never turns into a buzz. Near the top of
+// the swing (amount ≥ 0.82) the sweet "now!" pair rings on top (se_hanko_zone's
+// beating 1760 / 1767 Hz), so the zone reads by ear here too.
+let chargeLastT = -1;
 se('se_hanko_charge', {
   label: '長押しの溜め（sfxLoop：amount / zone）',
   group: HANKO,
+  max: 3,
   fn(c) {
-    const h = loopTable.get('se_hanko_charge')!({ vol: c.vol, pitch: c.pitch });
-    const steps = 24;
-    for (let i = 0; i <= steps; i++) {
-      const u = i / steps;
-      const a = u < 0.5 ? u * 2 : 2 - u * 2;
-      atTime(c.t + u * 1.2, () => {
-        h.set('amount', a);
-        h.set('zone', a > 0.82 ? 1 : 0);
-      });
+    const k = Math.max(1, Math.min(1.6, c.pitch));
+    const a = (k - 1) / 0.6;
+    // grains are ~83 ms apart at the battle's polling rate: overlap them a little
+    const gap = chargeLastT < 0 ? 1 : c.t - chargeLastT;
+    chargeLastT = c.t;
+    const len = Math.max(0.06, Math.min(0.14, gap + 0.03));
+    const atk = gap < 0.2 ? 0.02 : 0.004;
+    const common = { at: c.t, dest: c.dest, dur: len, attack: atk, decay: 0, sustain: 1, release: 0.03, linear: true };
+    voice({ ...common, wave: 'sawtooth', freq: 110 * k, vol: (0.04 + 0.06 * a) * c.vol, filter: { type: 'lowpass', freq: 400 + 2600 * a, q: 2 } });
+    voice({ ...common, wave: 'sine', freq: 880 * k, vol: 0.03 * a * c.vol });
+    if (a >= 0.82) {
+      for (const f of [1760, 1767]) voice({ ...common, wave: 'sine', freq: f, vol: 0.0175 * 0.5 * c.vol, am: { rate: 14, depth: 0.3 } });
     }
-    atTime(c.t + 1.25, () => h.stop(0.02));
   },
 });
 se('se_roulette', {
   label: '当たりルーレット（sfxLoop）',
   group: ENEMY,
+  // one-shot: 1.2 s of the same "ぴぴぴぴ" the loop plays (C7 D7 E7 D7 every 60 ms)
   fn(c) {
-    const h = loopTable.get('se_roulette')!({ vol: c.vol, pitch: c.pitch });
-    atTime(c.t + 1.2, () => h.stop(0.01));
+    const seq = [2093, 2349, 2637, 2349];
+    for (let i = 0; i < 20; i++) layer(c, `sq f=${seq[i % 4]} env=0/25/0/10 dur=10 v=.04`, { at: i * 60 });
   },
 });

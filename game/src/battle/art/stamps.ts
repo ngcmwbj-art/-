@@ -131,6 +131,39 @@ function cached(key: string, f: () => HTMLCanvasElement): HTMLCanvasElement {
 }
 
 /**
+ * Hand-drawn micro glyphs for the small みました seals (decals, the defeat
+ * seal): scaling the 16px font down that far turns the kana into mush.
+ */
+const MICRO: Record<string, string[]> = {
+  み: ['.###..', '...#..', '..#..#', '.#####', '#.#..#', '#.#..#', '.#...#'],
+  ま: ['..#...', '######', '..#...', '######', '..#...', '.###..', '#.#.##'],
+  し: ['#.....', '#.....', '#.....', '#.....', '#....#', '#...#.', '.###..'],
+  た: ['.#....', '####..', '.#....', '.#.###', '#.....', '#.#...', '#..###'],
+};
+const NANO: Record<string, string[]> = {
+  み: ['###.', '..#.', '.####', '#.#.#', '.#..#'],
+  ま: ['.#..', '####', '.#..', '####', '###.'],
+  し: ['#...', '#...', '#...', '#..#', '.##.'],
+  た: ['#...', '###.', '#.##', '#...', '#.##'],
+};
+
+/** Mask of `text` in micro glyphs if every char has one and it fits (w × h). */
+function microMask(text: string, maxW: number, maxH: number): Grid | null {
+  const chars = [...text];
+  for (const [font, gw, gh, gap] of [[MICRO, 6, 7, 1], [NANO, 5, 5, 0]] as [Record<string, string[]>, number, number, number][]) {
+    if (!chars.every((c) => font[c])) return null;
+    const W = chars.length * gw + (chars.length - 1) * gap;
+    if (W > maxW || gh > maxH) continue;
+    const g = grid(W, gh);
+    chars.forEach((c, i) =>
+      font[c].forEach((row, y) => [...row].forEach((ch, x) => ch === '#' && x < gw && (g.d[y * W + i * (gw + gap) + x] = 1))),
+    );
+    return g;
+  }
+  return null;
+}
+
+/**
  * Oval seal with text (みました / おかえりなさい): double ellipse frame and
  * text in vermilion. `worn` 0..1 for かすれ.
  */
@@ -140,10 +173,11 @@ export function ovalStamp(text: string, w: number, h: number, worn = 0, seed = 1
     const th = w >= 60 ? 3 : 2;
     ellipseRing(g, w / 2, h / 2, w / 2, h / 2, th);
     if (w >= 40) ellipseRing(g, w / 2, h / 2, w / 2 - th - 1.5, h / 2 - th - 1.5, 1);
-    // text scaled to fit inside
+    // text scaled to fit inside (tiny seals use the hand-drawn micro glyphs)
     const inner = w - th * 2 - (w >= 40 ? 10 : 6);
     const s = Math.min(1, inner / measure(text), (h - th * 2 - 4) / 16);
-    const tm = textMask(text, s, s < 0.7 ? 0.28 : 0.4);
+    const micro = s < 0.62 ? microMask(text, inner + 2, h - th * 2 - 2) : null;
+    const tm = micro ?? textMask(text, s, s < 0.7 ? 0.28 : 0.4);
     blit(g, tm, Math.round((w - tm.w) / 2), Math.round((h - tm.h) / 2), 1);
     if (worn) wear(g, worn, seed);
     inkTone(g, seed);

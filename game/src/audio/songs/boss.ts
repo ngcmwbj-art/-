@@ -4,7 +4,7 @@
 // Kanenari bell pulls back to C major.
 
 import { DRM, INS } from '../instruments';
-import { midiHz, voice } from '../engine';
+import { midiHz } from '../engine';
 import { arp, bass, drums, hits, melody, pads, type BarCtx, type PartDef, type SongDef, type SongPlayer } from '../sequencer';
 import { hat8, kireLayers } from './battle';
 import { bar, registerSong, score } from './common';
@@ -209,6 +209,7 @@ function finalPhase(sp: SongPlayer): void {
   for (const rt of sp.parts) sp.partGain(rt.id, 0, 1.5, t);
   setTimeout(() => (sp.halted = true), 1700);
   const out = c.createGain();
+  out.gain.value = 0;
   out.gain.setValueAtTime(0, t);
   out.gain.linearRampToValueAtTime(1, t + 1.5);
   const lp = c.createBiquadFilter();
@@ -262,7 +263,6 @@ function finalPhase(sp: SongPlayer): void {
     for (const v of voices) for (const o of v.osc) o.stop(end);
     lfo.stop(end);
   };
-  void voice;
 }
 
 /** The Kanenari bell pulls the pad back home: F(#11) → Cadd9, −6 dB (5.9). */

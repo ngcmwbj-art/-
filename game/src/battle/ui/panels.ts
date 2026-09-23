@@ -188,8 +188,15 @@ export function drawCommand(g: Gfx, v: CmdView, t: number, alpha: number): void 
       const x = xs[v.index] ?? 10;
       const bob = Math.round(Math.sin(t / 130) * 1) + (v.pressed ? 1 : 0);
       g.img(cursorStamp(v.pressed), x + 4, 144 + bob);
-      g.text(cur.name, 10, 176, { color: cur.dim ? C.gray : C.ink });
-      if (cur.sub) {
+      const col = cur.dim ? C.gray : C.ink;
+      if (g.measure(cur.name) > 78) {
+        // long names (おかえりなさい) wrap onto the second row
+        const ch = [...cur.name];
+        const cut = Math.ceil(ch.length / 2) + 1;
+        g.text(ch.slice(0, cut).join(''), 10, 176, { color: col });
+        g.text(ch.slice(cut).join(''), 18, 193, { color: col });
+      } else g.text(cur.name, 10, 176, { color: col });
+      if (cur.sub && g.measure(cur.name) <= 78) {
         if (cur.sub.startsWith('ink:')) {
           g.img(inkPot(), 10, 195);
           g.text(cur.sub.slice(4), 23, 193, { color: C.ink });

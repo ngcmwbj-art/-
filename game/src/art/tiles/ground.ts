@@ -10,6 +10,7 @@ import { PixelCanvas, mix, rgba32 } from '../../engine/pixel';
 import type { Ground } from '../../world/types';
 import { fbm, h01, ihash, valueNoise } from './noise';
 import { P } from './palette';
+import { paintDecals, type DecalContext } from './decals';
 
 export interface GroundSource {
   /** Map size in tiles. */
@@ -19,6 +20,8 @@ export interface GroundSource {
   /** Art theme of a tile ('park', 'mallfront', 'home', ...). */
   theme(tx: number, ty: number): string;
   seed: number;
+  /** Decal layers painted over the baked materials. */
+  decals?: DecalContext;
 }
 
 const c = (hex: string) => rgba32(hex);
@@ -70,6 +73,16 @@ const C = {
   floorWoodLt: c(mix(P.woodLt, P.goldPale, 0.25)),
   floorWoodDk: c(P.wood),
   kitchen: c(mix(P.concreteLt, P.paperGrid, 0.5)),
+  arcGrout: c(mix(P.skin4, P.wood, 0.55)),
+  terra: c(P.skin4),
+  terraLt: c(P.skin3),
+  terraDk: c(mix(P.skin4, P.wood, 0.3)),
+  cream: c(P.paperGrid),
+  creamLt: c(P.paper),
+  brick: c(P.wood),
+  brickLt: c(mix(P.wood, P.skin4, 0.45)),
+  gutterMd: c(mix(P.concrete, P.asphalt, 0.35)),
+  gutterDk: c(mix(P.concrete, P.asphalt, 0.6)),
   kitchenDk: c(mix(P.concrete, P.paperGrid, 0.4)),
 };
 
@@ -138,8 +151,8 @@ function cluster(x: number, y: number, cell: number, seed: number, p: number): n
 }
 
 const texAsphalt: Tex = (x, y, v) => {
-  const n = fbm(x / 22 + v * 3.1, y / 22, 31);
-  let col = n > 0.66 ? C.asphaltLt : n < 0.3 ? C.asphaltDk : C.asphalt;
+  const n = fbm(x / 30 + v * 3.1, y / 30, 31);
+  let col = n > 0.74 ? C.asphaltLt : n < 0.22 ? C.asphaltDk : C.asphalt;
   const a = cluster(x, y, 4, 101 + v, 0.12);
   if (a === 1 || a === 2) col = C.steel;
   else if (a === 3) col = C.asphaltDk;
@@ -158,31 +171,30 @@ const texLot: Tex = (x, y, v) => {
 };
 
 const texGutter: Tex = (x, y, v, th) => {
-  // Concrete U-channel lids, one per tile, with two lifting slots.
+  // Concrete U-channel lids flush with the road, one per tile: thin seams,
+  // two small lifting notches; some are steel gratings or mossy / chipped.
   const lx = ((x % 16) + 16) % 16;
   const ly = ((y % 16) + 16) % 16;
   const kind = v; // 0 lid, 1 lid+moss, 2 grating, 3 chipped lid
-  if (th === 'kawabe' && ly < 2) return C.concreteMd;
-  if (lx === 15) return C.concreteMd; // seam
+  if (ly === 0 || ly === 15) return th === 'kawabe' ? C.gutterMd : C.gutterMd;
+  if (lx === 15) return C.gutterDk; // seam
   if (lx === 0) return C.concreteLt;
-  if (ly === 1) return C.concreteLt;
-  if (ly === 14) return C.concreteMd;
-  if (ly === 15 || ly === 0) return C.steel;
   if (kind === 2) {
-    // steel grating
-    if (ly >= 3 && ly <= 12 && lx >= 2 && lx <= 13) {
-      if (ly === 3 || ly === 12 || lx === 2 || lx === 13) return C.asphalt;
+    if (ly >= 4 && ly <= 11 && lx >= 3 && lx <= 12) {
+      if (ly === 4 || lx === 3) return C.asphalt;
+      if (ly === 11 || lx === 12) return C.steel;
       return lx % 2 === 0 ? C.steel : C.charcoal;
     }
   } else {
-    // two lifting slots
-    if (ly >= 7 && ly <= 8 && ((lx >= 3 && lx <= 5) || (lx >= 10 && lx <= 12))) return ly === 7 ? C.charcoal : C.asphalt;
-    if (kind === 3 && lx >= 11 && ly >= 11 && lx + ly > 24) return C.asphalt;
+    if (ly === 8 && (lx === 4 || lx === 5 || lx === 10 || lx === 11)) return C.gutterDk;
+    if (kind === 3 && lx >= 11 && ly >= 11 && lx + ly > 24) return C.asphaltDk;
   }
-  const s = cluster(x, y, 5, 211 + v, 0.18);
-  if (s) return s > 2 ? C.concreteMd : C.concreteLt;
+  const n = fbm(x / 7, y / 7, 207 + v);
+  let col = n > 0.7 ? C.concreteLt : n < 0.3 ? C.gutterMd : C.concrete;
+  const s = cluster(x, y, 5, 211 + v, 0.14);
+  if (s) col = s > 2 ? C.gutterMd : C.concreteLt;
   if (kind === 1 && ly > 9 && h01(x, y, 5) < 0.55 - (15 - ly) * 0.04) return (x + y) & 1 ? C.leafDeep : C.leaf;
-  return C.concrete;
+  return col;
 };
 
 const texSidewalk: Tex = (x, y, v, th) => {
@@ -193,10 +205,9 @@ const texSidewalk: Tex = (x, y, v, th) => {
     const bx = Math.floor((x + off) / 8);
     const lx = (x + off) % 8;
     const ly = y % 4;
-    if (ly === 3 || lx === 7) return C.concreteMd;
     const hh = ihash(bx, row, 91);
-    if (ly === 0 && lx < 6) return C.concreteLt;
-    return hh % 7 === 0 ? C.paperGrid : hh % 5 === 0 ? C.concreteMd : C.concrete;
+    if (ly === 3 || lx === 7) return hh % 3 ? C.concrete : C.concreteMd;
+    return hh % 7 === 0 ? C.paperGrid : hh % 5 === 0 ? C.concreteMd : hh % 4 === 0 ? C.concreteLt : C.concrete;
   }
   if (th === 'kawabe' || th === 'station') {
     // 32×16 concrete slabs, joints shift per row
@@ -219,49 +230,64 @@ const texSidewalk: Tex = (x, y, v, th) => {
 };
 
 const texPlaza: Tex = (x, y) => {
-  // Park 石畳: irregular stones in staggered rows of varying width.
-  const rowH = 6;
-  const row = Math.floor(y / rowH);
-  const ly = y - row * rowH;
-  const rh = ihash(0, row, 77);
-  let bx = x + (rh % 11);
-  // stones of width 7..11
-  let start = 0;
-  let w = 0;
-  let idx = 0;
-  const base = Math.floor(bx / 40) * 40;
-  bx -= base;
-  for (let i = 0; i < 8; i++) {
-    w = 7 + (ihash(i + Math.floor((x + (rh % 11)) / 40) * 8, row, 78) % 5);
-    if (bx < start + w) {
-      idx = i;
-      break;
+  // Park 石畳: irregular flagstones (jittered Voronoi cells ~12px), thin
+  // dark joints, each stone with its own tone and a lit upper-left edge.
+  const S = 12;
+  const gx = Math.floor(x / S);
+  const gy = Math.floor(y / S);
+  let d1 = 1e9;
+  let d2 = 1e9;
+  let id = 0;
+  let px = 0;
+  let py = 0;
+  for (let j = -1; j <= 1; j++)
+    for (let i = -1; i <= 1; i++) {
+      const cx = gx + i;
+      const cy = gy + j;
+      const h = ihash(cx, cy, 71);
+      const fx = cx * S + 2 + (h % (S - 4));
+      const fy = cy * S + 2 + ((h >>> 8) % (S - 4));
+      const d = (x - fx) * (x - fx) + (y - fy) * (y - fy) * 1.2;
+      if (d < d1) {
+        d2 = d1;
+        d1 = d;
+        id = h;
+        px = fx;
+        py = fy;
+      } else if (d < d2) d2 = d;
     }
-    start += w;
-  }
-  const lx = bx - start;
-  const sh = ihash(idx + Math.floor((x + (rh % 11)) / 40) * 8, row, 79);
-  if (ly === rowH - 1 || lx === w - 1) return C.steel;
-  if (ly === 0 || lx === 0) return sh % 3 === 0 ? C.white : C.concreteLt;
-  if (ly === rowH - 2 && lx > w - 4) return C.concreteMd;
-  return sh % 5 === 0 ? C.concreteMd : sh % 4 === 0 ? C.concreteLt : C.concrete;
+  const edge = Math.sqrt(d2) - Math.sqrt(d1);
+  if (edge < 1.1) return (id >>> 3) % 5 === 0 ? C.leafDeep : C.steel;
+  const tone = (id >>> 12) % 6;
+  const base = tone === 0 ? C.concreteMd : tone === 1 ? C.concreteLt : tone === 2 ? C.paperGrid : C.concrete;
+  // lit upper-left inside the stone, shaded lower-right
+  if (edge < 2.2) return x < px || y < py ? (base === C.concreteLt ? C.white : C.concreteLt) : C.concreteMd;
+  if (ihash(x, y, 73) % 29 === 0) return C.concreteMd;
+  return base;
 };
 
 const texArcade: Tex = (x, y) => {
-  // 8px mosaic tiles; 32px diagonal pattern in terracotta / cream / brick.
+  // 8px mosaic tiles: terracotta ground, a cream diamond every 32px (rows
+  // shifted 8px), brick corners; worn path along the middle of the arcade.
   const cx = Math.floor(x / 8);
   const cy = Math.floor(y / 8);
   const lx = x & 7;
   const ly = y & 7;
-  if (lx === 7 || ly === 7) return C.brassOld; // grout
-  const k = ((cx + cy * 3) % 4 + 4) % 4;
-  const d = ((cx - cy) % 4 + 4) % 4;
-  let base = k === 0 ? C.paperGrid : d === 0 ? C.wood : C.skin4;
-  if (k === 0 && d === 2) base = C.skin4;
+  if (lx === 7 || ly === 7) return C.arcGrout;
+  const shift = Math.floor(cy / 4) % 2 ? 2 : 0;
+  const bx = (((cx + shift) % 4) + 4) % 4;
+  const by = ((cy % 4) + 4) % 4;
+  const d = Math.abs(bx - 1.5) + Math.abs(by - 1.5);
+  let base = d === 1 ? C.cream : bx === 3 && by === 3 ? C.brick : C.terra;
   const hh = ihash(cx, cy, 55);
-  if (hh % 23 === 0) base = C.paperGrid;
-  if (lx === 0 || ly === 0) return base === C.wood ? C.skin4 : base === C.skin4 ? C.skin3 : C.white;
-  if (lx === 6 || ly === 6) return base === C.paperGrid ? C.goldPale : base === C.wood ? C.woodDark : C.wood;
+  if (base === C.terra && hh % 7 === 0) base = C.terraDk;
+  // worn path (y23–24): lighter, dithered edge
+  const ty = Math.floor(y / 16);
+  const worn = (ty === 23 || ty === 24) && valueNoise(x / 12, y / 6, 57) > 0.35;
+  if (worn) base = base === C.terra ? C.terraLt : base === C.brick ? C.brickLt : base === C.terraDk ? C.terra : C.creamLt;
+  // chipped tile
+  if (hh % 41 === 0 && lx >= 3 && ly >= 3) return C.arcGrout;
+  if (ly === 0 && lx < 6 && hh % 3 === 0) return base === C.cream ? C.creamLt : base === C.brick ? C.brickLt : C.terraLt;
   return base;
 };
 
@@ -345,19 +371,26 @@ const texSand: Tex = (x, y, v) => {
 };
 
 const texGravel: Tex = (x, y, v) => {
-  // dense rounded pebbles, each with a light top-left and a dark bottom-right
-  const cell = 3;
+  // irregular pebbles: jittered 4px cells, each pebble 2–3px with a lit
+  // top-left pixel; dark gaps between.
+  const cell = 4;
   const cx = Math.floor(x / cell);
   const cy = Math.floor(y / cell);
   const h = ihash(cx, cy, 331 + v);
-  const lx = x - cx * cell;
-  const ly = y - cy * cell;
-  const tone = h % 5;
-  const base = tone === 0 ? C.concrete : tone === 1 ? C.asphaltLt : tone === 2 ? C.concreteMd : C.steel;
-  if (lx === 2 || ly === 2) return h & 32 ? C.asphalt : C.asphaltLt;
-  if (lx === 0 && ly === 0) return tone === 0 ? C.white : C.concreteLt;
-  if (lx === 1 && ly === 1) return tone === 0 ? C.concreteMd : C.asphaltLt;
-  return base;
+  const ox = h & 1;
+  const oy = (h >>> 1) & 1;
+  const lx = x - cx * cell - ox;
+  const ly = y - cy * cell - oy;
+  const sz = 2 + ((h >>> 2) & 1);
+  const tone = (h >>> 4) % 6;
+  const base = tone === 0 ? C.concrete : tone === 1 ? C.asphaltLt : tone === 2 ? C.concreteMd : tone === 3 ? C.dirt : C.steel;
+  if (lx >= 0 && ly >= 0 && lx < sz && ly < sz) {
+    if (lx === 0 && ly === 0) return tone === 0 ? C.white : tone === 3 ? C.dirtLt : C.concreteLt;
+    if (lx === sz - 1 && ly === sz - 1) return tone === 3 ? C.dirtDk : C.asphalt;
+    return base;
+  }
+  const g = fbm(x / 9, y / 9, 333);
+  return g > 0.6 ? C.asphaltLt : g < 0.35 ? C.asphaltDk : C.asphalt;
 };
 
 const texBridge: Tex = (x, y) => {
@@ -586,10 +619,21 @@ export function bakeGround(src: GroundSource, x0: number, y0: number, w: number,
         if (RAISED.has(up)) col = C.charcoal;
         else if (RAISED.has(lf)) col = C.asphaltDk;
       }
-      // water / paddy edge: concrete lip
+      // canal retaining wall (護岸) at the north bank, moss lip at the south bank
+      if (g === 'water') {
+        let k = 1;
+        while (k <= 5 && idAt(i, j - k) === 'water') k++;
+        if (k <= 5 && idAt(i, j - k) !== 'none') {
+          const joint = ((wx % 23) + 23) % 23 === 0;
+          col = k === 1 ? C.concreteLt : k === 5 ? C.asphalt : joint ? C.steel : k === 4 ? C.concreteMd : C.concrete;
+          if (k >= 3 && h01(wx, wy, 71) < 0.12) col = C.leafDeep;
+        } else if (idAt(i, j + 1) !== 'water' && idAt(i, j + 1) !== 'none') col = h01(wx, wy, 73) < 0.5 ? C.leafShade : C.charcoal;
+        else if (idAt(i, j + 2) !== 'water' && idAt(i, j + 2) !== 'none') col = h01(wx, wy, 77) < 0.4 ? C.leafDeep : C.navy;
+      }
       pc.data[j * w + i] = col;
     }
   }
+  if (src.decals) paintDecals(pc, x0, y0, w, h, src.decals);
   return pc;
 }
 

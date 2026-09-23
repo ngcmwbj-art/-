@@ -2,8 +2,7 @@
 // bgm_shop): the same 5.4 transforms as the town — half a step down with a
 // wobble at stage 1; slower, with holes, echoes and reverse pads at stage 2.
 
-import { DRM } from '../instruments';
-import { bass, bed, comp, drums, melody, pads, type BarCtx, type PartDef, type SongDef } from '../sequencer';
+import { bass, bed, comp, drums, melody, type BarCtx, type PartDef, type SongDef } from '../sequencer';
 import { brushSwirl } from '../instruments';
 import { registerSong, score } from './common';
 import { reversePads } from './town';
@@ -216,7 +215,6 @@ function shopDef(): SongDef {
     }),
     bed('swirl', (t, dest) => brushSwirl(t, dest, 0.008)),
   ];
-  void DRM;
   return {
     id: 'bgm_shop',
     title: '屋内の店',
@@ -235,7 +233,7 @@ function shopDef(): SongDef {
       // 段階2: a radio far away
       sp.filter.frequency.setTargetAtTime(st(b) === 2 ? 2200 : 20000, b.t0, 0.2);
       const sw = sp.partRt('swirl');
-      if (sw) sw.input.gain.setTargetAtTime(st(b) === 2 ? 0 : 1, b.t0, 0.2);
+      if (sw) sw.input.gain.setTargetAtTime(st(b) === 2 ? 0 : sw.base, b.t0, 0.2);
     },
   };
 }

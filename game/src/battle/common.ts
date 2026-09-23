@@ -32,7 +32,7 @@ export function addKire(s: BattleScene, n: number): void {
       update() {
         if (this.t >= delay) {
           s.kirePops[idx] = 100;
-          s.sfx('se_kire_up', { pitch: 1 + idx * 0.12 });
+          s.sfx('se_kire_up', { level: idx + 1 });
           this.done = true;
         }
       },
@@ -48,8 +48,23 @@ export function addKire(s: BattleScene, n: number): void {
   }
 }
 
+/**
+ * 〔キレ満タン・初回のみ〕: the first time kire reaches 3 the band says so and
+ * the kire sticky appears (flag_tut_kire). Returns the pages to show.
+ */
+export function kireFullPages(s: BattleScene): string[] {
+  if (!s.memo.kireJustFull) return [];
+  s.memo.kireJustFull = 0;
+  if (flag('flag_tut_kire')) return [];
+  setFlag('flag_tut_kire', 1);
+  s.memo.stk_kire = 1;
+  s.sticky = { text: TUT.kire, t: 0, ttl: 3600 };
+  return [...SYS.kireFull];
+}
+
 export function resetKire(s: BattleScene): void {
   s.kire = 0;
+  s.memo.noriTabShown = 0;
   s.bg.kire = 0;
   s.setMusicParam('kire', 0);
 }
@@ -269,7 +284,53 @@ export function hurtEnemy(s: BattleScene, e: EnemyUnit, dmg: number, o: EnemyHit
   e.hpTrail = Math.max(e.hpTrail, before);
   if (!o.noNumber) s.number(x, y, Math.max(0, Math.round(dmg)), { kind: o.crit ? 'crit' : 'dmg', big: o.big || o.crit });
   if (e.status.bokemake) s.memo.bokeHit = 1;
+  if (dmg > 0 && e.hp > 0) enemyHurt(s, e, before);
   return e.hp <= 0;
+}
+
+/**
+ * The 被弾 state (11.x "被弾"): the hurt frame for ~220ms plus each enemy's
+ * own debris — feathers, a spring, sparks, glass cracks.
+ */
+export function enemyHurt(s: BattleScene, e: EnemyUnit, hpBefore: number): void {
+  if (e.dying) return;
+  const keep = e.pose;
+  if (keep !== 'hurt') e.hurtReturn = keep === 'windup' || keep === 'attack' ? 'idle' : keep;
+  e.setPose('hurt', e.skill);
+  e.hurtT = 220;
+  const cx = e.coreX;
+  const cy = e.coreY;
+  switch (e.id) {
+    case 'enemy_hato_kakaricho':
+      // three feathers float down
+      s.burst(cx, cy - 6, { count: 3, speed: [30, 70], angle: [-Math.PI * 0.9, -Math.PI * 0.1], life: [600, 900], colors: ['#B8BECC', '#8E95A6', '#F4F1E8'], gravity: 60, drag: 2.5, shape: 'sq', size: [3, 3], sizeEnd: 2 });
+      break;
+    case 'enemy_momisugi':
+      // a spring pops out
+      s.burst(cx + 10, cy, { count: 1, speed: [90, 120], angle: [-Math.PI * 0.7, -Math.PI * 0.55], life: [500, 600], colors: ['#C0C6CC'], gravity: 420, shape: 'sq', size: [3, 5], sizeEnd: 3 });
+      s.burst(cx + 10, cy, { count: 3, speed: [40, 80], life: [200, 300], colors: ['#8A4A3E', '#D9C8B0'], gravity: 200, shape: 'sq', size: [1, 2] });
+      break;
+    case 'enemy_soujirou':
+      // two sparks off the bumper
+      s.burst(cx + 6, cy + 4, { count: 2, speed: [60, 110], angle: [-Math.PI * 0.8, -Math.PI * 0.2], life: [180, 260], colors: ['#FFD23F', '#FFF6D8'], gravity: 300, shape: 'star', size: [2, 2], sizeEnd: 1 });
+      break;
+    case 'enemy_ojigi_jihanki': {
+      // the glass cracks once at 66% and once more at 33%
+      const r0 = hpBefore / e.maxHp;
+      const r1 = e.hp / e.maxHp;
+      for (const th of [0.66, 0.33]) if (r0 > th && r1 <= th) e.params.cracks = (e.params.cracks ?? 0) + 1;
+      s.burst(cx, cy, { count: 3, speed: [40, 90], life: [250, 350], colors: ['#F4F1E8', '#C8313A'], gravity: 250, shape: 'sq', size: [1, 2] });
+      break;
+    }
+    case 'enemy_cone_vocal':
+      s.burst(cx, cy + 10, { count: 3, speed: [30, 60], angle: [-Math.PI * 0.9, -Math.PI * 0.1], life: [200, 300], colors: ['#8A5A3A', '#F07A2A'], gravity: 300, shape: 'sq', size: [1, 2] });
+      break;
+    case 'enemy_wasuregasa':
+      s.burst(cx, cy, { count: 4, speed: [30, 80], life: [300, 450], colors: ['#CFE3EA', '#FFFFFF'], gravity: 260, shape: 'sq', size: [1, 2] });
+      break;
+    default:
+      break;
+  }
 }
 
 /** Knockback (4px right, back in 150ms) + squash 1.12/0.9 → 1.0 in 120ms. */
@@ -346,6 +407,7 @@ export function* defeatEnemy(s: BattleScene, e: EnemyUnit, dropDelay = 0, lastOn
   const cy = e.coreY;
   s.burst(cx, cy, { count: 20, speed: [60, 200], life: [500, 900], colors: e.def.colors.slice(0, 4), gravity: 240, drag: 1, shape: 'sq', size: [2, 3], sizeEnd: 2 });
   e.whiteFrames = 999;
+  s.sfx('se_shrink');
   const x0 = e.x;
   const fy = e.footY;
   // shrink toward the core: 1.0 → 1.05 → 0.15 (easeInBack, 350ms)
@@ -364,7 +426,8 @@ export function* defeatEnemy(s: BattleScene, e: EnemyUnit, dropDelay = 0, lastOn
   if (e.id === 'enemy_semi_final') {
     yield* semiFlyAway(s, cx, cy);
   } else {
-    yield* dropObject(s, e, core.x, core.y, fy, x0);
+    // lands on the foot line, kept clear of the name tags (y141–) so it reads
+    yield* dropObject(s, e, core.x, core.y, Math.min(fy, 140), x0);
   }
   if (lastOne) yield 100;
 }

@@ -35,6 +35,9 @@ export class Renderer {
   private sctx: CanvasRenderingContext2D;
   private tc: HTMLCanvasElement;
   private tctx: CanvasRenderingContext2D;
+  private gc: HTMLCanvasElement;
+  private gctx: CanvasRenderingContext2D;
+  private glintPat: CanvasPattern | null = null;
   ambient: string[] = [];
   private ambT = 0;
   private waterMasks = new Map<number, HTMLCanvasElement | null>();
@@ -51,6 +54,7 @@ export class Renderer {
     this.wg = new Gfx(this.wctx, W, H);
     [this.sc, this.sctx] = makeCanvas(W, H);
     [this.tc, this.tctx] = makeCanvas(CHUNK, CHUNK);
+    [this.gc, this.gctx] = makeCanvas(CHUNK, CHUNK);
     this.sctx.imageSmoothingEnabled = false;
     [this.stripeLight, this.stripeShade] = makeStripes(false);
     [this.stripeLight2, this.stripeShade2] = makeStripes(true);
@@ -104,6 +108,15 @@ export class Renderer {
 
     // 1. ground
     f.ground.draw(wg, cx, cy, W, H);
+    // 1b. fx_heat_haze: stage 0, the asphalt of the river road shimmers (1px, 3s period)
+    if (f.map.id === 'map_town' && flag('flag_stage') === 0 && f.grade.toMall < 0.5) {
+      const y0 = Math.max(0, 32 * 16 - cy);
+      const y1 = Math.min(H, 35 * 16 - cy);
+      for (let yy = y0; yy < y1; yy++) {
+        const dx = Math.round(Math.sin(((yy + cy) / 5 + f.t / 3000 * Math.PI * 2)) * 0.7);
+        if (dx) ctx.drawImage(this.wc, 0, yy, W, 1, dx, yy, W, 1);
+      }
+    }
     // 2. water with the sky's reflection
     this.drawWaterLayer(cx, cy);
     // 2b. living ground (swaying weeds, flowers, ants)
@@ -124,7 +137,10 @@ export class Renderer {
       const a = p.art;
       if (!visible(p.x + a.ox, p.y + a.oy, a.w, a.h)) continue;
       const img = a.img(envOf(p));
-      if (img) wg.img(img, p.x + a.ox - cx, p.y + a.oy - cy);
+      if (img) {
+        wg.img(img, p.x + a.ox - cx, p.y + a.oy - cy);
+        if (a.glass) this.drawGlass(a.glass, p.x + a.ox - cx, p.y + a.oy - cy, 0.7);
+      }
       a.over?.(wg, p.x - cx, p.y - cy, envOf(p));
     }
     fxDraw(f, wg, cx, cy, 'ground');
@@ -207,7 +223,7 @@ export class Renderer {
       if (!p.present || !p.art.glow) continue;
       const a = p.art;
       if (!visible(p.x + a.ox - 40, p.y + a.oy - 40, a.w + 80, a.h + 80)) continue;
-      a.glow(wg, p.x - cx, p.y - cy, envOf(p));
+      a.glow!(wg, p.x - cx, p.y - cy, envOf(p));
     }
     fxDraw(f, wg, cx, cy, 'glow');
 
@@ -266,11 +282,21 @@ export class Renderer {
       for (let kx = x0; kx <= x1; kx++) {
         const mask = this.waterMask(kx, ky);
         if (!mask) continue;
-        const t = this.tctx;
-        t.globalCompositeOperation = 'source-over';
-        t.clearRect(0, 0, CHUNK, CHUNK);
         const ox = kx * CHUNK;
         const oy = ky * CHUNK;
+        // visible part of this chunk (local px)
+        const vx = Math.max(0, cx - ox);
+        const vy = Math.max(0, cy - oy);
+        const vw = Math.min(mask.width, cx + W - ox) - vx;
+        const vh = Math.min(mask.height, cy + H - oy) - vy;
+        if (vw <= 0 || vh <= 0) continue;
+        const t = this.tctx;
+        t.globalCompositeOperation = 'source-over';
+        t.clearRect(vx, vy, vw, vh);
+        t.save();
+        t.beginPath();
+        t.rect(vx, vy, vw, vh);
+        t.clip();
         const wctx: WaterCtx = {
           ctx: t,
           worldX: ox,
@@ -284,21 +310,37 @@ export class Renderer {
           mt: f.mt,
           stage: flag('flag_stage'),
           map: f.map,
+          vis: [vx, vy, vw, vh],
         };
         drawWater(wctx);
         t.globalCompositeOperation = 'destination-in';
-        t.drawImage(mask, 0, 0);
+        t.drawImage(mask, vx, vy, vw, vh, vx, vy, vw, vh);
+        t.restore();
         t.globalCompositeOperation = 'source-over';
-        this.wctx.drawImage(this.tc, 0, 0, mask.width, mask.height, ox - cx, oy - cy, mask.width, mask.height);
+        this.wctx.drawImage(this.tc, vx, vy, vw, vh, ox + vx - cx, oy + vy - cy, vw, vh);
       }
   }
 
   /** Sky reflection on glass (windows, vending machines, mirrors). */
   drawGlass(mask: HTMLCanvasElement, x: number, y: number, alpha = 0.55): void {
-    const t = this.tctx;
-    const w = mask.width;
-    const h = mask.height;
-    if (w > CHUNK || h > CHUNK) return;
+    // only the part of the mask's bounding box that is on screen
+    const bb = maskBox(mask);
+    if (!bb) return;
+    const bx0 = Math.max(bb[0], Math.ceil(-x));
+    const by0 = Math.max(bb[1], Math.ceil(-y));
+    const bx1 = Math.min(bb[2], Math.floor(W - x));
+    const by1 = Math.min(bb[3], Math.floor(H - y));
+    if (bx1 <= bx0 || by1 <= by0) return;
+    const w = bx1 - bx0;
+    const h = by1 - by0;
+    x += bx0;
+    y += by0;
+    if (w > this.gc.width || h > this.gc.height) {
+      this.gc.width = Math.max(this.gc.width, w);
+      this.gc.height = Math.max(this.gc.height, h);
+      this.gctx.imageSmoothingEnabled = false;
+    }
+    const t = this.gctx;
     t.globalCompositeOperation = 'source-over';
     t.clearRect(0, 0, w, h);
     const gr = t.createLinearGradient(0, -y, 0, H - y);
@@ -307,19 +349,24 @@ export class Renderer {
     gr.addColorStop(1, css(gd.skyBot));
     t.fillStyle = gr;
     t.fillRect(0, 0, w, h);
-    // diagonal glints
-    t.fillStyle = 'rgba(255,246,216,0.55)';
-    for (let k = -h; k < w; k += 23) {
-      for (let j = 0; j < h; j++) {
-        const xx = k + j;
-        if (xx >= 0 && xx < w) t.fillRect(xx, j, 2, 1);
-      }
+    // diagonal glints (cached 23px pattern)
+    if (!this.glintPat) {
+      const [pc2, pctx] = makeCanvas(23, 23);
+      pctx.fillStyle = 'rgba(255,246,216,0.55)';
+      for (let j = 0; j < 23; j++) pctx.fillRect(j, j, 2, 1);
+      pctx.fillRect(0, 22, 1, 1);
+      this.glintPat = t.createPattern(pc2, 'repeat');
+    }
+    if (this.glintPat) {
+      this.glintPat.setTransform(new DOMMatrix([1, 0, 0, 1, -bx0, -by0]));
+      t.fillStyle = this.glintPat;
+      t.fillRect(0, 0, w, h);
     }
     t.globalCompositeOperation = 'destination-in';
-    t.drawImage(mask, 0, 0);
+    t.drawImage(mask, bx0, by0, w, h, 0, 0, w, h);
     t.globalCompositeOperation = 'source-over';
     this.wctx.globalAlpha = alpha;
-    this.wctx.drawImage(this.tc, 0, 0, w, h, x, y, w, h);
+    this.wctx.drawImage(this.gc, 0, 0, w, h, Math.round(x), Math.round(y), w, h);
     this.wctx.globalAlpha = 1;
   }
 
@@ -339,8 +386,9 @@ export class Renderer {
     s.globalCompositeOperation = 'source-over';
     s.clearRect(0, 0, W, H);
     s.fillStyle = '#000';
+    const indoor = f.map.def.kind === 'indoor';
     const cast = (img: HTMLCanvasElement, footX: number, footY: number, imgX: number, imgY: number, hgt: number, tx: number, ty: number) => {
-      if (L <= 0.01) return;
+      if (L <= 0.01 || indoor) return;
       const [dx, dy] = shadowDir(gd, tx, ty);
       const bx = footX - cx;
       const by = footY - cy;
@@ -358,7 +406,7 @@ export class Renderer {
     for (const a of acts) {
       if (!a.visible || a.shadowH === 0) continue;
       if (!visible(a.x - 64, a.y - 64, 128, 96)) continue;
-      const img = a.frame();
+      const img = (a.data.shadowFrame as HTMLCanvasElement | undefined) ?? a.frame();
       const [ix, iy] = a.drawPos(img);
       const footY = Math.round(a.y + a.oy);
       const footX = Math.round(a.x + a.ox);
@@ -372,6 +420,7 @@ export class Renderer {
       if (!a.shadow && !a.shadowFn) continue;
       if (!visible(p.x + a.ox - 96, p.y + a.oy - 32, a.w + 192, a.h + 64)) continue;
       const e = envOf(p);
+      if (indoor) continue;
       if (a.shadowFn) {
         const [dx, dy] = shadowDir(gd, p.x / 16, p.y / 16);
         a.shadowFn(s, p.x - cx, p.y - cy, [dx, dy], L, e);
@@ -446,6 +495,18 @@ export class Renderer {
     ctx.globalAlpha = 0.14 * a * (1 - gd.night);
     ctx.globalCompositeOperation = 'multiply';
     for (let yy = offY; yy < H; yy += 12) for (let xx = offX; xx < W; xx += 24) ctx.drawImage(shadeImg, xx, yy);
+    // fx_arcade_roof: faint corrugated-roof lines scrolling at 1.1× the camera, beams every 12 tiles
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = P.white;
+    const par = Math.round(cx * 0.1);
+    for (let xx = ((x - par) % 4 + 4) % 4; xx < W; xx += 4) ctx.fillRect(xx, y, 1, h);
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = P.asphalt;
+    for (let k = 0; k <= 3; k++) {
+      const bx = Math.round(23 * 16 + k * 12 * 16 - cx * 1.1);
+      ctx.fillRect(bx, y, 1, h);
+    }
     ctx.restore();
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
@@ -534,6 +595,29 @@ function ellipse(ctx: CanvasRenderingContext2D, cx: number, cy: number, w: numbe
     const half = Math.round(rx * Math.sqrt(Math.max(0, 1 - yy * yy)));
     ctx.fillRect(cx - half, cy + y, half * 2, 1);
   }
+}
+
+const boxCache = new WeakMap<HTMLCanvasElement, [number, number, number, number] | null>();
+/** Bounding box [x0,y0,x1,y1) of the opaque pixels of a mask (cached). */
+function maskBox(mask: HTMLCanvasElement): [number, number, number, number] | null {
+  if (boxCache.has(mask)) return boxCache.get(mask)!;
+  const ctx = mask.getContext('2d')!;
+  const d = ctx.getImageData(0, 0, mask.width, mask.height).data;
+  let x0 = mask.width;
+  let y0 = mask.height;
+  let x1 = 0;
+  let y1 = 0;
+  for (let y = 0; y < mask.height; y++)
+    for (let x = 0; x < mask.width; x++)
+      if (d[(y * mask.width + x) * 4 + 3]) {
+        if (x < x0) x0 = x;
+        if (y < y0) y0 = y;
+        if (x + 1 > x1) x1 = x + 1;
+        if (y + 1 > y1) y1 = y + 1;
+      }
+  const r: [number, number, number, number] | null = x1 > x0 ? [x0, y0, x1, y1] : null;
+  boxCache.set(mask, r);
+  return r;
 }
 
 const silCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();

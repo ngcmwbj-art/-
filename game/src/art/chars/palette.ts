@@ -3,7 +3,7 @@
 // shadows lean toward the dusk violets, highlights toward the sunset yellow,
 // so every sprite sits in the same late-afternoon light.
 
-import { mix } from '../../engine/pixel';
+import { mix, toRgb } from '../../engine/pixel';
 
 export const C = {
   // sunset
@@ -49,6 +49,21 @@ export function ramp(base: string, o: RampOpts = {}): Ramp {
 /** Sunset rim color for a material (the 1px lit left edge). */
 export function rimOf(base: string, light: string): string {
   return mix(mix(base, C.sun2, 0.55), light, 0.25);
+}
+
+/**
+ * Sunset rim drawn in the outline column itself (30_level_art 7.5 and the
+ * reference sprites in 9.1/9.2: 'm' = #F2894B sits where the left outline
+ * would be, every 2–3 rows). Very dark materials (hair, black fur, leather)
+ * get a deeper orange so the edge glows instead of flashing; very light ones
+ * (white shirts, paper) a paler one so it still reads as light, not a line.
+ */
+export function outerRimOf(base: string): string {
+  const [r, g, b] = toRgb(base.slice(0, 7));
+  const l = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  if (l < 0.3) return '#E8804A';
+  if (l > 0.82) return '#F7A06A';
+  return C.sun2;
 }
 
 /** Outer outline tinted toward the material (selective outline). */

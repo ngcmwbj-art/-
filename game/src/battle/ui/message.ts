@@ -103,6 +103,14 @@ export class MessageBand {
     return this.cur !== null || this.queue.length > 0;
   }
 
+  /**
+   * The page on screen can only be closed with confirm (manual). Whoever
+   * drives the band must route confirm presses to it, or it would never close.
+   */
+  get wantsConfirm(): boolean {
+    return this.cur !== null && !!this.curOpts.manual;
+  }
+
   get height(): number {
     return Math.round(this.h);
   }

@@ -347,12 +347,18 @@ export function buildGraph(ctx: BaseAudioContext, opts: { bypassDynamics?: boole
   const master = ctx.createGain();
   master.gain.value = 0.8;
   master.connect(preTap);
+  // −1 dB ceiling after the limiter: the compressors add their own make-up
+  // gain, and the loudest moment of the game at volume 10 / 10 must stay
+  // clear of full scale (report.ts stress test).
+  const ceiling = ctx.createGain();
+  ceiling.gain.value = dbToGain(-1);
+  ceiling.connect(ctx.destination);
   if (opts.bypassDynamics) {
     preTap.connect(ctx.destination);
   } else {
     preTap.connect(comp);
     comp.connect(limiter);
-    limiter.connect(ctx.destination);
+    limiter.connect(ceiling);
   }
 
   // ---- music: musicBus(0.55) → musicDuck → musicMute → musicFilter → musicUser → master
@@ -648,6 +654,7 @@ export function voice(o: VoiceOpts): VoiceHandle {
   const nodes: AudioNode[] = [];
   const oscs: AudioScheduledSourceNode[] = [];
   const paramLinks: [AudioNode, AudioParam][] = [];
+  const nodeLinks: [AudioNode, AudioNode][] = [];
   const gateEnd = t0 + Math.max(dur, atk + (o.swell ? 0 : dec));
   const end = gateEnd + rel * 1.1 + 0.01;
 
@@ -699,20 +706,19 @@ export function voice(o: VoiceOpts): VoiceHandle {
       paramLinks.push([o.detuneSrc2, osc.detune]);
     }
     if (o.vibrato && o.vibrato.depth) {
-      const lfo = c.createOscillator();
-      lfo.type = o.vibrato.shape ?? 'sine';
+      // one free-running LFO per rate is shared by every note (15.3); each note
+      // only owns the gain that fades its depth in after the delay
+      const lfo = sharedLfo(c, o.vibrato.rate, o.vibrato.shape ?? 'sine');
       const lg = c.createGain();
-      lfo.frequency.value = o.vibrato.rate;
       const vd = t0 + (o.vibrato.delay ?? 0);
+      lg.gain.value = 0;
       lg.gain.setValueAtTime(0, t0);
       lg.gain.setValueAtTime(0, vd);
       lg.gain.linearRampToValueAtTime(o.vibrato.depth, vd + 0.12);
       lfo.connect(lg);
       lg.connect(osc.detune);
-      lfo.start(t0);
-      lfo.stop(end);
-      nodes.push(lfo, lg);
-      oscs.push(lfo);
+      nodeLinks.push([lfo, lg]);
+      nodes.push(lg);
     }
     const addFm = (fm: FmOpts) => {
       const mod = c.createOscillator();
@@ -738,6 +744,7 @@ export function voice(o: VoiceOpts): VoiceHandle {
       const mg = c.createGain();
       const i0 = fm.index * mf;
       if (fm.indexAttack) {
+        mg.gain.value = 0;
         mg.gain.setValueAtTime(0, t0);
         mg.gain.linearRampToValueAtTime(i0, t0 + fm.indexAttack / 1000);
       } else mg.gain.setValueAtTime(i0, t0);
@@ -821,6 +828,10 @@ export function voice(o: VoiceOpts): VoiceHandle {
   const env = c.createGain();
   nodes.push(env);
   const eg = env.gain;
+  // Start closed. An AudioParam holds its default (1) until its first event,
+  // and an event at t0 can land one sample after a source started at t0
+  // (float rounding), which let the very first sample through at full gain.
+  eg.value = 0;
   eg.setValueAtTime(0, t0);
   if (o.swell) {
     eg.linearRampToValueAtTime(vol, gateEnd);
@@ -879,13 +890,21 @@ export function voice(o: VoiceOpts): VoiceHandle {
   }
   if (wave === 'noise') {
     const off = o.noiseOffset ?? (noiseRot = (noiseRot + 0.731) % 3.5);
-    (src as AudioBufferSourceNode).start(t0, off);
+    // buffer sources start on a sample boundary, the same frame the envelope
+    // opens on (see the env note below)
+    (src as AudioBufferSourceNode).start(onSample(c, t0), off);
   } else src.start(t0);
   src.stop(end);
   src.onended = () => {
     for (const [a, p] of paramLinks)
       try {
         a.disconnect(p);
+      } catch {
+        /* gone */
+      }
+    for (const [a, b] of nodeLinks)
+      try {
+        a.disconnect(b);
       } catch {
         /* gone */
       }
@@ -928,6 +947,23 @@ export function voice(o: VoiceOpts): VoiceHandle {
   return h;
 }
 
+const lfoCache = new WeakMap<BaseAudioContext, Map<string, OscillatorNode>>();
+/** A free-running LFO (±1) shared by all voices of this context at this rate. */
+export function sharedLfo(c: BaseAudioContext, rate: number, shape: OscillatorType = 'sine'): OscillatorNode {
+  let m = lfoCache.get(c);
+  if (!m) lfoCache.set(c, (m = new Map()));
+  const key = `${shape}${Math.round(rate * 100)}`;
+  let o = m.get(key);
+  if (!o) {
+    o = c.createOscillator();
+    o.type = shape;
+    o.frequency.value = rate;
+    o.start();
+    m.set(key, o);
+  }
+  return o;
+}
+
 function clampPan(p: number): number {
   return Math.max(-1, Math.min(1, p));
 }
@@ -938,8 +974,14 @@ export function noiseSource(g: Graph, at: number, rate = 1): AudioBufferSourceNo
   n.buffer = g.noise;
   n.loop = true;
   n.playbackRate.value = rate;
-  n.start(at, (noiseRot = (noiseRot + 1.37) % 3.9));
+  n.start(onSample(g.ctx, at), (noiseRot = (noiseRot + 1.37) % 3.9));
   return n;
+}
+
+/** Round a start time up to the next sample boundary (see voice()). */
+export function onSample(c: BaseAudioContext, t: number): number {
+  const sr = c.sampleRate;
+  return Math.max(c.currentTime, Math.ceil(t * sr - 1e-6) / sr);
 }
 
 // ---------------------------------------------------------------------------

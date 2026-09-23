@@ -9,6 +9,7 @@
 // outline is inside the returned size.
 
 import { PixelCanvas } from '../../engine/pixel';
+import { LINE_H, drawText, measure, wrap } from '../../engine/font';
 
 const OL = '#2A2440';
 const BOARD = '#F4F1E8';
@@ -46,38 +47,92 @@ function boardBase(w: number, h: number, thick = 2): PixelCanvas {
   return p;
 }
 
-// Tiny pseudo-kana (3×4) so marker lines read as handwriting, not dashes.
-const KANA = [
-  ['#.#', '###', '..#', '.#.'],
-  ['.#.', '###', '.#.', '#..'],
-  ['##.', '..#', '.#.', '..#'],
-  ['#..', '#.#', '#.#', '.#.'],
-  ['.##', '#..', '.#.', '..#'],
-  ['###', '.#.', '.#.', '#.#'],
-  ['#.#', '.#.', '#.#', '...'],
-];
+/** Deterministic 0..1 hash for the hand-drawn wobble. */
+function hh(a: number, b: number): number {
+  let h = (a * 374761393 + b * 668265263) >>> 0;
+  h = ((h ^ (h >>> 13)) * 1274126177) >>> 0;
+  return (h & 0xffff) / 0xffff;
+}
 
-function writeLine(p: PixelCanvas, x: number, y: number, n: number, seed: number, c = INK) {
-  for (let k = 0; k < n; k++) {
-    const g = KANA[(k * 3 + seed * 5) % KANA.length];
-    const dy = (k + seed) % 3 === 0 ? 1 : 0;
-    g.forEach((row, j) => [...row].forEach((ch, i) => ch === '#' && p.set(x + k * 4 + i, y + j + dy, c)));
+/**
+ * One line of marker "handwriting": a single continuous pen line of
+ * forward-slanted humps in word-sized runs (strokes, not glyphs, so it never
+ * reads as garbled text). Each hump rises fast and falls slower; a few are
+ * tall (ascenders), a few shallow. Rows y … y+3 (baseline y+3).
+ */
+function scribble(p: PixelCanvas, x: number, y: number, len: number, seed: number, c = INK) {
+  const base = y + 3;
+  let cx = x;
+  let n = 0;
+  while (cx < x + len - 3) {
+    const humps = 2 + Math.floor(hh(seed, n) * 2);
+    let px = cx;
+    let py = base;
+    for (let k = 0; k < humps && cx + 3 <= x + len; k++, n++) {
+      const r = hh(seed * 7 + n, 3);
+      const a = r < 0.2 ? 3 : r < 0.75 ? 2 : 1;
+      // up-stroke to the top of the hump, slant down to the baseline
+      p.line(px, py, cx + 1, base - a, c);
+      p.line(cx + 1, base - a, cx + 2, base - Math.max(0, a - 1), c);
+      p.line(cx + 2, base - Math.max(0, a - 1), cx + 3, base, c);
+      px = cx + 3;
+      py = base;
+      cx += 3;
+    }
+    // tail flick, then a gap before the next word
+    p.set(cx + 1, base - 1, c);
+    cx += 4;
+    n += 5;
   }
 }
 
-let board: HTMLCanvasElement | null = null;
+const boards = new Map<number, HTMLCanvasElement>();
 
-/** 24×16 flip with marker handwriting (use as-is on the field and in battle). */
-export function flipBoard(): HTMLCanvasElement {
-  if (board) return board;
+/**
+ * 24×16 flip with marker handwriting (use as-is on the field and in battle).
+ * variant 0 = the usual board, 1 = the other side (after turning it over),
+ * 2 = a short exclamation (a word and a big "!").
+ */
+export function flipBoard(variant = 0): HTMLCanvasElement {
+  let c = boards.get(variant);
+  if (c) return c;
   const p = boardBase(24, 16);
-  writeLine(p, 3, 3, 4, 1);
-  writeLine(p, 3, 8, 3, 2);
-  // a hand-drawn "!" and a red underline flourish
-  p.set(16, 8, INK); p.set(16, 9, INK); p.set(16, 10, INK); p.set(16, 12, INK);
-  p.set(3, 13, RED); p.set(4, 12, RED); p.set(5, 13, RED); p.set(6, 12, RED); p.set(7, 13, RED); p.set(8, 12, RED);
-  board = p.toCanvas();
-  return board;
+  if (variant === 1) {
+    scribble(p, 3, 3, 10, 4);
+    scribble(p, 5, 8, 11, 6);
+    // a little doodle of the bell at the end of the line
+    p.set(17, 3, INK); p.set(16, 4, INK); p.set(17, 4, INK); p.set(18, 4, INK); p.set(15, 5, INK); p.set(19, 5, INK); p.set(15, 6, INK);
+    p.set(16, 6, INK); p.set(17, 6, INK); p.set(18, 6, INK); p.set(19, 6, INK);
+    p.set(14, 13, RED); p.set(15, 12, RED); p.set(16, 13, RED); p.set(17, 12, RED); p.set(18, 13, RED);
+  } else if (variant === 2) {
+    scribble(p, 3, 5, 10, 3);
+    for (let y = 3; y <= 9; y++) { p.set(16, y, INK); p.set(17, y, INK); }
+    p.set(16, 11, INK); p.set(17, 11, INK);
+    p.set(3, 11, RED); p.set(4, 12, RED); p.set(5, 11, RED); p.set(6, 12, RED); p.set(7, 11, RED); p.set(8, 12, RED); p.set(9, 11, RED);
+  } else {
+    scribble(p, 3, 3, 15, 1);
+    scribble(p, 3, 8, 11, 2);
+    // a hand-drawn "!" and a red underline flourish
+    p.set(16, 8, INK); p.set(16, 9, INK); p.set(16, 10, INK); p.set(16, 12, INK);
+    p.set(3, 13, RED); p.set(4, 12, RED); p.set(5, 13, RED); p.set(6, 12, RED); p.set(7, 13, RED); p.set(8, 12, RED);
+  }
+  c = p.toCanvas();
+  boards.set(variant, c);
+  return c;
+}
+
+let edge: HTMLCanvasElement | null = null;
+
+/** The 24-wide board seen edge-on (mid-turn), 24×4. */
+export function flipBoardEdge(): HTMLCanvasElement {
+  if (edge) return edge;
+  const p = new PixelCanvas(24, 4);
+  p.rect(1, 1, 22, 1, BOARD_HI);
+  p.rect(1, 2, 22, 1, EDGE);
+  p.set(1, 1, RIM);
+  p.outline(OL);
+  edge = p.toCanvas();
+  return edge;
 }
 
 const panels = new Map<string, HTMLCanvasElement>();
@@ -95,7 +150,7 @@ export function flipBoardPanel(w: number, h: number): HTMLCanvasElement {
   const p = boardBase(w, h);
   // erased ghost strokes (top-right)
   if (w >= 48) {
-    writeLine(p, w - 20, 3, 3, 4, BOARD_SH);
+    scribble(p, w - 20, 3, 11, 4, BOARD_SH);
   }
   // tiny bell doodle (bottom-right) in soft marker
   if (w >= 40 && h >= 24) {
@@ -119,4 +174,62 @@ export function flipIcon(): HTMLCanvasElement {
   p.set(2, 4, INK); p.set(3, 4, INK); p.set(4, 4, INK);
   icon = p.toCanvas();
   return icon;
+}
+
+let mini: HTMLCanvasElement | null = null;
+
+/**
+ * 16×12 mini board for the corner of the flip dialog window
+ * (30_level_art 10.4 "枠の左上にボードの小さな絵（16×12）").
+ */
+export function flipBoardMini(): HTMLCanvasElement {
+  if (mini) return mini;
+  const p = boardBase(16, 12);
+  // two lines of marker scribble + the red flourish
+  scribble(p, 2, 1, 10, 5);
+  p.set(3, 7, RED); p.set(4, 8, RED); p.set(5, 7, RED); p.set(6, 8, RED); p.set(7, 7, RED);
+  mini = p.toCanvas();
+  return mini;
+}
+
+const texts = new Map<string, HTMLCanvasElement>();
+
+/**
+ * A flip board with real text written on it in "marker bold" (each line
+ * drawn twice, 1px apart; 30_level_art 10.4), sized to fit. Lines wrap at
+ * maxW; '\n' forces a break. Cached by text (small LRU).
+ */
+export function flipBoardText(text: string, o: { maxW?: number; minW?: number; color?: string } = {}): HTMLCanvasElement {
+  const key = `${text}|${o.maxW ?? 0}|${o.minW ?? 0}|${o.color ?? ''}`;
+  const hit = texts.get(key);
+  if (hit) return hit;
+  const maxW = o.maxW ?? 160;
+  const lines = wrap(text, maxW);
+  const tw = Math.max(0, ...lines.map((l) => measure(l))) + 1;
+  const w = Math.max(o.minW ?? 24, tw + 12);
+  const h = Math.max(16, lines.length * LINE_H + 8);
+  const base = flipBoardPanel(w, h);
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const g = c.getContext('2d')!;
+  g.drawImage(base, 0, 0);
+  const color = o.color ?? INK;
+  // written by hand in marker: every character drawn twice 1px apart
+  // (felt-tip weight) and bobbing up/down a pixel off the line
+  lines.forEach((l, i) => {
+    const x = Math.round((w - 3 - tw) / 2);
+    const y = 3 + i * LINE_H;
+    let cx = x;
+    [...l].forEach((ch, k) => {
+      const r = hh(k + i * 31, text.length);
+      const dy = r < 0.22 ? -1 : r > 0.8 ? 1 : 0;
+      drawText(g, ch, cx, y + dy, { color });
+      drawText(g, ch, cx + 1, y + dy, { color });
+      cx += measure(ch);
+    });
+  });
+  if (texts.size > 48) texts.delete(texts.keys().next().value as string);
+  texts.set(key, c);
+  return c;
 }

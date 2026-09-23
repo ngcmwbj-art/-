@@ -4,7 +4,7 @@
 // so they can glow, break and fly away; the shadow's outline wobbles per row.
 
 import type { Gfx } from '../../engine/gfx';
-import { makeCanvas, PixelCanvas } from '../../engine/pixel';
+import { BAYER4, makeCanvas, PixelCanvas } from '../../engine/pixel';
 import { hash2 } from '../../engine/rng';
 import { registerEnemyArt, loop, type EnemyArt, type EnemyView } from './index';
 import { K, Mask, ditherMask, rimLeft, shade } from './lib';
@@ -25,6 +25,8 @@ interface Layer {
 let built: {
   body: HTMLCanvasElement;
   bodyGlow: HTMLCanvasElement;
+  front: HTMLCanvasElement;
+  frontGlow: HTMLCanvasElement;
   parts: Record<string, Layer>;
   gloveL: Layer;
   gloveR: Layer;
@@ -46,48 +48,165 @@ function layer(w: number, h: number, x: number, y: number, draw: (p: PixelCanvas
 function buildAll(): NonNullable<typeof built> {
   if (built) return built;
   // ---- the shadow body ------------------------------------------------------------
-  const body = new PixelCanvas(160, 128);
-  const m = new Mask(160, 128)
-    .ellipse(80, 34, 27, 26) // head
-    .ellipse(80, 76, 52, 38) // torso behind the knees
-    .ellipse(58, 78, 21, 24) // left knee
-    .ellipse(102, 78, 21, 24) // right knee
-    .ellipse(80, 112, 50, 12) // seat / feet
-    .rect(34, 60, 92, 50);
-  shade(body, m, SHADOW, { base: 0.52, k: 0.65, bevel: 6, dither: 0.4 });
-  // knee separation line and inner folds
-  for (let y = 60; y < 100; y++) body.set(80 + Math.round(Math.sin(y * 0.2)), y, SHADOW[1]);
-  // sunset rim light along the upper-left edges (α50%)
-  m.each((x, y) => {
-    if (!m.in(x, y - 1) || (!m.in(x - 1, y) && y < 90)) body.set(x, y, '#9A5A6A');
-    else if (!m.in(x, y - 2) && x < 90) body.set(x, y, SHADOW[5]);
+  // Two layers so the knees and the arms wrapped around them sit in front of
+  // the torso (体育座り, seen from the front): back = head, neck, shoulders,
+  // torso and seat; front = raised knees, shins, feet and the hugging arms.
+  const back = new PixelCanvas(160, 128);
+  const bm = new Mask(160, 128)
+    .ellipse(80, 34, 24, 23) // head
+    .ellipse(57, 37, 4, 5) // ears
+    .ellipse(103, 37, 4, 5)
+    .rect(71, 52, 18, 8) // neck
+    .poly([[36, 78], [42, 63], [58, 55], [102, 55], [118, 63], [124, 78], [126, 106], [34, 106]]) // shoulders & torso
+    .ellipse(80, 110, 50, 12); // seat
+  shade(back, bm, SHADOW, { base: 0.5, k: 0.6, bevel: 7, dither: 0.45 });
+  // the hat's elastic chin cord, slack under the chin
+  const cord = new Mask(160, 128).curve(58, 26, 62, 60, 80, 59).curve(80, 59, 98, 60, 102, 26);
+  cord.each((x, y) => {
+    if (bm.in(x, y)) back.set(x, y, (x + y) % 3 === 0 ? '#9AA0A8' : '#C8C2B4');
   });
-  // floor shadow in the last rows (behind the status panels)
-  for (let y = 122; y < 128; y++) for (let x = 20; x < 140; x++) if (!m.in(x, y) && hash2(x, y, 2) < 0.8) body.set(x, y, '#2A2440');
-  body.outline(K.outline);
-  const bodyC = body.toCanvas();
-  const [glowC, gctx] = makeCanvas(160, 128);
-  gctx.drawImage(bodyC, 0, 0);
-  gctx.globalCompositeOperation = 'source-atop';
-  gctx.fillStyle = '#FFD23F';
-  gctx.globalAlpha = 0.35;
-  gctx.fillRect(0, 0, 160, 128);
+  // shoulder blades / collar folds and the dim lap between the knees
+  back.line(66, 58, 76, 62, SHADOW[1]);
+  back.line(94, 58, 84, 62, SHADOW[1]);
+  for (let y = 62; y < 100; y++) back.set(80 + Math.round(Math.sin(y * 0.3)), y, SHADOW[0]);
+  const fm = new Mask(160, 128)
+    .ellipse(62, 72, 16, 12) // knees
+    .ellipse(98, 72, 16, 12)
+    .poly([[47, 72], [77, 72], [76, 108], [52, 108]]) // shins
+    .poly([[83, 72], [113, 72], [108, 108], [84, 108]])
+    .ellipse(64, 112, 14, 6) // feet
+    .ellipse(96, 112, 14, 6)
+    .line(47, 60, 38, 86, 6.5) // upper arms down the outside of the knees
+    .line(113, 60, 122, 86, 6.5)
+    .line(38, 88, 68, 93, 5.5) // forearms wrapped across the shins
+    .line(122, 88, 92, 93, 5.5);
+  // the gap between the two shins
+  for (let y = 74; y < 110; y++) {
+    fm.set(80, y, 0);
+    if (y > 96) fm.set(79, y, 0);
+  }
+  const front = new PixelCanvas(160, 128);
+  shade(front, fm, SHADOW, { base: 0.57, k: 0.62, bevel: 5, dither: 0.45 });
+  // the arms read as separate volumes over the knees and shins
+  const arms = new Mask(160, 128).line(47, 60, 38, 86, 6.5).line(113, 60, 122, 86, 6.5).line(38, 88, 68, 93, 5.5).line(122, 88, 92, 93, 5.5);
+  shade(front, arms, SHADOW, { base: 0.66, k: 0.7, bevel: 3, dither: 0.4 });
+  arms.each((x, y) => {
+    // dark contour where an arm lies over the legs, a lit top edge
+    for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]] as [number, number][]) {
+      if (!arms.in(x + dx, y + dy) && fm.in(x + dx, y + dy)) {
+        if (dy < 0) front.set(x, y, SHADOW[5]);
+        else front.set(x + dx, y + dy, SHADOW[0]);
+      }
+    }
+  });
+  // sleeve cuffs where the hands come out
+  for (let yy = 88; yy <= 98; yy++) {
+    if (arms.in(66, yy)) front.set(66, yy, SHADOW[1]);
+    if (arms.in(94, yy)) front.set(94, yy, SHADOW[1]);
+  }
+  // knee caps catch a little light; the shins turn away
+  for (const kx of [58, 94]) {
+    front.set(kx, 65, SHADOW[5]);
+    front.set(kx + 1, 65, SHADOW[5]);
+    front.set(kx - 1, 66, SHADOW[5]);
+  }
+  // cast shadow of the knees/arms onto the torso (down-right)
+  fm.each((x, y) => {
+    for (const [dx, dy] of [[1, 1], [2, 1], [1, 2]] as [number, number][]) {
+      const X = x + dx;
+      const Y = y + dy;
+      if (!fm.in(X, Y) && bm.in(X, Y)) back.set(X, Y, SHADOW[0]);
+    }
+  });
+  // front edge: dark contour on the shadow side, a thin lit edge on the light side
+  fm.each((x, y) => {
+    const outR = !fm.in(x + 1, y);
+    const outB = !fm.in(x, y + 1);
+    const outL = !fm.in(x - 1, y);
+    const outT = !fm.in(x, y - 1);
+    if ((outR || outB) && bm.in(x + 1, y + 1)) front.set(x, y, SHADOW[0]);
+    else if ((outL || outT) && bm.in(x - 1, y - 1)) front.set(x, y, SHADOW[5]);
+  });
+  // half-buried forgotten things (texture): crayon, marble, hair tie, badge, pin
+  const buried = (x: number, y: number, rows: string[], pal: Record<string, string>, target: PixelCanvas, sink: Mask) => {
+    target.art(rows, pal, x, y);
+    for (let j = 0; j < rows.length; j++)
+      for (let i = 0; i < rows[j].length; i++) {
+        const X = x + i;
+        const Y = y + j;
+        // the lower half sinks into the shadow
+        if (sink.in(X, Y) && j >= rows.length / 2 && BAYER4[Y & 3][X & 3] < 9) target.set(X, Y, SHADOW[2]);
+      }
+  };
+  buried(46, 101, ['.rrrrrw', 'RRRRRrw', '.RRRRR.'], { r: '#E84E3C', R: '#B8241E', w: '#F4F1E8' }, front, fm);
+  buried(111, 98, ['.bb.', 'bBwb', 'bBBb', '.bb.'], { b: '#4AA8E0', B: '#2F4A8A', w: '#FFFFFF' }, front, fm);
+  buried(53, 104, ['.pp.', 'p..p', 'p..p', '.pp.'], { p: '#E0567A' }, back, bm);
+  buried(101, 76, ['wwwww', 'wrrrw', 'wwwww'], { w: '#F4F1E8', r: '#E23B2E' }, front, fm);
+  buried(70, 60, ['c.....', '.cccc.', 'c....c'], { c: '#C0C6CC' }, back, bm);
+  buried(118, 72, ['y.', 'yy', '.Y'], { y: '#FFD23F', Y: '#D9A441' }, back, bm);
+  buried(40, 70, ['gg', 'gG', 'Gg'], { g: '#9BCB6B', G: '#5FA85A' }, back, bm);
+  // sunset rim light on the upper edges (#F2894B at ~50% over the shadow)
+  const both = bm.clone().or(fm);
+  const rim = (pc: PixelCanvas, m: Mask) =>
+    m.each((x, y) => {
+      const lit = x < 110 ? 1 : 0.5;
+      if (!both.in(x, y - 1) || (!both.in(x - 1, y) && y < 96)) pc.set(x, y, lit === 1 ? '#B06470' : '#8A5270');
+      else if ((!both.in(x, y - 2) || !both.in(x - 2, y)) && x < 100 && y < 96) pc.set(x, y, '#6E4A78');
+    });
+  rim(back, bm);
+  rim(front, fm);
+  // floor shadow in the last rows (hidden behind the status panels)
+  for (let y = 120; y < 128; y++) for (let x = 20; x < 140; x++) if (!both.in(x, y) && hash2(x, y, 2) < 0.8 - (y - 120) * 0.08) back.set(x, y, '#2A2440');
+  back.outline(K.outline);
+  front.outline(K.outline);
+  const glowOf = (c: HTMLCanvasElement): HTMLCanvasElement => {
+    const [gc, gx] = makeCanvas(160, 128);
+    gx.drawImage(c, 0, 0);
+    gx.globalCompositeOperation = 'source-atop';
+    gx.fillStyle = '#FFD23F';
+    gx.globalAlpha = 0.35;
+    gx.fillRect(0, 0, 160, 128);
+    return gc;
+  };
+  const bodyC = back.toCanvas();
+  const frontC = front.toCanvas();
+  const glowC = glowOf(bodyC);
+  const frontGlowC = glowOf(frontC);
 
   // ---- parts --------------------------------------------------------------------------
+  // the yellow school hat (通学帽): round crown, a full soft brim, a ribbon
+  // band, the blank name field, and the elastic chin cord hanging down
   const cap = layer(68, 30, 46, 2, (p) => {
-    const dome = new Mask(68, 30).ellipse(34, 16, 30, 15).and(new Mask(68, 30).rect(0, 0, 68, 21));
-    shade(p, dome, ['#8A6A10', '#C8A020', '#E0BC30', '#F5D33B', '#FFE98A'], { mode: 'sphere', cx: 30, cy: 10, rx: 34, ry: 18, base: 0.6, k: 0.7 });
-    // brim sticking out front-left
-    const brim = new Mask(68, 30).ellipse(28, 22, 28, 4.5).and(new Mask(68, 30).rect(0, 19, 68, 11));
-    shade(p, brim, ['#8A6A10', '#C8A020', '#E0BC30', '#F5D33B'], { base: 0.55, bevel: 2 });
-    p.hline(4, 50, 20, '#8A6A10');
+    const Y = ['#8A6A10', '#C8A020', '#E0BC30', '#F5D33B', '#FFE98A'];
+    const brim = new Mask(68, 30).ellipse(34, 20, 32, 6.5);
+    shade(p, brim, Y, { base: 0.5, k: 0.6, bevel: 2, dither: 0.3 });
+    // underside of the brim in shadow along the bottom edge
+    brim.each((x, y) => {
+      if (!brim.in(x, y + 1)) p.set(x, y, '#8A6A10');
+      else if (!brim.in(x, y + 2) && y > 20) p.set(x, y, '#C8A020');
+    });
+    const crown = new Mask(68, 30).ellipse(34, 15, 21, 13).and(new Mask(68, 30).rect(0, 0, 68, 20));
+    shade(p, crown, Y, { mode: 'sphere', cx: 30, cy: 9, rx: 24, ry: 15, base: 0.62, k: 0.75, dither: 0.35 });
+    // ribbon band round the crown
+    for (let x = 13; x <= 55; x++) {
+      const yy = 17 - Math.round(Math.abs(x - 34) / 14);
+      if (crown.in(x, yy)) {
+        p.set(x, yy, '#D9A441');
+        if (crown.in(x, yy - 1)) p.set(x, yy - 1, x < 34 ? '#E8B850' : '#C8902A');
+      }
+    }
+    // crown seams
+    p.line(34, 3, 34, 15, '#E0BC30');
+    p.line(24, 5, 22, 15, '#E0BC30');
+    p.line(44, 5, 46, 15, '#C8A020');
+    p.set(34, 2, '#C8A020');
+    p.set(34, 3, '#FFE98A');
     // blank name field on the front (3×8)
     p.rect(30, 8, 8, 4, '#F4F1E8');
     p.hline(30, 37, 11, '#C8C2B4');
-    // stitching lines
-    for (let x = 12; x < 58; x += 3) p.set(x, 14 + Math.round(Math.sin(x * 0.12) * 2), '#C8A020');
-    p.set(34, 1, '#C8A020');
-    p.set(34, 2, '#FFE98A');
+    p.set(30, 8, '#FFFFFF');
+    // sheen on the brim's lit side
+    for (let x = 6; x < 20; x += 2) p.set(x, 18, '#FFE98A');
   });
   const umbrella = layer(46, 76, 2, 32, (p) => {
     // 3 clear umbrellas + 1 navy kid's umbrella fanning out from behind the shoulder
@@ -149,18 +268,28 @@ function buildAll(): NonNullable<typeof built> {
     const op = new Mask(38, 22).ellipse(22, 8, 8, 3);
     op.each((x, y) => p.set(x, y, '#5B4A7A'));
   });
-  const gloveL = layer(20, 18, 50, 76, (p) => {
-    const g = new Mask(20, 18).ellipse(10, 9, 9, 7.5);
-    shade(p, g, ['#801A12', '#B8241E', '#E84E3C', '#FF7A62'], { mode: 'sphere', base: 0.6 });
-    for (let i = 0; i < 3; i++) p.line(12 + i * 2, 4, 12 + i * 2, 10, '#B8241E');
-    p.hline(2, 8, 15, '#F4F1E8');
-  });
-  const gloveR = layer(20, 18, 90, 76, (p) => {
-    const g = new Mask(20, 18).ellipse(10, 9, 9, 7.5);
-    shade(p, g, ['#2F7AB0', '#4AA8E0', '#7FD1E8', '#B0E8F4'], { mode: 'sphere', base: 0.6 });
-    for (let i = 0; i < 3; i++) p.line(4 + i * 2, 4, 4 + i * 2, 10, '#4AA8E0');
-    p.hline(11, 17, 15, '#F4F1E8');
-  });
+  // gloves clasped over the shins (the hands of the hug): mittens seen from
+  // the back of the hand, fingers curling toward the middle, a ribbed cuff
+  const glove = (x: number, y: number, red: boolean) =>
+    layer(20, 18, x, y, (p) => {
+      const flip = !red;
+      const X = (v: number) => (flip ? 19 - v : v);
+      const ramp = red ? ['#801A12', '#B8241E', '#E84E3C', '#FF7A62', '#FFA08A'] : ['#24386A', '#2F7AB0', '#4AA8E0', '#7FD1E8', '#B0E8F4'];
+      const g = new Mask(20, 18).ellipse(X(10), 9, 7, 6.5);
+      for (let i = 0; i < 4; i++) g.ellipse(X(16), 4.5 + i * 3, 2.4, 1.8);
+      g.ellipse(X(9), 3, 3, 2.2); // thumb over the top
+      shade(p, g, ramp, { mode: 'sphere', cx: X(10), cy: 8, rx: 9, ry: 8, base: 0.58, k: 0.75, dither: 0.3 });
+      // finger creases
+      for (let i = 1; i < 4; i++) p.line(X(14), 3 + i * 3, X(17), 3 + i * 3, ramp[1]);
+      p.line(X(7), 4, X(11), 5, ramp[1]);
+      // knitted texture: a few stitches
+      for (let yy = 7; yy < 14; yy += 2) for (let xx = 6; xx < 13; xx += 3) p.set(X(xx + (yy % 4 === 1 ? 1 : 0)), yy, ramp[2]);
+      // ribbed cuff on the outer side
+      const cuff = new Mask(20, 18).rect(X(1) - (flip ? 3 : 0), 5, 4, 9);
+      cuff.each((xx, yy) => p.set(xx, yy, (xx + (flip ? 1 : 0)) % 2 ? '#F4F1E8' : '#C8C2B4'));
+    });
+  const gloveL = glove(57, 82, true);
+  const gloveR = glove(83, 82, false);
   const recorder = layer(20, 40, 116, 8, (p) => {
     for (let i = 0; i < 34; i++) {
       const x = 16 - i * 0.35;
@@ -172,7 +301,7 @@ function buildAll(): NonNullable<typeof built> {
     }
     p.rect(14, 0, 4, 3, '#F6D98A');
   });
-  const bag = layer(28, 26, 66, 52, (p) => {
+  const bag = layer(28, 26, 66, 49, (p) => {
     const b = new Mask(28, 26).poly([[4, 4], [24, 4], [26, 24], [2, 24]]);
     shade(p, b, ['#A8A294', '#C8C2B4', '#E8E4D8', '#F4F1E8'], { base: 0.62, bevel: 3 });
     // drawstring
@@ -222,6 +351,8 @@ function buildAll(): NonNullable<typeof built> {
   built = {
     body: bodyC,
     bodyGlow: glowC,
+    front: frontC,
+    frontGlow: frontGlowC,
     parts: { cap, umbrella, bottle, shoe },
     gloveL,
     gloveR,
@@ -296,23 +427,28 @@ registerEnemyArt('boss_omukaemachi', (): EnemyArt => {
       const breathe = still ? 0 : loop(gt, 800, 2);
       const lookup = v.pose === 'lookup' || v.pose === 'cap' ? -2 : 0;
       ctx.clearRect(0, 0, W, H);
-      // shadow body: each row offset by a sine (outline wobble)
-      const src = v.pose === 'chimeglow' || v.pose === 'chime' ? b.bodyGlow : b.body;
-      for (let y = 0; y < 128; y++) {
-        const dx = still ? 0 : Math.round(amp * Math.sin(2 * Math.PI * (y / 40 + gt / 1600)));
-        const yy = y + (y < 56 ? breathe + lookup : breathe);
-        ctx.drawImage(src, 0, y, 160, 1, OX + dx, OY + yy, 160, 1);
-      }
       const put = (L: { c: HTMLCanvasElement; x: number; y: number }, dx = 0, dy = 0) => ctx.drawImage(L.c, OX + L.x + dx, OY + L.y + dy);
+      const glowing = v.pose === 'chimeglow' || v.pose === 'chime';
+      // behind the body: the recorder sticking out of the back, the umbrella bundle
       if (!f.gone_recorder) put(b.recorder, 0, breathe + lookup);
-      put(b.trinkets, 0, 0);
-      if (!f.gone_bag) put(b.bag, 0, breathe);
       if (!f.broken_umbrella && !f.gone_umbrella) put(b.parts.umbrella, 0, breathe);
+      // shadow body: each row offset by a sine (outline wobble)
+      const rows = (src: HTMLCanvasElement) => {
+        for (let y = 0; y < 128; y++) {
+          const dx = still ? 0 : Math.round(amp * Math.sin(2 * Math.PI * (y / 40 + gt / 1600)));
+          const yy = y + (y < 56 ? breathe + lookup : breathe);
+          ctx.drawImage(src, 0, y, 160, 1, OX + dx, OY + yy, 160, 1);
+        }
+      };
+      rows(glowing ? b.bodyGlow : b.body);
+      if (!f.gone_bag) put(b.bag, 0, breathe);
+      rows(glowing ? b.frontGlow : b.front);
+      put(b.trinkets, 0, 0);
       if (!f.broken_bottle && !f.gone_bottle) {
         if (v.pose === 'drink') ctx.drawImage(b.parts.bottle.c, OX + b.parts.bottle.x - 6, OY + b.parts.bottle.y - 10);
         else put(b.parts.bottle, 0, breathe);
       }
-      // gloves clasping the knees (fingers squeeze now and then)
+      // gloves clasping the shins (fingers squeeze now and then)
       const squeeze = !still && gt % 3000 < 160 ? 1 : 0;
       if (!f.gone_glove) {
         if (v.pose !== 'armL') put(b.gloveL, squeeze, breathe);

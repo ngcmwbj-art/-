@@ -307,8 +307,9 @@ const GACHA: Mats = {
   ...base,
   skin: mat('#F7C8A2', { shade: '#DDA27E', light: '#FFE0C4', dark: '#B07A5A', rim: '#FFB888' }),
   hair: mat('#5A4448', { shade: '#463438', light: '#6E585A', dark: '#2E2226', rim: '#9A6A52' }),
-  plaster: mat('#F2D2A8', { shade: '#D8B088', light: '#FFE8C8' }),
-  dot: flat('#D8A888'),
+  plaster: mat('#E8B67A', { shade: '#CC9660', light: '#F4CC94' }),
+  pad: flat('#FBF0D8'),
+  dot: flat('#CC9660'),
   tank: mat('#F4F1E8', { shade: '#CFC8BC', light: '#FFFFFF', dark: '#9E978C', rim: '#FFDCB4' }),
   shorts: mat('#F2894B', { shade: '#C8643A', light: '#F7A86A', dark: '#8E3E24', rim: '#FFB070' }),
   sandal: mat('#4AA8E0', { shade: '#2F7AB0', light: '#7CC8F0' }),
@@ -386,10 +387,14 @@ function gachaDraw(f: Fig, p: Pose) {
     const pp = act === 'shake' ? { ...p, blink: true } : p;
     head(f, pp, GACHA_HEAD, hy);
     if (p.view === 'down') {
-      f.part('plaster', { shade: 'b', light: '' });
-      f.rect(6, hy + 3, 4, 1);
+      // a big crooked plaster across the forehead: tan strip, pale pad
+      const py = hy + 3 - (p.lookUp ? 1 : 0);
+      f.part('plaster', { shade: '', light: '' });
+      f.t(-1).px(5, py).t(0).px(6, py).px(9, py + 1).t(-1).px(10, py + 1).t(null);
+      f.part('pad', { flat: true, rim: false });
+      f.px(7, py).px(8, py).px(7, py + 1).px(8, py + 1);
       f.part('dot', { flat: true, rim: false });
-      f.px(7, hy + 3).px(8, hy + 3);
+      f.px(6, py + 1).px(9, py);
     }
     return;
   }
@@ -412,8 +417,11 @@ function gachaDraw(f: Fig, p: Pose) {
     }
   }
   head(f, p, GACHA_HEAD, hy);
-  f.part('plaster', { shade: 'b', light: '' });
-  f.rect(2, hy + 3, 3, 1);
+  const py = hy + 3 - (p.lookUp ? 1 : 0);
+  f.part('plaster', { shade: '', light: '' });
+  f.t(-1).px(2, py).t(null);
+  f.part('pad', { flat: true, rim: false });
+  f.px(3, py).px(4, py).px(3, py + 1);
 }
 
 const GACHA_IDLE: IdleKey[] = [
@@ -549,7 +557,8 @@ function sandCrouch(f: Fig, p: Pose) {
   const act = p.act;
   const dig = act === 'dig' ? p.ph : 0;
   const look = act === 'look';
-  const hy = 9 + (p.breath ? -0 : 0);
+  // exhale: head and cap sink 1px (breath arrives as −1)
+  const hy = 9 + (p.breath < 0 ? 1 : 0);
   if (p.view === 'down' || p.view === 'up') {
     // feet + knees
     f.part('shoe', { shade: 'rb', light: 't' });
@@ -575,7 +584,20 @@ function sandCrouch(f: Fig, p: Pose) {
       f.part('sand', { shade: 'rb', light: 't' });
       f.rect(6, 22, 4, 1);
       if (dig) f.px(7, 21);
+    } else {
+      // from behind: elbows working the shovel in front of her, sand
+      // flicking out past her left side on every scoop
+      f.part('skin', { shade: '', light: '' });
+      f.px(3, 18 + dig).px(12, 19 - dig);
+      f.part('sand', { shade: 'rb', light: 't' });
+      f.rect(5, 22, 6, 1);
+      if (dig) f.px(2, 20).px(1, 19);
+      else f.px(3, 21);
+      f.part('shovel', { shade: 'r', light: 't' });
+      if (dig) f.px(3, 20);
     }
+    // looking west at the sun turns her head (seen from behind too)
+    if (look && p.view === 'up') f.offset(-1, 0);
     head(f, look ? { ...p, lookUp: false } : p, SAND_HEAD, hy - 2);
     if (look && p.view === 'down') {
       f.part('skin', { shade: '', light: '' });
@@ -584,6 +606,7 @@ function sandCrouch(f: Fig, p: Pose) {
       f.rect(4, hy + 4, 1, 2);
     }
     gymCap(f, p.view, hy - 1 + (p.lookUp ? -1 : 0));
+    f.offset(0, 0);
     return;
   }
   // side crouch (facing left)
@@ -622,12 +645,23 @@ registerChar('npc_sand_girl', () =>
     mats: SAND,
     draw: sandDraw,
     walkFrameMs: 120,
-    idle: { down: SAND_IDLE, left: SAND_IDLE, right: SAND_IDLE, up: rep([{ act: 'dig', ph: 0 }, { act: 'dig', ph: 1 }], 4) },
+    idle: {
+      down: SAND_IDLE,
+      left: SAND_IDLE,
+      right: SAND_IDLE,
+      up: [
+        ...rep([{ act: 'dig', ph: 0 }, { act: 'dig', ph: 1 }], 3),
+        { act: 'dig', ph: 0, breath: 1 }, { act: 'dig', ph: 0, breath: 1 },
+        { act: 'look' }, { act: 'look' }, { act: 'look', breath: 1 }, { act: 'look', breath: 1 },
+        ...rep([{ act: 'dig', ph: 0 }, { act: 'dig', ph: 1 }], 2),
+      ],
+    },
     extras: {
       crouch: { dirs: 'all' },
       proud: { dirs: ['down'] },
       look_up_stand: { dirs: ['down'], p: { lookUp: true } },
     },
-    anims: { dig: { frames: [{ ph: 0 }, { ph: 1 }], ms: 250 } },
+    anims: { dig: { frames: [{ ph: 0 }, { ph: 1 }], ms: 250, dirs: ['down', 'left', 'right'] } },
+    poses: { crouch: 'idle' },
   }),
 );

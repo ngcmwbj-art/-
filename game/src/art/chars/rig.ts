@@ -102,6 +102,13 @@ export interface SpriteSpec {
   extras?: Record<string, ExtraSpec>;
   /** Named anims: name → frames of pose overrides. */
   anims?: Record<string, AnimSpec>;
+  /**
+   * Held poses as looping, direction-aware anims (breathing, blinks and the
+   * fidget included). 'idle' = the idle loop of each facing; a key list (per
+   * facing or for all) is played like an idle loop, keys without an act use
+   * the pose name. Overrides an anim of the same name.
+   */
+  poses?: Record<string, PoseLoop>;
   shadow?: number;
   render?: RenderOpts;
   /** Directions that do not exist for this sprite reuse another view. */
@@ -119,8 +126,13 @@ export interface AnimSpec {
   frames: Partial<Pose>[];
   ms: number | number[];
   loop?: boolean;
+  /** Facing of the frames (default 'down'). */
   dir?: Dir;
+  /** Build the anim for these facings too (direction-aware, see animsDir). */
+  dirs?: Dir[] | 'all';
 }
+
+export type PoseLoop = 'idle' | IdleKey[] | Partial<Record<Dir, IdleKey[]>>;
 
 /** Standard idle: 1s breathing (4 frames × 250ms), blink once per 4s. */
 export function breathingIdle(len = 16, blinkAt = [13]): IdleKey[] {
@@ -150,6 +162,51 @@ function framePose(dir: Dir, o: Partial<Pose>): Pose {
   return pose({ ...o, view, dir, mirror: dir === 'right' });
 }
 
+/**
+ * Frames of an idle-style loop for facing `d`. Every key lasts idleFrameMs
+ * (nominal); frames are emitted on a uniform TICK so blinks can be half
+ * (60ms) → closed (60ms) → open. `act` fills in keys without their own act.
+ */
+function idleLoop(spec: SpriteSpec, d: Dir, ks: IdleKey[], act = '', mode: Pose['mode'] = 'idle'): HTMLCanvasElement[] {
+  const ticks = Math.max(1, Math.round((spec.idleFrameMs ?? 250) / TICK));
+  // Frames are shared between keys with the same breath/blink/act/ph unless
+  // the draw function reads p.tick (secondary motion: sway, blinking LEDs,
+  // rollers...), which is detected on the first render of each key kind.
+  const cache = new Map<string, HTMLCanvasElement>();
+  const usesTick = new Map<string, boolean>();
+  const get = (k: IdleKey, i: number, blink: number) => {
+    const a = k.act ?? act;
+    const shared = `${k.breath ?? 0}|${blink}|${a}|${k.ph ?? 0}`;
+    const sens = usesTick.get(shared);
+    const key = sens ? `${shared}|${i}` : shared;
+    let c = sens === undefined ? undefined : cache.get(key);
+    if (!c) {
+      // breathing lowers the head and torso by 1px (30_level_art 7.8)
+      const p = framePose(d, { breath: -(k.breath ?? 0), blink: blink > 0, blinkClosed: blink > 1, act: a, ph: k.ph ?? 0, tick: i, mode });
+      let read = false;
+      let tv = i;
+      Object.defineProperty(p, 'tick', {
+        get: () => ((read = true), tv),
+        set: (v: number) => (tv = v),
+        enumerable: true,
+        configurable: true,
+      });
+      c = renderFrame(spec, p);
+      if (sens === undefined) usesTick.set(shared, read);
+      cache.set(read ? `${shared}|${i}` : shared, c);
+    }
+    return c;
+  };
+  const frames: HTMLCanvasElement[] = [];
+  ks.forEach((k, i) => {
+    for (let t = 0; t < ticks; t++) {
+      const blink = k.blink ? (t === 0 ? 1 : t === 1 ? 2 : ticks > 3 && t === 2 ? 1 : 0) : 0;
+      frames.push(get(k, i, blink));
+    }
+  });
+  return frames;
+}
+
 export function buildSprite(spec: SpriteSpec): CharSprite {
   const nWalk = spec.walkFrames ?? 4;
   const bobs = spec.walkBob ?? [0, -1, 0, -1];
@@ -165,29 +222,8 @@ export function buildSprite(spec: SpriteSpec): CharSprite {
     for (let i = 0; i < nWalk; i++)
       wf.push(renderFrame(spec, framePose(d, { step: i, bob: bobs[i % bobs.length], mode: 'walk' })));
     walk[d] = wf;
-    // idle: every key lasts idleFrameMs (nominal); frames are emitted on a
-    // uniform TICK so blinks can be half (60ms) → closed (60ms) → open.
     const keys = Array.isArray(spec.idle) ? spec.idle : (spec.idle?.[d] ?? (spec.idle ? undefined : breathingIdle()));
-    const ks = keys ?? breathingIdle();
-    const ticks = Math.max(1, Math.round((spec.idleFrameMs ?? 250) / TICK));
-    const cache = new Map<string, HTMLCanvasElement>();
-    const get = (k: IdleKey, i: number, blink: number) => {
-      const key = `${k.breath ?? 0}|${blink}|${k.act ?? ''}|${k.ph ?? 0}`;
-      let c = cache.get(key);
-      if (!c) {
-        // breathing lowers the head and torso by 1px (30_level_art 7.8)
-        c = renderFrame(spec, framePose(d, { breath: -(k.breath ?? 0), blink: blink > 0, blinkClosed: blink > 1, act: k.act ?? '', ph: k.ph ?? 0, tick: i, mode: 'idle' }));
-        cache.set(key, c);
-      }
-      return c;
-    };
-    const frames: HTMLCanvasElement[] = [];
-    ks.forEach((k, i) => {
-      for (let t = 0; t < ticks; t++) {
-        const blink = k.blink ? (t === 0 ? 1 : t === 1 ? 2 : ticks > 3 && t === 2 ? 1 : 0) : 0;
-        frames.push(get(k, i, blink));
-      }
-    });
+    const frames = idleLoop(spec, d, keys ?? breathingIdle());
     idle[d] = frames;
     if (spec.run) {
       run ??= {} as Record<Dir, HTMLCanvasElement[]>;
@@ -224,22 +260,54 @@ export function buildSprite(spec: SpriteSpec): CharSprite {
   }
 
   const anims: Record<string, CharAnim> = {};
+  const animsDir: Record<string, Partial<Record<Dir, CharAnim>>> = {};
+  const buildAnim = (name: string, a: AnimSpec, d: Dir): CharAnim => {
+    const src = alias[d] ?? d;
+    const cache = new Map<string, HTMLCanvasElement>();
+    const frames = a.frames.map((o) => {
+      const key = JSON.stringify(o);
+      let c = cache.get(key);
+      if (!c) {
+        c = renderFrame(spec, framePose(src, { act: name, mode: 'anim', ...o }));
+        cache.set(key, c);
+      }
+      return c;
+    });
+    return { frames, ms: a.ms, loop: a.loop };
+  };
   if (spec.anims)
     for (const name of Object.keys(spec.anims)) {
       const a = spec.anims[name];
       const d = a.dir ?? 'down';
-      const cache = new Map<string, HTMLCanvasElement>();
-      const frames = a.frames.map((o) => {
-        const key = JSON.stringify(o);
-        let c = cache.get(key);
-        if (!c) {
-          c = renderFrame(spec, framePose(d, { act: name, mode: 'anim', ...o }));
-          cache.set(key, c);
+      anims[name] = buildAnim(name, a, d);
+      if (a.dirs) {
+        const byDir: Partial<Record<Dir, CharAnim>> = { [d]: anims[name] };
+        for (const dd of a.dirs === 'all' ? DIRS : a.dirs) byDir[dd] ??= buildAnim(name, a, dd);
+        animsDir[name] = byDir;
+      }
+      if (!extra[name]) extra[name] = anims[name].frames[0];
+    }
+  if (spec.poses)
+    for (const name of Object.keys(spec.poses)) {
+      const loop = spec.poses[name];
+      const byDir: Partial<Record<Dir, CharAnim>> = {};
+      for (const d of DIRS) {
+        let frames: HTMLCanvasElement[];
+        if (loop === 'idle') frames = idle[d];
+        else {
+          const keys = Array.isArray(loop) ? loop : (loop[d] ?? loop[alias[d] ?? d]);
+          if (!keys) {
+            frames = idle[d];
+          } else {
+            const src = alias[d] ?? d;
+            frames = src !== d && byDir[src] ? byDir[src]!.frames : idleLoop(spec, src, keys, name);
+          }
         }
-        return c;
-      });
-      anims[name] = { frames, ms: a.ms, loop: a.loop };
-      if (!extra[name]) extra[name] = frames[0];
+        byDir[d] = { frames, ms: TICK };
+      }
+      anims[name] = byDir.down!;
+      animsDir[name] = byDir;
+      if (!extra[name]) extra[name] = byDir.down!.frames[0];
     }
 
   return {
@@ -251,6 +319,7 @@ export function buildSprite(spec: SpriteSpec): CharSprite {
     extra,
     extraDir,
     anims,
+    animsDir,
     run,
     walkFrameMs: spec.walkFrameMs ?? 150,
     runFrameMs: spec.runFrameMs ?? 95,

@@ -3,7 +3,7 @@
 // Music notes pass `det` (the song's pitch bus: stage detune, tape wobble,
 // the mid-boss bow) so every oscillator — FM modulators included — follows it.
 
-import { midiHz, voice, type VoiceOpts } from './engine';
+import { cur, hasGraph, midiHz, noteLog, sharedLfo, voice, type VoiceOpts } from './engine';
 
 export interface InsOpts {
   /** Override the patch's base v. */
@@ -429,46 +429,106 @@ function padReverse(n: NoteCtx): void {
   );
 }
 
+/**
+ * ins_choir (3.3): two saws (±7 cents) through the 'u' formant bank. Built
+ * from raw nodes so each note costs 2 oscillators + 1 shared vibrato LFO
+ * (a voice() per band would be 16) — the boss chords hold 4 of these.
+ */
 function choir(n: NoteCtx): void {
+  if (!hasGraph()) return;
+  const g = cur();
+  const c = g.ctx;
   const f = midiHz(n.midi);
   const v = (n.o?.vol ?? 0.05) * n.vel;
   const k = n.o?.child ? 1.25 : 1;
-  const env = { dur: n.dur, attack: 0.3, decay: 0, sustain: 1, release: 0.8, linear: true };
+  const t0 = Math.max(n.t, c.currentTime);
+  const atk = 0.3;
+  const rel = 0.8;
+  const gateEnd = t0 + Math.max(n.dur, atk);
+  const end = gateEnd + rel + 0.05;
+  const nodes: AudioNode[] = [];
+  const env = c.createGain();
+  env.gain.value = 0;
+  env.gain.setValueAtTime(0, t0);
+  env.gain.linearRampToValueAtTime(1, t0 + atk);
+  env.gain.setValueAtTime(1, gateEnd);
+  env.gain.linearRampToValueAtTime(0, gateEnd + rel);
+  env.connect(n.dest);
+  const send = c.createGain();
+  send.gain.value = n.o?.rev ?? 0.45;
+  env.connect(send);
+  send.connect(n.rev ?? g.fxSend);
+  nodes.push(env, send);
+  // vibrato 5 Hz ±9 cents, fading in after 250 ms, shared by both saws
+  const vb = vib(n, 5, 9, 0.25);
+  const lfo = sharedLfo(c, vb.rate);
+  const lg = c.createGain();
+  lg.gain.value = 0;
+  lg.gain.setValueAtTime(0, t0 + vb.delay);
+  lg.gain.linearRampToValueAtTime(vb.depth, t0 + vb.delay + 0.12);
+  lfo.connect(lg);
+  nodes.push(lg);
+  const oscs: OscillatorNode[] = [];
+  const links: [AudioNode, AudioParam][] = [];
+  const bank: [BiquadFilterType, number, number, number][] = [
+    ['bandpass', 325 * k, 6, 1.0 * 2.2],
+    ['bandpass', 700 * k, 8, 0.5 * 2.2],
+    ['bandpass', 2530 * k, 10, 0.15 * 2.2],
+    // a little low body so high notes still carry
+    ['lowpass', Math.max(700, f * 1.6), 0.5, 0.25],
+  ];
   for (const det of [-7, 7]) {
-    // 'u' formants: 325 Hz ×1.0, 700 Hz ×0.5, 2530 Hz ×0.15 (3 band-passes)
-    const bank: [number, number, number][] = [
-      [325 * k, 6, 1.0],
-      [700 * k, 8, 0.5],
-      [2530 * k, 10, 0.15],
-    ];
-    for (const [ff, q, lvl] of bank)
-      voice(
-        base(n, {
-          ...env,
-          wave: 'sawtooth',
-          freq: f,
-          detune: det + (n.o?.detune ?? 0),
-          vol: v * lvl * 2.2,
-          filter: { type: 'bandpass', freq: ff, q },
-          vibrato: vib(n, 5, 9, 0.25),
-          pan: det < 0 ? -0.2 : 0.2,
-          reverb: n.o?.rev ?? 0.45,
-        }),
-      );
-    // a little low body so high notes (above F1) still carry
-    voice(
-      base(n, {
-        ...env,
-        wave: 'sawtooth',
-        freq: f,
-        detune: det,
-        vol: v * 0.25,
-        filter: { type: 'lowpass', freq: Math.max(700, f * 1.6), q: 0.5 },
-        vibrato: vib(n, 5, 9, 0.25),
-        reverb: n.o?.rev ?? 0.45,
-      }),
-    );
+    const o = c.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.value = f;
+    o.detune.value = det + (n.o?.detune ?? 0);
+    lg.connect(o.detune);
+    if (n.det) {
+      n.det.connect(o.detune);
+      links.push([n.det, o.detune]);
+    }
+    const pan = c.createStereoPanner();
+    pan.pan.value = det < 0 ? -0.2 : 0.2;
+    pan.connect(env);
+    nodes.push(o, pan);
+    for (const [type, ff, q, lvl] of bank) {
+      const fl = c.createBiquadFilter();
+      fl.type = type;
+      fl.frequency.value = ff;
+      fl.Q.value = q;
+      const gg = c.createGain();
+      gg.gain.value = v * lvl;
+      o.connect(fl);
+      fl.connect(gg);
+      gg.connect(pan);
+      nodes.push(fl, gg);
+    }
+    oscs.push(o);
   }
+  for (const o of oscs) {
+    o.start(t0);
+    o.stop(end);
+  }
+  oscs[0].onended = () => {
+    try {
+      lfo.disconnect(lg);
+    } catch {
+      /* gone */
+    }
+    for (const [a, p] of links)
+      try {
+        a.disconnect(p);
+      } catch {
+        /* gone */
+      }
+    for (const nd of nodes)
+      try {
+        nd.disconnect();
+      } catch {
+        /* gone */
+      }
+  };
+  if (noteLog) noteLog.push({ t: t0, dur: gateEnd - t0, freq: f, vol: v, wave: 'sawtooth' });
 }
 
 export const INS: Record<string, Instrument> = {

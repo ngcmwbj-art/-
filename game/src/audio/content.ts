@@ -13,3 +13,4 @@ import './sfx';
 import './voices';
 import './report';
 import './debugcmds';
+import './soundtest';

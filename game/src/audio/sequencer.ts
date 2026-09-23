@@ -13,6 +13,7 @@
 
 import { dbToGain, makeIR, voice, type Graph } from './engine';
 import { DRM, INS, type InsOpts } from './instruments';
+import { partTrim, songGainDb } from './mix';
 import {
   bassMidi,
   drumVel,
@@ -84,6 +85,8 @@ export interface PartFx {
 export interface PartRt {
   id: string;
   input: GainNode;
+  /** The part's resting level (its vol × the mix trim); fades are relative to it. */
+  base: number;
   rev: AudioNode;
   song: SongPlayer;
   state: Record<string, unknown>;
@@ -236,7 +239,7 @@ export class SongPlayer {
     this.pause = c.createGain();
     this.fade = c.createGain();
     this.out = c.createGain();
-    this.out.gain.value = dbToGain(def.gainDb);
+    this.out.gain.value = dbToGain(songGainDb(def.id, def.gainDb));
     const post = c.createGain();
     this.mix.connect(post);
     const rv = def.reverb ?? { len: 1.6, decay: 3.2, level: 0.3 };
@@ -258,6 +261,7 @@ export class SongPlayer {
     this.fade.connect(this.out);
     this.out.connect(dest);
     if (opts.fadeIn && opts.fadeIn > 0) {
+      this.fade.gain.value = 0;
       this.fade.gain.setValueAtTime(0, t0);
       this.fade.gain.linearRampToValueAtTime(1, t0 + opts.fadeIn);
     }
@@ -291,10 +295,10 @@ export class SongPlayer {
   private makePart(p: PartDef): PartRt {
     const c = this.g.ctx;
     const input = c.createGain();
-    input.gain.value = p.vol ?? 1;
+    input.gain.value = (p.vol ?? 1) * partTrim(this.def.id, p.id);
     let node: AudioNode = input;
     const fx = p.fx;
-    const rt: PartRt = { id: p.id, input, rev: this.wet, song: this, state: {}, prevMidi: null, prevEnd: 0 };
+    const rt: PartRt = { id: p.id, input, base: input.gain.value, rev: this.wet, song: this, state: {}, prevMidi: null, prevEnd: 0 };
     if (fx?.hp) {
       const f = c.createBiquadFilter();
       f.type = 'highpass';
@@ -413,15 +417,30 @@ export class SongPlayer {
     this.setTape(sr, sd, fr, fd, immediate ? 0 : 0.6, at);
   }
 
-  baseDetune = 0;
+  /** Stage transform pitch (5.4) and the free `detune` music param, in cents. */
+  private stageDet = 0;
+  private userDet = 0;
+  /** The song's resting pitch: every bend (bow, tape stop, brake) returns here. */
+  get baseDetune(): number {
+    return this.stageDet + this.userDet;
+  }
   setBaseDetune(cents: number, ramp: number, at = this.g.ctx.currentTime): void {
+    this.stageDet = cents;
+    this.rampDetune(ramp, at);
+  }
+  /** setMusicParam('detune', cents): bend the whole song on top of the stage pitch. */
+  setUserDetune(cents: number, ramp: number, at = this.g.ctx.currentTime): void {
+    this.userDet = cents;
+    this.rampDetune(ramp, at);
+  }
+  private rampDetune(ramp: number, at: number): void {
     const p = this.det.offset;
-    this.baseDetune = cents;
+    const to = this.baseDetune;
     p.cancelScheduledValues(at);
-    if (ramp <= 0) p.setValueAtTime(cents, at);
+    if (ramp <= 0) p.setValueAtTime(to, at);
     else {
       p.setValueAtTime(p.value, at);
-      p.linearRampToValueAtTime(cents, at + ramp);
+      p.linearRampToValueAtTime(to, at + ramp);
     }
   }
 
@@ -543,6 +562,7 @@ export class SongPlayer {
       },
       data: {},
     };
+    this.prevBar = this.bar;
     this.bar = b;
     if (!this.cursor.intro) this.curLoopIndex = this.cursor.i;
     // keep tempo-synced delays in time
@@ -641,6 +661,14 @@ export class SongPlayer {
     return this.bar;
   }
 
+  private prevBar: BarCtx | null = null;
+  /** What is audible at ctx time t (the scheduler runs ~0.12 s ahead). */
+  audibleAt(t: number): { label: string; beat: number; bpm: number; intro: boolean } | null {
+    const b = this.bar && t >= this.bar.t0 ? this.bar : this.prevBar ?? this.bar;
+    if (!b) return null;
+    return { label: b.label, beat: Math.max(0, (t - b.t0) / (b.stepDur * 4)), bpm: b.bpm, intro: b.inIntro };
+  }
+
   /** Pause gate for pausing jingles (sequencer keeps running). */
   setPaused(on: boolean, ramp: number, at = this.g.ctx.currentTime): void {
     const g = this.pause.gain;
@@ -653,14 +681,14 @@ export class SongPlayer {
     return this.parts.find((p) => p.id === id);
   }
 
-  /** Fade a part's level (boss final phase). */
+  /** Fade a part's level (boss final phase); v is relative to the part's resting level. */
   partGain(id: string, v: number, ramp: number, at = this.g.ctx.currentTime): void {
     const rt = this.partRt(id);
     if (!rt) return;
     const g = rt.input.gain;
     g.cancelScheduledValues(at);
     g.setValueAtTime(g.value, at);
-    g.linearRampToValueAtTime(v, at + ramp);
+    g.linearRampToValueAtTime(v * rt.base, at + Math.max(0.001, ramp));
   }
 }
 

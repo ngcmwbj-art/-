@@ -21,7 +21,8 @@ export const MINATO_MATS: Mats = {
   keyD: flat('#C8902A'),
   pole: mat('#C8A06A', { shade: '#A8742A', light: '#E8C890', dark: '#7A5424' }),
   hoop: mat('#B89A6A', { shade: '#8A6A3A', light: '#E0C890' }),
-  net: flat('#F4F1E8'),
+  net: flat('#F4F1E8', { ol: '#5A4034' }),
+  netD: flat('#C8C2B4', { ol: '#5A4034' }),
   eye: flat('#2A1C28'),
   shine: flat('#FFF6D8'),
   mouth: flat('#C87A64'),
@@ -40,12 +41,14 @@ const SKIN: RowMap = { s: ['skin', 0], S: ['skin', -1], L: ['skin', 1] };
 const LEGS: LegSpec = { cx: 8, hip: 20, foot: 22, w: 2, gap: 2, mat: 'skin', shoe: 'sandal', shoeLen: 3 };
 const FOREARM: Seg[] = [{ mat: 'skin' }];
 
-/** Bug-net hoop, 4×4 (behind the head in front view). */
+/**
+ * Bug-net hoop: a 3×3 net whose outline IS the wire ring (5×5 with the
+ * corners cut, as in 30_level_art 9.1), so it stays crisp at 1x. (x, y) is
+ * the ring's top-left.
+ */
 function netHoop(f: Fig, x: number, y: number) {
-  f.part('hoop', { shade: 'rb', light: 't' });
-  f.rows(x, y, ['.##.', '#..#', '#..#', '.##.']);
-  f.part('net', { flat: true, rim: false, ol: false });
-  f.px(x + 1, y + 1).px(x + 2, y + 2);
+  f.part('net', { flat: true, rim: false });
+  f.rows(x + 1, y + 1, ['nNn', 'NnN', 'nNn'], { n: 'net', N: 'netD' });
 }
 
 function ahoge(f: Fig, x: number, y: number, sway: number) {
@@ -265,7 +268,7 @@ function front(f: Fig, p: Pose) {
   const u = b - p.breath;
   const act = p.act;
   const headY = 2 + u + (act === 'hurt' ? 1 : 0);
-  netHoop(f, 1, 0 + u);
+  netHoop(f, 0, 0 + u);
   f.part('pole', { shade: 'r', light: '' });
   f.px(4, 4 + u);
   legs(f, p, LEGS);
@@ -318,12 +321,12 @@ function front(f: Fig, p: Pose) {
   if (act === 'bow') {
     // a polite bow: the head dips 2px, eyes shut, ahoge flops forward
     headFront(f, { ...p, blink: true, blinkClosed: true }, headY + 2);
-    ahoge(f, 6, headY + 1, -1);
+    ahoge(f, 9, headY, 1);
     return;
   }
   headFront(f, p, headY);
   const sway = p.mode === 'idle' ? (p.tick % 4 < 2 ? 0 : 1) : p.mode === 'walk' ? (p.step % 2 ? 1 : 0) : p.run ? 1 : 0;
-  ahoge(f, 7, headY - 2, sway);
+  ahoge(f, 9, headY - 2, sway);
   if (act === 'hold_up') {
     // item get: the thing held high above his head
     f.part('kraft', { shade: 'rb', light: 't' });
@@ -348,7 +351,7 @@ function back(f: Fig, p: Pose) {
   armTo(f, armR, 13, 17 + u - swing(p, 1));
   headBack(f, p, headY);
   const sway = p.mode === 'idle' ? (p.tick % 4 < 2 ? 0 : -1) : p.mode === 'walk' ? (p.step % 2 ? -1 : 0) : 0;
-  ahoge(f, 8, headY - 2, sway);
+  ahoge(f, 6, headY - 2, sway);
   // key string: 1px at the nape
   f.part('string', { flat: true, rim: false });
   f.px(9, 11 + u);
@@ -357,7 +360,7 @@ function back(f: Fig, p: Pose) {
   f.part('pole', { shade: '', light: '' });
   f.t(0).line(4, 4 + u, 10, 15 + u).t(-1).px(10, 16 + u).t(null);
   f.retone(6, 7 + u, 1).retone(8, 11 + u, 1);
-  netHoop(f, 1, 0 + u);
+  netHoop(f, 0, 0 + u);
   if (p.act === 'hold') {
     // package edges peeking out at his sides
     f.part('kraft', { shade: 'rb', light: 't' });
@@ -465,7 +468,7 @@ function sleepPose(f: Fig, p: Pose) {
     ahoge(f, 8, 2 + y, 1);
     f.part('pole', { shade: '', light: '' });
     f.t(0).line(4, 5 + y, 10, 14).t(null);
-    netHoop(f, 1, 1 + y);
+    netHoop(f, 0, 1 + y);
     f.part('shorts', { shade: 'rb', light: '' });
     f.rect(4, 19, 8, 2);
     f.part('skin', { shade: 'r', light: '' });
@@ -488,7 +491,7 @@ function sleepPose(f: Fig, p: Pose) {
     '.hhdhhdhhdd.',
   ], HAIR);
   ahoge(f, 7, 5 + y, 1);
-  netHoop(f, 1, 4 + y);
+  netHoop(f, 0, 4 + y);
   f.part('shorts', { shade: 'rb', light: '' });
   f.rect(4, 19, 8, 2);
   f.part('skin', { shade: 'r', light: '' });
@@ -498,6 +501,10 @@ function sleepPose(f: Fig, p: Pose) {
 }
 
 function draw(f: Fig, p: Pose) {
+  // 16×26 canvas: the art is authored on the 16×24 grid and sits on the
+  // bottom rows; the 2 extra rows keep the hoop and the ahoge on the canvas
+  // while he bobs.
+  f.offset(0, 2);
   if (p.act === 'sleep') return sleepPose(f, p);
   if (p.view === 'down') front(f, p);
   else if (p.view === 'up') back(f, p);
@@ -506,6 +513,7 @@ function draw(f: Fig, p: Pose) {
 
 export const MINATO_SPEC: SpriteSpec = {
   id: 'minato',
+  h: 26,
   mats: MINATO_MATS,
   draw,
   run: true,

@@ -81,6 +81,13 @@ export function* inputCommands(s: BattleScene): Co<PartyCmd[]> {
     u.acting = true;
     const r = yield* chooseFor(s, u, i > 0, lastIndex);
     u.acting = false;
+    if (r === 'queued') {
+      s.cmd = null;
+      s.list = null;
+      s.target = null;
+      s.msg.clearStatic();
+      return queuedCommands(s);
+    }
     if (r === 'back') {
       if (i > 0) {
         i--;
@@ -165,7 +172,7 @@ function queuedCommands(s: BattleScene): PartyCmd[] {
   return out;
 }
 
-function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: Record<string, number>): Co<PartyCmd | 'back'> {
+function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: Record<string, number>): Co<PartyCmd | 'back' | 'queued'> {
   const inp = game.input;
   let index = lastIndex[u.id] ?? 0;
   let onTab = false;
@@ -181,15 +188,18 @@ function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: R
     const nori = noriAvailable(s);
     if (nori && !tabShown) {
       tabShown = true;
-      if (!s.memo.noriCursorSet) {
+      // right after the tab appears the cursor sits on it (15.5)
+      if (!s.memo.noriTabShown) {
         onTab = true;
-        s.memo.noriCursorSet = 1;
+        s.memo.noriTabShown = 1;
       }
     }
     if (!nori) onTab = false;
     s.cmd = { icons, index, pressed: false, noriTab: nori, onTab, tutorialPulse: firstTut && !s.memo.cmdTutDone ? 'tataku' : undefined };
     s.msg.setStatic(yousuText(s));
     yield null;
+    // QA: __game.cmd.bcmd() while the command window is open
+    if (s.cmdQueue.length) return 'queued';
     if (inp.repeat('left') && icons.length > 1) {
       index = (index + icons.length - 1) % icons.length;
       onTab = false;

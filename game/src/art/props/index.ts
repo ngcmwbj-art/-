@@ -2,3 +2,12 @@
 // interiors). Importing this registers every prop with the registry.
 export * from './registry';
 export type * from './types';
+import './b_houses';
+import './b_shops';
+import './b_south';
+import './trees';
+import './street';
+import './ginza';
+import './park';
+import './parking';
+import './rooms';

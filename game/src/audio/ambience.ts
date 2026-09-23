@@ -5,8 +5,9 @@
 // spot never repeats the same way (8章).
 
 import { addTask } from './clock';
-import { cur, dbToGain, hasGraph, midiHz, noiseSource, PaChain, makeIR, voice, type Graph, type VoiceOpts } from './engine';
+import { cur, dbToGain, hasGraph, midiHz, noiseSource, onSample, PaChain, makeIR, voice, type Graph, type VoiceOpts } from './engine';
 import { chimeNote, DRM } from './instruments';
+import { ambTrim, trimOr1 } from './mix';
 import { musicParams, stageListeners } from './music';
 import { sfxTable } from './registry';
 import { Rng } from '../engine/rng';
@@ -61,7 +62,7 @@ function modulate(g: Graph, at: number, buf: AudioBuffer, param: AudioParam, dep
   k.gain.value = depth;
   s.connect(k);
   k.connect(param);
-  s.start(at);
+  s.start(onSample(g.ctx, at));
   return { stop: (t) => s.stop(t), k };
 }
 
@@ -220,6 +221,7 @@ export function higurashiCall(t: number, dest: AudioNode, pan: number, fmul: num
   artL.connect(ag);
   ag.connect(art.gain);
   const env = c.createGain();
+  env.gain.value = 0;
   env.gain.setValueAtTime(0, t);
   env.gain.linearRampToValueAtTime(vol, t + 0.3);
   env.gain.setTargetAtTime(0, t + 0.3, (len - 0.3) / 3.2);
@@ -344,12 +346,12 @@ const AMB: Record<string, AmbFactory> = {
     dry.connect(c.dest);
     const pa = new PaChain(g.ctx, lp, 1.2, 2400);
     const wind = new Every(c, 15, 25, (t) =>
-      v(c, { at: t, wave: 'noise', dur: 3, swell: true, release: 0.05, vol: 0.008, filter: { type: 'bandpass', freq: 300, freqEnd: 900, time: 3, q: 1.2 }, pan: c.rng.range(-0.5, 0.5) }),
+      v(c, { at: t, wave: 'noise', dur: 3, swell: true, release: 0.05, vol: 0.04, filter: { type: 'bandpass', freq: 300, freqEnd: 900, time: 3, q: 1.2 }, pan: c.rng.range(-0.5, 0.5) }),
       2, 8,
     );
     const chime = new Every(c, 25, 40, (t) => {
       const notes = [74, 78, 81, 86];
-      notes.forEach((m, i) => chimeNote(t + i * 0.28, m, pa.input, pa.detune, i === 3 ? 0.5 : 0.25, 0.03 * 2.2, i === 3 ? -35 : 0));
+      notes.forEach((m, i) => chimeNote(t + i * 0.28, m, pa.input, pa.detune, i === 3 ? 0.5 : 0.25, 0.012, i === 3 ? -35 : 0));
     }, 6, 14);
     return {
       pump(u) {
@@ -701,6 +703,7 @@ const AMB: Record<string, AmbFactory> = {
       const a = g.ctx.createGain();
       a.gain.value = 0;
       const env = g.ctx.createGain();
+      env.gain.value = 0;
       env.gain.setValueAtTime(0, t);
       env.gain.linearRampToValueAtTime(0.006, t + 0.08);
       env.gain.setValueAtTime(0.006, t + len - 0.15);
@@ -715,7 +718,7 @@ const AMB: Record<string, AmbFactory> = {
       const ms = g.ctx.createBufferSource();
       ms.buffer = buf;
       ms.connect(a.gain);
-      ms.start(t);
+      ms.start(onSample(g.ctx, t));
       src.stop(t + len + 0.05);
       ms.stop(t + len + 0.05);
     }, 1, 4);
@@ -870,12 +873,17 @@ export function createAmbient(g: Graph, id: string, opts: AmbOpts, dest: AudioNo
   const out = g.ctx.createGain();
   const fade = opts.fade ?? 0.3;
   const vol = opts.vol ?? 1;
+  out.gain.value = 0;
   out.gain.setValueAtTime(0, t0);
   out.gain.linearRampToValueAtTime(vol, t0 + Math.max(0.02, fade));
   const lp = g.ctx.createBiquadFilter();
   lp.type = 'lowpass';
   lp.frequency.value = opts.lp ?? 20000;
-  out.connect(lp);
+  // the mix trim (mix.ts) sits behind the instance volume that setAmbientVol drives
+  const trim = g.ctx.createGain();
+  trim.gain.value = trimOr1(ambTrim(id));
+  out.connect(trim);
+  trim.connect(lp);
   lp.connect(dest);
   const seed = (Math.random() * 1e9) | 0;
   const impl = f({ g, t0, dest: out, rng: new Rng(seed), stage: stage ?? musicParams().stage, seed });

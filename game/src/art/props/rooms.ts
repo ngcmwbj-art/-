@@ -1,0 +1,742 @@
+// Indoor rooms (30_level_art 4.0–4.2): the room shell (north wall face,
+// wall cross-sections, floor shading, window / stair light) and the
+// furniture of the Shiomi house. The shell is a flat prop anchored at (0,0)
+// that reads the map's ASCII; furniture are depth-sorted props.
+//
+// Other indoor maps can reuse the shell through the prop id 'room_shell'
+// with opts { map, wall: 'plaster'|'wallpaper'|'tile'|'wood'|'mall'|'concrete',
+// base, trim, section } (bottom of this file), or call roomShell() directly.
+
+import type { Gfx } from '../../engine/gfx';
+import { PixelCanvas, hex, toRgb } from '../../engine/pixel';
+import { getMapDef } from '../../world/maps';
+import { P } from '../tiles/palette';
+import { ihash, valueNoise } from '../tiles/noise';
+import { castRight, cylinder, dk, finish, lt, maskOf, shadeRect } from './kit';
+import { flat, mkFrames, stand, standAnim } from './pkit';
+import { registerProp } from './registry';
+import { fontTextSmall, printLines, tiny } from './text';
+import type { PropArt, PropEnv } from './types';
+
+const pc = (w: number, h: number) => new PixelCanvas(w, h);
+
+export interface RoomStyle {
+  /** Wall-face painter (x, y within the wall face, face height). */
+  wall(x: number, y: number, fh: number): string;
+  /** Baseboard colour. */
+  base?: string;
+  /** Top trim (moulding) colour. */
+  trim?: string;
+  /** Cross-section colour of the wall thickness. */
+  section?: string;
+}
+
+/**
+ * Paint the shell of an indoor map: wall faces for 'W' cells, 4px wall
+ * sections where the dark outside touches the room, floor shadows.
+ */
+export function roomShell(
+  rows: string[],
+  style: RoomStyle,
+  extra?: (p: PixelCanvas, glass: PixelCanvas) => void,
+): { img: HTMLCanvasElement; glass: HTMLCanvasElement; floorShade: [number, number, number][] } {
+  const h = rows.length;
+  const w = Math.max(...rows.map((r) => [...r].length));
+  const p = pc(w * 16, h * 16);
+  const glass = pc(w * 16, h * 16);
+  const ch = (x: number, y: number) => (y < 0 || y >= h || x < 0 || x >= w ? '#' : [...rows[y]][x] ?? '#');
+  const isRoom = (c: string) => c !== '#' && c !== 'W';
+  const floorShade: [number, number, number][] = [];
+  const section = style.section ?? P.nightShade;
+  // wall faces: contiguous W runs per column
+  for (let x = 0; x < w; x++) {
+    let y = 0;
+    while (y < h) {
+      if (ch(x, y) !== 'W') {
+        y++;
+        continue;
+      }
+      let y1 = y;
+      while (ch(x, y1) === 'W') y1++;
+      const fh = (y1 - y) * 16;
+      for (let j = 0; j < fh; j++)
+        for (let i = 0; i < 16; i++) {
+          let c = style.wall(x * 16 + i, j, fh);
+          if (j < 3) c = j === 0 ? section : j === 1 ? (style.trim ?? P.woodLt) : dk(style.trim ?? P.woodLt);
+          if (j >= fh - 4) c = j === fh - 4 ? lt(style.base ?? P.wood) : j === fh - 1 ? dk(style.base ?? P.wood) : style.base ?? P.wood;
+          p.set(x * 16 + i, y * 16 + j, c);
+        }
+      y = y1;
+    }
+  }
+  // wall cross-sections where the outside touches the room or a wall face
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      if (ch(x, y) !== '#') continue;
+      const R = (c: string) => isRoom(c) || c === 'W';
+      if (R(ch(x + 1, y))) for (let j = 0; j < 16; j++) for (let i = 12; i < 16; i++) p.set(x * 16 + i, y * 16 + j, i === 15 ? dk(section) : section);
+      if (R(ch(x - 1, y))) for (let j = 0; j < 16; j++) for (let i = 0; i < 4; i++) p.set(x * 16 + i, y * 16 + j, i === 0 ? dk(section) : section);
+      if (R(ch(x, y - 1))) for (let j = 0; j < 4; j++) for (let i = 0; i < 16; i++) p.set(x * 16 + i, y * 16 + j, j === 0 ? lt(section) : section);
+    }
+  // floor: 2px shadow under the north wall, 1px on the side walls
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      if (!isRoom(ch(x, y))) continue;
+      if (ch(x, y - 1) === 'W') for (let i = 0; i < 16; i++) for (let j = 0; j < 3; j++) floorShade.push([x * 16 + i, y * 16 + j, j < 2 ? 0.4 : 0.2]);
+      if (ch(x - 1, y) === '#') for (let j = 0; j < 16; j++) floorShade.push([x * 16, y * 16 + j, 0.35]);
+      if (ch(x + 1, y) === '#') for (let j = 0; j < 16; j++) floorShade.push([x * 16 + 15, y * 16 + j, 0.35]);
+    }
+  // floor shading as translucent pixels (the floor itself is the baked ground)
+  for (const [x, y, a] of floorShade) {
+    const aa = Math.round(a * 255).toString(16).padStart(2, '0');
+    if (!p.alpha(x, y)) p.set(x, y, section + aa);
+  }
+  extra?.(p, glass);
+  return { img: p.toCanvas(), glass: glass.toCanvas(), floorShade };
+}
+
+/** Alpha-blend a colour over an existing pixel. */
+function blendPx(p: PixelCanvas, x: number, y: number, col: string, a: number): void {
+  const v = p.get(x, y);
+  if (!(v >>> 24)) return;
+  const [r, g, b] = toRgb(col);
+  const r0 = v & 255;
+  const g0 = (v >>> 8) & 255;
+  const b0 = (v >>> 16) & 255;
+  p.set(x, y, hex(r0 + (r - r0) * a, g0 + (g - g0) * a, b0 + (b - b0) * a));
+}
+
+/** Wallpaper with a faint vertical stripe / dot pattern. */
+function wallpaper(base: string, accent: string, seed: number): RoomStyle['wall'] {
+  return (x, y) => {
+    if (x % 8 === 0 && y % 4 < 2) return accent;
+    const n = valueNoise(x / 6, y / 6, seed);
+    return n > 0.82 ? lt(base) : n < 0.12 ? dk(base) : base;
+  };
+}
+
+/** Indoor light & depth overlay (flat layer, before characters). */
+function roomLight(g: Gfx, x: number, y: number, w: number, h: number, env: PropEnv, patches: [number, number, number, number, number][]): void {
+  const ctx = g.ctx;
+  ctx.save();
+  // depth: the back of the room darker (multiply #5B4A7A)
+  ctx.globalCompositeOperation = 'multiply';
+  const gr = ctx.createLinearGradient(0, y, 0, y + h);
+  gr.addColorStop(0, 'rgba(91,74,122,0.2)');
+  gr.addColorStop(1, 'rgba(91,74,122,0)');
+  ctx.fillStyle = gr;
+  ctx.fillRect(x, y, w, h);
+  // window / stair light: parallelograms (screen #F7C27A), clipped to the floor
+  ctx.beginPath();
+  ctx.rect(x + 16, y, w - 32, h - 16);
+  ctx.clip();
+  ctx.globalCompositeOperation = 'screen';
+  const night = env.grade.night;
+  for (const [px, py, pw, ph, a] of patches) {
+    ctx.fillStyle = `rgba(247,194,122,${(a * (1 - night)).toFixed(3)})`;
+    ctx.beginPath();
+    ctx.moveTo(x + px, y + py);
+    ctx.lineTo(x + px + pw, y + py);
+    ctx.lineTo(x + px + pw + ph * 0.6, y + py + ph);
+    ctx.lineTo(x + px + ph * 0.6, y + py + ph);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------- 2F shell
+
+registerProp('room_home_2f', () => {
+  const rows = getMapDef('map_home_2f')?.rows ?? [];
+  const { img, glass } = (
+    roomShell(rows, { wall: wallpaper(P.paperGrid, P.paper, 3), base: P.wood, trim: P.woodLt }, (p, gm) => {
+      // window (6–7, 0–1): the room's light source, sky shows through
+      const wx = 6 * 16 + 2;
+      const wy = 5;
+      p.rect(wx - 2, wy - 2, 32, 24, P.woodLt);
+      p.strokeRect(wx - 2, wy - 2, 32, 24, P.wood);
+      p.rect(wx, wy, 28, 20, P.shadeDeep);
+      gm.rect(wx, wy, 28, 20, '#ffffff');
+      p.vline(wx + 14, wy, wy + 19, P.woodLt);
+      p.hline(wx, wx + 27, wy + 10, P.woodLt);
+      // curtains
+      p.rect(wx - 4, wy - 3, 5, 25, P.aqua);
+      p.vline(wx - 4, wy - 3, wy + 21, P.white);
+      p.rect(wx + 27, wy - 3, 5, 25, P.aqua);
+      p.vline(wx + 31, wy - 3, wy + 21, P.blue);
+      p.hline(wx - 5, wx + 32, wy - 4, P.steel);
+      // sill with a cactus
+      p.rect(wx - 2, wy + 21, 32, 2, P.woodLt);
+      p.rect(wx + 20, wy + 17, 4, 4, P.skin4);
+      p.rect(wx + 21, wy + 13, 2, 4, P.leaf);
+      // calendar (3,1): August, red × on every day but the 31st
+      const cx = 3 * 16 + 1;
+      const cy = 10;
+      p.rect(cx, cy, 14, 18, P.white);
+      p.rect(cx, cy, 14, 5, P.sunDeep);
+      tiny(p, '8', cx + 5, cy, P.white);
+      for (let d = 0; d < 20; d++) {
+        const dx = cx + 1 + (d % 6) * 2;
+        const dy = cy + 7 + Math.floor(d / 6) * 3;
+        p.set(dx, dy, d === 19 ? P.verm : P.red);
+      }
+      p.ring(cx + 11, cy + 15, 2, 1.5, P.verm);
+      castRight(p, cx, cy, 14, 18, 2);
+      // poster of a stag beetle
+      p.rect(1 * 16 + 3, 8, 22, 16, P.leafShade);
+      p.strokeRect(1 * 16 + 3, 8, 22, 16, P.white);
+      p.ellipse(1 * 16 + 14, 17, 4, 5, P.woodDark);
+      p.line(1 * 16 + 11, 12, 1 * 16 + 13, 14, P.woodDark);
+      p.line(1 * 16 + 17, 12, 1 * 16 + 15, 14, P.woodDark);
+      castRight(p, 1 * 16 + 3, 8, 22, 16, 2);
+      // stair opening (8,5) with the handrail on the north side and warm light from below
+      const sx = 8 * 16;
+      const sy = 5 * 16;
+      for (let k = 0; k < 4; k++) {
+        p.rect(sx + k * 4, sy + 2, 4, 14, [P.woodLt, P.wood, P.woodDark, P.ink][k]);
+        p.vline(sx + k * 4, sy + 2, sy + 15, lt([P.woodLt, P.wood, P.woodDark, P.ink][k]));
+      }
+      p.hline(sx - 2, sx + 15, sy, P.woodDark);
+      p.hline(sx - 2, sx + 15, sy + 1, P.woodLt);
+      for (const px of [sx - 1, sx + 7, sx + 14]) p.vline(px, sy - 6, sy, P.wood);
+      p.hline(sx - 2, sx + 15, sy - 7, P.woodLt);
+    })
+  );
+  const W = img.width;
+  const H = img.height;
+  return {
+    ox: 0,
+    oy: 0,
+    w: W,
+    h: H,
+    foot: 0,
+    flat: true,
+    img: () => img,
+    glass,
+    over(g, x, y, env) {
+      roomLight(g, x, y + 32, W, H - 32, env, [
+        [5 * 16 + 4, 3 * 16, 44, 26, 0.25],
+        [8 * 16, 5 * 16 + 2, 16, 14, 0.3],
+      ]);
+    },
+  };
+});
+
+// ---------------------------------------------------------------- 2F furniture
+
+registerProp('obj_bed', () => {
+  const p = pc(34, 52);
+  // wooden frame with headboard against the wall
+  p.rect(1, 0, 32, 8, P.wood);
+  p.hline(1, 32, 0, P.woodLt);
+  p.hline(1, 32, 7, P.woodDark);
+  p.rect(1, 8, 32, 42, P.woodDark);
+  p.rect(2, 8, 30, 40, P.white);
+  // pillow + manga
+  p.rect(4, 9, 16, 7, P.concreteLt);
+  p.hline(4, 19, 9, P.glint);
+  p.rect(22, 10, 7, 5, P.gold);
+  p.rect(23, 11, 5, 2, P.verm);
+  // twisted light-blue towel blanket (#7FD1E8)
+  for (let y = 18; y < 46; y++)
+    for (let x = 3; x < 31; x++) {
+      const tw = Math.sin(y / 5 + x / 9) * 3;
+      if (x > 8 + tw && x < 28 - tw * 0.5) p.set(x, y, (x + y) % 7 === 0 ? P.white : y % 6 < 2 ? P.aqua : P.blue);
+    }
+  p.line(10, 22, 26, 40, P.white);
+  p.rect(1, 48, 32, 3, P.wood);
+  p.hline(1, 32, 50, P.ink);
+  finish(p, { soft: true });
+  return stand(p.toCanvas(), { cx: 16, base: 48, shadow: 0, contact: 28 });
+});
+
+const NOTE = mkFrames(2, 12, 8, (p, k) => {
+  p.rect(1, 1, 10, 7, P.white);
+  p.hline(1, 10, 1, P.glint);
+  p.vline(1, 1, 7, P.concreteLt);
+  p.hline(3, 8, 3, P.concrete);
+  if (k) p.set(8, 2, P.glint);
+});
+
+registerProp('obj_desk_room', () => {
+  // desk spans x4–5; shelf on the wall above; lamp; the chair is a separate decoration
+  const p = pc(34, 46);
+  // shelf hutch on the wall
+  p.rect(1, 0, 32, 16, P.woodLt);
+  p.rect(3, 2, 28, 12, P.wood);
+  for (let k = 0; k < 7; k++) p.rect(4 + k * 3, 4, 2, 9, [P.red, P.blue, P.gold, P.leafDeep, P.white, P.aqua, P.verm][k]);
+  p.rect(26, 6, 4, 7, P.leafYoung); // pencil cup
+  // desk top and front
+  p.rect(1, 16, 32, 14, P.woodLt);
+  p.hline(1, 32, 16, P.goldPale);
+  p.rect(1, 30, 32, 14, P.wood);
+  p.rect(20, 32, 11, 5, P.woodLt);
+  p.rect(20, 38, 11, 5, P.woodLt);
+  p.set(25, 34, P.brass);
+  p.set(25, 40, P.brass);
+  p.hline(1, 32, 43, P.woodDark);
+  // desk lamp
+  p.vline(29, 12, 20, P.steel);
+  p.rect(26, 11, 6, 3, P.white);
+  // eraser crumbs mountain range
+  for (const x of [20, 21, 23]) p.set(x, 22 + (x % 2), P.peach);
+  finish(p, { soft: true });
+  // anchored on (5,2): the desk spans x4–5
+  const a = stand(p.toCanvas(), { cx: 0, base: 16 + 16, shadow: 0, contact: 30 });
+  // obj_jiyukenkyu twinkle (4,2) is drawn by its own prop
+  return a;
+});
+
+registerProp('obj_jiyukenkyu', () => {
+  // blank notebook on the desk, twinkling 1px every second
+  const a = standAnim(NOTE, (env) => (Math.floor(env.t / 1000) % 2 ? 1 : 0), { cx: 10, base: 17, foot: 33, shadow: 0, contact: 0 });
+  return a;
+});
+
+registerProp('obj_mushikago', () => {
+  const p = pc(16, 26);
+  // stool
+  p.rect(2, 12, 12, 3, P.woodLt);
+  p.vline(3, 15, 25, P.wood);
+  p.vline(12, 15, 25, P.wood);
+  // bug cage: green lid, clear body, a beetle
+  p.rect(3, 4, 10, 8, P.aqua);
+  for (let x = 4; x < 12; x += 2) p.vline(x, 5, 11, P.white);
+  p.rect(3, 2, 10, 3, P.leafDeep);
+  p.hline(3, 12, 2, P.leaf);
+  p.rect(7, 9, 3, 2, P.woodDark);
+  p.set(6, 9, P.woodDark);
+  finish(p, { soft: true });
+  return stand(p.toCanvas(), { shadow: 0, contact: 12, base: 18 });
+});
+
+registerProp('obj_bookshelf_room', () => {
+  const p = pc(18, 44);
+  p.rect(1, 6, 16, 37, P.wood);
+  p.vline(1, 6, 42, P.woodLt);
+  p.vline(16, 6, 42, P.woodDark);
+  for (let s = 0; s < 3; s++) {
+    const y = 9 + s * 11;
+    p.rect(3, y, 12, 9, P.woodDark);
+    for (let k = 0; k < 5; k++) {
+      const c = [P.red, P.navy, P.gold, P.leafDeep, P.peach, P.aqua, P.white][(k + s * 2) % 7];
+      p.rect(3 + k * 2 + (k > 2 ? 1 : 0), y + 1 + (k % 2), 2, 8 - (k % 2), c);
+    }
+  }
+  // globe on top
+  p.ellipse(9, 3, 4, 3.5, P.blue);
+  p.set(7, 2, P.leafYoung);
+  p.set(10, 4, P.leafYoung);
+  p.vline(9, 6, 6, P.brass);
+  finish(p, { soft: true });
+  return stand(p.toCanvas(), { base: 16, shadow: 0, contact: 14 });
+});
+
+registerProp('obj_randoseru', () => {
+  const p = pc(16, 16);
+  p.rect(3, 3, 10, 11, P.charcoal);
+  p.rect(3, 3, 10, 5, P.ink);
+  p.hline(3, 12, 3, P.asphalt);
+  p.set(8, 6, P.brass);
+  // lunch bag hanging on the side
+  p.rect(12, 7, 3, 5, P.paper);
+  p.set(13, 8, P.verm);
+  finish(p, { soft: true });
+  return stand(p.toCanvas(), { shadow: 0, contact: 10 });
+});
+
+const FAN = mkFrames(5, 16, 26, (p, k) => {
+  // white fan, blue blades; frames 0–3 oscillate, 4 = stuck tilted (stage 1)
+  p.rect(5, 22, 6, 3, P.white);
+  p.hline(5, 10, 24, P.concrete);
+  p.vline(8, 12, 22, P.concreteLt);
+  const face = k === 4 ? 2 : [-1, 0, 1, 0][k];
+  p.ellipse(8 + face, 8, 6, 6, P.white);
+  p.ring(8 + face, 8, 6, 6, P.concrete);
+  p.ellipse(8 + face, 8, 4, 4, P.aqua);
+  const bl = [[[6, 6], [10, 10]], [[10, 6], [6, 10]], [[8, 5], [8, 11]], [[5, 8], [11, 8]]][k % 4];
+  for (const [x, y] of bl) {
+    p.set(x + face, y, P.blue);
+    p.set(x + face + (x < 8 ? 1 : -1), y, P.blue);
+  }
+  p.set(8 + face, 8, P.steel);
+}, (p) => finish(p, { soft: true }));
+
+registerProp('obj_fan', () =>
+  standAnim(FAN, (env) => (env.stage >= 1 && env.stage < 3 ? 4 : Math.floor(env.mt / 400) % 4), { shadow: 0, contact: 10 }),
+);
+
+registerProp('room_home_2f_decor', () => {
+  // round rug, crumpled paper, a soccer ball (flat)
+  const p = pc(80, 40);
+  p.ellipse(34, 18, 30, 14, P.paperGrid);
+  p.ring(34, 18, 30, 14, P.brass);
+  p.ring(34, 18, 24, 10, P.goldPale);
+  p.ellipse(12, 30, 2.5, 2, P.white);
+  p.set(11, 29, P.concrete);
+  p.ellipse(52, 8, 2, 1.5, P.white);
+  // soccer ball
+  p.ellipse(66, 30, 4, 4, P.white);
+  p.set(65, 29, P.ink);
+  p.set(67, 31, P.ink);
+  p.set(64, 32, P.ink);
+  return flat(p.toCanvas(), 0, 0);
+});
+
+// ceiling light with a swaying pull string (foreground)
+registerProp('prop_ceiling_light', () => {
+  const lamp = pc(24, 10);
+  lamp.ellipse(12, 4, 11, 4, P.white);
+  lamp.ellipse(10, 3, 6, 2, P.glint);
+  lamp.ring(12, 4, 11, 4, P.concreteLt);
+  const li = lamp.toCanvas();
+  const string = mkFrames(3, 5, 12, (p, k) => {
+    const d = [-1, 0, 1][k];
+    p.line(2, 0, 2 + d, 10, P.concrete);
+    p.set(2 + d, 11, P.verm);
+  });
+  return {
+    ox: -4,
+    oy: 0,
+    w: 24,
+    h: 10,
+    foot: 0,
+    img: () => null,
+    fg: [
+      { ox: -4, oy: -18, img: () => li, fade: { x: -8, y: -18, w: 32, h: 40, alpha: 0.5 } },
+      { ox: 6, oy: -9, img: (env: PropEnv) => (env.stage === 1 ? string[1] : string[[0, 1, 2, 1][Math.floor(env.mt / 400) % 4]]) },
+    ],
+  } as PropArt;
+});
+
+// ---------------------------------------------------------------- 1F shell
+
+registerProp('room_home_1f', () => {
+  const rows = getMapDef('map_home_1f')?.rows ?? [];
+  const kitchenWall = (x: number, y: number, fh: number) => {
+    // kitchen x1–6: tiled backsplash under plaster; living room: plaster with pillars
+    const tx = Math.floor(x / 16);
+    if (tx <= 6) {
+      if (y > fh * 0.45) return (x % 5 === 4 || y % 5 === 4) ? P.concrete : P.white;
+      return valueNoise(x / 5, y / 5, 7) > 0.8 ? P.paper : P.paperGrid;
+    }
+    if (x % 64 < 3) return x % 64 === 0 ? P.woodLt : P.wood; // pillars
+    return valueNoise(x / 5, y / 5, 9) > 0.82 ? P.paper : P.goldPale;
+  };
+  const { img, glass } = (
+    roomShell(rows, { wall: kitchenWall, base: P.woodDark, trim: P.wood }, (p, gm) => {
+      // kitchen window above the sink (1–2, 0–1)
+      const wx = 16 + 4;
+      p.rect(wx - 2, 6, 28, 14, P.woodLt);
+      p.rect(wx, 8, 24, 10, P.shadeDeep);
+      gm.rect(wx, 8, 24, 10, '#ffffff');
+      p.vline(wx + 12, 8, 17, P.woodLt);
+      // range hood above the stove (4,1)
+      p.rect(4 * 16 + 1, 4, 14, 10, P.steel);
+      p.hline(4 * 16 + 1, 4 * 16 + 14, 4, P.concreteLt);
+      p.rect(4 * 16 + 3, 12, 10, 3, P.asphalt);
+      castRight(p, 4 * 16 + 1, 4, 14, 10, 2);
+      // cat calendar on the pillar (6,1)
+      const cx = 6 * 16 + 3;
+      p.rect(cx, 8, 10, 14, P.white);
+      p.rect(cx + 2, 10, 6, 5, P.woodLt); // the cat in a box
+      p.rect(cx + 3, 9, 4, 2, P.brass);
+      p.set(cx + 4, 10, P.ink);
+      printLines(p, cx + 1, 17, 8, 2, P.steel, 3);
+      castRight(p, cx, 8, 10, 14, 2);
+      // framed picture and a clock in the living room
+      p.rect(10 * 16 + 2, 6, 20, 12, P.wood);
+      p.rect(10 * 16 + 4, 8, 16, 8, P.aqua);
+      p.rect(10 * 16 + 4, 12, 16, 4, P.leafYoung);
+      castRight(p, 10 * 16 + 2, 6, 20, 12, 2);
+      p.ellipse(7 * 16 + 8, 10, 4, 4, P.white);
+      p.ring(7 * 16 + 8, 10, 4, 4, P.woodDark);
+      p.vline(7 * 16 + 8, 7, 10, P.ink);
+      p.hline(7 * 16 + 8, 7 * 16 + 10, 10, P.ink);
+      // stairs up (12,2): steps rising to the north
+      const sx = 12 * 16;
+      for (let k = 0; k < 4; k++) {
+        p.rect(sx, 2 * 16 + 12 - k * 4, 16, 4, [P.woodLt, P.wood, P.woodDark, P.nightShade][3 - k]);
+        p.hline(sx, sx + 15, 2 * 16 + 12 - k * 4, lt([P.woodLt, P.wood, P.woodDark, P.nightShade][3 - k]));
+      }
+      p.vline(sx, 2 * 16 - 8, 2 * 16 + 15, P.woodDark);
+      p.vline(sx + 1, 2 * 16 - 8, 2 * 16 + 15, P.woodLt);
+      // genkan door (2,8): sliding lattice door seen from inside, light through the glass
+      const dx = 2 * 16;
+      const dy = 8 * 16;
+      p.rect(dx - 2, dy, 20, 6, P.woodDark);
+      for (let i = dx; i < dx + 16; i += 3) p.vline(i, dy + 1, dy + 4, P.goldPale);
+      p.hline(dx - 2, dx + 17, dy, P.wood);
+      // engawa (y7, x5–12): the sliding glass doors to the garden along the south edge
+      const ey = 8 * 16;
+      p.rect(5 * 16, ey, 8 * 16, 5, P.woodLt);
+      for (let i = 5 * 16; i < 13 * 16; i += 32) p.vline(i, ey, ey + 4, P.woodDark);
+      p.hline(5 * 16, 13 * 16 - 1, ey + 1, P.glint);
+    })
+  );
+  const W = img.width;
+  const H = img.height;
+  return {
+    ox: 0,
+    oy: 0,
+    w: W,
+    h: H,
+    foot: 0,
+    flat: true,
+    img: () => img,
+    glass,
+    over(g, x, y, env) {
+      roomLight(g, x, y + 32, W, H - 32, env, [
+        [5 * 16, 7 * 16 - 32, 8 * 16, 20, 0.2],
+        [16, 32, 30, 20, 0.18],
+      ]);
+    },
+  };
+});
+
+// ---------------------------------------------------------------- 1F furniture
+
+function counter(p: PixelCanvas, x: number, w: number, top: string = P.concreteLt): void {
+  p.rect(x, 8, w, 4, top);
+  p.hline(x, x + w - 1, 8, P.white);
+  p.rect(x, 12, w, 18, P.woodLt);
+  p.hline(x, x + w - 1, 12, P.wood);
+  p.hline(x, x + w - 1, 29, P.woodDark);
+  p.vline(x + w - 1, 12, 29, P.wood);
+}
+
+registerProp('obj_cabbage', () => {
+  // sink with a colander of shredded cabbage
+  const p = pc(16, 32);
+  counter(p, 0, 16, P.steel);
+  p.rect(2, 9, 12, 3, P.asphalt);
+  p.vline(12, 2, 9, P.steel);
+  p.hline(9, 12, 2, P.steel);
+  p.ellipse(8, 7, 5, 3, P.concrete);
+  for (let i = 0; i < 9; i++) p.set(4 + i, 5 + (i % 3), i % 2 ? P.leafLt : P.leafYoung);
+  p.rect(3, 16, 10, 8, P.wood);
+  return stand(p.toCanvas(), { base: 30, shadow: 0, contact: 0 });
+});
+
+const BOARD = mkFrames(2, 16, 32, (p, k) => {
+  counter(p, 0, 16);
+  p.rect(2, 5, 12, 5, P.woodLt);
+  p.hline(2, 13, 5, P.goldPale);
+  for (let i = 3; i < 9; i++) p.set(i, 7, P.leafLt);
+  // knife up/down
+  p.rect(10, k ? 2 : 4, 1, 4, P.concreteLt);
+  p.rect(10, k ? 6 : 8, 2, 2, P.woodDark);
+});
+registerProp('prop_cutting_board', () => standAnim(BOARD, (env) => Math.floor(env.t / 180) % 2, { base: 30, shadow: 0, contact: 0 }));
+
+const COOKER = mkFrames(3, 16, 32, (p, k) => {
+  counter(p, 0, 16);
+  p.rect(3, 2, 10, 8, P.white);
+  p.hline(3, 12, 2, P.glint);
+  p.rect(5, 6, 3, 2, P.ink);
+  p.set(6, 6, P.leafYoung); // 保温 lamp
+  const s = [[7, 0], [8, -1], [7, -2]][k];
+  p.set(s[0], 0 + s[1] + 1, P.concreteLt);
+});
+registerProp('obj_rice_cooker', () => standAnim(COOKER, (env) => (env.stage === 1 ? 0 : Math.floor(env.mt / 250) % 3), { base: 30, shadow: 0, contact: 0 }));
+
+const STOVE = mkFrames(2, 16, 32, (p, k) => {
+  counter(p, 0, 16, P.charcoal);
+  p.ring(5, 10, 3, 1.5, P.asphalt);
+  p.ring(11, 10, 3, 1.5, P.asphalt);
+  // pot with a rattling lid
+  p.rect(2, 4, 8, 6, P.steel);
+  p.hline(2, 9, 4, P.concreteLt);
+  p.rect(1, k ? 2 : 3, 10, 2, P.concrete);
+  p.set(6, k ? 1 : 2, P.charcoal);
+  p.rect(3, 16, 10, 10, P.charcoal);
+  p.rect(4, 17, 8, 5, P.ink);
+});
+registerProp('prop_stove', () => standAnim(STOVE, (env) => (env.stage === 1 ? 0 : Math.floor(env.mt / 200) % 2), { base: 30, shadow: 0, contact: 0 }));
+
+registerProp('obj_fridge', () => {
+  const p = pc(16, 44);
+  p.rect(1, 1, 14, 42, P.white);
+  p.vline(1, 1, 42, P.glint);
+  p.vline(14, 2, 42, P.concrete);
+  p.hline(1, 14, 16, P.concreteLt);
+  p.vline(12, 6, 12, P.steel);
+  p.vline(12, 20, 28, P.steel);
+  // magnets and Minato's drawing
+  p.rect(3, 20, 7, 6, P.paper);
+  p.set(5, 22, P.sunDeep);
+  p.set(7, 23, P.leaf);
+  p.set(4, 8, P.red);
+  p.set(8, 5, P.gold);
+  p.hline(1, 14, 42, P.steel);
+  return stand(p.toCanvas(), { base: 30, shadow: 0, contact: 0 });
+});
+
+registerProp('obj_cat_calendar', () => {
+  // the pillar between kitchen and living room
+  const p = pc(8, 32);
+  p.rect(2, 0, 4, 31, P.wood);
+  p.vline(2, 0, 30, P.woodLt);
+  p.vline(5, 0, 30, P.woodDark);
+  return stand(p.toCanvas(), { base: 30, shadow: 0, contact: 0 });
+});
+
+registerProp('obj_tv', () => {
+  const p = pc(32, 32);
+  // low TV stand
+  p.rect(1, 20, 30, 10, P.woodDark);
+  p.hline(1, 30, 20, P.wood);
+  p.rect(4, 23, 10, 5, P.ink);
+  p.rect(18, 23, 10, 5, P.ink);
+  // flat TV
+  p.rect(3, 3, 26, 16, P.ink);
+  p.rect(4, 4, 24, 13, P.navy);
+  p.rect(14, 19, 4, 1, P.charcoal);
+  return {
+    ...stand(p.toCanvas(), { cx: 16, base: 30, shadow: 0, contact: 0 }),
+    over(g: Gfx, x: number, y: number, env: PropEnv) {
+      // flickering screen (news / looping / "please wait" / weather)
+      const sx = x + 16 - 16 + 4;
+      const sy = y + 30 - 32 + 4;
+      const f = Math.floor(env.t / 260) % 4;
+      const cols = env.stage === 2 ? [P.lilac, P.lilac, P.shade, P.lilac] : [P.aqua, P.blue, P.aqua, P.glow];
+      g.rect(sx, sy, 24, 13, cols[f]);
+      if (env.stage === 2) {
+        g.rect(sx + 4, sy + 4, 16, 5, P.white);
+      } else {
+        g.rect(sx + 2, sy + 8, 10, 4, P.skin2);
+        g.rect(sx + 3, sy + 4, 8, 4, P.woodDark);
+        g.rect(sx + 14, sy + 3, 8, 6, P.white);
+      }
+    },
+    glow(g: Gfx, x: number, y: number, env: PropEnv) {
+      // screen light on the tatami (#7FD1E8 α20%, flickers)
+      const a = 0.12 + (Math.floor(env.t / 260) % 3) * 0.04;
+      g.rect(x + 2, y + 32, 28, 12, P.aqua, a);
+    },
+  } as PropArt;
+});
+
+registerProp('obj_chabudai', () => {
+  const p = pc(34, 22);
+  // round low table with four cushions
+  for (const [cx, cy] of [[4, 11], [30, 11], [17, 3], [17, 19]]) {
+    p.rect(cx - 4, cy - 2, 8, 5, P.verm);
+    p.hline(cx - 4, cx + 3, cy - 2, P.vermLt);
+  }
+  p.ellipse(17, 10, 12, 6, P.wood);
+  p.ellipse(16, 9, 10, 4.5, P.woodLt);
+  // barley tea pot and the ring stain
+  p.rect(14, 5, 4, 5, P.aqua);
+  p.set(14, 5, P.white);
+  p.ring(21, 10, 2, 1, P.wood);
+  finish(p, { soft: true });
+  return stand(p.toCanvas(), { cx: 16, base: 20, shadow: 0, contact: 26 });
+});
+
+registerProp('obj_newspaper', () => {
+  const p = pc(14, 10);
+  p.rect(1, 1, 12, 8, P.white);
+  printLines(p, 2, 2, 10, 3, P.steel, 7);
+  p.ring(9, 6, 2, 1.5, P.verm);
+  return flat(p.toCanvas(), 1, 6);
+});
+
+registerProp('obj_genkan', () => {
+  // shoe cabinet with the key tray
+  const p = pc(16, 30);
+  p.rect(1, 6, 14, 23, P.woodLt);
+  p.hline(1, 14, 6, P.goldPale);
+  p.vline(8, 7, 28, P.wood);
+  p.set(6, 16, P.brass);
+  p.set(10, 16, P.brass);
+  p.rect(4, 3, 8, 3, P.concrete); // key tray (empty spot)
+  p.set(9, 4, P.blue);
+  p.rect(2, 1, 4, 5, P.leafDeep); // a small plant
+  p.set(3, 0, P.leaf);
+  finish(p, { soft: true });
+  return stand(p.toCanvas(), { base: 16, shadow: 0, contact: 12 });
+});
+
+const KATORI = mkFrames(4, 16, 22, (p, k) => {
+  // pig-shaped mosquito coil holder, smoke rising (frame 3 = frozen smoke)
+  p.ellipse(8, 16, 6, 4.5, P.leafShade);
+  p.ellipse(7, 15, 4, 3, P.leafDeep);
+  p.ellipse(2.5, 16, 1.5, 2, P.leafShade);
+  p.set(4, 14, P.ink);
+  p.set(1, 16, P.ink);
+  const s = k === 3 ? [[8, 9], [9, 6], [8, 3]] : [[8, 10 - k], [9, 7 - k], [8 + (k % 2), 4 - k]];
+  for (const [x, y] of s) {
+    if (y < 0) continue;
+    p.set(x, y, P.concreteLt);
+    p.set(x + 1, y - 1, P.concrete);
+  }
+});
+registerProp('obj_katori', () => standAnim(KATORI, (env) => (env.stage === 1 ? 3 : Math.floor(env.mt / 300) % 3), { base: 16, shadow: 0, contact: 10 }));
+
+registerProp('obj_furin', () => {
+  const frames = mkFrames(3, 8, 18, (p, k) => {
+    p.vline(4, 0, 3, P.steel);
+    p.ellipse(4, 6, 3, 2.8, P.aqua);
+    p.set(3, 5, P.glint);
+    p.hline(1, 7, 8, P.blue);
+    const sx = [0, 1, -1][k];
+    p.vline(4, 9, 11, P.steel);
+    p.rect(3 + sx, 12, 3, 6, P.white);
+    p.set(3 + sx, 15, P.red);
+  });
+  return {
+    ox: 4,
+    oy: -26,
+    w: 8,
+    h: 18,
+    foot: 0,
+    img: () => null,
+    fg: [{ ox: 4, oy: -26, img: (env: PropEnv) => frames[env.stage === 1 ? 1 : Math.floor(env.mt / 700) % 3] }],
+  } as PropArt;
+});
+
+export { roomShell as paintRoomShell, blendPx };
+
+// ---------------------------------------------------------------- generic shell for other indoor maps
+
+const WALL_PRESETS: Record<string, RoomStyle['wall']> = {
+  wallpaper: wallpaper(P.paperGrid, P.paper, 11),
+  plaster: (x, y) => (valueNoise(x / 5, y / 5, 13) > 0.8 ? P.paper : P.goldPale),
+  tile: (x, y) => (x % 5 === 4 || y % 5 === 4 ? P.concrete : P.white),
+  wood: (x, y) => (x % 6 === 5 ? P.woodDark : valueNoise(Math.floor(x / 6) * 3, y / 4, 17) > 0.7 ? P.wood : P.woodLt),
+  mall: (x, y) => (valueNoise(x / 9, y / 9, 19) > 0.75 ? P.concreteLt : P.paperGrid),
+  concrete: (x, y) => (valueNoise(x / 6, y / 6, 23) > 0.78 ? P.concreteLt : P.concrete),
+};
+
+/**
+ * 'room_shell' — the wall faces / wall sections / floor shading of any indoor
+ * map. Place it at (0,0): { t: 'prop', prop: 'room_shell', x: 0, y: 0,
+ * opts: { map: 'map_koban', wall: 'plaster', base: '#5A3A2A', trim: '#C8A06A' } }.
+ */
+registerProp('room_shell', (opts) => {
+  const rows = getMapDef(String(opts.map ?? ''))?.rows ?? [];
+  const wall = WALL_PRESETS[String(opts.wall ?? 'plaster')] ?? WALL_PRESETS.plaster;
+  const { img, glass } = roomShell(rows, {
+    wall,
+    base: (opts.base as string | undefined) ?? P.wood,
+    trim: (opts.trim as string | undefined) ?? P.woodLt,
+    section: (opts.section as string | undefined) ?? P.nightShade,
+  });
+  const W = img.width;
+  const H = img.height;
+  return {
+    ox: 0,
+    oy: 0,
+    w: W,
+    h: H,
+    foot: 0,
+    flat: true,
+    img: () => img,
+    glass,
+    over(g, x, y, env) {
+      roomLight(g, x, y + 32, W, H - 32, env, []);
+    },
+  };
+});

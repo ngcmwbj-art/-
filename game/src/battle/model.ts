@@ -8,6 +8,10 @@ import { enemyArt, type EnemyArt, type EnemyView } from '../art/enemies';
 export type Judge = 'kukkiri' | 'futsuu' | 'kasure';
 export const JUDGE_MUL: Record<Judge, number> = { kukkiri: 1.5, futsuu: 1.0, kasure: 0.7 };
 export const MIMA_COEF: Record<Judge, number> = { kukkiri: 0.55, futsuu: 0.7, kasure: 0.8 };
+/** The audio side spells ふつう 'futsu' (SfxOpts.grade). */
+export function sfxGrade(j: Judge): 'kukkiri' | 'futsu' | 'kasure' {
+  return j === 'futsuu' ? 'futsu' : j;
+}
 
 export interface Stage {
   lv: number;
@@ -135,6 +139,9 @@ export class EnemyUnit {
   alpha = 1;
   visible = true;
   appearT = -1;
+  /** 被弾 frame time left (ms) and the pose to go back to. */
+  hurtT = 0;
+  hurtReturn = 'idle';
   blushT = 0;
   shyT = 0;
   shyLong = false;

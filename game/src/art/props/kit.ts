@@ -167,3 +167,112 @@ export function maskColor(p: PixelCanvas, colors: string[]): HTMLCanvasElement {
   const set = new Set(colors.map((c) => rgba32(c)));
   return maskOf(p.w, p.h, (x, y) => set.has(p.get(x, y)));
 }
+
+// ---- shading helpers (buildings & props) ------------------------------------------
+
+/** Darken every opaque pixel of a rect by `steps` along the palette ramp. */
+export function shadeRect(p: PixelCanvas, x: number, y: number, w: number, h: number, steps = 1, pred?: (x: number, y: number) => boolean): void {
+  for (let j = y; j < y + h; j++)
+    for (let i = x; i < x + w; i++) {
+      if (!p.inside(i, j) || p.alpha(i, j) === 0) continue;
+      if (pred && !pred(i, j)) continue;
+      const hx = hexAt(p, i, j);
+      if (hx) p.set(i, j, dk(hx, steps));
+    }
+}
+
+/** Lighten every opaque pixel of a rect by `steps`. */
+export function lightRect(p: PixelCanvas, x: number, y: number, w: number, h: number, steps = 1, pred?: (x: number, y: number) => boolean): void {
+  for (let j = y; j < y + h; j++)
+    for (let i = x; i < x + w; i++) {
+      if (!p.inside(i, j) || p.alpha(i, j) === 0) continue;
+      if (pred && !pred(i, j)) continue;
+      const hx = hexAt(p, i, j);
+      if (hx) p.set(i, j, lt(hx, steps));
+    }
+}
+
+/**
+ * Sun-lit wall (7.4): the left third of a south wall one step lighter, the
+ * border softened with a 2px checker.
+ */
+export function sunWash(p: PixelCanvas, x: number, y: number, w: number, h: number, frac = 1 / 3): void {
+  const edge = x + Math.round(w * frac);
+  lightRect(p, x, y, edge - x, h);
+  lightRect(p, edge, y, 2, h, 1, (i, j) => ((i + j) & 1) === 0);
+}
+
+/** Short shadow thrown right (and 1px down) onto a wall by a protrusion (7.4). */
+export function castRight(p: PixelCanvas, x: number, y: number, w: number, h: number, len = 3, clip?: [number, number, number, number]): void {
+  const inClip = (i: number, j: number) => !clip || (i >= clip[0] && j >= clip[1] && i < clip[0] + clip[2] && j < clip[1] + clip[3]);
+  for (let j = y + 1; j <= y + h; j++)
+    for (let i = x + w; i < x + w + len; i++) if (inClip(i, j)) shadeRect(p, i, j, 1, 1);
+  for (let i = x + 1; i < x + w; i++) if (inClip(i, y + h)) shadeRect(p, i, y + h, 1, 1);
+}
+
+/** Eave / awning shadow band on the wall below (2px, 7.4). */
+export function eaveShadow(p: PixelCanvas, x: number, y: number, w: number, rows = 2): void {
+  shadeRect(p, x, y, w, rows, 1);
+  if (rows > 0) shadeRect(p, x, y, w, 1, 1);
+}
+
+/** Glass pane: dark interior with a lit frame edge; marks the reflection mask. */
+export function glassPane(
+  p: PixelCanvas,
+  mask: PixelCanvas | null,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  opts: { base?: string; frame?: string; curtain?: string; curtainSide?: 'l' | 'r' | 'both'; glint?: boolean; interior?: string } = {},
+): void {
+  const base = opts.base ?? P.shadeDeep;
+  p.rect(x, y, w, h, base);
+  if (opts.interior) p.rect(x, y + Math.floor(h / 2), w, Math.ceil(h / 2), opts.interior);
+  if (opts.curtain) {
+    const cw = Math.max(2, Math.floor(w / 3));
+    if (opts.curtainSide !== 'r') {
+      p.rect(x, y, cw, h, opts.curtain);
+      p.vline(x + cw - 1, y, y + h - 1, dk(opts.curtain));
+    }
+    if (opts.curtainSide === 'r' || opts.curtainSide === 'both') {
+      p.rect(x + w - cw, y, cw, h, opts.curtain);
+      p.vline(x + w - cw, y, y + h - 1, dk(opts.curtain));
+    }
+  }
+  if (mask) for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) mask.set(i, j, '#ffffff');
+  if (opts.glint !== false) {
+    // two diagonal glints
+    for (let k = 0; k < Math.min(w, h); k++) {
+      const gx = x + 1 + k;
+      const gy = y + h - 2 - k;
+      if (gx < x + w && gy >= y && k < 4) p.set(gx, gy, P.glint);
+    }
+  }
+  if (opts.frame) {
+    p.strokeRect(x - 1, y - 1, w + 2, h + 2, opts.frame);
+    p.hline(x - 1, x + w, y - 1, lt(opts.frame));
+    p.vline(x - 1, y - 1, y + h, lt(opts.frame));
+  }
+}
+
+/** Finishing pass for free-standing props: selective outline + broken rim light. */
+export function finish(p: PixelCanvas, opts: { rim?: boolean; outline?: boolean; soft?: boolean; rimEvery?: number } = {}): PixelCanvas {
+  if (opts.outline !== false) outline(p, { bottom: true, soft: opts.soft });
+  if (opts.rim !== false) rim(p, P.sun, opts.rimEvery ?? 3, 2);
+  return p;
+}
+
+/** Canvas with `pad` transparent pixels around (so outlines fit). */
+export function padded(w: number, h: number): PixelCanvas {
+  return new PixelCanvas(w, h);
+}
+
+/** Vertical cylinder shading across [x, x+w): light at left, dark at right. */
+export function cylinder(p: PixelCanvas, x: number, y: number, w: number, h: number, base: string): void {
+  for (let i = 0; i < w; i++) {
+    const t = w <= 1 ? 0.5 : i / (w - 1);
+    const c = t < 0.2 ? lt(base) : t > 0.75 ? dk(base) : base;
+    p.vline(x + i, y, y + h - 1, c);
+  }
+}

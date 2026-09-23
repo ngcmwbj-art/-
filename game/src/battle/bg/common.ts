@@ -231,7 +231,11 @@ export function paintBands(ctx: CanvasRenderingContext2D, colors: string[], band
   ctx.drawImage(tex, 0, period - off + y0, 384, y1 - y0, 0, y0, 384, y1 - y0);
 }
 
-/** Cached vertical gradient (dithered) between color stops, height h. */
+/**
+ * Cached vertical gradient between color stops, height h. The ramp is cut
+ * into many close shades (one every ~5px) and only neighbouring shades are
+ * dithered, so the transitions read as soft bands, never as a checkerboard.
+ */
 export function gradientTexture(stops: string[], h: number, w = 384): HTMLCanvasElement {
   const key = 'g:' + stops.join(',') + ':' + h + ':' + w;
   let c = texCache.get(key);
@@ -240,13 +244,23 @@ export function gradientTexture(stops: string[], h: number, w = 384): HTMLCanvas
   const img = ctx.createImageData(w, h);
   const rgb = stops.map(rgbOf);
   const n = stops.length - 1;
-  for (let y = 0; y < h; y++) {
-    const p = (y / Math.max(1, h - 1)) * n;
+  const levels = Math.max(2, Math.round(h / 5));
+  const colorAt = (q: number): [number, number, number] => {
+    const p = Math.max(0, Math.min(1, q)) * n;
     const i0 = Math.min(n - 1, Math.floor(p));
     const f = p - i0;
-    const th = Math.round(f * 16);
+    const a = rgb[i0];
+    const b = rgb[i0 + 1];
+    return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+  };
+  const shades: [number, number, number][] = [];
+  for (let k = 0; k <= levels; k++) shades.push(colorAt(k / levels).map((v) => Math.round(v)) as [number, number, number]);
+  for (let y = 0; y < h; y++) {
+    const q = (y / Math.max(1, h - 1)) * levels;
+    const k0 = Math.min(levels - 1, Math.floor(q));
+    const th = Math.round((q - k0) * 16);
     for (let x = 0; x < w; x++) {
-      const col = BAYER4[y & 3][x & 3] < th ? rgb[i0 + 1] : rgb[i0];
+      const col = BAYER4[y & 3][x & 3] < th ? shades[k0 + 1] : shades[k0];
       const i = (y * w + x) * 4;
       img.data[i] = col[0];
       img.data[i + 1] = col[1];

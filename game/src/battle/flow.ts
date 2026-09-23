@@ -6,8 +6,7 @@ import { game } from '../engine/game';
 import { rng } from '../engine/rng';
 import { ease } from '../engine/tween';
 import { flag, setFlag, state } from '../game/state';
-import { currentBgmId, playBgm, sfx, stopBgm } from '../audio';
-import * as boot from '../boot';
+import { currentSpace, musicEncounter, musicReturnToField, playBgm, setSpace, sfx, stopBgm } from '../audio';
 import { fillAll, syncProgressSkills, SYS, getEnemy } from '../data/battle';
 import type { BattleResult } from './api';
 import type { BattleScene } from './scene';
@@ -18,7 +17,7 @@ import { inputCommands } from './menu';
 import { doAttack, doFlee, doGuard, doHanko, doItem, doNori, doPR, killSequence } from './party';
 import { decideEnemy, doEnemyAction } from './enemy';
 import { bossDecide, bossRoundEnd, bossRoundStart, checkBossPhase, initBoss } from './boss';
-import { restoreForRetry, victory, wipeOut } from './results';
+import { victory, wipeOut } from './results';
 import { hideSticky, resetKire, statusText } from './common';
 import { roundSeal } from './art/stamps';
 
@@ -42,16 +41,22 @@ function enemiesWiped(s: BattleScene): boolean {
 
 export function* battleFlow(s: BattleScene): Co<BattleResult> {
   syncProgressSkills();
-  const prevBgm = currentBgmId();
   const first = s.enemies[0];
   if (s.isBoss) initBoss(s);
   for (const e of s.enemies) e.appearT = -2;
+  // セミファイナル is already lying there playing dead (11.2)
+  semiRound(s, 1);
   const music = s.opts.music ?? first?.def.bgm ?? 'bgm_battle';
-  playBgm(music);
+  // 40_audio 12.1: tape brake on the field song at contact (the boss room has no BGM)
+  s.prevSpace = currentSpace();
+  if (!s.isBoss) musicEncounter();
   // weaker enemies (party level ≥ enemy level + 2): faster messages
   const lv = Math.max(...s.party.map((u) => u.m.level), 1);
   if (first && lv >= first.def.lvl + 2 && !s.isEvent) s.msg.minShow = 400;
   yield* transitionIn(s, s.isBoss);
+  // 500ms: battle space, the battle song from its intro bar
+  setSpace('battle');
+  playBgm(music);
   s.showUi = true;
   // enemies pop in (0 → 1.15 → 1.0, 80ms apart); the boss rises out of darkness
   if (s.isBoss) yield* bossAppear(s);
@@ -90,6 +95,7 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
   if (partyWiped(s)) result = 'lose';
   while (!result) {
     s.round++;
+    semiRound(s, s.round);
     for (const u of s.party) {
       u.acting = false;
       delete s.memo['disabled_' + u.id];
@@ -149,7 +155,20 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
     yield* roundEnd(s);
     result = yield* checkEnd(s);
   }
-  return yield* finish(s, result, prevBgm);
+  return yield* finish(s, result);
+}
+
+/**
+ * セミファイナル alternates by round: odd rounds it plays dead (damage 0) from
+ * the start of the round, even rounds it is active. みました ends the act.
+ */
+function semiRound(s: BattleScene, round: number): void {
+  for (const e of s.enemies) {
+    if (e.id !== 'enemy_semi_final' || !e.alive) continue;
+    const dead = !e.mem.seen && round % 2 === 1;
+    e.status.shindafuri = dead;
+    if (e.pose === 'idle' || e.pose === 'dead') e.setPose(dead ? 'dead' : 'idle');
+  }
 }
 
 function* runParty(s: BattleScene, c: PartyCmd): Co<BattleResult | null> {
@@ -274,7 +293,7 @@ function* roundEnd(s: BattleScene): Co {
   if (pages.length) yield* s.say(pages.slice(0, 2));
 }
 
-function* finish(s: BattleScene, result: BattleResult, prevBgm: string | null): Co<BattleResult> {
+function* finish(s: BattleScene, result: BattleResult): Co<BattleResult> {
   s.cmd = null;
   s.list = null;
   s.msg.clearStatic();
@@ -284,48 +303,36 @@ function* finish(s: BattleScene, result: BattleResult, prevBgm: string | null): 
     resetKire(s);
     cleanupStatuses(s);
     if (s.isBoss) {
+      // 13.7: no jingle; white fade straight into the ending (the event takes over)
       setFlag('flag_boss_phase', 0);
+      stopBgm(1.0);
       yield* game.fadeOut(1000, '#FFF6D8');
-      stopBgm(0.5);
       s.hideAll = true;
       return 'win';
     }
+    // 40_audio 12.3: stop the battle song as the return starts, the field song resumes
+    musicReturnToField();
     yield* transitionOut(s);
-    if (prevBgm && !prevBgm.startsWith('bgm_jingle')) playBgm(prevBgm);
-    else stopBgm(0.4);
+    if (s.prevSpace) setSpace(s.prevSpace);
     return 'win';
   }
   if (result === 'flee') {
     cleanupStatuses(s);
+    musicReturnToField();
     yield* transitionOut(s, true);
-    if (prevBgm) playBgm(prevBgm);
+    if (s.prevSpace) setSpace(s.prevSpace);
     return 'flee';
   }
-  // wipe
+  // wipe (18.4): the battle side plays up to the dark screen; evt_gameover follows
   yield* wipeOut(s);
   cleanupStatuses(s);
   if (s.isBoss) setFlag('flag_boss_phase', 0);
-  game.fadeColor = '#0B0B14';
-  game.fadeAlpha = 1;
   s.hideAll = true;
-  if (s.opts.canLose) return 'lose';
-  // Symbol battles: the battle side runs the game-over step (18.4).
-  const hook = gameOverHook;
-  if (hook) {
-    const choice = yield* hook(s);
-    if (choice === 'retry') restoreForRetry(s);
-    return 'lose';
-  }
-  const make = (boot as unknown as { createScene?: (n: string) => unknown }).createScene;
-  if (boot.sceneNames().includes('gameover') && typeof make === 'function') {
-    const sc = make('gameover');
-    if (sc) {
-      game.push(sc as never);
-      return 'lose';
-    }
-  }
-  // dev fallback: "戦う前から やりなおす"
-  restoreForRetry(s);
+  s.transitionDraw = (g) => g.clear('#0B0B14');
+  if (s.prevSpace) setSpace(s.prevSpace);
+  // canLose battles hand 'lose' back to the event; others need evt_gameover,
+  // which battleImpl runs on the caller's runner once this scene stops.
+  if (!s.opts.canLose) s.needGameOver = true;
   return 'lose';
 }
 
@@ -337,11 +344,18 @@ function cleanupStatuses(s: BattleScene): void {
   void state;
 }
 
-/** Game-over handler installed by the scenario/UI team: returns 'retry' or 'load'. */
+/**
+ * Game-over handler installed by the scenario/UI team (evt_gameover). Runs on
+ * the caller's runner after the battle scene has gone dark; returns 'retry'
+ * or 'load'. Without a hook the battle's own evt_gameover (gameover.ts) runs.
+ */
 export type GameOverHook = (s: BattleScene) => Co<'retry' | 'load'>;
 let gameOverHook: GameOverHook | null = null;
 export function setGameOverHook(h: GameOverHook | null): void {
   gameOverHook = h;
+}
+export function getGameOverHook(): GameOverHook | null {
+  return gameOverHook;
 }
 
 // ---- presentation helpers -------------------------------------------------------------

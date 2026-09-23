@@ -7,8 +7,10 @@
 
 import { flat, mat, type Fig, type Mats } from '../fig';
 import { buildSprite, rep, type IdleKey, type Pose, type SpriteSpec } from '../rig';
-import { charSprite, registerChar } from '../registry';
+import { charSprite, registerChar, type CharSprite } from '../registry';
 import { C } from '../palette';
+import { flipBoard, flipBoardEdge } from '../flip';
+import { glowRing, GLOW_CENTER_DY } from '../glow';
 
 export const KANENARI_MATS: Mats = {
   brass: mat('#D9A441', { shade: '#A8742A', light: '#F6D98A', spec: '#FFF6D8', dark: '#7A5424', rim: '#FFC46A', ol: '#4A2E22' }),
@@ -16,7 +18,7 @@ export const KANENARI_MATS: Mats = {
   brassG: mat('#F6D98A', { shade: '#D9A441', light: '#FFF6D8', spec: '#FFF6D8', dark: '#A8742A', rim: '#FFE7A3', ol: '#4A2E22' }),
   bellIn: flat('#2E1C16'),
   clapper: mat('#9A6A2A', { shade: '#6A4A1A', light: '#C89A4A', dark: '#4A3010' }),
-  fur: mat('#F2894B', { shade: '#C8643A', light: '#F7A86A', spec: '#FFC890', dark: '#A04E2E', rim: '#FFB878', ol: '#5A2A2E', soft: true }),
+  fur: mat('#F2894B', { shade: '#C8643A', light: '#F7A86A', spec: '#FFC890', dark: '#A04E2E', rim: '#FFB878', orim: '#F7C27A', ol: '#5A2A2E', soft: true }),
   furD: mat('#C8643A', { shade: '#9A4A2A', light: '#E07848', dark: '#7A3A24', ol: '#4A2428' }),
   sash: mat('#F4F1E8', { shade: '#D8CCB8', light: '#FFFFFF', dark: '#B8AC98' }),
   red: flat('#E84E3C'),
@@ -51,6 +53,7 @@ const DOME = [
  * face: 'front' | 'side' | 'back'.
  */
 function bell(f: Fig, y0: number, sway: number, face: 'front' | 'side' | 'back', p: Pose) {
+  if (p.lookUp && face !== 'back') return bellTilted(f, y0, face, p);
   const x0 = 1;
   // hanging loop
   f.part('brassD', { shade: 'r', light: 't' });
@@ -64,19 +67,21 @@ function bell(f: Fig, y0: number, sway: number, face: 'front' | 'side' | 'back',
   // metallic form shading (explicit; mirrored side views keep it symmetric enough)
   const L = face === 'back' ? 0 : 0;
   const d = (x: number, y: number, t: number) => f.retone(x0 + x, y0 + 2 + y, t);
-  // right side falloff
+  // right side falloff: a deep 3-step shadow so the bell keeps its value
+  // range on dark (stage 2 / grey-scale) ground
   for (let j = 0; j < DOME.length; j++) {
     const r = DOME[j].lastIndexOf('#');
     const sh = j < 2 ? sway : 0;
-    d(r + sh, j, -1);
-    if (j >= 2) d(r - 1 + sh, j, j >= 4 ? -1 : 0);
-    if (j >= 4) d(r - 2 + sh, j, 0);
+    d(r + sh, j, j >= 2 ? -2 : -1);
+    if (j >= 2) d(r - 1 + sh, j, -1);
+    if (j >= 4) d(r - 2 + sh, j, -1);
   }
-  // vertical highlight band on the left + spec
+  // vertical highlight band on the left (2px from the third row) + spec
   for (let j = 1; j < DOME.length; j++) {
     const l = DOME[j].indexOf('#');
     const sh = j < 2 ? sway : 0;
     d(l + 1 + sh + L, j, 1);
+    if (j >= 3) d(l + 2 + sh + L, j, j >= 5 ? 1 : 2);
   }
   d(5 + sway, 0, 1);
   f.retone(x0 + 4 + sway, y0 + 3, 2).retone(x0 + 3 + sway, y0 + 4, 2).retone(x0 + 3, y0 + 5, 1);
@@ -109,10 +114,70 @@ function bell(f: Fig, y0: number, sway: number, face: 'front' | 'side' | 'back',
   }
 }
 
+// Bell tipped back to look at the sky (17:00): the dome foreshortens, the
+// mouth turns toward us as an ellipse — lip ring, dark inside, the clapper
+// hanging in it — and the dot eyes ride up near the top edge.
+const DOME_UP = [
+  '....######....',
+  '..##########..',
+  '.############.',
+  '.############.',
+  '##############',
+  '##############',
+];
+const MOUTH_UP = [
+  'LLLLLLLLLLLLLL',
+  'LiiiiiiiiiiiiL',
+  '.LiiiiiiiiiiL.',
+  '..LLLLLLLLLL..',
+];
+
+function bellTilted(f: Fig, y0: number, face: 'front' | 'side', p: Pose) {
+  const x0 = 1;
+  const y = y0 + 1; // the tilt sinks the crown a little
+  // hanging loop, seen from the front edge-on now
+  f.part('brassD', { shade: 'r', light: 't' });
+  f.rows(x0 + 5, y, ['.##.']);
+  f.part(p.act === 'glow' ? 'brassG' : 'brass', { shade: '', light: '' });
+  f.rows(x0, y + 1, DOME_UP);
+  // form shading: dark right flank, lit left band and a spec on the crown
+  for (let j = 0; j < DOME_UP.length; j++) {
+    const l = DOME_UP[j].indexOf('#');
+    const r = DOME_UP[j].lastIndexOf('#');
+    f.retone(x0 + r, y + 1 + j, -1).retone(x0 + r - 1, y + 1 + j, j >= 2 ? -1 : 0);
+    f.retone(x0 + l + 1, y + 1 + j, 1);
+  }
+  f.retone(x0 + 4, y + 2, 2).retone(x0 + 3, y + 3, 2);
+  // the mouth, now facing us
+  f.part('brassD', { shade: 'rb', light: 't' });
+  f.rows(x0, y + 7, MOUTH_UP, { i: null });
+  f.part('bellIn', { flat: true, rim: false });
+  f.rows(x0, y + 7, MOUTH_UP.map((r) => r.replace(/L/g, '.')), { i: 'bellIn' });
+  // clapper hanging inside on its rod
+  f.part('clapper', { shade: 'r', light: 'l' });
+  f.px(x0 + 6, y + 8).rect(x0 + 6, y + 9, 2, 2);
+  f.part('brassG', { flat: true, rim: false });
+  f.px(x0 + 6, y + 9);
+  // face near the top edge, looking up
+  const ey = y + 2;
+  f.part('eye', { flat: true, rim: false });
+  if (face === 'front') {
+    if (p.blink) f.px(x0 + 4, ey + 1).px(x0 + 9, ey + 1);
+    else f.rect(x0 + 4, ey, 1, 2).rect(x0 + 9, ey, 1, 2);
+    f.part('cheek', { flat: true, rim: false });
+    f.px(x0 + 3, ey + 2).px(x0 + 10, ey + 2);
+  } else {
+    if (p.blink) f.px(x0 + 3, ey + 1);
+    else f.rect(x0 + 3, ey, 1, 2);
+    f.part('cheek', { flat: true, rim: false });
+    f.px(x0 + 2, ey + 2);
+  }
+}
+
 /** Fluffy body (soft dithered outline comes from the material). */
-function body(f: Fig, y: number, rx = 5.5, shift = 0) {
+function body(f: Fig, y: number, rx = 5.5, shift = 0, squash = 0) {
   f.part('fur', { shade: 'rb', light: 't', shift });
-  f.ell(8, y + 4.5, rx, 4.6);
+  f.ell(8, y + 4.5 + squash * 0.5, rx + squash * 0.3, 4.6 - squash * 0.5);
   // soft fur highlight on the upper-left of the tummy
   f.retone(4, y + 3, 1).retone(5, y + 2, 1);
 }
@@ -154,24 +219,38 @@ function front(f: Fig, p: Pose) {
   const st = p.step % 4;
   const u = p.bob - p.breath;
   const act = p.act;
-  const sway = walking ? (st === 1 ? -1 : st === 3 ? 1 : 0) : act === 'wave' ? (p.ph % 2 ? 1 : 0) : 0;
-  const by = TOP + u + (act === 'hurt' ? 1 : 0);
+  // waving rocks the bell against the arm (3-beat arc: in, up, out)
+  const sway = walking ? (st === 1 ? -1 : st === 3 ? 1 : 0) : act === 'wave' ? [0, -1, 0][p.ph % 3] : 0;
+  const by = TOP + u + (act === 'hurt' ? 1 : 0) + (p.lookUp ? 1 : 0);
   const bodyY = 14 + Math.max(u, -1);
   feet(f, p);
-  // far-side arms behind the body when raised
-  body(f, bodyY);
+  body(f, bodyY, 5.5, 0, p.lookUp ? 1 : 0);
   sashFront(f, bodyY + 1);
   const ay = bodyY + 4;
   if (act === 'pose') {
-    mitten(f, 0, ay - 4, 0);
-    mitten(f, 14, ay - 4, -1);
+    // PR pose: both arms flung out wide, well past the body (20px frame)
+    const up = p.ph === 1 ? 1 : 0;
     f.part('fur', { shade: 'rb', light: 't' });
-    f.px(2, ay - 3).px(13, ay - 3);
+    f.rect(1, bodyY + 1 - up, 2, 2).rect(-1, bodyY - up, 2, 2);
+    mitten(f, -2, bodyY - 2 - up, 0);
+    f.part('fur', { shade: 'rb', light: 't', shift: -1 });
+    f.rect(13, bodyY + 1 - up, 2, 2).rect(15, bodyY - up, 2, 2);
+    mitten(f, 16, bodyY - 2 - up, -1);
   } else if (act === 'wave') {
+    // one arm raised high beside the bell, sweeping a 3-frame arc above the
+    // rim (as readable as 'point'); the other hangs
     mitten(f, 2, ay, 0);
-    mitten(f, 13 + (p.ph % 2), ay - 5, -1);
+    const ph = p.ph % 3;
+    const arms: [number, number][][] = [
+      [[13, bodyY + 1], [14, bodyY], [14, bodyY - 1], [15, bodyY - 2], [15, bodyY - 3]],
+      [[13, bodyY + 1], [14, bodyY], [15, bodyY - 1], [15, bodyY - 2], [16, bodyY - 3], [16, bodyY - 4], [16, bodyY - 5]],
+      [[13, bodyY + 1], [14, bodyY], [15, bodyY - 1], [16, bodyY - 1]],
+    ];
     f.part('fur', { shade: 'rb', light: '', shift: -1 });
-    f.px(13, ay - 3).px(13, ay - 2);
+    for (const [x, y] of arms[ph]) f.px(x, y);
+    const mits: [number, number][] = [[15, bodyY - 5], [16, bodyY - 7], [16, bodyY - 3]];
+    const m = mits[ph];
+    mitten(f, m[0], m[1], -1);
   } else if (act === 'point') {
     // pointing north-east (the mall): the raised arm is drawn after the bell
     mitten(f, 1, ay, 0);
@@ -220,14 +299,18 @@ function front(f: Fig, p: Pose) {
     f.part('furD', { shade: 'r', light: 't' });
     f.px(15, bodyY - 5).px(15, bodyY - 6);
   }
-  if (act === 'glow') {
-    // a 1px #FFE7A3 ring around the bell (30_level_art 9.2)
+  if (act === 'glow' && p.ph === 1) {
+    // the flash itself: a 1px halo hugging the bell for one beat (the
+    // pulsing rings that travel outward are composited in buildKanenari /
+    // drawn from glowRing())
     f.after((pc) => {
-      const top = by + 14;
+      const top = Math.min(by + 13, pc.h);
+      const W = pc.w;
+      const src = pc.data.slice();
       for (let y = 0; y < top; y++)
-        for (let x = 0; x < 16; x++) {
-          if (pc.alpha(x, y) !== 0) continue;
-          const n = [pc.alpha(x - 1, y), pc.alpha(x + 1, y), pc.alpha(x, y - 1), pc.alpha(x, y + 1)].some((a) => a > 0);
+        for (let x = 0; x < W; x++) {
+          if (src[y * W + x] >>> 24) continue;
+          const n = [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]].some(([nx, ny]) => nx >= 0 && ny >= 0 && nx < W && ny < top && src[ny * W + nx] >>> 24);
           if (n) pc.set(x, y, '#FFE7A3');
         }
     });
@@ -239,13 +322,15 @@ function back(f: Fig, p: Pose) {
   const st = p.step % 4;
   const u = p.bob - p.breath;
   const sway = walking ? (st === 1 ? 1 : st === 3 ? -1 : 0) : 0;
-  const by = TOP + u;
+  // looking up from behind: the bell tips back toward us (its crown rises
+  // and the lip drops out of sight into the fur)
+  const by = TOP + u + (p.lookUp ? -1 : 0);
   const bodyY = 14 + Math.max(u, -1);
   feet(f, p);
   const swing = walking ? (st === 1 ? -1 : st === 3 ? 1 : 0) : 0;
   mitten(f, 1, bodyY + 4 + swing, -1);
   mitten(f, 13, bodyY + 4 - swing, -1);
-  body(f, bodyY, 5.5, 0);
+  body(f, bodyY, 5.5, 0, p.lookUp ? 1 : 0);
   // sash crossing the back (the other diagonal)
   f.part('sash', { shade: '', light: '' });
   for (let i = 0; i < 3; i++) f.t(0).px(4 + i, bodyY + 1 + i).t(-1).px(3 + i, bodyY + 1 + i);
@@ -274,18 +359,18 @@ function side(f: Fig, p: Pose) {
   const st = p.step % 4;
   const u = p.bob - p.breath;
   const act = p.act;
-  const sway = walking ? (st === 1 ? -1 : st === 3 ? 1 : 0) : 0;
-  const by = TOP + u + (act === 'hurt' ? 1 : 0);
+  const sway = walking ? (st === 1 ? -1 : st === 3 ? 1 : 0) : act === 'wave' ? [0, 1, 0][p.ph % 3] : 0;
+  const by = TOP + u + (act === 'hurt' ? 1 : 0) + (p.lookUp ? 1 : 0);
   const bodyY = 14 + Math.max(u, -1);
   const swing = walking ? (st === 1 ? 1 : st === 3 ? -1 : 0) : 0;
   mitten(f, 9 + swing, bodyY + 4, -1);
   feet(f, p, true);
-  body(f, bodyY, 5);
-  // zipper along the back (right edge), a sliver of dark at the top
+  body(f, bodyY, 5, 0, p.lookUp ? 1 : 0);
+  // zipper along the back seam: just the pull tab glinting on the edge
+  f.part('zipD', { flat: true, rim: false });
+  f.px(12, bodyY + 4);
   f.part('zip', { flat: true, rim: false });
-  f.vl(12, bodyY + 2, bodyY + 6);
-  f.part('void', { flat: true, rim: false });
-  f.px(12, bodyY + 2).px(12, bodyY + 3);
+  f.px(12, bodyY + 3);
   // sash over the near shoulder
   f.part('sash', { shade: '', light: '' });
   for (let i = 0; i < 5; i++) f.t(0).px(6 + i, bodyY + 1 + i).t(-1).px(5 + i, bodyY + 1 + i);
@@ -293,10 +378,19 @@ function side(f: Fig, p: Pose) {
   f.part('red', { flat: true, rim: false });
   f.px(7, bodyY + 2).px(9, bodyY + 4);
   // near arm
-  if (act === 'point' || act === 'wave') {
+  if (act === 'wave') {
+    // the near arm up in front of the bell, sweeping an arc past its rim
+    const ph = p.ph % 3;
+    f.part('fur', { shade: 'rb', light: 't' });
+    f.px(5, bodyY + 3).px(4, bodyY + 2).px(3, bodyY + 1).px(2, bodyY);
+    const m: [number, number] = [[0, bodyY - 3], [-1, bodyY - 5], [-2, bodyY - 2]][ph] as [number, number];
+    if (ph === 1) f.px(1, bodyY - 1).px(0, bodyY - 2);
+    else f.px(1, bodyY - 1);
+    mitten(f, m[0], m[1], 0);
+  } else if (act === 'point') {
     f.part('fur', { shade: 'rb', light: 't' });
     f.px(5, bodyY + 3).px(4, bodyY + 2);
-    mitten(f, 2, bodyY - (act === 'wave' ? 1 + (p.ph % 2) : 1), 0);
+    mitten(f, 2, bodyY - 1, 0);
   } else if (act === 'flip' || act === 'flip_hold') {
     f.part('board', { shade: 'rb', light: 'tl' });
     f.rect(0, bodyY - 1, 4, 8);
@@ -337,7 +431,12 @@ function bowPose(f: Fig, p: Pose) {
   f.px(4, y + 6).px(11, y + 6);
 }
 
+/** Frames are 20px wide (the arms of wave / pose reach past the bell); art is authored in the 16px box at +2. */
+const OX = 2;
+
 function draw(f: Fig, p: Pose) {
+  // the PR pose hops: the whole figure leaves the ground for one frame
+  f.offset(OX, p.act === 'pose' && p.ph === 1 ? -2 : 0);
   if (p.act === 'bow') return bowPose(f, p);
   if (p.act === 'zipper') return back(f, p);
   if (p.view === 'down') front(f, p);
@@ -348,12 +447,14 @@ function draw(f: Fig, p: Pose) {
 // idle: soft bounce-breathing; now and then waves at nobody in particular
 const IDLE: IdleKey[] = [
   ...rep([{ breath: 0 }, { breath: 0 }, { breath: 1 }, { breath: 1 }], 3),
-  { act: 'wave', ph: 0 }, { act: 'wave', ph: 1 }, { act: 'wave', ph: 0 }, { act: 'wave', ph: 1 },
+  { act: 'wave', ph: 0 }, { act: 'wave', ph: 1 }, { act: 'wave', ph: 2 }, { act: 'wave', ph: 1 },
+  { act: 'wave', ph: 0 }, { act: 'wave', ph: 1 }, { act: 'wave', ph: 2 }, { act: 'wave', ph: 1 },
   { breath: 0, blink: true }, { breath: 0 }, { breath: 1 }, { breath: 1 },
 ];
 
 export const KANENARI_SPEC: SpriteSpec = {
   id: 'kanenari',
+  w: 20,
   h: H,
   mats: KANENARI_MATS,
   draw,
@@ -364,7 +465,7 @@ export const KANENARI_SPEC: SpriteSpec = {
     flip: { dirs: ['down'] },
     flip_hold: { dirs: ['down', 'left', 'right'] },
     hold: { dirs: ['down'] },
-    pose: { dirs: ['down'] },
+    pose: { dirs: ['down'], p: { ph: 2 } },
     point: { dirs: ['down', 'left', 'right'] },
     wave: { dirs: ['down', 'left', 'right'] },
     surprised: { dirs: ['down'], p: { bob: -1 } },
@@ -375,19 +476,87 @@ export const KANENARI_SPEC: SpriteSpec = {
   },
   anims: {
     bow: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 1 }, { ph: 0 }], ms: [120, 500, 120, 120], loop: false },
-    wave: { frames: [{ ph: 0 }, { ph: 1 }], ms: 200 },
-    glow: { frames: [{ act: 'glow' }, { act: '' }, { act: 'glow' }, { act: '' }], ms: [260, 200, 260, 400], loop: false },
-    pose: { frames: [{ act: '' }, { act: 'pose', bob: -2 }, { act: 'pose' }], ms: [80, 120, 600], loop: false },
+    wave: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 2 }, { ph: 1 }], ms: 150, dirs: ['down', 'left', 'right'] },
+    // replaced in buildKanenari with the ring composited in (frames 0/1 are the sources)
+    glow: { frames: [{ act: 'glow' }, { act: 'glow', ph: 1 }], ms: 120, loop: false },
+    // crouch (anticipation) → hop with the arms flung up → land, arms wide
+    pose: { frames: [{ act: '', bob: 1 }, { act: 'pose', ph: 1, bob: -1 }, { act: 'pose', ph: 2 }], ms: [90, 130, 600], loop: false },
   },
   shadow: 12,
 };
 
 /**
- * Where to draw flipBoard() (24×16) for the 'flip' pose, relative to the
- * actor's feet (anchor): board top-left = (x + dx, y + dy). The raised
- * mittens sit just under the board's bottom corners.
+ * Where to draw flipBoard() (24×16) over the raw arms-up pose 'flip_raw',
+ * relative to the actor's feet (anchor): board top-left = (x + dx, y + dy).
+ * The raised mittens sit just under the board's bottom corners. The 'flip'
+ * extra already has the board composited in (24×39 frame).
  */
 export const FLIP_ANCHOR = { dx: -12, dy: -39 };
 
-registerChar('kanenari', () => buildSprite(KANENARI_SPEC));
+/**
+ * The 'flip' frames with the board composited in (24×39, feet at the bottom
+ * centre like every frame), so the field can show the pose as-is. Battle / UI
+ * code that wants its own board can use the raw arms-up pose 'flip_raw' and
+ * draw at FLIP_ANCHOR.
+ */
+function withBoard(raw: HTMLCanvasElement, board: HTMLCanvasElement | null, drop = 0): HTMLCanvasElement {
+  const W = 24;
+  const Hh = -FLIP_ANCHOR.dy;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = Hh;
+  const g = c.getContext('2d')!;
+  g.drawImage(raw, (W - raw.width) >> 1, Hh - raw.height);
+  if (board) g.drawImage(board, 0, drop + ((16 - board.height) >> 1));
+  return c;
+}
+
+/** Kanenari's frame with a glow ring composited around the bell (32 wide, 8px taller). */
+function withRing(frame: HTMLCanvasElement, ring: HTMLCanvasElement | null): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = 32;
+  c.height = H + 8;
+  const g = c.getContext('2d')!;
+  g.drawImage(frame, (32 - frame.width) >> 1, c.height - frame.height);
+  if (ring) g.drawImage(ring, 0, c.height + GLOW_CENTER_DY - 16);
+  return c;
+}
+
+function buildKanenari(): CharSprite {
+  const s = buildSprite(KANENARI_SPEC);
+  // 鐘が光る (30_level_art 9.2): brass one step brighter, a flash halo, and
+  // a #FFE7A3 ring that pulses outward twice (radius 8 → 14) and fades
+  const lit = s.extra!.glow;
+  const flash = s.anims!.glow.frames[1];
+  const plain = s.walk.down[0];
+  s.anims!.glow = {
+    frames: [
+      withRing(flash, glowRing(0)),
+      withRing(lit, glowRing(1)),
+      withRing(lit, glowRing(2)),
+      withRing(lit, glowRing(3)),
+      withRing(flash, glowRing(4)),
+      withRing(lit, glowRing(5)),
+      withRing(lit, glowRing(6)),
+      withRing(lit, glowRing(7)),
+      withRing(plain, null),
+    ],
+    ms: [110, 110, 120, 140, 110, 110, 120, 160, 300],
+    loop: false,
+  };
+  const raw = s.extra!.flip;
+  const up = withBoard(raw, flipBoard(0));
+  s.extra!.flip_raw = raw;
+  s.extra!.flip = up;
+  s.anims!.flip = { frames: [s.extra!.flip_hold, up], ms: [110, 400], loop: false };
+  // turning the board over to show the next line (se_flip)
+  s.anims!.flip_turn = {
+    frames: [up, withBoard(raw, flipBoardEdge()), withBoard(raw, flipBoard(1))],
+    ms: [120, 90, 600],
+    loop: false,
+  };
+  return s;
+}
+
+registerChar('kanenari', buildKanenari);
 registerChar('npc_kanenari', () => ({ ...charSprite('kanenari'), id: 'npc_kanenari' }));

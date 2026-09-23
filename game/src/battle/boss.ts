@@ -5,8 +5,8 @@ import type { Co } from '../engine/co';
 import { setFlag } from '../game/state';
 import { rng } from '../engine/rng';
 import { ease } from '../engine/tween';
-import { duckMusic, sfx } from '../audio';
-import { BOSS_PARTS, fill, fillAll, getSkill } from '../data/battle';
+import { duckMusic, muteMusic, sfx, stopBgm } from '../audio';
+import { BOSS_PARTS, fillAll, SYS } from '../data/battle';
 import type { BattleScene } from './scene';
 import { FRAME } from './scene';
 import { fixedDamage, JUDGE_MUL, type BossPart, type EnemyUnit, type Judge, type PartyUnit } from './model';
@@ -17,11 +17,12 @@ import { glove, uwabaki } from './art/fxart';
 import { ovalStamp, roundSeal } from './art/stamps';
 import { kanenariBack } from '../art/enemies/kanenari';
 import { PANEL_POS } from './ui/panels';
+import { labelCanvas } from './ui/note';
 import { LABEL } from '../data/battle';
 import { holdStamp } from './party';
 import { playHankoLearnIn } from './learn';
 
-const CHIME_PITCH = [1, 1.122, 1.335, 1.682]; // G4 A4 C5 E5 relative to G4
+const CHIME_NOTES = ['G4', 'A4', 'C5', 'E5']; // 13.3: one note per round end
 
 export function initBoss(s: BattleScene): void {
   s.bossParts = BOSS_PARTS.map((p) => ({ id: p.id, name: p.name, box: p.box, action: p.action, broken: false, glow: false }));
@@ -160,6 +161,7 @@ export function* bossMoveImpl(c: BossMoveCtx): Co {
       });
       if (part) {
         part.glow = true;
+        sfx('se_part_glow', { pan: Math.max(-1, Math.min(1, (e.left + part.box[0] + part.box[2] / 2 - 192) / 192)) });
         (part as BossPart & { glowRound?: number }).glowRound = s.round;
         syncBossFlags(s, e);
         pages.push(...(e.def.texts.extra['oshirase_' + part.id] ?? []));
@@ -178,11 +180,11 @@ export function* bossMoveImpl(c: BossMoveCtx): Co {
         hits: [0],
         onFrame: (f, _i, toHit) => {
           if (f === 0) e.setPose('chime');
+          if (f === 0) sfx('se_chime_note', { note: 'E5', hold: 1.2 });
           if (toHit === 20) {
             const bb = s.bg as { shiver?: number; bellFlash?: number };
             bb.shiver = 600;
             bb.bellFlash = 500;
-            sfx('se_chime_note', { pitch: CHIME_PITCH[3] });
           }
         },
         onHit: (i, r) => {
@@ -319,7 +321,7 @@ export function* bossRoundEnd(s: BattleScene): Co {
   s.bossChime.lit = Math.min(4, s.bossChime.lit + 1);
   const n = s.bossChime.lit;
   s.bossChime.pops[n - 1] = 150;
-  sfx('se_chime_note', { pitch: CHIME_PITCH[n - 1] });
+  sfx('se_chime_note', { note: CHIME_NOTES[n - 1] });
   e.setPose('chimeglow');
   if (n < 4) {
     yield* s.say(e.def.texts.extra.chime);
@@ -344,7 +346,9 @@ export function* onBossPartBreak(s: BattleScene, e: EnemyUnit, part: BossPart, j
   const x = e.left + part.box[0] + part.box[2] / 2;
   const y = e.top + part.box[1] + part.box[3] / 2;
   s.stars(x, y, 6);
-  s.label(LABEL.buhin, x, y - 20, 'shu', 900);
+  // (the judgement label goes up-right of the stamp; this one up-left)
+  const bw = labelCanvas(LABEL.buhin, 'shu').width;
+  s.label(LABEL.buhin, Math.max(4 + bw / 2, x - 14 - bw / 2), Math.max(60, y - 20), 'shu', 900);
   // the part hops once and drops to the floor
   part.fallY = e.top + part.box[1] + part.box[3];
   const y0 = part.fallY;
@@ -397,16 +401,18 @@ export function* bossUndo(s: BattleScene, e: EnemyUnit, j: Judge, partId?: strin
         }
       },
     });
+    // the lit bell's note played backwards
+    sfx('se_chime_note', { note: CHIME_NOTES[i], pitch: 0.5, vol: 0.5 });
     yield 300;
     s.bossChime.lit--;
-    yield* s.say(['チャイムが 1音 もどった！']);
+    yield* s.say(SYS.yarinaoshiChime);
   } else {
     const glowing = s.bossParts.find((p) => p.glow && !p.broken);
     if (glowing) {
       glowing.glow = false;
       syncBossFlags(s, e);
       yield* s.say(fillAll(['$partの 光が 消えた！'], { part: glowing.name }));
-    } else yield* s.say(['……やりなおす ことが\n見つからなかった。']);
+    } else yield* s.say(SYS.yarinaoshiNone);
   }
   if (j === 'kukkiri') {
     e.status.bokemake = true;
@@ -443,8 +449,9 @@ function* bossPhase2(s: BattleScene, e: EnemyUnit): Co {
   } });
   bg.waveTarget = { A: 4, f: 0.6 };
   yield 200;
+  // 400ms: 0.3s of night; the music drops out for one beat
   bg.night = 0.3;
-  duckMusic(0.0, 0.3);
+  muteMusic(0.43);
   yield 300;
   sfx('se_boss_voice');
   yield* s.say(e.def.texts.extra.phase2);
@@ -458,19 +465,19 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
   s.memo.bossPhase = 3;
   setFlag('flag_boss_phase', 3);
   e.flags.final = 1;
-  // everything slows to a stop
+  // 0: the boss and the clocks slow to a stop over 500ms; the music thins to its pad
   const bg = s.bg as unknown as { speed: number; frozen: boolean };
+  const sp0 = bg.speed;
   s.addFx({ layer: 'back', dur: 500, draw: () => {}, update() {
-    bg.speed = Math.max(0.05, 1 - this.t / 500) * bg.speed;
+    bg.speed = Math.max(0.02, 1 - this.t / 500) * sp0;
     if (this.t >= 490) bg.frozen = true;
   } });
-  duckMusic(0.15, 30);
   s.setMusicParam('boss_phase', 3);
   e.setPose('still');
   yield 600;
   yield* s.say(e.def.texts.extra.final1);
   yield* s.say(e.def.texts.extra.final2.map((p) => `{spd=0.5}${p}`));
-  // Kanenari-kun steps forward (back view, centre bottom), raises a hand
+  // Kanenari-kun steps forward (back view, centre bottom) and raises a hand to the bell
   const k = s.kanenari;
   const st = { y: 240, f: 'walk1', a: 1 };
   const fx = s.addFx({
@@ -486,18 +493,24 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
     k.away = false;
     delete k.m.status.status_rusu;
   }
-  yield* s.say(e.def.texts.extra.final3.slice(0, 1));
-  for (let t = 0; t < 500; t += FRAME) {
-    st.y = 240 - 44 * ease.quadOut(t / 500);
+  s.msg.post(e.def.texts.extra.final3.slice(0, 1));
+  for (let t = 0, n = 0; t < 500; t += FRAME) {
+    st.y = 240 - 90 * ease.quadOut(t / 500);
     st.f = Math.floor(t / 150) % 2 ? 'walk1' : 'walk2';
+    if (t >= n * 170) {
+      sfx('se_step_kanenari');
+      n++;
+    }
     yield null;
   }
   st.f = 'raise';
-  yield 500;
+  yield () => !s.msg.busy;
   yield* s.say(e.def.texts.extra.final3.slice(1));
+  // the 0.6s before the bell is complete silence
+  muteMusic(0.6);
   st.f = 'hit';
-  yield 150;
-  // the bell rings for the first time
+  yield 600;
+  // +500ms: the bell rings for the first time
   sfx('se_bell_kanenari');
   bg.frozen = true;
   s.bossChime.gold = true;
@@ -508,7 +521,7 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
     dur: 0,
     ui: true,
     draw: (g) => {
-      // vermilion → gold gradient overlay
+      // vermilion → gold gradient overlay (α0 → 0.25 over 2s)
       const ctx = g.ctx;
       const grad = ctx.createLinearGradient(0, 0, 0, 216);
       grad.addColorStop(0, '#E23B2E');
@@ -525,21 +538,20 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
     },
   });
   st.f = 'ring';
-  yield 1200;
+  yield 1400;
   yield* s.say(e.def.texts.extra.final4);
   st.f = 'idle';
-  // ハンコケース: おかえりなさい floats up
-  yield* s.say(e.def.texts.extra.final5.slice(0, 1));
-  yield* playHankoLearnIn(s, 'skill_okaerinasai');
+  // +4000ms: the hanko case — おかえりなさい rises while the band reads 9.7
+  yield* playHankoLearnIn(s, 'skill_okaerinasai', e.def.texts.extra.final5);
   const mi = s.minato;
   if (mi && !mi.m.skills.includes('skill_okaerinasai')) mi.m.skills.push('skill_okaerinasai');
   for (let t = 0; t < 300; t += FRAME) {
-    st.y = 196 + 50 * ease.quadIn(t / 300);
+    st.y = 150 + 96 * ease.quadIn(t / 300);
     yield null;
   }
   fx.done = true;
   s.msg.setStatic(e.def.texts.extra.finalPrompt[0]);
-  // Minato may be down: stand up for the last stamp
+  // Minato may be down: she stands up for the last stamp
   if (mi && !mi.alive) {
     mi.m.hp = 1;
     delete mi.m.status.status_hebatta;
@@ -552,31 +564,32 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
 export function* doOkaerinasai(s: BattleScene, u: PartyUnit): Co {
   const e = s.enemies.find((x) => x.def.boss);
   if (!e) return;
-  s.msg.clearStatic();
-  s.post(fill('ミナトは『おかえりなさい』の\nハンコを かまえた！', {}));
+  // the prompt stays in the band while the stamp is held; any judgement works
   const j = yield* holdStamp(s, u);
-  const big = ovalStamp('おかえりなさい', 96, 40, j === 'kasure' ? 0.3 : 0, 9);
+  s.msg.clearStatic();
+  const big = ovalStamp('おかえりなさい', 96, 40, j === 'kasure' ? 0.3 : 0, 9, true);
   const cx = e.left + 80;
   const cy = e.top + 64;
-  const drop = { p: 0 };
+  const drop = { p: 0, stuck: false };
   const markFx = s.addFx({
-    layer: 'top',
+    layer: 'world',
     dur: 0,
     draw: (g) => {
       const y = -40 + (cy + 40) * ease.cubicIn(drop.p);
-      g.img(big, Math.round(cx - 48), Math.round(y - 20));
+      g.alpha(e.alpha, () => g.img(big, Math.round(cx - 48), Math.round(y - 20)));
     },
   });
   for (let i = 1; i <= 5; i++) {
     drop.p = i / 5;
     yield null;
   }
+  // impact: hitstop 20f, white 3f — no screen shake (gentle)
   s.hitstop(20);
   s.flash('#FFF6D8', 1, 3);
   sfx('se_stamp_heavy', { pitch: 0.9 });
-  sfx('se_hanamaru');
+  sfx('se_hanamaru', { grade: 'kukkiri' });
   if (j === 'kukkiri') {
-    // petals fill the screen over 1.5s
+    // 200 petals fill the screen over 1.5s
     for (let i = 0; i < 20; i++) {
       const d = i * 75;
       s.addFx({ layer: 'top', dur: d + 1, ui: true, draw: () => {}, update() {
@@ -587,49 +600,63 @@ export function* doOkaerinasai(s: BattleScene, u: PartyUnit): Co {
       } });
     }
   } else s.petals(cx, cy, 40, 30);
+  s.msg.post(e.def.texts.extra.finalStamp);
   yield 1000;
+  // +1000ms: 「…………」「……ただいま。」
+  yield () => !s.msg.busy;
+  sfx('se_boss_voice');
   yield* s.say(e.def.texts.extra.finalTadaima.map((p) => `{spd=0.5}${p}`));
-  // the forgotten things turn into light and fly home, one by one
-  markFx.done = true;
-  const parts = ['bottle', 'shoe', 'umbrella', 'glove', 'bag', 'recorder', 'tag', 'tag2', 'cap'];
+  // +2500ms: the forgotten things turn into light one by one and fly toward
+  // the town (screen left); the cap goes last, to the lower left (photo studio)
+  stopBgm(2.0);
+  const items = ['bottle', 'shoe', 'umbrella', 'umbrella2', 'glove', 'glove2', 'bag', 'recorder', 'tag', 'tag2', 'keyring', 'cap'];
+  const origin: Record<string, [number, number]> = {
+    bottle: [126, 78], shoe: [78, 108], umbrella: [22, 60], umbrella2: [30, 80], glove: [60, 92], glove2: [102, 92], bag: [80, 72],
+    recorder: [112, 20], tag: [66, 44], tag2: [94, 44], keyring: [58, 70], cap: [80, 14],
+  };
   e.flags.fading = 1;
-  for (let i = 0; i < parts.length; i++) {
-    const last = parts[i] === 'cap';
-    e.flags['gone_' + parts[i]] = 1;
-    const sx = e.left + 40 + rng.int(0, 80);
-    const sy = e.top + 20 + rng.int(0, 80);
-    const tx = last ? -20 : -20;
-    const ty = last ? 230 : rng.int(40, 120);
+  for (let i = 0; i < items.length; i++) {
+    const id = items[i];
+    const last = id === 'cap';
+    e.flags['gone_' + id.replace(/2$/, '')] = 1;
+    const [ox, oy] = origin[id];
+    const sx = e.left + ox;
+    const sy = e.top + oy;
+    const tx = last ? -24 : -24;
+    const ty = last ? 236 : rng.int(30, 130);
     const trail: [number, number][] = [];
+    const dur = last ? 1500 : 1100;
     s.addFx({
       layer: 'top',
-      dur: 1100,
+      dur,
       ui: true,
       draw: (g, t) => {
-        const p = ease.quadIn(Math.min(1, t / 1100));
+        const p = ease.quadIn(Math.min(1, t / dur));
         const x = sx + (tx - sx) * p;
-        const y = sy + (ty - sy) * p - Math.sin(p * Math.PI) * 20;
+        const y = sy + (ty - sy) * p - Math.sin(p * Math.PI) * (last ? 12 : 22);
         trail.push([x, y]);
-        if (trail.length > (last ? 18 : 9)) trail.shift();
-        trail.forEach(([px, py], k) => g.alpha((k / trail.length) * 0.7, () => g.rect(Math.round(px), Math.round(py), 2, 2, '#FFE7A3')));
-        g.rect(Math.round(x) - 2, Math.round(y), 5, 1, '#FFF6D8');
-        g.rect(Math.round(x), Math.round(y) - 2, 1, 5, '#FFF6D8');
+        if (trail.length > (last ? 22 : 10)) trail.shift();
+        trail.forEach(([px, py], k2) => g.alpha((k2 / trail.length) * 0.7, () => g.rect(Math.round(px), Math.round(py), 2, 2, '#FFE7A3')));
+        const tw = Math.floor(t / 80) % 2;
+        g.rect(Math.round(x) - 2 - tw, Math.round(y), 5 + tw * 2, 1, '#FFF6D8');
+        g.rect(Math.round(x), Math.round(y) - 2 - tw, 1, 5 + tw * 2, '#FFF6D8');
         g.rect(Math.round(x) - 1, Math.round(y) - 1, 3, 3, '#FFE7A3');
+        g.px(Math.round(x), Math.round(y), '#FFFFFF');
       },
     });
-    sfx('se_hanko_learn', { pitch: 1 + i * 0.06, vol: 0.4 });
+    sfx('se_light_fly', { pitch: last ? 0.8 : 1 + i * 0.03, pan: -0.6 });
     yield 250;
   }
+  // the shadow body fades out over 1.5s
   s.addFx({ layer: 'back', dur: 1500, draw: () => {}, update() {
     e.alpha = Math.max(0, 1 - this.t / 1500);
   } });
   yield* s.say(e.def.texts.extra.finalLeave);
-  yield 600;
+  yield () => e.alpha <= 0.02;
+  yield 400;
+  markFx.done = true;
   e.dead = true;
   e.visible = false;
   e.hp = 0;
   s.memo.bossWon = 1;
-  void getSkill;
-  void roundSeal;
-  void PANEL_POS;
 }

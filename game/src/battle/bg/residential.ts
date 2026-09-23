@@ -56,7 +56,8 @@ export class ResidentialBg extends Background {
     }
     fillCircle(ctx, 96, 40, 28, '#FFE7A3');
     fillCircle(ctx, 90, 36, 20, '#FFF1C4');
-    // the town skyline sits in L0 so it stays solid while the wires wave
+    // the town skyline and the poles sit in L0 so they stay solid while the wires wave
+    this.paintPoles(ctx, t);
     this.paintRoofs(ctx, t);
   }
 
@@ -140,37 +141,85 @@ export class ResidentialBg extends Background {
     }
   }
 
-  protected paintL1(ctx: CanvasRenderingContext2D, t: number): void {
+  /** Pole x positions (every 112px, scrolling left 12px/s). */
+  private poles(t: number): number[] {
     const scroll = (t * 12) % 112;
-    // poles every 112px
-    const poles: number[] = [];
-    for (let px = -scroll - 112; px < 384 + 112; px += 112) poles.push(Math.round(px + 60));
+    const out: number[] = [];
+    for (let px = -scroll - 112; px < 384 + 112; px += 112) out.push(Math.round(px + 60));
+    return out;
+  }
+
+  /**
+   * Utility poles stay upright (drawn into L0); only the wires live in the
+   * distorted L1 so they ripple while the poles stand still.
+   */
+  private paintPoles(ctx: CanvasRenderingContext2D, t: number): void {
+    const lit = '#6A5486';
+    this.poles(t).forEach((p, i) => {
+      // shaft with a lit left edge, step bolts alternating sides
+      ctx.fillStyle = SIL;
+      ctx.fillRect(p - 2, 50, 4, BG_H - 50);
+      ctx.fillStyle = lit;
+      ctx.fillRect(p - 2, 52, 1, BG_H - 52);
+      ctx.fillStyle = SIL;
+      for (let y = 88; y < BG_H - 12; y += 7) ctx.fillRect(((y / 7) | 0) % 2 ? p + 2 : p - 4, y, 2, 1);
+      // crossarms and insulators
+      ctx.fillRect(p - 12, 57, 24, 2);
+      ctx.fillRect(p - 10, 62, 20, 1);
+      ctx.fillStyle = lit;
+      ctx.fillRect(p - 12, 57, 24, 1);
+      ctx.fillStyle = SIL;
+      for (const ix of [-11, -5, 5, 11]) {
+        ctx.fillRect(p + ix, 54, 1, 3);
+        ctx.fillRect(p + ix - 1, 55, 3, 1);
+      }
+      // pole-top transformer (every other pole) or a street lamp
+      if (i % 2 === 0) {
+        ctx.fillRect(p + 2, 70, 8, 11);
+        ctx.fillRect(p + 3, 68, 6, 2);
+        ctx.fillStyle = SIL2;
+        ctx.fillRect(p + 8, 70, 2, 11);
+        ctx.fillStyle = lit;
+        ctx.fillRect(p + 2, 71, 1, 9);
+        ctx.fillStyle = SIL;
+        ctx.fillRect(p + 4, 81, 1, 3);
+      } else {
+        ctx.fillRect(p - 1, 78, 1, 1);
+        pxLine(ctx, p - 2, 80, p - 14, 76, SIL, 1);
+        ctx.fillRect(p - 18, 76, 6, 2);
+        ctx.fillStyle = '#FFE7A3';
+        ctx.fillRect(p - 17, 78, 4, 1);
+      }
+      // the address plate halfway down
+      ctx.fillStyle = SIL2;
+      ctx.fillRect(p - 3, 104, 6, 9);
+      ctx.fillStyle = '#7A6496';
+      ctx.fillRect(p - 2, 105, 4, 1);
+      ctx.fillRect(p - 2, 108, 3, 1);
+    });
+  }
+
+  protected paintL1(ctx: CanvasRenderingContext2D, t: number): void {
+    const poles = this.poles(t);
     // wires (3) sag 10px between poles
+    ctx.fillStyle = SIL;
     for (let i = 0; i + 1 < poles.length; i++) {
       const a = poles[i];
       const b = poles[i + 1];
       for (let k = 0; k < 3; k++) {
-        const y0 = 58 + k * 5;
+        const y0 = 56 + k * 3 + (k === 2 ? 3 : 0);
+        const sagH = 10 - k;
         for (let x = a; x <= b; x++) {
           const u = (x - a) / (b - a);
-          const sag = 10 * 4 * u * (1 - u);
-          ctx.fillStyle = SIL;
+          const sag = sagH * 4 * u * (1 - u);
           ctx.fillRect(x, Math.round(y0 + sag), 1, 1);
         }
       }
-    }
-    for (const p of poles) {
-      ctx.fillStyle = SIL;
-      ctx.fillRect(p - 2, 50, 4, BG_H - 50);
-      ctx.fillRect(p - 12, 57, 24, 2); // crossarm
-      ctx.fillRect(p - 10, 62, 20, 1);
-      ctx.fillRect(p + 2, 72, 8, 10); // transformer
-      ctx.fillRect(p + 3, 70, 6, 2);
-      ctx.fillStyle = SIL2;
-      ctx.fillRect(p + 8, 72, 2, 10);
-      // insulators
-      ctx.fillStyle = SIL;
-      for (const ix of [-11, -5, 5, 11]) ctx.fillRect(p + ix, 55, 1, 2);
+      // a thinner drop wire to the lamp side
+      for (let x = a; x <= a + 40; x++) {
+        const u = (x - a) / 40;
+        ctx.fillRect(x, Math.round(66 + 14 * u * u), 1, 1);
+      }
     }
     if (this.variant === 'semi') {
       // leaf clusters hanging in both upper corners

@@ -4,14 +4,16 @@
 import type { Co } from '../engine/co';
 import { game, type Scene } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
-import { Runner } from '../engine/co';
 import { registerScene } from '../boot';
 import { registerDebug } from '../debug';
 import { setFlag, state } from '../game/state';
 import { gainExp, getEnemy, joinKanenari, newGameParty, setMemberLevel, syncProgressSkills, type LevelUpResult } from '../data/battle';
 import { setBattleImpl, startBattle, type BattleOpts, type BattleResult } from './api';
 import { BattleScene } from './scene';
-import { battleFlow, setGameOverHook, type GameOverHook } from './flow';
+import { battleFlow, getGameOverHook, setGameOverHook, type GameOverHook } from './flow';
+import { runGameOver } from './gameover';
+import { restoreForRetry } from './results';
+import { loadGame } from '../game/state';
 import { EnemyGalleryScene } from './gallery';
 import { playHankoLearnField, playHankoLearnIn } from './learn';
 import { playLevelUpField } from './results';
@@ -41,6 +43,14 @@ function* battleImpl(o: BattleOpts): Co<BattleResult> {
     })(),
   );
   yield () => scene.finished;
+  let load = false;
+  if (scene.needGameOver) {
+    // evt_gameover (18.4): a registered hook (scenario/UI) or our own screen
+    const hook = getGameOverHook();
+    const choice = hook ? yield* hook(scene) : yield* runGameOver(scene.isBoss);
+    if (choice === 'retry') restoreForRetry(scene);
+    else load = true;
+  }
   const i = game.scenes.indexOf(scene);
   if (i === game.scenes.length - 1) game.pop();
   else if (i >= 0) {
@@ -48,7 +58,20 @@ function* battleImpl(o: BattleOpts): Co<BattleResult> {
     (scene as Scene).exit?.();
   }
   current = null;
+  if (scene.needGameOver) {
+    // back to the field out of the dark
+    game.fadeColor = '#0B0B14';
+    game.fadeAlpha = 1;
+    if (load && loadGame()) yield* reloadField();
+    game.scripts.run(game.fadeIn(500));
+  }
   return scene.result ?? 'lose';
+}
+
+/** 「セーブから」: rebuild the field scene at the saved position. */
+function* reloadField(): Co {
+  const w = (yield import('../world')) as typeof import('../world');
+  game.replaceAll(new w.FieldScene(state.map, state.x, state.y, state.dir));
 }
 
 setBattleImpl(battleImpl);
@@ -93,7 +116,6 @@ function setupParty(p: URLSearchParams | Record<string, string | number | undefi
 // ---- QA scene: ?scene=battle&enemies=a,b&boss=1&lv=3&party=2 --------------------------------
 
 class BattleTestScene implements Scene {
-  private runner = new Runner();
   private t = 0;
   private last: BattleResult | null = null;
   private running = false;
@@ -121,7 +143,8 @@ class BattleTestScene implements Scene {
   private start(): void {
     this.running = true;
     const self = this;
-    this.runner.run(
+    // like the field: battles run on the global script runner
+    game.scripts.run(
       (function* () {
         self.last = yield* startBattle(self.opts());
         self.running = false;
@@ -133,12 +156,13 @@ class BattleTestScene implements Scene {
   update(dt: number): void {
     this.t += dt;
     if (!this.started) {
-      // start on the first frame (the scene must be on the stack first)
+      // start on the first frame (the scene must be on the stack first);
+      // &hold=1 waits for __game.cmd.bgo() so QA can capture the transition
+      if (this.params.get('hold') === '1' && !goRequested) return;
       this.started = true;
       this.start();
       return;
     }
-    this.runner.update(dt);
     if (!this.running && game.input.pressed('confirm')) {
       setupParty(this.params);
       this.start();
@@ -160,6 +184,8 @@ class BattleTestScene implements Scene {
   }
 }
 
+let goRequested = false;
+registerDebug('bgo', () => (goRequested = true));
 registerScene('battle', (p) => new BattleTestScene(p));
 registerScene('enemies', (p) => new EnemyGalleryScene(p));
 
@@ -185,8 +211,10 @@ registerDebug('kire', (n = 3) => {
   addKire(current, n);
   return current.kire;
 });
-registerDebug('win', () => {
+/** Defeat every enemy; `drop` makes every drop roll succeed. */
+registerDebug('win', (drop = false) => {
   if (!current) return 'no battle';
+  if (drop) current.memo.forceDrop = 1;
   for (const e of current.enemies) {
     e.hp = 0;
     e.dead = true;
@@ -249,6 +277,8 @@ registerDebug('bstate', () => {
     party: s.party.map((u) => ({ id: u.id, hp: u.m.hp, mp: u.m.mp, status: u.m.status })),
     chime: s.bossChime.lit,
     memo: s.memo,
+    msg: (s.msg as unknown as { cur: { glyphs: { ch: string }[] } | null }).cur?.glyphs.map((g) => g.ch).join('') ?? '',
+    interactive: s.msgInteractive,
   };
 });
 registerDebug('levelup', (lv = 2) => {

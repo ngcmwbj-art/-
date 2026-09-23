@@ -47,6 +47,13 @@ export interface CharSprite {
   extraDir?: Record<string, Partial<Record<Dir, HTMLCanvasElement>>>;
   /** Named animations. */
   anims?: Record<string, CharAnim>;
+  /**
+   * Direction-specific versions of named animations (fallback: anims[name]).
+   * Held poses such as 'sit', 'crouch', 'sketch', 'chop', 'peck', 'dead' are
+   * looping anims with breathing / blinking / the character's fidget, built
+   * for every facing so an NPC keeps its pose while turning to the player.
+   */
+  animsDir?: Record<string, Partial<Record<Dir, CharAnim>>>;
 }
 
 type Builder = () => CharSprite;
@@ -97,9 +104,14 @@ export function idleFrame(s: CharSprite, dir: Dir, t: number): HTMLCanvasElement
   return set[Math.floor(t / (s.idleFrameMs ?? 250)) % set.length];
 }
 
+/** The anim `name` for facing `dir` (direction-specific first), if any. */
+export function animOf(s: CharSprite, name: string, dir: Dir = 'down'): CharAnim | undefined {
+  return s.animsDir?.[name]?.[dir] ?? s.anims?.[name];
+}
+
 /** Frame of a named anim at time t (ms). Missing anim → extra/standing. */
 export function animFrame(s: CharSprite, name: string, t: number, dir: Dir = 'down'): HTMLCanvasElement {
-  const a = s.anims?.[name];
+  const a = animOf(s, name, dir);
   if (!a) return poseFrame(s, name, dir);
   return a.frames[animIndex(a, t)];
 }

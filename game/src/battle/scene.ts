@@ -9,7 +9,7 @@ import { Particles, type BurstOpts } from '../engine/particles';
 import { rng } from '../engine/rng';
 import { makeCanvas } from '../engine/pixel';
 import { flag, state } from '../game/state';
-import { sfx } from '../audio';
+import { sfx, type SfxOpts } from '../audio';
 import * as audio from '../audio';
 import type { BattleOpts, BattleResult } from './api';
 import { getEnemy } from '../data/battle';
@@ -52,6 +52,10 @@ export class BattleScene implements Scene {
   transparent = true;
   result: BattleResult | null = null;
   finished = false;
+  /** Lost a battle that isn't canLose: battleImpl runs evt_gameover afterwards. */
+  needGameOver = false;
+  /** Reverb space of the field (restored when the battle ends). */
+  prevSpace: import('../audio').SpaceId | null = null;
   runner = new Runner();
   /** Scene time (ms), stops during hitstop. */
   t = 0;
@@ -265,6 +269,8 @@ export class BattleScene implements Scene {
     for (const f of this.flashes) f.frames -= 1;
     this.flashes = this.flashes.filter((f) => f.frames > 0);
     for (const u of this.party) this.updatePanel(u, dt);
+    // hit flashes last N real frames, hitstop or not (16.2: "敵を白く2f")
+    if (this.hitstopMs > 0) for (const e of this.enemies) if (e.whiteFrames > 0 && e.whiteFrames < 900) e.whiteFrames--;
     if (this.card) {
       this.card.t += dt;
       if (this.card.closing && this.card.t > 160) this.card = null;
@@ -277,7 +283,8 @@ export class BattleScene implements Scene {
 
   /** Blocking message pages may be skipped with confirm. */
   private msgConfirm(): boolean {
-    if (!this.msgInteractive) return false;
+    // a manual page always takes confirm: nothing else could close it
+    if (!this.msgInteractive && !this.msg.wantsConfirm) return false;
     if (this.confirmBuf) {
       this.confirmBuf = false;
       return true;
@@ -311,11 +318,19 @@ export class BattleScene implements Scene {
 
   private updateEnemy(e: EnemyUnit, dt: number): void {
     e.poseT += dt;
+    if (e.hurtT > 0) {
+      e.hurtT -= dt;
+      if (e.hurtT <= 0 && e.pose === 'hurt') {
+        // back to whatever the enemy was doing (playing dead, charging, open…)
+        const back = e.status.shindafuri ? 'dead' : e.status.tame ? 'charge' : e.status.hiraki ? 'open' : e.hurtReturn;
+        e.setPose(back === 'hurt' ? 'idle' : back);
+      }
+    }
     if (e.x !== e.xTarget) {
       const d = e.xTarget - e.x;
       e.x += Math.sign(d) * Math.min(Math.abs(d), dt * 0.25);
     }
-    if (e.whiteFrames > 0) e.whiteFrames--;
+    if (e.whiteFrames > 0 && e.whiteFrames < 900) e.whiteFrames--;
     if (e.blushT > 0) e.blushT -= dt;
     if (e.shyT > 0) e.shyT -= dt;
     if (e.appearT >= 0) e.appearT += dt;
@@ -386,6 +401,19 @@ export class BattleScene implements Scene {
     });
   }
 
+  /**
+   * Label to the upper right of a point (the sight / the stamp), clear of the
+   * damage number that pops straight up from the same point. Flips to the
+   * left when it would leave the screen.
+   */
+  labelUpRight(text: string, x: number, y: number, tone: 'shu' | 'gray' = 'shu', ms = 600, worn = false): void {
+    const w = labelCanvas(text, tone, worn).width;
+    let cx = x + 14 + w / 2;
+    if (cx + w / 2 > 380) cx = x - 14 - w / 2;
+    const cy = Math.max(60, y - 20);
+    this.label(text, Math.round(cx), Math.round(cy), tone, ms, worn);
+  }
+
   burst(x: number, y: number, o: BurstOpts, top = false): void {
     (top ? this.partsTop : this.parts).burst(x, y, o);
   }
@@ -408,7 +436,7 @@ export class BattleScene implements Scene {
     this.burst(x, y, { count: n, speed: [60, 140], angle: [-Math.PI, 0], life: [300, 500], colors: ['#E8F4F8', '#7FD1E8'], gravity: 400, shape: 'sq', size: [2, 2], sizeEnd: 1 }, true);
   }
 
-  sfx(id: string, o?: { pitch?: number; pan?: number; vol?: number }): void {
+  sfx(id: string, o?: SfxOpts): void {
     sfx(id, o);
   }
 
@@ -629,10 +657,17 @@ export class BattleScene implements Scene {
       const y = e.headY + 4 + Math.round((cyc / 600) * 10);
       g.alpha(cyc > 480 ? (600 - cyc) / 120 : 1, () => g.img(sweatDrop(), x, y));
     }
-    // 溜め中 sticky
+    // 溜め中 sticky: 10px over the head, or pinned to the shoulder when the
+    // head is up under the message band
     if (e.status.tame) {
       const img = tapeCanvas(52, 16, '溜め中', C.tape, 7);
-      g.img(img, Math.round(e.x - 26 + e.jitterX), e.headY - 10 - 16);
+      let y = e.headY - 10 - 16;
+      let x = Math.round(e.x - 26 + e.jitterX);
+      if (y < this.msg.bottom + 4) {
+        y = this.msg.bottom + 6;
+        x = Math.min(380 - 52, Math.round(e.x + e.sizeW / 2 - 18 + e.jitterX));
+      }
+      g.img(img, x, y);
     }
   }
 

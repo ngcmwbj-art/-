@@ -6,7 +6,7 @@
 import { flat, mat, type Fig, type Mats } from './fig';
 import { buildSprite, type Pose } from './rig';
 import { registerChar } from './registry';
-import { CHAIR_MATS, VEND_MATS, chair } from './enemies';
+import { CHAIR_MATS, VEND_MATS, chair, vendFront } from './enemies';
 
 const STATIC = { up: 'down', left: 'down', right: 'down' } as const;
 
@@ -123,9 +123,9 @@ const UMB: Mats = {
   hi: flat('#FFFFFFDD'),
   shaft: mat('#C0C6CC', { shade: '#9AA0A8', light: '#E8ECF0' }),
   tip: flat('#6B7186'),
-  handle: mat('#3A2B24', { shade: '#261C18', light: '#6A4B3A', dark: '#1A120E' }),
+  handle: mat('#8A5A3A', { shade: '#5A3A2A', light: '#AE7A52', dark: '#3A2618', spec: '#C8A06A' }),
   sticker: flat('#F4F1E8'),
-  q: flat('#E23B2E'),
+  q: flat('#2A2440'),
   strap: flat('#F4F1E8'),
   snap: flat('#C0C6CC'),
 };
@@ -180,54 +180,17 @@ registerChar('restored_enemy_wasuregasa', () =>
 // 自販機: standing up straight again, LED dark (it said ありがとう once).
 
 function uprightVend(f: Fig) {
-    f.part('side', { shade: '', light: '' });
-    f.rect(0, 3, 3, 37);
-    f.part('side', { flat: true });
-    f.t(1).vl(0, 3, 39).t(null);
-    f.part('body', { shade: 'r', light: 't' });
-    f.rect(3, 2, 19, 38);
-    f.part('header', { shade: 'b', light: '' });
-    f.rect(4, 3, 12, 4);
-    f.part('logo', { flat: true, rim: false });
-    f.px(5, 5).px(6, 4).px(7, 5).px(8, 4).px(9, 5).px(10, 4).px(11, 5);
-    f.part('led', { flat: true, rim: false });
-    f.rect(16, 3, 5, 4);
-    f.part('glass', { flat: true, rim: false });
-    f.rect(4, 8, 17, 11);
-    for (let r = 0; r < 2; r++)
-      for (let c = 0; c < 5; c++) {
-        f.part('can', { shade: 'r', light: 'l' });
-        f.rect(5 + c * 3, 9 + r * 5, 2, 3);
-        f.part('canW', { flat: true, rim: false });
-        f.hl(5 + c * 3, 6 + c * 3, 10 + r * 5);
-      }
-    f.part('glassHi', { flat: true, rim: false, ol: false });
-    f.px(6, 18).px(7, 17).px(9, 15).px(10, 14).px(12, 12).px(13, 11).px(15, 9);
-    for (let c = 0; c < 5; c++) {
-      f.part('btn', { flat: true, rim: false });
-      f.px(5 + c * 3, 20);
-      f.part('slot', { flat: true, rim: false });
-      f.px(6 + c * 3, 20);
-    }
-    f.part('slot', { shade: 'r', light: 't' });
-    f.rect(16, 23, 3, 4).rect(5, 24, 6, 2);
-    f.part('mouth', { flat: true, rim: false });
-    f.rect(6, 30, 12, 4);
-    f.part('flap', { shade: 'b', light: 't' });
-    f.rect(6, 30, 12, 2);
-    f.part('body', { flat: true });
-    f.t(-1).rect(3, 36, 19, 4).t(null);
-    f.part('rust', { flat: true, rim: false });
-    f.px(5, 38).px(12, 37).px(19, 38);
-    // cord coiled neatly at its foot
-    f.part('cord', { shade: 'b', light: '' });
-    f.px(22, 36).px(23, 37).px(22, 38).px(23, 39);
+  // (x0 = 2: room for the left outline and its sunset rim)
+  vendFront(f, 2, 2, { ledOn: false, flicker: false, flap: 0, hum: 0, off: true });
+  // cord coiled neatly at its foot
+  f.part('cord', { shade: 'b', light: '' });
+  f.px(24, 36).px(25, 37).px(24, 38).px(25, 39);
 }
 
 registerChar('restored_enemy_ojigi_jihanki', () =>
   buildSprite({
     id: 'restored_enemy_ojigi_jihanki',
-    w: 24,
+    w: 26,
     h: 40,
     mats: VEND_MATS,
     draw: (f) => uprightVend(f),

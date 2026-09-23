@@ -11,7 +11,7 @@ import type { BattleScene } from './scene';
 import { FRAME, SLOTS } from './scene';
 import { calcDamage, EnemyUnit, statusChance, type PartyUnit } from './model';
 import {
-  addKire, changeStage, giveStatus, hideSticky, healParty, hurtEnemy, hurtParty, showSticky, statusText, tsukkomiFeel, type Guarded,
+  addKire, changeStage, giveStatus, hideSticky, healParty, hurtEnemy, hurtParty, kireFullPages, showSticky, statusText, tsukkomiFeel, type Guarded,
 } from './common';
 import {
   bokemakeLabel, markLineSeen, pickLine, popBang, showBang, showFlip, showKakimoji, tsukkomiUnit, tsukkomiWindows,
@@ -288,18 +288,15 @@ function* tsukkomiAftermath(s: BattleScene, e: EnemyUnit, sk: SkillDef, st: ActS
     return;
   }
   if (e.alive) {
+    // the very first tsukkomi success: a longer ボケ負け label and its sticky (10.5)
     const first = !s.memo.bokeTut && e.id === 'enemy_hato_kakaricho';
     e.status.bokemake = true;
     bokemakeLabel(s, e, first);
+    if (first) showSticky(s, 'tsukkomiOk', undefined, false, 2600);
     s.memo.bokeTut = 1;
   }
   addKire(s, 1 + (st.lastJust ? 1 : 0));
   s.memo.tsukCount = (s.memo.tsukCount ?? 0) + 1;
-  if (s.memo.kireJustFull && !flag('flag_tut_kire')) {
-    s.memo.kireJustFull = 0;
-    setFlag('flag_tut_kire', 1);
-    showSticky(s, 'kire', undefined, false, 3200);
-  }
   void sk;
 }
 
@@ -311,16 +308,19 @@ function lineFor(s: BattleScene, e: EnemyUnit, sk: SkillDef, st: ActState): { n:
   return { n, text: e.def.tsukkomi[n - 1] ?? '' };
 }
 
-/** Show the lettering for the move (Minato's inner voice, or Kanenari's flip). */
-function letter(s: BattleScene, e: EnemyUnit, sk: SkillDef, st: ActState): void {
+/**
+ * Show the lettering for the move (Minato's inner voice, or Kanenari's flip).
+ * Returns how long it stays on screen (ms).
+ */
+function letter(s: BattleScene, e: EnemyUnit, sk: SkillDef, st: ActState): number {
   const tu = tsukkomiUnit(s);
   const { n, text } = lineFor(s, e, sk, st);
   st.lastLine = n;
-  if (!text) return;
+  if (!text) return 0;
   markLineSeen(s, e, n);
   s.memo['used_' + sk.id] = 1;
-  if (tu?.id === 'kanenari') showFlip(s, text);
-  else showKakimoji(s, text, st.lastJust);
+  if (tu?.id === 'kanenari') return showFlip(s, text);
+  return showKakimoji(s, text, st.lastJust);
 }
 
 // ---- the move runner ----------------------------------------------------------------------
@@ -804,13 +804,17 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
 
 /** Lettering, kire, bokemake, then the result pages. */
 function* flushAfter(s: BattleScene, e: EnemyUnit, sk: SkillDef, st: ActState, pages: string[], _tu: PartyUnit | null): Co {
-  if (st.anySuccess) letter(s, e, sk, st);
+  const shownMs = st.anySuccess ? letter(s, e, sk, st) : 0;
+  const t0 = s.t;
   yield* tsukkomiAftermath(s, e, sk, st);
   for (const u of s.party) u.moodHold = null;
   yield 260;
   if (e.pose !== 'dead' && e.pose !== 'charge' && e.pose !== 'open') e.setPose('idle');
-  if (pages.length) yield* s.say(pages.slice(0, 3));
+  const all = [...pages.slice(0, 3), ...kireFullPages(s)];
+  if (all.length) yield* s.say(all);
   else yield 200;
+  // let the lettering finish crossing before the next thing starts
+  if (shownMs) yield () => s.t - t0 >= shownMs;
   st.anySuccess = false;
 }
 

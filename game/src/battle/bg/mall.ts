@@ -45,20 +45,33 @@ export class MallBg extends Background {
       for (let x = 0; x < 384; x++) {
         let r: number, g: number, b: number;
         if (sy < HOR - 4) {
-          // ceiling
-          const z = 22 / Math.max(1, HOR - sy);
-          const u = ((x - 192) * z) / 6;
-          const v = z * 3 - scroll * 0.5;
-          const col = Math.floor(u + 0.5);
-          const inTube = Math.abs(u - col) < 0.07 && col >= -3 && col <= 3 && (v - Math.floor(v)) < 0.62;
-          if (inTube) {
-            const tubeId = col * 97 + Math.floor(v);
-            const flick = valueNoise(this.t * 6, tubeId, 3) > 0.28 || hash2(tubeId, 1, 2) > 0.5;
-            [r, g, b] = flick ? TUBE_ON : TUBE_OFF;
-          } else {
-            const k = Math.min(1, (sy - 10) / 60);
-            [r, g, b] = mix3(CEIL, CEIL2, Math.max(0, k));
+          // drop ceiling in perspective: tile grid + recessed fluorescent panels
+          // (every other column, flickering on their own), flowing with the floor
+          // (the band hides y<48, so the visible strip gets a gentle perspective)
+          const z = 12 / Math.max(1, HOR - sy);
+          const u = ((x - 192) * z) / 14;
+          const v = z * 1.6 + scroll;
+          const cu = Math.floor(u);
+          const cv = Math.floor(v);
+          const fu = u - cu;
+          const fv = v - cv;
+          const lw = 0.04 + z * 0.004;
+          let c: [number, number, number] = mix3(CEIL, CEIL2, Math.max(0, Math.min(1, (sy - 6) / 70)));
+          if (fu < lw || fv < lw * 1.6) c = mix3(c, TUBE_OFF, 0.55);
+          const fixture = (cu & 1) === 0 && Math.abs(cu) <= 6;
+          if (fixture && fu > 0.28 && fu < 0.72 && fv > 0.18 && fv < 0.82) {
+            const tubeId = cu * 97 + cv;
+            const dead = hash2(tubeId, 5, 9) < 0.18;
+            const on = !dead && (valueNoise(this.t * 6, tubeId, 3) > 0.22 || hash2(tubeId, 1, 2) > 0.45);
+            const edge = fu < 0.33 || fu > 0.67 || fv < 0.24 || fv > 0.76;
+            c = on ? (edge ? mix3(TUBE_ON, CEIL2, 0.35) : TUBE_ON) : edge ? CEIL2 : TUBE_OFF;
+          } else if (fixture && fu > 0.2 && fu < 0.8 && fv > 0.1 && fv < 0.9) {
+            // soft glow spilling round a lit panel
+            const tubeId = cu * 97 + cv;
+            if (hash2(tubeId, 5, 9) >= 0.18) c = mix3(c, TUBE_ON, 0.12);
           }
+          // haze toward the horizon
+          [r, g, b] = mix3(c, CEIL2, Math.max(0, Math.min(0.7, 1 - (HOR - sy) / 30)));
         } else if (sy < HOR + 4) {
           // skylight sunset line
           const k = 1 - Math.abs(sy - HOR) / 4;

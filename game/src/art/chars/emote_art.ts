@@ -270,5 +270,26 @@ registerEmote(
   () => [3, 3, 4, 4].map((t) => frame((p) => zzz(p, t))),
 );
 
+/** 照れ: three slanted blush strokes (///) that stroke in one by one, then quiver. */
+function shy(p: PixelCanvas, n: number, wob: number) {
+  for (let k = 0; k < n; k++) {
+    const x = 3 + k * 4 + (wob && k === 1 ? 1 : 0);
+    const y = 8 - (wob && k !== 1 ? 1 : 0);
+    for (let i = 0; i < 4; i++) {
+      p.set(x + 3 - i, y + i, i === 0 ? RED_L : RED);
+      p.set(x + 4 - i, y + i, i === 3 ? RED_D : RED);
+    }
+  }
+  p.outline(OL);
+  // a tiny sparkle of embarrassment
+  if (n === 3) p.set(1, 5 + wob, '#FFE7A3');
+}
+
+registerEmote(
+  'shy',
+  () => [1, 2, 3, 3].map((n, i) => frame((p) => shy(p, n, i === 3 ? 1 : 0))),
+  () => [0, 1, 0, 0].map((w) => frame((p) => shy(p, 3, w))),
+);
+
 // Keep the registry aware of every kind even if a build tree-shakes nothing.
-export const EMOTE_ART: EmoteKind[] = ['exclaim', 'question', 'dots', 'note', 'sweat', 'anger', 'heart', 'zzz', 'light'];
+export const EMOTE_ART: EmoteKind[] = ['exclaim', 'question', 'dots', 'note', 'sweat', 'anger', 'heart', 'zzz', 'light', 'shy'];

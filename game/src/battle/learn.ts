@@ -15,15 +15,25 @@ import type { BattleScene } from './scene';
 import { hanamaruFrame, ovalStamp, pekeMark } from './art/stamps';
 import { MessageBand } from './ui/message';
 
-const CX = 112;
+// 18.5: case 192×104 at (96,56); 10 slots (5×2), each 32×32, 4px apart.
+const CX = 96;
 const CY = 56;
-const CW = 160;
+const CW = 192;
 const CH = 104;
+const SLOT_X0 = 8;
+const SLOT_Y0 = 12;
+const SLOT_STEP = 36;
+const SLOT_ROW = 40;
+const SLOTS = 10;
+
+function slotXY(i: number): [number, number] {
+  return [SLOT_X0 + (i % 5) * SLOT_STEP, SLOT_Y0 + Math.floor(i / 5) * SLOT_ROW];
+}
 
 let caseC: HTMLCanvasElement | null = null;
 let lidC: HTMLCanvasElement | null = null;
 
-/** Wooden case body with red velvet lining and 8 slots (4×2, 32×32). */
+/** Wooden case body with red velvet lining and 10 slots (5×2, 32×32). */
 function caseBody(): HTMLCanvasElement {
   if (caseC) return caseC;
   const p = new PixelCanvas(CW, CH);
@@ -39,24 +49,32 @@ function caseBody(): HTMLCanvasElement {
     }
   // velvet lining
   const vel = ['#4A1620', '#6A1E28', '#8A2E3A', '#A8404C'];
-  for (let y = 8; y < CH - 8; y++)
-    for (let x = 8; x < CW - 8; x++) {
+  for (let y = 5; y < CH - 5; y++)
+    for (let x = 5; x < CW - 5; x++) {
       const n = hash2(x, y, 9);
-      const v = 0.55 - ((x - 8) / (CW - 16)) * 0.15 + (n - 0.5) * 0.2;
+      const v = 0.55 - ((x - 5) / (CW - 10)) * 0.15 + (n - 0.5) * 0.2;
       p.set(x, y, vel[Math.max(0, Math.min(3, Math.floor(v * 4)))]);
     }
-  // slots: 4 × 2, 32×32 recesses
-  for (let j = 0; j < 2; j++)
-    for (let i = 0; i < 4; i++) {
-      const sx = 12 + i * 36;
-      const sy = 14 + j * 42;
-      p.rect(sx, sy, 32, 32, '#5A1822');
-      p.hline(sx, sx + 31, sy, '#3A0E16');
-      p.vline(sx, sy, sy + 31, '#3A0E16');
-      p.hline(sx + 1, sx + 31, sy + 31, '#A8404C');
-      p.vline(sx + 31, sy + 1, sy + 31, '#A8404C');
-      for (let y = sy + 2; y < sy + 30; y++) for (let x = sx + 2; x < sx + 30; x++) if (hash2(x, y, 2) < 0.08) p.set(x, y, '#6A2230');
-    }
+  // inner bevel of the wooden rim
+  p.hline(5, CW - 6, 5, '#3A0E16');
+  p.vline(5, 5, CH - 6, '#3A0E16');
+  p.hline(5, CW - 6, CH - 6, '#C08A38');
+  p.vline(CW - 6, 5, CH - 6, '#C08A38');
+  // slots: 5 × 2, 32×32 recesses, 4px apart
+  for (let k = 0; k < SLOTS; k++) {
+    const [sx, sy] = slotXY(k);
+    p.rect(sx, sy, 32, 32, '#5A1822');
+    p.hline(sx, sx + 31, sy, '#3A0E16');
+    p.vline(sx, sy, sy + 31, '#3A0E16');
+    p.hline(sx + 1, sx + 31, sy + 31, '#A8404C');
+    p.vline(sx + 31, sy + 1, sy + 31, '#A8404C');
+    for (let y = sy + 2; y < sy + 30; y++) for (let x = sx + 2; x < sx + 30; x++) if (hash2(x, y, 2) < 0.08) p.set(x, y, '#6A2230');
+  }
+  // a tiny brass name plate under the slots
+  p.rect(CW / 2 - 20, CH - 16, 40, 8, '#A8742A');
+  p.rect(CW / 2 - 19, CH - 15, 38, 6, '#D9A441');
+  p.hline(CW / 2 - 19, CW / 2 + 18, CH - 15, '#F6D98A');
+  for (let x = CW / 2 - 14; x < CW / 2 + 14; x += 3) p.set(x, CH - 12, '#8A5A2A');
   p.strokeRect(0, 0, CW, CH, '#2A2440');
   caseC = p.toCanvas();
   return caseC;
@@ -146,9 +164,10 @@ function drawCase(g: Gfx, st: CaseState): void {
   g.rect(CX + 3, y + 3, CW, CH, '#0B0B14', 0.5);
   g.img(caseBody(), CX, y);
   HANKO_CASE_ORDER.forEach((sk, i) => {
-    if (i >= 8) return;
-    const sx = CX + 12 + (i % 4) * 36;
-    const sy = y + 14 + Math.floor(i / 4) * 42;
+    if (i >= SLOTS) return;
+    const [ox, oy] = slotXY(i);
+    const sx = CX + ox;
+    const sy = y + oy;
     const isNew = sk === st.skill;
     if (!st.owned.includes(sk) && !isNew) return;
     const img = imprint(sk);
@@ -187,8 +206,11 @@ function drawCase(g: Gfx, st: CaseState): void {
   }
 }
 
-/** Timeline shared by both hosts. `say` shows the line; `confirm` waits for a press. */
-function* caseTimeline(st: CaseState, say: (text: string) => Co, waitConfirm: () => Co): Co {
+/**
+ * Timeline shared by both hosts. `pages` are shown once the imprint has risen
+ * (field: 10_narrative 5.12 / 8.12; battle: the caller's own 9.7 pages).
+ */
+function* caseTimeline(st: CaseState, pages: string[], say: (pages: string[]) => Co): Co {
   const step = (ms: number, fn: (p: number) => void) =>
     (function* () {
       let t = 0;
@@ -199,22 +221,32 @@ function* caseTimeline(st: CaseState, say: (text: string) => Co, waitConfirm: ()
         fn(Math.min(1, t / ms));
       }
     })();
+  // 0–200: the case rises from below; 300: the lid opens in two frames
   yield* step(200, (p) => (st.rise = ease.quadOut(p)));
   yield* step(100, () => {});
   sfx('se_paper_open', { pitch: 0.7 });
   yield* step(100, (p) => (st.open = p < 0.5 ? 0.5 : 1));
   yield* step(100, () => {});
+  // 500–1100: a vermilion light runs once around the frame
   yield* step(600, (p) => (st.orbit = p));
   st.orbit = 0;
+  // 1100: the imprint rises in the empty slot (α0→1, 1.3→1.0)
   sfx('se_hanko_learn');
   yield* step(200, (p) => {
     st.newAlpha = p;
-    st.newScale = 1.3 - 0.3 * p;
+    st.newScale = 1.3 - 0.3 * ease.quadOut(p);
   });
-  const name = getSkill(st.skill)?.name ?? '';
-  yield* say(fillAll(SYS.hankoLearn, { skill: name })[0]);
-  yield* waitConfirm();
+  yield* step(100, () => {});
+  if (pages.length) yield* say(pages);
+  // confirm: the lid closes and the case drops away
+  yield* step(100, (p) => (st.open = p < 0.5 ? 0.5 : 0));
   yield* step(200, (p) => (st.closing = ease.quadIn(p)));
+}
+
+/** 10_narrative 5.12 / 8.12: the field pages for a newly learned hanko. */
+export function learnPages(skillId: string): string[] {
+  const name = getSkill(skillId)?.name ?? '';
+  return [SYS.hankoLearn1[0], fillAll(SYS.hankoLearn2, { skill: name })[0]];
 }
 
 function newState(skillId: string): CaseState {
@@ -223,19 +255,15 @@ function newState(skillId: string): CaseState {
 }
 
 /** In-battle version (drawn as a top overlay of the battle scene). */
-export function* playHankoLearnIn(s: BattleScene, skillId: string): Co {
+export function* playHankoLearnIn(s: BattleScene, skillId: string, pages: string[] = learnPages(skillId)): Co {
   const st = newState(skillId);
   const fx = s.addFx({ layer: 'top', dur: 0, ui: true, draw: (g) => drawCase(g, st) });
-  yield* caseTimeline(
-    st,
-    function* (text) {
-      s.msgInteractive = true;
-      s.msg.post(text, { manual: true });
-      yield () => !s.msg.busy;
-      s.msgInteractive = false;
-    },
-    function* () {},
-  );
+  yield* caseTimeline(st, pages, function* (list) {
+    s.msgInteractive = true;
+    s.msg.post(list, { manual: true });
+    yield () => !s.msg.busy;
+    s.msgInteractive = false;
+  });
   fx.done = true;
 }
 
@@ -257,14 +285,10 @@ class HankoCaseScene implements Scene {
     const self = this;
     this.msg.y = 4;
     this.co = (function* () {
-      yield* caseTimeline(
-        self.st,
-        function* (text) {
-          self.msg.post(text, { manual: true });
-          yield () => !self.msg.busy;
-        },
-        function* () {},
-      );
+      yield* caseTimeline(self.st, learnPages(skillId), function* (list) {
+        self.msg.post(list, { manual: true });
+        yield () => !self.msg.busy;
+      });
       self.done = true;
     })();
     void this.runner;

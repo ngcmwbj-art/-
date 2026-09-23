@@ -103,7 +103,7 @@ export function popBang(s: BattleScene, targets: PartyUnit[], just: boolean): vo
  * drifts left 12px (250ms), then accelerates out while fading (100ms).
  * Longer than 8 chars → +30ms per char. Baseline y62.
  */
-export function showKakimoji(s: BattleScene, text: string, just: boolean): void {
+export function showKakimoji(s: BattleScene, text: string, just: boolean): number {
   const img = kakimoji(text, just, s.seed);
   const n = [...text].length;
   const extra = Math.max(0, n - 8) * 30;
@@ -159,10 +159,11 @@ export function showKakimoji(s: BattleScene, text: string, just: boolean): void 
       },
     });
   }
+  return T3;
 }
 
 /** Kanenari-kun's flip tsukkomi: the board jumps up from the bottom centre (500ms). */
-export function showFlip(s: BattleScene, text: string): void {
+export function showFlip(s: BattleScene, text: string): number {
   const wrapped = wrapFlip(`（${text}）`);
   const img = flipBoardText(wrapped);
   s.sfx('se_flip');
@@ -178,6 +179,7 @@ export function showFlip(s: BattleScene, text: string): void {
       g.alpha(a, () => g.img(img, x, y));
     },
   });
+  return 700;
 }
 
 function wrapFlip(t: string): string {

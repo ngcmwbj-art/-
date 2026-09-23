@@ -2,7 +2,7 @@
 // and a worn music box, the town chime cut off at its fourth note, and a
 // clock that ticks every 1.000 s regardless of the 76 BPM (and skips a beat).
 
-import { PaChain } from '../engine';
+import { dbToGain, PaChain } from '../engine';
 import { chimeNote, DRM } from '../instruments';
 import { bass, hits, melody, pads, type PartDef, type SongDef, type SongPlayer } from '../sequencer';
 import { bar, registerSong, score } from './common';
@@ -56,7 +56,12 @@ title.bars.set('I4', bar('I4', 8, []));
 function pa(sp: SongPlayer): PaChain {
   let p = sp.state.pa as PaChain | undefined;
   if (!p) {
-    p = new PaChain(sp.g.ctx, sp.mix);
+    // the town speaker is far away from the panorama: it stands out of the
+    // pads by ~7 LU instead of drowning them (the song trim follows the pads)
+    const far = sp.g.ctx.createGain();
+    far.gain.value = dbToGain(-12);
+    far.connect(sp.mix);
+    p = new PaChain(sp.g.ctx, far);
     sp.state.pa = p;
   }
   return p;

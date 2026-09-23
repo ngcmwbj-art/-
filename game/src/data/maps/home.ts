@@ -6,7 +6,7 @@ import type { MapObj, TileSpec } from '../../world/types';
 
 export const INDOOR_LEGEND: Record<string, TileSpec> = {
   '#': { ground: 'void', solid: true, tag: 'void' },
-  W: { ground: 'void', solid: true, tag: 'wall' },
+  W: { ground: 'void', solid: true, tag: 'iwall' },
   '.': { ground: 'wood_bare' },
   t: { ground: 'tatami', step: 'se_step_tatami' },
   k: { ground: 'kitchen' },
@@ -34,6 +34,7 @@ const ROWS_2F = [
 
 const OBJ_2F: MapObj[] = [
   { t: 'prop', prop: 'room_home_2f', x: 0, y: 0 },
+  { t: 'prop', prop: 'room_home_2f_decor', x: 3, y: 3 },
   T('obj_bed', 1, 2, `@narr
 タオルケットが ねじれて、
 なにかの 生き物みたいに
@@ -125,6 +126,7 @@ const ROWS_1F = [
 
 const OBJ_1F: MapObj[] = [
   { t: 'prop', prop: 'room_home_1f', x: 0, y: 0 },
+  { t: 'prop', prop: 'prop_ceiling_light', x: 9, y: 4 },
   T('obj_cabbage', 1, 2, `@narr
 キャベツの 千切りが 山に
 なっている。{w=300}コロッケを

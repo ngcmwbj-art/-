@@ -5,7 +5,18 @@ import type { Gfx } from '../../engine/gfx';
 import { Rng, hash2 } from '../../engine/rng';
 import { Background, BG_H, gradientTexture } from './common';
 
-const BELL = ['..hh..', '.hhhh.', '.hhhh.', 'hhhhhh', 'hhhhhh', '..hh..'];
+// 8×8 school bell: loop on top, lit from the left, flared lip, clapper
+const BELL = [
+  '...hh...',
+  '..h..h..',
+  '..hhhh..',
+  '.hlhhhh.',
+  '.hlhhhh.',
+  '.hlhhhhh',
+  'hhhhhhhh',
+  '..ddd...',
+];
+const BELL_COL: Record<string, string> = { h: '#A8742A', l: '#D9A441', d: '#7A4E1E' };
 const BALLOON_COLS = ['#F2894B', '#E0567A', '#FFD23F', '#5CE1FF'];
 const CONFETTI = ['#E84E3C', '#FFD23F', '#5CE1FF', '#F4F1E8', '#E0567A', '#9BCB6B'];
 
@@ -50,13 +61,22 @@ export class KanenariBg extends Background {
     }
     ctx.globalAlpha = 1;
     // bell rows at y30 and y120, moving in opposite directions
-    ctx.fillStyle = '#A8742A';
+    // (y30 sits under the message band, so the upper row is lowered to y54)
     for (const [y, dir] of [[54, 1], [120, -1]] as [number, number][]) {
       const off = ((t * 14 * dir) % 32 + 32) % 32;
       for (let k = -1; k < 13; k++) {
         const bx = Math.round(k * 32 + off);
-        for (let r = 0; r < BELL.length; r++) for (let c = 0; c < 6; c++) if (BELL[r][c] === 'h') ctx.fillRect(bx + c, y + r, 1, 1);
-        ctx.fillRect(bx + 2, y - 1, 2, 1);
+        // every bell swings a little, neighbours out of phase
+        const sw = [0, 1, 0, -1][(Math.floor(t * 2.5) + k * dir) & 3];
+        for (let r = 0; r < BELL.length; r++) {
+          const dx = r < 3 ? sw : r === 7 ? -sw : 0;
+          for (let c = 0; c < 8; c++) {
+            const col = BELL_COL[BELL[r][c]];
+            if (!col) continue;
+            ctx.fillStyle = col;
+            ctx.fillRect(bx + c + dx, y + r, 1, 1);
+          }
+        }
       }
     }
   }

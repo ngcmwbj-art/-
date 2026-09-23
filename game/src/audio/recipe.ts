@@ -5,8 +5,10 @@
 // stopSfx), per-call randomisation (11.5) and optional ducking (11.3).
 
 import { captureVoices, cur, dbToGain, hasGraph, midiHz, noteMidi, voice, type VoiceHandle, type VoiceOpts, type Wave } from './engine';
+import { seTrim, trimOr1 } from './mix';
 import { duck } from './music';
-import { hooks, sfxInfo, sfxTable, type SfxOpts } from './registry';
+import { registerSfx } from './index';
+import { hooks, sfxInfo, type SfxOpts } from './registry';
 
 export interface Layer {
   wave: Wave | 'fm';
@@ -219,8 +221,20 @@ interface Inst {
   voices: VoiceHandle[];
 }
 
-const active: Inst[] = [];
-const lastCall = new Map<string, number>();
+// Per-context bookkeeping: offline QA renders (report.ts) start their own
+// clock at 0 and must not see the live game's instances, or each other's.
+const activeBy = new WeakMap<BaseAudioContext, Inst[]>();
+const lastCallBy = new WeakMap<BaseAudioContext, Map<string, number>>();
+function activeOf(c: BaseAudioContext): Inst[] {
+  let a = activeBy.get(c);
+  if (!a) activeBy.set(c, (a = []));
+  return a;
+}
+function lastCallOf(c: BaseAudioContext): Map<string, number> {
+  let m = lastCallBy.get(c);
+  if (!m) lastCallBy.set(c, (m = new Map()));
+  return m;
+}
 const DEFAULT_MAX = 4;
 const GLOBAL_MAX = 24;
 
@@ -238,6 +252,8 @@ export function playSe(id: string, def: SeDef, opts: SfxOpts = {}): Inst | null 
   const g = cur();
   const now = g.ctx.currentTime;
   const t = Math.max(opts.at ?? now, now);
+  const active = activeOf(g.ctx);
+  const lastCall = lastCallOf(g.ctx);
   if (def.merge) {
     const last = lastCall.get(id) ?? -1;
     if (t - last < def.merge / 1000) return null;
@@ -254,6 +270,7 @@ export function playSe(id: string, def: SeDef, opts: SfxOpts = {}): Inst | null 
   const pitch = (opts.pitch ?? 1) * (rp ? 1 + (Math.random() * 2 - 1) * rp : 1);
   const vol = (opts.vol ?? 1) * (rv ? 1 + (Math.random() * 2 - 1) * rv : 1);
   const gain = g.ctx.createGain();
+  gain.gain.value = trimOr1(seTrim(id));
   const head: AudioNode = gain;
   const dest = (opts as SfxOpts & { dest?: AudioNode }).dest ?? (def.bus === 'bell' ? g.bellBus : g.sfxBus);
   let tail: AudioNode = gain;
@@ -297,8 +314,9 @@ export function playSe(id: string, def: SeDef, opts: SfxOpts = {}): Inst | null 
 /** Stop every playing instance of an SE (e.g. the kazoo when the tsukkomi lands). */
 export function stopSe(id: string, fade = 0.02): void {
   if (!hasGraph()) return;
-  const t = cur().ctx.currentTime;
-  for (const i of active) if (i.id === id && i.end > t) killInst(i, t, fade);
+  const c = cur().ctx;
+  const t = c.currentTime;
+  for (const i of activeOf(c)) if (i.id === id && i.end > t) killInst(i, t, fade);
 }
 
 export const seDefs = new Map<string, SeDef>();
@@ -306,7 +324,7 @@ export const seDefs = new Map<string, SeDef>();
 export function se(id: string, def: SeDef): void {
   seDefs.set(id, def);
   sfxInfo.set(id, { label: def.label, group: def.group });
-  sfxTable.set(id, (o) => {
+  registerSfx(id, (o) => {
     playSe(id, def, o);
   });
 }

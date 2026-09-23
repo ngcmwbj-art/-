@@ -2,7 +2,7 @@
 import { bakeGround, type GroundSource } from '../art/tiles/ground';
 import { strSeed } from '../art/tiles/noise';
 import type { Gfx } from '../engine/gfx';
-import { groundAt, type LoadedMap } from './maps';
+import { cellAt, groundAt, type LoadedMap } from './maps';
 import type { Ground } from './types';
 
 export const CHUNK = 256;
@@ -16,16 +16,34 @@ export class GroundCache {
       for (const z of zones) if (tx >= z.x && ty >= z.y && tx < z.x + z.w && ty < z.y + z.h) return z.id;
       return map.def.theme ?? '';
     };
+    const ground = (tx: number, ty: number): Ground => {
+      const g = groundAt(map, tx, ty);
+      if (g === 'sidewalk' && theme(tx, ty) === 'park') return 'plaza';
+      return g;
+    };
+    const trees: [number, number, number][] = [];
+    for (const o of map.objects) {
+      if (o.t !== 'prop' || !o.prop.startsWith('tree_')) continue;
+      const big = o.prop === 'tree_keyaki';
+      trees.push([o.x * 16 + 8 + (big ? 4 : 2), o.y * 16 + 10, big ? 44 : 30]);
+    }
+    const WALLISH = new Set(['wall', 'hedge', 'facade', 'fence', 'roof']);
     this.src = {
       w: map.w,
       h: map.h,
       seed: strSeed(map.id) & 0xffff,
       theme,
-      ground: (tx, ty): Ground => {
-        const g = groundAt(map, tx, ty);
-        if (g === 'sidewalk' && theme(tx, ty) === 'park') return 'plaza';
-        return g;
-      },
+      ground,
+      decals: map.def.kind === 'outdoor'
+        ? {
+            ground,
+            trees,
+            wallAt: (tx, ty) => WALLISH.has(cellAt(map, tx, ty).tag ?? ''),
+            decals: map.def.groundDecals ?? [],
+            seed: strSeed(map.id) & 0xffff,
+            map: map.id,
+          }
+        : undefined,
     };
   }
 

@@ -4,10 +4,11 @@
 
 import { addTask, atTime, removeTask } from './clock';
 import { cur, dbToGain, hasGraph, liveGraph, type Graph } from './engine';
+import { songGainDb } from './mix';
 import { legacyBgm, songTable } from './registry';
 import { SongPlayer, type Params, type SongDef } from './sequencer';
 
-export type MusicParam = 'stage' | 'kire' | 'boss_phase' | 'muffle';
+export type MusicParam = 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune';
 
 export interface PlayOpts {
   /** Fade-in (and cross-fade) seconds. */
@@ -24,7 +25,7 @@ interface Active {
   legacyStop?: (fade: number) => void;
 }
 
-const params: Params & { muffle: number } = { stage: 0, kire: 0, boss_phase: 1, muffle: 0 };
+const params: Params & { muffle: number; detune: number } = { stage: 0, kire: 0, boss_phase: 1, muffle: 0, detune: 0 };
 let current: Active | null = null;
 /** Pausing jingle in progress (levelup / item / join) and its queue. */
 let jingle: { id: string; player: SongPlayer } | null = null;
@@ -70,6 +71,7 @@ function resolveId(id: string, opts: PlayOpts): string {
 function startPlayer(def: SongDef, opts: { fadeIn?: number; fromLoopBar?: number; at?: number }): SongPlayer {
   const gr = g();
   const p = new SongPlayer(gr, def, gr.musicBus, { ...opts, params: { stage: params.stage, kire: params.kire, boss_phase: params.boss_phase } });
+  if (params.detune) p.setUserDetune(params.detune, 0, p.startTime);
   const task = {
     pump: (until: number) => {
       p.pump(until);
@@ -150,10 +152,10 @@ function applyVariant(p: SongPlayer | null, v: string | undefined): void {
   const f = p.filter.frequency;
   if (v === 'muffled') {
     f.setTargetAtTime(1800, t, 0.05);
-    p.out.gain.setTargetAtTime(dbToGain(p.def.gainDb - 6), t, 0.05);
+    p.out.gain.setTargetAtTime(dbToGain(songGainDb(p.def.id, p.def.gainDb) - 6), t, 0.05);
   } else if (p.state.muffledVariant) {
     f.setTargetAtTime(20000, t, 0.05);
-    p.out.gain.setTargetAtTime(dbToGain(p.def.gainDb), t, 0.05);
+    p.out.gain.setTargetAtTime(dbToGain(songGainDb(p.def.id, p.def.gainDb)), t, 0.05);
   }
   p.state.muffledVariant = v === 'muffled';
 }
@@ -291,7 +293,6 @@ export function duckMusic(amount: number, seconds: number): void {
   duck(amount, 0.05, seconds, 0.4);
 }
 
-let ambDuckUntil = 0;
 export function duckAmbience(level: number, attack: number, hold: number, release: number): void {
   if (!hasGraph()) return;
   const gr = g();
@@ -302,8 +303,6 @@ export function duckAmbience(level: number, attack: number, hold: number, releas
   p.linearRampToValueAtTime(level, t + attack);
   p.setValueAtTime(level, t + attack + hold);
   p.linearRampToValueAtTime(1, t + attack + hold + release);
-  ambDuckUntil = t + attack + hold;
-  void ambDuckUntil;
 }
 
 // ---- params ------------------------------------------------------------------
@@ -331,6 +330,12 @@ export function setMusicParam(name: MusicParam, value: number): void {
   }
   if (name === 'stage') {
     setStage(value);
+    return;
+  }
+  if (name === 'detune') {
+    // a free pitch bend of the whole song in cents (0.3 s), kept across songs
+    params.detune = value;
+    current?.player?.setUserDetune(value, 0.3);
     return;
   }
   params[name] = value;

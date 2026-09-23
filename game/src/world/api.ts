@@ -39,6 +39,7 @@ export { registerFushigi, runFushigi, fushigiDone, fushigiActive, fushigiCount }
 export { runMsg } from './msg';
 export { setFieldHud } from './hud';
 export { registerWorldFx } from './fx';
+export { trainPass } from './places';
 
 // ---------------------------------------------------------------- access
 

@@ -1,7 +1,7 @@
 // Jingles (40_audio 6): victory (+ its afterglow loop), the report card,
 // key items, a new friend (with a bell that refuses to ring), and game over.
 
-import { DRM, INS } from '../instruments';
+import { INS } from '../instruments';
 import { sfxTable } from '../registry';
 import { bass, drums, hits, melody, pads, type PartDef, type SongDef } from '../sequencer';
 import { bar, registerSong, score } from './common';
@@ -96,7 +96,7 @@ function victoryDef(): SongDef {
         for (const id of tailParts) {
           const rt = sp.partRt(id)!;
           rt.input.gain.setValueAtTime(0, b.t0);
-          rt.input.gain.linearRampToValueAtTime(0.5, b.t0 + 1.0);
+          rt.input.gain.linearRampToValueAtTime(0.5 * rt.base, b.t0 + 1.0);
         }
       }
     },
@@ -269,4 +269,3 @@ function gameoverDef(): SongDef {
 }
 
 export const JINGLE_DEFS = [victoryDef(), levelupDef(), itemDef(), joinDef(), gameoverDef()].map(registerSong);
-void DRM;

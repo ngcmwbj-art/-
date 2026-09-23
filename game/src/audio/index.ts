@@ -90,6 +90,19 @@ export function currentBgmId(): string | null {
   return music.currentId();
 }
 
+/**
+ * Where the music is right now (for syncing visuals, e.g. the title's sun
+ * pulsing on the chime notes of bar I3): bar label, beat within the bar
+ * (0-based, fractional), tempo. null when nothing plays.
+ */
+export function musicPosition(): { id: string; label: string; beat: number; bpm: number; intro: boolean; loop: number } | null {
+  const p = music.currentPlayer();
+  const g = liveGraph();
+  if (!p || !g) return null;
+  const a = p.audibleAt(g.ctx.currentTime);
+  return a ? { id: p.def.id, loop: p.loopCount, ...a } : null;
+}
+
 /** Temporarily lower music (linear amount, e.g. −12 dB = 0.25). */
 export function duckMusic(amount: number, seconds: number): void {
   music.duckMusic(amount, seconds);
@@ -105,14 +118,23 @@ export function muteMusic(seconds: number): void {
   music.muteMusic(seconds);
 }
 
-/** 'stage' 0..3, 'kire' 0..3, 'boss_phase' 1..3, 'muffle' 0..1 (40_audio 7). */
-export function setMusicParam(name: 'stage' | 'kire' | 'boss_phase' | 'muffle', value: number): void {
+/**
+ * 'stage' 0..3, 'kire' 0..3, 'boss_phase' 1..3, 'muffle' 0..1 (40_audio 7),
+ * 'detune' = a free pitch bend of the music in cents (added to the stage pitch).
+ */
+export function setMusicParam(name: 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune', value: number): void {
   music.setMusicParam(name, value);
 }
 
-/** Alias used by some briefs: setMusicParam('detune', cents) bends the current song. */
+/** Same as setMusicParam('detune', cents) with a custom ramp (seconds). */
 export function setMusicDetune(cents: number, ramp = 0.3): void {
-  music.currentPlayer()?.setBaseDetune(cents, ramp);
+  music.setMusicParam('detune', cents);
+  if (ramp !== 0.3) music.currentPlayer()?.setUserDetune(cents, ramp);
+}
+
+/** Current music params (stage / kire / boss_phase / muffle / detune). */
+export function getMusicParams(): Readonly<{ stage: number; kire: number; boss_phase: number; muffle: number; detune: number }> {
+  return music.musicParams();
 }
 
 /** Contact with a field symbol: tape brake + remember the field song (12.1). */
@@ -179,6 +201,14 @@ export function setTextBlip(fn: (voiceId: string, ch: string) => void): void {
 export function textBlip(voiceId = 'default', ch = 'a'): void {
   if (!audioCtx()) return;
   hooks.blip?.(voiceId, ch);
+}
+
+/**
+ * The player skipped to the end of the page (10.1 早送り): one soft page turn
+ * (se_page at v×0.4) instead of the rest of the blips. Call it once per skip.
+ */
+export function textFastForward(): void {
+  sfx('se_page', { vol: 0.4 });
 }
 
 // ---- settings --------------------------------------------------------------------

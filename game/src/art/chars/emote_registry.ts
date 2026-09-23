@@ -6,9 +6,13 @@
 
 import { PixelCanvas } from '../../engine/pixel';
 
-export type EmoteKind = 'exclaim' | 'question' | 'dots' | 'note' | 'sweat' | 'anger' | 'heart' | 'zzz' | 'light';
+/**
+ * 'shy' = 照れ (three vermilion blush strokes, 20_systems_battle 14.5: an
+ * outclassed symbol blushes and freezes when it is looked at).
+ */
+export type EmoteKind = 'exclaim' | 'question' | 'dots' | 'note' | 'sweat' | 'anger' | 'heart' | 'zzz' | 'light' | 'shy';
 
-export const EMOTE_KINDS: EmoteKind[] = ['exclaim', 'question', 'dots', 'note', 'sweat', 'anger', 'heart', 'zzz', 'light'];
+export const EMOTE_KINDS: EmoteKind[] = ['exclaim', 'question', 'dots', 'note', 'sweat', 'anger', 'heart', 'zzz', 'light', 'shy'];
 
 /** Recommended ms per emote frame. */
 export const EMOTE_FRAME_MS = 60;

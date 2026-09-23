@@ -5,7 +5,9 @@
 
 import { cur, dbToGain, hasGraph, midiHz, noteMidi, voice, type VoiceOpts, type Wave } from './engine';
 import { currentId, duck, duckAmbience, musicParams } from './music';
-import { hooks, sfxTable } from './registry';
+import { sfxTable } from './registry';
+import { setTextBlip } from './index';
+import { trimOr1, voiceTrim } from './mix';
 import { songTable } from './registry';
 import { atTime } from './clock';
 
@@ -120,10 +122,22 @@ interface State {
   seqI: number;
   lastMidi: number;
   lastT: number;
+  /** The last three pitches (semitones from the base), for the sealed-answer guard. */
+  hist: number[];
 }
 const st: Record<string, State> = {};
 let kanenariSeq = 0;
 let paSwellCheck: { t: number } | null = null;
+
+/** QA: forget the per-voice spacing state (offline renders start at t = 0). */
+export function resetVoiceState(): void {
+  for (const k of Object.keys(st)) delete st[k];
+  kanenariSeq = 0;
+}
+
+export function resolveVoice(voiceId: string): string {
+  return resolve(voiceId);
+}
 
 function resolve(id: string): string {
   let v = id.startsWith('npc_') ? id.slice(4) : id;
@@ -136,14 +150,15 @@ function isBattle(): boolean {
   return !!id && !!songTable.get(id)?.battle;
 }
 
-export function blip(voiceId: string, ch: string): void {
+/** One dialog character. `at` (ctx time) is only for offline renders (QA). */
+export function blip(voiceId: string, ch: string, at?: number): void {
   if (!hasGraph()) return;
   const id = resolve(voiceId);
   if (id === 'none' || id === 'sys') return;
   const def = VOICES[id] ?? VOICES.default;
   const g = cur();
-  const now = g.ctx.currentTime;
-  const s = (st[id] ??= { last: -1, lastSemi: 99, repeat: 0, seqI: 0, lastMidi: 60, lastT: 0 });
+  const now = at ?? g.ctx.currentTime;
+  const s = (st[id] ??= { last: -1, lastSemi: 99, repeat: 0, seqI: 0, lastMidi: 60, lastT: 0, hist: [] });
 
   // sentence endings: a little rise for "？", a push for "！"
   if (ch === '？' || ch === '?' || ch === '！' || ch === '!') {
@@ -166,7 +181,7 @@ export function blip(voiceId: string, ch: string): void {
   if (id === 'flip' && now - s.last > 0.8) {
     s.last = now;
     s.lastT = now;
-    sfxTable.get('se_flip')?.({ vol: 0.9 });
+    sfxTable.get('se_flip')?.({ vol: 0.9, at: now });
     return;
   }
   s.last = now;
@@ -188,7 +203,17 @@ export function blip(voiceId: string, ch: string): void {
         s.repeat = 0;
       }
     } else s.repeat = 0;
+    // the chime's sealed answer (−2, −3, +3 in any key, 1.3) must not slip out
+    // of a chatty line either: step aside to the next note of the voice's set
+    const h = s.hist;
+    if (h.length >= 3 && h[1] - h[0] === -2 && h[2] - h[1] === -3 && semi - h[2] === 3) {
+      const i = def.scale.indexOf(semi);
+      semi = def.scale[(i + 1) % def.scale.length];
+      if (semi - h[2] === 3) semi = def.scale[(i + 2) % def.scale.length];
+    }
   }
+  s.hist.push(semi);
+  if (s.hist.length > 3) s.hist.shift();
   s.lastSemi = semi;
   const baseMidi = typeof def.base === 'number' ? 69 + 12 * Math.log2(def.base / 440) : noteMidi(def.base);
   const midi = baseMidi + semi;
@@ -196,6 +221,7 @@ export function blip(voiceId: string, ch: string): void {
   s.lastT = now;
   const long = id === 'kanenari_voice' && ch === 'い' && kanenariSeq >= 4;
   play(def, id, midi, now + 0.005, 0, 1, vowelOf(ch), false, undefined, long);
+  if (g.offline) return;
   if (id === 'kanenari_voice') {
     // the night song leans back (−4 dB) under the four hums
     duck(dbToGain(-4), 0.15, 0.6, 0.6);
@@ -240,7 +266,7 @@ function play(def: VoiceDef, id: string, midi: number, t: number, bend: number, 
     decay: (def.D ?? Math.max(10, def.len * 0.5)) / 1000,
     sustain: def.S ?? 0.55,
     release: (def.R ?? 15) / 1000,
-    vol: def.v * volK,
+    vol: def.v * volK * trimOr1(voiceTrim(id)),
     detune: dogDown,
     reverb: revOverride ?? def.rev,
   };
@@ -269,7 +295,7 @@ function play(def: VoiceDef, id: string, midi: number, t: number, bend: number, 
 
   if (id === 'omukaemachi' || id === 'broadcast_child') {
     // two layers at once: a low breath pad + a child's high note 15 ms later
-    voice({ at: t, dest, wave: 'sawtooth', freq: 110, dur: 0.08, attack: 0.06, decay: 0.05, sustain: 0.7, release: 0.15, vol: 0.04 * volK, filter: { type: 'lowpass', freq: 600 }, reverb: 0.5 });
+    voice({ at: t, dest, wave: 'sawtooth', freq: 110, dur: 0.08, attack: 0.06, decay: 0.05, sustain: 0.7, release: 0.15, vol: 0.04 * volK * trimOr1(voiceTrim(id)), filter: { type: 'lowpass', freq: 600 }, reverb: 0.5 });
     voice({ ...base, at: t + 0.015, wave: 'triangle', reverb: 0.5 });
     return;
   }
@@ -282,8 +308,8 @@ function play(def: VoiceDef, id: string, midi: number, t: number, bend: number, 
   if (def.noise) voice({ ...base, wave: 'noise', freq: 1000, freqEnd: undefined, vol: (base.vol ?? 0) * def.noise.level, filter: { type: 'bandpass', freq: def.noise.bp, q: def.noise.q }, formant: undefined, fm: undefined });
   if (id === 'kanenari_voice' && vowel === 'i' && kanenariSeq === 3) {
     // the "sh" of し
-    voice({ at: t, dest, wave: 'noise', freq: 1000, dur: 0.06, attack: 0.01, decay: 0.04, sustain: 0.5, release: 0.02, vol: 0.02, filter: { type: 'bandpass', freq: 3500, q: 1.5 } });
+    voice({ at: t, dest, wave: 'noise', freq: 1000, dur: 0.06, attack: 0.01, decay: 0.04, sustain: 0.5, release: 0.02, vol: 0.02 * trimOr1(voiceTrim(id)), filter: { type: 'bandpass', freq: 3500, q: 1.5 } });
   }
 }
 
-hooks.blip = blip;
+setTextBlip(blip);

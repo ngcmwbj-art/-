@@ -181,6 +181,7 @@ registerChar('npc_inui', () =>
       look_up: { dirs: 'all', p: { lookUp: true, act: 'sit' } },
       look_up_stand: { dirs: ['down'], p: { lookUp: true } },
     },
+    poses: { sit: 'idle' },
   }),
 );
 
@@ -516,6 +517,7 @@ registerChar('npc_sae', () =>
     idle: { down: SAE_IDLE, left: SAE_IDLE, right: SAE_IDLE, up: breathingIdle() },
     extras: { sketch: { dirs: ['down', 'left', 'right'], p: { ph: 1 } }, surprised: { dirs: ['down'] }, happy: { dirs: ['down'] } },
     anims: { sketch: { frames: [{ ph: 0 }, { ph: 1 }], ms: 250 } },
+    poses: { sketch: 'idle' },
   }),
 );
 

@@ -97,16 +97,20 @@ function pigeonFront(f: Fig, p: Pose, card: boolean) {
   const st = p.mode === 'walk' ? p.step % 4 : 0;
   const back = p.view === 'up';
   const peck = p.act === 'peck' ? p.ph : 0;
+  // the business-card bow: a nod (1px) then a deep bow (the head drops 3px
+  // over the chest and the body dips 1px); from behind the tail tips up
+  const bow = p.act === 'bow' ? p.ph : 0;
+  const dip = bow === 2 ? 1 : 0;
   const up = p.lookUp;
-  const hy = (peck ? 3 : 0) + (up ? -1 : 0) + (p.mode === 'walk' && st % 2 ? 1 : 0);
+  const hy = (peck ? 3 : 0) + (bow === 1 ? 1 : bow === 2 ? 3 : 0) + (up ? -1 : 0) + (p.mode === 'walk' && st % 2 ? 1 : 0);
   f.part('foot', { shade: 'r', light: '' });
   f.px(6, 11 + (st === 1 ? -1 : 0)).px(6, 12).px(9, 11 + (st === 3 ? -1 : 0)).px(9, 12).px(5, 12).px(10, 12);
   if (back) {
     f.part('wing', { shade: 'rb', light: '' });
-    f.rows(6, 10, ['####', '.##.']);
+    f.rows(6, 10 - (bow ? 1 : 0), ['####', '.##.']);
   }
   f.part('body', { shade: 'rb', light: 't' });
-  f.rows(4, 5, ['..####..', '.######.', '########', '########', '.######.', '..####..']);
+  f.rows(4, 5 + dip, ['..####..', '.######.', '########', '########', '.######.', '..####..'].slice(0, 6 - dip));
   if (back) {
     f.part('wing', { shade: 'rb', light: 't' });
     f.rows(4, 6, ['.##..##.', '###..###', '.##..##.']);
@@ -131,11 +135,13 @@ function pigeonFront(f: Fig, p: Pose, card: boolean) {
     f.part('cere', { flat: true, rim: false });
     f.px(7, 3 + hy).px(8, 3 + hy);
   }
-  if (card) {
+  if (card || bow) {
+    // the card at its feet (offered with the bow)
+    const cx = bow && !card ? 1 : 11;
     f.part('card', { shade: 'b', light: '' });
-    f.rect(11, 11, 3, 2);
+    f.rect(cx, 11, 3, 2);
     f.part('cardL', { flat: true, rim: false });
-    f.px(12, 11);
+    f.px(cx + 1, 11);
   }
 }
 
@@ -158,8 +164,9 @@ function pigeonSprite(id: string, coat: PigeonCoat, card: boolean, restored = fa
     extras: { peck: { dirs: ['down', 'left', 'right'], p: { ph: 1 } } },
     anims: {
       peck: { frames: [{ ph: 0 }, { ph: 1 }], ms: 300, dir: 'left' },
-      bow: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 2 }, { ph: 0 }], ms: [200, 250, 250, 300], loop: false, dir: 'left' },
+      bow: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 2 }, { ph: 0 }], ms: [200, 250, 250, 300], loop: false, dir: 'left', dirs: 'all' },
     },
+    poses: { peck: 'idle' },
     shadow: 8,
   });
 }
@@ -272,8 +279,10 @@ registerChar('npc_sparrow_b', () => sparrowSprite('npc_sparrow_b', 5));
 // Canvas 16×16.
 
 const CROW: Mats = {
-  body: mat('#2A2440', { shade: '#1B1733', light: '#4A3A6E', dark: '#0B0B14', spec: '#7A6AA0', rim: '#8A5A7A', ol: '#0B0B14' }),
-  gloss: flat('#5A4A86'),
+  // violet-black lifted a step off the outline colour, with a #5B4A7A sheen
+  // so it still reads on dark (night / stage 2) ground
+  body: mat('#302A48', { shade: '#221C38', light: '#5B4A7A', dark: '#141024', spec: '#8A7AB0', rim: '#8A5A7A', ol: '#0B0B14' }),
+  gloss: flat('#6E5E9E'),
   bill: mat('#1E1A2A', { shade: '#141020', light: '#4A4458', spec: '#6A6478' }),
   eye: flat('#E8E4D8'),
   pupil: flat('#0B0B14'),
@@ -296,8 +305,9 @@ function crow(f: Fig, p: Pose) {
     // tail
     f.part('body', { shade: 'rb', light: '' });
     f.rows(12, 9 + hopY, ['###', '.##', '..#']);
+    // violet sheen along the folded wing (2px+ runs so it survives dark palettes)
     f.part('gloss', { flat: true, rim: false });
-    f.px(7, 7 + hopY).px(8, 7 + hopY).px(9, 8 + hopY);
+    f.hl(6, 9, 7 + hopY).hl(8, 10, 8 + hopY).px(5, 6 + hopY).px(6, 6 + hopY);
     // head
     const hx = preen ? 3 : 0;
     const hy = preen ? 3 : up ? -2 : 0;
@@ -306,10 +316,14 @@ function crow(f: Fig, p: Pose) {
     if (!preen) {
       f.part('bill', { shade: 'b', light: 't' });
       f.rows(0 + hx, 2 + hy + hopY + (tilt ? 1 : 0) - (up ? 1 : 0), ['####', '.###']);
-      f.part('eye', { flat: true, rim: false });
-      f.px(5 + hx, 2 + hy + hopY + (tilt ? 1 : 0));
+      // dark eye with a bright glint in front of it
+      const ey = 2 + hy + hopY + (tilt ? 1 : 0);
       f.part('pupil', { flat: true, rim: false });
-      if (!p.blink) f.px(5 + hx, 2 + hy + hopY + (tilt ? 1 : 0));
+      f.px(5 + hx, ey);
+      f.part('eye', { flat: true, rim: false });
+      if (!p.blink) f.px(4 + hx, ey);
+      f.part('gloss', { flat: true, rim: false });
+      f.hl(5 + hx, 6 + hx, 1 + hy + hopY + (tilt ? 1 : 0));
     }
     return;
   }
@@ -319,7 +333,7 @@ function crow(f: Fig, p: Pose) {
   f.part('body', { shade: 'rb', light: 't' });
   f.rows(4, 5 + hopY, ['.######.', '########', '########', '########', '.######.', '..####..', '...##...']);
   f.part('gloss', { flat: true, rim: false });
-  f.px(5, 6 + hopY).px(5, 7 + hopY);
+  f.px(5, 6 + hopY).px(5, 7 + hopY).px(6, 6 + hopY).px(10, 7 + hopY).px(10, 8 + hopY);
   const hy = up ? -1 : 0;
   f.part('body', { shade: 'rb', light: 't' });
   f.rows(5 + (tilt ? 1 : 0), 1 + hy + hopY, ['.####.', '######', '######', '.####.']);
@@ -372,8 +386,9 @@ function catMats(c: CatCoat): Mats {
   return {
     fur: mat(c.base, { shade: c.shade, light: c.light, rim: '#FFC080' }),
     stripe: flat(c.stripe ?? c.shade),
-    patch: mat(c.patch ?? c.base, { shade: c.shade, light: c.light }),
-    patch2: mat(c.patch2 ?? c.base, { shade: c.shade, light: c.light }),
+    // patches get their own hue-shifted ramps (not the base coat's)
+    patch: c.patch ? mat(c.patch, { rim: '#FFC080' }) : mat(c.base, { shade: c.shade, light: c.light }),
+    patch2: c.patch2 ? mat(c.patch2, { rim: '#C8845A' }) : mat(c.base, { shade: c.shade, light: c.light }),
     paw: mat(c.paws, { shade: '#C8C2B4', light: '#FFFFFF' }),
     eye: flat(c.eye),
     pupil: flat('#1A1420'),
@@ -453,13 +468,20 @@ function catSit(f: Fig, p: Pose, c: CatCoat) {
   const act = p.act;
   const tail = act === 'tail' ? p.ph : 0;
   const fat = c.fat ? 1 : 0;
+  // exhale: the back and head settle 1px (breath arrives as −1)
+  const br = back && p.breath < 0 ? 1 : 0;
   // tail wrapped round the feet
   f.part('fur', { shade: 'rb', light: 't' });
   if (!back) f.rows(8, 11, tail ? ['.####', '###..'] : ['####.', '.###.']);
-  else f.rows(7, 5, tail ? ['..#', '.#.', '#..', '#..', '.#.', '..#'] : ['.#.', '.#.', '#..', '#..', '.#.', '.#.']);
   // body (pear)
   f.part('fur', { shade: 'rb', light: 't' });
-  f.rows(4 - fat, 6, fat ? ['..######..', '.########.', '##########', '##########', '##########', '.########.', '.########.'] : ['..####..', '.######.', '.######.', '########', '########', '.######.', '.######.']);
+  f.rows(4 - fat, 6 + br, (fat ? ['..######..', '.########.', '##########', '##########', '##########', '.########.', '.########.'] : ['..####..', '.######.', '.######.', '########', '########', '.######.', '.######.']).slice(0, 7 - br));
+  if (back) {
+    // seen from behind the tail lies along the ground and flicks its tip
+    f.part('fur', { shade: 'rb', light: 't', sepAll: true });
+    f.rows(8, 11, tail ? ['....##', '.####.', '###...'] : ['......', '.#####', '###...']);
+    if (c.stripe) f.part('stripe', { flat: true }).px(10, 12).px(12, 12 - tail);
+  }
   if (!back) {
     const st = p.mode === 'walk' ? p.step % 4 : 0;
     f.part('paw', { shade: 'b', light: '' });
@@ -479,10 +501,12 @@ function catSit(f: Fig, p: Pose, c: CatCoat) {
     f.part('patch2', { shade: 'rb', light: '' });
     f.rect(back ? 9 : 5, 9, 2, 2);
   }
-  // head
-  const hy = up ? -1 : 0;
+  // head (from behind, the ears swivel toward a sound on the yawn beat)
+  const hy = (up ? -1 : 0) + br;
+  const swivel = back && act === 'yawn';
   f.part('fur', { shade: 'rb', light: 't' });
-  f.rows(4, 0 + hy, ['#......#', '##....##', '########', '########', '########', '.######.']);
+  f.rows(4, 0 + hy, [swivel ? '.......#' : '#......#', swivel ? '#.....##' : '##....##', '########', '########', '########', '.######.']);
+  if (swivel) f.px(3, 1 + hy);
   f.part('inner', { flat: true, rim: false });
   if (!back) f.px(5, 1 + hy).px(10, 1 + hy);
   if (c.patch) {
@@ -519,41 +543,57 @@ function catSit(f: Fig, p: Pose, c: CatCoat) {
   }
 }
 
-/** Curled up asleep (calico's base). */
+/**
+ * Curled up asleep (calico's base), 16×14: a round mound with the head
+ * tucked on the left — two ear triangles, a closed-eye line, pink nose —
+ * front paws under the chin and the tail wrapped round the front with a
+ * dark tip by the nose. Patches are 2px+ clumps. 1px breathing lifts the
+ * back; the ear twitches now and then.
+ */
 function catCurl(f: Fig, p: Pose, c: CatCoat) {
-  const br = p.breath;
+  const br = p.breath < 0 ? 0 : p.breath !== 0 ? 1 : 0;
+  const lift = p.breath === 0 ? 0 : 1; // the back rises on the inhale
   const ear = p.act === 'twitch';
+  const pa = c.patch ? 'patch' : 'fur';
+  const pb = c.patch2 ? 'patch2' : 'fur';
+  void br;
+  // body mound (behind the head); the back rises 1px on the inhale
   f.part('fur', { shade: 'rb', light: 't' });
-  f.rows(2, 6 - br, ['...########...', '.############.', '##############', '##############', '.############.']);
-  // tail around the front
-  f.part('fur', { shade: 'rb', light: 't' });
-  f.hl(4, 12, 11);
-  f.px(13, 10);
-  if (c.patch) {
-    f.part('patch', { shade: 'rb', light: 't' });
-    f.rect(8, 6 - br, 4, 3);
-    f.rect(12, 8 - br, 2, 2);
-  }
-  if (c.patch2) {
-    f.part('patch2', { shade: 'rb', light: 't' });
-    f.rect(5, 7 - br, 3, 2);
-  }
+  f.rows(4, 5 - lift, ['..######....', '.#########..', '###########.', '############', '############', '############', '.##########.'].slice(0, 7 + lift));
+  f.rect(4, 11, 11, 1);
+  // calico clumps on the back
+  f.part(pa, { shade: 'rb', light: 't' });
+  f.rows(7, 5 - lift, ['.####', '######', '.####']);
+  f.part(pb, { shade: 'rb', light: 't' });
+  f.rows(12, 8 - lift, ['##', '###', '.#']);
   if (c.stripe) {
     f.part('stripe', { flat: true, rim: false });
-    f.px(6, 6 - br).px(9, 6 - br).px(12, 7 - br).px(7, 11).px(10, 11);
+    f.px(7, 6 - lift).px(10, 6 - lift).px(13, 8 - lift);
   }
-  // head tucked on the left, eyes shut
+  // tail wrapped round the front, dark tip by the nose
+  f.part(pa, { shade: 'rb', light: 't', sepAll: true });
+  f.hl(5, 13, 12).hl(3, 5, 11);
+  f.px(14, 11);
+  f.part(pb, { flat: true, rim: false });
+  f.px(2, 11).px(3, 11);
+  // head tucked on the left, resting on the paws
   f.part('fur', { shade: 'rb', light: 't' });
-  f.rows(1, 6, ['#..#.', '#####', '#####', '.###.']);
-  if (ear) f.px(0, 5);
-  if (c.patch2) {
-    f.part('patch2', { shade: 'r', light: '' });
-    f.px(3, 7).px(4, 7);
-  }
-  f.part('eye', { flat: true, rim: false });
-  f.hl(2, 3, 8);
-  f.part('paw', { flat: true, rim: false });
-  f.px(4, 9).px(5, 9);
+  f.rows(0, 5, [ear ? '.#...#' : '.#..#.', '##.##.', '######', '######', '######', '.####.']);
+  f.part('inner', { flat: true, rim: false });
+  if (!ear) f.px(1, 6).px(4, 6);
+  // head patches (one ear dark, one ginger)
+  f.part(pb, { shade: 'r', light: '' });
+  f.px(0, 6).px(1, 5).px(0, 7);
+  f.part(pa, { shade: 'r', light: '' });
+  f.px(4, 5).px(4, 6).px(5, 7);
+  // closed eyes: two short dark lines
+  f.part('pupil', { flat: true, rim: false });
+  f.px(1, 8).px(2, 8).px(4, 8);
+  f.part('nose', { flat: true, rim: false });
+  f.px(3, 9);
+  // front paws under the chin
+  f.part('paw', { shade: 'b', light: '' });
+  f.hl(1, 4, 10);
   if (c.bell) {
     f.part('tag', { flat: true, rim: false });
     f.px(5, 10);
@@ -562,7 +602,7 @@ function catCurl(f: Fig, p: Pose, c: CatCoat) {
 
 function catSprite(id: string, c: CatCoat, base: 'sit' | 'curl') {
   const draw = (f: Fig, p: Pose) => {
-    if (p.act === 'curl' || (base === 'curl' && p.mode === 'idle')) return catCurl(f, p, c);
+    if (p.act === 'curl' || p.act === 'twitch' || (base === 'curl' && p.mode === 'idle')) return catCurl(f, p, c);
     if (p.view === 'left') return catSide(f, p, c);
     return catSit(f, p, c);
   };
@@ -570,6 +610,7 @@ function catSprite(id: string, c: CatCoat, base: 'sit' | 'curl') {
     { breath: 0 }, { breath: 0 }, { breath: 1 }, { breath: 1 }, { breath: 0 }, { breath: 0 }, { breath: 1 }, { breath: 1 },
     { breath: 0, act: 'twitch' }, { breath: 0 }, { breath: 1 }, { breath: 1 },
   ];
+  const sleepIdle: IdleKey[] = curlIdle.map((k) => ({ ...k, act: k.act ?? 'curl' }));
   const sitIdle: IdleKey[] = [
     { act: 'tail', ph: 0 }, { act: 'tail', ph: 0 }, { act: 'tail', ph: 1 }, { act: 'tail', ph: 1 },
     { act: 'tail', ph: 0 }, { act: 'tail', ph: 0, blink: true }, { act: 'tail', ph: 1 }, { act: 'tail', ph: 1 },
@@ -590,14 +631,16 @@ function catSprite(id: string, c: CatCoat, base: 'sit' | 'curl') {
       curl: { dirs: ['down'] },
       yawn: { dirs: ['down', 'left', 'right'] },
     },
-    anims: { tail: { frames: [{ ph: 0 }, { ph: 1 }], ms: 400 } },
+    anims: { tail: { frames: [{ ph: 0 }, { ph: 1 }], ms: 400, dirs: ['down', 'left', 'right'] } },
+    // curled up asleep (1px breathing, an ear twitch now and then)
+    poses: { sleep: { down: sleepIdle, left: sleepIdle, right: sleepIdle, up: sleepIdle } },
     shadow: 10,
   });
 }
 
 const SAUCE: CatCoat = { base: '#D9A441', shade: '#A8742A', light: '#F0C470', stripe: '#A8742A', paws: '#F4F1E8', eye: '#8AC060', squint: true, fat: true, collar: '#2F4A8A' };
 const MIKE: CatCoat = { base: '#F4F1E8', shade: '#CFC8BC', light: '#FFFFFF', patch: '#D9A441', patch2: '#3A2B24', paws: '#F4F1E8', eye: '#C8B040', bell: true };
-const KURO: CatCoat = { base: '#2E2838', shade: '#1E1A28', light: '#4A4258', paws: '#2E2838', eye: '#E8C840', collar: '#E84E3C' };
+const KURO: CatCoat = { base: '#302A48', shade: '#221C38', light: '#5B4A7A', paws: '#3A3252', eye: '#FFD23F', collar: '#E84E3C' };
 const HACHI: CatCoat = { base: '#F4F1E8', shade: '#CFC8BC', light: '#FFFFFF', patch: '#2E2838', paws: '#F4F1E8', eye: '#9AC870' };
 const SHIRO: CatCoat = { base: '#F4F1E8', shade: '#CFC8BC', light: '#FFFFFF', patch2: '#9AA0A8', paws: '#F4F1E8', eye: '#6AAAD8', collar: '#E0567A' };
 
@@ -774,7 +817,8 @@ registerChar('prop_sparrow', () =>
 // (12×10 body). Violet sheen, gold eye. Tail flicks (2 frames).
 
 const KURO_M: Mats = {
-  fur: mat('#2A2440', { shade: '#1B1733', light: '#4A3A6E', dark: '#0B0B14', spec: '#6A5A90', rim: '#8A5A7A', ol: '#0B0B14' }),
+  fur: mat('#302A48', { shade: '#221C38', light: '#5B4A7A', dark: '#141024', spec: '#8A7AB0', rim: '#8A5A7A', ol: '#0B0B14' }),
+  gloss: flat('#6E5E9E'),
   eye: flat('#FFD23F'),
   nose: flat('#8A5A7A'),
 };
@@ -789,11 +833,16 @@ function kuro(f: Fig, p: Pose) {
   f.part('fur', { shade: 'rb', light: '' });
   if (tail) f.px(13, 6).px(14, 5).px(14, 4);
   else f.px(13, 7).px(14, 8).px(14, 9);
+  // violet sheen along the back
+  f.part('gloss', { flat: true, rim: false });
+  f.hl(5, 8, 6).hl(9, 10, 5);
   // head
   f.part('fur', { shade: 'rb', light: 't' });
   f.rows(1, 2 - up, ['#..#.', '#####', '#####', '.###.']);
+  f.part('gloss', { flat: true, rim: false });
+  f.px(3, 3 - up).px(4, 3 - up);
   f.part('eye', { flat: true, rim: false });
-  if (!p.blink) f.px(2, 4 - up);
+  if (!p.blink) f.px(2, 4 - up).px(4, 4 - up);
   f.part('nose', { flat: true, rim: false });
   f.px(1, 5 - up);
 }

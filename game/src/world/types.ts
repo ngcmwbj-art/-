@@ -223,6 +223,8 @@ export interface MapDef {
   zones?: { id: string; x: number; y: number; w: number; h: number }[];
   /** Material zones for walls/hedges/fences: { x, y, w, h, mat, ch? }. */
   structMats?: { x: number; y: number; w: number; h: number; mat: string; ch?: string }[];
+  /** Hand-placed ground decals baked into the ground (manholes, lines, road text...). */
+  groundDecals?: import('../art/tiles/decals').GroundDecal[];
   /** Overhead wires between poles (tile coords of pole footprints). */
   wires?: import('../art/props/wires').WireLine[];
   /** Background color outside the map. */

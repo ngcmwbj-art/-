@@ -222,14 +222,23 @@ function dogFront(f: Fig, p: Pose) {
   f.part('white', { flat: true });
   f.hl(5, 6, 12 - l).hl(9, 10, 12 - r);
   if (back) {
+    // from behind: the curled tail sits on the rump and wags; the ears
+    // swivel now and then; breathing lifts the back 1px
+    const wag = p.act === 'wag' ? p.ph : 0;
+    const br = p.breath < 0 ? 1 : 0;
     f.part('fur', { shade: 'rb', light: 't' });
-    f.rows(5, 4 + by, ['.####.', '######', '#.##.#']);
+    f.rows(5, 4 + by + br, ['.####.', '######', '#.##.#']);
     f.part('white', { flat: true });
-    f.px(7, 5 + by).px(8, 5 + by);
+    f.px(7, 5 + by + br).px(8, 5 + by + br);
     f.part('fur', { shade: 'rb', light: 't' });
-    f.rows(4, 1 + by, ['#......#', '##....##', '########', '########']);
+    const ear = p.act === 'ear';
+    f.rows(4, 1 + by + br, [ear ? '.......#' : '#......#', ear ? '#.....##' : '##....##', '########', '########']);
     f.part('collar', { flat: true, rim: false });
-    f.hl(5, 10, 5 + by);
+    f.hl(5, 10, 5 + by + br);
+    f.part('fur', { shade: 'rb', light: 't', sep: true });
+    f.rows(6 + wag, 7 + by, ['.##.', '#..#', '#.##', '.##.']);
+    f.part('white', { flat: true });
+    f.px(7 + wag, 8 + by).px(8 + wag, 8 + by);
     return;
   }
   f.part('white', { shade: 'b', light: '' });
@@ -262,7 +271,11 @@ registerChar('npc_kotaro', () =>
       left: [...rep([{ act: 'wag', ph: 0 }, { act: 'wag', ph: 1 }], 4), { act: 'sniff' }, { act: 'sniff' }, { act: 'sniff', blink: true }, { act: 'sniff' }, { act: 'wag', ph: 0 }, { act: 'wag', ph: 1 }],
       right: [...rep([{ act: 'wag', ph: 0 }, { act: 'wag', ph: 1 }], 4), { act: 'sniff' }, { act: 'sniff' }, { act: 'sniff', blink: true }, { act: 'sniff' }, { act: 'wag', ph: 0 }, { act: 'wag', ph: 1 }],
       down: [{}, {}, {}, { blink: true }, {}, {}, { act: 'sniff' }, { act: 'sniff' }],
-      up: [{}, {}],
+      up: [
+        ...rep([{ act: 'wag', ph: 0 }, { act: 'wag', ph: 1 }], 3),
+        { breath: 1 }, { breath: 1 }, { act: 'ear' }, { act: 'ear' }, {}, { breath: 1 },
+        ...rep([{ act: 'wag', ph: 0 }, { act: 'wag', ph: 1 }], 2),
+      ],
     },
     idleFrameMs: 180,
     extras: { sniff: { dirs: ['down', 'left', 'right'] } },
@@ -382,6 +395,7 @@ registerChar('npc_ojii', () =>
       move: { dirs: ['down'], p: { ph: 1 } },
     },
     anims: { fan: { frames: [{ ph: 0 }, { ph: 1 }], ms: 250 } },
+    poses: { sit: 'idle' },
   }),
 );
 
@@ -571,78 +585,119 @@ registerChar('npc_mizumaki', () =>
 );
 
 // =============================================================================
-// 影の人 (npc_shadow_man): only a shadow (#3A2B5C, 70%) of a salaryman sitting
-// on the bench — tie and square briefcase readable in the silhouette. No
-// outline, no rim light (he is a shadow). Idle: lifts his arm to check the
-// watch → sighs (sinks 1px). Canvas 24×24. Stage 2 only (no look_up).
+// 影の人 (npc_shadow_man): no body, only the cast shadow (#3A2B5C, 70%) of a
+// salaryman sitting on the bench (30_level_art 9.3, 10_narrative 6.16). The
+// shadow lies on the surfaces it falls on: head and shoulders across the
+// backrest slats, the lap on the seat, a darker 1px fold where it bends over
+// the seat's front edge, then the legs and the square briefcase stretched
+// across the ground, skewed toward the lower right (ESE) — the one shadow in
+// stage 2 that never turns to the north-east. The necktie reads between the
+// lapel gaps and the case through its handle hole (negative shapes).
+// Idle: the flat arm swings up to the face to check the wristwatch → a sigh
+// (the upper body sinks 1px toward the seat). Canvas 32×18 over the bench at
+// (8,6): x = world − 120, y = world − 94 (backrest rows 1–8, seat 9–12,
+// ground 13–17). No outline, no rim.
 
-const SHADOW = '#3A2B5CB3';
-const SHADOW_D = '#2A1E48C8';
-
-// Seated salaryman silhouette ('#' shadow, 'T' tie, 'x' gap). 24×24.
-const SHADOW_BODY = [
-  '.........####...........',
-  '........######..........',
-  '.......########.........',
-  '.......########.........',
-  '.......########.........',
-  '........######..........',
-  '.........####...........',
-  '.....###x.TT.x###.......',
-  '....######TT######......',
-  '...#######TT#######.....',
-  '...###x###TT###x###.....',
-  '...###x###TT###x###.....',
-  '...###x###TT###x###.....',
-  '...###x####T###x###.....',
-  '...###x#########x###....',
-  '...####x#######x####....',
-  '....################....',
-  '....################....',
-  '.....###........###.....',
-  '.....###........###.....',
-  '.....###........###.....',
-  '....####.......####.....',
-];
-// arm raised to check the wristwatch (replaces the left arm columns)
-const SHADOW_WATCH: [number, number][] = [[2, 9], [2, 8], [2, 7], [3, 6], [4, 5], [5, 5], [6, 5], [3, 7], [3, 8], [2, 10]];
+const SH_BODY = '#3A2B5CB3';
+const SH_DARK = '#2A1E48D0';
+const SH_SOFT = '#3A2B5C4A';
 
 function shadowMan(f: Fig, p: Pose) {
   const act = p.act;
   const sink = act === 'sigh' ? 1 : 0;
+  const watch = act === 'watch';
   f.after((pc) => {
-    const s = (x: number, y: number, w: number, h: number, c = SHADOW) => {
-      for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) pc.set(x + i, y + j + sink, c);
+    const W = pc.w;
+    const Hh = pc.h;
+    const cell = new Uint8Array(W * Hh); // 1 body, 2 dark (tie, fold, watch)
+    // the head is thrown 1px away from the light (a projection, not a
+    // person sitting up straight)
+    const lean = (y: number) => (y <= 4 + sink ? 1 : 0);
+    const put = (x: number, y: number, v = 1) => {
+      x += lean(y);
+      if (x < 0 || y < 0 || x >= W || y >= Hh) return;
+      cell[y * W + x] = v;
     };
-    SHADOW_BODY.forEach((row, j) => {
-      [...row].forEach((ch, i) => {
-        if (ch === '#') s(i, j + 2, 1, 1);
-        else if (ch === 'T') s(i, j + 2, 1, 1, SHADOW_D);
-      });
-    });
-    if (act === 'watch') {
-      // lift the near arm: clear its hanging columns, draw it up at the face
-      for (let y = 12; y <= 18; y++) for (let x = 3; x <= 5; x++) pc.set(x, y + sink, '#00000000');
-      for (const [x, y] of SHADOW_WATCH) s(x, y + 2, 1, 1);
-      s(6, 6, 2, 1, SHADOW_D);
+    const run = (x0: number, x1: number, y: number, v = 1) => {
+      for (let x = x0; x <= x1; x++) put(x, y, v);
+    };
+    const hole = (x: number, y: number) => put(x, y, 0);
+    // --- upper body on the backrest (sinks 1px with the sigh)
+    const u = sink;
+    run(10, 13, 1 + u); // head: side-parted crown
+    run(9, 14, 2 + u);
+    run(9, 14, 3 + u);
+    run(10, 13, 4 + u);
+    run(6, 17, 5 + u); // shoulders
+    for (let y = 6; y <= 9; y++) {
+      if (y + u > 9) break;
+      run(9, 14, y + u); // jacket
+      if (!watch) run(6, 7, y + u); // arms hanging at the sides
+      run(16, 17, y + u);
     }
-    // square briefcase beside him (with its handle)
-    s(19, 16, 5, 6); s(20, 15, 1, 1); s(22, 15, 1, 1); s(20, 14, 3, 1);
-    s(19, 18, 5, 1, SHADOW_D);
-    // soft edge
-    for (let y = 0; y < 24; y++)
-      for (let x = 0; x < 24; x++)
-        if (pc.alpha(x, y) === 0) {
-          const n = [pc.alpha(x - 1, y), pc.alpha(x + 1, y), pc.alpha(x, y - 1), pc.alpha(x, y + 1)].filter((a) => a > 120).length;
-          if (n >= 2 && (x + y) % 2 === 0) pc.set(x, y, '#3A2B5C40');
-        }
+    // gaps between the arms and the jacket
+    for (let y = 7; y <= 9; y++) {
+      if (y + u > 9) break;
+      if (!watch) hole(8, y + u);
+      hole(15, y + u);
+    }
+    if (!watch) run(8, 8, 6 + u);
+    run(15, 15, 6 + u);
+    // lapels open in a V around the tie; the tie itself is a darker stripe
+    // (2px knot, 1px blade)
+    hole(10, 6 + u);
+    hole(13, 6 + u);
+    put(11, 5 + u, 2);
+    put(12, 5 + u, 2);
+    for (let y = 6; y <= 8; y++) if (y + u <= 9) put(y === 6 ? 11 : 12 - (y % 2), y + u, 2);
+    // --- lap on the seat (does not sink)
+    run(6, 17, 10);
+    run(7, 17, 11);
+    // hands resting on the knees
+    if (!watch) put(6, 11);
+    put(18, 10);
+    // --- the seat's front edge: the shadow folds over it
+    run(7, 17, 12, 2);
+    // --- legs and shoes on the ground, stretched toward the lower right
+    const legs: [number, number][] = [[8, 13], [10, 14], [11, 15], [13, 16], [14, 17]];
+    for (const [x, y] of legs) {
+      run(x, x + 2, y);
+      run(x + 5, x + 7, y);
+    }
+    // shoes: toes pointing on along the stretch
+    run(17, 18, 17);
+    run(22, 23, 17);
+    // --- the square briefcase standing by his feet
+    run(27, 29, 11); // handle
+    put(26, 12);
+    put(30, 12);
+    for (let y = 13; y <= 17; y++) run(25 + (y >= 16 ? 1 : 0), 30 + (y >= 15 ? 1 : 0), y);
+    run(25, 30, 13, 2); // lid seam
+    // --- the watch arm: out to the elbow, forearm up across to the chin
+    if (watch) {
+      for (const [x, y] of [[6, 6], [5, 7], [5, 8], [6, 8], [6, 7], [7, 6], [7, 5], [8, 4]] as [number, number][]) put(x, y + u);
+      put(8, 3 + u, 2); // the watch face
+    }
+    for (let y = 0; y < Hh; y++)
+      for (let x = 0; x < W; x++) {
+        const v = cell[y * W + x];
+        if (v === 1) pc.set(x, y, SH_BODY);
+        else if (v === 2) pc.set(x, y, SH_DARK);
+      }
+    // soft penumbra at the far (right) end of the stretched legs
+    for (let y = 13; y < Hh; y++) {
+      let last = -1;
+      for (let x = 0; x < 24; x++) if (cell[y * W + x]) last = x;
+      if (last >= 0 && last + 1 < W && !cell[y * W + last + 1]) pc.set(last + 1, y, SH_SOFT);
+    }
   });
 }
 
 registerChar('npc_shadow_man', () =>
   buildSprite({
     id: 'npc_shadow_man',
-    w: 24,
+    w: 32,
+    h: 18,
     mats: {},
     draw: shadowMan,
     walkFrames: 1,

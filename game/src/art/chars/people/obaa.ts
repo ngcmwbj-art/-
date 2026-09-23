@@ -18,7 +18,7 @@ const common = {
 const OBAA: Mats = {
   ...common,
   skin: mat('#F2C8A8', { shade: '#D8A688', light: '#FFE0C8', dark: '#A87A62', rim: '#FFBC90' }),
-  hair: mat('#E8E4D8', { shade: '#BDB6AC', light: '#FFFFFF', dark: '#8E887E', spec: '#FFFFFF', rim: '#FFD8B0' }),
+  hair: mat('#E8E4D8', { shade: '#C4BCB8', light: '#FFF6D8', dark: '#948A98', spec: '#FFF6D8', rim: '#FFD8B0', ol: '#5E5470' }),
   smock: mat('#F4F1E8', { shade: '#CFC8BC', light: '#FFFFFF', dark: '#9E978C', rim: '#FFDCB4' }),
   monpe: mat('#8A2E3A', { shade: '#64202E', light: '#AE4A52', dark: '#44141E', rim: '#C8604A' }),
   zori: mat('#6B4A3A', { shade: '#4A3228', light: '#8E6A52' }),
@@ -26,6 +26,7 @@ const OBAA: Mats = {
   glass: flat('#C0C6CC'),
   lens: flat('#E8F4F8'),
   pen: flat('#E23B2E'),
+  pin: flat('#8A5A3A'),
   mouth: flat('#B06A5A'),
   stamp: mat('#D9A441', { shade: '#A8742A', light: '#F6D98A' }),
   ink: flat('#E23B2E'),
@@ -57,11 +58,26 @@ const OBAA_HEAD: HeadT = {
   neckL: [5, 8, 2],
 };
 
-function bun(f: Fig, x: number, y: number) {
-  f.part('hair', { shade: 'rb', light: 't' });
-  f.rows(x, y, ['.##.', '####', '.##.']);
-  f.part('hair', { flat: true });
-  f.t(-2).px(x + 1, y + 2).t(null);
+/**
+ * The white bun (おだんご). Front/side: drawn before the head so the hair
+ * overlaps it and a dark separation line rings its base; back: drawn over
+ * the hair with its own contact shadow.
+ */
+function bun(f: Fig, x: number, y: number, view: 'front' | 'back' | 'side') {
+  const shape = view === 'side' ? ['.###.', '#####', '#####', '.###.'] : ['.####.', '######', '######', '.####.'];
+  f.part('hair', { shade: 'rb', light: 't', sep: view !== 'back' });
+  f.rows(x, y, shape);
+  f.retone(x + 1, y + 1, 2).retone(x + 2, y, 1).retone(x + 1, y + 2, 1);
+  if (view === 'back') {
+    f.part('hair', { flat: true, rim: false, ol: false });
+    f.t(-2).hl(x + 1, x + shape[0].length - 2, y + 4).t(-1).px(x, y + 3).px(x + shape[0].length - 1, y + 3).t(null);
+    // hairpin through the knot
+    f.part('pin', { flat: true, rim: false });
+    f.px(x - 1, y + 2).px(x + 6, y + 1);
+  } else if (view === 'front') {
+    f.part('pin', { flat: true, rim: false });
+    f.px(x + 6, y + 1);
+  }
 }
 
 const OBAA_LEGS: LegSpec = { cx: 8, hip: 20, foot: 22, w: 2, gap: 2, mat: 'monpe', shoe: 'zori', shoeLen: 3 };
@@ -124,7 +140,7 @@ function obaaFront(f: Fig, p: Pose) {
     hangArms(f, p, { lx: 3, rx: 12, sy: 13, hy: 17, segs: sleeve }, u);
   }
   const hy = 4 + u;
-  bun(f, 6, hy - 2 - (p.lookUp ? 1 : 0));
+  bun(f, 5, hy - 3 - (p.lookUp ? 1 : 0), 'front');
   head(f, p, OBAA_HEAD, hy);
   if (reading) {
     f.part('glass', { flat: true, rim: false });
@@ -151,7 +167,7 @@ function obaaBack(f: Fig, p: Pose) {
   hangArms(f, p, { lx: 3, rx: 12, sy: 13, hy: 17, segs: [{ mat: 'smock', n: 4 }, { mat: 'skin' }] }, u);
   const hy = 4 + u;
   head(f, p, OBAA_HEAD, hy);
-  bun(f, 6, hy - 2);
+  bun(f, 5, hy - 2, 'back');
 }
 
 function obaaSide(f: Fig, p: Pose) {
@@ -187,8 +203,8 @@ function obaaSide(f: Fig, p: Pose) {
   f.px(4, 15 + u);
   // head pokes forward (stoop)
   const hy = 4 + u;
+  bun(f, 8, hy - 2 - (p.lookUp ? 1 : 0), 'side');
   head(f, p, OBAA_HEAD, hy, -1);
-  bun(f, 8, hy - 1 - (p.lookUp ? 1 : 0));
 }
 
 const OBAA_IDLE: IdleKey[] = [

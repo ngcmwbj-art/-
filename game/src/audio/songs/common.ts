@@ -1,7 +1,7 @@
 // Shared helpers for the song files: parse the verbatim mml blocks, build
 // bar maps, and small predicates used by many parts.
 
-import { songTable } from '../registry';
+import { registerBgm } from '../index';
 import { barsFrom, type BarCtx, type BarDef, type SongDef } from '../sequencer';
 import { mmlErrors, parseChordTable, parseMml, transposeChord, type Chord, type MmlBar, type MmlBlock } from '../theory';
 
@@ -45,7 +45,7 @@ export function transposedBars(src: Map<string, BarDef>, labels: string[], semis
 }
 
 export function registerSong(def: SongDef): SongDef {
-  songTable.set(def.id, def);
+  registerBgm(def.id, def);
   return def;
 }
 

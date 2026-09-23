@@ -66,13 +66,14 @@ export const SYS = {
   lv3: ['カネナリくんは『ごあいさつ』を\n覚えた！'],
   lv4: ['ミナトの たたくが 2段に なった！'],
   lv5: ['ハンコの くっきりが\n出やすく なった！'],
-  afterKo: ['$targetは なんとか 起きあがった。'],
+  afterKo: ['$targetは なんとか\n起きあがった。'],
   wipe: ['ミナトたちは 力つきた……。'],
-  kireFull: ['キレが たまった！\nノリツッコミが つかえる。'],
+  kireFull: ['キレが 3つ たまった！\nふたりの 息が そろっている。'],
   kanenariNoMp: ['カネナリくんには 朱肉が ない。\n……鐘に 押しても しかたない。'],
   keyItemFallback: ['今は 使う ときじゃない。'],
   hankoLearn: ['『$skill』が 浮かびあがった！'],
-  ctWait: [''],
+  hankoLearn1: ['ハンコケースに 新しい ハンコが\n浮かびあがった。'],
+  hankoLearn2: ['{c=#E23B2E}$skill{/c}が 使えるように なった！'],
 };
 
 export type SysKey = keyof typeof SYS;
@@ -83,10 +84,19 @@ export const TUT = {
   firstCommand: 'たたく を えらぼう',
   ring: 'いま！',
   rhythm: '『！』の すぐあとに。\nリズムで 押そう。',
+  tsukkomiOk: 'ツッコまれた 相手は\n『ボケ負け』に なる。',
   bokemake: 'ボケ負けの 相手には\nダメージ 1.5倍！',
   hanko: '長おしで 朱肉が たまる。\n赤い ところで はなす！',
   kire: 'キレが たまった！\nノリツッコミが つかえる。',
   oshirase: '光っている 部位に\n『みました』！',
+};
+
+/** evt_gameover (5.21). */
+export const GAMEOVER = {
+  title: 'きょうは ここまで。',
+  retry: '戦う前から やりなおす',
+  load: 'セーブから',
+  bossFlip: '（ベンチで 休んでから\n行きましょう）',
 };
 
 /** On-screen labels (9.0). */
@@ -113,6 +123,10 @@ export const NORI_COMMON = ['ミナトは 全力で ツッコんだ！', '敵は
 /** 通知表 (9.8). */
 export const REPORT = {
   title: 'つうちひょう',
+  /** Cover of the card: school, class and the owner's name in pencil. */
+  school: '夕鳴小学校',
+  coverClass: '5年 2組',
+  coverName: '潮見 ミナト',
   nameLine1: { minato: '夕鳴小学校 5年2組', kanenari: '夕鳴町PR大使' } as Record<string, string>,
   nameLine2: { minato: '潮見 ミナト', kanenari: 'カネナリくん' } as Record<string, string>,
   stats: ['HP', '朱肉', 'ちから', 'まもり', 'すばやさ', 'うん'],

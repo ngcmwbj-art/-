@@ -39,12 +39,13 @@ export function spanPoint(a: [number, number], b: [number, number], t: number, s
   return [x, y];
 }
 
+let CULL = true;
 function drawSpan(g: Gfx, a: [number, number], b: [number, number], sag: number, color: string, cx: number, cy: number, thick = 1, sway = 0): void {
   const minx = Math.min(a[0], b[0]) - cx;
   const maxx = Math.max(a[0], b[0]) - cx;
   const miny = Math.min(a[1], b[1]) - cy;
   const maxy = Math.max(a[1], b[1]) + sag - cy;
-  if (maxx < -4 || minx > W + 4 || maxy < -4 || miny > H + 4) return;
+  if (CULL && (maxx < -4 || minx > W + 4 || maxy < -4 || miny > H + 4)) return;
   const len = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
   const n = Math.max(2, Math.ceil(len));
   let px = Math.round(a[0] - cx);
@@ -63,8 +64,51 @@ function drawSpan(g: Gfx, a: [number, number], b: [number, number], sag: number,
   }
 }
 
+const baked = new Map<string, { c: HTMLCanvasElement; x0: number; y0: number }>();
+
+/**
+ * Draw the wires. They are baked once per map and sway phase (3 phases)
+ * into a world-space layer, then blitted.
+ */
 export function drawWires(g: Gfx, set: WireSet, cx: number, cy: number, mt: number, stage: number, _t: number): void {
-  const sway = stage === 1 ? 0 : Math.sin(mt / 1400) * 0.6;
+  const q = stage === 1 ? 0 : Math.round(Math.sin(mt / 1400) * 1.4);
+  const key = set.map + ':' + q;
+  let b = baked.get(key);
+  if (!b) {
+    // bounds of all spans
+    let x0 = 1e9;
+    let y0 = 1e9;
+    let x1 = -1e9;
+    let y1 = -1e9;
+    for (const line of set.lines) {
+      for (const pt of line.pts) {
+        const [fx, fy] = poleFoot(...pt);
+        x0 = Math.min(x0, fx - 16);
+        x1 = Math.max(x1, fx + 16);
+        y0 = Math.min(y0, fy - POLE.height - 4);
+        y1 = Math.max(y1, fy + 16);
+      }
+      if (line.to) {
+        x0 = Math.min(x0, line.to[0] - 4);
+        x1 = Math.max(x1, line.to[0] + 4);
+        y1 = Math.max(y1, line.to[1] + 16);
+      }
+    }
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.ceil(x1 - x0));
+    c.height = Math.max(1, Math.ceil(y1 - y0));
+    const ctx = c.getContext('2d')!;
+    const bg = new (g.constructor as new (ctx: CanvasRenderingContext2D, w: number, h: number) => Gfx)(ctx, c.width, c.height);
+    CULL = false;
+    drawWiresRaw(bg, set, x0, y0, q * 0.45);
+    CULL = true;
+    b = { c, x0, y0 };
+    baked.set(key, b);
+  }
+  g.ctx.drawImage(b.c, Math.round(b.x0 - cx), Math.round(b.y0 - cy));
+}
+
+function drawWiresRaw(g: Gfx, set: WireSet, cx: number, cy: number, sway: number): void {
   for (const line of set.lines) {
     if (line.to) {
       const [fx, fy] = poleFoot(...line.pts[0]);
@@ -77,15 +121,16 @@ export function drawWires(g: Gfx, set: WireSet, cx: number, cy: number, mt: numb
       const [bx, by] = poleFoot(...line.pts[i + 1]);
       const dist = Math.hypot(bx - ax, by - ay);
       const sag = Math.min(10, 4 + dist / 36);
-      // three high wires on the crossarms
+      // high wires on the crossarms (outer two dark, middle lighter)
       for (const o of POLE.armSpan) {
-        drawSpan(g, [ax + o, ay - POLE.arm], [bx + o, by - POLE.arm], sag, P.ink, cx, cy, 1, sway);
+        if (o === 0) continue;
+        drawSpan(g, [ax + o, ay - POLE.arm], [bx + o, by - POLE.arm], sag, P.nightShade, cx, cy, 1, sway);
       }
       if (line.staff) {
         for (let k = 0; k < 5; k++) drawSpan(g, [ax, ay - POLE.low + k * 3 - 6], [bx, by - POLE.low + k * 3 - 6], sag * 0.7, P.ink, cx, cy, 1, sway * 0.5);
       } else {
         drawSpan(g, [ax - 1, ay - POLE.low], [bx - 1, by - POLE.low], sag + 2, P.ink, cx, cy, 2, sway * 0.8);
-        drawSpan(g, [ax + 3, ay - POLE.low + 5], [bx + 3, by - POLE.low + 5], sag + 3, P.ink, cx, cy, 1, sway);
+        drawSpan(g, [ax + 3, ay - POLE.low + 5], [bx + 3, by - POLE.low + 5], sag + 3, P.nightShade, cx, cy, 1, sway);
       }
     }
   }

@@ -237,5 +237,6 @@ registerChar('npc_mother', () =>
     anims: {
       chop: { frames: [{ ph: 0 }, { ph: 1 }], ms: 250, dir: 'up' },
     },
+    poses: { chop: 'idle' },
   } satisfies SpriteSpec),
 );

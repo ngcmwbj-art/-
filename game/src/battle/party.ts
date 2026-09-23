@@ -11,21 +11,21 @@ import { CAPSULE_TABLE, fillAll, getItem, getSkill, ITEM_TEXT, LABEL, NORI, NORI
 import type { BattleScene } from './scene';
 import { FRAME } from './scene';
 import {
-  attrMul, calcDamage, critRate, enemyDefIn, fixedDamage, JUDGE_MUL, MIMA_COEF, type EnemyUnit, type Judge, type PartyCmd, type PartyUnit,
+  attrMul, calcDamage, critRate, enemyDefIn, fixedDamage, JUDGE_MUL, MIMA_COEF, sfxGrade, type EnemyUnit, type Judge, type PartyCmd, type PartyUnit,
 } from './model';
 import {
-  addKire, arrows, changeStage, cureStatus, defeatEnemy, dodge, fadeDrops, healParty, hideSticky, hurtEnemy, hurtParty, knock, markDefeated,
-  resetKire, showSticky, statusText,
+  addKire, arrows, changeStage, cureStatus, defeatEnemy, dodge, fadeDrops, healParty, hideSticky, hurtEnemy, hurtParty, kireFullPages, knock,
+  markDefeated, resetKire, showSticky, statusText,
 } from './common';
 import { drawNet, balloon, crow, heart, poppedBalloon, sweatDrop, thickLine } from './art/fxart';
 import { all } from '../engine/co';
-import { duckMusic } from '../audio';
+import { duckMusic, muteMusic, musicFlee, sfxLoop } from '../audio';
 import { hankoCloseup } from './art/fxart';
 import { hanamaruFrame, kakimoji, kakimojiSmall, ovalStamp, pekeMark, roundSeal } from './art/stamps';
 void kakimojiSmall;
-import { itemIcon } from './art/icons';
+import { itemIcon, kireIcon } from './art/icons';
 import { PANEL_POS } from './ui/panels';
-import { C } from './ui/note';
+import { C, tapeCanvas } from './ui/note';
 import { kanenariBack, kanenariFront } from '../art/enemies/kanenari';
 import { portrait } from '../art/chars';
 import { tsukkomiWindows } from './tsukkomi';
@@ -100,6 +100,8 @@ export function* ringStrike(s: BattleScene, cx: () => number, cy: () => number, 
     },
   });
   for (let f = 0; ; f++) {
+    // the ring's own rising tone is the timing reference (40_audio se_ring)
+    if (f === lead) s.sfx('se_ring', { dur: Math.round(shrink * FRAME) });
     if (f >= lead) {
       st.visible = true;
       st.alpha = Math.min(1, (f - lead + 1) / 4);
@@ -247,7 +249,7 @@ function* strikeOnce(
     crit,
   });
   hitFeel(s, e, crit ? 'crit' : good ? 'good' : 'normal', good);
-  if (good) s.label(LABEL.iioto, e.coreX + 12 + 38, e.coreY - 12 - 12, 'shu', 520);
+  if (good) s.labelUpRight(LABEL.iioto, e.coreX, e.coreY, 'shu', 560);
   if (boke && s.enemies[0]?.id === 'enemy_hato_kakaricho') showSticky(s, 'bokemake', undefined, false, 2600);
   const killed = hurtEnemy(s, e, dmg, { crit, stack: o.stack });
   return { killed, hit: true, boke };
@@ -361,7 +363,7 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
             back.x = 300 - (tt / 240) * 16;
             back.y = 200 - Math.round(Math.abs(Math.sin((tt / 120) * Math.PI)) * 6);
             back.frame = Math.floor(tt / 120) % 2 ? 'step' : 'idle';
-            if (f === 0 || f === 7) s.sfx('se_step', { vol: 0.5 });
+            if (f === 0 || f === 7) s.sfx('se_step_kanenari');
           } else {
             const p = Math.min(1, (f - 14) / Math.max(1, hitF - 14));
             const e2 = ease.quadIn(p);
@@ -416,8 +418,31 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
     if (two && h === 0) yield 150;
   }
   if (target && bokeUsed) consumeBokemake(target, true);
+  if (killed && target) {
+    // 16.8: the finishing hit goes straight into 思いだす (its 14f hitstop
+    // overrides the hit's); the net / Kanenari-kun leave in parallel
+    const b0 = { x: back.x, y: back.y };
+    s.addFx({
+      layer: 'top',
+      dur: 260,
+      ui: true,
+      draw: () => {},
+      update() {
+        const p = Math.min(1, this.t / 250);
+        if (tackle) {
+          back.x = b0.x + (330 - b0.x) * ease.quadOut(p);
+          back.y = b0.y + (230 - b0.y) * ease.quadOut(p);
+          back.sc = 0.7 + 0.3 * p;
+          back.alpha = 1 - p * 0.6;
+        } else net.alpha = 1 - p;
+        if (p >= 1 && netFx) netFx.done = true;
+      },
+    });
+    yield* killSequence(s, [target]);
+    return;
+  }
   // net fades after 250ms (100ms), next action at +350ms
-  yield killed ? 60 : 250;
+  yield 250;
   if (tackle) {
     // bounce back and slide out to the lower right (200ms)
     const sx = back.x;
@@ -437,14 +462,15 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
     }
   }
   if (netFx) netFx.done = true;
-  if (killed && target) yield* killSequence(s, [target]);
-  else yield 100;
+  yield 100;
 }
 
 /** Defeat one or more enemies (multi-kills drop 100ms apart). */
 export function* killSequence(s: BattleScene, list: EnemyUnit[]): Co {
   const remaining = s.enemies.filter((e) => e.alive && !list.includes(e));
   const last = remaining.length === 0;
+  // 40_audio 12.3: the battle song dips −12dB under the last 思いだす
+  if (last && !s.isBoss) duckMusic(0.25, 1.4);
   const cos = list.map((e, i) => defeatEnemy(s, e, i * 100, last));
   yield* all(...cos);
   for (const e of list) markDefeated(e);
@@ -489,13 +515,19 @@ export function* holdStamp(s: BattleScene, u: PartyUnit, forceKasure = false): C
   st.charging = true;
   let held = 0;
   let judge: Judge = 'kasure';
+  // the charge hum follows the amount (sfxLoop, 40_audio 9.5); a "チッ" on entering the zone
+  const hum = sfxLoop('se_hanko_charge');
+  let wasZone = false;
   for (;;) {
     held += FRAME * speed;
     const ph = held / 800;
     const k = ph % 2;
     st.amount = ph >= 4 ? 0 : k <= 1 ? k : 2 - k;
     st.inZone = st.amount >= kLo;
-    if (s.frame % 5 === 0) s.sfx('se_hanko_charge', { pitch: 1 + 0.6 * st.amount, vol: 0.5 });
+    hum.set('amount', st.amount);
+    hum.set('zone', st.inZone ? 1 : 0);
+    if (st.inZone && !wasZone) s.sfx('se_hanko_zone');
+    wasZone = st.inZone;
     let released = !s.confirmDown();
     if (autoHold) {
       const goal = autoHold === 'kukkiri' ? 0.95 : autoHold === 'futsuu' ? 0.62 : 0.2;
@@ -508,6 +540,7 @@ export function* holdStamp(s: BattleScene, u: PartyUnit, forceKasure = false): C
     }
     yield null;
   }
+  hum.stop(0.02);
   if (forceKasure) judge = 'kasure';
   st.charging = false;
   // handle lifts 6px (40ms), then the close-up drops away (100ms)
@@ -605,7 +638,7 @@ function stampFeel(s: BattleScene, e: EnemyUnit | null, x: number, y: number, j:
       });
     s.sfx('se_stamp_heavy');
     s.sfx('se_thud_low');
-    s.label(LABEL.kukkiri, x + 26, y - 26, 'shu', 700);
+    s.labelUpRight(LABEL.kukkiri, x, y, 'shu', 700);
   } else if (j === 'futsuu') {
     s.hitstop(6);
     s.shake(2, 2, 8);
@@ -617,7 +650,7 @@ function stampFeel(s: BattleScene, e: EnemyUnit | null, x: number, y: number, j:
     s.shake(1, 1, 4);
     s.shuSplash(x, y, 4, true);
     s.sfx('se_stamp_light');
-    s.label(LABEL.kasure, x + 26, y - 26, 'gray', 700, true);
+    s.labelUpRight(LABEL.kasure, x, y, 'gray', 700, true);
   }
 }
 
@@ -683,6 +716,7 @@ export function* doHanko(s: BattleScene, cmd: Extract<PartyCmd, { kind: 'hanko' 
 
 function* hankoPeke(s: BattleScene, u: PartyUnit, e: EnemyUnit, j: Judge): Co {
   s.post(SYS.peke);
+  s.sfx('se_peke_fall');
   const big = pekeMark(96, 0, j === 'kasure');
   const fx = yield* dropMark(s, big, () => e.coreX, () => e.coreY);
   fx.done = true;
@@ -717,10 +751,8 @@ function* hankoPeke(s: BattleScene, u: PartyUnit, e: EnemyUnit, j: Judge): Co {
   knock(s, e, 3);
   consumeBokemake(e, boke);
   // a finishing stamp goes straight into 思いだす (its hitstop overrides the hit's)
-  if (killed) {
-    yield 120;
-    yield* killSequence(s, [e]);
-  } else yield 400;
+  if (killed) yield* killSequence(s, [e]);
+  else yield 400;
 }
 
 function sk(id: string) {
@@ -734,16 +766,16 @@ function* hankoMimashita(s: BattleScene, u: PartyUnit, e: EnemyUnit, j: Judge, p
   const py = part ? e.top + part.box[1] + part.box[3] / 2 : e.coreY;
   const fx = yield* dropMark(s, stampImg, () => px, () => py);
   fx.done = true;
-  s.sfx('se_mimashita');
+  s.sfx('se_mimashita', { grade: sfxGrade(j) });
   s.hitstop(j === 'kukkiri' ? 10 : j === 'kasure' ? 4 : 6);
   s.shake(j === 'kukkiri' ? 3 : 1, j === 'kukkiri' ? 3 : 1, 8);
   if (j === 'kukkiri') {
     s.sfx('se_stamp_heavy');
-    s.label(LABEL.kukkiri, px + 26, py - 26, 'shu', 700);
+    s.labelUpRight(LABEL.kukkiri, px, py, 'shu', 700);
     s.addFx({ layer: 'world', dur: 250, draw: (g, t) => g.alpha(1 - t / 250, () => g.ring(px, py, 8 + 40 * (t / 250), C.shu)) });
   } else if (j === 'kasure') {
     s.sfx('se_stamp_light');
-    s.label(LABEL.kasure, px + 26, py - 26, 'gray', 700, true);
+    s.labelUpRight(LABEL.kasure, px, py, 'gray', 700, true);
   } else s.sfx('se_stamp');
   s.shuSplash(px, py, j === 'kukkiri' ? 12 : 6);
   // the stamp lingers briefly where it landed, then becomes the decal
@@ -822,7 +854,7 @@ function* hankoHanamaru(s: BattleScene, u: PartyUnit, t: PartyUnit, j: Judge): C
   sfx.done = true;
   // swirl drawn in one stroke over the face (12 frames × 25ms)
   const broken = j === 'kasure';
-  s.sfx('se_hanamaru');
+  s.sfx('se_hanamaru', { grade: sfxGrade(j) });
   const fx = px + 4 + 16;
   const fy = py + 6 + 16;
   s.addFx({
@@ -850,7 +882,7 @@ function* hankoHanamaru(s: BattleScene, u: PartyUnit, t: PartyUnit, j: Judge): C
 }
 
 function* hankoYarinaoshi(s: BattleScene, e: EnemyUnit, j: Judge, partId?: string): Co {
-  s.sfx('se_rewind');
+  s.sfx('se_rewind', { grade: sfxGrade(j) });
   const thick = j === 'kukkiri' ? 3 : 2;
   const cx = e.coreX;
   const cy = e.coreY;
@@ -981,11 +1013,11 @@ function* prGoaisatsu(s: BattleScene, u: PartyUnit): Co {
     dur: 0,
     draw: (g) => {
       const img = kanenariBack(back.frame);
-      g.img(img, 290 - img.width / 2, Math.round(back.y - img.height));
+      g.img(img, 304 - img.width / 2, Math.round(back.y - img.height));
     },
   });
   for (let i = 0; i <= 8; i++) {
-    back.y = 230 - 30 * ease.quadOut(i / 8);
+    back.y = 230 - 88 * ease.backOut(i / 8);
     yield null;
   }
   s.sfx('se_bow');
@@ -1011,7 +1043,7 @@ function* prGoaisatsu(s: BattleScene, u: PartyUnit): Co {
   s.sfx('se_buff_down');
   back.frame = 'idle';
   for (let i = 0; i <= 8; i++) {
-    back.y = 200 + 30 * ease.quadIn(i / 8);
+    back.y = 142 + 88 * ease.quadIn(i / 8);
     yield null;
   }
   fx.done = true;
@@ -1025,11 +1057,11 @@ function* prKane(s: BattleScene, u: PartyUnit): Co {
     dur: 0,
     draw: (g) => {
       const img = kanenariBack(back.frame);
-      g.img(img, 290 - img.width / 2, Math.round(back.y - img.height));
+      g.img(img, 304 - img.width / 2, Math.round(back.y - img.height));
     },
   });
   for (let i = 0; i <= 8; i++) {
-    back.y = 230 - 30 * ease.quadOut(i / 8);
+    back.y = 230 - 88 * ease.backOut(i / 8);
     yield null;
   }
   s.msgInteractive = true;
@@ -1064,11 +1096,13 @@ function* prKane(s: BattleScene, u: PartyUnit): Co {
   s.addFx({ layer: 'top', dur: 700, ui: true, draw: (g, t) => g.alpha(1 - t / 700, () => g.img(sweatDrop(), px + 34, py + 6 + Math.round(t / 70))) });
   addKire(s, 1);
   for (let i = 0; i <= 8; i++) {
-    back.y = 200 + 30 * ease.quadIn(i / 8);
+    back.y = 142 + 88 * ease.quadIn(i / 8);
     yield null;
   }
   fx.done = true;
-  yield 200;
+  const full = kireFullPages(s);
+  if (full.length) yield* s.say(full);
+  else yield 200;
 }
 
 // ---- items ---------------------------------------------------------------------------------
@@ -1176,6 +1210,7 @@ export function* doFlee(s: BattleScene, u: PartyUnit): Co<boolean> {
   yield 350;
   if (rng.next() < rate) {
     s.sfx('se_flee');
+    musicFlee();
     for (let i = 0; i <= 10; i++) {
       for (const p of s.party) p.drop = 8 * (i / 10);
       yield null;
@@ -1208,21 +1243,36 @@ export function* doNori(s: BattleScene): Co {
   const nori = NORI[pick];
   // 0: the three "!" fly to the centre, screen darkens
   s.sfx('se_kire_full');
+  const bang = kireIcon(true, true);
   s.addFx({
     layer: 'top',
-    dur: 150,
+    dur: 230,
     ui: true,
     draw: (g, t) => {
-      const p = ease.quadIn(t / 150);
+      // the three "!" leave the tab and pile up in the middle, then flash away
+      const p = ease.quadIn(Math.min(1, t / 150));
+      const sc = t < 150 ? 1 + p : 2 + (t - 150) / 40;
+      const a = t < 150 ? 1 : Math.max(0, 1 - (t - 150) / 80);
       for (let i = 0; i < 3; i++) {
         const x = 224 + i * 13 + (187 - 224 - i * 13) * p;
-        const y = 140 + (100 - 140) * p;
-        g.rect(Math.round(x), Math.round(y), 10, 14, C.shu);
+        const y = 140 + (96 - 140) * p;
+        const w = bang.width * sc;
+        const h = bang.height * sc;
+        g.alpha(a, () => g.ctx.drawImage(bang, Math.round(x + 5 - w / 2), Math.round(y + 7 - h / 2), Math.round(w), Math.round(h)));
       }
     },
   });
   resetKire(s);
-  const darkFx = s.addFx({ layer: 'world', dur: 0, draw: (g) => g.rect(0, 0, 384, 216, '#0B0B14', 0.45) });
+  // darken (0–150ms), then ease off as the performers take the stage
+  const dark = { a: 0 };
+  const darkFx = s.addFx({
+    layer: 'world',
+    dur: 0,
+    draw: (g) => g.rect(0, 0, 384, 216, '#0B0B14', dark.a),
+    update() {
+      dark.a = this.t < 150 ? 0.45 * (this.t / 150) : Math.max(0.18, 0.45 - ((this.t - 150) / 200) * 0.27);
+    },
+  });
   yield 150;
   // 150–350: background switches to vermilion focus lines + sunset band
   const bgFx = s.addFx({
@@ -1257,7 +1307,7 @@ export function* doNori(s: BattleScene): Co {
     dur: 0,
     draw: (g, t) => {
       const img = kanenariFront(kf.pose, t);
-      g.img(img, Math.round(kf.x - img.width / 2), 150 - img.height);
+      g.img(img, Math.round(kf.x - img.width / 2), 142 - img.height);
       if (kf.pose === 'sing' && Math.floor(t / 200) % 2 === 0) {
         g.text('♪', Math.round(kf.x + 20), 90 - Math.round((t % 400) / 40), { color: '#2A2440', outline: '#FFD23F' });
       }
@@ -1266,6 +1316,8 @@ export function* doNori(s: BattleScene): Co {
   const bokeMs = first ? 1000 : 400;
   s.msgInteractive = false;
   s.msg.replace(first ? nori.boke : nori.boke.slice(-1));
+  // 40_audio 13.3: each boke has its own sound (cut by the tsukkomi)
+  s.sfx(nori.pose === 'sing' ? 'se_nori_sing' : nori.pose === 'flag' ? 'se_nori_flag' : 'se_zipper');
   for (let t = 0; t < bokeMs; t += FRAME) {
     kf.x = Math.max(250, 420 - (t / 150) * 170);
     yield null;
@@ -1276,8 +1328,8 @@ export function* doNori(s: BattleScene): Co {
       yield null;
     }
   }
-  // the "間": silence
-  s.setMusicParam('nori_silence', 1);
+  // the "間": complete silence
+  muteMusic(first ? 0.15 : 0.1);
   yield first ? 150 : 100;
   bokeFx.done = !first ? true : bokeFx.done;
   // 1500: tsukkomi — Minato's face ×2 slides in from the left, two-tier lettering slams down
@@ -1288,21 +1340,25 @@ export function* doNori(s: BattleScene): Co {
     layer: 'top',
     dur: 0,
     draw: (g, t) => {
-      const fx = -64 + Math.min(1, t / 80) * 80;
-      if (face) g.ctx.drawImage(face, Math.round(fx), 66, 64, 64);
-      else {
-        g.rect(Math.round(fx), 66, 64, 64, C.paper);
-        g.text('ミ', Math.round(fx + 32), 90, { color: C.ink, align: 'center' });
-      }
+      // Minato's face ×2 slides in from the left like a photo taped to the page
+      const fx = Math.round(-72 + Math.min(1, t / 80) * 82);
+      g.rect(fx + 3, 64, 70, 70, C.shadow, 0.5);
+      g.rect(fx - 3, 60, 70, 70, C.paper);
+      g.frame(fx - 3, 60, 70, 70, C.grid);
+      if (face) g.ctx.drawImage(face, fx, 63, 64, 64);
+      else g.text('ミ', fx + 32, 86, { color: C.ink, align: 'center' });
+      g.img(tapeCanvas(18, 7, '', C.tape, 3), fx - 8, 58);
+      g.img(tapeCanvas(18, 7, '', C.tape, 5), fx + 54, 124);
+      // two tiers: "……って、" small on top, the line slammed down underneath
       g.img(upper, 96, 40);
       const sc = t < 60 ? 1.5 - 0.5 * (t / 60) : 1;
       const sh = t < 300 ? Math.round(Math.sin(t) * 1) : 0;
       const w = lower.width * sc;
       const h = lower.height * sc;
-      g.ctx.drawImage(lower, Math.round(192 - w / 2 + sh), Math.round(58 - h / 2 + 12), Math.round(w), Math.round(h));
+      g.ctx.drawImage(lower, Math.round(192 - w / 2 + sh), Math.round(58 + (lower.height - h) / 2), Math.round(w), Math.round(h));
     },
   });
-  s.sfx('se_bishi');
+  s.sfx('se_bishi', { vol: 1.3 });
   yield first ? 200 : 100;
   // 1700 / 900: impact on every enemy
   const targets = s.aliveEnemies;
@@ -1336,9 +1392,12 @@ export function* doNori(s: BattleScene): Co {
   bokeFx.done = true;
   bgFx.done = true;
   darkFx.done = true;
-  s.setMusicParam('nori_silence', 0);
-  yield* s.say(NORI_COMMON);
-  if (killed.length) yield* killSequence(s, killed);
+  if (killed.length) {
+    // everyone who fell shrinks together, dropping 100ms apart
+    yield* s.say(NORI_COMMON.slice(0, 1));
+    yield* killSequence(s, killed);
+    if (s.aliveEnemies.length) yield* s.say(NORI_COMMON.slice(1));
+  } else yield* s.say(NORI_COMMON);
 }
 
 export { hitFeel as enemyHitFeel };

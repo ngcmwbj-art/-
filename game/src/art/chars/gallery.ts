@@ -13,12 +13,13 @@ import { valueNoise } from '../../engine/rng';
 import type { Dir } from '../../game/state';
 import { animIndex, charIds, charSprite, portrait, portraitIds, type CharSprite } from './registry';
 import { EMOTE_KINDS, emoteFrames, EMOTE_FRAME_MS } from './emotes';
-import { flipBoard, flipBoardPanel, flipIcon } from './flip';
+import { flipBoard, flipBoardEdge, flipBoardMini, flipBoardPanel, flipBoardText, flipIcon } from './flip';
 import { tinyText, tinyWidth } from './tinyfont';
 import { MOODS } from './portraits';
 import { FLIP_ANCHOR } from './people/kanenari';
 
 const DIRS: Dir[] = ['down', 'left', 'up', 'right'];
+const MODES = ['idle', 'walk', 'look_up', 'run', 'walk4'];
 
 interface BgDef {
   name: string;
@@ -112,7 +113,7 @@ export class CharGallery implements Scene {
   page = 0;
   zoom = 1;
   bg = 0;
-  mode = 0; // overview mode: 0 idle, 1 walk, 2 look_up, 3 run
+  mode = 0; // overview mode: 0 idle, 1 walk, 2 look_up, 3 run, 4 walk in all four directions
   scroll = 0;
   t = 0;
   pages: Page[] = [];
@@ -133,11 +134,12 @@ export class CharGallery implements Scene {
     const ids = charIds();
     const people = ids.filter((i) => !isFoe(i));
     const foes = ids.filter(isFoe);
-    const modes = ['idle', 'walk', 'look_up', 'run'];
+    const modes = MODES;
     const overview = (list: string[]) => (): Tile[] =>
       list.map((id) => {
         const s = charSprite(id);
         const m = modes[this.mode];
+        if (m === 'walk4') return this.fourDirTile(s, shortName(id));
         const frame = (t: number) => {
           if (m === 'walk') return cycle(s.walk.down, s.walkFrameMs ?? 140)(t);
           if (m === 'run') return cycle(s.run?.down ?? s.walk.down, s.runFrameMs ?? 90)(t);
@@ -152,6 +154,28 @@ export class CharGallery implements Scene {
     this.pages.push({ title: 'emotes', tiles: () => this.emoteTiles() });
     this.pages.push({ title: 'flip', tiles: () => this.flipTiles(), plain: true });
     for (const id of ids) this.pages.push({ title: id, tiles: () => this.detailTiles(id) });
+  }
+
+  /** One tile: the sprite walking in all four directions, side by side. */
+  fourDirTile(s: CharSprite, label: string): Tile {
+    const z = this.zoom;
+    const cw = s.w + 2;
+    return {
+      w: cw * 4 * z,
+      h: s.h * z + 8,
+      label,
+      draw: (g, x, y, t) => {
+        DIRS.forEach((d, i) => {
+          const img = cycle(s.walk[d], s.walkFrameMs ?? 140)(t);
+          const bx = x + i * cw * z;
+          if ((s.shadow ?? 0) > 0) {
+            const sh = shadow(s.shadow!);
+            g.img(sh, bx + (s.w * z) / 2 - (sh.width * z) / 2, y + s.h * z - 3 * z, { scale: z });
+          }
+          g.img(img, bx + ((s.w - img.width) * z) / 2, y + (s.h - img.height) * z, { scale: z });
+        });
+      },
+    };
   }
 
   detailTiles(id: string): Tile[] {
@@ -170,6 +194,14 @@ export class CharGallery implements Scene {
       else out.push(spriteTile(s, name, z, () => s.extra![name]));
     }
     for (const name of Object.keys(s.anims ?? {})) {
+      const byDir = s.animsDir?.[name];
+      if (byDir) {
+        for (const d of DIRS) {
+          const a = byDir[d];
+          if (a) out.push(spriteTile(s, `~${name}:${d[0]}`, z, (t) => a.frames[animIndex(a, t)]));
+        }
+        continue;
+      }
       const a = s.anims![name];
       out.push(spriteTile(s, `~${name}`, z, (t) => a.frames[animIndex(a, t)]));
     }
@@ -224,6 +256,14 @@ export class CharGallery implements Scene {
     const k = charSprite('kanenari');
     return [
       { w: b.width * z * 2, h: b.height * z * 2 + 8, label: 'flipboard', draw: (g, x, y) => g.img(b, x, y, { scale: z * 2 }) },
+      { w: b.width * z * 2, h: b.height * z * 2 + 8, label: 'variant 1', draw: (g, x, y) => g.img(flipBoard(1), x, y, { scale: z * 2 }) },
+      { w: b.width * z * 2, h: b.height * z * 2 + 8, label: 'variant 2', draw: (g, x, y) => g.img(flipBoard(2), x, y, { scale: z * 2 }) },
+      { w: b.width * z * 2, h: 4 * z * 2 + 8, label: 'edge', draw: (g, x, y) => g.img(flipBoardEdge(), x, y, { scale: z * 2 }) },
+      { w: 16 * z * 2, h: 12 * z * 2 + 8, label: 'mini', draw: (g, x, y) => g.img(flipBoardMini(), x, y, { scale: z * 2 }) },
+      ((): Tile => {
+        const c = flipBoardText('夕鳴町へ ようこそ！\n（引退しました）');
+        return { w: c.width * z, h: c.height * z + 8, label: 'text', draw: (g, x, y) => g.img(c, x, y, { scale: z }) };
+      })(),
       { w: icon.width * z * 3, h: icon.height * z * 3 + 8, label: 'icon', draw: (g, x, y) => g.img(icon, x, y, { scale: z * 3 }) },
       { w: panel.width * z, h: panel.height * z + 8, label: 'panel 160x40', draw: (g, x, y) => g.img(panel, x, y, { scale: z }) },
       {
@@ -235,10 +275,24 @@ export class CharGallery implements Scene {
           const s = z * 2;
           const fx = x + 12 * s; // feet x
           const fy = y + 42 * s; // feet y
-          g.img(k.extra?.flip ?? k.walk.down[0], fx - 8 * s, fy - 26 * s, { scale: s });
+          const raw = k.extra?.flip_raw ?? k.walk.down[0];
+          g.img(raw, fx - (raw.width / 2) * s, fy - raw.height * s, { scale: s });
           g.img(b, fx + FLIP_ANCHOR.dx * s, fy + FLIP_ANCHOR.dy * s, { scale: s });
         },
       },
+      ...(['flip', 'flip_turn'] as const).map((name): Tile => {
+        const a = k.anims?.[name];
+        return {
+          w: 24 * z * 2,
+          h: 40 * z * 2 + 8,
+          label: `~${name}`,
+          draw: (g, x, y, t) => {
+            if (!a) return;
+            const img = a.frames[animIndex({ ...a, loop: true }, t)];
+            g.img(img, x + 12 * z * 2 - (img.width / 2) * z * 2, y + 40 * z * 2 - img.height * z * 2, { scale: z * 2 });
+          },
+        };
+      }),
     ];
   }
 
@@ -250,7 +304,7 @@ export class CharGallery implements Scene {
     if (inp.repeat('down')) this.scroll += 24;
     if (inp.repeat('up')) this.scroll = Math.max(0, this.scroll - 24);
     if (inp.pressed('menu')) this.zoom = (this.zoom % 3) + 1;
-    if (inp.pressed('confirm')) this.mode = (this.mode + 1) % 4;
+    if (inp.pressed('confirm')) this.mode = (this.mode + 1) % MODES.length;
     if (inp.pressed('cancel')) this.bg = (this.bg + 1) % BGS.length;
   }
 
@@ -280,8 +334,8 @@ export class CharGallery implements Scene {
     }
     // header
     g.rect(0, 0, 384, 11, '#2A2440', 0.85);
-    const modes = ['idle', 'walk', 'look_up', 'run'];
-    tinyText(g, `${this.page + 1}/${this.pages.length} ${page.title}  z${this.zoom} ${bg.name} ${modes[this.mode]}`, 4, 3, '#FBF3DC');
+    tinyText(g, `${this.page + 1}/${this.pages.length} ${page.title}  z${this.zoom} ${bg.name} ${MODES[this.mode]}`, 4, 3, '#FBF3DC');
+    tinyText(g, '<> page  z mode  x ground  c zoom', 384 - tinyWidth('<> page  z mode  x ground  c zoom') - 4, 3, '#C8C2B4');
   }
 }
 

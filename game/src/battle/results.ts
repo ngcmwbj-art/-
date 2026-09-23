@@ -4,9 +4,9 @@
 import type { Co } from '../engine/co';
 import { game, type Scene } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
-import { drawText } from '../engine/font';
+import { drawText, measure } from '../engine/font';
 import { makeCanvas } from '../engine/pixel';
-import { rng } from '../engine/rng';
+import { hash2, rng } from '../engine/rng';
 import { ease } from '../engine/tween';
 import { addItem, setFlag, flag, state } from '../game/state';
 import { duckMusic, playBgm, sfx, stopBgm } from '../audio';
@@ -100,10 +100,9 @@ export function* victory(s: BattleScene): Co {
     for (const u of s.party) u.bounceT = 250;
     yield 300;
   }
-  // 1. experience (both members, even if down)
-  const levelUps: LevelUpResult[] = [];
+  // 1. experience (both members, even if down); the level-up itself is
+  // judged and shown last (18.3), so the panels keep the old stats until then
   yield* countUp(s, SYS.exp, exp);
-  for (const u of s.party) levelUps.push(...gainExp(u.m, exp));
   // 2. money
   if (money > 0) {
     state.money += money;
@@ -120,15 +119,7 @@ export function* victory(s: BattleScene): Co {
       if (!it) continue;
       const ok = addItem(d.item);
       if (ok) {
-        sfx('se_item');
-        const icon = itemIcon(d.item);
-        const fx = s.addFx({ layer: 'top', dur: 0, ui: true, draw: (g, t) => {
-          const sc = t < 80 ? 1.5 - 0.5 * (t / 80) : 1;
-          const w = 16 * sc;
-          g.ctx.drawImage(icon, Math.round(360 - w / 2), Math.round(26 - w / 2), Math.round(w), Math.round(w));
-        } });
-        yield* say(s, fillAll(SYS.drop, { item: it.name }));
-        fx.done = true;
+        yield* stickItemCard(s, d.item, () => say(s, fillAll(SYS.drop, { item: it.name })));
       } else yield* say(s, fillAll(SYS.dropFull, { item: it.name }));
     }
   }
@@ -142,8 +133,121 @@ export function* victory(s: BattleScene): Co {
     }
   }
   // 6. level ups
+  const levelUps: LevelUpResult[] = [];
+  for (const u of s.party) levelUps.push(...gainExp(u.m, exp));
   if (levelUps.length) yield* levelUpSequence(s, levelUps);
   for (const u of s.party) u.moodHold = null;
+}
+
+// ---- item card (30_level_art 10.9) ------------------------------------------------
+
+const CARD_W = 48;
+const CARD_H = 46;
+const cardCache = new Map<string, HTMLCanvasElement>();
+
+/** A #F7C27A sticky card with the item's icon at 2x, lit from the left. */
+function itemCard(id: string): HTMLCanvasElement {
+  let c = cardCache.get(id);
+  if (c) return c;
+  const [cv, ctx] = makeCanvas(CARD_W, CARD_H);
+  const r = (x: number, y: number, w: number, h: number, col: string) => {
+    ctx.fillStyle = col;
+    ctx.fillRect(x, y, w, h);
+  };
+  r(0, 0, CARD_W, CARD_H, C.tape);
+  // the glued strip along the top is a shade darker and a little glossy
+  r(0, 0, CARD_W, 8, '#EDB066');
+  r(0, 8, CARD_W, 1, '#E3A45C');
+  for (let x = 2; x < CARD_W - 2; x += 5) r(x, 2, 2, 1, '#F9CF92');
+  // paper edges: light on the left, shade on the right and the bottom
+  r(0, 0, 1, CARD_H, '#FBD7A0');
+  r(CARD_W - 1, 0, 1, CARD_H, '#D99A55');
+  r(0, CARD_H - 1, CARD_W, 1, '#D99A55');
+  // faint fibre flecks
+  for (let i = 0; i < 26; i++) {
+    const x = 1 + Math.floor(((i * 37) % 97) / 97 * (CARD_W - 2));
+    const y = 10 + Math.floor(((i * 53) % 89) / 89 * (CARD_H - 12));
+    r(x, y, 1, 1, i % 3 ? '#F2B970' : '#FACB8C');
+  }
+  // the bottom-right corner curls up a little
+  ctx.clearRect(CARD_W - 5, CARD_H - 5, 5, 5);
+  r(CARD_W - 6, CARD_H - 6, 5, 1, '#D99A55');
+  r(CARD_W - 6, CARD_H - 5, 4, 1, '#FBE0B4');
+  r(CARD_W - 6, CARD_H - 4, 3, 1, '#F4CE98');
+  r(CARD_W - 6, CARD_H - 3, 2, 1, '#E8B77A');
+  r(CARD_W - 6, CARD_H - 2, 1, 1, '#D99A55');
+  // the icon at 2x, with a soft 1px contact shadow so it reads on the tape colour
+  const icon = itemIcon(id);
+  const ix = Math.round((CARD_W - icon.width * 2) / 2);
+  const iy = 11;
+  ctx.globalAlpha = 0.28;
+  const [sh, shx] = makeCanvas(icon.width, icon.height);
+  shx.drawImage(icon, 0, 0);
+  shx.globalCompositeOperation = 'source-in';
+  shx.fillStyle = '#8A5A2A';
+  shx.fillRect(0, 0, icon.width, icon.height);
+  ctx.drawImage(sh, ix + 2, iy + 2, icon.width * 2, icon.height * 2);
+  ctx.globalAlpha = 1;
+  ctx.drawImage(icon, ix, iy, icon.width * 2, icon.height * 2);
+  cardCache.set(id, cv);
+  return cv;
+}
+
+/**
+ * Show the item card while `body` runs: it drops onto the page and sticks in
+ * 0.1s (a little pat of dust), then lifts off when the message is read.
+ */
+function* stickItemCard(s: BattleScene, id: string, body: () => Co): Co {
+  const card = itemCard(id);
+  const x0 = 192 - CARD_W / 2;
+  const y0 = 70;
+  let leave = -1;
+  let patted = false;
+  sfx('se_item');
+  const fx = s.addFx({
+    layer: 'top',
+    dur: 0,
+    ui: true,
+    draw: (g, t) => {
+      const k = Math.min(1, t / 100);
+      const e = ease.quadIn(k);
+      const sc = 1.3 - 0.3 * e;
+      let a = 1;
+      let lift = 0;
+      if (leave >= 0) {
+        const q = Math.min(1, (t - leave) / 140);
+        a = 1 - q;
+        lift = -6 * ease.quadOut(q);
+      }
+      if (k >= 1 && !patted) {
+        patted = true;
+        s.shake(0, 1, 3);
+      }
+      const w = Math.round(CARD_W * sc);
+      const h = Math.round(CARD_H * sc);
+      const cx = x0 + CARD_W / 2;
+      const cy = y0 + CARD_H / 2 + lift + Math.round((1 - e) * -8);
+      const off = Math.round(2 + (1 - e) * 5 - lift * 0.5);
+      g.alpha(a * (0.3 + 0.15 * e), () => g.rect(Math.round(cx - w / 2) + off, Math.round(cy - h / 2) + off, w, h, C.shadow));
+      g.alpha(a, () => g.ctx.drawImage(card, Math.round(cx - w / 2), Math.round(cy - h / 2), w, h));
+      // the strip of tape that holds it
+      if (k >= 1) g.alpha(a, () => g.img(tapeCanvas(20, 6, '', C.white, 7), Math.round(cx - 10), Math.round(cy - h / 2) - 3));
+      // a pat of dust at the corners at the moment it sticks
+      if (t >= 100 && t < 220 && leave < 0) {
+        const p = (t - 100) / 120;
+        const d = Math.round(2 + p * 5);
+        g.alpha(1 - p, () => {
+          for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+            g.px(Math.round(cx + sx * (w / 2 + d)), Math.round(cy + sy * (h / 2 + d * 0.6)), C.white);
+          }
+        });
+      }
+    },
+  });
+  yield* body();
+  leave = fx.t;
+  yield 140;
+  fx.done = true;
 }
 
 /** Group results by target level and run the report card + learned pages. */
@@ -190,33 +294,59 @@ function drawArrowText(g: Gfx, a: number, b: number, x: number, y: number, color
 }
 
 const STAT_KEYS: StatKey[] = ['hp', 'mp', 'atk', 'def', 'spd', 'luck'];
+/** se_stamp_light pitches for rows 0–11 (40_audio 9.5: the C major scale). */
+const C_MAJOR = [1.0, 1.122, 1.26, 1.335, 1.498, 1.682, 1.888, 2.0, 2.245, 2.52, 2.67, 2.997];
 
-let crestC: HTMLCanvasElement | null = null;
-/** Bell school crest (24×24). */
+const crestCache = new Map<number, HTMLCanvasElement>();
+/** Bell school crest (size×size, drawn at that resolution): a ring of dots round a bell. */
 function crest(size = 24): HTMLCanvasElement {
-  if (crestC && size === 24) return crestC;
-  const [c, ctx] = makeCanvas(size, size);
+  let c = crestCache.get(size);
+  if (c) return c;
+  const [cv, ctx] = makeCanvas(size, size);
   const k = size / 24;
-  const px = (x: number, y: number, w: number, h: number, col: string) => {
+  const px = (x: number, y: number, col: string) => {
     ctx.fillStyle = col;
-    ctx.fillRect(Math.round(x * k), Math.round(y * k), Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k)));
+    ctx.fillRect(x, y, 1, 1);
   };
-  // laurel ring
-  for (let a = 0; a < 40; a++) {
-    const an = (a / 40) * Math.PI * 2;
-    px(12 + Math.cos(an) * 10.5 - 0.5, 12 + Math.sin(an) * 10.5 - 0.5, 1, 1, '#A8742A');
+  // ring of dots
+  const n = Math.round(40 * k);
+  for (let a = 0; a < n; a++) {
+    const an = (a / n) * Math.PI * 2;
+    px(Math.round(size / 2 - 0.5 + Math.cos(an) * 10.5 * k), Math.round(size / 2 - 0.5 + Math.sin(an) * 10.5 * k), '#A8742A');
   }
-  // bell
-  for (let y = 5; y < 17; y++) {
-    const hw = 2 + (y - 5) * 0.45;
-    px(12 - hw, y, hw * 2, 1, y < 9 ? '#F6D98A' : '#D9A441');
+  // bell profile (half width by row, in 24-unit space): crown, shoulders, straight waist, flared lip
+  const prof: [number, number][] = [[5, 1.2], [6, 2.8], [7, 3.5], [9, 3.9], [11, 4.2], [13, 4.8], [14, 5.6], [15, 6.8], [16.2, 7]];
+  const hwAt = (u: number): number => {
+    if (u < prof[0][0] || u > prof[prof.length - 1][0]) return -1;
+    for (let i = 1; i < prof.length; i++) {
+      if (u <= prof[i][0]) {
+        const [u0, w0] = prof[i - 1];
+        const [u1, w1] = prof[i];
+        return w0 + ((w1 - w0) * (u - u0)) / (u1 - u0);
+      }
+    }
+    return -1;
+  };
+  const cx = size / 2;
+  for (let py = 0; py < size; py++) {
+    const u = (py + 0.5) / k;
+    const hw = hwAt(u) * k;
+    if (hw <= 0) continue;
+    const x0 = Math.round(cx - hw);
+    const x1 = Math.round(cx + hw);
+    for (let x = x0; x < x1; x++) {
+      const f = (x - x0) / Math.max(1, x1 - x0);
+      let col = u > 14.6 ? '#A8742A' : f < 0.28 ? '#F6D98A' : f > 0.78 ? '#A8742A' : '#D9A441';
+      if (u > 14.6 && f < 0.3) col = '#D9A441';
+      px(x, py, col);
+    }
   }
-  px(7, 16, 10, 2, '#A8742A');
-  px(11, 18, 2, 2, '#6A4A1A');
-  px(11, 3, 2, 2, '#A8742A');
-  px(9, 8, 1, 5, '#FFF6D8');
-  if (size === 24) crestC = c;
-  return c;
+  // highlight streak, crown loop and clapper
+  for (let py = Math.round(7 * k); py < Math.round(13 * k); py++) px(Math.round(cx - 2.2 * k), py, '#FFF6D8');
+  for (let py = Math.round(3 * k); py < Math.round(5 * k); py++) for (let x = Math.round(cx - 1 * k); x < Math.round(cx + 1 * k); x++) px(x, py, '#A8742A');
+  for (let py = Math.round(16.2 * k); py < Math.round(18.4 * k); py++) for (let x = Math.round(cx - 1 * k); x < Math.round(cx + 1 * k); x++) px(x, py, '#6A4A1A');
+  crestCache.set(size, cv);
+  return cv;
 }
 
 class ReportCard {
@@ -258,7 +388,10 @@ class ReportCard {
       yield* tick(this, 300, (p) => (this.cover = 1 - p));
       this.opened = true;
     }
-    // stamps row by row, left page first (0.12s apart), pitch rising a semitone each
+    // stamps row by row, left page first, on the jingle's 16th grid:
+    // row i at 0.96s + 0.12s × i from the jingle start (40_audio 6.3 / 9.5),
+    // the se_stamp_light pitch climbing the C major scale
+    const tickStamps = () => this.stamps.forEach((st) => (st.t += FRAME));
     let k = 0;
     const pages = this.pages();
     for (let pi = 0; pi < pages.length; pi++) {
@@ -267,12 +400,13 @@ class ReportCard {
       for (let row = 0; row < 6; row++) {
         const key = STAT_KEYS[row];
         if (r.memberId === 'kanenari' && key === 'mp') continue;
+        const due = (this.withCover ? 960 : 360) + 120 * k;
+        while (this.t < due - FRAME / 2) yield* tick(this, FRAME, tickStamps);
         const gain = r.after[key] - r.before[key];
         const ex = gain >= (EXCELLENT[r.memberId] ?? EXCELLENT.minato)[key];
         this.stamps.push({ page: pi, row, excellent: ex, t: 0 });
-        sfx('se_stamp_light', { pitch: Math.pow(2, k / 12) });
+        sfx('se_stamp_light', { pitch: C_MAJOR[Math.min(C_MAJOR.length - 1, k)] });
         k++;
-        yield* tick(this, 120, () => this.stamps.forEach((s) => (s.t += FRAME)));
       }
     }
     yield* tick(this, 200, () => this.stamps.forEach((s) => (s.t += FRAME)));
@@ -299,11 +433,23 @@ class ReportCard {
     g.rect(0, 0, 384, 216, '#1B1733', 0.55 * this.dim * (1 - this.closing));
     const drop = Math.round(this.closing * 200);
     if (!this.opened) {
-      // closed card rising from below to (120,44)
+      // closed card rising from below to (120,44); then the cover turns over
+      // on its left edge while the card slides right, so that it lands as
+      // the left page of the spread (fold at x192)
       const y = 44 + Math.round((1 - this.rise) * 180);
-      const coverW = Math.max(1, Math.round(144 * this.cover));
-      this.drawPaper(g, 120 + (144 - coverW) * 0, y, coverW, 168, true);
-      if (this.cover < 1) this.drawPaper(g, 120, y, 144, 168, false, true);
+      const p = 1 - this.cover;
+      const hx = Math.round(120 + 72 * ease.quadInOut(p));
+      if (p > 0) this.drawPaper(g, hx, y, 144, 168, false, true);
+      const turn = Math.sin(p * Math.PI);
+      if (p < 0.5) {
+        const w = Math.max(1, Math.round(144 * (1 - 2 * p)));
+        this.drawPaper(g, hx, y, w, 168, true);
+        if (p > 0) g.rect(hx, y, w, 168, C.shadow, 0.25 * turn);
+      } else {
+        const w = Math.max(1, Math.round(144 * (2 * p - 1)));
+        this.drawPaper(g, hx - w, y, w, 168, false, true);
+        g.rect(hx - w, y, w, 168, C.shadow, 0.2 * turn);
+      }
       return;
     }
     const x = 48;
@@ -364,14 +510,85 @@ class ReportCard {
     g.rect(x, y + 1, w, h - 2, C.grid);
     g.rect(x + 2, y + 2, w - 4, h - 4, C.paper);
     if (inside) return;
-    if (cover && w > 60) {
-      g.rect(x + 6, y + 6, w - 12, h - 12, '#F4E6C8');
-      g.frame(x + 8, y + 8, w - 16, h - 16, '#D9C8A0');
-      g.img(crest(), Math.round(x + w / 2 - 12), y + 48);
-      g.text(REPORT.title, x + w / 2, y + 84, { color: C.ink, align: 'center' });
-      g.text('夕鳴小学校', x + w / 2, y + 120, { color: C.grayDark, align: 'center' });
+    if (cover) {
+      // the cover turns like a page: squash the pre-drawn cover horizontally
+      const img = coverCanvas();
+      g.ctx.drawImage(img, x, y, w, h);
+      if (w < 144) g.rect(x + w - 2, y + 1, 2, h - 2, C.grid);
     }
   }
+}
+
+let coverC: HTMLCanvasElement | null = null;
+/**
+ * The report card's cover (144×168): thick card #FBF3DC, a creased spine, a
+ * brass double rule with corner diamonds, the bell crest, the title, the
+ * school, and the class and name written in pencil at the bottom.
+ */
+function coverCanvas(): HTMLCanvasElement {
+  if (coverC) return coverC;
+  const W = 144;
+  const H = 168;
+  const [c, ctx] = makeCanvas(W, H);
+  const r = (x: number, y: number, w: number, h: number, col: string, a = 1) => {
+    ctx.globalAlpha = a;
+    ctx.fillStyle = col;
+    ctx.fillRect(x, y, w, h);
+    ctx.globalAlpha = 1;
+  };
+  r(0, 0, W, H, C.paper);
+  // cardboard fibres
+  for (let i = 0; i < 180; i++) {
+    const x = Math.floor(hash2(i, 1, 41) * W);
+    const y = Math.floor(hash2(i, 2, 41) * H);
+    r(x, y, hash2(i, 3, 41) < 0.5 ? 2 : 1, 1, hash2(i, 4, 41) < 0.6 ? '#F2E6C6' : '#FFF9E8');
+  }
+  // spine and crease on the hinge side, a lit edge on the other
+  r(0, 0, 5, H, '#EFE2C2');
+  r(5, 0, 1, H, '#DCCBA2');
+  r(6, 0, 1, H, '#FFF9E8');
+  r(W - 1, 0, 1, H, '#E3D3AE');
+  r(0, H - 1, W, 1, '#D9C8A0');
+  // brass double rule with little diamonds in the corners
+  const brass = '#D9A441';
+  const box = (i: number, a: number) => {
+    r(10 + i, 8 + i, W - 18 - i * 2, 1, brass, a);
+    r(10 + i, H - 9 - i, W - 18 - i * 2, 1, brass, a);
+    r(10 + i, 8 + i, 1, H - 16 - i * 2, brass, a);
+    r(W - 9 - i, 8 + i, 1, H - 16 - i * 2, brass, a);
+  };
+  box(0, 1);
+  box(3, 0.55);
+  for (const [cx, cy] of [[11, 9], [W - 10, 9], [11, H - 10], [W - 10, H - 10]]) {
+    r(cx - 1, cy, 3, 1, '#A8742A');
+    r(cx, cy - 1, 1, 3, '#A8742A');
+    r(cx, cy, 1, 1, '#FFE7A3');
+  }
+  // crest and title
+  const cr = crest(32);
+  ctx.drawImage(cr, Math.round(W / 2 - 16) + 2, 18);
+  const title = [...REPORT.title];
+  const tw = title.reduce((a, ch) => a + measure(ch), 0) + (title.length - 1) * 2;
+  let tx = Math.round(W / 2 + 2 - tw / 2);
+  for (const ch of title) {
+    drawText(ctx, ch, tx, 56, { color: C.ink });
+    tx += measure(ch) + 2;
+  }
+  r(W / 2 + 2 - 30, 76, 60, 1, brass);
+  r(W / 2 + 2 - 2, 75, 5, 3, brass);
+  r(W / 2 + 2 - 1, 76, 3, 1, '#FFE7A3');
+  drawText(ctx, REPORT.school, Math.round(W / 2 + 2), 82, { color: C.grayDark, align: 'center' });
+  // class and name, written in pencil on a ruled line
+  const pencil = '#4A3A6E';
+  drawText(ctx, REPORT.coverClass, 22, 110, { color: C.grayDark });
+  drawText(ctx, REPORT.coverName, 30, 130, { color: pencil });
+  for (let x = 20; x < W - 18; x++) if (x % 3 !== 2) r(x, 147, 1, 1, '#C9B690');
+  // a little wear: the bottom right corner has been thumbed
+  r(W - 5, H - 5, 5, 5, '#EFE2C2');
+  r(W - 5, H - 5, 1, 1, C.paper);
+  r(W - 1, H - 1, 1, 1, '#D9C8A0');
+  coverC = c;
+  return c;
 }
 
 /** Public: run the report card outside a battle (e.g. exp from an event). */
@@ -434,14 +651,14 @@ class ReportScene implements Scene {
 // ---- party wipe (18.4) ---------------------------------------------------------------------
 
 export function* wipeOut(s: BattleScene): Co {
-  // 500ms at half speed, then vermilion → dark (0.8s), music fades
+  // 0–500ms: the last member has fallen; the world runs at half speed
   s.timeScale = 0.5;
   yield 250;
   s.timeScale = 1;
+  // 500ms: vermilion → dark (0.8s), the battle song fades out
   setFlag('flag_lost_count', flag('flag_lost_count') + 1);
   stopBgm(0.8);
-  yield* s.say(SYS.wipe);
-  const st = { a: 0 };
+  const st = { a: 0, band: 1 };
   s.addFx({
     layer: 'top',
     dur: 0,
@@ -450,6 +667,13 @@ export function* wipeOut(s: BattleScene): Co {
       const p = st.a;
       g.rect(0, 0, 384, 216, '#E23B2E', Math.min(0.6, p * 1.4) * (1 - Math.max(0, p - 0.5) * 2));
       g.rect(0, 0, 384, 216, '#0B0B14', Math.max(0, (p - 0.3) / 0.7));
+      // the band stays readable above the dark (10_narrative 5.21)
+      if (st.band > 0 && s.msg.busy) {
+        const prev = s.msg.alpha;
+        s.msg.alpha = st.band;
+        s.msg.draw(g);
+        s.msg.alpha = prev;
+      }
     },
   });
   for (let t = 0; t < 800; t += FRAME) {
@@ -457,6 +681,8 @@ export function* wipeOut(s: BattleScene): Co {
     yield null;
   }
   st.a = 1;
+  yield* s.say(SYS.wipe);
+  s.showUi = false;
 }
 
 /** "戦う前から やりなおす": HP full, 朱肉 back to the battle-start value. */

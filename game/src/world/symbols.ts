@@ -101,19 +101,26 @@ export class SymbolAI {
     const p = f.player;
     const toP = () => stepToward(a, p.x, p.y, 0, 0, this.nw()); // face only
     void toP;
-    // shy behaviour for outclassed symbols
-    if (active && this.outclassed(a) && d < 4 && st.kind !== 'semi') {
+    // outclassed symbols blush and freeze (14.5): no chasing, no running away.
+    // Within 4 tiles they turn to Minato, show 照れ and quiver in place until
+    // he is 6 tiles away again.
+    if (active && this.outclassed(a) && st.kind !== 'semi' && (d < 4 || (st.mode === 'shy' && d < 6))) {
       if (st.mode !== 'shy') {
         st.mode = 'shy';
-        a.showEmote('sweat', 1500);
+        a.showEmote('shy', 0);
+        a.data.shyX = a.x;
       }
-      const dx = a.x - p.x;
-      const dy = a.y - p.y;
-      const l = Math.hypot(dx, dy) || 1;
-      stepToward(a, a.x + (dx / l) * 8, a.y + (dy / l) * 8, 2 * T, dt, this.nw());
-      a.dir = dirFromVec(-dx, -dy, a.dir);
+      a.moving = false;
+      a.path = [];
+      a.dir = dirFromVec(p.x - a.x, p.y - a.y, a.dir);
+      // tiny tremble (1px, every other 90ms)
+      a.ox = Math.floor(f.t / 90) % 2 ? 1 : 0;
       return;
-    } else if (st.mode === 'shy') st.mode = 'return';
+    } else if (st.mode === 'shy') {
+      st.mode = 'return';
+      a.ox = 0;
+      if (a.emote?.kind === 'shy') a.emote = null;
+    }
 
     switch (st.kind) {
       case 'hato':

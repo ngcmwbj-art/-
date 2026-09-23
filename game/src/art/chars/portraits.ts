@@ -287,6 +287,9 @@ function face(f: Fig, mood: string, tilt: number) {
         eye('eye');
         f.px(x + 1, ey + 1).px(x - 1 + 0, ey).px(x + 3, ey);
         f.px(x, ey - 2).px(x + 1, ey - 2).px(x + 2, ey - 2);
+        // lower rim of the wide-open eye (skin crease) so the white pops
+        f.part('skin', { flat: true, rim: false });
+        f.t(-2).px(x - 1, ey + 1).px(x + 3, ey + 1).px(x, ey + 3).px(x + 2, ey + 3).t(null);
       }, tilt);
       eye('brow');
       f.hl(9 + tilt, 12 + tilt, 10).hl(19 + tilt, 22 + tilt, 10);
@@ -523,7 +526,7 @@ function adultEyes(f: Fig, mood: string, narrow = false) {
     f.part('white', { flat: true, rim: false });
     f.rect(11, 13, 3, 3).rect(18, 13, 3, 3);
     f.part('eye', { flat: true, rim: false });
-    f.px(12, 14).px(19, 14);
+    f.px(12, 14).px(19, 14).hl(11, 13, 12).hl(18, 20, 12);
   } else if (narrow) {
     f.hl(11, 13, 15).hl(18, 20, 15);
   } else {
@@ -644,8 +647,13 @@ npcPortrait('npc_obaa', {
     f.t(-1).px(15, 5).px(16, 4).t(null);
     // kind narrow eyes and laugh lines
     adultEyes(f, mood, true);
+    // wrinkles as short strokes in the skin-shadow colour (no scattered
+    // single pixels): crow's feet fanning from the eye corners, laugh lines
+    // from the nose to the mouth corners, one soft line across the forehead
     f.part('line', { flat: true, rim: false });
-    f.px(10, 16).px(21, 16).px(13, 18).px(18, 18).px(12, 11).px(19, 11);
+    f.px(10, 14).px(9, 13).px(21, 14).px(22, 13);
+    f.px(13, 17).px(12, 18).px(18, 17).px(19, 18);
+    f.hl(13, 18, 10);
     f.part('lip', { flat: true, rim: false });
     if (mood === 'surprised') f.rect(15, 19, 2, 1);
     else f.hl(14, 17, 20).px(13, 19).px(18, 19);

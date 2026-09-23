@@ -19,4 +19,4 @@ export {
   setMemberLevel,
 } from './members';
 export { canUseItemInField, useItemInField, canUseSkillInField, useSkillInField, healMember, hanamaruAmount } from './field';
-export { SYS, TUT, LABEL, NORI, NORI_COMMON, REPORT, ITEM_TEXT, FIELD_TEXT, fill, fillAll } from './text';
+export { SYS, TUT, GAMEOVER, LABEL, NORI, NORI_COMMON, REPORT, ITEM_TEXT, FIELD_TEXT, fill, fillAll } from './text';
