@@ -29,10 +29,10 @@ import { DIR_VEC } from '../world/actor';
 import type { Actor } from '../world/actor';
 import { uiHud } from '../ui/hud';
 import * as T from '../data/text/events';
-import { besideToward, dirTo, eventBattle, F, floatLine, getKeyItem, giveKey, holdBgm, holdCamera, panBack, sendAway, tileFree, walkTo } from './lib';
+import { besideToward, dirTo, eventBattle, F, floatLine, getKeyItem, giveKey, holdBgm, holdCamera, panBack, sendAway, settle, tileFree, walkTo } from './lib';
 import { burst, playCaseGift, puff, smallVoice, sparkle } from './fx';
 import { meishi } from './art';
-import { cinema, guideNearHanko } from './stage';
+import { cinema, guideNearHanko, zoomIn, zoomOut } from './stage';
 import { registerWorldFx } from '../world/fx';
 import { animate, ease } from '../engine/tween';
 
@@ -108,10 +108,13 @@ registerScript('evt_chime_stop', function* (): Co {
   const f = F();
   const p = f.player;
   holdBgm(true);
-  // t=0: the first step out of the shop; Minato stops, facing down
+  // t=0: the first step out of the shop; Minato stops, facing down — on a
+  // whole tile (the step that set this off may have left him a pixel or
+  // half a tile over a line, and everyone who walks up to him goes by tiles)
   p.path = [];
   p.moving = false;
   p.dir = 'down';
+  yield* settle(p);
   const hato = actor('npc_hato');
   if (hato) hato.data.scripted = true;
   const sae = actor('npc_sae');
@@ -238,6 +241,8 @@ function* transform(hato: Actor): Co {
 function* hatoBlock(): Co {
   const f = F();
   const p = f.player;
+  // the stage-1 hato symbol stands on the same spot: this hato becomes it
+  show('sym_town_01', false);
   let hato = actor('npc_hato');
   const [px, py] = [p.tileX, p.tileY];
   if (!hato) {
@@ -259,6 +264,11 @@ function* hatoBlock(): Co {
   face('player', 'npc_hato');
   const home: [number, number] = [hato.x, hato.y];
   for (;;) {
+    // close in (2×) on the two of them: the gag is a card of a few pixels
+    // and a tie; the pair sits in the upper middle, clear of the window
+    // (まめ吉's 「まいど」 over the shop would be cut by the frame's top edge)
+    setFlag('flag_maido_hold', 1);
+    const z = yield* zoomIn(Math.round((p.x + hato.x) / 2), Math.round(Math.max(p.y, hato.y)) - 14, 380);
     sfx('se_coo');
     yield* msg(T.HATO_COO);
     // the card, held out in both wings
@@ -270,7 +280,8 @@ function* hatoBlock(): Co {
     yield* msg(T.HATO_B);
     card.on = false;
     yield* emote('player', 'sweat');
-    yield 150;
+    yield* zoomOut(z, 300);
+    setFlag('flag_maido_hold', 0);
     const r = yield* eventBattle({ enemies: ['enemy_hato_kakaricho'], music: 'bgm_battle' });
     if (r === 'load') return;
     if (r === 'win') break;
@@ -429,6 +440,7 @@ registerScript('evt_obaa_park_hint', function* (ctx): Co {
   const p = f.player;
   p.path = [];
   p.moving = false;
+  yield* settle(p);
   let ob = actor('npc_obaa');
   if (ctx.source === 'fushigi_04') {
     // A: after the stamp on まめ吉. She turns to Minato.

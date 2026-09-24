@@ -18,6 +18,8 @@ import { actor, face, msg, place, registerScript, setClockText, setFollowerVisib
 import type { Actor } from '../world/actor';
 import { playEndingNotebook, playNightSkyCut } from '../ui/api';
 import { uiHud } from '../ui/hud';
+import { registerWorldFx } from '../world/fx';
+import { CHUNK } from '../world/ground_cache';
 import * as T from '../data/text/events';
 import { F, getKeyItem, holdBgm, holdCamera, releaseCamera, walkTo } from './lib';
 import { bellGlow, ring, sparkle } from './fx';
@@ -419,8 +421,10 @@ function* cut5Tv(): Co {
     mom.data.scripted = true;
   }
   spawnDinner();
-  // a 2× shot of the table, the TV at the top of the frame
-  const z = yield* zoomIn(10 * 16, 4 * 16 + 4, 0);
+  // a 2× shot of the table, the TV at the top of the frame: centred on the
+  // TV so the frame stays inside the house (the room ends two tiles right of
+  // the table)
+  const z = yield* zoomIn(9 * 16, 4 * 16 + 4, 0);
   yield* game.fadeIn(300);
   yield 700;
   const w = new TvCloseup();
@@ -440,6 +444,34 @@ function* cut5Tv(): Co {
 
 /** The close-up of the crossing (cut 6), kept until the night sky covers it. */
 let crossingZoom: ZoomView | null = null;
+/** World centre of that close-up: the rails (x 968) right of centre, the road's middle row. */
+const CROSS_VIEW: [number, number] = [59 * 16, 22 * 16 + 8];
+
+/**
+ * The ground a few tiles past the town's east edge (cut 6 only): the last
+ * column — grass, and the road going on east over the crossing — laid again.
+ */
+const eastEdge = { on: false };
+registerWorldFx({
+  map: 'map_town',
+  update() {
+    if (eastEdge.on && !game.scripts.busy) eastEdge.on = false;
+  },
+  draw(f, g, cx, cy, layer) {
+    if (layer !== 'ground' || !eastEdge.on) return;
+    const mw = f.map.w * 16;
+    if (cx + W <= mw) return;
+    const srcX = mw - 16;
+    const chunkX = Math.floor(srcX / CHUNK);
+    const lx = srcX - chunkX * CHUNK;
+    const y0 = Math.max(0, Math.floor(cy / CHUNK));
+    const y1 = Math.min(Math.ceil((f.map.h * 16) / CHUNK) - 1, Math.floor((cy + H) / CHUNK));
+    for (let ty = y0; ty <= y1; ty++) {
+      const c = f.ground.chunk(chunkX, ty);
+      for (let k = 0; k < 4 && mw + k * 16 - cx < W; k++) g.ctx.drawImage(c, lx, 0, 16, c.height, mw + k * 16 - cx, ty * CHUNK - cy, 16, c.height);
+    }
+  },
+});
 
 function* cut6Crossing(): Co {
   const f = F();
@@ -451,13 +483,17 @@ function* cut6Crossing(): Co {
   setFollowerVisible(false);
   cutTo('map_town', 51, 22, 'right');
   stopAmbient('amb_kawabe', 0.5);
+  // 「踏切を正面に」: a 2× close-up, the crossing just right of the middle,
+  // the two on the road left of it, their feet well above the window. The
+  // crossing is two tiles from the town's east edge, so the frame looks a
+  // tile past it: that ground is laid on for this cut (eastEdge).
+  eastEdge.on = true;
+  const [vx, vy] = CROSS_VIEW;
   holdCamera();
-  f.camX = Math.max(0, Math.min(f.map.w * 16 - W, 56 * 16 - W / 2));
-  f.camY = Math.max(0, Math.min(f.map.h * 16 - H, 22 * 16 + 8 - H / 2));
+  f.camX = vx - W / 2;
+  f.camY = Math.max(0, Math.min(f.map.h * 16 - H, vy - H / 2));
   f.camOverride = { x: f.camX + W / 2, y: f.camY + H / 2 };
-  // 「踏切を正面に」: a 2× close-up with the crossing in the middle — the
-  // two on its left, the rails right of centre, the window below them
-  crossingZoom = yield* zoomIn(58 * 16, 22 * 16 - 6, 0);
+  crossingZoom = yield* zoomIn(vx, vy, 0);
   const p = f.player;
   p.visible = false;
   // カネナリくん, waiting in front of the crossing — seen once the train has gone
@@ -519,6 +555,7 @@ function* cut6Crossing(): Co {
 function endCrossingZoom(): void {
   if (crossingZoom) crossingZoom.done = true;
   crossingZoom = null;
+  eastEdge.on = false;
 }
 
 export function* evtEnding(): Co {

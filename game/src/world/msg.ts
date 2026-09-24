@@ -68,6 +68,17 @@ export function setMsgHooks(h: MsgHooks): void {
   hooks = h;
 }
 
+/**
+ * Optional (scenario): where the window of each speaker's pages goes — the
+ * story scenes move it to the top when the people in the scene stand under
+ * the bottom window. Returning undefined keeps the default.
+ */
+type MsgPosHook = (speaker: string) => 'top' | 'bottom' | undefined;
+let posHook: MsgPosHook | null = null;
+export function setMsgPosHook(fn: MsgPosHook | null): void {
+  posHook = fn;
+}
+
 interface Line {
   kind: 'speaker' | 'text' | 'page' | 'choice' | 'branch' | 'end' | 'cmd' | 'guard';
   v: string;
@@ -113,7 +124,7 @@ export function* runMsg(src: string, defaultSpeaker = 'narr'): Co<number> {
     const sp = speakerOf(speaker);
     const p = pages;
     pages = [];
-    yield* say(p, { name: sp.name, voice: sp.voice });
+    yield* say(p, { name: sp.name, voice: sp.voice, pos: posHook?.(speaker) });
   }
 
   for (let i = 0; i < lines.length; i++) {

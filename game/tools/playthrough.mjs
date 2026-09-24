@@ -427,9 +427,10 @@ async function assertReach(stage) {
 async function stampObject(fid) {
   if (await flag('flag_' + fid)) return;
   const r = await page.evaluate(async (fid) => {
-    const maps = await import('/src/world/maps.ts');
+    // the running map's own data (a dynamic import of the module could be a second,
+    // empty copy after Vite's HMR has touched it)
     const f = window.__game.cmd.fieldRef();
-    const o = (maps.getMapDef(f.map.id).objects ?? []).find((x) => x.fushigi === fid && x.t === 'obj');
+    const o = (f.map.def.objects ?? []).find((x) => x.fushigi === fid && x.t === 'obj');
     if (!o) return 'none';
     const w = o.w ?? 1;
     const h = o.h ?? 1;
@@ -478,9 +479,8 @@ async function stampActor(fid, id, side = 'below') {
 /** Leave a room by its door to `to` on foot: to the tile inside the door, then down through it. */
 async function exitRoom(to = 'map_town') {
   const d = await page.evaluate(async (to) => {
-    const maps = await import('/src/world/maps.ts');
     const f = window.__game.cmd.fieldRef();
-    const o = (maps.getMapDef(f.map.id).objects ?? []).find((x) => x.t === 'door' && x.to === to);
+    const o = (f.map.def.objects ?? []).find((x) => x.t === 'door' && x.to === to);
     return o ? [o.x, o.y] : null;
   }, to);
   if (!d) throw new Error(`exitRoom: no door to ${to}`);
@@ -652,6 +652,8 @@ async function talkTo(id, { side = 'below', tries = 8, key = 'KeyZ' } = {}) {
         const f = window.__game.cmd.fieldRef();
         const a = f.actors.find((x) => x.id === id);
         if (!a) return 'missing';
+        // a wandering one (the stray carts) waits where it is while Minato walks up
+        if (a.data?.cart) a.data.wait = 4000;
         const sides = { below: [0, 1, 'up'], above: [0, -1, 'down'], left: [-1, 0, 'right'], right: [1, 0, 'left'] };
         const order = [side, ...Object.keys(sides).filter((k) => k !== side)];
         const p = f.player;
@@ -1013,7 +1015,9 @@ try {
     start = BEATS.findIndex((b) => b.name === FROM);
     if (start < 0) throw new Error(`--from: unknown beat ${FROM}; beats: ${BEATS.map((b) => b.name).join(' ')}`);
     await tap('KeyZ');
-    await page.evaluate((b) => window.__game.cmd.jump(b === 'chime' ? 'chime' : b, true), FROM);
+    // test beats that are not story beats of jump(): the town's ふしぎ round starts in stage 2
+    const JUMP_AS = { fushigi: 'stage2' };
+    await page.evaluate((b) => window.__game.cmd.jump(b, true), JUMP_AS[FROM] ?? FROM);
     await waitFor((s) => s.top === 'FieldScene', 8000, 'jump');
     await sleep(600);
   }

@@ -119,7 +119,7 @@ registerScript('evt_opening', function* (): Co {
   p.dir = 'down';
   yield 200;
   // back to the room's own framing
-  yield* zoomOut(z, 600);
+  yield* zoomOut(z, 450);
   playBgm('bgm_home', { fade: 1.5 });
   setFlag('flag_opening_done', 1);
   showGuide(T.GUIDE_MOVE, 4000);

@@ -158,7 +158,7 @@ function* maigoBroadcast(): Co {
   const [hx, hy] = speakerHorns();
   yield* panTo(Math.floor(hx / 16), Math.floor(hy / 16) + 3, 800);
   // then close in on the horns (2×): this is where the voice comes from
-  const z = yield* zoomIn(hx, hy + 26, 380);
+  const z = yield* zoomIn(hx, hy + 18, 380);
   setFlag('flag_broadcast_on', 1);
   waves.on = true;
   waves.t = 0;

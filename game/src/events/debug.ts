@@ -72,7 +72,7 @@ const CHAIN: { beat: string; steps: Step[]; at: [string, number, number, Dir]; r
         setFlag('flag_bgm_hold', 1);
       },
     ],
-    at: ['map_town', 32, 23, 'down'],
+    at: ['map_town', 32, 22, 'down'],
     run: 'evt_hato_block',
     desc: 'ハト係長（チュートリアル戦闘）',
   },

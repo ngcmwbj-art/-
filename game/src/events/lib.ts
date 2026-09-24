@@ -14,7 +14,7 @@ import { startBattle, type BattleOpts } from '../battle/api';
 import { field, type FieldScene } from '../world/field';
 import { runMsg } from '../world/msg';
 import { actor, walk } from '../world/api';
-import { DIR_VEC } from '../world/actor';
+import { DIR_VEC, type Actor } from '../world/actor';
 import { runGameOver } from '../ui/gameover';
 import { uiHud } from '../ui/hud';
 import { continueGame } from '../ui/flow';
@@ -189,6 +189,28 @@ export function tileFree(tx: number, ty: number): boolean {
   return f.free(f.player, tx * 16 + 8, ty * 16 + 16, true);
 }
 
+/**
+ * Would someone standing on tile (tx, ty) be hidden behind a tall prop drawn
+ * in front of them (an arcade pillar, a signboard)? NPCs get no x-ray
+ * silhouette, so a scene must not put its actors there.
+ */
+export function hiddenAt(tx: number, ty: number): boolean {
+  const f = F();
+  const x = tx * 16 + 8;
+  const y = ty * 16 + 16;
+  for (const p of f.props) {
+    if (!p.present || p.art.flat) continue;
+    const a = p.art;
+    if (p.y + a.foot <= y) continue;
+    const l = p.x + a.ox;
+    const t = p.y + a.oy;
+    const ox = Math.min(x + 6, l + a.w) - Math.max(x - 6, l);
+    const oy = Math.min(y, t + a.h) - Math.max(y - 20, t);
+    if (ox >= 6 && oy >= 10) return true;
+  }
+  return false;
+}
+
 /** The free tile next to (tx, ty) on the side of (fromX, fromY) — for "walk up to someone". */
 export function besideToward(tx: number, ty: number, fromX: number, fromY: number): [number, number] {
   const dx = fromX - tx;
@@ -197,8 +219,42 @@ export function besideToward(tx: number, ty: number, fromX: number, fromY: numbe
   if (Math.abs(dx) >= Math.abs(dy)) cands.push([Math.sign(dx) || 1, 0], [0, Math.sign(dy) || 1], [0, -(Math.sign(dy) || 1)]);
   else cands.push([0, Math.sign(dy) || 1], [Math.sign(dx) || 1, 0], [-(Math.sign(dx) || 1), 0]);
   cands.push([-(Math.sign(dx) || 1), 0], [0, -(Math.sign(dy) || 1)]);
-  for (const [ox, oy] of cands) if (tileFree(tx + ox, ty + oy)) return [tx + ox, ty + oy];
+  // someone else already standing there (the one walking up, at (fromX, fromY), doesn't count)
+  const f = F();
+  const taken = (x: number, y: number) =>
+    f.actors.some((a) => a.visible && a.solid && a.kind !== 'follower' && a.tileX === x && a.tileY === y && !(a.tileX === fromX && a.tileY === fromY));
+  // free, in sight and nobody there first; then free and nobody there; then any free tile
+  const tiers: ((x: number, y: number) => boolean)[] = [
+    (x, y) => tileFree(x, y) && !taken(x, y) && !hiddenAt(x, y),
+    (x, y) => tileFree(x, y) && !taken(x, y),
+    (x, y) => tileFree(x, y),
+  ];
+  for (const ok of tiers) for (const [ox, oy] of cands) if (ok(tx + ox, ty + oy)) return [tx + ox, ty + oy];
   return [tx + (Math.sign(dx) || 1), ty];
+}
+
+/**
+ * Finish the step an actor is in: onto the nearest whole tile (keeping its
+ * facing). Scenes stage people by tiles; a stop that left Minato a pixel over
+ * a tile line would put whoever walks up to him a tile too far.
+ */
+export function* settle(a: Actor, speed = 4.5): Co {
+  const x = Math.round((a.x - 8) / 16) * 16 + 8;
+  const y = Math.round((a.y - 16) / 16) * 16 + 16;
+  if (Math.abs(a.x - x) < 0.5 && Math.abs(a.y - y) < 0.5) {
+    a.x = x;
+    a.y = y;
+    return;
+  }
+  if (!tileFree(Math.floor(x / 16), Math.floor((y - 1) / 16))) return;
+  const dir = a.dir;
+  a.path = [[x, y]];
+  a.pathSpeed = speed * 16;
+  a.faceLock = true;
+  yield () => a.path.length === 0;
+  a.faceLock = false;
+  a.moving = false;
+  a.dir = dir;
 }
 
 /** Direction from tile a to tile b (dominant axis). */

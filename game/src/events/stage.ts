@@ -20,6 +20,8 @@ import { W, H } from '../engine/screen';
 import { animate, ease } from '../engine/tween';
 import { addItem } from '../game/state';
 import { field, type FieldScene } from '../world/field';
+import type { Actor } from '../world/actor';
+import { setMsgPosHook } from '../world/msg';
 import { registerWorldFx } from '../world/fx';
 import { BOX, dialogVisible } from '../ui/dialog';
 import { uiHud } from '../ui/hud';
@@ -55,6 +57,12 @@ export class ZoomView {
     const sx = Math.max(0, Math.min(W - sw, Math.round(this.cx - Math.round(f.camX) - sw / 2)));
     const sy = Math.max(0, Math.min(H - sh, Math.round(this.cy - Math.round(f.camY) - sh / 2)));
     return [sx, sy, sw, sh];
+  }
+
+  /** Where world point (x, y) lands on the screen through this close-up. */
+  toScreen(f: FieldScene, x: number, y: number): [number, number] {
+    const [sx, sy] = this.source(f);
+    return [(x - Math.round(f.camX) - sx) * this.scale, (y - Math.round(f.camY) - sy) * this.scale];
   }
 
   /** Blow the frame being drawn (`g`, the world canvas) up around the centre. */
@@ -115,6 +123,19 @@ export function* zoomPan(z: ZoomView, cx: number, cy: number, ms: number): Co {
   );
 }
 
+/** The close-up on screen right now (fully dissolved in), if any. */
+function activeZoom(f: FieldScene): ZoomView | null {
+  for (const e of zooms) if (e.f === f && !e.z.done && e.z.k >= 0.5) return e.z;
+  return null;
+}
+
+/** World → screen, through the close-up when there is one. */
+function screenOf(f: FieldScene, x: number, y: number): [number, number, number] {
+  const z = activeZoom(f);
+  if (z) return [...z.toScreen(f, x, y), z.scale];
+  return [x - Math.round(f.camX), y - Math.round(f.camY), 1];
+}
+
 // ---------------------------------------------------------------- the dialog lift (fixed rooms)
 
 let lift = 0;
@@ -150,18 +171,72 @@ registerWorldFx({
       liftMap = f.map.id;
       lift = 0;
     }
-    if (!fixedRoom(f)) {
+    if (!dialogVisible()) boxPos = 'bottom';
+    if (!fixedRoom(f) || activeZoom(f)) {
       lift = 0;
       return;
     }
     const [, baseY] = f.followTarget();
-    const want = !liftOff && dialogVisible() && game.top === f ? wantedLift(f, baseY) : 0;
+    const want = !liftOff && dialogVisible() && boxPos === 'bottom' && game.top === f ? wantedLift(f, baseY) : 0;
     if (want === 0 && lift === 0) return;
     lift = want + (lift - want) * Math.exp(-14 * (dt / 1000));
     if (Math.abs(lift - want) < 0.5) lift = want;
     f.camY = baseY + Math.round(lift);
   },
 });
+
+// ---------------------------------------------------------------- the window moves up (msg blocks)
+
+/** Where the current msg window went (the lift only applies under a bottom window). */
+let boxPos: 'top' | 'bottom' = 'bottom';
+
+/** The top window with its name tag reaches this far down the screen. */
+const TOP_BOX_BOTTOM = 8 + BOX.h + 14;
+
+/**
+ * Before each speaker's pages: if the people in the scene would stand under
+ * the bottom window (a cutscene near the bottom of a room that fits the
+ * screen, a close-up), and the room can't simply slide up to clear them, the
+ * window goes to the top — unless that would cover them too.
+ */
+function autoPos(speaker: string): 'top' | 'bottom' | undefined {
+  const f = field();
+  if (!f || game.top !== f || f.map.id !== liftMap) return (boxPos = 'bottom');
+  const who = new Set<Actor>();
+  const add = (a: Actor | null | undefined) => {
+    if (a && a.visible && a.alpha > 0.5 && !a.drawFn) who.add(a);
+  };
+  add(f.player);
+  if (f.follower) add(f.follower);
+  add(f.talking);
+  const id = speaker.split(':')[0];
+  if (id === 'flip' || id === 'npc_kanenari') add(f.follower ?? f.actorById('npc_kanenari'));
+  else if (id.startsWith('npc_')) add(f.actorById(id));
+  // in a fixed room, measured from the room's own framing (a lift already
+  // under way doesn't count)
+  const [, baseY] = f.followTarget();
+  const room = fixedRoom(f) && !activeZoom(f);
+  let feet = -1e9;
+  let head = 1e9;
+  for (const a of who) {
+    const fy = a.y + Math.max(0, a.oy);
+    const [x, y0, k] = screenOf(f, a.x, fy);
+    const y = room ? fy - baseY : y0;
+    if (x < -8 || x > W + 8 || y < 0 || y > H + 24 * k) continue;
+    feet = Math.max(feet, y);
+    head = Math.min(head, y - 22 * k);
+  }
+  let pos: 'top' | 'bottom' = 'bottom';
+  const need = feet - (BOX.y - 3);
+  if (need > 0) {
+    // a fixed room slides up by itself when that is enough
+    const lifts = room && !liftOff && wantedLift(f, baseY) >= need - 0.5;
+    if (!lifts && head > TOP_BOX_BOTTOM) pos = 'top';
+  }
+  boxPos = pos;
+  return pos;
+}
+setMsgPosHook(autoPos);
 
 // ---------------------------------------------------------------- letterbox & vignette
 

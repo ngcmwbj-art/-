@@ -37,12 +37,12 @@ registerScript('evt_mall_enter', function* (): Co {
   yield 350;
   // the hall fits the screen, so the look goes in close instead: 2×, from
   // the entrance up to the dry fountain under the skylight (three tiles), and back
-  const z = yield* zoomIn(p.x, p.y - 30, 420);
+  const z = yield* zoomIn(p.x, p.y - 30, 360);
   yield 250;
   yield* zoomPan(z, 11 * 16, 7 * 16 + 8, 1500);
   yield 300;
   yield* msg(T.MALL_ENTER);
-  yield* zoomOut(z, 500);
+  yield* zoomOut(z, 420);
   if (flag('flag_kanenari_joined')) {
     const k = F().follower;
     if (k) {
