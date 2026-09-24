@@ -4,7 +4,7 @@
 
 import type { Co } from '../engine/co';
 import { game } from '../engine/game';
-import { flag, setFlag, state, type Dir } from '../game/state';
+import { flag, setFlag, type Dir } from '../game/state';
 import { syncProgressSkills } from '../data/battle';
 import { bgmTapeStop, playAmbient, playBgm, playChimeMotif, sfx, stopAmbient } from '../audio';
 import {
@@ -28,12 +28,20 @@ import {
 import { DIR_VEC } from '../world/actor';
 import type { Actor } from '../world/actor';
 import { showBubble, showGuide } from '../ui/api';
+import { uiHud } from '../ui/hud';
 import * as T from '../data/text/events';
-import { besideToward, dirTo, eventBattle, F, floatLine, getKeyItem, holdBgm, sendAway, tileFree, walkTo } from './lib';
+import { besideToward, dirTo, eventBattle, F, floatLine, getKeyItem, giveKey, holdBgm, sendAway, tileFree, walkTo } from './lib';
 import { playCaseGift, puff, sparkle } from './fx';
 
 const HINOYA_DOOR: [number, number] = [32, 21];
 const HINOYA_FRONT: [number, number] = [32, 22];
+
+/** Where おばあ stands in front of ひのや (beside Minato if he is standing there). */
+function storefront(): [number, number] {
+  const p = F().player;
+  if (p.tileX === HINOYA_FRONT[0] && p.tileY === HINOYA_FRONT[1]) return tileFree(33, 22) ? [33, 22] : [32, 23];
+  return HINOYA_FRONT;
+}
 
 function onScreen(a: Actor): boolean {
   const f = F();
@@ -213,7 +221,7 @@ function* obaaComesOut(near: boolean): Co<Actor> {
       yield null;
     }
     ob.alpha = 1;
-    yield* walk('npc_obaa', [HINOYA_FRONT], { speed: 2 });
+    yield* walk('npc_obaa', [storefront()], { speed: 2 });
   } else {
     // far from the shop (17:00 by the 150 s fallback): she hurries over
     const [sx, sy] = tileNear(p.tileX, p.tileY, HINOYA_FRONT[0], HINOYA_FRONT[1], 7);
@@ -241,17 +249,18 @@ function* hankoGiven(): Co {
   // the case, opened in the middle of the screen
   playBgm('bgm_jingle_item');
   yield* playCaseGift(T.HANKO_GET);
-  if (!state.inventory.includes('item_hanko_case')) state.inventory.push('item_hanko_case');
-  if (!state.inventory.includes('item_mimashita_cho')) state.inventory.push('item_mimashita_cho');
+  giveKey('item_hanko_case');
+  giveKey('item_mimashita_cho');
   setFlag('flag_got_hanko', 1);
+  yield 34;
+  uiHud.clearNotes();
   syncProgressSkills();
   yield* msg(T.HANKO_C);
   yield* msg(T.HANKO_D);
   showGuide(T.GUIDE_FUSHIGI, 4000);
   // she waits at the storefront
-  if (ob.tileX !== HINOYA_FRONT[0] || ob.tileY !== HINOYA_FRONT[1]) {
-    yield* walkTo('npc_obaa', HINOYA_FRONT[0], HINOYA_FRONT[1], { speed: 2 });
-  }
+  const [fx, fy] = storefront();
+  if (ob.tileX !== fx || ob.tileY !== fy) yield* walkTo('npc_obaa', fx, fy, { speed: 2 });
   ob.dir = 'down';
   delete ob.data.scripted;
   ob.data.home = [ob.x, ob.y];
@@ -278,8 +287,12 @@ function* obaaGoesIn(ob: Actor): Co {
     sendAway(ob, pts, 2.6, 0, true);
     return;
   }
-  yield* walkTo('npc_obaa', HINOYA_FRONT[0], HINOYA_FRONT[1], { speed: 2 });
-  yield* walk('npc_obaa', [HINOYA_DOOR], { speed: 2 });
+  const [fx, fy] = storefront();
+  if (ob.tileX !== fx || ob.tileY !== fy) yield* walkTo('npc_obaa', fx, fy, { speed: 2 });
+  const pl = F().player;
+  const blocked = pl.tileX === HINOYA_FRONT[0] && pl.tileY === HINOYA_FRONT[1];
+  const atFront = ob.tileX === HINOYA_FRONT[0] && ob.tileY === HINOYA_FRONT[1];
+  yield* walk('npc_obaa', blocked || atFront ? [HINOYA_DOOR] : [HINOYA_FRONT, HINOYA_DOOR], { speed: 2 });
   sfx('se_door');
   for (let i = 5; i >= 0; i--) {
     ob.alpha = i / 6;
@@ -343,3 +356,7 @@ registerScript('evt_alley_open', function* (): Co {
   floatLine(T.ALLEY_OPEN, 1500);
 });
 
+
+registerScript('evt_hanko_given', function* (): Co {
+  if (!flag('flag_got_hanko')) yield* hankoGiven();
+});

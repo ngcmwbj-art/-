@@ -15,7 +15,7 @@ import { blend, depthShade, lightPool, paintShell, screenPool, screenSpill, shel
 import { castRight, finish, lt } from './kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
-import { printLines, scribble, tiny } from './text';
+import { fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
 // ---------------------------------------------------------------- shell
@@ -102,7 +102,7 @@ registerProp('in_mr_shell', () => {
     p.vline(x, 5, 5 + h - 1, P.goldPale);
     p.vline(x + 3, 5, 5 + h - 1, P.brassOld);
     p.hline(x, x + 3, 5 + h - 1, P.wood);
-    scribble(p, x + 1, 6, 3, P.wood, 40 + k, 2, true);
+    for (let j = 0; j < 3; j++) p.vline(x + 1 + (j % 2), 6 + j * 3, 7 + j * 3, P.wood);
     // red price tag
     p.rect(x, 5 + h - 4, 4, 3, P.verm);
     p.hline(x + 1, x + 2, 5 + h - 3, P.white);
@@ -170,7 +170,7 @@ function meatChart(p: PixelCanvas, x: number, y: number): void {
   p.hline(x, x + W - 1, y + H - 1, P.paperGrid);
   p.vline(x + W - 1, y, y + H - 1, P.paperGrid);
   p.rect(x + 1, y + 1, W - 2, 3, P.red);
-  scribble(p, x + 3, y + 1, 4, P.white, 5, 2);
+  printLines(p, x + 3, y + 2, 16, 1, P.white, 5);
   // cow: body with four cuts divided by white lines, head raised to the right
   const cx = x + 2;
   const cy = y + 6;
@@ -477,7 +477,7 @@ registerProp('in_mr_freezer', () =>
     p.rect(22, 0, 2, 5, P.paperGrid);
     p.rect(18, 6, 5, 2, P.red);
     p.rect(19, 9, 9, 4, P.woodLt);
-    scribble(p, 19, 9, 2, P.wood, 3, 3);
+    printLines(p, 20, 10, 7, 2, P.wood, 3);
     p.rect(3, 8, 10, 5, P.woodLt);
     p.rect(3, 7, 10, 1, P.goldPale);
     p.vline(12, 8, 12, P.brassOld);
@@ -499,56 +499,85 @@ registerProp('in_mr_showcase', () => {
   const trays: [number, string][] = [
     [3, 'loin'], [15, 'mince'], [27, 'ham'], [39, 'sausage'], [51, 'karaage'], [64, 'empty'], [78, 'loin2'],
   ];
+  /** The green plastic grass (バラン) that divides the trays: a zigzag strip. */
+  const baran = (bx: number) => {
+    for (let j = 5; j <= 10; j++) {
+      p.set(bx + (j % 2), j, P.leafDeep);
+      p.set(bx + 1 - (j % 2), j, P.leaf);
+    }
+    p.set(bx, 4, P.leafYoung);
+  };
   for (const [tx, kind] of trays) {
     const w = kind === 'empty' ? 13 : 11;
     p.rect(tx, 4, w, 8, P.white);
     p.hline(tx, tx + w - 1, 11, P.concrete);
     p.vline(tx + w - 1, 4, 11, P.concrete);
     const ix = tx + 1;
+    if (kind !== 'empty') baran(tx + w - 3);
     switch (kind) {
       case 'loin':
       case 'loin2':
+        // three slices: red lean, a white rim of fat, marbling, a wet glint
         for (let j = 0; j < 3; j++) {
-          p.rect(ix + j * 3, 5, 3, 5, kind === 'loin' ? P.red : P.crimson);
-          p.vline(ix + j * 3, 5, 9, P.vermLt);
-          p.set(ix + j * 3 + 1, 6 + (j % 2), P.white);
-          p.set(ix + j * 3 + 2, 8, P.skin1);
+          const c = kind === 'loin' ? P.red : P.crimson;
+          p.rect(ix + j * 3 - (j > 0 ? 1 : 0), 5, 3, 6, c);
+          p.vline(ix + j * 3 - (j > 0 ? 1 : 0), 5, 10, P.skin1);
+          p.set(ix + j * 3 + 1 - (j > 0 ? 1 : 0), 7 + (j % 2), P.peach);
+          p.set(ix + j * 3 + 1 - (j > 0 ? 1 : 0), 5, P.glint);
+          p.set(ix + j * 3 + 2 - (j > 0 ? 1 : 0), 10, P.vermShade);
         }
         break;
       case 'mince':
-        p.rect(ix, 5, 9, 5, P.peach);
-        for (let j = 0; j < 9; j++) p.set(ix + ((j * 5) % 9), 5 + ((j * 3) % 5), j % 2 ? P.sunShade : P.skin2);
+        // a mound of mince: pink with darker specks, a lit top, a glint
+        p.ellipse(ix + 3.5, 7.5, 4, 3, P.peach);
+        p.hline(ix + 1, ix + 5, 5, P.skin2);
+        for (let j = 0; j < 7; j++) p.set(ix + 1 + ((j * 5) % 6), 6 + ((j * 3) % 4), j % 2 ? P.sunShade : P.crimson);
+        p.set(ix + 2, 5, P.glint);
+        p.set(ix + 3, 5, P.skin1);
         break;
       case 'ham':
+        // round slices of ham fanned out, each with a pale rim and a glint
         for (let j = 0; j < 3; j++) {
-          p.ellipse(ix + 2 + j * 3, 7.5, 2, 2.2, P.crimson);
-          p.set(ix + 1 + j * 3, 6, P.skin1);
+          p.ellipse(ix + 2 + j * 2.5, 7.5, 2, 2.4, P.crimson);
+          p.set(ix + 1 + j * 2.5, 6, P.skin1);
+          p.set(ix + 2 + j * 2.5, 9, P.sunShade);
         }
+        p.set(ix + 6, 6, P.glint);
         break;
       case 'sausage':
         for (let j = 0; j < 3; j++) {
-          p.rect(ix, 5 + j * 2, 8, 1, P.sunShade);
+          p.rect(ix, 5 + j * 2, 7, 2, P.sunShade);
+          p.hline(ix, ix + 6, 5 + j * 2, P.peach);
           p.set(ix, 5 + j * 2, P.maroon);
-          p.set(ix + 3, 5 + j * 2, P.peach);
+          p.set(ix + 2 + j, 5 + j * 2, P.glint);
         }
         break;
       case 'karaage':
         for (let j = 0; j < 5; j++) {
-          const kx = ix + (j % 3) * 3;
-          const ky = 5 + Math.floor(j / 3) * 2;
-          p.rect(kx, ky, 2, 2, P.brass);
+          const kx = ix + (j % 3) * 2 + (j > 2 ? 1 : 0);
+          const ky = 5 + Math.floor(j / 3) * 3;
+          p.rect(kx, ky, 3, 3, P.brassOld);
           p.set(kx, ky, P.goldPale);
+          p.set(kx + 1, ky, P.brass);
+          p.set(kx + 2, ky + 2, P.wood);
         }
         break;
       case 'empty':
-        // empty tray, a few crumbs, the card 『5時から』
-        p.set(ix + 2, 9, P.goldPale);
-        p.set(ix + 7, 7, P.brass);
-        p.rect(ix + 3, 5, 7, 4, P.paper);
-        p.hline(ix + 3, ix + 9, 8, P.paperGrid);
-        tiny(p, '5', ix + 4, 5, P.verm);
-        p.hline(ix + 7, ix + 8, 6, P.verm);
-        p.set(ix + 8, 5, P.verm);
+        // the croquette tray, empty: bare white, a few crumbs, the grease
+        // stain where they sat, and a white card with a big red 5 (5時から)
+        p.rect(ix, 5, w - 3, 6, P.glint);
+        p.hline(ix, ix + w - 4, 10, P.concreteLt);
+        for (const [cx, cy] of [[ix + 1, 9], [ix + 3, 10], [ix + 8, 9], [ix + 2, 6]] as const) p.set(cx, cy, P.brass);
+        p.set(ix + 9, 7, P.goldPale);
+        p.rect(ix + 4, 3, 7, 7, P.white);
+        p.hline(ix + 4, ix + 10, 9, P.concrete);
+        p.vline(ix + 10, 3, 9, P.concreteLt);
+        // the hand-written 5
+        p.hline(ix + 6, ix + 9, 4, P.verm);
+        p.vline(ix + 6, 4, 6, P.verm);
+        p.hline(ix + 6, ix + 8, 6, P.verm);
+        p.vline(ix + 9, 6, 7, P.verm);
+        p.hline(ix + 6, ix + 8, 8, P.verm);
         break;
     }
   }
@@ -562,22 +591,21 @@ registerProp('in_mr_showcase', () => {
   p.rect(84, 2, 9, 7, P.navy);
   p.rect(85, 2, 7, 6, P.paper);
   p.vline(85, 2, 7, P.navy);
-  scribble(p, 87, 3, 1, P.ink, 7, 3);
+  printLines(p, 87, 3, 4, 2, P.ink, 7);
   p.hline(87, 90, 6, P.steel);
   p.line(92, 7, 94, 10, P.verm);
   // stainless lip, white enamel front with a red stripe and the shop mark
   p.rect(0, 16, 96, 2, P.concrete);
   p.hline(0, 95, 16, P.white);
   p.rect(0, 18, 96, 8, P.white);
-  p.rect(0, 20, 96, 2, P.red);
-  p.hline(0, 95, 21, P.vermShade);
+  p.hline(0, 95, 25, P.red);
   for (const mx of [20, 68]) {
     p.ellipse(mx + 3.5, 23.5, 3, 3, P.verm);
     p.ellipse(mx + 3.5, 23.5, 2, 2, P.white);
     p.set(mx + 3, 23, P.verm);
     p.set(mx + 4, 24, P.verm);
   }
-  scribble(p, 32, 23, 5, P.steel, 21, 2);
+  fontTextSmall(p, 'マルヤマ', 32, 18, P.verm, 1);
   p.rect(0, 26, 96, 2, P.charcoal);
   finish(p, { soft: true });
   const img = p.toCanvas();
@@ -602,8 +630,7 @@ function cabinet(p: PixelCanvas, y: number): void {
   p.rect(0, y, 16, 2, P.concrete);
   p.hline(0, 15, y, P.white);
   p.rect(0, y + 2, 16, 8, P.white);
-  p.rect(0, y + 4, 16, 2, P.red);
-  p.hline(0, 15, y + 5, P.vermShade);
+  p.hline(0, 15, y + 9, P.red);
   p.rect(0, y + 10, 16, 2, P.charcoal);
 }
 

@@ -14,6 +14,9 @@ import { getScript } from '../world/scripts';
 import { uiHud } from '../ui/hud';
 import { stopAllAmbient, stopBgm } from '../audio';
 import { startNewGame } from '../ui/api';
+import { setFollowerVisible } from '../world/api';
+import { ENDING_CUTS } from './ending';
+import { animFrame, charSprite, poseFrame, walkFrame } from '../art/chars';
 
 type Step = () => void;
 
@@ -82,7 +85,7 @@ const CHAIN: { beat: string; steps: Step[]; at: [string, number, number, Dir]; r
   {
     beat: 'mamekichi',
     steps: [set('flag_got_hanko'), keys('item_hanko_case', 'item_mimashita_cho'), () => setFlag('flag_bgm_hold', 0)],
-    at: ['map_town', 36, 23, 'up'],
+    at: ['map_town', 36, 22, 'up'],
     desc: 'まめ吉に みました（fushigi_04 → 公園のヒント）',
   },
   { beat: 'alley', steps: [set('flag_fushigi_04', 'flag_fushigi_tutorial', 'flag_park_hint')], at: ['map_town', 19, 22, 'up'], desc: '路地（evt_alley_open）→ 公園' },
@@ -105,7 +108,7 @@ const CHAIN: { beat: string; steps: Step[]; at: [string, number, number, Dir]; r
     at: ['map_town', 29, 10, 'right'],
     desc: '段階2の公園の東。駐車場へ',
   },
-  { beat: 'ojigi', steps: [], at: ['map_town', 50, 11, 'up'], desc: 'モール入口（おじぎ自販機・中ボス）' },
+  { beat: 'ojigi', steps: [], at: ['map_town', 48, 12, 'up'], desc: 'モール入口（おじぎ自販機・中ボス）' },
   {
     beat: 'mall',
     steps: [set('flag_ojigi_beaten'), level(3), keys('item_oden_can'), () => (state.money += 120)],
@@ -154,7 +157,7 @@ function applyUpTo(beat: string): (typeof CHAIN)[number] | null {
   return CHAIN[idx];
 }
 
-registerDebug('jump', (beat?: string) => {
+const JUMP = (beat?: string, noRun = false): unknown => {
   if (!beat) return CHAIN.map((c) => `${c.beat}: ${c.desc}`);
   if (beat === 'opening' || beat === 'newgame') {
     game.scripts.clear();
@@ -172,7 +175,7 @@ registerDebug('jump', (beat?: string) => {
   const [map, x, y, dir] = c.at;
   const f = new FieldScene(map, x, y, dir);
   game.replaceAll(f);
-  if (c.run) {
+  if (c.run && !noRun) {
     const fn = getScript(c.run);
     if (fn)
       f.startScript(
@@ -183,7 +186,8 @@ registerDebug('jump', (beat?: string) => {
       );
   }
   return `${beat}: ${c.desc}`;
-});
+};
+registerDebug('jump', JUMP);
 
 /** The furthest beat the flags have reached (QA). */
 registerDebug('beat', () => {
@@ -212,4 +216,66 @@ registerDebug('story', () => {
   const out: Record<string, number> = {};
   for (const [k, v] of Object.entries(state.flags)) if (!k.startsWith('flag_seen_') && !k.startsWith('flag_tsukkomi_')) out[k] = v;
   return out;
+});
+
+/** QA: a PNG data URL of character frames: 'id:pose:dir' / 'id:anim@ms:dir', comma separated. */
+registerDebug('sprites', (spec: string) => {
+  const imgs: HTMLCanvasElement[] = [];
+  for (const it of spec.split(',')) {
+    const [id, pose, dir0] = it.split(':');
+    const dir = (dir0 || 'down') as Dir;
+    const s = charSprite(id);
+    if (pose.includes('@')) {
+      const [an, t] = pose.split('@');
+      imgs.push(animFrame(s, an, Number(t), dir));
+    } else if (pose === 'walk') imgs.push(walkFrame(s, dir, 0, false));
+    else imgs.push(poseFrame(s, pose, dir));
+  }
+  const w = imgs.reduce((a, c) => a + c.width + 4, 4);
+  const h = Math.max(...imgs.map((c) => c.height)) + 8;
+  const cv = document.createElement('canvas');
+  cv.width = w;
+  cv.height = h;
+  const ctx = cv.getContext('2d')!;
+  ctx.fillStyle = '#6B7186';
+  ctx.fillRect(0, 0, w, h);
+  let x = 4;
+  for (const c of imgs) {
+    ctx.drawImage(c, x, 4 + (h - 8 - c.height));
+    x += c.width + 4;
+  }
+  return cv.toDataURL();
+});
+
+/** QA: run any registered script as a field script (e.g. run('evt_kanenari_meet')). */
+registerDebug('run', (id: string) => {
+  const f = field();
+  const fn = getScript(id);
+  if (!f || !fn) return `no field / no script ${id}`;
+  f.startScript(fn({ source: 'debug', map: f.map.id, runDefault: function* () {} }));
+  return id;
+});
+
+/** QA: jump('ending') state, then play only ending cut n (1–6). */
+registerDebug('endcut', (n: number) => {
+  JUMP('ending', true);
+  const f = field();
+  const cut = ENDING_CUTS[n];
+  if (!f || !cut) return 'no cut';
+  setFlag('flag_boss_beaten', 1);
+  setFlag('flag_stage', 3);
+  setFlag('flag_bgm_hold', 1);
+  if (n > 1) {
+    setFlag('flag_hud_hidden', 1);
+    f.setStage(3, 0);
+    setFlag('flag_clock', 4);
+  }
+  if (n >= 3 && !state.inventory.includes('item_korokke')) state.inventory.push('item_korokke');
+  // cut 5 continues cut 4's room
+  if (n === 5) {
+    setFollowerVisible(false);
+    f.loadMap('map_home_1f', 2, 5, 'up');
+  }
+  f.startScript(cut());
+  return `cut ${n}`;
 });

@@ -20,10 +20,10 @@ import { P } from '../tiles/palette';
 import { clockFace, notice, pc, prop } from './ifurn';
 import { blend, depthShade, lightPool, paintShell, screenPool, screenSpill, shellProp } from './ishell';
 import { castRight, dk, finish, lt } from './kit';
-import { arrowSign, bannerScrap, bellLogo, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, shaftProp, shutter, skyPatch, type Lamp } from './mall_kit';
+import { bannerScrap, bellLogo, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, shaftProp, shutter, skyPatch, skyPatchRim, small, smallW, type Lamp } from './mall_kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
-import { fontTextSmall, printLines, scribble, tiny } from './text';
+import { printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 import type { Dir } from '../../game/state';
 
@@ -56,7 +56,14 @@ registerProp('mall_m1_shell', () => {
           const ly = y & 15;
           if (lx === 15 || ly === 15) return P.wood;
           if (lx === 0 || ly === 0) return P.skin3;
-          return (tx + ty) % 2 ? P.skin4 : P.woodLt;
+          const odd = (tx + ty) % 2 === 1;
+          const hh = ihash(tx, ty, 517);
+          // glazed tiles: a diagonal sheen on some, fired-in 2px spots, and the
+          // south row worn pale where everyone walks round the fountain
+          if (hh % 3 === 0 && lx > 1 && ly > 1 && lx + ly >= 7 && lx + ly <= 8) return P.skin3;
+          if (ihash(x >> 1, y >> 1, 518) % 47 === 0) return odd ? P.woodLt : P.skin4;
+          if (ty === 10 && ((x >> 1) + (y >> 1)) % 3 === 0 && ihash(x >> 1, y >> 1, 519) % 3 === 0) return P.skin3;
+          return odd ? P.skin4 : P.woodLt;
         }
       }
       return tiles(x, y);
@@ -86,7 +93,7 @@ registerProp('mall_m1_shell', () => {
   // (5–8) café: half-lowered shutter, dark inside with chairs stacked on tables
   p.rect(82, 19, 60, 12, P.woodDark);
   p.hline(82, 141, 19, P.wood);
-  fontTextSmall(p, 'きっさ', 94, 21, P.goldPale, 1);
+  small(p, 'きっさ', 94, 21, P.goldPale);
   p.rect(126, 21, 12, 7, P.goldPale);
   bellLogo(p, 128, 20, P.brassOld);
   castRight(p, 82, 19, 60, 12, 2);
@@ -116,7 +123,7 @@ registerProp('mall_m1_shell', () => {
   p.rect(214, 21, 8, 8, P.leafYoung);
   p.rect(217, 21, 2, 8, P.white);
   p.rect(214, 24, 8, 2, P.white);
-  scribble(p, 226, 23, 4, P.leafDeep, 53, 4);
+  small(p, 'くすり', 226, 21, P.leafShade);
   castRight(p, 210, 19, 44, 12, 2);
   shutter(p, 211, 34, 42, 11);
   // (16–20) behind the gacha: the corner's colourful sign and ghosts of posters
@@ -131,9 +138,9 @@ registerProp('mall_m1_shell', () => {
   castRight(p, 258, 19, 76, 11, 2);
   posterGhost(p, 262, 33, 12, 9);
   posterGhost(p, 300, 32, 14, 10);
-  // the red 『閉店セール』 banner scraps hanging from the slab
-  bannerScrap(p, 36, 17, 24, 3);
-  bannerScrap(p, 232, 17, 18, 7);
+  // the red 『閉店セール』 banner scraps still tied to the 2F railing (above the fascias)
+  bannerScrap(p, 34, 8, 30, 3, 16);
+  bannerScrap(p, 226, 8, 27, 7, 0);
   // ---- the corridors at the west / east edges (E) continue into the dark
   for (const [cx, dir] of [[0, -1], [21, 1]] as const) {
     for (let y = 7 * 16; y < 9 * 16; y++)
@@ -169,15 +176,24 @@ registerProp('mall_m1_shell', () => {
     glass: sh.glass.toCanvas(),
     over(g: Gfx, x: number, y: number, env: PropEnv) {
       depthShade(g, x + 16, y + 48, W - 32, 90, 0.14);
-      mallLamps(g, x, y, M1_LAMPS, env, 101);
+      mallLamps(g, x, y, M1_LAMPS, env, 101, 0.16, rows);
       // the outside's purple-pink evening coming in through the half-open door
       screenSpill(g, x + 176, y + 224, 26, 54, 40, rgbHex(env.grade.skyBot), 0.2, true);
     },
     light(g: Gfx, x: number, y: number, env: PropEnv) {
-      mallGrade(g, 'mall', env);
+      mallGrade(g, 'mall', env, [x + 16, y + 48, 320, 176]);
       mallLampLight(g, x, y, M1_LAMPS, env, 101);
     },
-
+    glow(g: Gfx, x: number, y: number, env: PropEnv) {
+      // the gacha corner's sign: its six capsule lamps still chase round,
+      // one after another (the only thing in the hall still 'open')
+      const k = Math.floor(env.t / 260) % 8;
+      if (k < 6) {
+        const cx0 = x + 266 + k * 11;
+        g.rect(cx0 - 2, y + 22, 5, 5, P.glint, 0.55);
+        screenPool(g, cx0 + 0.5, y + 24.5, 7, 6, P.sky, 0.3);
+      }
+    },
   });
 });
 
@@ -234,6 +250,89 @@ registerProp('mall_m1_clock', () => {
 
 // ---------------------------------------------------------------- the fountain (8–13, 6–9)
 
+/**
+ * The stone child on the pedestal, holding a bell up over its head with both
+ * hands (26×44): the child in dark weathered bronze with green verdigris
+ * streaks, the bell rubbed bright gold by a year of hands — its flared mouth,
+ * the clapper hanging under it and the crown loop on top.
+ */
+function statue(): PixelCanvas {
+  // no ink outline: the dark bronze reads against the pale stone by value
+  // alone, and outlines would close the gaps between the raised arms and the
+  // head (the silhouette must read 'a child holding a bell up')
+  const p = pc(30, 46);
+  const bl = P.wood;
+  const bm = P.woodDark;
+  const bs = P.ink;
+  // legs and shoes
+  for (const lx of [11, 16]) {
+    p.rect(lx, 36, 3, 6, bm);
+    p.vline(lx, 36, 41, bl);
+    p.rect(lx - 1, 41, 5, 2, bm);
+    p.hline(lx - 1, lx + 1, 41, bl);
+    p.hline(lx - 1, lx + 3, 43, bs);
+  }
+  // the smock: narrow at the shoulders, an A-line hem, a collar
+  for (let y = 23; y <= 35; y++) {
+    const w = 4 + Math.round((y - 23) * 0.28);
+    const x0 = 15 - w;
+    const x1 = 14 + w;
+    p.hline(x0, x1, y, bm);
+    p.hline(x0, x0 + 1, y, bl);
+    p.set(x1, y, bs);
+  }
+  p.hline(10, 19, 35, bs);
+  p.hline(12, 17, 23, bl);
+  p.set(14, 24, bs);
+  p.set(15, 24, bs);
+  // the arms raised in a V from the shoulders to the ends of the bell's lip
+  for (let y = 11; y <= 24; y++) {
+    const k = (24 - y) / 13;
+    const lx = Math.round(10 - k * 5);
+    const rx = Math.round(19 + k * 5);
+    p.set(lx, y, bl);
+    p.set(lx + 1, y, bm);
+    p.set(rx - 1, y, bm);
+    p.set(rx, y, bs);
+  }
+  // the hands wrapped round the lip
+  p.rect(4, 9, 3, 3, bl);
+  p.set(6, 11, bm);
+  p.rect(23, 9, 3, 3, bm);
+  p.set(25, 11, bs);
+  // the head (looking up at the bell): round, hair lit from the upper left, the face
+  p.ellipse(15, 18, 4.5, 4.5, bm);
+  p.ellipse(14, 17, 3, 3, bl);
+  p.hline(13, 17, 21, P.woodDark);
+  p.set(18, 19, bs);
+  p.set(19, 17, bs);
+  p.set(13, 20, P.brassOld);
+  // verdigris: the green that ran down from the hands in the rain
+  p.set(5, 12, P.leafShade);
+  p.vline(7, 14, 16, P.leafShade);
+  p.vline(22, 13, 16, P.leafShade);
+  p.set(22, 17, P.leafDeep);
+  p.vline(18, 28, 32, P.leafShade);
+  // ---- the bell, rubbed bright: crown loop, shoulder, waist band, flared lip
+  p.ring(15, 1, 1.6, 1.3, P.brassOld);
+  const rows: [number, number, number][] = [[2, 12, 17], [3, 11, 18], [4, 10, 19], [5, 10, 19], [6, 10, 19], [7, 10, 19], [8, 9, 20], [9, 8, 21]];
+  for (const [y, x0, x1] of rows) {
+    for (let x = x0; x <= x1; x++) {
+      const u = (x - x0) / (x1 - x0);
+      p.set(x, y, u < 0.18 ? P.glint : u < 0.4 ? P.goldPale : u < 0.72 ? P.gold : u < 0.88 ? P.brass : P.brassOld);
+    }
+  }
+  p.hline(10, 19, 6, P.brass);
+  p.set(11, 6, P.goldPale);
+  p.hline(6, 23, 10, P.brassOld);
+  p.hline(7, 10, 10, P.brass);
+  p.hline(7, 22, 11, P.ink);
+  // the clapper hanging in the mouth
+  p.rect(14, 11, 2, 2, P.charcoal);
+  p.set(14, 11, P.asphalt);
+  return p;
+}
+
 registerProp('mall_fountain', () => {
   const W = 96;
   const H = 100;
@@ -242,13 +341,14 @@ registerProp('mall_fountain', () => {
   const p = pc(W, H);
   const cx = 48;
   const cy = top + 32;
-  // outer basin side (stone), rim, inner dry basin
+  // outer basin side (stone), rim, inner dry basin (pale: it catches the evening)
   p.ellipse(cx, cy + 3, 46, 29, P.steel);
   p.ellipse(cx, cy, 46, 29, P.concrete);
   p.ellipse(cx, cy, 45, 28, P.concreteLt);
   p.ellipse(cx, cy + 1, 40, 24, P.concrete);
-  p.ellipse(cx, cy + 1, 39, 23, P.asphalt);
-  p.ellipse(cx, cy + 2, 38, 22, P.steel);
+  p.ellipse(cx, cy + 1, 39, 23, P.steel);
+  p.ellipse(cx, cy + 2, 38, 22, P.concrete);
+  p.ellipse(cx - 3, cy + 1, 30, 16, P.concreteLt);
   // rim joints (stone blocks)
   for (let k = 0; k < 16; k++) {
     const a = (k / 16) * Math.PI * 2;
@@ -256,28 +356,33 @@ registerProp('mall_fountain', () => {
     const y1 = Math.round(cy + Math.sin(a) * 26);
     p.set(x1, y1, P.steel);
   }
-  // dried water line and dust in the basin
-  p.ring(cx, cy + 3, 33, 18, P.concrete);
-  for (let k = 0; k < 40; k++) {
+  // the old water line, a stain ring just under the rim, and the drain
+  p.ring(cx, cy + 3, 33, 18, P.steel);
+  p.ring(cx, cy + 2, 37, 21, P.steel);
+  p.ellipse(cx + 16, cy + 12, 2.5, 1.5, P.asphalt);
+  p.hline(cx + 15, cx + 17, cy + 12, P.charcoal);
+  // dust and a few dead leaves blown in through the automatic door (none
+  // near the coin at the centre-left, so its glint reads)
+  const coinX = 40;
+  const coinY = top + 42;
+  for (let k = 0; k < 30; k++) {
     const hh = ihash(k, 17, 601);
     const a = ((hh % 360) / 360) * Math.PI * 2;
-    const r = 0.3 + ((hh >>> 9) % 100) / 150;
+    const r = 0.35 + ((hh >>> 9) % 100) / 160;
     const lx = Math.round(cx + Math.cos(a) * 32 * r);
     const ly = Math.round(cy + 3 + Math.sin(a) * 18 * r);
-    if (k % 5 === 0) {
-      // a dead leaf blown in through the automatic door
+    if (Math.abs(lx - coinX) < 9 && Math.abs(ly - coinY) < 6) continue;
+    if (k % 4 === 0) {
       p.rect(lx, ly, 2, 1, P.woodLt);
       p.set(lx + 1, ly + 1, P.wood);
-    } else if (k % 5 === 1) p.rect(lx, ly, 2, 1, P.brassOld);
-    else p.rect(lx, ly, 2, 1, k % 2 ? P.concrete : P.asphalt);
+    } else if (k % 4 === 1) p.rect(lx, ly, 2, 1, P.brassOld);
+    else p.rect(lx, ly, 2, 1, k % 2 ? P.steel : P.asphalt);
   }
   // the dry bottom has cracked
-  p.line(cx - 24, cy + 9, cx - 12, cy + 13, P.asphalt);
-  p.line(cx - 12, cy + 13, cx - 4, cy + 19, P.asphalt);
+  p.line(cx - 24, cy + 9, cx - 12, cy + 13, P.steel);
+  p.line(cx - 12, cy + 13, cx - 4, cy + 19, P.steel);
   p.line(cx - 12, cy + 13, cx - 10, cy + 17, P.asphalt);
-  p.line(cx + 14, cy + 6, cx + 24, cy + 4, P.asphalt);
-  // the old water line, a stain ring just under the rim
-  p.ring(cx, cy + 2, 37, 21, P.concrete);
+  p.line(cx + 14, cy + 6, cx + 24, cy + 4, P.steel);
   // the outer side face shading (lit left)
   for (let x = 0; x < W; x++)
     for (let y = cy; y < cy + 33; y++) {
@@ -286,83 +391,62 @@ registerProp('mall_fountain', () => {
       const dy = (y + 0.5 - cy) / 29;
       if (dx * dx + dy * dy > 1 && x > cx + 10) p.set(x, y, P.asphalt);
     }
-  // the pedestal and the stone child holding up a bell
+  // the pedestal
   const px = cx;
   const py = cy + 2;
-  p.ellipse(px, py + 1, 9, 5, P.asphalt);
-  p.ellipse(px, py - 1, 9, 5, P.concrete);
-  p.rect(px - 7, py - 9, 14, 8, P.concrete);
-  p.vline(px - 7, py - 9, py - 2, P.concreteLt);
-  p.vline(px + 6, py - 9, py - 2, P.steel);
-  p.ellipse(px, py - 9, 7, 3, P.concreteLt);
-  // the child in dark weathered bronze, holding the bell in front of the
-  // chest; the bell itself is rubbed bright by a year of hands (and a green
-  // streak of verdigris runs down from where the rain used to drip)
-  p.art(
-    [
-      '.......oooooo.......',
-      '......oBBDDDDo......',
-      '.....oBBgDDDDDo.....',
-      '....oBBBDDDDDDDo....',
-      '....oDDDDDDDDDDo....',
-      '....oDDDMBBDDDDo....',
-      '....oDMMoBBoDDDo....',
-      '....oMMMBBBBDDDo....',
-      '.....oMMBDBBDDo.....',
-      '.....oMMBBBBDDo.....',
-      '......ooMBBDoo......',
-      '.....oMBDPMMBDo.....',
-      '....oMBDPLLMMGDo....',
-      '....oMDPPLLMMMDo....',
-      '....oMMMPLLMBBMo....',
-      '....oMMPPLLMMBMo....',
-      '....oMPPLLLgMMMo....',
-      '....oPPPLLLGMMMo....',
-      '...ooPPPLLLLMMMoo...',
-      '..oPPPLLLMMMMMMMMo..',
-      '.oPPPLLLLMMMMMMMMMo.',
-      '..ooooMBDBBMBDoooo..',
-      '.....oMBDMMMBDo.....',
-      '.....oMMBBBBDDo.....',
-      '.....oMMBBBBDDo.....',
-      '.....oBBBDDDGDo.....',
-      '.....oBDDooBDDo.....',
-      '......oMDooMDo......',
-      '......oGDooMDo......',
-      '......oMDooMDo......',
-      '.....oBDDooBDDo.....',
-      '.....oBDDooBDDo.....',
-      '......ooo..ooo......',
-    ],
-    { o: P.ink, P: P.goldPale, L: P.brass, M: P.brassOld, B: P.wood, D: P.woodDark, g: P.leafDeep, G: P.leafShade },
-    px - 10,
-    py - 41,
-  );
-  finish(p, { soft: true });
+  p.ellipse(px, py + 1, 10, 5, P.asphalt);
+  p.ellipse(px, py - 1, 10, 5, P.concrete);
+  p.rect(px - 8, py - 11, 16, 10, P.concrete);
+  p.vline(px - 8, py - 11, py - 2, P.white);
+  p.vline(px - 7, py - 11, py - 2, P.concreteLt);
+  p.vline(px + 7, py - 11, py - 2, P.steel);
+  p.ellipse(px, py - 11, 8, 3, P.concreteLt);
+  p.hline(px - 5, px + 3, py - 12, P.white);
+  // a small brass plaque on the pedestal
+  p.rect(px - 3, py - 7, 6, 3, P.brassOld);
+  p.hline(px - 3, px + 2, py - 7, P.brass);
+  finish(p, { soft: true, rim: false });
+  // the statue stands on it (after the outline pass: see statue())
+  p.blit(statue(), px - 15, py - 11 - 44);
   const img = p.toCanvas();
   const a = stand(img, { cx: 48, base, foot: base - 1, shadow: 0, contact: 0 });
   // the skylight's patch lands on the basin's centre — the brightest spot of the hall
   a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
-    // (in front of the pedestal: the statue itself stays a dark silhouette)
-    skyPatch(g, x + a.ox + 18, y + a.oy + top + 36, 50, 18, env, 0.26);
+    skyPatchRim(g, x + a.ox + 20, y + a.oy + 55, 50, 28, env, 0.3);
+    // the polished bell catches the evening
+    const k = (Math.sin(env.t / 700) + 1) / 2;
+    g.rect(x + a.ox + px - 9, y + a.oy + py - 53, 2, 3, P.glint, 0.35 + k * 0.4);
   };
   a.light = (g: Gfx, x: number, y: number, env: PropEnv) => {
-    lightPool(g, x + a.ox + 48, y + a.oy + top + 32, 48, 30, P.sky, 0.35 * (1 - env.grade.night));
+    const n = 1 - env.grade.night;
+    lightPool(g, x + a.ox + 46, y + a.oy + top + 34, 40, 24, P.sky, 0.32 * n);
+    lightPool(g, x + a.ox + 48, y + a.oy + top + 8, 16, 26, P.sky, 0.3 * n);
   };
   a.over = (g: Gfx, x: number, y: number, env: PropEnv) => {
-    // fushigi_10: the 10-yen coin at the bottom (10,8) glints; gone once stamped
+    // fushigi_10: the 10-yen coin at the bottom (10,8): 3×3 copper, its rim
+    // glints for two frames every 1.96 s; gone once stamped
+    skyPatch(g, x + a.ox + 20, y + a.oy + 55, 50, 28, env, 0.55);
     if (env.flag('flag_fushigi_10')) return;
     const ox = x + a.ox;
     const oy = y + a.oy;
-    const tx = ox + 40;
-    const ty = oy + top + 42;
-    g.rect(tx, ty, 2, 2, P.brass);
-    g.rect(tx, ty, 1, 1, P.goldPale);
+    const tx = ox + coinX;
+    const ty = oy + coinY;
+    g.rect(tx, ty, 3, 3, P.brass);
+    g.rect(tx, ty, 2, 1, P.goldPale);
+    g.rect(tx, ty + 1, 1, 1, P.goldPale);
+    g.rect(tx + 2, ty + 2, 1, 1, P.brassOld);
+    g.rect(tx + 1, ty + 3, 3, 1, P.steel);
     const k = Math.floor(env.t / 140) % 14;
-    if (k === 0 || k === 1) {
+    if (k === 0) {
       g.rect(tx - 1, ty, 1, 1, P.glint);
-      g.rect(tx + 2, ty + 1, 1, 1, P.glint);
       g.rect(tx + 1, ty - 1, 1, 1, P.glint);
+      g.rect(tx + 3, ty + 1, 1, 1, P.glint);
+    } else if (k === 1) {
+      g.rect(tx + 1, ty - 2, 1, 2, P.glint);
+      g.rect(tx - 2, ty + 1, 2, 1, P.glint);
+      g.rect(tx + 3, ty + 1, 2, 1, P.glint);
+      g.rect(tx + 1, ty + 3, 1, 1, P.glint);
+      g.rect(tx + 1, ty + 1, 1, 1, P.white);
     }
   };
   return a;
@@ -400,8 +484,15 @@ registerProp('mall_pillar', (opts) => {
     p.rect(12, H - 16, 4, 10, P.verm);
     p.hline(12, 15, H - 16, P.vermLt);
     p.set(13, H - 18, P.charcoal);
-    p.rect(3, 24, 11, 6, P.red);
-    scribble(p, 4, 25, 2, P.white, 7, 3);
+    // the red 『消火器』 plate: a white extinguisher pictogram
+    p.rect(3, 23, 11, 9, P.red);
+    p.hline(3, 13, 23, P.vermLt);
+    p.hline(3, 13, 31, P.vermShade);
+    p.rect(7, 26, 3, 5, P.white);
+    p.hline(7, 9, 25, P.white);
+    p.set(10, 25, P.white);
+    p.set(11, 26, P.white);
+    p.set(11, 27, P.white);
   } else if (v === 4) {
     // 『セルフサービス』 with a cup
     p.rect(3, 22, 12, 10, P.aqua);
@@ -409,7 +500,20 @@ registerProp('mall_pillar', (opts) => {
     p.vline(11, 25, 27, P.white);
     p.hline(4, 13, 30, P.navy);
   } else {
-    arrowSign(p, 2, 22, 14, -1, 1, 9);
+    // toilets: the man / woman pictogram, an arrow west
+    p.rect(2, 22, 14, 12, P.white);
+    p.hline(2, 15, 22, P.glint);
+    p.hline(2, 15, 33, P.concrete);
+    p.rect(4, 24, 2, 2, P.navy);
+    p.rect(3, 26, 4, 4, P.navy);
+    p.vline(4, 30, 31, P.navy);
+    p.vline(5, 30, 31, P.navy);
+    p.rect(11, 24, 2, 2, P.verm);
+    p.rect(11, 26, 2, 2, P.verm);
+    p.rect(10, 28, 4, 2, P.verm);
+    p.vline(11, 30, 31, P.verm);
+    p.vline(12, 30, 31, P.verm);
+    p.vline(8, 24, 31, P.concrete);
   }
   finish(p, { soft: true, rim: false });
   const img = p.toCanvas();
@@ -441,57 +545,112 @@ registerProp('mall_pillar', (opts) => {
   return a;
 });
 
-// ---------------------------------------------------------------- the gacha corner (16–19, 3–4): 8 machines
+// ---------------------------------------------------------------- the gacha corner (16–17 | 19–20, 3–4): 8 machines round the pillar
+
+/**
+ * Where the eight machines stand: two columns each side of the mirror pillar
+ * at (18,5) (so it never hides one), a back row raised on a low rack, a front
+ * row on the floor. x = canvas px of the machine's left edge.
+ */
+const GACHA_COLS = [1, 17, 49, 65];
+const GACHA_BODY = [P.red, P.blue, P.leafDeep, P.sun, P.crimson, P.navy, P.gold, P.aqua];
+
+/** One capsule toy machine: a clear dome full of two-tone capsules on a coloured body. */
+function gachaMachine(p: PixelCanvas, x: number, y: number, k: number, tag: 'none' | 'broken' | 'brokenLow' | 'rest'): void {
+  const c = GACHA_BODY[k];
+  // body (14×12): lit top edge, darker right side, the coin handle, the outlet
+  p.rect(x, y + 10, 14, 12, c);
+  p.hline(x, x + 13, y + 10, lt(c));
+  p.vline(x + 13, y + 11, y + 21, dk(c));
+  p.hline(x, x + 13, y + 21, dk(c, 2));
+  // the display card with a toy printed on it
+  p.rect(x + 2, y + 12, 7, 4, P.white);
+  const toy = [P.leafYoung, P.peach, P.sun, P.aqua, P.gold, P.crimson, P.blue, P.leafLt][k];
+  p.rect(x + 4, y + 13, 3, 2, toy);
+  p.set(x + 5, y + 13, lt(toy));
+  // coin handle (a white knob with a bar)
+  p.ellipse(x + 11, y + 14, 1.6, 1.6, P.white);
+  p.hline(x + 10, x + 12, y + 14, P.steel);
+  p.set(x + 11, y + 12, P.steel);
+  // outlet flap
+  p.rect(x + 2, y + 17, 5, 3, P.ink);
+  p.hline(x + 2, x + 6, y + 17, P.charcoal);
+  p.rect(x + 9, y + 17, 3, 2, dk(c));
+  // the neck ring
+  p.rect(x + 1, y + 9, 12, 1, P.steel);
+  // the dome: clear glass (a pale tint), capsules piled in the bottom half
+  const dx = x + 7;
+  const dy = y + 5;
+  p.ellipse(dx, dy, 6, 5, '#C9D6E0');
+  for (let i = 0; i < 6; i++) {
+    const hh = ihash(i, k, 701);
+    const cx2 = dx - 4 + (i % 3) * 3 + ((hh >>> 3) & 1);
+    const cy2 = dy + (i < 3 ? 1 : -1) + ((hh >>> 5) & 1) * (i < 3 ? 0 : -1);
+    const cc = [P.red, P.gold, P.leafYoung, P.crimson, P.blue, P.sun][(hh + k) % 6];
+    // a capsule: coloured top half, white bottom half
+    p.set(cx2, cy2, lt(cc));
+    p.set(cx2 + 1, cy2, cc);
+    p.set(cx2, cy2 + 1, P.white);
+    p.set(cx2 + 1, cy2 + 1, P.concreteLt);
+  }
+  // glass rim and glints (drawn over the capsules)
+  p.ring(dx, dy, 6, 5, P.steel);
+  p.set(dx - 3, dy - 3, P.white);
+  p.set(dx - 4, dy - 2, P.white);
+  p.set(dx - 2, dy - 4, P.glint);
+  p.set(dx + 4, dy + 2, P.white);
+  // a coloured cap on the dome
+  p.rect(dx - 2, y - 1, 5, 2, c);
+  p.hline(dx - 2, dx + 2, y - 1, lt(c));
+  // tags: the 『故障中』 slips on the body (never over the dome), one 『休憩中』
+  if (tag === 'broken') {
+    p.rect(x + 1, y + 11, 8, 6, P.white);
+    p.strokeRect(x + 1, y + 11, 8, 6, P.verm);
+    p.hline(x + 3, x + 6, y + 13, P.verm);
+    p.hline(x + 3, x + 5, y + 15, P.verm);
+  } else if (tag === 'brokenLow') {
+    p.rect(x + 7, y + 16, 6, 5, P.paper);
+    p.strokeRect(x + 7, y + 16, 6, 5, P.verm);
+    p.hline(x + 9, x + 11, y + 18, P.verm);
+    p.set(x + 12, y + 16, P.goldPale);
+  } else if (tag === 'rest') {
+    p.rect(x + 1, y + 16, 9, 5, P.white);
+    p.strokeRect(x + 1, y + 16, 9, 5, P.blue);
+    p.hline(x + 3, x + 7, y + 18, P.navy);
+  }
+}
 
 registerProp('mall_gacha_row', () => {
-  const p = pc(64, 48);
-  const bases = [P.red, P.blue, P.gold, P.leafDeep, P.crimson, P.navy, P.sun, P.aqua];
-  const machine = (x: number, y: number, k: number, tag: 'broken' | 'rest') => {
-    const c = bases[k];
-    // cabinet
-    p.rect(x, y + 12, 14, 12, c);
-    p.hline(x, x + 13, y + 12, lt(c));
-    p.vline(x + 13, y + 12, y + 23, dk(c));
-    p.hline(x, x + 13, y + 23, dk(c, 2));
-    // coin handle
-    p.ellipse(x + 5, y + 17, 2.5, 2.5, P.white);
-    p.hline(x + 3, x + 7, y + 17, P.steel);
-    p.rect(x + 9, y + 15, 3, 2, P.charcoal);
-    p.rect(x + 9, y + 20, 3, 2, P.ink);
-    // clear capsule box with capsules
-    p.rect(x + 1, y + 1, 12, 11, P.aqua);
-    p.hline(x + 1, x + 12, y + 1, P.white);
-    for (let i = 0; i < 9; i++) {
-      const hh = ihash(i, k, 701);
-      const cx2 = x + 2 + (hh % 9);
-      const cy2 = y + 4 + ((hh >>> 4) % 7);
-      const cc = [P.red, P.gold, P.leafYoung, P.crimson, P.blue, P.white][(hh >>> 8) % 6];
-      p.rect(cx2, cy2, 2, 2, cc);
-      p.set(cx2, cy2, lt(cc));
-    }
-    p.vline(x + 1, y + 1, y + 11, P.white);
-    p.rect(x, y, 14, 1, P.steel);
-    // title card
-    p.rect(x + 2, y + 13, 9, 2, P.paper);
-    // tag
-    if (tag === 'broken') {
-      p.rect(x + 3, y + 6, 8, 5, P.white);
-      p.strokeRect(x + 3, y + 6, 8, 5, P.verm);
-      p.hline(x + 5, x + 8, y + 8, P.verm);
-    } else {
-      p.rect(x + 3, y + 6, 8, 5, P.white);
-      p.strokeRect(x + 3, y + 6, 8, 5, P.blue);
-      p.hline(x + 5, x + 8, y + 8, P.navy);
-    }
-  };
-  for (let k = 0; k < 4; k++) machine(k * 16 + 1, 0, k, 'broken');
-  for (let k = 0; k < 4; k++) machine(k * 16 + 1, 16, k + 4, k === 1 ? 'rest' : 'broken');
+  const p = pc(80, 48);
+  // the low rack the back row stands on (a steel plinth with a blue skirt)
+  for (const [x0, x1] of [[0, 31], [48, 79]] as const) {
+    p.rect(x0, 26, x1 - x0 + 1, 5, P.navy);
+    p.hline(x0, x1, 26, P.blue);
+    p.hline(x0, x1, 30, P.nightShade);
+  }
+  const tags: ('none' | 'broken' | 'brokenLow' | 'rest')[] = ['broken', 'none', 'brokenLow', 'broken', 'brokenLow', 'rest', 'broken', 'none'];
+  // back row (raised 4px), then the front row in front of it
+  GACHA_COLS.forEach((x, i) => gachaMachine(p, x, 4, i, tags[i]));
+  GACHA_COLS.forEach((x, i) => gachaMachine(p, x, 26, i + 4, tags[i + 4]));
+  // a capsule dropped on the floor by the front row, and an empty half
+  p.rect(33, 44, 2, 1, P.crimson);
+  p.rect(33, 45, 2, 1, P.white);
+  p.set(46, 46, P.aqua);
+  p.set(47, 46, P.concreteLt);
   finish(p, { soft: true });
-  const a = stand(p.toCanvas(), { cx: 32, base: 32, foot: 31, shadow: 0, contact: 0 });
+  const a = stand(p.toCanvas(), { cx: 40, base: 32, foot: 31, shadow: 0, contact: 0 });
   a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
-    // 『休憩中』's little lamp, the only one still lit
+    // 『休憩中』's little lamp (front row, x=49), the only one still lit
     const on = Math.floor(env.t / 800) % 2;
-    g.rect(x + a.ox + 17 + 10, y + a.oy + 16 + 15, 1, 1, on ? P.leafLt : P.leaf, 0.9);
+    g.rect(x + a.ox + 49 + 9, y + a.oy + 26 + 14, 1, 1, on ? P.leafLt : P.leaf, 0.9);
+    // the domes catch the light one after another (the glass glints move along the row)
+    const k = Math.floor(env.t / 420) % 12;
+    if (k < 8) {
+      const col = GACHA_COLS[k % 4];
+      const row = k < 4 ? 4 : 26;
+      g.rect(x + a.ox + col + 3, y + a.oy + row + 2, 1, 1, P.glint, 0.8);
+      g.rect(x + a.ox + col + 4, y + a.oy + row + 1, 1, 1, P.glint, 0.5);
+    }
   };
   return a;
 });
@@ -536,8 +695,8 @@ registerProp('mall_tanabata', () => {
 
 // ---------------------------------------------------------------- info counter (4–7,12) and the floor guide (13,11)
 
-registerProp('mall_info_counter', () =>
-  prop(64, 30, (p) => {
+registerProp('mall_info_counter', () => {
+  const a = prop(64, 30, (p) => {
     // back panel with 『インフォメーション』 sign on a pole
     p.rect(22, 0, 20, 8, P.blue);
     p.hline(22, 41, 0, P.aqua);
@@ -563,10 +722,19 @@ registerProp('mall_info_counter', () =>
     p.rect(26, 23, 14, 5, P.paper);
     p.rect(27, 24, 3, 3, P.sun);
     p.set(28, 23, P.brass);
-    scribble(p, 31, 24, 2, P.crimson, 21, 3);
+    printLines(p, 31, 24, 8, 2, P.crimson, 21);
     castRight(p, 26, 23, 14, 5, 1);
-  }, { cx: 32, base: 16, contact: 0, shadow: 0 }),
-);
+  }, { cx: 32, base: 16, contact: 0, shadow: 0 });
+  a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
+    // the call bell's dome catches the door's light: a slow glint wandering over it
+    const u = (env.t % 3400) / 3400;
+    if (u < 0.3) {
+      const k = Math.floor(u * 10);
+      g.rect(x + a.ox + 10 + k, y + a.oy + 11 - (k === 1 ? 1 : 0), 1, 1, P.glint, 0.85);
+    }
+  };
+  return a;
+});
 
 registerProp('mall_floor_guide', () =>
   prop(18, 44, (p) => {
@@ -593,36 +761,58 @@ registerProp('mall_floor_guide', () =>
   }, { base: 16, contact: 14, shadow: 0 }),
 );
 
-// ---------------------------------------------------------------- hanging signs (foreground)
+// ---------------------------------------------------------------- hanging signs (depth-sorted, above head height)
 
-function hangingSign(w: number, paint: (p: PixelCanvas) => void, ox: number, oy: number): PropArt {
-  const p = pc(w, 24);
-  p.vline(3, 0, 12, P.asphalt);
-  p.vline(w - 4, 0, 12, P.asphalt);
+/** Rods from the ceiling down to the board (px). */
+const ROD = 16;
+/** Gap between the board's bottom edge and the floor line of the row it hangs over (px): 8px over a child's head. */
+const CLEAR = 32;
+
+/**
+ * A sign hung from the ceiling over a walkway. It is depth-sorted on the
+ * floor line of the row it hangs over and its board hangs above head height
+ * (bottom edge CLEAR px above that line), so whoever stands on that row or
+ * south of it walks under it untouched; someone further north (behind it)
+ * is seen through an x-ray hole. `paint` draws the board at y = ROD.
+ */
+function hangingSign(w: number, bh: number, paint: (p: PixelCanvas) => void, ox: number): PropArt {
+  const h = ROD + bh;
+  const p = pc(w, h);
+  p.vline(3, 0, ROD, P.asphalt);
+  p.vline(w - 4, 0, ROD, P.asphalt);
+  p.set(3, ROD - 1, P.steel);
+  p.set(w - 4, ROD - 1, P.steel);
   paint(p);
   const img = p.toCanvas();
-  return { ox, oy, w, h: 24, foot: 0, img: () => null, fg: [{ ox, oy, img: () => img }] } as PropArt;
+  const oy = 16 - CLEAR - h;
+  return { ox, oy, w, h, foot: 15, img: () => img, xray: 0.3, contact: 0, shadow: undefined } as PropArt;
 }
 
-registerProp('mall_escalator_sign', () =>
-  hangingSign(34, (p) => {
-    p.rect(0, 12, 34, 11, P.white);
-    p.hline(0, 33, 12, P.glint);
-    p.hline(0, 33, 22, P.steel);
-    p.rect(0, 12, 3, 11, P.leafDeep);
-    // an escalator pictogram, a stroke of text and a hearty arrow →
-    p.line(5, 20, 11, 14, P.navy);
-    p.line(5, 21, 12, 14, P.navy);
-    p.set(6, 17, P.navy);
-    scribble(p, 14, 14, 2, P.navy, 3, 4);
-    for (let i = 0; i < 6; i++) p.set(24 + i, 18, P.verm);
-    p.set(28, 16, P.verm);
-    p.set(28, 20, P.verm);
-    p.set(29, 17, P.verm);
-    p.set(29, 19, P.verm);
+registerProp('mall_escalator_sign', () => {
+  // hung over the east exit (the row the M3 link arrives on, so nobody walks
+  // under its board): the escalator pictogram, 『2F』 and a hearty arrow →
+  const W = 32;
+  return hangingSign(W, 11, (p) => {
+    const y = ROD;
+    p.rect(0, y, W, 11, P.white);
+    p.hline(0, W - 1, y, P.glint);
+    p.hline(0, W - 1, y + 10, P.steel);
+    p.rect(0, y, 3, 11, P.leafDeep);
+    p.line(5, y + 8, 10, y + 3, P.navy);
+    p.line(5, y + 9, 11, y + 3, P.navy);
+    p.hline(10, 12, y + 3, P.navy);
+    p.set(4, y + 9, P.navy);
+    p.rect(8, y + 1, 2, 2, P.navy);
+    tiny(p, '2F', 14, y + 3, P.navy);
+    const ax = 22;
+    for (let i = 0; i < 7; i++) p.set(ax + i, y + 5, P.verm);
+    for (let k = 1; k <= 2; k++) {
+      p.set(ax + 6 - k, y + 5 - k, P.verm);
+      p.set(ax + 6 - k, y + 5 + k, P.verm);
+    }
     finish(p, { soft: true, rim: false });
-  }, -14, -26),
-);
+  }, 16 - W);
+});
 
 /** Pictograms for the direction signs: fork & bowl, fountain, escalator. */
 function pictogram(p: PixelCanvas, to: string, x: number, y: number, c: string): void {
@@ -658,24 +848,26 @@ function pictogram(p: PixelCanvas, to: string, x: number, y: number, c: string):
 registerProp('mall_exit_sign', (opts) => {
   const to = String(opts.to ?? 'food');
   const right = opts.dir === undefined ? to === 'health' : Number(opts.dir) > 0;
-  return hangingSign(40, (p) => {
-    p.rect(0, 12, 40, 10, P.navy);
-    p.hline(0, 39, 12, P.blue);
-    p.hline(0, 39, 21, P.nightShade);
+  const W = 32;
+  return hangingSign(W, 10, (p) => {
+    const y = ROD;
+    p.rect(0, y, W, 10, P.navy);
+    p.hline(0, W - 1, y, P.blue);
+    p.hline(0, W - 1, y + 9, P.nightShade);
     // white plate: the pictogram of where it leads and a big arrow
-    p.rect(2, 13, 36, 8, P.white);
-    p.hline(2, 37, 13, P.glint);
+    p.rect(2, y + 1, W - 4, 8, P.white);
+    p.hline(2, W - 3, y + 1, P.glint);
     const dir = right ? 1 : -1;
-    pictogram(p, to, right ? 5 : 26, 13, P.navy);
-    const ax = right ? 22 : 6;
-    for (let i = 0; i < 10; i++) p.set(ax + i, 17, P.verm);
+    pictogram(p, to, right ? 4 : W - 14, y + 1, P.navy);
+    const ax = right ? 17 : 4;
+    for (let i = 0; i < 10; i++) p.set(ax + i, y + 5, P.verm);
     const tip = right ? ax + 9 : ax;
     for (let k = 1; k <= 3; k++) {
-      p.set(tip - dir * k, 17 - k, P.verm);
-      p.set(tip - dir * k, 17 + k, P.verm);
+      p.set(tip - dir * k, y + 5 - k, P.verm);
+      p.set(tip - dir * k, y + 5 + k, P.verm);
     }
     finish(p, { soft: true, rim: false });
-  }, right ? -24 : 0, -18);
+  }, right ? 16 - W : 0);
 });
 
 // ---------------------------------------------------------------- the balloon on the ceiling (15,2)
@@ -707,6 +899,45 @@ registerProp('mall_balloon', () => {
   } as PropArt;
 });
 
+// ---------------------------------------------------------------- a plastic bag stirring in the automatic door's draft (13,13)
+
+registerProp('mall_bag_scrap', () => {
+  // a crumpled white shopping bag (the bell logo, faded) lying on the floor;
+  // its loose handle and one corner lift and settle in the draft
+  const frames = mkFrames(3, 16, 12, (p, k) => {
+    p.poly([[2, 5], [9, 3], [14, 6], [12, 10], [3, 10]], P.white);
+    p.line(2, 5, 9, 3, P.glint);
+    p.line(3, 10, 12, 10, P.concrete);
+    p.line(12, 10, 14, 6, P.concrete);
+    p.line(5, 6, 8, 9, P.concreteLt);
+    p.rect(8, 6, 2, 2, P.aqua);
+    // the corner / handle that lifts (frames 1–2)
+    if (k === 0) p.line(9, 3, 12, 2, P.concreteLt);
+    else if (k === 1) {
+      p.line(9, 3, 12, 0, P.concreteLt);
+      p.set(13, 1, P.white);
+    } else {
+      p.line(9, 3, 13, 1, P.concreteLt);
+      p.set(14, 2, P.white);
+      p.set(1, 4, P.white);
+    }
+  }, (p) => finish(p, { soft: true, rim: false }));
+  return {
+    ox: 0,
+    oy: 3,
+    w: 16,
+    h: 12,
+    foot: 0,
+    flat: true,
+    img: (env: PropEnv) => {
+      // gusts: a few flutters every ~2.6 s, then still
+      const u = (env.t + 900) % 2600;
+      if (u > 900) return frames[0];
+      return frames[1 + (Math.floor(u / 150) % 2)];
+    },
+  } as PropArt;
+});
+
 // ---------------------------------------------------------------- the automatic door's sensor lamp (10,14)
 
 registerProp('mall_autodoor', () => ({
@@ -725,6 +956,4 @@ registerProp('mall_autodoor', () => ({
   },
 }));
 
-void printLines;
-void fontTextSmall;
 void screenPool;

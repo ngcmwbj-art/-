@@ -15,11 +15,11 @@ import { ihash } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { notice, paperStack, pc, prop } from './ifurn';
 import { blend, depthShade, paintShell, shellProp } from './ishell';
-import { castRight, dk, finish, lt } from './kit';
-import { arrowSign, bannerScrap, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, shutter, skyPatch, type Lamp } from './mall_kit';
+import { castRight, dk, finish, lt, outline } from './kit';
+import { bannerScrap, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, shutter, skyPatch, skyPatchRim, small, smallW, type Lamp } from './mall_kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
-import { fontTextSmall, printLines, scribble, tiny } from './text';
+import { printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
 const M2_LAMPS: Lamp[] = [
@@ -64,24 +64,24 @@ registerProp('mall_m2_shell', () => {
     p.set(x + 1, y, P.verm);
   }
   posterGhost(p, 101, 38, 14, 5);
-  bannerScrap(p, 98, 4, 26, 11);
+  bannerScrap(p, 97, 3, 30, 11, 16);
   // ---- (8–11) the kaitenyaki stall: the menu sign with its growing brackets, the back wall
-  kaitenyakiSign(p, 128, 3);
   p.rect(129, 21, 62, 24, P.concrete);
   p.hline(129, 190, 21, P.concreteLt);
-  for (const sy of [27, 36]) {
+  for (const sy of [30, 38]) {
     p.hline(131, 188, sy, P.steel);
     p.hline(131, 188, sy + 1, P.asphalt);
   }
-  // paper bags, a batter jug, the bean paste pot, a price card
-  for (let k = 0; k < 4; k++) p.rect(133 + k * 4, 23, 3, 4, P.paper);
-  p.rect(152, 22, 5, 5, P.white);
-  p.rect(157, 23, 1, 2, P.white);
-  p.rect(165, 30, 7, 6, P.charcoal);
-  p.hline(165, 171, 30, P.asphalt);
-  p.rect(166, 31, 5, 2, P.maroon);
-  p.rect(176, 29, 10, 7, P.white);
-  tiny(p, '80', 177, 30, P.verm);
+  // paper bags, a batter jug, the bean paste pot, a price card (on the shelves)
+  for (let k = 0; k < 4; k++) p.rect(178 + k * 3, 34, 2, 4, P.paper);
+  p.rect(179, 24, 7, 6, P.charcoal);
+  p.hline(179, 185, 24, P.asphalt);
+  p.rect(180, 25, 5, 2, P.maroon);
+  p.rect(186, 26, 3, 4, P.white);
+  p.rect(131, 29, 10, 7, P.white);
+  tiny(p, '80', 132, 30, P.verm);
+  castRight(p, 131, 29, 10, 7, 1);
+  kaitenyakiSign(p, 128, 3);
   // ---- (13–16) lost-and-found counter: fascia, shelves of kept things through the window
   fasciaText(p, 208, 3, 64, 14, P.navy, '忘れ物', P.white, P.nightShade);
   p.rect(209, 21, 62, 24, P.woodLt);
@@ -130,14 +130,15 @@ registerProp('mall_m2_shell', () => {
     img,
     over(g: Gfx, x: number, y: number, env: PropEnv) {
       depthShade(g, x + 16, y + 48, W - 32, 80, 0.14);
-      mallLamps(g, x, y, M2_LAMPS, env, 202);
+      mallLamps(g, x, y, M2_LAMPS, env, 202, 0.16, rows);
+      skyPatch(g, x + 98, y + 118, 46, 30, env);
     },
     light(g: Gfx, x: number, y: number, env: PropEnv) {
-      mallGrade(g, 'mall', env);
+      mallGrade(g, 'mall', env, [x + 16, y + 48, 288, 144]);
       mallLampLight(g, x, y, M2_LAMPS, env, 202);
     },
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
-      skyPatch(g, x + 98, y + 118, 46, 30, env);
+      skyPatchRim(g, x + 98, y + 118, 46, 30, env);
     },
   });
 });
@@ -145,21 +146,16 @@ registerProp('mall_m2_shell', () => {
 /** 『回転焼き（今川焼き）（大判焼き）』: the name board with brackets taped on, one after another. */
 function kaitenyakiSign(p: PixelCanvas, x: number, y: number): void {
   fasciaText(p, x, y, 64, 15, P.goldPale, '回転焼き', P.woodDark, P.brass);
-  // two strips taped on under it, each a name in brackets: （今川焼き）（大判焼き）
-  for (const [sx, sy, w] of [[x + 6, y + 16, 30], [x + 26, y + 22, 34]] as const) {
-    p.rect(sx, sy, w, 5, P.white);
-    p.hline(sx, sx + w - 1, sy + 4, P.concreteLt);
-    p.rect(sx - 1, sy, 3, 2, P.goldPale);
-    p.rect(sx + w - 2, sy, 3, 2, P.goldPale);
-    // the brackets
-    p.set(sx + 2, sy + 1, P.woodDark);
-    p.set(sx + 1, sy + 2, P.woodDark);
-    p.set(sx + 2, sy + 3, P.woodDark);
-    p.set(sx + w - 3, sy + 1, P.woodDark);
-    p.set(sx + w - 2, sy + 2, P.woodDark);
-    p.set(sx + w - 3, sy + 3, P.woodDark);
-    scribble(p, sx + 4, sy + 1, Math.floor((w - 8) / 4), P.wood, sx + sy, 3);
-    castRight(p, sx, sy, w, 5, 1);
+  // two paper strips taped on under it, one after the other, each another
+  // name for the same cake in brackets: （今川焼）（大判焼）
+  for (const [sx, sy, word] of [[x - 7, y + 15, '（今川焼）'], [x + 36, y + 17, '（大判焼）']] as const) {
+    const w = smallW(word) + 3;
+    p.rect(sx, sy, w, 10, P.white);
+    p.hline(sx, sx + w - 1, sy + 9, P.concreteLt);
+    p.rect(sx - 1, sy - 1, 3, 2, P.goldPale);
+    p.rect(sx + w - 2, sy - 1, 3, 2, P.goldPale);
+    small(p, word, sx + 1, sy + 1, P.woodDark);
+    castRight(p, sx, sy, w, 10, 1);
   }
 }
 
@@ -179,7 +175,10 @@ function staffDoor(p: PixelCanvas, x: number, y: number): void {
 
 // ---------------------------------------------------------------- the kaitenyaki stall (8–11,3): counter + the turning plate
 
-const PLATE_N = 8;
+// one full turn in 2.0 s (the ambience's 'turn' is sent on the same beat),
+// 24 frames so the moulds visibly creep round and the key rides the rim
+const PLATE_N = 24;
+const keyAngle = (k: number) => (k / PLATE_N) * Math.PI * 2 + 0.35;
 function plateFrame(k: number, withKey: boolean, stopped: boolean): HTMLCanvasElement {
   const p = pc(32, 22);
   // the machine body (steel box with a burner window glowing orange)
@@ -194,7 +193,7 @@ function plateFrame(k: number, withKey: boolean, stopped: boolean): HTMLCanvasEl
   p.ellipse(16, 8, 13, 6, P.asphalt);
   p.ellipse(16, 8, 4, 2, P.charcoal);
   p.hline(8, 20, 3, P.steel);
-  const phase = stopped ? 0 : (k / PLATE_N) * (Math.PI * 2) / 8;
+  const phase = stopped ? 0 : (k / PLATE_N) * Math.PI * 2;
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2 + phase;
     const mx = Math.round(16 + Math.cos(a) * 9);
@@ -207,17 +206,7 @@ function plateFrame(k: number, withKey: boolean, stopped: boolean): HTMLCanvasEl
       p.set(mx - 1, my, P.goldPale);
     }
   }
-  if (withKey) {
-    // the little key rides on the plate (gold, a blue cord)
-    const a = phase + 0.35;
-    const kx = Math.round(16 + Math.cos(a) * 11);
-    const ky = Math.round(8 + Math.sin(a) * 5);
-    p.rect(kx - 1, ky - 1, 3, 2, P.gold);
-    p.set(kx - 1, ky - 1, P.goldPale);
-    p.set(kx + 2, ky - 1, P.brass);
-    p.set(kx + 3, ky, P.brass);
-    p.set(kx - 2, ky, P.blue);
-  }
+  void withKey;
   return p.toCanvas();
 }
 
@@ -249,22 +238,86 @@ registerProp('mall_kaitenyaki', () => {
   const counter = p.toCanvas();
   const frames = Array.from({ length: PLATE_N }, (_, k) => plateFrame(k, true, false));
   const stoppedNoKey = plateFrame(0, false, true);
+  const key = keySprite();
   const a = stand(counter, { cx: 32, base: 16, shadow: 0, contact: 0 });
+  /** Where the key is on the plate at time t (px of its sprite's top-left) and the angle. */
+  const keyAt = (t: number, x: number, y: number): [number, number, number] => {
+    const k = Math.floor(t / (2000 / PLATE_N)) % PLATE_N;
+    const ka = keyAngle(k);
+    // a 1px bob as it rattles round on the iron
+    const bob = Math.floor(t / 170) % 3 === 0 ? -1 : 0;
+    const kx = x + a.ox + 16 + Math.round(16 + Math.cos(ka) * 8.5) - 5;
+    const ky = y + a.oy - 6 + Math.round(8 + Math.sin(ka) * 3.5) - 3 + bob;
+    return [kx, ky, ka];
+  };
   a.over = (g: Gfx, x: number, y: number, env: PropEnv) => {
-    const done = fushigiDone('fushigi_12') || env.flag('flag_got_maigo_key') > 0;
-    const img = done ? stoppedNoKey : frames[Math.floor(env.t / (2000 / PLATE_N)) % PLATE_N];
-    g.img(img, x + a.ox + 16, y + a.oy - 9);
+    const stopped = fushigiDone('fushigi_12') || env.flag('flag_got_maigo_key') > 0;
+    const img = stopped ? stoppedNoKey : frames[Math.floor(env.t / (2000 / PLATE_N)) % PLATE_N];
+    g.img(img, x + a.ox + 16, y + a.oy - 6);
+    if (env.flag('flag_got_maigo_key')) return;
+    // fushigi_12: the key to the 迷子センター rides the plate — silver with a
+    // dark outline and its red-and-white paper tag, nothing like the cakes.
+    // Once the plate has stopped it lies still at the front until it is taken.
+    if (stopped) g.img(key, x + a.ox + 16 + 11, y + a.oy - 6 + 8);
+    else {
+      const [kx, ky] = keyAt(env.t, x, y);
+      g.img(key, kx, ky);
+    }
   };
   a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
-    if (fushigiDone('fushigi_12')) return;
-    // the plate is warm: a faint glow and the key's glint once a turn
-    const u = (env.t % 2000) / 2000;
-    g.rect(x + a.ox + 24, y + a.oy + 7, 16, 1, P.sun, 0.35);
-    g.rect(x + a.ox + 22, y + a.oy - 4, 20, 1, P.sky, 0.12);
-    if (u < 0.06) g.rect(x + a.ox + 42, y + a.oy - 1, 1, 1, P.glint, 0.9);
+    if (fushigiDone('fushigi_12')) {
+      // stopped: the key still waiting on the cold plate glints now and then
+      if (!env.flag('flag_got_maigo_key') && Math.floor(env.t / 150) % 12 === 0) g.rect(x + a.ox + 16 + 14, y + a.oy - 6 + 8, 1, 1, P.glint, 0.9);
+      return;
+    }
+    // the plate is warm: a faint glow, and the key glints as it swings round
+    // to the front (once a turn — the thing that draws the eye to it)
+    g.rect(x + a.ox + 24, y + a.oy + 10, 16, 1, P.sun, 0.35);
+    g.rect(x + a.ox + 22, y + a.oy - 1, 20, 1, P.sky, 0.12);
+    if (env.flag('flag_got_maigo_key')) return;
+    const [kx, ky, ka] = keyAt(env.t, x, y);
+    // the bow always shows a pinpoint of light; at the front a full sparkle
+    g.rect(kx + 2, ky + 1, 1, 1, P.glint, 0.7);
+    if (Math.sin(ka) > 0.6) {
+      const sx = kx + 3;
+      const sy = ky - 1;
+      g.rect(sx, sy - 1, 1, 3, P.glint, 0.95);
+      g.rect(sx - 1, sy, 3, 1, P.glint, 0.95);
+      g.rect(sx, sy - 3, 1, 1, P.glint, 0.5);
+      g.rect(sx + 2, sy, 1, 1, P.glint, 0.5);
+    }
   };
   return a;
 });
+
+/**
+ * The 迷子センター key (12×9 with its outline): a silver bow with a hole, the
+ * shaft and two teeth, and a paper tag on a string (white, a red band).
+ */
+function keySprite(): HTMLCanvasElement {
+  const p = pc(13, 10);
+  // bow (a ring with a dark hole)
+  p.rect(2, 1, 4, 4, P.concreteLt);
+  p.set(2, 1, P.white);
+  p.set(3, 1, P.white);
+  p.set(2, 2, P.white);
+  p.rect(3, 2, 2, 2, P.ink);
+  p.set(5, 4, P.steel);
+  p.set(5, 3, P.steel);
+  // shaft and the teeth
+  p.hline(6, 11, 2, P.white);
+  p.hline(6, 11, 3, P.steel);
+  p.rect(8, 4, 1, 2, P.steel);
+  p.rect(10, 4, 2, 1, P.steel);
+  p.set(11, 5, P.asphalt);
+  // the tag on its string
+  p.set(2, 5, P.charcoal);
+  p.rect(1, 6, 4, 3, P.white);
+  p.hline(1, 4, 6, P.verm);
+  p.set(4, 8, P.concreteLt);
+  outline(p, { soft: false, bottom: true });
+  return p.toCanvas();
+}
 
 // ---------------------------------------------------------------- lost-and-found counter (13–16,3)
 
@@ -287,7 +340,7 @@ registerProp('mall_lost_counter', () =>
     p.rect(48, 1, 3, 3, P.red);
     p.rect(52, 0, 3, 4, P.navy);
     p.rect(10, 16, 16, 4, P.paper);
-    scribble(p, 11, 16, 3, P.navy, 5, 3);
+    printLines(p, 11, 16, 14, 2, P.navy, 5);
   }, { cx: 32, base: 16, contact: 0, shadow: 0 }),
 );
 
@@ -397,7 +450,13 @@ registerProp('mall_tray_return', () =>
     p.rect(1, 2, 14, 30, P.woodDark);
     p.vline(1, 2, 31, P.wood);
     p.rect(1, 2, 14, 5, P.white);
-    scribble(p, 2, 3, 2, P.navy, 91, 4);
+    // a tray-and-cup pictogram on the 『返却口』 plate
+    p.hline(3, 9, 5, P.navy);
+    p.rect(5, 3, 2, 2, P.navy);
+    p.set(8, 4, P.navy);
+    p.set(11, 3, P.verm);
+    p.hline(10, 12, 4, P.verm);
+    p.set(11, 5, P.verm);
     for (let j = 9; j < 30; j += 4) p.hline(2, 14, j, P.wood);
     p.rect(2, 10, 12, 2, P.sunDeep);
     p.hline(2, 13, 10, P.sun);
@@ -412,6 +471,5 @@ registerProp('mall_tray_return', () =>
 
 void ihash;
 void printLines;
-void arrowSign;
 void PixelCanvas;
 void mkFrames;

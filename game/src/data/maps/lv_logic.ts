@@ -12,7 +12,10 @@
 //  - idle routines of the shopkeepers (丸山 peeks at the fryer every 4 s, おばあ
 //    breathes on her stamp then reads the ledger, 巡査 flips his notebook).
 //  - onEnter wrappers that start the first-visit events only once.
-//  - debug: __game.cmd.lv(name) jumps into any interior.
+//  - the robot vacuums keep to their beat (2F x2–14, never into the exits).
+//  - trig_maigo_door_rest fires once when standing at the opened door (5.17).
+//  - debug: __game.cmd.lv(name[, x, y]) jumps into any interior; lvDoors()
+//    checks every door; lvGate(on) / lvWon(symId) / lvPile('shake'|'hide'|'show').
 
 import type { Co } from '../../engine/co';
 import { game } from '../../engine/game';
@@ -147,6 +150,7 @@ registerWorldFx({
       turnK = k;
     }
     if (id === 'map_mall_health') escalatorThanks(f, dt);
+    if (id === 'map_mall_2f') restHint(f);
     keepSoujirou(f);
     shopkeepers(f, dt);
   },
@@ -158,6 +162,25 @@ registerWorldFx({
     g.alpha(a, () => g.img(img, Math.round(escX - img.width / 2 - cx), Math.round(escYpx - cy - pop)));
   },
 });
+
+// ---------------------------------------------------------------- trig_maigo_door_rest
+
+/**
+ * 5.17: 「扉の前に立ったとき（flag_maigo_door_open=1 で、一度だけ）」. The door is
+ * opened while standing in front of it, so an enter-trigger would never fire:
+ * once the door is open and nothing else is running, standing in x18–20,
+ * y2–3 plays the rest hint once (same state.taken key as the trig object).
+ */
+function restHint(f: FieldScene): void {
+  const key = 'trig:map_mall_2f:trig_maigo_door_rest';
+  if (state.taken[key] || !flag('flag_maigo_door_open')) return;
+  if (game.scripts.busy || f.talking !== null || !f.controllable) return;
+  const tx = f.player.tileX;
+  const ty = f.player.tileY;
+  if (tx < 18 || tx > 20 || ty < 2 || ty > 3) return;
+  state.taken[key] = true;
+  f.runScriptId('trig_maigo_door_rest', 'trig_maigo_door_rest');
+}
 
 // ---------------------------------------------------------------- fushigi_11 balloons
 
@@ -298,6 +321,13 @@ registerDebug('lv', (name?: string, x?: number, y?: number) => {
   const cmd = (window as unknown as { __game: { cmd: Record<string, (...a: unknown[]) => unknown> } }).__game.cmd;
   if (s[4] >= 0 && flag('flag_stage') < s[4]) cmd.stage?.(s[4]);
   return cmd.warp?.(s[0], x ?? s[1], y ?? s[2], s[3]);
+});
+/** QA: mark a mall symbol as beaten (its restored object appears): lvWon('sym_mall_food_01'). */
+registerDebug('lvWon', (id = 'sym_mall_food_01', on = true) => {
+  if (on) state.taken[id] = true;
+  else delete state.taken[id];
+  field()?.refreshPresence();
+  return `${id} ${on ? 'beaten' : 'restored'}`;
 });
 /** QA: the M5 heap — lvPile('shake') / lvPile('hide') / lvPile('show'). */
 registerDebug('lvPile', (what = 'shake') => {

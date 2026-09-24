@@ -175,11 +175,19 @@ function drawRisingBoss(g: Gfx, x: number, y: number): void {
   const dx = Math.round(x - w / 2 + Math.sin(boss.t / 170) * boss.wobble);
   const dy = Math.round(y - h + (1 - boss.rise) * 10);
   const shown = Math.round(h * boss.rise);
-  // the dark it rises from
-  g.alpha(0.45 * boss.rise, () => {
-    g.rect(dx + 10, y - 3, w - 20, 5, '#1B1733');
-    g.rect(dx + 18, y - 5, w - 36, 2, '#1B1733');
-  });
+  // the dark it rises from: a soft pool under it
+  const ctx = g.ctx;
+  ctx.save();
+  ctx.globalAlpha = 0.5 * boss.rise;
+  ctx.fillStyle = '#1B1733';
+  ctx.beginPath();
+  ctx.ellipse(Math.round(x), Math.round(y - 2), w * 0.46, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 0.35 * boss.rise;
+  ctx.beginPath();
+  ctx.ellipse(Math.round(x), Math.round(y - 2), w * 0.56, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
   g.clip(dx, dy + h - shown, w, shown, () => {
     g.ctx.save();
     g.ctx.imageSmoothingEnabled = false;

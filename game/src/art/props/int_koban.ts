@@ -10,7 +10,7 @@ import type { Gfx } from '../../engine/gfx';
 import { PixelCanvas } from '../../engine/pixel';
 import { getMapDef } from '../../world/maps';
 import { fushigiDone } from '../../world/fushigi';
-import { terrazzo } from '../tiles/ifloor';
+import { kobanFloor, laneOf } from '../tiles/ifloor';
 import { valueNoise } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { cardboard, clockFace, framed, notice, pc, prop } from './ifurn';
@@ -18,14 +18,27 @@ import { depthShade, lightPool, paintShell, screenPool, screenSpill, shellProp }
 import { castRight, finish } from './kit';
 import { stand } from './pkit';
 import { registerProp } from './registry';
-import { fontTextSmall, printLines, scribble, tiny } from './text';
+import { fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
 // ---------------------------------------------------------------- shell
 
 registerProp('in_kb_shell', () => {
   const rows = getMapDef('map_koban')?.rows ?? [];
-  const floor = terrazzo(141);
+  const lane = laneOf([[4, 6], [4, 4.5], [2, 4], [6, 4]], 12);
+  // a border of small tiles round the walls, 16px tiles in the field
+  const border = (x: number, y: number) => x < 24 || x >= 120 || y >= 88;
+  const floor = kobanFloor(141, lane, border, [
+    { x: 58, y: 84, k: 'print' },
+    { x: 84, y: 78, k: 'print' },
+    { x: 60, y: 70, k: 'print' },
+    { x: 94, y: 89, k: 'leaf' },
+    { x: 30, y: 70, k: 'band' },
+    { x: 106, y: 58, k: 'clip' },
+    { x: 114, y: 84, k: 'coin' },
+    { x: 40, y: 78, k: 'heel' },
+    { x: 98, y: 70, k: 'heel' },
+  ]);
   const sh = paintShell({
     rows,
     floor: (x, y) => floor(x, y),
@@ -80,7 +93,7 @@ registerProp('in_kb_shell', () => {
 function trafficPoster(p: PixelCanvas, x: number, y: number): void {
   p.rect(x, y, 14, 22, P.white);
   p.rect(x, y, 14, 4, P.leafDeep);
-  scribble(p, x + 1, y, 3, P.white, 5, 3);
+  printLines(p, x + 2, y + 1, 10, 2, P.white, 5);
   // the traffic light: dark body, three lamps, three smiles
   p.rect(x + 2, y + 6, 10, 5, P.charcoal);
   p.hline(x + 2, x + 11, y + 6, P.asphalt);
@@ -250,7 +263,7 @@ registerProp('in_kb_locker', () =>
     p.rect(6, 18, 1, 4, P.charcoal);
     p.rect(10, 18, 1, 4, P.charcoal);
     p.rect(3, 24, 4, 3, P.white);
-    scribble(p, 3, 24, 1, P.navy, 3, 3);
+    printLines(p, 3, 25, 3, 1, P.navy, 3);
     p.hline(1, 14, 33, P.charcoal);
     // white helmet with a navy stripe on top
     p.ellipse(8, 3.5, 5, 3.5, P.white);
@@ -403,7 +416,7 @@ registerProp('in_kb_tea', () =>
     p.poly([[11, 6], [17, 7], [17, 29], [11, 29]], P.white);
     p.hline(11, 17, 6, P.glint);
     p.rect(12, 8, 5, 3, P.verm);
-    scribble(p, 12, 12, 2, P.navy, 21, 3, true);
+    for (let j = 0; j < 5; j++) p.vline(14, 12 + j * 3, 13 + j * 3, P.navy);
     p.vline(17, 7, 29, P.concrete);
     // low steel cabinet
     p.rect(0, 15, 13, 15, P.concrete);
@@ -473,11 +486,38 @@ registerProp('in_kb_lostbox', () =>
     p.set(11, 5, P.white);
     // label 『落とし物』
     p.rect(3, 12, 10, 4, P.white);
-    scribble(p, 4, 12, 2, P.verm, 11, 3);
+    printLines(p, 4, 13, 8, 2, P.verm, 11, 1);
   }, { base: 16, contact: 0, shadow: 0 }),
 );
 
 // ---------------------------------------------------------------- the entrance mat (4,5)
+
+// ---------------------------------------------------------------- the visitors' pipe chair (7,5) with a clipboard on it
+
+registerProp('in_kb_chair', () =>
+  prop(16, 26, (p) => {
+    // folding pipe chair seen from the front, turned a little towards the desk:
+    // chrome legs, a brown vinyl seat and back, the 遺失届 clipboard left on the seat
+    p.vline(3, 2, 25, P.steel);
+    p.vline(12, 2, 25, P.asphalt);
+    p.hline(3, 12, 2, P.concreteLt);
+    p.rect(4, 3, 8, 7, P.wood);
+    p.hline(4, 11, 3, P.woodLt);
+    p.hline(4, 11, 9, P.woodDark);
+    p.rect(2, 13, 12, 4, P.wood);
+    p.hline(2, 13, 13, P.woodLt);
+    p.hline(2, 13, 16, P.woodDark);
+    p.line(2, 17, 1, 25, P.steel);
+    p.line(13, 17, 14, 25, P.asphalt);
+    p.hline(3, 12, 22, P.steel);
+    // the clipboard: brown board, the form, the clip, a pen on a string
+    p.rect(5, 11, 7, 5, P.woodDark);
+    p.rect(6, 12, 5, 3, P.white);
+    p.hline(6, 10, 13, P.concrete);
+    p.rect(7, 11, 3, 1, P.steel);
+    p.line(11, 15, 13, 19, P.navy);
+  }, { base: 16, contact: 12, shadow: 0 }),
+);
 
 registerProp('in_kb_mat', () => {
   const p = pc(24, 12);

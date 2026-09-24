@@ -196,15 +196,16 @@ registerMap({
 
 // ================================================================ 4.6 map_koban（交番、9×7）
 
-// 4.6's grid plus three lived-in corners made solid: the tea cabinet (1,2),
-// the standing fan (6,2) and the umbrella stand (1,5).
+// 4.6's grid plus four lived-in corners made solid: the tea cabinet (1,2),
+// the standing fan (6,2), the umbrella stand (1,5) and the visitors' pipe
+// chair (7,5).
 export const ROWS_KOBAN = [
   '#WWWWWWW#',
   '#WWWWWWW#',
   '#o....oo#',
   '#..ooo.o#',
   '#.......#',
-  '#o......#',
+  '#o.....o#',
   '####D####',
 ];
 
@@ -232,6 +233,7 @@ registerMap({
     PR('in_kb_tea', 1, 2),
     PR('in_kb_fan', 6, 2),
     PR('in_kb_umbrella', 1, 5),
+    PR('in_kb_chair', 7, 5),
     // examine
     O('obj_koban_poster', 1, 1, { face: 'up' }),
     O('obj_koban_map', 2, 1, { w: 3, face: 'up' }),

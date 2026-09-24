@@ -8,21 +8,20 @@ import type { Gfx } from '../engine/gfx';
 import { drawGlyph } from '../engine/font';
 import { H, W } from '../engine/screen';
 import { animate, ease } from '../engine/tween';
-import { flag, setFlag, state, type Dir } from '../game/state';
-import { getItem, isKeyItem } from '../data/battle';
+import { addItem, flag, setFlag, state, type Dir } from '../game/state';
+import { getItem } from '../data/battle';
 import { startBattle, type BattleOpts } from '../battle/api';
 import { field, type FieldScene } from '../world/field';
 import { runMsg } from '../world/msg';
 import { actor, walk } from '../world/api';
 import { DIR_VEC } from '../world/actor';
 import { runGameOver } from '../ui/gameover';
+import { uiHud } from '../ui/hud';
 import { continueGame } from '../ui/flow';
 import { layoutPages, BOX } from '../ui/dialog';
 import { drawWindow, UI } from '../ui/window';
 import { playBgm, sfx } from '../audio';
 import { registerWorldFx } from '../world/fx';
-
-export const INVENTORY_CAP = 14;
 
 /** The running field scene (throws if there is none). */
 export function F(): FieldScene {
@@ -37,21 +36,9 @@ export function onMap(id: string): boolean {
 
 // ---------------------------------------------------------------- items
 
-/** Items that count against the 14-slot bag (大事なものは数えない). */
-export function bagCount(): number {
-  return state.inventory.filter((id) => !isKeyItem(id)).length;
-}
-
-/** A 大事なもの: never blocked by a full bag, never duplicated. */
+/** A 大事なもの: never blocked by a full bag (state.addItem doesn't count them), never duplicated. */
 export function giveKey(id: string): void {
-  if (!state.inventory.includes(id)) state.inventory.push(id);
-}
-
-/** An ordinary item: false (and nothing changes) when the bag is full. */
-export function giveItem(id: string): boolean {
-  if (bagCount() >= INVENTORY_CAP) return false;
-  state.inventory.push(id);
-  return true;
+  if (!state.inventory.includes(id)) addItem(id);
 }
 
 export function itemName(id: string): string {
@@ -61,6 +48,9 @@ export function itemName(id: string): string {
 /** 大事なもの入手: the item jingle (music pauses and resumes by itself) and the @sys line. */
 export function* getKeyItem(id: string, text: string, jingle = true): Co {
   giveKey(id);
+  // the @sys line says it; no HUD pick-up card on top of it
+  yield 34;
+  uiHud.clearNotes();
   if (jingle) playBgm('bgm_jingle_item');
   else sfx('se_item');
   yield* runMsg(text);
@@ -99,7 +89,10 @@ export type EventBattleResult = 'win' | 'retry' | 'load';
 export function* eventBattle(o: BattleOpts): Co<EventBattleResult> {
   const mp0 = new Map(state.party.map((m) => [m.id, m.mp] as const));
   const r = yield* startBattle({ ...o, canLose: true });
-  if (r === 'win') return 'win';
+  if (r === 'win') {
+    grace();
+    return 'win';
+  }
   if (r === 'flee') return 'retry';
   // the battle ended on the dark screen: keep it dark until the page is up
   game.fadeColor = '#0B0B14';
@@ -117,6 +110,12 @@ export function* eventBattle(o: BattleOpts): Co<EventBattleResult> {
   game.fadeColor = '#0B0B14';
   game.fadeAlpha = 1;
   return 'retry';
+}
+
+/** A moment of peace after a story scene: field symbols can't start a battle yet. */
+export function grace(ms = 2500): void {
+  const f = field();
+  if (f) f.invincibleUntil = f.t + ms;
 }
 
 // ---------------------------------------------------------------- camera

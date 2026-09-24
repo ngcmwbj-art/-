@@ -11,6 +11,7 @@ import { caption, showGuide } from '../ui/api';
 import { playAmbient, playBgm, sfx, stopAllAmbient, stopBgm } from '../audio';
 import * as T from '../data/text/events';
 import { NPC } from '../data/text/npcs';
+import { uiHud } from '../ui/hud';
 import { F, giveKey, healHp, once } from './lib';
 
 // ---------------------------------------------------------------- 5.2 evt_opening
@@ -24,8 +25,10 @@ registerScript('evt_opening', function* (): Co {
   game.fadeAlpha = 1;
   stopBgm(0);
   stopAllAmbient(0);
+  // slumped over the desk: from behind, the head sinks onto the desk top
   p.dir = 'up';
   p.playAnim('sleep', true);
+  p.oy = 3;
   p.showEmote('zzz', 0);
   // the higurashi through the window (−8 dB, LP 2.5 kHz), 2 s
   playAmbient('amb_higurashi', { vol: 0.4, lp: 2500, fade: 2 });
@@ -41,6 +44,10 @@ registerScript('evt_opening', function* (): Co {
   yield* emote('player', 'exclaim');
   // up from the desk (2 frames), turn round
   p.playAnim('wake');
+  p.oy = 1;
+  yield 90;
+  p.oy = 0;
+  p.hop(3, 200);
   yield 260;
   stopAnim('player');
   p.dir = 'down';
@@ -107,6 +114,9 @@ function* evtErrand(): Co {
   state.money += 500;
   giveKey('item_gamaguchi');
   giveKey('item_otsukai_memo');
+  // the @sys lines say it; no HUD pick-up cards on top of them
+  yield 34;
+  uiHud.clearNotes();
   playBgm('bgm_jingle_item');
   yield* msg(T.ERRAND_GET);
   yield* msg(T.ERRAND_B);

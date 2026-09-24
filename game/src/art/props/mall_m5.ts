@@ -15,11 +15,11 @@ import { P } from '../tiles/palette';
 import { kidDrawing, pc, prop } from './ifurn';
 import { blend, depthShade, lightPool, paintShell, screenPool, shellProp } from './ishell';
 import { lvTime } from './istate';
-import { castRight, dk, finish, lt } from './kit';
+import { castRight, dk, finish, lt, outline } from './kit';
 import { mallGrade } from './mall_kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
-import { fontText, fontTextSmall, fontWidth, printLines, scribble, tiny } from './text';
+import { fontText, fontTextSmall, fontWidth, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
 /** The lone tube: on for 1.3 s, off for 1.3 s, from the moment you come in. */
@@ -165,8 +165,8 @@ function mascotPoster(p: PixelCanvas, x: number, y: number): void {
   p.rect(cx - 4, y + 27, 3, 3, P.skin3);
   p.rect(cx + 2, y + 27, 3, 3, P.skin3);
   // text strokes 『よいこの みかた カネナリくん』
-  scribble(p, x + 3, y + 31, 4, P.peach, 91, 4);
-  scribble(p, x + 5, y + 36, 3, P.skin3, 93, 3);
+  printLines(p, x + 3, y + 31, 22, 2, P.peach, 91, 2);
+  printLines(p, x + 6, y + 36, 16, 1, P.skin3, 93);
   castRight(p, x, y, w, h, 2);
   // one tape corner has let go
   p.rect(x - 1, y - 1, 3, 2, P.goldPale);
@@ -177,105 +177,269 @@ function mascotPoster(p: PixelCanvas, x: number, y: number): void {
 // ---------------------------------------------------------------- the low counter 『どうしたの？』 (3–7,3)
 
 registerProp('mall_maigo_counter', () =>
-  prop(80, 24, (p) => {
+  prop(80, 30, (p) => {
+    const Y = 6; // headroom for the microphone's gooseneck
     // child-height counter: pale wood top, a pastel front with the question
-    p.rect(0, 6, 80, 4, P.woodLt);
-    p.hline(0, 79, 6, P.goldPale);
-    p.hline(0, 79, 9, P.wood);
-    p.rect(0, 10, 80, 12, P.paper);
-    p.hline(0, 79, 10, P.white);
-    p.rect(0, 20, 80, 2, P.skin2);
-    fontTextSmall(p, 'どうしたの？', 14, 12, P.sunShade, 1);
-    p.ellipse(6, 15, 2.5, 2.5, P.aqua);
-    p.ellipse(73, 15, 2.5, 2.5, P.leafLt);
-    p.rect(0, 22, 80, 2, P.woodDark);
+    p.rect(0, Y + 6, 80, 4, P.woodLt);
+    p.hline(0, 79, Y + 6, P.goldPale);
+    p.hline(0, 79, Y + 9, P.wood);
+    p.rect(0, Y + 10, 80, 12, P.paper);
+    p.hline(0, 79, Y + 10, P.white);
+    p.rect(0, Y + 20, 80, 2, P.skin2);
+    fontTextSmall(p, 'どうしたの？', 14, Y + 12, P.sunShade, 1);
+    p.ellipse(6, Y + 15, 2.5, 2.5, P.aqua);
+    p.ellipse(73, Y + 15, 2.5, 2.5, P.leafLt);
+    p.rect(0, Y + 22, 80, 2, P.woodDark);
     // the log book (x4): open, lines, the last page with no name
-    p.rect(17, 1, 14, 7, P.white);
-    p.vline(24, 1, 7, P.concrete);
-    printLines(p, 18, 2, 5, 3, P.steel, 7);
-    printLines(p, 25, 2, 4, 1, P.steel, 9);
-    p.rect(15, 2, 2, 6, P.navy);
-    // a tissue box and a small plush on the counter
-    p.rect(35, 2, 8, 5, P.aqua);
-    p.rect(38, 1, 2, 2, P.white);
-    p.ellipse(60, 4, 3, 3, P.peach);
-    p.set(58, 2, P.peach);
-    p.set(62, 2, P.peach);
-    p.set(59, 4, P.ink);
-    // the broadcast microphone (x6): a gooseneck on a base, its power lamp dark
-    p.rect(64, 5, 9, 3, P.charcoal);
-    p.hline(64, 72, 5, P.asphalt);
-    p.set(71, 6, P.maroon);
-    p.line(68, 5, 69, -1 + 2, P.asphalt);
-    p.line(69, 1, 72, -1 + 1, P.asphalt);
-    p.rect(72, 0, 3, 2, P.charcoal);
-  }, { cx: 40, base: 16, contact: 0, shadow: 0 }),
+    p.rect(17, Y + 1, 14, 7, P.white);
+    p.vline(24, Y + 1, Y + 7, P.concrete);
+    printLines(p, 18, Y + 2, 5, 3, P.steel, 7);
+    printLines(p, 25, Y + 2, 4, 1, P.steel, 9);
+    p.rect(15, Y + 2, 2, 6, P.navy);
+    // a tissue box and a small plush rabbit waiting on the counter
+    p.rect(35, Y + 2, 8, 5, P.aqua);
+    p.hline(35, 42, Y + 2, P.glint);
+    p.rect(38, Y + 1, 2, 2, P.white);
+    p.ellipse(68, Y + 5, 3, 2.5, P.peach);
+    p.rect(66, Y, 1, 3, P.peach);
+    p.rect(69, Y, 1, 3, P.peach);
+    p.set(67, Y + 4, P.ink);
+    p.set(69, Y + 4, P.ink);
+    // the broadcast microphone (x6): a round chrome head on a segmented
+    // gooseneck, a heavy base, its 『放送中』 lamp dark
+    p.rect(49, Y + 4, 11, 4, P.charcoal);
+    p.hline(49, 59, Y + 4, P.asphalt);
+    p.hline(50, 58, Y + 7, P.ink);
+    p.rect(51, Y + 5, 3, 2, P.maroon);
+    p.set(51, Y + 5, P.vermShade);
+    for (const [x, y] of [[56, Y + 3], [56, Y + 2], [57, Y + 1], [57, Y], [58, Y - 1], [59, Y - 2]] as const) {
+      p.set(x, y, (x + y) % 2 ? P.steel : P.asphalt);
+    }
+    p.ellipse(61, Y - 4, 2.6, 2.6, P.steel);
+    p.ellipse(61, Y - 4, 1.6, 1.6, P.charcoal);
+    p.set(60, Y - 5, P.concreteLt);
+    p.set(62, Y - 3, P.asphalt);
+  }, { cx: 40, base: 16 + 0, contact: 0, shadow: 0 }),
 );
 
 // ---------------------------------------------------------------- the heap of lost things (8–11, 3–5)
 
-const PILE_W = 64;
-const PILE_H = 60;
+const PILE_W = 68;
+const PILE_H = 64;
 let PILE: { img: HTMLCanvasElement; rim: HTMLCanvasElement } | null = null;
 
+/** One lost thing: painted on its own canvas and outlined (ink below/right, a darker tone above/left). */
+function thing(w: number, h: number, paint: (p: PixelCanvas) => void): PixelCanvas {
+  const p = new PixelCanvas(w + 2, h + 2);
+  const inner = new PixelCanvas(w, h);
+  paint(inner);
+  p.blit(inner, 1, 1);
+  outline(p, { soft: true, bottom: true });
+  return p;
+}
+
+/**
+ * The heap: about twenty unclaimed things piled back to front against the
+ * wall — coats at the bottom, an umbrella bundle and a big bear at the back,
+ * the gym bag, the blue water bottle (#4AA8E0, the boss's colour), a yellow
+ * school hat, a rabbit, a towel, the recorder, crayons, a ball, a lunch bag;
+ * at the front a single indoor shoe, gloves, the shogi 『歩』, a sock, a
+ * harmonica, a yo-yo. Each has its own colours, shade and outline; the base
+ * sinks into shadow; umbrellas and ears poke out of the silhouette.
+ */
 function buildPile(): { img: HTMLCanvasElement; rim: HTMLCanvasElement } {
   const p = pc(PILE_W, PILE_H);
-  // the mound (a dark mass of cloth and bags) as the base
-  const top = 14;
-  for (let y = top; y < PILE_H; y++)
+  const put = (t: PixelCanvas, x: number, y: number) => p.blit(t, x - 1, y - 1);
+  // ---- the bulk: a navy duffle coat, a brown coat, a grey hoodie (big folds)
+  put(thing(30, 30, (q) => {
+    q.poly([[2, 29], [4, 8], [12, 2], [22, 3], [29, 12], [29, 29]], P.navy);
+    q.line(4, 8, 12, 2, P.blue);
+    q.line(12, 8, 10, 28, P.nightShade);
+    q.line(20, 6, 22, 28, P.nightShade);
+    for (const [x, y] of [[15, 10], [15, 16], [15, 22]] as const) q.rect(x, y, 2, 1, P.goldPale);
+    q.line(5, 12, 9, 20, P.blue);
+  }), 3, 32);
+  put(thing(32, 32, (q) => {
+    q.poly([[1, 31], [3, 10], [14, 1], [26, 4], [31, 16], [31, 31]], P.wood);
+    q.line(3, 10, 14, 1, P.woodLt);
+    q.line(10, 6, 12, 30, P.woodDark);
+    q.line(22, 5, 26, 30, P.woodDark);
+    q.rect(15, 12, 6, 8, P.woodDark);
+    q.hline(15, 20, 12, P.wood);
+  }), 30, 28);
+  put(thing(26, 24, (q) => {
+    q.poly([[0, 23], [3, 6], [12, 0], [22, 4], [25, 23]], P.asphalt);
+    q.line(3, 6, 12, 0, P.steel);
+    q.ellipse(12, 5, 5, 3, P.charcoal);
+    q.line(8, 10, 9, 22, P.charcoal);
+    q.vline(12, 8, 11, P.white);
+    q.vline(14, 8, 12, P.white);
+  }), 42, 40);
+  // ---- the umbrella bundle leaning at the back, handles up (poking out)
+  const umbrellas: [number, string, string][] = [[38, P.navy, P.blue], [42, P.red, P.vermLt], [46, P.concreteLt, P.white], [50, P.gold, P.goldPale], [54, P.aqua, P.white]];
+  umbrellas.forEach(([ux, c, l], i) => {
+    const top = 2 + (i % 2) * 3;
+    const lean = i < 2 ? -1 : i > 2 ? 1 : 0;
+    put(thing(10, 30, (q) => {
+      // leaning in the bundle: the J handle on top, the furled canopy, its strap
+      const tx = 4 + lean * 3;
+      q.vline(tx + 1, 0, 2, P.charcoal);
+      q.set(tx + 2, 3, P.charcoal);
+      q.set(tx + 3, 2, P.charcoal);
+      q.set(tx, 0, P.charcoal);
+      q.poly([[tx, 4], [tx + 3, 4], [5, 29], [3, 29]], c);
+      q.line(tx + 1, 5, 4, 27, l);
+      const my = 14;
+      const mx = Math.round(tx + (4 - tx) * (my / 29));
+      q.hline(mx, mx + 3, my, dk(c));
+      q.set(mx + 3, my + 1, P.white);
+    }), ux - 4 - i, top);
+  });
+  // ---- a big teddy bear sitting at the back left
+  put(thing(16, 17, (q) => {
+    q.ellipse(4, 3, 2.5, 2.5, P.woodLt);
+    q.ellipse(12, 3, 2.5, 2.5, P.woodLt);
+    q.ellipse(8, 7, 6, 5.5, P.woodLt);
+    q.ellipse(8, 14, 7, 4, P.brass);
+    q.ellipse(7, 6, 3, 2.5, P.goldPale);
+    q.set(6, 7, P.ink);
+    q.set(10, 7, P.ink);
+    q.rect(7, 9, 3, 2, P.paperGrid);
+    q.set(8, 9, P.ink);
+    q.hline(4, 12, 12, P.verm);
+    q.set(8, 13, P.vermShade);
+  }), 8, 14);
+  // ---- the gym-clothes bag (navy drawstring bag, a blank white name tag)
+  put(thing(14, 13, (q) => {
+    q.poly([[2, 1], [11, 1], [13, 12], [0, 12]], P.navy);
+    q.hline(2, 11, 1, P.blue);
+    q.hline(3, 10, 3, P.white);
+    q.rect(4, 6, 6, 4, P.white);
+    q.hline(4, 9, 9, P.concrete);
+    q.line(0, 0, 3, 3, P.white);
+  }), 20, 26);
+  // ---- a yellow school hat
+  put(thing(13, 7, (q) => {
+    q.ellipse(6, 3, 5, 3, P.gold);
+    q.ellipse(5, 2, 3, 1.5, P.goldPale);
+    q.hline(0, 12, 5, P.brass);
+    q.hline(2, 10, 6, P.brassOld);
+    q.hline(3, 9, 4, P.sunShade);
+  }), 40, 22);
+  // ---- a pink rabbit, ears up (poking out of the silhouette)
+  put(thing(9, 15, (q) => {
+    q.rect(1, 0, 2, 6, P.skin1);
+    q.rect(6, 0, 2, 6, P.skin1);
+    q.vline(2, 1, 4, P.peach);
+    q.vline(6, 1, 4, P.peach);
+    q.ellipse(4, 8, 4, 3.5, P.skin1);
+    q.ellipse(4, 12.5, 4, 2.5, P.skin2);
+    q.set(3, 8, P.ink);
+    q.set(5, 8, P.ink);
+    q.set(4, 9, P.peach);
+  }), 54, 20);
+  // ---- a towel draped over the coat (aqua with white stripes)
+  put(thing(16, 9, (q) => {
+    q.poly([[0, 1], [15, 0], [15, 6], [10, 8], [0, 7]], P.aqua);
+    for (const x of [3, 8, 13]) q.vline(x, 0, 7, P.white);
+    q.hline(0, 15, 0, P.glint);
+    q.line(10, 8, 15, 6, P.blue);
+  }), 8, 35);
+  // ---- the blue water bottle (the boss's colour), standing, strap looped
+  put(thing(7, 15, (q) => {
+    q.rect(1, 2, 5, 13, P.blue);
+    q.vline(1, 2, 14, P.aqua);
+    q.vline(5, 3, 14, P.navy);
+    q.rect(1, 0, 5, 2, P.navy);
+    q.hline(2, 4, 0, P.blue);
+    q.hline(1, 5, 8, P.white);
+    q.set(2, 4, P.glint);
+    q.line(6, 2, 6, 7, P.charcoal);
+  }), 31, 31);
+  // ---- the recorder lying across (cream, finger holes, a brown mouthpiece)
+  put(thing(19, 7, (q) => {
+    q.line(0, 6, 17, 0, P.paperGrid);
+    q.line(1, 6, 18, 0, P.paper);
+    q.line(0, 5, 3, 4, P.woodDark);
+    q.line(0, 6, 3, 5, P.woodDark);
+    for (const k of [6, 9, 12]) q.set(k, 6 - Math.round(k / 3), P.woodDark);
+    q.set(17, 1, P.woodLt);
+  }), 39, 38);
+  // ---- a box of crayons
+  put(thing(9, 6, (q) => {
+    q.rect(0, 1, 9, 5, P.gold);
+    q.hline(0, 8, 1, P.goldPale);
+    [P.red, P.blue, P.leaf, P.crimson, P.navy, P.sun].forEach((c, i) => q.vline(1 + i, 0, 2, c));
+    q.rect(2, 3, 5, 2, P.white);
+  }), 15, 45);
+  // ---- a red-and-white ball
+  put(thing(7, 7, (q) => {
+    q.ellipse(3, 3, 3.2, 3.2, P.red);
+    q.hline(0, 6, 3, P.white);
+    q.set(2, 1, P.vermLt);
+    q.set(1, 2, P.vermLt);
+  }), 57, 44);
+  // ---- a lunch bag with a bear face
+  put(thing(9, 8, (q) => {
+    q.rect(0, 1, 9, 7, P.peach);
+    q.hline(0, 8, 1, P.skin1);
+    q.set(1, 0, P.peach);
+    q.set(7, 0, P.peach);
+    q.set(3, 4, P.ink);
+    q.set(5, 4, P.ink);
+    q.set(4, 5, P.sunShade);
+  }), 4, 46);
+  // ---- the front: one indoor shoe, a red glove and a navy mitten, the 歩,
+  // a green sock, a harmonica, a yo-yo
+  put(thing(11, 5, (q) => {
+    q.rect(0, 0, 11, 4, P.white);
+    q.rect(8, 0, 3, 4, P.red);
+    q.hline(0, 10, 4, P.concrete);
+    q.rect(2, 1, 5, 1, P.concreteLt);
+    q.set(3, 1, P.blue);
+  }), 42, 55);
+  put(thing(6, 5, (q) => {
+    q.rect(0, 1, 5, 4, P.red);
+    q.vline(5, 1, 2, P.red);
+    q.hline(0, 4, 1, P.vermLt);
+    q.rect(0, 0, 2, 1, P.red);
+  }), 21, 55);
+  put(thing(5, 5, (q) => {
+    q.rect(0, 1, 5, 4, P.navy);
+    q.hline(0, 4, 4, P.white);
+    q.set(0, 0, P.navy);
+  }), 27, 57);
+  put(thing(6, 7, (q) => {
+    q.poly([[0, 6], [0, 2], [3, 0], [5, 2], [5, 6]], P.woodLt);
+    q.line(0, 2, 3, 0, P.goldPale);
+    q.set(2, 3, P.ink);
+    q.hline(1, 4, 4, P.ink);
+    q.set(3, 5, P.ink);
+  }), 58, 54);
+  put(thing(7, 4, (q) => {
+    q.rect(0, 0, 4, 3, P.leafYoung);
+    q.rect(3, 2, 4, 2, P.leafYoung);
+    q.hline(0, 3, 0, P.white);
+  }), 34, 58);
+  put(thing(9, 3, (q) => {
+    q.rect(0, 0, 9, 3, P.blue);
+    q.hline(0, 8, 0, P.concreteLt);
+    for (let x = 1; x < 9; x += 2) q.set(x, 1, P.navy);
+    q.set(1, 0, P.glint);
+  }), 9, 58);
+  put(thing(4, 4, (q) => {
+    q.ellipse(1.5, 1.5, 2, 2, P.crimson);
+    q.set(1, 1, P.white);
+  }), 52, 58);
+  // ---- the base sinks into shadow; the far back (against the wall) is dimmer too
+  for (let y = 0; y < PILE_H; y++)
     for (let x = 0; x < PILE_W; x++) {
-      const u = (x - 34) / 30;
-      const hump = 1 - u * u;
-      const ht = top + (1 - hump) * 30 + Math.sin(x * 0.7) * 1.5;
-      if (y < ht) continue;
-      const n = valueNoise(x / 5, y / 4, 901);
-      p.set(x, y, n > 0.7 ? P.shade : n > 0.4 ? P.shadeDeep : P.nightShade);
+      const v = p.get(x, y);
+      if (!(v >>> 24)) continue;
+      const low = Math.max(0, (y - 44) / 20);
+      if (low > 0 && ((x + y) & 1) === 0 && low > 0.3) blend(p, x, y, P.nightShade, 0.25 * low);
+      else if (low > 0) blend(p, x, y, P.nightShade, 0.12 * low);
     }
-  // things lying on and sticking out of the heap
-  // a bundle of umbrellas leaning at the back (transparent, navy, red, a yellow child's one)
-  for (const [x, c] of [[26, P.concrete], [30, P.navy], [34, P.red], [38, P.gold], [42, P.aqua]] as const) {
-    p.line(x, 2, x - 3 + (x % 4), 26, c);
-    p.set(x, 1, P.charcoal);
-  }
-  p.line(24, 3, 22, 1, P.charcoal);
-  // the blue water bottle #4AA8E0 (the boss's colour), front and centre
-  p.rect(30, 30, 6, 12, P.blue);
-  p.vline(30, 30, 41, P.aqua);
-  p.rect(30, 28, 6, 2, P.navy);
-  p.rect(31, 27, 4, 1, P.white);
-  p.hline(31, 34, 36, P.white);
-  // a navy gym bag with a blank name tag
-  p.rect(10, 34, 14, 10, P.navy);
-  p.hline(10, 23, 34, P.blue);
-  p.rect(14, 37, 6, 3, P.white);
-  p.line(10, 34, 16, 30, P.white);
-  // the recorder (cream with holes)
-  p.line(40, 42, 54, 32, P.paperGrid);
-  p.line(40, 43, 54, 33, P.woodLt);
-  for (const k of [44, 47, 50]) p.set(k, 41 - Math.round((k - 40) * 0.7), P.woodDark);
-  // one indoor shoe (white, a red toe)
-  p.rect(44, 46, 9, 5, P.white);
-  p.rect(51, 46, 3, 5, P.red);
-  p.hline(44, 53, 50, P.concrete);
-  // gloves (red, navy), a cap, a plush rabbit's ears
-  p.rect(20, 46, 5, 4, P.red);
-  p.rect(25, 48, 4, 3, P.navy);
-  p.ellipse(50, 26, 5, 2, P.gold);
-  p.hline(52, 57, 27, P.brass);
-  p.rect(14, 24, 2, 7, P.white);
-  p.rect(17, 25, 2, 6, P.white);
-  p.set(15, 25, P.peach);
-  p.ellipse(16, 33, 4, 3, P.white);
-  // the shogi piece 『歩』 (a small wooden pentagon)
-  p.poly([[57, 44], [59, 41], [61, 44], [61, 48], [57, 48]], P.woodLt);
-  p.set(59, 45, P.ink);
-  p.hline(58, 60, 46, P.ink);
-  // a lunch bag with a bear face, a sock
-  p.rect(4, 44, 7, 6, P.peach);
-  p.set(6, 46, P.ink);
-  p.set(9, 46, P.ink);
-  p.rect(56, 51, 5, 3, P.leafYoung);
-  finish(p, { soft: true, rim: false });
   // the trembling rim: the outline pixels of the heap's silhouette
   const rim = new PixelCanvas(PILE_W + 2, PILE_H + 2);
   const op = (x: number, y: number) => x >= 0 && y >= 0 && x < PILE_W && y < PILE_H && p.get(x, y) >>> 24 !== 0;
@@ -304,6 +468,15 @@ registerProp('mall_lost_pile', () => {
     const k = Math.floor(env.t / 260) % 4;
     const d = [[0, 0], [1, 0], [0, -1], [-1, 0]][k];
     g.alpha(0.75, () => g.img(pile.rim, ox - 1 + d[0], oy - 1 + d[1]));
+  };
+  a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
+    if (lvTime.pileHidden || !maigoTubeOn(env.t)) return;
+    // two things in the heap catch the lone tube: the bottle's shoulder and the harmonica
+    const ox = x + a.ox;
+    const oy = y + a.oy;
+    const k = (Math.sin(env.t / 380) + 1) / 2;
+    g.rect(ox + 33, oy + 34, 1, 2, P.glint, 0.5 + k * 0.4);
+    g.rect(ox + 10, oy + 58, 2, 1, P.glint, 0.3 + (1 - k) * 0.4);
   };
   return a;
 });
@@ -368,7 +541,8 @@ registerProp('mall_maigo_tube', () => {
   };
   const onImg = mk(true);
   const offImg = mk(false);
-  const oy = -6;
+  // hung high enough to clear the log book and the microphone on the counter
+  const oy = -13;
   return {
     ox: -12,
     oy,

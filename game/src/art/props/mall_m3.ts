@@ -14,10 +14,10 @@ import { P } from '../tiles/palette';
 import { pc, prop } from './ifurn';
 import { blend, depthShade, paintShell, shellProp } from './ishell';
 import { castRight, dk, finish, lt } from './kit';
-import { fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, skyPatch, type Lamp } from './mall_kit';
+import { fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, skyPatch, skyPatchRim, small, type Lamp } from './mall_kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
-import { fontTextSmall, scribble, tiny } from './text';
+import { printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
 const M3_LAMPS: Lamp[] = [
@@ -47,25 +47,27 @@ registerProp('mall_m3_shell', () => {
   p.vline(39, 32, 36, P.asphalt);
   p.rect(34, 40, 3, 1, P.concreteLt);
   p.set(34, 41, P.charcoal);
-  // ---- (3–4) 『1日 1万歩』: a walking figure and a big 10000
+  // ---- (3–4) 『1日1万歩』: the title band, a walking figure and a big 10000
   {
-    const x = 50;
-    const y = 5;
-    p.rect(x, y, 28, 24, P.paper);
-    p.rect(x, y, 28, 5, P.leafDeep);
-    scribble(p, x + 2, y + 1, 4, P.white, 31, 3);
+    const x = 47;
+    const y = 4;
+    const w = 35;
+    p.rect(x, y, w, 26, P.paper);
+    p.rect(x, y, w, 10, P.leafDeep);
+    p.hline(x, x + w - 1, y, P.leaf);
+    small(p, '1日1万歩', x + 2, y + 1, P.white);
     // walking figure
-    p.ellipse(x + 7, y + 9, 2, 2, P.sun);
-    p.line(x + 7, y + 11, x + 7, y + 16, P.sunDeep);
-    p.line(x + 7, y + 16, x + 4, y + 20, P.sunDeep);
-    p.line(x + 7, y + 16, x + 10, y + 20, P.sunDeep);
-    p.line(x + 7, y + 12, x + 4, y + 15, P.sunDeep);
-    p.line(x + 7, y + 12, x + 10, y + 14, P.sunDeep);
-    tiny(p, '10000', x + 12, y + 10, P.verm, undefined, 0);
-    scribble(p, x + 12, y + 17, 3, P.steel, 33, 3);
-    castRight(p, x, y, 28, 24, 2);
+    p.ellipse(x + 7, y + 13, 2, 2, P.sun);
+    p.line(x + 7, y + 15, x + 7, y + 19, P.sunDeep);
+    p.line(x + 7, y + 19, x + 4, y + 23, P.sunDeep);
+    p.line(x + 7, y + 19, x + 10, y + 23, P.sunDeep);
+    p.line(x + 7, y + 16, x + 4, y + 18, P.sunDeep);
+    p.line(x + 7, y + 16, x + 10, y + 17, P.sunDeep);
+    tiny(p, '10000', x + 13, y + 13, P.verm, undefined, 0);
+    printLines(p, x + 13, y + 20, 19, 2, P.steel, 33);
+    castRight(p, x, y, w, 26, 2);
     p.set(x + 1, y, P.verm);
-    p.set(x + 26, y, P.verm);
+    p.set(x + w - 2, y, P.verm);
   }
   // ---- (5) height chart on the wall: a tape with a sliding head bar
   p.rect(84, 6, 6, 40, P.white);
@@ -76,26 +78,67 @@ registerProp('mall_m3_shell', () => {
   castRight(p, 84, 6, 6, 40, 2);
   // ---- (6–8) the opening the stopped escalator climbs into
   escalatorOpening(p, 96, 0);
-  // ---- (9–12) 『健康器具』 fascia, 『お試しください』 posters and ghosts
+  // ---- (9–12) 『健康器具』 fascia, two 『お試しください』 posters (a chair, 『0円』), a ghost
   fasciaText(p, 144, 3, 64, 14, P.leafDeep, '健康器具', P.white, P.leafShade);
-  for (const [x, c] of [[148, P.gold], [176, P.aqua]] as const) {
-    p.rect(x, 22, 20, 14, P.paper);
-    p.rect(x, 22, 20, 3, c);
-    p.rect(x + 3, 27, 6, 6, P.maroon);
-    p.hline(x + 3, x + 8, 27, P.sunShade);
-    scribble(p, x + 10, 27, 2, P.ink, x, 4);
-    castRight(p, x, 22, 20, 14, 2);
-    p.set(x + 1, 22, P.verm);
+  // 『おためし 0円』: the word on a gold band, the price in red below
+  {
+    const x = 146;
+    p.rect(x, 21, 35, 16, P.paper);
+    p.rect(x, 21, 35, 10, P.gold);
+    p.hline(x, x + 34, 21, P.goldPale);
+    small(p, 'おためし', x + 2, 22, P.vermShade);
+    tiny(p, '0', x + 12, 31, P.verm);
+    small(p, '円', x + 16, 30, P.verm);
+    castRight(p, x, 21, 35, 16, 2);
+    p.set(x + 1, 21, P.verm);
   }
-  posterGhost(p, 200, 24, 6, 12);
-  // ---- (13–14) a big poster of a massage chair 『極上もみほぐし』 and a wall mirror
-  p.rect(210, 20, 28, 16, P.nightShade);
-  p.rect(211, 21, 26, 14, P.shadeDeep);
-  p.rect(214, 25, 10, 8, P.maroon);
-  p.rect(222, 22, 4, 11, P.maroon);
-  p.hline(214, 225, 25, P.sunShade);
-  fontTextSmall(p, '極上', 226, 26, P.goldPale, 1);
-  castRight(p, 210, 20, 28, 16, 2);
+  // a cartoon of a blissful face (closed happy eyes, steam of relief)
+  {
+    const x = 184;
+    p.rect(x, 21, 17, 16, P.paper);
+    p.rect(x, 21, 17, 3, P.aqua);
+    p.ellipse(x + 8, 30, 5, 4.5, P.skin1);
+    p.ring(x + 8, 30, 5, 4.5, P.skin3);
+    p.set(x + 5, 29, P.ink);
+    p.set(x + 6, 28, P.ink);
+    p.set(x + 7, 29, P.ink);
+    p.set(x + 9, 29, P.ink);
+    p.set(x + 10, 28, P.ink);
+    p.set(x + 11, 29, P.ink);
+    p.hline(x + 7, x + 9, 32, P.sunShade);
+    p.set(x + 4, 31, P.peach);
+    p.set(x + 12, 31, P.peach);
+    p.vline(x + 2, 25, 27, P.steel);
+    p.vline(x + 14, 26, 28, P.steel);
+    castRight(p, x, 21, 17, 16, 2);
+    p.set(x + 1, 21, P.verm);
+  }
+  posterGhost(p, 203, 24, 5, 11);
+  // ---- (13–14) the 『極上』 poster of a massage chair (inside the east wall) and a price card
+  p.rect(209, 19, 28, 17, P.nightShade);
+  p.rect(210, 20, 26, 15, P.shadeDeep);
+  p.rect(212, 27, 7, 6, P.maroon);
+  p.rect(217, 22, 3, 10, P.maroon);
+  p.hline(212, 218, 27, P.sunShade);
+  p.set(217, 22, P.sunShade);
+  small(p, '極上', 220, 22, P.goldPale);
+  p.hline(220, 235, 31, P.gold);
+  castRight(p, 209, 19, 28, 17, 2);
+  // ---- (1) a tall mirror for checking your posture: the room reflected dimly
+  // (pale wall above, the floor's line, a lamp's bright band), two glints
+  p.rect(18, 7, 11, 38, P.steel);
+  p.hline(18, 28, 7, P.concreteLt);
+  for (let j = 0; j < 36; j++)
+    for (let i = 0; i < 9; i++) {
+      const yy = 8 + j;
+      const xx = 19 + i;
+      let c: string = j < 22 ? (j < 4 ? P.concrete : P.paperGrid) : j === 22 ? P.steel : (i + j) % 7 === 0 ? P.concrete : P.concreteLt;
+      if (j >= 5 && j <= 6) c = P.white;
+      if ((i + j) % 13 === 0 || (i + j) % 13 === 1) c = P.white;
+      p.set(xx, yy, c);
+    }
+  p.vline(27, 8, 43, P.concrete);
+  castRight(p, 18, 7, 11, 38, 2);
   // ---- floor: the metal steps of the escalator (7,3)–(7,6) and its comb plate
   for (let y = 48; y < 112; y++)
     for (let x = 112; x < 128; x++) {
@@ -126,14 +169,15 @@ registerProp('mall_m3_shell', () => {
     img,
     over(g: Gfx, x: number, y: number, env: PropEnv) {
       depthShade(g, x + 16, y + 48, W - 32, 80, 0.14);
-      mallLamps(g, x, y, M3_LAMPS, env, 303);
+      mallLamps(g, x, y, M3_LAMPS, env, 303, 0.16, rows);
+      skyPatch(g, x + 94, y + 116, 50, 28, env);
     },
     light(g: Gfx, x: number, y: number, env: PropEnv) {
-      mallGrade(g, 'mall', env);
+      mallGrade(g, 'mall', env, [x + 16, y + 48, 224, 144]);
       mallLampLight(g, x, y, M3_LAMPS, env, 303);
     },
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
-      skyPatch(g, x + 94, y + 116, 50, 28, env);
+      skyPatchRim(g, x + 94, y + 116, 50, 28, env);
       // the 2F landing is lit by the evening at the top of the opening
       g.rect(x + 108, y + 4, 24, 3, P.sky, 0.35 * (1 - env.grade.night));
     },
@@ -222,62 +266,86 @@ const LOOKS: ChairLook[] = [
 ];
 
 function chairFrames(look: ChairLook): HTMLCanvasElement[] {
+  const [li, ba, dkc] = look.lea;
+  const lean = look.recline ? 1 : 0.4;
   return mkFrames(2, 32, 40, (p, k) => {
-    const d = k; // 1px shiver
-    const [li, ba, dkc] = look.lea;
-    // base
-    p.rect(6, 33, 24, 6, P.charcoal);
-    p.hline(6, 29, 33, P.asphalt);
-    // seat
-    p.rect(8, 22 + d, 18, 8, ba);
-    p.hline(8, 25, 22 + d, li);
-    // leg rest (to the west): hanging down, or raised level
+    const d = k; // 1px shiver (the plinth stays put)
+    const set = (x: number, y: number, c: string) => {
+      if (x >= 0 && x < 32 && y + d >= 0 && y + d < 40) p.set(x, y + d, c);
+    };
+    const has = (x: number, y: number) => x >= 0 && x < 32 && y + d >= 0 && y + d < 40 && p.alpha(x, y + d) > 0;
+    // plinth
+    p.rect(7, 35, 22, 4, P.charcoal);
+    p.hline(7, 28, 34, P.asphalt);
+    // leg rest: hanging down to the west (or raised level), the dark foot pocket at its end
     if (look.legUp) {
-      p.rect(0, 23 + d, 9, 5, ba);
-      p.hline(0, 8, 23 + d, li);
-      p.rect(0, 27 + d, 3, 2, dkc);
+      for (let x = 0; x < 12; x++) for (let y = 23; y < 29; y++) set(x, y, y === 23 ? li : x < 2 ? dkc : ba);
+      for (let y = 24; y < 28; y++) for (let x = 0; x < 3; x++) set(x, y, P.ink);
+      p.rect(9, 29, 3, 6, P.asphalt);
     } else {
-      p.rect(1, 25 + d, 8, 8, ba);
-      p.hline(1, 8, 25 + d, li);
-      p.rect(1, 31 + d, 3, 3, dkc);
+      for (let i = 0; i < 12; i++) for (let t = 0; t < 7; t++) set(7 - i + t, 25 + i, t === 0 ? li : ba);
+      for (let y = 31; y < 37; y++) for (let x = 0; x < 6; x++) if (x + (36 - y) * 0.2 < 5) set(x, y, P.ink);
     }
-    // backrest on the east side (upright, or leaning back), the head pillow
-    const r = look.recline;
-    for (let y = 2; y < 26; y++) {
-      const off = r ? Math.round((26 - y) * 0.2) : 0;
-      p.hline(22 + off, 30 + off, y + d, ba);
-      p.set(22 + off, y + d, li);
-      p.set(30 + off, y + d, dkc);
+    // seat cushion
+    for (let y = 22; y < 28; y++) for (let x = 9; x < 24; x++) set(x, y, y === 22 ? li : ba);
+    // the backrest (leaning back to the east), stitched
+    for (let y = 3; y < 31; y++) {
+      const kk = ((30 - y) / 27) * lean;
+      const xl = Math.round(20 - lean + kk * 5);
+      const xr = Math.round(28 + kk * 3);
+      for (let x = xl; x <= xr; x++) set(x, y, x === xl ? li : x >= xr - 1 ? dkc : ba);
+      if (y % 2 === 0 && y > 8 && y < 28) set(Math.round(24 - lean + kk * 5), y, dkc);
     }
-    const hx = 21 + (r ? 5 : 0);
-    p.rect(hx, 0 + d, Math.min(10, 32 - hx), 6, dkc);
-    p.hline(hx, Math.min(31, hx + 9), 0 + d, ba);
-    // armrest with gold trim
-    p.rect(11, 16 + d, 14, 4, dkc);
-    p.hline(11, 24, 16 + d, P.brass);
-    // the remote on its curly cord, the 『お試し中』 card hanging from the arm
-    p.rect(10, 20 + d, 3, 5, P.white);
-    p.set(11, 21 + d, P.verm);
-    for (let j = 0; j < 4; j++) p.set(12 + (j % 2), 25 + d + j, P.charcoal);
-    p.rect(18, 20 + d, 6, 5, P.gold);
-    p.hline(19, 22, 22 + d, P.vermShade);
-    p.set(21, 19 + d, P.charcoal);
+    // the hood over the head, curving forward
+    const hx = 25 + lean * 1.5;
+    for (let y = 0; y < 7; y++)
+      for (let x = 18; x < 32; x++) {
+        const dx = (x - hx) / 6.2;
+        const dy = (y - 5) / 5.2;
+        if (dx * dx + dy * dy <= 1) set(x, y, y < 2 ? li : x < hx - 3.5 ? li : x > hx + 2.5 ? dkc : ba);
+      }
+    for (let x = Math.round(hx - 6); x < Math.round(hx - 1); x++) set(x, 6, dkc);
+    // the big arm pod in front of the seat (air-bag seams, the control panel on top)
+    const inPod = (x: number, y: number) => Math.abs((x - 17) / 7.6) ** 3 + Math.abs((y - 19) / 6.2) ** 3 <= 1;
+    for (let y = 13; y < 26; y++)
+      for (let x = 10; x < 27; x++) {
+        if (inPod(x, y)) set(x, y, y <= 15 ? li : x <= 11 ? li : x >= 23 || y >= 23 ? dkc : ba);
+        else if (inPod(x - 1, y) && has(x, y)) set(x, y, P.ink);
+      }
+    for (let x = 12; x < 23; x++) set(x, 19, dkc);
+    for (const [x, y] of [[15, 20], [15, 21], [19, 20], [19, 21]] as const) set(x, y, dkc);
+    for (let x = 14; x < 20; x++) set(x, 14, P.steel);
+    set(15, 14, P.vermLt);
+    set(17, 14, P.leafYoung);
+    // the remote on its curly cord
+    set(24, 17, P.white);
+    set(24, 18, P.white);
+    for (let j = 0; j < 4; j++) set(25 + (j % 2), 19 + j, P.charcoal);
+    // 『お試し中』 card hanging from the pod
+    for (let y = 24; y < 29; y++) for (let x = 12; x < 18; x++) set(x, y, P.gold);
+    for (let x = 13; x < 17; x++) set(x, 26, P.vermShade);
+    set(14, 23, P.charcoal);
+    set(15, 23, P.charcoal);
     switch (look.extra) {
       case 'towel':
-        p.rect(hx, 1 + d, 8, 3, P.white);
-        p.hline(hx, hx + 7, 3 + d, P.aqua);
+        for (let x = Math.round(hx - 4); x < Math.round(hx + 4); x++) {
+          set(x, 1, P.white);
+          set(x, 2, P.white);
+          set(x, 3, P.aqua);
+        }
+        set(Math.round(hx - 5), 3, P.white);
+        set(Math.round(hx - 5), 4, P.white);
         break;
       case 'bag':
-        p.rect(12, 17 + d, 8, 6, P.leafYoung);
-        p.hline(12, 19, 17 + d, P.leafLt);
-        p.line(13, 17 + d, 15, 13 + d, P.leafDeep);
-        p.line(18, 17 + d, 16, 13 + d, P.leafDeep);
+        for (let y = 9; y < 15; y++) for (let x = 20; x < 26; x++) set(x, y, y === 9 ? P.leafLt : P.leafYoung);
+        p.line(21, 9 + d, 22, 6 + d, P.leafDeep);
+        p.line(24, 9 + d, 23, 6 + d, P.leafDeep);
         break;
       case 'note':
-        p.rect(24, 8 + d, 6, 7, P.white);
-        p.hline(25, 28, 10 + d, P.verm);
-        p.hline(25, 27, 12 + d, P.verm);
-        p.rect(25, 7 + d, 3, 1, P.goldPale);
+        for (let y = 8; y < 15; y++) for (let x = 25; x < 30; x++) set(x, y, P.white);
+        for (let x = 26; x < 29; x++) set(x, 10, P.verm);
+        for (let x = 26; x < 28; x++) set(x, 12, P.verm);
+        set(27, 7, P.goldPale);
         break;
     }
   }, (p) => finish(p, { soft: true }));

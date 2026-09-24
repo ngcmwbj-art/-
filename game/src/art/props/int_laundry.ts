@@ -10,16 +10,16 @@ import type { Gfx } from '../../engine/gfx';
 import { PixelCanvas } from '../../engine/pixel';
 import { getMapDef } from '../../world/maps';
 import { fushigiDone } from '../../world/fushigi';
-import { laneOf, vinyl } from '../tiles/ifloor';
+import { laneOf, laundryFloor } from '../tiles/ifloor';
 import { ihash, valueNoise } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { clockFace, notice, pc, prop } from './ifurn';
-import { depthShade, lightPool, paintShell, screenPool, screenSpill, shellProp, tube } from './ishell';
+import { depthShade, lightPool, paintShell, screenPool, screenSpill, shellProp, tube, warmPool } from './ishell';
 import { lvTime } from './istate';
 import { castRight, dk, finish, lt } from './kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
-import { fontTextSmall, printLines, scribble, tiny } from './text';
+import { fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
 function rgbHex(c: [number, number, number]): string {
@@ -31,8 +31,23 @@ function rgbHex(c: [number, number, number]): string {
 
 registerProp('in_ld_shell', () => {
   const rows = getMapDef('map_laundry')?.rows ?? [];
-  const lane = laneOf([[3, 5], [3, 3], [9, 3]], 18);
-  const floor = vinyl(121, lane);
+  const lane = laneOf([[3, 5.5], [3, 3], [9, 3]], 18);
+  // grime towards the walls (west, east, south skirting)
+  const edge = (x: number, y: number) => Math.max(0, 1 - Math.min(x - 16, 175 - x, 95 - y) / 6);
+  const floor = laundryFloor(121, lane, edge, [
+    { x: 40, y: 70, k: 'lint' },
+    { x: 118, y: 60, k: 'lint' },
+    { x: 157, y: 90, k: 'lint' },
+    { x: 134, y: 77, k: 'coin' },
+    { x: 58, y: 86, k: 'sheet' },
+    { x: 101, y: 81, k: 'sock', v: 1 },
+    { x: 34, y: 85, k: 'powder' },
+    { x: 126, y: 89, k: 'hairtie' },
+    { x: 118, y: 64, k: 'drops' },
+    { x: 104, y: 72, k: 'drops', v: 1 },
+    { x: 150, y: 53, k: 'crack' },
+    { x: 22, y: 52, k: 'crack', v: 1 },
+  ]);
   const sh = paintShell({
     rows,
     floor: (x, y) => floor(x, y),
@@ -77,15 +92,6 @@ registerProp('in_ld_shell', () => {
   // outlet and a small 禁煙 sign by the door side
   p.rect(18, 26, 5, 4, P.white);
   p.ring(20.5, 28, 1.5, 1.5, P.verm);
-  // ---- floor: lint balls, a lost 10-yen coin, a dryer sheet
-  for (const [lx, ly] of [[40, 70], [118, 60], [150, 88]] as const) {
-    p.rect(lx, ly, 2, 2, P.concreteLt);
-    p.set(lx + 1, ly + 1, P.steel);
-  }
-  p.rect(134, 76, 2, 2, P.brass);
-  p.set(134, 76, P.goldPale);
-  p.rect(58, 84, 5, 3, P.white);
-  p.hline(58, 62, 86, P.concrete);
   // ---- the entrance (3,6): aluminium glass door
   const dx = 48;
   const dy = 96;
@@ -251,15 +257,28 @@ registerProp('in_ld_dryer', (opts) => {
     }
     return fr[4];
   };
-  if (n === 3)
+  if (n === 3) {
+    const flick = (t: number) => 0.85 + Math.sin(t / 240) * 0.1;
     a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
       if (fushigiDone('fushigi_05')) return;
-      // warm light in the window, and a round warm pool on the floor
-      const fl = 0.85 + Math.sin(env.t / 240) * 0.1;
-      screenPool(g, x + a.ox + 8, y + a.oy + 13, 7, 7, P.sky, 0.35 * fl);
-      screenPool(g, x + 8, y + 25, 18, 9, P.sky, 0.4 * fl);
-      screenPool(g, x + 8, y + 25, 9, 5, P.horizon, 0.22 * fl);
+      // warm light in the turning window
+      const fl = flick(env.t);
+      screenPool(g, x + a.ox + 8, y + a.oy + 13, 7, 7, P.sky, 0.45 * fl);
+      screenPool(g, x + a.ox + 8, y + a.oy + 13, 4, 4, P.horizon, 0.35 * fl);
     };
+    a.over = (g: Gfx, x: number, y: number, env: PropEnv) => {
+      if (fushigiDone('fushigi_05')) return;
+      // the round warm pool it throws on the floor (orange, not a white haze)
+      const fl = flick(env.t);
+      warmPool(g, x + 8, y + 24, 22, 11, P.sun, 0.95 * fl);
+      warmPool(g, x + 8, y + 23, 12, 6, P.sky, 0.7 * fl);
+    };
+    a.light = (g: Gfx, x: number, y: number, env: PropEnv) => {
+      if (fushigiDone('fushigi_05')) return;
+      const fl = flick(env.t);
+      lightPool(g, x + 8, y + 24, 22, 12, P.sun, (0.22 + env.grade.night * 0.35) * fl);
+    };
+  }
   return a;
 });
 
@@ -349,7 +368,7 @@ registerProp('in_ld_bench', () =>
     p.rect(3, 6, 9, 5, P.white);
     p.rect(3, 6, 9, 2, P.red);
     p.rect(8, 8, 3, 2, P.skin2);
-    scribble(p, 4, 9, 1, P.ink, 7, 3);
+    printLines(p, 4, 9, 4, 1, P.ink, 7);
   }, { cx: 24, base: 16, contact: 0, shadow: 0 }),
 );
 
@@ -381,7 +400,7 @@ registerProp('in_ld_table', () =>
       p.set(x, (k % 2), lt(c));
     }
     p.rect(18, 4, 7, 3, P.paper);
-    scribble(p, 19, 4, 2, P.verm, 9, 2);
+    printLines(p, 19, 5, 5, 1, P.verm, 9);
   }, { cx: 16, base: 16, contact: 0, shadow: 0 }),
 );
 

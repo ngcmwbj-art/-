@@ -13,10 +13,10 @@ import { ihash, valueNoise } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { clockFace, framed, goodsRow, kidDrawing, notice, pc, prop } from './ifurn';
 import { blend, depthShade, lightPool, paintShell, screenPool, screenSpill, shellProp } from './ishell';
-import { castRight, dk, finish, lt } from './kit';
+import { castRight, dk, finish, lt, outline } from './kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
-import { fontTextSmall, printLines, scribble, tiny } from './text';
+import { fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
 const BAGS = [P.red, P.gold, P.aqua, P.leaf];
@@ -72,23 +72,36 @@ registerProp('in_hi_shell', () => {
     p.ellipse(bx + 0.5, by + 0.5, 1.8, 1.8, c);
     p.set(bx, by, lt(c));
   }
-  // (3) the old class photo above the register
+  // (3) the old class photo above the register: a sepia print with a white
+  // border, two rows of kids and the young teacher standing in the middle
   {
     const [ix, iy, iw, ih] = framed(p, 49, 3, 16, 12, P.woodDark);
-    p.rect(ix, iy, iw, ih, P.concrete);
-    p.rect(ix, iy + 6, iw, ih - 6, P.steel);
-    // three rows of tiny kids and the young teacher in the middle
-    for (let r = 0; r < 3; r++)
-      for (let c = 0; c < 6; c++) {
-        const kx = ix + 1 + c * 2 + (r % 2);
-        const ky = iy + 1 + r * 3;
-        if (r === 1 && c === 3) continue;
-        p.set(kx, ky, P.asphalt);
-        p.set(kx, ky + 1, r === 2 ? P.charcoal : P.white);
-      }
-    p.set(ix + 7, iy + 3, P.charcoal);
-    p.rect(ix + 7, iy + 4, 1, 2, P.asphalt);
-    p.hline(ix, ix + iw - 1, iy + ih - 1, P.asphalt);
+    p.rect(ix, iy, iw, ih, P.paper);
+    p.rect(ix + 1, iy + 1, iw - 2, 5, P.paperGrid);
+    p.rect(ix + 1, iy + 6, iw - 2, ih - 8, P.woodLt);
+    // the school wall behind: a darker band, a window
+    p.hline(ix + 1, ix + iw - 2, iy + 5, P.skin3);
+    p.rect(ix + 10, iy + 1, 3, 2, P.goldPale);
+    // back row (standing): six kids and the teacher, taller, in the middle
+    for (let c = 0; c < 6; c++) {
+      const kx = ix + 1 + c * 2 + (c >= 3 ? 1 : 0);
+      p.set(kx, iy + 3, P.woodDark);
+      p.set(kx, iy + 4, P.skin3);
+      p.set(kx, iy + 5, c % 2 ? P.white : P.brassOld);
+    }
+    p.set(ix + 7, iy + 1, P.woodDark);
+    p.set(ix + 7, iy + 2, P.skin3);
+    p.rect(ix + 7, iy + 3, 1, 3, P.wood);
+    // front row (sitting): five kids in white gym shirts
+    for (let c = 0; c < 5; c++) {
+      const kx = ix + 2 + c * 2 + (c >= 3 ? 1 : 0);
+      p.set(kx, iy + 6, P.woodDark);
+      p.set(kx, iy + 7, P.skin3);
+      p.set(kx, iy + 8, P.white);
+    }
+    // the caption strip, handwritten
+    p.hline(ix + 2, ix + 5, iy + ih - 1, P.woodLt);
+    p.hline(ix + 7, ix + 11, iy + ih - 1, P.woodLt);
   }
   // (4–5) shelves behind おばあ: jars, a red daruma, the radio, a pencil cup, the ledger box
   for (const sy of [11, 21]) {
@@ -258,7 +271,7 @@ registerProp('in_hi_back', () => {
   p.set(14, 8, P.leafYoung);
   p.rect(20, 7, 6, 5, P.brass);
   p.hline(20, 25, 7, P.goldPale);
-  scribble(p, 21, 9, 1, P.verm, 3, 3);
+  printLines(p, 21, 9, 4, 2, P.verm, 3);
   // stacked 帳面 and a cardboard box of stock at the back right
   p.rect(66, 4, 12, 9, P.woodLt);
   p.rect(66, 3, 12, 1, P.goldPale);
@@ -505,30 +518,51 @@ registerProp('in_hi_jars', () =>
 
 // ---------------------------------------------------------------- the pig mosquito-coil holder (3,6)
 
-// a white-glazed pig (蚊やりブタ) seen from the side, its open snout to the
-// west with the coil's ember inside; smoke curls up from the snout (frame 3 =
-// stage 1: the smoke hangs frozen in the air)
-const PIG = [
-  '.....oo..oo.....',
-  '....oMBooBDo....',
-  '...oLMMMMMBBo...',
-  '.ooLMMoMMMMBDo..',
-  'oMMoLMMMMMMBBDo.',
-  'oMnnoMpMMMMBBDoo',
-  'oLnrnoMMMMMBBDoD',
-  'oMnnoMMMMMBBDDo.',
-  '.ooMMMMMBBBDDo..',
-  '..oMBBBBBBDDo...',
-  '...oDo.oDooDo...',
-  '....o...o..o....',
-];
-const KAYARI = mkFrames(4, 16, 22, (p, k) => {
-  p.art(PIG, { o: P.ink, L: P.white, M: P.concreteLt, B: P.concrete, D: P.steel, p: P.peach, n: P.nightShade, r: P.vermLt }, 0, 10);
-  // smoke: three soft 2px puffs drifting up and to the east
+// the white-glazed pig (蚊やりブタ) facing us: a round ceramic body, the big
+// round snout opening dark inside with the coil's ember in it, pointed ears,
+// four stub legs, a glaze highlight; smoke curls up out of the snout (frame 3
+// = stage 1: the smoke hangs frozen in the air)
+function kayariPig(p: PixelCanvas, y0: number): void {
+  // ears (behind the head)
+  p.poly([[2, y0 + 4], [4, y0], [7, y0 + 3]], P.concrete);
+  p.poly([[12, y0 + 3], [15, y0], [17, y0 + 4]], P.steel);
+  p.set(4, y0 + 2, P.peach);
+  p.set(15, y0 + 2, P.sunShade);
+  // four stub legs (the back pair peeking out between the front ones)
+  for (const [lx, c] of [[5, P.concrete], [11, P.steel], [2, P.concreteLt], [14, P.steel]] as const) p.rect(lx, y0 + 12, 3, lx === 5 || lx === 11 ? 2 : 3, c);
+  // the round glazed body: lit upper left, shade lower right
+  for (let y = 0; y < 13; y++)
+    for (let x = 0; x < 19; x++) {
+      const dx = (x + 0.5 - 9.5) / 9;
+      const dy = (y + 0.5 - 7) / 6.5;
+      const d = dx * dx + dy * dy;
+      if (d > 1) continue;
+      const l = dx * 0.7 + dy * 0.8;
+      p.set(x, y0 + y, l < -0.55 ? P.glint : l < -0.1 ? P.white : l < 0.45 ? P.concreteLt : l < 0.8 ? P.concrete : P.steel);
+    }
+  // eyes above the snout, a blush
+  p.set(5, y0 + 4, P.ink);
+  p.set(13, y0 + 4, P.ink);
+  p.set(4, y0 + 6, P.peach);
+  p.set(14, y0 + 6, P.skin3);
+  // the snout: a raised round lip, dark inside, the coil's spiral and ember
+  p.ellipse(9.5, y0 + 8, 4.6, 4, P.concreteLt);
+  p.ellipse(9.5, y0 + 8.3, 3.6, 3.1, P.ink);
+  p.ellipse(9.5, y0 + 8.6, 2.6, 2.1, P.nightShade);
+  p.ring(9.5, y0 + 8.6, 2.2, 1.6, P.charcoal);
+  p.set(7, y0 + 5, P.glint);
+  p.set(8, y0 + 5, P.white);
+  p.set(12, y0 + 11, P.steel);
+  p.set(10, y0 + 9, P.vermLt);
+}
+
+const KAYARI = mkFrames(4, 19, 26, (p, k) => {
+  kayariPig(p, 12);
+  // smoke: soft 2px puffs rising out of the snout, drifting east
   const puffs =
     k === 3
-      ? [[2, 11, 0], [3, 7, 1], [5, 3, 2]]
-      : [[2, 12 - k * 1.5, 0], [3 + (k % 2), 8 - k * 1.5, 1], [5 + (k === 2 ? 1 : 0), 4 - k * 1.2, 2]];
+      ? [[9, 10, 0], [10, 6, 1], [12, 2, 2]]
+      : [[9, 11 - k * 1.5, 0], [10 + (k % 2), 7 - k * 1.5, 1], [12 + (k === 2 ? 1 : 0), 3 - k * 1.2, 2]];
   for (const [x, y, i] of puffs) {
     const yy = Math.round(y);
     if (yy < 0) continue;
@@ -536,14 +570,15 @@ const KAYARI = mkFrames(4, 16, 22, (p, k) => {
     p.set(Math.round(x) + 1, yy, P.concrete);
     if (i < 2) p.set(Math.round(x), yy - 1, P.concrete);
   }
-});
+}, (p) => outline(p, { soft: true, bottom: true }));
 registerProp('in_hi_kayari', () => {
-  const a = stand(KAYARI[0], { base: 15, shadow: 0, contact: 12 });
+  const a = stand(KAYARI[0], { base: 15, shadow: 0, contact: 14 });
   a.img = (env) => KAYARI[env.stage === 1 ? 3 : Math.floor(env.mt / 300) % 3];
   a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
-    // the tip of the coil glows in the snout
+    // the tip of the coil glows deep in the snout
     const on = env.stage === 1 ? 0.7 : 0.6 + Math.sin(env.t / 300) * 0.3;
-    g.rect(x + a.ox + 2, y + a.oy + 16, 1, 1, P.gold, on);
+    g.rect(x + a.ox + 10, y + a.oy + 21, 1, 1, P.gold, on);
+    g.rect(x + a.ox + 9, y + a.oy + 21, 1, 1, P.sunDeep, on * 0.6);
   };
   return a;
 });
@@ -645,4 +680,3 @@ void notice;
 void printLines;
 void blend;
 void dk;
-void scribble;

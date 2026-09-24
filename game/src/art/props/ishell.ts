@@ -17,7 +17,6 @@ import { P } from '../tiles/palette';
 import { ihash } from '../tiles/noise';
 import type { FloorPainter } from '../tiles/ifloor';
 import { dk, lt } from './kit';
-import { poolEllipse, poolTrapezoid } from './light';
 import type { PropArt, PropEnv } from './types';
 
 export type CellKind = 'floor' | 'wall' | 'void' | 'doorS';
@@ -165,7 +164,7 @@ const rgbOf = (hexc: string) => toRgb(hexc).join(',');
 /** Soft elliptical light pool (pixel-art steps) with screen blending. */
 export function screenPool(g: Gfx, cx: number, cy: number, rx: number, ry: number, col: string, a: number): void {
   if (a <= 0.004) return;
-  const img = poolEllipse(rx, ry, rgbOf(col));
+  const img = poolSoft(rx, ry, rgbOf(col));
   const ctx = g.ctx;
   const pa = ctx.globalAlpha;
   const pc = ctx.globalCompositeOperation;
@@ -176,10 +175,31 @@ export function screenPool(g: Gfx, cx: number, cy: number, rx: number, ry: numbe
   ctx.globalCompositeOperation = pc;
 }
 
+/**
+ * A coloured pool of light on a pale floor (call from over()): multiply
+ * tints the near-white tiles towards the light's colour (a screen pool only
+ * washes them out to a white haze), a little screen on top for the glow.
+ */
+export function warmPool(g: Gfx, cx: number, cy: number, rx: number, ry: number, col: string, a: number): void {
+  if (a <= 0.004) return;
+  const img = poolSoft(rx, ry, rgbOf(col));
+  const ctx = g.ctx;
+  ctx.save();
+  const x = Math.round(cx - img.width / 2);
+  const y = Math.round(cy - img.height / 2);
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.globalAlpha = Math.min(1, a * 0.55);
+  ctx.drawImage(img, x, y);
+  ctx.globalCompositeOperation = 'screen';
+  ctx.globalAlpha = Math.min(1, a * 0.3);
+  ctx.drawImage(img, x, y);
+  ctx.restore();
+}
+
 /** Light thrown through a doorway or window onto the floor (trapezoid, top edge at y). */
 export function screenSpill(g: Gfx, cx: number, y: number, w0: number, w1: number, len: number, col: string, a: number, flipUp = false): void {
   if (a <= 0.004) return;
-  const img = poolTrapezoid(w0, w1, len, rgbOf(col));
+  const img = bandTrapezoid(w0, w1, len, rgbOf(col));
   const ctx = g.ctx;
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
@@ -259,10 +279,48 @@ export function topDark(g: Gfx, col: string, a: number, frac = 0.35): void {
 // multiplied by it. So adding light only takes the grade's tint away (up to
 // the art's own colours), and multiplying the map tints the whole room.
 
+const trapCache = new Map<string, HTMLCanvasElement>();
+/**
+ * Light thrown through a door or window onto the floor: a trapezoid `w0`
+ * wide at the wall, `w1` at the far end, `h` long, fading away from the wall
+ * and at its sides, in eight steps joined by 1–2px dithered edges.
+ */
+export function bandTrapezoid(w0: number, w1: number, h: number, rgb: string): HTMLCanvasElement {
+  const key = `${w0},${w1},${h},${rgb}`;
+  let c = trapCache.get(key);
+  if (c) return c;
+  const W = Math.max(w0, w1);
+  const p = new PixelCanvas(W, h);
+  const [r, g, b] = rgb.split(',').map(Number);
+  const N = 8;
+  const fall = (x: number, y: number) => {
+    const k = (y + 0.5) / h;
+    const half = (w0 + (w1 - w0) * k) / 2;
+    const u = Math.abs(x + 0.5 - W / 2) / half;
+    if (u >= 1 || k >= 1) return 0;
+    return Math.min(1, (1 - k) * Math.min(1, (1 - u) * 3) * 1.15);
+  };
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < W; x++) {
+      const l0 = Math.floor(fall(x, y) * N);
+      if (l0 <= 0 && fall(x, y - 1.5) <= 0) continue;
+      const l1 = Math.floor(Math.max(fall(x, y - 1.5), fall(x + (x < W / 2 ? 1.5 : -1.5), y)) * N);
+      const lv = Math.min(N, l1 > l0 && ((x + y) & 1) === 0 ? l0 + 1 : l0) / N;
+      if (lv <= 0) continue;
+      const a = Math.round(lv * 255);
+      p.set(x, y, ((a << 24) | (b << 16) | (g << 8) | r) >>> 0);
+    }
+  c = p.toCanvas();
+  trapCache.set(key, c);
+  return c;
+}
+
 const softCache = new Map<string, HTMLCanvasElement>();
 /**
- * A light pool with six brightness steps joined by checker bands (still pixel
- * art, but gentle enough for strong night lamps in a small room).
+ * A light pool: a smooth falloff quantized into eight brightness steps, each
+ * step joined to the next by a dithered ring only 1–2px wide (review round 1:
+ * the old six steps with wide checker bands read as a screen door on the
+ * night floors).
  */
 export function poolSoft(rx: number, ry: number, rgb: string): HTMLCanvasElement {
   rx = Math.round(rx);
@@ -272,16 +330,18 @@ export function poolSoft(rx: number, ry: number, rgb: string): HTMLCanvasElement
   if (c) return c;
   const p = new PixelCanvas(rx * 2, ry * 2);
   const [r, g, b] = rgb.split(',').map(Number);
+  const N = 8;
+  const fall = (d: number) => (d >= 1 ? 0 : Math.pow(1 - Math.max(0, d), 1.25));
+  const inward = 1.5 / Math.max(rx, ry);
   for (let y = 0; y < ry * 2; y++)
     for (let x = 0; x < rx * 2; x++) {
       const dx = (x + 0.5 - rx) / rx;
       const dy = (y + 0.5 - ry) / ry;
       const d = Math.sqrt(dx * dx + dy * dy);
       if (d >= 1) continue;
-      const f = Math.pow(1 - d, 1.3) * 6;
-      const base = Math.floor(f);
-      const fr = f - base;
-      const lv = Math.min(6, base + (fr > 0.66 ? 1 : fr > 0.33 ? (x + y) & 1 : 0)) / 6;
+      const l0 = Math.floor(fall(d) * N);
+      const l1 = Math.floor(fall(d - inward) * N);
+      const lv = Math.min(N, l1 > l0 && ((x + y) & 1) === 0 ? l0 + 1 : l0) / N;
       if (lv <= 0) continue;
       const a = Math.round(lv * 255);
       p.set(x, y, ((a << 24) | (b << 16) | (g << 8) | r) >>> 0);

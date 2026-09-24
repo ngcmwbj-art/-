@@ -17,10 +17,10 @@ import { cardboard, notice, pc, prop } from './ifurn';
 import { blend, depthShade, lightPool, paintShell, screenPool, shellProp } from './ishell';
 import { lvTime } from './istate';
 import { castRight, dk, finish, lt } from './kit';
-import { arrowSign, bannerScrap, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, shutter, skyPatch, type Lamp } from './mall_kit';
+import { arrowSign, bannerScrap, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, shutter, skyPatch, skyPatchRim, type Lamp } from './mall_kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
-import { fontTextSmall, scribble, tiny } from './text';
+import { fontTextSmall, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
 const M4_LAMPS: Lamp[] = [
@@ -83,7 +83,7 @@ registerProp('mall_m4_shell', () => {
   }
   // (8–9) ghost of a poster, a 『迷子センター →』 sign
   posterGhost(p, 132, 6, 12, 16);
-  arrowSign(p, 136, 22, 22, 1, 2, 44);
+  arrowSign(p, 126, 21, 'まいご', 1, { edge: P.peach });
   // (10–12) the optician's display window under the eye
   p.rect(162, 19, 44, 13, P.nightShade);
   p.hline(162, 205, 19, P.ink);
@@ -95,7 +95,7 @@ registerProp('mall_m4_shell', () => {
   }
   p.line(164, 30, 170, 21, P.shade);
   // (13–17) posters, a clock, the sale banner's scraps
-  bannerScrap(p, 214, 3, 30, 17);
+  bannerScrap(p, 212, 3, 34, 17, 8);
   {
     const x = 262;
     p.rect(x, 12, 16, 14, P.paper);
@@ -118,19 +118,18 @@ registerProp('mall_m4_shell', () => {
     img,
     over(g: Gfx, x: number, y: number, env: PropEnv) {
       depthShade(g, x + 16, y + 32, W - 32, 80, 0.12);
-      mallLamps(g, x, y, M4_LAMPS, env, 404);
+      mallLamps(g, x, y, M4_LAMPS, env, 404, 0.16, rows);
+      // obj_skylight (6–8, 2–4): the square of evening, and the brighter one before the door
+      skyPatch(g, x + 98, y + 36, 46, 42, env, 0.5);
+      skyPatch(g, x + 280, y + 34, 44, 26, env, 0.6);
     },
     light(g: Gfx, x: number, y: number, env: PropEnv) {
-      mallGrade(g, 'mall', env);
+      mallGrade(g, 'mall', env, [x + 16, y + 32, 320, 80]);
       mallLampLight(g, x, y, M4_LAMPS, env, 404);
-      // the squares of evening light warm whoever stands in them
-      lightPool(g, x + 122, y + 58, 26, 20, P.sun, 0.12 * (1 - env.grade.night));
-      lightPool(g, x + 304, y + 48, 26, 14, P.sun, 0.14 * (1 - env.grade.night));
     },
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
-      // obj_skylight (6–8, 2–4): the square of evening (#F2894B α28%), and the one before the door
-      skyPatch(g, x + 98, y + 36, 46, 42, env, 0.28);
-      skyPatch(g, x + 280, y + 34, 44, 26, env, 0.34);
+      skyPatchRim(g, x + 98, y + 36, 46, 42, env, 0.3);
+      skyPatchRim(g, x + 280, y + 34, 44, 26, env, 0.36);
       // far below: the fountain's patch of sun, small
       g.rect(x + 170, y + 128 + 26, 12, 2, P.sun, 0.35 * (1 - env.grade.night));
     },
@@ -210,10 +209,15 @@ registerProp('mall_glasses_eye', () => {
     p.ellipse(ix, 8.5, 5, 5, P.leafDeep);
     p.ellipse(ix, 8.5, 3, 3, P.ink);
     p.rect(ix - 2, 6, 2, 2, P.white);
-    // a pair of spectacles drawn over it, and the shop's name strokes
+    // a pair of spectacles drawn over it, and a lens sparkle each side
     p.ring(ix, 8.5, 6, 6, P.brass);
-    scribble(p, 2, 4, 1, P.white, 3, 4);
-    scribble(p, 38, 4, 1, P.white, 5, 4);
+    for (const [sx, c] of [[4, P.goldPale], [39, P.aqua]] as const) {
+      p.vline(sx, 5, 11, c);
+      p.hline(sx - 3, sx + 3, 8, c);
+      p.set(sx, 8, P.white);
+      p.set(sx - 1, 7, c);
+      p.set(sx + 1, 9, c);
+    }
   }, (p) => castRight(p, 0, 0, 44, 17, 2));
   return {
     ox: 2,
@@ -240,12 +244,18 @@ registerProp('mall_rest_bench', () => {
   for (let x = 6; x < 32; x += 8) p.set(x, 15, P.sunShade);
   for (const lx of [3, 30]) p.rect(lx, 18, 2, 7, P.steel);
   p.hline(1, 34, 25, P.charcoal);
-  // 『ご自由に おかけください』 on a stand at the east end
+  // the 休憩所 plate on a stand at the east end: a pictogram of someone
+  // resting on a bench (navy on white, green band)
   p.rect(33, 0, 3, 10, P.steel);
-  p.rect(26, 0, 10, 7, P.white);
-  p.hline(26, 35, 0, P.glint);
-  scribble(p, 27, 2, 2, P.navy, 12, 3);
-  p.rect(26, 5, 10, 1, P.leafDeep);
+  p.rect(25, 0, 11, 9, P.white);
+  p.hline(25, 35, 0, P.glint);
+  p.rect(25, 7, 11, 2, P.leafDeep);
+  p.rect(29, 1, 2, 2, P.navy);
+  p.rect(28, 3, 2, 2, P.navy);
+  p.hline(30, 32, 4, P.navy);
+  p.vline(32, 4, 6, P.navy);
+  p.hline(26, 33, 5, P.steel);
+  p.set(27, 6, P.steel);
   finish(p, { soft: true });
   const a = stand(p.toCanvas(), { cx: 17, base: 16, contact: 30, shadow: 0 });
   a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
@@ -298,14 +308,16 @@ registerProp('mall_lost_boxes', (opts) => {
       }
       p.line(5, 2, 8, 9, P.leaf);
     } else if (v === 1) {
-      // a plush bear and a sun hat
-      p.ellipse(6, 7, 3.5, 3.5, P.woodLt);
-      p.set(4, 4, P.woodLt);
-      p.set(8, 4, P.woodLt);
-      p.set(5, 7, P.ink);
-      p.set(7, 7, P.ink);
-      p.ellipse(11.5, 9, 3.5, 1.5, P.goldPale);
-      p.hline(10, 13, 8, P.crimson);
+      // a plush bear sunk in the open box and a sun hat on its flap (kept
+      // low: the fallen 清掃中 sign lies in the gap just north of this box)
+      p.ellipse(6, 11, 3.5, 3, P.woodLt);
+      p.set(4, 8, P.woodLt);
+      p.set(8, 8, P.woodLt);
+      p.set(5, 11, P.ink);
+      p.set(7, 11, P.ink);
+      p.set(6, 12, P.woodDark);
+      p.ellipse(11.5, 11, 3.5, 1.5, P.goldPale);
+      p.hline(10, 13, 10, P.crimson);
     } else {
       // a stack: a second box on top, a cap and a lunch bag
       cardboard(p, 3, 3, 11, 8, 3, 9);
@@ -313,25 +325,35 @@ registerProp('mall_lost_boxes', (opts) => {
       p.hline(2, 8, 3, P.navy);
       p.rect(10, 0, 4, 4, P.leafYoung);
     }
-  }, { base: 16, contact: 12, shadow: 0 });
+    // the box south of the sign's gap stands 2px further back (south), so a
+    // strip of floor shows between the stacks once the sign is down
+  }, { base: v === 1 ? 18 : 16, foot: 15, contact: 12, shadow: 0 });
 });
 
 // ---------------------------------------------------------------- the 清掃中 sign (15,4): standing / knocked flat
 
 function cleaningSign(p: PixelCanvas, ox: number, oy: number): void {
-  // yellow A-frame: 『清掃中』 and a janitor-with-mop pictogram
+  // yellow A-frame: a black caution band on top, the janitor-with-mop
+  // pictogram (no lettering: at this size a word would only be noise — the
+  // examine text says 清掃中), yellow/black hazard stripes at the foot
   p.rect(ox + 2, oy + 2, 12, 20, P.gold);
   p.hline(ox + 2, ox + 13, oy + 2, P.goldPale);
+  p.vline(ox + 2, oy + 3, oy + 21, P.goldPale);
   p.vline(ox + 13, oy + 3, oy + 21, P.brass);
-  p.rect(ox + 3, oy + 4, 10, 5, P.ink);
-  scribble(p, ox + 4, oy + 5, 2, P.gold, 13, 3);
-  // pictogram: a figure and a mop
-  p.set(ox + 6, oy + 11, P.ink);
-  p.vline(ox + 6, oy + 12, oy + 16, P.ink);
-  p.line(ox + 6, oy + 16, ox + 5, oy + 18, P.ink);
-  p.line(ox + 6, oy + 16, ox + 7, oy + 18, P.ink);
-  p.line(ox + 6, oy + 13, ox + 10, oy + 17, P.ink);
-  p.hline(ox + 9, ox + 11, oy + 18, P.ink);
+  p.rect(ox + 3, oy + 4, 10, 3, P.ink);
+  p.set(ox + 8, oy + 5, P.gold);
+  p.set(ox + 7, oy + 5, P.gold);
+  // pictogram: a figure pushing a mop
+  p.rect(ox + 6, oy + 8, 2, 2, P.ink);
+  p.vline(ox + 6, oy + 10, oy + 14, P.ink);
+  p.vline(ox + 7, oy + 10, oy + 13, P.ink);
+  p.line(ox + 6, oy + 14, ox + 5, oy + 16, P.ink);
+  p.line(ox + 7, oy + 14, ox + 8, oy + 16, P.ink);
+  p.line(ox + 7, oy + 11, ox + 11, oy + 15, P.ink);
+  p.hline(ox + 10, ox + 12, oy + 16, P.ink);
+  p.set(ox + 12, oy + 15, P.ink);
+  // hazard stripes
+  for (let i = 0; i < 10; i++) for (let j = 0; j < 3; j++) p.set(ox + 3 + i, oy + 18 + j, ((i + j) >> 1) % 2 ? P.ink : P.gold);
   p.hline(ox + 1, ox + 14, oy + 22, P.brassOld);
 }
 
@@ -344,17 +366,31 @@ registerProp('mall_cleaning_sign', () =>
 );
 
 registerProp('mall_cleaning_sign_down', () => {
-  // knocked over after the vacuum went home: lying flat, face up, a little askew
-  const p = pc(28, 16);
-  p.rect(2, 3, 23, 10, P.gold);
-  p.hline(2, 24, 3, P.goldPale);
-  p.hline(2, 24, 12, P.brass);
-  p.rect(4, 5, 6, 6, P.ink);
-  scribble(p, 5, 6, 1, P.gold, 13, 3);
-  p.hline(12, 22, 7, P.ink);
-  p.hline(12, 20, 9, P.ink);
-  p.hline(1, 25, 13, P.brassOld);
-  return { ox: -6, oy: 2, w: 28, h: 16, foot: 0, flat: true, img: () => p.toCanvas() } as PropArt;
+  // knocked flat after the vacuum went home: the A-frame lies on its back
+  // inside its own tile (seen from above: the yellow board foreshortened,
+  // its hinge and the second leaf folded under), a soft floor shadow round it
+  const p = pc(18, 12);
+  // floor shadow (baked: #3A2B5C, drawn first)
+  for (let y = 4; y < 12; y++) for (let x = 1; x < 18; x++) if (((x - 9.5) / 8.5) ** 2 + ((y - 8) / 3.8) ** 2 <= 1) p.set(x, y, '#3A2B5C55');
+  // the board: a flat parallelogram, a little askew
+  const quad: [number, number][] = [[2, 3], [14, 1], [16, 7], [4, 9]];
+  p.poly(quad, P.gold);
+  p.line(2, 3, 14, 1, P.goldPale);
+  p.line(4, 9, 16, 7, P.brassOld);
+  p.line(14, 1, 16, 7, P.brass);
+  // the caution band and the pictogram, squashed flat
+  p.line(4, 4, 12, 3, P.ink);
+  p.line(4, 5, 12, 4, P.ink);
+  p.set(8, 6, P.ink);
+  p.set(9, 6, P.ink);
+  p.set(10, 7, P.ink);
+  // the stripes at the foot end
+  for (let i = 0; i < 4; i++) p.set(13 + (i >> 1), 3 + i + (i & 1), i % 2 ? P.gold : P.ink);
+  // the folded second leaf peeking out on the hinge side, and a leg
+  p.line(1, 4, 3, 10, P.brassOld);
+  p.line(0, 5, 2, 10, P.brass);
+  p.set(17, 8, P.brassOld);
+  return { ox: -1, oy: 3, w: 18, h: 12, foot: 0, flat: true, img: () => p.toCanvas() } as PropArt;
 });
 
 // ---------------------------------------------------------------- the 迷子センター door (19, 0–1)

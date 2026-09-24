@@ -18,6 +18,7 @@ import { actor, face, msg, place, registerScript, setClockText, setFollowerVisib
 import type { Actor } from '../world/actor';
 import { photoImage } from '../art/props/ginza';
 import { playEndingNotebook, playNightSkyCut } from '../ui/api';
+import { uiHud } from '../ui/hud';
 import * as T from '../data/text/events';
 import { F, getKeyItem, holdBgm, holdCamera, releaseCamera, walkTo } from './lib';
 import { ring, sparkle } from './fx';
@@ -29,6 +30,8 @@ function cutTo(map: string, x: number, y: number, dir: 'up' | 'down' | 'left' | 
   const f = F();
   f.loadMap(map, x, y, dir);
   f.syncFollower(true);
+  // no item cards carried over from the previous cut
+  uiHud.clearNotes();
 }
 
 function* fadeTo(ms: number, color = '#0B0B14'): Co {
@@ -226,18 +229,20 @@ function plateImg(): HTMLCanvasElement {
 
 function spawnDinner(): void {
   const a = spawn('ending_dinner', 9, 4, { sprite: 'kanenari', ghost: true });
-  a.x = 10 * 16;
-  a.y = 4 * 16 + 14;
+  // sorted just in front of the table (its base is the tile's bottom edge), drawn on its top
+  a.x = 10 * 16 + 3;
+  a.y = 5 * 16 + 1;
   a.shadowH = 0;
   a.data.scripted = true;
   a.drawFn = (g, x, y) => {
-    g.img(plateImg(), x - 12, y - 12);
+    const top = y - 19;
+    g.img(plateImg(), x - 12, top);
     // steam
     const t = F().t;
     for (let i = 0; i < 3; i++) {
-      const k = ((t / 900 + i / 3) % 1);
+      const k = (t / 900 + i / 3) % 1;
       const sx = x - 6 + i * 5 + Math.round(Math.sin(t / 300 + i) * 1);
-      g.alpha(0.5 * (1 - k), () => g.rect(sx, Math.round(y - 12 - k * 10), 1, 2, '#FFF6D8'));
+      g.alpha(0.5 * (1 - k), () => g.rect(sx, Math.round(top - k * 10), 1, 2, '#FFF6D8'));
     }
   };
 }
@@ -247,6 +252,8 @@ function spawnDinner(): void {
 function* cut1Chime(): Co {
   const f = F();
   // out of the white: the two come out of the half-open automatic door
+  // no place-name banner over the first shot: the HUD stays down until they are out
+  setFlag('flag_hud_hidden', 1);
   cutTo('map_town', 50, 5, 'down');
   stopAmbient('amb_night_insects', 0);
   stopAmbient('amb_kawabe', 0);
@@ -264,7 +271,12 @@ function* cut1Chime(): Co {
   sfx('se_auto_door');
   game.scripts.run(game.fadeIn(800));
   yield* walkTo('player', 50, 7, { speed: 2.4, face: 'down' });
-  yield 500;
+  // the HUD's pending place name is dropped while it is hidden (it waits for the fade)
+  yield () => game.fadeAlpha < 0.05;
+  yield 450;
+  // the clock plate slides in, still 17:00
+  setFlag('flag_hud_hidden', 0);
+  yield 450;
   // the chime: G4 A4 C5 E5 — and, for the first time, D5 C5 A4 C5
   let fifth = false;
   let last = false;
@@ -545,6 +557,9 @@ export function* evtEnding(): Co {
   holdBgm(false);
   setFlag('flag_hud_hidden', 0);
 }
+
+/** QA: play one cut of the ending from a prepared state (1–6). */
+export const ENDING_CUTS: Record<number, () => Co> = { 1: cut1Chime, 2: cut2Meat, 3: cut3Photo, 4: cut4Home, 5: cut5Tv, 6: cut6Crossing };
 
 registerScript('evt_ending', function* (): Co {
   if (flag('flag_clear') && !flag('flag_boss_beaten')) return;

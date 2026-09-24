@@ -8,7 +8,7 @@ import { P } from '../tiles/palette';
 import { ihash } from '../tiles/noise';
 import { castRight, dk, finish, lt } from './kit';
 import { mkFrames, stand, standAnim, type StandOpts } from './pkit';
-import { printLines, scribble } from './text';
+import { printLines } from './text';
 import type { PropArt, PropEnv } from './types';
 
 export const pc = (w: number, h: number) => new PixelCanvas(w, h);
@@ -128,10 +128,18 @@ export function cardboard(p: PixelCanvas, x: number, y: number, w: number, h: nu
     const mx = x + 2 + (hh % Math.max(1, w - 7));
     const my = y + top + 2;
     if (hh & 1) {
-      p.vline(mx + 1, my, my + 2, P.wood);
-      p.set(mx, my, P.wood);
-      p.set(mx + 2, my, P.wood);
-    } else scribble(p, mx, my, 1, P.wood, hh, 3);
+      // 『ワレモノ』: a wine-glass icon
+      p.vline(mx + 1, my + 1, my + 2, P.wood);
+      p.hline(mx, mx + 2, my, P.wood);
+      p.hline(mx, mx + 2, my + 3, P.wood);
+    } else {
+      // 『天地無用』: two arrows pointing up
+      for (const ax of [mx, mx + 3]) {
+        p.vline(ax + 1, my, my + 3, P.wood);
+        p.set(ax, my + 1, P.wood);
+        p.set(ax + 2, my + 1, P.wood);
+      }
+    }
   }
 }
 

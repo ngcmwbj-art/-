@@ -8,7 +8,7 @@ import { sfx } from '../audio';
 import { actor, defeatSymbol, face, msg, registerScript, shake } from '../world/api';
 import type { Actor } from '../world/actor';
 import * as T from '../data/text/events';
-import { eventBattle, F, panBack, panTo } from './lib';
+import { eventBattle, F, grace, panBack, panTo } from './lib';
 import { puff } from './fx';
 
 function freeze(a: Actor): void {
@@ -92,4 +92,5 @@ registerScript('evt_ojigi', function* (): Co {
       delete k.data.scripted;
     }
   }
+  grace();
 });
