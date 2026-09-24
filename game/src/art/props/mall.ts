@@ -4,3 +4,4 @@ import './mall_m2';
 import './mall_m3';
 import './mall_m4';
 import './mall_m5';
+import './mall_decay';

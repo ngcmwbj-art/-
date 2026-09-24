@@ -3,18 +3,22 @@
 // on every step), its glass balustrades with black rubber rails; a row of
 // four massage chairs in profile, all still 『お試し中』 and quietly
 // vibrating; a body-fat scale that reads 17; the hanging bar with clothes
-// pegs left on it; a height chart; the STAFF door to the backyard.
+// pegs left on it; a height chart; the STAFF door to the backyard. The corner
+// itself is carpeted (green, with the footprints of machines long gone and
+// the roped-off demo dais, mall_decay.ts); the walkway from the hall to the
+// escalator keeps the P-tiles. No skylight here: the evening comes down the
+// escalator well, and the chairs' demo spotlights are still on.
 
 import type { Gfx } from '../../engine/gfx';
 import { PixelCanvas } from '../../engine/pixel';
 import { getMapDef } from '../../world/maps';
-import { laneOf, mallTiles } from '../tiles/ifloor';
+import { healthCarpet, laneOf, mallTiles } from '../tiles/ifloor';
 import { ihash } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { pc, prop } from './ifurn';
-import { blend, depthShade, paintShell, shellProp } from './ishell';
+import { blend, depthShade, paintShell, screenPool, screenSpill, shellProp, tube } from './ishell';
 import { castRight, dk, finish, lt } from './kit';
-import { exitCorridor, exitLight, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, skyPatch, skyPatchRim, small, type Lamp } from './mall_kit';
+import { exitCorridor, exitLight, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, small, type Lamp } from './mall_kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
 import { printLines, tiny } from './text';
@@ -43,8 +47,27 @@ registerProp('mall_m3_shell', () => {
       { x: 94, y: 178, kind: 'pot' },
     ],
   });
+  // the corner itself is carpeted (green, the machines' old footprints in
+  // it); the walkway from the hall to the escalator keeps the P-tiles, a
+  // brass edge strip where they meet
+  const carpetAt = (tx: number, ty: number) => (tx >= 9 && ty >= 3 && ty <= 11) || (ty >= 9 && ty <= 11 && tx >= 1);
+  const carpet = healthCarpet({
+    seed: 537,
+    lane: laneOf([[9, 7.5], [12, 7.5], [12, 11], [3, 10.5]], 16),
+    ghosts: [[162, 66, 22, 14], [34, 162, 18, 10]],
+  });
+  const floor = (x: number, y: number) => {
+    const tx = x >> 4;
+    const ty = y >> 4;
+    if (!carpetAt(tx, ty)) return tiles(x, y);
+    // the edge strip: 2px of brass along a side that meets the tiles
+    const lx = x & 15;
+    const ly = y & 15;
+    if ((lx < 2 && !carpetAt(tx - 1, ty) && tx > 0) || (ly < 2 && !carpetAt(tx, ty - 1) && ty > 3)) return lx === 0 || ly === 0 ? P.brass : P.brassOld;
+    return carpet(x, y);
+  };
   const wall = mallWall(533);
-  const sh = paintShell({ rows, floor: (x, y) => tiles(x, y), wall, trim: P.nightShade, base: P.steel, baseH: 3 });
+  const sh = paintShell({ rows, floor, wall, trim: P.nightShade, base: P.steel, baseH: 3 });
   const p = sh.p;
   // ---- (2) the STAFF door in the lowest wall row, its sign
   p.rect(33, 22, 14, 6, P.white);
@@ -177,15 +200,24 @@ registerProp('mall_m3_shell', () => {
     over(g: Gfx, x: number, y: number, env: PropEnv) {
       depthShade(g, x + 16, y + 48, W - 32, 80, 0.14);
       mallLamps(g, x, y, M3_LAMPS, env, 303, 0.16, rows);
-      skyPatch(g, x + 94, y + 116, 50, 28, env);
+      // no skylight here: the evening comes down the escalator well from 2F
+      // and lies on the tiles at its foot
+      const n = env.grade.night;
+      screenSpill(g, x + 112, y + 104, 30, 44, 34, P.sun, 0.2 * (1 - n));
     },
     light(g: Gfx, x: number, y: number, env: PropEnv) {
       mallGrade(g, 'mall', env, [x + 16, y + 48, 224, 144]);
       mallLampLight(g, x, y, M3_LAMPS, env, 303);
     },
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
-      skyPatchRim(g, x + 94, y + 116, 50, 28, env);
       exitLight(g, x, y, 0, 7, 2, -1, P.sky, 0.28);
+      // the demo spotlights over the massage chairs, still on for 『お試し中』:
+      // four warm cones, one of them buzzing dim now and then
+      const dim = tube(env.t, 3311, [5000, 11000], [80, 260]);
+      for (let k = 0; k < 4; k++) {
+        const a = (k === 2 ? 0.1 + dim * 0.14 : 0.24) * (1 - env.grade.night * 0.4);
+        screenPool(g, x + 222, y + 64 + k * 32, 20, 13, P.sky, a);
+      }
       // the 2F landing is lit by the evening at the top of the opening
       g.rect(x + 108, y + 4, 24, 3, P.sky, 0.35 * (1 - env.grade.night));
     },

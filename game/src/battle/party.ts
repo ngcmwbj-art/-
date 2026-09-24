@@ -148,11 +148,13 @@ function showStickyRing(s: BattleScene): void {
 export function hitFeel(s: BattleScene, e: EnemyUnit, kind: 'normal' | 'good' | 'crit', good: boolean): void {
   const x = e.coreX;
   const y = e.coreY;
+  const boss = !!e.def.boss;
   if (kind === 'crit') {
     s.hitstop(good ? 10 : 7);
     s.shake(3, 3, 10);
     s.flash('#FFFFFF', 0.12, 1);
     e.whiteFrames = 3;
+    s.impact(x, y, 44, 3, true, boss);
     s.paper(x, y, 10, [80, 170]);
     s.stars(x, y, 4);
     s.addFx({
@@ -168,12 +170,16 @@ export function hitFeel(s: BattleScene, e: EnemyUnit, kind: 'normal' | 'good' | 
     });
     s.sfx('se_crit');
     const seal = roundSeal(LABEL.crit, 36);
-    const sx = e.x + e.sizeW / 2 - 4;
-    const sy = e.headY + 4;
+    // up-right of the hit, beside where the number comes to rest (not on
+    // it), kept on stage (under the band, inside the screen)
+    const sx = Math.min(382 - 20, Math.max(e.coreX + 34, e.x + e.sizeW / 2 - 4));
+    const sy = Math.max(STAGE_TOP + 19, Math.min(e.coreY - 20, e.headY + 10));
     s.addFx({
       layer: 'top',
       dur: 600,
       ui: true,
+      // the 「100てん」 seal owns its spot: いい音！ goes elsewhere
+      blockLabels: () => ({ x0: sx - 19, y0: sy - 19, x1: sx + 19, y1: sy + 19 }),
       draw: (g, t) => {
         const sc = t < 67 ? 1.6 - 0.6 * (t / 67) : 1;
         const w = seal.width * sc;
@@ -184,14 +190,17 @@ export function hitFeel(s: BattleScene, e: EnemyUnit, kind: 'normal' | 'good' | 
     s.hitstop(6);
     s.shake(2, 2, 8);
     e.whiteFrames = 2;
+    s.impact(x, y, 38, 3, true, boss);
     s.paper(x, y, 8, [80, 160]);
     s.stars(x, y, 2);
     s.sfx('se_hit_pashi');
     s.sfx('se_hit_bell');
   } else {
     s.hitstop(3);
-    s.shake(1, 1, 6);
+    // QA round 1: 1px was not felt at all
+    s.shake(2, 2, 6);
     e.whiteFrames = 1;
+    s.impact(x, y, 30, 2, false, boss);
     s.paper(x, y, 4);
     s.sfx('se_hit_pofu');
   }
@@ -235,7 +244,7 @@ function* strikeOnce(
     return { killed: false, hit: true, boke: false };
   }
   const good = res.q === 'good';
-  const crit = !e.def.noCrit && rng.next() < critRate(u.m.luck);
+  const crit = !e.def.noCrit && (!!s.auto.crit || rng.next() < critRate(u.m.luck));
   const boke = !!e.status.bokemake;
   const dmg = calcDamage({
     atk: u.m.atk,
@@ -248,7 +257,9 @@ function* strikeOnce(
     crit,
   });
   hitFeel(s, e, crit ? 'crit' : good ? 'good' : 'normal', good);
-  if (good) s.labelForHit(LABEL.iioto, e, crit, 'shu', 560);
+  // 10.1: 「いい音！」 up-right of the sight, next to the hit — not stacked
+  // over the number, not over the face
+  if (good) s.labelUpRight(LABEL.iioto, e.coreX, e.coreY, 'shu', 560, false, 3 * FRAME);
   if (boke && s.enemies[0]?.id === 'enemy_hato_kakaricho') showSticky(s, 'bokemake', undefined, false, 2600);
   const killed = hurtEnemy(s, e, dmg, { crit, stack: o.stack });
   return { killed, hit: true, boke };
@@ -796,13 +807,16 @@ function* hankoMimashita(s: BattleScene, u: PartyUnit, e: EnemyUnit, j: Judge, p
   s.sfx('se_mimashita', { grade: sfxGrade(j) });
   s.hitstop(j === 'kukkiri' ? 10 : j === 'kasure' ? 4 : 6);
   s.shake(j === 'kukkiri' ? 3 : 1, j === 'kukkiri' ? 3 : 1, 8);
+  // a glowing boss part breaks: its 「部位破壊」 says it all — no second
+  // judgement label piling up on the same spot
+  const breaking = !!part && part.glow;
   if (j === 'kukkiri') {
     s.sfx('se_stamp_heavy');
-    s.labelUpRight(LABEL.kukkiri, px, py, 'shu', 700);
+    if (!breaking) s.labelUpRight(LABEL.kukkiri, px, py, 'shu', 700);
     s.addFx({ layer: 'world', dur: 250, draw: (g, t) => g.alpha(1 - t / 250, () => g.ring(px, py, 8 + 40 * (t / 250), C.shu)) });
   } else if (j === 'kasure') {
     s.sfx('se_stamp_light');
-    s.labelUpRight(LABEL.kasure, px, py, 'gray', 700, true);
+    if (!breaking) s.labelUpRight(LABEL.kasure, px, py, 'gray', 700, true);
   } else s.sfx('se_stamp');
   s.shuSplash(px, py, j === 'kukkiri' ? 12 : 6);
   // the stamp lingers briefly where it landed, then becomes the decal
@@ -1659,7 +1673,7 @@ export function* doNori(s: BattleScene): Co {
   darkFx.done = true;
   dealt.forEach(([e, dmg], i) => {
     const [nx, ny] = s.enemyNumberXY(e, true);
-    s.number(nx, ny, dmg, { big: true, delay: i * 60 }, 'enemy', e);
+    s.number(nx, ny, dmg, { big: true, delay: i * 60, backing: true }, 'enemy', e);
   });
   if (killed.length) {
     // everyone who fell shrinks together, dropping 100ms apart

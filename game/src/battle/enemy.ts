@@ -350,16 +350,66 @@ function soundRings(s: BattleScene, x: number, y: number, color: string, n: numb
   }
 }
 
-/** Screen chromatic aberration (miin): short red/cyan split of the whole frame. */
-function screenAberration(s: BattleScene, ms: number): void {
+/**
+ * A voice that fills the air (セミの「人生最後の一声」, QA round 1): thick
+ * rings (2px #F4F1E8 with an ink edge on the outside) burst from the mouth
+ * and roll out past the edges of the stage, fading as they go. They are
+ * the telegraph: you can see the scream coming at the panels.
+ */
+function voiceRings(s: BattleScene, x: () => number, y: () => number, n: number, gap = 110, ms = 560): void {
+  for (let i = 0; i < n; i++) {
+    const d = i * gap;
+    s.addFx({
+      layer: 'world',
+      dur: ms + d,
+      draw: (g, t) => {
+        if (t < d) return;
+        const p = (t - d) / ms;
+        const r = 7 + ease.quadOut(p) * 150;
+        const cx = x();
+        const cy = y();
+        const steps = Math.max(32, Math.round(r * 3));
+        g.alpha(0.95 * (1 - p) ** 0.7, () => {
+          for (let k = 0; k < steps; k++) {
+            const an = (k / steps) * Math.PI * 2;
+            const ca = Math.cos(an);
+            const sa = Math.sin(an) * 0.72;
+            g.px(Math.round(cx + ca * (r + 2)), Math.round(cy + sa * (r + 2)), C.ink);
+            g.px(Math.round(cx + ca * (r + 1)), Math.round(cy + sa * (r + 1)), '#F4F1E8');
+            g.px(Math.round(cx + ca * r), Math.round(cy + sa * r), '#F4F1E8');
+          }
+        });
+      },
+    });
+  }
+}
+
+/**
+ * Wind-up lean (QA round 1): over `frames` the enemy draws back away from
+ * its target — the top of it tips back (shear), it slides back a few px and
+ * squats a little — ready to spring.
+ */
+function leanBack(s: BattleScene, e: EnemyUnit, dir: number, frames: number): void {
+  const ms = frames * FRAME;
   s.addFx({
-    layer: 'top',
+    layer: 'back',
     dur: ms,
-    ui: true,
-    draw: (g) => {
-      g.alpha(0.12, () => {
-        g.rect(0, 0, 384, 216, '#FF3030');
-      });
+    draw: () => {},
+    update() {
+      if (e.dying) {
+        this.done = true;
+        return;
+      }
+      const k = ease.quadOut(Math.min(1, this.t / ms));
+      e.shear = -dir * Math.round(5 * k);
+      e.offX = -dir * Math.round(3 * k);
+      e.offY = -Math.round(2 * k);
+      e.sy = 1 - 0.06 * k;
+      e.sx = 1 + 0.04 * k;
+      if (this.t >= ms - 1) {
+        e.shear = 0;
+        e.sx = e.sy = 1;
+      }
     },
   });
 }
@@ -574,13 +624,22 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
     case 'skill_semi_miin': {
       e.status.shindafuri = false;
       s.sfx('se_semi_miin');
+      e.setPose('attack', skillId);
       yield* hitLoop(s, {
         ...common,
-        onFrame: (f) => {
-          if (f % 12 === 0) soundRings(s, e.coreX + 10, e.coreY, '#F7C27A', 1, 0.6, 500);
-          if (f === 0) screenAberration(s, 500);
+        onFrame: (f, _i, toHit) => {
+          // the whole body trembles harder as the scream builds
+          const amp = toHit > 18 ? 1 : 2;
+          e.offX = f % 2 ? amp : -amp;
+          e.offY = f % 4 < 2 ? 0 : -1;
+          // thick rings from the mouth, rolling out over the stage
+          if (f % 9 === 0) voiceRings(s, () => e.faceX - 2, () => e.faceY + 2, 1);
         },
-        onHit: (i, r) => resolveGuard(r, i),
+        onHit: (i, r) => {
+          resolveGuard(r, i);
+          e.offX = e.offY = 0;
+          voiceRings(s, () => e.faceX - 2, () => e.faceY + 2, 3, 70, 480);
+        },
       });
       telePages.push(...e.def.texts.extra.miinResult);
       telePages.push(...applyStatusAll(s, all, sk, st));
@@ -635,13 +694,17 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
     }
     // ---- ワスレガサ ---------------------------------------------------------------
     case 'skill_kasa_dakitsuki': {
+      const dir = Math.sign(towardX(e, target, 1, 999)) || 1;
       yield* hitLoop(s, {
         ...common,
-        onFrame: (_f, _i, toHit) => {
+        onFrame: (f, _i, toHit) => {
+          // gathers itself: leans back away from the one it will hug
+          if (f === 0) leanBack(s, e, dir, Math.max(1, toHit - 9));
           if (toHit === 9) {
             e.setPose('attack', skillId);
-            // lunges out of its spot at the member (1.0 → 1.25, +10px) and back
-            rush(s, e, { scale: 1.25, dy: 10, dx: towardX(e, target), inF: 9, holdF: 5, outF: 10 });
+            // then springs out of its spot at the member's panel (1.0 → 1.3,
+            // well toward them and down) and falls back
+            rush(s, e, { scale: 1.3, dy: 14, dx: towardX(e, target, 0.3, 26), inF: 9, holdF: 5, outF: 10 });
             s.sfx('se_hug');
           }
         },

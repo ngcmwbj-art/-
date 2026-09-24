@@ -23,7 +23,7 @@ import { ease } from '../engine/tween';
 import { hasSave } from '../game/state';
 import { audioReady, musicPosition, playAmbient, playBgm, sfx, stopAllAmbient, stopBgm } from '../audio';
 import { registerScene } from '../boot';
-import { drawDigits } from './digits';
+import { digitsWidth, drawDigits } from './digits';
 import { clearRecord, continueGame, startNewGame, type ClearRecord } from './flow';
 import { runSettings } from './menu';
 import { hanamaruFrame } from '../battle/art/stamps';
@@ -47,7 +47,7 @@ import {
   sunCanvas,
   type Sky,
 } from './title_art';
-import { drawCursor, drawTape, drawWindow, outlinedText, textW, UI } from './window';
+import { dottedLine, drawCursor, drawTape, drawWindow, textW, UI } from './window';
 import { coverToFade, ditherOut } from './transition';
 
 const MENU = ['はじめる', 'つづきから', 'せってい'];
@@ -324,10 +324,6 @@ export class TitleScene implements Scene {
       const a = Math.min(1, (this.t - LOGO_AT - 150) / 300);
       if (a > 0) g.alpha(a, () => drawDigits(g, 'HANAMARU SUNSET', LOGO_CENTER.x, LOGO_CENTER.y + 37, { color: UI.bg, outline: UI.border, align: 'center', spacing: 2 }));
     }
-    if (this.clear && this.t > MENU_AT) {
-      const a = Math.min(1, (this.t - MENU_AT) / 600);
-      outlinedText(g, 'ここまで 見てくれて、ありがとう。', LOGO_CENTER.x, LOGO_CENTER.y + 48, { align: 'center', alpha: a });
-    }
   }
 
   private drawMenu(g: Gfx): void {
@@ -341,31 +337,61 @@ export class TitleScene implements Scene {
       const y0 = 150 + i * 19;
       const y = y0 + Math.round((1 - ease.backOut(k)) * 24) - (sel ? 1 : 0);
       const a = k * (dim ? 0.5 : 1);
-      drawTape(g, x, y, 88, 18, '', { color: sel ? '#FFE0A8' : UI.tape, seed: 40 + i, alpha: a });
+      drawTape(g, x, y, 88, 18, '', { color: sel ? UI.tapeOn : UI.tapeOff, seed: 40 + i, alpha: a });
       g.text(label, x + 44, y + 1, { color: dim ? UI.textDim : UI.text, align: 'center', alpha: k });
       if (sel && k >= 1) drawCursor(g, x - 12, y, this.t, this.pickT >= 0 ? this.pickT : -1);
     });
   }
 
+  /**
+   * After the ending (11.4, 10_narrative 12.6): a scrap of notebook in the
+   * bottom-left corner, clear of the two silhouettes on the bridge. It has
+   * two pages, as the message has: the みました帳 counts, then
+   * 「ここまで 見てくれて、ありがとう。」; they turn every few seconds.
+   * The teacher's little はなまる is pressed over the top-right corner.
+   */
   private drawClearCard(g: Gfx): void {
     const c = this.clear!;
-    const k = Math.min(1, (this.t - MENU_AT) / 300);
-    const x = 8;
-    const y = 150 + Math.round((1 - ease.cubicOut(k)) * 10);
-    drawWindow(g, x, y, 176, 56, UI, k, { curl: false });
-    g.alpha(k, () => {
-      const row = (label: string, v: string, lx: number, ly: number) => {
-        g.text(label, lx, ly, { color: UI.text });
-        drawDigits(g, v, lx + textW(label) + 4, ly + 5, { color: UI.accent });
-      };
-      row('ふしぎ', `${c.fushigi}/12`, x + 10, y + 8);
-      row('あいて', `${c.aite}/7`, x + 92, y + 8);
-      row('ツッコミ', `${c.tsukkomi}/${c.tsukkomiTotal || 19}`, x + 10, y + 28);
-      // the teacher's little hanamaru on the corner
-      g.img(hanamaruFrame(24, 1, false, 2), x + 176 - 30, y + 26);
+    const lt = this.t - MENU_AT;
+    const k = Math.min(1, lt / 300);
+    const { x, w, h } = CLEAR_CARD;
+    const y = CLEAR_CARD.y + Math.round((1 - ease.cubicOut(k)) * 10);
+    drawWindow(g, x, y, w, h, UI, k, { curl: false });
+    // which page, and how far through the turn
+    const cyc = Math.max(0, lt - 300);
+    const page = Math.floor(cyc / CLEAR_PAGE_MS) % 2;
+    const pt = cyc % CLEAR_PAGE_MS;
+    const turnIn = Math.min(1, pt / 220);
+    const turnOut = pt > CLEAR_PAGE_MS - 220 ? (pt - (CLEAR_PAGE_MS - 220)) / 220 : 0;
+    const ca = k * (lt < 300 ? 1 : cyc < CLEAR_PAGE_MS ? 1 - turnOut : turnIn * (1 - turnOut));
+    const dx = Math.round((1 - turnIn) * 4 * (cyc < CLEAR_PAGE_MS ? 0 : 1) - turnOut * 4);
+    g.alpha(ca, () => {
+      const lx = x + 7 + dx;
+      const rx = x + w - 7 + dx;
+      if (page === 0) {
+        const row = (label: string, v: string, ry: number) => {
+          g.text(label, lx, ry, { color: UI.text });
+          drawDigits(g, v, rx, ry + 5, { color: UI.accent, align: 'right' });
+          dottedLine(g, lx + textW(label) + 3, ry + 11, rx - digitsWidth(v) - 4, UI.bg2, 2);
+        };
+        row('ふしぎ', `${c.fushigi}/12`, y + 6);
+        row('あいて', `${c.aite}/7`, y + 23);
+        row('ツッコミ', `${c.tsukkomi}/${c.tsukkomiTotal || 19}`, y + 40);
+      } else {
+        ['ここまで', '見てくれて、', 'ありがとう。'].forEach((l, i) => g.text(l, lx, y + 6 + i * 17, { color: UI.sys }));
+      }
     });
+    // page dots at the bottom edge
+    if (k >= 1)
+      for (let i = 0; i < 2; i++) g.rect(x + w / 2 - 4 + i * 6, y + h - 5, 2, 2, i === page ? UI.accent : UI.bg2);
+    // the はなまる, over the corner
+    g.alpha(k, () => g.img(hanamaruFrame(24, 1, false, 2), x + w - 17, y - 9));
   }
 }
+
+/** The post-ending card: bottom-left, left of the silhouettes on the bridge (x ≥ 118). */
+const CLEAR_CARD = { x: 4, y: 146, w: 112, h: 62 };
+const CLEAR_PAGE_MS = 4500;
 
 registerScene('title', (p) => new TitleScene(p.get('skip') === '1'));
 

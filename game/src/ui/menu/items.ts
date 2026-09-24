@@ -12,10 +12,10 @@ import { flag, state } from '../../game/state';
 import { getItem, isKeyItem, useItemInField, canUseItemInField } from '../../data/battle';
 import { sfx } from '../../audio';
 import { say } from '../dialog';
-import { drawDigits } from '../digits';
+import { drawDigits, drawNumerals } from '../digits';
 import { itemIcon12, itemIcon24 } from '../icons';
 import { dottedLine, drawCursor, drawMarker, pencilLine, phraseWrap as wrap, rectA, textW, UI } from '../window';
-import { drawHeader, drawScroll, FOLD, LP, Popup, RP, SP } from './notebook';
+import { drawHeader, drawScroll, FOLD, LP, Popup, RP, SP, type PopupOpt } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
 
 export const BAG_MAX = 14;
@@ -158,11 +158,26 @@ export class ItemsPage implements MenuPage {
         { label: 'わたす', disabled: row.key || !kan },
         { label: 'すてる', disabled: row.key },
       ];
-      this.popup = new Popup(opts, SP.x + SP.w - 84, SP.y + SP.h - 72, '', { minW: 76 });
+      this.popup = this.popupAtRow(opts, '', { minW: 76 });
       this.popupFor = row;
       this.mode = 'action';
     }
     return true;
+  }
+
+  /**
+   * A sticky note on the list page, just under the chosen row (or above it
+   * near the bottom): the description on the right page stays readable.
+   */
+  private popupAtRow(opts: PopupOpt[], title: string, o: { minW?: number; index?: number }): Popup {
+    const rowY = LIST_Y + (this.sel - this.scroll) * ROW_H;
+    const p = new Popup(opts, LP.x + 26, rowY + ROW_H, title, o);
+    const bottom = SP.y + SP.h - 4;
+    if (p.y + p.h > bottom) p.y = rowY - p.h - 2;
+    p.y = Math.max(SP.y + 4, p.y);
+    // keep it on the left page (a long title may reach the fold at most)
+    p.x = Math.max(SP.x + 6, Math.min(p.x, FOLD + 6 - p.w));
+    return p;
   }
 
   private move(s: Slot[], d: number): void {
@@ -189,7 +204,10 @@ export class ItemsPage implements MenuPage {
         return;
       }
       this.mode = 'confirm';
-      this.popup = new Popup([{ label: 'すてる' }, { label: 'やめる' }], SP.x + SP.w - 150, SP.y + SP.h - 86, `${it.name}を すてる？`, { index: 1 });
+      // 「$itemを すてる？」 (12.4); a long name goes on its own line so the note stays on the list page
+      const q = `${it.name}を すてる？`;
+      const title = textW(q) + 16 <= FOLD - SP.x - 6 ? q : `${it.name}を\nすてる？`;
+      this.popup = this.popupAtRow([{ label: 'すてる' }, { label: 'やめる' }], title, { index: 1 });
       this.popupFor = row;
       return;
     }
@@ -303,7 +321,7 @@ export class ItemsPage implements MenuPage {
     g.text(kind, x + 36, y - 1, { color: UI.pencil });
     if (!row.key) {
       g.text('もっている', x + 36, y + 15, { color: UI.text });
-      drawDigits(g, `${row.n}`, x + 36 + textW('もっている') + 4, y + 20, { color: UI.accent });
+      drawNumerals(g, `${row.n}`, x + 36 + textW('もっている') + 5, y + 15, { color: UI.accent });
     }
     // name in 朱 with a pencil underline
     y += 36;
@@ -311,7 +329,8 @@ export class ItemsPage implements MenuPage {
     pencilLine(g, x, y + 16, textW(it.name) + 2, 1, UI.accentDark, row.id.length);
     y += 22;
     // flavour text
-    const flavor = row.id === 'item_otsukai_memo' ? 'コロッケ 4つ。ソースは べつ。' : it.desc[0] + (row.key && it.desc[1] ? it.desc[1] : '');
+    // a key item's two lines are one text; the second starts a new line, as written (10.2)
+    const flavor = row.id === 'item_otsukai_memo' ? 'コロッケ 4つ。ソースは べつ。' : it.desc[0] + (row.key && it.desc[1] ? '\n' + it.desc[1] : '');
     const lines = wrap(flavor, RP.w - 2);
     for (const l of lines.slice(0, 4)) {
       g.text(l, x, y, { color: UI.text });

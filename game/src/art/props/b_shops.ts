@@ -37,6 +37,7 @@ import { dk, glassPane, lt } from './kit';
 import { acUnit } from './b_houses';
 import { fontSmallWidth, fontText, fontTextSmall, fontWidth, handGlyph, printLines, scribble, tiny } from './text';
 import { registerProp } from './registry';
+import { laundry, skylight, stairHouse, storageBox, tvAntenna, ventCap } from './roofkit';
 import { drawLightAt, LIGHT, poolTrapezoid } from './light';
 import type { PropEnv } from './types';
 
@@ -101,7 +102,10 @@ registerBuilding({
     const p = b.p;
     const rY = b.roofY;
     const fY = b.faceY;
-    const [ix, iy] = roofFlat(p, 0, rY, 96, 48, { base: P.concrete, seed: 7 });
+    const [ix, iy] = roofFlat(p, 0, rY, 96, 48, { base: P.concrete, seed: 7, style: 'slab' });
+    // the family upstairs dries the aprons and towels on the roof
+    laundry(p, ix + 6, iy + 3, 44, 7);
+    ventCap(p, ix + 52, iy + 14);
     waterTank(p, ix + 60, iy + 4);
     // rooftop billboard frame (steel lattice) at the front edge
     for (let i = 6; i < 58; i += 6) p.vline(i, rY + 26, rY + 44, P.asphalt);
@@ -371,7 +375,11 @@ registerBuilding({
     const p = b.p;
     const rY = b.roofY;
     const fY = b.faceY;
-    const [ix, iy] = roofFlat(p, 0, rY, 64, 48, { base: P.concreteLt, seed: 11 });
+    const [ix, iy] = roofFlat(p, 0, rY, 64, 48, { base: P.concreteLt, seed: 11, style: 'sheet' });
+    skylight(p, b.mask, ix + 26, iy + 10, 16, 10);
+    tvAntenna(p, ix + 50, iy - 6, iy + 14);
+    storageBox(p, ix + 30, iy + 27, 14, 9);
+    ventCap(p, ix + 6, iy + 30);
     // rooftop clock objet: a big pocket-watch on a post
     p.vline(20, rY + 8, rY + 30, P.asphalt);
     p.vline(21, rY + 8, rY + 30, P.charcoal);
@@ -422,7 +430,9 @@ registerBuilding({
     const p = b.p;
     const rY = b.roofY;
     const fY = b.faceY;
-    const [ix, iy, iw] = roofFlat(p, 0, rY, 80, 48, { base: P.concrete, seed: 17 });
+    const [ix, iy, iw] = roofFlat(p, 0, rY, 80, 48, { base: P.concrete, seed: 17, style: 'sheet' });
+    stairHouse(p, ix + 52, iy + 22, 18, 16, 17);
+    laundry(p, ix + 4, iy + 27, 40, 17);
     // rooftop vegetable planters
     for (let k = 0; k < 3; k++) {
       const px = ix + 6 + k * 22;

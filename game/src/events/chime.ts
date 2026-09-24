@@ -32,7 +32,7 @@ import * as T from '../data/text/events';
 import { besideToward, dirTo, eventBattle, F, floatLine, getKeyItem, giveKey, holdBgm, holdCamera, panBack, sendAway, settle, tileFree, walkTo } from './lib';
 import { burst, playCaseGift, puff, smallVoice, sparkle } from './fx';
 import { meishi } from './art';
-import { cinema, guideNearHanko, zoomIn, zoomOut } from './stage';
+import { cinema, guideNearHanko, zoomIn, zoomIntoBattle } from './stage';
 import { registerWorldFx } from '../world/fx';
 import { animate, ease } from '../engine/tween';
 
@@ -263,30 +263,37 @@ function* hatoBlock(): Co {
   face('npc_hato', 'player');
   face('player', 'npc_hato');
   const home: [number, number] = [hato.x, hato.y];
-  for (;;) {
+  for (let tries = 0; ; tries++) {
     // close in (2×) on the two of them: the gag is a card of a few pixels
     // and a tie; the pair sits in the upper middle, clear of the window
     // (まめ吉's 「まいど」 over the shop would be cut by the frame's top edge)
     setFlag('flag_maido_hold', 1);
     const z = yield* zoomIn(Math.round((p.x + hato.x) / 2), Math.round(Math.max(p.y, hato.y)) - 14, 380);
-    sfx('se_coo');
-    yield* msg(T.HATO_COO);
-    // the card, held out in both wings
-    yield* offerCard(hato);
-    yield* msg(T.HATO_CARD);
-    // the tie and the staff pass pop out: ハト係長
-    yield* transform(hato);
-    yield* emote('player', 'exclaim', { dur: 700 });
-    yield* msg(T.HATO_B);
-    card.on = false;
-    yield* emote('player', 'sweat');
-    yield* zoomOut(z, 300);
+    if (tries === 0) {
+      sfx('se_coo');
+      yield* msg(T.HATO_COO);
+      // the card, held out in both wings
+      yield* offerCard(hato);
+      yield* msg(T.HATO_CARD);
+      // the tie and the staff pass pop out: ハト係長
+      yield* transform(hato);
+      yield* emote('player', 'exclaim', { dur: 700 });
+      yield* msg(T.HATO_B);
+      card.on = false;
+      yield* emote('player', 'sweat');
+    } else {
+      // a retry: the same stand-off, without the whole speech again
+      sfx('se_coo');
+      yield 300;
+      yield* emote('player', 'exclaim', { dur: 600 });
+    }
     setFlag('flag_maido_hold', 0);
+    // the 「！」 seal lands on this close-up; the field is back at 1× after the battle
+    zoomIntoBattle(z);
     const r = yield* eventBattle({ enemies: ['enemy_hato_kakaricho'], music: 'bgm_battle' });
     if (r === 'load') return;
     if (r === 'win') break;
-    // 「戦う前から やりなおす」: from the top of this page
-    hato.setSprite('npc_hato');
+    // 「戦う前から やりなおす」: from the stand-off, ハト係長 already in his tie
     hato.x = home[0];
     hato.y = home[1];
     face('npc_hato', 'player');

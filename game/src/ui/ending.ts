@@ -18,7 +18,7 @@ import { ease } from '../engine/tween';
 import { charWidth } from '../engine/font';
 import { state } from '../game/state';
 import { sfx } from '../audio';
-import { petalSprites, roundSeal } from '../battle/art/stamps';
+import { petalSprites } from '../battle/art/stamps';
 import { caseBody, caseLid, CASE_H, CASE_W, drawCase } from './hankocase';
 import { markClear, toTitle } from './flow';
 import {
@@ -33,7 +33,7 @@ import {
   nearCanvas,
   skyCanvas,
 } from './title_art';
-import { rectA, textW, UI } from './window';
+import { ctxText, rectA, textW, UI } from './window';
 import { ditherIn, ditherOut } from './transition';
 
 // ---- cut_night_sky -------------------------------------------------------------------------
@@ -144,6 +144,14 @@ export function hideNightSky(): void {
 // ---- the 自由研究 notebook ----------------------------------------------------------------------
 
 const COVER = { x: 20, y: 6, w: 344, h: 204 };
+/** The title box on the cover (relative to the cover). */
+const TBOX = { x: 70, y: 10, w: 236, h: 48 };
+/** The hanko case, set down inside the cover (bottom at y198, 12px above the cover's edge). */
+const CASE_AT = { x: 84, y: 94 };
+/** 「つづく」: a big round seal to the right of the case. */
+const SEAL = { x: 322, y: 146, size: 68 };
+/** The seal comes down for this long before it lands (its shadow closes in). */
+const PRESS_MS = 170;
 const TITLE = '夕鳴町 みました帳 ①';
 
 let coverC: HTMLCanvasElement | null = null;
@@ -172,17 +180,61 @@ function coverCanvas(): HTMLCanvasElement {
   r(22, 1, 1, h - 2, '#22386C');
   r(1, 1, 22, 1, '#4A6AB0');
   // the title box
-  const bx = 70;
-  const by = 14;
-  const bw = 236;
-  const bh = 56;
+  const { x: bx, y: by, w: bw, h: bh } = TBOX;
   r(bx - 1, by - 1, bw + 2, bh + 2, '#2F4A8A');
   r(bx, by, bw, bh, '#FBF7EC');
   r(bx + 2, by + 2, bw - 4, 1, '#2F4A8A');
   r(bx + 2, by + bh - 3, bw - 4, 1, '#2F4A8A');
   // name line under the title box
-  r(bx + 60, by + bh + 20, bw - 60, 1, '#2F4A8A');
+  r(bx + 60, by + bh + 22, bw - 60, 1, '#2F4A8A');
   coverC = c;
+  return c;
+}
+
+let sealC: HTMLCanvasElement | null = null;
+/**
+ * The 「つづく」 seal: a solid vermilion disc with a ragged edge, a paper
+ * ring inside, and the word cut out of the ink in bold (each letter doubled
+ * 1px to the right) so it reads at a glance. A few specks where the ink
+ * didn't take.
+ */
+function tsuzukuSeal(size: number): HTMLCanvasElement {
+  if (sealC) return sealC;
+  const [c, ctx] = makeCanvas(size, size, { willReadFrequently: true });
+  const r = size / 2;
+  const put = (x: number, y: number, col: string) => {
+    ctx.fillStyle = col;
+    ctx.fillRect(x, y, 1, 1);
+  };
+  for (let y = 0; y < size; y++)
+    for (let x = 0; x < size; x++) {
+      const dx = x + 0.5 - r;
+      const dy = y + 0.5 - r;
+      const a = Math.atan2(dy, dx);
+      const edge = r - 0.6 - 1.1 * hash2(Math.round(a * 10), 0, 3);
+      const d = Math.hypot(dx, dy);
+      if (d > edge) continue;
+      // lower right presses darker, upper left a touch lighter
+      const shade = dx + dy > r * 0.9 ? UI.accentDark : dx + dy < -r * 1.1 ? UI.accentLight : UI.accent;
+      put(x, y, d > edge - 1.2 ? UI.accentDark : shade);
+      if (d <= edge - 4 && d > edge - 5.4) put(x, y, UI.bg);
+    }
+  // the word, cut out of the ink
+  const word = 'つづく';
+  const tw = textW(word);
+  const tx = Math.round(size / 2 - tw / 2) - 1;
+  const ty = Math.round(size / 2 - 9);
+  // bold: each letter doubled a pixel down (keeps the dakuten apart)
+  for (const oy of [0, 1]) ctxText(ctx, word, tx, ty + oy, UI.bg);
+  // かすれ: a few specks of paper in the ink
+  const img = ctx.getImageData(0, 0, size, size);
+  for (let i = 0; i < size * 0.7; i++) {
+    const x = Math.floor(hash2(i, 1, 77) * size);
+    const y = Math.floor(hash2(i, 2, 77) * size);
+    const o = (y * size + x) * 4;
+    if (img.data[o + 3] && img.data[o] > 150 && img.data[o + 1] < 120) put(x, y, '#F2B4A8');
+  }
+  sealC = c;
   return c;
 }
 
@@ -198,7 +250,8 @@ class NotebookScene implements Scene {
   private penAcc = 0;
   private parts = new Particles();
   private petals = petalSprites();
-  private seal = roundSeal('つづく', 44);
+  private seal = tsuzukuSeal(SEAL.size);
+  private landed = false;
 
   update(dt: number): void {
     this.t += dt;
@@ -213,16 +266,25 @@ class NotebookScene implements Scene {
     }
     if (this.caseT >= 0) this.caseT += dt;
     if (this.lidT >= 0) this.lidT += dt;
-    if (this.stampT >= 0) this.stampT += dt;
+    if (this.stampT >= 0) {
+      this.stampT += dt;
+      if (!this.landed && this.stampT >= PRESS_MS) this.land();
+    }
   }
 
+  /** The big 「つづく」 seal starts coming down; it lands PRESS_MS later. */
   stamp(): void {
     this.stampT = 0;
+  }
+
+  private land(): void {
+    this.landed = true;
     sfx('se_stamp_heavy');
     game.hitstop(133);
-    game.shake(2, 120);
-    for (let i = 0; i < 10; i++)
-      this.parts.burst(318, 170, {
+    game.shake(3, 160);
+    game.flash('#E23B2E', 90, 0.12);
+    for (let i = 0; i < 14; i++)
+      this.parts.burst(SEAL.x, SEAL.y, {
         count: 1,
         speed: [40, 120],
         life: [700, 1200],
@@ -242,17 +304,17 @@ class NotebookScene implements Scene {
     const k = Math.min(1, this.t / 500);
     g.alpha(k, () => {
       g.img(coverCanvas(), COVER.x, COVER.y + Math.round((1 - ease.cubicOut(k)) * 8));
-      const bx = COVER.x + 70;
-      const by = COVER.y + 14;
+      const bx = COVER.x + TBOX.x;
+      const by = COVER.y + TBOX.y;
       // 「じゆうけんきゅう」 printed small, the name in pencil
-      g.text('じゆうけんきゅう', bx + 8, by + 6, { color: '#2F4A8A' });
-      g.text('5年 2組', bx, by + 64, { color: '#2F4A8A' });
-      g.text('潮見 ミナト', bx + 70, by + 63, { color: UI.pencil });
+      g.text('じゆうけんきゅう', bx + 8, by + 5, { color: '#2F4A8A' });
+      g.text('5年 2組', bx, by + TBOX.h + 6, { color: '#2F4A8A' });
+      g.text('潮見 ミナト', bx + 70, by + TBOX.h + 5, { color: UI.pencil });
       // the title, written in by hand (0.12 s a letter)
       const chars = [...TITLE];
       const tw = textW(TITLE);
-      let x = Math.round(bx + 118 - tw / 2);
-      const y = by + 28;
+      let x = Math.round(bx + TBOX.w / 2 - tw / 2);
+      const y = by + 25;
       chars.slice(0, this.written).forEach((ch, i) => {
         const dy = [0, 1, 0, 0, -1, 0, 1, 0, 0, 1, 0][i % 11];
         g.text(ch, x, y + dy, { color: UI.pencil });
@@ -263,8 +325,8 @@ class NotebookScene implements Scene {
     // the hanko case is set down on the notebook and opens
     if (this.caseT >= 0) {
       const ck = Math.min(1, this.caseT / 200);
-      const cx = Math.round(W / 2 - CASE_W / 2);
-      const cy = 106 + Math.round((1 - ease.backOut(ck)) * 60);
+      const cx = CASE_AT.x;
+      const cy = CASE_AT.y + Math.round((1 - ease.backOut(ck)) * 60);
       if (this.lidT < 0 || this.lidT < 34) {
         rectA(g, cx + 4, cy + 4, CASE_W, CASE_H, '#0B0B14', 0.5);
         g.img(caseLid(), cx, cy);
@@ -277,11 +339,22 @@ class NotebookScene implements Scene {
       }
       void caseBody;
     }
-    // 「つづく」
+    // 「つづく」: the hanko's shadow closes in, then the seal lands (1.25 → 1.0
+    // in 5 frames), the ink spreads a moment, petals fly
     if (this.stampT >= 0) {
-      const s = this.stampT < 90 ? 1.4 - 0.4 * (this.stampT / 90) : 1;
-      const w = Math.round(this.seal.width * s);
-      g.ctx.drawImage(this.seal, Math.round(318 - w / 2), Math.round(170 - w / 2), w, w);
+      const t = this.stampT;
+      if (t < PRESS_MS) {
+        const k = ease.quadIn(t / PRESS_MS);
+        const r = Math.round(SEAL.size * (0.95 - 0.4 * k) / 2);
+        g.alpha(0.12 + 0.3 * k, () => g.circle(SEAL.x + 3 - Math.round(3 * k), SEAL.y + 4 - Math.round(4 * k), r, '#1B1420'));
+      } else {
+        const lt = t - PRESS_MS;
+        const s = lt < 85 ? 1.25 - 0.25 * ease.quadOut(lt / 85) : 1;
+        const w = Math.round(this.seal.width * s);
+        // a soft ring of ink soaking into the cover right after it lands
+        if (lt < 500) g.alpha(0.3 * (1 - lt / 500), () => g.circle(SEAL.x, SEAL.y, Math.round(SEAL.size / 2 + 2 + lt / 60), '#E8A49C'));
+        g.ctx.drawImage(this.seal, Math.round(SEAL.x - w / 2), Math.round(SEAL.y - w / 2), w, w);
+      }
     }
     this.parts.draw(g);
     if (this.fade > 0) g.rect(0, 0, W, H, UI.darkest, this.fade);

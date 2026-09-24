@@ -15,6 +15,11 @@ import { showBubble } from './bubble';
 import { setFlag, state } from '../game/state';
 import { joinKanenari, newGameParty, setMemberLevel, syncProgressSkills } from '../data/battle';
 import { field } from '../world/field';
+import { allItems, getEnemy, getSkill, HANKO_CASE_ORDER, PR_ORDER } from '../data/battle';
+import { fitWrap, phraseWrapInfo, textW } from './window';
+import { FOLD, LP, RP, SP } from './menu/notebook';
+import { BOOK_ENEMIES, FUSHIGI_BOOK, pressedText, TSUKKOMI_ENEMIES } from './menu/book';
+import { W } from '../engine/screen';
 
 const SAMPLES: Record<string, () => Generator> = {
   normal: function* () {
@@ -143,3 +148,59 @@ registerDebug('hudState', () => {
   return { lastPlace: h.lastPlace, lastMap: h.lastMap, banner: h.banner, pending: h.pendingPlace, t: h.t };
 });
 registerDebug('bubble', (id = 'player', text = 'まいど！') => showBubble(id, text));
+
+/**
+ * QA: run every text the UI wraps (items in the bag and the shop, ふしぎ,
+ * あいて, ツッコミ, ハンコ) through phraseWrap at the width and line budget of
+ * the place it is shown. Reports texts that need more lines than there are,
+ * lines wider than the column, and breaks that fell between characters.
+ */
+registerDebug('wrap', (text: string, w = 144) => phraseWrapInfo(text, w));
+registerDebug('wrapCheck', () => {
+  const issues: string[] = [];
+  let n = 0;
+  const check = (where: string, text: string, w: number, maxLines: number) => {
+    if (!text) return;
+    n++;
+    const { lines, forced } = phraseWrapInfo(text, w);
+    const wide = lines.filter((l) => textW(l) > w + (/[、。]$/.test(l) ? 8 : /[！？」』）]$/.test(l) ? 16 : 0));
+    if (lines.length > maxLines || forced || wide.length) issues.push(`${where}: ${lines.join('／')} (${lines.length}/${maxLines} lines${forced ? `, ${forced} forced` : ''}${wide.length ? ', too wide' : ''})`);
+  };
+  const shopW = W - 16 - 18 - 12;
+  for (const it of allItems()) {
+    const flavor = it.key ? it.desc[0] + (it.desc[1] ? '\n' + it.desc[1] : '') : it.desc[0];
+    check(`もちもの ${it.name}`, flavor, RP.w - 2, 4);
+    if (!it.key) check(`もちもの ${it.name} 効果`, it.desc[1], RP.w - 6, 3);
+    if (!it.key) {
+      const f = phraseWrapInfo(it.desc[0], shopW).lines.length;
+      const e = phraseWrapInfo(it.desc[1], shopW).lines.length;
+      if (f + e > 3) issues.push(`ショップ ${it.name}: ${f}+${e} lines > 3`);
+      check(`ショップ ${it.name}`, it.desc[0], shopW, 2);
+    }
+  }
+  const labelW = FOLD - 4 - (LP.x + 14);
+  FUSHIGI_BOOK.forEach(([title], i) => {
+    check(`ふしぎ${i + 1} 一覧`, title, labelW, 2);
+    check(`ふしぎ${i + 1} 題`, title, RP.w, 2);
+    // the page body may set a too-long word a little tighter instead of splitting it
+    const body = fitWrap(pressedText(i), RP.w);
+    n++;
+    if (body.length > 4) issues.push(`ふしぎ${i + 1} 本文: ${body.map((l) => l.text).join('／')} (${body.length}/4 lines)`);
+    if (phraseWrapInfo(pressedText(i), RP.w).forced && body.every((l) => !l.spacing)) issues.push(`ふしぎ${i + 1} 本文: forced break`);
+  });
+  for (const id of BOOK_ENEMIES) {
+    const e = getEnemy(id);
+    if (!e) continue;
+    check(`あいて ${e.name} 一覧`, e.name, labelW, 2);
+    check(`あいて ${e.name} 正体`, e.book.shotai, RP.w + 2, 3);
+    check(`あいて ${e.name} ひとこと`, e.book.hitokoto, RP.w - 4, 3);
+  }
+  for (const id of TSUKKOMI_ENEMIES) for (const l of getEnemy(id)?.tsukkomi ?? []) check(`ツッコミ 一覧`, l, labelW, 2);
+  const infoW = SP.x + SP.w - 14 - LP.x;
+  for (const id of [...HANKO_CASE_ORDER, ...PR_ORDER]) {
+    const s = getSkill(id);
+    for (const l of s?.desc ?? []) check(`ハンコ ${s?.name}`, l, infoW, 1);
+  }
+  void getSkill;
+  return { checked: n, issues };
+});

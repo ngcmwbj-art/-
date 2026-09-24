@@ -11,8 +11,8 @@ import { sfx } from '../../audio';
 import { charSprite, hasChar, idleFrame } from '../../art/chars';
 import { kakimojiSmall, ovalStamp } from '../../battle/art/stamps';
 import { getFushigi } from '../../world/fushigi';
-import { drawDigits } from '../digits';
-import { drawCursor, drawMarker, dottedLine, drawTape, pencilLine, phraseWrap as wrap, textW, UI } from '../window';
+import { digitsWidth, drawDigits } from '../digits';
+import { drawCursor, drawMarker, dottedLine, drawTape, fitWrap, pencilLine, phraseWrap as wrap, textW, UI } from '../window';
 import { drawHeader, drawScroll, FOLD, LP, RP, SP } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
 
@@ -46,14 +46,14 @@ export const BOOK_ENEMIES = [
 ];
 
 /** Enemies whose ツッコミ lines are in the book (19 in all, 10_narrative 9.2). */
-const TSUKKOMI_ENEMIES = [...BOOK_ENEMIES, 'boss_omukaemachi'];
+export const TSUKKOMI_ENEMIES = [...BOOK_ENEMIES, 'boss_omukaemachi'];
 
 export function fushigiDoneN(i: number): boolean {
   return flag(`flag_fushigi_${String(i + 1).padStart(2, '0')}`) > 0;
 }
 
 /** First page of the stamped text: from the ふしぎ definition when the world has it. */
-function pressedText(i: number): string {
+export function pressedText(i: number): string {
   const id = `fushigi_${String(i + 1).padStart(2, '0')}`;
   const d = getFushigi(id);
   if (d?.pressed) {
@@ -63,7 +63,8 @@ function pressedText(i: number): string {
       .map((l) => l.trim())
       .filter((l) => l && !/^[@>?![]/.test(l))
       .map((l) => l.replace(/\{[^}]*\}/g, ''));
-    if (lines.length) return lines.join('');
+    // an authored line break is a phrase break: keep it as a space (none after 、。)
+    if (lines.length) return lines.reduce((a, l) => (a ? a + (/[、。！？」』）]$/.test(a) ? '' : ' ') + l : l), '');
   }
   return FUSHIGI_BOOK[i][2];
 }
@@ -106,7 +107,17 @@ export function bookCounts(): { fushigi: number; aite: number; tsukkomi: number 
 // ---- page ------------------------------------------------------------------------------
 
 const SECTIONS = ['ふしぎ', 'あいて', 'ツッコミ'];
+/** Lines of the index on the left page. */
 const VISIBLE = 8;
+/** Width of an index label (to just short of the fold). */
+const LABEL_W = FOLD - 4 - (LP.x + 14);
+
+interface Row {
+  lines: string[];
+  done: boolean;
+  num: string;
+  color: string;
+}
 const ROW_H = 18;
 const LIST_Y = SP.y + 30;
 
@@ -134,8 +145,7 @@ export class BookPage implements MenuPage {
     const s = this.sec;
     if (input.repeat('down')) this.move(1, n);
     else if (input.repeat('up')) this.move(-1, n);
-    if (this.sel[s] < this.scroll[s]) this.scroll[s] = this.sel[s];
-    if (this.sel[s] >= this.scroll[s] + VISIBLE) this.scroll[s] = this.sel[s] - VISIBLE + 1;
+    this.fixScroll(this.rows());
     if (input.pressed('cancel')) {
       sfx('se_cancel');
       return false;
@@ -190,42 +200,68 @@ export class BookPage implements MenuPage {
     });
   }
 
-  private rows(): { label: string; done: boolean; num: string }[] {
-    if (this.sec === 0)
-      return FUSHIGI_BOOK.map((f, i) => ({ label: fushigiDoneN(i) ? f[1] : '', done: fushigiDoneN(i), num: String(i + 1).padStart(2, '0') }));
-    if (this.sec === 1)
-      return BOOK_ENEMIES.map((id, i) => ({ label: flag('flag_book_' + id) ? getEnemy(id)?.name ?? id : '', done: !!flag('flag_book_' + id), num: String(i + 1).padStart(2, '0') }));
+  /**
+   * The index: ふしぎ by their titles (13.1), あいて by name, ツッコミ by the
+   * line itself — so no two rows read the same. A row that doesn't fit the
+   * column wraps onto a second line (by phrase); places, names and the rest
+   * are on the right page.
+   */
+  private rows(): Row[] {
+    const wrapRow = (label: string, done: boolean, num: string, color: string): Row => {
+      const lines = done ? wrap(label, LABEL_W).slice(0, 2) : [''];
+      return { lines, done, num, color };
+    };
+    const num = (i: number) => String(i + 1).padStart(2, '0');
+    if (this.sec === 0) return FUSHIGI_BOOK.map((f, i) => wrapRow(f[0], fushigiDoneN(i), num(i), UI.text));
+    if (this.sec === 1) return BOOK_ENEMIES.map((id, i) => wrapRow(getEnemy(id)?.name ?? id, !!flag('flag_book_' + id), num(i), UI.text));
     const seen = seenTsukkomi();
-    const out: { label: string; done: boolean; num: string }[] = [];
+    const out: Row[] = [];
     for (let i = 0; i < tsukkomiTotal(); i++) {
       const e = seen[i];
-      out.push({ label: e ? getEnemy(e.enemy)?.name ?? '' : '', done: !!e, num: String(i + 1).padStart(2, '0') });
+      out.push(wrapRow(e ? e.line : '', !!e, num(i), UI.accent));
     }
     return out;
+  }
+
+  /** Keep the chosen row (all its lines) inside the 8 visible lines. */
+  private fixScroll(rows: Row[]): void {
+    const s = this.sec;
+    const sel = this.sel[s];
+    if (sel < this.scroll[s]) this.scroll[s] = sel;
+    const linesTo = (from: number, to: number) => rows.slice(from, to + 1).reduce((a, r) => a + r.lines.length, 0);
+    while (this.scroll[s] < sel && linesTo(this.scroll[s], sel) > VISIBLE) this.scroll[s]++;
   }
 
   private drawList(g: Gfx, m: MenuCtx): void {
     const rows = this.rows();
     const s = this.sec;
-    for (let i = 0; i < VISIBLE; i++) {
-      const k = this.scroll[s] + i;
+    let line = 0;
+    let k = this.scroll[s];
+    for (; k < rows.length; k++) {
       const r = rows[k];
-      if (!r) break;
-      const y = LIST_Y + i * ROW_H;
+      if (line + r.lines.length > VISIBLE) break;
+      const y = LIST_Y + line * ROW_H;
       const sel = k === this.sel[s];
       drawDigits(g, r.num, LP.x - 1, y + 5, { color: r.done ? UI.accent : UI.textDim });
       const lx = LP.x + 14;
+      const mk = m.focus ? Math.min(1, this.moveT / 70) : 1;
+      const mc = m.focus ? UI.marker : '#EFE4C6';
       if (r.done) {
-        if (sel) drawMarker(g, lx - 2, y + 1, textW(r.label) + 4, 15, m.focus ? Math.min(1, this.moveT / 70) : 1, m.focus ? UI.marker : '#EFE4C6');
-        g.text(r.label, lx, y, { color: UI.text });
+        r.lines.forEach((l, j) => {
+          // the second line is tucked in a little, like a note that ran on
+          const x = lx + (j ? 8 : 0);
+          if (sel) drawMarker(g, x - 2, y + j * ROW_H + 1, textW(l) + 4, 15, mk, mc);
+          g.text(l, x, y + j * ROW_H, { color: r.color });
+        });
       } else {
-        if (sel) drawMarker(g, lx - 2, y + 1, 70, 15, m.focus ? Math.min(1, this.moveT / 70) : 1, m.focus ? UI.marker : '#EFE4C6');
+        if (sel) drawMarker(g, lx - 2, y + 1, 70, 15, mk, mc);
         dottedLine(g, lx, y + 12, lx + 64, UI.textDim, 3);
       }
       if (sel && m.focus) drawCursor(g, SP.x + 1, y, m.t);
+      line += r.lines.length;
     }
-    if (this.scroll[s] > 0) drawScroll(g, FOLD - 18, LIST_Y - 4, true, m.t);
-    if (this.scroll[s] + VISIBLE < rows.length) drawScroll(g, FOLD - 18, LIST_Y + VISIBLE * ROW_H + 2, false, m.t);
+    if (this.scroll[s] > 0) drawScroll(g, FOLD - 18, LIST_Y - 7, true, m.t);
+    if (k < rows.length) drawScroll(g, FOLD - 18, LIST_Y + VISIBLE * ROW_H + 2, false, m.t);
   }
 
   private drawDetail(g: Gfx, m: MenuCtx): void {
@@ -242,7 +278,7 @@ export class BookPage implements MenuPage {
     if (s === 0) {
       if (!fushigiDoneN(i)) return empty();
       const [title, place] = FUSHIGI_BOOK[i];
-      const tl = wrap(title, w - 2);
+      const tl = wrap(title, w);
       tl.forEach((l, j) => g.text(l, x, y + j * 17, { color: UI.text }));
       y += tl.length * 17 + 1;
       pencilLine(g, x, y, w - 6, 1, UI.pencil, i);
@@ -252,8 +288,8 @@ export class BookPage implements MenuPage {
       g.px(x + 2, y + 8, UI.accentDark);
       g.text(place, x + 7, y, { color: UI.pencil });
       y += 22;
-      const body = wrap(pressedText(i), w - 4);
-      body.slice(0, 4).forEach((l, j) => g.text(l, x, y + j * 17, { color: UI.text }));
+      const body = fitWrap(pressedText(i), w);
+      body.slice(0, 4).forEach((l, j) => g.text(l.text, x, y + j * 17, { color: UI.text, spacing: l.spacing }));
       // the 「みました」 seal on the corner of the page
       const seal = ovalStamp('みました', 36, 22, 0.1, i + 3);
       g.img(seal, SP.x + SP.w - 12 - seal.width, SP.y + SP.h - 48);
@@ -277,19 +313,21 @@ export class BookPage implements MenuPage {
       g.px(x + 51, by - 8, UI.pencil);
       if (b) g.img(b, x + 76 - Math.round(b.width / 2), by - b.height);
       g.rect(x, by + 1, w - 6, 1, UI.bg2);
-      y = by + 4;
-      g.text(e.book.short, x, y, { color: UI.accent });
-      y += 18;
-      const body = wrap(e.book.shotai, w - 2);
+      // 正体 in ink, ひとこと in pencil (the name itself is the index entry)
+      y = by + 5;
+      const body = wrap(e.book.shotai, w + 2);
       body.slice(0, 3).forEach((l, j) => g.text(l, x, y + j * 17, { color: UI.text }));
-      y += Math.min(3, body.length) * 17 + 2;
-      const hk = wrap(e.book.hitokoto, w - 8);
-      hk.slice(0, 2).forEach((l, j) => g.text(l, x + 4, y + j * 17, { color: UI.pencil }));
+      y += Math.min(3, body.length) * 17 + 3;
+      const hk = wrap(e.book.hitokoto, w - 4);
+      hk.slice(0, 3).forEach((l, j) => g.text(l, x + 4, y + j * 17, { color: UI.pencil }));
       // tsukkomi seen for this one
       let seen = 0;
       for (let n = 1; n <= e.tsukkomi.length; n++) if (flag(`flag_tsukkomi_${id}_${n}`)) seen++;
-      g.text('ツッコミ', SP.x + SP.w - 70, SP.y + 28, { color: UI.pencil });
-      drawDigits(g, `${seen}/${e.tsukkomi.length}`, SP.x + SP.w - 14, SP.y + 45, { color: UI.accent, align: 'right' });
+      // on the page's top line, clear of the pictures
+      const cs = `${seen}/${e.tsukkomi.length}`;
+      const cx = SP.x + SP.w - 12 - digitsWidth(cs);
+      drawDigits(g, cs, SP.x + SP.w - 12, SP.y + 12, { color: UI.accent, align: 'right' });
+      g.text('ツッコミ', cx - 4 - textW('ツッコミ'), SP.y + 7, { color: UI.pencil });
       return;
     }
     const seen = seenTsukkomi();
@@ -313,7 +351,12 @@ export class BookPage implements MenuPage {
       g.img(img, x - 3, y + 6 + j * 24);
     });
     y += 12 + lines.length * 24;
-    g.text('―― ' + (e?.name ?? ''), x + 8, y, { color: UI.pencil });
+    // 「―― ハト係長」: the name set to the right, a pencil dash leading to it
+    const name = e?.name ?? '';
+    const nx = x + w - 4 - textW(name);
+    g.text(name, nx, y, { color: UI.pencil });
+    const dw = Math.min(24, nx - 6 - (x + 8));
+    if (dw >= 8) g.rect(nx - 6 - dw, y + 8, dw, 1, UI.pencil);
     const sp = sprite(ent.enemy, m.t);
     if (sp) g.img(sp, x + w - 24 - Math.round(sp.width / 2), SP.y + SP.h - 30 - sp.height);
   }

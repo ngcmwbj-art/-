@@ -547,6 +547,11 @@ function ensureBox(): DialogBox {
   return box;
 }
 
+/** Top edge of the dialog window on screen (148 at the bottom, 8 at the top), or null. */
+export function dialogTop(): number | null {
+  return box && box.visible ? box.top : null;
+}
+
 /** Is a dialog window on screen (typing, waiting, or lingering)? */
 export function dialogVisible(): boolean {
   return !!box && box.visible;

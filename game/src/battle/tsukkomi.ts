@@ -23,9 +23,15 @@ export interface Windows {
   justTo: number;
 }
 
+/**
+ * 10.3 frame windows (hit = 0f). The window opens on the frame the "!" pops,
+ * not two frames later: the tutorial says 「敵の！に合わせて決定」, so a press
+ * answering the "!" is never a かぶせ — only a press before it is. The just
+ * window is unchanged.
+ */
 export function tsukkomiWindows(): Windows {
   const wide = !!flag('flag_opt_tsukkomi_wide');
-  return wide ? { show: -22, from: -20, to: 4, justFrom: -6, justTo: 0 } : { show: -12, from: -10, to: 2, justFrom: -3, justTo: 0 };
+  return wide ? { show: -22, from: -22, to: 4, justFrom: -6, justTo: 0 } : { show: -12, from: -12, to: 2, justFrom: -3, justTo: 0 };
 }
 
 /** Who performs the tsukkomi right now (Minato; Kanenari-kun's flip when Minato can't). */
@@ -205,6 +211,13 @@ function wrapFlip(t: string): string {
  * so the two never sit on top of each other; kept under the band.
  */
 export function bokemakeLabel(s: BattleScene, e: EnemyUnit, long = false, delay = 0): void {
+  if (e.def.boss) {
+    // the boss: beside its school cap (else under its brim), never over the
+    // name-tag eyes — those are what the label is about
+    const cap = { x0: e.left + 50, y0: e.top + 8, x1: e.left + 110, y1: e.top + 28 };
+    s.labelNear(LABEL.bokemake, () => cap, ['right', 'left', 'below'], 'shu', long ? 1200 : 600, false, delay);
+    return;
+  }
   // on the head (tall enemies: just under the band), sliding off a sticky,
   // the card or a number that is still up
   const hy = Math.max(STAGE_TOP + 10, e.headY - 8);

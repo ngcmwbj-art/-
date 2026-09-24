@@ -33,6 +33,8 @@ export const UI = {
   accentDark: '#B8241E',
   accentLight: '#FF6A4D',
   tape: '#F7C27A', // masking tape (α85%)
+  tapeOn: '#F6B25E', // the chosen strip of tape in a menu: the strongest colour
+  tapeOff: '#EADFC3', // strips not chosen: pale, so the chosen one stands out
   marker: '#FFE7A3', // highlighter (α70%)
   margin: '#E0567A', // red margin line (α50%)
   flipPaper: '#F4F1E8', // Kanenari's flip board
@@ -342,48 +344,173 @@ export function rectA(g: Gfx, x: number, y: number, w: number, h: number, color:
 }
 
 /**
- * Wrap Japanese text at the spaces between phrases (分かち書き, 10_narrative
- * 1.2) so a word never splits across lines; a single phrase wider than the
- * line falls back to the engine's kinsoku wrap.
+ * Wrap Japanese text for the notebook's text columns (分かち書き, 10_narrative
+ * 1.2). Break opportunities, best first:
+ *   1. the spaces between phrases;
+ *   2. right after 、。！？ inside a phrase (「がま口。／ぱちん、」);
+ *   3. inside a phrase that is still too wide: after a particle that follows
+ *      kanji / katakana (「猫の／影」), or where hiragana and katakana meet;
+ *   4. only if none of those fits: between characters, with kinsoku
+ *      (a line never starts with 、。ー or a small kana).
+ * A word is never split inside its kana, so 「あわて／て」「ま／んなかが」
+ * can't happen. Lines are subsequences of the input (only the spaces at the
+ * break points are dropped), which the dialog's markup mapping relies on.
  */
 export function phraseWrap(text: string, maxW: number): string[] {
+  return phraseWrapInfo(text, maxW).lines;
+}
+
+/** phraseWrap plus how many breaks had to fall between characters (rule 4; QA). */
+export function phraseWrapInfo(text: string, maxW: number): { lines: string[]; forced: number } {
   const out: string[] = [];
+  let forced = 0;
   for (const para of text.split('\n')) {
-    const words = para.split(' ');
+    // segments: split at spaces (joined back with a space) and after
+    // punctuation inside a word (joined back with nothing)
+    const segs: { s: string; sp: boolean }[] = [];
+    para.split(' ').forEach((word, wi) => {
+      if (!word) return;
+      splitAfterPunct(word).forEach((s, si) => segs.push({ s, sp: wi > 0 && si === 0 && segs.length > 0 }));
+    });
     let line = '';
-    for (const w of words) {
-      const cand = line ? line + ' ' + w : w;
-      if (measure(cand) <= maxW) {
+    for (const seg of segs) {
+      const cand = line ? line + (seg.sp ? ' ' : '') + seg.s : seg.s;
+      if (fitW(cand) <= maxW) {
         line = cand;
         continue;
       }
       // closing punctuation may hang past the margin
-      if (line && measure(cand) <= maxW + 16 && /^[、。！？」』）]$/.test(w)) {
+      if (line && CLOSE_ONLY.test(seg.s) && measure(cand) <= maxW + 16) {
         line = cand;
         continue;
       }
-      if (line) out.push(line);
-      if (measure(w) <= maxW) line = w;
-      else {
-        const parts = wrapChars(w, maxW);
-        out.push(...parts.slice(0, -1));
-        line = parts[parts.length - 1] ?? '';
+      if (fitW(seg.s) <= maxW) {
+        // it fits on a line of its own: keep the phrase whole
+        if (line) out.push(line);
+        line = seg.s;
+        continue;
+      }
+      // a phrase wider than the column has to be broken somewhere: fill the
+      // current line up to its best soft break first (「名刺の 裏に／『帰りたい』。」)
+      let rest = [...seg.s];
+      let sp = seg.sp;
+      while (rest.length) {
+        const joint = line ? line + (sp ? ' ' : '') : '';
+        if (fitW(joint + rest.join('')) <= maxW) {
+          line = joint + rest.join('');
+          rest = [];
+          break;
+        }
+        const cut = softCut(rest, maxW - measure(joint));
+        if (cut) {
+          out.push(joint + rest.slice(0, cut).join(''));
+          rest = rest.slice(cut);
+        } else if (line) {
+          out.push(line);
+        } else {
+          // last resort: between characters, kinsoku-safe
+          forced++;
+          const c = hardCut(rest, maxW);
+          out.push(rest.slice(0, c).join(''));
+          rest = rest.slice(c);
+        }
+        line = '';
+        sp = false;
       }
     }
     out.push(line);
   }
+  return { lines: out, forced };
+}
+
+const CLOSE_ONLY = /^[、。！？」』）…]+$/;
+
+/**
+ * Width of a line for fitting: a trailing 、 or 。 counts half, its ink sits in
+ * the left half of the cell (ぶら下げ, half a character).
+ */
+function fitW(s: string): number {
+  const w = measure(s);
+  return /[、。]$/.test(s) ? w - 8 : w;
+}
+const BREAK_AFTER = new Set([...'、。！？」』）…']);
+const PARTICLE = new Set([...'がをにはへでともの']);
+const NO_LINE_START = new Set([...'、。，．！？」』）ーっゃゅょぁぃぅぇぉッャュョァィゥェォ…〜']);
+
+const isHira = (c: string) => c >= '\u3041' && c <= '\u309F';
+const isKata = (c: string) => (c >= '\u30A0' && c <= '\u30FF') || c === 'ー';
+const isKanji = (c: string) => (c >= '\u4E00' && c <= '\u9FFF') || c === '々';
+
+/** 「がま口。ぱちん、と」 → ["がま口。", "ぱちん、", "と"] */
+function splitAfterPunct(word: string): string[] {
+  const out: string[] = [];
+  let cur = '';
+  const ch = [...word];
+  ch.forEach((c, i) => {
+    cur += c;
+    // keep runs of punctuation together (「！？」「。」」)
+    if (BREAK_AFTER.has(c) && i < ch.length - 1 && !BREAK_AFTER.has(ch[i + 1])) {
+      out.push(cur);
+      cur = '';
+    }
+  });
+  if (cur) out.push(cur);
   return out;
 }
 
-function wrapChars(s: string, maxW: number): string[] {
-  const out: string[] = [];
-  let line = '';
-  for (const ch of s) {
-    if (measure(line + ch) > maxW && line && !'、。！？」』）ーっゃゅょ'.includes(ch)) {
-      out.push(line);
-      line = ch;
-    } else line += ch;
+/** Break positions inside one phrase (index = number of chars before the break). */
+function softBreaks(ch: string[]): Set<number> {
+  const at = new Set<number>();
+  for (let i = 1; i < ch.length; i++) {
+    const a = ch[i - 1];
+    const b = ch[i];
+    if (NO_LINE_START.has(b)) continue;
+    // after a particle that follows kanji / katakana / digits (猫の|影, ミナトが|…)
+    const p = ch[i - 2];
+    if (PARTICLE.has(a) && p && (isKanji(p) || isKata(p) || /[0-9０-９]/.test(p))) at.add(i);
+    // before an opening bracket (小さく|『帰りたい』)
+    else if ('「『（'.includes(b)) at.add(i);
+    // where hiragana and katakana meet (あわてた|ミナト, ミナト|まで is covered above)
+    else if ((isHira(a) && isKata(b)) || (isKata(a) && isHira(b) && !PARTICLE.has(b))) at.add(i);
   }
-  out.push(line);
-  return out;
+  return at;
+}
+
+/** Longest prefix (in chars) ending at a soft break that fits in `room`; 0 if none. */
+function softCut(ch: string[], room: number): number {
+  if (room <= 0) return 0;
+  const soft = softBreaks(ch);
+  for (let i = ch.length - 1; i >= 1; i--) if (soft.has(i) && fitW(ch.slice(0, i).join('')) <= room) return i;
+  return 0;
+}
+
+/** As many characters as fit, but never leaving 、。ー or a small kana to start the next line. */
+function hardCut(ch: string[], maxW: number): number {
+  let i = 1;
+  while (i < ch.length && fitW(ch.slice(0, i + 1).join('')) <= maxW) i++;
+  while (i > 1 && i < ch.length && NO_LINE_START.has(ch[i])) i--;
+  return i;
+}
+
+/**
+ * phraseWrap for a narrow column that must not break a long word: when a
+ * phrase is wider than the whole column (『イラッシャイマセ』 in a 9-letter
+ * page), the text is wrapped a little wider and those lines are set with the
+ * letters drawn up to 2px closer (字詰め) instead of splitting the word.
+ */
+export function fitWrap(text: string, maxW: number): { text: string; spacing: number }[] {
+  const plain = phraseWrapInfo(text, maxW);
+  if (!plain.forced) return plain.lines.map((l) => ({ text: l, spacing: 0 }));
+  for (const sp of [-1, -2]) {
+    const wide = phraseWrapInfo(text, maxW + 12 * -sp);
+    if (wide.forced) continue;
+    const out = wide.lines.map((l) => {
+      const n = [...l].length;
+      const over = fitW(l) - maxW;
+      const s = over <= 0 ? 0 : Math.max(sp, -Math.ceil(over / Math.max(1, n - 1)));
+      return { text: l, spacing: s, ok: fitW(l) + s * (n - 1) <= maxW };
+    });
+    if (out.every((o) => o.ok)) return out.map(({ text, spacing }) => ({ text, spacing }));
+  }
+  return plain.lines.map((l) => ({ text: l, spacing: 0 }));
 }

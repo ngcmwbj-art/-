@@ -19,6 +19,7 @@ import { lvTime } from './istate';
 import { castRight, dk, finish, lt } from './kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
+import { exteriorOver, withExterior } from './iexterior';
 import { fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
@@ -103,12 +104,31 @@ registerProp('in_ld_shell', () => {
   p.vline(dx + 16, dy + 2, dy + 9, P.asphalt);
   p.vline(dx + 8, dy + 2, dy + 9, P.steel);
   p.hline(dx - 1, dx + 16, dy + 10, P.charcoal);
-  const img = p.toCanvas();
-  const W = img.width;
+  const W = p.w;
+  // outside on the river road: the pavers, the vending machine by the door
+  // and the cardboard box of the town; a house's block wall to the west,
+  // the photo studio to the east
+  const ext = withExterior(p, sh.glass, {
+    rows,
+    town: [26, 31],
+    skin: [P.white, P.concreteLt, P.steel],
+    roof: 'slab',
+    left: { skin: P.concrete, roof: 'kawara' },
+    right: { skin: P.paper, roof: 'kawara' },
+    seed: 7301,
+    props: [
+      { id: 'obj_vending_normal', tx: 24, ty: 32 },
+      { id: 'obj_danball', tx: 28, ty: 32 },
+    ],
+  });
   return shellProp({
-    img,
-    glass: sh.glass.toCanvas(),
+    img: ext.p.toCanvas(),
+    glass: ext.glass.toCanvas(),
+    ox: ext.ox,
+    oy: ext.oy,
     over(g: Gfx, x: number, y: number, env: PropEnv) {
+      // the laundromat's white tube light spills cooler onto the pavers
+      exteriorOver(g, x, y, ext, env, { spill: P.white, spillA: 0.22 });
       depthShade(g, x + 16, y + 32, W - 32, 64, 0.12);
       const n = env.grade.night;
       // two white tube lights on the ceiling (one flickers now and then)

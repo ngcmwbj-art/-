@@ -45,6 +45,8 @@ export class PartyUnit {
   drop = 0;
   flashT = 0;
   bounceT = 0;
+  /** Height of that hop (px): 2 normally, 4 for the victory. */
+  bounceAmp = 2;
   squishT = 0;
   wobbleT = 0;
   moodOverride: { mood: string; until: number } | null = null;

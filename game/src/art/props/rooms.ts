@@ -654,13 +654,37 @@ registerProp('prop_ceiling_light', (opts) => {
   // the lamp hangs above its floor spot (anchor tile): opts.ly is the image
   // top relative to the tile top (a low pendant over a table: about -30)
   const LY = Number(opts.ly ?? -34);
+  // (QA round 1) so it reads as hanging, not floating: the cord goes on up
+  // out of sight to the ceiling, and the floor under it takes a soft shadow
+  // of the shade by day (the warm pool of light at night)
+  const CL = Number(opts.cord ?? 18);
+  const cordImg = (() => {
+    const p = pc(3, CL);
+    for (let j = 0; j < CL; j++) p.set(1, j, j % 3 === 2 ? P.asphalt : P.charcoal);
+    p.set(0, CL - 4, P.steel); // the cord's lit side catches a little light
+    p.set(0, CL - 9, P.steel);
+    return p.toCanvas();
+  })();
   return {
     ox: -6,
     oy: LY,
     w: W,
     h: 22,
     foot: 0,
+    flat: true,
     img: () => null,
+    over(g: Gfx, x: number, y: number, env: PropEnv) {
+      const n = env.grade.night;
+      if (n > 0.6) return;
+      const a = 0.16 * (1 - n);
+      // the shade's shadow on the floor straight below it, dithered edge
+      for (let j = -3; j <= 3; j++) {
+        const half = Math.round(10 * Math.sqrt(1 - (j / 3.6) ** 2));
+        g.rect(x + 8 - half + 2, y + 10 + j, half * 2 - 4, 1, P.ink, a);
+        g.rect(x + 8 - half, y + 10 + j, 2, 1, P.ink, a * 0.5);
+        g.rect(x + 8 + half - 2, y + 10 + j, 2, 1, P.ink, a * 0.5);
+      }
+    },
     glowFg: true,
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
       // night: the shade glows and the globe is bright (emissive)
@@ -679,6 +703,7 @@ registerProp('prop_ceiling_light', (opts) => {
       drawLight(g, poolEllipse(40, 26, LIGHT.lamp), x + 8, y + LY + 12, 0.35 * n);
     },
     fg: [
+      { ox: 7, oy: LY - CL + 1, img: () => cordImg },
       { ox: -6, oy: LY, img: () => off, fade: { x: -2, y: LY - 4, w: 20, h: 36, alpha: 0.5 } },
       { ox: 6, oy: LY + 18, img: (env: PropEnv) => (env.stage === 1 ? string[1] : string[[0, 1, 2, 1][Math.floor(env.mt / 400) % 4]]) },
     ],

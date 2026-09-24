@@ -21,6 +21,7 @@ import { stampFx } from './stamp';
 import * as snd from './audio';
 import { runMsg } from './msg';
 import type { Co } from '../engine/co';
+import { checkOcclusion } from './occlusion';
 
 export { FieldScene, field } from './field';
 
@@ -307,6 +308,12 @@ registerDebug('probe', (x: number, y: number) => {
   }
   for (const a of [...f.actors, f.player]) if (hit(a.x - 8, a.y - 24, 16, 24)) out.push(`actor ${a.id} foot=${Math.round(a.y)}`);
   return out;
+});
+/** NPCs / symbols over half hidden by props, walls or canopies on the current map and stage (QA). */
+registerDebug('occlusion', (limit?: number) => {
+  const f = field();
+  if (!f) return 'field not active';
+  return checkOcclusion(f, limit ?? 0.5);
 });
 /** The live FieldScene (QA scripting from the page console). */
 registerDebug('fieldRef', () => field());

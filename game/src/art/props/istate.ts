@@ -10,4 +10,14 @@ export const lvTime = {
   pileShakeUntil: 0,
   /** 迷子センター: the heap is hidden (it has risen as the boss). */
   pileHidden: false,
+  /**
+   * 2F rest bench (evt_save_bench staging): the party sitting on it. Each
+   * sitter is a field sprite id and its x on the bench (px from the bench
+   * tile's left edge); `t0` = field time they sat down (a 2px settle).
+   */
+  bench: null as { t0: number; sitters: { sprite: string; x: number }[] } | null,
+  /** M1: field time the café's half-lowered shutter started to slide down a notch (0 = not yet). */
+  cafeShutterT0: 0,
+  /** M4: field time the toy shop's shutter was lifted a little to peek under it (0 = not). */
+  toyPeekT0: 0,
 };

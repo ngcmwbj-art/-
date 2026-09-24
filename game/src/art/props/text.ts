@@ -499,24 +499,20 @@ export function led(p: PixelCanvas, s: string, x: number, y: number, color: stri
 // ---- scribbles ------------------------------------------------------------------------
 
 /**
- * Kanji-like strokes: `n` characters of size `cs`×`cs` starting at (x,y),
- * advancing right (or down when vertical). Deterministic per seed.
+ * Lettering too small to read, drawn as abstract marks (QA round 1: the old
+ * kanji-like strokes read as misspelt kana): per character cell a solid bar
+ * and, now and then, a shorter second bar — lines and blocks only, never a
+ * glyph shape. `n` cells of `cs`×`cs`, advancing right (or down).
  */
 export function scribble(p: PixelCanvas, x: number, y: number, n: number, color: string, seed: number, cs = 5, vertical = false): void {
   for (let k = 0; k < n; k++) {
     const ox = vertical ? x : x + k * (cs + 1);
     const oy = vertical ? y + k * (cs + 1) : y;
     const h = ihash(k, seed, 911);
-    // a horizontal, a vertical and one or two diagonals / boxes
-    const hy = (h % (cs - 1));
-    p.hline(ox, ox + cs - 1, oy + hy, color);
-    const vx = (h >>> 4) % cs;
-    p.vline(ox + vx, oy, oy + cs - 1, color);
-    const kind = (h >>> 8) % 4;
-    if (kind === 0) p.strokeRect(ox + 1, oy + 1, cs - 2, cs - 2, color);
-    else if (kind === 1) p.line(ox, oy + cs - 1, ox + Math.floor(cs / 2), oy + Math.floor(cs / 2), color);
-    else if (kind === 2) p.hline(ox, ox + cs - 1, oy + cs - 1, color);
-    else p.line(ox + cs - 1, oy + cs - 1, ox + Math.floor(cs / 2), oy + 1, color);
+    const w = cs - (h % 2);
+    const top = oy + Math.floor((cs - 3) / 2);
+    p.rect(ox, top, w, 2, color);
+    if ((h >>> 4) % 3 === 0) p.hline(ox, ox + Math.max(1, w - 2), top + 3, color);
   }
 }
 

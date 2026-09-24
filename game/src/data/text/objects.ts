@@ -24,6 +24,15 @@ export const OBJ_TEXT: Record<string, StageText> = {
 『夕鳴町PR大使 カネナリくん
 引退セレモニー』。{w=300}
 去年の 日付だ。`,
+  // 7.12 M1 フロア案内板: the floor list is broken between the floors (a
+  // line mustn't start with 「・」)
+  obj_floor_guide: `@narr
+『1F 正面ホール・フードコート・健康器具
+2F 迷子センター』
+/
+手書きで：『迷子センターの カギ
+→ フードコート 忘れ物
+カウンター』`,
   // 7.10 カート置き場
   obj_cart_corral: `@narr
 カート置き場は からっぽ。{w=300}

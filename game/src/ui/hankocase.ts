@@ -139,6 +139,64 @@ function undoImprint(): HTMLCanvasElement {
   return undoC;
 }
 
+/**
+ * Hand-drawn 7×8 kana for the square seals (the 16px font scaled down that
+ * far turns to mush, and a one-row oval of 「おかえり」 is 36px wide: too
+ * big for its 32px slot).
+ */
+const KANA7: Record<string, string[]> = {
+  お: ['.#...#.', '####..#', '.#.....', '.####..', '##...#.', '#.#...#', '#.#...#', '.#..##.'],
+  か: ['.#.....', '.#...#.', '#####.#', '.#..#.#', '.#..#..', '.#..#..', '#...#..', '#..##..'],
+  え: ['..###..', '.......', '######.', '....#..', '...#...', '..###..', '.#..#..', '#...###'],
+  り: ['.#..#..', '.#...#.', '.#...#.', '.#...#.', '.##..#.', '.....#.', '....#..', '..##...'],
+  や: ['..#....', '..#.##.', '#####.#', '.#....#', '.#.###.', '..#....', '..#....', '...#...'],
+  す: ['....#..', '#######', '....#..', '..###..', '..#.#..', '..###..', '....#..', '..##...'],
+  み: ['.####..', '....#..', '...#..#', '..#####', '.#.#..#', '#..#..#', '#.#...#', '.#...#.'],
+};
+
+const squareCache = new Map<string, HTMLCanvasElement>();
+/**
+ * A square 認め印 (24×24): a 2px rounded frame and four kana in two rows
+ * (「おか／えり」), a little worn. Fits the 25px sample card with room to spare.
+ */
+function squareSeal(text: string, seed: number): HTMLCanvasElement {
+  let c = squareCache.get(text);
+  if (c) return c;
+  const N = 24;
+  const p = new PixelCanvas(N, N);
+  const shu = UI.accent;
+  const dark = UI.accentDark;
+  // frame
+  p.rect(1, 0, N - 2, 2, shu);
+  p.rect(1, N - 2, N - 2, 2, shu);
+  p.rect(0, 1, 2, N - 2, shu);
+  p.rect(N - 2, 1, 2, N - 2, shu);
+  p.set(2, 2, shu);
+  p.set(N - 3, 2, shu);
+  p.set(2, N - 3, shu);
+  p.set(N - 3, N - 3, shu);
+  // the kana, two by two
+  const ch = [...text];
+  ch.forEach((k, i) => {
+    const rows = KANA7[k];
+    if (!rows) return;
+    const ox = 5 + (i % 2) * 8;
+    const oy = 4 + Math.floor(i / 2) * 9;
+    rows.forEach((row, y) => [...row].forEach((v, x) => v === '#' && p.set(ox + x, oy + y, shu)));
+  });
+  // ink tone and かすれ: the lower right presses a little darker, a few specks miss
+  for (let y = 0; y < N; y++)
+    for (let x = 0; x < N; x++) {
+      if (!p.alpha(x, y)) continue;
+      const n = hash2(x, y, seed * 13);
+      if (n < 0.05) p.set(x, y, 'transparent');
+      else if (x + y > N + 6 && n > 0.7) p.set(x, y, dark);
+    }
+  c = p.toCanvas();
+  squareCache.set(text, c);
+  return c;
+}
+
 /** The imprint of a stamp (朱), sized to sit on a 26×26 sample card. */
 export function imprintFor(id: string): HTMLCanvasElement | null {
   switch (id) {
@@ -151,9 +209,9 @@ export function imprintFor(id: string): HTMLCanvasElement | null {
     case 'skill_yarinaoshi':
       return undoImprint();
     case 'skill_okaerinasai':
-      return ovalStamp('おかえり', 24, 18, 0.04, 5);
+      return squareSeal('おかえり', 5);
     case 'skill_oyasuminasai':
-      return ovalStamp('おやすみ', 24, 18, 0.0, 8);
+      return squareSeal('おやすみ', 8);
   }
   return null;
 }
@@ -216,7 +274,7 @@ export function drawCase(g: Gfx, x: number, y: number, v: CaseView): void {
       const a = 0.18 + 0.1 * (0.5 + 0.5 * Math.sin((v.t / 1000) * Math.PI * 2));
       g.alpha(a, () => {
         const imp = imprintFor(id);
-        if (imp) g.img(imp, ax + 4, ay + 7);
+        if (imp) g.img(imp, ax + 3 + Math.round((25 - imp.width) / 2), ay + 3 + Math.round((25 - imp.height) / 2));
       });
       dottedRect(g, ax + 3, ay + 3, 26, 26, '#E8D9B5', 0.45);
     } else {

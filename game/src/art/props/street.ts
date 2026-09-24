@@ -962,50 +962,75 @@ registerProp('decal_cone_mark', () => {
   return flat(p.toCanvas(), 0, 0);
 });
 
-/** Puddle body mask (24×10): an organic blob, a smaller lobe on the west. */
-const PUDDLE_MASK = (() => {
-  const m: boolean[][] = [];
-  for (let y = 0; y < 10; y++) {
-    m.push([]);
-    for (let x = 0; x < 24; x++) {
-      const a = ((x + 0.5 - 13) / 10) ** 2 + ((y + 0.5 - 5.2) / 3.6) ** 2 <= 1;
-      const b = ((x + 0.5 - 6.5) / 4.8) ** 2 + ((y + 0.5 - 4.4) / 2.6) ** 2 <= 1;
-      const bite = ((x + 0.5 - 17) / 3) ** 2 + ((y + 0.5 - 1.2) / 1.6) ** 2 <= 1;
-      m[y].push((a || b) && !bite);
+/**
+ * Puddle (30×12) left by the watering hose: an irregular main pool whose
+ * outline wanders (value noise on the radius), a smaller lobe to the west and
+ * two stray drops — never a clean ellipse. Depth = distance to the edge (px).
+ */
+const PW = 30;
+const PH = 12;
+const PUDDLE_DEPTH: number[][] = (() => {
+  const inside = (x: number, y: number): boolean => {
+    const px = x + 0.5;
+    const py = y + 0.5;
+    const ang = Math.atan2((py - 6) * 2.4, px - 17);
+    const wob = 1 + 0.16 * Math.sin(ang * 3 + 0.7) + 0.09 * Math.sin(ang * 5 + 2.1);
+    const a = ((px - 17) / (10.5 * wob)) ** 2 + ((py - 6.2) / (4.2 * wob)) ** 2 <= 1;
+    const b = ((px - 6.5) / 4.6) ** 2 + ((py - 5.2) / 2.5) ** 2 <= 1;
+    const bridge = px > 8 && px < 12 && py > 4.6 && py < 7.2;
+    const drop1 = ((px - 2) / 1.6) ** 2 + ((py - 9.2) / 1.1) ** 2 <= 1;
+    const drop2 = ((px - 27.6) / 1.5) ** 2 + ((py - 10.4) / 1) ** 2 <= 1;
+    return a || b || bridge || drop1 || drop2;
+  };
+  const d: number[][] = [];
+  for (let y = 0; y < PH; y++) {
+    d.push([]);
+    for (let x = 0; x < PW; x++) {
+      if (!inside(x, y)) {
+        d[y].push(0);
+        continue;
+      }
+      let k = 1;
+      while (k < 4 && inside(x - k, y) && inside(x + k, y) && inside(x, y - k) && inside(x, y + k)) k++;
+      d[y].push(k);
     }
   }
-  return m;
+  return d;
 })();
 
 const PUDDLE = (() => {
-  // the wet asphalt round the water (darker, no outline); the water itself is drawn in over()
-  const p = pc(24, 10);
-  for (let y = 0; y < 10; y++)
-    for (let x = 0; x < 24; x++) {
-      if (PUDDLE_MASK[y][x]) continue;
+  // the wet asphalt round the water: darker, soaked in unevenly (no outline)
+  const p = pc(PW, PH);
+  for (let y = 0; y < PH; y++)
+    for (let x = 0; x < PW; x++) {
+      if (PUDDLE_DEPTH[y][x]) continue;
       let near = 0;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0]])
-        if (PUDDLE_MASK[y + dy]?.[x + dx]) near++;
-      if (near >= 2 || (near === 1 && (x + y) % 2 === 0)) p.set(x, y, '#565B70');
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2]])
+        if (PUDDLE_DEPTH[y + dy]?.[x + dx]) near++;
+      if (near >= 2 || (near === 1 && (x * 3 + y) % 3 !== 0)) p.set(x, y, '#585D72');
     }
   return p;
 })();
 
-registerProp('decal_puddle', () => {
-  // water puddle reflecting the sky (7.3, review round 2): each row takes the
-  // sky colour of its screen row, a bright 1px far (north) rim, a darker
-  // near edge; ripples from the watering hose; stage 2 it trickles north-east
+registerProp('decal_puddle', (opts) => {
+  const drip = opts.drip !== false;
+  // (QA round 1) a see-through puddle, not an orange lump: the wet asphalt
+  // shows through the shallow edge, the sky (7.3, the screen row's colour)
+  // grows stronger towards the deep middle, the far rim catches the light in
+  // broken 1px bits, one glint blinks, hose drips ring out now and then;
+  // stage 2 it trickles north-east
   const img = PUDDLE.toCanvas();
-  const a = flat(img, 0, 3);
-  const rows: [number, number][][] = PUDDLE_MASK.map((r) => {
-    const out: [number, number][] = [];
+  const a = flat(img, 0, 2);
+  const runs: [number, number, number][][] = PUDDLE_DEPTH.map((r) => {
+    const out: [number, number, number][] = [];
     let s0 = -1;
+    let dv = 0;
     for (let x = 0; x <= r.length; x++) {
-      const on = x < r.length && r[x];
-      if (on && s0 < 0) s0 = x;
-      if (!on && s0 >= 0) {
-        out.push([s0, x]);
-        s0 = -1;
+      const d = x < r.length ? Math.min(3, r[x]) : 0;
+      if (d !== dv) {
+        if (dv > 0) out.push([s0, x, dv]);
+        s0 = x;
+        dv = d;
       }
     }
     return out;
@@ -1013,27 +1038,52 @@ registerProp('decal_puddle', () => {
   a.over = (g, x, y, env) => {
     const gd = env.grade;
     const ox = x;
-    const oy = y + 3;
-    for (let j = 0; j < rows.length; j++) {
+    const oy = y + 2;
+    for (let j = 0; j < PH; j++) {
       const sy = oy + j;
-      // the sky seen in a puddle: screen-space gradient, stepped every 3 rows
-      const k = Math.max(0, Math.min(1, Math.floor(sy / 3) * 3 / 216));
-      const c = gd.skyTop.map((v, i) => Math.round(v + (gd.skyBot[i] - v) * k)) as [number, number, number];
-      for (const [x0, x1] of rows[j]) {
-        g.rect(ox + x0, sy, x1 - x0, 1, `rgb(${c[0]},${c[1]},${c[2]})`);
-        // far rim: the lit edge of the water; near rim: a darker line
-        if (!PUDDLE_MASK[j - 1]?.[x0 + 1] || j === 0) g.rect(ox + x0 + 1, sy, Math.max(1, x1 - x0 - 2), 1, P.glint, 0.7);
-        if (!PUDDLE_MASK[j + 1]?.[x0 + 1]) g.rect(ox + x0 + 1, sy, Math.max(1, x1 - x0 - 2), 1, P.nightShade, 0.3);
+      // the sky higher up than the screen row (a puddle looks up steeply), a
+      // little brighter than the sky itself
+      const k = Math.max(0, Math.min(1, sy / 216)) * 0.6;
+      const c = gd.skyTop.map((v, i) => Math.round((v + (gd.skyBot[i] - v) * k) * 0.72 + 0.28 * [255, 246, 216][i])) as [number, number, number];
+      const sky = `rgb(${c[0]},${c[1]},${c[2]})`;
+      for (const [x0, x1, d] of runs[j]) {
+        // the water darkens the asphalt, then the sky shows in it
+        g.rect(ox + x0, sy, x1 - x0, 1, '#454A5E', 0.5);
+        g.rect(ox + x0, sy, x1 - x0, 1, sky, d === 1 ? 0.18 : d === 2 ? 0.4 : 0.62);
+      }
+      // rims: far (north) edge broken bright bits, near (south) edge a dark wet line
+      for (let i = 0; i < PW; i++) {
+        if (!PUDDLE_DEPTH[j][i]) continue;
+        if (!PUDDLE_DEPTH[j - 1]?.[i] && (i * 7 + j) % 5 < 3) g.rect(ox + i, sy, 1, 1, P.glint, 0.6);
+        if (!PUDDLE_DEPTH[j + 1]?.[i]) g.rect(ox + i, sy, 1, 1, P.ink, 0.3);
       }
     }
-    // ripples from the watering hose (expanding rings) and glints
-    const r = ((env.t / 90) % 10) | 0;
-    g.rect(ox + 13 - r, oy + 5, r * 2, 1, P.glint, 0.35 * (1 - r / 10));
-    g.rect(ox + 8, oy + 3, 3, 1, P.glint, 0.55);
-    g.rect(ox + 16, oy + 6, 2, 1, P.glint, 0.4);
+    // a streak of brighter sky across the deep middle
+    g.rect(ox + 12, oy + 5, 8, 1, P.glint, 0.22);
+    g.rect(ox + 14, oy + 6, 5, 1, P.glint, 0.14);
+    // the blinking glint
+    const ph = Math.floor(env.t / 140) % 14;
+    if (ph < 4) {
+      g.rect(ox + 20, oy + 4, ph === 1 || ph === 2 ? 2 : 1, 1, P.glint, 0.95);
+      if (ph === 1) g.rect(ox + 20, oy + 3, 1, 1, P.glint, 0.6);
+    }
+    // a drip from the hose rings out (every 1.6s), clipped to the water
+    const r = (env.t % 1600) / 1600;
+    if (drip && r < 0.7) {
+      const rad = 1 + Math.round(r * 5);
+      const al = 0.5 * (1 - r / 0.7);
+      for (let i = -rad; i <= rad; i++) {
+        const yy = Math.round(Math.sqrt(Math.max(0, rad * rad - i * i)) * 0.45);
+        for (const dy of yy ? [-yy, yy] : [0]) {
+          const px = 16 + i;
+          const py = 6 + dy;
+          if (PUDDLE_DEPTH[py]?.[px] >= 2) g.rect(ox + px, oy + py, 1, 1, P.glint, al);
+        }
+      }
+    }
     if (env.stage !== 2) return;
     // thin stream towards the mall
-    for (let k = 0; k < 14; k++) g.rect(x + 18 + k, y + 4 - Math.floor(k / 2), 1, 1, P.aqua, 0.5);
+    for (let k = 0; k < 14; k++) g.rect(x + 24 + k, y + 4 - Math.floor(k / 2), 1, 1, P.aqua, 0.45);
   };
   return a;
 });

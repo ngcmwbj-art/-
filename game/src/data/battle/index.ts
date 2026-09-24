@@ -2,7 +2,7 @@
 export type { Attr, SkillDef, EnemyDef, ItemDef, GrowthRow, LevelUpResult, StatKey, EnemyBook } from './types';
 export { getEnemy, allEnemies, BOSS_PARTS } from './enemies';
 export { getSkill, allSkills, HANKO_CASE_ORDER, PR_ORDER } from './skills';
-export { getItem, allItems, isKeyItem, CAPSULE_TABLE } from './items';
+export { getItem, allItems, isKeyItem, shopLimit, CAPSULE_TABLE } from './items';
 export {
   LEVEL_CAP,
   EXP_TABLE,

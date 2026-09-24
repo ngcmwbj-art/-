@@ -603,3 +603,169 @@ export function petalSprites(): HTMLCanvasElement[] {
   }
   return petalCache;
 }
+
+// ---- hit labels (16.0 / 10_narrative 9.0) ---------------------------------------------
+
+/**
+ * The on-stage labels (いい音！ くっきり！ かすれ…… ボケ負け ミス 部位破壊
+ * かぶせた……): brushed lettering stamped straight onto the picture, not a
+ * tag. Every letter is drawn bold (2px strokes) in vermilion — grey for the
+ * misses — with its top rows lit and bottom rows in the darker ink, then a
+ * paper-white rim and an ink outline so it reads on any background. The
+ * letters step up to the right like a hurried stamp (the grey ones sag),
+ * and the outline is chipped here and there. `worn` dries the brush out
+ * (かすれ): specks of the fill drop to the paper rim.
+ */
+export function inkLabel(text: string, tone: 'shu' | 'gray' = 'shu', worn = false): HTMLCanvasElement {
+  return cached(`inklabel:${text}:${tone}:${worn}`, () => {
+    const chars = [...text];
+    const rr = new Rng(text.length * 31 + (tone === 'shu' ? 3 : 7));
+    // baseline per letter: rising to the right (≈4°), the grey ones sagging
+    const step = tone === 'shu' ? -1 : 0.75;
+    const offs = chars.map((_, i) => Math.round(i * step) + (i && rr.next() < 0.25 ? (step < 0 ? -1 : 1) : 0));
+    const minO = Math.min(0, ...offs);
+    const maxO = Math.max(0, ...offs);
+    const pad = 3;
+    const W = measure(text) + 1 + pad * 2;
+    const H = 16 + pad * 2 + (maxO - minO);
+    const g = grid(W, H);
+    let x = 0;
+    chars.forEach((ch, i) => {
+      const gi = glyphPixels(ch);
+      const d = gi.d;
+      const oy = pad + offs[i] - minO;
+      for (let yy = 0; yy < gi.height; yy++)
+        for (let xx = 0; xx < gi.width; xx++) {
+          if (d[(yy * gi.width + xx) * 4 + 3] < 128) continue;
+          for (const bx of [0, 1]) {
+            const px = pad + x + xx + bx;
+            const py = oy + yy;
+            if (px < W && py < H) g.d[py * W + px] = 1;
+          }
+        }
+      x += charWidth(ch);
+    });
+    // lit top rows, darker bottom rows (only where a stroke is 2+ tall)
+    const src = g.d.slice();
+    for (let y = 1; y < H - 1; y++)
+      for (let xx = 0; xx < W; xx++) {
+        const i = y * W + xx;
+        if (src[i] !== 1) continue;
+        const up = src[i - W] === 1;
+        const dn = src[i + W] === 1;
+        if (!up && dn) g.d[i] = 3;
+        else if (up && !dn) g.d[i] = 2;
+      }
+    if (worn) {
+      for (let y = 0; y < H; y++)
+        for (let xx = 0; xx < W; xx++) {
+          const i = y * W + xx;
+          if (g.d[i] >= 1 && g.d[i] <= 3 && hash2(xx, y, 41) < 0.14 + 0.2 * hash2(xx >> 2, y >> 1, 43)) g.d[i] = 5;
+        }
+    }
+    const ring = (val: number) => {
+      const s2 = g.d.slice();
+      for (let y = 0; y < H; y++)
+        for (let xx = 0; xx < W; xx++) {
+          if (s2[y * W + xx]) continue;
+          let hit = false;
+          for (let oy = -1; oy <= 1 && !hit; oy++)
+            for (let ox = -1; ox <= 1; ox++) {
+              const X = xx + ox;
+              const Y = y + oy;
+              if ((ox || oy) && X >= 0 && Y >= 0 && X < W && Y < H && s2[Y * W + X]) {
+                hit = true;
+                break;
+              }
+            }
+          if (hit) g.d[y * W + xx] = val;
+        }
+    };
+    ring(5);
+    ring(4);
+    // chipped edge: a few outline pixels knocked out, a few rim pixels inked
+    for (let y = 0; y < H; y++)
+      for (let xx = 0; xx < W; xx++) {
+        const i = y * W + xx;
+        const n = hash2(xx, y, 53 + text.length);
+        if (g.d[i] === 4 && n < 0.07) g.d[i] = 0;
+        else if (g.d[i] === 5 && n > 0.95) g.d[i] = 4;
+      }
+    const pal = tone === 'shu' ? [SHU, SHU_D, SHU_L, INK, '#FFF6D8'] : ['#9AA0A8', '#6B7186', '#C4C8CE', INK, '#EDEAE0'];
+    return toCanvas(g, pal);
+  });
+}
+
+/**
+ * The victory seal (16.12, QA round 1): a big vermilion double oval with
+ * 「みました」 in 32px lettering of 2px strokes (the 16px font doubled), on a
+ * paper face with a dithered edge — the stamp of the win, readable from
+ * across the room.
+ */
+export function victorySeal(text = 'みました'): HTMLCanvasElement {
+  return cached(`victory:${text}`, () => {
+    const t = textMask(text, 2, 0.5);
+    const w = t.w + 40;
+    const h = t.h + 26;
+    const g = grid(w, h);
+    ellipseRing(g, w / 2, h / 2, w / 2, h / 2, 4);
+    ellipseRing(g, w / 2, h / 2, w / 2 - 7, h / 2 - 7, 1.5);
+    blit(g, t, Math.round((w - t.w) / 2), Math.round((h - t.h) / 2) + 1, 1);
+    wear(g, 0.05, 23);
+    inkTone(g, 8);
+    // paper face under the ink (value 4), its outer edge dithered
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        if (g.d[i]) continue;
+        const dx = (x + 0.5 - w / 2) / (w / 2 - 2);
+        const dy = (y + 0.5 - h / 2) / (h / 2 - 2);
+        const d = dx * dx + dy * dy;
+        if (d <= 0.9 || (d <= 1 && (x + y) % 2 === 0)) g.d[i] = 4;
+      }
+    return toCanvas(g, [SHU, SHU_D, SHU_L, PAPER]);
+  });
+}
+
+const flutterCache: HTMLCanvasElement[][] = [];
+/**
+ * Falling petals for the finale (13.7, QA round 1): a cherry-petal shape —
+ * a pointed tip, a notched wide end — in the four petal colours (#FF6A4D /
+ * #F7C27A / #FFD9B8 / #E0567A) with a lit face, a shaded underside and an
+ * outline in the petal's own dark tone. Four flutter frames each (flat,
+ * turning, edge-on, turning back) so a falling petal visibly tumbles.
+ * Returns [colour][frame].
+ */
+export function flutterPetals(): HTMLCanvasElement[][] {
+  if (flutterCache.length) return flutterCache;
+  const cols: [string, string, string, string][] = [
+    ['#FF6A4D', '#FFB09A', '#E23B2E', '#B8241E'],
+    ['#F7C27A', '#FFE7A3', '#D9A441', '#A8742A'],
+    ['#FFD9B8', '#FFF6D8', '#F2A98A', '#C8745A'],
+    ['#E0567A', '#F59AB2', '#A83A5A', '#7A2440'],
+  ];
+  // o outline, H lit, c base, d shade
+  const frames = [
+    ['..ooooo.', '.oHHHcco', 'oHHccdo.', '.occddco', '..ooooo.'],
+    ['...oo.', '..oHco', '.oHcdo', 'oHcdo.', 'occo..', '.oo...'],
+    ['.oooo.', 'oHHcdo', '.oooo.'],
+    ['.oo...', 'occo..', 'oHcdo.', '.oHcdo', '..oHco', '...oo.'],
+  ];
+  for (const [base, hi, shade, rim] of cols) {
+    const pal: Record<string, string> = { o: rim, H: hi, c: base, d: shade };
+    flutterCache.push(frames.map((rows) => artCanvas(rows, pal)));
+  }
+  return flutterCache;
+}
+
+function artCanvas(rows: string[], pal: Record<string, string>): HTMLCanvasElement {
+  const [c, ctx] = makeCanvas(rows[0].length, rows.length);
+  rows.forEach((r, y) =>
+    [...r].forEach((ch, x) => {
+      if (!pal[ch]) return;
+      ctx.fillStyle = pal[ch];
+      ctx.fillRect(x, y, 1, 1);
+    }),
+  );
+  return c;
+}

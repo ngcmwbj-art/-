@@ -7,7 +7,13 @@ import { makeCanvas } from '../../engine/pixel';
 import { Rng } from '../../engine/rng';
 import { Background, BG_H, gradientTexture } from './common';
 
-const COIN = { base: '#C08040', light: '#E8B070', shadow: '#8A5A2A', edge: '#4A2A14', hi: '#F6D0A0' };
+/**
+ * The lattice coins are backdrop, not props: their copper is pulled ~35%
+ * toward the wall's dark red and their bevel contrast flattened (QA round 1),
+ * so the thrown coins (fxart coinShiny: bright copper, a paper-white rim)
+ * and the red machine itself read in front of them.
+ */
+const COIN = { base: '#8E5638', light: '#A87050', shadow: '#6A3A2A', edge: '#3E1C18', hi: '#B8866A' };
 
 let coinFrames: HTMLCanvasElement[] | null = null;
 /**
@@ -74,22 +80,29 @@ function coins(): HTMLCanvasElement[] {
   return coinFrames;
 }
 
-let ribbon: HTMLCanvasElement | null = null;
-function ribbonStrip(): HTMLCanvasElement {
-  if (ribbon) return ribbon;
+const ribbons: HTMLCanvasElement[] = [];
+/**
+ * The scrolling 「あったか〜い」 ribbon. `dim` is the one that runs through the
+ * stage behind the machine and its coins: deep maroon with the words only
+ * just lighter, so red numbers, the thrown coins and the restored machine
+ * never sit on a bright red strip (QA round 1).
+ */
+function ribbonStrip(dim = false): HTMLCanvasElement {
+  const k = dim ? 1 : 0;
+  if (ribbons[k]) return ribbons[k];
   const unit = 'あったか〜い　';
   const uw = measure(unit);
   const n = Math.ceil(384 / uw) + 2;
   const [c, ctx] = makeCanvas(uw * n, 18);
-  ctx.fillStyle = '#E84E3C';
+  ctx.fillStyle = dim ? '#4E1820' : '#E84E3C';
   ctx.fillRect(0, 0, c.width, 18);
-  ctx.fillStyle = '#B83A2A';
+  ctx.fillStyle = dim ? '#3A1218' : '#B83A2A';
   ctx.fillRect(0, 17, c.width, 1);
-  ctx.fillStyle = '#FF7A62';
+  ctx.fillStyle = dim ? '#62222A' : '#FF7A62';
   ctx.fillRect(0, 0, c.width, 1);
-  for (let i = 0; i < n; i++) drawText(ctx, unit, i * uw + 4, 1, { color: '#F4F1E8' });
+  for (let i = 0; i < n; i++) drawText(ctx, unit, i * uw + 4, 1, { color: dim ? '#7E3436' : '#F4F1E8' });
   (c as HTMLCanvasElement & { unit?: number }).unit = uw;
-  ribbon = c;
+  ribbons[k] = c;
   return c;
 }
 
@@ -113,7 +126,8 @@ export class OjigiBg extends Background {
 
   update(dt: number): void {
     super.update(dt);
-    if (!this.frozen) this.rot += (dt / 1000) * ((8 * Math.PI) / 180) * (this.charging ? 3 : 1) * this.speed;
+    // a slow drift (4°/s): the backdrop moves, it doesn't compete
+    if (!this.frozen) this.rot += (dt / 1000) * ((4 * Math.PI) / 180) * (this.charging ? 3 : 1) * this.speed;
     this.dim = this.charging ? 0.2 : 0;
   }
 
@@ -132,19 +146,22 @@ export class OjigiBg extends Background {
         const x = 192 + lx * ca - ly * sa;
         const y = 96 + lx * sa + ly * ca;
         if (x < -12 || x > 396 || y < -12 || y > BG_H + 12) continue;
-        const f = Math.floor(t * 6 + gx * 1.7 + gy * 2.3) & 3;
+        const f = Math.floor(t * 2.5 + gx * 1.7 + gy * 2.3) & 3;
         ctx.drawImage(fr[f], Math.round(x - 12), Math.round(y - 12));
       }
   }
 
   protected drawL2(g: Gfx): void {
     const strip = ribbonStrip();
+    const low = ribbonStrip(true);
     const uw = (strip as HTMLCanvasElement & { unit?: number }).unit ?? 100;
     const ctx = g.ctx;
+    // the bright ribbon hugs the band (y48–66), above the machine's reach;
+    // the second one, through the stage, is the dim one
     const o1 = (this.t * 30) % uw;
-    ctx.drawImage(strip, Math.round(o1), 0, 384, 18, 0, 54, 384, 18);
+    ctx.drawImage(strip, Math.round(o1), 0, 384, 18, 0, 48, 384, 18);
     const o2 = uw - ((this.t * 30) % uw);
-    ctx.drawImage(strip, Math.round(o2), 0, 384, 18, 0, 124, 384, 18);
+    ctx.drawImage(low, Math.round(o2), 0, 384, 18, 0, 126, 384, 18);
     for (const l of this.leds) {
       if (Math.sin(this.t * 4 + l.ph) > 0.3) {
         ctx.fillStyle = '#7CFF9A';

@@ -36,7 +36,7 @@ const OBJ_2F: MapObj[] = [
   { t: 'prop', prop: 'room_home_2f', x: 0, y: 0 },
   { t: 'prop', prop: 'room_home_2f_decor', x: 3, y: 3 },
   // 天井の丸い照明（前景。ひもが揺れる）— 4.1
-  { t: 'prop', prop: 'prop_ceiling_light', x: 6, y: 4, opts: { ly: -32 } },
+  { t: 'prop', prop: 'prop_ceiling_light', x: 7, y: 4, opts: { ly: -30, cord: 22 } },
   T('obj_bed', 1, 2, `@narr
 タオルケットが ねじれて、
 なにかの 生き物みたいに
@@ -284,6 +284,8 @@ registerMap({
   legend: INDOOR_LEGEND,
   objects: OBJ_1F,
   camera: 'fixed',
+  // 14×9 is under 60% of the screen: shown 2× (following Minato, 32 px of scroll each way)
+  zoom: 2,
   bgm: { 0: 'bgm_home', 1: 'bgm_home', 2: 'bgm_home' },
   amb: { 0: ['amb_fridge', 'amb_tv'], 1: ['amb_tv'], 2: ['amb_tv'] },
   space: 'room',

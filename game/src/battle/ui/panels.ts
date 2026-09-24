@@ -55,7 +55,7 @@ export function panelOffset(u: PartyUnit): { dx: number; dy: number } {
     dx = Math.round(Math.sin(u.shakeT * 0.35) * u.shakeAmp * k * k);
   }
   let dy = -Math.round(u.lift) + Math.round(u.drop);
-  if (u.bounceT > 0) dy -= Math.round(Math.abs(Math.sin((u.bounceT / 250) * Math.PI)) * 2);
+  if (u.bounceT > 0) dy -= Math.round(Math.abs(Math.sin((u.bounceT / 250) * Math.PI)) * u.bounceAmp);
   if (u.squishT > 0) dy += Math.round(Math.sin((1 - u.squishT / 160) * Math.PI) * 2);
   return { dx, dy };
 }

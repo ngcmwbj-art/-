@@ -30,8 +30,11 @@ const O = (id: string, x: number, y: number, extra: Record<string, unknown> = {}
 const PR = (prop: string, x: number, y: number, opts?: Record<string, unknown>): MapObj =>
   ({ t: 'prop', prop, x, y, ...(opts ? { opts } : {}) }) as MapObj;
 
-// ================================================================ 4.3 map_maruyama（肉のマルヤマ、10×7）
+// ================================================================ 4.3 map_maruyama（肉のマルヤマ、10×8）
 
+// 4.3's grid with one more row of floor in front of the counter (review
+// round 1: the customers' side was a single row, y5): the stacked delivery
+// crates by the door (1,6) and the waiting stool (8,6) stand on it.
 export const ROWS_MARUYAMA = [
   '#WWWWWWWW#',
   '#WWWWWWWW#',
@@ -39,6 +42,7 @@ export const ROWS_MARUYAMA = [
   '#........#',
   '#SSSSSSoo#',
   '#o.......#',
+  '#o......o#',
   '####D#####',
 ];
 
@@ -65,8 +69,10 @@ registerMap({
     PR('in_mr_register', 7, 4),
     PR('in_mr_scale', 8, 4),
     PR('in_mr_board', 1, 5),
+    PR('in_mr_crates', 1, 6),
+    PR('in_mr_stool', 8, 6),
     PR('in_mr_clock', 4, 0),
-    PR('in_mr_noren', 4, 6),
+    PR('in_mr_noren', 4, 7),
     PR('in_mr_bulb', 3, 3, { v: 0 }),
     PR('in_mr_bulb', 6, 3, { v: 1 }),
     // examine (from row 5 facing north: x2 chart, x3 fryer, x4 丸山, x5 showcase, x6 ledger, x7 cat, x8 scale)
@@ -77,11 +83,13 @@ registerMap({
     O('obj_manekineko', 7, 4),
     O('obj_scale', 8, 4),
     O('obj_menu_meat', 1, 5),
+    O('obj_mr_crates', 1, 6),
+    O('obj_mr_stool', 8, 6),
     {
       t: 'npc', id: 'npc_maruyama', x: 4, y: 3, dir: 'down', script: 'npc_maruyama', talk: ITALK.npc_maruyama,
       move: { kind: 'stand' },
     },
-    { t: 'door', id: 'door_town_maruyama', x: 4, y: 6, to: 'map_town', tx: 27, ty: 22, dir: 'down', se: ['se_door_glass', 'se_shop_bell'] },
+    { t: 'door', id: 'door_town_maruyama', x: 4, y: 7, to: 'map_town', tx: 27, ty: 22, dir: 'down', se: ['se_door_glass', 'se_shop_bell'] },
   ],
 });
 

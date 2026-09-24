@@ -10,7 +10,7 @@ import { PixelCanvas, mix, rgba32 } from '../../engine/pixel';
 import type { Ground } from '../../world/types';
 import { h01, ihash, valueNoise } from './noise';
 import { P } from './palette';
-import { fontText, fontTextSmall } from '../props/text';
+import { fontText, fontTextSmall, tiny } from '../props/text';
 
 export type DecalKind =
   | 'manhole'
@@ -22,7 +22,12 @@ export type DecalKind =
   | 'arrow'
   | 'stopline'
   | 'tactile'
-  | 'drain';
+  | 'drain'
+  | 'leafdrift'
+  | 'seamweeds'
+  | 'flyer'
+  | 'oilpool'
+  | 'footprints';
 
 export interface GroundDecal {
   k: DecalKind;
@@ -274,6 +279,38 @@ function schoolRoute(): PixelCanvas {
   return SCHOOL;
 }
 
+const NUMS = new Map<number, PixelCanvas>();
+/** A stall number in the 3×5 font, doubled to 2px strokes like road paint. */
+function stallNumber(n: number): PixelCanvas {
+  let c = NUMS.get(n);
+  if (!c) {
+    const s = String(n);
+    const src = new PixelCanvas(s.length * 4, 5);
+    tiny(src, s, 0, 0, '#ffffff');
+    c = new PixelCanvas(src.w * 2, 10);
+    for (let j = 0; j < 5; j++) for (let i = 0; i < src.w; i++) if (src.alpha(i, j)) c.rect(i * 2, j * 2, 2, 2, '#ffffff');
+    NUMS.set(n, c);
+  }
+  return c;
+}
+
+/** A dark oil stain soaked into the asphalt, with an oily sheen (lilac / aqua) on one side. */
+function oilStain(pen: DecalPen, cx: number, cy: number, seed: number): void {
+  const rx = 5 + (ihash(seed, 1, 1581) % 4);
+  const ry = 3 + (ihash(seed, 2, 1581) % 2);
+  for (let j = -ry; j <= ry; j++)
+    for (let i = -rx; i <= rx; i++) {
+      const wob = 1 + 0.25 * Math.sin(Math.atan2(j, i) * 3 + seed);
+      const d = Math.hypot(i / rx, j / ry) / wob;
+      if (d > 1) continue;
+      if (d > 0.75 && (i + j + seed) % 2) continue;
+      pen.set(cx + i, cy + j, d < 0.45 ? mix(P.asphalt, P.night, 0.42) : OIL);
+    }
+  pen.set(cx - 2, cy - 1, OIL2);
+  pen.set(cx - 1, cy - 1, mix(P.asphalt, P.aqua, 0.25));
+  pen.set(cx + 1, cy - 2, OIL2);
+}
+
 // ---- hand-placed painters ------------------------------------------------------------
 
 const PAINT: Partial<Record<DecalKind, (pen: DecalPen, d: GroundDecal) => void>> = {
@@ -374,6 +411,101 @@ const PAINT: Partial<Record<DecalKind, (pen: DecalPen, d: GroundDecal) => void>>
     // end line
     const ey = top ? d.y * 16 + h - 1 : d.y * 16;
     for (let k = 0; k < w; k++) if (valueNoise(k / 3, d.y, 1565) > 0.3) pen.set(d.x * 16 + k, ey, LINE_W);
+    // (QA round 1) the stall numbers painted at the open end, sun-faded and
+    // worn by tyres; and each stall's own oil stain where a car stood for years
+    for (let k = 0; k + 40 <= w; k += 40) {
+      const stall = Math.floor(k / 40);
+      const n = (d.v === 1 ? 20 : 1) + stall;
+      const img = stallNumber(n);
+      const nx = d.x * 16 + k + 20 - Math.floor(img.w / 2);
+      const ny = top ? d.y * 16 + 3 : d.y * 16 + h - 9;
+      const fade = ihash(stall, d.y, 1567) % 3;
+      for (let j = 0; j < img.h; j++)
+        for (let i = 0; i < img.w; i++) {
+          if (!img.alpha(i, j)) continue;
+          if (valueNoise((nx + i) / 1.8, (ny + j) / 1.8, 1569) < 0.18 + fade * 0.12) continue;
+          pen.set(nx + i, ny + j, fade === 2 ? LINE_W : LINE);
+        }
+      if (ihash(stall, d.y, 1571) % 3 !== 0) oilStain(pen, d.x * 16 + k + 14 + (ihash(stall, 1, 1573) % 10), d.y * 16 + Math.floor(h / 2) + (top ? -3 : 2), 1575 + stall);
+    }
+  },
+  footprints(pen, d) {
+    // boot prints pressed into the ridge path (畦道), in pairs, walking along it
+    const horiz = d.dir !== 'v';
+    const len = (horiz ? d.w ?? 1 : d.h ?? 1) * 16;
+    const dark = mix(P.brassOld, P.wood, 0.45);
+    for (let k = 3; k < len - 3; k += 7) {
+      const hh = ihash(k, d.x * 31 + d.y, 1631);
+      if (hh % 5 === 0) continue;
+      const side = (Math.floor(k / 7) & 1) ? 2 : -2;
+      const x = horiz ? d.x * 16 + k : d.x * 16 + 8 + side;
+      const y = horiz ? d.y * 16 + 8 + side : d.y * 16 + k;
+      // a 2×3 sole and a heel, the rim pushed up lighter
+      pen.set(x, y, dark);
+      pen.set(horiz ? x + 1 : x, horiz ? y : y + 1, dark);
+      pen.set(horiz ? x + 3 : x, horiz ? y : y + 3, dark);
+      pen.set(horiz ? x : x - 1, horiz ? y - 1 : y, mix(P.woodLt, P.goldPale, 0.3));
+    }
+  },
+  oilpool(pen, d) {
+    oilStain(pen, d.x * 16 + 8, d.y * 16 + 8, 1601 + d.x);
+  },
+  leafdrift(pen, d) {
+    // fallen leaves blown into a drift against an edge (v: 0 south edge, 1 north, 2 west, 3 east)
+    const w = (d.w ?? 1) * 16;
+    const h = (d.h ?? 1) * 16;
+    const edge = d.v ?? 0;
+    for (let j = 0; j < h; j += 1)
+      for (let i = 0; i < w; i += 1) {
+        const t = edge === 0 ? j / h : edge === 1 ? 1 - j / h : edge === 2 ? 1 - i / w : i / w;
+        const n = valueNoise((d.x * 16 + i) / 6, (d.y * 16 + j) / 4, 1611);
+        const hh = ihash(d.x * 16 + i, d.y * 16 + j, 1613);
+        if (hh % 5 !== 0 || n + t * 0.7 < 0.95) continue;
+        leaf(pen, d.x * 16 + i, d.y * 16 + j, hh);
+      }
+  },
+  seamweeds(pen, d) {
+    // a sealed seam in the paving with weeds growing all along it
+    const horiz = d.dir !== 'v';
+    const len = (horiz ? d.w ?? 1 : d.h ?? 1) * 16;
+    for (let k = 0; k < len; k++) {
+      const x = horiz ? d.x * 16 + k : d.x * 16 + 8;
+      const y = horiz ? d.y * 16 + 8 : d.y * 16 + k;
+      pen.set(x, y, mix(P.asphalt, P.charcoal, 0.45));
+      if (valueNoise(k / 4, d.x + d.y, 1621) > 0.4) pen.set(horiz ? x : x + 1, horiz ? y + 1 : y, mix(P.asphalt, P.steel, 0.35));
+      const hh = ihash(k, d.y, 1623);
+      if (hh % 5 === 0) {
+        // a tuft: 2–3 blades with a lit tip
+        const hgt = 2 + (hh >>> 4) % 3;
+        for (let b = 0; b < hgt; b++) {
+          pen.set(x - ((hh >>> 7) & 1), y - b, b === hgt - 1 ? P.leafYoung : P.leafDeep);
+          if (b < hgt - 1) pen.set(x + 1, y - b, P.leaf);
+        }
+        if ((hh >>> 9) % 7 === 0) pen.set(x, y - hgt, P.gold);
+      }
+    }
+  },
+  flyer(pen, d) {
+    // a supermarket flyer blown into the lot: a skewed sheet with a red
+    // header band, price blocks and small print, one corner folded under
+    const x0 = d.x * 16 + 3;
+    const y0 = d.y * 16 + 4;
+    const sk = d.v === 1 ? -1 : 1;
+    for (let j = 0; j < 8; j++)
+      for (let i = 0; i < 10; i++) {
+        if (i === 9 && j === 7) continue;
+        const x = x0 + i + (j > 3 ? sk : 0);
+        const y = y0 + j;
+        let col: string = P.paper;
+        if (j <= 1) col = P.red;
+        else if (j === 3 && i >= 1 && i <= 4) col = P.gold;
+        else if (j === 3 && i >= 6 && i <= 8) col = P.verm;
+        else if ((j === 5 || j === 6) && i >= 1 && i <= 8 && (i + j) % 3) col = P.steel;
+        if (i === 0 || j === 7) col = j === 7 ? P.paperGrid : col === P.paper ? P.white : col;
+        pen.set(x, y, col);
+      }
+    pen.set(x0 + 9 + sk, y0 + 7, P.paperGrid);
+    for (let i = 0; i < 10; i++) pen.set(x0 + i + 1 + sk, y0 + 8, mix(P.asphalt, P.charcoal, 0.4));
   },
   arrow(pen, d) {
     // faded aisle arrow pointing east (or west with v=1)

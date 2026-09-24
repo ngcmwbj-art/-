@@ -16,6 +16,7 @@ import { blend, depthShade, dust, lightPool, paintShell, screenPool, screenSpill
 import { castRight, dk, finish, lt, outline } from './kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
+import { exteriorOver, withExterior } from './iexterior';
 import { fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
@@ -158,12 +159,31 @@ registerProp('in_hi_shell', () => {
   p.hline(dx, dx + 16, dy + 6, P.woodDark);
   for (let k = 0; k < 4; k++) p.rect(dx + 1 + k * 4, dy + 3, 2, 3, BAGS[k]);
   p.hline(dx - 1, dx + 17, dy + 11, P.ink);
-  const img = p.toCanvas();
-  const W = img.width;
+  const W = p.w;
+  // outside: the arcade mosaic with the green mat, the two gacha machines
+  // and the fire bucket of the town; マルヤマ's striped awning to the west,
+  // まめ吉's blue one to the east
+  const ext = withExterior(p, sh.glass, {
+    rows,
+    town: [32, 21],
+    skin: [P.woodLt, P.wood, P.woodDark],
+    roof: 'kawara',
+    left: { skin: P.concreteLt, roof: 'tin', awning: [P.red, P.white] },
+    right: { skin: P.white, roof: 'slab', awning: [P.blue, P.white] },
+    seed: 7201,
+    props: [
+      { id: 'prop_shop_mats', tx: 24, ty: 22 },
+      { id: 'obj_gacha_ginza', tx: 30, ty: 22 },
+      { id: 'obj_fire_bucket', tx: 34, ty: 22 },
+    ],
+  });
   return shellProp({
-    img,
-    glass: sh.glass.toCanvas(),
+    img: ext.p.toCanvas(),
+    glass: ext.glass.toCanvas(),
+    ox: ext.ox,
+    oy: ext.oy,
     over(g: Gfx, x: number, y: number, env: PropEnv) {
+      exteriorOver(g, x, y, ext, env);
       // the snack strips: each packet swings a little further than the one above
       for (let k = 0; k < 3; k++) {
         const sx = x + 33 + k * 4;

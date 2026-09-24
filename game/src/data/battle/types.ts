@@ -151,6 +151,11 @@ export interface ItemDef {
   mp?: number;
   cure?: string[];
   special?: 'kinakobou' | 'shippu' | 'capsule';
+  /**
+   * How many a shop sells per visit (balance: the slice is tuned for a bag
+   * with 2–3 heals, not 8). Undefined = no limit. Read with `shopLimit(id)`.
+   */
+  shopLimit?: number;
   /** Two-line description (flavor, effect). */
   desc: [string, string];
   /** Key items: text shown when used in battle (pages). */

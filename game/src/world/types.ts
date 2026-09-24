@@ -78,7 +78,14 @@ export type NpcMove =
   | { kind: 'wander'; radius: number; every?: [number, number]; speed?: number }
   | { kind: 'patrol'; points: [number, number][]; speed: number; wait: number }
   | { kind: 'orbit'; cx: number; cy: number; r: number; period: number; cw?: boolean; waveEvery?: number }
-  | { kind: 'follow'; target: string; dx: number; dy: number };
+  | { kind: 'follow'; target: string; dx: number; dy: number }
+  /**
+   * Passers-by and traffic: walk the points in order (tile coords), then back
+   * (or round, with `loop`), pausing `wait` ms at each end. `hide` lists the
+   * point indices where the walker is out of sight (off the map edge) while it
+   * waits there; `endPose` is held while waiting (a cat sits down).
+   */
+  | { kind: 'route'; points: [number, number][]; speed: number; wait?: number; loop?: boolean; hide?: number[]; endPose?: string; phase?: number };
 
 interface Base {
   /** Unique within the map (auto-generated for anonymous props). */
@@ -140,6 +147,21 @@ export interface NpcObj extends Base {
   noTurn?: boolean;
   /** No collision (birds on wires, shadows). */
   ghost?: boolean;
+  /** A statue / figure that only looks like a character: collides with its feet box, keeps no personal space. */
+  statue?: boolean;
+  /** A small animal (a dog on its lead): feet box only, no person-sized personal space. */
+  animal?: boolean;
+  /**
+   * A passer-by (QA round 1): can't be talked to, doesn't block the player
+   * (but waits for him), stands frozen mid-stride in stage 1, and in stage 2
+   * walks on as a shadow only ('shadow') or is gone ('hide', via cond).
+   * Spawned only once its sprite is registered (char art).
+   */
+  passerby?: boolean;
+  /** Stage 2 look of a passer-by. */
+  s2?: 'shadow';
+  /** Drawn as this vehicle (art/props/vehicles.ts) instead of a character sprite. */
+  vehicle?: string;
   fushigi?: string;
   /** Shadow height override (0 = no long shadow). */
   shadow?: number;
@@ -210,6 +232,11 @@ export interface MapDef {
   objects: MapObj[];
   /** 'follow' (default for maps larger than the screen) or 'fixed' (centered). */
   camera?: 'follow' | 'fixed';
+  /**
+   * View scale. Small rooms (under 60% of the screen, and fitting at 2× with
+   * at most 24 px of scroll each way) default to 2; set 1 to keep a room 1×.
+   */
+  zoom?: 1 | 2;
   /** Script ids run on entering the map (in order; each only if registered). */
   onEnter?: string[];
   /** Music/ambience per stage: { 0: 'bgm_town_s0', ... }. */

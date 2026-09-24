@@ -25,6 +25,7 @@ import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
 import { printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
+import { lvTime } from './istate';
 import type { Dir } from '../../game/state';
 
 function rgbHex(c: [number, number, number]): string {
@@ -185,6 +186,7 @@ registerProp('mall_m1_shell', () => {
     img,
     glass: sh.glass.toCanvas(),
     over(g: Gfx, x: number, y: number, env: PropEnv) {
+      cafeShutter(g, img, x, y, env);
       depthShade(g, x + 16, y + 48, W - 32, 90, 0.14);
       mallLamps(g, x, y, M1_LAMPS, env, 101, 0.16, rows);
       // the outside's purple-pink evening coming in through the half-open door
@@ -209,6 +211,41 @@ registerProp('mall_m1_shell', () => {
     },
   });
 });
+
+// ---------------------------------------------------------------- the café's shutter slides down a notch
+
+/**
+ * The café's half-lowered shutter (x 84–139, slats y 32–38 in the shell)
+ * rattles down 3px by itself the first time Minato walks under it (lv_logic
+ * starts it with se_shop_shutter): four jerks in step with the rattle over
+ * 1.2 s, then the thump at the bottom. Afterwards it stays that low.
+ */
+const CAFE = { x: 84, y: 32, w: 56, h: 7, drop: 3 };
+function cafeShutter(g: Gfx, shell: HTMLCanvasElement, x: number, y: number, env: PropEnv): void {
+  let L = env.flag('flag_lv_cafe_shutter') ? CAFE.drop : 0;
+  const t0 = lvTime.cafeShutterT0;
+  let jiggle = 0;
+  if (t0 > 0 && lvTime.map === 'map_mall_hall') {
+    const u = env.t - t0;
+    if (u < 1250) {
+      // jerks at 0, 300, 600, 900 ms; a 1px judder while the slats rattle
+      L = Math.min(CAFE.drop, Math.floor(u / 300));
+      jiggle = Math.floor(u / 60) % 2;
+    } else if (u < 1400) jiggle = u < 1320 ? 1 : 0;
+  }
+  if (L === 0 && jiggle === 0) return;
+  const ctx = g.ctx;
+  const X = Math.round(x + CAFE.x);
+  const Y = Math.round(y + CAFE.y);
+  // the whole curtain moves down L px (+1 while it judders) …
+  const d = Math.min(CAFE.drop + 1, L + jiggle);
+  ctx.drawImage(shell, CAFE.x, CAFE.y, CAFE.w, CAFE.h, X, Y + d, CAFE.w, CAFE.h);
+  // … and more slats unroll from the box above, the corrugation's 4-row rhythm kept
+  for (let i = 0; i < d; i++) {
+    const src = CAFE.y + ((((i - d) % 4) + 4) % 4);
+    ctx.drawImage(shell, CAFE.x, src, CAFE.w, 1, X, Y + i, CAFE.w, 1);
+  }
+}
 
 // ---------------------------------------------------------------- the skylight shaft in the air (all mall areas)
 

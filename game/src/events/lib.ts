@@ -282,6 +282,54 @@ export function* walkTo(id: string, tx: number, ty: number, opts: { speed?: numb
   yield* walk(id, path, { speed: opts.speed, face: opts.face });
 }
 
+/**
+ * A short tile route (4-way, breadth first, within `radius` tiles of the
+ * start) over free tiles, never through `avoid` (e.g. the player's tile).
+ * The start is not included. Null if there is none.
+ */
+export function tileRoute(from: [number, number], to: [number, number], avoid: [number, number][] = [], radius = 5): [number, number][] | null {
+  const key = (x: number, y: number) => `${x},${y}`;
+  const blocked = new Set(avoid.map(([x, y]) => key(x, y)));
+  const prev = new Map<string, string | null>([[key(...from), null]]);
+  const q: [number, number][] = [from];
+  while (q.length) {
+    const [x, y] = q.shift()!;
+    if (x === to[0] && y === to[1]) {
+      const out: [number, number][] = [];
+      let k: string | null = key(x, y);
+      while (k && k !== key(...from)) {
+        const [a, b] = k.split(',').map(Number);
+        out.unshift([a, b]);
+        k = prev.get(k) ?? null;
+      }
+      return out;
+    }
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      const k = key(nx, ny);
+      if (prev.has(k) || blocked.has(k)) continue;
+      if (Math.abs(nx - from[0]) + Math.abs(ny - from[1]) > radius) continue;
+      if (!tileFree(nx, ny)) continue;
+      prev.set(k, key(x, y));
+      q.push([nx, ny]);
+    }
+  }
+  return null;
+}
+
+/** The tile where the follower falls in when it is (re)placed: behind the player, else beside (as the field does). */
+export function followerSpot(): [number, number] | null {
+  const p = F().player;
+  const [dx, dy] = DIR_VEC[p.dir];
+  for (const [ex, ey] of [[-dx, -dy], [dy, dx], [-dy, -dx], [dx, dy]]) {
+    const x = p.tileX + ex;
+    const y = p.tileY + ey;
+    if (tileFree(x, y)) return [x, y];
+  }
+  return null;
+}
+
 /** Step the player one tile back (away from where they face), if free. */
 export function stepBack(): void {
   const f = F();
@@ -298,8 +346,11 @@ export function stepBack(): void {
 // ---------------------------------------------------------------- the non-blocking line
 
 /**
- * A narration line shown in the dialog window's place while the player keeps
- * walking (evt_alley_open: 「入力はロックしない、auto 1500ms」). Not modal.
+ * A narration line that doesn't take the controls (evt_alley_open:
+ * 「入力はロックしない、auto 1500ms」): a small paper note over Minato's head
+ * with a thought tail, typed in pencil. It follows him while he walks and
+ * stays clear of the HUD row (place name, clock) and of the dialog window's
+ * place, so nothing on screen is stacked on top of anything else.
  */
 class FloatLine implements Widget {
   modal = false;
@@ -311,19 +362,37 @@ class FloatLine implements Widget {
   private pause = 0;
   private holdT = 0;
   private outT = -1;
+  private w: number;
+  private h: number;
+  private map: string | undefined;
 
   constructor(text: string, private hold: number) {
-    this.glyphs = layoutPages(text)[0] ?? [];
+    this.map = field()?.map.id;
+    this.glyphs = layoutPages(text, 336, UI.pencil)[0] ?? [];
+    let right = 0;
+    let bottom = 0;
+    for (const g of this.glyphs) {
+      right = Math.max(right, g.x + (g.ch.charCodeAt(0) < 0x80 ? 8 : 16));
+      bottom = Math.max(bottom, g.y + 18);
+    }
+    this.w = right + 16;
+    this.h = bottom + 8;
   }
 
   update(dt: number): void {
     this.t += dt;
+    const f = field();
     if (this.outT >= 0) {
       this.outT += dt;
-      if (this.outT > 200) this.done = true;
+      if (this.outT > 220) this.done = true;
       return;
     }
-    if (this.t < 120) return;
+    // a scene taking the screen (a battle, a warp) ends the note
+    if (!f || game.top !== f || f.map.id !== this.map) {
+      this.outT = 0;
+      return;
+    }
+    if (this.t < 140) return;
     if (this.shown < this.glyphs.length) {
       if (this.pause > 0) {
         this.pause -= dt;
@@ -333,7 +402,7 @@ class FloatLine implements Widget {
       while (this.acc >= 1 && this.shown < this.glyphs.length && this.pause <= 0) {
         this.acc -= 1;
         const g = this.glyphs[this.shown++];
-        if (g.ch.trim()) sfx('se_page', { vol: 0.05 });
+        if (g.ch.trim() && this.shown % 2) sfx('se_page', { vol: 0.04 });
         this.pause = g.pause;
       }
       return;
@@ -343,18 +412,39 @@ class FloatLine implements Widget {
   }
 
   draw(g: Gfx): void {
-    const kIn = ease.cubicOut(Math.min(1, this.t / 120));
-    const kOut = this.outT >= 0 ? 1 - Math.min(1, this.outT / 200) : 1;
+    const f = field();
+    if (!f || game.top !== f) return;
+    const kIn = ease.cubicOut(Math.min(1, this.t / 140));
+    const kOut = this.outT >= 0 ? 1 - Math.min(1, this.outT / 220) : 1;
     const a = kIn * kOut;
     if (a <= 0) return;
-    const y = BOX.y + Math.round((1 - kIn) * 6);
-    drawWindow(g, BOX.x, y, BOX.w, BOX.h, UI, a, { margin: 14, curl: false });
+    const p = f.player;
+    const px = Math.round(p.x - f.camX);
+    const head = Math.round(p.y - f.camY) - 26;
+    const w = this.w;
+    const h = this.h;
+    // above the head; below the feet when there is no room above
+    const above = head - 16 - h >= 30;
+    const x = Math.max(8, Math.min(W - 8 - w, px - Math.round(w / 2)));
+    let y = above ? head - 16 - h : Math.round(p.y - f.camY) + 14;
+    y = Math.max(30, Math.min(BOX.y - 6 - h, y)) + Math.round((1 - kIn) * 3);
+    drawWindow(g, x, y, w, h, UI, a, { curl: false, grid: false });
+    // the thought tail: two little rings and a dot stepping down to his head
+    g.alpha(a, () => {
+      const tx = Math.max(x + 10, Math.min(x + w - 10, px));
+      const s = above ? 1 : -1;
+      const y0 = above ? y + h : y;
+      g.circle(tx, y0 + s * 5, 3, UI.bg);
+      g.ring(tx, y0 + s * 5, 3, UI.border);
+      g.circle(tx + 2, y0 + s * 11, 1, UI.bg);
+      g.ring(tx + 2, y0 + s * 11, 1, UI.border);
+    });
     const ctx = g.ctx;
     ctx.save();
     ctx.globalAlpha = a;
     for (let i = 0; i < this.shown && i < this.glyphs.length; i++) {
       const gl = this.glyphs[i];
-      drawGlyph(ctx, gl.ch, BOX.textX + gl.x, y + BOX.padY + gl.y, gl.color);
+      drawGlyph(ctx, gl.ch, x + 8 + gl.x, y + 4 + gl.y, gl.color);
     }
     ctx.restore();
   }

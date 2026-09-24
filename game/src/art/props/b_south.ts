@@ -30,11 +30,11 @@ import {
   type RoofPal,
 } from './bkit';
 import { dk, glassPane, lt, shadeRect } from './kit';
-import { acUnit } from './b_houses';
 import { rimLeft } from './b_shops';
-import { fontText, fontTextSmall, fontWidth, handGlyph, handText, printLines, scribble, tiny } from './text';
+import { fontSmallWidth, fontText, fontTextSmall, fontWidth, handGlyph, handText, printLines, scribble, tiny } from './text';
 import type { PropEnv } from './types';
 import { drawLightAt, LIGHT, poolTrapezoid } from './light';
+import { acRow, leaves, moss, stairHouse, storageBox, tarp, tvAntenna, ventCap } from './roofkit';
 
 // ---------------------------------------------------------------- コインランドリー ふわり
 
@@ -55,7 +55,10 @@ registerBuilding({
     const p = b.p;
     const rY = b.roofY;
     const fY = b.faceY;
-    const [ix, iy] = roofFlat(p, 0, rY, 80, 48, { base: P.concrete, seed: 23 });
+    const [ix, iy] = roofFlat(p, 0, rY, 80, 48, { base: P.concrete, seed: 23, style: 'slab' });
+    storageBox(p, ix + 44, iy + 3, 22, 10);
+    ventCap(p, ix + 4, iy + 26);
+    ventCap(p, ix + 4, iy + 33);
     // exhaust ducts (dryers)
     for (const dx of [12, 26]) {
       p.rect(ix + dx, iy + 2, 7, 18, P.steel);
@@ -65,7 +68,7 @@ registerBuilding({
       p.hline(ix + dx - 1, ix + dx + 7, iy - 1, P.white);
       castRight(p, ix + dx, iy + 2, 7, 18, 4);
     }
-    acUnit(p, ix + 50, iy + 18);
+    acRow(p, ix + 40, iy + 18, 2, ix + 72);
     // facade: pale tile wall, aqua sign, full glass front
     fillWall(p, 0, fY, 80, 48, wallTiles(P.concreteLt, P.concrete, 5));
     eaveShadow(p, 0, fY, 80, 2);
@@ -226,25 +229,34 @@ function shutterPaint(v: number) {
       p.rect(40, rY + 30, 3, 4, P.red);
       p.set(40, rY + 30, P.white);
       p.hline(40, 42, rY + 34, P.maroon);
+      leaves(p, [4, rY + 6, 30, 20], 5, 31);
     } else if (v === 2) {
+      // a leak patched with a blue tarp and two old tyres
+      tarp(p, 8, rY + 8, 30, 20, 37);
       // anti-pigeon spikes along the eave
       for (let i = 2; i < 62; i += 2) {
         p.set(i, rY + 42, P.white);
         p.set(i, rY + 43, P.steel);
       }
     } else {
-      // small antenna
-      p.vline(50, rY - 2, rY + 20, P.steel);
-      p.hline(46, 54, rY + 2, P.concrete);
-      p.hline(47, 53, rY + 5, P.concrete);
+      // an old TV antenna and the moss the shade keeps damp
+      tvAntenna(p, 50, rY - 4, rY + 22);
+      moss(p, 10, rY + 38, 3, 41);
+      moss(p, 16, rY + 40, 2, 42);
     }
     const wallBase = v === 2 ? P.paperGrid : v === 3 ? P.concreteLt : P.concrete;
     fillWall(p, 0, fY, 64, 48, wallMortar(wallBase, sv.seed));
     eaveShadow(p, 0, fY, 64, 2);
-    // faded shop sign: letters half gone
-    signBoard(p, 3, fY + 2, 58, 11, v === 3 ? P.aqua : v === 2 ? P.goldPale : P.white, P.steel, 2);
-    scribble(p, 8, fY + 5, 6, v === 3 ? P.blue : v === 2 ? P.brassOld : P.steel, sv.seed, 5);
-    for (let i = 4; i < 60; i++) if (ihash(i, v, 1601) % 3 === 0) p.set(i, fY + 5 + (i % 5), v === 3 ? P.aqua : P.concreteLt);
+    // faded shop sign of the shop that was (QA round 1: a real short word,
+    // not pseudo-kana): the letters sun-bleached, flecks of them gone
+    const board = v === 3 ? P.aqua : v === 2 ? P.goldPale : P.white;
+    signBoard(p, 3, fY + 2, 58, 11, board, P.steel, 2);
+    const word = v === 3 ? 'つりえさ' : v === 2 ? 'たばこ' : 'クリーニング';
+    const ink = v === 3 ? P.blue : v === 2 ? P.verm : P.steel;
+    const sp = v === 2 ? 5 : v === 3 ? 2 : -1;
+    const ww = fontSmallWidth(word, sp);
+    fontTextSmall(p, word, 3 + Math.floor((58 - ww) / 2), fY + 3, ink, 1, { spacing: sp });
+    for (let i = 5; i < 59; i++) if (ihash(i, v, 1601) % 7 === 0) p.set(i, fY + 4 + (i % 7), board);
     // shutter box and slats
     const top = fY + 15;
     p.rect(1, top, 62, 4, P.steel);
@@ -331,13 +343,14 @@ registerBuilding({
     const p = b.p;
     const rY = b.roofY;
     const fY = b.faceY;
-    const [ix, iy] = roofFlat(p, 0, rY, 64, 48, { base: P.concreteLt, seed: 43 });
+    const [ix, iy] = roofFlat(p, 0, rY, 64, 48, { base: P.concrete, lip: P.concreteLt, seed: 43, style: 'sheet' });
+    stairHouse(p, ix + 20, iy + 2, 18, 17, 43);
     // radio antenna
     p.vline(ix + 8, rY - 18, iy + 10, P.steel);
     p.vline(ix + 9, rY - 16, iy + 10, P.asphalt);
     for (const dy of [-16, -11, -6]) p.hline(ix + 5, ix + 12, rY + dy, P.concrete);
     p.set(ix + 8, rY - 18, P.verm);
-    acUnit(p, ix + 40, iy + 20);
+    acRow(p, ix + 28, iy + 24, 2, ix + 57);
     // white walls with a tiled wainscot
     fillWall(p, 0, fY, 64, 30, wallPlaster(P.white, 43));
     fillWall(p, 0, fY + 30, 64, 18, wallTiles(P.concreteLt, P.concrete, 4));

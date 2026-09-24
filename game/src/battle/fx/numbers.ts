@@ -223,6 +223,29 @@ export interface NumOpts {
   delay?: number;
   /** Sideways drift while rising (16.4: +6; party numbers lean away from the "!"). */
   drift?: number;
+  /**
+   * A soft dark plate under the digits (enemy numbers): the vermilion edge
+   * melts into a red enemy or the red band of a background without it.
+   */
+  backing?: boolean;
+}
+
+const backingCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+/** The number's silhouette grown by 2px in #1B1733 (drawn at α≈0.5 under it). */
+function backingFor(img: HTMLCanvasElement): HTMLCanvasElement {
+  let b = backingCache.get(img);
+  if (b) return b;
+  const [c, ctx] = makeCanvas(img.width + 4, img.height + 4);
+  const [sil, sctx] = makeCanvas(img.width, img.height);
+  sctx.drawImage(img, 0, 0);
+  sctx.globalCompositeOperation = 'source-in';
+  sctx.fillStyle = '#1B1733';
+  sctx.fillRect(0, 0, img.width, img.height);
+  for (let dy = -2; dy <= 2; dy++)
+    for (let dx = -2; dx <= 2; dx++) if (dx * dx + dy * dy <= 5) ctx.drawImage(sil, 2 + dx, 2 + dy);
+  b = c;
+  backingCache.set(img, b);
+  return b;
 }
 
 /** One floating number: pop (80ms) → arc up (250ms) → hold (400ms) → fade (200ms). */
@@ -235,6 +258,7 @@ export class DamageNumber {
   private pop: number;
   private delay: number;
   private drift: number;
+  private backing: boolean;
 
   constructor(
     public x: number,
@@ -248,6 +272,7 @@ export class DamageNumber {
     this.pop = o.pop ?? 1;
     this.delay = o.delay ?? 0;
     this.drift = o.drift ?? 6;
+    this.backing = !!o.backing;
   }
 
   /** Where the number comes to rest (after the rise and the 6px drift). */
@@ -314,8 +339,17 @@ export class DamageNumber {
     const h = this.img.height * sy;
     const ctx = g.ctx;
     const prev = ctx.globalAlpha;
+    const X = Math.round(this.x + dx - w / 2);
+    const Y = Math.round(this.y + dy - h);
+    if (this.backing) {
+      const b = backingFor(this.img);
+      const kx = w / this.img.width;
+      const ky = h / this.img.height;
+      ctx.globalAlpha = prev * a * 0.5;
+      ctx.drawImage(b, Math.round(X - 2 * kx), Math.round(Y - 2 * ky), Math.round(b.width * kx), Math.round(b.height * ky));
+    }
     ctx.globalAlpha = prev * a;
-    ctx.drawImage(this.img, Math.round(this.x + dx - w / 2), Math.round(this.y + dy - h), Math.round(w), Math.round(h));
+    ctx.drawImage(this.img, X, Y, Math.round(w), Math.round(h));
     ctx.globalAlpha = prev;
   }
 }

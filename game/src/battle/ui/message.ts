@@ -53,6 +53,20 @@ function layout(text: string): { glyphs: G[]; lines: number } {
   return { glyphs, lines: line + 1 };
 }
 
+/**
+ * Boss battles (15.3): the band is one line so the boss's cap — a target —
+ * stays in view. A 2-line page is laid out on one line when it fits (the
+ * break after punctuation simply closes up, any other break becomes a
+ * space); only a page too long for that grows the band.
+ */
+function oneLineLayout(text: string, maxW: number): { glyphs: G[]; lines: number } {
+  const L = layout(text);
+  if (L.lines !== 2) return L;
+  const joined = layout(text.replace(/([、。！？」』…）])\n/g, '$1').replace(/\n/g, ' '));
+  const last = joined.glyphs[joined.glyphs.length - 1];
+  return last && last.x + charWidth(last.ch) <= maxW ? joined : L;
+}
+
 /** 「せんせいより」→「せんせい」「より」: split a tag into two short lines. */
 function splitTag(t: string): string[] {
   const ch = [...t];
@@ -68,6 +82,8 @@ export interface BandPageOpts {
   autoMs?: number;
   /** Typing speed (chars/s). */
   cps?: number;
+  /** Shown fully typed at once (a counter redrawn every frame). */
+  instant?: boolean;
 }
 
 interface Page {
@@ -199,9 +215,10 @@ export class MessageBand {
       return;
     }
     this.linger = null;
-    this.cur = layout(p.text);
+    // (a tagged page — せんせいより, one line per member — keeps its lines)
+    this.cur = this.bossMode && !this.tag ? oneLineLayout(p.text, this.w - 22) : layout(p.text);
     this.curOpts = p.o;
-    this.shown = 0;
+    this.shown = p.o.instant ? this.cur.glyphs.length : 0;
     this.acc = 0;
     this.pause = 0;
     this.age = 0;

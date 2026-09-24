@@ -142,9 +142,9 @@ export function coin(frame: number): HTMLCanvasElement {
 
 const shinyCoins: HTMLCanvasElement[] = [];
 /**
- * The same coin as a thrown projectile: brighter copper and a 1px pale-gold
- * rim outside the ink line, so it never melts into a background that is
- * itself full of coins (bg_ojigi).
+ * The same coin as a thrown projectile: brighter copper, a white glint and a
+ * 1px paper-white rim outside the ink line, so it never melts into a
+ * background that is itself full of coins (bg_ojigi).
  */
 export function coinShiny(frame: number): HTMLCanvasElement {
   const f = ((frame % 4) + 4) % 4;
@@ -157,9 +157,11 @@ export function coinShiny(frame: number): HTMLCanvasElement {
     ['....k....', '...kHk...', '...kMk...', '...kMk...', '...kmk...', '...kmk...', '...kak...', '...kAk...', '....k....'],
     ['...kkk...', '..kmmMk..', '.kammmMk.', '.kamammk.', '.kamammk.', '.kammmmk.', '.kAammmk.', '..kAaak..', '...kkk...'],
   ][f];
+  // a paper-white rim outside the ink line: a thrown coin always reads in
+  // front of the (dimmed) coin lattice of bg_ojigi
   const p = new PixelCanvas(base.width + 2, base.height + 2);
   p.blit(PixelCanvas.fromArt(rows, pal), 1, 1);
-  p.outline('#FFE7A3');
+  p.outline('#FFF6D8');
   shinyCoins[f] = p.toCanvas();
   return shinyCoins[f];
 }
@@ -559,4 +561,134 @@ export function mangaLettering(text: string): HTMLCanvasElement {
   c = cv;
   letterCache.set(text, c);
   return c;
+}
+
+// ---- hit impact (16.2, QA round 1) ----------------------------------------------------
+
+const splashCache = new Map<string, HTMLCanvasElement>();
+
+/**
+ * The impact itself, drawn over the enemy for the first 2–3 frames of the
+ * hitstop so the moment of contact reads as a shape and not only a number:
+ * an irregular vermilion ink starburst `size` px across. Frame 0 is the full
+ * splat with a white-hot heart (it reads on the enemy's white flash), frame 1
+ * bursts open into a ring with a hot inner rim, frame 2 leaves the broken
+ * tips. `lines` adds a crown of radial speed lines (いい音,
+ * 会心) that fly outward with the frames. Every frame has an ink outline, so
+ * it reads on the bright sunset as well as on the boss's shadow body.
+ */
+export function hitSplash(size: number, frame: number, lines = false, seed = 1): HTMLCanvasElement {
+  const f = Math.max(0, Math.min(2, frame));
+  const key = `${size}:${f}:${lines}:${seed}`;
+  let cv = splashCache.get(key);
+  if (cv) return cv;
+  const R = size / 2;
+  const S = Math.ceil(lines ? size * 1.75 : size + 4) | 1;
+  const c = (S - 1) / 2;
+  const p = new PixelCanvas(S, S);
+  const n = 9;
+  const rot = hash2(seed, 3, 17) * Math.PI;
+  const pts: [number, number][] = [];
+  for (let i = 0; i < n * 2; i++) {
+    const a = rot + (i / (n * 2)) * Math.PI * 2;
+    const tip = i % 2 === 0;
+    const h = hash2(i, seed, 29);
+    const r = tip ? R * (0.66 + 0.34 * h) : R * (0.3 + 0.12 * h);
+    pts.push([c + Math.cos(a) * r, c + Math.sin(a) * r]);
+  }
+  const inside = (x: number, y: number) => {
+    let ins = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const [xi, yi] = pts[i];
+      const [xj, yj] = pts[j];
+      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) ins = !ins;
+    }
+    return ins;
+  };
+  for (let y = 0; y < S; y++)
+    for (let x = 0; x < S; x++) {
+      const px = x + 0.5;
+      const py = y + 0.5;
+      if (!inside(px, py)) continue;
+      const d = Math.hypot(px - c - 0.5, py - c - 0.5) / R;
+      // lit from the upper left: the spikes on that side catch a lighter ink
+      const lit = px + py < S * 0.9;
+      if (f === 0) p.set(x, y, d < 0.22 ? '#FFFFFF' : d < 0.36 ? '#FFF6D8' : d < 0.46 ? '#FFD23F' : lit ? '#FF6A4D' : '#E23B2E');
+      else if (f === 1) {
+        if (d < 0.46) continue;
+        p.set(x, y, d < 0.56 ? '#FFF6D8' : d > 0.86 ? '#B8241E' : lit ? '#FF6A4D' : '#E23B2E');
+      } else if (d > 0.72) p.set(x, y, d > 0.9 ? '#8E1E1A' : '#B8241E');
+    }
+  if (lines) {
+    // speed lines: 12 spokes between the tips, moving out frame by frame
+    const r0 = R * (1.02 + 0.22 * f);
+    const r1 = R * (1.42 + 0.3 * f);
+    for (let i = 0; i < 12; i++) {
+      const a = rot + ((i + 0.5) / 12) * Math.PI * 2;
+      const len = r1 - r0 - (i % 3 === 1 ? R * 0.18 : 0);
+      for (let k = 0; k <= len; k++) {
+        const r = r0 + k;
+        const x = Math.round(c + Math.cos(a) * r);
+        const y = Math.round(c + Math.sin(a) * r);
+        if (x < 0 || y < 0 || x >= S || y >= S) continue;
+        const thick = k < len * 0.55 && f < 2;
+        const col = f === 2 ? '#E8D9B5' : '#FFF6D8';
+        p.set(x, y, col);
+        if (thick) p.set(x + (Math.abs(Math.sin(a)) > 0.7 ? 1 : 0), y + (Math.abs(Math.sin(a)) > 0.7 ? 0 : 1), col);
+      }
+    }
+  }
+  p.outline('#2A2440');
+  cv = p.toCanvas();
+  splashCache.set(key, cv);
+  return cv;
+}
+
+const crackCache = new Map<string, HTMLCanvasElement>();
+
+/**
+ * A crack struck into the boss's shadow body where a blow lands (the big
+ * enemy needs a mark the size of the hit): five jagged white-hot lines with
+ * an ink shadow, `size` px across.
+ */
+export function hitCrack(size: number, seed = 1): HTMLCanvasElement {
+  const key = `${size}:${seed}`;
+  let cv = crackCache.get(key);
+  if (cv) return cv;
+  const S = size | 1;
+  const c = (S - 1) / 2;
+  const p = new PixelCanvas(S, S);
+  const light: [number, number][] = [];
+  for (let i = 0; i < 5; i++) {
+    let a = (i / 5) * Math.PI * 2 + hash2(i, seed, 5) * 0.8;
+    let x = c;
+    let y = c;
+    const len = c * (0.6 + 0.4 * hash2(i, seed, 7));
+    for (let k = 0; k < len; k++) {
+      a += (hash2(k, i, seed + 11) - 0.5) * 0.7;
+      x += Math.cos(a);
+      y += Math.sin(a);
+      light.push([Math.round(x), Math.round(y)]);
+      // a short branch halfway out
+      if (k === Math.round(len * 0.5)) {
+        const b = a + (hash2(i, k, seed) > 0.5 ? 0.9 : -0.9);
+        for (let m = 1; m < len * 0.35; m++) light.push([Math.round(x + Math.cos(b) * m), Math.round(y + Math.sin(b) * m)]);
+      }
+    }
+  }
+  // 2px lines near the heart thinning to 1px, over a dark cut
+  const near = (x: number, y: number) => Math.hypot(x - c, y - c) < c * 0.55;
+  for (const [x, y] of light) {
+    p.set(x + 1, y + 1, '#1B1733');
+    if (near(x, y)) p.set(x + 2, y + 1, '#1B1733');
+  }
+  for (const [x, y] of light) {
+    const col = Math.hypot(x - c, y - c) < c * 0.4 ? '#FFFFFF' : '#FFE7A3';
+    p.set(x, y, col);
+    if (near(x, y)) p.set(x + 1, y, col);
+  }
+  for (let y = -2; y <= 2; y++) for (let x = -2; x <= 2; x++) if (x * x + y * y <= 4) p.set(Math.round(c + x), Math.round(c + y), '#FFFFFF');
+  cv = p.toCanvas();
+  crackCache.set(key, cv);
+  return cv;
 }

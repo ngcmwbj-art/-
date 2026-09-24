@@ -45,6 +45,7 @@ function* plain(id: string): Co {
 
 registerScript('obj_koban_bicycle', () => plain('obj_koban_bicycle'));
 registerScript('obj_vending_trace', () => plain('obj_vending_trace'));
+registerScript('obj_floor_guide', () => plain('obj_floor_guide'));
 
 registerScript('obj_poster_board', function* (): Co {
   sfx('se_examine');

@@ -8,9 +8,9 @@ import { joinKanenari, syncProgressSkills } from '../data/battle';
 import { startBattle } from '../battle/api';
 import { playHankoLearn } from '../battle';
 import { duckMusic, playAmbient, playBgm, sfx, stopAmbient, stopBgm } from '../audio';
-import { actor, despawn, face, mapAudio, msg, refreshFollower, registerScript, shadowSwing, stage } from '../world/api';
+import { actor, despawn, face, mapAudio, msg, refreshFollower, registerScript, setFollowerVisible, shadowSwing, stage, walk } from '../world/api';
 import * as T from '../data/text/events';
-import { besideToward, F, holdBgm, panBack, panTo } from './lib';
+import { besideToward, F, followerSpot, holdBgm, panBack, panTo, settle, tileRoute } from './lib';
 import { bellGlow, ring, sparkle } from './fx';
 import { zoomIn, zoomOut } from './stage';
 import { registerWorldFx } from '../world/fx';
@@ -85,23 +85,32 @@ function* kanenariJoin(): Co {
   yield* msg(T.KANENARI_JOIN_FLIP);
   if (k) k.anim = null;
   playBgm('bgm_jingle_join');
+  // he is still standing here as himself: the party's follower waits,
+  // hidden, until he has walked round into its place (no second Kanenari)
+  if (k) setFollowerVisible(false);
   joinKanenari();
   setFlag('flag_kanenari_joined', 1);
   syncProgressSkills();
   yield* msg(T.KANENARI_JOIN_SYS);
   yield* playHankoLearn('skill_hanamaru');
-  // he falls in behind Minato
+  // he falls in behind Minato: walks round to the follower's place, and
+  // the follower takes over right there
   if (k) {
     const p = f.player;
-    const [bx, by] = besideToward(p.tileX, p.tileY, k.tileX, k.tileY);
-    k.pathSpeed = 2.5 * 16;
-    k.path = [[bx * 16 + 8, by * 16 + 16]];
-    yield () => k.path.length === 0;
-    k.moving = false;
+    yield* settle(p);
+    const spot = followerSpot();
+    const route = spot && tileRoute([k.tileX, k.tileY], spot, [[p.tileX, p.tileY]]);
+    if (route && route.length) yield* walk('npc_kanenari', route, { speed: 3 });
+    else {
+      const [bx, by] = besideToward(p.tileX, p.tileY, k.tileX, k.tileY);
+      if (k.tileX !== bx || k.tileY !== by) yield* walk('npc_kanenari', [[bx, by]], { speed: 3 });
+    }
+    const dir = k.dir;
     despawn('npc_kanenari');
-  }
-  refreshFollower();
-  yield 1000;
+    setFollowerVisible(true);
+    if (f.follower) f.follower.dir = dir;
+  } else refreshFollower();
+  yield 600;
   yield* maigoBroadcast();
 }
 
@@ -162,15 +171,16 @@ function* maigoBroadcast(): Co {
   setFlag('flag_broadcast_on', 1);
   waves.on = true;
   waves.t = 0;
+  // 「ピンポンパンポーン。」 is typed along with the four notes
   sfx('se_pa_chime');
-  yield 1900;
+  yield 200;
   yield* msg(T.BROADCAST);
   // the last line comes in a child's voice
   yield* msg(T.BROADCAST_LAST);
   // its echo, three times, fading
-  yield 1300;
-  sfx('se_pa_chime_end', { vol: 0.7 });
   yield 900;
+  sfx('se_pa_chime_end', { vol: 0.7 });
+  yield 700;
   waves.on = false;
   yield* zoomOut(z, 380);
   setFlag('flag_broadcast_on', 0);
@@ -183,10 +193,10 @@ function* maigoBroadcast(): Co {
   playAmbient('amb_s2_town', { fade: 1.5 });
   game.scripts.run(shadowSwing());
   mapAudio();
-  yield 1600;
+  yield 1500;
   yield* msg(T.BROADCAST_SHADOWS);
   sfx('se_chain', { vol: 0.55, pan: 0.7 });
-  yield 700;
+  yield 550;
   setFlag('flag_parking_open', 1);
   yield* msg(T.BROADCAST_CHAIN);
   // カネナリくん points the way: north-east, where the shadows point

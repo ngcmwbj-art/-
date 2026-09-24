@@ -16,15 +16,17 @@ import { flag, setFlag, state } from '../game/state';
 import { playBgm, playChimeMotif, setSpace, sfx, stopAllAmbient, stopAmbient, stopBgm, playAmbient } from '../audio';
 import { actor, face, msg, place, registerScript, setClockText, setFollowerVisible, spawn, trainPass } from '../world/api';
 import type { Actor } from '../world/actor';
+import type { FieldScene } from '../world/field';
 import { playEndingNotebook, playNightSkyCut } from '../ui/api';
+import { ditherIn, ditherOut } from '../ui/transition';
 import { uiHud } from '../ui/hud';
 import { registerWorldFx } from '../world/fx';
 import { CHUNK } from '../world/ground_cache';
 import * as T from '../data/text/events';
 import { F, getKeyItem, holdBgm, holdCamera, releaseCamera, walkTo } from './lib';
-import { bellGlow, ring, sparkle } from './fx';
-import { dinnerSet, photoClose } from './art';
-import { zoomIn, type ZoomView } from './stage';
+import { bellGlow, ring, sparkle, voiceLine } from './fx';
+import { dinnerSet, paperBag, photoClose } from './art';
+import { cinema, cinemaOff, forceBoxPos, zoomIn, zoomOut, zoomPan, zoomScale, type ZoomView } from './stage';
 
 // ---------------------------------------------------------------- helpers
 
@@ -51,7 +53,7 @@ class PhotoCloseup implements Widget {
   private frame: HTMLCanvasElement;
   constructor() {
     // a wooden frame with a brass edge around the 96×72 print, and the little tag
-    const p = new PixelCanvas(110, 96);
+    const p = new PixelCanvas(110, 86);
     p.rect(0, 0, 110, 86, '#8A5A3A');
     p.strokeRect(0, 0, 110, 86, '#5A3A22');
     p.hline(1, 108, 1, '#C08A38');
@@ -60,12 +62,10 @@ class PhotoCloseup implements Widget {
     p.hline(6, 104, 5, '#F6D98A');
     for (let x = 2; x < 108; x += 3) if (hash2(x, 0, 7) < 0.5) p.set(x, 3, '#6A4A2A');
     p.rect(7, 7, 96, 72, 'transparent');
-    // the tag under the frame
-    p.rect(27, 86, 56, 9, '#F4F1E8');
-    p.strokeRect(27, 86, 56, 9, '#C8C2B4');
-    for (let x = 31; x < 79; x += 2) p.set(x, 90, hash2(x, 1, 3) < 0.7 ? '#9AA0A8' : '#F4F1E8');
     this.frame = p.toCanvas();
+    this.plate = studioPlate();
   }
+  private plate: HTMLCanvasElement;
   update(dt: number): void {
     this.t += dt;
   }
@@ -79,6 +79,8 @@ class PhotoCloseup implements Widget {
       g.rect(x + 3, y + 3, 110, 86, '#0B0B14', 0.5);
       g.img(photoClose(), x + 7, y + 7);
       g.img(this.frame, x, y);
+      // the studio's brass plate under the frame
+      g.img(this.plate, x + Math.round((110 - this.plate.width) / 2), y + 88);
       // a glint running across the glass
       const gl = ((this.t / 1800) % 1) * 140 - 20;
       g.clip(x + 7, y + 7, 96, 72, () => {
@@ -86,6 +88,34 @@ class PhotoCloseup implements Widget {
       });
     });
   }
+}
+
+/** A small engraved brass plate: 「夕鳴写真館」 (the studio's own name, as on its enamel sign). */
+function studioPlate(): HTMLCanvasElement {
+  const text = '夕鳴写真館';
+  const tw = [...text].length * 16;
+  const w = tw + 14;
+  const h = 20;
+  const p = new PixelCanvas(w, h);
+  p.rect(0, 0, w, h, '#A8742A');
+  p.rect(1, 1, w - 2, h - 2, '#D9A441');
+  p.hline(1, w - 2, 1, '#F6D98A');
+  p.vline(1, 1, h - 2, '#F0C860');
+  p.hline(1, w - 2, h - 2, '#A8742A');
+  // brushed brass: a few faint streaks
+  for (let x = 3; x < w - 3; x++) if (hash2(x, 2, 17) < 0.18) p.set(x, 3 + Math.floor(hash2(x, 3, 17) * (h - 6)), '#E8B850');
+  // two screws
+  for (const sx of [3, w - 4]) {
+    p.set(sx, 9, '#6A4A2A');
+    p.set(sx, 10, '#8A5A3A');
+  }
+  for (const [x, y] of [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]]) p.set(x, y, 'transparent');
+  const c = p.toCanvas();
+  const ctx = c.getContext('2d')!;
+  // engraved: a light edge under dark letters
+  drawText(ctx, text, 7 + 1, 2 + 1, { color: '#F6D98A' });
+  drawText(ctx, text, 7, 2, { color: '#4A2E14' });
+  return c;
 }
 
 // ---------------------------------------------------------------- cut 5: the weather forecast
@@ -230,7 +260,79 @@ function spawnDinner(): void {
   };
 }
 
+// ---------------------------------------------------------------- cut 2: the fryer, the bag
+
+/** Steam off the fryer's oil, glints in it, and the bag of croquettes on the counter. */
+const fry = { on: false, t: 0, bag: null as null | { x: number; y: number; t: number } };
+
+/** The fryer's oil well (world px), read from the prop so the shot follows the room. */
+function fryerOil(f: FieldScene): [number, number] {
+  const pr = f.props.find((p) => (p.obj as { prop?: string }).prop === 'in_mr_fryer');
+  // in_mr_fryer: 32×24, the oil well at x 3–28, y 6–10
+  if (!pr) return [3 * 16, 2 * 16 + 8];
+  return [pr.x + pr.art.ox + 16, pr.y + pr.art.oy + 8];
+}
+
+registerWorldFx({
+  map: 'map_maruyama',
+  update(f, dt) {
+    if (fry.on && !game.scripts.busy) {
+      fry.on = false;
+      fry.bag = null;
+    }
+    if (!fry.on) return;
+    fry.t += dt;
+    if (fry.bag) fry.bag.t += dt;
+    // the oil catches the light now and then
+    if (Math.floor(fry.t / 520) !== Math.floor((fry.t - dt) / 520)) {
+      const [ox, oy] = fryerOil(f);
+      sparkle(ox - 10 + Math.floor(hash2(Math.floor(fry.t / 520), 1, 5) * 20), oy + 1, 360);
+    }
+  },
+  draw(f, g, cx, cy, layer) {
+    if (!fry.on || layer !== 'fg') return;
+    const t = fry.t;
+    // steam: soft columns rising off the oil and curling, a few at a time
+    const [ox, oy] = fryerOil(f);
+    for (let i = 0; i < 9; i++) {
+      const k = (t / 1500 + i / 9) % 1;
+      const bx = ox - 11 + ((i * 7) % 23);
+      const x = Math.round(bx + Math.sin(t / 420 + i * 1.7) * (1 + k * 3) - cx);
+      const y = Math.round(oy - 2 - k * 26 - cy);
+      const a = Math.sin(Math.PI * k) * 0.55;
+      g.alpha(a, () => {
+        g.rect(x, y, 2, 2, '#FFF6D8');
+        if (k > 0.35) g.rect(x + (i & 1 ? 1 : -1), y - 1, 1, 1, '#FFFFFF');
+      });
+    }
+    // the bag on the counter, and the heat off it
+    const b = fry.bag;
+    if (b) {
+      const img = paperBag();
+      const drop = b.t < 160 ? Math.round((1 - b.t / 160) * -6) : 0;
+      const bx = Math.round(b.x - img.width / 2 - cx);
+      const by = Math.round(b.y - img.height - cy) + drop;
+      g.alpha(0.45, () => g.rect(bx + 1, by + img.height - 1, img.width - 1, 2, '#1B1733'));
+      g.img(img, bx, by);
+      for (let i = 0; i < 3; i++) {
+        const k = (t / 1300 + i / 3) % 1;
+        const sx = Math.round(bx + 4 + i * 3 + Math.sin(t / 300 + i) * 1.5);
+        g.alpha(0.6 * Math.sin(Math.PI * k), () => g.rect(sx, Math.round(by - 1 - k * 12), 1, 2, '#FFF6D8'));
+      }
+    }
+  },
+});
+
 // ---------------------------------------------------------------- the ending
+
+/**
+ * Wait for a note of the chime (its callback), or for when it is due: with
+ * no sound (no audio output, a suspended context) the notes never call back,
+ * and the ending must go on regardless.
+ */
+function* chimeNote(f: FieldScene, heard: () => boolean, t0: number, dueMs: number): Co {
+  yield () => heard() || f.t - t0 > dueMs + 400;
+}
 
 function* cut1Chime(): Co {
   const f = F();
@@ -251,6 +353,9 @@ function* cut1Chime(): Co {
   f.camX = Math.max(0, Math.min(f.map.w * 16 - W, 50 * 16 + 8 - W / 2));
   f.camY = Math.max(0, Math.min(f.map.h * 16 - H, 8 * 16 - H / 2));
   f.camOverride = { x: f.camX + W / 2, y: f.camY + H / 2 };
+  // close on the two of them (2×): the doors behind, the lot's first lamp
+  // at the edge; the whole lot opens up when they look at the sky
+  const z = yield* zoomIn(50 * 16 + 8, 7 * 16 - 2, 0);
   sfx('se_auto_door');
   game.scripts.run(game.fadeIn(800));
   yield* walkTo('player', 50, 7, { speed: 2.4, face: 'down' });
@@ -263,6 +368,7 @@ function* cut1Chime(): Co {
   // the chime: G4 A4 C5 E5 — and, for the first time, D5 C5 A4 C5
   let fifth = false;
   let last = false;
+  const t0 = f.t;
   void playChimeMotif({
     notes: 8,
     gap: 0.45,
@@ -272,12 +378,12 @@ function* cut1Chime(): Co {
       if (i === 7) last = true;
     },
   });
-  yield () => fifth;
+  yield* chimeNote(f, () => fifth, t0, 4 * 450);
   // from the fifth note the sky turns to night in 3 s; the insects come in
   f.setStage(3, 3000);
   playAmbient('amb_night_insects', { fade: 3, vol: 0.8 });
   playAmbient('amb_kawabe', { fade: 3 });
-  yield () => last;
+  yield* chimeNote(f, () => last, t0, 7 * 450);
   yield 1200;
   setFlag('flag_clock', 4);
   setClockText(null, true);
@@ -286,7 +392,7 @@ function* cut1Chime(): Co {
   sfx('se_higurashi_call');
   yield 800;
   playBgm('bgm_ending', { fade: 1.0 });
-  // they look up at the sky
+  // they look up at the sky; the camera draws back to the lit lot
   const p = f.player;
   p.tempPose = 'look_up';
   const k = f.follower;
@@ -294,7 +400,9 @@ function* cut1Chime(): Co {
     k.data.scripted = true;
     k.tempPose = 'look_up';
   }
-  yield 1700;
+  yield 300;
+  yield* zoomOut(z, 1600);
+  yield 400;
   p.tempPose = null;
   if (k) {
     k.tempPose = null;
@@ -316,24 +424,40 @@ function* cut2Meat(): Co {
     m.data.scripted = true;
     m.pose = 'fry';
   }
+  // 2× on the fryer and 丸山: the steam, the oil catching the light
+  fry.on = true;
+  fry.t = 0;
+  fry.bag = null;
+  const [ox, oy] = fryerOil(f);
+  const z = yield* zoomIn(ox + 22, oy + 14, 0);
+  forceBoxPos('bottom');
   yield* game.fadeIn(300);
-  yield 600;
+  sfx('se_fry', { vol: 0.6 });
+  yield 900;
   if (m) {
     m.pose = null;
     face('npc_maruyama', 'player');
   }
+  yield 150;
   yield* msg(T.END_MEAT_A);
+  // the bag lands on the counter, hot
+  fry.bag = { x: (m ? m.x : 4 * 16 + 8) + 14, y: (m ? m.y : 4 * 16) + 10, t: 0 };
+  sfx('se_paper_bag');
+  yield 350;
   if (state.money >= 320) {
     state.money -= 320;
     sfx('se_coin');
-    yield* msg(T.END_MEAT_PAY);
+    yield 200;
+    yield* getKeyItem('item_korokke', T.END_MEAT_PAY_GET);
   } else {
     yield* msg(T.END_MEAT_TSUKE);
     setFlag('flag_tsuke', 1);
+    yield* getKeyItem('item_korokke', T.END_MEAT_GET);
   }
-  sfx('se_paper_bag');
-  yield 200;
-  yield* getKeyItem('item_korokke', T.END_MEAT_GET);
+  forceBoxPos(null);
+  // back to the whole shop: カネナリくん at the counter with his board
+  fry.bag = null;
+  yield* zoomOut(z, 450);
   const k = f.follower;
   if (k) {
     k.data.scripted = true;
@@ -345,7 +469,7 @@ function* cut2Meat(): Co {
     k.tempPose = null;
     delete k.data.scripted;
   }
-  yield 300;
+  yield 250;
 }
 
 function* cut3Photo(): Co {
@@ -537,10 +661,17 @@ function* cut6Crossing(): Co {
   yield 900;
   k.tempPose = null;
   k.dir = 'left';
-  // 1.5 s: only the insects
-  yield 1500;
-  yield* msg(T.END_VOICE);
-  yield 1000;
+  // 1.5 s: only the insects — and the camera closes in on the two of them
+  // (2× → 3×), the frame narrowing
+  game.scripts.run(cinema(true, 1200));
+  if (crossingZoom) {
+    const cz = crossingZoom;
+    yield* all(zoomScale(cz, 3, 1700), zoomPan(cz, Math.round((p.x + k.x) / 2), p.y - 14, 1700));
+  } else yield 1700;
+  yield 500;
+  // the first voice: no window, no name tag — only the words, slowly
+  yield* voiceLine(T.END_VOICE_TEXT, { y: 170, cps: 5, hold: 1700 });
+  yield 500;
   // the bell rings once, by itself
   sfx('se_bell_kanenari_short');
   k.playAnim('glow');
@@ -556,6 +687,7 @@ function endCrossingZoom(): void {
   if (crossingZoom) crossingZoom.done = true;
   crossingZoom = null;
   eastEdge.on = false;
+  cinemaOff();
 }
 
 export function* evtEnding(): Co {
@@ -582,19 +714,34 @@ export function* evtEnding(): Co {
   // the night sky (cut_night_sky): the star over 星見台 stops twinkling
   yield* playNightSkyCut({ hold: 1500 });
   endCrossingZoom();
-  // the notebook: 「夕鳴町 みました帳 ①」, the case, 「つづく」 → the title
+  // the notebook: 「夕鳴町 みました帳 ①」, the case, 「つづく」. The ending's
+  // song and night bed are let go here, before the title — the title is the
+  // last to start an ambience (its evening), nothing of ours stops it later
   releaseCamera();
+  let closed = false;
   yield* all(
-    playEndingNotebook(),
     (function* (): Co {
-      yield 6600;
+      yield* playEndingNotebook({ toTitle: false });
+      closed = true;
+    })(),
+    (function* (): Co {
+      const t0 = performance.now();
+      yield () => closed || performance.now() - t0 > 6600;
       stopBgm(1.5);
-      yield 1800;
+      yield () => closed || performance.now() - t0 > 8400;
       stopAllAmbient(1.0);
     })(),
   );
+  stopBgm(0.4);
+  stopAllAmbient(0.4);
   holdBgm(false);
   setFlag('flag_hud_hidden', 0);
+  // → the title (as the notebook would have done), after our sounds are gone
+  yield* ditherOut(1, '#0B0B14');
+  yield 450;
+  const { TitleScene } = (yield import('../ui/title')) as typeof import('../ui/title');
+  game.replaceAll(new TitleScene(true));
+  yield* ditherIn(900);
 }
 
 /** QA: play one cut of the ending from a prepared state (1–6). */

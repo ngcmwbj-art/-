@@ -13,7 +13,7 @@ import { duckMusic, playBgm, sfx, stopBgm } from '../audio';
 import { EXCELLENT, fillAll, gainExp, getItem, REPORT, SYS, type LevelUpResult, type StatKey } from '../data/battle';
 import type { BattleScene } from './scene';
 import { FRAME } from './scene';
-import { gradeMark, hanamaruFrame, miniText, ovalStamp } from './art/stamps';
+import { gradeMark, hanamaruFrame, miniText, victorySeal } from './art/stamps';
 import { itemIcon } from './art/icons';
 import { C, tapeCanvas } from './ui/note';
 import { MessageBand } from './ui/message';
@@ -25,7 +25,8 @@ function* countUp(s: BattleScene, template: string[], n: number): Co {
   const st = { v: 0 };
   s.msgInteractive = true;
   const page = () => fillAll(template, { n: Math.round(st.v) })[0];
-  s.msg.replace(page(), { manual: true, cps: 400 });
+  // the line stands complete from the first frame; only the number rolls
+  s.msg.replace(page(), { manual: true, instant: true });
   let lastTick = 0;
   for (let t = 0; t <= 300; t += FRAME) {
     st.v = n * Math.min(1, t / 300);
@@ -33,11 +34,11 @@ function* countUp(s: BattleScene, template: string[], n: number): Co {
       lastTick = Math.floor(st.v / 2);
       sfx('se_count');
     }
-    s.msg.replace(page(), { manual: true, cps: 400 });
+    s.msg.replace(page(), { manual: true, instant: true });
     yield null;
   }
   st.v = n;
-  s.msg.replace(page(), { manual: true, cps: 400 });
+  s.msg.replace(page(), { manual: true, instant: true });
   yield () => !s.msg.busy;
   s.msgInteractive = false;
 }
@@ -50,6 +51,64 @@ function* say(s: BattleScene, pages: string[]): Co {
 
 /** Centre y of the big victory seal: above the restored objects on the floor. */
 const VSEAL_Y = 74;
+
+const CONFETTI_COLS: [string, string][] = [
+  ['#E23B2E', '#B8241E'],
+  ['#FFD23F', '#D9A441'],
+  ['#7FD1E8', '#4AA8E0'],
+  ['#9BCB6B', '#5FA85A'],
+  ['#F4F1E8', '#C9B68E'],
+  ['#E0567A', '#A83A5A'],
+];
+let confettiC: HTMLCanvasElement[] | null = null;
+/** Confetti bits (4×3, 3×4 and a 4×4 turned) in six colours with a shaded edge. */
+function confettiBits(): HTMLCanvasElement[] {
+  if (confettiC) return confettiC;
+  confettiC = [];
+  for (const [a, b] of CONFETTI_COLS)
+    for (const [w, h] of [[4, 3], [3, 4], [4, 4]] as [number, number][]) {
+      const [c, ctx] = makeCanvas(w, h);
+      ctx.fillStyle = a;
+      ctx.fillRect(0, 0, w, h);
+      // the underside of the paper catches less light
+      ctx.fillStyle = b;
+      ctx.fillRect(0, h - 1, w, 1);
+      ctx.fillRect(w - 1, 0, 1, h);
+      if (w === 4 && h === 4) {
+        // a turned square: corners knocked out
+        ctx.clearRect(0, 0, 1, 1);
+        ctx.clearRect(3, 3, 1, 1);
+        ctx.clearRect(3, 0, 1, 1);
+        ctx.clearRect(0, 3, 1, 1);
+      }
+      confettiC.push(c);
+    }
+  return confettiC;
+}
+
+/**
+ * Confetti over the whole screen: half bursts out of the seal in every
+ * direction, half flutters down from under the band across the full width
+ * (the band's text stays clear).
+ */
+function confetti(s: BattleScene, n: number, cx: number, cy: number): void {
+  const bits = confettiBits();
+  for (let i = 0; i < n; i++) {
+    const out = i % 2 === 0;
+    s.burst(out ? cx + rng.range(-40, 40) : rng.range(-8, 392), out ? cy + rng.range(-8, 8) : s.msg.bottom + rng.range(-2, 12), {
+      count: 1,
+      speed: out ? [90, 210] : [20, 60],
+      angle: out ? [-Math.PI, Math.PI] : [Math.PI * 0.3, Math.PI * 0.7],
+      life: [1100, 1800],
+      colors: ['#FFD23F'],
+      gravity: out ? 160 : 50,
+      drag: out ? 1.6 : 0.8,
+      shape: 'img',
+      img: bits[i % bits.length],
+      delay: out ? [0, 40] : [0, 400],
+    }, true);
+  }
+}
 
 /** Victory sequence and all rewards. */
 export function* victory(s: BattleScene): Co {
@@ -79,30 +138,45 @@ export function* victory(s: BattleScene): Co {
     }
   } else if (!quiet) {
     yield 200;
-    // (16.12's 64×32, widened so the 16px みました clears the frame)
-    const seal = ovalStamp('みました', 88, 36, 0, 11, true);
+    // 16.12, made the moment it should be (QA round 1): a big seal in 32px
+    // lettering slams down (1.7 → 0.92 → 1.06 → 1.0), vermilion spatters off
+    // its rim, confetti rains over the whole screen, both panels hop twice
+    const seal = victorySeal();
     s.addFx({
       layer: 'top',
-      dur: 1600,
+      dur: 1700,
       ui: true,
       draw: (g, t) => {
-        const sc = t < 67 ? 1.6 - 0.6 * (t / 67) : 1;
+        let sc = 1;
+        if (t < 70) sc = 1.7 - 0.78 * ease.quadIn(t / 70);
+        else if (t < 130) sc = 0.92 + 0.14 * ease.quadOut((t - 70) / 60);
+        else if (t < 190) sc = 1.06 - 0.06 * ((t - 130) / 60);
         const w = seal.width * sc;
-        const h = seal.height * sc;
-        g.alpha(t > 1300 ? (1600 - t) / 300 : 1, () => g.ctx.drawImage(seal, Math.round(192 - w / 2), Math.round(VSEAL_Y - h / 2), Math.round(w), Math.round(h)));
+        const h = seal.height * (t >= 70 && t < 130 ? 2 - sc : sc);
+        g.alpha(t > 1400 ? (1700 - t) / 300 : 1, () => g.ctx.drawImage(seal, Math.round(192 - w / 2), Math.round(VSEAL_Y - h / 2), Math.round(w), Math.round(h)));
       },
     });
+    yield 70;
     s.hitstop(6);
-    s.shuSplash(192, VSEAL_Y, 12);
+    s.flash('#FFF6D8', 0.3, 2);
+    s.shake(3, 3, 10);
+    // spatter off the rim, left and right, and a spray straight out
+    s.shuSplash(192 - seal.width / 2 + 10, VSEAL_Y, 12);
+    s.shuSplash(192 + seal.width / 2 - 10, VSEAL_Y, 12);
+    s.shuSplash(192, VSEAL_Y + seal.height / 2 - 6, 10);
+    confetti(s, 80, 192, VSEAL_Y);
     sfx('se_stamp_heavy');
     playBgm('bgm_jingle_victory');
     for (const u of s.party) {
       u.moodHold = 'happy';
       u.bounceT = 250;
+      u.bounceAmp = 4;
     }
-    yield 260;
-    for (const u of s.party) u.bounceT = 250;
-    yield 300;
+    s.addFx({ layer: 'back', dur: 260, ui: true, draw: () => {}, update() {
+      if (this.t >= 250) for (const u of s.party) u.bounceT = 250;
+    } });
+    // the results follow the landing within 0.4s (no empty band in between)
+    yield 220;
   }
   // 1. experience (both members, even if down); the level-up itself is
   // judged and shown last (18.3), so the panels keep the old stats until then
@@ -507,10 +581,12 @@ class ReportCard {
         g.rect(px, yy + 17, PW, 1, '#EFE2C2');
         const st = this.stamps.find((s) => s.page === pi && s.row === row);
         if (st) {
+          // the grade column sits inside the page (clear of the fold at
+          // x192 even while the mark pops 1.4 → 1.0)
           const seal = gradeMark(st.excellent, 3 + row);
-          const sc = st.t < 60 ? 1.6 - 0.6 * (st.t / 60) : 1;
+          const sc = st.t < 60 ? 1.4 - 0.4 * (st.t / 60) : 1;
           const w = seal.width * sc;
-          g.ctx.drawImage(seal, Math.round(px + PW - 7 - w / 2), Math.round(yy + 8 - w / 2), Math.round(w), Math.round(w));
+          g.ctx.drawImage(seal, Math.round(px + PW - 10 - w / 2), Math.round(yy + 8 - w / 2), Math.round(w), Math.round(w));
         }
       });
     });

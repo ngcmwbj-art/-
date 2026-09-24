@@ -15,7 +15,8 @@ import { sfx } from '../audio';
 import { hud as worldHud, setFieldHud, type FieldHud } from '../world/hud';
 import type { FieldScene } from '../world/field';
 import { fushigiActive } from '../world/fushigi';
-import { drawDigits } from './digits';
+import { drawDigits, drawNumerals, numeralsWidth } from './digits';
+import { dialogTop } from './dialog';
 import { hudHanko, itemIcon24 } from './icons';
 import { syncSettingFlags } from './settings';
 import { blend, drawTape, rectA, textW, UI } from './window';
@@ -52,6 +53,36 @@ function plateImg(): HTMLCanvasElement {
   p.set(8, 13, '#C8C2B4');
   plateC = p.toCanvas();
   return plateC;
+}
+
+/** The HUD's hanko plate: 26×28, 4px from the bottom-left corner. */
+const HANKO_PLATE = { x: 4, y: 216 - 4 - 28, w: 26, h: 28 };
+
+let hankoPlateC: HTMLCanvasElement | null = null;
+/** Enamel plate for the hanko icon, the same make as the clock plate. */
+function hankoPlateImg(): HTMLCanvasElement {
+  if (hankoPlateC) return hankoPlateC;
+  const { w, h } = HANKO_PLATE;
+  const p = new PixelCanvas(w, h);
+  const ink = UI.border;
+  p.rect(1, 0, w - 2, h, ink);
+  p.rect(0, 1, w, h - 2, ink);
+  p.rect(1, 1, w - 2, h - 2, '#F4F1E8');
+  // enamel: bright top edge, thickness at the bottom and right
+  p.hline(2, w - 4, 1, '#FFFFFF');
+  p.hline(1, w - 2, h - 2, '#C8C2B4');
+  p.vline(w - 2, 2, h - 2, '#C8C2B4');
+  p.hline(2, w - 3, h - 3, '#E4DED0');
+  // a worn, slightly darker ring where the hanko stands
+  for (let x = 6; x <= w - 7; x++) p.set(x, h - 5, (x & 1) === 0 ? '#E0D8C6' : '#E8E1D0');
+  // a screw at each top corner
+  for (const sx of [3, w - 4]) {
+    p.set(sx, 3, '#9AA0A8');
+    p.set(sx, 4, '#6B7186');
+    p.set(sx - 1, 3, '#C8C2B4');
+  }
+  hankoPlateC = p.toCanvas();
+  return hankoPlateC;
 }
 
 let glowC: HTMLCanvasElement | null = null;
@@ -181,6 +212,9 @@ interface ItemCard {
 
 // ---- the HUD ---------------------------------------------------------------------------
 
+/** Item notes on screen at once (the rest queue up). */
+const CARDS_MAX = 3;
+
 let menuOpener: (() => void) | null = null;
 let menuEnabled = true;
 
@@ -222,6 +256,7 @@ class UiHud implements FieldHud {
   private pendingPlace: string | null = null;
   private placeDelay = 0;
   private cards: ItemCard[] = [];
+  private cardQueue: ItemCard[] = [];
   private inv = new Map<string, number>();
   private lastFrame = -10;
   private field: FieldScene | null = null;
@@ -268,6 +303,7 @@ class UiHud implements FieldHud {
       // the field was covered (battle, menu, shop…): transient notes don't come back
       this.banner = null;
       this.cards = [];
+      this.cardQueue = [];
     }
     syncSettingFlags();
     this.flipT += dt;
@@ -343,8 +379,12 @@ class UiHud implements FieldHud {
       this.pendingPlace = place;
       this.placeDelay = 350;
     }
+    // the name waits while a cutscene or a conversation has the screen (a
+    // close-up, a zoom, a warp inside a script): it appears once the player
+    // can move again
+    const free = f.controllable && !f.warping && game.fadeAlpha < 0.05;
     if (this.pendingPlace) {
-      if (game.fadeAlpha < 0.05 && !f.warping) this.placeDelay -= dt;
+      if (free) this.placeDelay -= dt;
       if (this.placeDelay <= 0) {
         const p = this.pendingPlace;
         this.pendingPlace = null;
@@ -356,6 +396,8 @@ class UiHud implements FieldHud {
       }
     }
     if (this.banner) {
+      // a cutscene starting under it: the name bows out early
+      if (game.scripts.busy && !f.controllable && this.banner.t < this.banner.dur - 350) this.banner.t = this.banner.dur - 350;
       this.banner.t += dt;
       if (this.banner.t > this.banner.dur) this.banner = null;
     }
@@ -363,6 +405,12 @@ class UiHud implements FieldHud {
     this.watchInventory(frameGap <= 2 && game.top === f);
     for (const cd of this.cards) cd.t += dt;
     this.cards = this.cards.filter((cd) => cd.t < 2800);
+    // at most CARDS_MAX notes at once; the rest wait their turn
+    while (this.cards.length < CARDS_MAX && this.cardQueue.length) {
+      const cd = this.cardQueue.shift()!;
+      cd.t = -this.cards.filter((c) => c.t < 100).length * 180;
+      this.cards.push(cd);
+    }
     // ---- the menu key
     if (menuEnabled && menuOpener && f.controllable && game.top === f && (game.input.pressed('menu') || game.input.pressed('cancel'))) {
       this.show(4000);
@@ -384,13 +432,17 @@ class UiHud implements FieldHud {
 
   pushCard(id: string, n = 1): void {
     if (!getItem(id)) return;
-    const same = this.cards.find((c) => c.id === id && c.t < 1500);
+    const same = this.cards.find((c) => c.id === id && c.t < 1500) ?? this.cardQueue.find((c) => c.id === id);
     if (same) {
       same.n += n;
       same.t = Math.min(same.t, 200);
       return;
     }
-    this.cards.push({ id, t: -this.cards.length * 180, n });
+    const cd = { id, t: 0, n };
+    if (this.cards.length < CARDS_MAX) {
+      cd.t = -this.cards.filter((c) => c.t < 100).length * 180;
+      this.cards.push(cd);
+    } else this.cardQueue.push(cd);
   }
 
   /** Fresh start (new game / continue): forget everything seen so far. */
@@ -409,6 +461,7 @@ class UiHud implements FieldHud {
     this.placeSeen.clear();
     this.pendingPlace = null;
     this.cards = [];
+    this.cardQueue = [];
     this.inv.clear();
     this.lastFrame = -10;
   }
@@ -417,6 +470,7 @@ class UiHud implements FieldHud {
   clearNotes(): void {
     this.banner = null;
     this.cards = [];
+    this.cardQueue = [];
   }
 
   showBanner(text: string, dur = 2600): void {
@@ -436,29 +490,41 @@ class UiHud implements FieldHud {
       this.drawBanner(g, this.banner);
       cardY = 30;
     }
-    for (let i = 0; i < this.cards.length; i++) this.drawCard(g, this.cards[i], cardY + i * 34);
+    // the notes stay clear of a conversation: under a window at the top, and
+    // above the name tag of one at the bottom (3 notes end at y128 < 138)
+    const top = dialogTop();
+    if (top !== null && top < 100) cardY = top + 64 + 8;
+    let slot = 0;
+    for (const cd of this.cards) {
+      if (cd.t < 0) continue;
+      this.drawCard(g, cd, cardY + slot * 34);
+      slot++;
+    }
   }
 
   private drawHanko(g: Gfx): void {
     const near = !!this.near;
     const shake = near ? (Math.floor(this.t / (1000 / 12)) % 2 ? 1 : -1) : 0;
     const bright = near && Math.floor(this.t / 166) % 2 === 1;
-    const a = near ? 1 : 0.6;
-    const x = 8 + shake;
-    const y = 190;
-    // soft contact shadow so it reads on any ground
-    g.alpha(a * 0.35, () => {
-      g.rect(x + 3, y + 21, 15, 1, UI.border);
-      g.rect(x + 5, y + 22, 11, 1, UI.border);
-    });
-    g.img(hudHanko(bright), x, y, { alpha: a });
+    // a small enamel plate like the clock's, 4px in from the corner, so the
+    // icon reads as part of the screen and not as a post on the ground
+    const px = HANKO_PLATE.x;
+    const py = HANKO_PLATE.y;
+    g.alpha(0.4, () => g.rect(px + 2, py + 2, HANKO_PLATE.w, HANKO_PLATE.h, UI.night));
+    g.img(hankoPlateImg(), px, py, { alpha: 0.94 });
+    const x = px + 3 + shake;
+    const y = py + 2;
+    // resting: the hanko is a little faded (α60%, 10.6); near a ふしぎ it wakes up
+    g.img(hudHanko(bright), x, y, { alpha: near ? 1 : 0.6 });
     if (near) {
-      // a drop of ink falls from the face and splats
+      // a drop of ink falls from the face and splats on the plate
       const p = (this.t % 900) / 900;
-      if (p < 0.6) g.px(x + 10, y + 22 + Math.floor(ease.quadIn(p / 0.6) * 5), UI.accent);
+      const fy = y + 21;
+      if (p < 0.5) g.px(x + 10, fy + Math.floor(ease.quadIn(p / 0.5) * 2), UI.accent);
       else if (p < 0.85) {
-        g.px(x + 9, y + 26, UI.accent);
-        g.px(x + 11, y + 26, UI.accent);
+        g.px(x + 9, fy + 2, UI.accent);
+        g.px(x + 11, fy + 2, UI.accent);
+        g.px(x + 10, fy + 2, UI.accentDark);
       }
     }
   }
@@ -488,8 +554,9 @@ class UiHud implements FieldHud {
     const it = getItem(c.id);
     if (!it) return;
     // 付箋のカード: sticks on in 0.1 s (1.2 → 1.0), peels off at the end
-    const name = it.name + (c.n > 1 ? ` ×${c.n}` : '');
-    const w = textW(name) + 42;
+    const count = c.n > 1 ? `×${c.n}` : '';
+    const name = it.name;
+    const w = textW(name) + (count ? numeralsWidth(count) + 6 : 0) + 42;
     const h = 30;
     const stick = Math.min(1, c.t / 100);
     const peel = c.t > 2500 ? (c.t - 2500) / 300 : 0;
@@ -511,7 +578,8 @@ class UiHud implements FieldHud {
       g.px(cx + cw - 1, cy + ch - 1, blend(UI.tape, UI.shadow, 0.3));
       if (stick >= 1) {
         g.img(itemIcon24(c.id), cx + 4, cy + 3);
-        g.text(name, cx + 32, cy + 7, { color: UI.text });
+        const tw = g.text(name, cx + 32, cy + 7, { color: UI.text });
+        if (count) drawNumerals(g, count, cx + 32 + tw + 5, cy + 7, { color: UI.accentDark });
       }
     });
   }

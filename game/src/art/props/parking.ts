@@ -813,3 +813,92 @@ registerProp('obj_bridge', () => {
 });
 
 export { chainArt };
+
+// ---------------------------------------------------------------- 田んぼの点景 (QA round 1)
+
+/**
+ * A little egret (コサギ) wading in the paddy, 14×20: S-necked, white with a
+ * cool shade, black bill and legs, yellow feet under the water line, a ring
+ * of ripples round the legs. Frames: 0 standing, 1 neck drawn in, 2 striking
+ * down at the water (a fish!), 3 one step. Stage 1 it stands frozen; stage 2
+ * it turns its head north-east like everything else.
+ */
+const HERON = mkFrames(4, 16, 22, (p, k) => {
+  const W = P.white;
+  const S = P.concreteLt;
+  const D = P.concrete;
+  // legs into the water and the ripple ring
+  const lx = k === 3 ? 7 : 8;
+  p.vline(lx, 15, 19, P.ink);
+  p.vline(10, 15, 19, P.ink);
+  p.hline(4, 13, 20, P.aqua);
+  p.set(3, 19, P.aqua);
+  p.set(14, 19, P.aqua);
+  // body: an oval, lit on the top-left
+  p.ellipse(9, 12, 4.4, 3.2, W);
+  p.hline(7, 11, 10, P.glint);
+  for (let i = 8; i <= 13; i++) p.set(i, 14, S);
+  p.set(13, 12, D);
+  p.set(13, 13, D);
+  // tail plumes
+  p.set(14, 12, S);
+  p.set(15, 13, S);
+  // neck and head by frame
+  if (k === 2) {
+    // striking: neck straight down-left, bill into the water
+    p.line(6, 11, 3, 15, W);
+    p.line(7, 11, 4, 15, S);
+    p.rect(2, 15, 3, 2, W);
+    p.set(1, 17, P.ink);
+    p.set(1, 18, P.ink);
+    p.set(0, 19, P.aqua);
+  } else {
+    const drawn = k === 1;
+    const top = drawn ? 5 : 2;
+    // S-neck
+    p.vline(6, top + 3, 10, W);
+    p.vline(7, top + 4, 10, S);
+    p.set(5, top + 5, W);
+    p.set(5, top + 6, W);
+    // head, eye, bill pointing left
+    p.rect(5, top, 4, 3, W);
+    p.set(6, top, P.glint);
+    p.set(6, top + 1, P.ink);
+    p.hline(1, 4, top + 1, P.ink);
+    p.set(1, top + 2, P.charcoal);
+    // breeding plume on the nape
+    p.set(9, top + 1, S);
+    p.set(10, top + 2, S);
+  }
+}, (p) => finish(p, { soft: true }));
+const HERON_NE = mkFrames(1, 16, 22, (p) => {
+  const W = P.white;
+  const S = P.concreteLt;
+  p.vline(8, 15, 19, P.ink);
+  p.vline(10, 15, 19, P.ink);
+  p.hline(4, 13, 20, P.aqua);
+  p.ellipse(9, 12, 4.4, 3.2, W);
+  p.hline(7, 11, 10, P.glint);
+  for (let i = 8; i <= 13; i++) p.set(i, 14, S);
+  // neck up and head turned to the north-east (bill up-right)
+  p.vline(9, 4, 10, W);
+  p.vline(10, 5, 10, S);
+  p.rect(9, 2, 4, 3, W);
+  p.set(11, 3, P.ink);
+  p.line(13, 2, 15, 0, P.ink);
+}, (p) => finish(p, { soft: true }));
+
+registerProp('prop_heron', (opts) => {
+  const seed = Number(opts.seed ?? 0);
+  return standAnim(
+    [...HERON, HERON_NE[0]],
+    (env) => {
+      if (env.stage === 2) return 4;
+      if (env.stage === 1) return 1;
+      // a slow cycle: stand, draw the neck in, strike, stand, take a step
+      const t = (env.mt + seed * 1700) % 9000;
+      return t < 3200 ? 0 : t < 4600 ? 1 : t < 5000 ? 2 : t < 7600 ? 0 : 3;
+    },
+    { shadow: 0, contact: 0 },
+  );
+});

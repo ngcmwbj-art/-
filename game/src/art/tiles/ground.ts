@@ -527,35 +527,45 @@ const texTatami: Tex = (x, y) => {
 };
 
 const texKitchen: Tex = (x, y) => {
-  const a = cluster(x, y, 3, 421, 0.2);
-  if (a === 1) return C.white;
-  if (a) return C.kitchenDk;
-  const n = valueNoise(x / 6, y / 6, 422);
-  return n > 0.7 ? C.concreteLt : C.kitchen;
+  // cushion floor (クッションフロア, QA round 1): a vinyl sheet printed with
+  // 8px tiles — cream and a paler cream in a checker, a thin printed grout,
+  // a small four-petal motif on the darker tiles; the sheet's seam every 4
+  // tiles; worn paler where feet go most (a soft patch, no noise)
+  const tx = Math.floor(x / 8);
+  const ty = Math.floor(y / 8);
+  const lx = x - tx * 8;
+  const ly = y - ty * 8;
+  if (lx === 7 || ly === 7) return (tx + ty) % 4 === 0 && lx === 7 && ly !== 7 ? C.kitchen : C.kitchenDk;
+  if (x % 64 === 0) return C.concreteMd; // sheet seam
+  const dark = (tx + ty) & 1;
+  const worn = valueNoise(x / 26, y / 18, 422) > 0.68;
+  if (dark) {
+    // petals round the tile centre (3,3)
+    const d = Math.abs(lx - 3) + Math.abs(ly - 3);
+    if (d === 0) return C.terraLt;
+    if (d === 1 && (lx === 3 || ly === 3)) return worn ? C.kitchen : C.cream;
+    return worn ? C.creamLt : C.kitchen;
+  }
+  return worn ? C.white : C.creamLt;
 };
 
 const texGenkan: Tex = (x, y) => {
-  // washed-aggregate concrete (洗い出し, review round 2): a pale concrete
-  // ground with sparse 2–3px pebbles (lit top-left, body, shaded bottom-right)
-  // placed by hash on a jittered 5px grid — no 1px noise
-  const cx = Math.floor(x / 5);
-  const cy = Math.floor(y / 5);
-  const h = ihash(cx, cy, 431);
-  const lx = x - cx * 5 - (h % 3);
-  const ly = y - cy * 5 - ((h >>> 2) % 3);
-  if ((h >>> 5) % 3 !== 0) {
-    const sz = (h >>> 8) & 1 ? 3 : 2;
-    if (lx >= 0 && ly >= 0 && lx < sz && ly < sz && !(sz === 3 && lx === 2 && ly === 0)) {
-      const tone = (h >>> 10) % 4;
-      const light = tone === 0 ? C.white : tone === 1 ? C.paper : C.concreteLt;
-      const body = tone === 0 ? C.concreteLt : tone === 1 ? C.dirtLt : tone === 2 ? C.concreteMd : C.paperGrid;
-      if (lx + ly === 0) return light;
-      if (lx + ly >= sz * 2 - 2) return C.steel;
-      return body;
-    }
-  }
-  const n = valueNoise(x / 7, y / 7, 433);
-  return n > 0.7 ? C.concreteLt : n < 0.25 ? C.concreteMd : C.concrete;
+  // the entrance's tiled tataki (QA round 1: clean stone tiles instead of a
+  // mottled aggregate): 10px slate-grey quarry tiles in a running bond, a
+  // dark grout, each tile its own shade with a lit top-left edge and a
+  // shaded bottom-right; a few tiles carry a small chip
+  const row = Math.floor(y / 10);
+  const off = row & 1 ? 5 : 0;
+  const tx = Math.floor((x + off) / 10);
+  const lx = x + off - tx * 10;
+  const ly = y - row * 10;
+  if (lx === 9 || ly === 9) return C.asphalt;
+  const h = ihash(tx, row, 431);
+  const base = h % 3 === 0 ? C.concreteMd : h % 3 === 1 ? C.concrete : C.steel;
+  if (lx === 0 || ly === 0) return base === C.steel ? C.concreteMd : C.concreteLt;
+  if (lx === 8 || ly === 8) return base === C.concrete ? C.concreteMd : C.steel;
+  if ((h >>> 4) % 7 === 0 && lx === 2 + ((h >>> 8) % 4) && ly === 3 + ((h >>> 11) % 3)) return C.asphalt;
+  return base;
 };
 
 const texTile: Tex = (x, y) => {
@@ -779,16 +789,32 @@ export function bakeGround(src: GroundSource, x0: number, y0: number, w: number,
       } else if ((g === 'wood' || g === 'wood_bare') && (dn === 'genkan' || idAt(i, j + 2) === 'genkan')) {
         col = dn === 'genkan' ? C.woodDark : C.floorWoodDk; // 框 face
       } else if ((g === 'wood' || g === 'wood_bare') && lf === 'genkan') col = C.woodDark;
-      // canal retaining wall (護岸) at the north bank, moss lip at the south bank
+      // canal retaining wall (護岸) at the north bank: the coping, then the
+      // concrete face going down to the water (formwork joints, weep holes
+      // with their rust / algae streaks, moss near the waterline), the dark
+      // wet waterline; at the south bank only the bank's dark edge (the
+      // water layer adds the bank's shadow on the water)
       if (g === 'water') {
         let k = 1;
-        while (k <= 5 && idAt(i, j - k) === 'water') k++;
-        if (k <= 5 && idAt(i, j - k) !== 'none') {
-          const joint = ((wx % 23) + 23) % 23 === 0;
-          col = k === 1 ? C.concreteLt : k === 5 ? C.asphalt : joint ? C.steel : k === 4 ? C.concreteMd : C.concrete;
-          if (k >= 3 && h01(wx, wy, 71) < 0.12) col = C.leafDeep;
-        } else if (idAt(i, j + 1) !== 'water' && idAt(i, j + 1) !== 'none') col = h01(wx, wy, 73) < 0.5 ? C.leafShade : C.charcoal;
-        else if (idAt(i, j + 2) !== 'water' && idAt(i, j + 2) !== 'none') col = h01(wx, wy, 77) < 0.4 ? C.leafDeep : C.navy;
+        while (k <= 7 && idAt(i, j - k) === 'water') k++;
+        if (k <= 7 && idAt(i, j - k) !== 'none') {
+          const jx = ((wx % 23) + 23) % 23;
+          const hole = ((wx % 47) + 47) % 47;
+          const streak = hole >= 21 && hole <= 22;
+          const wet = h01(Math.floor(wx / 3), 0, 79) < 0.35;
+          if (k === 1) col = h01(wx, wy, 70) < 0.12 ? C.white : C.concreteLt;
+          else if (k === 2) col = C.asphalt; // the coping's shadow on the face
+          else if (k <= 6) {
+            // the face, in its own shade (it faces the water, away from the sun)
+            col = k === 3 ? C.steel : k === 6 ? C.asphalt : h01(wx, wy, 69) < 0.2 ? C.asphalt : C.steel;
+            if (jx === 0 || jx === 1) col = jx === 0 ? C.asphalt : C.concreteMd;
+            if (k >= 5 && wet) col = C.asphaltDk;
+            if (streak && k >= 4) col = k === 4 ? C.charcoal : C.brassOld;
+            if ((hole === 21 || hole === 22) && k === 3) col = C.charcoal;
+            if (k === 6 && h01(wx, wy, 71) < 0.35) col = C.leafShade;
+            else if (k >= 4 && h01(wx, wy, 72) < 0.07) col = C.leafDeep;
+          } else col = h01(wx, wy, 74) < 0.35 ? C.leafShade : C.charcoal;
+        } else if (idAt(i, j + 1) !== 'water' && idAt(i, j + 1) !== 'none') col = h01(wx, wy, 73) < 0.45 ? C.leafShade : C.charcoal;
       }
       pc.data[j * w + i] = col;
     }

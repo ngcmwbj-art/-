@@ -13,10 +13,11 @@ import { animate, ease } from '../engine/tween';
 import { registerWorldFx } from '../world/fx';
 import { caseLid, drawCase, CASE_H, CASE_W } from '../ui/hankocase';
 import { runMsg } from '../world/msg';
-import { sfx } from '../audio';
+import { sfx, textBlip } from '../audio';
 import { P } from '../art/tiles/palette';
 import { fontSmallWidth, fontTextSmall, handGlyph } from '../art/props/text';
 import { field } from '../world/field';
+import { charWidth, drawGlyph } from '../engine/font';
 
 // ---------------------------------------------------------------- world glints & puffs
 
@@ -284,4 +285,90 @@ export function* playCaseGift(text: string): Co {
     w.dim = 0.5 * (1 - p);
   });
   w.done = true;
+}
+
+// ---------------------------------------------------------------- a first voice (ending cut 6)
+
+/**
+ * 「……おいしい。」: not a window with a name tag but the words themselves,
+ * typed slowly in the dark under the two of them — warm cream on a soft
+ * shadow, the dots taking their time. Nobody presses anything; it holds,
+ * then fades.
+ */
+class VoiceLine implements Widget {
+  modal = true;
+  done = false;
+  private t = 0;
+  private shown = 0;
+  private acc = 0;
+  private wait: number;
+  private holdT = 0;
+  private fade = -1;
+  private chars: string[];
+
+  constructor(
+    text: string,
+    private o: { y: number; cps: number; hold: number; voice: string; lead: number },
+  ) {
+    this.chars = [...text];
+    this.wait = o.lead;
+  }
+
+  update(dt: number): void {
+    this.t += dt;
+    if (this.fade >= 0) {
+      this.fade += dt;
+      if (this.fade >= 700) this.done = true;
+      return;
+    }
+    if (this.wait > 0) {
+      this.wait -= dt;
+      return;
+    }
+    if (this.shown < this.chars.length) {
+      this.acc += (dt / 1000) * this.o.cps;
+      if (this.acc >= 1) {
+        this.acc = 0;
+        const ch = this.chars[this.shown++];
+        if (ch !== '…') textBlip(this.o.voice, ch);
+        // the dots are slow; a breath after them
+        const next = this.chars[this.shown];
+        this.wait = ch === '…' ? (next === '…' ? 260 : 700) : ch === '。' ? 0 : 60;
+      }
+      return;
+    }
+    this.holdT += dt;
+    if (this.holdT >= this.o.hold) this.fade = 0;
+  }
+
+  draw(g: Gfx): void {
+    const a = this.fade >= 0 ? 1 - this.fade / 700 : Math.min(1, this.t / 200);
+    const full = this.chars.reduce((w, c) => w + charWidth(c), 0);
+    const x0 = Math.round(W / 2 - full / 2);
+    const y = this.o.y;
+    // a soft band of dark behind the words (no frame: it is not a window)
+    g.alpha(0.42 * a, () => {
+      for (let i = 0; i < 6; i++) g.rect(x0 - 26 + i * 3, y - 4 + i, full + 52 - i * 6, 24 - i * 2, '#0B0B14', 0.22);
+    });
+    const ctx = g.ctx;
+    ctx.save();
+    ctx.globalAlpha = a;
+    let x = x0;
+    for (let i = 0; i < this.shown; i++) {
+      const ch = this.chars[i];
+      const fresh = i === this.shown - 1 && this.shown < this.chars.length;
+      const yy = y - (fresh ? 1 : 0);
+      drawGlyph(ctx, ch, x + 1, yy + 1, '#1B1733');
+      drawGlyph(ctx, ch, x, yy, '#FFF1C9');
+      x += charWidth(ch);
+    }
+    ctx.restore();
+  }
+}
+
+/** Type a spoken line in the middle of the screen, windowless, and wait until it has faded. */
+export function* voiceLine(text: string, o: { y?: number; cps?: number; hold?: number; voice?: string; lead?: number } = {}): Co {
+  const w = new VoiceLine(text, { y: o.y ?? 150, cps: o.cps ?? 5, hold: o.hold ?? 2000, voice: o.voice ?? 'kanenari_voice', lead: o.lead ?? 0 });
+  game.ui.push(w);
+  yield () => w.done;
 }

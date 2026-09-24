@@ -14,6 +14,12 @@
 //  - onEnter wrappers that start the first-visit events only once.
 //  - the robot vacuums keep to their beat (2F x2–14, never into the exits).
 //  - trig_maigo_door_rest fires once when standing at the opened door (5.17).
+//  - the 2F rest bench seats the party for evt_save_bench (lv_rest_bench).
+//  - shutters: the café's in M1 rattles down a notch by itself once, the toy
+//    shop's in M4 is lifted to peek under it (se_shop_shutter).
+//  - M2's leak drips on the art's beat (se_drip); a train goes by far off
+//    beyond M1's glass doors now and then (se_train_far).
+//  - at the butcher's counter カネナリくん stands beside Minato, not behind.
 //  - debug: __game.cmd.lv(name[, x, y]) jumps into any interior; lvDoors()
 //    checks every door; lvGate(on) / lvWon(symId) / lvPile('shake'|'hide'|'show').
 
@@ -25,6 +31,7 @@ import { flag, setFlag, state, type Dir } from '../../game/state';
 import { registerDebug } from '../../debug';
 import { lvTime } from '../../art/props/istate';
 import { tube } from '../../art/props/ishell';
+import { DRIP_MS } from '../../art/props/mall_decay';
 import { kanaSmall, kanaWidth } from '../../art/props/ifurn';
 import { P } from '../../art/tiles/palette';
 import { field, FieldScene } from '../../world/field';
@@ -99,12 +106,47 @@ function onEnterMap(f: FieldScene): void {
   lvTime.enterT = f.t;
   lvTime.pileShakeUntil = 0;
   lvTime.pileHidden = f.map.id === 'map_mall_maigo' && flag('flag_boss_beaten') > 0;
+  lvTime.bench = null;
+  lvTime.toyPeekT0 = 0;
+  lvTime.cafeShutterT0 = 0;
+  dripK = -1;
+  trainT = 0;
+  trainNext = 14000;
   tubeWas = 1;
   turnK = -1;
   escY = -1;
   escShowT = 0;
   idle.clear();
   ambT = 0;
+  counterSideBySide(f);
+}
+
+/**
+ * At the butcher's counter the two stand side by side (both looking at the
+ * showcase), not in a queue: arriving at the counter row (y5) with カネナリくん
+ * put right behind Minato on the waiting row, he steps in beside him instead
+ * (x2–8 is floor on y5). Also keeps the 2× room view from sliding down for
+ * his feet and cutting 丸山 off at the top in a cutscene.
+ */
+function counterSideBySide(f: FieldScene): void {
+  const p = f.player;
+  const k = f.follower;
+  if (f.map.id !== 'map_maruyama' || !k || p.tileY !== 5 || k.tileX !== p.tileX || k.tileY !== 6) return;
+  for (const dx of [-1, 1]) {
+    const tx = p.tileX + dx;
+    if (tx < 2 || tx > 8) continue;
+    k.x = p.x + dx * 16;
+    k.y = p.y;
+    k.dir = p.dir;
+    // re-seed the trail so he walks on from where he now stands
+    const n = Math.max(2, f.trail.length);
+    f.trail = [];
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1);
+      f.trail.push([k.x + (p.x - k.x) * t, k.y + (p.y - k.y) * t, p.dir, false]);
+    }
+    return;
+  }
 }
 
 function ambience(f: FieldScene): void {
@@ -149,6 +191,9 @@ registerWorldFx({
       if (turnK >= 0 && k !== turnK) snd.ambientEvent('amb_kaitenyaki', 'turn');
       turnK = k;
     }
+    if (id === 'map_mall_hall') cafeShutterDrop(f);
+    if (id === 'map_mall_food') leakDrip(f);
+    if (id === 'map_mall_hall') farTrain(dt);
     if (id === 'map_mall_health') escalatorThanks(f, dt);
     if (id === 'map_mall_2f') restHint(f);
     keepSoujirou(f);
@@ -297,10 +342,144 @@ registerScript('lv_in_mall_health', function* () {
 扉の カギを、内側から 開けておいた。`);
 });
 
+// ---------------------------------------------------------------- M2: the leak's drop (mall_decay)
+
+/** Where the drop lands in M2 (mall_leak at x16,y8: its puddle's centre, world px). */
+const LEAK_AT: [number, number] = [16 * 16 - 8 + 25, 8 * 16 - 6 + 19];
+let dripK = -1;
+/** se_drip on the beat of the art (a drop hits the puddle 260 ms into each DRIP_MS), fading with distance. */
+function leakDrip(f: FieldScene): void {
+  const k = Math.floor((f.t - 260) / DRIP_MS);
+  if (k === dripK) return;
+  const first = dripK < 0;
+  dripK = k;
+  if (first) return;
+  const d = Math.hypot(f.player.x - LEAK_AT[0], f.player.y - LEAK_AT[1]);
+  const vol = Math.max(0, 1 - d / 200);
+  if (vol < 0.05) return;
+  const pan = Math.max(-0.7, Math.min(0.7, (LEAK_AT[0] - f.player.x) / 160));
+  snd.se('se_drip', { vol: 0.25 + vol * 0.55, pan, pitch: 0.95 + (k % 3) * 0.05 });
+}
+
+// ---------------------------------------------------------------- M1: the train beyond the glass doors
+
+/**
+ * The hall's automatic doors face the car park and, past it, the level
+ * crossing: now and then a train goes by far off, muffled by the glass
+ * (se_train_far, from the east). First one 14 s after coming in, then every
+ * 35–55 s while Minato stays in the hall.
+ */
+let trainT = 0;
+let trainNext = 14000;
+function farTrain(dt: number): void {
+  trainT += dt;
+  if (trainT < trainNext) return;
+  trainT = 0;
+  trainNext = 35000 + Math.random() * 20000;
+  snd.se('se_train_far', { vol: 0.6, pan: 0.55 });
+}
+
+// ---------------------------------------------------------------- shutters (se_shop_shutter)
+
+/**
+ * M1: the first time Minato walks under the café (x4–9, y3–4), its
+ * half-lowered shutter rattles down a notch by itself (mall_m1 draws it
+ * from lvTime.cafeShutterT0; flag_lv_cafe_shutter keeps it low afterwards).
+ */
+function cafeShutterDrop(f: FieldScene): void {
+  if (flag('flag_lv_cafe_shutter') || !f.controllable || game.scripts.busy) return;
+  const tx = f.player.tileX;
+  const ty = f.player.tileY;
+  if (tx < 4 || tx > 9 || ty > 4) return;
+  setFlag('flag_lv_cafe_shutter', 1);
+  lvTime.cafeShutterT0 = f.t;
+  // pan from where the shutter is relative to Minato
+  const pan = Math.max(-0.6, Math.min(0.6, (112 - f.player.x) / -160));
+  snd.se('se_shop_shutter', { vol: 0.8, pan });
+}
+
+/** M4 obj_toy_shutter: lift it a little to peek under it (mall_m4 toyPeek), then let it drop. */
+registerScript('lv_toy_shutter', function* (ctx) {
+  const f = field();
+  if (f) {
+    lvTime.toyPeekT0 = f.t;
+    snd.se('se_shop_shutter', { vol: 0.6, pitch: 1.12 });
+    yield 700;
+  }
+  try {
+    yield* ctx.runDefault();
+  } finally {
+    if (f) {
+      lvTime.toyPeekT0 = -f.t;
+      snd.se('se_thud_low', { vol: 0.35, pitch: 1.4 });
+    }
+  }
+});
+
+// ---------------------------------------------------------------- the 2F rest bench
+
+/**
+ * obj_rest_bench: 「すわると、体が かるくなった。」 — the party really sits
+ * down for it. Minato (and カネナリくん, when he is with him) hop onto the
+ * bench and stay seated through the whole save point (the registered
+ * evt_save_bench: the UI's rest → heal → save), then hop off onto the tiles
+ * they came from. The seated figures are drawn by the bench prop
+ * (mall_rest_bench reads lvTime.bench); the actors are hidden meanwhile.
+ */
+registerScript('lv_rest_bench', function* (ctx) {
+  const f = field();
+  const save = getScript('evt_save_bench');
+  if (!f) {
+    if (save) yield* save(ctx);
+    return;
+  }
+  const p = f.player;
+  const k = f.follower && f.follower.visible ? f.follower : null;
+  const was = { x: p.x, y: p.y, dir: p.dir, kx: k?.x ?? 0, ky: k?.y ?? 0, kdir: k?.dir ?? 'down' };
+  // Minato takes the west half (clear of the 休憩所 plate); カネナリくん the east one
+  const sitters = [{ sprite: p.spriteId, x: 8 }];
+  if (k) sitters.push({ sprite: k.spriteId, x: 23 });
+  p.hop(4, 160);
+  if (k) {
+    k.data.scripted = true;
+    k.hop(4, 160);
+  }
+  yield 150;
+  lvTime.bench = { t0: f.t, sitters };
+  p.visible = false;
+  snd.se('se_step_tile', { vol: 0.45, pitch: 0.8 });
+  if (k) {
+    k.visible = false;
+    yield 140;
+    snd.se('se_step_kanenari', { vol: 0.5 });
+  }
+  yield 420;
+  try {
+    if (save) yield* save(ctx);
+  } finally {
+    // stand up: back onto the tiles they sat down from, with a little hop
+    lvTime.bench = null;
+    p.x = was.x;
+    p.y = was.y;
+    p.dir = was.dir;
+    p.visible = true;
+    p.hop(3, 150);
+    if (k) {
+      k.x = was.kx;
+      k.y = was.ky;
+      k.dir = was.kdir;
+      k.visible = true;
+      k.hop(3, 150);
+      delete k.data.scripted;
+    }
+  }
+  yield 200;
+});
+
 // ---------------------------------------------------------------- debug
 
 const SPOTS: Record<string, [string, number, number, Dir, number]> = {
-  maruyama: ['map_maruyama', 4, 5, 'up', -1],
+  maruyama: ['map_maruyama', 4, 6, 'up', -1],
   hinoya: ['map_hinoya', 4, 6, 'up', -1],
   laundry: ['map_laundry', 3, 5, 'up', -1],
   koban: ['map_koban', 4, 5, 'up', -1],

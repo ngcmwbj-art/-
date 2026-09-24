@@ -26,6 +26,11 @@ import { buildStructures, type Structure } from './structures';
 import { footstepFor } from './footsteps';
 import { hud } from './hud';
 import { strSeed } from '../art/tiles/noise';
+import { checkOcclusion } from './occlusion';
+import { vehicleFrame, type VehicleView } from '../art/props/vehicles';
+import { P } from '../art/tiles/palette';
+import { BOX, dialogVisible } from '../ui/dialog';
+import { lastMsgPos } from './msg';
 
 export const WALK_SPEED = 4.5 * 16; // px/s
 export const DASH_SPEED = 7 * 16;
@@ -69,6 +74,14 @@ export class FieldScene implements Scene {
   private lookY = 0;
   camOverride: { x: number; y: number } | null = null;
   camFollow: Actor | null = null;
+  /**
+   * Room close-up (QA round 1): small rooms are shown at an integer 2× —
+   * the frame is rendered at 1× as always and the renderer presents the
+   * (W/2 × H/2) world rect at (viewX, viewY) blown up. 1 = normal view.
+   */
+  viewScale = 1;
+  viewX = 0;
+  viewY = 0;
   grade: Grade = cloneGrade(GRADES[0]);
   private gradeFrom: Grade = cloneGrade(GRADES[0]);
   private gradeTo: Grade = cloneGrade(GRADES[0]);
@@ -145,9 +158,18 @@ export class FieldScene implements Scene {
     // triggers the player spawned inside don't fire until left
     for (const o of m.objects) if (o.t === 'trig' && this.inRect(o, tx, ty)) this.triggerInside.add(o.id);
     this.snapCamera();
+    this.viewScale = roomScale(m);
+    this.updateView(0, true);
     this.applyAudio(true);
     this.renderer.onMapChange();
+    this.reportOcclusion();
     return true;
+  }
+
+  /** DEV: warn about NPCs / symbols standing where props or canopies hide them (occlusion.ts). */
+  reportOcclusion(): void {
+    if (!import.meta.env.DEV) return;
+    for (const r of checkOcclusion(this)) console.warn(`[world] ${r.id} at (${r.at}) on ${this.map.id} is ${Math.round(r.frac * 100)}% hidden by ${r.by.join(', ')}`);
   }
 
   private buildProps(): void {
@@ -168,6 +190,8 @@ export class FieldScene implements Scene {
       if (o.t !== 'npc' && o.t !== 'sym') continue;
       let ok = condOk(o.cond);
       if (o.t === 'sym') ok = ok && !state.taken[(o as SymbolObj).link ?? o.id];
+      // passers-by wait for their sprite (char art) — never a stand-in
+      if (o.t === 'npc' && o.passerby && !o.vehicle && !hasChar(o.sprite ?? o.id)) ok = false;
       const have = this.objActors.get(o);
       if (ok && !have) this.spawnFromObj(o, initial);
       else if (!ok && have && !have.data.scripted) this.removeActor(have);
@@ -191,7 +215,10 @@ export class FieldScene implements Scene {
         a.ox = o.off[0];
         a.oy = o.off[1];
       }
-      a.solid = !o.ghost;
+      a.solid = !o.ghost && !o.passerby;
+      if (o.statue || o.animal) a.data.noSpace = true;
+      if (o.passerby) a.data.passerby = true;
+      if (o.vehicle) this.makeVehicle(a, o.vehicle);
       if (o.shadow !== undefined) a.shadowH = o.shadow;
       initNpc(a, o);
     } else {
@@ -218,6 +245,26 @@ export class FieldScene implements Scene {
     a.shadowH = 0;
     if (!hasChar('restored_' + enemy)) a.visible = true;
     this.actors.push(a);
+  }
+
+  /** Traffic: an actor drawn as a vehicle (side / front / rear view by its direction). */
+  private makeVehicle(a: Actor, id: string): void {
+    a.data.vehicle = id;
+    a.data.noSpace = true;
+    a.solid = true;
+    a.bh = 10;
+    const view = (): VehicleView => a.dir;
+    const img = () => vehicleFrame(id, view(), this.t, a.moving);
+    a.bw = 40;
+    a.data.shadowFrame = img();
+    a.drawFn = (g, x, y) => {
+      const im = img();
+      a.bw = a.dir === 'left' || a.dir === 'right' ? 40 : 20;
+      a.data.shadowFrame = im;
+      // contact shadow under the body
+      g.rect(x - Math.floor(im.width / 2) + 2, y - 3, im.width - 4, 3, P.ink, 0.35);
+      g.img(im, x - Math.floor(im.width / 2), y - im.height + 1);
+    };
   }
 
   removeActor(a: Actor): void {
@@ -315,7 +362,10 @@ export class FieldScene implements Scene {
       this.gradeT = 1;
     }
     snd.setMusicParam('stage', n);
-    if (prev !== n) this.refreshPresence();
+    if (prev !== n) {
+      this.refreshPresence();
+      this.reportOcclusion();
+    }
   }
 
   // ------------------------------------------------------------------ collision
@@ -341,12 +391,13 @@ export class FieldScene implements Scene {
     if (ignoreActors) return true;
     const others = a === this.player ? this.actors : [...this.actors, this.player];
     // characters keep a personal space of at least 12×12 px from each other
-    // (walls still use the small feet box), so nobody sinks half into an NPC
-    const person = (k: string) => k === 'player' || k === 'npc';
+    // (walls still use the small feet box), so nobody sinks half into an NPC;
+    // carts and statues are things, not people: feet box only
+    const person = (b: Actor) => (b.kind === 'player' || b.kind === 'npc') && !b.data.cart && !b.data.noSpace;
     for (const o of others) {
       if (o === a || !o.solid || !o.visible) continue;
       if (a.kind === 'follower' || o.kind === 'follower') continue;
-      const sp = person(a.kind) && person(o.kind) && !o.data.cart;
+      const sp = person(a) && person(o);
       const pw = Math.max(a.bw, sp ? CHAR_SPACE : 0) / 2;
       const ph = Math.max(a.bh, sp ? CHAR_DEPTH : 0);
       const ow = Math.max(o.bw, sp ? CHAR_SPACE : 0) / 2;
@@ -455,6 +506,13 @@ export class FieldScene implements Scene {
       free: (a, x, y) => this.free(a, x, y),
       actorById: (id) => this.actorById(id),
       motion: this.grade.motion,
+      stage: flag('flag_stage'),
+      size: [this.map.w * 16, this.map.h * 16],
+      hitsPlayer: (a, x, y) => {
+        for (const p of this.follower ? [this.player, this.follower] : [this.player])
+          if (Math.abs(p.x - x) < a.bw / 2 + 7 && Math.abs(p.y - 4 - (y - a.bh / 2)) < a.bh / 2 + 6) return true;
+        return false;
+      },
     };
     for (const a of this.actors) {
       if (a.kind === 'npc') {
@@ -479,6 +537,7 @@ export class FieldScene implements Scene {
     if (ctrl) this.ginzaTimer(dt);
 
     this.updateCamera(dt, vx, vy);
+    this.updateView(dt);
     state.x = p.tileX;
     state.y = p.tileY;
     state.dir = p.dir;
@@ -621,16 +680,50 @@ export class FieldScene implements Scene {
     return [this.player.x + dx * dist, this.player.y - 1 - 4 + dy * dist];
   }
 
-  actorAt(px: number, py: number, pad = 3): Actor | null {
+  /**
+   * Talk box of an actor (world px, [l, t, r, b]): the feet box, grown by
+   * `pad`. An NPC drawn above its feet (sitting on a wall, a cat on a sign,
+   * the crow on the pole top) also covers the column from its drawn body
+   * down to its feet — once, not the offset twice — so it can be talked to
+   * from beside the body or from the foot of its perch, and never from tiles
+   * above the body.
+   */
+  talkBox(a: Actor, pad: number): [number, number, number, number] {
+    const w = Math.max(a.bw, 12) + pad * 2;
+    const l = a.x + a.ox - w / 2;
+    let t = a.y - Math.max(a.bh, 10) - pad;
+    if (a.kind === 'npc' && a.oy < -6) t = a.y + a.oy - Math.max(a.bh, 10) - pad;
+    const b = a.y + pad + Math.max(0, a.oy);
+    return [l, t, l + w, b];
+  }
+
+  /**
+   * The actor at probe point (px, py). When several boxes hold the point, the
+   * one whose feet stand on `prefer` (the facing tile) wins, then the one whose
+   * feet are nearest the probe.
+   */
+  actorAt(px: number, py: number, pad = 3, prefer?: [number, number]): Actor | null {
     const cands = [...this.actors, ...(this.follower ? [this.follower] : [])];
+    let best: Actor | null = null;
+    let bestScore = Infinity;
     for (const a of cands) {
-      if (!a.visible) continue;
-      const w = Math.max(a.bw, 12) + pad * 2;
-      const h = Math.max(a.bh, 10) + pad * 2 + (a.kind === 'npc' && a.oy < -6 ? -a.oy : 0);
-      const l = a.x + a.ox - w / 2;
-      const t = a.y + Math.min(0, a.oy) - h + pad;
-      if (px >= l && px <= l + w && py >= t && py <= a.y + pad + Math.max(0, a.oy)) return a;
+      if (!a.visible || a.data.passerby) continue;
+      const [l, t, r, b] = this.talkBox(a, pad);
+      if (px < l || px > r || py < t || py > b) continue;
+      let score = Math.hypot(px - (a.x + a.ox), py - (a.y - 6));
+      if (prefer && a.tileX === prefer[0] && a.tileY === prefer[1]) score -= 1000;
+      if (score < bestScore) {
+        bestScore = score;
+        best = a;
+      }
     }
+    return best;
+  }
+
+  /** An actor whose feet stand on tile (tx, ty) (the natural talk target). */
+  actorOnTile(tx: number, ty: number): Actor | null {
+    const cands = [...this.actors, ...(this.follower ? [this.follower] : [])];
+    for (const a of cands) if (a.visible && !a.data.passerby && a.kind !== 'restored' && a.tileX === tx && a.tileY === ty) return a;
     return null;
   }
 
@@ -663,8 +756,10 @@ export class FieldScene implements Scene {
     const [dx, dy] = DIR_VEC[p.dir];
     const [px, py] = this.probe();
     let [tx, ty] = this.facingTile();
-    // 1) actors in front (probe point, then the centre of the facing tile)
-    let a = this.actorAt(px, py) ?? this.actorAt(tx * 16 + 8, ty * 16 + 12, 2);
+    // 1) actors in front: whoever stands on the facing tile first, then the
+    // probe point, then the centre of the facing tile
+    const onTile = this.actorOnTile(tx, ty);
+    let a = (onTile && onTile.kind !== 'player' ? onTile : null) ?? this.actorAt(px, py, 3, [tx, ty]) ?? this.actorAt(tx * 16 + 8, ty * 16 + 12, 2, [tx, ty]);
     if (a && a.kind !== 'player') {
       this.startScript(interactActor(this, a));
       return;
@@ -898,6 +993,67 @@ export class FieldScene implements Scene {
     if (Math.abs(this.camY - y) < 0.3) this.camY = y;
   }
 
+  /**
+   * The 2× room view: the whole room when it fits, else following the
+   * player (or a scripted camera target) inside the room. While a dialog
+   * window is up, the view slides so everyone in the scene stays clear of
+   * it — the room may leave the screen's edge for that, the dark outside
+   * shows.
+   */
+  updateView(dt: number, snap = false): void {
+    if (this.viewScale === 1) return;
+    const s = this.viewScale;
+    const vw = W / s;
+    const vh = H / s;
+    const mw = this.map.w * 16;
+    const mh = this.map.h * 16;
+    let fx: number;
+    let fy: number;
+    if (this.camOverride) {
+      fx = this.camOverride.x;
+      fy = this.camOverride.y;
+    } else {
+      const t = this.camFollow ?? this.player;
+      fx = t.x;
+      fy = t.y - 12;
+    }
+    let x = mw <= vw ? (mw - vw) / 2 : clamp(fx - vw / 2, 0, mw - vw);
+    let y = mh <= vh ? (mh - vh) / 2 : clamp(fy - vh / 2, 0, mh - vh);
+    if (dialogVisible() && !snap) {
+      const who: (Actor | null)[] = [this.player, this.follower, this.talking];
+      for (const a of this.actors) if (a.kind === 'npc' && a.data.scripted && a.visible && a.alpha > 0.5) who.push(a);
+      let feet = -1e9;
+      let head = 1e9;
+      for (const a of who) {
+        if (!a || !a.visible || a.drawFn) continue;
+        const ay = a.y + Math.max(0, a.oy);
+        feet = Math.max(feet, ay);
+        head = Math.min(head, ay - 26);
+      }
+      if (feet > -1e9) {
+        if (lastMsgPos() === 'top') y = Math.min(y, head - (8 + BOX.h + 14) / s);
+        else y = Math.max(y, feet - (BOX.y - 4) / s);
+      }
+    }
+    x = Math.round(x);
+    y = Math.round(y);
+    if (snap || dt <= 0) {
+      this.viewX = x;
+      this.viewY = y;
+      return;
+    }
+    this.viewX = approach(this.viewX, x, 10, dt);
+    this.viewY = approach(this.viewY, y, 10, dt);
+    if (Math.abs(this.viewX - x) < 0.4) this.viewX = x;
+    if (Math.abs(this.viewY - y) < 0.4) this.viewY = y;
+  }
+
+  /** World px → screen px and the scale there (the room view included). */
+  worldToScreen(x: number, y: number): [number, number, number] {
+    if (this.viewScale > 1) return [Math.round((x - Math.round(this.viewX)) * this.viewScale), Math.round((y - Math.round(this.viewY)) * this.viewScale), this.viewScale];
+    return [Math.round(x - Math.round(this.camX)), Math.round(y - Math.round(this.camY)), 1];
+  }
+
   /** Camera target position for the current follow target (used by pans). */
   followTarget(): [number, number] {
     const o = this.camOverride;
@@ -958,6 +1114,16 @@ export class FieldScene implements Scene {
   exit(): void {
     if (current === this) current = null;
   }
+}
+
+/** View scale of a map: 2 for small rooms that fit the screen at 2× (see MapDef.zoom). */
+export function roomScale(m: LoadedMap): number {
+  if (m.def.zoom) return m.def.zoom;
+  if (m.def.kind !== 'indoor') return 1;
+  const mw = m.w * 16;
+  const mh = m.h * 16;
+  if (mw * mh >= 0.6 * W * H) return 1;
+  return mw * 2 <= W + 48 && mh * 2 <= H + 48 ? 2 : 1;
 }
 
 function ms0(p: Actor): number {

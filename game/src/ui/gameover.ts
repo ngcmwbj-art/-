@@ -27,7 +27,9 @@ import { drawCursor, drawTape, pencilLine, textW, UI } from './window';
 
 export type GameOverChoice = 'retry' | 'load';
 
-const PAGE = { x: 76, y: 22, w: 232, h: 172 };
+const PAGE = { x: 56, y: 8, w: 272, h: 200 };
+/** The 絵日記 picture box on the page (relative to the page). */
+const PIC = { x: 26, y: 31, w: 234, h: 82 };
 
 let pageC: HTMLCanvasElement | null = null;
 /** A single page of the notebook: grid, red margin, a torn left edge. */
@@ -60,48 +62,122 @@ function pageCanvas(): HTMLCanvasElement {
   // the page is a little warmer at the top, cooler at the bottom
   r(0, 0, w, 1, '#FFFBEE');
   r(0, h - 1, w, 1, '#E8D9B5');
-  drawDoodle(ctx, 96, 34);
+  drawPicture(ctx, PIC.x, PIC.y, PIC.w, PIC.h);
   pageC = c;
   return c;
 }
 
 /**
- * A quick pencil sketch in the diary: the bug net lying on its side and the
- * hanko that rolled a little way off (what was left where they fell).
+ * The day's picture in the 絵日記, in crayon (Minato drew it): the sunset
+ * sinking behind the town, two crows, and in front the bug net lying on
+ * its side in the grass with the hanko that rolled a little way off — what
+ * was left where they fell. Crayon: every colour is laid in short diagonal
+ * strokes that let the paper show through, with a wobbly pencil frame.
  */
-function drawDoodle(ctx: CanvasRenderingContext2D, ox: number, oy: number): void {
-  const px = (x: number, y: number, a = 1) => {
+function drawPicture(ctx: CanvasRenderingContext2D, ox: number, oy: number, w: number, h: number): void {
+  const put = (x: number, y: number, col: string, a = 1) => {
     ctx.globalAlpha = a;
-    ctx.fillStyle = UI.pencil;
-    ctx.fillRect(Math.round(ox + x), Math.round(oy + y), 1, 1);
+    ctx.fillStyle = col;
+    ctx.fillRect(ox + x, oy + y, 1, 1);
     ctx.globalAlpha = 1;
   };
-  const line = (x0: number, y0: number, x1: number, y1: number, a = 1) => {
-    const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
-    for (let i = 0; i <= n; i++) px(x0 + ((x1 - x0) * i) / n, y0 + ((y1 - y0) * i) / n, a);
+  const horizon = 54;
+  const sun = { x: 64, y: 52, r: 17 };
+  // the town's skyline on the right: gabled houses, the clock tower, the mall
+  const sky = new Array<number>(w).fill(99);
+  let hx = 96;
+  let k = 0;
+  while (hx < w) {
+    const hw = 12 + Math.floor(hash2(k, 1, 21) * 9);
+    const top = 40 + Math.floor(hash2(k, 2, 21) * 7);
+    for (let x = hx; x < Math.min(w, hx + hw); x++) {
+      const d = Math.abs(x - (hx + hw / 2));
+      sky[x] = Math.min(sky[x], top + Math.max(0, Math.round(d) - 3));
+    }
+    hx += hw - 1;
+    k++;
+  }
+  for (let x = 122; x < 129; x++) sky[x] = x === 125 ? 18 : 21; // clock tower
+  for (let x = 196; x < 226; x++) sky[x] = 33; // the mall
+  // what colour the crayon is at (x, y)
+  const colorAt = (x: number, y: number): string => {
+    const j = Math.floor(hash2(x >> 2, 7, 5) * 3) - 1; // crayon bands don't meet on a ruler line
+    if (y < horizon && y >= sky[x]) return y > horizon - 3 ? '#4A3A6E' : '#6A5A8E';
+    if (y < horizon) {
+      const d = Math.hypot(x - sun.x, y - sun.y);
+      if (d <= sun.r) return d > sun.r - 2 ? '#C8302A' : '#E23B2E';
+      return y < 17 + j ? '#F2894B' : y < 34 + j ? '#F7B25E' : '#EE8A86';
+    }
+    if (y < horizon + 12 + j) return '#7FA85A';
+    return '#C8A06A';
   };
-  // the ground line, sketchy
-  for (let x = -6; x < 60; x += 1) if (hash2(x, 0, 3) > 0.25) px(x, 24 + (hash2(x >> 3, 1, 3) > 0.7 ? 1 : 0), 0.55);
-  // net: pole lying diagonally, the hoop (an ellipse), cross-hatched mesh
-  line(-4, 22, 26, 14);
-  line(-4, 23, 26, 15, 0.5);
-  for (let a = 0; a < Math.PI * 2; a += 0.12) px(34 + Math.cos(a) * 8, 12 + Math.sin(a) * 4);
-  for (let k = -6; k <= 6; k += 3) line(34 + k, 9, 34 + k + 2, 15, 0.45);
-  for (let a = 0.3; a < Math.PI - 0.3; a += 0.3) px(42 + Math.sin(a) * 6, 12 + Math.cos(a) * 5, 0.6);
-  // the hanko, on its side: handle and base
-  const hx = 54;
-  const hy = 16;
-  line(hx, hy, hx + 10, hy);
-  line(hx, hy + 5, hx + 10, hy + 5);
-  line(hx, hy, hx, hy + 5);
-  line(hx + 10, hy - 1, hx + 10, hy + 6);
-  line(hx + 13, hy - 1, hx + 13, hy + 6);
-  line(hx + 10, hy - 1, hx + 13, hy - 1);
-  line(hx + 10, hy + 6, hx + 13, hy + 6);
-  // three little motion marks: it rolled
-  line(hx - 4, hy - 3, hx - 2, hy - 3, 0.6);
-  line(hx - 5, hy + 1, hx - 3, hy + 1, 0.6);
-  line(hx - 4, hy + 5, hx - 2, hy + 5, 0.6);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const col = colorAt(x, y);
+      // crayon: long diagonal strokes (u across them, v along them); the
+      // paper shows through in broken streaks between strokes
+      const u = x + y;
+      const v = x - y;
+      const lane = u % 5;
+      const stroke = Math.floor(u / 5);
+      if (lane === 0 && hash2(stroke, Math.floor(v / 9), 31) < 0.5) continue;
+      // each stroke pressed a little harder or softer
+      put(x, y, col, lane === 2 ? 0.85 : 0.9 + hash2(stroke, Math.floor(v / 13), 8) * 0.1);
+    }
+  // sun rays, pressed hard (a child's sun even as it sets)
+  for (let i = 0; i < 7; i++) {
+    const a = Math.PI + (i + 0.5) * (Math.PI / 7);
+    for (let k = sun.r + 3; k < sun.r + 8; k++) {
+      const x = Math.round(sun.x + Math.cos(a) * k);
+      const y = Math.round(sun.y + Math.sin(a) * k);
+      if (y < horizon - 1) put(x, y, '#E23B2E');
+    }
+  }
+  // two crows, pencil ticks
+  for (const [cx, cy] of [
+    [118, 12],
+    [132, 17],
+  ]) {
+    put(cx - 2, cy - 1, '#2A2440');
+    put(cx - 1, cy, '#2A2440');
+    put(cx, cy, '#2A2440');
+    put(cx + 1, cy - 1, '#2A2440');
+    put(cx + 2, cy - 1, '#2A2440');
+  }
+  // tufts of grass along the horizon
+  for (let x = 2; x < w - 2; x += 5 + Math.floor(hash2(x, 3, 4) * 4)) {
+    put(x, horizon - 1, '#5F8A3A');
+    put(x + 1, horizon - 2, '#5F8A3A');
+  }
+  // the net lying on its side: pole, hoop, mesh; and its long evening shadow
+  const line = (x0: number, y0: number, x1: number, y1: number, col: string, a = 1) => {
+    const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let i = 0; i <= n; i++) put(Math.round(x0 + ((x1 - x0) * i) / n), Math.round(y0 + ((y1 - y0) * i) / n), col, a);
+  };
+  line(40, 76, 118, 64, '#4A3A6E', 0.35);
+  line(38, 73, 116, 61, '#8A5A2A');
+  line(38, 74, 116, 62, '#A8742A');
+  for (let a = 0; a < Math.PI * 2; a += 0.08) put(Math.round(128 + Math.cos(a) * 12), Math.round(60 + Math.sin(a) * 7), '#6B7186');
+  for (let k = -9; k <= 9; k += 3) line(128 + k, 55 + Math.round(Math.abs(k) / 3), 128 + k + 2, 65 - Math.round(Math.abs(k) / 3), '#F4F1E8', 0.8);
+  // the hanko, rolled away: handle and vermilion base
+  line(160, 70, 168, 70, '#8A5A2A');
+  line(160, 71, 168, 71, '#C8A06A');
+  line(160, 72, 168, 72, '#A8742A');
+  for (let y = 68; y <= 74; y++) line(169, y, 172, y, '#E23B2E');
+  line(169, 74, 172, 74, '#B8241E');
+  // motion marks: it rolled
+  line(152, 67, 155, 67, '#4A3A6E', 0.6);
+  line(151, 71, 154, 71, '#4A3A6E', 0.6);
+  line(152, 75, 155, 75, '#4A3A6E', 0.6);
+  // the pencil frame round the picture, a little wobbly
+  for (let x = -1; x <= w; x++) {
+    put(x, -1 + (hash2(x >> 4, 1, 2) > 0.8 ? 1 : 0), '#4A3A6E');
+    put(x, h + (hash2(x >> 4, 2, 2) > 0.8 ? -1 : 0), '#4A3A6E');
+  }
+  for (let y = -1; y <= h; y++) {
+    put(-1, y, '#4A3A6E');
+    put(w, y, '#4A3A6E');
+  }
 }
 
 class GameOverScene implements Scene {
@@ -179,7 +255,7 @@ class GameOverScene implements Scene {
       const chars = [...this.title];
       const tw = textW(this.title);
       let x = Math.round(px + PAGE.w / 2 - tw / 2);
-      const y = py + 70;
+      const y = py + PIC.y + PIC.h + 8;
       chars.slice(0, this.written).forEach((ch, i) => {
         const dy = [0, 1, 0, -1, 0, 1, 0, 0, 1][i % 9];
         g.text(ch, x, y + dy, { color: UI.pencil });
@@ -197,9 +273,9 @@ class GameOverScene implements Scene {
         const sel = this.index === i;
         const w = textW(o) + 26;
         const tx = Math.round(W / 2 - w / 2);
-        const ty = py + 108 + i * 24 + Math.round((1 - ease.backOut(kk)) * 12) - (sel ? 1 : 0);
+        const ty = py + PIC.y + PIC.h + 36 + i * 23 + Math.round((1 - ease.backOut(kk)) * 12) - (sel ? 1 : 0);
         const a = kk * (1 - leave) * (dim ? 0.5 : 1);
-        drawTape(g, tx, ty, w, 18, '', { color: sel ? '#FFE0A8' : UI.tape, seed: 60 + i, alpha: a });
+        drawTape(g, tx, ty, w, 18, '', { color: sel ? UI.tapeOn : UI.tapeOff, seed: 60 + i, alpha: a });
         g.text(o, tx + 13, ty + 1, { color: dim ? UI.textDim : UI.text, alpha: kk * (1 - leave) });
         if (sel && kk >= 1) drawCursor(g, tx - 13, ty, this.t, this.pickT);
       });

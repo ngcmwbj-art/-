@@ -20,7 +20,7 @@ import { KAITENYAKI_PRESSED, KAITENYAKI_SEEN, YAKINAMES, YAKINAMES_KANA } from '
 import { addMp, eventBattle, F, getKeyItem } from './lib';
 import { puff, sparkle } from './fx';
 import { bossEyes, bossField, BOSS_FIELD } from './art';
-import { zoomIn, zoomOut, zoomPan } from './stage';
+import { forceBoxPos, zoomIn, zoomIntoBattle, zoomOut, zoomPan } from './stage';
 import { animate, ease } from '../engine/tween';
 import type { FieldScene } from '../world/field';
 import { evtEnding } from './ending';
@@ -98,8 +98,7 @@ ${YAKINAMES_KANA[k]}`);
   sfx('se_coin', { pitch: 0.8 });
   yield 450;
   yield* getKeyItem('item_maigo_key', `@sys
-迷子センターの カギを
-手に入れた！`);
+迷子センターの鍵を 手に入れた！`);
   setFlag('flag_got_maigo_key', 1);
   if (flag('flag_kanenari_joined')) {
     const kn = F().follower;
@@ -253,11 +252,15 @@ registerScript('evt_boss_intro', function* (): Co {
   p.path = [];
   p.moving = false;
   p.dir = 'up';
+  // a retry (「戦う前から やりなおす」) comes back to the same stand-off, shorter
   const again = !!flag('flag_boss_intro_seen');
   yield 300;
   if (!again) yield* msg(T.BOSS_A);
+  // the camera pushes in on the heap (2×): it shudders and rises in the
+  // middle of the screen, the tag eyes open right in front of us
+  const z = yield* zoomIn(BOSS_FOOT[0] - 8, BOSS_FOOT[1] - 36, again ? 350 : 900);
   // the heap shudders, 2 px, three times
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < (again ? 1 : 3); i++) {
     lvTime.pileShakeUntil = f.t + 260;
     sfx('se_rumble', { vol: 0.8 + i * 0.1 });
     game.shake(1, 160);
@@ -271,16 +274,17 @@ registerScript('evt_boss_intro', function* (): Co {
   spawnBoss();
   sfx('se_rumble', { vol: 1, pitch: 0.7 });
   const t0 = f.t;
+  const riseMs = again ? 700 : 1200;
   yield () => {
-    boss.rise = Math.min(1, (f.t - t0) / 1200);
+    boss.rise = Math.min(1, (f.t - t0) / riseMs);
     return boss.rise >= 1;
   };
   game.shake(2, 200);
-  yield 300;
+  yield again ? 150 : 300;
   // the name-tag eyes open and look for Minato
   yield* animate(260, (k) => (boss.open = k));
   boss.open = 1;
-  for (const px of [-1, 1, -0.6, 0.4, 0]) {
+  for (const px of again ? [0] : [-1, 1, -0.6, 0.4, 0]) {
     const from = boss.pupil;
     const s0 = f.t;
     yield () => {
@@ -291,12 +295,17 @@ registerScript('evt_boss_intro', function* (): Co {
     yield 140;
   }
   sfx('se_boss_voice');
-  yield* msg(T.BOSS_B);
-  if (flag('flag_kanenari_joined')) yield* flip(T.BOSS_FLIP);
+  // its face stays up in the close-up; the window keeps to the bottom
+  forceBoxPos('bottom');
+  yield* msg(again ? T.BOSS_B_AGAIN : T.BOSS_B);
+  if (flag('flag_kanenari_joined') && !again) yield* flip(T.BOSS_FLIP);
+  forceBoxPos(null);
   setFlag('flag_boss_intro_seen', 1);
   // one chime note, E5
   sfx('se_chime_note', { note: 'E5', hold: 0.8 });
   yield 900;
+  // the seal lands on the close-up
+  zoomIntoBattle(z);
   const r = yield* eventBattle({ enemies: ['boss_omukaemachi'], boss: true, music: 'bgm_boss', background: 'bg_boss' });
   if (r === 'load') return;
   if (r === 'retry') {

@@ -1,8 +1,11 @@
-// 肉のマルヤマ interior (30_level_art 4.3, 10×7). A narrow butcher's: white
+// 肉のマルヤマ interior (30_level_art 4.3, 10×8: a second row of floor for the
+// customers, review round 1). A narrow butcher's: white
 // tiled walls under cream plaster, the meat-cut poster, a stainless fryer
 // whose oil quietly glows and pulses, a refrigerated showcase with an empty
 // croquette tray (「5時から」), the old register with a beckoning cat, a
-// spring scale, a kamidana shelf, wooden menu plaques, two bare bulbs.
+// spring scale, a kamidana shelf, wooden menu plaques, two bare bulbs; by
+// the door the delivery crates and the waiting stool for the five o'clock
+// queue. Outside: the arcade (iexterior.ts).
 
 import type { Gfx } from '../../engine/gfx';
 import { PixelCanvas } from '../../engine/pixel';
@@ -12,6 +15,7 @@ import { ihash, valueNoise } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { clockFace, framed, pc, prop } from './ifurn';
 import { blend, depthShade, lightPool, paintShell, screenPool, screenSpill, shellProp } from './ishell';
+import { exteriorOver, withExterior } from './iexterior';
 import { castRight, finish, lt } from './kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
@@ -55,10 +59,18 @@ registerProp('in_mr_shell', () => {
   p.rect(86, 52, 9, 7, P.asphalt);
   for (let x = 87; x < 94; x += 2) p.vline(x, 53, 57, P.charcoal);
   p.hline(86, 94, 52, P.steel);
-  // a worn path on the boards in front of the counter, a dropped price tag
-  for (let x = 40; x < 140; x++) for (let y = 81; y < 94; y++) if (valueNoise(x / 9, y / 3, 75) > 0.75) blend(p, x, y, P.woodLt, 0.25);
+  // a worn path on the boards from the door to the counter, a dropped price tag,
+  // the grease-darkened boards where the queue stands at five
+  for (let x = 40; x < 140; x++) for (let y = 81; y < 110; y++) if (valueNoise(x / 9, y / 3, 75) > 0.75 - (x >= 62 && x < 84 ? 0.08 : 0)) blend(p, x, y, P.woodLt, 0.25);
+  for (let x = 88; x < 134; x++) for (let y = 97; y < 110; y++) if (valueNoise(x / 7, y / 4, 76) > 0.72) blend(p, x, y, P.woodDark, 0.3);
   p.rect(120, 90, 3, 2, P.white);
   p.set(121, 90, P.verm);
+  // a croquette paper bag's twist, a bottle cap by the crates
+  p.rect(98, 102, 4, 2, P.paper);
+  p.set(101, 102, P.paperGrid);
+  p.set(99, 104, P.paperGrid);
+  p.rect(33, 106, 2, 2, P.gold);
+  p.set(33, 106, P.goldPale);
   // ---- north wall
   // meat-cut poster (1–2): 『牛・豚・鶏 部位の図』
   meatChart(p, 17, 4);
@@ -127,9 +139,9 @@ registerProp('in_mr_shell', () => {
   p.rect(98, 22, 4, 4, P.concreteLt);
   p.set(99, 23, P.charcoal);
   p.set(100, 23, P.charcoal);
-  // ---- the entrance (4,6): threshold rail and the glass door with the noren's back seen through it
+  // ---- the entrance (4,7): threshold rail and the glass door with the noren's back seen through it
   const dx = 64;
-  const dy = 96;
+  const dy = rows.length * 16 - 16;
   p.rect(dx - 2, dy, 20, 2, P.steel);
   p.hline(dx - 2, dx + 17, dy, P.concreteLt);
   p.rect(dx, dy + 2, 16, 8, P.shadeDeep);
@@ -138,13 +150,26 @@ registerProp('in_mr_shell', () => {
   p.vline(dx + 16, dy + 2, dy + 9, P.asphalt);
   p.vline(dx + 8, dy + 2, dy + 9, P.steel);
   p.hline(dx - 1, dx + 16, dy + 10, P.charcoal);
-  const img = p.toCanvas();
-  const W = img.width;
-  const H = img.height;
+  const W = p.w;
+  // the arcade outside: the town's mosaic floor and the shop mat; ひのや's
+  // dark wooden front next door, the corner of the arch's street on the other side
+  const ext = withExterior(p, sh.glass, {
+    rows,
+    town: [27, 21],
+    skin: [P.white, P.concreteLt, P.concrete],
+    roof: 'tin',
+    left: { skin: P.concrete, roof: 'slab' },
+    right: { skin: P.woodDark, roof: 'kawara', awning: [P.woodLt, P.brassOld] },
+    seed: 7101,
+    props: [{ id: 'prop_shop_mats', tx: 24, ty: 22 }],
+  });
   return shellProp({
-    img,
-    glass: sh.glass.toCanvas(),
+    img: ext.p.toCanvas(),
+    glass: ext.glass.toCanvas(),
+    ox: ext.ox,
+    oy: ext.oy,
     over(g: Gfx, x: number, y: number, env: PropEnv) {
+      exteriorOver(g, x, y, ext, env);
       depthShade(g, x + 16, y + 32, W - 32, 64, 0.16);
       const n = env.grade.night;
       // bare bulbs: warm pools on the floor (α20%)
@@ -152,7 +177,7 @@ registerProp('in_mr_shell', () => {
       // the fryer's oil lights the mat a little
       screenPool(g, x + 48, y + 50, 18, 8, P.sun, 0.12);
       // the doorway spills the street's sky onto the boards
-      screenSpill(g, x + 72, y + 96, 18, 34, 22, rgbHex(env.grade.skyBot), 0.2 - n * 0.12, true);
+      screenSpill(g, x + 72, y + dy, 18, 34, 22, rgbHex(env.grade.skyBot), 0.2 - n * 0.12, true);
     },
   });
 });
@@ -732,6 +757,75 @@ registerProp('in_mr_board', () =>
   }, { base: 16, contact: 12, shadow: 0 }),
 );
 
+// ---------------------------------------------------------------- delivery crates by the door (1,6)
+
+registerProp('in_mr_crates', () =>
+  prop(16, 26, (p) => {
+    // two blue plastic crates (通い箱) stacked, 『マルヤマ』 in marker on the
+    // front, the top one holding folded paper bags and a roll of twine
+    const crate = (y: number, h: number) => {
+      p.rect(1, y, 14, h, P.blue);
+      p.hline(1, 14, y, P.aqua);
+      p.hline(1, 14, y + h - 1, P.navy);
+      p.vline(14, y + 1, y + h - 1, P.navy);
+      // grip hole and the ribbed sides
+      p.rect(5, y + 2, 6, 2, P.navy);
+      p.hline(6, 9, y + 2, P.ink);
+      for (let yy = y + 5; yy < y + h - 1; yy += 2) p.hline(2, 13, yy, P.navy);
+    };
+    crate(14, 11);
+    crate(5, 9);
+    // marker lettering (a scrawl) on the lower crate's front
+    p.hline(3, 6, 20, P.white);
+    p.set(8, 20, P.white);
+    p.hline(9, 11, 20, P.white);
+    p.set(4, 21, P.white);
+    // paper bags and twine in the top crate
+    p.rect(2, 3, 9, 3, P.paper);
+    p.hline(2, 10, 3, P.white);
+    p.hline(2, 10, 5, P.paperGrid);
+    p.rect(11, 2, 3, 3, P.woodLt);
+    p.set(12, 3, P.brassOld);
+    p.hline(1, 14, 25, P.charcoal);
+  }, { base: 16, contact: 14, shadow: 0 }),
+);
+
+// ---------------------------------------------------------------- the waiting stool (8,6)
+
+registerProp('in_mr_stool', () => {
+  const build = (paper: boolean) => {
+    const p = pc(16, 20);
+    // a round red vinyl stool on chrome legs, where the first of the five o'clock queue sits
+    p.ellipse(8, 7, 6, 2.5, P.red);
+    p.hline(3, 12, 5, P.vermLt);
+    p.hline(4, 12, 9, P.vermShade);
+    p.set(5, 6, P.white);
+    p.rect(3, 9, 11, 2, P.steel);
+    p.hline(3, 13, 9, P.concreteLt);
+    for (const lx of [4, 12]) {
+      p.vline(lx, 11, 18, P.steel);
+      p.set(lx, 19, P.charcoal);
+    }
+    p.vline(8, 11, 17, P.asphalt);
+    p.hline(5, 11, 15, P.steel);
+    if (paper) {
+      // stage 1+: today's evening paper left folded on the seat (the date stays today)
+      p.rect(4, 3, 8, 4, P.white);
+      p.hline(4, 11, 3, P.glint);
+      p.hline(5, 10, 5, P.steel);
+      p.set(10, 4, P.verm);
+      p.hline(4, 11, 7, P.concrete);
+    }
+    finish(p, { soft: true });
+    return p.toCanvas();
+  };
+  const a = stand(build(false), { base: 16, contact: 10, shadow: 0 });
+  const withPaper = build(true);
+  const plain = a.img;
+  a.img = (env: PropEnv) => (env.stage >= 1 && env.stage < 3 ? withPaper : plain(env));
+  return a;
+});
+
 // ---------------------------------------------------------------- bare bulbs (foreground) with warm light
 
 registerProp('in_mr_bulb', (opts) => {
@@ -774,7 +868,7 @@ registerProp('in_mr_bulb', (opts) => {
   } as PropArt;
 });
 
-// ---------------------------------------------------------------- the noren's back, seen through the glass door (4,6)
+// ---------------------------------------------------------------- the noren's back, seen through the glass door (4,7)
 
 const NOREN = mkFrames(3, 16, 8, (p, k) => {
   // three red panels (the back side is a shade darker), a white ring showing

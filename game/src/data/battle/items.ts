@@ -3,9 +3,12 @@
 import type { ItemDef } from './types';
 
 const items: ItemDef[] = [
-  { id: 'item_ramune', name: 'ラムネ', price: 60, target: 'ally', heal: 30, desc: ['ビー玉が からん と鳴る。', 'HPを 30 回復。'] },
-  { id: 'item_kinakobou', name: 'きなこぼう', price: 20, target: 'ally', heal: 20, special: 'kinakobou', desc: ['あたりは 入ってない らしい。', 'HPを 20 回復。たまに あたり。'] },
-  { id: 'item_fugashi', name: 'ふがし', price: 40, target: 'ally', heal: 55, desc: ['軽い。回復量は 重い。', 'HPを 55 回復。'] },
+  // QA round 1 balance: with 500円 (and the butcher's tab) the bag could
+  // hold 8+ strong heals and the boss never threatened. Heals are smaller,
+  // ふがし is the dear one, and a visit sells only a couple of each.
+  { id: 'item_ramune', name: 'ラムネ', price: 60, target: 'ally', heal: 20, shopLimit: 2, desc: ['ビー玉が からん と鳴る。', 'HPを 20 回復。'] },
+  { id: 'item_kinakobou', name: 'きなこぼう', price: 20, target: 'ally', heal: 12, special: 'kinakobou', shopLimit: 3, desc: ['あたりは 入ってない らしい。', 'HPを 12 回復。たまに あたり。'] },
+  { id: 'item_fugashi', name: 'ふがし', price: 90, target: 'ally', heal: 40, shopLimit: 1, desc: ['軽い。回復量は 重い。', 'HPを 40 回復。'] },
   { id: 'item_hakka_ame', name: 'ハッカあめ', price: 30, target: 'ally', cure: ['status_konran', 'status_nemuri'], desc: ['すーっと する。目も さめる。', 'こんらん・ねむりを 治す。'] },
   { id: 'item_stamp_pad', name: 'ちびたスタンプ台', price: 70, target: 'minato', mp: 12, desc: ['使いこまれて、まんなかが へこんでいる。', '朱肉を 12 回復。'] },
   { id: 'item_oden_can', name: '八月のおでん缶', target: 'allies', healRate: 0.5, desc: ['温度だけは 本気。', '全員の HPを 半分 回復。'] },
@@ -34,6 +37,11 @@ export function allItems(): ItemDef[] {
 
 export function isKeyItem(id: string): boolean {
   return !!table.get(id)?.key;
+}
+
+/** Most a shop sells of `id` in one visit (Infinity = no limit). */
+export function shopLimit(id: string): number {
+  return table.get(id)?.shopLimit ?? Infinity;
 }
 
 /** Gacha capsule contents (7.1): weights. null = empty. */

@@ -59,9 +59,11 @@ export class SymbolAI {
       st.timer = (o.phase ?? 0) * 1000;
     }
     a.data.sym = st;
-    a.bw = k === 'ojigi' ? 22 : k === 'semi' ? 20 : 12;
+    // contact boxes follow the field sprite's width (14.1: big enemies)
+    a.bw = k === 'ojigi' ? 22 : k === 'semi' ? 20 : k === 'soujirou' ? 20 : 12;
     a.bh = 8;
     a.solid = k === 'ojigi';
+    if (k === 'soujirou') st.timer = 600;
     if (k === 'semi') a.pose = 'dead';
     if (k === 'hato') a.pose = 'peck';
     a.data.idlePhase = Math.floor(Math.random() * 3000);
@@ -340,25 +342,107 @@ export class SymbolAI {
     }
   }
 
+  /**
+   * ソウジロウ (14.2): drives straight on at 2.5 and turns 90° at walls (25%
+   * about-face). It doesn't steer after Minato, it rams: once he stands in
+   * its lane — the row or the column it can drive along, up to 9 tiles away
+   * with nothing solid in between — it spins round to face him (！), then
+   * drives at him in a straight line at 4.0 until it hits a wall or has
+   * passed him, and only then rolls on as before. At a wall it prefers the
+   * turn that points it at his side of the corridor.
+   */
   private soujirou(a: Actor, st: SymState, d: number, dt: number, active: boolean): void {
     const p = this.f.player;
-    const [fx, fy] = DIR_VEC[a.dir];
     const dx = p.x - a.x;
     const dy = p.y - a.y;
-    const l = Math.hypot(dx, dy) || 1;
-    const inFront = (dx * fx + dy * fy) / l > 0.8 && d < 3;
-    const sp = (active && inFront ? 4.0 : 2.5) * T;
-    const nx = a.x + (fx * sp * dt) / 1000;
-    const ny = a.y + (fy * sp * dt) / 1000;
-    if (this.f.free(a, nx, ny, true)) {
-      a.x = nx;
-      a.y = ny;
-      a.moving = true;
-    } else {
-      snd.se('se_robot_bump', { vol: 0.5 });
-      const turn: Dir[] = fx !== 0 ? ['up', 'down'] : ['left', 'right'];
-      a.dir = Math.random() < 0.25 ? (({ up: 'down', down: 'up', left: 'right', right: 'left' }) as Record<Dir, Dir>)[a.dir] : turn[Math.floor(Math.random() * 2)];
+    if (st.timer > 0) st.timer -= dt;
+    if (st.mode === 'notice') {
+      // the little spin towards him, then go
+      a.moving = false;
+      if (st.timer <= 0) {
+        st.mode = 'chase';
+        snd.se('se_robot_bump', { vol: 0.35, pitch: 1.4 });
+      }
+      return;
     }
+    if (st.mode === 'chase') {
+      const [fx, fy] = DIR_VEC[a.dir];
+      // passed him by more than a tile, or he left the lane far behind: roll on
+      const along = dx * fx + dy * fy;
+      if (!active || along < -20 || d > 11) {
+        st.mode = 'idle';
+        st.timer = 1400;
+        return;
+      }
+      if (!this.drive(a, 4.0 * T, dt)) {
+        st.mode = 'idle';
+        st.timer = 1400;
+        this.bumpTurn(a, dx, dy);
+      }
+      return;
+    }
+    // idle: is he in a lane it can drive down?
+    if (active && st.timer <= 0 && !this.outclassed(a)) {
+      const lane = this.laneTo(a, dx, dy);
+      if (lane) {
+        st.mode = 'notice';
+        st.timer = 380;
+        a.dir = lane;
+        a.moving = false;
+        a.showEmote('exclaim', 700);
+        snd.se('se_symbol_notice');
+        return;
+      }
+    }
+    if (!this.drive(a, 2.5 * T, dt)) this.bumpTurn(a, active && d < 9 ? dx : 0, active && d < 9 ? dy : 0);
+  }
+
+  /** Drive straight ahead; false when a wall is in the way. */
+  private drive(a: Actor, speed: number, dt: number): boolean {
+    const [fx, fy] = DIR_VEC[a.dir];
+    const nx = a.x + (fx * speed * dt) / 1000;
+    const ny = a.y + (fy * speed * dt) / 1000;
+    if (!this.f.free(a, nx, ny, true)) {
+      a.moving = false;
+      return false;
+    }
+    a.x = nx;
+    a.y = ny;
+    a.moving = true;
+    return true;
+  }
+
+  /** Bumped a wall: 90° (towards (dx,dy) when given), 25% about-face. */
+  private bumpTurn(a: Actor, dx: number, dy: number): void {
+    snd.se('se_robot_bump', { vol: 0.5 });
+    const [fx] = DIR_VEC[a.dir];
+    const back = ({ up: 'down', down: 'up', left: 'right', right: 'left' } as Record<Dir, Dir>)[a.dir];
+    const side: Dir[] = fx !== 0 ? ['up', 'down'] : ['left', 'right'];
+    const r = Math.random();
+    if (r < 0.25) {
+      a.dir = back;
+      return;
+    }
+    const toward = fx !== 0 ? (dy < -4 ? 'up' : dy > 4 ? 'down' : null) : dx < -4 ? 'left' : dx > 4 ? 'right' : null;
+    // turn his way 3 times in 4 (a wall on that side sends it the other way)
+    const pick: Dir = toward && r < 0.81 ? toward : side[Math.floor(Math.random() * 2)];
+    const [px, py] = DIR_VEC[pick];
+    a.dir = this.f.free(a, a.x + px * 4, a.y + py * 4, true) ? pick : side[0] === pick ? side[1] : side[0];
+  }
+
+  /**
+   * The direction of a clear straight run from the vacuum to the player
+   * (his feet within 7px of its row or column, at most 9 tiles), or null.
+   */
+  private laneTo(a: Actor, dx: number, dy: number): Dir | null {
+    let dir: Dir | null = null;
+    if (Math.abs(dy) <= 7 && Math.abs(dx) <= 9 * T) dir = dx < 0 ? 'left' : 'right';
+    else if (Math.abs(dx) <= 7 && Math.abs(dy) <= 9 * T) dir = dy < 0 ? 'up' : 'down';
+    if (!dir) return null;
+    const [fx, fy] = DIR_VEC[dir];
+    const dist = Math.abs(fx ? dx : dy);
+    for (let s = 8; s < dist; s += 6) if (!this.f.free(a, a.x + fx * s, a.y + fy * s, true)) return null;
+    return dir;
   }
 
   // ---------------------------------------------------------------- contact
@@ -367,19 +451,22 @@ export class SymbolAI {
     const f = this.f;
     if (f.t < f.invincibleUntil) return;
     const p = f.player;
+    // player 10×8 at the feet; the symbol as wide as its field sprite (bw)
+    // and at least 10 deep, so walking into (or standing on) a symbol whose
+    // body visibly overlaps Minato's feet always starts the battle
+    const pl = p.x - 5;
+    const pr = p.x + 5;
+    const pt = p.y - 8;
+    const pb = p.y;
     for (const a of f.actors) {
-      if (a.kind !== 'sym') continue;
+      if (a.kind !== 'sym' || !a.visible) continue;
       const st = this.st(a);
       if (st.mode === 'stun') continue;
-      const pl = p.x - 5;
-      const pr = p.x + 5;
-      const pt = p.y - 8;
-      const pb = p.y;
       const w = a.bw;
-      const al = a.x - w / 2;
-      const ar = a.x + w / 2;
-      const at = a.y - 8;
-      const ab = a.y;
+      const al = a.x + a.ox - w / 2;
+      const ar = a.x + a.ox + w / 2;
+      const at = a.y - Math.max(a.bh, 10);
+      const ab = a.y + 1;
       if (pl < ar && pr > al && pt < ab && pb > at) {
         this.touch(a, 'contact');
         return;

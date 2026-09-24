@@ -258,9 +258,12 @@ function* roundEnd(s: BattleScene): Co {
         pages.push(...statusText(id, 'off', u.name));
       }
     }
+    // つかまった／とおせんぼ cost exactly one turn: they come off at the end of
+    // the round in which the member's own turn was actually skipped — never
+    // in the round they were put on (the victim may already have acted)
     for (const id of ['status_tsukamare', 'status_toosenbo']) {
       if (!st[id]) continue;
-      if (s.memo['blocked_' + u.id] || !u.canAct) {
+      if (s.memo['blocked_' + u.id]) {
         delete st[id];
         pages.push(...statusText(id, 'off', u.name));
         if (id === 'status_tsukamare') {

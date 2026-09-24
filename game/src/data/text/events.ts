@@ -49,7 +49,7 @@ export const MARUYAMA_FIRST_A = `@npc_maruyama
 コロッケ 4つ？{w=300}
 悪いな、まだ 揚げてねえんだ。
 /
-揚げたては 五時の チャイムが
+揚げたては 5時の チャイムが
 鳴り終わってから。
 /
 オレの 信念じゃない。{w=300}
@@ -151,16 +151,12 @@ export const HANKO_B = `@npc_obaa
 
 export const HANKO_GET = `@sys
 ハンコケースを 受けとった！
-/
-{c=#E23B2E}みました{/c}と {c=#E23B2E}ペケ{/c}の ハンコが
-入っている。`;
+{c=#E23B2E}みました{/c}と {c=#E23B2E}ペケ{/c}の ハンコが 入っている。`;
 
 export const HANKO_C = `@npc_obaa
-宿題はね、ぜんぶは
-見て あげられなかった。{w=600}
-/
-だから 今、あんたが
-見に 行っておいで。`;
+宿題はね、ぜんぶは 見て
+あげられなかった。{w=600}
+だから 今、あんたが 見に 行っておいで。`;
 
 /** The last two pages (also what she repeats while waiting at the storefront). */
 export const HANKO_D = `@npc_obaa
@@ -180,8 +176,8 @@ export const PARK_HINT_A1 = `@npc_obaa
 
 export const PARK_HINT_A2 = `@npc_obaa
 ……さて。{w=300}
-公園の ほうでね、鐘の 頭を した
-のが、ひとりで 回ってるって さ。
+公園の ほうでね、鐘の 頭を した のが、
+ひとりで 回ってるってさ。
 /
 路地の 工事は 『17時まで』
 だったろ。{w=300}
@@ -192,8 +188,8 @@ export const PARK_HINT_B = `@npc_obaa
 ……まあ いい。押すのは
 道々で いいさ。
 /
-公園の ほうでね、鐘の 頭を した
-のが、ひとりで 回ってるって さ。
+公園の ほうでね、鐘の 頭を した のが、
+ひとりで 回ってるってさ。
 路地から 行けるよ。`;
 
 // ---------------------------------------------------------------- 5.10 evt_alley_open
@@ -221,8 +217,7 @@ export const KANENARI_JOIN_SYS = `@sys
 // ---------------------------------------------------------------- 5.13 evt_maigo_broadcast
 
 export const BROADCAST = `@npc_broadcast
-ピンポンパンポーン。
-/
+{spd=0.3}ピンポンパンポーン。{/spd}{w=400}
 迷子の お知らせです。
 /
 黄色い 通学帽の子、
@@ -291,7 +286,7 @@ export const MAIGO_DOOR_LOCKED = `@narr
 export const MAIGO_DOOR_LOCKED_FLIP = `@flip
 （フードコートは 1Fです）`;
 export const MAIGO_DOOR_USE = `@sys
-迷子センターの カギを 使った。`;
+迷子センターの鍵を 使った。`;
 export const MAIGO_DOOR_OPEN_FLIP = `@flip
 （……ここ、知っている
 気がします）`;
@@ -329,19 +324,27 @@ export const BOSS_B = `@？？？:omukaemachi
 鳴らさない。{w=600}
 鳴ったら、今日が 終わっちゃう。`;
 
+/** A retry: only the last page (the same words). */
+export const BOSS_B_AGAIN = `@？？？:omukaemachi
+5時の チャイムは、
+鳴らさない。{w=600}
+鳴ったら、今日が 終わっちゃう。`;
+
 export const BOSS_FLIP = `@flip
 （……）`;
 
 // ---------------------------------------------------------------- 5.20 evt_ending
 
 export const END_MEAT_A = `@npc_maruyama
-揚がった！{w=300}
-油が、やっと 納得した。
-/
+揚がった！{w=300} 油が、やっと 納得した。
 コロッケ 4つ。ソースは 別。{w=300}
 ……わかってるよ。`;
 export const END_MEAT_PAY = `@sys
 320円 はらった。`;
+/** Paid and handed over in one line (the jingle plays under it). */
+export const END_MEAT_PAY_GET = `@sys
+320円 はらった。
+揚げたて コロッケを 受けとった！`;
 export const END_MEAT_TSUKE = `@npc_maruyama
 足りない 分は ツケだ。{w=300}
 夏休みの 最終日 だからな。`;
@@ -395,6 +398,8 @@ export const END_GIVE = `@narr
 
 export const END_VOICE = `@カネナリくん:kanenari_voice
 {spd=0.4}……おいしい。`;
+/** The same words as they are shown: windowless, typed slowly (ending cut 6). */
+export const END_VOICE_TEXT = '……おいしい。';
 
 // ---------------------------------------------------------------- 5.22 セーブ（ベンチ・お地蔵さんは UI の saveMenu を使う）
 

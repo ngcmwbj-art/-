@@ -7,7 +7,7 @@ import { game, type Scene } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { Particles, type BurstOpts } from '../engine/particles';
 import { rng } from '../engine/rng';
-import { makeCanvas } from '../engine/pixel';
+import { BAYER4, makeCanvas } from '../engine/pixel';
 import { drawText } from '../engine/font';
 import { flag, state } from '../game/state';
 import { sfx, type SfxOpts } from '../audio';
@@ -22,9 +22,9 @@ import { emptySlotCanvas } from './ui/panels';
 import {
   drawChimeSticky, drawCommand, drawInfoCard, drawKire, drawList, drawPanel, KIRE_TAB, PANEL_POS, TAG, type CardData, type CmdView, type ListRow,
 } from './ui/panels';
-import { C, cursorStamp, cursorStampSide, drawBar, labelCanvas, slantTape, STICKY_PAD, stickyCanvas, tapeCanvas } from './ui/note';
-import { ovalStamp, pekeMark, petalSprites } from './art/stamps';
-import { sweatDrop } from './art/fxart';
+import { C, cursorStamp, cursorStampSide, drawBar, slantTape, STICKY_PAD, stickyCanvas, tapeCanvas } from './ui/note';
+import { inkLabel, ovalStamp, pekeMark, petalSprites } from './art/stamps';
+import { hitCrack, hitSplash, sweatDrop } from './art/fxart';
 
 export const FRAME = 1000 / 60;
 
@@ -46,7 +46,8 @@ interface FloatLabel {
 export interface Fx {
   t: number;
   dur: number;
-  layer: 'back' | 'world' | 'top';
+  /** 'over': above the damage numbers too (the 2–3 frame impact splash). */
+  layer: 'back' | 'world' | 'top' | 'over';
   /** Keeps animating during hitstop (UI-ish effects). */
   ui?: boolean;
   draw(g: Gfx, t: number, p: number): void;
@@ -54,6 +55,8 @@ export interface Fx {
   done?: boolean;
   /** Screen rect floating numbers / labels must keep clear of while alive. */
   block?: () => NumRect | null;
+  /** Screen rect only labels must keep clear of (numbers may sit over it). */
+  blockLabels?: () => NumRect | null;
 }
 
 export interface BossHooks {
@@ -146,7 +149,7 @@ export class BattleScene implements Scene {
   /** Tutorial / misc flags for this battle. */
   memo: Record<string, number> = {};
   /** QA: automatic inputs (tsukkomi / ring / hold). */
-  auto: { tsuk?: string; ring?: string; hold?: 'kukkiri' | 'futsuu' | 'kasure' } = {};
+  auto: { tsuk?: string; ring?: string; hold?: 'kukkiri' | 'futsuu' | 'kasure'; crit?: boolean } = {};
   /** QA: queued party commands for the next input phase. */
   cmdQueue: { who: string; cmd: string; skill?: string; item?: string; target?: number | string; part?: string }[] = [];
   /** QA: forced enemy actions (in order). */
@@ -247,6 +250,10 @@ export class BattleScene implements Scene {
       this.freezeMs -= dt;
       return;
     }
+    // hit flashes count frames that were actually shown (16.2 "敵を白く1f"):
+    // a flash set during the previous tick has been drawn once by now, so it
+    // ticks down here, before anything this tick can set a new one
+    for (const e of this.enemies) if (e.whiteFrames > 0 && e.whiteFrames < 900) e.whiteFrames--;
     this.updateUi(dt);
     if (this.hitstopMs > 0) {
       this.hitstopMs -= dt;
@@ -299,8 +306,6 @@ export class BattleScene implements Scene {
     for (const f of this.flashes) f.frames -= 1;
     this.flashes = this.flashes.filter((f) => f.frames > 0);
     for (const u of this.party) this.updatePanel(u, dt);
-    // hit flashes last N real frames, hitstop or not (16.2: "敵を白く2f")
-    if (this.hitstopMs > 0) for (const e of this.enemies) if (e.whiteFrames > 0 && e.whiteFrames < 900) e.whiteFrames--;
     if (this.card) {
       this.card.t += dt;
       // 15.9: the card closes after 1.4s on its own (it never waits for the band)
@@ -346,8 +351,11 @@ export class BattleScene implements Scene {
     u.mpShown += (u.m.mp - u.mpShown) * k;
     if (Math.abs(u.mpShown - u.m.mp) < 0.5) u.mpShown = u.m.mp;
     if (u.hpTrail > u.m.hp) {
-      if (u.trailWait > 0) u.trailWait -= dt;
-      else u.hpTrail = Math.max(u.m.hp, u.hpTrail - (u.m.maxHp / 250) * dt * 1.2);
+      if (u.trailWait > 0) {
+        u.trailWait -= dt;
+        // 40_audio 9: one soft tick as the white remainder starts to drain
+        if (u.trailWait <= 0) sfx('se_hp_tick', { pan: u.id === 'kanenari' ? 0.35 : -0.1 });
+      } else u.hpTrail = Math.max(u.m.hp, u.hpTrail - (u.m.maxHp / 250) * dt * 1.2);
     } else u.hpTrail = u.m.hp;
   }
 
@@ -365,7 +373,6 @@ export class BattleScene implements Scene {
       const d = e.xTarget - e.x;
       e.x += Math.sign(d) * Math.min(Math.abs(d), dt * 0.25);
     }
-    if (e.whiteFrames > 0 && e.whiteFrames < 900) e.whiteFrames--;
     if (e.blushT > 0) e.blushT -= dt;
     if (e.shyT > 0) e.shyT -= dt;
     if (e.appearT >= 0) e.appearT += dt;
@@ -443,7 +450,9 @@ export class BattleScene implements Scene {
     if (this.kanenariJoined) out.push({ x0: KIRE_TAB[0], y0: KIRE_TAB[1], x1: KIRE_TAB[0] + 44, y1: KIRE_TAB[1] + 18 });
     out.push({ x0: 0, y0: 150, x1: 384, y1: 216 });
     if (this.isBoss) out.push({ x0: 300, y0: this.msg.bottom, x1: 378, y1: this.msg.bottom + 24 });
-    if (this.sticky && this.sticky.t >= 0) {
+    // a sticky still waiting to peel on (it follows the lettering) already
+    // owns its spot: a label placed in the same frame must not take it
+    if (this.sticky) {
       const img = stickyCanvas(this.sticky.text);
       const right = this.sticky.pos === 'right';
       const sx = right ? 381 - (img.width - STICKY_PAD) : 8;
@@ -461,10 +470,30 @@ export class BattleScene implements Scene {
     return out;
   }
 
-  /** Is `r` on screen, clear of the fixed UI and of every live reservation? */
-  fits(r: Rect, ignoreOcc = false): boolean {
+  /**
+   * Enemy faces (face ±12px): a label never covers the eyes it is about —
+   * the boss's name-tag eyes least of all.
+   */
+  faceRects(): Rect[] {
+    const out: Rect[] = [];
+    for (const e of this.enemies) {
+      if (!e.alive || !e.visible) continue;
+      out.push({ x0: e.faceX - 12, y0: e.faceY - 12, x1: e.faceX + 12, y1: e.faceY + 12 });
+    }
+    return out;
+  }
+
+  /** Is `r` on screen, clear of the fixed UI and of every live reservation (and, for labels, the faces)? */
+  fits(r: Rect, ignoreOcc = false, faces = false): boolean {
     if (r.x0 < 2 || r.x1 > 382 || r.y0 < 0 || r.y1 > 214) return false;
     for (const b of this.blockedRects()) if (BattleScene.overlap(r, b, 0)) return false;
+    if (faces) {
+      for (const b of this.faceRects()) if (BattleScene.overlap(r, b, 0)) return false;
+      for (const f of this.fx) {
+        const b = !f.done && f.blockLabels ? f.blockLabels() : null;
+        if (b && BattleScene.overlap(r, b, 0)) return false;
+      }
+    }
     if (!ignoreOcc) for (const o of this.occ) if (o.until > this.rt && BattleScene.overlap(r, o.r)) return false;
     return true;
   }
@@ -482,6 +511,13 @@ export class BattleScene implements Scene {
    */
   number(x: number, y: number, n: number, o: NumOpts = {}, lay: 'free' | 'enemy' | 'party' = 'free', owner?: EnemyUnit | PartyUnit): DamageNumber {
     const d = new DamageNumber(x, y, n, o);
+    if ((o.kind === 'heal' || o.kind === 'mp') && Math.round(n) <= 0) {
+      // already full: no green "0" — just a glint where the number would pop
+      d.done = true;
+      // where the number would have come to rest
+      this.fullGlint(x + (lay === 'party' ? -4 : 0), y - (o.rise ?? 16) - 6);
+      return d;
+    }
     if (lay !== 'free') {
       const w = d.img.width;
       const h = d.img.height;
@@ -523,6 +559,29 @@ export class BattleScene implements Scene {
     return d;
   }
 
+  /**
+   * 「まんたん」: a heal that had nothing to fill. A 4-point glint opens and
+   * closes (300ms) with two tiny stars drifting off — no number.
+   */
+  fullGlint(x: number, y: number): void {
+    const img = glintSprite();
+    this.addFx({
+      layer: 'top',
+      dur: 320,
+      ui: true,
+      draw: (g, t) => {
+        const p = t / 320;
+        // opens wide (1.4×), then closes to a point
+        const k = p < 0.3 ? p / 0.3 : 1 - (p - 0.3) / 0.7;
+        const sz = Math.max(3, Math.round(img.width * 1.4 * k)) | 1;
+        g.ctx.drawImage(img, Math.round(x - sz / 2), Math.round(y - sz / 2), sz, sz);
+      },
+    });
+    this.sparkle(x - 5, y + 2);
+    this.sparkle(x + 6, y - 1);
+    sfx('se_glint', { vol: 0.8 });
+  }
+
   /** Rest rect of the number `owner` popped within the last `ms` (for its label). */
   recentNumberRect(owner: EnemyUnit | PartyUnit, ms = 400): Rect | null {
     const r = this.lastNum.get(owner);
@@ -549,7 +608,7 @@ export class BattleScene implements Scene {
     worn = false,
     delay = 0,
   ): void {
-    const img = labelCanvas(text, tone, worn);
+    const img = inkLabel(text, tone, worn);
     this.labels.push({ img, t: -delay, ms, x: 0, y: 0, placed: false, anchor, sides });
   }
 
@@ -578,20 +637,35 @@ export class BattleScene implements Scene {
       }
     };
     const nudges = [0, 6, -6, 12, -12, 20, -20];
-    for (const pass of [false, true])
-      for (const side of l.sides)
+    // pass 1: clear of everything; 2: may touch a fading reservation; 3: may
+    // touch a face (a crowded moment still gets its label)
+    const passes: [boolean, boolean][] = [[false, true], [true, true], [true, false]];
+    for (const [ignoreOcc, faces] of passes) {
+      // of every free spot, the one nearest the anchor wins (the side order
+      // breaks ties): a label stays next to what it is about
+      let best: Rect | null = null;
+      let bestCost = Infinity;
+      l.sides.forEach((side, si) => {
         for (const n of side === 'center' ? [0] : nudges) {
           const [x, y] = at(side, n);
           const r = { x0: Math.round(x), y0: Math.round(y), x1: Math.round(x + w), y1: Math.round(y + h) };
-          // second pass: fixed UI only (a crowded moment still gets its label)
-          if (this.fits(r, pass)) {
-            l.x = r.x0;
-            l.y = r.y0;
-            l.placed = true;
-            this.reserve(r, l.ms);
-            return;
+          if (!this.fits(r, ignoreOcc, faces)) continue;
+          const cost = Math.hypot((r.x0 + r.x1) / 2 - acx, (r.y0 + r.y1) / 2 - acy) + si * 6;
+          if (cost < bestCost) {
+            bestCost = cost;
+            best = r;
           }
         }
+      });
+      if (best) {
+        const r: Rect = best;
+        l.x = r.x0;
+        l.y = r.y0;
+        l.placed = true;
+        this.reserve(r, l.ms);
+        return;
+      }
+    }
     const [x, y] = at(l.sides[0], 0);
     l.x = Math.round(Math.max(2, Math.min(382 - w, x)));
     l.y = Math.round(Math.max(this.msg.bottom + 2, Math.min(141 - h, y)));
@@ -611,10 +685,25 @@ export class BattleScene implements Scene {
     for (const l of this.labels) {
       if (!l.placed || l.t < 0) continue;
       const t = l.t;
-      const pop = t < 70 ? 1.5 - 0.5 * (t / 70) : 1;
+      // pressed on like a stamp: 1.4 → 1.0 with a squash (wide and flat,
+      // then a hair tall, then settled) in 90ms
+      let sx = 1;
+      let sy = 1;
+      if (t < 90) {
+        const p = t / 90;
+        if (p < 0.55) {
+          const q = p / 0.55;
+          sx = 1.4 - 0.45 * q;
+          sy = 0.8 + 0.28 * q;
+        } else {
+          const q = (p - 0.55) / 0.45;
+          sx = 0.95 + 0.05 * q;
+          sy = 1.08 - 0.08 * q;
+        }
+      }
       const a = t > l.ms - 150 ? Math.max(0, (l.ms - t) / 150) : 1;
-      const w = l.img.width * pop;
-      const h = l.img.height * pop;
+      const w = l.img.width * sx;
+      const h = l.img.height * sy;
       const cx = l.x + l.img.width / 2;
       const cy = l.y + l.img.height / 2;
       g.alpha(a, () => g.ctx.drawImage(l.img, Math.round(cx - w / 2), Math.round(cy - h / 2), Math.round(w), Math.round(h)));
@@ -665,18 +754,73 @@ export class BattleScene implements Scene {
    */
   paper(x: number, y: number, n: number, speed: [number, number] = [60, 120]): void {
     const bits = paperBits();
-    for (let i = 0; i < n; i++)
+    for (let i = 0; i < n; i++) {
       this.burst(x, y, { count: 1, speed, angle: [-Math.PI * 0.95, -Math.PI * 0.05], life: [260, 380], colors: ['#FBF3DC'], gravity: 200, shape: 'img', img: bits[i % bits.length] }, true);
+      this.leadOut(this.partsTop, 7 + (i % 3) * 2);
+    }
   }
   stars(x: number, y: number, n: number, speed: [number, number] = [80, 160]): void {
     const st = starBits();
-    for (let i = 0; i < n; i++)
-      this.burst(x, y, { count: 1, speed, life: [280, 440], colors: ['#FFD23F'], gravity: 60, drag: 2, shape: 'img', img: st[i % st.length] }, true);
+    for (let i = 0; i < n; i++) {
+      this.burst(x, y, { count: 1, speed, life: [280, 440], colors: ['#FFD23F'], gravity: 60, drag: 2, shape: 'img', img: st[i % 2] }, true);
+      this.leadOut(this.partsTop, 9);
+    }
+  }
+
+  /**
+   * The impact splash at a hit point (QA round 1): an ink starburst `size`
+   * px across over the enemy for the first `frames` frames of the hitstop
+   * (white-hot → vermilion ring → broken tips), with radial speed lines on
+   * a good hit. On the boss a crack is struck into the shadow body where the
+   * blow landed and lingers a moment, so the hit has the size of the target.
+   */
+  impact(x: number, y: number, size: number, frames: number, lines: boolean, boss = false): void {
+    const seed = rng.int(1, 6);
+    const n = Math.max(2, Math.min(3, frames));
+    const sz = Math.round(boss ? size * 1.4 : size);
+    this.addFx({
+      // over the number that pops in the same frame: for these 2–3 frames
+      // the contact itself is the picture, then the number takes over
+      layer: 'over',
+      dur: n * FRAME - 1,
+      ui: true,
+      draw: (g, t) => {
+        const fi = Math.min(n - 1, Math.round(t / FRAME));
+        const img = hitSplash(sz, fi, lines, seed);
+        g.img(img, Math.round(x - img.width / 2), Math.round(y - img.height / 2));
+      },
+    });
+    if (boss) {
+      const crack = hitCrack(Math.round(size * 1.5), seed);
+      const cx = Math.round(x - crack.width / 2 + rng.int(-3, 3));
+      const cy = Math.round(y - crack.height / 2 + rng.int(-3, 3));
+      this.addFx({
+        // over the hoop of the net that struck it
+        layer: 'top',
+        dur: 420,
+        ui: true,
+        draw: (g, t) => g.alpha(t < 200 ? 1 : 1 - (t - 200) / 220, () => g.img(crack, cx, cy)),
+      });
+    }
+  }
+
+  /**
+   * Particles freeze through the hitstop (16.0), so the debris of a hit is
+   * born already a little way out — `r` px from the point plus two frames of
+   * its flight — instead of sitting under the damage number.
+   */
+  private leadOut(ps: Particles, r: number): void {
+    const p = ps.list[ps.list.length - 1];
+    if (!p) return;
+    const v = Math.hypot(p.vx, p.vy) || 1;
+    const lead = 2 / 60;
+    p.x += (p.vx / v) * r + p.vx * lead;
+    p.y += (p.vy / v) * r + p.vy * lead;
   }
   /** One glinting star (#FFD23F, core #FFF6D8) drifting up from (x, y). */
   sparkle(x: number, y: number): void {
     const st = starBits();
-    this.burst(x, y, { count: 1, speed: [8, 22], angle: [-Math.PI * 0.8, -Math.PI * 0.2], life: [420, 640], colors: ['#FFD23F'], gravity: -10, drag: 1, shape: 'img', img: st[rng.int(0, 1)] }, true);
+    this.burst(x, y, { count: 1, speed: [8, 22], angle: [-Math.PI * 0.8, -Math.PI * 0.2], life: [420, 640], colors: ['#FFD23F'], gravity: -10, drag: 1, shape: 'img', img: st[rng.int(1, 2)] }, true);
   }
   shuSplash(x: number, y: number, n: number, alpha70 = false): void {
     const cols = alpha70 ? ['#E86A5E', '#E86A5E'] : ['#E23B2E', '#E23B2E', '#E23B2E', '#FF6A4D', '#B8241E'];
@@ -692,8 +836,38 @@ export class BattleScene implements Scene {
     this.burst(x, y, { count: n, speed: [60, 140], angle: [-Math.PI, 0], life: [300, 500], colors: ['#E8F4F8', '#7FD1E8'], gravity: 400, shape: 'sq', size: [2, 2], sizeEnd: 1 }, true);
   }
 
+  /** Frame of the last se_warn (the tsukkomi "!" ping). */
+  private warnFrame = -99;
+
+  /**
+   * Battle SE with the transients kept apart (40_audio 1.6-3 "a reply to
+   * each press"): the "!" ping owns its frame — a move's own SE asked for on
+   * the same frame (the card toss, the glove, the kick…) follows 100ms later
+   * instead of smearing into it.
+   */
   sfx(id: string, o?: SfxOpts): void {
+    if (id === 'se_warn') this.warnFrame = this.frame;
+    else if (this.frame - this.warnFrame <= 1 && !WARN_COMPANIONS.has(id)) {
+      this.sfxLater(id, o, 100);
+      return;
+    }
     sfx(id, o);
+  }
+
+  /** Play an SE `ms` later (real time: hitstop doesn't hold sounds). */
+  sfxLater(id: string, o: SfxOpts | undefined, ms: number): void {
+    this.addFx({
+      layer: 'top',
+      dur: ms + 1,
+      ui: true,
+      draw: () => {},
+      update() {
+        if (this.t >= ms) {
+          sfx(id, o);
+          this.done = true;
+        }
+      },
+    });
   }
 
   setMusicParam(name: string, v: number): void {
@@ -750,7 +924,9 @@ export class BattleScene implements Scene {
     this.parts.draw(g);
     if (this.showUi) this.drawUi(g);
     for (const f of this.fx) if (f.layer === 'top') f.draw(g, f.t, f.dur ? Math.min(1, f.t / f.dur) : 0);
+    if (this.showUi) this.drawSticky(g);
     for (const n of this.numbers) n.draw(g);
+    for (const f of this.fx) if (f.layer === 'over') f.draw(g, f.t, f.dur ? Math.min(1, f.t / f.dur) : 0);
     this.partsTop.draw(g);
     this.drawLabels(g);
     ctx.restore();
@@ -790,10 +966,22 @@ export class BattleScene implements Scene {
         ellipse(g.ctx, e.x, e.footY - 2, 32, 7);
       });
     }
-    const a = 0.35 * e.alpha * (e.appearT >= 0 && e.appearT < 300 ? e.appearT / 300 : 1);
+    const appear =
+      (e.appearT >= 0 && e.appearT < 300 ? e.appearT / 300 : e.appearT < 0 && e.appearT !== -1 ? 0 : 1) *
+      // shrinks away with the silhouette of もとにもどる
+      (e.dying ? Math.max(0, Math.min(1, (e.sx - 0.15) / 0.85)) : 1);
+    // a soft backlight of dusk behind the enemy (QA round 1): the busy
+    // backgrounds (the rain's web, the roofs, the orange of bg_kanenari)
+    // step back around it and its outline reads
+    const bl = backlight(e.sizeW, e.sizeH);
+    g.alpha(e.alpha * appear, () => g.img(bl, Math.round(e.x + e.offX - bl.width / 2), Math.round(e.top + e.offY + e.sizeH * 0.56 - bl.height / 2)));
+    // the foot shadow, dark enough to hold on a bright or a dark ground
+    const a = 0.5 * e.alpha * appear;
     g.alpha(a, () => {
       g.ctx.fillStyle = C.ink;
       ellipse(g.ctx, x + w / 2, y + 3, w / 2, 3);
+      g.ctx.fillStyle = '#1B1733';
+      ellipse(g.ctx, x + w / 2, y + 3, Math.max(2, w / 2 - 4), 2);
     });
   }
 
@@ -861,10 +1049,19 @@ export class BattleScene implements Scene {
     return c;
   }
 
+  /**
+   * Boss battles: while a page too long for one line grows the band, the
+   * boss sinks with it (up to 10px) so its cap stays in view.
+   */
+  bandDip(e: EnemyUnit): number {
+    if (!e.def.boss || !this.msg.bossMode) return 0;
+    return Math.round((Math.max(0, Math.min(18, this.msg.height - 26)) * 10) / 18);
+  }
+
   /** Screen-space top-left of the enemy canvas (before scaling). */
   enemyCanvasXY(e: EnemyUnit): [number, number] {
     const art = e.art!;
-    return [e.left - art.ox + e.offX + e.jitterX, e.top - art.oy + e.offY + e.jitterY];
+    return [e.left - art.ox + e.offX + e.jitterX, e.top - art.oy + e.offY + e.jitterY + this.bandDip(e)];
   }
 
   drawEnemy(g: Gfx, e: EnemyUnit): void {
@@ -899,6 +1096,14 @@ export class BattleScene implements Scene {
       ctx.drawImage(this.tinted(src, '#FF3030', 0), dx - 1, dy, Math.round(w), Math.round(h));
       ctx.drawImage(this.tinted(src, '#30FFFF', 1), dx + 1, dy, Math.round(w), Math.round(h));
       ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = prevA * e.alpha;
+    }
+    if (!e.def.boss && !e.shear && !art.dynamic) {
+      // a 1px dusk rim around the silhouette (QA round 1): pale or orange
+      // enemies no longer melt into the web of the rain or their own backdrop
+      const rim = rimFor(art.frame(v));
+      ctx.globalAlpha = prevA * e.alpha * 0.62;
+      ctx.drawImage(rim, Math.round(dx - sx), Math.round(dy - sy), Math.round(rim.width * sx), Math.round(rim.height * sy));
       ctx.globalAlpha = prevA * e.alpha;
     }
     if (e.shear) {
@@ -972,14 +1177,11 @@ export class BattleScene implements Scene {
   private drawUi(g: Gfx): void {
     const a = this.uiAlpha;
     // enemy HP bars (みました済み) during command input & target selection
-    if (this.cmd && !this.hideEnemyHp) {
-      for (const e of this.enemies) {
-        if (!e.alive || !flag('flag_mimashita_' + e.id) || e.def.invulnerable) continue;
-        const w = Math.min(40, e.sizeW);
-        // 6px over the head, but never inside the band (tall enemies, the boss)
-        const by = Math.max(this.msg.bottom + 3, e.headY - 6 - 3);
-        drawBar(g, Math.round(e.x - w / 2), by, w, 3, e.hp / e.maxHp, C.shu, C.grid, e.hpTrail / e.maxHp, C.white);
-      }
+    for (const e of this.enemies) {
+      const by = this.enemyBarY(e);
+      if (by === null) continue;
+      const w = Math.min(40, e.sizeW);
+      drawBar(g, Math.round(e.x - w / 2), by, w, 3, e.hp / e.maxHp, C.shu, C.grid, e.hpTrail / e.maxHp, C.white);
     }
     this.msg.alpha = a;
     this.msg.draw(g);
@@ -999,9 +1201,21 @@ export class BattleScene implements Scene {
         // lying on its side, pressing at the thing to its right
         const img = cursorStampSide(this.cursorPressed > 0);
         g.img(img, Math.round(aim.x - img.width - 1 + bob), Math.round(aim.y - img.height / 2));
+      } else if (!aim && !this.target.part && this.enemyBarY(e) !== null) {
+        // an HP bar over the head: the stamp sits 4px above it, never on it;
+        // when the bar is up under the band, it lies beside the bar instead
+        const by = this.enemyBarY(e)!;
+        const w = Math.min(40, e.sizeW);
+        const img = cursorStamp(this.cursorPressed > 0);
+        const cy = by - 4 - img.height;
+        if (cy >= this.msg.bottom + 2) g.img(img, Math.round(e.x - 4), Math.round(cy + bob));
+        else {
+          const side = cursorStampSide(this.cursorPressed > 0);
+          g.img(side, Math.round(e.x - w / 2 - side.width - 3 + bob), Math.round(by + 1 - side.height / 2));
+        }
       } else {
         const px = aim ? aim.x : this.target.part ? this.target.part.x : e.x;
-        const py = Math.max(this.msg.bottom + 14, aim ? aim.y : this.target.part ? this.target.part.y : e.headY - (flag('flag_mimashita_' + e.id) ? 14 : 4));
+        const py = Math.max(this.msg.bottom + 14, aim ? aim.y : this.target.part ? this.target.part.y : e.headY - 4);
         g.img(cursorStamp(this.cursorPressed > 0), Math.round(px - 4), Math.round(py - 12 + bob));
       }
     }
@@ -1010,6 +1224,16 @@ export class BattleScene implements Scene {
       const slide = this.card.closing ? Math.max(0, 1 - t / 160) : Math.min(1, t / 160);
       drawInfoCard(g, this.card.data, 1 - (1 - slide) * (1 - slide));
     }
+    // a sticky still waiting to peel on (it follows the lettering) already
+    // owns its spot: a label placed in the same frame must not take it
+  }
+
+  /**
+   * The tutorial sticky: stuck on the glass, over the net's pole and the
+   * effects of the stage (it is what the player must read), under the
+   * numbers and labels (which keep clear of it).
+   */
+  private drawSticky(g: Gfx): void {
     if (this.sticky && this.sticky.t >= 0) {
       const img = stickyCanvas(this.sticky.text);
       const st = this.sticky;
@@ -1025,6 +1249,16 @@ export class BattleScene implements Scene {
       g.alpha(k, () => g.img(img, sx - P + dir * Math.round(out * 10), sy - P - Math.round((1 - Math.min(1, st.t / 120)) * 6) + Math.round(out * out * 12)));
       if (glow) g.alpha(0.35 * k, () => g.rect(sx, sy, img.width - P - 3, img.height - P - 3, '#FFFFFF'));
     }
+  }
+
+  /**
+   * Top of the enemy's overhead HP bar (みました済み, during command input and
+   * target selection), or null when it has none: 6px over the head, but
+   * never inside the band (tall enemies, the boss).
+   */
+  enemyBarY(e: EnemyUnit): number | null {
+    if (!this.cmd || this.hideEnemyHp || !e.alive || !flag('flag_mimashita_' + e.id) || e.def.invulnerable) return null;
+    return Math.max(this.msg.bottom + 3, e.headY - 6 - 3);
   }
 
   private drawIdleCommandBox(g: Gfx, a: number): void {
@@ -1043,6 +1277,61 @@ export class BattleScene implements Scene {
       g.img(emptyTag(), 280, 144);
     });
   }
+}
+
+const rimCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+/** The 1px ring around a sprite's silhouette in #1B1733 (canvas 2px larger). */
+function rimFor(src: HTMLCanvasElement): HTMLCanvasElement {
+  let c = rimCache.get(src);
+  if (c) return c;
+  const [cv, ctx] = makeCanvas(src.width + 2, src.height + 2);
+  const [sil, sctx] = makeCanvas(src.width, src.height);
+  sctx.drawImage(src, 0, 0);
+  sctx.globalCompositeOperation = 'source-in';
+  sctx.fillStyle = '#1B1733';
+  sctx.fillRect(0, 0, src.width, src.height);
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) ctx.drawImage(sil, 1 + dx, 1 + dy);
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.drawImage(src, 1, 1);
+  ctx.globalCompositeOperation = 'source-over';
+  rimCache.set(src, cv);
+  c = cv;
+  return c;
+}
+
+const backlightCache = new Map<string, HTMLCanvasElement>();
+/**
+ * A stepped, dithered ellipse of dusk (#1B1733, up to α≈0.3 at the heart)
+ * a little larger than the enemy: its backlight against the background.
+ */
+function backlight(w: number, h: number): HTMLCanvasElement {
+  const key = `${w}x${h}`;
+  let c = backlightCache.get(key);
+  if (c) return c;
+  const rx = Math.round(w * 0.7);
+  const ry = Math.round(h * 0.62);
+  const [cv, ctx] = makeCanvas(rx * 2, ry * 2);
+  const img = ctx.createImageData(rx * 2, ry * 2);
+  for (let y = 0; y < ry * 2; y++)
+    for (let x = 0; x < rx * 2; x++) {
+      const dx = (x + 0.5 - rx) / rx;
+      const dy = (y + 0.5 - ry) / ry;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d >= 1) continue;
+      const v = (1 - d) * 4;
+      // four steps, the edge of each step dithered (Bayer 4×4)
+      const step = Math.floor(v) + (BAYER4[y & 3][x & 3] < Math.round((v % 1) * 16) ? 1 : 0);
+      if (!step) continue;
+      const i = (y * rx * 2 + x) * 4;
+      img.data[i] = 0x1b;
+      img.data[i + 1] = 0x17;
+      img.data[i + 2] = 0x33;
+      img.data[i + 3] = Math.round(Math.min(4, step) * 19);
+    }
+  ctx.putImageData(img, 0, 0);
+  backlightCache.set(key, cv);
+  c = cv;
+  return c;
 }
 
 let emptyTagC: HTMLCanvasElement | null = null;
@@ -1075,32 +1364,78 @@ function shiinLettering(): HTMLCanvasElement {
   return c;
 }
 
+/** SEs that may share the "!" frame (they are the answer to it). */
+const WARN_COMPANIONS = new Set(['se_warn', 'se_bishi', 'se_kiran', 'se_kabuse', 'se_damage']);
+
+let glintC: HTMLCanvasElement | null = null;
+/** 13×13 four-point glint (#FFF6D8 core, #FFD23F arms, ink tips). */
+function glintSprite(): HTMLCanvasElement {
+  if (glintC) return glintC;
+  const rows = [
+    '......k......',
+    '......y......',
+    '......y......',
+    '.....yWy.....',
+    '.....yWy.....',
+    '....yWWWy....',
+    'kyyyWWWWWyyyk',
+    '....yWWWy....',
+    '.....yWy.....',
+    '.....yWy.....',
+    '......y......',
+    '......y......',
+    '......k......',
+  ];
+  const [c, ctx] = makeCanvas(13, 13);
+  const pal: Record<string, string> = { k: '#B8241E', y: '#FFD23F', W: '#FFF6D8' };
+  rows.forEach((r, y) => [...r].forEach((ch, x) => {
+    if (!pal[ch]) return;
+    ctx.fillStyle = pal[ch];
+    ctx.fillRect(x, y, 1, 1);
+  }));
+  glintC = c;
+  return c;
+}
+
 let paperBitsC: HTMLCanvasElement[] | null = null;
-/** Paper scraps 2×2 – 3×3 (#FBF3DC / #E8D9B5 / #F4F1E8) with an ink outline. */
+/**
+ * Paper scraps 3×2 – 4×3 (#FBF3DC / #E8D9B5 / #F4F1E8): a lit top row, a
+ * shaded bottom-right pixel and a dark ink outline, so each one reads as a
+ * torn bit of notebook on the bright sunset.
+ */
 function paperBits(): HTMLCanvasElement[] {
   if (paperBitsC) return paperBitsC;
   const defs: [number, number, string, string][] = [
-    [3, 2, '#FBF3DC', '#E8D9B5'],
-    [2, 2, '#F4F1E8', '#F4F1E8'],
-    [3, 3, '#E8D9B5', '#FBF3DC'],
-    [2, 3, '#FBF3DC', '#E8D9B5'],
+    [4, 3, '#FBF3DC', '#C9B68E'],
+    [3, 3, '#F4F1E8', '#C9B68E'],
+    [4, 2, '#FBF3DC', '#D8C49A'],
+    [3, 2, '#E8D9B5', '#B8A278'],
+    [4, 3, '#F4F1E8', '#D8C49A'],
   ];
-  paperBitsC = defs.map(([w, h, a, b]) => {
+  paperBitsC = defs.map(([w, h, a, b], k) => {
     const [c, ctx] = makeCanvas(w + 2, h + 2);
     ctx.fillStyle = C.ink;
     ctx.fillRect(1, 0, w, h + 2);
     ctx.fillRect(0, 1, w + 2, h);
     ctx.fillStyle = a;
     ctx.fillRect(1, 1, w, h);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(1, 1, w - 1, 1);
     ctx.fillStyle = b;
     ctx.fillRect(w, h, 1, 1);
+    if (h > 2) ctx.fillRect(1 + (k % 2), h, 1, 1);
+    // a notebook rule line across one of them
+    if (k === 0) {
+      ctx.fillStyle = '#AFC4E0';
+      ctx.fillRect(1, 2, w, 1);
+    }
     return c;
   });
   return paperBitsC;
 }
 
 let starBitsC: HTMLCanvasElement[] | null = null;
-/** 5px stars (#FFD23F, core #FFF6D8) with an ink outline; a small and a big one. */
+/** Stars (#FFD23F, core #FFF6D8) with an ink outline: 9px and 7px for hits, 5px for glints. */
 function starBits(): HTMLCanvasElement[] {
   if (starBitsC) return starBitsC;
   const mk = (rows: string[]) => {
@@ -1114,6 +1449,7 @@ function starBits(): HTMLCanvasElement[] {
     return c;
   };
   starBitsC = [
+    mk(['....k....', '...kyk...', '...kyk...', '.kkkykkk.', 'kyyywyyyk', '.kkkykkk.', '...kyk...', '...kyk...', '....k....']),
     mk(['...k...', '..kyk..', '.kkykk.', 'kyywyyk', '.kkykk.', '..kyk..', '...k...']),
     mk(['..k..', '.kyk.', 'kywyk', '.kyk.', '..k..']),
   ];

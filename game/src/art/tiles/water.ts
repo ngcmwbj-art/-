@@ -61,11 +61,13 @@ const GLINT = toRgb(P.glint) as RGB;
 const INK = toRgb(P.nightShade) as RGB;
 const SUNSHADE = toRgb(P.sunShade) as RGB;
 const LILAC = toRgb(P.lilac) as RGB;
+/** Canal water: murky deep teal (between the navy and the leaf shade), darkened. */
+const DEEP = mixc(mixc(toRgb(P.navy) as RGB, toRgb(P.leafShade) as RGB, 0.55), toRgb(P.aqua) as RGB, 0.08);
 
 /** Rows of the revetment face drawn by the ground (the water surface starts below). */
-const REVETMENT = 5;
-/** Rows of the moss lip at the near bank (ground art). */
-const LIP = 2;
+const REVETMENT = 7;
+/** Rows of the near bank's edge (ground art). */
+const LIP = 1;
 
 // ---------------------------------------------------------------- canal geometry
 
@@ -184,28 +186,68 @@ function drawCanalRun(w: WaterCtx, pal: WaterPal, a: number, b: number, ty: numb
   ctx.beginPath();
   ctx.rect(lx0, ly0, W0, ly1 - ly0);
   ctx.clip();
-  // 1. banded gradient (4 bands, dithered 1px borders)
-  const bandCol = (v: number): RGB => (v < 0.22 ? pal.hi : v < 0.48 ? pal.top : v < 0.76 ? pal.mid : pal.low);
+  const t = w.t;
+  const flow = (t / 1000) * 6;
+  const night = w.grade.night;
+  // 1. the water itself: dark, murky canal water (deep teal), a little of the
+  // low sky mixed in towards the far bank (the glancing reflection), darker
+  // towards the near bank where the bank's shadow falls (QA round 1: no more
+  // opaque sky-coloured strip)
+  const skyAt = (sy: number): RGB => mixc(w.grade.skyTop, w.grade.skyBot, Math.max(0, Math.min(1, sy / H)));
   for (let ly = ly0; ly < ly1; ly++) {
     const wy = w.worldY + ly;
-    const v = (wy - s0) / Math.max(1, span);
-    const col = bandCol(Math.max(0, Math.min(0.999, v)));
-    ctx.fillStyle = css(col);
+    const v = Math.max(0, Math.min(1, (wy - s0) / Math.max(1, span)));
+    const sky = skyAt(wy - w.camY);
+    const base = mixc(mixc(DEEP, sky, 0.24 - v * 0.14), INK, v * 0.24 + night * 0.3);
+    ctx.fillStyle = css(base);
     ctx.fillRect(lx0, ly, W0, 1);
-    // dither the row just above a band border with the next band's colour
-    const vn = (wy + 1 - s0) / Math.max(1, span);
-    const nxt = bandCol(Math.max(0, Math.min(0.999, vn)));
-    if (nxt !== col) {
-      ctx.fillStyle = css(nxt);
-      for (let lx = lx0 + ((w.worldX + lx0 + wy) & 1); lx < lx1; lx += 2) ctx.fillRect(lx, ly, 1, 1);
-    }
   }
-  const t = w.t;
-  // 2. reflections of the bank (guardrail rail + posts, trees, poles), wobbling
-  const wob = (wy: number) => Math.round(Math.sin(wy * 0.75 + t / 260) * 1.1);
-  const mirror = s0 - 1; // reflection axis ≈ the revetment middle (objects stand REVETMENT px above the water)
-  ctx.fillStyle = css(mixc(pal.hi, GLINT, 0.5), 0.35 * (1 - w.grade.night * 0.6));
-  const railRefl = mirror + REVETMENT + 10;
+  // 2. the sky's reflection: long streaky bands with ragged, dithered edges
+  // (sky colour of the screen row, a touch lighter), drifting east with the
+  // current and breaking up where the ripples cross them
+  const sway = (wy: number) => Math.round(Math.sin(wy * 0.9 + t / 300) * 1.2);
+  for (let ly = ly0; ly < ly1; ly++) {
+    const wy = w.worldY + ly;
+    if (wy < s0 + 1 || wy >= s1 - 2) continue;
+    const v = (wy - s0) / Math.max(1, span);
+    const sky = skyAt(wy - w.camY);
+    const core = mixc(sky, GLINT, 0.12 * (1 - night));
+    const soft = mixc(core, DEEP, 0.4);
+    // band strength along this row: two streaky layers of value noise
+    const rowK = 0.6 - v * 0.36;
+    const d = sway(wy);
+    let runX = -1;
+    let runC = 0;
+    const flush = (x: number) => {
+      if (runX >= 0 && runC > 0) {
+        ctx.fillStyle = css(runC === 2 ? core : soft, runC === 2 ? 0.92 : 0.7);
+        ctx.fillRect(runX + d, ly, x - runX, 1);
+      }
+    };
+    for (let lx = lx0; lx <= lx1; lx++) {
+      let c = 0;
+      if (lx < lx1) {
+        const wx = w.worldX + lx;
+        const n = valueNoise((wx - flow * 1.4) / 58, wy / 1.9, 611 + ty) * 0.62 + valueNoise((wx - flow * 2.2) / 17, wy / 1.2, 617) * 0.38;
+        const k = n + rowK - 0.5;
+        if (k > 0.57) c = 2;
+        else if (k > 0.5) c = (wx + wy) & 1 ? 1 : 0;
+      }
+      if (c !== runC) {
+        flush(lx);
+        runX = lx;
+        runC = c;
+      }
+    }
+    flush(lx1);
+  }
+  // 3. reflections of what stands on the bank (trees, poles, the guardrail),
+  // upside down, in their own muted colours, each row shifted by the ripples
+  // (2px sway, alternate rows the other way)
+  const mirror = s0 - 1;
+  const wob = (wy: number) => Math.round(Math.sin(wy * 0.75 + t / 260) * 1.6) * ((wy & 1) ? 1 : -1);
+  ctx.fillStyle = css(mixc(DEEP, INK, 0.35), 0.5);
+  const railRefl = mirror + REVETMENT + 9;
   for (const ry2 of [railRefl, railRefl + 2]) {
     const ly = ry2 - w.worldY;
     if (ly >= ly0 && ly < ly1) ctx.fillRect(lx0 + wob(ry2), ly, W0, 1);
@@ -218,35 +260,35 @@ function drawCanalRun(w: WaterCtx, pal: WaterPal, a: number, b: number, ty: numb
   }
   const refl = w.reflect ?? [];
   if (refl.length) {
-    ctx.globalAlpha = 0.3;
     for (const r of refl) {
-      const lift = r.foot - (top - 1); // how far above the bank line the feet stand
+      const lift = r.foot - (top - 1);
       for (const part of r.parts) {
-        if (part.x > w.worldX + lx1 || part.x + part.img.width < w.worldX + lx0) continue;
-        const sil = silhouette(part.img, P.shadeDeep);
+        if (part.x > w.worldX + lx1 + 4 || part.x + part.img.width < w.worldX + lx0 - 4) continue;
+        const dim = dimmed(part.img);
         for (let ly = ly0; ly < ly1; ly++) {
           const wy = w.worldY + ly;
-          if (wy < s0) continue;
-          // height above the water of the object row that reflects here
+          if (wy < s0 || wy >= s1 - 1) continue;
           const hgt = wy - s0 + 1 - REVETMENT - lift;
           const srcY = r.foot - hgt - part.top;
           if (srcY < 0 || srcY >= part.img.height) continue;
-          ctx.drawImage(sil, 0, srcY, part.img.width, 1, part.x - w.worldX + wob(wy), ly, part.img.width, 1);
+          // fainter further from the bank, broken into dashes by the ripples
+          const fade = 1 - (wy - s0) / Math.max(1, span);
+          if (((wy + Math.floor(t / 400)) % 5) === 0) continue;
+          ctx.globalAlpha = (0.3 + 0.28 * fade) * (1 - night * 0.4);
+          ctx.drawImage(dim, 0, srcY, part.img.width, 1, part.x - w.worldX + wob(wy), ly, part.img.width, 1);
         }
       }
     }
     ctx.globalAlpha = 1;
   }
-  // 3. the far bank's shadow band on the water (#3A2B5C α35%, 4px, dithered
-  // lower edge), and at the near bank a 1px bright line of the water's edge
-  // catching the sky above the dark lip
+  // 4. depth: under the north wall a dark waterline and a soft shadow; along
+  // the near (south) bank the bank's own overhang throws a 3px shadow
   const shade: [number, number][] = [
-    [s0, 0.42],
-    [s0 + 1, 0.35],
-    [s0 + 2, 0.35],
-    [s0 + 3, 0.3],
-    [s1 - 2, 0.3],
-    [s1 - 1, 0.45],
+    [s0, 0.55],
+    [s0 + 1, 0.3],
+    [s1 - 3, 0.2],
+    [s1 - 2, 0.38],
+    [s1 - 1, 0.55],
   ];
   for (const [wy, al] of shade) {
     const ly = wy - w.worldY;
@@ -255,25 +297,24 @@ function drawCanalRun(w: WaterCtx, pal: WaterPal, a: number, b: number, ty: numb
     ctx.fillRect(lx0, ly, W0, 1);
   }
   {
-    const ly = s0 + 4 - w.worldY;
+    const ly = s0 + 2 - w.worldY;
     if (ly >= ly0 && ly < ly1) {
-      ctx.fillStyle = css(INK, 0.3);
+      ctx.fillStyle = css(INK, 0.25);
       for (let lx = lx0 + ((w.worldX + lx0) & 1); lx < lx1; lx += 2) ctx.fillRect(lx, ly, 1, 1);
     }
-    const ey = s1 - 3 - w.worldY;
+    const ey = s1 - 4 - w.worldY;
     if (ey >= ly0 && ey < ly1) {
-      ctx.fillStyle = css(mixc(GLINT, pal.hi, 0.3), 0.55 * (1 - w.grade.night * 0.6));
-      ctx.fillRect(lx0, ey, W0, 1);
+      ctx.fillStyle = css(INK, 0.2);
+      for (let lx = lx0 + ((w.worldX + lx0 + 1) & 1); lx < lx1; lx += 2) ctx.fillRect(lx, ey, 1, 1);
     }
   }
-  // 4. ripples and highlight dashes drifting east with the current (never freeze)
-  const flow = (t / 1000) * 6;
+  // 5. ripples: dark lines and a few light crests drifting east (never freeze)
   const lanes = Math.floor(span / 3);
   for (let L = 1; L < lanes; L++) {
     const wy = s0 + 1 + L * 3 + (L % 2);
     const ly = wy - w.worldY;
-    if (ly < ly0 || ly >= ly1) continue;
-    const S = 22; // spacing between dashes on a lane
+    if (ly < ly0 || ly >= ly1 || wy >= s1 - 3) continue;
+    const S = 26;
     const off = flow * (0.7 + (L % 3) * 0.2);
     const j0 = Math.floor((w.worldX + lx0 - off - 12) / S);
     const j1 = Math.floor((w.worldX + lx1 - off) / S);
@@ -281,55 +322,36 @@ function drawCanalRun(w: WaterCtx, pal: WaterPal, a: number, b: number, ty: numb
       const hh = ihash(j, L, 4321 + ty);
       const x = Math.round(j * S + (hh % S) + off) - w.worldX;
       const life = Math.sin(t / (900 + (hh >>> 20) % 700) + (hh % 628) / 100);
-      if (life < -0.2) continue;
-      const kind = (hh >>> 8) % 5;
-      if (kind <= 1) {
-        // dark ripple line
-        const len = 4 + ((hh >>> 12) % 6);
-        ctx.fillStyle = css(pal.ripple, 0.35 + 0.15 * life);
+      if (life < -0.1) continue;
+      const len = 4 + ((hh >>> 12) % 6);
+      if ((hh >>> 8) % 3) {
+        ctx.fillStyle = css(mixc(DEEP, INK, 0.5), 0.45 + 0.2 * life);
         ctx.fillRect(x, ly, len, 1);
-      } else if (kind === 2 || kind === 3) {
-        // highlight dash (a second, shorter one below sometimes)
-        const len = 3 + ((hh >>> 12) % 4);
-        ctx.fillStyle = css(pal.dash, (0.55 + 0.35 * life) * (1 - w.grade.night * 0.7));
-        ctx.fillRect(x, ly, len, 1);
-        if ((hh >>> 16) % 3 === 0) ctx.fillRect(x + 2, ly + 1, Math.max(2, len - 3), 1);
+      } else {
+        ctx.fillStyle = css(pal.dash, (0.35 + 0.25 * life) * (1 - night * 0.7));
+        ctx.fillRect(x, ly - 1, Math.max(2, len - 3), 1);
       }
     }
   }
-  // 4b. three rows of 1px #FFF6D8 wave highlights in the upper (sky-lit)
-  // half, dashes drifting east with the current at slightly different speeds
-  for (let L = 0; L < 3; L++) {
-    const wy = s0 + 6 + L * 4 + (L === 2 ? 1 : 0);
-    const ly = wy - w.worldY;
-    if (ly < ly0 || ly >= ly1 || wy >= s1 - 4) continue;
-    const S = 14 + L * 3;
-    const off = flow * (1.1 - L * 0.2);
-    const j0 = Math.floor((w.worldX + lx0 - off - 10) / S);
-    const j1 = Math.floor((w.worldX + lx1 - off) / S);
-    for (let j = j0; j <= j1; j++) {
-      const hh = ihash(j, L, 5431 + ty);
-      if (hh % 3 === 0) continue;
-      const len = 2 + ((hh >>> 4) % 5);
-      const x = Math.round(j * S + ((hh >>> 8) % 6) + off) - w.worldX;
-      ctx.fillStyle = css(GLINT, (0.9 - L * 0.18) * (1 - w.grade.night * 0.75));
-      ctx.fillRect(x, ly, len, 1);
-    }
-  }
-  // 5. low-sun glitter: bright dashes, denser at the western (left) edge of the screen
-  if (w.grade.night < 0.5) {
-    const gt = Math.floor((w.stage === 1 ? 0 : w.mt) / 200);
-    for (let wy = s0 + 3; wy < s1 - 2; wy += 2) {
+  // 6. glints: white sparkles that blink on and off where the low sun
+  // catches a ripple — denser towards the west edge of the screen
+  if (night < 0.5) {
+    const gt = Math.floor((w.stage === 1 ? 0 : t) / 170);
+    for (let wy = s0 + 3; wy < s1 - 4; wy += 3) {
       const ly = wy - w.worldY;
       if (ly < ly0 || ly >= ly1) continue;
-      for (let k = 0; k < 6; k++) {
-        const hh = ihash(k, wy + gt * 7, 71);
+      for (let k = 0; k < 5; k++) {
+        const hh = ihash(k, wy, 71);
         const sx = hh % W;
-        if ((hh >>> 10) % 100 > 8 + (1 - sx / W) * 40) continue;
+        if ((hh >>> 10) % 100 > 6 + (1 - sx / W) * 26) continue;
+        // each sparkle lives a few frames of its own cycle
+        const ph = (gt + ((hh >>> 4) % 13)) % 13;
+        if (ph > 3) continue;
         const lx = sx + w.camX - w.worldX;
         if (lx < lx0 - 4 || lx > lx1) continue;
-        ctx.fillStyle = (hh >>> 20) % 3 ? 'rgba(255,231,163,0.75)' : 'rgba(255,246,216,0.95)';
-        ctx.fillRect(lx, ly, 2 + ((hh >>> 16) % 3), 1);
+        ctx.fillStyle = ph === 1 || ph === 2 ? 'rgba(255,246,216,0.95)' : 'rgba(255,231,163,0.6)';
+        ctx.fillRect(lx, ly, ph === 1 || ph === 2 ? 3 : 1, 1);
+        if (ph === 1) ctx.fillRect(lx + 1, ly - 1, 1, 1);
       }
     }
   }
@@ -419,6 +441,24 @@ function nightPatch(ctx: CanvasRenderingContext2D, bx: number, by: number, w: Wa
   if (Math.floor(t / 500) % 3) ctx.fillRect(lx - 5 + Math.round(Math.sin((by + 1) * 0.8 + t / 420) * 1.2), ly + 1, 1, 1);
 }
 
+const dimCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+/** The image darkened and cooled towards the water's colour (for reflections). */
+function dimmed(img: HTMLCanvasElement): HTMLCanvasElement {
+  let s = dimCache.get(img);
+  if (!s) {
+    s = document.createElement('canvas');
+    s.width = img.width;
+    s.height = img.height;
+    const c = s.getContext('2d')!;
+    c.drawImage(img, 0, 0);
+    c.globalCompositeOperation = 'source-atop';
+    c.fillStyle = css(mixc(DEEP, INK, 0.3), 0.55);
+    c.fillRect(0, 0, s.width, s.height);
+    dimCache.set(img, s);
+  }
+  return s;
+}
+
 const silCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
 function silhouette(img: HTMLCanvasElement, color: string): HTMLCanvasElement {
   let s = silCache.get(img);
@@ -443,7 +483,7 @@ function silhouette(img: HTMLCanvasElement, color: string): HTMLCanvasElement {
  * on a 5×8px grid (rows offset per row), each with a dark base, lit tips and
  * a short reflection on the water strip below it.
  *   lean 0 = upright, 1 = bent west by the wind (tips 2px left),
- *   2 = stage 2 (tips lean north-east).
+ *   2 = stage 2 (tips lean north-east), 3 = half bent (the wave's shoulders).
  */
 const riceBakes = new WeakMap<LoadedMap, Map<number, { c: HTMLCanvasElement; x0: number; y0: number }>>();
 function riceLayer(map: LoadedMap, lean: number): { c: HTMLCanvasElement; x0: number; y0: number } | null {
@@ -496,13 +536,17 @@ function riceLayer(map: LoadedMap, lean: number): { c: HTMLCanvasElement; x0: nu
       if (!isPaddy(bx - 1, by + 2) || !isPaddy(bx + 4, by + 2) || !isPaddy(bx + 1, by - 5)) continue;
       // growth varies across the field (valueNoise): taller, darker rice in
       // the rich patches, short pale seedlings where the water stands deeper
-      const grow = valueNoise(gx / 44, gy / 22, 5507);
-      const hgt = Math.max(3, Math.min(8, 4 + ((hh >>> 8) % 3) + Math.round((grow - 0.5) * 5)));
+      // (QA round 1) every planting row has its own height and tone too —
+      // rows planted a few days apart — so the field isn't one even grid
+      const rh = ihash(row, 7, 5509);
+      const rowGrow = ((rh % 5) - 2) * 0.07;
+      const grow = valueNoise(gx / 44, gy / 22, 5507) + rowGrow;
+      const hgt = Math.max(3, Math.min(9, 4 + ((hh >>> 8) % 3) + Math.round((grow - 0.5) * 5) + ((rh >>> 4) % 3 === 0 ? 1 : 0)));
       const w4 = (hh >>> 11) % 3 === 0 ? 3 : 4;
-      const leafCols = grow > 0.62 ? leafRich : grow < 0.34 ? leafPale : leafMid;
+      const leafCols = grow > 0.62 ? leafRich : grow < 0.34 ? leafPale : (rh >>> 8) % 4 === 0 ? leafPale : leafMid;
       const lx = bx - x0 * 16;
       const ly = by - y0 * 16;
-      const tip = lean === 1 ? -2 : lean === 2 ? 1 : 0;
+      const tip = lean === 1 ? -2 : lean === 3 ? -1 : lean === 2 ? 1 : 0;
       const tipUp = lean === 2 ? -1 : 0;
       // reflection of the tuft on the water strip below (short, dark)
       ctx.fillStyle = 'rgba(46,107,74,0.45)';
@@ -601,27 +645,44 @@ function drawPaddies(w: WaterCtx, pal: WaterPal): void {
   // stage 2 "night patch" in an opening of the rice (30–33, 41–42), wobbling in place
   if (w.stage === 2) nightPatch(ctx, PADDY_PATCH[0], PADDY_PATCH[1], w);
   ctx.drawImage(upright.c, sx - upright.x0, sy - upright.y0, ex - sx, ey - sy, sx - w.worldX, sy - w.worldY, ex - sx, ey - sy);
-  // the wind wave: a band ~40px wide sweeping east → west, bending the tips 2px
+  // the wind wave (QA round 1: diagonal and smooth, not whole columns
+  // switching): per 6px planting row the band sits a little further east, so
+  // it runs across the field on a slant; its core bends the tips 2px, its
+  // shoulders 1px
   if (w.stage === 0 || w.stage === 3) {
     const bent = riceLayer(map, 1)!;
+    const half = riceLayer(map, 3)!;
     const period = 7000;
     const ph = (w.mt % period) / period;
-    const span = upright.c.width + 200;
-    const bandX = upright.x0 + upright.c.width + 100 - ph * span;
-    for (const [bx0, bw] of [[bandX - 20, 40], [bandX + 180, 24]] as [number, number][]) {
-      const ax = Math.max(sx, Math.round(bx0));
-      const bx = Math.min(ex, Math.round(bx0 + bw));
-      if (bx <= ax) continue;
-      // clear the upright tufts inside the band, then draw the bent ones
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(ax - w.worldX, sy - w.worldY, bx - ax, ey - sy);
-      ctx.clip();
-      drawSkyBase(w);
-      ctx.fillStyle = 'rgba(46,107,74,0.3)';
-      ctx.fillRect(ax - w.worldX, sy - w.worldY, bx - ax, ey - sy);
-      ctx.drawImage(bent.c, ax - bent.x0, sy - bent.y0, bx - ax, ey - sy, ax - w.worldX, sy - w.worldY, bx - ax, ey - sy);
-      ctx.restore();
+    const span = upright.c.width + 360;
+    const head = upright.x0 + upright.c.width + 180 - ph * span;
+    const strip0 = upright.y0 + Math.floor((sy - upright.y0) / 6) * 6;
+    for (let ry0 = strip0; ry0 < ey; ry0 += 6) {
+      const ya = Math.max(sy, ry0);
+      const yb = Math.min(ey, ry0 + 6);
+      if (yb <= ya) continue;
+      const slant = (ry0 - upright.y0) * 0.9;
+      for (const [off, core] of [[0, 22], [230, 14]] as [number, number][]) {
+        const c0 = head + off + slant;
+        for (const [bx0, bw, layer] of [
+          [c0 - core / 2 - 9, 9, half],
+          [c0 - core / 2, core, bent],
+          [c0 + core / 2, 9, half],
+        ] as [number, number, typeof bent][]) {
+          const ax = Math.max(sx, Math.round(bx0));
+          const bx = Math.min(ex, Math.round(bx0 + bw));
+          if (bx <= ax) continue;
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(ax - w.worldX, ya - w.worldY, bx - ax, yb - ya);
+          ctx.clip();
+          drawSkyBase(w);
+          ctx.fillStyle = 'rgba(46,107,74,0.3)';
+          ctx.fillRect(ax - w.worldX, ya - w.worldY, bx - ax, yb - ya);
+          ctx.drawImage(layer.c, ax - layer.x0, ya - layer.y0, bx - ax, yb - ya, ax - w.worldX, ya - w.worldY, bx - ax, yb - ya);
+          ctx.restore();
+        }
+      }
     }
   }
 }

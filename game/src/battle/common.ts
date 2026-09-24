@@ -132,7 +132,8 @@ export function tsukkomiFeel(s: BattleScene, u: PartyUnit | null, just: boolean)
   s.shake(just ? 4 : 3, 0, just ? 10 : 8);
   s.flash('#FFFFFF', just ? 0.15 : 0.08, 1);
   s.sfx('se_bishi');
-  if (just) s.sfx('se_kiran');
+  // the glint rings out just after the slap, not on top of it
+  if (just) s.sfxLater('se_kiran', undefined, 70);
   if (u) s.mood(u, 'tsukkomi', 700);
 }
 
@@ -197,7 +198,8 @@ export function healParty(s: BattleScene, u: PartyUnit, amount: number, o: { mp?
     s.memo['revived_' + u.id] = 1;
   }
   s.number(nx, ny, n, { kind: 'heal', rise: PARTY_RISE, drift: PARTY_DRIFT }, 'party', u);
-  s.sfx('se_heal');
+  // a full bar only glints (the number() above plays it); a real heal chimes
+  if (n > 0) s.sfx('se_heal');
   return n;
 }
 
@@ -301,13 +303,18 @@ export interface EnemyHitOpts {
   stack?: number;
   /** Skip the normal HP bar trail (event battles). */
   noNumber?: boolean;
+  /** Where the number pops, when not from the core (a broken boss part). */
+  at?: [number, number];
 }
 
 /** Subtract HP and pop a number above the enemy. Returns true if it reached 0. */
 export function hurtEnemy(s: BattleScene, e: EnemyUnit, dmg: number, o: EnemyHitOpts = {}): boolean {
+  // the 160×128 boss always takes the big digits: a small number on a body
+  // that size says the hit was small (QA round 1)
+  if (e.def.boss) o = { ...o, big: true };
   const [x, y] = s.enemyNumberXY(e, !!(o.big || o.crit));
   if (o.zero) {
-    s.number(x, y, 0, { kind: 'zero' }, 'enemy', e);
+    s.number(x, y, 0, { kind: 'zero', backing: true }, 'enemy', e);
     return false;
   }
   if (e.def.invulnerable) return false;
@@ -317,7 +324,10 @@ export function hurtEnemy(s: BattleScene, e: EnemyUnit, dmg: number, o: EnemyHit
   if (e.def.boss && !s.memo.bossFinal && e.hp < 1) e.hp = 1;
   e.trailWait = 400;
   e.hpTrail = Math.max(e.hpTrail, before);
-  if (!o.noNumber) s.number(x, y, Math.max(0, Math.round(dmg)), { kind: o.crit ? 'crit' : 'dmg', big: o.big || o.crit }, 'enemy', e);
+  if (!o.noNumber) {
+    const [nx, ny] = o.at ?? [x, y];
+    s.number(nx, ny, Math.max(0, Math.round(dmg)), { kind: o.crit ? 'crit' : 'dmg', big: o.big || o.crit, backing: true }, 'enemy', e);
+  }
   if (e.status.bokemake) s.memo.bokeHit = 1;
   if (dmg > 0 && e.hp > 0) enemyHurt(s, e, before);
   return e.hp <= 0;

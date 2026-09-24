@@ -4,6 +4,7 @@
 //  - dinnerSet(): what is on the chabudai in the ending (croquettes, the
 //    cabbage mountain, rice, the sauce)
 //  - meishi(): ハト係長's business card, held out and lying on the ground
+//  - paperBag(): 肉のマルヤマ's kraft bag of hot croquettes (ending cut 2)
 
 import { PixelCanvas, mix, rgba32 } from '../engine/pixel';
 import { hash2 } from '../engine/rng';
@@ -373,6 +374,44 @@ export function dinnerSet(): HTMLCanvasElement {
   p.outline(P.ink);
   DINNER = p.toCanvas();
   return DINNER;
+}
+
+// ---------------------------------------------------------------- the croquette bag
+
+let BAG: HTMLCanvasElement | null = null;
+
+/**
+ * 14×18: a kraft paper bag, its top folded over twice, the shop's vermilion
+ * マル stamp, a grease spot showing through (they are hot), a warm outline.
+ */
+export function paperBag(): HTMLCanvasElement {
+  if (BAG) return BAG;
+  const kraft = '#C8A06A';
+  const kraftLt = '#E2C08A';
+  const kraftDk = '#A07A48';
+  const p = new PixelCanvas(14, 18);
+  // body, lit from the upper left: a light left face, the side gusset darker
+  p.rect(1, 6, 12, 11, kraft);
+  p.rect(1, 6, 3, 11, kraftLt);
+  p.rect(10, 6, 3, 11, kraftDk);
+  for (let y = 7; y < 16; y += 2) p.set(10, y, kraft);
+  // the bottom fold
+  p.hline(1, 12, 16, kraftDk);
+  // the top, folded over twice (a zig-zag cut edge)
+  p.rect(2, 2, 10, 4, kraftLt);
+  p.hline(2, 11, 5, '#8A5A3A');
+  p.hline(2, 11, 3, kraftDk);
+  for (let x = 2; x < 12; x++) p.set(x, 1 + (x & 1), kraftLt);
+  // the grease spot, darker and a little glossy
+  for (const [x, y] of [[7, 13], [8, 13], [8, 14], [9, 14], [7, 14], [8, 12]] as const) p.set(x, y, kraftDk);
+  p.set(8, 13, '#B89060');
+  // the shop's stamp: a vermilion ring with a dot
+  p.ellipse(5.5, 10.5, 2.4, 2.4, P.verm);
+  p.ellipse(5.5, 10.5, 1.3, 1.3, kraftLt);
+  p.set(5, 10, P.verm);
+  p.outline('#5A3A2A');
+  BAG = p.toCanvas();
+  return BAG;
 }
 
 // ---------------------------------------------------------------- ハト係長's business card

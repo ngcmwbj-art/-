@@ -381,6 +381,138 @@ export function mallTiles(o: MallFloorOpts): FloorPainter {
   };
 }
 
+// ---------------------------------------------------------------- the mall's zones (review round 1)
+//
+// M1–M4 all had the same pale P-tiles; each area now has its own floor so the
+// rooms read apart at a glance: the hall keeps the P-tiles, the food court
+// gets quarry tiles, the health corner a carpet, the 2F gallery a corridor
+// with its guide lines and grey borders.
+
+/**
+ * フードコート (M2): 16px quarry tiles in a terracotta / cream checker with
+ * dark grout, spills of years round the tables (soy, soda: 2px blotches),
+ * the grey anti-slip strip along the stalls' counters, paler worn lanes,
+ * chipped corners, and the hand-placed mall decals.
+ */
+export function foodCourtTiles(o: MallFloorOpts & { service: (x: number, y: number) => boolean; spill?: (x: number, y: number) => number }): FloorPainter {
+  const hand = o.decals ?? [];
+  return (x, y) => {
+    for (const hd of hand) {
+      if (x < hd.x - 1 || y < hd.y - 1 || x > hd.x + 40 || y > hd.y + 44) continue;
+      const c = mallDecalAt(hd, x - hd.x, y - hd.y, o.seed + hd.x * 3 + hd.y);
+      if (c) return c;
+    }
+    const tx = x >> 4;
+    const ty = y >> 4;
+    const lx = x & 15;
+    const ly = y & 15;
+    if (o.service(x, y)) {
+      // anti-slip vinyl: charcoal with raised grey studs every 4px, a lit edge
+      if (ly === 0) return P.steel;
+      if (ly === 15) return P.ink;
+      const sx = (x + (ty & 1) * 2) & 3;
+      const sy = y & 3;
+      if (sx === 1 && sy === 1) return P.steel;
+      if (sx === 2 && sy === 2) return P.charcoal;
+      return ihash(x >> 1, y >> 1, o.seed + 31) % 17 === 0 ? P.charcoal : P.asphalt;
+    }
+    if (lx === 15 || ly === 15) return P.woodLt;
+    const terra = ((tx + ty) & 1) === 1;
+    const hh = ihash(tx, ty, o.seed);
+    const w = o.lane ? o.lane(x, y) : 0;
+    // soft terracotta and cream (review: a hard red/white checker shouted over the tables)
+    let base: string = terra ? P.skin3 : P.paperGrid;
+    let lite: string = terra ? P.skin2 : P.paper;
+    const dark: string = terra ? P.skin4 : P.woodLt;
+    // a replacement tile in a slightly different batch
+    if (hh % 11 === 3) {
+      base = terra ? P.skin2 : P.concreteLt;
+      lite = terra ? P.skin1 : P.white;
+    }
+    // chipped corner (top-left) on a few tiles
+    if (hh % 13 === 6 && lx + ly < 4) return P.woodLt;
+    if (lx === 0 || ly === 0) return w > 0.5 ? base : lite;
+    // spills: soy and soda dried in soft 2px blotches, thicker where people ate
+    const sp = (o.spill ? o.spill(x, y) : 0) + valueNoise(x / 11, y / 9, o.seed + 3) * 0.6;
+    if (sp > 0.8 && ihash(x >> 1, y >> 1, o.seed + 4) % 3 !== 0) return dark;
+    // the glaze worn off along the lanes: paler 2px flecks
+    if (w > 0.4 && ihash(x >> 1, y >> 1, o.seed + 6) % (w > 0.7 ? 4 : 8) === 0) return lite;
+    // quarry texture: sparse darker pores, clustered in some tiles
+    if ((hh >>> 5) % 3 === 0 && ihash(x >> 1, y >> 1, o.seed + 7) % 23 === 0) return dark;
+    return base;
+  };
+}
+
+/** The carpet's trodden, darker pile: #2E6B4A a third of the way to #2A2440. */
+const CARPET_DK = '#2D5747';
+
+/**
+ * 健康器具コーナー (M3): a low-pile commercial carpet, dark green with a small
+ * diamond motif every 8px and a 4px weave, sun-faded patches, dark trodden
+ * lanes, a few stains, and flattened rectangles where machines once stood.
+ */
+export function healthCarpet(o: { seed: number; lane?: (x: number, y: number) => number; ghosts?: [number, number, number, number][] }): FloorPainter {
+  return (x, y) => {
+    const w = o.lane ? o.lane(x, y) : 0;
+    // where a machine stood for years: a crisp, darker, unfaded rectangle and its foot dents
+    for (const [gx, gy, gw, gh] of o.ghosts ?? []) {
+      if (x < gx || y < gy || x >= gx + gw || y >= gy + gh) continue;
+      const edge = x === gx || y === gy || x === gx + gw - 1 || y === gy + gh - 1;
+      if (edge) return P.ink;
+      const foot = (x - gx === 2 || gx + gw - 1 - x === 2) && (y - gy === 2 || gy + gh - 1 - y === 2);
+      if (foot) return P.ink;
+      return ((x >> 1) + (y >> 1)) % 4 === 0 ? P.leafShade : CARPET_DK;
+    }
+    // the motif: a small diamond outline once per 16px tile, every other row
+    // shifted half a tile; between them a sparse 1px weave (review: the 8px
+    // motif read as a lawn)
+    const sx = ((y >> 4) & 1) * 8;
+    const mx = ((x + sx) & 15) - 7.5;
+    const my = (y & 15) - 7.5;
+    const motif = Math.abs(Math.abs(mx) + Math.abs(my) - 3) < 0.6;
+    const dot = ((x + sx) & 15) === 0 && (y & 15) === 0;
+    // sun-faded patches and the trodden lanes (flattened pile reads darker)
+    const fade = valueNoise(x / 34, y / 26, o.seed + 1);
+    const trod = w > 0.4 && ihash(x >> 1, y >> 1, o.seed + 2) % (w > 0.7 ? 2 : 3) === 0;
+    if (motif || dot) return trod ? P.leafShade : P.leafDeep;
+    if ((x & 3) === 0 && (y & 3) === 2 && ihash(x >> 2, y >> 2, o.seed + 6) % 3 === 0) return CARPET_DK;
+    // a coffee stain and a few worn threads
+    const st = valueNoise(x / 6, y / 5, o.seed + 3);
+    if (st > 0.86 && ihash(x >> 1, y >> 1, o.seed + 4) % 2 === 0) return P.woodDark;
+    if (trod) return CARPET_DK;
+    if (fade > 0.74 && ihash(x >> 1, y >> 1, o.seed + 5) % 4 === 0) return P.leafDeep;
+    return P.leafShade;
+  };
+}
+
+/**
+ * 2F通路 (M4): the gallery's corridor. The P-tiles keep the walkway, bounded
+ * by two faded yellow guide lines; outside them a band of grey tiles runs
+ * along the wall and along the railing, half-size, darker, with the grime
+ * the cleaners never reached.
+ */
+export function corridorTiles(o: MallFloorOpts & { walk: [number, number] }): FloorPainter {
+  const tiles = mallTiles(o);
+  const [y0, y1] = o.walk;
+  return (x, y) => {
+    // the guide lines: 2px, a worn yellow, broken where the tape has gone
+    if (y === y0 - 2 || y === y0 - 1 || y === y1 || y === y1 + 1) {
+      const gone = ihash(x >> 3, y0 + (y >= y1 ? 1 : 0), o.seed + 41) % 7 === 0;
+      if (!gone) return (y === y0 - 2 || y === y1) ? P.goldPale : P.brass;
+    }
+    if (y >= y0 && y < y1) return tiles(x, y);
+    // the border bands: 8px grey tiles, two tones, grime
+    const lx = x & 7;
+    const ly = y & 7;
+    if (lx === 7 || ly === 7) return P.asphalt;
+    const hh = ihash(x >> 3, y >> 3, o.seed + 43);
+    if (lx === 0 || ly === 0) return hh % 3 === 0 ? P.concrete : P.concreteLt;
+    const g = valueNoise(x / 12, y / 8, o.seed + 44) > 0.7;
+    if (g && ihash(x >> 1, y >> 1, o.seed + 45) % 2 === 0) return P.asphalt;
+    return hh % 3 === 0 ? P.steel : P.concrete;
+  };
+}
+
 /** Wear lane helper: 1 on the given polyline of tile centres, fading over `r` px. */
 export function laneOf(points: [number, number][], r = 20): (x: number, y: number) => number {
   const seg = points.slice(1).map((p, i) => [points[i][0] * 16 + 8, points[i][1] * 16 + 8, p[0] * 16 + 8, p[1] * 16 + 8]);

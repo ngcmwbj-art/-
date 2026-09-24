@@ -48,6 +48,8 @@ interface Seer {
   mctx: CanvasRenderingContext2D;
   used: boolean;
   drawn: boolean;
+  /** Also hidden by foreground parts (canopies): enemy symbols, whose silhouette is drawn after the fg layer. */
+  fg: boolean;
 }
 
 export class Renderer {
@@ -251,6 +253,10 @@ export class Renderer {
     }
     // characters that tall props open an x-ray hole for, and that get silhouettes
     const seers: Actor[] = f.follower ? [f.player, f.follower] : [f.player];
+    // enemy symbols get silhouettes too (behind props, walls and canopies), so
+    // one is never lost from sight behind a tree or a pillar
+    const silSeers: Actor[] = [...seers];
+    for (const a of f.actors) if (a.kind === 'sym' && a.visible && silSeers.length < 8) silSeers.push(a);
     for (const p of f.props) {
       if (!p.present || p.art.flat) continue;
       const a = p.art;
@@ -314,11 +320,13 @@ export class Renderer {
     list.sort((a, b) => a.foot - b.foot || a.x - b.x);
     // silhouettes: each seer collects the pixels of what is drawn in front of it
     const sil: Seer[] = [];
-    for (let i = 0; i < seers.length; i++) {
-      const s = seers[i];
+    for (let i = 0; i < silSeers.length; i++) {
+      const s = silSeers[i];
       if (!s.visible || s.drawFn || !visible(s.x - 24, s.y - 48, 48, 56)) continue;
+      if (s.blinkUntil > f.t && Math.floor(f.t / 80) % 2 === 0) continue;
       const img = s.frame();
       const [ix, iy] = s.drawPos(img);
+      while (this.seerMasks.length <= i) this.seerMasks.push(makeCanvas(48, 64));
       const [mask, mctx] = this.seerMasks[i];
       if (mask.width < img.width || mask.height < img.height) {
         mask.width = Math.max(mask.width, img.width);
@@ -326,7 +334,7 @@ export class Renderer {
       }
       mctx.globalCompositeOperation = 'source-over';
       mctx.clearRect(0, 0, mask.width, mask.height);
-      sil.push({ a: s, img, x: ix - cx, y: iy - cy, mask, mctx, used: false, drawn: false });
+      sil.push({ a: s, img, x: ix - cx, y: iy - cy, mask, mctx, used: false, drawn: false, fg: s.kind === 'sym' });
     }
     for (const d of list) {
       d.draw();
@@ -359,7 +367,7 @@ export class Renderer {
       if (d.glow) d.glow();
     }
     fxDraw(f, wg, cx, cy, 'sorted');
-    for (const s of sil) if (s.used) this.drawSilhouette(s);
+    for (const s of sil) if (s.used && !s.fg) this.drawSilhouette(s);
 
     // 6. foreground
     for (const p of f.props) {
@@ -383,6 +391,17 @@ export class Renderer {
           alpha = next;
         }
         wg.img(img, x - cx, y - cy, alpha < 1 ? { alpha } : {});
+        // canopies over an enemy symbol: its silhouette shows through
+        for (const s of sil) {
+          if (!s.fg || !s.drawn) continue;
+          const ix = Math.round(x - cx);
+          const iy = Math.round(y - cy);
+          if (ix >= s.x + s.img.width || iy >= s.y + s.img.height || ix + img.width <= s.x || iy + img.height <= s.y) continue;
+          s.mctx.globalAlpha = alpha;
+          s.mctx.drawImage(img, ix - s.x, iy - s.y);
+          s.mctx.globalAlpha = 1;
+          s.used = true;
+        }
         // canopies and overhead parts hide the glows behind them
         const gb = this.glowBox;
         if (gb && x - cx < gb[2] && y - cy < gb[3] && x - cx + img.width > gb[0] && y - cy + img.height > gb[1]) {
@@ -412,6 +431,7 @@ export class Renderer {
       }
       drawWires(wg, this.wires, cx, cy, f.mt, flag('flag_stage'), f.t, occ);
     }
+    for (const s of sil) if (s.used && s.fg) this.drawSilhouette(s);
     fxDraw(f, wg, cx, cy, 'fg');
 
     // 7. arcade stripes
@@ -424,29 +444,79 @@ export class Renderer {
     // front; screen-blended, so light never darkens what is under it
     if (this.glowBox) {
       ctx.globalCompositeOperation = 'screen';
+      // stage 1 outdoors: the lights of the stopped town die down
+      ctx.globalAlpha = f.map.def.kind === 'indoor' ? 1 : Math.max(0, Math.min(1, f.grade.lit));
       ctx.drawImage(this.ec, 0, 0);
+      ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
     }
     fxDraw(f, wg, cx, cy, 'glow');
 
     // 10. emotes
     for (const a of actors) a.drawEmote(wg, cx, cy);
-    fxDraw(f, wg, cx, cy, 'top');
+    // a story close-up (a full-frame 2× blow-up in the top layer) would zoom
+    // the 2× room view twice: in a zoomed room it is the room view already
+    if (f.viewScale > 1) this.noFullFrameUpscale(() => fxDraw(f, wg, cx, cy, 'top'));
+    else fxDraw(f, wg, cx, cy, 'top');
 
     if (f.showCollision) this.drawCollision(cx, cy);
 
-    // present with the chime wave (row offsets), then HUD
+    // present (through the 2× room view) with the chime wave (row offsets), then HUD
+    const src = f.viewScale > 1 ? this.roomView(cx, cy) : this.wc;
     const amp = f.wave.amp;
     if (amp > 0.01) {
       const t = f.wave.t / 1000;
       for (let y = 0; y < H; y++) {
         const dx = Math.round(amp * Math.sin(2 * Math.PI * (y / 48 + t / 0.25)));
-        g.ctx.drawImage(this.wc, 0, y, W, 1, dx, y, W, 1);
-        if (dx > 0) g.ctx.drawImage(this.wc, 0, y, 1, 1, 0, y, dx, 1);
-        else if (dx < 0) g.ctx.drawImage(this.wc, W - 1, y, 1, 1, W + dx, y, -dx, 1);
+        g.ctx.drawImage(src, 0, y, W, 1, dx, y, W, 1);
+        if (dx > 0) g.ctx.drawImage(src, 0, y, 1, 1, 0, y, dx, 1);
+        else if (dx < 0) g.ctx.drawImage(src, W - 1, y, 1, 1, W + dx, y, -dx, 1);
       }
-    } else g.ctx.drawImage(this.wc, 0, 0);
+    } else g.ctx.drawImage(src, 0, 0);
     hud.draw(g, f);
+  }
+
+  private zc: HTMLCanvasElement | null = null;
+  private zctx: CanvasRenderingContext2D | null = null;
+
+  /** The frame's (W/s × H/s) world rect at the field's view position, blown up s× (integer, square pixels). */
+  private roomView(cx: number, cy: number): HTMLCanvasElement {
+    const f = this.f;
+    if (!this.zc) {
+      [this.zc, this.zctx] = makeCanvas(W, H);
+      this.zctx.imageSmoothingEnabled = false;
+    }
+    const z = this.zctx!;
+    const s = f.viewScale;
+    const vw = Math.round(W / s);
+    const vh = Math.round(H / s);
+    const sx = Math.round(f.viewX) - cx;
+    const sy = Math.round(f.viewY) - cy;
+    z.globalAlpha = 1;
+    z.globalCompositeOperation = 'source-over';
+    z.fillStyle = f.map.def.outside ?? P.night;
+    z.fillRect(0, 0, W, H);
+    const x0 = Math.max(0, sx);
+    const y0 = Math.max(0, sy);
+    const x1 = Math.min(W, sx + vw);
+    const y1 = Math.min(H, sy + vh);
+    if (x1 > x0 && y1 > y0) z.drawImage(this.wc, x0, y0, x1 - x0, y1 - y0, (x0 - sx) * s, (y0 - sy) * s, (x1 - x0) * s, (y1 - y0) * s);
+    return this.zc!;
+  }
+
+  /** Run `fn` with full-frame upscaling drawImage calls into the world canvas dropped. */
+  private noFullFrameUpscale(fn: () => void): void {
+    const ctx = this.wctx as CanvasRenderingContext2D & { drawImage: (...a: unknown[]) => void };
+    const orig = CanvasRenderingContext2D.prototype.drawImage as (...a: unknown[]) => void;
+    ctx.drawImage = function (this: CanvasRenderingContext2D, ...a: unknown[]) {
+      if (a.length === 9 && (a[7] as number) >= W - 1 && (a[8] as number) >= H - 1 && (a[7] as number) > (a[3] as number) * 1.5) return;
+      orig.apply(this, a);
+    };
+    try {
+      fn();
+    } finally {
+      delete (ctx as { drawImage?: unknown }).drawImage;
+    }
   }
 
   private addGlowBox(x: number, y: number, w: number, h: number): void {
@@ -808,7 +878,7 @@ export class Renderer {
     // contact shadows (all stages)
     this.wctx.fillStyle = 'rgba(42,36,64,0.4)';
     for (const a of acts) {
-      if (!a.visible || a.id === 'npc_shadow_man' || a.kind === 'restored') continue;
+      if (!a.visible || a.id === 'npc_shadow_man' || a.kind === 'restored' || a.drawFn) continue;
       if (!visible(a.x - 16, a.y - 8, 32, 16)) continue;
       const w = Math.max(6, Math.round((a.sprite.shadow ?? a.sprite.w * 0.7) * (a.hopDur > 0 ? 0.8 : 1)));
       ellipse(this.wctx, Math.round(a.x + a.ox - cx), Math.round(a.y + a.oy - cy) - 1, w, 4);
@@ -930,6 +1000,14 @@ export class Renderer {
     ctx.save();
     ctx.globalCompositeOperation = 'multiply';
     ctx.drawImage(this.lc, 0, 0);
+    // colour drained (stage 1): blend towards grey saturation
+    if (gd.desat > 0.005) {
+      ctx.globalCompositeOperation = 'saturation';
+      ctx.globalAlpha = Math.min(1, gd.desat);
+      ctx.fillStyle = '#808080';
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    }
     // left sunset bleed
     ctx.globalCompositeOperation = 'screen';
     const ga = indoor ? 0.12 * (1 - gd.night) : gd.glareA;

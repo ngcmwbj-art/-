@@ -14,6 +14,7 @@ import { castRight, dk, eaveShadow, glassPane, lt, shadeRect, sunWash } from './
 import { registerProp } from './registry';
 import type { PropArt, PropEnv } from './types';
 import { drawLight, drawLightAt, LIGHT, poolEllipse, poolTrapezoid } from './light';
+import { deckConcrete, deckShade, drain, leaves, moss, puddleMark, roofAO, streaks, tinDetails } from './roofkit';
 
 export interface Bld {
   /** Width / roof rows / facade rows in tiles. */
@@ -128,6 +129,7 @@ export function roofKawara(p: PixelCanvas, x: number, y: number, w: number, h: n
     p.set(x, j, j % 3 === 0 ? P.sun : pal.hi);
     p.set(x + w - 1, j, pal.deep);
   }
+  roofAO(p, x, y, w, h);
 }
 
 /** Corrugated tin roof (トタン): vertical waves, overlap seams, rust. */
@@ -150,16 +152,14 @@ export function roofTin(
       if (j >= ridge && sy === 17) c = pal.deep;
       if (j >= ridge && sy === 0) c = lx === 3 ? pal.base : lt(pal.hi);
       if (j < ridge) c = j === y ? lt(pal.hi) : j === ridge - 1 ? pal.deep : pal.hi;
-      const n = fbm((i + seed * 13) / 4, j / 5, 501 + seed);
-      if (n > 1 - rust && j >= ridge) c = n > 1 - rust * 0.5 ? P.wood : P.brassOld;
-      if (j >= ridge && lx === 0 && sy === 8 && (i - x) % 16 === 0) c = P.white; // nail heads
+      if (j >= ridge && lx === 0 && sy === 8 && (i - x) % 8 === 0) c = P.white; // nail heads
       p.set(i, j, c);
     }
-  for (let i = x; i < x + w; i++) {
-    p.set(i, y + h - 1, pal.deep);
-    p.set(i, y + h - 2, pal.lo);
-  }
-  for (let j = y; j < y + h; j += 1) if (j % 3 !== 2) p.set(x, j, P.sun);
+  // sheets of different age, rust drips from the nails, the gutter, dirt and
+  // leaves (roofkit, QA round 1 — no more one rust blob on bare stripes)
+  tinDetails(p, x, y, w, h, seed, { clear: seed % 3 === 0 && w >= 64, rust });
+  for (let j = y; j < y + h - 3; j += 1) if (j % 3 !== 2) p.set(x, j, P.sun);
+  roofAO(p, x, y, w, h);
 }
 
 /** Copper standing-seam roof with patina, snow guards and a lightning rod. */
@@ -189,6 +189,7 @@ export function roofCopper(p: PixelCanvas, x: number, y: number, w: number, h: n
     p.set(i, y + h - 2, P.leafShade);
   }
   for (let j = y; j < y + h; j++) if (j % 3 !== 2) p.set(x, j, P.sun);
+  roofAO(p, x, y, w, h);
 }
 
 /** Western slate roof: small staggered slates with blue glints. */
@@ -210,6 +211,7 @@ export function roofSlate(p: PixelCanvas, x: number, y: number, w: number, h: nu
     p.set(i, y + h - 1, P.night);
   }
   for (let j = y; j < y + h; j++) if (j % 3 !== 2) p.set(x, j, P.sun);
+  roofAO(p, x, y, w, h);
 }
 
 /** Brown cement flat tiles (セメント瓦). */
@@ -240,11 +242,16 @@ export function roofCement(p: PixelCanvas, x: number, y: number, w: number, h: n
     p.set(i, y + h - 2, P.woodLt);
   }
   for (let j = y; j < y + h; j++) if (j % 3 !== 2) p.set(x, j, P.sun);
+  roofAO(p, x, y, w, h);
 }
 
 /**
  * Flat concrete roof with a parapet (陸屋根). Returns the inner rect so
- * rooftop objects can be placed.
+ * rooftop objects can be placed. The deck (roofkit, QA round 1) is a
+ * material, not camouflage: slab joints or membrane seams, hairline cracks,
+ * rain streaks under the north parapet, a dried puddle ring by the drain,
+ * moss in the damp corner, a few leaves, the parapet's shade inside and
+ * ambient occlusion where the roof meets its neighbours.
  */
 export function roofFlat(
   p: PixelCanvas,
@@ -252,19 +259,28 @@ export function roofFlat(
   y: number,
   w: number,
   h: number,
-  opts: { base?: string; lip?: string; seed?: number; stains?: boolean } = {},
+  opts: { base?: string; lip?: string; seed?: number; stains?: boolean; style?: 'slab' | 'sheet'; drain?: boolean } = {},
 ): [number, number, number, number] {
   const base = opts.base ?? P.concrete;
   const seed = opts.seed ?? 0;
-  for (let j = y; j < y + h; j++)
-    for (let i = x; i < x + w; i++) {
-      const n = fbm(i / 9, j / 9, 901 + seed);
-      let c = n > 0.66 ? lt(base) : n < 0.3 ? dk(base) : base;
-      // slab joints
-      if ((i - x) % 24 === 23 || (j - y) % 16 === 15) c = dk(base);
-      if (opts.stains !== false && valueNoise(i / 5, j / 3, 911 + seed) > 0.78) c = dk(base, 2);
-      p.set(i, j, c);
+  const style = opts.style ?? (seed % 2 ? 'sheet' : 'slab');
+  const ix = x + 3;
+  const iy = y + 3;
+  const iw = w - 6;
+  const ih = h - 6;
+  deckConcrete(p, x, y, w, h, base, seed, style);
+  if (opts.stains !== false && ih > 8) {
+    streaks(p, ix, iy, iw, seed);
+    if (opts.drain !== false && iw > 20) {
+      const dx = ix + iw - 9;
+      const dy = iy + ih - 5;
+      puddleMark(p, dx - 6, dy - 3, 7, 3, seed);
+      drain(p, dx, dy, seed);
+      moss(p, dx + 5, dy + 2, 2, seed);
     }
+    moss(p, ix + 2, iy + ih - 2, 3, seed + 5);
+    leaves(p, [ix, iy, iw, ih], Math.max(2, Math.round((iw * ih) / 700)), seed);
+  }
   // parapet: 3px rim, lit top/left, shadow inside bottom/right
   const lip = opts.lip ?? lt(base);
   for (let i = x; i < x + w; i++) {
@@ -283,7 +299,14 @@ export function roofFlat(
     p.set(x + w - 1, j, dk(lip, 2));
     p.set(x + w - 3, j, dk(base));
   }
-  return [x + 3, y + 3, w - 6, h - 6];
+  // coping joints on the parapet
+  for (let i = x + 12; i < x + w - 3; i += 16) {
+    p.set(i, y + 1, dk(lip));
+    p.set(i, y + h - 2, dk(lip));
+  }
+  if (ih > 4) deckShade(p, ix, iy, iw, ih);
+  roofAO(p, x, y, w, h);
+  return [ix, iy, iw, ih];
 }
 
 // ---------------------------------------------------------------- walls

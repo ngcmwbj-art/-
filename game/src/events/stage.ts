@@ -30,8 +30,12 @@ import { drawWindow, textW, UI } from '../ui/window';
 // ---------------------------------------------------------------- 2× close-ups
 
 /**
- * An integer close-up of the field: the (W/scale × H/scale) rectangle around
- * the world point (cx, cy) fills the screen; `k` dissolves it over the 1× view.
+ * A close-up of the field: the (W/scale × H/scale) rectangle around the world
+ * point (cx, cy) fills the screen. `k` is how far the camera has pushed in:
+ * 0 = the 1× view, 1 = the close-up. In between, the visible rectangle
+ * shrinks from the whole frame to the close-up's (a real camera move, one
+ * picture — no dissolve of two framings over each other); at rest every
+ * pixel is square (2× all over).
  * It is composed into the field's own frame (the world fx 'top' layer, after
  * the light, the glows and the emotes), so the HUD, dialog windows and any
  * scene laid over the field (the night sky) all stay at 1× on top of it.
@@ -47,10 +51,10 @@ export class ZoomView {
     public cy: number,
     public scale = 2,
   ) {
-    [this.buf, this.bctx] = makeCanvas(Math.ceil(W / scale), Math.ceil(H / scale));
+    [this.buf, this.bctx] = makeCanvas(W, H);
   }
 
-  /** The source rectangle in frame pixels (integer). */
+  /** The close-up's source rectangle in frame pixels (integer). */
   source(f: FieldScene): [number, number, number, number] {
     const sw = Math.round(W / this.scale);
     const sh = Math.round(H / this.scale);
@@ -59,23 +63,41 @@ export class ZoomView {
     return [sx, sy, sw, sh];
   }
 
+  /**
+   * The rectangle shown right now: the whole frame (k = 0) closing in on the
+   * close-up's (k = 1), edge by edge — the subject glides to the centre as
+   * the camera pushes in. In between it is fractional (a smooth move).
+   */
+  view(f: FieldScene): [number, number, number, number] {
+    const [sx, sy, sw, sh] = this.source(f);
+    const k = Math.max(0, Math.min(1, this.k));
+    if (k >= 1) return [sx, sy, sw, sh];
+    return [sx * k, sy * k, W + (sw - W) * k, H + (sh - H) * k];
+  }
+
+  /** Current magnification (1 … scale). */
+  mag(f: FieldScene): number {
+    return W / this.view(f)[2];
+  }
+
   /** Where world point (x, y) lands on the screen through this close-up. */
   toScreen(f: FieldScene, x: number, y: number): [number, number] {
-    const [sx, sy] = this.source(f);
-    return [(x - Math.round(f.camX) - sx) * this.scale, (y - Math.round(f.camY) - sy) * this.scale];
+    const [sx, sy, sw] = this.view(f);
+    const s = W / sw;
+    return [(x - Math.round(f.camX) - sx) * s, (y - Math.round(f.camY) - sy) * s];
   }
 
   /** Blow the frame being drawn (`g`, the world canvas) up around the centre. */
   compose(f: FieldScene, g: Gfx): void {
     if (this.k <= 0) return;
-    const [sx, sy, sw, sh] = this.source(f);
-    this.bctx.clearRect(0, 0, this.buf.width, this.buf.height);
-    this.bctx.drawImage(g.ctx.canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+    const [sx, sy, sw, sh] = this.view(f);
+    if (sw >= W - 0.01) return;
+    this.bctx.clearRect(0, 0, W, H);
+    this.bctx.drawImage(g.ctx.canvas, 0, 0);
     const ctx = g.ctx;
     ctx.save();
     ctx.imageSmoothingEnabled = false;
-    ctx.globalAlpha = Math.min(1, this.k);
-    ctx.drawImage(this.buf, 0, 0, sw, sh, 0, 0, sw * this.scale, sh * this.scale);
+    ctx.drawImage(this.buf, sx, sy, sw, sh, 0, 0, W, H);
     ctx.restore();
   }
 }
@@ -91,7 +113,7 @@ registerWorldFx({
   },
 });
 
-/** Start a close-up of the running field and dissolve it in. */
+/** Start a close-up of the running field: the camera pushes in over `ms`. */
 export function* zoomIn(cx: number, cy: number, ms = 350, scale = 2): Co<ZoomView> {
   const z = new ZoomView(cx, cy, scale);
   const f = field();
@@ -102,11 +124,40 @@ export function* zoomIn(cx: number, cy: number, ms = 350, scale = 2): Co<ZoomVie
   return z;
 }
 
-/** Dissolve a close-up back to the 1× view. */
+/** Pull a close-up back out to the 1× view. */
 export function* zoomOut(z: ZoomView, ms = 450): Co {
   if (ms > 0) yield* animate(ms, (p) => (z.k = 1 - p), ease.sineInOut);
   z.k = 0;
   z.done = true;
+}
+
+/**
+ * Carry a close-up into a battle: the encounter seal lands on the close-up
+ * (no pull-back first), and the close-up is let go while the battle covers
+ * the whole screen, so the field comes back at 1× when the battle ends.
+ * Call it right before startBattle.
+ */
+export function zoomIntoBattle(z: ZoomView): void {
+  const f = field();
+  const t0 = performance.now();
+  game.scripts.run(
+    (function* (): Co {
+      yield () => {
+        const top = game.top as { transparent?: boolean } | null;
+        const covered = !!top && top !== f && top.transparent === false;
+        return covered || z.done || performance.now() - t0 > 4000;
+      };
+      z.k = 0;
+      z.done = true;
+    })(),
+  );
+}
+
+/** Push a close-up further in (or back) to another magnification, e.g. 2× → 3×. */
+export function* zoomScale(z: ZoomView, to: number, ms: number): Co {
+  const s0 = z.scale;
+  if (ms > 0) yield* animate(ms, (p) => (z.scale = s0 + (to - s0) * p), ease.sineInOut);
+  z.scale = to;
 }
 
 /** Move the close-up's centre (world px) with an ease; it steps in whole source pixels. */
@@ -132,7 +183,7 @@ function activeZoom(f: FieldScene): ZoomView | null {
 /** World → screen, through the close-up when there is one. */
 function screenOf(f: FieldScene, x: number, y: number): [number, number, number] {
   const z = activeZoom(f);
-  if (z) return [...z.toScreen(f, x, y), z.scale];
+  if (z) return [...z.toScreen(f, x, y), z.mag(f)];
   return [x - Math.round(f.camX), y - Math.round(f.camY), 1];
 }
 
@@ -190,6 +241,12 @@ registerWorldFx({
 /** Where the current msg window went (the lift only applies under a bottom window). */
 let boxPos: 'top' | 'bottom' = 'bottom';
 
+/** A cut that frames itself around the window (a close-up with the speaker above it). */
+let forcedPos: 'top' | 'bottom' | null = null;
+export function forceBoxPos(pos: 'top' | 'bottom' | null): void {
+  forcedPos = pos;
+}
+
 /** The top window with its name tag reaches this far down the screen. */
 const TOP_BOX_BOTTOM = 8 + BOX.h + 14;
 
@@ -200,6 +257,7 @@ const TOP_BOX_BOTTOM = 8 + BOX.h + 14;
  * window goes to the top — unless that would cover them too.
  */
 function autoPos(speaker: string): 'top' | 'bottom' | undefined {
+  if (forcedPos) return (boxPos = forcedPos);
   const f = field();
   if (!f || game.top !== f || f.map.id !== liftMap) return (boxPos = 'bottom');
   const who = new Set<Actor>();
@@ -293,6 +351,7 @@ export function resetStaging(): void {
   cine.k = 0;
   lift = 0;
   liftOff = false;
+  forcedPos = null;
 }
 
 // ---------------------------------------------------------------- the fushigi guide, next to the icon

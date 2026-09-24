@@ -28,7 +28,8 @@ export function yousuText(s: BattleScene): string {
   const r = Math.max(1, s.round);
   const sp = t.yousuSpecial ?? {};
   if (e.def.boss) {
-    if (s.memo.bossFinal) return '';
+    // the climax: the band keeps the one thing left to do (13.7)
+    if (s.memo.bossFinal) return t.extra.finalPrompt?.[0] ?? '';
     if (s.bossChime.lit >= 3) return oneLine(sp.chime3, e.def.name);
     if (s.memo.bossPhase >= 2) {
       const list = [sp.p2a, sp.p2b, sp.p2c];

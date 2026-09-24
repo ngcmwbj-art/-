@@ -5,18 +5,22 @@
 // the grey STAFF door. Six four-seat tables, each left differently (a high
 // chair with a juice ring, the pager, a toppled cup, an umbrella on a chair,
 // a child's cap), the pillar with the self-service water, the tray return.
+// Its own floor (quarry tiles in terracotta and cream, the anti-slip strip
+// before the stalls), trays swept onto the floor by the vacuums, and instead
+// of a skylight shaft the roof's leak through a missing ceiling panel
+// (mall_leak, mall_decay.ts).
 
 import type { Gfx } from '../../engine/gfx';
 import { PixelCanvas } from '../../engine/pixel';
 import { getMapDef } from '../../world/maps';
 import { fushigiDone } from '../../world/fushigi';
-import { laneOf, mallTiles } from '../tiles/ifloor';
+import { foodCourtTiles, laneOf } from '../tiles/ifloor';
 import { ihash } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { notice, paperStack, pc, prop } from './ifurn';
 import { blend, depthShade, paintShell, shellProp } from './ishell';
 import { castRight, dk, finish, lt, outline } from './kit';
-import { bannerScrap, exitCorridor, exitLight, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, shutter, skyPatch, skyPatchRim, small, smallW, type Lamp } from './mall_kit';
+import { bannerScrap, exitCorridor, exitLight, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, shutter, small, smallW, type Lamp } from './mall_kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
 import { printLines, tiny } from './text';
@@ -33,16 +37,25 @@ registerProp('mall_m2_shell', () => {
   const rows = getMapDef('map_mall_food')?.rows ?? [];
   const blocked = (tx: number, ty: number) => ty <= 3 || (ty === 5 || ty === 9) || (tx >= 11 && tx <= 12 && ty === 7) || (tx === 18 && ty === 10);
   const lane = laneOf([[19, 6.5], [12, 6.5], [6, 7], [2, 7], [6, 4], [15, 4]], 20);
-  const tiles = mallTiles({
+  // quarry tiles (the food court's own floor), the anti-slip strip before the
+  // stalls, spills thickest round the tables
+  const TABLES: [number, number][] = [[3, 5], [8, 5], [13, 5], [3, 9], [8, 9], [14, 9]];
+  const spill = (x: number, y: number) => {
+    let m = 0;
+    for (const [tx, ty] of TABLES) m = Math.max(m, 1 - Math.hypot(x - (tx * 16 + 16), (y - (ty * 16 + 10)) * 1.4) / 30);
+    return Math.max(0, m) * 0.45;
+  };
+  const tiles = foodCourtTiles({
     seed: 521,
     w: 20,
     h: 13,
     blocked,
     lane,
+    service: (x, y) => y >= 64 && y < 80 && x >= 112 && x < 288,
+    spill,
     decals: [
-      { x: 262, y: 118, kind: 'arrow', dir: 0, c: P.gold },
+      { x: 262, y: 104, kind: 'arrow', dir: 0, c: P.gold },
       { x: 226, y: 176, kind: 'steps', dir: 2, n: 5 },
-      { x: 276, y: 150, kind: 'balloon' },
       { x: 30, y: 176, kind: 'pot' },
     ],
   });
@@ -129,6 +142,13 @@ registerProp('mall_m2_shell', () => {
   p.hline(181, 185, 151, P.white);
   p.rect(96, 170, 9, 6, P.white);
   p.rect(96, 170, 9, 2, P.gold);
+  // trays swept off the tables by the vacuums: one face up by the knocked-over
+  // chair, one overturned in the aisle, one with a lid and a straw by the pillar
+  floorTray(p, 86, 176, 0);
+  floorTray(p, 150, 122, 1);
+  floorTray(p, 206, 170, 2);
+  p.line(106, 182, 110, 180, P.woodLt);
+  p.line(107, 183, 111, 181, P.woodLt);
   // ---- the corridor to M1 (E, x19) fades into the dark
   exitCorridor(p, 19, 6, 2, 1);
   const img = p.toCanvas();
@@ -138,14 +158,12 @@ registerProp('mall_m2_shell', () => {
     over(g: Gfx, x: number, y: number, env: PropEnv) {
       depthShade(g, x + 16, y + 48, W - 32, 80, 0.14);
       mallLamps(g, x, y, M2_LAMPS, env, 202, 0.16, rows);
-      skyPatch(g, x + 98, y + 118, 46, 30, env);
     },
     light(g: Gfx, x: number, y: number, env: PropEnv) {
       mallGrade(g, 'mall', env, [x + 16, y + 48, 288, 144]);
       mallLampLight(g, x, y, M2_LAMPS, env, 202);
     },
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
-      skyPatchRim(g, x + 98, y + 118, 46, 30, env);
       // the hall's light at the end of the corridor to M1
       exitLight(g, x, y, 19, 6, 2, 1, P.sky, 0.28);
     },
@@ -362,68 +380,169 @@ registerProp('mall_food_table', (opts) => {
   // north side are pushed in under the table (just their backrests peek over
   // its top), so someone walking along the row behind is never drawn as if
   // standing on a chair; the front chairs reach into the row south of it.
-  return prop(32, 28, (p) => {
-    // the two chairs pushed in behind: only their backrests show
-    for (const cx of [4, 20]) {
-      p.rect(cx, 1, 9, 3, dk(chair));
-      p.hline(cx, cx + 8, 1, chair);
-      p.set(cx, 2, chair);
-      p.set(cx + 8, 2, dk(chair, 2));
+  // Every table was left its own way (review round 1: six identical sets):
+  // 0 tidy, 1 a chair pulled out and turned, 2 closed — the chairs up on the
+  // table legs in the air, 3 a chair knocked over, 4 shoved askew with its
+  // chairs pushed together, 5 one chair gone, a tray left behind.
+  const W = 40;
+  const backrest = (p: PixelCanvas, cx: number) => {
+    p.rect(cx, 1, 9, 3, dk(chair));
+    p.hline(cx, cx + 8, 1, chair);
+    p.set(cx, 2, chair);
+    p.set(cx + 8, 2, dk(chair, 2));
+  };
+  const seat = (p: PixelCanvas, cx: number, cy: number) => {
+    p.rect(cx, cy, 9, 3, chair);
+    p.hline(cx, cx + 8, cy, lt(chair));
+    p.set(cx + 8, cy + 2, dk(chair));
+    p.vline(cx + 1, cy + 3, cy + 7, P.asphalt);
+    p.vline(cx + 7, cy + 3, cy + 7, P.asphalt);
+    p.set(cx + 1, cy + 7, P.ink);
+    p.set(cx + 7, cy + 7, P.ink);
+  };
+  /** A chair upside down on the table top: the seat's underside, four legs in the air. */
+  const upturned = (p: PixelCanvas, cx: number, cy: number) => {
+    p.rect(cx, cy + 3, 9, 3, dk(chair));
+    p.hline(cx, cx + 8, cy + 5, dk(chair, 2));
+    p.rect(cx + 1, cy + 4, 7, 1, P.charcoal);
+    for (const lx of [cx + 1, cx + 7]) {
+      p.vline(lx, cy - 3, cy + 3, P.steel);
+      p.set(lx, cy - 4, P.ink);
     }
-    // table top: white laminate with a wooden edge, one steel leg
-    p.rect(0, 4, 32, 11, P.white);
-    p.hline(0, 31, 4, P.glint);
-    p.rect(0, 15, 32, 2, P.woodLt);
-    p.hline(0, 31, 16, P.wood);
-    p.vline(15, 17, 24, P.steel);
-    p.vline(16, 17, 24, P.asphalt);
-    p.hline(11, 20, 25, P.charcoal);
-    // two chairs in front (seats and legs)
-    for (const cx of [3, 20]) {
-      p.rect(cx, 19, 9, 3, chair);
-      p.hline(cx, cx + 8, 19, lt(chair));
-      p.vline(cx + 1, 22, 26, P.asphalt);
-      p.vline(cx + 7, 22, 26, P.asphalt);
-    }
-    // per table: what was left behind
+    for (const lx of [cx + 2, cx + 6]) p.vline(lx, cy - 1, cy + 2, P.asphalt);
+  };
+  /** A chair knocked over backwards: lying on the floor, seat towards us, legs out to the side. */
+  const toppled = (p: PixelCanvas, cx: number, cy: number) => {
+    p.rect(cx, cy, 3, 8, dk(chair));
+    p.vline(cx, cy, cy + 7, chair);
+    p.rect(cx + 3, cy + 2, 7, 4, chair);
+    p.hline(cx + 3, cx + 9, cy + 2, lt(chair));
+    p.hline(cx + 10, cx + 13, cy + 3, P.steel);
+    p.hline(cx + 10, cx + 13, cy + 5, P.asphalt);
+    p.set(cx + 14, cy + 3, P.ink);
+    p.set(cx + 14, cy + 5, P.ink);
+    p.hline(cx, cx + 14, cy + 8, P.shade);
+  };
+  const top = (p: PixelCanvas, x: number, y: number) => {
+    // white laminate with a wooden edge, one steel leg
+    p.rect(x, y + 4, 32, 11, P.white);
+    p.hline(x, x + 31, y + 4, P.glint);
+    p.rect(x, y + 15, 32, 2, P.woodLt);
+    p.hline(x, x + 31, y + 16, P.wood);
+    p.vline(x + 15, y + 17, y + 24, P.steel);
+    p.vline(x + 16, y + 17, y + 24, P.asphalt);
+    p.hline(x + 11, x + 20, y + 25, P.charcoal);
+  };
+  return prop(W, 28, (p) => {
     switch (v) {
-      case 0: // napkin holder, soy sauce and shichimi
+      case 0: // tidy: napkin holder, soy sauce and shichimi
+        backrest(p, 4);
+        backrest(p, 20);
+        top(p, 0, 0);
+        seat(p, 3, 19);
+        seat(p, 20, 19);
         p.rect(12, 6, 6, 5, P.steel);
         p.rect(13, 5, 4, 2, P.white);
         p.rect(20, 7, 2, 4, P.ink);
         p.rect(23, 8, 2, 3, P.verm);
         break;
-      case 1: // (8,5) the child's high chair pushed in behind (taller), a ring of juice
+      case 1: // (8,5) the child's high chair pushed in behind, a juice ring, the right chair pulled out and turned
+        backrest(p, 20);
         p.rect(3, 0, 9, 4, P.goldPale);
         p.hline(3, 11, 0, P.white);
         p.hline(2, 12, 3, P.gold);
+        top(p, 0, 0);
+        seat(p, 3, 19);
+        // pulled out and swung round: its backrest now faces the table's end
+        p.rect(27, 18, 3, 6, dk(chair));
+        p.vline(27, 18, 23, chair);
+        seat(p, 29, 20);
         p.ring(24, 9, 3, 2, P.brass);
         p.set(24, 9, P.goldPale);
         break;
-      case 2: // (13,5) the pager: a round coaster with a dark lamp
-        p.ellipse(9, 9, 4, 3, P.charcoal);
-        p.ellipse(9, 8.5, 3, 2, P.asphalt);
-        p.set(9, 8, P.maroon);
-        tiny(p, '7', 20, 7, P.steel);
+      case 2: // (13,5) closed for the night a year ago: chairs upside down on the table, the pager at the edge
+        top(p, 0, 0);
+        upturned(p, 2, 6);
+        upturned(p, 12, 5);
+        upturned(p, 22, 6);
+        p.ellipse(29, 12.5, 2.5, 1.5, P.charcoal);
+        p.set(29, 12, P.maroon);
         break;
-      case 3: // a toppled paper cup and its straw
+      case 3: // (3,9) a chair knocked over, the paper cup too
+        backrest(p, 4);
+        backrest(p, 20);
+        top(p, 0, 0);
+        seat(p, 3, 19);
+        toppled(p, 22, 18);
         p.rect(8, 8, 6, 3, P.white);
         p.hline(8, 13, 8, P.red);
         p.line(14, 9, 20, 7, P.aqua);
+        // what spilled from it has dried on the laminate
+        p.hline(15, 18, 11, P.goldPale);
+        p.set(19, 12, P.goldPale);
         break;
-      case 4: // an umbrella hooked on the edge of the table
-        p.line(21, 4, 25, 13, P.navy);
-        p.line(22, 4, 26, 13, P.blue);
-        p.set(20, 4, P.charcoal);
-        p.rect(10, 7, 8, 4, P.paper);
+      case 4: // (8,9) shoved askew: the top off-centre, its chairs pushed together to one side
+        backrest(p, 1);
+        backrest(p, 10);
+        top(p, 4, 1);
+        seat(p, 13, 20);
+        seat(p, 22, 21);
+        // an umbrella hooked on the edge, a flyer
+        p.line(29, 5, 33, 14, P.navy);
+        p.line(30, 5, 34, 14, P.blue);
+        p.set(28, 5, P.charcoal);
+        p.rect(12, 8, 8, 4, P.paper);
+        p.hline(13, 18, 9, P.crimson);
         break;
-      default: // a child's yellow cap
-        p.ellipse(16, 9, 4, 2.5, P.gold);
-        p.hline(16, 21, 10, P.brass);
-        p.set(15, 8, P.goldPale);
+      default: // (14,9) one chair gone, a tray left with a bowl and chopsticks, a child's cap on the other chair
+        backrest(p, 4);
+        backrest(p, 20);
+        top(p, 0, 0);
+        seat(p, 3, 19);
+        p.rect(14, 6, 13, 8, P.sun);
+        p.strokeRect(14, 6, 13, 8, P.sunDeep);
+        p.hline(15, 25, 6, P.sky);
+        p.ellipse(19, 9.5, 3, 2, P.white);
+        p.ellipse(19, 9.5, 2, 1, P.brass);
+        p.line(23, 7, 25, 12, P.woodLt);
+        p.line(24, 7, 26, 12, P.woodLt);
+        p.ellipse(7.5, 19.5, 4, 2, P.gold);
+        p.hline(7, 12, 20, P.brass);
+        p.set(6, 18, P.goldPale);
     }
-  }, { cx: 16, base: 24, foot: 23, contact: 0, shadow: 0 });
+  }, { cx: 16 + (W - 32) / 2, base: 24, foot: 23, contact: 0, shadow: 0 });
 });
+
+// ---------------------------------------------------------------- trays and lids swept off the tables (flat, on the floor)
+
+/**
+ * Orange food-court trays and their litter on the floor: a tray face up with
+ * a bowl, one overturned, one on its edge against a chair, a lid, chopsticks.
+ */
+function floorTray(p: PixelCanvas, x: number, y: number, k: number): void {
+  if (k === 1) {
+    // overturned: the pale ribbed underside
+    p.rect(x, y, 13, 8, P.skin3);
+    p.strokeRect(x, y, 13, 8, P.sunDeep);
+    for (let i = x + 2; i < x + 12; i += 3) p.vline(i, y + 2, y + 5, P.sun);
+    p.hline(x + 1, x + 12, y + 8, P.shade);
+    return;
+  }
+  p.rect(x, y, 13, 8, P.sun);
+  p.strokeRect(x, y, 13, 8, P.sunDeep);
+  p.hline(x + 1, x + 11, y + 1, P.sky);
+  p.hline(x + 1, x + 12, y + 8, P.shade);
+  if (k === 0) {
+    p.ellipse(x + 5, y + 4, 3, 2, P.white);
+    p.ellipse(x + 5, y + 4, 2, 1, P.goldPale);
+    p.line(x + 9, y + 2, x + 11, y + 6, P.woodLt);
+  } else {
+    // a cup lid and a straw
+    p.ellipse(x + 8, y + 4, 2, 2, P.white);
+    p.set(x + 8, y + 4, P.concrete);
+    p.line(x + 2, y + 5, x + 6, y + 3, P.aqua);
+  }
+}
 
 // ---------------------------------------------------------------- self-service water (12,7): cups upside down, a slow drip
 

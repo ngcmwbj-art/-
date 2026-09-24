@@ -47,8 +47,8 @@ const ROWS = [
   'wwwwwwwwww==wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwbRbww', // 37
   'HHHHHHoHHH==HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHFbRbF,', // 38
   '~~~:::::::::::::::::::~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 39
-  '~~~::o:o::::::::::::::~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 40 torii (5,40)–(7,40)
-  '~~~~~~~~~~~~:~~~o~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 41
+  '~~~::%%%::::::::::::::~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 40 gravel approach to the shrine
+  '~~~~~o%o~~~~:~~~o~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 41
   '~~~~~~~~~~~~:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 42
   '~~~~~~~~~~~~:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 43
 ];
@@ -207,7 +207,7 @@ const OBJECTS: MapObj[] = [
   O('obj_chochin', 23, 22, { face: 'up' }),
   { t: 'prop', prop: 'prop_arch_post', x: 23, y: 26 },
   O('obj_meat_showcase', 24, 21, { w: 2, face: 'up' }),
-  { t: 'npc', id: 'npc_cow_statue', x: 26, y: 22, dir: 'down', noTurn: true, talk: TALK.npc_cow_statue, cond: s02 },
+  { t: 'npc', id: 'npc_cow_statue', x: 26, y: 22, dir: 'down', noTurn: true, statue: true, talk: TALK.npc_cow_statue, cond: s02 },
   { t: 'obj', id: 'obj_gacha_ginza', x: 30, y: 22, w: 2, script: 'evt_gacha_ginza', text: {
     s1: `@narr
 ハンドルが、途中で 止まる。{w=300}
@@ -255,7 +255,7 @@ const OBJECTS: MapObj[] = [
   { t: 'prop', prop: 'prop_arcade_pillar', x: 49, y: 25, opts: { banner: 'clock' } },
   { t: 'prop', prop: 'prop_arcade_pillar', x: 55, y: 25, opts: { banner: 'korokke' } },
   { t: 'prop', prop: 'prop_postman_bike', x: 48, y: 24, cond: { stage: '1-2' } },
-  { t: 'prop', prop: 'decal_emblem', x: 31, y: 23 },
+  { t: 'prop', prop: 'decal_emblem', x: 28, y: 23 },
   { t: 'prop', prop: 'decal_emblem', x: 48, y: 23 },
   { t: 'prop', prop: 'decal_cord_trace', x: 0, y: 0, cond: { stage: 2, notFlag: 'flag_ojigi_beaten' } },
   { t: 'prop', prop: 'decal_cord_trace', x: 0, y: 0, cond: { stage: 2, flag: 'flag_ojigi_beaten' }, opts: { faded: true } },
@@ -281,8 +281,11 @@ const OBJECTS: MapObj[] = [
 !flag flag_hidden_hokora 1
 [-]`, text2: `@narr
 きつねは、すまし顔の ままだ。` } as MapObj,
-  { t: 'prop', prop: 'prop_torii', x: 5, y: 40 },
+  { t: 'prop', prop: 'prop_torii', x: 5, y: 41 },
   O('obj_scarecrow', 16, 41, { face: 'down' }),
+  // an egret wading in the far paddy, another near the water gate
+  { t: 'prop', prop: 'prop_heron', x: 24, y: 42, opts: { seed: 0 }, cond: s02 },
+  { t: 'prop', prop: 'prop_heron', x: 43, y: 40, opts: { seed: 3 }, cond: s02 },
   O('obj_paddy', 13, 41, { w: 45, h: 3, face: 'down', flat: true }),
   { t: 'trig', id: 'trig_edge_south', x: 12, y: 43, w: 1, h: 1, on: 'bump', text: OBJ.obj_edge_south as string },
   { t: 'trig', id: 'trig_edge_west', x: 0, y: 21, w: 1, h: 2, on: 'bump', text: OBJ.obj_edge_west as string },
@@ -351,6 +354,7 @@ const OBJECTS: MapObj[] = [
   O('obj_cart_corral', 53, 6, { w: 3 }),
   { ...O('obj_balloon_husk', 50, 11), face: 'up' } as MapObj,
   { ...O('obj_ojigi_restored', 51, 6), cond: { flag: 'flag_ojigi_beaten' } } as MapObj,
+  { t: 'prop', prop: 'decal_puddle', x: 42, y: 13, opts: { drip: false } },
   { t: 'prop', prop: 'prop_lot_lamp', x: 40, y: 9, opts: { v: 0 } },
   { t: 'prop', prop: 'prop_lot_lamp', x: 55, y: 12, opts: { v: 1 } },
   { t: 'prop', prop: 'tree_hanamizuki', x: 51, y: 10 },
@@ -370,9 +374,9 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_jk', x: 57, y: 23, dir: 'right', cond: s02, talk: TALK.npc_jk },
   { t: 'npc', id: 'npc_chugaku', x: 3, y: 18, dir: 'down', cond: s02, talk: TALK.npc_chugaku },
   { t: 'npc', id: 'npc_postman', x: 47, y: 24, dir: 'down', cond: s12, talk: TALK.npc_postman },
-  { t: 'npc', id: 'npc_madam', x: 17, y: 23, dir: 'down', cond: s01, talk: TALK.npc_madam, move: { kind: 'patrol', points: [[17, 23], [17, 26]], speed: 1.0, wait: 2000 } },
-  { t: 'npc', id: 'npc_madam', x: 17, y: 26, dir: 'down', cond: { stage: 2 }, talk: TALK.npc_madam },
-  { t: 'npc', id: 'npc_kotaro', x: 16, y: 23, dir: 'down', cond: s02, talk: TALK.npc_kotaro, move: { kind: 'follow', target: 'npc_madam', dx: -1, dy: 0 } },
+  { t: 'npc', id: 'npc_madam', x: 17, y: 22, dir: 'down', cond: s01, talk: TALK.npc_madam, move: { kind: 'patrol', points: [[17, 22], [17, 24]], speed: 1.0, wait: 2000 } },
+  { t: 'npc', id: 'npc_madam', x: 17, y: 24, dir: 'down', cond: { stage: 2 }, talk: TALK.npc_madam },
+  { t: 'npc', id: 'npc_kotaro', x: 16, y: 22, dir: 'down', cond: s02, animal: true, talk: TALK.npc_kotaro, move: { kind: 'follow', target: 'npc_madam', dx: -1, dy: 0 } },
   { t: 'npc', id: 'npc_sand_girl', x: 22, y: 9, dir: 'left', cond: s12, talk: TALK.npc_sand_girl, pose: 'crouch', fushigi: 'fushigi_07' },
   { t: 'npc', id: 'npc_gacha_boy', x: 31, y: 23, dir: 'up', cond: s02, talk: TALK.npc_gacha_boy },
   { t: 'npc', id: 'npc_ojii', x: 10, y: 21, dir: 'down', cond: s02, talk: TALK.npc_ojii, pose: 'sit', off: [0, -2] },
@@ -382,7 +386,7 @@ const OBJECTS: MapObj[] = [
     t: 'npc', id: 'npc_kanenari', x: 16, y: 9, dir: 'down', cond: { stage: '1-2', notFlag: 'flag_kanenari_joined' },
     script: 'evt_kanenari_meet', move: { kind: 'orbit', cx: 256, cy: 112, r: 32, period: 6000, cw: true, waveEvery: 7000 },
   },
-  { t: 'npc', id: 'npc_hato', x: 33, y: 23, dir: 'down', cond: s0, talk: TALK.npc_hato, pose: 'peck' },
+  { t: 'npc', id: 'npc_hato', x: 33, y: 22, dir: 'down', cond: s0, talk: TALK.npc_hato, pose: 'peck' },
   { t: 'npc', id: 'npc_cat_sauce', x: 15, y: 24, dir: 'right', cond: s02, talk: TALK.npc_cat_sauce, ghost: true, off: [0, -14], fushigi: 'fushigi_02' },
   { t: 'npc', id: 'npc_cat_mike', x: 30, y: 32, dir: 'down', cond: s0, talk: TALK.npc_cat_mike, noTurn: true, pose: 'sleep' },
   { t: 'npc', id: 'npc_cat_mike', x: 30, y: 32, dir: 'up', cond: s12, talk: TALK.npc_cat_mike, noTurn: true, pose: 'look_up' },
@@ -392,13 +396,57 @@ const OBJECTS: MapObj[] = [
     off: [0, 2],
   },
 
+  // ======================================================== passers-by & traffic (QA round 1)
+  // Stage 0 has the town's everyday traffic; at 17:00 they all stop dead
+  // mid-stride (world/npc.ts route), in stage 2 the people walk on as shadows
+  // only and the rest are gone. Walkers whose sprite isn't drawn yet (char
+  // art: npc_walker_*) stay away until it is.
+  {
+    t: 'npc', id: 'veh_kei_truck', vehicle: 'kei_truck', passerby: true, x: -3, y: 34, dir: 'right', cond: s01,
+    move: { kind: 'route', points: [[-3, 34], [49, 34]], speed: 3.2, wait: 9000, hide: [0], phase: 4 },
+  },
+  {
+    t: 'npc', id: 'walk_cat_shiro', sprite: 'npc_cat_shiro', passerby: true, x: 31, y: 32, dir: 'right', cond: s01,
+    move: { kind: 'route', points: [[31, 32], [46, 32]], speed: 0.9, wait: 5000, endPose: 'sit', phase: 1.5 },
+  },
+  {
+    t: 'npc', id: 'walk_cat_hachi', sprite: 'npc_cat_hachi', passerby: true, x: 1, y: 21, dir: 'right', cond: s01,
+    move: { kind: 'route', points: [[1, 21], [8, 21]], speed: 1.1, wait: 6000, endPose: 'sit' },
+  },
+  {
+    t: 'npc', id: 'walk_pigeon_a', sprite: 'npc_pigeon_b', passerby: true, x: 36, y: 23, dir: 'right', cond: s01, shadow: 0,
+    move: { kind: 'route', points: [[36, 23], [38, 23], [38, 24]], speed: 0.7, wait: 2600, endPose: 'peck' },
+  },
+  {
+    t: 'npc', id: 'walk_pigeon_b', sprite: 'npc_pigeon_c', passerby: true, x: 44, y: 23, dir: 'left', cond: s01, shadow: 0,
+    move: { kind: 'route', points: [[44, 23], [43, 24]], speed: 0.6, wait: 3400, endPose: 'peck', phase: 1.2 },
+  },
+  {
+    t: 'npc', id: 'walk_shufu', sprite: 'npc_walker_shufu', passerby: true, s2: 'shadow', x: 24, y: 24, dir: 'right', cond: s02,
+    move: { kind: 'route', points: [[24, 24], [54, 24]], speed: 1.1, wait: 2500 },
+  },
+  {
+    // home from the station side: waits at the ginza's east end, walks down to the river road and off west
+    t: 'npc', id: 'walk_salaryman', sprite: 'npc_walker_salaryman', passerby: true, s2: 'shadow', x: 56, y: 26, dir: 'down', cond: s02,
+    move: { kind: 'route', points: [[56, 26], [56, 33], [-2, 33]], speed: 1.4, wait: 5000, hide: [2] },
+  },
+  {
+    // a high-schooler cycling along the river road to the crossing and back
+    t: 'npc', id: 'walk_bike', sprite: 'npc_walker_bike', passerby: true, x: -2, y: 34, dir: 'right', cond: s01,
+    move: { kind: 'route', points: [[-2, 34], [55, 34], [56, 29]], speed: 4.2, wait: 7000, hide: [0], phase: 6 },
+  },
+  {
+    t: 'npc', id: 'walk_kid', sprite: 'npc_walker_kid', passerby: true, x: 13, y: 12, dir: 'up', cond: s01,
+    move: { kind: 'route', points: [[13, 12], [13, 4], [19, 4], [19, 12]], speed: 2.6, wait: 1500, loop: true },
+  },
+
   // ======================================================== enemy symbols (20_systems 14)
-  { t: 'sym', id: 'sym_town_01', enemies: ['enemy_hato_kakaricho'], x: 33, y: 23, move: 'hato', cond: { stage: 1 }, script: 'evt_hato_block', restoreAt: [33, 23] },
+  { t: 'sym', id: 'sym_town_01', enemies: ['enemy_hato_kakaricho'], x: 33, y: 22, move: 'hato', cond: { stage: 1 }, script: 'evt_hato_block', restoreAt: [33, 22] },
   { t: 'sym', id: 'sym_town_02', enemies: ['enemy_semi_final'], x: 21, y: 20, move: 'semi', cond: { stage: '1-2', flag: 'flag_got_hanko' }, restoreAt: [22, 20], restoreOff: [0, -12] },
   { t: 'sym', id: 'sym_town_03', enemies: ['enemy_semi_final'], x: 53, y: 11, move: 'semi', cond: { stage: 2 }, restoreAt: [51, 10], restoreOff: [0, -10] },
   { t: 'sym', id: 'sym_town_04', enemies: ['enemy_cone_vocal', 'enemy_cone_vocal'], x: 18, y: 16, to: [18, 19], move: 'cone', dir: 'down', cond: { stage: 2 }, restoreAt: [18, 18] },
   { t: 'sym', id: 'sym_town_04b', link: 'sym_town_04', enemies: [], x: 20, y: 19, to: [20, 16], move: 'cone', dir: 'up', cond: { stage: 2 }, restoreAt: [20, 18], phase: 0.5 } as MapObj,
-  { t: 'sym', id: 'sym_town_05', enemies: ['enemy_wasuregasa'], x: 3, y: 5, move: 'umbrella', radius: 3, cond: { stage: 2 }, restoreAt: [4, 4], restoreOff: [4, 0] },
+  { t: 'sym', id: 'sym_town_05', enemies: ['enemy_wasuregasa'], x: 6, y: 8, move: 'umbrella', radius: 2, cond: { stage: 2 }, restoreAt: [4, 4], restoreOff: [4, 0] },
   { t: 'sym', id: 'sym_town_06', enemies: ['enemy_wasuregasa'], x: 45, y: 8, move: 'umbrella', radius: 3, cond: { stage: 2 }, restoreAt: [48, 6], restoreOff: [0, 2] },
   { t: 'sym', id: 'sym_town_07', enemies: ['enemy_ojigi_jihanki'], x: 50, y: 6, move: 'ojigi', cond: { stage: 2, notFlag: 'flag_ojigi_beaten' }, script: 'evt_ojigi', music: 'bgm_midboss' },
 
@@ -454,6 +502,20 @@ registerMap({
     { k: 'arrow', x: 46, y: 11, v: 1 },
     { k: 'tire', x: 1, y: 17, w: 6, h: 2 },
     { k: 'tire', x: 35, y: 10, w: 14, h: 2, v: 2 },
+    // the lot's wear (QA round 1): seams sprouting weeds, leaves blown against
+    // the fences and the lamp base, oil where cars idled, flyers
+    { k: 'footprints', x: 12, y: 40, h: 4, dir: 'v' },
+    { k: 'footprints', x: 3, y: 39, w: 18 },
+    { k: 'seamweeds', x: 36, y: 10, w: 21 },
+    { k: 'seamweeds', x: 47, y: 7, h: 8, dir: 'v' },
+    { k: 'leafdrift', x: 36, y: 13, w: 5, h: 1, v: 0 },
+    { k: 'leafdrift', x: 52, y: 14, w: 4, h: 1, v: 0 },
+    { k: 'leafdrift', x: 35, y: 6, w: 3, h: 2, v: 2 },
+    { k: 'leafdrift', x: 49, y: 12, w: 2, h: 1, v: 3 },
+    { k: 'oilpool', x: 44, y: 9 },
+    { k: 'oilpool', x: 38, y: 11 },
+    { k: 'flyer', x: 43, y: 12 },
+    { k: 'flyer', x: 53, y: 9, v: 1 },
     { k: 'tactile', x: 50, y: 32, w: 4 },
     { k: 'tactile', x: 21, y: 32, w: 2 },
     { k: 'drain', x: 20, y: 33 },

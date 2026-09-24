@@ -139,3 +139,65 @@ export function hasDigitGlyphs(s: string): boolean {
   for (const ch of s) if (!GLYPHS[ch] && NARROW[ch] === undefined) return false;
   return true;
 }
+
+// ---- 7×11 pencil numerals ---------------------------------------------------------------
+// The 通知表 and the shop's price / quantity: numbers written by hand next to
+// 16px labels, where the 5×7 set is too small. 1px strokes like the font's,
+// the glyph box sits on the font's baseline (rows 3–13 of a 16px line).
+
+const MID: Record<string, string[]> = {
+  '0': ['..###..', '.#...#.', '#.....#', '#.....#', '#.....#', '#.....#', '#.....#', '#.....#', '#.....#', '.#...#.', '..###..'],
+  '1': ['...#...', '..##...', '.#.#...', '...#...', '...#...', '...#...', '...#...', '...#...', '...#...', '...#...', '.#####.'],
+  '2': ['..###..', '.#...#.', '#.....#', '......#', '.....#.', '....#..', '...#...', '..#....', '.#.....', '#......', '#######'],
+  '3': ['.####..', '#....#.', '......#', '......#', '.....#.', '..###..', '.....#.', '......#', '......#', '#....#.', '.####..'],
+  '4': ['.....#.', '....##.', '...#.#.', '..#..#.', '.#...#.', '#....#.', '#######', '.....#.', '.....#.', '.....#.', '.....#.'],
+  '5': ['######.', '#......', '#......', '#......', '#####..', '.....#.', '......#', '......#', '......#', '#....#.', '.####..'],
+  '6': ['..###..', '.#...#.', '#......', '#......', '#.###..', '##...#.', '#.....#', '#.....#', '#.....#', '.#...#.', '..###..'],
+  '7': ['#######', '#.....#', '......#', '.....#.', '.....#.', '....#..', '....#..', '...#...', '...#...', '...#...', '...#...'],
+  '8': ['..###..', '.#...#.', '#.....#', '#.....#', '.#...#.', '..###..', '.#...#.', '#.....#', '#.....#', '.#...#.', '..###..'],
+  '9': ['..###..', '.#...#.', '#.....#', '#.....#', '#.....#', '.#...##', '..###.#', '......#', '......#', '.#...#.', '..###..'],
+  '/': ['......#', '......#', '.....#.', '.....#.', '....#..', '...#...', '..#....', '.#.....', '.#.....', '#......', '#......'],
+  '-': ['.......', '.......', '.......', '.......', '.......', '.#####.', '.......', '.......', '.......', '.......', '.......'],
+  '×': ['.......', '.......', '.......', '#.....#', '.#...#.', '..#.#..', '...#...', '..#.#..', '.#...#.', '#.....#', '.......'],
+};
+
+const midCache = new Map<string, HTMLCanvasElement>();
+
+function midGlyph(ch: string, color: string): HTMLCanvasElement | null {
+  const rows = MID[ch];
+  if (!rows) return null;
+  const key = ch + color;
+  let c = midCache.get(key);
+  if (!c) {
+    const [cv, ctx] = makeCanvas(7, 11);
+    ctx.fillStyle = color;
+    for (let y = 0; y < 11; y++) for (let x = 0; x < 7; x++) if (rows[y][x] === '#') ctx.fillRect(x, y, 1, 1);
+    c = cv;
+    midCache.set(key, c);
+  }
+  return c;
+}
+
+/** Width of `s` in the 7×11 numerals (8px a glyph, 1px apart). */
+export function numeralsWidth(s: string): number {
+  let w = 0;
+  for (const ch of s) w += ch === ' ' ? 4 : 8;
+  return Math.max(0, w - 1);
+}
+
+/**
+ * Draw 7×11 numerals. `y` is the top of a 16px text line (same as g.text),
+ * so they stand on the same baseline as the labels beside them.
+ */
+export function drawNumerals(g: Gfx, s: string, x: number, y: number, o: { color?: string; align?: 'left' | 'center' | 'right' } = {}): number {
+  const color = o.color ?? '#2A2440';
+  const w = numeralsWidth(s);
+  let cx = Math.round(o.align === 'center' ? x - w / 2 : o.align === 'right' ? x - w : x);
+  const cy = Math.round(y) + 3;
+  for (const ch of s) {
+    const img = midGlyph(ch, color);
+    if (img) g.ctx.drawImage(img, cx, cy);
+    cx += ch === ' ' ? 4 : 8;
+  }
+  return w;
+}

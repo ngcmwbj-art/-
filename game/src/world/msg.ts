@@ -75,6 +75,11 @@ export function setMsgHooks(h: MsgHooks): void {
  */
 type MsgPosHook = (speaker: string) => 'top' | 'bottom' | undefined;
 let posHook: MsgPosHook | null = null;
+let msgPos: 'top' | 'bottom' = 'bottom';
+/** Where the window of the msg block being shown went (the field's room view keeps people clear of it). */
+export function lastMsgPos(): 'top' | 'bottom' {
+  return msgPos;
+}
 export function setMsgPosHook(fn: MsgPosHook | null): void {
   posHook = fn;
 }
@@ -124,7 +129,8 @@ export function* runMsg(src: string, defaultSpeaker = 'narr'): Co<number> {
     const sp = speakerOf(speaker);
     const p = pages;
     pages = [];
-    yield* say(p, { name: sp.name, voice: sp.voice, pos: posHook?.(speaker) });
+    msgPos = posHook?.(speaker) ?? 'bottom';
+    yield* say(p, { name: sp.name, voice: sp.voice, pos: msgPos });
   }
 
   for (let i = 0; i < lines.length; i++) {

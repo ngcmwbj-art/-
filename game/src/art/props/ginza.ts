@@ -279,25 +279,36 @@ registerProp('prop_shop_mats', () => {
 });
 
 registerProp('decal_emblem', () => {
-  // the town emblem (bell in a ring) laid into the floor mosaic, 2px tesserae
-  const p = pc(28, 28);
-  for (let y = 0; y < 28; y += 2)
-    for (let x = 0; x < 28; x += 2) {
-      const d = Math.hypot(x + 1 - 14, y + 1 - 14);
-      if (d > 13.5) continue;
+  // (QA round 1) the shopping street's floor medallion, legible at a glance:
+  // a cream mosaic disc a step lighter than the floor tiles and low in
+  // saturation, a double ring (brass, then a dotted wood ring) and the 銀 of
+  // 夕鳴銀座 laid in dark tesserae in the middle, grout lines between the stones
+  const p = pc(30, 30);
+  const c0 = 15;
+  for (let y = 0; y < 30; y++)
+    for (let x = 0; x < 30; x++) {
+      const d = Math.hypot(x + 0.5 - c0, y + 0.5 - c0);
+      if (d > 14.6) continue;
       let c: string = P.paperGrid;
-      if (d > 11.5) c = P.wood;
-      else if (d > 9.5) c = P.skin4;
-      // bell silhouette
-      const bx = x + 1 - 14;
-      const by = y + 1 - 14;
-      const bell = (by > -7 && by < 5 && Math.abs(bx) < 3 + (by + 7) * 0.35) || (by >= 5 && by < 7 && Math.abs(bx) < 2);
-      if (bell && d <= 9.5) c = P.brassOld;
-      if (ihash(x, y, 2231) % 9 === 0) c = dk(c);
-      p.rect(x, y, 2, 2, c);
-      if ((x + y) % 4 === 0) p.set(x + 1, y + 1, dk(c));
+      if (d > 13.4) c = P.woodLt; // outer rim
+      else if (d > 12.2) c = P.brass; // brass ring
+      else if (d > 11.2) c = P.paperGrid;
+      else if (d > 10.2) c = (Math.round(Math.atan2(y - c0, x - c0) * 9) & 1) ? P.woodLt : P.paperGrid; // dotted ring
+      else c = P.paper;
+      // mosaic grout: a faint 3px grid inside the disc
+      if (d <= 10.2 && (x % 3 === 0 || y % 3 === 0) && ihash(x, y, 2231) % 3 === 0) c = P.paperGrid;
+      p.set(x, y, c);
     }
-  return flat(p.toCanvas(), -6, -6);
+  // the glyph, with a soft shadow step so it reads as inlaid stone
+  handGlyph(p, '銀', 10, 10, P.woodDark, P.woodLt);
+  // wear: a few lighter polished stones where feet go
+  for (let k = 0; k < 10; k++) {
+    const hh = ihash(k, 9, 2233);
+    const x = 5 + (hh % 20);
+    const y = 5 + ((hh >>> 8) % 20);
+    if (Math.hypot(x - c0, y - c0) < 10 && p.alpha(x, y)) p.set(x, y, P.white);
+  }
+  return flat(p.toCanvas(), -7, -7);
 });
 
 // ---------------------------------------------------------------- ガチャ台 obj_gacha_ginza (30–31,22)
@@ -898,7 +909,8 @@ registerProp('obj_ginza_bench', () => {
   p.rect(1, 1, 32, 8, P.leafDeep);
   p.strokeRect(1, 1, 32, 8, P.leafShade);
   p.hline(2, 31, 2, P.leaf);
-  fontTextSmall(p, '夕鳴信金', 3, 1, P.white, 2);
+  // the ad of the local credit union, in bold kana that stay legible at half size
+  fontTextSmall(p, 'しんきん', 2, 0, P.white, 1, { spacing: -1 });
   // seat
   p.rect(1, 10, 32, 4, P.woodLt);
   p.hline(1, 32, 10, P.goldPale);

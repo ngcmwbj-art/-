@@ -13,7 +13,7 @@ import { BattleScene } from './scene';
 import { battleFlow, getGameOverHook, setGameOverHook, type GameOverHook } from './flow';
 import { runGameOver } from './gameover';
 import { restoreForRetry } from './results';
-import { loadGame } from '../game/state';
+import { hasSave } from '../game/state';
 import { EnemyGalleryScene } from './gallery';
 import { playHankoLearnField, playHankoLearnIn } from './learn';
 import { playLevelUpField } from './results';
@@ -63,16 +63,40 @@ function* battleImpl(o: BattleOpts): Co<BattleResult> {
     // back to the field out of the dark
     game.fadeColor = '#0B0B14';
     game.fadeAlpha = 1;
-    if (load && loadGame()) yield* reloadField();
+    if (load && (yield* loadFromSave())) return scene.result ?? 'lose';
     game.scripts.run(game.fadeIn(500));
   }
   return scene.result ?? 'lose';
 }
 
-/** 「セーブから」: rebuild the field scene at the saved position. */
-function* reloadField(): Co {
+/** A dark stand-in while the save is loaded (nothing on it writes the state). */
+class DarkScene implements Scene {
+  transparent = false;
+  update(): void {}
+  draw(g: Gfx): void {
+    g.clear('#0B0B14');
+  }
+}
+
+/**
+ * 「セーブから」: exactly the title's つづきから (UI's continueGame: load, HUD,
+ * skills and settings, the field at the saved map / x / y / dir, the dither).
+ * The field the battle started from is taken off first — it writes the
+ * player's tile into `state` every frame, which would move the loaded party
+ * to where the battle happened.
+ */
+function* loadFromSave(): Co<boolean> {
+  if (!hasSave()) return false;
+  const flow = (yield import('../ui/flow')) as typeof import('../ui/flow');
   const w = (yield import('../world')) as typeof import('../world');
-  game.replaceAll(new w.FieldScene(state.map, state.x, state.y, state.dir));
+  const here = { map: state.map, x: state.x, y: state.y, dir: state.dir };
+  game.replaceAll(new DarkScene());
+  const ok = (yield* flow.continueGame()) as boolean;
+  if (ok) return true;
+  // the file could not be read after all: carry on where the battle was
+  game.replaceAll(new w.FieldScene(here.map || 'map_home_2f', here.x, here.y, here.dir));
+  game.scripts.run(game.fadeIn(500));
+  return true;
 }
 
 setBattleImpl(battleImpl);
@@ -129,10 +153,13 @@ class BattleTestScene implements Scene {
 
   private opts(): BattleOpts {
     const p = this.params;
-    const enemies = (p.get('enemies') ?? p.get('enemy') ?? 'enemy_hato_kakaricho').split(',').filter((id) => getEnemy(id));
-    const boss = p.get('boss') === '1' || enemies.includes('boss_omukaemachi');
+    // &boss=1 on its own means the boss (not the default ハト係長 in the boss layout)
+    const fallback = p.get('boss') === '1' ? 'boss_omukaemachi' : 'enemy_hato_kakaricho';
+    let enemies = (p.get('enemies') ?? p.get('enemy') ?? fallback).split(',').filter((id) => getEnemy(id));
+    if (!enemies.length) enemies = [fallback];
+    const boss = enemies.some((id) => !!getEnemy(id)?.boss) || (p.get('boss') === '1' && enemies.includes('boss_omukaemachi'));
     return {
-      enemies: boss && !enemies.length ? ['boss_omukaemachi'] : enemies,
+      enemies,
       boss,
       initiative: (p.get('init') as BattleOpts['initiative']) ?? 'normal',
       background: p.get('bg') ?? undefined,
@@ -248,8 +275,8 @@ registerDebug('key', (name: string, on = true) => {
   game.input.setVirtual(name as never, !!on);
   return on;
 });
-/** Automatic inputs for deterministic QA: tsuk = just|ok|fail|kabuse, ring = good|early|none, hold = kukkiri|futsuu|kasure */
-registerDebug('bauto', (o: { tsuk?: string; ring?: string; hold?: Judge } | null) => {
+/** Automatic inputs for deterministic QA: tsuk = just|ok|fail|kabuse, ring = good|early|none, hold = kukkiri|futsuu|kasure, crit = every strike is a 100てん */
+registerDebug('bauto', (o: { tsuk?: string; ring?: string; hold?: Judge; crit?: boolean } | null) => {
   if (!current) return 'no battle';
   current.auto = o ?? {};
   return current.auto;
@@ -295,6 +322,8 @@ registerDebug('bnori', (n = 1) => {
   current.memo.noriForce = n;
   return n;
 });
+/** QA: the running BattleScene itself (for frame-exact probes in page evals). */
+registerDebug('bscene', () => current);
 registerDebug('bstate', () => {
   const s = current;
   if (!s) return null;

@@ -237,11 +237,16 @@ export class Popup {
   readonly h: number;
   private rowH: number;
 
+  /** The title, one entry a line ('\n' breaks it). */
+  private readonly titleLines: string[];
+
   constructor(public opts: PopupOpt[], public x: number, public y: number, public title = '', o: { minW?: number; index?: number } = {}) {
     this.rowH = opts.some((p) => p.bar) ? 24 : 18;
-    const tw = Math.max(textW(title) + 8, ...opts.map((p) => textW(p.label) + (p.sub ? digitsWidth(p.sub) + 10 : 0)));
-    this.w = Math.max(o.minW ?? 0, tw + 30);
-    this.h = opts.length * this.rowH + 10 + (title ? 16 : 0);
+    this.titleLines = title ? title.split('\n') : [];
+    const ow = Math.max(0, ...opts.map((p) => textW(p.label) + (p.sub ? digitsWidth(p.sub) + 10 : 0))) + 30;
+    const tw = Math.max(0, ...this.titleLines.map((l) => textW(l) + 16));
+    this.w = Math.max(o.minW ?? 0, ow, tw);
+    this.h = opts.length * this.rowH + 10 + this.titleLines.length * 16;
     this.index = o.index ?? 0;
     if (this.x + this.w > 376) this.x = 376 - this.w;
     if (this.y + this.h > 210) this.y = 210 - this.h;
@@ -300,8 +305,8 @@ export class Popup {
       // a strip of tape holding it
       drawTape(g, x + Math.round(w / 2) - 11, y - 3, 22, 7, '', { seed: w });
       let yy = y + 5;
-      if (this.title) {
-        g.text(this.title, x + 8, yy, { color: UI.pencil });
+      for (const l of this.titleLines) {
+        g.text(l, x + 8, yy, { color: UI.pencil });
         yy += 16;
       }
       this.opts.forEach((p, i) => {

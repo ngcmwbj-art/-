@@ -14,10 +14,11 @@ import { kobanFloor, laneOf } from '../tiles/ifloor';
 import { ihash, valueNoise } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { cardboard, clockFace, framed, notice, pc, prop } from './ifurn';
-import { depthShade, dust, lightPool, paintShell, screenPool, shellProp, tintSpill, tube } from './ishell';
+import { depthShade, dust, lightPool, paintShell, screenPool, shellProp, tintSpill, tube, warmPool } from './ishell';
 import { castRight, finish } from './kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
+import { exteriorOver, withExterior } from './iexterior';
 import { fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
@@ -68,12 +69,42 @@ registerProp('in_kb_shell', () => {
   p.vline(dx + 16, dy + 2, dy + 9, P.asphalt);
   p.vline(dx + 8, dy + 2, dy + 9, P.steel);
   p.hline(dx - 1, dx + 16, dy + 10, P.charcoal);
-  const img = p.toCanvas();
-  const W = img.width;
+  const W = p.w;
+  const H = p.h;
+  // outside on the river road: the red lamp over the door (its globe on the
+  // front's edge, breathing in glow()), the white police bicycle by the
+  // wall; shuttered shops either side
+  const ext = withExterior(p, sh.glass, {
+    rows,
+    town: [51, 31],
+    skin: [P.concreteLt, P.concrete, P.steel],
+    roof: 'slab',
+    left: { skin: P.steel, roof: 'tin' },
+    right: { skin: P.concrete, roof: 'tin' },
+    seed: 7401,
+    props: [{ id: 'obj_koban_bicycle', tx: 55, ty: 31, dy: 10 }],
+    paint: (e) => {
+      // the lamp: a bracket off the front, a red globe with a white cap
+      const lx = e.door + 14;
+      const ly = e.street - 4;
+      e.p.hline(lx - 3, lx, ly - 1, P.steel);
+      e.p.ellipse(lx + 2.5, ly + 1.5, 3, 3, P.verm);
+      e.p.ring(lx + 2.5, ly + 1.5, 3, 3, P.vermShade);
+      e.p.rect(lx + 1, ly - 2, 3, 2, P.white);
+      e.p.set(lx + 1, ly, P.vermLt);
+    },
+  });
+  const lampX = ext.doorX + 16.5;
+  const lampY = ext.streetY - 2.5;
   return shellProp({
-    img,
-    glass: sh.glass.toCanvas(),
+    img: ext.p.toCanvas(),
+    glass: ext.glass.toCanvas(),
+    ox: ext.ox,
+    oy: ext.oy,
     over(g: Gfx, x: number, y: number, env: PropEnv) {
+      exteriorOver(g, x, y, ext, env, { spill: P.white, spillA: 0.2 });
+      // the red lamp breathes on the pavement and the front
+      warmPool(g, x + lampX, y + H + 2, 26, 12, P.red, 0.1 + redLamp(env) * 0.25);
       depthShade(g, x + 16, y + 32, W - 32, 64, 0.12);
       const n = env.grade.night;
       // the ceiling tube: on, and now and then it drops out for a blink
@@ -83,6 +114,8 @@ registerProp('in_kb_shell', () => {
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
       // the door's glass lit red by the lamp outside
       const k = redLamp(env);
+      screenPool(g, x + lampX, y + lampY, 7, 7, P.red, 0.35 + k * 0.5);
+      g.rect(Math.round(x + lampX - 1), Math.round(y + lampY - 1), 2, 1, P.vermLt, 0.4 + k * 0.5);
       g.rect(x + 65, y + 99, 14, 6, P.red, 0.12 + k * 0.38);
       g.rect(x + 65, y + 99, 14, 1, P.vermLt, 0.2 + k * 0.4);
     },

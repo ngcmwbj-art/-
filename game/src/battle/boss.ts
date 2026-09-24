@@ -7,7 +7,7 @@ import { rng } from '../engine/rng';
 import { ease } from '../engine/tween';
 import { muteMusic, sfx, stopBgm } from '../audio';
 import { BOSS_PARTS, fillAll, SYS } from '../data/battle';
-import type { BattleScene } from './scene';
+import type { BattleScene, LabelSide } from './scene';
 import { STAGE_TOP } from './scene';
 import { FRAME } from './scene';
 import { fixedDamage, JUDGE_MUL, type BossPart, type EnemyUnit, type Judge, type PartyUnit } from './model';
@@ -15,7 +15,7 @@ import { changeStage, hurtEnemy, hurtParty, knock } from './common';
 import type { BossMoveCtx } from './enemy';
 import { doEnemyAction, hitLoop } from './enemy';
 import { glove, uwabaki } from './art/fxart';
-import { finalSeal, ovalStamp, petalSprites } from './art/stamps';
+import { finalSeal, flutterPetals, ovalStamp } from './art/stamps';
 import { kanenariBack } from '../art/enemies/kanenari';
 import { bokemakeLabel } from './tsukkomi';
 import { LABEL } from '../data/battle';
@@ -23,6 +23,17 @@ import { holdStamp } from './party';
 import { playHankoLearnIn } from './learn';
 
 const CHIME_NOTES = ['G4', 'A4', 'C5', 'E5']; // 13.3: one note per round end
+
+/**
+ * QA round 1 balance: ignoring まもる and ツッコミ has to hurt. The 4th chime
+ * hits 25% harder than 13.3's formula (Lv3 Minato: ≈50 bare, ≈25 with a
+ * tsukkomi, ≈12 with both), and every attack in phase 2 25% harder.
+ */
+const CHIME_MUL = 1.25;
+const PHASE2_MUL = 1.25;
+function phaseMul(s: BattleScene): number {
+  return (s.memo.bossPhase ?? 1) >= 2 ? PHASE2_MUL : 1;
+}
 
 export function initBoss(s: BattleScene): void {
   s.bossParts = BOSS_PARTS.map((p) => ({ id: p.id, name: p.name, box: p.box, action: p.action, broken: false, glow: false }));
@@ -127,7 +138,7 @@ export function* bossMoveImpl(c: BossMoveCtx): Co {
         },
         onHit: (i, r) => {
           resolveGuard(r, i);
-          damageTo(s, e, target!, 0.55, r, i);
+          damageTo(s, e, target!, 0.55 * phaseMul(s), r, i);
         },
       });
       break;
@@ -207,7 +218,7 @@ export function* bossMoveImpl(c: BossMoveCtx): Co {
           resolveGuard(r, i);
           for (const t of all) {
             const base = e.def.atk * 3 * (1 + 0.25 * e.stages.atk.lv) - t.m.def * (1 + 0.25 * t.stages.def.lv) * 0.5;
-            const d = fixedDamage(Math.max(1, base), (r ? 0.5 : 1) * (t.guard ? 0.5 : 1));
+            const d = fixedDamage(Math.max(1, base * CHIME_MUL), (r ? 0.5 : 1) * (t.guard ? 0.5 : 1));
             hurtParty(s, t, d, { tsukkomi: r });
           }
         },
@@ -223,7 +234,7 @@ export function* bossMoveImpl(c: BossMoveCtx): Co {
         },
         onHit: (i, r) => {
           resolveGuard(r, i);
-          all.forEach((t) => damageTo(s, e, t, 0.9, r));
+          all.forEach((t) => damageTo(s, e, t, 0.9 * phaseMul(s), r));
         },
       });
       pages.push(...e.def.texts.extra.kaerinokaiResult);
@@ -241,7 +252,7 @@ export function* bossMoveImpl(c: BossMoveCtx): Co {
         },
         onHit: (i, r) => {
           resolveGuard(r, i);
-          damageTo(s, e, target!, 1.6, r);
+          damageTo(s, e, target!, 1.6 * phaseMul(s), r);
         },
       });
       break;
@@ -362,9 +373,11 @@ export function* onBossPartBreak(s: BattleScene, e: EnemyUnit, part: BossPart, j
   const x = e.left + part.box[0] + part.box[2] / 2;
   const y = e.top + part.box[1] + part.box[3] / 2;
   s.stars(x, y, 6);
-  // (the judgement label goes up-right of the stamp; this one up-left)
+  // one label, on the part's outer side (never over the face): the umbrella
+  // on the left, the bottle on the right, the cap and the shoe beside them
   const box = { x0: e.left + part.box[0], y0: e.top + part.box[1], x1: e.left + part.box[0] + part.box[2], y1: e.top + part.box[1] + part.box[3] };
-  s.labelNear(LABEL.buhin, () => box, ['aboveLeft', 'left', 'above', 'right', 'below'], 'shu', 900, false, 2 * FRAME);
+  const outward: LabelSide[] = x < e.x ? ['left', 'aboveLeft', 'above', 'below', 'right'] : ['right', 'aboveRight', 'above', 'below', 'left'];
+  s.labelNear(LABEL.buhin, () => box, outward, 'shu', 900, false, 2 * FRAME);
   // the part hops once and drops to the floor
   part.fallY = e.top + part.box[1] + part.box[3];
   const y0 = part.fallY;
@@ -378,7 +391,8 @@ export function* onBossPartBreak(s: BattleScene, e: EnemyUnit, part: BossPart, j
     },
   });
   const dmg = fixedDamage(40 * JUDGE_MUL[j]);
-  hurtEnemy(s, e, dmg, { big: j === 'kukkiri' });
+  // the number pops from the part that was seen, not from the boss's middle
+  hurtEnemy(s, e, dmg, { big: j === 'kukkiri', at: [Math.round(x), Math.round(y)] });
   knock(s, e, 2);
   yield 400;
   yield* s.say([
@@ -607,29 +621,73 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
   if (mi) for (const st2 of ['status_nemuri', 'status_tsukamare', 'status_toosenbo', 'status_konran']) delete mi.m.status[st2];
 }
 
-/** The final stamp (13.7). */
-/** Petals falling from above the top edge, drifting and swaying down. */
-function petalRain(s: BattleScene, n: number): void {
-  const imgs = petalSprites();
-  for (let i = 0; i < n; i++) {
-    s.burst(rng.range(-10, 394), rng.range(-14, -4), {
-      count: 1,
-      speed: [55, 105],
-      angle: [Math.PI * 0.32, Math.PI * 0.68],
-      life: [2600, 3600],
-      colors: ['#FF6A4D'],
-      gravity: 34,
-      drag: 0.45,
-      shape: 'img',
-      img: imgs[rng.int(0, imgs.length - 1)],
-    }, true);
-  }
+interface Petal {
+  x: number;
+  y: number;
+  vy: number;
+  sway: number;
+  swayF: number;
+  ph: number;
+  spin: number;
+  col: number;
+  life: number;
 }
 
+/**
+ * The petal rain of the final stamp (13.7): each petal is its own little
+ * tumbling thing — it sways side to side as it falls and flips through its
+ * four flutter frames — drawn over the whole picture. `n` petals come in
+ * over `ms` from above the top edge, spread across the full width, so a
+ * くっきり (200) fills the screen.
+ */
+function petalRain(s: BattleScene, n: number, ms: number): void {
+  const frames = flutterPetals();
+  const list: Petal[] = [];
+  let spawned = 0;
+  s.addFx({
+    layer: 'top',
+    dur: 0,
+    ui: true,
+    update(dt) {
+      const want = Math.min(n, Math.round((n * this.t) / ms));
+      for (; spawned < want; spawned++)
+        list.push({
+          x: rng.range(-8, 392),
+          y: rng.range(-24, -6),
+          vy: rng.range(44, 78),
+          sway: rng.range(6, 16),
+          swayF: rng.range(1.2, 2.4),
+          ph: rng.range(0, Math.PI * 2),
+          spin: rng.range(5, 11),
+          col: rng.int(0, 3),
+          life: 0,
+        });
+      const k = dt / 1000;
+      for (const p of list) {
+        p.life += dt;
+        p.y += p.vy * k;
+        p.ph += p.swayF * Math.PI * 2 * k;
+      }
+      for (let i = list.length - 1; i >= 0; i--) if (list[i].y > 230) list.splice(i, 1);
+      if (spawned >= n && !list.length) this.done = true;
+    },
+    draw: (g) => {
+      for (const p of list) {
+        const x = Math.round(p.x + Math.sin(p.ph) * p.sway);
+        const f = Math.floor((p.life / 1000) * p.spin) % 4;
+        const img = frames[p.col][f];
+        g.img(img, x - (img.width >> 1), Math.round(p.y) - (img.height >> 1));
+      }
+    },
+  });
+}
+
+/** The final stamp (13.7). */
 export function* doOkaerinasai(s: BattleScene, u: PartyUnit): Co {
   const e = s.enemies.find((x) => x.def.boss);
   if (!e) return;
   // the prompt stays in the band while the stamp is held; any judgement works
+  s.msg.setStatic(e.def.texts.extra.finalPrompt[0]);
   const j = yield* holdStamp(s, u);
   s.msg.clearStatic();
   const big = finalSeal('おかえりなさい', j === 'kasure' ? 0.3 : 0);
@@ -653,19 +711,9 @@ export function* doOkaerinasai(s: BattleScene, u: PartyUnit): Co {
   s.flash('#FFF6D8', 1, 3);
   sfx('se_stamp_heavy', { pitch: 0.9 });
   sfx('se_hanamaru', { grade: 'kukkiri' });
-  // petals (4×3 ovals) rain down from the top edge — くっきり fills the
-  // screen with 200 over 1.5s, otherwise a lighter shower of 60
-  const n = j === 'kukkiri' ? 200 : 60;
-  const waves = 20;
-  for (let i = 0; i < waves; i++) {
-    const d = i * 75;
-    s.addFx({ layer: 'top', dur: d + 1, ui: true, draw: () => {}, update() {
-      if (this.t >= d) {
-        petalRain(s, Math.round(n / waves));
-        this.done = true;
-      }
-    } });
-  }
+  // petals rain down from the top edge — くっきり fills the screen with 200
+  // over 1.5s (16.5 / 13.7), otherwise a lighter shower of 60
+  petalRain(s, j === 'kukkiri' ? 200 : 60, 1500);
   s.petals(cx, cy, 24, 30);
   for (const p of s.party) s.mood(p, 'happy', 12000);
   s.msg.post(e.def.texts.extra.finalStamp);

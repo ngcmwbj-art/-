@@ -11,11 +11,14 @@ import { state, type Member } from '../../game/state';
 import { EXP_TABLE, expToNext, LEVEL_CAP, REPORT } from '../../data/battle';
 import { sfx } from '../../audio';
 import { portrait } from '../../art/chars';
-import { drawDigits, digitsWidth } from '../digits';
+import { drawDigits, drawNumerals, numeralsWidth } from '../digits';
 import { inkPotIcon } from '../icons';
 import { drawTape, pencilLine, phraseWrap as wrap, tapeImg, textW, UI } from '../window';
 import { drawBar, drawHeader, FOLD, hpColor, LP, RP, SP } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
+
+/** Line pitch of the 通知表's ruled table. */
+const ROW = 16;
 
 const ROWS: [string, keyof Member][] = [
   ['HP', 'maxHp'],
@@ -96,7 +99,7 @@ export class StatsPage implements MenuPage {
     const lx = x + 46;
     const l2 = REPORT.nameLine2[mem.id] ?? mem.name;
     g.text(l2, lx, y + 1, { color: UI.text });
-    pencilLine(g, lx, y + 18, right - lx, 1, UI.border, 9);
+    pencilLine(g, lx, y + 19, right - lx, 1, UI.border, 9);
     g.text('レベル', lx, y + 22, { color: UI.pencil });
     drawDigits(g, String(mem.level), lx + textW('レベル') + 6, y + 23, { color: UI.accent, scale: 2 });
     // class, on the card's ruled line
@@ -106,7 +109,7 @@ export class StatsPage implements MenuPage {
     // experience
     y += 22;
     g.text('けいけんち', x, y, { color: UI.text });
-    drawDigits(g, String(mem.exp), right, y + 5, { color: UI.text, align: 'right' });
+    drawNumerals(g, String(mem.exp), right, y, { color: UI.text, align: 'right' });
     const next = expToNext(mem);
     const lo = EXP_TABLE[mem.level] ?? 0;
     const hi = EXP_TABLE[Math.min(LEVEL_CAP, mem.level + 1)] ?? lo + 1;
@@ -114,20 +117,22 @@ export class StatsPage implements MenuPage {
     if (next === null) g.text('もう いっぱい', x, y, { color: UI.accent });
     else {
       g.text('つぎまで', x, y, { color: UI.pencil });
-      drawDigits(g, String(next), right, y + 5, { color: UI.pencil, align: 'right' });
+      drawNumerals(g, String(next), right, y, { color: UI.pencil, align: 'right' });
     }
     drawBar(g, x, y + 18, right - x, 4, next === null ? 1 : (mem.exp - lo) / Math.max(1, hi - lo), '#9BCB6B');
     // HP and 朱肉 now
     y += 26;
     const hr = mem.maxHp ? mem.hp / mem.maxHp : 0;
     g.text('HP', x, y, { color: UI.text });
-    drawDigits(g, `${mem.hp}/${mem.maxHp}`, right, y + 5, { color: mem.hp <= 0 ? UI.accentDark : UI.text, align: 'right' });
-    drawBar(g, x + 22, y + 6, right - x - 58, 5, hr, hpColor(hr));
+    const hpS = `${mem.hp}/${mem.maxHp}`;
+    drawNumerals(g, hpS, right, y, { color: mem.hp <= 0 ? UI.accentDark : UI.text, align: 'right' });
+    drawBar(g, x + 22, y + 6, right - x - 28 - numeralsWidth(hpS), 5, hr, hpColor(hr));
     y += 18;
     if (mem.maxMp > 0) {
       g.img(inkPotIcon(), x + 1, y + 2);
-      drawDigits(g, `${mem.mp}/${mem.maxMp}`, right, y + 5, { color: UI.text, align: 'right' });
-      drawBar(g, x + 22, y + 7, right - x - 58, 3, mem.mp / mem.maxMp, UI.accent);
+      const mpS = `${mem.mp}/${mem.maxMp}`;
+      drawNumerals(g, mpS, right, y, { color: UI.text, align: 'right' });
+      drawBar(g, x + 22, y + 7, right - x - 28 - numeralsWidth(hpS), 3, mem.mp / mem.maxMp, UI.accent);
     } else {
       g.img(inkPotIcon(), x + 1, y + 2, { alpha: 0.4 });
       g.text(REPORT.kanenariMp, x + 22, y, { color: UI.textDim });
@@ -142,26 +147,25 @@ export class StatsPage implements MenuPage {
     g.rect(x, y - 2, w, 1, UI.border);
     g.rect(x, y, w, 1, UI.border);
     ROWS.forEach(([label, key], i) => {
-      const ry = y + 3 + i * 17;
+      const ry = y + 3 + i * ROW;
       g.text(label, x + 2, ry, { color: UI.text });
       // vertical rule between label and value (not through a note that spans it)
-      if (!(key === 'maxMp' && mem.maxMp <= 0)) g.rect(x + 70, ry - 2, 1, 18, '#E3D3A8');
+      if (!(key === 'maxMp' && mem.maxMp <= 0)) g.rect(x + 70, ry - 2, 1, ROW + 1, '#E3D3A8');
       let v: string;
       if (key === 'maxHp') v = `${mem.maxHp}`;
       else if (key === 'maxMp') v = mem.maxMp > 0 ? `${mem.maxMp}` : '';
       else v = String(mem[key] as number);
       if (key === 'maxMp' && mem.maxMp <= 0) g.text('（記入なし）', x + w - 4 - textW('（記入なし）'), ry, { color: UI.textDim });
-      else drawDigits(g, v, x + w - 8, ry + 5, { color: UI.pencil, align: 'right', scale: 1 });
-      g.rect(x, ry + 16, w, 1, i === ROWS.length - 1 ? UI.border : '#E3D3A8');
+      else drawNumerals(g, v, x + w - 8, ry, { color: UI.pencil, align: 'right' });
+      g.rect(x, ry + ROW - 1, w, 1, i === ROWS.length - 1 ? UI.border : '#E3D3A8');
     });
-    y += 3 + ROWS.length * 17 + 6;
+    y += 3 + ROWS.length * ROW + 4;
     // せんせいより
     const comment = REPORT.teacher[mem.id]?.[mem.level] ?? '';
     drawTape(g, x, y, textW(REPORT.fromTeacher) + 12, 16, REPORT.fromTeacher, { color: '#E8D9B5', seed: 12 });
     if (comment) {
       const lines = wrap(comment, w - 4);
-      lines.slice(0, 2).forEach((l, i) => g.text(l, x + 2, y + 18 + i * 16, { color: UI.accent }));
+      lines.slice(0, 2).forEach((l, i) => g.text(l, x + 2, y + 17 + i * 16, { color: UI.accent }));
     } else g.text('（まだ 空らん）', x + 2, y + 18, { color: UI.textDim });
-    void digitsWidth;
   }
 }

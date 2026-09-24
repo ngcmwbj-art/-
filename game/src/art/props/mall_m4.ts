@@ -11,7 +11,7 @@
 import type { Gfx } from '../../engine/gfx';
 import { PixelCanvas } from '../../engine/pixel';
 import { getMapDef } from '../../world/maps';
-import { laneOf, mallTiles } from '../tiles/ifloor';
+import { corridorTiles, laneOf } from '../tiles/ifloor';
 import { ihash } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { cardboard, notice, pc, prop } from './ifurn';
@@ -24,6 +24,7 @@ import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
 import { fontTextSmall, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
+import { charSprite, idleFrame } from '../chars';
 
 const M4_LAMPS: Lamp[] = [
   { x: 60, y: 76 }, { x: 150, y: 80 }, { x: 236, y: 76, flicker: true }, { x: 300, y: 84 },
@@ -37,16 +38,19 @@ registerProp('mall_m4_shell', () => {
   const rows = getMapDef('map_mall_2f')?.rows ?? [];
   const blocked = (tx: number, ty: number) => tx <= 1 || tx === 15 || (ty === 5 && (tx === 10 || tx === 11)) || ty >= 7;
   const lane = laneOf([[2, 4], [19, 3]], 22);
-  const tiles = mallTiles({
+  // the gallery's corridor: P-tiles down the walkway between two worn yellow
+  // guide lines, grey border tiles along the wall and the railing
+  const tiles = corridorTiles({
     seed: 541,
     w: 22,
     h: 9,
     blocked,
     lane,
+    walk: [44, 98],
     decals: [
-      { x: 196, y: 70, kind: 'arrow', dir: 0, c: P.peach },
-      { x: 52, y: 96, kind: 'steps', dir: 0, n: 7 },
-      { x: 280, y: 92, kind: 'tape', w: 24, h: 10 },
+      { x: 196, y: 64, kind: 'arrow', dir: 0, c: P.peach },
+      { x: 52, y: 80, kind: 'steps', dir: 0, n: 7 },
+      { x: 272, y: 76, kind: 'tape', w: 24, h: 10 },
     ],
   });
   const wall = mallWall(543, false);
@@ -112,6 +116,7 @@ registerProp('mall_m4_shell', () => {
   return shellProp({
     img,
     over(g: Gfx, x: number, y: number, env: PropEnv) {
+      toyPeek(g, img, x, y, env);
       atriumOver(g, x, y, env);
       depthShade(g, x + 16, y + 32, W - 32, 80, 0.12);
       mallLamps(g, x, y, M4_LAMPS, env, 404, 0.16, rows);
@@ -130,6 +135,52 @@ registerProp('mall_m4_shell', () => {
     },
   });
 });
+
+// ---------------------------------------------------------------- the toy shop's shutter, lifted to peek
+
+/**
+ * obj_toy_shutter 「すき間から、プラモデルの 箱。」: Minato lifts the shutter
+ * (slats x 52–123, y 18–28 over a 3px gap) a little with the rattle of
+ * se_shop_shutter and holds it while he looks; when he lets go it drops
+ * back (lv_logic: lv_toy_shutter). Lifting rolls the top slats into the box
+ * and shows more of the boxed kits standing inside.
+ */
+const TOY = { x: 52, y: 18, w: 72, slats: 11, lift: 4 };
+const KITS = [P.red, P.blue, P.gold, P.leafDeep, P.crimson, P.aqua, P.sun, P.navy];
+function toyPeek(g: Gfx, shell: HTMLCanvasElement, x: number, y: number, env: PropEnv): void {
+  const t0 = lvTime.toyPeekT0;
+  if (!t0 || lvTime.map !== 'map_mall_2f') return;
+  let L: number;
+  if (t0 > 0) {
+    // up in three jerks with the rattle, then held (a 1px tremble of the hands)
+    const u = env.t - t0;
+    L = Math.min(TOY.lift, 1 + Math.floor(u / 280));
+    if (u > 1300 && Math.floor(env.t / 700) % 3 === 0) L -= 1;
+  } else {
+    // let go: falls back in 120 ms
+    const u = env.t + t0;
+    if (u > 120) return;
+    L = Math.round(TOY.lift * (1 - u / 120));
+  }
+  if (L <= 0) return;
+  const ctx = g.ctx;
+  const X = Math.round(x + TOY.x);
+  const Y = Math.round(y + TOY.y);
+  // the slats (and the bottom rail with its lock) rise L px into the box
+  ctx.drawImage(shell, TOY.x, TOY.y + L, TOY.w, TOY.slats - L, X, Y, TOY.w, TOY.slats - L);
+  // the widened gap: the dark shop and the kits' boxes, their lids' printed bands
+  const gy = Y + TOY.slats - L;
+  const bottom = Y + TOY.slats;
+  g.rect(X + 1, gy, TOY.w - 2, L, P.ink);
+  for (let k = 0; k < 8; k++) {
+    const bx = X + 2 + k * 9;
+    const top = gy + ((k * 5) % 3 === 0 ? 1 : 0);
+    if (top >= bottom) continue;
+    g.rect(bx, top, 7, bottom - top, KITS[k]);
+    g.rect(bx, top, 7, 1, lt(KITS[k]));
+    if (bottom - top >= 3) g.rect(bx + 1, top + 2, 5, 1, P.white);
+  }
+}
 
 // ---------------------------------------------------------------- the top of the escalator down (1, 3–5)
 
@@ -224,6 +275,21 @@ registerProp('mall_rest_bench', () => {
   p.set(27, 6, P.steel);
   finish(p, { soft: true });
   const a = stand(p.toCanvas(), { cx: 17, base: 16, contact: 30, shadow: 0 });
+  // the party sitting on it while evt_save_bench runs (lv_rest_bench): drawn
+  // right after the bench, so the backrest shows behind their shoulders, the
+  // lap covers the seat and the legs dangle in front of its edge
+  a.over = (g: Gfx, x: number, y: number, env: PropEnv) => {
+    const b = lvTime.bench;
+    if (!b || lvTime.map !== 'map_mall_2f') return;
+    for (let i = 0; i < b.sitters.length; i++) {
+      const s = b.sitters[i];
+      // settle: 2px above the seat → 1px under → on it (staggered per sitter)
+      const u = env.t - b.t0 - i * 140;
+      if (u < 0) continue;
+      const settle = u < 70 ? -2 : u < 140 ? 1 : 0;
+      drawSitter(g, s.sprite, x + s.x, y + 3 + settle, env.t + i * 700);
+    }
+  };
   a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
     // a warm spot on the seat: the save point feels like a place to sit
     const k = 0.5 + Math.sin(env.t / 900) * 0.5;
@@ -231,6 +297,34 @@ registerProp('mall_rest_bench', () => {
   };
   return a;
 });
+
+/**
+ * How a field sprite sits (rows counted up from the bottom of its frame, h =
+ * frame height): everything down to `lap` rests on the seat (head, body,
+ * the shorts as the lap seen end-on), then the `legs` rows hang below the
+ * seat's front edge, feet off the floor. Minato's shins get one row more
+ * (his knee), カネナリくん's stubby feet just dangle.
+ */
+const SEAT: Record<string, { lap: number; legs: number[] }> = {
+  minato: { lap: 5, legs: [4, 4, 3, 2, 1] },
+  minato_hold: { lap: 5, legs: [4, 4, 3, 2, 1] },
+  kanenari: { lap: 5, legs: [4, 3, 2, 1] },
+};
+
+/** Draw a sprite sitting with its lap on a seat whose top edge is at screen y `seatY`, centred on `cx`. */
+function drawSitter(g: Gfx, spriteId: string, cx: number, seatY: number, t: number): void {
+  const spr = charSprite(spriteId);
+  const img = idleFrame(spr, 'down', t);
+  const h = img.height;
+  const spec = SEAT[spriteId] ?? { lap: 5, legs: [4, 3, 2, 1] };
+  const lap = h - spec.lap;
+  const x = Math.round(cx - img.width / 2);
+  // the lap row lands 3px into the 5px seat
+  const top = Math.round(seatY + 3 - lap);
+  const ctx = g.ctx;
+  ctx.drawImage(img, 0, 0, img.width, lap + 1, x, top, img.width, lap + 1);
+  spec.legs.forEach((r, i) => ctx.drawImage(img, 0, h - r, img.width, 1, x, top + lap + 1 + i, img.width, 1));
+}
 
 // ---------------------------------------------------------------- mannequin (15,2): pose held for a year
 
