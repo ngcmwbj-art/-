@@ -8,6 +8,7 @@ import { charWidth, drawGlyph } from '../../engine/font';
 import type { Gfx } from '../../engine/gfx';
 import { C, drawNote, tapeCanvas } from './note';
 import { miniText } from '../art/stamps';
+import { textSpeedMul } from '../../ui/settings';
 
 interface G {
   ch: string;
@@ -125,9 +126,14 @@ export class MessageBand {
   tag = '';
   alpha = 1;
   hidden = false;
-  /** Default auto-advance hold after the page completes. */
-  autoHold = 350;
-  minShow = 600;
+  /**
+   * Default auto-advance hold after the page completes, and the shortest time
+   * a page stays up. Tuned so a battle line can be read comfortably at the
+   * default text speed (player feedback: battles scrolled by too fast); both
+   * scale with the せってい「文字の はやさ」 (textSpeedMul), confirm still skips.
+   */
+  autoHold = 1000;
+  minShow = 1300;
   private blockingId = 0;
   private finishedId = 0;
   private waitingManual = false;
@@ -251,7 +257,7 @@ export class MessageBand {
     if (!this.cur) return;
     this.age += dt;
     const g = this.cur.glyphs;
-    const cps = this.curOpts.cps ?? 90;
+    const cps = (this.curOpts.cps ?? 46) * textSpeedMul();
     if (this.shown < g.length) {
       if (confirm && this.shown > 0) {
         this.shown = g.length;
@@ -278,8 +284,9 @@ export class MessageBand {
       if (confirm) this.next();
       return;
     }
-    const hold = this.curOpts.autoMs ?? this.autoHold;
-    if ((this.doneAge >= hold && this.age >= this.minShow) || confirm) this.next();
+    const slow = 1 / textSpeedMul();
+    const hold = (this.curOpts.autoMs ?? this.autoHold) * slow;
+    if ((this.doneAge >= hold && this.age >= this.minShow * slow) || confirm) this.next();
   }
 
   draw(g: Gfx): void {

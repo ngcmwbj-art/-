@@ -18,7 +18,7 @@ async function boot(): Promise<void> {
   warmGlyphs('あいうえおアイウエオ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ');
   game.init(canvas);
   game.input.onFirstGesture = () => unlockAudio();
-  installTouch(game.input);
+  installTouch(game.input, game.screen);
   canvas.focus();
   installDebug();
   document.getElementById('boot')?.remove();

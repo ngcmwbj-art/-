@@ -10,6 +10,9 @@ export class Screen {
   readonly buffer: HTMLCanvasElement;
   readonly ctx: CanvasRenderingContext2D;
   scale = 1;
+  /** CSS px kept free for on-screen touch controls (set by engine/touch.ts). */
+  reserveW = 0;
+  reserveH = 0;
 
   constructor(display: HTMLCanvasElement) {
     this.display = display;
@@ -25,8 +28,8 @@ export class Screen {
 
   resize(): void {
     const dpr = window.devicePixelRatio || 1;
-    const availW = window.innerWidth * dpr;
-    const availH = window.innerHeight * dpr;
+    const availW = Math.max(W, (window.innerWidth - this.reserveW) * dpr);
+    const availH = Math.max(H, (window.innerHeight - this.reserveH) * dpr);
     let s = Math.floor(Math.min(availW / W, availH / H));
     if (s < 1) s = Math.min(availW / W, availH / H);
     this.scale = s;

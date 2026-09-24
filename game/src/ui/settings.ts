@@ -6,6 +6,7 @@
 
 import { flag, setFlag } from '../game/state';
 import { getVolume, setVolume } from '../audio';
+import { isTouchDevice } from '../engine/touch';
 
 export type TextSpeed = 0 | 1 | 2;
 
@@ -23,6 +24,9 @@ const KEY = 'hanamaru-settings-v1';
 export const settings: Settings = { bgm: getVolume('bgm'), se: getVolume('se'), speed: 1, wide: false };
 
 function load(): void {
+  // On a touch screen the 「！」 is harder to hit in time: start with ひろい
+  // there (a saved choice still wins).
+  if (isTouchDevice()) settings.wide = true;
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return;

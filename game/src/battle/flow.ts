@@ -53,7 +53,7 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
   if (!s.isBoss) musicEncounter();
   // weaker enemies (party level ≥ enemy level + 2): faster messages
   const lv = Math.max(...s.party.map((u) => u.m.level), 1);
-  if (first && lv >= first.def.lvl + 2 && !s.isEvent) s.msg.minShow = 400;
+  if (first && lv >= first.def.lvl + 2 && !s.isEvent) s.msg.minShow = 900;
   yield* transitionIn(s, s.isBoss);
   // 500ms: battle space, the battle song from its intro bar
   setSpace('battle');
