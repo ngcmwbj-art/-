@@ -27,11 +27,14 @@ import {
 } from '../world/api';
 import { DIR_VEC } from '../world/actor';
 import type { Actor } from '../world/actor';
-import { showBubble, showGuide } from '../ui/api';
 import { uiHud } from '../ui/hud';
 import * as T from '../data/text/events';
-import { besideToward, dirTo, eventBattle, F, floatLine, getKeyItem, giveKey, holdBgm, sendAway, tileFree, walkTo } from './lib';
-import { playCaseGift, puff, sparkle } from './fx';
+import { besideToward, dirTo, eventBattle, F, floatLine, getKeyItem, giveKey, holdBgm, holdCamera, panBack, sendAway, tileFree, walkTo } from './lib';
+import { burst, playCaseGift, puff, smallVoice, sparkle } from './fx';
+import { meishi } from './art';
+import { cinema, guideNearHanko } from './stage';
+import { registerWorldFx } from '../world/fx';
+import { animate, ease } from '../engine/tween';
 
 const HINOYA_DOOR: [number, number] = [32, 21];
 const HINOYA_FRONT: [number, number] = [32, 22];
@@ -65,6 +68,41 @@ function tileNear(px: number, py: number, sx: number, sy: number, d: number): [n
 
 // ---------------------------------------------------------------- 5.6 evt_chime_stop ★
 
+/** まめ吉 held in the middle of his 「まいど」 bow while time stops. */
+const freeze = { mame: false };
+registerWorldFx({
+  map: 'map_town',
+  update() {
+    // only while the scene runs (a jump out of it lets まめ吉 go)
+    if (!game.scripts.busy) {
+      freeze.mame = false;
+      card.on = false;
+    }
+    if (!freeze.mame) return;
+    const m = actor('npc_mamekichi');
+    if (m) {
+      m.anim = 'bow';
+      m.animLoop = false;
+      m.animT = 200;
+    }
+  },
+});
+
+/** Everyone on screen looks up; each one's head snaps up with a silent 「…」. */
+function* everyoneLooksUp(): Co {
+  const f = F();
+  const others = f.actors.filter((a) => (a.kind === 'npc' || a.kind === 'restored') && onScreen(a) && a.visible);
+  game.scripts.run(lookUpAll(true, true));
+  // the balloons come a beat after the heads, 0–4 frames apart
+  const order = others.slice().sort(() => Math.random() - 0.5);
+  for (const a of order) {
+    if (a.id === 'npc_mamekichi') continue;
+    a.hop(2, 140);
+    a.showEmote('dots', 3000);
+    yield Math.floor(Math.random() * 5) * 16;
+  }
+}
+
 registerScript('evt_chime_stop', function* (): Co {
   if (flag('flag_chime_stopped') || stage() !== 0) return;
   const f = F();
@@ -87,9 +125,18 @@ registerScript('evt_chime_stop', function* (): Co {
   // t=1.3: the PA chime, G4 A4 C5 E5 — the E5 is cut at t=3.2
   yield 300;
   void playChimeMotif({ notes: 4, gap: 0.45, cut: true, cutAt: 1.9 });
-  // t=2.8: everyone on screen looks up at the sky (0–4 frames apart)
+  // t=2.8: everyone on screen looks up at the sky (0–4 frames apart);
+  // まめ吉 stops in the middle of his bow. The frame narrows, the camera
+  // tilts a little towards the sky.
   yield 1500;
-  game.scripts.run(lookUpAll(true, true));
+  setFlag('flag_maido_hold', 1);
+  freeze.mame = !!actor('npc_mamekichi');
+  game.scripts.run(everyoneLooksUp());
+  game.scripts.run(cinema(true, 500));
+  holdCamera();
+  const camY0 = f.camY;
+  const tilt = Math.min(10, Math.max(0, camY0));
+  game.scripts.run(animate(700, (k) => (f.camY = Math.round(camY0 - tilt * k)), ease.sineInOut));
   // t=3.2: the E5 breaks off. The wave, the tape stop, the stage-1 colours
   yield 400;
   bgmTapeStop(0.4, -1);
@@ -106,28 +153,87 @@ registerScript('evt_chime_stop', function* (): Co {
   // t=4.0–6.0: silence, heads up
   yield 2800;
   // t=6.0: heads down, the stage-1 idle loops start
+  freeze.mame = false;
+  const mame = actor('npc_mamekichi');
+  if (mame) mame.anim = null;
+  for (const a of f.actors) if (a.emote?.kind === 'dots') a.emote = null;
   game.scripts.run(lookUpAll(false, false));
+  game.scripts.run(cinema(false, 500));
+  yield* panBack(500);
   if (hato) hato.data.scripted = true;
   if (sae && saeHere) sae.data.scripted = true;
   const cow = actor('npc_cow_statue');
   if (cow) cow.pose = 'look_up';
   // サエ goes off to the park to keep observing
   if (sae && saeHere) sendAway(sae, [[sae.tileX, 21], [20, 21], [20, 15]], 3, 900);
-  yield 400;
+  yield 100;
   yield* msg(T.CHIME_STOP);
   yield* emote('player', 'question');
-  // far off, only a speech bubble: まめ吉
+  // far off, only a small balloon: まめ吉, twice
   if (actor('npc_mamekichi')) {
-    showBubble('npc_mamekichi', 'まいど！', 800);
-    yield 700;
-    showBubble('npc_mamekichi', 'まいど！', 800);
-    yield 600;
+    smallVoice('npc_mamekichi', 'まいど！', 700);
+    yield 950;
+    smallVoice('npc_mamekichi', 'まいど！', 700);
+    yield 900;
   }
+  setFlag('flag_maido_hold', 0);
   setFlag('flag_chime_stopped', 1);
   yield* hatoBlock();
 });
 
 // ---------------------------------------------------------------- 5.7 evt_hato_block
+
+/** The business card in the hato's wing (world px), or lying at its feet. */
+const card = { on: false, x: 0, y: 0, lift: 0, flat: false };
+registerWorldFx({
+  map: 'map_town',
+  draw(_f, g, cx, cy, layer) {
+    if (layer !== 'fg' || !card.on) return;
+    const img = meishi()[card.flat ? 1 : 0];
+    g.img(img, Math.round(card.x - img.width / 2 - cx), Math.round(card.y - img.height - card.lift - cy));
+  },
+});
+
+/** The hato holds out its card towards Minato: a wing up, the card rising into view. */
+function* offerCard(hato: Actor): Co {
+  const p = F().player;
+  const sx = Math.sign(p.x - hato.x);
+  const sy = Math.sign(p.y - hato.y);
+  card.flat = false;
+  card.x = hato.x + sx * 7;
+  card.y = hato.y - 3 + (sy < 0 ? -2 : 0);
+  card.lift = 0;
+  card.on = true;
+  hato.hop(3, 200);
+  sfx('se_meishi');
+  yield* animate(220, (k) => (card.lift = Math.round(k * 4)), ease.backOut);
+  sparkle(card.x + 2, card.y - card.lift - 5, 380);
+}
+
+/** ハト → ハト係長: a jump, a white flash of the silhouette, a pop of rays and dust. */
+function* transform(hato: Actor): Co {
+  hato.hop(7, 320);
+  yield 150;
+  hato.drawFn = (g) => {
+    const f = F();
+    const img = hato.frame();
+    const [ix, iy] = hato.drawPos(img);
+    g.img(img, ix - Math.round(f.camX), iy - Math.round(f.camY), { tint: '#FFF6D8', tintAmount: 1 });
+  };
+  sfx('se_kiran', { vol: 0.7 });
+  yield 70;
+  hato.setSprite('enemy_hato_kakaricho');
+  yield 50;
+  hato.drawFn = null;
+  burst(hato.x, hato.y - 10, '#FFE7A3', 460);
+  puff(hato.x, hato.y - 1);
+  sfx('se_emote');
+  yield 130;
+  // the tie: pon
+  sparkle(hato.x + 1, hato.y - 8, 420);
+  sfx('se_balloon_pop', { vol: 0.5, pitch: 1.3 });
+  yield 250;
+}
 
 function* hatoBlock(): Co {
   const f = F();
@@ -154,15 +260,15 @@ function* hatoBlock(): Co {
   const home: [number, number] = [hato.x, hato.y];
   for (;;) {
     sfx('se_coo');
-    yield* msg(T.HATO_A);
+    yield* msg(T.HATO_COO);
+    // the card, held out in both wings
+    yield* offerCard(hato);
+    yield* msg(T.HATO_CARD);
     // the tie and the staff pass pop out: ハト係長
-    hato.setSprite('enemy_hato_kakaricho');
-    hato.hop(5, 220);
-    puff(hato.x, hato.y - 2);
-    sparkle(hato.x + 4, hato.y - 14);
-    sfx('se_emote');
-    yield 380;
+    yield* transform(hato);
+    yield* emote('player', 'exclaim', { dur: 700 });
     yield* msg(T.HATO_B);
+    card.on = false;
     yield* emote('player', 'sweat');
     yield 150;
     const r = yield* eventBattle({ enemies: ['enemy_hato_kakaricho'], music: 'bgm_battle' });
@@ -186,7 +292,23 @@ function* hatoBlock(): Co {
     rest.x = hx;
     rest.y = hy;
   }
-  yield 450;
+  card.flat = true;
+  card.lift = 0;
+  card.x = hx + (p.x < hx ? -9 : 9);
+  card.y = hy + 1;
+  card.on = true;
+  yield 500;
+  sparkle(card.x, card.y - 4, 420);
+  sfx('se_glint', { vol: 0.4 });
+  yield 500;
+  // Minato picks it up
+  face('player', 'restored:sym_town_01');
+  p.tempPose = 'stamp';
+  sfx('se_paper_open', { vol: 0.5, pitch: 1.2 });
+  yield 180;
+  card.on = false;
+  p.tempPose = null;
+  yield 120;
   yield* getKeyItem('item_hato_meishi', T.HATO_GET);
   setFlag('flag_hato_beaten', 1);
   yield* hankoGiven();
@@ -257,7 +379,7 @@ function* hankoGiven(): Co {
   syncProgressSkills();
   yield* msg(T.HANKO_C);
   yield* msg(T.HANKO_D);
-  showGuide(T.GUIDE_FUSHIGI, 4000);
+  guideNearHanko(T.GUIDE_FUSHIGI, 4500);
   // she waits at the storefront
   const [fx, fy] = storefront();
   if (ob.tileX !== fx || ob.tileY !== fy) yield* walkTo('npc_obaa', fx, fy, { speed: 2 });

@@ -8,7 +8,7 @@ import type { Gfx } from '../../engine/gfx';
 import { PixelCanvas } from '../../engine/pixel';
 import { P } from '../tiles/palette';
 import { ihash, valueNoise } from '../tiles/noise';
-import { dust, lightPool, lightQuad, mapMultiply, mapTopDark, mapVignette, screenPool, tube } from './ishell';
+import { blend, dust, lightPool, lightQuad, mapMultiply, mapTopDark, mapVignette, screenPool, tube } from './ishell';
 import { castRight, dk, lt } from './kit';
 import { fontSmallWidth, fontText, fontTextSmall, fontWidth, handGlyph, tiny, tinyWidth } from './text';
 import type { PropEnv } from './types';
@@ -377,6 +377,35 @@ export function shaftProp(o: { fx: number; fy: number; fw: number; fh: number; r
       skyPatchLight(g, x + o.fx, y + o.fy, o.fw, o.fh, env, (o.a ?? 0.24) * 1.2);
     },
   };
+}
+
+// ---------------------------------------------------------------- the E exits
+
+/**
+ * An E exit cell column (the corridor to the next area) at the map edge:
+ * the floor runs on into the shadow in three soft bands (no checker), the
+ * corridor's own light waiting at the far end is added by exitLight().
+ */
+export function exitCorridor(p: PixelCanvas, tx: number, ty0: number, rows: number, dir: -1 | 1): void {
+  for (let y = ty0 * 16; y < (ty0 + rows) * 16; y++)
+    for (let i = 0; i < 16; i++) {
+      const x = tx * 16 + i;
+      const d = dir < 0 ? 15 - i : i;
+      const a = d < 5 ? 0 : d < 9 ? 0.2 : d < 12 ? 0.38 : 0.55;
+      if (a) blend(p, x, y, P.night, a);
+    }
+}
+
+/**
+ * The next area's light seen at the far end of an E exit (call from glow()):
+ * a soft strip of its colour just past the map edge, and a faint spill back
+ * onto the corridor floor.
+ */
+export function exitLight(g: Gfx, x: number, y: number, tx: number, ty0: number, rows: number, dir: -1 | 1, col: string, a = 0.3): void {
+  const ex = x + tx * 16 + (dir < 0 ? 0 : 16);
+  const cy = y + ty0 * 16 + rows * 8;
+  screenPool(g, ex + dir * 3, cy, 9, rows * 8 + 2, col, a);
+  screenPool(g, ex - dir * 4, cy + 2, 7, rows * 6, col, a * 0.45);
 }
 
 // ---------------------------------------------------------------- a few loose things

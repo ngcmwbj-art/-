@@ -14,7 +14,7 @@ import { P } from '../tiles/palette';
 import { pc, prop } from './ifurn';
 import { blend, depthShade, paintShell, shellProp } from './ishell';
 import { castRight, dk, finish, lt } from './kit';
-import { fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, skyPatch, skyPatchRim, small, type Lamp } from './mall_kit';
+import { exitCorridor, exitLight, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, skyPatch, skyPatchRim, small, type Lamp } from './mall_kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
 import { printLines, tiny } from './text';
@@ -30,7 +30,19 @@ registerProp('mall_m3_shell', () => {
   const rows = getMapDef('map_mall_health')?.rows ?? [];
   const blocked = (tx: number, ty: number) => (tx >= 6 && tx <= 8 && ty <= 7) || tx >= 13 || (tx === 1 && ty === 5) || (tx === 4 && ty === 9);
   const lane = laneOf([[0, 7.5], [7, 7.5], [7, 3], [7, 7.5], [2, 3]], 20);
-  const tiles = mallTiles({ seed: 531, w: 16, h: 13, blocked, lane });
+  const tiles = mallTiles({
+    seed: 531,
+    w: 16,
+    h: 13,
+    blocked,
+    lane,
+    decals: [
+      { x: 118, y: 150, kind: 'arrow', dir: 2 },
+      { x: 138, y: 170, kind: 'steps', dir: 0, n: 7 },
+      { x: 176, y: 178, kind: 'tape', w: 22, h: 12 },
+      { x: 94, y: 178, kind: 'pot' },
+    ],
+  });
   const wall = mallWall(533);
   const sh = paintShell({ rows, floor: (x, y) => tiles(x, y), wall, trim: P.nightShade, base: P.steel, baseH: 3 });
   const p = sh.p;
@@ -157,12 +169,7 @@ registerProp('mall_m3_shell', () => {
   p.rect(22, 106, 5, 2, P.aqua);
   p.hline(22, 26, 106, P.white);
   // ---- the corridor to M1 (E, x0) fades into the dark
-  for (let y = 7 * 16; y < 9 * 16; y++)
-    for (let i = 0; i < 16; i++) {
-      const d = 15 - i;
-      if (d > 9 && ((i + y) & 1) === 0) blend(p, i, y, P.night, 0.5);
-      if (d > 12) blend(p, i, y, P.night, 0.4);
-    }
+  exitCorridor(p, 0, 7, 2, -1);
   const img = p.toCanvas();
   const W = img.width;
   return shellProp({
@@ -178,6 +185,7 @@ registerProp('mall_m3_shell', () => {
     },
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
       skyPatchRim(g, x + 94, y + 116, 50, 28, env);
+      exitLight(g, x, y, 0, 7, 2, -1, P.sky, 0.28);
       // the 2F landing is lit by the evening at the top of the opening
       g.rect(x + 108, y + 4, 24, 3, P.sky, 0.35 * (1 - env.grade.night));
     },

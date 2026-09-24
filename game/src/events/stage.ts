@@ -15,7 +15,7 @@
 import type { Co } from '../engine/co';
 import { game, type Widget } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
-import { makeCanvas, PixelCanvas } from '../engine/pixel';
+import { makeCanvas } from '../engine/pixel';
 import { W, H } from '../engine/screen';
 import { animate, ease } from '../engine/tween';
 import { addItem } from '../game/state';
@@ -27,19 +27,14 @@ import { drawWindow, textW, UI } from '../ui/window';
 
 // ---------------------------------------------------------------- 2× close-ups
 
-/** The field's world canvas (the frame without the HUD), or null. */
-function worldCanvas(f: FieldScene): HTMLCanvasElement | null {
-  const r = f.renderer as unknown as { wc?: HTMLCanvasElement };
-  return r.wc instanceof HTMLCanvasElement ? r.wc : null;
-}
-
 /**
  * An integer close-up of the field: the (W/scale × H/scale) rectangle around
- * the world point (cx, cy) fills the screen. `k` dissolves it over the 1× view.
- * It is drawn first among the UI widgets, so dialog windows stay on top.
+ * the world point (cx, cy) fills the screen; `k` dissolves it over the 1× view.
+ * It is composed into the field's own frame (the world fx 'top' layer, after
+ * the light, the glows and the emotes), so the HUD, dialog windows and any
+ * scene laid over the field (the night sky) all stay at 1× on top of it.
  */
-export class ZoomView implements Widget {
-  modal = false;
+export class ZoomView {
   done = false;
   k = 0;
   private buf: HTMLCanvasElement;
@@ -53,39 +48,46 @@ export class ZoomView implements Widget {
     [this.buf, this.bctx] = makeCanvas(Math.ceil(W / scale), Math.ceil(H / scale));
   }
 
-  update(): void {}
-
-  /** Top-left of the source rectangle on screen (integer). */
+  /** The source rectangle in frame pixels (integer). */
   source(f: FieldScene): [number, number, number, number] {
     const sw = Math.round(W / this.scale);
     const sh = Math.round(H / this.scale);
-    const sx = Math.max(0, Math.min(W - sw, Math.round(this.cx - f.camX - sw / 2)));
-    const sy = Math.max(0, Math.min(H - sh, Math.round(this.cy - f.camY - sh / 2)));
+    const sx = Math.max(0, Math.min(W - sw, Math.round(this.cx - Math.round(f.camX) - sw / 2)));
+    const sy = Math.max(0, Math.min(H - sh, Math.round(this.cy - Math.round(f.camY) - sh / 2)));
     return [sx, sy, sw, sh];
   }
 
-  draw(g: Gfx): void {
-    const f = field();
-    if (!f || game.top !== f || this.k <= 0) return;
-    const src = worldCanvas(f) ?? g.ctx.canvas;
+  /** Blow the frame being drawn (`g`, the world canvas) up around the centre. */
+  compose(f: FieldScene, g: Gfx): void {
+    if (this.k <= 0) return;
     const [sx, sy, sw, sh] = this.source(f);
     this.bctx.clearRect(0, 0, this.buf.width, this.buf.height);
-    this.bctx.drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh);
+    this.bctx.drawImage(g.ctx.canvas, sx, sy, sw, sh, 0, 0, sw, sh);
     const ctx = g.ctx;
     ctx.save();
     ctx.imageSmoothingEnabled = false;
     ctx.globalAlpha = Math.min(1, this.k);
     ctx.drawImage(this.buf, 0, 0, sw, sh, 0, 0, sw * this.scale, sh * this.scale);
     ctx.restore();
-    // the HUD stays at 1× on top of the close-up
-    if (worldCanvas(f)) uiHud.draw(g, f);
   }
 }
 
-/** Put a close-up under every other widget and dissolve it in. */
+const zooms: { f: FieldScene; z: ZoomView }[] = [];
+
+registerWorldFx({
+  map: '',
+  draw(f, g, _cx, _cy, layer) {
+    if (layer !== 'top' || !zooms.length) return;
+    for (let i = zooms.length - 1; i >= 0; i--) if (zooms[i].z.done || zooms[i].f !== f) zooms.splice(i, 1);
+    for (const e of zooms) e.z.compose(f, g);
+  },
+});
+
+/** Start a close-up of the running field and dissolve it in. */
 export function* zoomIn(cx: number, cy: number, ms = 350, scale = 2): Co<ZoomView> {
   const z = new ZoomView(cx, cy, scale);
-  game.ui.widgets.unshift(z);
+  const f = field();
+  if (f) zooms.push({ f, z });
   if (ms <= 0) z.k = 1;
   else yield* animate(ms, (p) => (z.k = p), ease.sineInOut);
   z.k = 1;
@@ -116,6 +118,7 @@ export function* zoomPan(z: ZoomView, cx: number, cy: number, ms: number): Co {
 // ---------------------------------------------------------------- the dialog lift (fixed rooms)
 
 let lift = 0;
+let liftMap = '';
 let liftOff = false;
 /** Pause the automatic lift (a cut frames the room itself). */
 export function setDialogLift(on: boolean): void {
@@ -134,14 +137,19 @@ function wantedLift(f: FieldScene, baseY: number): number {
   for (const a of who) if (a && a.visible && !a.drawFn) feet = Math.max(feet, a.y + Math.max(0, a.oy) - baseY);
   const need = feet - (BOX.y - 3);
   if (need <= 0) return 0;
-  // never push the room's top edge off the screen
-  const roomTop = -baseY;
+  // the room's top rows are its back wall: up to 24 px of it may leave the screen
+  const roomTop = -baseY + 24;
   return Math.max(0, Math.min(need, roomTop, 44));
 }
 
 registerWorldFx({
   map: '',
   update(f, dt) {
+    // a new room starts level
+    if (f.map.id !== liftMap) {
+      liftMap = f.map.id;
+      lift = 0;
+    }
     if (!fixedRoom(f)) {
       lift = 0;
       return;
@@ -159,22 +167,22 @@ registerWorldFx({
 
 const cine = { k: 0, bar: 12 };
 let VIG: HTMLCanvasElement | null = null;
-/** A dithered vignette (4×4 Bayer), so the darkening keeps the pixel grid. */
+/** A soft vignette: only the corners and the edges darken (like the world's light pools, a smooth ramp). */
 function vignette(): HTMLCanvasElement {
   if (VIG) return VIG;
-  const bayer = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-  const p = new PixelCanvas(W, H);
-  for (let y = 0; y < H; y++)
-    for (let x = 0; x < W; x++) {
-      const dx = (x - W / 2) / (W / 2);
-      const dy = (y - H / 2) / (H / 2);
-      const d = Math.sqrt(dx * dx * 0.85 + dy * dy * 1.1);
-      const v = Math.max(0, Math.min(1, (d - 0.62) / 0.55));
-      if (v <= 0) continue;
-      const th = (bayer[(y % 4) * 4 + (x % 4)] + 0.5) / 16;
-      if (v > th) p.set(x, y, '#0B0B14');
-    }
-  VIG = p.toCanvas();
+  const [c, ctx] = makeCanvas(W, H);
+  ctx.save();
+  ctx.translate(W / 2, H / 2);
+  ctx.scale(1, H / W);
+  const r = W * 0.62;
+  const grd = ctx.createRadialGradient(0, 0, r * 0.55, 0, 0, r * 1.02);
+  grd.addColorStop(0, 'rgba(11,11,20,0)');
+  grd.addColorStop(0.6, 'rgba(11,11,20,0.35)');
+  grd.addColorStop(1, 'rgba(11,11,20,0.8)');
+  ctx.fillStyle = grd;
+  ctx.fillRect(-W, -W, W * 2, W * 2);
+  ctx.restore();
+  VIG = c;
   return VIG;
 }
 
@@ -183,7 +191,7 @@ registerWorldFx({
   draw(_f, g, _cx, _cy, layer) {
     if (layer !== 'top' || cine.k <= 0) return;
     const k = cine.k;
-    g.alpha(0.55 * k, () => g.img(vignette(), 0, 0));
+    g.alpha(0.7 * k, () => g.img(vignette(), 0, 0));
     const b = Math.round(cine.bar * ease.cubicOut(k));
     if (b > 0) {
       g.rect(0, 0, W, b, '#0B0B14');
@@ -206,6 +214,7 @@ export function cinemaOff(): void {
 
 /** QA (jump): drop any framing left over from an interrupted scene. */
 export function resetStaging(): void {
+  zooms.length = 0;
   cine.k = 0;
   lift = 0;
   liftOff = false;

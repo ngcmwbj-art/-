@@ -132,31 +132,88 @@ registerProp('in_ld_shell', () => {
 type DryerKind = 1 | 2 | 3 | 4 | 5 | 6;
 
 function dryerBody(p: PixelCanvas, n: number): void {
-  // 16×32: white enamel body built into the wall, number plate, round glass
-  // window (drum) over a coin box with a slot and the 100-yen lamp
-  p.rect(0, 0, 16, 32, P.white);
-  p.vline(0, 0, 31, P.glint);
+  // 16×32: enamel body built into the wall, number plate, round glass window
+  // (drum) over a coin box with a slot and the 100-yen lamp. Each machine has
+  // worn its own way: No.2 and No.6 are the older, yellowed ones; No.6 lost
+  // its plate (a number in marker on tape instead), No.2's plate is sun-faded
+  // and peeling, No.4's coin slot is taped shut, No.5 has a dent by the
+  // handle and a coin jammed in its slot, No.1 a sticker, No.6 rust.
+  const body = n === 2 || n === 6 ? P.paper : P.white;
+  p.rect(0, 0, 16, 32, body);
+  p.vline(0, 0, 31, n === 6 ? P.white : P.glint);
   p.vline(15, 0, 31, P.concrete);
   p.hline(0, 15, 0, P.concreteLt);
   // number plate
-  p.rect(5, 1, 6, 5, P.navy);
-  tiny(p, String(n), 7, 1, P.white);
+  if (n === 6) {
+    p.rect(4, 2, 8, 4, P.goldPale);
+    p.hline(4, 11, 2, P.paper);
+    p.set(11, 5, P.paperGrid);
+    tiny(p, '6', 7, 2, P.ink);
+    p.set(4, 5, body);
+  } else {
+    p.rect(5, 1, 6, 5, n === 2 ? P.blue : P.navy);
+    tiny(p, String(n), 7, 1, P.white);
+    if (n === 2) {
+      // the plate's corner peeling up
+      p.set(10, 1, P.white);
+      p.set(10, 2, P.concreteLt);
+      p.set(9, 1, P.concreteLt);
+    }
+  }
   // door: steel ring and dark glass
   p.ellipse(8, 12.5, 6.5, 6.5, P.steel);
-  p.ellipse(8, 12.5, 5.5, 5.5, P.concreteLt);
+  p.ellipse(8, 12.5, 5.5, 5.5, n === 6 ? P.concrete : P.concreteLt);
   p.ellipse(8, 12.5, 4.5, 4.5, P.shadeDeep);
-  p.set(3, 9, P.white);
-  p.set(4, 8, P.white);
-  // handle
-  p.rect(13, 11, 2, 4, P.asphalt);
+  // handle (No.2 has lost its plastic cover)
+  p.rect(13, 11, 2, 4, n === 2 ? P.steel : P.asphalt);
+  if (n === 5) {
+    // a dent beside the handle
+    p.set(13, 17, P.concrete);
+    p.set(14, 18, P.steel);
+    p.set(12, 18, P.concreteLt);
+  }
   // coin box
   p.rect(2, 21, 12, 8, P.concreteLt);
   p.hline(2, 13, 21, P.white);
   p.rect(4, 23, 4, 1, P.ink);
   p.rect(9, 23, 3, 3, P.steel);
   p.set(10, 24, P.ink);
-  p.rect(4, 26, 2, 2, P.gold);
+  p.rect(4, 26, 2, 2, n === 2 ? P.charcoal : P.gold);
+  if (n === 4) {
+    // the slot taped shut: an X of yellowed tape
+    p.line(3, 22, 8, 24, P.goldPale);
+    p.line(3, 24, 8, 22, P.goldPale);
+    p.set(8, 22, P.paperGrid);
+  }
+  if (n === 5) p.set(6, 23, P.brass);
+  if (n === 1) {
+    // a 『使用後はドアを開けて』-style sticker: a blue label with a door pictogram
+    p.rect(9, 27, 4, 2, P.blue);
+    p.set(10, 27, P.white);
+  }
+  if (n === 6) {
+    // rust bleeding from the bottom seam
+    for (const [x, y] of [[2, 29], [3, 29], [3, 28], [11, 29], [12, 28], [12, 29]] as const) p.set(x, y, y === 28 ? P.woodLt : P.brassOld);
+  }
   p.rect(0, 30, 16, 2, P.asphalt);
+}
+
+/** The drum's three lifter ribs, turned by `rot` (0–3 quarter-steps of 30°). */
+function drumRibs(p: PixelCanvas, rot: number): void {
+  for (let i = 0; i < 3; i++) {
+    const a = ((i / 3) + rot / 12) * Math.PI * 2 - Math.PI / 2;
+    const x = Math.round(8 + Math.cos(a) * 3.6 - 0.5);
+    const y = Math.round(12.5 + Math.sin(a) * 3.6 - 0.5);
+    p.set(x, y, P.shade);
+    p.set(Math.round(8 + Math.cos(a) * 2.8 - 0.5), Math.round(12.5 + Math.sin(a) * 2.8 - 0.5), P.nightShade);
+  }
+}
+
+/** The glass over the window: a bright arc on the upper left, a small glint low right. */
+function glassArc(p: PixelCanvas): void {
+  for (const [x, y, c] of [[5, 12, P.steel], [5, 11, P.concreteLt], [5, 10, P.white], [6, 9, P.glint], [7, 9, P.white], [8, 9, P.steel]] as const) p.set(x, y, c);
+  p.set(11, 15, P.steel);
+  p.set(10, 16, P.shade);
 }
 
 /** Clothes tumbling in the drum: frame k of 4 (90° a frame), pieces in 4 colours. */
@@ -182,6 +239,16 @@ function dryerFrames(n: DryerKind): HTMLCanvasElement[] {
   const fr = mkFrames(6, 16, 32, (p, k) => {
     dryerBody(p, n);
     const turning = k < 4;
+    if (k !== 5 || n !== 3) drumRibs(p, (n === 3 || n === 5) && turning ? k : n);
+    dryerContents(p, n, k, turning);
+    if ((k !== 5 || n !== 3) && n !== 4) glassArc(p);
+  }, (p) => finish(p, { soft: true, rim: false }));
+  DRYER_FRAMES.set(key, fr);
+  return fr;
+}
+
+function dryerContents(p: PixelCanvas, n: DryerKind, k: number, turning: boolean): void {
+  {
     if (n === 3) {
       if (k === 5) {
         // stopped, the door open (swung left), warm and empty
@@ -239,9 +306,7 @@ function dryerFrames(n: DryerKind): HTMLCanvasElement[] {
         p.set(7, 15, P.goldPale);
         break;
     }
-  }, (p) => finish(p, { soft: true, rim: false }));
-  DRYER_FRAMES.set(key, fr);
-  return fr;
+  }
 }
 
 registerProp('in_ld_dryer', (opts) => {

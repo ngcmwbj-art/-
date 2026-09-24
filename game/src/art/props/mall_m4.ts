@@ -3,8 +3,9 @@
 // that glances every 2 s, the 迷子センター door at the east end (the note
 // about the key taped on it). Two squares of evening fall from skylights —
 // the brighter one right in front of the door. The glass railing along the
-// south edge looks down into the dark atrium, where M1's fountain sits small
-// and far below. The top of the stopped escalator (down to M3) at the west
+// south edge looks down into the atrium: M1's hall one storey below in
+// perspective, with a skylight shaft falling to the fountain (mall_atrium.ts,
+// the area's 見せ場). The top of the stopped escalator (down to M3) at the west
 // end, the rest bench, a mannequin, boxes of lost things and the 清掃中 sign.
 
 import type { Gfx } from '../../engine/gfx';
@@ -36,7 +37,18 @@ registerProp('mall_m4_shell', () => {
   const rows = getMapDef('map_mall_2f')?.rows ?? [];
   const blocked = (tx: number, ty: number) => tx <= 1 || tx === 15 || (ty === 5 && (tx === 10 || tx === 11)) || ty >= 7;
   const lane = laneOf([[2, 4], [19, 3]], 22);
-  const tiles = mallTiles({ seed: 541, w: 22, h: 9, blocked, lane });
+  const tiles = mallTiles({
+    seed: 541,
+    w: 22,
+    h: 9,
+    blocked,
+    lane,
+    decals: [
+      { x: 196, y: 70, kind: 'arrow', dir: 0, c: P.peach },
+      { x: 52, y: 96, kind: 'steps', dir: 0, n: 7 },
+      { x: 280, y: 92, kind: 'tape', w: 24, h: 10 },
+    ],
+  });
   const wall = mallWall(543, false);
   const sh = paintShell({ rows, floor: (x, y) => tiles(x, y), wall, trim: P.nightShade, base: P.steel, baseH: 3 });
   const W = sh.p.w;

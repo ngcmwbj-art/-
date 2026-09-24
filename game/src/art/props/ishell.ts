@@ -125,7 +125,7 @@ export function paintShell(s: ShellSpec): Shell {
         for (let i = 0; i < 16; i++) {
           blend(p, X + i, Y, section, 0.45);
           blend(p, X + i, Y + 1, section, 0.4);
-          if (((X + i) & 1) === 0) blend(p, X + i, Y + 2, section, 0.25);
+          blend(p, X + i, Y + 2, section, 0.14);
         }
       if (kind(tx - 1, ty) === 'void') for (let j = 0; j < 16; j++) blend(p, X, Y + j, section, 0.35);
       if (kind(tx + 1, ty) === 'void') for (let j = 0; j < 16; j++) blend(p, X + 15, Y + j, section, 0.35);
@@ -209,6 +209,29 @@ export function screenSpill(g: Gfx, cx: number, y: number, w0: number, w1: numbe
     ctx.scale(1, -1);
     ctx.drawImage(img, 0, 0);
   } else ctx.drawImage(img, Math.round(cx - img.width / 2), Math.round(y));
+  ctx.restore();
+}
+
+/**
+ * Coloured light thrown through a doorway onto a pale floor (call from
+ * over()): like warmPool, multiply tints the tiles towards the light's colour
+ * (a plain screen spill only greys them out), a little screen on top.
+ */
+export function tintSpill(g: Gfx, cx: number, y: number, w0: number, w1: number, len: number, col: string, a: number, flipUp = false): void {
+  if (a <= 0.004) return;
+  const img = bandTrapezoid(w0, w1, len, rgbOf(col));
+  const ctx = g.ctx;
+  ctx.save();
+  if (flipUp) {
+    ctx.translate(Math.round(cx - img.width / 2), Math.round(y));
+    ctx.scale(1, -1);
+  } else ctx.translate(Math.round(cx - img.width / 2), Math.round(y));
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.globalAlpha = Math.min(1, a * 0.8);
+  ctx.drawImage(img, 0, 0);
+  ctx.globalCompositeOperation = 'screen';
+  ctx.globalAlpha = Math.min(1, a * 0.35);
+  ctx.drawImage(img, 0, 0);
   ctx.restore();
 }
 

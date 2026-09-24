@@ -5,7 +5,7 @@
 //    cabbage mountain, rice, the sauce)
 //  - meishi(): ハト係長's business card, held out and lying on the ground
 
-import { PixelCanvas, mix } from '../engine/pixel';
+import { PixelCanvas, mix, rgba32 } from '../engine/pixel';
 import { hash2 } from '../engine/rng';
 import { P } from '../art/tiles/palette';
 
@@ -453,4 +453,169 @@ export function sleepZ(): HTMLCanvasElement[] {
     return p.toCanvas();
   });
   return ZS;
+}
+
+// ---------------------------------------------------------------- オムカエマチ, risen from the heap (field size)
+
+/** Field version of the boss (76×72, 3/4 view like the room): see bossEyes() for the moving pupils. */
+export const BOSS_FIELD = { w: 76, h: 72, eyeL: [27, 25] as [number, number], eyeR: [43, 25] as [number, number] };
+const BOSS_FRAMES: HTMLCanvasElement[] = [];
+const rgba = (c: string) => rgba32(c);
+
+function bossBody(): PixelCanvas {
+  const W = BOSS_FIELD.w;
+  const H = BOSS_FIELD.h;
+  const p = new PixelCanvas(W, H);
+  const SH = P.nightShade; // #3A2B5C
+  const SH_L = P.shade; // rim light
+  const SH_D = '#2E2250';
+  const shadowFill = (x: number, y: number, lit: number) => {
+    if (lit > 0.55) p.set(x, y, SH_L);
+    else if (lit < -0.45) p.set(x, y, (x + y) % 2 ? SH_D : SH);
+    else p.set(x, y, hash2(x >> 1, y >> 1, 91) < 0.12 ? SH_D : SH);
+  };
+  // behind: the umbrella bundle (left) and the recorder (right)
+  for (let i = 0; i < 3; i++) {
+    const x0 = 10 + i * 3;
+    p.line(x0, 44 - i * 2, x0 - 8 + i, 14 + i * 4, P.navy);
+    for (let y = 16 + i * 4; y < 42 - i * 2; y++) {
+      const t = (y - (16 + i * 4)) / 26;
+      const cx = Math.round(x0 - 8 + i + t * (8 - i));
+      const hw = Math.max(1, Math.round(4 - t * 3));
+      for (let x = cx - hw; x <= cx + hw; x++) p.set(x, y, x === cx - hw ? P.glint : (x + y + i) % 5 === 0 ? P.aqua : '#B8D8E8');
+    }
+  }
+  p.line(60, 40, 67, 6, P.brass);
+  p.line(61, 40, 68, 6, P.goldPale);
+  for (const y of [14, 20, 26]) p.set(Math.round(67 - (y - 6) * 0.2), y, P.woodDark);
+  // the body: a sitting child made of dusk — the back and shoulders, then the head,
+  // then the knees drawn up in front
+  for (let y = 34; y < 68; y++)
+    for (let x = 6; x < 70; x++) {
+      const dx = (x - 38) / 30;
+      const dy = (y - 52) / 17;
+      const back = dx * dx + dy * dy < 1;
+      const shoulders = Math.pow((x - 38) / 26, 2) + Math.pow((y - 44) / 8, 2) < 1;
+      if (!(back || shoulders)) continue;
+      shadowFill(x, y, -dx * 0.8 - dy * 0.6);
+    }
+  // the head
+  for (let y = 8; y < 38; y++)
+    for (let x = 22; x < 56; x++) {
+      const dx = (x - 38.5) / 15.5;
+      const dy = (y - 23) / 14;
+      if (dx * dx + dy * dy > 1) continue;
+      shadowFill(x, y, -dx * 0.9 - dy * 0.7);
+    }
+  // the chin's shadow where the head meets the shoulders
+  for (let x = 25; x <= 52; x++) {
+    const dy = Math.round(Math.sqrt(Math.max(0, 1 - Math.pow((x - 38.5) / 14, 2))) * 3);
+    p.set(x, 34 + dy, SH_D);
+    p.set(x, 35 + dy, SH_D);
+  }
+  // knees: two rounded humps in front, lit on top
+  for (const kx of [29, 47])
+    for (let y = 38; y < 60; y++)
+      for (let x = kx - 10; x <= kx + 10; x++) {
+        const dx = (x - kx) / 10;
+        const dy = (y - 48) / 10;
+        const d = dx * dx + dy * dy;
+        if (d > 1) continue;
+        if (dy < -0.55 && d > 0.55) p.set(x, y, SH_L);
+        else shadowFill(x, y, -dx * 0.6 - dy * 1.1);
+      }
+  p.line(38, 41, 38, 58, SH_D); // between the knees
+  // the arms round the shins, sleeves lit on top
+  for (const [x0, y0, x1, y1] of [[12, 42, 26, 50], [64, 42, 50, 50]] as const)
+    for (let w = 0; w < 4; w++) p.line(x0, y0 + w, x1, y1 + w, w === 0 ? SH_L : w === 3 ? SH_D : SH);
+  // the gym bag (name field blank) at the lower left, the water bottle at the right
+  p.rect(4, 50, 14, 11, P.white);
+  p.hline(4, 17, 50, P.glint);
+  p.rect(7, 53, 8, 4, P.concreteLt);
+  p.strokeRect(7, 53, 8, 4, P.steel);
+  p.line(5, 50, 9, 44, P.steel);
+  p.line(16, 50, 12, 44, P.steel);
+  p.rect(62, 38, 8, 20, P.blue);
+  p.vline(63, 39, 56, P.aqua);
+  p.vline(69, 39, 57, P.navy);
+  p.rect(62, 35, 8, 3, P.white);
+  p.hline(62, 69, 35, P.glint);
+  p.rect(63, 45, 6, 3, P.white); // its label, no name
+  // the arms and the odd gloves, clasped in front of the knees
+  p.rect(26, 49, 9, 7, P.red);
+  p.hline(26, 34, 49, P.vermLt);
+  p.vline(34, 50, 55, P.vermShade);
+  p.vline(26, 49, 55, P.white); // the cuff
+  p.rect(42, 49, 9, 7, P.aqua);
+  p.hline(42, 50, 49, P.glint);
+  p.vline(42, 50, 55, P.blue);
+  p.vline(50, 49, 55, P.white);
+  for (let i = 0; i < 3; i++) {
+    p.hline(29, 33, 51 + i * 2, P.vermShade);
+    p.hline(43, 47, 51 + i * 2, P.blue);
+  }
+  // one uwabaki at its feet (white, blue toe)
+  p.rect(30, 63, 16, 6, P.white);
+  p.hline(30, 45, 63, P.glint);
+  p.rect(40, 63, 6, 6, P.navy);
+  p.hline(40, 45, 63, P.blue);
+  p.hline(31, 38, 66, P.concreteLt);
+  // the rim of light on the left of the body and head
+  for (let y = 8; y < 60; y++)
+    for (let x = 1; x < 40; x++) {
+      if (!p.alpha(x, y) || p.alpha(x - 1, y)) continue;
+      const c = p.get(x, y);
+      if (c === rgba(SH) || c === rgba(SH_D)) p.set(x, y, SH_L);
+      break;
+    }
+  // the yellow school cap
+  for (let y = 4; y < 17; y++) {
+    const half = y < 8 ? 7 + (y - 4) * 2 : 15;
+    for (let x = 38 - half; x <= 38 + half; x++) {
+      const u = (x - (38 - half)) / (half * 2);
+      p.set(x, y, u < 0.22 && y < 12 ? '#FFE680' : u > 0.74 ? '#C8A020' : '#F5D33B');
+    }
+  }
+  p.hline(20, 57, 17, '#C8A020');
+  p.hline(19, 58, 18, '#C8A020');
+  p.hline(22, 55, 16, '#F5D33B');
+  p.hline(24, 53, 13, '#C8A020');
+  p.rect(36, 6, 5, 3, P.white);
+  p.set(38, 7, P.verm);
+  // the two lost-child tags for eyes: white, a vermilion frame, name fields empty
+  for (const [ex, ey] of [BOSS_FIELD.eyeL, BOSS_FIELD.eyeR]) {
+    p.rect(ex - 5, ey - 4, 11, 8, P.white);
+    p.strokeRect(ex - 5, ey - 4, 11, 8, P.verm);
+    p.hline(ex - 3, ex + 3, ey + 2, P.concreteLt);
+  }
+  return p;
+}
+
+/** Frame k (0–3) of the risen boss: the dusk outline wavers inside 2 px. */
+export function bossField(k: number): HTMLCanvasElement {
+  const i = ((k % 4) + 4) % 4;
+  if (BOSS_FRAMES[i]) return BOSS_FRAMES[i];
+  const p = bossBody();
+  p.outline(P.ink);
+  // the wavering edge: a fringe of night outside the outline, different each frame
+  const src = p.clone();
+  for (let y = 1; y < p.h - 1; y++)
+    for (let x = 1; x < p.w - 1; x++) {
+      if (src.alpha(x, y)) continue;
+      const n = src.alpha(x - 1, y) || src.alpha(x + 1, y) || src.alpha(x, y - 1) || src.alpha(x, y + 1);
+      if (n && hash2(x, y, 300 + i * 17) < 0.45) p.set(x, y, P.night);
+    }
+  BOSS_FRAMES[i] = p.toCanvas();
+  return BOSS_FRAMES[i];
+}
+
+/** Draw the pupils (px −1…1 = where they look) over a bossField frame at (x, y). */
+export function bossEyes(g: { rect(x: number, y: number, w: number, h: number, c: string): void }, x: number, y: number, px: number, open: number): void {
+  for (const [ex, ey] of [BOSS_FIELD.eyeL, BOSS_FIELD.eyeR]) {
+    if (open < 1) {
+      // lids: the tag is still blank until the eyes open
+      g.rect(x + ex - 4, y + ey - 3, 9, Math.round(6 * (1 - open)), P.concrete);
+    }
+    if (open > 0.5) g.rect(x + ex - 1 + Math.round(px * 3), y + ey - 2, 3, 4, P.ink);
+  }
 }

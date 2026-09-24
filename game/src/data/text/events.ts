@@ -88,11 +88,15 @@ export const CHIME_STOP = `@narr
 
 // ---------------------------------------------------------------- 5.7 evt_hato_block
 
-export const HATO_A = `@npc_hato
-クルッ。
-@narr
+export const HATO_COO = `@npc_hato
+クルッ。`;
+
+export const HATO_CARD = `@narr
 ハトが 名刺を さしだしてきた。{w=300}
 両手で。{w=600}……羽で。`;
+
+export const HATO_A = `${HATO_COO}
+${HATO_CARD}`;
 
 export const HATO_B = `@ハト係長:hato
 クルッ。{w=300}

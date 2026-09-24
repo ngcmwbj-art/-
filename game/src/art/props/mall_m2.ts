@@ -16,7 +16,7 @@ import { P } from '../tiles/palette';
 import { notice, paperStack, pc, prop } from './ifurn';
 import { blend, depthShade, paintShell, shellProp } from './ishell';
 import { castRight, dk, finish, lt, outline } from './kit';
-import { bannerScrap, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, shutter, skyPatch, skyPatchRim, small, smallW, type Lamp } from './mall_kit';
+import { bannerScrap, exitCorridor, exitLight, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, shutter, skyPatch, skyPatchRim, small, smallW, type Lamp } from './mall_kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
 import { printLines, tiny } from './text';
@@ -33,7 +33,19 @@ registerProp('mall_m2_shell', () => {
   const rows = getMapDef('map_mall_food')?.rows ?? [];
   const blocked = (tx: number, ty: number) => ty <= 3 || (ty === 5 || ty === 9) || (tx >= 11 && tx <= 12 && ty === 7) || (tx === 18 && ty === 10);
   const lane = laneOf([[19, 6.5], [12, 6.5], [6, 7], [2, 7], [6, 4], [15, 4]], 20);
-  const tiles = mallTiles({ seed: 521, w: 20, h: 13, blocked, lane });
+  const tiles = mallTiles({
+    seed: 521,
+    w: 20,
+    h: 13,
+    blocked,
+    lane,
+    decals: [
+      { x: 262, y: 118, kind: 'arrow', dir: 0, c: P.gold },
+      { x: 226, y: 176, kind: 'steps', dir: 2, n: 5 },
+      { x: 276, y: 150, kind: 'balloon' },
+      { x: 30, y: 176, kind: 'pot' },
+    ],
+  });
   const wall = mallWall(523);
   const sh = paintShell({ rows, floor: (x, y) => tiles(x, y), wall, trim: P.nightShade, base: P.steel, baseH: 3 });
   const p = sh.p;
@@ -118,12 +130,7 @@ registerProp('mall_m2_shell', () => {
   p.rect(96, 170, 9, 6, P.white);
   p.rect(96, 170, 9, 2, P.gold);
   // ---- the corridor to M1 (E, x19) fades into the dark
-  for (let y = 6 * 16; y < 8 * 16; y++)
-    for (let i = 0; i < 16; i++) {
-      const x = 19 * 16 + i;
-      if (i > 9 && ((x + y) & 1) === 0) blend(p, x, y, P.night, 0.5);
-      if (i > 12) blend(p, x, y, P.night, 0.4);
-    }
+  exitCorridor(p, 19, 6, 2, 1);
   const img = p.toCanvas();
   const W = img.width;
   return shellProp({
@@ -139,6 +146,8 @@ registerProp('mall_m2_shell', () => {
     },
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
       skyPatchRim(g, x + 98, y + 118, 46, 30, env);
+      // the hall's light at the end of the corridor to M1
+      exitLight(g, x, y, 19, 6, 2, 1, P.sky, 0.28);
     },
   });
 });
@@ -349,66 +358,71 @@ registerProp('mall_lost_counter', () =>
 registerProp('mall_food_table', (opts) => {
   const v = Number(opts.v ?? 0);
   const chair = [P.sun, P.leafDeep, P.sun, P.blue, P.leafDeep, P.sun][v % 6];
-  return prop(32, 30, (p) => {
-    // two chairs behind (their backs above the table top)
+  // The image starts only 4px above the table's own row: the chairs on the
+  // north side are pushed in under the table (just their backrests peek over
+  // its top), so someone walking along the row behind is never drawn as if
+  // standing on a chair; the front chairs reach into the row south of it.
+  return prop(32, 28, (p) => {
+    // the two chairs pushed in behind: only their backrests show
     for (const cx of [4, 20]) {
-      p.rect(cx, 0, 9, 7, dk(chair));
-      p.hline(cx, cx + 8, 0, chair);
-      p.vline(cx, 0, 6, chair);
+      p.rect(cx, 1, 9, 3, dk(chair));
+      p.hline(cx, cx + 8, 1, chair);
+      p.set(cx, 2, chair);
+      p.set(cx + 8, 2, dk(chair, 2));
     }
     // table top: white laminate with a wooden edge, one steel leg
-    p.rect(0, 6, 32, 11, P.white);
-    p.hline(0, 31, 6, P.glint);
-    p.rect(0, 17, 32, 2, P.woodLt);
-    p.hline(0, 31, 18, P.wood);
-    p.vline(15, 19, 26, P.steel);
-    p.vline(16, 19, 26, P.asphalt);
-    p.hline(11, 20, 27, P.charcoal);
+    p.rect(0, 4, 32, 11, P.white);
+    p.hline(0, 31, 4, P.glint);
+    p.rect(0, 15, 32, 2, P.woodLt);
+    p.hline(0, 31, 16, P.wood);
+    p.vline(15, 17, 24, P.steel);
+    p.vline(16, 17, 24, P.asphalt);
+    p.hline(11, 20, 25, P.charcoal);
     // two chairs in front (seats and legs)
     for (const cx of [3, 20]) {
-      p.rect(cx, 21, 9, 3, chair);
-      p.hline(cx, cx + 8, 21, lt(chair));
-      p.vline(cx + 1, 24, 28, P.asphalt);
-      p.vline(cx + 7, 24, 28, P.asphalt);
+      p.rect(cx, 19, 9, 3, chair);
+      p.hline(cx, cx + 8, 19, lt(chair));
+      p.vline(cx + 1, 22, 26, P.asphalt);
+      p.vline(cx + 7, 22, 26, P.asphalt);
     }
     // per table: what was left behind
     switch (v) {
       case 0: // napkin holder, soy sauce and shichimi
-        p.rect(12, 8, 6, 5, P.steel);
-        p.rect(13, 7, 4, 2, P.white);
-        p.rect(20, 9, 2, 4, P.ink);
-        p.rect(23, 10, 2, 3, P.verm);
+        p.rect(12, 6, 6, 5, P.steel);
+        p.rect(13, 5, 4, 2, P.white);
+        p.rect(20, 7, 2, 4, P.ink);
+        p.rect(23, 8, 2, 3, P.verm);
         break;
-      case 1: // (8,5) the child's high chair behind, a ring of juice
-        p.rect(2, -2 + 2, 11, 3, P.gold);
-        p.rect(3, 0, 9, 7, P.goldPale);
+      case 1: // (8,5) the child's high chair pushed in behind (taller), a ring of juice
+        p.rect(3, 0, 9, 4, P.goldPale);
         p.hline(3, 11, 0, P.white);
-        p.ring(24, 11, 3, 2, P.brass);
-        p.set(24, 11, P.goldPale);
+        p.hline(2, 12, 3, P.gold);
+        p.ring(24, 9, 3, 2, P.brass);
+        p.set(24, 9, P.goldPale);
         break;
       case 2: // (13,5) the pager: a round coaster with a dark lamp
-        p.ellipse(9, 11, 4, 3, P.charcoal);
-        p.ellipse(9, 10.5, 3, 2, P.asphalt);
-        p.set(9, 10, P.maroon);
-        tiny(p, '7', 20, 9, P.steel);
+        p.ellipse(9, 9, 4, 3, P.charcoal);
+        p.ellipse(9, 8.5, 3, 2, P.asphalt);
+        p.set(9, 8, P.maroon);
+        tiny(p, '7', 20, 7, P.steel);
         break;
       case 3: // a toppled paper cup and its straw
-        p.rect(8, 10, 6, 3, P.white);
-        p.hline(8, 13, 10, P.red);
-        p.line(14, 11, 20, 9, P.aqua);
+        p.rect(8, 8, 6, 3, P.white);
+        p.hline(8, 13, 8, P.red);
+        p.line(14, 9, 20, 7, P.aqua);
         break;
-      case 4: // an umbrella hanging on the back of a chair
-        p.line(21, 0, 26, 10, P.navy);
-        p.line(22, 0, 27, 10, P.blue);
-        p.set(20, 0, P.charcoal);
-        p.rect(10, 9, 8, 4, P.paper);
+      case 4: // an umbrella hooked on the edge of the table
+        p.line(21, 4, 25, 13, P.navy);
+        p.line(22, 4, 26, 13, P.blue);
+        p.set(20, 4, P.charcoal);
+        p.rect(10, 7, 8, 4, P.paper);
         break;
       default: // a child's yellow cap
-        p.ellipse(16, 11, 4, 2.5, P.gold);
-        p.hline(16, 21, 12, P.brass);
-        p.set(15, 10, P.goldPale);
+        p.ellipse(16, 9, 4, 2.5, P.gold);
+        p.hline(16, 21, 10, P.brass);
+        p.set(15, 8, P.goldPale);
     }
-  }, { cx: 16, base: 16, contact: 0, shadow: 0 });
+  }, { cx: 16, base: 24, foot: 23, contact: 0, shadow: 0 });
 });
 
 // ---------------------------------------------------------------- self-service water (12,7): cups upside down, a slow drip

@@ -5,10 +5,9 @@
 import type { Co } from '../engine/co';
 import { game } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
-import { flag, setFlag } from '../game/state';
+import { flag, setFlag, state } from '../game/state';
 import { syncProgressSkills } from '../data/battle';
 import { playHankoLearn } from '../battle';
-import { enemyArt } from '../art/enemies';
 import { lvTime } from '../art/props/istate';
 import { sfx, stopAmbient } from '../audio';
 import { actor, despawn, msg, place, registerScript, spawn } from '../world/api';
@@ -18,8 +17,12 @@ import { stampFx } from '../world/stamp';
 import { choose } from '../ui/api';
 import * as T from '../data/text/events';
 import { KAITENYAKI_PRESSED, KAITENYAKI_SEEN, YAKINAMES, YAKINAMES_KANA } from '../data/text/mall';
-import { addMp, eventBattle, F, getKeyItem, panBack, panTo } from './lib';
+import { addMp, eventBattle, F, getKeyItem } from './lib';
 import { puff, sparkle } from './fx';
+import { bossEyes, bossField, BOSS_FIELD } from './art';
+import { zoomIn, zoomOut, zoomPan } from './stage';
+import { animate, ease } from '../engine/tween';
+import type { FieldScene } from '../world/field';
 import { evtEnding } from './ending';
 
 // ---------------------------------------------------------------- 5.15 evt_mall_enter
@@ -27,11 +30,19 @@ import { evtEnding } from './ending';
 registerScript('evt_mall_enter', function* (): Co {
   if (flag('flag_mall_entered')) return;
   setFlag('flag_mall_entered', 1);
+  const f = F();
+  const p = f.player;
+  p.path = [];
+  p.moving = false;
   yield 350;
-  // entrance → the dry fountain, three tiles, and back (1.6 s)
-  yield* panTo(10, 9, 900);
+  // the hall fits the screen, so the look goes in close instead: 2×, from
+  // the entrance up to the dry fountain under the skylight (three tiles), and back
+  const z = yield* zoomIn(p.x, p.y - 30, 420);
   yield 250;
+  yield* zoomPan(z, 11 * 16, 7 * 16 + 8, 1500);
+  yield 300;
   yield* msg(T.MALL_ENTER);
+  yield* zoomOut(z, 500);
   if (flag('flag_kanenari_joined')) {
     const k = F().follower;
     if (k) {
@@ -45,7 +56,6 @@ registerScript('evt_mall_enter', function* (): Co {
       delete k.data.scripted;
     }
   }
-  yield* panBack(700);
 });
 
 // ---------------------------------------------------------------- 8.12 evt_kaitenyaki (fushigi_12 ★ the key)
@@ -150,6 +160,10 @@ registerScript('evt_maigo_door', function* (): Co {
   sfx('se_door_heavy');
   game.shake(1, 200);
   setFlag('flag_maigo_door_open', 1);
+  // the level's 「standing at the opened door」 hint must not fire right now,
+  // on top of this flip: it waits until Minato walks away and comes back
+  state.taken[REST_KEY] = true;
+  rest.armed = false;
   yield 600;
   if (flag('flag_kanenari_joined')) yield* flip(T.MAIGO_DOOR_OPEN_FLIP);
 });
@@ -159,41 +173,66 @@ registerScript('trig_maigo_door_rest', function* (): Co {
   yield* flip(T.MAIGO_DOOR_REST_FLIP);
 });
 
+/**
+ * trig_maigo_door_rest (5.17 「扉の前に立ったとき、一度だけ」): after the door is
+ * opened, once Minato has stepped away from it, the next time he stands at
+ * the door (x18–20, y2–3) カネナリくん suggests the bench.
+ */
+const REST_KEY = 'trig:map_mall_2f:trig_maigo_door_rest';
+const rest = { armed: false };
+const atDoor = (f: FieldScene) => f.player.tileX >= 18 && f.player.tileX <= 20 && f.player.tileY >= 2 && f.player.tileY <= 3;
+registerWorldFx({
+  map: 'map_mall_2f',
+  update(f) {
+    if (!flag('flag_maigo_door_open') || flag('flag_maigo_rest_hint') || !flag('flag_kanenari_joined')) return;
+    if (!f.controllable || game.scripts.busy) return;
+    if (!atDoor(f)) {
+      rest.armed = true;
+      return;
+    }
+    if (!rest.armed) return;
+    setFlag('flag_maigo_rest_hint', 1);
+    state.taken[REST_KEY] = true;
+    f.runScriptId('trig_maigo_door_rest', 'trig_maigo_door_rest');
+  },
+});
+
 // ---------------------------------------------------------------- 5.18 evt_boss_intro: the heap rises
 
-const boss = { rise: 0, pupil: 0, wobble: 0, t: 0, alpha: 1 };
+const boss = { rise: 0, pupil: 0, open: 0, t: 0, alpha: 1 };
 const BOSS_FOOT: [number, number] = [10 * 16 + 4, 6 * 16 + 2];
 
+/**
+ * The risen heap at field scale (1×, drawn for the room: see art.ts
+ * bossField). It grows up out of a pool of dusk, revealed from the floor up;
+ * the outline wavers (4 frames); the tag eyes open and look for Minato.
+ */
 function drawRisingBoss(g: Gfx, x: number, y: number): void {
-  const art = enemyArt('boss_omukaemachi');
-  if (!art || boss.rise <= 0) return;
+  if (boss.rise <= 0) return;
   boss.t += 16.7;
-  const img = art.frame({ pose: 'idle', t: boss.t, gt: boss.t, hpRate: 1, flags: {}, params: { pupil: boss.pupil } });
-  const s = 0.75;
-  const w = Math.round(art.w * s);
-  const h = Math.round(art.h * s);
-  const dx = Math.round(x - w / 2 + Math.sin(boss.t / 170) * boss.wobble);
-  const dy = Math.round(y - h + (1 - boss.rise) * 10);
+  const w = BOSS_FIELD.w;
+  const h = BOSS_FIELD.h;
+  // the pool of dusk it rises from
+  const pw = Math.round(22 + 18 * Math.min(1, boss.rise * 1.6));
+  for (let i = 0; i < 4; i++) {
+    const rw = pw - i * 5;
+    const rh = Math.max(2, Math.round(rw * 0.22));
+    g.alpha(0.35 + i * 0.12, () => {
+      for (let yy = -rh; yy <= rh; yy++) {
+        const half = Math.round(rw * Math.sqrt(1 - (yy * yy) / (rh * rh)));
+        g.rect(x - half, y - 1 + yy, half * 2, 1, i < 2 ? '#1B1733' : '#0B0B14');
+      }
+    });
+  }
+  const img = bossField(Math.floor(boss.t / 140));
+  const dx = x - Math.floor(w / 2);
+  const dy = y - h + 2 + Math.round((1 - ease.cubicOut(boss.rise)) * 14);
   const shown = Math.round(h * boss.rise);
-  // the dark it rises from: a soft pool under it
-  const ctx = g.ctx;
-  ctx.save();
-  ctx.globalAlpha = 0.5 * boss.rise;
-  ctx.fillStyle = '#1B1733';
-  ctx.beginPath();
-  ctx.ellipse(Math.round(x), Math.round(y - 2), w * 0.46, 7, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 0.35 * boss.rise;
-  ctx.beginPath();
-  ctx.ellipse(Math.round(x), Math.round(y - 2), w * 0.56, 10, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-  g.clip(dx, dy + h - shown, w, shown, () => {
-    g.ctx.save();
-    g.ctx.imageSmoothingEnabled = false;
-    g.ctx.globalAlpha = boss.alpha;
-    g.ctx.drawImage(img, dx, dy, w, h);
-    g.ctx.restore();
+  g.clip(dx - 2, y + 2 - shown - 14, w + 4, shown + 14, () => {
+    g.alpha(boss.alpha, () => {
+      g.img(img, dx, dy);
+      bossEyes(g, dx, dy, boss.pupil, boss.open);
+    });
   });
 }
 
@@ -228,7 +267,7 @@ registerScript('evt_boss_intro', function* (): Co {
   lvTime.pileHidden = true;
   boss.rise = 0;
   boss.pupil = 0;
-  boss.wobble = 2;
+  boss.open = 0;
   spawnBoss();
   sfx('se_rumble', { vol: 1, pitch: 0.7 });
   const t0 = f.t;
@@ -239,6 +278,8 @@ registerScript('evt_boss_intro', function* (): Co {
   game.shake(2, 200);
   yield 300;
   // the name-tag eyes open and look for Minato
+  yield* animate(260, (k) => (boss.open = k));
+  boss.open = 1;
   for (const px of [-1, 1, -0.6, 0.4, 0]) {
     const from = boss.pupil;
     const s0 = f.t;

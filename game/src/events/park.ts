@@ -121,22 +121,29 @@ const waves = { on: false, t: 0 };
 registerWorldFx({
   map: 'map_town',
   update(_f, dt) {
+    if (waves.on && !game.scripts.busy) waves.on = false;
     if (waves.on) waves.t += dt;
   },
   draw(_f, g, cx, cy, layer) {
     if (layer !== 'glow' || !waves.on) return;
     const [hx, hy] = speakerHorns();
     for (let i = 0; i < 3; i++) {
-      const k = ((waves.t / 900 + i / 3) % 1);
-      const r = 4 + Math.round(k * 16);
-      const a = (1 - k) * 0.85;
+      const k = (waves.t / 900 + i / 3) % 1;
+      const r = 3 + Math.round(k * 18);
+      const a = Math.sin(Math.PI * Math.min(1, k * 1.2)) * 0.9;
+      const hh = 2 + Math.round(k * 4);
       for (const side of [-1, 1]) {
-        const x0 = Math.round(hx - cx + side * 9);
+        const x0 = Math.round(hx - cx + side * 12);
         const y0 = Math.round(hy - cy);
-        for (let dy = -3; dy <= 3; dy++) {
-          const dx = Math.round(r - (dy * dy) / Math.max(2, r * 0.35));
-          g.alpha(a, () => g.px(x0 + side * dx, y0 + dy, '#FFF6D8'));
-        }
+        g.alpha(a, () => {
+          for (let dy = -hh; dy <= hh; dy++) {
+            const dx = Math.round(r - (dy * dy) / Math.max(2, r * 0.45));
+            // a 2 px arc with a soft shadow under it, so it reads on grass and sky
+            g.px(x0 + side * dx, y0 + dy + 1, '#2A2440');
+            g.px(x0 + side * dx, y0 + dy, '#FFFFFF');
+            g.px(x0 + side * (dx + 1), y0 + dy, '#FFF6D8');
+          }
+        });
       }
     }
   },

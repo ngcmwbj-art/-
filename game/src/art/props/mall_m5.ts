@@ -33,7 +33,7 @@ export function maigoTubeOn(t: number): boolean {
 registerProp('mall_m5_shell', () => {
   const rows = getMapDef('map_mall_maigo')?.rows ?? [];
   const blocked = (tx: number, ty: number) => ty <= 5 || (ty === 7 && tx <= 3) || (tx <= 4 && ty >= 6);
-  const tiles = mallTiles({ seed: 551, w: 14, h: 11, blocked });
+  const tiles = mallTiles({ seed: 551, w: 14, h: 11, blocked, decals: [{ x: 150, y: 130, kind: 'balloon' }, { x: 176, y: 148, kind: 'tape', w: 20, h: 10 }] });
   const sh = paintShell({
     rows,
     floor: (x, y, tx, ty) => {
@@ -437,8 +437,7 @@ function buildPile(): { img: HTMLCanvasElement; rim: HTMLCanvasElement } {
       const v = p.get(x, y);
       if (!(v >>> 24)) continue;
       const low = Math.max(0, (y - 44) / 20);
-      if (low > 0 && ((x + y) & 1) === 0 && low > 0.3) blend(p, x, y, P.nightShade, 0.25 * low);
-      else if (low > 0) blend(p, x, y, P.nightShade, 0.12 * low);
+      if (low > 0) blend(p, x, y, P.nightShade, 0.2 * low);
     }
   // the trembling rim: the outline pixels of the heap's silhouette
   const rim = new PixelCanvas(PILE_W + 2, PILE_H + 2);
@@ -597,14 +596,49 @@ registerProp('mall_mobile', () => {
     });
   }, (p) => finish(p, { soft: true, rim: false }));
   const oy = -46;
+  // the thread it hangs from runs all the way up to the ceiling (off the top
+  // of the room), so it never reads as a figurine standing on the floor
+  const thread = new PixelCanvas(1, 96 + oy);
+  for (let y = 0; y < thread.h; y++) thread.set(0, y, y % 9 === 4 ? P.white : P.steel);
+  const threadImg = thread.toCanvas();
   return {
     ox: 2,
-    oy,
+    oy: -96,
     w: 30,
-    h: 30,
+    h: 96 + oy + 30,
     foot: 0,
     img: () => null,
-    fg: [{ ox: 2, oy, img: (env: PropEnv) => frames[Math.floor(env.t / 900) % 4] }],
+    fg: [
+      { ox: 17, oy: -96, img: () => threadImg },
+      { ox: 2, oy, img: (env: PropEnv) => frames[Math.floor(env.t / 900) % 4] },
+    ],
+  } as PropArt;
+});
+
+// ---------------------------------------------------------------- the mobile's shadow on the play mats (2,6)
+
+registerProp('mall_mobile_shadow', () => {
+  // a soft shadow straight below it: the two crossed sticks turning with it
+  const frames = mkFrames(4, 30, 10, (p, k) => {
+    const a = (k / 4) * Math.PI;
+    const dx = Math.round(Math.cos(a) * 10);
+    const dy = Math.round(Math.sin(a) * 2);
+    for (let y = 0; y < 10; y++)
+      for (let x = 0; x < 30; x++) {
+        const r = ((x + 0.5 - 15) / 11) ** 2 + ((y + 0.5 - 5) / 3.4) ** 2;
+        if (r <= 1) p.set(x, y, r < 0.35 ? '#3A2B5C38' : '#3A2B5C22');
+      }
+    p.line(15 - dx, 5 - dy, 15 + dx, 5 + dy, '#3A2B5C55');
+    p.line(15 - Math.round(dx * 0.4), 7, 15 + Math.round(dx * 0.4), 3, '#3A2B5C44');
+  });
+  return {
+    ox: 2,
+    oy: 6,
+    w: 30,
+    h: 10,
+    foot: 0,
+    flat: true,
+    img: (env: PropEnv) => frames[Math.floor(env.t / 900) % 4],
   } as PropArt;
 });
 

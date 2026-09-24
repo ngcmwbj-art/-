@@ -12,7 +12,7 @@ import { boards } from '../tiles/ifloor';
 import { ihash, valueNoise } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { clockFace, framed, goodsRow, kidDrawing, notice, pc, prop } from './ifurn';
-import { blend, depthShade, lightPool, paintShell, screenPool, screenSpill, shellProp } from './ishell';
+import { blend, depthShade, dust, lightPool, paintShell, screenPool, screenSpill, shellProp, tube } from './ishell';
 import { castRight, dk, finish, lt, outline } from './kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
@@ -56,18 +56,10 @@ registerProp('in_hi_shell', () => {
   });
   const p = sh.p;
   // ---- north wall
-  // (2) hanging snack strips and a bunch of paper balloons on a nail
+  // (2) hanging snack strips (drawn in over(): they sway in the fan's
+  // breeze) and a bunch of paper balloons on a nail
   p.set(34, 3, P.steel);
-  for (let k = 0; k < 3; k++) {
-    const x = 33 + k * 4;
-    const c = BAGS[k];
-    for (let j = 0; j < 4; j++) {
-      p.rect(x, 5 + j * 5, 3, 4, c);
-      p.hline(x, x + 2, 5 + j * 5, lt(c));
-      p.set(x + 1, 7 + j * 5, P.white);
-    }
-    p.vline(x + 1, 4, 24, P.charcoal);
-  }
+  p.hline(33, 43, 4, P.charcoal);
   for (const [bx, by, c] of [[44, 6, P.crimson], [44, 11, P.gold], [46, 9, P.aqua]] as const) {
     p.ellipse(bx + 0.5, by + 0.5, 1.8, 1.8, c);
     p.set(bx, by, lt(c));
@@ -172,8 +164,26 @@ registerProp('in_hi_shell', () => {
     img,
     glass: sh.glass.toCanvas(),
     over(g: Gfx, x: number, y: number, env: PropEnv) {
+      // the snack strips: each packet swings a little further than the one above
+      for (let k = 0; k < 3; k++) {
+        const sx = x + 33 + k * 4;
+        const ph = env.mt / 520 + k * 1.9;
+        for (let j = 0; j < 4; j++) {
+          const c = BAGS[k];
+          const d = Math.round(Math.sin(ph) * j * 0.45);
+          const py = y + 5 + j * 5;
+          g.rect(sx + 1 + Math.round(Math.sin(ph) * Math.max(0, j - 0.5) * 0.45), py - 1, 1, 1, P.charcoal);
+          g.rect(sx + d, py, 3, 4, c);
+          g.rect(sx + d, py, 3, 1, lt(c));
+          g.rect(sx + d + 2, py + 1, 1, 3, dk(c));
+          g.rect(sx + d + 1, py + 2, 1, 1, P.white);
+        }
+      }
       depthShade(g, x + 16, y + 32, W - 32, 80, 0.2);
       const n = env.grade.night;
+      // dust turning slowly in the low sun from the door and under the lamp
+      // (it drifts on even while time stands still)
+      dust(g, x + 44, y + 60, 60, 50, 0.1, 14, env.t, 6203, 0.6 - n * 0.3);
       // the enamel-shade lamp over the customers
       screenPool(g, x + 72, y + 86, 40, 20, P.sky, 0.22 + n * 0.14);
       // the doorway: the late sun comes in low (stage colours)
@@ -284,41 +294,42 @@ registerProp('in_hi_back', () => {
 // ---------------------------------------------------------------- stationery shelf on the west wall (1, 2–4), side view
 
 registerProp('in_hi_bungu', () =>
-  prop(16, 62, (p) => {
-    // side panel of a tall narrow shelf, goods poking out to the east
-    p.rect(1, 2, 6, 60, P.wood);
-    p.vline(1, 2, 61, P.woodLt);
-    p.vline(6, 2, 61, P.woodDark);
-    p.hline(1, 6, 2, P.goldPale);
-    const shelves = [10, 22, 34, 46];
+  prop(16, 48, (p) => {
+    // side panel of a narrow shelf standing against the west wall, goods
+    // poking out to the east; its top stays under the pendulum clock
+    p.rect(1, 1, 6, 47, P.wood);
+    p.vline(1, 1, 47, P.woodLt);
+    p.vline(6, 1, 47, P.woodDark);
+    p.hline(1, 6, 1, P.goldPale);
+    const shelves = [9, 20, 31];
     for (const sy of shelves) {
       p.rect(6, sy, 8, 2, P.woodLt);
       p.hline(6, 13, sy, P.goldPale);
       p.hline(6, 13, sy + 2, P.ink);
     }
-    // top: notebooks (spines) standing
+    // top: notebooks (spines) standing, one leaning
     for (let k = 0; k < 4; k++) {
       const c = [P.leafDeep, P.blue, P.red, P.gold][k];
-      p.rect(7 + k * 2, 3, 2, 7, c);
+      p.rect(7 + k * 2, 3, 2, 6, c);
       p.set(7 + k * 2, 3, lt(c));
     }
+    p.set(13, 2, P.gold);
     // pencils in a cup, erasers, a red pen
-    p.rect(8, 16, 4, 6, P.concreteLt);
-    for (const [xx, c] of [[8, P.gold], [9, P.red], [10, P.leaf], [11, P.blue]] as const) p.vline(xx, 12, 15, c);
-    p.rect(8, 27, 3, 2, P.white);
-    p.rect(11, 28, 2, 2, P.peach);
-    p.rect(7, 25, 6, 1, P.verm);
-    // stamp pads (red and black) and a jar of glue
-    p.rect(7, 39, 5, 3, P.navy);
-    p.rect(8, 39, 3, 2, P.verm);
-    p.rect(9, 36, 3, 3, P.white);
-    p.set(9, 36, P.gold);
+    p.rect(8, 15, 4, 5, P.concreteLt);
+    for (const [xx, c] of [[8, P.gold], [9, P.red], [10, P.leaf], [11, P.blue]] as const) p.vline(xx, 11, 14, c);
+    p.rect(12, 18, 2, 2, P.peach);
+    // stamp pads (red and black), a jar of glue, a red pen
+    p.rect(7, 28, 5, 3, P.navy);
+    p.rect(8, 28, 3, 2, P.verm);
+    p.rect(10, 24, 3, 4, P.white);
+    p.set(10, 24, P.gold);
+    p.rect(7, 23, 3, 1, P.verm);
     // bottom: boxes of chalk and a stack of drawing paper
-    p.rect(7, 50, 7, 5, P.paper);
-    p.hline(7, 13, 50, P.white);
-    p.rect(7, 56, 6, 5, P.woodLt);
-    p.hline(7, 12, 56, P.goldPale);
-    p.hline(1, 13, 61, P.ink);
+    p.rect(7, 35, 7, 5, P.paper);
+    p.hline(7, 13, 35, P.white);
+    p.rect(7, 41, 6, 5, P.woodLt);
+    p.hline(7, 12, 41, P.goldPale);
+    p.hline(1, 13, 47, P.ink);
     // price tags on the shelf edges
     for (const sy of shelves) p.set(12, sy + 1, P.verm);
   }, { base: 48, foot: 47, contact: 0, shadow: 0 }),
@@ -370,7 +381,20 @@ registerProp('in_hi_counter', () => {
   p.set(72, 2, P.leafYoung);
   p.set(68, 2, P.white);
   finish(p, { soft: true });
-  return stand(p.toCanvas(), { cx: 40, base: 16, contact: 0, shadow: 0 });
+  const a = stand(p.toCanvas(), { cx: 40, base: 16, contact: 0, shadow: 0 });
+  // one tab of the 当てくじ card (already torn half off) lifts in the fan's
+  // breeze whenever the fan's head swings round towards it
+  a.over = (g: Gfx, x: number, y: number, env: PropEnv) => {
+    const face = hiFanFace(env);
+    const up = env.stage !== 1 && face < 0 ? 1 + (Math.floor(env.mt / 120) % 2) : 0;
+    const bx = x + a.ox + 60;
+    const by = y + a.oy + 5;
+    g.rect(bx, by - up, 2, 2, P.paper);
+    g.rect(bx, by - up + 1, 2, 1, up ? P.paperGrid : P.paper);
+    if (up) g.rect(bx, by + 1, 2, 1, P.woodDark);
+    if (up === 2) g.rect(bx + 1, by - 3, 1, 1, P.white);
+  };
+  return a;
 });
 
 // ---------------------------------------------------------------- dagashi displays (8,2) (7–8,3–4) (8,5)
@@ -518,51 +542,76 @@ registerProp('in_hi_jars', () =>
 
 // ---------------------------------------------------------------- the pig mosquito-coil holder (3,6)
 
-// the white-glazed pig (蚊やりブタ) facing us: a round ceramic body, the big
-// round snout opening dark inside with the coil's ember in it, pointed ears,
-// four stub legs, a glaze highlight; smoke curls up out of the snout (frame 3
-// = stage 1: the smoke hangs frozen in the air)
-function kayariPig(p: PixelCanvas, y0: number): void {
-  // ears (behind the head)
-  p.poly([[2, y0 + 4], [4, y0], [7, y0 + 3]], P.concrete);
-  p.poly([[12, y0 + 3], [15, y0], [17, y0 + 4]], P.steel);
-  p.set(4, y0 + 2, P.peach);
-  p.set(15, y0 + 2, P.sunShade);
-  // four stub legs (the back pair peeking out between the front ones)
-  for (const [lx, c] of [[5, P.concrete], [11, P.steel], [2, P.concreteLt], [14, P.steel]] as const) p.rect(lx, y0 + 12, 3, lx === 5 || lx === 11 ? 2 : 3, c);
-  // the round glazed body: lit upper left, shade lower right
-  for (let y = 0; y < 13; y++)
-    for (let x = 0; x < 19; x++) {
-      const dx = (x + 0.5 - 9.5) / 9;
-      const dy = (y + 0.5 - 7) / 6.5;
+// the unglazed terracotta pig (蚊やりブタ, 14×10) lying on the boards, seen
+// from the side and a little above, facing west: a fat barrel of a body lit
+// on its back, the snout end open as a round mouth — a bright pink rim with
+// the coil's ember glowing deep inside — droopy round ears, a dot of an eye,
+// four stub legs and a curled tail; the smoke curls up out of the snout
+// (frame 3 = stage 1: the smoke hangs frozen in the air)
+const TERRA = '#B8643A';
+const TERRA_LT = '#D8895A';
+const TERRA_HI = '#EDB08A';
+const TERRA_SH = '#8A4428';
+const TERRA_DK = '#5A2A1A';
+function kayariPig(p: PixelCanvas, x0: number, y0: number): void {
+  const P_ = (x: number, y: number, c: string) => p.set(x0 + x, y0 + y, c);
+  // four stub legs: the near pair in front, the far pair darker between them
+  for (const [lx, c] of [[5, TERRA_SH], [10, TERRA_SH], [4, TERRA], [11, TERRA]] as const) {
+    P_(lx, 9, c);
+    P_(lx, 10, lx === 4 || lx === 11 ? TERRA_SH : TERRA_DK);
+  }
+  // the barrel body (x 3–13, y 2–9): the back lit, the belly in shade, rounded ends
+  const rowCol = [TERRA_HI, TERRA_LT, TERRA_LT, TERRA, TERRA, TERRA, TERRA_SH, TERRA_SH];
+  for (let y = 2; y <= 9; y++)
+    for (let x = 3; x <= 13; x++) {
+      if ((y === 2 || y === 9) && (x === 3 || x === 13 || x === 12)) continue;
+      if ((y === 3 || y === 8) && x === 13) continue;
+      P_(x, y, x === 13 || (x === 12 && y > 3) ? (y < 5 ? TERRA : TERRA_SH) : rowCol[y - 2]);
+    }
+  // the rough unglazed clay: a few darker grains, a pale scuff on the back
+  for (const [gx, gy] of [[9, 4], [11, 6], [7, 7], [10, 3]] as const) P_(gx, gy, TERRA_SH);
+  P_(8, 2, P.glint);
+  // droopy round ears flopping forward over the head (the near one bigger)
+  P_(5, 0, TERRA_LT);
+  P_(6, 0, TERRA_LT);
+  P_(4, 1, TERRA_LT);
+  P_(5, 1, TERRA_HI);
+  P_(6, 1, TERRA);
+  P_(4, 2, TERRA_SH);
+  P_(5, 2, TERRA_SH);
+  P_(8, 0, TERRA_SH);
+  P_(8, 1, TERRA);
+  P_(9, 1, TERRA_SH);
+  // the snout end: a round open mouth — bright pink rim, dark inside, the ember
+  for (let y = 2; y <= 8; y++)
+    for (let x = 0; x <= 5; x++) {
+      const dx = (x + 0.5 - 2.6) / 2.7;
+      const dy = (y + 0.5 - 5.5) / 3.1;
       const d = dx * dx + dy * dy;
       if (d > 1) continue;
-      const l = dx * 0.7 + dy * 0.8;
-      p.set(x, y0 + y, l < -0.55 ? P.glint : l < -0.1 ? P.white : l < 0.45 ? P.concreteLt : l < 0.8 ? P.concrete : P.steel);
+      const inner = ((x + 0.5 - 2.7) / 1.6) ** 2 + ((y + 0.5 - 5.6) / 2) ** 2 <= 1;
+      P_(x, y, inner ? '#3A1A14' : dx < -0.2 && dy < 0 ? '#FFD0C4' : '#F09A8C');
     }
-  // eyes above the snout, a blush
-  p.set(5, y0 + 4, P.ink);
-  p.set(13, y0 + 4, P.ink);
-  p.set(4, y0 + 6, P.peach);
-  p.set(14, y0 + 6, P.skin3);
-  // the snout: a raised round lip, dark inside, the coil's spiral and ember
-  p.ellipse(9.5, y0 + 8, 4.6, 4, P.concreteLt);
-  p.ellipse(9.5, y0 + 8.3, 3.6, 3.1, P.ink);
-  p.ellipse(9.5, y0 + 8.6, 2.6, 2.1, P.nightShade);
-  p.ring(9.5, y0 + 8.6, 2.2, 1.6, P.charcoal);
-  p.set(7, y0 + 5, P.glint);
-  p.set(8, y0 + 5, P.white);
-  p.set(12, y0 + 11, P.steel);
-  p.set(10, y0 + 9, P.vermLt);
+  P_(2, 6, P.sunDeep);
+  P_(3, 5, '#6A2A1A');
+  // the eye behind the snout, a scratched-in smile
+  P_(6, 4, P.ink);
+  P_(6, 7, TERRA_SH);
+  P_(7, 7, TERRA_SH);
+  // the curled tail on the east end
+  P_(14, 5, TERRA);
+  P_(15, 4, TERRA_SH);
+  P_(15, 3, TERRA);
+  P_(14, 3, TERRA_LT);
 }
 
-const KAYARI = mkFrames(4, 19, 26, (p, k) => {
-  kayariPig(p, 12);
-  // smoke: soft 2px puffs rising out of the snout, drifting east
+const KAYARI = mkFrames(4, 18, 25, (p, k) => {
+  kayariPig(p, 1, 13);
+  // smoke: soft puffs rising out of the snout, drifting east with the draught
   const puffs =
     k === 3
-      ? [[9, 10, 0], [10, 6, 1], [12, 2, 2]]
-      : [[9, 11 - k * 1.5, 0], [10 + (k % 2), 7 - k * 1.5, 1], [12 + (k === 2 ? 1 : 0), 3 - k * 1.2, 2]];
+      ? [[3, 10, 0], [4, 6, 1], [6, 2, 2]]
+      : [[3, 11 - k * 1.5, 0], [4 + (k % 2), 7 - k * 1.5, 1], [6 + (k === 2 ? 1 : 0), 3 - k * 1.2, 2]];
   for (const [x, y, i] of puffs) {
     const yy = Math.round(y);
     if (yy < 0) continue;
@@ -570,15 +619,27 @@ const KAYARI = mkFrames(4, 19, 26, (p, k) => {
     p.set(Math.round(x) + 1, yy, P.concrete);
     if (i < 2) p.set(Math.round(x), yy - 1, P.concrete);
   }
-}, (p) => outline(p, { soft: true, bottom: true }));
+}, (p) => {
+  // a dark reddish-brown outline round the pig only (not round the smoke)
+  const w = p.w;
+  const h = p.h;
+  const src = p.clone();
+  for (let y = 12; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      if (src.alpha(x, y)) continue;
+      const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => y + dy >= 13 && (src.get(x + dx, y + dy) >>> 24) === 255);
+      if (nb) p.set(x, y, TERRA_DK);
+    }
+});
 registerProp('in_hi_kayari', () => {
-  const a = stand(KAYARI[0], { base: 15, shadow: 0, contact: 14 });
+  const a = stand(KAYARI[0], { base: 16, shadow: 0, contact: 13 });
   a.img = (env) => KAYARI[env.stage === 1 ? 3 : Math.floor(env.mt / 300) % 3];
   a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
-    // the tip of the coil glows deep in the snout
-    const on = env.stage === 1 ? 0.7 : 0.6 + Math.sin(env.t / 300) * 0.3;
-    g.rect(x + a.ox + 10, y + a.oy + 21, 1, 1, P.gold, on);
-    g.rect(x + a.ox + 9, y + a.oy + 21, 1, 1, P.sunDeep, on * 0.6);
+    // the tip of the coil glows deep in the snout, breathing even when time stands still
+    const on = 0.55 + Math.sin(env.t / 420) * 0.4;
+    g.rect(x + a.ox + 3, y + a.oy + 19, 1, 1, P.gold, on);
+    g.rect(x + a.ox + 4, y + a.oy + 18, 1, 1, P.sunDeep, on * 0.7);
+    screenPool(g, x + a.ox + 3, y + a.oy + 20, 8, 5, P.sunDeep, 0.3 * on);
   };
   return a;
 });
@@ -612,10 +673,27 @@ registerProp('in_hi_ramune', () => {
   finish(p, { soft: true });
   const a = stand(p.toCanvas(), { base: 16, contact: 12, shadow: 0 });
   a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
-    // the inside glows blue-white (#7FD1E8) and lights the floor a little
-    const fl = 0.9 + Math.sin(env.t / 700) * 0.05;
-    g.rect(x + a.ox + 3, y + a.oy + 8, 10, 16, P.aqua, 0.18 * fl);
-    screenPool(g, x + a.ox - 2, y + a.oy + 24, 12, 7, P.aqua, 0.16 * fl);
+    // the inside glows blue-white (#7FD1E8) and lights the floor a little;
+    // the old tube in the case stutters now and then
+    const on = tube(env.t, 6201, [1500, 3800], [60, 180]);
+    const fl = on ? 0.95 + Math.sin(env.t / 700) * 0.05 : 0.3;
+    g.rect(x + a.ox + 3, y + a.oy + 8, 10, 16, P.aqua, 0.22 * fl);
+    g.rect(x + a.ox + 3, y + a.oy + 8, 10, 1, P.glint, 0.5 * fl);
+    screenPool(g, x + a.ox - 2, y + a.oy + 24, 12, 7, P.aqua, 0.18 * fl);
+  };
+  // a moth batting round the glass (it hangs still in mid-air while time stands still)
+  a.over = (g: Gfx, x: number, y: number, env: PropEnv) => {
+    const t = env.mt / 1000;
+    const mx = Math.round(x + a.ox + 8 + Math.sin(t * 2.3) * 7 + Math.sin(t * 5.1) * 1.5);
+    const my = Math.round(y + a.oy + 9 + Math.cos(t * 1.7) * 6 + Math.sin(t * 7.3));
+    const open = env.stage === 1 || Math.floor(env.mt / 70) % 2 === 0;
+    g.rect(mx, my, 1, 2, P.woodDark);
+    if (open) {
+      g.rect(mx - 1, my, 1, 1, P.paperGrid);
+      g.rect(mx + 1, my, 1, 1, P.paperGrid);
+      g.rect(mx - 1, my + 1, 1, 1, P.woodLt);
+      g.rect(mx + 1, my + 1, 1, 1, P.woodLt);
+    } else g.rect(mx, my - 1, 1, 1, P.paperGrid);
   };
   return a;
 });
@@ -670,6 +748,11 @@ const HFAN = mkFrames(5, 12, 20, (p, k) => {
   for (const [bx, by] of bl) p.set(bx + face, by, P.blue);
   p.set(6 + face, 6, P.steel);
 }, (p) => finish(p, { soft: true }));
+/** Where the little fan's head points: -1 west (towards the 当てくじ), 0, +1 east. */
+function hiFanFace(env: PropEnv): number {
+  return [-1, 0, 1, 0][Math.floor(env.mt / 380) % 4];
+}
+
 registerProp('in_hi_fan', () => {
   const a = stand(HFAN[0], { base: 12, shadow: 0, contact: 8 });
   a.img = (env) => HFAN[env.stage === 1 ? 4 : Math.floor(env.mt / 380) % 4];
@@ -679,4 +762,3 @@ registerProp('in_hi_fan', () => {
 void notice;
 void printLines;
 void blend;
-void dk;

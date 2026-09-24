@@ -5,11 +5,12 @@ import type { Co } from '../engine/co';
 import { flag } from '../game/state';
 import { actor, msg, registerScript, stage } from '../world/api';
 import { pickStage } from '../world/maps';
-import { fushigiDone } from '../world/fushigi';
+import { fushigiDone, getFushigi, registerFushigi } from '../world/fushigi';
 import { sfx } from '../audio';
 import { CART_CORRAL_DONE, GACHA_GINZA, GACHA_GINZA_S1, OBJ_TEXT, POSTER_WITH_KANENARI } from '../data/text/objects';
 import { placeWaitingObaa } from './chime';
-import { F, holdBgm } from './lib';
+import { F, holdBgm, itemName } from './lib';
+import { quietItem } from './stage';
 
 // ---------------------------------------------------------------- map_town_enter
 
@@ -65,3 +66,35 @@ registerScript('evt_gacha_ginza', function* (): Co {
   yield* msg(`${GACHA_GINZA}\n!gacha`);
 });
 
+
+// ---------------------------------------------------------------- fushigi_05: the reward is said once
+
+/**
+ * The dryer's reward (ハッカあめ) is announced by its @sys line; the plain
+ * reward path added the item afterwards and the HUD's pick-up card popped up
+ * over the next message. Here the item is given right under its own line,
+ * without the card.
+ */
+{
+  const d = getFushigi('fushigi_05');
+  if (d?.item) {
+    const item = d.item;
+    const i = d.pressed.indexOf('@sys');
+    const before = i >= 0 ? d.pressed.slice(0, i).trimEnd() : d.pressed;
+    const line = i >= 0 ? d.pressed.slice(i) : `@sys\n${itemName(item)}を 手に入れた！`;
+    registerFushigi({
+      ...d,
+      pressed: before,
+      item: undefined,
+      onPress: function* (): Co {
+        const r = d.onPress?.();
+        if (r) yield* r;
+        const ok = yield* quietItem(item);
+        if (ok) {
+          sfx('se_item');
+          yield* msg(line);
+        } else yield* msg(`@sys\n${itemName(item)}を 見つけた。\nでも、もちものが いっぱいだ。`);
+      },
+    });
+  }
+}

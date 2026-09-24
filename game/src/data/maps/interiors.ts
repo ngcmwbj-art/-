@@ -87,6 +87,8 @@ registerMap({
 
 // ================================================================ 4.4 map_hinoya（駄菓子 ひのや、10×8）
 
+// 4.4's grid with the pig mosquito-coil holder's tile (3,6) made solid: the
+// follower arrives beside Minato at the door and would stand on it.
 export const ROWS_HINOYA = [
   '#WWWWWWWW#',
   '#WWWWWWWW#',
@@ -94,7 +96,7 @@ export const ROWS_HINOYA = [
   '#oSSSSSoo#',
   '#o.....oo#',
   '#...oo..o#',
-  '#.......o#',
+  '#..o....o#',
   '####D#####',
 ];
 
@@ -132,7 +134,7 @@ registerMap({
     O('obj_kuji', 5, 3),
     O('obj_dagashi_shelf', 7, 3, { w: 2, h: 3 }),
     O('obj_dagashi_shelf', 8, 2, { id: 'obj_dagashi_shelf_n', script: 'obj_dagashi_shelf' }),
-    O('obj_kayaributa', 3, 6, { flat: true }),
+    O('obj_kayaributa', 3, 6),
     O('obj_ramune_case', 8, 6),
     {
       t: 'npc', id: 'npc_obaa', x: 4, y: 2, dir: 'down', script: 'npc_obaa', talk: ITALK.npc_obaa, pose: 'breathe',

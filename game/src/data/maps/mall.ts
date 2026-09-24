@@ -83,7 +83,7 @@ registerMap({
     PR('mall_balloon', 15, 2),
     PR('mall_autodoor', 10, 14),
     PR('mall_bag_scrap', 13, 13),
-    PR('mall_shaft', 0, 0, { fx: 148, fy: 115, fw: 50, fh: 28, rise: 108, shear: 0.62, motes: 12, seed: 5101, a: 0.26 }),
+    PR('mall_shaft', 0, 0, { fx: 150, fy: 101, fw: 50, fh: 26, rise: 100, shear: 0.62, motes: 12, seed: 5101, a: 0.2 }),
     PR('mall_exit_sign', 0, 7, { to: 'food' }),
     // examine
     O('obj_hall_clock', 10, 2, { w: 2, face: 'up' }),
@@ -311,6 +311,7 @@ registerMap({
     PR('mall_kids_locker', 12, 3),
     PR('mall_kids_chairs', 2, 7),
     PR('mall_maigo_tube', 6, 2),
+    PR('mall_mobile_shadow', 2, 6),
     PR('mall_mobile', 2, 6),
     // examine (log and mic before the counter: the first match wins)
     O('obj_maigo_log', 4, 3),

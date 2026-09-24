@@ -66,6 +66,8 @@ function rowS(y: number): number {
 }
 
 const HAZE = mix(P.shade, P.nightShade, 0.35);
+const lighten = (c: string) => mix(c, P.white, 0.3);
+const darken = (c: string) => mix(c, P.ink, 0.35);
 const smooth = (a: number, b: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
@@ -129,17 +131,17 @@ function build(): Atrium {
   const s0 = S_F;
   type Unit = { u0: number; u1: number; kind: string; c?: string };
   const units: Unit[] = [
-    { u0: -340, u1: -250, kind: 'corridorW' },
-    { u0: -250, u1: -120, kind: 'shutter', c: P.woodLt },
-    { u0: -120, u1: 14, kind: 'vacant' },
+    { u0: -340, u1: -190, kind: 'corridorW' },
+    { u0: -190, u1: -80, kind: 'shutter', c: P.woodLt },
+    { u0: -80, u1: 14, kind: 'vacant' },
     { u0: 18, u1: 78, kind: 'shutter', c: P.navy },
     { u0: 82, u1: 142, kind: 'cafe', c: P.woodDark },
     { u0: 146, u1: 206, kind: 'lift' },
     { u0: 210, u1: 254, kind: 'shutter', c: P.white },
     { u0: 258, u1: 334, kind: 'gacha', c: P.gold },
-    { u0: 338, u1: 460, kind: 'shutter', c: P.maroon },
-    { u0: 460, u1: 560, kind: 'vend' },
-    { u0: 560, u1: 720, kind: 'corridorE' },
+    { u0: 338, u1: 440, kind: 'shutter', c: P.maroon },
+    { u0: 440, u1: 540, kind: 'vend' },
+    { u0: 540, u1: 720, kind: 'corridorE' },
   ];
   for (let x = -M; x < 352 + M; x++) {
     const u = CX + (x + 0.5 - CX) / s0;
@@ -163,7 +165,7 @@ function build(): Atrium {
           case 'vacant':
             // an empty unit: dark glass, a 『テナント募集』 sheet taped inside
             c = r <= 2 ? P.concrete : P.charcoal;
-            if (r >= 4 && r <= 6 && Math.abs(u - (-54)) < 12) c = P.white;
+            if (r >= 4 && r <= 6 && Math.abs(u - (-34)) < 12) c = P.white;
             if (r === 3) c = P.asphalt;
             break;
           case 'cafe':
@@ -182,7 +184,7 @@ function build(): Atrium {
             break;
           case 'vend':
             c = r <= 1 ? P.paperGrid : P.charcoal;
-            if (r >= 2 && r <= 6 && (Math.abs(u - 490) < 10 || Math.abs(u - 530) < 10)) c = r === 2 ? P.white : r <= 4 ? P.aqua : P.steel;
+            if (r >= 2 && r <= 6 && (Math.abs(u - 470) < 10 || Math.abs(u - 505) < 10)) c = r === 2 ? P.white : r <= 4 ? P.aqua : P.steel;
             break;
           default: // shutter under a fascia
             c = r <= 2 ? un.c! : (r & 1) ? P.concrete : P.steel;
@@ -239,38 +241,84 @@ function build(): Atrium {
 
   // ---- things on the far floor, far to near
   // corridor mouths: a hanging sign each (fork & bowl west, the heart-rate line east), faint
-  for (const [u, col] of [[-295, P.sky], [640, P.aqua]] as const) {
+  for (const [u, col] of [[-245, P.sky], [590, P.aqua]] as const) {
     const [x] = proj(u, V_FAR);
     for (let i = -3; i <= 3; i++) put(base, x + i, WALL0 + 2, P.navy, s0, 0.5);
     for (let i = -2; i <= 2; i++) put(base, x + i, WALL0 + 3, i === 0 ? col : P.white, s0, 0.5);
   }
   // planters (dusty fake plants) and benches beyond the hall
   const planter = (u: number, v: number) => {
-    const [x, y, s] = proj(u, v);
-    for (let i = -2; i <= 2; i++) {
-      put(base, x + i, y - 1, i === 2 ? P.steel : P.concreteLt, s);
-      put(base, x + i, y - 2, P.concreteLt, s);
+    // a square planter (cream, lit left) with a dusty fake palm
+    const [x0, y0, s] = proj(u, v);
+    const x = Math.round(x0);
+    const y = Math.round(y0);
+    for (let j = 1; j <= 3; j++)
+      for (let i = -3; i <= 3; i++) put(base, x + i, y - j, i === 3 ? P.steel : i === -3 ? P.white : j === 3 ? P.concrete : P.concreteLt, s);
+    put(base, x - 3, y, P.nightShade, s);
+    for (let i = -2; i <= 3; i++) put(base, x + i, y, P.nightShade, s, 0.6);
+    const leaves: [number, number, string][] = [
+      [0, 4, P.leafShade], [0, 5, P.leaf], [-1, 6, P.leaf], [1, 6, P.leaf], [0, 7, P.leafYoung],
+      [-2, 5, P.leaf], [-3, 6, P.leafYoung], [2, 5, P.leafShade], [3, 6, P.leaf], [-1, 8, P.leafYoung], [1, 8, P.leaf], [-2, 7, P.leafShade], [2, 7, P.leafYoung],
+    ];
+    for (const [dx, dy, c] of leaves) put(base, x + dx, y - dy, c, s, 0.7);
+  };
+  const bench = (u: number, v: number, c: string) => {
+    // a padded bench seen from the front: backrest, seat, two steel legs, its shadow
+    const [x0, y0, s] = proj(u, v);
+    const w = Math.round(34 * s);
+    const x = Math.round(x0 - w / 2);
+    const y = Math.round(y0);
+    for (let i = 0; i < w; i++) {
+      put(base, x + i, y - 6, i === 0 ? lighten(c) : c, s);
+      put(base, x + i, y - 5, darken(c), s);
+      put(base, x + i, y - 4, lighten(c), s);
+      put(base, x + i, y - 3, c, s);
+      put(base, x + i, y, P.nightShade, s, 0.5);
     }
-    for (let k = 0; k < 9; k++) {
-      const hh = ihash(k, u, 891);
-      put(base, x - 3 + (hh % 7), y - 3 - ((hh >>> 3) % 5), k % 3 ? P.leaf : P.leafYoung, s, 0.8);
+    for (const lx of [1, w - 2]) {
+      put(base, x + lx, y - 2, P.steel, s);
+      put(base, x + lx, y - 1, P.asphalt, s);
     }
   };
-  const bench = (u: number, v: number) => {
-    const [x, y, s] = proj(u, v);
-    const w = Math.round(30 * s);
-    for (let i = 0; i < w; i++) {
-      put(base, x - w / 2 + i, y - 3, P.crimson, s);
-      put(base, x - w / 2 + i, y - 2, P.maroon, s);
+  const ride = (u: number, v: number) => {
+    // the 100-yen kiddie ride: a little yellow car under a striped canopy
+    const [x0, y0, s] = proj(u, v);
+    const x = Math.round(x0);
+    const y = Math.round(y0);
+    for (let i = -4; i <= 4; i++) {
+      put(base, x + i, y - 3, i < -2 ? P.goldPale : P.gold, s, 0.5);
+      put(base, x + i, y - 2, P.brass, s, 0.5);
     }
-    put(base, x - w / 2 + 1, y - 1, P.steel, s);
-    put(base, x + w / 2 - 2, y - 1, P.steel, s);
+    put(base, x - 3, y - 4, P.gold, s, 0.5);
+    put(base, x - 2, y - 4, P.aqua, s, 0.5);
+    put(base, x - 3, y - 1, P.ink, s, 0.5);
+    put(base, x + 3, y - 1, P.ink, s, 0.5);
+    for (let j = 5; j <= 9; j++) put(base, x + 2, y - j, P.steel, s, 0.5);
+    for (let i = -3; i <= 5; i++) put(base, x + i, y - 10, i % 2 ? P.white : P.red, s, 0.45);
+    for (let i = -2; i <= 4; i++) put(base, x + i, y - 11, i % 2 ? P.red : P.white, s, 0.45);
+    put(base, x + 5, y - 3, P.verm, s, 0.5);
+    for (let i = -4; i <= 5; i++) put(base, x + i, y, P.nightShade, s, 0.6);
+  };
+  const stroller = (u: number, v: number) => {
+    // a stroller someone left: navy hood, the frame, a handle, small wheels
+    const [x0, y0, s] = proj(u, v);
+    const x = Math.round(x0);
+    const y = Math.round(y0);
+    for (const [dx, dy, c] of [
+      [-2, 6, P.navy], [-1, 7, P.navy], [0, 7, P.blue], [1, 6, P.navy], [-2, 5, P.navy], [-1, 5, P.blue], [0, 5, P.aqua],
+      [-2, 4, P.navy], [-1, 4, P.navy], [0, 4, P.navy], [1, 4, P.navy], [2, 4, P.navy], [1, 5, P.shadeDeep],
+      [2, 5, P.steel], [3, 6, P.steel], [4, 7, P.charcoal], [-2, 2, P.steel], [2, 2, P.steel], [-2, 1, P.ink], [2, 1, P.ink],
+    ] as const)
+      put(base, x + dx, y - dy, c, s, 0.5);
+    for (let i = -2; i <= 3; i++) put(base, x + i, y, P.nightShade, s, 0.6);
   };
   planter(-40, 70);
   planter(400, 86);
-  bench(-120, 150);
-  bench(470, 168);
+  bench(-120, 150, P.crimson);
+  bench(470, 168, P.blue);
   planter(-70, 196);
+  ride(-10, 214);
+  stroller(372, 206);
 
   // the gacha corner: eight little machines, domes over coloured bodies
   for (const [u, v, col] of GACHA) {
@@ -393,6 +441,29 @@ function build(): Atrium {
     put(base, x + 2, y - 8, P.gold, s, 0.3);
   }
 
+  // litter on the 1F floor: a capsule, the white bag in the door's draft, a paper cup
+  for (const [u, v, c1, c2] of [
+    [238, 118, P.crimson, P.white],
+    [212, 214, P.white, P.concreteLt],
+    [84, 150, P.aqua, P.white],
+    [150, 204, P.white, P.steel],
+    [322, 176, P.gold, P.white],
+  ] as const) {
+    const [x, y, s] = proj(u, v);
+    put(base, x, y, c1, s, 0.4);
+    put(base, x + 1, y, c2, s, 0.4);
+  }
+  // the entrance mat (navy, the bell logo worn off)
+  {
+    const [xl, y0, s] = proj(156, 210);
+    const [xr] = proj(196, 210);
+    for (let y = Math.round(y0); y < BOT; y++)
+      for (let x = Math.round(xl); x <= Math.round(xr); x++) {
+        const edge = x === Math.round(xl) || x === Math.round(xr) || y === Math.round(y0);
+        put(base, x, y, edge ? P.nightShade : P.navy, s, 0.45);
+      }
+  }
+
   // ---- near layer: the info counter (in front of the near pillars)
   {
     const [xl, yb, s] = proj(64, 212);
@@ -403,27 +474,40 @@ function build(): Atrium {
     const top = Math.round(yt);
     const bot = Math.round(yb);
     for (let x = x0; x <= x1; x++) {
-      for (let y = top - 6; y <= top - 5; y++) put(near, x, y, y === top - 6 ? P.glint : P.white, s, 0.35);
-      for (let y = top - 4; y <= bot; y++) {
-        const r = y - (top - 4);
-        const c = r === 2 ? P.blue : r === 3 ? P.navy : y === bot ? P.charcoal : P.concreteLt;
-        put(near, x, y, c, s, 0.4);
+      const e = x === x0 ? 1 : x === x1 ? 2 : 0;
+      // the counter top (2 rows: lit edge, surface), a dark lip, the face with the blue band
+      put(near, x, top - 6, e ? P.concrete : P.concreteLt, s, 0.55);
+      put(near, x, top - 5, e ? P.steel : P.concrete, s, 0.55);
+      put(near, x, top - 4, P.asphalt, s, 0.5);
+      for (let y = top - 3; y <= bot; y++) {
+        const r = y - (top - 3);
+        let c: string = r === 1 ? P.blue : r === 2 ? P.navy : P.concrete;
+        if (e === 2) c = P.steel;
+        put(near, x, y, c, s, 0.55);
       }
     }
-    // the INFO board on its pole, the call bell
+    // flyers, the call bell, the pen on its chain; the old poster on the front
+    put(near, x0 + 23, top - 6, P.white, s, 0.4);
+    put(near, x0 + 24, top - 6, P.white, s, 0.4);
+    put(near, x0 + 24, top - 7, P.paper, s, 0.4);
+    put(near, x0 + 6, top - 6, P.brass, s, 0.35);
+    put(near, x0 + 7, top - 6, P.brassOld, s, 0.35);
+    put(near, x0 + 6, top - 7, P.goldPale, s, 0.35);
+    for (let i = 0; i < 6; i++) put(near, x0 + 15 + i, top, i < 2 ? P.sun : P.paper, s, 0.5);
+    // the INFO board on its pole
     const ix = Math.round((x0 + x1) / 2);
-    put(near, ix, top - 7, P.steel, s, 0.4);
-    put(near, ix, top - 8, P.steel, s, 0.4);
+    put(near, ix, top - 7, P.steel, s, 0.5);
+    put(near, ix, top - 8, P.steel, s, 0.5);
     for (let i = -4; i <= 4; i++) {
-      put(near, ix + i, top - 11, P.aqua, s, 0.35);
-      put(near, ix + i, top - 10, i % 2 ? P.white : P.blue, s, 0.3);
-      put(near, ix + i, top - 9, P.navy, s, 0.35);
+      put(near, ix + i, top - 12, P.aqua, s, 0.45);
+      put(near, ix + i, top - 11, P.blue, s, 0.45);
+      put(near, ix + i, top - 10, Math.abs(i) <= 3 && i !== 0 ? P.white : P.blue, s, 0.45);
+      put(near, ix + i, top - 9, P.navy, s, 0.45);
     }
-    put(near, x0 + 5, top - 7, P.brass, s, 0.3);
   }
 
   // ---- the railing overlay: gallery lip, top rail, glass, posts, the slab's front
-  const rail = new PixelCanvas(352, WALL0 - 110);
+  const rail = new PixelCanvas(352, FLOOR0 - 110);
   const R = (x: number, y: number, c: string) => rail.set(x, y - 110, c);
   for (let x = 16; x < 336; x++) {
     R(x, 110, P.concrete);
@@ -434,22 +518,34 @@ function build(): Atrium {
     for (let y = 114; y < 127; y++) R(x, y, y === 114 ? '#E8E4D855' : '#9AA0A83A');
     R(x, 127, P.asphalt);
     // the slab's front: lit edge, cream facing, a brass trim line, the shadow under it
-    R(x, 128, P.concreteLt);
-    R(x, 129, P.paperGrid);
-    R(x, 130, (x & 31) === 0 ? P.woodLt : P.paperGrid);
-    R(x, 131, P.brassOld);
+    const face = mix(P.paperGrid, P.shade, 0.3);
+    R(x, 128, P.concrete);
+    R(x, 129, face);
+    R(x, 130, (x & 31) === 0 ? mix(P.woodLt, P.shade, 0.3) : face);
+    R(x, 131, mix(P.brassOld, P.shade, 0.25));
     R(x, 132, P.nightShade);
     if (x % 32 === 16) for (let y = 112; y < 127; y++) R(x, y, y === 112 ? P.white : y === 113 ? P.concreteLt : P.steel);
     if (x % 32 === 17) for (let y = 114; y < 127; y++) R(x, y, P.asphalt);
   }
-  // a scrap of the sale banner still tied to the railing, hanging into the well (its back: bare red cloth)
-  for (let i = 0; i < 16; i++) {
-    const x = 60 + i;
-    const len = 6 + ((ihash(i, 3, 895) % 3) === 0 ? -1 : 0) - (i > 11 ? i - 11 : 0);
-    for (let j = 0; j < len; j++) R(x, 128 + j, j === 0 || (i + 2) % 7 === 0 ? P.vermShade : P.verm);
+  // a scrap of the sale banner still tied to the railing, hanging into the
+  // well: we see its back (bare red cloth, the letters only a pale ghost of
+  // dye soaked through), a fold, a torn bottom edge and a loose thread
+  for (let i = 0; i < 19; i++) {
+    const x = 58 + i;
+    const hh = ihash(i, 3, 895);
+    let len = 9 - (hh % 3 === 0 ? 1 : 0) - (hh % 7 === 0 ? 2 : 0);
+    if (i > 13) len -= Math.round((i - 13) * 1.4);
+    for (let j = 0; j < len; j++) {
+      const fold = i === 6 || i === 13;
+      R(x, 128 + j, j === 0 ? P.vermShade : fold || j === len - 1 ? P.vermShade : P.verm);
+    }
+    if (hh % 5 === 0 && len > 4) R(x, 128 + len + 1, P.vermShade);
   }
-  R(59, 127, P.charcoal);
-  R(76, 127, P.charcoal);
+  // the cord round the rail posts' feet, knotted
+  R(57, 127, P.charcoal);
+  R(56, 126, P.charcoal);
+  R(77, 127, P.charcoal);
+  R(78, 126, P.charcoal);
 
   const balloon = mkFrames(3, 14, 40, (p, k) => {
     // the mascot's bell face on a sun-orange balloon; a long string down into the well
@@ -574,6 +670,16 @@ export function atriumOver(g: Gfx, x: number, y: number, env: PropEnv): void {
 
 /** glow(): the skylight falling to the bottom, the lit bell and domes, glass reflections. */
 export function atriumGlow(g: Gfx, x: number, y: number, env: PropEnv): void {
+  const ctx0 = g.ctx;
+  ctx0.save();
+  ctx0.beginPath();
+  ctx0.rect(Math.round(x + WELL_L), Math.round(y + TOP), WELL_R - WELL_L, BOT - TOP);
+  ctx0.clip();
+  atriumGlowIn(g, x, y, env);
+  ctx0.restore();
+}
+
+function atriumGlowIn(g: Gfx, x: number, y: number, env: PropEnv): void {
   const n = env.grade.night;
   const day = 1 - n;
   const px = env.px;
@@ -619,15 +725,15 @@ export function atriumGlow(g: Gfx, x: number, y: number, env: PropEnv): void {
     g.rect(xx, yy - 3, 5, 1, GACHA[i][2], 0.18);
   });
   // vending machines on the far wall and the corridors' light
-  const [vx] = proj(510, V_FAR);
+  const [vx] = proj(488, V_FAR);
   screenPool(g, X(vx, S_F), y + WALL0 + 6, 16, 5, P.aqua, 0.28);
-  for (const u of [490, 530]) {
+  for (const u of [470, 505]) {
     const [ux] = proj(u, V_FAR);
     g.rect(X(ux, S_F) - 3, y + WALL0 + 3, 7, 2, P.aqua, 0.35);
   }
-  const [wx] = proj(-295, V_FAR);
+  const [wx] = proj(-245, V_FAR);
   screenPool(g, X(wx, S_F), y + WALL0 + 7, 14, 5, P.sky, 0.3 * (0.6 + day * 0.4));
-  const [ex] = proj(640, V_FAR);
+  const [ex] = proj(590, V_FAR);
   screenPool(g, X(ex, S_F), y + WALL0 + 7, 14, 5, P.aqua, 0.22);
   // the 1F ceiling's tubes under the gallery (one of them flickers)
   const on = tube(env.t, 6603);

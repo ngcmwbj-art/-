@@ -11,12 +11,12 @@ import { PixelCanvas } from '../../engine/pixel';
 import { getMapDef } from '../../world/maps';
 import { fushigiDone } from '../../world/fushigi';
 import { kobanFloor, laneOf } from '../tiles/ifloor';
-import { valueNoise } from '../tiles/noise';
+import { ihash, valueNoise } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { cardboard, clockFace, framed, notice, pc, prop } from './ifurn';
-import { depthShade, lightPool, paintShell, screenPool, screenSpill, shellProp } from './ishell';
+import { depthShade, dust, lightPool, paintShell, screenPool, shellProp, tintSpill, tube } from './ishell';
 import { castRight, finish } from './kit';
-import { stand } from './pkit';
+import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
 import { fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
@@ -76,18 +76,31 @@ registerProp('in_kb_shell', () => {
     over(g: Gfx, x: number, y: number, env: PropEnv) {
       depthShade(g, x + 16, y + 32, W - 32, 64, 0.12);
       const n = env.grade.night;
-      screenPool(g, x + 72, y + 64, 50, 22, P.glint, 0.14 + n * 0.1);
-      // the red lamp outside: slow red breathing through the door (slower in stage 1)
-      const period = env.stage === 1 ? 4000 : 2000;
-      const k = Math.sin(((env.t % period) / period) * Math.PI * 2) * 0.5 + 0.5;
-      screenSpill(g, x + 72, y + 96, 16, 34, 26, P.red, 0.06 + k * 0.12 + n * 0.06, true);
+      // the ceiling tube: on, and now and then it drops out for a blink
+      const on = tube(env.t, 6101, [1800, 4200], [50, 130]);
+      screenPool(g, x + 72, y + 64, 50, 22, P.glint, (0.14 + n * 0.1) * (on ? 1 : 0.2));
+    },
+    glow(g: Gfx, x: number, y: number, env: PropEnv) {
+      // the door's glass lit red by the lamp outside
+      const k = redLamp(env);
+      g.rect(x + 65, y + 99, 14, 6, P.red, 0.12 + k * 0.38);
+      g.rect(x + 65, y + 99, 14, 1, P.vermLt, 0.2 + k * 0.4);
     },
     light(g: Gfx, x: number, y: number, env: PropEnv) {
       const n = env.grade.night;
-      lightPool(g, x + 72, y + 62, 64, 40, P.white, 0.08 + n * 0.62);
+      const on = tube(env.t, 6101, [1800, 4200], [50, 130]);
+      lightPool(g, x + 72, y + 62, 64, 40, P.white, (0.1 + n * 0.62) * (on ? 1 : 0.35));
+      // the red lamp as light: the doorway and whoever stands in it go red
+      lightPool(g, x + 72, y + 100, 26, 22, P.red, 0.05 + redLamp(env) * 0.22);
     },
   });
 });
+
+/** The red lamp over the koban's door (outside): 0..1, a slow breath (slower in stage 1). */
+function redLamp(env: PropEnv): number {
+  const period = env.stage === 1 ? 3600 : 2000;
+  return Math.sin(((env.t % period) / period) * Math.PI * 2) * 0.5 + 0.5;
+}
 
 /** 『交通安全週間』: a traffic light with three smiling faces. */
 function trafficPoster(p: PixelCanvas, x: number, y: number): void {
@@ -202,6 +215,21 @@ registerProp('in_kb_board', () => {
     return p.toCanvas();
   };
   const imgs = [build(0), build(1), build(2)];
+  // a loose slip held by one magnet at its top-left corner: when the fan's
+  // head swings round to face the board its free corner lifts and flaps
+  const slips = mkFrames(3, 8, 8, (p, k) => {
+    const lift = [0, 1, 2][k];
+    for (let y = 0; y < 6; y++)
+      for (let x = 0; x < 6; x++) {
+        // the lower-right corner folds up towards the magnet
+        if (x + y >= 10 - lift) continue;
+        p.set(x, y, x === 5 || y === 5 ? P.concrete : P.paper);
+      }
+    for (let i = 1; i <= lift; i++) p.set(6 - i, 6 - i, P.steel);
+    p.hline(1, 3, 2, P.steel);
+    p.hline(1, 4, 4, P.steel);
+    p.set(0, 0, P.leafYoung);
+  });
   return {
     ox: 2,
     oy: 3,
@@ -210,6 +238,12 @@ registerProp('in_kb_board', () => {
     foot: 0,
     flat: true,
     img: (env: PropEnv) => imgs[fushigiDone('fushigi_06') ? 2 : env.stage >= 1 && env.stage < 3 ? 1 : 0],
+    over(g: Gfx, x: number, y: number, env: PropEnv) {
+      // the fan (in_kb_fan) sways on the same motion clock: facing the board ≈ its middle angle
+      const face = 1 - Math.min(1, Math.abs(Math.sin(env.mt / 1700)) * 1.6);
+      const k = face > 0.25 ? 1 + (Math.floor(env.mt / 110) % 2) : 0;
+      g.img(slips[k], x + 2 + 11, y + 3 + 17);
+    },
   } as PropArt;
 });
 
@@ -227,8 +261,9 @@ registerProp('in_kb_clock', () => {
     img: (env: PropEnv) => {
       const c = env.flag('flag_clock');
       const [h, m] = env.stage >= 3 ? [5, 1] : env.stage >= 1 ? [5, 0] : [4, c >= 2 ? 58 : c >= 1 ? 55 : 52];
-      // the red second hand runs, and stops dead at 17:00 (stage 1–2)
-      const sec = env.stage === 1 || env.stage === 2 ? 0 : Math.floor(env.t / 1000) % 60;
+      // the red second hand runs, and stops dead at 17:00 (stage 1); in
+      // stage 2 it keeps slipping back a second and catching again (00 → 59 → 00)
+      const sec = env.stage === 1 ? 0 : env.stage === 2 ? (Math.floor(env.t / 1100) % 3 === 2 ? 59 : 0) : Math.floor(env.t / 1000) % 60;
       const k = `${h}:${m}:${sec}`;
       let img = cache.get(k);
       if (!img) {
@@ -348,6 +383,12 @@ registerProp('in_kb_desk', () => {
   a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
     const on = Math.floor(env.t / 600) % 5 !== 0;
     g.rect(x + a.ox + 30, y + a.oy + 10, 1, 1, on ? P.leafYoung : P.vermLt, 0.95);
+    // the radio's level meter: three amber bars jumping with the chatter
+    const t = Math.floor(env.t / 130);
+    for (let i = 0; i < 3; i++) {
+      const h = (ihash(t, i, 6107) % 4);
+      if (h) g.rect(x + a.ox + 27 + i, y + a.oy + 13 - h, 1, h, P.gold, 0.8);
+    }
   };
   return a;
 });
@@ -527,7 +568,24 @@ registerProp('in_kb_mat', () => {
   // a woven border and the ribs worn pale where everyone steps in
   p.strokeRect(1, 1, 22, 10, P.asphalt);
   for (let x = 6; x < 18; x += 2) p.vline(x, 4, 7, P.steel);
-  return { ox: -4, oy: 5, w: 24, h: 12, foot: 0, flat: true, img: () => p.toCanvas() } as PropArt;
+  return {
+    ox: -4,
+    oy: 5,
+    w: 24,
+    h: 12,
+    foot: 0,
+    flat: true,
+    img: () => p.toCanvas(),
+    // drawn after the mat (the last thing on the floor): the red lamp outside
+    // the door breathes in over the mat and the tiles — multiplied in, so the
+    // pale floor really turns red — slower in stage 1; dust turns in it
+    over(g: Gfx, x: number, y: number, env: PropEnv) {
+      const k = redLamp(env);
+      const n = env.grade.night;
+      tintSpill(g, x + 8, y + 17, 34, 84, 50, P.red, 0.12 + k * 0.62 + n * 0.1, true);
+      dust(g, x - 14, y - 24, 44, 38, 0, 9, env.t, 6103, 0.35 + k * 0.45);
+    },
+  } as PropArt;
 });
 
 void notice;

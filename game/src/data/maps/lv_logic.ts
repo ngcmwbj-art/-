@@ -255,7 +255,7 @@ function shopkeepers(f: FieldScene, dt: number): void {
       step('npc_obaa', 3200, 2600, 'read', 'breathe');
       break;
     case 'map_koban':
-      step('npc_tsurumi', 6000, 1500, 'note', null);
+      step('npc_tsurumi', 4000, 1500, 'note', null);
       break;
   }
 }

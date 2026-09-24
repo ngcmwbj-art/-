@@ -2,9 +2,12 @@
 // 母 (6.1, evt_mom_rest).
 
 import type { Co } from '../engine/co';
+import { all } from '../engine/co';
 import { game } from '../engine/game';
+import { animate, ease } from '../engine/tween';
 import { flag, setFlag, state } from '../game/state';
-import { actor, emote, face, msg, registerScript, setClock, stage, stopAnim } from '../world/api';
+import { actor, despawn, emote, face, msg, registerScript, setClock, spawn, stage, stopAnim } from '../world/api';
+import type { Actor } from '../world/actor';
 import { registerWorldFx } from '../world/fx';
 import { pickTalk } from '../world/interact';
 import { caption, showGuide } from '../ui/api';
@@ -13,8 +16,48 @@ import * as T from '../data/text/events';
 import { NPC } from '../data/text/npcs';
 import { uiHud } from '../ui/hud';
 import { F, giveKey, healHp, once } from './lib';
+import { chairBack, sleepZ } from './art';
+import { zoomIn, zoomOut } from './stage';
 
 // ---------------------------------------------------------------- 5.2 evt_opening
+
+/** Where Minato sleeps: on the pulled-out chair, his head on the desk (world px, feet). */
+const SLEEP_AT: [number, number] = [5 * 16 + 8, 3 * 16 + 2];
+const sleeper = { on: false, t: 0 };
+
+// the Z's of the sleeper drift up and to the left, away from the desk lamp
+registerWorldFx({
+  map: 'map_home_2f',
+  update(_f, dt) {
+    // (a jump or a load out of the opening leaves no Z's behind)
+    if (sleeper.on && (flag('flag_opening_done') || !game.scripts.busy)) sleeper.on = false;
+    if (sleeper.on) sleeper.t += dt;
+  },
+  draw(_f, g, cx, cy, layer) {
+    if (layer !== 'top' || !sleeper.on) return;
+    const zs = sleepZ();
+    for (let i = 0; i < 3; i++) {
+      const ph = (sleeper.t / 2100 + i / 3) % 1;
+      const img = zs[Math.min(2, Math.floor(ph * 3))];
+      const x = SLEEP_AT[0] - 6 - ph * 12 + Math.sin(ph * 6.3) * 1.5;
+      const y = SLEEP_AT[1] - 24 - ph * 16;
+      const a = Math.sin(Math.PI * ph);
+      g.alpha(a, () => g.img(img, Math.round(x - img.width / 2 - cx), Math.round(y - img.height - cy)));
+    }
+  },
+});
+
+function spawnChair(): Actor {
+  const c = spawn('opening_chair', 5, 3, { sprite: 'kanenari', ghost: true });
+  // sorted just in front of the sleeping Minato, so its backrest hides his lap
+  c.x = SLEEP_AT[0];
+  c.y = SLEEP_AT[1] + 3;
+  c.shadowH = 0;
+  c.data.scripted = true;
+  const img = chairBack();
+  c.drawFn = (g, x, y) => g.img(img, x - 7, y - 14, c.alpha < 1 ? { alpha: c.alpha } : {});
+  return c;
+}
 
 registerScript('evt_opening', function* (): Co {
   if (flag('flag_opening_done')) return;
@@ -25,11 +68,16 @@ registerScript('evt_opening', function* (): Co {
   game.fadeAlpha = 1;
   stopBgm(0);
   stopAllAmbient(0);
-  // slumped over the desk: from behind, the head sinks onto the desk top
+  // slumped over the desk: on the chair, seen from behind, head on his arms
+  p.x = SLEEP_AT[0];
+  p.y = SLEEP_AT[1];
   p.dir = 'up';
   p.playAnim('sleep', true);
-  p.oy = 3;
-  p.showEmote('zzz', 0);
+  const chair = spawnChair();
+  sleeper.on = true;
+  sleeper.t = 0;
+  // the first picture of the game: the whole room, 2× (camera fixed)
+  const z = yield* zoomIn(5 * 16, 3 * 16 + 8, 0);
   // the higurashi through the window (−8 dB, LP 2.5 kHz), 2 s
   playAmbient('amb_higurashi', { vol: 0.4, lp: 2500, fade: 2 });
   yield 700;
@@ -40,18 +88,38 @@ registerScript('evt_opening', function* (): Co {
   setClock(0, false);
   yield 1000;
   yield* msg(T.OPENING_CALL);
-  p.emote = null;
+  sleeper.on = false;
   yield* emote('player', 'exclaim');
-  // up from the desk (2 frames), turn round
+  // up from the desk: the head pops up, the chair scrapes back, he stands
   p.playAnim('wake');
-  p.oy = 1;
-  yield 90;
-  p.oy = 0;
-  p.hop(3, 200);
-  yield 260;
-  stopAnim('player');
-  p.dir = 'down';
+  yield 300;
+  sfx('se_step_wood_bare', { pitch: 0.55, vol: 0.9 });
+  yield* all(
+    animate(180, (k) => (chair.y = SLEEP_AT[1] + 3 + Math.round(k * 5)), ease.quadOut),
+    (function* (): Co {
+      p.hop(3, 200);
+      yield* animate(200, (k) => (p.y = SLEEP_AT[1] + Math.round(k * 8)), ease.quadOut);
+    })(),
+  );
   yield 120;
+  stopAnim('player');
+  p.y = 3 * 16 + 16;
+  yield 80;
+  // tucked back under the desk with a nudge of the heel
+  sfx('se_bump', { vol: 0.35, pitch: 0.8 });
+  yield* animate(
+    240,
+    (k) => {
+      chair.y = SLEEP_AT[1] + 8 - Math.round(k * 8);
+      chair.alpha = 1 - k;
+    },
+    ease.quadIn,
+  );
+  despawn('opening_chair');
+  p.dir = 'down';
+  yield 200;
+  // back to the room's own framing
+  yield* zoomOut(z, 600);
   playBgm('bgm_home', { fade: 1.5 });
   setFlag('flag_opening_done', 1);
   showGuide(T.GUIDE_MOVE, 4000);

@@ -14,6 +14,9 @@ import { registerWorldFx } from '../world/fx';
 import { caseLid, drawCase, CASE_H, CASE_W } from '../ui/hankocase';
 import { runMsg } from '../world/msg';
 import { sfx } from '../audio';
+import { P } from '../art/tiles/palette';
+import { fontSmallWidth, fontTextSmall, handGlyph } from '../art/props/text';
+import { field } from '../world/field';
 
 // ---------------------------------------------------------------- world glints & puffs
 
@@ -129,6 +132,70 @@ export function bellGlow(x: number, y: number, dur = 600): void {
 /** Rays and a ring bursting out (a transformation, a pop). */
 export function burst(x: number, y: number, color = '#FFE7A3', dur = 420): void {
   sparks.push({ x, y, t: 0, kind: 'burst', color, dur });
+}
+
+// ---------------------------------------------------------------- a small far-off voice
+
+const SMALL = new Map<string, HTMLCanvasElement>();
+/** A half-size balloon (the style of まめ吉's 「まいど！」 over the street). */
+function smallBalloon(text: string): HTMLCanvasElement {
+  let c = SMALL.get(text);
+  if (c) return c;
+  const excl = text.endsWith('！');
+  const body = excl ? text.slice(0, -1) : text;
+  const tw = fontSmallWidth(body) + (excl ? 4 : 0);
+  const w = tw + 7;
+  const p = new PixelCanvas(w, 17);
+  p.rect(1, 1, w - 2, 11, P.white);
+  p.hline(2, w - 3, 1, P.glint);
+  p.strokeRect(0, 0, w, 13, P.ink);
+  for (const [x, y] of [[0, 0], [w - 1, 0], [0, 12], [w - 1, 12]]) p.set(x, y, 'transparent');
+  p.hline(2, w - 3, 11, P.concreteLt);
+  const tx = Math.floor(w / 2) - 1;
+  p.set(tx - 1, 13, P.ink);
+  p.hline(tx, tx + 1, 13, P.white);
+  p.set(tx + 2, 13, P.ink);
+  p.set(tx, 14, P.ink);
+  p.set(tx + 1, 14, P.ink);
+  p.hline(tx, tx + 1, 12, P.white);
+  fontTextSmall(p, body, 3, 2, P.verm, 1);
+  if (excl) handGlyph(p, 'excl', 3 + tw - 2, 3, P.verm);
+  c = p.toCanvas();
+  SMALL.set(text, c);
+  return c;
+}
+
+interface Voice {
+  id: string;
+  text: string;
+  t: number;
+  ms: number;
+}
+const voices: Voice[] = [];
+
+registerWorldFx({
+  map: '',
+  update(_f, dt) {
+    for (const v of voices) v.t += dt;
+    for (let i = voices.length - 1; i >= 0; i--) if (voices[i].t > voices[i].ms) voices.splice(i, 1);
+  },
+  draw(f, g, cx, cy, layer) {
+    if (layer !== 'fg' || !voices.length) return;
+    for (const v of voices) {
+      const a = f.actorById(v.id);
+      if (!a || !a.visible) continue;
+      const img = smallBalloon(v.text);
+      const pop = v.t < 80 ? 1 : 0;
+      const k = Math.min(1, v.t / 60) * (v.t > v.ms - 120 ? (v.ms - v.t) / 120 : 1);
+      g.alpha(k, () => g.img(img, Math.round(a.x + a.ox - img.width / 2 - cx), Math.round(a.y + a.oy - 24 - img.height - 2 - cy - pop)));
+    }
+  },
+});
+
+/** A small balloon over a field actor (a voice heard from a little way off). */
+export function smallVoice(id: string, text: string, ms = 800): void {
+  if (!field()) return;
+  voices.push({ id, text, t: 0, ms });
 }
 
 // ---------------------------------------------------------------- 5.8 the hanko case, handed over

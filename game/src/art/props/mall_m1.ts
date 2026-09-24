@@ -10,7 +10,7 @@
 // ceiling, the half-open automatic door.
 
 import type { Gfx } from '../../engine/gfx';
-import { PixelCanvas } from '../../engine/pixel';
+import { PixelCanvas, mix } from '../../engine/pixel';
 import { getMapDef } from '../../world/maps';
 import { field } from '../../world/field';
 import { charSprite, idleFrame } from '../chars';
@@ -20,7 +20,7 @@ import { P } from '../tiles/palette';
 import { clockFace, notice, pc, prop } from './ifurn';
 import { blend, depthShade, lightPool, paintShell, screenPool, screenSpill, shellProp } from './ishell';
 import { castRight, dk, finish, lt } from './kit';
-import { bannerScrap, bellLogo, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, shaftProp, shutter, skyPatch, skyPatchRim, small, smallW, type Lamp } from './mall_kit';
+import { bannerScrap, bellLogo, exitCorridor, exitLight, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, shaftProp, shutter, skyPatch, skyPatchRim, small, smallW, type Lamp } from './mall_kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
 import { printLines, tiny } from './text';
@@ -43,7 +43,23 @@ registerProp('mall_m1_shell', () => {
   const rows = getMapDef('map_mall_hall')?.rows ?? [];
   const blocked = (tx: number, ty: number) => (tx >= 7 && tx <= 14 && ty >= 5 && ty <= 10) || (tx >= 16 && ty <= 4) || ty >= 12;
   const lane = laneOf([[10.5, 14], [10.5, 11], [1, 7.5], [20, 7.5], [10.5, 11]], 22);
-  const tiles = mallTiles({ seed: 511, w: 22, h: 15, blocked, lane });
+  const tiles = mallTiles({
+    seed: 511,
+    w: 22,
+    h: 15,
+    blocked,
+    lane,
+    // the open south-east stretch: a floor sticker pointing to the health
+    // corner, dusty prints, a tape trace, a pot ring, a lost balloon
+    decals: [
+      { x: 252, y: 150, kind: 'arrow', dir: 0 },
+      { x: 272, y: 170, kind: 'steps', dir: 1, n: 6 },
+      { x: 236, y: 190, kind: 'tape', w: 26, h: 14 },
+      { x: 314, y: 150, kind: 'pot' },
+      { x: 304, y: 206, kind: 'balloon' },
+      { x: 60, y: 186, kind: 'steps', dir: 0, n: 5 },
+    ],
+  });
   const wallBase = mallWall(513, false);
   const sh = paintShell({
     rows,
@@ -139,18 +155,12 @@ registerProp('mall_m1_shell', () => {
   posterGhost(p, 262, 33, 12, 9);
   posterGhost(p, 300, 32, 14, 10);
   // the red 『閉店セール』 banner scraps still tied to the 2F railing (above the fascias)
-  bannerScrap(p, 34, 8, 30, 3, 16);
-  bannerScrap(p, 226, 8, 27, 7, 0);
+  // (read left to right: 『閉店セ』 … torn … 『ール』)
+  bannerScrap(p, 34, 8, 30, 3, 0);
+  bannerScrap(p, 226, 8, 27, 7, 24);
   // ---- the corridors at the west / east edges (E) continue into the dark
-  for (const [cx, dir] of [[0, -1], [21, 1]] as const) {
-    for (let y = 7 * 16; y < 9 * 16; y++)
-      for (let i = 0; i < 16; i++) {
-        const x = cx * 16 + i;
-        const d = dir < 0 ? 15 - i : i;
-        if (d > 9 && ((x + y) & 1) === 0) blend(p, x, y, P.night, 0.5);
-        if (d > 12) blend(p, x, y, P.night, 0.4);
-      }
-  }
+  exitCorridor(p, 0, 7, 2, -1);
+  exitCorridor(p, 21, 7, 2, 1);
   // ---- the entrance (10–11,14): half-open automatic glass doors
   const dx = 160;
   const dy = 224;
@@ -185,6 +195,9 @@ registerProp('mall_m1_shell', () => {
       mallLampLight(g, x, y, M1_LAMPS, env, 101);
     },
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
+      // the food court's warm light down the west corridor, the health corner's cooler one east
+      exitLight(g, x, y, 0, 7, 2, -1, P.sky, 0.3);
+      exitLight(g, x, y, 21, 7, 2, 1, P.aqua, 0.24);
       // the gacha corner's sign: its six capsule lamps still chase round,
       // one after another (the only thing in the hall still 'open')
       const k = Math.floor(env.t / 260) % 8;
@@ -251,70 +264,121 @@ registerProp('mall_m1_clock', () => {
 // ---------------------------------------------------------------- the fountain (8–13, 6–9)
 
 /**
- * The stone child on the pedestal, holding a bell up over its head with both
- * hands (26×44): the child in dark weathered bronze with green verdigris
- * streaks, the bell rubbed bright gold by a year of hands — its flared mouth,
- * the clapper hanging under it and the crown loop on top.
+ * The bronze child on the pedestal, holding a bell up over its head with
+ * both hands (30×46): dark weathered bronze lit from the upper left by the
+ * skylight's shaft (a warm 1px rim along the left edges and the crown of the
+ * head), verdigris pooled green in the folds, the hems and the shoes, a calm
+ * face (eyes looking up, a closed smile) — and the bell rubbed bright gold by
+ * a year of hands: flared mouth, waist band, crown loop, the clapper.
+ * Outlined in the darkest bronze on the outside only, so the gaps between the
+ * raised arms and the head stay open.
  */
 function statue(): PixelCanvas {
-  // no ink outline: the dark bronze reads against the pale stone by value
-  // alone, and outlines would close the gaps between the raised arms and the
-  // head (the silhouette must read 'a child holding a bell up')
   const p = pc(30, 46);
-  const bl = P.wood;
-  const bm = P.woodDark;
-  const bs = P.ink;
-  // legs and shoes
+  const D = '#2A1810';
+  const S = '#3E2619';
+  const B = '#5A3A28';
+  const M = '#76503A';
+  const L = '#96694A';
+  const R = '#F7C27A';
+  const V = '#4F8A7A';
+  const Vl = '#6FA898';
+  // legs (x 11–13, 16–18) and shoes
   for (const lx of [11, 16]) {
-    p.rect(lx, 36, 3, 6, bm);
-    p.vline(lx, 36, 41, bl);
-    p.rect(lx - 1, 41, 5, 2, bm);
-    p.hline(lx - 1, lx + 1, 41, bl);
-    p.hline(lx - 1, lx + 3, 43, bs);
+    for (let y = 36; y <= 40; y++) {
+      p.set(lx, y, lx === 11 ? L : M);
+      p.set(lx + 1, y, B);
+      p.set(lx + 2, y, S);
+    }
+    p.hline(lx - 1, lx + 3, 41, B);
+    p.hline(lx - 1, lx + 3, 42, S);
+    p.set(lx - 1, 41, lx === 11 ? R : M);
+    p.set(lx, 41, V);
+    p.set(lx + 1, 41, Vl);
   }
-  // the smock: narrow at the shoulders, an A-line hem, a collar
+  // the smock: an A-line from the shoulders to the hem (x 15±w)
   for (let y = 23; y <= 35; y++) {
-    const w = 4 + Math.round((y - 23) * 0.28);
+    const w = 4 + Math.round((y - 23) * 0.3);
     const x0 = 15 - w;
     const x1 = 14 + w;
-    p.hline(x0, x1, y, bm);
-    p.hline(x0, x0 + 1, y, bl);
-    p.set(x1, y, bs);
+    for (let x = x0; x <= x1; x++) {
+      const u = (x - x0) / (x1 - x0);
+      p.set(x, y, u < 0.12 ? L : u < 0.4 ? M : u < 0.78 ? B : S);
+    }
+    p.set(x0, y, R);
   }
-  p.hline(10, 19, 35, bs);
-  p.hline(12, 17, 23, bl);
-  p.set(14, 24, bs);
-  p.set(15, 24, bs);
-  // the arms raised in a V from the shoulders to the ends of the bell's lip
+  // collar (a shadowed neckline) and the two folds running down, verdigris pooled where they end
+  p.hline(12, 17, 23, B);
+  p.hline(13, 16, 23, S);
+  p.set(13, 24, S);
+  p.set(16, 24, S);
+  for (let y = 27; y <= 34; y++) {
+    p.set(13, y, S);
+    p.set(17, y, D);
+  }
+  p.hline(10, 19, 35, S);
+  p.hline(9, 20, 36, D);
+  p.set(13, 34, V);
+  p.set(17, 34, V);
+  p.set(17, 33, Vl);
+  p.hline(11, 12, 35, V);
+  // the arms raised in a V from the shoulders to the lip of the bell (2px, lit outer-left)
   for (let y = 11; y <= 24; y++) {
     const k = (24 - y) / 13;
     const lx = Math.round(10 - k * 5);
     const rx = Math.round(19 + k * 5);
-    p.set(lx, y, bl);
-    p.set(lx + 1, y, bm);
-    p.set(rx - 1, y, bm);
-    p.set(rx, y, bs);
+    p.set(lx, y, R);
+    p.set(lx + 1, y, M);
+    p.set(rx - 1, y, B);
+    p.set(rx, y, S);
   }
+  // the shoulders and the neck: the upper arms rise out of them beside the
+  // head (no daylight between the chin and the shoulders)
+  for (let y = 20; y <= 23; y++) {
+    const k = (24 - y) / 13;
+    const lx = Math.round(10 - k * 5) + 2;
+    const rx = Math.round(19 + k * 5) - 2;
+    for (let x = lx; x <= rx; x++) {
+      if (p.get(x, y) >>> 24) continue;
+      const u = (x - lx) / Math.max(1, rx - lx);
+      p.set(x, y, y === 20 && (u < 0.25 || u > 0.75) ? 'transparent' : u < 0.3 ? M : u < 0.7 ? B : S);
+    }
+  }
+  // verdigris run down the inside of the arms from the hands (the rain)
+  for (const [x, y] of [[7, 14], [7, 15], [8, 17], [21, 13], [22, 14], [21, 16]] as const) p.set(x, y, V);
   // the hands wrapped round the lip
-  p.rect(4, 9, 3, 3, bl);
-  p.set(6, 11, bm);
-  p.rect(23, 9, 3, 3, bm);
-  p.set(25, 11, bs);
-  // the head (looking up at the bell): round, hair lit from the upper left, the face
-  p.ellipse(15, 18, 4.5, 4.5, bm);
-  p.ellipse(14, 17, 3, 3, bl);
-  p.hline(13, 17, 21, P.woodDark);
-  p.set(18, 19, bs);
-  p.set(19, 17, bs);
-  p.set(13, 20, P.brassOld);
-  // verdigris: the green that ran down from the hands in the rain
-  p.set(5, 12, P.leafShade);
-  p.vline(7, 14, 16, P.leafShade);
-  p.vline(22, 13, 16, P.leafShade);
-  p.set(22, 17, P.leafDeep);
-  p.vline(18, 28, 32, P.leafShade);
+  p.rect(4, 9, 3, 3, M);
+  p.set(4, 9, R);
+  p.set(4, 10, R);
+  p.set(6, 11, B);
+  p.rect(23, 9, 3, 3, B);
+  p.set(25, 11, S);
+  p.set(25, 10, S);
+  // the head: a cap of hair (dark, its crown lit by the evening), the face
+  // plane lighter below it — eyes turned up to the bell, a closed smile
+  for (let y = 14; y <= 22; y++)
+    for (let x = 10; x <= 20; x++) {
+      const dx = (x + 0.5 - 15.5) / 4.6;
+      const dy = (y + 0.5 - 18.5) / 4.4;
+      if (dx * dx + dy * dy > 1) continue;
+      const hair = y <= 16 || (y <= 18 && (dx < -0.62 || dx > 0.62));
+      if (hair) p.set(x, y, dx < -0.3 && y <= 15 ? M : dx > 0.4 ? D : S);
+      else p.set(x, y, dx < -0.35 ? L : dx < 0.35 ? M : B);
+    }
+  for (const [x, y] of [[13, 14], [14, 14], [12, 15], [11, 16], [11, 17]] as const) p.set(x, y, R);
+  p.set(16, 14, L);
+  p.set(17, 14, M);
+  // eyes (2px each, turned up), cheeks, a closed smile
+  p.vline(13, 18, 19, D);
+  p.vline(17, 18, 19, D);
+  p.set(12, 20, L);
+  p.set(18, 20, B);
+  p.hline(14, 16, 21, S);
+  p.set(15, 21, D);
+  p.set(15, 22, B);
   // ---- the bell, rubbed bright: crown loop, shoulder, waist band, flared lip
   p.ring(15, 1, 1.6, 1.3, P.brassOld);
+  p.set(14, 0, P.brass);
   const rows: [number, number, number][] = [[2, 12, 17], [3, 11, 18], [4, 10, 19], [5, 10, 19], [6, 10, 19], [7, 10, 19], [8, 9, 20], [9, 8, 21]];
   for (const [y, x0, x1] of rows) {
     for (let x = x0; x <= x1; x++) {
@@ -326,10 +390,34 @@ function statue(): PixelCanvas {
   p.set(11, 6, P.goldPale);
   p.hline(6, 23, 10, P.brassOld);
   p.hline(7, 10, 10, P.brass);
-  p.hline(7, 22, 11, P.ink);
+  p.hline(7, 22, 11, S);
   // the clapper hanging in the mouth
   p.rect(14, 11, 2, 2, P.charcoal);
   p.set(14, 11, P.asphalt);
+  // outline on the outside only (flood the exterior from the canvas border)
+  const ext = new Uint8Array(p.w * p.h);
+  const q: number[] = [];
+  for (let x = 0; x < p.w; x++) q.push(x, (p.h - 1) * p.w + x);
+  for (let y = 0; y < p.h; y++) q.push(y * p.w, y * p.w + p.w - 1);
+  while (q.length) {
+    const i = q.pop()!;
+    if (ext[i] || p.data[i] >>> 24) continue;
+    ext[i] = 1;
+    const x = i % p.w;
+    const y = (i / p.w) | 0;
+    if (x > 0) q.push(i - 1);
+    if (x < p.w - 1) q.push(i + 1);
+    if (y > 0) q.push(i - p.w);
+    if (y < p.h - 1) q.push(i + p.w);
+  }
+  const src = p.data.slice();
+  for (let y = 0; y < p.h; y++)
+    for (let x = 0; x < p.w; x++) {
+      const i = y * p.w + x;
+      if (!ext[i]) continue;
+      const on = (xx: number, yy: number) => xx >= 0 && yy >= 0 && xx < p.w && yy < p.h && src[yy * p.w + xx] >>> 24 !== 0;
+      if (on(x - 1, y) || on(x + 1, y) || on(x, y - 1) || on(x, y + 1)) p.set(x, y, y <= 11 ? P.woodDark : D);
+    }
   return p;
 }
 
@@ -347,8 +435,17 @@ registerProp('mall_fountain', () => {
   p.ellipse(cx, cy, 45, 28, P.concreteLt);
   p.ellipse(cx, cy + 1, 40, 24, P.concrete);
   p.ellipse(cx, cy + 1, 39, 23, P.steel);
-  p.ellipse(cx, cy + 2, 38, 22, P.concrete);
-  p.ellipse(cx - 3, cy + 1, 30, 16, P.concreteLt);
+  p.ellipse(cx, cy + 2, 38, 22, P.steel);
+  p.ellipse(cx - 2, cy + 1, 32, 17, P.concrete);
+  // the dry bottom darkened by old water, grime collected in the low ring
+  for (let y = cy - 20; y < cy + 24; y++)
+    for (let x = cx - 38; x < cx + 38; x++) {
+      const dx = (x + 0.5 - cx) / 35;
+      const dy = (y + 0.5 - cy - 3) / 20;
+      const d = dx * dx + dy * dy;
+      if (d > 1 || d < 0.62 || (p.get(x, y) >>> 24) === 0) continue;
+      if (((x * 7 + y * 3) % 5) < 2) p.set(x, y, P.steel);
+    }
   // rim joints (stone blocks)
   for (let k = 0; k < 16; k++) {
     const a = (k / 16) * Math.PI * 2;
@@ -361,21 +458,24 @@ registerProp('mall_fountain', () => {
   p.ring(cx, cy + 2, 37, 21, P.steel);
   p.ellipse(cx + 16, cy + 12, 2.5, 1.5, P.asphalt);
   p.hline(cx + 15, cx + 17, cy + 12, P.charcoal);
-  // dust and a few dead leaves blown in through the automatic door (none
-  // near the coin at the centre-left, so its glint reads)
+  // dust and a few dead leaves blown in through the automatic door: dull
+  // browns, pushed out to the edge of the bottom — the middle 24px are
+  // clear, so the copper of the coin is the only warm speck there
   const coinX = 40;
   const coinY = top + 42;
+  const LEAF = ['#7A5A3A', '#6A4A30', '#8A6A4A'];
   for (let k = 0; k < 30; k++) {
     const hh = ihash(k, 17, 601);
     const a = ((hh % 360) / 360) * Math.PI * 2;
-    const r = 0.35 + ((hh >>> 9) % 100) / 160;
-    const lx = Math.round(cx + Math.cos(a) * 32 * r);
-    const ly = Math.round(cy + 3 + Math.sin(a) * 18 * r);
+    const r = 0.62 + ((hh >>> 9) % 100) / 260;
+    const lx = Math.round(cx + Math.cos(a) * 33 * r);
+    const ly = Math.round(cy + 3 + Math.sin(a) * 19 * r);
+    if (Math.abs(lx - cx) < 12 && Math.abs(ly - cy - 3) < 8) continue;
     if (Math.abs(lx - coinX) < 9 && Math.abs(ly - coinY) < 6) continue;
-    if (k % 4 === 0) {
-      p.rect(lx, ly, 2, 1, P.woodLt);
-      p.set(lx + 1, ly + 1, P.wood);
-    } else if (k % 4 === 1) p.rect(lx, ly, 2, 1, P.brassOld);
+    if (k % 3 === 0) {
+      p.rect(lx, ly, 2, 1, LEAF[k % 3]);
+      p.set(lx + 1, ly + 1, P.woodDark);
+    } else if (k % 3 === 1) p.rect(lx, ly, 2, 1, LEAF[(k >> 1) % 3]);
     else p.rect(lx, ly, 2, 1, k % 2 ? P.steel : P.asphalt);
   }
   // the dry bottom has cracked
@@ -402,9 +502,11 @@ registerProp('mall_fountain', () => {
   p.vline(px + 7, py - 11, py - 2, P.steel);
   p.ellipse(px, py - 11, 8, 3, P.concreteLt);
   p.hline(px - 5, px + 3, py - 12, P.white);
-  // a small brass plaque on the pedestal
+  // a small brass plaque on the pedestal, green run-off from the bronze
   p.rect(px - 3, py - 7, 6, 3, P.brassOld);
   p.hline(px - 3, px + 2, py - 7, P.brass);
+  for (const [dx, dy] of [[-4, -11], [-4, -10], [2, -11], [3, -10], [3, -9], [-1, -12]] as const) p.set(px + dx, py + dy, '#4F8A7A');
+  p.set(px + 3, py - 8, '#6FA898');
   finish(p, { soft: true, rim: false });
   // the statue stands on it (after the outline pass: see statue())
   p.blit(statue(), px - 15, py - 11 - 44);
@@ -412,42 +514,53 @@ registerProp('mall_fountain', () => {
   const a = stand(img, { cx: 48, base, foot: base - 1, shadow: 0, contact: 0 });
   // the skylight's patch lands on the basin's centre — the brightest spot of the hall
   a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
-    skyPatchRim(g, x + a.ox + 20, y + a.oy + 55, 50, 28, env, 0.3);
-    // the polished bell catches the evening
+    const n = 1 - env.grade.night;
+    skyPatchRim(g, x + a.ox + 22, y + a.oy + 41, 50, 26, env, 0.3);
+    // the polished bell catches the evening (the brightest thing in the hall)
     const k = (Math.sin(env.t / 700) + 1) / 2;
-    g.rect(x + a.ox + px - 9, y + a.oy + py - 53, 2, 3, P.glint, 0.35 + k * 0.4);
+    g.rect(x + a.ox + px - 9, y + a.oy + py - 53, 2, 3, P.glint, (0.45 + k * 0.45) * n);
+    screenPool(g, x + a.ox + px - 1, y + a.oy + py - 50, 14, 8, P.sky, (0.22 + k * 0.08) * n);
+    // the warm light on the back rim of the basin, behind the pedestal
+    screenPool(g, x + a.ox + px - 4, y + a.oy + py - 3, 26, 9, P.sky, 0.18 * n);
+    // fushigi_10: the coin's cross-shaped glint (2 frames every 1.96 s) pops
+    // out well past the coin itself, over the bottom of the basin
+    if (env.flag('flag_fushigi_10')) return;
+    const c = Math.floor(env.t / 140) % 14;
+    if (c > 1) return;
+    const tx = x + a.ox + coinX + 1;
+    const ty = y + a.oy + coinY + 1;
+    const r = c === 0 ? 3 : 5;
+    g.rect(tx, ty - r, 1, r * 2 + 1, P.horizon, c === 0 ? 0.75 : 0.9);
+    g.rect(tx - r, ty, r * 2 + 1, 1, P.horizon, c === 0 ? 0.75 : 0.9);
+    g.rect(tx - 1, ty - 1, 3, 3, P.glint, 0.9);
+    if (c === 1) {
+      g.rect(tx - 2, ty - 2, 1, 1, P.glint, 0.6);
+      g.rect(tx + 2, ty - 2, 1, 1, P.glint, 0.6);
+      g.rect(tx - 2, ty + 2, 1, 1, P.glint, 0.6);
+      g.rect(tx + 2, ty + 2, 1, 1, P.glint, 0.6);
+    }
   };
   a.light = (g: Gfx, x: number, y: number, env: PropEnv) => {
     const n = 1 - env.grade.night;
-    lightPool(g, x + a.ox + 46, y + a.oy + top + 34, 40, 24, P.sky, 0.32 * n);
-    lightPool(g, x + a.ox + 48, y + a.oy + top + 8, 16, 26, P.sky, 0.3 * n);
+    lightPool(g, x + a.ox + 48, y + a.oy + top + 20, 34, 18, P.sky, 0.26 * n);
+    lightPool(g, x + a.ox + 48, y + a.oy + top + 4, 16, 28, P.sky, 0.34 * n);
   };
   a.over = (g: Gfx, x: number, y: number, env: PropEnv) => {
-    // fushigi_10: the 10-yen coin at the bottom (10,8): 3×3 copper, its rim
-    // glints for two frames every 1.96 s; gone once stamped
-    skyPatch(g, x + a.ox + 20, y + a.oy + 55, 50, 28, env, 0.55);
+    // the skylight's patch lands on the statue's feet and the back of the basin
+    skyPatch(g, x + a.ox + 22, y + a.oy + 41, 50, 26, env, 0.5);
+    // fushigi_10: the 10-yen coin at the bottom (10,8): copper with a dark
+    // rim (its glint is in glow()); gone once stamped
     if (env.flag('flag_fushigi_10')) return;
-    const ox = x + a.ox;
-    const oy = y + a.oy;
-    const tx = ox + coinX;
-    const ty = oy + coinY;
-    g.rect(tx, ty, 3, 3, P.brass);
-    g.rect(tx, ty, 2, 1, P.goldPale);
-    g.rect(tx, ty + 1, 1, 1, P.goldPale);
-    g.rect(tx + 2, ty + 2, 1, 1, P.brassOld);
-    g.rect(tx + 1, ty + 3, 3, 1, P.steel);
-    const k = Math.floor(env.t / 140) % 14;
-    if (k === 0) {
-      g.rect(tx - 1, ty, 1, 1, P.glint);
-      g.rect(tx + 1, ty - 1, 1, 1, P.glint);
-      g.rect(tx + 3, ty + 1, 1, 1, P.glint);
-    } else if (k === 1) {
-      g.rect(tx + 1, ty - 2, 1, 2, P.glint);
-      g.rect(tx - 2, ty + 1, 2, 1, P.glint);
-      g.rect(tx + 3, ty + 1, 2, 1, P.glint);
-      g.rect(tx + 1, ty + 3, 1, 1, P.glint);
-      g.rect(tx + 1, ty + 1, 1, 1, P.white);
-    }
+    const tx = x + a.ox + coinX;
+    const ty = y + a.oy + coinY;
+    g.rect(tx, ty, 3, 3, '#B8683A');
+    g.rect(tx, ty, 2, 1, '#E8A070');
+    g.rect(tx, ty + 1, 1, 1, '#D88850');
+    g.rect(tx + 2, ty + 1, 1, 2, '#8A4A28');
+    g.rect(tx - 1, ty, 1, 3, '#4A2818');
+    g.rect(tx + 3, ty, 1, 3, '#4A2818');
+    g.rect(tx, ty - 1, 3, 1, '#4A2818');
+    g.rect(tx, ty + 3, 3, 1, '#4A2818');
   };
   return a;
 });
@@ -462,7 +575,8 @@ registerProp('mall_pillar', (opts) => {
   for (let y = 0; y < H - 4; y++)
     for (let x = 1; x < 17; x++) {
       let c: string = x < 4 ? P.concreteLt : x > 13 ? P.steel : x === 5 || x === 6 ? P.white : P.concrete;
-      if (y < 14 && ((x + y) & 1) === 0 && y < 8) c = P.steel;
+      // the top fades up into the ceiling's shadow in three bands
+      if (y < 9) c = mix(c, P.shade, y < 3 ? 0.55 : y < 6 ? 0.35 : 0.16);
       p.set(x, y, c);
     }
   p.vline(1, 0, H - 5, P.white);
@@ -772,10 +886,18 @@ const CLEAR = 32;
  * A sign hung from the ceiling over a walkway. It is depth-sorted on the
  * floor line of the row it hangs over and its board hangs above head height
  * (bottom edge CLEAR px above that line), so whoever stands on that row or
- * south of it walks under it untouched; someone further north (behind it)
- * is seen through an x-ray hole. `paint` draws the board at y = ROD.
+ * south of it walks under it untouched.
+ *
+ * Someone further north (behind it) sees the whole board fade to about 35%
+ * over 0.15 s, its 1px frame staying solid — no hole, no muddy mix of letters
+ * and hair. The board is lit evenly: its light-map rect is set to the plain
+ * indoor light (sampled just outside the room, `outX` px right of the
+ * anchor), so the half hanging over the room is not darkened by the lamp
+ * grading and the wall shadow while the other half stays white.
+ * `paint` draws the board at y = ROD.
  */
-function hangingSign(w: number, bh: number, paint: (p: PixelCanvas) => void, ox: number): PropArt {
+const plainLight = new Map<string, string>();
+function hangingSign(w: number, bh: number, paint: (p: PixelCanvas) => void, ox: number, outX: number): PropArt {
   const h = ROD + bh;
   const p = pc(w, h);
   p.vline(3, 0, ROD, P.asphalt);
@@ -783,9 +905,69 @@ function hangingSign(w: number, bh: number, paint: (p: PixelCanvas) => void, ox:
   p.set(3, ROD - 1, P.steel);
   p.set(w - 4, ROD - 1, P.steel);
   paint(p);
-  const img = p.toCanvas();
+  const LEVELS = [1, 0.8, 0.62, 0.48, 0.35];
+  const imgs = LEVELS.map((lv) => {
+    if (lv === 1) return p.toCanvas();
+    const q = p.clone();
+    for (let y = ROD + 1; y < h - 1; y++)
+      for (let x = 1; x < w - 1; x++) {
+        const v = q.get(x, y);
+        const al = v >>> 24;
+        if (!al) continue;
+        q.set(x, y, ((Math.round(al * lv) << 24) | (v & 0xffffff)) >>> 0);
+      }
+    return q.toCanvas();
+  });
   const oy = 16 - CLEAR - h;
-  return { ox, oy, w, h, foot: 15, img: () => img, xray: 0.3, contact: 0, shadow: undefined } as PropArt;
+  let fade = 0;
+  let lastT = -1;
+  const a: PropArt = {
+    ox,
+    oy,
+    w,
+    h,
+    foot: 15,
+    img: () => imgs[Math.round(fade * (LEVELS.length - 1))],
+    contact: 0,
+    shadow: undefined,
+    over(_g: Gfx, x: number, y: number, env: PropEnv) {
+      const f = field();
+      if (!f) return;
+      // the anchor tile in world px
+      const wx = x + Math.round(f.camX);
+      const wy = y + Math.round(f.camY);
+      const bx0 = wx + ox;
+      const by0 = wy + oy + ROD;
+      const by1 = wy + oy + h;
+      const behind = [f.player, f.follower].some((c) => {
+        if (!c || !c.visible) return false;
+        if (c.y >= wy + 15) return false;
+        return c.x + 6 > bx0 && c.x - 6 < bx0 + w && c.y > by0 && c.y - 24 < by1;
+      });
+      const dt = lastT < 0 ? 0 : Math.max(0, Math.min(100, env.t - lastT));
+      lastT = env.t;
+      const step = dt / 150;
+      fade = behind ? Math.min(1, fade + step) : Math.max(0, fade - step);
+    },
+    light(g: Gfx, x: number, y: number, env: PropEnv) {
+      const ctx = g.ctx;
+      // the plain indoor light only changes with the stage / night: sample it once per grade
+      const key = `${env.stage}:${env.grade.night.toFixed(2)}`;
+      let col = plainLight.get(key);
+      if (!col) {
+        const sx = Math.round(x + outX);
+        const sy = Math.round(y + oy + ROD + Math.floor(bh / 2));
+        if (sx < 0 || sy < 0 || sx >= g.w || sy >= g.h) return;
+        const d = ctx.getImageData(sx, sy, 1, 1).data;
+        col = `rgb(${d[0]},${d[1]},${d[2]})`;
+        plainLight.set(key, col);
+      }
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = col;
+      ctx.fillRect(Math.round(x + ox), Math.round(y + oy), w, h);
+    },
+  };
+  return a;
 }
 
 registerProp('mall_escalator_sign', () => {
@@ -811,7 +993,7 @@ registerProp('mall_escalator_sign', () => {
       p.set(ax + 6 - k, y + 5 + k, P.verm);
     }
     finish(p, { soft: true, rim: false });
-  }, 16 - W);
+  }, 16 - W, 24);
 });
 
 /** Pictograms for the direction signs: fork & bowl, fountain, escalator. */
@@ -867,7 +1049,7 @@ registerProp('mall_exit_sign', (opts) => {
       p.set(tip - dir * k, y + 5 + k, P.verm);
     }
     finish(p, { soft: true, rim: false });
-  }, right ? 16 - W : 0);
+  }, right ? 16 - W : 0, 8);
 });
 
 // ---------------------------------------------------------------- the balloon on the ceiling (15,2)

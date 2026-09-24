@@ -90,7 +90,7 @@ const CHAIN: { beat: string; steps: Step[]; at: [string, number, number, Dir]; r
     desc: 'まめ吉に みました（fushigi_04 → 公園のヒント）',
   },
   { beat: 'alley', steps: [set('flag_fushigi_04', 'flag_fushigi_tutorial', 'flag_park_hint')], at: ['map_town', 19, 22, 'up'], desc: '路地（evt_alley_open）→ 公園' },
-  { beat: 'kanenari', steps: [taken('trig:map_town:trig_alley_open')], at: ['map_town', 16, 11, 'up'], desc: '時計塔のカネナリくん（加入戦）' },
+  { beat: 'kanenari', steps: [taken('trig:map_town:trig_alley_open')], at: ['map_town', 16, 13, 'up'], desc: '時計塔のカネナリくん（加入戦）' },
   {
     beat: 'broadcast',
     steps: [
@@ -99,7 +99,7 @@ const CHAIN: { beat: string; steps: Step[]; at: [string, number, number, Dir]; r
         joinKanenari();
       },
     ],
-    at: ['map_town', 16, 11, 'up'],
+    at: ['map_town', 16, 13, 'up'],
     run: 'evt_maigo_broadcast',
     desc: '★迷子のお知らせ → 段階2',
   },

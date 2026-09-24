@@ -90,6 +90,170 @@ export interface MallFloorOpts {
   blocked?: (tx: number, ty: number) => boolean;
   /** Extra wear lane 0..1 (the main walking route). */
   lane?: (x: number, y: number) => number;
+  /** Hand-placed decals for the big empty stretches (world px of their top-left). */
+  decals?: MallDecal[];
+}
+
+/**
+ * Larger floor decals that break up an empty stretch of tiles:
+ * arrow — a faded floor sticker arrow (dir 0 →, 1 ↓, 2 ←, 3 ↑), its white edge peeling;
+ * steps — a trail of dusty shoe prints (dir as arrow, n prints);
+ * tape — the yellowed trace of curing tape, an L where a display once stood (w×h);
+ * balloon — a deflated balloon with its curly string;
+ * pot — the ring a flower pot left, a dead leaf or two.
+ */
+export interface MallDecal {
+  x: number;
+  y: number;
+  kind: 'arrow' | 'steps' | 'tape' | 'balloon' | 'pot';
+  dir?: number;
+  w?: number;
+  h?: number;
+  n?: number;
+  c?: string;
+}
+
+/** Pixel of a hand-placed mall decal at (dx, dy) from its top-left, or null. */
+function mallDecalAt(d: MallDecal, dx: number, dy: number, seed: number): string | null {
+  switch (d.kind) {
+    case 'arrow': {
+      // 15×9 arrow pointing east in its own frame, rotated by dir
+      const dir = d.dir ?? 0;
+      let ax = dx;
+      let ay = dy;
+      if (dir === 1) [ax, ay] = [dy, 8 - dx];
+      else if (dir === 2) [ax, ay] = [14 - dx, 8 - dy];
+      else if (dir === 3) [ax, ay] = [14 - dy, dx];
+      if (ax < 0 || ay < 0 || ax > 14 || ay > 8) return null;
+      const head = ax >= 8 && Math.abs(ay - 4) <= 14 - ax;
+      const shaft = ax <= 8 && ay >= 2 && ay <= 6;
+      const inHead = ax >= 9 && Math.abs(ay - 4) <= 12 - ax;
+      const inShaft = ax >= 1 && ax <= 9 && ay >= 3 && ay <= 5;
+      if (!head && !shaft) return null;
+      // worn: scuffed out in the middle of the shaft, the white edge peeled at the tail
+      const worn = ihash(ax >> 1, ay >> 1, seed) % 5 === 0;
+      if (inHead || inShaft) return worn ? P.paperGrid : d.c ?? P.leafYoung;
+      if (ax <= 2 && ay % 2 === 0) return null;
+      return worn ? null : P.white;
+    }
+    case 'steps': {
+      // dusty prints walking along dir, alternating left/right feet
+      const n = d.n ?? 6;
+      const dir = d.dir ?? 0;
+      const along = dir === 0 || dir === 2 ? dx : dy;
+      const across = dir === 0 || dir === 2 ? dy : dx;
+      const i = Math.floor(along / 7);
+      if (i < 0 || i >= n) return null;
+      const la = along - i * 7;
+      const side = i % 2 ? 0 : 3;
+      const lc = across - side;
+      if (lc < 0 || lc > 2 || la > 4) return null;
+      // sole (3 px) and heel (2 px) with a gap between
+      if (la === 2) return null;
+      if ((lc === 0 || lc === 2) && (la === 0 || la === 4)) return null;
+      const fade = i / n;
+      return ihash(i, la + lc * 5, seed) % 4 === 0 && fade > 0.4 ? null : fade > 0.6 ? P.concrete : P.steel;
+    }
+    case 'tape': {
+      // an L of yellowed tape residue, 3px wide, torn off in bits
+      const w = d.w ?? 30;
+      const h = d.h ?? 18;
+      const onTop = dy >= 0 && dy <= 2 && dx >= 0 && dx < w;
+      const onSide = dx >= 0 && dx <= 2 && dy >= 0 && dy < h;
+      if (!onTop && !onSide) return null;
+      const k = onTop ? dx : dy;
+      if (ihash(k >> 2, 0, seed + 3) % 6 === 0) return null;
+      const edge = onTop ? dy === 0 || dy === 2 : dx === 0 || dx === 2;
+      return edge ? P.paperGrid : ihash(k, 1, seed) % 3 === 0 ? P.goldPale : P.paperGrid;
+    }
+    case 'balloon': {
+      // a shrivelled red balloon (8×6), its knot and a curly string trailing east
+      const bx = dx - 1;
+      const by = dy - 1;
+      const inB = ((bx - 3) / 3.6) ** 2 + ((by - 2.5) / 2.8) ** 2 <= 1;
+      if (inB) {
+        if (bx === 2 && by === 1) return P.vermLt;
+        if (bx + by >= 7) return P.vermShade;
+        return by === 2 && bx === 4 ? P.maroon : P.red;
+      }
+      if (bx === 7 && by === 2) return P.vermShade;
+      if (bx >= 8 && bx <= 18) {
+        const sy = 2 + Math.round(Math.sin((bx - 8) * 0.9) * 1.5);
+        if (by === sy) return P.white;
+      }
+      return null;
+    }
+    case 'pot': {
+      // a ring of grime 12×7 where a pot stood, the inside cleaner
+      const rx = (dx - 6) / 6;
+      const ry = (dy - 3.5) / 3.5;
+      const r = rx * rx + ry * ry;
+      if (r <= 1 && r >= 0.55) return ihash(dx, dy, seed) % 5 === 0 ? P.concrete : P.steel;
+      if (r < 0.55) return (dx + dy) % 5 === 0 ? P.concreteLt : null;
+      // a dead leaf blown against it
+      if (dx === 13 && dy === 5) return P.woodLt;
+      if (dx === 14 && dy === 5) return P.wood;
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * A patch of peeled tiles: 1–3 tiles in a row or an L, or just a corner of
+ * one, with a chipped edge; the grey base shows the adhesive's comb grooves
+ * (arcs from the trowel), the tile's edge is a pale lip, a shadow under it.
+ */
+interface Peel {
+  tiles: [number, number][];
+  /** A corner chunk only (of the first tile): the corner index 0–3. */
+  corner?: number;
+  seed: number;
+}
+
+function peelAt(pl: Peel, x: number, y: number): string | null {
+  const tx = x >> 4;
+  const ty = y >> 4;
+  if (!pl.tiles.some(([a, b]) => a === tx && b === ty)) return null;
+  const lx = x & 15;
+  const ly = y & 15;
+  const inside = (xx: number, yy: number): boolean => {
+    const ttx = xx >> 4;
+    const tty = yy >> 4;
+    if (!pl.tiles.some(([a, b]) => a === ttx && b === tty)) return false;
+    const ux = xx & 15;
+    const uy = yy & 15;
+    // chipped boundary: the peel stops 1–4 px short of the grout, raggedly
+    const j = (ihash(xx >> 1, yy >> 1, pl.seed) % 4) - 1;
+    const first = ttx === pl.tiles[0][0] && tty === pl.tiles[0][1];
+    if (first && pl.corner !== undefined) {
+      const cx = pl.corner & 1 ? 15 - ux : ux;
+      const cy = pl.corner & 2 ? 15 - uy : uy;
+      return cx + cy + j < 11;
+    }
+    const inN = !pl.tiles.some(([a, b]) => a === ttx && b === tty - 1);
+    const inS = !pl.tiles.some(([a, b]) => a === ttx && b === tty + 1);
+    const inW = !pl.tiles.some(([a, b]) => a === ttx - 1 && b === tty);
+    const inE = !pl.tiles.some(([a, b]) => a === ttx + 1 && b === tty);
+    if (inN && uy < 1 + Math.max(0, j)) return false;
+    if (inS && uy > 14 - Math.max(0, j)) return false;
+    if (inW && ux < 1 + Math.max(0, j + 1)) return false;
+    if (inE && ux > 14 - Math.max(0, j)) return false;
+    return true;
+  };
+  if (!inside(x, y)) return null;
+  // the remaining tile's lip casts a 1px shadow onto the base below / right of it
+  if (!inside(x, y - 1) || !inside(x - 1, y)) return P.asphalt;
+  // comb grooves: arcs of adhesive left by the trowel
+  const gx = x - (pl.tiles[0][0] * 16 - 6);
+  const gy = y - (pl.tiles[0][1] * 16 - 10);
+  const rr = Math.sqrt(gx * gx + gy * gy);
+  if (Math.floor(rr) % 3 === 0) return ihash(x, y, pl.seed + 1) % 4 === 0 ? P.steel : '#8A909A';
+  // a leftover flake of the tile stuck to the glue
+  if (ihash(x >> 1, y >> 1, pl.seed + 2) % 29 === 0) return P.concrete;
+  void lx;
+  void ly;
+  return P.steel;
 }
 
 interface Dec {
@@ -108,6 +272,19 @@ export function mallTiles(o: MallFloorOpts): FloorPainter {
   // decal list (world px), deterministic per map
   const decs: Dec[] = [];
   const rnd = (i: number, k: number) => ihash(i, k, o.seed + 77);
+  // peeled patches: 2–3 per map, each its own size and shape
+  const peels: Peel[] = [];
+  for (let i = 0; i < 40 && peels.length < 2; i++) {
+    const tx = 1 + (rnd(i, 21) % Math.max(1, o.w - 3));
+    const ty = 3 + (rnd(i, 22) % Math.max(1, o.h - 5));
+    // a whole tile, two side by side, or just a corner chunk of one
+    const shape = [0, 1, 4, 4, 0][rnd(i, 23) % 5];
+    const cand: [number, number][] = shape === 1 ? [[tx, ty], [tx + 1, ty]] : [[tx, ty]];
+    if (cand.some(([a, b]) => o.blocked?.(a, b) || a >= o.w - 1 || b >= o.h - 1)) continue;
+    if (peels.some((q) => q.tiles.some(([a, b]) => Math.abs(a - tx) < 6 && Math.abs(b - ty) < 4))) continue;
+    peels.push({ tiles: cand, corner: shape === 4 ? rnd(i, 24) % 4 : undefined, seed: o.seed * 7 + i });
+  }
+  const hand = o.decals ?? [];
   for (let i = 0; i < Math.max(4, Math.floor((o.w * o.h) / 14)); i++) {
     const tx = 1 + (rnd(i, 1) % Math.max(1, o.w - 2));
     const ty = 3 + (rnd(i, 2) % Math.max(1, o.h - 4));
@@ -162,19 +339,28 @@ export function mallTiles(o: MallFloorOpts): FloorPainter {
     const lx = x & 15;
     const ly = y & 15;
     const hh = ihash(tx, ty, o.seed);
-    // peeled tile: the grey base with a torn edge
-    const peeled = hh % 53 === 0 && !o.blocked?.(tx, ty);
-    if (peeled) {
-      const edge = 3 + ((ihash(tx, ly, o.seed + 5) >>> 3) % 3);
-      if (lx >= edge && ly >= 2 && ly <= 13 - ((lx * 7 + tx) % 3)) return lx === edge || ly === 2 ? P.asphalt : P.steel;
+    // peeled tiles: the grey base with the adhesive's grooves, chipped edges
+    for (const pl of peels) {
+      const c = peelAt(pl, x, y);
+      if (c) return c;
+    }
+    for (const hd of hand) {
+      if (x < hd.x - 1 || y < hd.y - 1 || x > hd.x + 40 || y > hd.y + 44) continue;
+      const c = mallDecalAt(hd, x - hd.x, y - hd.y, o.seed + hd.x * 3 + hd.y);
+      if (c) return c;
     }
     const d = at(x, y);
     if (d) return d;
     if (lx === 15 || ly === 15) return P.concrete;
     // irregular two-colour layout (not a checker): runs of the same colour
     // two tones laid irregularly (runs of 1–3 tiles), about half and half
-    const tone = (ihash(tx >> 1, ty, o.seed + 1) + (hh % 5 === 0 ? 1 : 0)) % 2;
-    const base = tone ? P.concrete : P.concreteLt;
+    let tone = (ihash(tx >> 1, ty, o.seed + 1) + (hh % 5 === 0 ? 1 : 0)) % 2;
+    // the walking routes are worn to a pale, polished band (a large, soft
+    // tone change across several tiles); the backwaters keep their grime
+    const worn = o.lane ? o.lane(x, y) : 0;
+    if (tone && worn > 0.45 + (valueNoise(x / 9, y / 9, o.seed + 6) - 0.5) * 0.4) tone = 0;
+    const grime = !tone && worn < 0.05 && valueNoise(x / 46, y / 38, o.seed + 7) > 0.66;
+    const base = tone || grime ? P.concrete : P.concreteLt;
     const lite = tone ? P.concreteLt : P.white;
     // yellowed wax (#F6D98A α15%): the pale tiles turn beige in soft patches
     const wax = valueNoise(x / 30, y / 30, o.seed + 2) + (o.lane ? o.lane(x, y) * 0.15 : 0);
@@ -184,7 +370,7 @@ export function mallTiles(o: MallFloorOpts): FloorPainter {
     const lane = o.lane ? o.lane(x, y) : 0;
     if (lane > 0.2 && (ihash(x >> 1, y >> 1, o.seed + 9) % 61) === 0) return P.steel;
     if (!tone && wax > 0.74) return P.paperGrid;
-    if (!tone && wax > 0.68 && ((x + y) & 1) === 0) return P.paperGrid;
+    if (!tone && wax > 0.68 && h01(x >> 1, y >> 1, o.seed + 5) < (wax - 0.68) / 0.06) return P.paperGrid;
     // a faint mottling so big areas don't look flat: sparse 2px chips in the
     // tile's own family (a pale chip on the dark tiles, a mid chip on the pale
     // ones), clustered in a few tiles instead of sprinkled evenly

@@ -400,7 +400,8 @@ registerWorldFx({
       drawFlies(g, cx, cy, f.t, stage);
     }
     if (layer === 'fg' && stage < 3) drawDust(g, cx, cy, f.mt, stage);
-    if (layer === 'fg' && stage >= 1 && stage < 3 && !fushigiDone('fushigi_04')) drawMaido(f, g, cx, cy);
+    // flag_maido_hold (scenario, evt_chime_stop): まめ吉 is frozen mid-bow; no balloon
+    if (layer === 'fg' && stage >= 1 && stage < 3 && !fushigiDone('fushigi_04') && !flag('flag_maido_hold')) drawMaido(f, g, cx, cy);
     if (layer === 'fg' && train.active) drawTrain(g, cx, cy);
   },
 });
