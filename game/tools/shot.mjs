@@ -46,7 +46,19 @@ await page.waitForFunction(() => window.__game !== undefined, null, { timeout: 2
 await page.waitForTimeout(300);
 
 const sleep = (ms) => page.waitForTimeout(ms);
+// Vite HMR may reload the page while other work is in progress: re-wait for the game.
+let reloaded = false;
+page.on('framenavigated', (f) => {
+  if (f === page.mainFrame()) reloaded = true;
+});
+reloaded = false;
 for (const s of steps) {
+  if (reloaded) {
+    reloaded = false;
+    console.log('(page reloaded — waiting for __game again)');
+    await page.waitForFunction(() => window.__game !== undefined, null, { timeout: 20000 }).catch(() => {});
+    await sleep(300);
+  }
   if (s.wait) await sleep(s.wait);
   if (s.press) {
     await page.keyboard.down(s.press);
