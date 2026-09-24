@@ -4,6 +4,7 @@
 // registers itself from audio/content.ts.
 
 import { startClock } from './clock';
+import { installKeepAlive, soundLive } from './keepalive';
 import { audioCtx, hasGraph, initAudio, liveGraph, setSpaceOn, volCurve, type SpaceId } from './engine';
 import * as amb from './ambience';
 import * as music from './music';
@@ -37,6 +38,7 @@ let unlocked = false;
 export function unlockAudio(): void {
   initAudio();
   startClock();
+  installKeepAlive();
   if (!unlocked) {
     unlocked = true;
     setVolume('bgm', volumes.bgm);
@@ -49,7 +51,7 @@ export function unlockAudio(): void {
 // ---- SFX ---------------------------------------------------------------------------
 
 export function sfx(id: string, opts?: SfxOpts): void {
-  if (!audioCtx()) return;
+  if (!soundLive()) return;
   const f = sfxTable.get(id);
   if (f) {
     f(opts);
@@ -62,7 +64,7 @@ const NULL_LOOP: LoopHandle = { set() {}, stop() {} };
 
 /** Looping SFX with live parameters (se_hanko_charge, se_roulette). */
 export function sfxLoop(id: string, opts?: SfxOpts): LoopHandle {
-  if (!audioCtx()) return NULL_LOOP;
+  if (!soundLive()) return NULL_LOOP;
   const f = loopTable.get(id);
   if (f) return f(opts);
   if (import.meta.env.DEV) console.warn(`[audio] unknown sfx loop ${id}`);
@@ -199,7 +201,7 @@ export function setTextBlip(fn: (voiceId: string, ch: string) => void): void {
   hooks.blip = fn;
 }
 export function textBlip(voiceId = 'default', ch = 'a'): void {
-  if (!audioCtx()) return;
+  if (!soundLive()) return;
   hooks.blip?.(voiceId, ch);
 }
 

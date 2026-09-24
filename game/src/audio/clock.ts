@@ -94,13 +94,9 @@ export function startClock(): void {
   if (started) return;
   started = true;
   startTicker();
+  // (suspend / resume around a hidden page lives in keepalive.ts)
   if (typeof document !== 'undefined')
     document.addEventListener('visibilitychange', () => {
-      const g = liveGraph();
-      if (!g) return;
-      const c = g.ctx as AudioContext;
-      if (document.hidden) void c.suspend();
-      else void c.resume();
       lastTick = 0;
     });
 }

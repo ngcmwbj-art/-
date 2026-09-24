@@ -60,6 +60,10 @@ npm run build        # subsets the font, typechecks, builds dist/
 - `boot.ts`: `createScene(name, params?)` builds any registered scene (e.g. `'gameover'`).
 - `game/state.ts`: key items (`isKeyItem`) no longer count toward `INVENTORY_MAX`; `bagCount()` gives used slots.
 - `tools/shot.mjs` re-waits for `__game` if Vite HMR reloads the page mid-run.
+- `engine/touch.ts`: on-screen D-pad and buttons for touch devices; reserves space next to or below the picture
+  via `Screen.reserveW/H`.
+- `audio/keepalive.ts`: brings the AudioContext back after the system stops it (alarm, call, app switch):
+  resume on page show / focus / any gesture, plus a 1 s retry; SFX and blips are skipped while it is stopped.
 
 ## Directory ownership (parallel teams: only edit what you own)
 
