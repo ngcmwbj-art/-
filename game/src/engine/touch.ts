@@ -5,10 +5,12 @@
 //    until tapped again) and 「メニュー」.
 //  - Tapping the game picture itself counts as けってい (advancing text).
 //
-// Layout adapts to the device: the game picture gives up part of the screen
-// so the controls sit beside it (phone, landscape) or below it (phone and
-// tablet, portrait; tablet landscape), and only falls back to translucent
-// controls over the picture when reserving space would shrink it too much.
+// Layout adapts to the device. The picture is scaled smoothly (not only in
+// whole steps) to the biggest size that leaves the controls beside it (phone,
+// landscape) or below it (portrait; tablets). When that would leave wide
+// empty bands (a tablet window wider than 16:9), the picture fills the screen
+// and translucent controls float over its left and right edges, in the middle
+// band where the game keeps no windows.
 
 import type { Action, Input } from './input';
 import { H, W, type Screen } from './screen';
@@ -38,8 +40,8 @@ const CSS = `
 .tc-d.on{background:${TAPE}}
 .tc-d .lamp{display:inline-block;width:.55em;height:.55em;border-radius:50%;border:2px solid ${INK};margin-right:.35em;background:${PAPER}}
 .tc-d.on .lamp{background:${SHU}}
-.tc.overlay .tc-pad,.tc.overlay .tc-btn{opacity:.62}
-.tc.overlay .tc-pad:active,.tc.overlay .tc-btn.down{opacity:.9}
+.tc.overlay .tc-pad,.tc.overlay .tc-btn{opacity:.55;transition:opacity .15s}
+.tc.overlay .tc-pad.held,.tc.overlay .tc-btn.down{opacity:.9}
 `;
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -153,6 +155,7 @@ export function installTouch(input: Input, screen?: Screen): void {
   pad.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     padId = e.pointerId;
+    pad.classList.add('held');
     capture(pad, e.pointerId);
     padMove(e);
   });
@@ -162,6 +165,7 @@ export function installTouch(input: Input, screen?: Screen): void {
   const endPad = (e: PointerEvent) => {
     if (e.pointerId !== padId) return;
     padId = null;
+    pad.classList.remove('held');
     setDirs(new Set());
   };
   pad.addEventListener('pointerup', endPad);
@@ -217,7 +221,6 @@ export function installTouch(input: Input, screen?: Screen): void {
   };
 
   type Box = { x: number; y: number; w: number; h: number };
-  type Plan = { mode: Mode; scale: number };
 
   /** Largest D-pad that fits in a box (with メニュー above it when asked). */
   const padFit = (b: Box, M: number, pillH: number, withPill: boolean) =>
@@ -230,7 +233,7 @@ export function installTouch(input: Input, screen?: Screen): void {
     if (!screen) return;
     const body = document.body;
     if (!active) {
-      screen.reserveW = screen.reserveH = 0;
+      screen.fixedScale = null;
       screen.resize();
       body.style.alignItems = '';
       body.style.paddingTop = '';
@@ -240,65 +243,64 @@ export function installTouch(input: Input, screen?: Screen): void {
     const vh = window.innerHeight;
     const dpr = window.devicePixelRatio || 1;
     const portrait = vh > vw;
-    const S0 = clamp(Math.min(vw, vh) * (portrait ? 0.42 : 0.34), 120, 200); // wanted D-pad size
+    const tablet = Math.min(vw, vh) >= 600;
+    let S0 = clamp(Math.min(vw, vh) * (portrait ? 0.42 : 0.34), 120, 200); // wanted D-pad size
     const M = clamp(S0 * 0.12, 12, 24); // margin
     const safeB = portrait ? 22 : 8; // home indicator
     const pill = { w: clamp(S0 * 0.62, 84, 124), h: clamp(S0 * 0.24, 34, 46) };
-    const bw0 = clamp(S0 * 0.6, 70, 116); // wanted けってい size
+    let bw0 = clamp(S0 * 0.6, 70, 116); // wanted けってい size
     const minS = Math.max(104, S0 * 0.66);
     const minBw = Math.max(60, bw0 * 0.66);
 
-    // Pick the biggest whole-pixel game scale that still leaves room for the
-    // controls beside or below the picture; overlay only as a last resort.
-    const over = Math.max(1, Math.floor(Math.min((vw * dpr) / W, (vh * dpr) / H)));
-    const sideBoxes = (gw: number): [Box, Box] => {
-      const sw = (vw - gw) / 2;
-      return [
-        { x: 0, y: 0, w: sw, h: vh - safeB },
-        { x: vw - sw, y: 0, w: sw, h: vh - safeB },
-      ];
-    };
-    const bottomBoxes = (gh: number): [Box, Box] => {
-      const top = gh + 8;
-      const h = vh - top - safeB;
-      return [
-        { x: 0, y: top, w: vw / 2, h },
-        { x: vw / 2, y: top, w: vw / 2, h },
-      ];
-    };
-    let plan: Plan = { mode: 'overlay', scale: over };
-    for (let s = over; s >= 1 && s >= over * 0.66; s--) {
-      const gw = (W * s) / dpr;
-      const gh = (H * s) / dpr;
-      if (gh > vh || gw > vw) continue;
-      if (!portrait) {
-        const [l, r] = sideBoxes(gw);
-        if (padFit(l, M, pill.h, true) >= minS && btnFit(r, M, pill.h, true) >= minBw) {
-          plan = { mode: 'side', scale: s };
-          break;
-        }
-      }
-      const [l, r] = bottomBoxes(gh);
-      if (padFit(l, M, pill.h, false) >= minS && btnFit(r, M, pill.h, false) >= minBw) {
-        plan = { mode: 'bottom', scale: s };
-        break;
-      }
+    // How wide can the picture get with the controls beside it, below it, or
+    // floating over it? (CSS px; the picture keeps its 16:9 shape)
+    const fitW = (w: number, h: number) => Math.max(0, Math.min(w, (h * W) / H));
+    const midRoom = (S: number, bw: number) => vw - 2.8 * M - S - 1.95 * bw - 2 * M >= 2 * pill.w + M;
+    const sideNeed = Math.max(minS, 1.95 * minBw) + 2 * M;
+    const bandNeed = Math.max(minS, 1.26 * minBw) + 2 * M + 8 + safeB + (midRoom(minS, minBw) ? 0 : pill.h + M);
+    const gSide = portrait ? 0 : fitW(vw - 2 * sideNeed, vh);
+    const gBottom = fitW(vw, vh - bandNeed);
+    const gFill = fitW(vw, vh);
+    let mode: Mode = gSide >= gBottom ? 'side' : 'bottom';
+    let g = Math.max(gSide, gBottom);
+    if (g <= 0 || g < gFill * (tablet ? 0.85 : 0.55)) {
+      mode = 'overlay';
+      g = gFill;
+    } else if (mode === 'side' ? g < (vh * W) / H - 0.5 : g < vw - 0.5) {
+      g *= 0.97; // the controls are what limits the picture: give them a little air
     }
-    const mode = plan.mode;
-    root.classList.toggle('overlay', mode === 'overlay');
-    const gw = (W * plan.scale) / dpr;
-    const gh = (H * plan.scale) / dpr;
-    // (half a pixel of slack so rounding never costs a whole scale step)
-    screen.reserveW = mode === 'side' ? vw - gw - 0.5 : 0;
-    screen.reserveH = mode === 'bottom' ? vh - gh - 0.5 : 0;
+    // device px per game px; a whole number when that costs under 3%
+    let sc = Math.max(1, (g * dpr) / W);
+    if ((sc - Math.floor(sc)) / sc < 0.03) sc = Math.floor(sc);
+    screen.fixedScale = sc;
     screen.resize();
+    const gw = (W * sc) / dpr;
+    const gh = (H * sc) / dpr;
+    root.classList.toggle('overlay', mode === 'overlay');
     body.style.boxSizing = 'border-box';
 
     // the two areas the clusters live in: left (D-pad, メニュー), right (buttons, ダッシュ)
     let L: Box, R: Box;
-    if (mode === 'side') [L, R] = sideBoxes(gw);
-    else if (mode === 'bottom') [L, R] = bottomBoxes(gh);
-    else {
+    if (mode === 'side') {
+      const sw = (vw - gw) / 2;
+      L = { x: 0, y: 0, w: sw, h: vh - safeB };
+      R = { x: vw - sw, y: 0, w: sw, h: vh - safeB };
+    } else if (mode === 'bottom') {
+      const top = gh + 8;
+      L = { x: 0, y: top, w: vw / 2, h: vh - top - safeB };
+      R = { x: vw / 2, y: top, w: vw / 2, h: vh - top - safeB };
+    } else if (tablet) {
+      // over the picture's edges, between its bottom windows (dialog with its
+      // name tag, battle commands: lowest 38%) and its top window (battle
+      // text: top 22%)
+      const top = (vh - gh) / 2;
+      const y0 = top + gh * 0.22;
+      const y1 = Math.min(vh - safeB, top + gh * 0.62 + M);
+      L = { x: 0, y: y0, w: vw / 2, h: y1 - y0 };
+      R = { x: vw / 2, y: y0, w: vw / 2, h: y1 - y0 };
+      S0 *= 0.78;
+      bw0 *= 0.78;
+    } else {
       L = { x: 0, y: 0, w: vw / 2, h: vh - safeB };
       R = { x: vw / 2, y: 0, w: vw / 2, h: vh - safeB };
     }
