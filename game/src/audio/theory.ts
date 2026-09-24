@@ -225,15 +225,46 @@ export function voicePcs(c: Chord, count: number, omitRoot: boolean): number[] {
   };
   pcs.sort((a, b) => prio(a) - prio(b));
   if (pcs.length > count) pcs = pcs.slice(0, count);
-  // triads: double the root (or third) so every voicing has `count` notes
-  const base = [...pcs];
+  // Short chords are filled up to `count` notes. A slash chord's bass (D7/F#:
+  // the third, which the table leaves to the bass) comes first, so the upper
+  // voices keep the chord's colour instead of an octave of the root; then the
+  // root, the fifth, the third (triads double the root as usual).
+  const fills: number[] = [];
+  if (c.bass !== c.root && !c.tones.includes(c.bass)) fills.push(c.bass);
+  fills.push(c.root);
+  const fifth = (c.root + fifthOf(c)) % 12;
+  if (c.tones.includes(fifth)) fills.push(fifth);
+  const third = (c.root + thirdOf(c)) % 12;
+  if (c.tones.includes(third)) fills.push(third);
   let k = 0;
-  while (pcs.length < count && base.length) {
-    const fill = base.includes(c.root) ? c.root : base[k++ % base.length];
-    pcs.push(fill);
+  while (pcs.length < count && fills.length) {
+    const next = fills.find((f) => !pcs.includes(f)) ?? fills[k++ % fills.length];
+    pcs.push(next);
     if (pcs.length > 6) break;
   }
   return pcs;
+}
+
+/**
+ * A voice-led chord whose top note stays at or below `ceil` (the melody's
+ * lowest note over the chord, minus a gap): the accompaniment never rings
+ * above or on the tune (3.4). Where the melody dips low, the voicing may
+ * drop a few semitones under `lo` or thin to three notes; if nothing fits,
+ * the plain voicing in [lo, hi] is used.
+ */
+export function voiceUnder(pcs: number[], prev: number[] | null, lo: number, hi: number, ceil: number): number[] {
+  const top = Math.min(hi, ceil);
+  if (top >= hi) return voiceLead(pcs, prev, lo, hi);
+  const ok = (v: number[], l: number) => v.length > 0 && v.every((m, i) => m >= l && m <= top && (i === 0 || m > v[i - 1]));
+  for (let n = pcs.length; n >= Math.min(3, pcs.length); n--) {
+    const p = pcs.slice(0, n);
+    for (const l of [lo, lo - 3, lo - 5]) {
+      if (top - l < 5) continue;
+      const v = voiceLead(p, prev, l, top);
+      if (ok(v, l)) return v;
+    }
+  }
+  return voiceLead(pcs, prev, lo, hi);
 }
 
 /**
@@ -264,6 +295,8 @@ export function voiceLead(pcs: number[], prev: number[] | null, lo = 55, hi = 76
       }
       // prefer spacing without clusters of two semitones at the bottom
       if (s.length > 1 && s[1] - s[0] <= 2 && s[0] < 60) cost += 3;
+      // a doubled note does not belong on top (an octave of the root reads thin)
+      if (s.length > 2 && s.slice(0, -1).some((x) => x % 12 === s[s.length - 1] % 12)) cost += 4;
       if (cost < bestCost) {
         bestCost = cost;
         best = s;

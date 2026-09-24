@@ -27,7 +27,9 @@ export const SYS = {
   goaisatsu: ['カネナリくんは 深々と おじぎした。', '敵も つられて おじぎした！\nちからが 下がった！'],
   kane: ['カネナリくんは 鐘を 鳴らした！', '……鳴らなかった。', 'すべった 空気で、\nキレが たまった！'],
   itemSelf: ['$actorは $itemを 使った！'],
-  itemGive: ['ミナトは カネナリくんに\n$itemを わたした。'],
+  // 10〔もちもの・相手へ〕 with the giver and the receiver filled in (the
+  // narrative line is written for ミナト → カネナリくん only)
+  itemGive: ['$actorは $targetに\n$itemを わたした。'],
   mamoruMinato: ['ミナトは 身がまえた。'],
   mamoruKanenari: ['カネナリくんは 着ぐるみの\n厚みで 身がまえた。'],
   nigeru: ['ミナトたちは 逃げだした！'],

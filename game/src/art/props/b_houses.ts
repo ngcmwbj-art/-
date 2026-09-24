@@ -38,6 +38,7 @@ import {
 } from './bkit';
 import { dk, lt } from './kit';
 import { printLines, scribble, tiny } from './text';
+import { drawLight, drawLightAt, halo, LIGHT, poolEllipse, poolTrapezoid } from './light';
 
 /** Leaves of a planter / potted plant row on a sill or at a foot. */
 function plants(p: PixelCanvas, x: number, y: number, n: number, seed: number): void {
@@ -167,27 +168,25 @@ registerBuilding({
   },
   glow(g, x, y, env, b) {
     // 8.6: at night the Shiomi living room is the warmest window in town —
-    // an amber glow round the lace curtain and the porch lamp lit
+    // the lace curtain glows amber, the porch lamp is lit
     const n = env.grade.night;
     if (n < 0.05) return;
     const gY = b.faceY + 16;
-    const ctx = g.ctx;
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    for (const [cx, cy, r, a] of [
-      [29, gY + 18, 34, 0.42],
-      [59, gY + 16, 16, 0.5],
-    ] as [number, number, number, number][]) {
-      const grd = ctx.createRadialGradient(x + cx, y + cy, 1, x + cx, y + cy, r);
-      grd.addColorStop(0, `rgba(255,190,110,${(a * n).toFixed(3)})`);
-      grd.addColorStop(0.5, `rgba(242,137,75,${(a * 0.45 * n).toFixed(3)})`);
-      grd.addColorStop(1, 'rgba(242,137,75,0)');
-      ctx.fillStyle = grd;
-      ctx.fillRect(x + cx - r, y + cy - r, r * 2, r * 2);
-    }
-    ctx.restore();
-    g.rect(x + 14, y + gY + 12, 30, 12, P.horizon, 0.35 * n);
+    g.rect(x + 14, y + gY + 12, 30, 12, P.sky, 0.5 * n);
+    g.rect(x + 15, y + gY + 17, 28, 6, P.horizon, 0.45 * n);
+    g.rect(x + 14, y + gY + 12, 30, 1, P.goldPale, 0.4 * n);
+    halo(g, x + 29, y + gY + 18, 20, LIGHT.lamp, 0.22 * n);
+    halo(g, x + 59, y + gY + 16, 6, LIGHT.street, 0.5 * n);
     g.rect(x + 58, y + gY + 14, 3, 4, P.glint, 0.9 * n);
+  },
+  light(g, x, y, env, b) {
+    // the living room's light and the porch lamp on the path and the wall
+    const n = env.grade.night;
+    if (n < 0.05) return;
+    const gY = b.faceY + 16;
+    drawLightAt(g, poolTrapezoid(34, 58, 30, LIGHT.lamp), x + 29 - 29, y + b.botY - 1, 0.75 * n);
+    drawLight(g, poolEllipse(30, 20, LIGHT.lamp), x + 29, y + gY + 18, 0.45 * n);
+    drawLight(g, poolEllipse(26, 16, LIGHT.street), x + 59, y + b.botY + 4, 0.55 * n);
   },
 });
 

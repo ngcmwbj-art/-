@@ -10,7 +10,6 @@ import type { EnemyUnit, PartyUnit } from './model';
 import { kakimoji, roundSeal } from './art/stamps';
 import { bangBubble, flipBoardText } from './art/fxart';
 import { PANEL_POS } from './ui/panels';
-import { labelCanvas, stickyCanvas } from './ui/note';
 import { LABEL } from '../data/battle';
 
 /** Top of the inner-voice lettering canvas (text ≈ y59–91). */
@@ -79,6 +78,7 @@ export function showBang(s: BattleScene, targets: PartyUnit[], until: () => bool
       layer: 'top',
       dur: 0,
       ui: true,
+      block: () => (until() ? null : { x0: x - 5, y0: y - 4, x1: x + 21, y1: y + 20 }),
       update() {
         if (until()) this.done = true;
       },
@@ -205,15 +205,8 @@ function wrapFlip(t: string): string {
  * so the two never sit on top of each other; kept under the band.
  */
 export function bokemakeLabel(s: BattleScene, e: EnemyUnit, long = false, delay = 0): void {
-  const y = Math.max(STAGE_TOP + 10, e.headY - 8);
-  let x = e.x;
-  // keep clear of a tutorial sticky on the left (the first tsukkomi shows one)
-  const st = s.sticky;
-  if (st && st.pos !== 'right') {
-    const sc = stickyCanvas(st.text);
-    const w = labelCanvas(LABEL.bokemake).width;
-    const top = 52;
-    if (y + 10 > top && y - 10 < top + sc.height && x - w / 2 < 8 + sc.width + 4) x = 8 + sc.width + 4 + w / 2;
-  }
-  s.label(LABEL.bokemake, Math.round(x), y, 'shu', long ? 1200 : 600, false, delay);
+  // on the head (tall enemies: just under the band), sliding off a sticky,
+  // the card or a number that is still up
+  const hy = Math.max(STAGE_TOP + 10, e.headY - 8);
+  s.labelNear(LABEL.bokemake, () => ({ x0: e.x - 10, y0: hy - 8, x1: e.x + 10, y1: hy + 8 }), ['center', 'below', 'right', 'left'], 'shu', long ? 1200 : 600, false, delay);
 }

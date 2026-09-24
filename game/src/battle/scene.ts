@@ -8,6 +8,7 @@ import type { Gfx } from '../engine/gfx';
 import { Particles, type BurstOpts } from '../engine/particles';
 import { rng } from '../engine/rng';
 import { makeCanvas } from '../engine/pixel';
+import { drawText } from '../engine/font';
 import { flag, state } from '../game/state';
 import { sfx, type SfxOpts } from '../audio';
 import * as audio from '../audio';
@@ -15,17 +16,32 @@ import type { BattleOpts, BattleResult } from './api';
 import { getEnemy } from '../data/battle';
 import { makeBackground, type Background } from './bg';
 import { EnemyUnit, PartyUnit, type BossPart } from './model';
-import { DamageNumber, type NumOpts } from './fx/numbers';
+import { DamageNumber, type NumOpts, type NumRect } from './fx/numbers';
 import { MessageBand } from './ui/message';
 import { emptySlotCanvas } from './ui/panels';
 import {
-  drawChimeSticky, drawCommand, drawInfoCard, drawKire, drawList, drawPanel, PANEL_POS, type CardData, type CmdView, type ListRow,
+  drawChimeSticky, drawCommand, drawInfoCard, drawKire, drawList, drawPanel, KIRE_TAB, PANEL_POS, TAG, type CardData, type CmdView, type ListRow,
 } from './ui/panels';
-import { C, cursorStamp, drawBar, labelCanvas, stickyCanvas, tapeCanvas } from './ui/note';
+import { C, cursorStamp, cursorStampSide, drawBar, labelCanvas, slantTape, STICKY_PAD, stickyCanvas, tapeCanvas } from './ui/note';
 import { ovalStamp, pekeMark, petalSprites } from './art/stamps';
 import { sweatDrop } from './art/fxart';
 
 export const FRAME = 1000 / 60;
+
+export type Rect = NumRect;
+export type LabelSide = 'center' | 'above' | 'below' | 'right' | 'left' | 'aboveRight' | 'aboveLeft';
+
+interface FloatLabel {
+  img: HTMLCanvasElement;
+  /** ms since it appeared (negative while delayed). */
+  t: number;
+  ms: number;
+  x: number;
+  y: number;
+  placed: boolean;
+  anchor: () => Rect;
+  sides: LabelSide[];
+}
 
 export interface Fx {
   t: number;
@@ -36,6 +52,8 @@ export interface Fx {
   draw(g: Gfx, t: number, p: number): void;
   update?(dt: number): void;
   done?: boolean;
+  /** Screen rect floating numbers / labels must keep clear of while alive. */
+  block?: () => NumRect | null;
 }
 
 export interface BossHooks {
@@ -93,7 +111,10 @@ export class BattleScene implements Scene {
   uiAlpha = 1;
   cmd: CmdView | null = null;
   list: { rows: ListRow[]; index: number; scroll: number } | null = null;
-  target: { kind: 'enemy'; e: EnemyUnit; part?: { x: number; y: number; w: number } } | { kind: 'party'; u: PartyUnit } | null = null;
+  target:
+    | { kind: 'enemy'; e: EnemyUnit; part?: { x: number; y: number; w: number }; aim?: { x: number; y: number; dir: 'down' | 'right' } }
+    | { kind: 'party'; u: PartyUnit }
+    | null = null;
   card: { data: CardData; t: number; closing: boolean } | null = null;
   /** Tutorial sticky; `ttl` (ms) peels it off by itself. */
   sticky: { text: string; t: number; pulse?: boolean; ttl?: number; pos?: 'left' | 'right' } | null = null;
@@ -101,6 +122,8 @@ export class BattleScene implements Scene {
   /** Directional screen shake. */
   private shk = { ax: 0, ay: 0, t: 0, dur: 0, x: 0, y: 0 };
   flashes: { color: string; alpha: number; frames: number }[] = [];
+  /** The frozen-frame look while the screen stands still (かねを鳴らす). */
+  freezeLook: { t: number; x: number; y: number } | null = null;
   /** Full-screen dimming (nori, level up). */
   dark = 0;
   tint: { color: string; alpha: number } | null = null;
@@ -262,6 +285,7 @@ export class BattleScene implements Scene {
     this.msg.update(dt, this.msgConfirm());
     for (const f of this.fx) if (f.ui) this.stepFx(f, dt);
     for (const n of this.numbers) n.update(dt);
+    this.updateLabels(dt);
     for (let i = 0; i < 3; i++) if (this.kirePops[i] > 0) this.kirePops[i] = Math.max(0, this.kirePops[i] - dt);
     for (let i = 0; i < 4; i++) if (this.bossChime.pops[i] > 0) this.bossChime.pops[i] = Math.max(0, this.bossChime.pops[i] - dt);
     if (this.cursorPressed > 0) this.cursorPressed -= dt;
@@ -389,42 +413,217 @@ export class BattleScene implements Scene {
     return fx;
   }
 
-  number(x: number, y: number, n: number, o: NumOpts = {}): DamageNumber {
-    const d = new DamageNumber(x, y, n, o);
-    this.numbers.push(d);
-    return d;
+  // ---- floating numbers & labels: a tiny layout solver ------------------------------
+  //
+  // Every number and label reserves the rectangle where it comes to rest for
+  // its lifetime. New ones try a list of candidate spots and take the first
+  // that covers nothing live and none of the fixed UI that must stay readable
+  // (the band, the name tags, the kire tab, the panels, a sticky, the card).
+
+  /** Live reservations (rest rects of numbers / labels), in real time. */
+  private occ: { r: Rect; until: number }[] = [];
+  /** Labels are drawn after the numbers and every effect, so nothing cuts them. */
+  labels: FloatLabel[] = [];
+  /** Most recent number per enemy (labels pair with it). */
+  private lastNum = new Map<EnemyUnit | PartyUnit, { d: DamageNumber; at: number }>();
+
+  private static overlap(a: Rect, b: Rect, pad = 1): boolean {
+    return a.x0 < b.x1 + pad && b.x0 < a.x1 + pad && a.y0 < b.y1 + pad && b.y0 < a.y1 + pad;
   }
 
-  /** Ink-stamp label that pops and fades (after `delay` ms). */
-  label(text: string, x: number, y: number, tone: 'shu' | 'gray' = 'shu', ms = 600, worn = false, delay = 0): void {
-    const img = labelCanvas(text, tone, worn);
-    this.addFx({
-      layer: 'top',
-      dur: ms + delay,
-      ui: true,
-      draw: (g, t0) => {
-        const t = t0 - delay;
-        if (t < 0) return;
-        const pop = t < 70 ? 1.5 - 0.5 * (t / 70) : 1;
-        const a = t > ms - 150 ? Math.max(0, (ms - t) / 150) : 1;
-        const w = img.width * pop;
-        const h = img.height * pop;
-        g.alpha(a, () => g.ctx.drawImage(img, Math.round(x - w / 2), Math.round(y - h / 2), Math.round(w), Math.round(h)));
-      },
-    });
+  /** Fixed UI that floating text must never cover. */
+  blockedRects(): Rect[] {
+    const out: Rect[] = [{ x0: 0, y0: 0, x1: 384, y1: this.msg.bottom + 1 }];
+    if (!this.showUi) return out;
+    // the tape row (name tags, kire tab) and everything under it
+    for (const u of this.party) {
+      const t = TAG[u.id];
+      if (t) out.push({ x0: t[0], y0: t[1], x1: t[0] + t[2], y1: t[1] + 18 });
+    }
+    if (this.kanenariJoined) out.push({ x0: KIRE_TAB[0], y0: KIRE_TAB[1], x1: KIRE_TAB[0] + 44, y1: KIRE_TAB[1] + 18 });
+    out.push({ x0: 0, y0: 150, x1: 384, y1: 216 });
+    if (this.isBoss) out.push({ x0: 300, y0: this.msg.bottom, x1: 378, y1: this.msg.bottom + 24 });
+    if (this.sticky && this.sticky.t >= 0) {
+      const img = stickyCanvas(this.sticky.text);
+      const right = this.sticky.pos === 'right';
+      const sx = right ? 381 - (img.width - STICKY_PAD) : 8;
+      const sy = right ? this.msg.bottom + 26 : 52;
+      out.push({ x0: sx - STICKY_PAD, y0: sy - STICKY_PAD, x1: sx + img.width - STICKY_PAD, y1: sy + img.height - STICKY_PAD });
+    }
+    if (this.card) {
+      const x = this.card.data.side === 'left' ? 8 : 216;
+      out.push({ x0: x - 2, y0: 42, x1: x + 164, y1: 148 });
+    }
+    for (const f of this.fx) {
+      const b = !f.done && f.block ? f.block() : null;
+      if (b) out.push(b);
+    }
+    return out;
+  }
+
+  /** Is `r` on screen, clear of the fixed UI and of every live reservation? */
+  fits(r: Rect, ignoreOcc = false): boolean {
+    if (r.x0 < 2 || r.x1 > 382 || r.y0 < 0 || r.y1 > 214) return false;
+    for (const b of this.blockedRects()) if (BattleScene.overlap(r, b, 0)) return false;
+    if (!ignoreOcc) for (const o of this.occ) if (o.until > this.rt && BattleScene.overlap(r, o.r)) return false;
+    return true;
+  }
+
+  reserve(r: Rect, ms: number): void {
+    this.occ = this.occ.filter((o) => o.until > this.rt);
+    this.occ.push({ r, until: this.rt + ms });
   }
 
   /**
-   * Label to the upper right of a point (the sight / the stamp) when no
-   * number pops from it. Flips to the left when it would leave the screen.
+   * Pop a damage / heal number. `lay` picks how it gets out of the way of
+   * live numbers and labels: 'enemy' stacks multi-hits at (+10, −6) (then
+   * further out), 'party' lines them up in a row along the top of the panel,
+   * 'free' keeps the exact spot.
    */
-  labelUpRight(text: string, x: number, y: number, tone: 'shu' | 'gray' = 'shu', ms = 600, worn = false): void {
+  number(x: number, y: number, n: number, o: NumOpts = {}, lay: 'free' | 'enemy' | 'party' = 'free', owner?: EnemyUnit | PartyUnit): DamageNumber {
+    const d = new DamageNumber(x, y, n, o);
+    if (lay !== 'free') {
+      const w = d.img.width;
+      const h = d.img.height;
+      const cands: [number, number][] = [[0, 0]];
+      if (lay === 'enemy') {
+        // (+10, −6) stacking first; when the band is in the way, step down and
+        // out instead — never level with a neighbour (two numbers side by
+        // side at one height read as one: "20 17" → "2017")
+        for (let k = 1; k <= 7; k++) cands.push([10 * k, -6 * k]);
+        for (let k = 1; k <= 5; k++) cands.push([-10 * k, -6 * k]);
+        for (let k = 1; k <= 4; k++) cands.push([(w + 6) * k, 10 * k], [-(w + 6) * k, 10 * k]);
+      } else {
+        // a row along the top of the panel, first leftward (away from the
+        // tsukkomi "!" over the photo's right half), then past it to the
+        // right; neighbours step up 6px and keep a 6px gap so two single
+        // digits never read as one number
+        for (let row = 0; row < 3; row++) {
+          for (let k = row ? 0 : 1; k <= 3; k++) cands.push([-(w + 6) * k, -(h + 4) * row - (k % 2) * 6]);
+          for (let k = 1; k <= 6; k++) cands.push([(w + 6) * k, -(h + 4) * row - (k % 2) * 6]);
+        }
+      }
+      let ok = false;
+      for (const [dx, dy] of cands) {
+        d.x = x + dx;
+        d.y = y + dy;
+        if (this.fits(d.restRect())) {
+          ok = true;
+          break;
+        }
+      }
+      if (!ok) {
+        d.x = x;
+        d.y = y;
+      }
+    }
+    this.reserve(d.restRect(), d.life);
+    this.numbers.push(d);
+    if (owner) this.lastNum.set(owner, { d, at: this.rt });
+    return d;
+  }
+
+  /** Rest rect of the number `owner` popped within the last `ms` (for its label). */
+  recentNumberRect(owner: EnemyUnit | PartyUnit, ms = 400): Rect | null {
+    const r = this.lastNum.get(owner);
+    if (!r || this.rt - r.at > ms || r.d.done) return null;
+    return r.d.restRect();
+  }
+
+  /** Ink-stamp label that pops and fades, at a fixed centre (after `delay` ms). */
+  label(text: string, x: number, y: number, tone: 'shu' | 'gray' = 'shu', ms = 600, worn = false, delay = 0): void {
+    this.labelNear(text, () => ({ x0: x, y0: y, x1: x, y1: y }), ['center'], tone, ms, worn, delay);
+  }
+
+  /**
+   * Label placed next to an anchor rect (resolved when it appears, so it can
+   * pair with a number popped in the same frame): the first side in `sides`
+   * that is free wins, each side also tried nudged a little along its edge.
+   */
+  labelNear(
+    text: string,
+    anchor: () => Rect,
+    sides: LabelSide[],
+    tone: 'shu' | 'gray' = 'shu',
+    ms = 600,
+    worn = false,
+    delay = 0,
+  ): void {
     const img = labelCanvas(text, tone, worn);
-    const w = img.width;
-    let cx = x + 12 + w / 2;
-    if (cx + w / 2 > 380) cx = x - 12 - w / 2;
-    const cy = Math.max(STAGE_TOP + img.height / 2, y - 18);
-    this.label(text, Math.round(cx), Math.round(cy), tone, ms, worn);
+    this.labels.push({ img, t: -delay, ms, x: 0, y: 0, placed: false, anchor, sides });
+  }
+
+  private placeLabel(l: FloatLabel): void {
+    const a = l.anchor();
+    const w = l.img.width;
+    const h = l.img.height;
+    const acx = (a.x0 + a.x1) / 2;
+    const acy = (a.y0 + a.y1) / 2;
+    const at = (side: LabelSide, nudge: number): [number, number] => {
+      switch (side) {
+        case 'center':
+          return [acx - w / 2 + nudge, acy - h / 2];
+        case 'above':
+          return [acx - w / 2 + nudge, a.y0 - 2 - h];
+        case 'below':
+          return [acx - w / 2 + nudge, a.y1 + 2];
+        case 'right':
+          return [a.x1 + 3, acy - h / 2 + nudge];
+        case 'left':
+          return [a.x0 - 3 - w, acy - h / 2 + nudge];
+        case 'aboveRight':
+          return [a.x1 - 4 + nudge, a.y0 - 2 - h];
+        case 'aboveLeft':
+          return [a.x0 + 4 - w + nudge, a.y0 - 2 - h];
+      }
+    };
+    const nudges = [0, 6, -6, 12, -12, 20, -20];
+    for (const pass of [false, true])
+      for (const side of l.sides)
+        for (const n of side === 'center' ? [0] : nudges) {
+          const [x, y] = at(side, n);
+          const r = { x0: Math.round(x), y0: Math.round(y), x1: Math.round(x + w), y1: Math.round(y + h) };
+          // second pass: fixed UI only (a crowded moment still gets its label)
+          if (this.fits(r, pass)) {
+            l.x = r.x0;
+            l.y = r.y0;
+            l.placed = true;
+            this.reserve(r, l.ms);
+            return;
+          }
+        }
+    const [x, y] = at(l.sides[0], 0);
+    l.x = Math.round(Math.max(2, Math.min(382 - w, x)));
+    l.y = Math.round(Math.max(this.msg.bottom + 2, Math.min(141 - h, y)));
+    l.placed = true;
+    this.reserve({ x0: l.x, y0: l.y, x1: l.x + w, y1: l.y + h }, l.ms);
+  }
+
+  private updateLabels(dt: number): void {
+    for (const l of this.labels) {
+      l.t += dt;
+      if (!l.placed && l.t >= 0) this.placeLabel(l);
+    }
+    this.labels = this.labels.filter((l) => l.t < l.ms);
+  }
+
+  private drawLabels(g: Gfx): void {
+    for (const l of this.labels) {
+      if (!l.placed || l.t < 0) continue;
+      const t = l.t;
+      const pop = t < 70 ? 1.5 - 0.5 * (t / 70) : 1;
+      const a = t > l.ms - 150 ? Math.max(0, (l.ms - t) / 150) : 1;
+      const w = l.img.width * pop;
+      const h = l.img.height * pop;
+      const cx = l.x + l.img.width / 2;
+      const cy = l.y + l.img.height / 2;
+      g.alpha(a, () => g.ctx.drawImage(l.img, Math.round(cx - w / 2), Math.round(cy - h / 2), Math.round(w), Math.round(h)));
+    }
+  }
+
+  /** Label up-right of a point (the sight / the stamp) when no number pops from it. */
+  labelUpRight(text: string, x: number, y: number, tone: 'shu' | 'gray' = 'shu', ms = 600, worn = false, delay = 0): void {
+    this.labelNear(text, () => ({ x0: x - 8, y0: y - 8, x1: x + 8, y1: y + 8 }), ['aboveRight', 'aboveLeft', 'right', 'left', 'below'], tone, ms, worn, delay);
   }
 
   /**
@@ -441,25 +640,19 @@ export class BattleScene implements Scene {
 
   /**
    * Hit label (いい音！／くっきり！／かすれ……) paired with the enemy's damage
-   * number: stacked just above where the number comes to rest, or beside it
-   * when the band leaves no room above.
+   * number: it appears 3 frames after the impact, right on top of where the
+   * number comes to rest (2px gap), else beside it — never over the number.
    */
-  labelForHit(text: string, e: EnemyUnit, big = false, tone: 'shu' | 'gray' = 'shu', ms = 600, worn = false): void {
-    const img = labelCanvas(text, tone, worn);
-    const [x, y] = this.enemyNumberXY(e, big);
-    const h = big ? NUM_H_BIG : NUM_H;
-    const numTop = y - NUM_RISE - h;
-    const nx = x + 6; // the number drifts 6px right while rising
-    let cx = nx;
-    let cy = numTop - 1 - img.height / 2;
-    if (cy - img.height / 2 < STAGE_TOP - 1) {
-      const half = big ? 16 : 13;
-      cx = nx + half + 3 + img.width / 2;
-      if (cx + img.width / 2 > 381) cx = nx - half - 3 - img.width / 2;
-      cy = numTop + h / 2;
-    }
-    cx = Math.max(img.width / 2 + 3, Math.min(381 - img.width / 2, cx));
-    this.label(text, Math.round(cx), Math.round(cy), tone, ms, worn);
+  labelForHit(text: string, e: EnemyUnit, _big = false, tone: 'shu' | 'gray' = 'shu', ms = 600, worn = false, delay = 3 * FRAME): void {
+    this.labelNear(
+      text,
+      () => this.recentNumberRect(e) ?? { x0: e.coreX - 8, y0: e.coreY - 24, x1: e.coreX + 8, y1: e.coreY - 8 },
+      ['above', 'right', 'left', 'below'],
+      tone,
+      ms,
+      worn,
+      delay,
+    );
   }
 
   burst(x: number, y: number, o: BurstOpts, top = false): void {
@@ -479,6 +672,11 @@ export class BattleScene implements Scene {
     const st = starBits();
     for (let i = 0; i < n; i++)
       this.burst(x, y, { count: 1, speed, life: [280, 440], colors: ['#FFD23F'], gravity: 60, drag: 2, shape: 'img', img: st[i % st.length] }, true);
+  }
+  /** One glinting star (#FFD23F, core #FFF6D8) drifting up from (x, y). */
+  sparkle(x: number, y: number): void {
+    const st = starBits();
+    this.burst(x, y, { count: 1, speed: [8, 22], angle: [-Math.PI * 0.8, -Math.PI * 0.2], life: [420, 640], colors: ['#FFD23F'], gravity: -10, drag: 1, shape: 'img', img: st[rng.int(0, 1)] }, true);
   }
   shuSplash(x: number, y: number, n: number, alpha70 = false): void {
     const cols = alpha70 ? ['#E86A5E', '#E86A5E'] : ['#E23B2E', '#E23B2E', '#E23B2E', '#FF6A4D', '#B8241E'];
@@ -554,11 +752,31 @@ export class BattleScene implements Scene {
     for (const f of this.fx) if (f.layer === 'top') f.draw(g, f.t, f.dur ? Math.min(1, f.t / f.dur) : 0);
     for (const n of this.numbers) n.draw(g);
     this.partsTop.draw(g);
+    this.drawLabels(g);
     ctx.restore();
     if (this.tint) g.rect(0, 0, 384, 216, this.tint.color, this.tint.alpha);
     if (this.tint2) g.rect(0, 0, 384, 216, this.tint2.color, this.tint2.alpha);
     for (const f of this.flashes) g.rect(0, 0, 384, 216, f.color, f.alpha);
+    if (this.freezeLook) this.drawFreeze(g);
     this.transitionDraw?.(g);
+  }
+
+  /**
+   * かねを鳴らす: for the 0.3s standstill the picture drains to grey and dims a
+   * step, and 「しーん」 hangs beside the bell — you can see time has stopped.
+   */
+  private drawFreeze(g: Gfx): void {
+    const ctx = g.ctx;
+    ctx.save();
+    ctx.globalCompositeOperation = 'saturation';
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(0, 0, 384, 216);
+    ctx.restore();
+    g.rect(0, 0, 384, 216, '#1B1733', 0.22);
+    const f = this.freezeLook!;
+    const img = shiinLettering();
+    g.img(img, Math.round(f.x), Math.round(f.y));
   }
 
   private drawEnemyShadow(g: Gfx, e: EnemyUnit): void {
@@ -776,9 +994,16 @@ export class BattleScene implements Scene {
     if (this.target?.kind === 'enemy') {
       const e = this.target.e;
       const bob = Math.round(Math.sin(this.rt / 130) * 1) + (this.cursorPressed > 0 ? 1 : 0);
-      const px = this.target.part ? this.target.part.x : e.x;
-      const py = Math.max(this.msg.bottom + 14, this.target.part ? this.target.part.y : e.headY - (flag('flag_mimashita_' + e.id) ? 14 : 4));
-      g.img(cursorStamp(this.cursorPressed > 0), Math.round(px - 4), Math.round(py - 12 + bob));
+      const aim = this.target.aim;
+      if (aim && aim.dir === 'right') {
+        // lying on its side, pressing at the thing to its right
+        const img = cursorStampSide(this.cursorPressed > 0);
+        g.img(img, Math.round(aim.x - img.width - 1 + bob), Math.round(aim.y - img.height / 2));
+      } else {
+        const px = aim ? aim.x : this.target.part ? this.target.part.x : e.x;
+        const py = Math.max(this.msg.bottom + 14, aim ? aim.y : this.target.part ? this.target.part.y : e.headY - (flag('flag_mimashita_' + e.id) ? 14 : 4));
+        g.img(cursorStamp(this.cursorPressed > 0), Math.round(px - 4), Math.round(py - 12 + bob));
+      }
     }
     if (this.card) {
       const t = this.card.t;
@@ -793,11 +1018,12 @@ export class BattleScene implements Scene {
       const glow = st.pulse && Math.floor(this.rt / 200) % 2 === 0;
       const right = st.pos === 'right';
       // left: (8,52) under the band; right: under the boss's chime sticky
-      const sx = right ? 381 - img.width : 8;
+      const P = STICKY_PAD;
+      const sx = right ? 381 - (img.width - P) : 8;
       const sy = right ? this.msg.bottom + 26 : 52;
       const dir = right ? 1 : -1;
-      g.alpha(k, () => g.img(img, sx + dir * Math.round(out * 10), sy - Math.round((1 - Math.min(1, st.t / 120)) * 6) + Math.round(out * out * 12)));
-      if (glow) g.alpha(0.35 * k, () => g.rect(sx, sy, img.width - 3, img.height - 3, '#FFFFFF'));
+      g.alpha(k, () => g.img(img, sx - P + dir * Math.round(out * 10), sy - P - Math.round((1 - Math.min(1, st.t / 120)) * 6) + Math.round(out * out * 12)));
+      if (glow) g.alpha(0.35 * k, () => g.rect(sx, sy, img.width - P - 3, img.height - P - 3, '#FFFFFF'));
     }
   }
 
@@ -808,9 +1034,45 @@ export class BattleScene implements Scene {
 
   private drawEmptySlot(g: Gfx, a: number): void {
     // right-hand slot before Kanenari-kun joins: a torn-out page of the blank
-    // free-research notebook, slightly tilted by a pixel of sag
+    // free-research notebook, taped in at two corners, with a blank name tag
+    // that only has a pencilled "？" — a friend's place, still empty
     g.alpha(a * 0.92, () => g.img(emptySlotCanvas(), 248, 156));
+    g.alpha(a, () => {
+      g.img(slantTape(16, -0.7, '#F7C27A', 2), 243, 151);
+      g.img(slantTape(16, -0.7, '#F7C27A', 6), 363, 197);
+      g.img(emptyTag(), 280, 144);
+    });
   }
+}
+
+let emptyTagC: HTMLCanvasElement | null = null;
+/** The empty slot's name tag: plain masking tape with a pencilled "？". */
+function emptyTag(): HTMLCanvasElement {
+  if (emptyTagC) return emptyTagC;
+  const t = tapeCanvas(40, 18, '', C.tape, 11);
+  const [c, ctx] = makeCanvas(t.width, t.height);
+  ctx.drawImage(t, 0, 0);
+  drawText(ctx, '？', 12, 1, { color: '#8A809A' });
+  drawText(ctx, '？', 12, 1, { color: '#6E6480' });
+  // a faint eraser smudge where a name was tried and rubbed out
+  ctx.globalAlpha = 0.25;
+  ctx.fillStyle = '#6E6480';
+  for (const [x, y] of [[29, 8], [31, 9], [33, 8], [30, 10], [32, 11]]) ctx.fillRect(x, y, 1, 1);
+  emptyTagC = c;
+  return c;
+}
+
+let shiinC: HTMLCanvasElement | null = null;
+/** 「しーん」 in quiet manga lettering: paper-white, a slate edge and an ink outline. */
+function shiinLettering(): HTMLCanvasElement {
+  if (shiinC) return shiinC;
+  const txt = 'しーん';
+  const w = 16 * 3 + 6;
+  const [c, ctx] = makeCanvas(w, 24);
+  for (const [dx, dy, col] of [[-2, 0, '#2A2440'], [2, 0, '#2A2440'], [0, -2, '#2A2440'], [0, 2, '#2A2440'], [-1, -1, '#2A2440'], [1, 1, '#2A2440'], [1, -1, '#2A2440'], [-1, 1, '#2A2440'], [-1, 0, '#6B7186'], [1, 0, '#6B7186'], [0, -1, '#6B7186'], [0, 1, '#6B7186'], [0, 0, '#F4F1E8']] as [number, number, string][])
+    drawText(ctx, txt, 3 + dx, 4 + dy, { color: col });
+  shiinC = c;
+  return c;
 }
 
 let paperBitsC: HTMLCanvasElement[] | null = null;

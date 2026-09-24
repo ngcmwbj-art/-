@@ -18,6 +18,7 @@ import { EnemyGalleryScene } from './gallery';
 import { playHankoLearnField, playHankoLearnIn } from './learn';
 import { playLevelUpField } from './results';
 import { addKire } from './common';
+import { syncBossFlags } from './boss';
 import type { Judge, PartyCmd } from './model';
 import { C, drawNote } from './ui/note';
 import '../art/enemies/all';
@@ -270,6 +271,30 @@ registerDebug('bfirst', (on = true) => {
   current.qaPartyFirst = on;
   return on;
 });
+/** QA: light a boss part as if 迷子のお知らせ had called it ('bottle' | 'cap' | 'shoe' | 'umbrella'). */
+registerDebug('bglow', (key = 'bottle') => {
+  const s = current;
+  const e = s?.enemies.find((x) => x.def.boss);
+  if (!s || !e) return 'no boss';
+  const p = s.bossParts.find((x) => x.id === 'boss_omukaemachi_' + key);
+  if (!p) return 'no part';
+  p.glow = true;
+  (p as typeof p & { glowRound?: number }).glowRound = s.round;
+  e.params['glowAt_' + key] = s.t;
+  syncBossFlags(s, e);
+  return key;
+});
+/** QA: show the battle's own fallback game-over screen (used when no hook is installed). */
+registerDebug('bgameover', (boss = false) => {
+  game.scripts.run(runGameOver(!!boss));
+  return 'ok';
+});
+/** QA: the next ノリツッコミ plays boke n (1 sing / 2 flag / 3 flip); 0 = random. */
+registerDebug('bnori', (n = 1) => {
+  if (!current) return 'no battle';
+  current.memo.noriForce = n;
+  return n;
+});
 registerDebug('bstate', () => {
   const s = current;
   if (!s) return null;
@@ -282,7 +307,7 @@ registerDebug('bstate', () => {
     party: s.party.map((u) => ({ id: u.id, hp: u.m.hp, mp: u.m.mp, status: u.m.status })),
     chime: s.bossChime.lit,
     memo: s.memo,
-    msg: (s.msg as unknown as { cur: { glyphs: { ch: string }[] } | null }).cur?.glyphs.map((g) => g.ch).join('') ?? '',
+    msg: s.msg.text,
     interactive: s.msgInteractive,
   };
 });

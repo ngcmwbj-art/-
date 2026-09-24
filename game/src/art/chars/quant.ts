@@ -43,12 +43,15 @@ function alphaStep(a: number): number {
 }
 
 /** Colors closer than this (CIE94) to an allowed color join it. */
-const SNAP = 6;
+const SNAP = 10;
 /** A 1–2px color merges into a well-used one closer than this. */
-const RARE = 10;
+const RARE = 16;
 
 const MARK = packHex(RIM_MARK);
 const MARK_HI = packHex(RIM_MARK_HI);
+/** Rim pixels as reported (the default stage 0–1 rim colors). */
+const RIM_PIX = pixOf(packHex(RIM_DEFAULT));
+const RIM_HI_PIX = pixOf(packHex('#F7C27A'));
 
 export function spriteCanvases(s: CharSprite): HTMLCanvasElement[] {
   const set = new Set<HTMLCanvasElement>();
@@ -80,7 +83,16 @@ export function choosePalette(hist: Map<number, number>, budget = MAX_CUSTOM): {
   const customs: number[] = [];
   const map = new Map<number, number>();
   const off = [...hist.entries()].filter(([c]) => !MASTER_SET.has(c)).sort((a, b) => b[1] - a[1]);
+  // the design's named character colors (DESIGN_EXTRA: Minato's tee light,
+  // Kanenari's fur shade and cheeks, the pigeon greys...) are kept as they
+  // are — they are what the 8-color allowance is for (7.1)
   for (const [c] of off) {
+    if (customs.length >= budget || !EXTRA_PACKED.includes(c)) continue;
+    allowed.push(c);
+    customs.push(c);
+  }
+  for (const [c] of off) {
+    if (customs.includes(c)) continue;
     const [m, d] = nearest(c, allowed);
     if (d <= snapTol(c, SNAP)) {
       map.set(c, m);
@@ -209,6 +221,16 @@ export function paletteReport(id: string): PaletteReport | undefined {
   return reports.get(id);
 }
 
+/** Colors of each finalized frame (RGBA as read back; rim pixels at the default rim). */
+interface FrameInfo {
+  colors: Set<number>;
+  trans: number;
+}
+const frameInfo = new WeakMap<HTMLCanvasElement, FrameInfo>();
+
+// Measured from the pixel data finalizeSprite already holds, so no canvas is
+// read back a second time (repeated getImageData on a 2D context without
+// willReadFrequently makes Chrome log a warning per canvas).
 function measure(id: string, canv: HTMLCanvasElement[]): void {
   const all = new Set<number>();
   const off = new Set<number>();
@@ -217,22 +239,17 @@ function measure(id: string, canv: HTMLCanvasElement[]): void {
   let maxF = 0;
   let sumF = 0;
   for (const c of canv) {
-    const u = new Uint32Array(c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data.buffer);
-    const fr = new Set<number>();
-    for (let i = 0; i < u.length; i++) {
-      const v = u[i];
-      if (!(v >>> 24)) continue;
-      fr.add(v);
+    const fi = frameInfo.get(c);
+    if (!fi) continue;
+    nTrans += fi.trans;
+    for (const v of fi.colors) {
       all.add(v);
+      if (v >>> 24 !== 255) trans.add(v);
       const rgb = rgbOf(v);
-      if (v >>> 24 !== 255) {
-        nTrans++;
-        trans.add(v);
-      }
       if (!MASTER_SET.has(rgb)) off.add(rgb);
     }
-    maxF = Math.max(maxF, fr.size);
-    sumF += fr.size;
+    maxF = Math.max(maxF, fi.colors.size);
+    sumF += fi.colors.size;
   }
   reports.set(id, {
     customs: [...off].map((c) => '#' + c.toString(16).padStart(6, '0').toUpperCase()),
@@ -348,6 +365,16 @@ export function finalizeSprite(s: CharSprite, budget = MAX_CUSTOM): CharSprite {
       }
     }
     if (dirty) canv[k].getContext('2d')!.putImageData(im, 0, 0);
+    const colors = new Set<number>();
+    let nt = 0;
+    for (let i = 0; i < u.length; i++) {
+      const v = u[i];
+      if (!(v >>> 24)) continue;
+      const rgb = rgbOf(v);
+      colors.add(rgb === MARK ? RIM_PIX : rgb === MARK_HI ? RIM_HI_PIX : v);
+      if (v >>> 24 !== 255) nt++;
+    }
+    frameInfo.set(canv[k], { colors, trans: nt });
     if (lo.length || hi.length) {
       const r = { c: canv[k], lo, hi };
       spots.push(r);

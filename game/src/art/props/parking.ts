@@ -11,6 +11,7 @@ import { ihash } from '../tiles/noise';
 import { castRight, cylinder, dk, finish, lt, maskOf, outline } from './kit';
 import { flat, floatOffset, mkFrames, stand, standAnim } from './pkit';
 import { registerProp } from './registry';
+import { drawLight, halo, LIGHT, poolEllipse } from './light';
 import { poleLampState } from './street';
 import { fontTextSmall, led, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
@@ -40,22 +41,19 @@ registerProp('prop_lot_lamp', (opts) => {
   a.glow = (g, x, y, env) => {
     const on = poleLampState(env);
     if (on <= 0) return;
-    const ctx = g.ctx;
-    ctx.save();
-    ctx.globalAlpha = on;
-    ctx.fillStyle = P.glint;
-    ctx.fillRect(Math.round(x + a.ox + 2), Math.round(y + a.oy + 7), 7, 1);
-    ctx.fillRect(Math.round(x + a.ox + 14), Math.round(y + a.oy + 7), 7, 1);
-    ctx.globalCompositeOperation = 'screen';
-    const gx = x + 8;
-    const gy = y + 12;
-    const grd = ctx.createRadialGradient(gx, gy, 3, gx, gy, 48);
-    grd.addColorStop(0, 'rgba(255,231,163,0.35)');
-    grd.addColorStop(1, 'rgba(255,231,163,0)');
-    ctx.fillStyle = grd;
-    ctx.fillRect(gx - 48, gy - 40, 96, 80);
-    ctx.restore();
+    for (const hx of [2, 14]) {
+      halo(g, x + a.ox + hx + 3, y + a.oy + 8, 6, LIGHT.street, 0.4 * Math.min(1, on));
+      g.rect(x + a.ox + hx, y + a.oy + 7, 7, 1, P.glint, Math.min(1, on));
+    }
   };
+  a.light = (g, x, y, env) => {
+    const on = poleLampState(env);
+    if (on <= 0) return;
+    // two heads: a wide pool on the parking lot round the pole
+    drawLight(g, poolEllipse(50, 30, LIGHT.street), x + 8, y + 10, 0.62 * Math.min(1.3, on));
+  };
+  // tall: a see-through hole opens round a character behind it
+  a.xray = 0;
   return a;
 });
 
@@ -538,21 +536,45 @@ registerProp('obj_foxtail', () => {
 // ---------------------------------------------------------------- 鉄橋 prop_rail_bridge (59–61, 36–37)
 
 registerProp('prop_rail_bridge', () => {
+  // open-deck plate-girder bridge (review round 2): the same gauge and
+  // sleepers as the track (rails 15px apart, 30px sleepers every 6px),
+  // stringers under the rails and cross beams, the canal showing between
   const W = 3 * 16;
   const H = 2 * 16 + 12;
   const p = pc(W, H);
-  // deck: sleepers over open girders, canal visible between
-  for (let y = 10; y < H; y++)
-    for (let x = 0; x < W; x++) {
-      const ly = (y - 10) % 6;
-      if (x < 5 || x >= W - 5) p.set(x, y, (y & 1) ? P.maroon : P.sunShade);
-      else if (ly < 3) p.set(x, y, ly === 0 ? P.woodLt : P.wood);
-    }
-  // rails
-  for (const rx of [16 + 4, 16 + 11]) {
-    p.vline(rx, 10, H - 1, P.concreteLt);
-    p.vline(rx + 1, 10, H - 1, P.steel);
+  const C = W / 2; // track centre (image x) = x 60*16+8
+  const deck = 10;
+  // cross beams every 12px and the two stringers under the rails
+  for (let y = deck + 4; y < H; y += 12) {
+    p.hline(5, W - 6, y, P.nightShade);
+    p.hline(5, W - 6, y + 1, P.ink);
   }
+  for (const sx of [C - 10, C + 6]) {
+    p.rect(sx, deck, 5, H - deck, P.charcoal);
+    p.vline(sx, deck, H - 1, P.asphalt);
+    p.vline(sx + 4, deck, H - 1, P.ink);
+  }
+  // sleepers
+  for (let y = deck; y + 2 < H; y += 6) {
+    const k = (y - deck) / 6;
+    const half = 15 - (k % 3 === 1 ? 1 : 0);
+    const off = k % 4 === 2 ? 1 : 0;
+    for (let x = C - half + off; x < C + half + off; x++) {
+      p.set(x, y, k % 5 === 3 ? P.brass : P.woodLt);
+      p.set(x, y + 1, P.wood);
+      p.set(x, y + 2, P.woodDark);
+      p.set(x, y + 3, P.ink + '66');
+    }
+  }
+  // rails: lit head, rust web, shadow; a guard rail inside each (bridge)
+  for (const rx of [C - 8, C + 7]) {
+    for (let y = 0; y < H; y++) {
+      p.set(rx, y, (y + 3) % 11 === 0 ? P.white : P.concreteLt);
+      p.set(rx + 1, y, P.brassOld);
+      if (p.alpha(rx + 2, y)) p.set(rx + 2, y, P.woodDark);
+    }
+  }
+  for (const gx of [C - 4, C + 3]) for (let y = deck; y < H; y++) p.set(gx, y, (y & 1) ? P.steel : P.asphalt);
   // side girders with rivets (maroon, #8A2E3A)
   for (const gx of [0, W - 5]) {
     p.rect(gx, 0, 5, H, P.maroon);
@@ -603,7 +625,7 @@ registerProp('prop_torii', () => {
   p.vline(25, 8, 10, P.ink);
   finish(p, { soft: true });
   const a = stand(p.toCanvas(), { cx: 24, shadow: 34, contact: 0 });
-  a.xray = 0.45;
+  a.xray = 0;
   return a;
 });
 

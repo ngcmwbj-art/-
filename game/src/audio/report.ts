@@ -9,10 +9,19 @@
 //       · every SE: peak vs its category target, and "not buried": the SE's
 //         loudest 20 ms in some octave band must stand above the music's
 //         average level in that band (UI / battle cues +6 dB, events +3 dB)
-//       · voices and ambience vs their targets
+//       · voices vs their peak targets
 //       · a stress mix at volume 10 / 10 (boss + heavy hits) must not clip
 //       · mml bar lengths and the sealed chime answer (16.1)
-//   __game.cmd.audioMixSuggest()      → calibrates the mix.ts trims
+//     and the in-context checks (a level "on target" alone proves nothing
+//     about being heard where it plays):
+//       · ambience over the music it plays under (4.2 pairs): a room's
+//         character layers ≥ +3 dB over the song in some octave band, beds
+//         ≥ 0 dB, the music still ≥ 4 LU in front, peaks under −16 dBFS
+//       · kire layers: each step 1→2, 2→3 ≥ +1 LU or ≥ +3 dB at 4–8 kHz
+//       · stereo width above 500 Hz: side 7–15 dB under mid, corr ≥ 0.4
+//       · laptop speakers: ≤ 3 LU lost through a 180 Hz 24 dB/oct high-pass
+//   __game.cmd.audioContext([...])    → those four (+ 'voicing': chord tops under the tune) alone
+//   __game.cmd.audioMixSuggest()      → calibrates the mix.ts trims (ambience: by the context check)
 //   __game.cmd.audioRender(id, secs)  → stats + spectrogram / piano-roll PNGs
 //   __game.cmd.audioPerf()            → render speed of the densest songs (CPU budget, 15.3)
 //
@@ -21,8 +30,8 @@
 
 import { registerDebug } from '../debug';
 import { createAmbient } from './ambience';
-import { buildGraph, gainToDb, setNoteLog, volCurve, withGraph, type Graph } from './engine';
-import { PART_TRIM, partRole, REF_PART, ROLE_TARGET, TARGET_OVERRIDE, AMB_NO_TRIM, ambTargetDb, BATTLE_PEAK_DB, BGM_TARGET, BGM_TRIM, mixState, seTargetDb, SE_NO_TRIM, SE_TRIM, AMB_TRIM, VOICE_TRIM, voiceTargetDb } from './mix';
+import { buildGraph, gainToDb, resetOfflineState, setNoteLog, volCurve, withGraph, type Graph } from './engine';
+import { PART_TRIM, partRole, REF_PART, ROLE_TARGET, TARGET_OVERRIDE, BATTLE_PEAK_DB, BGM_TARGET, BGM_TRIM, mixState, seTargetDb, SE_NO_TRIM, SE_TRIM, AMB_TRIM, VOICE_TRIM, voiceTargetDb } from './mix';
 import { sfxInfo, sfxTable, songTable, type SfxOpts } from './registry';
 import { VOICE_SAMPLES, voiceCps } from './samples';
 import { MUSIC_LOOKAHEAD, SongPlayer, type Params, type SongDef } from './sequencer';
@@ -76,6 +85,8 @@ export async function render(
 ): Promise<RenderOut> {
   const ctx = new OfflineAudioContext(2, Math.ceil(SR * seconds), SR);
   const g = buildGraph(ctx, { bypassDynamics: o.bypass });
+  // the same take every run: seeded randomness, noise read-heads from the start
+  resetOfflineState();
   g.musicUser.gain.value = volCurve(o.bgmVol ?? 7);
   g.seUser.gain.value = volCurve(o.seVol ?? 8);
   const notes: RenderOut['notes'] = [];
@@ -158,12 +169,12 @@ export async function renderSfx(id: string, opts: SfxOpts = {}, seconds = 2.5, w
   );
 }
 
-export async function renderAmbient(id: string, seconds = 12, stage = 0, ro: RenderOpts = {}): Promise<RenderOut> {
+export async function renderAmbient(id: string, seconds = 12, stage = 0, ro: RenderOpts = {}, ao: { vol?: number; lp?: number } = {}): Promise<RenderOut> {
   let inst: ReturnType<typeof createAmbient> = null;
   return render(
     seconds,
     (g) => {
-      inst = createAmbient(g, id, { fade: 0.05 }, g.ambBus, 0.02, stage);
+      inst = createAmbient(g, id, { fade: 0.05, ...ao }, g.ambBus, 0.02, stage);
     },
     ro,
     (until) => inst?.impl.pump?.(until),
@@ -486,6 +497,252 @@ export function pianoRoll(notes: RenderOut['notes'], seconds: number, w = 1400, 
 }
 
 // ---------------------------------------------------------------------------
+// In-context checks. A level that is "on target" on its own says nothing
+// about whether it is heard where it plays: these four look at sounds inside
+// the mix and on the speakers people actually use.
+
+/** Two cascaded 2nd-order high-passes (24 dB/oct), rendered offline. */
+async function highpass(buf: AudioBuffer, hz: number): Promise<AudioBuffer> {
+  const ctx = new OfflineAudioContext(2, buf.length, buf.sampleRate);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  let node: AudioNode = src;
+  for (let k = 0; k < 2; k++) {
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass';
+    f.frequency.value = hz;
+    f.Q.value = Math.SQRT1_2;
+    node.connect(f);
+    node = f;
+  }
+  node.connect(ctx.destination);
+  src.start();
+  return ctx.startRendering();
+}
+
+/**
+ * 4.2: the music each ambience plays under, and what it has to carry there.
+ * 'character' layers are what tells one room from another (the clock of
+ * ひのや, the dryer, the fluorescent hum…): their loudest moments must stand
+ * ≥ +3 dB over the music's average in some octave band. 'bed' layers (air,
+ * insects, wind) only need to reach the music's level there (≥ 0 dB). In
+ * every case the music stays in front overall (ambience ≥ 4 LU quieter).
+ */
+export const AMB_CONTEXT: { amb: string; song: string; stage: number; role: 'character' | 'bed'; vol?: number; lp?: number; where: string }[] = [
+  { amb: 'amb_clock_tick', song: 'bgm_shop', stage: 0, role: 'character', where: 'ひのや' },
+  { amb: 'amb_dryer', song: 'bgm_shop', stage: 0, role: 'character', where: 'コインランドリー' },
+  { amb: 'amb_oil', song: 'bgm_shop', stage: 0, role: 'character', where: '肉のマルヤマ' },
+  { amb: 'amb_koban', song: 'bgm_shop', stage: 0, role: 'character', where: '交番' },
+  { amb: 'amb_fan', song: 'bgm_home', stage: 0, role: 'character', where: '家2F' },
+  { amb: 'amb_higurashi', song: 'bgm_home', stage: 0, role: 'bed', vol: 0.4, lp: 2500, where: '家2F（窓ごし）' },
+  { amb: 'amb_fridge', song: 'bgm_home', stage: 0, role: 'character', where: '家1F' },
+  { amb: 'amb_tv', song: 'bgm_home', stage: 0, role: 'character', where: '家1F' },
+  { amb: 'amb_fluorescent', song: 'bgm_mall', stage: 2, role: 'character', where: 'モール M1〜M4' },
+  { amb: 'amb_kaitenyaki', song: 'bgm_mall', stage: 2, role: 'character', where: 'モール M2（近い）' },
+  { amb: 'amb_mall_wind', song: 'bgm_mall', stage: 2, role: 'bed', where: 'モール M1' },
+  { amb: 'amb_higurashi', song: 'bgm_town_s0', stage: 0, role: 'bed', where: '町・段階0' },
+  { amb: 'amb_kawabe', song: 'bgm_town_s0', stage: 0, role: 'character', where: '用水路' },
+  { amb: 'amb_arcade', song: 'bgm_town_s0', stage: 0, role: 'character', where: 'アーケード' },
+  { amb: 'amb_wind', song: 'bgm_town_s0', stage: 0, role: 'bed', where: '公園・対岸' },
+  { amb: 'amb_still', song: 'bgm_town_s1', stage: 1, role: 'bed', where: '町・段階1' },
+  { amb: 'amb_s2_town', song: 'bgm_town_s2', stage: 2, role: 'bed', where: '町・段階2' },
+  { amb: 'amb_train_far', song: 'bgm_town_s2', stage: 2, role: 'bed', where: '踏切の付近・段階2' },
+  { amb: 'amb_night_insects', song: 'bgm_night', stage: 3, role: 'bed', where: 'エンディングの夜' },
+];
+
+export interface AmbRow { amb: string; song: string; role: string; where: string; margin: number; band: number; need: number; ambLufs: number; songLufs: number; under: number; peak: number; ok: boolean; bands: number[] }
+/** Key of an AMB_CONTEXT row in the report (the window case of 家2F is its own row). */
+const ambKey = (c: (typeof AMB_CONTEXT)[number]) => `${c.amb}${c.vol !== undefined ? '(' + c.where + ')' : ''}`;
+
+export async function ambContext(o: { ids?: string[]; seconds?: number } = {}): Promise<Record<string, AmbRow>> {
+  const secs = o.seconds ?? 30;
+  const songs = new Map<string, { mean: number[]; lufs: number }>();
+  const rows: Record<string, AmbRow> = {};
+  for (const c of AMB_CONTEXT) {
+    if (o.ids && !o.ids.includes(c.amb)) continue;
+    const sk = `${c.song}@${c.stage}`;
+    let sg = songs.get(sk);
+    if (!sg) {
+      const r = await renderSong(c.song, secs, { bypass: true, params: { stage: c.stage } });
+      sg = { mean: bandProfile(r.buffer, 'mean', 1), lufs: measure(r.buffer, 1).lufs };
+      songs.set(sk, sg);
+    }
+    const ra = await renderAmbient(c.amb, secs, c.stage, { bypass: true }, { vol: c.vol, lp: c.lp });
+    const mx = bandProfile(ra.buffer, 'max', 1);
+    const over = mx.map((v, i) => round(v - sg!.mean[i]));
+    let bi = 0;
+    over.forEach((v, i) => {
+      if (v > over[bi]) bi = i;
+    });
+    const need = c.role === 'character' ? AMB_NEED.character : AMB_NEED.bed;
+    const st = measure(ra.buffer, 1);
+    const under = round(sg.lufs - st.lufs);
+    rows[ambKey(c)] = {
+      amb: c.amb, song: c.song, role: c.role, where: c.where, margin: over[bi], band: BANDS[bi], need, ambLufs: st.lufs, songLufs: sg.lufs, under, peak: st.peakDb,
+      ok: over[bi] >= need && under >= AMB_UNDER_MIN && st.peakDb <= AMB_PEAK_MAX, bands: over,
+    };
+  }
+  return rows;
+}
+
+/** Pass lines of the in-context ambience check (the calibration aims 2 dB above them). */
+export const AMB_NEED = { character: 3, bed: 0 };
+/** The music stays in front: an ambience is at least this many LU quieter than its song. */
+export const AMB_UNDER_MIN = 4;
+/** No ambience peaks above this (dBFS, at the master before dynamics, SE volume 8). */
+export const AMB_PEAK_MAX = -16;
+
+/** Mean power (dB) between lo and hi Hz (Hann-windowed 4096-point FFT frames). */
+export function bandPower(buf: AudioBuffer, lo: number, hi: number, from = 0): number {
+  const N = 4096;
+  const sr = buf.sampleRate;
+  const k0 = Math.ceil((lo * N) / sr), k1 = Math.floor((hi * N) / sr);
+  const re = new Float64Array(N), im = new Float64Array(N);
+  let acc = 0, frames = 0;
+  for (let ch = 0; ch < buf.numberOfChannels; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let s = Math.floor(from * sr); s + N <= d.length; s += N) {
+      for (let j = 0; j < N; j++) {
+        re[j] = d[s + j] * (0.5 - 0.5 * Math.cos((2 * Math.PI * j) / N));
+        im[j] = 0;
+      }
+      fft(re, im);
+      for (let k = k0; k <= k1; k++) acc += re[k] * re[k] + im[k] * im[k];
+      frames++;
+    }
+  }
+  return 10 * Math.log10(Math.max(1e-20, acc / Math.max(1, frames)));
+}
+
+/**
+ * The kire layers (7.2, 6.5) must be heard: from kire 1 to 2 and from 2 to 3
+ * the whole song gets ≥ +1 LU louder or its 4–8 kHz band ≥ +3 dB brighter.
+ */
+export async function kireSteps(o: { songs?: string[]; seconds?: number } = {}) {
+  const out: Record<string, { levels: { kire: number; lufs: number; high: number }[]; steps: { from: number; to: number; dLufs: number; dHigh: number; ok: boolean }[] }> = {};
+  for (const id of o.songs ?? ['bgm_battle', 'bgm_midboss', 'bgm_boss']) {
+    const def = songTable.get(id);
+    if (!def) continue;
+    const levels: { kire: number; lufs: number; high: number }[] = [];
+    for (const kire of [1, 2, 3]) {
+      const r = await renderSong(id, o.seconds ?? 16, { params: { kire } });
+      levels.push({ kire, lufs: measure(r.buffer, 1).lufs, high: round(bandPower(r.buffer, 4000, 8000, 1)) });
+    }
+    const steps = [0, 1].map((i) => {
+      const a = levels[i], b = levels[i + 1];
+      const dLufs = round(b.lufs - a.lufs), dHigh = round(b.high - a.high);
+      return { from: a.kire, to: b.kire, dLufs, dHigh, ok: dLufs >= 1 || dHigh >= 3 };
+    });
+    out[id] = { levels, steps };
+  }
+  return out;
+}
+
+/** Side / mid (dB) and L/R correlation of a buffer. */
+export function stereoStats(b: AudioBuffer): { sideDb: number; corr: number } {
+  const l = b.getChannelData(0), r = b.getChannelData(1);
+  let lr = 0, ll = 0, rr = 0, m = 0, sd = 0;
+  for (let i = 0; i < l.length; i++) {
+    lr += l[i] * r[i];
+    ll += l[i] * l[i];
+    rr += r[i] * r[i];
+    const M = (l[i] + r[i]) / 2, S = (l[i] - r[i]) / 2;
+    m += M * M;
+    sd += S * S;
+  }
+  return { sideDb: round(10 * Math.log10(Math.max(1e-12, sd) / Math.max(1e-12, m))), corr: Math.round((1000 * lr) / Math.sqrt(ll * rr + 1e-20)) / 1000 };
+}
+
+/**
+ * Stereo width (1.2 "ステレオの広がり"): above 500 Hz (where width is heard)
+ * the side signal should sit 10–14 dB under the mid — wide, with the tune
+ * still in the middle and mono-safe (L/R correlation ≥ 0.4).
+ */
+export async function widthCheck(o: { songs?: string[]; seconds?: number } = {}) {
+  const out: Record<string, { sideDb: number; corr: number; ok: boolean }> = {};
+  for (const id of o.songs ?? [...songTable.keys()].filter((k) => !/jingle/.test(k))) {
+    const r = await renderSong(id, o.seconds ?? 20, {});
+    const st = stereoStats(await highpass(r.buffer, 500));
+    out[id] = { ...st, ok: st.sideDb >= -15 && st.sideDb <= -7 && st.corr >= 0.4 };
+  }
+  return out;
+}
+
+/**
+ * Laptop speakers (16.2): through a 180 Hz 24 dB/oct high-pass, the heavy
+ * blows and hits may lose at most 3 LU of their loudest moment, and songs at
+ * most 3 LU overall.
+ */
+export const LAPTOP_SE = ['se_stamp_heavy', 'se_don', 'se_thud_low', 'se_ojigi_press', 'se_encounter', 'se_damage', 'se_crit', 'se_stamp', 'se_hit_pofu', 'se_hit_pashi', 'se_bishi'];
+export async function laptopCheck(o: { sfx?: string[]; songs?: string[] } = {}) {
+  const out: Record<string, { before: number; after: number; loss: number; ok: boolean }> = {};
+  for (const id of o.sfx ?? LAPTOP_SE) {
+    if (!sfxTable.has(id)) continue;
+    const r = await renderSfx(id, {}, 2.5, undefined, { bypass: true });
+    const a = measure(r.buffer), b = measure(await highpass(r.buffer, 180));
+    const loss = round(a.momentaryMax - b.momentaryMax);
+    out[id] = { before: a.momentaryMax, after: b.momentaryMax, loss, ok: loss <= 3 };
+  }
+  for (const id of o.songs ?? ['bgm_battle', 'bgm_boss', 'bgm_town_s0', 'bgm_title', 'bgm_night', 'bgm_home', 'bgm_shop']) {
+    const r = await renderSong(id, 16, { bypass: true });
+    const a = measure(r.buffer, 1), b = measure(await highpass(r.buffer, 180), 1);
+    const loss = round(a.lufs - b.lufs);
+    out[id] = { before: a.lufs, after: b.lufs, loss, ok: loss <= 3 };
+  }
+  return out;
+}
+
+/**
+ * Voicing (3.4): the top note of every chord a comping / pad part plays must
+ * sit under the melody sounding with it. Renders each chord part and the
+ * melody parts solo and compares the note logs; returns, per part, how many
+ * chords put their top voice on or above the tune (and the first few).
+ */
+export async function voicingCheck(o: { songs?: string[]; seconds?: number } = {}) {
+  const midi = (f: number) => Math.round(69 + 12 * Math.log2(f / 440));
+  const out: Record<string, { chords: number; above: number; examples: string[] }> = {};
+  for (const id of o.songs ?? [...songTable.keys()].filter((k) => !/jingle|title/.test(k))) {
+    const def = songTable.get(id);
+    if (!def) continue;
+    const secs = Math.min(o.seconds ?? 45, songLength(def) + 0.5);
+    const mel: { t: number; e: number; m: number }[] = [];
+    for (const p of def.parts)
+      if (partRole(id, p.id) === 'melody')
+        for (const n of (await renderSong(id, secs, { solo: [p.id] })).notes) if (n.freq > 20 && n.wave !== 'noise') mel.push({ t: n.t, e: n.t + Math.max(n.dur, 0.08), m: midi(n.freq) });
+    if (!mel.length) continue;
+    for (const p of def.parts) {
+      const role = partRole(id, p.id);
+      if (role !== 'chords' && role !== 'pads') continue;
+      const notes = (await renderSong(id, secs, { solo: [p.id] })).notes.filter((n) => n.freq > 20);
+      const byT = new Map<number, number[]>();
+      for (const n of notes) {
+        const k = Math.round(n.t * 1000);
+        if (!byT.has(k)) byT.set(k, []);
+        byT.get(k)!.push(midi(n.freq));
+      }
+      let chords = 0, above = 0;
+      const ex: string[] = [];
+      for (const [k, ms] of byT) {
+        if (ms.length < 2) continue;
+        const t = k / 1000;
+        const dur = notes.find((n) => Math.round(n.t * 1000) === k)!.dur;
+        const top = Math.max(...ms);
+        const under = mel.filter((x) => x.t < t + Math.max(dur, 0.1) && x.e > t).map((x) => x.m);
+        if (!under.length) continue;
+        chords++;
+        const low = Math.min(...under);
+        if (top >= low) {
+          above++;
+          if (ex.length < 4) ex.push(`${t.toFixed(2)}s top ${top} ≥ tune ${low}`);
+        }
+      }
+      if (chords) out[`${id}/${p.id}`] = { chords, above, examples: ex };
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // the report
 
 /** Which music an SE must cut through, and by how much (dB, some octave band). */
@@ -542,7 +799,7 @@ function relate(rows: Record<string, SongRow>): number {
   return maxDev;
 }
 
-export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sfx?: string[] | false; voices?: boolean; amb?: boolean; stress?: boolean } = {}) {
+export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sfx?: string[] | false; voices?: boolean; amb?: boolean; stress?: boolean; context?: boolean } = {}) {
   const t0 = performance.now();
   // ---- BGM (processed, as the player hears it)
   const ids = o.songs ?? [...songTable.keys()];
@@ -598,15 +855,20 @@ export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sf
       const st = measure((await renderVoice(id, undefined, { bypass: true })).buffer);
       voices[id] = { peak: st.peakDb, target: voiceTargetDb(id), dev: round(st.peakDb - voiceTargetDb(id)) };
     }
-  const amb: Record<string, { peak: number; lufs: number; target: number; dev: number }> = {};
-  if (o.amb !== false)
-    for (const id of AMBIENCE_IDS) {
-      const st = measure((await renderAmbient(id, 30, 0, { bypass: true })).buffer, 1);
-      amb[id] = { peak: st.peakDb, lufs: st.lufs, target: ambTargetDb(id), dev: round(st.peakDb - ambTargetDb(id)) };
-    }
+  // ambience: heard where it plays (4.2 pairs), under its music, below the ceiling
+  const amb = o.amb !== false ? await ambContext() : {};
   // (flip: its first character plays the whole se_flip squeak, which sits on the SE fader)
   const voiceOff = Object.entries(voices).filter(([id, r]) => id !== 'flip' && Math.abs(r.dev) > 3).map(([id, r]) => `${id} (${r.dev})`);
-  const ambOff = Object.entries(amb).filter(([, r]) => Math.abs(r.dev) > 3).map(([id, r]) => `${id} (${r.dev})`);
+  const ambOff = Object.entries(amb)
+    .filter(([, r]) => !r.ok)
+    .map(([id, r]) => `${id} vs ${r.song}: ${r.margin} dB @${r.band} Hz (need ${r.need}), ${r.under} LU under the music, peak ${r.peak}`);
+  // the other in-context checks
+  const kire = o.context !== false ? await kireSteps() : {};
+  const width = o.context !== false ? await widthCheck() : {};
+  const laptop = o.context !== false ? await laptopCheck() : {};
+  const kireFlat = Object.entries(kire).flatMap(([id, r]) => r.steps.filter((x) => !x.ok).map((x) => `${id} kire ${x.from}→${x.to}: ${x.dLufs} LU, 4–8 kHz ${x.dHigh} dB`));
+  const narrow = Object.entries(width).filter(([, r]) => !r.ok).map(([id, r]) => `${id} (side ${r.sideDb} dB, corr ${r.corr})`);
+  const thin = Object.entries(laptop).filter(([, r]) => !r.ok).map(([id, r]) => `${id} (−${r.loss} LU)`);
 
   // ---- stress: the loudest moment of the game at volume 10 / 10
   let stress: Stats | null = null;
@@ -651,12 +913,18 @@ export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sf
       seBuried: seBuried.length ? seBuried : 'none',
       seOffPeakTarget: seOffTarget.length ? seOffTarget : 'none',
       voicesOffTarget: voiceOff.length ? voiceOff : 'none',
-      ambienceOffTarget: ambOff.length ? ambOff : 'none',
+      ambienceNotHeardInContext: ambOff.length ? ambOff : 'none',
+      kireStepsNotHeard: kireFlat.length ? kireFlat : 'none',
+      stereoWidthOff: narrow.length ? narrow : 'none',
+      laptopSpeakerLoss: thin.length ? thin : 'none',
     },
     bgm: songs,
     sfx,
     voices,
     amb,
+    kire,
+    width,
+    laptop,
     stress,
   };
 }
@@ -666,11 +934,36 @@ export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sf
  * return the tables that put each one on its target (paste into mix.ts).
  */
 export async function audioMixSuggest(o: { songs?: boolean; sfx?: boolean; voices?: boolean; amb?: boolean; maxSeconds?: number } = {}) {
-  mixState.bypass = true;
   const q = (x: number) => Math.round(x * 2) / 2;
   const clamp = (x: number) => Math.max(-18, Math.min(28, x));
+  const out: { BGM_TRIM?: Record<string, number>; SE_TRIM?: Record<string, number>; VOICE_TRIM?: Record<string, number>; AMB_TRIM?: Record<string, number>; ambNotes?: string[] } = {};
+  if (o.amb !== false) {
+    // Ambience faders are set where the ambience is heard: each is raised
+    // until every one of its 4.2 pairs clears its pass line by 2 dB (never
+    // lowered: a bed that already carries stays as it is), as long as the
+    // music stays ≥ 6 LU in front and the peak under the ceiling. Measured
+    // with the current trims and songs as they will play.
+    const rows = await ambContext();
+    const lift = new Map<string, number>();
+    const room = new Map<string, number>();
+    for (const r of Object.values(rows)) {
+      lift.set(r.amb, Math.max(lift.get(r.amb) ?? -Infinity, r.need + 2 - r.margin));
+      room.set(r.amb, Math.min(room.get(r.amb) ?? Infinity, r.under - 6, AMB_PEAK_MAX - r.peak));
+    }
+    const t: Record<string, number> = {};
+    const notes: string[] = [];
+    for (const id of AMBIENCE_IDS) {
+      const cur = AMB_TRIM[id] ?? 0;
+      const want = Math.max(0, lift.get(id) ?? 0);
+      const can = Math.max(0, room.get(id) ?? Infinity);
+      if (want > can) notes.push(`${id}: needs +${round(want)} dB, room for +${round(can)} (reshape the recipe)`);
+      t[id] = q(cur + Math.min(want, can));
+    }
+    out.AMB_TRIM = t;
+    out.ambNotes = notes;
+  }
+  mixState.bypass = true;
   try {
-    const out: { BGM_TRIM?: Record<string, number>; SE_TRIM?: Record<string, number>; VOICE_TRIM?: Record<string, number>; AMB_TRIM?: Record<string, number> } = {};
     if (o.songs !== false) {
       // loudness from the raw renders: battle is anchored on its peak, the rest follow 11.2
       const rows = await songRows([...songTable.keys()], o.maxSeconds ?? 75, true);
@@ -699,15 +992,6 @@ export async function audioMixSuggest(o: { songs?: boolean; sfx?: boolean; voice
         t[id] = q(clamp(voiceTargetDb(id) - st.peakDb));
       }
       out.VOICE_TRIM = t;
-    }
-    if (o.amb !== false) {
-      const t: Record<string, number> = {};
-      for (const id of AMBIENCE_IDS) {
-        if (AMB_NO_TRIM.has(id)) continue;
-        const st = measure((await renderAmbient(id, 30, 0, { bypass: true })).buffer, 1);
-        t[id] = q(Math.max(-18, Math.min(40, ambTargetDb(id) - st.peakDb)));
-      }
-      out.AMB_TRIM = t;
     }
     return out;
   } finally {
@@ -809,6 +1093,14 @@ function bufToWavDataUrl(buf: AudioBuffer): string {
 }
 
 registerDebug('audioReport', ((o?: Parameters<typeof audioReport>[0]) => audioReport(o)) as never);
+/** The in-context checks alone: audioContext(['amb','kire','width','laptop']). */
+registerDebug('audioContext', (async (what: string[] = ['amb', 'kire', 'width', 'laptop'], o: { ids?: string[]; songs?: string[]; sfx?: string[] } = {}) => ({
+  amb: what.includes('amb') ? await ambContext({ ids: o.ids }) : undefined,
+  kire: what.includes('kire') ? await kireSteps({ songs: o.songs }) : undefined,
+  width: what.includes('width') ? await widthCheck({ songs: o.songs }) : undefined,
+  laptop: what.includes('laptop') ? await laptopCheck({ sfx: o.sfx }) : undefined,
+  voicing: what.includes('voicing') ? await voicingCheck({ songs: o.songs }) : undefined,
+})) as never);
 registerDebug('audioMixSuggest', ((o?: Parameters<typeof audioMixSuggest>[0]) => audioMixSuggest(o)) as never);
 registerDebug('audioTrims', (() => currentTrims()) as never);
 registerDebug('audioBalance', ((ids?: string[], seconds?: number) => audioBalance(ids, seconds)) as never);

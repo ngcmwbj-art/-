@@ -5,18 +5,18 @@ import type { Co } from '../engine/co';
 import { flag } from '../game/state';
 import { rng } from '../engine/rng';
 import { ease } from '../engine/tween';
-import { fillAll, getEnemy, getSkill, SYS, type SkillDef } from '../data/battle';
+import { fillAll, getEnemy, getSkill, LABEL, SYS, type SkillDef } from '../data/battle';
 import type { AiCtx } from '../data/battle/types';
 import type { BattleScene } from './scene';
 import { FRAME, SLOTS } from './scene';
 import { calcDamage, EnemyUnit, statusChance, type PartyUnit } from './model';
 import {
-  addKire, changeStage, giveStatus, hideSticky, healParty, hurtEnemy, hurtParty, kireFullPages, showSticky, statusText, tsukkomiFeel, type Guarded,
+  addKire, changeStage, giveStatus, hideSticky, healParty, hurtEnemy, hurtParty, kireFullPages, panelImpact, showSticky, statusText, tsukkomiFeel, type Guarded,
 } from './common';
 import {
   bokemakeLabel, markLineSeen, pickLine, popBang, showBang, showFlip, showKakimoji, tsukkomiUnit, tsukkomiWindows,
 } from './tsukkomi';
-import { coin, glove, meishiCard, note, uwabaki, waterDrop, feather, spring, drawArc } from './art/fxart';
+import { coinShiny, glove, meishiCard, musicNote, uwabaki, waterDrop, feather, spring, drawArc } from './art/fxart';
 import { PANEL_POS } from './ui/panels';
 import { C } from './ui/note';
 
@@ -147,7 +147,8 @@ export function* hitLoop(s: BattleScene, o: LoopOpts): Co<(Guarded | null)[]> {
         kabuse = true;
         s.sfx('se_kabuse');
         const [px, py] = PANEL_POS[o.bang(hi)[0]?.id ?? 'minato'];
-        s.label('かぶせた……', px + 68, py - 2, 'gray', 700, true);
+        // beside the "!" bubble it jumped the gun on (never on the name tag)
+        s.labelNear(LABEL.kabuse, () => ({ x0: px + 24, y0: py - 24, x1: px + 40, y1: py - 4 }), ['right', 'above', 'left'], 'gray', 700, true);
       } else if (rel <= W.to) {
         pending = rel >= W.justFrom && rel <= W.justTo ? 'just' : 'ok';
         popBang(s, o.bang(hi), pending === 'just');
@@ -181,41 +182,149 @@ export function* hitLoop(s: BattleScene, o: LoopOpts): Co<(Guarded | null)[]> {
 
 // ---- small visual helpers ------------------------------------------------------------------
 
-/** A sprite flies from (x0,y0) toward a panel while growing, arriving at the hit. */
-function projectile(s: BattleScene, img: () => HTMLCanvasElement, x0: number, y0: number, to: PartyUnit | null, frames: number, s0: number, s1: number, arc = 0): void {
-  const [px, py] = to ? PANEL_POS[to.id] : [192, 170];
-  const tx = to ? px + 68 : 192;
-  const ty = to ? py - 6 : 150;
+/** Where a thrown thing lands on a member's panel: the photo (the face that takes it). */
+export function panelHitPoint(u: PartyUnit | null): [number, number] {
+  if (!u) return [192, 170];
+  const [px, py] = PANEL_POS[u.id];
+  return [px + 20, py + 20];
+}
+
+interface ProjOpts {
+  /** Afterimages (2 ghosts) behind it. */
+  trail?: boolean;
+  /** Landing offset from the photo centre. */
+  dx?: number;
+  dy?: number;
+  /** Horizontal motion is linear (a lob) instead of accelerating (a throw). */
+  lob?: boolean;
+  /** Drops a little glint along the way. */
+  sparkle?: boolean;
+}
+
+/**
+ * A sprite flies from (x0,y0) to the member's photo while growing (it comes
+ * toward the camera), arriving exactly at the hit frame.
+ */
+function projectile(s: BattleScene, img: () => HTMLCanvasElement, x0: number, y0: number, to: PartyUnit | null, frames: number, s0: number, s1: number, arc = 0, o: ProjOpts = {}): void {
+  const [hx, hy] = panelHitPoint(to);
+  const tx = hx + (o.dx ?? 0);
+  const ty = hy + (o.dy ?? 0);
+  const dur = frames * FRAME;
+  const at = (t: number): [number, number, number] => {
+    const p = Math.max(0, Math.min(1, t / dur));
+    const k = o.lob ? p : ease.quadIn(p);
+    const x = x0 + (tx - x0) * k;
+    const y = y0 + (ty - y0) * (o.lob ? p * p : k) - Math.sin(p * Math.PI) * arc;
+    return [x, y, s0 + (s1 - s0) * ease.quadIn(p)];
+  };
   s.addFx({
     layer: 'top',
-    dur: frames * FRAME,
+    dur,
+    update() {
+      if (o.sparkle && Math.floor(this.t / FRAME) % 3 === 0) {
+        const [x, y] = at(this.t);
+        s.burst(x, y, { count: 1, speed: [5, 20], life: [180, 260], colors: ['#FFF6D8', '#FFE7A3'], shape: 'sq', size: [1, 2], sizeEnd: 1 }, true);
+      }
+    },
     draw: (g, t) => {
-      const p = Math.min(1, t / (frames * FRAME));
-      const k = ease.quadIn(p);
-      const x = x0 + (tx - x0) * k;
-      const y = y0 + (ty - y0) * k - Math.sin(p * Math.PI) * arc;
-      const sc = s0 + (s1 - s0) * k;
       const im = img();
-      const w = im.width * sc;
-      const h = im.height * sc;
-      g.ctx.drawImage(im, Math.round(x - w / 2), Math.round(y - h / 2), Math.round(w), Math.round(h));
+      const put = (tt: number, a: number) => {
+        const [x, y, sc] = at(tt);
+        const w = im.width * sc;
+        const h = im.height * sc;
+        g.alpha(a, () => g.ctx.drawImage(im, Math.round(x - w / 2), Math.round(y - h / 2), Math.round(w), Math.round(h)));
+      };
+      if (o.trail) {
+        put(t - 2 * FRAME, 0.22);
+        put(t - FRAME, 0.45);
+      }
+      put(t, 1);
     },
   });
 }
 
 /** Lunge toward the camera: scale 1 → k → 1. */
 function lunge(s: BattleScene, e: EnemyUnit, k: number, frames: number): void {
+  rush(s, e, { scale: k, inF: frames, outF: frames });
+}
+
+/**
+ * The enemy lunges at the party: it grows (toward the camera) and travels
+ * (dx, dy) in `inF` frames — arriving on the hit — holds `holdF` and goes
+ * back in `outF`. Hits during the hold get the whole body in the blow.
+ */
+function rush(s: BattleScene, e: EnemyUnit, o: { scale?: number; dx?: number; dy?: number; inF: number; holdF?: number; outF: number }): void {
+  const inMs = o.inF * FRAME;
+  const holdMs = (o.holdF ?? 0) * FRAME;
+  const outMs = o.outF * FRAME;
+  const k = o.scale ?? 1;
   s.addFx({
     layer: 'back',
-    dur: frames * FRAME * 2,
+    dur: inMs + holdMs + outMs,
     draw: () => {},
     update() {
-      const p = this.t / (frames * FRAME);
-      const v = p < 1 ? ease.quadOut(p) : 1 - ease.quadIn(Math.min(1, p - 1));
+      const t = this.t;
+      let v: number;
+      if (t < inMs) v = ease.quadIn(t / inMs);
+      else if (t < inMs + holdMs) v = 1;
+      else v = 1 - ease.quadInOut(Math.min(1, (t - inMs - holdMs) / outMs));
+      if (e.dying) {
+        this.done = true;
+        return;
+      }
       e.sx = e.sy = 1 + (k - 1) * v;
-      if (this.t >= frames * FRAME * 2 - 1) e.sx = e.sy = 1;
+      e.offX = Math.round((o.dx ?? 0) * v);
+      e.offY = Math.round((o.dy ?? 0) * v);
+      if (t >= inMs + holdMs + outMs - 1) {
+        e.sx = e.sy = 1;
+        e.offX = e.offY = 0;
+      }
     },
   });
+}
+
+/** Horizontal step toward a member's panel, capped (the enemy leans at them). */
+function towardX(e: EnemyUnit, t: PartyUnit | null | undefined, k = 0.18, cap = 18): number {
+  if (!t) return 0;
+  const [hx] = panelHitPoint(t);
+  return Math.max(-cap, Math.min(cap, Math.round((hx - e.x) * k)));
+}
+
+/**
+ * A sound wave aimed at the party (熱唱): rings leave the enemy's mouth and
+ * keep growing past the bottom of the screen — they visibly wash over the
+ * panels — in warm yellow (#FFD23F α40%) with a lighter leading edge.
+ */
+function soundWave(s: BattleScene, x: number, y: number, n: number, gap = 120, ms = 520): void {
+  for (let i = 0; i < n; i++) {
+    const d = i * gap;
+    s.addFx({
+      layer: 'top',
+      dur: ms + d,
+      draw: (g, t) => {
+        if (t < d) return;
+        const p = (t - d) / ms;
+        const r = 8 + ease.quadOut(p) * 190;
+        const a = 0.4 * (1 - p * 0.6);
+        g.alpha(a, () => {
+          const steps = Math.max(24, Math.round(r * 2.2));
+          for (let k = 0; k < steps; k++) {
+            const an = (k / steps) * Math.PI * 2;
+            const cx = x + Math.cos(an) * r;
+            const cy = y + Math.sin(an) * r * 0.72;
+            g.rect(Math.round(cx), Math.round(cy), 2, 2, '#FFD23F');
+          }
+        });
+        g.alpha(a * 0.9, () => {
+          const steps = Math.max(24, Math.round(r * 2.2));
+          for (let k = 0; k < steps; k += 2) {
+            const an = (k / steps) * Math.PI * 2;
+            g.px(Math.round(x + Math.cos(an) * (r + 2)), Math.round(y + Math.sin(an) * (r + 2) * 0.72), '#FFF6D8');
+          }
+        });
+      },
+    });
+  }
 }
 
 /** Expanding elliptical sound rings from a point. */
@@ -450,7 +559,7 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
         onFrame: (_f, _i, toHit) => {
           if (toHit === 6) {
             e.setPose('attack', skillId);
-            lunge(s, e, 1.15, 6);
+            rush(s, e, { scale: 1.15, dy: 6, dx: towardX(e, target, 0.12, 12), inF: 6, holdF: 2, outF: 8 });
           }
         },
         onHit: (i, r) => {
@@ -485,8 +594,10 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
         onFrame: (f) => {
           if (f % 10 === 0) {
             soundRings(s, e.x, e.headY + 6, '#F7C27A', 1, 0.55, 500);
-            projectile(s, () => note(f % 20 ? 0 : 1), e.x + rng.int(-8, 8), e.headY + 4, rng.pick(all), 18, 1, 2, 12);
+            projectile(s, () => musicNote(f / 10), e.x + rng.int(-8, 8), e.headY + 4, rng.pick(all), 18, 1, 1.6, 12, { lob: true, dx: rng.int(-8, 8), dy: rng.int(-10, 0) });
           }
+          // the belt-out itself: rings roll from the cone's mouth over the panels
+          if (f % 9 === 3) soundWave(s, e.x, e.headY + 8, 1);
         },
         onHit: (i, r) => {
           resolveGuard(r, i);
@@ -503,6 +614,7 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
         ...common,
         onHit: (i, r) => {
           resolveGuard(r, i);
+          panelImpact(s, target!, true);
           if (!r) target!.shakeT = 120;
         },
       });
@@ -526,14 +638,16 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
       yield* hitLoop(s, {
         ...common,
         onFrame: (_f, _i, toHit) => {
-          if (toHit === 8) {
+          if (toHit === 9) {
             e.setPose('attack', skillId);
-            lunge(s, e, 1.2, 8);
+            // lunges out of its spot at the member (1.0 → 1.25, +10px) and back
+            rush(s, e, { scale: 1.25, dy: 10, dx: towardX(e, target), inF: 9, holdF: 5, outF: 10 });
             s.sfx('se_hug');
           }
         },
         onHit: (i, r) => {
           resolveGuard(r, i);
+          panelImpact(s, target!, !!r);
           if (!r) target!.shakeT = 160;
         },
       });
@@ -568,17 +682,31 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
       yield* hitLoop(s, {
         ...common,
         onFrame: (_f, i, toHit) => {
-          if (toHit === 14 && otsuriTargets[i]) {
+          if (toHit === 16 && otsuriTargets[i]) {
             e.setPose('attack', skillId);
-            const img = () => coin(Math.floor(s.t / 60));
-            projectile(s, img, e.coreX, e.top + 70, otsuriTargets[i], 14, 1, 2.5, 24);
+            // 1–3 ten-yen coins spray out of the dispenser and rain down on
+            // the member's photo, spinning, arriving on the hit
+            const n = rng.int(1, 3);
+            const sx = e.left + 32;
+            const sy = e.top + 70;
+            for (let c = 0; c < n; c++) {
+              const ph = rng.int(0, 3);
+              const img = () => coinShiny(Math.floor(s.t / 50) + ph);
+              projectile(s, img, sx + rng.int(-6, 6), sy, otsuriTargets[i], 16 - c, 1, 2, 34 + c * 10 + rng.int(0, 8), { lob: true, trail: true, sparkle: true, dx: rng.int(-9, 9), dy: rng.int(-6, 4) });
+            }
+            s.burst(sx, sy + 2, { count: 3, speed: [30, 70], angle: [-Math.PI * 0.9, -Math.PI * 0.1], life: [150, 250], colors: ['#FFE7A3', '#E8B070'], shape: 'sq', size: [1, 2] });
             s.sfx('se_coin', { pitch: 1 + i * 0.06 });
           }
         },
         onHit: (i, r) => {
           resolveGuard(r, i);
           const t = otsuriTargets[i];
-          if (t && t.alive) damageTo(s, e, t, 0.22, r, 0, true);
+          if (t && t.alive) {
+            damageTo(s, e, t, 0.22, r, 0, true);
+            // the coins bounce off the panel with a glint (チャリン)
+            const [hx, hy] = panelHitPoint(t);
+            s.burst(hx, hy - 4, { count: 3, speed: [50, 110], angle: [-Math.PI * 0.85, -Math.PI * 0.15], life: [250, 380], colors: ['#E8B070', '#C08040', '#FFE7A3'], gravity: 420, shape: 'sq', size: [2, 2], sizeEnd: 1 }, true);
+          }
         },
       });
       telePages.push(...e.def.texts.extra.otsuriResult);
@@ -675,7 +803,7 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
           const d = damageTo(s, e, target!, 0.8, r);
           e.hp = Math.min(e.maxHp, e.hp + d);
           const [nx, ny] = s.enemyNumberXY(e);
-          s.number(nx, ny, d, { kind: 'heal' });
+          s.number(nx, ny, d, { kind: 'heal' }, 'enemy', e);
         },
       });
       telePages.push(...fillAll(e.def.texts.extra.teineiResult, { target: target!.name }));
@@ -691,7 +819,8 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
           if (toHit === 6) {
             if (ok) {
               e.setPose('attack', skillId);
-              lunge(s, e, 1.3, 6);
+              // clears the step and charges the member (8px forward)
+              rush(s, e, { scale: 1.3, dy: 8, dx: towardX(e, target, 0.12, 12), inF: 6, holdF: 4, outF: 12 });
             } else e.setPose('fall');
           }
         },
@@ -722,7 +851,7 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
         onFrame: (_f, _i, toHit) => {
           if (toHit === 8) {
             e.setPose('attack', skillId);
-            lunge(s, e, 1.1, 8);
+            rush(s, e, { scale: 1.1, dy: 6, dx: towardX(e, target, 0.1, 10), inF: 8, holdF: 3, outF: 10 });
           }
         },
         onHit: (i, r) => {
@@ -754,7 +883,11 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
       yield* hitLoop(s, {
         ...common,
         onFrame: (_f, _i, toHit) => {
-          if (toHit === 8) e.setPose('attack', skillId);
+          if (toHit === 8) {
+            e.setPose('attack', skillId);
+            // the chair tips forward at the member on the strong setting
+            rush(s, e, { scale: 1.12, dy: 7, dx: towardX(e, target, 0.1, 10), inF: 8, holdF: 4, outF: 12 });
+          }
         },
         onHit: (i, r) => {
           resolveGuard(r, i);
@@ -768,7 +901,7 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
       const before = e.hp;
       e.hp = Math.min(e.maxHp, e.hp + 20);
       const [nx, ny] = s.enemyNumberXY(e);
-      s.number(nx, ny, e.hp - before, { kind: 'heal' });
+      s.number(nx, ny, e.hp - before, { kind: 'heal' }, 'enemy', e);
       s.sfx('se_heal');
       telePages.push(...e.def.texts.extra.otameshiResult);
       break;

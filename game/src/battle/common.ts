@@ -12,9 +12,11 @@ import { fillAll, SYS, TUT } from '../data/battle';
 import type { BattleScene } from './scene';
 import { STAT_NAME, type EnemyUnit, type PartyUnit, type Stages } from './model';
 import { ovalStamp } from './art/stamps';
-import { statArrow } from './art/fxart';
+import { impactBurst, statArrow } from './art/fxart';
 import { PANEL_POS } from './ui/panels';
 import { statusIcon } from './art/icons';
+
+const FRAME_MS = 1000 / 60;
 
 // ---- kire ------------------------------------------------------------------------
 
@@ -92,18 +94,12 @@ export function hurtParty(s: BattleScene, u: PartyUnit, dmg: number, o: PartyHit
   u.trailWait = 400;
   u.hpTrail = Math.max(u.hpTrail, before);
   if (!o.silent && dmg > 0) {
-    // from the centre of the panel's top edge (over the tape row), full size:
-    // a halved (tsukkomi) hit is told by the lettering, not a tiny number
-    const stack = o.stack ?? 0;
-    let [nx, ny] = partyNumberXY(u);
-    nx += stack * 10;
-    ny -= stack * 6;
-    if (o.scatter) {
-      nx += rng.int(-12, 12);
-      ny += rng.int(-6, 4);
-    }
-    s.number(nx, ny, dmg, { rise: 12 });
+    // pops from the panel's top edge over the photo and rests above the tape
+    // row; multi-hits line up along the panel instead of piling up
+    const [nx, ny] = partyNumberXY(u);
+    s.number(nx, ny + (o.scatter ? -rng.int(0, 3) : 0), dmg, { rise: PARTY_RISE, drift: PARTY_DRIFT }, 'party', u);
   }
+  if (dmg > 0) panelImpact(s, u, !!o.tsukkomi);
   if (u.has('status_nemuri') && dmg > 0) {
     delete u.m.status.status_nemuri;
     s.memo['woke_' + u.id] = 1;
@@ -140,14 +136,41 @@ export function tsukkomiFeel(s: BattleScene, u: PartyUnit | null, just: boolean)
   if (u) s.mood(u, 'tsukkomi', 700);
 }
 
+/** Rise of a party number (16.4: 12px over the panels). */
+export const PARTY_RISE = 12;
+/** Party numbers drift left as they rise, away from the tsukkomi "!" over the photo. */
+const PARTY_DRIFT = -4;
+
 /**
- * Party number origin (15.9, moved): the centre of the panel, rising 12px to
- * rest on the tape row over the panel's top edge — unmistakably the member's
- * number, never floating among the enemies' feet.
+ * Party number origin (15.9, moved): the top edge of the panel right over the
+ * photo — the face that took the hit. It rises 12px and rests with its
+ * bottom on y141, above the tape row, so a name tag is never covered.
  */
 export function partyNumberXY(u: PartyUnit): [number, number] {
   const [px, py] = PANEL_POS[u.id];
-  return [px + 68, py + 18];
+  return [px + 12 - PARTY_DRIFT, py + 3];
+}
+
+/**
+ * Impact on a panel (16.7): a 12px burst over the photo that flashes white →
+ * vermilion (3f), and four paper scraps. A tsukkomi'd hit only gets a small
+ * white flick.
+ */
+export function panelImpact(s: BattleScene, u: PartyUnit, soft = false): void {
+  const [px, py] = PANEL_POS[u.id];
+  const x = px + 20;
+  const y = py + 20;
+  s.addFx({
+    layer: 'top',
+    dur: soft ? 2 * FRAME_MS : 4 * FRAME_MS,
+    ui: true,
+    draw: (g, t) => {
+      const f = Math.min(3, Math.floor(t / FRAME_MS));
+      const img = impactBurst(soft ? 0 : f);
+      g.img(img, Math.round(x - img.width / 2), Math.round(y - img.height / 2));
+    },
+  });
+  if (!soft) s.paper(x, y - 6, 4, [50, 110]);
 }
 
 export function healParty(s: BattleScene, u: PartyUnit, amount: number, o: { mp?: boolean; stack?: number } = {}): number {
@@ -157,7 +180,7 @@ export function healParty(s: BattleScene, u: PartyUnit, amount: number, o: { mp?
     const before = u.m.mp;
     u.m.mp = Math.min(u.m.maxMp, u.m.mp + Math.round(amount));
     const n = u.m.mp - before;
-    s.number(nx, ny, n, { kind: 'mp', rise: 12 });
+    s.number(nx, ny, n, { kind: 'mp', rise: PARTY_RISE, drift: PARTY_DRIFT }, 'party', u);
     return n;
   }
   const wasDown = !u.alive;
@@ -173,7 +196,7 @@ export function healParty(s: BattleScene, u: PartyUnit, amount: number, o: { mp?
     u.drop = 0;
     s.memo['revived_' + u.id] = 1;
   }
-  s.number(nx + (o.stack ?? 0) * 10, ny - (o.stack ?? 0) * 6, n, { kind: 'heal', rise: 12 });
+  s.number(nx, ny, n, { kind: 'heal', rise: PARTY_RISE, drift: PARTY_DRIFT }, 'party', u);
   s.sfx('se_heal');
   return n;
 }
@@ -282,9 +305,9 @@ export interface EnemyHitOpts {
 
 /** Subtract HP and pop a number above the enemy. Returns true if it reached 0. */
 export function hurtEnemy(s: BattleScene, e: EnemyUnit, dmg: number, o: EnemyHitOpts = {}): boolean {
-  const [x, y] = s.enemyNumberXY(e, !!(o.big || o.crit), o.stack ?? 0);
+  const [x, y] = s.enemyNumberXY(e, !!(o.big || o.crit));
   if (o.zero) {
-    s.number(x, y, 0, { kind: 'zero' });
+    s.number(x, y, 0, { kind: 'zero' }, 'enemy', e);
     return false;
   }
   if (e.def.invulnerable) return false;
@@ -294,7 +317,7 @@ export function hurtEnemy(s: BattleScene, e: EnemyUnit, dmg: number, o: EnemyHit
   if (e.def.boss && !s.memo.bossFinal && e.hp < 1) e.hp = 1;
   e.trailWait = 400;
   e.hpTrail = Math.max(e.hpTrail, before);
-  if (!o.noNumber) s.number(x, y, Math.max(0, Math.round(dmg)), { kind: o.crit ? 'crit' : 'dmg', big: o.big || o.crit });
+  if (!o.noNumber) s.number(x, y, Math.max(0, Math.round(dmg)), { kind: o.crit ? 'crit' : 'dmg', big: o.big || o.crit }, 'enemy', e);
   if (e.status.bokemake) s.memo.bokeHit = 1;
   if (dmg > 0 && e.hp > 0) enemyHurt(s, e, before);
   return e.hp <= 0;
@@ -387,15 +410,36 @@ export function dodge(s: BattleScene, e: EnemyUnit): void {
   });
 }
 
+const restoredCache = new Map<string, HTMLCanvasElement>();
+
 /** Small restored-object sprite: chars team's restored_<id> if registered, else ours. */
 export function restoredSprite(e: EnemyUnit): HTMLCanvasElement {
+  let c = restoredCache.get(e.id);
+  if (c) return c;
   const id = 'restored_' + e.id;
   if (charIds().includes(id)) {
     const cs = charSprite(id);
     const fr = cs.idle?.down?.[0] ?? cs.walk.down[0];
-    if (fr) return fr;
+    if (fr) c = fr;
   }
-  return e.art!.restored();
+  c ??= e.art!.restored();
+  restoredCache.set(e.id, c);
+  return c;
+}
+
+/**
+ * Build every enemy's restored object ahead of time, one per frame while the
+ * enemies pop in (the chars team's sprites are palette-quantised on first
+ * use, which would otherwise hitch the defeat — the best moment of a fight).
+ */
+export function* precacheRestored(s: BattleScene): Co {
+  const seen = new Set<string>();
+  for (const e of s.enemies) {
+    if (seen.has(e.id) || e.def.boss || e.def.invulnerable) continue;
+    seen.add(e.id);
+    restoredSprite(e);
+    yield null;
+  }
 }
 
 /**
@@ -507,12 +551,12 @@ function* dropObject(s: BattleScene, e: EnemyUnit, x: number, y: number, floor: 
       ctx.globalAlpha = prev * a;
       ctx.drawImage(img, Math.round(x - w / 2), Math.round(st.y + H - h), w, h);
       if (st.seal > 0) {
-        const seal = ovalStamp('みました', 40, 20, 0, 5, true);
+        const seal = ovalStamp('みました', 44, 22, 0, 5, true);
         const k = Math.min(1, st.seal / 67);
         const ss = 1.6 - 0.6 * k;
         const sw2 = seal.width * ss;
         const sh2 = seal.height * ss;
-        ctx.drawImage(seal, Math.round(x + W / 2 + 4 + 20 - sw2 / 2), Math.round(floor - 12 - sh2 / 2), Math.round(sw2), Math.round(sh2));
+        ctx.drawImage(seal, Math.round(x + W / 2 + 4 + seal.width / 2 - sw2 / 2), Math.round(floor - 12 - sh2 / 2), Math.round(sw2), Math.round(sh2));
       }
       ctx.globalAlpha = prev;
     },
@@ -604,7 +648,7 @@ function* semiFlyAway(s: BattleScene, x: number, y: number): Co {
   yield 500;
   s.sfx('se_stamp');
   s.sfx('se_defeat_chord');
-  const seal = ovalStamp('みました', 40, 20, 0, 5);
+  const seal = ovalStamp('みました', 44, 22, 0, 5, true);
   s.addFx({
     layer: 'world',
     dur: 1600,

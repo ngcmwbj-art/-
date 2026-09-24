@@ -89,11 +89,27 @@ export function drawLightAt(g: Gfx, img: HTMLCanvasElement, x: number, y: number
   ctx.globalAlpha = prev;
 }
 
-/** Warm lamp colour (#F7C27A), street-lamp colour (#FFE7A3), window light (#F6D98A), TV (#7FD1E8). */
+/**
+ * Light-map colours (added onto the grade's multiply colour, so they are
+ * "how much light", not paint): warm lamps are strong in red/green and weak
+ * in blue so they read warm against the blue night.
+ */
 export const LIGHT = {
-  lamp: '247,194,122',
-  street: '255,231,163',
-  window: '246,217,138',
-  tv: '127,209,232',
-  tube: '255,246,216',
+  /** incandescent room lamp (#F7C27A family) */
+  lamp: '255,162,52',
+  /** security / street lamp */
+  street: '255,206,70',
+  /** window light thrown on the ground (#F6D98A family) */
+  window: '255,184,48',
+  /** TV screen (#7FD1E8 family) */
+  tv: '64,150,214',
+  /** fluorescent tube */
+  tube: '170,208,190',
+  /** red neon / warning lamps */
+  red: '255,84,60',
 };
+
+/** A small stepped halo (emissive layer) round a lamp: pixel steps, no smooth gradient. */
+export function halo(g: Gfx, cx: number, cy: number, r: number, rgb: string, a: number): void {
+  drawLight(g, poolEllipse(r, r, rgb), cx, cy, a);
+}

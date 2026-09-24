@@ -10,6 +10,7 @@ import { ihash } from '../tiles/noise';
 import { castRight, cylinder, dk, finish, lt, maskOf, outline } from './kit';
 import { flat, floatOffset, mkFrames, stand, standAnim } from './pkit';
 import { registerProp } from './registry';
+import { drawLight, halo, LIGHT, poolEllipse } from './light';
 import { poleLampState } from './street';
 import { fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
@@ -619,7 +620,7 @@ registerProp('obj_speaker_pole', () => {
   const img = p.toCanvas();
   const glass = maskOf(W, H, (x, y) => y >= 6 && y <= 15 && p.get(x, y) === p.get(cx - 5, 11) && x < cx + 9);
   const a = stand(img, { cx: 8, base: 16, shadow: 58, contact: 8, extra: { glass } });
-  a.xray = 0.5;
+  a.xray = 0;
   a.glow = (g, x, y, env) => {
     // rotating beacon during the broadcast (flag_broadcast_on)
     if (!env.flag('flag_broadcast_on')) return;
@@ -781,24 +782,15 @@ registerProp('prop_park_lamp', () => {
   a.glow = (g, x, y, env) => {
     const on = poleLampState(env);
     if (on <= 0) return;
-    const gx = x + 8;
-    const gy = y + a.oy + 5;
-    const ctx = g.ctx;
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha = on;
-    const grd = ctx.createRadialGradient(gx, gy, 1, gx, gy, 10);
-    grd.addColorStop(0, 'rgba(255,246,216,0.9)');
-    grd.addColorStop(1, 'rgba(255,231,163,0)');
-    ctx.fillStyle = grd;
-    ctx.fillRect(gx - 10, gy - 10, 20, 20);
-    const gr2 = ctx.createRadialGradient(gx, y + 18, 2, gx, y + 18, 36);
-    gr2.addColorStop(0, 'rgba(255,231,163,0.35)');
-    gr2.addColorStop(1, 'rgba(255,231,163,0)');
-    ctx.fillStyle = gr2;
-    ctx.fillRect(gx - 36, y - 10, 72, 56);
-    ctx.restore();
+    halo(g, x + 8, y + a.oy + 5, 9, LIGHT.street, 0.5 * Math.min(1, on));
+    g.rect(x + 7, y + a.oy + 4, 2, 2, P.glint, Math.min(1, on));
   };
+  a.light = (g, x, y, env) => {
+    const on = poleLampState(env);
+    if (on <= 0) return;
+    drawLight(g, poolEllipse(36, 22, LIGHT.street), x + 8, y + 14, 0.6 * Math.min(1.3, on));
+  };
+  a.xray = 0;
   return a;
 });
 

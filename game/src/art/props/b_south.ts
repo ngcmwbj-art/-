@@ -34,6 +34,7 @@ import { acUnit } from './b_houses';
 import { rimLeft } from './b_shops';
 import { fontText, fontTextSmall, fontWidth, handGlyph, handText, printLines, scribble, tiny } from './text';
 import type { PropEnv } from './types';
+import { drawLightAt, LIGHT, poolTrapezoid } from './light';
 
 // ---------------------------------------------------------------- コインランドリー ふわり
 
@@ -134,8 +135,9 @@ registerBuilding({
     fillWall(p, 0, fY, 80, 48, wallMortar(P.concrete, 29));
     eaveShadow(p, 0, fY, 80, 2);
     signBoard(p, 3, fY, 74, 13, P.paper, P.leafShade, 3);
-    fontTextSmall(p, '夕鳴', 25, fY + 3, P.leafShade, 1);
-    handText(p, '写真館', 44, fY + 2, P.leafShade, { spacing: 2 });
+    // 夕鳴写真館, all hand-set 9×10 (the 8px 夕鳴 read as 「タル」)
+    handGlyph(p, '夕9', 22, fY + 2, P.leafShade);
+    handText(p, '鳴写真館', 33, fY + 2, P.leafShade, { spacing: 2 });
     // camera icon
     p.rect(8, fY + 4, 10, 6, P.charcoal);
     p.rect(10, fY + 3, 3, 1, P.charcoal);
@@ -370,14 +372,11 @@ registerBuilding({
     rimLeft(p, fY, b.botY);
     drainPipe(p, 62, fY + 1, b.botY - 1);
   },
-  glow(g, x, y, env, b) {
-    if (env.grade.night < 0.05) return;
-    const ctx = g.ctx;
-    ctx.save();
-    ctx.globalAlpha = 0.35 * env.grade.night;
-    ctx.fillStyle = P.horizon;
-    ctx.fillRect(Math.round(x + 12), Math.round(y + b.botY), 26, 10);
-    ctx.restore();
+  light(g, x, y, env, b) {
+    const n = env.grade.night;
+    if (n < 0.05) return;
+    // the koban's lit door and its red lamp
+    drawLightAt(g, poolTrapezoid(26, 40, 22, LIGHT.window), x + 25 - 20, y + b.botY - 1, 0.65 * n);
   },
 });
 

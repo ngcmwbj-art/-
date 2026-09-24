@@ -11,6 +11,7 @@ import { registerProp } from './registry';
 import { fontTextSmall, handGlyph, printLines, scribble, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 import { POLE } from './wires';
+import { drawLight, halo, LIGHT, poolEllipse } from './light';
 
 const pc = (w: number, h: number) => new PixelCanvas(w, h);
 
@@ -126,35 +127,29 @@ function poleArt(opts: Record<string, unknown>): PropArt {
     shadow: 64,
     contact: 8,
     contactX: 8,
+    // tall: a see-through hole opens round a character behind it (review round 2)
+    xray: 0,
     glow: lamp
       ? (g, x, y, env) => {
           const on = lampState(env);
           if (on <= 0) return;
-          const ctx = g.ctx;
-          ctx.save();
-          ctx.globalAlpha = on;
-          ctx.fillStyle = P.glint;
-          ctx.fillRect(Math.round(x + ox + lampX - 1), Math.round(y + oy + lampY), 4, 1);
-          // pool of light on the ground (r 40, screen, α35%)
-          ctx.globalCompositeOperation = 'screen';
-          const gx = x + ox + lampX;
-          const gy = y + 14 + 6;
-          const grd = ctx.createRadialGradient(gx, gy, 2, gx, gy, 40);
-          grd.addColorStop(0, 'rgba(255,231,163,0.35)');
-          grd.addColorStop(1, 'rgba(255,231,163,0)');
-          ctx.globalAlpha = on;
-          ctx.fillStyle = grd;
-          ctx.fillRect(gx - 40, gy - 30, 80, 60);
-          // a thin cone from the lamp
-          ctx.fillStyle = 'rgba(255,231,163,0.12)';
-          ctx.beginPath();
-          ctx.moveTo(x + ox + lampX - 1, y + oy + lampY + 1);
-          ctx.lineTo(x + ox + lampX + 3, y + oy + lampY + 1);
-          ctx.lineTo(gx + 16, gy);
-          ctx.lineTo(gx - 16, gy);
-          ctx.closePath();
-          ctx.fill();
-          ctx.restore();
+          const hx = x + ox + lampX;
+          const hy = y + oy + lampY;
+          // the lit globe under the lamp head, a small stepped halo
+          halo(g, hx + 1, hy + 1, 7, LIGHT.street, 0.45 * Math.min(1, on));
+          g.rect(hx - 1, hy, 4, 1, P.glint, Math.min(1, on));
+          g.rect(hx, hy + 1, 2, 1, P.horizon, Math.min(1, on));
+        }
+      : undefined,
+    light: lamp
+      ? (g, x, y, env) => {
+          const on = lampState(env);
+          if (on <= 0) return;
+          // the pool falls on the road under the lamp head: 20px north of the
+          // pole's foot, an ellipse squashed to 0.6 (review round 2)
+          const gx = x + ox + lampX + 2;
+          const gy = y + 14 - 20;
+          drawLight(g, poolEllipse(40, 24, LIGHT.street), gx, gy, 0.7 * Math.min(1.3, on));
         }
       : undefined,
   };
@@ -236,7 +231,7 @@ registerProp('prop_curve_mirror', () => {
     g.rect(mx - 5, myy - 5, 3, 1, P.glint);
     g.rect(mx - 6, myy - 4, 1, 2, P.aqua);
   };
-  a.xray = 0.45;
+  a.xray = 0;
   return a;
 });
 
@@ -525,13 +520,25 @@ registerProp('obj_asagao', () => {
 });
 
 registerProp('obj_block_hole', () => {
-  const p = pc(12, 8);
-  p.ellipse(6, 7, 5, 5, P.night);
-  p.ellipse(6, 7, 4, 4, P.ink);
-  p.set(3, 4, P.brass);
-  p.set(4, 3, P.brass); // orange tabby fur
-  p.hline(1, 10, 7, P.charcoal);
-  return stand(p.toCanvas(), { base: 16, foot: 17, shadow: 0, contact: 0 });
+  // 塀の穴: a hole knocked through the bottom course of the N–S wall at
+  // (15,25), seen on its east side face (image x 9..11 = the lowest course
+  // and the wall's ink edge), a tuft of orange tabby fur caught on its lip
+  const p = pc(16, 16);
+  p.ellipse(10.5, 8, 2.2, 4.2, P.ink);
+  p.ellipse(10.8, 8.5, 1.4, 3.2, P.night);
+  p.set(9, 5, P.steel);
+  p.set(9, 11, P.shade);
+  p.set(12, 6, P.charcoal);
+  p.set(12, 11, P.charcoal);
+  // fur on the lip
+  p.set(9, 7, P.brass);
+  p.set(9, 8, P.sun);
+  p.set(10, 6, P.brassOld);
+  // moss and a few blades at the foot of the hole
+  for (const [x, h] of [[9, 2], [10, 1], [12, 3], [13, 1]] as const)
+    for (let j = 0; j < h; j++) p.set(x, 13 - j, j === h - 1 ? P.leafYoung : P.leaf);
+  // sorted after the wall cell below (whose raised strip overlaps this tile)
+  return stand(p.toCanvas(), { base: 16, foot: 33, shadow: 0, contact: 0 });
 });
 
 registerProp('prop_cat_hole_moss', () => {
@@ -689,27 +696,59 @@ registerProp('obj_jizo', () => {
 // ---------------------------------------------------------------- ゴミ集積所
 
 registerProp('prop_garbage_station', () => {
-  const p = pc(34, 26);
-  // sign board on a post
-  p.vline(2, 4, 25, P.steel);
-  p.rect(0, 1, 14, 9, P.white);
-  p.strokeRect(0, 1, 14, 9, P.leafDeep);
-  printLines(p, 2, 3, 10, 2, P.leafDeep, 3);
-  scribble(p, 2, 7, 2, P.verm, 17, 2); // 手書きの追記
-  // garbage bags under a green net and a yellow crow net
-  for (const [x, y, c] of [[8, 14, P.white], [15, 12, P.white], [22, 15, P.concreteLt], [27, 13, P.white]] as [number, number, string][]) {
-    p.ellipse(x, y + 4, 5, 5, c);
-    p.set(x - 2, y + 1, P.glint);
-    p.set(x, y - 1, P.steel);
+  // ゴミ集積所 (review round 2): a low heap of round bags lying on the
+  // gravel a little way south of the jizo shrine, a green crow net draped
+  // over them (diagonal cords following each bag's curve, weighted by a
+  // chain at the hem), and the rules board on its own post at the east end.
+  const W = 34;
+  const H = 22;
+  const p = pc(W, H);
+  const bags: [number, number, number, number, string][] = [
+    [7, 15, 5, 4.2, P.white],
+    [14, 13, 5.5, 4.8, P.concreteLt],
+    [21, 15, 5, 4.2, P.white],
+    [11, 17, 4, 3.4, P.aqua],
+  ];
+  // bags: lit top-left, pale body, shaded bottom-right, a knot on top
+  for (const [bx, by, rx, ry, c] of bags) {
+    for (let y = Math.floor(by - ry); y <= Math.ceil(by + ry); y++)
+      for (let x = Math.floor(bx - rx); x <= Math.ceil(bx + rx); x++) {
+        const u = (x + 0.5 - bx) / rx;
+        const v = (y + 0.5 - by) / ry;
+        if (u * u + v * v > 1) continue;
+        const d = u + v;
+        p.set(x, y, d < -0.7 ? P.glint : d > 0.75 ? (c === P.aqua ? P.blue : P.concrete) : c);
+      }
+    p.set(Math.round(bx), Math.round(by - ry) - 1, c === P.aqua ? P.blue : P.steel);
+    p.set(Math.round(bx) + 1, Math.round(by - ry) - 1, P.concrete);
   }
-  for (let y = 8; y < 25; y++)
-    for (let x = 3; x < 33; x++) {
-      if (!p.alpha(x, y)) continue;
-      if ((x + y) % 3 === 0) p.set(x, y, y < 16 ? P.gold : P.leaf);
+  // the net: diagonal cords every 3px, bent over each bag (offset by its height)
+  const inBag = (x: number, y: number) => bags.some(([bx, by, rx, ry]) => ((x + 0.5 - bx) / rx) ** 2 + ((y + 0.5 - by) / ry) ** 2 <= 1);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      if (!inBag(x, y)) continue;
+      // the curve: cords drift with the local height of the heap
+      let lift = 0;
+      for (const [bx, by, rx, ry] of bags) {
+        const u = (x + 0.5 - bx) / rx;
+        const v = (y + 0.5 - by) / ry;
+        if (u * u + v * v <= 1) lift = Math.max(lift, Math.round(Math.sqrt(1 - u * u) * 2));
+      }
+      if ((x + y + lift) % 3 === 0) p.set(x, y, (x + y) % 6 === 0 ? P.leaf : P.leafDeep);
+      else if ((x - y - lift + 60) % 6 === 0) p.set(x, y, P.leafDeep);
     }
-  p.hline(3, 32, 24, P.leafShade);
+  // hem chain along the bottom
+  for (let x = 3; x < 27; x++) if (p.alpha(x, 20) || p.alpha(x, 19)) p.set(x, (x & 1) ? 20 : 19, x % 4 === 1 ? P.steel : P.asphalt);
+  // rules board on a post at the east end (collection days, a hand-written note)
+  p.vline(30, 6, H - 1, P.steel);
+  p.vline(31, 6, H - 1, P.asphalt);
+  p.rect(26, 1, 8, 8, P.white);
+  p.strokeRect(26, 1, 8, 8, P.leafDeep);
+  printLines(p, 27, 3, 6, 2, P.leafDeep, 3);
+  p.hline(27, 31, 7, P.verm);
   finish(p, { soft: true });
-  return stand(p.toCanvas(), { cx: 16, shadow: 14, contact: 28 });
+  // stands 3px south of its tile so a strip of gravel shows between it and the shrine
+  return stand(p.toCanvas(), { cx: 16, base: 19, foot: 18, shadow: 12, contact: 26 });
 });
 
 // ---------------------------------------------------------------- 縁台と将棋盤
@@ -923,25 +962,75 @@ registerProp('decal_cone_mark', () => {
   return flat(p.toCanvas(), 0, 0);
 });
 
+/** Puddle body mask (24×10): an organic blob, a smaller lobe on the west. */
+const PUDDLE_MASK = (() => {
+  const m: boolean[][] = [];
+  for (let y = 0; y < 10; y++) {
+    m.push([]);
+    for (let x = 0; x < 24; x++) {
+      const a = ((x + 0.5 - 13) / 10) ** 2 + ((y + 0.5 - 5.2) / 3.6) ** 2 <= 1;
+      const b = ((x + 0.5 - 6.5) / 4.8) ** 2 + ((y + 0.5 - 4.4) / 2.6) ** 2 <= 1;
+      const bite = ((x + 0.5 - 17) / 3) ** 2 + ((y + 0.5 - 1.2) / 1.6) ** 2 <= 1;
+      m[y].push((a || b) && !bite);
+    }
+  }
+  return m;
+})();
+
 const PUDDLE = (() => {
+  // the wet asphalt round the water (darker, no outline); the water itself is drawn in over()
   const p = pc(24, 10);
-  p.ellipse(12, 5, 11, 4.2, P.charcoal);
-  p.ellipse(12, 5.3, 10, 3.6, P.navy);
-  p.ellipse(7, 4.3, 4.5, 2.2, P.navy);
+  for (let y = 0; y < 10; y++)
+    for (let x = 0; x < 24; x++) {
+      if (PUDDLE_MASK[y][x]) continue;
+      let near = 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0]])
+        if (PUDDLE_MASK[y + dy]?.[x + dx]) near++;
+      if (near >= 2 || (near === 1 && (x + y) % 2 === 0)) p.set(x, y, '#565B70');
+    }
   return p;
 })();
 
 registerProp('decal_puddle', () => {
-  // water puddle reflecting the sky (7.3); stage 2 it trickles north-east
+  // water puddle reflecting the sky (7.3, review round 2): each row takes the
+  // sky colour of its screen row, a bright 1px far (north) rim, a darker
+  // near edge; ripples from the watering hose; stage 2 it trickles north-east
   const img = PUDDLE.toCanvas();
-  const glass = maskOf(24, 10, (x, y) => PUDDLE.get(x, y) === PUDDLE.get(12, 5));
-  const a = flat(img, 0, 3, { glass });
+  const a = flat(img, 0, 3);
+  const rows: [number, number][][] = PUDDLE_MASK.map((r) => {
+    const out: [number, number][] = [];
+    let s0 = -1;
+    for (let x = 0; x <= r.length; x++) {
+      const on = x < r.length && r[x];
+      if (on && s0 < 0) s0 = x;
+      if (!on && s0 >= 0) {
+        out.push([s0, x]);
+        s0 = -1;
+      }
+    }
+    return out;
+  });
   a.over = (g, x, y, env) => {
+    const gd = env.grade;
+    const ox = x;
+    const oy = y + 3;
+    for (let j = 0; j < rows.length; j++) {
+      const sy = oy + j;
+      // the sky seen in a puddle: screen-space gradient, stepped every 3 rows
+      const k = Math.max(0, Math.min(1, Math.floor(sy / 3) * 3 / 216));
+      const c = gd.skyTop.map((v, i) => Math.round(v + (gd.skyBot[i] - v) * k)) as [number, number, number];
+      for (const [x0, x1] of rows[j]) {
+        g.rect(ox + x0, sy, x1 - x0, 1, `rgb(${c[0]},${c[1]},${c[2]})`);
+        // far rim: the lit edge of the water; near rim: a darker line
+        if (!PUDDLE_MASK[j - 1]?.[x0 + 1] || j === 0) g.rect(ox + x0 + 1, sy, Math.max(1, x1 - x0 - 2), 1, P.glint, 0.7);
+        if (!PUDDLE_MASK[j + 1]?.[x0 + 1]) g.rect(ox + x0 + 1, sy, Math.max(1, x1 - x0 - 2), 1, P.nightShade, 0.3);
+      }
+    }
     // ripples from the watering hose (expanding rings) and glints
     const r = ((env.t / 90) % 10) | 0;
-    g.rect(x + 12 - r, y + 8, r * 2, 1, P.glint, 0.35 * (1 - r / 10));
-    g.rect(x + 5, y + 6, 3, 1, P.glint, 0.6);
-    g.rect(x + 15, y + 9, 2, 1, P.glint, 0.4);
+    g.rect(ox + 13 - r, oy + 5, r * 2, 1, P.glint, 0.35 * (1 - r / 10));
+    g.rect(ox + 8, oy + 3, 3, 1, P.glint, 0.55);
+    g.rect(ox + 16, oy + 6, 2, 1, P.glint, 0.4);
     if (env.stage !== 2) return;
     // thin stream towards the mall
     for (let k = 0; k < 14; k++) g.rect(x + 18 + k, y + 4 - Math.floor(k / 2), 1, 1, P.aqua, 0.5);

@@ -380,12 +380,90 @@ const PART_KEYS: Record<string, string> = {
   boss_omukaemachi_shoe: 'shoe',
 };
 
-function glowOutline(ctx: CanvasRenderingContext2D, img: HTMLCanvasElement, x: number, y: number, color: string): void {
-  for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-    ctx.save();
-    ctx.drawImage(tinted(img, color), x + dx, y + dy);
-    ctx.restore();
+/**
+ * Glow halo of a part (13.4 status_hikari): its silhouette grown by 3px in
+ * three rings — #FFF6D8 hugging the part, #FFE7A3, then #FFD23F — drawn under
+ * the part so the light spills over the shadow body and the sky alike.
+ */
+const haloCache = new Map<HTMLCanvasElement, HTMLCanvasElement>();
+function haloOf(c: HTMLCanvasElement): HTMLCanvasElement {
+  let h = haloCache.get(c);
+  if (h) return h;
+  const w = c.width + 6;
+  const hh = c.height + 6;
+  const src = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+  const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < c.width && y < c.height && src[(y * c.width + x) * 4 + 3] > 40;
+  const p = new PixelCanvas(w, hh);
+  const cols = ['#FFF6D8', '#FFE7A3', '#FFD23F'];
+  for (let y = 0; y < hh; y++)
+    for (let x = 0; x < w; x++) {
+      const sx = x - 3;
+      const sy = y - 3;
+      if (inside(sx, sy)) {
+        p.set(x, y, '#FFF6D8');
+        continue;
+      }
+      let best = 9;
+      for (let dy = -3; dy <= 3; dy++)
+        for (let dx = -3; dx <= 3; dx++) {
+          if (!inside(sx + dx, sy + dy)) continue;
+          const d = Math.max(Math.abs(dx), Math.abs(dy)) + (Math.abs(dx) + Math.abs(dy) > 4 ? 1 : 0);
+          if (d < best) best = d;
+        }
+      if (best <= 3) p.set(x, y, cols[best - 1]);
+    }
+  h = p.toCanvas();
+  haloCache.set(c, h);
+  return h;
+}
+
+/**
+ * Selection outline (target choice): the part's silhouette ringed with 1px of
+ * #FFF6D8 and 1px of ink outside it, so it reads on the shadow body and on
+ * the bright sunset alike.
+ */
+const selCache = new Map<HTMLCanvasElement, HTMLCanvasElement>();
+function selectionOf(c: HTMLCanvasElement): HTMLCanvasElement {
+  let h = selCache.get(c);
+  if (h) return h;
+  const [cv, ctx] = makeCanvas(c.width + 4, c.height + 4);
+  ringInto(ctx, c, 2, 2);
+  h = cv;
+  selCache.set(c, h);
+  return h;
+}
+
+/**
+ * Paint a light + ink double ring around `c` (drawn at ox, oy) into ctx.
+ * `live` = c changes every frame (the composed body): tint it fresh.
+ */
+const liveTint: HTMLCanvasElement[] = [];
+function tintNow(c: HTMLCanvasElement, color: string, slot: number): HTMLCanvasElement {
+  let t = liveTint[slot];
+  if (!t) t = liveTint[slot] = makeCanvas(c.width, c.height)[0];
+  if (t.width !== c.width || t.height !== c.height) {
+    t.width = c.width;
+    t.height = c.height;
   }
+  const x = t.getContext('2d')!;
+  x.globalCompositeOperation = 'source-over';
+  x.clearRect(0, 0, t.width, t.height);
+  x.drawImage(c, 0, 0);
+  x.globalCompositeOperation = 'source-in';
+  x.fillStyle = color;
+  x.fillRect(0, 0, t.width, t.height);
+  x.globalCompositeOperation = 'source-over';
+  return t;
+}
+function ringInto(ctx: CanvasRenderingContext2D, c: HTMLCanvasElement, ox: number, oy: number, live = false): void {
+  const ink = live ? tintNow(c, '#2A2440', 0) : tinted(c, '#2A2440');
+  const light = live ? tintNow(c, '#FFF6D8', 1) : tinted(c, '#FFF6D8');
+  ctx.save();
+  for (const [dx, dy] of [[-2, 0], [2, 0], [0, -2], [0, 2], [-1, -1], [1, -1], [-1, 1], [1, 1]]) ctx.drawImage(ink, ox + dx, oy + dy);
+  for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) ctx.drawImage(light, ox + dx, oy + dy);
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.drawImage(c, ox, oy);
+  ctx.restore();
 }
 
 const tintCache = new Map<string, HTMLCanvasElement>();
@@ -405,11 +483,54 @@ function tinted(img: HTMLCanvasElement, color: string): HTMLCanvasElement {
 }
 let idSeq = 1;
 
+/** Smoothstep between (time, value) keys. */
+function keyed(t: number, keys: [number, number][]): number {
+  for (let i = 1; i < keys.length; i++) {
+    const [t1, v1] = keys[i];
+    const [t0, v0] = keys[i - 1];
+    if (t <= t1) {
+      const p = (t - t0) / (t1 - t0);
+      return v0 + (v1 - v0) * p * p * (3 - 2 * p);
+    }
+  }
+  return keys[keys.length - 1][1];
+}
+
+let qSticky: HTMLCanvasElement | null = null;
+/** The "？" sticky over a glowing part: a 16×17 yellow note with a strip of tape. */
+function questionSticky(): HTMLCanvasElement {
+  if (qSticky) return qSticky;
+  const p = PixelCanvas.fromArt(
+    [
+      '.....tttttt.....',
+      'eeeeettttttteeee',
+      'eyyyyyyyyyyyyyye',
+      'eyyyyykkkkyyyyye',
+      'eyyyykkyykkyyyye',
+      'eyyyykkyykkyyyye',
+      'eyyyyyyyykkyyyye',
+      'eyyyyyyykkyyyyye',
+      'eyyyyyykkyyyyyye',
+      'eyyyyyykkyyyyyye',
+      'eyyyyyyyyyyyyyye',
+      'eyyyyyykkyyyyyye',
+      'eyyyyyykkyyyyyYe',
+      'eyyyyyyyyyyyyYYe',
+      'eeeeeeeeeeeeeeee',
+      '.ssssssssssssss.',
+    ],
+    { e: '#D9A441', y: '#F6D98A', Y: '#E9C46E', k: '#2A2440', t: '#AFD6E6', s: '#5B4A7A' },
+  );
+  qSticky = p.toCanvas();
+  return qSticky;
+}
+
 registerEnemyArt('boss_omukaemachi', (): EnemyArt => {
   const b = buildAll();
   for (const L of [...Object.values(b.parts), b.gloveL, b.gloveR, b.recorder, b.bag, b.trinkets, b.fan]) (L.c as HTMLCanvasElement & { _id?: number })._id = idSeq++;
   const [comp, ctx] = makeCanvas(W, H);
   const [shape, sctx] = makeCanvas(W, H);
+  const [selC, selCtx] = makeCanvas(W + 4, H + 4);
   let hurtUntil = -1;
   let lastPose = '';
   const art: EnemyArt & { partImage(id: string): HTMLCanvasElement | null } = {
@@ -435,9 +556,37 @@ registerEnemyArt('boss_omukaemachi', (): EnemyArt => {
       ctx.clearRect(0, 0, W, H);
       const put = (L: { c: HTMLCanvasElement; x: number; y: number }, dx = 0, dy = 0) => ctx.drawImage(L.c, OX + L.x + dx, OY + L.y + dy);
       const glowing = v.pose === 'chimeglow' || v.pose === 'chime';
+      // a glowing part (迷子のお知らせ) pulses at 1Hz and pops 1.0→1.15→1.0
+      // for the first 300ms, under a 3px halo of light
+      const glowPut = (key: string, L: Layer, dx = 0, dy = 0) => {
+        const on = f['glow_' + key] && !f['broken_' + key];
+        if (!on) {
+          put(L, dx, dy);
+          return;
+        }
+        const k = gt - (v.params?.['glowAt_' + key] ?? -9999);
+        // 1.0 → 1.2 → 0.96 → 1.0 over 360ms, then a steady 1Hz breath
+        const pop = k >= 0 && k < 360 ? keyed(k, [[0, 1], [150, 1.2], [270, 0.96], [360, 1]]) : 1;
+        const pulse = k >= 0 && k < 360 ? 1 : 0.75 + 0.2 * Math.sin((gt / 1000) * Math.PI * 2);
+        const halo = haloOf(L.c);
+        const cx = OX + L.x + dx + L.c.width / 2;
+        const cy = OY + L.y + dy + L.c.height / 2;
+        const hw = halo.width * pop;
+        const hh = halo.height * pop;
+        ctx.globalAlpha = pulse;
+        ctx.drawImage(halo, Math.round(cx - hw / 2), Math.round(cy - hh / 2), Math.round(hw), Math.round(hh));
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = pulse * 0.35;
+        ctx.drawImage(halo, Math.round(cx - hw / 2), Math.round(cy - hh / 2), Math.round(hw), Math.round(hh));
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1;
+        const w = L.c.width * pop;
+        const h = L.c.height * pop;
+        ctx.drawImage(L.c, Math.round(cx - w / 2), Math.round(cy - h / 2), Math.round(w), Math.round(h));
+      };
       // behind the body: the recorder sticking out of the back, the umbrella bundle
       if (!f.gone_recorder) put(b.recorder, 0, breathe + lookup);
-      if (!f.broken_umbrella && !f.gone_umbrella) put(b.parts.umbrella, 0, breathe);
+      if (!f.broken_umbrella && !f.gone_umbrella) glowPut('umbrella', b.parts.umbrella, 0, breathe);
       // shadow body: each row offset by a sine (outline wobble)
       const rows = (src: HTMLCanvasElement) => {
         for (let y = 0; y < 128; y++) {
@@ -452,7 +601,7 @@ registerEnemyArt('boss_omukaemachi', (): EnemyArt => {
       put(b.trinkets, 0, 0);
       if (!f.broken_bottle && !f.gone_bottle) {
         if (v.pose === 'drink') ctx.drawImage(b.parts.bottle.c, OX + b.parts.bottle.x - 6, OY + b.parts.bottle.y - 10);
-        else put(b.parts.bottle, 0, breathe);
+        else glowPut('bottle', b.parts.bottle, 0, breathe);
       }
       // gloves clasping the shins (fingers squeeze now and then)
       const squeeze = !still && gt % 3000 < 160 ? 1 : 0;
@@ -460,9 +609,9 @@ registerEnemyArt('boss_omukaemachi', (): EnemyArt => {
         if (v.pose !== 'armL') put(b.gloveL, squeeze, breathe);
         if (v.pose !== 'armR') put(b.gloveR, -squeeze, breathe);
       }
-      if (!f.broken_shoe && !f.gone_shoe && v.pose !== 'kick') put(b.parts.shoe);
+      if (!f.broken_shoe && !f.gone_shoe && v.pose !== 'kick') glowPut('shoe', b.parts.shoe);
       // head items
-      if (!f.broken_cap && !f.gone_cap) put(b.parts.cap, 0, breathe + lookup);
+      if (!f.broken_cap && !f.gone_cap) glowPut('cap', b.parts.cap, 0, breathe + lookup);
       // eyes: two lost-child tags; pupils follow a target; tags flip as a blink
       const blink = !still && (gt % 4200 < 90 || !!f.eyesClosed);
       if (!f.gone_tag) {
@@ -479,15 +628,20 @@ registerEnemyArt('boss_omukaemachi', (): EnemyArt => {
         }
       }
       if (v.pose === 'umbrella' && !f.broken_umbrella) put(b.fan);
-      // glowing parts: 1px outline alternating 2Hz + a "？" sticky
-      for (const [key, pid] of [['cap', 'cap'], ['umbrella', 'umbrella'], ['bottle', 'bottle'], ['shoe', 'shoe']] as [string, string][]) {
-        if (!f['glow_' + pid] || f['broken_' + pid]) continue;
-        const L = b.parts[key];
-        const col = Math.floor(gt / 250) % 2 ? '#FFE7A3' : '#FF6A4D';
-        ctx.save();
-        ctx.globalCompositeOperation = 'destination-over';
-        glowOutline(ctx, L.c, OX + L.x, OY + L.y + (key === 'cap' ? breathe : 0), col);
-        ctx.restore();
+      // target selection (2Hz blink): the chosen part — or, for the body,
+      // the whole shadow — ringed in light and ink
+      const hl = v.params?.hl ?? 0;
+      if (hl && Math.floor(gt / 250) % 2 === 0) {
+        const key = ['', 'cap', 'umbrella', 'bottle', 'shoe'][hl];
+        if (key && b.parts[key]) {
+          const L = b.parts[key];
+          const dy = key === 'cap' ? breathe + lookup : key === 'shoe' ? 0 : breathe;
+          ctx.drawImage(selectionOf(L.c), OX + L.x - 2, OY + L.y + dy - 2);
+        } else if (hl === 5) {
+          selCtx.clearRect(0, 0, W + 4, H + 4);
+          ringInto(selCtx, comp, 2, 2, true);
+          ctx.drawImage(selC, -2, -2);
+        }
       }
       // silhouette during the entrance
       const sil = v.params?.silhouette ?? 0;
@@ -505,20 +659,15 @@ registerEnemyArt('boss_omukaemachi', (): EnemyArt => {
       return comp;
     },
     over(g: Gfx, x: number, y: number, v: EnemyView): void {
-      // "？" stickies above glowing parts
+      // "？" stickies above glowing parts (16px, bobbing 2px at 1Hz)
       for (const key of ['cap', 'umbrella', 'bottle', 'shoe']) {
         if (!v.flags['glow_' + key] || v.flags['broken_' + key]) continue;
         const L = buildAll().parts[key];
-        const sx = x + OX + L.x + Math.round(L.c.width / 2) - 5;
-        const sy = y + OY + L.y - 12 + (Math.floor(v.gt / 300) % 2);
-        g.rect(sx, sy, 11, 11, '#D9A441');
-        g.rect(sx + 1, sy + 1, 9, 9, '#F6D98A');
-        g.px(sx + 4, sy + 3, '#2A2440');
-        g.px(sx + 5, sy + 2, '#2A2440');
-        g.px(sx + 6, sy + 3, '#2A2440');
-        g.px(sx + 6, sy + 4, '#2A2440');
-        g.px(sx + 5, sy + 5, '#2A2440');
-        g.px(sx + 5, sy + 7, '#2A2440');
+        const img = questionSticky();
+        const sx = x + OX + L.x + Math.round(L.c.width / 2) - Math.round(img.width / 2);
+        const bob = Math.round(Math.sin((v.gt / 1000) * Math.PI * 2) * 2);
+        const sy = Math.max(y + 2, y + OY + L.y - img.height - 3) + bob;
+        g.img(img, sx, sy);
       }
     },
     restored(): HTMLCanvasElement {

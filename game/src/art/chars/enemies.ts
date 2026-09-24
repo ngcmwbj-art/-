@@ -3,7 +3,9 @@
 //
 //  enemy_hato_kakaricho 16×18  upright barrel chest, glasses, striped tie, ID
 //                              card; 'peck' = a stiff office bow
-//  enemy_semi_final     24×18  upside-down cicada, twitching legs; 'hop' splays
+//  enemy_semi_final     24×14  cicada on its back (seen from above like the battle
+//                              art): red eyes, clear V wings, six 1px legs in the
+//                              air that twitch; 'hop' flails, wings buzz
 //  enemy_cone_vocal     16×24  slit eyes + beacon whose beam sweeps L/front/R;
 //                              'sing' opens a mouth in the lower band
 //  enemy_wasuregasa     18×30  half-open clear umbrella (ground shows through),
@@ -11,10 +13,13 @@
 //  enemy_ojigi_jihanki  48×40  bows at the waist hinge (30/60/90°), LED 17:00,
 //                              power cord dragged across the ground
 //  enemy_soujirou       24×12  robot vacuum, blinking blue LEDs, sock in the bin
-//  enemy_momisugi       24×32  massage chair, remote cord sways / beckons
+//  enemy_momisugi       24×32  brown leather massage chair: front-left 3/4 view,
+//                              recliner profile from the side, vent from behind;
+//                              rollers run, remote cord sways / beckons
 
-import { flat, mat, type Fig, type Mats, type PartOpts, type RowMap } from './fig';
+import { flat, mat, type Fig, type Mats } from './fig';
 import { buildSprite, rep, type IdleKey, type Pose } from './rig';
+import { paintRows, type Legend } from './kit';
 import { registerChar } from './registry';
 import { polyPath } from './body';
 import { C } from './palette';
@@ -272,118 +277,107 @@ registerChar('enemy_hato_kakaricho', () =>
 // body stands off brown ground. Walk = the hop (legs flailing, wings buzzing).
 
 const SEMI: Mats = {
-  belly: mat('#E8D9B5', { shade: '#C8A06A', light: '#FBF3DC', dark: '#8A5A3A' }),
-  seg: flat('#A8742A'),
-  // the thorax in two plates, lit from the west (no flat dark slab)
-  thorax: mat('#8A5A3A', { shade: '#5A3A2A', light: '#C8A06A', dark: '#3A2B24' }),
-  operc: mat('#C8A06A', { shade: '#A8742A', light: '#E8D9B5', dark: '#8A5A3A' }),
+  belly: mat('#C8A06A', { shade: '#A8742A', light: '#E8D9B5', dark: '#8A5A3A' }),
+  thorax: mat('#8A5A3A', { shade: '#5A3A2A', light: '#A8742A', dark: '#3A2B24' }),
   head: mat('#5A3A2A', { shade: '#3A2B24', light: '#8A5A3A', dark: '#2A2440' }),
-  eye: flat('#C8C2B4'),
-  glint: flat('#FFF6D8'),
-  beak: flat('#3A2B24'),
-  // clear wings: the ground shows through
-  wing: mat('#7FD1E899', { shade: '#4AA8E099', light: '#E8E4D8B3', dark: '#2F4A8A', ol: '#2F4A8A', norim: true }),
-  wingEdge: flat('#E8E4D8'),
-  wingHi: flat('#FFF6D8'),
-  vein: flat('#2F4A8A99'),
-  // legs: pale straw with a dark 1px outline, readable on any ground
-  leg: flat('#E8D9B5'),
-  legFar: flat('#C8A06A'),
-  legSh: flat('#2A2440'),
-  claw: flat('#3A2B24'),
+  eye: flat('#8A2E3A'),
+  glint: flat('#F6D98A'),
+  // clear wings: the ground shows through the membrane; the leading edge
+  // (costa) is an opaque light line and a dark vein runs along each wing
+  wing: flat('#7FD1E866', { ol: '#2F4A8A' }),
+  wingD: flat('#4AA8E0AA', { ol: '#2F4A8A' }),
+  vein: flat('#2F4A8A', { ol: '#2F4A8A' }),
+  costa: flat('#E8E4D8', { ol: '#2F4A8A' }),
+  wingHi: flat('#FFF6D8', { ol: '#2F4A8A' }),
+  leg: flat('#2A2440'),
+  knee: flat('#C8A06A'),
 };
+
+// Hand-placed 24×14 body, belly up, head west, seen from above like the
+// battle art: the wide head with a big red-brown compound eye bulging at
+// each corner, the dark thorax, the pale ribbed abdomen and the two clear
+// wings fanning out past the tail in a V (ground showing between them).
+const SEMI_ROWS = [
+  '........................',
+  '........................',
+  '........................',
+  '...................cwcc.',
+  '................cccmvm..',
+  '.gE..........cccmvvmn...',
+  '.EEhH.TTTTtBBBBBmvn.....',
+  '..HhhkTttttubsbsBn......',
+  '..hhhktttttubsbsbs......',
+  '..hhhktttttubsbsbs......',
+  '..hhkkuttuuusssbn.......',
+  '.EEkk.uuuu.msssmvn......',
+  '.gE.........mmmmvvmn....',
+  '................nnnmvn..',
+];
+const SEMI_LEGEND: Legend = {
+  m: ['wing', 0], n: ['wingD', 0], v: ['vein', 0], c: ['costa', 0], w: ['wingHi', 0],
+  B: ['belly', 1], b: ['belly', 0], s: ['belly', -1],
+  T: ['thorax', 1], t: ['thorax', 0], u: ['thorax', -1],
+  H: ['head', 1], h: ['head', 0], k: ['head', -1],
+  E: ['eye', 0], g: ['glint', 0],
+};
+const SEMI_WING = ['wing', 'wingD', 'vein', 'costa', 'wingHi'];
+const SEMI_BODY = ['belly', 'thorax', 'head', 'eye', 'glint'];
 
 function semi(f: Fig, p: Pose) {
   const walking = p.mode === 'walk';
   const st = p.step % 4;
   const hopping = walking || p.act === 'hop';
   // the walk cycle carries its own jump arc; the 'hop' pose lifts 2px inside
-  // the frame too (legs splayed, wings flared) so it reads before the field
-  // lifts the actor
-  const air = walking ? [0, 2, 4, 1][st] : p.act === 'hop' ? 2 : 0;
+  // the frame too (legs splayed, wings flared)
+  const air = walking ? [0, 2, 3, 1][st] : p.act === 'hop' ? 2 : 0;
   const tw = p.act === 'twitch' ? p.ph : 0;
   const buzz = hopping && (st === 1 || st === 2 || p.act === 'hop');
-  const y = 4 - air; // body top row = 5 + y ... everything shifts up while airborne
-  // ---- wings (under the body): two long clear wings spreading in a V from
-  // the thorax, north-east and south-east, the tips well past the tail;
-  // flared wider while it buzzes
   const fl = buzz ? 1 : 0;
-  const t0 = 5 + y;
-  f.part('wing', { shade: '', light: '' });
-  f.rows(8, t0 - 3 - fl, fl ? ['.........#######', '.....###########', '..##############', '.#############..'] : ['........#######.', '....############', '.##############.']);
-  f.rows(8, t0 + 5, fl ? ['.#############..', '..##############', '.....###########', '.........#######'] : ['.##############.', '....############', '........#######.']);
-  // leading edges (1px light) + a glint and a vein on each wing
-  f.part('wingEdge', { flat: true, rim: false, ol: false });
-  f.hl(16 + fl, 22 + fl, t0 - 3 - fl).hl(12, 15, t0 - 2 - fl);
-  f.hl(16 + fl, 22 + fl, t0 + 7 + fl).hl(12, 15, t0 + 6 + fl);
-  f.part('wingHi', { flat: true, rim: false, ol: false });
-  f.px(19, t0 - 2 - fl).px(19, t0 + 6 + fl);
-  f.part('vein', { flat: true, rim: false, ol: false });
-  f.hl(14, 18, t0 - 1).hl(14, 18, t0 + 5);
-  // ---- body, belly up: pale ribbed abdomen, the two opercula (the pale
-  // plates over its base), a two-plate thorax and the wide dark head
-  f.part('belly', { shade: 'rb', light: 't' });
-  f.rows(10, 5 + y, ['########..', '##########', '###########', '##########', '#######...']);
-  f.part('seg', { flat: true, rim: false });
-  for (const sx of [13, 15, 17]) f.vl(sx, 6 + y, 8 + y + (sx < 17 ? 1 : 0));
-  f.part('operc', { shade: 'rb', light: 'tl' });
-  f.rows(10, 5 + y, ['##', '#.', '..', '#.', '##']);
-  // thorax: two plates (the rear one first, so the front one's edge cuts a
-  // dark seam into it), each lit on its own top-left
-  f.part('thorax', { shade: 'rb', light: 'tl', sep: true });
-  f.rows(7, 5 + y, ['###', '###', '###', '###', '###']);
-  f.part('thorax', { shade: 'rb', light: 'tl' });
-  f.rows(5, 5 + y, ['.#', '##', '##', '##', '.#']);
-  f.part('head', { shade: 'rb', light: 't' });
-  f.rows(1, 4 + y, ['.###', '####', '####', '####', '####', '####', '.###']);
-  // compound eyes: one bright bump at each corner of the wide head
-  f.part('eye', { flat: true, rim: false });
-  f.px(1, 5 + y).px(1, 9 + y).px(2, 4 + y).px(2, 10 + y);
-  f.part('glint', { flat: true, rim: false });
-  f.px(1, 5 + y).px(1, 9 + y);
-  // the beak lying along the belly between the legs
-  f.part('beak', { flat: true, rim: false });
-  f.hl(4, 6, 7 + y);
-  // ---- six legs in the air (1px, bent once), attached along the thorax
+  const y = -air;
+  // wings (under the body) flare 1px outward while it buzzes
+  const only = (lo: boolean) => SEMI_ROWS.map((r, j) => ((j >= 8) === lo ? r.replace(/[^mnvcw]/g, '.') : '.'.repeat(r.length)));
+  paintRows(f, 0, y - fl, only(false), SEMI_LEGEND, SEMI_WING, { rim: false });
+  paintRows(f, 0, y + fl, only(true), SEMI_LEGEND, SEMI_WING, { rim: false });
+  paintRows(f, 0, y, SEMI_ROWS.map((r) => r.replace(/[mnvcw]/g, '.')), SEMI_LEGEND, SEMI_BODY);
+  // ---- six legs in the air: 1px dark lines bent once at the joint, the
+  // joint lit so they read on dark asphalt too. The hop flails them, a
+  // twitch kicks one.
   const flail = hopping ? (walking ? st : p.ph + 1) % 2 : 0;
-  const splay = p.act === 'hop' ? (p.ph === 0 ? 2 : 1) : 0;
-  const sway = (i: number) => (splay ? (i - 2.5 > 0 ? 1 : -1) * splay : flail ? (i % 2 ? 1 : -1) : 0);
-  const kick = (i: number) => (tw && i === 4 ? (tw === 1 ? -2 : -1) : tw === 1 && i === 5 ? 1 : 0);
-  // [base x, knee x, knee y, tip x, tip y] (rows relative to the body top):
-  // each leg goes up to a knee and bends back down (a row of Λ shapes in the
-  // air); forelegs lean over the head, hind legs over the belly
-  // far legs first (darker, shorter), then the near three (pale straw)
+  const splay = p.act === 'hop' ? 1 : 0;
+  // [base x, knee x, knee y, tip x, tip y] (y relative to the body top row 6):
+  // three pairs over the chest, the front pair leaning toward the head
   const LEGS: [number, number, number, number, number][] = [
-    [5, 4, -3, 4, -5],
-    [8, 9, -3, 10, -5],
-    [10, 15, -2, 16, -4],
-    [4, 2, -4, 0, -3],
-    [7, 7, -5, 5, -6],
-    [9, 12, -4, 14, -3],
+    [5, 3, -3, 4, -5],
+    [6, 6, -4, 5, -6],
+    [8, 7, -3, 8, -5],
+    [9, 10, -4, 9, -6],
+    [11, 11, -3, 13, -5],
+    [12, 14, -3, 14, -5],
   ];
-  // each leg: a pale 1px line with its own dark shadow pixel on the
-  // east side (below-right), so it reads on light and dark ground alike
-  const legPx: [number, number, boolean][] = [];
+  const top = y + 6;
   LEGS.forEach(([bx, kx, ky, tx, ty], i) => {
-    const dx = sway(i) + kick(i);
-    const dy = tw && i === 4 ? -1 : 0;
-    const top = 5 + y;
-    for (const [px, py] of polyPath([[bx, top - 1], [kx + Math.round(dx / 2), top + ky + dy], [tx + dx, top + ty + dy]])) legPx.push([px, py, i < 3]);
+    const side = tx <= bx ? -1 : 1;
+    let dx = splay * side + (flail ? (i % 2 ? 1 : -1) : 0);
+    let dy = 0;
+    if (tw && i === 3) {
+      dx += tw === 1 ? 2 : 1;
+      dy = tw === 1 ? 1 : 0;
+    }
+    if (tw === 1 && i === 1) dx -= 1;
+    const knee: [number, number] = [kx + Math.round(dx / 2), top + ky];
+    const pts = polyPath([[bx, top], knee, [tx + dx, top + ty + dy]]);
+    f.part('leg', { flat: true, rim: false, ol: false });
+    for (const [px, py] of pts) if (!f.filled(px, py)) f.px(px, py);
+    f.part('knee', { flat: true, rim: false, ol: false });
+    f.px(knee[0], knee[1]);
   });
-  const isLeg = new Set(legPx.map(([x, yy]) => x * 64 + yy));
-  f.part('legSh', { flat: true, rim: false, ol: false });
-  for (const [x, yy] of legPx) if (!isLeg.has((x + 1) * 64 + yy) && !f.filled(x + 1, yy)) f.px(x + 1, yy);
-  for (const far of [true, false]) {
-    f.part(far ? 'legFar' : 'leg', { flat: true, rim: false, ol: false });
-    for (const [x, yy, fr] of legPx) if (fr === far) f.px(x, yy);
-  }
 }
 
 registerChar('enemy_semi_final', () =>
   buildSprite({
     id: 'enemy_semi_final',
     w: 24,
-    h: 18,
+    h: 14,
     mats: SEMI,
     draw: semi,
     walkFrameMs: 110,
@@ -546,10 +540,12 @@ registerChar('enemy_cone_vocal', () =>
 // around its target (持ち主さがし). 16×30 (28px figure + 2px of hop room).
 
 const KASA: Mats = {
-  // clear vinyl, ~65% so the ground reads through it, tinted water blue
-  film: mat('#BDE8F2A6', { shade: '#7FD1E8A6', light: '#E4F6FAAE', dark: '#4A6A7A', ol: '#4A6A7A', norim: true }),
-  filmD: flat('#7FB4C8A0'),
-  hem: flat('#E4F6FAD0'),
+  // clear vinyl: a faint water-blue film in the middle so the ground reads
+  // through it, a milkier sheen on the lit left panel and a bluer shade on
+  // the right (the three alpha steps keep the dome's form)
+  film: mat('#BDE8F255', { shade: '#7FD1E899', light: '#E4F6FA99', dark: '#4A6A7A', ol: '#4A6A7A', norim: true }),
+  filmD: flat('#7FB4C899'),
+  hem: flat('#E4F6FADD'),
   hi: flat('#FFF6D8'),
   rib: mat('#9AA0A8', { shade: '#6B7186', light: '#C8C2B4', dark: '#3A3F48' }),
   ribT: flat('#3A3F48'),
@@ -1156,146 +1152,209 @@ registerChar('enemy_soujirou', () =>
 // 'beckon' lifts it high on the cord and curls it toward the seat.
 
 export const CHAIR_MATS: Mats = {
-  // oxblood leather frame, cream padded cushions
-  leather: mat('#8A2E3A', { shade: '#5A2436', light: '#A8484A', dark: '#2A2440' }),
-  side: mat('#A8484A', { shade: '#8A2E3A', light: '#C86A5A', dark: '#5A2436' }),
-  seat: mat('#E8D9B5', { shade: '#C8A06A', light: '#FBF3DC', dark: '#8A5A3A' }),
-  gloss: flat('#FFF6D8'),
-  pad: mat('#8A5A3A', { shade: '#5A3A2A', light: '#C8A06A', dark: '#3A2B24' }),
-  seam: flat('#2A2440'),
-  stitch: flat('#8A5A3A'),
-  roller: mat('#E8D9B5', { shade: '#C8A06A', light: '#FBF3DC' }),
-  dimple: flat('#3A2B24'),
-  chrome: mat('#C8C2B4', { shade: '#6B7186', light: '#F4F1E8', dark: '#3A3F48' }),
+  // dark brown synthetic leather (the battle art's chair), glossy on top
+  leather: mat('#8A5A3A', { shade: '#5A3A2A', light: '#A8742A', dark: '#2A2440', spec: '#C8A06A' }),
+  seat: mat('#A8742A', { shade: '#8A5A3A', light: '#C8A06A', dark: '#5A3A2A', spec: '#F6D98A' }),
+  base: mat('#5A3A2A', { shade: '#2A2440', light: '#8A5A3A', dark: '#1B1733' }),
+  hole: flat('#2A2440'),
+  roller: mat('#E8E4D8', { shade: '#C8C2B4', light: '#F4F1E8', dark: '#9AA0A8' }),
+  chrome: mat('#C8C2B4', { shade: '#9AA0A8', light: '#E8E4D8', dark: '#6B7186' }),
   tag: mat('#F6D98A', { shade: '#D9A441', light: '#FFE7A3' }),
+  string: flat('#9AA0A8'),
   cordC: flat('#2A2440'),
-  remote: mat('#E8E4D8', { shade: '#C8C2B4', light: '#FBF3DC' }),
+  remote: mat('#E8E4D8', { shade: '#C8C2B4', light: '#F4F1E8' }),
   bR: flat('#E84E3C'),
   bG: flat('#5FA85A'),
   bB: flat('#4AA8E0'),
   sign: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFF6D8' }),
   signT: flat('#E23B2E'),
-  string: flat('#9AA0A8'),
 };
 
-// 24×32, facing the viewer turned a little to the left. A two-tone chair:
-// a dark leather frame holding pale padded cushions (the look of every
-// massage chair in a mall). Letters: H pillow, B frame, b frame side panel,
-// Q back cushion, g roller seam, P arm pad, A arm, a arm side, S seat, G seat
-// gloss, s seat front step, L leg-rest frame, l its side, q leg-rest cushion,
-// k calf groove, C chrome base.
-const CHAIR_MAP = [
+// モミスギ, 24×32: a mall massage chair in dark brown leather, drawn
+// hand-placed so it reads as a chair at 1x (review: the flat front view
+// read as a wardrobe / robot / drum). Facing south it is seen from the
+// front-left: the headrest on the reclined back, the rollers in the back's
+// seam, both armrests (the near one big), the glossy seat, the leg rest
+// sticking out toward the viewer with its two calf pockets, and the
+// pedestal. From the side it is the recliner's L profile, from behind the
+// back with its vent. Letters: H/h/j headrest, e/B/b/y back (lit edge,
+// face, seam, side), A/a/z armrest (top, front, shade), G gloss, S/s/q seat
+// (top, face, front edge), F/f leg rest (top, front), o calf pocket,
+// V pedestal, C/c chrome, T/t tag (w its string).
+const CHAIR_DOWN = [
   '........................',
-  '.........HHHHHH.........',
-  '........HHHHHHHH........',
-  '........HHHHHHHHH.......',
-  '........HHHHHHHHH.......',
-  '.........HHHHHHH........',
-  '.......bBQQQQQQQQB......',
-  '.......bBQQgQQQgQQB.....',
-  '......bbBQQgQQQgQQB.....',
-  '......bBQQQgQQQgQQBB....',
-  '......bBQQQgQQQgQQBB....',
-  '.....bbBQQQgQQQgQQBB....',
-  '.PPPPbBQQQQgQQQgQQBBPPP.',
-  'aAAAAAbBQQQQQQQQQQBAAAAA',
-  'aAAAAAbSSSSSSSSSSSSAAAAA',
-  'aAAAAAGGSSSSSSSSSSSAAAAA',
-  'aAAAAASSSSSSSSSSSSSAAAAA',
-  'aAAAAAsssssssssssssAAAA.',
-  '.aAAAA.LqqqqqqqqqL.AAA..',
-  '..aAA.lLqqkqqqkqqL......',
-  '......lLqqkqqqkqqL......',
-  '.....llLqqkqqqkqqLCCC...',
-  '.....lLqqqkqqqkqLCCCCC..',
-  '.....lLqqqkqqqkqLCCCCC..',
-  '....llLqqqqqqqqqLCCCC...',
-  '....lLLLLLLLLLLLL.......',
-  '.....LLLLLLLLLL.........',
+  '........................',
+  '...............HHHH.....',
+  '.............HHGhhhj....',
+  '............HGhhhhhhj...',
+  '............hhhhhhhjj...',
+  '...........eBBBBBBByy...',
+  '...........eBBbBBBByy...',
+  '..........eBBBbBBByy....',
+  '..........eBBBbBBByy....',
+  '..........eBBbBBBByy....',
+  '.........eBBBbBBByyAA...',
+  '.........eBBbBBBByyAAAz.',
+  '.........eBBbBBByyaaaaz.',
+  '....AAAAAeSSSSSSSyaaaaz.',
+  '...AGAAAAASGSSSSSSsaaz..',
+  '..AAAAAAAAsSSSSSSSsaz...',
+  '..aaaaaaaazssssssssq....',
+  '..aaaaaaaazFFFFFFFq.....',
+  '..aTaaaaaaFFoooFFf......',
+  '..ataaaaazFoooFFFf......',
+  '...w....FFFFFFFf........',
+  '.......FfffffffV........',
+  '......ffffff.VVV........',
+  '.........VVVVVVV........',
+  '.........VVVVVVV........',
+  '.........VVVVVVV........',
+  '........cVVVVVVVc.......',
+  '.......cCCCCCCCCCc......',
+  '........................',
+  '........................',
   '........................',
 ];
+const CHAIR_SIDE_R = [
+  '........................',
+  '........................',
+  '...........HHHH.........',
+  '.........HHGhhhj........',
+  '........HGhhhhhj........',
+  '........hhhhhhjj........',
+  '.......eBBBBBBy.........',
+  '.......eBBBBBBy.........',
+  '......eBBBBBBy..........',
+  '......eBBBBBBy..........',
+  '......eBBBBBBy..........',
+  '.....eBBBBBBy...........',
+  '.....eBBBBBBy...........',
+  '.....eBBBBBBySSSSSS.....',
+  '....eBBBBBBBSSSSSSSS....',
+  '....AAAAAAAAAAAAAGSSs...',
+  '....AAAAAAAAAAAAAAAsss..',
+  '....aaaaaaaaaaaaaaaasFF.',
+  '....aaaaaaaaaaaaaaaaaFF.',
+  '....aTaaaaaaaaaaaaazFFFf',
+  '....ataaaaaaaaaaaaz.FFFf',
+  '.....w..VVVVVVVV....FFFf',
+  '........VVVVVVVV...FFFf.',
+  '........VVVVVVVV...FFff.',
+  '........VVVVVVVV..FFff..',
+  '........VVVVVVVV..Ffff..',
+  '........VVVVVVVV.fff....',
+  '.......cVVVVVVVVc.......',
+  '......cCCCCCCCCCCc......',
+  '........................',
+  '........................',
+  '........................',
+];
+/** Side view facing west: the east-facing rows mirrored, lit edge kept on the left. */
+const CHAIR_SIDE_L = CHAIR_SIDE_R.map((r) => [...r].reverse().map((c) => (c === 'e' ? 'y' : c === 'y' ? 'e' : c)).join(''));
+const CHAIR_UP = [
+  '........................',
+  '........................',
+  '........................',
+  '.........HHHHHH.........',
+  '.......HHGhhhhhhj.......',
+  '......HGhhhhhhhhhj......',
+  '......Hhhhhhhhhhhj......',
+  '......hhhhhhhhhhjj......',
+  '.......jjjjjjjjjj.......',
+  '.....eBBBBBBBBBBBBy.....',
+  '.....eBBBBBBBBBBBBy.....',
+  '.....eBBbbbbbbbbBBy.....',
+  '.....eBBBBBBBBBBBBy.....',
+  '.....eBBbbbbbbbbBBy.....',
+  '.....eBBBBBBBBBBBBy.....',
+  '.AAAAAeBBbbbbbbbbByAAAA.',
+  'AGAAAAeBBBBBBBBBByAAAAAz',
+  'aaaaaaeBBBBBBBBBByaaaaaz',
+  'aaaaaaeBBBBBBBBBByaaaaaz',
+  'aaaaaaeBBBBBBBBBByaaaaaz',
+  'aTaaaaeBBBBBBBBBByaaaaz.',
+  'ataaazeBBBBBBBBBBy.zaaz.',
+  '.w....eBBBBBBBBBBy......',
+  '......ebbbbbbbbbby......',
+  '.......VVVVVVVVVV.......',
+  '.......VVVVVVVVVV.......',
+  '.......VVVVVVVVVV.......',
+  '.......VVVVVVVVVV.......',
+  '.......cVVVVVVVVc.......',
+  '.......cCCCCCCCCc.......',
+  '........................',
+  '........................',
+];
+const CHAIR_LEGEND: Legend = {
+  H: ['leather', 1], h: ['leather', 0], j: ['leather', -1], G: ['leather', 2],
+  e: ['leather', 1], B: ['leather', 0], b: ['leather', -1], y: ['leather', -2],
+  A: ['seat', 0], a: ['leather', 0], z: ['leather', -1],
+  S: ['seat', 1], s: ['seat', 0], q: ['leather', -1],
+  F: ['seat', 0], f: ['leather', -1], o: ['hole', 0],
+  V: ['base', 0], C: ['chrome', 1], c: ['chrome', -1],
+  T: ['tag', 0], t: ['tag', -1], w: ['string', 0],
+};
+const CHAIR_ORDER = ['base', 'chrome', 'leather', 'seat', 'hole', 'tag', 'string'];
 
-function chairLayer(f: Fig, letters: string, mat: string, o: PartOpts, dy = 0, map: RowMap = {}) {
-  f.part(mat, o);
-  const rows = CHAIR_MAP.map((r) => [...r].map((ch) => (letters.includes(ch) ? ch : '.')).join(''));
-  const m: RowMap = {};
-  for (const ch of letters) m[ch] = map[ch] ?? mat;
-  f.rows(0, 4 + dy, rows, m);
+function remoteAt(f: Fig, rx: number, ry: number, flatDown = false) {
+  f.part('remote', { shade: 'r', light: 't' });
+  if (flatDown) f.rect(rx, ry, 4, 2);
+  else f.rect(rx, ry, 2, 4);
+  f.part('bR', { flat: true, rim: false }).px(rx, ry + 1);
+  f.part('bG', { flat: true, rim: false }).px(rx + 1, ry + 1);
+  f.part('bB', { flat: true, rim: false }).px(flatDown ? rx + 2 : rx, flatDown ? ry : ry + 2);
 }
 
 export function chair(f: Fig, p: Pose, restored = false) {
+  const view = p.view;
+  const rows = view === 'down' ? CHAIR_DOWN : view === 'up' ? CHAIR_UP : CHAIR_SIDE_L;
+  paintRows(f, 0, 0, rows, CHAIR_LEGEND, CHAIR_ORDER);
   const idle = p.mode === 'idle' && !restored;
-  const roll = idle ? p.tick % 8 : 0;
-  const rollY = [0, 1, 2, 3, 4, 3, 2, 1][roll];
-  const sway = restored ? 0 : p.mode === 'idle' ? Math.floor(p.tick / 2) % 2 : 0;
-  // the leg rest's tip stands on the bottom row
-  f.offset(0, 1);
-  // back to front: base, leg rest, back, pillow, seat, armrests
-  chairLayer(f, 'C', 'chrome', { shade: 'rb', light: 't' });
-  chairLayer(f, 'Ll', 'leather', { shade: 'rb', light: 't' }, 0, { l: ['side', null] });
-  chairLayer(f, 'qk', 'seat', { shade: 'rb', light: 't' }, 0, { k: ['stitch', null] });
-  chairLayer(f, 'Bb', 'leather', { shade: 'rb', light: 't' }, 0, { b: ['side', null] });
-  chairLayer(f, 'Qg', 'seat', { shade: 'rb', light: 't' }, 0, { g: ['stitch', null] });
-  // rollers riding up and down the back seams
-  f.part('roller', { shade: 'r', light: 't' });
-  f.rect(11, 11 + rollY, 1, 2).rect(15, 15 - rollY, 1, 2);
-  chairLayer(f, 'H', 'seat', { shade: 'rb', light: 't', sepAll: true });
-  // sleepy button dimples on the pillow (its "face")
-  f.part('dimple', { flat: true, rim: false });
-  if (restored) f.px(11, 8).px(15, 8);
-  else f.hl(10, 11, 8).hl(14, 15, 8);
-  chairLayer(f, 'SGs', 'seat', { shade: 'rb', light: 't' }, 0, { G: ['gloss', null], s: ['leather', 0] });
-  chairLayer(f, 'Aa', 'leather', { shade: 'rb', light: 't' }, 0, { a: ['side', null] });
-  chairLayer(f, 'P', 'pad', { shade: 'b', light: 't' });
-  // "お試し" tag hanging off the left armrest
-  f.part('tag', { shade: 'b', light: '' });
-  f.rect(2, 22, 2, 3);
-  f.part('string', { flat: true, rim: false });
-  f.px(2, 21);
-  // ---- the remote on its cord: a tail from the right armrest
-  if (restored) {
-    f.part('cordC', { flat: true, rim: false, ol: false });
-    f.px(22, 21).px(23, 22).px(22, 23);
-    f.part('remote', { shade: 'r', light: 't' });
-    f.rect(19, 16, 3, 1);
-  } else if (p.act === 'beckon') {
-    // the cord rears up like an arm: up → high over the armrest → curling in
-    const ph = p.ph % 3;
-    f.part('cordC', { flat: true, rim: false, ol: false });
-    const cord: [number, number][][] = [
-      [[22, 16], [23, 15], [23, 14], [22, 13], [22, 12]],
-      [[22, 16], [23, 15], [23, 14], [23, 13], [23, 12], [22, 11], [22, 10], [21, 9]],
-      [[22, 16], [23, 15], [23, 14], [23, 13], [22, 12], [22, 11]],
-    ];
-    for (const [x, y] of cord[ph]) f.px(x, y);
-    f.part('remote', { shade: 'r', light: 't' });
-    const [rx, ry] = ph === 0 ? [21, 8] : ph === 1 ? [18, 5] : [18, 9];
-    if (ph === 2) f.rect(rx, ry, 4, 2);
-    else f.rect(rx, ry, 2, 4);
-    f.part('bR', { flat: true, rim: false }).px(rx, ry + 1);
-    f.part('bG', { flat: true, rim: false }).px(rx + 1, ry + 1);
-    f.part('bB', { flat: true, rim: false }).px(ph === 2 ? rx + 2 : rx, ph === 2 ? ry : ry + 2);
-  } else {
-    // hanging from the armrest's front, swaying on a two-frame beat
-    f.part('cordC', { flat: true, rim: false, ol: false });
-    const pts: [number, number][] = sway ? [[21, 22], [22, 23], [22, 24], [22, 25]] : [[21, 22], [21, 23], [22, 24], [21, 25]];
-    for (const [x, y] of pts) f.px(x, y);
-    const rx = sway ? 21 : 20;
-    const ry = 26;
-    f.part('remote', { shade: 'r', light: 't' });
-    f.rect(rx, ry, 2, 4);
-    f.part('bR', { flat: true, rim: false }).px(rx, ry + 1);
-    f.part('bG', { flat: true, rim: false }).px(rx + 1, ry + 1);
-    f.part('bB', { flat: true, rim: false }).px(rx, ry + 2);
+  const sway = idle ? Math.floor(p.tick / 2) % 2 : 0;
+  // massage rollers riding up and down the back's seam (the chair is on)
+  if (view === 'down' && !restored) {
+    const roll = idle ? [0, 1, 2, 1][p.tick % 4] : 0;
+    f.part('roller', { shade: 'r', light: 't' });
+    f.rect(13, 7 + roll, 2, 2).rect(12, 11 - roll, 2, 2);
   }
+  // the remote on its cord: a tail from the far armrest, swaying; on
+  // 'beckon' the cord rears up like an arm and waves the remote
   if (restored) {
-    // 「お試し中止」 sign hanging from the pillow on a string
+    // put away on the armrest, cord coiled
+    if (view === 'down') {
+      f.part('cordC', { flat: true, rim: false, ol: false });
+      f.px(22, 14).px(23, 15);
+      remoteAt(f, 19, 11, true);
+    }
+  } else if (view !== 'up') {
+    const ax = view === 'down' ? 22 : 3;
+    const ay = view === 'down' ? 14 : 20;
+    const dir = view === 'down' ? 1 : -1;
+    f.part('cordC', { flat: true, rim: false, ol: false });
+    if (p.act === 'beckon') {
+      const ph = p.ph % 3;
+      const up: [number, number][][] = [
+        [[0, 1], [1, 0], [1, -1], [1, -2], [0, -3]],
+        [[0, 1], [1, 0], [1, -1], [1, -2], [1, -3], [0, -4], [0, -5], [-1, -6]],
+        [[0, 1], [1, 0], [1, -1], [1, -2], [0, -3], [0, -4]],
+      ];
+      for (const [dx, dy] of up[ph]) f.px(ax + dx * dir, ay + dy);
+      const [rx, ry] = ph === 0 ? [ax - 1 * dir, ay - 7] : ph === 1 ? [ax - 4 * dir, ay - 10] : [ax - 4 * dir, ay - 6];
+      remoteAt(f, dir < 0 ? rx - 1 : rx, ry, ph === 2);
+    } else {
+      const pts: [number, number][] = sway ? [[0, 1], [1, 2], [1, 3], [1, 4], [1, 5]] : [[0, 1], [0, 2], [1, 3], [0, 4], [0, 5]];
+      for (const [dx, dy] of pts) f.px(ax + dx * dir, ay + dy);
+      remoteAt(f, ax + (sway ? 0 : -1) * dir - (dir < 0 ? 1 : 0), ay + 6);
+    }
+  }
+  if (restored && view === 'down') {
+    // 「お試し中止」 sign hung over the back on a string
     f.part('string', { flat: true, rim: false });
-    f.px(10, 10).px(16, 10);
+    f.px(12, 5).px(18, 5).px(12, 6).px(18, 6);
     f.part('sign', { shade: 'rb', light: 't' });
-    f.rect(9, 11, 9, 6);
+    f.rect(11, 7, 9, 6);
     f.part('signT', { flat: true, rim: false });
-    f.hl(10, 16, 12).px(11, 14).px(12, 14).px(14, 14).px(15, 14).px(13, 15);
+    f.hl(12, 18, 8).px(13, 10).px(14, 10).px(16, 10).px(17, 10).px(15, 11);
   }
 }
 
@@ -1309,9 +1368,8 @@ registerChar('enemy_momisugi', () =>
     walkFrames: 1,
     idle: rep([{}, {}, {}, {}, {}, {}, {}, {}], 1),
     idleFrameMs: 150,
-    extras: { beckon: { dirs: ['down'], p: { ph: 1 } } },
-    anims: { beckon: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 2 }, { ph: 2 }, { ph: 1 }], ms: [220, 120, 260, 120, 140] } },
-    views: { up: 'down', left: 'down', right: 'down' },
+    extras: { beckon: { dirs: 'all', p: { ph: 1 } } },
+    anims: { beckon: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 2 }, { ph: 2 }, { ph: 1 }], ms: [220, 120, 260, 120, 140], dirs: 'all' } },
     shadow: 22,
   }),
 );

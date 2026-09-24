@@ -17,16 +17,15 @@ import {
   addKire, arrows, cureStatus, defeatEnemy, dodge, fadeDrops, fadeDropsLater, healParty, hideSticky, hurtEnemy, hurtParty, kireFullPages, knock,
   markDefeated, resetKire, showSticky, statusText,
 } from './common';
-import { drawNet, balloon, crow, heart, poppedBalloon, sweatDrop, thickLine } from './art/fxart';
+import { drawNet, balloon, crowLit, heart, musicNote, noriBoard, poppedBalloon, sweatDrop, thickLine } from './art/fxart';
 import { all } from '../engine/co';
 import { duckMusic, muteMusic, musicFlee, sfxLoop } from '../audio';
 import { hankoCloseup } from './art/fxart';
 import { hanamaruFrame, kakimoji, kakimojiSmall, ovalStamp, pekeMark, roundSeal } from './art/stamps';
-void kakimojiSmall;
 import { itemIcon, kireIcon } from './art/icons';
 import { kireIconXY, PANEL_POS } from './ui/panels';
 import { C, tapeCanvas } from './ui/note';
-import { kanenariBack, kanenariFront } from '../art/enemies/kanenari';
+import { FLAG_PAD, kanenariBack, kanenariFront, MIC_AT } from '../art/enemies/kanenari';
 import { portrait } from '../art/chars';
 import { bokemakeLabel, tsukkomiWindows } from './tsukkomi';
 import { onBossPartBreak, onBossBodyMimashita, bossUndo, doOkaerinasai } from './boss';
@@ -224,7 +223,7 @@ function* strikeOnce(
   }
   if (rng.next() >= hitRate) {
     s.sfx('se_whiff');
-    s.label(LABEL.miss, e.coreX, Math.max(STAGE_TOP + 10, e.coreY - 14), 'gray', 700);
+    s.labelNear(LABEL.miss, () => ({ x0: e.coreX - 8, y0: e.coreY - 22, x1: e.coreX + 8, y1: e.coreY - 6 }), ['center', 'above', 'right', 'left'], 'gray', 700);
     dodge(s, e);
     s.post(rng.chance(0.5) ? fillAll(SYS.miss, { target: e.name }) : SYS.miss2);
     return { killed: false, hit: false, boke: false };
@@ -339,10 +338,16 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
     target = retarget(s, target!);
     if (!target) break;
     const t = target;
-    const pivot = () => ({ x: t.coreX - 63 + (h === 1 ? 126 : 0), y: t.coreY + 33 });
+    // on a small enemy the hoop swats just below-outside the core (its rim
+    // grazes it) instead of swallowing the whole sprite, so the white flash,
+    // the squash and the knockback stay in view
+    const small = t.sizeW <= 48 && t.sizeH <= 48;
+    const aimX = () => t.coreX + (small ? (h === 1 ? 12 : -12) : 0);
+    const aimY = () => t.coreY + (small ? 8 : 0);
+    const pivot = () => ({ x: aimX() - 63 + (h === 1 ? 126 : 0), y: aimY() + 33 });
     const hitAngle = () => {
       const p = pivot();
-      return Math.atan2(t.coreY - p.y, t.coreX - p.x);
+      return Math.atan2(aimY() - p.y, aimX() - p.x);
     };
     // 2段 (10.1): the second ring starts 150ms after the first hit's
     // hitstop and shrinks in 360ms — no extra lead-in
@@ -801,7 +806,7 @@ function* hankoMimashita(s: BattleScene, u: PartyUnit, e: EnemyUnit, j: Judge, p
   } else s.sfx('se_stamp');
   s.shuSplash(px, py, j === 'kukkiri' ? 12 : 6);
   // the stamp lingers briefly where it landed, then becomes the decal
-  s.addFx({ layer: 'world', dur: 300, draw: (g, t) => g.alpha(1 - t / 300, () => g.img(stampImg, Math.round(px - 24), Math.round(py - 12))) });
+  s.addFx({ layer: 'world', dur: 300, draw: (g, t) => g.alpha(1 - t / 300, () => g.img(stampImg, Math.round(px - stampImg.width / 2), Math.round(py - stampImg.height / 2))) });
   if (part && part.glow) {
     yield* onBossPartBreak(s, e, part, j);
     return;
@@ -898,8 +903,10 @@ function* hankoHanamaru(s: BattleScene, u: PartyUnit, t: PartyUnit, j: Judge): C
   s.petals(fx, fy, j === 'kukkiri' ? 28 : j === 'kasure' ? 6 : 12, 16);
   t.hanamaruMark = true;
   s.mood(t, 'happy', 1000);
-  if (j === 'kukkiri') s.label(LABEL.kukkiri, fx + 30, fy - 30, 'shu', 700);
-  if (j === 'kasure') s.label(LABEL.kasure, fx + 30, fy - 30, 'gray', 700, true);
+  // the judgement goes on the stage side of the green number, never on the tags
+  const near = () => s.recentNumberRect(t) ?? { x0: fx - 10, y0: 125, x1: fx + 10, y1: 141 };
+  if (j === 'kukkiri') s.labelNear(LABEL.kukkiri, near, ['left', 'aboveLeft', 'right', 'above'], 'shu', 700, false, 3 * FRAME);
+  if (j === 'kasure') s.labelNear(LABEL.kasure, near, ['left', 'aboveLeft', 'right', 'above'], 'gray', 700, true, 3 * FRAME);
   yield 300;
   yield* s.say(fillAll(SYS.hanamaru, { target: t.name }));
   if (wasDown && t.alive) yield* s.say(fillAll(SYS.revived, { target: t.name }));
@@ -1101,19 +1108,25 @@ function* prKane(s: BattleScene, u: PartyUnit): Co {
   s.sfx('se_bell_dud');
   back.frame = 'idle';
   yield () => !s.msg.busy;
-  // the whole screen stops for 0.3s (background, enemies, music)
+  // the whole screen stops for 0.3s (background, enemies, music): the frame
+  // freezes grey, and the silence gets its manga lettering beside the bell
+  muteMusic(0.3);
+  s.freezeLook = { t: 0, x: 304 + 26, y: 96 };
   s.freezeMs = 300;
   yield null;
-  // a crow crosses the top edge right → left, "カア"
+  s.freezeLook = null;
+  // a crow crosses right → left just under the band, "カア" — rimmed in pale
+  // gold so it reads on any background (the mall ceiling is its own colour)
   s.sfx('se_crow');
   const crowSt = { x: 400 };
+  const crowY = s.msg.bottom + 6;
   s.addFx({
     layer: 'top',
     dur: 1400,
     ui: true,
     draw: (g, t) => {
-      const img = crow(Math.floor(t / 110));
-      g.img(img, Math.round(crowSt.x), 50 + Math.round(Math.sin(t / 160) * 2));
+      const img = crowLit(Math.floor(t / 110));
+      g.img(img, Math.round(crowSt.x), crowY + Math.round(Math.sin(t / 160) * 2));
     },
     update(dt) {
       crowSt.x -= dt * 0.33;
@@ -1121,9 +1134,23 @@ function* prKane(s: BattleScene, u: PartyUnit): Co {
   });
   yield* s.say([SYS.kane[1]]);
   // the flop lands: the kire "!" lights (with its pop and se_kire_up) as the
-  // line saying so appears, not after it
+  // line saying so appears — and a little "!" pops over Kanenari-kun's bell
   const [px, py] = PANEL_POS[u.id];
   s.addFx({ layer: 'top', dur: 700, ui: true, draw: (g, t) => g.alpha(1 - t / 700, () => g.img(sweatDrop(), px + 34, py + 6 + Math.round(t / 70))) });
+  const bang = kireIcon(true, true);
+  s.addFx({
+    layer: 'top',
+    dur: 900,
+    ui: true,
+    draw: (g, t) => {
+      const sc = t < 90 ? 1.8 - 0.8 * (t / 90) : 1;
+      const w = bang.width * sc;
+      const h = bang.height * sc;
+      const bx = 304 + 14;
+      const by = Math.round(back.y) - 62 - (t < 90 ? 0 : Math.min(3, (t - 90) / 60));
+      g.alpha(t > 700 ? (900 - t) / 200 : 1, () => g.ctx.drawImage(bang, Math.round(bx - w / 2), Math.round(by - h / 2), Math.round(w), Math.round(h)));
+    },
+  });
   addKire(s, 1);
   yield* s.say([SYS.kane[2]]);
   s.msgInteractive = false;
@@ -1153,7 +1180,13 @@ export function* doItem(s: BattleScene, u: PartyUnit, itemId: string, target0: P
   removeItem(itemId);
   const v = { actor: u.name, target: target?.name ?? '', item: it.name };
   const giving = target && target !== u;
-  const first = toKanenari && text?.kanenari ? text.kanenari : giving ? fillAll(SYS.itemGive, v) : fillAll(text?.self ?? SYS.itemSelf, v);
+  // handing it over names the giver and the receiver; Kanenari-kun's own
+  // reaction (the zipper…) follows when he is the one who gets it
+  const first = giving
+    ? [...fillAll(SYS.itemGive, v), ...(toKanenari && text?.kanenari ? text.kanenari : [])]
+    : toKanenari && text?.kanenari
+      ? text.kanenari
+      : fillAll(text?.self ?? SYS.itemSelf, v);
   s.post(first);
   // item icon arcs up from the bottom of the screen into the panel (250ms)
   const icon = itemIcon(itemId);
@@ -1266,11 +1299,36 @@ export function* doFlee(s: BattleScene, u: PartyUnit): Co<boolean> {
 
 // ---- ノリツッコミ (16.10) -------------------------------------------------------------------
 
+/**
+ * Where Kanenari-kun performs: the x in 244–350 farthest from every standing
+ * enemy (the dimmed audience). When even that is crowded (three enemies) he
+ * stands 8px in front at 85% so he reads as the one on stage.
+ */
+export function noriSpot(s: BattleScene): { x: number; foot: number; sc: number } {
+  // clearance beyond ~90px doesn't matter: then the nearer to x296 the better
+  // (the notes and the banner need room on both sides)
+  const xs = s.aliveEnemies.map((e) => e.x);
+  let best = 296;
+  let bestD = -1;
+  // (≤ x334 keeps the flip board and the notes on screen)
+  for (let x = 244; x <= 334; x += 2) {
+    const d = Math.min(90, xs.length ? Math.min(...xs.map((ex) => Math.abs(ex - x))) : 999);
+    if (d > bestD + 0.5 || (Math.abs(d - bestD) <= 0.5 && Math.abs(x - 296) < Math.abs(best - 296))) {
+      bestD = d;
+      best = x;
+    }
+  }
+  const crowded = bestD < 56;
+  return { x: best, foot: crowded ? 138 : 132, sc: crowded ? 0.85 : 1 };
+}
+
 export function* doNori(s: BattleScene): Co {
   const first = !s.memo.noriCount;
   s.memo.noriCount = (s.memo.noriCount ?? 0) + 1;
   let pick = rng.int(0, NORI.length - 1);
   if (pick === s.memo.noriLast) pick = (pick + 1) % NORI.length;
+  // QA: __game.cmd.bnori(n) picks the boke (1 sing, 2 flag, 3 flip)
+  if (s.memo.noriForce) pick = (s.memo.noriForce - 1) % NORI.length;
   s.memo.noriLast = pick;
   const nori = NORI[pick];
   // 0: the three "!" fly to the centre, screen darkens
@@ -1335,80 +1393,189 @@ export function* doNori(s: BattleScene): Co {
   });
   duckMusic(0.25, first ? 2.6 : 1.5);
   yield 200;
-  // 350–1350 (or a 400ms cut): the boke
-  // Kanenari-kun performs on the right, in front of the dimmed enemies, on a
-  // warm spotlight so he reads as the one on stage
-  const KX = 312;
-  const kf = { x: 440, pose: nori.pose };
+  // 350–1350 (or a 400ms cut): the boke. Kanenari-kun slides in from the
+  // right into a warm spotlight (placed in the widest gap between the dimmed
+  // enemies; in front and a little smaller when the stage is full), hops once,
+  // hits his landing pose for 2 frames, then performs.
+  const spot = noriSpot(s);
+  const kf = { x: 440, hop: 0, sq: 0, pose: 'kime', t0: 0, board: 0, boardT: -1, leave: 0 };
+  const notes: { x: number; y: number; vx: number; t: number; i: number }[] = [];
+  const board = noriBoard(['（中の人', 'より）']);
+  const bodyCx = (pose: string) => (pose === 'flag' ? FLAG_PAD.x : 0) + 28;
   const bokeFx = s.addFx({
     layer: 'top',
     dur: 0,
+    update(dt) {
+      for (const n of notes) {
+        n.t += dt;
+        n.x += (n.vx * dt) / 1000;
+        n.y -= (26 * dt) / 1000;
+      }
+      for (let i = notes.length - 1; i >= 0; i--) if (notes[i].t > 900) notes.splice(i, 1);
+    },
     draw: (g, t) => {
-      const img = kanenariFront(kf.pose, t);
       const ctx = g.ctx;
+      const sc = spot.sc;
       const lx = Math.round(kf.x);
+      const top = s.msg.bottom;
+      // the spotlight: a soft cone from under the band to a pool on the floor
       ctx.save();
-      ctx.globalAlpha = 0.28;
+      ctx.globalAlpha = 0.26;
       ctx.fillStyle = '#FFE7A3';
       ctx.beginPath();
-      ctx.moveTo(lx - 14, 50);
-      ctx.lineTo(lx + 14, 50);
-      ctx.lineTo(lx + 40, 138);
-      ctx.lineTo(lx - 40, 138);
+      ctx.moveTo(lx - 12, top);
+      ctx.lineTo(lx + 12, top);
+      ctx.lineTo(lx + 40 * sc, spot.foot + 2);
+      ctx.lineTo(lx - 40 * sc, spot.foot + 2);
       ctx.fill();
-      ctx.globalAlpha = 0.35;
-      ctx.fillRect(lx - 38, 135, 76, 4);
+      ctx.globalAlpha = 0.18;
+      ctx.beginPath();
+      ctx.moveTo(lx - 6, top);
+      ctx.lineTo(lx + 6, top);
+      ctx.lineTo(lx + 24 * sc, spot.foot + 2);
+      ctx.lineTo(lx - 24 * sc, spot.foot + 2);
+      ctx.fill();
+      ctx.globalAlpha = 0.4;
+      for (let yy = -3; yy <= 3; yy++) {
+        const hw = Math.round(40 * sc * Math.sqrt(1 - (yy * yy) / 10));
+        ctx.fillRect(lx - hw, spot.foot + yy, hw * 2, 1);
+      }
       ctx.restore();
-      g.img(img, Math.round(kf.x - img.width / 2), 138 - img.height);
-      if (kf.pose === 'sing' && Math.floor(t / 200) % 2 === 0) {
-        g.text('♪', Math.round(kf.x + 20), 84 - Math.round((t % 400) / 40), { color: '#2A2440', outline: '#FFD23F' });
+      // the performer (squash on landings, anchored on his feet)
+      const img = kanenariFront(kf.pose, t - kf.t0);
+      const sx = sc * (1 + 0.14 * kf.sq);
+      const sy = sc * (1 - 0.12 * kf.sq);
+      const w = img.width * sx;
+      const h = img.height * sy;
+      const x = lx - bodyCx(kf.pose) * sx;
+      const y = spot.foot - kf.hop - h;
+      g.alpha(1 - kf.leave, () => ctx.drawImage(img, Math.round(x), Math.round(y), Math.round(w), Math.round(h)));
+      // the flip board, flipped round into view in front of his tummy
+      if (kf.boardT >= 0) {
+        const bt = t - kf.boardT;
+        const k = Math.min(1, bt / 110);
+        // (the board keeps its size even when he stands smaller: it has to be read)
+        const bw = board.width * Math.max(0.06, Math.abs(Math.cos((1 - k) * Math.PI * 0.5)));
+        const bh = board.height;
+        const bob = Math.floor(bt / 280) % 2;
+        // held at the tummy: his eyes and cheeks peek over the top edge
+        const by = spot.foot - kf.hop - 38 * sc + bob;
+        g.alpha(1 - kf.leave, () => ctx.drawImage(board, Math.round(lx - bw / 2), Math.round(by), Math.round(bw), Math.round(bh)));
+      }
+      // notes rising from the hand-bell microphone
+      for (const n of notes) {
+        const a = n.t < 700 ? 1 : 1 - (n.t - 700) / 200;
+        const im = musicNote(n.i);
+        const wob = Math.round(Math.sin(n.t / 90 + n.i) * 2);
+        g.alpha(Math.max(0, a), () => g.img(im, Math.round(n.x + wob - im.width / 2), Math.round(n.y - im.height / 2)));
       }
     },
   });
   const bokeMs = first ? 1000 : 400;
   s.msgInteractive = false;
   s.msg.replace(first ? nori.boke : nori.boke.slice(-1));
-  // 40_audio 13.3: each boke has its own sound (cut by the tsukkomi)
-  s.sfx(nori.pose === 'sing' ? 'se_nori_sing' : nori.pose === 'flag' ? 'se_nori_flag' : 'se_zipper');
+  const slideMs = first ? 150 : 100;
+  const hopMs = first ? 120 : 0;
+  let singLoop: ReturnType<typeof sfxLoop> | null = null;
+  let noteN = 0;
+  let lastNote = -999;
+  let lastFlag = -1;
   for (let t = 0; t < bokeMs; t += FRAME) {
-    kf.x = Math.max(KX, 440 - (t / 150) * 128);
+    if (t < slideMs) {
+      const p = ease.quadOut(t / slideMs);
+      kf.x = 440 + (spot.x - 440) * p;
+      kf.hop = Math.round(Math.sin(p * Math.PI) * 6);
+    } else if (t < slideMs + hopMs) {
+      // one little bounce on arrival
+      const p = (t - slideMs) / hopMs;
+      kf.x = spot.x;
+      kf.hop = Math.round(Math.sin(p * Math.PI) * 4);
+      kf.sq = p < 0.2 ? 1 - p / 0.2 : 0;
+    } else if (kf.pose === 'kime') {
+      kf.x = spot.x;
+      kf.hop = 0;
+      kf.sq = 1;
+      // the landing pose holds for two frames, then the bit starts
+      yield null;
+      kf.sq = 0;
+      yield null;
+      t += 2 * FRAME;
+      kf.pose = nori.pose;
+      kf.t0 = bokeFx.t;
+      // 40_audio 13.3: each boke has its own sound (cut by the tsukkomi)
+      if (nori.pose === 'sing') singLoop = sfxLoop('se_nori_sing');
+      else if (nori.pose === 'flag') s.sfx('se_nori_flag');
+      else {
+        s.sfx('se_flip');
+        kf.boardT = bokeFx.t;
+      }
+    } else {
+      const pt = bokeFx.t - kf.t0;
+      if (nori.pose === 'sing' && pt - lastNote >= 150) {
+        // a note leaves the microphone and floats up and out — two to the
+        // left, one over the top of his bell to the right (never over his face)
+        lastNote = pt;
+        const right = noteN % 3 === 2;
+        const mx = kf.x - bodyCx('sing') * spot.sc + MIC_AT[0] * spot.sc;
+        const my = spot.foot - 68 * spot.sc + MIC_AT[1] * spot.sc;
+        if (right) notes.push({ x: kf.x + 6, y: spot.foot - 70 * spot.sc, vx: 26, t: 0, i: noteN });
+        else notes.push({ x: mx - 7, y: my - 4, vx: -(22 + (noteN % 3) * 10), t: 0, i: noteN });
+        noteN++;
+      }
+      if (nori.pose === 'flag') {
+        // a puff of dust at his feet on every swing
+        const f = Math.floor(pt / 110) % 4;
+        if (f !== lastFlag && (f === 0 || f === 2)) s.burst(kf.x + (f ? 10 : -10), spot.foot, { count: 2, speed: [15, 35], angle: [-Math.PI * 0.9, -Math.PI * 0.1], life: [200, 300], colors: ['#F7C27A', '#FFE7A3'], shape: 'sq', size: [1, 2] });
+        lastFlag = f;
+      }
+    }
     yield null;
   }
   if (!first) {
+    // the short cut: he pops off as fast as he came
     for (let i = 0; i < 6; i++) {
       kf.x += 30;
+      kf.leave = i / 6;
       yield null;
     }
   }
-  // the "間": complete silence
+  // the "間": complete silence (the boke's own sound is cut)
+  singLoop?.stop(0.02);
   muteMusic(first ? 0.15 : 0.1);
   yield first ? 150 : 100;
   bokeFx.done = !first ? true : bokeFx.done;
-  // 1500: tsukkomi — Minato's face ×2 slides in from the left, two-tier lettering slams down
+  // 1500: tsukkomi — Minato's face ×2 slides in from the lower left, under
+  // the lettering (never behind it); the two tiers slam down to the right
   const face = portrait('minato', 'tsukkomi');
   const upper = kakimojiSmall('……って、');
   const lower = kakimoji(nori.line, true, s.seed + pick);
+  const LOW_Y = 66;
+  const lowCx = Math.max(Math.round(lower.width / 2) + 2, Math.min(382 - Math.round(lower.width / 2), 208));
   const tsFx = s.addFx({
     layer: 'top',
     dur: 0,
     draw: (g, t) => {
-      // Minato's face ×2 slides in from the left like a photo taped to the page
-      const fx = Math.round(-72 + Math.min(1, t / 80) * 82);
-      g.rect(fx + 3, 64, 70, 70, C.shadow, 0.5);
-      g.rect(fx - 3, 60, 70, 70, C.paper);
-      g.frame(fx - 3, 60, 70, 70, C.grid);
-      if (face) g.ctx.drawImage(face, fx, 63, 64, 64);
-      else g.text('ミ', fx + 32, 86, { color: C.ink, align: 'center' });
-      g.img(tapeCanvas(18, 7, '', C.tape, 3), fx - 8, 58);
-      g.img(tapeCanvas(18, 7, '', C.tape, 5), fx + 54, 124);
-      // two tiers under the band: "……って、" small on top, the line slammed
-      // down underneath (y70–106, over the enemies' upper half)
-      g.img(upper, 96, 52);
+      // the photo: 64×64 in a paper frame at (8,110), taped on two corners;
+      // it jolts 2px when the lettering lands
+      const jolt = t >= 60 && t < 180 ? Math.round(Math.sin((t - 60) / 12) * 2) : 0;
+      const fx = Math.round(-80 + Math.min(1, t / 80) * 88) + jolt;
+      const fy = 112;
+      g.rect(fx + 3, fy + 4, 70, 70, C.shadow, 0.5);
+      g.rect(fx - 3, fy, 70, 70, C.paper);
+      g.frame(fx - 3, fy, 70, 70, C.grid);
+      if (face) g.ctx.drawImage(face, fx, fy + 3, 64, 64);
+      else g.text('ミ', fx + 32, fy + 26, { color: C.ink, align: 'center' });
+      g.img(tapeCanvas(18, 7, '', C.tape, 3), fx - 8, fy - 2);
+      g.img(tapeCanvas(18, 7, '', C.tape, 5), fx + 54, fy + 64);
+      // two tiers under the band: "……って、" small on top, the line
+      // slammed down underneath, clear of the photo
       const sc = t < 60 ? 1.5 - 0.5 * (t / 60) : 1;
-      const sh = t < 300 ? Math.round(Math.sin(t) * 1) : 0;
+      const sh = t >= 60 && t < 300 ? Math.round(Math.sin(t / 9) * 1) : 0;
       const w = lower.width * sc;
       const h = lower.height * sc;
-      g.ctx.drawImage(lower, Math.round(192 - w / 2 + sh), Math.round(68 + (lower.height - h) / 2), Math.round(w), Math.round(h));
+      const lx = lowCx - lower.width / 2;
+      g.img(upper, Math.round(lx + 6), LOW_Y - 18);
+      g.ctx.drawImage(lower, Math.round(lowCx - w / 2 + sh), Math.round(LOW_Y + (lower.height - h) / 2), Math.round(w), Math.round(h));
     },
   });
   s.sfx('se_bishi', { vol: 1.3 });
@@ -1451,7 +1618,7 @@ export function* doNori(s: BattleScene): Co {
   darkFx.done = true;
   dealt.forEach(([e, dmg], i) => {
     const [nx, ny] = s.enemyNumberXY(e, true);
-    s.number(nx, ny, dmg, { big: true, delay: i * 60 });
+    s.number(nx, ny, dmg, { big: true, delay: i * 60 }, 'enemy', e);
   });
   if (killed.length) {
     // everyone who fell shrinks together, dropping 100ms apart

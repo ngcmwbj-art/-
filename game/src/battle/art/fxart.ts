@@ -84,19 +84,84 @@ export function drawNet(g: Gfx, px: number, py: number, angle: number, o: { alph
   ctx.globalAlpha = prevA;
 }
 
+// ---- impact burst on a panel (16.7) -------------------------------------------
+
+const burstCache: HTMLCanvasElement[] = [];
+/**
+ * 12px impact star over a status panel's photo: frame 0 white-hot, 1 white
+ * with a vermilion rim, 2 vermilion, 3 a thin broken vermilion ring.
+ */
+export function impactBurst(frame: number): HTMLCanvasElement {
+  const f = Math.max(0, Math.min(3, frame));
+  if (burstCache[f]) return burstCache[f];
+  const S = 21;
+  const c = S >> 1;
+  const p = new PixelCanvas(S, S);
+  const core = ['#FFFFFF', '#FFF6D8', '#FF6A4D', '#E23B2E'][f];
+  const rim = ['#FFF6D8', '#E23B2E', '#B8241E', '#B8241E'][f];
+  // 8 spikes, long on the axes, shorter on the diagonals
+  for (let a = 0; a < 8; a++) {
+    const ang = (a / 8) * Math.PI * 2 + (f % 2 ? 0.2 : 0);
+    const len = (a % 2 ? 6 : 9) - (f === 3 ? 2 : 0);
+    for (let r = f === 3 ? 4 : 0; r <= len; r++) {
+      const x = Math.round(c + Math.cos(ang) * r);
+      const y = Math.round(c + Math.sin(ang) * r);
+      p.set(x, y, r > len - 2 ? rim : core);
+      if (r < len - 3 && f < 3) {
+        p.set(x + 1, y, core);
+        p.set(x, y + 1, core);
+      }
+    }
+  }
+  if (f < 3) {
+    for (let y = -3; y <= 3; y++) for (let x = -3; x <= 3; x++) if (x * x + y * y <= 9) p.set(c + x, c + y, f === 2 ? '#FF6A4D' : '#FFFFFF');
+  }
+  p.outline('#2A2440');
+  burstCache[f] = p.toCanvas();
+  return burstCache[f];
+}
+
 // ---- small sprites ---------------------------------------------------------
 
 export const meishiCard = () => spr('card', ['kkkkkkkkkk', 'kwwwwwwwdk', 'kwnnnnnwdk', 'kwwwwwwwdk', 'kwgggwwwdk', 'kddddddddk', 'kkkkkkkkkk']);
 
+/**
+ * Spinning ten-yen coin (9×9): the copper face with its raised rim and a
+ * glint, three-quarter, edge-on (a lit sliver) and the back three-quarter.
+ */
 export function coin(frame: number): HTMLCanvasElement {
-  const f = frame % 4;
+  const f = ((frame % 4) + 4) % 4;
   const rows = [
-    ['.kkkk.', 'kMmmak', 'kmMmak', 'kmmmak', 'kaaaAk', '.kkkk.'],
-    ['..kk..', '.kMak.', '.kmak.', '.kmak.', '.kaAk.', '..kk..'],
-    ['...k..', '...k..', '...k..', '...k..', '...k..', '...k..'],
-    ['..kk..', '.kmMk.', '.kamk.', '.kamk.', '.kAak.', '..kk..'],
+    ['..kkkkk..', '.kMMMmmk.', 'kMHmmmmak', 'kMmaaamak', 'kMmaMamak', 'kmmaaamak', 'kmmmmmaAk', '.kaaaaAk.', '..kkkkk..'],
+    ['...kkk...', '..kMmmk..', '.kMHmmak.', '.kMmamak.', '.kMmamak.', '.kmmmmak.', '.kmmmaAk.', '..kaaAk..', '...kkk...'],
+    ['....k....', '...kHk...', '...kMk...', '...kMk...', '...kmk...', '...kmk...', '...kak...', '...kAk...', '....k....'],
+    ['...kkk...', '..kmmMk..', '.kammmMk.', '.kamammk.', '.kamammk.', '.kammmmk.', '.kAammmk.', '..kAaak..', '...kkk...'],
   ];
-  return spr('coin' + f, rows[f]);
+  return spr('coin9' + f, rows[f]);
+}
+
+const shinyCoins: HTMLCanvasElement[] = [];
+/**
+ * The same coin as a thrown projectile: brighter copper and a 1px pale-gold
+ * rim outside the ink line, so it never melts into a background that is
+ * itself full of coins (bg_ojigi).
+ */
+export function coinShiny(frame: number): HTMLCanvasElement {
+  const f = ((frame % 4) + 4) % 4;
+  if (shinyCoins[f]) return shinyCoins[f];
+  const base = coin(f);
+  const pal: Record<string, string> = { ...P, M: '#FFD08A', m: '#F0A060', a: '#B87038', A: '#8A4A20', H: '#FFFFFF' };
+  const rows = [
+    ['..kkkkk..', '.kMMMmmk.', 'kMHmmmmak', 'kMmaaamak', 'kMmaMamak', 'kmmaaamak', 'kmmmmmaAk', '.kaaaaAk.', '..kkkkk..'],
+    ['...kkk...', '..kMmmk..', '.kMHmmak.', '.kMmamak.', '.kMmamak.', '.kmmmmak.', '.kmmmaAk.', '..kaaAk..', '...kkk...'],
+    ['....k....', '...kHk...', '...kMk...', '...kMk...', '...kmk...', '...kmk...', '...kak...', '...kAk...', '....k....'],
+    ['...kkk...', '..kmmMk..', '.kammmMk.', '.kamammk.', '.kamammk.', '.kammmmk.', '.kAammmk.', '..kAaak..', '...kkk...'],
+  ][f];
+  const p = new PixelCanvas(base.width + 2, base.height + 2);
+  p.blit(PixelCanvas.fromArt(rows, pal), 1, 1);
+  p.outline('#FFE7A3');
+  shinyCoins[f] = p.toCanvas();
+  return shinyCoins[f];
 }
 
 export const waterDrop = () => spr('drop', ['.k.', 'kWk', 'kck', 'kck', '.k.']);
@@ -105,6 +170,31 @@ export const feather = () => spr('feather', ['.kk.', 'kddk', '.kk.']);
 export const heart = () => spr('heart', ['.p.p.', 'pqpqp', 'ppppp', '.ppp.', '..p..'].map((r) => r.replace(/q/g, 'W')));
 export const note = (i: number) =>
   spr('note' + i, i === 0 ? ['..kk.', '..kOk', '..k.k', '..k..', 'kkk..', 'kOk..', 'kkk..'] : ['.kkkk', '.kOOk', '.k..k', '.k..k', 'kk.kk', 'Ok.Ok', 'kk.kk']);
+const noteCache2 = new Map<number, HTMLCanvasElement>();
+/**
+ * Coloured music notes for the singing boke (ノリツッコミ): an eighth note, a
+ * beamed pair and a quarter note, each in its own warm colour with a white
+ * glint on the head and an ink outline.
+ */
+export function musicNote(i: number): HTMLCanvasElement {
+  const k = ((i % 6) + 6) % 6;
+  let c = noteCache2.get(k);
+  if (c) return c;
+  const shapes = [
+    ['..cc..', '..c.c.', '..c..c', '..c...', '..c...', '..c...', 'ccc...', 'cHcc..', 'cccc..', '.cc...'],
+    ['.cccccc', '.cccccc', '.c....c', '.c....c', '.c....c', '.c....c', 'cc...cc', 'Hcc.Hcc', 'ccc.ccc', '.c...c.'],
+    ['...c.', '...c.', '...c.', '...c.', '...c.', '...c.', '.ccc.', 'cHccc', 'ccccc', '.ccc.'],
+  ];
+  const cols = ['#FFD23F', '#FF6A4D', '#7FD1E8', '#F7C27A', '#E0567A', '#9BCB6B'];
+  const rows = shapes[k % 3];
+  const p = new PixelCanvas(rows[0].length + 2, rows.length + 2);
+  p.blit(PixelCanvas.fromArt(rows, { c: cols[k], H: '#FFF6D8' }), 1, 1);
+  p.outline('#2A2440');
+  c = p.toCanvas();
+  noteCache2.set(k, c);
+  return c;
+}
+
 export const spring = () => spr('spring', ['.g.', 'g.g', '.g.', 'g.g', '.g.']);
 export const petal = (i: number) => {
   const cols = ['l', 't', 'H', 'p'];
@@ -132,6 +222,35 @@ export function balloon(alt: boolean): HTMLCanvasElement {
   ]);
 }
 export const poppedBalloon = () => spr('popped', ['.kk..', 'kSSk.', '.kSk.', '..kw.', '...w.']);
+
+const litCrows: HTMLCanvasElement[] = [];
+/**
+ * The crow with a 1px pale rim (#F4E6A8): the flop's punchline has to read
+ * even against the dark mall ceiling (#2A2440), the crow's own colour.
+ */
+export function crowLit(frame: number): HTMLCanvasElement {
+  const f = frame % 2;
+  if (litCrows[f]) return litCrows[f];
+  const base = crow(f);
+  const p = new PixelCanvas(base.width + 2, base.height + 2);
+  const [c, ctx] = makeCanvas(base.width + 2, base.height + 2);
+  ctx.drawImage(base, 1, 1);
+  const d = ctx.getImageData(0, 0, c.width, c.height).data;
+  for (let y = 0; y < c.height; y++)
+    for (let x = 0; x < c.width; x++) {
+      const a = d[(y * c.width + x) * 4 + 3];
+      if (a) p.set(x, y, '#2A2440');
+    }
+  // the eye catches the light
+  p.outline('#F4E6A8');
+  for (let y = 0; y < c.height; y++)
+    for (let x = 0; x < c.width; x++) {
+      const i = (y * c.width + x) * 4;
+      if (d[i + 3] && d[i] === 0x5b) p.set(x, y, '#5B4A7A');
+    }
+  litCrows[f] = p.toCanvas();
+  return litCrows[f];
+}
 
 export function crow(frame: number): HTMLCanvasElement {
   return spr('crow' + (frame % 2), frame % 2
@@ -263,6 +382,47 @@ export function flipBoardText(text: string): HTMLCanvasElement {
   r(w - 11, h - 3, 6, 4, '#F2894B');
   r(5, h - 3, 2, 1, '#F7A86A');
   r(w - 11, h - 3, 2, 1, '#F7A86A');
+  cache.set(key, cv);
+  return cv;
+}
+
+/**
+ * The flip board Kanenari-kun holds up for the ノリツッコミ boke: a white
+ * marker board with a binder clip, a pale ruled line under each line of
+ * marker text, a soft bottom shadow and his two mittens gripping the bottom
+ * corners.
+ */
+export function noriBoard(lines: string[]): HTMLCanvasElement {
+  const key = 'nori:' + lines.join('/');
+  let c = cache.get(key);
+  if (c) return c;
+  const tw = Math.max(...lines.map((l) => measure(l)));
+  const w = tw + 18;
+  const h = lines.length * 17 + 8;
+  const [cv, ctx] = makeCanvas(w + 2, h + 6);
+  const r = (x: number, y: number, ww: number, hh: number, col: string) => {
+    ctx.fillStyle = col;
+    ctx.fillRect(x, y, ww, hh);
+  };
+  r(2, 5, w, h, '#5B4A7A');
+  r(0, 3, w, h, '#2A2440');
+  r(1, 4, w - 2, h - 2, '#F4F1E8');
+  r(1, h, w - 2, 1, '#C8C2B4');
+  r(2, 4, w - 4, 1, '#FFFFFF');
+  for (let i = 0; i < lines.length; i++) r(5, 4 + 4 + i * 17 + 15, w - 10, 1, '#DCE6EC');
+  lines.forEach((l, i) => drawText(ctx, l, 9, 4 + 4 + i * 17 - 1, { color: '#2A2440' }));
+  // binder clip at the top centre
+  const cx = Math.round(w / 2);
+  r(cx - 5, 0, 10, 5, '#2A2440');
+  r(cx - 4, 1, 8, 3, '#9AA0A8');
+  r(cx - 4, 1, 8, 1, '#E8ECF0');
+  // mittens on the bottom corners
+  for (const mx of [3, w - 11]) {
+    r(mx, h - 3, 9, 7, '#2A2440');
+    r(mx + 1, h - 2, 7, 5, '#F2894B');
+    r(mx + 1, h - 2, 3, 1, '#F7A86A');
+    r(mx + 1, h + 2, 7, 1, '#C8643A');
+  }
   cache.set(key, cv);
   return cv;
 }

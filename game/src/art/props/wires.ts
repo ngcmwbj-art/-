@@ -41,6 +41,12 @@ export const POLE = {
 
 /** Wire colour #3A2B5C and the two line strengths. */
 const RGB = [58, 43, 92];
+/** The music-staff span (fushigi_03) is drawn in ink #2A2440 at α80% so it reads as a staff (review round 2). */
+const RGB_STAFF = [42, 36, 64];
+const A_STAFF = 0.8;
+/** Staff geometry: five lines exactly 3px apart, a shallow 4px sag. */
+const STAFF_GAP = 3;
+const STAFF_SAG = 4;
 const A_MAIN = 0.62;
 const A_SUB = 0.4;
 /** Alpha multiplier where a line crosses a character. */
@@ -75,7 +81,7 @@ interface Baked {
 const baked = new Map<string, Baked>();
 
 /** Rasterise one sagging span into the alpha buffer (max blend). */
-function rasterSpan(buf: Uint8Array, bw: number, bh: number, x0: number, y0: number, a: [number, number], b: [number, number], sag: number, alpha: number): void {
+function rasterSpan(buf: Uint8Array, col: Uint8Array, bw: number, bh: number, x0: number, y0: number, a: [number, number], b: [number, number], sag: number, alpha: number, ci = 0): void {
   const len = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]) + sag);
   const n = Math.max(2, Math.ceil(len * 1.5));
   const v = Math.round(alpha * 255);
@@ -84,7 +90,10 @@ function rasterSpan(buf: Uint8Array, bw: number, bh: number, x0: number, y0: num
   const plot = (x: number, y: number) => {
     if (x < 0 || y < 0 || x >= bw || y >= bh) return;
     const i = y * bw + x;
-    if (buf[i] < v) buf[i] = v;
+    if (buf[i] < v) {
+      buf[i] = v;
+      col[i] = ci;
+    }
   };
   plot(px, py);
   for (let i = 1; i <= n; i++) {
@@ -99,8 +108,17 @@ function rasterSpan(buf: Uint8Array, bw: number, bh: number, x0: number, y0: num
 }
 
 /** All spans of a set with their line strengths (shared by bake and the sparrow helpers). */
-function spans(set: WireSet, sway: number): { a: [number, number]; b: [number, number]; sag: number; alpha: number }[] {
-  const out: { a: [number, number]; b: [number, number]; sag: number; alpha: number }[] = [];
+interface Span {
+  a: [number, number];
+  b: [number, number];
+  sag: number;
+  alpha: number;
+  /** 1 = ink (the music staff). */
+  ci?: number;
+}
+
+function spans(set: WireSet, sway: number): Span[] {
+  const out: Span[] = [];
   for (const line of set.lines) {
     if (line.to) {
       const [fx, fy] = poleFoot(...line.pts[0]);
@@ -113,8 +131,13 @@ function spans(set: WireSet, sway: number): { a: [number, number]; b: [number, n
       const sag = spanSag([ax, ay], [bx, by]);
       if (!line.thin) out.push({ a: [ax - 7, ay - POLE.arm], b: [bx - 7, by - POLE.arm], sag: sag + sway, alpha: A_MAIN });
       if (line.staff) {
-        for (let k = 0; k < 5; k++)
-          out.push({ a: [ax, ay - POLE.low + k * 3 - 6], b: [bx, by - POLE.low + k * 3 - 6], sag: sag * 0.7 + sway * 0.5, alpha: k === 2 ? A_MAIN * 0.85 : A_SUB + 0.05 });
+        const sg = STAFF_SAG + sway * 0.3;
+        for (let k = 0; k < 5; k++) out.push({ a: staffEnd(ax, ay, k), b: staffEnd(bx, by, k), sag: sg, alpha: A_STAFF, ci: 1 });
+        // the bar line at the left end of the staff (a short straight segment)
+        const t = 0.035;
+        const top = spanPoint(staffEnd(ax, ay, 0), staffEnd(bx, by, 0), t, sg);
+        const bot = spanPoint(staffEnd(ax, ay, 4), staffEnd(bx, by, 4), t, sg);
+        out.push({ a: [Math.round(top[0]), top[1]], b: [Math.round(top[0]), bot[1]], sag: 0, alpha: A_STAFF, ci: 1 });
       } else {
         out.push({ a: [ax + 2, ay - POLE.low], b: [bx + 2, by - POLE.low], sag: sag + 2 + sway * 0.8, alpha: line.thin ? A_MAIN * 0.8 : A_SUB });
       }
@@ -148,7 +171,8 @@ function bake(set: WireSet, q: number): Baked {
   const w = Math.max(1, Math.ceil(x1 - x0));
   const h = Math.max(1, Math.ceil(y1 - y0));
   const a = new Uint8Array(w * h);
-  for (const s of spans(set, q * 0.45)) rasterSpan(a, w, h, x0, y0, s.a, s.b, s.sag, s.alpha);
+  const ci = new Uint8Array(w * h);
+  for (const s of spans(set, q * 0.45)) rasterSpan(a, ci, w, h, x0, y0, s.a, s.b, s.sag, s.alpha, s.ci ?? 0);
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
@@ -156,9 +180,10 @@ function bake(set: WireSet, q: number): Baked {
   const id = ctx.createImageData(w, h);
   for (let i = 0; i < a.length; i++) {
     if (!a[i]) continue;
-    id.data[i * 4] = RGB[0];
-    id.data[i * 4 + 1] = RGB[1];
-    id.data[i * 4 + 2] = RGB[2];
+    const rgb = ci[i] ? RGB_STAFF : RGB;
+    id.data[i * 4] = rgb[0];
+    id.data[i * 4 + 1] = rgb[1];
+    id.data[i * 4 + 2] = rgb[2];
     id.data[i * 4 + 3] = a[i];
   }
   ctx.putImageData(id, 0, 0);
@@ -247,8 +272,12 @@ export function drawWires(g: Gfx, set: WireSet, cx: number, cy: number, mt: numb
 export function staffPoint(a: [number, number], b: [number, number], k: number, t: number): [number, number] {
   const [ax, ay] = poleFoot(...a);
   const [bx, by] = poleFoot(...b);
-  const sag = spanSag([ax, ay], [bx, by]) * 0.7;
-  return spanPoint([ax, ay - POLE.low + k * 3 - 6], [bx, by - POLE.low + k * 3 - 6], t, sag);
+  return spanPoint(staffEnd(ax, ay, k), staffEnd(bx, by, k), t, STAFF_SAG);
+}
+
+/** Attachment point of staff line k (0 = top) on the pole whose foot is (fx, fy). */
+function staffEnd(fx: number, fy: number, k: number): [number, number] {
+  return [fx, fy - POLE.low + k * STAFF_GAP - 2 * STAFF_GAP];
 }
 
 /** World position on the low cable between two poles at t (sparrows perch here). */

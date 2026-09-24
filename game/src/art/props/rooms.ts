@@ -16,6 +16,7 @@ import { castRight, cylinder, dk, finish, lt, maskOf, shadeRect } from './kit';
 import { flat, mkFrames, stand, standAnim } from './pkit';
 import { registerProp } from './registry';
 import { fontTextSmall, printLines, tiny } from './text';
+import { drawLight, drawLightAt, halo, LIGHT, poolEllipse, poolTrapezoid } from './light';
 import type { PropArt, PropEnv } from './types';
 
 const pc = (w: number, h: number) => new PixelCanvas(w, h);
@@ -115,21 +116,25 @@ function wallpaper(base: string, accent: string, seed: number): RoomStyle['wall'
   };
 }
 
-/** Warm lamp light (emissive, after grading): a soft circle, screen blend. */
-function lampPool(g: Gfx, cx: number, cy: number, r: number, a: number, rgb = '246,217,138', squash = 0.7): void {
-  if (a <= 0.005) return;
-  const ctx = g.ctx;
-  ctx.save();
-  ctx.globalCompositeOperation = 'screen';
-  ctx.translate(cx, cy);
-  ctx.scale(1, squash);
-  const grd = ctx.createRadialGradient(0, 0, 2, 0, 0, r);
-  grd.addColorStop(0, `rgba(${rgb},${a.toFixed(3)})`);
-  grd.addColorStop(0.55, `rgba(${rgb},${(a * 0.45).toFixed(3)})`);
-  grd.addColorStop(1, `rgba(${rgb},0)`);
-  ctx.fillStyle = grd;
-  ctx.fillRect(-r, -r, r * 2, r * 2);
-  ctx.restore();
+let CORNER: HTMLCanvasElement | null = null;
+/** A quarter-disc of dark (#1B1733) for the room corners, in 3 flat steps with checker bands. */
+function cornerShade(): HTMLCanvasElement {
+  if (CORNER) return CORNER;
+  const R = 34;
+  const p = pc(R, R);
+  for (let y = 0; y < R; y++)
+    for (let x = 0; x < R; x++) {
+      const d = Math.hypot(x / R, (y / R) * 1.15);
+      const v = (1 - d) * 3;
+      if (v <= 0) continue;
+      const step = Math.floor(v);
+      const frac = v - step;
+      const k = Math.min(3, step + (frac > 0.65 ? 1 : frac > 0.3 ? (x + y) & 1 : 0));
+      if (k <= 0) continue;
+      p.set(x, y, P.night + ['00', '55', 'aa', 'ff'][k]);
+    }
+  CORNER = p.toCanvas();
+  return CORNER;
 }
 
 /** Indoor light & depth overlay (flat layer, before characters). */
@@ -143,6 +148,22 @@ function roomLight(g: Gfx, x: number, y: number, w: number, h: number, env: Prop
   gr.addColorStop(1, 'rgba(91,74,122,0)');
   ctx.fillStyle = gr;
   ctx.fillRect(x, y, w, h);
+  // the four corners of the room sink into shadow (#1B1733, deeper at night)
+  ctx.globalCompositeOperation = 'source-over';
+  const ca = 0.12 + 0.14 * env.grade.night;
+  const corner = cornerShade();
+  for (const [fx, fy] of [[0, 0], [1, 0], [0, 1], [1, 1]] as const) {
+    const cx = fx ? x + w - 16 - corner.width : x + 16;
+    const cy = fy ? y + h - 16 - corner.height : y;
+    ctx.globalAlpha = ca;
+    ctx.save();
+    ctx.translate(cx + (fx ? corner.width : 0), cy + (fy ? corner.height : 0));
+    ctx.scale(fx ? -1 : 1, fy ? -1 : 1);
+    ctx.drawImage(corner, 0, 0);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'multiply';
   // window / stair light: parallelograms (screen #F7C27A), clipped to the floor
   ctx.beginPath();
   ctx.rect(x + 16, y, w - 32, h - 16);
@@ -160,6 +181,115 @@ function roomLight(g: Gfx, x: number, y: number, w: number, h: number, env: Prop
     ctx.fill();
   }
   ctx.restore();
+}
+
+// ---------------------------------------------------------------- stairs (review round 2)
+
+/** Tread (lit, 3px) and riser (dark, 2px) colours of a wooden step, darkened by `d` (0..3 steps). */
+function stepCols(d: number): [string, string, string, string] {
+  const ramp = [P.goldPale, P.woodLt, P.wood, P.woodDark, P.nightShade, P.ink, P.night];
+  const k = Math.min(ramp.length - 4, Math.max(0, d));
+  return [ramp[k], ramp[k + 1], ramp[k + 2], ramp[k + 3]];
+}
+
+/**
+ * 1F stairs going up to the north: `x` is the tile's left edge, `bottom`
+ * the floor row the first step stands on. Six steps (3px tread + 2px riser)
+ * climb into a dark opening in the wall, each a little narrower; a stringer
+ * on each side, a handrail with balusters on the west (open) side.
+ */
+function paintStairsUp(p: PixelCanvas, x: number, bottom: number): void {
+  const steps = 6;
+  const topY = bottom - steps * 5 + 1;
+  // the opening in the wall (the upper floor is dark) in a wooden frame
+  p.rect(x + 1, 4, 14, topY - 3, P.nightShade);
+  p.rect(x + 1, 4, 14, 4, P.ink);
+  p.rect(x + 1, 8, 14, 3, P.night);
+  p.rect(x, 1, 16, 3, P.wood);
+  p.hline(x, x + 15, 1, P.woodLt);
+  p.hline(x, x + 15, 3, P.woodDark);
+  p.vline(x + 15, 1, bottom, P.woodDark);
+  p.vline(x + 14, 4, topY, P.wood);
+  for (let i = 0; i < steps; i++) {
+    const y1 = bottom - i * 5; // bottom of this step's riser
+    const l = x + 4 + Math.floor(i / 3);
+    const r = x + 13;
+    const [lit, tread, riser, riserDk] = stepCols(Math.floor(i / 2));
+    // tread (3px, lit nosing on top) above its riser (2px, facing the viewer)
+    p.hline(l, r, y1 - 4, lit);
+    p.hline(l, r, y1 - 3, tread);
+    p.hline(l, r, y1 - 2, tread);
+    p.hline(l, r, y1 - 1, riser);
+    p.hline(l, r, y1, riserDk);
+    p.set(l, y1 - 4, i < 2 ? P.glint : lit);
+    // wear in the middle of the tread
+    p.set(l + 4 + (i % 3), y1 - 3, lit);
+    // stringer on the west, the wall's stringer on the east
+    p.vline(l - 1, y1 - 4, y1, P.woodDark);
+    p.set(r + 1, y1 - 4, P.woodLt);
+  }
+  // handrail on the open (west) side: a rail running up the flight, a
+  // baluster at every step, the newel post at the foot
+  for (let y = topY - 1; y <= bottom - 11; y++) {
+    const xx = x + 1 + (y < bottom - 20 ? 1 : 0);
+    p.set(xx, y, P.woodLt);
+    p.set(xx + 1, y, P.wood);
+  }
+  for (let i = 0; i < steps - 1; i++) {
+    const by = bottom - 6 - i * 5;
+    const xx = x + 2 + (by < bottom - 20 ? 1 : 0);
+    p.set(xx + 1, by - 1, P.woodDark);
+    p.set(xx + 1, by, P.woodDark);
+    p.set(xx + 2, by, P.woodDark);
+  }
+  p.rect(x + 1, bottom - 12, 3, 13, P.wood);
+  p.vline(x + 1, bottom - 12, bottom, P.woodLt);
+  p.vline(x + 3, bottom - 12, bottom, P.woodDark);
+  p.hline(x + 1, x + 3, bottom - 13, P.goldPale);
+  p.set(x + 2, bottom - 14, P.woodLt);
+}
+
+/**
+ * 2F stair well going down (south) at tile (x, y): three steps visible,
+ * each tread with its lit nosing and the riser under it facing the
+ * viewer, darker the deeper they go; wooden sides; a handrail with
+ * balusters along the north edge and a newel post.
+ */
+function paintStairsDown(p: PixelCanvas, x: number, y: number): void {
+  // wooden sides of the well
+  p.rect(x, y, 16, 16, P.woodDark);
+  p.vline(x + 1, y, y + 15, P.wood);
+  p.vline(x + 14, y, y + 15, P.ink);
+  const cols: [string, string, string, string][] = [
+    [P.goldPale, P.woodLt, P.wood, P.woodDark],
+    [P.woodLt, P.wood, P.woodDark, P.nightShade],
+    [P.wood, P.woodDark, P.nightShade, P.ink],
+  ];
+  for (let i = 0; i < 3; i++) {
+    const t = y + 1 + i * 5;
+    const l = x + 2;
+    const r = x + 13;
+    const [lit, tread, riser, riserDk] = cols[i];
+    p.hline(l, r, t, lit);
+    p.hline(l, r, t + 1, tread);
+    p.hline(l, r, t + 2, tread);
+    if (t + 3 < y + 16) p.hline(l, r, t + 3, riser);
+    if (t + 4 < y + 16) p.hline(l, r, t + 4, riserDk);
+    p.set(l, t, i === 0 ? P.glint : lit);
+  }
+  // the landing's edge
+  p.hline(x, x + 15, y, P.goldPale);
+  // handrail along the north edge: rail 8px up, balusters every 4px, newel post
+  p.hline(x - 2, x + 15, y - 8, P.woodLt);
+  p.hline(x - 2, x + 15, y - 7, P.wood);
+  for (let k = 0; k <= 4; k++) {
+    const bx = x - 1 + k * 4;
+    p.vline(bx, y - 6, y - 1, P.woodDark);
+    p.set(bx, y - 6, P.wood);
+  }
+  p.rect(x - 2, y - 10, 3, 10, P.wood);
+  p.vline(x - 2, y - 10, y - 1, P.woodLt);
+  p.hline(x - 2, x, y - 11, P.goldPale);
 }
 
 // ---------------------------------------------------------------- 2F shell
@@ -207,17 +337,9 @@ registerProp('room_home_2f', () => {
       p.line(1 * 16 + 11, 12, 1 * 16 + 13, 14, P.woodDark);
       p.line(1 * 16 + 17, 12, 1 * 16 + 15, 14, P.woodDark);
       castRight(p, 1 * 16 + 3, 8, 22, 16, 2);
-      // stair opening (8,5) with the handrail on the north side and warm light from below
-      const sx = 8 * 16;
-      const sy = 5 * 16;
-      for (let k = 0; k < 4; k++) {
-        p.rect(sx + k * 4, sy + 2, 4, 14, [P.woodLt, P.wood, P.woodDark, P.ink][k]);
-        p.vline(sx + k * 4, sy + 2, sy + 15, lt([P.woodLt, P.wood, P.woodDark, P.ink][k]));
-      }
-      p.hline(sx - 2, sx + 15, sy, P.woodDark);
-      p.hline(sx - 2, sx + 15, sy + 1, P.woodLt);
-      for (const px of [sx - 1, sx + 7, sx + 14]) p.vline(px, sy - 6, sy, P.wood);
-      p.hline(sx - 2, sx + 15, sy - 7, P.woodLt);
+      // stair opening (8,5): a well going down to the 1F, the treads darker
+      // the deeper they go, side walls, a handrail with balusters on the north
+      paintStairsDown(p, 8 * 16, 5 * 16);
     })
   );
   const W = img.width;
@@ -232,10 +354,18 @@ registerProp('room_home_2f', () => {
     img: () => img,
     glass,
     over(g, x, y, env) {
-      roomLight(g, x, y + 32, W, H - 32, env, [
-        [5 * 16 + 4, 3 * 16, 44, 26, 0.25],
-        [8 * 16, 5 * 16 + 2, 16, 14, 0.3],
-      ]);
+      roomLight(g, x, y + 32, W, H - 32, env, [[5 * 16 + 4, 3 * 16, 44, 26, 0.25]]);
+    },
+    glow(g, x, y, env) {
+      // warm light rising out of the stair well from the 1F (#F7C27A, α30% at
+      // the bottom), in flat steps; stronger at night when the 1F lamps are on
+      const k = 0.75 + 0.5 * env.grade.night;
+      const sx = x + 8 * 16 + 1;
+      const sy = y + 5 * 16;
+      const bands: [number, number, number][] = [[11, 5, 0.34], [6, 5, 0.22], [2, 4, 0.1]];
+      for (const [dy, h, a] of bands) g.rect(sx + 1, sy + dy, 12, h, P.sky, a * k);
+      for (let i = 0; i < 12; i += 2) g.rect(sx + 1 + i, sy + 10, 1, 1, P.sky, 0.25 * k);
+      g.rect(sx + 1, sy + 15, 12, 1, P.horizon, 0.45 * k);
     },
   };
 });
@@ -348,11 +478,20 @@ registerProp('obj_desk_room', () => {
   // anchored on (5,2): cx 0 → x 4–5; bottom on the bottom edge of row 2
   const a = stand(img, { cx: 0, base: 16, shadow: 0, contact: 0 });
   a.glow = (g, x, y, env) => {
-    // night: the desk lamp is on (a warm cone on the desk and the floor)
+    // night: the desk lamp is on — the bulb under the green shade
     const n = env.grade.night;
     if (n < 0.05) return;
-    g.rect(x + a.ox + 27, y + a.oy + 13, 4, 1, P.glint, 0.9 * n);
-    lampPool(g, x + a.ox + 26, y + a.oy + 26, 34, 0.32 * n, '246,217,138', 0.6);
+    g.rect(x + a.ox + 27, y + a.oy + 13, 4, 1, P.glint, 0.95 * n);
+    g.rect(x + a.ox + 26, y + a.oy + 14, 6, 1, P.horizon, 0.6 * n);
+    halo(g, x + a.ox + 29, y + a.oy + 15, 8, LIGHT.lamp, 0.35 * n);
+  };
+  a.light = (g, x, y, env) => {
+    // a bright oval on the desk top under the lamp, a softer spill on the floor
+    const n = env.grade.night;
+    if (n < 0.05) return;
+    drawLight(g, poolEllipse(16, 7, LIGHT.lamp), x + a.ox + 25, y + a.oy + 23, 0.9 * n);
+    drawLight(g, poolEllipse(34, 20, LIGHT.lamp), x + a.ox + 22, y + a.oy + 44, 0.45 * n);
+    drawLight(g, poolEllipse(22, 14, LIGHT.lamp), x + a.ox + 26, y + a.oy + 10, 0.35 * n);
   };
   a.over = (g, x, y, env) => {
     // 1px twinkle on the notebook's corner every other second (#FFF6D8)
@@ -455,40 +594,103 @@ registerProp('room_home_2f_decor', () => {
   return flat(p.toCanvas(), 0, 0);
 });
 
-// ceiling light with a swaying pull string (foreground)
-registerProp('prop_ceiling_light', () => {
-  const lamp = pc(24, 10);
-  lamp.ellipse(12, 4, 11, 4, P.white);
-  lamp.ellipse(10, 3, 6, 2, P.glint);
-  lamp.ring(12, 4, 11, 4, P.concreteLt);
-  const li = lamp.toCanvas();
+// ---------------------------------------------------------------- ceiling light (pendant, foreground)
+
+/**
+ * 天井の照明: a round pendant hanging from the ceiling (so in the 3/4 view
+ * it floats well above its floor spot): cord and ceiling rose, a paper
+ * shade (笠) on a wooden ring, the milk-glass globe under it and a pull
+ * string with a wooden knob that sways (3 frames, frozen in stage 1).
+ * Frame 0 is the lamp off (day), frame 1 lit (night).
+ */
+function pendantFrames(): HTMLCanvasElement[] {
+  return [0, 1].map((lit) => {
+    const p = pc(28, 22);
+    const cx = 14;
+    // ceiling rose and cord
+    p.rect(cx - 3, 0, 6, 2, P.concreteLt);
+    p.hline(cx - 3, cx + 2, 0, P.white);
+    p.vline(cx, 2, 6, P.charcoal);
+    p.set(cx - 1, 3, P.steel);
+    // paper shade: a shallow cone, narrow top (rim ring), wide bottom
+    const top = 7;
+    const hgt = 7;
+    for (let j = 0; j < hgt; j++) {
+      const half = 3 + Math.round((j / (hgt - 1)) * 7);
+      for (let i = -half; i < half; i++) {
+        const u = (i + half) / (half * 2);
+        let c: string = lit ? (u < 0.25 ? P.glint : u > 0.78 ? P.goldPale : P.horizon) : u < 0.22 ? P.white : u > 0.75 ? P.paperGrid : P.paper;
+        if (!lit && j === hgt - 2 && u > 0.3) c = P.concreteLt;
+        p.set(cx + i, top + j, c);
+      }
+    }
+    // wooden rings at the top and the rim
+    p.hline(cx - 3, cx + 2, top, P.woodLt);
+    p.hline(cx - 10, cx + 9, top + hgt - 1, P.wood);
+    p.set(cx - 10, top + hgt - 1, P.woodLt);
+    p.set(cx + 9, top + hgt - 1, P.woodDark);
+    // ribs of the paper shade
+    for (const i of [-5, 0, 5]) p.line(cx + Math.round(i / 2), top + 1, cx + i, top + hgt - 2, lit ? P.goldPale : P.paperGrid);
+    // milk-glass globe under the shade
+    const gy = top + hgt + 1;
+    p.ellipse(cx - 0.5, gy, 4, 2.5, lit ? P.glint : P.white);
+    p.hline(cx - 3, cx + 1, gy - 2, lit ? P.glint : P.concreteLt);
+    if (!lit) p.hline(cx - 3, cx + 2, gy + 1, P.concrete);
+    finish(p, { soft: true, rim: false });
+    return p.toCanvas();
+  });
+}
+
+registerProp('prop_ceiling_light', (opts) => {
+  const [off, on] = pendantFrames();
+  const W = off.width;
   const string = mkFrames(3, 5, 12, (p, k) => {
     const d = [-1, 0, 1][k];
-    p.line(2, 0, 2 + d, 10, P.concrete);
-    p.set(2 + d, 11, P.verm);
+    p.line(2, 0, 2 + d, 8, P.concrete);
+    p.rect(1 + d, 9, 3, 3, P.woodLt);
+    p.set(1 + d, 9, P.goldPale);
+    p.set(3 + d, 11, P.woodDark);
   });
+  // the lamp hangs above its floor spot (anchor tile): opts.ly is the image
+  // top relative to the tile top (a low pendant over a table: about -30)
+  const LY = Number(opts.ly ?? -34);
   return {
-    ox: -4,
-    oy: 0,
-    w: 24,
-    h: 10,
+    ox: -6,
+    oy: LY,
+    w: W,
+    h: 22,
     foot: 0,
     img: () => null,
+    glowFg: true,
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
-      // night: the lamp is on — the room's warm centre (#F6D98A, α35% at the centre)
+      // night: the shade glows and the globe is bright (emissive)
       const n = env.grade.night;
       if (n < 0.05) return;
-      g.rect(x - 2, y - 15, 20, 3, P.glint, 0.8 * n);
-      lampPool(g, x + 8, y + 12, 78, 0.35 * n);
+      g.img(on, x - 6, y + LY, { alpha: Math.min(1, n * 1.2) });
+      halo(g, x + 8, y + LY + 17, 14, LIGHT.lamp, 0.3 * n);
+    },
+    light(g: Gfx, x: number, y: number, env: PropEnv) {
+      // the room's warm centre: a squashed pool on the floor under the lamp
+      const n = env.grade.night;
+      if (n < 0.05) return;
+      drawLight(g, poolEllipse(60, 36, LIGHT.lamp), x + 8, y + 10, 0.72 * n);
+      drawLight(g, poolEllipse(26, 16, LIGHT.lamp), x + 8, y + 10, 0.25 * n);
+      // light on the walls/ceiling round the shade
+      drawLight(g, poolEllipse(40, 26, LIGHT.lamp), x + 8, y + LY + 12, 0.35 * n);
     },
     fg: [
-      { ox: -4, oy: -18, img: () => li, fade: { x: -8, y: -18, w: 32, h: 40, alpha: 0.5 } },
-      { ox: 6, oy: -9, img: (env: PropEnv) => (env.stage === 1 ? string[1] : string[[0, 1, 2, 1][Math.floor(env.mt / 400) % 4]]) },
+      { ox: -6, oy: LY, img: () => off, fade: { x: -2, y: LY - 4, w: 20, h: 36, alpha: 0.5 } },
+      { ox: 6, oy: LY + 18, img: (env: PropEnv) => (env.stage === 1 ? string[1] : string[[0, 1, 2, 1][Math.floor(env.mt / 400) % 4]]) },
     ],
   } as PropArt;
 });
 
 // ---------------------------------------------------------------- 1F shell
+
+/** The kitchen's fluorescent fixture (room px): over the sink and the cutting board. */
+const TUBE_X = 16 + 2;
+const TUBE_Y = 2;
+const TUBE_W = 30;
 
 registerProp('room_home_1f', () => {
   const rows = getMapDef('map_home_1f')?.rows ?? [];
@@ -515,6 +717,18 @@ registerProp('room_home_1f', () => {
       p.hline(4 * 16 + 1, 4 * 16 + 14, 4, P.concreteLt);
       p.rect(4 * 16 + 3, 12, 10, 3, P.asphalt);
       castRight(p, 4 * 16 + 1, 4, 14, 10, 2);
+      // fluorescent fixture on the wall over the sink and the board: a steel
+      // housing, the tube under it, end caps, a pull cord with a knob
+      p.rect(TUBE_X, TUBE_Y, TUBE_W, 4, P.concreteLt);
+      p.hline(TUBE_X, TUBE_X + TUBE_W - 1, TUBE_Y, P.white);
+      p.hline(TUBE_X, TUBE_X + TUBE_W - 1, TUBE_Y + 3, P.steel);
+      p.hline(TUBE_X + 2, TUBE_X + TUBE_W - 3, TUBE_Y + 4, P.white);
+      p.hline(TUBE_X + 2, TUBE_X + TUBE_W - 3, TUBE_Y + 5, P.concrete);
+      p.rect(TUBE_X, TUBE_Y + 4, 2, 2, P.steel);
+      p.rect(TUBE_X + TUBE_W - 2, TUBE_Y + 4, 2, 2, P.asphalt);
+      p.vline(TUBE_X + TUBE_W - 5, TUBE_Y + 6, TUBE_Y + 11, P.concrete);
+      p.set(TUBE_X + TUBE_W - 5, TUBE_Y + 12, P.verm);
+      castRight(p, TUBE_X, TUBE_Y, TUBE_W, 6, 2);
       // cat calendar on the pillar (6,1)
       const cx = 6 * 16 + 3;
       p.rect(cx, 8, 10, 14, P.white);
@@ -532,14 +746,9 @@ registerProp('room_home_1f', () => {
       p.ring(7 * 16 + 8, 10, 4, 4, P.woodDark);
       p.vline(7 * 16 + 8, 7, 10, P.ink);
       p.hline(7 * 16 + 8, 7 * 16 + 10, 10, P.ink);
-      // stairs up (12,2): steps rising to the north
-      const sx = 12 * 16;
-      for (let k = 0; k < 4; k++) {
-        p.rect(sx, 2 * 16 + 12 - k * 4, 16, 4, [P.woodLt, P.wood, P.woodDark, P.nightShade][3 - k]);
-        p.hline(sx, sx + 15, 2 * 16 + 12 - k * 4, lt([P.woodLt, P.wood, P.woodDark, P.nightShade][3 - k]));
-      }
-      p.vline(sx, 2 * 16 - 8, 2 * 16 + 15, P.woodDark);
-      p.vline(sx + 1, 2 * 16 - 8, 2 * 16 + 15, P.woodLt);
+      // stairs up (12,2): six steps rising north into an opening in the wall,
+      // narrowing as they climb, stringers and a handrail with balusters
+      paintStairsUp(p, 12 * 16, 2 * 16 + 15);
       // genkan door (2,8): sliding lattice door seen from inside, light through the glass
       const dx = 2 * 16;
       const dy = 8 * 16;
@@ -575,8 +784,17 @@ registerProp('room_home_1f', () => {
       const n = env.grade.night;
       if (n < 0.05) return;
       const flick = Math.floor(env.t / 70) % 97 === 0 ? 0.4 : 1;
-      g.rect(x + 2 * 16, y + 2 * 16 - 10, 40, 2, P.glint, 0.9 * n * flick);
-      lampPool(g, x + 3 * 16 + 4, y + 3 * 16 + 8, 46, 0.22 * n * flick, '255,246,216', 0.6);
+      g.rect(x + TUBE_X + 2, y + TUBE_Y + 4, TUBE_W - 4, 1, P.glint, 0.95 * n * flick);
+      g.rect(x + TUBE_X + 1, y + TUBE_Y + 5, TUBE_W - 2, 1, P.white, 0.5 * n * flick);
+      halo(g, x + TUBE_X + TUBE_W / 2, y + TUBE_Y + 6, 6, LIGHT.tube, 0.3 * n * flick);
+    },
+    light(g, x, y, env) {
+      const n = env.grade.night;
+      if (n < 0.05) return;
+      const flick = Math.floor(env.t / 70) % 97 === 0 ? 0.4 : 1;
+      // on the worktop and the kitchen floor, and a band on the wall under it
+      drawLight(g, poolEllipse(44, 26, LIGHT.tube), x + TUBE_X + TUBE_W / 2, y + 3 * 16 + 10, 0.6 * n * flick);
+      drawLight(g, poolEllipse(30, 10, LIGHT.tube), x + TUBE_X + TUBE_W / 2, y + TUBE_Y + 10, 0.45 * n * flick);
     },
   };
 });
@@ -697,11 +915,24 @@ registerProp('obj_tv', () => {
       }
     },
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
-      // screen light on the tatami (#7FD1E8, flickers with the picture; stronger at night)
-      const f = Math.floor(env.t / 260) % 3;
+      // at night the picture itself is the brightest thing in the room
       const n = env.grade.night;
-      g.rect(x + 2, y + 18, 28, 12, P.aqua, 0.12 + f * 0.04);
-      lampPool(g, x + 16, y + 20, 30 + n * 14, (0.1 + n * 0.16) * (0.8 + f * 0.1), '127,209,232', 0.55);
+      if (n < 0.05) return;
+      const sx = x + 4;
+      const sy = y + 16 - 32 + 4;
+      const f = Math.floor(env.t / 260) % 4;
+      const cols = [P.aqua, P.blue, P.aqua, P.glow];
+      g.rect(sx, sy, 24, 13, cols[f], 0.55 * n);
+      g.rect(sx + 14, sy + 3, 8, 6, P.white, 0.6 * n);
+      halo(g, x + 16, y - 6, 16, LIGHT.tv, (0.2 + 0.06 * (f % 2)) * n);
+    },
+    light(g: Gfx, x: number, y: number, env: PropEnv) {
+      // screen light thrown on the tatami in front of it (#7FD1E8), flickering in 2 frames
+      const n = env.grade.night;
+      const k = Math.floor(env.t / 260) % 2;
+      const a = (0.12 + 0.55 * n) * (k ? 0.78 : 1);
+      drawLightAt(g, poolTrapezoid(28, 56, 34, LIGHT.tv), x + 16 - 28, y + 16, a);
+      drawLight(g, poolEllipse(22, 12, LIGHT.tv), x + 16, y + 4, a * 0.6);
     },
   } as PropArt;
 });
@@ -764,24 +995,56 @@ const KATORI = mkFrames(4, 16, 22, (p, k) => {
 registerProp('obj_katori', () => standAnim(KATORI, (env) => (env.stage === 1 ? 3 : Math.floor(env.mt / 300) % 3), { base: 16, shadow: 0, contact: 10 }));
 
 registerProp('obj_furin', () => {
-  const frames = mkFrames(3, 8, 18, (p, k) => {
-    p.vline(4, 0, 3, P.steel);
-    p.ellipse(4, 6, 3, 2.8, P.aqua);
-    p.set(3, 5, P.glint);
-    p.hline(1, 7, 8, P.blue);
+  // 風鈴 (review round 2): it hangs from the eave beam (軒桁) along the south
+  // edge of the engawa (the y=8 line), drawn in the foreground; the glass
+  // bell and its paper strip hang in front of the dark garden below it.
+  const frames = mkFrames(3, 10, 19, (p, k) => {
     const sx = [0, 1, -1][k];
-    p.vline(4, 9, 11, P.steel);
-    p.rect(3 + sx, 12, 3, 6, P.white);
-    p.set(3 + sx, 15, P.red);
-  });
+    p.vline(5, 0, 2, P.steel);
+    p.ellipse(5, 5.5, 3.2, 3, P.aqua);
+    p.hline(3, 5, 3, P.glint);
+    p.set(3, 4, P.glint);
+    p.ellipse(5, 6, 1.6, 1.2, P.white);
+    p.set(4, 5, P.red); // painted goldfish
+    p.hline(2, 8, 8, P.blue);
+    p.vline(5, 9, 11, P.steel);
+    p.set(5 + sx, 9, P.steel);
+    // the paper strip (短冊) swinging, a red stroke on it
+    p.rect(4 + sx, 12, 3, 7, P.paper);
+    p.vline(6 + sx, 12, 18, P.paperGrid);
+    p.set(5 + sx, 14, P.verm);
+    p.set(5 + sx, 15, P.verm);
+  }, (p) => finish(p, { soft: true, rim: false }));
+  const beam = (() => {
+    const p = pc(8 * 16 + 4, 6);
+    p.rect(0, 0, p.w, 4, P.wood);
+    p.hline(0, p.w - 1, 0, P.woodLt);
+    p.hline(0, p.w - 1, 1, P.goldPale);
+    p.hline(0, p.w - 1, 3, P.woodDark);
+    for (let x = 6; x < p.w; x += 9) p.set(x, 2, P.woodDark);
+    // posts' tops at the ends and the middle
+    for (const x of [0, 64, p.w - 4]) {
+      p.rect(x, 0, 4, 6, P.woodDark);
+      p.vline(x, 0, 5, P.wood);
+    }
+    // the hook for the chime
+    p.set(10 * 16 + 9 - 5 * 16 + 2, 4, P.steel);
+    finish(p, { soft: true, rim: false });
+    return p.toCanvas();
+  })();
+  // anchor (10,7): the eave line is the top of row 8 (world y 128)
+  const BY = 16 - 2;
   return {
     ox: 4,
-    oy: -26,
-    w: 8,
-    h: 18,
+    oy: BY,
+    w: 10,
+    h: 19,
     foot: 0,
     img: () => null,
-    fg: [{ ox: 4, oy: -26, img: (env: PropEnv) => frames[env.stage === 1 ? 1 : Math.floor(env.mt / 700) % 3] }],
+    fg: [
+      { ox: -5 * 16 - 2, oy: BY, img: () => beam },
+      { ox: 4, oy: BY + 4, img: (env: PropEnv) => frames[env.stage === 1 ? 1 : Math.floor(env.mt / 700) % 3] },
+    ],
   } as PropArt;
 });
 

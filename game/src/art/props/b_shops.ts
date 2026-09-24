@@ -37,6 +37,7 @@ import { dk, glassPane, lt } from './kit';
 import { acUnit } from './b_houses';
 import { fontSmallWidth, fontText, fontTextSmall, fontWidth, handGlyph, printLines, scribble, tiny } from './text';
 import { registerProp } from './registry';
+import { drawLightAt, LIGHT, poolTrapezoid } from './light';
 import type { PropEnv } from './types';
 
 function rimLeft(p: PixelCanvas, y0: number, y1: number): void {
@@ -165,19 +166,16 @@ registerBuilding({
     g.img(NOREN_MEAT.f[f], x + 48, y + b.faceY + 24);
   },
   glow(g, x, y, env, b) {
+    // the showcase glass is lit (a little by day, fully at night)
+    const a = 0.1 + 0.3 * env.grade.night;
+    g.rect(x + 2, y + b.faceY + 33, 28, 9, P.goldPale, a);
+    g.rect(x + 3, y + b.faceY + 38, 26, 3, P.horizon, a * 0.8);
+  },
+  light(g, x, y, env, b) {
     // warm showcase light spilling onto the arcade floor
-    const a = 0.1 + 0.25 * env.grade.night;
-    const ctx = g.ctx;
-    ctx.save();
-    ctx.globalAlpha = a;
-    ctx.fillStyle = P.goldPale;
-    ctx.fillRect(Math.round(x + 2), Math.round(y + b.faceY + 33), 28, 9);
-    ctx.globalAlpha = a * 0.6;
-    ctx.fillStyle = P.sky;
-    ctx.fillRect(Math.round(x), Math.round(y + b.botY), 32, 5);
-    ctx.globalAlpha = a * 0.3;
-    ctx.fillRect(Math.round(x - 2), Math.round(y + b.botY + 5), 36, 5);
-    ctx.restore();
+    const n = env.grade.night;
+    if (n < 0.05) return;
+    drawLightAt(g, poolTrapezoid(30, 44, 22, LIGHT.window), x + 16 - 22, y + b.botY - 1, 0.7 * n);
   },
 });
 
@@ -245,14 +243,10 @@ registerBuilding({
     g.img(frameAt(BAGS, env.mt), x + 18, y + b.faceY + 21);
     g.img(frameAt(FURIN, env.mt, 0.4), x + 40, y + b.faceY + 3);
   },
-  glow(g, x, y, env, b) {
-    if (env.grade.night < 0.05) return;
-    const ctx = g.ctx;
-    ctx.save();
-    ctx.globalAlpha = 0.25 * env.grade.night;
-    ctx.fillStyle = P.horizon;
-    ctx.fillRect(Math.round(x + 20), Math.round(y + b.botY), 40, 8);
-    ctx.restore();
+  light(g, x, y, env, b) {
+    const n = env.grade.night;
+    if (n < 0.05) return;
+    drawLightAt(g, poolTrapezoid(40, 56, 20, LIGHT.window), x + 40 - 28, y + b.botY - 1, 0.6 * n);
   },
 });
 
@@ -357,7 +351,7 @@ function tofuBack() {
     foot: 0,
     flat: true,
     img: () => img,
-    glow: (g: Gfx, x: number, y: number, env: PropEnv) => {
+    over: (g: Gfx, x: number, y: number, env: PropEnv) => {
       // flickering tube
       const on = env.stage >= 2 ? Math.floor(env.t / 90) % 23 !== 0 : true;
       if (!on) g.rect(x + 14, y + 8, 35, 2, P.shadeDeep);

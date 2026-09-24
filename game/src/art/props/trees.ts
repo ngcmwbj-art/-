@@ -35,7 +35,17 @@ interface Clump {
   r: number;
 }
 
-/** Canopy mass from clumps; returns frames [calm, sway, NE-lean]. */
+/**
+ * Canopy (review round 2): the mass comes from the big clumps, but what the
+ * eye reads are leaf clusters (房) of 3–5px laid over it in a jittered grid,
+ * top rows first so lower clusters overlap upper ones. Every cluster has a
+ * lit upper-left, a body and a shaded lower-right, one tone apart, and its
+ * base tone follows the light over the whole crown (upper-left bright,
+ * lower-right and underside dark). Clusters at the rim poke out of the mass
+ * so the silhouette is lumpy; the underside gets a dark band where the crown
+ * shades itself and the trunk. No noise, no checker dither inside.
+ * Returns frames [calm, sway, NE-lean].
+ */
 function canopy(
   w: number,
   h: number,
@@ -44,18 +54,38 @@ function canopy(
   seed: number,
   opts: { flowers?: string; fruit?: string; needle?: boolean; fan?: boolean } = {},
 ): { frames: PixelCanvas[]; sparkle: [number, number][] } {
+  const tones = [pal.deep, pal.dk, pal.mid, pal.lt];
+  const rnd0 = mulberry(seed + 31);
+  // leaf clusters on a jittered 4px grid (shared by all frames)
+  const cell = opts.needle ? 5 : 4;
+  const leaves: { x: number; y: number; rx: number; ry: number; v: number }[] = [];
+  for (let gy = -1; gy < h / cell + 1; gy++)
+    for (let gx = -1; gx < w / cell + 1; gx++) {
+      const jx = rnd0() * cell * 0.9;
+      const jy = rnd0() * cell * 0.9;
+      const r = 1.6 + rnd0() * 1.0;
+      leaves.push({
+        x: gx * cell + jx + (gy & 1 ? cell / 2 : 0),
+        y: gy * cell + jy,
+        rx: opts.needle ? r + 1.2 : r,
+        ry: opts.needle ? r * 0.6 : r * 0.9,
+        v: rnd0(),
+      });
+    }
+  leaves.sort((p, q) => p.y - q.y);
   const mk = (sway: number, lean: number): PixelCanvas => {
     const p = new PixelCanvas(w, h);
+    const offOf = (cy: number) => (sway && cy < h * 0.45 ? sway : 0) + (lean ? Math.round(lean * (1 - cy / h)) : 0);
+    // 1. crown mass (distance to the nearest big clump) and its light value
     const inside = new Float32Array(w * h).fill(-1);
-    // clump membership: nearest clump (normalised distance)
+    const litv = new Float32Array(w * h);
     for (let y = 0; y < h; y++)
       for (let x = 0; x < w; x++) {
         let best = 9;
         let bi = -1;
         for (let i = 0; i < clumps.length; i++) {
           const c = clumps[i];
-          const off = (sway && c.y < h * 0.45 ? sway : 0) + (lean ? Math.round(lean * (1 - c.y / h)) : 0);
-          const dx = (x + 0.5 - c.x - off) / c.r;
+          const dx = (x + 0.5 - c.x - offOf(c.y)) / c.r;
           const dy = (y + 0.5 - c.y) / (c.r * 0.9);
           const d = dx * dx + dy * dy;
           if (d < best) {
@@ -63,40 +93,77 @@ function canopy(
             bi = i;
           }
         }
-        if (best <= 1) inside[y * w + x] = bi + best * 0.999;
+        if (bi < 0) continue;
+        const c = clumps[bi];
+        const dx = (x + 0.5 - c.x - offOf(c.y)) / c.r;
+        const dy = (y + 0.5 - c.y) / (c.r * 0.9);
+        litv[y * w + x] = -dx * 0.45 - dy * 0.55 + (1 - y / h) * 0.9 - (x / w) * 0.55 - 0.1;
+        if (best <= 1) inside[y * w + x] = best;
       }
+    const tone = (x: number, y: number): number => {
+      const xi = Math.max(0, Math.min(w - 1, Math.round(x)));
+      const yi = Math.max(0, Math.min(h - 1, Math.round(y)));
+      const L = litv[yi * w + xi];
+      return L > 0.62 ? 3 : L > 0.12 ? 2 : L > -0.42 ? 1 : 0;
+    };
+    // 2. the shaded depth between clusters (one tone under the light value)
     for (let y = 0; y < h; y++)
       for (let x = 0; x < w; x++) {
         const v = inside[y * w + x];
-        if (v < 0) continue;
-        const i = Math.floor(v);
-        const c = clumps[i];
-        const off = (sway && c.y < h * 0.45 ? sway : 0) + (lean ? Math.round(lean * (1 - c.y / h)) : 0);
-        const dx = (x + 0.5 - c.x - off) / c.r;
-        const dy = (y + 0.5 - c.y) / (c.r * 0.9);
-        // light from the upper-left: per-clump shading + whole-mass gradient
-        const lit = -dx * 0.6 - dy * 0.8 + (1 - y / h) * 0.6 - (x / w) * 0.35;
-        let col = lit > 0.75 ? pal.lt : lit > 0.05 ? pal.mid : lit > -0.6 ? pal.dk : pal.deep;
-        // leaf texture: small 2px clusters
-        const hh = ihash(x >> 1, y >> 1, seed);
-        if (hh % 7 === 0) col = lit > 0.3 ? pal.lt : pal.mid;
-        else if (hh % 11 === 0) col = lit > 0.2 ? pal.mid : pal.deep;
-        if (opts.needle && (x + y * 2) % 5 === 0) col = lit > 0 ? pal.mid : pal.deep;
-        if (opts.fan && hh % 13 === 0 && lit > -0.2) col = pal.spec ?? pal.lt;
-        p.set(x, y, col);
+        if (v < 0 || v > 0.82) continue;
+        p.set(x, y, tones[Math.max(0, tone(x, y) - 1)]);
       }
-    // clump rims: a lit pixel row at the upper-left edge of each clump
-    for (let y = 1; y < h; y++)
-      for (let x = 1; x < w; x++) {
-        const v = inside[y * w + x];
-        if (v < 0) continue;
-        const up = inside[(y - 1) * w + x];
-        const left = inside[y * w + x - 1];
-        if ((up >= 0 && Math.floor(up) !== Math.floor(v) && Math.floor(up) < Math.floor(v)) || up < 0) {
-          const c = clumps[Math.floor(v)];
-          if (x < c.x + c.r * 0.3) p.set(x, y, pal.lt);
+    // 3. leaf clusters, top first
+    const drawn = new Uint8Array(w * h);
+    for (const lf of leaves) {
+      const cx = lf.x + offOf(lf.y);
+      const cy = lf.y;
+      const xi = Math.round(cx);
+      const yi = Math.round(cy);
+      if (xi < 0 || yi < 0 || xi >= w || yi >= h) continue;
+      const m = inside[yi * w + xi];
+      if (m < 0 || m > 0.92) continue;
+      const base = tone(cx, cy) - (lf.v < 0.18 ? 1 : 0);
+      for (let y = Math.floor(cy - lf.ry - 1); y <= Math.ceil(cy + lf.ry + 1); y++)
+        for (let x = Math.floor(cx - lf.rx - 1); x <= Math.ceil(cx + lf.rx + 1); x++) {
+          if (x < 0 || y < 0 || x >= w || y >= h) continue;
+          const u = (x + 0.5 - cx) / lf.rx;
+          const q = (y + 0.5 - cy) / lf.ry;
+          const d = u * u + q * q;
+          if (d > 1) continue;
+          const diag = u + q;
+          let t = base;
+          if (diag < -0.55) t = base + 1;
+          else if (diag > 0.75 || q > 0.7) t = base - 1;
+          p.set(x, y, tones[Math.max(0, Math.min(3, t))]);
+          drawn[y * w + x] = 1;
         }
-        if (left < 0 && y % 3 !== 2) p.set(x, y, P.sun); // rim light
+      // a speck of spec highlight on the brightest clusters
+      if (base >= 3 && pal.spec && lf.v > 0.72) p.set(Math.round(cx - lf.rx * 0.4), Math.round(cy - lf.ry * 0.5), pal.spec);
+      if (opts.fan && base >= 2 && lf.v > 0.8) p.set(Math.round(cx), Math.round(cy - 1), pal.spec ?? pal.lt);
+    }
+    // 4. the underside: a dark band along the bottom of the crown
+    for (let x = 0; x < w; x++) {
+      let bot = -1;
+      for (let y = h - 1; y >= 0; y--)
+        if (p.alpha(x, y)) {
+          bot = y;
+          break;
+        }
+      if (bot < 0) continue;
+      for (let k = 0; k < 3; k++) {
+        const y = bot - k;
+        if (!p.alpha(x, y)) break;
+        if (k === 2 && (x + seed) % 3) continue;
+        p.set(x, y, k === 0 ? pal.deep : pal.dk);
+      }
+    }
+    // 5. warm rim light on the sun (west) side of each row, broken
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        if (!p.alpha(x, y)) continue;
+        if (y % 3 !== 2 && tone(x, y) >= 1) p.set(x, y, P.sun);
+        break;
       }
     // flowers / fruit
     if (opts.flowers || opts.fruit) {
@@ -120,6 +187,7 @@ function canopy(
         }
       }
     }
+    void drawn;
     outline(p, { bottom: true, soft: true });
     return p;
   };

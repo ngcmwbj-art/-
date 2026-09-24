@@ -35,6 +35,8 @@ const ROWS_2F = [
 const OBJ_2F: MapObj[] = [
   { t: 'prop', prop: 'room_home_2f', x: 0, y: 0 },
   { t: 'prop', prop: 'room_home_2f_decor', x: 3, y: 3 },
+  // 天井の丸い照明（前景。ひもが揺れる）— 4.1
+  { t: 'prop', prop: 'prop_ceiling_light', x: 6, y: 4, opts: { ly: -32 } },
   T('obj_bed', 1, 2, `@narr
 タオルケットが ねじれて、
 なにかの 生き物みたいに
@@ -126,7 +128,7 @@ const ROWS_1F = [
 
 const OBJ_1F: MapObj[] = [
   { t: 'prop', prop: 'room_home_1f', x: 0, y: 0 },
-  { t: 'prop', prop: 'prop_ceiling_light', x: 9, y: 4 },
+  { t: 'prop', prop: 'prop_ceiling_light', x: 9, y: 4, opts: { ly: -28 } },
   T('obj_cabbage', 1, 2, `@narr
 キャベツの 千切りが 山に
 なっている。{w=300}コロッケを

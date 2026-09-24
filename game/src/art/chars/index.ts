@@ -42,6 +42,12 @@
 //    sprite is repainted in place, so held CharSprite objects update.
 //  - Enemy 'enemy_ojigi_jihanki' rests in a 30° bow; 'upright' / look_up
 //    straighten it, anim 'bow' goes 30° → 90° → 30°.
+//  - 'enemy_semi_final' is 24×14 (belly up, legs in the air; walk = hop,
+//    anims 'twitch' / 'hop', held pose 'dead'); 'restored_enemy_semi_final'
+//    is a 12×12 cicada seen from behind on a trunk (anim 'fly').
+//  - 'enemy_momisugi' (24×32) faces the viewer from the front-left, shows
+//    the recliner profile from the side and its vented back from behind;
+//    anim 'beckon' exists for every facing.
 //
 // The registry and helpers live in registry.ts; this module re-exports them
 // and imports every content module so a single import of 'art/chars'

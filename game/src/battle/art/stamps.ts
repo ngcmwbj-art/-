@@ -143,14 +143,15 @@ function cached(key: string, f: () => HTMLCanvasElement): HTMLCanvasElement {
 }
 
 /**
- * Hand-drawn micro glyphs for the small みました seals (decals, the defeat
- * seal): scaling the 16px font down that far turns the kana into mush.
+ * Hand-drawn glyphs for the small みました seals (decals, the defeat seal):
+ * scaling the 16px font down that far turns the kana into mush. MICRO is
+ * 7×8 (defeat seal, 42+ wide), NANO 5×5 (the 28×14 decals).
  */
 const MICRO: Record<string, string[]> = {
-  み: ['.###..', '...#..', '..#..#', '.#####', '#.#..#', '#.#..#', '.#...#'],
-  ま: ['..#...', '######', '..#...', '######', '..#...', '.###..', '#.#.##'],
-  し: ['#.....', '#.....', '#.....', '#.....', '#....#', '#...#.', '.###..'],
-  た: ['.#....', '####..', '.#....', '.#.###', '#.....', '#.#...', '#..###'],
+  み: ['.####..', '....#..', '...#..#', '..#####', '.#.#..#', '#..#..#', '#.#...#', '.#...#.'],
+  ま: ['...#...', '#######', '...#...', '#######', '...#...', '.####..', '#..#.#.', '.##...#'],
+  し: ['.#.....', '.#.....', '.#.....', '.#.....', '.#.....', '.#....#', '.#...#.', '..###..'],
+  た: ['.#.....', '#####..', '.#.....', '.#.####', '.#.....', '#..#...', '#..#...', '#...###'],
 };
 const NANO: Record<string, string[]> = {
   み: ['###.', '..#.', '.####', '#.#.#', '.#..#'],
@@ -159,57 +160,88 @@ const NANO: Record<string, string[]> = {
   た: ['#...', '###.', '#.##', '#...', '#.##'],
 };
 
-/** Mask of `text` in micro glyphs if every char has one and it fits (w × h). */
-function microMask(text: string, maxW: number, maxH: number): Grid | null {
+/** Mask of `text` in one of the hand-drawn glyph sets (null if a char is missing). */
+function glyphMask(text: string, font: Record<string, string[]>, gw: number, gh: number, gap: number): Grid | null {
   const chars = [...text];
-  for (const [font, gw, gh, gap] of [[MICRO, 6, 7, 1], [NANO, 5, 5, 0]] as [Record<string, string[]>, number, number, number][]) {
-    if (!chars.every((c) => font[c])) return null;
-    const W = chars.length * gw + (chars.length - 1) * gap;
-    if (W > maxW || gh > maxH) continue;
-    const g = grid(W, gh);
-    chars.forEach((c, i) =>
-      font[c].forEach((row, y) => [...row].forEach((ch, x) => ch === '#' && x < gw && (g.d[y * W + i * (gw + gap) + x] = 1))),
-    );
-    return g;
-  }
-  return null;
+  if (!chars.every((c) => font[c])) return null;
+  const W = chars.length * gw + (chars.length - 1) * gap;
+  const g = grid(W, gh);
+  chars.forEach((c, i) => font[c].forEach((row, y) => [...row].forEach((ch, x) => ch === '#' && x < gw && (g.d[y * W + i * (gw + gap) + x] = 1))));
+  return g;
 }
 
 /**
- * Oval seal with text (みました / おかえりなさい): double ellipse frame and
- * text in vermilion. `worn` 0..1 for かすれ.
+ * Oval seal with text (みました / おかえりなさい): an ellipse frame (doubled
+ * on big seals) and the text in vermilion. With `fit` (default) the text
+ * gets its own legible glyphs — hand-drawn 7×8 / 5×5 kana on small seals,
+ * the 16px font on big ones — and the oval widens (up to +12px) until the
+ * text box clears the innermost ring: the words never run into the frame.
+ * `worn` 0..1 for かすれ; `halo` backs it with paper inside and a 1px paper
+ * rim outside, so it reads on any picture.
  */
-export function ovalStamp(text: string, w: number, h: number, worn = 0, seed = 1, halo = false): HTMLCanvasElement {
-  return cached(`oval:${text}:${w}x${h}:${worn}:${seed}:${halo}`, () => {
-    const g = grid(w, h);
-    const th = w >= 60 ? 3 : 2;
-    ellipseRing(g, w / 2, h / 2, w / 2, h / 2, th);
-    if (w >= 40) ellipseRing(g, w / 2, h / 2, w / 2 - th - 1.5, h / 2 - th - 1.5, 1);
-    // text scaled to fit inside (tiny seals use the hand-drawn micro glyphs)
-    const inner = w - th * 2 - (w >= 40 ? 10 : 6);
-    const s = Math.min(1, inner / measure(text), (h - th * 2 - 4) / 16);
-    const micro = s < 0.62 ? microMask(text, inner + 2, h - th * 2 - 2) : null;
-    const tm = micro ?? textMask(text, s, s < 0.7 ? 0.28 : 0.4);
-    blit(g, tm, Math.round((w - tm.w) / 2), Math.round((h - tm.h) / 2), 1);
+export function ovalStamp(text: string, w: number, h: number, worn = 0, seed = 1, halo = false, fit = true): HTMLCanvasElement {
+  return cached(`oval2:${text}:${w}x${h}:${worn}:${seed}:${halo}:${fit}`, () => {
+    const th = h >= 30 ? 3 : 2;
+    const inner = h >= 44 || (!fit && w >= 40);
+    const innerOff = inner ? 2.5 : 0;
+    const ry = h / 2 - th - innerOff - 0.5;
+    const tight = h <= 16;
+    const widthFor = (m: Grid): number => {
+      const a = m.w / 2 + (tight ? 0 : 1.5);
+      const b = m.h / 2 + (tight ? 0 : 1);
+      if (b >= ry) return 9999;
+      const need = a / Math.sqrt(1 - (b * b) / (ry * ry));
+      return Math.ceil(need + th + innerOff + 0.5) * 2;
+    };
+    let tm: Grid;
+    let W = w;
+    if (fit) {
+      const cands: Grid[] = [];
+      const m1 = glyphMask(text, MICRO, 7, 8, 1);
+      const m2 = glyphMask(text, NANO, 5, 5, 0);
+      if (h >= 30) cands.push(textMask(text, Math.min(1, (h - th * 2 - 6) / 16), 0.4));
+      if (m1) cands.push(m1);
+      if (m2) cands.push(m2);
+      if (!cands.length) cands.push(textMask(text, Math.min(1, (h - th * 2 - 4) / 16), 0.3));
+      const sized = cands.map((m) => ({ m, W: widthFor(m) }));
+      const ok = sized.find((c) => c.W <= w + 12) ?? sized.reduce((p, c) => (c.W < p.W ? c : p));
+      tm = ok.m;
+      W = Math.max(w, Math.min(ok.W, w + 16));
+    } else {
+      const innerW = w - th * 2 - (w >= 40 ? 10 : 6);
+      const sc = Math.min(1, innerW / measure(text), (h - th * 2 - 4) / 16);
+      tm = textMask(text, sc, sc < 0.7 ? 0.28 : 0.4);
+    }
+    const g = grid(W, h);
+    ellipseRing(g, W / 2, h / 2, W / 2, h / 2, th);
+    if (inner) ellipseRing(g, W / 2, h / 2, W / 2 - th - 1.5, h / 2 - th - 1.5, 1);
+    blit(g, tm, Math.round((W - tm.w) / 2), Math.round((h - tm.h) / 2), 1);
     if (worn) wear(g, worn, seed);
     inkTone(g, seed);
     if (halo) {
-      // 1px paper-coloured halo so the seal reads on any background
+      // paper inside the oval (with a few fibres), then a 1px paper rim outside
+      for (let y = 0; y < h; y++)
+        for (let x = 0; x < W; x++) {
+          if (g.d[y * W + x]) continue;
+          const dx = (x + 0.5 - W / 2) / (W / 2 - 0.5);
+          const dy = (y + 0.5 - h / 2) / (h / 2 - 0.5);
+          if (dx * dx + dy * dy <= 1) g.d[y * W + x] = hash2(x, y, seed + 70) < 0.08 ? 5 : 4;
+        }
       const src = g.d.slice();
       for (let y = 0; y < h; y++)
-        for (let x = 0; x < w; x++) {
-          if (src[y * w + x]) continue;
-          let near = false;
+        for (let x = 0; x < W; x++) {
+          if (src[y * W + x]) continue;
           for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
             const xx = x + dx;
             const yy = y + dy;
-            if (xx >= 0 && yy >= 0 && xx < w && yy < h && src[yy * w + xx]) near = true;
+            if (xx >= 0 && yy >= 0 && xx < W && yy < h && src[yy * W + xx] && src[yy * W + xx] < 4) {
+              g.d[y * W + x] = 4;
+              break;
+            }
           }
-          if (near) g.d[y * w + x] = 4;
         }
-      // fill the inside of the oval with translucent paper
     }
-    return toCanvas(g, [SHU, SHU_D, SHU_L, PAPER]);
+    return toCanvas(g, [SHU, SHU_D, SHU_L, PAPER, '#F1E4C4']);
   });
 }
 

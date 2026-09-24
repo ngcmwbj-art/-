@@ -158,17 +158,41 @@ if (!sceneNames().includes('title')) registerScene('title', (p) => makeField(p))
 
 // ---------------------------------------------------------------- debug commands
 
-/** Nearest tile (spiral search) where the player's feet box is free. */
+/** Is a character standing on tile (tx, ty) hidden behind something drawn in front of it? */
+function hiddenAt(f: FieldScene, tx: number, ty: number): boolean {
+  const x0 = tx * 16 + 2;
+  const x1 = tx * 16 + 14;
+  const y0 = ty * 16 - 8;
+  const y1 = ty * 16 + 16;
+  for (const p of f.props) {
+    const a = p.art;
+    if (!p.present || a.flat) continue;
+    if (p.y + a.foot <= ty * 16 + 16) continue;
+    if (p.x + a.ox < x1 && p.x + a.ox + a.w > x0 && p.y + a.oy < y1 && p.y + a.oy + a.h > y0) return true;
+  }
+  for (const s of f.structures) {
+    if (s.foot <= ty * 16 + 16) continue;
+    const sx = s.tx * 16 + s.art.ox;
+    const sy = s.ty * 16 + s.art.oy;
+    if (sx < x1 && sx + s.art.img.width > x0 && sy < y1 && sy + s.art.img.height > y0) return true;
+  }
+  return false;
+}
+
+/** Nearest tile (spiral search) where the player's feet box is free and nothing stands in front of them. */
 function nearestFree(f: FieldScene, x: number, y: number): [number, number] {
+  let fallback: [number, number] | null = null;
   for (let r = 0; r < 8; r++)
     for (let dy = -r; dy <= r; dy++)
       for (let dx = -r; dx <= r; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
         const tx = x + dx;
         const ty = y + dy;
-        if (f.free(f.player, tx * 16 + 8, ty * 16 + 16)) return [tx, ty];
+        if (!f.free(f.player, tx * 16 + 8, ty * 16 + 16)) continue;
+        if (!hiddenAt(f, tx, ty)) return [tx, ty];
+        fallback ??= [tx, ty];
       }
-  return [x, y];
+  return fallback ?? [x, y];
 }
 
 registerDebug('warp', (map: string, x: number, y: number, dir?: Dir) => {

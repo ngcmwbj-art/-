@@ -13,6 +13,7 @@ import { fbm, h01, ihash, valueNoise } from '../tiles/noise';
 import { castRight, dk, eaveShadow, glassPane, lt, shadeRect, sunWash } from './kit';
 import { registerProp } from './registry';
 import type { PropArt, PropEnv } from './types';
+import { drawLight, drawLightAt, LIGHT, poolEllipse, poolTrapezoid } from './light';
 
 export interface Bld {
   /** Width / roof rows / facade rows in tiles. */
@@ -522,6 +523,8 @@ export interface BuildingDef {
   stage?(b: Bld, stage: number): ((p: PixelCanvas) => void) | null;
   over?(g: Gfx, x: number, y: number, env: PropEnv, b: Bld): void;
   glow?(g: Gfx, x: number, y: number, env: PropEnv, b: Bld): void;
+  /** Light cast on the surroundings (light map, see PropArt.light). */
+  light?(g: Gfx, x: number, y: number, env: PropEnv, b: Bld): void;
   /** Width in px of the ground shadow band east of the building (0 = none). */
   band?: number;
 }
@@ -567,6 +570,10 @@ function buildingArt(def: BuildingDef): PropArt {
       if (env.grade.night > 0.05) nightWindows(g, x, y - b.top, b, env.grade.night);
       def.glow?.(g, x, y - b.top, env, b);
     },
+    light: (g, x, y, env) => {
+      if (env.grade.night > 0.05) windowLight(g, x, y - b.top, b, env.grade.night);
+      def.light?.(g, x, y - b.top, env, b);
+    },
     shadowFn: band
       ? (ctx, x, y, dir, len) => {
           if (len <= 0.01) return;
@@ -587,33 +594,43 @@ function buildingArt(def: BuildingDef): PropArt {
   };
 }
 
-/** Warm window light at night (7.4: #F6D98A α30%, emissive). */
+/**
+ * Warm window light at night (7.4: #F6D98A, emissive): the lit glass itself,
+ * painted in the building's depth slot so whatever stands in front of the
+ * window (a gacha machine, a sign) cuts it out (review round 2).
+ */
 function nightWindows(g: Gfx, x: number, y: number, b: Bld, night: number): void {
   const ctx = g.ctx;
   ctx.save();
   for (const [wx, wy, ww, wh] of b.lights) {
-    ctx.globalAlpha = 0.55 * night;
+    const X = Math.round(x + wx);
+    const Y = Math.round(y + wy);
+    ctx.globalAlpha = 0.5 * night;
     ctx.fillStyle = P.goldPale;
-    ctx.fillRect(Math.round(x + wx), Math.round(y + wy), ww, wh);
-    ctx.globalAlpha = 0.18 * night;
+    ctx.fillRect(X, Y, ww, wh);
+    // brighter lower half (the lamp inside hangs low), a 1px warm rim
+    ctx.globalAlpha = 0.25 * night;
     ctx.fillStyle = P.horizon;
-    ctx.fillRect(Math.round(x + wx - 2), Math.round(y + wy - 1), ww + 4, wh + 3);
-    // ground-floor windows throw a warm patch onto the street (7.4: #F6D98A α30%)
-    if (b.botY - (wy + wh) < 20) {
-      ctx.globalAlpha = 0.3 * night;
-      ctx.fillStyle = P.goldPale;
-      const gx = Math.round(x + wx);
-      const gy = Math.round(y + b.botY);
-      ctx.beginPath();
-      ctx.moveTo(gx, gy);
-      ctx.lineTo(gx + ww, gy);
-      ctx.lineTo(gx + ww + 4, gy + 10);
-      ctx.lineTo(gx - 4, gy + 10);
-      ctx.closePath();
-      ctx.fill();
-    }
+    ctx.fillRect(X + 1, Y + Math.floor(wh / 2), ww - 2, Math.ceil(wh / 2) - 1);
+    ctx.globalAlpha = 0.14 * night;
+    ctx.fillStyle = P.sky;
+    ctx.fillRect(X - 1, Y - 1, ww + 2, 1);
+    ctx.fillRect(X - 1, Y + wh, ww + 2, 1);
+    ctx.fillRect(X - 1, Y, 1, wh);
+    ctx.fillRect(X + ww, Y, 1, wh);
   }
   ctx.restore();
+}
+
+/** Ground-floor windows throw a warm trapezoid onto the street (light map, 7.4). */
+function windowLight(g: Gfx, x: number, y: number, b: Bld, night: number): void {
+  for (const [wx, wy, ww, wh] of b.lights) {
+    if (b.botY - (wy + wh) >= 20) continue;
+    const img = poolTrapezoid(ww + 2, ww + 14, 18, LIGHT.window);
+    drawLightAt(g, img, x + wx + ww / 2 - img.width / 2, y + b.botY - 1, 0.55 * night);
+    // the window's own glow on the wall round it
+    drawLight(g, poolEllipse(ww / 2 + 6, wh / 2 + 5, LIGHT.window), x + wx + ww / 2, y + wy + wh / 2, 0.3 * night);
+  }
 }
 
 // ---------------------------------------------------------------- small animated parts

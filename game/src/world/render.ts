@@ -25,6 +25,29 @@ interface Drawable {
   foot: number;
   x: number;
   draw(): void;
+  /** What draw() put on screen last (for glow cut-outs and silhouettes). */
+  img?: HTMLCanvasElement | null;
+  ix?: number;
+  iy?: number;
+  alpha?: number;
+  /** Characters never cast silhouettes over each other. */
+  actor?: Actor;
+  /** Emissive layer of this drawable (painted right after it, cut by what comes later). */
+  glow?: () => void;
+  gbox?: [number, number, number, number];
+}
+
+/** Per-character state of the silhouette pass (hidden parts drawn as #2A2440 α50%). */
+interface Seer {
+  a: Actor;
+  img: HTMLCanvasElement;
+  x: number;
+  y: number;
+  /** Occluder pixels drawn after the character, clipped to its frame. */
+  mask: HTMLCanvasElement;
+  mctx: CanvasRenderingContext2D;
+  used: boolean;
+  drawn: boolean;
 }
 
 export class Renderer {
@@ -48,6 +71,24 @@ export class Renderer {
   wires: WireSet | null = null;
   /** Canopy fade per prop instance. */
   private fade = new WeakMap<object, number>();
+  /** X-ray hole opening (0..1) per prop instance, and whether it is open (hysteresis). */
+  private hole = new WeakMap<object, number>();
+  private holeOn = new WeakMap<object, boolean>();
+  private holeAt = new WeakMap<object, [number, number][]>();
+  /** Emissive buffer: glows painted in depth order, cut by what stands in front. */
+  private ec: HTMLCanvasElement;
+  private ectx: CanvasRenderingContext2D;
+  private eg: Gfx;
+  private glowBox: [number, number, number, number] | null = null;
+  /** Light map (grade multiply colour + additive lights). */
+  private lc: HTMLCanvasElement;
+  private lctx: CanvasRenderingContext2D;
+  private lg: Gfx;
+  /** Scratch canvas for props drawn with an x-ray hole. */
+  private xc: HTMLCanvasElement;
+  private xctx: CanvasRenderingContext2D;
+  private xg: Gfx;
+  private seerMasks: [HTMLCanvasElement, CanvasRenderingContext2D][] = [];
 
   constructor(private f: FieldScene) {
     [this.wc, this.wctx] = makeCanvas(W, H);
@@ -58,9 +99,43 @@ export class Renderer {
     this.sctx.imageSmoothingEnabled = false;
     [this.stripeLight, this.stripeShade] = makeStripes(false);
     [this.stripeLight2, this.stripeShade2] = makeStripes(true);
+    [this.ec, this.ectx] = makeCanvas(W, H);
+    this.eg = new Gfx(this.ectx, W, H);
+    [this.lc, this.lctx] = makeCanvas(W, H);
+    this.lg = new Gfx(this.lctx, W, H);
+    this.xc = document.createElement('canvas');
+    this.xc.width = 64;
+    this.xc.height = 96;
+    // read back every frame while a character is behind an x-ray prop
+    this.xctx = this.xc.getContext('2d', { willReadFrequently: true })!;
+    this.xctx.imageSmoothingEnabled = false;
+    this.xg = new Gfx(this.xctx, 64, 96);
+    for (let i = 0; i < 2; i++) this.seerMasks.push(makeCanvas(48, 64));
+  }
+
+  /** Does this map have props that cast light (so an indoor night can be dark round them)? */
+  private mapLit = false;
+
+  private clipPath: Path2D | null = null;
+
+  /** World-space path of every cell that is not void (indoor light clip). */
+  private roomClip(): Path2D {
+    if (this.clipPath) return this.clipPath;
+    const m = this.f.map;
+    const path = new Path2D();
+    for (let ty = 0; ty < m.h; ty++)
+      for (let tx = 0; tx < m.w; tx++) {
+        const c = cellAt(m, tx, ty);
+        if (c.tag === 'void' || (c.ground === 'void' && !c.tag)) continue;
+        path.rect(tx * 16, ty * 16, 16, 16);
+      }
+    this.clipPath = path;
+    return path;
   }
 
   onMapChange(): void {
+    this.clipPath = null;
+    this.mapLit = this.f.props.some((p) => !!p.art.light);
     this.waterMasks.clear();
     this.wires = this.f.map.def.wires ? { lines: this.f.map.def.wires, map: this.f.map.id } : null;
   }
@@ -112,16 +187,18 @@ export class Renderer {
     if (f.map.id === 'map_town' && flag('flag_stage') === 0 && f.grade.toMall < 0.5) {
       const y0 = Math.max(0, 32 * 16 - cy);
       const y1 = Math.min(H, 35 * 16 - cy);
-      for (let yy = y0; yy < y1; yy++) {
+      // only over the road (x < 56): the track and its rails stay straight
+      const hw = Math.max(0, Math.min(W, 56 * 16 - cx));
+      for (let yy = y0; yy < y1 && hw > 1; yy++) {
         const dx = Math.round(Math.sin(((yy + cy) / 5 + f.t / 3000 * Math.PI * 2)) * 0.7);
-        if (dx) ctx.drawImage(this.wc, 0, yy, W, 1, dx, yy, W, 1);
+        if (dx) ctx.drawImage(this.wc, 0, yy, hw - 1, 1, dx, yy, hw - 1, 1);
       }
     }
     // 2. water with the sky's reflection
     this.drawWaterLayer(cx, cy);
     // 2b. living ground (swaying weeds, flowers, ants)
     drawGroundLife(wg, f.map, f.ground.src, cx, cy, f.mt, f.grade);
-    // 3. flat decals
+    // 3. flat decals (their glows start the emissive buffer)
     const envCache = new Map<PropInst, PropEnv>();
     const envOf = (p: PropInst) => {
       let e = envCache.get(p);
@@ -132,6 +209,18 @@ export class Renderer {
       return e;
     };
     const visible = (x: number, y: number, w: number, h: number) => x + w >= cx - 16 && y + h >= cy - 16 && x <= cx + W + 16 && y <= cy + H + 16;
+    const ectx = this.ectx;
+    ectx.globalAlpha = 1;
+    ectx.globalCompositeOperation = 'source-over';
+    ectx.clearRect(0, 0, W, H);
+    this.glowBox = null;
+    const paintGlow = (p: PropInst) => {
+      const a = p.art;
+      ectx.save();
+      a.glow!(this.eg, p.x - cx, p.y - cy, envOf(p));
+      ectx.restore();
+      this.addGlowBox(p.x + a.ox - cx - 40, p.y + a.oy - cy - 40, a.w + 80, a.h + 80);
+    };
     for (const p of f.props) {
       if (!p.present || !p.art.flat) continue;
       const a = p.art;
@@ -142,6 +231,7 @@ export class Renderer {
         if (a.glass) this.drawGlass(a.glass, p.x + a.ox - cx, p.y + a.oy - cy, 0.7);
       }
       a.over?.(wg, p.x - cx, p.y - cy, envOf(p));
+      if (a.glow && !a.glowFg) paintGlow(p);
     }
     fxDraw(f, wg, cx, cy, 'ground');
 
@@ -150,45 +240,126 @@ export class Renderer {
 
     // 5. y-sorted
     const list: Drawable[] = [];
+    const ne = flag('flag_stage') === 2;
     for (const s of f.structures) {
       const x = s.tx * 16 + s.art.ox;
       const y = s.ty * 16 + s.art.oy;
-      if (!visible(x, y, s.art.img.width, s.art.img.height)) continue;
-      list.push({ foot: s.foot, x, draw: () => wg.img(s.art.img, x - cx, y - cy) });
+      const simg = ne && s.art.ne ? s.art.ne : s.art.img;
+      if (!visible(x, y, simg.width, simg.height)) continue;
+      const d: Drawable = { foot: s.foot, x, img: simg, ix: x - cx, iy: y - cy, draw: () => wg.img(simg, x - cx, y - cy) };
+      list.push(d);
     }
-    // characters that tall props fade for (x-ray)
+    // characters that tall props open an x-ray hole for, and that get silhouettes
     const seers: Actor[] = f.follower ? [f.player, f.follower] : [f.player];
     for (const p of f.props) {
       if (!p.present || p.art.flat) continue;
       const a = p.art;
       if (!visible(p.x + a.ox, p.y + a.oy, a.w, a.h)) continue;
-      const alpha = a.xray !== undefined ? this.xrayAlpha(p, seers) : 1;
-      list.push({
+      const d: Drawable = {
         foot: p.y + a.foot,
         x: p.x,
         draw: () => {
           const e = envOf(p);
           const img = a.img(e);
-          if (alpha < 1) this.wctx.globalAlpha = alpha;
+          const px = p.x + a.ox - cx;
+          const py = p.y + a.oy - cy;
+          // x-ray props with a character close behind: the image and its over()
+          // parts (flags, lanterns) are composed first so the hole cuts them all
+          if (img && xrayOf(a) !== undefined && this.seerNear(px - XM, py - XM, img.width + XM * 2, img.height + XM * 2, seers, cx, cy)) {
+            const comp = this.composeProp(p, img, e, px - XM, py - XM, cx, cy);
+            this.xrayHole(p, comp, px - XM, py - XM, seers, cx, cy);
+            wg.img(comp, px - XM, py - XM);
+            d.img = comp;
+            d.ix = px - XM;
+            d.iy = py - XM;
+            return;
+          }
           if (img) {
-            wg.img(img, p.x + a.ox - cx, p.y + a.oy - cy);
-            if (a.glass && alpha >= 1) this.drawGlass(a.glass, p.x + a.ox - cx, p.y + a.oy - cy);
+            wg.img(img, px, py);
+            if (a.glass) this.drawGlass(a.glass, px, py);
           }
           a.over?.(wg, p.x - cx, p.y - cy, e);
-          this.wctx.globalAlpha = 1;
+          d.img = img;
+          d.ix = px;
+          d.iy = py;
         },
-      });
+      };
+      if (a.glow && !a.glowFg) {
+        d.glow = () => paintGlow(p);
+      }
+      list.push(d);
     }
     const actors: Actor[] = [...f.actors, f.player];
     if (f.follower) actors.push(f.follower);
     for (const a of actors) {
       if (!a.visible) continue;
       if (!visible(a.x - 24, a.y - 48, 48, 56)) continue;
-      list.push({ foot: a.y + Math.max(0, a.oy) + (a.kind === 'restored' ? -2 : 0), x: a.x, draw: () => a.draw(wg, cx, cy, f.t) });
+      const d: Drawable = {
+        foot: a.y + Math.max(0, a.oy) + (a.kind === 'restored' ? -2 : 0),
+        x: a.x,
+        actor: a,
+        draw: () => {
+          a.draw(wg, cx, cy, f.t);
+          if (a.drawFn) return;
+          const img = a.frame();
+          const [ix, iy] = a.drawPos(img);
+          d.img = img;
+          d.ix = ix - cx;
+          d.iy = iy - cy;
+          d.alpha = a.alpha;
+        },
+      };
+      list.push(d);
     }
     list.sort((a, b) => a.foot - b.foot || a.x - b.x);
-    for (const d of list) d.draw();
+    // silhouettes: each seer collects the pixels of what is drawn in front of it
+    const sil: Seer[] = [];
+    for (let i = 0; i < seers.length; i++) {
+      const s = seers[i];
+      if (!s.visible || s.drawFn || !visible(s.x - 24, s.y - 48, 48, 56)) continue;
+      const img = s.frame();
+      const [ix, iy] = s.drawPos(img);
+      const [mask, mctx] = this.seerMasks[i];
+      if (mask.width < img.width || mask.height < img.height) {
+        mask.width = Math.max(mask.width, img.width);
+        mask.height = Math.max(mask.height, img.height);
+      }
+      mctx.globalCompositeOperation = 'source-over';
+      mctx.clearRect(0, 0, mask.width, mask.height);
+      sil.push({ a: s, img, x: ix - cx, y: iy - cy, mask, mctx, used: false, drawn: false });
+    }
+    for (const d of list) {
+      d.draw();
+      if (d.img) {
+        const w = d.img.width;
+        const h = d.img.height;
+        const x = d.ix!;
+        const y = d.iy!;
+        // cut the glows behind this drawable
+        const gb = this.glowBox;
+        if (gb && x < gb[2] && y < gb[3] && x + w > gb[0] && y + h > gb[1]) {
+          ectx.globalCompositeOperation = 'destination-out';
+          ectx.globalAlpha = d.alpha ?? 1;
+          ectx.drawImage(d.img, x, y);
+          ectx.globalAlpha = 1;
+          ectx.globalCompositeOperation = 'source-over';
+        }
+        // occluders of the seers already drawn
+        if (!d.actor)
+          for (const s of sil) {
+            if (!s.drawn) continue;
+            if (x >= s.x + s.img.width || y >= s.y + s.img.height || x + w <= s.x || y + h <= s.y) continue;
+            s.mctx.globalAlpha = d.alpha ?? 1;
+            s.mctx.drawImage(d.img, x - s.x, y - s.y);
+            s.mctx.globalAlpha = 1;
+            s.used = true;
+          }
+        else for (const s of sil) if (s.a === d.actor) s.drawn = true;
+      }
+      if (d.glow) d.glow();
+    }
     fxDraw(f, wg, cx, cy, 'sorted');
+    for (const s of sil) if (s.used) this.drawSilhouette(s);
 
     // 6. foreground
     for (const p of f.props) {
@@ -212,7 +383,23 @@ export class Renderer {
           alpha = next;
         }
         wg.img(img, x - cx, y - cy, alpha < 1 ? { alpha } : {});
+        // canopies and overhead parts hide the glows behind them
+        const gb = this.glowBox;
+        if (gb && x - cx < gb[2] && y - cy < gb[3] && x - cx + img.width > gb[0] && y - cy + img.height > gb[1]) {
+          ectx.globalCompositeOperation = 'destination-out';
+          ectx.globalAlpha = alpha;
+          ectx.drawImage(img, Math.round(x - cx), Math.round(y - cy));
+          ectx.globalAlpha = 1;
+          ectx.globalCompositeOperation = 'source-over';
+        }
       }
+    }
+    // glows of foreground parts (lanterns under an overhead sign)
+    for (const p of f.props) {
+      if (!p.present || !p.art.glow || !p.art.glowFg) continue;
+      const a = p.art;
+      if (!visible(p.x + a.ox - 40, p.y + a.oy - 80, a.w + 80, a.h + 120)) continue;
+      paintGlow(p);
     }
     if (this.wires) {
       // characters under a wire get that part of the wire faded (never hidden by it)
@@ -230,15 +417,15 @@ export class Renderer {
     // 7. arcade stripes
     if (f.map.id === 'map_town') this.drawArcadeStripes(cx, cy);
 
-    // 8. grading
-    this.grade();
+    // 8. grading × light map (lamp pools, window light, the TV...)
+    this.grade(cx, cy, visible, envOf);
 
-    // 9. emissive
-    for (const p of f.props) {
-      if (!p.present || !p.art.glow) continue;
-      const a = p.art;
-      if (!visible(p.x + a.ox - 40, p.y + a.oy - 40, a.w + 80, a.h + 80)) continue;
-      a.glow!(wg, p.x - cx, p.y - cy, envOf(p));
+    // 9. emissive (lamps, lit glass, neon), already cut by whatever stands in
+    // front; screen-blended, so light never darkens what is under it
+    if (this.glowBox) {
+      ctx.globalCompositeOperation = 'screen';
+      ctx.drawImage(this.ec, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
     }
     fxDraw(f, wg, cx, cy, 'glow');
 
@@ -262,28 +449,126 @@ export class Renderer {
     hud.draw(g, f);
   }
 
-  /** Current x-ray alpha of a tall prop (fades towards art.xray in 0.15s). */
-  private xrayAlpha(p: PropInst, seers: Actor[]): number {
+  private addGlowBox(x: number, y: number, w: number, h: number): void {
+    const b = this.glowBox;
+    if (!b) this.glowBox = [x, y, x + w, y + h];
+    else {
+      b[0] = Math.min(b[0], x);
+      b[1] = Math.min(b[1], y);
+      b[2] = Math.max(b[2], x + w);
+      b[3] = Math.max(b[3], y + h);
+    }
+  }
+
+  /** Is any seer's sprite inside this screen rect? */
+  private seerNear(x: number, y: number, w: number, h: number, seers: Actor[], cx: number, cy: number): boolean {
+    for (const s of seers) {
+      if (!s.visible || s.drawFn) continue;
+      const si = s.frame();
+      const [ix, iy] = s.drawPos(si);
+      if (ix - cx < x + w && iy - cy < y + h && ix - cx + si.width > x && iy - cy + si.height > y) return true;
+    }
+    return false;
+  }
+
+  /** The prop's image plus its over() parts in the scratch canvas (origin = image top-left − XM). */
+  private composeProp(p: PropInst, img: HTMLCanvasElement, e: PropEnv, ox: number, oy: number, cx: number, cy: number): HTMLCanvasElement {
+    const a = p.art;
+    const w = img.width + XM * 2;
+    const h = img.height + XM * 2;
+    if (this.xc.width !== w || this.xc.height !== h) {
+      this.xc.width = w;
+      this.xc.height = h;
+      this.xctx.imageSmoothingEnabled = false;
+      this.xg = new Gfx(this.xctx, w, h);
+    }
+    const x = this.xctx;
+    x.globalCompositeOperation = 'source-over';
+    x.globalAlpha = 1;
+    x.clearRect(0, 0, w, h);
+    x.drawImage(img, XM, XM);
+    if (a.over) {
+      // over() gets its usual screen coordinates (hooks such as the curve
+      // mirror remember them); the scratch canvas is translated to match
+      x.save();
+      x.translate(-ox, -oy);
+      a.over(this.xg, p.x - cx, p.y - cy, e);
+      x.restore();
+    }
+    return this.xc;
+  }
+
+  /**
+   * X-ray (review round 2): when at least 30% of a seer's pixels are hidden
+   * by the composed prop (and the seer stands behind it), open a see-through
+   * hole round the character in 0.15s instead of fading the whole prop.
+   * Punches into `comp` (the scratch canvas) in place.
+   */
+  private xrayHole(p: PropInst, comp: HTMLCanvasElement, px: number, py: number, seers: Actor[], cx: number, cy: number): void {
     const a = p.art;
     const foot = p.y + a.foot;
-    let behind = false;
+    const pm = liveMask(this.xctx, comp.width, comp.height);
+    const holes: [number, number][] = [];
+    let best = 0;
     for (const s of seers) {
-      if (!s.visible || s.y > foot) continue;
-      const img = s.frame();
-      const [ix, iy] = s.drawPos(img);
-      const x0 = p.x + a.ox;
-      const y0 = p.y + a.oy;
-      if (ix + img.width - 3 > x0 && ix + 3 < x0 + a.w && iy + img.height > y0 && iy + 2 < y0 + a.h) {
-        behind = true;
-        break;
+      if (!s.visible || s.drawFn || s.y + Math.max(0, s.oy) > foot) continue;
+      const si = s.frame();
+      const [ix, iy] = s.drawPos(si);
+      const sx = ix - cx;
+      const sy = iy - cy;
+      const x0 = Math.max(px, sx);
+      const y0 = Math.max(py, sy);
+      const x1 = Math.min(px + comp.width, sx + si.width);
+      const y1 = Math.min(py + comp.height, sy + si.height);
+      if (x1 <= x0 || y1 <= y0) continue;
+      const sm = alphaMask(si);
+      let hid = 0;
+      for (let y = y0; y < y1; y++) {
+        const pr = (y - py) * comp.width - px;
+        const sr = (y - sy) * si.width - sx;
+        for (let x = x0; x < x1; x++) if (pm[pr + x] && sm.m[sr + x]) hid++;
       }
+      const frac = hid / Math.max(1, sm.n);
+      best = Math.max(best, frac);
+      if (frac > 0.12) holes.push([sx + si.width / 2 - px, sy + si.height / 2 + 1 - py]);
     }
-    const cur = this.fade.get(p) ?? 1;
-    const tgt = behind ? a.xray! : 1;
-    const step = (16.7 / 150) * (1 - a.xray!);
-    const next = cur + Math.sign(tgt - cur) * Math.min(Math.abs(tgt - cur), step);
-    this.fade.set(p, next);
-    return next;
+    // hysteresis: open at 30%, close under 12%
+    const on = this.holeOn.get(p) ?? false;
+    const want = on ? best >= 0.12 : best >= 0.3;
+    this.holeOn.set(p, want);
+    const cur = this.hole.get(p) ?? 0;
+    const next = Math.max(0, Math.min(1, cur + (want ? 1 : -1) * (16.7 / 150)));
+    this.hole.set(p, next);
+    if (next <= 0) return;
+    // while closing after the seer has left, keep the last hole positions
+    if (holes.length) this.holeAt.set(p, holes);
+    const at = this.holeAt.get(p) ?? [];
+    const x = this.xctx;
+    x.globalCompositeOperation = 'destination-out';
+    x.globalAlpha = 1 - (xrayOf(a) ?? 0);
+    const rx = Math.max(1, Math.round(9 * next));
+    const ry = Math.max(1, Math.round(13 * next));
+    const hm = holeMask(rx, ry);
+    for (const [hx, hy] of at) x.drawImage(hm, Math.round(hx - rx), Math.round(hy - ry));
+    x.globalCompositeOperation = 'source-over';
+    x.globalAlpha = 1;
+  }
+
+  /** The parts of a seer hidden by what was drawn in front of it, as a #2A2440 α50% silhouette. */
+  private drawSilhouette(s: Seer): void {
+    const m = s.mctx;
+    const w = s.img.width;
+    const h = s.img.height;
+    m.globalAlpha = 1;
+    m.globalCompositeOperation = 'destination-in';
+    m.drawImage(s.img, 0, 0);
+    m.globalCompositeOperation = 'source-in';
+    m.fillStyle = P.ink;
+    m.fillRect(0, 0, w, h);
+    m.globalCompositeOperation = 'source-over';
+    this.wctx.globalAlpha = 0.5 * (s.a.alpha ?? 1);
+    this.wctx.drawImage(s.mask, 0, 0, w, h, s.x, s.y, w, h);
+    this.wctx.globalAlpha = 1;
   }
 
   // ---------------------------------------------------------------- water
@@ -605,16 +890,46 @@ export class Renderer {
 
   // ---------------------------------------------------------------- grading (7.3)
 
-  private grade(): void {
+  private grade(
+    cx: number,
+    cy: number,
+    visible: (x: number, y: number, w: number, h: number) => boolean,
+    envOf: (p: PropInst) => PropEnv,
+  ): void {
     const f = this.f;
     const gd = f.grade;
     const ctx = this.wctx;
     const indoor = f.map.def.kind === 'indoor';
     const st = flag('flag_stage');
+    // the light map: the grade's multiply colour plus every light that is on
+    // (additive), so lamp pools brighten the ground and whoever stands in them
+    const lx = this.lctx;
+    lx.globalAlpha = 1;
+    lx.globalCompositeOperation = 'source-over';
+    lx.fillStyle = indoor ? css(indoorMul(st, gd.night, this.mapLit)) : css(gd.mul);
+    lx.fillRect(0, 0, W, H);
+    lx.globalCompositeOperation = 'lighter';
+    lx.save();
+    if (indoor) {
+      // indoor lights stay inside the house: clipped to the room's cells (the
+      // void round and between the rooms stays dark)
+      lx.translate(-cx, -cy);
+      lx.clip(this.roomClip());
+      lx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    for (const p of f.props) {
+      const a = p.art;
+      if (!p.present || !a.light) continue;
+      if (!visible(p.x + a.ox - 72, p.y + a.oy - 72, a.w + 144, a.h + 144)) continue;
+      lx.save();
+      a.light(this.lg, p.x - cx, p.y - cy, envOf(p));
+      lx.restore();
+    }
+    lx.restore();
+    lx.globalCompositeOperation = 'source-over';
     ctx.save();
     ctx.globalCompositeOperation = 'multiply';
-    ctx.fillStyle = indoor ? css(lerpRGB(INDOOR_MUL[Math.floor(st)] ?? INDOOR_MUL[0], INDOOR_MUL[Math.min(3, Math.floor(st) + 1)] ?? INDOOR_MUL[3], 0)) : css(gd.mul);
-    ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(this.lc, 0, 0);
     // left sunset bleed
     ctx.globalCompositeOperation = 'screen';
     const ga = indoor ? 0.12 * (1 - gd.night) : gd.glareA;
@@ -745,6 +1060,75 @@ function makeStripes(flip: boolean): [HTMLCanvasElement, HTMLCanvasElement] {
       }
     }
   return [lc, sc];
+}
+
+/**
+ * Indoor multiply colour: the stage's tint, towards the night. Rooms with
+ * lamps (PropArt.light) go dark and their lamps add the light back; rooms
+ * without any keep the old dim, even night tint.
+ */
+function indoorMul(st: number, night: number, lit: boolean): [number, number, number] {
+  const day = INDOOR_MUL[Math.max(0, Math.min(2, Math.floor(st)))] ?? INDOOR_MUL[0];
+  return lerpRGB(day, lit ? INDOOR_MUL[3] : INDOOR_NIGHT_UNLIT, Math.max(0, Math.min(1, night)));
+}
+const INDOOR_NIGHT_UNLIT: [number, number, number] = [176, 154, 146];
+
+/** X-ray setting of a prop: explicit, or automatic for narrow tall props (poles, posts, signs). */
+function xrayOf(a: PropInst['art']): number | undefined {
+  if (a.xray !== undefined) return a.xray;
+  return a.h >= 36 && a.w <= 40 ? 0 : undefined;
+}
+
+/** Margin (px) of the scratch canvas round a composed x-ray prop (its over() parts reach out). */
+const XM = 20;
+
+/** Opaque-pixel mask of a canvas that changes every frame (the scratch canvas). */
+function liveMask(ctx: CanvasRenderingContext2D, w: number, h: number): Uint8Array {
+  const d = ctx.getImageData(0, 0, w, h).data;
+  const m = new Uint8Array(w * h);
+  for (let i = 0; i < m.length; i++) m[i] = d[i * 4 + 3] > 0 ? 1 : 0;
+  return m;
+}
+
+const maskCache = new WeakMap<HTMLCanvasElement, { m: Uint8Array; n: number }>();
+/** Opaque-pixel mask of a (static) canvas and its opaque count, cached. */
+function alphaMask(c: HTMLCanvasElement): { m: Uint8Array; n: number } {
+  let r = maskCache.get(c);
+  if (r) return r;
+  const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+  const m = new Uint8Array(c.width * c.height);
+  let n = 0;
+  for (let i = 0; i < m.length; i++)
+    if (d[i * 4 + 3] > 0) {
+      m[i] = 1;
+      n++;
+    }
+  r = { m, n };
+  maskCache.set(c, r);
+  return r;
+}
+
+const holeCache = new Map<number, HTMLCanvasElement>();
+/** Elliptical see-through hole (rx × ry) with a 2px checker-dithered rim. */
+function holeMask(rx: number, ry: number): HTMLCanvasElement {
+  const key = rx * 1000 + ry;
+  let c = holeCache.get(key);
+  if (c) return c;
+  const [cv, ctx] = makeCanvas(rx * 2 + 1, ry * 2 + 1);
+  ctx.fillStyle = '#000';
+  for (let y = 0; y <= ry * 2; y++)
+    for (let x = 0; x <= rx * 2; x++) {
+      const dx = (x - rx) / rx;
+      const dy = (y - ry) / ry;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      const edge = 1.2 / Math.min(rx, ry);
+      if (d > 1) continue;
+      if (d > 1 - edge && (x + y) % 2) continue;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  c = cv;
+  holeCache.set(key, c);
+  return c;
 }
 
 function lerpRGB(a: [number, number, number], b: [number, number, number], t: number): [number, number, number] {

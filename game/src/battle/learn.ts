@@ -139,7 +139,7 @@ export function imprint(skillId: string): HTMLCanvasElement | null {
     case 'skill_yarinaoshi':
       return undoImprint();
     case 'skill_okaerinasai':
-      return ovalStamp('おかえりなさい', 30, 20, 0, 6);
+      return ovalStamp('おかえりなさい', 30, 20, 0, 6, false, false);
     default:
       return null;
   }

@@ -71,6 +71,8 @@ function homeDef(): SongDef {
       when: (b) => late(b),
       keep: (b, e) => !(st(b) === 2 && e.step >= 8 && e.step <= 11),
       gate: 0.9,
+      // the thin doubling spreads around the e-piano instead of sitting on it
+      fx: { haas: { ms: 12, width: 0.28 } },
     }),
     comp({ id: 'chords', ins: 'ins_fm_epiano', rhythm: 'x.....x.....', notes: 'full', len: 6, o: { vol: 0.04, index: 1.2 }, fx: { tremolo: { rate: 4.5, depth: 0.12 }, autopan: { rate: 0.1, depth: 0.25 } } }),
     ...[reversePadsWhen((b) => st(b) === 2)],
@@ -197,8 +199,10 @@ function shopDef(): SongDef {
       when: late,
       gate: 0.9,
       keep: (b, e) => !hole(b, e.step),
+      // the shopkeeper hums from the back of the shop, a little wide
+      fx: { haas: { ms: 10, width: 0.25 } },
     }),
-    melody({ id: 'chime', ins: 'ins_fm_vibes', bars: SHOP_CHIME, o: { vol: 0.036, rev: 0.35 }, fx: { pan: 0.3 } }),
+    melody({ id: 'chime', ins: 'ins_fm_vibes', bars: SHOP_CHIME, o: { vol: 0.036, rev: 0.35 } }),
     comp({
       id: 'vibes',
       ins: 'ins_fm_vibes',
@@ -206,7 +210,7 @@ function shopDef(): SongDef {
       notes: 'top3',
       len: (i) => (i === 0 ? 3 : 2),
       o: { vol: 0.04 },
-      fx: { tremolo: { rate: 5.5, depth: 0.25 }, pan: -0.2 },
+      fx: { tremolo: { rate: 5.5, depth: 0.25 } },
     }),
     reversePadsWhen((b) => st(b) === 2),
     // walking bass; 段階2 walks at half the pace (beats 1 and 3)

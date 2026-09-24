@@ -112,7 +112,6 @@ function townDef(stage: 0 | 1 | 2): SongDef {
             notes: 'top3',
             len: 2,
             o: { vol: 0.05 },
-            fx: { pan: 0.25 },
           }),
         ]),
     // ---- pads: intro, B (quiet), C

@@ -116,7 +116,7 @@ function bossDef(): SongDef {
       noteOpts: (b, e) => (alias(b.label) === 'C6' && e.step === 8 ? { leak: true } : undefined),
     }),
     pads({ id: 'choir', ins: 'ins_choir', when: inAB, o: { vol: 0.045, child: true }, lo: 55, hi: 74 }),
-    arp({ id: 'arp', ins: 'ins_fm_vibes', rate: 2, shape: ['R', '3', '5', '7', '8', '5', '3', '5'], rootLo: 57, o: { vol: 0.035 }, when: (b) => b.section !== 'BO' && sec(b) === 'B', fx: { pan: 0.25 } }),
+    arp({ id: 'arp', ins: 'ins_fm_vibes', rate: 2, shape: ['R', '3', '5', '7', '8', '5', '3', '5'], rootLo: 57, o: { vol: 0.035 }, when: (b) => b.section !== 'BO' && sec(b) === 'B' }),
     // intro: pad swell, sub, the A1 eighths, the "あー" choir
     pads({ id: 'pad_intro', when: (b) => b.section === 'BO', per: 'bar', o: (b) => ({ vol: 0.035, attack: b.label === 'BO1' ? 1.4 : 0.6 }), fx: { lp: 1500, q: 0.8, lfo: { rate: 0.15, depth: 300 } } }),
     hits('intro', [

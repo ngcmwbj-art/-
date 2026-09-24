@@ -17,7 +17,7 @@ import { doEnemyAction, hitLoop } from './enemy';
 import { glove, uwabaki } from './art/fxart';
 import { finalSeal, ovalStamp, petalSprites } from './art/stamps';
 import { kanenariBack } from '../art/enemies/kanenari';
-import { labelCanvas } from './ui/note';
+import { bokemakeLabel } from './tsukkomi';
 import { LABEL } from '../data/battle';
 import { holdStamp } from './party';
 import { playHankoLearnIn } from './learn';
@@ -30,7 +30,21 @@ export function initBoss(s: BattleScene): void {
   setFlag('flag_boss_phase', 1);
   const boss = s.enemies.find((e) => e.def.boss);
   if (boss) syncBossFlags(s, boss);
+  let sparkleT = 0;
   s.boss = {
+    update: (dt) => {
+      // a glowing part sheds a star or two every 0.3s
+      if (!boss || !boss.alive) return;
+      sparkleT += dt;
+      if (sparkleT < 300) return;
+      sparkleT -= 300;
+      for (const p of s.bossParts) {
+        if (!p.glow || p.broken) continue;
+        const n = rng.int(1, 2);
+        for (let i = 0; i < n; i++)
+          s.sparkle(boss.left + p.box[0] + rng.int(0, p.box[2]), boss.top + p.box[1] + rng.int(0, Math.max(1, Math.round(p.box[3] * 0.6))));
+      }
+    },
     drawUnder: () => {},
     drawOver: (g) => {
       // broken parts lie on the floor with a small みました seal
@@ -42,7 +56,7 @@ export function initBoss(s: BattleScene): void {
         const y = (p.fallY ?? 150) - img.height;
         g.img(img, Math.round(x), Math.round(y));
         const seal = ovalStamp('みました', 28, 14, 0.1, 2);
-        g.img(seal, Math.round(x + img.width / 2 - 14), Math.round(y + img.height / 2 - 7));
+        g.img(seal, Math.round(x + img.width / 2 - seal.width / 2), Math.round(y + img.height / 2 - seal.height / 2));
       }
     },
   };
@@ -161,6 +175,8 @@ export function* bossMoveImpl(c: BossMoveCtx): Co {
       });
       if (part) {
         part.glow = true;
+        // the part pops (1.0 → 1.15 → 1.0, 300ms) as its light comes on
+        e.params['glowAt_' + part.id.replace('boss_omukaemachi_', '')] = s.t;
         sfx('se_part_glow', { pan: Math.max(-1, Math.min(1, (e.left + part.box[0] + part.box[2] / 2 - 192) / 192)) });
         (part as BossPart & { glowRound?: number }).glowRound = s.round;
         syncBossFlags(s, e);
@@ -242,7 +258,7 @@ export function* bossMoveImpl(c: BossMoveCtx): Co {
           sfx('se_bottle');
           const before = e.hp;
           e.hp = Math.min(e.maxHp, e.hp + 60);
-          s.number(e.left + 126, e.top + 60, e.hp - before, { kind: 'heal' });
+          s.number(e.left + 126, e.top + 60, e.hp - before, { kind: 'heal' }, 'enemy', e);
         },
       });
       pages.push(...e.def.texts.tele.skill_omu_suitou.slice(1), ...e.def.texts.extra.suitouResult);
@@ -347,8 +363,8 @@ export function* onBossPartBreak(s: BattleScene, e: EnemyUnit, part: BossPart, j
   const y = e.top + part.box[1] + part.box[3] / 2;
   s.stars(x, y, 6);
   // (the judgement label goes up-right of the stamp; this one up-left)
-  const bw = labelCanvas(LABEL.buhin, 'shu').width;
-  s.label(LABEL.buhin, Math.max(4 + bw / 2, x - 14 - bw / 2), Math.max(60, y - 20), 'shu', 900);
+  const box = { x0: e.left + part.box[0], y0: e.top + part.box[1], x1: e.left + part.box[0] + part.box[2], y1: e.top + part.box[1] + part.box[3] };
+  s.labelNear(LABEL.buhin, () => box, ['aboveLeft', 'left', 'above', 'right', 'below'], 'shu', 900, false, 2 * FRAME);
   // the part hops once and drops to the floor
   part.fallY = e.top + part.box[1] + part.box[3];
   const y0 = part.fallY;
@@ -416,7 +432,7 @@ export function* bossUndo(s: BattleScene, e: EnemyUnit, j: Judge, partId?: strin
   }
   if (j === 'kukkiri') {
     e.status.bokemake = true;
-    s.label(LABEL.bokemake, e.x, Math.max(STAGE_TOP + 10, e.headY + 8));
+    bokemakeLabel(s, e);
   }
 }
 
@@ -494,8 +510,9 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
     delete k.m.status.status_rusu;
   }
   s.msg.post(e.def.texts.extra.final3.slice(0, 1));
+  // he stops a little above the name tags, so the whole of him is seen
   for (let t = 0, n = 0; t < 500; t += FRAME) {
-    st.y = 240 - 90 * ease.quadOut(t / 500);
+    st.y = 240 - 102 * ease.quadOut(t / 500);
     st.f = Math.floor(t / 150) % 2 ? 'walk1' : 'walk2';
     if (t >= n * 170) {
       sfx('se_step_kanenari');
@@ -510,11 +527,41 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
   muteMusic(0.6);
   st.f = 'hit';
   yield 600;
-  // +500ms: the bell rings for the first time
+  // +500ms: the bell rings for the first time — three rings of sound roll
+  // out from his bell to the edges of the screen, the great bell behind
+  // the clocks lights once, and both faces look up
   sfx('se_bell_kanenari');
   bg.frozen = true;
   s.bossChime.gold = true;
   s.shake(1, 1, 60);
+  (s.bg as unknown as { bellFlash: number }).bellFlash = 1100;
+  const ringX = 192;
+  const ringY = Math.round(st.y) - 40;
+  for (let i = 0; i < 3; i++) {
+    const d = i * 180;
+    s.addFx({
+      layer: 'top',
+      dur: 600 + d,
+      ui: true,
+      draw: (g, t) => {
+        if (t < d) return;
+        const p = (t - d) / 600;
+        const r = 10 + ease.quadOut(p) * 250;
+        // a 4px band: pale gold with a bright leading edge, thinning as it goes
+        const th = Math.max(1, Math.round(4 * (1 - p * 0.6)));
+        g.alpha(0.95 * (1 - p * p), () => {
+          const steps = Math.round(r * 3.2);
+          for (let k = 0; k < steps; k++) {
+            const an = (k / steps) * Math.PI * 2;
+            const ca = Math.cos(an);
+            const sa = Math.sin(an) * 0.8;
+            for (let j = 0; j < th; j++) g.px(Math.round(ringX + ca * (r - j)), Math.round(ringY + sa * (r - j)), j === 0 ? '#FFF6D8' : '#FFE7A3');
+          }
+        });
+      },
+    });
+  }
+  for (const u of s.party) s.mood(u, 'surprised', 2600);
   const glow = { a: 0 };
   s.addFx({
     layer: 'top',
@@ -546,7 +593,7 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
   const mi = s.minato;
   if (mi && !mi.m.skills.includes('skill_okaerinasai')) mi.m.skills.push('skill_okaerinasai');
   for (let t = 0; t < 300; t += FRAME) {
-    st.y = 150 + 96 * ease.quadIn(t / 300);
+    st.y = 138 + 108 * ease.quadIn(t / 300);
     yield null;
   }
   fx.done = true;
@@ -620,6 +667,7 @@ export function* doOkaerinasai(s: BattleScene, u: PartyUnit): Co {
     } });
   }
   s.petals(cx, cy, 24, 30);
+  for (const p of s.party) s.mood(p, 'happy', 12000);
   s.msg.post(e.def.texts.extra.finalStamp);
   yield 1000;
   // +1000ms: 「…………」「……ただいま。」

@@ -175,6 +175,22 @@ export function cursorStamp(pressed = false): HTMLCanvasElement {
   return (cursorC ??= buildCursor(false));
 }
 
+const sideCursor: HTMLCanvasElement[] = [];
+/** The same stamp lying on its side, face to the right (10×8): points at things beside it. */
+export function cursorStampSide(pressed = false): HTMLCanvasElement {
+  const k = pressed ? 1 : 0;
+  if (sideCursor[k]) return sideCursor[k];
+  const src = cursorStamp(pressed);
+  const [c, ctx] = makeCanvas(src.height, src.width);
+  ctx.translate(src.height, 0);
+  ctx.rotate(Math.PI / 2);
+  ctx.scale(1, -1);
+  ctx.translate(0, -src.height);
+  ctx.drawImage(src, 0, 0);
+  sideCursor[k] = c;
+  return c;
+}
+
 // ---- ink-stamp labels ----------------------------------------------------
 
 const labelCache = new Map<string, HTMLCanvasElement>();
@@ -259,31 +275,73 @@ export function labelCanvas(text: string, tone: 'shu' | 'gray' = 'shu', worn = f
 
 const stickyCache = new Map<string, HTMLCanvasElement>();
 
+/** Margin around a sticky canvas for its tape (the note itself starts at (PAD, PAD)). */
+export const STICKY_PAD = 5;
+
+/**
+ * A strip of washi tape laid at an angle (pale blue, see-through, torn
+ * ends): `len` along the strip, 7px wide, rotated by `ang` radians.
+ */
+export function slantTape(len: number, ang: number, color = '#AFD6E6', seed = 3): HTMLCanvasElement {
+  const key = `slant:${len}:${ang.toFixed(3)}:${color}:${seed}`;
+  let c = tapeCache.get(key);
+  if (c) return c;
+  const ca = Math.cos(ang);
+  const sa = Math.sin(ang);
+  const W = Math.ceil(Math.abs(ca) * len + Math.abs(sa) * 7) + 2;
+  const H = Math.ceil(Math.abs(sa) * len + Math.abs(ca) * 7) + 2;
+  const p = new PixelCanvas(W, H);
+  const [r, gg, b] = hexRgb(color);
+  const col = (k: number, a: string) => `#${[r, gg, b].map((v) => clamp255(v * k).toString(16).padStart(2, '0')).join('')}${a}`;
+  const cx = W / 2;
+  const cy = H / 2;
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      // back into strip space
+      const dx = x + 0.5 - cx;
+      const dy = y + 0.5 - cy;
+      const u = dx * ca + dy * sa + len / 2;
+      const v = -dx * sa + dy * ca + 3.5;
+      if (v < 0 || v >= 7) continue;
+      const tooth = [0, 1, 2, 1][(Math.floor(v) + seed) % 4];
+      if (u < tooth || u >= len - [0, 1, 2, 1][(Math.floor(v) + seed + 2) % 4]) continue;
+      let k = v < 1 ? 1.08 : v >= 6 ? 0.9 : 1;
+      if (hash2(Math.floor(u), Math.floor(v), seed) < 0.06) k *= 0.94;
+      p.set(x, y, col(k, 'cc'));
+    }
+  c = p.toCanvas();
+  tapeCache.set(key, c);
+  return c;
+}
+
 export function stickyCanvas(text: string): HTMLCanvasElement {
   let c = stickyCache.get(text);
   if (c) return c;
+  const P = STICKY_PAD;
   const lines = text.split('\n');
   const tw = Math.max(...lines.map((l) => measure(l)));
   const w = Math.min(200, tw + 14);
   const h = 6 + 18 * lines.length;
-  const [cv, ctx] = makeCanvas(w + 3, h + 3);
+  const [cv, ctx] = makeCanvas(w + 3 + P, h + 3 + P);
   const r = (x: number, y: number, ww: number, hh: number, col: string, a = 1) => {
     ctx.globalAlpha = a;
     ctx.fillStyle = col;
-    ctx.fillRect(x, y, ww, hh);
+    ctx.fillRect(x + P, y + P, ww, hh);
     ctx.globalAlpha = 1;
   };
   r(2, 3, w, h, C.shadow, 0.45);
   r(0, 0, w, h, C.stickyEdge);
   r(1, 1, w - 2, h - 2, C.sticky);
-  // curl at the bottom-right corner
+  // a slightly darker band where the glue strip is, and the curl at the
+  // bottom-right corner
+  r(1, 1, w - 2, 3, '#EFCF7E');
   r(w - 5, h - 5, 4, 4, '#E9C46E');
   r(w - 4, h - 4, 3, 3, '#FBE7A8');
-  r(w - 1, h - 1, 1, 1, 'rgba(0,0,0,0)');
-  lines.forEach((l, i) => drawText(ctx, l, 7, 3 + i * 18, { color: C.ink }));
-  // masking tape on the top edge
-  const tape = tapeCanvas(22, 7, '', C.tape, 5);
-  ctx.drawImage(tape, Math.round(w / 2 - 11), -2);
+  ctx.clearRect(w - 1 + P, h - 1 + P, 1, 1);
+  lines.forEach((l, i) => drawText(ctx, l, 7 + P, 4 + P + i * 18, { color: C.ink }));
+  // stuck on with a strip of washi tape across the top-left corner
+  const tape = slantTape(20, -0.62, '#AFD6E6', 5);
+  ctx.drawImage(tape, P - 7, P - 6);
   stickyCache.set(text, cv);
   return cv;
 }

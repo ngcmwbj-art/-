@@ -51,6 +51,8 @@ export interface PropArt {
    * stand in front of them.
    */
   glow?(g: Gfx, x: number, y: number, env: PropEnv): void;
+  /** The glow belongs to a foreground part (lanterns under an overhead sign): painted after the fg layer, never cut. */
+  glowFg?: boolean;
   /**
    * Light cast onto the surroundings (pools under street lamps, window light
    * on the pavement, lamp light on a floor). Drawn additively into the light
@@ -71,9 +73,12 @@ export interface PropArt {
   /**
    * "X-ray": while the player (or the follower) stands behind this prop (feet
    * above its foot line) and at least 30% of the character's pixels are
-   * hidden by the prop's pixels, fade the prop to this alpha in 0.15s so tall
-   * things (pillars, poles, flags) never hide characters. The hidden part of
-   * the character is also drawn as a dark silhouette over it.
+   * hidden by the prop's pixels, a see-through hole (an ellipse round the
+   * character with a 2px dithered rim) opens in the prop in 0.15s, so tall
+   * things (poles, pillars, flags) never hide characters and never vanish
+   * as a whole. The value is the alpha left inside the hole (0 = open).
+   * Whatever still covers a character is also drawn as a #2A2440 α50%
+   * silhouette of it (for every prop and structure, xray or not).
    */
   xray?: number;
   /** Contact-shadow ellipse width (px) at the foot line. */

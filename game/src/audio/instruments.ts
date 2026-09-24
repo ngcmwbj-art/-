@@ -3,7 +3,7 @@
 // Music notes pass `det` (the song's pitch bus: stage detune, tape wobble,
 // the mid-boss bow) so every oscillator — FM modulators included — follows it.
 
-import { cachedWave, captured, cur, hasGraph, midiHz, noteLog, onRelease, sharedLfo, startTimeFor, voice, type VoiceHandle, type VoiceOpts } from './engine';
+import { arand, cachedWave, captured, cur, hasGraph, midiHz, noteLog, onRelease, sharedLfo, startTimeFor, voice, type VoiceHandle, type VoiceOpts } from './engine';
 
 export interface InsOpts {
   /** Override the patch's base v. */
@@ -212,7 +212,7 @@ function recorder(n: NoteCtx): void {
 function musicbox(n: NoteCtx): void {
   const f = midiHz(n.midi);
   const v = (n.o?.vol ?? 0.08) * n.vel;
-  const det = (n.o?.detune ?? 0) + (Math.random() * 2 - 1) * 4;
+  const det = (n.o?.detune ?? 0) + (arand() * 2 - 1) * 4;
   const common = base(n, {
     dur: 0.005,
     attack: 0.001,
@@ -268,7 +268,10 @@ function marimba(n: NoteCtx): void {
       wave: 'sine',
       freq: midiHz(n.midi),
       dur: 0.01,
-      attack: 0.001,
+      // 2.5 ms: still a mallet, but the FM burst (±4 kHz of deviation at the
+      // strike) is rounded instead of starting on a corner — three of them
+      // struck together read as a click otherwise ("やわらかいアタック")
+      attack: 0.0025,
       decay: 0.35,
       sustain: 0,
       release: 0.08,
@@ -467,7 +470,7 @@ function rawHandle(c: BaseAudioContext, t0: number, end: number, vol: number, os
  *  · a PeriodicWave an octave below the note: the square's odd harmonics and
  *    the saw on the even ones (= the note itself);
  *  · the ensemble below turns that one saw into three: a dry voice in the
- *    middle and two delay lines panned ∓0.45 whose slow drift detunes them by
+ *    middle and two delay lines panned ∓0.7 whose slow drift detunes them by
  *    about ±12 cents — the same shimmer, as a Juno-style chorus.
  * A 4-note pad chord costs 4 oscillators and 4 envelopes instead of 16
  * oscillators, 8 panners and 24 more nodes (15.3).
@@ -499,8 +502,8 @@ function padWave(c: BaseAudioContext): PeriodicWave {
  */
 const ENS: [number, number, number, number][] = [
   // base delay (s), sweep (s), LFO rate (Hz), pan: 2π·rate·sweep ≈ 0.7 % ≈ ±12 cents
-  [0.014, 0.0034, 0.33, -0.45],
-  [0.019, 0.0028, 0.41, 0.45],
+  [0.014, 0.0034, 0.33, -0.7],
+  [0.021, 0.0028, 0.41, 0.7],
 ];
 const ensembles = new WeakMap<AudioNode, WeakMap<AudioNode, Map<string, GainNode>>>();
 function ensemble(c: BaseAudioContext, dest: AudioNode, rev: AudioNode, revLevel: number): GainNode {
@@ -847,7 +850,8 @@ export const DRM: Record<string, Drum> = {
     voice(dbase(d, { wave: 'noise', dur: 0.005, attack: 0.0005, decay: 0.035, sustain: 0, release: 0.01, vol: dv(d, 0.05), filter: { type: 'highpass', freq: 7000 } }));
   },
   drm_hat_o: (d) => {
-    voice(dbase(d, { wave: 'noise', dur: 0.005, attack: 0.0005, decay: 0.22, sustain: 0, release: 0.04, vol: dv(d, 0.045), filter: { type: 'highpass', freq: 7000 } }));
+    // d.len: a longer open hat (the kire-2 layer lets it ring into the downbeat)
+    voice(dbase(d, { wave: 'noise', dur: 0.005, attack: 0.0005, decay: d.len ?? 0.22, sustain: 0, release: 0.04, vol: dv(d, 0.045), filter: { type: 'highpass', freq: 7000 } }));
   },
   drm_ride: (d) => {
     const v = dv(d, 0.04);
@@ -859,12 +863,30 @@ export const DRM: Record<string, Drum> = {
   },
   drm_clap: (d) => {
     const v = dv(d, 0.09);
-    for (const [off, dec] of [
-      [0, 0.012],
-      [0.012, 0.012],
-      [0.024, 0.08],
+    const p = d.pan ?? 0;
+    // three hands, a little apart in the room
+    for (const [off, dec, dp] of [
+      [0, 0.012, -0.25],
+      [0.012, 0.012, 0.25],
+      [0.024, 0.08, 0],
     ])
-      voice(dbase(d, { at: d.t + off, wave: 'noise', dur: 0.004, attack: 0.0008, decay: dec, sustain: 0, release: 0.01, vol: v, filter: { type: 'bandpass', freq: 1400, q: 1.2 }, reverb: 0.2 }));
+      voice(dbase(d, { at: d.t + off, pan: p + dp, wave: 'noise', dur: 0.004, attack: 0.0008, decay: dec, sustain: 0, release: 0.01, vol: v, filter: { type: 'bandpass', freq: 1400, q: 1.2 }, reverb: 0.2 }));
+  },
+  /**
+   * The kire-3 clap: a crowd of hands spread wide, lower (1.05 kHz) and
+   * longer than the tight snare it lands with, so the backbeat grows instead
+   * of the clap vanishing inside the snare.
+   */
+  drm_clap_big: (d) => {
+    const v = dv(d, 0.1);
+    const p = d.pan ?? 0;
+    for (const [off, dec, dp, f] of [
+      [0, 0.01, -0.5, 1150],
+      [0.009, 0.01, 0.5, 980],
+      [0.019, 0.012, -0.22, 1100],
+      [0.031, 0.17, 0.22, 1050],
+    ])
+      voice(dbase(d, { at: d.t + off, pan: p + dp, wave: 'noise', dur: 0.004, attack: 0.0008, decay: dec, sustain: 0, release: 0.02, vol: v, filter: { type: 'bandpass', freq: f, q: 0.9 }, reverb: 0.45 }));
   },
   drm_tom_low: (d) => {
     const v = dv(d, 0.16);
@@ -874,8 +896,11 @@ export const DRM: Record<string, Drum> = {
   },
   drm_crash: (d) => {
     const v = dv(d, 0.06);
-    voice(dbase(d, { wave: 'noise', dur: 0.01, attack: 0.001, decay: 1.2, sustain: 0, release: 0.2, vol: v, filter: { type: 'highpass', freq: 4000 }, reverb: 0.25 }));
-    voice(dbase(d, { wave: 'noise', dur: 0.01, attack: 0.001, decay: 0.9, sustain: 0, release: 0.2, vol: v * 0.3, filter: { type: 'bandpass', freq: 6000, q: 2 } }));
+    const p = d.pan ?? 0;
+    // the wash on both sides (two independent noises), the ring off-centre
+    voice(dbase(d, { pan: p - 0.45, wave: 'noise', dur: 0.01, attack: 0.001, decay: 1.2, sustain: 0, release: 0.2, vol: v * 0.72, filter: { type: 'highpass', freq: 4000 }, reverb: 0.25 }));
+    voice(dbase(d, { pan: p + 0.45, wave: 'noise', dur: 0.01, attack: 0.001, decay: 1.1, sustain: 0, release: 0.2, vol: v * 0.72, filter: { type: 'highpass', freq: 4300 }, reverb: 0.25 }));
+    voice(dbase(d, { pan: p + 0.2, wave: 'noise', dur: 0.01, attack: 0.001, decay: 0.9, sustain: 0, release: 0.2, vol: v * 0.3, filter: { type: 'bandpass', freq: 6000, q: 2 } }));
   },
   drm_revcym: (d) => {
     const len = d.len ?? 0.4;

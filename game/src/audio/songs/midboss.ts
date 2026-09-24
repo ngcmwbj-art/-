@@ -79,9 +79,9 @@ function midbossDef(): SongDef {
       fx: { delay: { steps: 3, fb: 0.22, send: 0.16 } },
     }),
     melody({ id: 'lead78', ins: 'ins_lead_p25', bars: mid.part('lead'), o: { vol: 0.09 } }),
-    melody({ id: 'roulette', ins: 'ins_lead_p12', bars: mid.part('intro'), o: { vol: 0.06 }, gate: 0.6, fx: { pan: 0.2 } }),
+    melody({ id: 'roulette', ins: 'ins_lead_p12', bars: mid.part('intro'), o: { vol: 0.06 }, gate: 0.6 }),
     melody({ id: 'vending', ins: 'ins_lead_p12', bars: mid.part('vending'), o: { vol: 0.07 }, gate: 0.85, fx: { delay: { steps: 3, fb: 0.3, send: 0.2 } } }),
-    melody({ id: 'chime', ins: 'ins_fm_vibes', bars: MID_CHIME, o: { vol: 0.035, rev: 0.35 }, fx: { pan: -0.25, lp: 7000 } }),
+    melody({ id: 'chime', ins: 'ins_fm_vibes', bars: MID_CHIME, o: { vol: 0.035, rev: 0.35 }, fx: { lp: 7000 } }),
     comp({ id: 'epiano', ins: 'ins_fm_epiano', rhythm: (b) => (b.section === 'C' ? 'x.....x...x.....' : null), notes: 'full', len: 'next', o: { vol: 0.045 } }),
     comp({
       id: 'stab',
@@ -91,7 +91,6 @@ function midbossDef(): SongDef {
       len: 2,
       gate: 0.6,
       o: { vol: 0.05 },
-      fx: { pan: -0.2 },
     }),
     // MI1: slap E2 eighths under the roulette; MI2: E1 held under the thuds
     hits('intro_bass', [

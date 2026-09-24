@@ -94,6 +94,12 @@ export class MessageBand {
   /** Static text shown when nothing is queued (様子, descriptions). */
   private staticText = '';
   private staticLayout: { glyphs: G[]; lines: number } | null = null;
+  /**
+   * The last page read stays on the band (fully typed) until something else
+   * is posted or a static text takes over, so the band never sits empty
+   * while an action plays out (15.3: the text of the action stays up).
+   */
+  private linger: { glyphs: G[]; lines: number } | null = null;
   /** Extra drawing inside the band (e.g. target HP bar). */
   extra: ((g: Gfx, x: number, y: number) => void) | null = null;
   /** Tape label on the left end (せんせいより). */
@@ -139,6 +145,7 @@ export class MessageBand {
   replace(pages: string[] | string, o: BandPageOpts = {}): void {
     this.queue = [];
     this.cur = null;
+    this.linger = null;
     this.post(pages, o);
   }
 
@@ -154,6 +161,7 @@ export class MessageBand {
   }
 
   setStatic(text: string, extra: MessageBand['extra'] = null): void {
+    if (text) this.linger = null;
     if (text !== this.staticText) {
       this.staticText = text;
       this.staticLayout = text ? layout(text) : null;
@@ -168,14 +176,29 @@ export class MessageBand {
   clear(): void {
     this.queue = [];
     this.cur = null;
+    this.linger = null;
+  }
+
+  /** Drop the lingering last page (the band shows blank paper). */
+  clearLinger(): void {
+    this.linger = null;
+  }
+
+  /** Text of the page on the band (typing, static or lingering) — QA. */
+  get text(): string {
+    const L = this.cur ?? this.staticLayout ?? this.linger;
+    return L ? L.glyphs.map((g) => g.ch).join('') : '';
   }
 
   private next(): void {
     const p = this.queue.shift();
     if (!p) {
+      // the finished page stays up (typed out) until something replaces it
+      if (this.cur) this.linger = this.cur;
       this.cur = null;
       return;
     }
+    this.linger = null;
     this.cur = layout(p.text);
     this.curOpts = p.o;
     this.shown = 0;
@@ -189,7 +212,8 @@ export class MessageBand {
   /** `confirm` = a confirm press this frame (only used for blocking pages). */
   update(dt: number, confirm: boolean): void {
     this.t += dt;
-    const lines = this.cur ? this.cur.lines : this.staticLayout ? this.staticLayout.lines : 1;
+    const L0 = this.cur ?? this.staticLayout ?? this.linger;
+    const lines = L0 ? L0.lines : 1;
     const targetH = this.bossMode ? (lines >= 2 ? 44 : 26) : 44;
     if (this.h !== targetH) {
       const step = (18 / 80) * dt;
@@ -248,7 +272,7 @@ export class MessageBand {
         ty += im.height + 1;
       }
     }
-    const L = this.cur ?? this.staticLayout;
+    const L = this.cur ?? this.staticLayout ?? this.linger;
     if (!L) return;
     const shown = this.cur ? this.shown : L.glyphs.length;
     const ox = this.x + 14 + (this.tag ? tagW - 10 : 0);

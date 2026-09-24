@@ -9,6 +9,16 @@
 
 export type SpaceId = 'outdoor' | 'room' | 'hall' | 'maigo' | 'battle' | 'night';
 
+/**
+ * The master sits this much above 11.1's 0.8. At the default volumes (BGM 7,
+ * SE 8) the quiet songs were barely audible on a laptop (title −29 LUFS,
+ * night −31) while the stamps already peaked high: the whole game is lifted,
+ * and the heavy blows' target lowered (mix.ts), so the range between the
+ * quietest music and the loudest hit narrows. Every calibration target in
+ * mix.ts is 11.2's number plus this lift.
+ */
+export const MASTER_LIFT_DB = 3.5;
+
 /** 40_audio 11.4 */
 export const SPACES: Record<SpaceId, { len: number; decay: number; hp: number; send: number }> = {
   outdoor: { len: 0.8, decay: 4.0, hp: 300, send: 0.25 },
@@ -438,7 +448,7 @@ export function buildGraph(ctx: BaseAudioContext, opts: { bypassDynamics?: boole
   limiter.release.value = 0.06;
   const preTap = ctx.createGain();
   const master = ctx.createGain();
-  master.gain.value = 0.8;
+  master.gain.value = 0.8 * dbToGain(MASTER_LIFT_DB);
   master.connect(preTap);
   // −1 dB ceiling after the limiter: the compressors add their own make-up
   // gain, and the loudest moment of the game at volume 10 / 10 must stay
@@ -811,6 +821,27 @@ export function startTimeFor(c: BaseAudioContext, at: number | undefined, dur: n
 }
 
 let noiseRot = 0;
+
+let offSeed = 1;
+/**
+ * Randomness for sound (musicbox comb wear, coin scatter, crowd timings):
+ * Math.random while the live game plays; a fixed sequence while an offline
+ * QA render is scheduled, restarted by resetOfflineState() at the start of
+ * every render, so the same render measures the same take every run.
+ */
+export function arand(): number {
+  const g = current ?? live;
+  if (g?.offline) {
+    offSeed = (Math.imul(offSeed, 1103515245) + 12345) & 0x7fffffff;
+    return offSeed / 0x7fffffff;
+  }
+  return Math.random();
+}
+/** QA: restart the offline randomness and the noise read-head (report.ts render()). */
+export function resetOfflineState(): void {
+  offSeed = 1;
+  noiseRot = 0;
+}
 
 /** QA: when set, every voice() appends a record (offline piano-roll renders). */
 export let noteLog: { t: number; dur: number; freq: number; vol: number; wave: string }[] | null = null;

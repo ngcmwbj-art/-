@@ -18,15 +18,15 @@
 // stage / kire / boss_phase). Stage / kire / boss changes land on the next
 // beat or bar exactly as 40_audio 7 describes.
 
-import { captureVoices, dbToGain, makeIRMono, monoSum, releaseShared, sharedLfo, spread, voice, withLatePolicy, type Graph, type VoiceHandle } from './engine';
+import { captureVoices, dbToGain, makeIR, monoSum, releaseShared, sharedLfo, voice, withLatePolicy, type Graph, type VoiceHandle } from './engine';
 import { DRM, INS, type InsOpts } from './instruments';
-import { partTrim, songGainDb } from './mix';
+import { KIT_PAN, partAir, partPan, partRole, partSpread, partTrim, songGainDb } from './mix';
 import {
   bassMidi,
   drumVel,
   parseBassPattern,
-  voiceLead,
   voicePcs,
+  voiceUnder,
   type Chord,
   type Ev,
   type MmlBar,
@@ -84,9 +84,20 @@ export interface PartFx {
   tremolo?: { rate: number; depth: number };
   autopan?: { rate: number; depth: number };
   pan?: number;
-  /** Tempo-synced echo (steps), e.g. dotted 8th = 3. */
+  /**
+   * Tempo-synced echo (steps), e.g. dotted 8th = 3. The repeats ping-pong
+   * left / right (the first one on the left), so an echo widens the part.
+   */
   delay?: { steps: number; fb: number; send: number; bp?: [number, number] };
   hp?: number;
+  /** A doubled line widened by a Haas offset: dry at −width, a copy `ms` later at +width. */
+  haas?: { ms: number; width: number };
+  /**
+   * Early reflections (dB per tap): four short taps (11–31 ms) off the side
+   * walls, alternating left / right. A centred tune gets a room around it —
+   * width without an echo and without leaving the middle. null = none.
+   */
+  air?: number | null;
 }
 
 export interface PartRt {
@@ -99,8 +110,12 @@ export interface PartRt {
   state: Record<string, unknown>;
   prevMidi: number | null;
   prevEnd: number;
+  /** The ping-pong echo: left repeat line, right repeat line. */
   delay?: DelayNode;
+  delay2?: DelayNode;
   delaySend?: GainNode;
+  /** Chord parts: how far their voicing fans out left / right (mix.ts partSpread). */
+  spread: number;
 }
 
 export interface PartDef {
@@ -112,6 +127,12 @@ export interface PartDef {
   step(b: BarCtx, src: number, actual: number, rt: PartRt): void;
   /** Top-line pitches in score order (QA: sealed chime answer check). */
   melodySeq?(): number[];
+  /**
+   * Lowest pitch this part sounds in source steps [from, to) of bar `b`
+   * (null = silent there). Chord parts keep their top voice under the
+   * song's melody with it (SongPlayer.melodyFloor).
+   */
+  floor?(b: BarCtx, from: number, to: number): number | null;
   /**
    * The part's notes depend on `kire` and it keeps no state between steps:
    * a kire change re-schedules it from the change point (7.2).
@@ -154,6 +175,14 @@ export interface SongDef {
   /** Set false if the song's bar hooks cannot be replayed (no bar rewind). */
   rewind?: boolean;
 }
+
+/** Early-reflection taps (s, pan, dB relative to PartFx.air). */
+const AIR_TAPS: [number, number, number][] = [
+  [0.011, -0.9, 0],
+  [0.0165, 0.9, -0.5],
+  [0.0235, -0.75, -2],
+  [0.031, 0.75, -3],
+];
 
 /** BGM voice cap (11.5): above this many sounding voices the quietest is cut. */
 export const BGM_VOICE_CAP = 40;
@@ -287,10 +316,14 @@ export class SongPlayer {
     const post = c.createGain();
     this.mix.connect(post);
     const rv = def.reverb ?? { len: 1.6, decay: 3.2, level: 0.3 };
-    // the song's own reverb: a mono convolution spread to stereo (15.3)
+    // The song's own reverb: the send is summed to mono and convolved with a
+    // two-channel IR whose left and right tails are independent noise, so the
+    // room comes back decorrelated on both sides — a true stereo space around
+    // a centred band (1.2). A mono IR spread by a Haas offset (the SFX
+    // reverb) is cheaper but leaves the tail 0.6 correlated.
     this.conv = c.createConvolver();
     this.conv.normalize = false;
-    this.conv.buffer = makeIRMono(c, rv.len, rv.decay, 31 + Math.round(rv.len * 10));
+    this.conv.buffer = makeIR(c, rv.len, rv.decay, 31 + Math.round(rv.len * 10));
     const down = monoSum(c);
     const hp = c.createBiquadFilter();
     hp.type = 'highpass';
@@ -300,7 +333,7 @@ export class SongPlayer {
     this.wet.connect(down);
     down.connect(hp);
     hp.connect(this.conv);
-    if (!(globalThis as any).__PF?.noRev) spread(c, this.conv, wetOut);
+    if (!(globalThis as any).__PF?.noRev) this.conv.connect(wetOut);
     wetOut.connect(post);
     post.connect(this.filter);
     this.filter.connect(this.pause);
@@ -333,7 +366,9 @@ export class SongPlayer {
     input.gain.value = (p.vol ?? 1) * partTrim(this.def.id, p.id);
     let node: AudioNode = input;
     const fx = p.fx;
-    const rt: PartRt = { id: p.id, input, base: input.gain.value, rev: this.wet, song: this, state: {}, prevMidi: null, prevEnd: 0 };
+    const rt: PartRt = { id: p.id, input, base: input.gain.value, rev: this.wet, song: this, state: {}, prevMidi: null, prevEnd: 0, spread: partSpread(this.def.id, p.id) };
+    // the part's seat on the stereo stage (mix.ts), unless the song placed it
+    const seat = fx?.pan ?? partPan(this.def.id, p.id);
     if (fx?.hp) {
       const f = c.createBiquadFilter();
       f.type = 'highpass';
@@ -373,11 +408,33 @@ export class SongPlayer {
       node.connect(a);
       node = a;
     }
-    if (fx?.autopan || fx?.pan) {
+    if (fx?.haas) {
+      // dry left of centre, the same line a few ms later right of it
+      const k = Math.SQRT1_2;
+      const out = c.createGain();
+      const a = c.createStereoPanner();
+      a.pan.value = Math.max(-1, seat - fx.haas.width);
+      const ag = c.createGain();
+      ag.gain.value = k;
+      const d = c.createDelay(0.05);
+      d.delayTime.value = fx.haas.ms / 1000;
+      const b = c.createStereoPanner();
+      b.pan.value = Math.min(1, seat + fx.haas.width);
+      const bg = c.createGain();
+      bg.gain.value = k;
+      node.connect(ag);
+      ag.connect(a);
+      a.connect(out);
+      node.connect(d);
+      d.connect(bg);
+      bg.connect(b);
+      b.connect(out);
+      node = out;
+    } else if (fx?.autopan || seat) {
       const pn = c.createStereoPanner();
-      pn.pan.value = fx.pan ?? 0;
+      pn.pan.value = seat;
       kRate(pn.pan);
-      if (fx.autopan) {
+      if (fx?.autopan) {
         const l = sharedLfo(c, fx.autopan.rate);
         const lg = c.createGain();
         lg.gain.value = fx.autopan.depth;
@@ -389,13 +446,44 @@ export class SongPlayer {
       node = pn;
     }
     node.connect(this.mix);
+    const air = fx?.air !== undefined ? fx.air : partAir(this.def.id, p.id);
+    if (air !== null) {
+      const lp = c.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 5500;
+      const hp = c.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 350;
+      node.connect(hp);
+      hp.connect(lp);
+      for (const [dt, pan, db] of AIR_TAPS) {
+        const d = c.createDelay(0.05);
+        d.delayTime.value = dt;
+        const g = c.createGain();
+        g.gain.value = dbToGain(air + db);
+        const pn = c.createStereoPanner();
+        pn.pan.value = pan;
+        lp.connect(d);
+        d.connect(g);
+        g.connect(pn);
+        pn.connect(this.mix);
+      }
+    }
     if (fx?.delay) {
+      // Ping-pong: send → left line → (band-pass) → out left, → ×fb → right
+      // line → out right, → ×fb → back into the left line. Every repeat is
+      // `fb` quieter than the one before, alternating sides.
+      const dt = (60 / this.def.bpm / 4) * fx.delay.steps;
       const d = c.createDelay(2);
-      d.delayTime.value = (60 / this.def.bpm / 4) * fx.delay.steps;
+      d.delayTime.value = dt;
+      const d2 = c.createDelay(2);
+      d2.delayTime.value = dt;
       const send = c.createGain();
       send.gain.value = fx.delay.send;
       const fb = c.createGain();
       fb.gain.value = fx.delay.fb;
+      const fb2 = c.createGain();
+      fb2.gain.value = fx.delay.fb;
       let tail: AudioNode = d;
       if (fx.delay.bp) {
         const hp = c.createBiquadFilter();
@@ -411,15 +499,23 @@ export class SongPlayer {
       node.connect(send);
       send.connect(d);
       tail.connect(fb);
-      fb.connect(d);
-      const pn = c.createStereoPanner();
-      pn.pan.value = 0.35;
-      tail.connect(pn);
-      pn.connect(this.mix);
+      fb.connect(d2);
+      d2.connect(fb2);
+      fb2.connect(d);
+      const pl = c.createStereoPanner();
+      pl.pan.value = -0.6;
+      tail.connect(pl);
+      pl.connect(this.mix);
+      const pr = c.createStereoPanner();
+      pr.pan.value = 0.6;
+      d2.connect(pr);
+      pr.connect(this.mix);
       tail.connect(this.wet);
       rt.delay = d;
+      rt.delay2 = d2;
       rt.delaySend = send;
       rt.state.delayFb = fb;
+      rt.state.delayFb2 = fb2;
     }
     p.init?.(rt);
     return rt;
@@ -509,7 +605,14 @@ export class SongPlayer {
     this.ended = false;
     this.snap = null;
     this.rewinds++;
+    // Put the bar straight back: the clock tops songs up in batches and may
+    // not pump again before the rewound downbeat (the notes would be late).
+    const to = this.scheduledTo;
+    if (this.g.offline) this.pumpSteps(to);
+    else withLatePolicy(LATE_TOL, LATE_LONG, () => this.pumpSteps(to));
   }
+  /** How far ahead the song has been scheduled (the latest pump horizon). */
+  private scheduledTo = 0;
   /** QA: how many bars were rewound for param changes. */
   rewinds = 0;
 
@@ -710,7 +813,10 @@ export class SongPlayer {
     for (const rt of this.parts)
       if (rt.delay) {
         const want = stepDur * (this.def.parts.find((p) => p.id === rt.id)?.fx?.delay?.steps ?? 3);
-        if (Math.abs(rt.delay.delayTime.value - want) > 0.001) rt.delay.delayTime.setValueAtTime(want, t0);
+        if (Math.abs(rt.delay.delayTime.value - want) > 0.001) {
+          rt.delay.delayTime.setValueAtTime(want, t0);
+          rt.delay2?.delayTime.setValueAtTime(want, t0);
+        }
       }
     this.def.onBar?.(this, b);
     return true;
@@ -719,6 +825,7 @@ export class SongPlayer {
   /** Schedule everything that starts before `until`. */
   pump(until: number): void {
     if (this.disposed) return;
+    if (until > this.scheduledTo) this.scheduledTo = until;
     if (this.g.offline) this.pumpSteps(until);
     else withLatePolicy(LATE_TOL, LATE_LONG, () => this.pumpSteps(until));
     this.def.pumpFree?.(this, until);
@@ -886,6 +993,22 @@ export class SongPlayer {
     return this.parts.find((p) => p.id === id);
   }
 
+  /**
+   * The lowest melody note sounding in source steps [from, to) of bar b,
+   * over every part the mix calls a melody (mix.ts partRole) that plays
+   * there — or null. Comping and pads voice their top note under it (3.4).
+   */
+  melodyFloor(b: BarCtx, from: number, to: number): number | null {
+    let lo: number | null = null;
+    for (const pd of this.def.parts) {
+      if (!pd.floor || partRole(this.def.id, pd.id) !== 'melody') continue;
+      if (pd.when && !pd.when(b, from)) continue;
+      const m = pd.floor(b, from, to);
+      if (m !== null && (lo === null || m < lo)) lo = m;
+    }
+    return lo;
+  }
+
   /** Fade a part's level (boss final phase); v is relative to the part's resting level. */
   partGain(id: string, v: number, ramp: number, at = this.g.ctx.currentTime): void {
     const rt = this.partRt(id);
@@ -953,6 +1076,22 @@ export function melody(o: MelodyOpts): PartDef {
     fx: o.fx,
     when: o.when,
     melodySeq: () => o.bars.flatMap((b) => b.events.filter((e) => e.midis.length).map((e) => e.midis[e.midis.length - 1])),
+    floor(b, from, to) {
+      const rm = o.remap?.(b) ?? null;
+      const bar = idx.bars.get(rm ? rm.label : o.alias ? o.alias(b.label) : b.label);
+      if (!bar) return null;
+      const tr = o.transpose !== undefined ? val(o.transpose, b) : 0;
+      let lo: number | null = null;
+      for (const e of bar.events) {
+        if (!e.midis.length) continue;
+        const s0 = rm ? from : e.step;
+        const hit = rm ? true : e.step < to && e.step + e.len > from;
+        if (!hit || s0 >= to) continue;
+        const m = Math.min(...e.midis) + tr;
+        if (lo === null || m < lo) lo = m;
+      }
+      return lo;
+    },
     step(b, src, actual, rt) {
       const rm = o.remap?.(b) ?? null;
       const label = rm ? rm.label : o.alias ? o.alias(b.label) : b.label;
@@ -1094,7 +1233,10 @@ export interface DrumOpts {
   /** drum id → pattern (per bar), null = silent. */
   kit: Record<string, Val<string | null>>;
   vel?: Record<string, number>;
-  /** Some drums have another id per step (open hat on step 14). */
+  /** Per-drum pan (default: the kit image of mix.ts KIT_PAN). */
+  pans?: Record<string, number>;
+  /** Per-drum patch overrides (e.g. a longer open hat). */
+  len?: Record<string, number>;
   when?: Pred;
 }
 
@@ -1111,11 +1253,34 @@ export function drums(o: DrumOpts): PartDef {
         if (!pat) continue;
         const v = drumVel(pat[src]);
         if (!v) continue;
-        const drum = DRM[id.replace(/#.*$/, '')];
-        drum?.({ t: b.time(actual), vel: v * (o.vel?.[id] ?? 1), dest: rt.input, rev: rt.rev });
+        const base = id.replace(/#.*$/, '');
+        const drum = DRM[base];
+        drum?.({ t: b.time(actual), vel: v * (o.vel?.[id] ?? 1), dest: seat(rt, o.pans?.[id] ?? KIT_PAN[base] ?? 0), rev: rt.rev, len: o.len?.[id] });
       }
     },
   };
+}
+
+/**
+ * A part's fixed stereo seats: one shared panner per position feeding the
+ * part's input, so a drum or a chord voice at a fixed pan costs no panner
+ * of its own per hit (15.3). Kept outside rt.state (bar rewinds reset that).
+ */
+const seats = new WeakMap<PartRt, Map<number, AudioNode>>();
+function seat(rt: PartRt, pan: number): AudioNode {
+  if (!pan) return rt.input;
+  let m = seats.get(rt);
+  if (!m) seats.set(rt, (m = new Map()));
+  const k = Math.round(pan * 100);
+  let n = m.get(k);
+  if (!n) {
+    const c = rt.input.context;
+    const p = c.createStereoPanner();
+    p.pan.value = Math.max(-1, Math.min(1, pan));
+    p.connect(rt.input);
+    m.set(k, (n = p));
+  }
+  return n;
 }
 
 export interface CompOpts {
@@ -1149,14 +1314,6 @@ export function comp(o: CompOpts): PartDef {
       const v = drumVel(pat[src]);
       if (!v) return;
       const chord = b.chordAt(src);
-      const key = `${chord.name}`;
-      let voicing = rt.state.voicing as number[] | undefined;
-      if (rt.state.voiceKey !== key || !voicing) {
-        voicing = voiceLead(voicePcs(chord, 4, true), (rt.state.voicing as number[]) ?? null, o.lo ?? 55, o.hi ?? 76);
-        rt.state.voicing = voicing;
-        rt.state.voiceKey = key;
-      }
-      const notes = o.notes === 'full' ? voicing : voicing.slice(-3);
       let hitIndex = 0;
       for (let i = 0; i < src; i++) if (drumVel(pat[i])) hitIndex++;
       let len: number;
@@ -1166,14 +1323,34 @@ export function comp(o: CompOpts): PartDef {
         len = nxt - src;
       } else if (typeof o.len === 'function') len = o.len(hitIndex);
       else len = o.len;
+      const tr = o.transpose !== undefined ? val(o.transpose, b) : 0;
+      // the top voice rings under the tune while this hit sounds (3.4)
+      const mel = b.song.melodyFloor(b, src, src + len);
+      const ceil = mel === null ? 999 : mel - MELODY_GAP - tr;
+      const key = `${chord.name}|${ceil}`;
+      let voicing = rt.state.voicing as number[] | undefined;
+      if (rt.state.voiceKey !== key || !voicing) {
+        voicing = voiceUnder(voicePcs(chord, 4, true), (rt.state.voicing as number[]) ?? null, o.lo ?? 55, o.hi ?? 76, ceil);
+        rt.state.voicing = voicing;
+        rt.state.voiceKey = key;
+      }
+      const notes = o.notes === 'full' ? voicing : voicing.slice(-3);
       const t = b.time(actual);
       const dur = (b.time(actual + len) - t) * (o.gate ?? 0.92);
-      const tr = o.transpose !== undefined ? val(o.transpose, b) : 0;
       const ins = INS[val(o.ins, b)];
-      for (const m of notes) ins({ t, midi: m + tr, dur, vel: v / 0.7 > 1 ? 1 : v / 0.7, dest: rt.input, rev: rt.rev, det: rt.song.det, o: o.o ? val(o.o, b) : undefined });
+      const base = o.o ? val(o.o, b) : undefined;
+      // chord parts fan out: the low note left of the part's seat, the top right
+      const n = notes.length;
+      notes.forEach((m, i) => {
+        const pan = rt.spread && n > 1 ? rt.spread * ((2 * i) / (n - 1) - 1) : 0;
+        ins({ t, midi: m + tr, dur, vel: v / 0.7 > 1 ? 1 : v / 0.7, dest: seat(rt, pan), rev: rt.rev, det: rt.song.det, o: base });
+      });
     },
   };
 }
+
+/** Semitones between the melody's lowest note and the accompaniment's top note (at least a whole tone). */
+const MELODY_GAP = 2;
 
 export interface PadOpts {
   id: string;
@@ -1203,12 +1380,14 @@ export function pads(o: PadOpts): PartDef {
       if (src !== cs) return;
       if (o.per === 'bar' && src !== 0) return;
       const chord = b.chordAt(src);
-      const voicing = voiceLead(voicePcs(chord, o.count ?? 4, o.omitRoot ?? true), (rt.state.voicing as number[]) ?? null, o.lo ?? 55, o.hi ?? 76);
+      const tr = o.transpose !== undefined ? val(o.transpose, b) : 0;
+      const mel = b.song.melodyFloor(b, src, o.per === 'bar' ? b.def.steps : ce);
+      const ceil = mel === null ? 999 : mel - MELODY_GAP - tr;
+      const voicing = voiceUnder(voicePcs(chord, o.count ?? 4, o.omitRoot ?? true), (rt.state.voicing as number[]) ?? null, o.lo ?? 55, o.hi ?? 76, ceil);
       rt.state.voicing = voicing;
       const endStep = o.per === 'bar' ? b.steps : ce + (actual - src);
       const t = b.time(actual);
       const dur = b.time(endStep) - t;
-      const tr = o.transpose !== undefined ? val(o.transpose, b) : 0;
       const ins = INS[o.ins ? val(o.ins, b) : 'ins_pad'];
       for (const m of voicing) ins({ t, midi: m + tr, dur, vel: 1, dest: rt.input, rev: rt.rev, det: rt.song.det, o: o.o ? val(o.o, b) : undefined });
     },

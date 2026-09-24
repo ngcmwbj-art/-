@@ -2,6 +2,7 @@
 // through a speaker no one has listened to for a year: tape wow, drop-outs,
 // a CD that skips a beat (the 7/8 bar), a stuck chord, and a tape that stretches.
 
+import { arand } from '../engine';
 import { INS } from '../instruments';
 import { bass, comp, drums, hits, melody, type BarCtx, type PartDef, type SongDef, type SongPlayer } from '../sequencer';
 import { chimeQuote, registerSong, score } from './common';
@@ -94,7 +95,7 @@ function mallDef(): SongDef {
       },
       fx: { delay: { steps: 3, fb: 0.25, send: 0.12 } },
     }),
-    melody({ id: 'chime', ins: 'ins_fm_vibes', bars: MALL_CHIME, o: { vol: 0.04, rev: 0.7 }, fx: { pan: -0.35, lp: 3500 } }),
+    melody({ id: 'chime', ins: 'ins_fm_vibes', bars: MALL_CHIME, o: { vol: 0.04, rev: 0.7 }, fx: { lp: 3500 } }),
     comp({ id: 'epiano', ins: 'ins_fm_epiano', rhythm: 'x.....x...x.....', notes: 'full', len: 'next', o: { vol: 0.045 }, fx: { tremolo: { rate: 4.5, depth: 0.12 }, autopan: { rate: 0.15, depth: 0.25 } } }),
     bass({
       id: 'bass',
@@ -136,10 +137,14 @@ function mallDef(): SongDef {
         when: (b, s) => b.label === 'A1' && s === 0 && b.barNo > 0,
         fn: (_b, t, rt) => {
           const sp = rt.song;
+          // a snap, not a click: 4 ms to come back (the stretched tape's
+          // echoes and room are still sounding into the downbeat)
           sp.det.offset.cancelScheduledValues(t);
-          sp.det.offset.setValueAtTime(sp.baseDetune, t);
+          sp.det.offset.setValueAtTime(sp.det.offset.value, t);
+          sp.det.offset.linearRampToValueAtTime(sp.baseDetune, t + 0.004);
           sp.mix.gain.cancelScheduledValues(t);
-          sp.mix.gain.setValueAtTime(1, t);
+          sp.mix.gain.setValueAtTime(0.5, t);
+          sp.mix.gain.linearRampToValueAtTime(1, t + 0.004);
         },
       },
       // once every three loops, a random bar's beat 3 sticks: the chord ×3 in 16ths
@@ -174,7 +179,7 @@ function mallDef(): SongDef {
     onBar(sp, b) {
       if (b.label === 'A1' && b.loop % 3 === 1) {
         // pick the bar that will stick during this loop
-        sp.state.snagBar = b.barNo + 1 + Math.floor(Math.random() * 22);
+        sp.state.snagBar = b.barNo + 1 + Math.floor(arand() * 22);
       }
     },
   };

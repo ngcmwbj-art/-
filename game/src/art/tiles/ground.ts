@@ -411,42 +411,85 @@ const texBridge: Tex = (x, y) => {
 };
 
 const texBallast: Tex = (x, y, v) => {
-  const t = texGravel(x, y, v, '');
-  if (t === C.concrete) return C.concreteMd;
-  if (ihash(Math.floor(x / 3), Math.floor(y / 3), 367) % 11 === 0) return C.brassOld; // rust
-  return t;
+  // crushed-stone ballast (review round 2): 3px stones in jittered 4px cells,
+  // each with a lit top-left, a body and a shaded bottom-right; dark gaps.
+  // Mostly grey granite, a few rust-stained stones — no 1px noise.
+  const cx = Math.floor(x / 4);
+  const cy = Math.floor(y / 4);
+  const h = ihash(cx, cy, 361 + v);
+  const lx = x - cx * 4 - (h & 1);
+  const ly = y - cy * 4 - ((h >>> 1) & 1);
+  const big = ((h >>> 2) & 3) !== 0;
+  const sz = big ? 3 : 2;
+  const tone = (h >>> 5) % 9;
+  if (lx >= 0 && ly >= 0 && lx < sz && ly < sz && !(big && lx === sz - 1 && ly === 0 && (h >>> 9) & 1)) {
+    const rust = tone === 0 && ((h >>> 11) & 1) === 0;
+    const light = rust ? C.dirtLt : tone < 4 ? C.concreteLt : C.concrete;
+    const body = rust ? C.brassOld : tone < 4 ? C.concreteMd : tone < 7 ? C.steel : C.asphaltLt;
+    const dark = rust ? C.woodDark : C.asphalt;
+    if (lx + ly === 0) return light;
+    if (lx + ly >= sz * 2 - 2) return dark;
+    return body;
+  }
+  const g = fbm(x / 9, y / 9, 363);
+  return g > 0.62 ? C.asphalt : g < 0.3 ? C.charcoal : C.asphaltDk;
 };
 
-const texRail: Tex = (x, y, v) => {
-  // north–south track: sleepers every 8px, rails at 4 and 11
-  const lx = ((x % 16) + 16) % 16;
-  const ly = ((y % 8) + 8) % 8;
-  if (lx === 4 || lx === 11) return C.concreteLt;
-  if (lx === 5 || lx === 12) return C.steel;
-  if (lx === 3 || lx === 10) return C.charcoal;
-  if (ly <= 2 && lx >= 1 && lx <= 14) return ly === 0 ? C.wood : ly === 2 ? C.woodDark : C.wood;
-  return texBallast(x, y, v, '');
-};
+const texRail: Tex = (x, y, v) => texBallast(x, y, v, '');
 
 const texCrossing: Tex = (x, y, v) => {
   // level crossing, off the track: the road's asphalt with a worn concrete
-  // edge strip every tile (the rail columns are painted by crossingRail())
+  // edge strip every tile (the rails and panels are painted by trackPixel())
   const ly = ((y % 16) + 16) % 16;
   if (ly === 0) return C.concreteMd;
   return texAsphalt(x, y, v, '');
 };
 
-/** Crossing pixels on a rail column: the rails continue exactly where the track's rails are. */
-function crossingRail(x: number, y: number, v: number): number {
-  const lx = ((x % 16) + 16) % 16;
-  // rails (same columns as texRail: 4 and 11), flange grooves inside them
-  if (lx === 4 || lx === 11) return C.concreteLt;
-  if (lx === 3 || lx === 12) return C.steel;
-  if (lx === 5 || lx === 10) return C.charcoal;
-  // rubber panels between the rails (joints every 8px), concrete outside
-  if (lx > 5 && lx < 10) return ((y & 7) === 0) ? C.charcoal : C.asphaltDk;
-  if (lx === 2 || lx === 13) return C.concreteMd;
-  return texAsphalt(x, y, v, '');
+/** Rail gauge geometry relative to the track's centre line (review round 2: 15px between rail centres). */
+const RAIL_L = -8;
+const RAIL_R = 7;
+/** Sleepers: 30px long, 3px deep, every 6px. */
+const SLEEPER_HALF = 15;
+const SLEEPER_PITCH = 6;
+
+/**
+ * Track pixel at dx from the centre line (x = rail tile centre): sleepers
+ * under the rails across the ballast bed, rails with a lit head, a rust
+ * side and a shadow on the sleeper; on a crossing, rubber panels between
+ * the rails with flange grooves and concrete edge strips outside them.
+ */
+function trackPixel(dx: number, x: number, y: number, base: number, crossing: boolean): number {
+  if (crossing) {
+    if (dx === RAIL_L || dx === RAIL_R) return (y & 7) === 0 ? C.concreteLt : C.white;
+    if (dx === RAIL_L + 1 || dx === RAIL_R - 1) return C.charcoal; // flange grooves
+    if (dx === RAIL_R + 1) return C.steel;
+    if (dx > RAIL_L + 1 && dx < RAIL_R - 1) return (y & 7) === 0 ? C.charcoal : dx === RAIL_L + 2 ? C.asphalt : C.asphaltDk;
+    if (dx === RAIL_L - 1 || dx === RAIL_R + 2) return C.concreteMd;
+    if (dx === RAIL_L - 2 || dx === RAIL_R + 3) return C.concrete;
+    return base;
+  }
+  // rails first (they lie on top of everything)
+  const joint = ((y % 64) + 64) % 64 === 0;
+  if (dx === RAIL_L || dx === RAIL_R) return joint ? C.asphalt : ihash(x, y >> 3, 371) % 7 === 0 ? C.white : C.concreteLt;
+  if (dx === RAIL_L + 1 || dx === RAIL_R + 1) return joint ? C.charcoal : C.brassOld; // rusty web
+  const sy = ((y % SLEEPER_PITCH) + SLEEPER_PITCH) % SLEEPER_PITCH;
+  const row = Math.floor(y / SLEEPER_PITCH);
+  const hh = ihash(row, 7, 373);
+  const half = SLEEPER_HALF - (hh & 1) - ((hh >>> 3) % 3 === 0 ? 1 : 0);
+  const off = (hh >>> 5) % 3 === 0 ? 1 : 0;
+  const onSleeper = sy < 3 && dx >= -half + off && dx < half + off;
+  if (dx === RAIL_L + 2 || dx === RAIL_R + 2) return onSleeper ? C.woodDark : C.charcoal; // rail shadow
+  if (onSleeper) {
+    // tie plates under the rails: a darker spot beside each rail
+    if ((dx === RAIL_L - 1 || dx === RAIL_R - 1) && sy === 1) return C.woodDark;
+    const worn = (hh >>> 7) % 5 === 0;
+    if (sy === 0) return worn ? C.brass : C.woodLt;
+    if (sy === 2) return C.woodDark;
+    return worn && ((dx + row) & 3) === 0 ? C.woodDark : C.wood;
+  }
+  // shadow of the sleeper on the ballast just south of it
+  if (sy === 3 && dx >= -half + off && dx < half + off) return base === C.charcoal ? C.ink : C.charcoal;
+  return base;
 }
 
 // ---- indoor floors --------------------------------------------------------------
@@ -492,13 +535,27 @@ const texKitchen: Tex = (x, y) => {
 };
 
 const texGenkan: Tex = (x, y) => {
-  // washed-aggregate concrete (洗い出し)
-  const a = cluster(x, y, 3, 431, 0.5);
-  if (a === 1) return C.white;
-  if (a === 2) return C.dirtLt;
-  if (a === 3) return C.steel;
-  if (a === 4) return C.concreteMd;
-  return C.concrete;
+  // washed-aggregate concrete (洗い出し, review round 2): a pale concrete
+  // ground with sparse 2–3px pebbles (lit top-left, body, shaded bottom-right)
+  // placed by hash on a jittered 5px grid — no 1px noise
+  const cx = Math.floor(x / 5);
+  const cy = Math.floor(y / 5);
+  const h = ihash(cx, cy, 431);
+  const lx = x - cx * 5 - (h % 3);
+  const ly = y - cy * 5 - ((h >>> 2) % 3);
+  if ((h >>> 5) % 3 !== 0) {
+    const sz = (h >>> 8) & 1 ? 3 : 2;
+    if (lx >= 0 && ly >= 0 && lx < sz && ly < sz && !(sz === 3 && lx === 2 && ly === 0)) {
+      const tone = (h >>> 10) % 4;
+      const light = tone === 0 ? C.white : tone === 1 ? C.paper : C.concreteLt;
+      const body = tone === 0 ? C.concreteLt : tone === 1 ? C.dirtLt : tone === 2 ? C.concreteMd : C.paperGrid;
+      if (lx + ly === 0) return light;
+      if (lx + ly >= sz * 2 - 2) return C.steel;
+      return body;
+    }
+  }
+  const n = valueNoise(x / 7, y / 7, 433);
+  return n > 0.7 ? C.concreteLt : n < 0.25 ? C.concreteMd : C.concrete;
 };
 
 const texTile: Tex = (x, y) => {
@@ -571,13 +628,16 @@ export function bakeGround(src: GroundSource, x0: number, y0: number, w: number,
       const ly = wy - ty * 16;
       if (lx < 4 || lx > 11 || ly < 4 || ly > 11) {
         // low-frequency wander + 2px bumps (6.1-4: borders are never straight lines)
-        const nx = (valueNoise(wx / 5.3, wy / 5.3, src.seed + 11) - 0.5) * 2 + (valueNoise(wx / 2.2, wy / 2.2, src.seed + 31) - 0.5) * 1.3;
-        const ny = (valueNoise(wx / 5.3, wy / 5.3, src.seed + 23) - 0.5) * 2 + (valueNoise(wx / 2.2, wy / 2.2, src.seed + 37) - 0.5) * 1.3;
+        // three octaves: a slow wander, 2–3px lobes and 1–2px bumps (every side of a border, review round 2)
+        const nx = (valueNoise(wx / 5.3, wy / 5.3, src.seed + 11) - 0.5) * 2 + (valueNoise(wx / 2.2, wy / 2.2, src.seed + 31) - 0.5) * 1.3 + (valueNoise(wx / 1.3, wy / 1.3, src.seed + 41) - 0.5) * 1.1;
+        const ny = (valueNoise(wx / 5.3, wy / 5.3, src.seed + 23) - 0.5) * 2 + (valueNoise(wx / 2.2, wy / 2.2, src.seed + 37) - 0.5) * 1.3 + (valueNoise(wx / 1.3, wy / 1.3, src.seed + 43) - 0.5) * 1.1;
         const sx = Math.floor((wx + nx * 3.2) / 16);
         const sy = Math.floor((wy + ny * 3.2) / 16);
         if (sx !== tx || sy !== ty) {
           const g1 = tileG(sx, sy);
-          if (g1 !== g0 && (PRIO[g1] ?? 0) > (PRIO[g0] ?? 0)) {
+          // higher-priority materials spread over lower ones; between two soft
+          // materials (grass / dirt / sand...) the border wanders both ways
+          if (g1 !== g0 && ((PRIO[g1] ?? 0) > (PRIO[g0] ?? 0) || (SOFT.has(g1) && SOFT.has(g0) && g1 !== 'paddy' && g0 !== 'paddy'))) {
             const a = amp(g1, g0);
             if (a > 0) {
               const k = a / 3.2;
@@ -620,6 +680,14 @@ export function bakeGround(src: GroundSource, x0: number, y0: number, w: number,
     }
     return r;
   };
+  // the rail tile column (track centre) nearest to tile (tx, ty), if any
+  const isRailTile = (tx: number, ty: number) => tileG(tx, ty) === 'rail' || (tileG(tx, ty) === 'crossing' && railColumn(tx, ty));
+  const trackCol = (tx: number, ty: number): number | null => {
+    if (isRailTile(tx, ty)) return tx;
+    if (isRailTile(tx - 1, ty)) return tx - 1;
+    if (isRailTile(tx + 1, ty)) return tx + 1;
+    return null;
+  };
   // pass 2: colour
   for (let j = 0; j < h; j++) {
     const wy = y0 + j;
@@ -631,7 +699,14 @@ export function bakeGround(src: GroundSource, x0: number, y0: number, w: number,
       const th = src.theme(Math.max(0, Math.min(src.w - 1, tx)), Math.max(0, Math.min(src.h - 1, ty)));
       const tex = TEX[g] ?? texVoid;
       let col = tex(wx, wy, variant(tx, ty, g), g === 'engawa' ? 'engawa' : th);
-      if (g === 'crossing' && railColumn(tx, ty)) col = crossingRail(wx, wy, variant(tx, ty, g));
+      // the track: sleepers and rails across the ballast bed / the crossing
+      if (g === 'ballast' || g === 'rail' || g === 'crossing') {
+        const rc = trackCol(tx, ty);
+        if (rc !== null) {
+          const dx = wx - (rc * 16 + 8);
+          if (dx >= -SLEEPER_HALF - 1 && dx <= SLEEPER_HALF + 1) col = trackPixel(dx, wx, wy, col, g === 'crossing');
+        }
+      }
       const up = idAt(i, j - 1);
       const dn = idAt(i, j + 1);
       const lf = idAt(i - 1, j);
@@ -647,14 +722,43 @@ export function bakeGround(src: GroundSource, x0: number, y0: number, w: number,
         // soft shade cast by the grass mass onto what is below it
         col = shadeOf(col);
       }
-      // bare ground next to grass: blades poking out, a pebble now and then
-      if ((g === 'dirt' || g === 'sand' || g === 'gravel') && (GREEN.has(lf) || GREEN.has(rt) || GREEN.has(up))) {
-        const hb = ihash(wx >> 1, wy >> 1, 1213);
-        if (hb % 3 === 0) col = (hb >>> 4) % 2 ? C.leaf : C.leafDeep;
-      } else if ((g === 'dirt' || g === 'sand') && (GREEN.has(idAt(i - 2, j)) || GREEN.has(idAt(i + 2, j)))) {
-        const hb = ihash(wx, wy, 1217);
-        if (hb % 17 === 0) col = C.concreteLt;
-        else if (hb % 17 === 1) col = C.steel;
+      // bare ground next to grass, on every side: blades poking out of the
+      // edge 1–3px (one lane every 2px along the border), a pebble now and then
+      if (g === 'dirt' || g === 'sand' || g === 'gravel') {
+        let best = 9;
+        let axis = 0; // 0 = vertical border (grass left/right), 1 = horizontal
+        for (let d = 1; d <= 3 && best > 3; d++) {
+          if (GREEN.has(idAt(i - d, j)) || GREEN.has(idAt(i + d, j))) {
+            best = d;
+            axis = 0;
+          } else if (GREEN.has(idAt(i, j - d)) || GREEN.has(idAt(i, j + d))) {
+            best = d;
+            axis = 1;
+          }
+        }
+        if (best <= 3) {
+          const a = axis === 0 ? wy : wx;
+          const lane = a >> 1;
+          const hb = ihash(lane, axis === 0 ? wx >> 3 : wy >> 3, 1213 + axis);
+          const L = hb % 5 === 0 ? 3 : hb % 3 === 0 ? 2 : hb % 2 === 0 ? 1 : 0;
+          if ((a & 1) === 0 && best <= L) col = best === L ? ((hb >>> 5) % 4 === 0 ? C.leafYoung : C.leaf) : C.leafDeep;
+          else if (best === 1 && (hb >>> 8) % 4 === 0) col = C.leafDeep;
+          else if (best >= 2 && (hb >>> 10) % 11 === 0) col = C.concreteLt;
+          else if (best >= 2 && (hb >>> 10) % 11 === 1) col = C.steel;
+        }
+      }
+      // paddy ridges (畦): grass tufts along the water's edge, a clover or a
+      // small flower here and there (review round 2)
+      if (g === 'dirt' && src.theme(Math.max(0, tx), Math.max(0, ty)) === 'taigan') {
+        let dp = 9;
+        for (let d = 1; d <= 3 && dp > 3; d++)
+          if (idAt(i - d, j) === 'paddy' || idAt(i + d, j) === 'paddy' || idAt(i, j - d) === 'paddy' || idAt(i, j + d) === 'paddy') dp = d;
+        if (dp <= 3) {
+          const hb = ihash(wx >> 1, wy >> 1, 1223);
+          const clump = valueNoise(wx / 6, wy / 6, 1229);
+          if (clump > 0.45 && hb % 3 !== 0) col = dp === 1 ? C.leafDeep : (hb >>> 4) % 3 === 0 ? C.leafYoung : C.leaf;
+          else if (dp >= 2 && hb % 97 === 0) col = (hb >>> 8) & 1 ? C.white : C.gold;
+        } else if (valueNoise(wx / 9, wy / 9, 1231) > 0.7 && ihash(wx, wy, 1233) % 4 === 0) col = C.leaf;
       }
       // curbs: raised paving next to roads
       if (RAISED.has(g)) {
@@ -666,6 +770,15 @@ export function bakeGround(src: GroundSource, x0: number, y0: number, w: number,
         if (RAISED.has(up)) col = C.charcoal;
         else if (RAISED.has(lf)) col = C.asphaltDk;
       }
+      // the raised wooden floor's edge (上がり框) over the genkan: its front face
+      // on the floor side, a 2px shadow on the concrete below it
+      if (g === 'genkan') {
+        const woodish = (q: Ground) => q === 'wood' || q === 'wood_bare' || q === 'engawa';
+        if (woodish(up) || woodish(idAt(i, j - 2))) col = woodish(up) ? C.charcoal : C.concreteMd === col ? C.steel : C.concreteMd;
+        else if (woodish(rt) || woodish(idAt(i + 2, j))) col = woodish(rt) ? C.steel : C.concreteMd;
+      } else if ((g === 'wood' || g === 'wood_bare') && (dn === 'genkan' || idAt(i, j + 2) === 'genkan')) {
+        col = dn === 'genkan' ? C.woodDark : C.floorWoodDk; // 框 face
+      } else if ((g === 'wood' || g === 'wood_bare') && lf === 'genkan') col = C.woodDark;
       // canal retaining wall (護岸) at the north bank, moss lip at the south bank
       if (g === 'water') {
         let k = 1;

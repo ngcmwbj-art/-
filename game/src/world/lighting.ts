@@ -59,8 +59,9 @@ export const INDOOR_MUL: Record<number, RGB> = {
   0: hx('#FFF0DC'),
   1: hx('#F7E2E8'),
   2: hx('#E6DCEF'),
-  // night: the lamps are on — dim but warm (8.6: the house is the warmest place)
-  3: hx('#B09A92'),
+  // night: the room is dark except where its lamps throw light (render.ts light
+  // map); the lamps are warm, so the house is the warmest place (8.6)
+  3: hx('#5E5070'),
 };
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;

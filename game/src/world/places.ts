@@ -415,7 +415,15 @@ function drawSparrows(f: FieldScene, g: Gfx, cx: number, cy: number, stage: numb
       const hop = hopIdx === i ? 1 : 0;
       const singing = hopIdx === i;
       const img = singing && spr.extra?.sing ? poseFrame(spr, 'sing', 'left') : idleFrame(spr, i % 2 ? 'left' : 'right', f.t + i * 330);
-      g.img(img, Math.round(x - cx - img.width / 2), Math.round(y - cy - img.height + 1 - hop));
+      const sx = Math.round(x - cx - img.width / 2);
+      const sy = Math.round(y) - cy - img.height + 1 - hop;
+      g.img(img, sx, sy);
+      if (singing) {
+        // the singing bird hops with a white 1px twinkle (so the eye finds the staff)
+        const k = Math.floor(hopClock / 70) % 3;
+        g.rect(sx + 3 + (k === 1 ? 1 : 0), sy - 2 - k, 1, 1, P.glint);
+        if (k === 2) g.rect(sx + 6, sy - 1, 1, 1, P.white);
+      }
     }
     return;
   }
@@ -511,11 +519,15 @@ function drawMaido(f: FieldScene, g: Gfx, cx: number, cy: number): void {
 // ---------------------------------------------------------------- the night train (8.6)
 
 const train = { active: false, t: 0, y0: 0, v: 0 };
-/** Train geometry: 4 unlit cars on the x60 track, as wide as the ballast bed. */
-const TRAIN_W = 38;
-const CAR_L = 88;
-const GAP = 6;
-const NOSE = 12;
+/**
+ * Train geometry (review round 2): 4 unlit commuter cars on the x60 track,
+ * the body 28px wide — 5–6px over the rails on each side (rails 15px apart)
+ * — and 112px long per car.
+ */
+const TRAIN_W = 28;
+const CAR_L = 112;
+const GAP = 5;
+const NOSE = 10;
 const TRAIN_L = NOSE + 4 * CAR_L + 3 * GAP;
 const TRAIN_MS = 2800;
 
@@ -527,85 +539,95 @@ function trainImages(): HTMLCanvasElement[] {
     const w = TRAIN_W + 2;
     const h = TRAIN_L + 2;
     const p = new PixelCanvas(w, h);
+    const x0 = 1;
+    const R0 = x0 + 5; // roof edges
+    const R1 = x0 + TRAIN_W - 6;
+    const mid = x0 + Math.floor(TRAIN_W / 2);
     for (let c = 0; c < 4; c++) {
       // car c = 0 is the last (north) car; the lead car is c = 3
       const y0 = 1 + c * (CAR_L + GAP);
-      const x0 = 1;
-      // body sides (the upper walls show as a strip with dark windows)
+      const y1 = y0 + CAR_L - 1;
+      // body sides: the upper walls show as a strip with the window band
       p.rect(x0, y0, TRAIN_W, CAR_L, P.steel);
-      p.vline(x0, y0, y0 + CAR_L - 1, P.concrete);
-      p.vline(x0 + TRAIN_W - 1, y0, y0 + CAR_L - 1, P.asphalt);
-      for (let k = 0; k < 8; k++) {
-        const wy = y0 + 6 + k * 10;
-        if (wy + 6 > y0 + CAR_L - 3) break;
-        for (const wx of [x0 + 1, x0 + TRAIN_W - 5]) {
-          p.rect(wx, wy, 4, 6, P.night);
-          p.set(wx + (wx === x0 + 1 ? 0 : 3), wy, P.shade);
+      p.vline(x0, y0, y1, P.concrete);
+      p.vline(x0 + TRAIN_W - 1, y0, y1, P.asphalt);
+      // three door pairs per side, windows between them (dark, unlit)
+      const doors = [0.17, 0.5, 0.83].map((f) => y0 + Math.round(CAR_L * f));
+      for (const side of [x0 + 1, x0 + TRAIN_W - 4]) {
+        for (let wy = y0 + 4; wy < y1 - 4; wy += 1) {
+          const nearDoor = doors.some((d) => Math.abs(wy - d) <= 5);
+          if (nearDoor) continue;
+          const seg = (wy - y0) % 9;
+          if (seg < 7) p.hline(side, side + 2, wy, seg === 0 ? P.shade : P.night);
+        }
+        for (const d of doors) {
+          p.rect(side, d - 4, 3, 9, P.asphalt);
+          p.hline(side, side + 2, d, P.charcoal);
+          p.set(side + (side === x0 + 1 ? 0 : 2), d - 3, P.concrete);
         }
       }
-      // doors: a paler panel pair in the middle of each side
-      for (const wx of [x0 + 1, x0 + TRAIN_W - 5]) {
-        p.rect(wx, y0 + Math.floor(CAR_L / 2) - 4, 4, 9, P.asphalt);
-        p.hline(wx, wx + 3, y0 + Math.floor(CAR_L / 2), P.charcoal);
-      }
-      // roof: pale, a centre ridge, seams every 8px, a gutter each side
-      p.rect(x0 + 6, y0 + 1, TRAIN_W - 12, CAR_L - 2, P.concrete);
-      p.vline(x0 + 6, y0 + 1, y0 + CAR_L - 2, P.concreteLt);
-      p.vline(x0 + TRAIN_W - 7, y0 + 1, y0 + CAR_L - 2, P.steel);
-      p.vline(x0 + 5, y0, y0 + CAR_L - 1, P.charcoal);
-      p.vline(x0 + TRAIN_W - 6, y0, y0 + CAR_L - 1, P.charcoal);
-      for (let yy = y0 + 4; yy < y0 + CAR_L - 2; yy += 8) p.hline(x0 + 7, x0 + TRAIN_W - 8, yy, P.concreteLt);
-      p.vline(x0 + Math.floor(TRAIN_W / 2), y0 + 2, y0 + CAR_L - 3, P.concreteLt);
+      // roof: pale, gutters each side, seams every 8px, a centre walkway line
+      p.rect(R0, y0 + 1, R1 - R0 + 1, CAR_L - 2, P.concrete);
+      p.vline(R0, y0 + 1, y1 - 1, P.concreteLt);
+      p.vline(R1, y0 + 1, y1 - 1, P.steel);
+      p.vline(R0 - 1, y0, y1, P.charcoal);
+      p.vline(R1 + 1, y0, y1, P.charcoal);
+      for (let yy = y0 + 4; yy < y1 - 1; yy += 8) p.hline(R0 + 1, R1 - 1, yy, P.concreteLt);
+      p.vline(mid, y0 + 2, y1 - 2, P.concreteLt);
       // roof units: an air conditioner on every car, a pantograph on cars 1 and 3
-      const ac = y0 + (c % 2 ? 58 : 18);
-      p.rect(x0 + 11, ac, TRAIN_W - 22, 12, P.concreteLt);
-      p.strokeRect(x0 + 11, ac, TRAIN_W - 22, 12, P.steel);
-      p.hline(x0 + 12, x0 + TRAIN_W - 13, ac + 1, P.white);
-      for (let k = 0; k < 3; k++) p.hline(x0 + 13, x0 + TRAIN_W - 14, ac + 4 + k * 3, P.steel);
+      const acs = c % 2 ? [y0 + 74] : [y0 + 22, y0 + 74];
+      for (const ac of acs) {
+        p.rect(R0 + 3, ac, R1 - R0 - 5, 14, P.concreteLt);
+        p.strokeRect(R0 + 3, ac, R1 - R0 - 5, 14, P.steel);
+        p.hline(R0 + 4, R1 - 3, ac + 1, P.white);
+        for (let k = 0; k < 4; k++) p.hline(R0 + 5, R1 - 4, ac + 4 + k * 2, P.steel);
+        p.hline(R0 + 3, R1 - 2, ac + 14, P.asphalt);
+      }
       if (c % 2) {
-        const py = y0 + 20;
-        const cxp = x0 + Math.floor(TRAIN_W / 2);
-        p.rect(cxp - 8, py, 16, 2, P.charcoal); // base frame
-        p.rect(cxp - 8, py + 14, 16, 2, P.charcoal);
-        p.line(cxp - 7, py + 2, cxp, py + 7, P.asphalt);
-        p.line(cxp + 7, py + 2, cxp, py + 7, P.asphalt);
-        p.line(cxp - 7, py + 13, cxp, py + 8, P.asphalt);
-        p.line(cxp + 7, py + 13, cxp, py + 8, P.asphalt);
-        p.hline(cxp - 11, cxp + 11, py + 7, P.steel); // the shoe
-        p.hline(cxp - 11, cxp + 11, py + 8, P.charcoal);
+        const py = y0 + 22;
+        p.rect(mid - 6, py, 12, 2, P.charcoal); // base frame
+        p.rect(mid - 6, py + 16, 12, 2, P.charcoal);
+        p.line(mid - 5, py + 2, mid, py + 8, P.asphalt);
+        p.line(mid + 5, py + 2, mid, py + 8, P.asphalt);
+        p.line(mid - 5, py + 15, mid, py + 9, P.asphalt);
+        p.line(mid + 5, py + 15, mid, py + 9, P.asphalt);
+        p.hline(mid - 9, mid + 9, py + 8, P.steel); // the shoe
+        p.hline(mid - 9, mid + 9, py + 9, P.charcoal);
+        // insulators
+        p.set(mid - 6, py - 1, P.white);
+        p.set(mid + 5, py - 1, P.white);
       }
       // coupling bellows to the next car
       if (c < 3) {
-        p.rect(x0 + 10, y0 + CAR_L, TRAIN_W - 20, GAP, P.charcoal);
-        for (let k = 0; k < GAP; k += 2) p.hline(x0 + 10, x0 + TRAIN_W - 11, y0 + CAR_L + k, P.ink);
+        p.rect(x0 + 7, y1 + 1, TRAIN_W - 14, GAP, P.charcoal);
+        for (let k = 0; k < GAP; k += 2) p.hline(x0 + 7, x0 + TRAIN_W - 8, y1 + 1 + k, P.ink);
       }
-      // ends: a darker line
+      // car ends: a darker line
       p.hline(x0, x0 + TRAIN_W - 1, y0, P.asphalt);
-      p.hline(x0, x0 + TRAIN_W - 1, y0 + CAR_L - 1, P.charcoal);
+      p.hline(x0, x0 + TRAIN_W - 1, y1, P.charcoal);
     }
     // the lead car's front face (south end, facing the viewer)
     const fy = 1 + 4 * CAR_L + 3 * GAP;
     const fx = 1;
     p.rect(fx, fy, TRAIN_W, NOSE, P.asphalt);
     p.hline(fx, fx + TRAIN_W - 1, fy, P.steel);
-    // windscreen (two dark panes), the destination sign above the centre
-    p.rect(fx + 3, fy + 2, 13, 6, P.night);
-    p.rect(fx + TRAIN_W - 16, fy + 2, 13, 6, P.night);
-    p.set(fx + 4, fy + 3, P.shade);
-    p.set(fx + TRAIN_W - 15, fy + 3, P.shade);
-    // unlit headlights, the coupler
-    p.rect(fx + 2, fy + 9, 3, 2, P.charcoal);
-    p.rect(fx + TRAIN_W - 5, fy + 9, 3, 2, P.charcoal);
-    p.rect(fx + Math.floor(TRAIN_W / 2) - 2, fy + NOSE - 2, 4, 2, P.ink);
+    // windscreen (two dark panes), unlit headlights, the coupler
+    p.rect(fx + 2, fy + 2, 10, 5, P.night);
+    p.rect(fx + TRAIN_W - 12, fy + 2, 10, 5, P.night);
+    p.set(fx + 3, fy + 3, P.shade);
+    p.set(fx + TRAIN_W - 11, fy + 3, P.shade);
+    p.rect(fx + 2, fy + 8, 2, 1, P.charcoal);
+    p.rect(fx + TRAIN_W - 4, fy + 8, 2, 1, P.charcoal);
+    p.rect(mid - 2, fy + NOSE - 2, 4, 2, P.ink);
     // outline
     p.strokeRect(0, 0, w, h, P.ink);
-    // destination sign 「星見台」 — hand-set glyphs, the backlight flickers (2 frames)
-    const sw = 27;
+    // destination sign 「星見台」 over the windscreen — hand-set glyphs, the backlight flickers (2 frames)
+    const sw = 24;
     const sx = fx + Math.floor((TRAIN_W - sw) / 2);
     const sy = fy - 10;
     p.rect(sx - 1, sy - 1, sw + 2, 11, P.ink);
     p.rect(sx, sy, sw, 9, frame ? P.nightShade : P.night);
-    handText(p, '星見台', sx + 1, sy + 1, frame ? P.glint : P.horizon, { spacing: 2 });
+    handText(p, '星見台', sx + 1, sy + 1, frame ? P.glint : P.horizon, { spacing: 1 });
     return p.toCanvas();
   };
   TRAIN_IMG = [mk(0), mk(1)];
@@ -617,7 +639,7 @@ function drawTrain(g: Gfx, cx: number, cy: number): void {
   const img = imgs[Math.floor(train.t / 90) % 2];
   // head at y0 + v·t, travelling south along x = 60 (the ballast bed x 59–61)
   const headY = train.y0 + train.v * train.t;
-  const x = 60 * 16 + 8 - Math.floor(img.width / 2) - cx;
+  const x = 60 * 16 + 8 - Math.ceil(img.width / 2) - cx;
   const y = Math.round(headY - img.height - cy);
   // a soft shadow on the ballast (east side) and the train
   g.rect(x + img.width, y + 4, 4, img.height - 8, P.night, 0.35);

@@ -7,6 +7,7 @@ import { flat, mat, type Fig, type Mats, type RowMap } from '../fig';
 import { armTo, legs, swing, type ArmSpec, type LegSpec, type Seg } from '../body';
 import { buildSprite, breathingIdle, type Pose, type SpriteSpec } from '../rig';
 import { registerChar } from '../registry';
+import { tilt, tiltTpl, type Tpl } from '../kit';
 
 // Colors follow the reference sprite of 30_level_art 9.1 (hair #2B1E1A /
 // #5A3A2A, tee #6CC48A / #3FA66B / #2E6B4A, skin #FFD9B8 / #E0A882 ...).
@@ -44,13 +45,19 @@ const LEGS: LegSpec = { cx: 8, hip: 20, foot: 22, w: 2, gap: 2, mat: 'skin', sho
 const FOREARM: Seg[] = [{ mat: 'skin' }];
 
 /**
- * Bug-net hoop: a 3×3 net whose outline IS the wire ring (5×5 with the
- * corners cut, as in 30_level_art 9.1), so it stays crisp at 1x. (x, y) is
- * the ring's top-left.
+ * Bug-net hoop: a 6×5 oval of cane-coloured wire (lit top-left, shaded
+ * bottom-right by the renderer) around a dithered mesh that sags a little
+ * darker toward the bottom, so at 1x it reads as a round net and not as a
+ * checkered square. (x, y) is the ring's top-left. `narrow` = the hoop seen
+ * edge-on from the side (4×5).
  */
-function netHoop(f: Fig, x: number, y: number) {
-  f.part('net', { flat: true, rim: false });
-  f.rows(x + 1, y + 1, ['nNn', 'NnN', 'nNn'], { n: 'net', N: 'netD' });
+function netHoop(f: Fig, x: number, y: number, narrow = false) {
+  f.part('hoop', { shade: 'rb', light: 't' });
+  if (narrow) f.rows(x, y, ['.##.', '#..#', '#..#', '#..#', '.##.']);
+  else f.rows(x, y, ['.####.', '#....#', '#....#', '#....#', '.####.']);
+  f.part('net', { flat: true, rim: false, ol: false });
+  if (narrow) f.rows(x + 1, y + 1, ['nN', 'Nn', 'nN'], { n: 'net', N: 'netD' });
+  else f.rows(x + 1, y + 1, ['nnNn', 'nNnN', 'NnNN'], { n: 'net', N: 'netD' });
 }
 
 function ahoge(f: Fig, x: number, y: number, sway: number) {
@@ -62,56 +69,30 @@ function ahoge(f: Fig, x: number, y: number, sway: number) {
 
 function headFront(f: Fig, p: Pose, y: number) {
   const up = p.lookUp;
-  // face (+ neck when the head tilts back)
+  if (up) return headFrontUp(f, p, y);
   f.part('skin', { shade: 'rb', light: '' });
-  if (!up)
-    f.rows(3, y + 4, [
-      '.########.',
-      '##########',
-      '##########',
-      '##########',
-      '.########.',
-      '..######..',
-    ]);
-  else {
-    // looking up: the face lifts on a stretched neck and the underside of
-    // the jaw turns to shade (readable at 1x from the front)
-    f.rows(3, y + 3, [
-      '.########.',
-      '##########',
-      '##########',
-      '##########',
-      '.########.',
-      '..SSSSSS..',
-      '....SS....',
-      '....SS....',
-    ], SKIN);
-  }
+  f.rows(3, y + 4, [
+    '.########.',
+    '##########',
+    '##########',
+    '##########',
+    '.########.',
+    '..######..',
+  ]);
   // hair (explicit form shading; front view is never mirrored)
   f.part('hair', { shade: '', light: '' });
-  if (!up)
-    f.rows(1, y, [
-      '.....HHhhh....',
-      '...HKKHhhhhd..',
-      '..HKHhhhhhhhd.',
-      '.HHhhhhhhhhhdd',
-      'hHhhhdhhhhhhdd',
-      '.hhd.hhd.hhdd.',
-      '.hd...d...dhd.',
-      '.h.........hd.',
-    ], HAIR);
-  else
-    f.rows(1, y - 1, [
-      '.....HHhhh....',
-      '...HKKHhhhhd..',
-      '..HKHhhhhhhhd.',
-      '.HHhhhhhhhhhdd',
-      'hHhhdhhhdhhhdd',
-      '.hd.......hdd.',
-      '.h.........hd.',
-    ], HAIR);
+  f.rows(1, y, [
+    '.....HHhhh....',
+    '...HKKHhhhhd..',
+    '..HKHhhhhhhhd.',
+    '.HHhhhhhhhhhdd',
+    'hHhhhdhhhhhhdd',
+    '.hhd.hhd.hhdd.',
+    '.hd...d...dhd.',
+    '.h.........hd.',
+  ], HAIR);
   // eyes
-  const ey = y + (up ? 5 : 7);
+  const ey = y + 7;
   f.part('eye', { flat: true, rim: false });
   if (p.act === 'hurt') {
     f.px(4, ey).px(5, ey + 1).px(11, ey).px(10, ey + 1);
@@ -131,22 +112,58 @@ function headFront(f: Fig, p: Pose, y: number) {
   f.part('blush', { flat: true, rim: false });
   f.px(4, ey + 2).px(11, ey + 2);
   f.part('mouth', { flat: true, rim: false });
-  if (up) f.rect(8, ey + 2, 1, 2);
-  else if (p.act === 'surprised') f.px(8, y + 9);
+  if (p.act === 'surprised') f.px(8, y + 9);
   else if (p.act === 'hurt') f.rect(7, y + 9, 2, 1);
   else if (p.act === 'smug') f.px(8, y + 9).px(9, y + 8);
   else f.px(8, y + 9);
 }
 
+/**
+ * 17:00 look_up, front (see kit.ts lookUpFront): the face turns up to the
+ * sky — less crown, a thin fringe, the whole face under it lit by the sky,
+ * pupils rolled up under the fringe (eye whites below), the mouth hanging
+ * open, the jaw's underside in shade and the chin sunk into the collar.
+ */
+function headFrontUp(f: Fig, p: Pose, y: number) {
+  f.part('skin', { shade: 'rb', light: '' });
+  f.rows(3, y + 4, [
+    '#LLLLLLLL#',
+    '#LLLLLLLL#',
+    '##########',
+    '##########',
+    '.########.',
+    '.SSSSSSSS.',
+    '..SSSSSS..',
+  ], SKIN);
+  f.part('hair', { shade: '', light: '' });
+  f.rows(1, y, [
+    '.....HHhhh....',
+    '...HKKHhhhhd..',
+    '..HKHhhhhhhhd.',
+    '.HHhhhhhhhhhdd',
+    'hHd.h..h..hhdd',
+    '.h.........hd.',
+    '.h.........hd.',
+    '.d.........dd.',
+  ], HAIR);
+  f.part('eye', { flat: true, rim: false });
+  f.px(5, y + 5).px(10, y + 5);
+  f.part('#F4F1E8', { flat: true, rim: false });
+  f.px(5, y + 6).px(10, y + 6);
+  f.part('mouth', { flat: true, rim: false });
+  f.rect(8, y + 8, 1, 2);
+  void p;
+}
+
 function headBack(f: Fig, p: Pose, y: number) {
-  // looking up from behind: the back of the head drops over the nape and
-  // the corners of the jaw peek out at both sides
+  // looking up from behind: the back of the head sinks over the nape and
+  // the ears show at both sides
   const up = p.lookUp;
   f.part('skin', { shade: 'rb', light: '' });
   if (!up) f.rect(5, y + 8, 6, 2);
-  else f.t(-1).px(2, y + 9).px(13, y + 9).t(null);
+  else f.t(-1).rect(0, y + 6, 1, 2).rect(15, y + 6, 1, 2).t(null);
   f.part('hair', { shade: '', light: '' });
-  f.rows(1, y + (up ? 1 : 0), [
+  const rows = [
     '.....HHhhh....',
     '...HKKHhhhhd..',
     '..HKHhhhhhhhd.',
@@ -157,72 +174,72 @@ function headBack(f: Fig, p: Pose, y: number) {
     '.hhhhhhhhhhdd.',
     '..hdhhdhhdhd..',
     '...d..d..d....',
-  ], HAIR);
+  ];
+  if (up) f.rows(1, y + 2, rows.slice(1), HAIR);
+  else f.rows(1, y, rows, HAIR);
 }
+
+const SIDE_FACE = [
+  '.####.....',
+  '######....',
+  '######....',
+  '#######...',
+  '.#####....',
+  '..###.....',
+];
+const SIDE_HAIR = [
+  '.....#####....',
+  '...########...',
+  '..##########..',
+  '.###########-.',
+  '##-##########.',
+  '.#..-########.',
+  '......#######.',
+  '.......######.',
+  '........###...',
+];
 
 function headSide(f: Fig, p: Pose, y: number) {
   const up = p.lookUp;
+  // look_up: the head tips back about the neck (kit.ts tilt)
+  const cx = 7;
+  const cy = 9;
+  const T = (t: Tpl): Tpl => (up ? tiltTpl(t, cx, cy) : t);
+  const P = (x: number, yy: number): [number, number] => (up ? tilt(x, yy, cx, cy) : [x, yy]);
+  if (up) {
+    // throat under the raised jaw
+    f.part('skin', { shade: '', light: '' });
+    f.t(-1).rect(4, y + 8, 4, 3).t(null);
+  }
   f.part('skin', { shade: 'b', light: '' });
-  if (!up)
-    f.rows(2, y + 4, [
-      '.####.....',
-      '######....',
-      '######....',
-      '#######...',
-      '.#####....',
-      '..###.....',
-    ]);
-  else
-    f.rows(1, y + 3, [
-      '...###.....',
-      '..#####....',
-      '.######....',
-      '#######....',
-      '.#######...',
-      '..#####....',
-      '....##.....',
-    ]);
+  const face = T([2, 4, SIDE_FACE]);
+  f.rows(face[0], y + face[1], face[2]);
   f.part('hair', { shade: 'rb', light: 't' });
-  if (!up)
-    f.rows(1, y, [
-      '.....#####....',
-      '...########...',
-      '..##########..',
-      '.###########-.',
-      '##-##########.',
-      '.#..-########.',
-      '......#######.',
-      '.......######.',
-      '........###...',
-    ]);
-  else
-    f.rows(1, y - 1, [
-      '......#####...',
-      '....########..',
-      '...##########.',
-      '..###########-',
-      '.#-.#########.',
-      '......#######.',
-      '.......######.',
-      '.......######.',
-      '........###...',
-    ]);
+  const hair = T([1, 0, SIDE_HAIR]);
+  f.rows(hair[0], y + hair[1], hair[2]);
   // ear
+  const [ex0, ey0] = P(8, 6);
+  const [ex1, ey1] = P(8, 7);
   f.part('skin', { shade: '', light: '' });
-  f.t(-1).px(8, y + (up ? 5 : 6)).t(0).px(8, y + (up ? 6 : 7)).t(null);
+  f.t(-1).px(ex0, y + ey0).t(0).px(ex1, y + ey1).t(null);
   // eye
   f.part('eye', { flat: true, rim: false });
-  const ey = y + (up ? 4 : 6);
-  const ex = up ? 3 : 4;
-  if (p.blinkClosed) f.hl(ex, ex + 1, ey + 1);
-  else if (p.blink || p.act === 'smug') f.px(ex, ey + 1);
-  else if (p.act === 'hurt') f.px(ex, ey + 1).px(ex + 1, ey);
-  else f.rect(ex, ey, 1, 2);
+  const [ex, ey] = P(4, 6);
+  if (up) {
+    f.px(ex, y + ey);
+    f.part('#F4F1E8', { flat: true, rim: false });
+    f.px(ex, y + ey + 1);
+  } else if (p.blinkClosed) f.hl(ex, ex + 1, y + ey + 1);
+  else if (p.blink || p.act === 'smug') f.px(ex, y + ey + 1);
+  else if (p.act === 'hurt') f.px(ex, y + ey + 1).px(ex + 1, y + ey);
+  else f.rect(ex, y + ey, 1, 2);
   f.part('blush', { flat: true, rim: false });
   if (!up) f.px(5, y + 8);
   f.part('mouth', { flat: true, rim: false });
-  if (up) f.px(2, y + 7);
-  else if (p.act === 'surprised' || p.act === 'hurt') f.px(3, y + 9);
+  if (up) {
+    const [mx, my] = P(3, 9);
+    f.px(mx, y + my);
+  } else if (p.act === 'surprised' || p.act === 'hurt') f.px(3, y + 9);
 }
 
 // ---- torso ------------------------------------------------------------------
@@ -282,9 +299,9 @@ function front(f: Fig, p: Pose) {
   const act = p.act;
   // surprised: the head jerks up 1px
   const headY = 2 + u + (act === 'hurt' ? 1 : act === 'surprised' ? -1 : 0);
-  netHoop(f, 0, 0 + u);
+  netHoop(f, 1, 0 + u);
   f.part('pole', { shade: 'r', light: '' });
-  f.px(4, 4 + u);
+  f.px(4, 5 + u);
   legs(f, p, LEGS);
   shortsFront(f, 18 + b);
   const armL: ArmSpec = { sx: 2, sy: 15 + u, hx: 0, hy: 2, segs: FOREARM };
@@ -329,8 +346,10 @@ function front(f: Fig, p: Pose) {
     f.px(4, 16 + u).px(11, 16 + u);
   } else {
     teeFront(f, p, 12 + u, 17 + b, false);
-    armTo(f, armL, 2, 17 + u + swing(p, -1));
-    armTo(f, armR, 13, 17 + u + swing(p, 1));
+    // look_up: arms go slack, hands 1px lower and in against the tee
+    const lu = p.lookUp ? 1 : 0;
+    armTo(f, armL, 2 + lu, 17 + u + lu + swing(p, -1));
+    armTo(f, armR, 13 - lu, 17 + u + lu + swing(p, 1));
   }
   if (act === 'bow') {
     // a polite bow: the head dips 2px, eyes shut, ahoge flops forward
@@ -361,11 +380,12 @@ function back(f: Fig, p: Pose) {
   teeFront(f, p, 12 + u, 17 + b, true);
   const armL: ArmSpec = { sx: 2, sy: 15 + u, hx: 0, hy: 2, segs: FOREARM, shift: -1 };
   const armR: ArmSpec = { sx: 13, sy: 15 + u, hx: 0, hy: 2, segs: FOREARM, shift: -1 };
-  armTo(f, armL, 2, 17 + u - swing(p, -1));
-  armTo(f, armR, 13, 17 + u - swing(p, 1));
+  const lu = p.lookUp ? 1 : 0;
+  armTo(f, armL, 2 + lu, 17 + u + lu - swing(p, -1));
+  armTo(f, armR, 13 - lu, 17 + u + lu - swing(p, 1));
   headBack(f, p, headY);
   const sway = p.mode === 'idle' ? (p.tick % 4 < 2 ? 0 : -1) : p.mode === 'walk' ? (p.step % 2 ? -1 : 0) : 0;
-  ahoge(f, 6, headY - 2, sway);
+  ahoge(f, 6, headY - 2 + (p.lookUp ? 2 : 0), sway);
   // key string: 1px at the nape
   f.part('string', { flat: true, rim: false });
   f.px(9, 11 + u);
@@ -374,7 +394,7 @@ function back(f: Fig, p: Pose) {
   f.part('pole', { shade: '', light: '' });
   f.t(0).line(4, 4 + u, 10, 15 + u).t(-1).px(10, 16 + u).t(null);
   f.retone(6, 7 + u, 1).retone(8, 11 + u, 1);
-  netHoop(f, 0, 0 + u);
+  netHoop(f, 1, 0 + u);
   if (p.act === 'hold') {
     // package edges peeking out at his sides
     f.part('kraft', { shade: 'rb', light: 't' });
@@ -391,7 +411,7 @@ function side(f: Fig, p: Pose) {
   // net along the back, hoop above-right
   f.part('pole', { shade: 'r', light: '' });
   f.line(10 + lean, 14 + u, 12 + lean, 4 + u);
-  netHoop(f, 11 + lean, 0 + u);
+  netHoop(f, 11 + lean, 0 + u, true);
   const sw = p.mode === 'walk' || p.mode === 'run' ? [0, 1, 0, -1][p.step % 4] * (p.run ? 2 : 1) : 0;
   // far arm
   armTo(f, { sx: 8 + lean, sy: 15 + u, hx: 0, hy: 2, segs: FOREARM, shift: -1 }, 8 + lean - sw, 17 + u - (sw ? 1 : 0));
@@ -458,7 +478,10 @@ function side(f: Fig, p: Pose) {
   }
   headSide(f, p, headY);
   const sway = p.mode === 'idle' ? (p.tick % 4 < 2 ? 0 : 1) : p.mode === 'walk' ? (p.step % 2 ? 1 : 0) : 1;
-  ahoge(f, 8 + lean, headY - 2 - (p.lookUp ? 1 : 0), sway);
+  if (p.lookUp) {
+    const [ax, ay] = tilt(8, -1, 7, 9);
+    ahoge(f, ax + lean, headY + ay - 1, sway);
+  } else ahoge(f, 8 + lean, headY - 2, sway);
   // the net's pole, stuck down the back of his collar, runs diagonally past
   // the back of his head up to the hoop (30_level_art 9.1: seen from the
   // side the pole shows on the back side, not a hoop floating by his head)
@@ -489,7 +512,7 @@ function sleepPose(f: Fig, p: Pose) {
     ahoge(f, 8, 2 + y, 1);
     f.part('pole', { shade: '', light: '' });
     f.t(0).line(4, 5 + y, 10, 14).t(null);
-    netHoop(f, 0, 1 + y);
+    netHoop(f, 1, 1 + y);
     f.part('shorts', { shade: 'rb', light: '' });
     f.rect(4, 19, 8, 2);
     f.part('skin', { shade: 'r', light: '' });
@@ -522,7 +545,7 @@ function sleepPose(f: Fig, p: Pose) {
     '.hhhhhhdd.',
   ], HAIR);
   ahoge(f, 7, 5 + y, 1);
-  netHoop(f, 0, 3 + y);
+  netHoop(f, 1, 3 + y);
   f.part('pole', { shade: '', light: '' });
   f.px(4, 7 + y).px(4, 8 + y);
   // folded arms under the head: sleeves at the sides, two forearms crossed

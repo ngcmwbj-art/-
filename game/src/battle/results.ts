@@ -79,7 +79,8 @@ export function* victory(s: BattleScene): Co {
     }
   } else if (!quiet) {
     yield 200;
-    const seal = ovalStamp('みました', 64, 32, 0, 11, true);
+    // (16.12's 64×32, widened so the 16px みました clears the frame)
+    const seal = ovalStamp('みました', 88, 36, 0, 11, true);
     s.addFx({
       layer: 'top',
       dur: 1600,
@@ -469,47 +470,54 @@ class ReportCard {
     g.rect(x + 143, y + 2, 1, 164, C.grid, 0.3);
     g.rect(x + 145, y + 2, 1, 164, C.grid, 0.3);
     const pages = this.pages();
+    // each page keeps an 8px margin (x56–184 and x200–328); the stat names
+    // take a 64px column, the before→after values follow at +66
+    const PW = 128;
     pages.forEach((r, pi) => {
-      const px = pi === 0 ? 52 : 196;
+      const px = pi === 0 ? 56 : 200;
       if (!r) {
         if (pi === 1) {
           const big = crest(48);
-          g.img(big, px + 44, y + 50);
-          g.text(REPORT.title, px + 68, y + 110, { color: C.brass, align: 'center' });
+          g.img(big, px + PW / 2 - 24, y + 50);
+          g.text(REPORT.title, px + PW / 2, y + 110, { color: C.brass, align: 'center' });
         }
         return;
       }
       const id = r.memberId;
-      g.text(REPORT.nameLine1[id] ?? '', px, y + 4, { color: C.ink });
+      g.text(REPORT.nameLine1[id] ?? '', px, y + 5, { color: C.ink });
       g.text(REPORT.nameLine2[id] ?? '', px, y + 22, { color: C.ink });
-      // "Lv2→3": tiny Lv, compact arrow
-      const lx = px + 136 - arrowTextWidth(g, r.from, r.to);
-      g.img(miniText('Lv', 0.62, C.shuDark), lx - 11, y + 29);
-      drawArrowText(g, r.from, r.to, lx, y + 22, C.shuDark);
-      g.rect(px, y + 40, 136, 1, C.grid);
+      // "Lv2→3" (tiny Lv, compact arrow) sits at the right end of the rule
+      // under the names, so a long name never runs into it
+      const lw = arrowTextWidth(g, r.from, r.to);
+      const lx = px + PW - lw;
+      g.rect(px, y + 44, PW - lw - 16, 1, C.grid);
+      g.img(miniText('Lv', 0.62, C.shuDark), lx - 11, y + 44);
+      drawArrowText(g, r.from, r.to, lx, y + 37, C.shuDark);
       REPORT.stats.forEach((name, row) => {
-        const yy = y + 42 + row * 18;
+        const yy = y + 52 + row * 18;
         g.text(name, px, yy, { color: C.ink });
         const key = STAT_KEYS[row];
         if (id === 'kanenari' && key === 'mp') {
-          g.text(REPORT.kanenariMp, px + 34, yy, { color: C.gray });
+          g.text(REPORT.kanenariMp, px + 30, yy, { color: C.gray });
         } else {
-          drawArrowText(g, r.before[key], r.after[key], px + 70, yy, C.ink);
+          // right-aligned against the grade column
+          const vw = arrowTextWidth(g, r.before[key], r.after[key]);
+          drawArrowText(g, r.before[key], r.after[key], px + PW - 20 - vw, yy, C.ink);
         }
-        g.rect(px, yy + 17, 136, 1, '#EFE2C2');
+        g.rect(px, yy + 17, PW, 1, '#EFE2C2');
         const st = this.stamps.find((s) => s.page === pi && s.row === row);
         if (st) {
           const seal = gradeMark(st.excellent, 3 + row);
           const sc = st.t < 60 ? 1.6 - 0.6 * (st.t / 60) : 1;
           const w = seal.width * sc;
-          g.ctx.drawImage(seal, Math.round(px + 129 - w / 2), Math.round(yy + 8 - w / 2), Math.round(w), Math.round(w));
+          g.ctx.drawImage(seal, Math.round(px + PW - 7 - w / 2), Math.round(yy + 8 - w / 2), Math.round(w), Math.round(w));
         }
       });
     });
     if (this.bigHana >= 0) {
       // the teacher's big hanamaru, swept over the corner of the right page
       const img = hanamaruFrame(48, Math.min(1, this.bigHana / 200), false, 2.6);
-      g.alpha(0.92, () => g.img(img, 292, 162 + drop));
+      g.alpha(0.92, () => g.img(img, 298, 170 + drop));
     }
   }
 

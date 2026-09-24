@@ -24,7 +24,7 @@ import { VOICE_SAMPLES, voiceCps } from '../samples';
 import { VOICES } from '../voices';
 import { C, cardArt, deskArt, hankoArt, keyArt, pageArt, pencilArtV, pencilBar, stampArt, tabArt, tapeArt } from './art';
 import { cancelCue, currentCue, CUES, startCue } from './cues';
-import { f5 } from './font5';
+import { f5, f5Width } from './font5';
 
 // ---------------------------------------------------------------------------
 // content lists
@@ -163,6 +163,8 @@ const KNOB_H = 80;
 const CX = CARD_X + 6;
 const CW = CARD_W - 12;
 
+/** Title marquee speed (px per second). */
+const MARQUEE_PX_S = 24;
 const SPEC_COLORS = [C.water, C.water, C.green, C.green, C.green, C.tape, C.tape, C.tape, C.sun, C.sun, C.margin, C.margin, C.shu, C.shu];
 
 class SoundTestScene implements Scene {
@@ -560,18 +562,25 @@ class SoundTestScene implements Scene {
       title = 'しずか';
       id = 'z: play  x: stop';
     }
-    // title: scrolls when it does not fit (a slow ping-pong with rests at
-    // both ends); the cut edges fade back into the paper so no glyph is
-    // sliced off hard
+    // title: when it does not fit it rests on its head (the start of the
+    // name readable) for 1.5 s, then runs left as a loop — the name, a gap,
+    // the name again — until the head is back where it started, and rests
+    // again. It never rests on a tail end or half a bracket. The cut edges
+    // fade back into the paper so no glyph is sliced off hard.
     const tw = textW(title);
     let tx = CX;
+    const GAP = 32;
+    const REST = 1500;
+    const cycle = tw + GAP;
     g.clip(CX, y0, CW, 18, () => {
       if (tw > CW) {
-        const span = tw - CW + 4;
-        const ph = Math.max(0, (this.marquee - 900) / 40) % (span * 2 + 60);
-        tx = CX - Math.round(Math.min(span, Math.max(0, ph < span + 30 ? ph : span * 2 + 30 - ph)));
-      }
-      g.text(title, tx, y0, { color: C.ink });
+        const run = (cycle * 1000) / MARQUEE_PX_S;
+        const ph = this.marquee % (REST + run);
+        const off = ph < REST ? 0 : Math.round(((ph - REST) / 1000) * MARQUEE_PX_S);
+        tx = CX - off;
+        g.text(title, tx, y0, { color: C.ink });
+        g.text(title, tx + cycle, y0, { color: C.ink });
+      } else g.text(title, tx, y0, { color: C.ink });
     });
     if (tw > CW) {
       const card = cardArt(CARD_W, NOW_H);
@@ -583,7 +592,7 @@ class SoundTestScene implements Scene {
       for (let k = 0; k < FADE; k++) {
         const a = Math.pow(1 - k / FADE, 1.4);
         if (tx < CX) edge(CX + k, a);
-        if (tx + tw > CX + CW) edge(CX + CW - 1 - k, a);
+        edge(CX + CW - 1 - k, a);
       }
       ctx.globalAlpha = 1;
     }
@@ -606,7 +615,9 @@ class SoundTestScene implements Scene {
           g.text(t, CX, midY - 3 + i * 16, { color: C.sys });
         }
       });
-    this.drawSpectrum(g, NOW_Y + NOW_H - 26);
+    // a running cue sheet needs a fourth text line: the meter shrinks for it
+    if (cue && (tab === 'cue' || !p)) this.drawSpectrum(g, NOW_Y + NOW_H - 14, 8);
+    else this.drawSpectrum(g, NOW_Y + NOW_H - 26);
   }
 
   private drawBarMap(g: Gfx, y: number): void {
@@ -643,8 +654,14 @@ class SoundTestScene implements Scene {
       g.rect(x, y, cell - 1, 6, on ? C.shu : col);
       if (on) g.rect(x, y - 1, cell - 1, 1, C.shuDark);
     }
-    const label = bar ? `${pos.intro ? 'INTRO ' : ''}BAR ${bar.label}  LOOP ${p.loopCount + 1}` : '';
-    f5(ctx, label, CX, y + 9, C.ink);
+    // bar on the left, the loop counter right-aligned in its own room
+    if (bar) {
+      const loopTxt = `LOOP ${p.loopCount + 1}`;
+      let left = `${pos.intro ? 'INTRO ' : ''}BAR ${bar.label}`;
+      if (f5Width(left) + 6 + f5Width(loopTxt) > CW) left = `${pos.intro ? 'IN ' : ''}BAR ${bar.label}`;
+      f5(ctx, left, CX, y + 9, C.ink);
+      f5(ctx, loopTxt, CX + CW, y + 9, C.ink, { align: 'right' });
+    }
     const pr = p.params;
     const parts = [pr.stage ? `STAGE ${pr.stage}` : '', def.battle ? `KIRE ${pr.kire}` : '', def.id === 'bgm_boss' ? `PHASE ${pr.boss_phase}` : ''].filter(Boolean).join('  ');
     f5(ctx, parts, CX, y + 18, C.shu);
@@ -673,17 +690,18 @@ class SoundTestScene implements Scene {
       if (line) out.push(line);
       return out;
     };
+    // four lines: the step that just fired is always shown whole (up to
+    // three lines), then as much of what comes next as fits whole
+    const MAX = 4;
     let k = 0;
-    for (let v = Math.max(0, firedN - 1); v < vis.length && k < 3; v++) {
+    for (let v = Math.max(0, firedN - 1); v < vis.length && k < MAX; v++) {
       const { s, i } = vis[v];
       const done = r.fired[i];
-      const lines = wrapCue(s.text);
-      // a step that would spill past the card starts on the next page instead
-      if (k > 0 && k + Math.min(lines.length, 2) > 3) break;
-      lines.slice(0, 2).forEach((line, li) => {
-        if (k >= 3) return;
+      const lines = wrapCue(s.text).slice(0, 3);
+      if (k > 0 && k + lines.length > MAX) break;
+      lines.forEach((line, li) => {
         const yy = y + k * 9;
-        if (li === 0) f5(ctx, s.t.toFixed(1).padStart(4, ' '), CX, yy, done ? C.shu : C.dim);
+        if (li === 0) f5(ctx, (s.t < 10 ? s.t.toFixed(2) : s.t.toFixed(1)).padStart(4, ' '), CX, yy, done ? C.shu : C.dim);
         f5(ctx, line, CX + 30, yy, done ? C.ink : C.dim);
         k++;
       });
@@ -712,11 +730,10 @@ class SoundTestScene implements Scene {
     }
   }
 
-  private drawSpectrum(g: Gfx, y: number): void {
+  private drawSpectrum(g: Gfx, y: number, h = 20): void {
     const n = this.bars.length;
     const bw = 5;
     const gap = 1;
-    const h = 20;
     // pencil baseline
     for (let x = CX; x < CX + n * (bw + gap); x++) g.px(x, y + h, x % 5 === 0 ? C.shadow : C.ink);
     for (let i = 0; i < n; i++) {
@@ -761,9 +778,11 @@ class SoundTestScene implements Scene {
           } else f5(ctx, s, x, y, C.dim);
         }
       } else if (k.name === 'SPACE') {
+        // the arrows stay put; the value is centred between them
+        const inner = 6 * 7 + 3;
         f5(ctx, '←', vx, y, C.shadow);
-        f5(ctx, k.show(v), vx + 9, y, C.ink);
-        f5(ctx, '→', vx + 9 + 6 * 7 + 3, y, C.shadow);
+        f5(ctx, k.show(v), vx + 7 + Math.round(inner / 2), y, C.ink, { align: 'center' });
+        f5(ctx, '→', vx + 9 + inner, y, C.shadow);
       } else {
         // volume ruler
         const w = 50;

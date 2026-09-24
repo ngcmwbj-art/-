@@ -110,6 +110,14 @@ function mitten(p: PixelCanvas, x: number, y: number, up = false): void {
 }
 
 function buildFront(o: FrontPose): PixelCanvas {
+  const p = buildFrontRaw(o);
+  p.outline(K.outline);
+  rimLeft(p, K.rim, 0.5);
+  return p;
+}
+
+/** The front body without its outline (props get added before outlining). */
+function buildFrontRaw(o: FrontPose): PixelCanvas {
   const p = new PixelCanvas(W, H);
   const X = (v: number) => v + OX;
   const Y = (v: number) => v + OY;
@@ -149,7 +157,7 @@ function buildFront(o: FrontPose): PixelCanvas {
       case 'wave2':
         return [bx + side * 7, 28, true];
       case 'mic':
-        return [24 + side * 4, 36, true];
+        return [24 + side * 9, 33, true];
       case 'point':
         return [16, 38, false];
       case 'hold':
@@ -172,8 +180,6 @@ function buildFront(o: FrontPose): PixelCanvas {
   const cly = Y(31 + sq);
   p.rect(clx - 1, cly, 3, 2, '#6A4A1A');
   p.set(clx - 1, cly, '#A8742A');
-  p.outline(K.outline);
-  rimLeft(p, K.rim, 0.5);
   return p;
 }
 
@@ -320,36 +326,154 @@ function front(key: string, o: FrontPose): HTMLCanvasElement {
   return c;
 }
 
-/** Front battle sprite for cut-ins (ノリツッコミ boke): 'sing' | 'flag' | 'flip' | 'idle'. */
+/**
+ * Front sprite for the ノリツッコミ boke (16.10), 56 wide; the flag frames are
+ * wider/taller (the banner) and share the same foot line, so callers anchor
+ * on the bottom centre of `kanenariFrontFoot()`.
+ * - 'sing': a little brass hand bell for a microphone, the other arm flung
+ *   out / up, swaying (2 frames);
+ * - 'flag': a nobori banner swung left → up → right → up (4 frames);
+ * - 'flip': both mittens in front of the tummy, holding the flip board that
+ *   the battle draws over him (2 frames of bob);
+ * - 'kime': the landing pose (arms up, happy) held for 2 frames on arrival.
+ */
 export function kanenariFront(pose: string, t: number): HTMLCanvasElement {
-  const f = loop(t, 140, 2);
-  if (pose === 'sing') return front(`sing${f}`, { armL: 'mic', armR: f ? 'up' : 'out', sway: f ? 1 : -1, clapper: f ? 1 : -1, happy: true });
-  if (pose === 'flag') return flagFrame(f);
-  if (pose === 'flip') return front(`flip${f}`, { armL: 'hold', armR: 'hold', sway: 0, clapper: f ? 1 : 0 });
+  if (pose === 'sing') {
+    const f = loop(t, 190, 2);
+    return singFrame(f);
+  }
+  if (pose === 'flag') return flagFrame(loop(t, 110, 4));
+  if (pose === 'flip') {
+    const f = loop(t, 280, 2);
+    return front(`flip${f}`, { armL: 'hold', armR: 'hold', sway: 0, clapper: f ? 1 : 0, squash: f, happy: true });
+  }
+  if (pose === 'kime') return front('kime', { armL: 'up', armR: 'up', happy: true, squash: 1, clapper: 1 });
   return front('idle0', {});
 }
 
-function flagFrame(f: number): HTMLCanvasElement {
-  const key = 'flag' + f;
+/** Extra pixels the flag frames add on the left / top of the 56×68 body canvas. */
+export const FLAG_PAD = { x: 6, y: 30, w: 34 };
+
+/** Where the microphone (hand bell) is on the 'sing' frames, from the canvas' top-left. */
+export const MIC_AT: [number, number] = [OX + 15, OY + 21];
+
+function singFrame(f: number): HTMLCanvasElement {
+  const key = 'singm' + f;
   let c = frontCache.get(key);
   if (c) return c;
-  const base = buildFront({ armL: 'down', armR: 'up', sway: f ? 1 : 0, clapper: f ? 1 : -1, happy: true });
-  // nobori flag on a pole held up in the right mitten
-  const p = new PixelCanvas(W + 16, H);
-  p.blit(base, 0, 0);
-  const px = 44;
-  p.vline(px, 2, 30, '#8A6A4A');
-  p.vline(px + 1, 2, 30, '#C8A06A');
-  const wave = f ? 1 : -1;
-  for (let y = 4; y < 26; y++) {
-    const off = Math.round(Math.sin(y / 4 + f) * wave);
-    for (let x = 0; x < 10; x++) {
-      const edge = x === 0 || x === 9 || y === 4 || y === 25;
-      p.set(px + 2 + x + off, y, edge ? '#E84E3C' : '#F4F1E8');
-    }
-    if (y % 5 === 2) p.hline(px + 4 + off, px + 8 + off, y, '#E84E3C');
-  }
+  const p = buildFrontRaw({ armL: 'mic', armR: f ? 'up' : 'out', sway: f ? 1 : -1, clapper: f ? 1 : -1, happy: true });
   p.outline(K.outline);
+  rimLeft(p, K.rim, 0.5);
+  // the "microphone": a little silver hand bell on a wooden grip, held up to
+  // the lip of his own bell (where a mouth would be); it gets its own ink
+  // contour so it reads over the brass
+  const mic = [
+    '..kkk..',
+    '.kWssk.',
+    'kWsssgk',
+    'kWsssgk',
+    'ksssggk',
+    'kGGGGGk',
+    'kkkbkkk',
+    '..kbk..',
+    '..kbk..',
+    '..kbk..',
+  ];
+  const mx = OX + 15 - 3 + (f ? 1 : 0);
+  const my = OY + 33 - 12;
+  p.art(mic, { k: K.outline, W: '#FFFFFF', s: '#D8DCE2', g: '#9AA0A8', G: '#6B7186', b: '#C8A06A' }, mx, my);
+  // the mitten wraps the grip
+  mitten(p, OX + 15, OY + 33, true);
+  for (const [dx, dy] of [[-4, -1], [-4, 0], [-4, 1], [4, -1], [4, 0], [4, 1], [-3, 3], [3, 3], [-2, 4], [2, 4], [-1, 4], [0, 4], [1, 4]] as [number, number][])
+    p.set(OX + 15 + dx, OY + 33 + dy, K.outline);
+  c = p.toCanvas();
+  frontCache.set(key, c);
+  return c;
+}
+
+/**
+ * Nobori banner frames. The pole is gripped in both mittens at his right
+ * side and swung through −26° / −6° / +16° / −6°; the cloth hangs from a
+ * crossbar at the top and ripples, its free edge lagging behind the swing.
+ */
+/**
+ * Three little brush-written characters down the middle of the banner (the
+ * town's PR slogan — too small to read, but they have the shape of words):
+ * 6×5 cells in cloth space, one every 9px along the pole.
+ */
+const BANNER_GLYPHS = [
+  ['..#...', '######', '..#.#.', '.#..#.', '#..##.'],
+  ['##.###', '#..#.#', '##.###', '#..#.#', '##.###'],
+  ['.#..#.', '######', '.#..#.', '.####.', '.#..#.'],
+  ['..##..', '.#..#.', '######', '.#..#.', '##..##'],
+];
+function bannerInk(u: number, v: number, cw: number): boolean {
+  const gu = Math.floor(u) - 6;
+  const gv = Math.floor(v - (cw - 6) / 2);
+  if (gu < 0 || gv < 0 || gv > 5) return false;
+  const k = Math.floor(gu / 8);
+  const row = gu % 8;
+  if (k >= BANNER_GLYPHS.length || row > 4) return false;
+  return BANNER_GLYPHS[k][row][gv] === '#';
+}
+
+function flagFrame(f: number): HTMLCanvasElement {
+  const key = 'flag4' + f;
+  let c = frontCache.get(key);
+  if (c) return c;
+  const ang = [-26, -6, 16, -6][f] * (Math.PI / 180);
+  const lag = [-1.4, 0.2, 1.4, 0.2][f];
+  const base = buildFrontRaw({ armL: 'up', armR: 'up', sway: [-1, 0, 1, 0][f], clapper: [1, 0, -1, 0][f], happy: true });
+  const PW = W + FLAG_PAD.w + FLAG_PAD.x;
+  const PH = H + FLAG_PAD.y;
+  const p = new PixelCanvas(PW, PH);
+  const bx = FLAG_PAD.x;
+  const by = FLAG_PAD.y;
+  // grip between the raised mittens (right of the bell)
+  const gx = bx + OX + 38;
+  const gy = by + OY + 28;
+  const dx = Math.sin(ang);
+  const dy = -Math.cos(ang);
+  const L = 54;
+  const tx = gx + dx * L;
+  const ty = gy + dy * L;
+  // cloth: hangs from the crossbar, along the pole on its right
+  const nx = Math.cos(ang);
+  const ny = Math.sin(ang);
+  const CL = 40;
+  const CW = 16;
+  for (let u = 0; u <= CL; u += 0.4)
+    for (let v = 0; v <= CW; v += 0.4) {
+      const ripple = Math.sin(u * 0.28 + f * 1.6) * (v / CW) * 1.6 + lag * (v / CW) * (u / CL) * 3;
+      const x = tx - dx * (u + 2) + nx * (v + 1) + ripple * dx;
+      const y = ty - dy * (u + 2) + ny * (v + 1) + ripple * dy + Math.max(0, lag) * (v / CW) * 0.6;
+      let col = '#F4F1E8';
+      const edge = v < 1.6 || v > CW - 1.6 || u < 1.4 || u > CL - 1.6;
+      if (edge) col = '#E84E3C';
+      else if (bannerInk(u, v, CW)) col = '#C8313A'; // brushed characters down the middle
+      else if (ripple > 0.9) col = '#FFFFFF';
+      else if (ripple < -0.9) col = '#D8D2C4';
+      p.set(Math.round(x), Math.round(y), col);
+    }
+  // loops (chichi) that hold the cloth to the pole
+  for (let u = 4; u < CL; u += 7) p.set(Math.round(tx - dx * (u + 2) + nx * 0.5), Math.round(ty - dy * (u + 2) + ny * 0.5), '#B8241E');
+  // the body goes over the cloth's lower end, the pole over both
+  p.blit(base, bx, by);
+  for (let i = 0; i <= L + 2; i++) {
+    const x = gx + dx * (i - 2);
+    const y = gy + dy * (i - 2);
+    p.set(Math.round(x), Math.round(y), '#C8A06A');
+    p.set(Math.round(x + nx), Math.round(y + ny), '#8A6A4A');
+  }
+  // crossbar and a brass finial
+  for (let v = -1; v <= CW + 1; v++) p.set(Math.round(tx - dx * 2 + nx * v), Math.round(ty - dy * 2 + ny * v), '#8A6A4A');
+  p.set(Math.round(tx + dx), Math.round(ty + dy), BRASS[4]);
+  p.set(Math.round(tx), Math.round(ty), BRASS[2]);
+  // the mittens stay on top of the pole
+  mitten(p, gx - 3, gy + 2, true);
+  mitten(p, gx + 2, gy - 4, true);
+  p.outline(K.outline);
+  rimLeft(p, K.rim, 0.5);
   c = p.toCanvas();
   frontCache.set(key, c);
   return c;

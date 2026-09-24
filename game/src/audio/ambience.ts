@@ -410,9 +410,12 @@ const AMB: Record<string, AmbFactory> = {
     pan.connect(c.dest);
     const swing = g.ctx.createGain();
     swing.connect(pan);
-    const air = noiseBed(c, 'lowpass', 600, 0.6, 0.02, swing);
+    const air = noiseBed(c, 'lowpass', 600, 0.6, 0.013, swing);
     const motor = toneBed(c, 'sine', 95, 0.006, swing);
     const motor2 = toneBed(c, 'triangle', 190, 0.0015, swing);
+    // the blades' breath: a soft high hiss that brightens as the head turns
+    // towards the room (the swing below moves it with the rest)
+    const blades = noiseBed(c, 'bandpass', 3800, 0.6, 0.006, swing);
     const l = g.ctx.createOscillator();
     l.frequency.value = 0.1;
     const lA = g.ctx.createGain();
@@ -439,6 +442,7 @@ const AMB: Record<string, AmbFactory> = {
         air.stop(t);
         motor.stop(t);
         motor2.stop(t);
+        blades.stop(t);
         l.stop(t);
       },
     };
@@ -448,17 +452,41 @@ const AMB: Record<string, AmbFactory> = {
     const out = c.g.ctx.createGain();
     out.connect(c.dest);
     const beds = [
-      toneBed(c, 'sine', 50, 0.004, out),
-      toneBed(c, 'sine', 100, 0.003, out),
-      toneBed(c, 'sine', 150, 0.002, out),
+      toneBed(c, 'sine', 50, 0.0025, out),
+      toneBed(c, 'sine', 100, 0.002, out),
+      toneBed(c, 'sine', 150, 0.0014, out),
       toneBed(c, 'sine', 300, 0.0006, out),
+      // the compressor's buzz (its harmonics reach where small speakers
+      // play) and the thin whine of its inverter, wavering a little
+      toneBed(c, 'square', 100, 0.0018, out, 1100, 1.4),
     ];
-    const apply = (stage: number, at: number) => out.gain.setTargetAtTime(stage >= 1 && stage < 3 ? 0 : 1, at, 0.05);
+    const whine = toneBed(c, 'sine', 3350, 0.0016, out);
+    beds.push(whine);
+    const wv = modulate(c.g, c.t0, modBuffer(c.g, 12, smoothRandom(new Rng(c.seed + 5), 0.3, 0.9)), whine.gain.gain, 0.0005);
+    // every so often the refrigerant runs through the pipes: "ポコ…ポコポコ"
+    let on = c.stage < 1 || c.stage >= 3;
+    const gurgle = new Every(c, 16, 32, (t) => {
+      if (!on) return;
+      const n = c.rng.int(3, 6);
+      let x = t;
+      for (let i = 0; i < n; i++) {
+        const f = c.rng.range(420, 760);
+        v(c, { at: x, wave: 'sine', freq: f, freqEnd: f * 1.35, glide: 0.03, dur: 0.03, attack: 0.004, decay: 0.03, sustain: 0, release: 0.02, vol: 0.004, filter: { type: 'lowpass', freq: 2400 }, pan: -0.25 });
+        v(c, { at: x, wave: 'noise', dur: 0.02, attack: 0.003, decay: 0.03, sustain: 0, release: 0.02, vol: 0.003, filter: { type: 'bandpass', freq: f * 2.2, q: 3 }, pan: -0.25 });
+        x += c.rng.range(0.09, 0.26);
+      }
+    }, 3, 12);
+    const apply = (stage: number, at: number) => {
+      on = stage < 1 || stage >= 3;
+      out.gain.setTargetAtTime(on ? 1 : 0, at, 0.05);
+    };
     apply(c.stage, c.t0);
     return {
       setStage: apply,
+      pump: (u) => gurgle.pump(u),
       stop(t) {
         beds.forEach((b) => b.stop(t));
+        wv.stop(t);
       },
     };
   },
@@ -505,9 +533,15 @@ const AMB: Record<string, AmbFactory> = {
   amb_clock_tick(c) {
     let stage = c.stage;
     let n = 0;
+    // カチ・コチ: the escapement (drm_tick / drm_tock) and the knock of the
+    // wooden case it sits in (a short 0.9–1.1 kHz body), the tick a little
+    // brighter than the tock; the room reverb places it on the wall
     const e = new Every(c, 1, 1, (t) => {
       if (stage >= 1 && stage < 3) return;
-      (n++ % 2 === 0 ? DRM.drm_tick : DRM.drm_tock)({ t, vel: 1, vol: 0.02, dest: c.dest, rev: c.g.fxSend });
+      const tick = n++ % 2 === 0;
+      (tick ? DRM.drm_tick : DRM.drm_tock)({ t, vel: 1, vol: 0.02, dest: c.dest, rev: c.g.fxSend, pan: 0.18 });
+      v(c, { at: t, wave: 'noise', dur: 0.004, attack: 0.0006, decay: 0.012, sustain: 0, release: 0.006, vol: 0.016, filter: { type: 'bandpass', freq: tick ? 1250 : 1000, q: 2.2 }, pan: 0.18, reverb: 0.25 });
+      v(c, { at: t, wave: 'sine', freq: tick ? 960 : 820, dur: 0.004, attack: 0.0006, decay: 0.03, sustain: 0, release: 0.01, vol: 0.006, pan: 0.18 });
     }, 0.1, 0.9);
     return {
       pump: (u) => e.pump(u),
@@ -519,17 +553,27 @@ const AMB: Record<string, AmbFactory> = {
   },
 
   amb_oil(c) {
-    const heat = toneBed(c, 'sine', 100, 0.004);
-    const heat2 = toneBed(c, 'sine', 200, 0.0012);
-    const e = new Every(c, 4, 9, (t) =>
-      v(c, { at: t, wave: 'noise', dur: 0.004, attack: 0.001, decay: 0.008, sustain: 0, release: 0.004, vol: 0.01, filter: { type: 'bandpass', freq: 2000 * c.rng.range(0.8, 1.3), q: 1.5 }, pan: c.rng.range(-0.3, 0.3) }),
-      1, 5,
-    );
+    // the heater stays under the oil (its hum is felt, the oil is heard)
+    const heat = toneBed(c, 'sine', 100, 0.0022);
+    const heat2 = toneBed(c, 'sine', 200, 0.0008);
+    // the hot oil waiting: a faint high sizzle that flickers, and every
+    // 4–9 s a "ぷつ" — sometimes answered by one or two more (ぷつ…ぷつぷつ)
+    const sizzle = noiseBed(c, 'bandpass', 5200, 0.9, 0.0022);
+    const fl = modulate(c.g, c.t0, modBuffer(c.g, 16, sampleHold(new Rng(c.seed + 3), 9, 22)), sizzle.gain.gain, 0.0022);
+    const pop = (t: number, k: number) =>
+      v(c, { at: t, wave: 'noise', dur: 0.004, attack: 0.001, decay: 0.008, sustain: 0, release: 0.004, vol: 0.016 * k, filter: { type: 'bandpass', freq: 2000 * c.rng.range(0.8, 1.5), q: 1.5 }, pan: c.rng.range(-0.3, 0.3) });
+    const e = new Every(c, 4, 9, (t) => {
+      pop(t, 1);
+      const more = c.rng.int(0, 2);
+      for (let i = 1; i <= more; i++) pop(t + i * c.rng.range(0.07, 0.19), c.rng.range(0.5, 0.9));
+    }, 1, 5);
     return {
       pump: (u) => e.pump(u),
       stop(t) {
         heat.stop(t);
         heat2.stop(t);
+        sizzle.stop(t);
+        fl.stop(t);
       },
     };
   },
@@ -541,13 +585,25 @@ const AMB: Record<string, AmbFactory> = {
     let next = c.t0 + 0.4;
     const zip = new Every(c, 2.5, 7, (t) => {
       if (winding) return;
-      v(c, { at: t, wave: 'sine', freq: 3100, dur: 0.02, attack: 0.001, decay: 0.03, sustain: 0, release: 0.01, vol: 0.008, pan: 0.2 });
-      v(c, { at: t + 0.004, wave: 'sine', freq: 4700, dur: 0.02, attack: 0.001, decay: 0.025, sustain: 0, release: 0.01, vol: 0.006, pan: 0.2 });
+      // a zipper or a button against the drum: "チャリ", once or twice
+      const n = c.rng.chance(0.4) ? 2 : 1;
+      for (let i = 0; i < n; i++) {
+        const at = t + i * c.rng.range(0.05, 0.11);
+        v(c, { at, wave: 'sine', freq: 3100 * c.rng.range(0.96, 1.04), dur: 0.02, attack: 0.001, decay: 0.03, sustain: 0, release: 0.01, vol: 0.008, pan: 0.2 });
+        v(c, { at: at + 0.004, wave: 'sine', freq: 4700 * c.rng.range(0.96, 1.04), dur: 0.02, attack: 0.001, decay: 0.025, sustain: 0, release: 0.01, vol: 0.006, pan: 0.2 });
+        v(c, { at, wave: 'noise', dur: 0.003, attack: 0.0006, decay: 0.006, sustain: 0, release: 0.004, vol: 0.004, filter: { type: 'highpass', freq: 5000 }, pan: 0.2 });
+      }
     }, 1, 4);
+    // the warm exhaust air, breathing with the drum's turn
+    const air = noiseBed(c, 'bandpass', 2300, 0.7, 0.0012);
+    const airM = modulate(c.g, c.t0, modBuffer(c.g, 1.7 * 8, (t) => Math.sin((t / 1.7) * Math.PI * 2)), air.gain.gain, 0.0005);
     const goton = (t: number, k = 1) => {
-      v(c, { at: t, wave: 'sine', freq: 70, dur: 0.08, attack: 0.003, decay: 0.08, sustain: 0.3, release: 0.05, vol: 0.04 * k });
+      v(c, { at: t, wave: 'sine', freq: 70, dur: 0.08, attack: 0.003, decay: 0.08, sustain: 0.3, release: 0.05, vol: 0.028 * k });
       v(c, { at: t, wave: 'triangle', freq: 140, dur: 0.03, attack: 0.002, decay: 0.05, sustain: 0, release: 0.03, vol: 0.012 * k });
-      v(c, { at: t, wave: 'noise', dur: 0.05, attack: 0.002, decay: 0.06, sustain: 0, release: 0.03, vol: 0.03 * k, filter: { type: 'lowpass', freq: 400 } });
+      v(c, { at: t, wave: 'noise', dur: 0.05, attack: 0.002, decay: 0.06, sustain: 0, release: 0.03, vol: 0.024 * k, filter: { type: 'lowpass', freq: 400 } });
+      // the clothes flopping over ("ボフ") and the drum's steel answering
+      v(c, { at: t + 0.012, wave: 'noise', dur: 0.03, attack: 0.004, decay: 0.07, sustain: 0, release: 0.03, vol: 0.018 * k, filter: { type: 'bandpass', freq: 650, freqEnd: 380, time: 0.08, q: 1.2 } });
+      v(c, { at: t + 0.006, wave: 'noise', dur: 0.004, attack: 0.001, decay: 0.018, sustain: 0, release: 0.008, vol: 0.013 * k, filter: { type: 'bandpass', freq: 1500, q: 1.6 } });
     };
     return {
       pump(u) {
@@ -563,9 +619,12 @@ const AMB: Record<string, AmbFactory> = {
         rumble.filter.frequency.cancelScheduledValues(at);
         rumble.filter.frequency.setValueAtTime(180, at);
         rumble.filter.frequency.exponentialRampToValueAtTime(60, at + fade);
+        air.gain.gain.setTargetAtTime(0, at, fade / 3);
       },
       stop(t) {
         rumble.stop(t);
+        air.stop(t);
+        airM.stop(t);
       },
     };
   },
@@ -582,15 +641,23 @@ const AMB: Record<string, AmbFactory> = {
   amb_fluorescent_flicker: (c) => fluorescent(c, true),
 
   amb_kaitenyaki(c) {
-    const motor = toneBed(c, 'sine', 140, 0.01);
-    const motor2 = toneBed(c, 'triangle', 280, 0.0025);
-    const plate = noiseBed(c, 'highpass', 3000, 0.5, 0.003);
+    const motor = toneBed(c, 'sine', 140, 0.006);
+    const motor2 = toneBed(c, 'triangle', 280, 0.002);
+    const plate = noiseBed(c, 'highpass', 3000, 0.5, 0.0035);
     let next = c.t0 + 0.3;
     const turn = (t: number) => {
       v(c, { at: t, wave: 'sine', freq: 90, dur: 0.08, attack: 0.003, decay: 0.08, sustain: 0.2, release: 0.04, vol: 0.03 });
       v(c, { at: t, wave: 'noise', dur: 0.05, attack: 0.002, decay: 0.06, sustain: 0, release: 0.03, vol: 0.02, filter: { type: 'lowpass', freq: 500 } });
+      // "ゴトン" is iron: the plate drops into its latch with a short clank
+      for (const [f, dv] of [
+        [1630, 0.009],
+        [2710, 0.008],
+        [4090, 0.005],
+      ])
+        v(c, { at: t + 0.004, wave: 'sine', freq: f, dur: 0.004, attack: 0.0008, decay: 0.06, sustain: 0, release: 0.02, vol: dv, pan: -0.1 });
+      v(c, { at: t + 0.003, wave: 'noise', dur: 0.004, attack: 0.0006, decay: 0.012, sustain: 0, release: 0.006, vol: 0.008, filter: { type: 'bandpass', freq: 2500, q: 1.4 }, pan: -0.1 });
       // the squeak, half a turn later
-      v(c, { at: t + 1.0, wave: 'sine', freq: 1900, freqEnd: 2100, dur: 0.12, attack: 0.02, decay: 0.05, sustain: 0.7, release: 0.04, vol: 0.008, vibrato: { rate: 18, depth: 20 } });
+      v(c, { at: t + 1.0, wave: 'sine', freq: 1900, freqEnd: 2100, dur: 0.12, attack: 0.02, decay: 0.05, sustain: 0.7, release: 0.04, vol: 0.011, vibrato: { rate: 18, depth: 20 }, pan: 0.15 });
     };
     let synced = false;
     return {
@@ -635,6 +702,9 @@ const AMB: Record<string, AmbFactory> = {
     const water = noiseBed(c, 'bandpass', 900, 2, 0.008 * 0.4, wob);
     const sh = modulate(g, c.t0, modBuffer(g, 12, sampleHold(new Rng(c.seed), 12, 30)), water.gain.gain, 0.008 * 0.6);
     const floor = noiseBed(c, 'lowpass', 250, 0.6, 0.004, wob);
+    // the surface catching the light: a fast, bubbling glitter at 2.5–4 kHz
+    const glint = noiseBed(c, 'bandpass', 3100, 1.3, 0.0016, wob, -0.2);
+    const gm = modulate(g, c.t0, modBuffer(g, 9, sampleHold(new Rng(c.seed + 11), 18, 40)), glint.gain.gain, 0.003);
     // 段階2: the whole stream sways slowly (0.3 Hz)
     const slow = modulate(g, c.t0, modBuffer(g, 20, (t) => Math.sin(t * Math.PI * 2 * 0.3)), wob.gain, 0);
     let stage = c.stage;
@@ -674,6 +744,8 @@ const AMB: Record<string, AmbFactory> = {
       stop(t) {
         water.stop(t);
         floor.stop(t);
+        glint.stop(t);
+        gm.stop(t);
         sh.stop(t);
         slow.stop(t);
       },
@@ -795,18 +867,46 @@ function fluorescent(c: AmbCtx, flickerMode: boolean): AmbImpl {
   const g = c.g;
   const hum = g.ctx.createGain();
   hum.connect(c.dest);
-  const beds = [toneBed(c, 'sine', 60, 0.015, hum), toneBed(c, 'sine', 120, 0.02, hum), noiseBed(c, 'highpass', 5000, 0.5, 0.002, hum)];
+  // the hum is felt more than heard; the ballast's buzz and the tube's hiss carry the room
+  const beds = [toneBed(c, 'sine', 60, 0.0065, hum), toneBed(c, 'sine', 120, 0.0085, hum), noiseBed(c, 'highpass', 5000, 0.5, 0.003, hum)];
   const buzz = toneBed(c, 'square', 120, 0.006, hum, 700, 2);
   beds.push(buzz);
+  // the tube's "ジー": hiss chopped at 120 Hz by the ballast, a thin band at
+  // 2.5–3.5 kHz (where the mall song leaves room) — the sound that says
+  // "fluorescent" on any speaker, long after the 60 Hz hum is gone
+  const SZ = 0.0055;
+  const sizz = noiseBed(c, 'bandpass', 3000, 1.2, SZ, hum);
+  const chop = g.ctx.createGain();
+  chop.gain.value = 0.55;
+  sizz.filter.disconnect();
+  sizz.filter.connect(chop);
+  chop.connect(sizz.gain);
+  const chopLfo = g.ctx.createOscillator();
+  chopLfo.type = 'square';
+  chopLfo.frequency.value = 120;
+  const chopDepth = g.ctx.createGain();
+  chopDepth.gain.value = 0.45;
+  chopLfo.connect(chopDepth);
+  chopDepth.connect(chop.gain);
+  chopLfo.start(c.t0);
+  beds.push(sizz, { stop: (t: number) => chopLfo.stop(t) } as Bed);
   const jiji = (t: number) => {
     const d = c.rng.range(0.08, 0.2);
     const p = buzz.gain.gain;
+    const q = sizz.gain.gain;
     p.setValueAtTime(0.006, t);
     p.linearRampToValueAtTime(0.018, t + 0.01);
+    q.setValueAtTime(SZ, t);
+    q.linearRampToValueAtTime(SZ * 3.2, t + 0.01);
     // crackle inside the "ジジッ"
-    for (let k = 0; k < 3; k++) p.setValueAtTime(k % 2 ? 0.006 : 0.02, t + (d * (k + 1)) / 4);
+    for (let k = 0; k < 3; k++) {
+      p.setValueAtTime(k % 2 ? 0.006 : 0.02, t + (d * (k + 1)) / 4);
+      q.setValueAtTime(k % 2 ? SZ : SZ * 3.6, t + (d * (k + 1)) / 4);
+    }
     p.setValueAtTime(0.018, t + d - 0.01);
     p.linearRampToValueAtTime(0.006, t + d);
+    q.setValueAtTime(SZ * 3.2, t + d - 0.01);
+    q.linearRampToValueAtTime(SZ, t + d);
   };
   const e = new Every(c, 2, 7, (t) => !flickerMode && jiji(t), 1, 5);
   let nextToggle = c.t0 + 1.3;

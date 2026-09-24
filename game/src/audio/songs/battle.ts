@@ -2,7 +2,7 @@
 // Funky FM slap bass, a 25 % pulse lead that jumps like a boke, and a break
 // (C) on ♭IImaj7 that waits for the tsukkomi.
 
-import { DRM } from '../instruments';
+import { DRM, INS } from '../instruments';
 import { arp, bass, comp, drums, hits, melody, pads, type BarCtx, type PartDef, type SongDef } from '../sequencer';
 import { chimeQuote, registerSong, score } from './common';
 
@@ -84,19 +84,33 @@ export const SLAP_A = "R:2 R':1 R:1 -:2 R:2 R':2 5:2 R:1 5:1 R':2";
 /** Mark a part whose notes follow `kire` (re-scheduled when kire changes, 7.2). */
 export const kireAware = (p: PartDef): PartDef => ({ ...p, kireAware: true });
 
-/** The kire layers (7.2), shared by bgm_battle / bgm_midboss / bgm_boss. */
-export function kireLayers(o: { bassBoost?: never; arpLo?: number; transpose?: (b: BarCtx) => number } = {}): PartDef[] {
+/**
+ * The kire layers (7.2), shared by bgm_battle / bgm_midboss / bgm_boss.
+ * Each level has to be heard, not just measured (6.5):
+ *  · 2: 16th off-beat hats on the right (the kit's own hat sits left), a
+ *    shaker answering on the left, and an open hat on step 14 that rings
+ *    into the next downbeat;
+ *  · 3: a wide, low hand-clap crowd on the backbeat (a different band and
+ *    length from the tight snare it lands with), a p12 arpeggio on the side
+ *    opposite the stabs — and the bass jumps an octave (the parts' kireUp);
+ *  · every rise is answered on the beat it lands with a crash and a bell
+ *    (the "sting"), so the moment the gauge fills is heard at once.
+ */
+export function kireLayers(o: { bassBoost?: never; arpLo?: number; transpose?: (b: BarCtx) => number; arpPan?: number } = {}): PartDef[] {
   return [
     drums({
       id: 'kire_hat',
       kit: {
         drm_hat_c: (b) => (b.p.kire >= 2 ? '.x.x.x.x.x.x.x.x' : null),
         drm_hat_o: (b) => (b.p.kire >= 2 ? '..............x.' : null),
+        // a shaker answering from the other side keeps the 16ths moving
+        drm_shaker: (b) => (b.p.kire >= 2 ? 'xgxgxgxgxgxgxgxg' : null),
       },
-      vel: { drm_hat_c: 0.6, drm_hat_o: 0.75 },
-      fx: { pan: -0.15 },
+      vel: { drm_hat_c: 0.6, drm_hat_o: 0.8, drm_shaker: 0.8 },
+      pans: { drm_hat_c: 0.42, drm_hat_o: 0.3, drm_shaker: -0.45 },
+      len: { drm_hat_o: 0.36 },
     }),
-    drums({ id: 'kire_clap', kit: { drm_clap: (b) => (b.p.kire >= 3 ? '....x.......x...' : null) } }),
+    drums({ id: 'kire_clap', kit: { drm_clap_big: (b) => (b.p.kire >= 3 ? '....x.......x...' : null) } }),
     arp({
       id: 'kire_arp',
       ins: 'ins_lead_p12',
@@ -107,9 +121,29 @@ export function kireLayers(o: { bassBoost?: never; arpLo?: number; transpose?: (
       gate: 0.7,
       transpose: o.transpose,
       when: (b) => b.p.kire >= 3,
-      fx: { pan: 0.3, lp: 6000 },
+      fx: { pan: o.arpPan ?? 0.42, lp: 6000 },
     }),
+    kireSting(),
   ].map(kireAware);
+}
+
+/** The kire rise "sting": on the beat a higher kire lands, a crash and a bell on the chord root. */
+function kireSting(): PartDef {
+  return {
+    id: 'kire_sting',
+    fx: { pan: 0 },
+    step(b, src, actual, rt) {
+      const was = rt.state.k as number | undefined;
+      rt.state.k = b.p.kire;
+      if (was === undefined || b.p.kire <= was || b.p.kire < 2 || src % 4 !== 0) return;
+      const t = b.time(actual);
+      DRM.drm_crash({ t, vel: 0.85, dest: rt.input, rev: rt.rev });
+      const root = b.chordAt(src).root;
+      const m = 84 + ((root - 84) % 12 + 12) % 12;
+      INS.ins_fm_vibes({ t, midi: m, dur: 0.4, vel: 1, dest: rt.input, rev: rt.rev, det: rt.song.det, o: { vol: 0.05, rev: 0.4, pan: 0.2 } });
+      if (b.p.kire >= 3) INS.ins_fm_vibes({ t: t + b.stepDur, midi: m + 7, dur: 0.4, vel: 1, dest: rt.input, rev: rt.rev, det: rt.song.det, o: { vol: 0.04, rev: 0.4, pan: -0.2 } });
+    },
+  };
 }
 
 /** Main hat pattern with the kire-2 open hat on step 14. */
@@ -121,7 +155,7 @@ function battleDef(): SongDef {
   const parts: PartDef[] = [
     melody({ id: 'lead', ins: 'ins_lead_p25', bars: battle.part('lead'), o: { vol: 0.09 }, fx: { delay: { steps: 3, fb: 0.22, send: 0.18 } } }),
     melody({ id: 'break', ins: 'ins_fm_brass', bars: battle.part('break'), o: { vol: 0.08 }, gate: 0.94 }),
-    melody({ id: 'chime', ins: 'ins_fm_vibes', bars: BATTLE_CHIME, o: { vol: 0.06, rev: 0.4 }, fx: { pan: 0.25 } }),
+    melody({ id: 'chime', ins: 'ins_fm_vibes', bars: BATTLE_CHIME, o: { vol: 0.06, rev: 0.4 } }),
     // stabs: the hanko rhythm in the intro, then A / B
     comp({
       id: 'stab',
@@ -131,7 +165,6 @@ function battleDef(): SongDef {
       len: (_i) => 2,
       gate: 0.6,
       o: { vol: 0.05 },
-      fx: { pan: -0.2 },
     }),
     pads({ id: 'pad', when: (b) => b.section === 'C', o: { vol: 0.03 }, fx: { lp: 1600, q: 0.8, lfo: { rate: 0.15, depth: 300 } } }),
     kireAware(melody({ id: 'bass_intro', ins: 'ins_fm_slap', bars: battle.part('intro'), gate: 0.85, transpose: kireUp })),

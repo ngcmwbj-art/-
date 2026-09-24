@@ -200,6 +200,19 @@ export function numberCanvas(n: number, kind: NumKind, big = false): HTMLCanvasE
   return c;
 }
 
+export interface NumRect {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/** Rest rectangle of a number drawn bottom-centred at (x, y). */
+export function numberRest(x: number, y: number, w: number, h: number, rise: number, drift = 6): NumRect {
+  const cx = x + drift;
+  return { x0: Math.round(cx - w / 2), y0: Math.round(y - rise - h), x1: Math.round(cx + w / 2), y1: Math.round(y - rise) };
+}
+
 export interface NumOpts {
   kind?: NumKind;
   big?: boolean;
@@ -208,6 +221,8 @@ export interface NumOpts {
   /** Pop scale multiplier (0.8 for halved tsukkomi damage). */
   pop?: number;
   delay?: number;
+  /** Sideways drift while rising (16.4: +6; party numbers lean away from the "!"). */
+  drift?: number;
 }
 
 /** One floating number: pop (80ms) → arc up (250ms) → hold (400ms) → fade (200ms). */
@@ -219,6 +234,7 @@ export class DamageNumber {
   private rise: number;
   private pop: number;
   private delay: number;
+  private drift: number;
 
   constructor(
     public x: number,
@@ -231,6 +247,17 @@ export class DamageNumber {
     this.rise = o.rise ?? 16;
     this.pop = o.pop ?? 1;
     this.delay = o.delay ?? 0;
+    this.drift = o.drift ?? 6;
+  }
+
+  /** Where the number comes to rest (after the rise and the 6px drift). */
+  restRect(): NumRect {
+    return numberRest(this.x, this.y, this.img.width, this.img.height, this.kind === 'zero' ? -4 : this.rise, this.kind === 'zero' ? 0 : this.drift);
+  }
+
+  /** Total on-screen time (ms), including the delay. */
+  get life(): number {
+    return 930 + this.delay;
   }
 
   update(dt: number): void {
@@ -274,10 +301,10 @@ export class DamageNumber {
       } else if (t < 330) {
         const p = (t - 80) / 250;
         dy = -this.rise * ease.quadOut(p);
-        dx = 6 * p;
+        dx = this.drift * p;
       } else {
         dy = -this.rise;
-        dx = 6;
+        dx = this.drift;
       }
       if (t > 730) a = Math.max(0, 1 - (t - 730) / 200);
       sx *= this.pop;

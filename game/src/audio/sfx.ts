@@ -3,7 +3,7 @@
 
 import { atTime } from './clock';
 import { chimeCut, chimeNoteAt } from './chime';
-import { cur, dbToGain, midiHz, noteMidi, voice, type VoiceHandle } from './engine';
+import { arand, cur, dbToGain, midiHz, noteMidi, voice, type VoiceHandle } from './engine';
 import { chimeNote, INS } from './instruments';
 import { higurashiCall } from './ambience';
 import { currentId, currentPlayer, duck, duckAmbience, musicParams } from './music';
@@ -90,7 +90,8 @@ se('se_clock_flip', { label: 'HUD時計がめくれる', group: TALK, layers: ['
 const STEPS = '足音・扉';
 // the red beach sandals: a little heel slap 35 ms after every step outdoors
 const BSAN = (k = 1, f = 1400) => `noise env=0/12/0/5 dur=6 v=${(0.02 * k).toFixed(4)} flt=BP${f}q1.5 at=35`;
-let stepSide = 1;
+// which foot comes next, per context (an offline QA render starts on the same foot)
+const feet = new WeakMap<BaseAudioContext, number>();
 const stepDef = (label: string, layers: string[]) => ({
   label,
   group: STEPS,
@@ -98,7 +99,9 @@ const stepDef = (label: string, layers: string[]) => ({
   max: 2,
   fn(c: SeCtx) {
     // left / right feet ±0.05
-    stepSide = -stepSide;
+    const ctx = cur().ctx;
+    const stepSide = -(feet.get(ctx) ?? 1);
+    feet.set(ctx, stepSide);
     const c2 = c.pan === undefined ? { ...c, pan: undefined } : c;
     for (const l of layers) layer(c2, l.includes('pan=') ? l : `${l} pan=${(stepSide * 0.05).toFixed(2)}`);
   },
@@ -253,7 +256,7 @@ se('se_higurashi_call', {
   label: 'ヒグラシの1声',
   group: TOWN,
   fn(c) {
-    higurashiCall(c.t, c.dest, c.pan ?? -0.3, c.pitch, 5000, 0.025 * c.vol, new Rng((Math.random() * 1e9) | 0));
+    higurashiCall(c.t, c.dest, c.pan ?? -0.3, c.pitch, 5000, 0.025 * c.vol, new Rng((arand() * 1e9) | 0));
   },
 });
 se('se_furin', {
@@ -261,7 +264,7 @@ se('se_furin', {
   group: TOWN,
   rev: 0.3,
   fn(c) {
-    const k = Math.pow(2, ((Math.random() * 2 - 1) * 30) / 1200);
+    const k = Math.pow(2, ((arand() * 2 - 1) * 30) / 1200);
     const c2 = { ...c, pitch: c.pitch * k };
     const L = ['sine f=2210 env=0/1400/0/200 dur=10 v=.04', 'sine f=5230 env=0/700/0/100 dur=10 v=.02', 'sine f=8640 env=0/350/0/60 dur=10 v=.01'];
     for (const l of L) layer(c2, l);
@@ -276,9 +279,9 @@ se('se_fry', {
     layer(c, 'noise env=50/0/1/800 dur=2200 v=.015 flt=LP500 am=9/.4');
     // 40 spatters, thinning out over 2.5 s
     for (let i = 0; i < 40; i++) {
-      const at = 2500 * Math.pow(Math.random(), 1.8);
-      const f = 3000 + Math.random() * 3000;
-      layer(c, `noise env=0/${(3 + Math.random() * 3).toFixed(0)}/0/2 dur=3 v=${(0.02 + Math.random() * 0.03).toFixed(3)} flt=BP${f.toFixed(0)}q1.5`, { at, set: { pan: Math.random() * 0.8 - 0.4 } });
+      const at = 2500 * Math.pow(arand(), 1.8);
+      const f = 3000 + arand() * 3000;
+      layer(c, `noise env=0/${(3 + arand() * 3).toFixed(0)}/0/2 dur=3 v=${(0.02 + arand() * 0.03).toFixed(3)} flt=BP${f.toFixed(0)}q1.5`, { at, set: { pan: arand() * 0.8 - 0.4 } });
     }
   },
 });
@@ -317,7 +320,7 @@ se('se_cart_rattle', {
   group: TOWN,
   fn(c) {
     layer(c, 'noise env=40/400/0/100 dur=400 v=.025 flt=BP2200q2 am=18/.8');
-    for (let i = 0; i < 4; i++) layer(c, `sine f=${Math.random() < 0.5 ? 1800 : 2900} env=0/20/0/8 dur=5 v=.01`, { at: Math.random() * 500 });
+    for (let i = 0; i < 4; i++) layer(c, `sine f=${arand() < 0.5 ? 1800 : 2900} env=0/20/0/8 dur=5 v=.01`, { at: arand() * 500 });
   },
 });
 se('se_umbrella_hop', { label: 'ワスレガサが跳ねる', group: TOWN, layers: ['noise env=2/60/0/30 dur=30 v=.03 flt=BP1200q1', 'tri f=400→700/60 env=1/50/0/20 dur=20 v=.02'] });
@@ -333,8 +336,19 @@ se('se_star', { label: '星がひとつ止まる（チン）', group: TOWN, rev:
 // 9.5 ハンコ
 const HANKO = 'ハンコ';
 
-se('se_stamp', { label: 'ふつうの判（ぺたん）', group: HANKO, rand: HIT, max: 3, layers: ['sine f=120→55/70 env=0/90/0/30 dur=20 v=.30', 'noise env=0/25/0/10 dur=10 v=.12 flt=BP1800q1.2', 'tri f=520→480/20 env=0/20/0/10 dur=8 v=.05', 'noise env=2/40/0/20 dur=20 v=.03 flt=LP900 at=15', 'tri f=240→110/60 env=0/60/0/20 dur=10 v=.04'] });
-const HEAVY = ['sine f=90→38/160 env=0/200/0/60 dur=40 v=.50 drive=1.2', 'noise env=0/60/0/30 dur=20 v=.20 flt=LP2000'];
+/**
+ * Small speakers (16.2: "ノートPCのスピーカーで、ベースと低いドンが消えすぎない")
+ * reproduce little under ~180 Hz, where the heavy blows keep their weight.
+ * Every one of them therefore also carries its punch an octave or two up:
+ * a driven triangle "body" in 150–400 Hz (its harmonics reach 1 kHz) and a
+ * few-ms click at 1–3 kHz — the wood of the desk and the edge of the hit.
+ * report.ts (laptopLoss) checks they lose ≤ 3 LU through a 180 Hz high-pass.
+ */
+const BODY = (f0: number, f1: number, ms: number, v: number, drive = 1.4) =>
+  `tri f=${f0}→${f1}/${ms} env=0/${Math.round(ms * 1.2)}/0/${Math.round(ms * 0.35)} dur=24 v=${v} drive=${drive}`;
+const CLICK = (f: number, v: number) => `noise env=0/7/0/3 dur=4 v=${v} flt=BP${f}q1.1`;
+se('se_stamp', { label: 'ふつうの判（ぺたん）', group: HANKO, rand: HIT, max: 3, layers: ['sine f=120→55/70 env=0/90/0/30 dur=20 v=.30 drive=1.6', 'noise env=0/25/0/10 dur=10 v=.12 flt=BP1800q1.2', 'tri f=520→480/20 env=0/20/0/10 dur=8 v=.05', 'noise env=2/40/0/20 dur=20 v=.03 flt=LP900 at=15', 'tri f=240→110/60 env=0/60/0/20 dur=10 v=.04', BODY(280, 170, 70, 0.16, 1.3)] });
+const HEAVY = ['sine f=90→38/160 env=0/200/0/60 dur=40 v=.50 drive=2.2', 'noise env=0/60/0/30 dur=20 v=.20 flt=LP2000', BODY(210, 125, 150, 0.3), CLICK(2200, 0.14)];
 se('se_stamp_heavy', {
   label: 'くっきり判（重いペタン）',
   group: HANKO,
@@ -355,7 +369,7 @@ se('se_stamp_heavy', {
 se('se_stamp_light', { label: 'かすれ判（薄いペタ・音程あり）', group: HANKO, rand: [0, 0.08], max: 4, layers: ['noise env=0/20/0/10 dur=8 v=.06 flt=HP1500', 'sine f=160→90/40 env=0/50/0/20 dur=10 v=.10', 'tri f=C5 env=0/60/0/30 dur=10 v=.05'] });
 se('se_hanko_ready', { label: 'ハンコのアップ（カチッ）', group: HANKO, layers: ['tri f=1320 env=0/25/0/10 dur=8 v=.07', 'noise env=0/12/0/6 dur=6 v=.05 flt=BP3200q3', 'sine f=440 env=0/30/0/10 dur=8 v=.04'] });
 se('se_hanko_zone', { label: 'くっきりゾーンに入った「チッ」', group: HANKO, layers: ['sine f=3520 env=0/20/0/10 dur=8 v=.03', 'tri f=1760 env=0/25/0/10 dur=8 v=.02'] });
-se('se_thud_low', { label: 'くっきりの低い「ドン」', group: HANKO, duck: 'heavy', layers: ['sine f=70→32/220 env=1/200/0/60 dur=40 v=.35 drive=1.0', 'noise env=1/80/0/30 dur=20 v=.08 flt=LP250', 'tri f=140→64/200 env=1/120/0/40 dur=20 v=.05'] });
+se('se_thud_low', { label: 'くっきりの低い「ドン」', group: HANKO, duck: 'heavy', layers: ['sine f=70→32/220 env=1/200/0/60 dur=40 v=.35 drive=2.0', 'noise env=1/80/0/30 dur=20 v=.08 flt=LP250', 'tri f=140→64/200 env=1/120/0/40 dur=20 v=.05', BODY(175, 105, 200, 0.24, 1.6), CLICK(1500, 0.06)] });
 se('se_peke_fall', { label: '巨大な×が振り下ろされる（ヒュウ）', group: HANKO, layers: ['noise env=180/0/1/20 dur=200 v=.06 flt=BP600→2400q3', 'sine f=400→900/200 env=180/0/1/20 dur=200 v=.02'] });
 se('se_mimashita', {
   label: 'みました（照れの「ポッ」）',
@@ -651,7 +665,7 @@ se('se_kiran', {
   },
 });
 se('se_kabuse', { label: 'かぶせ（早押し「コツ」）', group: BATTLE, layers: ['tri f=220→180/30 env=1/50/0/20 dur=20 v=.06 flt=LP900', 'noise env=0/15/0/8 dur=8 v=.03 flt=LP800'] });
-se('se_damage', { label: '味方の被弾（ドッ）', group: BATTLE, rand: HIT, max: 3, layers: ['noise env=0/90/0/50 dur=30 v=.16 flt=LP900', 'sine f=110→45/120 env=0/130/0/40 dur=40 v=.22', 'sq f=82 env=0/60/0/20 dur=20 v=.04 flt=LP300'] });
+se('se_damage', { label: '味方の被弾（ドッ）', group: BATTLE, rand: HIT, max: 3, layers: ['noise env=0/90/0/50 dur=30 v=.16 flt=LP900', 'sine f=110→45/120 env=0/130/0/40 dur=40 v=.22 drive=1.6', 'sq f=82 env=0/60/0/20 dur=20 v=.04 flt=LP600', BODY(230, 140, 110, 0.16, 1.4), CLICK(1800, 0.09)] });
 se('se_ko', { label: '味方がへばった', group: BATTLE, layers: ['sq f=660→110/600 env=5/0/1/100 dur=600 v=.06 flt=LP2000→500 vib=10/40', 'noise env=0/80/0/30 dur=20 v=.05 flt=LP600 at=550'] });
 se('se_shrink', { label: '撃破：シルエットが縮む', group: BATTLE, layers: ['sine f=1200→300/330 env=5/0/1/40 dur=320 v=.04', 'noise env=5/0/1/40 dur=320 v=.02 flt=BP2000→600q2'] });
 se('se_poton', {
@@ -694,7 +708,7 @@ se('se_kire_full', {
     layer(c, 'sine f=65 env=1/300/0/80 dur=40 v=.10');
   },
 });
-se('se_don', { label: 'ノリツッコミの着弾（太いドン）', group: BATTLE, rev: 0.25, duck: 'heavy', layers: ['sine f=65→28/350 env=0/400/0/80 dur=40 v=.45 drive=1.5', 'noise env=0/150/0/60 dur=20 v=.15 flt=LP400', 'noise env=0/60/0/20 dur=10 v=.05 flt=HP3000', 'tri f=130→56/300 env=0/200/0/60 dur=20 v=.05'] });
+se('se_don', { label: 'ノリツッコミの着弾（太いドン）', group: BATTLE, rev: 0.25, duck: 'heavy', layers: ['sine f=65→28/350 env=0/400/0/80 dur=40 v=.45 drive=2.4', 'noise env=0/150/0/60 dur=20 v=.15 flt=LP400', 'noise env=0/60/0/20 dur=10 v=.05 flt=HP3000', 'tri f=130→56/300 env=0/200/0/60 dur=20 v=.05', BODY(180, 100, 260, 0.34, 1.6), 'sq f=120→72/220 env=0/200/0/50 dur=20 v=.05 flt=LP1100', CLICK(1700, 0.14)] });
 se('se_status', { label: '状態異常（ねじれたトーン）', group: BATTLE, layers: ['sine f=660→520/400 env=20/300/.3/100 dur=400 v=.05 vib=7/120 flt=LP2000', 'sine f=990→700/400 env=20/300/.3/100 dur=400 v=.03 flt=LP2000 det=25'] });
 se('se_buff_up', {
   label: '能力が上がる',
@@ -872,13 +886,17 @@ se('se_ojigi_press', {
   rev: 0.3,
   duck: 'heavy',
   fn(c) {
-    layer(c, 'sine f=55→25/600 env=0/700/0/150 dur=60 v=.55 drive=1.5');
-    layer(c, 'noise env=0/400/0/100 dur=40 v=.20 flt=LP300');
+    layer(c, 'sine f=55→25/600 env=0/700/0/150 dur=60 v=.38 drive=2.4');
+    layer(c, 'noise env=0/400/0/100 dur=40 v=.18 flt=LP650');
     layer(c, 'tri f=110→50/500 env=0/300/0/100 dur=40 v=.06');
-    layer(c, 'sine f=310 env=0/400/0/60 dur=10 v=.04');
-    layer(c, 'sine f=780 env=0/250/0/60 dur=10 v=.04');
-    layer(c, 'sine f=1470 env=0/150/0/60 dur=10 v=.04');
-    for (let i = 0; i < 6; i++) sub(c, 'se_coin', { at: 80 + Math.random() * 300, vol: 0.4, pitch: 0.9 + Math.random() * 0.3 });
+    // the cabinet's weight where a laptop can play it (see BODY)
+    layer(c, BODY(165, 95, 420, 0.6, 1.7));
+    layer(c, 'sq f=105→62/380 env=0/330/0/80 dur=30 v=.055 flt=LP1000');
+    layer(c, CLICK(1300, 0.14));
+    layer(c, 'sine f=310 env=0/400/0/60 dur=10 v=.06');
+    layer(c, 'sine f=780 env=0/250/0/60 dur=10 v=.05');
+    layer(c, 'sine f=1470 env=0/150/0/60 dur=10 v=.045');
+    for (let i = 0; i < 6; i++) sub(c, 'se_coin', { at: 80 + arand() * 300, vol: 0.4, pitch: 0.9 + arand() * 0.3 });
   },
 });
 se('se_atari', {

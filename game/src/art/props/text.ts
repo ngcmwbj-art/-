@@ -24,9 +24,49 @@ function glyphMask(ch: string): { w: number; h: number; bits: Uint8Array; adv: n
   const bits = new Uint8Array(img.width * img.height);
   for (let i = 0; i < bits.length; i++) bits[i] = d[i * 4 + 3] > 127 ? 1 : 0;
   m = { w: img.width, h: img.height, bits, adv: charWidth(ch) };
+  const ov = GLYPH16[ch];
+  if (ov) {
+    // hand-set replacement drawn inside the original glyph's box
+    let top = m.h;
+    let left = m.w;
+    for (let y = 0; y < m.h; y++)
+      for (let x = 0; x < m.w; x++)
+        if (bits[y * m.w + x]) {
+          top = Math.min(top, y);
+          left = Math.min(left, x);
+        }
+    bits.fill(0);
+    for (let j = 0; j < ov.length; j++)
+      for (let i = 0; i < ov[j].length; i++)
+        if (ov[j][i] === '#' && left + i < m.w && top + j < m.h) bits[(top + j) * m.w + left + i] = 1;
+  }
   maskCache.set(ch, m);
   return m;
 }
+
+/**
+ * 16px replacements for DotGothic16 glyphs that misread on signs (review
+ * round 2): 夕 read as the katakana タ — here its inner dot floats free of
+ * the left sweep and meets the long diagonal, as in the kanji.
+ */
+const GLYPH16: Record<string, string[]> = {
+  夕: [
+    '......#......',
+    '.....#.......',
+    '....#########',
+    '...#.......#.',
+    '..#.......#..',
+    '.#..#.....#..',
+    '#....#...#...',
+    '......#.#....',
+    '.......#.....',
+    '......#......',
+    '.....#.......',
+    '...##........',
+    '.##..........',
+    '#............',
+  ],
+};
 
 export interface TextStyle {
   /** 1px shadow (down-right). */
@@ -307,7 +347,31 @@ const HAND: Record<string, string[]> = {
     '.#...#.',
     '.#####.',
   ],
-  // 9×10 shop-sign glyphs (写真館 on the photo studio)
+  // 9×10 shop-sign glyphs (夕鳴写真館 on the photo studio)
+  夕9: [
+    '....#....',
+    '...#.....',
+    '..#######',
+    '.#.....#.',
+    '#..#...#.',
+    '....#.#..',
+    '.....#...',
+    '....#....',
+    '..##.....',
+    '##.......',
+  ],
+  鳴: [
+    '.....#...',
+    '....####.',
+    '###.#..#.',
+    '#.#.####.',
+    '#.#.#..#.',
+    '###.####.',
+    '....#....',
+    '....#####',
+    '...#.#.##',
+    '..#.#.#.#',
+  ],
   写: [
     '#########',
     '#.......#',

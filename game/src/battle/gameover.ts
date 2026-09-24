@@ -75,14 +75,24 @@ class GameOverScene implements Scene {
     g.clear(C.darkest);
     const a = Math.min(1, this.t / 700);
     g.alpha(a, () => g.ctx.drawImage(nightCanvas(), 0, 0));
+    // the lamp's bulb breathes a little (old fluorescent tube)
+    const flick = 0.85 + 0.15 * Math.sin(this.t / 170) * Math.sin(this.t / 53);
+    g.alpha(a * 0.22 * flick, () => g.circle(LAMP_X, LAMP_Y + 4, 11, '#FFE7A3'));
+    g.alpha(a * 0.3 * flick, () => g.circle(LAMP_X, LAMP_Y + 4, 6, '#FFE7A3'));
+    g.alpha(a * flick, () => {
+      g.rect(LAMP_X - 5, LAMP_Y + 2, 10, 2, '#FFF6D8');
+      g.rect(LAMP_X - 4, LAMP_Y + 4, 8, 1, '#FFE7A3');
+    });
     // dust motes drifting up through the lamplight
-    for (let i = 0; i < 14; i++) {
-      const life = 3200 + (i % 5) * 400;
+    for (let i = 0; i < 20; i++) {
+      const life = 3000 + (i % 6) * 380;
       const p = ((this.t + i * 977) % life) / life;
-      const x = 150 + ((i * 53) % 84) + Math.round(Math.sin(p * 6.3 + i) * 3);
-      const y = Math.round(160 - p * 110);
+      const spread = 20 + p * 70;
+      const x = LAMP_X + Math.round(((((i * 53) % 97) / 97) * 2 - 1) * spread) + Math.round(Math.sin(p * 6.3 + i) * 3);
+      const y = Math.round(166 - p * 140);
       const tw = Math.sin(p * Math.PI);
-      g.alpha(a * tw * 0.8, () => g.px(x, y, i % 3 ? '#E8D9B5' : '#FFE7A3'));
+      g.alpha(a * tw * 0.85, () => g.px(x, y, i % 3 ? '#E8D9B5' : '#FFE7A3'));
+      if (i % 5 === 0) g.alpha(a * tw * 0.5, () => g.px(x + 1, y, '#E8D9B5'));
     }
     // the day's last line, handwritten (a little uneven), and its underline
     const ta = Math.min(1, Math.max(0, (this.t - 250) / 500));
@@ -100,20 +110,25 @@ class GameOverScene implements Scene {
     if (this.t < 1000) return;
     const k = Math.min(1, (this.t - 1000) / 180);
     const wy = 102 + Math.round((1 - ease.backOut(k)) * 8);
+    const opts = [GAMEOVER.retry, GAMEOVER.load];
+    // sized to the longest choice: 24px for the cursor on the left, 12 of
+    // paper on the right
+    const tw = Math.max(...opts.map((o) => g.measure(o)));
+    const ww = tw + 24 + 12;
+    const wx = Math.round(192 - ww / 2);
     g.alpha(k, () => {
-      drawNote(g, 88, wy, 208, 48);
+      drawNote(g, wx, wy, ww, 48);
       g.img(tapeCanvas(22, 7, '', C.tape, 4), 181, wy - 3);
     });
-    const opts = [GAMEOVER.retry, GAMEOVER.load];
     opts.forEach((o, i) => {
       const dim = i === 1 && !this.canLoad;
       const sel = this.index === i;
       const y = wy + 6 + i * 19;
-      g.alpha(k, () => g.text(o, 112, y, { color: dim ? C.gray : C.ink }));
-      if (sel && this.picked === i && Math.floor(this.pickT / 60) % 2 === 0) g.rect(110, y, 176, 17, C.shu, 0.16);
+      g.alpha(k, () => g.text(o, wx + 24, y, { color: dim ? C.gray : C.ink }));
+      if (sel && this.picked === i && Math.floor(this.pickT / 60) % 2 === 0) g.rect(wx + 22, y, tw + 4, 17, C.shu, 0.16);
       if (sel) {
         const bob = this.picked === i ? 1 : Math.round(Math.sin(this.t / 130));
-        g.alpha(k, () => g.img(cursorStamp(this.picked === i), 98, y + 3 + bob));
+        g.alpha(k, () => g.img(cursorStamp(this.picked === i), wx + 10, y + 3 + bob));
       }
     });
     if (this.flipT >= 0) {
@@ -130,6 +145,10 @@ class GameOverScene implements Scene {
   }
 }
 
+/** The street lamp's head (the light comes from its bulb). */
+const LAMP_X = 192;
+const LAMP_Y = 12;
+
 let nightC: HTMLCanvasElement | null = null;
 /**
  * The dark street under one lamp (384×216, drawn once): a faint cone of light,
@@ -141,15 +160,52 @@ function nightCanvas(): HTMLCanvasElement {
   const p = new PixelCanvas(384, 216);
   p.rect(0, 0, 384, 216, C.darkest);
   const dith = (x: number, y: number, v: number) => BAYER4[y & 3][x & 3] < Math.round(v * 16);
-  // the cone of lamplight from above the frame
-  for (let y = 0; y < 170; y++) {
-    const half = 10 + (y / 170) * 96;
+  // the cone of lamplight from the bulb down to the pool (two steps of light)
+  for (let y = LAMP_Y + 7; y < 170; y++) {
+    const k = (y - LAMP_Y - 7) / (170 - LAMP_Y - 7);
+    const half = 6 + k * 100;
     for (let x = Math.floor(192 - half); x <= Math.ceil(192 + half); x++) {
       const edge = 1 - Math.abs(x - 192) / half;
-      const v = Math.min(1, edge * 1.6) * (0.35 + 0.25 * (y / 170));
-      if (dith(x, y, v)) p.set(x, y, '#141024');
+      const v = Math.min(1, edge * 1.6) * (0.4 + 0.3 * k);
+      if (dith(x, y, v)) p.set(x, y, '#171230');
+      if (edge > 0.55 && dith(x, y, (edge - 0.55) * 1.2 * (0.6 - 0.35 * k))) p.set(x, y, '#221B3E');
     }
   }
+  // ---- the street lamp: a steel pole rising from behind the pool on the
+  // left, its arm curving over to the lamp head above the light ----
+  const POLE = '#3A2B5C';
+  const POLE_L = '#5B4A7A';
+  const POLE_D = '#241C3A';
+  for (let y = 16; y < 150; y++) {
+    p.set(140, y, POLE_D);
+    p.set(141, y, POLE);
+    p.set(142, y, POLE);
+    p.set(143, y, POLE_L);
+    p.set(144, y, POLE_D);
+  }
+  // the base flange and a sticker-scarred band halfway up
+  p.rect(138, 148, 9, 3, POLE);
+  p.hline(138, 146, 148, POLE_L);
+  p.rect(140, 96, 5, 7, '#4A3A6E');
+  p.set(141, 98, '#8A7A9E');
+  p.set(143, 100, '#6E5E88');
+  // arm: up from the pole top and over to the lamp (a quarter curve)
+  for (let i = 0; i <= 40; i++) {
+    const a = (i / 40) * Math.PI * 0.5;
+    const x = Math.round(158 - Math.cos(a) * 16);
+    const y = Math.round(16 - Math.sin(a) * 8);
+    p.set(x, y, POLE);
+    p.set(x, y + 1, POLE_D);
+    if (i < 30) p.set(x, y - 1, POLE_L);
+  }
+  p.rect(158, 7, LAMP_X - 158 - 6, 2, POLE);
+  p.hline(158, LAMP_X - 7, 7, POLE_L);
+  // lamp head: a flat shade with a lit rim, the bulb glows under it
+  p.rect(LAMP_X - 8, LAMP_Y - 3, 16, 5, POLE);
+  p.hline(LAMP_X - 7, LAMP_X + 7, LAMP_Y - 3, POLE_L);
+  p.hline(LAMP_X - 8, LAMP_X + 7, LAMP_Y + 1, '#8A7A9E');
+  p.rect(LAMP_X - 6, LAMP_Y + 2, 12, 3, '#FFE7A3');
+  p.hline(LAMP_X - 5, LAMP_X + 4, LAMP_Y + 2, '#FFF6D8');
   // the pool of light on the ground (three dithered rings)
   const pool = [
     [124, 30, '#1B1733', 1],

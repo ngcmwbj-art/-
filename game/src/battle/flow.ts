@@ -18,7 +18,7 @@ import { doAttack, doFlee, doGuard, doHanko, doItem, doNori, doPR, killSequence 
 import { decideEnemy, doEnemyAction } from './enemy';
 import { bossDecide, bossRoundEnd, bossRoundStart, checkBossPhase, initBoss } from './boss';
 import { victory, wipeOut } from './results';
-import { hideSticky, resetKire, statusText } from './common';
+import { hideSticky, precacheRestored, resetKire, statusText } from './common';
 import { roundSeal } from './art/stamps';
 
 interface Act {
@@ -78,6 +78,8 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
   if (init !== 'normal') yield* initiativeStamp(s, init === 'party');
   if (init === 'party') pages.push(...fillAll(SYS.initiative, { enemy: ename }));
   if (init === 'enemy') pages.push(...fillAll(SYS.ambush, { enemy: ename }));
+  // while the opening line types (nothing else moves but the background)
+  s.run(precacheRestored(s));
   yield* s.say(pages);
   if (s.isBoss && first.def.texts.extra.opening) {
     sfx('se_boss_voice');

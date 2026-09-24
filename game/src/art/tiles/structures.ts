@@ -3,7 +3,7 @@
 // junction handling from the 4-neighbour mask. Each cell sprite stands on the
 // bottom edge of its tile: the front face rises `h` px, the top cap sits above.
 
-import { PixelCanvas, rgba32 } from '../../engine/pixel';
+import { PixelCanvas, mix, rgba32 } from '../../engine/pixel';
 import { ihash, valueNoise } from './noise';
 import { P } from './palette';
 
@@ -21,6 +21,8 @@ export interface CellArt {
   oy: number;
   /** Height for the long shadow (0 = none). */
   shadow: number;
+  /** Stage-2 variant (reeds leaning north-east, 8.4). */
+  ne?: HTMLCanvasElement;
 }
 
 interface Mat {
@@ -302,6 +304,13 @@ function lt1(c: string): string {
  * own tile; only the tips rise 2–4px above it (the canal stays readable).
  */
 function reedCell(tx: number, ty: number, m: CellMask): CellArt {
+  const calm = reedImage(tx, ty, false);
+  void m;
+  return { img: calm, ox: 0, oy: -4, shadow: 0, ne: reedImage(tx, ty, true) };
+}
+
+/** One reed cell; `ne` = stage 2: every clump leans north-east, tips and plumes 1–2px over. */
+function reedImage(tx: number, ty: number, ne: boolean): HTMLCanvasElement {
   const W = 16;
   const RISE = 4;
   const h = 16 + RISE;
@@ -321,11 +330,11 @@ function reedCell(tx: number, ty: number, m: CellMask): CellArt {
     const tall = variant === 0 ? 9 : variant === 1 ? 13 : 17 + ((hh >>> 6) % 2);
     const baseY = h - 1 - ((hh >>> 9) % 2);
     const half = variant === 0 ? 2.2 : 2.8;
-    const lean = ((hh >>> 12) % 3) - 1; // -1, 0, 1 (tips lean)
+    const lean = ne ? 1.5 : ((hh >>> 12) % 3) - 1; // -1, 0, 1 (tips lean); stage 2: all to the north-east
     for (let j = 0; j < tall; j++) {
       const k = j / tall;
       const wdt = k < 0.6 ? 1.2 + (half - 1.2) * (k / 0.6) : half * (1 - (k - 0.6) / 0.55);
-      const cxj = bx + lean * Math.max(0, k - 0.5) * 3;
+      const cxj = ne ? bx + Math.max(0, k - 0.3) * 4.3 : bx + lean * Math.max(0, k - 0.5) * 3;
       const y = baseY - j;
       if (y < 0) break;
       for (let x = Math.floor(cxj - wdt); x <= Math.ceil(cxj + wdt); x++) {
@@ -343,13 +352,13 @@ function reedCell(tx: number, ty: number, m: CellMask): CellArt {
     // 2–3 pointed blade tips above the mass
     for (let b = -1; b <= 1; b++) {
       if (b !== 0 && (hh >>> (15 + b + 1)) & 1) continue;
-      const x = Math.round(bx + lean * 1.5 + b * 1.5);
+      const x = Math.round(bx + (ne ? 3.4 : lean * 1.5) + b * 1.5);
       const y0 = baseY - tall - (b === 0 ? 2 : 1);
       for (let j = 0; j < (b === 0 ? 3 : 2); j++) if (x >= 0 && x < W && y0 + j >= 0) p.set(x, y0 + j, j === 0 ? P.leafLt : P.leafYoung);
     }
     // plume (穂) on the tall clumps: a drooping brown-purple head
     if (variant === 2) {
-      const ex = Math.round(bx + lean * 2 + (lean >= 0 ? 1 : -2));
+      const ex = Math.round(bx + (ne ? 4 : lean * 2) + (lean >= 0 ? 1 : -2));
       const ey = baseY - tall - 1;
       const plume = [
         [0, 0, P.goldPale], [1, 0, P.brass], [0, 1, P.brassOld], [1, 1, P.brassOld], [2, 1, P.wood],
@@ -364,8 +373,7 @@ function reedCell(tx: number, ty: number, m: CellMask): CellArt {
   }
   // foot line on the bank
   for (let x = 0; x < W; x++) p.set(x, h - 1, P.leafShade);
-  void m;
-  return { img: p.toCanvas(), ox: 0, oy: -RISE, shadow: 0 };
+  return p.toCanvas();
 }
 
 // ---- fences --------------------------------------------------------------------------
@@ -504,8 +512,8 @@ function wallCell(matId: string, tx: number, ty: number, m: CellMask): CellArt {
   const baseY = hh; // bottom of canvas = tile bottom
   const faceTop = baseY - H;
   const vertical = m.s || (m.n && !m.e && !m.w);
-  const vx0 = Math.floor((W - mat.vw) / 2);
-  const vx1 = vx0 + mat.vw - 1;
+  const vx0 = VX0;
+  const vx1 = VX1;
   const wx0 = tx * 16;
   const put = (x: number, y: number, c: string | null) => {
     if (c) p.set(x, y, c);
@@ -529,32 +537,101 @@ function wallCell(matId: string, tx: number, ty: number, m: CellMask): CellArt {
         put(x, faceTop - mat.cap + c, mat.top(wx0 + x, ty * 16 + c, edge));
       }
   }
-  // vertical part: cap strip through the tile (raised by H)
+  // vertical part (a N–S run, review round 2): seen from the south it is a
+  // strip with a 1px lit west edge, a 3px cap (笠木) with joints every 8px
+  // and a 4px east side face in shade showing the block courses; the strip
+  // is raised by H (the cap is the top of the wall) and continues into the
+  // neighbouring cells.
   if (vertical || m.n || m.s) {
     const top = m.n ? 0 : faceTop - mat.cap;
     const bottom = m.s ? hh : faceTop; // continues into the next cell
+    const wy0 = ty * 16 + 16 - hh; // world y of image row 0
     for (let y = Math.max(0, top - H); y < bottom; y++) {
-      const yy = y;
-      if (yy < 0 || yy >= hh) continue;
-      for (let x = vx0; x <= vx1; x++) {
-        const edge = x === vx0 ? 'w' : x === vx1 ? 's' : null;
-        put(x, yy, mat.top(wx0 + x, ty * 16 + yy, edge));
-      }
+      const wy = wy0 + y;
+      for (let x = VX0; x <= VX1; x++) put(x, y, vColumn(mat, x - VX0, wy, wx0 + x, H));
     }
     if (!m.s) {
-      // end face of a vertical run
-      for (let y = 0; y < H; y++) for (let x = vx0; x <= vx1; x++) put(x, faceTop + y, mat.face(wx0 + x, ty * 16, y, H));
-      for (let y = faceTop; y < baseY; y++) {
-        p.set(vx0, y, P.white);
-        p.set(vx1, y, P.asphalt);
-      }
+      // south end of the run: the end face (lit) under the cap, the side face
+      // continuing down to the ground
+      for (let y = 0; y < H; y++)
+        for (let x = VX0; x <= VX1; x++) {
+          const wy = wy0 + faceTop + y;
+          const col = x - VX0;
+          if (col < V_CAP + 1) put(x, faceTop + y, col === 0 ? edgeLight(mat) : mat.face(wx0 + x, ty * 16, y, H));
+          else if (x === VX1) put(x, faceTop + y, P.ink);
+          else put(x, faceTop + y, sideFace(mat, col - V_CAP - 1, wy, H));
+        }
+      for (let x = VX0; x <= VX1; x++) p.set(x, faceTop - 1, x - VX0 < V_CAP + 1 ? mat.top(wx0 + x, ty * 16, 's') ?? P.steel : P.asphalt);
+    }
+    // contact shadow on the ground east of the side face (translucent)
+    const sy0 = m.n ? 0 : hh - 16;
+    for (let y = sy0; y < hh; y++) {
+      p.under(VX1 + 1, y, P.ink + '66');
+      if ((y + tx) % 2 === 0) p.under(VX1 + 2, y, P.ink + '33');
     }
   }
   // clear the raised strip above the vertical cap when this cell has a north neighbour
   // (the north cell's own sprite draws it)
   // ink foot line
   for (let x = 0; x < W; x++) if (p.alpha(x, hh - 1)) p.set(x, hh - 1, P.charcoal);
-  return { img: p.toCanvas(), ox: 0, oy: 16 - hh, shadow: horiz && !m.s ? H : 0 };
+  return { img: p.toCanvas(), ox: 0, oy: 16 - hh, shadow: (horiz && !m.s) || (!horiz && vertical) ? H : 0 };
+}
+
+/** Vertical-run geometry (image x): lit edge, cap, side face, ink edge. */
+const VX0 = 3;
+const V_CAP = 3;
+const V_SIDE = 4;
+const VX1 = VX0 + V_CAP + V_SIDE + 1;
+
+/** One column of a N–S run: 0 = lit west edge, 1..3 cap, 4..7 east side face, 8 ink. */
+function vColumn(mat: Mat, col: number, wy: number, wx: number, H: number): string {
+  if (col === 0) return wy % 3 === 0 ? P.sun : edgeLight(mat);
+  if (col <= V_CAP) {
+    // cap (笠木): the material's top, a joint across it every 8px along the run
+    let c = mat.top(wy, wx, null) ?? P.concreteLt;
+    if ((wy & 7) === 7) c = shadeCol(c, 1);
+    else if (col === 1) c = lighten(c);
+    else if (col === V_CAP) c = shadeCol(c, 1);
+    return c;
+  }
+  if (col === V_CAP + V_SIDE + 1) return P.ink;
+  return sideFace(mat, col - V_CAP - 1, wy, H);
+}
+
+/**
+ * East side face of a N–S run, in the wall's own shade: two block courses
+ * (2px and 1px) with a mortar line between them, block ends staggered by
+ * half a block — the courses of the south face seen edge-on.
+ */
+function sideFace(mat: Mat, k: number, wy: number, H: number): string {
+  const fyA = 1;
+  const fyB = Math.min(H - 4, 5);
+  if (k === 2) return mix(mat.face(wy, 0, 3, H) ?? P.steel, P.shade, 0.45);
+  const c = mat.face(wy, 0, k < 2 ? fyA : fyB, H) ?? P.concrete;
+  return mix(c, P.shade, k === 0 ? 0.16 : k === 1 ? 0.3 : 0.42);
+}
+
+function edgeLight(mat: Mat): string {
+  return mat.top(0, 0, 'n') ?? P.white;
+}
+
+const SHADE: Record<string, string> = {
+  [P.white]: P.concreteLt, [P.concreteLt]: P.concrete, [P.concrete]: P.steel, [P.steel]: P.asphalt,
+  [P.asphalt]: P.charcoal, [P.charcoal]: P.ink, [P.ink]: P.night, [P.leafLt]: P.leafYoung, [P.leafYoung]: P.leaf,
+  [P.leaf]: P.leafDeep, [P.leafDeep]: P.leafShade, [P.leafShade]: P.ink, [P.woodLt]: P.wood, [P.wood]: P.woodDark,
+  [P.woodDark]: P.ink, [P.paper]: P.paperGrid, [P.paperGrid]: P.woodLt, [P.goldPale]: P.brass, [P.brass]: P.brassOld,
+};
+const LIGHTEN: Record<string, string> = {
+  [P.concreteLt]: P.white, [P.concrete]: P.concreteLt, [P.steel]: P.concrete, [P.asphalt]: P.steel, [P.charcoal]: P.asphalt,
+  [P.wood]: P.woodLt, [P.woodDark]: P.wood, [P.leaf]: P.leafYoung, [P.leafDeep]: P.leaf,
+};
+function shadeCol(c: string, n = 1): string {
+  let r = c.toUpperCase();
+  for (let i = 0; i < n; i++) r = SHADE[r] ?? r;
+  return r;
+}
+function lighten(c: string): string {
+  return LIGHTEN[c.toUpperCase()] ?? c;
 }
 
 export function structureCell(kind: string, mat: string, tx: number, ty: number, m: CellMask): CellArt {

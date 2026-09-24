@@ -129,12 +129,13 @@ const DOME_UP = [
   '##############',
   '##############',
 ];
-// The mouth only shows as a thin dark crescent under the lip: a wide black
-// band read as sunglasses at 1x (review), so the face stays on the dome.
+// The mouth only shows as a thin dark crescent between the far lip (in
+// shade) and the near lip (lit): a wide dark band read as sunglasses at 1x
+// (review), so the face stays on the dome.
 const MOUTH_UP = [
-  'LLLLLLLLLLLLLL',
-  '.LiiiiiiiiiiL.',
-  '..LLLLLLLLLL..',
+  'dddddddddddddd',
+  '.oooiiiiiiooo.',
+  '..++++++++++-.',
 ];
 
 function bellTilted(f: Fig, y0: number, face: 'front' | 'side', p: Pose) {
@@ -153,16 +154,14 @@ function bellTilted(f: Fig, y0: number, face: 'front' | 'side', p: Pose) {
     f.retone(x0 + l + 1, y + 1 + j, 1);
   }
   f.retone(x0 + 4, y + 2, 2).retone(x0 + 3, y + 3, 2);
-  // the mouth, now facing us
-  f.part('brassD', { shade: 'rb', light: 't' });
-  f.rows(x0, y + 7, MOUTH_UP, { i: null });
+  // the mouth, now facing us: far lip in shade, the dark inside, near lip lit
+  f.part('brass', { shade: '', light: '' });
+  f.rows(x0, y + 7, MOUTH_UP, { d: ['brassD', 0], i: null, o: [null, -1], '+': [null, 1], '-': [null, -1] });
   f.part('bellIn', { flat: true, rim: false });
-  f.rows(x0, y + 7, MOUTH_UP.map((r) => r.replace(/L/g, '.')), { i: 'bellIn' });
-  // clapper: its round tip just shows in the crescent
-  f.part('clapper', { shade: 'r', light: 'l' });
-  f.rect(x0 + 6, y + 8, 2, 1);
-  f.part('brassG', { flat: true, rim: false });
-  f.px(x0 + 6, y + 8);
+  f.rows(x0, y + 7, MOUTH_UP.map((r) => r.replace(/[do+-]/g, '.')), { i: 'bellIn' });
+  // (no clapper nub in the crescent: split in two, the dark reads as a pair
+  // of squinting eyes / sunglasses; one unbroken dash reads as the open
+  // mouth of a face turned up to the sky)
   // face in the upper half of the dome, eyes up at the sky
   const ey = y + 2;
   f.part('eye', { flat: true, rim: false });

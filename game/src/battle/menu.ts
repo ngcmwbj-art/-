@@ -8,7 +8,8 @@ import { fill, fillAll, getItem, getSkill, isKeyItem, PR_ORDER, SYS } from '../d
 import type { BattleScene } from './scene';
 import type { BossPart, EnemyUnit, PartyCmd, PartyUnit } from './model';
 import type { ListRow } from './ui/panels';
-import { C, drawBar } from './ui/note';
+import { C, drawBar, tapeCanvas } from './ui/note';
+import { measure } from '../engine/font';
 import { showSticky, hideSticky } from './common';
 import { yousuText } from './texts';
 
@@ -421,6 +422,28 @@ function partCenter(e: EnemyUnit, p: BossPart): { x: number; y: number; w: numbe
   return { x: e.left + p.box[0] + p.box[2] / 2, y: e.top + p.box[1], w: p.box[2] };
 }
 
+/** Selection highlight code the boss art understands (params.hl). */
+const PART_HL: Record<string, number> = { boss_omukaemachi_cap: 1, boss_omukaemachi_umbrella: 2, boss_omukaemachi_bottle: 3, boss_omukaemachi_shoe: 4 };
+
+/**
+ * Where the cursor stamp points for each boss target (sprite coords), so no
+ * two targets share a spot: the body between the lost-child tags (its eyes),
+ * the cap on its crown, the bottle on its lid, the umbrellas on the bundle,
+ * and the shoe from the side (the stamp lies down, face to the right).
+ */
+const BOSS_AIM: Record<string, { x: number; y: number; dir: 'down' | 'right' }> = {
+  body: { x: 80, y: 45, dir: 'down' },
+  boss_omukaemachi_cap: { x: 80, y: 13, dir: 'down' },
+  boss_omukaemachi_bottle: { x: 125, y: 57, dir: 'down' },
+  boss_omukaemachi_umbrella: { x: 20, y: 52, dir: 'down' },
+  boss_omukaemachi_shoe: { x: 58, y: 111, dir: 'right' },
+};
+
+export function bossAim(e: EnemyUnit, part?: BossPart): { x: number; y: number; dir: 'down' | 'right' } {
+  const a = BOSS_AIM[part ? part.id : 'body'];
+  return { x: e.left + a.x, y: e.top + a.y, dir: a.dir };
+}
+
 export function* pickEnemy(s: BattleScene, o: { parts: boolean; skill?: string }): Co<EnemyTarget | null> {
   const inp = game.input;
   const list: EnemyTarget[] = [];
@@ -455,17 +478,28 @@ export function* pickEnemy(s: BattleScene, o: { parts: boolean; skill?: string }
   const dimmed = (t: EnemyTarget) => o.skill === 'skill_yarinaoshi' && !canUndo(s, t.e, t.part);
   const prevCmd = s.cmd;
   s.cmd = null;
+  const clearHl = () => {
+    for (const x of s.enemies) if (x.def.boss) x.params.hl = 0;
+  };
   for (;;) {
     const t = list[index];
-    s.target = { kind: 'enemy', e: t.e, part: t.part ? partCenter(t.e, t.part) : undefined };
+    const boss = t.e.def.boss && o.parts;
+    s.target = { kind: 'enemy', e: t.e, part: t.part ? partCenter(t.e, t.part) : undefined, aim: boss ? bossAim(t.e, t.part) : undefined };
+    // the chosen part (or the whole shadow) blinks with a light outline
+    if (t.e.def.boss) t.e.params.hl = boss ? (t.part ? PART_HL[t.part.id] ?? 0 : 5) : 0;
     const name = t.part ? t.part.name : t.e.name;
     const showHp = !t.part && !!flag('flag_mimashita_' + t.e.id) && !t.e.def.invulnerable;
     const e = t.e;
+    const part = t.part;
+    const nameW = measure(name);
     s.msg.setStatic(
       name,
-      showHp
+      showHp || part
         ? (g, x, y) => {
-            drawBar(g, x + 200, y + 8, 120, 5, e.hp / e.maxHp, C.shu, C.grid, e.hpTrail / e.maxHp, C.white);
+            if (showHp) drawBar(g, x + 200, y + 8, 120, 5, e.hp / e.maxHp, C.shu, C.grid, e.hpTrail / e.maxHp, C.white);
+            // parts get a small tape tag after the name (「部位」), gold with a
+            // sparkle while the part is glowing
+            if (part) g.img(partTag(part.glow), x + 14 + nameW + 6, y + 4);
           }
         : null,
     );
@@ -482,6 +516,7 @@ export function* pickEnemy(s: BattleScene, o: { parts: boolean; skill?: string }
     if (s.takeCancel()) {
       s.sfx('se_cancel');
       s.target = null;
+      clearHl();
       s.msg.setStatic('');
       hideSticky(s);
       return null;
@@ -494,10 +529,26 @@ export function* pickEnemy(s: BattleScene, o: { parts: boolean; skill?: string }
       s.cursorPressed = 110;
       s.sfx('se_confirm');
       s.target = null;
+      clearHl();
       s.msg.setStatic('');
       return list[index];
     }
   }
+}
+
+const partTags: HTMLCanvasElement[] = [];
+/** 「部位」 tape tag for the band (gold with a sparkle while the part glows). */
+function partTag(glow: boolean): HTMLCanvasElement {
+  const k = glow ? 1 : 0;
+  if (partTags[k]) return partTags[k];
+  const img = tapeCanvas(40, 16, '部位', glow ? '#FFD23F' : '#AFD6E6', 7);
+  if (glow) {
+    const ctx = img.getContext('2d')!;
+    ctx.fillStyle = '#FFF6D8';
+    for (const [x, y] of [[36, 1], [35, 2], [37, 2], [36, 3], [3, 12], [2, 13], [4, 13], [3, 14]]) ctx.fillRect(x, y, 1, 1);
+  }
+  partTags[k] = img;
+  return img;
 }
 
 export function* pickAlly(s: BattleScene, includeDown: boolean, only?: string): Co<PartyUnit | null> {

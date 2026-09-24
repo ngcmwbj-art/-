@@ -19,7 +19,7 @@ import { css } from '../../world/lighting';
 import { groundAt, type LoadedMap } from '../../world/maps';
 import { H, W } from '../../engine/screen';
 import { toRgb } from '../../engine/pixel';
-import { ihash } from './noise';
+import { ihash, valueNoise } from './noise';
 import { P } from './palette';
 
 type RGB = [number, number, number];
@@ -121,14 +121,17 @@ function waterPal(g: Grade): WaterPal {
   const top = g.skyTop;
   const low = g.skyBot;
   const night = g.night;
+  // The far part of the water mirrors the bright low sky; the near part
+  // mirrors the higher, cooler sky and the water's depth: it cools towards
+  // lilac, so the canal never reads as a strip of warm dirt (review round 2).
   return {
-    hi: mixc(top, GLINT, 0.35 * (1 - night)),
+    hi: mixc(top, GLINT, 0.4 * (1 - night)),
     top: mixc(top, GLINT, 0.12 * (1 - night)),
-    mid: mixc(top, low, 0.5),
-    low,
+    mid: mixc(mixc(top, low, 0.5), LILAC, 0.18),
+    low: mixc(low, LILAC, 0.42),
     edge: mixc(low, SUNSHADE, 0.45),
-    ripple: mixc(mixc(low, LILAC, 0.55), INK, night * 0.5),
-    dash: mixc(GLINT, g.horizon, 0.3),
+    ripple: mixc(mixc(low, LILAC, 0.6), INK, 0.25 + night * 0.4),
+    dash: mixc(GLINT, g.horizon, 0.2),
   };
 }
 
@@ -234,19 +237,34 @@ function drawCanalRun(w: WaterCtx, pal: WaterPal, a: number, b: number, ty: numb
     }
     ctx.globalAlpha = 1;
   }
-  // 3. the revetment's shadow band on the water, and the dark lip at the near bank
+  // 3. the far bank's shadow band on the water (#3A2B5C α35%, 4px, dithered
+  // lower edge), and at the near bank a 1px bright line of the water's edge
+  // catching the sky above the dark lip
   const shade: [number, number][] = [
     [s0, 0.42],
-    [s0 + 1, 0.3],
-    [s0 + 2, 0.16],
-    [s1 - 2, 0.22],
-    [s1 - 1, 0.42],
+    [s0 + 1, 0.35],
+    [s0 + 2, 0.35],
+    [s0 + 3, 0.3],
+    [s1 - 2, 0.3],
+    [s1 - 1, 0.45],
   ];
   for (const [wy, al] of shade) {
     const ly = wy - w.worldY;
     if (ly < ly0 || ly >= ly1) continue;
     ctx.fillStyle = css(INK, al);
     ctx.fillRect(lx0, ly, W0, 1);
+  }
+  {
+    const ly = s0 + 4 - w.worldY;
+    if (ly >= ly0 && ly < ly1) {
+      ctx.fillStyle = css(INK, 0.3);
+      for (let lx = lx0 + ((w.worldX + lx0) & 1); lx < lx1; lx += 2) ctx.fillRect(lx, ly, 1, 1);
+    }
+    const ey = s1 - 3 - w.worldY;
+    if (ey >= ly0 && ey < ly1) {
+      ctx.fillStyle = css(mixc(GLINT, pal.hi, 0.3), 0.55 * (1 - w.grade.night * 0.6));
+      ctx.fillRect(lx0, ey, W0, 1);
+    }
   }
   // 4. ripples and highlight dashes drifting east with the current (never freeze)
   const flow = (t / 1000) * 6;
@@ -277,6 +295,25 @@ function drawCanalRun(w: WaterCtx, pal: WaterPal, a: number, b: number, ty: numb
         ctx.fillRect(x, ly, len, 1);
         if ((hh >>> 16) % 3 === 0) ctx.fillRect(x + 2, ly + 1, Math.max(2, len - 3), 1);
       }
+    }
+  }
+  // 4b. three rows of 1px #FFF6D8 wave highlights in the upper (sky-lit)
+  // half, dashes drifting east with the current at slightly different speeds
+  for (let L = 0; L < 3; L++) {
+    const wy = s0 + 6 + L * 4 + (L === 2 ? 1 : 0);
+    const ly = wy - w.worldY;
+    if (ly < ly0 || ly >= ly1 || wy >= s1 - 4) continue;
+    const S = 14 + L * 3;
+    const off = flow * (1.1 - L * 0.2);
+    const j0 = Math.floor((w.worldX + lx0 - off - 10) / S);
+    const j1 = Math.floor((w.worldX + lx1 - off) / S);
+    for (let j = j0; j <= j1; j++) {
+      const hh = ihash(j, L, 5431 + ty);
+      if (hh % 3 === 0) continue;
+      const len = 2 + ((hh >>> 4) % 5);
+      const x = Math.round(j * S + ((hh >>> 8) % 6) + off) - w.worldX;
+      ctx.fillStyle = css(GLINT, (0.9 - L * 0.18) * (1 - w.grade.night * 0.75));
+      ctx.fillRect(x, ly, len, 1);
     }
   }
   // 5. low-sun glitter: bright dashes, denser at the western (left) edge of the screen
@@ -351,19 +388,35 @@ function drawCanalRun(w: WaterCtx, pal: WaterPal, a: number, b: number, ty: numb
   ctx.restore();
 }
 
+/** fx_night_patch (stage 2): a hole of night sky in the water, its rim dithered 2px, two stars, a slow wobble. */
 function nightPatch(ctx: CanvasRenderingContext2D, bx: number, by: number, w: WaterCtx): void {
   const lx = Math.floor(bx - w.worldX);
   const ly = Math.floor(by - w.worldY);
   if (lx < -30 || ly < -12 || lx > w.w + 30 || ly > w.h + 12) return;
-  ctx.fillStyle = css([27, 23, 51], 0.92);
-  for (let yy = -5; yy <= 5; yy++) {
-    const half = Math.round(12 * Math.sqrt(Math.max(0, 1 - (yy / 5.4) ** 2)));
-    ctx.fillRect(lx - half, ly + yy, half * 2, 1);
+  const t = w.t;
+  const RX = 13;
+  const RY = 5.6;
+  for (let yy = -6; yy <= 6; yy++) {
+    const q = yy / RY;
+    if (Math.abs(q) > 1) continue;
+    const half = RX * Math.sqrt(1 - q * q);
+    const wob = Math.round(Math.sin((by + yy) * 0.8 + t / 420) * 1.2);
+    for (let xx = -Math.ceil(half); xx <= Math.ceil(half); xx++) {
+      const d = Math.abs(xx) / Math.max(1, half);
+      const px = lx + xx + wob;
+      const py = ly + yy;
+      // 2px checker-dithered rim: the outer ring half covered, then a softer tone
+      if (d > 1) continue;
+      const rim = half - Math.abs(xx) < 2 || Math.abs(yy) >= 5;
+      if (rim && (px + py) & 1) continue;
+      ctx.fillStyle = rim ? css([58, 43, 92], 0.8) : css([27, 23, 51], 0.92);
+      ctx.fillRect(px, py, 1, 1);
+    }
   }
-  ctx.fillStyle = css([58, 43, 92], 0.9);
-  for (let yy = -5; yy <= 5; yy += 10) ctx.fillRect(lx - 6, ly + yy, 12, 1);
+  // two stars, one twinkling
   ctx.fillStyle = P.glint;
-  ctx.fillRect(lx + 4, ly - 2, 1, 1);
+  ctx.fillRect(lx + 4 + Math.round(Math.sin(t / 420) * 1.2), ly - 2, 1, 1);
+  if (Math.floor(t / 500) % 3) ctx.fillRect(lx - 5 + Math.round(Math.sin((by + 1) * 0.8 + t / 420) * 1.2), ly + 1, 1, 1);
 }
 
 const silCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
@@ -424,7 +477,9 @@ function riceLayer(map: LoadedMap, lean: number): { c: HTMLCanvasElement; x0: nu
     ctx.fillRect(x, y, 1, 1);
   };
   const isPaddy = (wx: number, wy: number) => groundAt(map, Math.floor(wx / 16), Math.floor(wy / 16)) === 'paddy';
-  const leafCols = [P.leafYoung, P.leaf, P.leafDeep, P.leafShade];
+  const leafMid = [P.leafYoung, P.leaf, P.leafDeep, P.leafShade];
+  const leafRich = [P.leaf, P.leafDeep, P.leafShade, P.ink];
+  const leafPale = [P.leafLt, P.leafYoung, P.leaf, P.leafDeep];
   const ROW = 6;
   const COL = 4;
   for (let gy = y0 * 16 + 5; gy < (y1 + 1) * 16; gy += ROW) {
@@ -433,12 +488,18 @@ function riceLayer(map: LoadedMap, lean: number): { c: HTMLCanvasElement; x0: nu
     for (let gx = x0 * 16 + shift; gx < (x1 + 1) * 16; gx += COL) {
       const hh = ihash(Math.floor(gx / COL), row, 5501);
       if (hh % 23 === 0) continue; // a missing tuft: open water
+      // stage 2: the rice parts round the patch of night sky (fx_night_patch in the paddy)
+      if (lean === 2 && ((gx + 2 - PADDY_PATCH[0]) / 24) ** 2 + ((gy - 2 - PADDY_PATCH[1]) / 11) ** 2 < 1) continue;
       const bx = gx + ((hh >>> 5) % 2);
       const by = gy;
       // keep tufts off the edges of the paddy (ridge paths)
       if (!isPaddy(bx - 1, by + 2) || !isPaddy(bx + 4, by + 2) || !isPaddy(bx + 1, by - 5)) continue;
-      const hgt = 4 + ((hh >>> 8) % 3); // 4–6px
+      // growth varies across the field (valueNoise): taller, darker rice in
+      // the rich patches, short pale seedlings where the water stands deeper
+      const grow = valueNoise(gx / 44, gy / 22, 5507);
+      const hgt = Math.max(3, Math.min(8, 4 + ((hh >>> 8) % 3) + Math.round((grow - 0.5) * 5)));
       const w4 = (hh >>> 11) % 3 === 0 ? 3 : 4;
+      const leafCols = grow > 0.62 ? leafRich : grow < 0.34 ? leafPale : leafMid;
       const lx = bx - x0 * 16;
       const ly = by - y0 * 16;
       const tip = lean === 1 ? -2 : lean === 2 ? 1 : 0;
@@ -468,10 +529,59 @@ function riceLayer(map: LoadedMap, lean: number): { c: HTMLCanvasElement; x0: nu
       if ((hh >>> 14) % 6 === 0) px(lx + 1 + bendT, ty2 - 1 + tipUp, P.goldPale);
     }
   }
+  // water inlets (水口): a concrete notch in the ridge where water runs in,
+  // the bright ripple fanning out from it into the paddy
+  for (const [wx, wy, dir] of INLETS) {
+    const lx = wx - x0 * 16;
+    const ly = wy - y0 * 16;
+    ctx.clearRect(lx - 1, ly - 5, dir === 'w' ? 9 : 6, dir === 'w' ? 7 : 10);
+    if (dir === 'w') {
+      // on the west bank: box in the ridge, water flowing east
+      ctx.fillStyle = P.concrete;
+      ctx.fillRect(lx - 4, ly - 3, 4, 5);
+      ctx.fillStyle = P.concreteLt;
+      ctx.fillRect(lx - 4, ly - 3, 4, 1);
+      ctx.fillStyle = P.charcoal;
+      ctx.fillRect(lx - 1, ly - 2, 1, 3);
+      ctx.fillStyle = P.glint;
+      ctx.fillRect(lx, ly - 1, 2, 1);
+      ctx.fillStyle = 'rgba(255,246,216,0.6)';
+      ctx.fillRect(lx + 2, ly - 2, 2, 1);
+      ctx.fillRect(lx + 2, ly, 3, 1);
+      ctx.fillStyle = 'rgba(255,246,216,0.35)';
+      ctx.fillRect(lx + 5, ly - 3, 2, 1);
+      ctx.fillRect(lx + 5, ly + 1, 2, 1);
+    } else {
+      // on the north bank: a pipe mouth, water falling south
+      ctx.fillStyle = P.concrete;
+      ctx.fillRect(lx - 1, ly - 4, 5, 3);
+      ctx.fillStyle = P.concreteLt;
+      ctx.fillRect(lx - 1, ly - 4, 5, 1);
+      ctx.fillStyle = P.charcoal;
+      ctx.fillRect(lx, ly - 2, 3, 1);
+      ctx.fillStyle = P.glint;
+      ctx.fillRect(lx + 1, ly - 1, 1, 2);
+      ctx.fillStyle = 'rgba(255,246,216,0.55)';
+      ctx.fillRect(lx - 1, ly + 1, 2, 1);
+      ctx.fillRect(lx + 2, ly + 1, 2, 1);
+      ctx.fillStyle = 'rgba(255,246,216,0.3)';
+      ctx.fillRect(lx - 2, ly + 3, 2, 1);
+      ctx.fillRect(lx + 3, ly + 3, 2, 1);
+    }
+  }
   const r = { c, x0: x0 * 16, y0: y0 * 16 };
   m.set(lean, r);
   return r;
 }
+
+/** Where the night sky shows in the paddy water in stage 2 (world px, centre). */
+const PADDY_PATCH: [number, number] = [31.5 * 16, 41 * 16 + 8];
+
+/** Water inlets of the paddies (world px, which bank they sit on). */
+const INLETS: [number, number, 'w' | 'n'][] = [
+  [13 * 16 + 1, 42 * 16 + 7, 'w'],
+  [36 * 16 + 6, 39 * 16 + 5, 'n'],
+];
 
 function drawPaddies(w: WaterCtx, pal: WaterPal): void {
   void pal;
@@ -485,11 +595,11 @@ function drawPaddies(w: WaterCtx, pal: WaterPal): void {
   const ex = Math.min(w.worldX + rx + rw, upright.x0 + upright.c.width);
   const ey = Math.min(w.worldY + ry + rh, upright.y0 + upright.c.height);
   if (ex <= sx || ey <= sy) return;
-  // stage 2 "night patch" in the paddy water, under the rice
-  if (w.stage === 2 || w.grade.toMall > 0.5) nightPatch(ctx, 31.5 * 16 - ((w.t / 1000) * 3 * 0.3) % 200, 41 * 16 + 6, w);
   // paddy water is shallow and muddy: the sky seen through green-brown
   ctx.fillStyle = 'rgba(46,107,74,0.3)';
   ctx.fillRect(sx - w.worldX, sy - w.worldY, ex - sx, ey - sy);
+  // stage 2 "night patch" in an opening of the rice (30–33, 41–42), wobbling in place
+  if (w.stage === 2) nightPatch(ctx, PADDY_PATCH[0], PADDY_PATCH[1], w);
   ctx.drawImage(upright.c, sx - upright.x0, sy - upright.y0, ex - sx, ey - sy, sx - w.worldX, sy - w.worldY, ex - sx, ey - sy);
   // the wind wave: a band ~40px wide sweeping east → west, bending the tips 2px
   if (w.stage === 0 || w.stage === 3) {

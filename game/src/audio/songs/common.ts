@@ -45,6 +45,19 @@ export function chimeQuote(mml: string): MmlBar[] {
   return bars;
 }
 
+/**
+ * Only the first two notes of the question (+2: G → A) — a memory of the
+ * chime rather than the chime (bgm_night, after the answer has been heard).
+ */
+export function chimeHint(mml: string): MmlBar[] {
+  const bars = parseMml(mml).flatMap((b) => b.bars);
+  for (const b of bars) {
+    const seq = b.events.filter((e) => e.midis.length).map((e) => e.midis[0]);
+    if (seq.length !== 2 || seq[1] - seq[0] !== 2) mmlErrors.push(`chime hint ${b.label}: not the first two notes of the question`);
+  }
+  return bars;
+}
+
 /** A bar that has no melody of its own (drum-only intros etc.). */
 export function bar(label: string, steps: number, chords: [number, Chord][], bpm?: number): BarDef {
   return { label, steps, chords: chords.map(([step, chord]) => ({ step, chord })), bpm };

@@ -447,7 +447,7 @@ registerMap({
     { k: 'whiteline', x: 0, y: 34, w: 58, v: 13 },
     { k: 'whiteline', x: 0, y: 21, w: 18, v: 0 },
     { k: 'greenbelt', x: 0, y: 33, w: 24 },
-    { k: 'tomare', x: 15, y: 22, w: 3 },
+    { k: 'tomare', x: 16, y: 23, w: 3 }, // on the slope's approach lane, clear of the wall and the crosswalk
     { k: 'parking', x: 36, y: 7, w: 21, h: 3, v: 0 },
     { k: 'parking', x: 40, y: 12, w: 17, h: 3, v: 1 },
     { k: 'arrow', x: 38, y: 10 },
@@ -470,7 +470,7 @@ registerMap({
     { pts: [[13, 23]], to: [11 * 16, 25 * 16 + 2] },
     { pts: [[18, 28]], to: [20 * 16 + 4, 26 * 16 + 2] },
     { pts: [[22, 35]], to: [26 * 16, 26 * 16 + 4] },
-    { pts: [[34, 35]], to: [33 * 16, 26 * 16 + 4] },
+    { pts: [[34, 35]], to: [35 * 16 - 2, 26 * 16 + 46] }, // the photo studio's eave corner, clear of its sign
     { pts: [[46, 35]], to: [48 * 16, 26 * 16 + 4] },
     { pts: [[21, 15]], to: [16 * 16, 16 * 16 + 2] },
     { pts: [[56, 21]], to: [54 * 16 + 6, 18 * 16 + 8] },

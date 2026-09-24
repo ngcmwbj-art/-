@@ -10,6 +10,7 @@ import { ihash } from '../tiles/noise';
 import { castRight, cylinder, dk, finish, glassPane, lt, maskOf, shadeRect } from './kit';
 import { flat, floatOffset, mkFrames, stand, standAnim } from './pkit';
 import { registerProp } from './registry';
+import { drawLight, halo, LIGHT, poolEllipse } from './light';
 import { fontText, fontTextSmall, handGlyph, led, printLines, scribble, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
@@ -102,6 +103,11 @@ registerProp('obj_arch_sign', () => {
       img: (env: PropEnv) => LANTERN_ARCH2[env.stage === 1 ? 0 : env.stage >= 2 ? 0 : Math.floor(env.mt / 800 + 0.5) % 2],
     },
   ];
+  a.glowFg = true;
+  a.light = (g, x, y, env) => {
+    const n = env.grade.night;
+    if (n > 0.05) drawLight(g, poolEllipse(44, 18, LIGHT.lamp), x + 8, y + 12, 0.5 * n);
+  };
   a.glow = (g, x, y, env) => {
     const n = env.grade.night;
     // stage 2: only the 銀 lantern glows; night: all + bulbs
@@ -229,9 +235,14 @@ registerProp('prop_arcade_pillar', (opts) => {
     const lf = LANTERN[env.stage === 1 ? 0 : env.stage === 2 ? 1 : Math.floor((env.mt + env.seed * 900) / 900) % 2];
     g.img(lf, x + a.ox + c0 - 11, y + topY + 14);
   };
-  a.xray = 0.4;
+  a.xray = 0;
   a.glow = (g, x, y, env) => {
     if (env.grade.night > 0.05) glowBlob(g, x + a.ox + c0 - 5, y + topY + 22, 12, 0.45 * env.grade.night);
+  };
+  a.light = (g, x, y, env) => {
+    // the paper lantern's warm pool on the tiles below it
+    const n = env.grade.night;
+    if (n > 0.05) drawLight(g, poolEllipse(26, 13, LIGHT.lamp), x + a.ox + c0 - 5, y + 8, 0.55 * n);
   };
   return a;
 });

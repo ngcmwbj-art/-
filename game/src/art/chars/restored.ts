@@ -5,72 +5,100 @@
 
 import { flat, mat, type Fig, type Mats } from './fig';
 import { buildSprite, type Pose } from './rig';
+import { paintRows, type Legend } from './kit';
 import { registerChar } from './registry';
 import { CHAIR_MATS, VEND_MATS, chair, vendFront } from './enemies';
 
 const STATIC = { up: 'down', left: 'down', right: 'down' } as const;
 
 // =============================================================================
-// セミ: an ordinary cicada clinging to a tree trunk, seen from the side
-// (8×8 in a 12×10 canvas): the trunk is on the left, head up with its bright
-// compound eye, legs gripping the bark, and the folded wings as a long
-// triangle reaching down past the body — with a 1px pale leading edge so it
-// stands off the bark. anim 'fly': wings beating (the battle defeat flies it
-// off-screen).
+// セミ: an ordinary cicada clinging to the front of a tree trunk, head up,
+// seen from behind — the classic cicada shape: the wide head with a red
+// compound eye bulging at each side, the thorax, and the clear wings folded
+// in a long tent past the tail (the bark shows through them). A 1px pale
+// edge runs round the wings so the insect stands off the trunk's browns
+// (review: the old side view read as a smudge at 1x). anim 'fly': the wings
+// beat open to both sides (the battle defeat flies it off-screen).
 
 const CICADA: Mats = {
-  body: mat('#8A5A3A', { shade: '#5A3A2A', light: '#C8A06A', dark: '#3A2B24' }),
-  wing: mat('#A8742A', { shade: '#8A5A3A', light: '#C8A06A', dark: '#5A3A2A' }),
-  wingEdge: flat('#F6D98A'),
-  wingF: flat('#BDE8F2A0'),
-  vein: flat('#5A3A2A'),
-  eye: flat('#C8C2B4'),
-  glint: flat('#FFF6D8'),
+  head: mat('#5A3A2A', { shade: '#3A2B24', light: '#8A5A3A', dark: '#2A2440' }),
+  body: mat('#8A5A3A', { shade: '#5A3A2A', light: '#A8742A', dark: '#3A2B24' }),
+  wing: flat('#E8E4D866', { ol: '#3A2B24' }),
+  wingEdge: flat('#F6D98A', { ol: '#3A2B24' }),
+  vein: flat('#8A5A3AAA', { ol: '#3A2B24' }),
+  eye: flat('#8A2E3A'),
+  glint: flat('#F6D98A'),
   leg: flat('#2A2440'),
-  belly: flat('#C8A06A'),
+};
+
+const CICADA_ROWS = [
+  '............',
+  '...gEhhEE...',
+  '..lEEHkEEl..',
+  '....cTuc....',
+  '..lcvTuvcl..',
+  '..cvmttmvc..',
+  '..cvmtumvc..',
+  '..cmmtummc..',
+  '...cmmmmc...',
+  '...cvmmvc...',
+  '...cmmmmc...',
+  '....cmmc....',
+  '....cmmc....',
+  '.....cc.....',
+];
+const CICADA_FLY = [
+  '............',
+  '...gEhhEE...',
+  '...EEHkEE...',
+  'ccc.cTuc.ccc',
+  'cmmmcTucmmmc',
+  '.cvmmttmmvc.',
+  '..ccc.u.cc..',
+  '............',
+  '............',
+  '............',
+  '............',
+  '............',
+  '............',
+  '............',
+];
+const CICADA_FLY2 = [
+  '............',
+  '...gEhhEE...',
+  '...EEHkEE...',
+  '....cTuc....',
+  '..ccmTumcc..',
+  '.cvmmttmmvc.',
+  'cmmmc.u.cmmc',
+  'ccc.......cc',
+  '............',
+  '............',
+  '............',
+  '............',
+  '............',
+  '............',
+];
+const CICADA_LEGEND: Legend = {
+  m: ['wing', 0], c: ['wingEdge', 0], v: ['vein', 0],
+  H: ['head', 1], h: ['head', 0], k: ['head', -1],
+  T: ['body', 1], t: ['body', 0], u: ['body', -1],
+  E: ['eye', 0], g: ['glint', 0], l: ['leg', 0],
 };
 
 function cicada(f: Fig, p: Pose) {
-  if (p.act === 'fly') {
-    const up = p.ph % 2 === 0;
-    f.part('body', { shade: 'rb', light: 't' });
-    f.rows(4, 3, ['.##.', '####', '####', '.##.']);
-    f.part('eye', { flat: true, rim: false });
-    f.px(4, 3).px(7, 3);
-    f.part('wingF', { flat: true, rim: false });
-    if (up) f.rows(0, 0, ['###......###', '.###....###.', '..##....##..']);
-    else f.rows(0, 5, ['..##....##..', '.###....###.', '###......###']);
-    return;
-  }
-  // x 3..10, y 1..8: belly against the trunk (screen left), back to the right
-  f.part('body', { shade: 'rb', light: 't' });
-  f.rows(3, 1, ['.###', '####', '.###', '.###', '..##']);
-  f.part('belly', { flat: true, rim: false });
-  f.px(4, 3).px(4, 4).px(5, 5);
-  f.part('leg', { flat: true, rim: false });
-  f.hl(4, 6, 2);
-  // folded wings: a long triangle from the shoulder down past the tail
-  f.part('wing', { shade: 'rb', light: '' });
-  f.rows(5, 2, ['###..', '####.', '#####', '#####', '.####', '.###.', '..##.']);
-  f.part('vein', { flat: true, rim: false });
-  f.vl(7, 3, 6).px(8, 5);
-  f.part('wingEdge', { flat: true, rim: false });
-  f.px(8, 3).px(9, 4).px(9, 5).px(8, 7);
-  // head: the big compound eye catches the light
-  f.part('eye', { flat: true, rim: false });
-  f.px(4, 1);
-  f.part('glint', { flat: true, rim: false });
-  f.px(4, 1);
-  // legs gripping the bark
-  f.part('leg', { flat: true, rim: false });
-  f.px(2, 2).px(2, 4).px(2, 6).px(3, 6);
+  const rows = p.act === 'fly' ? (p.ph % 2 === 0 ? CICADA_FLY : CICADA_FLY2) : CICADA_ROWS;
+  paintRows(f, 0, 0, rows, CICADA_LEGEND, ['wing', 'wingEdge', 'vein'], { rim: false });
+  paintRows(f, 0, 0, rows, CICADA_LEGEND, ['body', 'head', 'eye', 'glint']);
+  f.part('leg', { flat: true, rim: false, ol: false });
+  rows.forEach((r, y) => [...r].forEach((ch, x) => ch === 'l' && f.px(x, y)));
 }
 
 registerChar('restored_enemy_semi_final', () =>
   buildSprite({
     id: 'restored_enemy_semi_final',
     w: 12,
-    h: 10,
+    h: 14,
     mats: CICADA,
     draw: cicada,
     walkFrames: 1,
