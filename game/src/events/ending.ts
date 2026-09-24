@@ -11,6 +11,7 @@ import { PixelCanvas } from '../engine/pixel';
 import { W, H } from '../engine/screen';
 import { animate, ease } from '../engine/tween';
 import { hash2 } from '../engine/rng';
+import { drawText } from '../engine/font';
 import { flag, setFlag, state } from '../game/state';
 import { playBgm, playChimeMotif, setSpace, sfx, stopAllAmbient, stopAmbient, stopBgm, playAmbient } from '../audio';
 import { actor, face, msg, place, registerScript, setClockText, setFollowerVisible, spawn, trainPass } from '../world/api';
@@ -185,7 +186,6 @@ function buildWeather(): HTMLCanvasElement {
   return c;
 }
 
-import { drawText } from '../engine/font';
 function drawTxt(ctx: CanvasRenderingContext2D, s: string, x: number, y: number, color: string): void {
   drawText(ctx, s, x, y, { color });
 }
@@ -312,6 +312,8 @@ function* cut2Meat(): Co {
   // the frying is heard before the picture changes
   sfx('se_fry');
   yield* fadeTo(300);
+  // no place-name banners and no clock in the cuts that follow
+  setFlag('flag_hud_hidden', 1);
   cutTo('map_maruyama', 4, 5, 'up');
   setSpace('room');
   const m = actor('npc_maruyama');
@@ -541,6 +543,7 @@ export function* evtEnding(): Co {
     })(),
   );
   holdBgm(false);
+  setFlag('flag_hud_hidden', 0);
 }
 
 registerScript('evt_ending', function* (): Co {
