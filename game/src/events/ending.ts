@@ -16,12 +16,13 @@ import { flag, setFlag, state } from '../game/state';
 import { playBgm, playChimeMotif, setSpace, sfx, stopAllAmbient, stopAmbient, stopBgm, playAmbient } from '../audio';
 import { actor, face, msg, place, registerScript, setClockText, setFollowerVisible, spawn, trainPass } from '../world/api';
 import type { Actor } from '../world/actor';
-import { photoImage } from '../art/props/ginza';
 import { playEndingNotebook, playNightSkyCut } from '../ui/api';
 import { uiHud } from '../ui/hud';
 import * as T from '../data/text/events';
 import { F, getKeyItem, holdBgm, holdCamera, releaseCamera, walkTo } from './lib';
-import { ring, sparkle } from './fx';
+import { bellGlow, ring, sparkle } from './fx';
+import { dinnerSet, photoClose } from './art';
+import { zoomIn, type ZoomView } from './stage';
 
 // ---------------------------------------------------------------- helpers
 
@@ -38,7 +39,7 @@ function* fadeTo(ms: number, color = '#0B0B14'): Co {
   yield* game.fadeOut(ms, color);
 }
 
-// ---------------------------------------------------------------- cut 3: the photograph, 3×
+// ---------------------------------------------------------------- cut 3: the photograph, close up (96×72 at 1×)
 
 class PhotoCloseup implements Widget {
   modal = false;
@@ -74,10 +75,9 @@ class PhotoCloseup implements Widget {
     const y = 14 + Math.round((1 - ease.cubicOut(k)) * 6);
     g.alpha(k, () => {
       g.rect(x + 3, y + 3, 110, 86, '#0B0B14', 0.5);
-      g.img(photoImage(3), x + 7, y + 7, { scale: 3 });
+      g.img(photoClose(), x + 7, y + 7);
       g.img(this.frame, x, y);
-      // the street lamp's warm light from the upper left, and a glint on the glass
-      g.alpha(0.12, () => g.rect(x + 7, y + 7, 40, 30, '#FFE7A3'));
+      // a glint running across the glass
       const gl = ((this.t / 1800) % 1) * 140 - 20;
       g.clip(x + 7, y + 7, 96, 72, () => {
         for (let i = 0; i < 3; i++) g.alpha(0.25, () => g.line(Math.round(x + gl + i), y + 7, Math.round(x + gl + i - 30), y + 79, '#FFF6D8'));
@@ -195,54 +195,35 @@ function drawTxt(ctx: CanvasRenderingContext2D, s: string, x: number, y: number,
 
 // ---------------------------------------------------------------- cut 5: dinner on the chabudai
 
-let PLATE: HTMLCanvasElement | null = null;
-function plateImg(): HTMLCanvasElement {
-  if (PLATE) return PLATE;
-  const p = new PixelCanvas(24, 13);
-  // plate
-  p.ellipse(12, 8, 11, 4.5, '#C8C2B4');
-  p.ellipse(12, 7.5, 10, 3.8, '#F4F1E8');
-  p.hline(5, 18, 11, '#9AA0A8');
-  // the cabbage mountain
-  for (let y = 0; y < 7; y++)
-    for (let x = 0; x < 9; x++) {
-      const dx = x - 4;
-      if (dx * dx * 0.7 + (y - 6) * (y - 6) * 1.2 > 22) continue;
-      p.set(14 + x, y + 1, hash2(x, y, 4) < 0.45 ? '#9BCB6B' : (x + y) % 2 ? '#5FA85A' : '#C8E8A0');
-    }
-  // three croquettes (the fourth is in the paper bag)
-  const kor = (cx: number, cy: number) => {
-    p.ellipse(cx, cy, 3.5, 2.3, '#A8742A');
-    p.ellipse(cx - 0.5, cy - 0.5, 2.8, 1.6, '#D9A441');
-    p.set(cx - 2, cy - 1, '#F6D98A');
-    p.set(cx - 1, cy - 2, '#F6D98A');
-    p.set(cx + 1, cy, '#8A5A2A');
-    p.set(cx + 2, cy + 1, '#6A4A2A');
-  };
-  kor(6, 8);
-  kor(11, 9);
-  kor(8, 5);
-  p.outline('#2A2440');
-  PLATE = p.toCanvas();
-  return PLATE;
-}
-
+/**
+ * The dinner goes on the chabudai's top. It is an actor sorted one pixel in
+ * front of the table (its foot is read from the table prop, so the table can
+ * never be drawn over it), drawn up on the table's top.
+ */
 function spawnDinner(): void {
+  const f = F();
+  const tbl = f.props.find((p) => (p.obj as { id?: string }).id === 'obj_chabudai' || (p.obj as { prop?: string }).prop === 'obj_chabudai');
+  // the chabudai art: 34×22, the round top centred at (17, 10)
+  const topX = tbl ? tbl.x + tbl.art.ox + 17 : 160;
+  const topY = tbl ? tbl.y + tbl.art.oy + 10 : 72;
+  const foot = tbl ? tbl.y + tbl.art.foot : 83;
   const a = spawn('ending_dinner', 9, 4, { sprite: 'kanenari', ghost: true });
-  // sorted just in front of the table (its base is the tile's bottom edge), drawn on its top
-  a.x = 10 * 16 + 3;
-  a.y = 5 * 16 + 1;
+  a.x = topX;
+  a.y = foot + 1;
   a.shadowH = 0;
   a.data.scripted = true;
+  const img = dinnerSet();
   a.drawFn = (g, x, y) => {
-    const top = y - 19;
-    g.img(plateImg(), x - 12, top);
-    // steam
+    const cy = y - (a.y - topY);
+    const left = x - 13;
+    const top = cy - 9;
+    g.img(img, left, top);
+    // steam off the croquettes
     const t = F().t;
     for (let i = 0; i < 3; i++) {
       const k = (t / 900 + i / 3) % 1;
-      const sx = x - 6 + i * 5 + Math.round(Math.sin(t / 300 + i) * 1);
-      g.alpha(0.5 * (1 - k), () => g.rect(sx, Math.round(top - k * 10), 1, 2, '#FFF6D8'));
+      const sx = left + 6 + i * 3 + Math.round(Math.sin(t / 300 + i) * 1);
+      g.alpha(0.55 * (1 - k), () => g.rect(sx, Math.round(top + 4 - k * 10), 1, 2, '#FFF6D8'));
     }
   };
 }
@@ -450,6 +431,9 @@ function* cut5Tv(): Co {
   yield 300;
 }
 
+/** The close-up of the crossing (cut 6), kept until the night sky covers it. */
+let crossingZoom: ZoomView | null = null;
+
 function* cut6Crossing(): Co {
   const f = F();
   // a 0.4 s blackout: the night song, the night space
@@ -458,16 +442,19 @@ function* cut6Crossing(): Co {
   playBgm('bgm_night', { fade: 1.5 });
   setSpace('night');
   setFollowerVisible(false);
-  cutTo('map_town', 51, 23, 'right');
+  cutTo('map_town', 51, 22, 'right');
   stopAmbient('amb_kawabe', 0.5);
   holdCamera();
   f.camX = Math.max(0, Math.min(f.map.w * 16 - W, 56 * 16 - W / 2));
   f.camY = Math.max(0, Math.min(f.map.h * 16 - H, 22 * 16 + 8 - H / 2));
   f.camOverride = { x: f.camX + W / 2, y: f.camY + H / 2 };
+  // 「踏切を正面に」: a 2× close-up with the crossing in the middle — the
+  // two on its left, the rails right of centre, the window below them
+  crossingZoom = yield* zoomIn(58 * 16, 22 * 16 - 6, 0);
   const p = f.player;
   p.visible = false;
   // カネナリくん, waiting in front of the crossing — seen once the train has gone
-  const k: Actor = spawn('ending_kanenari', 57, 23, { sprite: 'kanenari', dir: 'left', ghost: true });
+  const k: Actor = spawn('ending_kanenari', 57, 22, { sprite: 'kanenari', dir: 'left', ghost: true });
   k.data.scripted = true;
   k.alpha = 0;
   yield* game.fadeIn(400);
@@ -489,8 +476,8 @@ function* cut6Crossing(): Co {
   // Minato comes in from the left with the paper bag
   p.visible = true;
   p.x = 52 * 16 + 8;
-  p.y = 23 * 16 + 16;
-  yield* walkTo('player', 56, 23, { speed: 2.2, face: 'right' });
+  p.y = 22 * 16 + 16;
+  yield* walkTo('player', 56, 22, { speed: 2.2, face: 'right' });
   face('ending_kanenari', 'player');
   yield 300;
   p.tempPose = 'give';
@@ -514,10 +501,17 @@ function* cut6Crossing(): Co {
   // the bell rings once, by itself
   sfx('se_bell_kanenari_short');
   k.playAnim('glow');
+  bellGlow(k.x, k.y - 20, 900);
   ring(k.x, k.y - 20, '#FFE7A3', 700);
   sparkle(k.x + 3, k.y - 26, 600);
   yield 1200;
   k.anim = null;
+}
+
+/** QA / the night sky: drop the crossing close-up. */
+function endCrossingZoom(): void {
+  if (crossingZoom) crossingZoom.done = true;
+  crossingZoom = null;
 }
 
 export function* evtEnding(): Co {
@@ -543,6 +537,7 @@ export function* evtEnding(): Co {
   yield* cut6Crossing();
   // the night sky (cut_night_sky): the star over 星見台 stops twinkling
   yield* playNightSkyCut({ hold: 1500 });
+  endCrossingZoom();
   // the notebook: 「夕鳴町 みました帳 ①」, the case, 「つづく」 → the title
   releaseCamera();
   yield* all(
@@ -559,7 +554,18 @@ export function* evtEnding(): Co {
 }
 
 /** QA: play one cut of the ending from a prepared state (1–6). */
-export const ENDING_CUTS: Record<number, () => Co> = { 1: cut1Chime, 2: cut2Meat, 3: cut3Photo, 4: cut4Home, 5: cut5Tv, 6: cut6Crossing };
+export const ENDING_CUTS: Record<number, () => Co> = {
+  1: cut1Chime,
+  2: cut2Meat,
+  3: cut3Photo,
+  4: cut4Home,
+  5: cut5Tv,
+  6: function* (): Co {
+    yield* cut6Crossing();
+    yield 1500;
+    endCrossingZoom();
+  },
+};
 
 registerScript('evt_ending', function* (): Co {
   if (flag('flag_clear') && !flag('flag_boss_beaten')) return;

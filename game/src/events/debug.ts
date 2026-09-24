@@ -16,6 +16,7 @@ import { stopAllAmbient, stopBgm } from '../audio';
 import { startNewGame } from '../ui/api';
 import { setFollowerVisible } from '../world/api';
 import { ENDING_CUTS } from './ending';
+import { resetStaging } from './stage';
 import { animFrame, charSprite, poseFrame, walkFrame } from '../art/chars';
 
 type Step = () => void;
@@ -167,7 +168,17 @@ const JUMP = (beat?: string, noRun = false): unknown => {
   const c = applyUpTo(beat);
   if (!c) return `unknown beat ${beat}; beats: ${CHAIN.map((x) => x.beat).join(' ')}`;
   game.scripts.clear();
+  // widgets that paint through game.overlays (the 「ほぞん」 seal, captions)
+  // take their overlay with them
+  for (const w of game.ui.widgets) {
+    const o = (w as { overlay?: unknown }).overlay;
+    if (typeof o === 'function') {
+      const i = game.overlays.indexOf(o as (typeof game.overlays)[number]);
+      if (i >= 0) game.overlays.splice(i, 1);
+    }
+  }
   game.ui.widgets = [];
+  resetStaging();
   game.fadeAlpha = 0;
   stopBgm(0.2);
   stopAllAmbient(0.2);

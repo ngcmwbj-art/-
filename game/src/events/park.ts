@@ -11,7 +11,9 @@ import { duckMusic, playAmbient, playBgm, sfx, stopAmbient, stopBgm } from '../a
 import { actor, despawn, face, mapAudio, msg, refreshFollower, registerScript, shadowSwing, stage } from '../world/api';
 import * as T from '../data/text/events';
 import { besideToward, F, holdBgm, panBack, panTo } from './lib';
-import { ring, sparkle } from './fx';
+import { bellGlow, ring, sparkle } from './fx';
+import { zoomIn, zoomOut } from './stage';
+import { registerWorldFx } from '../world/fx';
 
 const BELL_DY = -20;
 
@@ -68,9 +70,10 @@ function* kanenariJoin(): Co {
     // the bell glows, twice — it does not ring
     k.playAnim('glow');
     for (let i = 0; i < 2; i++) {
+      bellGlow(k.x, k.y + BELL_DY, 620);
       ring(k.x, k.y + BELL_DY, '#FFE7A3', 520);
       sfx('se_glint', { vol: 0.45, pitch: 1 + i * 0.12 });
-      yield 520;
+      yield 620;
     }
     sparkle(k.x + 3, k.y + BELL_DY - 5);
     yield 300;
@@ -104,14 +107,54 @@ function* kanenariJoin(): Co {
 
 // ---------------------------------------------------------------- 5.13 evt_maigo_broadcast ★
 
+/** The loudspeaker pole's horns (world px), read from the prop so the framing follows the map. */
+function speakerHorns(): [number, number] {
+  const f = F();
+  const pole = f.props.find((p) => (p.obj as { id?: string }).id === 'obj_speaker_pole' || (p.obj as { prop?: string }).prop === 'obj_speaker_pole');
+  // obj_speaker_pole: 30×60, the pole at x 15, the horns at y 16–28
+  if (!pole) return [27 * 16 + 8, 3 * 16 - 20];
+  return [pole.x + pole.art.ox + 15, pole.y + pole.art.oy + 22];
+}
+
+/** Sound going out of the horns while the broadcast is on: arcs travelling outwards. */
+const waves = { on: false, t: 0 };
+registerWorldFx({
+  map: 'map_town',
+  update(_f, dt) {
+    if (waves.on) waves.t += dt;
+  },
+  draw(_f, g, cx, cy, layer) {
+    if (layer !== 'glow' || !waves.on) return;
+    const [hx, hy] = speakerHorns();
+    for (let i = 0; i < 3; i++) {
+      const k = ((waves.t / 900 + i / 3) % 1);
+      const r = 4 + Math.round(k * 16);
+      const a = (1 - k) * 0.85;
+      for (const side of [-1, 1]) {
+        const x0 = Math.round(hx - cx + side * 9);
+        const y0 = Math.round(hy - cy);
+        for (let dy = -3; dy <= 3; dy++) {
+          const dx = Math.round(r - (dy * dy) / Math.max(2, r * 0.35));
+          g.alpha(a, () => g.px(x0 + side * dx, y0 + dy, '#FFF6D8'));
+        }
+      }
+    }
+  },
+});
+
 function* maigoBroadcast(): Co {
   if (flag('flag_broadcast')) return;
   const f = F();
   holdBgm(true);
   // the camera goes to the loudspeaker pole; the song dips (−9 dB)
   duckMusic(0.35, 30);
-  yield* panTo(26, 5, 800);
+  const [hx, hy] = speakerHorns();
+  yield* panTo(Math.floor(hx / 16), Math.floor(hy / 16) + 3, 800);
+  // then close in on the horns (2×): this is where the voice comes from
+  const z = yield* zoomIn(hx, hy + 26, 380);
   setFlag('flag_broadcast_on', 1);
+  waves.on = true;
+  waves.t = 0;
   sfx('se_pa_chime');
   yield 1900;
   yield* msg(T.BROADCAST);
@@ -121,6 +164,8 @@ function* maigoBroadcast(): Co {
   yield 1300;
   sfx('se_pa_chime_end', { vol: 0.7 });
   yield 900;
+  waves.on = false;
+  yield* zoomOut(z, 380);
   setFlag('flag_broadcast_on', 0);
   // t=0: back to Minato; the stage-1 song fades away
   stopBgm(1.0);

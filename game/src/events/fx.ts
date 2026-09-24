@@ -21,7 +21,7 @@ interface Spark {
   x: number;
   y: number;
   t: number;
-  kind: 'glint' | 'puff' | 'ring';
+  kind: 'glint' | 'puff' | 'ring' | 'glow' | 'burst';
   color: string;
   dur: number;
 }
@@ -70,6 +70,34 @@ registerWorldFx({
           const r = 3 + ease.cubicOut(k) * 9;
           g.alpha(1 - k, () => g.rect(Math.round(x + Math.cos(a) * r), Math.round(y + Math.sin(a) * r * 0.45), 2, 1, s.color));
         }
+      } else if (s.kind === 'glow') {
+        // a golden bloom: three filled discs added onto the picture, swelling and fading
+        const a = Math.sin(Math.PI * Math.min(1, k * 1.15));
+        const ctx = g.ctx;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (const [r, al, col] of [[14, 0.16, '#D9A441'], [10, 0.24, '#FFD23F'], [6, 0.32, '#FFE7A3']] as const) {
+          ctx.globalAlpha = al * a;
+          g.circle(x, y, Math.round(r * (0.8 + 0.2 * a)), col);
+        }
+        ctx.restore();
+        // the highlight on the bell's shoulder
+        g.alpha(a, () => {
+          g.rect(x - 3, y - 3, 2, 1, '#FFF6D8');
+          g.rect(x - 4, y - 2, 1, 2, '#FFF6D8');
+        });
+      } else if (s.kind === 'burst') {
+        // a transformation pop: eight rays shooting out, then a dust ring
+        for (let i = 0; i < 8; i++) {
+          const an = (i / 8) * Math.PI * 2 + 0.2;
+          const r0 = 4 + ease.cubicOut(k) * 10;
+          const r1 = r0 + 4 * (1 - k);
+          g.alpha(1 - k, () =>
+            g.line(Math.round(x + Math.cos(an) * r0), Math.round(y + Math.sin(an) * r0 * 0.8), Math.round(x + Math.cos(an) * r1), Math.round(y + Math.sin(an) * r1 * 0.8), s.color),
+          );
+        }
+        const rr = Math.round(3 + ease.cubicOut(k) * 14);
+        g.alpha((1 - k) * 0.7, () => g.ring(x, y, rr, '#FFF6D8'));
       } else {
         const r = Math.round(2 + ease.cubicOut(k) * 12);
         g.alpha((1 - k) * 0.9, () => g.ring(x, y, r, s.color));
@@ -91,6 +119,16 @@ export function puff(x: number, y: number, color = '#E8D9B5'): void {
 /** A widening light ring (world px). */
 export function ring(x: number, y: number, color = '#FFE7A3', dur = 500): void {
   sparks.push({ x, y, t: 0, kind: 'ring', color, dur });
+}
+
+/** A golden bloom (the bell of カネナリくん): additive, peaks at mid-time. */
+export function bellGlow(x: number, y: number, dur = 600): void {
+  sparks.push({ x, y, t: 0, kind: 'glow', color: '#FFD23F', dur });
+}
+
+/** Rays and a ring bursting out (a transformation, a pop). */
+export function burst(x: number, y: number, color = '#FFE7A3', dur = 420): void {
+  sparks.push({ x, y, t: 0, kind: 'burst', color, dur });
 }
 
 // ---------------------------------------------------------------- 5.8 the hanko case, handed over
