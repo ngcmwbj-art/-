@@ -1,7 +1,8 @@
 // Event texts (10_narrative.md 5章). The msg-block format of 10_narrative 1.4
 // (world/msg.ts): @speaker / text lines / `/` page / `? a | b` choice /
 // [label] branches / !command. Staging lives in src/events; only the words
-// live here, line for line as written in the design book.
+// live here. QA round 3 (tempo): the book's lines in fewer windows — the same
+// beats and jokes, the repeats folded together (about two thirds of the pages).
 
 // ---------------------------------------------------------------- 5.2 evt_opening
 
@@ -32,41 +33,29 @@ export const GUIDE_MENU: GuideRow[] = [
 // ---------------------------------------------------------------- 5.3 evt_errand
 
 export const ERRAND_A = `@npc_mother
-あ、起きた。{w=300}
-おつかい 行ってきて。
-/
+あ、起きた。{w=300}おつかい 行ってきて。
 肉のマルヤマで コロッケ 4つ。
 ソースは 別。{w=300}別よ？
 /
-1つは おまけ。
-だれかに あげなさい。
-/
-チャイムが 鳴るまでに 帰ること。
-はい、がま口。`;
+1つは おまけ。だれかに あげなさい。
+チャイムが 鳴るまでに 帰ること。{w=300}
+肉屋は 坂を 上って 右。はい、がま口。`;
 
 export const ERRAND_GET = `@sys
 がま口を 受けとった！（500円）
-/
 おつかいメモを 受けとった！`;
 
-export const ERRAND_B = `@npc_mother
-肉屋は 銀座の 北がわ。
-坂を 上って、右よ。`;
 
 // ---------------------------------------------------------------- 5.4 evt_maruyama_first
 
 export const MARUYAMA_FIRST_A = `@npc_maruyama
 へい、らっしゃい！{w=300}
-お、潮見さんとこの ボウズか。
-/
-コロッケ 4つ？{w=300}
-悪いな、まだ 揚げてねえんだ。
+お、潮見さんとこの ボウズか。{w=300}
+コロッケ？ 悪いな、まだ 揚げてねえんだ。
 /
 揚げたては 5時の チャイムが
-鳴り終わってから。
-/
-オレの 信念じゃない。{w=300}
-油の 信念だ。`;
+鳴り終わってから。{w=500}
+オレの 信念じゃない。油の 信念だ。`;
 
 export const MARUYAMA_FIRST_B = `@npc_maruyama
 金が 足りなきゃ ツケで いい。
@@ -75,23 +64,16 @@ export const MARUYAMA_FIRST_B = `@npc_maruyama
 
 // ---------------------------------------------------------------- 5.5 evt_obaa_first
 
+/** One page; the shop opens straight after it. */
 export const OBAA_FIRST = `@npc_obaa
-おや、ミナト。{w=300}
-自由研究は？
-/
-……白紙の 顔を してるね。
-/
-先生を 40年 やってるとね、
+おや、ミナト。{w=300}自由研究は？{w=500}
+……白紙の 顔だね。先生を 40年 やると、
 白紙は 顔で わかるのさ。`;
 
+/** (ひのや before 肉のマルヤマ: she guesses the errand.) */
 export const OBAA_FIRST_NOMEAT = `@npc_obaa
 コロッケかい？{w=300}
-マルヤマは 5時に ならないと
-揚げないよ。まあ、見ておいき。`;
-
-export const OBAA_FIRST_MEAT = `@npc_obaa
-チャイムまで あと ちょっと。
-好きなの 選びな。`;
+マルヤマは 5時からだよ。好きなの 選びな。`;
 
 // ---------------------------------------------------------------- 5.6 evt_chime_stop
 
@@ -119,83 +101,57 @@ export const HATO_B = `@ハト係長:hato
 
 // ---------------------------------------------------------------- 5.8 evt_hanko_given
 
-/** Her question, its two answers and what she tells him (after either answer). */
-const HANKO_ASK = `? うなずく | 首を かしげる
-[うなずく]
-@npc_obaa
-そうかい。{w=300}
-あたしにも、そう 見えたよ。
-[首を かしげる]
-@npc_obaa
-そうかい。{w=300}
-あたしには、係長に 見えたよ。
-[-]
-@npc_obaa
-この町じゃね、見て もらえた モノは
-そのモノの ままで いられるの。{w=300}
-見て もらえないと、忘れちまう。
-/
-自分が 何だったかをね。{w=300}
-さっきの ハトみたいに。{w=500}
-これを あずけとくよ。{w=300}昔の 商売道具さ。`;
-
-/**
- * The usual opening (ひのや visited): 「見てたよ」 and the question on one
- * page, straight after the battle — the tutorial's chain is kept short.
- */
-export const HANKO_AB = `@npc_obaa
+/** Her question (the usual opening: ひのや visited), straight after the battle. */
+export const HANKO_Q = `@npc_obaa
 ……見てたよ。{w=300}
 ツッコミ、いい 間だったね。{w=500}
 あれ、ただの ハトじゃ なかったろ。
-${HANKO_ASK}`;
+? うなずく | 首を かしげる`;
 
-export const HANKO_A_NOVISIT = `@npc_obaa
+/** ひのや not visited: she introduces herself first. */
+export const HANKO_Q_NOVISIT = `@npc_obaa
 あんた、潮見さんとこの ミナトだね。
-……見てたよ。{w=300}
-ツッコミ、いい 間だったね。`;
-
-export const HANKO_B = `@npc_obaa
-ミナト。{w=300}
+……見てたよ。{w=300}ツッコミ、いい 間だった。
+/
 あれ、ただの ハトじゃ なかったろ。
-${HANKO_ASK}`;
+? うなずく | 首を かしげる`;
+
+/** Her answer to each choice; the page goes on with HANKO_TOWN. */
+export const HANKO_ANSWER = ['そうかい。{w=300}あたしにも、そう 見えたよ。', 'そうかい。{w=300}あたしには、係長に 見えたよ。'];
+
+export const HANKO_TOWN = `この町じゃね、見て もらえない モノは
+自分が 何だったか、忘れちまうのさ。`;
+
+export const HANKO_GIVE = `@npc_obaa
+さっきの ハトみたいに。{w=500}
+これ、あずけとくよ。昔の 商売道具さ。`;
 
 export const HANKO_GET = `@sys
-ハンコケースを 受けとった！
+{c=#E23B2E}ハンコケース{/c}を 受けとった！
 {c=#E23B2E}みました{/c}と {c=#E23B2E}ペケ{/c}の ハンコが 入っている。`;
 
+/** The homework, and the try-it-now (the how-to is the guide note beside the HUD hanko). */
 export const HANKO_C = `@npc_obaa
-宿題はね、ぜんぶは 見て
-あげられなかった。{w=600}
-だから 今、あんたが 見に 行っておいで。`;
+宿題はね、ぜんぶは 見きれなかった。{w=500}
+だから 今度は、あんたが 見ておいで。{w=300}
+ためしに ほら、まめ吉の 『まいど』。`;
 
-/** The try-it-now page (one page: the tutorial's chain is kept short). */
-export const HANKO_D = `@npc_obaa
-ためしに ほら、まめ吉の 『まいど』。{w=300}
-近くで 『みました』を 押して ごらん。`;
-
-export const GUIDE_FUSHIGI = 'ふしぎの 近くでは、\n左下の ハンコが ゆれる。';
+/** The how-to, once, beside the HUD hanko it points at. */
+export const GUIDE_FUSHIGI = '調べると 『みました』を 押せる。\nふしぎの 近くでは ハンコが ゆれる。';
 
 // ---------------------------------------------------------------- 5.9 evt_obaa_park_hint
 
-export const PARK_HINT_A1 = `@npc_obaa
-はい、よくできました。`;
-
-export const PARK_HINT_A2 = `@npc_obaa
-……さて。{w=300}
-公園の ほうでね、鐘の 頭を した のが、
-ひとりで 回ってるってさ。
-/
-路地の 工事は 『17時まで』
-だったろ。{w=300}
-行って、見て おいで。`;
+export const PARK_HINT_A = `@npc_obaa
+はい、よくできました。{w=600}
+公園でね、鐘の 頭の 子が 回ってるってさ。{w=300}
+路地の 工事は 『17時まで』 だったろ？`;
 
 export const PARK_HINT_B = `@npc_obaa
-こら、ミナト。{w=600}
-……まあ いい。押すのは
-道々で いいさ。
+こら、ミナト。{w=600}……まあ いい。
+押すのは 道々で いいさ。
 /
 公園の ほうでね、鐘の 頭を した のが、
-ひとりで 回ってるってさ。
+ひとりで 回ってるってさ。{w=300}
 路地から 行けるよ。`;
 
 // ---------------------------------------------------------------- 5.10 evt_alley_open
@@ -204,13 +160,10 @@ export const ALLEY_OPEN = '工事の コーンが いなくなっている。{w=
 
 // ---------------------------------------------------------------- 5.11 evt_kanenari_meet
 
-export const KANENARI_MEET_1 = `@flip
-夕鳴町へ ようこそ！`;
-export const KANENARI_MEET_2 = `@flip
+/** One board: the second line comes as the board is turned over (the scene flips it on the pause). */
+export const KANENARI_MEET = `@flip
+夕鳴町へ ようこそ！{w=900}
 （引退しました）`;
-export const KANENARI_MEET_3 = `@narr
-カネナリくんは ミナトを
-PRの 相手に 決めた！`;
 
 // ---------------------------------------------------------------- 5.12 evt_kanenari_join
 
@@ -224,26 +177,20 @@ export const KANENARI_JOIN_SYS = `@sys
 
 export const BROADCAST = `@npc_broadcast
 {spd=0.3}ピンポンパンポーン。{/spd}{w=400}
-迷子の お知らせです。
-/
-黄色い 通学帽の子、
-青い 水筒の子、
-片方だけの 上履きの子。
+迷子の お知らせです。{w=300}黄色い 通学帽の子、
+青い 水筒の子、片方だけの 上履きの子。
 /
 おうちの かたは、
 ショッピングプラザ・ユウナリ
-迷子センターまで、
-/
-おむかえに 来てください。`;
+迷子センターへ おむかえに 来てください。`;
 
-export const BROADCAST_LAST = `@防災無線:broadcast_child
-{spd=0.5}……だれか。`;
+/** The last words, in a child's voice: no window, typed slowly in the middle of the screen. */
+export const BROADCAST_LAST = '……だれか。';
 
+/** The shadows turn, and the chain comes off (its sound falls on the pause). */
 export const BROADCAST_SHADOWS = `@narr
-町じゅうの 影が、{w=300}
-いっせいに 北東を 向いた。`;
-
-export const BROADCAST_CHAIN = `@narr
+町じゅうの 影が、
+いっせいに 北東を 向いた。{w=700}
 どこかで、鎖の はずれる 音が した。`;
 
 export const BROADCAST_FLIP = `@flip
@@ -252,10 +199,8 @@ export const BROADCAST_FLIP = `@flip
 
 // ---------------------------------------------------------------- 5.14 evt_ojigi
 
-export const OJIGI_A = `@おじぎ自販機:vending
-アリガトウ ゴザイマシタ。{w=300}
-アリガトウ ゴザイマシタ。
-@narr
+/** (Its 「アリガトウ ゴザイマシタ」 while it bows is a small balloon, not a window.) */
+export const OJIGI_A = `@narr
 銀座から 消えた 自販機だ。{w=300}
 コードを 引きずって、
 ここまで 来たらしい。
@@ -264,8 +209,8 @@ export const OJIGI_A = `@おじぎ自販機:vending
 ……ドナタモ、押シテ
 クダサイマセン デシタ。`;
 
-export const OJIGI_B = `@おじぎ自販機:vending
-アリガトウ ゴザイマシタ！`;
+/** Its last word before the bow and the DOSUN (a small balloon, as its thank-yous while bowing). */
+export const OJIGI_B = 'アリガトウ ゴザイマシタ！';
 
 export const OJIGI_AFTER = `@flip
 ごあいさつを 覚えました。
@@ -306,9 +251,7 @@ export const MAIGO_DOOR_OPENED = `@narr
 // ---------------------------------------------------------------- 5.18 evt_boss_intro
 
 export const BOSS_A = `@narr
-忘れ物の 山。{w=300}
-傘、水筒、手袋、上履き……
-/
+忘れ物の 山。{w=300}傘、水筒、手袋、上履き……{w=500}
 どれにも、名前が 書いてない。`;
 
 export const BOSS_B = `@？？？:omukaemachi
@@ -336,45 +279,23 @@ export const BOSS_B_AGAIN = `@？？？:omukaemachi
 鳴らさない。{w=600}
 鳴ったら、今日が 終わっちゃう。`;
 
-export const BOSS_FLIP = `@flip
-（……）`;
 
 // ---------------------------------------------------------------- 5.20 evt_ending
 
+/** The price is in his line; the bag goes onto the counter (no @sys window: the ending keeps one line per beat). */
 export const END_MEAT_A = `@npc_maruyama
 揚がった！{w=300} 油が、やっと 納得した。
-コロッケ 4つ。ソースは 別。{w=300}
+コロッケ 4つ、ソースは 別で 320円。{w=400}
 ……わかってるよ。`;
-export const END_MEAT_PAY = `@sys
-320円 はらった。`;
-/** Paid and handed over in one line (the jingle plays under it). */
-export const END_MEAT_PAY_GET = `@sys
-320円 はらった。
-揚げたて コロッケを 受けとった！`;
+/** Short of 320 yen: the rest goes on the tab. */
 export const END_MEAT_TSUKE = `@npc_maruyama
 足りない 分は ツケだ。{w=300}
 夏休みの 最終日 だからな。`;
-export const END_MEAT_GET = `@sys
-揚げたて コロッケを 受けとった！`;
-export const END_MEAT_FLIP = `@flip
-いい においが します。
-（たぶん）`;
 
-export const END_HOME_A = `@npc_mother
+/** 「ソースは 別」 was his line; she asks only about the extra one. */
+export const END_HOME = `@npc_mother
 おかえり。{w=300}
-ソースは？
-? べつ | いっしょ
-[べつ]
-@npc_mother
-えらい。
-[いっしょ]
-@npc_mother
-……今日だけよ。
-[-]`;
-
-export const END_HOME_B = `@npc_mother
-で、おまけの 1つ。{w=300}
-あげる 人、見つかった？
+で、おまけの 1つ。あげる 人、見つかった？
 ? うなずく | まだ
 [うなずく]
 @npc_mother
@@ -396,9 +317,6 @@ export const END_TV_MOTHER = `@npc_mother
 あら。{w=300}
 星見台の 人たち、
 洗濯物 乾かないわね。`;
-
-export const END_GIVE = `@narr
-おまけの 1つを わたした。`;
 
 export const END_VOICE = `@カネナリくん:kanenari_voice
 {spd=0.4}……おいしい。`;

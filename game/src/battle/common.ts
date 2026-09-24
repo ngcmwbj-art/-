@@ -12,6 +12,7 @@ import { fillAll, SYS, TUT } from '../data/battle';
 import type { BattleScene } from './scene';
 import { STAT_NAME, type EnemyUnit, type PartyUnit, type Stages } from './model';
 import { ovalStamp } from './art/stamps';
+import { PixelCanvas } from '../engine/pixel';
 import { impactBurst, statArrow } from './art/fxart';
 import { PANEL_POS } from './ui/panels';
 import { statusIcon } from './art/icons';
@@ -125,8 +126,22 @@ export function hurtParty(s: BattleScene, u: PartyUnit, dmg: number, o: PartyHit
     u.stages = { atk: { lv: 0, turns: 0 }, def: { lv: 0, turns: 0 }, hit: { lv: 0, turns: 0 } };
     u.drop = 3;
     s.sfx('se_ko');
+    if (!s.fallen.includes(u)) s.fallen.push(u);
   }
   return fell;
+}
+
+/**
+ * 10〔へばった〕: once the action that knocked them down has played out, one
+ * page names who fell (both on one page when a party-wide hit took both).
+ * Members already back on their feet (a heal in the same action) are left out.
+ */
+export function* sayFallen(s: BattleScene): Co {
+  const list = s.fallen.filter((u) => !u.alive);
+  s.fallen = [];
+  if (!list.length) return;
+  const names = list.map((u) => u.name).join('と ');
+  yield* s.say(fillAll(SYS.hebatta, { target: names }));
 }
 
 /** Tsukkomi success hit feel (16.6) — call once per resolved hit. */
@@ -636,34 +651,71 @@ export function fadeDropsLater(s: BattleScene): void {
   });
 }
 
-/** セミファイナル: a tiny cicada flutters up and away instead of dropping. */
+let cicadaC: HTMLCanvasElement[] | null = null;
+/**
+ * The cicada that flies off (12×10, seen from behind as it climbs): wings
+ * raised / swept back, a brown-outlined body with a 1px highlight, green
+ * eyes, glassy wings with a blue-grey rim.
+ */
+function cicadaFrames(): HTMLCanvasElement[] {
+  if (cicadaC) return cicadaC;
+  const pal: Record<string, string> = { k: '#2A1A12', b: '#5A3A22', B: '#9A7A4A', e: '#8FD39A', v: '#5F7A8A', W: '#E4F0F4', w: '#B9CDD6' };
+  const up = [
+    '.vv......vv.',
+    'vWWv.kk.vWWv',
+    'vWwWkeekWwWv',
+    '.vWWkbBkWWv.',
+    '..vvkbBkvv..',
+    '....kbbk....',
+    '....kbBk....',
+    '....kbbk....',
+    '.....kk.....',
+    '............',
+  ];
+  const down = [
+    '............',
+    '.....kk.....',
+    '....keek....',
+    '...vkbBkv...',
+    '..vWkbBkWv..',
+    '.vWwkbbkwWv.',
+    'vWWWkbBkWWWv',
+    'vWwv.kk.vwWv',
+    '.vv......vv.',
+    '............',
+  ];
+  cicadaC = [up, down].map((rows) => PixelCanvas.fromArt(rows, pal).toCanvas());
+  return cicadaC;
+}
+
+/**
+ * セミファイナル: a cicada (12×10, wings flapping at 2 frames) flutters up and
+ * away instead of dropping — one small loop over the spot, then up past the
+ * wires, drifting side to side (QA round 3: it was a 6×4 speck).
+ */
 function* semiFlyAway(s: BattleScene, x: number, y: number): Co {
   const st = { x, y, t: 0 };
+  const frames = cicadaFrames();
   s.addFx({
     layer: 'world',
-    dur: 1200,
+    dur: 1400,
     draw: (g, t) => {
-      const f = Math.floor(t / 60) % 2;
-      const px = Math.round(st.x);
-      const py = Math.round(st.y);
-      // 12×10 cicada, wings flapping
-      g.rect(px - 2, py - 1, 4, 6, '#5A3A22');
-      g.rect(px - 1, py, 2, 4, '#7A5A3A');
-      g.px(px - 2, py - 1, '#2A1A12');
-      g.px(px + 1, py - 1, '#2A1A12');
-      const wc = '#C9D8DE';
-      if (f) {
-        g.rect(px - 6, py - 3, 4, 2, wc);
-        g.rect(px + 2, py - 3, 4, 2, wc);
-      } else {
-        g.rect(px - 6, py + 1, 4, 2, wc);
-        g.rect(px + 2, py + 1, 4, 2, wc);
-      }
+      const img = frames[Math.floor(t / 50) % 2];
+      g.alpha(t > 1200 ? (1400 - t) / 200 : 1, () => g.img(img, Math.round(st.x - 6), Math.round(st.y - 5)));
     },
     update(dt) {
       st.t += dt;
-      st.y -= dt * 0.12;
-      st.x += Math.sin(st.t / 90) * 0.8;
+      const t = st.t;
+      if (t < 520) {
+        // one flat loop (a circle seen from the side) as it climbs
+        const a = (t / 520) * Math.PI * 2;
+        st.x = x + Math.sin(a) * 10;
+        st.y = y - 18 * (t / 520) - (1 - Math.cos(a)) * 3;
+      } else {
+        const u = t - 520;
+        st.x = x + Math.sin(u / 110) * 4 + u * 0.02;
+        st.y = y - 18 - u * 0.16;
+      }
     },
   });
   s.sfx('se_semi_buzz', { vol: 0.4 });

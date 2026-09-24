@@ -1,5 +1,5 @@
 // Trees (30_level_art 6.6): trunk in the depth-sorted layer, canopy in the
-// foreground (fades to 60% while the player is under it), dappled canopy
+// foreground (fades to 32% while the party, a passer-by or a symbol is under it), dappled canopy
 // shadow thrown with the sun (holes twinkle; frozen in stage 1).
 // Every species has its own silhouette, palette and per-instance variation.
 
@@ -238,7 +238,7 @@ function trunk(kind: string, seed: number, h: number, wBase: number, deco: { tag
   const w = wBase + 8;
   const p = new PixelCanvas(w, h);
   const cx = Math.floor(w / 2);
-  const bark = kind === 'sarusuberi' ? P.woodLt : kind === 'cherry' ? P.woodDark : kind === 'matsu' ? P.wood : P.wood;
+  const bark = kind === 'sarusuberi' ? P.woodLt : kind === 'cherry' || kind === 'willow' ? P.woodDark : kind === 'matsu' ? P.wood : P.wood;
   for (let y = 0; y < h; y++) {
     const t = y / h;
     const half = Math.max(1, Math.round((wBase / 2) * (0.65 + 0.35 * t)));
@@ -410,7 +410,7 @@ function treeArt(id: string, v: number): PropArt {
         ox: cox,
         oy: coy,
         img: pickFrame,
-        fade: { x: cox + 4, y: coy + 4, w: cw - 8, h: ch + (footY - s.lift - ch / 2 - coy) + 6, alpha: 0.6 },
+        fade: { x: cox + 4, y: coy + 4, w: cw - 8, h: ch + (footY - s.lift - ch / 2 - coy) + 6, alpha: 0.32 },
       },
       // 光の粒: two specks alternate every 700ms (frozen in stage 1)
       ...sparkle.map(([sx, sy], i) => ({
@@ -501,3 +501,157 @@ for (const id of Object.keys(SPECS)) {
 registerProp('prop_cherry_tree', (opts) => treeArt('tree_cherry', Number(opts.v ?? 0)));
 registerProp('prop_persimmon', () => treeArt('tree_persimmon', 0));
 registerProp('prop_tree_zelkova_s', () => treeArt('tree_hanamizuki', 1));
+
+// ---------------------------------------------------------------- 柳 (weeping willow)
+
+/**
+ * A weeping willow on the river road (QA round 3: the south band ran three
+ * screens of the same cherries): a gnarled trunk leaning over the water, a
+ * small dome of fine yellow-green leaves and a curtain of long strands hanging
+ * almost to the ground, lit on the left, deeper inside. The strands swing
+ * from their tips in the evening wind (4 frames), hang still in stage 1 and
+ * stream to the north-east in stage 2. Canopy in the foreground like every
+ * tree, thinning over whoever walks under it.
+ */
+function willowArt(): PropArt {
+  const seed = 7331;
+  const W = 74;
+  const H = 62;
+  const footX = 8;
+  const footY = 15;
+  const rnd = mulberry(seed);
+  // bunches of strands hanging from arching branches: the back ones darker,
+  // drawn first; the crown is the lumpy row of their tops (higher in the
+  // middle), the hem ragged, gaps between bunches showing the trunk
+  interface Bunch {
+    x: number;
+    top: number;
+    n: number;
+    len: number;
+    back: boolean;
+    ph: number;
+  }
+  const bunches: Bunch[] = [];
+  for (let pass = 0; pass < 2; pass++) {
+    const back = pass === 0;
+    for (let x = back ? 4 : 8; x < W - 6; x += back ? 9 : 11) {
+      const u = (x - W / 2) / (W / 2);
+      bunches.push({
+        x: x + Math.round(rnd() * 3),
+        top: Math.round(3 + Math.pow(Math.abs(u), 1.4) * 14 + rnd() * 3 + (back ? 0 : 5)),
+        n: 3 + Math.floor(rnd() * 3),
+        len: Math.round(30 + (1 - Math.abs(u)) * 16 + rnd() * 8 - (back ? 4 : 0)),
+        back,
+        ph: rnd() * 6,
+      });
+    }
+  }
+  const tones = [P.leafShade, P.leafDeep, P.leaf, P.leafYoung, P.leafLt];
+  const mk = (k: number): PixelCanvas => {
+    const p = new PixelCanvas(W, H);
+    for (const b of bunches) {
+      const u = (b.x - W / 2) / (W / 2);
+      // light from the upper left: left bunches lit, the back ones a tone down
+      const base = (u < -0.3 ? 3 : u < 0.35 ? 2 : 1) - (b.back ? 1 : 0);
+      // the branch's arch: a little cap of leaves where the strands leave it
+      for (let i = -4; i <= 4; i++) {
+        const y = b.top - Math.round(Math.sqrt(Math.max(0, 16 - i * i)) * 0.5);
+        const t = Math.max(0, Math.min(4, base + (i < 0 ? 1 : i > 2 ? -1 : 0)));
+        p.set(b.x + i, y, tones[t]);
+        p.set(b.x + i, y + 1, tones[Math.max(0, t - 1)]);
+      }
+      for (let sidx = 0; sidx < b.n; sidx++) {
+        const sx0 = b.x - Math.floor(b.n / 2) * 2 + sidx * 2;
+        const len = Math.min(H - b.top - 2, b.len - ((sidx * 7 + b.x) % 9));
+        for (let j = 0; j < len; j++) {
+          const q = j / Math.max(1, len);
+          let dx = 0;
+          let dy = 0;
+          const sw = (kk: number) => Math.sin(kk * 1.57 + b.ph + sidx * 0.4) * q * q * 2.6 - q * 1.3;
+          if (k <= 3) dx = Math.round(sw(k));
+          else if (k === 4) dx = Math.round(sw(1));
+          else {
+            // stage 2: streaming north-east, the tips lifted
+            dx = Math.round(q * q * 8);
+            dy = -Math.round(q * q * 6);
+          }
+          // the strands splay out a little from the branch before they fall
+          const splay = Math.round((sidx - (b.n - 1) / 2) * Math.min(1, j / 6) * 0.6);
+          const x = sx0 + dx + splay;
+          const y = b.top + 1 + j + dy;
+          if (y < 0 || y >= H || x < 0 || x >= W) continue;
+          if ((j + sidx * 3 + b.x) % (b.back ? 5 : 8) === 4) continue; // gaps between leaves (the back bunches thinner)
+          let t = base + ((j + sidx) % 3 === 0 ? 1 : 0) - (q > 0.75 ? 1 : 0);
+          if (sidx === b.n - 1) t -= 1; // the shaded side of the bunch
+          t = Math.max(0, Math.min(4, t));
+          p.set(x, y, tones[t]);
+          if ((j + sidx) % 4 === 1 && q < 0.9) p.set(x + (sidx % 2 ? 1 : -1), y, tones[Math.max(0, t - 1)]);
+        }
+      }
+    }
+    // rim light on the crown's upper-left edge
+    for (let x = 0; x < W * 0.5; x++)
+      for (let y = 0; y < H; y++)
+        if (p.alpha(x, y)) {
+          if (x % 3 !== 2) p.set(x, y, P.sun);
+          break;
+        }
+    outline(p, { bottom: false, soft: true });
+    return p;
+  };
+  const fc = [0, 1, 2, 3, 4, 5].map((k) => mk(k).toCanvas());
+  const tr = trunk('willow', seed, 26, 6, { weeds: true });
+  // lean the trunk: shear its upper half 3px east
+  const tc0 = tr.toCanvas();
+  const tc = document.createElement('canvas');
+  tc.width = tc0.width + 4;
+  tc.height = tc0.height;
+  const tx = tc.getContext('2d')!;
+  for (let y = 0; y < tc0.height; y++) {
+    const sh = Math.round(((tc0.height - y) / tc0.height) * 3);
+    tx.drawImage(tc0, 0, y, tc0.width, 1, sh, y, tc0.width, 1);
+  }
+  const cox = footX - Math.floor(W / 2) + 3;
+  const coy = footY - H + 2;
+  const pick = (env: PropEnv): HTMLCanvasElement => {
+    if (env.stage === 1) return fc[4];
+    if (env.stage === 2) return fc[5];
+    return fc[Math.floor((env.mt + env.seed * 2000) / 380) % 4];
+  };
+  return {
+    ox: footX - Math.floor(tc0.width / 2),
+    oy: footY - tc.height,
+    w: tc.width,
+    h: tc.height,
+    foot: footY,
+    img: () => tc,
+    contact: 12,
+    contactX: footX,
+    fg: [
+      {
+        ox: cox,
+        oy: coy,
+        img: pick,
+        fade: { x: cox + 4, y: coy + 6, w: W - 8, h: H - 8, alpha: 0.32 },
+      },
+    ],
+    shadowFn(ctx, x, y, dir, len, env) {
+      if (len <= 0.01) return;
+      const fx = Math.round(x + footX);
+      const fy = Math.round(y + footY);
+      const [dx, dy] = dir;
+      const L = Math.min(len, CROWN_SHIFT / 30);
+      ctx.setTransform(1, 0, -L * dx, -L * dy, fx, fy);
+      ctx.drawImage(treeSil(tc), -Math.floor(tc0.width / 2), -tc.height);
+      // the curtain's footprint: thin and long, stretched with the light
+      const K = 0.4;
+      const s1 = 0.5;
+      ctx.setTransform(1, 0, -dx * L * s1, K - dy * L * s1, fx + dx * L * 30 * (1 - s1), fy - -30 * (dy * L * (1 - s1) + K));
+      ctx.globalAlpha = 0.7;
+      ctx.drawImage(treeSil(pick(env), true), cox - footX, coy - footY);
+      ctx.globalAlpha = 1;
+    },
+  };
+}
+
+registerProp('tree_yanagi', () => willowArt());

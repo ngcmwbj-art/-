@@ -32,7 +32,7 @@ import * as T from '../data/text/events';
 import { besideToward, dirTo, eventBattle, F, floatLine, giveKey, holdBgm, holdCamera, panBack, sendAway, settle, tileFree, walkTo } from './lib';
 import { burst, playCaseGift, puff, smallVoice, sparkle } from './fx';
 import { meishi } from './art';
-import { cinema, guideNearHanko, keyGuide, zoomIn, zoomIntoBattle } from './stage';
+import { cinema, clearBelow, guideNearHanko, keyGuide, zoomIn, zoomIntoBattle } from './stage';
 import { registerWorldFx } from '../world/fx';
 import { animate, ease } from '../engine/tween';
 
@@ -269,6 +269,8 @@ function* hatoBlock(): Co {
     // (まめ吉's 「まいど」 over the shop would be cut by the frame's top edge)
     setFlag('flag_maido_hold', 1);
     const z = yield* zoomIn(Math.round((p.x + hato.x) / 2), Math.round(Math.max(p.y, hato.y)) - 14, 380);
+    // nobody else's head over the window's edge in this shot
+    const unclear = clearBelow(z, Math.max(p.y, hato.y), [hato]);
     if (tries === 0) {
       // a pigeon's coo, only a small balloon (no window: the chain is kept short)
       sfx('se_coo');
@@ -293,6 +295,7 @@ function* hatoBlock(): Co {
     // the 「！」 seal lands on this close-up; the field is back at 1× after the battle
     zoomIntoBattle(z);
     const r = yield* eventBattle({ enemies: ['enemy_hato_kakaricho'], music: 'bgm_battle' });
+    unclear();
     if (r === 'load') return;
     if (r === 'win') break;
     // 「戦う前から やりなおす」: from the stand-off, ハト係長 already in his tie
@@ -389,12 +392,11 @@ function* hankoGiven(): Co {
   playBgm('bgm_town_s1', { fade: 1.5 });
   const ob = yield* obaaComesOut(near);
   yield 200;
-  // (ひのや not visited: she introduces herself first, then asks)
-  if (flag('flag_met_obaa')) yield* msg(T.HANKO_AB);
-  else {
-    yield* msg(T.HANKO_A_NOVISIT);
-    yield* msg(T.HANKO_B);
-  }
+  // her question (ひのや not visited: she introduces herself first); her
+  // answer and what the town does with what nobody looks at, on one page
+  const i = yield* msg(flag('flag_met_obaa') ? T.HANKO_Q : T.HANKO_Q_NOVISIT);
+  yield* msg(`@npc_obaa\n${T.HANKO_ANSWER[i === 1 ? 1 : 0]}{w=500}\n${T.HANKO_TOWN}`);
+  yield* msg(T.HANKO_GIVE);
   // the case, opened in the middle of the screen
   playBgm('bgm_jingle_item');
   yield* playCaseGift(T.HANKO_GET);
@@ -405,8 +407,8 @@ function* hankoGiven(): Co {
   uiHud.clearNotes();
   syncProgressSkills();
   yield* msg(T.HANKO_C);
-  yield* msg(T.HANKO_D);
-  guideNearHanko(T.GUIDE_FUSHIGI, 4500);
+  // the how-to, once: the note beside the HUD hanko it is about
+  guideNearHanko(T.GUIDE_FUSHIGI, 6000);
   // she waits at the storefront
   const [fx, fy] = storefront();
   if (ob.tileX !== fx || ob.tileY !== fy) yield* walkTo('npc_obaa', fx, fy, { speed: 2 });
@@ -463,15 +465,14 @@ registerScript('evt_obaa_park_hint', function* (ctx): Co {
     if (!ob) ob = spawn('npc_obaa', HINOYA_FRONT[0], HINOYA_FRONT[1], { dir: 'down' });
     ob.data.scripted = true;
     face('npc_obaa', 'player');
-    yield 250;
-    yield* msg(T.PARK_HINT_A1);
-    sfx('se_stamp', { vol: 0.5 });
-    yield* emote('npc_obaa', 'light', { se: false });
-    ob.pose = 'happy';
-    yield 300;
-    ob.pose = null;
     face('player', 'npc_obaa');
-    yield* msg(T.PARK_HINT_A2);
+    // 「はい、よくできました。」 — her own marking stamp, a nod of light
+    sfx('se_stamp', { vol: 0.5 });
+    game.scripts.run(emote('npc_obaa', 'light', { se: false }));
+    ob.pose = 'happy';
+    yield 250;
+    ob.pose = null;
+    yield* msg(T.PARK_HINT_A);
     setFlag('flag_fushigi_tutorial', 1);
   } else {
     // B: leaving the ginza without stamping. She calls him back.

@@ -7,7 +7,7 @@ import { actor, msg, registerScript, stage } from '../world/api';
 import { pickStage } from '../world/maps';
 import { fushigiDone, getFushigi, registerFushigi } from '../world/fushigi';
 import { sfx } from '../audio';
-import { CART_CORRAL_DONE, GACHA_GINZA, GACHA_GINZA_S1, OBJ_TEXT, POSTER_WITH_KANENARI } from '../data/text/objects';
+import { CART_CORRAL_DONE, FUSHIGI_TEXT, GACHA_GINZA, GACHA_GINZA_S1, OBJ_TEXT, POSTER_WITH_KANENARI } from '../data/text/objects';
 import { placeWaitingObaa } from './chime';
 import { F, holdBgm, itemName } from './lib';
 import { quietItem } from './stage';
@@ -67,6 +67,13 @@ registerScript('evt_gacha_ginza', function* (): Co {
   yield* msg(`${GACHA_GINZA}\n!gacha`);
 });
 
+
+// ---------------------------------------------------------------- ふしぎ: one window where the book had two
+
+for (const [id, t] of Object.entries(FUSHIGI_TEXT)) {
+  const d = getFushigi(id);
+  if (d) registerFushigi({ ...d, ...t });
+}
 
 // ---------------------------------------------------------------- fushigi_05: the reward is said once
 

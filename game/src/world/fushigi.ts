@@ -49,8 +49,11 @@ export function fushigiCount(): number {
 
 /** Hook for the stamp visual (installed by the field). */
 let stampFx: ((id: string) => Co) | null = null;
-export function setStampFx(fn: (id: string) => Co): void {
+/** The installed visual plays se_stamp itself, on its own impact frame. */
+let stampFxSound = false;
+export function setStampFx(fn: (id: string) => Co, opts: { ownSound?: boolean } = {}): void {
   stampFx = fn;
+  stampFxSound = !!opts.ownSound;
 }
 /** Listeners notified when a fushigi is pressed (world effects). */
 const pressListeners: ((id: string) => void)[] = [];
@@ -94,7 +97,7 @@ export function* runFushigi(id: string, seenOverride?: string): Co {
 『みました』を 押しますか？
 ? 押す | やめておく`);
   if (i !== 0) return;
-  snd.se('se_stamp');
+  if (!stampFx || !stampFxSound) snd.se('se_stamp');
   if (stampFx) yield* stampFx(id);
   setFlag('flag_' + id, 1);
   for (const f of pressListeners) f(id);
@@ -110,9 +113,7 @@ export function* runFushigi(id: string, seenOverride?: string): Co {
   giveMp(2);
   yield* runMsg(`@sys
 朱肉が 2 たまった。
-/
-みました帳に 書きこんだ。
-（ふしぎ ${fushigiCount()}/12）`);
+みました帳に 書きこんだ。（ふしぎ ${fushigiCount()}/12）`);
   // the tutorial fushigi leads to evt_obaa_park_hint
   if (id === 'fushigi_04' && !flag('flag_park_hint') && flag('flag_stage') === 1 && hasScript('evt_obaa_park_hint')) {
     const fn = getScript('evt_obaa_park_hint')!;

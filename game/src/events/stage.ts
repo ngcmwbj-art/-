@@ -128,6 +128,42 @@ export function* zoomIn(cx: number, cy: number, ms = 350, scale = 2): Co<ZoomVie
   return z;
 }
 
+/**
+ * A first talk indoors (QA round 3: the same framing as ハト係長's): close
+ * on the two (2×), the pair in the middle, their feet just above the window.
+ */
+export function* talkZoom(a: Actor, b: Actor | null | undefined, ms = 300): Co<ZoomView> {
+  // two who stand too far apart to share the frame above the window (ひのや:
+  // おばあ at the back of the shop, Minato at the door) — the speaker alone
+  if (b && Math.abs(a.y - b.y) > 44) return yield* zoomIn(Math.round(b.x), Math.round(b.y) - 4, ms);
+  const x = b ? Math.round((a.x + b.x) / 2) : Math.round(a.x);
+  const feet = Math.round(Math.max(a.y, b ? b.y : a.y));
+  return yield* zoomIn(x, feet - 10, ms);
+}
+
+/**
+ * Keep a close-up clean: whoever else stands in its frame below the pair
+ * (their head would show over the window, cut in half) fades out while it
+ * is up. `feet` is the lowest foot line of the people in the scene; returns
+ * the undo (call it once the close-up is gone).
+ */
+export function clearBelow(z: ZoomView, feet: number, keep: Actor[]): () => void {
+  const f = field();
+  if (!f) return () => {};
+  const [sx, sy, sw, sh] = z.source(f);
+  const x0 = Math.round(f.camX) + sx;
+  const y0 = Math.round(f.camY) + sy;
+  const hidden: [Actor, number][] = [];
+  for (const a of f.actors) {
+    if (!a.visible || a.alpha <= 0 || keep.includes(a) || a === f.player || a === f.follower) continue;
+    if (a.y <= feet + 4) continue;
+    if (a.x < x0 - 12 || a.x > x0 + sw + 12 || a.y - 26 > y0 + sh || a.y < y0) continue;
+    hidden.push([a, a.alpha]);
+  }
+  game.scripts.run(animate(180, (p) => hidden.forEach(([a, al]) => (a.alpha = al * (1 - p)))));
+  return () => hidden.forEach(([a, al]) => (a.alpha = al));
+}
+
 /** Pull a close-up back out to the 1× view. */
 export function* zoomOut(z: ZoomView, ms = 450): Co {
   if (ms > 0) yield* animate(ms, (p) => (z.k = 1 - p), ease.sineInOut);

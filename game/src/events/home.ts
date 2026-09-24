@@ -17,7 +17,7 @@ import { NPC } from '../data/text/npcs';
 import { uiHud } from '../ui/hud';
 import { F, giveKey, healHp, once } from './lib';
 import { chairBack, sleepZ } from './art';
-import { keyGuide, zoomIn, zoomOut } from './stage';
+import { keyGuide, talkZoom, zoomIn, zoomOut } from './stage';
 
 // ---------------------------------------------------------------- 5.2 evt_opening
 
@@ -177,7 +177,8 @@ function* evtErrand(): Co {
   // the chopping stops; she turns round
   yield* momTurns();
   face('player', 'npc_mother');
-  yield 200;
+  // close on the two of them (2×) for the first talk of the day
+  const z = yield* talkZoom(f.player, actor('npc_mother'));
   yield* msg(T.ERRAND_A);
   state.money += 500;
   giveKey('item_gamaguchi');
@@ -187,10 +188,10 @@ function* evtErrand(): Co {
   uiHud.clearNotes();
   playBgm('bgm_jingle_item');
   yield* msg(T.ERRAND_GET);
-  yield* msg(T.ERRAND_B);
   setClock(1);
   setFlag('flag_errand', 1);
-  yield 400;
+  yield* zoomOut(z, 300);
+  yield 150;
   momBackToWork();
 }
 registerScript('evt_errand', evtErrand);

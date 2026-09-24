@@ -1,5 +1,7 @@
 // Sound team: every song, SFX recipe, voice and ambience registers here
-// (side-effect imports), plus QA debug commands and the sound test scene.
+// (side-effect imports). The QA tooling — debug commands, the offline
+// report / renders and the sound test — is for development only (40_audio
+// 15.4): it registers under import.meta.env.DEV, so `vite build` drops it.
 import './songs/title';
 import './songs/indoor';
 import './songs/town';
@@ -11,7 +13,12 @@ import './songs/ending';
 import './songs/jingles';
 import './sfx';
 import './voices';
-import './report';
-import './debugcmds';
-// the sound test registers only in dev builds (40_audio 15.4: not in the product)
+import { registerAudioCommands } from './debugcmds';
+import { registerReportCommands } from './report';
+// the sound test registers its scene and commands under the same DEV gate
 import './soundtest';
+
+if (import.meta.env.DEV) {
+  registerAudioCommands();
+  registerReportCommands();
+}

@@ -10,6 +10,7 @@ import * as T from '../data/text/events';
 import { NPC } from '../data/text/npcs';
 import { F, onMap, stageKeys } from './lib';
 import { sparkle } from './fx';
+import { talkZoom, zoomOut } from './stage';
 
 /** 4.1: the first shop visited moves the clock 16:55 → 16:58. */
 function firstShopClock(): void {
@@ -31,7 +32,8 @@ function* maruyamaFirst(): Co {
     m.lift = 90;
     face('npc_maruyama', 'player');
   }
-  yield 250;
+  // close on the two across the showcase (2×) for the first talk
+  const z = yield* talkZoom(f.player, m);
   yield* msg(T.MARUYAMA_FIRST_A);
   // a glance at the fryer; the oil catches the light once
   if (m) {
@@ -45,6 +47,7 @@ function* maruyamaFirst(): Co {
     yield 150;
   }
   yield* msg(T.MARUYAMA_FIRST_B);
+  yield* zoomOut(z, 300);
   firstShopClock();
   setFlag('flag_met_maruyama', 1);
   if (m) delete m.data.scripted;
@@ -89,9 +92,11 @@ function* obaaFirst(): Co {
     o.lift = 90;
     face('npc_obaa', 'player');
   }
-  yield 200;
+  // close on the two across the counter (2×) for the first talk
+  const z = yield* talkZoom(f.player, o);
   yield* msg(T.OBAA_FIRST);
-  yield* msg(flag('flag_met_maruyama') ? T.OBAA_FIRST_MEAT : T.OBAA_FIRST_NOMEAT);
+  if (!flag('flag_met_maruyama')) yield* msg(T.OBAA_FIRST_NOMEAT);
+  yield* zoomOut(z, 300);
   firstShopClock();
   setFlag('flag_met_obaa', 1);
   if (o) delete o.data.scripted;

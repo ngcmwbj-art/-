@@ -14,9 +14,6 @@ export const OBJ_TEXT: Record<string, StageText> = {
   // 7.8 自販機のあった場所（段階2）
   obj_vending_trace: `@narr
 自販機の あった 場所。{w=300}
-日焼けの 跡と、コンセントだけ
-残っている。
-/
 コードを 引きずった 跡が、
 駐車場の ほうへ 続いている。`,
   // 7.8 掲示板のポスター
@@ -58,3 +55,40 @@ export const GACHA_GINZA_S1 = `@narr
 ハンドルが、途中で 止まる。{w=300}
 ガチャの 中も、
 17時で 止まっている らしい。`;
+
+/**
+ * 8章 ふしぎ: the pages of two windows folded into one (QA round 3, tempo).
+ * Only the texts; the world's entries keep their stage, rewards and hooks.
+ */
+export const FUSHIGI_TEXT: Record<string, { seen?: string; pressed?: string }> = {
+  fushigi_05: {
+    seen: `@narr
+3番の 乾燥機。{w=300}40分、回り続けている。{w=300}
+中から、自分の 声で
+『まだ 乾いてない』と 聞こえる。`,
+  },
+  fushigi_06: {
+    seen: `@narr
+掲示板 『本日の 落とし物』。{w=300}
+『17時（1個）』。{w=500}
+……落とし物に 入るのか。`,
+  },
+  fushigi_08: {
+    pressed: `@narr
+時計は 見られていることに
+気づいて、秒針だけ 動かした。{w=600}
+……すぐ 止まった。`,
+  },
+  fushigi_09: {
+    seen: `@narr
+カートが 3台、勝手に うろうろ している。{w=300}
+1台が こっちに 寄ってきて、
+ちょっと 止まって、また 離れた。`,
+  },
+  fushigi_10: {
+    seen: `@narr
+枯れた 噴水。{w=300}底に、10円玉が 1枚。{w=300}
+1年ぶんの 願いごとを、
+1枚で 背負っている。`,
+  },
+};

@@ -42,7 +42,13 @@ function opaque(c: HTMLCanvasElement): Uint8Array {
  * always drawn over: of its sprite's opaque pixels when `sprite` is given
  * (small birds and cats), else of a 16×24 frame.
  */
-export function coverage(f: FieldScene, fx: number, fy: number, sprite?: HTMLCanvasElement): { frac: number; by: string[] } {
+export function coverage(
+  f: FieldScene,
+  fx: number,
+  fy: number,
+  sprite?: HTMLCanvasElement,
+  opts: { fading?: boolean } = {},
+): { frac: number; by: string[] } {
   const SW = sprite?.width ?? FW;
   const SH = sprite?.height ?? FH;
   const x0 = Math.round(fx - SW / 2);
@@ -71,7 +77,11 @@ export function coverage(f: FieldScene, fx: number, fy: number, sprite?: HTMLCan
     const id = p.obj.t === 'prop' ? p.obj.prop : (p.obj.prop ?? p.obj.id);
     const env = f.propEnv(p);
     if (!a.flat && p.y + a.foot > fy) stamp(a.img(env), p.x + a.ox, p.y + a.oy, `${id}@${p.x / 16},${p.y / 16}`);
-    for (const part of a.fg ?? []) stamp(part.img(env), p.x + part.ox, p.y + part.oy, `${id}@${p.x / 16},${p.y / 16} (fg)`);
+    for (const part of a.fg ?? []) {
+      // canopies that thin out over whoever walks under them (render.ts fadeSeers)
+      if (opts.fading && part.fade) continue;
+      stamp(part.img(env), p.x + part.ox, p.y + part.oy, `${id}@${p.x / 16},${p.y / 16} (fg)`);
+    }
   }
   for (const s of f.structures) if (s.foot > fy) stamp(s.art.img, s.tx * 16 + s.art.ox, s.ty * 16 + s.art.oy, `wall@${s.tx},${s.ty}`);
   let n = 0;
@@ -119,6 +129,8 @@ export function checkOcclusion(f: FieldScene, limit = 0.5): OcclusionReport[] {
           const fx = home[0] + dx * 16;
           const fy = home[1] + dy * 16;
           if (Math.hypot(dx, dy) > r + 0.01) continue;
+          // the hato pecks along the street and up, never south (symbols.ts)
+          if (o?.move === 'hato' && dy > 0) continue;
           // the home is where it is drawn, walkable or not (QA round 2: a
           // symbol perched on an unwalkable tile was never checked at all);
           // the rest of a roaming area only where it can go
@@ -134,7 +146,56 @@ export function checkOcclusion(f: FieldScene, limit = 0.5): OcclusionReport[] {
       if (worst && (r === 0 || hidden / Math.max(1, tiles) > 0.25)) out.push({ ...worst, id: `${a.id} (${hidden}/${tiles} tiles)` });
       continue;
     }
+    if (a.kind === 'npc' && a.data.passerby && def?.move?.kind === 'route') {
+      out.push(...routeOcclusion(f, a, def.move, limit));
+      continue;
+    }
     test(a, a.x + a.ox, a.y + a.oy);
   }
+  return out;
+}
+
+/**
+ * A passer-by is checked where it waits in sight (a cat sitting at the end
+ * of its round) and along its walk: passing behind a pole for a moment is
+ * how streets look, a quarter of the walk out of sight is not. Canopies
+ * that thin out over it (fadeSeers) don't count.
+ */
+function routeOcclusion(f: FieldScene, a: Actor, mv: Extract<NonNullable<NpcObj['move']>, { kind: 'route' }>, limit: number): OcclusionReport[] {
+  const out: OcclusionReport[] = [];
+  const img = a.frame();
+  const pts = mv.points.map(([x, y]) => [x * 16 + 8, y * 16 + 16] as [number, number]);
+  const inMap = (x: number, y: number) => x >= 16 && y >= 16 && x <= f.map.w * 16 - 16 && y <= f.map.h * 16;
+  const at = (x: number, y: number) => [Math.floor(x / 16), Math.floor((y - 1) / 16)] as [number, number];
+  pts.forEach(([x, y], i) => {
+    if ((i !== 0 && i !== pts.length - 1) || mv.hide?.includes(i) || !inMap(x, y)) return;
+    const c = coverage(f, x + a.ox, y + a.oy, img, { fading: true });
+    if (c.frac > limit) out.push({ id: `${a.id} (waiting)`, at: at(x, y), frac: Math.round(c.frac * 100) / 100, by: c.by });
+  });
+  let n = 0;
+  let hidden = 0;
+  let worst: OcclusionReport | null = null;
+  const legs = mv.loop ? pts.length : pts.length - 1;
+  // the lanes each way (keepLeft) or the line itself
+  const k = mv.keepLeft ?? 0;
+  const lanes = k ? [k, -k] : [0];
+  for (let i = 0; i < legs; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[(i + 1) % pts.length];
+    const len = Math.hypot(x1 - x0, y1 - y0) || 1;
+    for (let d = 0; d <= len; d += 8)
+      for (const l of lanes) {
+        const x = x0 + ((x1 - x0) * d) / len - ((y1 - y0) / len) * l;
+        const y = y0 + ((y1 - y0) * d) / len + ((x1 - x0) / len) * l;
+        if (!inMap(x, y)) continue;
+        n++;
+        const c = coverage(f, x + a.ox, y + a.oy, img, { fading: true });
+        if (c.frac > limit) {
+          hidden++;
+          if (!worst || c.frac > worst.frac) worst = { id: a.id, at: at(x, y), frac: Math.round(c.frac * 100) / 100, by: c.by };
+        }
+      }
+  }
+  if (worst && hidden / Math.max(1, n) > 0.25) out.push({ ...worst, id: `${a.id} (${hidden}/${n} of its walk)` });
   return out;
 }

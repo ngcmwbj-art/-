@@ -2,8 +2,11 @@
 // page (consumables, then だいじなもの under a dotted rule), the chosen
 // thing on the right page (a sticky card with its icon at 2×, name in 朱,
 // flavour text, effect in pencil). 決定 opens a sticky note with
-// つかう／わたす／すてる: つかう = ミナト uses it, わたす = hand it to
-// カネナリくん (it disappears into his zipper, 10.1).
+// つかう／わたす／すてる: つかう = ミナト uses it himself, わたす = hand it
+// to a companion, picked on a second note that shows each one's HP (with
+// カネナリくん it disappears into his zipper, 10.1). A use that would do
+// nothing — a heal at full HP, a cure with nothing to cure — is refused
+// and the item kept.
 
 import type { Co } from '../../engine/co';
 import type { Gfx } from '../../engine/gfx';
@@ -15,7 +18,7 @@ import { say } from '../dialog';
 import { drawDigits, drawNumerals } from '../digits';
 import { itemIcon12, itemIcon24 } from '../icons';
 import { dottedLine, drawCursor, drawMarker, pencilLine, phraseWrap as wrap, rectA, textW, UI } from '../window';
-import { drawHeader, drawScroll, FOLD, LP, Popup, RP, SP, type PopupOpt } from './notebook';
+import { drawHeader, drawScroll, FOLD, hpColor, LP, Popup, RP, SP, type PopupOpt } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
 
 export const BAG_MAX = 14;
@@ -73,7 +76,9 @@ export class ItemsPage implements MenuPage {
   private moveT = 999;
   private popup: Popup | null = null;
   private popupFor: Row | null = null;
-  private mode: 'list' | 'action' | 'confirm' = 'list';
+  private mode: 'list' | 'action' | 'target' | 'confirm' = 'list';
+  /** Member ids offered on the わたす note, in its order. */
+  private targets: string[] = [];
 
   private slots(): Slot[] {
     const { items, keys } = bagRows();
@@ -126,6 +131,16 @@ export class ItemsPage implements MenuPage {
         this.popup = null;
         if (r < 0) return true;
         this.act(m, row, r);
+      } else if (this.mode === 'target') {
+        this.popup = null;
+        if (r < 0) {
+          // back to the first note, on わたす
+          this.openActions(row, 1);
+          return true;
+        }
+        this.mode = 'list';
+        const id = this.targets[r];
+        if (id) m.run(this.useCo(row.id, id));
       } else if (this.mode === 'confirm') {
         this.popup = null;
         this.mode = 'list';
@@ -152,17 +167,39 @@ export class ItemsPage implements MenuPage {
       const row = this.current();
       if (!row) return true;
       sfx('se_confirm');
-      const kan = state.party.some((p) => p.id === 'kanenari');
-      const opts = [
-        { label: 'つかう' },
-        { label: 'わたす', disabled: row.key || !kan },
-        { label: 'すてる', disabled: row.key },
-      ];
-      this.popup = this.popupAtRow(opts, '', { minW: 76 });
-      this.popupFor = row;
-      this.mode = 'action';
+      this.openActions(row, 0);
     }
     return true;
+  }
+
+  /** Companions a thing can be handed to (everyone but ミナト). */
+  private companions(): string[] {
+    const me = state.party[0]?.id;
+    return state.party.filter((p) => p.id !== me).map((p) => p.id);
+  }
+
+  private openActions(row: Row, index: number): void {
+    const opts = [
+      { label: 'つかう' },
+      { label: 'わたす', disabled: row.key || !this.companions().length },
+      { label: 'すてる', disabled: row.key },
+    ];
+    this.popup = this.popupAtRow(opts, '', { minW: 76, index });
+    this.popupFor = row;
+    this.mode = 'action';
+  }
+
+  /** わたす: 「だれに わたす？」 with each companion's HP, so it's clear who needs it. */
+  private openTargets(row: Row): void {
+    this.targets = this.companions();
+    const opts: PopupOpt[] = this.targets.map((id) => {
+      const mb = state.party.find((p) => p.id === id)!;
+      const rate = mb.maxHp > 0 ? mb.hp / mb.maxHp : 0;
+      return { label: mb.name, sub: `${mb.hp}/${mb.maxHp}`, bar: { rate, color: hpColor(rate) } };
+    });
+    this.popup = this.popupAtRow(opts, 'だれに わたす？', { minW: 104 });
+    this.popupFor = row;
+    this.mode = 'target';
   }
 
   /**
@@ -216,8 +253,11 @@ export class ItemsPage implements MenuPage {
       if (action === 0) this.useKey(m, row.id);
       return;
     }
-    const target = action === 1 ? 'kanenari' : 'minato';
-    m.run(this.useCo(row.id, target));
+    if (action === 1) {
+      this.openTargets(row);
+      return;
+    }
+    m.run(this.useCo(row.id, state.party[0]?.id ?? 'minato'));
   }
 
   private useKey(m: MenuCtx, id: string): void {
@@ -247,6 +287,13 @@ export class ItemsPage implements MenuPage {
     if (id === 'item_stamp_pad' && who.maxMp > 0 && who.mp >= who.maxMp) {
       sfx('se_buzzer');
       yield* say('朱肉は もう たっぷりだ。', { voice: 'sys' });
+      return;
+    }
+    // a cure with nothing to cure (ハッカあめ with no こんらん／ねむり): keep it
+    const cureOnly = !!it.cure?.length && !it.heal && !it.healRate && !it.mp && it.special !== 'capsule';
+    if (cureOnly && !it.cure!.some((s) => who.status[s])) {
+      sfx('se_buzzer');
+      yield* say('いまは 使っても しかたない。', { voice: 'sys' });
       return;
     }
     // 「HPが 0 回復した。」 reads badly: say that it was already full

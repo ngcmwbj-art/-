@@ -265,16 +265,16 @@ export function* playCaseGift(text: string): Co {
     w.dim = p * 0.5;
     w.rise = p;
   });
-  yield 250;
+  yield 150;
   sfx('se_paper_open', { pitch: 0.7 });
   w.open = true;
   yield* animate(180, (p) => (w.lidLift = p), ease.quadOut);
   w.orbit = 0;
-  yield 500;
+  yield 320;
   for (let i = 0; i < 2; i++) {
     sfx('se_hanko_learn', { vol: 0.8, pitch: i ? 1.12 : 1 });
-    yield* animate(260, (p) => (w.appear[i] = p), ease.quadOut);
-    yield 120;
+    yield* animate(220, (p) => (w.appear[i] = p), ease.quadOut);
+    yield 80;
   }
   yield* runMsg(text);
   w.open = false;

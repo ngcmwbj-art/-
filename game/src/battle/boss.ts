@@ -30,10 +30,18 @@ const CHIME_NOTES = ['G4', 'A4', 'C5', 'E5']; // 13.3: one note per round end
  * tsukkomi, ≈12 with both), and every attack in phase 2 25% harder.
  */
 const CHIME_MUL = 1.25;
+const SUITOU_HEAL = 40;
 const PHASE2_MUL = 1.25;
 function phaseMul(s: BattleScene): number {
   return (s.memo.bossPhase ?? 1) >= 2 ? PHASE2_MUL : 1;
 }
+
+/**
+ * Boss wipes this session (QA round 3: a retry after a wipe is short — the
+ * rise and the opening line are cut, Kanenari-kun's flip says what beat
+ * them, and at the 3rd chime the cursor waits on まもる).
+ */
+export const bossTries = { lost: 0 };
 
 export function initBoss(s: BattleScene): void {
   s.bossParts = BOSS_PARTS.map((p) => ({ id: p.id, name: p.name, box: p.box, action: p.action, broken: false, glow: false }));
@@ -87,7 +95,7 @@ export function bossDecide(s: BattleScene, e: EnemyUnit): string {
   const r = s.round;
   const glowing = s.bossParts.find((p) => p.glow && !p.broken);
   if (glowing && (glowing as BossPart & { glowRound?: number }).glowRound! < r) return '';
-  const canCall = s.bossParts.some((p) => !p.broken) && !glowing;
+  const canCall = callable(s).length > 0 && !glowing;
   const umbrella = !s.bossParts.find((p) => p.id === 'boss_omukaemachi_umbrella')?.broken;
   if ((s.memo.bossPhase ?? 1) < 2) {
     if (r === 1) return 'skill_omu_tebukuro';
@@ -111,6 +119,14 @@ export function bossDecide(s: BattleScene, e: EnemyUnit): string {
   ]);
   if (pick === 'skill_omu_yoiko') s.memo.yoikoRound = r;
   return pick;
+}
+
+/**
+ * Parts 迷子のお知らせ can still call: not broken, and the bottle only until
+ * it has poured once (QA round 3, tempo: its heal came back again and again).
+ */
+function callable(s: BattleScene): BossPart[] {
+  return s.bossParts.filter((p) => !p.broken && !(p.id === 'boss_omukaemachi_bottle' && s.memo.suitouUsed));
 }
 
 function weighted(e: EnemyUnit, t: [string, number][]): string {
@@ -169,11 +185,9 @@ export function* bossMoveImpl(c: BossMoveCtx): Co {
       s.sfx('se_pa_chime');
       const order = ['boss_omukaemachi_bottle', 'boss_omukaemachi_cap', 'boss_omukaemachi_shoe', 'boss_omukaemachi_umbrella'];
       const idx = s.memo.oshiraseIdx ?? 0;
-      let part = s.bossParts.find((p) => p.id === order[idx] && !p.broken);
-      if (!part) {
-        const rest = s.bossParts.filter((p) => !p.broken);
-        part = rest.length ? rng.pick(rest) : undefined;
-      }
+      const rest = callable(s);
+      let part = rest.find((p) => p.id === order[idx]);
+      if (!part) part = rest.length ? rng.pick(rest) : undefined;
       s.memo.oshiraseIdx = idx + 1;
       yield* hitLoop(s, {
         ...common,
@@ -268,7 +282,9 @@ export function* bossMoveImpl(c: BossMoveCtx): Co {
           resolveGuard(r, i);
           sfx('se_bottle');
           const before = e.hp;
-          e.hp = Math.min(e.maxHp, e.hp + 60);
+          // 40 (was 60 at HP 380), and only once a battle (callable())
+          s.memo.suitouUsed = 1;
+          e.hp = Math.min(e.maxHp, e.hp + SUITOU_HEAL);
           s.number(e.left + 126, e.top + 60, e.hp - before, { kind: 'heal' }, 'enemy', e);
         },
       });

@@ -525,6 +525,21 @@ export function uwabaki(): HTMLCanvasElement {
   ]);
 }
 
+/** Minato's beach sandal (ビーサン), side view: blue sole, red thong. */
+export function beachSandal(): HTMLCanvasElement {
+  return spr('beachSandal', [
+    '......kk......',
+    '.....kRlk.....',
+    '....kRk.kRk...',
+    '...kRk...kRk..',
+    '.kkkRkkkkkkRkk',
+    'kCeeeeeeeeeeCk',
+    'kuuuuuuuuuuuuk',
+    'kUUUUUUUUUUUUk',
+    '.kkkkkkkkkkkk.',
+  ]);
+}
+
 /** Speaker ring / sound arc helper. */
 export function drawArc(g: Gfx, cx: number, cy: number, r: number, a0: number, a1: number, color: string): void {
   const n = Math.max(6, Math.ceil(r * Math.abs(a1 - a0) * 1.2));

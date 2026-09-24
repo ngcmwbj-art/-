@@ -618,6 +618,39 @@ function riceLayer(map: LoadedMap, lean: number): { c: HTMLCanvasElement; x0: nu
   return r;
 }
 
+const starCache = new WeakMap<LoadedMap, [number, number, number][]>();
+/**
+ * Stars mirrored in the paddies at night (8.4 夜: 田んぼに星が映る): world
+ * px of water pixels the rice leaves open, about one per 28×12px, each with a
+ * seed for its twinkle. Drawn above the night grade (render: 'glow' layer),
+ * so they stay stars and don't turn into grey dust.
+ */
+export function paddyStars(map: LoadedMap): [number, number, number][] {
+  const hit = starCache.get(map);
+  if (hit) return hit;
+  const out: [number, number, number][] = [];
+  const layer = riceLayer(map, 0);
+  if (layer) {
+    const cx = layer.c.getContext('2d', { willReadFrequently: true })!;
+    const data = cx.getImageData(0, 0, layer.c.width, layer.c.height).data;
+    const open = (lx: number, ly: number) =>
+      lx >= 0 && ly >= 0 && lx < layer.c.width && ly < layer.c.height && data[(ly * layer.c.width + lx) * 4 + 3] === 0;
+    for (let ly = 5 + 2; ly < layer.c.height; ly += 12)
+      for (let lx = 0; lx < layer.c.width; lx += 28) {
+        const hh = ihash(lx, ly, 5531);
+        const x = lx + (hh % 24);
+        const y = ly + ((hh >>> 5) % 2) * 6;
+        const wx = layer.x0 + x;
+        const wy = layer.y0 + y;
+        if (groundAt(map, Math.floor(wx / 16), Math.floor(wy / 16)) !== 'paddy') continue;
+        if (!open(x, y) || !open(x - 1, y) || !open(x + 1, y)) continue;
+        out.push([wx, wy, hh >>> 9]);
+      }
+  }
+  starCache.set(map, out);
+  return out;
+}
+
 /** Where the night sky shows in the paddy water in stage 2 (world px, centre). */
 const PADDY_PATCH: [number, number] = [31.5 * 16, 41 * 16 + 8];
 
@@ -626,6 +659,51 @@ const INLETS: [number, number, 'w' | 'n'][] = [
   [13 * 16 + 1, 42 * 16 + 7, 'w'],
   [36 * 16 + 6, 39 * 16 + 5, 'n'],
 ];
+
+/**
+ * The water between the rice rows (world rect sx..ex × sy..ey), under the
+ * rice. (QA round 3: the sunset sky under a green wash read as dry soil
+ * between the rows.) A sheen of the sky's light over it, a little of the mud,
+ * and in each strip between two planting rows 1px highlight dashes that sway
+ * and glint (frozen in stage 1: the reflection stops, 8.1); at night the
+ * strips mirror the stars instead (paddyStars).
+ */
+function paddyWater(w: WaterCtx, field: { x0: number; y0: number }, sx: number, sy: number, ex: number, ey: number): void {
+  const { ctx } = w;
+  const night = w.grade.night;
+  // still water, the canal's deep teal with the sky in it, cooled with lilac:
+  // never the tan of the ridges between the fields
+  ctx.fillStyle = css(DEEP, 0.5);
+  ctx.fillRect(sx - w.worldX, sy - w.worldY, ex - sx, ey - sy);
+  ctx.fillStyle = css(LILAC, 0.14);
+  ctx.fillRect(sx - w.worldX, sy - w.worldY, ex - sx, ey - sy);
+  const isPaddy = (wx: number, wy: number) => groundAt(w.map, Math.floor(wx / 16), Math.floor(wy / 16)) === 'paddy';
+  const mt = w.mt;
+  const dash = mixc(GLINT, w.grade.horizon, 0.3);
+  const dark = mixc(mixc(w.grade.skyBot, LILAC, 0.55), INK, 0.3);
+  // the strips: 3px below each planting row's base (riceLayer: rows every 6px from y0 + 5)
+  const first = field.y0 + 5 + Math.max(0, Math.floor((sy - field.y0 - 5) / 6) - 1) * 6;
+  for (let gy = first; gy < ey + 6; gy += 6) {
+    const wy = gy + 2;
+    if (wy < sy || wy >= ey) continue;
+    const row = Math.floor(gy / 6);
+    const sway = Math.round(Math.sin(mt / 650 + row * 1.7) * 1.5);
+    for (let k = Math.floor((sx - 16) / 9); k * 9 < ex + 16; k++) {
+      const hh = ihash(k, row, 5521);
+      const x = k * 9 + (hh % 6) + sway;
+      const len = 2 + ((hh >>> 4) % 4);
+      if (x + len < sx || x >= ex || !isPaddy(x, wy) || !isPaddy(x + len, wy)) continue;
+      // at night the stars take their place (paddyStars, above the grade)
+      if (night > 0.5) continue;
+      // a darker ripple under a bright dash; a few glint brighter in turn
+      const bright = Math.floor(mt / 400 + (hh % 11)) % 11 === 0;
+      ctx.fillStyle = css(dark, 0.45);
+      ctx.fillRect(x + 1 - w.worldX, wy + 1 - w.worldY, len, 1);
+      ctx.fillStyle = css(bright ? GLINT : dash, bright ? 1 : 0.85);
+      ctx.fillRect(x - w.worldX, wy - w.worldY, len, 1);
+    }
+  }
+}
 
 function drawPaddies(w: WaterCtx, pal: WaterPal): void {
   void pal;
@@ -639,9 +717,7 @@ function drawPaddies(w: WaterCtx, pal: WaterPal): void {
   const ex = Math.min(w.worldX + rx + rw, upright.x0 + upright.c.width);
   const ey = Math.min(w.worldY + ry + rh, upright.y0 + upright.c.height);
   if (ex <= sx || ey <= sy) return;
-  // paddy water is shallow and muddy: the sky seen through green-brown
-  ctx.fillStyle = 'rgba(46,107,74,0.3)';
-  ctx.fillRect(sx - w.worldX, sy - w.worldY, ex - sx, ey - sy);
+  paddyWater(w, upright, sx, sy, ex, ey);
   // stage 2 "night patch" in an opening of the rice (30–33, 41–42), wobbling in place
   if (w.stage === 2) nightPatch(ctx, PADDY_PATCH[0], PADDY_PATCH[1], w);
   ctx.drawImage(upright.c, sx - upright.x0, sy - upright.y0, ex - sx, ey - sy, sx - w.worldX, sy - w.worldY, ex - sx, ey - sy);
@@ -677,8 +753,7 @@ function drawPaddies(w: WaterCtx, pal: WaterPal): void {
           ctx.rect(ax - w.worldX, ya - w.worldY, bx - ax, yb - ya);
           ctx.clip();
           drawSkyBase(w);
-          ctx.fillStyle = 'rgba(46,107,74,0.3)';
-          ctx.fillRect(ax - w.worldX, ya - w.worldY, bx - ax, yb - ya);
+          paddyWater(w, upright, ax, ya, bx, yb);
           ctx.drawImage(layer.c, ax - layer.x0, ya - layer.y0, bx - ax, yb - ya, ax - w.worldX, ya - w.worldY, bx - ax, yb - ya);
           ctx.restore();
         }

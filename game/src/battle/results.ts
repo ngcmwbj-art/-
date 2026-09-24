@@ -157,7 +157,13 @@ export function* victory(s: BattleScene): Co {
         g.alpha(t > 1400 ? (1700 - t) / 300 : 1, () => g.ctx.drawImage(seal, Math.round(192 - w / 2), Math.round(VSEAL_Y - h / 2), Math.round(w), Math.round(h)));
       },
     });
-    yield 70;
+    // the jingle carries the stamp itself on its first step (40_audio 6.2:
+    // no separate se_stamp_heavy — QA round 3 heard a flam of two). Its
+    // song starts ~60ms after playBgm, so it is started 60ms before the
+    // seal lands and the thump falls on the landing frame
+    yield 10;
+    playBgm('bgm_jingle_victory');
+    yield 60;
     s.hitstop(6);
     s.flash('#FFF6D8', 0.3, 2);
     s.shake(3, 3, 10);
@@ -166,8 +172,6 @@ export function* victory(s: BattleScene): Co {
     s.shuSplash(192 + seal.width / 2 - 10, VSEAL_Y, 12);
     s.shuSplash(192, VSEAL_Y + seal.height / 2 - 6, 10);
     confetti(s, 80, 192, VSEAL_Y);
-    sfx('se_stamp_heavy');
-    playBgm('bgm_jingle_victory');
     for (const u of s.party) {
       u.moodHold = 'happy';
       u.bounceT = 250;
@@ -637,9 +641,11 @@ class ReportCard {
       });
     });
     if (this.bigHana >= 0) {
-      // the teacher's big hanamaru, swept over the corner of the right page
-      const img = hanamaruFrame(48, Math.min(1, this.bigHana / 200), false, 2.6);
-      g.alpha(0.92, () => g.img(img, 298, 170 + drop));
+      // the teacher's big hanamaru, swept over the bottom-right corner of the
+      // right page — right of the grade column (QA round 3: it sat on
+      // 「うん 4→5○」), half on the paper, half off
+      const img = hanamaruFrame(42, Math.min(1, this.bigHana / 200), false, 2.4);
+      g.alpha(0.92, () => g.img(img, x + 280, y + 128));
     }
   }
 

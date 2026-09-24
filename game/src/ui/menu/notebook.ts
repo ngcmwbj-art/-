@@ -109,6 +109,70 @@ export function drawSpread(g: Gfx, dx: number, alpha: number): void {
   g.img(spreadCanvas(), SP.x - 4 + dx, SP.y - 3, alpha < 1 ? { alpha } : {});
 }
 
+let sheetC: HTMLCanvasElement | null = null;
+
+/**
+ * One loose sheet of the same graph paper, torn out along the top (the
+ * settings from the title: there is no notebook open yet, so no fold runs
+ * under the rulers). Drawn at SP; the torn edge and the tape pieces reach
+ * a few pixels above it. Cached.
+ */
+export function sheetCanvas(): HTMLCanvasElement {
+  if (sheetC) return sheetC;
+  const W = SP.w;
+  const H = SP.h + 4;
+  const TOP = 4;
+  const [c, ctx] = makeCanvas(W, H);
+  const r = (x: number, y: number, w: number, h: number, col: string, a = 1) => {
+    ctx.globalAlpha = a;
+    ctx.fillStyle = col;
+    ctx.fillRect(x, y, w, h);
+    ctx.globalAlpha = 1;
+  };
+  // the torn top edge: a ragged line a few pixels deep, with the paper's
+  // fibres showing white where it tore
+  const tear: number[] = [];
+  let v = 1;
+  for (let x = 0; x < W; x++) {
+    const n = hash2(x >> 1, 0, 77);
+    v = Math.max(0, Math.min(3, v + (n < 0.3 ? -1 : n > 0.7 ? 1 : 0)));
+    tear.push(v);
+  }
+  for (let x = 0; x < W; x++) {
+    const top = TOP - tear[x];
+    r(x, top, 1, 1, '#FFFBEE');
+    r(x, top + 1, 1, H - top - 1, UI.bg);
+  }
+  // the bottom corners are cut a little round, the paper's edge a shade darker
+  ctx.clearRect(0, H - 1, 1, 1);
+  ctx.clearRect(W - 1, H - 1, 1, 1);
+  r(1, H - 1, W - 2, 1, '#E8D9B5');
+  r(0, TOP, 1, H - TOP - 1, '#E8D9B5');
+  r(W - 1, TOP, 1, H - TOP - 1, '#E8D9B5');
+  // grid, from the sheet's top-left (the same 8px rule as the notebook)
+  for (let x = 8; x < W - 1; x += 8) for (let y = TOP; y < H - 1; y++) if (y > TOP - tear[x] + 1) r(x, y, 1, 1, UI.bg2);
+  for (let y = TOP + 8; y < H - 1; y += 8) r(1, y, W - 2, 1, UI.bg2);
+  // paper fibres
+  for (let y = TOP; y < H - 1; y++)
+    for (let x = 1; x < W - 1; x++) {
+      const n = hash2(x, y, 43);
+      if (n < 0.008) r(x, y, 1, 1, '#F1E4C4');
+      else if (n > 0.996) r(x, y, 1, 1, '#FFFBEE');
+    }
+  // red margin line, as on the notebook's left page
+  r(11, TOP, 1, H - TOP - 1, UI.margin, 0.45);
+  sheetC = c;
+  return c;
+}
+
+/** The loose sheet at an offset, taped down at its top corners. */
+export function drawSheet(g: Gfx, dx: number, alpha: number): void {
+  g.alpha(alpha * 0.45, () => g.rect(SP.x + 3 + dx, SP.y + 4, SP.w, SP.h, UI.night));
+  g.img(sheetCanvas(), SP.x + dx, SP.y - 4, alpha < 1 ? { alpha } : {});
+  drawTape(g, SP.x - 6 + dx, SP.y - 6, 30, 10, '', { seed: 21, alpha });
+  drawTape(g, SP.x + SP.w - 24 + dx, SP.y - 6, 30, 10, '', { seed: 22, alpha });
+}
+
 let tabCache = new Map<string, HTMLCanvasElement>();
 function tabCanvas(t: TabDef, sel: boolean): HTMLCanvasElement {
   const key = t.id + sel;

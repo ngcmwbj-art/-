@@ -10,4 +10,6 @@ import './street';
 import './ginza';
 import './park';
 import './parking';
+import './lot_life';
+import './riverside';
 import './rooms';

@@ -267,7 +267,7 @@ onFushigiPressed((id) => {
     ];
   });
   cartsHome = true;
-  snd.se('se_cart_rattle');
+  if (carts[0]) snd.seAt('se_cart_rattle', carts[0].x, carts[0].y);
 });
 
 addFushigiSpots((f) => {
@@ -319,7 +319,7 @@ function updateCarts(f: FieldScene, dt: number): void {
     if (arrived || (!c.moving && Math.random() < 0.02)) {
       delete c.data.tgt;
       c.data.wait = 600 + Math.random() * 1800;
-      if (Math.hypot(f.player.x - c.x, f.player.y - c.y) < 120 && Math.random() < 0.3) snd.se('se_cart_rattle', { vol: 0.6 });
+      if (Math.random() < 0.3) snd.seAt('se_cart_rattle', c.x, c.y, { vol: 0.6 });
     }
   }
 }

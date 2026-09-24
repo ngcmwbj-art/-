@@ -13,9 +13,9 @@ import { sfx, stopAmbient } from '../audio';
 import { actor, despawn, msg, place, registerScript, spawn } from '../world/api';
 import { registerWorldFx } from '../world/fx';
 import { fushigiCount, fushigiDone } from '../world/fushigi';
-import { stampFx } from '../world/stamp';
+import { stampFushigi } from './stamp';
 import * as T from '../data/text/events';
-import { KAITENYAKI_AGAIN, KAITENYAKI_ANSWER, KAITENYAKI_DONE, KAITENYAKI_FLIP, KAITENYAKI_KEY, KAITENYAKI_PRESSED, KAITENYAKI_SEEN, YAKINAMES, YAKINAMES_KANA } from '../data/text/mall';
+import { KAITENYAKI_AGAIN, KAITENYAKI_ANSWER, KAITENYAKI_FLIP, KAITENYAKI_KEY, KAITENYAKI_PRESSED, KAITENYAKI_SEEN, YAKINAMES, YAKINAMES_KANA } from '../data/text/mall';
 import { addMp, eventBattle, F, getKeyItem } from './lib';
 import { puff, sparkle } from './fx';
 import { bossEyes, bossField, BOSS_FIELD } from './art';
@@ -73,8 +73,7 @@ registerScript('evt_kaitenyaki', function* (): Co {
 ? 押す | やめておく`);
   if (i !== 0) return;
   // the seal on the plate; the turning slows and stops (1.2 s)
-  sfx('se_stamp');
-  yield* stampFx('fushigi_12');
+  yield* stampFushigi('fushigi_12');
   sfx('se_kaitenyaki_stop');
   stopAmbient('amb_kaitenyaki', 1.2);
   yield 1200;
@@ -86,11 +85,13 @@ registerScript('evt_kaitenyaki', function* (): Co {
 ? ${YAKINAMES.join(' | ')}`);
   setFlag('flag_yakiname', k + 1);
   yield* msg(KAITENYAKI_ANSWER(YAKINAMES_KANA[k]));
-  // the key rolls off the plate: ころん
+  // the key rolls off the plate: ころん — and the stamp's result with it, in
+  // one window (朱肉, みました帳, the key)
   sparkle(10 * 16 + 10, 3 * 16 + 12);
   sfx('se_coin', { pitch: 0.8 });
-  yield 450;
-  yield* getKeyItem('item_maigo_key', KAITENYAKI_KEY);
+  addMp(2);
+  yield 420;
+  yield* getKeyItem('item_maigo_key', KAITENYAKI_KEY(fushigiCount()));
   setFlag('flag_got_maigo_key', 1);
   if (flag('flag_kanenari_joined')) {
     const kn = F().follower;
@@ -107,8 +108,6 @@ registerScript('evt_kaitenyaki', function* (): Co {
   }
   syncProgressSkills();
   yield* playHankoLearn('skill_yarinaoshi');
-  addMp(2);
-  yield* msg(KAITENYAKI_DONE(fushigiCount()));
   F().applyAudio(false);
 });
 
@@ -238,17 +237,17 @@ registerScript('evt_boss_intro', function* (): Co {
   p.dir = 'up';
   // a retry (「戦う前から やりなおす」) comes back to the same stand-off, shorter
   const again = !!flag('flag_boss_intro_seen');
-  yield 300;
+  yield 250;
   if (!again) yield* msg(T.BOSS_A);
   // the camera pushes in on the heap (2×): it shudders and rises in the
   // middle of the screen, the tag eyes open right in front of us
-  const z = yield* zoomIn(BOSS_FOOT[0] - 8, BOSS_FOOT[1] - 36, again ? 350 : 900);
-  // the heap shudders, 2 px, three times
-  for (let i = 0; i < (again ? 1 : 3); i++) {
+  const z = yield* zoomIn(BOSS_FOOT[0] - 8, BOSS_FOOT[1] - 36, again ? 350 : 700);
+  // the heap shudders, 2 px, twice
+  for (let i = 0; i < (again ? 1 : 2); i++) {
     lvTime.pileShakeUntil = f.t + 260;
     sfx('se_rumble', { vol: 0.8 + i * 0.1 });
     game.shake(1, 160);
-    yield 480;
+    yield 420;
   }
   // it rises: a big shadow child sitting with its knees up (1.2 s)
   lvTime.pileHidden = true;
@@ -258,7 +257,7 @@ registerScript('evt_boss_intro', function* (): Co {
   spawnBoss();
   sfx('se_rumble', { vol: 1, pitch: 0.7 });
   const t0 = f.t;
-  const riseMs = again ? 700 : 1200;
+  const riseMs = again ? 700 : 1050;
   yield () => {
     boss.rise = Math.min(1, (f.t - t0) / riseMs);
     return boss.rise >= 1;
@@ -268,7 +267,7 @@ registerScript('evt_boss_intro', function* (): Co {
   // the name-tag eyes open and look for Minato
   yield* animate(260, (k) => (boss.open = k));
   boss.open = 1;
-  for (const px of again ? [0] : [-1, 1, -0.6, 0.4, 0]) {
+  for (const px of again ? [0] : [-1, 0.8, 0]) {
     const from = boss.pupil;
     const s0 = f.t;
     yield () => {
@@ -282,12 +281,11 @@ registerScript('evt_boss_intro', function* (): Co {
   // its face stays up in the close-up; the window keeps to the bottom
   forceBoxPos('bottom');
   yield* msg(again ? T.BOSS_B_AGAIN : T.BOSS_B);
-  if (flag('flag_kanenari_joined') && !again) yield* flip(T.BOSS_FLIP);
   forceBoxPos(null);
   setFlag('flag_boss_intro_seen', 1);
   // one chime note, E5
   sfx('se_chime_note', { note: 'E5', hold: 0.8 });
-  yield 900;
+  yield 800;
   // the seal lands on the close-up
   zoomIntoBattle(z);
   const r = yield* eventBattle({ enemies: ['boss_omukaemachi'], boss: true, music: 'bgm_boss', background: 'bg_boss' });

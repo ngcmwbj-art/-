@@ -97,6 +97,13 @@ registerMap({
 
 // 4.4's grid with the pig mosquito-coil holder's tile (3,6) made solid: the
 // follower arrives beside Minato at the door and would stand on it.
+//
+// QA round 3: the candy jars (4,5)–(5,5) send you round them to (3,4) or
+// (5,4), and from there the counter used to give the class photo or the
+// 当てくじ instead of おばあ. Now the whole middle of the counter (3–5,3)
+// talks to her (lv_hi_counter), the class photo hangs over the counter's
+// west end (examined from (2,4)) and the 当てくじ card hangs on the front of
+// the jar stand (from (4,6), (5,6), (3,5), (6,5)).
 export const ROWS_HINOYA = [
   '#WWWWWWWW#',
   '#WWWWWWWW#',
@@ -137,9 +144,11 @@ registerMap({
     PR('in_hi_mat', 4, 6),
     // examine
     O('obj_bungu', 1, 2, { h: 3 }),
-    O('obj_class_photo', 3, 2, { face: 'up' }),
+    O('obj_class_photo', 2, 2, { face: 'up' }),
     O('obj_kids_drawings', 6, 2, { face: 'up' }),
-    O('obj_kuji', 5, 3),
+    // across the counter from (3,4), (4,4) or (5,4): おばあ (the shop)
+    { t: 'obj', id: 'lv_hi_counter', x: 3, y: 3, w: 3, face: 'up', script: 'lv_hi_counter' } as MapObj,
+    O('obj_kuji', 4, 5, { w: 2 }),
     O('obj_dagashi_shelf', 7, 3, { w: 2, h: 3 }),
     O('obj_dagashi_shelf', 8, 2, { id: 'obj_dagashi_shelf_n', script: 'obj_dagashi_shelf' }),
     O('obj_kayaributa', 3, 6),

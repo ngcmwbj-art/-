@@ -15,7 +15,7 @@ import { ihash, valueNoise } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { clockFace, framed, pc, prop } from './ifurn';
 import { blend, depthShade, lightPool, paintShell, screenPool, screenSpill, shellProp } from './ishell';
-import { exteriorOver, withExterior } from './iexterior';
+import { exteriorGlow, exteriorImg, exteriorOver, withExterior } from './iexterior';
 import { castRight, finish, lt } from './kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
@@ -151,20 +151,21 @@ registerProp('in_mr_shell', () => {
   p.vline(dx + 8, dy + 2, dy + 9, P.steel);
   p.hline(dx - 1, dx + 16, dy + 10, P.charcoal);
   const W = p.w;
-  // the arcade outside: the town's mosaic floor and the shop mat; ひのや's
-  // dark wooden front next door, the corner of the arch's street on the other side
+  // the arcade outside: the town's mosaic floor and the shop mat; ひのや and
+  // まめ吉 next door to the east, the hedge and the road up the slope with its
+  // crossing to the west (the town's own, moved out to the room's walls)
   const ext = withExterior(p, sh.glass, {
     rows,
     town: [27, 21],
+    bld: [24, 30, 16],
     skin: [P.white, P.concreteLt, P.concrete],
     roof: 'tin',
-    left: { skin: P.concrete, roof: 'slab' },
-    right: { skin: P.woodDark, roof: 'kawara', awning: [P.woodLt, P.brassOld] },
     seed: 7101,
     props: [{ id: 'prop_shop_mats', tx: 24, ty: 22 }],
   });
   return shellProp({
     img: ext.p.toCanvas(),
+    imgFor: exteriorImg(ext),
     glass: ext.glass.toCanvas(),
     ox: ext.ox,
     oy: ext.oy,
@@ -178,6 +179,10 @@ registerProp('in_mr_shell', () => {
       screenPool(g, x + 48, y + 50, 18, 8, P.sun, 0.12);
       // the doorway spills the street's sky onto the boards
       screenSpill(g, x + 72, y + dy, 18, 34, 22, rgbHex(env.grade.skyBot), 0.2 - n * 0.12, true);
+    },
+    glow(g: Gfx, x: number, y: number, env: PropEnv) {
+      // the arcade's lanterns and the neighbours' windows outside
+      exteriorGlow(g, x, y, ext, env);
     },
   });
 });

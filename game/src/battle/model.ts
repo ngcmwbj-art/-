@@ -43,6 +43,8 @@ export class PartyUnit {
   shakeT = 0;
   shakeAmp = 0;
   drop = 0;
+  /** Sideways slide of the panel (にげる: the party scurries right). */
+  slideX = 0;
   flashT = 0;
   bounceT = 0;
   /** Height of that hop (px): 2 normally, 4 for the victory. */

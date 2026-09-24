@@ -326,7 +326,17 @@ export class Renderer {
         actor: a,
         draw: () => {
           a.draw(wg, cx, cy, f.t);
-          if (a.drawFn) return;
+          if (a.drawFn) {
+            // a vehicle: its current frame, placed as makeVehicle draws it, so
+            // Minato behind it keeps his silhouette
+            const im = a.data.vehicle ? (a.data.shadowFrame as HTMLCanvasElement | undefined) : undefined;
+            if (im) {
+              d.img = im;
+              d.ix = Math.round(a.x) - Math.floor(im.width / 2) - cx;
+              d.iy = Math.round(a.y) - im.height + 1 - cy;
+            }
+            return;
+          }
           const img = a.frame();
           const [ix, iy] = a.drawPos(img);
           d.img = img;
@@ -372,8 +382,8 @@ export class Renderer {
           ectx.globalAlpha = 1;
           ectx.globalCompositeOperation = 'source-over';
         }
-        // occluders of the seers already drawn
-        if (!d.actor)
+        // occluders of the seers already drawn (things, and passing traffic)
+        if (!d.actor || d.actor.data.vehicle)
           for (const s of sil) {
             if (!s.drawn) continue;
             if (x >= s.x + s.img.width || y >= s.y + s.img.height || x + w <= s.x || y + h <= s.y) continue;
@@ -391,7 +401,11 @@ export class Renderer {
 
     // 6. foreground
     const fadeSeers: Actor[] = [...seers];
-    for (const a of f.actors) if (a.kind === 'sym' && a.visible) fadeSeers.push(a);
+    // enemy symbols, and the passers-by and cats walking their rounds (QA
+    // round 3: a salaryman vanished whole under the river road's cherries,
+    // a cat under the persimmon; in stage 2 the canopy thins over a shadow
+    // walking by with no one there)
+    for (const a of f.actors) if ((a.kind === 'sym' || a.data.passerby) && a.visible) fadeSeers.push(a);
     for (const p of f.props) {
       if (!p.present || !p.art.fg) continue;
       for (const part of p.art.fg) {

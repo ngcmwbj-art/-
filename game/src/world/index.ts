@@ -11,6 +11,7 @@ import { getItem, joinKanenari, newGameParty } from '../data/battle';
 import '../data/maps';
 import '../art/props';
 import './places';
+import './life';
 import { FieldScene, field } from './field';
 import { hasMap, mapIds } from './maps';
 import { setMsgHooks } from './msg';

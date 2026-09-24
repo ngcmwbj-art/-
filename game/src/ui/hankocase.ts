@@ -74,11 +74,7 @@ export function caseBody(): HTMLCanvasElement {
     p.vline(sx + 31, sy + 1, sy + 31, '#A8404C');
     for (let y = sy + 2; y < sy + 30; y++) for (let x = sx + 2; x < sx + 30; x++) if (hash2(x, y, 2) < 0.08) p.set(x, y, '#6A2230');
   }
-  // brass name plate under the slots
-  p.rect(W / 2 - 20, H - 16, 40, 8, '#A8742A');
-  p.rect(W / 2 - 19, H - 15, 38, 6, '#D9A441');
-  p.hline(W / 2 - 19, W / 2 + 18, H - 15, '#F6D98A');
-  for (let x = W / 2 - 14; x < W / 2 + 14; x += 3) p.set(x, H - 12, '#8A5A2A');
+  brassPlate(p, W / 2 - 24, H - 18);
   p.strokeRect(0, 0, W, H, UI.border);
   p.set(0, 0, 'transparent');
   p.set(W - 1, 0, 'transparent');
@@ -86,6 +82,71 @@ export function caseBody(): HTMLCanvasElement {
   p.set(W - 1, H - 1, 'transparent');
   bodyC = p.toCanvas();
   return bodyC;
+}
+
+/**
+ * The brass plate under the slots (48×11): chamfered corners, a bevel lit
+ * from the top left, brushed grain, a slotted screw at each end and the
+ * case's bell crest engraved in the middle between two engraved rules — cut
+ * lines are dark on their upper edge and catch the light on the lower one.
+ */
+function brassPlate(p: PixelCanvas, x0: number, y0: number): void {
+  const w = 48;
+  const h = 11;
+  const RIM = '#6A4A1A';
+  const DARK = '#8A5A2A';
+  const MID = '#C08A38';
+  const BODY = '#D9A441';
+  const LIGHT = '#F6D98A';
+  const SHINE = '#FFF1C4';
+  // a shadow on the velvet, down and right
+  p.hline(x0 + 2, x0 + w, y0 + h, '#3A0E16');
+  p.vline(x0 + w, y0 + 2, y0 + h - 1, '#3A0E16');
+  // the plate, corners cut at 45°
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const cut = Math.min(x, w - 1 - x) + Math.min(y, h - 1 - y);
+      if (cut < 1) continue;
+      let c = BODY;
+      if (cut === 1) c = RIM;
+      else if (y === 1 || x === 1 || (cut === 2 && (x < w / 2 ? y < h / 2 : y < 2))) c = LIGHT;
+      else if (y === h - 2 || x === w - 2) c = DARK;
+      else if (hash2(x >> 2, y, 19) < 0.22) c = MID; // brushed grain, in short strokes
+      p.set(x0 + x, y0 + y, c);
+    }
+  // a glint along the top bevel, near the left
+  p.hline(x0 + 4, x0 + 9, y0 + 1, SHINE);
+  // slotted screws: a lit dome, the slot cut across it
+  for (const sx of [x0 + 3, x0 + w - 6]) {
+    const sy = y0 + 4;
+    p.set(sx + 1, sy, LIGHT);
+    p.set(sx, sy + 1, LIGHT);
+    p.set(sx + 1, sy + 1, MID);
+    p.set(sx + 2, sy + 1, DARK);
+    p.set(sx + 1, sy + 2, DARK);
+    p.set(sx, sy + 2, RIM);
+    p.set(sx + 2, sy, RIM);
+  }
+  // the engraved bell crest (as inlaid on the lid), centred
+  const bell = ['..#..', '.###.', '.###.', '.###.', '#####', '..#..'];
+  const bx = x0 + Math.floor(w / 2) - 2;
+  const by = y0 + 2;
+  bell.forEach((row, y) =>
+    [...row].forEach((v, x) => {
+      if (v !== '#') return;
+      p.set(bx + x, by + y, DARK);
+      // the cut's lower lip catches the light
+      if (bell[y + 1]?.[x] !== '#') p.set(bx + x, by + y + 1, LIGHT);
+    }),
+  );
+  // engraved rules either side of the crest
+  for (const [a, b] of [
+    [x0 + 9, bx - 3],
+    [bx + 8, x0 + w - 10],
+  ]) {
+    p.hline(a, b, y0 + 5, DARK);
+    p.hline(a, b, y0 + 6, LIGHT);
+  }
 }
 
 /** The closed lid (brass clasp, bell crest inlay). */

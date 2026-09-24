@@ -31,11 +31,16 @@ const SAMPLES: Record<string, () => Generator> = {
   sys: function* () {
     yield* say('ラムネを 手に入れた！', { voice: 'sys' });
   },
+  /** A system line with some names coloured by hand and one left to the auto-marking. */
+  sysmix: function* () {
+    yield* say('ハンコケースを 受けとった！\n{c=#E23B2E}みました{/c}と {c=#E23B2E}ペケ{/c}の ハンコが 入っている。', { voice: 'sys' });
+    yield* say('{c=#E23B2E}ハンコケース{/c}を 受けとった！\n{c=#E23B2E}みました{/c}と {c=#E23B2E}ペケ{/c}の ハンコが 入っている。', { voice: 'sys' });
+  },
   narr: function* () {
     yield* say('表紙が まぶしいほど 白い。', { voice: 'narr' });
   },
   inner: function* () {
-    yield* say('（……チャイム、止まってない？）', { voice: 'minato' });
+    yield* say('（……チャイム、止まってない？）', { style: 'inner' });
   },
   fx: function* () {
     yield* say('{wave}ふしぎな 音が する……{/wave}{w=300}\n{shake}鐘が 鳴らない。{/shake}\n{c=#E23B2E}みました{/c}を 押しますか？', { name: 'おばあ', voice: 'obaa' });

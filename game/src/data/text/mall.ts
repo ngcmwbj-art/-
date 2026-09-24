@@ -1,16 +1,13 @@
 // 8.12 fushigi_12 回転焼き機 (evt_kaitenyaki), 10_narrative.md.
 
-// QA round 2 (tempo): the exchange is kept to about two thirds of the
-// book's pages — the same beats, fewer windows.
+// QA rounds 2–3 (tempo): the exchange is kept to about half of the book's
+// pages — the same beats, fewer windows.
 
+/** One page: the three names come as the choice after the stamp. */
 export const KAITENYAKI_SEEN = `@narr
 回転焼き機が 回り続けている。{w=300}
-鉄板の 上で、小さな カギも
-いっしょに 回っている。
-/
-今川焼きか、大判焼きか、回転焼きか。{w=300}
-だれも 名前を 決めて くれなかった。{w=600}
-だから ずっと、回っている。`;
+鉄板の 上で、小さな カギも いっしょに。{w=500}
+だれも 名前を 決めて くれなかったから。`;
 
 /** The plate stops and waits for a name: the choice comes under this page. */
 export const KAITENYAKI_PRESSED = `@narr
@@ -24,7 +21,10 @@ ${kana}{w=500}
 ……ソウ 呼ンデ モラエルナラ、
 ナンデモ ヨカッタ。`;
 
-export const KAITENYAKI_KEY = `@sys
+/** The stamp's result and the key, one window (the key rolls off the plate just before it). */
+export const KAITENYAKI_KEY = (count: number): string => `@sys
+朱肉が 2 たまった。
+みました帳に 書きこんだ。（ふしぎ ${count}/12）
 迷子センターの鍵を 手に入れた！`;
 
 /** カネナリくん's board: one window (大判焼き派 — and whether they agree). */
@@ -32,9 +32,6 @@ export const KAITENYAKI_FLIP = (agree: boolean): string => `@flip
 ぼくは 大判焼き派です。
 ${agree ? '（気が 合いますね）' : '（でも、いい 名前です）'}`;
 
-export const KAITENYAKI_DONE = (count: number): string => `@sys
-朱肉が 2 たまった。
-みました帳に 書きこんだ。（ふしぎ ${count}/12）`;
 
 export const KAITENYAKI_AGAIN = (name: string): string => `@narr
 回転焼き機は 止まっている。{w=300}

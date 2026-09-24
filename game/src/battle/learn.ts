@@ -12,8 +12,8 @@ import { sfx } from '../audio';
 import { fillAll, getSkill, HANKO_CASE_ORDER, SYS } from '../data/battle';
 import { state } from '../game/state';
 import type { BattleScene } from './scene';
-import { hanamaruFrame, ovalStamp, pekeMark } from './art/stamps';
 import { MessageBand } from './ui/message';
+import { drawCase as drawCaseUi, imprintFor } from '../ui/hankocase';
 
 // 18.5: case 192×104 at (96,56); 10 slots (5×2), each 32×32, 4px apart.
 const CX = 96;
@@ -30,55 +30,7 @@ function slotXY(i: number): [number, number] {
   return [SLOT_X0 + (i % 5) * SLOT_STEP, SLOT_Y0 + Math.floor(i / 5) * SLOT_ROW];
 }
 
-let caseC: HTMLCanvasElement | null = null;
 let lidC: HTMLCanvasElement | null = null;
-
-/** Wooden case body with red velvet lining and 10 slots (5×2, 32×32). */
-function caseBody(): HTMLCanvasElement {
-  if (caseC) return caseC;
-  const p = new PixelCanvas(CW, CH);
-  const wood = ['#6A4A2A', '#8A5A2A', '#A8742A', '#C08A38', '#D9A441'];
-  for (let y = 0; y < CH; y++)
-    for (let x = 0; x < CW; x++) {
-      const grain = Math.sin(y * 0.9 + Math.sin(x * 0.07) * 3 + hash2(x >> 3, y >> 1, 4) * 1.2);
-      let v = 0.55 + grain * 0.12 - (x / CW) * 0.18 - (y / CH) * 0.1;
-      if (y < 2 || x < 2) v += 0.25;
-      if (y > CH - 3 || x > CW - 3) v -= 0.25;
-      const idx = Math.max(0, Math.min(4, Math.floor(v * 5)));
-      p.set(x, y, wood[idx]);
-    }
-  // velvet lining
-  const vel = ['#4A1620', '#6A1E28', '#8A2E3A', '#A8404C'];
-  for (let y = 5; y < CH - 5; y++)
-    for (let x = 5; x < CW - 5; x++) {
-      const n = hash2(x, y, 9);
-      const v = 0.55 - ((x - 5) / (CW - 10)) * 0.15 + (n - 0.5) * 0.2;
-      p.set(x, y, vel[Math.max(0, Math.min(3, Math.floor(v * 4)))]);
-    }
-  // inner bevel of the wooden rim
-  p.hline(5, CW - 6, 5, '#3A0E16');
-  p.vline(5, 5, CH - 6, '#3A0E16');
-  p.hline(5, CW - 6, CH - 6, '#C08A38');
-  p.vline(CW - 6, 5, CH - 6, '#C08A38');
-  // slots: 5 × 2, 32×32 recesses, 4px apart
-  for (let k = 0; k < SLOTS; k++) {
-    const [sx, sy] = slotXY(k);
-    p.rect(sx, sy, 32, 32, '#5A1822');
-    p.hline(sx, sx + 31, sy, '#3A0E16');
-    p.vline(sx, sy, sy + 31, '#3A0E16');
-    p.hline(sx + 1, sx + 31, sy + 31, '#A8404C');
-    p.vline(sx + 31, sy + 1, sy + 31, '#A8404C');
-    for (let y = sy + 2; y < sy + 30; y++) for (let x = sx + 2; x < sx + 30; x++) if (hash2(x, y, 2) < 0.08) p.set(x, y, '#6A2230');
-  }
-  // a tiny brass name plate under the slots
-  p.rect(CW / 2 - 20, CH - 16, 40, 8, '#A8742A');
-  p.rect(CW / 2 - 19, CH - 15, 38, 6, '#D9A441');
-  p.hline(CW / 2 - 19, CW / 2 + 18, CH - 15, '#F6D98A');
-  for (let x = CW / 2 - 14; x < CW / 2 + 14; x += 3) p.set(x, CH - 12, '#8A5A2A');
-  p.strokeRect(0, 0, CW, CH, '#2A2440');
-  caseC = p.toCanvas();
-  return caseC;
-}
 
 /** Closed lid with a brass clasp. */
 function lid(): HTMLCanvasElement {
@@ -107,42 +59,23 @@ function lid(): HTMLCanvasElement {
   return lidC;
 }
 
-let arrowC: HTMLCanvasElement | null = null;
-function undoImprint(): HTMLCanvasElement {
-  if (arrowC) return arrowC;
-  const [c, ctx] = makeCanvas(26, 26);
-  ctx.fillStyle = '#E23B2E';
-  for (let i = 0; i < 60; i++) {
-    const a = -Math.PI / 2 - (i / 60) * Math.PI * 1.8;
-    ctx.fillRect(Math.round(13 + Math.cos(a) * 9), Math.round(13 + Math.sin(a) * 9), 2, 2);
-  }
-  const ea = -Math.PI / 2 - Math.PI * 1.8;
-  const ex = 13 + Math.cos(ea) * 9;
-  const ey = 13 + Math.sin(ea) * 9;
-  for (let k = 0; k < 4; k++) {
-    ctx.fillRect(Math.round(ex - k), Math.round(ey - 3 + k), 2, 1);
-    ctx.fillRect(Math.round(ex + k), Math.round(ey - 3 + k), 2, 1);
-  }
-  arrowC = c;
+let cardC: HTMLCanvasElement | null = null;
+/** The paper sample card a seal lies on in its slot (as ui/hankocase draws it). */
+function sampleCard(): HTMLCanvasElement {
+  if (cardC) return cardC;
+  const [c, ctx] = makeCanvas(28, 28);
+  ctx.fillStyle = '#3A0E16';
+  ctx.globalAlpha = 0.6;
+  ctx.fillRect(2, 2, 26, 26);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#E8D9B5';
+  ctx.fillRect(0, 0, 26, 26);
+  ctx.fillStyle = '#FBF3DC';
+  ctx.fillRect(0, 0, 25, 25);
+  ctx.fillStyle = '#FFFBEE';
+  ctx.fillRect(0, 0, 25, 1);
+  cardC = c;
   return c;
-}
-
-/** Imprint of a hanko (for the case slots). */
-export function imprint(skillId: string): HTMLCanvasElement | null {
-  switch (skillId) {
-    case 'skill_mimashita':
-      return ovalStamp('みました', 28, 14, 0.05, 4);
-    case 'skill_peke':
-      return pekeMark(22, 1);
-    case 'skill_hanamaru':
-      return hanamaruFrame(26, 1, false, 2);
-    case 'skill_yarinaoshi':
-      return undoImprint();
-    case 'skill_okaerinasai':
-      return ovalStamp('おかえりなさい', 30, 20, 0, 6, false, false);
-    default:
-      return null;
-  }
 }
 
 interface CaseState {
@@ -160,25 +93,27 @@ interface CaseState {
 function drawCase(g: Gfx, st: CaseState): void {
   g.rect(0, 0, 384, 216, '#0B0B14', 0.5 * Math.min(1, st.t / 150) * (1 - st.closing));
   const y = CY + Math.round((1 - st.rise) * 170) + Math.round(st.closing * 170);
-  // drop shadow
-  g.rect(CX + 3, y + 3, CW, CH, '#0B0B14', 0.5);
-  g.img(caseBody(), CX, y);
-  HANKO_CASE_ORDER.forEach((sk, i) => {
-    if (i >= SLOTS) return;
+  // the same case as the menu's ハンコ page, the gift and the ending
+  // notebook (ui/hankocase): owned seals lie on cream sample cards with
+  // their imprint in 朱 (QA round 3: here they were red on the red velvet)
+  drawCaseUi(g, CX, y, { owned: (id) => st.owned.includes(id) && id !== st.skill, clear: false, t: st.t });
+  const i = HANKO_CASE_ORDER.indexOf(st.skill);
+  if (i >= 0 && i < SLOTS) {
     const [ox, oy] = slotXY(i);
     const sx = CX + ox;
     const sy = y + oy;
-    const isNew = sk === st.skill;
-    if (!st.owned.includes(sk) && !isNew) return;
-    const img = imprint(sk);
-    if (!img) return;
-    const a = isNew ? st.newAlpha : 1;
-    const sc = isNew ? st.newScale : 1;
-    const w = img.width * sc;
-    const h = img.height * sc;
-    g.alpha(a, () => g.ctx.drawImage(img, Math.round(sx + 16 - w / 2), Math.round(sy + 16 - h / 2), Math.round(w), Math.round(h)));
-    if (isNew && st.newAlpha > 0 && st.newAlpha < 1) g.alpha(0.5 * (1 - st.newAlpha), () => g.rect(sx + 2, sy + 2, 28, 28, '#FF6A4D'));
-  });
+    // the new one: an empty slot (dotted outline) whose sample card fades
+    // in as the light runs round; the imprint then rises on it (α0→1, 1.3→1.0)
+    const cardA = st.newAlpha > 0 ? 1 : Math.min(1, st.orbit * 1.4);
+    g.alpha(cardA, () => g.img(sampleCard(), sx + 3, sy + 3));
+    const img = imprintFor(st.skill);
+    if (img && st.newAlpha > 0) {
+      const w = img.width * st.newScale;
+      const h = img.height * st.newScale;
+      g.alpha(st.newAlpha, () => g.ctx.drawImage(img, Math.round(sx + 3 + 12.5 - w / 2), Math.round(sy + 3 + 12.5 - h / 2), Math.round(w), Math.round(h)));
+    }
+    if (st.newAlpha > 0 && st.newAlpha < 1) g.alpha(0.45 * (1 - st.newAlpha), () => g.rect(sx + 3, sy + 3, 25, 25, '#FF6A4D'));
+  }
   // orbiting vermilion light with a tail
   if (st.orbit > 0 && st.orbit < 1) {
     const per = 2 * (CW + CH);

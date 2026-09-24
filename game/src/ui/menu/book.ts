@@ -286,13 +286,24 @@ export class BookPage implements MenuPage {
       // a map pin and the place
       g.rect(x + 1, y + 5, 3, 3, UI.accent);
       g.px(x + 2, y + 8, UI.accentDark);
-      g.text(place, x + 7, y, { color: UI.pencil });
-      y += 22;
-      const body = fitWrap(pressedText(i), w);
-      body.slice(0, 4).forEach((l, j) => g.text(l.text, x, y + j * 17, { color: UI.text, spacing: l.spacing }));
-      // the 「みました」 seal on the corner of the page
+      // long place names wrap (with tightened spacing) instead of running off the page
+      const pl = fitWrap(place, w - 8).slice(0, 2);
+      pl.forEach((l, j) => g.text(l.text, x + 7, y + j * 16, { color: UI.pencil, spacing: l.spacing }));
+      const placeY = y;
+      y += 6 + pl.length * 16;
+      // the whole stamped text; the 「みました」 seal goes under its last line,
+      // or — when the text fills the page — beside the place line, so it
+      // never lands on the text and nothing is cut
       const seal = ovalStamp('みました', 36, 22, 0.1, i + 3);
-      g.img(seal, SP.x + SP.w - 12 - seal.width, SP.y + SP.h - 48);
+      const body = fitWrap(pressedText(i), w);
+      const bottom = SP.y + SP.h - 10;
+      const sealX = SP.x + SP.w - 12 - seal.width;
+      const below = body.length * 17 + 2 + seal.height <= bottom - y;
+      const placeRight = x + 7 + Math.max(...pl.map((l) => textW(l.text)));
+      const lineH = below ? 17 : Math.max(15, Math.min(17, Math.floor((bottom - y) / Math.max(1, body.length))));
+      body.slice(0, Math.floor((bottom - y) / lineH)).forEach((l, j) => g.text(l.text, x, y + j * lineH, { color: UI.text, spacing: l.spacing }));
+      if (below) g.img(seal, sealX, y + body.length * 17 + 2);
+      else g.img(seal, sealX, placeRight + 6 <= sealX ? placeY - 4 : SP.y + 6);
       return;
     }
     if (s === 1) {

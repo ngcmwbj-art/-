@@ -19,7 +19,7 @@ import { lvTime } from './istate';
 import { castRight, dk, finish, lt } from './kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
-import { exteriorOver, withExterior } from './iexterior';
+import { exteriorGlow, exteriorImg, exteriorOver, withExterior } from './iexterior';
 import { fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
@@ -113,15 +113,15 @@ registerProp('in_ld_shell', () => {
   p.hline(dx - 1, dx + 16, dy + 10, P.charcoal);
   const W = p.w;
   // outside on the river road: the pavers, the vending machine by the door
-  // and the cardboard box of the town; a house's block wall to the west,
-  // the photo studio to the east
+  // and the cardboard box of the town; the gravel alley and the hedge, the
+  // madam's house to the west, the photo studio and the shuttered shops to
+  // the east (the town's own, moved out to the room's walls)
   const ext = withExterior(p, sh.glass, {
     rows,
     town: [26, 31],
+    bld: [24, 29, 26],
     skin: [P.white, P.concreteLt, P.steel],
     roof: 'slab',
-    left: { skin: P.concrete, roof: 'kawara' },
-    right: { skin: P.paper, roof: 'kawara' },
     seed: 7301,
     props: [
       { id: 'obj_vending_normal', tx: 24, ty: 32 },
@@ -130,6 +130,7 @@ registerProp('in_ld_shell', () => {
   });
   return shellProp({
     img: ext.p.toCanvas(),
+    imgFor: exteriorImg(ext),
     glass: ext.glass.toCanvas(),
     ox: ext.ox,
     oy: ext.oy,
@@ -143,6 +144,10 @@ registerProp('in_ld_shell', () => {
       screenPool(g, x + 64, y + 62, 44, 18, P.glint, 0.16 + n * 0.1);
       screenPool(g, x + 136, y + 62, 44, 18, P.glint, (0.16 + n * 0.1) * (0.35 + t2 * 0.65));
       screenSpill(g, x + 56, y + 96, 18, 36, 24, rgbHex(env.grade.skyBot), 0.2 - n * 0.12, true);
+    },
+    glow(g: Gfx, x: number, y: number, env: PropEnv) {
+      // the street lamps and the neighbours' windows outside
+      exteriorGlow(g, x, y, ext, env);
     },
     light(g: Gfx, x: number, y: number, env: PropEnv) {
       // white tube light: the laundromat is the brightest room on the river road at night

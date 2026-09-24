@@ -18,7 +18,7 @@ import { depthShade, dust, lightPool, paintShell, screenPool, shellProp, tintSpi
 import { castRight, finish } from './kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
-import { exteriorOver, withExterior } from './iexterior';
+import { exteriorGlow, exteriorImg, exteriorOver, withExterior } from './iexterior';
 import { fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
@@ -73,14 +73,15 @@ registerProp('in_kb_shell', () => {
   const H = p.h;
   // outside on the river road: the red lamp over the door (its globe on the
   // front's edge, breathing in glow()), the white police bicycle by the
-  // wall; shuttered shops either side
+  // wall; the shuttered bait shop and the lane to the west, the ivy on the
+  // embankment and the railway to the east (the town's own, moved out to
+  // the room's walls)
   const ext = withExterior(p, sh.glass, {
     rows,
     town: [51, 31],
+    bld: [50, 54, 26],
     skin: [P.concreteLt, P.concrete, P.steel],
     roof: 'slab',
-    left: { skin: P.steel, roof: 'tin' },
-    right: { skin: P.concrete, roof: 'tin' },
     seed: 7401,
     props: [{ id: 'obj_koban_bicycle', tx: 55, ty: 31, dy: 10 }],
     paint: (e) => {
@@ -98,6 +99,7 @@ registerProp('in_kb_shell', () => {
   const lampY = ext.streetY - 2.5;
   return shellProp({
     img: ext.p.toCanvas(),
+    imgFor: exteriorImg(ext),
     glass: ext.glass.toCanvas(),
     ox: ext.ox,
     oy: ext.oy,
@@ -112,6 +114,8 @@ registerProp('in_kb_shell', () => {
       screenPool(g, x + 72, y + 64, 50, 22, P.glint, (0.14 + n * 0.1) * (on ? 1 : 0.2));
     },
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
+      // the street lamps and the neighbours' windows outside
+      exteriorGlow(g, x, y, ext, env);
       // the door's glass lit red by the lamp outside
       const k = redLamp(env);
       screenPool(g, x + lampX, y + lampY, 7, 7, P.red, 0.35 + k * 0.5);

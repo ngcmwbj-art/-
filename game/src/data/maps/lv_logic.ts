@@ -39,6 +39,7 @@ import { P } from '../../art/tiles/palette';
 import { field, FieldScene, registerAmbKeep } from '../../world/field';
 import { registerWorldFx } from '../../world/fx';
 import { fushigiDone, onFushigiPressed } from '../../world/fushigi';
+import { interactActor } from '../../world/interact';
 import { getScript, registerScript } from '../../world/scripts';
 import { runMsg } from '../../world/msg';
 import type { DoorObj, TileSpec } from '../../world/types';
@@ -370,6 +371,17 @@ registerScript('lv_in_maruyama', function* (ctx) {
 });
 registerScript('lv_in_hinoya', function* (ctx) {
   if (!flag('flag_met_obaa') && flag('flag_stage') === 0) yield* runIf('evt_obaa_first', ctx);
+});
+/**
+ * ひのや's counter (3–5,3): whichever of the three tiles in front of it you
+ * face it from, you talk to おばあ (and so get the shop), as if she were
+ * right across from you (QA round 3).
+ */
+registerScript('lv_hi_counter', function* () {
+  const f = field();
+  const a = f?.actorById('npc_obaa');
+  if (!f || !a || !a.visible) return;
+  yield* interactActor(f, a);
 });
 registerScript('lv_in_mall_hall', function* (ctx) {
   if (!flag('flag_mall_entered')) yield* runIf('evt_mall_enter', ctx);

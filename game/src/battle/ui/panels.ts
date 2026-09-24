@@ -2,7 +2,7 @@
 // list (15.9), boss chime sticky (15.6) and the みました info card (15.9).
 
 import type { Gfx } from '../../engine/gfx';
-import { drawText } from '../../engine/font';
+import { drawText, measure } from '../../engine/font';
 import { portrait } from '../../art/chars';
 import { hanamaruFrame, roundSeal } from '../art/stamps';
 import { makeCanvas } from '../../engine/pixel';
@@ -49,7 +49,7 @@ export function moodOf(u: PartyUnit, now: number): string {
 }
 
 export function panelOffset(u: PartyUnit): { dx: number; dy: number } {
-  let dx = 0;
+  let dx = Math.round(u.slideX);
   if (u.shakeT > 0) {
     const k = u.shakeT / 167;
     dx = Math.round(Math.sin(u.shakeT * 0.35) * u.shakeAmp * k * k);
@@ -379,25 +379,41 @@ export interface CardData {
   hidden?: boolean;
   /** Which side of the screen the card slides in on (away from the enemy). */
   side?: 'left' | 'right';
+  /** Resting x and width (placed clear of the enemy it describes). */
+  x?: number;
+  w?: number;
 }
 
 /** みました info card, `slide` 0..1 (1 = in place). */
+/** Info card rect: y and height (the みました tape sits on its top edge). */
+export const CARD_Y = 54;
+export const CARD_H = 90;
+
+/** Card width for its content (the short name decides; 112–160). */
+export function infoCardWidth(d: CardData): number {
+  return Math.max(112, Math.min(160, Math.max(measure(d.short), 96) + 22));
+}
+
 export function drawInfoCard(g: Gfx, d: CardData, slide: number): void {
-  const x = d.side === 'left' ? Math.round(8 - (1 - slide) * 172) : Math.round(216 + (1 - slide) * 170);
-  const y = 50;
-  drawNote(g, x, y, 160, 96);
-  g.img(tapeCanvas(64, 16, 'みました', C.tape, 12), x + 48, y - 8);
-  g.text(d.short, x + 10, 56 + 2, { color: C.ink });
-  g.text('弱点', x + 10, 74 + 2, { color: C.shuDark });
+  const w = d.w ?? 160;
+  const rest = d.x ?? (d.side === 'left' ? 8 : 216);
+  const x = d.side === 'left' ? Math.round(rest - (1 - slide) * (rest + w + 4)) : Math.round(rest + (1 - slide) * (388 - rest));
+  const y = CARD_Y;
+  drawNote(g, x, y, w, CARD_H);
+  // the tape is stuck across the card's top edge, fully under the band
+  g.img(tapeCanvas(64, 16, 'みました', C.tape, 12), x + Math.round(w / 2) - 32, y - 4);
+  // rows at 16px under the tape (it covers y−4…y+12)
+  g.text(d.short, x + 10, y + 12, { color: C.ink });
+  g.text('弱点', x + 10, y + 28, { color: C.shuDark });
   const icons = (list: typeof d.weak, yy: number) => {
     if (!list.length) g.text('なし', x + 48, yy, { color: C.gray });
     list.forEach((a, i) => g.img(attrIcon(a), x + 48 + i * 12, yy + 4));
   };
-  icons(d.weak, 76);
-  g.text('耐性', x + 10, 92 + 2, { color: C.navy });
-  icons(d.resist, 94);
-  drawText(g.ctx, `ツッコミ ${d.seen}/${d.total}`, x + 10, 110 + 2, { color: C.ink });
-  if (!d.hidden) drawBar(g, x + 20, y + 80, 120, 4, d.hpRate, C.shu, C.grid, 0);
+  icons(d.weak, y + 28);
+  g.text('耐性', x + 10, y + 44, { color: C.navy });
+  icons(d.resist, y + 44);
+  drawText(g.ctx, `ツッコミ ${d.seen}/${d.total}`, x + 10, y + 60, { color: C.ink });
+  if (!d.hidden) drawBar(g, x + 12, y + 80, w - 24, 4, Math.min(1, d.hpRate), C.shu, C.grid, 0);
 }
 
 // ---- empty right-hand slot (before Kanenari-kun joins) -------------------------

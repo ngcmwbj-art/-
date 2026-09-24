@@ -305,7 +305,9 @@ export class MessageBand {
     }
     const L = this.cur ?? this.staticLayout ?? this.linger;
     if (!L) return;
-    const shown = this.cur ? this.shown : L.glyphs.length;
+    // a new page shows its first glyph on the frame it replaces the last
+    // one (QA round 3: a frame of blank paper flashed between pages)
+    const shown = this.cur ? Math.max(1, this.shown) : L.glyphs.length;
     const ox = this.x + 14 + (this.tag ? tagW - 10 : 0);
     const oy = this.y + 5;
     const ctx = g.ctx;

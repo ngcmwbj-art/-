@@ -60,6 +60,20 @@ export function addFushigiSpots(fn: (f: FieldScene) => { id: string; x: number; 
 export function field(): FieldScene | null {
   return current;
 }
+// field sounds are placed by where they happen on screen (world/audio seAt)
+snd.setListener(() => {
+  const f = current;
+  if (!f) return null;
+  const z = f.viewScale > 1;
+  return {
+    camX: z ? f.viewX : f.camX,
+    camY: z ? f.viewY : f.camY,
+    viewW: W / f.viewScale,
+    viewH: H / f.viewScale,
+    x: f.player.x,
+    y: f.player.y,
+  };
+});
 const ambKeepers: ((mapId: string) => string[])[] = [];
 /**
  * Beds a map keeps playing although they're not in its `amb` list (state
@@ -280,11 +294,11 @@ export class FieldScene implements Scene {
     a.bh = 10;
     const view = (): VehicleView => a.dir;
     const img = () => vehicleFrame(id, view(), this.t, a.moving);
-    a.bw = 40;
+    a.bw = 52;
     a.data.shadowFrame = img();
     a.drawFn = (g, x, y) => {
       const im = img();
-      a.bw = a.dir === 'left' || a.dir === 'right' ? 40 : 20;
+      a.bw = a.dir === 'left' || a.dir === 'right' ? 52 : 24;
       a.data.shadowFrame = im;
       // contact shadow under the body
       g.rect(x - Math.floor(im.width / 2) + 2, y - 3, im.width - 4, 3, P.ink, 0.35);
@@ -584,6 +598,8 @@ export class FieldScene implements Scene {
       motion: this.grade.motion,
       stage: flag('flag_stage'),
       size: [this.map.w * 16, this.map.h * 16],
+      actors: this.actors,
+      party: this.follower ? [this.player, this.follower] : [this.player],
       hitsPlayer: (a, x, y) => {
         for (const p of this.follower ? [this.player, this.follower] : [this.player])
           if (Math.abs(p.x - x) < a.bw / 2 + 7 && Math.abs(p.y - 4 - (y - a.bh / 2)) < a.bh / 2 + 6) return true;
@@ -627,13 +643,23 @@ export class FieldScene implements Scene {
     const p = this.player;
     const x0 = p.x;
     const y0 = p.y;
+    // Walking head-on into something to examine (the tile Z would examine is
+    // it): stop in front of it rather than slip round its corner (QA round 3:
+    // pushing right at the jizo from the side slid Minato up past it, facing
+    // the poster on the pole instead). Walls still round their corners.
+    const assist = (dx: number, dy: number): number => {
+      const tx = p.tileX + dx;
+      const ty = p.tileY + dy;
+      return this.isSolidTile(tx, ty) && this.objectAt(tx, ty, null) ? 2 : 6;
+    };
     // x axis
     if (mx !== 0) {
       if (this.free(p, p.x + mx, p.y)) p.x += mx;
       else if (iy === 0) {
         // corner assist: slide around a corner up to 6px away
         let slid = false;
-        for (let k = 1; k <= 6 && !slid; k++) {
+        const lim = assist(Math.sign(mx), 0);
+        for (let k = 1; k <= lim && !slid; k++) {
           const step = Math.min(k, Math.abs(mx) + 0.3);
           if (this.free(p, p.x + mx, p.y - k) && this.free(p, p.x, p.y - step)) {
             p.y -= step;
@@ -654,7 +680,8 @@ export class FieldScene implements Scene {
       if (this.free(p, p.x, p.y + my)) p.y += my;
       else if (ix === 0) {
         let slid = false;
-        for (let k = 1; k <= 6 && !slid; k++) {
+        const lim = assist(0, Math.sign(my));
+        for (let k = 1; k <= lim && !slid; k++) {
           const step = Math.min(k, Math.abs(my) + 0.3);
           if (this.free(p, p.x - k, p.y + my) && this.free(p, p.x - step, p.y)) {
             p.x -= step;
@@ -940,6 +967,22 @@ export class FieldScene implements Scene {
       if (a && a.kind !== 'player') {
         this.startScript(interactActor(this, a));
         return;
+      }
+    }
+    // 2b) the feet box straddles two rows (columns): what is in front of the other one
+    {
+      const [fx, fy] = this.facingTile();
+      const alt: [number, number][] =
+        dx !== 0
+          ? [[fx, Math.floor((p.y - p.bh) / 16)]]
+          : [[Math.floor((p.x - p.bw / 2) / 16), fy], [Math.floor((p.x + p.bw / 2 - 0.01) / 16), fy]];
+      for (const [ax, ay] of alt) {
+        if (ax === fx && ay === fy) continue;
+        const o = this.objectAt(ax, ay, p.dir);
+        if (o && !o.flat) {
+          this.startScript(interactObject(this, o));
+          return;
+        }
       }
     }
     // 3) flat things under the player's feet

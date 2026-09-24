@@ -84,8 +84,21 @@ export type NpcMove =
    * (or round, with `loop`), pausing `wait` ms at each end. `hide` lists the
    * point indices where the walker is out of sight (off the map edge) while it
    * waits there; `endPose` is held while waiting (a cat sits down).
+   * `keepLeft` (px): the points trace the middle of a road and the walker /
+   * vehicle keeps that far to the left of it in whichever direction it goes
+   * (Japan drives on the left), so traffic each way has its own lane.
    */
-  | { kind: 'route'; points: [number, number][]; speed: number; wait?: number; loop?: boolean; hide?: number[]; endPose?: string; phase?: number };
+  | {
+      kind: 'route';
+      points: [number, number][];
+      speed: number;
+      wait?: number;
+      loop?: boolean;
+      hide?: number[];
+      endPose?: string;
+      phase?: number;
+      keepLeft?: number;
+    };
 
 interface Base {
   /** Unique within the map (auto-generated for anonymous props). */
@@ -153,8 +166,9 @@ export interface NpcObj extends Base {
   animal?: boolean;
   /**
    * A passer-by (QA round 1): can't be talked to, doesn't block the player
-   * (but waits for him), stands frozen mid-stride in stage 1, and in stage 2
-   * walks on as a shadow only ('shadow') or is gone ('hide', via cond).
+   * (steps round him, or waits), keeps walking its round in stage 1 like
+   * every person and animal (30_level_art 7.8; a vehicle stops dead), and in
+   * stage 2 walks on as a shadow only ('shadow') or is gone ('hide', via cond).
    * Spawned only once its sprite is registered (char art).
    */
   passerby?: boolean;

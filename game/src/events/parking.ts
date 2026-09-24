@@ -9,7 +9,7 @@ import { actor, defeatSymbol, face, msg, registerScript, shake } from '../world/
 import type { Actor } from '../world/actor';
 import * as T from '../data/text/events';
 import { eventBattle, F, grace, panBack, panTo } from './lib';
-import { puff } from './fx';
+import { puff, smallVoice } from './fx';
 import { forceBoxPos, zoomIn, zoomIntoBattle, zoomPan } from './stage';
 
 /** The close-up's centre sits this far above the machine's feet (world px). */
@@ -50,16 +50,22 @@ registerScript('evt_ojigi', function* (): Co {
     vm.tempPose = 'bow_90';
     sfx('se_bow', { vol: 0.5, pitch: 0.7 });
     game.shake(1, 120);
-    yield 520;
+    yield 260;
+    // bowing, it thanks nobody, twice (a small balloon: no window)
+    smallVoice('sym_town_07', 'アリガトウ ゴザイマシタ', 900);
+    yield 1000;
+    smallVoice('sym_town_07', 'アリガトウ ゴザイマシタ', 900);
+    yield 950;
     forceBoxPos('bottom');
     yield* msg(T.OJIGI_A);
     // it straightens to its lean, and says it once more
     vm.tempPose = 'bow_60';
     yield 90;
     vm.tempPose = null;
-    yield 220;
-    yield* msg(T.OJIGI_B);
     forceBoxPos(null);
+    yield 200;
+    smallVoice('sym_town_07', T.OJIGI_B, 1000);
+    yield 650;
     // a 90° bow, and it jumps a tile forward: DOSUN — the close-up goes with it
     vm.playAnim('bow');
     yield 250;

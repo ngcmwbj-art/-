@@ -574,6 +574,8 @@ export function dust(g: Gfx, x0: number, y0: number, w: number, h: number, shear
 
 export interface ShellArt {
   img: HTMLCanvasElement;
+  /** The image by stage (a shop's outside changes with it); `img` gives the size. */
+  imgFor?(env: PropEnv): HTMLCanvasElement;
   glass?: HTMLCanvasElement;
   /** Extra canvas drawn beyond the map (e.g. the atrium below M4's railing). */
   ox?: number;
@@ -593,7 +595,7 @@ export function shellProp(s: ShellArt): PropArt {
     h: s.img.height,
     foot: 0,
     flat: true,
-    img: () => s.img,
+    img: s.imgFor ?? (() => s.img),
     glass: s.glass,
     over: s.over,
     glow: s.glow,

@@ -18,7 +18,7 @@ import type { Co } from '../engine/co';
 import { game, type Scene } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { Particles } from '../engine/particles';
-import { W } from '../engine/screen';
+import { H, W } from '../engine/screen';
 import { ease } from '../engine/tween';
 import { hasSave } from '../game/state';
 import { audioReady, musicPosition, playAmbient, playBgm, sfx, stopAllAmbient, stopBgm } from '../audio';
@@ -47,10 +47,12 @@ import {
   sunCanvas,
   type Sky,
 } from './title_art';
-import { dottedLine, drawCursor, drawTape, drawWindow, textW, UI } from './window';
+import { dottedLine, drawCursor, drawTape, drawWindow, rectA, textW, UI } from './window';
 import { coverToFade, ditherOut } from './transition';
 
 const MENU = ['はじめる', 'つづきから', 'せってい'];
+/** How deep the dusk is over the town behind the boot screen (it lifts from here). */
+const PRESS_SHADE = 0.72;
 const LOGO_AT = 600;
 const MENU_AT = 1200;
 /** Fallback chime timing when the music clock isn't available (ms after boot input). */
@@ -76,11 +78,18 @@ export class TitleScene implements Scene {
   private ink = new Particles();
   private crowAt = 12000;
   private busy = false;
+  /** 0..1: the title's tapes step back while the settings sheet is up. */
+  private menuHide = 0;
+  /** The boot screen was shown: the town fades up from its dim state, not from black. */
+  private fromPress = false;
   private readonly sky: Sky = 'sunset';
 
   constructor(skipPress = false) {
     if (skipPress || audioReady()) this.phase = 'intro';
-    if (!this.canLoad) this.index = 0;
+    else this.fromPress = true;
+    // with a save, the cursor rests on つづきから: one stray 決定 must not
+    // start a new game over it
+    this.index = this.canLoad ? 1 : 0;
   }
 
   enter(): void {
@@ -106,6 +115,7 @@ export class TitleScene implements Scene {
     }
     this.t += dt;
     this.moveT += dt;
+    this.menuHide = Math.max(0, Math.min(1, this.menuHide + (this.busy ? dt : -dt) / 140));
     // the logo is stamped
     if (!this.stamped && this.t >= LOGO_AT) {
       this.stamped = true;
@@ -245,54 +255,80 @@ export class TitleScene implements Scene {
     const t = this.t;
     const inK = Math.min(1, t / LOGO_AT);
     const e = ease.cubicOut(inK);
-    const slide = (px: number) => Math.round((1 - e) * px);
-    g.clear(UI.darkest);
-    g.alpha(e, () => {
-      g.img(skyCanvas(this.sky), 0, 0);
-      // clouds drift right (4 px/s) and stop with the chime
-      CLOUDS.forEach((c, i) => {
-        const img = cloudCanvas(i, this.sky);
-        const span = W + img.width;
-        const x = ((c.x + this.cloudOff * (1 + i * 0.15)) % span) - img.width * 0.2;
-        g.img(img, Math.round(x > W ? x - span : x), c.y + slide(1));
-      });
-      this.drawSun(g, slide(1));
-      g.translated(0, slide(2), () => drawHoshimiNight(g, t, false));
-      g.img(farCanvas(this.sky), 0, 104 + slide(2));
-      g.img(midCanvas(this.sky), 0, 110 + slide(3));
-      // 「ユ」 of ユウナリ flickers
-      const flick = Math.floor(t / 90) % 37 === 0 || Math.floor(t / 90) % 53 === 0;
-      g.translated(0, slide(3), () => drawMallSign(g, !flick, this.sky));
-      // wires: idle sway, a 1px shiver right after the chime is cut
-      const shiver = this.cut && t - this.cutT < 500 ? (Math.floor((t - this.cutT) / 60) % 2 ? 1 : -1) * (1 - (t - this.cutT) / 500) : 0;
-      const sway = this.frozen ? shiver : Math.sin(t / 1400) * 0.6 + shiver;
-      g.translated(0, slide(5), () => drawWires(g, sway, this.sky));
-      g.translated(0, slide(6), () => drawWater(g, t, this.sky, this.frozen ? this.cutT : null));
-      g.img(nearCanvas(this.sky), 0, slide(6));
-      // Kanenari's bell catches the light every 4 s
-      if (t % 4000 < 160) g.px(166, 168 + slide(6), '#FFF6D8');
-      // crows crossing the sky
-      const ct = t - this.crowAt;
-      if (ct > 0 && ct < 9000) {
-        const x = -20 + ct * 0.048;
-        drawCrow(g, x, 58 + Math.sin(ct / 700) * 3, Math.floor(ct / 180));
-        drawCrow(g, x - 16, 64 + Math.sin(ct / 650 + 1) * 3, Math.floor(ct / 170) + 1);
-      }
-      drawGrass(g, t, this.frozen ? 0.4 : 1);
-    });
+    this.drawTown(g, t, e);
+    // after the boot screen the town is already there in the dusk and
+    // brightens; otherwise it comes up out of the dark
+    if (this.fromPress) g.rect(0, 0, W, H, UI.night, PRESS_SHADE * (1 - e));
+    else g.rect(0, 0, W, H, UI.darkest, 1 - e);
     this.drawLogo(g);
     this.ink.draw(g);
     this.drawMenu(g);
     if (this.clear && t > MENU_AT) this.drawClearCard(g);
   }
 
-  private drawPress(g: Gfx): void {
+  /**
+   * The stopped sunset town: sky, clouds, sun, the far and mid silhouettes,
+   * wires, water, the two on the bridge — every layer opaque (the fade is
+   * a shade laid over the whole, so no layer shows through another), `e`
+   * how far the layers have slid up into place.
+   */
+  private drawTown(g: Gfx, t: number, e: number): void {
+    const slide = (px: number) => Math.round((1 - e) * px);
     g.clear(UI.darkest);
-    const a = 0.55 + 0.45 * Math.sin(this.pressT / 500);
+    g.img(skyCanvas(this.sky), 0, 0);
+    // clouds drift right (4 px/s) and stop with the chime
+    CLOUDS.forEach((c, i) => {
+      const img = cloudCanvas(i, this.sky);
+      const span = W + img.width;
+      const x = ((c.x + this.cloudOff * (1 + i * 0.15)) % span) - img.width * 0.2;
+      g.img(img, Math.round(x > W ? x - span : x), c.y + slide(1));
+    });
+    this.drawSun(g, slide(1));
+    g.translated(0, slide(2), () => drawHoshimiNight(g, t, false));
+    g.img(farCanvas(this.sky), 0, 104 + slide(2));
+    g.img(midCanvas(this.sky), 0, 110 + slide(3));
+    // 「ユ」 of ユウナリ flickers
+    const flick = Math.floor(t / 90) % 37 === 0 || Math.floor(t / 90) % 53 === 0;
+    g.translated(0, slide(3), () => drawMallSign(g, !flick, this.sky));
+    // wires: idle sway, a 1px shiver right after the chime is cut
+    const shiver = this.cut && t - this.cutT < 500 ? (Math.floor((t - this.cutT) / 60) % 2 ? 1 : -1) * (1 - (t - this.cutT) / 500) : 0;
+    const sway = this.frozen ? shiver : Math.sin(t / 1400) * 0.6 + shiver;
+    g.translated(0, slide(5), () => drawWires(g, sway, this.sky));
+    g.translated(0, slide(6), () => drawWater(g, t, this.sky, this.frozen ? this.cutT : null));
+    g.img(nearCanvas(this.sky), 0, slide(6));
+    // Kanenari's bell catches the light every 4 s
+    if (t % 4000 < 160) g.px(166, 168 + slide(6), '#FFF6D8');
+    // crows crossing the sky
+    const ct = t - this.crowAt;
+    if (ct > 0 && ct < 9000) {
+      const x = -20 + ct * 0.048;
+      drawCrow(g, x, 58 + Math.sin(ct / 700) * 3, Math.floor(ct / 180));
+      drawCrow(g, x - 16, 64 + Math.sin(ct / 650 + 1) * 3, Math.floor(ct / 170) + 1);
+    }
+    drawGrass(g, t, this.frozen ? 0.4 : 1);
+  }
+
+  /**
+   * Boot (the first input unlocks the audio): the title's town waits in the
+   * dusk, dim and still, the two on the bridge already there; the request
+   * is written on a strip of masking tape stuck across the middle, and the
+   * little hanko beside it bobs, waiting to be pressed.
+   */
+  private drawPress(g: Gfx): void {
+    const k = ease.cubicOut(Math.min(1, this.pressT / 700));
+    this.drawTown(g, 0, 0);
+    g.rect(0, 0, W, H, UI.night, PRESS_SHADE);
+    g.rect(0, 0, W, H, UI.darkest, 1 - k);
     const s = 'なにか ボタンを 押してください';
-    g.text(s, Math.round(W / 2), 98, { color: '#C8C2B4', align: 'center', alpha: Math.min(1, this.pressT / 400) * a });
-    // a tiny hanko waiting to be pressed
-    drawCursor(g, Math.round(W / 2 - textW(s) / 2) - 14, 98, this.pressT);
+    const w = textW(s) + 28;
+    const x = Math.round((W - w) / 2);
+    const y = 104 + Math.round((1 - k) * 4);
+    rectA(g, x + 2, y + 3, w - 2, 18, UI.night, 0.45 * k);
+    drawTape(g, x, y, w, 20, '', { color: UI.tape, seed: 12, alpha: k });
+    // the ink breathes slowly; it never quite goes out
+    const blink = 0.86 + 0.14 * Math.cos(this.pressT / 520);
+    g.text(s, Math.round(W / 2) + 2, y + 2, { color: UI.text, align: 'center', alpha: k * blink });
+    drawCursor(g, x - 13, y + 2, this.pressT);
   }
 
   private drawSun(g: Gfx, dy: number): void {
@@ -328,8 +364,11 @@ export class TitleScene implements Scene {
 
   private drawMenu(g: Gfx): void {
     if (this.t < MENU_AT) return;
+    // under the settings sheet the tapes are peeled away (they'd peek out past its edge)
+    const shown = 1 - this.menuHide;
+    if (shown <= 0) return;
     MENU.forEach((label, i) => {
-      const k = Math.min(1, Math.max(0, (this.t - MENU_AT - i * 80) / 220));
+      const k = Math.min(1, Math.max(0, (this.t - MENU_AT - i * 80) / 220)) * shown;
       if (k <= 0) return;
       const sel = i === this.index;
       const dim = i === 1 && !this.canLoad;

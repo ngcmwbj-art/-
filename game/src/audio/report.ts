@@ -27,6 +27,10 @@
 //
 // Loudness is ITU-R BS.1770 (K-weighted, gated) so different songs compare the
 // way ears do, not just by peaks.
+//
+// Development only: the commands register from registerReportCommands(),
+// which audio/content.ts calls under import.meta.env.DEV — nothing here ships
+// in `vite build`.
 
 import { registerDebug } from '../debug';
 import { createAmbient } from './ambience';
@@ -1092,18 +1096,6 @@ function bufToWavDataUrl(buf: AudioBuffer): string {
   return 'data:audio/wav;base64,' + btoa(s);
 }
 
-registerDebug('audioReport', ((o?: Parameters<typeof audioReport>[0]) => audioReport(o)) as never);
-/** The in-context checks alone: audioContext(['amb','kire','width','laptop']). */
-registerDebug('audioContext', (async (what: string[] = ['amb', 'kire', 'width', 'laptop'], o: { ids?: string[]; songs?: string[]; sfx?: string[] } = {}) => ({
-  amb: what.includes('amb') ? await ambContext({ ids: o.ids }) : undefined,
-  kire: what.includes('kire') ? await kireSteps({ songs: o.songs }) : undefined,
-  width: what.includes('width') ? await widthCheck({ songs: o.songs }) : undefined,
-  laptop: what.includes('laptop') ? await laptopCheck({ sfx: o.sfx }) : undefined,
-  voicing: what.includes('voicing') ? await voicingCheck({ songs: o.songs }) : undefined,
-})) as never);
-registerDebug('audioMixSuggest', ((o?: Parameters<typeof audioMixSuggest>[0]) => audioMixSuggest(o)) as never);
-registerDebug('audioTrims', (() => currentTrims()) as never);
-registerDebug('audioBalance', ((ids?: string[], seconds?: number) => audioBalance(ids, seconds)) as never);
 /**
  * CPU budget (40_audio 15.3: the boss fight, the densest song, should stay
  * near 5 % of a laptop core). Renders the heaviest songs offline, streamed in
@@ -1188,32 +1180,53 @@ export async function audioPerf(o: { seconds?: number; songs?: [string, Partial<
     songs: rows,
   };
 }
-registerDebug('audioPerf', ((o?: Parameters<typeof audioPerf>[0]) => audioPerf(o)) as never);
 
-registerDebug('audioParts', (async (id: string, seconds = 20, params?: Partial<Params>) => {
-  const def = songTable.get(id);
-  if (!def) return null;
-  const out: Record<string, number> = {};
-  out.ALL = measure((await renderSong(id, seconds, { params })).buffer, 0.5).lufs;
-  for (const p of def.parts) out[p.id] = measure((await renderSong(id, seconds, { params, solo: [p.id] })).buffer, 0.5).lufs;
-  return out;
-}) as never);
+/**
+ * The QA commands on window.__game.cmd (audioReport, audioContext, audioRender, …).
+ * Dev builds only: audio/content.ts calls this under import.meta.env.DEV, so
+ * this whole module drops out of `vite build` (40_audio 15.4: QA tooling is
+ * not part of the product).
+ */
+export function registerReportCommands(): void {
+  registerDebug('audioReport', ((o?: Parameters<typeof audioReport>[0]) => audioReport(o)) as never);
+  /** The in-context checks alone: audioContext(['amb','kire','width','laptop']). */
+  registerDebug('audioContext', (async (what: string[] = ['amb', 'kire', 'width', 'laptop'], o: { ids?: string[]; songs?: string[]; sfx?: string[] } = {}) => ({
+    amb: what.includes('amb') ? await ambContext({ ids: o.ids }) : undefined,
+    kire: what.includes('kire') ? await kireSteps({ songs: o.songs }) : undefined,
+    width: what.includes('width') ? await widthCheck({ songs: o.songs }) : undefined,
+    laptop: what.includes('laptop') ? await laptopCheck({ sfx: o.sfx }) : undefined,
+    voicing: what.includes('voicing') ? await voicingCheck({ songs: o.songs }) : undefined,
+  })) as never);
+  registerDebug('audioMixSuggest', ((o?: Parameters<typeof audioMixSuggest>[0]) => audioMixSuggest(o)) as never);
+  registerDebug('audioTrims', (() => currentTrims()) as never);
+  registerDebug('audioBalance', ((ids?: string[], seconds?: number) => audioBalance(ids, seconds)) as never);
+  registerDebug('audioPerf', ((o?: Parameters<typeof audioPerf>[0]) => audioPerf(o)) as never);
 
-registerDebug('audioRender', (async (id: string, seconds = 16, opts: { params?: Partial<Params>; paramAt?: [number, keyof Params, number][]; wav?: boolean; kind?: 'song' | 'sfx' | 'amb' | 'voice'; stage?: number; sfxOpts?: SfxOpts; withBgm?: string; text?: string; bypass?: boolean } = {}) => {
-  const ro = { bypass: opts.bypass };
-  const r =
-    opts.kind === 'sfx'
-      ? await renderSfx(id, opts.sfxOpts ?? {}, seconds, opts.withBgm, ro)
-      : opts.kind === 'amb'
-        ? await renderAmbient(id, seconds, opts.stage ?? 0, ro)
-        : opts.kind === 'voice'
-          ? await renderVoice(id, opts.text, ro)
-          : await renderSong(id, seconds, { ...ro, params: opts.params, paramAt: opts.paramAt });
-  return {
-    stats: measure(r.buffer, opts.kind ? 0 : 0.5),
-    notes: r.notes.length,
-    spectrogram: spectrogram(r.buffer),
-    pianoRoll: pianoRoll(r.notes, r.buffer.duration),
-    wav: opts.wav ? bufToWavDataUrl(r.buffer) : undefined,
-  };
-}) as never);
+  registerDebug('audioParts', (async (id: string, seconds = 20, params?: Partial<Params>) => {
+    const def = songTable.get(id);
+    if (!def) return null;
+    const out: Record<string, number> = {};
+    out.ALL = measure((await renderSong(id, seconds, { params })).buffer, 0.5).lufs;
+    for (const p of def.parts) out[p.id] = measure((await renderSong(id, seconds, { params, solo: [p.id] })).buffer, 0.5).lufs;
+    return out;
+  }) as never);
+
+  registerDebug('audioRender', (async (id: string, seconds = 16, opts: { params?: Partial<Params>; paramAt?: [number, keyof Params, number][]; wav?: boolean; kind?: 'song' | 'sfx' | 'amb' | 'voice'; stage?: number; sfxOpts?: SfxOpts; withBgm?: string; text?: string; bypass?: boolean } = {}) => {
+    const ro = { bypass: opts.bypass };
+    const r =
+      opts.kind === 'sfx'
+        ? await renderSfx(id, opts.sfxOpts ?? {}, seconds, opts.withBgm, ro)
+        : opts.kind === 'amb'
+          ? await renderAmbient(id, seconds, opts.stage ?? 0, ro)
+          : opts.kind === 'voice'
+            ? await renderVoice(id, opts.text, ro)
+            : await renderSong(id, seconds, { ...ro, params: opts.params, paramAt: opts.paramAt });
+    return {
+      stats: measure(r.buffer, opts.kind ? 0 : 0.5),
+      notes: r.notes.length,
+      spectrogram: spectrogram(r.buffer),
+      pianoRoll: pianoRoll(r.notes, r.buffer.duration),
+      wav: opts.wav ? bufToWavDataUrl(r.buffer) : undefined,
+    };
+  }) as never);
+}

@@ -19,9 +19,9 @@ import { pc, prop } from './ifurn';
 import { blend, depthShade, paintShell, screenPool, screenSpill, shellProp, tube } from './ishell';
 import { castRight, dk, finish, lt } from './kit';
 import { exitCorridor, exitLight, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, small, type Lamp } from './mall_kit';
-import { mkFrames, stand } from './pkit';
+import { flat, mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
-import { printLines, tiny } from './text';
+import { fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
 const M3_LAMPS: Lamp[] = [
@@ -32,7 +32,7 @@ const M3_LAMPS: Lamp[] = [
 
 registerProp('mall_m3_shell', () => {
   const rows = getMapDef('map_mall_health')?.rows ?? [];
-  const blocked = (tx: number, ty: number) => (tx >= 6 && tx <= 8 && ty <= 7) || tx >= 13 || (tx === 1 && ty === 5) || (tx === 4 && ty === 9);
+  const blocked = (tx: number, ty: number) => (tx >= 6 && tx <= 8 && ty <= 7) || tx >= 13 || (tx === 1 && ty === 5) || (tx === 4 && ty === 9) || (tx === 11 && ty === 10);
   const lane = laneOf([[0, 7.5], [7, 7.5], [7, 3], [7, 7.5], [2, 3]], 20);
   const tiles = mallTiles({
     seed: 531,
@@ -54,7 +54,7 @@ registerProp('mall_m3_shell', () => {
   const carpet = healthCarpet({
     seed: 537,
     lane: laneOf([[9, 7.5], [12, 7.5], [12, 11], [3, 10.5]], 16),
-    ghosts: [[162, 66, 22, 14], [34, 162, 18, 10]],
+    ghosts: [[162, 66, 22, 14], [40, 160, 18, 10]],
   });
   const floor = (x: number, y: number) => {
     const tx = x >> 4;
@@ -479,6 +479,171 @@ registerProp('mall_foot_mat', () => {
       p.set(i + ((j / 3) % 2), j + 1, P.leaf);
     }
   return { ox: 0, oy: 1, w: 16, h: 14, foot: 0, flat: true, img: () => p.toCanvas() } as PropArt;
+});
+
+// ---------------------------------------------------------------- QA round 3: the carpet's bare corners
+
+/**
+ * (1,11) the 『健康まつり』 banner (のぼり) blown over and never picked up:
+ * the yellow cloth lying on its side along its pole, the lettering running
+ * sideways, the water-filled base tipped over at the far end; creases, the
+ * dust of a year and a shoe print across it.
+ */
+registerProp('mall_fallen_nobori', () => {
+  const W = 58;
+  const p = pc(W, 20);
+  // the cloth: x 4–47, y 5–15, a red band along the edge that hung free
+  for (let y = 5; y <= 15; y++)
+    for (let x = 4; x <= 47; x++) {
+      let c: string = y >= 14 ? P.red : P.gold;
+      if (y === 5) c = P.goldPale;
+      if (y === 15) c = P.vermShade;
+      p.set(x, y, c);
+    }
+  // the red sun mark at the banner's top, then 『まつり』 written top to
+  // bottom, now lying on its side (the rest of 『健康まつり 本日かぎり』 is
+  // folded under)
+  p.ellipse(9.5, 9.5, 3.5, 3.5, P.verm);
+  p.set(8, 8, P.vermLt);
+  const word = 'まつり';
+  const t = pc(8, word.length * 10);
+  [...word].forEach((ch, k) => fontTextSmall(t, ch, 0, k * 10, P.verm, 1));
+  for (let y = 0; y < t.h; y++)
+    for (let x = 0; x < t.w; x++) {
+      if (!(t.get(x, y) >>> 24)) continue;
+      // rotate a quarter turn anticlockwise: the banner's top is at the left
+      p.set(16 + y, 5 + (t.w - 1 - x), P.verm);
+    }
+  // creases where it folded as it fell, dust settled on the upper half
+  for (const [x0, len] of [[17, 6], [31, 5], [40, 7]] as const) for (let k = 0; k < len; k++) p.set(x0 + Math.floor(k / 2), 6 + k, P.brass);
+  for (let x = 4; x <= 47; x++) if (ihash(x, 3, 7707) % 4 === 0) p.set(x, 6 + (ihash(x, 5, 7707) % 3), P.concreteLt);
+  for (const [sx, sy] of [[25, 8], [26, 9], [27, 9], [25, 10], [28, 10], [26, 11], [27, 11]] as const) p.set(sx, sy, P.steel);
+  // the pole along the cloth's attached side, the short top bar at the left
+  p.hline(2, 51, 4, P.concreteLt);
+  p.hline(2, 51, 3, P.white);
+  p.vline(3, 3, 15, P.concreteLt);
+  p.vline(4, 4, 15, P.steel);
+  p.set(3, 2, P.steel);
+  // the tipped base: a black plastic tank on its side, its filler cap
+  p.rect(49, 1, 8, 11, P.charcoal);
+  p.hline(49, 56, 1, P.asphalt);
+  p.vline(49, 1, 11, P.asphalt);
+  p.rect(51, 12, 4, 2, P.charcoal);
+  p.set(52, 12, P.verm);
+  p.hline(49, 56, 11, P.ink);
+  // its shadow on the carpet
+  p.hline(4, 48, 16, P.shade);
+  p.hline(49, 56, 14, P.shade);
+  castRight(p, 49, 1, 8, 11, 1);
+  return flat(p.toCanvas(), 0, -2);
+});
+
+/**
+ * (11,10) the free-sample table: a folding table in a white cloth, the big
+ * jug of 青汁 gone dark, the paper cups all turned down, a stack of leaflets
+ * and the 『ご自由に どうぞ』 card.
+ */
+registerProp('mall_sample_stand', () =>
+  prop(22, 30, (p) => {
+    // (22 wide, anchored so it keeps clear of the roped dais to the west)
+    // legs under the cloth, the cloth's drape with a scalloped hem
+    p.vline(4, 22, 28, P.steel);
+    p.vline(17, 22, 28, P.asphalt);
+    p.rect(1, 13, 20, 10, P.white);
+    p.hline(1, 20, 13, P.glint);
+    p.hline(1, 20, 14, P.concreteLt);
+    for (let x = 1; x <= 20; x++) {
+      p.set(x, 22, x % 4 === 2 ? P.concreteLt : P.white);
+      if (x % 4 === 0) p.vline(x, 16, 21, P.concreteLt);
+    }
+    p.vline(20, 14, 22, P.concrete);
+    // the jug (clear plastic, the green gone dark at the bottom), its tap
+    p.rect(2, 3, 6, 10, P.aqua);
+    p.rect(3, 6, 4, 7, P.leafDeep);
+    p.rect(3, 10, 4, 3, P.leafShade);
+    p.vline(2, 4, 11, P.glint);
+    p.rect(3, 1, 4, 2, P.leaf);
+    p.set(8, 11, P.steel);
+    // the cups, all turned down
+    for (const [cx, cy] of [[10, 9], [13, 9], [16, 9], [11, 11], [14, 11], [17, 11]] as const) {
+      p.rect(cx, cy, 2, 2, P.white);
+      p.set(cx, cy, P.glint);
+      p.set(cx + 1, cy + 1, P.concrete);
+    }
+    // leaflets and the card
+    p.rect(9, 3, 5, 4, P.leafYoung);
+    p.hline(9, 13, 3, P.leafLt);
+    p.hline(10, 12, 5, P.white);
+    p.rect(15, 2, 6, 5, P.paper);
+    p.hline(16, 19, 3, P.verm);
+    p.hline(16, 18, 5, P.steel);
+    p.set(15, 7, P.woodLt);
+    castRight(p, 1, 13, 20, 10, 2);
+  }, { cx: 11, base: 16, contact: 18, shadow: 0 }),
+);
+
+/**
+ * (9–12,11) the massage chairs' cords: grey, black and white leads snaking
+ * over the carpet from the chairs, taped down with yellow-and-black tape,
+ * a spare coil, the power strip with its switch lamp still red. The leads
+ * twitch where they leave the chairs while the chairs hum.
+ */
+registerProp('mall_cord_bundle', () => {
+  const W = 66;
+  const p = pc(W, 14);
+  const cords: [number, string][] = [[5, P.charcoal], [7, P.steel], [9, P.white]];
+  for (const [y0, c] of cords) {
+    let y = y0;
+    for (let x = 20; x < W; x++) {
+      // a lazy wander, all three bundled under the tape
+      const bundled = (x >= 30 && x <= 34) || (x >= 48 && x <= 51);
+      const target = bundled ? 6 + (y0 - 5) / 2 : y0 + Math.round(Math.sin(x / 7 + y0) * 2);
+      if (x % 3 === 0) y += Math.sign(target - y);
+      p.set(x, y, c);
+      p.set(x, y + 1, dk(c));
+    }
+  }
+  // the tape strips across the bundle
+  for (const tx of [31, 49]) {
+    for (let j = 3; j <= 11; j++) {
+      p.set(tx, j, (j >> 1) % 2 ? P.ink : P.gold);
+      p.set(tx + 1, j, (j >> 1) % 2 ? P.gold : P.ink);
+    }
+    p.hline(tx, tx + 1, 12, P.shade);
+  }
+  // a spare coil of white lead
+  p.ring(42, 11, 4, 2, P.white);
+  p.ring(42, 11, 3, 1.4, P.concrete);
+  // the power strip: white, four sockets, the switch
+  p.rect(4, 4, 16, 6, P.white);
+  p.hline(4, 19, 4, P.glint);
+  p.hline(4, 19, 9, P.concrete);
+  for (let k = 0; k < 3; k++) {
+    p.set(8 + k * 4, 6, P.charcoal);
+    p.set(9 + k * 4, 6, P.charcoal);
+    p.set(8 + k * 4, 7, P.asphalt);
+  }
+  p.rect(5, 6, 2, 2, P.vermShade);
+  // its own lead to the wall socket beyond the west
+  p.hline(0, 4, 7, P.charcoal);
+  p.hline(0, 4, 8, P.ink);
+  p.hline(4, 20, 10, P.shade);
+  const img = p.toCanvas();
+  const a = flat(img, 0, 2);
+  a.over = (g: Gfx, x: number, y: number, env: PropEnv) => {
+    // the leads twitch at the chairs' end on their hum (mall_massage_chair v 0's beat)
+    const k = Math.floor(env.t / 90) % 7;
+    if (k === 0 || k === 2) {
+      g.rect(x + W - 5, y + 2 + 6, 4, 1, P.charcoal);
+      g.rect(x + W - 4, y + 2 + 9, 3, 1, P.white);
+    }
+  };
+  a.glow = (g: Gfx, x: number, y: number) => {
+    // the switch lamp
+    g.rect(x + 5, y + 2 + 6, 2, 2, P.red, 0.8);
+    g.rect(x + 4, y + 2 + 5, 4, 4, P.red, 0.18);
+  };
+  return a;
 });
 
 void ihash;

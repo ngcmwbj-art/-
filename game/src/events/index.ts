@@ -2,6 +2,7 @@
 // (modules.ts), so every registerScript here replaces the maps' fallbacks.
 import './lib';
 import './fx';
+import './stamp';
 import './home';
 import './shops';
 import './chime';

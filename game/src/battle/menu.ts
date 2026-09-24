@@ -12,6 +12,7 @@ import { C, drawBar, tapeCanvas } from './ui/note';
 import { measure } from '../engine/font';
 import { showSticky, hideSticky } from './common';
 import { yousuText } from './texts';
+import { bossTries } from './boss';
 
 type Icon = { id: string; name: string; sub?: string; dim?: boolean };
 
@@ -191,6 +192,17 @@ function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: R
     if (hi >= 0) index = hi;
     s.memo.list_hanko = Math.max(0, hankoSkills(u).indexOf('skill_mimashita'));
   }
+  // the 4th chime (a party-wide hit) rings at the end of this round: a
+  // sticky says so and まもる pulses; after a wipe in this fight the cursor
+  // also starts on まもる (QA round 3)
+  const chimeHint = s.isBoss && !s.memo.bossFinal && s.bossChime.lit === 3;
+  if (chimeHint) {
+    showSticky(s, 'chime4', undefined, false, 0, 0, 'right');
+    if (bossTries.lost > 0 && lastIndex[u.id] === undefined) {
+      const gi = commandIcons(s, u).findIndex((ic) => ic.id === 'guard');
+      if (gi >= 0) index = gi;
+    }
+  }
   let tabShown = false;
   for (;;) {
     const icons = commandIcons(s, u);
@@ -205,7 +217,7 @@ function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: R
       }
     }
     if (!nori) onTab = false;
-    s.cmd = { icons, index, pressed: false, noriTab: nori, onTab, tutorialPulse: firstTut && !s.memo.cmdTutDone ? 'tataku' : knHint ? 'hanko' : undefined };
+    s.cmd = { icons, index, pressed: false, noriTab: nori, onTab, tutorialPulse: firstTut && !s.memo.cmdTutDone ? 'tataku' : knHint ? 'hanko' : chimeHint ? 'guard' : undefined };
     s.msg.setStatic(yousuText(s));
     yield null;
     // QA: __game.cmd.bcmd() while the command window is open

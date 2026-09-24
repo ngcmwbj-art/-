@@ -327,7 +327,10 @@ const kanenari: EnemyDef = {
 
 const boss: EnemyDef = {
   id: 'boss_omukaemachi', name: 'オムカエマチ', lvl: 4, size: [160, 128], core: [80, 64], face: [80, 40], footY: 153,
-  hp: 380, atk: 15, def: 9, spd: 6, luck: 8, exp: 60, money: 0, attr: NO_WEAK, drops: [], noFlee: true, noCrit: true,
+  // QA round 3 (tempo): 380 took a careful player 12 rounds (≈3 min). At 270
+  // a player who answers the boke and breaks the lit parts wins in 5–7
+  // rounds, one who only attacks and guards in 7–9 (bossbot runs).
+  hp: 270, atk: 15, def: 9, spd: 6, luck: 8, exp: 60, money: 0, attr: NO_WEAK, drops: [], noFlee: true, noCrit: true,
   bg: 'bg_boss', bgm: 'bgm_boss', tsukkomiCount: 3, boss: true,
   tsukkomi: ['片方ずつ かよ！', 'そこで 止めるな！', 'つられるな！'],
   skills: [

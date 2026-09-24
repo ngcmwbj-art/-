@@ -112,6 +112,9 @@ registerMap({
 
 // ================================================================ 5.2 M2 フードコート（20×13）
 
+// 5.2's grid with (QA round 3: the checker floor stretched bare between the
+// few tables) two planter dividers between the rows of tables (1–3,7)
+// (7–9,7) and the sorted-rubbish station by the tray return (16–17,11).
 export const ROWS_M2 = [
   '#WWWWWWWWWWWWWWWWWW#',
   '#WWWWWWWWWWWWWWWWWW#',
@@ -120,11 +123,11 @@ export const ROWS_M2 = [
   '#mmmmmmmmmmmmmmmmmm#',
   '#mmoommmoommmoommmm#',
   '#mmmmmmmmmmmmmmmmmmE',
-  '#mmmmmmmmmmoommmmmmE',
+  '#ooommmooomoommmmmmE',
   '#mmmmmmmmmmmmmmmmmm#',
   '#mmoommmoommmmoommm#',
   '#mmmmmmmmmmmmmmmmmo#',
-  '#mmmmmmmmmmmmmmmmmm#',
+  '#mmmmmmmmmmmmmmmoom#',
   '####################',
 ];
 
@@ -153,6 +156,9 @@ registerMap({
     PR('mall_pillar', 11, 7, { v: 4 }),
     PR('mall_water_server', 12, 7),
     PR('mall_tray_return', 18, 10),
+    PR('mall_trash_station', 16, 11),
+    PR('mall_planter', 1, 7, { v: 0 }),
+    PR('mall_planter', 7, 7, { v: 1 }),
     PR('mall_exit_sign', 19, 6, { to: 'hall', dir: 1 }),
     // no skylight shaft here: the roof leaks through a missing ceiling panel
     PR('mall_leak', 16, 8),
@@ -166,6 +172,9 @@ registerMap({
     O('obj_pager', 13, 5, { w: 2 }),
     O('obj_water_server', 12, 7),
     O('obj_leak', 16, 8, { w: 2, flat: true }),
+    O('obj_trash_station', 16, 11, { w: 2 }),
+    O('obj_planter', 1, 7, { w: 3 }),
+    O('obj_planter', 7, 7, { w: 3, id: 'obj_planter_b' }),
     O('obj_tray_return', 18, 10, {
       reward: { item: 'item_fugashi', flag: 'flag_hidden_tray', second: true, after: IREWARD3.obj_tray_return },
     }),
@@ -178,6 +187,9 @@ registerMap({
 
 // ================================================================ 5.3 M3 健康器具コーナー（16×13）
 
+// 5.3's grid with the free-sample table beside the roped dais (11,10) (QA
+// round 3: the carpet's lower corners were bare; the fallen banner and the
+// chairs' cords lie flat on the floor).
 export const ROWS_M3 = [
   '#WWWWWWWWWWWWWW#',
   '#WWWWWWWWWWWWWW#',
@@ -189,7 +201,7 @@ export const ROWS_M3 = [
   'Emmmmmmmmmmmmoo#',
   'Emmmmmmmmmmmmoo#',
   '#mmmommmooommoo#',
-  '#mmmmmmmooommoo#',
+  '#mmmmmmmoooomoo#',
   '#mmmmmmmmmmmmmm#',
   '################',
 ];
@@ -214,6 +226,9 @@ registerMap({
     PR('mall_body_scale', 1, 5),
     PR('mall_burasagari', 4, 9),
     PR('mall_foot_mat', 7, 7),
+    PR('mall_fallen_nobori', 1, 11),
+    PR('mall_cord_bundle', 9, 11),
+    PR('mall_sample_stand', 11, 10),
     PR('mall_exit_sign', 0, 7, { to: 'hall', dir: -1 }),
     // examine
     O('obj_health_poster', 3, 2, { w: 2, face: 'up' }),
@@ -226,6 +241,9 @@ registerMap({
     O('obj_burasagari', 4, 9),
     O('obj_roped_stage', 8, 9, { w: 3, h: 2 }),
     O('obj_massage_row', 13, 3, { w: 2, h: 8 }),
+    O('obj_fallen_nobori', 1, 11, { w: 4, flat: true }),
+    O('obj_cord_bundle', 9, 11, { w: 4, flat: true }),
+    O('obj_sample_stand', 11, 10),
     O('obj_staff_door_m3', 2, 2, { face: 'up', cond: { notFlag: 'flag_mall_staffdoor' } }),
     { t: 'door', id: 'door_m2_m3_staff', x: 2, y: 2, to: 'map_mall_food', tx: 17, ty: 3, dir: 'down', se: 'se_door', cond: { flag: 'flag_mall_staffdoor' } },
     { t: 'door', id: 'door_m3_m4_escalator', x: 7, y: 2, to: 'map_mall_2f', tx: 2, ty: 4, dir: 'right', step: true, se: 'se_escalator_step' },

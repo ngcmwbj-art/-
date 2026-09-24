@@ -1,9 +1,10 @@
 // 駄菓子 ひのや interior (30_level_art 4.4, 10×8). An old wooden dagashi
 // shop: dark plank walls, おばあ on a raised tatami behind a low glass-front
-// counter (abacus, coin tray, 当てくじ), a pendulum pillar clock (stops tilted
-// in stage 1), the class photo, kids' drawings with red hanamaru, a stepped
-// display of snacks in four bag colours, a stationery shelf seen from the
-// side, glass candy jars, a pig mosquito-coil holder and a glowing ramune case.
+// counter (abacus, coin tray, her 朱肉 tin), a pendulum pillar clock (stops
+// tilted in stage 1), the class photo, kids' drawings with red hanamaru, a
+// stepped display of snacks in four bag colours, a stationery shelf seen from
+// the side, glass candy jars with the 当てくじ card on their stand, a pig
+// mosquito-coil holder and a glowing ramune case.
 
 import type { Gfx } from '../../engine/gfx';
 import { PixelCanvas } from '../../engine/pixel';
@@ -16,7 +17,7 @@ import { blend, depthShade, dust, lightPool, paintShell, screenPool, screenSpill
 import { castRight, dk, finish, lt, outline } from './kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
-import { exteriorOver, withExterior } from './iexterior';
+import { exteriorGlow, exteriorImg, exteriorOver, withExterior } from './iexterior';
 import { fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
@@ -57,18 +58,20 @@ registerProp('in_hi_shell', () => {
   });
   const p = sh.p;
   // ---- north wall
-  // (2) hanging snack strips (drawn in over(): they sway in the fan's
-  // breeze) and a bunch of paper balloons on a nail
-  p.set(34, 3, P.steel);
-  p.hline(33, 43, 4, P.charcoal);
-  for (const [bx, by, c] of [[44, 6, P.crimson], [44, 11, P.gold], [46, 9, P.aqua]] as const) {
+  // (3) hanging snack strips over the counter by おばあ (drawn in over():
+  // they sway in the fan's breeze) and a bunch of paper balloons on a nail
+  p.set(51, 3, P.steel);
+  p.hline(50, 60, 4, P.charcoal);
+  for (const [bx, by, c] of [[61, 6, P.crimson], [61, 11, P.gold], [63, 9, P.aqua]] as const) {
     p.ellipse(bx + 0.5, by + 0.5, 1.8, 1.8, c);
     p.set(bx, by, lt(c));
   }
-  // (3) the old class photo above the register: a sepia print with a white
-  // border, two rows of kids and the young teacher standing in the middle
+  // (2) the old class photo at the counter's west end, over the abacus (QA
+  // round 3: examined across the counter from (2,4), so (3,4)–(5,4) all talk
+  // to おばあ): a sepia print with a white border, two rows of kids and the
+  // young teacher standing in the middle
   {
-    const [ix, iy, iw, ih] = framed(p, 49, 3, 16, 12, P.woodDark);
+    const [ix, iy, iw, ih] = framed(p, 32, 3, 16, 12, P.woodDark);
     p.rect(ix, iy, iw, ih, P.paper);
     p.rect(ix + 1, iy + 1, iw - 2, 5, P.paperGrid);
     p.rect(ix + 1, iy + 6, iw - 2, ih - 8, P.woodLt);
@@ -161,15 +164,14 @@ registerProp('in_hi_shell', () => {
   p.hline(dx - 1, dx + 17, dy + 11, P.ink);
   const W = p.w;
   // outside: the arcade mosaic with the green mat, the two gacha machines
-  // and the fire bucket of the town; マルヤマ's striped awning to the west,
-  // まめ吉's blue one to the east
+  // and the fire bucket of the town; マルヤマ next door to the west, まめ吉
+  // and the clock shop to the east (the town's own, moved out to the walls)
   const ext = withExterior(p, sh.glass, {
     rows,
     town: [32, 21],
+    bld: [30, 35, 16],
     skin: [P.woodLt, P.wood, P.woodDark],
     roof: 'kawara',
-    left: { skin: P.concreteLt, roof: 'tin', awning: [P.red, P.white] },
-    right: { skin: P.white, roof: 'slab', awning: [P.blue, P.white] },
     seed: 7201,
     props: [
       { id: 'prop_shop_mats', tx: 24, ty: 22 },
@@ -179,6 +181,7 @@ registerProp('in_hi_shell', () => {
   });
   return shellProp({
     img: ext.p.toCanvas(),
+    imgFor: exteriorImg(ext),
     glass: ext.glass.toCanvas(),
     ox: ext.ox,
     oy: ext.oy,
@@ -186,7 +189,7 @@ registerProp('in_hi_shell', () => {
       exteriorOver(g, x, y, ext, env);
       // the snack strips: each packet swings a little further than the one above
       for (let k = 0; k < 3; k++) {
-        const sx = x + 33 + k * 4;
+        const sx = x + 50 + k * 4;
         const ph = env.mt / 520 + k * 1.9;
         for (let j = 0; j < 4; j++) {
           const c = BAGS[k];
@@ -208,6 +211,10 @@ registerProp('in_hi_shell', () => {
       screenPool(g, x + 72, y + 86, 40, 20, P.sky, 0.22 + n * 0.14);
       // the doorway: the late sun comes in low (stage colours)
       screenSpill(g, x + 72, y + 112, 18, 44, 34, rgbHex(env.grade.skyBot), 0.24 - n * 0.15, true);
+    },
+    glow(g: Gfx, x: number, y: number, env: PropEnv) {
+      // the arcade's lanterns and the neighbours' windows outside
+      exteriorGlow(g, x, y, ext, env);
     },
     light(g: Gfx, x: number, y: number, env: PropEnv) {
       // the lamp over the shop (out of view above the counter): a warm pool
@@ -387,12 +394,20 @@ registerProp('in_hi_counter', () => {
   p.rect(34, 4, 11, 2, P.woodDark);
   for (const cx of [35, 37, 40, 42]) p.set(cx, 4, P.brass);
   p.set(38, 5, P.concrete);
-  // 当てくじ board standing at x5 (a card of tabs, the faded prize on top)
-  p.rect(50, 0, 13, 7, P.paper);
-  p.rect(50, 0, 13, 2, P.crimson);
-  p.rect(54, -1, 5, 2, P.sky);
-  for (let r = 0; r < 2; r++) for (let c = 0; c < 6; c++) p.set(51 + c * 2, 3 + r * 2, (r + c) % 4 === 0 ? P.gold : P.steel);
-  p.set(62, 6, P.woodDark);
+  // x5: おばあ's round 朱肉 tin for the marking stamp, its lid propped up
+  // behind it, and a red pen (the 当てくじ hangs on the candy-jar stand now)
+  p.rect(49, 1, 9, 2, P.brassOld);
+  p.hline(49, 57, 1, P.brass);
+  p.set(49, 2, P.woodDark);
+  p.ellipse(53.5, 4.5, 4.4, 2.2, P.steel);
+  p.ellipse(53.5, 4.5, 3.4, 1.4, P.verm);
+  p.hline(51, 55, 4, P.vermLt);
+  p.set(53, 5, P.vermShade);
+  p.set(54, 5, P.vermShade);
+  p.hline(50, 57, 6, P.charcoal);
+  p.line(58, 5, 63, 3, P.red);
+  p.set(63, 3, P.white);
+  p.set(58, 5, P.crimson);
   // a jar of 10-yen gum (x6)
   p.rect(68, 1, 6, 6, P.aqua);
   p.rect(68, 0, 6, 1, P.verm);
@@ -401,20 +416,7 @@ registerProp('in_hi_counter', () => {
   p.set(72, 2, P.leafYoung);
   p.set(68, 2, P.white);
   finish(p, { soft: true });
-  const a = stand(p.toCanvas(), { cx: 40, base: 16, contact: 0, shadow: 0 });
-  // one tab of the 当てくじ card (already torn half off) lifts in the fan's
-  // breeze whenever the fan's head swings round towards it
-  a.over = (g: Gfx, x: number, y: number, env: PropEnv) => {
-    const face = hiFanFace(env);
-    const up = env.stage !== 1 && face < 0 ? 1 + (Math.floor(env.mt / 120) % 2) : 0;
-    const bx = x + a.ox + 60;
-    const by = y + a.oy + 5;
-    g.rect(bx, by - up, 2, 2, P.paper);
-    g.rect(bx, by - up + 1, 2, 1, up ? P.paperGrid : P.paper);
-    if (up) g.rect(bx, by + 1, 2, 1, P.woodDark);
-    if (up === 2) g.rect(bx + 1, by - 3, 1, 1, P.white);
-  };
-  return a;
+  return stand(p.toCanvas(), { cx: 40, base: 16, contact: 0, shadow: 0 });
 });
 
 // ---------------------------------------------------------------- dagashi displays (8,2) (7–8,3–4) (8,5)
@@ -518,8 +520,8 @@ registerProp('in_hi_shelf_e', () =>
 
 // ---------------------------------------------------------------- candy jars on a low stand (4–5,5)
 
-registerProp('in_hi_jars', () =>
-  prop(32, 26, (p) => {
+registerProp('in_hi_jars', () => {
+  const a = prop(32, 26, (p) => {
     // low wooden stand
     p.rect(0, 14, 32, 12, P.wood);
     p.hline(0, 31, 14, P.woodLt);
@@ -552,13 +554,43 @@ registerProp('in_hi_jars', () =>
     jar(21, 2, P.leafYoung, P.gold);
     jar(5, 8, P.red, P.gold);
     jar(16, 8, P.aqua, P.white);
-    // price cards
-    p.rect(3, 17, 4, 3, P.white);
+    // the 当てくじ card (obj_kuji) tacked to the stand's front: a crimson
+    // head with the faded prize, rows of pull tabs, half of them torn off
+    p.rect(3, 15, 12, 10, P.paper);
+    p.rect(3, 15, 12, 2, P.crimson);
+    p.rect(7, 15, 4, 2, P.paperGrid);
+    p.set(8, 15, P.sky);
+    p.set(4, 15, P.steel);
+    p.set(13, 15, P.steel);
+    for (let r = 0; r < 3; r++)
+      for (let c = 0; c < 5; c++) {
+        const tx = 4 + c * 2;
+        const ty = 18 + r * 2;
+        const torn = ihash(c, r, 6231) % 5 < 2;
+        p.set(tx, ty, torn ? P.woodDark : (r + c) % 4 === 0 ? P.gold : P.paperGrid);
+      }
+    p.vline(15, 16, 25, P.woodDark);
+    p.hline(3, 14, 25, P.woodDark);
+    // a price card on the other end
     p.rect(24, 17, 4, 3, P.white);
-    p.set(4, 18, P.verm);
     p.set(25, 18, P.verm);
-  }, { cx: 16, base: 16, contact: 28, shadow: 0 }),
-);
+  }, { cx: 16, base: 16, contact: 28, shadow: 0 });
+  // one tab of the card (already torn half off) lifts in the fan's breeze
+  // whenever the fan's head swings round towards it
+  const base = a.over;
+  a.over = (g: Gfx, x: number, y: number, env: PropEnv) => {
+    base?.(g, x, y, env);
+    const face = hiFanFace(env);
+    const up = env.stage !== 1 && face < 0 ? 1 + (Math.floor(env.mt / 120) % 2) : 0;
+    const bx = x + a.ox + 12;
+    const by = y + a.oy + 22;
+    g.rect(bx, by - up, 2, 2, P.paper);
+    g.rect(bx, by - up + 1, 2, 1, up ? P.paperGrid : P.paper);
+    if (up) g.rect(bx, by + 1, 2, 1, P.woodDark);
+    if (up === 2) g.rect(bx + 1, by - 3, 1, 1, P.white);
+  };
+  return a;
+});
 
 // ---------------------------------------------------------------- the pig mosquito-coil holder (3,6)
 
@@ -768,7 +800,7 @@ const HFAN = mkFrames(5, 12, 20, (p, k) => {
   for (const [bx, by] of bl) p.set(bx + face, by, P.blue);
   p.set(6 + face, 6, P.steel);
 }, (p) => finish(p, { soft: true }));
-/** Where the little fan's head points: -1 west (towards the 当てくじ), 0, +1 east. */
+/** Where the little fan's head points: -1 west (towards the 当てくじ on the jar stand), 0, +1 east. */
 function hiFanFace(env: PropEnv): number {
   return [-1, 0, 1, 0][Math.floor(env.mt / 380) % 4];
 }

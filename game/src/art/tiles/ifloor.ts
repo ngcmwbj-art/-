@@ -394,8 +394,25 @@ export function mallTiles(o: MallFloorOpts): FloorPainter {
  * the grey anti-slip strip along the stalls' counters, paler worn lanes,
  * chipped corners, and the hand-placed mall decals.
  */
-export function foodCourtTiles(o: MallFloorOpts & { service: (x: number, y: number) => boolean; spill?: (x: number, y: number) => number }): FloorPainter {
+export function foodCourtTiles(o: MallFloorOpts & { service: (x: number, y: number) => boolean; spill?: (x: number, y: number) => number; sun?: (x: number, y: number) => number }): FloorPainter {
   const hand = o.decals ?? [];
+  // QA round 3: over the whole court the terracotta/cream checker read as one
+  // big pattern louder than the tables. Now every tile has its own firing
+  // (four terracottas, three creams), the terracotta is a step paler, the
+  // grout is a real line that darkens with dirt along the lanes, the sun from
+  // the entrance has bleached a wide patch, and there are chipped corners,
+  // cracked tiles and one tile missing down to the mortar bed.
+  const TERRA: [string, string, string][] = [
+    [P.skin2, P.skin1, P.skin3],
+    [P.skin2, P.skin1, P.skin3],
+    [P.skin3, P.skin2, P.skin4],
+    [P.skin1, P.paper, P.skin2],
+  ];
+  const CREAM: [string, string, string][] = [
+    [P.paperGrid, P.paper, P.woodLt],
+    [P.paperGrid, P.paper, P.woodLt],
+    [P.concreteLt, P.white, P.paperGrid],
+  ];
   return (x, y) => {
     for (const hd of hand) {
       if (x < hd.x - 1 || y < hd.y - 1 || x > hd.x + 40 || y > hd.y + 44) continue;
@@ -416,21 +433,36 @@ export function foodCourtTiles(o: MallFloorOpts & { service: (x: number, y: numb
       if (sx === 2 && sy === 2) return P.charcoal;
       return ihash(x >> 1, y >> 1, o.seed + 31) % 17 === 0 ? P.charcoal : P.asphalt;
     }
-    if (lx === 15 || ly === 15) return P.woodLt;
-    const terra = ((tx + ty) & 1) === 1;
     const hh = ihash(tx, ty, o.seed);
     const w = o.lane ? o.lane(x, y) : 0;
-    // soft terracotta and cream (review: a hard red/white checker shouted over the tables)
-    let base: string = terra ? P.skin3 : P.paperGrid;
-    let lite: string = terra ? P.skin2 : P.paper;
-    const dark: string = terra ? P.skin4 : P.woodLt;
-    // a replacement tile in a slightly different batch
-    if (hh % 11 === 3) {
-      base = terra ? P.skin2 : P.concreteLt;
+    // one tile gone: the grey mortar bed with the comb lines, grit in it
+    if (hh % 89 === 17 && !(o.blocked?.(tx, ty) ?? false)) {
+      if (lx === 15 || ly === 15 || lx === 0 || ly === 0) return P.steel;
+      if (ly % 3 === 1) return P.concrete;
+      return ihash(x, y, o.seed + 13) % 9 === 0 ? P.asphalt : P.concreteLt;
+    }
+    // grout: a 1px line, filled with grime where the feet go
+    if (lx === 15 || ly === 15) return w > 0.45 && ihash(x, y, o.seed + 9) % 3 !== 0 ? P.brassOld : P.woodLt;
+    const terra = ((tx + ty) & 1) === 1;
+    let [base, lite, dark] = terra ? TERRA[(hh >>> 3) % TERRA.length] : CREAM[(hh >>> 3) % CREAM.length];
+    // the low sun through the entrance has bleached a wide patch: paler, in 2px dither at its edge
+    const sun = (o.sun ? o.sun(x, y) : 0) + (valueNoise(x / 70, y / 46, o.seed + 17) - 0.5) * 0.5;
+    if (sun > 0.55 || (sun > 0.45 && (((x >> 1) + (y >> 1)) & 1) === 0)) {
+      dark = base;
+      base = lite;
       lite = terra ? P.skin1 : P.white;
     }
-    // chipped corner (top-left) on a few tiles
-    if (hh % 13 === 6 && lx + ly < 4) return P.woodLt;
+    // chipped corners (any corner) on a few tiles: the grout colour shows
+    const cn = hh % 13;
+    if (cn === 6 && lx + ly < 4) return P.woodLt;
+    if (cn === 7 && 14 - lx + ly < 4) return P.woodLt;
+    if (cn === 8 && lx + 14 - ly < 3) return P.woodLt;
+    // a crack running across a tile, lit on one side
+    if (hh % 17 === 9) {
+      const cy = Math.round(3 + lx * 0.6 + Math.sin(lx * 1.7 + hh) * 0.8);
+      if (ly === cy) return dark === P.woodLt ? P.brassOld : dark;
+      if (ly === cy + 1 && lx % 3 !== 0) return lite;
+    }
     if (lx === 0 || ly === 0) return w > 0.5 ? base : lite;
     // spills: soy and soda dried in soft 2px blotches, thicker where people ate
     const sp = (o.spill ? o.spill(x, y) : 0) + valueNoise(x / 11, y / 9, o.seed + 3) * 0.6;

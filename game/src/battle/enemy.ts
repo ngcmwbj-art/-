@@ -12,7 +12,7 @@ import type { BattleScene } from './scene';
 import { FRAME, SLOTS } from './scene';
 import { calcDamage, EnemyUnit, statusChance, type PartyUnit } from './model';
 import {
-  addKire, changeStage, giveStatus, hideSticky, healParty, hurtEnemy, hurtParty, kireFullPages, panelImpact, showSticky, statusText, tsukkomiFeel, type Guarded,
+  addKire, changeStage, giveStatus, hideSticky, healParty, hurtEnemy, hurtParty, kireFullPages, panelImpact, sayFallen, showSticky, statusText, tsukkomiFeel, type Guarded,
 } from './common';
 import {
   bokemakeLabel, lateTip, markLineSeen, pickLine, popBang, RING_LEAD, showBang, showFlip, showKakimoji, showTsukRing, tsukkomiUnit, tsukkomiWindows, type TsukRing,
@@ -754,16 +754,42 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
           if (f === 0) leanBack(s, e, dir, Math.max(1, toHit - 9));
           if (toHit === 9) {
             e.setPose('attack', skillId);
-            // then springs out of its spot at the member's panel (1.0 → 1.3,
-            // well toward them and down) and falls back
-            rush(s, e, { scale: 1.3, dy: 14, dx: towardX(e, target, 0.3, 26), inF: 9, holdF: 5, outF: 10 });
+            // then springs out of its spot onto the member's panel (1.0 →
+            // 1.3, most of the way across and down, its canopy over the
+            // panel's top edge — QA round 3: it used to swell in place) and
+            // falls back
+            rush(s, e, { scale: 1.3, dy: 28, dx: towardX(e, target, 0.6, 72), inF: 9, holdF: 6, outF: 12 });
             s.sfx('se_hug');
           }
         },
         onHit: (i, r) => {
           resolveGuard(r, i);
           panelImpact(s, target!, !!r);
-          if (!r) target!.shakeT = 160;
+          if (!r) {
+            // caught: the hug lands — a short stop, the panel jolts
+            // sideways and blinks, the plastic creases across it for a frame
+            const u = target!;
+            s.hitstop(4);
+            u.shakeT = 167;
+            u.shakeAmp = 3;
+            u.flashT = 267;
+            s.mood(u, 'surprised', 700);
+            s.sfx('se_thud_low', { pan: u.id === 'kanenari' ? 0.35 : -0.2 });
+            const [px, py] = PANEL_POS[u.id];
+            s.addFx({
+              layer: 'top',
+              dur: 2 * FRAME,
+              ui: true,
+              draw: (g) => {
+                // three pale crease lines, like vinyl pulled tight
+                for (let k = 0; k < 3; k++) {
+                  const y0 = py + 8 + k * 11;
+                  g.line(px + 6 + k * 3, y0, px + 128 - k * 5, y0 + 6, '#FFFFFF');
+                  g.line(px + 6 + k * 3, y0 + 1, px + 128 - k * 5, y0 + 7, '#DDE8F0');
+                }
+              },
+            });
+          }
         },
       });
       if (st.anySuccess) telePages.push(...fillAll(e.def.texts.extra.dakitsukiGuard, { target: target!.name }));
@@ -1066,6 +1092,8 @@ function* flushAfter(s: BattleScene, e: EnemyUnit, sk: SkillDef, st: ActState, p
   // let the lettering finish crossing before the next thing starts
   if (shownMs) yield () => s.t - t0 >= shownMs;
   st.anySuccess = false;
+  // 〔へばった〕 after the move's own result pages
+  yield* sayFallen(s);
 }
 
 /** Self-targeted move (buff, idle, call): the "!" still appears at the tsukkomi-er. */

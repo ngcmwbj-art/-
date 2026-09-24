@@ -20,7 +20,7 @@ import { DamageNumber, type NumOpts, type NumRect } from './fx/numbers';
 import { MessageBand } from './ui/message';
 import { emptySlotCanvas } from './ui/panels';
 import {
-  drawActing, drawChimeSticky, drawCommand, drawInfoCard, drawKire, drawList, drawPanel, KIRE_TAB, PANEL_POS, TAG, type CardData, type CmdView, type ListRow,
+  CARD_H, CARD_Y, drawActing, drawChimeSticky, drawCommand, drawInfoCard, drawKire, drawList, drawPanel, KIRE_TAB, PANEL_POS, TAG, type CardData, type CmdView, type ListRow,
 } from './ui/panels';
 import { C, cursorStamp, cursorStampSide, drawBar, slantTape, STICKY_PAD, stickyCanvas, tapeCanvas } from './ui/note';
 import { inkLabel, ovalStamp, pekeMark, petalSprites } from './art/stamps';
@@ -41,6 +41,8 @@ interface FloatLabel {
   placed: boolean;
   anchor: () => Rect;
   sides: LabelSide[];
+  /** Cost per step down the `sides` list (how strongly the order is kept). */
+  sideCost?: number;
 }
 
 export interface Fx {
@@ -69,6 +71,8 @@ export interface BossHooks {
 export const SLOTS: Record<number, number[]> = { 1: [192], 2: [140, 244], 3: [96, 192, 288] };
 /** Top of the stage: numbers and labels stay under the 2-line band (y4–48). */
 export const STAGE_TOP = 51;
+/** Where drawList() puts the hanko / item list. */
+const LIST_RECT = { x0: 4, y0: 58, x1: 204, y1: 146 };
 /** Heights of the damage number sprites (normal / big, incl. the 1px bounce). */
 const NUM_H = 16;
 const NUM_H_BIG = 19;
@@ -148,6 +152,8 @@ export class BattleScene implements Scene {
   shared: Record<string, number> = {};
   /** Tutorial / misc flags for this battle. */
   memo: Record<string, number> = {};
+  /** Members knocked to 0 by the action playing out (〔へばった〕 is said once it ends). */
+  fallen: PartyUnit[] = [];
   /** QA: automatic inputs (tsukkomi / ring / hold). */
   auto: { tsuk?: string; ring?: string; hold?: 'kukkiri' | 'futsuu' | 'kasure'; crit?: boolean } = {};
   /** QA: queued party commands for the next input phase. */
@@ -467,14 +473,23 @@ export class BattleScene implements Scene {
     }
     if (this.kanenariJoined) out.push({ x0: KIRE_TAB[0], y0: KIRE_TAB[1], x1: KIRE_TAB[0] + 44, y1: KIRE_TAB[1] + 18 });
     out.push({ x0: 0, y0: 150, x1: 384, y1: 216 });
-    if (this.isBoss) out.push({ x0: 300, y0: this.msg.bottom, x1: 378, y1: this.msg.bottom + 24 });
+    // the chime tag hangs under the band and moves down with it when a
+    // 2-line page grows it (QA round 3: a label placed under a 1-line band
+    // ended up under the tag): keep its lowest reach clear
+    if (this.isBoss) out.push({ x0: 292, y0: 0, x1: 382, y1: 4 + 44 + 2 + 24 + 2 });
+    // an enemy's 溜め中 tape
+    for (const e of this.enemies) {
+      const r = this.tameRect(e);
+      if (r) out.push(r);
+    }
     // a sticky still waiting to peel on (it follows the lettering) already
     // owns its spot: a label placed in the same frame must not take it
     const sp = this.stickyPlace();
     if (sp) out.push({ x0: sp.x - STICKY_PAD, y0: sp.y - STICKY_PAD, x1: sp.x + sp.img.width - STICKY_PAD, y1: sp.y + sp.img.height - STICKY_PAD });
     if (this.card) {
-      const x = this.card.data.side === 'left' ? 8 : 216;
-      out.push({ x0: x - 2, y0: 42, x1: x + 164, y1: 148 });
+      const d = this.card.data;
+      const x = d.x ?? (d.side === 'left' ? 8 : 216);
+      out.push({ x0: x - 2, y0: CARD_Y - 6, x1: x + (d.w ?? 160) + 4, y1: CARD_Y + CARD_H + 2 });
     }
     for (const f of this.fx) {
       const b = !f.done && f.block ? f.block() : null;
@@ -490,16 +505,54 @@ export class BattleScene implements Scene {
   faceRects(): Rect[] {
     const out: Rect[] = [];
     for (const e of this.enemies) {
-      if (!e.alive || !e.visible) continue;
+      if (e.dead || !e.visible) continue;
       out.push({ x0: e.faceX - 12, y0: e.faceY - 12, x1: e.faceX + 12, y1: e.faceY + 12 });
     }
     return out;
   }
 
-  /** Is `r` on screen, clear of the fixed UI and of every live reservation (and, for labels, the faces)? */
-  fits(r: Rect, ignoreOcc = false, faces = false): boolean {
+  /**
+   * Enemy bodies (the middle 70% of the sprite): a hit label goes beside the
+   * enemy, not over the × decal or the body it is about (QA round 3). The
+   * boss is left out — its body is the whole stage; its labels have their
+   * own spots (the cap, the parts' outer sides).
+   */
+  bodyRects(): Rect[] {
+    const out: Rect[] = [];
+    for (const e of this.enemies) {
+      // a finishing hit's label is placed while the body is still there
+      // (it turns white and shrinks away afterwards)
+      if (e.dead || !e.visible || e.def.boss) continue;
+      const w = e.sizeW;
+      const h = e.sizeH;
+      const x0 = e.left + e.offX;
+      const y0 = e.top + e.offY;
+      out.push({ x0: Math.round(x0 + w * 0.15), y0: Math.round(y0 + h * 0.15), x1: Math.round(x0 + w * 0.85), y1: Math.round(y0 + h * 0.85) });
+    }
+    return out;
+  }
+
+  /** Where an enemy's 溜め中 tape is drawn (null without one). */
+  tameRect(e: EnemyUnit): Rect | null {
+    if (!e.alive || !e.visible || !e.status.tame) return null;
+    let y = e.headY - 10 - 16;
+    let x = Math.round(e.x - 26);
+    if (y < STAGE_TOP) {
+      y = Math.max(STAGE_TOP + 4, e.top + Math.round(e.sizeH * 0.3));
+      x = Math.round(e.x + e.sizeW / 2 - 6);
+      if (x + 52 > 381) x = Math.round(e.x - e.sizeW / 2 - 46);
+    }
+    return { x0: x - 2, y0: y, x1: x + 54, y1: y + 16 };
+  }
+
+  /**
+   * Is `r` on screen, clear of the fixed UI and of every live reservation
+   * (and, for labels, the faces and — with `bodies` — the enemies' bodies)?
+   */
+  fits(r: Rect, ignoreOcc = false, faces = false, bodies = false): boolean {
     if (r.x0 < 2 || r.x1 > 382 || r.y0 < 0 || r.y1 > 214) return false;
     for (const b of this.blockedRects()) if (BattleScene.overlap(r, b, 0)) return false;
+    if (bodies) for (const b of this.bodyRects()) if (BattleScene.overlap(r, b, 0)) return false;
     if (faces) {
       for (const b of this.faceRects()) if (BattleScene.overlap(r, b, 0)) return false;
       for (const f of this.fx) {
@@ -714,9 +767,10 @@ export class BattleScene implements Scene {
     ms = 600,
     worn = false,
     delay = 0,
+    sideCost = 6,
   ): void {
     const img = inkLabel(text, tone, worn);
-    this.labels.push({ img, t: -delay, ms, x: 0, y: 0, placed: false, anchor, sides });
+    this.labels.push({ img, t: -delay, ms, x: 0, y: 0, placed: false, anchor, sides, sideCost });
   }
 
   private placeLabel(l: FloatLabel): void {
@@ -725,7 +779,9 @@ export class BattleScene implements Scene {
     const h = l.img.height;
     const acx = (a.x0 + a.x1) / 2;
     const acy = (a.y0 + a.y1) / 2;
-    const at = (side: LabelSide, nudge: number): [number, number] => {
+    // `out` steps a side label further out from its anchor (right / left):
+    // beside a number over a wide enemy's head that clears the body's edge
+    const at = (side: LabelSide, nudge: number, out = 0): [number, number] => {
       switch (side) {
         case 'center':
           return [acx - w / 2 + nudge, acy - h / 2];
@@ -734,30 +790,44 @@ export class BattleScene implements Scene {
         case 'below':
           return [acx - w / 2 + nudge, a.y1 + 2];
         case 'right':
-          return [a.x1 + 3, acy - h / 2 + nudge];
+          return [a.x1 + 3 + out, acy - h / 2 + nudge];
         case 'left':
-          return [a.x0 - 3 - w, acy - h / 2 + nudge];
+          return [a.x0 - 3 - w - out, acy - h / 2 + nudge];
         case 'aboveRight':
           return [a.x1 - 4 + nudge, a.y0 - 2 - h];
         case 'aboveLeft':
           return [a.x0 + 4 - w + nudge, a.y0 - 2 - h];
       }
     };
-    const nudges = [0, 6, -6, 12, -12, 20, -20];
-    // pass 1: clear of everything; 2: may touch a fading reservation; 3: may
-    // touch a face (a crowded moment still gets its label)
-    const passes: [boolean, boolean][] = [[false, true], [true, true], [true, false]];
-    for (const [ignoreOcc, faces] of passes) {
+    const nudges = [0, 4, -4, 8, -8, 12, -12, 16, -16, 20, -20];
+    // how far (px) a label may stand from what it is about: further out it
+    // no longer reads as that hit's label (QA round 3: with a sticky up, the
+    // いい音！ of a hit flew 60px off to the corner)
+    const NEAR = 32;
+    const gap = (r: Rect) => Math.max(0, a.x0 - r.x1, r.x0 - a.x1, a.y0 - r.y1, r.y0 - a.y1);
+    // pass 1: clear of everything, bodies too; 2: may touch a fading
+    // reservation; 3: may touch a body (but not a face); 4: may touch a face
+    // (a crowded moment still gets its label, right next to its hit)
+    const passes: [boolean, boolean, boolean][] = [
+      [false, true, true],
+      [true, true, true],
+      [true, true, false],
+      [true, false, false],
+    ];
+    for (const [ignoreOcc, faces, bodies] of passes) {
       // of every free spot, the one nearest the anchor wins (the side order
       // breaks ties): a label stays next to what it is about
       let best: Rect | null = null;
       let bestCost = Infinity;
       l.sides.forEach((side, si) => {
-        for (const n of side === 'center' ? [0] : nudges) {
-          const [x, y] = at(side, n);
+        const outs = side === 'left' || side === 'right' ? [0, 6, 12, 20] : [0];
+        for (const n of side === 'center' ? [0] : nudges)
+        for (const o of outs) {
+          const [x, y] = at(side, n, o);
           const r = { x0: Math.round(x), y0: Math.round(y), x1: Math.round(x + w), y1: Math.round(y + h) };
-          if (!this.fits(r, ignoreOcc, faces)) continue;
-          const cost = Math.hypot((r.x0 + r.x1) / 2 - acx, (r.y0 + r.y1) / 2 - acy) + si * 6;
+          if (side !== 'center' && gap(r) > NEAR) continue;
+          if (!this.fits(r, ignoreOcc, faces, bodies)) continue;
+          const cost = Math.hypot((r.x0 + r.x1) / 2 - acx, (r.y0 + r.y1) / 2 - acy) + si * (l.sideCost ?? 6);
           if (cost < bestCost) {
             bestCost = cost;
             best = r;
@@ -852,6 +922,22 @@ export class BattleScene implements Scene {
    */
   enemyNumberXY(e: EnemyUnit, big = false, stack = 0): [number, number] {
     const h = big ? NUM_H_BIG : NUM_H;
+    if (!e.def.boss) {
+      // a tall enemy whose head is up under the band (the vending machine):
+      // over its head the number would come to rest on its face — it pops
+      // beside the body instead, a third of the way down (QA round 3)
+      const head = e.headY + e.offY;
+      const restBottom = Math.max(Math.min(e.coreY, head - 4), STAGE_TOP + NUM_RISE + h) - NUM_RISE;
+      if (restBottom - head > 8) {
+        const half = 12;
+        let x = e.left + e.offX + e.sizeW + 4 + half;
+        // its 溜め中 tape hangs on that side: the number takes the other
+        const tape = this.tameRect(e);
+        if (x + half + 8 > 380 || (tape && tape.x0 >= e.x)) x = e.left + e.offX - 4 - half - 6;
+        const y = e.top + e.offY + Math.round(e.sizeH * 0.4) + NUM_RISE - stack * 6;
+        return [Math.round(x + stack * 10), Math.round(Math.max(y, STAGE_TOP + NUM_RISE + h))];
+      }
+    }
     const x = (e.def.boss ? e.coreX + 36 : e.coreX) + stack * 10;
     // QA round 2: over the head (headY − 4), not from the core — the number
     // and its plate covered a small enemy's whole face, and its hurt face
@@ -874,6 +960,8 @@ export class BattleScene implements Scene {
       ms,
       worn,
       delay,
+      // beside the number beats under it (under it is the body)
+      14,
     );
   }
 
@@ -989,6 +1077,7 @@ export class BattleScene implements Scene {
 
   /** Frame of the last se_warn (the tsukkomi "!" ping). */
   private warnFrame = -99;
+  private confirmFrame = -99;
 
   /**
    * Battle SE with the transients kept apart (40_audio 1.6-3 "a reply to
@@ -997,6 +1086,13 @@ export class BattleScene implements Scene {
    * instead of smearing into it.
    */
   sfx(id: string, o?: SfxOpts): void {
+    if (id === 'se_confirm') this.confirmFrame = this.frame;
+    // the net's whoosh right on the last command's confirm click (the first
+    // action starts on that frame) waits 70ms: two transients, not one smear
+    if (id === 'se_swing' && this.frame - this.confirmFrame <= 2) {
+      this.sfxLater(id, o, 70);
+      return;
+    }
     if (id === 'se_warn') this.warnFrame = this.frame;
     else if (this.frame - this.warnFrame <= 1 && !WARN_COMPANIONS.has(id)) {
       this.sfxLater(id, o, 100);
@@ -1290,7 +1386,9 @@ export class BattleScene implements Scene {
     } else ctx.drawImage(src, dx, dy, Math.round(w), Math.round(h));
     if (e.whiteFrames > 0) ctx.drawImage(this.tinted(src, '#FFF6D8', 2), dx, dy, Math.round(w), Math.round(h));
     ctx.globalAlpha = prevA;
-    if (e.alive) art.over?.(g, dx, dy, v);
+    // live overlays (the vending machine's LED…) sit under a white flash,
+    // not on top of it (QA round 3: a green 17:00 floated on the white)
+    if (e.alive && !(e.whiteFrames > 0)) art.over?.(g, dx, dy, v);
     this.drawEnemyExtras(g, e);
   }
 
@@ -1422,9 +1520,18 @@ export class BattleScene implements Scene {
 
   private solveSticky(text: string, preferRight: boolean): { text: string; x: number; y: number; right: boolean } {
     const P = STICKY_PAD;
+    // each enemy owns a column: its sprite, the timing ring around its core
+    // (r≈44) and the number / label spot over its head, from the band down
+    // to its feet (QA round 3: the ring's edge and the hato's tail touched
+    // the sticky, a number landed on its tape). The boss fills the stage;
+    // there only its own sprite counts.
     const boxes: Rect[] = this.enemies
       .filter((e) => e.alive && e.visible)
-      .map((e) => ({ x0: e.left - 3, y0: e.top - 3, x1: e.left + e.sizeW + 3, y1: e.footY }));
+      .map((e) =>
+        e.def.boss
+          ? { x0: e.left - 3, y0: e.top - 3, x1: e.left + e.sizeW + 3, y1: e.footY }
+          : { x0: Math.min(e.left - 3, e.coreX - 48), y0: STAGE_TOP, x1: Math.max(e.left + e.sizeW + 3, e.coreX + 48), y1: e.footY },
+      );
     // the top of the hanko close-up's ink ring (its くっきり zone) rises there
     boxes.push({ x0: 14, y0: 108, x1: 92, y1: 150 });
     const variants = [text];
@@ -1468,6 +1575,13 @@ export class BattleScene implements Scene {
    */
   private drawSticky(g: Gfx): void {
     const sp = this.stickyPlace();
+    // a hanko / item list opened over the sticky's spot hides it until the
+    // list closes (QA round 3: it covered the first row and its cursor)
+    if (sp && this.list) {
+      const w = sp.img.width - STICKY_PAD - 3;
+      const h = sp.img.height - STICKY_PAD - 3;
+      if (BattleScene.overlap({ x0: sp.x, y0: sp.y, x1: sp.x + w, y1: sp.y + h }, LIST_RECT, 0)) return;
+    }
     if (this.sticky && sp && this.sticky.t >= 0) {
       const img = sp.img;
       const st = this.sticky;

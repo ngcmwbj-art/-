@@ -1023,60 +1023,43 @@ registerProp('decal_puddle', (opts) => {
   // opts.dy: moved down a few px inside its tile (off a curb strip)
   const dy0 = Number(opts.dy ?? 0);
   const a = flat(img, 0, 2 + dy0);
-  const runs: [number, number, number][][] = PUDDLE_DEPTH.map((r) => {
-    const out: [number, number, number][] = [];
-    let s0 = -1;
-    let dv = 0;
-    for (let x = 0; x <= r.length; x++) {
-      const d = x < r.length ? Math.min(3, r[x]) : 0;
-      if (d !== dv) {
-        if (dv > 0) out.push([s0, x, dv]);
-        s0 = x;
-        dv = d;
-      }
-    }
-    return out;
-  });
   a.over = (g, x, y, env) => {
     const gd = env.grade;
     const ox = x;
     const oy = y + 2 + dy0;
-    // (QA round 2: the warm sky filling the whole pool, darker at its foot,
-    // read as mud or a loaf) a mirror: the far lip catches the light in a
-    // 1px line, right under it the far bank's dark reflection, then the upper
-    // sky (lifted towards #F7C27A) evenly over the water with pale streaks
-    // and three small ripples drifting east; a dark wet line on the near side
-    const hi = gd.skyTop.map((v, i) => Math.round(v * 0.55 + [247, 194, 122][i] * 0.25 + 255 * 0.2)) as [number, number, number];
-    const lo = gd.skyBot;
+    // (QA round 3: warm sky laid thin over a dark wash read as a smear of
+    // mud, a smooth bright-to-dark fill as a loaf) the canal's language: dark
+    // still water (the deep teal of the canal, a little of the sky in it), a
+    // dark wet lip all round, and the sunset lying on it in long bright
+    // streaks broken at their ends, the brightest right under the far lip
+    const mixc = (a: number[], b: number[], t: number) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+    const GL = [255, 246, 216];
+    const DEEP = [45, 84, 104];
+    const night = gd.night;
+    const body = mixc(mixc(DEEP, gd.skyTop, 0.22), [58, 43, 92], 0.15 + night * 0.4);
+    const core = mixc(gd.skyTop, GL, 0.3 * (1 - night));
+    const soft = mixc(core, body, 0.45);
+    const rgb = (c: number[]) => `rgb(${c[0]},${c[1]},${c[2]})`;
     for (let j = 0; j < PH; j++) {
       const sy = oy + j;
-      for (const [x0, x1] of runs[j]) g.rect(ox + x0, sy, x1 - x0, 1, '#2A2F45', 0.55);
       for (let i = 0; i < PW; i++) {
         if (!PUDDLE_DEPTH[j][i]) continue;
-        // a flat mirror seen from the south: the far part shows the far
-        // bank (dark), the near part the sky high up (bright) — never lit
-        // on top and dark underneath like a lump
-        let k = 0;
-        while (k < 8 && PUDDLE_DEPTH[j - k - 1]?.[i]) k++;
-        let n = 0;
-        while (n < 8 && PUDDLE_DEPTH[j + n + 1]?.[i]) n++;
-        if (k === 0) {
-          g.rect(ox + i, sy, 1, 1, P.glint, (i * 7 + j) % 9 === 0 ? 0.4 : 0.9);
-          continue;
-        }
-        if (n === 0) {
-          g.rect(ox + i, sy, 1, 1, P.ink, 0.45);
-          continue;
-        }
-        if (k <= 2) continue;
-        const t = Math.min(1, (k - 3) / 3);
-        const c = lo.map((v, m) => Math.round(v + (hi[m] - v) * t));
-        g.rect(ox + i, sy, 1, 1, `rgb(${c[0]},${c[1]},${c[2]})`, 0.5 + t * 0.25);
+        const lip = !PUDDLE_DEPTH[j - 1]?.[i] || !PUDDLE_DEPTH[j + 1]?.[i] || !PUDDLE_DEPTH[j][i - 1] || !PUDDLE_DEPTH[j][i + 1];
+        g.rect(ox + i, sy, 1, 1, lip ? '#2E3246' : rgb(body), lip ? 0.8 : 0.92);
       }
     }
-    // pale streaks of sky
-    g.rect(ox + 11, oy + 6, 9, 1, P.glint, 0.5);
-    g.rect(ox + 4, oy + 6, 3, 1, P.glint, 0.3);
+    // the sky's streaks, drifting a pixel now and then (still in stage 1)
+    const sd = env.stage === 1 ? 0 : Math.floor(env.mt / 1400) % 3;
+    for (const [row, x0, len, bright] of [
+      [2, 13, 9, 1], [3, 9, 4, 0], [3, 18, 7, 1], [5, 4, 5, 0], [5, 14, 11, 1], [7, 11, 8, 0], [8, 19, 4, 0],
+    ] as const) {
+      for (let i = 0; i < len; i++) {
+        const px = x0 + i + (row % 2 ? sd : -sd);
+        if ((PUDDLE_DEPTH[row]?.[px] ?? 0) < 2) continue;
+        const end = i === 0 || i === len - 1;
+        g.rect(ox + px, oy + row, 1, 1, rgb(bright && !end ? core : soft), 0.95);
+      }
+    }
     // small wind ripples: 1px wavelets drifting slowly east, only on the water
     const still = env.stage === 1;
     const drift = still ? 0 : env.mt / 900;
@@ -1084,8 +1067,13 @@ registerProp('decal_puddle', (opts) => {
       const x0 = Math.round(rx + ((drift * sp) % 6)) - 2;
       for (let i = 0; i < len; i++) {
         const px = x0 + i;
-        if ((PUDDLE_DEPTH[ry]?.[px] ?? 0) >= 2) g.rect(ox + px, oy + ry, 1, 1, P.glint, i === 0 || i === len - 1 ? 0.35 : 0.7);
+        if ((PUDDLE_DEPTH[ry]?.[px] ?? 0) >= 2) g.rect(ox + px, oy + ry, 1, 1, i === 0 || i === len - 1 ? P.horizon : P.glint, i === 0 || i === len - 1 ? 0.55 : 0.9);
       }
+    }
+    // night: two stars in the water, one twinkling
+    if (night > 0.5) {
+      g.rect(ox + 13, oy + 7, 1, 1, P.glint, 0.9);
+      if (Math.floor(env.t / 700) % 3) g.rect(ox + 22, oy + 5, 1, 1, P.horizon, 0.8);
     }
     // the blinking glint
     const ph = Math.floor(env.t / 140) % 14;

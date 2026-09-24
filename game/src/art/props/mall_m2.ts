@@ -35,7 +35,8 @@ const M2_LAMPS: Lamp[] = [
 
 registerProp('mall_m2_shell', () => {
   const rows = getMapDef('map_mall_food')?.rows ?? [];
-  const blocked = (tx: number, ty: number) => ty <= 3 || (ty === 5 || ty === 9) || (tx >= 11 && tx <= 12 && ty === 7) || (tx === 18 && ty === 10);
+  const blocked = (tx: number, ty: number) =>
+    ty <= 3 || ty === 5 || ty === 9 || (tx >= 11 && tx <= 12 && ty === 7) || (ty === 7 && ((tx >= 1 && tx <= 3) || (tx >= 7 && tx <= 9))) || (tx === 18 && ty === 10) || (tx >= 16 && tx <= 17 && ty === 11);
   const lane = laneOf([[19, 6.5], [12, 6.5], [6, 7], [2, 7], [6, 4], [15, 4]], 20);
   // quarry tiles (the food court's own floor), the anti-slip strip before the
   // stalls, spills thickest round the tables
@@ -53,6 +54,8 @@ registerProp('mall_m2_shell', () => {
     lane,
     service: (x, y) => y >= 64 && y < 80 && x >= 112 && x < 288,
     spill,
+    // years of low sun through the glass doors of the hall, down the corridor from the east
+    sun: (x, y) => Math.max(0, 1 - Math.hypot((x - 320) / 150, (y - 112) / 62)) * 0.9,
     decals: [
       { x: 262, y: 104, kind: 'arrow', dir: 0, c: P.gold },
       { x: 226, y: 176, kind: 'steps', dir: 2, n: 5 },
@@ -601,6 +604,158 @@ registerProp('mall_tray_return', () =>
     p.rect(1, 32, 14, 2, P.charcoal);
   }, { base: 16, contact: 12, shadow: 0 }),
 );
+
+// ---------------------------------------------------------------- the sorted-rubbish station (16–17,11)
+
+/**
+ * Three bins in a wooden cabinet by the tray return: 『もえる』 (red), 『プラ』
+ * (yellow), 『かん・びん』 (blue) — a flame, a bag and a can on their plates,
+ * all three stuffed full a year ago: a bag bulging out of the プラ slot, a
+ * cup and a stack of trays left on top by people who gave up.
+ */
+registerProp('mall_trash_station', () =>
+  prop(34, 34, (p) => {
+    // the sign board on its two posts: 『分別』 and the three colours
+    p.vline(3, 1, 12, P.steel);
+    p.vline(30, 1, 12, P.steel);
+    p.rect(2, 0, 30, 9, P.white);
+    p.hline(2, 31, 0, P.glint);
+    p.hline(2, 31, 8, P.concrete);
+    small(p, '分別', 4, 1, P.navy);
+    for (const [k, c] of [[0, P.red], [1, P.gold], [2, P.blue]] as const) p.rect(21 + k * 3, 2, 2, 5, c);
+    // the cabinet
+    p.rect(1, 12, 32, 20, P.wood);
+    p.hline(1, 32, 12, P.woodLt);
+    p.hline(1, 32, 13, P.goldPale);
+    p.vline(1, 12, 31, P.woodLt);
+    p.vline(32, 13, 31, P.woodDark);
+    const COL = [P.red, P.gold, P.blue];
+    for (let k = 0; k < 3; k++) {
+      const bx = 2 + k * 10;
+      // the bay's door, its colour band, the slot (a dark mouth with a lit lip)
+      p.rect(bx + 1, 14, 8, 17, P.woodDark);
+      p.rect(bx + 1, 14, 8, 2, COL[k]);
+      p.hline(bx + 1, bx + 8, 14, lt(COL[k]));
+      p.rect(bx + 2, 17, 6, 3, P.ink);
+      p.hline(bx + 2, bx + 7, 20, P.woodLt);
+      // the pictogram plate
+      p.rect(bx + 2, 22, 6, 6, P.white);
+      if (k === 0) {
+        // flame
+        p.vline(bx + 5, 23, 26, P.red);
+        p.vline(bx + 4, 24, 26, P.verm);
+        p.set(bx + 6, 25, P.verm);
+        p.set(bx + 5, 26, P.gold);
+      } else if (k === 1) {
+        // a carrier bag
+        p.rect(bx + 3, 24, 4, 3, P.gold);
+        p.set(bx + 3, 23, P.brassOld);
+        p.set(bx + 6, 23, P.brassOld);
+      } else {
+        // a can
+        p.rect(bx + 4, 23, 3, 4, P.blue);
+        p.vline(bx + 4, 23, 26, P.aqua);
+        p.hline(bx + 4, bx + 6, 23, P.steel);
+      }
+      p.set(bx + 7, 29, P.steel);
+    }
+    // the プラ bay has burst: a white bag bulging out of the slot
+    p.ellipse(16.5, 17, 4, 3, P.concreteLt);
+    p.set(15, 15, P.white);
+    p.set(16, 15, P.white);
+    p.set(19, 18, P.concrete);
+    p.set(13, 16, P.aqua);
+    // left on top: a paper cup with its straw, three trays stacked askew
+    p.rect(6, 9, 3, 3, P.white);
+    p.hline(6, 8, 9, P.red);
+    p.line(8, 8, 9, 5, P.aqua);
+    for (let j = 0; j < 3; j++) {
+      p.rect(22 - j, 10 - j, 9, 2, j === 1 ? P.sunDeep : P.sun);
+      p.hline(22 - j, 30 - j, 10 - j, P.sky);
+    }
+    // a split bag slumped at the foot, a crushed can
+    p.ellipse(31.5, 30, 2.5, 2, P.concreteLt);
+    p.set(31, 28, P.white);
+    p.rect(0, 29, 3, 2, P.steel);
+    p.set(0, 29, P.blue);
+    p.hline(1, 32, 32, P.ink);
+    p.hline(2, 33, 33, P.shade);
+  }, { cx: 16, base: 16, contact: 28, shadow: 0 }),
+);
+
+// ---------------------------------------------------------------- the planter dividers (1–3,7) (7–9,7)
+
+/**
+ * A long, low fibreglass planter between the rows of tables, full of
+ * plastic greenery: pothos and a fern, leaves grey with a year of dust on
+ * their tops, a few faded to yellow; a cup somebody pushed into it (v 0), a
+ * 『植え込みに ゴミを 捨てないで』 card on a stick (v 1).
+ */
+registerProp('mall_planter', (opts) => {
+  const v = Number(opts.v ?? 0);
+  return prop(48, 26, (p) => {
+    // the box: cream fibreglass, lit rim, a darker skirt, one corner chipped
+    p.rect(1, 14, 46, 10, P.paperGrid);
+    p.hline(1, 46, 14, P.white);
+    p.hline(1, 46, 15, P.concreteLt);
+    p.rect(1, 20, 46, 4, P.woodLt);
+    p.hline(1, 46, 23, P.wood);
+    p.vline(1, 14, 23, P.white);
+    p.vline(46, 15, 23, P.woodLt);
+    p.set(45, 14, P.concrete);
+    p.set(46, 14, P.concrete);
+    // grime run down the front from the soil line
+    for (const gx of [7, 19, 33, 40]) p.vline(gx, 16, 18 + (gx % 3), P.concrete);
+    // the greenery: overlapping clumps of plastic leaves (dark underneath,
+    // young green on top, dust on the uppermost edges)
+    const clump = (cx: number, cy: number, r: number, seed: number) => {
+      for (let j = -r; j <= r; j++)
+        for (let i = -r - 2; i <= r + 2; i++) {
+          const d = Math.hypot(i / (r + 2), j / r);
+          if (d > 1) continue;
+          const hh = ihash(cx + i, cy + j, seed);
+          if (d > 0.8 && hh % 3 === 0) continue;
+          let c: string = j > r * 0.3 ? P.leafShade : hh % 4 === 0 ? P.leafYoung : P.leaf;
+          if (j < -r * 0.5 && hh % 3 === 0) c = P.concrete; // dust
+          if (hh % 29 === 0) c = P.brassOld; // faded
+          p.set(cx + i, cy + j, c);
+        }
+    };
+    const clumps: [number, number, number][] = v
+      ? [[6, 12, 3], [15, 10, 4], [25, 12, 3], [33, 9, 4], [42, 12, 3]]
+      : [[7, 10, 4], [17, 12, 3], [26, 9, 4], [36, 11, 3], [43, 12, 2]];
+    clumps.forEach(([cx, cy, r], i) => clump(cx, cy, r, 4101 + v * 17 + i));
+    // fern fronds arching out of the middle
+    for (const [ex, ey] of [[22, 2], [30, 3], [14, 4]] as const) {
+      p.line(24, 12, ex, ey, P.leafDeep);
+      for (let k = 1; k < 5; k++) {
+        const fx = Math.round(24 + (ex - 24) * (k / 5));
+        const fy = Math.round(12 + (ey - 12) * (k / 5));
+        p.set(fx - 1, fy, P.leaf);
+        p.set(fx + 1, fy + 1, P.leafShade);
+      }
+      p.set(ex, ey, P.concrete);
+    }
+    // leaves hanging over the rim
+    for (const hx of v ? [9, 28, 44] : [4, 21, 38]) {
+      p.vline(hx, 14, 17, P.leaf);
+      p.set(hx + 1, 17, P.leafShade);
+    }
+    if (v === 0) {
+      // a paper cup pushed in among the leaves
+      p.rect(38, 7, 4, 4, P.white);
+      p.hline(38, 41, 7, P.red);
+      p.set(41, 10, P.concrete);
+    } else {
+      // the card on its stick
+      p.vline(12, 4, 13, P.woodLt);
+      p.rect(8, 1, 10, 5, P.white);
+      p.hline(9, 16, 2, P.verm);
+      p.hline(9, 14, 4, P.steel);
+    }
+    castRight(p, 1, 14, 46, 10, 2);
+  }, { cx: 24, base: 16, contact: 40, shadow: 0 });
+});
 
 void ihash;
 void printLines;

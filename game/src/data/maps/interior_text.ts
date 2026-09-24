@@ -61,7 +61,7 @@ export const IOBJ: Record<string, StageText> = {
 長い 棒。{w=300}
 どれも 30円より 安い。`,
   obj_kuji: `@narr
-当てくじ。{w=300}
+びんの 台に、当てくじが 1枚。{w=300}
 1等の 景品は 色あせて、
 何だったのか わからない。`,
   obj_bungu: `@narr
@@ -267,6 +267,15 @@ export const IOBJ: Record<string, StageText> = {
 回転焼き機が 回り続けている。{w=300}
 鉄板の 上で、小さな カギも
 いっしょに 回っている。`,
+  // QA round 3: the planter dividers and the rubbish station (not in 7.13)
+  obj_trash_station: `@narr
+分別の ゴミ箱。{w=300}
+『もえる』『プラ』『かん・びん』。
+どれも いっぱいの まま、1年。`,
+  obj_planter: `@narr
+仕切りの 植え込み。{w=300}
+葉っぱを なでると、
+プラスチックの 音が した。`,
 
   // ---------------------------------------------------------------- 7.14 M3 健康器具コーナー
   obj_roped_stage: `@narr
@@ -291,6 +300,19 @@ export const IOBJ: Record<string, StageText> = {
   obj_health_poster: `@narr
 『1日 1万歩』。{w=300}
 この コーナー、1年で 0歩。`,
+  // QA round 3: the carpet's bare corners (not in 7.14)
+  obj_fallen_nobori: `@narr
+のぼりが 倒れている。{w=300}
+『健康まつり 本日かぎり』。
+その 本日は、ずっと 前だ。`,
+  obj_sample_stand: `@narr
+試供品の 台。{w=300}
+『ご自由に どうぞ』の 紙コップが、
+伏せたまま 並んでいる。`,
+  obj_cord_bundle: `@narr
+マッサージチェアの コードが
+床を はって、タップに 集まっている。{w=300}
+タップの ランプが、まだ 赤い。`,
 
   // ---------------------------------------------------------------- 7.15 M4 2F通路
   obj_dead_palm: `@narr

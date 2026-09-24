@@ -7,7 +7,7 @@ import { rng } from '../engine/rng';
 import { ease } from '../engine/tween';
 import { flag, setFlag, state } from '../game/state';
 import { currentSpace, musicEncounter, musicReturnToField, playBgm, setSpace, sfx, stopBgm } from '../audio';
-import { fillAll, syncProgressSkills, SYS, getEnemy, getItem, getSkill } from '../data/battle';
+import { BOSS_RETRY_FLIP, fillAll, syncProgressSkills, SYS, getEnemy, getItem, getSkill } from '../data/battle';
 import type { BattleResult } from './api';
 import type { BattleScene } from './scene';
 import { FRAME } from './scene';
@@ -16,9 +16,10 @@ import { transitionIn, transitionOut } from './transition';
 import { inputCommands } from './menu';
 import { doAttack, doFlee, doGuard, doHanko, doItem, doNori, doPR, killSequence } from './party';
 import { decideEnemy, doEnemyAction } from './enemy';
-import { bossDecide, bossRoundEnd, bossRoundStart, checkBossPhase, initBoss } from './boss';
+import { bossDecide, bossRoundEnd, bossRoundStart, bossTries, checkBossPhase, initBoss } from './boss';
+import { showFlip } from './tsukkomi';
 import { victory, wipeOut } from './results';
-import { hideSticky, precacheRestored, resetKire, statusText } from './common';
+import { hideSticky, precacheRestored, resetKire, sayFallen, statusText } from './common';
 import { roundSeal } from './art/stamps';
 
 interface Act {
@@ -59,7 +60,8 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
   playBgm(music);
   s.showUi = true;
   // enemies pop in (0 → 1.15 → 1.0, 80ms apart); the boss rises out of darkness
-  if (s.isBoss) yield* bossAppear(s);
+  const retry = s.isBoss && bossTries.lost > 0;
+  if (s.isBoss) yield* bossAppear(s, retry);
   else {
     for (const e of s.enemies) {
       e.appearT = 0;
@@ -81,9 +83,14 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
   // while the opening line types (nothing else moves but the background)
   s.run(precacheRestored(s));
   yield* s.say(pages);
-  if (s.isBoss && first.def.texts.extra.opening) {
+  if (s.isBoss && first.def.texts.extra.opening && !retry) {
     sfx('se_boss_voice');
     yield* s.say(first.def.texts.extra.opening);
+  }
+  // a retry: Kanenari-kun holds up what beat them last time
+  if (retry && s.kanenari) {
+    s.mood(s.kanenari, 'tsukkomi', 2000);
+    yield showFlip(s, BOSS_RETRY_FLIP, 2000);
   }
   // round 0 (ambush): every enemy acts once before the first command
   if (init === 'enemy') {
@@ -146,12 +153,15 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
       // anything knocked to 0 outside a strike (self-damage etc.) still gets its 思いだす
       const fallen = s.enemies.filter((e) => e.hp <= 0 && !e.dead && !e.dying && !e.def.boss);
       if (fallen.length) yield* killSequence(s, fallen);
+      // a member knocked down by their own side (こんらん) — enemy moves say it themselves
+      yield* sayFallen(s);
       if (!result) result = yield* checkEnd(s);
     }
     if (result) break;
     // end of round
     if (s.isBoss) {
       yield* bossRoundEnd(s);
+      yield* sayFallen(s);
       result = yield* checkEnd(s);
       if (result) break;
     }
@@ -361,6 +371,7 @@ function* finish(s: BattleScene, result: BattleResult): Co<BattleResult> {
     return 'flee';
   }
   // wipe (18.4): the battle side plays up to the dark screen; evt_gameover follows
+  if (s.isBoss) bossTries.lost++;
   yield* wipeOut(s);
   cleanupStatuses(s);
   if (s.isBoss) setFlag('flag_boss_phase', 0);
@@ -415,27 +426,29 @@ function* initiativeStamp(s: BattleScene, party: boolean): Co {
   yield 300;
 }
 
-function* bossAppear(s: BattleScene): Co {
+function* bossAppear(s: BattleScene, fast = false): Co {
   const e = s.enemies[0];
   e.appearT = -1;
   e.alpha = 0;
   e.flags.eyesClosed = 1;
   e.whiteFrames = 0;
-  // silhouette out of the dark, colour arrives over 800ms
+  // silhouette out of the dark, colour arrives over 800ms (a retry: 450ms in all)
+  const k = fast ? 0.4 : 1;
   e.params.silhouette = 1;
-  for (let t = 0; t < 400; t += FRAME) {
-    e.alpha = t / 400;
+  for (let t = 0; t < 400 * k; t += FRAME) {
+    e.alpha = t / (400 * k);
     yield null;
   }
-  for (let t = 0; t < 800; t += FRAME) {
-    e.params.silhouette = 1 - t / 800;
+  for (let t = 0; t < 800 * k; t += FRAME) {
+    e.params.silhouette = 1 - t / (800 * k);
     yield null;
   }
   e.params.silhouette = 0;
-  yield 150;
+  e.alpha = 1;
+  yield 150 * k;
   e.flags.eyesClosed = 0;
   sfx('se_enemy_appear');
-  yield 300;
+  yield 300 * k;
   void getEnemy;
   void flag;
 }

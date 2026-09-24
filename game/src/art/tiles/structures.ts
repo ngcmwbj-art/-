@@ -466,20 +466,73 @@ function fenceCell(kind: string, tx: number, ty: number, m: CellMask): CellArt {
   return { img: p.toCanvas(), ox: 0, oy: 16 - hh, shadow: 0 };
 }
 
-function guardrailCell(tx: number, ty: number, m: CellMask): CellArt {
+/**
+ * An old riverside railing (mat 'pipe', QA round 3: the guardrail ran
+ * unbroken along three screens): two round pipes on posts, sky-blue paint
+ * gone to rust in patches, one pipe sagging where it was hit long ago.
+ */
+function pipeRailCell(tx: number, ty: number, m: CellMask): CellArt {
+  const W = 16;
+  const hh = 16 + 6;
+  const p = new PixelCanvas(W, hh);
+  const base = hh - 3;
+  const paint = (x: number, y: number, lit: boolean) => {
+    const h = ihash(tx * 16 + x, y, 29);
+    const rust = h % 5 === 0 || (h % 3 === 0 && y > base - 6);
+    // faded sky-blue paint (never the green of the grass behind it)
+    return rust ? (lit ? P.brass : P.brassOld) : lit ? '#A9C0D0' : '#5E7088';
+  };
+  // posts at both ends of a run and every 16px
+  const posts = [3];
+  if (!m.e) posts.push(12);
+  for (const x of posts) {
+    p.vline(x, base - 11, base, paint(x, base - 11, true));
+    p.vline(x + 1, base - 11, base, '#4A5870');
+    p.set(x, base - 11, P.glint);
+    for (let y = base - 8; y <= base; y += 3) if (ihash(tx, y, 31) % 2) p.set(x, y, P.brassOld);
+  }
+  const x0 = m.w ? 0 : 3;
+  const x1 = m.e ? W - 1 : 13;
+  const sag = ihash(tx, ty, 37) % 4 === 0;
+  for (let x = x0; x <= x1; x++) {
+    const d = sag && x > 4 && x < 12 ? 1 : 0;
+    // upper pipe (lit on top), lower pipe
+    p.set(x, base - 10, paint(x, 0, true));
+    p.set(x, base - 9, paint(x, 1, false));
+    p.set(x, base - 5 + d, paint(x, 2, true));
+    p.set(x, base - 4 + d, paint(x, 3, false));
+  }
+  // weeds grown through it
+  for (let i = 0; i < 4; i++) {
+    const wx = ihash(tx, i, 41) % 15;
+    const hgt = 2 + (ihash(tx, i, 43) % 4);
+    for (let k = 0; k < hgt; k++) p.set(wx, base + 1 - k, k === hgt - 1 ? P.leafYoung : P.leaf);
+  }
+  return { img: p.toCanvas(), ox: 0, oy: 16 - hh, shadow: 12 };
+}
+
+function guardrailCell(tx: number, ty: number, m: CellMask, mat = 'rail'): CellArt {
+  if (mat === 'pipe') return pipeRailCell(tx, ty, m);
   // white W-beam rail on posts, facing south; the canal is beyond
   const W = 16;
   const hh = 16 + 6;
   const p = new PixelCanvas(W, hh);
   const base = hh - 3;
   const dent = ihash(tx, ty, 13) % 9 === 0;
-  // posts every 32px
+  // posts every 32px, and at the end of a run (a gap for steps, another railing)
   if (tx % 2 === 0 || !m.w) {
     p.vline(3, base - 12, base, P.white);
     p.vline(4, base - 12, base, P.steel);
     p.set(3, base - 12, P.glint);
   }
+  if (!m.e) {
+    p.vline(11, base - 12, base, P.white);
+    p.vline(12, base - 12, base, P.steel);
+    p.set(11, base - 12, P.glint);
+  }
   for (let x = 0; x < W; x++) {
+    // the beam ends in a rounded flare (袖) at the end of a run
+    if ((!m.e && x > 13) || (!m.w && x < 2)) continue;
     const d = dent && x > 4 && x < 12 ? 1 : 0;
     p.set(x, base - 11 + d, P.glint);
     p.set(x, base - 10 + d, P.white);
@@ -640,7 +693,7 @@ export function structureCell(kind: string, mat: string, tx: number, ty: number,
   if (a) return a;
   if (kind === 'hedge') a = hedgeCell(mat as HedgeKind, tx, ty, m);
   else if (kind === 'fence') a = fenceCell(mat, tx, ty, m);
-  else if (kind === 'guardrail') a = guardrailCell(tx, ty, m);
+  else if (kind === 'guardrail') a = guardrailCell(tx, ty, m, mat);
   else a = wallCell(mat, tx, ty, m);
   cache.set(key, a);
   return a;

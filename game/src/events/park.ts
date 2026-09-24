@@ -11,7 +11,7 @@ import { duckMusic, playAmbient, playBgm, sfx, stopAmbient, stopBgm } from '../a
 import { actor, despawn, face, mapAudio, msg, refreshFollower, registerScript, setFollowerVisible, shadowSwing, stage, walk } from '../world/api';
 import * as T from '../data/text/events';
 import { besideToward, F, followerSpot, holdBgm, panBack, panTo, settle, tileRoute } from './lib';
-import { bellGlow, ring, sparkle } from './fx';
+import { bellGlow, ring, sparkle, voiceLine } from './fx';
 import { zoomIn, zoomOut } from './stage';
 import { registerWorldFx } from '../world/fx';
 
@@ -33,20 +33,30 @@ registerScript('evt_kanenari_meet', function* (): Co {
   face('player', 'npc_kanenari');
   f.player.moving = false;
   yield 350;
-  // the flip board goes up
+  // the flip board goes up — and on the pause it is turned over: 「（引退しました）」
   k.playAnim('flip');
   sfx('se_flip');
   yield 220;
-  yield* msg(T.KANENARI_MEET_1);
-  yield 400;
-  k.playAnim('flip_turn');
-  sfx('se_flip');
-  yield 260;
-  yield* msg(T.KANENARI_MEET_2);
-  // the PR pose; the clapper of the bell sways
+  let turned = false;
+  const turn = () => {
+    if (turned) return;
+    turned = true;
+    k.playAnim('flip_turn');
+    sfx('se_flip');
+  };
+  game.scripts.run(
+    (function* (): Co {
+      yield 820;
+      turn();
+    })(),
+  );
+  yield* msg(T.KANENARI_MEET);
+  turn();
+  // the PR pose; the clapper of the bell sways — and the PR starts (the
+  // battle's own first line says it: 「カネナリくんが PRを はじめた！」)
   k.playAnim('pose');
-  yield 600;
-  yield* msg(T.KANENARI_MEET_3);
+  sfx('se_flip', { vol: 0.5, pitch: 1.3 });
+  yield 650;
   setFlag('flag_met_kanenari', 1);
   k.anim = null;
   const r = yield* startBattle({ enemies: ['enemy_kanenari'], music: 'bgm_battle', background: 'bg_kanenari', canLose: false });
@@ -66,17 +76,17 @@ function* kanenariJoin(): Co {
     k.data.scripted = true;
     face('npc_kanenari', 'player');
     face('player', 'npc_kanenari');
-    yield 300;
+    yield 200;
     // the bell glows, twice — it does not ring
     k.playAnim('glow');
     for (let i = 0; i < 2; i++) {
-      bellGlow(k.x, k.y + BELL_DY, 620);
-      ring(k.x, k.y + BELL_DY, '#FFE7A3', 520);
+      bellGlow(k.x, k.y + BELL_DY, 560);
+      ring(k.x, k.y + BELL_DY, '#FFE7A3', 480);
       sfx('se_glint', { vol: 0.45, pitch: 1 + i * 0.12 });
-      yield 620;
+      yield 520;
     }
     sparkle(k.x + 3, k.y + BELL_DY - 5);
-    yield 300;
+    yield 220;
     k.anim = null;
     k.playAnim('flip');
     sfx('se_flip');
@@ -110,7 +120,7 @@ function* kanenariJoin(): Co {
     setFollowerVisible(true);
     if (f.follower) f.follower.dir = dir;
   } else refreshFollower();
-  yield 600;
+  yield 350;
   yield* maigoBroadcast();
 }
 
@@ -175,12 +185,12 @@ function* maigoBroadcast(): Co {
   sfx('se_pa_chime');
   yield 200;
   yield* msg(T.BROADCAST);
-  // the last line comes in a child's voice
-  yield* msg(T.BROADCAST_LAST);
+  // the last line comes in a child's voice: no window, no name — the words alone
+  yield* voiceLine(T.BROADCAST_LAST, { y: 150, cps: 6, hold: 900, voice: 'broadcast_child', lead: 250 });
   // its echo, three times, fading
-  yield 900;
+  yield 600;
   sfx('se_pa_chime_end', { vol: 0.7 });
-  yield 700;
+  yield 550;
   waves.on = false;
   yield* zoomOut(z, 380);
   setFlag('flag_broadcast_on', 0);
@@ -193,12 +203,22 @@ function* maigoBroadcast(): Co {
   playAmbient('amb_s2_town', { fade: 1.5 });
   game.scripts.run(shadowSwing());
   mapAudio();
-  yield 1500;
-  yield* msg(T.BROADCAST_SHADOWS);
-  sfx('se_chain', { vol: 0.55, pan: 0.7 });
-  yield 550;
+  yield 1300;
+  // one window: the shadows, a pause — the chain comes off in it — and the chain
   setFlag('flag_parking_open', 1);
-  yield* msg(T.BROADCAST_CHAIN);
+  let chained = false;
+  const chain = () => {
+    if (!chained) sfx('se_chain', { vol: 0.55, pan: 0.7 });
+    chained = true;
+  };
+  game.scripts.run(
+    (function* (): Co {
+      yield 1250;
+      chain();
+    })(),
+  );
+  yield* msg(T.BROADCAST_SHADOWS);
+  chain();
   // カネナリくん points the way: north-east, where the shadows point
   const k = f.follower;
   if (k) {

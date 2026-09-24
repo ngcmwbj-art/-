@@ -23,10 +23,10 @@ import { uiHud } from '../ui/hud';
 import { registerWorldFx } from '../world/fx';
 import { CHUNK } from '../world/ground_cache';
 import * as T from '../data/text/events';
-import { F, getKeyItem, holdBgm, holdCamera, releaseCamera, tileRoute, walkTo } from './lib';
+import { F, holdBgm, holdCamera, releaseCamera, tileRoute, walkTo } from './lib';
 import { bellGlow, ring, sparkle, voiceLine } from './fx';
 import { BASKET_RIM, dinnerSet, fryBasket, paperBag, photoClose } from './art';
-import { cinema, cinemaOff, forceBoxPos, zoomIn, zoomOut, zoomPan, zoomScale, type ZoomView } from './stage';
+import { cinema, cinemaOff, forceBoxPos, quietItem, zoomIn, zoomOut, zoomPan, zoomScale, type ZoomView } from './stage';
 
 // ---------------------------------------------------------------- helpers
 
@@ -41,6 +41,22 @@ function cutTo(map: string, x: number, y: number, dir: 'up' | 'down' | 'left' | 
 
 function* fadeTo(ms: number, color = '#0B0B14'): Co {
   yield* game.fadeOut(ms, color);
+}
+
+/**
+ * The HUD draws its hanko plate whenever the case is owned and the HUD is
+ * up; cut 1 wants the clock plate alone. (The HUD has no separate switch for
+ * the hanko: the case's flag is lifted for the length of the shot.)
+ */
+let hankoFlag = 0;
+function hudHankoHidden(on: boolean): void {
+  if (on) {
+    if (!hankoFlag) hankoFlag = flag('flag_got_hanko') || 0;
+    setFlag('flag_got_hanko', 0);
+  } else if (hankoFlag) {
+    setFlag('flag_got_hanko', hankoFlag);
+    hankoFlag = 0;
+  }
 }
 
 /**
@@ -616,27 +632,33 @@ function* cut1Chime(): Co {
   const z = yield* zoomIn(50 * 16, 7 * 16 - 2, 0);
   sfx('se_auto_door');
   game.scripts.run(game.fadeIn(800));
-  yield* walkTo('player', 50, 7, { speed: 2.4, face: 'down' });
   // カネナリくん comes round to stand beside him (not stacked up behind
-  // him): the two side by side under the chime
+  // him): the two side by side under the chime — walking out together
   const k0 = f.follower;
-  if (k0) {
-    k0.data.scripted = true;
-    const route = tileRoute([k0.tileX, k0.tileY], [49, 7], [[50, 7]], 4);
-    if (route && route.length) {
-      k0.path = route.map(([x, y]) => [x * 16 + 8, y * 16 + 16] as [number, number]);
-      k0.pathSpeed = 2.4 * 16;
-      yield () => k0.path.length === 0;
-    }
-    k0.moving = false;
-    k0.dir = 'down';
-  }
+  yield* all(
+    walkTo('player', 50, 7, { speed: 2.4, face: 'down' }),
+    (function* (): Co {
+      if (!k0) return;
+      k0.data.scripted = true;
+      yield 250;
+      const route = tileRoute([k0.tileX, k0.tileY], [49, 7], [[50, 7]], 4);
+      if (route && route.length) {
+        k0.path = route.map(([x, y]) => [x * 16 + 8, y * 16 + 16] as [number, number]);
+        k0.pathSpeed = 2.6 * 16;
+        yield () => k0.path.length === 0;
+      }
+      k0.moving = false;
+      k0.dir = 'down';
+    })(),
+  );
   // the HUD's pending place name is dropped while it is hidden (it waits for the fade)
   yield () => game.fadeAlpha < 0.05;
   yield* beat(150);
-  // the clock plate slides in, still 17:00
+  // the clock plate slides in, still 17:00 — only the clock: the HUD hanko
+  // (a control, not part of the picture) stays out of the shot
+  hudHankoHidden(true);
   setFlag('flag_hud_hidden', 0);
-  yield* beat(400);
+  yield* beat(300);
   // the chime: G4 A4 C5 E5 — and, for the first time, D5 C5 A4 C5
   let fifth = false;
   let last = false;
@@ -656,13 +678,13 @@ function* cut1Chime(): Co {
   playAmbient('amb_night_insects', { fade: 3, vol: 0.8 });
   playAmbient('amb_kawabe', { fade: 3 });
   yield* chimeNote(f, () => last, t0, 7 * 450);
-  yield* beat(900);
+  yield* beat(650);
   // the stopped clock moves on: 17:00 → 17:01, with its flip (40_audio 13.5)
   setClock(4);
-  yield* beat(600);
+  yield* beat(450);
   // one higurashi, then the ending song
   sfx('se_higurashi_call');
-  yield* beat(500);
+  yield* beat(350);
   playBgm('bgm_ending', { fade: 1.0 });
   // they look up at the sky; the camera draws back to the lit lot
   const p = f.player;
@@ -673,9 +695,9 @@ function* cut1Chime(): Co {
     k.dir = 'down';
     k.tempPose = 'look_up';
   }
-  yield* beat(250);
-  yield* zoomOut(z, 1200);
   yield* beat(200);
+  yield* zoomOut(z, 1000);
+  yield* beat(150);
   p.tempPose = null;
   if (k) {
     k.tempPose = null;
@@ -690,6 +712,7 @@ function* cut2Meat(): Co {
   yield* fadeTo(300);
   // no place-name banners and no clock in the cuts that follow
   setFlag('flag_hud_hidden', 1);
+  hudHankoHidden(false);
   cutTo('map_maruyama', 4, 5, 'up');
   setSpace('room');
   // カネナリくん at the counter beside Minato (the bag goes down on his other side)
@@ -721,7 +744,7 @@ function* cut2Meat(): Co {
   forceBoxPos('bottom');
   yield* game.fadeIn(300);
   sfx('se_fry', { vol: 0.6 });
-  yield* beat(650);
+  yield* beat(350);
   // 揚がった: the basket comes up out of the oil — a hiss, a burst of steam,
   // the golden croquettes catching the bulb — and is hung up to drain
   sfx('se_fry', { vol: 0.9, pitch: 1.25 });
@@ -733,9 +756,9 @@ function* cut2Meat(): Co {
   // and the camera pushes in (3×) on the basket and 丸山
   game.scripts.run(zoomScale(z, 3, 480));
   game.scripts.run(zoomPan(z, ox + 6, oy + 10, 480));
-  yield* animate(420, (k) => (fry.lift = 9 * k), ease.cubicOut);
+  yield* animate(360, (k) => (fry.lift = 9 * k), ease.cubicOut);
   fry.lift = 9;
-  yield* animate(500, (k) => (fry.heat = 1 - 0.8 * k));
+  yield* animate(380, (k) => (fry.heat = 1 - 0.8 * k));
   fry.handle = false;
   sfx('se_drip', { vol: 0.35 });
   yield* beat(160);
@@ -744,7 +767,7 @@ function* cut2Meat(): Co {
     face('npc_maruyama', 'player');
     m.hop(2, 180);
   }
-  yield* beat(260);
+  yield* beat(200);
   yield* msg(T.END_MEAT_A);
   // back to 2× for the counter; the bag is lifted from behind the showcase
   // in front of him, over onto the counter in front of Minato
@@ -753,33 +776,28 @@ function* cut2Meat(): Co {
   const mx = m ? m.x : 3 * 16 + 8;
   fry.bag = { t: 0, from: [mx + 10, caseTop(f)], to: [p.x + 6, counterLedge(f)] };
   sfx('se_paper_open', { vol: 0.35, pitch: 1.3 });
+  // (it lands at 640 ms: the bag's sound on the landing)
   yield 640;
   sfx('se_paper_bag');
-  yield 260;
+  yield 200;
+  // paid (his line said the price), and the bag is Minato's: the item
+  // jingle over the picture, no window (the ending keeps one line per beat)
   if (state.money >= 320) {
     state.money -= 320;
     sfx('se_coin');
     yield 200;
-    yield* getKeyItem('item_korokke', T.END_MEAT_PAY_GET);
   } else {
     yield* msg(T.END_MEAT_TSUKE);
     setFlag('flag_tsuke', 1);
-    yield* getKeyItem('item_korokke', T.END_MEAT_GET);
   }
   forceBoxPos(null);
-  // it's in Minato's hands now; the whole shop: カネナリくん at the counter with his board
+  yield* quietItem('item_korokke');
+  playBgm('bgm_jingle_item');
+  yield* beat(550);
   fry.bag = null;
   yield* zoomOut(z, 400);
-  if (k) {
-    k.tempPose = 'flip_hold';
-    sfx('se_flip');
-  }
-  yield* msg(T.END_MEAT_FLIP);
-  if (k) {
-    k.tempPose = null;
-    delete k.data.scripted;
-  }
-  yield* beat(250);
+  if (k) delete k.data.scripted;
+  yield* beat(200);
 }
 
 function* cut3Photo(): Co {
@@ -800,18 +818,18 @@ function* cut3Photo(): Co {
   const w = new PhotoCloseup();
   game.ui.push(w);
   yield* animate(400, (p) => (w.k = p), ease.quadOut);
-  yield* beat(400);
+  yield* beat(250);
   // it wakes, looks up at the photograph, and flicks its tail once — no sound but the insects
   cat.pose = null;
   cat.tempPose = 'look_up';
-  yield* beat(600);
+  yield* beat(400);
   cat.tempPose = null;
   cat.playAnim('tail');
-  yield* beat(800);
+  yield* beat(550);
   cat.anim = null;
   cat.tempPose = 'look_up';
-  yield* beat(500);
-  yield* animate(350, (p) => (w.k = 1 - p));
+  yield* beat(250);
+  yield* animate(300, (p) => (w.k = 1 - p));
   w.done = true;
 }
 
@@ -837,15 +855,20 @@ function* cut4Home(): Co {
     mom.tempPose = null;
     face('npc_mother', 'player');
   }
-  yield* beat(200);
-  const i = yield* msg(T.END_HOME_A);
-  setFlag('flag_sauce_choice', i === 1 ? 2 : 1);
-  yield* msg(T.END_HOME_B);
-  void f;
+  // close on the two of them (2×), as for every first talk indoors
+  const p = f.player;
+  const who = mom ?? p;
+  homeZoom = yield* zoomIn(Math.round((p.x + who.x) / 2), Math.round(Math.max(p.y, who.y)) - 12, 300);
+  yield* msg(T.END_HOME);
 }
+
+/** Cut 4's close-up, let go when cut 5 fades in. */
+let homeZoom: ZoomView | null = null;
 
 function* cut5Tv(): Co {
   yield* fadeTo(300);
+  if (homeZoom) homeZoom.done = true;
+  homeZoom = null;
   // dinner: the two at either side of the chabudai, the TV on behind it
   place('player', 8, 4, 'right');
   const mom = actor('npc_mother');
@@ -860,18 +883,18 @@ function* cut5Tv(): Co {
   // the table)
   const z = yield* zoomIn(9 * 16, 4 * 16 + 4, 0);
   yield* game.fadeIn(300);
-  yield* beat(400);
+  yield* beat(250);
   const w = new TvCloseup();
   game.ui.push(w);
   yield* animate(300, (p) => (w.k = p), ease.quadOut);
-  yield* beat(250);
+  yield* beat(150);
   yield* msg(T.END_TV);
   yield* animate(250, (p) => (w.k = 1 - p));
   w.done = true;
   if (mom) face('npc_mother', 'player');
-  yield* beat(200);
+  yield* beat(150);
   yield* msg(T.END_TV_MOTHER);
-  yield* beat(300);
+  yield* beat(200);
   yield* fadeTo(400);
   z.done = true;
 }
@@ -935,11 +958,11 @@ function* cut6Crossing(): Co {
   k.data.scripted = true;
   k.alpha = 0;
   yield* game.fadeIn(400);
-  yield* beat(600);
+  yield* beat(300);
   // the barrier that stayed down all day goes up
   setFlag('flag_crossing_open', 1);
   sfx('se_crossing_up');
-  yield* beat(1000);
+  yield* beat(600);
   // an unlit train, north to south; its sign says 星見台
   yield* all(
     trainPass(),
@@ -949,7 +972,7 @@ function* cut6Crossing(): Co {
     })(),
   );
   k.alpha = 1;
-  yield* beat(400);
+  yield* beat(200);
   // Minato comes in from the left with the paper bag
   p.visible = true;
   p.x = 52 * 16 + 8;
@@ -957,18 +980,18 @@ function* cut6Crossing(): Co {
   yield* walkTo('player', 56, 22, { speed: 2.6, face: 'right' });
   face('ending_kanenari', 'player');
   yield* beat(250);
+  // the extra one, held out and taken (no window: the picture says it)
   p.tempPose = 'give';
-  yield* beat(250);
-  yield* msg(T.END_GIVE);
+  yield* beat(450);
   sfx('se_paper_bag');
   p.tempPose = null;
   k.tempPose = 'hold';
-  yield* beat(700);
+  yield* beat(650);
   // he turns his back, opens the zip — dark inside — and puts it in
   k.dir = 'up';
   k.tempPose = 'zipper';
   sfx('se_zipper');
-  yield* beat(700);
+  yield* beat(650);
   k.tempPose = null;
   k.dir = 'left';
   // 1.5 s: only the insects — and the camera closes in on the two of them
@@ -976,24 +999,27 @@ function* cut6Crossing(): Co {
   game.scripts.run(cinema(true, 1200));
   if (crossingZoom) {
     const cz = crossingZoom;
-    yield* all(zoomScale(cz, 3, 1500), zoomPan(cz, Math.round((p.x + k.x) / 2), p.y - 14, 1500));
-  } else yield 1500;
-  yield* beat(300);
+    yield* all(zoomScale(cz, 3, 1300), zoomPan(cz, Math.round((p.x + k.x) / 2), p.y - 14, 1300));
+  } else yield 1300;
+  yield* beat(250);
   // the first voice: no window, no name tag — only the words, slowly
-  yield* voiceLine(T.END_VOICE_TEXT, { y: 170, cps: 5, hold: 1400 });
-  yield* beat(500);
+  yield* voiceLine(T.END_VOICE_TEXT, { y: 170, cps: 5, hold: 1300 });
+  yield* beat(400);
   // the bell rings once, by itself
   sfx('se_bell_kanenari_short');
   k.playAnim('glow');
   bellGlow(k.x, k.y - 20, 900);
   ring(k.x, k.y - 20, '#FFE7A3', 700);
   sparkle(k.x + 3, k.y - 26, 600);
-  yield* beat(900);
+  yield* beat(800);
   k.anim = null;
 }
 
 /** QA / the night sky: drop the crossing close-up. */
 function endCrossingZoom(): void {
+  if (homeZoom) homeZoom.done = true;
+  homeZoom = null;
+  hudHankoHidden(false);
   if (crossingZoom) crossingZoom.done = true;
   crossingZoom = null;
   eastEdge.on = false;
@@ -1014,7 +1040,7 @@ export function* evtEnding(): Co {
     game.fadeAlpha = 1;
   }
   stopAllAmbient(0.5);
-  yield* beat(300);
+  yield* beat(200);
   yield* cut1Chime();
   yield* cut2Meat();
   yield* cut3Photo();
@@ -1022,7 +1048,7 @@ export function* evtEnding(): Co {
   yield* cut5Tv();
   yield* cut6Crossing();
   // the night sky (cut_night_sky): the star over 星見台 stops twinkling
-  yield* playNightSkyCut({ hold: 1200 });
+  yield* playNightSkyCut({ hold: 700 });
   endCrossingZoom();
   // the notebook: 「夕鳴町 みました帳 ①」, the case, 「つづく」. The ending's
   // song and night bed are let go here, before the title — the title is the

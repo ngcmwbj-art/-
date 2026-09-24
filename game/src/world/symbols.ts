@@ -214,7 +214,7 @@ export class SymbolAI {
       if (!st.noticed) {
         st.noticed = true;
         a.showEmote('exclaim', 700);
-        snd.se('se_symbol_notice');
+        snd.seAt('se_symbol_notice', a.x, a.y);
       }
       a.pose = null;
       stepToward(a, p.x, p.y, 3.0 * T, dt, this.nw());
@@ -230,8 +230,10 @@ export class SymbolAI {
     st.timer -= dt;
     if (st.timer <= 0) {
       st.timer = 2000 + Math.random() * 2000;
-      const dirs: Dir[] = ['left', 'right', 'up', 'down'];
-      const dir = dirs[Math.floor(Math.random() * 4)];
+      // along the street and back, never a tile south (in front of it
+      // stands the arcade pillar that would hide it: occlusion QA)
+      const dirs: Dir[] = ['left', 'right', 'up'];
+      const dir = dirs[Math.floor(Math.random() * dirs.length)];
       const [vx, vy] = DIR_VEC[dir];
       const tx = st.home[0] + vx * T * (Math.random() < 0.5 ? 0 : 1);
       const ty = st.home[1] + vy * T * (Math.random() < 0.5 ? 0 : 1);
@@ -259,7 +261,7 @@ export class SymbolAI {
           }
           st.hops = (st.hops ?? 0) - 1;
           a.hop(7, 250);
-          snd.se('se_semi_hop');
+          snd.seAt('se_semi_hop', a.x, a.y);
           const dx = p.x - a.x;
           const dy = p.y - a.y;
           const l = Math.hypot(dx, dy) || 1;
@@ -291,7 +293,7 @@ export class SymbolAI {
       st.hops = 3;
       st.timer = 120;
       a.showEmote('exclaim', 600);
-      snd.se('se_symbol_notice');
+      snd.seAt('se_symbol_notice', a.x, a.y);
     }
   }
 
@@ -325,7 +327,7 @@ export class SymbolAI {
       st.mode = 'notice';
       st.timer = 900;
       a.showEmote('note', 1600);
-      snd.se('se_symbol_notice');
+      snd.seAt('se_symbol_notice', a.x, a.y);
       return;
     }
     // patrol 3 tiles
@@ -356,7 +358,7 @@ export class SymbolAI {
     if (chase && !st.noticed) {
       st.noticed = true;
       a.showEmote('question', 700);
-      snd.se('se_symbol_notice');
+      snd.seAt('se_symbol_notice', a.x, a.y);
     }
     if (!chase) st.noticed = false;
     st.timer = chase ? 450 : 800;
@@ -383,7 +385,7 @@ export class SymbolAI {
     a.dir = dirFromVec(tx - a.x, ty - a.y, a.dir);
     st.hopTarget = [tx, ty];
     a.hop(6, chase ? 280 : 320);
-    snd.se('se_umbrella_hop', { vol: 0.6 });
+    snd.seAt('se_umbrella_hop', a.x, a.y, { vol: 0.6 });
   }
 
   private ojigi(a: Actor, st: SymState, dt: number): void {
@@ -414,7 +416,7 @@ export class SymbolAI {
       a.moving = false;
       if (st.timer <= 0) {
         st.mode = 'chase';
-        snd.se('se_robot_bump', { vol: 0.35, pitch: 1.4 });
+        snd.seAt('se_robot_bump', a.x, a.y, { vol: 0.35, pitch: 1.4 });
       }
       return;
     }
@@ -443,7 +445,7 @@ export class SymbolAI {
         a.dir = lane;
         a.moving = false;
         a.showEmote('exclaim', 700);
-        snd.se('se_symbol_notice');
+        snd.seAt('se_symbol_notice', a.x, a.y);
         return;
       }
     }
@@ -467,7 +469,7 @@ export class SymbolAI {
 
   /** Bumped a wall: 90° (towards (dx,dy) when given), 25% about-face. */
   private bumpTurn(a: Actor, dx: number, dy: number): void {
-    snd.se('se_robot_bump', { vol: 0.5 });
+    snd.seAt('se_robot_bump', a.x, a.y, { vol: 0.5 });
     const [fx] = DIR_VEC[a.dir];
     const back = ({ up: 'down', down: 'up', left: 'right', right: 'left' } as Record<Dir, Dir>)[a.dir];
     const side: Dir[] = fx !== 0 ? ['up', 'down'] : ['left', 'right'];

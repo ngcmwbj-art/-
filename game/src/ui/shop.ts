@@ -10,11 +10,16 @@
 // 「ラムネを 買う？」, the quantity (←→) with the total, and 買う／やめる
 // (↑↓) with the cursor resting on やめる, so mashing 決定 through the keeper's
 // lines can't chain purchases. After a purchase the list ignores input for a
-// moment. A shop sells at most `shopLimit(id)` of a thing per visit.
+// moment. A shop sells at most `shopLimit(id)` of a thing a day — the
+// count is kept in the save (state.flags), so walking out and back in
+// doesn't restock the shelf. A sold-out card gets the shop's 「売切」 seal
+// and its price struck through.
 
 import type { Co } from '../engine/co';
 import { game, type Scene } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
+import { makeCanvas } from '../engine/pixel';
+import { hash2 } from '../engine/rng';
 import { H, W } from '../engine/screen';
 import { ease } from '../engine/tween';
 import { addItem, countItem, flag, setFlag, state } from '../game/state';
@@ -25,7 +30,7 @@ import { digitsWidth, drawDigits, drawNumerals, numeralsWidth } from './digits';
 import { itemIcon24, purseIcon } from './icons';
 import { bagCount, BAG_MAX } from './menu/items';
 import { uiHud } from './hud';
-import { drawCursor, drawMarker, drawTape, drawWindow, dottedVLine, pencilLine, phraseWrap, rectA, tapeImg, textW, UI } from './window';
+import { ctxText, rgb, drawCursor, drawMarker, drawTape, drawWindow, dottedVLine, pencilLine, phraseWrap, rectA, tapeImg, textW, UI } from './window';
 
 export interface ShopKeeper {
   name: string;
@@ -41,7 +46,7 @@ export interface ShopDef {
   goods: () => string[];
   /** Price override (default: the item's price). */
   price?: (id: string) => number;
-  /** Most sold per visit (default: the item's `shopLimit`). */
+  /** Most sold in the day (default: the item's `shopLimit`). */
   limit?: (id: string) => number;
   /**
    * After a purchase (`n` = purchases so far, 1 = first): the keeper's lines
@@ -50,13 +55,22 @@ export interface ShopDef {
   onBuy?: (id: string, n: number) => string[] | Co | null;
   noMoney?: string[];
   bagFull?: string[];
-  /** Lines when something has sold out for this visit. */
+  /** Lines when something has sold out for the day. */
   soldOut?: string[];
   /** Lines when the player leaves. */
   bye?: () => string[] | null;
 }
 
 const shops = new Map<string, ShopDef>();
+
+/** How many of `item` this shop has sold today (kept in the save). */
+function soldKey(shop: string, item: string): string {
+  return `flag_shop_sold_${shop}_${item}`;
+}
+
+export function soldToday(shop: string, item: string): number {
+  return flag(soldKey(shop, item));
+}
 
 export function registerShop(def: ShopDef): void {
   shops.set(def.id, def);
@@ -92,6 +106,7 @@ registerShop({
     return n % 2 === 0 ? ['はいよ。'] : ['毎度 ありがとね。'];
   },
   noMoney: ['足りないね。{w=300}\nツケは、肉屋の 専売特許だよ。'],
+  soldOut: ['それは きょうは もう おしまい。{w=300}\n買いしめは なしだよ。'],
   bagFull: ['もちものが いっぱいだよ。{w=300}\nポケットは 2つしか ないだろ。'],
   bye: () => {
     const s = flag('flag_stage');
@@ -164,8 +179,6 @@ class ShopScene implements Scene {
   private goods: string[];
   private leaving = false;
   private confirm: Confirm | null = null;
-  /** Bought during this visit, by id (for the per-visit limit). */
-  private boughtNow = new Map<string, number>();
 
   constructor(private def: ShopDef) {
     this.goods = def.goods();
@@ -179,10 +192,10 @@ class ShopScene implements Scene {
     return this.def.price?.(id) ?? getItem(id)?.price ?? 0;
   }
 
-  /** How many more of `id` this visit (Infinity = no limit). */
+  /** How many more of `id` can be bought today (Infinity = no limit). */
   private left(id: string): number {
     const lim = this.def.limit?.(id) ?? shopLimit(id);
-    return Math.max(0, lim - (this.boughtNow.get(id) ?? 0));
+    return Math.max(0, lim - soldToday(this.def.id, id));
   }
 
   /** Largest sensible quantity: what the purse, the bag and the shop allow (at least 1). */
@@ -322,7 +335,8 @@ class ShopScene implements Scene {
         }
         state.money -= price * qty;
         for (let i = 0; i < qty; i++) addItem(id);
-        self.boughtNow.set(id, (self.boughtNow.get(id) ?? 0) + qty);
+        const key = soldKey(def.id, id);
+        setFlag(key, flag(key) + qty);
         setFlag('flag_bought', flag('flag_bought') + 1);
         self.purseT = 0;
         sfx('se_coin');
@@ -403,13 +417,16 @@ class ShopScene implements Scene {
       if (sel) drawMarker(g, x + 8, y + 3, textW(it.name) + 4, 14, Math.min(1, this.moveT / 70), focus ? UI.marker : '#EFE4C6');
       g.text(it.name, x + 10, y + 2, { color: out ? UI.textDim : UI.text });
       if (out) {
-        // sold out for this visit: the price is crossed off and 「うりきれ」 pencilled in
+        // sold out for the day: the price is struck through and the shop's
+        // 「売切」 seal is pressed beside it — the same on every card
         const pw = digitsWidth(`${this.price(id)}円`);
         const px = x + CARD_W - 6 - pw;
         drawDigits(g, `${this.price(id)}円`, x + CARD_W - 6, y + 7, { color: UI.textDim, align: 'right' });
         g.rect(px - 1, y + 10, pw + 2, 1, UI.accent);
-        const sw = textW('うりきれ');
-        if (10 + textW(it.name) + 8 + sw + pw + 8 <= CARD_W) g.text('うりきれ', px - 6 - sw, y + 2, { color: UI.accent });
+        const seal = soldOutSeal();
+        // a hand-pressed seal: each card's sits a pixel differently, and it
+        // may overhang the card's edge (the ink goes where the hand put it)
+        g.img(seal, px - 5 - seal.width + (i % 2), y - 1 + (i % 3 === 1 ? 1 : 0), { alpha: 0.92 });
       } else drawDigits(g, `${this.price(id)}円`, x + CARD_W - 6, y + 7, { color: UI.accent, align: 'right' });
       if (sel && !this.confirm) drawCursor(g, x - 14, y + 1, this.t);
     });
@@ -540,6 +557,48 @@ function arrow(g: Gfx, x: number, y: number, dir: number, on: boolean): void {
     const cx = dir > 0 ? x + i : x + 4 - i;
     g.rect(cx, y + i, 1, 9 - i * 2, col);
   }
+}
+
+let sealC: HTMLCanvasElement | null = null;
+/**
+ * The shop's 「売切」 seal (38×20): a rounded 朱 frame round two characters,
+ * pressed a little unevenly — the left edge lighter, a few specks missing,
+ * the lower right a shade darker where the hand leant.
+ */
+function soldOutSeal(): HTMLCanvasElement {
+  if (sealC) return sealC;
+  const w = 38;
+  const h = 20;
+  const [c, ctx] = makeCanvas(w, h, { willReadFrequently: true });
+  ctx.fillStyle = UI.accent;
+  ctx.fillRect(2, 0, w - 4, 1);
+  ctx.fillRect(2, h - 1, w - 4, 1);
+  ctx.fillRect(0, 2, 1, h - 4);
+  ctx.fillRect(w - 1, 2, 1, h - 4);
+  ctx.fillRect(1, 1, 1, 1);
+  ctx.fillRect(w - 2, 1, 1, 1);
+  ctx.fillRect(1, h - 2, 1, 1);
+  ctx.fillRect(w - 2, h - 2, 1, 1);
+  ctxText(ctx, '売切', 3, 2, UI.accent);
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  const [dr, dg, db] = rgb(UI.accentDark);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (!d[i + 3]) continue;
+      const n = hash2(x, y, 31);
+      // かすれ: specks the ink missed, more of them on the lighter left side
+      if (n < 0.04 + (x < 6 ? 0.07 : 0)) d[i + 3] = 0;
+      else if (x + y > w - 4 && n > 0.62) {
+        d[i] = dr;
+        d[i + 1] = dg;
+        d[i + 2] = db;
+      }
+    }
+  ctx.putImageData(img, 0, 0);
+  sealC = c;
+  return c;
 }
 
 function tapeImgSmall(i: number): HTMLCanvasElement {

@@ -13,7 +13,7 @@ const ROWS = [
   'HWWWW,:oooo:--------:ooo:,,o,,,HHHWWWWWWWWWWWWWWWWWWWWWWWWFbRbF,', // 3
   'H,,,,,::::::--------:::::,,,,T,HHHWWWWWWWWWWWWWWWWWWWWWWWWFbRbF,', // 4
   'H,,,,,::::::--------:::::,,,,,,HHHWWWWWWWWWWWWWWWWDWWWWWWWFbRbF,', // 5
-  'H,T,,,oooo::---oo---:::::,,,,,,H------------oooo-----ooo--FbRbF,', // 6
+  'H,T,,,oooo::---oo---:::::,,,,,,H------o-----oooo-----ooo-oFbRbF,', // 6
   'H,,,,,::::::---oo---:::::,,,,,,H---PPPPPPPPPPPPPPPPPPPPPPPFbRbF,', // 7
   'H,,,,,::::::--------:ssss::::::H---PPPPPPPPPPPPPPPPPPPPPPPFbRbF,', // 8
   'H,,,ooo:::::--------:ssss::::::K---PPPPPYPPPPPPPPPPPPPPPPPFbRbF,', // 9
@@ -42,10 +42,10 @@ const ROWS = [
   '_____________o__________o---o-----------------------------FbRbF,', // 32
   '..........zz..............................................FbRbF,', // 33
   '..........zz..............................................FbRbF,', // 34
-  'GGGGGGYGGG==GGGGTGGGGGYGGGGGTGGGGGYGGGGGTGGGGGYGGGGGTGGGGGFbRbF,', // 35
+  'GGGGGGYGGG==QQQQTGGGGGYGGGGGTGGGGGYGGqGGTGGGGGYGGGGGTGGGGGFbRbF,', // 35
   'wwwwwwwwww==wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwbRbww', // 36
   'wwwwwwwwww==wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwbRbww', // 37
-  'HHHHHHoHHH==HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHFbRbF,', // 38
+  'HHHHHHoHHH==HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHJJHHHHHHHHHHFbRbF,', // 38
   '~~~:::::::::::::::::::~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 39
   '~~~::%%%::::::::::::::~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 40 gravel approach to the shrine
   '~~~~~o%o~~~~:~~~o~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 41
@@ -74,6 +74,12 @@ export const TOWN_LEGEND: Record<string, TileSpec> = {
   H: { ground: 'grass', solid: true, tag: 'hedge' },
   F: { ground: 'auto', solid: true, tag: 'fence' },
   G: { ground: 'grass', solid: true, tag: 'guardrail' },
+  // an old pipe railing where the guardrail was never replaced (structMats: pipe)
+  Q: { ground: 'grass', solid: true, tag: 'guardrail' },
+  // the gap in the guardrail over the steps down to the water (prop_river_steps)
+  q: { ground: 'grass', solid: true, tag: 'steps' },
+  // the gap in the far bank's reeds for the little jetty (prop_jetty)
+  J: { ground: 'grass', solid: true, tag: 'jetty' },
   T: { ground: 'auto', solid: true, tag: 'trunk' },
   Y: { ground: 'auto', solid: true, tag: 'pole' },
   K: { ground: 'auto', solid: true, tag: 'chain' },
@@ -266,6 +272,27 @@ const OBJECTS: MapObj[] = [
   { t: 'prop', prop: 'prop_shop_mats', x: 24, y: 22 },
 
   // ======================================================== 用水路・対岸
+  // before the canal (the first object found on a tile answers)
+  {
+    t: 'obj', id: 'obj_river_steps', x: 37, y: 35, face: 'down',
+    text: {
+      s0: `@narr
+川へ おりる 石段。{w=300}
+釣り竿と バケツと、たたみ椅子。
+/
+持ち主は、どこにも 見えない。{w=300}
+浮きだけが、ぷかぷか している。`,
+      s1: `@narr
+川は 流れているのに、{w=300}
+浮きは、同じ ところで 止まっている。`,
+      s2: `@narr
+釣り糸が、ぴんと 張っている。{w=300}
+北東の ほうへ、ひっぱられている。`,
+      s3: `@narr
+暗い 川に、浮きの 赤が{w=200}
+ひとつ、ぷかぷか している。`,
+    },
+  } as MapObj,
   O('obj_canal', 0, 35, { w: 58, face: 'down', flat: true }),
   O('obj_bridge', 10, 35),
   { ...O('obj_hokora', 6, 38), text: `@narr
@@ -296,9 +323,14 @@ const OBJECTS: MapObj[] = [
   { t: 'prop', prop: 'tree_cherry', x: 16, y: 35, opts: { v: 0 } },
   { t: 'prop', prop: 'tree_cherry', x: 28, y: 35, opts: { v: 1 } },
   { t: 'prop', prop: 'tree_cherry', x: 40, y: 35, opts: { v: 2 } },
-  { t: 'prop', prop: 'tree_cherry', x: 52, y: 35, opts: { v: 3 } },
+  // the east end of the river road gets a willow over the water (QA round 3: one species all along)
+  { t: 'prop', prop: 'tree_yanagi', x: 52, y: 35 },
   { t: 'prop', prop: 'prop_rail_bridge', x: 59, y: 36 },
   { t: 'prop', prop: 'prop_water_gate', x: 30, y: 38 },
+  // band breakers along the river (QA round 3): steps down to the water with
+  // someone's fishing things left on them, a jetty and a moored boat in the reeds
+  { t: 'prop', prop: 'prop_river_steps', x: 37, y: 35 },
+  { t: 'prop', prop: 'prop_jetty', x: 46, y: 37 },
 
   // ======================================================== C 夕鳴公園
   O('obj_toilet', 2, 3, { face: 'up' }),
@@ -361,6 +393,9 @@ const OBJECTS: MapObj[] = [
   { t: 'prop', prop: 'prop_lot_lamp', x: 40, y: 9, opts: { v: 0 } },
   { t: 'prop', prop: 'prop_lot_lamp', x: 55, y: 12, opts: { v: 1 } },
   { t: 'prop', prop: 'tree_hanamizuki', x: 51, y: 10 },
+  // sale banners left standing since the mall closed (QA round 3: stage 0's lot stood stock-still)
+  { t: 'prop', prop: 'prop_lot_nobori', x: 38, y: 6, opts: { kind: 'sale' } },
+  { t: 'prop', prop: 'prop_lot_nobori', x: 57, y: 6, opts: { kind: 'yuyake' } },
   { t: 'prop', prop: 'prop_chain', x: 31, y: 9, opts: { dir: 'v', len: 3 } },
   { t: 'prop', prop: 'prop_chain', x: 43, y: 15, opts: { dir: 'h', len: 3 } },
 
@@ -401,21 +436,27 @@ const OBJECTS: MapObj[] = [
   },
 
   // ======================================================== passers-by & traffic (QA round 1)
-  // Stage 0 has the town's everyday traffic; at 17:00 they all stop dead
-  // mid-stride (world/npc.ts route), in stage 2 the people walk on as shadows
-  // only and the rest are gone. Walkers whose sprite isn't drawn yet (char
+  // Stage 0 has the town's everyday traffic; after 17:00 the people and
+  // animals go round and round the same walk while the truck stands dead
+  // where it was (30_level_art 7.8, world/npc.ts route); in stage 2 the people
+  // walk on as shadows only and the rest are gone. Walkers whose sprite isn't drawn yet (char
   // art: npc_walker_*) stay away until it is.
   {
+    // along the middle of the river road, keeping left: east in the north
+    // lane, parks by the sake shop, U-turns and goes back in the south lane
     t: 'npc', id: 'veh_kei_truck', vehicle: 'kei_truck', passerby: true, x: -3, y: 34, dir: 'right', cond: s01,
-    move: { kind: 'route', points: [[-3, 34], [49, 34]], speed: 3.2, wait: 9000, hide: [0], phase: 4 },
+    move: { kind: 'route', points: [[-4, 33.5], [49, 33.5]], speed: 3.2, wait: 9000, hide: [0], phase: 2, keepLeft: 8 },
   },
   {
+    // sits at the east end a step short of the pole (QA round 3: it sat right behind it)
     t: 'npc', id: 'walk_cat_shiro', sprite: 'npc_cat_shiro', passerby: true, x: 31, y: 32, dir: 'right', cond: s01,
-    move: { kind: 'route', points: [[31, 32], [46, 32]], speed: 0.9, wait: 5000, endPose: 'sit', phase: 1.5 },
+    move: { kind: 'route', points: [[31, 32], [45, 32]], speed: 0.9, wait: 5000, endPose: 'sit', phase: 1.5 },
   },
   {
-    t: 'npc', id: 'walk_cat_hachi', sprite: 'npc_cat_hachi', passerby: true, x: 1, y: 21, dir: 'right', cond: s01,
-    move: { kind: 'route', points: [[1, 21], [8, 21]], speed: 1.1, wait: 6000, endPose: 'sit' },
+    // prowling the vacant lot's weeds (QA round 3: along the road it went
+    // under the persimmon's crown and was lost)
+    t: 'npc', id: 'walk_cat_hachi', sprite: 'npc_cat_hachi', passerby: true, x: 2, y: 19, dir: 'right', cond: s01,
+    move: { kind: 'route', points: [[2, 19], [5, 19]], speed: 1.1, wait: 6000, endPose: 'sit' },
   },
   {
     t: 'npc', id: 'walk_pigeon_a', sprite: 'npc_pigeon_b', passerby: true, x: 36, y: 23, dir: 'right', cond: s01, shadow: 0,
@@ -423,7 +464,8 @@ const OBJECTS: MapObj[] = [
   },
   {
     t: 'npc', id: 'walk_pigeon_b', sprite: 'npc_pigeon_c', passerby: true, x: 44, y: 23, dir: 'left', cond: s01, shadow: 0,
-    move: { kind: 'route', points: [[44, 23], [43, 24]], speed: 0.6, wait: 3400, endPose: 'peck', phase: 1.2 },
+    // pecks along the arcade's north edge, clear of the postman's bike (stage 1, at 44,24)
+    move: { kind: 'route', points: [[44, 23], [42, 22]], speed: 0.6, wait: 3400, endPose: 'peck', phase: 1.2 },
   },
   {
     t: 'npc', id: 'walk_shufu', sprite: 'npc_walker_shufu', passerby: true, s2: 'shadow', x: 24, y: 24, dir: 'right', cond: s02,
@@ -436,12 +478,16 @@ const OBJECTS: MapObj[] = [
   },
   {
     // a high-schooler cycling along the river road to the crossing and back
+    // (QA round 3: it rode in the truck's lane, half inside its bed) — keeps
+    // left too, starts well after the truck and swings out round it
     t: 'npc', id: 'walk_bike', sprite: 'npc_walker_bike', passerby: true, x: -2, y: 34, dir: 'right', cond: s01,
-    move: { kind: 'route', points: [[-2, 34], [55, 34], [56, 29]], speed: 4.2, wait: 7000, hide: [0], phase: 6 },
+    move: { kind: 'route', points: [[-2, 33.5], [55, 33.5], [56, 29]], speed: 4.2, wait: 7000, hide: [0], phase: 13, keepLeft: 6 },
   },
   {
-    t: 'npc', id: 'walk_kid', sprite: 'npc_walker_kid', passerby: true, x: 13, y: 12, dir: 'up', cond: s01,
-    move: { kind: 'route', points: [[13, 12], [13, 4], [19, 4], [19, 12]], speed: 2.6, wait: 1500, loop: true },
+    // tag round the clock tower's plaza, inside the four lamps (QA round 3:
+    // on the lamps' own column he ran behind a pole and onto the fountain)
+    t: 'npc', id: 'walk_kid', sprite: 'npc_walker_kid', passerby: true, x: 13, y: 5, dir: 'down', cond: s01,
+    move: { kind: 'route', points: [[13, 5], [13, 9], [18, 9], [18, 5]], speed: 2.6, wait: 1500 },
   },
 
   // ======================================================== enemy symbols (20_systems 14)
@@ -557,6 +603,7 @@ registerMap({
     { x: 31, y: 6, w: 1, h: 10, mat: 'satsuki', ch: 'H' },
     { x: 50, y: 10, w: 3, h: 2, mat: 'satsuki' },
     { x: 0, y: 38, w: 58, h: 1, mat: 'reeds' },
+    { x: 0, y: 35, w: 58, h: 1, mat: 'pipe', ch: 'Q' },
     { x: 1, y: 20, w: 3, h: 1, mat: 'rope' },
     { x: 58, y: 0, w: 1, h: 44, mat: 'railfence' },
     { x: 62, y: 0, w: 1, h: 44, mat: 'railfence' },

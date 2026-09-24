@@ -9,7 +9,10 @@
 //   node tools/playthrough.mjs --out /tmp/claude-0/shots/playthrough
 //   node tools/playthrough.mjs --from kanenari        start at a story beat (__game.cmd.jump)
 //   node tools/playthrough.mjs --real hato,ojigi      battles fought with real command input
-//                                                     (default: hato; the rest use __game.cmd.win())
+//                                                     (default: hato; the rest use __game.cmd.win()).
+//                                                     The key bot answers every prompt with Z; in long
+//                                                     fights it guards on the boss's third chime and
+//                                                     heals someone under 45% (はなまる / ふうせん / the bag)
 //   node tools/playthrough.mjs --fushigi-all          also stamp all 12 ふしぎ in the same run
 //   node tools/playthrough.mjs --headed               watch it
 //
@@ -26,6 +29,8 @@
 // tiles against the expected table: the alley closed in stage 0, the parking lot closed until
 // stage 2), the dinner in ending cut 5 actually visible on the chabudai (a pixel diff), and
 // with --fushigi-all 12/12 ふしぎ before the boss.
+// Tempo: a page counter in the page tallies, per beat and outside battles, the dialog pages,
+// choices and other modal screens the player has to press through (stdout + summary.counts).
 // Screenshots: <out>/NN_<beat>_*.png. Result: stdout + <out>/summary.json. Exit code 1 on failure.
 
 import { chromium } from 'playwright';
@@ -543,6 +548,8 @@ async function battleByKeys(maxMs = 180000) {
   let lastShot = 0;
   let rounds = 0;
   let presses = 0;
+  let guardedRound = -1;
+  let healedRound = -1;
   await shot('battle_start');
   for (;;) {
     const s = await st();
@@ -554,6 +561,37 @@ async function battleByKeys(maxMs = 180000) {
     }
     const b = await page.evaluate(() => window.__game.cmd.bstate?.()).catch(() => null);
     if (b) rounds = Math.max(rounds, b.round ?? 0);
+    // the boss: three chimes lit means the fourth (かえりの会, a party-wide
+    // blow) comes this round — everyone guards, as the memo says
+    if (b && b.input && (b.chime ?? 0) >= 3 && guardedRound !== b.round) {
+      guardedRound = b.round;
+      await page.evaluate((ids) => window.__game.cmd.bcmd(ids.map((who) => ({ who, cmd: 'guard' }))), b.party.map((u) => u.id));
+      log(`  round ${b.round}: chime ${b.chime} → guard`);
+    } else if (b && b.input && healedRound !== b.round) {
+      // a long fight (the boss): someone under 45% drinks something from the bag
+      // (はなまる from Minato while he has the ink, balloons from カネナリくん, else the bag)
+      const plan = await page.evaluate(async () => {
+        const { state } = await import('/src/game/state.ts');
+        const HEAL = ['item_fugashi', 'item_shippu', 'item_ramune', 'item_kinakobou'];
+        const alive = state.party.filter((m) => m.hp > 0);
+        const low = alive.find((m) => m.hp < m.maxHp * 0.45);
+        if (!low) return null;
+        const mi = alive.find((m) => m.id === 'minato');
+        const item = HEAL.find((i) => state.inventory.includes(i));
+        const cmds = [];
+        if (mi && mi.mp >= 5) cmds.push({ who: 'minato', cmd: 'hanko', skill: 'skill_hanamaru', target: low.id });
+        else if (item) cmds.push({ who: low.id, cmd: 'item', item, target: low.id });
+        if (alive.some((m) => m.id === 'kanenari') && !cmds.some((c) => c.who === 'kanenari')) cmds.push({ who: 'kanenari', cmd: 'pr', skill: 'skill_fuusen' });
+        if (mi && !cmds.some((c) => c.who === 'minato')) cmds.push({ who: 'minato', cmd: 'attack' });
+        if (!cmds.length) return null;
+        window.__game.cmd.bcmd(cmds);
+        return `${low.id} ${low.hp}/${low.maxHp} → ${cmds.map((c) => c.skill ?? c.item ?? c.cmd).join(' + ')}`;
+      });
+      if (plan) {
+        healedRound = b.round;
+        log(`  round ${b.round}: ${plan}`);
+      }
+    }
     if (Date.now() - lastShot > 3500) {
       lastShot = Date.now();
       await shot(`battle_r${rounds}`);
@@ -591,6 +629,64 @@ async function battleWin(maxMs = 60000) {
     await sleep(260);
   }
 }
+
+// ------------------------------------------------------------------ the page counter
+
+/**
+ * Counts what the player has to press through, per beat, outside battles:
+ * dialog pages (each one a Z), choices, and other modal widgets (the hanko
+ * case, the learn card …). Installed in the page as a rAF loop.
+ */
+async function installCounter() {
+  await page.evaluate(() => {
+    const G = window.__game;
+    if (window.__pages) return;
+    const c = (window.__pages = { beat: 'boot', by: {} });
+    let lastReq = null;
+    let lastPage = -1;
+    let lastChoice = null;
+    const seen = new WeakSet();
+    const bump = (k) => {
+      const b = (c.by[c.beat] ??= { pages: 0, choices: 0, other: {} });
+      if (k === 'pages' || k === 'choices') b[k]++;
+      else b.other[k] = (b.other[k] ?? 0) + 1;
+    };
+    const tick = () => {
+      try {
+        const topS = G.game.top;
+        const top = topS?.constructor?.name ?? '';
+        if (topS && !seen.has(topS) && !['FieldScene', 'BattleScene', 'TitleScene'].includes(top)) {
+          seen.add(topS);
+          bump(top);
+        }
+        if (top !== 'BattleScene') {
+          for (const w of G.game.ui.widgets) {
+            const n = w.constructor.name;
+            if (n === 'DialogBox') {
+              if (w.cur && (w.cur !== lastReq || w.page !== lastPage)) {
+                lastReq = w.cur;
+                lastPage = w.page;
+                if (w.cur.o?.auto === undefined) bump('pages');
+              }
+            } else if (n === 'ChoiceBox') {
+              if (!w.done && w !== lastChoice) {
+                lastChoice = w;
+                bump('choices');
+              }
+            } else if (w.modal && !w.done && !seen.has(w)) {
+              seen.add(w);
+              bump(n);
+            }
+          }
+        }
+      } catch {}
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+}
+const setCountBeat = (b) => page.evaluate((b) => window.__pages && (window.__pages.beat = b), b).catch(() => {});
+const readCounts = () => page.evaluate(() => window.__pages?.by ?? {}).catch(() => ({}));
 
 // ------------------------------------------------------------------ dialog
 
@@ -876,8 +972,15 @@ const BEATS = [
       await travel(48, 12);
       await sleep(400);
       await shot('parking');
-      await walk('up', (s) => !s.ctrl, 5000);
-      await advance({ shotEvery: 3, label: 'ev', battles: REAL.has('ojigi') ? 'keys' : 'win', max: 240000 });
+      // a ワスレガサ may catch Minato on the way (a symbol battle first): then walk up again
+      for (let i = 0; i < 4 && !(await flag('flag_ojigi_beaten')); i++) {
+        if (i) {
+          log('  (a symbol battle on the way: once more up to the door)');
+          await travel(48, 12);
+        }
+        await walk('up', (s) => !s.ctrl, 5000);
+        await advance({ shotEvery: 3, label: 'ev', battles: REAL.has('ojigi') ? 'keys' : 'win', max: 240000 });
+      }
       await need(['flag_ojigi_beaten'], 'ojigi');
       await shot('after');
     },
@@ -958,8 +1061,17 @@ const BEATS = [
       await walk('up', (s) => !s.ctrl, 5000);
       await advance({ shotEvery: 2, label: 'rise', battles: 'stop' });
       await shot('battle');
-      if (REAL.has('boss')) battleLog.push({ beat: 'boss', ...(await battleByKeys(600000)) });
-      else {
+      if (REAL.has('boss')) {
+        // fought with keys; a lost fight (game over → 「戦う前から やりなおす」) is tried again
+        for (let i = 0; i < 3; i++) {
+          battleLog.push({ beat: 'boss', try: i + 1, ...(await battleByKeys(600000)) });
+          if (await flag('flag_boss_beaten')) break;
+          log('  the boss won: 「戦う前から やりなおす」, once more');
+          await waitFor((s) => s.ctrl && s.map === 'map_mall_maigo', 20000, 'back at the door');
+          await walk('up', (s) => !s.ctrl, 5000);
+          await advance({ label: 'retry', battles: 'stop' });
+        }
+      } else {
         await battleWin(90000);
         battleLog.push({ beat: 'boss', real: false });
       }
@@ -1010,6 +1122,7 @@ try {
   page.on('framenavigated', (f) => {
     if (f === page.mainFrame()) reloaded = true;
   });
+  await installCounter();
   let start = 0;
   if (FROM) {
     start = BEATS.findIndex((b) => b.name === FROM);
@@ -1028,6 +1141,7 @@ try {
     shotNo = 0;
     const t = Date.now();
     log(`beat ${b.name}`);
+    await setCountBeat(b.name);
     try {
       await b.run();
       results.push({ beat: b.name, ok: true, ms: Date.now() - t });
@@ -1044,8 +1158,24 @@ try {
   results.push({ beat: 'setup', ok: false, error: String(e.message ?? e) });
 }
 
+const counts = await readCounts();
+{
+  let tp = 0;
+  let tc = 0;
+  let to = 0;
+  const rows = Object.entries(counts).map(([b, v]) => {
+    const o = Object.values(v.other).reduce((a, n) => a + n, 0);
+    tp += v.pages;
+    tc += v.choices;
+    to += o;
+    return `  ${b.padEnd(11)} pages ${String(v.pages).padStart(3)}  choices ${String(v.choices).padStart(2)}  other ${o} ${Object.keys(v.other).length ? JSON.stringify(v.other) : ''}`;
+  });
+  console.log(['pages to press through (outside battles):', ...rows, `  total       pages ${tp}  choices ${tc}  other ${to}  → presses ≈ ${tp + tc + to}`].join('\n'));
+}
+
 const summary = {
   base: BASE,
+  counts,
   ok: !failed && !errors.some((e) => e.startsWith('[pageerror]')),
   seconds: Math.round((Date.now() - T0) / 1000),
   realBattles: [...REAL],

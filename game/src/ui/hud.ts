@@ -8,6 +8,7 @@
 import type { Gfx } from '../engine/gfx';
 import { game } from '../engine/game';
 import { PixelCanvas } from '../engine/pixel';
+import { W } from '../engine/screen';
 import { ease } from '../engine/tween';
 import { flag, state } from '../game/state';
 import { isKeyItem, getItem } from '../data/battle';
@@ -202,6 +203,15 @@ interface Banner {
   text: string;
   t: number;
   dur: number;
+  /** Where the tape is stuck: chosen once, clear of the party (placeBanner). */
+  x: number;
+  y: number;
+}
+
+type Rect = [number, number, number, number];
+
+function overlaps(a: Rect, b: Rect): boolean {
+  return a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3];
 }
 
 /** How long a place name waits for the bottom-left corner (a guide note there) before it is let go. */
@@ -415,7 +425,7 @@ class UiHud implements FieldHud {
         this.pendingPlace = null;
         const seen = this.placeSeen.get(p) ?? -1e9;
         if (flag('flag_opening_done') && this.t - seen > 25000 && !flag('flag_hud_hidden')) {
-          this.banner = { text: p, t: 0, dur: 2600 };
+          this.banner = this.placeBanner(p, 2600);
           this.placeSeen.set(p, this.t);
         }
       }
@@ -518,7 +528,47 @@ class UiHud implements FieldHud {
   }
 
   showBanner(text: string, dur = 2600): void {
-    this.banner = { text, t: 0, dur };
+    this.banner = this.placeBanner(text, dur);
+  }
+
+  /**
+   * Where the place name goes. Its home is the bottom-left corner beside the
+   * hanko plate; if Minato or the one following him stands there (the name
+   * comes up as you walk in — often through a door at the bottom of the
+   * screen), it goes to the bottom-right corner, else to the top-left.
+   * The party's boxes are grown a little, and further ahead of Minato in
+   * the way he faces, since he keeps walking while the name is up.
+   */
+  private placeBanner(text: string, dur: number): Banner {
+    const w = textW(text) + 18;
+    const h = 18;
+    const withHanko = flag('flag_got_hanko') && !flag('flag_hud_hidden');
+    const by = HANKO_PLATE.y + Math.round((HANKO_PLATE.h - h) / 2);
+    const spots: [number, number][] = [
+      [withHanko ? HANKO_PLATE.x + HANKO_PLATE.w + 5 : 8, by],
+      [W - 8 - w, by],
+      [8, 8],
+    ];
+    const f = this.field;
+    const party: Rect[] = [];
+    if (f) {
+      const lead = 20;
+      for (const a of [f.player, f.follower]) {
+        if (!a) continue;
+        const [sx, sy, sc] = f.worldToScreen(a.x, a.y);
+        let r: Rect = [sx - 8 * sc - 4, sy - 24 * sc - 4, 16 * sc + 8, 24 * sc + 8];
+        if (a === f.player) {
+          const d = lead * sc;
+          if (a.dir === 'left') r = [r[0] - d, r[1], r[2] + d, r[3]];
+          else if (a.dir === 'right') r = [r[0], r[1], r[2] + d, r[3]];
+          else if (a.dir === 'up') r = [r[0], r[1] - d, r[2], r[3] + d];
+          else r = [r[0], r[1], r[2], r[3] + d];
+        }
+        party.push(r);
+      }
+    }
+    const spot = spots.find(([x, y]) => !party.some((r) => overlaps(r, [x, y - 1, w + 2, h + 3]))) ?? spots[0];
+    return { text, t: 0, dur, x: spot[0], y: spot[1] };
   }
 
   draw(g: Gfx, f: FieldScene): void {
@@ -580,11 +630,10 @@ class UiHud implements FieldHud {
   private drawBanner(g: Gfx, b: Banner): void {
     const h = 18;
     const w = textW(b.text) + 18;
-    const withHanko = flag('flag_got_hanko') && !flag('flag_hud_hidden');
-    const x = withHanko ? HANKO_PLATE.x + HANKO_PLATE.w + 5 : 8;
+    const x = b.x;
     const inK = ease.cubicOut(Math.min(1, b.t / 220));
     const outK = b.t > b.dur - 300 ? Math.min(1, (b.t - (b.dur - 300)) / 300) : 0;
-    const y = HANKO_PLATE.y + Math.round((HANKO_PLATE.h - h) / 2) - Math.round(ease.quadIn(outK) * 3);
+    const y = b.y - Math.round(ease.quadIn(outK) * 3);
     const a = 1 - outK;
     const shown = Math.round((w + 2) * inK);
     if (shown <= 0 || a <= 0) return;

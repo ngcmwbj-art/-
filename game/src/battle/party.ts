@@ -20,11 +20,11 @@ import {
 } from './common';
 import { drawNet, balloon, bigHeart, crowLit, mangaLettering, musicNote, noriBoard, poppedBalloon, sweatDrop, thickLine } from './art/fxart';
 import { all } from '../engine/co';
-import { duckMusic, muteMusic, musicFlee, sfxLoop } from '../audio';
-import { hankoCloseup } from './art/fxart';
+import { duckMusic, muteMusic, musicFlee, sfx, sfxLoop } from '../audio';
+import { beachSandal, hankoCloseup } from './art/fxart';
 import { hanamaruFrame, kakimoji, kakimojiSmall, ovalStamp, pekeMark, roundSeal, scoreSeal } from './art/stamps';
 import { itemIcon, kireIcon } from './art/icons';
-import { kireIconXY, PANEL_POS, panelOffset } from './ui/panels';
+import { infoCardWidth, kireIconXY, PANEL_POS, panelOffset, type CardData } from './ui/panels';
 import { C, tapeCanvas } from './ui/note';
 import { FLAG_PAD, kanenariBack, kanenariFront, MIC_AT } from '../art/enemies/kanenari';
 import { portrait } from '../art/chars';
@@ -171,17 +171,46 @@ export function hitFeel(s: BattleScene, e: EnemyUnit, kind: 'normal' | 'good' | 
     });
     s.sfx('se_crit');
     const seal = scoreSeal(40);
-    // up-right of the hit, beside where the number comes to rest (not on
-    // it), kept on stage (under the band, inside the screen)
-    const sx = Math.min(382 - 20, Math.max(e.coreX + 34, e.x + e.sizeW / 2 - 4));
-    const sy = Math.max(STAGE_TOP + 21, Math.min(e.coreY - 20, e.headY + 10));
+    // QA round 3: number, 100てん and いい音！ make one cluster. The number
+    // keeps its spot over the hit (it pops in this same tick, right after
+    // this); the seal goes right beside it (else on its left, else above),
+    // clear of the band, a 溜め中 tape and the screen edges; いい音！ then
+    // takes the number's top or the side the seal left free
+    let pos: [number, number] | null = null;
+    const place = (): [number, number] => {
+      if (pos) return pos;
+      const n = s.recentNumberPath(e, 200);
+      const rest = s.recentNumberRect(e, 200);
+      const R = 20;
+      const cands: [number, number][] = [];
+      if (n && rest) {
+        // level with where the number comes to rest (not its whole path,
+        // which reaches down to the hit), so the space under it stays free
+        const cy = Math.round((rest.y0 + rest.y1) / 2);
+        const right: [number, number][] = [[n.x1 + 3 + R, cy], [n.x1 + R - 6, n.y0 - 2 - R], [n.x1 + 3 + R, cy + 12]];
+        const left: [number, number][] = [[n.x0 - 3 - R, cy], [n.x0 - R + 6, n.y0 - 2 - R], [n.x0 - 3 - R, cy + 12]];
+        // a number standing beside the body (a tall enemy) gets the seal on
+        // its outer side, away from the body
+        const outLeft = (n.x0 + n.x1) / 2 < e.left + e.offX;
+        cands.push(...(outLeft ? [left[0], right[0], left[1], right[1], left[2], right[2]] : [right[0], left[0], right[1], left[1], right[2], left[2]]));
+      }
+      cands.push([Math.min(382 - R, Math.max(e.coreX + 34, e.x + e.sizeW / 2 - 4)), Math.max(STAGE_TOP + R + 1, Math.min(e.coreY - 20, e.headY + 10))]);
+      const rect = (c: [number, number]) => ({ x0: c[0] - R - 1, y0: c[1] - R - 1, x1: c[0] + R + 1, y1: c[1] + R + 1 });
+      pos = cands.find((c) => s.fits(rect(c), true)) ?? cands[cands.length - 1];
+      return pos;
+    };
     s.addFx({
       layer: 'top',
       dur: 600,
       ui: true,
-      // the 「100てん」 seal owns its spot: the number and いい音！ go elsewhere
-      block: () => ({ x0: sx - 21, y0: sy - 21, x1: sx + 21, y1: sy + 21 }),
+      // once placed, the 「100てん」 seal owns its spot: いい音！ goes elsewhere
+      block: () => {
+        if (!pos) return null;
+        return { x0: pos[0] - 21, y0: pos[1] - 21, x1: pos[0] + 21, y1: pos[1] + 21 };
+      },
+      update: () => void place(),
       draw: (g, t) => {
+        const [sx, sy] = place();
         const sc = t < 67 ? 1.6 - 0.6 * (t / 67) : 1;
         const w = seal.width * sc;
         g.alpha(t > 450 ? (600 - t) / 150 : 1, () => g.ctx.drawImage(seal, Math.round(sx - w / 2), Math.round(sy - w / 2), Math.round(w), Math.round(w)));
@@ -395,7 +424,10 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
             back.x = 300 - (tt / 240) * 16;
             back.y = 200 - Math.round(Math.abs(Math.sin((tt / 120) * Math.PI)) * 6);
             back.frame = Math.floor(tt / 120) % 2 ? 'step' : 'idle';
-            if (f === 0 || f === 7) s.sfx('se_step_kanenari');
+            // the second step lands before the ring's lead frame (7): its
+            // thump must not blur the ring's rising tone, the timing cue
+            // (QA round 3)
+            if (f === 0 || f === 4) s.sfx('se_step_kanenari', f ? { vol: 0.85 } : undefined);
           } else {
             const p = Math.min(1, (f - 14) / Math.max(1, hitF - 14));
             const e2 = ease.quadIn(p);
@@ -899,9 +931,23 @@ function* hankoMimashita(s: BattleScene, u: PartyUnit, e: EnemyUnit, j: Judge, p
   const resist = (['da', 'han', 'wara'] as const).filter((a) => w[a] < 1);
   let seen = 0;
   for (let n = 1; n <= e.def.tsukkomi.length; n++) if (flag(`flag_tsukkomi_${e.id}_${n}`)) seen++;
-  // slides in on the side away from the enemy and closes by itself at 1.4s
-  const side = e.x > 192 ? 'left' : 'right';
-  s.card = { data: { short: e.def.book.short, weak, resist, seen, total: e.def.tsukkomiCount, hpRate: e.hpRate, side }, t: 0, closing: false };
+  // slides in on the side away from the enemy and closes by itself at 1.4s;
+  // it comes to rest clear of the enemy's body (QA round 3: it covered the
+  // massage chair's arm) — else on whichever side overlaps it least
+  const data: CardData = { short: e.def.book.short, weak, resist, seen, total: e.def.tsukkomiCount, hpRate: e.hpRate };
+  const cw = infoCardWidth(data);
+  const ex0 = e.left + 2;
+  const ex1 = e.left + e.sizeW - 2;
+  const rightX = Math.max(216 + 160 - cw, Math.min(382 - cw, ex1 + 4));
+  const leftX = Math.min(8, Math.max(2, ex0 - 4 - cw));
+  const overR = Math.max(0, ex1 - rightX);
+  const overL = Math.max(0, leftX + cw - ex0);
+  const pref = e.x > 192 ? 'left' : 'right';
+  const side: 'left' | 'right' = overR === overL ? pref : overR < overL ? 'right' : 'left';
+  data.side = side;
+  data.w = cw;
+  data.x = side === 'left' ? leftX : rightX;
+  s.card = { data, t: 0, closing: false };
   yield 500;
   if (e.def.boss) yield* onBossBodyMimashita(s, e);
   else if (again) yield* s.say(fillAll(SYS.mimashitaAgain, { enemy: e.name }));
@@ -1361,10 +1407,26 @@ export function* doFlee(s: BattleScene, u: PartyUnit): Co<boolean> {
   if (s.opts.initiative === 'party' && s.round === 1) rate = 1;
   if (s.memo.forceFlee) rate = s.memo.forceFlee > 0 ? 1 : 0;
   s.post(SYS.nigeru);
+  // QA round 3: the command has a body — the panels scurry 7px to the right
+  // (120ms) with two quick steps, then either run off or come back
+  const runners = s.party.filter((p) => p.alive);
+  const slide = (to: number, ms: number, fn: (k: number) => number) => {
+    const from = runners.map((p) => p.slideX);
+    s.addFx({ layer: 'top', dur: ms, ui: true, draw: () => {}, update() {
+      const k = fn(Math.min(1, this.t / ms));
+      runners.forEach((p, i) => (p.slideX = from[i] + (to - from[i]) * k));
+      if (this.t >= ms - 1) runners.forEach((p) => (p.slideX = to));
+    } });
+  };
+  slide(7, 120, ease.quadOut);
+  s.sfx('se_step_asphalt', { pitch: 1.3 });
+  s.sfxLater('se_step_asphalt', { pitch: 1.45, vol: 0.8 }, 90);
   yield 350;
   if (rng.next() < rate) {
     s.sfx('se_flee');
     musicFlee();
+    // off the right edge
+    slide(420, 300, ease.quadIn);
     for (let i = 0; i <= 10; i++) {
       for (const p of s.party) p.drop = 8 * (i / 10);
       yield null;
@@ -1372,17 +1434,64 @@ export function* doFlee(s: BattleScene, u: PartyUnit): Co<boolean> {
     yield* s.say(SYS.nigeruOk);
     return true;
   }
-  s.sfx('se_whiff');
   s.memo.fleeFails = fails + 1;
-  for (const p of s.party) {
-    p.shakeT = 0;
-    s.addFx({ layer: 'top', dur: 200, ui: true, draw: () => {}, update() {
-      p.drop = Math.round(Math.sin((this.t / 200) * Math.PI) * 3);
-      if (this.t >= 195) p.drop = 0;
-    } });
+  const who = u.alive ? u : runners[0] ?? u;
+  if (fails % 2 === 0) {
+    // 〔ビーサンが 脱げた〕: the sandal flies off the panel, lands on its
+    // top edge with a ぽてっ and a hop, the panels skid back
+    const img = beachSandal();
+    const [px, py] = s.panelXY(who);
+    const st = { x: px + 30 + who.slideX, y: py - 2, vx: -46, vy: -150, rot: 0, bounced: 0, rest: 0 };
+    s.sfx('se_whiff');
+    s.addFx({
+      layer: 'top',
+      dur: 1500,
+      ui: true,
+      update(dt) {
+        const k = dt / 1000;
+        if (st.rest) return;
+        st.vy += 620 * k;
+        st.x += st.vx * k;
+        st.y += st.vy * k;
+        st.rot += st.vx * k * 0.2;
+        const floor = py - 1;
+        if (st.y >= floor && st.vy > 0) {
+          st.y = floor;
+          if (st.bounced >= 1) {
+            st.rest = 1;
+            st.rot = 0;
+            return;
+          }
+          st.bounced++;
+          st.vy = -70;
+          st.vx *= 0.5;
+          sfx('se_poton', { pitch: 1.15, pan: who.id === 'kanenari' ? 0.35 : -0.25 });
+        }
+      },
+      draw: (g, t) => {
+        const a = t > 1250 ? Math.max(0, (1500 - t) / 250) : 1;
+        // flipped over while it tumbles, sole-up on its first bounce
+        const flip = !st.rest && Math.floor(st.rot) % 2 !== 0;
+        g.alpha(a, () => g.img(img, Math.round(st.x - img.width / 2), Math.round(st.y - img.height), { flipX: flip }));
+      },
+    });
+    yield 140;
+    slide(-2, 110, ease.quadIn);
+    yield 110;
+    slide(0, 120, ease.quadOut);
+    for (const p of runners) p.squishT = 200;
+  } else {
+    // 〔逃げ道を まちがえた〕: they run into something and bounce back
+    slide(11, 90, ease.quadIn);
+    yield 90;
+    s.sfx('se_bump');
+    for (const p of runners) {
+      p.shakeT = 167;
+      p.shakeAmp = 2;
+    }
+    slide(0, 180, ease.backOut);
   }
   yield* s.say(fails % 2 === 0 ? SYS.nigeruFail1 : SYS.nigeruFail2);
-  void u;
   return false;
 }
 

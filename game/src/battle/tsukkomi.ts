@@ -248,23 +248,23 @@ export function showKakimoji(s: BattleScene, text: string, just: boolean): numbe
 }
 
 /** Kanenari-kun's flip tsukkomi: the board jumps up from the bottom centre (500ms). */
-export function showFlip(s: BattleScene, text: string): number {
+export function showFlip(s: BattleScene, text: string, ms = 700): number {
   const wrapped = wrapFlip(`（${text}）`);
   const img = flipBoardText(wrapped);
   s.sfx('se_flip');
   s.addFx({
     layer: 'top',
-    dur: 700,
+    dur: ms,
     ui: true,
     draw: (g, t) => {
       const up = t < 120 ? ease.backOut(t / 120) : 1;
-      const a = t > 560 ? Math.max(0, (700 - t) / 140) : 1;
+      const a = t > ms - 140 ? Math.max(0, (ms - t) / 140) : 1;
       const x = Math.round(192 - img.width / 2);
       const y = Math.round(216 - (216 - 60) * up);
       g.alpha(a, () => g.img(img, x, y));
     },
   });
-  return 700;
+  return ms;
 }
 
 function wrapFlip(t: string): string {

@@ -179,8 +179,21 @@ function textColor(s: DialogStyle): string {
 }
 
 let itemRes: RegExp[] | null = null;
-/** System lines: item names (and 『hanko』 names) are written in 朱 (10.4). */
+/**
+ * System lines: item names (and 『hanko』 names) are written in 朱 (10.4).
+ * Spans the script already coloured ({c=…}…{/c}) are left as written; the
+ * rest of the line is still marked (「ハンコケースを 受けとった！」 above a
+ * line whose hanko names were coloured by hand).
+ */
 function markSys(text: string): string {
+  return text
+    .split(/(\{c=[^}]*\}[\s\S]*?\{\/c\})/)
+    .map((seg, i) => (i % 2 ? seg : markPlain(seg)))
+    .join('');
+}
+
+function markPlain(text: string): string {
+  if (!text) return text;
   if (!itemRes) {
     // the text is 分かち書き: 「揚げたて コロッケ」 must match 「揚げたてコロッケ」
     const names = allItems()
@@ -188,7 +201,6 @@ function markSys(text: string): string {
       .sort((a, b) => b.length - a.length);
     itemRes = names.map((n) => new RegExp([...n].map((ch) => ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join(' ?'), 'g'));
   }
-  if (text.includes('{c=')) return text;
   let out = text;
   for (const re of itemRes) out = out.replace(re, (m) => (m.includes('\u0001') ? m : `\u0001${m}\u0002`));
   out = out.replace(/『([^』]{1,12})』/g, (m, inner: string) => (getSkillByName(inner) ? `『\u0001${inner}\u0002』` : m));

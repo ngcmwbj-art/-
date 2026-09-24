@@ -17,6 +17,7 @@ import { startNewGame } from '../ui/api';
 import { setFollowerVisible } from '../world/api';
 import { ENDING_CUTS } from './ending';
 import { keyGuide, resetStaging } from './stage';
+import { resetStamp } from './stamp';
 import { GUIDE_MENU, GUIDE_MOVE } from '../data/text/events';
 import { animFrame, charSprite, poseFrame, walkFrame } from '../art/chars';
 
@@ -180,6 +181,7 @@ const JUMP = (beat?: string, noRun = false): unknown => {
   }
   game.ui.widgets = [];
   resetStaging();
+  resetStamp();
   game.fadeAlpha = 0;
   stopBgm(0.2);
   stopAllAmbient(0.2);

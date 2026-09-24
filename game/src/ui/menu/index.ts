@@ -14,7 +14,7 @@ import { state } from '../../game/state';
 import { sfx } from '../../audio';
 import { drawClockPlate, setMenuOpener, uiHud } from '../hud';
 import { UI } from '../window';
-import { drawMoney, drawSpread, drawTabs, TABS } from './notebook';
+import { drawMoney, drawSheet, drawSpread, drawTabs, TABS } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
 import { ItemsPage } from './items';
 import { HankoPage } from './hanko';
@@ -152,13 +152,17 @@ export class MenuScene implements Scene, MenuCtx {
   draw(g: Gfx): void {
     // dim the world (#1B1733 α40%)
     const dim = this.closeT >= 0 ? 1 - Math.min(1, this.closeT / CLOSE_MS) : Math.min(1, this.openT / OPEN_MS);
+    // from the title: a heavier curtain (the title's own menu has stepped
+    // back too) and one loose sheet instead of the notebook — no fold, no
+    // index tabs, since the settings are the only page
     if (!this.titleMode) g.rect(0, 0, W, H, UI.night, 0.4 * dim);
-    else g.rect(0, 0, W, H, UI.night, 0.55 * dim);
+    else g.rect(0, 0, W, H, UI.night, 0.7 * dim);
     const a = this.alpha;
-    drawTabs(g, this.tab, this.dx, a, this.t, !this.focus, this.titleMode ? 'settings' : undefined);
+    if (!this.titleMode) drawTabs(g, this.tab, this.dx, a, this.t, !this.focus);
     const pk0 = Math.min(1, this.switchT / 120);
     if (this.page.drawBehind) g.alpha(a * pk0, () => g.translated(this.dx, 0, () => this.page.drawBehind!(g, this)));
-    drawSpread(g, this.dx, a);
+    if (this.titleMode) drawSheet(g, this.dx, a);
+    else drawSpread(g, this.dx, a);
     // page content (a quick fade when the tab changes)
     const pk = Math.min(1, this.switchT / 120);
     g.alpha(a * pk, () => g.translated(this.dx + Math.round((1 - pk) * 3), 0, () => this.page.draw(g, this)));

@@ -87,15 +87,23 @@ export const TUT = {
   ring: 'いま！',
   // (QA round 2: 「『！』の すぐあとに」 sent reacting players in too late;
   // the ring that closes on the hit is the cue, and ひろい is one step away)
-  rhythm: '輪に 合わせて 決定！\nむずかしければ\nせってい→『ひろい』',
+  // (QA round 3: it has to fit beside the hato's column — ring, number and
+  // label — so every line can break at a space down to 7 characters)
+  rhythm: '輪に 合わせて 決定！\n（せってい→ 『ひろい』も）',
   tsukkomiOk: 'ツッコまれた 相手は\n『ボケ負け』に なる。',
   bokemake: 'ボケ負けの 相手には\nダメージ 1.5倍！',
   hanko: '長おしで 朱肉が たまる。\n赤い ところで はなす！',
   kire: 'キレが たまった！\nノリツッコミが つかえる。',
   oshirase: '光っている 部位に\n『みました』！',
+  // the boss's 4th chime is next (QA round 3: button-mashers lost to it
+  // again and again without learning why)
+  chime4: 'つぎの音は\n全体攻撃！\n『まもる』で\n半分に！',
 };
 
 /** evt_gameover (5.21). */
+/** Kanenari-kun's flip when the boss battle is tried again after a wipe. */
+export const BOSS_RETRY_FLIP = '4つ目の 音の 前は まもる';
+
 export const GAMEOVER = {
   title: 'きょうは ここまで。',
   retry: '戦う前から やりなおす',
