@@ -398,3 +398,59 @@ export function meishi(): HTMLCanvasElement[] {
   CARD = [up.toCanvas(), flat.toCanvas()];
   return CARD;
 }
+
+// ---------------------------------------------------------------- the desk chair, pulled out (opening)
+
+let CHAIR: HTMLCanvasElement | null = null;
+
+/**
+ * 14×14, seen from behind: the blue backrest and the grey seat of the chair
+ * that is tucked under the desk in the room art (same colours), pulled out
+ * for Minato to slump over the desk from.
+ */
+export function chairBack(): HTMLCanvasElement {
+  if (CHAIR) return CHAIR;
+  const p = new PixelCanvas(14, 14);
+  // legs and the crossbar
+  p.rect(1, 8, 2, 6, '#3A3C3E');
+  p.rect(11, 8, 2, 6, '#3A3C3E');
+  p.hline(3, 10, 11, '#3A3C3E');
+  p.set(1, 8, '#5A5E62');
+  p.set(11, 8, '#5A5E62');
+  // the seat's back edge, wider than the backrest
+  p.rect(0, 6, 14, 3, '#9A9691');
+  p.hline(0, 13, 6, '#C8C2B4');
+  p.hline(0, 13, 8, '#6B6862');
+  // the upholstered backrest: lit top-left, dark bottom row
+  p.rect(2, 0, 10, 6, '#4A9EC1');
+  p.hline(2, 11, 0, '#7FC4C8');
+  p.vline(2, 0, 5, '#7FC4C8');
+  p.hline(2, 11, 5, '#2F4677');
+  p.vline(11, 1, 5, '#2F4677');
+  p.set(5, 2, '#7FC4C8');
+  p.set(8, 3, '#2F4677'); // a button of the upholstery
+  p.outline('#2A2237');
+  CHAIR = p.toCanvas();
+  return CHAIR;
+}
+
+// ---------------------------------------------------------------- 「Z」 of a sleeper (opening)
+
+let ZS: HTMLCanvasElement[] | null = null;
+
+/** Three sizes of a hand-set Z (white, navy outline). */
+export function sleepZ(): HTMLCanvasElement[] {
+  if (ZS) return ZS;
+  const shapes = [
+    ['####', '..#.', '.#..', '####'],
+    ['#####', '...#.', '..#..', '.#...', '#####'],
+    ['######', '....#.', '...#..', '..#...', '.#....', '######'],
+  ];
+  ZS = shapes.map((rows) => {
+    const p = new PixelCanvas(rows[0].length + 2, rows.length + 2);
+    p.art(rows, { '#': P.white }, 1, 1);
+    p.outline(P.navy);
+    return p.toCanvas();
+  });
+  return ZS;
+}

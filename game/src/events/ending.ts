@@ -410,15 +410,19 @@ function* cut4Home(): Co {
 
 function* cut5Tv(): Co {
   yield* fadeTo(300);
-  place('player', 9, 5, 'up');
+  // dinner: the two at either side of the chabudai, the TV on behind it
+  place('player', 8, 4, 'right');
   const mom = actor('npc_mother');
   if (mom) {
     place('npc_mother', 11, 4, 'left');
     mom.pose = null;
+    mom.data.scripted = true;
   }
   spawnDinner();
+  // a 2× shot of the table, the TV at the top of the frame
+  const z = yield* zoomIn(10 * 16, 4 * 16 + 4, 0);
   yield* game.fadeIn(300);
-  yield 400;
+  yield 700;
   const w = new TvCloseup();
   game.ui.push(w);
   yield* animate(300, (p) => (w.k = p), ease.quadOut);
@@ -427,8 +431,11 @@ function* cut5Tv(): Co {
   yield* animate(250, (p) => (w.k = 1 - p));
   w.done = true;
   if (mom) face('npc_mother', 'player');
+  yield 250;
   yield* msg(T.END_TV_MOTHER);
-  yield 300;
+  yield 500;
+  yield* fadeTo(400);
+  z.done = true;
 }
 
 /** The close-up of the crossing (cut 6), kept until the night sky covers it. */

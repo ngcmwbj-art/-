@@ -17,6 +17,7 @@ import { cardboard, notice, pc, prop } from './ifurn';
 import { blend, depthShade, lightPool, paintShell, screenPool, shellProp } from './ishell';
 import { lvTime } from './istate';
 import { castRight, dk, finish, lt } from './kit';
+import { atriumGlow, atriumOver, atriumStatic } from './mall_atrium';
 import { arrowSign, bannerScrap, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, shutter, skyPatch, skyPatchRim, type Lamp } from './mall_kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
@@ -42,27 +43,9 @@ registerProp('mall_m4_shell', () => {
   const H = sh.p.h;
   const p = new PixelCanvas(W, H + BELOW);
   p.blit(sh.p, 0, 0);
-  // ---- the atrium below the railing (rows 8+): a dark drop with M1 far down
-  atrium(p, 128, H + BELOW);
-  // ---- the glass railing (row 7): steel top rail, posts, glass with the drop behind it
-  for (let x = 16; x < W - 16; x++) {
-    p.set(x, 112, P.concreteLt);
-    p.set(x, 113, P.steel);
-    for (let y = 114; y < 128; y++) {
-      const c = p.get(x, y);
-      void c;
-      // what is behind the glass: the dark drop (lighter at the top edge = the floor lip)
-      p.set(x, y, y < 116 ? P.charcoal : y < 120 ? P.shadeDeep : P.nightShade);
-      if ((x + y * 2) % 23 === 0 || (x + y * 2) % 23 === 1) p.set(x, y, P.shade);
-    }
-    if (x % 32 === 16) for (let y = 112; y < 128; y++) p.set(x, y, y === 112 ? P.white : P.steel);
-    p.set(x, 127, P.asphalt);
-  }
-  // the floor lip: the gallery's edge in front of the rail
-  for (let x = 16; x < W - 16; x++) {
-    p.set(x, 110, P.concrete);
-    p.set(x, 111, P.steel);
-  }
+  // ---- the atrium below the railing (rows 7+): M1's hall one storey down,
+  // in perspective (mall_atrium.ts); over() redraws it with the parallax slide
+  atriumStatic(p);
   // ---- north wall (rows 0–1)
   // (1–2) 『↓1F』 escalator sign
   p.rect(20, 10, 22, 9, P.navy);
@@ -117,6 +100,7 @@ registerProp('mall_m4_shell', () => {
   return shellProp({
     img,
     over(g: Gfx, x: number, y: number, env: PropEnv) {
+      atriumOver(g, x, y, env);
       depthShade(g, x + 16, y + 32, W - 32, 80, 0.12);
       mallLamps(g, x, y, M4_LAMPS, env, 404, 0.16, rows);
       // obj_skylight (6–8, 2–4): the square of evening, and the brighter one before the door
@@ -130,40 +114,10 @@ registerProp('mall_m4_shell', () => {
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
       skyPatchRim(g, x + 98, y + 36, 46, 42, env, 0.3);
       skyPatchRim(g, x + 280, y + 34, 44, 26, env, 0.36);
-      // far below: the fountain's patch of sun, small
-      g.rect(x + 170, y + 128 + 26, 12, 2, P.sun, 0.35 * (1 - env.grade.night));
+      atriumGlow(g, x, y, env);
     },
   });
 });
-
-/** The atrium drop: darkness, the rim of the 1F floor, the fountain ring small and far. */
-function atrium(p: PixelCanvas, y0: number, y1: number): void {
-  for (let y = y0; y < y1; y++)
-    for (let x = 0; x < p.w; x++) {
-      const k = (y - y0) / (y1 - y0);
-      p.set(x, y, k < 0.15 ? P.ink : P.night);
-    }
-  // far-below floor: faint tile lines of M1 in perspective (1/3 scale), and the fountain
-  const fy = y0 + 22;
-  // the 1F floor far below: a dim, slightly lighter plane with sparse tile seams
-  for (let y = fy - 6; y < y1; y++)
-    for (let x = 18; x < p.w - 18; x++) {
-      const seam = (x - 18) % 12 === 0 || (y - fy + 6) % 6 === 0;
-      if (seam && ((x + y) & 1) === 0) p.set(x, y, P.ink);
-      else if (!seam && ihash(x >> 2, y >> 1, 77) % 5 === 0) p.set(x, y, P.ink);
-    }
-  const cx = 176;
-  p.ellipse(cx, fy + 10, 20, 8, P.nightShade);
-  p.ring(cx, fy + 10, 20, 8, P.skin4);
-  p.ellipse(cx, fy + 10, 15, 5.5, P.shade);
-  p.ellipse(cx, fy + 10, 13, 4.5, P.shadeDeep);
-  p.rect(cx - 1, fy + 5, 3, 5, P.steel);
-  p.set(cx, fy + 4, P.brassOld);
-  // the gacha colours in a corner, a pillar top
-  for (let k = 0; k < 4; k++) p.rect(262 + k * 5, fy + 1, 3, 3, [P.maroon, P.navy, P.brassOld, P.leafShade][k]);
-  p.rect(56, fy - 2, 5, 10, P.asphalt);
-  p.rect(290, fy - 2, 5, 10, P.asphalt);
-}
 
 // ---------------------------------------------------------------- the top of the escalator down (1, 3–5)
 
