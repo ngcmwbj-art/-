@@ -30,7 +30,7 @@ opts.flavor = 'woff2'
 opts.layout_features = ['*']
 opts.name_IDs = ['*']
 opts.notdef_outline = True
-font = TTFont(str(font_path))
+font = TTFont(str(font_path), recalcTimestamp=False)  # same chars → same bytes
 cmap = font.getBestCmap()
 missing = sorted(c for c in used if ord(c) not in cmap and ord(c) > 0x7f and not c.isspace())
 s = subset.Subsetter(options=opts)
