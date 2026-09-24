@@ -42,28 +42,50 @@ const CSS = `
 .tc.overlay .tc-pad:active,.tc.overlay .tc-btn.down{opacity:.9}
 `;
 
-const DPAD_SVG = `
-<svg viewBox="0 0 100 100" aria-hidden="true">
-  <g transform="translate(0,4)">
-    <rect x="33" y="1" width="34" height="98" rx="7" fill="${INK}"/>
-    <rect x="1" y="33" width="98" height="34" rx="7" fill="${INK}"/>
-  </g>
-  <rect x="33" y="1" width="34" height="98" rx="7" fill="${INK}"/>
-  <rect x="1" y="33" width="98" height="34" rx="7" fill="${INK}"/>
-  <rect x="36" y="4" width="28" height="92" rx="5" fill="${PAPER}"/>
-  <rect x="4" y="36" width="92" height="28" rx="5" fill="${PAPER}"/>
-  <rect class="arm" data-a="up" x="36" y="4" width="28" height="31" rx="5"/>
-  <rect class="arm" data-a="down" x="36" y="65" width="28" height="31" rx="5"/>
-  <rect class="arm" data-a="left" x="4" y="36" width="31" height="28" rx="5"/>
-  <rect class="arm" data-a="right" x="65" y="36" width="31" height="28" rx="5"/>
-  <g fill="${INK}">
-    <path d="M50 10 L59 22 L41 22 Z"/>
-    <path d="M50 90 L59 78 L41 78 Z"/>
-    <path d="M10 50 L22 41 L22 59 Z"/>
-    <path d="M90 50 L78 41 L78 59 Z"/>
-    <circle cx="50" cy="50" r="6" fill="none" stroke="${INK}" stroke-width="2.5"/>
-  </g>
-</svg>`;
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function svgEl(tag: string, attrs: Record<string, string | number>, parent: Element): SVGElement {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+  parent.appendChild(el);
+  return el;
+}
+
+/** The cross-shaped D-pad: drop shadow, ink outline, paper face, lit arms, arrows. */
+function buildDpad(): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('aria-hidden', 'true');
+  const cross = (parent: Element, inset: number, fill: string, rx: number) => {
+    const w = 34 - 2 * inset;
+    const l = 98 - 2 * inset;
+    svgEl('rect', { x: 33 + inset, y: 1 + inset, width: w, height: l, rx, fill }, parent);
+    svgEl('rect', { x: 1 + inset, y: 33 + inset, width: l, height: w, rx, fill }, parent);
+  };
+  cross(svgEl('g', { transform: 'translate(0,4)' }, svg), 0, INK, 7);
+  cross(svg, 0, INK, 7);
+  cross(svg, 3, PAPER, 5);
+  const arms: [string, number, number, number, number][] = [
+    ['up', 36, 4, 28, 31],
+    ['down', 36, 65, 28, 31],
+    ['left', 4, 36, 31, 28],
+    ['right', 65, 36, 31, 28],
+  ];
+  for (const [a, x, y, width, height] of arms) svgEl('rect', { class: 'arm', 'data-a': a, x, y, width, height, rx: 5 }, svg);
+  const ink = svgEl('g', { fill: INK }, svg);
+  for (const d of ['M50 10 L59 22 L41 22 Z', 'M50 90 L59 78 L41 78 Z', 'M10 50 L22 41 L22 59 Z', 'M90 50 L78 41 L78 59 Z'])
+    svgEl('path', { d }, ink);
+  svgEl('circle', { cx: 50, cy: 50, r: 6, fill: 'none', stroke: INK, 'stroke-width': 2.5 }, ink);
+  return svg;
+}
+
+function div(cls: string, parent: Element, text?: string): HTMLDivElement {
+  const el = document.createElement('div');
+  el.className = cls;
+  if (text) el.textContent = text;
+  parent.appendChild(el);
+  return el;
+}
 
 type Mode = 'side' | 'bottom' | 'overlay';
 
@@ -71,22 +93,26 @@ export function installTouch(input: Input, screen?: Screen): void {
   const style = document.createElement('style');
   style.textContent = CSS;
   document.head.appendChild(style);
-  const root = document.createElement('div');
-  root.className = 'tc';
-  root.innerHTML = `<div class="tc-pad">${DPAD_SVG}</div>
-    <div class="tc-btn tc-a">けってい</div><div class="tc-btn tc-b">もどる</div>
-    <div class="tc-btn tc-d"><span class="lamp"></span>ダッシュ</div><div class="tc-btn tc-m">メニュー</div>`;
-  document.body.appendChild(root);
-
-  const pad = root.querySelector('.tc-pad') as HTMLElement;
-  const btnA = root.querySelector('.tc-a') as HTMLElement;
-  const btnB = root.querySelector('.tc-b') as HTMLElement;
-  const btnD = root.querySelector('.tc-d') as HTMLElement;
-  const btnM = root.querySelector('.tc-m') as HTMLElement;
+  const root = div('tc', document.body);
+  const pad = div('tc-pad', root);
+  pad.appendChild(buildDpad());
+  const btnA = div('tc-btn tc-a', root, 'けってい');
+  const btnB = div('tc-btn tc-b', root, 'もどる');
+  const btnD = div('tc-btn tc-d', root);
+  div('lamp', btnD);
+  btnD.append('ダッシュ');
+  const btnM = div('tc-btn tc-m', root, 'メニュー');
   const arms = new Map<string, Element>();
   root.querySelectorAll('.arm').forEach((el) => arms.set((el as SVGElement).dataset.a ?? '', el));
 
   let active = false;
+  const capture = (el: Element, id: number) => {
+    try {
+      el.setPointerCapture(id);
+    } catch {
+      /* pointer already gone */
+    }
+  };
   const buzz = () => {
     try {
       navigator.vibrate?.(8);
@@ -127,7 +153,7 @@ export function installTouch(input: Input, screen?: Screen): void {
   pad.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     padId = e.pointerId;
-    pad.setPointerCapture(e.pointerId);
+    capture(pad, e.pointerId);
     padMove(e);
   });
   pad.addEventListener('pointermove', (e) => {
@@ -145,7 +171,7 @@ export function installTouch(input: Input, screen?: Screen): void {
   const bindHold = (el: HTMLElement, a: Action) => {
     el.addEventListener('pointerdown', (e) => {
       e.preventDefault();
-      el.setPointerCapture(e.pointerId);
+      capture(el, e.pointerId);
       el.classList.add('down');
       input.setVirtual(a, true);
       buzz();
