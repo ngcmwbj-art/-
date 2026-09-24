@@ -47,7 +47,52 @@ function kindFor(o: SymbolObj): SymState['kind'] {
 }
 
 export class SymbolAI {
+  /** The party's grace this frame (FieldScene.symbolsCalm): nobody notices, charges or walks into Minato. */
+  private calmNow = false;
+
   constructor(private f: FieldScene) {}
+
+  /** Would a symbol whose feet stand at (x, y) touch Minato (the contact boxes of checkContacts, 2px margin)? */
+  private touchesPlayer(a: Actor, x: number, y: number): boolean {
+    const p = this.f.player;
+    const al = x + a.ox - a.bw / 2 - 2;
+    const ar = x + a.ox + a.bw / 2 + 2;
+    const at = y - Math.max(a.bh, 10) - 2;
+    const ab = y + 3;
+    return p.x - 5 < ar && p.x + 5 > al && p.y - 8 < ab && p.y > at;
+  }
+
+  /**
+   * Free for a symbol to move to (walls, and Minato himself while the party
+   * is in its grace). One lying on something solid (the cicada on the tree's
+   * planting) may move as long as it enters no solid tile it isn't on already.
+   */
+  private freeFor(a: Actor, x: number, y: number): boolean {
+    if (!this.f.free(a, x, y, true)) {
+      const now = this.solidUnder(a, a.x, a.y);
+      if (!now.size) return false;
+      for (const k of this.solidUnder(a, x, y)) if (!now.has(k)) return false;
+    }
+    return !(this.calmNow && this.touchesPlayer(a, x, y) && !this.touchesPlayer(a, a.x, a.y));
+  }
+
+  /** Solid tiles (keys) under the feet box of `a` standing at (x, y); a box off the map counts as solid. */
+  private solidUnder(a: Actor, x: number, y: number): Set<number> {
+    const out = new Set<number>();
+    const m = this.f.map;
+    const l = x - a.bw / 2;
+    const r = x + a.bw / 2 - 0.01;
+    const t = y - a.bh;
+    const b = y - 0.01;
+    if (l < 0 || t < 0 || r >= m.w * 16 || b >= m.h * 16) out.add(-1);
+    for (const px of [l, (l + r) / 2, r])
+      for (const py of [t, b]) {
+        const tx = Math.floor(px / 16);
+        const ty = Math.floor(py / 16);
+        if (this.f.isSolidTile(tx, ty)) out.add(ty * 4096 + tx);
+      }
+    return out;
+  }
 
   init(a: Actor, o: SymbolObj): void {
     const k = kindFor(o);
@@ -90,6 +135,10 @@ export class SymbolAI {
     a.update(dt);
     const st = this.st(a);
     const f = this.f;
+    // just arrived / just back from an event or a battle: they carry on
+    // idling but don't notice him, charge, or roll into him
+    this.calmNow = f.symbolsCalm();
+    if (this.calmNow) active = false;
     if (st.mode === 'stun') {
       st.timer -= dt;
       a.moving = false;
@@ -153,7 +202,7 @@ export class SymbolAI {
   private nw() {
     return {
       t: this.f.t,
-      free: (b: Actor, x: number, y: number) => this.f.free(b, x, y, true),
+      free: (b: Actor, x: number, y: number) => this.freeFor(b, x, y),
       actorById: (id: string) => this.f.actorById(id),
       motion: 1,
     };
@@ -233,7 +282,11 @@ export class SymbolAI {
       st.timer = 1500 + Math.random() * 2500;
       a.playAnim('twitch');
     }
-    if (active && d < 2) {
+    // it jumps when he steps into the lane right next to it (its body is
+    // 24px wide: 1.5 tiles centre to centre); walking past a tile further
+    // off — up the alley beside the higurashi tree, from wherever in that
+    // lane — lets it be, so it stays an optional fight
+    if (active && d < 1.5) {
       st.mode = 'chase';
       st.hops = 3;
       st.timer = 120;
@@ -326,7 +379,7 @@ export class SymbolAI {
         ty = a.y + Math.sign(st.home[1] - a.y) * T;
       }
     }
-    if (!this.f.free(a, tx, ty, true)) return;
+    if (!this.freeFor(a, tx, ty)) return;
     a.dir = dirFromVec(tx - a.x, ty - a.y, a.dir);
     st.hopTarget = [tx, ty];
     a.hop(6, chase ? 280 : 320);
@@ -402,7 +455,7 @@ export class SymbolAI {
     const [fx, fy] = DIR_VEC[a.dir];
     const nx = a.x + (fx * speed * dt) / 1000;
     const ny = a.y + (fy * speed * dt) / 1000;
-    if (!this.f.free(a, nx, ny, true)) {
+    if (!this.freeFor(a, nx, ny)) {
       a.moving = false;
       return false;
     }
@@ -451,6 +504,8 @@ export class SymbolAI {
     const f = this.f;
     if (f.t < f.invincibleUntil) return;
     const p = f.player;
+    // in the grace only Minato walking into a symbol starts a battle
+    if (!p.moving && f.symbolsCalm()) return;
     // player 10×8 at the feet; the symbol as wide as its field sprite (bw)
     // and at least 10 deep, so walking into (or standing on) a symbol whose
     // body visibly overlaps Minato's feet always starts the battle

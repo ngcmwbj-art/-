@@ -11,7 +11,7 @@ import type { Gfx } from '../../engine/gfx';
 import { PixelCanvas, makeCanvas } from '../../engine/pixel';
 import { valueNoise } from '../../engine/rng';
 import type { Dir } from '../../game/state';
-import { animIndex, charIds, charSprite, portrait, portraitIds, type CharSprite } from './registry';
+import { animIndex, charIds, charSprite, hasLargePortrait, portrait, portraitIds, type CharSprite } from './registry';
 import { EMOTE_KINDS, emoteFrames, EMOTE_FRAME_MS } from './emotes';
 import { flipBoard, flipBoardEdge, flipBoardMini, flipBoardPanel, flipBoardText, flipIcon } from './flip';
 import { tinyText, tinyWidth } from './tinyfont';
@@ -38,6 +38,8 @@ const BGS: BgDef[] = [
   { name: 'night', base: '#3E3860', dark: '#332E52', light: '#4A4470', line: '#2C2748', text: '#FBF3DC' },
   { name: 'mall', base: '#CFC6AC', dark: '#BDB399', light: '#E0D8BE', line: '#A89E86', text: '#2A2440' },
   { name: 'paper', base: '#FBF3DC', dark: '#F2E6C6', light: '#FFF9EA', line: '#E8D9B5', text: '#2A2440' },
+  // the mall car park (stage 2 only): grey asphalt, for contrast checks
+  { name: 'asphalt', base: '#7A7890', dark: '#6C6A84', light: '#8A889E', line: '#9A98AC', text: '#FBF3DC' },
 ];
 
 const groundCache = new Map<string, HTMLCanvasElement>();
@@ -156,7 +158,7 @@ export class CharGallery implements Scene {
           if (m === 'look_up') return s.extra?.look_up ?? s.walk.down[0];
           return cycle(s.idle?.down ?? [s.walk.down[0]], s.idleFrameMs ?? 250)(t);
         };
-        return spriteTile(s, shortName(id), this.zoom, frame);
+        return spriteTile(s, shortName(id), this.zoom, frame, true, [...s.walk.down, ...(s.idle?.down ?? [])]);
       });
     this.pages.push({ title: 'cast', tiles: overview(people) });
     this.pages.push({ title: 'foes', tiles: overview(foes) });
@@ -170,9 +172,11 @@ export class CharGallery implements Scene {
   fourDirTile(s: CharSprite, label: string): Tile {
     const z = this.zoom;
     const cw = s.w + 2;
+    // frames can be taller than the declared height (headroom: balloons, look_up)
+    const fh = Math.max(s.h, ...DIRS.flatMap((d) => s.walk[d].map((c) => c.height)));
     return {
       w: cw * 4 * z,
-      h: s.h * z + 8,
+      h: fh * z + 8,
       label,
       draw: (g, x, y, t) => {
         DIRS.forEach((d, i) => {
@@ -180,9 +184,9 @@ export class CharGallery implements Scene {
           const bx = x + i * cw * z;
           if ((s.shadow ?? 0) > 0) {
             const sh = shadow(s.shadow!);
-            g.img(sh, bx + (s.w * z) / 2 - (sh.width * z) / 2, y + s.h * z - 3 * z, { scale: z });
+            g.img(sh, bx + (s.w * z) / 2 - (sh.width * z) / 2, y + fh * z - 3 * z, { scale: z });
           }
-          g.img(img, bx + ((s.w - img.width) * z) / 2, y + (s.h - img.height) * z, { scale: z });
+          g.img(img, bx + ((s.w - img.width) * z) / 2, y + (fh - img.height) * z, { scale: z });
         });
       },
     };
@@ -226,6 +230,13 @@ export class CharGallery implements Scene {
         const c = portrait(id, m);
         if (!c) continue;
         out.push({ w: c.width * z, h: c.height * z + 8, label: `${id.slice(0, 4)}:${m.slice(0, 5)}`, draw: (g, x, y) => g.img(c, x, y, { scale: z }) });
+      }
+    // faces drawn at 64×64 (close-ups), shown at the same zoom
+    for (const id of portraitIds())
+      for (const m of MOODS) {
+        if (!hasLargePortrait(id, m)) continue;
+        const c = portrait(id, m, { size: 64 })!;
+        out.push({ w: c.width * z, h: c.height * z + 8, label: `${id.slice(0, 4)}:${m.slice(0, 5)} 64`, draw: (g, x, y) => g.img(c, x, y, { scale: z }) });
       }
     return out;
   }
@@ -329,7 +340,7 @@ export class CharGallery implements Scene {
 
   /** The sprites' rim light follows the ground being previewed (7.3). */
   private rimFor(bg: BgDef): void {
-    const stage = bg.name === 'stage2' ? 2 : bg.name === 'night' ? 3 : bg.name === 'stage1' ? 1 : 0;
+    const stage = bg.name === 'stage2' || bg.name === 'asphalt' ? 2 : bg.name === 'night' ? 3 : bg.name === 'stage1' ? 1 : 0;
     const [lo, hi] = rimForStage(stage, bg.name === 'mall' ? 'map_mall' : '');
     setRimLight(lo, hi);
   }

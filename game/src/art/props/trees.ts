@@ -396,7 +396,6 @@ function treeArt(id: string, v: number): PropArt {
     if (env.stage === 2) return fc[2];
     return fc[Math.floor((env.mt + env.seed * 3000) / 700) % 2];
   };
-  const shadowH = s.lift + ch / 2;
   return {
     ox: footX - Math.floor(tc.width / 2),
     oy: footY - tc.height,
@@ -426,42 +425,73 @@ function treeArt(id: string, v: number): PropArt {
     ],
     shadowFn(ctx, x, y, dir, len, env) {
       if (len <= 0.01) return;
-      // trunk shadow
-      const bx = x + footX;
-      const by = y + footY;
-      const th = s.trunkH;
-      ctx.beginPath();
-      ctx.moveTo(bx - s.trunkW / 2, by);
-      ctx.lineTo(bx + s.trunkW / 2, by);
-      ctx.lineTo(bx + s.trunkW / 2 + dir[0] * len * th, by + dir[1] * len * th);
-      ctx.lineTo(bx - s.trunkW / 2 + dir[0] * len * th, by + dir[1] * len * th);
-      ctx.closePath();
-      ctx.fill();
-      // canopy blob, flattened onto the ground
-      const sx = bx + dir[0] * len * shadowH;
-      const sy = by + dir[1] * len * shadowH - 2;
-      const rx = cw * 0.46;
-      const ry = ch * 0.3;
-      ctx.beginPath();
-      ctx.ellipse(Math.round(sx), Math.round(sy), rx, ry, 0, 0, Math.PI * 2);
-      ctx.fill();
-      // dapples (木漏れ日): punch holes, gently twinkling (frozen in stage 1)
-      ctx.save();
+      // (QA round 2: stage 2 threw a dense flat ellipse several tiles off
+      // the tree, a black hole with no tree to it) the shadow starts at the
+      // trunk's foot and stretches along the light: the trunk sheared out,
+      // then the crown's own leafy outline as a footprint on the ground
+      // (depth 45% of its height, pulled out along the light by half the
+      // stretch), with dapples; the crown's shift is capped at 40px
+      const fx = Math.round(x + footX);
+      const fy = Math.round(y + footY);
+      const [dx, dy] = dir;
+      const L = Math.min(len, CROWN_SHIFT / s.lift);
+      // trunk: its silhouette sheared from the foot
+      ctx.setTransform(1, 0, -L * dx, -L * dy, fx, fy);
+      ctx.drawImage(treeSil(tc), footX - Math.floor(tc.width / 2) - footX, footY - tc.height - footY);
+      // crown: centre at height hc, footprint K deep, stretched by s1 of the shear
+      // (the crown's centre stands `lift` above the foot)
+      const vc = -s.lift;
+      const K = 0.45;
+      const s1 = 0.5;
+      const c = -dx * L * s1;
+      const d = K - dy * L * s1;
+      const e = fx - dx * L * vc * (1 - s1);
+      const f = fy - vc * (dy * L * (1 - s1) + K);
+      ctx.setTransform(1, 0, c, d, e, f);
+      const img = pickFrame(env);
+      ctx.globalAlpha = 0.82;
+      ctx.drawImage(treeSil(img, true), cox - footX, coy - footY);
+      ctx.globalAlpha = 1;
+      // dapples (木漏れ日) that twinkle: punch a few more holes (frozen in stage 1)
       ctx.globalCompositeOperation = 'destination-out';
       const tt = env.stage === 1 ? 0 : Math.floor(env.mt / 900);
-      for (let k = 0; k < 7; k++) {
+      for (let k = 0; k < 6; k++) {
         const hh = ihash(k, seed, 1907);
-        if ((hh + tt * (k + 1)) % 4 === 0) continue;
-        const ax = sx + ((hh % 100) / 100 - 0.5) * rx * 1.4;
-        const ay = sy + (((hh >>> 8) % 100) / 100 - 0.5) * ry * 1.2;
-        const r = 1.5 + ((hh >>> 16) % 3) * 0.6;
-        ctx.beginPath();
-        ctx.ellipse(Math.round(ax), Math.round(ay), r + 0.8, r * 0.7, 0, 0, Math.PI * 2);
-        ctx.fill();
+        if ((hh + tt * (k + 1)) % 3 === 0) continue;
+        const ax = cox - footX + cw * (0.2 + ((hh % 100) / 100) * 0.6);
+        const ay = coy - footY + ch * (0.25 + (((hh >>> 8) % 100) / 100) * 0.5);
+        ctx.fillRect(Math.round(ax), Math.round(ay), 3, 3);
       }
-      ctx.restore();
+      ctx.globalCompositeOperation = 'source-over';
     },
   };
+}
+
+/** How far a tree's crown shadow may move off the trunk (px). */
+const CROWN_SHIFT = 40;
+
+const silCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+const silHolesCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+/** Black silhouette of a canvas; `holes`: with a sprinkle of 2×1 light gaps through the leaves. */
+function treeSil(img: HTMLCanvasElement, holes = false): HTMLCanvasElement {
+  const cache = holes ? silHolesCache : silCache;
+  const hit = cache.get(img);
+  if (hit) return hit;
+  const c = document.createElement('canvas');
+  c.width = img.width;
+  c.height = img.height;
+  const ctx = c.getContext('2d')!;
+  ctx.drawImage(img, 0, 0);
+  ctx.globalCompositeOperation = 'source-in';
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, c.width, c.height);
+  if (holes) {
+    ctx.globalCompositeOperation = 'destination-out';
+    for (let y = 2; y < c.height - 2; y += 3)
+      for (let x = 2; x < c.width - 2; x += 2) if (ihash(x, y, 1931) % 9 === 0) ctx.fillRect(x, y, 2, 1);
+  }
+  cache.set(img, c);
+  return c;
 }
 
 for (const id of Object.keys(SPECS)) {

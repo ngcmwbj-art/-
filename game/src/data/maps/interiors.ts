@@ -175,7 +175,8 @@ registerMap({
   theme: 'shop',
   light: 'top',
   bgm: { 0: 'bgm_shop', 1: 'bgm_shop', 2: 'bgm_shop' },
-  amb: { 0: ['amb_dryer'], 1: ['amb_dryer'], 2: ['amb_dryer'] },
+  // amb_dryer (No.3 turning) is played by lv_logic (STATE_AMB) until fushigi_05
+  amb: { 0: [], 1: [], 2: [] },
   objects: [
     PR('in_ld_shell', 0, 0),
     PR('in_ld_clock', 8, 0),

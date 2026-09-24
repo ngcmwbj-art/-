@@ -204,6 +204,11 @@ interface Banner {
   dur: number;
 }
 
+/** How long a place name waits for the bottom-left corner (a guide note there) before it is let go. */
+const BANNER_WAIT_MAX = 5000;
+/** The washi tape the place name is written on (paler than the orange name tags). */
+const PLACE_TAPE = '#EFE4C8';
+
 interface ItemCard {
   id: string;
   t: number;
@@ -214,6 +219,15 @@ interface ItemCard {
 
 /** Item notes on screen at once (the rest queue up). */
 const CARDS_MAX = 3;
+/**
+ * A picked-up item's note lands this long after the pick-up (the sound
+ * first, then the note slaps down) — and an event that announces the item
+ * itself has that long to wave the note off (skipItemCard / clearNotes)
+ * before any of it is drawn.
+ */
+const CARD_SETTLE_MS = 90;
+/** How long a skipItemCard() waits for its item to arrive. */
+const SKIP_MS = 3000;
 
 let menuOpener: (() => void) | null = null;
 let menuEnabled = true;
@@ -255,9 +269,12 @@ class UiHud implements FieldHud {
   private placeSeen = new Map<string, number>();
   private pendingPlace: string | null = null;
   private placeDelay = 0;
+  private placeWait = 0;
   private cards: ItemCard[] = [];
   private cardQueue: ItemCard[] = [];
   private inv = new Map<string, number>();
+  /** Pick-ups that make no note: id → how many, until when (game.time). */
+  private skips = new Map<string, { n: number; until: number }>();
   private lastFrame = -10;
   private field: FieldScene | null = null;
 
@@ -373,19 +390,27 @@ class UiHud implements FieldHud {
       this.lastMap = f.map.id;
       this.pendingPlace = place;
       this.placeDelay = 250;
+      this.placeWait = 0;
       this.lastPlace = place;
     } else if (place !== this.lastPlace) {
       this.lastPlace = place;
       this.pendingPlace = place;
       this.placeDelay = 350;
+      this.placeWait = 0;
     }
     // the name waits while a cutscene or a conversation has the screen (a
     // close-up, a zoom, a warp inside a script): it appears once the player
-    // can move again
+    // can move again — and while a guide note has the bottom-left corner
     const free = f.controllable && !f.warping && game.fadeAlpha < 0.05;
+    const corner = game.ui.widgets.some((w) => !w.modal && !w.done);
     if (this.pendingPlace) {
-      if (free) this.placeDelay -= dt;
-      if (this.placeDelay <= 0) {
+      if (free && !corner) this.placeDelay -= dt;
+      else if (free) {
+        this.placeWait += dt;
+        // the moment has passed: don't bring an old name up late
+        if (this.placeWait > BANNER_WAIT_MAX) this.pendingPlace = null;
+      }
+      if (this.pendingPlace && this.placeDelay <= 0) {
         const p = this.pendingPlace;
         this.pendingPlace = null;
         const seen = this.placeSeen.get(p) ?? -1e9;
@@ -397,7 +422,7 @@ class UiHud implements FieldHud {
     }
     if (this.banner) {
       // a cutscene starting under it: the name bows out early
-      if (game.scripts.busy && !f.controllable && this.banner.t < this.banner.dur - 350) this.banner.t = this.banner.dur - 350;
+      if (game.scripts.busy && !f.controllable && this.banner.t < this.banner.dur - 300) this.banner.t = this.banner.dur - 300;
       this.banner.t += dt;
       if (this.banner.t > this.banner.dur) this.banner = null;
     }
@@ -421,16 +446,33 @@ class UiHud implements FieldHud {
   private watchInventory(live: boolean): void {
     const now = new Map<string, number>();
     for (const id of state.inventory) now.set(id, (now.get(id) ?? 0) + 1);
-    if (live) {
-      for (const [id, n] of now) {
-        const before = this.inv.get(id) ?? 0;
-        if (n > before) this.pushCard(id, n - before);
+    for (const [id, sk] of this.skips) if (sk.until < game.time) this.skips.delete(id);
+    for (const [id, n] of now) {
+      let add = n - (this.inv.get(id) ?? 0);
+      if (add <= 0) continue;
+      // an event announcing the item itself asked for no note
+      const sk = this.skips.get(id);
+      if (sk) {
+        const k = Math.min(sk.n, add);
+        add -= k;
+        sk.n -= k;
+        if (sk.n <= 0) this.skips.delete(id);
       }
+      if (live && add > 0) this.pushCard(id, add, CARD_SETTLE_MS);
     }
     this.inv = now;
   }
 
-  pushCard(id: string, n = 1): void {
+  /** The next `n` pick-ups of `id` make no note (the event's own message says it). */
+  skipCard(id: string, n = 1): void {
+    const sk = this.skips.get(id);
+    this.skips.set(id, { n: (sk?.n ?? 0) + n, until: game.time + SKIP_MS });
+    // it may already be up (given a frame before): take it back before it is drawn
+    this.cards = this.cards.filter((c) => c.id !== id || c.t >= 0);
+    this.cardQueue = this.cardQueue.filter((c) => c.id !== id);
+  }
+
+  pushCard(id: string, n = 1, delay = 0): void {
     if (!getItem(id)) return;
     const same = this.cards.find((c) => c.id === id && c.t < 1500) ?? this.cardQueue.find((c) => c.id === id);
     if (same) {
@@ -440,7 +482,7 @@ class UiHud implements FieldHud {
     }
     const cd = { id, t: 0, n };
     if (this.cards.length < CARDS_MAX) {
-      cd.t = -this.cards.filter((c) => c.t < 100).length * 180;
+      cd.t = -delay - this.cards.filter((c) => c.t < 100).length * 180;
       this.cards.push(cd);
     } else this.cardQueue.push(cd);
   }
@@ -460,9 +502,11 @@ class UiHud implements FieldHud {
     this.lastPlace = '';
     this.placeSeen.clear();
     this.pendingPlace = null;
+    this.placeWait = 0;
     this.cards = [];
     this.cardQueue = [];
     this.inv.clear();
+    this.skips.clear();
     this.lastFrame = -10;
   }
 
@@ -484,14 +528,11 @@ class UiHud implements FieldHud {
     if (y > -24) drawClockPlate(g, 324, y, this.clockView());
     // hanko icon (bottom left)
     if (flag('flag_got_hanko') && !flag('flag_hud_hidden')) this.drawHanko(g);
-    // place name banner (top left)
-    let cardY = 8;
-    if (this.banner) {
-      this.drawBanner(g, this.banner);
-      cardY = 30;
-    }
+    // place name (bottom left, beside the hanko)
+    if (this.banner) this.drawBanner(g, this.banner);
     // the notes stay clear of a conversation: under a window at the top, and
     // above the name tag of one at the bottom (3 notes end at y128 < 138)
+    let cardY = 8;
     const top = dialogTop();
     if (top !== null && top < 100) cardY = top + 64 + 8;
     let slot = 0;
@@ -529,24 +570,32 @@ class UiHud implements FieldHud {
     }
   }
 
+  /**
+   * The place name, written in ink on a strip of washi tape stuck down in
+   * the bottom-left corner beside the hanko plate — below the signboards on
+   * the back walls of the rooms, and out of the way of the clock and the
+   * item notes. The tape is pulled off the roll left to right (0.22 s) and
+   * lifts away at the end.
+   */
   private drawBanner(g: Gfx, b: Banner): void {
-    // floating text: #FBF3DC with a 1px ink outline (10.3), sliding in from the
-    // left, underlined by a quick stroke that draws itself under the name
-    const inK = Math.min(1, b.t / 220);
-    const outK = b.t > b.dur - 350 ? (b.t - (b.dur - 350)) / 350 : 0;
-    const a = inK * (1 - outK);
-    const x = 12 - Math.round((1 - ease.cubicOut(inK)) * 8);
-    const y = 8;
-    const w = textW(b.text);
-    g.text(b.text, x, y, { color: UI.bg, outline: UI.border, alpha: a });
-    const k = Math.min(1, Math.max(0, (b.t - 120) / 260));
-    const lw = Math.round((w + 6) * ease.cubicOut(k));
-    if (lw > 0)
-      g.alpha(a, () => {
-        g.rect(x - 2, y + 18, lw + 2, 4, UI.border);
-        g.rect(x - 1, y + 19, lw, 2, UI.bg);
-        g.rect(x - 1, y + 19, Math.min(lw, 5), 2, UI.accent);
-      });
+    const h = 18;
+    const w = textW(b.text) + 18;
+    const withHanko = flag('flag_got_hanko') && !flag('flag_hud_hidden');
+    const x = withHanko ? HANKO_PLATE.x + HANKO_PLATE.w + 5 : 8;
+    const inK = ease.cubicOut(Math.min(1, b.t / 220));
+    const outK = b.t > b.dur - 300 ? Math.min(1, (b.t - (b.dur - 300)) / 300) : 0;
+    const y = HANKO_PLATE.y + Math.round((HANKO_PLATE.h - h) / 2) - Math.round(ease.quadIn(outK) * 3);
+    const a = 1 - outK;
+    const shown = Math.round((w + 2) * inK);
+    if (shown <= 0 || a <= 0) return;
+    const seed = 3 + ([...b.text].length % 5);
+    g.clip(x, y - 1, shown, h + 3, () => {
+      // a soft shadow under the strip so it reads over the busiest ground
+      rectA(g, x + 2, y + h, w - 4, 1, UI.night, 0.35 * a);
+      rectA(g, x + 3, y + 2, w - 3, h - 2, UI.night, 0.18 * a);
+      drawTape(g, x, y, w, h, '', { color: PLACE_TAPE, seed, alpha: a });
+      g.text(b.text, x + 9, y + 1, { color: UI.text, alpha: a });
+    });
   }
 
   private drawCard(g: Gfx, c: ItemCard, y0: number): void {
@@ -569,18 +618,18 @@ class UiHud implements FieldHud {
     const cx = x + Math.round((w - cw) / 2);
     const cy = y + Math.round((h - ch) / 2);
     g.alpha(a, () => {
-      rectA(g, cx + 2, cy + 2, cw, ch, UI.shadow, 0.45);
+      rectA(g, cx + 2, cy + 2, cw, ch, UI.shadow, 0.45 * (0.4 + 0.6 * stick));
       g.rect(cx, cy, cw, ch, '#D9A441');
       g.rect(cx + 1, cy + 1, cw - 2, ch - 2, UI.tape);
       g.rect(cx + 1, cy + 1, cw - 2, 1, '#FBD9A0');
       // the curled bottom-right corner of the sticky note
       g.rect(cx + cw - 4, cy + ch - 4, 3, 3, '#E9B866');
       g.px(cx + cw - 1, cy + ch - 1, blend(UI.tape, UI.shadow, 0.3));
-      if (stick >= 1) {
-        g.img(itemIcon24(c.id), cx + 4, cy + 3);
-        const tw = g.text(name, cx + 32, cy + 7, { color: UI.text });
-        if (count) drawNumerals(g, count, cx + 32 + tw + 5, cy + 7, { color: UI.accentDark });
-      }
+      // the icon and the name are on the note from the first frame (it is
+      // the paper that settles, not what is written on it)
+      g.img(itemIcon24(c.id), x + 4, y + 3);
+      const tw = g.text(name, x + 32, y + 7, { color: UI.text });
+      if (count) drawNumerals(g, count, x + 32 + tw + 5, y + 7, { color: UI.accentDark });
     });
   }
 
@@ -604,6 +653,15 @@ export function showPlaceName(text: string, ms = 2600): void {
 /** Pop the item sticky note (e.g. for things handed over outside the field). */
 export function notifyItem(id: string, n = 1): void {
   uiHud.pushCard(id, n);
+}
+
+/**
+ * The next pick-up of `id` makes no sticky note: call it before giving an
+ * item that the event announces itself (a 大事なもの with its @sys line).
+ *   skipItemCard('item_hanko_case'); giveKey('item_hanko_case');
+ */
+export function skipItemCard(id: string, n = 1): void {
+  uiHud.skipCard(id, n);
 }
 
 export function isInventoryKey(id: string): boolean {

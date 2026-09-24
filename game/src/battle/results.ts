@@ -18,6 +18,7 @@ import { itemIcon } from './art/icons';
 import { C, tapeCanvas } from './ui/note';
 import { MessageBand } from './ui/message';
 import { PANEL_POS } from './ui/panels';
+import { drawNumerals, numeralsWidth } from '../ui/digits';
 
 // ---- victory --------------------------------------------------------------------------
 
@@ -177,6 +178,25 @@ export function* victory(s: BattleScene): Co {
     } });
     // the results follow the landing within 0.4s (no empty band in between)
     yield 220;
+  }
+  if (quiet) {
+    // the last battle (QA round 2): right after 「……ただいま。」 and the cap
+    // flying off to the photo studio, no counting, no report card, no
+    // learned-move lines — the rewards apply silently and the white fade
+    // into the ending follows (the ending's own notebook carries the rest)
+    if (money > 0) state.money += money;
+    for (const u of s.party) {
+      if (u.m.hp <= 0) {
+        u.m.hp = 1;
+        delete u.m.status.status_hebatta;
+        u.drop = 0;
+      }
+    }
+    const ups: LevelUpResult[] = [];
+    for (const u of s.party) ups.push(...gainExp(u.m, exp));
+    for (const lv of [...new Set(ups.map((r) => r.to))]) learnedAt(lv, ups.filter((r) => r.to === lv));
+    for (const u of s.party) u.moodHold = null;
+    return;
   }
   // 1. experience (both members, even if down); the level-up itself is
   // judged and shown last (18.3), so the panels keep the old stats until then
@@ -340,16 +360,22 @@ function* levelUpSequence(s: BattleScene, list: LevelUpResult[]): Co {
     const fx = s.addFx({ layer: 'top', dur: 0, ui: true, draw: (g) => card.draw(g) });
     yield* card.run(s.msg, () => s.takeConfirm(), (ms) => s.hitstop(ms / FRAME), (x, y, n) => s.petals(x, y, n, 10));
     fx.done = true;
-    const learned: string[] = [];
-    if (lv === 3 && rs.some((r) => r.memberId === 'kanenari')) {
-      learned.push(...SYS.lv3);
-      const k = state.party.find((m) => m.id === 'kanenari');
-      if (k && !k.skills.includes('skill_goaisatsu')) k.skills.push('skill_goaisatsu');
-    }
-    if (lv === 4 && rs.some((r) => r.memberId === 'minato')) learned.push(...SYS.lv4);
-    if (lv === 5 && rs.some((r) => r.memberId === 'minato')) learned.push(...SYS.lv5);
+    const learned = learnedAt(lv, rs);
     if (learned.length) yield* say(s, learned);
   }
+}
+
+/** Apply what reaching `lv` teaches (ごあいさつ at 3) and return its band pages. */
+function learnedAt(lv: number, rs: LevelUpResult[]): string[] {
+  const learned: string[] = [];
+  if (lv === 3 && rs.some((r) => r.memberId === 'kanenari')) {
+    learned.push(...SYS.lv3);
+    const k = state.party.find((m) => m.id === 'kanenari');
+    if (k && !k.skills.includes('skill_goaisatsu')) k.skills.push('skill_goaisatsu');
+  }
+  if (lv === 4 && rs.some((r) => r.memberId === 'minato')) learned.push(...SYS.lv4);
+  if (lv === 5 && rs.some((r) => r.memberId === 'minato')) learned.push(...SYS.lv5);
+  return learned;
 }
 
 // ---- report card -----------------------------------------------------------------------
@@ -368,6 +394,25 @@ function drawArrowText(g: Gfx, a: number, b: number, x: number, y: number, color
   g.rect(cx + 5, ay + 1, 1, 3, color);
   cx += 9;
   cx += g.text(String(b), cx, y, { color });
+  return cx - x;
+}
+
+/**
+ * "a→b" in the game's own 7×11 numerals (ui/digits): the header's "1" has
+ * its flag and foot, so it no longer reads as "]" (QA round 2).
+ */
+function numeralArrowWidth(a: number, b: number): number {
+  return numeralsWidth(String(a)) + 11 + numeralsWidth(String(b));
+}
+
+function drawArrowNumerals(g: Gfx, a: number, b: number, x: number, y: number, color: string): number {
+  let cx = x + drawNumerals(g, String(a), x, y, { color }) + 1;
+  const ay = y + 6;
+  g.rect(cx + 1, ay + 2, 5, 1, color);
+  g.rect(cx + 4, ay, 1, 5, color);
+  g.rect(cx + 5, ay + 1, 1, 3, color);
+  cx += 10;
+  cx += drawNumerals(g, String(b), cx, y, { color });
   return cx - x;
 }
 
@@ -562,11 +607,12 @@ class ReportCard {
       g.text(REPORT.nameLine2[id] ?? '', px, y + 22, { color: C.ink });
       // "Lv2→3" (tiny Lv, compact arrow) sits at the right end of the rule
       // under the names, so a long name never runs into it
-      const lw = arrowTextWidth(g, r.from, r.to);
+      // (2px higher than before, so the header breathes above the HP row)
+      const lw = numeralArrowWidth(r.from, r.to);
       const lx = px + PW - lw;
       g.rect(px, y + 44, PW - lw - 16, 1, C.grid);
-      g.img(miniText('Lv', 0.62, C.shuDark), lx - 11, y + 44);
-      drawArrowText(g, r.from, r.to, lx, y + 37, C.shuDark);
+      g.img(miniText('Lv', 0.62, C.shuDark), lx - 12, y + 39);
+      drawArrowNumerals(g, r.from, r.to, lx, y + 35, C.shuDark);
       REPORT.stats.forEach((name, row) => {
         const yy = y + 52 + row * 18;
         g.text(name, px, yy, { color: C.ink });

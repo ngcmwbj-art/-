@@ -38,6 +38,8 @@ export function yousuText(s: BattleScene): string {
     return oneLine(t.yousu[(r - 1) % t.yousu.length], e.def.name);
   }
   if (e.id === 'enemy_kanenari') {
+    // [events hook, QA round 2] from round 6, every other round, Minato's own thought
+    if (r >= 6 && r % 2 === 0 && sp.round6) return sp.round6;
     if (r >= 4) return sp.round4;
     if (r >= 3) return sp.round3;
     return t.yousu[(r - 1) % t.yousu.length];

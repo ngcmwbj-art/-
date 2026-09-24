@@ -7,7 +7,7 @@
 // outline trembles 1px (#3A2B5C) — the boss is waiting in it.
 
 import type { Gfx } from '../../engine/gfx';
-import { PixelCanvas, rgba32 } from '../../engine/pixel';
+import { mix, PixelCanvas, rgba32 } from '../../engine/pixel';
 import { getMapDef } from '../../world/maps';
 import { mallTiles } from '../tiles/ifloor';
 import { ihash, valueNoise } from '../tiles/noise';
@@ -17,6 +17,7 @@ import { blend, depthShade, lightPool, paintShell, screenPool, shellProp } from 
 import { lvTime } from './istate';
 import { castRight, dk, finish, lt, outline } from './kit';
 import { mallGrade } from './mall_kit';
+import { maigoOutGlow, maigoOutOver, maigoWindows, withMaigoOut } from './mall_m5_out';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
 import { fontText, fontTextSmall, fontWidth, printLines, tiny } from './text';
@@ -101,11 +102,22 @@ registerProp('mall_m5_shell', () => {
   p.rect(dx, dy + 2, 16, 9, P.asphalt);
   p.vline(dx + 8, dy + 2, dy + 10, P.charcoal);
   p.hline(dx - 1, dx + 16, dy + 11, P.ink);
-  const img = p.toCanvas();
-  const W = img.width;
+  // its small wired-glass window (the tube's light shows through it on the corridor)
+  p.rect(dx + 5, dy + 3, 6, 5, mix(P.aqua, P.nightShade, 0.6));
+  p.hline(dx + 5, dx + 10, dy + 3, P.steel);
+  for (let k = 0; k < 6; k += 2) p.set(dx + 5 + k, dy + 5, P.asphalt);
+  p.set(dx + 6, dy + 4, mix(P.aqua, P.white, 0.4));
+  // the two low windows in the south wall either side of the door
+  maigoWindows(p);
+  const W = p.w;
+  // set into the 2F round it (mall_m5_out.ts): corridor, neighbours, plenum
+  const ext = withMaigoOut(p);
   return shellProp({
-    img,
+    img: ext.img,
+    ox: ext.ox,
+    oy: ext.oy,
     over(g: Gfx, x: number, y: number, env: PropEnv) {
+      maigoOutOver(g, x, y, env, maigoTubeOn(env.t));
       depthShade(g, x + 16, y + 48, W - 32, 96, 0.2);
     },
     light(g: Gfx, x: number, y: number, env: PropEnv) {
@@ -114,7 +126,9 @@ registerProp('mall_m5_shell', () => {
       if (maigoTubeOn(env.t)) lightPool(g, x + 104, y + 84, 58, 38, '#F4E6A8', 0.22);
     },
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
-      if (maigoTubeOn(env.t)) screenPool(g, x + 104, y + 84, 50, 30, '#F4E6A8', 0.1);
+      const on = maigoTubeOn(env.t);
+      if (on) screenPool(g, x + 104, y + 84, 50, 30, '#F4E6A8', 0.1);
+      maigoOutGlow(g, x, y, env, on);
     },
   });
 });

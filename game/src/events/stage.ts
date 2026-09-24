@@ -10,12 +10,16 @@
 //  - cinema(): thin letterbox bars and a dithered vignette (17:00).
 //  - guideNearHanko(): the fushigi guide next to the HUD hanko it describes,
 //    with a pointer and a pulse around the icon.
+//  - keyGuide(): a control guide drawn with keycaps (arrows, Z, X/C, Shift)
+//    instead of words — the keyboard's own keys, not a pad's 十字キー.
 //  - quietItem(): add an item that a message already announces (no HUD card).
 
 import type { Co } from '../engine/co';
 import { game, type Widget } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
-import { makeCanvas } from '../engine/pixel';
+import { makeCanvas, PixelCanvas } from '../engine/pixel';
+import { drawText, measure } from '../engine/font';
+import type { Action } from '../engine/input';
 import { W, H } from '../engine/screen';
 import { animate, ease } from '../engine/tween';
 import { addItem } from '../game/state';
@@ -397,6 +401,107 @@ class HankoGuide implements Widget {
 /** The fushigi guide beside the HUD hanko (the default guide window covered it). */
 export function guideNearHanko(text: string, ms = 4500): void {
   game.ui.push(new HankoGuide(text.split('\n'), ms));
+}
+
+// ---------------------------------------------------------------- control guides with keycaps
+
+/** A key to draw: an arrow ('up' …) or a key's legend ('Z', 'Shift'). */
+export type GuideKey = 'up' | 'down' | 'left' | 'right' | (string & {});
+/** One line of a key guide: the keys, then what they do. */
+export type KeyRow = [keys: GuideKey[], label: string];
+
+const ARROW: Record<string, string[]> = {
+  up: ['...#...', '..###..', '.#####.', '#######', '..###..', '..###..', '..###..', '..###..'],
+  down: ['..###..', '..###..', '..###..', '..###..', '#######', '.#####.', '..###..', '...#...'],
+  left: ['...#....', '..##....', '.#######', '########', '.#######', '..##....', '...#....'],
+  right: ['....#...', '....##..', '#######.', '########', '#######.', '....##..', '....#...'],
+};
+
+/** The action each drawn key stands for (a held key sinks in). */
+const KEY_ACTION: Record<string, Action> = { up: 'up', down: 'down', left: 'left', right: 'right', Z: 'confirm', X: 'cancel', C: 'menu', Shift: 'dash' };
+
+const CAPS = new Map<string, HTMLCanvasElement>();
+/**
+ * A keycap (built once): a cream top lit from above, a 2 px skirt below it,
+ * the ink outline with rounded corners, the legend (or an arrow) in pencil.
+ */
+function keycap(k: GuideKey): HTMLCanvasElement {
+  const hit = CAPS.get(k);
+  if (hit) return hit;
+  const arrow = ARROW[k];
+  const tw = arrow ? arrow[0].length : measure(k);
+  const w = Math.max(17, tw + 10);
+  const h = 19;
+  const p = new PixelCanvas(w, h);
+  p.rect(1, 1, w - 2, h - 2, '#B8AE98');
+  p.rect(1, 1, w - 2, h - 5, UI.cream);
+  p.hline(2, w - 3, 1, '#FFFFFF');
+  p.vline(1, 2, h - 6, '#FFFFFF');
+  p.hline(1, w - 2, h - 4, '#D8CCAE');
+  p.vline(w - 2, 2, h - 5, UI.paperDark);
+  p.strokeRect(0, 0, w, h, UI.border);
+  for (const [x, y] of [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]]) p.set(x, y, 'transparent');
+  for (const [x, y] of [[1, 1], [w - 2, 1], [1, h - 2], [w - 2, h - 2]]) p.set(x, y, UI.border);
+  if (arrow) {
+    const ax = Math.floor((w - arrow[0].length) / 2);
+    const ay = Math.floor((h - 4 - arrow.length) / 2);
+    arrow.forEach((row, j) => [...row].forEach((c, i) => c === '#' && p.set(ax + i, ay + j, UI.pencil)));
+  }
+  const c = p.toCanvas();
+  if (!arrow) drawText(c.getContext('2d')!, k, Math.floor((w - tw) / 2), 1, { color: UI.pencil });
+  CAPS.set(k, c);
+  return c;
+}
+
+class KeyGuide implements Widget {
+  modal = false;
+  done = false;
+  private t = 0;
+  constructor(
+    private rows: KeyRow[],
+    private ms: number,
+    private x0: number,
+  ) {}
+  update(dt: number): void {
+    this.t += dt;
+    if (this.t > this.ms + 250) this.done = true;
+  }
+  private capsW(keys: GuideKey[]): number {
+    return keys.reduce((a, k) => a + keycap(k).width, 0) + (keys.length - 1) * 2;
+  }
+  draw(g: Gfx): void {
+    const inK = Math.min(1, this.t / 180);
+    const outK = this.t > this.ms ? Math.min(1, (this.t - this.ms) / 250) : 0;
+    const a = inK * (1 - outK);
+    const kw = Math.max(...this.rows.map(([k]) => this.capsW(k)));
+    const w = kw + 8 + Math.max(...this.rows.map(([, l]) => textW(l))) + 20;
+    const rh = 22;
+    const h = this.rows.length * rh + 9;
+    const x = this.x0;
+    const y = H - h - 8 + Math.round((1 - ease.cubicOut(inK)) * 6);
+    drawWindow(g, x, y, w, h, UI, a, { curl: false });
+    this.rows.forEach(([keys, label], i) => {
+      const ry = y + 5 + i * rh;
+      // the keys, right-aligned in their column; a key being held sinks in
+      let kx = x + 10 + kw - this.capsW(keys);
+      for (const k of keys) {
+        const img = keycap(k);
+        const act = KEY_ACTION[k];
+        const held = !!act && game.input.down(act);
+        g.img(img, kx, ry + (held ? 1 : 0), { alpha: a });
+        kx += img.width + 2;
+      }
+      g.text(label, x + 10 + kw + 8, ry + 2, { color: UI.pencil, alpha: a });
+    });
+  }
+}
+
+/**
+ * A control guide at the bottom left, the keys drawn as keycaps. `x` moves
+ * it right of the HUD hanko (38) once the case is in the corner.
+ */
+export function keyGuide(rows: KeyRow[], ms = 4500, x = 8): void {
+  game.ui.push(new KeyGuide(rows, ms, x));
 }
 
 // ---------------------------------------------------------------- items announced by a message

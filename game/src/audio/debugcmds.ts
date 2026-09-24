@@ -8,7 +8,6 @@ import * as api from './index';
 import { currentPlayer, musicDebugState } from './music';
 import { sfxInfo, sfxTable, songTable } from './registry';
 import { VOICES } from './voices';
-import { CUES, startCue } from './soundtest/cues';
 
 registerDebug('bgm', ((id: string, opts?: Parameters<typeof api.playBgm>[1]) => {
   api.unlockAudio();
@@ -54,16 +53,6 @@ registerDebug('audioIds', (() => ({
   voices: Object.keys(VOICES),
   sfxLabels: Object.fromEntries(sfxInfo),
 })) as never);
-registerDebug('cue', ((id: string) => {
-  api.unlockAudio();
-  const cue = CUES.find((c) => c.id === id);
-  if (!cue) return CUES.map((c) => c.id);
-  startCue(cue, (voice, text) => {
-    [...text].forEach((ch, i) => setTimeout(() => api.textBlip(voice, ch), i * 25));
-    return text.length / 40;
-  });
-  return cue.label;
-}) as never);
 registerDebug('chime', ((notes: 4 | 8 = 4, cut = true) => {
   api.unlockAudio();
   return api.playChimeMotif({ notes, cut: notes === 4 && cut });

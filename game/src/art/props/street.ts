@@ -1020,7 +1020,9 @@ registerProp('decal_puddle', (opts) => {
   // broken 1px bits, one glint blinks, hose drips ring out now and then;
   // stage 2 it trickles north-east
   const img = PUDDLE.toCanvas();
-  const a = flat(img, 0, 2);
+  // opts.dy: moved down a few px inside its tile (off a curb strip)
+  const dy0 = Number(opts.dy ?? 0);
+  const a = flat(img, 0, 2 + dy0);
   const runs: [number, number, number][][] = PUDDLE_DEPTH.map((r) => {
     const out: [number, number, number][] = [];
     let s0 = -1;
@@ -1038,29 +1040,53 @@ registerProp('decal_puddle', (opts) => {
   a.over = (g, x, y, env) => {
     const gd = env.grade;
     const ox = x;
-    const oy = y + 2;
+    const oy = y + 2 + dy0;
+    // (QA round 2: the warm sky filling the whole pool, darker at its foot,
+    // read as mud or a loaf) a mirror: the far lip catches the light in a
+    // 1px line, right under it the far bank's dark reflection, then the upper
+    // sky (lifted towards #F7C27A) evenly over the water with pale streaks
+    // and three small ripples drifting east; a dark wet line on the near side
+    const hi = gd.skyTop.map((v, i) => Math.round(v * 0.55 + [247, 194, 122][i] * 0.25 + 255 * 0.2)) as [number, number, number];
+    const lo = gd.skyBot;
     for (let j = 0; j < PH; j++) {
       const sy = oy + j;
-      // the sky higher up than the screen row (a puddle looks up steeply), a
-      // little brighter than the sky itself
-      const k = Math.max(0, Math.min(1, sy / 216)) * 0.6;
-      const c = gd.skyTop.map((v, i) => Math.round((v + (gd.skyBot[i] - v) * k) * 0.72 + 0.28 * [255, 246, 216][i])) as [number, number, number];
-      const sky = `rgb(${c[0]},${c[1]},${c[2]})`;
-      for (const [x0, x1, d] of runs[j]) {
-        // the water darkens the asphalt, then the sky shows in it
-        g.rect(ox + x0, sy, x1 - x0, 1, '#454A5E', 0.5);
-        g.rect(ox + x0, sy, x1 - x0, 1, sky, d === 1 ? 0.18 : d === 2 ? 0.4 : 0.62);
-      }
-      // rims: far (north) edge broken bright bits, near (south) edge a dark wet line
+      for (const [x0, x1] of runs[j]) g.rect(ox + x0, sy, x1 - x0, 1, '#2A2F45', 0.55);
       for (let i = 0; i < PW; i++) {
         if (!PUDDLE_DEPTH[j][i]) continue;
-        if (!PUDDLE_DEPTH[j - 1]?.[i] && (i * 7 + j) % 5 < 3) g.rect(ox + i, sy, 1, 1, P.glint, 0.6);
-        if (!PUDDLE_DEPTH[j + 1]?.[i]) g.rect(ox + i, sy, 1, 1, P.ink, 0.3);
+        // a flat mirror seen from the south: the far part shows the far
+        // bank (dark), the near part the sky high up (bright) — never lit
+        // on top and dark underneath like a lump
+        let k = 0;
+        while (k < 8 && PUDDLE_DEPTH[j - k - 1]?.[i]) k++;
+        let n = 0;
+        while (n < 8 && PUDDLE_DEPTH[j + n + 1]?.[i]) n++;
+        if (k === 0) {
+          g.rect(ox + i, sy, 1, 1, P.glint, (i * 7 + j) % 9 === 0 ? 0.4 : 0.9);
+          continue;
+        }
+        if (n === 0) {
+          g.rect(ox + i, sy, 1, 1, P.ink, 0.45);
+          continue;
+        }
+        if (k <= 2) continue;
+        const t = Math.min(1, (k - 3) / 3);
+        const c = lo.map((v, m) => Math.round(v + (hi[m] - v) * t));
+        g.rect(ox + i, sy, 1, 1, `rgb(${c[0]},${c[1]},${c[2]})`, 0.5 + t * 0.25);
       }
     }
-    // a streak of brighter sky across the deep middle
-    g.rect(ox + 12, oy + 5, 8, 1, P.glint, 0.22);
-    g.rect(ox + 14, oy + 6, 5, 1, P.glint, 0.14);
+    // pale streaks of sky
+    g.rect(ox + 11, oy + 6, 9, 1, P.glint, 0.5);
+    g.rect(ox + 4, oy + 6, 3, 1, P.glint, 0.3);
+    // small wind ripples: 1px wavelets drifting slowly east, only on the water
+    const still = env.stage === 1;
+    const drift = still ? 0 : env.mt / 900;
+    for (const [rx, ry, len, sp] of [[5, 4, 3, 1], [14, 8, 6, 0.7], [23, 5, 3, 1.2]] as const) {
+      const x0 = Math.round(rx + ((drift * sp) % 6)) - 2;
+      for (let i = 0; i < len; i++) {
+        const px = x0 + i;
+        if ((PUDDLE_DEPTH[ry]?.[px] ?? 0) >= 2) g.rect(ox + px, oy + ry, 1, 1, P.glint, i === 0 || i === len - 1 ? 0.35 : 0.7);
+      }
+    }
     // the blinking glint
     const ph = Math.floor(env.t / 140) % 14;
     if (ph < 4) {
@@ -1083,7 +1109,7 @@ registerProp('decal_puddle', (opts) => {
     }
     if (env.stage !== 2) return;
     // thin stream towards the mall
-    for (let k = 0; k < 14; k++) g.rect(x + 24 + k, y + 4 - Math.floor(k / 2), 1, 1, P.aqua, 0.45);
+    for (let k = 0; k < 14; k++) g.rect(x + 24 + k, y + dy0 + 4 - Math.floor(k / 2), 1, 1, P.aqua, 0.45);
   };
   return a;
 });

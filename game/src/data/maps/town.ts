@@ -183,7 +183,9 @@ const OBJECTS: MapObj[] = [
   { t: 'prop', prop: 'prop_garbage_station', x: 17, y: 31 },
   { t: 'prop', prop: 'prop_curve_mirror', x: 17, y: 27 },
   { t: 'prop', prop: 'decal_cone_mark', x: 18, y: 17, cond: { stage: '1+' } },
-  { t: 'prop', prop: 'decal_puddle', x: 11, y: 33 },
+  // the hose's puddle on the road below the watering girl, clear of the
+  // curb's green strip (QA round 2) and of the bridge's posts
+  { t: 'prop', prop: 'decal_puddle', x: 12, y: 33, opts: { dy: 5 } },
   { t: 'prop', prop: 'prop_cat_hole_moss', x: 15, y: 26 },
   { t: 'prop', prop: 'prop_pots_row', x: 20, y: 31 },
 
@@ -254,7 +256,8 @@ const OBJECTS: MapObj[] = [
   { t: 'prop', prop: 'prop_arcade_pillar', x: 39, y: 25, opts: { banner: 'tofu' } },
   { t: 'prop', prop: 'prop_arcade_pillar', x: 49, y: 25, opts: { banner: 'clock' } },
   { t: 'prop', prop: 'prop_arcade_pillar', x: 55, y: 25, opts: { banner: 'korokke' } },
-  { t: 'prop', prop: 'prop_postman_bike', x: 48, y: 24, cond: { stage: '1-2' } },
+  // parked west of him, clear of the 銀 emblem and the pillar (QA round 2)
+  { t: 'prop', prop: 'prop_postman_bike', x: 44, y: 24, cond: { stage: '1-2' } },
   { t: 'prop', prop: 'decal_emblem', x: 28, y: 23 },
   { t: 'prop', prop: 'decal_emblem', x: 48, y: 23 },
   { t: 'prop', prop: 'decal_cord_trace', x: 0, y: 0, cond: { stage: 2, notFlag: 'flag_ojigi_beaten' } },
@@ -373,7 +376,8 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_sae', x: 14, y: 11, dir: 'left', cond: s12, talk: TALK.npc_sae, pose: 'sketch' },
   { t: 'npc', id: 'npc_jk', x: 57, y: 23, dir: 'right', cond: s02, talk: TALK.npc_jk },
   { t: 'npc', id: 'npc_chugaku', x: 3, y: 18, dir: 'down', cond: s02, talk: TALK.npc_chugaku },
-  { t: 'npc', id: 'npc_postman', x: 47, y: 24, dir: 'down', cond: s12, talk: TALK.npc_postman },
+  // beside the postbox, not behind it (QA round 2: only his head showed); talkable from the south
+  { t: 'npc', id: 'npc_postman', x: 46, y: 24, dir: 'down', cond: s12, talk: TALK.npc_postman },
   { t: 'npc', id: 'npc_madam', x: 17, y: 22, dir: 'down', cond: s01, talk: TALK.npc_madam, move: { kind: 'patrol', points: [[17, 22], [17, 24]], speed: 1.0, wait: 2000 } },
   { t: 'npc', id: 'npc_madam', x: 17, y: 24, dir: 'down', cond: { stage: 2 }, talk: TALK.npc_madam },
   { t: 'npc', id: 'npc_kotaro', x: 16, y: 22, dir: 'down', cond: s02, animal: true, talk: TALK.npc_kotaro, move: { kind: 'follow', target: 'npc_madam', dx: -1, dy: 0 } },
@@ -442,7 +446,10 @@ const OBJECTS: MapObj[] = [
 
   // ======================================================== enemy symbols (20_systems 14)
   { t: 'sym', id: 'sym_town_01', enemies: ['enemy_hato_kakaricho'], x: 33, y: 22, move: 'hato', cond: { stage: 1 }, script: 'evt_hato_block', restoreAt: [33, 22] },
-  { t: 'sym', id: 'sym_town_02', enemies: ['enemy_semi_final'], x: 21, y: 20, move: 'semi', cond: { stage: '1-2', flag: 'flag_got_hanko' }, restoreAt: [22, 20], restoreOff: [0, -12] },
+  // fallen at the foot of the higurashi tree, on its planting above the
+  // arch's board (QA round 2: at (21,20) it lay right behind the board);
+  // two tiles off the alley's middle, so it can be walked past
+  { t: 'sym', id: 'sym_town_02', enemies: ['enemy_semi_final'], x: 21, y: 19, move: 'semi', cond: { stage: '1-2', flag: 'flag_got_hanko' }, restoreAt: [22, 20], restoreOff: [0, -12] },
   { t: 'sym', id: 'sym_town_03', enemies: ['enemy_semi_final'], x: 53, y: 11, move: 'semi', cond: { stage: 2 }, restoreAt: [51, 10], restoreOff: [0, -10] },
   { t: 'sym', id: 'sym_town_04', enemies: ['enemy_cone_vocal', 'enemy_cone_vocal'], x: 18, y: 16, to: [18, 19], move: 'cone', dir: 'down', cond: { stage: 2 }, restoreAt: [18, 18] },
   { t: 'sym', id: 'sym_town_04b', link: 'sym_town_04', enemies: [], x: 20, y: 19, to: [20, 16], move: 'cone', dir: 'up', cond: { stage: 2 }, restoreAt: [20, 18], phase: 0.5 } as MapObj,

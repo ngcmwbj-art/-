@@ -1,12 +1,16 @@
 // Sound test (brief item 7, 40_audio 15.4): every BGM, SE, ambience, voice and
 // cue sheet, playable from a summer-homework notebook on an evening desk.
 //
-//   ?scene=soundtest            open it directly
+// A development tool: 15.4 keeps it out of the product, so the scene and its
+// debug commands are only registered in dev builds (import.meta.env.DEV) and
+// the whole module tree-shakes out of `vite build`.
+//
+//   ?scene=soundtest            open it directly (dev server)
 //   ↑↓ choose · Z play/stop · X stop all · ←→ page (tab) · C knobs (params)
 //
-// The right-hand cards show what is sounding: the song's bar map and position,
-// its params (stage / kire / boss phase), the SE's mix numbers, a live
-// spectrum and level of the final output.
+// The right-hand cards show what is sounding: its name and note, the id the
+// code uses, the song's bar map, position and params (stage / kire / boss
+// phase), the cue sheet as it fires, a live spectrum and level of the output.
 
 import { registerScene } from '../../boot';
 import { registerDebug } from '../../debug';
@@ -17,7 +21,6 @@ import { W } from '../../engine/screen';
 import { AMBIENCE_IDS, activeAmbients } from '../ambience';
 import { liveGraph, SPACES, type SpaceId } from '../engine';
 import * as A from '../index';
-import { SE_TRIM, seTargetDb } from '../mix';
 import { currentJingle, currentPlayer, musicParams } from '../music';
 import { sfxInfo, songTable } from '../registry';
 import { VOICE_SAMPLES, voiceCps } from '../samples';
@@ -36,6 +39,75 @@ interface Row {
   label: string;
   group?: string;
 }
+/**
+ * The list line of a row: its name without the note (song titles are shown
+ * whole — they are titles, and two of them differ only in the note).
+ */
+const rowName = (r: Row) => (r.kind === 'item' && !r.id.startsWith('bgm_') ? splitLabel(r.label).name : r.label);
+
+/**
+ * Labels are "name（note）": the list shows the name, the card shows the name
+ * and, under it, the note (how the sound is made / where it plays).
+ */
+export function splitLabel(label: string): { name: string; note: string } {
+  const m = /^(.+?)（([^（）]+)）$/.exec(label);
+  return m ? { name: m[1], note: m[2] } : { name: label, note: '' };
+}
+
+/**
+ * Break a card line into whole lines of at most `maxW` px (at most `max`
+ * lines) where the words break. Candidates, best first: after ・ ： 、 → or
+ * a space and before an opening bracket; after a particle that closes a word
+ * (の が を に で へ と before katakana / kanji: 1本だけの｜蛍光灯, then after them);
+ * where a katakana word meets other script (当たり｜ルーレット). The break
+ * that needs the fewest lines wins, then the better kind, then the later
+ * one; with no candidate, the engine's kinsoku wrap. Never a cut glyph.
+ */
+const lineCache = new Map<string, string[]>();
+export function cardLines(text: string, maxW: number, max: number): string[] {
+  if (max <= 0) return [];
+  const key = `${maxW}|${max}|${text}`;
+  let hit = lineCache.get(key);
+  if (!hit) {
+    hit = breakLines(text, maxW, max);
+    lineCache.set(key, hit);
+  }
+  return hit;
+}
+function breakLines(text: string, maxW: number, max: number): string[] {
+  if (textW(text) <= maxW) return [text];
+  const chars = [...text];
+  const hira = (c: string) => c >= 'ぁ' && c <= 'ゖ';
+  const kata = (c: string) => (c >= 'ァ' && c <= 'ヺ') || c === 'ー';
+  const closing = 'ー」）』、。！？…ッッャュョァィゥェォ';
+  let best: { lines: string[]; tier: number; at: number } | null = null;
+  for (let i = 1; i < chars.length; i++) {
+    const head = chars.slice(0, i).join('').replace(/ +$/, '');
+    if (textW(head) > maxW) break;
+    const pp = chars[i - 2] ?? '';
+    const prev = chars[i - 1];
+    const cur = chars[i];
+    if (closing.includes(cur)) continue;
+    let tier = -1;
+    if ('「（『'.includes(cur) || '・：、→ '.includes(prev)) tier = 0;
+    // a particle before katakana / kanji surely ends a word (ふわっと｜上がる);
+    // after kanji before kana it may be okurigana (上が｜る), so it ranks lower
+    else if ('のがをにでへと'.includes(prev) && pp && !hira(cur)) tier = 1;
+    else if ('のがをにでへと'.includes(prev) && pp && !hira(pp)) tier = 2;
+    else if (kata(prev) !== kata(cur)) tier = 3;
+    if (tier < 0) continue;
+    const rest = cardLines(chars.slice(i).join('').replace(/^ +/, ''), maxW, 9);
+    const lines = [head, ...rest];
+    if (!best || lines.length < best.lines.length || (lines.length === best.lines.length && (tier < best.tier || (tier === best.tier && i > best.at))))
+      best = { lines, tier, at: i };
+  }
+  // kinsoku may hang a closing mark 16 px past the width: leave it room
+  const lines = best ? best.lines : wrap(text, maxW - 16);
+  return lines.slice(0, max);
+}
+
+/** Line step of the card's title block (px). */
+const TITLE_LH = 16;
 
 const TABS: { id: TabId; label: string; color: string }[] = [
   { id: 'bgm', label: '曲', color: C.tape },
@@ -163,8 +235,6 @@ const KNOB_H = 80;
 const CX = CARD_X + 6;
 const CW = CARD_W - 12;
 
-/** Title marquee speed (px per second). */
-const MARQUEE_PX_S = 24;
 const SPEC_COLORS = [C.water, C.water, C.green, C.green, C.green, C.tape, C.tape, C.tape, C.sun, C.sun, C.margin, C.margin, C.shu, C.shu];
 
 class SoundTestScene implements Scene {
@@ -187,7 +257,6 @@ class SoundTestScene implements Scene {
   private level = -60;
   private peakHold = -60;
   private peakT = 0;
-  private marquee = 0;
   /** An SE row keeps a fading ink stamp for a moment after it plays. */
   private seFlash: { id: string; t: number } | null = null;
 
@@ -231,7 +300,6 @@ class SoundTestScene implements Scene {
   update(dt: number): void {
     this.t += dt;
     this.press = Math.max(0, this.press - dt);
-    this.marquee += dt;
     if (!this.analyser) this.attachAnalyser();
     const inp = game.input;
     if (inp.pressed('menu')) {
@@ -249,7 +317,6 @@ class SoundTestScene implements Scene {
     if (inp.repeat('left') || inp.repeat('right')) {
       this.tab = (this.tab + (inp.repeat('left') ? TABS.length - 1 : 1)) % TABS.length;
       A.sfx('se_page', { vol: 0.7 });
-      this.marquee = 0;
     }
     const rows = this.rows[this.tab];
     const dir = inp.repeat('up') ? -1 : inp.repeat('down') ? 1 : 0;
@@ -259,7 +326,6 @@ class SoundTestScene implements Scene {
       do i = (i + dir + rs.length) % rs.length;
       while (rs[i].kind === 'head');
       this.sel[this.tab] = i;
-      this.marquee = 0;
       A.sfx('se_cursor', { vol: 0.6 });
     }
     // keep the selection in view (headers above it too)
@@ -291,7 +357,6 @@ class SoundTestScene implements Scene {
     A.unlockAudio();
     this.attachAnalyser();
     this.press = 140;
-    this.marquee = 0;
     const tab = TABS[this.tab].id;
     switch (tab) {
       case 'bgm':
@@ -465,8 +530,8 @@ class SoundTestScene implements Scene {
           continue;
         }
         const sel = top + k === this.sel[tabI];
-        let label = r.label;
-        const maxW = PX + PAGE_W - 25 - TEXT_X;
+        let label = rowName(r);
+        const maxW = PX + PAGE_W - 22 - TEXT_X;
         if (textW(label) > maxW) {
           while (textW(label + '…') > maxW && label.length) label = label.slice(0, -1);
           label += '…';
@@ -518,106 +583,105 @@ class SoundTestScene implements Scene {
   private drawNowCard(g: Gfx): void {
     const ctx = g.ctx;
     this.drawCardFrame(g, NOW_Y, NOW_H, 'いま');
-    const y0 = NOW_Y + 8;
     const cue = currentCue();
     const p = currentPlayer();
     const jg = currentJingle();
     const last = this.last;
-    // what to describe: a running cue > typing voice > the song > the last SE
-    let title = '';
-    let id = '';
-    let info = '';
-    let sub: string[] = [];
     const tab = TABS[this.tab].id;
+    // what to describe: a running cue > typing voice > the last SE / loop > the song
+    type Mode = 'cue' | 'voice' | 'se' | 'amb' | 'song' | 'idle';
+    let mode: Mode = 'idle';
+    let label = 'しずか';
+    let id = '';
+    let tag = '';
     if (cue && (tab === 'cue' || !p)) {
-      title = cue.cue.label;
-      id = cue.cue.id;
-      info = `40_AUDIO ${cue.cue.ref}`;
+      mode = 'cue';
+      label = cue.cue.label;
     } else if (this.typing && tab === 'voice') {
-      title = VOICES[this.typing.voice]?.label ?? this.typing.voice;
+      mode = 'voice';
+      label = VOICES[this.typing.voice]?.label ?? this.typing.voice;
       id = this.typing.voice;
-      info = `${this.typing.cps} CHARS/S`;
-    } else if (last && (last.tab === 'se' || last.tab === 'amb') && tab === last.tab) {
-      if (last.tab === 'se') {
-        const inf = sfxInfo.get(last.id);
-        title = inf?.label ?? last.id;
-        id = last.id;
-        const trim = SE_TRIM[last.id];
-        info = `PEAK ${seTargetDb(last.id, inf?.group)}${trim !== undefined ? `  TRIM ${trim >= 0 ? '+' : ''}${trim}` : ''}`;
-        sub = last.tag ? [last.tag] : [inf?.group ?? ''];
-      } else {
-        title = AMB_LABEL[last.id] ?? last.id;
-        id = last.id;
-        const on = activeAmbients();
-        info = on.length ? `${on.length} LOOP${on.length > 1 ? 'S' : ''} RUNNING` : 'STOPPED';
-        sub = on.length > 1 || on[0] !== last.id ? on.slice(-3) : [];
-      }
+      tag = `${this.typing.cps}/S`;
+    } else if (last && last.tab === 'se' && tab === 'se') {
+      mode = 'se';
+      label = sfxInfo.get(last.id)?.label ?? last.id;
+      id = last.id;
+      tag = last.tag ?? '';
+    } else if (last && last.tab === 'amb' && tab === 'amb') {
+      mode = 'amb';
+      label = AMB_LABEL[last.id] ?? last.id;
+      id = last.id;
+      const on = activeAmbients();
+      tag = on.includes(last.id) ? 'LOOP' : 'OFF';
     } else if (jg || p) {
+      mode = 'song';
       const d = (jg ?? p)!.def;
-      title = d.title;
+      label = d.title;
       id = d.id;
-      const bpm = (jg ?? p)!.currentBar?.bpm ?? d.bpm;
-      info = `${Math.round(bpm)} BPM${d.swing ? `  SWING${d.swing.kind}` : ''}${jg ? '  (JINGLE)' : ''}`;
-    } else {
-      title = 'しずか';
-      id = 'z: play  x: stop';
     }
-    // title: when it does not fit it rests on its head (the start of the
-    // name readable) for 1.5 s, then runs left as a loop — the name, a gap,
-    // the name again — until the head is back where it started, and rests
-    // again. It never rests on a tail end or half a bracket. The cut edges
-    // fade back into the paper so no glyph is sliced off hard.
-    const tw = textW(title);
-    let tx = CX;
-    const GAP = 32;
-    const REST = 1500;
-    const cycle = tw + GAP;
-    g.clip(CX, y0, CW, 18, () => {
-      if (tw > CW) {
-        const run = (cycle * 1000) / MARQUEE_PX_S;
-        const ph = this.marquee % (REST + run);
-        const off = ph < REST ? 0 : Math.round(((ph - REST) / 1000) * MARQUEE_PX_S);
-        tx = CX - off;
-        g.text(title, tx, y0, { color: C.ink });
-        g.text(title, tx + cycle, y0, { color: C.ink });
-      } else g.text(title, tx, y0, { color: C.ink });
-    });
-    if (tw > CW) {
-      const card = cardArt(CARD_W, NOW_H);
-      const FADE = 7;
-      const edge = (x: number, a: number) => {
-        ctx.globalAlpha = a;
-        ctx.drawImage(card, x - CARD_X, y0 - NOW_Y, 1, 18, x, y0, 1, 18);
-      };
-      for (let k = 0; k < FADE; k++) {
-        const a = Math.pow(1 - k / FADE, 1.4);
-        if (tx < CX) edge(CX + k, a);
-        edge(CX + CW - 1 - k, a);
-      }
-      ctx.globalAlpha = 1;
-    }
-    f5(ctx, id, CX, y0 + 18, C.sys);
-    f5(ctx, info, CX, y0 + 28, C.shadow);
 
-    const midY = y0 + 38;
-    if (cue && (tab === 'cue' || !p)) this.drawCueSteps(g, midY);
-    else if (this.typing && tab === 'voice') this.drawTyping(g, midY);
-    else if (p && !(last && (last.tab === 'se' || last.tab === 'amb') && tab === last.tab)) this.drawBarMap(g, midY);
-    else
-      sub.forEach((line, i) => {
-        if (/^[\x20-\x7e]*$/.test(line)) f5(ctx, line, CX, midY + i * 9, C.ink);
-        else {
-          let t = line;
-          if (textW(t) > CW) {
-            while (t && textW(t + '…') > CW) t = t.slice(0, -1);
-            t += '…';
-          }
-          g.text(t, CX, midY - 3 + i * 16, { color: C.sys });
-        }
-      });
-    // a running cue sheet needs a fourth text line: the meter shrinks for it
-    if (cue && (tab === 'cue' || !p)) this.drawSpectrum(g, NOW_Y + NOW_H - 14, 8);
-    else this.drawSpectrum(g, NOW_Y + NOW_H - 26);
+    // title block: the name in ink, its note (the label's closing （…）) in
+    // pencil under it. Whole lines only, broken where the words break — no
+    // glyph is ever cut by the card edge.
+    // (the name always whole; the note only if it fits whole under it)
+    const { name, note } = splitLabel(label);
+    const maxLines = mode === 'song' ? 2 : mode === 'cue' ? 3 : 4;
+    const nameLines = cardLines(name, CW, maxLines);
+    const noteAll = note ? cardLines(note, CW, 9) : [];
+    const noteLines = noteAll.length <= Math.min(2, maxLines - nameLines.length) ? noteAll : [];
+    let y = NOW_Y + 8;
+    for (const l of nameLines) {
+      g.text(l, CX, y, { color: C.ink });
+      y += TITLE_LH;
+    }
+    for (const l of noteLines) {
+      g.text(l, CX, y, { color: C.shadow });
+      y += TITLE_LH;
+    }
+    y += 2;
+
+    // the id (what the code calls it) in pencil capitals, and a short tag
+    const idLine = (): void => {
+      if (!id) return;
+      const shown = f5Width(id) <= CW ? id : id.replace(/^(se|amb|bgm)_/, '');
+      f5(ctx, shown, CX, y, C.sys);
+      if (tag && f5Width(shown) + 6 + f5Width(tag) <= CW) f5(ctx, tag, CX + CW, y, C.shu, { align: 'right' });
+      else if (tag) {
+        y += 9;
+        f5(ctx, tag, CX, y, C.shu);
+      }
+      y += 10;
+    };
+    const specTop = (h: number) => NOW_Y + NOW_H - 6 - h;
+    const fits = (need: number) => y + need <= specTop(20) - 2;
+    let specH = 20;
+    switch (mode) {
+      case 'cue': {
+        const lines = Math.max(1, Math.min(4, Math.floor((specTop(8) - 2 - y) / 9)));
+        if (!fits(lines * 9)) specH = 8;
+        this.drawCueSteps(g, y, lines);
+        break;
+      }
+      case 'voice':
+        if (!fits(10 + 32)) specH = 8;
+        idLine();
+        this.drawTyping(g, y);
+        break;
+      case 'song':
+        if (!fits(10 + 24)) specH = 8;
+        idLine();
+        this.drawBarMap(g, y + 1);
+        break;
+      case 'se':
+      case 'amb':
+        idLine();
+        if (!fits(0)) specH = 8;
+        break;
+      case 'idle':
+        f5(ctx, 'Z PLAY   X STOP', CX, y, C.dim);
+        break;
+    }
+    this.drawSpectrum(g, specTop(specH), specH);
   }
 
   private drawBarMap(g: Gfx, y: number): void {
@@ -663,11 +727,14 @@ class SoundTestScene implements Scene {
       f5(ctx, loopTxt, CX + CW, y + 9, C.ink, { align: 'right' });
     }
     const pr = p.params;
-    const parts = [pr.stage ? `STAGE ${pr.stage}` : '', def.battle ? `KIRE ${pr.kire}` : '', def.id === 'bgm_boss' ? `PHASE ${pr.boss_phase}` : ''].filter(Boolean).join('  ');
-    f5(ctx, parts, CX, y + 18, C.shu);
+    const jg = currentJingle();
+    const bpm = Math.round((jg ?? p).currentBar?.bpm ?? (jg ?? p).def.bpm);
+    const parts = [pr.stage ? `STAGE ${pr.stage}` : '', def.battle ? `KIRE ${pr.kire}` : '', def.id === 'bgm_boss' ? `PH ${pr.boss_phase}` : ''].filter(Boolean).join(' ');
+    f5(ctx, `${bpm} BPM`, CX, y + 18, C.sys);
+    if (parts) f5(ctx, parts, CX + CW, y + 18, C.shu, { align: 'right' });
   }
 
-  private drawCueSteps(g: Gfx, y: number): void {
+  private drawCueSteps(g: Gfx, y: number, maxLines = 4): void {
     const ctx = g.ctx;
     const r = currentCue();
     if (!r) return;
@@ -692,12 +759,12 @@ class SoundTestScene implements Scene {
     };
     // four lines: the step that just fired is always shown whole (up to
     // three lines), then as much of what comes next as fits whole
-    const MAX = 4;
+    const MAX = maxLines;
     let k = 0;
     for (let v = Math.max(0, firedN - 1); v < vis.length && k < MAX; v++) {
       const { s, i } = vis[v];
       const done = r.fired[i];
-      const lines = wrapCue(s.text).slice(0, 3);
+      const lines = wrapCue(s.text).slice(0, Math.min(3, MAX));
       if (k > 0 && k + lines.length > MAX) break;
       lines.forEach((line, li) => {
         const yy = y + k * 9;
@@ -817,8 +884,32 @@ class SoundTestScene implements Scene {
   }
 }
 
-registerScene('soundtest', () => new SoundTestScene());
-
-registerDebug('soundtest', (() => {
-  game.replaceAll(new SoundTestScene());
-}) as never);
+if (import.meta.env.DEV) {
+  registerScene('soundtest', () => new SoundTestScene());
+  registerDebug('soundtest', (() => {
+    game.replaceAll(new SoundTestScene());
+  }) as never);
+  // play one cue sheet from the console (the sound test's 演出 page, headless)
+  registerDebug('cue', ((id: string) => {
+    A.unlockAudio();
+    const cue = CUES.find((c) => c.id === id);
+    if (!cue) return CUES.map((c) => c.id);
+    startCue(cue, (voice, text) => {
+      [...text].forEach((ch, i) => setTimeout(() => A.textBlip(voice, ch), i * 25));
+      return text.length / 40;
+    });
+    return cue.label;
+  }) as never);
+  // every list line must fit whole (no "…") and be told apart from the others
+  const maxW = PX + PAGE_W - 22 - TEXT_X;
+  for (const t of TABS) {
+    const seen = new Set<string>();
+    for (const r of rowsFor(t.id)) {
+      if (r.kind !== 'item') continue;
+      const n = rowName(r);
+      if (textW(n) > maxW) console.warn(`[soundtest] label too wide: ${r.label}`);
+      if (seen.has(n)) console.warn(`[soundtest] two rows read "${n}" in ${t.id}`);
+      seen.add(n);
+    }
+  }
+}

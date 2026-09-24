@@ -24,6 +24,7 @@ export function addKire(s: BattleScene, n: number): void {
   if (!s.kanenariJoined || n <= 0) return;
   const before = s.kire;
   s.kire = Math.min(3, s.kire + n);
+  const full = s.kire >= 3 && before < 3;
   for (let i = before; i < s.kire; i++) {
     const idx = i;
     const delay = (i - before) * 80;
@@ -35,7 +36,11 @@ export function addKire(s: BattleScene, n: number): void {
       update() {
         if (this.t >= delay) {
           s.kirePops[idx] = 100;
-          s.sfx('se_kire_up', { level: idx + 1 });
+          // the third "!" is answered by the full chord itself (QA round 2:
+          // the chord used to fire at t0, before the staggered pops, and
+          // the level-3 pop muddied it)
+          if (idx === 2 && full) s.sfx('se_kire_full');
+          else s.sfx('se_kire_up', { level: idx + 1 });
           this.done = true;
         }
       },
@@ -45,10 +50,7 @@ export function addKire(s: BattleScene, n: number): void {
     s.bg.kire = s.kire;
     s.setMusicParam('kire', s.kire);
   }
-  if (s.kire >= 3 && before < 3) {
-    s.sfx('se_kire_full');
-    s.memo.kireJustFull = 1;
-  }
+  if (full) s.memo.kireJustFull = 1;
 }
 
 /**
@@ -114,7 +116,8 @@ export function hurtParty(s: BattleScene, u: PartyUnit, dmg: number, o: PartyHit
     u.shakeAmp = 3;
     u.flashT = 267;
     s.mood(u, 'hurt', 600);
-    s.sfx('se_damage');
+    // panned to the panel; a party-wide hit staggers the second thud (scene.sfx)
+    s.sfx('se_damage', { pan: u.id === 'kanenari' ? 0.35 : -0.2 });
   }
   if (fell) {
     u.m.status = {};
@@ -307,6 +310,9 @@ export interface EnemyHitOpts {
   at?: [number, number];
 }
 
+/** Enemies patterned like the digits themselves: their numbers sit on an opaque plate. */
+const PLATE_ENEMIES = new Set(['enemy_ojigi_jihanki']);
+
 /** Subtract HP and pop a number above the enemy. Returns true if it reached 0. */
 export function hurtEnemy(s: BattleScene, e: EnemyUnit, dmg: number, o: EnemyHitOpts = {}): boolean {
   // the 160×128 boss always takes the big digits: a small number on a body
@@ -314,7 +320,7 @@ export function hurtEnemy(s: BattleScene, e: EnemyUnit, dmg: number, o: EnemyHit
   if (e.def.boss) o = { ...o, big: true };
   const [x, y] = s.enemyNumberXY(e, !!(o.big || o.crit));
   if (o.zero) {
-    s.number(x, y, 0, { kind: 'zero', backing: true }, 'enemy', e);
+    s.number(x, y, 0, { kind: 'zero', backing: true, plate: PLATE_ENEMIES.has(e.id) }, 'enemy', e);
     return false;
   }
   if (e.def.invulnerable) return false;
@@ -326,7 +332,10 @@ export function hurtEnemy(s: BattleScene, e: EnemyUnit, dmg: number, o: EnemyHit
   e.hpTrail = Math.max(e.hpTrail, before);
   if (!o.noNumber) {
     const [nx, ny] = o.at ?? [x, y];
-    s.number(nx, ny, Math.max(0, Math.round(dmg)), { kind: o.crit ? 'crit' : 'dmg', big: o.big || o.crit, backing: true }, 'enemy', e);
+    // the second hit of a 2段 strike is the inverted colour; a busy enemy
+    // (the vending machine's red-and-cream can rows) gets an opaque plate
+    const kind = o.crit ? 'crit' : (o.stack ?? 0) > 0 ? 'dmg2' : 'dmg';
+    s.number(nx, ny, Math.max(0, Math.round(dmg)), { kind, big: o.big || o.crit, backing: true, plate: PLATE_ENEMIES.has(e.id) }, 'enemy', e);
   }
   if (e.status.bokemake) s.memo.bokeHit = 1;
   if (dmg > 0 && e.hp > 0) enemyHurt(s, e, before);
@@ -467,6 +476,9 @@ export function* defeatEnemy(s: BattleScene, e: EnemyUnit, dropDelay = 0, lastOn
   // 233ms: full-screen flash 2f, shake 3px 8f
   s.flash('#FFF6D8', 0.85, 2);
   s.shake(3, 3, 8);
+  // the white silhouette is already up under the flash (QA round 2: one or
+  // two frames of the old colours flickered between the flash and it)
+  e.whiteFrames = 999;
   yield 34;
   // 267ms: white silhouette + confetti from the core
   const cx = e.coreX;

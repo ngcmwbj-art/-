@@ -142,15 +142,16 @@ export function coin(frame: number): HTMLCanvasElement {
 
 const shinyCoins: HTMLCanvasElement[] = [];
 /**
- * The same coin as a thrown projectile: brighter copper, a white glint and a
- * 1px paper-white rim outside the ink line, so it never melts into a
- * background that is itself full of coins (bg_ojigi).
+ * The coin as a thrown projectile: a brand-new coin straight out of the
+ * change slot — bright gold (QA round 2: the copper of the thrown coin was
+ * the copper of the "10" lattice of bg_ojigi, and it vanished into it), a
+ * white glint, and a 1px paper-white rim outside the ink line.
  */
 export function coinShiny(frame: number): HTMLCanvasElement {
   const f = ((frame % 4) + 4) % 4;
   if (shinyCoins[f]) return shinyCoins[f];
   const base = coin(f);
-  const pal: Record<string, string> = { ...P, M: '#FFD08A', m: '#F0A060', a: '#B87038', A: '#8A4A20', H: '#FFFFFF' };
+  const pal: Record<string, string> = { ...P, M: '#FFF2A8', m: '#FFD23F', a: '#D9A441', A: '#A8742A', H: '#FFFFFF' };
   const rows = [
     ['..kkkkk..', '.kMMMmmk.', 'kMHmmmmak', 'kMmaaamak', 'kMmaMamak', 'kmmaaamak', 'kmmmmmaAk', '.kaaaaAk.', '..kkkkk..'],
     ['...kkk...', '..kMmmk..', '.kMHmmak.', '.kMmamak.', '.kMmamak.', '.kmmmmak.', '.kmmmaAk.', '..kaaAk..', '...kkk...'],
@@ -170,6 +171,12 @@ export const waterDrop = () => spr('drop', ['.k.', 'kWk', 'kck', 'kck', '.k.']);
 export const sweatDrop = () => spr('sweat', ['.C.', 'CeC', 'CeC', '.C.']);
 export const feather = () => spr('feather', ['.kk.', 'kddk', '.kk.']);
 export const heart = () => spr('heart', ['.p.p.', 'pqpqp', 'ppppp', '.ppp.', '..p..'].map((r) => r.replace(/q/g, 'W')));
+/**
+ * The fan-service heart (9×8): pink with a white glint, a darker lower
+ * lobe and a wine-coloured outline, so it reads on the orange of bg_kanenari.
+ */
+export const bigHeart = () =>
+  spr('heart9', ['.PPP.PPP.', 'PpWpPpppP', 'PWppppppP', 'PppppppPP', '.PppppPP.', '..PpppP..', '...PpP...', '....P....']);
 export const note = (i: number) =>
   spr('note' + i, i === 0 ? ['..kk.', '..kOk', '..k.k', '..k..', 'kkk..', 'kOk..', 'kkk..'] : ['.kkkk', '.kOOk', '.k..k', '.k..k', 'kk.kk', 'Ok.Ok', 'kk.kk']);
 const noteCache2 = new Map<number, HTMLCanvasElement>();

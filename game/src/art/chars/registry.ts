@@ -145,12 +145,22 @@ export function animIndex(a: CharAnim, t: number): number {
 // Portraits (dialog / status screens), 32×32. Moods: 'normal','hurt',
 // 'tsukkomi','happy','surprised','ko' (party); NPC faces accept 'normal' and
 // a few extras. Unknown moods fall back to 'normal'.
-type PortraitBuilder = (mood: string) => HTMLCanvasElement;
+//
+// Large portraits: portrait(id, mood, { size: 64 }) returns a 64×64 face for
+// close-ups (the nori-tsukkomi photo). A face drawn at 64 (registered with
+// registerPortrait(id, b, 64)) is used when its builder has that mood;
+// otherwise the 32×32 face is doubled, so callers always get size×size.
+type PortraitBuilder = (mood: string) => HTMLCanvasElement | null;
+export type PortraitSize = 32 | 64;
+export interface PortraitOpts {
+  size?: PortraitSize;
+}
 const portraits = new Map<string, PortraitBuilder>();
-const portraitCache = new Map<string, HTMLCanvasElement>();
+const largePortraits = new Map<string, PortraitBuilder>();
+const portraitCache = new Map<string, HTMLCanvasElement | null>();
 
-export function registerPortrait(id: string, b: PortraitBuilder): void {
-  portraits.set(id, b);
+export function registerPortrait(id: string, b: PortraitBuilder, size: PortraitSize = 32): void {
+  (size === 32 ? portraits : largePortraits).set(id, b);
   for (const k of [...portraitCache.keys()]) if (k.startsWith(id + ':')) portraitCache.delete(k);
 }
 
@@ -158,16 +168,40 @@ export function portraitIds(): string[] {
   return [...portraits.keys()];
 }
 
-export function portrait(id: string, mood = 'normal'): HTMLCanvasElement | null {
-  const key = `${id}:${mood}`;
-  let c = portraitCache.get(key);
-  if (!c) {
+/** Ids / moods that have a face drawn at 64×64 (not a doubled 32). */
+export function hasLargePortrait(id: string, mood: string): boolean {
+  const b = largePortraits.get(id);
+  return !!b && !!cachedPortrait(`${id}:${mood}:64`, () => b(mood));
+}
+
+function cachedPortrait(key: string, make: () => HTMLCanvasElement | null): HTMLCanvasElement | null {
+  if (portraitCache.has(key)) return portraitCache.get(key)!;
+  const c = make();
+  portraitCache.set(key, c);
+  return c;
+}
+
+export function portrait(id: string, mood = 'normal', o: PortraitOpts = {}): HTMLCanvasElement | null {
+  const size = o.size ?? 32;
+  if (size === 32) {
     const b = portraits.get(id);
     if (!b) return null;
-    c = b(mood);
-    portraitCache.set(key, c);
+    return cachedPortrait(`${id}:${mood}`, () => b(mood));
   }
-  return c;
+  const lb = largePortraits.get(id);
+  const drawn = lb ? cachedPortrait(`${id}:${mood}:${size}`, () => lb(mood)) : null;
+  if (drawn) return drawn;
+  const small = portrait(id, mood);
+  if (!small) return null;
+  return cachedPortrait(`${id}:${mood}:${size}x`, () => {
+    const c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    const ctx = c.getContext('2d')!;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(small, 0, 0, size, size);
+    return c;
+  });
 }
 
 // Neutral stand-in figure used only for ids nobody registered.

@@ -14,7 +14,7 @@ import { hash2 } from '../engine/rng';
 import { drawText } from '../engine/font';
 import { flag, setFlag, state } from '../game/state';
 import { playBgm, playChimeMotif, setSpace, sfx, stopAllAmbient, stopAmbient, stopBgm, playAmbient } from '../audio';
-import { actor, face, msg, place, registerScript, setClockText, setFollowerVisible, spawn, trainPass } from '../world/api';
+import { actor, face, msg, place, registerScript, setClock, setClockText, setFollowerVisible, spawn, trainPass } from '../world/api';
 import type { Actor } from '../world/actor';
 import type { FieldScene } from '../world/field';
 import { playEndingNotebook, playNightSkyCut } from '../ui/api';
@@ -23,9 +23,9 @@ import { uiHud } from '../ui/hud';
 import { registerWorldFx } from '../world/fx';
 import { CHUNK } from '../world/ground_cache';
 import * as T from '../data/text/events';
-import { F, getKeyItem, holdBgm, holdCamera, releaseCamera, walkTo } from './lib';
+import { F, getKeyItem, holdBgm, holdCamera, releaseCamera, tileRoute, walkTo } from './lib';
 import { bellGlow, ring, sparkle, voiceLine } from './fx';
-import { dinnerSet, paperBag, photoClose } from './art';
+import { BASKET_RIM, dinnerSet, fryBasket, paperBag, photoClose } from './art';
 import { cinema, cinemaOff, forceBoxPos, zoomIn, zoomOut, zoomPan, zoomScale, type ZoomView } from './stage';
 
 // ---------------------------------------------------------------- helpers
@@ -41,6 +41,25 @@ function cutTo(map: string, x: number, y: number, dir: 'up' | 'down' | 'left' | 
 
 function* fadeTo(ms: number, color = '#0B0B14'): Co {
   yield* game.fadeOut(ms, color);
+}
+
+/**
+ * A pause between the ending's shots. Pressing Z (or holding it) hurries
+ * it along — three times as fast for a moment — so a player who has seen
+ * the ending can move through it; the chime, the dialogs and the first
+ * voice keep their own time.
+ */
+function* beat(ms: number): Co {
+  let left = ms;
+  let hurryUntil = 0;
+  let last = game.time;
+  while (left > 0) {
+    yield null;
+    const dt = game.time - last;
+    last = game.time;
+    if (game.input.pressed('confirm') || game.input.down('confirm')) hurryUntil = game.time + 350;
+    left -= dt * (game.time < hurryUntil ? 3 : 1);
+  }
 }
 
 // ---------------------------------------------------------------- cut 3: the photograph, close up (96×72 at 1×)
@@ -262,66 +281,305 @@ function spawnDinner(): void {
 
 // ---------------------------------------------------------------- cut 2: the fryer, the bag
 
-/** Steam off the fryer's oil, glints in it, and the bag of croquettes on the counter. */
-const fry = { on: false, t: 0, bag: null as null | { x: number; y: number; t: number } };
+/**
+ * 肉のマルヤマ at 17:01: the oil boiling round a basket of croquettes, the
+ * basket lifted out and hung to drain (drips, a burst of steam, a warm
+ * bloom), 丸山 rim-lit by the bulb over the fryer, and the bag of
+ * croquettes lifted from behind the showcase onto the counter.
+ */
+interface Bubble {
+  x: number;
+  y: number;
+  t: number;
+  life: number;
+}
+interface Puff {
+  x: number;
+  y: number;
+  t: number;
+  life: number;
+  drift: number;
+  big: boolean;
+}
+interface Drip {
+  x: number;
+  y: number;
+  vy: number;
+}
+const fry = {
+  on: false,
+  t: 0,
+  /** Frying hard (1) → settled (0): bubble and steam rates. */
+  heat: 1,
+  /** How far the basket is out of the oil (px, 0 = in). */
+  lift: 0,
+  /** 丸山 has hold of the handle. */
+  handle: true,
+  /** The bloom when the basket comes out (ms left). */
+  bloom: 0,
+  bubbles: [] as Bubble[],
+  puffs: [] as Puff[],
+  drips: [] as Drip[],
+  dripT: 0,
+  bag: null as null | { t: number; from: [number, number]; to: [number, number] },
+};
 
-/** The fryer's oil well (world px), read from the prop so the shot follows the room. */
-function fryerOil(f: FieldScene): [number, number] {
+/** The fryer's oil well (world px): [left, top, right, bottom], read from the prop. */
+function fryerWell(f: FieldScene): [number, number, number, number] {
   const pr = f.props.find((p) => (p.obj as { prop?: string }).prop === 'in_mr_fryer');
-  // in_mr_fryer: 32×24, the oil well at x 3–28, y 6–10
-  if (!pr) return [3 * 16, 2 * 16 + 8];
-  return [pr.x + pr.art.ox + 16, pr.y + pr.art.oy + 8];
+  // in_mr_fryer: 32×24, the oil well at x 3–28, y 6–10 (the first row is its back rim)
+  const x0 = pr ? pr.x + pr.art.ox : 32;
+  const y0 = pr ? pr.y + pr.art.oy : 24;
+  return [x0 + 3, y0 + 7, x0 + 28, y0 + 10];
+}
+
+/** The oil well's centre (world px). */
+function fryerOil(f: FieldScene): [number, number] {
+  const [l, t, r, b] = fryerWell(f);
+  return [Math.round((l + r) / 2), Math.round((t + b) / 2)];
+}
+
+/** The basket's top-left (world px) at the current lift: in the left half of the well, its rim low in the oil. */
+function basketAt(f: FieldScene): [number, number] {
+  const [l, , , b] = fryerWell(f);
+  return [l + 3, b - 1 - BASKET_RIM - Math.round(fry.lift)];
+}
+
+/** Top of the showcase (world px): what stands behind it is hidden below this line. */
+function caseTop(f: FieldScene): number {
+  const pr = f.props.find((p) => (p.obj as { prop?: string }).prop === 'in_mr_showcase');
+  return pr ? pr.y + pr.art.oy : 52;
+}
+
+/** The ledge between the showcase's glass and its front panel: where the bag is put down. */
+function counterLedge(f: FieldScene): number {
+  return caseTop(f) + 15;
+}
+
+function fryReset(): void {
+  fry.on = false;
+  fry.bag = null;
+  fry.bubbles.length = 0;
+  fry.puffs.length = 0;
+  fry.drips.length = 0;
 }
 
 registerWorldFx({
   map: 'map_maruyama',
   update(f, dt) {
-    if (fry.on && !game.scripts.busy) {
-      fry.on = false;
-      fry.bag = null;
-    }
+    if (fry.on && !game.scripts.busy) fryReset();
     if (!fry.on) return;
     fry.t += dt;
     if (fry.bag) fry.bag.t += dt;
-    // the oil catches the light now and then
-    if (Math.floor(fry.t / 520) !== Math.floor((fry.t - dt) / 520)) {
-      const [ox, oy] = fryerOil(f);
-      sparkle(ox - 10 + Math.floor(hash2(Math.floor(fry.t / 520), 1, 5) * 20), oy + 1, 360);
+    fry.bloom = Math.max(0, fry.bloom - dt);
+    const [l, t, r, b] = fryerWell(f);
+    // the oil: bubbles all over while it fries, a few once the basket is out
+    const rate = 4 + 30 * fry.heat;
+    let n = Math.floor((fry.t * rate) / 1000) - Math.floor(((fry.t - dt) * rate) / 1000);
+    while (n-- > 0) {
+      const k = Math.random();
+      fry.bubbles.push({ x: l + 1 + Math.floor(k * (r - l - 1)), y: t + Math.floor(Math.random() * (b - t + 1)), t: 0, life: 260 + Math.random() * 300 });
     }
+    for (const bb of fry.bubbles) bb.t += dt;
+    fry.bubbles = fry.bubbles.filter((bb) => bb.t < bb.life);
+    // steam: off the oil while it fries; off the croquettes once they are out
+    const [bx, by] = basketAt(f);
+    const out = fry.lift > 4;
+    const srate = out ? 5 + 9 * fry.heat : 3 + 7 * fry.heat;
+    let m = Math.floor((fry.t * srate) / 1000) - Math.floor(((fry.t - dt) * srate) / 1000);
+    while (m-- > 0) {
+      const sx = out ? bx + 2 + Math.random() * 14 : l + 2 + Math.random() * (r - l - 4);
+      const sy = out ? by + 1 : t;
+      fry.puffs.push({ x: sx, y: sy, t: 0, life: 1300 + Math.random() * 900, drift: Math.random() * 2 - 1, big: false });
+    }
+    for (const pf of fry.puffs) pf.t += dt;
+    fry.puffs = fry.puffs.filter((pf) => pf.t < pf.life);
+    // drips off the lifted basket, back into the oil (each one a little splash)
+    if (out) {
+      fry.dripT -= dt;
+      if (fry.dripT <= 0) {
+        fry.drips.push({ x: bx + 2 + Math.floor(Math.random() * 14), y: by + 9, vy: 0.02 });
+        fry.dripT = 90 + (1 - fry.heat) * 520 + Math.random() * 160;
+      }
+    }
+    for (const d of fry.drips) {
+      d.vy += 0.0009 * dt;
+      d.y += d.vy * dt;
+      if (d.y >= t + 1) {
+        d.y = 1e9;
+        fry.bubbles.push({ x: Math.round(d.x), y: t + 1, t: 120, life: 380 });
+      }
+    }
+    fry.drips = fry.drips.filter((d) => d.y < 1e8);
   },
   draw(f, g, cx, cy, layer) {
-    if (!fry.on || layer !== 'fg') return;
-    const t = fry.t;
-    // steam: soft columns rising off the oil and curling, a few at a time
-    const [ox, oy] = fryerOil(f);
-    for (let i = 0; i < 9; i++) {
-      const k = (t / 1500 + i / 9) % 1;
-      const bx = ox - 11 + ((i * 7) % 23);
-      const x = Math.round(bx + Math.sin(t / 420 + i * 1.7) * (1 + k * 3) - cx);
-      const y = Math.round(oy - 2 - k * 26 - cy);
-      const a = Math.sin(Math.PI * k) * 0.55;
-      g.alpha(a, () => {
-        g.rect(x, y, 2, 2, '#FFF6D8');
-        if (k > 0.35) g.rect(x + (i & 1 ? 1 : -1), y - 1, 1, 1, '#FFFFFF');
-      });
-    }
-    // the bag on the counter, and the heat off it
-    const b = fry.bag;
-    if (b) {
-      const img = paperBag();
-      const drop = b.t < 160 ? Math.round((1 - b.t / 160) * -6) : 0;
-      const bx = Math.round(b.x - img.width / 2 - cx);
-      const by = Math.round(b.y - img.height - cy) + drop;
-      g.alpha(0.45, () => g.rect(bx + 1, by + img.height - 1, img.width - 1, 2, '#1B1733'));
-      g.img(img, bx, by);
-      for (let i = 0; i < 3; i++) {
-        const k = (t / 1300 + i / 3) % 1;
-        const sx = Math.round(bx + 4 + i * 3 + Math.sin(t / 300 + i) * 1.5);
-        g.alpha(0.6 * Math.sin(Math.PI * k), () => g.rect(sx, Math.round(by - 1 - k * 12), 1, 2, '#FFF6D8'));
+    if (!fry.on) return;
+    const [l, t, r] = fryerWell(f);
+    if (layer === 'sorted') {
+      // the bag, lifted from behind the showcase and put on the counter
+      const bag = fry.bag;
+      if (bag) {
+        const img = paperBag();
+        const T_RISE = 260;
+        const T_ARC = 380;
+        const [fx0, fy0] = bag.from;
+        const [tx, ty] = bag.to;
+        let x: number;
+        let y: number;
+        let behind = false;
+        if (bag.t < T_RISE) {
+          const k = ease.cubicOut(bag.t / T_RISE);
+          x = fx0;
+          y = fy0 + (1 - k) * (img.height + 4);
+          behind = true;
+        } else {
+          const k = Math.min(1, (bag.t - T_RISE) / T_ARC);
+          const e = ease.sineInOut(k);
+          x = fx0 + (tx - fx0) * e;
+          y = fy0 + (ty - fy0) * e - Math.sin(Math.PI * k) * 7;
+          behind = k < 0.2;
+        }
+        // a little squash as it lands
+        const land = bag.t - T_RISE - T_ARC;
+        const sq = land > 0 && land < 120 ? 1 : 0;
+        const ix = Math.round(x - img.width / 2 - cx);
+        const iy = Math.round(y - img.height - cy) + sq;
+        const draw = () => {
+          if (land > 0) g.alpha(0.45, () => g.rect(ix + 1, iy + img.height - 1 - sq, img.width - 1, 2, '#1B1733'));
+          g.img(img, ix, iy);
+        };
+        if (behind) g.clip(0, 0, W, caseTop(f) - cy, draw);
+        else draw();
+      }
+    } else if (layer === 'glow') {
+      // (the glow layer comes after the room's night grading: what the bulb
+      // over the fryer lights — the oil, the croquettes, the steam — keeps
+      // its warmth instead of sinking into the dark)
+      // the basket: in the oil only its rim and the croquettes' tops show
+      // through the surface; lifted, it comes up whole. Below the well's
+      // front edge it is hidden.
+      const [, , , wb] = fryerWell(f);
+      const img = fryBasket();
+      const [bx, by] = basketAt(f);
+      const sub = Math.min(1, fry.lift / 5);
+      g.clip(l - 1 - cx, 0, r - l + 3, wb + 1 - cy, () => g.img(img, bx - cx, by - cy, { alpha: 0.62 + 0.38 * sub }));
+      const m = actor('npc_maruyama');
+      if (fry.handle && m) {
+        // the handle, down to 丸山's hands (it goes behind his head)
+        const hx = bx + 12;
+        const top = by + BASKET_RIM;
+        const end = Math.max(top + 2, Math.min(m.y - 22, top + 14));
+        g.rect(hx - cx, top - cy, 1, end - top, '#4A4F63');
+        g.rect(hx + 1 - cx, top - cy, 1, end - top, '#9AA0A8');
+      } else if (fry.lift > 4) {
+        // hung on the rail at the back to drain: two short hooks
+        for (const hx of [bx + 2, bx + 15]) g.rect(hx - cx, by - 3 - cy, 1, 3 + BASKET_RIM, '#6B7186');
+      }
+      // the oil boiling: bubbles swell, catch the light, pop
+      for (const bb of fry.bubbles) {
+        const k = bb.t / bb.life;
+        const x = Math.round(bb.x - cx);
+        const y = Math.round(bb.y - cy);
+        if (k < 0.4) g.alpha(0.8, () => g.rect(x, y, 1, 1, '#F6D98A'));
+        else if (k < 0.85) {
+          g.rect(x, y, 2, 1, '#FFF6D8');
+          g.alpha(0.7, () => g.rect(x, y + 1, 2, 1, '#A8742A'));
+        } else g.rect(x + (bb.x & 1), y - 1, 1, 1, '#FFFFFF');
+      }
+      for (const d of fry.drips) {
+        // a drop of oil: a bright head, a golden tail
+        g.rect(Math.round(d.x - cx), Math.round(d.y - cy) + 1, 1, 1, '#FFE7A3');
+        g.alpha(0.8, () => g.rect(Math.round(d.x - cx), Math.round(d.y - cy), 1, 1, '#D9A441'));
+      }
+      // steam, lit by the bulb: soft puffs rising, swelling and curling
+      for (const pf of fry.puffs) {
+        const k = pf.t / pf.life;
+        const x = Math.round(pf.x + pf.drift * k * 6 + Math.sin(pf.t / 380 + pf.x) * (1 + k * 2) - cx);
+        const y = Math.round(pf.y - 2 - k * (pf.big ? 32 : 28) - cy);
+        const a = Math.sin(Math.PI * Math.min(1, k * 1.3)) * (pf.big ? 0.7 : 0.55);
+        const s = k < 0.25 ? 1 : k < 0.6 ? 2 : 3;
+        g.alpha(a, () => {
+          g.rect(x, y, s, s, '#FFF6D8');
+          if (s > 1) g.rect(x - 1, y + 1, 1, s - 1, '#E8D9B5');
+        });
+      }
+      // the bloom off the golden croquettes as they come out
+      if (fry.bloom > 0) {
+        const [bx, by] = basketAt(f);
+        const a = Math.sin((Math.PI * fry.bloom) / 600);
+        const ctx = g.ctx;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (const [rr, al, col] of [[10, 0.1, '#D9A441'], [7, 0.14, '#FFD23F'], [4, 0.2, '#FFE7A3']] as const) {
+          ctx.globalAlpha = al * a;
+          g.circle(Math.round(bx + 9 - cx), Math.round(by + 2 - cy), rr, col);
+        }
+        ctx.restore();
+      }
+      // 丸山 in the bulb's light: a warm rim along his top edges
+      if (m && m.visible) {
+        const img = m.frame();
+        const [ix, iy] = m.drawPos(img);
+        const bulb = bulbPos(f);
+        const side = bulb ? Math.sign(Math.round(bulb[0] - m.x) / 6) : 0;
+        const rim = rimOf(img, side);
+        g.clip(0, 0, W, caseTop(f) - cy, () => g.alpha(0.7, () => g.img(rim, ix - cx, iy - cy)));
       }
     }
   },
 });
+
+/** The bulb hanging nearest the fryer (world px of its glass), if any. */
+function bulbPos(f: FieldScene): [number, number] | null {
+  const [ox] = fryerOil(f);
+  let best: [number, number] | null = null;
+  for (const p of f.props) {
+    if ((p.obj as { prop?: string }).prop !== 'in_mr_bulb') continue;
+    const x = p.x + p.art.ox + 3;
+    const y = p.y + p.art.oy + 26;
+    if (!best || Math.abs(x - ox) < Math.abs(best[0] - ox)) best = [x, y];
+  }
+  return best;
+}
+
+const RIMS = new WeakMap<HTMLCanvasElement, Map<number, HTMLCanvasElement>>();
+/**
+ * The pixels of a sprite frame that face a light above it (and to one
+ * side, -1 left / 1 right / 0 straight above), in a warm bulb colour:
+ * every opaque pixel with an empty pixel above it (or beside it, light-side).
+ */
+function rimOf(img: HTMLCanvasElement, side: number): HTMLCanvasElement {
+  let per = RIMS.get(img);
+  if (!per) RIMS.set(img, (per = new Map()));
+  const hit = per.get(side);
+  if (hit) return hit;
+  const w = img.width;
+  const h = img.height;
+  const src = img.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, w, h).data;
+  const on = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && src[(y * w + x) * 4 + 3] > 40;
+  const p = new PixelCanvas(w, h);
+  // the crown: the topmost pixel of each column (a second, softer one under it)
+  for (let x = 0; x < w; x++)
+    for (let y = 0; y < h; y++) {
+      if (!on(x, y)) continue;
+      p.set(x, y, '#FFE7A3');
+      if (on(x, y + 1) && x > 0 && x < w - 1 && on(x - 1, y) && on(x + 1, y)) p.set(x, y + 1, '#E8B870');
+      break;
+    }
+  // the side towards the light: the outermost pixel of each row, upper half only
+  if (side !== 0)
+    for (let y = 0; y < Math.floor(h / 2); y++) {
+      const xs = side < 0 ? [...Array(w).keys()] : [...Array(w).keys()].reverse();
+      for (const x of xs) {
+        if (!on(x, y)) continue;
+        p.set(x, y, '#F6C27A');
+        break;
+      }
+    }
+  const c = p.toCanvas();
+  per.set(side, c);
+  return c;
+}
 
 // ---------------------------------------------------------------- the ending
 
@@ -355,16 +613,30 @@ function* cut1Chime(): Co {
   f.camOverride = { x: f.camX + W / 2, y: f.camY + H / 2 };
   // close on the two of them (2×): the doors behind, the lot's first lamp
   // at the edge; the whole lot opens up when they look at the sky
-  const z = yield* zoomIn(50 * 16 + 8, 7 * 16 - 2, 0);
+  const z = yield* zoomIn(50 * 16, 7 * 16 - 2, 0);
   sfx('se_auto_door');
   game.scripts.run(game.fadeIn(800));
   yield* walkTo('player', 50, 7, { speed: 2.4, face: 'down' });
+  // カネナリくん comes round to stand beside him (not stacked up behind
+  // him): the two side by side under the chime
+  const k0 = f.follower;
+  if (k0) {
+    k0.data.scripted = true;
+    const route = tileRoute([k0.tileX, k0.tileY], [49, 7], [[50, 7]], 4);
+    if (route && route.length) {
+      k0.path = route.map(([x, y]) => [x * 16 + 8, y * 16 + 16] as [number, number]);
+      k0.pathSpeed = 2.4 * 16;
+      yield () => k0.path.length === 0;
+    }
+    k0.moving = false;
+    k0.dir = 'down';
+  }
   // the HUD's pending place name is dropped while it is hidden (it waits for the fade)
   yield () => game.fadeAlpha < 0.05;
-  yield 450;
+  yield* beat(150);
   // the clock plate slides in, still 17:00
   setFlag('flag_hud_hidden', 0);
-  yield 450;
+  yield* beat(400);
   // the chime: G4 A4 C5 E5 — and, for the first time, D5 C5 A4 C5
   let fifth = false;
   let last = false;
@@ -384,13 +656,13 @@ function* cut1Chime(): Co {
   playAmbient('amb_night_insects', { fade: 3, vol: 0.8 });
   playAmbient('amb_kawabe', { fade: 3 });
   yield* chimeNote(f, () => last, t0, 7 * 450);
-  yield 1200;
-  setFlag('flag_clock', 4);
-  setClockText(null, true);
-  yield 900;
+  yield* beat(900);
+  // the stopped clock moves on: 17:00 → 17:01, with its flip (40_audio 13.5)
+  setClock(4);
+  yield* beat(600);
   // one higurashi, then the ending song
   sfx('se_higurashi_call');
-  yield 800;
+  yield* beat(500);
   playBgm('bgm_ending', { fade: 1.0 });
   // they look up at the sky; the camera draws back to the lit lot
   const p = f.player;
@@ -398,11 +670,12 @@ function* cut1Chime(): Co {
   const k = f.follower;
   if (k) {
     k.data.scripted = true;
+    k.dir = 'down';
     k.tempPose = 'look_up';
   }
-  yield 300;
-  yield* zoomOut(z, 1600);
-  yield 400;
+  yield* beat(250);
+  yield* zoomOut(z, 1200);
+  yield* beat(200);
   p.tempPose = null;
   if (k) {
     k.tempPose = null;
@@ -419,31 +692,70 @@ function* cut2Meat(): Co {
   setFlag('flag_hud_hidden', 1);
   cutTo('map_maruyama', 4, 5, 'up');
   setSpace('room');
+  // カネナリくん at the counter beside Minato (the bag goes down on his other side)
+  const k = f.follower;
+  if (k) {
+    k.data.scripted = true;
+    k.path = [];
+    k.moving = false;
+    k.x = 3 * 16 + 8;
+    k.y = 5 * 16 + 16;
+    k.dir = 'up';
+  }
+  // 丸山 at the fryer, his back to us, the basket down in the boiling oil
   const m = actor('npc_maruyama');
   if (m) {
     m.data.scripted = true;
-    m.pose = 'fry';
+    place('npc_maruyama', 3, 3, 'up');
+    m.pose = null;
   }
-  // 2× on the fryer and 丸山: the steam, the oil catching the light
+  fryReset();
   fry.on = true;
   fry.t = 0;
-  fry.bag = null;
+  fry.heat = 1;
+  fry.lift = 0;
+  fry.handle = true;
+  // 2× on the shop's back: the fryer, 丸山, the counter and the two of them
   const [ox, oy] = fryerOil(f);
-  const z = yield* zoomIn(ox + 22, oy + 14, 0);
+  const z = yield* zoomIn(ox + 10, oy + 16, 0);
   forceBoxPos('bottom');
   yield* game.fadeIn(300);
   sfx('se_fry', { vol: 0.6 });
-  yield 900;
+  yield* beat(650);
+  // 揚がった: the basket comes up out of the oil — a hiss, a burst of steam,
+  // the golden croquettes catching the bulb — and is hung up to drain
+  sfx('se_fry', { vol: 0.9, pitch: 1.25 });
+  fry.bloom = 600;
+  const [bx0] = basketAt(f);
+  const [, ot] = fryerWell(f);
+  for (let i = 0; i < 9; i++) fry.puffs.push({ x: bx0 + 1 + ((i * 5) % 16), y: ot, t: i * 30, life: 1300 + i * 60, drift: (i % 3) - 1, big: true });
+  if (m) m.hop(1, 160);
+  // and the camera pushes in (3×) on the basket and 丸山
+  game.scripts.run(zoomScale(z, 3, 480));
+  game.scripts.run(zoomPan(z, ox + 6, oy + 10, 480));
+  yield* animate(420, (k) => (fry.lift = 9 * k), ease.cubicOut);
+  fry.lift = 9;
+  yield* animate(500, (k) => (fry.heat = 1 - 0.8 * k));
+  fry.handle = false;
+  sfx('se_drip', { vol: 0.35 });
+  yield* beat(160);
+  // he turns round to the counter
   if (m) {
-    m.pose = null;
     face('npc_maruyama', 'player');
+    m.hop(2, 180);
   }
-  yield 150;
+  yield* beat(260);
   yield* msg(T.END_MEAT_A);
-  // the bag lands on the counter, hot
-  fry.bag = { x: (m ? m.x : 4 * 16 + 8) + 14, y: (m ? m.y : 4 * 16) + 10, t: 0 };
+  // back to 2× for the counter; the bag is lifted from behind the showcase
+  // in front of him, over onto the counter in front of Minato
+  yield* all(zoomScale(z, 2, 380), zoomPan(z, ox + 12, oy + 22, 380));
+  const p = f.player;
+  const mx = m ? m.x : 3 * 16 + 8;
+  fry.bag = { t: 0, from: [mx + 10, caseTop(f)], to: [p.x + 6, counterLedge(f)] };
+  sfx('se_paper_open', { vol: 0.35, pitch: 1.3 });
+  yield 640;
   sfx('se_paper_bag');
-  yield 350;
+  yield 260;
   if (state.money >= 320) {
     state.money -= 320;
     sfx('se_coin');
@@ -455,12 +767,10 @@ function* cut2Meat(): Co {
     yield* getKeyItem('item_korokke', T.END_MEAT_GET);
   }
   forceBoxPos(null);
-  // back to the whole shop: カネナリくん at the counter with his board
+  // it's in Minato's hands now; the whole shop: カネナリくん at the counter with his board
   fry.bag = null;
-  yield* zoomOut(z, 450);
-  const k = f.follower;
+  yield* zoomOut(z, 400);
   if (k) {
-    k.data.scripted = true;
     k.tempPose = 'flip_hold';
     sfx('se_flip');
   }
@@ -469,7 +779,7 @@ function* cut2Meat(): Co {
     k.tempPose = null;
     delete k.data.scripted;
   }
-  yield 250;
+  yield* beat(250);
 }
 
 function* cut3Photo(): Co {
@@ -490,17 +800,17 @@ function* cut3Photo(): Co {
   const w = new PhotoCloseup();
   game.ui.push(w);
   yield* animate(400, (p) => (w.k = p), ease.quadOut);
-  yield 500;
+  yield* beat(400);
   // it wakes, looks up at the photograph, and flicks its tail once — no sound but the insects
   cat.pose = null;
   cat.tempPose = 'look_up';
-  yield 700;
+  yield* beat(600);
   cat.tempPose = null;
   cat.playAnim('tail');
-  yield 900;
+  yield* beat(800);
   cat.anim = null;
   cat.tempPose = 'look_up';
-  yield 700;
+  yield* beat(500);
   yield* animate(350, (p) => (w.k = 1 - p));
   w.done = true;
 }
@@ -527,7 +837,7 @@ function* cut4Home(): Co {
     mom.tempPose = null;
     face('npc_mother', 'player');
   }
-  yield 250;
+  yield* beat(200);
   const i = yield* msg(T.END_HOME_A);
   setFlag('flag_sauce_choice', i === 1 ? 2 : 1);
   yield* msg(T.END_HOME_B);
@@ -550,18 +860,18 @@ function* cut5Tv(): Co {
   // the table)
   const z = yield* zoomIn(9 * 16, 4 * 16 + 4, 0);
   yield* game.fadeIn(300);
-  yield 700;
+  yield* beat(400);
   const w = new TvCloseup();
   game.ui.push(w);
   yield* animate(300, (p) => (w.k = p), ease.quadOut);
-  yield 300;
+  yield* beat(250);
   yield* msg(T.END_TV);
   yield* animate(250, (p) => (w.k = 1 - p));
   w.done = true;
   if (mom) face('npc_mother', 'player');
-  yield 250;
+  yield* beat(200);
   yield* msg(T.END_TV_MOTHER);
-  yield 500;
+  yield* beat(300);
   yield* fadeTo(400);
   z.done = true;
 }
@@ -625,11 +935,11 @@ function* cut6Crossing(): Co {
   k.data.scripted = true;
   k.alpha = 0;
   yield* game.fadeIn(400);
-  yield 800;
+  yield* beat(600);
   // the barrier that stayed down all day goes up
   setFlag('flag_crossing_open', 1);
   sfx('se_crossing_up');
-  yield 1400;
+  yield* beat(1000);
   // an unlit train, north to south; its sign says 星見台
   yield* all(
     trainPass(),
@@ -639,26 +949,26 @@ function* cut6Crossing(): Co {
     })(),
   );
   k.alpha = 1;
-  yield 500;
+  yield* beat(400);
   // Minato comes in from the left with the paper bag
   p.visible = true;
   p.x = 52 * 16 + 8;
   p.y = 22 * 16 + 16;
-  yield* walkTo('player', 56, 22, { speed: 2.2, face: 'right' });
+  yield* walkTo('player', 56, 22, { speed: 2.6, face: 'right' });
   face('ending_kanenari', 'player');
-  yield 300;
+  yield* beat(250);
   p.tempPose = 'give';
-  yield 300;
+  yield* beat(250);
   yield* msg(T.END_GIVE);
   sfx('se_paper_bag');
   p.tempPose = null;
   k.tempPose = 'hold';
-  yield 1000;
+  yield* beat(700);
   // he turns his back, opens the zip — dark inside — and puts it in
   k.dir = 'up';
   k.tempPose = 'zipper';
   sfx('se_zipper');
-  yield 900;
+  yield* beat(700);
   k.tempPose = null;
   k.dir = 'left';
   // 1.5 s: only the insects — and the camera closes in on the two of them
@@ -666,19 +976,19 @@ function* cut6Crossing(): Co {
   game.scripts.run(cinema(true, 1200));
   if (crossingZoom) {
     const cz = crossingZoom;
-    yield* all(zoomScale(cz, 3, 1700), zoomPan(cz, Math.round((p.x + k.x) / 2), p.y - 14, 1700));
-  } else yield 1700;
-  yield 500;
+    yield* all(zoomScale(cz, 3, 1500), zoomPan(cz, Math.round((p.x + k.x) / 2), p.y - 14, 1500));
+  } else yield 1500;
+  yield* beat(300);
   // the first voice: no window, no name tag — only the words, slowly
-  yield* voiceLine(T.END_VOICE_TEXT, { y: 170, cps: 5, hold: 1700 });
-  yield 500;
+  yield* voiceLine(T.END_VOICE_TEXT, { y: 170, cps: 5, hold: 1400 });
+  yield* beat(500);
   // the bell rings once, by itself
   sfx('se_bell_kanenari_short');
   k.playAnim('glow');
   bellGlow(k.x, k.y - 20, 900);
   ring(k.x, k.y - 20, '#FFE7A3', 700);
   sparkle(k.x + 3, k.y - 26, 600);
-  yield 1200;
+  yield* beat(900);
   k.anim = null;
 }
 
@@ -704,7 +1014,7 @@ export function* evtEnding(): Co {
     game.fadeAlpha = 1;
   }
   stopAllAmbient(0.5);
-  yield 300;
+  yield* beat(300);
   yield* cut1Chime();
   yield* cut2Meat();
   yield* cut3Photo();
@@ -712,7 +1022,7 @@ export function* evtEnding(): Co {
   yield* cut5Tv();
   yield* cut6Crossing();
   // the night sky (cut_night_sky): the star over 星見台 stops twinkling
-  yield* playNightSkyCut({ hold: 1500 });
+  yield* playNightSkyCut({ hold: 1200 });
   endCrossingZoom();
   // the notebook: 「夕鳴町 みました帳 ①」, the case, 「つづく」. The ending's
   // song and night bed are let go here, before the title — the title is the
@@ -738,7 +1048,7 @@ export function* evtEnding(): Co {
   setFlag('flag_hud_hidden', 0);
   // → the title (as the notebook would have done), after our sounds are gone
   yield* ditherOut(1, '#0B0B14');
-  yield 450;
+  yield* beat(300);
   const { TitleScene } = (yield import('../ui/title')) as typeof import('../ui/title');
   game.replaceAll(new TitleScene(true));
   yield* ditherIn(900);

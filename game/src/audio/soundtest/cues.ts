@@ -476,7 +476,7 @@ export const CUES: Cue[] = [
   },
   {
     id: 'charge',
-    label: 'ハンコの溜め（sfxLoop）',
+    label: 'ハンコの溜め（ループ）',
     ref: '9.5',
     build: () => {
       const s: CueStep[] = [];
@@ -513,7 +513,7 @@ export const CUES: Cue[] = [
   },
   {
     id: 'roulette',
-    label: '当たりルーレット（sfxLoop）',
+    label: '当たりルーレット（ループ）',
     ref: '9.9',
     build: () => {
       let h: A.LoopHandle | null = null;

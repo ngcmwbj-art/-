@@ -29,6 +29,11 @@
 //    battle / UI, centred at (feetX, feetY + GLOW_CENTER_DY).
 //  - Frame widths can differ from CharSprite.w (Kanenari's glow / flip,
 //    the ojigi machine's cord): always centre on the feet.
+//  - Portraits are 32×32; portrait(id, mood, { size: 64 }) gives a 64×64
+//    close-up (drawn at 64 for minato:tsukkomi, a clean 2× of the 32 face
+//    otherwise; hasLargePortrait(id, mood) tells which).
+//  - npc_shadow_man has an extra 'notice' (eyes open wide) for when the
+//    player comes close.
 //  - Emotes: emoteFrames(kind) pops in, emoteLoopFrames(kind) keeps it alive.
 //    Kinds: exclaim question dots note sweat anger heart zzz light shy.
 //  - Palette (30_level_art 7.1): every sprite is snapped, when first built,
@@ -48,6 +53,14 @@
 //  - 'enemy_momisugi' (24×32) faces the viewer from the front-left, shows
 //    the recliner profile from the side and its vented back from behind;
 //    anim 'beckon' exists for every facing.
+//  - Passers-by (people/walkers.ts, the world's 'passerby' routes):
+//    npc_walker_shufu / npc_walker_salaryman (18×24), npc_walker_kid (18×24,
+//    the walk cycle is a run; his balloon rises into the headroom, frames
+//    28 tall), npc_walker_bike (24×28; walk = pedalling, idle = stopped with
+//    a foot down). Idle loops are their pause at a route end (receipt,
+//    watch, wiping sweat, tugging the balloon); every walk frame doubles as
+//    the stage-1 frozen stride, and the silhouettes carry the stage-2
+//    shadow-only walkers.
 //
 // The registry and helpers live in registry.ts; this module re-exports them
 // and imports every content module so a single import of 'art/chars'

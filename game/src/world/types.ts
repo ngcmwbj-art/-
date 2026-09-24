@@ -233,8 +233,8 @@ export interface MapDef {
   /** 'follow' (default for maps larger than the screen) or 'fixed' (centered). */
   camera?: 'follow' | 'fixed';
   /**
-   * View scale. Small rooms (under 60% of the screen, and fitting at 2× with
-   * at most 24 px of scroll each way) default to 2; set 1 to keep a room 1×.
+   * View scale (default 1: every map, rooms included, is shown at 1×; the
+   * small rooms are set into drawn surroundings). 2 = a 2× close-up view.
    */
   zoom?: 1 | 2;
   /** Script ids run on entering the map (in order; each only if registered). */

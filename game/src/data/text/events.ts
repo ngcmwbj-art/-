@@ -14,7 +14,20 @@ export const OPENING_CALL = `@母の声:mother
 export const OPENING_CALL2 = `@母の声:mother
 ミナトー？{w=300} 寝てるのー？`;
 
-export const GUIDE_MOVE = '移動：十字キー\n調べる・話す：Z';
+/** A control guide row: the keys (drawn as keycaps; arrows by name) and what they do. */
+export type GuideRow = [keys: string[], label: string];
+
+/** 5.2's control guide, drawn with the keyboard's own keys (not a pad's 十字キー). */
+export const GUIDE_MOVE: GuideRow[] = [
+  [['left', 'up', 'down', 'right'], '移動'],
+  [['Z'], '調べる・話す'],
+];
+
+/** Once, as the walk to the park begins: the menu and the dash. */
+export const GUIDE_MENU: GuideRow[] = [
+  [['Shift'], 'ダッシュ'],
+  [['X', 'C'], 'メニュー'],
+];
 
 // ---------------------------------------------------------------- 5.3 evt_errand
 
@@ -88,46 +101,26 @@ export const CHIME_STOP = `@narr
 
 // ---------------------------------------------------------------- 5.7 evt_hato_block
 
-export const HATO_COO = `@npc_hato
-クルッ。`;
-
+/** (Its 「クルッ。」 before this is a small balloon over the hato, not a window.) */
 export const HATO_CARD = `@narr
 ハトが 名刺を さしだしてきた。{w=300}
 両手で。{w=600}……羽で。`;
 
-export const HATO_A = `${HATO_COO}
-${HATO_CARD}`;
-
+/** Two pages (QA round 2: the chime → ハト → ハンコ chain trimmed for tempo). */
 export const HATO_B = `@ハト係長:hato
-クルッ。{w=300}
-夕鳴町 鳩課 係長で ございます。
-/
-17時を 過ぎましたので、
-本日の 窓口は 終了……{w=600}
+夕鳴町 鳩課 係長で ございます。{w=300}
+本日の 窓口は 17時で 終了……{w=600}
 ……の はずが、17時が 終わりません。
 /
-つきましては、本件、
-ここは お通し できません。{w=300}
+つきましては、ここは
+お通し できません。{w=300}
 クルッ。`;
 
-export const HATO_GET = `@sys
-ハトの名刺を 手に入れた！`;
 
 // ---------------------------------------------------------------- 5.8 evt_hanko_given
 
-export const HANKO_A = `@npc_obaa
-……見てたよ。{w=300}
-ツッコミ、いい 間だったね。`;
-
-export const HANKO_A_NOVISIT = `@npc_obaa
-あんた、潮見さんとこの ミナトだね。
-……見てたよ。{w=300}
-ツッコミ、いい 間だったね。`;
-
-export const HANKO_B = `@npc_obaa
-ミナト。{w=300}
-あれ、ただの ハトじゃ なかったろ。
-? うなずく | 首を かしげる
+/** Her question, its two answers and what she tells him (after either answer). */
+const HANKO_ASK = `? うなずく | 首を かしげる
 [うなずく]
 @npc_obaa
 そうかい。{w=300}
@@ -138,16 +131,33 @@ export const HANKO_B = `@npc_obaa
 あたしには、係長に 見えたよ。
 [-]
 @npc_obaa
-この町じゃね、だれかに 見て
-もらえた モノは、ちゃんと
-そのモノの ままで いられるの。
+この町じゃね、見て もらえた モノは
+そのモノの ままで いられるの。{w=300}
+見て もらえないと、忘れちまう。
 /
-見て もらえなく なった モノは、
-自分が 何だったか 忘れちまう。
-さっきの ハトみたいにね。
-/
-これを あずけとくよ。{w=300}
-昔の 商売道具さ。`;
+自分が 何だったかをね。{w=300}
+さっきの ハトみたいに。{w=500}
+これを あずけとくよ。{w=300}昔の 商売道具さ。`;
+
+/**
+ * The usual opening (ひのや visited): 「見てたよ」 and the question on one
+ * page, straight after the battle — the tutorial's chain is kept short.
+ */
+export const HANKO_AB = `@npc_obaa
+……見てたよ。{w=300}
+ツッコミ、いい 間だったね。{w=500}
+あれ、ただの ハトじゃ なかったろ。
+${HANKO_ASK}`;
+
+export const HANKO_A_NOVISIT = `@npc_obaa
+あんた、潮見さんとこの ミナトだね。
+……見てたよ。{w=300}
+ツッコミ、いい 間だったね。`;
+
+export const HANKO_B = `@npc_obaa
+ミナト。{w=300}
+あれ、ただの ハトじゃ なかったろ。
+${HANKO_ASK}`;
 
 export const HANKO_GET = `@sys
 ハンコケースを 受けとった！
@@ -158,16 +168,12 @@ export const HANKO_C = `@npc_obaa
 あげられなかった。{w=600}
 だから 今、あんたが 見に 行っておいで。`;
 
-/** The last two pages (also what she repeats while waiting at the storefront). */
+/** The try-it-now page (one page: the tutorial's chain is kept short). */
 export const HANKO_D = `@npc_obaa
-ためしに、ほら。{w=300}
-まめ吉の 『まいど』が、
-さっきから 止まらない。
-/
-近くで 調べて、
-『みました』を 押して ごらん。`;
+ためしに ほら、まめ吉の 『まいど』。{w=300}
+近くで 『みました』を 押して ごらん。`;
 
-export const GUIDE_FUSHIGI = 'ふしぎ の近くでは、\n左下のハンコがゆれる';
+export const GUIDE_FUSHIGI = 'ふしぎの 近くでは、\n左下の ハンコが ゆれる。';
 
 // ---------------------------------------------------------------- 5.9 evt_obaa_park_hint
 
@@ -380,12 +386,10 @@ export const END_HOME_B = `@npc_mother
 顔に 『いる』って 書いてあるけど。
 [-]`;
 
+/** One page (the ending keeps one line of talk per beat). */
 export const END_TV = `@npc_tv
-あすの 夕鳴町は、晴れ。{w=300}
-ところにより 夕方が
-残るでしょう。
-/
-なお、となりの 星見台では、
+あすの 夕鳴町は、晴れ。ところにより
+夕方が 残るでしょう。{w=400}となりの 星見台は、
 引き続き 『夜』が 続いています。`;
 
 export const END_TV_MOTHER = `@npc_mother

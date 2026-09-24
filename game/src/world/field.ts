@@ -30,11 +30,14 @@ import { checkOcclusion } from './occlusion';
 import { vehicleFrame, type VehicleView } from '../art/props/vehicles';
 import { P } from '../art/tiles/palette';
 import { BOX, dialogVisible } from '../ui/dialog';
-import { lastMsgPos } from './msg';
+import { lastMsgPos, lastSpeaker } from './msg';
+import { ROOM_SLIDE } from './roomview';
 
 export const WALK_SPEED = 4.5 * 16; // px/s
 export const DASH_SPEED = 7 * 16;
 export const FOLLOW_DELAY = 14; // frames
+/** Grace after a map change / an event / a battle before enemy symbols notice or charge (ms). */
+export const CALM_MS = 1500;
 /** Minimum personal space between characters (px): 12 wide, one tile deep. */
 const CHAR_SPACE = 12;
 const CHAR_DEPTH = 16;
@@ -56,6 +59,15 @@ export function addFushigiSpots(fn: (f: FieldScene) => { id: string; x: number; 
 }
 export function field(): FieldScene | null {
   return current;
+}
+const ambKeepers: ((mapId: string) => string[])[] = [];
+/**
+ * Beds a map keeps playing although they're not in its `amb` list (state
+ * ambience a level script starts itself): on entering, applyAudio doesn't
+ * stop them, so the script's own play() carries them on instead of restarting.
+ */
+export function registerAmbKeep(fn: (mapId: string) => string[]): void {
+  ambKeepers.push(fn);
 }
 
 export class FieldScene implements Scene {
@@ -110,6 +122,16 @@ export class FieldScene implements Scene {
   /** Warp in progress. */
   warping = false;
   private enteredFrom: string | null = null;
+  /**
+   * Enemy symbols leave the party alone until this time (field clock, ms):
+   * set on every map change and whenever control comes back (an event, a
+   * battle, a menu, a talk) — QA round 2: symbols hit Minato before any input.
+   */
+  calmUntil = 0;
+  /** The tile Minato arrived on (door / warp); symbols don't go for him while he still stands on it. */
+  private arrival: [number, number] | null = null;
+  /** How long the player has stood still inside a script (ms): the follower steps aside after a moment. */
+  private stillT = 0;
 
   constructor(mapId: string, tx: number, ty: number, dir: Dir = 'down') {
     current = this;
@@ -157,8 +179,11 @@ export class FieldScene implements Scene {
     this.syncFollower(true);
     // triggers the player spawned inside don't fire until left
     for (const o of m.objects) if (o.t === 'trig' && this.inRect(o, tx, ty)) this.triggerInside.add(o.id);
-    this.snapCamera();
+    this.calmUntil = this.t + CALM_MS;
+    this.arrival = [tx, ty];
+    this.doorTileKey = -1;
     this.viewScale = roomScale(m);
+    this.snapCamera();
     this.updateView(0, true);
     this.applyAudio(true);
     this.renderer.onMapChange();
@@ -333,18 +358,39 @@ export class FieldScene implements Scene {
     if (b !== undefined && !flag('flag_bgm_hold')) snd.bgm(b, entering ? 0.6 : 1.0, true);
     const amb = def.amb?.[s] ?? [];
     this.renderer.ambient = amb;
+    const playing = snd.activeAmbients();
     if (entering) {
-      snd.stopAllAmbient(0.3);
+      // only the beds the new map doesn't share stop; shared ones carry on
+      // (40_audio 8 / 12.2 — QA round 2: amb_fluorescent restarted between the mall's halls)
+      const keep = new Set<string>(amb);
+      for (const fn of ambKeepers) for (const id of fn(def.id)) keep.add(id);
+      if (playing) {
+        for (const id of playing) if (!keep.has(id)) snd.stopAmbient(id, 0.3);
+      } else snd.stopAllAmbient(0.3);
     }
+    const positional = this.renderer.positionalBeds();
     for (const id of amb) {
+      const on = playing?.includes(id) ?? false;
       const opts: { vol?: number; fade?: number; lp?: number } = { fade: 0.6 };
       if (def.id === 'map_home_2f' && id === 'amb_higurashi') {
         opts.vol = 0.4;
         opts.lp = 2500;
+      } else if (entering && on) {
+        // carried over from the last map: this map's level
+        opts.vol = 1;
+        opts.lp = 20000;
       }
-      if (def.id === 'map_town' && ['amb_kawabe', 'amb_arcade', 'amb_wind', 'amb_train_far'].includes(id)) opts.vol = 0;
+      if (positional.includes(id)) {
+        // the renderer sets these by where Minato stands; a bed already
+        // playing is left alone (QA round 2: re-sending vol 0 on every
+        // resume dipped the river and the arcade for a moment), a new one
+        // starts silent and gets its level right below
+        if (on) delete opts.vol;
+        else opts.vol = 0;
+      }
       snd.playAmbient(id, opts);
     }
+    this.renderer.positionalAmbience();
   }
 
   // ------------------------------------------------------------------ stage
@@ -389,10 +435,17 @@ export class FieldScene implements Scene {
     for (const px of [l, (l + r) / 2, r])
       for (const py of [t, b]) if (this.isSolidTile(Math.floor(px / 16), Math.floor(py / 16))) return false;
     if (ignoreActors) return true;
+    return !this.actorBlocking(a, x, y);
+  }
+
+  /**
+   * The character (or cart, statue...) `a` would bump into with its feet at
+   * (x, y), or null. Characters keep a personal space of at least 12×12 px
+   * from each other (walls still use the small feet box), so nobody sinks
+   * half into an NPC; carts and statues are things, not people: feet box only.
+   */
+  actorBlocking(a: Actor, x: number, y: number): Actor | null {
     const others = a === this.player ? this.actors : [...this.actors, this.player];
-    // characters keep a personal space of at least 12×12 px from each other
-    // (walls still use the small feet box), so nobody sinks half into an NPC;
-    // carts and statues are things, not people: feet box only
     const person = (b: Actor) => (b.kind === 'player' || b.kind === 'npc') && !b.data.cart && !b.data.noSpace;
     for (const o of others) {
       if (o === a || !o.solid || !o.visible) continue;
@@ -411,13 +464,33 @@ export class FieldScene implements Scene {
         const cdx = Math.abs(a.x - o.x);
         const cdy = Math.abs(a.y - ph / 2 - (o.y - oh));
         if (cdx < need[0] && cdy < need[1] && Math.hypot(ddx, ddy) > Math.hypot(cdx, cdy) + 1e-6) continue;
-        return false;
+        return o;
       }
     }
-    return true;
+    return null;
   }
 
   // ------------------------------------------------------------------ update
+
+  /**
+   * Enemy symbols neither notice nor charge (and don't walk into Minato):
+   * during the grace after a map change, an event, a battle or a menu, and
+   * while he still stands on the tile he arrived on or on a door.
+   */
+  symbolsCalm(): boolean {
+    if (this.t < this.calmUntil) return true;
+    const p = this.player;
+    if (this.arrival) return true;
+    // on a door (worked out once per tile)
+    const key = p.tileY * 4096 + p.tileX;
+    if (this.doorTileKey !== key) {
+      this.doorTileKey = key;
+      this.onDoorTile = !!cellAt(this.map, p.tileX, p.tileY).door || this.map.objects.some((o) => o.t === 'door' && this.inRect(o, p.tileX, p.tileY));
+    }
+    return this.onDoorTile;
+  }
+  private doorTileKey = -1;
+  private onDoorTile = false;
 
   get controllable(): boolean {
     return this.locks === 0 && !game.ui.modal && !this.warping && !game.scripts.busy;
@@ -451,6 +524,9 @@ export class FieldScene implements Scene {
 
     const p = this.player;
     const ctrl = this.controllable;
+    // symbols keep calm while control is away and for a moment after it comes back
+    if (!ctrl) this.calmUntil = Math.max(this.calmUntil, this.t + CALM_MS);
+    if (this.arrival && (p.tileX !== this.arrival[0] || p.tileY !== this.arrival[1])) this.arrival = null;
     let vx = 0;
     let vy = 0;
     if (ctrl) {
@@ -556,17 +632,18 @@ export class FieldScene implements Scene {
       if (this.free(p, p.x + mx, p.y)) p.x += mx;
       else if (iy === 0) {
         // corner assist: slide around a corner up to 6px away
-        for (let k = 1; k <= 6; k++) {
+        let slid = false;
+        for (let k = 1; k <= 6 && !slid; k++) {
           const step = Math.min(k, Math.abs(mx) + 0.3);
           if (this.free(p, p.x + mx, p.y - k) && this.free(p, p.x, p.y - step)) {
             p.y -= step;
-            break;
-          }
-          if (this.free(p, p.x + mx, p.y + k) && this.free(p, p.x, p.y + step)) {
+            slid = true;
+          } else if (this.free(p, p.x + mx, p.y + k) && this.free(p, p.x, p.y + step)) {
             p.y += step;
-            break;
+            slid = true;
           }
         }
+        if (!slid) this.slideRound(mx, 0);
       } else {
         // snap flush against the wall
         const s = Math.sign(mx);
@@ -576,23 +653,52 @@ export class FieldScene implements Scene {
     if (my !== 0) {
       if (this.free(p, p.x, p.y + my)) p.y += my;
       else if (ix === 0) {
-        for (let k = 1; k <= 6; k++) {
+        let slid = false;
+        for (let k = 1; k <= 6 && !slid; k++) {
           const step = Math.min(k, Math.abs(my) + 0.3);
           if (this.free(p, p.x - k, p.y + my) && this.free(p, p.x - step, p.y)) {
             p.x -= step;
-            break;
-          }
-          if (this.free(p, p.x + k, p.y + my) && this.free(p, p.x + step, p.y)) {
+            slid = true;
+          } else if (this.free(p, p.x + k, p.y + my) && this.free(p, p.x + step, p.y)) {
             p.x += step;
-            break;
+            slid = true;
           }
         }
+        if (!slid) this.slideRound(0, my);
       } else {
         const s = Math.sign(my);
         for (let k = 0; k < 4 && this.free(p, p.x, p.y + s * 0.25); k++) p.y += s * 0.25;
       }
     }
     return Math.abs(p.x - x0) > 0.001 || Math.abs(p.y - y0) > 0.001;
+  }
+
+  /**
+   * Walking straight into someone's personal space (an NPC standing on the
+   * border of the next row, QA round 2: さえ on the main road): slip round
+   * them — step sideways, away from their feet, at walking speed, until the
+   * way on is clear. Only across the one row / column the player is in:
+   * he is never pushed into the next tile for it.
+   */
+  private slideRound(mx: number, my: number): void {
+    const p = this.player;
+    const o = this.actorBlocking(p, p.x + mx, p.y + my);
+    if (!o) return;
+    const sp = Math.abs(mx || my) + 0.3;
+    if (mx) {
+      // pass below or above: to the far edge of his own row
+      const down = p.y >= o.y;
+      const row = Math.floor((p.y - 0.01) / 16) * 16;
+      const lim = down ? row + 16 : row + 0.01;
+      const ny = down ? Math.min(lim, p.y + sp) : Math.max(lim, p.y - sp);
+      if (Math.abs(ny - p.y) > 0.01 && this.free(p, p.x, ny)) p.y = ny;
+    } else {
+      const right = p.x >= o.x;
+      const tx = Math.floor(p.x / 16) * 16;
+      const lim = right ? tx + 16 - p.bw / 2 : tx + p.bw / 2;
+      const nx = right ? Math.min(lim, p.x + sp) : Math.max(lim, p.x - sp);
+      if (Math.abs(nx - p.x) > 0.01 && this.free(p, nx, p.y)) p.x = nx;
+    }
   }
 
   /** Scripted path following (walk()). */
@@ -635,6 +741,16 @@ export class FieldScene implements Scene {
     }
     if (f.data.scripted) return;
     const p = this.player;
+    // in a scene (a talk, a cutscene), once Minato has stood still for a
+    // moment, カネナリくん steps to his side instead of standing in his back
+    // (QA round 2: the bell hid Minato from the shoulders down)
+    const inScene = (this.locks > 0 || game.scripts.busy) && !p.moving && !p.path.length;
+    this.stillT = inScene ? this.stillT + dt : 0;
+    if (!inScene) f.data.aside = undefined;
+    else if (f.data.aside) {
+      if (!f.moving) f.dir = p.dir;
+      return;
+    } else if (this.stillT > 220 && this.stepAside()) return;
     // keep the history point FOLLOW_DELAY moving-frames back
     const idx = this.trail.length - 1 - FOLLOW_DELAY;
     if (idx >= 0) {
@@ -668,6 +784,50 @@ export class FieldScene implements Scene {
       }
     }
     f.moving = false;
+  }
+
+  /**
+   * Move the follower beside the player (the tile left / right of him when
+   * he faces up or down; else the tile behind him), walking. Returns true
+   * when he set off (or already stands clear of Minato).
+   */
+  private stepAside(): boolean {
+    const p = this.player;
+    const f = this.follower!;
+    const dx = f.x - p.x;
+    const dy = f.y - p.y;
+    const [fx, fy] = DIR_VEC[p.dir];
+    const beside = fy !== 0 ? Math.abs(dx) >= 14 && Math.abs(dy) < 6 : Math.abs(dx) >= 14;
+    if (beside || Math.hypot(dx, dy) > 30) {
+      f.data.aside = true;
+      return true;
+    }
+    const pref = dx < -1 ? -1 : 1;
+    const tries: [number, number][] =
+      fy !== 0
+        ? [[pref * 16, 0], [-pref * 16, 0], [-fx * 16, -fy * 16]]
+        : [[-fx * 16, 0], [-fx * 16, dy < 0 ? -16 : 16], [0, dy < 0 ? -16 : 16]];
+    for (const [ox, oy] of tries) {
+      const nx = p.x + ox;
+      const ny = p.y + oy;
+      if (!this.free(f, nx, ny, true)) continue;
+      // nobody standing there (NPCs, symbols)
+      if (this.actors.some((a) => a.visible && a.kind !== 'restored' && Math.abs(a.x - nx) < 12 && Math.abs(a.y - ny) < 12)) continue;
+      // the way there is clear (not through a wall)
+      if (!this.free(f, (f.x + nx) / 2, (f.y + ny) / 2, true)) continue;
+      f.path = [[nx, ny]];
+      f.pathSpeed = 3.2 * 16;
+      f.data.aside = true;
+      // walk on from there when Minato moves again
+      this.trail = [];
+      for (let i = 0; i <= FOLLOW_DELAY; i++) {
+        const k = i / FOLLOW_DELAY;
+        this.trail.push([nx + (p.x - nx) * k, ny + (p.y - ny) * k, p.dir, false]);
+      }
+      return true;
+    }
+    f.data.aside = true;
+    return false;
   }
 
   // ------------------------------------------------------------------ interaction
@@ -985,20 +1145,73 @@ export class FieldScene implements Scene {
     const ly = p.moving ? vy * 14 : this.lookY * 0.98;
     this.lookX = approach(this.lookX, lx, 2.2, dt);
     this.lookY = approach(this.lookY, ly, 2.2, dt);
-    const [x, y] = this.cameraTarget();
+    let [x, y] = this.cameraTarget();
     if (this.camOverride) return; // pans are tweened by the script API
+    // rooms: while a dialog window is up the room slides so the people in
+    // the scene stay clear of it (the speaker first), within the drawn outside
+    if (this.map.def.camera === 'fixed' && this.viewScale === 1) y = clamp(this.dialogY(y, 1), y - ROOM_SLIDE, y + ROOM_SLIDE);
     this.camX = approach(this.camX, x, 9, dt);
     this.camY = approach(this.camY, y, 9, dt);
     if (Math.abs(this.camX - x) < 0.3) this.camX = x;
     if (Math.abs(this.camY - y) < 0.3) this.camY = y;
   }
 
+  /** The actor behind the speaker tag of the dialog on screen (null: narration, a sign, unknown). */
+  private speakerActor(): Actor | null {
+    const tag = lastSpeaker();
+    if (!tag) return null;
+    const a = this.actorById(tag.split(':')[0]);
+    return a && a.visible ? a : null;
+  }
+
   /**
-   * The 2× room view: the whole room when it fits, else following the
-   * player (or a scripted camera target) inside the room. While a dialog
-   * window is up, the view slides so everyone in the scene stays clear of
-   * it — the room may leave the screen's edge for that, the dark outside
-   * shows.
+   * Top of a view `H/s` world px tall, moved from `y` so that the people in
+   * a dialog scene stay clear of the window: everyone's feet above a bottom
+   * window (heads below a top one) — but when they don't all fit, the one
+   * speaking wins: the speaker's head stays 8px inside the top edge (feet
+   * inside the bottom edge for a top window), and the listener (Minato) may
+   * go under the window. QA round 2: in ひのや the first meeting pushed the
+   * view down for Minato's feet and おばあ never showed while she talked.
+   */
+  private dialogY(y: number, s: number): number {
+    if (!dialogVisible()) return y;
+    const who: Actor[] = [];
+    const add = (a: Actor | null | undefined) => {
+      if (a && a.visible && !a.drawFn && a.alpha > 0.5 && !who.includes(a)) who.push(a);
+    };
+    const speaker = this.speakerActor();
+    add(this.player);
+    add(this.follower);
+    add(this.talking);
+    add(speaker);
+    for (const a of this.actors) if (a.kind === 'npc' && a.data.scripted) add(a);
+    if (!who.length) return y;
+    const head = (a: Actor) => a.y + a.oy - Math.max(20, a.sprite.h ?? 24);
+    const foot = (a: Actor) => a.y + Math.max(0, a.oy);
+    let feet = -1e9;
+    let heads = 1e9;
+    for (const a of who) {
+      feet = Math.max(feet, foot(a));
+      heads = Math.min(heads, head(a));
+    }
+    // the one the scene is about: who speaks, else who was talked to
+    const key = speaker ?? this.talking ?? null;
+    if (lastMsgPos() === 'top') {
+      y = Math.min(y, heads - (8 + BOX.h + 14) / s);
+      if (key) y = Math.max(y, foot(key) + 4 - H / s);
+    } else {
+      y = Math.max(y, feet - (BOX.y - 4) / s);
+      if (key) y = Math.min(y, head(key) - 8 / s);
+    }
+    return y;
+  }
+
+  /**
+   * The 2× room view (maps with zoom: 2): the whole room when it fits,
+   * else following the player (or a scripted camera target) inside the
+   * room. While a dialog window is up, the view slides so the people in
+   * the scene stay clear of it (dialogY) — the room may leave the screen's
+   * edge for that, the dark outside shows.
    */
   updateView(dt: number, snap = false): void {
     if (this.viewScale === 1) return;
@@ -1019,22 +1232,7 @@ export class FieldScene implements Scene {
     }
     let x = mw <= vw ? (mw - vw) / 2 : clamp(fx - vw / 2, 0, mw - vw);
     let y = mh <= vh ? (mh - vh) / 2 : clamp(fy - vh / 2, 0, mh - vh);
-    if (dialogVisible() && !snap) {
-      const who: (Actor | null)[] = [this.player, this.follower, this.talking];
-      for (const a of this.actors) if (a.kind === 'npc' && a.data.scripted && a.visible && a.alpha > 0.5) who.push(a);
-      let feet = -1e9;
-      let head = 1e9;
-      for (const a of who) {
-        if (!a || !a.visible || a.drawFn) continue;
-        const ay = a.y + Math.max(0, a.oy);
-        feet = Math.max(feet, ay);
-        head = Math.min(head, ay - 26);
-      }
-      if (feet > -1e9) {
-        if (lastMsgPos() === 'top') y = Math.min(y, head - (8 + BOX.h + 14) / s);
-        else y = Math.max(y, feet - (BOX.y - 4) / s);
-      }
-    }
+    if (!snap) y = this.dialogY(y, s);
     x = Math.round(x);
     y = Math.round(y);
     if (snap || dt <= 0) {
@@ -1108,6 +1306,8 @@ export class FieldScene implements Scene {
 
   resume(): void {
     current = this;
+    // back from a battle, a menu or an event window: a moment before symbols go for him
+    this.calmUntil = Math.max(this.calmUntil, this.t + CALM_MS);
     this.applyAudio(false);
   }
 
@@ -1116,14 +1316,14 @@ export class FieldScene implements Scene {
   }
 }
 
-/** View scale of a map: 2 for small rooms that fit the screen at 2× (see MapDef.zoom). */
+/**
+ * View scale of a map. Everything is shown at 1× (QA round 2: the rooms'
+ * automatic 2× mixed two pixel sizes on one screen — 1× text and town, 2×
+ * rooms); a map may still ask for a close-up with MapDef.zoom. The rooms
+ * are set into their drawn surroundings instead (iexterior / ihome).
+ */
 export function roomScale(m: LoadedMap): number {
-  if (m.def.zoom) return m.def.zoom;
-  if (m.def.kind !== 'indoor') return 1;
-  const mw = m.w * 16;
-  const mh = m.h * 16;
-  if (mw * mh >= 0.6 * W * H) return 1;
-  return mw * 2 <= W + 48 && mh * 2 <= H + 48 ? 2 : 1;
+  return m.def.zoom ?? 1;
 }
 
 function ms0(p: Actor): number {

@@ -8,8 +8,10 @@
 //                              air that twitch; 'hop' flails, wings buzz
 //  enemy_cone_vocal     16×24  slit eyes + beacon whose beam sweeps L/front/R;
 //                              'sing' opens a mouth in the lower band
-//  enemy_wasuregasa     18×30  half-open clear umbrella (ground shows through),
-//                              one snapped rib, brown J hook, "?" name label
+//  enemy_wasuregasa     24×30  half-open clear umbrella (ground shows through),
+//                              one snapped rib, brown J hook, "?" name label;
+//                              the canopy carries a slate outline so it holds
+//                              on grey asphalt, and the idle keeps hopping
 //  enemy_ojigi_jihanki  48×40  bows at the waist hinge (30/60/90°), LED 17:00,
 //                              power cord dragged across the ground
 //  enemy_soujirou       24×12  robot vacuum, blinking blue LEDs, sock in the bin
@@ -543,9 +545,11 @@ const KASA: Mats = {
   // clear vinyl: a faint water-blue film in the middle so the ground reads
   // through it, a milkier sheen on the lit left panel and a bluer shade on
   // the right (the three alpha steps keep the dome's form)
-  film: mat('#BDE8F255', { shade: '#7FD1E899', light: '#E4F6FA99', dark: '#4A6A7A', ol: '#4A6A7A', norim: true }),
-  filmD: flat('#7FB4C899'),
-  hem: flat('#E4F6FADD'),
+  // (00_concept 8.4: #CFE3EA at 60%). The whole canopy is outlined in a
+  // deep slate so it reads against grey asphalt as well as park dirt.
+  film: mat('#CFE3EA99', { shade: '#7FD1E8B3', light: '#E4F6FAB3', dark: '#3A4A66', ol: '#3A4A66', norim: true }),
+  filmD: flat('#7FB4C8B3', { ol: '#3A4A66' }),
+  hem: flat('#E4F6FADD', { ol: '#3A4A66' }),
   hi: flat('#FFF6D8'),
   rib: mat('#9AA0A8', { shade: '#6B7186', light: '#C8C2B4', dark: '#3A3F48' }),
   ribT: flat('#3A3F48'),
@@ -559,8 +563,8 @@ const KASA: Mats = {
 };
 
 /** Canopy half-width per row below the crown: half-open dome / fully open / folded. */
-const KASA_DOME = [2, 3, 4, 5, 5, 6, 6, 6, 6];
-const KASA_OPEN = [2, 4, 6, 7, 8, 8];
+const KASA_DOME = [2, 3, 4, 5, 6, 6, 7, 7, 7];
+const KASA_OPEN = [2, 4, 6, 7, 8, 9];
 const KASA_HUG = [1, 1, 2, 2, 2, 2, 2, 2, 1];
 
 function kasa(f: Fig, p: Pose) {
@@ -570,15 +574,18 @@ function kasa(f: Fig, p: Pose) {
   // squash & stretch: the walk carries its own small arc; the 'hop' anim is
   // squash/stretch in place (the field lifts the actor itself)
   const hopA = p.act === 'hop';
-  const air = walking ? [0, 1, 2, 1][st] : 0;
-  const squash = (walking && st === 0) || (hopA && p.ph === 0) ? 1 : 0;
-  const stretch = (walking && st === 2) || (hopA && p.ph === 1) ? 1 : 0;
+  // idle: it keeps bouncing on its tip, looking for its owner (ph 1 =
+  // squash on landing, 2–3 = off the ground)
+  const idleHop = p.mode === 'idle' ? p.ph : 0;
+  const air = walking ? [0, 1, 2, 1][st] : [0, 0, 1, 2][idleHop] ?? 0;
+  const squash = (walking && st === 0) || (hopA && p.ph === 0) || idleHop === 1 ? 1 : 0;
+  const stretch = (walking && st === 2) || (hopA && p.ph === 1) || idleHop === 2 ? 1 : 0;
   const open = p.act === 'open';
   const hug = p.act === 'hug';
   // idle: the canopy rocks while it listens for its owner
   const rock = p.mode === 'idle' ? [0, 0, 1, 1, 0, 0, -1, -1][p.tick % 8] : walking ? [0, -1, 0, 1][st] : 0;
   const Y = 29 - air; // bottom of the hook (ground contact)
-  const C0 = 9; // centre column (canvas 18 wide)
+  const C0 = 12; // centre column (canvas 24 wide: room for the snapped rib)
   // from behind the snapped rib is on the left and the sticker is hidden;
   // the hook opens toward the facing (front view: to the right)
   const back = view === 'up';
@@ -612,7 +619,7 @@ function kasa(f: Fig, p: Pose) {
     f.rows(C0 - 1, Y - 13, ['##.', '..#', '.#.', '...', '.#.']);
   }
   // ---- vinyl membrane (translucent, no outline of its own: ribs carry it)
-  f.part('film', { flat: true, rim: false, ol: false });
+  f.part('film', { flat: true, rim: false });
   for (let j = 1; j <= n; j++) {
     const c = C0 + sh(j);
     const w = hw(j);
@@ -620,12 +627,12 @@ function kasa(f: Fig, p: Pose) {
       const rel = (x - c) / w;
       // the limp panel beside the snapped rib sags instead of spanning
       if (!hug && rel * bs > 0.5 && j > snapJ) continue;
-      f.t(rel < -0.35 ? 1 : rel > 0.4 ? -1 : 0).px(x, crown + j);
+      f.t(rel < -0.4 ? 1 : rel > 0.05 ? -1 : 0).px(x, crown + j);
     }
   }
   if (!hug) {
     // limp panel: hangs straight down from the break, a row past the hem
-    f.part('filmD', { flat: true, rim: false, ol: false });
+    f.part('filmD', { flat: true, rim: false });
     for (let j = snapJ + 1; j <= n + 2; j++) {
       const c = C0 + sh(Math.min(j, n));
       const inner = Math.round(0.5 * hw(Math.min(j, n))) + 1;
@@ -633,7 +640,7 @@ function kasa(f: Fig, p: Pose) {
       for (let k = inner; k <= outer; k++) f.px(c + bs * k, crown + j);
     }
     // thicker vinyl hem between the rib tips
-    f.part('hem', { flat: true, rim: false, ol: false });
+    f.part('hem', { flat: true, rim: false });
     for (let x = C0 - hw(n) + sh(n); x <= C0 + hw(n) + sh(n); x++) {
       const rel = (x - C0 - sh(n)) / hw(n);
       if (rel * bs > 0.5) continue;
@@ -684,17 +691,19 @@ function kasa(f: Fig, p: Pose) {
 registerChar('enemy_wasuregasa', () =>
   buildSprite({
     id: 'enemy_wasuregasa',
-    w: 18,
+    w: 24,
     h: 30,
     mats: KASA,
     draw: kasa,
     walkFrameMs: 130,
     walkBob: [0, 0, 0, 0],
-    idle: rep([{}, {}, {}, {}, {}, {}, {}, {}], 1),
-    idleFrameMs: 200,
+    // rocks while it listens, then a little hop on its tip (squash, up 1–2px,
+    // squash on landing) — twice per loop, never still for long
+    idle: [{}, {}, { ph: 1 }, { ph: 2 }, { ph: 3 }, { ph: 2 }, { ph: 1 }, {}, {}, {}, { ph: 1 }, { ph: 2 }, { ph: 3 }, { ph: 2 }, { ph: 1 }, {}],
+    idleFrameMs: 110,
     extras: { open: { dirs: ['down'] }, hug: { dirs: ['down'] }, hop: { dirs: 'all', p: { ph: 1 } } },
     anims: { hop: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 2 }, { ph: 0 }], ms: [60, 90, 120, 60], loop: false, dirs: 'all' } },
-    shadow: 10,
+    shadow: 12,
   }),
 );
 

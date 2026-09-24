@@ -15,6 +15,8 @@ import { ihash, valueNoise } from '../tiles/noise';
 import { castRight, cylinder, dk, finish, lt, maskOf, shadeRect } from './kit';
 import { flat, mkFrames, stand, standAnim } from './pkit';
 import { registerProp } from './registry';
+import { exteriorOver } from './iexterior';
+import { withTownAround } from './ihome';
 import { fontTextSmall, printLines, tiny } from './text';
 import { drawLight, drawLightAt, halo, LIGHT, poolEllipse, poolTrapezoid } from './light';
 import type { PropArt, PropEnv } from './types';
@@ -40,7 +42,7 @@ export function roomShell(
   rows: string[],
   style: RoomStyle,
   extra?: (p: PixelCanvas, glass: PixelCanvas) => void,
-): { img: HTMLCanvasElement; glass: HTMLCanvasElement; floorShade: [number, number, number][] } {
+): { img: HTMLCanvasElement; glass: HTMLCanvasElement; floorShade: [number, number, number][]; pc: PixelCanvas; pglass: PixelCanvas } {
   const h = rows.length;
   const w = Math.max(...rows.map((r) => [...r].length));
   const p = pc(w * 16, h * 16);
@@ -93,7 +95,7 @@ export function roomShell(
     if (!p.alpha(x, y)) p.set(x, y, section + aa);
   }
   extra?.(p, glass);
-  return { img: p.toCanvas(), glass: glass.toCanvas(), floorShade };
+  return { img: p.toCanvas(), glass: glass.toCanvas(), floorShade, pc: p, pglass: glass };
 }
 
 /** Alpha-blend a colour over an existing pixel. */
@@ -296,7 +298,7 @@ function paintStairsDown(p: PixelCanvas, x: number, y: number): void {
 
 registerProp('room_home_2f', () => {
   const rows = getMapDef('map_home_2f')?.rows ?? [];
-  const { img, glass } = (
+  const { pc: room, pglass } = (
     roomShell(rows, { wall: wallpaper(P.paperGrid, P.paper, 3), base: P.wood, trim: P.woodLt }, (p, gm) => {
       // window (6–7, 0–1): the room's light source, sky shows through
       const wx = 6 * 16 + 2;
@@ -342,18 +344,24 @@ registerProp('room_home_2f', () => {
       paintStairsDown(p, 8 * 16, 5 * 16);
     })
   );
-  const W = img.width;
-  const H = img.height;
+  const W = room.w;
+  const H = room.h;
+  // upstairs over the west end of the house: the ground floor's tiled roof
+  // in a wide band round it, the garden to the north, the road to the south
+  const ext = withTownAround(room, pglass, { rows, at: [0, 23], skip: ['bld_shiomi'], eave: [6, 20, 22, 20], skin: [P.paper, P.paperGrid, P.woodLt], seed: 5301 });
+  const img = ext.p.toCanvas();
+  const glass = ext.glass.toCanvas();
   return {
-    ox: 0,
-    oy: 0,
-    w: W,
-    h: H,
+    ox: ext.ox,
+    oy: ext.oy,
+    w: img.width,
+    h: img.height,
     foot: 0,
     flat: true,
     img: () => img,
     glass,
     over(g, x, y, env) {
+      exteriorOver(g, x, y, ext, env, { noSpill: true });
       roomLight(g, x, y + 32, W, H - 32, env, [[5 * 16 + 4, 3 * 16, 44, 26, 0.25]]);
     },
     glow(g, x, y, env) {
@@ -729,7 +737,7 @@ registerProp('room_home_1f', () => {
     if (x % 64 < 3) return x % 64 === 0 ? P.woodLt : P.wood; // pillars
     return valueNoise(x / 5, y / 5, 9) > 0.82 ? P.paper : P.goldPale;
   };
-  const { img, glass } = (
+  const { pc: room, pglass } = (
     roomShell(rows, { wall: kitchenWall, base: P.woodDark, trim: P.wood }, (p, gm) => {
       // kitchen window above the sink (1–2, 0–1)
       const wx = 16 + 4;
@@ -787,18 +795,25 @@ registerProp('room_home_1f', () => {
       p.hline(5 * 16, 13 * 16 - 1, ey + 1, P.glint);
     })
   );
-  const W = img.width;
-  const H = img.height;
+  const W = room.w;
+  const H = room.h;
+  // the ground floor where it stands on map_town: its genkan (2,8) is the
+  // town's door (4,30); the eave all round, the front yard and the road
+  // below, the garden behind, the Mizumaki house and the slope road east
+  const ext = withTownAround(room, pglass, { rows, at: [2, 22], skip: ['bld_shiomi', 'bld_mizumaki'], eave: [7, 7, 6, 7], skin: [P.paper, P.paperGrid, P.woodLt], seed: 5302, door: 2 });
+  const img = ext.p.toCanvas();
+  const glass = ext.glass.toCanvas();
   return {
-    ox: 0,
-    oy: 0,
-    w: W,
-    h: H,
+    ox: ext.ox,
+    oy: ext.oy,
+    w: img.width,
+    h: img.height,
     foot: 0,
     flat: true,
     img: () => img,
     glass,
     over(g, x, y, env) {
+      exteriorOver(g, x, y, ext, env, { spill: P.sky, spillA: 0.18 });
       roomLight(g, x, y + 32, W, H - 32, env, [
         [5 * 16, 7 * 16 - 32, 8 * 16, 20, 0.2],
         [16, 32, 30, 20, 0.18],

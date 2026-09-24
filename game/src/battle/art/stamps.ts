@@ -288,6 +288,56 @@ export function roundSeal(text: string, size: number, color = SHU, seed = 2): HT
   });
 }
 
+/** Bold hand-drawn glyphs for the 「100てん」 seal (6×9 digits, 7×8 kana). */
+const SCORE: Record<string, string[]> = {
+  '1': ['..##..', '.###..', '####..', '..##..', '..##..', '..##..', '..##..', '..##..', '######'],
+  '0': ['.####.', '##..##', '##..##', '##..##', '##..##', '##..##', '##..##', '##..##', '.####.'],
+  て: ['#######', '....##.', '...#...', '..#....', '..#....', '..#....', '...#...', '....###'],
+  ん: ['..#....', '..#....', '.#.....', '.####..', '.#...#.', '#....#.', '#....#.', '#.....#'],
+};
+
+/**
+ * The 「100てん」 seal (QA round 2: the 16px font squeezed into a 36px disc
+ * read "I00てん"): a 40px round seal with the score in two tiers — "100" in
+ * bold hand-drawn digits over a smaller hand-drawn 「てん」 — knocked out of
+ * the vermilion.
+ */
+export function scoreSeal(size = 40): HTMLCanvasElement {
+  return cached(`score:${size}`, () => {
+    const g = grid(size, size);
+    const r = size / 2;
+    const seed = 3;
+    const rr = new Rng(seed * 31 + size);
+    for (let y = 0; y < size; y++)
+      for (let x = 0; x < size; x++) {
+        const dx = x + 0.5 - r;
+        const dy = y + 0.5 - r;
+        const a = Math.atan2(dy, dx);
+        const edge = r - 0.6 - 0.9 * hash2(Math.round(a * 8), 0, seed);
+        const d = Math.hypot(dx, dy);
+        if (d <= edge) g.d[y * size + x] = 1;
+        if (d <= edge - 3 && d > edge - 4.2) g.d[y * size + x] = 4;
+      }
+    const digits = glyphMask('100', SCORE, 6, 9, 1)!;
+    const kana = glyphMask('てん', SCORE, 7, 8, 2)!;
+    const top = Math.round(size / 2 - 10);
+    blit(g, digits, Math.round((size - digits.w) / 2), top, 4);
+    blit(g, kana, Math.round((size - kana.w) / 2), top + 12, 4);
+    for (let i = 0; i < size * 0.8; i++) {
+      const x = Math.floor(rr.next() * size);
+      const y = Math.floor(rr.next() * size);
+      if (g.d[y * size + x] === 1) g.d[y * size + x] = 3;
+    }
+    const src = g.d.slice();
+    for (let y = 0; y < size; y++)
+      for (let x = 0; x < size; x++) {
+        const i = y * size + x;
+        if (src[i] === 1 && (y + 1 >= size || !src[i + size] || x + 1 >= size || !src[i + 1])) g.d[i] = 2;
+      }
+    return toCanvas(g, [SHU, SHU_D, SHU_L, PAPER]);
+  });
+}
+
 /** Big brush-stroke ペケ (96×96) or small decal (20×20, 3 worn variants). */
 export function pekeMark(size: number, variant = 0, kasure = false): HTMLCanvasElement {
   return cached(`peke:${size}:${variant}:${kasure}`, () => {

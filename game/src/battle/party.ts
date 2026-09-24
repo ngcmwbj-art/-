@@ -6,7 +6,8 @@ import type { Co } from '../engine/co';
 import { flag, setFlag, state, addItem, removeItem } from '../game/state';
 import { rng } from '../engine/rng';
 import { ease } from '../engine/tween';
-import type { Gfx } from '../engine/gfx';
+import { Gfx } from '../engine/gfx';
+import { BAYER4, makeCanvas } from '../engine/pixel';
 import { CAPSULE_TABLE, fillAll, getItem, getSkill, ITEM_TEXT, LABEL, NORI, NORI_COMMON, SYS } from '../data/battle';
 import type { BattleScene } from './scene';
 import { FRAME, STAGE_TOP } from './scene';
@@ -17,13 +18,13 @@ import {
   addKire, arrows, cureStatus, defeatEnemy, dodge, fadeDrops, fadeDropsLater, healParty, hideSticky, hurtEnemy, hurtParty, kireFullPages, knock,
   markDefeated, resetKire, showSticky, statusText,
 } from './common';
-import { drawNet, balloon, crowLit, heart, mangaLettering, musicNote, noriBoard, poppedBalloon, sweatDrop, thickLine } from './art/fxart';
+import { drawNet, balloon, bigHeart, crowLit, mangaLettering, musicNote, noriBoard, poppedBalloon, sweatDrop, thickLine } from './art/fxart';
 import { all } from '../engine/co';
 import { duckMusic, muteMusic, musicFlee, sfxLoop } from '../audio';
 import { hankoCloseup } from './art/fxart';
-import { hanamaruFrame, kakimoji, kakimojiSmall, ovalStamp, pekeMark, roundSeal } from './art/stamps';
+import { hanamaruFrame, kakimoji, kakimojiSmall, ovalStamp, pekeMark, roundSeal, scoreSeal } from './art/stamps';
 import { itemIcon, kireIcon } from './art/icons';
-import { kireIconXY, PANEL_POS } from './ui/panels';
+import { kireIconXY, PANEL_POS, panelOffset } from './ui/panels';
 import { C, tapeCanvas } from './ui/note';
 import { FLAG_PAD, kanenariBack, kanenariFront, MIC_AT } from '../art/enemies/kanenari';
 import { portrait } from '../art/chars';
@@ -169,17 +170,17 @@ export function hitFeel(s: BattleScene, e: EnemyUnit, kind: 'normal' | 'good' | 
       },
     });
     s.sfx('se_crit');
-    const seal = roundSeal(LABEL.crit, 36);
+    const seal = scoreSeal(40);
     // up-right of the hit, beside where the number comes to rest (not on
     // it), kept on stage (under the band, inside the screen)
     const sx = Math.min(382 - 20, Math.max(e.coreX + 34, e.x + e.sizeW / 2 - 4));
-    const sy = Math.max(STAGE_TOP + 19, Math.min(e.coreY - 20, e.headY + 10));
+    const sy = Math.max(STAGE_TOP + 21, Math.min(e.coreY - 20, e.headY + 10));
     s.addFx({
       layer: 'top',
       dur: 600,
       ui: true,
-      // the 「100てん」 seal owns its spot: いい音！ goes elsewhere
-      blockLabels: () => ({ x0: sx - 19, y0: sy - 19, x1: sx + 19, y1: sy + 19 }),
+      // the 「100てん」 seal owns its spot: the number and いい音！ go elsewhere
+      block: () => ({ x0: sx - 21, y0: sy - 21, x1: sx + 21, y1: sy + 21 }),
       draw: (g, t) => {
         const sc = t < 67 ? 1.6 - 0.6 * (t / 67) : 1;
         const w = seal.width * sc;
@@ -218,7 +219,7 @@ function* strikeOnce(
   s: BattleScene,
   u: PartyUnit,
   target: EnemyUnit,
-  o: { power: number; lead: number; shrink: number; second?: boolean; tut?: boolean; tackle?: boolean; stack: number },
+  o: { power: number; lead: number; shrink: number; second?: boolean; two?: boolean; tut?: boolean; tackle?: boolean; stack: number },
   anim: (f: number, hitF: number, phase: 'pre' | 'post') => void,
 ): Co<{ killed: boolean; hit: boolean; boke: boolean }> {
   const res = yield* ringStrike(s, () => target.coreX, () => target.coreY, o.lead, o.shrink, (f, hitF) => anim(f, hitF, 'pre'), o.tut);
@@ -257,9 +258,10 @@ function* strikeOnce(
     crit,
   });
   hitFeel(s, e, crit ? 'crit' : good ? 'good' : 'normal', good);
-  // 10.1: 「いい音！」 up-right of the sight, next to the hit — not stacked
-  // over the number, not over the face
-  if (good) s.labelUpRight(LABEL.iioto, e.coreX, e.coreY, 'shu', 560, false, 3 * FRAME);
+  // 10.1: 「いい音！」 pairs with the number (over the head since QA round 2)
+  // — beside it, never over it, the face or the body. The first hit of a 2段
+  // strike keeps it short (300ms: the second ring and the sight come next)
+  if (good) s.labelForHit(LABEL.iioto, e, false, 'shu', o.two && !o.second ? 300 : 560);
   if (boke && s.enemies[0]?.id === 'enemy_hato_kakaricho') showSticky(s, 'bokemake', undefined, false, 2600);
   const killed = hurtEnemy(s, e, dmg, { crit, stack: o.stack });
   return { killed, hit: true, boke };
@@ -267,17 +269,29 @@ function* strikeOnce(
 
 function fanService(s: BattleScene, e: EnemyUnit): void {
   s.sfx('se_zero');
-  const img = heart();
+  const img = bigHeart();
+  // four hearts (11.x: 「ピンクのハートが4つ舞い」) pop off his bell and flutter
+  // outward and up, two to each side, clear of his face and of the net
+  const hx = e.faceX;
+  const hy = e.faceY - 6;
   for (let i = 0; i < 4; i++) {
-    const ox = rng.int(-14, 14);
-    const delay = i * 90;
+    const side = i % 2 === 0 ? -1 : 1;
+    const spread = 18 + (i >> 1) * 12;
+    const delay = i * 80;
     s.addFx({
-      layer: 'world',
+      layer: 'top',
       dur: 900 + delay,
+      ui: true,
       draw: (g, t) => {
         if (t < delay) return;
         const p = (t - delay) / 900;
-        g.alpha(1 - p, () => g.img(img, Math.round(e.coreX + ox + Math.sin(p * 8 + i) * 3), Math.round(e.coreY - 10 - p * 28)));
+        const k = ease.quadOut(Math.min(1, p * 1.6));
+        const x = hx + side * (8 + spread * k) + Math.sin(p * 9 + i) * 2;
+        const y = hy - 4 - 30 * p - (i >> 1) * 6 * k;
+        const sc = p < 0.12 ? 0.5 + (p / 0.12) * 0.7 : p < 0.2 ? 1.2 - ((p - 0.12) / 0.08) * 0.2 : 1;
+        const w = Math.round(img.width * sc);
+        const h = Math.round(img.height * sc);
+        g.alpha(p > 0.7 ? (1 - p) / 0.3 : 1, () => g.ctx.drawImage(img, Math.round(x - w / 2), Math.round(y - h / 2), w, h));
       },
     });
   }
@@ -315,7 +329,7 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
   const tut = !tackle && !flag('flag_tut_ring');
   if (tut) setFlag('flag_tut_ring', 1);
   const shrink1 = tut ? 58 : 29;
-  const net = { x: 0, y: 0, a: 0, alpha: 0, ghost: -1, visible: true, mesh: 1 };
+  const net = { x: 0, y: 0, a: 0, alpha: 0, ghost: -1, visible: true, mesh: 1, swing: 0 };
   const back = { x: 300, y: 200, sc: 1, frame: 'idle' as string, visible: tackle, alpha: 1 };
   let netFx: ReturnType<typeof s.addFx> | null = null;
   if (!tackle) {
@@ -368,7 +382,7 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
       s,
       u,
       t,
-      { power: two ? 0.6 : 1, lead, shrink, second: h === 1, tut: tut && h === 0, tackle, stack: h },
+      { power: two ? 0.6 : 1, lead, shrink, second: h === 1, two, tut: tut && h === 0, tackle, stack: h },
       (f, hitF, phase) => {
         if (tackle) {
           // two bouncing steps (0–240ms), then the body-slam toward the enemy
@@ -396,7 +410,10 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
         const ha = hitAngle();
         const dir = h === 1 ? -1 : 1;
         const windA = ha - dir * 1.2;
-        if (phase === 'pre' && f === 0) net.mesh = 1;
+        if (phase === 'pre' && f === 0) {
+          net.mesh = 1;
+          net.swing = h + 1;
+        }
         if (f < 7 && h === 0) {
           // slides in from off-screen lower-left, tilted back 20°
           const k = ease.quadOut(Math.min(1, f / 7));
@@ -409,11 +426,28 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
           net.y = p0.y;
           net.a = ha;
           net.ghost = -1;
-          net.alpha = 1;
+          if (phase === 'pre' || net.alpha > 0) net.alpha = 1;
           if (phase === 'post') {
-            // 2 frames after the hit the mesh thins out (the flash shows through)
-            s.addFx({ layer: 'top', dur: 2 * FRAME, ui: true, draw: () => {}, update() {
+            // QA round 2: the hoop no longer lingers over the body for 250ms.
+            // 2 frames after the hit the mesh thins out, then the net is
+            // snatched back (5 frames, through the hitstop) so the enemy's
+            // hurt face shows while the hit still hangs in the air
+            const swing = net.swing;
+            const bx = p0.x;
+            const by = p0.y;
+            s.addFx({ layer: 'top', dur: 7 * FRAME, ui: true, draw: () => {}, update() {
+              if (net.swing !== swing) {
+                this.done = true;
+                return;
+              }
               if (this.t >= 2 * FRAME - 1) net.mesh = 0.3;
+              const k = Math.max(0, Math.min(1, (this.t - 2 * FRAME) / (5 * FRAME)));
+              if (k <= 0) return;
+              const e2 = ease.quadIn(k);
+              net.a = ha - dir * 0.7 * e2;
+              net.x = bx - dir * 12 * e2;
+              net.y = by + 10 * e2;
+              net.alpha = 1 - k;
             } });
           }
         } else if (f >= hitF - 2) {
@@ -459,7 +493,7 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
           back.y = b0.y + (230 - b0.y) * ease.quadOut(p);
           back.sc = 0.7 + 0.3 * p;
           back.alpha = 1 - p * 0.6;
-        } else net.alpha = 1 - p;
+        } else net.alpha = Math.min(net.alpha, 1 - p);
         if (p >= 1 && netFx) netFx.done = true;
       },
     });
@@ -482,7 +516,7 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
     }
   } else {
     for (let i = 0; i <= 6; i++) {
-      net.alpha = 1 - i / 6;
+      net.alpha = Math.min(net.alpha, 1 - i / 6);
       yield null;
     }
   }
@@ -661,19 +695,10 @@ function stampFeel(s: BattleScene, e: EnemyUnit | null, x: number, y: number, j:
     s.shake(4, 4, 12);
     s.flash('#E23B2E', 0.1, 1);
     if (e) e.whiteFrames = 2;
-    s.shuSplash(x, y, 16);
-    if (heavyRing)
-      s.addFx({
-        layer: 'world',
-        dur: 250,
-        draw: (g, t) => {
-          const r = 8 + 40 * (t / 250);
-          g.alpha(1 - t / 250, () => {
-            g.ring(x, y, r, C.shu);
-            g.ring(x, y, r + 1, C.shu);
-          });
-        },
-      });
+    s.shuDrops(x, y, 16);
+    // the seal's ring spreads from the moment of impact, through the hitstop
+    // (QA round 2: in the world layer it only started once the stop was over)
+    if (heavyRing) stampRing(s, x, y);
     s.sfx('se_stamp_heavy');
     s.sfx('se_thud_low');
     label(LABEL.kukkiri, 'shu', false);
@@ -681,7 +706,7 @@ function stampFeel(s: BattleScene, e: EnemyUnit | null, x: number, y: number, j:
     s.hitstop(6);
     s.shake(2, 2, 8);
     if (e) e.whiteFrames = 1;
-    s.shuSplash(x, y, 8);
+    s.shuDrops(x, y, 8);
     s.sfx('se_stamp');
   } else {
     s.hitstop(4);
@@ -690,6 +715,28 @@ function stampFeel(s: BattleScene, e: EnemyUnit | null, x: number, y: number, j:
     s.sfx('se_stamp_light');
     label(LABEL.kasure, 'gray', true);
   }
+}
+
+/**
+ * The ring a firm seal throws off: vermilion with a cream inner line and an
+ * ink outer line, 8 → 48px in 250ms, running in real time from the impact.
+ */
+function stampRing(s: BattleScene, x: number, y: number): void {
+  s.addFx({
+    layer: 'top',
+    dur: 250,
+    ui: true,
+    draw: (g, t) => {
+      const p = t / 250;
+      const r = 8 + 40 * ease.quadOut(p);
+      g.alpha(1 - p * p, () => {
+        g.ring(x, y, r + 2, C.ink);
+        g.ring(x, y, r + 1, C.shu);
+        g.ring(x, y, r, C.shu);
+        g.ring(x, y, r - 1, C.flash);
+      });
+    },
+  });
 }
 
 /** Big mark falling from the top onto (x, y) in 90ms (easeInCubic). */
@@ -760,8 +807,8 @@ function* hankoPeke(s: BattleScene, u: PartyUnit, e: EnemyUnit, j: Judge): Co {
   fx.done = true;
   const x = e.coreX;
   const y = e.coreY;
-  stampFeel(s, e, x, y, j, true, !e.def.invulnerable && !e.status.shindafuri);
-  // the big X shrinks 96 → 20 and sticks as a decal
+  // the big X shrinks 96 → 20 and sticks as a decal (added first: the ring
+  // and the drops of the impact go over it)
   s.addFx({
     layer: 'top',
     dur: 150,
@@ -770,6 +817,7 @@ function* hankoPeke(s: BattleScene, u: PartyUnit, e: EnemyUnit, j: Judge): Co {
       g.ctx.drawImage(big, Math.round(x - sz / 2), Math.round(y - sz / 2), Math.round(sz), Math.round(sz));
     },
   });
+  stampFeel(s, e, x, y, j, true, !e.def.invulnerable && !e.status.shindafuri);
   if (e.def.invulnerable) {
     fanService(s, e);
     yield 400;
@@ -813,12 +861,13 @@ function* hankoMimashita(s: BattleScene, u: PartyUnit, e: EnemyUnit, j: Judge, p
   if (j === 'kukkiri') {
     s.sfx('se_stamp_heavy');
     if (!breaking) s.labelUpRight(LABEL.kukkiri, px, py, 'shu', 700);
-    s.addFx({ layer: 'world', dur: 250, draw: (g, t) => g.alpha(1 - t / 250, () => g.ring(px, py, 8 + 40 * (t / 250), C.shu)) });
+    stampRing(s, px, py);
   } else if (j === 'kasure') {
     s.sfx('se_stamp_light');
     if (!breaking) s.labelUpRight(LABEL.kasure, px, py, 'gray', 700, true);
   } else s.sfx('se_stamp');
-  s.shuSplash(px, py, j === 'kukkiri' ? 12 : 6);
+  if (j === 'kasure') s.shuSplash(px, py, 6, true);
+  else s.shuDrops(px, py, j === 'kukkiri' ? 12 : 6);
   // the stamp lingers briefly where it landed, then becomes the decal
   s.addFx({ layer: 'world', dur: 300, draw: (g, t) => g.alpha(1 - t / 300, () => g.img(stampImg, Math.round(px - stampImg.width / 2), Math.round(py - stampImg.height / 2))) });
   if (part && part.glow) {
@@ -874,19 +923,25 @@ function* hankoMimashita(s: BattleScene, u: PartyUnit, e: EnemyUnit, j: Judge, p
 function* hankoHanamaru(s: BattleScene, u: PartyUnit, t: PartyUnit, j: Judge): Co {
   const [px, py] = PANEL_POS[t.id];
   const stamp = hankoCloseup(0);
-  // the hanko presses down onto the panel (panel sinks 2px)
-  const st = { y: -60, alpha: 1 };
+  // the hanko presses down onto the member's photo (QA round 2: it used to
+  // land in the air beside the enemy): the rubber face (image rows 44–54,
+  // x10–38) comes to rest on the photo (py+6…py+38) and the panel sinks 2px
+  const st = { y: -80, alpha: 1 };
   const sfx = s.addFx({
     layer: 'top',
     dur: 0,
     ui: true,
-    draw: (g) => g.alpha(st.alpha, () => g.img(stamp, px + 44, Math.round(py - 58 + st.y))),
+    draw: (g) => {
+      const { dx, dy } = panelOffset(t);
+      g.alpha(st.alpha, () => g.img(stamp, px + 20 - 24 + dx, Math.round(py + 30 - 54 + st.y + dy)));
+    },
   });
   for (let i = 1; i <= 6; i++) {
-    st.y = -60 + 60 * ease.cubicIn(i / 6);
+    st.y = -80 + 80 * ease.cubicIn(i / 6);
     yield null;
   }
-  t.squishT = 160;
+  t.squishT = 200;
+  s.shake(0, 1, 3);
   s.sfx('se_stamp');
   s.hitstop(j === 'kukkiri' ? 8 : 4);
   for (let i = 0; i < 8; i++) {
@@ -1401,11 +1456,14 @@ export function* doNori(s: BattleScene): Co {
     },
   });
   yield 150;
+  // the manga panel (focus lines, performer, lettering, photo) dissolves
+  // away through a 4×4 dither at the end instead of cutting in one frame
+  const dis = { k: 0 };
   // 150–350: background switches to vermilion focus lines + sunset band
   const bgFx = s.addFx({
     layer: 'back',
     dur: 0,
-    draw: (g, t) => {
+    draw: (g0, t) => ditherDraw(g0, dis.k, (g) => {
       g.rect(0, 0, 384, 150, '#F2894B');
       g.rect(0, 60, 384, 40, '#F7C27A');
       g.rect(0, 100, 384, 50, '#E8603C');
@@ -1423,7 +1481,7 @@ export function* doNori(s: BattleScene): Co {
         ctx.fill();
       }
       ctx.restore();
-    },
+    }),
   });
   duckMusic(0.25, first ? 2.6 : 1.5);
   yield 200;
@@ -1447,7 +1505,7 @@ export function* doNori(s: BattleScene): Co {
       }
       for (let i = notes.length - 1; i >= 0; i--) if (notes[i].t > 900) notes.splice(i, 1);
     },
-    draw: (g, t) => {
+    draw: (g0, t) => ditherDraw(g0, dis.k, (g) => {
       const ctx = g.ctx;
       const sc = spot.sc;
       const lx = Math.round(kf.x);
@@ -1524,7 +1582,7 @@ export function* doNori(s: BattleScene): Co {
         g.alpha(Math.max(0, a), () => g.img(im, Math.round(n.x + wob - im.width / 2), Math.round(n.y - im.height / 2)));
       }
       ctx.restore();
-    },
+    }),
   });
   const bokeMs = first ? 1000 : 400;
   s.msgInteractive = false;
@@ -1601,15 +1659,21 @@ export function* doNori(s: BattleScene): Co {
   bokeFx.done = !first ? true : bokeFx.done;
   // 1500: tsukkomi — Minato's face ×2 slides in from the lower left, under
   // the lettering (never behind it); the two tiers slam down to the right
-  const face = portrait('minato', 'tsukkomi');
+  const face = portrait('minato', 'tsukkomi', { size: 64 });
   const upper = kakimojiSmall('……って、');
   const lower = kakimoji(nori.line, true, s.seed + pick);
   const LOW_Y = 66;
   const lowCx = Math.max(Math.round(lower.width / 2) + 2, Math.min(382 - Math.round(lower.width / 2), 208));
+  // the ノリツッコミ line in the band as the cut-in lands (QA round 2: the
+  // enemy's last flavour line was still up there)
+  s.msg.replace(NORI_COMMON[0]);
+  const letterRect = { x0: Math.round(lowCx - lower.width / 2), y0: LOW_Y - 18, x1: Math.round(lowCx + lower.width / 2) + 2, y1: LOW_Y + lower.height };
   const tsFx = s.addFx({
     layer: 'top',
     dur: 0,
-    draw: (g, t) => {
+    // the numbers pop over the panel, but never on the lettering
+    block: () => (dis.k >= 1 ? null : letterRect),
+    draw: (g0, t) => ditherDraw(g0, dis.k, (g) => {
       // the photo: 64×64 in a paper frame at (8,110), taped on two corners;
       // it jolts 2px when the lettering lands
       const jolt = t >= 60 && t < 180 ? Math.round(Math.sin((t - 60) / 12) * 2) : 0;
@@ -1631,14 +1695,16 @@ export function* doNori(s: BattleScene): Co {
       const lx = lowCx - lower.width / 2;
       g.img(upper, Math.round(lx + 6), LOW_Y - 18);
       g.ctx.drawImage(lower, Math.round(lowCx - w / 2 + sh), Math.round(LOW_Y + (lower.height - h) / 2), Math.round(w), Math.round(h));
-    },
+    }),
   });
   s.sfx('se_bishi', { vol: 1.3 });
   yield first ? 200 : 100;
   // 1700 / 900: impact on every enemy
   const targets = s.aliveEnemies;
   s.hitstop(16);
-  s.flash('#FFF6D8', 1, 2);
+  // white 2f (the second one lighter, so the struck silhouettes already show)
+  s.flash('#FFF6D8', 0.55, 1);
+  s.flash('#FFF6D8', 0.55, 2);
   s.addFx({ layer: 'top', dur: 0, ui: true, draw: () => {}, update() {
     if (this.t > 2 * FRAME && this.t < 6 * FRAME) s.tint2 = { color: '#E23B2E', alpha: 0.3 };
     else if (this.t >= 6 * FRAME) {
@@ -1653,34 +1719,125 @@ export function* doNori(s: BattleScene): Co {
   const atkM = s.minato?.m.atk ?? 0;
   const atkK = s.kanenari?.m.atk ?? 0;
   const killed: EnemyUnit[] = [];
-  const dealt: [EnemyUnit, number][] = [];
-  targets.forEach((e) => {
-    e.whiteFrames = 2;
+  // the enemies come out of the dimming at once: this is their hit
+  dark.off = true;
+  dark.a = 0;
+  targets.forEach((e, i) => {
+    e.whiteFrames = 5;
+    noriStruck(s, e);
     if (e.def.invulnerable) return;
     const dmg = fixedDamage((atkM + atkK) * 2.5, attrMul(e, 'wara'));
-    dealt.push([e, dmg]);
-    // the numbers wait until the lettering has gone (16.10: 2000–3000ms)
     if (hurtEnemy(s, e, dmg, { big: true, stack: 0, noNumber: true })) killed.push(e);
     else e.status.bokemake = true;
-    knock(s, e, 5);
+    // QA round 2: the numbers pop right after the flash, over the manga
+    // panel — under the lettering, over the struck bodies — not after the
+    // background has come back
+    const nx = Math.round(e.def.boss ? e.coreX + 36 : e.coreX);
+    const ny = Math.max(letterRect.y1 + NUM_BIG_H + 16 + 2, Math.min(e.footY - 4, 144));
+    s.number(nx, ny, dmg, { big: true, delay: 3 * FRAME + i * 60, backing: true }, 'enemy', e);
   });
-  dark.off = true;
-  dark.a = 0.2;
-  yield 300;
+  yield first ? 260 : 160;
+  // the panel dissolves (6 frames) back to the battle
+  for (let i = 1; i <= 6; i++) {
+    dis.k = i / 6;
+    yield null;
+  }
   tsFx.done = true;
   bokeFx.done = true;
   bgFx.done = true;
   darkFx.done = true;
-  dealt.forEach(([e, dmg], i) => {
-    const [nx, ny] = s.enemyNumberXY(e, true);
-    s.number(nx, ny, dmg, { big: true, delay: i * 60, backing: true }, 'enemy', e);
-  });
+  yield () => !s.msg.busy;
   if (killed.length) {
     // everyone who fell shrinks together, dropping 100ms apart
-    yield* s.say(NORI_COMMON.slice(0, 1));
     yield* killSequence(s, killed);
     if (s.aliveEnemies.length) yield* s.say(NORI_COMMON.slice(1));
-  } else yield* s.say(NORI_COMMON);
+  } else yield* s.say(NORI_COMMON.slice(1));
+}
+
+/** Height of a big damage number (for placing them under the lettering). */
+const NUM_BIG_H = 19;
+
+/**
+ * An enemy struck by the ノリツッコミ: through the 16f hitstop (in real
+ * time) it squashes flat, springs up 7px stretched, lands with a small
+ * squash and is shoved back 5px — so the hit has a body, under the lettering.
+ */
+function noriStruck(s: BattleScene, e: EnemyUnit): void {
+  s.addFx({
+    layer: 'back',
+    dur: 420,
+    ui: true,
+    draw: () => {},
+    update() {
+      if (e.dying) {
+        this.done = true;
+        return;
+      }
+      const t = this.t;
+      if (t < 60) {
+        e.sy = 0.76;
+        e.sx = 1.2;
+        e.offY = 0;
+        e.offX = 5;
+      } else if (t < 230) {
+        const p = (t - 60) / 170;
+        e.offY = -Math.round(Math.sin(p * Math.PI) * 7);
+        e.sy = 1.1 - 0.1 * p;
+        e.sx = 0.94 + 0.06 * p;
+        e.offX = 5;
+      } else if (t < 290) {
+        const p = (t - 230) / 60;
+        e.offY = 0;
+        e.sy = 0.9 + 0.1 * p;
+        e.sx = 1.08 - 0.08 * p;
+      } else {
+        const p = Math.min(1, (t - 290) / 130);
+        e.sx = e.sy = 1;
+        e.offX = Math.round(5 * (1 - ease.quadOut(p)));
+      }
+      if (t >= 415) {
+        e.offX = e.offY = 0;
+        e.sx = e.sy = 1;
+      }
+    },
+  });
+}
+
+let ditherBuf: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
+const ditherPats: (CanvasPattern | null)[] = [];
+
+/**
+ * Draw `fn` dissolved by `k` (0 = whole, 1 = gone) through a 4×4 Bayer
+ * pattern: rendered to a scratch canvas, the pattern's cells punched out.
+ */
+function ditherDraw(g: Gfx, k: number, fn: (g: Gfx) => void): void {
+  if (k <= 0) {
+    fn(g);
+    return;
+  }
+  if (k >= 1) return;
+  ditherBuf ??= makeCanvas(384, 216);
+  const [c, ctx] = ditherBuf;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  ctx.clearRect(0, 0, 384, 216);
+  ctx.save();
+  fn(new Gfx(ctx, 384, 216));
+  ctx.restore();
+  const lv = Math.max(1, Math.min(15, Math.round(k * 16)));
+  let pat = ditherPats[lv];
+  if (!pat) {
+    const [pc, pctx] = makeCanvas(4, 4);
+    pctx.fillStyle = '#000';
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) if (BAYER4[y][x] < lv) pctx.fillRect(x, y, 1, 1);
+    pat = ctx.createPattern(pc, 'repeat');
+    ditherPats[lv] = pat;
+  }
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = pat!;
+  ctx.fillRect(0, 0, 384, 216);
+  ctx.globalCompositeOperation = 'source-over';
+  g.ctx.drawImage(c, 0, 0);
 }
 
 export { hitFeel as enemyHitFeel };

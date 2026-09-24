@@ -374,6 +374,85 @@ export function poolSoft(rx: number, ry: number, rgb: string): HTMLCanvasElement
   return c;
 }
 
+const bandCache = new Map<string, HTMLCanvasElement>();
+/**
+ * A pool with a readable outline: three flat levels (core, body, rim) of an
+ * ellipse, each joined to the next by a 1px checker ring, and a checker rim
+ * fading into the floor — an oval of light, not a soft haze whose edge the
+ * floor's own tile edges out-draw (QA round 2, the laundry's dryer No.3).
+ */
+export function poolBands(rx: number, ry: number, rgb: string): HTMLCanvasElement {
+  rx = Math.round(rx);
+  ry = Math.round(ry);
+  const key = `${rx},${ry},${rgb}`;
+  let c = bandCache.get(key);
+  if (c) return c;
+  const p = new PixelCanvas(rx * 2, ry * 2);
+  const [r, g, b] = rgb.split(',').map(Number);
+  // [outer edge of the band (normalised radius), its level]
+  const BANDS: [number, number][] = [
+    [0.42, 1],
+    [0.72, 0.62],
+    [0.9, 0.34],
+    [1, 0.16],
+  ];
+  const levelAt = (d: number) => {
+    for (const [e, v] of BANDS) if (d < e) return v;
+    return 0;
+  };
+  // a ring about 1px wide at each band edge takes the outer level on every other pixel
+  const ring = 1.1 / Math.max(rx, ry);
+  for (let y = 0; y < ry * 2; y++)
+    for (let x = 0; x < rx * 2; x++) {
+      const dx = (x + 0.5 - rx) / rx;
+      const dy = (y + 0.5 - ry) / ry;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d >= 1) continue;
+      let v = levelAt(d);
+      if (((x + y) & 1) === 1 && levelAt(d + ring) < v) v = levelAt(d + ring);
+      if (v <= 0) continue;
+      p.set(x, y, ((Math.round(v * 255) << 24) | (b << 16) | (g << 8) | r) >>> 0);
+    }
+  c = p.toCanvas();
+  bandCache.set(key, c);
+  return c;
+}
+
+/**
+ * A coloured oval of light on a pale floor (call from over()): poolBands
+ * multiplied in to tint the tiles (the colour survives a pale floor), a
+ * little screen on top so its core reads as light.
+ */
+export function warmOval(g: Gfx, cx: number, cy: number, rx: number, ry: number, col: string, a: number): void {
+  if (a <= 0.004) return;
+  const img = poolBands(rx, ry, rgbOf(col));
+  const ctx = g.ctx;
+  ctx.save();
+  const x = Math.round(cx - img.width / 2);
+  const y = Math.round(cy - img.height / 2);
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.globalAlpha = Math.min(1, a * 0.6);
+  ctx.drawImage(img, x, y);
+  ctx.globalCompositeOperation = 'screen';
+  ctx.globalAlpha = Math.min(1, a * 0.3);
+  ctx.drawImage(img, x, y);
+  ctx.restore();
+}
+
+/** poolBands screened in (call from glow(): after the grade, so a stage's desaturation can't drain it). */
+export function screenOval(g: Gfx, cx: number, cy: number, rx: number, ry: number, col: string, a: number): void {
+  if (a <= 0.004) return;
+  const img = poolBands(rx, ry, rgbOf(col));
+  const ctx = g.ctx;
+  const pa = ctx.globalAlpha;
+  const pc = ctx.globalCompositeOperation;
+  ctx.globalCompositeOperation = 'screen';
+  ctx.globalAlpha = Math.min(1, a);
+  ctx.drawImage(img, Math.round(cx - img.width / 2), Math.round(cy - img.height / 2));
+  ctx.globalAlpha = pa;
+  ctx.globalCompositeOperation = pc;
+}
+
 /** Additive pool of light into the light map. */
 export function lightPool(g: Gfx, cx: number, cy: number, rx: number, ry: number, col: string, a: number): void {
   if (a <= 0.004) return;

@@ -7,7 +7,7 @@ import { rng } from '../engine/rng';
 import { ease } from '../engine/tween';
 import { flag, setFlag, state } from '../game/state';
 import { currentSpace, musicEncounter, musicReturnToField, playBgm, setSpace, sfx, stopBgm } from '../audio';
-import { fillAll, syncProgressSkills, SYS, getEnemy } from '../data/battle';
+import { fillAll, syncProgressSkills, SYS, getEnemy, getItem, getSkill } from '../data/battle';
 import type { BattleResult } from './api';
 import type { BattleScene } from './scene';
 import { FRAME } from './scene';
@@ -105,6 +105,7 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
     }
     if (s.isBoss) yield* bossRoundStart(s);
     // commands
+    s.noteActing('');
     const cmds = yield* inputCommands(s);
     hideSticky(s);
     // enemy decisions
@@ -176,6 +177,7 @@ function semiRound(s: BattleScene, round: number): void {
 function* runParty(s: BattleScene, c: PartyCmd): Co<BattleResult | null> {
   const u = c.u;
   if (c.kind === 'skip') {
+    s.noteActing('');
     const t = u.has('status_nemuri') ? 'status_nemuri' : u.has('status_tsukamare') ? 'status_tsukamare' : u.has('status_toosenbo') ? 'status_toosenbo' : '';
     if (t && u.alive) {
       s.memo['blocked_' + u.id] = 1;
@@ -196,6 +198,7 @@ function* runParty(s: BattleScene, c: PartyCmd): Co<BattleResult | null> {
   }
   // the acting member's panel lifts 3px and turns vermilion (reaction ≤ 10f)
   u.acting = true;
+  noteMove(s, c);
   if (c.kind === 'nori' && s.kanenari) s.kanenari.acting = true;
   if (c.kind === 'nori' && s.minato) s.minato.acting = true;
   let result: BattleResult | null = null;
@@ -226,6 +229,35 @@ function* runParty(s: BattleScene, c: PartyCmd): Co<BattleResult | null> {
   const boss = s.enemies.find((e) => e.def.boss && e.alive);
   if (boss && !result) yield* checkBossPhase(s, boss);
   return result;
+}
+
+/** The command notebook shows the move being played out (QA round 2). */
+function noteMove(s: BattleScene, c: PartyCmd): void {
+  switch (c.kind) {
+    case 'attack':
+      s.noteActing(c.u.id === 'kanenari' ? 'タックル' : 'たたく', c.u.id === 'kanenari' ? 'tackle' : 'tataku');
+      break;
+    case 'hanko':
+      s.noteActing(getSkill(c.skill)?.name ?? 'ハンコ', c.skill === 'skill_okaerinasai' ? 'okaeri' : 'hanko');
+      break;
+    case 'pr':
+      s.noteActing(getSkill(c.skill)?.name ?? 'PR活動', 'pr');
+      break;
+    case 'item':
+      s.noteActing(getItem(c.item)?.name ?? 'もちもの', 'item');
+      break;
+    case 'guard':
+      s.noteActing('まもる', 'guard');
+      break;
+    case 'flee':
+      s.noteActing('にげる', 'flee');
+      break;
+    case 'nori':
+      s.noteActing('ノリ\nツッコミ', 'pr');
+      break;
+    default:
+      s.noteActing('');
+  }
 }
 
 function* checkEnd(s: BattleScene): Co<BattleResult | null> {

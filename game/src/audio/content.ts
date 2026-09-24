@@ -13,4 +13,5 @@ import './sfx';
 import './voices';
 import './report';
 import './debugcmds';
+// the sound test registers only in dev builds (40_audio 15.4: not in the product)
 import './soundtest';

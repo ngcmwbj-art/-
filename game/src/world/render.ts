@@ -112,7 +112,7 @@ export class Renderer {
     this.xctx = this.xc.getContext('2d', { willReadFrequently: true })!;
     this.xctx.imageSmoothingEnabled = false;
     this.xg = new Gfx(this.xctx, 64, 96);
-    for (let i = 0; i < 2; i++) this.seerMasks.push(makeCanvas(48, 64));
+    for (let i = 0; i < 2; i++) this.seerMasks.push(makeCanvas(48, 64, { willReadFrequently: true }));
   }
 
   /** Does this map have props that cast light (so an indoor night can be dark round them)? */
@@ -148,6 +148,19 @@ export class Renderer {
     this.ambT -= dt;
     if (this.ambT > 0) return;
     this.ambT = 160;
+    this.positionalAmbience();
+  }
+
+  /** The beds whose level positionalAmbience() sets on this map and stage. */
+  positionalBeds(): string[] {
+    if (this.f.map.id !== 'map_town') return [];
+    const beds = ['amb_kawabe', 'amb_arcade', 'amb_wind', 'amb_train_far'];
+    if (flag('flag_stage') === 0) beds.push('amb_higurashi');
+    return beds;
+  }
+
+  /** Town beds by where Minato stands (river, arcade, open ground, the crossing, the higurashi tree). */
+  positionalAmbience(): void {
     const m = this.f.map;
     if (m.id !== 'map_town') return;
     const tx = this.f.player.x / 16;
@@ -300,8 +313,15 @@ export class Renderer {
     for (const a of actors) {
       if (!a.visible) continue;
       if (!visible(a.x - 24, a.y - 48, 48, 56)) continue;
+      // [chars hook, QA round 2] the follower walking right behind Minato
+      // (he faces up, the bell is 16px south of his feet) would cover him
+      // from the chest down: where their sprites overlap, the leader is
+      // drawn on top — unless a scene has taken カネナリくん over
+      const under =
+        a === f.follower && !a.anim && !a.tempPose && !a.data.scripted &&
+        a.y > f.player.y && a.y - f.player.y < 22 && Math.abs(a.x - f.player.x) < 13;
       const d: Drawable = {
-        foot: a.y + Math.max(0, a.oy) + (a.kind === 'restored' ? -2 : 0),
+        foot: under ? f.player.y - 0.01 : a.y + Math.max(0, a.oy) + (a.kind === 'restored' ? -2 : 0),
         x: a.x,
         actor: a,
         draw: () => {
@@ -326,7 +346,7 @@ export class Renderer {
       if (s.blinkUntil > f.t && Math.floor(f.t / 80) % 2 === 0) continue;
       const img = s.frame();
       const [ix, iy] = s.drawPos(img);
-      while (this.seerMasks.length <= i) this.seerMasks.push(makeCanvas(48, 64));
+      while (this.seerMasks.length <= i) this.seerMasks.push(makeCanvas(48, 64, { willReadFrequently: true }));
       const [mask, mctx] = this.seerMasks[i];
       if (mask.width < img.width || mask.height < img.height) {
         mask.width = Math.max(mask.width, img.width);
@@ -370,6 +390,8 @@ export class Renderer {
     for (const s of sil) if (s.used && !s.fg) this.drawSilhouette(s);
 
     // 6. foreground
+    const fadeSeers: Actor[] = [...seers];
+    for (const a of f.actors) if (a.kind === 'sym' && a.visible) fadeSeers.push(a);
     for (const p of f.props) {
       if (!p.present || !p.art.fg) continue;
       for (const part of p.art.fg) {
@@ -381,9 +403,13 @@ export class Renderer {
         let alpha = 1;
         if (part.fade) {
           const fr = part.fade;
-          const px = f.player.x;
-          const py = f.player.y - 8;
-          const under = px >= p.x + fr.x && px < p.x + fr.x + fr.w && py >= p.y + fr.y && py < p.y + fr.y + fr.h;
+          // the party, or an enemy symbol, standing under it (QA round 2:
+          // a symbol behind the arch's board was lost)
+          const under = fadeSeers.some((a) => {
+            const px = a.x + a.ox;
+            const py = a.y - 8;
+            return px >= p.x + fr.x && px < p.x + fr.x + fr.w && py >= p.y + fr.y && py < p.y + fr.y + fr.h;
+          });
           const cur = this.fade.get(part) ?? 1;
           const tgt = under ? fr.alpha : 1;
           const next = cur + Math.sign(tgt - cur) * Math.min(Math.abs(tgt - cur), 16.7 / 200);
@@ -624,7 +650,12 @@ export class Renderer {
     x.globalAlpha = 1;
   }
 
-  /** The parts of a seer hidden by what was drawn in front of it, as a #2A2440 α50% silhouette. */
+  /**
+   * The parts of a seer hidden by what was drawn in front of it, as a
+   * #2A2440 α50% silhouette. Enemy symbols get a readable one instead (QA
+   * round 2: a grey blot on a white sign didn't read as an enemy): a 60%
+   * fill inside a 1px dark wine outline along the sprite's own edge.
+   */
   private drawSilhouette(s: Seer): void {
     const m = s.mctx;
     const w = s.img.width;
@@ -632,6 +663,29 @@ export class Renderer {
     m.globalAlpha = 1;
     m.globalCompositeOperation = 'destination-in';
     m.drawImage(s.img, 0, 0);
+    if (s.a.kind === 'sym') {
+      m.globalCompositeOperation = 'source-over';
+      const id = m.getImageData(0, 0, w, h);
+      const d = new Uint32Array(id.data.buffer);
+      const sm = alphaMask(s.img).m;
+      const inSprite = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && sm[y * w + x] === 1;
+      const edge = rgba32(SIL_EDGE) & 0x00ffffff;
+      const fill = rgba32(P.ink) & 0x00ffffff;
+      for (let y = 0; y < h; y++)
+        for (let x = 0; x < w; x++) {
+          const i = y * w + x;
+          // how opaque the thing in front is here (a faded sign hides less)
+          const k = d[i] >>> 24;
+          if (!k) continue;
+          const rim = !inSprite(x - 1, y) || !inSprite(x + 1, y) || !inSprite(x, y - 1) || !inSprite(x, y + 1);
+          d[i] = (rim ? edge | (k << 24) : fill | (Math.round(0.6 * k) << 24)) >>> 0;
+        }
+      m.putImageData(id, 0, 0);
+      this.wctx.globalAlpha = s.a.alpha ?? 1;
+      this.wctx.drawImage(s.mask, 0, 0, w, h, s.x, s.y, w, h);
+      this.wctx.globalAlpha = 1;
+      return;
+    }
     m.globalCompositeOperation = 'source-in';
     m.fillStyle = P.ink;
     m.fillRect(0, 0, w, h);
@@ -1156,6 +1210,9 @@ function xrayOf(a: PropInst['art']): number | undefined {
   if (a.xray !== undefined) return a.xray;
   return a.h >= 36 && a.w <= 40 ? 0 : undefined;
 }
+
+/** Outline of an enemy symbol's silhouette behind something (a dark wine, not the ink of the props). */
+const SIL_EDGE = '#6E1E3C';
 
 /** Margin (px) of the scratch canvas round a composed x-ray prop (its over() parts reach out). */
 const XM = 20;

@@ -29,10 +29,10 @@ import { DIR_VEC } from '../world/actor';
 import type { Actor } from '../world/actor';
 import { uiHud } from '../ui/hud';
 import * as T from '../data/text/events';
-import { besideToward, dirTo, eventBattle, F, floatLine, getKeyItem, giveKey, holdBgm, holdCamera, panBack, sendAway, settle, tileFree, walkTo } from './lib';
+import { besideToward, dirTo, eventBattle, F, floatLine, giveKey, holdBgm, holdCamera, panBack, sendAway, settle, tileFree, walkTo } from './lib';
 import { burst, playCaseGift, puff, smallVoice, sparkle } from './fx';
 import { meishi } from './art';
-import { cinema, guideNearHanko, zoomIn, zoomIntoBattle } from './stage';
+import { cinema, guideNearHanko, keyGuide, zoomIn, zoomIntoBattle } from './stage';
 import { registerWorldFx } from '../world/fx';
 import { animate, ease } from '../engine/tween';
 
@@ -270,8 +270,10 @@ function* hatoBlock(): Co {
     setFlag('flag_maido_hold', 1);
     const z = yield* zoomIn(Math.round((p.x + hato.x) / 2), Math.round(Math.max(p.y, hato.y)) - 14, 380);
     if (tries === 0) {
+      // a pigeon's coo, only a small balloon (no window: the chain is kept short)
       sfx('se_coo');
-      yield* msg(T.HATO_COO);
+      smallVoice('npc_hato', 'クルッ', 750);
+      yield 800;
       // the card, held out in both wings
       yield* offerCard(hato);
       yield* msg(T.HATO_CARD);
@@ -327,7 +329,10 @@ function* hatoBlock(): Co {
   card.on = false;
   p.tempPose = null;
   yield 120;
-  yield* getKeyItem('item_hato_meishi', T.HATO_GET);
+  // the pick-up card in the corner says it (no window: the chain is kept short)
+  giveKey('item_hato_meishi');
+  sfx('se_item');
+  yield 500;
   setFlag('flag_hato_beaten', 1);
   yield* hankoGiven();
 }
@@ -384,8 +389,12 @@ function* hankoGiven(): Co {
   playBgm('bgm_town_s1', { fade: 1.5 });
   const ob = yield* obaaComesOut(near);
   yield 200;
-  yield* msg(flag('flag_met_obaa') ? T.HANKO_A : T.HANKO_A_NOVISIT);
-  yield* msg(T.HANKO_B);
+  // (ひのや not visited: she introduces herself first, then asks)
+  if (flag('flag_met_obaa')) yield* msg(T.HANKO_AB);
+  else {
+    yield* msg(T.HANKO_A_NOVISIT);
+    yield* msg(T.HANKO_B);
+  }
   // the case, opened in the middle of the screen
   playBgm('bgm_jingle_item');
   yield* playCaseGift(T.HANKO_GET);
@@ -488,6 +497,8 @@ registerScript('evt_obaa_park_hint', function* (ctx): Co {
   setFlag('flag_park_hint', 1);
   yield 200;
   if (ob) yield* obaaGoesIn(ob);
+  // the walk to the park begins: the dash and the menu, once (right of the HUD hanko)
+  keyGuide(T.GUIDE_MENU, 5000, 38);
 });
 
 // ---------------------------------------------------------------- 5.10 evt_alley_open

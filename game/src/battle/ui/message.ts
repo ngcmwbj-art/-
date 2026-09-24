@@ -75,6 +75,9 @@ function splitTag(t: string): string[] {
   return [ch.slice(0, cut).join(''), ch.slice(cut).join('')];
 }
 
+/** How long the band takes to unroll when its first line arrives (ms). */
+const OPEN_MS = 110;
+
 export interface BandPageOpts {
   /** Wait for confirm instead of auto-advancing. */
   manual?: boolean;
@@ -128,6 +131,13 @@ export class MessageBand {
   private blockingId = 0;
   private finishedId = 0;
   private waitingManual = false;
+  /**
+   * The band stays closed until its first line arrives, then unrolls with
+   * it (QA round 2: at every battle start it sat open and blank for 0.5–1s,
+   * all through the boss's rise out of the dark).
+   */
+  private opened = false;
+  private openT = 0;
 
   get busy(): boolean {
     return this.cur !== null || this.queue.length > 0;
@@ -229,6 +239,8 @@ export class MessageBand {
   /** `confirm` = a confirm press this frame (only used for blocking pages). */
   update(dt: number, confirm: boolean): void {
     this.t += dt;
+    if (!this.opened && (this.cur || this.staticLayout || this.linger)) this.opened = true;
+    if (this.opened && this.openT < OPEN_MS) this.openT = Math.min(OPEN_MS, this.openT + dt);
     const L0 = this.cur ?? this.staticLayout ?? this.linger;
     const lines = L0 ? L0.lines : 1;
     const targetH = this.bossMode ? (lines >= 2 ? 44 : 26) : 44;
@@ -271,8 +283,10 @@ export class MessageBand {
   }
 
   draw(g: Gfx): void {
-    if (this.hidden) return;
-    const h = Math.round(this.h);
+    if (this.hidden || !this.opened) return;
+    // unrolls from its top edge in OPEN_MS (the text rows appear as they fit)
+    const k = this.openT >= OPEN_MS ? 1 : 1 - (1 - this.openT / OPEN_MS) ** 2;
+    const h = Math.max(6, Math.round(this.h * k));
     drawNote(g, this.x, this.y, this.w, h, { margin: 8 }, this.alpha);
     let tagW = 0;
     if (this.tag) {

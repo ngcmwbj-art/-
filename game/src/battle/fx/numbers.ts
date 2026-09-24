@@ -37,7 +37,7 @@ const BIG: string[][] = [
   ['..####..', '.##..##.', '##....##', '##....##', '##....##', '.##..###', '..######', '......##', '......##', '.....##.', '.....##.', '....##..', '.###....', '.##.....'],
 ];
 
-export type NumKind = 'dmg' | 'heal' | 'mp' | 'zero' | 'crit';
+export type NumKind = 'dmg' | 'dmg2' | 'heal' | 'mp' | 'zero' | 'crit';
 
 interface Palette {
   core: string;
@@ -48,6 +48,9 @@ interface Palette {
 
 const PAL: Record<NumKind, Palette> = {
   dmg: { core: C.white, edge: C.shu, outer: C.ink },
+  // the second hit of a 2段 strike: inverted (vermilion digits, white edge),
+  // so the two numbers never read as one
+  dmg2: { core: C.shu, hi: C.shuLight, edge: C.white, outer: C.ink },
   crit: { core: C.flash, edge: C.shu, outer: C.ink },
   heal: { core: C.green, hi: C.greenLight, edge: C.greenDark, outer: C.white },
   mp: { core: C.shu, hi: C.shuLight, edge: C.shuDark, outer: C.white },
@@ -228,6 +231,32 @@ export interface NumOpts {
    * melts into a red enemy or the red band of a background without it.
    */
   backing?: boolean;
+  /**
+   * An opaque ink plate with rounded corners instead (QA round 2): over a
+   * busy red-and-cream enemy (the vending machine's can rows) the soft
+   * plate still let the digits camouflage.
+   */
+  plate?: boolean;
+}
+
+const plateCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+/** Rounded ink plate (2px larger than the number all round) with a 1px violet rim. */
+function plateFor(img: HTMLCanvasElement): HTMLCanvasElement {
+  let p = plateCache.get(img);
+  if (p) return p;
+  const w = img.width + 4;
+  const h = img.height + 2;
+  const [c, ctx] = makeCanvas(w, h);
+  ctx.fillStyle = '#5B4A7A';
+  ctx.fillRect(2, 0, w - 4, h);
+  ctx.fillRect(1, 1, w - 2, h - 2);
+  ctx.fillRect(0, 2, w, h - 4);
+  ctx.fillStyle = '#1B1733';
+  ctx.fillRect(2, 1, w - 4, h - 2);
+  ctx.fillRect(1, 2, w - 2, h - 4);
+  p = c;
+  plateCache.set(img, p);
+  return p;
 }
 
 const backingCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
@@ -259,6 +288,7 @@ export class DamageNumber {
   private delay: number;
   private drift: number;
   private backing: boolean;
+  private plate: boolean;
 
   constructor(
     public x: number,
@@ -273,6 +303,13 @@ export class DamageNumber {
     this.delay = o.delay ?? 0;
     this.drift = o.drift ?? 6;
     this.backing = !!o.backing;
+    this.plate = !!o.plate;
+  }
+
+  /** A shorter rise (the next number of a multi-hit pops almost in place). */
+  setRise(px: number): void {
+    this.rise = px;
+    this.drift = Math.min(this.drift, 2);
   }
 
   /** Where the number comes to rest (after the rise and the 6px drift). */
@@ -341,7 +378,13 @@ export class DamageNumber {
     const prev = ctx.globalAlpha;
     const X = Math.round(this.x + dx - w / 2);
     const Y = Math.round(this.y + dy - h);
-    if (this.backing) {
+    if (this.plate) {
+      const b = plateFor(this.img);
+      const kx = w / this.img.width;
+      const ky = h / this.img.height;
+      ctx.globalAlpha = prev * a * 0.94;
+      ctx.drawImage(b, Math.round(X - 2 * kx), Math.round(Y - 1 * ky), Math.round(b.width * kx), Math.round(b.height * ky));
+    } else if (this.backing) {
       const b = backingFor(this.img);
       const kx = w / this.img.width;
       const ky = h / this.img.height;

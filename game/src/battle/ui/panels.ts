@@ -56,7 +56,11 @@ export function panelOffset(u: PartyUnit): { dx: number; dy: number } {
   }
   let dy = -Math.round(u.lift) + Math.round(u.drop);
   if (u.bounceT > 0) dy -= Math.round(Math.abs(Math.sin((u.bounceT / 250) * Math.PI)) * u.bounceAmp);
-  if (u.squishT > 0) dy += Math.round(Math.sin((1 - u.squishT / 160) * Math.PI) * 2);
+  if (u.squishT > 0) {
+    // pressed: the panel sinks 2px at once, holds, then springs back
+    const p = 1 - u.squishT / 200;
+    dy += p < 0.55 ? 2 : Math.round(2 * (1 - (p - 0.55) / 0.45));
+  }
   return { dx, dy };
 }
 
@@ -192,6 +196,14 @@ export function drawCommand(g: Gfx, v: CmdView, t: number, alpha: number): void 
   const n = v.icons.length;
   const xs = n >= 5 ? [10, 27, 44, 61, 78] : n === 4 ? [18, 35, 52, 69] : n === 1 ? [44] : [27, 44, 61].slice(0, n);
   g.alpha(alpha, () => {
+    if (v.onTab && v.noriTab) {
+      // on the ノリツッコミ tab (QA round 2: the rows stood empty): the three
+      // lit "!" it spends, and what it does — both of us, every enemy
+      for (let i = 0; i < 3; i++) g.img(kireIcon(true, Math.floor(t / 500) % 2 === 0), 36 + i * 12, 157);
+      g.text('ふたりで', 10, 176, { color: C.ink });
+      g.text('敵 全員に', 10, 193, { color: C.shuDark });
+      return;
+    }
     v.icons.forEach((ic, i) => {
       const sel = i === v.index && !v.onTab;
       const x = xs[i] ?? 10 + i * 17;
@@ -245,6 +257,57 @@ export function drawCommand(g: Gfx, v: CmdView, t: number, alpha: number): void 
       g.img(cursorStamp(v.pressed), 96, ty - 3 + bob);
     }
   }
+}
+
+/** What the command notebook shows while an action plays out (QA round 2). */
+export interface ActingView {
+  /** Command icon id (tataku, hanko, …) for a party member's action. */
+  icon?: string;
+  /** Move name (たたく, ペケ, ラムネ, 名刺交換 …). */
+  name: string;
+  /** An enemy's move: a small ボケ seal instead of an icon. */
+  enemy?: boolean;
+  /** ms since the action started (the icon pops in). */
+  t: number;
+}
+
+/**
+ * The command notebook between inputs: instead of an empty page it shows the
+ * move being played out — the member's command icon (or a ボケ seal for the
+ * enemy's move) and the move's name, as if jotted down in the margin.
+ */
+export function drawActing(g: Gfx, v: ActingView | null, t: number, alpha: number): void {
+  drawNote(g, 4, 150, 96, 62, {}, alpha);
+  if (!v) return;
+  g.alpha(alpha, () => {
+    const pop = v.t < 90 ? 1.4 - 0.4 * (v.t / 90) : 1;
+    const col = v.enemy ? C.shuDark : C.ink;
+    if (v.enemy) {
+      // a strip of pink washi tape labelled ボケ (the enemy's turn)
+      const tag = tapeCanvas(38, 18, 'ボケ', '#F2B0BC', 5);
+      const w = Math.round(tag.width * pop);
+      const h = Math.round(tag.height * pop);
+      g.ctx.drawImage(tag, Math.round(27 - w / 2), Math.round(164 - h / 2), w, h);
+    } else if (v.icon) {
+      g.alpha(0.25, () => g.circle(20, 164, 10, C.shu));
+      const ic = cmdIcon(v.icon);
+      const w = Math.round(ic.width * pop);
+      g.ctx.drawImage(ic, Math.round(20 - w / 2), Math.round(164 - w / 2), w, w);
+    }
+    // a pencilled underline beside the mark, the way a note starts
+    const ul = Math.min(1, v.t / 160);
+    const ux = v.enemy ? 50 : 34;
+    g.rect(ux, 170, Math.round((92 - ux) * ul), 1, C.grid);
+    if (v.name.includes('\n') || g.measure(v.name) > 84) {
+      // two lines, centred: at the given break, else between the halves
+      const ch = [...v.name];
+      const cut = Math.ceil(ch.length / 2);
+      const [l1, l2] = v.name.includes('\n') ? v.name.split('\n') : [ch.slice(0, cut).join(''), ch.slice(cut).join('')];
+      g.text(l1, 52, 175, { color: col, align: 'center' });
+      g.text(l2, 52, 192, { color: col, align: 'center' });
+    } else g.text(v.name, 10, 184, { color: col });
+    void t;
+  });
 }
 
 export interface ListRow {

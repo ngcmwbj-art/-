@@ -284,8 +284,6 @@ registerMap({
   legend: INDOOR_LEGEND,
   objects: OBJ_1F,
   camera: 'fixed',
-  // 14×9 is under 60% of the screen: shown 2× (following Minato, 32 px of scroll each way)
-  zoom: 2,
   bgm: { 0: 'bgm_home', 1: 'bgm_home', 2: 'bgm_home' },
   amb: { 0: ['amb_fridge', 'amb_tv'], 1: ['amb_tv'], 2: ['amb_tv'] },
   space: 'room',

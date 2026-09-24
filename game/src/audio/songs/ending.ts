@@ -1,5 +1,6 @@
 // bgm_ending (5.10) and bgm_night (5.11). The ending is the only place where
-// the chime finally answers itself: bar 2 sings D C A C and bar 3 lands on C.
+// the chime finally answers itself: bar 2 sings D C A C and bar 3 lands on C
+// (and the recorder answers once more at E15–E16, closing the loop).
 
 import { arp, bass, drums, melody, pads, type BarCtx, type PartDef, type SongDef } from '../sequencer';
 import { chimeHint, registerSong, score } from './common';
@@ -23,6 +24,26 @@ E13 Em7            | G5:6 E5:2 D5:4 B4:4 |
 E14 A7(b9)         | C#5:4 E5:4 G5:4 Bb5:4 |
 E15 Dm7            | A5:8 F5:4 D5:4 |
 E16 G7sus4・G7     | C5:8 B4:8 |
+
+@song bgm_ending part=counter ins=ins_recorder meter=4/4
+E9  Abmaj7         | -:4 Eb5:4 D5:2 C5:6 |
+E10 Gm7・C7        | Bb4:8 G4:4 Bb4:4 |
+E11 Fmaj7          | A4:8 F4:4 G4:4 |
+E12 Fm6            | C5:4 Ab4:4 G4:8^ |
+E13 Em7            | G4:8 F#4:4 E4:4 |
+E14 A7(b9)         | A4:4 G4:10 -:2 |
+E15 Dm7            | D5:8 C5:4 A4:4 |
+E16 G7sus4・G7     | C5:8 G4:8 |
+
+@song bgm_ending part=bassline ins=ins_fm_fretless meter=4/4
+E9  Abmaj7         | Ab2:16 |
+E10 Gm7・C7        | G2:8 C3:8 |
+E11 Fmaj7          | A2:16 |
+E12 Fm6            | Ab2:16 |
+E13 Em7            | G2:16 |
+E14 A7(b9)         | A2:8 G2:8 |
+E15 Dm7            | F2:16 |
+E16 G7sus4・G7     | G2:12 B2:4 |
 `;
 
 export const ENDING_CHORDS = `
@@ -34,6 +55,18 @@ D9 = D F# A C E
 
 const ending = score(ENDING_MML, ENDING_CHORDS, [town.chords]);
 const late = (b: BarCtx) => b.num >= 9;
+
+// E9–E16 sing the town bridge's tune (5.10), but the ending must not be the
+// town loop again. Two new voices make the second half its own:
+//  · a recorder counter-line under the music box — the child's recorder
+//    that could only leak one note in the boss fight. It sinks by guide
+//    tones (C Bb A Ab G: each chord's third or seventh) and moves where the
+//    tune holds, then at E15–E16 plays the chime's answer D C A | C over
+//    the ii–V, meets the tune in unison on that C, and steps down to G —
+//    handing the loop back to E1, whose question starts on that G.
+//  · a fretless bass that walks the same chords by inversion — Ab G C A Ab
+//    G A G F G B — a slow lament line gliding into each change, instead of
+//    the bridge's roots.
 
 function endingDef(): SongDef {
   const parts: PartDef[] = [
@@ -57,7 +90,9 @@ function endingDef(): SongDef {
       fx: { autopan: { rate: 0.12, depth: 0.3 } },
     }),
     pads({ id: 'pad', o: { vol: 0.03 }, fx: { lp: 1400, q: 0.8, lfo: { rate: 0.15, depth: 300 } } }),
-    bass({ id: 'bass', ins: 'ins_fm_bass', pattern: (b) => (late(b) ? 'R:16' : 'R:8 5:8'), o: { index: 1.4, indexEnd: 0.4 } }),
+    melody({ id: 'counter', ins: 'ins_recorder', bars: ending.part('counter'), o: { vol: 0.03, rev: 0.3 }, when: late, gate: 0.94 }),
+    bass({ id: 'bass', ins: 'ins_fm_bass', pattern: 'R:8 5:8', when: (b) => !late(b), o: { index: 1.4, indexEnd: 0.4 } }),
+    melody({ id: 'bass_line', ins: 'ins_fm_fretless', bars: ending.part('bassline'), when: late, gate: 1, o: { vol: 0.05 } }),
     drums({ id: 'drums', kit: { drm_shaker: (b) => (b.num >= 5 ? 'x.g.x.g.x.g.x.g.' : null) }, vel: { drm_shaker: 0.5 } }),
   ];
   return {

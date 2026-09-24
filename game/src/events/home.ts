@@ -10,14 +10,14 @@ import { actor, despawn, emote, face, msg, registerScript, setClock, spawn, stag
 import type { Actor } from '../world/actor';
 import { registerWorldFx } from '../world/fx';
 import { pickTalk } from '../world/interact';
-import { caption, showGuide } from '../ui/api';
+import { caption } from '../ui/api';
 import { playAmbient, playBgm, sfx, stopAllAmbient, stopBgm } from '../audio';
 import * as T from '../data/text/events';
 import { NPC } from '../data/text/npcs';
 import { uiHud } from '../ui/hud';
 import { F, giveKey, healHp, once } from './lib';
 import { chairBack, sleepZ } from './art';
-import { zoomIn, zoomOut } from './stage';
+import { keyGuide, zoomIn, zoomOut } from './stage';
 
 // ---------------------------------------------------------------- 5.2 evt_opening
 
@@ -122,7 +122,7 @@ registerScript('evt_opening', function* (): Co {
   yield* zoomOut(z, 450);
   playBgm('bgm_home', { fade: 1.5 });
   setFlag('flag_opening_done', 1);
-  showGuide(T.GUIDE_MOVE, 4000);
+  keyGuide(T.GUIDE_MOVE, 4500);
 });
 
 // 20 s without going down: the second call, once

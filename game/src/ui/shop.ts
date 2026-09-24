@@ -43,8 +43,11 @@ export interface ShopDef {
   price?: (id: string) => number;
   /** Most sold per visit (default: the item's `shopLimit`). */
   limit?: (id: string) => number;
-  /** Lines (pages) after a purchase; `n` = purchases so far (1 = first). */
-  onBuy?: (id: string, n: number) => string[] | null;
+  /**
+   * After a purchase (`n` = purchases so far, 1 = first): the keeper's lines
+   * (pages), or a script for something more than a line.
+   */
+  onBuy?: (id: string, n: number) => string[] | Co | null;
   noMoney?: string[];
   bagFull?: string[];
   /** Lines when something has sold out for this visit. */
@@ -75,9 +78,11 @@ registerShop({
     return g;
   },
   onBuy: (id, n) => {
-    if (id === 'item_kinakobou' && !flag('flag_shop_kinako')) {
+    // the first きなこぼう: one stick in the bag really is an あたり (her line
+    // is about that stick), so it only happens when there is room for it
+    if (id === 'item_kinakobou' && !flag('flag_shop_kinako') && addItem('item_kinakobou')) {
       setFlag('flag_shop_kinako', 1);
-      return ['きなこぼうの あたり、\nまた 出たよ。今日 3本目。', '……あたり、入れて\nないんだけどねえ。'];
+      return kinakoAtari();
     }
     if (id === 'item_stamp_pad' && !flag('flag_shop_stamp')) {
       setFlag('flag_shop_stamp', 1);
@@ -95,6 +100,13 @@ registerShop({
     return ['……ちゃんと 帰って おいでよ。'];
   },
 });
+
+/** 〔きなこぼうを初めて買ったとき〕: an あたり in the bag, and おばあ never put one in. */
+function* kinakoAtari(): Co {
+  sfx('se_item');
+  yield* say('1本だけ、棒の 先が 赤い。{w=300}\n……あたり！ きなこぼうを\nもう1本 もらった。', { voice: 'sys' });
+  yield* say(['きなこぼうの あたり、\nまた 出たよ。今日 3本目。', '……あたり、入れて\nないんだけどねえ。'], { name: 'おばあ', voice: 'obaa' });
+}
 
 // ---- the shop screen -----------------------------------------------------------------------
 
@@ -316,8 +328,10 @@ class ShopScene implements Scene {
         sfx('se_coin');
         sfx('se_shop_buy');
         yield 180;
-        const lines = def.onBuy?.(id, flag('flag_bought'));
-        if (lines && lines.length) yield* say(lines, keeper);
+        const after = def.onBuy?.(id, flag('flag_bought'));
+        if (Array.isArray(after)) {
+          if (after.length) yield* say(after, keeper);
+        } else if (after) yield* after;
       })(),
     );
   }

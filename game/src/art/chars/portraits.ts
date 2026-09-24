@@ -92,7 +92,7 @@ function rgbaHex(p: PixelCanvas, x: number, y: number): string {
 
 // ---- Minato ----------------------------------------------------------------
 
-const MIN: Mats = {
+export const MIN: Mats = {
   skin: mat('#FFD9B8', { shade: '#EBB08E', light: '#FFEBD8', dark: '#C98A6A', rim: '#FFC08E' }),
   skinP: mat('#EED2C0', { shade: '#D0AE9A', light: '#FFE6D6', dark: '#A88878', rim: '#F4C4A8' }),
   // 30_level_art 9.1 colours: hair #2B1E1A / #5A3A2A, tee #3FA66B / #2E6B4A / #6CC48A

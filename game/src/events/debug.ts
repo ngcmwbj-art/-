@@ -16,7 +16,8 @@ import { stopAllAmbient, stopBgm } from '../audio';
 import { startNewGame } from '../ui/api';
 import { setFollowerVisible } from '../world/api';
 import { ENDING_CUTS } from './ending';
-import { resetStaging } from './stage';
+import { keyGuide, resetStaging } from './stage';
+import { GUIDE_MENU, GUIDE_MOVE } from '../data/text/events';
 import { animFrame, charSprite, poseFrame, walkFrame } from '../art/chars';
 
 type Step = () => void;
@@ -289,4 +290,11 @@ registerDebug('endcut', (n: number) => {
   }
   f.startScript(cut());
   return `cut ${n}`;
+});
+
+/** QA: the keycap control guides ('move' — the opening; 'menu' — after the park hint). */
+registerDebug('keyguide', (which = 'move') => {
+  if (which === 'menu') keyGuide(GUIDE_MENU, 5000, 38);
+  else keyGuide(GUIDE_MOVE, 4500);
+  return which;
 });

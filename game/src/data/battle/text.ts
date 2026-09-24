@@ -85,7 +85,9 @@ export const TUT = {
   tsukkomi: '『！』が 出たら 決定！\nツッコミで ダメージ 半分。',
   firstCommand: 'たたく を えらぼう',
   ring: 'いま！',
-  rhythm: '『！』の すぐあとに。\nリズムで 押そう。',
+  // (QA round 2: 「『！』の すぐあとに」 sent reacting players in too late;
+  // the ring that closes on the hit is the cue, and ひろい is one step away)
+  rhythm: '輪に 合わせて 決定！\nむずかしければ\nせってい→『ひろい』',
   tsukkomiOk: 'ツッコまれた 相手は\n『ボケ負け』に なる。',
   bokemake: 'ボケ負けの 相手には\nダメージ 1.5倍！',
   hanko: '長おしで 朱肉が たまる。\n赤い ところで はなす！',

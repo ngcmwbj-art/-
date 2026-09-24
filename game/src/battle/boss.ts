@@ -515,7 +515,15 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
     dur: 0,
     draw: (g) => {
       const img = kanenariBack(st.f);
+      // he comes up from behind the status panels and goes back down behind
+      // them (QA round 2: on the way back he covered Minato's HP and ink)
+      const ctx = g.ctx;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, 384, 144);
+      ctx.clip();
       g.alpha(st.a, () => g.img(img, 192 - Math.round(img.width / 2), Math.round(st.y - img.height)));
+      ctx.restore();
     },
   });
   if (k) {
@@ -672,12 +680,20 @@ function petalRain(s: BattleScene, n: number, ms: number): void {
       if (spawned >= n && !list.length) this.done = true;
     },
     draw: (g) => {
+      // they fall from behind the band: the line in it (「……ただいま。」)
+      // is never cut by a petal (QA round 2)
+      const ctx = g.ctx;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(-8, s.msg.bottom, 400, 240);
+      ctx.clip();
       for (const p of list) {
         const x = Math.round(p.x + Math.sin(p.ph) * p.sway);
         const f = Math.floor((p.life / 1000) * p.spin) % 4;
         const img = frames[p.col][f];
         g.img(img, x - (img.width >> 1), Math.round(p.y) - (img.height >> 1));
       }
+      ctx.restore();
     },
   });
 }

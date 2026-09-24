@@ -8,7 +8,7 @@ import type { Gfx } from '../engine/gfx';
 import { Particles, type BurstOpts } from '../engine/particles';
 import { rng } from '../engine/rng';
 import { BAYER4, makeCanvas } from '../engine/pixel';
-import { drawText } from '../engine/font';
+import { drawText, measure } from '../engine/font';
 import { flag, state } from '../game/state';
 import { sfx, type SfxOpts } from '../audio';
 import * as audio from '../audio';
@@ -20,7 +20,7 @@ import { DamageNumber, type NumOpts, type NumRect } from './fx/numbers';
 import { MessageBand } from './ui/message';
 import { emptySlotCanvas } from './ui/panels';
 import {
-  drawChimeSticky, drawCommand, drawInfoCard, drawKire, drawList, drawPanel, KIRE_TAB, PANEL_POS, TAG, type CardData, type CmdView, type ListRow,
+  drawActing, drawChimeSticky, drawCommand, drawInfoCard, drawKire, drawList, drawPanel, KIRE_TAB, PANEL_POS, TAG, type CardData, type CmdView, type ListRow,
 } from './ui/panels';
 import { C, cursorStamp, cursorStampSide, drawBar, slantTape, STICKY_PAD, stickyCanvas, tapeCanvas } from './ui/note';
 import { inkLabel, ovalStamp, pekeMark, petalSprites } from './art/stamps';
@@ -123,7 +123,7 @@ export class BattleScene implements Scene {
   sticky: { text: string; t: number; pulse?: boolean; ttl?: number; pos?: 'left' | 'right' } | null = null;
   cursorPressed = 0;
   /** Directional screen shake. */
-  private shk = { ax: 0, ay: 0, t: 0, dur: 0, x: 0, y: 0 };
+  private shk = { ax: 0, ay: 0, t: 0, dur: 0, x: 0, y: 0, n: 0 };
   flashes: { color: string; alpha: number; frames: number }[] = [];
   /** The frozen-frame look while the screen stands still (かねを鳴らす). */
   freezeLook: { t: number; x: number; y: number } | null = null;
@@ -298,10 +298,8 @@ export class BattleScene implements Scene {
     if (this.cursorPressed > 0) this.cursorPressed -= dt;
     if (this.shk.t > 0) {
       this.shk.t -= dt;
-      const k = Math.max(0, this.shk.t / this.shk.dur);
-      const a = k * k;
-      this.shk.x = Math.round((Math.random() * 2 - 1) * this.shk.ax * a);
-      this.shk.y = Math.round((Math.random() * 2 - 1) * this.shk.ay * a);
+      if (this.shk.t > 0) this.stepShake();
+      else this.shk.x = this.shk.y = 0;
     } else this.shk.x = this.shk.y = 0;
     for (const f of this.flashes) f.frames -= 1;
     this.flashes = this.flashes.filter((f) => f.frames > 0);
@@ -398,16 +396,36 @@ export class BattleScene implements Scene {
     this.hitstopMs = Math.max(this.hitstopMs, frames * FRAME);
   }
 
-  /** Directional shake (px amplitude on each axis) for `frames`, quadratic decay. */
+  /**
+   * Directional shake (px amplitude on each axis) for `frames` (QA round 2:
+   * a random offset with a squared decay rounded to 0px on most frames).
+   * The first three frames swing the full amplitude with alternating signs,
+   * then it decays linearly — never below 1px while it lasts. It keeps going
+   * through the hitstop (it is the hit's own jolt).
+   */
   shake(ax: number, ay: number, frames: number): void {
     const ms = frames * FRAME;
-    const curA = Math.max(this.shk.ax, this.shk.ay) * (this.shk.t > 0 ? (this.shk.t / this.shk.dur) ** 2 : 0);
+    const curA = Math.max(this.shk.ax, this.shk.ay) * (this.shk.t > 0 ? this.shk.t / this.shk.dur : 0);
     if (Math.max(ax, ay) >= curA) {
       this.shk.ax = ax;
       this.shk.ay = ay;
       this.shk.t = ms;
       this.shk.dur = ms;
+      this.shk.n = 0;
+      // the frame the hit is drawn on already jolts
+      this.stepShake();
     }
+  }
+
+  private stepShake(): void {
+    const sh = this.shk;
+    const n = sh.n++;
+    const k = n < 3 ? 1 : Math.max(0, sh.t / sh.dur);
+    const mag = (a: number) => (a <= 0 ? 0 : Math.max(1, Math.round(a * k)));
+    // x flips every frame; with both axes y flips every other frame, so the
+    // jolt never slides along one diagonal (a vertical-only one flips each frame)
+    sh.x = (n % 2 ? 1 : -1) * mag(sh.ax);
+    sh.y = (sh.ax > 0 ? ((n + 1) >> 1) % 2 : n % 2) ? mag(sh.ay) : -mag(sh.ay);
   }
 
   flash(color: string, alpha: number, frames: number): void {
@@ -428,11 +446,11 @@ export class BattleScene implements Scene {
   // (the band, the name tags, the kire tab, the panels, a sticky, the card).
 
   /** Live reservations (rest rects of numbers / labels), in real time. */
-  private occ: { r: Rect; until: number }[] = [];
+  private occ: { r: Rect; until: number; num?: boolean }[] = [];
   /** Labels are drawn after the numbers and every effect, so nothing cuts them. */
   labels: FloatLabel[] = [];
   /** Most recent number per enemy (labels pair with it). */
-  private lastNum = new Map<EnemyUnit | PartyUnit, { d: DamageNumber; at: number }>();
+  private lastNum = new Map<EnemyUnit | PartyUnit, { d: DamageNumber; at: number; path: Rect }>();
 
   private static overlap(a: Rect, b: Rect, pad = 1): boolean {
     return a.x0 < b.x1 + pad && b.x0 < a.x1 + pad && a.y0 < b.y1 + pad && b.y0 < a.y1 + pad;
@@ -452,13 +470,8 @@ export class BattleScene implements Scene {
     if (this.isBoss) out.push({ x0: 300, y0: this.msg.bottom, x1: 378, y1: this.msg.bottom + 24 });
     // a sticky still waiting to peel on (it follows the lettering) already
     // owns its spot: a label placed in the same frame must not take it
-    if (this.sticky) {
-      const img = stickyCanvas(this.sticky.text);
-      const right = this.sticky.pos === 'right';
-      const sx = right ? 381 - (img.width - STICKY_PAD) : 8;
-      const sy = right ? this.msg.bottom + 26 : 52;
-      out.push({ x0: sx - STICKY_PAD, y0: sy - STICKY_PAD, x1: sx + img.width - STICKY_PAD, y1: sy + img.height - STICKY_PAD });
-    }
+    const sp = this.stickyPlace();
+    if (sp) out.push({ x0: sp.x - STICKY_PAD, y0: sp.y - STICKY_PAD, x1: sp.x + sp.img.width - STICKY_PAD, y1: sp.y + sp.img.height - STICKY_PAD });
     if (this.card) {
       const x = this.card.data.side === 'left' ? 8 : 216;
       out.push({ x0: x - 2, y0: 42, x1: x + 164, y1: 148 });
@@ -494,20 +507,22 @@ export class BattleScene implements Scene {
         if (b && BattleScene.overlap(r, b, 0)) return false;
       }
     }
-    if (!ignoreOcc) for (const o of this.occ) if (o.until > this.rt && BattleScene.overlap(r, o.r)) return false;
+    // a live number is never covered; `ignoreOcc` only lets a label touch
+    // another label's fading spot
+    for (const o of this.occ) if (o.until > this.rt && (!ignoreOcc || o.num) && BattleScene.overlap(r, o.r)) return false;
     return true;
   }
 
-  reserve(r: Rect, ms: number): void {
+  reserve(r: Rect, ms: number, num = false): void {
     this.occ = this.occ.filter((o) => o.until > this.rt);
-    this.occ.push({ r, until: this.rt + ms });
+    this.occ.push({ r, until: this.rt + ms, num });
   }
 
   /**
    * Pop a damage / heal number. `lay` picks how it gets out of the way of
-   * live numbers and labels: 'enemy' stacks multi-hits at (+10, −6) (then
-   * further out), 'party' lines them up in a row along the top of the panel,
-   * 'free' keeps the exact spot.
+   * live numbers and labels: 'enemy' puts a multi-hit's next number
+   * diagonally off the previous one (then further out), 'party' lines them
+   * up in a row along the top of the panel, 'free' keeps the exact spot.
    */
   number(x: number, y: number, n: number, o: NumOpts = {}, lay: 'free' | 'enemy' | 'party' = 'free', owner?: EnemyUnit | PartyUnit): DamageNumber {
     const d = new DamageNumber(x, y, n, o);
@@ -521,15 +536,42 @@ export class BattleScene implements Scene {
     if (lay !== 'free') {
       const w = d.img.width;
       const h = d.img.height;
-      const cands: [number, number][] = [[0, 0]];
+      const cands: [number, number][] = [];
+      // a small enemy's face (its × eyes, its squash) is the hit's other
+      // half: no number comes to rest on it
+      const face = owner?.kind === 'enemy' && !owner.def.boss && owner.sizeH <= 48 ? this.faceBox(owner) : null;
+      const prev = lay === 'enemy' && owner ? this.recentNumberRect(owner, 700) : null;
       if (lay === 'enemy') {
-        // (+10, −6) stacking first; when the band is in the way, step down and
+        if (prev) {
+          // QA round 2: the next hit of a multi-hit never sits level with the
+          // last one ("16" "19" read as "1619"): it goes diagonally above it
+          // with a 4px gap, else diagonally below, else well to the side —
+          // and pops almost in place (4px rise), so it never crosses the
+          // first one on its way up
+          d.setRise(4);
+          const r0 = d.restRect();
+          const to = (x0: number, y0: number): [number, number] => [x0 - r0.x0, y0 - r0.y0];
+          const pw = prev.x1 - prev.x0;
+          cands.push(
+            to(prev.x0 + Math.round(pw * 0.45), prev.y0 - 4 - h),
+            to(prev.x0 - Math.round(w * 0.45), prev.y0 - 4 - h),
+            to(prev.x1 + 4, prev.y0 - 10),
+            to(prev.x0 - 4 - w, prev.y0 - 10),
+            to(prev.x0 + Math.round(pw * 0.45), prev.y1 + 4),
+            to(prev.x1 + 4, prev.y1 - 6),
+            to(prev.x0 - 4 - w, prev.y1 - 6),
+            to(prev.x1 + 8, prev.y1 + 4),
+            to(prev.x0 - 8 - w, prev.y1 + 4),
+          );
+        } else cands.push([0, 0]);
+        // (+10, −6) stacking; when the band is in the way, step down and
         // out instead — never level with a neighbour (two numbers side by
         // side at one height read as one: "20 17" → "2017")
         for (let k = 1; k <= 7; k++) cands.push([10 * k, -6 * k]);
         for (let k = 1; k <= 5; k++) cands.push([-10 * k, -6 * k]);
         for (let k = 1; k <= 4; k++) cands.push([(w + 6) * k, 10 * k], [-(w + 6) * k, 10 * k]);
       } else {
+        cands.push([0, 0]);
         // a row along the top of the panel, first leftward (away from the
         // tsukkomi "!" over the photo's right half), then past it to the
         // right; neighbours step up 6px and keep a 6px gap so two single
@@ -539,11 +581,17 @@ export class BattleScene implements Scene {
           for (let k = 1; k <= 6; k++) cands.push([(w + 6) * k, -(h + 4) * row - (k % 2) * 6]);
         }
       }
+      const clear = (r: Rect) => {
+        if (!this.fits(r)) return false;
+        if (face && (BattleScene.overlap(r, face, 0) || BattleScene.overlap(this.popRect(d), face, 0))) return false;
+        if (prev && (BattleScene.overlap(r, prev, 3) || BattleScene.overlap(this.popRect(d, 1), prev, 0))) return false;
+        return true;
+      };
       let ok = false;
       for (const [dx, dy] of cands) {
         d.x = x + dx;
         d.y = y + dy;
-        if (this.fits(d.restRect())) {
+        if (clear(d.restRect())) {
           ok = true;
           break;
         }
@@ -553,10 +601,62 @@ export class BattleScene implements Scene {
         d.y = y;
       }
     }
-    this.reserve(d.restRect(), d.life);
+    // the whole path is reserved, from where it pops to where it rests: a
+    // label placed a few frames later never sits across the rising digits
+    const pr = this.popRect(d, 1.2);
+    const rr = d.restRect();
+    const path = lay === 'party' ? rr : { x0: Math.min(pr.x0, rr.x0), y0: rr.y0, x1: Math.max(pr.x1, rr.x1), y1: Math.max(pr.y1, rr.y1) };
+    this.reserve(path, d.life, true);
     this.numbers.push(d);
-    if (owner) this.lastNum.set(owner, { d, at: this.rt });
+    if (owner) this.lastNum.set(owner, { d, at: this.rt, path });
+    // debris born this frame never sits on (or flies into) the number
+    this.clearAround(d);
     return d;
+  }
+
+  /** A small enemy's face box (the eyes and a little around them). */
+  private faceBox(e: EnemyUnit): Rect {
+    return { x0: e.faceX - 10, y0: e.faceY - 8, x1: e.faceX + 10, y1: e.faceY + 8 };
+  }
+
+  /** The number's rect on the frame it pops (1.6× wide, bottom on its origin). */
+  private popRect(d: DamageNumber, k = 1.6): Rect {
+    const w = d.img.width * k;
+    return { x0: Math.round(d.x - w / 2), y0: Math.round(d.y - d.img.height), x1: Math.round(d.x + w / 2), y1: Math.round(d.y) };
+  }
+
+  /**
+   * Particles born in the last few frames that lie on the number's path (its
+   * pop rect up to its rest rect) are moved just outside it, sideways or
+   * below, and turned away from it: frozen through the hitstop, they would
+   * otherwise sit on the digits (a scrap left of "32" reads as "-32").
+   */
+  private clearAround(d: DamageNumber): void {
+    const a = this.popRect(d);
+    const b = d.restRect();
+    const R = { x0: Math.min(a.x0, b.x0) - 3, y0: Math.min(a.y0, b.y0) - 3, x1: Math.max(a.x1, b.x1) + 3, y1: Math.max(a.y1, b.y1) + 3 };
+    for (const ps of [this.partsTop, this.parts])
+      for (const p of ps.list) {
+        if (p.maxLife - p.life > 90) continue;
+        const hw = ((p.img?.width ?? p.size) as number) / 2 + 1;
+        const hh = ((p.img?.height ?? p.size) as number) / 2 + 1;
+        if (p.x + hw < R.x0 || p.x - hw > R.x1 || p.y + hh < R.y0 || p.y - hh > R.y1) continue;
+        const dl = p.x - R.x0;
+        const dr = R.x1 - p.x;
+        const db = R.y1 - p.y;
+        if (db <= dl && db <= dr) {
+          p.y = R.y1 + hh;
+          p.vy = Math.abs(p.vy) * 0.6 + 20;
+        } else if (dl < dr) {
+          p.x = R.x0 - hw;
+          p.vx = -Math.abs(p.vx);
+          if (p.vy < 0) p.vy *= 0.4;
+        } else {
+          p.x = R.x1 + hw;
+          p.vx = Math.abs(p.vx);
+          if (p.vy < 0) p.vy *= 0.4;
+        }
+      }
   }
 
   /**
@@ -587,6 +687,13 @@ export class BattleScene implements Scene {
     const r = this.lastNum.get(owner);
     if (!r || this.rt - r.at > ms || r.d.done) return null;
     return r.d.restRect();
+  }
+
+  /** The whole path (pop spot to rest spot) of that number: a label sits beside all of it. */
+  recentNumberPath(owner: EnemyUnit | PartyUnit, ms = 400): Rect | null {
+    const r = this.lastNum.get(owner);
+    if (!r || this.rt - r.at > ms || r.d.done) return null;
+    return r.path;
   }
 
   /** Ink-stamp label that pops and fades, at a fixed centre (after `delay` ms). */
@@ -666,6 +773,29 @@ export class BattleScene implements Scene {
         return;
       }
     }
+    // crowded: any side, further along the edges, rather than over a number
+    const all: LabelSide[] = ['above', 'right', 'left', 'below', 'aboveRight', 'aboveLeft'];
+    let best: Rect | null = null;
+    let bestCost = Infinity;
+    for (const side of all)
+      for (const n of [0, 6, -6, 12, -12, 20, -20, 28, -28, 36, -36]) {
+        const [x, y] = at(side, n);
+        const r = { x0: Math.round(x), y0: Math.round(y), x1: Math.round(x + w), y1: Math.round(y + h) };
+        if (!this.fits(r, true, false)) continue;
+        const cost = Math.hypot((r.x0 + r.x1) / 2 - acx, (r.y0 + r.y1) / 2 - acy);
+        if (cost < bestCost) {
+          bestCost = cost;
+          best = r;
+        }
+      }
+    if (best) {
+      const r: Rect = best;
+      l.x = r.x0;
+      l.y = r.y0;
+      l.placed = true;
+      this.reserve(r, l.ms);
+      return;
+    }
     const [x, y] = at(l.sides[0], 0);
     l.x = Math.round(Math.max(2, Math.min(382 - w, x)));
     l.y = Math.round(Math.max(this.msg.bottom + 2, Math.min(141 - h, y)));
@@ -723,7 +853,10 @@ export class BattleScene implements Scene {
   enemyNumberXY(e: EnemyUnit, big = false, stack = 0): [number, number] {
     const h = big ? NUM_H_BIG : NUM_H;
     const x = (e.def.boss ? e.coreX + 36 : e.coreX) + stack * 10;
-    const y = e.coreY - stack * 6;
+    // QA round 2: over the head (headY − 4), not from the core — the number
+    // and its plate covered a small enemy's whole face, and its hurt face
+    // (× eyes, the squash) is half of what the hit feels like
+    const y = (e.def.boss ? e.coreY : Math.min(e.coreY, e.headY + e.offY - 4)) - stack * 6;
     return [Math.round(x), Math.round(Math.max(y, STAGE_TOP + NUM_RISE + h))];
   }
 
@@ -735,7 +868,7 @@ export class BattleScene implements Scene {
   labelForHit(text: string, e: EnemyUnit, _big = false, tone: 'shu' | 'gray' = 'shu', ms = 600, worn = false, delay = 3 * FRAME): void {
     this.labelNear(
       text,
-      () => this.recentNumberRect(e) ?? { x0: e.coreX - 8, y0: e.coreY - 24, x1: e.coreX + 8, y1: e.coreY - 8 },
+      () => this.recentNumberPath(e) ?? { x0: e.coreX - 8, y0: e.coreY - 24, x1: e.coreX + 8, y1: e.coreY - 8 },
       ['above', 'right', 'left', 'below'],
       tone,
       ms,
@@ -755,14 +888,18 @@ export class BattleScene implements Scene {
   paper(x: number, y: number, n: number, speed: [number, number] = [60, 120]): void {
     const bits = paperBits();
     for (let i = 0; i < n; i++) {
-      this.burst(x, y, { count: 1, speed, angle: [-Math.PI * 0.95, -Math.PI * 0.05], life: [260, 380], colors: ['#FBF3DC'], gravity: 200, shape: 'img', img: bits[i % bits.length] }, true);
+      // alternately to the right and to the left, level to a little below:
+      // never up into the number that rises out of the hit (QA round 2)
+      const angle: [number, number] = i % 2 === 0 ? [-Math.PI * 0.14, Math.PI * 0.32] : [Math.PI * 0.68, Math.PI * 1.14];
+      this.burst(x, y, { count: 1, speed, angle, life: [260, 380], colors: ['#FBF3DC'], gravity: 200, shape: 'img', img: bits[i % bits.length] }, true);
       this.leadOut(this.partsTop, 7 + (i % 3) * 2);
     }
   }
   stars(x: number, y: number, n: number, speed: [number, number] = [80, 160]): void {
     const st = starBits();
     for (let i = 0; i < n; i++) {
-      this.burst(x, y, { count: 1, speed, life: [280, 440], colors: ['#FFD23F'], gravity: 60, drag: 2, shape: 'img', img: st[i % 2] }, true);
+      const angle: [number, number] = i % 2 === 0 ? [-Math.PI * 0.22, Math.PI * 0.25] : [Math.PI * 0.75, Math.PI * 1.22];
+      this.burst(x, y, { count: 1, speed, angle, life: [280, 440], colors: ['#FFD23F'], gravity: 60, drag: 2, shape: 'img', img: st[i % 2] }, true);
       this.leadOut(this.partsTop, 9);
     }
   }
@@ -826,6 +963,20 @@ export class BattleScene implements Scene {
     const cols = alpha70 ? ['#E86A5E', '#E86A5E'] : ['#E23B2E', '#E23B2E', '#E23B2E', '#FF6A4D', '#B8241E'];
     this.burst(x, y, { count: n, speed: [60, 160], life: [400, 700], colors: cols, gravity: 300, drag: 1, shape: 'sq', size: [1, 3], sizeEnd: 1 });
   }
+  /**
+   * Vermilion drops of a firm stamp (QA round 2: 1–3px squares of pure
+   * vermilion vanished into the red X and the sunset): 2–3px drops and
+   * teardrops with an ink rim and a cream glint, flung out and falling.
+   */
+  shuDrops(x: number, y: number, n: number): void {
+    const imgs = shuDropBits();
+    for (let i = 0; i < n; i++) {
+      this.burst(x, y, { count: 1, speed: [70, 170], angle: [-Math.PI * 1.05, Math.PI * 0.05], life: [420, 700], colors: ['#E23B2E'], gravity: 320, drag: 1, shape: 'img', img: imgs[i % imgs.length] }, true);
+      // frozen through the hitstop: they are born already flung out, a
+      // splash crown round the seal instead of a clot on its centre
+      this.leadOut(this.partsTop, 10 + (i % 4) * 4);
+    }
+  }
   /** Petals (16.0: 4×3 ovals in four colours). */
   petals(x: number, y: number, n: number, spread = 20, top = true): void {
     const imgs = petalSprites();
@@ -851,8 +1002,21 @@ export class BattleScene implements Scene {
       this.sfxLater(id, o, 100);
       return;
     }
+    if (STAGGER_SFX.has(id)) {
+      // the same thud twice on one frame (a party-wide hit: one per member)
+      // would just stack +3–6dB into the limiter: the next one follows
+      // 50ms later, a little lower (QA round 2)
+      const n = this.sfxFrame.get(id);
+      const k = n && n.frame === this.frame ? n.count : 0;
+      this.sfxFrame.set(id, { frame: this.frame, count: k + 1 });
+      if (k > 0) {
+        this.sfxLater(id, { ...o, pitch: (o?.pitch ?? 1) * (1 - 0.06 * k), vol: (o?.vol ?? 1) * 0.8 }, 50 * k);
+        return;
+      }
+    }
     sfx(id, o);
   }
+  private sfxFrame = new Map<string, { frame: number; count: number }>();
 
   /** Play an SE `ms` later (real time: hitstop doesn't hold sounds). */
   sfxLater(id: string, o: SfxOpts | undefined, ms: number): void {
@@ -925,9 +1089,19 @@ export class BattleScene implements Scene {
     if (this.showUi) this.drawUi(g);
     for (const f of this.fx) if (f.layer === 'top') f.draw(g, f.t, f.dur ? Math.min(1, f.t / f.dur) : 0);
     if (this.showUi) this.drawSticky(g);
+    // debris, stars, sweat and petals fly over the stage and the panels but
+    // pass behind the band (its lines stay whole) and under the numbers —
+    // the number is the reward of the hit and is never cut (QA round 2)
+    if (this.showUi && !this.msg.hidden) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(-8, this.msg.bottom, 400, 240);
+      ctx.clip();
+      this.partsTop.draw(g);
+      ctx.restore();
+    } else this.partsTop.draw(g);
     for (const n of this.numbers) n.draw(g);
     for (const f of this.fx) if (f.layer === 'over') f.draw(g, f.t, f.dur ? Math.min(1, f.t / f.dur) : 0);
-    this.partsTop.draw(g);
     this.drawLabels(g);
     ctx.restore();
     if (this.tint) g.rect(0, 0, 384, 216, this.tint.color, this.tint.alpha);
@@ -1228,24 +1402,82 @@ export class BattleScene implements Scene {
     // owns its spot: a label placed in the same frame must not take it
   }
 
+  private stickyLay: { key: string; text: string; x: number; y: number; right: boolean } | null = null;
+
+  /**
+   * Where the tutorial sticky sits and how its text wraps (QA round 2: it
+   * was stuck over Kanenari-kun's bell and the vending machine's top — the
+   * very thing the note asks you to look at). The spot is solved once per
+   * note: the left (8,52) or right corner under the band, the text re-wrapped
+   * narrower phrase by phrase until the note clears every enemy's box.
+   */
+  stickyPlace(): { img: HTMLCanvasElement; x: number; y: number; right: boolean } | null {
+    const st = this.sticky;
+    if (!st) return null;
+    const key = `${st.text}|${st.pos ?? 'left'}`;
+    if (this.stickyLay?.key !== key) this.stickyLay = { key, ...this.solveSticky(st.text, st.pos === 'right') };
+    const l = this.stickyLay;
+    return { img: stickyCanvas(l.text), x: l.x, y: l.y, right: l.right };
+  }
+
+  private solveSticky(text: string, preferRight: boolean): { text: string; x: number; y: number; right: boolean } {
+    const P = STICKY_PAD;
+    const boxes: Rect[] = this.enemies
+      .filter((e) => e.alive && e.visible)
+      .map((e) => ({ x0: e.left - 3, y0: e.top - 3, x1: e.left + e.sizeW + 3, y1: e.footY }));
+    // the top of the hanko close-up's ink ring (its くっきり zone) rises there
+    boxes.push({ x0: 14, y0: 108, x1: 92, y1: 150 });
+    const variants = [text];
+    for (const mw of [150, 120, 96]) {
+      const v = wrapPhrases(text, mw);
+      if (!variants.includes(v)) variants.push(v);
+    }
+    let best: { text: string; x: number; y: number; right: boolean } | null = null;
+    let bestCost = Infinity;
+    for (const v of variants) {
+      const img = stickyCanvas(v);
+      const w = img.width - P - 3;
+      const h = img.height - P - 3;
+      const sides = preferRight ? [true, false] : [false, true];
+      for (const right of sides) {
+        const x = right ? 381 - w - 3 : 8;
+        const y0 = right && this.isBoss ? this.msg.bottom + 26 : 52;
+        const y = Math.max(this.msg.bottom + 4, Math.min(y0, 141 - h));
+        const r = { x0: x, y0: y, x1: x + w, y1: y + h };
+        let cost = 0;
+        for (const b of boxes) {
+          const ox = Math.min(r.x1, b.x1) - Math.max(r.x0, b.x0);
+          const oy = Math.min(r.y1, b.y1) - Math.max(r.y0, b.y0);
+          if (ox > 0 && oy > 0) cost += ox * oy;
+        }
+        if (y + h > 142) cost += 5000;
+        if (cost === 0) return { text: v, x, y, right };
+        if (cost < bestCost) {
+          bestCost = cost;
+          best = { text: v, x, y, right };
+        }
+      }
+    }
+    return best ?? { text, x: 8, y: 52, right: false };
+  }
+
   /**
    * The tutorial sticky: stuck on the glass, over the net's pole and the
    * effects of the stage (it is what the player must read), under the
    * numbers and labels (which keep clear of it).
    */
   private drawSticky(g: Gfx): void {
-    if (this.sticky && this.sticky.t >= 0) {
-      const img = stickyCanvas(this.sticky.text);
+    const sp = this.stickyPlace();
+    if (this.sticky && sp && this.sticky.t >= 0) {
+      const img = sp.img;
       const st = this.sticky;
       const out = st.ttl && st.t > st.ttl ? Math.min(1, (st.t - st.ttl) / 200) : 0;
       const k = Math.min(1, st.t / 120) * (1 - out);
       const glow = st.pulse && Math.floor(this.rt / 200) % 2 === 0;
-      const right = st.pos === 'right';
-      // left: (8,52) under the band; right: under the boss's chime sticky
       const P = STICKY_PAD;
-      const sx = right ? 381 - (img.width - P) : 8;
-      const sy = right ? this.msg.bottom + 26 : 52;
-      const dir = right ? 1 : -1;
+      const sx = sp.x;
+      const sy = sp.y;
+      const dir = sp.right ? 1 : -1;
       g.alpha(k, () => g.img(img, sx - P + dir * Math.round(out * 10), sy - P - Math.round((1 - Math.min(1, st.t / 120)) * 6) + Math.round(out * out * 12)));
       if (glow) g.alpha(0.35 * k, () => g.rect(sx, sy, img.width - P - 3, img.height - P - 3, '#FFFFFF'));
     }
@@ -1261,9 +1493,18 @@ export class BattleScene implements Scene {
     return Math.max(this.msg.bottom + 3, e.headY - 6 - 3);
   }
 
+  /** The move being played out, jotted in the command notebook (null: blank page). */
+  acting: { icon?: string; name: string; enemy?: boolean; t0: number } | null = null;
+
+  /** Note the move that is starting in the command notebook. */
+  noteActing(name: string, icon?: string, enemy = false): void {
+    this.acting = name ? { name, icon, enemy, t0: this.rt } : null;
+  }
+
   private drawIdleCommandBox(g: Gfx, a: number): void {
-    // while not choosing: the command notebook stays, showing the round number doodle
-    drawCommand(g, { icons: [], index: 0, pressed: false, noriTab: false, onTab: true }, this.rt, a);
+    // while not choosing: the notebook shows the move being played out
+    const v = this.acting;
+    drawActing(g, v ? { icon: v.icon, name: v.name, enemy: v.enemy, t: this.rt - v.t0 } : null, this.rt, a);
   }
 
   private drawEmptySlot(g: Gfx, a: number): void {
@@ -1364,6 +1605,9 @@ function shiinLettering(): HTMLCanvasElement {
   return c;
 }
 
+/** Heavy SEs that are staggered instead of stacked when asked twice on one frame. */
+const STAGGER_SFX = new Set(['se_damage']);
+
 /** SEs that may share the "!" frame (they are the answer to it). */
 const WARN_COMPANIONS = new Set(['se_warn', 'se_bishi', 'se_kiran', 'se_kabuse', 'se_damage']);
 
@@ -1463,4 +1707,43 @@ function ellipse(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: numb
     const hw = Math.round(rx * Math.sqrt(k));
     ctx.fillRect(Math.round(cx - hw), Math.round(cy + y), hw * 2, 1);
   }
+}
+
+/** Re-wrap a note phrase by phrase (at its spaces) to lines at most `maxW` px wide. */
+function wrapPhrases(text: string, maxW: number): string {
+  const out: string[] = [];
+  for (const line of text.split('\n')) {
+    let cur = '';
+    for (const ph of line.split(' ')) {
+      const next = cur ? `${cur} ${ph}` : ph;
+      if (cur && measure(next) > maxW) {
+        out.push(cur);
+        cur = ph;
+      } else cur = next;
+    }
+    if (cur) out.push(cur);
+  }
+  return out.join('\n');
+}
+
+let shuDropC: HTMLCanvasElement[] | null = null;
+/** Ink-rimmed vermilion drops (4×4, 5×5 and a 5×6 teardrop) with a cream glint. */
+function shuDropBits(): HTMLCanvasElement[] {
+  if (shuDropC) return shuDropC;
+  const pal: Record<string, string> = { k: '#2A2440', H: '#FFF6D8', r: '#E23B2E', R: '#B8241E', l: '#FF6A4D' };
+  const mk = (rows: string[]) => {
+    const [c, ctx] = makeCanvas(rows[0].length, rows.length);
+    rows.forEach((r, y) => [...r].forEach((ch, x) => {
+      if (!pal[ch]) return;
+      ctx.fillStyle = pal[ch];
+      ctx.fillRect(x, y, 1, 1);
+    }));
+    return c;
+  };
+  shuDropC = [
+    mk(['.kk.', 'kHrk', 'krRk', '.kk.']),
+    mk(['.kkk.', 'kHlrk', 'klrrk', 'krrRk', '.kkk.']),
+    mk(['..k..', '.kHk.', 'kHlrk', 'krrrk', 'krrRk', '.kkk.']),
+  ];
+  return shuDropC;
 }

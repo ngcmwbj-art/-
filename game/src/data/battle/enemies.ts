@@ -38,7 +38,9 @@ const hato: EnemyDef = {
       teijiResult: ['……17:00の ままだ。\nハト係長は 帰れなかった。'],
     },
     idle: [['ハト係長は 地面を つついた。\n……パンくずは なかった。'], ['ハト係長は 手帳に『要検討』と\n書いた。']],
-    defeat: ['ハト係長は 自分が ハトだったことを\n思いだした。', '名刺だけが 残った。'],
+    // 〔撃破〕 (10_narrative): the restored pigeon stays on screen (and in the
+    // field) pecking beside its card, so the second line says what is seen
+    defeat: ['ハト係長は 自分が ハトだったことを\n思いだした。', '足もとに 名刺が 1枚 残った。'],
     noFlee: ['ハト係長は 名刺を 持って\n回りこんだ！'],
   },
   book: { short: 'ハト', shotai: '駅前で 名刺を 拾った、ただの ハト。', weak: '定時。HPが へると 帰りたがる。', hitokoto: '名刺の 裏に『帰りたい』。' },
@@ -300,6 +302,8 @@ const kanenari: EnemyDef = {
     yousuSpecial: {
       round3: 'カネナリくんは、なにかを\n待っている ように 見える。',
       round4: 'カネナリくんの フリップ：\n『（……だれか、見てますか）』',
+      // [events, QA round 2] the stronger hint from round 6 (texts.ts)
+      round6: 'ミナトは ふと 思った。\n（……見て ほしい のかな）',
     },
     tele: {
       skill_kn_fuusen: ['カネナリくんは ふうせんを くれた。'],

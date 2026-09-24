@@ -2,6 +2,7 @@
 // "！" → frame-exact tsukkomi windows → hit(s) → results.
 
 import type { Co } from '../engine/co';
+import { game } from '../engine/game';
 import { flag } from '../game/state';
 import { rng } from '../engine/rng';
 import { ease } from '../engine/tween';
@@ -14,7 +15,7 @@ import {
   addKire, changeStage, giveStatus, hideSticky, healParty, hurtEnemy, hurtParty, kireFullPages, panelImpact, showSticky, statusText, tsukkomiFeel, type Guarded,
 } from './common';
 import {
-  bokemakeLabel, markLineSeen, pickLine, popBang, showBang, showFlip, showKakimoji, tsukkomiUnit, tsukkomiWindows,
+  bokemakeLabel, lateTip, markLineSeen, pickLine, popBang, RING_LEAD, showBang, showFlip, showKakimoji, showTsukRing, tsukkomiUnit, tsukkomiWindows, type TsukRing,
 } from './tsukkomi';
 import { coinShiny, glove, meishiCard, musicNote, uwabaki, waterDrop, feather, spring, drawArc } from './art/fxart';
 import { PANEL_POS } from './ui/panels';
@@ -113,10 +114,21 @@ export function* hitLoop(s: BattleScene, o: LoopOpts): Co<(Guarded | null)[]> {
   let bangShown = false;
   let bangDone = false;
   let frozenTut = false;
+  let ring: TsukRing | null = null;
+  // after a hit failed without an answer, a press in the next 24 frames is
+  // a late reaction to the "!" (watched in real time, through the hitstop)
+  let late: { on: boolean } | null = null;
   s.takeConfirm();
   for (let f = 0; hi < hitFrames.length; f++) {
     const hf = hitFrames[hi];
     const rel = f - hf;
+    if (o.tsukkomi && !ring && rel >= -RING_LEAD) {
+      ring = { rel, state: 'live', okT: 0 };
+      showTsukRing(s, o.bang(hi), ring);
+    }
+    if (ring) ring.rel = rel;
+    // the next hit's window is open: a press now answers that hit
+    if (late && o.tsukkomi && rel >= W.from) late.on = false;
     if (o.tsukkomi && !bangShown && rel >= W.show) {
       bangShown = true;
       bangDone = false;
@@ -136,6 +148,7 @@ export function* hitLoop(s: BattleScene, o: LoopOpts): Co<(Guarded | null)[]> {
       pending = 'just';
       popBang(s, o.bang(hi), true);
       bangDone = true;
+      if (ring) ring.state = 'ok';
     }
     let pressed = s.takeConfirm();
     const at = s.auto.tsuk;
@@ -145,6 +158,7 @@ export function* hitLoop(s: BattleScene, o: LoopOpts): Co<(Guarded | null)[]> {
     if (o.tsukkomi && pressed && !pending && !kabuse) {
       if (rel < W.from) {
         kabuse = true;
+        if (ring) ring.state = 'gray';
         s.sfx('se_kabuse');
         const [px, py] = PANEL_POS[o.bang(hi)[0]?.id ?? 'minato'];
         // beside the "!" bubble it jumped the gun on (never on the name tag)
@@ -153,6 +167,7 @@ export function* hitLoop(s: BattleScene, o: LoopOpts): Co<(Guarded | null)[]> {
         pending = rel >= W.justFrom && rel <= W.justTo ? 'just' : 'ok';
         popBang(s, o.bang(hi), pending === 'just');
         bangDone = true;
+        if (ring) ring.state = 'ok';
       }
     }
     o.onFrame?.(f, hi, hf - f);
@@ -167,6 +182,12 @@ export function* hitLoop(s: BattleScene, o: LoopOpts): Co<(Guarded | null)[]> {
     }
     if (resolve) {
       bangDone = true;
+      if (ring && ring.state !== 'ok') ring.state = 'done';
+      ring = null;
+      if (o.tsukkomi && !r && !kabuse) {
+        if (late) late.on = false;
+        late = watchLate(s, 24);
+      }
       results.push(r);
       const co = o.onHit(hi, r);
       if (co) yield* co;
@@ -178,6 +199,25 @@ export function* hitLoop(s: BattleScene, o: LoopOpts): Co<(Guarded | null)[]> {
     yield null;
   }
   return results;
+}
+
+/** Watch `frames` frames (real time) for a late confirm press after a failed hit. */
+function watchLate(s: BattleScene, frames: number): { on: boolean } {
+  const w = { on: true };
+  s.addFx({
+    layer: 'top',
+    dur: frames * FRAME,
+    ui: true,
+    draw: () => {},
+    update() {
+      if (!w.on) this.done = true;
+      else if (game.input.pressed('confirm')) {
+        lateTip(s);
+        this.done = true;
+      }
+    },
+  });
+  return w;
 }
 
 // ---- small visual helpers ------------------------------------------------------------------
@@ -199,6 +239,8 @@ interface ProjOpts {
   lob?: boolean;
   /** Drops a little glint along the way. */
   sparkle?: boolean;
+  /** A 4-point twinkle flashes on its rim every other 4 frames (a new coin). */
+  glint?: boolean;
 }
 
 /**
@@ -239,6 +281,14 @@ function projectile(s: BattleScene, img: () => HTMLCanvasElement, x0: number, y0
         put(t - FRAME, 0.45);
       }
       put(t, 1);
+      if (o.glint && Math.floor(t / (4 * FRAME)) % 2 === 0) {
+        const [x, y, sc] = at(t);
+        const gx = Math.round(x + (im.width * sc) / 2 - 2);
+        const gy = Math.round(y - (im.height * sc) / 2 + 1);
+        g.rect(gx - 2, gy, 5, 1, '#FFF6D8');
+        g.rect(gx, gy - 2, 1, 5, '#FFF6D8');
+        g.px(gx, gy, '#FFFFFF');
+      }
     },
   });
 }
@@ -488,6 +538,8 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
   if (!e.alive) return;
   const sk = getSkill(skillId);
   if (!sk) return;
+  // the command notebook notes the boke being played (a ボケ seal + its name)
+  s.noteActing(skillId === 'skill_idle' || !sk.name ? e.name : sk.name, undefined, true);
   e.lastSkills.push(skillId);
   if (e.lastSkills.length > 4) e.lastSkills.shift();
   const eventKn = e.id === 'enemy_kanenari';
@@ -755,7 +807,7 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
             for (let c = 0; c < n; c++) {
               const ph = rng.int(0, 3);
               const img = () => coinShiny(Math.floor(s.t / 50) + ph);
-              projectile(s, img, sx + rng.int(-6, 6), sy, otsuriTargets[i], 16 - c, 1, 2, 34 + c * 10 + rng.int(0, 8), { lob: true, trail: true, sparkle: true, dx: rng.int(-9, 9), dy: rng.int(-6, 4) });
+              projectile(s, img, sx + rng.int(-6, 6), sy, otsuriTargets[i], 16 - c, 1, 2, 34 + c * 10 + rng.int(0, 8), { lob: true, trail: true, sparkle: true, glint: true, dx: rng.int(-9, 9), dy: rng.int(-6, 4) });
             }
             s.burst(sx, sy + 2, { count: 3, speed: [30, 70], angle: [-Math.PI * 0.9, -Math.PI * 0.1], life: [150, 250], colors: ['#FFE7A3', '#E8B070'], shape: 'sq', size: [1, 2] });
             s.sfx('se_coin', { pitch: 1 + i * 0.06 });

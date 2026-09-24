@@ -133,7 +133,7 @@ const ROLE_OVERRIDE: Record<string, PartRole> = {
   'bgm_boss/intro': 'fx', 'bgm_boss/pad_intro': 'pads', 'bgm_boss/arp': 'chords',
   'bgm_midboss/lead78': 'melody', 'bgm_midboss/roulette': 'melody', 'bgm_midboss/vending': 'melody', 'bgm_midboss/bow': 'fx',
   'bgm_midboss/intro_bass': 'bass',
-  'bgm_ending/melody': 'melody', 'bgm_ending/flute': 'counter', 'bgm_ending/epiano': 'chords',
+  'bgm_ending/melody': 'melody', 'bgm_ending/flute': 'counter', 'bgm_ending/counter': 'counter', 'bgm_ending/epiano': 'chords',
   'bgm_night/stars': 'melody',
   'bgm_battle/break': 'melody', 'bgm_battle/bass_intro': 'bass',
 };

@@ -144,7 +144,7 @@ se('se_auto_door', {
     layer(c, 'sine f=90 env=1/80/0/40 dur=20 v=.05 at=620');
   },
 });
-se('se_door_heavy', { label: '迷子センターの重い引き戸', group: STEPS, rev: 0.2, layers: ['noise env=40/600/.6/150 dur=700 v=.05 flt=LP400 am=12/.5', 'sine f=1350→1180/600 env=30/0/1/100 dur=600 v=.015 vib=9/40', 'sine f=70 env=1/200/0/60 dur=40 v=.10 at=760', 'noise env=0/80/0/40 dur=20 v=.04 flt=LP1200 at=760'] });
+se('se_door_heavy', { label: '重い引き戸（迷子センター）', group: STEPS, rev: 0.2, layers: ['noise env=40/600/.6/150 dur=700 v=.05 flt=LP400 am=12/.5', 'sine f=1350→1180/600 env=30/0/1/100 dur=600 v=.015 vib=9/40', 'sine f=70 env=1/200/0/60 dur=40 v=.10 at=760', 'noise env=0/80/0/40 dur=20 v=.04 flt=LP1200 at=760'] });
 se('se_door_small', { label: '乾燥機の扉（カチャ）', group: STEPS, layers: ['noise env=0/20/0/10 dur=8 v=.04 flt=BP2500q2', 'tri f=900→700/60 env=1/80/0/30 dur=40 v=.02 at=40'] });
 se('se_stairs', {
   label: '階段（家）',
@@ -187,7 +187,7 @@ se('se_chain', {
     layer(c, 'sine f=90→60/80 env=0/120/0/40 dur=20 v=.06 at=900');
   },
 });
-se('se_shadow_swing', { label: '町じゅうの影が北東へ回る', group: TOWN, rev: 0.3, layers: ['noise env=800/0/1/400 dur=800 v=.04 flt=BP300→1200q2 pan=-.5→.5', 'sine f=A2→E3/1000 env=400/0/1/400 dur=800 v=.03 am=6/.3 pan=-.5→.5'] });
+se('se_shadow_swing', { label: '影が北東へ回る（町じゅう）', group: TOWN, rev: 0.3, layers: ['noise env=800/0/1/400 dur=800 v=.04 flt=BP300→1200q2 pan=-.5→.5', 'sine f=A2→E3/1000 env=400/0/1/400 dur=800 v=.03 am=6/.3 pan=-.5→.5'] });
 se('se_crow', { label: 'カラス「カア」', group: TOWN, rev: 0.35, layers: ['saw f=620→540/250 env=15/200/.4/120 dur=250 v=.05 flt=BP1100q3 vib=18/40 pan=.6→-.6', 'noise env=10/220/0/100 dur=220 v=.03 flt=BP1500q2 am=70/.5 pan=.6→-.6'] });
 se('se_coo', { label: 'ハト「ポッポ」', group: TOWN, rev: 0.15, layers: ['sine f=330→300/120 env=20/100/.4/80 dur=120 v=.05 flt=LP800 am=16/.5', 'sine f=294→270/120 env=20/100/.4/80 dur=120 v=.05 flt=LP800 am=16/.5 at=220'] });
 se('se_cat', { label: 'ネコ「にゃ」', group: TOWN, rev: 0.15, layers: ['saw f=720→980/90 env=15/60/.6/10 dur=90 v=.03 flt=BP1300q4 vib=12/30', 'saw f=980→600/180 env=0/150/.4/40 dur=180 v=.03 flt=BP1100q4 vib=12/30 at=90'] });
@@ -239,7 +239,7 @@ function followMusic(): AudioNode | null {
   return p && (p.def.fixedStage !== undefined || p.def.stageAware) ? p.det : null;
 }
 se('se_sparrow_a', {
-  label: 'スズメ（ふしぎ#3：前半4音のくり返し）',
+  label: 'くり返すスズメ（ふしぎ#3：前半4音）',
   group: TOWN,
   fn(c) {
     whistle(c, [['G6', 200], ['A6', 200], ['C7', 200], ['E7', 200], ['E7', 400], ['G6', 200], ['A6', 200], ['C7', 200], ['E7', 200], ['E7', 380]]);
@@ -326,7 +326,7 @@ se('se_cart_rattle', {
 se('se_umbrella_hop', { label: 'ワスレガサが跳ねる', group: TOWN, layers: ['noise env=2/60/0/30 dur=30 v=.03 flt=BP1200q1', 'tri f=400→700/60 env=1/50/0/20 dur=20 v=.02'] });
 se('se_robot_bump', { label: 'ソウジロウが壁に当たる', group: TOWN, layers: ['tri f=300→240/40 env=1/60/0/30 dur=20 v=.04', 'noise env=0/20/0/10 dur=8 v=.02 flt=BP1500q1', 'p12 f=1760 env=1/40/0/20 dur=40 v=.015 at=70'] });
 se('se_kaitenyaki_stop', { label: '回転焼き機が止まる', group: TOWN, rev: 0.2, layers: ['saw f=140→40/1200 env=0/0/1/200 dur=1200 v=.03 flt=LP500', 'sine f=2000→1500/1100 env=0/0/1/100 dur=1100 v=.008 am=5→1/1100/.8', 'sine f=90 env=1/150/0/50 dur=20 v=.06 at=1300', 'noise env=0/40/0/20 dur=10 v=.03 flt=LP1200 at=1300'] });
-se('se_escalator_step', { label: '止まったエスカレーター1段', group: TOWN, rand: STEP, max: 2, rev: 0.2, layers: ['sine f=180 env=0/100/0/20 dur=10 v=.04', 'sine f=470 env=0/70/0/20 dur=10 v=.02', 'sine f=1210 env=0/40/0/10 dur=10 v=.01', 'noise env=0/15/0/8 dur=8 v=.02 flt=BP2000q1'] });
+se('se_escalator_step', { label: 'エスカレーター1段（止まった）', group: TOWN, rand: STEP, max: 2, rev: 0.2, layers: ['sine f=180 env=0/100/0/20 dur=10 v=.04', 'sine f=470 env=0/70/0/20 dur=10 v=.02', 'sine f=1210 env=0/40/0/10 dur=10 v=.01', 'noise env=0/15/0/8 dur=8 v=.02 flt=BP2000q1'] });
 se('se_rumble', { label: '忘れ物の山がふるえる', group: TOWN, rev: 0.2, layers: ['sine f=45 env=200/600/.5/300 dur=900 v=.10 am=8/.5', 'noise env=200/600/.5/300 dur=900 v=.03 flt=LP200', 'saw f=55 env=200/600/.5/300 dur=900 v=.01 flt=LP150', 'tri f=90 env=200/600/.5/300 dur=900 v=.015 am=8/.5'] });
 se('se_zipper', { label: '背中のファスナー（ジーッ）', group: TOWN, layers: ['noise env=30/0/1/60 dur=600 v=.035 flt=BP3200q2 am=95→60/600/.8'] });
 se('se_paper_bag', { label: 'コロッケの包み（かさっ）', group: TOWN, layers: ['noise env=5/150/0/60 dur=150 v=.04 flt=BP3000q0.8 am=35/.6'] });
@@ -368,9 +368,9 @@ se('se_stamp_heavy', {
 });
 se('se_stamp_light', { label: 'かすれ判（薄いペタ・音程あり）', group: HANKO, rand: [0, 0.08], max: 4, layers: ['noise env=0/20/0/10 dur=8 v=.06 flt=HP1500', 'sine f=160→90/40 env=0/50/0/20 dur=10 v=.10', 'tri f=C5 env=0/60/0/30 dur=10 v=.05'] });
 se('se_hanko_ready', { label: 'ハンコのアップ（カチッ）', group: HANKO, layers: ['tri f=1320 env=0/25/0/10 dur=8 v=.07', 'noise env=0/12/0/6 dur=6 v=.05 flt=BP3200q3', 'sine f=440 env=0/30/0/10 dur=8 v=.04'] });
-se('se_hanko_zone', { label: 'くっきりゾーンに入った「チッ」', group: HANKO, layers: ['sine f=3520 env=0/20/0/10 dur=8 v=.03', 'tri f=1760 env=0/25/0/10 dur=8 v=.02'] });
+se('se_hanko_zone', { label: 'くっきりゾーン（入った「チッ」）', group: HANKO, layers: ['sine f=3520 env=0/20/0/10 dur=8 v=.03', 'tri f=1760 env=0/25/0/10 dur=8 v=.02'] });
 se('se_thud_low', { label: 'くっきりの低い「ドン」', group: HANKO, duck: 'heavy', layers: ['sine f=70→32/220 env=1/200/0/60 dur=40 v=.35 drive=2.0', 'noise env=1/80/0/30 dur=20 v=.08 flt=LP250', 'tri f=140→64/200 env=1/120/0/40 dur=20 v=.05', BODY(175, 105, 200, 0.24, 1.6), CLICK(1500, 0.06)] });
-se('se_peke_fall', { label: '巨大な×が振り下ろされる（ヒュウ）', group: HANKO, layers: ['noise env=180/0/1/20 dur=200 v=.06 flt=BP600→2400q3', 'sine f=400→900/200 env=180/0/1/20 dur=200 v=.02'] });
+se('se_peke_fall', { label: '巨大な×（振り下ろされる「ヒュウ」）', group: HANKO, layers: ['noise env=180/0/1/20 dur=200 v=.06 flt=BP600→2400q3', 'sine f=400→900/200 env=180/0/1/20 dur=200 v=.02'] });
 se('se_mimashita', {
   label: 'みました（照れの「ポッ」）',
   group: HANKO,
@@ -481,7 +481,7 @@ loopTable.set('se_hanko_charge', (opts?: SfxOpts): LoopHandle => {
 const CHIME = 'チャイム・鐘・放送';
 
 se('se_chime_note', {
-  label: '防災スピーカーのチャイム1音（note, hold）',
+  label: 'チャイム1音（防災無線：音名と長さ）',
   group: CHIME,
   fn(c) {
     const note = c.opts.note ?? 'G4';
@@ -495,7 +495,7 @@ se('se_chime_note', {
 });
 se('se_chime_cut', { label: 'チャイムが途切れる（残響ごと）', group: CHIME, fn: (c) => chimeCut(c.t) });
 se('se_chime_chord', {
-  label: 'ノリツッコミのチャイムの和音',
+  label: 'チャイムの和音（ノリツッコミ）',
   group: CHIME,
   rev: 0.4,
   fn(c) {
@@ -512,8 +512,8 @@ function paChime(c: SeCtx, notes: number[], lastDetune: number): void {
   duckAmbience(dbToGain(-6), 0.3, 1.4, 0.8);
 }
 const paOff = () => (musicParams().stage >= 2 && musicParams().stage < 3) || currentId() === 'bgm_boss' ? -35 : 0;
-se('se_pa_chime', { label: '放送の前「ピンポンパンポーン」', group: CHIME, fn: (c) => paChime(c, [74, 78, 81, 86], paOff()) });
-se('se_pa_chime_end', { label: '放送のあと「パンポンピンポーン」', group: CHIME, fn: (c) => paChime(c, [86, 81, 78, 74], paOff()) });
+se('se_pa_chime', { label: '放送の前（ピンポンパンポーン）', group: CHIME, fn: (c) => paChime(c, [74, 78, 81, 86], paOff()) });
+se('se_pa_chime_end', { label: '放送のあと（パンポンピンポーン）', group: CHIME, fn: (c) => paChime(c, [86, 81, 78, 74], paOff()) });
 
 /** The Kanenari bell: a warm brass bell with a major-third partial (9.6). */
 function kanenariBell(c: SeCtx, decayK: number, volK: number): void {
@@ -623,7 +623,7 @@ se('se_ambush', {
 });
 se('se_swing', { label: 'たたくの振りかぶり（ヒュッ）', group: BATTLE, rand: [0.04, 0.08], layers: ['noise env=15/0/1/40 dur=70 v=.05 flt=BP800→3000q2.5 pan=-.2→.2'] });
 se('se_ring', {
-  label: 'タイミングの輪（dur）',
+  label: 'タイミングの輪（長さ指定）',
   group: BATTLE,
   fn(c) {
     // never randomised: this is the timing reference (11.5)
@@ -688,7 +688,7 @@ se('se_defeat_chord', {
   },
 });
 se('se_kire_up', {
-  label: 'キレ+1（level 1〜3）',
+  label: 'キレ+1（段階1〜3）',
   group: BATTLE,
   fn(c) {
     const k = [1, 1, 1.26, 1.5][Math.max(1, Math.min(3, c.opts.level ?? 1))];
@@ -770,7 +770,7 @@ se('se_boss_voice', { label: 'オムカエマチの声の頭', group: BATTLE, re
 const SKILL = '戦闘：能力';
 
 se('se_hanamaru', {
-  label: 'はなまる（grade）',
+  label: 'はなまる（出来ばえ3段階）',
   group: SKILL,
   rev: 0.35,
   fn(c) {
@@ -996,7 +996,7 @@ export { stopSe };
 // beating 1760 / 1767 Hz), so the zone reads by ear here too.
 let chargeLastT = -1;
 se('se_hanko_charge', {
-  label: '長押しの溜め（sfxLoop：amount / zone）',
+  label: '長押しの溜め（ループ：溜め量とゾーン）',
   group: HANKO,
   max: 3,
   fn(c) {
@@ -1016,7 +1016,7 @@ se('se_hanko_charge', {
   },
 });
 se('se_roulette', {
-  label: '当たりルーレット（sfxLoop）',
+  label: '当たりルーレット（ループ）',
   group: ENEMY,
   // one-shot: 1.2 s of the same "ぴぴぴぴ" the loop plays (C7 D7 E7 D7 every 60 ms)
   fn(c) {

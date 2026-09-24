@@ -626,10 +626,16 @@ registerChar('npc_mizumaki', () =>
 // Idle: the flat arm swings up to the face to check the wristwatch → a sigh
 // (the upper body sinks 1px toward the seat). Canvas 32×18 over the bench at
 // (8,6): x = world − 120, y = world − 94 (backrest rows 1–8, seat 9–12,
-// ground 13–17). No outline, no rim.
+// ground 13–17). No outline and no sunset rim — but so that it reads as
+// someone you can talk to and not a stain on the bench, the part lying on
+// the backrest has a faint violet edge light on its upper-left edge, and
+// two tired pale eyes that blink, look down at the watch and shut on the
+// sigh ('notice' opens them wide).
 
 const SH_BODY = '#3A2B5CB3';
 const SH_DARK = '#2A2440DD';
+const SH_EDGE = '#7A5AA0B3';
+const SH_EYE = '#F4E6A8';
 
 // Cell map of the shadow: '#' body, '=' darker (tie, the fold over the seat
 // edge, the case's lid seam, the watch), '.' nothing. Flat shapes only, no
@@ -688,8 +694,38 @@ function shadowMan(f: Fig, p: Pose) {
       });
     // the upper body lies on the backrest and sinks 1px with the sigh; the
     // lap, the fold and everything on the ground stay put
-    put(watch ? SHADOW_ARMS_WATCH : SHADOW_UPPER, sink);
+    const upper = watch ? SHADOW_ARMS_WATCH : SHADOW_UPPER;
+    put(upper, sink);
     put(SHADOW_LOWER, 10);
+    // faint edge light along the upper-left edge of the head and shoulders
+    const at = (x: number, y: number) => y >= 0 && x >= 0 && pc.alpha(x, y) > 0;
+    // (outer edge only: the first pixel of each row from the left and of
+    // each column from the top, so the tie and lapel gaps stay flat)
+    const rows = 9 + sink;
+    const edge: [number, number][] = [];
+    for (let y = 0; y < rows; y++)
+      for (let x = 0; x < 20; x++)
+        if (at(x, y)) {
+          edge.push([x, y]);
+          break;
+        }
+    for (let x = 0; x < 20; x++)
+      for (let y = 0; y < rows; y++)
+        if (at(x, y)) {
+          edge.push([x, y]);
+          break;
+        }
+    for (const [x, y] of edge) pc.set(x, y, SH_EDGE);
+    // the eyes: blink, look down at the wrist, shut on the sigh
+    if (act === 'sigh' || p.blink) return;
+    const ey = (watch ? 3 : p.lookUp ? 1 : 2) + sink;
+    const ex = watch ? 12 : 11;
+    pc.set(ex, ey, SH_EYE);
+    pc.set(ex + 2, ey, SH_EYE);
+    if (act === 'notice') {
+      pc.set(ex, ey - 1, SH_EYE);
+      pc.set(ex + 2, ey - 1, SH_EYE);
+    }
   });
 }
 
@@ -701,9 +737,9 @@ registerChar('npc_shadow_man', () =>
     mats: {},
     draw: shadowMan,
     walkFrames: 1,
-    idle: [{}, {}, {}, {}, {}, {}, { act: 'watch' }, { act: 'watch' }, { act: 'watch' }, { act: 'watch' }, { act: 'sigh' }, { act: 'sigh' }, { act: 'sigh' }, {}, {}, {}],
+    idle: [{}, {}, {}, { blink: true }, {}, {}, { act: 'watch' }, { act: 'watch' }, { act: 'watch' }, { act: 'watch' }, { act: 'sigh' }, { act: 'sigh' }, { act: 'sigh' }, {}, { blink: true }, {}],
     idleFrameMs: 300,
-    extras: { look_up: { dirs: ['down'] }, watch: { dirs: ['down'] }, sigh: { dirs: ['down'] } },
+    extras: { look_up: { dirs: ['down'] }, watch: { dirs: ['down'] }, sigh: { dirs: ['down'] }, notice: { dirs: ['down'] } },
     render: { outline: 'none' },
     shadow: 0,
   }),

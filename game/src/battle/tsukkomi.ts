@@ -10,7 +10,8 @@ import type { EnemyUnit, PartyUnit } from './model';
 import { kakimoji, roundSeal } from './art/stamps';
 import { bangBubble, flipBoardText } from './art/fxart';
 import { PANEL_POS } from './ui/panels';
-import { LABEL } from '../data/battle';
+import { LABEL, TUT } from '../data/battle';
+import { C } from './ui/note';
 
 /** Top of the inner-voice lettering canvas (text ≈ y59–91). */
 export const KAKI_TOP = 54;
@@ -98,6 +99,77 @@ export function showBang(s: BattleScene, targets: PartyUnit[], until: () => bool
       },
     });
   }
+}
+
+/** Frames before the hit at which the closing ring appears around the "!" spot. */
+export const RING_LEAD = 30;
+
+export interface TsukRing {
+  /** Frames relative to the hit (negative before it). */
+  rel: number;
+  /** live: closing; gray: jumped the gun (かぶせ); ok: answered (pops); done: gone. */
+  state: 'live' | 'gray' | 'ok' | 'done';
+  /** ms since it answered (the pop). */
+  okT: number;
+}
+
+/**
+ * The closing ring (QA round 2): the "!" comes 12 frames before the hit
+ * (★ 6.3) — too short for a player who only reacts to it (≈ 220–280ms), and
+ * the tutorial could not say why they failed. So from 30 frames out a thin
+ * ring closes on the "!" spot at a constant speed and meets the bubble's rim
+ * exactly on the hit frame, turning gold in the just window: the wind-up now
+ * has a visible rhythm to press along with. The frame windows are unchanged.
+ */
+export function showTsukRing(s: BattleScene, targets: PartyUnit[], st: TsukRing): void {
+  const justFrom = tsukkomiWindows().justFrom;
+  for (const u of targets) {
+    const [bx, by] = bangPos(u);
+    const cx = bx + 8;
+    const cy = by + 10;
+    s.addFx({
+      layer: 'top',
+      dur: 0,
+      ui: true,
+      update(dt) {
+        if (st.state === 'ok') st.okT += dt / targets.length;
+        if (st.state === 'done' || (st.state === 'ok' && st.okT > 120)) this.done = true;
+      },
+      draw: (g) => {
+        if (st.state === 'done') return;
+        const k = Math.max(0, Math.min(1, -st.rel / RING_LEAD));
+        let r = 12 + 20 * k;
+        let a = 0.35 + 0.65 * (1 - k);
+        let col = '#F4F1E8';
+        if (st.state === 'gray') col = '#9AA0A8';
+        else if (st.state === 'ok') {
+          const p = Math.min(1, st.okT / 120);
+          r = 12 + 8 * p;
+          a = 1 - p;
+          col = '#FFD23F';
+        } else if (st.rel >= justFrom) col = '#FFD23F';
+        const rr = Math.round(r);
+        g.alpha(a, () => {
+          g.ring(cx, cy, rr + 1, C.ink);
+          g.ring(cx, cy, rr, col);
+          if (st.rel >= justFrom && st.state === 'live') g.ring(cx, cy, rr - 1, '#FFF6D8');
+        });
+      },
+    });
+  }
+}
+
+/**
+ * A press that came just after the window closed: the player is reacting to
+ * the "!" too late. Once per battle (and three times in all) the sticky
+ * points at the ring and at ツッコミ判定：ひろい.
+ */
+export function lateTip(s: BattleScene): void {
+  s.memo.lateTsuk = (s.memo.lateTsuk ?? 0) + 1;
+  if (s.memo.stk_rhythm || flag('flag_tut_tsuk_late') >= 3 || flag('flag_opt_tsukkomi_wide')) return;
+  setFlag('flag_tut_tsuk_late', flag('flag_tut_tsuk_late') + 1);
+  s.memo.stk_rhythm = 1;
+  s.sticky = { text: TUT.rhythm, t: -300, ttl: 3400 };
 }
 
 /** The "!" pops into sweat drops (and stars on a just). */

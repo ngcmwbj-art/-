@@ -10,7 +10,10 @@
 // the field's scripts are done.
 
 import type { Co } from '../engine/co';
-import { game } from '../engine/game';
+import { game, type Scene } from '../engine/game';
+import type { Gfx } from '../engine/gfx';
+import { makeCanvas } from '../engine/pixel';
+import { H, W } from '../engine/screen';
 import { flag, loadGame, resetState, setFlag, state } from '../game/state';
 import { newGameParty, syncProgressSkills } from '../data/battle';
 import { stopAllAmbient, stopBgm } from '../audio';
@@ -20,7 +23,7 @@ import { syncSettingFlags } from './settings';
 import { bookCounts, tsukkomiTotal } from './menu/book';
 import { caption } from './dialog';
 import { uiHud } from './hud';
-import { ditherIn, ditherOut } from './transition';
+import { ditherIn, ditherLevel, ditherOut } from './transition';
 
 export type NewGameHook = () => Co | void;
 const hooks: NewGameHook[] = [];
@@ -66,16 +69,54 @@ export function* startNewGame(): Co {
   if (game.fadeAlpha >= 1) yield* game.fadeIn(600);
 }
 
-/** 「つづきから」: load the save and rebuild the field where it was made. */
+/**
+ * The last frame on screen, held still while the save is brought in. It
+ * stands in for whatever was running (the title, a field under the
+ * game-over page…), so nothing underneath keeps updating the state.
+ */
+class StillScene implements Scene {
+  transparent = false;
+  private readonly img: HTMLCanvasElement | null;
+
+  constructor() {
+    const buf = game.screen?.buffer;
+    if (!buf) {
+      this.img = null;
+      return;
+    }
+    const [c, ctx] = makeCanvas(W, H);
+    ctx.drawImage(buf, 0, 0);
+    this.img = c;
+  }
+
+  update(): void {}
+
+  draw(g: Gfx): void {
+    if (this.img) g.img(this.img, 0, 0);
+    else g.clear('#0B0B14');
+  }
+}
+
+/**
+ * 「つづきから」 (the title, the game-over page): load the save and rebuild
+ * the field where it was made. Everything left on the scene stack is taken
+ * off in the same frame as the load — a field still under the game-over page
+ * (a lost boss battle comes back to it) writes the player's tile into
+ * `state` every frame and would move the loaded party to where the battle
+ * was. The field is then built from the position read out of the save
+ * before anything else ran.
+ */
 export function* continueGame(): Co {
   if (!loadGame()) return false;
+  const at = { map: state.map || 'map_home_2f', x: state.x, y: state.y, dir: state.dir };
+  game.replaceAll(new StillScene());
   uiHud.reset();
   syncProgressSkills();
   syncSettingFlags();
   // whatever covered the screen, the field comes out of a dither
-  yield* ditherOut(1, '#0B0B14');
+  yield* ditherOut(ditherLevel() >= 1 || game.fadeAlpha >= 1 ? 1 : 350, '#0B0B14');
   game.fadeAlpha = 0;
-  game.replaceAll(new FieldScene(state.map || 'map_home_2f', state.x, state.y, state.dir));
+  game.replaceAll(new FieldScene(at.map, at.x, at.y, at.dir));
   yield 150;
   yield* ditherIn(700);
   return true;

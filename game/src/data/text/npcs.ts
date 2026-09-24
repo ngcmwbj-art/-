@@ -449,8 +449,8 @@ export const NPC: Record<string, TalkTable> = {
   npc_gacha_boy: {
     s0_1: `@npc_gacha_boy
 からっぽ、3回目。{w=300}
-でも 『からっぽも 入ってます』
-って 書いてあるから、しかたない。`,
+でも 『からっぽも 入ってます』って
+書いてあるから、しかたない。`,
     s0_2: `@npc_gacha_boy
 からっぽの カプセル、
 集めると けっこう きれいだよ。`,

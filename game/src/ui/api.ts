@@ -15,6 +15,7 @@
 //   yield* playEndingNotebook()                ending cut 7 → 「つづく」 → title
 //   yield* toTitle()                           back to the title
 //   showPlaceName('夕鳴公園') / notifyItem('item_ramune') / showClock()
+//   skipItemCard('item_hanko_case')          the next pick-up of it makes no HUD note
 //   showGuide('移動：十字キー\n調べる・話す：Z')
 //   showBubble('npc_mamekichi', 'まいど！')    speech bubble over an actor
 //   yield* ditherOut(600) / ditherIn(600)     pixel dissolve transitions
@@ -23,7 +24,7 @@ export { say, choose, ask, caption, dialogVisible, type SayOpts, type ChooseOpts
 export { openShop, registerShop, type ShopDef } from './shop';
 export { saveMenu, saveWithStamp, saveConfirm } from './save';
 export { openMenu, runMenu, runSettings, menuOpen } from './menu';
-export { setMenuEnabled, showClock, showPlaceName, notifyItem, drawClockPlate, CLOCK_TIMES } from './hud';
+export { setMenuEnabled, showClock, showPlaceName, notifyItem, skipItemCard, drawClockPlate, CLOCK_TIMES } from './hud';
 export { registerNewGameHook, startNewGame, continueGame, toTitle, markClear, clearRecord } from './flow';
 export { runGameOver } from './gameover';
 export { playNightSkyCut, hideNightSky, playEndingNotebook } from './ending';

@@ -3,7 +3,7 @@
 import { registerDebug } from '../debug';
 import { game } from '../engine/game';
 import { ask, caption, choose, say } from './dialog';
-import { notifyItem, showClock, showPlaceName, uiHud } from './hud';
+import { notifyItem, showClock, showPlaceName, skipItemCard, uiHud } from './hud';
 import { openMenu } from './menu';
 import { showTitle } from './title';
 import { openShop } from './shop';
@@ -12,7 +12,7 @@ import { runGameOver } from './gameover';
 import { playEndingNotebook, playNightSkyCut } from './ending';
 import { showGuide } from './guide';
 import { showBubble } from './bubble';
-import { setFlag, state } from '../game/state';
+import { addItem, setFlag, state } from '../game/state';
 import { joinKanenari, newGameParty, setMemberLevel, syncProgressSkills } from '../data/battle';
 import { field } from '../world/field';
 import { allItems, getEnemy, getSkill, HANKO_CASE_ORDER, PR_ORDER } from '../data/battle';
@@ -145,7 +145,12 @@ registerDebug('notebook', () => {
 registerDebug('guide', (text = '移動：十字キー\n調べる・話す：Z') => showGuide(text));
 registerDebug('hudState', () => {
   const h = uiHud as unknown as Record<string, unknown>;
-  return { lastPlace: h.lastPlace, lastMap: h.lastMap, banner: h.banner, pending: h.pendingPlace, t: h.t };
+  return { lastPlace: h.lastPlace, lastMap: h.lastMap, banner: h.banner, pending: h.pendingPlace, t: h.t, cards: h.cards };
+});
+/** QA: pick an item up as the field would (`quiet`: the way an event that announces it does). */
+registerDebug('give', (id = 'item_ramune', quiet = false) => {
+  if (quiet) skipItemCard(id);
+  return addItem(id);
 });
 registerDebug('bubble', (id = 'player', text = 'まいど！') => showBubble(id, text));
 

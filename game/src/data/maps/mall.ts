@@ -66,7 +66,9 @@ registerMap({
   theme: 'mall',
   onEnter: ['lv_in_mall_hall'],
   bgm: MALL_BGM,
-  amb: { 0: ['amb_fluorescent', 'amb_kaitenyaki', 'amb_mall_wind'], 1: ['amb_fluorescent', 'amb_kaitenyaki', 'amb_mall_wind'], 2: ['amb_fluorescent', 'amb_kaitenyaki', 'amb_mall_wind'] },
+  // amb_kaitenyaki (the far machine) is not listed: it depends on fushigi_12,
+  // so lv_logic (STATE_AMB) plays it only while the machine still turns
+  amb: { 0: ['amb_fluorescent', 'amb_mall_wind'], 1: ['amb_fluorescent', 'amb_mall_wind'], 2: ['amb_fluorescent', 'amb_mall_wind'] },
   objects: [
     PR('mall_m1_shell', 0, 0),
     PR('mall_m1_clock', 10, 0),
@@ -136,7 +138,8 @@ registerMap({
   space: 'hall',
   theme: 'mall',
   bgm: MALL_BGM,
-  amb: { 0: ['amb_fluorescent', 'amb_kaitenyaki'], 1: ['amb_fluorescent', 'amb_kaitenyaki'], 2: ['amb_fluorescent', 'amb_kaitenyaki'] },
+  // + amb_kaitenyaki while the machine turns (lv_logic STATE_AMB)
+  amb: { 0: ['amb_fluorescent'], 1: ['amb_fluorescent'], 2: ['amb_fluorescent'] },
   objects: [
     PR('mall_m2_shell', 0, 0),
     PR('mall_kaitenyaki', 8, 3),

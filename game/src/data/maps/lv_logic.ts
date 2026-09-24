@@ -5,9 +5,11 @@
 //    (the tile spec's `solid` is flipped; flag_soujirou_gate is set here too).
 //  - the backyard shortcut: arriving in M3 through the STAFF door opens it for
 //    good (flag_mall_staffdoor).
-//  - ambience that depends on map state: the far kaitenyaki in M1 (−18 dB,
-//    LP 1.5 kHz), turn / flicker events synced with the art, dryer No.3 and the
-//    kaitenyaki machine falling silent once their fushigi are stamped.
+//  - ambience that depends on map state (STATE_AMB): the kaitenyaki in M2
+//    and far off in M1 (−18 dB, LP 1.5 kHz), dryer No.3 in the laundry — kept
+//    out of the maps' own `amb` lists and only started while the machine
+//    still turns, so nothing restarts after its stop event; turn / flicker
+//    events synced with the art.
 //  - fushigi_11's 「アリガトウゴザイマシタ」 balloons on the stopped escalator.
 //  - idle routines of the shopkeepers (丸山 peeks at the fryer every 4 s, おばあ
 //    breathes on her stamp then reads the ledger, 巡査 flips his notebook).
@@ -34,7 +36,7 @@ import { tube } from '../../art/props/ishell';
 import { DRIP_MS } from '../../art/props/mall_decay';
 import { kanaSmall, kanaWidth } from '../../art/props/ifurn';
 import { P } from '../../art/tiles/palette';
-import { field, FieldScene } from '../../world/field';
+import { field, FieldScene, registerAmbKeep } from '../../world/field';
 import { registerWorldFx } from '../../world/fx';
 import { fushigiDone, onFushigiPressed } from '../../world/fushigi';
 import { getScript, registerScript } from '../../world/scripts';
@@ -95,6 +97,7 @@ let lastField: FieldScene | null = null;
 let tubeWas = 1;
 let turnK = -1;
 let ambT = 0;
+let lastTick = 0;
 let escY = -1;
 let escShowT = 0;
 let escX = 0;
@@ -117,7 +120,8 @@ function onEnterMap(f: FieldScene): void {
   escY = -1;
   escShowT = 0;
   idle.clear();
-  ambT = 0;
+  ambience(f, true);
+  ambT = 900;
   counterSideBySide(f);
 }
 
@@ -149,13 +153,51 @@ function counterSideBySide(f: FieldScene): void {
   }
 }
 
-function ambience(f: FieldScene): void {
-  const id = f.map.id;
-  if (id === 'map_mall_hall' || id === 'map_mall_food') {
-    if (fushigiDone('fushigi_12') || flag('flag_got_maigo_key')) snd.stopAmbient('amb_kaitenyaki', 0.3);
-    else if (id === 'map_mall_hall') snd.playAmbient('amb_kaitenyaki', { vol: 0.126, lp: 1500 });
+/**
+ * Ambience that depends on the state of the map (QA round 2: listed in the
+ * map's `amb`, FieldScene.applyAudio(false) restarted the machine after its
+ * stop event on every menu / battle / event close, and this poll stopped it
+ * again — an audible swell of a machine that had already stopped). These
+ * are kept out of the maps' `amb` lists and are only ever started here,
+ * while `on()` holds: nothing is played and then stopped.
+ */
+interface StateAmb {
+  id: string;
+  opts: { vol?: number; lp?: number };
+  on: () => boolean;
+}
+const kaitenyakiTurns = () => !fushigiDone('fushigi_12') && !flag('flag_got_maigo_key');
+const STATE_AMB: Record<string, StateAmb[]> = {
+  // M1: the far machine through the food court's doorway (−18 dB, LP 1.5 kHz)
+  map_mall_hall: [{ id: 'amb_kaitenyaki', opts: { vol: 0.126, lp: 1500 }, on: kaitenyakiTurns }],
+  // full level here (it carries over from M1's quiet, filtered take)
+  map_mall_food: [{ id: 'amb_kaitenyaki', opts: { vol: 1, lp: 20000 }, on: kaitenyakiTurns }],
+  // dryer No.3 keeps turning until fushigi_05 is stamped
+  map_laundry: [{ id: 'amb_dryer', opts: {}, on: () => !fushigiDone('fushigi_05') }],
+};
+
+// entering a map whose state bed is on: applyAudio leaves it playing (no restart between M1 and M2)
+registerAmbKeep((mapId) => (STATE_AMB[mapId] ?? []).filter((a) => a.on()).map((a) => a.id));
+
+/**
+ * Start (or keep) the state ambience of this map, or make sure it is
+ * silent. Called on entering, right after the field comes back from a
+ * pushed scene (menu, hanko learn, battle: the moment applyAudio restores
+ * the map's own list), and every 900 ms as a safety net. While a script
+ * runs it only ever stops: a stop event fades the machine out before its
+ * flag is set (evt_kaitenyaki: 1.2 s), and must not be undone meanwhile.
+ */
+function ambience(f: FieldScene, entering: boolean): void {
+  const list = STATE_AMB[f.map.id];
+  if (!list) return;
+  // only at the stages the map has ambience for (none at night / the ending)
+  const hasAmb = f.map.def.amb?.[flag('flag_stage')] !== undefined;
+  const mayStart = entering || !game.scripts.busy;
+  for (const a of list) {
+    if (hasAmb && a.on()) {
+      if (mayStart) snd.playAmbient(a.id, { ...a.opts, fade: 0.6 });
+    } else snd.stopAmbient(a.id, 0.3);
   }
-  if (id === 'map_laundry' && fushigiDone('fushigi_05')) snd.stopAmbient('amb_dryer', 0.3);
 }
 
 registerWorldFx({
@@ -172,11 +214,15 @@ registerWorldFx({
       onEnterMap(f);
     }
     const id = f.map.id;
-    // re-assert map-state ambience now and then (entry, return from battle)
+    // map-state ambience: on entry and as soon as the field runs again after
+    // a pushed scene (a gap in the updates), then every 900 ms as a safety net
+    const now = performance.now();
+    if (now - lastTick > 250) ambT = 0;
+    lastTick = now;
     ambT -= dt;
     if (ambT <= 0) {
       ambT = 900;
-      ambience(f);
+      ambience(f, false);
     }
     // the flickering tube → the hum's "ジジッ"
     const seed = TUBE_SEED[id];

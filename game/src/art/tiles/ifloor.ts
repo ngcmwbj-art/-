@@ -636,7 +636,18 @@ export function shopDecals(list: ShopDecalAt[]): (x: number, y: number) => strin
  * collecting along the skirting (dithered), polished wear along the walking
  * lane, rubber heel scuffs, and the hand-placed things people leave.
  */
-export function laundryFloor(seed: number, lane: (x: number, y: number) => number, edge: (x: number, y: number) => number, decals: ShopDecalAt[]): FloorPainter {
+export function laundryFloor(
+  seed: number,
+  lane: (x: number, y: number) => number,
+  edge: (x: number, y: number) => number,
+  decals: ShopDecalAt[],
+  /**
+   * Where a light pool falls (x0, y0, x1, y1 px): every tile it touches is a
+   * plain one — no yellowed replacement tile, flecks, stains or scuffs that
+   * would read as a box or a face inside the light.
+   */
+  clean?: [number, number, number, number],
+): FloorPainter {
   const dec = shopDecals(decals);
   return (x, y) => {
     const d = dec(x, y);
@@ -652,6 +663,10 @@ export function laundryFloor(seed: number, lane: (x: number, y: number) => numbe
     let base: string = cream ? P.white : P.concreteLt;
     let lite: string = cream ? P.glint : P.white;
     let dark: string = cream ? P.concreteLt : P.concrete;
+    if (clean && tx * 16 < clean[2] && tx * 16 + 16 > clean[0] && ty * 16 < clean[3] && ty * 16 + 16 > clean[1]) {
+      if (lx === 0 || ly === 0) return lite;
+      return base;
+    }
     if (hh % 9 === 4) {
       // a sun-yellowed replacement tile
       base = P.paper;

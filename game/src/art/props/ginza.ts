@@ -91,7 +91,8 @@ registerProp('obj_arch_sign', () => {
   const a = stand(post, { cx: 8, shadow: 60, contact: 6 });
   a.fg = [
     { ox: 6, oy: topY, img: () => beam },
-    { ox: 8 - ARCH_W / 2, oy: boardY, img: () => archBoard() },
+    // the board thins to half while someone (the party, an enemy) stands under it
+    { ox: 8 - ARCH_W / 2, oy: boardY, img: () => archBoard(), fade: { x: 6 - ARCH_W / 2, y: boardY - 4, w: ARCH_W + 4, h: 44, alpha: 0.5 } },
     {
       ox: 8 - 28,
       oy: LY,

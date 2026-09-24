@@ -119,7 +119,10 @@ export function checkOcclusion(f: FieldScene, limit = 0.5): OcclusionReport[] {
           const fx = home[0] + dx * 16;
           const fy = home[1] + dy * 16;
           if (Math.hypot(dx, dy) > r + 0.01) continue;
-          if (!f.free(a, fx, fy, true)) continue;
+          // the home is where it is drawn, walkable or not (QA round 2: a
+          // symbol perched on an unwalkable tile was never checked at all);
+          // the rest of a roaming area only where it can go
+          if ((dx || dy) && !f.free(a, fx, fy, true)) continue;
           tiles++;
           const c = coverage(f, fx + a.ox, fy + a.oy, a.frame());
           if (c.frac > limit) {

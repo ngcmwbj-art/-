@@ -182,6 +182,15 @@ function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: R
     showSticky(s, 'firstCommand');
     s.memo.cmdTut = 1;
   }
+  // [events hook, QA round 2] the join fight: from round 6 the cursor waits
+  // on ハンコ (pulsing), and the list on みました — a player who never thinks
+  // of it is walked to it (the 様子 line says 「見て ほしい のかな」)
+  const knHint = u.id === 'minato' && s.round >= 6 && s.enemies.some((e) => e.id === 'enemy_kanenari');
+  if (knHint && lastIndex[u.id] === undefined) {
+    const hi = commandIcons(s, u).findIndex((ic) => ic.id === 'hanko');
+    if (hi >= 0) index = hi;
+    s.memo.list_hanko = Math.max(0, hankoSkills(u).indexOf('skill_mimashita'));
+  }
   let tabShown = false;
   for (;;) {
     const icons = commandIcons(s, u);
@@ -196,7 +205,7 @@ function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: R
       }
     }
     if (!nori) onTab = false;
-    s.cmd = { icons, index, pressed: false, noriTab: nori, onTab, tutorialPulse: firstTut && !s.memo.cmdTutDone ? 'tataku' : undefined };
+    s.cmd = { icons, index, pressed: false, noriTab: nori, onTab, tutorialPulse: firstTut && !s.memo.cmdTutDone ? 'tataku' : knHint ? 'hanko' : undefined };
     s.msg.setStatic(yousuText(s));
     yield null;
     // QA: __game.cmd.bcmd() while the command window is open
@@ -226,6 +235,9 @@ function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: R
     lastIndex[u.id] = index;
     if (onTab) {
       hideSticky(s);
+      // the 様子 line must not stay up through the whole ノリツッコミ
+      // (QA round 2: the flavour line hung over the cut-in)
+      s.msg.clearStatic();
       return { kind: 'nori', u };
     }
     const ic = icons[index];

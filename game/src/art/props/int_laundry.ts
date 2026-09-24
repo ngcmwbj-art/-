@@ -14,7 +14,7 @@ import { laneOf, laundryFloor } from '../tiles/ifloor';
 import { ihash, valueNoise } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { clockFace, notice, pc, prop } from './ifurn';
-import { depthShade, lightPool, paintShell, screenPool, screenSpill, shellProp, tube, warmPool } from './ishell';
+import { depthShade, lightPool, paintShell, screenOval, screenPool, screenSpill, shellProp, tube, warmOval } from './ishell';
 import { lvTime } from './istate';
 import { castRight, dk, finish, lt } from './kit';
 import { mkFrames, stand } from './pkit';
@@ -27,6 +27,13 @@ function rgbHex(c: [number, number, number]): string {
   const h = (v: number) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
   return `#${h(c[0])}${h(c[1])}${h(c[2])}`;
 }
+
+/**
+ * Dryer No.3's warm light on the floor (map px): an oval in the strip of
+ * floor between the dryers' feet (y48) and the bench's backs (y60), so the
+ * whole of it shows above 乾's head and none of it hides behind the bench.
+ */
+const NO3_POOL = { x: 72, y: 54, rx: 20, ry: 6 };
 
 // ---------------------------------------------------------------- shell
 
@@ -48,7 +55,7 @@ registerProp('in_ld_shell', () => {
     { x: 104, y: 72, k: 'drops', v: 1 },
     { x: 150, y: 53, k: 'crack' },
     { x: 22, y: 52, k: 'crack', v: 1 },
-  ]);
+  ], [NO3_POOL.x - NO3_POOL.rx, NO3_POOL.y - NO3_POOL.ry, NO3_POOL.x + NO3_POOL.rx, NO3_POOL.y + NO3_POOL.ry]);
   const sh = paintShell({
     rows,
     floor: (x, y) => floor(x, y),
@@ -344,24 +351,35 @@ registerProp('in_ld_dryer', (opts) => {
   };
   if (n === 3) {
     const flick = (t: number) => 0.85 + Math.sin(t / 240) * 0.1;
+    // the pool's centre relative to the dryer's anchor (tile 4,2)
+    const px = NO3_POOL.x - 64;
+    const py = NO3_POOL.y - 32;
     a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
       if (fushigiDone('fushigi_05')) return;
       // warm light in the turning window
       const fl = flick(env.t);
       screenPool(g, x + a.ox + 8, y + a.oy + 13, 7, 7, P.sky, 0.45 * fl);
       screenPool(g, x + a.ox + 8, y + a.oy + 13, 4, 4, P.horizon, 0.35 * fl);
+      // after the grade: the warmth that stage 1's drained colour and lilac
+      // multiply take out of the floor is laid back on the oval
+      const d = Math.min(1, env.grade.desat * 4);
+      screenOval(g, x + px, y + py, NO3_POOL.rx - 2, NO3_POOL.ry - 1, P.sun, (0.06 + d * 0.18) * fl);
     };
     a.over = (g: Gfx, x: number, y: number, env: PropEnv) => {
       if (fushigiDone('fushigi_05')) return;
-      // the round warm pool it throws on the floor (orange, not a white haze)
+      // the oval of warm light it throws on the floor (orange, not a white
+      // haze): banded with dithered joins so it reads as an oval over the
+      // checker tiles; stronger as a stage drains the colour (stage 1)
       const fl = flick(env.t);
-      warmPool(g, x + 8, y + 24, 22, 11, P.sun, 0.95 * fl);
-      warmPool(g, x + 8, y + 23, 12, 6, P.sky, 0.7 * fl);
+      const k = 1 + env.grade.desat * 1.8;
+      warmOval(g, x + px, y + py, NO3_POOL.rx, NO3_POOL.ry, P.sun, 0.95 * fl * k);
+      warmOval(g, x + px, y + py - 1, 11, 3, P.sky, 0.6 * fl * k);
     };
     a.light = (g: Gfx, x: number, y: number, env: PropEnv) => {
       if (fushigiDone('fushigi_05')) return;
       const fl = flick(env.t);
-      lightPool(g, x + 8, y + 24, 22, 12, P.sun, (0.22 + env.grade.night * 0.35) * fl);
+      // on the bench and whoever sits on it too
+      lightPool(g, x + px, y + py + 4, 24, 12, P.sun, (0.22 + env.grade.night * 0.35) * fl);
     };
   }
   return a;

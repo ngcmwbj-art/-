@@ -3,6 +3,7 @@
 // called only if present, so the world never breaks on a missing function.
 
 import * as audio from '../audio';
+import * as ambience from '../audio/ambience';
 
 type AnyFn = (...args: unknown[]) => unknown;
 const A = audio as unknown as Record<string, AnyFn | undefined>;
@@ -47,6 +48,16 @@ export function stopAmbient(id: string, fade?: number): void {
 }
 export function stopAllAmbient(fade?: number): void {
   call('stopAllAmbient', fade);
+}
+/** Ids of the ambience beds playing (not fading out); null when the sound module can't tell. */
+export function activeAmbients(): string[] | null {
+  const f = (ambience as unknown as Record<string, AnyFn | undefined>).activeAmbients;
+  if (typeof f !== 'function') return null;
+  try {
+    return f() as string[];
+  } catch {
+    return null;
+  }
 }
 export function setAmbientVol(id: string, v: number, ramp?: number): void {
   call('setAmbientVol', id, v, ramp);

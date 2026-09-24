@@ -14,9 +14,8 @@ import { actor, despawn, msg, place, registerScript, spawn } from '../world/api'
 import { registerWorldFx } from '../world/fx';
 import { fushigiCount, fushigiDone } from '../world/fushigi';
 import { stampFx } from '../world/stamp';
-import { choose } from '../ui/api';
 import * as T from '../data/text/events';
-import { KAITENYAKI_PRESSED, KAITENYAKI_SEEN, YAKINAMES, YAKINAMES_KANA } from '../data/text/mall';
+import { KAITENYAKI_AGAIN, KAITENYAKI_ANSWER, KAITENYAKI_DONE, KAITENYAKI_FLIP, KAITENYAKI_KEY, KAITENYAKI_PRESSED, KAITENYAKI_SEEN, YAKINAMES, YAKINAMES_KANA } from '../data/text/mall';
 import { addMp, eventBattle, F, getKeyItem } from './lib';
 import { puff, sparkle } from './fx';
 import { bossEyes, bossField, BOSS_FIELD } from './art';
@@ -64,10 +63,7 @@ registerScript('evt_kaitenyaki', function* (): Co {
   sfx('se_examine');
   if (fushigiDone('fushigi_12')) {
     const n = Math.max(1, Math.min(3, flag('flag_yakiname') || 3));
-    yield* msg(`@narr
-回転焼き機は 止まっている。{w=300}
-焼き型に 小さく、
-『${YAKINAMES[n - 1]}』と 刻まれている。`);
+    yield* msg(KAITENYAKI_AGAIN(YAKINAMES[n - 1]));
     return;
   }
   yield* msg(KAITENYAKI_SEEN);
@@ -85,20 +81,16 @@ registerScript('evt_kaitenyaki', function* (): Co {
   setFlag('flag_fushigi_12', 1);
   puff(10 * 16, 3 * 16 + 10, '#F4F1E8');
   yield 300;
-  yield* msg(KAITENYAKI_PRESSED);
-  const k = yield* choose(YAKINAMES);
+  // it waits for a name: the three names come up under the page
+  const k = yield* msg(`${KAITENYAKI_PRESSED}
+? ${YAKINAMES.join(' | ')}`);
   setFlag('flag_yakiname', k + 1);
-  yield* msg(`@回転焼き機:vending
-${YAKINAMES_KANA[k]}`);
-  yield* msg(`@回転焼き機:vending
-……ソウ 呼ンデ モラエルナラ、
-ナンデモ ヨカッタ。`);
+  yield* msg(KAITENYAKI_ANSWER(YAKINAMES_KANA[k]));
   // the key rolls off the plate: ころん
   sparkle(10 * 16 + 10, 3 * 16 + 12);
   sfx('se_coin', { pitch: 0.8 });
   yield 450;
-  yield* getKeyItem('item_maigo_key', `@sys
-迷子センターの鍵を 手に入れた！`);
+  yield* getKeyItem('item_maigo_key', KAITENYAKI_KEY);
   setFlag('flag_got_maigo_key', 1);
   if (flag('flag_kanenari_joined')) {
     const kn = F().follower;
@@ -107,11 +99,7 @@ ${YAKINAMES_KANA[k]}`);
       kn.tempPose = 'flip_hold';
       sfx('se_flip');
     }
-    yield* msg(`@flip
-ぼくは 大判焼き派です。`);
-    yield* msg(k === 1 ? `@flip
-（気が 合いますね）` : `@flip
-（でも、いい 名前です）`);
+    yield* msg(KAITENYAKI_FLIP(k === 1));
     if (kn) {
       kn.tempPose = null;
       delete kn.data.scripted;
@@ -120,11 +108,7 @@ ${YAKINAMES_KANA[k]}`);
   syncProgressSkills();
   yield* playHankoLearn('skill_yarinaoshi');
   addMp(2);
-  yield* msg(`@sys
-朱肉が 2 たまった。
-/
-みました帳に 書きこんだ。
-（ふしぎ ${fushigiCount()}/12）`);
+  yield* msg(KAITENYAKI_DONE(fushigiCount()));
   F().applyAudio(false);
 });
 
