@@ -140,6 +140,28 @@ export const IOBJ: Record<string, StageText> = {
 落とし物の 箱。{w=300}
 ハンカチ、手袋の 片方、
 名前の ない 定期入れ。`,
+  // the koban's lived-in corners (level art; not in the narrative's list)
+  obj_koban_tea: `@narr
+魔法瓶と、茶筒。{w=300}
+伏せた 湯のみが 2つ。
+1つは、お客さん用だ。`,
+  obj_koban_fan: {
+    s0: `@narr
+扇風機が、机の ほうへ
+首を ふっている。{w=300}
+リボンが ぱたぱた 鳴る。`,
+    s1: `@narr
+扇風機が、首を ふりかけた
+まま 止まっている。{w=300}
+リボンも、なびいた 形で 止まった。`,
+    's2+': `@narr
+扇風機が、首を ふっている。{w=300}
+風は、なぜか 北東から 来る。`,
+  },
+  obj_koban_umbrella: `@narr
+傘立てに、忘れ傘が 3本。{w=300}
+どれにも、名前が
+書いていない。`,
   // fushigi_06 before stage 1 (8.6: not an anomaly yet)
   obj_koban_board: {
     s0: `@narr

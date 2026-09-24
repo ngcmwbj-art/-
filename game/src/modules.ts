@@ -6,3 +6,7 @@ import './world';
 import './battle';
 import './ui/scenes';
 import './events';
+
+import { setKeyItemPredicate } from './game/state';
+import { isKeyItem } from './data/battle';
+setKeyItemPredicate(isKeyItem);

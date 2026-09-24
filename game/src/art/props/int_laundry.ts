@@ -257,16 +257,21 @@ registerProp('in_ld_dryer', (opts) => {
       // warm light in the window, and a round warm pool on the floor
       const fl = 0.85 + Math.sin(env.t / 240) * 0.1;
       screenPool(g, x + a.ox + 8, y + a.oy + 13, 7, 7, P.sky, 0.35 * fl);
-      screenPool(g, x + 8, y + 24, 16, 8, P.sky, 0.3 * fl);
+      screenPool(g, x + 8, y + 25, 18, 9, P.sky, 0.4 * fl);
+      screenPool(g, x + 8, y + 25, 9, 5, P.horizon, 0.22 * fl);
     };
   return a;
 });
 
 // ---------------------------------------------------------------- big washers (9–10,2)
 
-registerProp('in_ld_washer', () =>
-  prop(32, 30, (p) => {
+registerProp('in_ld_washer', () => {
+  // the left washer is running (somebody's wash, 38 minutes to go — the owner
+  // never shows up): water sloshes and a shirt turns in the porthole (4
+  // frames on the motion clock, so it freezes at 17:00); the right one is idle
+  const frames = mkFrames(4, 32, 30, (p, k) => {
     for (const bx of [0, 16]) {
+      const run = bx === 0;
       p.rect(bx, 0, 16, 30, P.concreteLt);
       p.hline(bx, bx + 15, 0, P.white);
       p.vline(bx, 0, 29, P.white);
@@ -274,22 +279,48 @@ registerProp('in_ld_washer', () =>
       // control strip with a little LED display
       p.rect(bx + 1, 2, 14, 5, P.steel);
       p.rect(bx + 2, 3, 6, 3, P.ink);
-      tiny(p, bx ? '00' : '38', bx + 2, 3, P.leafYoung, undefined, 0);
-      p.set(bx + 11, 4, P.verm);
-      p.set(bx + 13, 4, P.leafYoung);
+      if (run) tiny(p, '38', bx + 2, 3, P.leafYoung, undefined, 0);
+      else p.hline(bx + 3, bx + 6, 4, P.leafShade);
+      p.set(bx + 11, 4, run ? P.verm : P.charcoal);
+      p.set(bx + 13, 4, run && k % 2 ? P.leafLt : P.leafShade);
       // big porthole
       p.ellipse(bx + 8, 17, 6.5, 6.5, P.asphalt);
       p.ellipse(bx + 8, 17, 5.5, 5.5, P.steel);
       p.ellipse(bx + 8, 17, 4.5, 4.5, P.navy);
+      if (run) {
+        // soapy water: the surface tilts with the drum, suds on top
+        const tilt = [1, 0, -1, 0][k];
+        for (let y = 13; y <= 21; y++)
+          for (let x = bx + 4; x <= bx + 12; x++) {
+            const dx = x + 0.5 - (bx + 8.5);
+            const dy = y + 0.5 - 17.5;
+            if (dx * dx + dy * dy > 4.5 * 4.5) continue;
+            const surf = 16 + Math.round((dx / 4) * tilt);
+            if (y === surf) p.set(x, y, (x + k) % 3 === 0 ? P.white : P.aqua);
+            else if (y > surf) p.set(x, y, P.blue);
+          }
+        // a pink shirt and a white sock going round
+        const ang = (k / 4) * Math.PI * 2;
+        const sx = Math.round(bx + 8 + Math.cos(ang) * 2.5 - 1);
+        const sy = Math.round(17.5 + Math.sin(ang) * 2.2 - 1);
+        p.rect(sx, sy, 3, 2, P.peach);
+        p.set(sx, sy, P.skin2);
+        const wx = Math.round(bx + 8 - Math.cos(ang) * 2.2);
+        const wy = Math.round(17.5 - Math.sin(ang) * 2);
+        p.rect(wx, wy, 2, 1, P.white);
+      }
       p.set(bx + 5, 14, P.aqua);
-      p.set(bx + 6, 13, P.aqua);
+      p.set(bx + 6, 13, P.glint);
       p.rect(bx + 1, 26, 14, 3, P.steel);
       p.hline(bx + 1, bx + 14, 26, P.concrete);
     }
-    // a detergent bottle and a lost glove on top of the right one
-    p.rect(22, -2, 4, 2, P.blue);
-  }, { cx: 16, base: 16, contact: 0, shadow: 0 }),
-);
+    // a detergent bottle on top of the right one
+    p.rect(22, 0, 4, 1, P.blue);
+  }, (p) => finish(p, { soft: true }));
+  const a = stand(frames[0], { cx: 16, base: 16, contact: 0, shadow: 0 });
+  a.img = (env: PropEnv) => frames[Math.floor(env.mt / 180) % 4];
+  return a;
+});
 
 // ---------------------------------------------------------------- plastic seats (3–5,4) and the magazine
 

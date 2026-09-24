@@ -11,7 +11,9 @@ import { field } from '../../world/field';
 import { cameraBack, cameraPan } from '../../world/api';
 import { fushigiDone, fushigiCount, registerFushigi } from '../../world/fushigi';
 import { runMsg } from '../../world/msg';
-import { registerScript, type ScriptCtx } from '../../world/scripts';
+import { getScript, registerScript, type ScriptCtx } from '../../world/scripts';
+import { startBattle } from '../../battle/api';
+import { maigoPileHide, maigoPileShake } from './lv_api';
 import { choose } from '../../ui/dialog';
 import * as snd from '../../world/audio';
 import { hud } from '../../world/hud';
@@ -296,4 +298,58 @@ HPと 朱肉が 回復した。
 @sys
 セーブした。`);
   }
+});
+
+// ---------------------------------------------------------------- 5.18 evt_boss_intro (fallback staging)
+//
+// The scenario module stages the full cutscene; this keeps M5 playable on its
+// own: the heap speaks, shudders three times (maigoPileShake) and the boss
+// battle starts. Winning sets flag_boss_beaten and hands over to evt_ending.
+
+registerScript('evt_boss_intro', function* (ctx: ScriptCtx) {
+  if (flag('flag_boss_beaten')) return;
+  yield 300;
+  yield* runMsg(`@narr
+忘れ物の 山。{w=300}
+傘、水筒、手袋、上履き……
+/
+どれにも、名前が 書いてない。`);
+  for (let i = 0; i < 3; i++) {
+    maigoPileShake(260);
+    snd.se('se_rumble');
+    yield 480;
+  }
+  yield 300;
+  yield* runMsg(`@？？？:omukaemachi
+{spd=0.6}……だれ？{w=600}
+おむかえ？
+? うなずく | 首を ふる
+[うなずく]
+@？？？:omukaemachi
+……うそ。{w=300}
+おむかえの 人は、
+そんなに 小さく ない。
+[首を ふる]
+@？？？:omukaemachi
+……じゃあ、帰って。{w=300}
+ぼくたちは、ここで 待つ。
+[-]
+@？？？:omukaemachi
+5時の チャイムは、
+鳴らさない。{w=600}
+鳴ったら、今日が 終わっちゃう。`);
+  if (flag('flag_kanenari_joined'))
+    yield* runMsg(`@flip
+（……）`);
+  maigoPileHide(true);
+  snd.se('se_chime_note', { pitch: 1 });
+  yield 500;
+  const r = yield* startBattle({ enemies: ['boss_omukaemachi'], boss: true, music: 'bgm_boss', background: 'bg_boss', canLose: true });
+  if (r !== 'win') {
+    maigoPileHide(false);
+    return;
+  }
+  setFlag('flag_boss_beaten', 1);
+  const end = getScript('evt_ending');
+  if (end) yield* end(ctx);
 });

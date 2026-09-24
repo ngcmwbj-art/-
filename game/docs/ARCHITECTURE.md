@@ -52,6 +52,15 @@ npm run build        # subsets the font, typechecks, builds dist/
 - `debug.ts` — `registerDebug(name, fn)`; available in the browser as `__game.cmd.<name>(...)`.
 - `modules.ts` — side-effect imports of each subsystem's entry (`audio/content`, `data`, `world`, `battle`, `ui/scenes`, `events`).
 
+## Engine updates (lead)
+
+- `makeCanvas(w, h, { willReadFrequently: true })` for canvases you read back with getImageData.
+- `Gfx.rect(..., alpha)` now multiplies with the current globalAlpha (and restores it).
+- `Gfx.line` draws axis-aligned lines with a single fillRect.
+- `boot.ts`: `createScene(name, params?)` builds any registered scene (e.g. `'gameover'`).
+- `game/state.ts`: key items (`isKeyItem`) no longer count toward `INVENTORY_MAX`; `bagCount()` gives used slots.
+- `tools/shot.mjs` re-waits for `__game` if Vite HMR reloads the page mid-run.
+
 ## Directory ownership (parallel teams: only edit what you own)
 
 | path | owner |

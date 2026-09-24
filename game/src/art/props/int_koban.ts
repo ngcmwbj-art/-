@@ -214,11 +214,16 @@ registerProp('in_kb_clock', () => {
     img: (env: PropEnv) => {
       const c = env.flag('flag_clock');
       const [h, m] = env.stage >= 3 ? [5, 1] : env.stage >= 1 ? [5, 0] : [4, c >= 2 ? 58 : c >= 1 ? 55 : 52];
-      const k = `${h}:${m}`;
+      // the red second hand runs, and stops dead at 17:00 (stage 1–2)
+      const sec = env.stage === 1 || env.stage === 2 ? 0 : Math.floor(env.t / 1000) % 60;
+      const k = `${h}:${m}:${sec}`;
       let img = cache.get(k);
       if (!img) {
         const p = pc(12, 12);
         clockFace(p, 5, 5, 4, h, m, { rim: P.woodDark });
+        const sa = (sec / 60) * Math.PI * 2;
+        p.line(5, 5, Math.round(5 + Math.sin(sa) * 3.4), Math.round(5 - Math.cos(sa) * 3.4), P.red);
+        p.set(5, 5, P.ink);
         p.ring(5.5, 5.5, 5, 5, P.ink);
         castRight(p, 0, 0, 11, 11, 1);
         img = p.toCanvas();
@@ -259,40 +264,59 @@ registerProp('in_kb_locker', () =>
 
 registerProp('in_kb_desk', () => {
   const p = pc(48, 30);
-  // the officer's chair pushed in behind the desk (north side): a rounded back
-  // rest seen from behind, two armrests either side of it
-  p.ellipse(24, 3.5, 5, 3.5, P.charcoal);
-  p.rect(19, 3, 11, 5, P.charcoal);
-  p.ellipse(24, 3, 4, 2.5, P.asphalt);
-  p.hline(21, 26, 1, P.steel);
-  p.rect(16, 5, 3, 3, P.asphalt);
-  p.hline(16, 18, 5, P.steel);
+  // the officer's swivel chair pushed in behind the desk (north side): a
+  // navy fabric back rest seen from behind, a lit top edge, grey arm rests
+  p.rect(18, 1, 12, 8, P.navy);
+  p.hline(19, 28, 0, P.navy);
+  p.hline(19, 28, 1, P.blue);
+  p.set(18, 1, P.shadeDeep);
+  p.set(29, 1, P.shadeDeep);
+  p.vline(18, 2, 8, P.blue);
+  p.vline(29, 2, 8, P.shadeDeep);
+  p.hline(20, 27, 4, P.shadeDeep);
+  p.set(23, 3, P.shadeDeep);
+  p.set(24, 3, P.shadeDeep);
+  p.rect(15, 5, 3, 3, P.asphalt);
+  p.hline(15, 17, 5, P.concreteLt);
   p.rect(30, 5, 3, 3, P.asphalt);
   p.hline(30, 32, 5, P.steel);
-  // desk top: grey steel with a green mat
+  // desk top: grey steel with a green desk mat
   p.rect(0, 8, 48, 8, P.concrete);
   p.hline(0, 47, 8, P.concreteLt);
   p.rect(2, 9, 44, 6, P.leafShade);
   p.hline(2, 45, 9, P.leafDeep);
-  // the duty diary (open, lines of 『本日も異常なし』)
-  p.rect(3, 9, 12, 6, P.white);
-  p.vline(9, 9, 14, P.concrete);
-  printLines(p, 4, 10, 4, 3, P.steel, 3);
-  printLines(p, 10, 10, 4, 3, P.steel, 5);
-  p.line(13, 14, 15, 12, P.navy);
-  // radio set with its antenna and an LED
-  p.rect(19, 7, 9, 6, P.charcoal);
-  p.rect(20, 8, 4, 4, P.asphalt);
-  for (let j = 8; j < 12; j += 2) p.hline(20, 23, j, P.ink);
-  p.vline(27, 2, 6, P.steel);
+  // the duty diary (open, lines of 『本日も異常なし』) and a pen
+  p.rect(3, 9, 11, 6, P.white);
+  p.vline(8, 9, 14, P.concrete);
+  printLines(p, 4, 10, 3, 3, P.steel, 3);
+  printLines(p, 9, 10, 4, 3, P.steel, 5);
+  p.line(12, 14, 14, 12, P.navy);
+  // the black telephone: handset on the cradle, a coiled cord
+  p.rect(16, 11, 7, 4, P.charcoal);
+  p.hline(16, 22, 11, P.asphalt);
+  p.rect(15, 9, 9, 2, P.ink);
+  p.hline(15, 23, 9, P.charcoal);
+  p.set(16, 9, P.asphalt);
+  p.rect(18, 12, 3, 2, P.ink);
+  p.set(19, 12, P.steel);
+  for (let k = 0; k < 3; k++) p.set(23 + k, 13 + (k & 1), P.charcoal);
+  // the police radio with its antenna and an LED (receiving now and then)
+  p.rect(26, 9, 6, 5, P.charcoal);
+  p.hline(26, 31, 9, P.asphalt);
+  for (let j = 10; j < 13; j++) p.hline(27, 29, j, j & 1 ? P.ink : P.asphalt);
+  p.vline(31, 2, 8, P.steel);
+  p.set(31, 1, P.charcoal);
   // in-tray with papers
-  p.rect(30, 10, 7, 4, P.woodLt);
-  p.rect(31, 9, 5, 3, P.white);
-  // teacup 『交通安全』 (cold)
-  p.rect(40, 9, 4, 5, P.white);
-  p.hline(40, 43, 9, P.leafDeep);
-  p.set(41, 11, P.leafShade);
+  p.rect(33, 10, 6, 4, P.woodLt);
+  p.hline(33, 38, 10, P.goldPale);
+  p.rect(34, 9, 4, 2, P.white);
+  // the 『交通安全』 teacup (cold) with its saucer
+  p.hline(40, 45, 14, P.concreteLt);
+  p.rect(41, 10, 4, 4, P.white);
+  p.hline(41, 44, 10, P.leafDeep);
   p.set(42, 12, P.leafShade);
+  p.set(43, 12, P.leafShade);
+  p.vline(44, 11, 13, P.concreteLt);
   // front: steel drawers
   p.rect(0, 16, 48, 12, P.steel);
   p.hline(0, 47, 16, P.concreteLt);
@@ -301,16 +325,138 @@ registerProp('in_kb_desk', () => {
   p.rect(32, 18, 14, 9, P.concrete);
   for (const [hx, hy] of [[8, 20], [8, 25], [38, 21]] as const) p.rect(hx, hy, 3, 1, P.charcoal);
   p.rect(18, 17, 12, 10, P.asphalt);
+  // a 『交通安全』 sticker on the knee panel, a scuff from boots
+  p.rect(21, 19, 6, 3, P.white);
+  p.hline(22, 25, 20, P.leafDeep);
+  p.hline(19, 23, 26, P.charcoal);
   p.rect(0, 28, 48, 2, P.charcoal);
   finish(p, { soft: true });
   const a = stand(p.toCanvas(), { cx: 24, base: 16, contact: 0, shadow: 0 });
   a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
-    // the radio's LED (receiving now and then)
     const on = Math.floor(env.t / 600) % 5 !== 0;
-    g.rect(x + a.ox + 25, y + a.oy + 9, 1, 1, on ? P.leafYoung : P.vermLt, 0.95);
+    g.rect(x + a.ox + 30, y + a.oy + 10, 1, 1, on ? P.leafYoung : P.vermLt, 0.95);
   };
   return a;
 });
+
+// ---------------------------------------------------------------- standing fan (6,2): turns its head over the desk
+
+registerProp('in_kb_fan', () => {
+  // 3 head angles × 3 blade positions; the blades stop with the motion clock (stage 1)
+  const frames: HTMLCanvasElement[] = [];
+  for (const yaw of [-1, 0, 1])
+    for (let b = 0; b < 3; b++) {
+      const p = pc(18, 34);
+      // weighted round foot and the pole
+      p.ellipse(9, 31.5, 6.5, 2.5, P.asphalt);
+      p.ellipse(9, 31, 6, 2, P.steel);
+      p.hline(5, 11, 30, P.concreteLt);
+      p.rect(8, 16, 2, 14, P.concrete);
+      p.vline(8, 16, 29, P.concreteLt);
+      p.vline(10, 17, 29, P.steel);
+      p.rect(7, 20, 4, 2, P.concreteLt);
+      p.set(10, 21, P.steel);
+      // motor housing behind the guard (seen when the head turns)
+      const cx = 9 + yaw;
+      if (yaw) p.ellipse(cx - yaw * 3, 9, 3, 3.5, P.concrete);
+      // the guard and the blades
+      const rx = yaw ? 5.2 : 6.5;
+      const ry = 6.5;
+      for (let y = 0; y < 18; y++)
+        for (let x = 0; x < 18; x++) {
+          const dx = (x + 0.5 - (cx + 0.5)) / rx;
+          const dy = (y + 0.5 - 9.5) / ry;
+          const d = Math.hypot(dx, dy);
+          if (d > 1) continue;
+          if (d > 0.84) {
+            p.set(x, y, dx < -0.2 || dy < -0.5 ? P.concreteLt : P.steel);
+            continue;
+          }
+          const ang = ((Math.atan2(dy, dx) * 180) / Math.PI + 360 + b * 40) % 120;
+          const blade = ang < 52 && d > 0.18;
+          p.set(x, y, blade ? (dx + dy < 0 ? P.aqua : P.blue) : d < 0.2 ? P.white : P.shadeDeep);
+          // the grille's middle ring
+          if (d > 0.56 && d < 0.66 && ((x + y) & 1) === 0) p.set(x, y, P.concrete);
+        }
+      p.set(cx, 9, P.steel);
+      // a paper ribbon tied to the guard, fluttering
+      p.set(cx + Math.round(rx), 13, P.verm);
+      p.set(cx + Math.round(rx) + 1, 14 + (b & 1), P.verm);
+      finish(p, { soft: true, rim: false });
+      frames.push(p.toCanvas());
+    }
+  const a = stand(frames[3], { cx: 8, base: 16, contact: 10, shadow: 0 });
+  a.img = (env: PropEnv) => {
+    const sway = Math.sin(env.mt / 1700);
+    const yi = sway < -0.45 ? 0 : sway > 0.45 ? 2 : 1;
+    const bi = Math.floor(env.mt / 55) % 3;
+    return frames[yi * 3 + bi];
+  };
+  return a;
+});
+
+// ---------------------------------------------------------------- the tea corner (1,2): a low cabinet, thermos, tea caddy, the patrol placard
+
+registerProp('in_kb_tea', () =>
+  prop(18, 30, (p) => {
+    // the 『パトロール中』 placard leaning against the cabinet's side
+    p.poly([[11, 6], [17, 7], [17, 29], [11, 29]], P.white);
+    p.hline(11, 17, 6, P.glint);
+    p.rect(12, 8, 5, 3, P.verm);
+    scribble(p, 12, 12, 2, P.navy, 21, 3, true);
+    p.vline(17, 7, 29, P.concrete);
+    // low steel cabinet
+    p.rect(0, 15, 13, 15, P.concrete);
+    p.hline(0, 12, 15, P.concreteLt);
+    p.vline(0, 15, 29, P.concreteLt);
+    p.vline(12, 16, 29, P.steel);
+    p.hline(1, 11, 22, P.steel);
+    p.rect(5, 18, 3, 1, P.charcoal);
+    p.rect(5, 25, 3, 1, P.charcoal);
+    // a thermos pot (flower print), a tea caddy, two cups upside down on a tray
+    p.rect(1, 5, 5, 10, P.white);
+    p.rect(1, 4, 5, 2, P.charcoal);
+    p.hline(2, 4, 3, P.charcoal);
+    p.rect(2, 8, 2, 2, P.crimson);
+    p.set(4, 11, P.leaf);
+    p.vline(5, 5, 14, P.concrete);
+    p.rect(7, 9, 3, 6, P.leafShade);
+    p.hline(7, 9, 9, P.leafDeep);
+    p.rect(1, 14, 11, 1, P.woodLt);
+    p.rect(10, 12, 2, 2, P.white);
+    p.rect(8, 12, 1, 2, P.concreteLt);
+  }, { base: 16, contact: 0, shadow: 0 }),
+);
+
+// ---------------------------------------------------------------- umbrella stand (1,5): the forgotten umbrellas
+
+registerProp('in_kb_umbrella', () =>
+  prop(16, 30, (p) => {
+    // three umbrellas: clear vinyl, navy, a child's red one — none has a name
+    p.line(4, 3, 6, 17, P.charcoal);
+    p.rect(3, 1, 3, 3, P.brassOld);
+    p.poly([[2, 5], [7, 4], [8, 17], [5, 18]], P.concreteLt);
+    p.line(2, 5, 5, 18, P.white);
+    p.line(10, 2, 9, 17, P.charcoal);
+    p.set(10, 1, P.charcoal);
+    p.set(11, 1, P.charcoal);
+    p.poly([[8, 5], [12, 5], [11, 18], [8, 18]], P.navy);
+    p.vline(8, 6, 17, P.blue);
+    p.line(13, 7, 12, 18, P.vermShade);
+    p.poly([[11, 9], [14, 8], [14, 18], [11, 18]], P.red);
+    p.vline(11, 9, 18, P.vermLt);
+    p.rect(12, 12, 2, 2, P.white);
+    // the stand: a glazed ceramic pot, dark green, lit on the left
+    p.rect(2, 17, 12, 12, P.leafShade);
+    p.vline(2, 17, 28, P.leafDeep);
+    p.vline(3, 18, 27, P.leaf);
+    p.vline(13, 17, 28, P.ink);
+    p.hline(2, 13, 17, P.leafDeep);
+    p.hline(3, 12, 18, P.ink);
+    p.hline(2, 13, 23, P.leafDeep);
+    p.hline(2, 13, 29, P.ink);
+  }, { base: 16, contact: 12, shadow: 0 }),
+);
 
 // ---------------------------------------------------------------- lost-property box (7,3)
 
@@ -338,7 +484,9 @@ registerProp('in_kb_mat', () => {
   p.rect(0, 0, 24, 12, P.charcoal);
   p.strokeRect(0, 0, 24, 12, P.ink);
   for (let x = 2; x < 22; x += 2) p.vline(x, 2, 9, P.asphalt);
-  tiny(p, 'KOBAN', 2, 4, P.concrete, undefined, 0);
+  // a woven border and the ribs worn pale where everyone steps in
+  p.strokeRect(1, 1, 22, 10, P.asphalt);
+  for (let x = 6; x < 18; x += 2) p.vline(x, 4, 7, P.steel);
   return { ox: -4, oy: 5, w: 24, h: 12, foot: 0, flat: true, img: () => p.toCanvas() } as PropArt;
 });
 

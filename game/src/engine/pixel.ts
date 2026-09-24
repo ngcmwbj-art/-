@@ -323,11 +323,11 @@ export class PixelCanvas {
 }
 
 /** Create an offscreen canvas of the given size with smoothing disabled. */
-export function makeCanvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
+export function makeCanvas(w: number, h: number, opts: { willReadFrequently?: boolean } = {}): [HTMLCanvasElement, CanvasRenderingContext2D] {
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
-  const ctx = c.getContext('2d')!;
+  const ctx = c.getContext('2d', opts.willReadFrequently ? { willReadFrequently: true } : undefined)!;
   ctx.imageSmoothingEnabled = false;
   return [c, ctx];
 }

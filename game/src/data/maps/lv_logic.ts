@@ -32,6 +32,7 @@ import { runMsg } from '../../world/msg';
 import type { DoorObj, TileSpec } from '../../world/types';
 import { cellAt, loadMap } from '../../world/maps';
 import * as snd from '../../world/audio';
+import { maigoPileHide, maigoPileShake } from './lv_api';
 import './lv_fallback';
 
 /** The 'C' cell of M4 (shared by reference with the loaded map's cells). */
@@ -44,6 +45,34 @@ export const TUBE_SEED: Record<string, number> = {
   map_mall_health: 303,
   map_mall_2f: 404,
 };
+
+/**
+ * Where the robot vacuums may roam (tile columns, inclusive): 2F keeps to
+ * x2–14 (1.5), the food court never rolls into the exits of x19.
+ */
+const SOUJI_X: Record<string, [number, number]> = {
+  map_mall_2f: [2, 14],
+  map_mall_food: [1, 18],
+};
+
+function keepSoujirou(f: FieldScene): void {
+  const b = SOUJI_X[f.map.id];
+  if (!b) return;
+  const lo = b[0] * 16 + 8;
+  const hi = b[1] * 16 + 8;
+  for (const a of f.actors) {
+    if (a.kind !== 'sym' || (a.data.sym as { kind?: string } | undefined)?.kind !== 'soujirou') continue;
+    if (a.x >= lo && a.x <= hi) continue;
+    const west = a.x < lo;
+    a.x = west ? lo : hi;
+    // bump like at a wall: turn aside (or back) with the little knock
+    if (a.dir === (west ? 'left' : 'right')) {
+      const r = Math.random();
+      a.dir = r < 0.3 ? (west ? 'right' : 'left') : r < 0.65 ? 'up' : 'down';
+      snd.se('se_robot_bump', { vol: 0.5 });
+    }
+  }
+}
 
 function gateOpen(): boolean {
   return !!state.taken['sym_mall_2f_01'] || flag('flag_soujirou_gate') > 0;
@@ -65,6 +94,8 @@ const idle = new Map<string, number>();
 function onEnterMap(f: FieldScene): void {
   lvTime.map = f.map.id;
   lvTime.enterT = f.t;
+  lvTime.pileShakeUntil = 0;
+  lvTime.pileHidden = f.map.id === 'map_mall_maigo' && flag('flag_boss_beaten') > 0;
   tubeWas = 1;
   turnK = -1;
   escY = -1;
@@ -116,6 +147,7 @@ registerWorldFx({
       turnK = k;
     }
     if (id === 'map_mall_health') escalatorThanks(f, dt);
+    keepSoujirou(f);
     shopkeepers(f, dt);
   },
   draw(f, g, cx, cy, layer) {
@@ -266,6 +298,13 @@ registerDebug('lv', (name?: string, x?: number, y?: number) => {
   const cmd = (window as unknown as { __game: { cmd: Record<string, (...a: unknown[]) => unknown> } }).__game.cmd;
   if (s[4] >= 0 && flag('flag_stage') < s[4]) cmd.stage?.(s[4]);
   return cmd.warp?.(s[0], x ?? s[1], y ?? s[2], s[3]);
+});
+/** QA: the M5 heap — lvPile('shake') / lvPile('hide') / lvPile('show'). */
+registerDebug('lvPile', (what = 'shake') => {
+  if (what === 'hide') maigoPileHide(true);
+  else if (what === 'show') maigoPileHide(false);
+  else maigoPileShake(900);
+  return what;
 });
 /** Toggle the 2F corridor gate (QA): lvGate(true) = ソウジロウ beaten. */
 registerDebug('lvGate', (on?: boolean) => {

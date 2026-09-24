@@ -79,9 +79,18 @@ export function hasItem(id: string): boolean {
 export function countItem(id: string): number {
   return state.inventory.filter((i) => i === id).length;
 }
+let keyItemPred: (id: string) => boolean = () => false;
+/** Key items (だいじなもの) don't take a bag slot; the data module registers the predicate. */
+export function setKeyItemPredicate(fn: (id: string) => boolean): void {
+  keyItemPred = fn;
+}
+/** Number of bag slots in use (key items excluded). */
+export function bagCount(): number {
+  return state.inventory.filter((i) => !keyItemPred(i)).length;
+}
 /** Returns false if the bag is full. */
 export function addItem(id: string): boolean {
-  if (state.inventory.length >= INVENTORY_MAX) return false;
+  if (!keyItemPred(id) && bagCount() >= INVENTORY_MAX) return false;
   state.inventory.push(id);
   return true;
 }

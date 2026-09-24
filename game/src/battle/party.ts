@@ -17,7 +17,7 @@ import {
   addKire, arrows, cureStatus, defeatEnemy, dodge, fadeDrops, fadeDropsLater, healParty, hideSticky, hurtEnemy, hurtParty, kireFullPages, knock,
   markDefeated, resetKire, showSticky, statusText,
 } from './common';
-import { drawNet, balloon, crowLit, heart, musicNote, noriBoard, poppedBalloon, sweatDrop, thickLine } from './art/fxart';
+import { drawNet, balloon, crowLit, heart, mangaLettering, musicNote, noriBoard, poppedBalloon, sweatDrop, thickLine } from './art/fxart';
 import { all } from '../engine/co';
 import { duckMusic, muteMusic, musicFlee, sfxLoop } from '../audio';
 import { hankoCloseup } from './art/fxart';
@@ -1115,21 +1115,41 @@ function* prKane(s: BattleScene, u: PartyUnit): Co {
   s.freezeMs = 300;
   yield null;
   s.freezeLook = null;
-  // a crow crosses right → left just under the band, "カア" — rimmed in pale
-  // gold so it reads on any background (the mall ceiling is its own colour)
-  s.sfx('se_crow');
-  const crowSt = { x: 400 };
+  // a crow crosses right → left just under the band, beak first, and caws
+  // ("カア") once it is well on screen — back-lit in pale gold so it reads on
+  // any background (the mall ceiling is its own colour)
+  const crowSt = { x: 400, cawT: -1, cawX: 0 };
   const crowY = s.msg.bottom + 6;
+  const kaa = mangaLettering('カア');
   s.addFx({
     layer: 'top',
-    dur: 1400,
+    dur: 1500,
     ui: true,
     draw: (g, t) => {
-      const img = crowLit(Math.floor(t / 110));
-      g.img(img, Math.round(crowSt.x), crowY + Math.round(Math.sin(t / 160) * 2));
+      const img = crowLit(Math.floor(t / 90));
+      const y = crowY + Math.round(Math.sin(t / 160) * 2);
+      g.img(img, Math.round(crowSt.x), y);
+      if (crowSt.cawT >= 0) {
+        const ct = t - crowSt.cawT;
+        if (ct < 700) {
+          // the caw pops out right behind the crow and trails after it at
+          // half its speed, floating up a little as it fades
+          const sc = ct < 60 ? 1.4 - 0.4 * (ct / 60) : 1;
+          const w = kaa.width * sc;
+          const h = kaa.height * sc;
+          const kx = crowSt.x + 22 + (crowSt.cawX - crowSt.x) * 0.55;
+          const ky = crowY + 4 - h / 2 - Math.min(5, ct / 70);
+          g.alpha(ct > 500 ? (700 - ct) / 200 : 1, () => g.ctx.drawImage(kaa, Math.round(kx), Math.round(ky), Math.round(w), Math.round(h)));
+        }
+      }
     },
     update(dt) {
       crowSt.x -= dt * 0.33;
+      if (crowSt.cawT < 0 && crowSt.x < 262) {
+        crowSt.cawT = this.t;
+        crowSt.cawX = crowSt.x;
+        s.sfx('se_crow');
+      }
     },
   });
   yield* s.say([SYS.kane[1]]);
@@ -1441,6 +1461,11 @@ export function* doNori(s: BattleScene): Co {
         ctx.fillRect(lx - hw, spot.foot + yy, hw * 2, 1);
       }
       ctx.restore();
+      // everything he does passes behind the band (the banner's tip, the notes)
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, top + 2, 384, 216 - top - 2);
+      ctx.clip();
       // the performer (squash on landings, anchored on his feet)
       const img = kanenariFront(kf.pose, t - kf.t0);
       const sx = sc * (1 + 0.14 * kf.sq);
@@ -1448,7 +1473,10 @@ export function* doNori(s: BattleScene): Co {
       const w = img.width * sx;
       const h = img.height * sy;
       const x = lx - bodyCx(kf.pose) * sx;
-      const y = spot.foot - kf.hop - h;
+      // with the flip board up, he rises onto his toes if the board would
+      // otherwise reach down into the tape row (the 85% stand in front)
+      const raise = kf.boardT >= 0 ? Math.max(0, Math.round(spot.foot - 42 * sc + board.height - 142)) : 0;
+      const y = spot.foot - kf.hop - raise - h;
       g.alpha(1 - kf.leave, () => ctx.drawImage(img, Math.round(x), Math.round(y), Math.round(w), Math.round(h)));
       // the flip board, flipped round into view in front of his tummy
       if (kf.boardT >= 0) {
@@ -1457,10 +1485,22 @@ export function* doNori(s: BattleScene): Co {
         // (the board keeps its size even when he stands smaller: it has to be read)
         const bw = board.width * Math.max(0.06, Math.abs(Math.cos((1 - k) * Math.PI * 0.5)));
         const bh = board.height;
-        const bob = Math.floor(bt / 280) % 2;
-        // held at the tummy: his eyes and cheeks peek over the top edge
-        const by = spot.foot - kf.hop - 38 * sc + bob;
-        g.alpha(1 - kf.leave, () => ctx.drawImage(board, Math.round(lx - bw / 2), Math.round(by), Math.round(bw), Math.round(bh)));
+        // held up in front of him, his eyes and cheeks peeking over the top;
+        // on every other beat he thrusts it up 3px at the audience ("ジャン")
+        const beat = k >= 1 ? Math.floor((bt - 110) / 300) % 2 : 0;
+        // the clip sits on his chin: the board's top edge just under his cheeks
+        const by = Math.round(spot.foot - 42 * sc - raise - kf.hop - beat * 3);
+        g.alpha(1 - kf.leave, () => ctx.drawImage(board, Math.round(lx - bw / 2), by, Math.round(bw), Math.round(bh)));
+        const bt2 = (bt - 110) % 600;
+        if (k >= 1 && beat && bt2 >= 300 && bt2 < 420 && kf.leave === 0) {
+          // emphasis strokes off the two top corners of the board
+          const x0 = Math.round(lx - bw / 2) + 6;
+          const x1 = Math.round(lx + bw / 2) - 7;
+          const y0 = by + 3;
+          for (const [ax, dir] of [[x0, -1], [x1, 1]] as [number, number][])
+            for (const [dx, dy] of [[6, -1], [5, -5], [1, -7]] as [number, number][])
+              g.line(ax + dir * Math.round(dx * 0.45), y0 + Math.round(dy * 0.45) - 2, ax + dir * dx, y0 + dy - 2, '#FFF6D8');
+        }
       }
       // notes rising from the hand-bell microphone
       for (const n of notes) {
@@ -1469,6 +1509,7 @@ export function* doNori(s: BattleScene): Co {
         const wob = Math.round(Math.sin(n.t / 90 + n.i) * 2);
         g.alpha(Math.max(0, a), () => g.img(im, Math.round(n.x + wob - im.width / 2), Math.round(n.y - im.height / 2)));
       }
+      ctx.restore();
     },
   });
   const bokeMs = first ? 1000 : 400;

@@ -64,10 +64,11 @@ export class Gfx {
 
   rect(x: number, y: number, w: number, h: number, color: string, alpha = 1): void {
     const c = this.ctx;
-    if (alpha !== 1) c.globalAlpha = alpha;
+    const prev = c.globalAlpha;
+    if (alpha !== 1) c.globalAlpha = prev * alpha;
     c.fillStyle = color;
     c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
-    if (alpha !== 1) c.globalAlpha = 1;
+    if (alpha !== 1) c.globalAlpha = prev;
   }
 
   /** 1px rectangle outline. */
@@ -91,6 +92,14 @@ export class Gfx {
     x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
     const c = this.ctx;
     c.fillStyle = color;
+    if (y0 === y1) {
+      c.fillRect(Math.min(x0, x1), y0, Math.abs(x1 - x0) + 1, 1);
+      return;
+    }
+    if (x0 === x1) {
+      c.fillRect(x0, Math.min(y0, y1), 1, Math.abs(y1 - y0) + 1);
+      return;
+    }
     const dx = Math.abs(x1 - x0);
     const dy = -Math.abs(y1 - y0);
     const sx = x0 < x1 ? 1 : -1;

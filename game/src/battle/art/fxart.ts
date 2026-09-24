@@ -223,39 +223,87 @@ export function balloon(alt: boolean): HTMLCanvasElement {
 }
 export const poppedBalloon = () => spr('popped', ['.kk..', 'kSSk.', '.kSk.', '..kw.', '...w.']);
 
+const CROW_ROWS: string[][] = [
+  // wings up (swept back over the body)
+  [
+    '..............kk........',
+    '.............kkh........',
+    '............kkhh........',
+    '...........kkhhk........',
+    '..........kkhhk.........',
+    '.........kkhhk..........',
+    '...kkk..kkhkk...........',
+    '..kkkkkkkkkkkk..........',
+    'bbkekkkkkkkkkkkkk.......',
+    '..kkkkkkkkkkkkkkkkkk.kk.',
+    '....kkkkkkkkkkkkkkkkkkk.',
+    '......kkkkkkkk....kkkk..',
+    '........................',
+    '........................',
+  ],
+  // wings level
+  [
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '...kkk..................',
+    '..kkkkkkk...............',
+    'bbkekkkkkhhhhhhhhkkk....',
+    '..kkkkkkkkkkkkkkkkkkk.kk',
+    '....kkkkkkkkkkkkkkkkkkkk',
+    '......kkkkkkkk....kkkkk.',
+    '.........kk.............',
+    '........................',
+    '........................',
+  ],
+  // wings down
+  [
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '...kkk..................',
+    '..kkkkkk................',
+    'bbkekkkkkkkkkkk.........',
+    '..kkkkkkkkkkkkkkkkkk.kk.',
+    '....kkkkkkkkkkkkkkkkkkk.',
+    '......kkhhkkkkk...kkkk..',
+    '.......khhhkkk..........',
+    '........khhkk...........',
+    '.........khk............',
+    '..........kk............',
+  ],
+];
+
 const litCrows: HTMLCanvasElement[] = [];
 /**
- * The crow with a 1px pale rim (#F4E6A8): the flop's punchline has to read
- * even against the dark mall ceiling (#2A2440), the crow's own colour.
+ * The crow of the かねを鳴らす flop (24×14 + rim): a side-on silhouette
+ * flying left, beak first, in three wingbeats (up, level, down, level). The
+ * body is the ink colour; the sunset behind it catches every upper edge in a
+ * pale-gold rim (#F4E6A8) and the rest gets a violet edge, so it reads on
+ * the bright sunset and on the dark mall ceiling (#2A2440) alike.
  */
 export function crowLit(frame: number): HTMLCanvasElement {
-  const f = frame % 2;
+  const f = [0, 1, 2, 1][((frame % 4) + 4) % 4];
   if (litCrows[f]) return litCrows[f];
-  const base = crow(f);
-  const p = new PixelCanvas(base.width + 2, base.height + 2);
-  const [c, ctx] = makeCanvas(base.width + 2, base.height + 2);
-  ctx.drawImage(base, 1, 1);
-  const d = ctx.getImageData(0, 0, c.width, c.height).data;
-  for (let y = 0; y < c.height; y++)
-    for (let x = 0; x < c.width; x++) {
-      const a = d[(y * c.width + x) * 4 + 3];
-      if (a) p.set(x, y, '#2A2440');
+  const rows = CROW_ROWS[f];
+  const W = rows[0].length + 2;
+  const H = rows.length + 2;
+  const p = new PixelCanvas(W, H);
+  p.blit(PixelCanvas.fromArt(rows, { k: '#2A2440', h: '#4A3A6E', b: '#8A809A', e: '#F4E6A8' }), 1, 1);
+  const body = (x: number, y: number) => p.inside(x, y) && p.alpha(x, y) > 0;
+  const rim: [number, number, string][] = [];
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      if (body(x, y)) continue;
+      const below = body(x, y + 1);
+      if (below || body(x - 1, y) || body(x + 1, y) || body(x, y - 1)) rim.push([x, y, below ? '#F4E6A8' : '#6B5A8A']);
     }
-  // the eye catches the light
-  p.outline('#F4E6A8');
-  for (let y = 0; y < c.height; y++)
-    for (let x = 0; x < c.width; x++) {
-      const i = (y * c.width + x) * 4;
-      if (d[i + 3] && d[i] === 0x5b) p.set(x, y, '#5B4A7A');
-    }
+  for (const [x, y, c] of rim) p.set(x, y, c);
   litCrows[f] = p.toCanvas();
   return litCrows[f];
-}
-
-export function crow(frame: number): HTMLCanvasElement {
-  return spr('crow' + (frame % 2), frame % 2
-    ? ['................', '.......kk.......', '......kkkk......', '..kkkkkkkkkk.k..', 'kkkkkkkkkkkkkk..', '...kkkkkkkkkqq..', '.....kkkkk.kq...', '......k..k......', '................', '................']
-    : ['.kk.............', '..kkk...........', '...kkkk.........', '....kkkkkk......', '.....kkkkkkk.kq.', '...kkkkkkkkkkqq.', '..kkkkkkkkk.k...', '.kkk...kk.......', 'kk..............', '................']);
 }
 
 /** Red up / blue down arrow 5×7. */
@@ -389,8 +437,9 @@ export function flipBoardText(text: string): HTMLCanvasElement {
 /**
  * The flip board Kanenari-kun holds up for the ノリツッコミ boke: a white
  * marker board with a binder clip, a pale ruled line under each line of
- * marker text, a soft bottom shadow and his two mittens gripping the bottom
- * corners.
+ * marker text and a soft shadow; his two mittens grip it by the side edges
+ * (half over the board, thumbs on the front), so it reads as held up, not
+ * stood on the floor. The board itself starts 6px in from the canvas' left.
  */
 export function noriBoard(lines: string[]): HTMLCanvasElement {
   const key = 'nori:' + lines.join('/');
@@ -398,30 +447,36 @@ export function noriBoard(lines: string[]): HTMLCanvasElement {
   if (c) return c;
   const tw = Math.max(...lines.map((l) => measure(l)));
   const w = tw + 18;
-  const h = lines.length * 17 + 8;
-  const [cv, ctx] = makeCanvas(w + 2, h + 6);
+  const h = lines.length * 16 + 6;
+  const L = 6;
+  const [cv, ctx] = makeCanvas(w + L * 2 + 2, h + 6);
   const r = (x: number, y: number, ww: number, hh: number, col: string) => {
     ctx.fillStyle = col;
     ctx.fillRect(x, y, ww, hh);
   };
-  r(2, 5, w, h, '#5B4A7A');
-  r(0, 3, w, h, '#2A2440');
-  r(1, 4, w - 2, h - 2, '#F4F1E8');
-  r(1, h, w - 2, 1, '#C8C2B4');
-  r(2, 4, w - 4, 1, '#FFFFFF');
-  for (let i = 0; i < lines.length; i++) r(5, 4 + 4 + i * 17 + 15, w - 10, 1, '#DCE6EC');
-  lines.forEach((l, i) => drawText(ctx, l, 9, 4 + 4 + i * 17 - 1, { color: '#2A2440' }));
+  r(L + 2, 5, w, h, '#5B4A7A');
+  r(L, 3, w, h, '#2A2440');
+  r(L + 1, 4, w - 2, h - 2, '#F4F1E8');
+  r(L + 1, h, w - 2, 1, '#C8C2B4');
+  r(L + 2, 4, w - 4, 1, '#FFFFFF');
+  for (let i = 0; i < lines.length; i++) r(L + 5, 4 + 3 + i * 16 + 15, w - 10, 1, '#DCE6EC');
+  lines.forEach((l, i) => drawText(ctx, l, L + 9, 4 + 3 + i * 16 - 1, { color: '#2A2440' }));
   // binder clip at the top centre
-  const cx = Math.round(w / 2);
+  const cx = L + Math.round(w / 2);
   r(cx - 5, 0, 10, 5, '#2A2440');
   r(cx - 4, 1, 8, 3, '#9AA0A8');
   r(cx - 4, 1, 8, 1, '#E8ECF0');
-  // mittens on the bottom corners
-  for (const mx of [3, w - 11]) {
-    r(mx, h - 3, 9, 7, '#2A2440');
-    r(mx + 1, h - 2, 7, 5, '#F2894B');
-    r(mx + 1, h - 2, 3, 1, '#F7A86A');
-    r(mx + 1, h + 2, 7, 1, '#C8643A');
+  // mittens gripping the side edges, a little below the middle
+  const my = 3 + Math.round(h / 2) - 1;
+  for (const [mx, thumb] of [[0, 8], [L + w - 4, 0]] as [number, number][]) {
+    r(mx, my, 10, 9, '#2A2440');
+    r(mx + 1, my + 1, 8, 7, '#F2894B');
+    r(mx + 1, my + 1, 4, 1, '#F7A86A');
+    r(mx + 1, my + 1, 1, 3, '#F7A86A');
+    r(mx + 1, my + 7, 8, 1, '#C8643A');
+    // the thumb on the front of the board
+    r(mx + thumb - (thumb ? 1 : -1), my - 2, 3, 3, '#2A2440');
+    r(mx + thumb - (thumb ? 0 : -2), my - 1, 1, 2, '#F2894B');
   }
   cache.set(key, cv);
   return cv;
@@ -482,4 +537,26 @@ export function thickLine(g: Gfx, x0: number, y0: number, x1: number, y1: number
     const y = y0 + ((y1 - y0) * i) / n;
     g.rect(Math.round(x - w / 2), Math.round(y - w / 2), w, w, color);
   }
+}
+
+const letterCache = new Map<string, HTMLCanvasElement>();
+/**
+ * Quiet manga sound lettering (「カア」): paper-white glyphs with a slate
+ * inner edge and an ink outline, so it reads on the sunset and in the dark.
+ */
+export function mangaLettering(text: string): HTMLCanvasElement {
+  let c = letterCache.get(text);
+  if (c) return c;
+  const w = measure(text) + 6;
+  const [cv, ctx] = makeCanvas(w, 24);
+  const ink = '#2A2440';
+  const edge = '#6B7186';
+  const passes: [number, number, string][] = [
+    [-2, 0, ink], [2, 0, ink], [0, -2, ink], [0, 2, ink], [-1, -1, ink], [1, 1, ink], [1, -1, ink], [-1, 1, ink],
+    [-1, 0, edge], [1, 0, edge], [0, -1, edge], [0, 1, edge], [0, 0, '#F4F1E8'],
+  ];
+  for (const [dx, dy, col] of passes) drawText(ctx, text, 3 + dx, 4 + dy, { color: col });
+  c = cv;
+  letterCache.set(text, c);
+  return c;
 }

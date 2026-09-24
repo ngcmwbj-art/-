@@ -11,6 +11,12 @@ export function registerScene(name: string, f: Factory): void {
   registry.set(name, f);
 }
 
+/** Build a registered scene by name (null if nothing is registered under it). */
+export async function createScene(name: string, params: URLSearchParams = new URLSearchParams()): Promise<Scene | null> {
+  const f = registry.get(name);
+  return f ? f(params) : null;
+}
+
 export function sceneNames(): string[] {
   return [...registry.keys()];
 }

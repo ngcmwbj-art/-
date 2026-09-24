@@ -505,32 +505,45 @@ registerProp('in_hi_jars', () =>
 
 // ---------------------------------------------------------------- the pig mosquito-coil holder (3,6)
 
-const KAYARI = mkFrames(4, 14, 18, (p, k) => {
-  // green-glazed pig lying on its side, the smoke from its snout (frame 3 = frozen)
-  p.ellipse(7, 14, 5.5, 3.5, P.leafDeep);
-  p.ellipse(6, 13, 3.5, 2, P.leaf);
-  p.ellipse(7, 14, 3, 2.2, P.ink);
-  p.ellipse(7, 14, 2, 1.5, P.nightShade);
-  p.set(2, 12, P.leafShade);
-  p.set(12, 12, P.leafShade);
-  p.set(4, 17, P.leafShade);
-  p.set(10, 17, P.leafShade);
-  p.set(7, 14, P.sun);
-  const s = k === 3 ? [[7, 9], [8, 6], [7, 3]] : [[7, 10 - k], [8, 7 - k], [7 + (k % 2), 4 - k]];
-  for (const [x, y] of s) {
-    if (y < 0) continue;
-    p.set(x, y, P.concreteLt);
-    p.set(x + 1, y - 1, P.concrete);
+// a white-glazed pig (蚊やりブタ) seen from the side, its open snout to the
+// west with the coil's ember inside; smoke curls up from the snout (frame 3 =
+// stage 1: the smoke hangs frozen in the air)
+const PIG = [
+  '.....oo..oo.....',
+  '....oMBooBDo....',
+  '...oLMMMMMBBo...',
+  '.ooLMMoMMMMBDo..',
+  'oMMoLMMMMMMBBDo.',
+  'oMnnoMpMMMMBBDoo',
+  'oLnrnoMMMMMBBDoD',
+  'oMnnoMMMMMBBDDo.',
+  '.ooMMMMMBBBDDo..',
+  '..oMBBBBBBDDo...',
+  '...oDo.oDooDo...',
+  '....o...o..o....',
+];
+const KAYARI = mkFrames(4, 16, 22, (p, k) => {
+  p.art(PIG, { o: P.ink, L: P.white, M: P.concreteLt, B: P.concrete, D: P.steel, p: P.peach, n: P.nightShade, r: P.vermLt }, 0, 10);
+  // smoke: three soft 2px puffs drifting up and to the east
+  const puffs =
+    k === 3
+      ? [[2, 11, 0], [3, 7, 1], [5, 3, 2]]
+      : [[2, 12 - k * 1.5, 0], [3 + (k % 2), 8 - k * 1.5, 1], [5 + (k === 2 ? 1 : 0), 4 - k * 1.2, 2]];
+  for (const [x, y, i] of puffs) {
+    const yy = Math.round(y);
+    if (yy < 0) continue;
+    p.set(Math.round(x), yy, i === 2 ? P.concrete : P.concreteLt);
+    p.set(Math.round(x) + 1, yy, P.concrete);
+    if (i < 2) p.set(Math.round(x), yy - 1, P.concrete);
   }
 });
 registerProp('in_hi_kayari', () => {
-  const a = stand(KAYARI[0], { base: 14, shadow: 0, contact: 10 });
+  const a = stand(KAYARI[0], { base: 15, shadow: 0, contact: 12 });
   a.img = (env) => KAYARI[env.stage === 1 ? 3 : Math.floor(env.mt / 300) % 3];
-  a.flat = true;
   a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
-    // the tip of the coil glows
+    // the tip of the coil glows in the snout
     const on = env.stage === 1 ? 0.7 : 0.6 + Math.sin(env.t / 300) * 0.3;
-    g.rect(x + a.ox + 7, y + a.oy + 14, 1, 1, P.vermLt, on);
+    g.rect(x + a.ox + 2, y + a.oy + 16, 1, 1, P.gold, on);
   };
   return a;
 });

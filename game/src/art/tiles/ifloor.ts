@@ -111,10 +111,12 @@ export function terrazzo(seed: number): FloorPainter {
     const lx = x & 31;
     const ly = y & 31;
     if (lx === 31 || ly === 31) return P.brassOld;
+    // chips: mostly pale marble (close to the ground colour, so the slab
+    // reads as polished stone, not as dirt), a few dark and warm ones
     const c = ihash(x >> 1, y >> 1, seed);
-    if (c % 37 === 0) return P.steel;
-    if (c % 37 === 1) return P.concreteLt;
-    if (c % 113 === 2) return P.skin4;
+    if (c % 97 === 0) return P.steel;
+    if (c % 29 === 1 || c % 29 === 2) return P.concreteLt;
+    if (c % 173 === 3) return P.skin4;
     // Each slab was poured separately: a few are a touch paler (sparse dither),
     // no large blotches (they read as stains).
     const slab = ihash(x >> 5, y >> 5, seed + 9) % 4;
@@ -230,9 +232,12 @@ export function mallTiles(o: MallFloorOpts): FloorPainter {
     if (lane > 0.2 && (ihash(x >> 1, y >> 1, o.seed + 9) % 61) === 0) return P.steel;
     if (!tone && wax > 0.74) return P.paperGrid;
     if (!tone && wax > 0.68 && ((x + y) & 1) === 0) return P.paperGrid;
-    // a faint 2px mottling so big areas don't look flat
+    // a faint mottling so big areas don't look flat: sparse 2px chips in the
+    // tile's own family (a pale chip on the dark tiles, a mid chip on the pale
+    // ones), clustered in a few tiles instead of sprinkled evenly
+    const busy = (hh >>> 7) % 5 === 0;
     const m = h01(x >> 1, y >> 1, o.seed + 4);
-    if (m < 0.03) return tone ? P.steel : P.concrete;
+    if (m < (busy ? 0.035 : 0.006)) return tone ? (m < 0.002 ? P.steel : P.concreteLt) : P.concrete;
     return base;
   };
 }

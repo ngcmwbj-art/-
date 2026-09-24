@@ -380,6 +380,38 @@ const PART_KEYS: Record<string, string> = {
   boss_omukaemachi_shoe: 'shoe',
 };
 
+const bloomCache = new Map<HTMLCanvasElement, HTMLCanvasElement>();
+/**
+ * Soft light pooled around a glowing part (迷子のお知らせ): an ellipse 10px
+ * wider than the part on every side, in three stepped bands of pale gold
+ * (dense core → thin rim), laid additively so the part seems to give off light.
+ */
+function bloomOf(c: HTMLCanvasElement): HTMLCanvasElement {
+  let b = bloomCache.get(c);
+  if (b) return b;
+  const pad = 10;
+  const w = c.width + pad * 2;
+  const h = c.height + pad * 2;
+  const p = new PixelCanvas(w, h);
+  const rx = w / 2;
+  const ry = h / 2;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const dx = (x + 0.5 - rx) / rx;
+      const dy = (y + 0.5 - ry) / ry;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > 1) continue;
+      // stepped falloff with a 2×2 ordered dither on the band edges
+      const k = d < 0.62 ? 3 : d < 0.82 ? 2 : 1;
+      const edge = d > 0.9 || (d > 0.78 && d < 0.82) || (d > 0.58 && d < 0.62);
+      if (edge && (x + y) % 2) continue;
+      p.set(x, y, k === 3 ? '#FFE7A3aa' : k === 2 ? '#FFD23F66' : '#FFD23F33');
+    }
+  b = p.toCanvas();
+  bloomCache.set(c, b);
+  return b;
+}
+
 /**
  * Glow halo of a part (13.4 status_hikari): its silhouette grown by 3px in
  * three rings — #FFF6D8 hugging the part, #FFE7A3, then #FFD23F — drawn under
@@ -573,6 +605,12 @@ registerEnemyArt('boss_omukaemachi', (): EnemyArt => {
         const cy = OY + L.y + dy + L.c.height / 2;
         const hw = halo.width * pop;
         const hh = halo.height * pop;
+        // the pool of light around it breathes with the halo
+        const bl = bloomOf(L.c);
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.35 + 0.45 * ((pulse - 0.55) / 0.4);
+        ctx.drawImage(bl, Math.round(cx - (bl.width * pop) / 2), Math.round(cy - (bl.height * pop) / 2), Math.round(bl.width * pop), Math.round(bl.height * pop));
+        ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = pulse;
         ctx.drawImage(halo, Math.round(cx - hw / 2), Math.round(cy - hh / 2), Math.round(hw), Math.round(hh));
         ctx.globalCompositeOperation = 'lighter';
@@ -664,10 +702,16 @@ registerEnemyArt('boss_omukaemachi', (): EnemyArt => {
         if (!v.flags['glow_' + key] || v.flags['broken_' + key]) continue;
         const L = buildAll().parts[key];
         const img = questionSticky();
-        const sx = x + OX + L.x + Math.round(L.c.width / 2) - Math.round(img.width / 2);
+        let sx = x + OX + L.x + Math.round(L.c.width / 2) - Math.round(img.width / 2);
         const bob = Math.round(Math.sin((v.gt / 1000) * Math.PI * 2) * 2);
-        const sy = Math.max(y + 2, y + OY + L.y - img.height - 3) + bob;
-        g.img(img, sx, sy);
+        let sy = y + OY + L.y - img.height - 3;
+        // no room over it (the cap sits right under the 1-line band): the
+        // sticky goes on the right of the part instead
+        if (sy < 33) {
+          sx = x + OX + L.x + L.c.width + 3;
+          sy = Math.max(33, y + OY + L.y + 2);
+        }
+        g.img(img, sx, sy + bob);
       }
     },
     restored(): HTMLCanvasElement {

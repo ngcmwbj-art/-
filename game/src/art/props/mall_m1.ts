@@ -295,58 +295,49 @@ registerProp('mall_fountain', () => {
   p.vline(px - 7, py - 9, py - 2, P.concreteLt);
   p.vline(px + 6, py - 9, py - 2, P.steel);
   p.ellipse(px, py - 9, 7, 3, P.concreteLt);
-  // child in dark weathered bronze (reads against the sunlit basin): legs,
-  // shorts, shirt, head tilted up, arms raised with a bell; verdigris streaks
-  const by = py - 11;
-  // silhouette outline first (1px darker all round)
-  p.rect(px - 4, by - 7, 4, 8, P.ink);
-  p.rect(px, by - 7, 4, 8, P.ink);
-  p.rect(px - 5, by - 18, 10, 13, P.ink);
-  p.ellipse(px, by - 21, 5, 5, P.ink);
-  p.line(px - 5, by - 16, px - 7, by - 30, P.ink);
-  p.line(px - 4, by - 16, px - 6, by - 30, P.ink);
-  p.line(px + 4, by - 16, px + 6, by - 30, P.ink);
-  p.line(px + 3, by - 16, px + 5, by - 30, P.ink);
-  // body
-  p.rect(px - 3, by - 6, 2, 6, P.wood);
-  p.rect(px + 1, by - 6, 2, 6, P.woodDark);
-  p.rect(px - 4, by - 10, 8, 4, P.wood);
-  p.rect(px - 4, by - 17, 8, 7, P.wood);
-  p.vline(px - 4, by - 17, by - 7, P.brassOld);
-  p.vline(px + 2, by - 17, by - 7, P.woodDark);
-  p.vline(px + 3, by - 17, by - 7, P.woodDark);
-  p.hline(px - 4, px + 3, by - 10, P.woodDark);
-  p.ellipse(px, by - 21, 4, 4, P.wood);
-  p.set(px - 2, by - 23, P.brassOld);
-  p.set(px - 1, by - 24, P.brass);
-  p.set(px + 2, by - 20, P.woodDark);
-  p.set(px + 3, by - 21, P.woodDark);
-  p.hline(px - 2, px + 1, by - 19, P.woodDark);
-  // arms up
-  p.line(px - 4, by - 16, px - 6, by - 29, P.brassOld);
-  p.line(px + 3, by - 16, px + 5, by - 29, P.woodDark);
-  // verdigris: rain has run down from the bell for years
-  p.vline(px - 1, by - 17, by - 12, P.leafShade);
-  p.set(px - 1, by - 11, P.leafDeep);
-  p.vline(px + 1, by - 6, by - 3, P.leafShade);
-  p.set(px - 3, by - 22, P.leafShade);
-  // the bell (weathered bronze with a green patina), held up above the head
-  const bb = by - 33;
-  p.ellipse(px, bb, 6, 5, P.ink);
-  p.rect(px - 7, bb, 15, 5, P.ink);
-  p.ellipse(px, bb, 5, 4, P.brassOld);
-  p.rect(px - 6, bb, 13, 4, P.brassOld);
-  p.hline(px - 7, px + 7, bb + 4, P.wood);
-  p.set(px - 3, bb - 2, P.brass);
-  p.set(px - 4, bb, P.brass);
-  p.set(px - 3, bb - 1, P.goldPale);
-  p.set(px + 3, bb + 1, P.leafDeep);
-  p.set(px + 2, bb - 1, P.leafDeep);
-  p.set(px + 4, bb + 2, P.leafShade);
-  p.set(px, bb + 5, P.woodDark);
-  // hands on the rim
-  p.set(px - 6, bb + 4, P.brassOld);
-  p.set(px + 6, bb + 4, P.woodDark);
+  // the child in dark weathered bronze, holding the bell in front of the
+  // chest; the bell itself is rubbed bright by a year of hands (and a green
+  // streak of verdigris runs down from where the rain used to drip)
+  p.art(
+    [
+      '.......oooooo.......',
+      '......oBBDDDDo......',
+      '.....oBBgDDDDDo.....',
+      '....oBBBDDDDDDDo....',
+      '....oDDDDDDDDDDo....',
+      '....oDDDMBBDDDDo....',
+      '....oDMMoBBoDDDo....',
+      '....oMMMBBBBDDDo....',
+      '.....oMMBDBBDDo.....',
+      '.....oMMBBBBDDo.....',
+      '......ooMBBDoo......',
+      '.....oMBDPMMBDo.....',
+      '....oMBDPLLMMGDo....',
+      '....oMDPPLLMMMDo....',
+      '....oMMMPLLMBBMo....',
+      '....oMMPPLLMMBMo....',
+      '....oMPPLLLgMMMo....',
+      '....oPPPLLLGMMMo....',
+      '...ooPPPLLLLMMMoo...',
+      '..oPPPLLLMMMMMMMMo..',
+      '.oPPPLLLLMMMMMMMMMo.',
+      '..ooooMBDBBMBDoooo..',
+      '.....oMBDMMMBDo.....',
+      '.....oMMBBBBDDo.....',
+      '.....oMMBBBBDDo.....',
+      '.....oBBBDDDGDo.....',
+      '.....oBDDooBDDo.....',
+      '......oMDooMDo......',
+      '......oGDooMDo......',
+      '......oMDooMDo......',
+      '.....oBDDooBDDo.....',
+      '.....oBDDooBDDo.....',
+      '......ooo..ooo......',
+    ],
+    { o: P.ink, P: P.goldPale, L: P.brass, M: P.brassOld, B: P.wood, D: P.woodDark, g: P.leafDeep, G: P.leafShade },
+    px - 10,
+    py - 41,
+  );
   finish(p, { soft: true });
   const img = p.toCanvas();
   const a = stand(img, { cx: 48, base, foot: base - 1, shadow: 0, contact: 0 });
@@ -630,7 +621,7 @@ registerProp('mall_escalator_sign', () =>
     p.set(29, 17, P.verm);
     p.set(29, 19, P.verm);
     finish(p, { soft: true, rim: false });
-  }, -18, -48),
+  }, -14, -26),
 );
 
 /** Pictograms for the direction signs: fork & bowl, fountain, escalator. */

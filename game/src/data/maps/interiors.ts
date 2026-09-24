@@ -196,13 +196,15 @@ registerMap({
 
 // ================================================================ 4.6 map_koban（交番、9×7）
 
+// 4.6's grid plus three lived-in corners made solid: the tea cabinet (1,2),
+// the standing fan (6,2) and the umbrella stand (1,5).
 export const ROWS_KOBAN = [
   '#WWWWWWW#',
   '#WWWWWWW#',
-  '#......o#',
+  '#o....oo#',
   '#..ooo.o#',
   '#.......#',
-  '#.......#',
+  '#o......#',
   '####D####',
 ];
 
@@ -226,6 +228,10 @@ registerMap({
     PR('in_kb_desk', 3, 3),
     PR('in_kb_lostbox', 7, 3),
     PR('in_kb_mat', 4, 5),
+    // lived-in extras on the free corners (solid 'o' cells in the grid above)
+    PR('in_kb_tea', 1, 2),
+    PR('in_kb_fan', 6, 2),
+    PR('in_kb_umbrella', 1, 5),
     // examine
     O('obj_koban_poster', 1, 1, { face: 'up' }),
     O('obj_koban_map', 2, 1, { w: 3, face: 'up' }),
@@ -233,6 +239,9 @@ registerMap({
     O('obj_koban_diary', 3, 3),
     O('obj_koban_teacup', 5, 3),
     O('obj_koban_lostbox', 7, 3),
+    O('obj_koban_tea', 1, 2),
+    O('obj_koban_fan', 6, 2),
+    O('obj_koban_umbrella', 1, 5),
     {
       t: 'npc', id: 'npc_tsurumi', x: 4, y: 4, dir: 'down', script: 'npc_tsurumi', talk: ITALK.npc_tsurumi,
       move: { kind: 'stand' },

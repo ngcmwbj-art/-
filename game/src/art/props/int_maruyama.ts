@@ -685,12 +685,19 @@ registerProp('in_mr_board', () =>
     p.rect(1, 2, 14, 18, P.wood);
     p.hline(1, 14, 2, P.woodLt);
     p.rect(2, 3, 12, 16, P.leafShade);
-    // chalk: 本日のおすすめ / a croquette drawing / コロッケ underlined in red
-    scribble(p, 3, 4, 3, P.white, 13, 3);
-    p.ellipse(6.5, 11, 2.5, 1.8, P.goldPale);
-    p.set(5, 10, P.white);
-    scribble(p, 10, 9, 1, P.gold, 17, 3);
-    scribble(p, 3, 14, 3, P.concreteLt, 19, 3);
+    // chalk: a line of 『本日のおすすめ』 (just strokes), a croquette drawn in
+    // yellow chalk with crumbs, its price 80 in pink, underlined in red
+    p.hline(3, 5, 5, P.concreteLt);
+    p.hline(7, 8, 5, P.concreteLt);
+    p.hline(10, 12, 5, P.concreteLt);
+    p.set(4, 4, P.concreteLt);
+    p.set(11, 4, P.concreteLt);
+    p.ellipse(7.5, 10, 4, 2.5, P.goldPale);
+    p.ellipse(7, 9.5, 2.5, 1.5, P.gold);
+    p.set(5, 9, P.white);
+    for (const [cx2, cy2] of [[4, 11], [9, 8], [10, 11], [6, 12]] as const) p.set(cx2, cy2, P.brass);
+    p.hline(5, 10, 12, P.brassOld);
+    tiny(p, '80', 5, 13, P.peach, undefined, 1);
     p.hline(3, 12, 18, P.vermLt);
     p.hline(1, 14, 20, P.woodDark);
     p.vline(3, 20, 25, P.woodDark);
@@ -702,12 +709,20 @@ registerProp('in_mr_board', () =>
 
 registerProp('in_mr_bulb', (opts) => {
   const v = Number(opts.v ?? 0);
-  const p = pc(7, 22);
-  p.vline(3, 0, 13, P.charcoal);
-  p.rect(2, 13, 3, 2, P.asphalt);
-  p.ellipse(3.5, 17.5, 2.5, 3, P.goldPale);
-  p.rect(3, 16, 1, 2, P.glint);
-  const img = p.toCanvas();
+  // three swing positions: the cord hangs from a fixed point, the bulb swings
+  // 1px either way in the draught from the door (slow; still in stage 1)
+  const frames = [-1, 0, 1].map((k) => {
+    const p = pc(7, 22);
+    p.line(3, 0, 3 + k, 13, P.charcoal);
+    p.rect(2 + k, 13, 3, 2, P.asphalt);
+    p.ellipse(3.5 + k, 17.5, 2.5, 3, P.goldPale);
+    p.rect(3 + k, 16, 1, 2, P.glint);
+    return p.toCanvas();
+  });
+  const swing = (env: PropEnv) => {
+    const s = Math.sin(env.mt / (1500 + v * 230) + v * 2);
+    return s < -0.55 ? -1 : s > 0.55 ? 1 : 0;
+  };
   const oy = -30 - (v ? 2 : 0);
   return {
     ox: 5,
@@ -716,12 +731,13 @@ registerProp('in_mr_bulb', (opts) => {
     h: 22,
     foot: 0,
     img: () => null,
-    fg: [{ ox: 5, oy, img: () => img }],
+    fg: [{ ox: 5, oy, img: (env: PropEnv) => frames[swing(env) + 1] }],
     glowFg: true,
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
       const n = env.grade.night;
-      screenPool(g, x + 8, y + oy + 17, 10, 10, P.sky, 0.38 + n * 0.25);
-      g.rect(x + 8, y + oy + 16, 1, 2, P.glint, 0.9);
+      const k = swing(env);
+      screenPool(g, x + 8 + k, y + oy + 17, 10, 10, P.sky, 0.38 + n * 0.25);
+      g.rect(x + 8 + k, y + oy + 16, 1, 2, P.glint, 0.9);
     },
     light(g: Gfx, x: number, y: number, env: PropEnv) {
       // the bare bulb lights the shop: a warm pool (strong at night)
