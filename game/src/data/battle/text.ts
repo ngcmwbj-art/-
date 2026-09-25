@@ -98,6 +98,13 @@ export const TUT = {
   // the boss's 4th chime is next (QA round 3: button-mashers lost to it
   // again and again without learning why)
   chime4: 'つぎの音は\n全体攻撃！\n『まもる』で\n半分に！',
+  // 第2章（50 6.9）
+  sune: 'すねたら『みました』で\nこっちを 向く。',
+  otsukare: '『おつかれさま』で\n休ませよう。',
+  tomato: 'もちもの の トマトで\nあたりを 照らそう！',
+  rappa: '光った ラッパに\n『みました』！',
+  // the 4th name tag is next (the boss of chapter 2; same rhythm as chime4)
+  tenko4: 'つぎの名前で\n全体攻撃！\n『まもる』で\n半分に！',
 };
 
 /** evt_gameover (5.21). */
@@ -131,6 +138,8 @@ export const NORI = [
   { boke: ['カネナリくんは フリップを かかげた。\n『（中の人より）』'], line: '中の人 いないんだろ！', pose: 'flip' },
 ];
 export const NORI_COMMON = ['ミナトは 全力で ツッコんだ！', '敵は まとめて\nボケ負けした！'];
+/** 50 6.9〔ボケD〕: only in battles on the 星見台 maps (map_hoshi*). */
+export const NORI_HOSHI = { boke: ['カネナリくんは 稲わらを かぶって\nかかしの まねを した！'], line: 'かかし 増やすな！', pose: 'kakashi' };
 
 /** 通知表 (9.8). */
 export const REPORT = {
@@ -145,8 +154,8 @@ export const REPORT = {
   kanenariMp: '（記入なし）',
   fromTeacher: 'せんせいより',
   teacher: {
-    minato: ['', '', 'ツッコミが 板について きました。', '人の話を、目で 聞けて います。', '夕方に 強い子です。', 'はなまる。もう 言うことは ありません。'],
-    kanenari: ['', '', '笑顔が たえません。（顔は 鐘です）', 'おじぎが ていねいです。', 'すべっても めげません。', 'そこに いてくれる だけで 助かります。'],
+    minato: ['', '', 'ツッコミが 板について きました。', '人の話を、目で 聞けて います。', '夕方に 強い子です。', 'はなまる。もう 言うことは ありません。', '夜道でも、まっすぐ 歩けます。', '人の がんばりを、見のがしません。'],
+    kanenari: ['', '', '笑顔が たえません。（顔は 鐘です）', 'おじぎが ていねいです。', 'すべっても めげません。', 'そこに いてくれる だけで 助かります。', '鐘の 調子が よく なってきました。', 'となり町でも、PRが できます。'],
   } as Record<string, string[]>,
 };
 
@@ -171,6 +180,15 @@ export const ITEM_TEXT: Record<string, { self: string[]; kanenari?: string[]; ex
     self: ['$actorは カプセルを 開けた。'],
     extra: { content: ['中身は $itemだった！'], empty: ['……からっぽだった。\nカプセルだけ、きれいだ。'] },
   },
+  // 第2章（50 7.2）
+  item_kyuri_zuke: { self: ['$actorは きゅうりの 一本漬けを\nかじった。ぽりっ。'], kanenari: ['割りばしだけ、ファスナーから\n出てきた。'] },
+  item_toumorokoshi: { self: ['ミナトは とうもろこしを 食べた。\n……1列ずつ。', 'ファスナーの 中から、\nぐるっと 回る 音が した。'] },
+  item_umeboshi: {
+    self: ['$actorは 梅干しを 食べた。\nすっぱい！'],
+    kanenari: ['カネナリくんの 鐘が、\n少し すぼまった。'],
+    extra: { none: ['すっぱい。\n……目は もう さめている。'] },
+  },
+  item_kairan_shuniku: { self: ['ミナトは ハンコに 回覧板の\n朱肉を つけた。'], kanenari: ['カネナリくんは、回覧板に\n判を 押す 係では ない。'] },
 };
 
 /** Field hanko texts (11). */
@@ -187,7 +205,7 @@ export const FIELD_TEXT = {
 
 /** Replace $variables in a page. */
 export function fill(page: string, v: Record<string, string | number | undefined>): string {
-  return page.replace(/\$(actor|target|enemy|n|item|skill|move|stat|part|yakiname)/g, (_m, k: string) =>
+  return page.replace(/\$(actor|target|enemy|name2|name|n|item|skill|move|stat|part|yakiname)/g, (_m, k: string) =>
     v[k] === undefined ? '' : String(v[k]),
   );
 }

@@ -89,12 +89,12 @@ se('se_clock_flip', { label: 'HUD時計がめくれる', group: TALK, layers: ['
 // 9.3 足音・扉
 const STEPS = '足音・扉';
 // the red beach sandals: a little heel slap 35 ms after every step outdoors
-const BSAN = (k = 1, f = 1400) => `noise env=0/12/0/5 dur=6 v=${(0.02 * k).toFixed(4)} flt=BP${f}q1.5 at=35`;
+export const BSAN = (k = 1, f = 1400) => `noise env=0/12/0/5 dur=6 v=${(0.02 * k).toFixed(4)} flt=BP${f}q1.5 at=35`;
 // which foot comes next, per context (an offline QA render starts on the same foot)
 const feet = new WeakMap<BaseAudioContext, number>();
-const stepDef = (label: string, layers: string[]) => ({
+export const stepDef = (label: string, layers: string[], group = STEPS) => ({
   label,
-  group: STEPS,
+  group,
   rand: STEP,
   max: 2,
   fn(c: SeCtx) {
@@ -506,12 +506,25 @@ se('se_chime_chord', {
 function paChime(c: SeCtx, notes: number[], lastDetune: number): void {
   const g = cur();
   g.pa.open(c.t);
+  // an octave down (the closing chime at the end of the night, 53 8.4) the
+  // last D4 would thin out in the speaker's 380 Hz high-pass: open the low end
+  // for this one chime
+  if (c.pitch < 0.75) g.pa.lowEnd(220, 0.1, 4, c.t);
   notes.forEach((m, i) => chimeNote(c.t + i * 0.28, m + 12 * Math.log2(c.pitch), g.pa.input, g.pa.detune, i === 3 ? 0.5 : 0.25, 0.12 * c.vol, i === 3 ? lastDetune : 0));
   // 11.3: BGM −9 dB, ambience −6 dB while the PA speaks
   duck(dbToGain(-9), 0.3, 1.4, 0.8, c.t);
   duckAmbience(dbToGain(-6), 0.3, 1.4, 0.8);
 }
-const paOff = () => (musicParams().stage >= 2 && musicParams().stage < 3) || currentId() === 'bgm_boss' ? -35 : 0;
+// the PA is out of tune (−35 cents) in 段階2 and before the boss — and, in
+// 星見台 (53_ch2_audio 8.4), while the lines stay open (h_stage 2) and while
+// Yobimodoshi's song plays; the last closing chime of the final phase, with the
+// music asleep, is in tune
+const paOff = () => {
+  const p = musicParams();
+  const yobi = currentId() === 'bgm_boss_yobimodoshi';
+  if (yobi && p.boss_phase >= 3) return 0;
+  return (p.stage >= 2 && p.stage < 3) || currentId() === 'bgm_boss' || p.h_stage === 2 || yobi ? -35 : 0;
+};
 se('se_pa_chime', { label: '放送の前（ピンポンパンポーン）', group: CHIME, fn: (c) => paChime(c, [74, 78, 81, 86], paOff()) });
 se('se_pa_chime_end', { label: '放送のあと（パンポンピンポーン）', group: CHIME, fn: (c) => paChime(c, [86, 81, 78, 74], paOff()) });
 

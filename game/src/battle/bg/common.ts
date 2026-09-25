@@ -39,6 +39,11 @@ export abstract class Background {
   bottom = '#2A2440';
   /** Motif clock (advances with speed, stops when frozen). */
   mt = 0;
+  /**
+   * State the battle hands the background (第2章: charge, stiff, light,
+   * phase2, dark steps …): each background reads the keys it knows.
+   */
+  flags: Record<string, number> = {};
   private l0: HTMLCanvasElement;
   private l0ctx: CanvasRenderingContext2D;
   private l1: HTMLCanvasElement;

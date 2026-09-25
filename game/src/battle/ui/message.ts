@@ -3,6 +3,7 @@
 // is complete and ≥0.6s after it appeared). Blocking pages can be skipped
 // with confirm. Supports {c=#hex}…{/c}, {shake}, {wave}, {w=ms}, {spd=x}.
 
+import { textBlip } from '../../audio';
 import type { Co } from '../../engine/co';
 import { charWidth, drawGlyph } from '../../engine/font';
 import type { Gfx } from '../../engine/gfx';
@@ -88,6 +89,10 @@ export interface BandPageOpts {
   cps?: number;
   /** Shown fully typed at once (a counter redrawn every frame). */
   instant?: boolean;
+  /** Shortest time the page stays up (ms), overriding `minShow` (the 0.5s 点呼 pages). */
+  minMs?: number;
+  /** A speaking voice: text blips as the page types (the boss's lines: 'yobimodoshi'). */
+  voice?: string;
 }
 
 interface Page {
@@ -269,6 +274,7 @@ export class MessageBand {
         while (this.acc >= 1 && this.shown < g.length) {
           this.acc -= 1;
           const gl = g[this.shown++];
+          if (this.curOpts.voice && gl.ch.trim() && (this.shown & 1)) textBlip(this.curOpts.voice, gl.ch);
           if (gl.pause) {
             this.pause = gl.pause;
             this.acc = 0;
@@ -286,7 +292,7 @@ export class MessageBand {
     }
     const slow = 1 / textSpeedMul();
     const hold = (this.curOpts.autoMs ?? this.autoHold) * slow;
-    if ((this.doneAge >= hold && this.age >= this.minShow * slow) || confirm) this.next();
+    if ((this.doneAge >= hold && this.age >= (this.curOpts.minMs ?? this.minShow) * slow) || confirm) this.next();
   }
 
   draw(g: Gfx): void {

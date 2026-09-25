@@ -11,6 +11,7 @@ import type { Ground } from '../../world/types';
 import { h01, ihash, valueNoise } from './noise';
 import { P } from './palette';
 import { fontText, fontTextSmall, tiny } from '../props/text';
+import { dirtWear, paintHDecal, roadWear, type HDecalKind } from './hoshi_decals';
 
 export type DecalKind =
   | 'manhole'
@@ -27,7 +28,8 @@ export type DecalKind =
   | 'seamweeds'
   | 'flyer'
   | 'oilpool'
-  | 'footprints';
+  | 'footprints'
+  | HDecalKind;
 
 export interface GroundDecal {
   k: DecalKind;
@@ -217,10 +219,11 @@ export function paintDecals(pc: PixelCanvas, x0: number, y0: number, w: number, 
       } else if (g === 'arcade') {
         if (r2 < 0.03) gum(pen, tx, ty, s + 19);
       } else if (g === 'dirt') {
-        if (r2 < 0.01) bottleCap(pen, tx, ty, s + 21);
+        if (ctx.map.startsWith('map_hoshi')) dirtWear(pen, tx, ty, s + 27);
+        else if (r2 < 0.01) bottleCap(pen, tx, ty, s + 21);
       } else if (g === 'gutter') {
         if (r2 < 0.1) jointWeed(pen, tx, ty, s + 23);
-      }
+      } else if ((g as string) === 'h_road') roadWear(pen, tx, ty, s + 25);
     }
   // clump layer: leaves under trees
   for (const [cx, cy, rad] of ctx.trees) {
@@ -257,7 +260,7 @@ export function paintDecals(pc: PixelCanvas, x0: number, y0: number, w: number, 
     const dw = (d.w ?? 1) * 16;
     const dh = (d.h ?? 1) * 16;
     if (d.x * 16 > x0 + w + 32 || d.y * 16 > y0 + h + 32 || d.x * 16 + dw < x0 - 32 || d.y * 16 + dh < y0 - 32) continue;
-    PAINT[d.k]?.(pen, d);
+    if (!paintHDecal(pen, d)) PAINT[d.k]?.(pen, d);
   }
 }
 

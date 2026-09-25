@@ -4,7 +4,7 @@
 
 import { DRM, INS } from '../instruments';
 import { bass, comp, drums, hits, melody, type BarCtx, type PartDef, type SongDef } from '../sequencer';
-import { BATTLE_LOOP, SLAP_A, battle, hat8, kireAware, kireLayers } from './battle';
+import { BATTLE_LOOP, SLAP_A, battle, hat8, hatOrCricket, kireAware, kireLayers, night } from './battle';
 import { chimeQuote, registerSong, score, transposedBars } from './common';
 
 export const MIDBOSS_MML = `
@@ -64,6 +64,8 @@ transposedBars(
 );
 
 const is78 = (b: BarCtx) => b.def.steps === 14;
+/** Tetsuya resting in the night version (53 6.4). */
+const resting = (b: BarCtx) => night(b) && b.p.h_rest === 1;
 
 function midbossDef(): SongDef {
   const kireUp = (b: BarCtx) => (b.p.kire >= 3 ? 12 : 0);
@@ -107,16 +109,32 @@ function midbossDef(): SongDef {
     kireAware(drums({
       id: 'drums',
       kit: {
-        drm_kick: (b) => (b.section === 'MI' ? null : AB(b) ? 'x.....x...x..x..' : 'x.......x.......'),
+        // 53 5.5: while Tetsuya rests (h_rest) his engine is off — no kick either
+        drm_kick: (b) => (b.section === 'MI' || resting(b) ? null : AB(b) ? 'x.....x...x..x..' : 'x.......x.......'),
         drm_snare_tight: (b) => (b.section === 'MI' ? null : AB(b) ? '....x..g....x..g' : '....x.......x...'),
-        drm_hat_c: (b) => (b.section === 'MI' ? null : hat8(b)),
+        ...hatOrCricket((b) => (b.section === 'MI' ? null : hat8(b))),
       },
       vel: { drm_kick: 1.1 },
+      aware: ['h_rest'],
     })),
+    // 星見台の夜 (53 5.5): no cowbell in a cattle village — the walking tractor's
+    // air-cooled "ドッ" on the same hits, sagging with the bow (an engine about
+    // to stall, catching again)
+    hits(
+      'engine',
+      [
+        {
+          when: (b, s) => night(b) && !resting(b) && (b.section === 'C' ? s % 4 === 0 : is78(b) ? [0, 3, 6, 10].includes(s) : b.section !== 'MI' && s === 0),
+          fn: (_b, t, rt) => DRM.drm_putt({ t, vel: 1, dest: rt.input, rev: rt.rev, det: rt.song.det }),
+        },
+      ],
+      1,
+      { aware: ['h_rest'] },
+    ),
     hits('bow', [
       // the vending machine's "コン" (cowbell)
       {
-        when: (b, s) => (b.section === 'C' ? s % 4 === 0 : is78(b) ? [0, 3, 6, 10].includes(s) : b.section !== 'MI' && s === 0),
+        when: (b, s) => !night(b) && (b.section === 'C' ? s % 4 === 0 : is78(b) ? [0, 3, 6, 10].includes(s) : b.section !== 'MI' && s === 0),
         fn: (b, t, rt) => INS.ins_fm_cowbell({ t, midi: 60, dur: 0.1, vel: 1, dest: rt.input, rev: rt.rev }),
       },
       // MI2: the machine thuds on 0 and 8
@@ -146,11 +164,11 @@ function midbossDef(): SongDef {
       // …and the next downbeat lands with a thud
       {
         when: (b, s) => s === 0 && typeof b.song.state.bowEnd === 'number',
-        fn: (_b, t, rt) => {
+        fn: (b, t, rt) => {
           const p = rt.song.det.offset;
           p.setValueAtTime(rt.song.baseDetune, t);
           rt.song.state.bowEnd = undefined;
-          DRM.drm_kick({ t, vel: 1.2, dest: rt.input, rev: rt.rev });
+          if (!resting(b)) DRM.drm_kick({ t, vel: 1.2, dest: rt.input, rev: rt.rev });
           DRM.drm_tom_low({ t, vel: 1.2, dest: rt.input, rev: rt.rev });
         },
       },

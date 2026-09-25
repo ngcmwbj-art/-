@@ -96,18 +96,24 @@ export const kireAware = (p: PartDef): PartDef => ({ ...p, kireAware: true });
  *  · every rise is answered on the beat it lands with a crash and a bell
  *    (the "sting"), so the moment the gauge fills is heard at once.
  */
-export function kireLayers(o: { bassBoost?: never; arpLo?: number; transpose?: (b: BarCtx) => number; arpPan?: number } = {}): PartDef[] {
+export function kireLayers(o: { bassBoost?: never; arpLo?: number; transpose?: (b: BarCtx) => number; arpPan?: number; hat?: 'hat' | 'mic' } = {}): PartDef[] {
+  const mic = o.hat === 'mic';
+  // 星見台 (53_ch2_audio 5.5): the hats are crickets in the night grass;
+  // ヨビモドシ's off-beats are the finger on the microphone
+  const hats = (b: BarCtx) => b.p.kire >= 2 && !mic && !night(b);
   return [
     drums({
       id: 'kire_hat',
       kit: {
-        drm_hat_c: (b) => (b.p.kire >= 2 ? '.x.x.x.x.x.x.x.x' : null),
-        drm_hat_o: (b) => (b.p.kire >= 2 ? '..............x.' : null),
+        drm_hat_c: (b) => (hats(b) ? '.x.x.x.x.x.x.x.x' : null),
+        drm_hat_o: (b) => (b.p.kire >= 2 && (mic || !night(b)) ? '..............x.' : null),
         // a shaker answering from the other side keeps the 16ths moving
         drm_shaker: (b) => (b.p.kire >= 2 ? 'xgxgxgxgxgxgxgxg' : null),
+        drm_cricket: (b) => (b.p.kire >= 2 && !mic && night(b) ? '.x.x.x.x.x.x.xxx' : null),
+        drm_mic_tap: (b) => (b.p.kire >= 2 && mic ? '.x.x.x.x.x.x.x.x' : null),
       },
-      vel: { drm_hat_c: 0.6, drm_hat_o: 0.8, drm_shaker: 0.8 },
-      pans: { drm_hat_c: 0.42, drm_hat_o: 0.3, drm_shaker: -0.45 },
+      vel: { drm_hat_c: 0.6, drm_hat_o: 0.8, drm_shaker: 0.8, drm_cricket: 0.6, drm_mic_tap: 0.6 },
+      pans: { drm_hat_c: 0.42, drm_hat_o: 0.3, drm_shaker: -0.45, drm_cricket: 0.42, drm_mic_tap: 0.42 },
       len: { drm_hat_o: 0.36 },
     }),
     drums({ id: 'kire_clap', kit: { drm_clap_big: (b) => (b.p.kire >= 3 ? '....x.......x...' : null) } }),
@@ -149,6 +155,19 @@ function kireSting(): PartDef {
 /** Main hat pattern with the kire-2 open hat on step 14. */
 export const hat8 = (b: BarCtx) => (b.p.kire >= 2 ? 'x.x.x.x.x.x.x...' : 'x.x.x.x.x.x.x.x.');
 
+/**
+ * 星見台の夜 (53_ch2_audio 5.5): while h_stage ≥ 0 the battle songs play their
+ * night version by themselves — the score is the same, the hats are crickets
+ * (and bgm_midboss's cowbell is the walking tractor). h_stage is −1 anywhere
+ * else, so chapter 1 never hears it.
+ */
+export const night = (b: BarCtx) => b.p.h_stage >= 0;
+/** A hat line that turns into crickets at night: [hat pattern, cricket pattern]. */
+export const hatOrCricket = (pat: (b: BarCtx) => string | null) => ({
+  drm_hat_c: (b: BarCtx) => (night(b) ? null : pat(b)),
+  drm_cricket: (b: BarCtx) => (night(b) ? pat(b) : null),
+});
+
 function battleDef(): SongDef {
   const AB = (b: BarCtx) => b.section === 'A' || b.section === 'B' || b.label === 'BI2';
   const kireUp = (b: BarCtx) => (b.p.kire >= 3 ? 12 : 0);
@@ -181,7 +200,7 @@ function battleDef(): SongDef {
         drm_kick: (b) => (b.label === 'BI1' ? 'x.......x.......' : AB(b) ? 'x.....x...x..x..' : 'x.........x.....'),
         drm_snare_tight: (b) =>
           b.label === 'BI1' ? '....g.g.x.x.xxXX' : b.label === 'C8' ? '....g.g.x.xxxxXX' : AB(b) ? '....x..g....x..g' : '........x.......',
-        drm_hat_c: (b) => (b.label === 'BI1' ? null : AB(b) ? hat8(b) : 'x...x...x...x...'),
+        ...hatOrCricket((b) => (b.label === 'BI1' ? null : AB(b) ? hat8(b) : 'x...x...x...x...')),
       },
       vel: { drm_kick: 1.1 },
     })),

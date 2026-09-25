@@ -18,6 +18,7 @@ import { tinyText, tinyWidth } from './tinyfont';
 import { MOODS } from './portraits';
 import { FLIP_ANCHOR } from './people/kanenari';
 import { autoRimLight, rimForStage, setRimLight } from './quant';
+import { drawNight, nightCast, nightCows, nightFoes, type NightItem } from './gallery_night';
 
 const DIRS: Dir[] = ['down', 'left', 'up', 'right'];
 const MODES = ['idle', 'walk', 'look_up', 'run', 'walk4'];
@@ -82,7 +83,7 @@ interface Tile {
   draw: (g: Gfx, x: number, y: number, t: number) => void;
 }
 
-type Page = { title: string; tiles: () => Tile[]; plain?: boolean };
+type Page = { title: string; tiles: () => Tile[]; plain?: boolean; night?: () => NightItem[] };
 
 function isFoe(id: string): boolean {
   return id.startsWith('enemy_') || id.startsWith('restored_') || id.startsWith('boss_');
@@ -165,6 +166,10 @@ export class CharGallery implements Scene {
     this.pages.push({ title: 'portraits', tiles: () => this.portraitTiles(), plain: true });
     this.pages.push({ title: 'emotes', tiles: () => this.emoteTiles() });
     this.pages.push({ title: 'flip', tiles: () => this.flipTiles(), plain: true });
+    // chapter 2: the night of 星見台 (pal_h0 × the tomato lantern, glow layer, night rim)
+    this.pages.push({ title: 'night cast', tiles: () => [], night: nightCast });
+    this.pages.push({ title: 'night foes', tiles: () => [], night: nightFoes });
+    this.pages.push({ title: 'night cows', tiles: () => [], night: nightCows });
     for (const id of ids) this.pages.push({ title: id, tiles: () => this.detailTiles(id) });
   }
 
@@ -347,6 +352,13 @@ export class CharGallery implements Scene {
 
   draw(g: Gfx): void {
     const page = this.pages[this.page];
+    if (page.night) {
+      // chapter 2 sprites are drawn in their day colours with no baked rim;
+      // the night grading and the lantern's rim are applied by the preview
+      setRimLight(null);
+      drawNight(g, page.night(), { zoom: this.zoom, scroll: this.scroll, t: this.t, title: page.title, still: this.mode % 2 === 1 });
+      return;
+    }
     const bg = page.plain ? BGS[5] : BGS[this.bg];
     this.rimFor(bg);
     g.img(ground(bg), 0, 0);

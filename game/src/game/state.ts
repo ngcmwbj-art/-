@@ -140,3 +140,30 @@ export function loadGame(): boolean {
     return false;
   }
 }
+
+// ---- snapshots under their own keys (the chapter 2 start, 02_ch2_index 6.1) ----------
+// The save slot above is untouched: a snapshot is a copy of the whole state
+// kept beside it, e.g. `saveSnapshot('hanamaru-ch2-start-v1')`.
+
+/** Write the current state under `key`. */
+export function saveSnapshot(key: string): boolean {
+  try {
+    localStorage.setItem(key, JSON.stringify(state));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Replace the current state with the snapshot under `key` (false if there is none). */
+export function loadSnapshot(key: string): boolean {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return false;
+    const s = JSON.parse(raw) as GameState;
+    Object.assign(state, blankState(), s);
+    return true;
+  } catch {
+    return false;
+  }
+}

@@ -38,13 +38,60 @@ export interface TileSpec {
   door?: boolean;
   /** Counter cell: talk/examine reaches up to 3 tiles past it. */
   counter?: boolean;
-  /** Tag for special handling (e.g. 'chain', 'barricade', 'roof', 'facade', 'wall'). */
+  /**
+   * Tag for special handling (e.g. 'chain', 'barricade', 'roof', 'facade', 'wall').
+   * Chapter 2: 'egate' = the electric-fence gate of 星見台 (52 7.1 `G`): solid
+   * while `flag_ch2_gate_open` is 0 (give the cell `solid: true`).
+   */
   tag?: string;
+}
+
+/** A tile rectangle (tile units, x/y = top-left, w/h = size in tiles). */
+export interface TileRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * A light that stands in the dark (52 8.5 例外): the はなまるトマト on its
+ * vine before it is picked lights the house like the lantern does (the same
+ * three rings, `k` × their strength), and makes the dark things round it
+ * visible. Tile coords of the anchor plus a pixel offset.
+ */
+export interface DarkLight {
+  x: number;
+  y: number;
+  /** Pixel offset from the tile's top-left (default: tile centre, 8,8). */
+  ox?: number;
+  oy?: number;
+  /** Radius (px) and breathing amplitude (px, 0.8 Hz). */
+  r: number;
+  amp?: number;
+  /** Strength of the three rings (1 = the lantern's). */
+  k?: number;
+  cond?: Cond;
+}
+
+/**
+ * A patch that stays readable in the dark without the lantern (52 1.7:
+ * the starlight round the house door): tile centre + radius in tiles.
+ */
+export interface StarlightSpot {
+  x: number;
+  y: number;
+  r: number;
+  cond?: Cond;
 }
 
 /** Conditions for an object to exist. All given fields must hold. */
 export interface Cond {
-  /** Stage(s) where it exists: 1, [0,1], '1-2', '2+' ... (3 = night). */
+  /**
+   * Stage(s) where it exists: 1, [0,1], '1-2', '2+' ... (3 = night).
+   * Read from the map's stage flag (MapDef.stageFlag): on 星見台 maps these
+   * are the chapter-2 stages h0..h3 (flag_ch2_stage).
+   */
   stage?: number | number[] | string;
   /** Flag(s) that must be non-zero. */
   flag?: string | string[];
@@ -63,12 +110,18 @@ export interface Cond {
  */
 export type Msg = string;
 
-/** Stage-keyed text: { s0: msg, s1: msg, 's1-2': msg, default: msg }. */
+/**
+ * Stage-keyed text: { s0: msg, s1: msg, 's1-2': msg, default: msg }.
+ * On 星見台 maps (stageFlag 'flag_ch2_stage') the keys may be written with
+ * `h` instead: { h0: msg, 'h1-2': msg } (the `s` keys are still read there).
+ */
 export type StageText = Msg | Record<string, Msg>;
 
 /**
  * NPC talk table. Keys follow 10_narrative 6.0: 's0_1', 's0_2', 's1_1', ...
  * (`_n` = n-th time at that stage, last one repeats) or plain 's0', 's1-2'.
+ * On 星見台 maps (02_ch2 6.2) the keys start with `h`: 'h0_1', 'h1', 'h2+'...
+ * and the seen flags are `flag_seen_<npc>_h0_1`.
  */
 export type TalkTable = Record<string, Msg>;
 
@@ -115,6 +168,12 @@ export interface PropObj extends Base {
   opts?: Record<string, unknown>;
   /** Collision rectangle in tiles relative to (x,y): [dx, dy, w, h]. Omit = ASCII decides. */
   solid?: [number, number, number, number];
+  /**
+   * Drawn only inside the tomato light (52 8.5), even when it stands off a
+   * dark tile (things in dark tiles that are 32px or smaller get this
+   * automatically; buildings, walls and big props always show).
+   */
+  litOnly?: boolean;
 }
 
 export interface ExamineObj extends Base {
@@ -141,6 +200,12 @@ export interface ExamineObj extends Base {
   reward?: { item?: string; money?: number; flag: string; after?: StageText; second?: boolean };
   /** Lies flat on a walkable tile: also examinable while standing on it. */
   flat?: boolean;
+  /**
+   * Only drawn and examinable inside the tomato light (52 8.5, 50 5章 #18:
+   * the kitchen hearth), even when its tile is not a dark tile. Examinable
+   * things on dark tiles behave so without this.
+   */
+  litOnly?: boolean;
 }
 
 export interface NpcObj extends Base {
@@ -207,9 +272,22 @@ export interface TriggerObj extends Base {
   once?: boolean;
   /** Default text when no script is registered. */
   text?: Msg;
-  /** 'enter' (default) or 'bump' (pushing against the map edge inside the rect). */
+  /**
+   * 'enter' (default), 'bump' (pushing against the map edge inside the rect)
+   * or 'stay' (standing inside the rect for `stayMs` in total; the count
+   * pauses while a talk / an event / a menu has the screen and restarts
+   * when the player leaves the rect — trig_ch2_train_front, 1.5 s).
+   */
   on?: 'enter' | 'bump' | 'stay';
+  /** 'stay' triggers: how long to stay (ms, default 1500). */
+  stayMs?: number;
 }
+
+/** Field behaviours of the enemy symbols (20 14.2 for chapter 1, 51 11.2 for chapter 2). */
+export type SymbolMove =
+  | 'hato' | 'semi' | 'cone' | 'umbrella' | 'ojigi' | 'soujirou' | 'momisugi'
+  // chapter 2 (51 11.2)
+  | 'sune' | 'boar' | 'mujin' | 'kakashi' | 'kakashi_stand' | 'fence' | 'tetsuya';
 
 export interface SymbolObj extends Base {
   t: 'sym';
@@ -217,10 +295,20 @@ export interface SymbolObj extends Base {
   id: string;
   enemies: string[];
   /** Behaviour preset (defaults from the enemy id). */
-  move?: 'hato' | 'semi' | 'cone' | 'umbrella' | 'ojigi' | 'soujirou' | 'momisugi';
+  move?: SymbolMove;
   dir?: Dir;
-  /** Patrol end point for cones. */
+  /**
+   * Patrol end point for cones, and for chapter 2: the far end of the
+   * furrow テツヤ drives along ('tetsuya', (56,4)), the far end of the fence
+   * ビリビリ番 walks ('fence', (37,16)), the end of the ridge ヘノヘノ課長 hops
+   * ('kakashi', (18,5)), the tile ムジン販売員 jumps down to ('mujin', (21,38)).
+   */
   to?: [number, number];
+  /**
+   * Chapter 2: the tile rect a symbol never leaves while it chases (ビリビリ番's
+   * band x37–38 y6–16, ヘノヘノ課長's ridge). Default: the patrol line.
+   */
+  span?: TileRect;
   radius?: number;
   /** Where the restored object is left after winning (tile). */
   restoreAt?: [number, number];
@@ -241,6 +329,36 @@ export interface MapDef {
   id: string;
   name: string;
   kind: 'outdoor' | 'indoor';
+  /**
+   * Which chapter's world this map belongs to (default 1). Chapter-2 maps
+   * (星見台) default their stage flag to flag_ch2_stage, grade with the
+   * pal_h* presets and set the 星見台 audio (h_stage, PA 'yama').
+   */
+  chapter?: 1 | 2;
+  /**
+   * The flag that holds this map's stage (02_ch2 6.2). Default 'flag_stage'
+   * (chapter 1), or 'flag_ch2_stage' when chapter is 2. Conditions, talk
+   * keys, bgm/amb per stage, grading and fushigi stages all read it.
+   */
+  stageFlag?: 'flag_stage' | 'flag_ch2_stage';
+  /** Dark tiles (52 1.7 / 8.5): tile rects. Only the tomato light shows what stands in them. */
+  dark?: TileRect[];
+  /** Readable patches in the dark without the lantern (the house door's starlight). */
+  starlight?: StarlightSpot[];
+  /** Lights standing in the dark (the はなまるトマト before it is picked, 52 8.5 例外). */
+  darkLights?: DarkLight[];
+  /**
+   * Indoor light-map base colour (52 4.0: train #3E3E6A, meeting room
+   * #F2E6D0). Chapter-2 indoor maps don't grade by stage: this colour (or
+   * the region's below) is multiplied over the room, then dark and lights.
+   */
+  lightBase?: string;
+  /** Regions of another base colour (the hallway's #8A7E90 by the meeting room). */
+  lightRegions?: (TileRect & { color: string })[];
+  /** `playBgm(id, { variant })` for this map (53 5.2: 'outdoor' 'house' 'barn' 'school' 'hill'). */
+  variant?: string;
+  /** Public-address bus shape for this map (53 3.3): 'yama' on 星見台, 'town' in 夕鳴町 (default by chapter). */
+  pa?: 'town' | 'yama';
   rows: string[];
   legend: Record<string, TileSpec>;
   objects: MapObj[];
@@ -260,8 +378,14 @@ export interface MapDef {
   space?: string;
   /** Ground style variant (per-area art choices) – see art/tiles. */
   theme?: string;
-  /** Building/area regions for footstep and art zoning (optional). */
-  zones?: { id: string; x: number; y: number; w: number; h: number }[];
+  /**
+   * Areas (area_hoshi_*): footstep and art zoning, and in chapter 2 the
+   * place name on the HUD, Kanenari's flip key, the leaf rustle of amb_h_wind
+   * (`wind`: 'ine' | 'susuki' | 'sugi' | 'hill' | 'none'). Where areas
+   * overlap the narrowest one wins (52 1.2). An area may be the union of
+   * several rects (list it once per rect with the same id).
+   */
+  zones?: { id: string; x: number; y: number; w: number; h: number; name?: string; wind?: string }[];
   /** Material zones for walls/hedges/fences: { x, y, w, h, mat, ch? }. */
   structMats?: { x: number; y: number; w: number; h: number; mat: string; ch?: string }[];
   /** Hand-placed ground decals baked into the ground (manholes, lines, road text...). */

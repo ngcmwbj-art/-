@@ -78,16 +78,22 @@ function pixOf(rgb: number): number {
 }
 
 /** Choose the sprite palette: mapping of every off-palette color to its replacement. */
-export function choosePalette(hist: Map<number, number>, budget = MAX_CUSTOM): { map: Map<number, number>; customs: number[] } {
+export function choosePalette(hist: Map<number, number>, budget = MAX_CUSTOM, keep: readonly number[] = []): { map: Map<number, number>; customs: number[] } {
   const allowed: number[] = [...SNAP_TARGETS];
   const customs: number[] = [];
   const map = new Map<number, number>();
   const off = [...hist.entries()].filter(([c]) => !MASTER_SET.has(c)).sort((a, b) => b[1] - a[1]);
+  // the sprite's own named colours (CharSprite.keep) come first, exactly
+  for (const [c] of off) {
+    if (!keep.includes(c) || customs.includes(c)) continue;
+    allowed.push(c);
+    customs.push(c);
+  }
   // the design's named character colors (DESIGN_EXTRA: Minato's tee light,
   // Kanenari's fur shade and cheeks, the pigeon greys...) are kept as they
   // are — they are what the 8-color allowance is for (7.1)
   for (const [c] of off) {
-    if (customs.length >= budget || !EXTRA_PACKED.includes(c)) continue;
+    if (customs.length >= budget || !EXTRA_PACKED.includes(c) || customs.includes(c)) continue;
     allowed.push(c);
     customs.push(c);
   }
@@ -285,7 +291,8 @@ export function finalizeSprite(s: CharSprite, budget = MAX_CUSTOM): CharSprite {
       hist.set(c, (hist.get(c) ?? 0) + 1);
     }
   }
-  const { map, customs } = choosePalette(hist, budget);
+  const keep = (s.keep ?? []).map((c) => packHex(c));
+  const { map, customs } = choosePalette(hist, budget, keep);
   // 1–2px tones: a color that never covers more than two pixels of a frame
   // joins the nearest better-used color when that one is close (an extra
   // step squeezed between two tones reads as noise, 7.2 / 7.9). Distinct
@@ -308,7 +315,7 @@ export function finalizeSprite(s: CharSprite, budget = MAX_CUSTOM): CharSprite {
   const merge = new Map<number, number>();
   if (solid.length)
     for (const [c, k] of perFrameMax) {
-      if (k > 2) continue;
+      if (k > 2 || keep.includes(c)) continue;
       const [m, d] = nearest(c, solid);
       if (d <= RARE) merge.set(c, m);
     }

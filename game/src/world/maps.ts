@@ -117,11 +117,51 @@ export function groundAt(m: LoadedMap, x: number, y: number): Ground {
   return m.ground[y * m.w + x];
 }
 
-// ---- conditions -------------------------------------------------------------
+// ---- stages -----------------------------------------------------------------
+//
+// Chapter 1 keeps its stage in flag_stage; the 星見台 maps (chapter 2) keep
+// theirs in flag_ch2_stage (02_ch2 6.2). The field tells this module which
+// flag the current map uses when it loads a map (setStageSource), and every
+// stage-dependent lookup (conditions, talk keys, stage texts, bgm/amb per
+// stage, grading, fushigi) reads currentStage(). Default: flag_stage, i.e.
+// chapter 1 behaves exactly as before.
 
-export function currentStage(): number {
-  return flag('flag_stage');
+export type StageFlag = 'flag_stage' | 'flag_ch2_stage';
+
+let stageSource: StageFlag = 'flag_stage';
+
+/** The stage flag of a map definition (MapDef.stageFlag, else by chapter). */
+export function stageFlagOf(def: MapDef | undefined | null): StageFlag {
+  if (!def) return 'flag_stage';
+  return def.stageFlag ?? (def.chapter === 2 ? 'flag_ch2_stage' : 'flag_stage');
 }
+
+/** Is this a chapter-2 (星見台) map? */
+export function isCh2Map(def: MapDef | undefined | null): boolean {
+  return !!def && (def.chapter === 2 || def.stageFlag === 'flag_ch2_stage');
+}
+
+/** Called by the field when it loads a map (and by QA tools). */
+export function setStageSource(flagId: StageFlag): void {
+  stageSource = flagId;
+}
+
+/** The flag the current map's stage is kept in. */
+export function stageSourceFlag(): StageFlag {
+  return stageSource;
+}
+
+/** The current map's stage (flag_stage in chapter 1, flag_ch2_stage on 星見台). */
+export function currentStage(): number {
+  return flag(stageSource);
+}
+
+/** Talk-table key prefix of the current stage source: 's' (chapter 1) or 'h' (星見台). */
+export function stageKeyPrefix(): 's' | 'h' {
+  return stageSource === 'flag_ch2_stage' ? 'h' : 's';
+}
+
+// ---- conditions -------------------------------------------------------------
 
 function stageMatches(spec: number | number[] | string, s: number): boolean {
   if (typeof spec === 'number') return spec === s;
@@ -145,19 +185,25 @@ export function condOk(c: Cond | undefined, stage = currentStage()): boolean {
   return true;
 }
 
-/** Pick the entry of a stage-keyed record for the current stage. */
+/**
+ * Pick the entry of a stage-keyed record for the current stage. Keys are
+ * s0, s1-2, s2+, s0,1 … and, on 星見台 maps, the same with `h` (h0, h1-2);
+ * there the `h` keys win and `s` keys are read as a fallback.
+ */
 export function pickStage<T>(v: T | Record<string, T> | undefined, stage = currentStage()): T | undefined {
   if (v === undefined || v === null) return undefined;
   if (typeof v !== 'object' || Array.isArray(v)) return v as T;
   const rec = v as Record<string, T>;
   const keys = Object.keys(rec);
-  if (!keys.some((k) => k === 'default' || /^s\d/.test(k))) return v as T;
-  // exact / range keys like s0, s1-2, s2+, s0,1
-  for (const k of keys) {
-    if (!k.startsWith('s')) continue;
-    if (stageMatches(k.slice(1), stage)) return rec[k];
+  if (!keys.some((k) => k === 'default' || /^[sh]\d/.test(k))) return v as T;
+  const prefixes = stageKeyPrefix() === 'h' ? ['h', 's'] : ['s'];
+  for (const pre of prefixes) {
+    const own = keys.filter((k) => k.startsWith(pre) && /^\d/.test(k.slice(1)));
+    if (!own.length) continue;
+    // exact / range keys like s0, s1-2, s2+, s0,1
+    for (const k of own) if (stageMatches(k.slice(1), stage)) return rec[k];
+    // fall back to the closest earlier stage
+    for (let s = stage - 1; s >= 0; s--) for (const k of own) if (stageMatches(k.slice(1), s)) return rec[k];
   }
-  // fall back to the closest earlier stage
-  for (let s = stage - 1; s >= 0; s--) for (const k of keys) if (k.startsWith('s') && stageMatches(k.slice(1), s)) return rec[k];
   return rec.default;
 }

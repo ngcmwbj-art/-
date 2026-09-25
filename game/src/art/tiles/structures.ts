@@ -6,6 +6,7 @@
 import { PixelCanvas, mix, rgba32 } from '../../engine/pixel';
 import { ihash, valueNoise } from './noise';
 import { P } from './palette';
+import { hoshiStructureCell, isHoshiMat } from './hoshi_struct';
 
 export interface CellMask {
   n: boolean;
@@ -688,6 +689,7 @@ function lighten(c: string): string {
 }
 
 export function structureCell(kind: string, mat: string, tx: number, ty: number, m: CellMask): CellArt {
+  if (isHoshiMat(kind, mat)) return hoshiStructureCell(kind, mat, tx, ty, m);
   const key = `${kind}|${mat}|${tx},${ty}|${+m.n}${+m.s}${+m.e}${+m.w}`;
   let a = cache.get(key);
   if (a) return a;

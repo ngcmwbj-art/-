@@ -60,9 +60,11 @@ export function pickLine(s: BattleScene, e: EnemyUnit, skillId: string, linked: 
   const total = e.def.tsukkomi.length;
   if (!total) return 0;
   const seen = (n: number) => !!flag(`flag_tsukkomi_${e.id}_${n}`);
-  // first tsukkomi in the first battle against this enemy is always line 1
+  // first tsukkomi in the first battle against this enemy is always line 1 —
+  // except in chapter 2, where the line tied to the move comes first even
+  // then (51 2章 #3: 「曲がれるんかい！」 must never come before the bend)
   const firstEver = ![...Array(total)].some((_, i) => seen(i + 1)) && !s.memo['tsuk_' + e.id];
-  if (firstEver) return 1;
+  if (firstEver && !(e.def.chapter === 2 && linked && linked.length)) return 1;
   let n = 0;
   if (linked && linked.length) {
     // semi 3-hit: line 1 the first time, line 3 afterwards; ojigi press: 1 then 2

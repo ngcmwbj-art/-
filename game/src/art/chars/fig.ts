@@ -15,7 +15,7 @@
 // Explicit tones set while drawing override the automatic shading.
 
 import { PixelCanvas, rgba32 } from '../../engine/pixel';
-import { C, ramp, rimOf, outerRimOf, outlineOf, snapMaster, isMaster, RIM_MARK, RIM_MARK_HI, type Ramp, type RampOpts } from './palette';
+import { C, ramp, rimOf, outerRimOf, outlineOf, snapMaster, isMaster, isProtected, RIM_MARK, RIM_MARK_HI, type Ramp, type RampOpts } from './palette';
 
 export interface Mat {
   ramp: Ramp;
@@ -76,6 +76,9 @@ export type Mats = Record<string, Mat>;
 // column is written as a marker that quant.ts paints per stage.
 const REMAP: Record<string, string> = { '#ffffff': '#FFF6D8', '#000000': '#0B0B14', '#2a1c28': '#2A2440' };
 function lawColor(c: string): string {
+  // colors named by a design (the F1 cattle's warm blacks, the village's
+  // indigo...) are kept exactly: they sit close to a master tone on purpose
+  if (isProtected(c)) return c;
   const k = c.toLowerCase();
   const base = k.slice(0, 7);
   const r = REMAP[base];
@@ -149,6 +152,33 @@ export interface RenderOpts {
   heavy?: boolean;
 }
 
+/** An emissive pixel (drawn on the glow layer, never darkened by the night grading). */
+export interface GlowPx {
+  x: number;
+  y: number;
+  c: string;
+  /** Part that painted it (a glow pixel covered by a later part is dropped). */
+  pid?: number;
+}
+
+/** A soft round glow on the glow layer: `inner` at the centre fading to `outer`, peak alpha `a`. */
+export interface Halo {
+  x: number;
+  y: number;
+  r: number;
+  inner: string;
+  outer: string;
+  a: number;
+}
+
+/** Per-frame extras recorded while drawing (frame coordinates, before cropping). */
+export interface FigMeta {
+  glow: GlowPx[];
+  halo: Halo[];
+  /** Where a carried light (the tomato lantern) centres its pool on the ground, and its radius scale. */
+  lantern?: { x: number; y: number; scale: number };
+}
+
 /**
  * PixelCanvas view handed to after()/before() callbacks: frame coordinates
  * (row 0 = the top of the declared canvas, `data` starts there), while
@@ -205,6 +235,9 @@ export class Fig {
   oy = 0;
   private post: ((p: PixelCanvas) => void)[] = [];
   private pre: ((p: PixelCanvas) => void)[] = [];
+  private glows: GlowPx[] = [];
+  private halos: Halo[] = [];
+  private lamp: FigMeta['lantern'];
 
   constructor(w: number, h: number, mats: Mats, pad = 0) {
     this.w = w;
@@ -453,6 +486,9 @@ export class Fig {
    */
   flip(): this {
     const W = this.w;
+    for (const g of this.glows) g.x = W - 1 - g.x;
+    for (const h of this.halos) h.x = W - 1 - h.x;
+    if (this.lamp) this.lamp.x = W - 1 - this.lamp.x;
     for (let y = 0; y < this.H; y++)
       for (let x = 0; x < W >> 1; x++) {
         const a = y * W + x;
@@ -525,6 +561,47 @@ export class Fig {
         }
       }
     }
+  }
+
+  // ---- emissive layer (chapter 2 night) --------------------------------------
+  //
+  // Pixels that give off their own light (the tomato in the bug net, a
+  // flashlight bulb, an LED) are recorded here as well as painted normally:
+  // the field draws them again on its glow layer after the night grading, so
+  // they keep their colour in the dark (see nightlight.ts: charGlow()).
+
+  /**
+   * Record an emissive pixel (frame coordinates, drawing offset applied).
+   * Call it right after painting that pixel in the current part: if a part
+   * drawn later covers it, it is dropped from the glow layer.
+   */
+  glowPx(x: number, y: number, c: string): this {
+    const X = Math.round(x + this.ox);
+    const Y = Math.round(y + this.oy);
+    if (this.inside(X, Y)) this.glows.push({ x: X, y: Y, c, pid: this.cur });
+    return this;
+  }
+
+  /** Record a soft glow around (x, y) of radius r on the glow layer only. */
+  halo(x: number, y: number, r: number, inner: string, outer: string, a = 0.6): this {
+    this.halos.push({ x: x + this.ox, y: y + this.oy, r, inner, outer, a });
+    return this;
+  }
+
+  /** Record the centre of the light pool this frame carries (ground point, frame coordinates). */
+  lanternAt(x: number, y: number, scale = 1): this {
+    this.lamp = { x: Math.round(x + this.ox), y: Math.round(y + this.oy), scale };
+    return this;
+  }
+
+  /** What this frame recorded for the glow layer (null = nothing). */
+  meta(): FigMeta | null {
+    if (!this.glows.length && !this.halos.length && !this.lamp) return null;
+    // only glow pixels still owned by the part that painted them
+    const glow = this.glows
+      .filter((g) => g.pid === undefined || this.pid[this.at(g.x, g.y)] === g.pid)
+      .map((g) => ({ x: g.x, y: g.y, c: g.c }));
+    return { glow, halo: this.halos.map((h) => ({ ...h })), lantern: this.lamp ? { ...this.lamp } : undefined };
   }
 
   /** Callback on the finished PixelCanvas (glows, translucent effects, no outline). */

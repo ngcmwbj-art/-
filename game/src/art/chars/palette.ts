@@ -215,3 +215,32 @@ export function snapMaster(c: string, tol = 6): string {
 export function isMaster(c: string): boolean {
   return MASTER_SET.has(packHex(c));
 }
+
+// ---- design colours kept exactly (chapter 2) ---------------------------------
+//
+// Chapter 2 names character colours that sit close to a master tone on
+// purpose (52 8.1: the F1 cattle's warm blacks are not the violet outline;
+// 52 10.3: the village's work clothes). A sprite lists them in its `keep`
+// (SpriteSpec / CharSprite): Fig does not snap them to the master palette
+// and quant.ts keeps them as the sprite's own colours. Only exact hex values
+// are protected, so no existing sprite changes.
+
+const protectedSet = new Set<string>();
+
+/** Keep these exact colours through Fig's palette law (see SpriteSpec.keep). */
+export function protectColors(list: readonly string[]): void {
+  for (const c of list) protectedSet.add(c.slice(0, 7).toUpperCase());
+}
+
+export function isProtected(c: string): boolean {
+  return protectedSet.size > 0 && c.length >= 7 && protectedSet.has(c.slice(0, 7).toUpperCase());
+}
+
+/** 52 8.1: the five colours chapter 2 adds to the palette. */
+export const CH2_COLORS = {
+  cowBlack: '#2B2A30',
+  cowLight: '#45434C',
+  cowSheen: '#6E6A78',
+  oldWood: '#8E867A',
+  oldWoodD: '#5E574E',
+} as const;

@@ -5,7 +5,7 @@
 
 import { startClock } from './clock';
 import { installKeepAlive, soundLive } from './keepalive';
-import { audioCtx, hasGraph, initAudio, liveGraph, setSpaceOn, volCurve, type SpaceId } from './engine';
+import { audioCtx, hasGraph, initAudio, liveGraph, setSpaceOn, volCurve, type PaMode, type SpaceId } from './engine';
 import * as amb from './ambience';
 import * as music from './music';
 import { hooks, legacyBgm, loopTable, sfxTable, type LoopHandle, type SfxFn, type SfxOpts, type Song } from './registry';
@@ -13,7 +13,7 @@ import type { SongDef } from './sequencer';
 import { songTable } from './registry';
 
 export type { SfxFn, SfxOpts, Song, LoopHandle };
-export type { SpaceId };
+export type { SpaceId, PaMode };
 export type { MusicParam, PlayOpts } from './music';
 
 // ---- registration -------------------------------------------------------------
@@ -44,6 +44,7 @@ export function unlockAudio(): void {
     setVolume('bgm', volumes.bgm);
     setVolume('se', volumes.se);
   }
+  applyPa(0);
   music.flushPending();
   amb.flushPendingAmbient();
 }
@@ -76,8 +77,10 @@ export function sfxLoop(id: string, opts?: SfxOpts): LoopHandle {
 /**
  * Play a song. Same id → nothing. `fade` fades in (and cross-fades the old
  * song out), `resume` continues from the bar where it last stopped (12.2;
- * town / home / shop / mall resume automatically within 90 s).
- * `variant`: 'stage0'|'stage1'|'stage2' (also for 'bgm_town'), 'muffled'.
+ * town / home / shop / mall / hoshi_night resume automatically within 90 s).
+ * `variant`: 'stage0'|'stage1'|'stage2' (also for 'bgm_town'), 'muffled';
+ * bgm_hoshi_night: 'outdoor'|'house'|'barn'|'school'|'hill' — when it is
+ * already playing only its form changes, over 0.6 s (53_ch2_audio 5.2).
  * Jingles (`bgm_jingle_*`) follow 40_audio 6.1 automatically.
  */
 export function playBgm(id: string, opts: { fade?: number; resume?: boolean; variant?: string } = {}): void {
@@ -123,8 +126,14 @@ export function muteMusic(seconds: number): void {
 /**
  * 'stage' 0..3, 'kire' 0..3, 'boss_phase' 1..3, 'muffle' 0..1 (40_audio 7),
  * 'detune' = a free pitch bend of the music in cents (added to the stage pitch).
+ * Chapter 2 (53_ch2_audio 6): 'h_stage' −1..3 (星見台の段階; −1 away from
+ * 星見台), 'h_light' 0/1 (the tomato held up, Yobimodoshi), 'tenko' 0..4 (name
+ * tags lit), 'h_rest' 0/1 (Tetsuya resting). Only changes are acted on.
  */
-export function setMusicParam(name: 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune', value: number): void {
+export function setMusicParam(
+  name: 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest',
+  value: number,
+): void {
   music.setMusicParam(name, value);
 }
 
@@ -134,8 +143,18 @@ export function setMusicDetune(cents: number, ramp = 0.3): void {
   if (ramp !== 0.3) music.currentPlayer()?.setUserDetune(cents, ramp);
 }
 
-/** Current music params (stage / kire / boss_phase / muffle / detune). */
-export function getMusicParams(): Readonly<{ stage: number; kire: number; boss_phase: number; muffle: number; detune: number }> {
+/** Current music params (stage / kire / boss_phase / muffle / detune, and chapter 2's h_stage / h_light / tenko / h_rest). */
+export function getMusicParams(): Readonly<{
+  stage: number;
+  kire: number;
+  boss_phase: number;
+  muffle: number;
+  detune: number;
+  h_stage: number;
+  h_light: number;
+  tenko: number;
+  h_rest: number;
+}> {
   return music.musicParams();
 }
 
@@ -156,7 +175,58 @@ export function musicFlee(): void {
 
 // ---- chime --------------------------------------------------------------------------
 
-export { playChimeMotif } from './chime';
+export { playChimeMotif, playMorningChime } from './chime';
+
+// ---- the PA speaker (40_audio 3.6 bus_pa; 53_ch2_audio 3.3) --------------------------
+
+const pa = { mode: 'town' as PaMode, d: 0, indoor: false };
+
+function applyPa(ramp: number): void {
+  const g = liveGraph();
+  if (!g) return;
+  g.pa.setMode(pa.mode, ramp ? 0.3 : 0);
+  g.pa.setDistance(pa.d, pa.indoor, ramp);
+}
+
+/**
+ * The valley the PA sings into: 'town' (夕鳴町, echoes off the houses) or
+ * 'yama' (星見台, the far slope answers late). Call on entering a map:
+ * map_hoshi* → 'yama', map_town / map_home_* → 'town'. 0.3 s crossfade; the
+ * echoes already on their way ring out.
+ */
+export function setPaMode(mode: PaMode): void {
+  if (mode !== 'town' && mode !== 'yama') return;
+  pa.mode = mode;
+  liveGraph()?.pa.setMode(mode, 0.3);
+}
+
+/**
+ * How far the player is from the speaker on the hill: d 0 (right under it) …
+ * 1 (the south end of the village): −10 dB × d, darker and wetter. Indoors
+ * (house, barn, school) a further −12 dB behind a 1.2 kHz wall (53 3.3, 7.3).
+ * Battles hear it at d = 0 on their own.
+ */
+export function setPaDistance(d: number, indoor = false): void {
+  const v = Math.max(0, Math.min(1, Number.isFinite(d) ? d : 0));
+  if (Math.abs(v - pa.d) < 0.005 && indoor === pa.indoor) return;
+  pa.d = v;
+  pa.indoor = indoor;
+  liveGraph()?.pa.setDistance(v, indoor, 0.3);
+}
+
+/** Where the PA is set (mode, distance, indoor). */
+export function getPaState(): Readonly<{ mode: PaMode; d: number; indoor: boolean }> {
+  return pa;
+}
+
+/**
+ * The valley answers three times: the PA echoes swell (feedback `amount`)
+ * for `hold` seconds (53 7.4 stage 2, 12.11). Broadcast lines in stage 2 and
+ * near the speaker do this on their own; this is for events that want it.
+ */
+export function paEcho(amount = 0.6, hold = 2.0): void {
+  liveGraph()?.pa.swell(amount, hold);
+}
 
 // ---- ambience & space ---------------------------------------------------------------
 

@@ -14,12 +14,16 @@ import { drawWater, type Reflector, type WaterCtx } from '../art/tiles/water';
 import { drawGroundLife } from '../art/tiles/groundlife';
 import { CHUNK } from './ground_cache';
 import type { FieldScene, PropInst } from './field';
-import { css, INDOOR_MUL, shadowDir } from './lighting';
-import { cellAt, groundAt } from './maps';
+import { css, HOSHI_INDOOR_BASE, HOSHI_INDOOR_MORNING, INDOOR_MUL, shadowDir } from './lighting';
+import { cellAt, groundAt, isCh2Map } from './maps';
 import type { Actor } from './actor';
-import { hud } from './hud';
+import { drawCallBubble, hud } from './hud';
 import { fxDraw, fxUpdate } from './fx';
 import * as snd from './audio';
+import { fanImage, lanternShadow, nightSilhouette, rimOf, sideToward, type LightCircle } from './lantern';
+import { genFlash, hoshiPositional, hoshiPositionalBeds } from './hoshi';
+import { fushigiDone } from './fushigi';
+import { hash2, Rng, valueNoise } from '../engine/rng';
 
 interface Drawable {
   foot: number;
@@ -153,6 +157,7 @@ export class Renderer {
 
   /** The beds whose level positionalAmbience() sets on this map and stage. */
   positionalBeds(): string[] {
+    if (isCh2Map(this.f.map.def)) return hoshiPositionalBeds(this.f.map.def);
     if (this.f.map.id !== 'map_town') return [];
     const beds = ['amb_kawabe', 'amb_arcade', 'amb_wind', 'amb_train_far'];
     if (flag('flag_stage') === 0) beds.push('amb_higurashi');
@@ -162,6 +167,10 @@ export class Renderer {
   /** Town beds by where Minato stands (river, arcade, open ground, the crossing, the higurashi tree). */
   positionalAmbience(): void {
     const m = this.f.map;
+    if (isCh2Map(m.def)) {
+      hoshiPositional(this.f, this.ambient);
+      return;
+    }
     if (m.id !== 'map_town') return;
     const tx = this.f.player.x / 16;
     const ty = this.f.player.y / 16;
@@ -236,16 +245,28 @@ export class Renderer {
       ectx.restore();
       this.addGlowBox(p.x + a.ox - cx - 40, p.y + a.oy - cy - 40, a.w + 80, a.h + 80);
     };
+    const lant = f.light.lantern;
     for (const p of f.props) {
       if (!p.present || !p.art.flat) continue;
       const a = p.art;
       if (!visible(p.x + a.ox, p.y + a.oy, a.w, a.h)) continue;
+      // decals shown only by the light (the child's footprints, 52 7.2):
+      // masked to the inner two rings of the lantern
+      const litOnly = !!p.obj.litOnly;
+      if (litOnly && !lant) continue;
+      if (litOnly) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(lant!.x - cx, lant!.y - cy, lant!.r * 0.6, 0, Math.PI * 2);
+        ctx.clip();
+      }
       const img = a.img(envOf(p));
       if (img) {
         wg.img(img, p.x + a.ox - cx, p.y + a.oy - cy);
         if (a.glass) this.drawGlass(a.glass, p.x + a.ox - cx, p.y + a.oy - cy, 0.7);
       }
       a.over?.(wg, p.x - cx, p.y - cy, envOf(p));
+      if (litOnly) ctx.restore();
       if (a.glow && !a.glowFg) paintGlow(p);
     }
     fxDraw(f, wg, cx, cy, 'ground');
@@ -269,15 +290,32 @@ export class Renderer {
     // enemy symbols get silhouettes too (behind props, walls and canopies), so
     // one is never lost from sight behind a tree or a pillar
     const silSeers: Actor[] = [...seers];
-    for (const a of f.actors) if (a.kind === 'sym' && a.visible && silSeers.length < 8) silSeers.push(a);
+    for (const a of f.actors) if (a.kind === 'sym' && a.visible && silSeers.length < 8 && f.light.actorAlpha(a) >= 0.5) silSeers.push(a);
+    const ch2 = isCh2Map(f.map.def);
     for (const p of f.props) {
       if (!p.present || p.art.flat) continue;
       const a = p.art;
       if (!visible(p.x + a.ox, p.y + a.oy, a.w, a.h)) continue;
+      // things in the dark: only inside the light (52 8.5)
+      const la = f.light.alphaOf(p);
+      if (la <= 0.01) continue;
       const d: Drawable = {
         foot: p.y + a.foot,
         x: p.x,
+        alpha: la < 1 ? la : undefined,
         draw: () => {
+          if (la < 1) {
+            ctx.globalAlpha = la;
+            try {
+              drawProp();
+            } finally {
+              ctx.globalAlpha = 1;
+            }
+          } else drawProp();
+          this.rimProp(p, d, lant, cx, cy);
+        },
+      };
+      const drawProp = () => {
           const e = envOf(p);
           const img = a.img(e);
           const px = p.x + a.ox - cx;
@@ -301,10 +339,23 @@ export class Renderer {
           d.img = img;
           d.ix = px;
           d.iy = py;
-        },
       };
       if (a.glow && !a.glowFg) {
-        d.glow = () => paintGlow(p);
+        d.glow =
+          la < 1
+            ? () => {
+                ectx.globalAlpha = la;
+                paintGlow(p);
+                ectx.globalAlpha = 1;
+              }
+            : () => paintGlow(p);
+      }
+      if (ch2) {
+        const g0 = d.glow;
+        d.glow = () => {
+          g0?.();
+          this.flushRim(p);
+        };
       }
       list.push(d);
     }
@@ -313,6 +364,10 @@ export class Renderer {
     for (const a of actors) {
       if (!a.visible) continue;
       if (!visible(a.x - 24, a.y - 48, 48, 56)) continue;
+      // in the dark: only inside the light; テツヤ carries his own (52 8.5)
+      const la = f.light.actorAlpha(a);
+      const selfLit = !!a.data.selfLit;
+      if (la <= 0.01 && !selfLit) continue;
       // [chars hook, QA round 2] the follower walking right behind Minato
       // (he faces up, the bell is 16px south of his feet) would cover him
       // from the chest down: where their sprites overlap, the leader is
@@ -325,7 +380,11 @@ export class Renderer {
         x: a.x,
         actor: a,
         draw: () => {
-          a.draw(wg, cx, cy, f.t);
+          if (la < 1) {
+            ctx.globalAlpha = la;
+            a.draw(wg, cx, cy, f.t);
+            ctx.globalAlpha = 1;
+          } else a.draw(wg, cx, cy, f.t);
           if (a.drawFn) {
             // a vehicle: its current frame, placed as makeVehicle draws it, so
             // Minato behind it keeps his silhouette
@@ -342,9 +401,18 @@ export class Renderer {
           d.img = img;
           d.ix = ix - cx;
           d.iy = iy - cy;
-          d.alpha = a.alpha;
+          d.alpha = a.alpha * la;
         },
       };
+      if (ch2 && a !== f.player) d.glow = () => this.rimActor(a, d, lant);
+      if (selfLit) {
+        const g0 = d.glow;
+        d.glow = () => {
+          g0?.();
+          this.headlampGlow(a, cx, cy);
+        };
+        if (la < 1) this.silLater.push([a, 1 - la]);
+      }
       list.push(d);
     }
     list.sort((a, b) => a.foot - b.foot || a.x - b.x);
@@ -405,7 +473,7 @@ export class Renderer {
     // round 3: a salaryman vanished whole under the river road's cherries,
     // a cat under the persimmon; in stage 2 the canopy thins over a shadow
     // walking by with no one there)
-    for (const a of f.actors) if ((a.kind === 'sym' || a.data.passerby) && a.visible) fadeSeers.push(a);
+    for (const a of f.actors) if ((a.kind === 'sym' || a.data.passerby) && a.visible && f.light.actorAlpha(a) >= 0.5) fadeSeers.push(a);
     for (const p of f.props) {
       if (!p.present || !p.art.fg) continue;
       for (const part of p.art.fg) {
@@ -464,7 +532,7 @@ export class Renderer {
       // characters under a wire get that part of the wire faded (never hidden by it)
       const occ: WireOccluder[] = [];
       for (const a of actors) {
-        if (!a.visible || a.kind === 'restored' || a.drawFn) continue;
+        if (!a.visible || a.kind === 'restored' || a.drawFn || f.light.actorAlpha(a) < 0.5) continue;
         const img = a.frame();
         const [ix, iy] = a.drawPos(img);
         occ.push({ x: ix - cx - 1, y: iy - cy - 1, w: img.width + 2, h: img.height + 2, key: a });
@@ -477,8 +545,12 @@ export class Renderer {
     // 7. arcade stripes
     if (f.map.id === 'map_town') this.drawArcadeStripes(cx, cy);
 
-    // 8. grading × light map (lamp pools, window light, the TV...)
+    // 8. grading × light map (lamp pools, window light, the TV...; on 星見台
+    // the dark, the starlight and the tomato light too)
     this.grade(cx, cy, visible, envOf);
+    // 8b. 星見台: the night sky mirrored in the water (stars, the milky way,
+    // the morning star), above the grade so the stars stay stars (52 8.7)
+    if (ch2 && f.map.def.kind === 'outdoor') this.drawSkyInWater(cx, cy);
 
     // 9. emissive (lamps, lit glass, neon), already cut by whatever stands in
     // front; screen-blended, so light never darkens what is under it
@@ -491,9 +563,10 @@ export class Renderer {
       ctx.globalCompositeOperation = 'source-over';
     }
     fxDraw(f, wg, cx, cy, 'glow');
+    if (ch2) this.drawLightFx(cx, cy);
 
     // 10. emotes
-    for (const a of actors) a.drawEmote(wg, cx, cy);
+    for (const a of actors) if (f.light.actorAlpha(a) >= 0.05 || a.kind === 'sym') a.drawEmote(wg, cx, cy);
     // a story close-up (a full-frame 2× blow-up in the top layer) would zoom
     // the 2× room view twice: in a zoomed room it is the room view already
     if (f.viewScale > 1) this.noFullFrameUpscale(() => fxDraw(f, wg, cx, cy, 'top'));
@@ -513,7 +586,356 @@ export class Renderer {
         else if (dx < 0) g.ctx.drawImage(src, W - 1, y, 1, 1, W + dx, y, -dx, 1);
       }
     } else g.ctx.drawImage(src, 0, 0);
+    drawCallBubble(g, f);
     hud.draw(g, f);
+  }
+
+  // ---------------------------------------------------------------- 星見台: rims, shadows, light fx
+
+  /** Props whose rim waits for their glow slot (set up in drawShadows' pass). */
+  private pendingRim = new Map<PropInst, [HTMLCanvasElement, number, number, number]>();
+  /** Self-lit symbols (テツヤ) to draw as a faint shape after the grade: [actor, strength]. */
+  private silLater: [Actor, number][] = [];
+
+  /**
+   * The night rim (52 8.5 / 8.9): a thing inside the lantern's circle gets a
+   * 1px #F2894B on its edge towards the light; in the morning (h3b/h3c)
+   * characters get a 1px #F7C27A on the right. Painted into the emissive
+   * buffer in depth order, so whatever stands in front cuts it.
+   */
+  private rimActor(a: Actor, d: Drawable, l: LightCircle | null): void {
+    const f = this.f;
+    if (!d.img || a.drawFn) return;
+    const la = d.alpha ?? 1;
+    if (la <= 0.05) return;
+    const ec = this.ectx;
+    if (l) {
+      const fx = a.x;
+      const fy = a.y - 10;
+      const dist = Math.hypot(fx - l.x, fy - l.y);
+      if (dist < l.r) {
+        const [sx, sy] = sideToward(l, fx, fy);
+        const rim = rimOf(d.img, sx, sy, '#F2894B');
+        const q = dist / l.r;
+        ec.globalAlpha = 0.95 * (1 - q * q) * la;
+        ec.drawImage(rim, d.ix!, d.iy!);
+        ec.globalAlpha = 1;
+        this.addGlowBox(d.ix!, d.iy!, d.img.width, d.img.height);
+      }
+    }
+    const rr = f.grade.rimRight;
+    if (rr > 0.02 && a.kind !== 'restored') {
+      const rim = rimOf(d.img, 1, 0, '#F7C27A');
+      ec.globalAlpha = Math.min(1, rr) * 0.9 * la;
+      ec.drawImage(rim, d.ix!, d.iy!);
+      ec.globalAlpha = 1;
+      this.addGlowBox(d.ix!, d.iy!, d.img.width, d.img.height);
+    }
+  }
+
+  /** Rim of a small prop (a cow, a scarecrow, a box) inside the lantern's circle. */
+  private rimProp(p: PropInst, d: Drawable, l: LightCircle | null, cx: number, cy: number): void {
+    this.pendingRim.delete(p);
+    if (!l || !d.img) return;
+    const a = p.art;
+    if (a.h < 12 || a.h > 56 || a.w > 64) return;
+    const fx = p.x + (a.contactX ?? a.ox + a.w / 2);
+    const fy = p.y + a.foot - 8;
+    const dist = Math.hypot(fx - l.x, fy - l.y);
+    if (dist >= l.r) return;
+    const [sx, sy] = sideToward(l, fx, fy);
+    const q = dist / l.r;
+    this.pendingRim.set(p, [rimOf(d.img, sx, sy, '#F2894B'), d.ix!, d.iy!, 0.85 * (1 - q * q) * (d.alpha ?? 1)]);
+    // props with a glow flush it in their glow slot; the rest right now
+    if (!a.glow || a.glowFg) this.flushRim(p);
+    void cx;
+    void cy;
+  }
+
+  private flushRim(p: PropInst): void {
+    const r = this.pendingRim.get(p);
+    if (!r) return;
+    this.pendingRim.delete(p);
+    const [img, x, y, al] = r;
+    this.ectx.globalAlpha = al;
+    this.ectx.drawImage(img, x, y);
+    this.ectx.globalAlpha = 1;
+    this.addGlowBox(x, y, img.width, img.height);
+  }
+
+  /** テツヤ's lamp: a 3×3 #FFE7A3 on the machine's nose (emissive). */
+  private headlampGlow(a: Actor, cx: number, cy: number): void {
+    const ang = (a.data.lampAngle as number | undefined) ?? (a.dir === 'left' ? Math.PI : 0);
+    const lx = Math.round(a.x + Math.cos(ang) * 11 - cx);
+    const ly = Math.round(a.y - 9 + Math.sin(ang) * 3 - cy);
+    const e = this.eg;
+    e.rect(lx - 3, ly - 2, 7, 5, '#F2894B', 0.25);
+    e.rect(lx - 2, ly - 3, 5, 7, '#F2894B', 0.25);
+    e.rect(lx - 1, ly - 1, 3, 3, '#FFE7A3');
+    e.px(lx, ly, '#FFFFFF');
+    this.addGlowBox(lx - 4, ly - 4, 9, 9);
+  }
+
+  /** Short shadows away from the lantern (fx_h_lantern_shadow, 52 8.4). */
+  private drawLanternShadows(cx: number, cy: number, l: LightCircle, visible: (x: number, y: number, w: number, h: number) => boolean, envOf: (p: PropInst) => PropEnv): void {
+    const f = this.f;
+    const ctx = this.wctx;
+    const cast = (img: HTMLCanvasElement, ix: number, iy: number, footX: number, footY: number, dx: number, dy: number, len: number, alpha: number) => {
+      if (alpha <= 0.01) return;
+      const sil = nightSilhouette(img);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.setTransform(1, 0, -len * dx, -len * dy, footX - cx, footY - cy);
+      ctx.drawImage(sil, ix - footX, iy - footY);
+      ctx.restore();
+    };
+    const acts: Actor[] = [...f.actors];
+    if (f.follower) acts.push(f.follower);
+    for (const a of acts) {
+      if (!a.visible || a.drawFn || a.shadowH === 0 || a.kind === 'restored') continue;
+      const la = f.light.actorAlpha(a);
+      if (la <= 0.05) continue;
+      const sh = lanternShadow(l, a.x, a.y);
+      if (!sh) continue;
+      const img = a.frame();
+      const [ix, iy] = a.drawPos(img);
+      cast(img, ix, iy, Math.round(a.x + a.ox), Math.round(a.y + a.oy), sh.dx, sh.dy, sh.len, sh.alpha * la);
+    }
+    // Minato himself: the light is over his head to the upper left, a short shadow to the lower right
+    {
+      const p = f.player;
+      if (p.visible) {
+        const img = p.frame();
+        const [ix, iy] = p.drawPos(img);
+        cast(img, ix, iy, Math.round(p.x), Math.round(p.y), 0.6, 0.8, 0.25, 0.3);
+      }
+    }
+    for (const p of f.props) {
+      if (!p.present || p.art.flat) continue;
+      const a = p.art;
+      if (a.h < 12 || a.w > 96) continue;
+      const fx = p.x + (a.contactX ?? a.ox + a.w / 2);
+      const fy = p.y + a.foot;
+      if (!visible(p.x + a.ox - 32, p.y + a.oy - 32, a.w + 64, a.h + 64)) continue;
+      const sh = lanternShadow(l, fx, fy);
+      if (!sh) continue;
+      const la = f.light.alphaOf(p);
+      if (la <= 0.05) continue;
+      const img = (a.shadowImg ?? a.img)(envOf(p));
+      if (!img) continue;
+      cast(img, p.x + a.ox, p.y + a.oy, fx, fy, sh.dx, sh.dy, sh.len, sh.alpha * la);
+    }
+  }
+
+  /** Light effects over the graded frame: the lantern lighting up, テツヤ's shape in the dark, ゲンさん's flashlight. */
+  private drawLightFx(cx: number, cy: number): void {
+    const f = this.f;
+    const ctx = this.wctx;
+    const L = f.light;
+    // fx_h_lantern_on: a 1px #FFE7A3 ring runs out with the opening circle
+    if (L.lantern && L.onT < 1) {
+      const a = 1 - L.onT * 0.6;
+      ctx.save();
+      ctx.globalAlpha = a;
+      this.wg.ring(L.lantern.x - cx, L.lantern.y - cy, L.lantern.r, '#FFE7A3');
+      ctx.restore();
+    }
+    // テツヤ outside the light: a faint shape against his own beam (α25%)
+    for (const [a, k] of this.silLater) {
+      if (!a.visible) continue;
+      const img = a.frame();
+      const [ix, iy] = a.drawPos(img);
+      ctx.save();
+      ctx.globalAlpha = 0.25 * k;
+      ctx.drawImage(silhouetteColored(img, '#6B7186'), ix - cx, iy - cy);
+      ctx.restore();
+    }
+    this.silLater = [];
+    // ゲンさん's flashlight, one frame a second: the bulb
+    const g = genFlash(f);
+    if (g) {
+      const bx = Math.round(g.x + (g.dir === 'left' ? -6 : 6) - cx);
+      const by = Math.round(g.y - 11 - cy);
+      this.wg.rect(bx - 1, by - 1, 3, 3, '#F6D98A', 0.35);
+      this.wg.px(bx, by, '#FFF6D8');
+    }
+  }
+
+  // ---------------------------------------------------------------- 星見台: the sky in the water (52 8.7)
+
+  private skyStatic: HTMLCanvasElement | null = null;
+  private skyFrame: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
+  private skyMask: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
+  private twinkles: [number, number, number][] = [];
+
+  /** Milky way + the 30 steady stars, screen space (built once). */
+  private buildSky(): HTMLCanvasElement {
+    const [c, x] = makeCanvas(W, H);
+    const rng = new Rng(20260925);
+    // the milky way: a soft 60px band from the top left to the bottom right
+    const len = Math.hypot(W, H);
+    const nx = -H / len;
+    const ny = W / len;
+    for (let y = 0; y < H; y++)
+      for (let xx = 0; xx < W; xx++) {
+        const d = Math.abs(xx * nx + y * ny);
+        if (d > 34) continue;
+        const k = 1 - d / 34;
+        const n = valueNoise(xx / 11, y / 11, 31);
+        if (hash2(xx, y, 5) < k * 0.55) {
+          x.fillStyle = n > 0.62 && k > 0.4 ? 'rgba(58,43,92,0.9)' : 'rgba(42,36,64,0.8)';
+          x.fillRect(xx, y, 1, 1);
+        }
+        if (k > 0.3 && hash2(xx, y, 9) < 0.018 * k) {
+          x.fillStyle = 'rgba(122,90,160,0.5)';
+          x.fillRect(xx, y, 1, 1);
+        }
+      }
+    // 40 stars; the first 10 twinkle (drawn per frame)
+    this.twinkles = [];
+    for (let i = 0; i < 40; i++) {
+      const sx = rng.int(2, W - 3);
+      const sy = rng.int(2, H - 3);
+      if (i < 10) {
+        this.twinkles.push([sx, sy, rng.range(500, 2000)]);
+        continue;
+      }
+      x.fillStyle = '#FFF6D8';
+      x.fillRect(sx, sy, 1, 1);
+      if (i % 7 === 0) {
+        // a few brighter ones with a faint cross
+        x.fillStyle = 'rgba(255,246,216,0.35)';
+        x.fillRect(sx - 1, sy, 1, 1);
+        x.fillRect(sx + 1, sy, 1, 1);
+        x.fillRect(sx, sy - 1, 1, 1);
+        x.fillRect(sx, sy + 1, 1, 1);
+      }
+    }
+    return c;
+  }
+
+  private drawSkyInWater(cx: number, cy: number): void {
+    const f = this.f;
+    const gd = f.grade;
+    const m = f.map;
+    const x0 = Math.max(0, Math.floor(cx / CHUNK));
+    const y0 = Math.max(0, Math.floor(cy / CHUNK));
+    const x1 = Math.min(Math.ceil((m.w * 16) / CHUNK) - 1, Math.floor((cx + W) / CHUNK));
+    const y1 = Math.min(Math.ceil((m.h * 16) / CHUNK) - 1, Math.floor((cy + H) / CHUNK));
+    const masks: [HTMLCanvasElement, number, number][] = [];
+    for (let ky = y0; ky <= y1; ky++)
+      for (let kx = x0; kx <= x1; kx++) {
+        const mk = this.waterMask(kx, ky);
+        if (mk) masks.push([mk, kx * CHUNK - cx, ky * CHUNK - cy]);
+      }
+    if (!masks.length) return;
+    this.skyStatic ??= this.buildSky();
+    this.skyFrame ??= makeCanvas(W, H);
+    this.skyMask ??= makeCanvas(W, H);
+    const [fc, fctx] = this.skyFrame;
+    // this frame's sky: milky way, stars (twinkling), the morning star
+    fctx.globalCompositeOperation = 'source-over';
+    fctx.globalAlpha = 1;
+    fctx.clearRect(0, 0, W, H);
+    if (gd.milky > 0.01 || gd.stars > 0.01) {
+      fctx.globalAlpha = Math.max(gd.milky, gd.stars);
+      fctx.drawImage(this.skyStatic, 0, 0);
+      fctx.globalAlpha = 1;
+      for (let i = 0; i < this.twinkles.length; i++) {
+        const [sx, sy, per] = this.twinkles[i];
+        // in h2 three stars in ten are gone
+        if (hash2(i, 3, 17) > gd.stars) continue;
+        const on = Math.floor((f.t + i * 311) / per) % 3 !== 0;
+        fctx.fillStyle = on ? '#FFF6D8' : '#9AA0A8';
+        fctx.fillRect(sx, sy, 1, 1);
+      }
+    }
+    // 明けの明星 at (344,36): 2×2, h2 3×3 with the cross #FFE7A3; it doesn't twinkle
+    const v = Math.round(gd.venus);
+    if (v >= 2) {
+      if (v >= 3) {
+        fctx.fillStyle = '#FFE7A3';
+        fctx.fillRect(343, 36, 3, 1);
+        fctx.fillRect(344, 35, 1, 3);
+        fctx.fillStyle = '#FFF6D8';
+        fctx.fillRect(344, 36, 1, 1);
+      } else {
+        fctx.fillStyle = '#FFF6D8';
+        fctx.fillRect(344, 36, 2, 2);
+      }
+    }
+    const [mc, mctx] = this.skyMask;
+    const layMask = (clip: [number, number, number, number] | null, cut: [number, number, number, number] | null) => {
+      mctx.globalCompositeOperation = 'source-over';
+      mctx.globalAlpha = 1;
+      mctx.clearRect(0, 0, W, H);
+      mctx.save();
+      if (clip) {
+        mctx.beginPath();
+        mctx.rect(clip[0], clip[1], clip[2], clip[3]);
+        mctx.clip();
+      }
+      for (const [mk, mx, my] of masks) mctx.drawImage(mk, mx, my);
+      mctx.restore();
+      if (cut) mctx.clearRect(cut[0], cut[1], cut[2], cut[3]);
+    };
+    const screenIt = (dx: number) => {
+      mctx.globalCompositeOperation = 'source-in';
+      if (dx) {
+        mctx.drawImage(fc, dx, 0);
+        mctx.drawImage(fc, dx - W, 0);
+      } else mctx.drawImage(fc, 0, 0);
+      const ctx = this.wctx;
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.drawImage(mc, 0, 0);
+      ctx.restore();
+    };
+    const rect = (x: number, y: number, w: number, h: number): [number, number, number, number] => [x * 16 - cx, y * 16 - cy, w * 16, h * 16];
+    // fushigi_ch2_03: in the canal only, the mirrored stars drift east at 6px/s (in world space)
+    const canal = m.id === 'map_hoshimidai' && !fushigiDone('fushigi_ch2_03') ? rect(13, 20, 47, 2) : null;
+    layMask(null, canal);
+    screenIt(0);
+    if (canal) {
+      layMask(canal, null);
+      const drift = Math.floor(((f.t / 1000) * 6 + cx) % W);
+      screenIt(((drift % W) + W) % W);
+    }
+    // fushigi_ch2_05: the 5th terrace's western paddy mirrors an evening sky
+    if (m.id === 'map_hoshimidai') {
+      const pr = rect(14, 15, 5, 2);
+      if (pr[0] < W && pr[1] < H && pr[0] + pr[2] > 0 && pr[1] + pr[3] > 0) {
+        layMask(pr, null);
+        mctx.globalCompositeOperation = 'source-in';
+        if (!fushigiDone('fushigi_ch2_05')) {
+          const gr = mctx.createLinearGradient(0, pr[1], 0, pr[1] + pr[3]);
+          gr.addColorStop(0, '#F2894B');
+          gr.addColorStop(1, '#D9728A');
+          mctx.fillStyle = gr;
+          mctx.fillRect(pr[0], pr[1], pr[2], pr[3]);
+          mctx.fillStyle = '#FFE7A3';
+          mctx.fillRect(pr[0], pr[1] + Math.floor(pr[3] / 2), pr[2], 1);
+          const ctx = this.wctx;
+          ctx.save();
+          ctx.globalAlpha = 0.85;
+          ctx.drawImage(mc, 0, 0);
+          ctx.restore();
+        } else {
+          // after: the night again, only its bottom a little warmer (#3A2B5C)
+          const gr = mctx.createLinearGradient(0, pr[1], 0, pr[1] + pr[3]);
+          gr.addColorStop(0, 'rgba(58,43,92,0)');
+          gr.addColorStop(1, 'rgba(58,43,92,1)');
+          mctx.fillStyle = gr;
+          mctx.fillRect(pr[0], pr[1], pr[2], pr[3]);
+          const ctx = this.wctx;
+          ctx.save();
+          ctx.globalCompositeOperation = 'screen';
+          ctx.globalAlpha = 0.6;
+          ctx.drawImage(mc, 0, 0);
+          ctx.restore();
+        }
+      }
+    }
   }
 
   private zc: HTMLCanvasElement | null = null;
@@ -904,6 +1326,7 @@ export class Renderer {
       const footY = Math.round(a.y + a.oy);
       const footX = Math.round(a.x + a.ox);
       if (a.id === 'npc_shadow_man') continue;
+      if (f.light.actorAlpha(a) < 0.5) continue;
       cast(img, footX, footY - (a.hopOffset() < 0 ? 0 : 0), ix, iy - a.hopOffset(), a.shadowH ?? img.height, a.x / 16, a.y / 16);
     }
     // props
@@ -943,21 +1366,32 @@ export class Renderer {
     this.wctx.globalAlpha = gd.shadowA;
     this.wctx.drawImage(this.sc, 0, 0);
     this.wctx.globalAlpha = 1;
-    // contact shadows (all stages)
-    this.wctx.fillStyle = 'rgba(42,36,64,0.4)';
+    // contact shadows (all stages; 星見台: #0B0B14 α40%, 52 8.4)
+    const ch2 = isCh2Map(f.map.def);
+    this.wctx.fillStyle = ch2 ? 'rgba(11,11,20,0.4)' : 'rgba(42,36,64,0.4)';
     for (const a of acts) {
       if (!a.visible || a.id === 'npc_shadow_man' || a.kind === 'restored' || a.drawFn) continue;
       if (!visible(a.x - 16, a.y - 8, 32, 16)) continue;
+      const la = f.light.actorAlpha(a);
+      if (la <= 0.05) continue;
       const w = Math.max(6, Math.round((a.sprite.shadow ?? a.sprite.w * 0.7) * (a.hopDur > 0 ? 0.8 : 1)));
+      if (la < 1) this.wctx.globalAlpha = la;
       ellipse(this.wctx, Math.round(a.x + a.ox - cx), Math.round(a.y + a.oy - cy) - 1, w, 4);
+      this.wctx.globalAlpha = 1;
     }
     for (const p of f.props) {
       if (!p.present || !p.art.contact) continue;
       const x = p.x + (p.art.contactX ?? p.art.ox + p.art.w / 2);
       const y = p.y + p.art.foot;
       if (!visible(x - 20, y - 4, 40, 8)) continue;
+      const la = f.light.alphaOf(p);
+      if (la <= 0.05) continue;
+      if (la < 1) this.wctx.globalAlpha = la;
       ellipse(this.wctx, x - cx, y - cy - 1, p.art.contact, 4);
+      this.wctx.globalAlpha = 1;
     }
+    // the tomato light's own short shadows (h1+)
+    if (f.light.lantern) this.drawLanternShadows(cx, cy, f.light.lantern, visible, envOf);
   }
 
   /** Remove `amount` of whatever is in ctx over the water pixels on screen. */
@@ -1042,11 +1476,43 @@ export class Renderer {
     // the light map: the grade's multiply colour plus every light that is on
     // (additive), so lamp pools brighten the ground and whoever stands in them
     const lx = this.lctx;
+    const ch2 = isCh2Map(f.map.def);
     lx.globalAlpha = 1;
     lx.globalCompositeOperation = 'source-over';
-    lx.fillStyle = indoor ? css(indoorMul(st, gd.night, this.mapLit)) : css(gd.mul);
+    const base = ch2 ? hoshiBase(f) : indoor ? css(indoorMul(st, gd.night, this.mapLit)) : css(gd.mul);
+    lx.fillStyle = base;
     lx.fillRect(0, 0, W, H);
+    if (ch2) {
+      // regions of another base (the hallway by the meeting room, 52 4.0)
+      for (const r of f.map.def.lightRegions ?? []) {
+        lx.fillStyle = r.color;
+        lx.fillRect(r.x * 16 - cx, r.y * 16 - cy, r.w * 16, r.h * 16);
+      }
+      // the dark, the starlight, the tomato light (mixed, not added)
+      f.light.paint(lx, cx, cy, base, W, H);
+    }
     lx.globalCompositeOperation = 'lighter';
+    if (ch2) {
+      // テツヤ's headlight: a fan of light that shows from outside the dark too
+      for (const a of f.actors) {
+        if (!a.data.selfLit || !a.visible) continue;
+        const ang = (a.data.lampAngle as number | undefined) ?? (a.dir === 'left' ? Math.PI : 0);
+        const fan = fanImage(ang);
+        const hx = a.x + Math.cos(ang) * 10;
+        const hy = a.y - 6 + Math.sin(ang) * 2;
+        lx.drawImage(fan, Math.round(hx - cx - (fan.width - 1) / 2), Math.round(hy - cy - (fan.height - 1) / 2));
+      }
+      // ゲンさん's flashlight: a 10px circle, one frame a second
+      const g = genFlash(f);
+      if (g) {
+        const gx = Math.round(g.x + (g.dir === 'left' ? -6 : 6) - cx);
+        const gy = Math.round(g.y - 6 - cy);
+        lx.fillStyle = 'rgba(246,217,138,0.2)';
+        lx.beginPath();
+        lx.arc(gx, gy, 10, 0, Math.PI * 2);
+        lx.fill();
+      }
+    }
     lx.save();
     if (indoor) {
       // indoor lights stay inside the house: clipped to the room's cells (the
@@ -1068,27 +1534,38 @@ export class Renderer {
     ctx.save();
     ctx.globalCompositeOperation = 'multiply';
     ctx.drawImage(this.lc, 0, 0);
+    // 星見台's rooms are only their own light: no stage grading on top (52 8.3)
+    const plainRoom = ch2 && indoor;
     // colour drained (stage 1): blend towards grey saturation
-    if (gd.desat > 0.005) {
+    if (gd.desat > 0.005 && !plainRoom) {
       ctx.globalCompositeOperation = 'saturation';
       ctx.globalAlpha = Math.min(1, gd.desat);
       ctx.fillStyle = '#808080';
       ctx.fillRect(0, 0, W, H);
       ctx.globalAlpha = 1;
     }
-    // left sunset bleed
+    // left sunset bleed (星見台: the dawn bleeds in from the right, 52 8.3)
     ctx.globalCompositeOperation = 'screen';
-    const ga = indoor ? 0.12 * (1 - gd.night) : gd.glareA;
+    const ga = plainRoom ? 0 : indoor ? 0.12 * (1 - gd.night) : gd.glareA;
     if (ga > 0.001) {
-      const lg = ctx.createLinearGradient(0, 0, W * 0.45, 0);
       const col = indoor ? [247, 194, 122] as [number, number, number] : gd.glare;
-      lg.addColorStop(0, css(col, ga));
-      lg.addColorStop(1, css(col, 0));
-      ctx.fillStyle = lg;
-      ctx.fillRect(0, 0, W * 0.45, H);
+      const gw = W * (ch2 ? gd.glareW : 0.45);
+      if (ch2 && gd.glareRight > 0.5) {
+        const lg = ctx.createLinearGradient(W, 0, W - gw, 0);
+        lg.addColorStop(0, css(col, ga));
+        lg.addColorStop(1, css(col, 0));
+        ctx.fillStyle = lg;
+        ctx.fillRect(W - gw, 0, gw, H);
+      } else {
+        const lg = ctx.createLinearGradient(0, 0, gw, 0);
+        lg.addColorStop(0, css(col, ga));
+        lg.addColorStop(1, css(col, 0));
+        ctx.fillStyle = lg;
+        ctx.fillRect(0, 0, gw, H);
+      }
     }
     // stage-0 slanted sunbeams (fx_sun_glare)
-    if (!indoor && gd.motion > 0.5 && gd.toMall < 0.5 && gd.night < 0.5 && st === 0) {
+    if (!indoor && !ch2 && gd.motion > 0.5 && gd.toMall < 0.5 && gd.night < 0.5 && st === 0) {
       ctx.fillStyle = css(gd.glare, 0.05);
       for (let i = 0; i < 3; i++) {
         const sway = Math.sin(f.t / 2600 + i * 1.7) * 6;
@@ -1104,7 +1581,7 @@ export class Renderer {
     }
     // top darkness
     ctx.globalCompositeOperation = 'source-over';
-    const ta = indoor ? 0.1 : gd.topA;
+    const ta = plainRoom ? 0 : indoor ? 0.1 : gd.topA;
     if (ta > 0.001) {
       const tg = ctx.createLinearGradient(0, 0, 0, H * 0.35);
       tg.addColorStop(0, css(gd.topDark, ta));
@@ -1282,4 +1759,32 @@ function holeMask(rx: number, ry: number): HTMLCanvasElement {
 
 function lerpRGB(a: [number, number, number], b: [number, number, number], t: number): [number, number, number] {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+}
+
+/** 星見台's light-map base (52 4.0 / 8.3): outdoors the pal_h* multiply, indoors the room's own base. */
+function hoshiBase(f: FieldScene): string {
+  const def = f.map.def;
+  if (def.kind !== 'indoor') return css(f.grade.mul);
+  if (flag('flag_ch2_stage') >= 3) return HOSHI_INDOOR_MORNING;
+  return def.lightBase ?? HOSHI_INDOOR_BASE[def.id] ?? '#5C5A94';
+}
+
+const silColCache = new WeakMap<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();
+function silhouetteColored(img: HTMLCanvasElement, color: string): HTMLCanvasElement {
+  let m = silColCache.get(img);
+  if (!m) {
+    m = new Map();
+    silColCache.set(img, m);
+  }
+  let c = m.get(color);
+  if (!c) {
+    const [cv, ctx] = makeCanvas(img.width, img.height);
+    ctx.drawImage(img, 0, 0);
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, img.width, img.height);
+    c = cv;
+    m.set(color, c);
+  }
+  return c;
 }

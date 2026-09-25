@@ -13,9 +13,12 @@ import { ease } from '../engine/tween';
 import { flag, state } from '../game/state';
 import { isKeyItem, getItem } from '../data/battle';
 import { sfx } from '../audio';
+import * as worldHudMod from '../world/hud';
 import { hud as worldHud, setFieldHud, type FieldHud } from '../world/hud';
 import type { FieldScene } from '../world/field';
 import { fushigiActive } from '../world/fushigi';
+import { getMapDef, isCh2Map } from '../world/maps';
+import { drawCallBubbleUi, showCallBubble as showCallBubbleImpl, updateCallBubbleUi, callBubbleShowing, type CallBubbleHandle } from './call_bubble';
 import { drawDigits, drawNumerals, numeralsWidth } from './digits';
 import { dialogTop } from './dialog';
 import { hudHanko, itemIcon24 } from './icons';
@@ -27,6 +30,8 @@ import { hash2 } from '../engine/rng';
 // ---- clock -------------------------------------------------------------------------
 
 export const CLOCK_TIMES = ['16:52', '16:55', '16:58', '17:00', '17:01'];
+/** 星見台 (flag_ch2_clock): 0 = 4:59, stopped a minute before the morning chime; 1 = 5:00. */
+export const CLOCK_TIMES_H = ['4:59', '5:00'];
 
 let plateC: HTMLCanvasElement | null = null;
 /** 白いほうろうの札 52×18: enamel, 1px ink frame, a screw on each side. */
@@ -113,34 +118,77 @@ export interface ClockView {
   /** Seconds-hand position 0..11. */
   sec: number;
   sink: number;
+  /**
+   * Chapter 2 (星見台, 52 13.1): the colon doesn't blink — it stays at this
+   * opacity (1, or 0.5 for the 80 ms it almost blinks in h2). Undefined:
+   * chapter 1's rules (blinks except in stages 1–2).
+   */
+  colon?: number;
+  /** A change of time turns over like a flap (3 frames) instead of rolling digit by digit. */
+  flap?: boolean;
+  /** The night glow behind the plate (chapter 1's night). Default: stage ≥ 3. */
+  glow?: boolean;
+}
+
+/** Advance of a character on the plate (5×7 digits 6px, the colon 4px). */
+function plateAdv(ch: string): number {
+  return ch === ':' ? 4 : 6;
+}
+
+/** Where the time starts so it sits in the middle of the plate ('16:52' at +12, '4:59' at +15). */
+function plateTextX(x: number, s: string): number {
+  let w = -1;
+  for (const ch of s) w += plateAdv(ch);
+  return x + Math.floor((52 - w) / 2);
+}
+
+/** The time written on the plate: digits and the colon (`colonA` its opacity, 0 = off). */
+function drawPlateTime(g: Gfx, s: string, x: number, y: number, colonA: number): void {
+  let cx = plateTextX(x, s);
+  for (const ch of s) {
+    if (ch === ':') {
+      if (colonA >= 1) drawDigits(g, ':', cx, y, { color: UI.border });
+      else if (colonA > 0) g.alpha(colonA, () => drawDigits(g, ':', cx, y, { color: UI.border }));
+    } else drawDigits(g, ch, cx, y, { color: UI.border });
+    cx += plateAdv(ch);
+  }
 }
 
 /** Draw the clock plate at (x,y). Used by the field HUD, the menu and the title. */
 export function drawClockPlate(g: Gfx, x: number, y: number, v: ClockView, alpha = 1): void {
   g.alpha(alpha, () => {
-    if (v.stage >= 3) g.img(glowImg(), x - 6, y - 6, { alpha: 0.55 + 0.1 * Math.sin(v.t / 700) });
+    if (v.glow ?? v.stage >= 3) g.img(glowImg(), x - 6, y - 6, { alpha: 0.55 + 0.1 * Math.sin(v.t / 700) });
     const yy = y + v.sink;
     g.img(plateImg(), x, yy);
-    const colonOn = v.stage === 1 || v.stage === 2 ? true : Math.floor(v.t / 500) % 2 === 0;
-    const tx = x + 12;
+    const colonA = v.colon ?? (v.stage === 1 || v.stage === 2 ? 1 : Math.floor(v.t / 500) % 2 === 0 ? 1 : 0);
     const ty = yy + 4;
-    const k = Math.min(1, v.flipT / 180);
     const cur = v.time;
     const prev = v.prev || cur;
-    // digits roll over one by one when the time changes (flip clock)
     g.clip(x + 2, yy + 2, 48, 11, () => {
-      let cx = tx;
+      if ((v.flap || prev.length !== cur.length) && prev !== cur && v.flipT < 51) {
+        // the card turns over in 3 frames: the old time folds up, the edge
+        // of the flap, the new time comes down (52 13.1)
+        const f = Math.floor(v.flipT / 17);
+        if (f === 0) g.clip(x + 2, yy + 2, 48, 5, () => drawPlateTime(g, prev, x, ty, colonA));
+        else if (f === 2) g.clip(x + 2, yy + 8, 48, 5, () => drawPlateTime(g, cur, x, ty, colonA));
+        g.rect(x + 4, yy + 7, 44, 1, '#9AA0A8');
+        g.rect(x + 4, yy + (f === 1 ? 6 : f === 0 ? 8 : 6), 44, 1, '#C8C2B4');
+        return;
+      }
+      const k = Math.min(1, v.flipT / 180);
+      // digits roll over one by one when the time changes (flip clock)
+      let cx = plateTextX(x, cur);
       for (let i = 0; i < cur.length; i++) {
         const ch = cur[i];
-        const adv = ch === ':' ? 4 : 6;
         if (ch === ':') {
-          if (colonOn) drawDigits(g, ':', cx, ty, { color: UI.border });
+          if (colonA >= 1) drawDigits(g, ':', cx, ty, { color: UI.border });
+          else if (colonA > 0) g.alpha(colonA, () => drawDigits(g, ':', cx, ty, { color: UI.border }));
         } else if (k < 1 && prev[i] !== ch) {
           const e = ease.cubicOut(k);
           drawDigits(g, prev[i] ?? ' ', cx, ty - Math.round(e * 9), { color: UI.border });
           drawDigits(g, ch, cx, ty + 9 - Math.round(e * 9), { color: UI.border });
         } else drawDigits(g, ch, cx, ty, { color: UI.border });
-        cx += adv;
+        cx += plateAdv(ch);
       }
     });
     // the seconds: a row of 12 dots filling up (5 s each); the newest is 朱
@@ -195,9 +243,74 @@ export function areaAt(tx: number, ty: number): string | null {
   return best;
 }
 
+/** 星見台's maps (50_ch2_story 4.1): the name on a scene change. */
+const HOSHI_PLACE: Record<string, string> = {
+  map_hoshi_train: '夜の電車',
+  map_hoshimidai: '星見台',
+  map_hoshi_house: 'ミツばあの 3号ハウス',
+  map_hoshi_barn: '石黒牛舎',
+  map_hoshi_school: '旧 星見台分校',
+  map_hoshi_hill: '星見の丘',
+};
+
+/**
+ * map_hoshimidai's areas (52 1.2, inclusive tile ranges). `pass`: a strip
+ * you cross on the way somewhere (the 県道, the 用水路, the 沢, the fence) —
+ * it doesn't raise a banner of its own, the last place stays.
+ */
+const HOSHI_AREAS: { id: string; name: string; rects: [number, number, number, number][]; pass?: boolean }[] = [
+  { id: 'area_hoshi_station', name: '星見台駅', rects: [[14, 40, 45, 47]] },
+  { id: 'area_hoshi_kendo', name: '県道', rects: [[0, 38, 46, 39]], pass: true },
+  { id: 'area_hoshi_shuraku', name: '集落', rects: [[14, 22, 45, 37]] },
+  { id: 'area_hoshi_west', name: '西の斜面', rects: [[0, 19, 12, 45]] },
+  { id: 'area_hoshi_stream', name: '沢', rects: [[13, 0, 13, 39]], pass: true },
+  { id: 'area_hoshi_tanada', name: '棚田', rects: [[14, 1, 35, 19]] },
+  { id: 'area_hoshi_canal', name: '用水路', rects: [[13, 20, 59, 21]], pass: true },
+  { id: 'area_hoshi_east', name: '東の台地', rects: [[46, 22, 59, 45]] },
+  {
+    id: 'area_hoshi_fence',
+    name: '電気柵',
+    rects: [
+      [36, 18, 59, 19],
+      [36, 1, 36, 18],
+    ],
+    pass: true,
+  },
+  { id: 'area_hoshi_houki', name: '耕作放棄地', rects: [[37, 3, 59, 17]] },
+  { id: 'area_hoshi_yamaguchi', name: '山道の入口', rects: [[37, 0, 59, 2]] },
+];
+
+interface HoshiArea {
+  id: string;
+  name: string;
+  pass: boolean;
+}
+
+/**
+ * The area of map_hoshimidai at a tile: the map's own zones when it has
+ * them (their `name` wins), else the table above. The narrowest wins.
+ */
+export function hoshiAreaAt(tx: number, ty: number): HoshiArea | null {
+  const zones = getMapDef('map_hoshimidai')?.zones;
+  let best: HoshiArea | null = null;
+  let bestA = Infinity;
+  const consider = (id: string, x0: number, y0: number, x1: number, y1: number, name?: string) => {
+    if (tx < x0 || tx > x1 || ty < y0 || ty > y1) return;
+    const a = (x1 - x0 + 1) * (y1 - y0 + 1);
+    if (a >= bestA) return;
+    const row = HOSHI_AREAS.find((r) => r.id === id);
+    best = { id, name: name ?? row?.name ?? '星見台', pass: !!row?.pass };
+    bestA = a;
+  };
+  if (zones?.length) for (const z of zones) consider(z.id, z.x, z.y, z.x + z.w - 1, z.y + z.h - 1, z.name);
+  else for (const r of HOSHI_AREAS) for (const [x0, y0, x1, y1] of r.rects) consider(r.id, x0, y0, x1, y1);
+  return best;
+}
+
 export function placeNameFor(mapId: string, tx: number, ty: number, fallback = ''): string {
   if (mapId === 'map_town') return areaAt(tx, ty) ?? '夕鳴町';
-  return MAP_PLACE[mapId] ?? fallback;
+  if (mapId === 'map_hoshimidai') return hoshiAreaAt(tx, ty)?.name ?? '星見台';
+  return MAP_PLACE[mapId] ?? HOSHI_PLACE[mapId] ?? fallback;
 }
 
 interface Banner {
@@ -288,6 +401,10 @@ class UiHud implements FieldHud {
   private skips = new Map<string, { n: number; until: number }>();
   private lastFrame = -10;
   private field: FieldScene | null = null;
+  // chapter 2: on a 星見台 map, the colon that almost blinks (h2)
+  private onHoshi = false;
+  private colonDipAt = -1e9;
+  private colonNext = 9000;
 
   show(ms = 4000): void {
     this.showT = Math.max(this.showT, ms);
@@ -301,6 +418,11 @@ class UiHud implements FieldHud {
   /** Current clock text. */
   timeText(): string {
     if (this.override) return this.override;
+    // 星見台 (50 1.2): stopped at 4:59; 5:00 when the morning comes
+    if (this.onHoshi) return CLOCK_TIMES_H[Math.max(0, Math.min(1, flag('flag_ch2_clock')))];
+    // back in 夕鳴町 during chapter 2 (the crossing, the bus stop): 19:30, a minute on after the night
+    if (flag('flag_ch2_started') && !flag('flag_ch2_clear') && flag('flag_ch2_stage') < 3) return '19:30';
+    if (flag('flag_ch2_started') && (flag('flag_ch2_clear') || flag('flag_ch2_stage') >= 3)) return '19:31';
     const c = Math.max(0, Math.min(4, flag('flag_clock')));
     if (c >= 4 || flag('flag_stage') >= 3) {
       // night: time moves on from 17:01
@@ -310,15 +432,25 @@ class UiHud implements FieldHud {
     return CLOCK_TIMES[c];
   }
 
+  /** 星見台 is stopped (4:59, before the morning): the colon and the seconds don't move. */
+  private hoshiStopped(): boolean {
+    return this.onHoshi && !flag('flag_ch2_clock') && flag('flag_ch2_stage') <= 2 && !this.override;
+  }
+
   clockView(): ClockView {
+    const ch2 = this.onHoshi || !!flag('flag_ch2_started');
+    const stopped = this.hoshiStopped();
     return {
       time: this.shown || this.timeText(),
       prev: this.prevShown,
       flipT: this.flipT,
-      stage: flag('flag_stage'),
+      stage: ch2 ? (stopped ? 1 : 0) : flag('flag_stage'),
       t: this.t,
-      sec: this.backT > 0 ? Math.max(0, this.sec - 1) : this.sec,
+      sec: stopped ? 11 : this.backT > 0 ? Math.max(0, this.sec - 1) : this.sec,
       sink: this.sinkT < 120 ? 1 : 0,
+      colon: stopped ? (this.t - this.colonDipAt < 80 ? 0.5 : 1) : undefined,
+      flap: ch2,
+      glow: ch2 ? false : undefined,
     };
   }
 
@@ -336,10 +468,16 @@ class UiHud implements FieldHud {
     syncSettingFlags();
     this.flipT += dt;
     this.sinkT += dt;
+    this.onHoshi = isCh2Map(f.map.def);
     const st = flag('flag_stage');
+    // h2: every 7–11 s the colon dips to half for 80 ms, as if it nearly blinked (52 13.1)
+    if (this.hoshiStopped() && flag('flag_ch2_stage') === 2 && this.t >= this.colonNext) {
+      this.colonDipAt = this.t;
+      this.colonNext = this.t + 7000 + Math.random() * 4000;
+    }
     // ---- clock
     if (st >= 3 || flag('flag_clock') >= 4) this.nightMs += dt;
-    const c = flag('flag_clock');
+    const c = flag('flag_clock') + flag('flag_ch2_clock') * 10;
     if (c !== this.lastClock || f.map.id !== this.lastMap) {
       if (this.lastClock >= 0 || this.lastMap) this.show();
       this.lastClock = c;
@@ -354,7 +492,8 @@ class UiHud implements FieldHud {
       this.shown = tt;
     }
     if (this.showT > 0) this.showT -= dt;
-    const always = st >= 1 && st < 3;
+    // 星見台: the plate stays up while the village is stopped (the time that doesn't move is the point)
+    const always = this.onHoshi ? this.hoshiStopped() : st >= 1 && st < 3 && !flag('flag_ch2_started');
     const hidden = !!flag('flag_hud_hidden');
     const want = (this.showT > 0 || always || !!this.override) && !hidden;
     const target = want ? 6 : -26;
@@ -395,8 +534,18 @@ class UiHud implements FieldHud {
       }
     }
     this.near = near;
+    // ---- the loudspeaker's call bubble
+    updateCallBubbleUi(dt);
     // ---- place names (after the fade-in, not during the opening)
-    const place = placeNameFor(f.map.id, f.player.tileX, f.player.tileY, f.map.def.name ?? '');
+    let place = placeNameFor(f.map.id, f.player.tileX, f.player.tileY, f.map.def.name ?? '');
+    if (f.map.id === 'map_hoshimidai') {
+      // arriving in the village (off the train, first thing in a session): its name;
+      // out of a building: the area; the strips you cross keep the last name
+      const area = hoshiAreaAt(f.player.tileX, f.player.tileY);
+      const arriving = f.map.id !== this.lastMap && (!this.lastMap || !this.lastMap.startsWith('map_hoshi') || this.lastMap === 'map_hoshi_train');
+      if (arriving) place = '星見台';
+      else if (!area || area.pass) place = f.map.id !== this.lastMap ? '星見台' : this.lastPlace;
+    }
     if (f.map.id !== this.lastMap) {
       this.lastMap = f.map.id;
       this.pendingPlace = place;
@@ -579,7 +728,12 @@ class UiHud implements FieldHud {
   }
 
   draw(g: Gfx, f: FieldScene): void {
-    void f;
+    // the loudspeaker's call (fx_h_call_bubble): ours, or the world's own if it raised one
+    if (callBubbleShowing()) drawCallBubbleUi(g, f);
+    else {
+      const wb = (worldHudMod as unknown as Record<string, unknown>).drawCallBubble;
+      if (typeof wb === 'function') (wb as (g: Gfx, f: FieldScene) => void)(g, f);
+    }
     // clock plate
     const y = Math.round(this.y);
     if (y > -24) drawClockPlate(g, 324, y, this.clockView());
@@ -722,6 +876,23 @@ export function skipItemCard(id: string, n = 1): void {
 
 export function isInventoryKey(id: string): boolean {
   return isKeyItem(id);
+}
+
+/**
+ * The loudspeaker's call over 星見台 (fx_h_call_bubble, 52 13.1): the bubble
+ * at the top of the screen (over the pole's horns on the hill's plaza).
+ * The caller plays the voice; pass `voice` to have the bubble type with
+ * its blips. Nothing is shown indoors.
+ */
+export function showCallBubble(text: string, o: { cps?: number; voice?: string; at?: 'auto' | 'top' | 'speaker'; hold?: number } = {}): CallBubbleHandle {
+  return showCallBubbleImpl(text, o);
+}
+
+export { playCallBubble, clearCallBubbleUi as clearCallBubble } from './call_bubble';
+
+/** 19:30 / 19:31 / 6:10 / 6:12 on the plate (null: back to the map's own time). */
+export function setClockText(s: string | null): void {
+  uiHud.setTime(s);
 }
 
 /** Install the UI HUD into the field and route world/hud's show()/setTime() to it. */

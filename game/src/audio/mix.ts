@@ -234,6 +234,8 @@ export function partAir(song: string, part: string): number | null {
 export const KIT_PAN: Record<string, number> = {
   drm_hat_c: -0.36, drm_hat_o: -0.36, drm_ride: 0.38, drm_shaker: 0.4, drm_rim: -0.2, drm_triangle: 0.45,
   drm_woodblock: -0.38, drm_tom_low: -0.25, drm_tick: 0.3, drm_tock: -0.3,
+  // chapter 2: the crickets sit where the hats were; the microphone left of centre
+  drm_cricket: -0.36, drm_mic_tap: -0.2,
 };
 
 // ---------------------------------------------------------------------------

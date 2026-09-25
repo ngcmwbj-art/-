@@ -288,8 +288,8 @@ function vibes(n: NoteCtx, extra: VoiceOpts = {}): void {
   const v = (n.o?.vol ?? 0.07) * n.vel;
   const hold = n.o?.hold;
   const env = hold
-    ? { dur: hold, attack: 0.003, decay: 1.4, sustain: 0.35, release: 0.6 }
-    : { dur: 0.01, attack: 0.002, decay: 1.4, sustain: 0, release: 0.3 };
+    ? { dur: hold, attack: 0.003, decay: 1.4, sustain: 0.35, release: n.o?.release ?? 0.6 }
+    : { dur: 0.01, attack: 0.002, decay: 1.4, sustain: 0, release: n.o?.release ?? 0.3 };
   const common = base(n, { freq: f, ...env, reverb: n.o?.rev ?? 0.3, detune: n.o?.detune, ...extra });
   // the FM bar and the plain fundamental (0.5) under one envelope
   voice({ ...common, wave: 'sine', vol: v, fm: { ratio: 4, index: 1.2, indexEnd: 0, indexTime: 150 }, layers: [{ wave: 'sine', vol: 0.5 }] });
@@ -766,6 +766,143 @@ function choir(n: NoteCtx): void {
   rawHandle(c, t0, end, vv, o, env);
 }
 
+// ---------------------------------------------------------------------------
+// Chapter 2 (53_ch2_audio 3.1): the tomato lantern's voice and the branch
+// school's pump organ
+
+/**
+ * The lantern's timbre: a triangle with a sine at the octave (0.12) and at
+ * the twelfth (0.03) — warmer than the plain triangle, still a chip voice.
+ * Not normalised, so it sits at the built-in triangle's level.
+ */
+function lanternWave(c: BaseAudioContext): PeriodicWave {
+  return cachedWave(c, 'lantern', () => {
+    const N = 40;
+    const real = new Float32Array(N);
+    const imag = new Float32Array(N);
+    for (let k = 1; k < N; k += 2) imag[k] = ((8 / (Math.PI * Math.PI * k * k)) * (((k - 1) / 2) % 2 ? -1 : 1));
+    imag[2] += 0.12;
+    imag[3] += 0.03;
+    return { real, imag };
+  });
+}
+
+/**
+ * ins_lantern (3.1): the tomato's glow singing. A12 D300 S0.7 R180, LP 3.2 kHz,
+ * vibrato 4.2 Hz ±7 cents after 300 ms, and a short sine "ぽ" an octave up on
+ * the attack. The 0.8 Hz tremolo (the light's flicker, ±10 %; ±4 % in the
+ * morning) is the part's (PartFx.tremolo), so every note of the lantern
+ * breathes with one light.
+ */
+function lantern(n: NoteCtx): void {
+  const f = midiHz(n.midi);
+  const v = (n.o?.vol ?? 0.08) * n.vel;
+  const porta = n.prev != null && n.legato && n.o?.pull ? 0.05 : 0;
+  voice(
+    base(n, {
+      wave: 'triangle',
+      periodic: lanternWave,
+      freq: f,
+      portaFrom: porta ? midiHz(n.prev!) : undefined,
+      porta: porta || undefined,
+      dur: n.dur,
+      attack: 0.012,
+      decay: 0.3,
+      sustain: 0.7,
+      release: n.o?.release ?? 0.18,
+      vol: v,
+      vibrato: vib(n, 4.2, 7, 0.3),
+      filter: { type: 'lowpass', freq: n.o?.lp ?? 3200, q: 0.5 },
+      reverb: n.o?.rev ?? 0.35,
+      detune: n.o?.detune,
+    }),
+  );
+  voice(base(n, { wave: 'sine', freq: f * 2, dur: 0.004, attack: 0.001, decay: 0.025, sustain: 0, release: 0.02, vol: v * 0.15, reverb: n.o?.rev ?? 0.35, detune: n.o?.detune }));
+}
+
+/**
+ * The reed organ's body, one per destination (a linear bank is the same for
+ * every note, 15.3): two parallel band-passes (700 Hz Q1.2 ×1.0, 1900 Hz Q1.5
+ * ×0.5) → LP 2.6 kHz, and the bellows (the pedals: 0.7 Hz, ±6 %) on its output.
+ */
+const organBanks = new WeakMap<AudioNode, Map<AudioNode | null, GainNode>>();
+function organBank(c: BaseAudioContext, dest: AudioNode, rev: AudioNode | null, revLevel: number): GainNode {
+  let m = organBanks.get(dest);
+  if (!m) organBanks.set(dest, (m = new Map()));
+  const hit = m.get(rev);
+  if (hit) return hit;
+  const input = c.createGain();
+  const lp = c.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 2600;
+  lp.Q.value = 0.6;
+  const bellows = c.createGain();
+  bellows.gain.value = 1;
+  const lfo = sharedLfo(c, 0.7);
+  const depth = c.createGain();
+  depth.gain.value = 0.06;
+  lfo.connect(depth);
+  depth.connect(bellows.gain);
+  for (const [f, q, lvl] of [
+    [700, 1.2, 1.0],
+    [1900, 1.5, 0.5],
+  ]) {
+    const b = c.createBiquadFilter();
+    b.type = 'bandpass';
+    b.frequency.value = f;
+    b.Q.value = q;
+    // a band-pass at Q≈1 passes about a third of the saw's energy: make up for it
+    const gg = c.createGain();
+    gg.gain.value = lvl * 2.2;
+    input.connect(b);
+    b.connect(gg);
+    gg.connect(lp);
+  }
+  lp.connect(bellows);
+  bellows.connect(dest);
+  // the room hears the organ as it sounds, after its body
+  if (rev && revLevel) {
+    const send = c.createGain();
+    send.gain.value = revLevel;
+    bellows.connect(send);
+    send.connect(rev);
+  }
+  onRelease(dest, () => {
+    lfo.disconnect(depth);
+    bellows.disconnect();
+  });
+  m.set(rev, input);
+  return input;
+}
+
+/**
+ * ins_reed_organ (3.1): the branch school's pump organ. Saw 0.6 + square 0.4
+ * (+4 cents) into the bank above; the reed speaks 15 cents flat and rises in
+ * 80 ms; a breath of air (BP 1.2 kHz) follows the envelope. A60 D0 S1 R220.
+ */
+function reedOrgan(n: NoteCtx): void {
+  if (!hasGraph()) return;
+  const c = cur().ctx;
+  const f = midiHz(n.midi);
+  const v = (n.o?.vol ?? 0.03) * n.vel;
+  const env = { dur: n.dur, attack: 0.06, decay: 0, sustain: 1, release: n.o?.release ?? 0.22 };
+  voice(
+    base(n, {
+      ...env,
+      dest: organBank(c, n.dest, n.rev ?? null, n.o?.rev ?? 0.2),
+      wave: 'sawtooth',
+      freq: f,
+      vol: v,
+      layerMain: 0.6,
+      layers: [{ wave: 'square', vol: 0.4, detune: 4 }],
+      scoop: -15,
+      scoopTime: 0.08,
+      detune: n.o?.detune,
+    }),
+  );
+  voice(base(n, { ...env, wave: 'noise', vol: v * 0.33, filter: { type: 'bandpass', freq: 1200, q: 1 }, reverb: 0 }));
+}
+
 export const INS: Record<string, Instrument> = {
   ins_lead_sq50: leadSq50,
   ins_lead_p25: leadP25,
@@ -788,11 +925,13 @@ export const INS: Record<string, Instrument> = {
   ins_pad: pad,
   ins_pad_reverse: padReverse,
   ins_choir: choir,
+  ins_lantern: lantern,
+  ins_reed_organ: reedOrgan,
 };
 
 /** Vibes-through-a-PA chime (used by the title song's own PA chain and SFX). */
-export function chimeNote(t: number, midi: number, dest: AudioNode, det: AudioNode, hold = 0.45, vol = 0.12, detune = 0): void {
-  vibes({ t, midi, dur: hold, vel: 1, dest, det, o: { vol, hold, detune, rev: 0 } });
+export function chimeNote(t: number, midi: number, dest: AudioNode, det: AudioNode, hold = 0.45, vol = 0.12, detune = 0, release?: number): void {
+  vibes({ t, midi, dur: hold, vel: 1, dest, det, o: { vol, hold, detune, rev: 0, release } });
 }
 
 // ---------------------------------------------------------------------------
@@ -807,6 +946,8 @@ export interface DrumCtx {
   len?: number;
   vol?: number;
   pan?: number;
+  /** The song's pitch bus, for drums with a pitch (drm_putt follows the bow of bgm_midboss). */
+  det?: AudioNode | null;
 }
 export type Drum = (d: DrumCtx) => void;
 
@@ -923,6 +1064,27 @@ export const DRM: Record<string, Drum> = {
     const v = dv(d, 0.03);
     for (const f of [4200, 6100])
       voice(dbase(d, { wave: 'sine', freq: f, dur: 0.005, attack: 0.001, decay: 0.8, sustain: 0, release: 0.2, vol: v, reverb: 0.3 }));
+  },
+  // ---- chapter 2 (53_ch2_audio 3.2)
+  /** A finger tapping the PA microphone "コツ" (the part's fx narrows it to the speaker's band). */
+  drm_mic_tap: (d) => {
+    const v = dv(d, 0.05);
+    voice(dbase(d, { wave: 'sine', freq: 900, freqEnd: 700, glide: 0.015, dur: 0.004, attack: 0.0006, decay: 0.025, sustain: 0, release: 0.012, vol: v }));
+    voice(dbase(d, { wave: 'noise', dur: 0.004, attack: 0.0005, decay: 0.008, sustain: 0, release: 0.005, vol: v * 0.5, filter: { type: 'bandpass', freq: 1500, q: 2 } }));
+  },
+  /** A cricket's "リッ": a 4.4 kHz sine chopped in two by a 40 Hz square (30 ms), ±2 % in pitch. */
+  drm_cricket: (d) => {
+    const v = dv(d, 0.03);
+    const k = 1 + (arand() * 2 - 1) * 0.02;
+    voice(dbase(d, { wave: 'sine', freq: 4400 * k, dur: 0.03, attack: 0.001, decay: 0.01, sustain: 0.9, release: 0.004, vol: v, am: { rate: 40, depth: 1, shape: 'square' }, reverb: 0.12 }));
+  },
+  /** The walking tractor's air-cooled single "ドッ" (follows the song's pitch bus: the engine sags with the bow). */
+  drm_putt: (d) => {
+    const v = dv(d, 0.12);
+    const det = d.det ?? null;
+    voice(dbase(d, { wave: 'sine', freq: 72, freqEnd: 55, glide: 0.04, dur: 0.01, attack: 0.001, decay: 0.09, sustain: 0, release: 0.03, vol: v, detuneSrc: det }));
+    voice(dbase(d, { wave: 'sawtooth', freq: 110, dur: 0.01, attack: 0.001, decay: 0.04, sustain: 0, release: 0.02, vol: v * 0.3, filter: { type: 'lowpass', freq: 300, q: 0.8 }, detuneSrc: det }));
+    voice(dbase(d, { wave: 'noise', dur: 0.015, attack: 0.001, decay: 0.015, sustain: 0, release: 0.008, vol: v * 0.4, filter: { type: 'lowpass', freq: 400 } }));
   },
 };
 

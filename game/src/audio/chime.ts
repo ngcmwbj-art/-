@@ -2,7 +2,7 @@
 // "question" half (G4 A4 C5 E5) and — only at the ending — the "answer".
 
 import { atTime } from './clock';
-import { cur, hasGraph, noteMidi } from './engine';
+import { cur, dbToGain, hasGraph, noteMidi } from './engine';
 import { chimeNote } from './instruments';
 import { duck, duckAmbience } from './music';
 
@@ -62,5 +62,54 @@ export function playChimeMotif(opts: ChimeMotifOpts = {}): Promise<void> {
     chimeCut(tc);
     endT = tc + 0.1;
   }
+  return new Promise((res) => atTime(endT, res));
+}
+
+// ---------------------------------------------------------------------------
+// 星見台の朝のチャイム (53_ch2_audio 1.4, M6): the town's question walked
+// backwards from its last note (A F D C) and home on the first three (C D F).
+// Sealed until the ending: only this function and bgm_hoshi_morning sound it.
+
+export const MORNING_CHIME = ['A5', 'F5', 'D5', 'C5', 'D5', 'F5'];
+
+export interface MorningChimeOpts {
+  /** Seconds between notes (default 0.55: a little slower than the town's 0.45 — morning air). */
+  gap?: number;
+  /** Hold of the last F5 (default 2.5 s; it releases over 0.9 s and the valley answers three times). */
+  lastHold?: number;
+  /** Called on each note (i = 0..5), in time with it (the ending brightens on note 0). */
+  onNote?: (i: number) => void;
+  /** Start time (ctx time; default now). */
+  at?: number;
+}
+
+/**
+ * The 5:00 chime of 星見台 (53 1.4): ins_chime through the PA's mountain
+ * voicing, in tune (the morning is not out of tune), each note held 0.30 s.
+ * The ambience leans back −6 dB while it rings (10.3). Resolves when the
+ * last echo has died away.
+ */
+export function playMorningChime(opts: MorningChimeOpts = {}): Promise<void> {
+  if (!hasGraph()) return Promise.resolve();
+  const g = cur();
+  // 星見台's old speaker, always (the chime only ever rings on the hill)
+  if (g.pa.mode !== 'yama') g.pa.setMode('yama', 0.02);
+  const gap = opts.gap ?? 0.55;
+  const lastHold = opts.lastHold ?? 2.5;
+  const t0 = Math.max(opts.at ?? g.ctx.currentTime, g.ctx.currentTime) + 0.05;
+  const n = MORNING_CHIME.length;
+  const ring = gap * (n - 1) + lastHold;
+  duckAmbience(dbToGain(-6), 0.3, ring, 1.2);
+  MORNING_CHIME.forEach((note, i) => {
+    const t = t0 + i * gap;
+    const last = i === n - 1;
+    g.pa.open(t);
+    chimeNote(t, noteMidi(note), g.pa.input, g.pa.detune, last ? lastHold : 0.3, 0.12, 0, last ? 0.9 : undefined);
+    if (opts.onNote && !g.offline) atTime(t, () => opts.onNote!(i));
+  });
+  // the valley's three answers (1.5 s apart at most) and the speaker's reverb
+  const endT = t0 + ring + 0.9 + 2.2;
+  g.pa.wake(endT);
+  if (g.offline) return Promise.resolve();
   return new Promise((res) => atTime(endT, res));
 }

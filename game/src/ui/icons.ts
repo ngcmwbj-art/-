@@ -46,6 +46,19 @@ const PAL: Record<string, string> = {
   S: '#C8643A',
   v: '#8E95A6',
   V: '#5E6478',
+  // chapter 2 (52_ch2_level_art 13.3)
+  E: '#E84E3C',
+  D: '#8A3A2A',
+  T: '#7A1E1A',
+  F: '#3FA66B',
+  f: '#9BCB6B',
+  K: '#1F4E36',
+  j: '#F6D98A',
+  i: '#E8D8B0',
+  I: '#B89A6A',
+  X: '#EE8E80',
+  L: '#C8645A',
+  Q: '#FFE7A3',
 };
 
 const cache = new Map<string, HTMLCanvasElement>();
@@ -262,8 +275,169 @@ const ITEM_ROWS: Record<string, string[]> = {
   ],
 };
 
+// ---- chapter 2 (52_ch2_level_art 13.3) -------------------------------------------------------
+
+Object.assign(ITEM_ROWS, {
+  // 回覧板の地図: the blue binder, its clip, the paper map with a pencil road and a 朱 circle
+  item_kairan_map: [
+    '...gGGg...',
+    'cuuGWWGuuU',
+    'uwwwwwwwdU',
+    'uwkwwrrrdU',
+    'uwwkwrwrdU',
+    'uwwkwrrrdU',
+    'uwwwkkwwdU',
+    'uwkkwwkkdU',
+    'uddddddddU',
+    '.UUUUUUUU.',
+  ],
+  // 整理券: a small white ticket with a black 「1」 and the torn perforation
+  item_seiriken: [
+    '..........',
+    '.WWWWWWWd.',
+    '.Wwwwwwwd.',
+    '.Wwwwkwwd.',
+    '.Wwwkkwwd.',
+    '.Wwwwkwwd.',
+    '.Wwwwkwwd.',
+    '.Wwwkkkwd.',
+    '.WdwdwdwG.',
+    '..G.G.G...',
+  ],
+  // トマト（4つ）: a white plastic bag, four red tomatoes showing through
+  item_tomato_omiyage: [
+    '.dW...Wd..',
+    '.W.d.W.d..',
+    '.WwwwwwwdG',
+    'WwXXwwXXwd',
+    'WXELXXELwd',
+    'WXLLXXLLXd',
+    'wwXXwXXwXd',
+    'wXELXELXwd',
+    '.XLLXLLXd.',
+    '..dddddd..',
+  ],
+  // きゅうりの一本漬け: a green cucumber on a split chopstick
+  item_kyuri_zuke: [
+    '........fm',
+    '.......fmM',
+    '......fmmM',
+    '.....fmfM.',
+    '....fmmM..',
+    '...fmfM...',
+    '..fmmM....',
+    '..mMM.....',
+    '.iI.......',
+    'iI........',
+  ],
+  // ゆでとうもろこし: rows of yellow kernels, the green husk at the end
+  item_toumorokoshi: [
+    '.......fF.',
+    '......fFK.',
+    '.....jOFK.',
+    '....jOjo..',
+    '...jOjOo..',
+    '..jOjOo...',
+    '.jOjOo....',
+    '.OjOo.....',
+    '.Ooo......',
+    '..........',
+  ],
+  // 梅干し: one wrinkled red umeboshi on a small white dish
+  item_umeboshi: [
+    '..........',
+    '..........',
+    '...RERR...',
+    '..EERTRR..',
+    '..ERRRTR..',
+    '..RTRRRT..',
+    '.WwRRRRwd.',
+    'WwwwwwwwwG',
+    '.dwwwwwdG.',
+    '..dGGGG...',
+  ],
+  // 回覧板の朱肉: a round tin, its lid (a white 「区」) leaning behind, the 朱 inside
+  item_kairan_shuniku: [
+    '.VVVVVVVV.',
+    '.VwwwwwvV.',
+    '.VwVwVvvV.',
+    '.VwvwvVvV.',
+    '.VwwwwwvV.',
+    'gdddddddgG',
+    'dlrrrrrrRG',
+    'drlrrrrRRG',
+    'gdRRRRRRgG',
+    '.gGGGGGGG.',
+  ],
+});
+
+/** トマト（おまけ）: after chapter 2, one tomato left in the bag (13.3). */
+const OMAKE_ROWS = ['.dW...Wd..', '.W.d.W.d..', '.WwwwwwwdG', 'Wwwwwwwwwd', 'WwwwwwwwWd', 'wwwwXXwwwd', 'wwwXELXwwd', 'wwwXLLXwwd', '.wwwXXwwd.', '..dddddd..'];
+
+let omakeFn: () => boolean = () => false;
+/** The flow tells the icons when the tomato bag holds only the one おまけ. */
+export function setOmakeCheck(fn: () => boolean): void {
+  omakeFn = fn;
+}
+
+/** はなまるトマト, full 12×12 with its own outline (13.3). */
+const HANAMARU_TOMATO = [
+  '....OgGO....',
+  '..OOGGgGOO..',
+  '.OGGOLRRGGO.',
+  '.OLLLlRRRRO.',
+  'OLLlLRRRRRRO',
+  'OLLRRRRRRRRO',
+  'OLRRRRRRRRrO',
+  'OLRwRRRRRwrO',
+  '.ORRwRRRwrO.',
+  '..ORRwwwrO..',
+  '...ORRwrO...',
+  '....OOOO....',
+];
+
+export type TomatoState = 'ready' | 'lit' | 'charging';
+
+/**
+ * The hanamaru tomato. `state` changes the fruit for the boss battle's tag
+ * (51 13.2): 'ready' red, 'lit' orange (the rays are drawn by the tag),
+ * 'charging' dark red-brown with no shine.
+ */
+export function tomatoIcon(state: TomatoState = 'ready'): HTMLCanvasElement {
+  const key = 'tomato:' + state;
+  let c = cache.get(key);
+  if (c) return c;
+  const pal: Record<string, string> =
+    state === 'lit'
+      ? { O: '#2A2440', G: '#3FA66B', g: '#9BCB6B', R: '#F2894B', r: '#C8643A', L: '#FFB27A', l: '#FFF6D8', w: '#FFE7A3' }
+      : state === 'charging'
+        ? { O: '#2A2440', G: '#2E6B4A', g: '#3FA66B', R: '#8A3A2A', r: '#6A2A20', L: '#9A4A36', l: '#9A4A36', w: '#A86A54' }
+        : { O: '#2A2440', G: '#3FA66B', g: '#9BCB6B', R: '#E84E3C', r: '#B8241E', L: '#FF6A4D', l: '#FFF6D8', w: '#F4F1E8' };
+  const p = new PixelCanvas(12, 12);
+  p.art(HANAMARU_TOMATO, pal);
+  c = p.toCanvas();
+  cache.set(key, c);
+  return c;
+}
+
+/** The tomato at 8×8 (the title's clear card, the book's ② mark). */
+export function tomatoIcon8(): HTMLCanvasElement {
+  let c = cache.get('tomato8');
+  if (c) return c;
+  const p = new PixelCanvas(8, 8);
+  p.art(
+    ['..OgGO..', '.OGGgGO.', 'OLlRRRRO', 'OLRRRRRO', 'ORRRRRrO', 'ORwRRwrO', '.ORwwrO.', '..OOOO..'],
+    { O: '#2A2440', G: '#3FA66B', g: '#9BCB6B', R: '#E84E3C', r: '#B8241E', L: '#FF6A4D', l: '#FFF6D8', w: '#F4F1E8' },
+  );
+  c = p.toCanvas();
+  cache.set('tomato8', c);
+  return c;
+}
+
 /** 12×12 icon for an item (unknown ids get the folded-note icon). */
 export function itemIcon12(id: string): HTMLCanvasElement {
+  if (id === 'item_hanamaru_tomato') return tomatoIcon('ready');
+  if (id === 'item_tomato_omiyage' && omakeFn()) return art('item:omake', 12, 12, OMAKE_ROWS);
   const rows = ITEM_ROWS[id] ?? ITEM_ROWS.item_otsukai_memo;
   return art('item:' + (ITEM_ROWS[id] ? id : 'item_otsukai_memo'), 12, 12, rows);
 }
@@ -271,7 +445,8 @@ export function itemIcon12(id: string): HTMLCanvasElement {
 const bigCache = new Map<string, HTMLCanvasElement>();
 /** The same icon at 2× (item-get sticky note, shop, description card). */
 export function itemIcon24(id: string): HTMLCanvasElement {
-  let c = bigCache.get(id);
+  const key = id === 'item_tomato_omiyage' && omakeFn() ? 'item:omake' : id;
+  let c = bigCache.get(key);
   if (!c) {
     const src = itemIcon12(id);
     const cv = document.createElement('canvas');
@@ -281,7 +456,7 @@ export function itemIcon24(id: string): HTMLCanvasElement {
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(src, 0, 0, 24, 24);
     c = cv;
-    bigCache.set(id, c);
+    bigCache.set(key, c);
   }
   return c;
 }

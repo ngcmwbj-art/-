@@ -9,8 +9,9 @@
 // walk / idle / run cycles, extras (direction-aware) and named anims.
 
 import type { Dir } from '../../game/state';
-import { Fig, type Mats, type RenderOpts } from './fig';
+import { Fig, type FigMeta, type Mats, type RenderOpts } from './fig';
 import type { CharAnim, CharSprite } from './registry';
+import { protectColors } from './palette';
 
 export type View = 'down' | 'up' | 'left';
 
@@ -113,6 +114,8 @@ export interface SpriteSpec {
   render?: RenderOpts;
   /** Directions that do not exist for this sprite reuse another view. */
   views?: Partial<Record<Dir, Dir>>;
+  /** Design colours kept exactly (see CharSprite.keep / palette.protectColors). */
+  keep?: readonly string[];
 }
 
 export interface ExtraSpec {
@@ -160,12 +163,39 @@ export const PAD = 4;
 /** Top-most opaque row of each rendered frame (in its uncropped canvas). */
 const topRow = new WeakMap<HTMLCanvasElement, number>();
 
+/**
+ * Glow layer and light anchor of a finished frame (canvas coordinates of
+ * that frame), when its draw function recorded any (Fig.glowPx / halo /
+ * lanternAt). nightlight.ts turns it into charGlow() / lanternOf().
+ */
+const frameMetas = new WeakMap<HTMLCanvasElement, FigMeta>();
+
+export function frameMeta(c: HTMLCanvasElement): FigMeta | undefined {
+  return frameMetas.get(c);
+}
+
+/** Attach glow / lantern data to a canvas built outside renderFrame (composited frames). */
+export function setFrameMeta(c: HTMLCanvasElement, m: FigMeta | undefined): void {
+  if (m) frameMetas.set(c, m);
+}
+
+/** A copy of `m` moved by (dx, dy). */
+export function shiftMeta(m: FigMeta, dx: number, dy: number): FigMeta {
+  return {
+    glow: m.glow.map((g) => ({ ...g, x: g.x + dx, y: g.y + dy })),
+    halo: m.halo.map((h) => ({ ...h, x: h.x + dx, y: h.y + dy })),
+    lantern: m.lantern ? { ...m.lantern, x: m.lantern.x + dx, y: m.lantern.y + dy } : undefined,
+  };
+}
+
 export function renderFrame(spec: SpriteSpec, p: Pose): HTMLCanvasElement {
   const w = spec.w ?? 16;
   const h = spec.h ?? 24;
+  if (spec.keep) protectColors(spec.keep);
   const f = new Fig(w, h, spec.mats, PAD);
   spec.draw(f, p);
   if (p.mirror) f.flip();
+  const meta = f.meta();
   const pc = f.render(spec.render);
   let top = pc.h;
   for (let i = 0; i < pc.data.length; i++)
@@ -175,6 +205,7 @@ export function renderFrame(spec: SpriteSpec, p: Pose): HTMLCanvasElement {
     }
   const c = pc.toCanvas();
   topRow.set(c, top);
+  if (meta) frameMetas.set(c, shiftMeta(meta, 0, PAD));
   return c;
 }
 
@@ -223,6 +254,8 @@ function cropHeadroom(s: CharSprite): void {
     n.width = c.width;
     n.height = c.height - top;
     n.getContext('2d')!.drawImage(c, 0, -top);
+    const m = frameMetas.get(c);
+    if (m) frameMetas.set(n, shiftMeta(m, 0, -top));
     map.set(c, n);
   }
   const sw = (c: HTMLCanvasElement) => map.get(c) ?? c;
@@ -413,6 +446,7 @@ export function buildSprite(spec: SpriteSpec): CharSprite {
     runFrameMs: spec.runFrameMs ?? 95,
     idleFrameMs: TICK,
     shadow: spec.shadow ?? 10,
+    keep: spec.keep,
   };
   cropHeadroom(sprite);
   return sprite;

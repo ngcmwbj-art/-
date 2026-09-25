@@ -11,6 +11,10 @@ import './songs/midboss';
 import './songs/boss';
 import './songs/ending';
 import './songs/jingles';
+// chapter 2 (53_ch2_audio)
+import './songs/hoshi_night';
+import './songs/boss2';
+import './songs/hoshi_morning';
 import './sfx';
 import './voices';
 import { registerAudioCommands } from './debugcmds';

@@ -28,7 +28,19 @@ const party: SkillDef[] = [
     noDamage: true, desc: ['待っていた だれかに、押す ハンコ。', '（最後に 使う）'],
   },
   {
-    id: 'skill_oyasuminasai', name: '？？？', user: 'minato', kind: 'hanko', cost: 0, target: 'none', input: 'none',
+    // 51 5.1: 敵1体を休憩中に（次の行動を1回休む。テツヤは2回、必ず効く）
+    id: 'skill_otsukaresama', name: 'おつかれさま', user: 'minato', kind: 'hanko', cost: 4, target: 'enemy', input: 'hold',
+    noDamage: true, desc: ['がんばりすぎの 相手に 押す。', '次の 行動を 1回 休ませる。'],
+  },
+  {
+    // an outline in the case since the chapter-1 ending; pressed once, at the
+    // end of the chapter-2 boss (51 5.2). Before that the menus show ？？？.
+    id: 'skill_oyasuminasai', name: 'おやすみなさい', user: 'minato', kind: 'hanko', cost: 0, target: 'enemy', input: 'hold',
+    noDamage: true, desc: ['長い 夜に、押す ハンコ。', '（最後に 使った）'],
+  },
+  {
+    // 51 5.3: an outline only (chapter 3); never learned, never in a battle list
+    id: 'skill_itadakimasu', name: '？？？', user: 'minato', kind: 'hanko', cost: 0, target: 'none', input: 'none',
     noDamage: true, desc: ['（輪郭だけが、うっすら 見える）', '―'],
   },
   {
@@ -120,6 +132,61 @@ const enemies: SkillDef[] = [
   enemy({ id: 'skill_omu_suitou', name: '水筒', target: 'self', windupMs: 500, noDamage: true }),
   enemy({ id: 'skill_omu_kasa', name: '傘', target: 'self', windupMs: 400, noDamage: true }),
   enemy({ id: 'skill_omu_yoiko', name: 'よいこは おうちへ かえりましょう', target: 'kanenari', windupMs: 600, tsukkomi: [3], noDamage: true, big: true }),
+
+  // ==== 第2章（51 8〜10章）. `hits` = frames before each hit (the first is 0). ====
+  // スネトマト
+  enemy({ id: 'skill_sune_suneru', name: 'すねる', target: 'self', windupMs: 400, tsukkomi: [1], noDamage: true }),
+  enemy({ id: 'skill_sune_korogaru', name: 'ころがる', target: 'enemy', power: 1.0, hits: [0], windupMs: 500, tsukkomi: [1] }),
+  enemy({
+    id: 'skill_sune_aokusai', name: '青くさい', target: 'allies', windupMs: 600, tsukkomi: [2], noDamage: true,
+    status: { id: 'buff_hit', chance: 0.8, turns: 3, stage: -1 },
+  }),
+  // ヘノヘノ課長
+  enemy({
+    id: 'skill_heno_kaonaoshi', name: 'へのへのもへじ', target: 'enemy', power: 1.0, hits: [0], windupMs: 500, tsukkomi: [1],
+    status: { id: 'status_konran', chance: 0.35, turns: 2 },
+  }),
+  enemy({ id: 'skill_heno_tachippanashi', name: '立ちっぱなし', target: 'self', windupMs: 600, tsukkomi: [2], noDamage: true }),
+  enemy({
+    id: 'skill_heno_toriodoshi', name: '鳥おどし', target: 'allies', power: 0.5, hits: [0], windupMs: 500, tsukkomi: [3],
+    status: { id: 'buff_hit', chance: 0.7, turns: 3, stage: -1 },
+  }),
+  // ビリビリ番
+  enemy({
+    id: 'skill_biri_kinshi', name: '立ち入り禁止', target: 'enemy', windupMs: 450, tsukkomi: [1], noDamage: true,
+    status: { id: 'status_toosenbo', chance: 1, turns: 1 },
+  }),
+  enemy({ id: 'skill_biri_pulse', name: 'パルス', target: 'enemy', power: 0.4, hits: [0, 30, 30], windupMs: 500, tsukkomi: [2] }),
+  enemy({ id: 'skill_biri_tsuden', name: '夜間通電中', target: 'self', windupMs: 500, tsukkomi: [1], noDamage: true }),
+  // チョトツ
+  enemy({ id: 'skill_cho_tame', name: '猪突', target: 'self', windupMs: 600, tsukkomi: [2], noDamage: true, big: true }),
+  enemy({ id: 'skill_cho_totsu', name: '突進', target: 'enemy', power: 1.8, hits: [0], windupMs: 650, tsukkomi: [1], big: true }),
+  enemy({ id: 'skill_cho_horu', name: '掘りかえす', target: 'allies', power: 0.6, hits: [0], windupMs: 500, tsukkomi: [2] }),
+  enemy({ id: 'skill_cho_nuta', name: 'ヌタうち', target: 'self', windupMs: 500, tsukkomi: [2], noDamage: true }),
+  // ムジン販売員
+  enemy({ id: 'skill_mujin_irasshai', name: 'いらっしゃいませ', target: 'self', windupMs: 400, tsukkomi: [1], noDamage: true }),
+  enemy({ id: 'skill_mujin_osusume', name: 'おすすめ', target: 'enemy', power: 1.0, hits: [0], windupMs: 450, tsukkomi: [2] }),
+  enemy({ id: 'skill_mujin_charin', name: 'チャリン', target: 'allies', power: 0.4, hits: [0, 18], windupMs: 400, tsukkomi: [2] }),
+  enemy({ id: 'skill_mujin_nefuda', name: '値札はりかえ', target: 'self', windupMs: 500, tsukkomi: [1], noDamage: true }),
+  // 耕うん機テツヤ
+  enemy({
+    id: 'skill_tetsuya_light', name: 'ヘッドライト', target: 'enemy', power: 0.8, hits: [0], windupMs: 450, tsukkomi: [1],
+    status: { id: 'buff_hit', chance: 1, turns: 3, stage: -1 },
+  }),
+  enemy({ id: 'skill_tetsuya_rotary', name: 'ロータリー', target: 'allies', power: 0.35, hits: [0, 16, 20], windupMs: 500, tsukkomi: [2] }),
+  enemy({ id: 'skill_tetsuya_ensuto', name: 'エンスト', target: 'self', windupMs: 600, tsukkomi: [3], noDamage: true, big: true }),
+  enemy({ id: 'skill_tetsuya_fullthrottle', name: 'フルスロットル', target: 'allies', power: 1.4, hits: [0], windupMs: 500, tsukkomi: [3], big: true }),
+  // ヨビモドシ
+  enemy({ id: 'skill_yobi_tenko', name: '点呼', target: 'none', noDamage: true }),
+  enemy({ id: 'skill_yobi_yofukashi', name: '夜ふかし', target: 'allies', hits: [0], windupMs: 900, tsukkomi: [1], big: true, status: { id: 'status_nemuri', chance: 0.3 } }),
+  enemy({ id: 'skill_yobi_ressha', name: '最終列車', target: 'enemy', power: 0.3, hits: [0, 24, 24, 24], windupMs: 500, tsukkomi: [2] }),
+  enemy({
+    id: 'skill_yobi_sukima', name: 'すきま風', target: 'allies', power: 0.5, hits: [0], windupMs: 500, tsukkomi: [3],
+    status: { id: 'buff_hit', chance: 0.7, turns: 3, stage: -1 },
+  }),
+  enemy({ id: 'skill_yobi_amado', name: '雨戸', target: 'enemy', power: 1.6, hits: [0], windupMs: 600, tsukkomi: [3], big: true }),
+  enemy({ id: 'skill_yobi_yamabiko', name: '山びこ', target: 'self', windupMs: 500, tsukkomi: [3], noDamage: true }),
+  enemy({ id: 'skill_yobi_onamae', name: 'おなまえ よびだし', target: 'enemy', power: 0.8, hits: [0], windupMs: 700, tsukkomi: [2] }),
 ];
 
 const table = new Map<string, SkillDef>();
@@ -133,7 +200,11 @@ export function allSkills(): SkillDef[] {
   return [...table.values()];
 }
 
-/** Party ability ids that live in the ハンコケース, in case-slot order. */
+/**
+ * Party ability ids that live in the ハンコケース, in case-slot order (51 5.4):
+ * the おやすみなさい outline keeps the 6th slot it had since chapter 1, so
+ * おつかれさま (learned first) takes the 7th and the いただきます outline the 8th.
+ */
 export const HANKO_CASE_ORDER = [
   'skill_mimashita',
   'skill_peke',
@@ -141,6 +212,8 @@ export const HANKO_CASE_ORDER = [
   'skill_yarinaoshi',
   'skill_okaerinasai',
   'skill_oyasuminasai',
+  'skill_otsukaresama',
+  'skill_itadakimasu',
 ];
 
 /** PR活動 order in the list. */

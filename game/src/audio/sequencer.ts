@@ -36,6 +36,29 @@ export interface Params {
   stage: number;
   kire: number;
   boss_phase: number;
+  /** 53_ch2_audio 6.1: 星見台の段階 (−1 = away from 星見台, the default). */
+  h_stage: number;
+  /** 53 6.2: the tomato held up in the Yobimodoshi fight (0 / 1). */
+  h_light: number;
+  /** 53 6.3: name tags lit (0–4). */
+  tenko: number;
+  /** 53 6.4: Tetsuya resting (0 / 1). */
+  h_rest: number;
+  /** 53 5.2: the room a song is heard from (bgm_hoshi_night's `variant`; 0 = outdoor). */
+  h_room: number;
+}
+
+/** Every param's resting value (the chapter-1 state: nothing of chapter 2 is on). */
+export const PARAM_DEFAULTS: Readonly<Params> = { stage: 0, kire: 0, boss_phase: 1, h_stage: -1, h_light: 0, tenko: 0, h_rest: 0, h_room: 0 };
+
+/**
+ * Changes that land on the next beat instead of the next bar: a kire rise
+ * (40_audio 7.2), the tomato light coming on, a name tag, Tetsuya's rest
+ * (53 6.2–6.4) and a change of room (53 5.2, faded over 0.6 s by the song).
+ */
+export function landsOnBeat(name: keyof Params, value: number, old: number): boolean {
+  if (name === 'kire' || name === 'h_light') return value > old;
+  return name === 'tenko' || name === 'h_rest' || name === 'h_room';
 }
 
 export interface BarDef {
@@ -138,6 +161,8 @@ export interface PartDef {
    * a kire change re-schedules it from the change point (7.2).
    */
   kireAware?: boolean;
+  /** Likewise for the other beat-level params (h_light, tenko, h_rest, h_room). */
+  aware?: (keyof Params)[];
 }
 
 export interface SongDef {
@@ -174,6 +199,11 @@ export interface SongDef {
   battle?: boolean;
   /** Set false if the song's bar hooks cannot be replayed (no bar rewind). */
   rewind?: boolean;
+  /**
+   * Named forms of the song (53_ch2_audio 5.2): playBgm(id, { variant }) maps
+   * the name to the `h_room` param, and the song moves to it without stopping.
+   */
+  variants?: Record<string, number>;
 }
 
 /** Early-reflection taps (s, pan, dB relative to PartFx.air). */
@@ -293,11 +323,11 @@ export class SongPlayer {
   /** QA: only these parts sound. */
   solo: Set<string> | null = null;
 
-  constructor(g: Graph, def: SongDef, dest: AudioNode, opts: { at?: number; fadeIn?: number; fromLoopBar?: number; params: Params; solo?: string[] }) {
+  constructor(g: Graph, def: SongDef, dest: AudioNode, opts: { at?: number; fadeIn?: number; fromLoopBar?: number; params: Partial<Params>; solo?: string[] }) {
     this.g = g;
     this.def = def;
     const c = g.ctx;
-    this.params = { ...opts.params };
+    this.params = { ...PARAM_DEFAULTS, ...opts.params };
     if (opts.solo) this.solo = new Set(opts.solo);
     if (def.fixedStage !== undefined) this.params.stage = def.fixedStage;
     const t0 = opts.at ?? c.currentTime + 0.06;
@@ -548,12 +578,12 @@ export class SongPlayer {
   private landScheduled(name: keyof Params, value: number): void {
     if (this.pending[name] !== value || this.halted || this.stopped) return;
     const now = this.g.ctx.currentTime + 0.008;
-    if (name === 'kire' && value > this.params.kire) {
+    if (landsOnBeat(name, value, this.params[name])) {
       const i = this.hist.findIndex((r) => r.t >= now && r.actual % 4 === 0);
       if (i < 0) return;
-      this.params.kire = value;
-      delete this.pending.kire;
-      this.reschedule(i, (pd) => !!pd.kireAware);
+      this.params[name] = value;
+      delete this.pending[name];
+      this.reschedule(i, (pd) => (name === 'kire' && !!pd.kireAware) || !!pd.aware?.includes(name));
       return;
     }
     // bar-level: rewind the newest bar if its downbeat is still ahead
@@ -686,10 +716,8 @@ export class SongPlayer {
   private applyPending(onBar: boolean): void {
     for (const k of Object.keys(this.pending) as (keyof Params)[]) {
       const v = this.pending[k]!;
-      if (!onBar) {
-        // only kire increases land on the beat
-        if (k !== 'kire' || v < this.params.kire) continue;
-      }
+      // between bars only the beat-level changes land (landsOnBeat)
+      if (!onBar && !landsOnBeat(k, v, this.params[k])) continue;
       this.params[k] = v;
       delete this.pending[k];
     }
@@ -1066,6 +1094,12 @@ export interface MelodyOpts {
   alias?(label: string): string;
   /** Per-note opts (e.g. the recorder leak on one note). */
   noteOpts?(b: BarCtx, e: Ev): InsOpts | undefined;
+  /** A second pitch source for the part's notes (a part-only tape wobble). */
+  det2?(rt: PartRt): AudioNode | null;
+  /** Beat-level params the notes depend on (re-scheduled when they land). */
+  aware?: (keyof Params)[];
+  /** Per-note pitch mapping (after `transpose`), e.g. "an octave up, but not the top two notes". */
+  pitch?(b: BarCtx, midi: number): number;
 }
 
 export function melody(o: MelodyOpts): PartDef {
@@ -1075,6 +1109,7 @@ export function melody(o: MelodyOpts): PartDef {
     vol: o.vol,
     fx: o.fx,
     when: o.when,
+    aware: o.aware,
     melodySeq: () => o.bars.flatMap((b) => b.events.filter((e) => e.midis.length).map((e) => e.midis[e.midis.length - 1])),
     floor(b, from, to) {
       const rm = o.remap?.(b) ?? null;
@@ -1087,7 +1122,7 @@ export function melody(o: MelodyOpts): PartDef {
         const s0 = rm ? from : e.step;
         const hit = rm ? true : e.step < to && e.step + e.len > from;
         if (!hit || s0 >= to) continue;
-        const m = Math.min(...e.midis) + tr;
+        const m = Math.min(...e.midis.map((x) => (o.pitch ? o.pitch(b, x + tr) : x + tr)));
         if (lo === null || m < lo) lo = m;
       }
       return lo;
@@ -1137,18 +1172,20 @@ export function melody(o: MelodyOpts): PartDef {
         for (const m of e.midis) {
           ins({
             t,
-            midi: m + tr,
+            midi: o.pitch ? o.pitch(b, m + tr) : m + tr,
             dur,
             vel: o.vel ?? 1,
             dest: rt.input,
             rev: rt.rev,
             det: rt.song.det,
+            det2: o.det2?.(rt) ?? null,
             o: insO,
             prev: rt.prevMidi,
             legato: rt.prevEnd >= t - 0.02,
           });
         }
-        rt.prevMidi = e.midis[e.midis.length - 1] + tr;
+        const lastM = e.midis[e.midis.length - 1] + tr;
+        rt.prevMidi = o.pitch ? o.pitch(b, lastM) : lastM;
         rt.prevEnd = tEnd;
       }
     },
@@ -1165,6 +1202,7 @@ export interface BassOpts {
   transpose?: Val<number>;
   gate?: number;
   when?: Pred;
+  aware?: (keyof Params)[];
 }
 
 /** Bass from a pattern of chord tokens (2.2). */
@@ -1197,6 +1235,7 @@ export function bass(o: BassOpts): PartDef {
     vol: o.vol,
     fx: o.fx,
     when: o.when,
+    aware: o.aware,
     step(b, src, actual, rt) {
       const ev = eventsFor(b);
       for (const e of ev) {
@@ -1238,6 +1277,7 @@ export interface DrumOpts {
   /** Per-drum patch overrides (e.g. a longer open hat). */
   len?: Record<string, number>;
   when?: Pred;
+  aware?: (keyof Params)[];
 }
 
 export function drums(o: DrumOpts): PartDef {
@@ -1247,6 +1287,7 @@ export function drums(o: DrumOpts): PartDef {
     vol: o.vol,
     fx: o.fx,
     when: o.when,
+    aware: o.aware,
     step(b, src, actual, rt) {
       for (const id of ids) {
         const pat = val(o.kit[id], b);
@@ -1366,6 +1407,8 @@ export interface PadOpts {
   lo?: number;
   hi?: number;
   omitRoot?: boolean;
+  det2?(rt: PartRt): AudioNode | null;
+  aware?: (keyof Params)[];
 }
 
 /** Whole-note pads (3.4 voicing rules). */
@@ -1375,6 +1418,7 @@ export function pads(o: PadOpts): PartDef {
     vol: o.vol,
     fx: o.fx,
     when: o.when,
+    aware: o.aware,
     step(b, src, actual, rt) {
       const [cs, ce] = b.chordSpan(src);
       if (src !== cs) return;
@@ -1389,7 +1433,8 @@ export function pads(o: PadOpts): PartDef {
       const t = b.time(actual);
       const dur = b.time(endStep) - t;
       const ins = INS[o.ins ? val(o.ins, b) : 'ins_pad'];
-      for (const m of voicing) ins({ t, midi: m + tr, dur, vel: 1, dest: rt.input, rev: rt.rev, det: rt.song.det, o: o.o ? val(o.o, b) : undefined });
+      const det2 = o.det2?.(rt) ?? null;
+      for (const m of voicing) ins({ t, midi: m + tr, dur, vel: 1, dest: rt.input, rev: rt.rev, det: rt.song.det, det2, o: o.o ? val(o.o, b) : undefined });
     },
   };
 }
@@ -1445,10 +1490,17 @@ export function arp(o: ArpOpts): PartDef {
 }
 
 /** One-off hits: fn runs on matching bars/steps. */
-export function hits(id: string, list: { when: (b: BarCtx, src: number) => boolean; fn: (b: BarCtx, t: number, rt: PartRt, actual: number) => void }[], vol = 1): PartDef {
+export function hits(
+  id: string,
+  list: { when: (b: BarCtx, src: number) => boolean; fn: (b: BarCtx, t: number, rt: PartRt, actual: number) => void }[],
+  vol = 1,
+  extra: { fx?: PartFx; aware?: (keyof Params)[] } = {},
+): PartDef {
   return {
     id,
     vol,
+    fx: extra.fx,
+    aware: extra.aware,
     step(b, src, actual, rt) {
       for (const h of list) if (h.when(b, src)) h.fn(b, b.time(actual), rt, actual);
     },

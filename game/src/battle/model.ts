@@ -22,12 +22,14 @@ export interface Stages {
   atk: Stage;
   def: Stage;
   hit: Stage;
+  /** buff_spd (第2章, 51 7.3): ±25% per step on action order and fleeing. */
+  spd: Stage;
 }
 
-export const STAT_NAME: Record<keyof Stages, string> = { atk: 'ちから', def: 'まもり', hit: '命中' };
+export const STAT_NAME: Record<keyof Stages, string> = { atk: 'ちから', def: 'まもり', hit: '命中', spd: 'すばやさ' };
 
 export function blankStages(): Stages {
-  return { atk: { lv: 0, turns: 0 }, def: { lv: 0, turns: 0 }, hit: { lv: 0, turns: 0 } };
+  return { atk: { lv: 0, turns: 0 }, def: { lv: 0, turns: 0 }, hit: { lv: 0, turns: 0 }, spd: { lv: 0, turns: 0 } };
 }
 
 /** Party member wrapper with battle-only presentation state. */
@@ -88,7 +90,14 @@ export class PartyUnit {
   }
   /** Can input a command / act this round. */
   get canAct(): boolean {
-    return this.alive && !this.has('status_nemuri') && !this.has('status_tsukamare') && !this.has('status_toosenbo') && !this.has('status_rusu');
+    return (
+      this.alive &&
+      !this.has('status_nemuri') &&
+      !this.has('status_tsukamare') &&
+      !this.has('status_toosenbo') &&
+      !this.has('status_henji') &&
+      !this.has('status_rusu')
+    );
   }
   /** Can be targeted by enemies. */
   get targetable(): boolean {
@@ -113,6 +122,18 @@ export interface EnemyStatus {
   shindafuri?: boolean;
   tame?: string;
   hiraki?: number;
+  /** status_sune すねている (まもり ×2.5; みましたで解ける). */
+  sune?: boolean;
+  /** status_tetsuya 徹夜中 (round end: HP+10, まもり+1 up to +2). */
+  tetsuya?: boolean;
+  /** status_kyuukei: actions still to skip. */
+  kyuukei?: number;
+  /** Actions skipped by the rest this round (the tape comes off at its end). */
+  kyuukeiSkipped?: number;
+  /** おつかれさま does not work in this round (休憩あけ). */
+  restImmuneRound?: number;
+  /** チョトツ: the member it glares at while charging (Member.id). */
+  stareAt?: string;
 }
 
 /**
@@ -214,6 +235,12 @@ export class EnemyUnit {
     f.tame = this.status.tame ? 1 : 0;
     f.hiraki = this.status.hiraki ? 1 : 0;
     f.mimasareta = this.status.mimasareta ? 1 : 0;
+    f.sune = this.status.sune ? 1 : 0;
+    f.tetsuya = this.status.tetsuya ? 1 : 0;
+    f.kyuukei = this.status.kyuukei ? 1 : 0;
+    f.defUp = this.stages.def.lv;
+    f.atkUp = this.stages.atk.lv;
+    f.mimaEver = this.mimaEver ? 1 : 0;
     return { pose: this.pose, t: this.poseT, gt, skill: this.skill, hpRate: this.hpRate, flags: f, params: this.params };
   }
   /** Canvas size & the logical sprite rect. */
@@ -262,6 +289,8 @@ export interface DamageIn {
   defStage: number;
   mimaCoef?: number;
   hiraki?: boolean;
+  /** Extra defence multiplier (status_sune ×2.5). */
+  defMul?: number;
   power: number;
   judge?: number;
   attrMul?: number;
@@ -274,7 +303,7 @@ export interface DamageIn {
 /** 4.1 damage formula (rounded once at the end, min 1). */
 export function calcDamage(d: DamageIn): number {
   const atkE = d.atk * stageMul(d.atkStage);
-  const defE = d.def * stageMul(d.defStage) * (d.mimaCoef ?? 1) * (d.hiraki ? 1.5 : 1);
+  const defE = d.def * stageMul(d.defStage) * (d.mimaCoef ?? 1) * (d.hiraki ? 1.5 : 1) * (d.defMul ?? 1);
   const base = d.crit ? atkE * 2 * 1.5 : Math.max(1, atkE * 2 - defE);
   const v =
     base *
@@ -309,13 +338,20 @@ export function attrMul(e: EnemyUnit, a: Attr | undefined): number {
 }
 
 /** Enemy's effective defence inputs. */
-export function enemyDefIn(e: EnemyUnit): Pick<DamageIn, 'def' | 'defStage' | 'mimaCoef' | 'hiraki'> {
+export function enemyDefIn(e: EnemyUnit): Pick<DamageIn, 'def' | 'defStage' | 'mimaCoef' | 'hiraki' | 'defMul'> {
   return {
     def: e.def.def,
     defStage: e.stages.def.lv,
     mimaCoef: e.status.mimasareta?.coef,
     hiraki: !!e.status.hiraki,
+    // 51 4.1: すねている ×2.5 (never together with みました: it ends the sulk)
+    defMul: e.status.sune ? 2.5 : 1,
   };
+}
+
+/** Effective speed for the action order (51 4.1: × the spd stage). */
+export function spdOf(base: number, stage: number): number {
+  return base * stageMul(stage);
 }
 
 /** Boss part state (13.2). */

@@ -92,8 +92,17 @@ export interface AiCtx {
   mimasareta: boolean;
   /** Stage of this enemy's atk buff. */
   atkStage: number;
+  /** Stages of this enemy's def / spd buffs (第2章). */
+  defStage: number;
+  spdStage: number;
+  /** Is みました still in effect on this enemy right now (みられている)? */
+  seen: boolean;
+  /** Actions this enemy has actually taken (休憩で飛ばした番は数えない). */
+  acts: number;
+  /** The enemy's previous action (skill id, '' before the first). */
+  lastSkill: string;
   /** Party members that can be targeted. */
-  targets: { id: string; hpRate: number; grabbed: boolean; canAct: boolean }[];
+  targets: { id: string; hpRate: number; grabbed: boolean; canAct: boolean; blocked: boolean; henji: boolean; hitDown: boolean }[];
   /** Is status X active on self. */
   has(status: string): boolean;
   /** Weighted pick with the 3-in-a-row rule; entries with weight 0 are skipped. */
@@ -137,6 +146,29 @@ export interface EnemyDef {
   colors: string[];
   /** Target the member with the highest HP ratio (モミスギ). */
   boss?: boolean;
+  /** 第2章の敵（初戦から技に結びついた台詞、夜の戦闘の光）. */
+  chapter?: 1 | 2;
+  /** Statuses on at the start of the battle ('status_sune' | 'status_tetsuya'). */
+  startStatus?: string[];
+  /** Fixed damage a 打 hit gives back to the attacker (ビリビリ番: 3, charged 5). */
+  shock?: { base: number; charged: number };
+  /** Defeat style: 'restore' (思いだす, default), 'fly' (セミ), 'runaway' (チョトツ: 山へ帰る). */
+  defeatStyle?: 'restore' | 'fly' | 'runaway';
+  /** おつかれさま: actions skipped (default 1, テツヤ 2). 0 = never works (ボス). */
+  restActions?: number;
+  /** おつかれさま always succeeds regardless of the judgement (テツヤ). */
+  restAlways?: boolean;
+  /** Boss parts (per boss; see BOSS_PARTS). */
+  parts?: BossPartDef[];
+}
+
+/** Boss part definitions (13.2 / 51 10.2). Hit boxes relative to the sprite's top-left. */
+export interface BossPartDef {
+  id: string;
+  name: string;
+  box: [number, number, number, number];
+  /** The move this part drives (オムカエマチ: the lit part's own action; ヨビモドシ: the ラッパ's move). */
+  action: string;
 }
 
 export interface ItemDef {
@@ -150,7 +182,11 @@ export interface ItemDef {
   healRate?: number;
   mp?: number;
   cure?: string[];
-  special?: 'kinakobou' | 'shippu' | 'capsule';
+  special?: 'kinakobou' | 'shippu' | 'capsule' | 'tomato' | 'umeboshi' | 'corn' | 'kairan';
+  /** A key item that can still be used in these battles (はなまるトマト: ['boss_yobimodoshi']). */
+  usableInBattleWith?: string[];
+  /** Action-order priority in battle (トマト: 2, same as まもる). */
+  priority?: number;
   /**
    * How many a shop sells per visit (balance: the slice is tuned for a bag
    * with 2–3 heals, not 8). Undefined = no limit. Read with `shopLimit(id)`.

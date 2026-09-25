@@ -32,3 +32,25 @@ export function* startBattle(o: BattleOpts): Co<BattleResult> {
   if (!impl) throw new Error('battle system not installed');
   return yield* impl(o);
 }
+
+// ---- 1枚絵 used inside battles (51 10.8: cut_h_village_lit) --------------------------------
+
+/**
+ * Draws a full-screen picture (384×216) at time `t` (ms since it appeared).
+ * `cue` counts the lines read so far, for pictures that light things up in
+ * step with the dialogue (「……牛舎に、明かり。」 → the barn, …).
+ */
+export type BattleCut = (g: import('../engine/gfx').Gfx, t: number, cue: number) => void;
+const cuts = new Map<string, BattleCut>();
+
+/**
+ * The picture owners (UI: `cut_h_*`) register their drawing here; the battle
+ * cross-fades to it. Until one is registered the battle uses its own.
+ */
+export function registerBattleCut(id: string, draw: BattleCut): void {
+  cuts.set(id, draw);
+}
+
+export function battleCut(id: string): BattleCut | null {
+  return cuts.get(id) ?? null;
+}

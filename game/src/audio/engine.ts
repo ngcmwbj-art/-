@@ -7,7 +7,7 @@
 // `cur()` is the graph voice() writes into; it is the live graph except while
 // an offline render is being scheduled (withGraph()).
 
-export type SpaceId = 'outdoor' | 'room' | 'hall' | 'maigo' | 'battle' | 'night';
+export type SpaceId = 'outdoor' | 'room' | 'hall' | 'maigo' | 'battle' | 'night' | 'yama' | 'barn';
 
 /**
  * The master sits this much above 11.1's 0.8. At the default volumes (BGM 7,
@@ -27,6 +27,10 @@ export const SPACES: Record<SpaceId, { len: number; decay: number; hp: number; s
   maigo: { len: 1.2, decay: 3.0, hp: 250, send: 0.35 },
   battle: { len: 1.1, decay: 3.2, hp: 300, send: 0.25 },
   night: { len: 1.8, decay: 3.0, hp: 250, send: 0.35 },
+  // 53_ch2_audio 3.4: the mountain village at night (sound comes back thin
+  // off the far slopes) and the cattle barn (a concrete floor under a steel roof)
+  yama: { len: 2.2, decay: 3.0, hp: 250, send: 0.3 },
+  barn: { len: 1.0, decay: 3.6, hp: 300, send: 0.22 },
 };
 
 // ---------------------------------------------------------------------------
@@ -187,7 +191,40 @@ export class Reverb {
 }
 
 // ---------------------------------------------------------------------------
-// PA speaker chain (40_audio 3.6 bus_pa)
+// PA speaker chain (40_audio 3.6 bus_pa; 53_ch2_audio 3.3 the mountain type)
+
+/** The shape of the valley the speaker sings into (53_ch2_audio 3.3). */
+export type PaMode = 'town' | 'yama';
+
+interface PaModeDef {
+  /** Echo taps: delay (s), level (dB), pan. */
+  taps: [number, number, number][];
+  /** The chain's own reverb (s). */
+  rev: number;
+  lp: number;
+  drive: number;
+}
+
+export const PA_MODES: Record<PaMode, PaModeDef> = {
+  // 夕鳴町: the houses across the street answer at once
+  town: { taps: [[0.14, -9, -0.3], [0.31, -14, 0.4], [0.62, -20, -0.1]], rev: 1.8, lp: 3800, drive: 1.6 },
+  // 星見台: the far slope of the valley answers late; an old, rounder speaker
+  yama: { taps: [[0.45, -8, -0.3], [0.95, -13, 0.4], [1.5, -19, -0.1]], rev: 2.6, lp: 3200, drive: 1.3 },
+};
+
+/** One voicing of the speaker: drive → band → echo taps → its own reverb. */
+interface PaBranch {
+  mode: PaMode;
+  /** Crossfade gate at the head (mode changes fade the input, never the tails). */
+  gate: GainNode;
+  hp: BiquadFilterNode;
+  echoFb: GainNode[];
+  wet: GainNode;
+  out: GainNode;
+  linked: boolean;
+}
+
+const WET_BASE = 0.35;
 
 export class PaChain {
   private readonly in: GainNode;
@@ -195,14 +232,26 @@ export class PaChain {
   readonly detune: ConstantSourceNode;
   /** Final gate: 0 cuts the chime *and* its echoes / reverb. */
   readonly cut: GainNode;
-  readonly echoFb: GainNode[] = [];
-  private fbBase: number[] = [];
+  /** The active voicing's echo feedback gains (swelled for "the echo answers"). */
+  get echoFb(): GainNode[] {
+    return this.branch.echoFb;
+  }
+  private readonly branches = new Map<PaMode, PaBranch>();
+  private branch: PaBranch;
+  private readonly sum: GainNode;
+  /** Where the chain ends (the cut, or the distance stage once it is used). */
+  private tail: AudioNode;
+  private dist: { gain: GainNode; lp: BiquadFilterNode } | null = null;
+  private distD = 0;
+  private distIndoor = false;
+  private distOverride: number | null = null;
   /**
    * A wave shaper never reports silence, so a connected PA chain keeps its
    * filters, echo lines and reverb running forever (~1 % of a core, 15.3).
    * The chain is attached to its destination only while it is in use: any
    * access to `input` (or a swell / cut / open) wakes it, and it detaches
-   * after 6 s without use, when its echoes and reverb have long died away.
+   * after 8 s without use (the mountain's echoes are long: 53 14.4), when its
+   * echoes and reverb have long died away.
    */
   private awake = false;
   private lastUse = 0;
@@ -212,18 +261,24 @@ export class PaChain {
     this.wake();
     return this.in;
   }
+  get mode(): PaMode {
+    return this.branch.mode;
+  }
+  private get offline(): boolean {
+    return typeof OfflineAudioContext !== 'undefined' && this.ctx instanceof OfflineAudioContext;
+  }
   wake(until = this.ctx.currentTime): void {
     this.lastUse = Math.max(this.lastUse, until, this.ctx.currentTime);
     if (this.awake) return;
     this.awake = true;
-    this.cut.connect(this.dest);
-    if (typeof OfflineAudioContext !== 'undefined' && this.ctx instanceof OfflineAudioContext) return;
+    this.tail.connect(this.dest);
+    if (this.offline) return;
     if (!this.sleepTimer)
       this.sleepTimer = setInterval(() => {
-        if (this.ctx.currentTime - this.lastUse < 6) return;
+        if (this.ctx.currentTime - this.lastUse < 8) return;
         this.awake = false;
         try {
-          this.cut.disconnect(this.dest);
+          this.tail.disconnect(this.dest);
         } catch {
           /* gone */
         }
@@ -237,17 +292,41 @@ export class PaChain {
     this.sleepTimer = null;
     this.awake = false;
     try {
-      this.cut.disconnect();
+      this.tail.disconnect();
       this.detune.stop();
     } catch {
       /* gone */
     }
   }
-  constructor(private ctx: BaseAudioContext, dest: AudioNode, reverbLen = 1.8, lp = 3800) {
+  constructor(
+    private ctx: BaseAudioContext,
+    dest: AudioNode,
+    private reverbLen = 1.8,
+    private lp = 3800,
+  ) {
     this.dest = dest;
     this.in = ctx.createGain();
+    this.sum = ctx.createGain();
+    this.cut = ctx.createGain();
+    this.sum.connect(this.cut);
+    this.tail = this.cut;
+    this.branch = this.makeBranch('town');
+    this.detune = ctx.createConstantSource();
+    this.detune.offset.value = 0;
+    this.detune.start();
+  }
+
+  private makeBranch(mode: PaMode, gateLevel = 1): PaBranch {
+    const ctx = this.ctx;
+    const def = PA_MODES[mode];
+    // a custom chain (the title's far speaker, 段階2's distant PA) keeps its own reverb and band
+    const revLen = mode === 'town' ? this.reverbLen : def.rev;
+    const lpHz = mode === 'town' ? this.lp : def.lp;
+    const gate = ctx.createGain();
+    gate.gain.value = gateLevel;
+    this.in.connect(gate);
     const sh = ctx.createWaveShaper();
-    sh.curve = driveCurve(1.6);
+    sh.curve = driveCurve(def.drive);
     sh.oversample = '2x';
     const pre = ctx.createGain();
     pre.gain.value = 1.4;
@@ -257,24 +336,20 @@ export class PaChain {
     hp.Q.value = 0.7;
     const lpf = ctx.createBiquadFilter();
     lpf.type = 'lowpass';
-    lpf.frequency.value = lp;
+    lpf.frequency.value = lpHz;
     lpf.Q.value = 0.9;
     const post = ctx.createGain();
     post.gain.value = 0.6;
-    this.in.connect(pre);
+    gate.connect(pre);
     pre.connect(sh);
     sh.connect(hp);
     hp.connect(lpf);
     lpf.connect(post);
     const mix = ctx.createGain();
     post.connect(mix);
-    const taps: [number, number, number][] = [
-      [0.14, -9, -0.3],
-      [0.31, -14, 0.4],
-      [0.62, -20, -0.1],
-    ];
-    for (const [dt, db, pan] of taps) {
-      const d = ctx.createDelay(1.5);
+    const echoFb: GainNode[] = [];
+    for (const [dt, db, pan] of def.taps) {
+      const d = ctx.createDelay(2);
       d.delayTime.value = dt;
       const g = ctx.createGain();
       g.gain.value = dbToGain(db);
@@ -289,28 +364,134 @@ export class PaChain {
       p.connect(mix);
       d.connect(fb);
       fb.connect(d);
-      this.echoFb.push(fb);
-      this.fbBase.push(0);
+      echoFb.push(fb);
     }
     const rev = ctx.createConvolver();
     rev.normalize = false;
-    rev.buffer = makeIRMono(ctx, reverbLen, 3.0, 23, 0.6);
+    rev.buffer = makeIRMono(ctx, revLen, 3.0, 23, 0.6);
     const wet = ctx.createGain();
-    wet.gain.value = 0.35;
+    wet.gain.value = WET_BASE;
     const revIn = monoSum(ctx);
     mix.connect(revIn);
     revIn.connect(rev);
     spread(ctx, rev, wet);
-    this.cut = ctx.createGain();
-    mix.connect(this.cut);
-    wet.connect(this.cut);
-    this.detune = ctx.createConstantSource();
-    this.detune.offset.value = 0;
-    this.detune.start();
+    const out = ctx.createGain();
+    mix.connect(out);
+    wet.connect(out);
+    out.connect(this.sum);
+    const b: PaBranch = { mode, gate, hp, echoFb, wet, out, linked: true };
+    this.branches.set(mode, b);
+    return b;
   }
+
+  /**
+   * setPaMode (53 3.3): the same bus, the other valley. The input crossfades in
+   * 0.3 s; what the old voicing already sent keeps echoing until it dies away.
+   */
+  setMode(mode: PaMode, xfade = 0.3, at = this.ctx.currentTime): void {
+    if (mode === this.branch.mode) return;
+    const prev = this.branch;
+    const next = this.branches.get(mode) ?? this.makeBranch(mode, 0);
+    if (!next.linked) {
+      next.out.connect(this.sum);
+      next.linked = true;
+    }
+    const f = Math.max(0.005, xfade);
+    for (const [b, to] of [
+      [prev, 0],
+      [next, 1],
+    ] as [PaBranch, number][]) {
+      const g = b.gate.gain;
+      g.cancelScheduledValues(at);
+      g.setValueAtTime(g.value, at);
+      g.linearRampToValueAtTime(to, at + f);
+    }
+    this.branch = next;
+    this.applyDistance(0.05, at);
+    // the old voicing is unhooked once its tails are gone (it would run forever)
+    if (!this.offline)
+      setTimeout(() => {
+        if (this.branch === prev || !prev.linked) return;
+        try {
+          prev.out.disconnect(this.sum);
+        } catch {
+          /* gone */
+        }
+        prev.linked = false;
+      }, (f + 7) * 1000);
+  }
+
+  /**
+   * setPaDistance (53 3.3): d = 0 under the speaker … 1 at the far end of the
+   * village; indoors a further −12 dB behind a 1.2 kHz wall.
+   */
+  setDistance(d: number, indoor = false, ramp = 0.3, at = this.ctx.currentTime): void {
+    this.distD = Math.max(0, Math.min(1, d));
+    this.distIndoor = indoor;
+    this.applyDistance(ramp, at);
+  }
+  /** While a battle plays the speaker is always right there (53 3.3: d = 0); null = the field's value again. */
+  overrideDistance(d: number | null, ramp = 0.1, at = this.ctx.currentTime): void {
+    this.distOverride = d;
+    this.applyDistance(ramp, at);
+  }
+  get distance(): { d: number; indoor: boolean; override: number | null } {
+    return { d: this.distD, indoor: this.distIndoor, override: this.distOverride };
+  }
+  private applyDistance(ramp: number, at: number): void {
+    const d = this.distOverride ?? this.distD;
+    const indoor = this.distOverride === null && this.distIndoor;
+    const yama = this.branch.mode === 'yama';
+    // the town (40_audio) never moves its speaker: no stage there until it is asked for
+    if (!this.dist && !yama && d === 0 && !indoor) return;
+    const st = this.ensureDist();
+    const gain = dbToGain(-10 * d + (indoor ? -12 : 0));
+    let lp = yama || d > 0 ? 3800 * (1 - 0.6 * d) : 20000;
+    if (indoor) lp = Math.min(lp, 1200);
+    const tc = Math.max(0.005, ramp) / 3;
+    st.gain.gain.setTargetAtTime(gain, at, tc);
+    st.lp.frequency.setTargetAtTime(lp, at, tc);
+    // far away, more of what arrives is the valley's reverb
+    for (const b of this.branches.values()) b.wet.gain.setTargetAtTime(WET_BASE * (1 + d), at, tc);
+  }
+  private ensureDist(): { gain: GainNode; lp: BiquadFilterNode } {
+    if (this.dist) return this.dist;
+    const gain = this.ctx.createGain();
+    const lp = this.ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 20000;
+    lp.Q.value = 0.707;
+    this.cut.connect(gain);
+    gain.connect(lp);
+    if (this.awake) {
+      try {
+        this.cut.disconnect(this.dest);
+      } catch {
+        /* not connected */
+      }
+      lp.connect(this.dest);
+    }
+    this.tail = lp;
+    this.dist = { gain, lp };
+    return this.dist;
+  }
+
+  /** The speaker's low end for one moment (53 8.4: the last chime an octave down). */
+  lowEnd(hz: number, ramp = 0.1, holdS = 4, at = this.ctx.currentTime): void {
+    this.wake(at + holdS + 2);
+    for (const b of this.branches.values()) {
+      const f = b.hp.frequency;
+      f.cancelScheduledValues(at);
+      f.setValueAtTime(f.value, at);
+      f.linearRampToValueAtTime(hz, at + ramp);
+      f.setValueAtTime(hz, at + holdS);
+      f.linearRampToValueAtTime(380, at + holdS + 0.5);
+    }
+  }
+
   /** Feedback swell for "the echo answers three times" (13.2). */
   swell(amount = 0.6, hold = 2.0, at = this.ctx.currentTime): void {
-    this.wake(at + hold + 1);
+    this.wake(at + hold + 1 + (this.branch.mode === 'yama' ? 3 : 0));
     for (const fb of this.echoFb) {
       fb.gain.cancelScheduledValues(at);
       fb.gain.setValueAtTime(fb.gain.value, at);

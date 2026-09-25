@@ -8,9 +8,9 @@ import { charIds, charSprite } from '../art/chars';
 import { flag, setFlag } from '../game/state';
 import { ease } from '../engine/tween';
 import { rng } from '../engine/rng';
-import { fillAll, SYS, TUT } from '../data/battle';
+import { fillAll, SYS, SYS2, TUT } from '../data/battle';
 import type { BattleScene } from './scene';
-import { STAT_NAME, type EnemyUnit, type PartyUnit, type Stages } from './model';
+import { blankStages, STAT_NAME, type EnemyUnit, type PartyUnit, type Stages } from './model';
 import { ovalStamp } from './art/stamps';
 import { PixelCanvas } from '../engine/pixel';
 import { impactBurst, statArrow } from './art/fxart';
@@ -123,7 +123,7 @@ export function hurtParty(s: BattleScene, u: PartyUnit, dmg: number, o: PartyHit
   if (fell) {
     u.m.status = {};
     u.m.status.status_hebatta = 1;
-    u.stages = { atk: { lv: 0, turns: 0 }, def: { lv: 0, turns: 0 }, hit: { lv: 0, turns: 0 } };
+    u.stages = blankStages();
     u.drop = 3;
     s.sfx('se_ko');
     if (!s.fallen.includes(u)) s.fallen.push(u);
@@ -231,6 +231,11 @@ const STATUS_TEXT: Record<string, { on: keyof typeof SYS; act: keyof typeof SYS;
 };
 
 export function statusText(id: string, kind: 'on' | 'act' | 'off', target: string): string[] {
+  if (id === 'status_henji') {
+    // 50 6.7: the one who answers decides the line (Minato says it, Kanenari-kun writes it)
+    if (kind === 'on') return [...(target === 'カネナリくん' ? SYS2.henjiOnKanenari : SYS2.henjiOnMinato)];
+    return fillAll(kind === 'act' ? SYS2.henjiAct : SYS2.henjiOff, { target });
+  }
   const k = STATUS_TEXT[id];
   if (!k) return [];
   return fillAll(SYS[k[kind]], { target });
@@ -258,6 +263,7 @@ export function cureStatus(s: BattleScene, u: PartyUnit, id: string): void {
 
 /** Change a stat stage on a party unit or enemy with rising/falling arrows. */
 export function changeStage(s: BattleScene, who: PartyUnit | EnemyUnit, stat: keyof Stages, delta: number, turns: number, silentText = false): string[] {
+  // (spd stays within −2..+2 like atk/def; 命中 only goes down)
   const st = who.stages[stat];
   const lo = stat === 'hit' ? -1 : -2;
   const hi = stat === 'hit' ? 0 : 2;

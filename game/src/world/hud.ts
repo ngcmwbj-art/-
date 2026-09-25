@@ -3,11 +3,15 @@
 // The UI team can replace it with setFieldHud().
 
 import type { Gfx } from '../engine/gfx';
+import { drawText, measure } from '../engine/font';
 import { PixelCanvas } from '../engine/pixel';
+import { ease } from '../engine/tween';
 import { flag } from '../game/state';
+import * as audio from '../audio';
 import { P } from '../art/tiles/palette';
 import type { FieldScene } from './field';
 import { fushigiActive } from './fushigi';
+import { isCh2Map } from './maps';
 import * as snd from './audio';
 
 export interface FieldHud {
@@ -125,6 +129,261 @@ function noteScrap(): HTMLCanvasElement {
   return scrapImg;
 }
 
+// ---------------------------------------------------------------- chapter 2: the clock (02_ch2 6.2, 52 13.1)
+
+/** 星見台's clock by flag_ch2_clock: 0 = 4:59 (stopped), 1 = 5:00 (the ending). */
+export const CLOCK_TIMES_H = ['4:59', '5:00'];
+
+export interface ClockModel {
+  /** Text on the plate ('4:59', '19:30'...). */
+  text: string;
+  /** The colon blinks every 0.5 s (夕鳴町, and 星見台 once it is 5:00). */
+  blink: boolean;
+  /** Colon opacity when it doesn't blink (h2: dips to 0.5 for 80 ms every 7–11 s). */
+  colonAlpha: number;
+  /** The plate stays up (星見台, stopped at 4:59). */
+  always: boolean;
+  /** The seconds row is stopped (full). */
+  stopped: boolean;
+}
+
+let clockOverride: string | null = null;
+let flickAt = 0;
+let flickNext = 9000;
+
+/** Clock text override (19:30 / 19:31 / 6:10 / 6:12, 50 1.4): kept here and passed on to the HUD. */
+export function setClockOverride(s: string | null): void {
+  clockOverride = s;
+}
+export function clockOverrideText(): string | null {
+  return clockOverride;
+}
+
+/**
+ * The clock as chapter 2 wants it, or null where chapter 1's clock applies.
+ * On 星見台 maps: 4:59 (flag_ch2_clock 0) / 5:00 (1), the colon doesn't
+ * blink while the village is stopped (h2: it sometimes almost does), the
+ * plate stays up. Anywhere while an override time is set in chapter 2
+ * (the crossing at 19:30, the bus stop at 19:31): that time.
+ */
+export function ch2Clock(f: FieldScene | null, t: number): ClockModel | null {
+  const onH = !!f && isCh2Map(f.map.def);
+  if (!onH && !(clockOverride && flag('flag_ch2_started'))) return null;
+  const st = flag('flag_ch2_stage');
+  const stopped = onH && st <= 2 && !flag('flag_ch2_clock');
+  const text = clockOverride ?? CLOCK_TIMES_H[Math.max(0, Math.min(1, flag('flag_ch2_clock')))];
+  let colonAlpha = 1;
+  if (stopped && st === 2) {
+    if (t >= flickNext) {
+      flickAt = t;
+      flickNext = t + 7000 + Math.random() * 4000;
+    }
+    if (t - flickAt < 80) colonAlpha = 0.5;
+  }
+  return { text, blink: !stopped, colonAlpha, always: stopped, stopped };
+}
+
+// ---------------------------------------------------------------- chapter 2: place names (50 4.1)
+
+export const HOSHI_MAP_NAMES: Record<string, string> = {
+  map_hoshi_train: '夜の電車',
+  map_hoshimidai: '星見台',
+  map_hoshi_house: 'ミツばあの 3号ハウス',
+  map_hoshi_barn: '石黒牛舎',
+  map_hoshi_school: '旧 星見台分校',
+  map_hoshi_hill: '星見の丘',
+};
+export const HOSHI_AREA_NAMES: Record<string, string> = {
+  area_hoshi_station: '駅と駅前',
+  area_hoshi_kendo: '県道',
+  area_hoshi_shuraku: '集落',
+  area_hoshi_west: '西の斜面',
+  area_hoshi_stream: '沢',
+  area_hoshi_tanada: '棚田',
+  area_hoshi_canal: '用水路',
+  area_hoshi_east: '東の台地',
+  area_hoshi_fence: '電気柵',
+  area_hoshi_houki: '耕作放棄地',
+  area_hoshi_yamaguchi: '山道の入口',
+};
+
+/** Place name of a 星見台 map (the banner on a scene change), or null for other maps. */
+export function hoshiPlaceName(mapId: string, fallback = ''): string | null {
+  return HOSHI_MAP_NAMES[mapId] ?? (mapId.startsWith('map_hoshi') ? fallback || null : null);
+}
+
+/** Name of the area (area_hoshi_*) at a tile of map_hoshimidai: the narrowest zone holding it. */
+export function hoshiAreaName(f: FieldScene, tx: number, ty: number): string | null {
+  let best: { id: string; name?: string } | null = null;
+  let bestA = Infinity;
+  for (const z of f.map.def.zones ?? []) {
+    if (tx < z.x || ty < z.y || tx >= z.x + z.w || ty >= z.y + z.h) continue;
+    if (z.w * z.h < bestA) {
+      best = z;
+      bestA = z.w * z.h;
+    }
+  }
+  if (!best) return null;
+  return best.name ?? HOSHI_AREA_NAMES[best.id] ?? null;
+}
+
+// ---------------------------------------------------------------- chapter 2: the call bubble (fx_h_call_bubble, 52 13.1)
+
+interface CallBubble {
+  text: string;
+  chars: string[];
+  shown: number;
+  t: number;
+  typeT: number;
+  /** Time the last character appeared (the 2.4 s hold starts at the pop). */
+  doneAt: number;
+  at: 'top' | 'speaker';
+  show: boolean;
+  handle: { done: boolean; gone: boolean };
+}
+
+let bubbleNow: CallBubble | null = null;
+const CHAR_MS = 85;
+const POP_MS = 120;
+const HOLD_MS = 2400;
+const FADE_MS = 300;
+
+/**
+ * Show a call of the loudspeaker in the bubble at the top of the screen
+ * (or over the speaker's horns on the hill, `at: 'speaker'`), typed in the
+ * voice of the loudspeaker. `show: false` = the voice only (indoors).
+ * The handle says when the line is out (`done`) and the bubble has gone.
+ */
+export function callBubble(text: string, o: { at?: 'top' | 'speaker'; show?: boolean } = {}): { done: boolean; gone: boolean } {
+  if (bubbleNow) bubbleNow.handle.done = bubbleNow.handle.gone = true;
+  const handle = { done: false, gone: false };
+  bubbleNow = { text, chars: [...text], shown: 0, t: 0, typeT: 0, doneAt: -1, at: o.at ?? 'top', show: o.show ?? true, handle };
+  return handle;
+}
+
+export function clearCallBubble(): void {
+  if (bubbleNow) bubbleNow.handle.done = bubbleNow.handle.gone = true;
+  bubbleNow = null;
+}
+
+/** Advance the bubble (typing and its blips); called by the field every frame. */
+export function updateCallBubble(dt: number): void {
+  const b = bubbleNow;
+  if (!b) return;
+  b.t += dt;
+  if (b.t >= POP_MS && b.shown < b.chars.length) {
+    b.typeT += dt;
+    while (b.typeT >= 0 && b.shown < b.chars.length) {
+      const ch = b.chars[b.shown++];
+      // the ellipsis is drawn out; a comma is a breath
+      const wait = ch === '…' ? CHAR_MS * 1.6 : ch === '、' ? CHAR_MS * 3 : CHAR_MS;
+      b.typeT -= wait;
+      if (ch !== '…' && ch !== '、' && ch !== '。' && ch !== ' ') audio.textBlip('broadcast', ch);
+    }
+    if (b.shown >= b.chars.length) {
+      b.doneAt = b.t;
+      b.handle.done = true;
+    }
+  }
+  const end = Math.max(POP_MS + HOLD_MS, b.doneAt + 700);
+  if (b.doneAt >= 0 && b.t >= end + FADE_MS) {
+    b.handle.gone = true;
+    bubbleNow = null;
+  }
+}
+
+let speakerIcon: HTMLCanvasElement | null = null;
+/** A small loudspeaker horn (7×7, #C8CDD4). */
+function hornIcon(): HTMLCanvasElement {
+  if (speakerIcon) return speakerIcon;
+  const p = new PixelCanvas(7, 7);
+  const rows = ['....##.', '..##.#.', '##...#.', '##...#.', '##...#.', '..##.#.', '....##.'];
+  const fill = ['.......', '....#..', '..###..', '..###..', '..###..', '....#..', '.......'];
+  for (let y = 0; y < 7; y++)
+    for (let x = 0; x < 7; x++) {
+      if (rows[y][x] === '#') p.set(x, y, x < 2 ? '#9AA0A8' : '#C8CDD4');
+      else if (fill[y][x] === '#') p.set(x, y, '#E4E7EB');
+    }
+  p.set(6, 2, '#C8CDD4');
+  p.set(6, 4, '#C8CDD4');
+  speakerIcon = p.toCanvas();
+  return speakerIcon;
+}
+
+const BUBBLE_BG = '#FBF3DC';
+const BUBBLE_EDGE = '#2A2440';
+
+/** Draw the call bubble (after the world, before the HUD). */
+export function drawCallBubble(g: Gfx, f: FieldScene): void {
+  const b = bubbleNow;
+  if (!b || !b.show) return;
+  const tw = measure(b.text);
+  const w = tw + 10 + 10;
+  const h = 18;
+  let tipX = 192;
+  let tipY = 14 - 4;
+  let tailUp = true;
+  if (b.at === 'speaker') {
+    // over the horns of the loudspeaker pole (15–16, 2): tail down to it
+    const [sx, sy] = f.worldToScreen(16 * 16, 2 * 16 - 26);
+    tipX = sx;
+    tipY = sy;
+    tailUp = false;
+  }
+  const k = Math.min(1, b.t / POP_MS);
+  const end = Math.max(POP_MS + HOLD_MS, b.doneAt >= 0 ? b.doneAt + 700 : Infinity);
+  const alpha = b.t > end ? Math.max(0, 1 - (b.t - end) / FADE_MS) : 1;
+  const s = 1.2 - 0.2 * ease.cubicOut(k);
+  const x = Math.round(tipX - w / 2);
+  const y = tailUp ? tipY + 4 : tipY - 4 - h;
+  const ctx = g.ctx;
+  ctx.save();
+  ctx.globalAlpha = alpha * Math.min(1, k * 2);
+  // pop: scale round the tail tip
+  ctx.translate(tipX, tipY);
+  ctx.scale(s, s);
+  ctx.translate(-tipX, -tipY);
+  const r = (xx: number, yy: number, ww: number, hh: number, c: string) => {
+    ctx.fillStyle = c;
+    ctx.fillRect(xx, yy, ww, hh);
+  };
+  // soft offset shadow, frame with cut corners, paper
+  r(x + 2, y + 2, w - 1, h - 1, 'rgba(11,11,20,0.35)');
+  r(x + 1, y, w - 2, h, BUBBLE_EDGE);
+  r(x, y + 1, w, h - 2, BUBBLE_EDGE);
+  r(x + 1, y + 1, w - 2, h - 2, BUBBLE_BG);
+  r(x + 1, y + 1, w - 2, 1, '#FFFBEE');
+  // tail: towards the mountain (up), or down to the horns
+  const tx = Math.round(tipX) - 2;
+  if (tailUp) {
+    r(tx, y, 5, 1, BUBBLE_BG);
+    r(tx - 1, y, 1, 1, BUBBLE_EDGE);
+    r(tx + 5, y, 1, 1, BUBBLE_EDGE);
+    r(tx + 1, y - 1, 3, 1, BUBBLE_BG);
+    r(tx, y - 1, 1, 1, BUBBLE_EDGE);
+    r(tx + 4, y - 1, 1, 1, BUBBLE_EDGE);
+    r(tx + 2, y - 2, 1, 1, BUBBLE_BG);
+    r(tx + 1, y - 2, 1, 1, BUBBLE_EDGE);
+    r(tx + 3, y - 2, 1, 1, BUBBLE_EDGE);
+    r(tx + 2, y - 3, 1, 1, BUBBLE_EDGE);
+  } else {
+    const by = y + h - 1;
+    r(tx, by, 5, 1, BUBBLE_BG);
+    r(tx - 1, by, 1, 1, BUBBLE_EDGE);
+    r(tx + 5, by, 1, 1, BUBBLE_EDGE);
+    r(tx + 1, by + 1, 3, 1, BUBBLE_BG);
+    r(tx, by + 1, 1, 1, BUBBLE_EDGE);
+    r(tx + 4, by + 1, 1, 1, BUBBLE_EDGE);
+    r(tx + 2, by + 2, 1, 1, BUBBLE_BG);
+    r(tx + 1, by + 2, 1, 1, BUBBLE_EDGE);
+    r(tx + 3, by + 2, 1, 1, BUBBLE_EDGE);
+    r(tx + 2, by + 3, 1, 1, BUBBLE_EDGE);
+  }
+  ctx.drawImage(hornIcon(), x + 4, y + 6);
+  drawText(ctx, b.chars.slice(0, b.shown).join(''), x + 14, y + 1, { color: '#2A2440' });
+  ctx.restore();
+}
+
 class DefaultHud implements FieldHud {
   private y = -24;
   private showT = 0;
@@ -149,7 +408,8 @@ class DefaultHud implements FieldHud {
       this.lastMap = f.map.id;
     }
     if (this.showT > 0) this.showT -= dt;
-    const always = flag('flag_stage') >= 1 && flag('flag_stage') < 3;
+    const h = ch2Clock(f, this.t);
+    const always = h ? h.always : flag('flag_stage') >= 1 && flag('flag_stage') < 3;
     const want = (this.showT > 0 || always || this.override) && !flag('flag_hud_hidden') ? 4 : -24;
     this.y += Math.sign(want - this.y) * Math.min(Math.abs(want - this.y), dt / 12);
     // fushigi proximity
@@ -184,18 +444,23 @@ class DefaultHud implements FieldHud {
       const x = 324;
       if (st >= 3) g.rect(x - 3, y - 3, 58, 24, P.horizon, 0.18);
       g.img(plateImg(), x, y);
-      const time = this.override ?? TIMES[Math.max(0, Math.min(4, flag('flag_clock')))];
-      const colonOn = st >= 1 && st < 3 ? true : Math.floor(f.t / 500) % 2 === 0;
+      const h = ch2Clock(f, this.t);
+      const time = h ? h.text : this.override ?? TIMES[Math.max(0, Math.min(4, flag('flag_clock')))];
+      const colonOn = h ? !h.blink || Math.floor(f.t / 500) % 2 === 0 : st >= 1 && st < 3 ? true : Math.floor(f.t / 500) % 2 === 0;
       const [hh, mm] = time.split(':');
-      const tx = x + 10;
+      const tx = x + 10 + (hh.length < 2 ? 3 : 0);
       drawDigits(g, hh, tx, y + 5, P.ink);
       if (colonOn) {
-        g.px(tx + 13, y + 7, P.ink);
-        g.px(tx + 13, y + 10, P.ink);
+        const ca = h ? h.colonAlpha : 1;
+        g.alpha(ca, () => {
+          g.px(tx + (hh.length < 2 ? 7 : 13), y + 7, P.ink);
+          g.px(tx + (hh.length < 2 ? 7 : 13), y + 10, P.ink);
+        });
       }
-      drawDigits(g, mm, tx + 17, y + 5, P.ink);
+      drawDigits(g, mm, tx + (hh.length < 2 ? 11 : 17), y + 5, P.ink);
       // seconds dots under the plate
-      const secs = st >= 1 && st < 3 ? 12 - (this.back > 0 ? 1 : 0) : Math.floor((f.t / 1000) % 13);
+      const stoppedRow = h ? h.stopped : st >= 1 && st < 3;
+      const secs = stoppedRow ? 12 - (this.back > 0 ? 1 : 0) : Math.floor((f.t / 1000) % 13);
       for (let i = 0; i < 12; i++) g.px(x + 8 + i * 3, y + 19, i < secs ? P.ink : P.concrete);
     }
     if (flag('flag_got_hanko') && !flag('flag_hud_hidden')) {

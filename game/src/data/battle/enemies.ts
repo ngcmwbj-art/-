@@ -1,6 +1,7 @@
 // Enemy definitions: stats, AI, texts (20_systems_battle.md 11–13, 10_narrative.md 9.4–9.7).
 
-import type { AiCtx, EnemyDef } from './types';
+import type { AiCtx, BossPartDef, EnemyDef } from './types';
+import { CH2_ENEMIES, YOBI_PARTS } from './enemies_ch2';
 
 const NO_WEAK = { da: 1, han: 1, wara: 1 };
 
@@ -406,7 +407,7 @@ const boss: EnemyDef = {
   book: { short: '忘れ物', shotai: '迎えに 来て もらえなかった、忘れ物たちの 待ちくたびれた 気持ち。', weak: '光った 部位。名前を、見て あげること。', hitokoto: 'ずっと、名前を 呼ばれるのを 待っていた。' },
 };
 
-const list = [hato, semi, cone, kasa, ojigi, souji, momi, kanenari, boss];
+const list = [hato, semi, cone, kasa, ojigi, souji, momi, kanenari, boss, ...CH2_ENEMIES];
 const table = new Map<string, EnemyDef>();
 for (const e of list) table.set(e.id, e);
 
@@ -418,17 +419,15 @@ export function allEnemies(): EnemyDef[] {
   return [...list];
 }
 
-/** Boss part definitions (13.2). Hit boxes relative to the sprite's top-left. */
-export interface BossPartDef {
-  id: string;
-  name: string;
-  box: [number, number, number, number];
-  action: string;
-}
+export type { BossPartDef };
 
-export const BOSS_PARTS: BossPartDef[] = [
-  { id: 'boss_omukaemachi_bottle', name: '水筒', box: [116, 58, 20, 40], action: 'skill_omu_suitou' },
-  { id: 'boss_omukaemachi_cap', name: '通学帽', box: [48, 4, 64, 24], action: 'skill_omu_kaerinokai' },
-  { id: 'boss_omukaemachi_shoe', name: '上履き', box: [60, 100, 36, 20], action: 'skill_omu_uwabaki' },
-  { id: 'boss_omukaemachi_umbrella', name: '傘', box: [4, 36, 40, 70], action: 'skill_omu_kasa' },
-];
+/** Boss parts per boss (13.2; 51 10.2). Hit boxes relative to the sprite's top-left. */
+export const BOSS_PARTS: Record<string, BossPartDef[]> = {
+  boss_omukaemachi: [
+    { id: 'boss_omukaemachi_bottle', name: '水筒', box: [116, 58, 20, 40], action: 'skill_omu_suitou' },
+    { id: 'boss_omukaemachi_cap', name: '通学帽', box: [48, 4, 64, 24], action: 'skill_omu_kaerinokai' },
+    { id: 'boss_omukaemachi_shoe', name: '上履き', box: [60, 100, 36, 20], action: 'skill_omu_uwabaki' },
+    { id: 'boss_omukaemachi_umbrella', name: '傘', box: [4, 36, 40, 70], action: 'skill_omu_kasa' },
+  ],
+  boss_yobimodoshi: YOBI_PARTS,
+};

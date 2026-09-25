@@ -14,8 +14,25 @@ import type { PropArt, PropEnv } from '../art/props/types';
 import { Actor, DIR_VEC, dirFromVec } from './actor';
 import * as snd from './audio';
 import { GroundCache } from './ground_cache';
-import { cloneGrade, GRADES, lerpGrade, type Grade } from './lighting';
-import { cellAt, condOk, hasMap, loadMap, type LoadedMap } from './maps';
+import { cloneGrade, GRADES, GRADES_H, gradeHKey, lerpGrade, type Grade, type GradeHKey } from './lighting';
+import { cellAt, condOk, currentStage, hasMap, isCh2Map, loadMap, setStageSource, stageFlagOf, type LoadedMap } from './maps';
+import { LightState } from './lantern';
+import {
+  applyHoshiParams,
+  hoshiAmb,
+  hoshiBgm,
+  hoshiPositional,
+  hoshiPositionalBeds,
+  hoshiSpace,
+  hoshiUpdate,
+  isKakashi,
+  kakashiFrame,
+  lampOn,
+  playHoshiBgm,
+  resetHoshiPositional,
+  villagePulse,
+} from './hoshi';
+import { updateCallBubble } from './hud';
 import { runMsg } from './msg';
 import { initNpc, updateNpc, type NpcWorld } from './npc';
 import { Renderer } from './render';
@@ -126,6 +143,8 @@ export class FieldScene implements Scene {
   private presenceT = 0;
   renderer: Renderer;
   symbols: SymbolAI;
+  /** The dark and the tomato light (chapter 2, lantern.ts). */
+  light: LightState;
   invincibleUntil = 0;
   noclip = false;
   showCollision = false;
@@ -146,6 +165,10 @@ export class FieldScene implements Scene {
   private arrival: [number, number] | null = null;
   /** How long the player has stood still inside a script (ms): the follower steps aside after a moment. */
   private stillT = 0;
+  /** Time spent inside each 'stay' trigger (ms). */
+  private stayT = new Map<string, number>();
+  /** The grade family the current grade belongs to (chapter-1 stages or the pal_h* presets). */
+  private gradeFamily: 1 | 2 = 1;
 
   constructor(mapId: string, tx: number, ty: number, dir: Dir = 'down') {
     current = this;
@@ -155,6 +178,7 @@ export class FieldScene implements Scene {
     this.player.dir = dir;
     this.renderer = new Renderer(this);
     this.symbols = new SymbolAI(this);
+    this.light = new LightState(this);
     const s = flag('flag_stage');
     this.grade = cloneGrade(GRADES[s] ?? GRADES[0]);
     this.gradeTo = cloneGrade(this.grade);
@@ -171,6 +195,11 @@ export class FieldScene implements Scene {
     }
     this.enteredFrom = from ?? null;
     this.map = m;
+    // the stage flag this map reads (02_ch2 6.2): flag_stage, or flag_ch2_stage on 星見台
+    setStageSource(stageFlagOf(m.def));
+    this.snapGradeFamily();
+    this.stayT.clear();
+    resetHoshiPositional();
     this.ground = new GroundCache(m);
     this.actors = [];
     this.objActors.clear();
@@ -201,8 +230,26 @@ export class FieldScene implements Scene {
     this.updateView(0, true);
     this.applyAudio(true);
     this.renderer.onMapChange();
+    this.light.refresh();
     this.reportOcclusion();
     return true;
+  }
+
+  /** Is the current map a chapter-2 (星見台) map? */
+  get ch2(): boolean {
+    return isCh2Map(this.map?.def);
+  }
+
+  /** Crossing between chapter 1 and 星見台 maps: jump straight to the right grade family. */
+  private snapGradeFamily(): void {
+    const fam: 1 | 2 = this.ch2 ? 2 : 1;
+    if (fam === this.gradeFamily) return;
+    this.gradeFamily = fam;
+    const g = fam === 2 ? GRADES_H[gradeHKey(flag('flag_ch2_stage'))] : GRADES[flag('flag_stage')] ?? GRADES[0];
+    this.grade = cloneGrade(g);
+    this.gradeTo = cloneGrade(g);
+    this.gradeFrom = cloneGrade(g);
+    this.gradeT = 1;
   }
 
   /** DEV: warn about NPCs / symbols standing where props or canopies hide them (occlusion.ts). */
@@ -364,6 +411,11 @@ export class FieldScene implements Scene {
   // ------------------------------------------------------------------ audio
 
   applyAudio(entering: boolean): void {
+    if (this.ch2) {
+      this.applyHoshiAudio(entering);
+      return;
+    }
+    applyHoshiParams(this.map.def);
     const s = flag('flag_stage');
     const def = this.map.def;
     snd.setSpace(def.space ?? (def.kind === 'indoor' ? 'room' : 'outdoor'));
@@ -407,10 +459,79 @@ export class FieldScene implements Scene {
     this.renderer.positionalAmbience();
   }
 
+  /**
+   * 星見台 maps (53 4.2): bgm_hoshi_night in the map's variant (the song
+   * never stops between them), the beds of the stage, the space, the PA
+   * shape and h_stage.
+   */
+  private applyHoshiAudio(entering: boolean): void {
+    const def = this.map.def;
+    const s = flag('flag_ch2_stage');
+    snd.setSpace(hoshiSpace(def));
+    snd.setMusicParam('stage', flag('flag_stage'));
+    applyHoshiParams(def);
+    const b = hoshiBgm(def, s);
+    if (b !== undefined && !flag('flag_bgm_hold')) {
+      if (b) playHoshiBgm(b, def, entering ? 0.6 : 1.0);
+      else snd.bgm(null, entering ? 0.6 : 1.0);
+    }
+    if (s >= 3) {
+      // the ending's cuts run their own beds
+      this.renderer.ambient = [];
+      return;
+    }
+    const amb = hoshiAmb(def, s);
+    this.renderer.ambient = amb;
+    const playing = snd.activeAmbients();
+    if (entering) {
+      const keep = new Set<string>(amb);
+      for (const fn of ambKeepers) for (const id of fn(def.id)) keep.add(id);
+      if (playing) {
+        for (const id of playing) if (!keep.has(id)) snd.stopAmbient(id, 0.3);
+      } else snd.stopAllAmbient(0.3);
+    } else if (playing) {
+      // a stage change: beds of the old stage that the new one hasn't
+      for (const id of playing) if (id.startsWith('amb_h_') && !amb.includes(id)) snd.stopAmbient(id, 0.8);
+    }
+    const positional = hoshiPositionalBeds(def);
+    for (const id of amb) {
+      const on = playing?.includes(id) ?? false;
+      const opts: { vol?: number; fade?: number; lp?: number } = { fade: 0.6 };
+      // the school hears the night insects through its windows (53 4.2)
+      if (def.id === 'map_hoshi_school' && id === 'amb_h_insects') {
+        opts.vol = 0.35;
+        opts.lp = 2000;
+      } else if (positional.includes(id)) {
+        if (on) delete opts.vol;
+        else opts.vol = 0;
+      } else if (entering && on) {
+        opts.vol = 1;
+        opts.lp = 20000;
+      }
+      snd.playAmbient(id, opts);
+    }
+    this.renderer.positionalAmbience();
+  }
+
   // ------------------------------------------------------------------ stage
 
-  /** Change stage with a colour tween (0.6s / 1.5s / 3s by default). */
+  /** The current map's stage (flag_stage, or flag_ch2_stage on 星見台). */
+  get stage(): number {
+    return currentStage();
+  }
+
+  /**
+   * Change the stage of the current map's world with a colour tween. In
+   * chapter 1: flag_stage (0.6s / 1.5s / 3s by default). On 星見台 maps:
+   * flag_ch2_stage and the pal_h* presets (h0→h1 0.8s, h1→h2 1.5s,
+   * h2→h3a 2.0s; 52 8.3). Stage 3 on 星見台 starts at pal_h3a — the dawn
+   * goes on with setGradeH('h3b' | 'h3c').
+   */
   setStage(n: number, ms?: number): void {
+    if (this.ch2) {
+      this.setStageH(n, ms);
+      return;
+    }
     const prev = flag('flag_stage');
     setFlag('flag_stage', n);
     this.gradeFrom = cloneGrade(this.grade);
@@ -428,6 +549,31 @@ export class FieldScene implements Scene {
     }
   }
 
+  private setStageH(n: number, ms?: number): void {
+    const prev = flag('flag_ch2_stage');
+    setFlag('flag_ch2_stage', n);
+    const key: GradeHKey = n >= 3 ? 'h3a' : gradeHKey(n);
+    this.setGradeH(key, ms ?? (n === 1 ? 800 : n === 2 ? 1500 : n >= 3 ? 2000 : 600));
+    snd.setMusicParam('h_stage', n);
+    if (prev !== n) {
+      this.refreshPresence();
+      this.reportOcclusion();
+    }
+  }
+
+  /** Tween to one of the pal_h* presets (the dawn of the ending: h3a → h3b 3.0 s → h3c). */
+  setGradeH(key: GradeHKey, ms = 800): void {
+    this.gradeFamily = 2;
+    this.gradeFrom = cloneGrade(this.grade);
+    this.gradeTo = cloneGrade(GRADES_H[key]);
+    this.gradeDur = ms;
+    this.gradeT = 0;
+    if (ms <= 0) {
+      this.grade = cloneGrade(this.gradeTo);
+      this.gradeT = 1;
+    }
+  }
+
   // ------------------------------------------------------------------ collision
 
   isSolidTile(tx: number, ty: number): boolean {
@@ -435,6 +581,8 @@ export class FieldScene implements Scene {
     if (!c.solid) return false;
     if (c.tag === 'chain') return !(flag('flag_parking_open') > 0 || flag('flag_stage') >= 2);
     if (c.tag === 'barricade') return flag('flag_stage') === 0;
+    // 星見台's electric-fence gate (52 7.1 `G`): shut until ゲンさん opens it
+    if (c.tag === 'egate') return !flag('flag_ch2_gate_open');
     return true;
   }
 
@@ -525,7 +673,7 @@ export class FieldScene implements Scene {
       this.grade = lerpGrade(this.gradeFrom, this.gradeTo, this.gradeT);
     }
     // stage 0: shadows grow slowly (+0.02 per 10s, max 1.5)
-    if (flag('flag_stage') === 0 && this.gradeT >= 1) this.grade.shadowLen = Math.min(1.5, this.grade.shadowLen + (0.02 * dt) / 10000);
+    if (!this.ch2 && flag('flag_stage') === 0 && this.gradeT >= 1) this.grade.shadowLen = Math.min(1.5, this.grade.shadowLen + (0.02 * dt) / 10000);
     this.mt += dt * this.grade.motion;
     if (this.wave.amp > 0 || this.wave.t > 0) this.wave.t += dt;
 
@@ -596,7 +744,7 @@ export class FieldScene implements Scene {
       free: (a, x, y) => this.free(a, x, y),
       actorById: (id) => this.actorById(id),
       motion: this.grade.motion,
-      stage: flag('flag_stage'),
+      stage: currentStage(),
       size: [this.map.w * 16, this.map.h * 16],
       actors: this.actors,
       party: this.follower ? [this.player, this.follower] : [this.player],
@@ -620,6 +768,11 @@ export class FieldScene implements Scene {
       } else a.update(dt);
     }
     if (ctrl) this.symbols.checkContacts();
+    // the dark and the tomato light: who is seen (before contacts and talks read it)
+    this.light.update(dt);
+    // 星見台: the village clock, the calls, positional beds
+    hoshiUpdate(this, dt, ctrl);
+    updateCallBubble(dt);
 
     // triggers & doors
     if (ctrl && !pathMoving) {
@@ -894,7 +1047,7 @@ export class FieldScene implements Scene {
     let best: Actor | null = null;
     let bestScore = Infinity;
     for (const a of cands) {
-      if (!a.visible || a.data.passerby) continue;
+      if (!a.visible || a.data.passerby || this.light.actorAlpha(a) < 0.5) continue;
       const [l, t, r, b] = this.talkBox(a, pad);
       if (px < l || px > r || py < t || py > b) continue;
       let score = Math.hypot(px - (a.x + a.ox), py - (a.y - 6));
@@ -910,7 +1063,7 @@ export class FieldScene implements Scene {
   /** An actor whose feet stand on tile (tx, ty) (the natural talk target). */
   actorOnTile(tx: number, ty: number): Actor | null {
     const cands = [...this.actors, ...(this.follower ? [this.follower] : [])];
-    for (const a of cands) if (a.visible && !a.data.passerby && a.kind !== 'restored' && a.tileX === tx && a.tileY === ty) return a;
+    for (const a of cands) if (a.visible && !a.data.passerby && a.kind !== 'restored' && a.tileX === tx && a.tileY === ty && this.light.actorAlpha(a) >= 0.5) return a;
     return null;
   }
 
@@ -922,6 +1075,8 @@ export class FieldScene implements Scene {
       const h = o.h ?? 1;
       if (tx < o.x || ty < o.y || tx >= o.x + w || ty >= o.y + h) continue;
       if (o.face && dir && o.face !== dir) continue;
+      // in the dark only what the light shows can be examined (52 8.5)
+      if (!this.light.canExamine(o)) continue;
       return o;
     }
     return null;
@@ -1099,6 +1254,7 @@ export class FieldScene implements Scene {
       const was = this.triggerInside.has(tr.id);
       if (!inside) {
         if (was) this.triggerInside.delete(tr.id);
+        this.stayT.delete(tr.id);
         continue;
       }
       if (tr.on === 'bump') {
@@ -1106,6 +1262,24 @@ export class FieldScene implements Scene {
           this.triggerInside.add(tr.id);
           if (condOk(tr.cond)) this.fireTrigger(tr);
         }
+        continue;
+      }
+      if (tr.on === 'stay') {
+        // standing inside long enough (talks and events pause the count:
+        // this only runs while the player has control)
+        if (was) continue;
+        if (!condOk(tr.cond) || (tr.once && state.taken[`trig:${this.map.id}:${tr.id}`])) {
+          this.stayT.delete(tr.id);
+          continue;
+        }
+        const t = (this.stayT.get(tr.id) ?? 0) + dt;
+        if (t < (tr.stayMs ?? 1500)) {
+          this.stayT.set(tr.id, t);
+          continue;
+        }
+        this.stayT.delete(tr.id);
+        this.triggerInside.add(tr.id);
+        this.fireTrigger(tr);
         continue;
       }
       if (was) continue;
@@ -1118,7 +1292,6 @@ export class FieldScene implements Scene {
       this.pendingChime = false;
       this.runScriptId('evt_chime_stop', 'trig_ginza_outdoor');
     }
-    void dt;
   }
 
   private fireTrigger(tr: TriggerObj): void {
@@ -1308,11 +1481,12 @@ export class FieldScene implements Scene {
   fushigiSpots(): { id: string; x: number; y: number }[] {
     const out: { id: string; x: number; y: number }[] = [];
     for (const o of this.map.objects) {
-      if (o.t === 'obj' && o.fushigi && condOk(o.cond)) out.push({ id: o.fushigi, x: (o.x + (o.w ?? 1) / 2) * 16, y: (o.y + (o.h ?? 1) / 2) * 16 });
+      // a fushigi in the dark only tells of itself inside the light (50 8.0)
+      if (o.t === 'obj' && o.fushigi && condOk(o.cond) && this.light.canExamine(o)) out.push({ id: o.fushigi, x: (o.x + (o.w ?? 1) / 2) * 16, y: (o.y + (o.h ?? 1) / 2) * 16 });
     }
     for (const a of this.actors) {
       const d = a.data.def as NpcObj | undefined;
-      if (d?.fushigi) out.push({ id: d.fushigi, x: a.x + a.ox, y: a.y + a.oy - 12 });
+      if (d?.fushigi && this.light.actorAlpha(a) >= 0.5) out.push({ id: d.fushigi, x: a.x + a.ox, y: a.y + a.oy - 12 });
     }
     for (const fn of extraSpots) out.push(...fn(this));
     return out;
@@ -1324,6 +1498,8 @@ export class FieldScene implements Scene {
     const p = this.player;
     const cx = pi ? pi.x + 8 : 0;
     const cy = pi ? pi.y + 8 : 0;
+    const ch2 = this.ch2;
+    const l = this.light.lantern;
     return {
       t: this.t,
       stage: flag('flag_stage'),
@@ -1335,6 +1511,13 @@ export class FieldScene implements Scene {
       near: Math.hypot(p.x - cx, p.y - cy),
       px: p.x,
       py: p.y,
+      // chapter 2 (hoshi.ts declares these on PropEnv)
+      hstage: ch2 ? flag('flag_ch2_stage') : -1,
+      lantern: l ? { x: l.x, y: l.y, r: l.r } : null,
+      pulse: villagePulse(),
+      kakashi: ch2 && pi && isKakashi(pi) ? kakashiFrame(pi.seed, this.t) : 0,
+      lampOn: ch2 ? lampOn(this.t, pi?.seed ?? 0) : true,
+      lit: pi ? this.light.alphaOf(pi) : 1,
     };
   }
 
@@ -1344,11 +1527,15 @@ export class FieldScene implements Scene {
 
   enter(): void {
     current = this;
+    setStageSource(stageFlagOf(this.map.def));
     this.runEnterScripts();
   }
 
   resume(): void {
     current = this;
+    // a scene above may have set another map's stage source (a battle's
+    // background, the title): this map's comes back with the field
+    setStageSource(stageFlagOf(this.map.def));
     // back from a battle, a menu or an event window: a moment before symbols go for him
     this.calmUntil = Math.max(this.calmUntil, this.t + CALM_MS);
     this.applyAudio(false);

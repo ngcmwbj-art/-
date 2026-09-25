@@ -55,11 +55,39 @@ export interface CharSprite {
    * for every facing so an NPC keeps its pose while turning to the player.
    */
   animsDir?: Record<string, Partial<Record<Dir, CharAnim>>>;
+  /**
+   * Design colours kept exactly by the palette pass (chapter 2: the F1
+   * cattle's warm blacks, the villagers' work clothes). They count toward
+   * the sprite's own colours but are never snapped or merged.
+   */
+  keep?: readonly string[];
 }
 
 type Builder = () => CharSprite;
 const builders = new Map<string, Builder>();
 const cache = new Map<string, CharSprite>();
+
+// Sprites that follow the story by themselves (Minato's bug net turns into
+// the tomato lantern once flag_ch2_got_tomato is set): cheap checks run on
+// every frame lookup, like the rim light.
+const syncHooks: (() => void)[] = [];
+
+/** Run `fn` on every frame lookup (keep it cheap: a flag read and a compare). */
+export function registerCharSync(fn: () => void): void {
+  syncHooks.push(fn);
+}
+
+let syncing = false;
+function sync(): void {
+  syncRimLight();
+  if (syncing || !syncHooks.length) return;
+  syncing = true;
+  try {
+    for (const h of syncHooks) h();
+  } finally {
+    syncing = false;
+  }
+}
 
 export function registerChar(id: string, b: Builder): void {
   builders.set(id, b);
@@ -90,13 +118,13 @@ export function charSprite(id: string): CharSprite {
 
 /** Best frame for a named pose facing `dir` (extraDir → extra → standing). */
 export function poseFrame(s: CharSprite, name: string, dir: Dir = 'down'): HTMLCanvasElement {
-  syncRimLight();
+  sync();
   return s.extraDir?.[name]?.[dir] ?? s.extra?.[name] ?? s.walk[dir][0];
 }
 
 /** Frame of a walk cycle at time t (ms). */
 export function walkFrame(s: CharSprite, dir: Dir, t: number, running = false): HTMLCanvasElement {
-  syncRimLight();
+  sync();
   const set = running && s.run ? s.run[dir] : s.walk[dir];
   const ms = running && s.run ? s.runFrameMs ?? 90 : s.walkFrameMs ?? 140;
   return set[Math.floor(t / ms) % set.length];
@@ -104,7 +132,7 @@ export function walkFrame(s: CharSprite, dir: Dir, t: number, running = false): 
 
 /** Frame of the idle loop at time t (ms); standing frame when no idle. */
 export function idleFrame(s: CharSprite, dir: Dir, t: number): HTMLCanvasElement {
-  syncRimLight();
+  sync();
   const set = s.idle?.[dir];
   if (!set || !set.length) return s.walk[dir][0];
   return set[Math.floor(t / (s.idleFrameMs ?? 250)) % set.length];
@@ -117,7 +145,7 @@ export function animOf(s: CharSprite, name: string, dir: Dir = 'down'): CharAnim
 
 /** Frame of a named anim at time t (ms). Missing anim → extra/standing. */
 export function animFrame(s: CharSprite, name: string, t: number, dir: Dir = 'down'): HTMLCanvasElement {
-  syncRimLight();
+  sync();
   const a = animOf(s, name, dir);
   if (!a) return poseFrame(s, name, dir);
   return a.frames[animIndex(a, t)];

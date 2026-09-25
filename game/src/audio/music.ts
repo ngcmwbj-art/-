@@ -6,16 +6,19 @@ import { addTask, atTime, removeTask } from './clock';
 import { cur, dbToGain, hasGraph, liveGraph, type Graph } from './engine';
 import { songGainDb } from './mix';
 import { legacyBgm, songTable } from './registry';
-import { MUSIC_LOOKAHEAD, SongPlayer, type Params, type SongDef } from './sequencer';
+import { MUSIC_LOOKAHEAD, PARAM_DEFAULTS, SongPlayer, type Params, type SongDef } from './sequencer';
 
-export type MusicParam = 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune';
+export type MusicParam = 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest';
 
 export interface PlayOpts {
   /** Fade-in (and cross-fade) seconds. */
   fade?: number;
   /** Continue from the bar where this song was last stopped (12.2). */
   resume?: boolean;
-  /** Variant: 'stage0' | 'stage1' | 'stage2' (town / indoor), 'muffled'. */
+  /**
+   * Variant: 'stage0' | 'stage1' | 'stage2' (town / indoor), 'muffled';
+   * bgm_hoshi_night: 'outdoor' | 'house' | 'barn' | 'school' | 'hill' (53 5.2).
+   */
   variant?: string;
 }
 
@@ -25,7 +28,9 @@ interface Active {
   legacyStop?: (fade: number) => void;
 }
 
-const params: Params & { muffle: number; detune: number } = { stage: 0, kire: 0, boss_phase: 1, muffle: 0, detune: 0 };
+const params: Params & { muffle: number; detune: number } = { ...PARAM_DEFAULTS, muffle: 0, detune: 0 };
+/** The room each variant song was last heard from (a return from battle keeps it: 53 11). */
+const songRoom = new Map<string, number>();
 let current: Active | null = null;
 /** Pausing jingle in progress (levelup / item / join) and its queue. */
 let jingle: { id: string; player: SongPlayer } | null = null;
@@ -38,8 +43,8 @@ const RESUME_WINDOW = 90_000;
 /** Music is scheduled in slices of this many seconds (see startPlayer). */
 const BATCH = 0.15;
 
-/** Songs that continue where they left off by default (12.2). */
-const RESUMABLE = /^bgm_(town_s[012]|home|shop|mall)$/;
+/** Songs that continue where they left off by default (12.2; 53 5.1 adds 星見台の夜). */
+const RESUMABLE = /^bgm_(town_s[012]|home|shop|mall|hoshi_night)$/;
 
 function g(): Graph {
   return cur();
@@ -70,9 +75,12 @@ function resolveId(id: string, opts: PlayOpts): string {
   return id;
 }
 
-function startPlayer(def: SongDef, opts: { fadeIn?: number; fromLoopBar?: number; at?: number }): SongPlayer {
+function startPlayer(def: SongDef, opts: { fadeIn?: number; fromLoopBar?: number; at?: number; room?: number }): SongPlayer {
   const gr = g();
-  const p = new SongPlayer(gr, def, gr.musicBus, { ...opts, params: { stage: params.stage, kire: params.kire, boss_phase: params.boss_phase } });
+  const { muffle: _m, detune: _d, ...song } = params;
+  void _m;
+  void _d;
+  const p = new SongPlayer(gr, def, gr.musicBus, { ...opts, params: { ...song, h_room: opts.room ?? 0 } });
   if (params.detune) p.setUserDetune(params.detune, 0, p.startTime);
   // Batching: the clock ticks every 25 ms, but every batch of new nodes makes
   // the audio thread re-plan its graph. The song is topped up in 0.15 s
@@ -154,14 +162,36 @@ export function playBgm(idIn: string, opts: PlayOpts = {}): void {
   if (hadSong && !fadeIn) fadeIn = 0.05;
   // every boss fight (a retry after a loss too) opens in phase 1; the battle
   // raises it to 2 and 3 as the fight goes on (7.3)
-  if (id === 'bgm_boss') params.boss_phase = 1;
-  const p = startPlayer(def, { fadeIn, fromLoopBar });
+  if (id === 'bgm_boss' || id === 'bgm_boss_yobimodoshi') params.boss_phase = 1;
+  // the light, the name tags and Tetsuya's rest belong to one fight (53 6.2–6.4)
+  params.h_light = 0;
+  params.tenko = 0;
+  params.h_rest = 0;
+  // the speaker is right there while a battle plays (53 3.3, 17 #16)
+  if (def.battle) liveGraph()?.pa.overrideDistance(0);
+  else if (!def.jingle) liveGraph()?.pa.overrideDistance(null);
+  // a variant song starts in the room it is asked for; a resume keeps the last one
+  let room = 0;
+  if (def.variants) {
+    const named = opts.variant !== undefined ? def.variants[opts.variant] : undefined;
+    room = named ?? (wantResume ? songRoom.get(id) ?? 0 : 0);
+    songRoom.set(id, room);
+  }
+  const p = startPlayer(def, { fadeIn, fromLoopBar, room });
   current = { id, player: p };
-  applyVariant(p, opts.variant);
+  if (!def.variants) applyVariant(p, opts.variant);
 }
 
 function applyVariant(p: SongPlayer | null, v: string | undefined): void {
   if (!p) return;
+  if (p.def.variants) {
+    // 53 5.2: the same song keeps playing; the room changes over 0.6 s
+    const room = v !== undefined ? p.def.variants[v] : undefined;
+    if (room === undefined) return;
+    songRoom.set(p.def.id, room);
+    p.setParam('h_room', room);
+    return;
+  }
   const t = p.g.ctx.currentTime;
   const f = p.filter.frequency;
   if (v === 'muffled') {
@@ -329,8 +359,19 @@ function setStage(n: number): void {
 }
 
 export const stageListeners: ((stage: number) => void)[] = [];
+/** 53 6.1: the ambience hears 星見台's stage the same way (hStageListeners). */
+export const hStageListeners: ((stage: number) => void)[] = [];
 
 export function setMusicParam(name: MusicParam, value: number): void {
+  if (name === 'h_stage') {
+    const v = Math.max(-1, Math.min(3, Math.round(value)));
+    if (params.h_stage === v) return;
+    params.h_stage = v;
+    current?.player?.setParam('h_stage', v);
+    jingle?.player.setParam('h_stage', v);
+    hStageListeners.forEach((f) => f(v));
+    return;
+  }
   if (name === 'muffle') {
     const v = Math.max(0, Math.min(1, value));
     params.muffle = v;
@@ -411,6 +452,10 @@ export function musicFlee(): void {
 export function musicReturnToField(fadeIn = 0.8): void {
   stopBgm(0.3);
   params.kire = 0;
+  params.h_light = 0;
+  params.tenko = 0;
+  params.h_rest = 0;
+  liveGraph()?.pa.overrideDistance(null);
   const id = fieldBgm;
   fieldBgm = undefined;
   const gr = liveGraph();

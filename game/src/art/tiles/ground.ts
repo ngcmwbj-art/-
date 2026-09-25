@@ -11,6 +11,7 @@ import type { Ground } from '../../world/types';
 import { fbm, h01, ihash, valueNoise } from './noise';
 import { P } from './palette';
 import { paintDecals, type DecalContext } from './decals';
+import { H_GREEN, H_GROUNDS, H_HARD, H_NVAR, H_PRIO, H_SOFT, H_TEX, texHoshiDirt, type HTexCtx } from './hoshi_ground';
 
 export interface GroundSource {
   /** Map size in tiles. */
@@ -90,12 +91,15 @@ const C = {
 const PRIO: Partial<Record<Ground, number>> = {
   water: 0, paddy: 1, asphalt: 2, lot: 2, crosswalk: 2, crossing: 2, gutter: 3, bridge: 4, sidewalk: 4, plaza: 4,
   arcade: 4, ballast: 3, rail: 3, gravel: 5, dirt: 6, sand: 7, grass: 8, weeds: 9, reeds: 9, hedge: 10,
+  ...(H_PRIO as Partial<Record<Ground, number>>),
 };
-const SOFT = new Set<Ground>(['grass', 'weeds', 'dirt', 'sand', 'gravel', 'reeds', 'hedge', 'paddy']);
+const SOFT = new Set<Ground>(['grass', 'weeds', 'dirt', 'sand', 'gravel', 'reeds', 'hedge', 'paddy', ...(H_SOFT as unknown as Ground[])]);
+/** Chapter 2 materials with built edges (canal, stream, terraces, platform, floors): never wandered. */
+const HARD = new Set<Ground>(H_HARD as unknown as Ground[]);
 // Paved materials that sit one step above the road and get a curb.
 const RAISED = new Set<Ground>(['sidewalk', 'plaza', 'arcade', 'bridge']);
 const ROADISH = new Set<Ground>(['asphalt', 'lot', 'crosswalk', 'gutter']);
-const GREEN = new Set<Ground>(['grass', 'weeds', 'hedge', 'reeds']);
+const GREEN = new Set<Ground>(['grass', 'weeds', 'hedge', 'reeds', ...(H_GREEN as unknown as Ground[])]);
 
 function amp(a: Ground, b: Ground): number {
   const sa = SOFT.has(a);
@@ -109,6 +113,7 @@ const GIDS: Ground[] = [
   'none', 'asphalt', 'gutter', 'sidewalk', 'arcade', 'crosswalk', 'grass', 'weeds', 'dirt', 'sand', 'gravel', 'lot',
   'bridge', 'plaza', 'water', 'paddy', 'ballast', 'rail', 'crossing', 'hedge', 'reeds', 'wood', 'wood_bare', 'engawa',
   'tatami', 'kitchen', 'genkan', 'shopwood', 'tile_floor', 'mall', 'void',
+  ...(H_GROUNDS as unknown as Ground[]),
 ];
 const GINDEX = new Map(GIDS.map((g, i) => [g, i]));
 
@@ -602,6 +607,7 @@ const TEX: Partial<Record<Ground, Tex>> = {
 
 const NVAR: Partial<Record<Ground, number>> = {
   asphalt: 4, lot: 3, gutter: 4, sidewalk: 3, grass: 4, weeds: 3, dirt: 3, sand: 2, gravel: 3, ballast: 2, rail: 2,
+  ...(H_NVAR as Partial<Record<Ground, number>>),
 };
 
 // ---- baking -----------------------------------------------------------------------
@@ -647,7 +653,7 @@ export function bakeGround(src: GroundSource, x0: number, y0: number, w: number,
           const g1 = tileG(sx, sy);
           // higher-priority materials spread over lower ones; between two soft
           // materials (grass / dirt / sand...) the border wanders both ways
-          if (g1 !== g0 && ((PRIO[g1] ?? 0) > (PRIO[g0] ?? 0) || (SOFT.has(g1) && SOFT.has(g0) && g1 !== 'paddy' && g0 !== 'paddy'))) {
+          if (g1 !== g0 && !HARD.has(g0) && !HARD.has(g1) && ((PRIO[g1] ?? 0) > (PRIO[g0] ?? 0) || (SOFT.has(g1) && SOFT.has(g0) && g1 !== 'paddy' && g0 !== 'paddy'))) {
             const a = amp(g1, g0);
             if (a > 0) {
               const k = a / 3.2;
@@ -698,6 +704,8 @@ export function bakeGround(src: GroundSource, x0: number, y0: number, w: number,
     if (isRailTile(tx + 1, ty)) return tx + 1;
     return null;
   };
+  // chapter 2 textures look at their neighbours (terrace walls, platform edge, canal rims)
+  const hctx: HTexCtx = { ground: (tx, ty) => tileG(tx, ty) };
   // pass 2: colour
   for (let j = 0; j < h; j++) {
     const wy = y0 + j;
@@ -707,8 +715,11 @@ export function bakeGround(src: GroundSource, x0: number, y0: number, w: number,
       const tx = Math.floor(wx / 16);
       const ty = Math.floor(wy / 16);
       const th = src.theme(Math.max(0, Math.min(src.w - 1, tx)), Math.max(0, Math.min(src.h - 1, ty)));
-      const tex = TEX[g] ?? texVoid;
-      let col = tex(wx, wy, variant(tx, ty, g), g === 'engawa' ? 'engawa' : th);
+      const htex = (H_TEX as Record<string, ((x: number, y: number, v: number, c: HTexCtx) => number) | undefined>)[g];
+      let col: number;
+      if (htex) col = htex(wx, wy, variant(tx, ty, g), hctx);
+      else if (g === 'dirt' && th.startsWith('area_hoshi')) col = texHoshiDirt(wx, wy, variant(tx, ty, g));
+      else col = (TEX[g] ?? texVoid)(wx, wy, variant(tx, ty, g), g === 'engawa' ? 'engawa' : th);
       // the track: sleepers and rails across the ballast bed / the crossing
       if (g === 'ballast' || g === 'rail' || g === 'crossing') {
         const rc = trackCol(tx, ty);
@@ -734,7 +745,7 @@ export function bakeGround(src: GroundSource, x0: number, y0: number, w: number,
       }
       // bare ground next to grass, on every side: blades poking out of the
       // edge 1–3px (one lane every 2px along the border), a pebble now and then
-      if (g === 'dirt' || g === 'sand' || g === 'gravel') {
+      if (g === 'dirt' || g === 'sand' || g === 'gravel' || g === ('h_kotei' as Ground)) {
         let best = 9;
         let axis = 0; // 0 = vertical border (grass left/right), 1 = horizontal
         for (let d = 1; d <= 3 && best > 3; d++) {

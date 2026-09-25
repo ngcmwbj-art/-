@@ -17,7 +17,7 @@ import { getEnemy } from '../data/battle';
 import { makeBackground, type Background } from './bg';
 import { EnemyUnit, PartyUnit, type BossPart } from './model';
 import { DamageNumber, type NumOpts, type NumRect } from './fx/numbers';
-import { MessageBand } from './ui/message';
+import { MessageBand, type BandPageOpts } from './ui/message';
 import { emptySlotCanvas } from './ui/panels';
 import {
   CARD_H, CARD_Y, drawActing, drawChimeSticky, drawCommand, drawInfoCard, drawKire, drawList, drawPanel, KIRE_TAB, PANEL_POS, TAG, type CardData, type CmdView, type ListRow,
@@ -25,6 +25,7 @@ import {
 import { C, cursorStamp, cursorStampSide, drawBar, slantTape, STICKY_PAD, stickyCanvas, tapeCanvas } from './ui/note';
 import { inkLabel, ovalStamp, pekeMark, petalSprites } from './art/stamps';
 import { hitCrack, hitSplash, sweatDrop } from './art/fxart';
+import { boarIcon, moyamoya } from './art/fxart_ch2';
 
 export const FRAME = 1000 / 60;
 
@@ -65,6 +66,10 @@ export interface BossHooks {
   drawUnder?(g: Gfx): void;
   drawOver?(g: Gfx): void;
   update?(dt: number): void;
+  /** The boss's own stickies under the band (replaces the chime sticky). */
+  drawUi?(g: Gfx): void;
+  /** Over everything but the flashes (the finale's overlays). */
+  drawTop?(g: Gfx): void;
 }
 
 /** Enemy x positions by count (15.4). */
@@ -113,6 +118,10 @@ export class BattleScene implements Scene {
   bossParts: BossPart[] = [];
   isBoss: boolean;
   isEvent: boolean;
+  /** Which boss this is ('' for other battles). */
+  bossKind: '' | 'omukaemachi' | 'yobimodoshi' = '';
+  /** A battle on the 星見台 maps (第2章: the tomato's light, ボケD). */
+  hoshi: boolean;
   // ui state
   showUi = false;
   uiAlpha = 1;
@@ -171,6 +180,8 @@ export class BattleScene implements Scene {
   constructor(public opts: BattleOpts) {
     const first = getEnemy(opts.enemies[0]);
     this.isBoss = !!opts.boss || !!first?.boss;
+    this.bossKind = !this.isBoss ? '' : opts.enemies.includes('boss_yobimodoshi') ? 'yobimodoshi' : 'omukaemachi';
+    this.hoshi = (state.map ?? '').startsWith('map_hoshi') || opts.enemies.some((id) => getEnemy(id)?.chapter === 2);
     this.isEvent = opts.enemies.some((id) => id === 'enemy_kanenari' || id === 'enemy_hato_kakaricho' || id === 'enemy_ojigi_jihanki') || this.isBoss;
     this.bg = makeBackground(opts.background ?? first?.bg ?? 'bg_residential', opts.enemies[0]);
     this.kanenariJoined = !!flag('flag_kanenari_joined') && state.party.some((m) => m.id === 'kanenari');
@@ -369,7 +380,7 @@ export class BattleScene implements Scene {
       e.hurtT -= dt;
       if (e.hurtT <= 0 && e.pose === 'hurt') {
         // back to whatever the enemy was doing (playing dead, charging, open…)
-        const back = e.status.shindafuri ? 'dead' : e.status.tame ? 'charge' : e.status.hiraki ? 'open' : e.hurtReturn;
+        const back = e.status.shindafuri ? 'dead' : e.status.tame ? 'charge' : e.status.hiraki ? 'open' : e.status.kyuukei ? 'rest' : e.hurtReturn;
         e.setPose(back === 'hurt' ? 'idle' : back);
       }
     }
@@ -532,17 +543,40 @@ export class BattleScene implements Scene {
     return out;
   }
 
-  /** Where an enemy's 溜め中 tape is drawn (null without one). */
-  tameRect(e: EnemyUnit): Rect | null {
-    if (!e.alive || !e.visible || !e.status.tame) return null;
+  /**
+   * The status tapes stuck over an enemy's head (51 7.2 / 13.5), oldest
+   * first: 「徹夜中」 or 「休憩中」, then 「溜め中」 on top (14px up). A tall
+   * enemy whose head is up under the band gets them stuck on its side, a
+   * third of the way down, stacking downward (clear of the band).
+   */
+  enemyTapes(e: EnemyUnit): { text: string; color: string; x: number; y: number; kind: string }[] {
+    if (!e.alive || !e.visible) return [];
+    const list: { text: string; color: string; kind: string }[] = [];
+    if (e.status.kyuukei || (e.status.kyuukeiSkipped && !e.status.tetsuya)) list.push({ text: '休憩中', color: '#9BCB6B', kind: 'kyuukei' });
+    else if (e.status.tetsuya) list.push({ text: '徹夜中', color: '#F6D98A', kind: 'tetsuya' });
+    if (e.status.tame) list.push({ text: '溜め中', color: C.tape, kind: 'tame' });
+    if (!list.length) return [];
     let y = e.headY - 10 - 16;
     let x = Math.round(e.x - 26);
-    if (y < STAGE_TOP) {
+    let dy = -14;
+    if (y + dy * (list.length - 1) < STAGE_TOP) {
       y = Math.max(STAGE_TOP + 4, e.top + Math.round(e.sizeH * 0.3));
       x = Math.round(e.x + e.sizeW / 2 - 6);
       if (x + 52 > 381) x = Math.round(e.x - e.sizeW / 2 - 46);
+      dy = 18;
     }
-    return { x0: x - 2, y0: y, x1: x + 54, y1: y + 16 };
+    return list.map((l, i) => ({ ...l, x, y: y + dy * i }));
+  }
+
+  /** Where an enemy's status tapes are (null without any): numbers and labels keep clear. */
+  tameRect(e: EnemyUnit): Rect | null {
+    const t = this.enemyTapes(e);
+    if (!t.length) return null;
+    const x0 = Math.min(...t.map((q) => q.x)) - 2;
+    const y0 = Math.min(...t.map((q) => q.y));
+    const y1 = Math.max(...t.map((q) => q.y)) + 16;
+    // the ▲ of 徹夜中 hang off its right end
+    return { x0, y0, x1: x0 + 56 + (e.status.tetsuya ? 12 : 0), y1 };
   }
 
   /**
@@ -1144,9 +1178,9 @@ export class BattleScene implements Scene {
   }
 
   /** Show pages in the band and wait (confirm skips). */
-  *say(pages: string[] | string, manual = false): Co {
+  *say(pages: string[] | string, manual = false, o: BandPageOpts = {}): Co {
     this.msgInteractive = true;
-    yield* this.msg.show(pages, { manual });
+    yield* this.msg.show(pages, { ...o, manual });
     this.msgInteractive = false;
   }
 
@@ -1199,6 +1233,7 @@ export class BattleScene implements Scene {
     for (const n of this.numbers) n.draw(g);
     for (const f of this.fx) if (f.layer === 'over') f.draw(g, f.t, f.dur ? Math.min(1, f.t / f.dur) : 0);
     this.drawLabels(g);
+    this.boss?.drawTop?.(g);
     ctx.restore();
     if (this.tint) g.rect(0, 0, 384, 216, this.tint.color, this.tint.alpha);
     if (this.tint2) g.rect(0, 0, 384, 216, this.tint2.color, this.tint2.alpha);
@@ -1240,6 +1275,23 @@ export class BattleScene implements Scene {
       (e.appearT >= 0 && e.appearT < 300 ? e.appearT / 300 : e.appearT < 0 && e.appearT !== -1 ? 0 : 1) *
       // shrinks away with the silhouette of もとにもどる
       (e.dying ? Math.max(0, Math.min(1, (e.sx - 0.15) / 0.85)) : 1);
+    if (this.hoshi) {
+      // 51 8.0: at night the light behind the enemy is the tomato's — a warm
+      // orange ellipse (w×0.9, h×0.6) a little down-left of the core; in the
+      // first スネトマト battle the はなまるトマト itself glows at its back
+      const house = this.opts.enemies[0] === 'enemy_sune_tomato' && !flag('flag_ch2_got_tomato');
+      const bl = house ? warmBacklight(e.sizeW, e.sizeH, true) : warmBacklight(e.sizeW, e.sizeH, false);
+      const bx = e.coreX - (house ? 0 : 6);
+      const by = e.coreY + (house ? -4 : 6);
+      g.alpha(e.alpha * appear, () => g.img(bl, Math.round(bx - bl.width / 2), Math.round(by - bl.height / 2)));
+      // the foot shadow: #0B0B14 α40%, 6px tall, 3px to the right
+      const fw = Math.round(e.sizeW * 0.7);
+      g.alpha(0.4 * e.alpha * appear, () => {
+        g.ctx.fillStyle = '#0B0B14';
+        ellipse(g.ctx, e.x + 3 + e.offX * 0.5, e.footY - 1, fw / 2, 3);
+      });
+      return;
+    }
     // a soft backlight of dusk behind the enemy (QA round 1): the busy
     // backgrounds (the rain's web, the roofs, the orange of bg_kanenari)
     // step back around it and its outline reads
@@ -1430,19 +1482,49 @@ export class BattleScene implements Scene {
       const y = e.headY + 4 + Math.round((cyc / 600) * 10);
       g.alpha(cyc > 480 ? (600 - cyc) / 120 : 1, () => g.img(sweatDrop(), x, y));
     }
-    // 溜め中 sticky: 10px over the head; a tall enemy whose head is up under
-    // the band gets it stuck on its side instead, a third of the way down
-    // (clear of the band and of the vending machine's red ribbons)
-    if (e.status.tame) {
-      const img = tapeCanvas(52, 16, '溜め中', C.tape, 7);
-      let y = e.headY - 10 - 16;
-      let x = Math.round(e.x - 26 + e.jitterX);
-      if (y < STAGE_TOP) {
-        y = Math.max(STAGE_TOP + 4, e.top + Math.round(e.sizeH * 0.3));
-        x = Math.round(e.x + e.sizeW / 2 - 6 + e.jitterX);
-        if (x + 52 > 381) x = Math.round(e.x - e.sizeW / 2 - 46 + e.jitterX);
+    // status tapes (溜め中 / 徹夜中 / 休憩中): 10px over the head, or on the side
+    for (const tp of this.enemyTapes(e)) {
+      const img = tapeCanvas(52, 16, tp.text, tp.color, tp.kind === 'tame' ? 7 : tp.kind === 'tetsuya' ? 9 : 11);
+      const pop = e.params['tapeAt_' + tp.kind];
+      const k = pop !== undefined && this.t - pop < 140 ? 1.4 - 0.4 * ((this.t - pop) / 140) : 1;
+      const jx = tp.kind === 'tame' ? e.jitterX : 0;
+      if (k !== 1) {
+        const w = Math.round(img.width * k);
+        const h = Math.round(img.height * k);
+        g.ctx.drawImage(img, Math.round(tp.x + jx + 26 - w / 2), Math.round(tp.y + 8 - h / 2), w, h);
+      } else g.img(img, tp.x + jx, tp.y);
+      if (tp.kind === 'tetsuya') {
+        // one red ▲ (5×4) per まもり step
+        for (let i = 0; i < Math.max(0, e.stages.def.lv); i++) {
+          const ax = tp.x + 54 + i * 6;
+          const ay = tp.y + 6;
+          g.rect(ax + 2, ay, 1, 1, '#E84E3C');
+          g.rect(ax + 1, ay + 1, 3, 1, '#E84E3C');
+          g.rect(ax, ay + 2, 5, 1, '#E84E3C');
+          g.rect(ax, ay + 3, 5, 1, '#B8241E');
+        }
       }
-      g.img(img, x, y);
+      if (tp.kind === 'kyuukei') {
+        // three thin lines of steam rise (600ms) over and over
+        for (let i = 0; i < 3; i++) {
+          const ph = ((this.t + i * 200) % 600) / 600;
+          const sx = tp.x + 18 + i * 8;
+          const sy = tp.y - 2 - Math.round(ph * 10);
+          g.alpha(0.6 * (1 - ph), () => {
+            for (let j = 0; j < 5; j++) g.px(sx + Math.round(Math.sin((j + ph * 6) * 1.3)), sy - j, '#F4F1E8');
+          });
+        }
+      }
+    }
+    // すねている: a grey fret cloud puffs up over its head every 2 seconds
+    if (e.status.sune) {
+      const cyc = (this.t + e.uid * 377) % 2000;
+      if (cyc < 900) {
+        const p = cyc / 900;
+        const x = e.x + 8 + Math.round(p * 4);
+        const y = e.headY - 6 - Math.round(p * 8);
+        g.alpha(p < 0.2 ? p / 0.2 : 1 - (p - 0.2) / 0.8, () => g.img(moyamoya(), x, y));
+      }
     }
   }
 
@@ -1457,11 +1539,24 @@ export class BattleScene implements Scene {
     }
     this.msg.alpha = a;
     this.msg.draw(g);
-    if (this.isBoss) drawChimeSticky(g, this.msg.bottom + 2, this.bossChime.lit, this.bossChime.pops, this.t, this.bossChime.gold);
+    if (this.boss?.drawUi) this.boss.drawUi(g);
+    else if (this.isBoss) drawChimeSticky(g, this.msg.bottom + 2, this.bossChime.lit, this.bossChime.pops, this.t, this.bossChime.gold);
     // command window area
     if (this.cmd) drawCommand(g, { ...this.cmd, pressed: this.cursorPressed > 0 }, this.rt, a);
     else if (this.party.length) this.drawIdleCommandBox(g, a);
     for (const u of this.party) drawPanel(g, u, { t: this.t, kanenariJoined: this.kanenariJoined, alpha: a });
+    // チョトツ glares at X while it charges: a small boar head over X's name tag
+    for (const e of this.enemies) {
+      if (!e.alive || !e.status.stareAt) continue;
+      const tag = TAG[e.status.stareAt];
+      const u = this.party.find((p) => p.id === e.status.stareAt);
+      if (!tag || !u) continue;
+      const pulse = this.memo.starePulse && Math.floor(this.rt / 120) % 2 === 0;
+      const img = boarIcon();
+      const k = pulse ? 1.3 : 1;
+      const iw = Math.round(img.width * k);
+      g.alpha(a, () => g.ctx.drawImage(img, Math.round(tag[0] + tag[2] - 6 - iw / 2), Math.round(tag[1] - 9 - (iw - img.width) / 2 + Math.round(Math.sin(this.rt / 200))), iw, iw));
+    }
     if (this.party.length === 1) this.drawEmptySlot(g, a);
     if (this.kanenariJoined) drawKire(g, this.kire, this.kirePops, this.rt, a);
     if (this.list) drawList(g, this.list.rows, this.list.index, this.list.scroll, this.rt, this.cursorPressed > 0);
@@ -1650,6 +1745,46 @@ function rimFor(src: HTMLCanvasElement): HTMLCanvasElement {
   ctx.drawImage(src, 1, 1);
   ctx.globalCompositeOperation = 'source-over';
   rimCache.set(src, cv);
+  c = cv;
+  return c;
+}
+
+const warmCache = new Map<string, HTMLCanvasElement>();
+/**
+ * 51 8.0: the tomato's glow behind a chapter-2 enemy — #F2894B at α≈22%
+ * (w×0.9 × h×0.6), in dithered steps; `house` = the はなまるトマト's own
+ * backlight in the first スネトマト battle (#FFE7A3 → #F2894B, α≈35%).
+ */
+function warmBacklight(w: number, h: number, house: boolean): HTMLCanvasElement {
+  const key = `${w}x${h}:${house}`;
+  let c = warmCache.get(key);
+  if (c) return c;
+  const rx = Math.max(8, Math.round((w * 0.9) / 2) + (house ? 6 : 0));
+  const ry = Math.max(6, Math.round((h * 0.6) / 2) + (house ? 6 : 0));
+  const [cv, ctx] = makeCanvas(rx * 2, ry * 2);
+  const img = ctx.createImageData(rx * 2, ry * 2);
+  const inner = [0xff, 0xe7, 0xa3];
+  const outer = [0xf2, 0x89, 0x4b];
+  const peak = house ? 0.35 : 0.22;
+  for (let y = 0; y < ry * 2; y++)
+    for (let x = 0; x < rx * 2; x++) {
+      const dx = (x + 0.5 - rx) / rx;
+      const dy = (y + 0.5 - ry) / ry;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d >= 1) continue;
+      const v = (1 - d) * 4;
+      const step = Math.floor(v) + (BAYER4[y & 3][x & 3] < Math.round((v % 1) * 16) ? 1 : 0);
+      if (!step) continue;
+      const k = Math.min(4, step) / 4;
+      const col = house && d < 0.45 ? inner : outer;
+      const i = (y * rx * 2 + x) * 4;
+      img.data[i] = col[0];
+      img.data[i + 1] = col[1];
+      img.data[i + 2] = col[2];
+      img.data[i + 3] = Math.round(255 * peak * k);
+    }
+  ctx.putImageData(img, 0, 0);
+  warmCache.set(key, cv);
   c = cv;
   return c;
 }

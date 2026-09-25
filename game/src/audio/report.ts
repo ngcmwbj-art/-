@@ -38,7 +38,7 @@ import { buildGraph, gainToDb, resetOfflineState, setNoteLog, volCurve, withGrap
 import { PART_TRIM, partRole, REF_PART, ROLE_TARGET, TARGET_OVERRIDE, BATTLE_PEAK_DB, BGM_TARGET, BGM_TRIM, mixState, seTargetDb, SE_NO_TRIM, SE_TRIM, AMB_TRIM, VOICE_TRIM, voiceTargetDb } from './mix';
 import { sfxInfo, sfxTable, songTable, type SfxOpts } from './registry';
 import { VOICE_SAMPLES, voiceCps } from './samples';
-import { MUSIC_LOOKAHEAD, SongPlayer, type Params, type SongDef } from './sequencer';
+import { MUSIC_LOOKAHEAD, PARAM_DEFAULTS, SongPlayer, type Params, type SongDef } from './sequencer';
 import { findSealedAnswer, mmlErrors } from './theory';
 import { AMBIENCE_IDS } from './ambience';
 import { blip, resetVoiceState, VOICES } from './voices';
@@ -203,7 +203,7 @@ export async function renderVoice(id: string, text = VOICE_SAMPLES[id] ?? VOICE_
 
 /** Length of the intro plus one loop (s), at the default params. */
 export function songLength(def: SongDef, loops = 1): number {
-  const p: Params = { stage: def.fixedStage ?? 0, kire: 0, boss_phase: 1 };
+  const p: Params = { ...PARAM_DEFAULTS, stage: def.fixedStage ?? 0 };
   let t = 0;
   const bars = [...def.intro, ...Array.from({ length: loops }, () => def.loop).flat()];
   // the boss loop list holds both phases; phase 1 plays the first 24 bars

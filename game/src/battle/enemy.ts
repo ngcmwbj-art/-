@@ -33,8 +33,24 @@ export function aiContext(s: BattleScene, e: EnemyUnit, round: number): AiCtx {
     enemyCount: s.aliveEnemies.length,
     mimasareta: e.mimaEver,
     atkStage: e.stages.atk.lv,
-    targets: s.party.filter((u) => u.targetable).map((u) => ({ id: u.id, hpRate: u.hpRate, grabbed: u.has('status_tsukamare'), canAct: u.canAct })),
-    has: (st: string) => !!(e.status as Record<string, unknown>)[st.replace('status_', '')] || (st === 'status_hiraki' && !!e.status.hiraki) || (st === 'status_tame' && !!e.status.tame),
+    defStage: e.stages.def.lv,
+    spdStage: e.stages.spd.lv,
+    seen: !!e.status.mimasareta,
+    acts: e.mem.acts ?? 0,
+    lastSkill: e.lastSkills[e.lastSkills.length - 1] ?? '',
+    targets: s.party
+      .filter((u) => u.targetable)
+      .map((u) => ({
+        id: u.id,
+        hpRate: u.hpRate,
+        grabbed: u.has('status_tsukamare'),
+        canAct: u.canAct,
+        blocked: u.has('status_toosenbo'),
+        henji: u.has('status_henji'),
+        hitDown: u.stages.hit.lv <= -1,
+      })),
+    has: (st: string) =>
+      !!(e.status as Record<string, unknown>)[st.replace('status_', '')] || (st === 'status_hiraki' && !!e.status.hiraki) || (st === 'status_tame' && !!e.status.tame),
     pick: (table) => pickWeighted(e, table),
   };
 }
@@ -69,6 +85,21 @@ function pickTarget(s: BattleScene, e: EnemyUnit, sk: SkillDef): PartyUnit | und
   }
   if (sk.id.startsWith('skill_kn_')) return s.minato;
   if (sk.target === 'kanenari') return s.kanenari && s.kanenari.targetable ? s.kanenari : undefined;
+  // 51 8.3: 立ち入り禁止 goes to someone who is not already blocked
+  if (sk.id === 'skill_biri_kinshi') {
+    const free = list.filter((u) => !u.has('status_toosenbo'));
+    if (free.length) return rng.pick(free);
+  }
+  // 51 8.4: the dash bends away from the one it glared at
+  if (sk.id === 'skill_cho_totsu' && e.status.stareAt) {
+    const other = list.filter((u) => u.id !== e.status.stareAt);
+    if (other.length) return rng.pick(other);
+  }
+  // 51 10.5: the name is never called on someone already answering
+  if (sk.id === 'skill_yobi_onamae') {
+    const free = list.filter((u) => !u.has('status_henji'));
+    if (free.length) return rng.pick(free);
+  }
   return rng.pick(list);
 }
 
@@ -241,7 +272,7 @@ export function panelHitPoint(u: PartyUnit | null): [number, number] {
   return [px + 20, py + 20];
 }
 
-interface ProjOpts {
+export interface ProjOpts {
   /** Afterimages (2 ghosts) behind it. */
   trail?: boolean;
   /** Landing offset from the photo centre. */
@@ -259,7 +290,7 @@ interface ProjOpts {
  * A sprite flies from (x0,y0) to the member's photo while growing (it comes
  * toward the camera), arriving exactly at the hit frame.
  */
-function projectile(s: BattleScene, img: () => HTMLCanvasElement, x0: number, y0: number, to: PartyUnit | null, frames: number, s0: number, s1: number, arc = 0, o: ProjOpts = {}): void {
+export function projectile(s: BattleScene, img: () => HTMLCanvasElement, x0: number, y0: number, to: PartyUnit | null, frames: number, s0: number, s1: number, arc = 0, o: ProjOpts = {}): void {
   const [hx, hy] = panelHitPoint(to);
   const tx = hx + (o.dx ?? 0);
   const ty = hy + (o.dy ?? 0);
@@ -306,7 +337,7 @@ function projectile(s: BattleScene, img: () => HTMLCanvasElement, x0: number, y0
 }
 
 /** Lunge toward the camera: scale 1 → k → 1. */
-function lunge(s: BattleScene, e: EnemyUnit, k: number, frames: number): void {
+export function lunge(s: BattleScene, e: EnemyUnit, k: number, frames: number): void {
   rush(s, e, { scale: k, inF: frames, outF: frames });
 }
 
@@ -315,7 +346,7 @@ function lunge(s: BattleScene, e: EnemyUnit, k: number, frames: number): void {
  * (dx, dy) in `inF` frames — arriving on the hit — holds `holdF` and goes
  * back in `outF`. Hits during the hold get the whole body in the blow.
  */
-function rush(s: BattleScene, e: EnemyUnit, o: { scale?: number; dx?: number; dy?: number; inF: number; holdF?: number; outF: number }): void {
+export function rush(s: BattleScene, e: EnemyUnit, o: { scale?: number; dx?: number; dy?: number; inF: number; holdF?: number; outF: number }): void {
   const inMs = o.inF * FRAME;
   const holdMs = (o.holdF ?? 0) * FRAME;
   const outMs = o.outF * FRAME;
@@ -346,7 +377,7 @@ function rush(s: BattleScene, e: EnemyUnit, o: { scale?: number; dx?: number; dy
 }
 
 /** Horizontal step toward a member's panel, capped (the enemy leans at them). */
-function towardX(e: EnemyUnit, t: PartyUnit | null | undefined, k = 0.18, cap = 18): number {
+export function towardX(e: EnemyUnit, t: PartyUnit | null | undefined, k = 0.18, cap = 18): number {
   if (!t) return 0;
   const [hx] = panelHitPoint(t);
   return Math.max(-cap, Math.min(cap, Math.round((hx - e.x) * k)));
@@ -357,7 +388,7 @@ function towardX(e: EnemyUnit, t: PartyUnit | null | undefined, k = 0.18, cap = 
  * keep growing past the bottom of the screen — they visibly wash over the
  * panels — in warm yellow (#FFD23F α40%) with a lighter leading edge.
  */
-function soundWave(s: BattleScene, x: number, y: number, n: number, gap = 120, ms = 520): void {
+export function soundWave(s: BattleScene, x: number, y: number, n: number, gap = 120, ms = 520): void {
   for (let i = 0; i < n; i++) {
     const d = i * gap;
     s.addFx({
@@ -390,7 +421,7 @@ function soundWave(s: BattleScene, x: number, y: number, n: number, gap = 120, m
 }
 
 /** Expanding elliptical sound rings from a point. */
-function soundRings(s: BattleScene, x: number, y: number, color: string, n: number, alpha = 0.6, ms = 600): void {
+export function soundRings(s: BattleScene, x: number, y: number, color: string, n: number, alpha = 0.6, ms = 600): void {
   for (let i = 0; i < n; i++) {
     const d = i * 140;
     s.addFx({
@@ -418,7 +449,7 @@ function soundRings(s: BattleScene, x: number, y: number, color: string, n: numb
  * and roll out past the edges of the stage, fading as they go. They are
  * the telegraph: you can see the scream coming at the panels.
  */
-function voiceRings(s: BattleScene, x: () => number, y: () => number, n: number, gap = 110, ms = 560): void {
+export function voiceRings(s: BattleScene, x: () => number, y: () => number, n: number, gap = 110, ms = 560): void {
   for (let i = 0; i < n; i++) {
     const d = i * gap;
     s.addFx({
@@ -451,7 +482,7 @@ function voiceRings(s: BattleScene, x: () => number, y: () => number, n: number,
  * its target — the top of it tips back (shear), it slides back a few px and
  * squats a little — ready to spring.
  */
-function leanBack(s: BattleScene, e: EnemyUnit, dir: number, frames: number): void {
+export function leanBack(s: BattleScene, e: EnemyUnit, dir: number, frames: number): void {
   const ms = frames * FRAME;
   s.addFx({
     layer: 'back',
@@ -478,7 +509,7 @@ function leanBack(s: BattleScene, e: EnemyUnit, dir: number, frames: number): vo
 
 // ---- common hit resolution ----------------------------------------------------------------
 
-function damageTo(s: BattleScene, e: EnemyUnit, t: PartyUnit, power: number, r: Guarded | null, stack = 0, scatter = false): number {
+export function damageTo(s: BattleScene, e: EnemyUnit, t: PartyUnit, power: number, r: Guarded | null, stack = 0, scatter = false): number {
   const dmg = calcDamage({
     atk: e.def.atk,
     atkStage: e.stages.atk.lv,
@@ -492,7 +523,7 @@ function damageTo(s: BattleScene, e: EnemyUnit, t: PartyUnit, power: number, r: 
   return dmg;
 }
 
-interface ActState {
+export interface ActState {
   anySuccess: boolean;
   lastJust: boolean;
   lastLine: number;
@@ -552,6 +583,8 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
   if (!sk) return;
   // the command notebook notes the boke being played (a ボケ seal + its name)
   s.noteActing(skillId === 'skill_idle' || !sk.name ? e.name : sk.name, undefined, true);
+  // 51 9.3: 「行動」 counts the turns it really took (a rest does not count)
+  if (!extra) e.mem.acts = (e.mem.acts ?? 0) + 1;
   e.lastSkills.push(skillId);
   if (e.lastSkills.length > 4) e.lastSkills.shift();
   const eventKn = e.id === 'enemy_kanenari';
@@ -1083,7 +1116,13 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
       break;
     }
     default: {
-      yield* bossMove(s, e, sk, common, resolveGuard, target, all, telePages, st);
+      const ctx: BossMoveCtx = {
+        s, e, sk, common, resolveGuard, target, all, pages: telePages, damageTo, projectile, soundRings, lunge, st,
+        rush, leanBack, towardX, voiceRings, soundWave, selfMove, applyStatusOne, applyStatusAll, extra,
+      };
+      if (isCh2Move(skillId)) yield* ch2Move(ctx);
+      else yield* bossMoveImpl(ctx);
+      if (ctx.skipFlush) return;
       break;
     }
   }
@@ -1109,7 +1148,7 @@ function* flushAfter(s: BattleScene, e: EnemyUnit, sk: SkillDef, st: ActState, p
 }
 
 /** Self-targeted move (buff, idle, call): the "!" still appears at the tsukkomi-er. */
-function* selfMove(
+export function* selfMove(
   s: BattleScene,
   common: Omit<LoopOpts, 'onHit'>,
   resolveGuard: (r: Guarded | null, i: number) => void,
@@ -1127,7 +1166,7 @@ function* selfMove(
   });
 }
 
-function applyStatusOne(s: BattleScene, t: PartyUnit, sk: SkillDef, st: ActState): string[] {
+export function applyStatusOne(s: BattleScene, t: PartyUnit, sk: SkillDef, st: ActState): string[] {
   const a = sk.status;
   if (!a || !t.alive) return [];
   if (st.anySuccess) return fillAll(SYS.guarded, { target: t.name });
@@ -1138,7 +1177,7 @@ function applyStatusOne(s: BattleScene, t: PartyUnit, sk: SkillDef, st: ActState
   return statusText(a.id, 'on', t.name);
 }
 
-function applyStatusAll(s: BattleScene, list: PartyUnit[], sk: SkillDef, st: ActState): string[] {
+export function applyStatusAll(s: BattleScene, list: PartyUnit[], sk: SkillDef, st: ActState): string[] {
   const out: string[] = [];
   if (st.anySuccess) {
     if (list.length) out.push(...fillAll(SYS.guarded, { target: list.length > 1 ? 'ミナトたち' : list[0].name }));
@@ -1177,24 +1216,12 @@ function* callCone(s: BattleScene): Co<boolean> {
   return true;
 }
 
-// ---- boss moves (delegated) ------------------------------------------------------------------
+// ---- boss and chapter-2 moves (delegated) --------------------------------------------------
 
 import { bossMoveImpl } from './boss';
+import { ch2Move, isCh2Move } from './enemy_ch2';
 
-function* bossMove(
-  s: BattleScene,
-  e: EnemyUnit,
-  sk: SkillDef,
-  common: Omit<LoopOpts, 'onHit'>,
-  resolveGuard: (r: Guarded | null, i: number) => void,
-  target: PartyUnit | undefined,
-  all: PartyUnit[],
-  pages: string[],
-  st: ActState,
-): Co {
-  yield* bossMoveImpl({ s, e, sk, common, resolveGuard, target, all, pages, damageTo, projectile, soundRings, lunge, st });
-}
-
+/** Everything a move implementation outside this file needs (bosses, chapter 2). */
 export type BossMoveCtx = {
   s: BattleScene;
   e: EnemyUnit;
@@ -1209,6 +1236,20 @@ export type BossMoveCtx = {
   soundRings: typeof soundRings;
   lunge: typeof lunge;
   st: ActState;
+  rush: typeof rush;
+  leanBack: typeof leanBack;
+  towardX: typeof towardX;
+  voiceRings: typeof voiceRings;
+  soundWave: typeof soundWave;
+  selfMove: typeof selfMove;
+  applyStatusOne: typeof applyStatusOne;
+  applyStatusAll: typeof applyStatusAll;
+  /** A bonus action (the roulette's extra turn, the echo of 山びこ). */
+  extra: boolean;
+  /** Set by a move that already ran its own lettering / result pages. */
+  skipFlush?: boolean;
 };
+
+export { flushAfter };
 
 export { glove, uwabaki, feather, spring, drawArc, C };
