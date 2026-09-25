@@ -28,7 +28,7 @@
 - 他チームも同じ作業ツリーで並行して作業中。他チームが作るはずのAPIやデータが無い間は、設計書のIDとシグネチャどおりに呼ぶ側を書き、無いときは安全に何もしない（例: 未登録のスプライトIDはフォールバック表示、未登録のSEは無音）。必要な機能が他チームの担当なら、報告の「他チームへの要望」に具体的に書く。
 - `npx tsc --noEmit` で自分のファイルにエラーが無い状態を保つ（他チームの作業中ファイルのエラーは無視してよい）。
 - git の commit / checkout / reset / stash / restore などツリーを変える操作は禁止（リードがコミットする）。
-- 開発サーバー: http://127.0.0.1:5173/ 。動いていなければ `cd /home/user/-/game && (nohup npx vite --host 127.0.0.1 --port 5173 > /tmp/claude-0/vite.log 2>&1 &)` で起動（既に起動していれば再起動しない）。
+- 開発サーバー: http://127.0.0.1:5173/ （ホットリロードなし。ページを開き直せば最新のコードになる）。動いていなければ `cd /home/user/-/game && (NO_HMR=1 nohup npx vite --host 127.0.0.1 --port 5173 > /tmp/claude-0/vite.log 2>&1 &)` で起動（既に起動していれば再起動しない）。通しテストもこのサーバーで走らせてよい。
 - 目視確認は必須: `cd /home/user/-/game && node tools/shot.mjs --inline '<steps json>' --out /tmp/claude-0/shots/ch2-<チーム名>` でスクリーンショットを撮り、Readツールで実際に見て、厳しく評価し、改善を繰り返す（最低3回は「撮る→見る→直す」）。拡大は python3 + PIL で切り出して最近傍拡大。第2章のマップへは `?scene=field&map=<id>&x=<tx>&y=<ty>` や `__game.cmd.warp` で飛べる（第2章の段階は `flag_ch2_stage`）。
 - QA用に `registerDebug(name, fn)`（src/debug.ts）で自分のコンテンツに直接飛べるデバッグコマンドを登録する。
 - マシンのCPUは4コアで、ほかのチームも同時に Playwright と tsc を動かしている。重いコマンド（vite build、全体の通しテスト）を何度も回さない。
