@@ -36,20 +36,29 @@
 //   yield* playEndingNotebookCh2()             カット6 → markClearCh2() → カット7 → the title
 //                                              ({ toTitle: false } stops after カット6)
 //   yield* playTsugaoRoom({ skippable })       カット7 ツガオの部屋 whole: lines, moves, sounds
-//   const room = yield* openTsugaoRoom()       …or step it yourself: room.fadeIn(), armCard(n)
+//   const room = yield* openTsugaoRoom()       …or step it yourself: room.fadeIn(), placeKey()
+//                                              (the truck key by the work cap), armCard(n)
 //                                              (ダコク's next 「ガチャン」 spits it), clockRun(id),
-//                                              tapCard, leanBack, reachCap, stopAt('マダ'),
-//                                              putCapBack, arrangeCards, turnPage, stamp, capOn,
-//                                              lampOff, close — ダコク bobs and sinks with its
-//                                              own lines; ツガオ/ダコク get black name tapes
+//                                              tapCard, leanBack, reachCap, stopAt('マダ'), onWord,
+//                                              putCapBack, arrangeCards, shadowsIn / henTilt /
+//                                              shadowsOut (the two in the doorway, the steam),
+//                                              turnPage (with the page's close-up), stamp (on our
+//                                              page), capOn, lampOff, close — ダコク bobs and sinks
+//                                              with its own lines. Name tapes: pass tape: 'black'
+//                                              on each line in the room (the voice never picks it)
 //   markClearCh2() / clearRecordCh2()          the chapter 2 clear data and record
 //   yield* openShop('shop_hoshi_mujin')        the 無人販売所 (per-visit limits, the coin box)
 //   yield* saveConfirm('narr', { text, options })  the save card with another question
 //   showChoreCard() / setChoreCount(0|1, n) / yield* completeChoreCard() / hideChoreCard()
 //                                              おてつだいの札 (evt_ch2_barn_work, 52 13.1)
+//   showDeliveryCard({ total: 5, next: 'タケじい' }) / setDeliveryCount(n, next) /
+//   yield* completeDeliveryCard() / hideDeliveryCard()
+//                                              おとどけの札 (evt_ch2_delivery, 52 13.1): 2 rows,
+//                                              at n = total 「軽トラへ」 and 「済」; it goes by
+//                                              itself when 〔しめ〕 writes flag_ch2_delivery
 //   cut_h_village_lit is registered with the battle (registerBattleCut)
 
-export { say, choose, ask, caption, dialogVisible, dialogSpeech, dismissDialog, type SayOpts, type ChooseOpts } from './dialog';
+export { say, choose, ask, caption, dialogVisible, dialogSpeech, dismissDialog, retagDialog, type SayOpts, type ChooseOpts } from './dialog';
 export { openShop, registerShop, type ShopDef } from './shop';
 export { saveMenu, saveWithStamp, saveConfirm } from './save';
 export { openMenu, runMenu, runSettings, menuOpen } from './menu';
@@ -75,6 +84,11 @@ export {
   completeChoreCard,
   hideChoreCard,
   choreCardShowing,
+  showDeliveryCard,
+  setDeliveryCount,
+  completeDeliveryCard,
+  hideDeliveryCard,
+  deliveryCardShowing,
 } from './hud';
 export {
   registerNewGameHook,

@@ -14,3 +14,12 @@ import './enemies';
 import './restored';
 import './portraits';
 import './portrait64';
+// chapter 2: 星見台 (52 10–11)
+import './people/hoshi_a';
+import './people/hoshi_b';
+import './people/tsugao';
+import './hoshi_dog';
+import './hoshi_cattle';
+import './hoshi_nappers';
+import './hoshi_foes';
+import './hoshi_restored';

@@ -20,7 +20,13 @@
 //                                                     the title. --real sune,tetsuya,boss fights those with keys
 //                                                     (default: all won with __game.cmd.win()); --fushigi-all
 //                                                     stamps the ten ふしぎ ② before the boss; --from <beat> starts at
-//                                                     a CHAIN2 beat (jump('ch2:<beat>'))
+//                                                     a CHAIN2 beat (jump('ch2:<beat>')). Checks: reachability per stage,
+//                                                     the dark corridor, nothing drawn in the dark outside the
+//                                                     lantern (a pixel diff), the hill door h1/h2, the clear record,
+//                                                     the title after it, the cue-sheet sounds registered
+//   node tools/playthrough.mjs --chapter 2 --side barnwork,delivery
+//                                                     the optional beats instead (牛舎のおてつだい, 野菜の配達),
+//                                                     each from its own jump('ch2:<beat>')
 //
 // Beats (each one's flag must be set before the next begins):
 //   title  opening  errand  town  maruyama  hinoya  chime (★17:00 → ハト係長 → ハンコケース)
@@ -54,6 +60,8 @@ const FROM = opt('--from', '');
 const REAL = new Set(opt('--real', args.includes('--chapter') && opt('--chapter', '1') === '2' ? '' : 'hato').split(',').filter(Boolean));
 const HEADED = args.includes('--headed');
 const FUSHIGI_ALL = args.includes('--fushigi-all');
+/** Chapter 2's optional beats to run instead of the story (each from its own jump): barnwork, delivery. */
+const SIDE = opt('--side', '').split(',').filter(Boolean);
 const CHAPTER = Number(opt('--chapter', '1'));
 const checks = [];
 const travelLog = { walked: 0, skipped: 0, battles: 0 };
@@ -1195,6 +1203,226 @@ async function stampAllCh2() {
   if (n !== 10) throw new Error(`ふしぎ②: ${n}/10`);
 }
 
+/** Is the door to `to` on this map open now (its condition, as the world reads it)? */
+const doorOpen = (to) =>
+  page.evaluate(async (to) => {
+    const { condOk } = await import('/src/world/maps.ts');
+    const f = window.__game.cmd.fieldRef();
+    const d = (f.map.def.objects ?? []).find((o) => o.t === 'door' && o.to === to);
+    return !!d && condOk(d.cond);
+  }, to);
+
+/**
+ * 02 4.5 ③: what stands in the dark outside the light is not drawn. With the
+ * game paused and stepped a frame at a time, each enemy symbol on screen is
+ * hidden and the low-res frame compared round it (its pixels against a frame
+ * of noise): no change for those outside the light; カネナリくん (inside it)
+ * is the control that must change the picture.
+ */
+async function darkCheck2(label) {
+  const res = await page.evaluate(() => {
+    const G = window.__game;
+    const g = G.game;
+    const f = G.cmd.fieldRef();
+    G.pause();
+    try {
+      const ctx = g.screen.ctx;
+      const L = f.light.lantern;
+      const grab = (x, y) => ctx.getImageData(Math.max(0, x - 14), Math.max(0, y - 30), 28, 34).data;
+      const diff = (a, b) => {
+        let n = 0;
+        for (let i = 0; i < a.length; i += 4) if (a[i] !== b[i] || a[i + 1] !== b[i + 1] || a[i + 2] !== b[i + 2]) n++;
+        return n;
+      };
+      const targets = [];
+      for (const a of f.actors) if (a.kind === 'sym' && a.visible) targets.push([a.id, a]);
+      if (f.follower) targets.push(['kanenari', f.follower]);
+      const out = [];
+      for (const [id, a] of targets) {
+        const [x, y] = f.worldToScreen(a.x, a.y);
+        if (x < 16 || y < 30 || x > 384 - 16 || y > 216 - 4) continue;
+        const d = L ? Math.hypot(a.x - L.x, a.y - 4 - L.y) : 1e9;
+        if (id !== 'kanenari' && L && d <= L.r + 24) continue;
+        g.advance(16);
+        const A = grab(x, y);
+        g.advance(16);
+        const A2 = grab(x, y);
+        a.visible = false;
+        g.advance(16);
+        const B = grab(x, y);
+        a.visible = true;
+        g.advance(16);
+        const noise = diff(A, A2);
+        const change = diff(A2, B);
+        out.push({ id, changed: change > noise + 6, change, noise });
+      }
+      return out;
+    } finally {
+      G.resume();
+    }
+  });
+  const control = res.find((r) => r.id === 'kanenari');
+  const dark = res.filter((r) => r.id !== 'kanenari');
+  const ok = !!control?.changed && dark.length > 0 && dark.every((r) => !r.changed);
+  checks.push({ check: `dark: nothing drawn outside the light (${label})`, ok, res });
+  log(`  dark (${label}): ${res.map((r) => `${r.id} ${r.changed ? 'drawn' : 'hidden'} (${r.change}/${r.noise})`).join(', ')}`);
+  if (!ok) throw new Error(`dark check (${label}): ${JSON.stringify(res)}`);
+}
+
+/** Face `dir` where Minato stands, press Z and answer everything with the first choice. */
+async function examineHere(dir, label) {
+  await page.evaluate((d) => (window.__game.cmd.fieldRef().player.dir = d), dir);
+  await sleep(150);
+  await tap('KeyZ');
+  await sleep(300);
+  await advance({ label, shotEvery: 2 });
+}
+
+/** A value of the game state (money, an item count). */
+const stateOf = () =>
+  page.evaluate(async () => {
+    const { state } = await import('/src/game/state.ts');
+    return { money: state.money, yakiimo: state.inventory.filter((i) => i === 'item_yakiimo').length, inventory: [...state.inventory] };
+  });
+
+/**
+ * Talk to everyone of 星見台 four times at stages 0, 1 and 2 (the h0_1 … keys,
+ * 〔ts〕, the shop, the tea): each talk must show a page, and nothing may throw.
+ */
+async function talkRound(label) {
+  const ids = await page.evaluate(() =>
+    window.__game.cmd
+      .fieldRef()
+      .actors.filter((a) => a.kind === 'npc' && a.visible && a.data?.def)
+      .map((a) => a.id),
+  );
+  const silent = [];
+  for (const id of [...new Set(ids)]) {
+    for (let i = 0; i < 4; i++) {
+      const s = await talkTo(id, { side: 'below' }).catch((e) => ({ err: String(e.message ?? e) }));
+      if (s.err) {
+        silent.push(`${id}: ${s.err}`);
+        break;
+      }
+      if (s.ctrl) {
+        silent.push(`${id} #${i + 1}`);
+        break;
+      }
+      if (i === 0) await shot(`${label}_${id.replace('npc_hoshi_', '').replace('npc_', '')}`);
+      await advance({ label: `${label}_${id}` });
+    }
+  }
+  checks.push({ check: `talk: everyone answers (${label})`, ok: !silent.length, people: ids.length, silent });
+  log(`  talk (${label}): ${ids.length} people${silent.length ? `; silent: ${silent.join(', ')}` : ''}`);
+  if (silent.length) throw new Error(`talk (${label}): ${silent.join(', ')}`);
+}
+
+/** The optional beats of 02 4.5 and a QA round (--side barnwork,delivery,talk): each from its own jump. */
+const SIDE2 = [
+  {
+    name: 'talk',
+    async run() {
+      // stage 0 after the gathering: the village and the gathering room
+      await talkRound('h0');
+      await enterDoor(26, 28, 'up', 'map_hoshi_school');
+      await advance({ label: 'school' });
+      await talkRound('h0school');
+      // stage 1
+      await page.evaluate(() => window.__game.cmd.jump('ch2:barn', true));
+      await waitFor((s) => s.top === 'FieldScene' && s.ctrl, 10000, 'jump barn');
+      // (the delivery done, so ツガオ便 answer with their own lines, not the invitation)
+      await page.evaluate(async () => (await import('/src/game/state.ts')).setFlag('flag_ch2_delivery', 1));
+      await talkRound('h1');
+      // stage 2
+      await page.evaluate(() => window.__game.cmd.jump('ch2:hill', true));
+      await waitFor((s) => s.top === 'FieldScene', 10000, 'jump hill');
+      await sleep(1200);
+      await advance({ label: 'hill' });
+      await warp('map_hoshimidai', 48, 4, 'down');
+      await sleep(800);
+      await advance({ label: 'warp' });
+      await talkRound('h2');
+    },
+  },
+  {
+    name: 'barnwork',
+    async run() {
+      const s0 = await stateOf();
+      // マサルさん at the east end of the feed aisle (20,6): 〔h1_1〕 → 〔誘い〕 → 手伝う
+      await examineHere('right', 'ask');
+      const on = await flag('flag_ch2_barn_work_on');
+      if (!on) throw new Error('barnwork: the chores did not start');
+      await shot('card');
+      // the nine spots from the feed aisle (50 10.19), east to west
+      const SPOTS = [
+        [19, 'down'],
+        [17, 'up'],
+        [16, 'up'],
+        [15, 'down'],
+        [11, 'down'],
+        [10, 'up'],
+        [8, 'up'],
+        [7, 'down'],
+        [6, 'up'],
+      ];
+      for (const [x, dir] of SPOTS) {
+        await travel(x, 6);
+        await examineHere(dir, `spot${x}`);
+      }
+      await need(['flag_ch2_barn_work'], 'barnwork');
+      const s1 = await stateOf();
+      const v = await flags(['flag_ch2_barn_work_on']);
+      const ok = s1.money - s0.money === 300 && !v.flag_ch2_barn_work_on;
+      checks.push({ check: 'barnwork: 300 yen, the chores off', ok, money: s1.money - s0.money });
+      if (!ok) throw new Error(`barnwork: ${JSON.stringify({ money: s1.money - s0.money, ...v })}`);
+      // his line after the chores (〔h1_4〕 comes in the place of 〔h1_3〕 later) and the round's book
+      await shot('done');
+    },
+  },
+  {
+    name: 'delivery',
+    async run() {
+      // ヒロスケさん (43,43) from (42,43): 〔誘い〕 → 手伝う
+      await examineHere('right', 'ask');
+      if (!(await flag('flag_ch2_delivery_on'))) throw new Error('delivery: it did not start');
+      const poko = await page.evaluate(() => !!window.__game.cmd.fieldRef().actorById('deli_pokosha'));
+      checks.push({ check: 'delivery: ポコシャさん third in the line', ok: poko });
+      await shot('line');
+      const stands = [
+        [43, 37, 'spot_h_deli_01'],
+        [37, 37, 'spot_h_deli_02'],
+        [42, 27, 'spot_h_deli_03'],
+      ];
+      for (const [x, y, id] of stands) {
+        await travel(x, y);
+        await examineHere('up', id.slice(-2));
+        await need(['flag_' + id], id);
+      }
+      // 4つ目: エー夫人 in the gathering room
+      await enterDoor(26, 28, 'up', 'map_hoshi_school');
+      await advance({ label: 'school' });
+      await talkTo('npc_hoshi_yoshie', { side: 'right' });
+      await advance({ label: 'yoshie', shotEvery: 2 });
+      await need(['flag_spot_h_deli_04'], 'エー夫人');
+      await leaveRoom('map_hoshimidai');
+      await travel(17, 32);
+      await examineHere('up', '05');
+      await need(['flag_spot_h_deli_05'], 'トマじい');
+      // back to the truck: 〔しめ〕 starts on the way in (trig_ch2_deli_return)
+      await travel(40, 44);
+      await advance({ label: 'shime', shotEvery: 2 });
+      await need(['flag_ch2_delivery', 'flag_ch2_piichan_feather'], 'delivery');
+      const s1 = await stateOf();
+      const v = await flags(['flag_ch2_delivery_on']);
+      const left = await page.evaluate(() => !!window.__game.cmd.fieldRef().actorById('deli_pokosha'));
+      const ok = s1.yakiimo === 2 && !v.flag_ch2_delivery_on && !left;
+      checks.push({ check: 'delivery: two 焼き芋, the line back to two', ok, yakiimo: s1.yakiimo, left });
+      if (!ok) throw new Error(`delivery: ${JSON.stringify({ yakiimo: s1.yakiimo, left, ...v })}`);
+      await shot('done');
+    },
+  },
+];
+
 const BEATS2 = [
   {
     name: 'title',
@@ -1328,6 +1556,13 @@ const BEATS2 = [
   {
     name: 'tetsuya',
     async run() {
+      // the old fields in the dark: the symbols outside the lantern are not drawn; the path's door is shut
+      await travel(48, 14);
+      await sleep(700);
+      await darkCheck2('耕作放棄地 h1');
+      const hillShut = !(await doorOpen('map_hoshi_hill'));
+      checks.push({ check: 'h1: door_hoshi_hill shut', ok: hillShut });
+      if (!hillShut) throw new Error('h1: the hill path is open before テツヤ');
       await travel(48, 9);
       await walk('up', (s) => !s.ctrl, 5000);
       await advance({ shotEvery: 3, label: 'tetsuya', battles: 'stop' });
@@ -1337,6 +1572,9 @@ const BEATS2 = [
       const v = await flags(['flag_ch2_stage']);
       checks.push({ check: 'yobigoe: stage 2', ok: v.flag_ch2_stage === 2, stage: v.flag_ch2_stage });
       if (v.flag_ch2_stage !== 2) throw new Error(`yobigoe: stage ${v.flag_ch2_stage}`);
+      const hillOpen = await doorOpen('map_hoshi_hill');
+      checks.push({ check: 'h2: door_hoshi_hill open', ok: hillOpen });
+      if (!hillOpen) throw new Error('h2: the hill path is still shut');
     },
   },
   {
@@ -1388,6 +1626,14 @@ const BEATS2 = [
       const ok = !!rec && v.flag_ch2_clear === 1;
       checks.push({ check: 'chapter 2 clear record and flag_ch2_clear', ok, rec, ...v });
       if (!ok) throw new Error('no chapter 2 clear record');
+      // 02 4.5 ⑥: the title offers 「第2章から」 and the card has both chapters
+      const t = await page.evaluate(() => {
+        const top = window.__game.game.top;
+        return { menu: top?.menu ?? [], clear2: !!top?.clear2, clear: !!top?.clear };
+      });
+      const tok = t.menu.includes('ch2') && t.clear2 && t.clear;
+      checks.push({ check: 'title after chapter 2: 第2章から and the card ① ②', ok: tok, ...t });
+      if (!tok) throw new Error(`title after chapter 2: ${JSON.stringify(t)}`);
     },
   },
 ];
@@ -1397,7 +1643,8 @@ const BEATS2 = [
 const results = [];
 let failed = false;
 
-const LIST = CHAPTER === 2 ? BEATS2 : BEATS;
+const LIST = CHAPTER === 2 ? (SIDE.length ? SIDE2.filter((b) => SIDE.includes(b.name)).map((b) => ({ ...b, jump: true })) : BEATS2) : BEATS;
+if (CHAPTER === 2 && SIDE.length && LIST.length !== SIDE.length) throw new Error(`--side: unknown beat in ${SIDE.join(',')}; side beats: ${SIDE2.map((b) => b.name).join(' ')}`);
 if (CHAPTER === 2) {
   // a player who has seen chapter 1's ending: the title shows 「第2章から」
   await page.addInitScript(() => {
@@ -1435,6 +1682,14 @@ try {
     log(`beat ${b.name}`);
     await setCountBeat(b.name);
     try {
+      if (b.jump) {
+        // an optional beat of CHAIN2: from its own state (02 4.5)
+        if (i === start) await tap('KeyZ');
+        await page.evaluate((n) => window.__game.cmd.jump('ch2:' + n, true), b.name);
+        await waitFor((s) => s.top === 'FieldScene' && s.ctrl, 10000, `jump ${b.name}`);
+        await sleep(600);
+        await shot('start');
+      }
       await b.run();
       results.push({ beat: b.name, ok: true, ms: Date.now() - t });
     } catch (e) {
@@ -1448,6 +1703,13 @@ try {
 } catch (e) {
   failed = true;
   results.push({ beat: 'setup', ok: false, error: String(e.message ?? e) });
+}
+
+if (CHAPTER === 2) {
+  // 02 4.5 ⑤: every sound the cue sheet asked for is registered (the audio team adds them as they go)
+  const missing = await page.evaluate(() => window.__game?.cmd?.ch2sounds?.() ?? []).catch(() => []);
+  checks.push({ check: 'cue-sheet sounds registered', ok: !missing.length, missing });
+  log(`  sounds not registered: ${missing.length ? missing.join(' ') : 'none'}`);
 }
 
 const counts = await readCounts();

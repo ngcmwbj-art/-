@@ -8,9 +8,8 @@
 // エー夫人's tea (evt_ch2_rest_yoriai) is in npcs.ts.
 
 import type { Co } from '../../engine/co';
-import { game } from '../../engine/game';
 import { flag, setFlag, state } from '../../game/state';
-import { emote, face, registerScript } from '../../world/api';
+import { emote, face, registerScript, walk } from '../../world/api';
 import { field } from '../../world/field';
 import { runMsg } from '../../world/msg';
 import { saveConfirm, saveWithStamp } from '../../ui/save';
@@ -31,6 +30,13 @@ export function* evtYoriai(): Co {
   p.dir = 'up';
   // the talk is louder than the snoring (amb_h_school −6 dB while they talk)
   ambVol('amb_h_school', 0.5, 0.6);
+  // up the step into the room, カネナリくん beside him: both stand clear of
+  // the window (and its name tag at the left) under the ring of cushions
+  const k = f.follower;
+  if (p.tileY >= 9 && p.tileX >= 3 && p.tileX <= 7) {
+    yield* walk('player', [[p.tileX, 9], [7, 9], [7, 8]], { speed: 2.4, face: 'up' });
+    if (k && k.visible) yield* walk('kanenari', [[k.tileX, 9], [8, 9], [8, 8]], { speed: 2.4, face: 'up' });
+  }
   // the camera goes to the ring of cushions; the people of the meeting
   yield 250;
   yield* panTo(5, 6, 600);
@@ -89,7 +95,7 @@ export function* evtYoriai(): Co {
   setFlag('flag_ch2_yoriai', 1);
   ambVol('amb_h_school', 1, 1.2);
   yield* panBack(600);
-  for (const a of [kucho, fumi, yoshie]) if (a) delete a.data.scripted;
+  for (const a of [kucho, fumi, yoshie, k]) if (a) delete a.data.scripted;
   if (fumi) fumi.dir = 'up';
 }
 
@@ -197,5 +203,3 @@ function* bench(): Co {
 }
 registerScript('evt_ch2_save_bench', bench);
 registerScript('obj_hoshi_hill_bench', bench);
-
-void game;

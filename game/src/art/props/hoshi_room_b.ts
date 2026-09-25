@@ -118,12 +118,16 @@ function barnShell(): PixelCanvas {
           const railSide = ty === 5 ? j < 7 : j > 7;
           const n = h01(x, y, 4101);
           c = (x * 3 + j * 7) % 11 === 0 ? P.asphalt : j === 3 || j === 11 ? mix(P.asphalt, P.charcoal, 0.5) : mix(P.steel, P.asphalt, 0.55);
-          const clump = valueNoise(x / 5, ty * 3.7, 4103) > (railSide ? 0.42 : 0.72);
+          // the aisle half is swept clean (the feed is pushed up to the cows
+          // every round), so a heap left out on it reads at once
+          if (!railSide) c = (x * 3 + j * 7) % 13 === 0 ? P.asphalt : mix(P.steel, P.concrete, 0.25);
+          const clump = railSide && valueNoise(x / 5, ty * 3.7, 4103) > 0.4;
           if (clump) {
             const stroke = (x + (j >> 1)) % 3 === 0;
             c = stroke ? (n < 0.5 ? P.woodLt : P.goldPale) : n < 0.35 ? P.brassOld : n < 0.55 ? mix(P.woodLt, P.brassOld, 0.5) : c;
             if (n > 0.9) c = P.paperGrid; // the concentrate's crumbs
-          } else if (n > 0.965) c = P.paperGrid;
+          } else if (railSide && n > 0.965) c = P.paperGrid;
+          else if (!railSide && n > 0.992) c = P.woodLt; // a stray straw
         }
         p.set(x, y, c);
       }
@@ -184,41 +188,64 @@ registerProp('prop_h_barn_rail', (opts) => {
   return { ox: 0, oy: north ? -3 : 9, w: W, h: 12, foot: north ? 1 : 0, img: () => img, contact: 0 };
 });
 
-/** The aisle's fluorescent lights (foreground): off at night, on in the morning (52 4.3 エンディング). */
+/**
+ * The aisle's fluorescent lights (foreground): off at night, on in the
+ * morning (52 4.3 エンディング). Six fittings over the feed aisle (x5–20);
+ * in cut 2a they come on one by one from the anteroom's end, 0.08 s apart.
+ * The fittings, their glow and their light share one x (LX + k*40).
+ */
 registerProp('prop_h_barn_lights', () => {
-  const make = (on: boolean) => {
-    const p = new PixelCanvas(15 * 16, 6);
-    for (let k = 0; k < 6; k++) {
-      const x = 8 + k * 40;
+  const N = 6;
+  const LX = 80 + 8; // the first tube's west end (the aisle starts at x5 = 80px)
+  // n: how many of the six are on, from the west
+  const make = (n: number) => {
+    const p = new PixelCanvas(BW, 6);
+    for (let k = 0; k < N; k++) {
+      const x = LX + k * 40;
+      const on = k < n;
       p.hline(x, x + 23, 2, on ? P.glint : P.steel);
       p.hline(x, x + 23, 3, on ? P.white : P.asphalt);
       p.set(x - 1, 2, P.charcoal);
       p.set(x + 24, 2, P.charcoal);
+      p.set(x - 1, 3, P.charcoal);
+      p.set(x + 24, 3, P.charcoal);
       p.vline(x + 11, 0, 1, P.charcoal);
+      p.hline(x + 1, x + 22, 4, on ? mix(P.white, P.steel, 0.4) : P.charcoal); // the reflector's lip
     }
     return p.toCanvas();
   };
-  const off = make(false);
-  const on = make(true);
+  const imgs = Array.from({ length: N + 1 }, (_, n) => make(n));
   const lit = (env: PropEnv, k: number) => {
     if (hs(env) >= 3) return true;
     const t0 = env.flag('flag_ch2_barn_lights');
     return t0 > 0 && env.t - t0 > k * 80;
   };
+  const count = (env: PropEnv) => {
+    let n = 0;
+    while (n < N && lit(env, n)) n++;
+    return n;
+  };
+  const Y = 6 * 16 - 26;
   const a: PropArt = {
-    ox: 80,
+    ox: 0,
     oy: 0,
     w: 0,
     h: 0,
     foot: 0,
     flat: true,
     img: () => null,
-    fg: [{ ox: 80, oy: 6 * 16 - 26, img: (env: PropEnv) => (lit(env, 5) ? on : off) }],
+    fg: [{ ox: 0, oy: Y, img: (env: PropEnv) => imgs[count(env)] }],
+    glowFg: true,
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
-      for (let k = 0; k < 6; k++) if (lit(env, k)) g.rect(x + 8 + k * 40, y + 6 * 16 - 24, 24, 2, '#E8ECF0', 0.7);
+      const n = count(env);
+      for (let k = 0; k < n; k++) {
+        g.rect(x + LX + k * 40, y + Y + 2, 24, 2, '#F4F8FF', 0.8);
+        g.rect(x + LX + k * 40 - 2, y + Y + 1, 28, 4, '#E8ECF0', 0.18);
+      }
     },
     light(g: Gfx, x: number, y: number, env: PropEnv) {
-      for (let k = 0; k < 6; k++) if (lit(env, k)) drawLight(g, poolEllipse(30, 40, HLIGHT.led), x + 20 + k * 40, y + 6 * 16, 0.6);
+      const n = count(env);
+      for (let k = 0; k < n; k++) drawLight(g, poolEllipse(30, 40, HLIGHT.led), x + LX + 12 + k * 40, y + 6 * 16, 0.6);
     },
   };
   return a;
@@ -390,17 +417,22 @@ function cupFlash(env: PropEnv, spot: string): boolean {
 const CUP = paintFrames(3, 8, 6, (p, k) => {
   // a round grey bowl on its bracket: the lit rim, the inside, the push plate
   p.rect(1, 1, 6, 4, P.steel);
-  p.hline(1, 6, 0, P.concreteLt);
-  p.set(0, 1, P.concreteLt);
+  // a muddied bowl loses its bright rim (the feed dust dulls it)
+  p.hline(1, 6, 0, k === 1 ? P.steel : P.concreteLt);
+  p.set(0, 1, k === 1 ? P.steel : P.concreteLt);
   p.set(7, 1, P.asphalt);
   p.hline(1, 6, 5, P.charcoal);
   p.vline(0, 2, 3, P.steel);
   p.vline(7, 2, 4, P.asphalt);
   // the water: muddied with fallen feed (1) or clear (0, 2 = just cleaned, flashing)
   if (k === 1) {
-    p.rect(2, 1, 4, 2, P.wood);
-    p.set(3, 1, P.brassOld);
-    p.set(4, 2, P.woodDark);
+    // brown water with feed floating in it, the whole bowl
+    p.rect(1, 1, 6, 3, P.wood);
+    p.set(2, 1, P.brassOld);
+    p.set(5, 1, P.woodLt);
+    p.set(3, 2, P.woodDark);
+    p.set(6, 3, P.woodDark);
+    p.set(4, 1, P.goldPale);
   } else {
     p.rect(2, 1, 4, 2, P.navy);
     p.set(2, 1, k === 2 ? P.glint : P.aqua);
@@ -461,7 +493,12 @@ function feedPile(): PixelCanvas {
   p.ellipse(7, 2.5, 5.5, 1.6, mix(P.woodLt, P.brassOld, 0.4));
   for (let k = 0; k < 5; k++) p.line(1 + k * 3, 4, 3 + k * 3, 1, k % 2 ? P.goldPale : P.woodLt);
   for (const [x, y] of [[2, 2], [5, 3], [8, 1], [10, 3], [13, 2], [11, 2]]) p.set(x, y, P.paperGrid);
-  for (let x = 1; x < 15; x++) if (p.alpha(x, 4)) p.set(x, 4, mix(P.wood, P.woodDark, 0.5));
+  // the heap's lit crest, and its dark foot on the clean concrete
+  p.hline(4, 10, 1, P.goldPale);
+  p.set(7, 0, P.paper);
+  for (let x = 1; x < 15; x++) if (p.alpha(x, 4)) p.set(x, 4, P.woodDark);
+  p.set(0, 3, P.woodDark);
+  p.set(15, 3, P.woodDark);
   return p;
 }
 const PILE = feedPile().toCanvas();

@@ -120,6 +120,9 @@ const K = {
   boardLit: c(mix(P.woodLt, P.goldPale, 0.35)),
   boardGap: c(mix(P.wood, P.woodDark, 0.5)),
   oldWoodDk: c(HP.oldWoodDk),
+  /** the canal's wave troughs (not mirrors): the water's own colour in shade */
+  canalDk: c(mix(P.navy, P.asphalt, 0.35)),
+  canalMd: c(mix(P.navy, P.steel, 0.4)),
 };
 
 // ---------------------------------------------------------------- helpers
@@ -159,21 +162,44 @@ const texRoad: HTex = (x, y, v) => {
   else if (a === 3) col = K.asphaltDk;
   else if (a === 4) col = n > 0.5 ? K.asphaltLt : K.charcoal;
   // the binder is gone in places: a pale, sandy wash
-  if (valueNoise(x / 40, y / 30, 917) > 0.74 && ((x + y) & 1) === 0) col = K.asphaltLt;
+  const wash = valueNoise(x / 40, y / 30, 917);
+  if (wash > 0.72 && h01(x, y, 919) < (wash - 0.72) * 3.2) col = K.asphaltLt;
   return col;
 };
 
-/** 締まった土 of the farm lanes and yards (the village variant of dirt). */
+/**
+ * 締まった土 of the farm lanes and yards (the village variant of dirt): one
+ * packed-earth colour. Its variation is small and has a direction or a
+ * cause — the grain of the soil (1px), small stones, strands of spilt rice
+ * straw, shallow dents with a lit lip — plus a slow, low-contrast drift that
+ * only thins or thickens a dither, so the ground never turns into blotches.
+ * The ruts, puddles, straw heaps and stains are hand-placed decals.
+ */
 export const texHoshiDirt = (x: number, y: number, v: number): number => {
-  const big = fbm(x / 20, y / 20, 931);
-  let col = big > 0.66 ? K.soilLt : big < 0.3 ? K.soilDk : K.soil;
-  const a = cluster(x, y, 5, 933 + v, 0.14);
-  if (a) return a === 1 ? K.paperGrid : a === 4 ? K.brassOld : K.soilDk;
+  const drift = valueNoise(x / 56, y / 44, 931);
+  const g = h01(x, y, 935 + v);
+  let col = K.soil;
+  if (drift > 0.6 && g < (drift - 0.6) * 0.9) col = K.soilLt;
+  else if (drift < 0.36 && g < (0.36 - drift) * 0.8) col = K.soilDk;
+  // the grain: single darker and paler specks, a few along a faint east–west drag
+  if (g > 0.972) col = K.soilLt;
+  else if (g < 0.035) col = K.soilDk;
+  // shallow dents (a boot heel, a hoof, a dropped tool): 3×2 dark with a lit south lip
+  const dh = ihash(Math.floor(x / 11), Math.floor(y / 9), 939 + v);
+  if (dh % 23 === 0) {
+    const dx = x - (Math.floor(x / 11) * 11 + 2 + ((dh >>> 8) % 6));
+    const dy = y - (Math.floor(y / 9) * 9 + 2 + ((dh >>> 12) % 5));
+    if (dy === 0 && dx >= 0 && dx < 3) return K.soilDk;
+    if (dy === 1 && dx >= 0 && dx < 3) return dx === 1 ? K.soilDk : K.woodMd;
+    if (dy === 2 && dx >= 0 && dx < 3) return K.soilLt;
+  }
+  const a = cluster(x, y, 5, 933 + v, 0.1);
+  if (a) return a === 1 ? K.paperGrid : a === 4 ? K.brassOld : a === 2 ? K.gravel : K.soilDk;
   // spilt rice straw (こぼれた稲わら): 1–2px strands
   const s = ihash(Math.floor(x / 6), Math.floor(y / 6), 937 + v);
-  if (s % 17 === 0) {
-    const sx = Math.floor(x / 6) * 6 + (s >>> 8) % 4;
-    const sy = Math.floor(y / 6) * 6 + (s >>> 12) % 5;
+  if (s % 19 === 0) {
+    const sx = Math.floor(x / 6) * 6 + ((s >>> 8) % 4);
+    const sy = Math.floor(y / 6) * 6 + ((s >>> 12) % 5);
     if (y === sy && (x === sx || x === sx + ((s >>> 16) & 1))) return (s >>> 20) & 1 ? K.woodLt : K.goldPale;
   }
   return col;
@@ -213,34 +239,35 @@ const texAze: HTex = (x, y, v, ctx) => {
   return col;
 };
 
-/** 石段: flat field stones laid in steps, each step's riser a dark 2px line, moss in the joints. */
+/**
+ * 石段: flat field stones of different sizes laid in steps. Each step (8px,
+ * its height nudged ±1) has a tread of round-edged stones, lit on the front
+ * edge, and a riser: the 2px dark line under the tread's lip, broken where a
+ * big stone overhangs it. Moss in the joints, on the flanks the terraces' walls.
+ */
 const texIshidan: HTex = (x, y, v, ctx) => {
   const lx = lxOf(x);
   const tx = txOf(x);
-  // a step every 8px, its height nudged ±1 by hash so no two are the same
   const row = Math.floor(y / 8);
   const off = (ihash(row, 0, 971) % 3) - 1;
   const sy = y - row * 8 - off;
   const stepRow = sy < 0 ? row - 1 : sy >= 8 ? row + 1 : row;
   const ly = ((y - stepRow * 8 - ((ihash(stepRow, 0, 971) % 3) - 1)) % 8 + 8) % 8;
-  if (ly >= 6) return ly === 7 ? K.charcoal : K.asphalt; // riser
-  // stones: irregular cells along the step
-  const S = 6 + (ihash(stepRow, 1, 973) % 3);
-  const jx = x + (ihash(stepRow, 2, 975) % S);
-  const cell = Math.floor(jx / S);
-  const cx = ((jx % S) + S) % S;
-  const hh = ihash(cell, stepRow, 977 + v);
-  if (cx === 0) return (hh >>> 4) % 8 < 1 ? K.leaf : K.asphalt; // joint (sometimes mossy)
-  let col = hh % 3 === 0 ? K.concrete : hh % 3 === 1 ? K.steel : K.concreteMd;
-  if (ly === 0) col = col === K.steel ? K.concrete : K.concreteLt; // the tread's lit front edge
-  if (ly === 5) col = col === K.concreteLt ? K.concrete : K.steel;
-  if ((hh >>> 8) % 9 === 0 && ly >= 3 && cx >= 2) col = K.leafDeep; // moss on the tread
   // the flanks: the stair is set between the terraces' walls
   const leftEdge = ctx.ground(tx - 1, Math.floor(y / 16)) !== 'h_ishidan';
   const rightEdge = ctx.ground(tx + 1, Math.floor(y / 16)) !== 'h_ishidan';
   if (leftEdge && lx === 0) return K.asphalt;
   if (rightEdge && lx === 15) return K.charcoal;
-  if (rightEdge && lx === 14) return K.asphalt;
+  // the riser under each tread's lip (a big stone's lip hangs over it here and there)
+  const lip = ihash(Math.floor((x + stepRow * 5) / 5), stepRow, 979) % 4 === 0;
+  if (ly === 7 || (ly === 6 && !lip)) return ly === 7 ? K.charcoal : (x + stepRow) % 5 === 0 ? K.leafShade : K.asphalt;
+  // the tread: field stones within the step (the stone grid is per step)
+  const s = fieldStone(x + stepRow * 7, ly, 7 + (ihash(stepRow, 1, 973) % 3), 4, 977 + v + stepRow * 13);
+  if (s.joint) return (s.id >>> 3) % 100 < 16 ? (h01(x, y, 981) < 0.5 ? K.leaf : K.leafDeep) : K.asphalt;
+  let col = stoneCol(s, x, y, 0);
+  if (ly === (lip ? 6 : 5) && col !== K.leafDeep) col = K.concreteLt; // the tread's lit front lip
+  if (ly === 0 && col !== K.leafDeep) col = col === K.concreteLt ? K.steel : K.asphaltLt; // tucked under the step above
+  if (rightEdge && lx === 14) col = K.asphalt;
   return col;
 };
 
@@ -306,30 +333,79 @@ const texConcrete: HTex = (x, y, v) => {
   return col;
 };
 
-/** 耕作放棄地: dry grass laid over, low クズ creeping across it, bare earth here and there. */
+/** Dry grass strands near (x, y): 0 = none, 1 = a strand's lit body, 2 = its tip, 3 = the shade under it. */
+const HOUKI_DIRS: [number, number][] = [
+  [1, -1],
+  [2, -1],
+  [1, -2],
+  [-1, -1],
+  [-2, -1],
+  [1, 0],
+];
+function dryStrand(x: number, y: number, v: number): number {
+  const gx = Math.floor(x / 4);
+  const gy = Math.floor(y / 4);
+  let hit = 0;
+  for (let j = -2; j <= 1; j++)
+    for (let i = -2; i <= 2; i++) {
+      const h = ihash(gx + i, gy + j, 1031 + v);
+      if (h % 4 === 0) continue;
+      // the whole field leans a little east (the wind off the mountain), a clump here and there the other way
+      const lean = valueNoise((gx + i) * 0.3, (gy + j) * 0.3, 1033) > 0.62 ? 3 : 0;
+      const [dx, dy] = HOUKI_DIRS[(((h >>> 4) % 3) + lean) % 6];
+      const len = 3 + ((h >>> 8) % 3);
+      const ox = (gx + i) * 4 + ((h >>> 12) % 4);
+      const oy = (gy + j) * 4 + ((h >>> 14) % 4);
+      for (let k = 0; k < len; k++) {
+        const px = ox + Math.round((dx * k) / Math.max(Math.abs(dx), Math.abs(dy)));
+        const py = oy + Math.round((dy * k) / Math.max(Math.abs(dx), Math.abs(dy)));
+        if (px === x && py === y) return k === len - 1 ? 2 : 1;
+        if (px === x && py + 1 === y && !hit) hit = 3;
+      }
+    }
+  return hit;
+}
+
+/**
+ * 耕作放棄地: last year's grass lying over in fine strands (leaning with the
+ * wind, a clump the other way here and there) over a dark tangle, bare earth
+ * where it has worn through; low クズ creeping across it in patches with
+ * lobed edges, sending runners out over the dry grass.
+ */
 const texHouki: HTex = (x, y, v) => {
-  // dry blades: short diagonal strokes
-  const hs = ihash(Math.floor(x / 3), Math.floor(y / 3), 1021 + v);
-  const d = ((x + y * ((hs & 1) ? 1 : -1)) % 3 + 3) % 3;
-  let col = d === 0 ? K.woodLt : d === 1 ? K.brassOld : (hs >>> 4) % 3 === 0 ? K.soil : K.brassOld;
-  // bare soil patches
-  const soil = fbm(x / 26, y / 26, 1023);
-  if (soil > 0.72) col = soil > 0.78 ? K.soilDk : K.soil;
-  // creeping kuzu: big three-lobed leaves in clumps
-  const k = valueNoise(x / 14, y / 14, 1025);
-  if (k > 0.56) {
+  // the tangle under the strands, bare earth here and there
+  const soil = fbm(x / 30, y / 26, 1023);
+  const n = h01(x, y, 1021 + v);
+  let col = soil > 0.7 ? (n < 0.5 ? K.soil : K.soilDk) : n < 0.35 ? K.woodMd : n < 0.7 ? K.brassOld : K.soilDk;
+  const st = dryStrand(x, y, v);
+  if (st === 1) col = soil > 0.7 ? K.brassOld : (x + y) % 3 ? K.woodLt : K.koteiLt;
+  else if (st === 2) col = K.goldPale;
+  else if (st === 3) col = K.woodDark;
+  // creeping kuzu: patches of small three-lobed leaves, lobed at their edge, runners going out
+  const k = valueNoise(x / 15, y / 13, 1025) + (valueNoise(x / 4, y / 4, 1035) - 0.5) * 0.18;
+  if (k > 0.6) {
     const cx = Math.floor(x / 5);
-    const cy = Math.floor(y / 5);
+    const cy = Math.floor(y / 4);
     const h = ihash(cx, cy, 1027);
     const lx = x - cx * 5 - (h % 2);
-    const ly = y - cy * 5 - ((h >>> 1) % 2);
-    const r2 = (lx - 2) * (lx - 2) + (ly - 2) * (ly - 2);
-    if (r2 <= 4) {
-      if (lx + ly <= 2) return K.leaf;
+    const ly = y - cy * 4 - ((h >>> 1) % 2);
+    const r2 = (lx - 2) * (lx - 2) + (ly - 2) * (ly - 2) * 1.3;
+    if (r2 <= 4.5) {
+      if (lx + ly <= 2) return (h >>> 5) % 3 === 0 ? K.leafYoung : K.leaf;
       if (lx + ly >= 5) return K.leafShade;
-      return (h >>> 5) % 4 === 0 ? K.leafYoung : K.leafDeep;
+      return K.leafDeep;
     }
-    if (k > 0.66) return K.leafShade; // the dark under the leaves
+    if (k > 0.66) return mix2(K.leafShade, col, x, y); // the dark under the leaves
+  } else if (k > 0.5) {
+    // runners: 1px vines out from the patch, a small leaf pair every few px
+    const r = ihash(Math.floor(x / 9), Math.floor(y / 7), 1037);
+    if (r % 3 === 0) {
+      const ry = Math.floor(y / 7) * 7 + ((r >>> 4) % 6);
+      const along = x - Math.floor(x / 9) * 9;
+      const yy = ry + Math.round(Math.sin((x + (r % 7)) * 0.6));
+      if (y === yy) return along % 4 === 0 ? K.leaf : K.leafShade;
+      if (y === yy - 1 && along % 4 === 0) return K.leafDeep;
+    }
   }
   // fallen stems (10%)
   const f = ihash(Math.floor(x / 16), Math.floor(y / 16), 1029 + v);
@@ -342,6 +418,11 @@ const texHouki: HTex = (x, y, v) => {
   }
   return col;
 };
+/** The shade under creeping leaves: dark, letting a strand show through now and then. */
+function mix2(a: number, b: number, x: number, y: number): number {
+  return (x * 3 + y) % 5 === 0 ? b : a;
+}
+
 
 /** 耕した畝: east–west ridges, the crests lit, the furrows dark; the lane is ploughed too. */
 const texTilled: HTex = (x, y, v) => {
@@ -383,11 +464,75 @@ function tierOf(ty: number): number {
 }
 
 /**
- * 棚田 (8月末): the rice is heading — a dense canopy of leaves in planted
- * hills, the ears (穂) starting to droop and yellow (less towards the top
- * terraces). Water shows only in the 1px gaps between the rows and in a 2px
- * strip under the 畦; the second row's last 6px is the terrace's dry-stone
- * wall. The north–south dividing 畦 are painted only (you can't walk them).
+ * Field stones (野石・野面積み): a jittered grid of stone centres, each pixel
+ * belongs to the nearest one; where two stones meet is the joint. Returns the
+ * stone's id, how deep in the joint the pixel is, and where it sits in its
+ * stone (-1..1, for the rounded shading: lit upper left, dark lower right).
+ */
+interface Stone {
+  id: number;
+  joint: boolean;
+  u: number;
+  v: number;
+}
+function fieldStone(x: number, y: number, cw: number, ch: number, seed: number): Stone {
+  const gx = Math.floor(x / cw);
+  const gy = Math.floor(y / ch);
+  let d1 = 1e9;
+  let d2 = 1e9;
+  let best = 0;
+  let bx = 0;
+  let by = 0;
+  let bw = cw;
+  for (let j = -1; j <= 1; j++)
+    for (let i = -1; i <= 1; i++) {
+      const cx = gx + i;
+      const cy = gy + j;
+      const h = ihash(cx, cy, seed);
+      // stones of different sizes: some cells hold a big stone (its point centred), some a small one
+      const px = cx * cw + 1 + (h % Math.max(1, cw - 2));
+      const py = cy * ch + ((h >>> 8) % Math.max(1, ch));
+      const sw = 0.75 + ((h >>> 16) % 5) * 0.15;
+      const dx = (x - px) / sw;
+      const dy = ((y - py) * cw) / ch / sw;
+      const d = dx * dx + dy * dy;
+      if (d < d1) {
+        d2 = d1;
+        d1 = d;
+        best = h;
+        bx = px;
+        by = py;
+        bw = sw * cw;
+      } else if (d < d2) d2 = d;
+    }
+  const joint = Math.sqrt(d2) - Math.sqrt(d1) < 1.1;
+  return { id: best, joint, u: (x - bx) / (bw * 0.6), v: ((y - by) * cw) / ch / (bw * 0.6) };
+}
+
+/** The colour of a field stone's pixel: grey stones of three kinds, rounded, moss in some joints. */
+function stoneCol(s: Stone, x: number, y: number, mossRate: number): number {
+  if (s.joint) return (s.id >>> 3) % 100 < mossRate ? (h01(x, y, 1121) < 0.5 ? K.leaf : K.leafShade) : K.charcoal;
+  const kind = s.id % 3;
+  const lit = -s.u * 0.6 - s.v;
+  const base = kind === 0 ? K.steel : kind === 1 ? K.concreteMd : K.asphaltLt;
+  const hi = kind === 0 ? K.concrete : kind === 1 ? K.concrete : K.steel;
+  const lo = kind === 2 ? K.asphalt : K.asphaltLt;
+  let c = lit > 0.55 ? hi : lit < -0.6 ? lo : base;
+  if (lit > 1.1) c = K.concreteLt;
+  // lichen and a moss cushion on some stones
+  if ((s.id >>> 11) % 9 === 0 && lit > -0.2 && h01(x, y, 1123) < 0.55) c = K.leafDeep;
+  return c;
+}
+
+/**
+ * 棚田 (8月末): the rice is heading. Planted hills in rows every 6px, a hill
+ * every 4px along the row (the rows shifted 2px one to the next): each hill
+ * a tuft of upright leaves lit on the upper left, and on most of them an
+ * ear (穂) bending over in a 3px arc, pale green at the neck, turning gold at
+ * the tip — more ears and more gold on the lower terraces. The water shows
+ * only in the row gaps (a 1px line, broken where leaves lean over it) and in
+ * a 2px strip under the 畦; the second row's last 6px is the terrace's
+ * dry-stone wall. The north–south dividing 畦 are painted only.
  */
 const texTanada: HTex = (x, y, v, ctx) => {
   const lx = lxOf(x);
@@ -397,25 +542,15 @@ const texTanada: HTex = (x, y, v, ctx) => {
   const upper = ctx.ground(tx, ty - 1) !== 'h_tanada';
   const lower = ctx.ground(tx, ty + 1) !== 'h_tanada';
   const tier = tierOf(ty);
-  // the terrace wall (野面積み) under the second row
+  // the terrace wall (野面積み) under the second row: round field stones of
+  // mixed sizes, the grass of the paddy's lip hanging over the top
   if (lower && ly >= 10) {
     const wy = ly - 10;
-    if (wy === 0) return h01(x, ty, 1101) < 0.35 ? K.leaf : K.concreteLt; // the lip, grass hanging over
-    const rowS = wy < 3 ? 0 : 1;
-    const off = rowS ? 3 : 0;
-    const S = 5 + (ihash(Math.floor((x + off) / 7), ty * 2 + rowS, 1103) % 3);
-    const cell = Math.floor((x + off) / S);
-    const cx = ((x + off) % S + S) % S;
-    const hh = ihash(cell, ty * 2 + rowS, 1105);
-    if (cx === 0 || wy === 3) return (hh >>> 3) % 5 === 0 ? K.leafShade : K.charcoal;
-    // hanging grass from the lip
-    const hang = ihash(x >> 1, ty, 1107) % 5;
-    if (wy <= hang - 1 && (x & 1) === 0) return wy === hang - 1 ? K.leafDeep : K.leaf;
-    let s = hh % 3 === 0 ? K.steel : hh % 3 === 1 ? K.asphalt : K.concreteMd;
-    if (wy === 1 || wy === 4) s = s === K.asphalt ? K.steel : K.concrete; // each stone's lit top
-    if (wy === 5) s = K.asphalt;
-    if ((hh >>> 7) % 7 === 0 && cx > 1) s = K.leafDeep; // moss
-    return s;
+    const hang = ihash(x >> 1, ty, 1107) % 4;
+    if (wy === 0) return h01(x, ty, 1101) < 0.4 ? K.leaf : K.leafDeep; // the lip
+    if (wy <= hang && (x & 1) === 0) return wy === hang ? K.leafDeep : K.leaf;
+    if (wy === 5) return h01(x, ty, 1109) < 0.3 ? K.leafShade : K.charcoal; // the wall's foot in shade
+    return stoneCol(fieldStone(x, y, 6, 4, 1103 + tier), x, y, 30);
   }
   // water strip right under the 畦 (north edge of the upper row): broken by
   // the 畦's grass hanging down and the first hills' leaf tips leaning up
@@ -435,33 +570,37 @@ const texTanada: HTex = (x, y, v, ctx) => {
     if (lx === 8) return g < 3 ? K.leafYoung : K.leaf;
     return g === 0 ? K.leafLt : K.leafYoung;
   }
-  // the hills: 4px columns, rows every 5px, shifted per column pair
-  const col4 = Math.floor(x / 4);
-  const gx = ((x % 4) + 4) % 4;
-  const shift = (col4 & 1) * 2;
-  const r5 = (((y + shift) % 5) + 5) % 5;
-  const hh = ihash(col4, Math.floor((y + shift) / 5), 1111 + v);
-  // gaps between the rows: shade, the water (1px) showing through only here
-  // and there where the arching leaves part
-  if (gx === 3) {
-    if (r5 === 2 && (hh >>> 3) % 5 < 2) return K.navy;
-    if (r5 === 3 && (hh >>> 3) % 5 === 0) return K.navy;
-    return r5 === 4 || (hh >>> 5) % 4 === 0 ? K.leafShade : K.leafDeep;
+  // the hills: rows every 6px (the phase moves with the variant), a hill every 4px
+  const yy = y + (v % 3) * 2;
+  const row = Math.floor(yy / 6);
+  const r6 = ((yy % 6) + 6) % 6;
+  const xx = x + (row & 1) * 2;
+  const col4 = Math.floor(xx / 4);
+  const gx = ((xx % 4) + 4) % 4;
+  const hh = ihash(col4, row, 1111 + v);
+  // the row gap: the water (sky) as a 1px line, leaf tips of the hill behind leaning over it
+  if (r6 === 5) {
+    if (gx === 3 && (hh & 3) === 0) return K.leafShade;
+    if (gx === 1 && ((hh >>> 2) & 3) === 0) return K.leafDeep;
+    return K.navy;
   }
-  // leaves: lit on the upper-left of each hill
-  let col = gx === 0 ? (r5 <= 1 ? K.leafYoung : K.leaf) : gx === 2 ? K.leafDeep : K.leaf;
-  if (r5 === 4) col = K.leafDeep;
-  if (r5 === 4 && gx === 2) col = K.leafShade;
-  // the ears: drooping arcs, yellowing more on the lower terraces
-  const yellow = 0.22 + tier * 0.09;
-  if ((hh >>> 8) % 100 < 58) {
-    const ear = ((hh >>> 16) & 1) === 0;
-    if ((r5 === 1 && gx === (ear ? 1 : 2)) || (r5 === 2 && gx === (ear ? 2 : 1))) {
-      const ripe = ((hh >>> 20) % 100) / 100 < yellow;
-      return r5 === 1 ? (ripe ? K.goldPale : K.leafLt) : ripe ? K.brass : K.leafYoung;
-    }
+  // the ear on top: a drooping arc to the east or the west from the tuft's crown
+  const earRate = 50 + tier * 8; // % of hills heading (fewer on the top terraces)
+  const ripe = ((hh >>> 20) % 100) < 20 + tier * 12; // % of those already gold
+  if ((hh >>> 8) % 100 < earRate) {
+    const east = ((hh >>> 16) & 1) === 0;
+    const ex = east ? gx : 3 - gx;
+    // neck (1,0) → (2,0) → tip (3,1): pale green, then gold
+    if (r6 === 0 && ex === 1) return K.leafLt;
+    if (r6 === 0 && ex === 2) return ripe ? K.goldPale : K.leafLt;
+    if (r6 === 1 && ex === 3) return ripe ? K.brass : K.goldPale;
   }
-  return col;
+  // the tuft: upright leaves, lit on the upper left, the base in shade
+  if (r6 === 0) return gx === 1 ? K.leafYoung : gx === 0 && (hh & 1) ? K.leaf : (hh >>> 4) % 3 === 0 && gx === 2 ? K.leaf : K.leafDeep;
+  if (r6 === 1) return gx === 0 ? K.leaf : gx === 1 ? K.leafYoung : gx === 2 ? K.leaf : K.leafDeep;
+  if (r6 === 2) return gx === 0 ? K.leaf : gx === 3 ? K.leafShade : K.leafDeep;
+  if (r6 === 3) return gx === 3 ? K.leafShade : gx === 0 ? K.leafDeep : (hh >>> 5) & 1 ? K.leafDeep : K.leaf;
+  return gx === 1 ? K.leafDeep : K.leafShade; // r6 4: the hill's foot
 };
 
 /**
@@ -486,18 +625,31 @@ const texCanal: HTex = (x, y, v, ctx) => {
       return ly === 3 ? K.steel : h01(x, y, 1123) < 0.15 ? K.charcoal : K.asphalt;
     }
     if (ly === 6) return K.charcoal; // the waterline
-    return K.navy;
+    return canalWater(x, y);
   }
   if (bot) {
-    if (ly <= 11) return K.navy;
+    if (ly <= 11) return canalWater(x, y);
     if (ly === 12) return K.night; // the rim's shadow on the water
     if (ly === 13) return K.steel;
     if (ly === 14) return joint ? K.concrete : K.concreteLt;
     return K.concrete;
   }
   void v;
-  return K.navy;
+  return canalWater(x, y);
 };
+/**
+ * The canal's open water: the navy pixels mirror the night sky (the world's
+ * renderer), broken by the dark troughs of the little waves running east —
+ * short horizontal dashes, so the mirrored milky way reads as rippling
+ * water, not as a flat dithered band.
+ */
+function canalWater(x: number, y: number): number {
+  // wave crests (even rows) catch the sky in dashes; the troughs between them are dark
+  const seg = Math.floor((x + (ihash(y, 0, 1143) % 9)) / (4 + (ihash(y, 1, 1147) % 4)));
+  const h = ihash(seg, y, 1145);
+  if ((y & 1) === 0) return h % 6 === 0 ? K.canalDk : K.navy;
+  return h % 2 === 0 ? K.navy : h % 3 === 0 ? K.canalMd : K.canalDk;
+}
 
 /**
  * 沢: one tile wide, running south. Rounded stones stacked on both banks,
@@ -519,20 +671,26 @@ const texStream: HTex = (x, y, v, ctx) => {
     const ox = sx - cx * 4 - (h & 1);
     const oy = sy - cy * 4 - ((h >>> 1) & 1);
     if (ox < 0 || oy < 0 || ox > 2 || oy > 2) return K.charcoal;
-    if (ox + oy === 0) return K.concreteLt;
+    if (ox + oy === 0) return (h >>> 7) % 5 < 2 ? K.white : K.concreteLt; // the starlight on the round tops
     if (ox + oy >= 4) return K.asphalt;
     return (h >>> 4) % 5 === 0 ? K.leafDeep : (h >>> 4) % 3 === 0 ? K.concrete : K.steel;
   };
   if (lx <= bankL || lx >= bankR) return stone(x, y);
-  // a boulder in the stream now and then
+  // the water breaking white against the banks' stones (1px, here and there)
+  if ((lx === bankL + 1 || lx === bankR - 1) && ihash(x, y >> 1, 1139) % 3 === 0) return y & 1 ? K.concreteLt : K.white;
+  // a boulder in the stream now and then, the spray in a V below it
   const bh = ihash(tx, Math.floor(y / 12), 1137);
   if (bh % 4 === 0) {
     const bx = 5 + (bh >>> 4) % 5;
     const by = Math.floor(y / 12) * 12 + 3 + ((bh >>> 8) % 5);
     const dx = lx - bx;
     const dy = y - by;
-    if (dx * dx + dy * dy * 1.4 <= 4) return dx + dy < 0 ? K.concrete : dx + dy > 1 ? K.asphalt : K.steel;
+    if (dx * dx + dy * dy * 1.4 <= 4) return dx + dy < 0 ? K.white : dx + dy > 1 ? K.asphalt : K.steel;
+    if (dy >= 2 && dy <= 5 && Math.abs(Math.abs(dx) - (dy - 1)) < 0.6) return dy < 4 ? K.white : K.concreteLt;
   }
+  // the current's ripples: short pale dashes across the flow
+  const rh = ihash(Math.floor(lx / 3), y, 1141);
+  if (rh % 13 === 0 && lx > bankL + 1 && lx < bankR - 1) return K.steel;
   void ty;
   void ctx;
   return K.navy;
@@ -581,29 +739,72 @@ const texYamamichi: HTex = (x, y, v) => {
   return col;
 };
 
-/** 丘の上の広場: mown grass worn through to earth and fine gravel along the paths. */
+/** The worn gravel footpaths across the hill's plaza (tile coords): from the path's head to the pole, the dome's door and the bench. */
+const HILL_PATHS: [number, number, number, number][] = [
+  [17.9, 8.6, 17.4, 6.6],
+  [17.4, 6.6, 15.9, 4.7],
+  [17.4, 6.6, 10.5, 6.5],
+  [10.5, 6.5, 4.5, 6.2],
+  [17.4, 6.6, 19.8, 7.2],
+];
+function hillPathD(x: number, y: number): number {
+  const px = x / 16;
+  const py = y / 16;
+  let best = 99;
+  for (const [ax, ay, bx, by] of HILL_PATHS) {
+    const dx = bx - ax;
+    const dy = by - ay;
+    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
+    best = Math.min(best, Math.hypot(px - ax - dx * t, py - ay - dy * t));
+  }
+  return best;
+}
+
+/**
+ * 星見の丘の広場: grass cut short with a brush cutter — fine upright blades,
+ * lit tips, the cut stems lying in faint swaths the cutter swung, a clover
+ * here and there — and the worn footpaths of gravel and bare earth from the
+ * path's head to the pole, the dome and the bench (their edges broken by
+ * tufts). No big blotches: the variation is fine and has a cause.
+ */
 const texHilltop: HTex = (x, y, v) => {
-  const big = fbm(x / 22, y / 18, 1161);
-  const path = big < 0.27;
-  if (path) {
-    // worn earth with fine gravel (brownish grey: it must not read as purple patches at night)
+  const d = hillPathD(x, y) + (valueNoise(x / 5, y / 5, 1169) - 0.5) * 0.35;
+  if (d < 0.42) {
+    // the footpath: packed earth and fine gravel (brownish grey: never purple patches at night)
     const cx = Math.floor(x / 3);
     const cy = Math.floor(y / 3);
     const h = ihash(cx, cy, 1163 + v);
     const ox = x - cx * 3;
     const oy = y - cy * 3;
-    if (h % 4 === 0 && ox + oy === 0) return K.gravelLt;
-    if (h % 4 === 1 && ox === 1 && oy === 1) return K.gravel;
-    if (big > 0.27 && ((x + y) & 1)) return K.leafDeep;
-    return fbm(x / 6, y / 6, 1167) > 0.6 ? K.soil : ((x * 3 + y) % 4 === 0 ? K.leafShade : K.soilDk);
+    if (h % 3 === 0 && ox + oy === 0) return K.gravelLt;
+    if (h % 3 === 1 && ox === 1 && oy === 1) return K.gravel;
+    if (h % 5 === 2 && ox === 2 && oy === 0) return K.concrete;
+    // the edge: grass creeping in
+    if (d > 0.32 && h01(x, y, 1171) < (d - 0.32) * 7) return (x + y) & 1 ? K.leaf : K.leafDeep;
+    return h01(x, y, 1167) < 0.3 ? K.soilDk : K.soil;
   }
-  let col = big > 0.66 ? K.leafYoung : K.leaf;
-  const h = ihash(x >> 2, y >> 2, 1165 + v);
-  const bx = (x >> 2) * 4 + (h & 3);
-  const by = (y >> 2) * 4 + ((h >>> 2) & 1);
-  if (x === bx && y === by) col = K.leafLt;
-  if (x === bx + 1 && y === by + 1) col = K.leafDeep;
-  if (big < 0.36 && ((x + y) & 1)) col = K.leafDeep;
+  // the cut grass: blades in 2px lanes, each lane's height and tip varying
+  const lane = x >> 1;
+  const hh = ihash(lane, y >> 2, 1165 + v);
+  const ly = y & 3;
+  let col = (x & 1) === 0 ? K.leaf : K.leafDeep;
+  if (ly === (hh & 3)) col = (x & 1) === 0 ? K.leafYoung : K.leaf; // the lit tips
+  if (ly === ((hh >>> 2) & 3) && (hh >>> 6) % 3 === 0) col = K.leafShade;
+  // the swaths: the cutter's arcs leave the lying stems paler every ~14px
+  const sw = (x * 0.6 + y + Math.sin(x / 9) * 3) % 14;
+  if (sw < 1.2 && h01(x, y, 1173) < 0.55) col = h01(x, y, 1175) < 0.4 ? K.leafLt : K.leafYoung;
+  // dried clippings, clover
+  const f = ihash(Math.floor(x / 7), Math.floor(y / 7), 1177 + v);
+  if (f % 13 === 0) {
+    const fx = Math.floor(x / 7) * 7 + 1 + ((f >>> 8) % 4);
+    const fy = Math.floor(y / 7) * 7 + 1 + ((f >>> 12) % 4);
+    if (y === fy && (x === fx || x === fx + 1)) return K.goldPale;
+  } else if (f % 13 === 5) {
+    const fx = Math.floor(x / 7) * 7 + 2 + ((f >>> 8) % 3);
+    const fy = Math.floor(y / 7) * 7 + 2 + ((f >>> 12) % 3);
+    if ((x === fx && (y === fy || y === fy + 2)) || (y === fy + 1 && (x === fx - 1 || x === fx + 1))) return K.leafYoung;
+    if (x === fx && y === fy + 1) return K.leafShade;
+  }
   return col;
 };
 

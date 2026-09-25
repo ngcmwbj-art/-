@@ -611,6 +611,114 @@ regStand(
   { cx: 8, base: 16, shadow: 10 },
 );
 
+// ---------------------------------------------------------------- 牛舎の前の庭 (52 7.3): what a working yard keeps
+
+/** 消石灰 on a pallet (58,35): three paper sacks, black print, one torn and spilling white. */
+regStand(
+  'prop_h_lime_bags',
+  22,
+  14,
+  (p) => {
+    // the pallet: three boards on runners
+    p.rect(1, 10, 20, 3, P.woodLt);
+    p.hline(1, 20, 10, P.goldPale);
+    for (const x of [2, 10, 18]) p.rect(x, 12, 2, 2, P.woodDark);
+    // the sacks, lying flat: off-white paper, a sewn seam, the black print
+    const sack = (x: number, y: number, w: number) => {
+      p.rect(x, y, w, 5, P.paperGrid);
+      p.hline(x, x + w - 1, y, P.paper);
+      p.hline(x, x + w - 1, y + 4, mix(P.paperGrid, P.woodLt, 0.5));
+      p.vline(x + w - 1, y, y + 4, mix(P.paperGrid, P.steel, 0.4));
+      for (let i = x + 2; i < x + w - 2; i += 2) p.set(i, y + 2, P.ink);
+      p.set(x + 1, y + 1, P.steel);
+    };
+    sack(1, 5, 10);
+    sack(11, 5, 9);
+    sack(4, 1, 12);
+    // the torn corner and the white powder run out on the boards
+    p.set(15, 3, P.white);
+    p.set(16, 4, P.white);
+    p.rect(16, 9, 4, 1, P.white);
+    p.set(19, 10, P.concreteLt);
+  },
+  { cx: 8, base: 15, shadow: 8, contact: 16 },
+);
+
+/** Empty feed sacks (58,37): folded flat, tied in a bundle, a stone on top against the wind. */
+regStand(
+  'prop_h_feedbag_stack',
+  18,
+  12,
+  (p) => {
+    for (let k = 0; k < 4; k++) {
+      const y = 8 - k * 2;
+      const x = 1 + (k & 1);
+      p.rect(x, y, 15, 3, k % 2 ? P.paperGrid : P.concreteLt);
+      p.hline(x, x + 14, y, P.white);
+      p.hline(x + 3, x + 8, y + 1, P.leafDeep); // the brand's green band
+    }
+    // the twine round the bundle
+    p.vline(6, 2, 10, P.brassOld);
+    p.vline(12, 2, 10, P.brassOld);
+    // the stone
+    p.ellipse(9, 1.5, 2.5, 1.5, P.steel);
+    p.set(8, 1, P.concrete);
+  },
+  { cx: 8, base: 15, shadow: 6, contact: 14 },
+);
+
+/** Rubber boots drying upside down on two stakes (55,38). */
+regStand(
+  'prop_h_boots',
+  12,
+  18,
+  (p) => {
+    for (const bx of [2, 7]) {
+      // the stake
+      p.vline(bx + 1, 11, 17, P.woodLt);
+      p.vline(bx + 2, 12, 17, P.wood);
+      // the boot upside down: the sole on top, the shaft down over the stake
+      p.rect(bx, 1, 4, 10, P.charcoal);
+      p.vline(bx, 1, 10, P.asphalt);
+      p.hline(bx - 1, bx + 3, 0, P.concrete); // the sole
+      p.rect(bx - 1, 0, 2, 3, P.charcoal); // the foot turned over
+      p.hline(bx - 1, bx, 0, P.concrete);
+      p.hline(bx, bx + 3, 10, P.ink);
+      p.set(bx + 2, 4, P.steel); // a gleam on the rubber
+    }
+    p.hline(1, 11, 17, P.woodDark);
+  },
+  { cx: 6, base: 16, shadow: 16, contact: 10 },
+);
+
+/** A scoop shovel and a manure fork (堆肥フォーク) leaning on a sawhorse (50,38). */
+regStand(
+  'prop_h_yard_tools',
+  18,
+  22,
+  (p) => {
+    // the sawhorse: a beam on two splayed legs
+    p.rect(2, 12, 15, 2, P.woodLt);
+    p.hline(2, 16, 12, P.goldPale);
+    for (const lx of [4, 14]) {
+      p.line(lx - 2, 21, lx, 14, P.wood);
+      p.line(lx + 2, 21, lx, 14, P.woodDark);
+    }
+    // the shovel: a long handle, the square steel blade on the ground
+    p.line(5, 1, 8, 16, P.woodLt);
+    p.set(5, 1, P.wood);
+    p.rect(7, 16, 5, 5, P.steel);
+    p.hline(7, 11, 16, P.concreteLt);
+    p.hline(7, 11, 20, P.asphalt);
+    // the fork: its tines up against the beam, dung on them
+    p.line(14, 0, 12, 12, P.woodLt);
+    for (let k = 0; k < 4; k++) p.vline(11 + k, 0, 3, k % 2 ? P.steel : P.concreteLt);
+    p.hline(11, 14, 3, P.steel);
+    p.set(12, 1, P.brassOld);
+  },
+  { cx: 9, base: 16, shadow: 18, contact: 14 },
+);
+
 // ---------------------------------------------------------------- 電気柵：ゲート・表示板・電源装置
 
 /** The gate (48–49,18): two wires with yellow handles; opened, the handles hang on the posts (47,18)(50,18). */

@@ -10,7 +10,8 @@ import { mix, PixelCanvas } from '../../engine/pixel';
 import { h01, ihash } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { dk, lt, outline } from './kit';
-import { hs, paintFrames, regStand, standProp, starTop } from './hoshi_kit';
+import { glowDot, HLIGHT, HP, hs, nightK, paintFrames, regStand, standProp, starTop } from './hoshi_kit';
+import { drawLight, drawLightAt, poolEllipse, poolTrapezoid } from './light';
 import { registerProp } from './registry';
 import { fontTextSmall } from './text';
 import type { PropArt, PropEnv } from './types';
@@ -164,7 +165,8 @@ registerProp('prop_h_sakura', () => {
     shadow: 26,
     contact: 12,
     contactX: 8,
-    fg: [{ ox: -18, oy: -48, img: () => crown, fade: { x: 2, y: 4, w: 48, h: 38, alpha: 0.35 } }],
+    // the fade rect is anchor-relative like the crown: the part of the crown a character can stand under
+    fg: [{ ox: -18, oy: -48, img: () => crown, fade: { x: -16, y: -44, w: 48, h: 42, alpha: 0.35 } }],
   };
   return a;
 });
@@ -496,3 +498,87 @@ registerProp('prop_h_eave', (opts) => {
 
 void fontTextSmall;
 void paintFrames;
+
+// ---------------------------------------------------------------- 校門 (24–27,31): the gate posts and the gate lamp
+
+/**
+ * The old school's front gate where the village road enters the yard
+ * through the azalea hedge: two square concrete posts with pyramid caps,
+ * the old wooden name board on the west one (「星見台分校」, a column of
+ * ink strokes), and on the east one a small round gate lamp. Tonight, with
+ * the meeting on, the lamp is lit (h0–h2): a warm pool on the road in the
+ * gap and a faint fan down the road to the south, so from the 県道's
+ * crossing the way north starts with a warm light (52 3.10 1:10).
+ */
+registerProp('prop_h_school_gate', () => {
+  const W = 64;
+  const H = 34;
+  const base = H - 1; // the posts' foot (row 31's bottom)
+  const p = new PixelCanvas(W, H);
+  const post = (x0: number) => {
+    // the cap: a low pyramid, its lit west half
+    for (let j = 0; j < 3; j++) p.hline(x0 + 2 - j, x0 + 5 + j, 8 + j, j === 0 ? P.concreteLt : P.concrete);
+    p.hline(x0, x0 + 7, 11, P.steel);
+    // the shaft: lit west face, shaded east, a crack, moss at the foot
+    for (let j = 12; j <= base; j++)
+      for (let i = x0; i < x0 + 8; i++) {
+        let c: string = i === x0 ? P.concreteLt : i >= x0 + 6 ? P.steel : P.concrete;
+        if (h01(i, j, 3891) < 0.05) c = mix(c, P.steel, 0.6);
+        if (j > base - 3 && h01(i, j, 3893) < 0.4) c = P.leafDeep;
+        p.set(i, j, c);
+      }
+    p.set(x0 + 4, 17, P.steel);
+    p.set(x0 + 5, 18, P.steel);
+    p.set(x0 + 5, 19, P.asphalt);
+    p.hline(x0, x0 + 7, base, P.asphalt);
+  };
+  post(10);
+  post(46);
+  // the name board on the west post: weathered wood, the school's name in ink
+  p.rect(12, 14, 4, 16, HP.oldWood);
+  p.vline(12, 14, 29, mix(HP.oldWood, P.white, 0.3));
+  p.vline(15, 14, 29, mix(HP.oldWood, P.ink, 0.35));
+  for (let k = 0; k < 5; k++) {
+    p.set(13 + (k & 1), 16 + k * 3, P.ink);
+    p.set(14, 17 + k * 3, P.ink);
+  }
+  // the gate lamp on the east post: a bracket and a round milk-glass globe
+  p.vline(50, 3, 8, P.charcoal);
+  p.hline(49, 51, 8, P.charcoal);
+  p.ellipse(50, 3, 3, 3, P.paperGrid);
+  p.set(49, 2, P.white);
+  p.hline(48, 52, 0, P.charcoal);
+  outline(p, { bottom: true, soft: true });
+  const img = p.toCanvas();
+  const on = (env: PropEnv) => hs(env) < 3;
+  const a: PropArt = {
+    ox: 0,
+    oy: 16 - H,
+    w: W,
+    h: H,
+    foot: 17,
+    img: () => img,
+    shadow: 24,
+    contact: 0,
+    glow(g, x, y, env) {
+      if (!on(env)) return;
+      const gx = x + 50;
+      const gy = y + 16 - H + 3;
+      const fl = 0.94 + 0.06 * Math.sin(env.t * 0.0031);
+      glowDot(g, gx, gy, '#FFE7A3', HLIGHT.bulb, 12, 0.9 * fl);
+      g.rect(gx - 2, gy - 2, 5, 5, '#F6D98A', 0.8 * fl);
+      g.rect(gx - 1, gy - 1, 2, 2, '#FFF6D8', 0.9 * fl);
+    },
+    light(g, x, y, env) {
+      if (!on(env)) return;
+      const k = nightK(env);
+      // the pool round the gate and the road in the gap
+      drawLight(g, poolEllipse(44, 28, HLIGHT.bulb), x + 40, y + 12, 0.8 * k);
+      drawLight(g, poolEllipse(18, 12, HLIGHT.warm), x + 44, y + 10, 0.5 * k);
+      // and a fan down the road to the south (the way back to the crossing)
+      const fan = poolTrapezoid(28, 48, 96, HLIGHT.warm);
+      drawLightAt(g, fan, x + 32 - fan.width / 2, y + 14, 0.42 * k);
+    },
+  };
+  return a;
+});

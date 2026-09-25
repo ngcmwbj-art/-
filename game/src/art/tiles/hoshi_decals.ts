@@ -279,15 +279,28 @@ const PAINT: Record<HDecalKind, (pen: DecalPen, d: GroundDecal) => void> = {
       pen.set(x + 1, y + 1, mix(col, P.nightShade, 0.35));
     }
   },
-  /** Sand washed down to the foot of the slope. */
+  /**
+   * Sand washed down to the foot of the slope: a fan of fine grains, densest
+   * where the water stopped (the middle of the rect's south half), thinning
+   * into scattered grains, with the faint ripple lines the runoff left.
+   */
   h_sand(pen, d) {
     const W = (d.w ?? 1) * 16;
     const Hh = (d.h ?? 1) * 16;
     for (let j = 0; j < Hh; j++)
       for (let i = 0; i < W; i++) {
-        const n = valueNoise((d.x * 16 + i) / 6, (d.y * 16 + j) / 4, 1461);
-        const k = n - Math.abs((i + 0.5) / W - 0.5) * 0.9;
-        if (k > 0.35 && ((i + j) & 1) === 0) pen.set(d.x * 16 + i, d.y * 16 + j, k > 0.45 ? P.paperGrid : mix(P.paperGrid, P.woodLt, 0.5));
+        const X = d.x * 16 + i;
+        const Y = d.y * 16 + j;
+        const u = (i + 0.5) / W - 0.5;
+        const vv = (j + 0.5) / Hh;
+        const fan = 1 - Math.hypot(u * 1.7, (vv - 0.7) * 1.3) + (valueNoise(X / 7, Y / 5, 1461) - 0.5) * 0.45;
+        if (fan <= 0.15) continue;
+        const g = h01(X, Y, 1463);
+        if (g > fan * 1.25) continue; // grains thin out toward the fan's edge
+        let col = g < 0.18 ? P.paperGrid : g < 0.6 ? mix(P.paperGrid, P.woodLt, 0.45) : mix(P.woodLt, P.brassOld, 0.3);
+        // the runoff's ripple lines, curving round the fan
+        if (fan > 0.45 && Math.floor(Math.hypot(u * 1.7, (vv - 0.7) * 1.3) * 22) % 4 === 0 && g < 0.5) col = mix(P.woodLt, P.brassOld, 0.45);
+        pen.set(X, Y, col);
       }
   },
   /** Grass mown back along a fence line (the strip under the electric fence is kept low). */

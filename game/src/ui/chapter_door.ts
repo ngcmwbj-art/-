@@ -207,10 +207,44 @@ class ChapterDoor implements Widget {
       g.alpha(0.5 + 0.5 * k, () => g.ctx.drawImage(img, Math.round(SEAL.x - w / 2), Math.round(SEAL.y - h / 2), w, h));
       return;
     }
-    // just after it lands the ink soaks a little wider for a moment
+    // the instant it lands the ink squeezes out round the rim (#B8241E, two frames), then
+    // soaks a little wider for a moment
     const lt = st - PRESS_MS;
+    if (lt < 34) {
+      const rx = img.width / 2 + 2;
+      const ry = img.height / 2 + 2;
+      for (let a = 0; a < Math.PI * 2; a += 0.045) {
+        const j = hash2(Math.round(a * 40), 2, 9);
+        if (j < 0.25) continue;
+        const r = 1 + (j > 0.85 ? 1 : 0);
+        g.px(Math.round(SEAL.x + Math.cos(a) * (rx + r - 1)), Math.round(SEAL.y + Math.sin(a) * (ry + r - 1)), UI.accentDark);
+      }
+    }
     if (lt < 360) g.alpha(0.22 * (1 - lt / 360), () => g.img(img, SEAL.x - img.width / 2 - 1, SEAL.y - img.height / 2, { tint: UI.accentLight }));
     g.img(img, Math.round(SEAL.x - img.width / 2), Math.round(SEAL.y - img.height / 2));
+  }
+
+  /**
+   * The pen writing the title: a slim nib (its tip at the stroke's edge, the
+   * body slanting up to the right, a glint on it), riding up and down the
+   * letter as the stroke goes along; it lifts away after the last letter.
+   */
+  private drawPen(g: Gfx, px: number, py: number, lift: number): void {
+    const x = Math.round(px + lift * 3);
+    const y = Math.round(py - lift * 5);
+    const a = 1 - lift;
+    if (a <= 0) return;
+    g.alpha(a, () => {
+      g.px(x, y, '#FFFFFF'); // the wet tip
+      g.px(x + 1, y - 1, '#C8C2B4');
+      g.px(x + 2, y - 2, '#C8C2B4');
+      g.px(x + 1, y - 2, '#8E95A6');
+      for (let i = 3; i < 9; i++) {
+        g.px(x + i, y - i, '#5E6478');
+        g.px(x + i + 1, y - i, '#3A3F48');
+      }
+      g.px(x + 4, y - 5, '#C8CDD4'); // a glint on the barrel
+    });
   }
 
   /**
@@ -235,16 +269,21 @@ class ChapterDoor implements Widget {
       const y = TITLE_Y + bob[i % bob.length];
       const fresh = i === cur - 1 && k < 1;
       const reveal = fresh ? Math.max(1, Math.round(cw * ease.quadOut(k))) : cw + 1;
+      // the ink is wet a moment: the newest letter is a touch brighter, then dries to the paper's cream
+      const wet = i === cur - 1 ? Math.max(0, 1 - (this.penAcc + (fresh ? 0 : LETTER_MS)) / (LETTER_MS * 3)) : 0;
       g.clip(x, y - 2, reveal, 20, () => {
         g.text(ch, x, y, { color: INK });
         g.text(ch, x + 1, y, { color: INK, alpha: 0.55 });
+        if (wet > 0) g.text(ch, x, y, { color: '#FFFFFF', alpha: 0.5 * wet });
       });
-      if (fresh && k < 1 && ch.trim()) {
-        const px = x + reveal;
-        g.px(px, y + 8 + Math.round(Math.sin(this.t / 30) * 3), '#FFFFFF');
-      }
+      if (fresh && ch.trim()) this.drawPen(g, x + reveal, y + 8 + Math.round(Math.sin(this.t / 30) * 4), 0);
       x += cw;
     });
+    // after the last letter the pen lifts off to the upper right (0.2 s)
+    if (cur >= this.letters.length && this.iconT < 0 && this.penAcc < LETTER_MS * 3) {
+      const lift = Math.min(1, Math.max(0, this.penAcc - LETTER_MS) / 200);
+      this.drawPen(g, x, TITLE_Y + 6, lift);
+    }
     // the tomato, set down after the last letter, with one ring of light
     if (this.iconT >= 0) {
       const icon = tomatoIcon('ready');

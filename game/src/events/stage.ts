@@ -238,7 +238,10 @@ export function setDialogLift(on: boolean): void {
 }
 
 function fixedRoom(f: FieldScene): boolean {
-  return f.map.def.camera === 'fixed' || (f.map.w * 16 <= W && f.map.h * 16 <= H);
+  if (f.map.def.camera === 'fixed' || (f.map.w * 16 <= W && f.map.h * 16 <= H)) return true;
+  // 星見台's rooms that fit the screen's height but not its width (the
+  // school: the gathering room and the dark corridor) lift the same way
+  return f.map.id.startsWith('map_hoshi_') && f.map.def.kind === 'indoor' && f.map.h * 16 <= H;
 }
 
 /** How far the room must slide up so the people in the scene clear the window. */

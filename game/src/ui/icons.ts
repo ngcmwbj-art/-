@@ -59,6 +59,8 @@ const PAL: Record<string, string> = {
   X: '#EE8E80',
   L: '#C8645A',
   Q: '#FFE7A3',
+  A: '#8A2E3A',
+  J: '#5E1E2A',
 };
 
 const cache = new Map<string, HTMLCanvasElement>();
@@ -435,8 +437,29 @@ export function tomatoIcon8(): HTMLCanvasElement {
 }
 
 /** 12×12 icon for an item (unknown ids get the folded-note icon). */
+/**
+ * 焼き芋 (52 13.3): half out of its newspaper (#C8C2B4, a few 1px lines of
+ * print), the skin #8A2E3A, the broken end yellow #FFD23F, two threads of
+ * steam above it (no outline on the steam, so the outline is drawn by hand).
+ */
+const YAKIIMO_ROWS = [
+  '.......H..H.',
+  '......H..H..',
+  '.......H..H.',
+  '......kkkk..',
+  '.....kjOOAk.',
+  '....kOjOAAJk',
+  '...kOOAAAAJk',
+  '..kkAAAAAJk.',
+  '.kwdkAAAJkk.',
+  'kwGdGkJJkGdk',
+  'kdddddkkdddk',
+  '.kkkkkkkkkk.',
+];
+
 export function itemIcon12(id: string): HTMLCanvasElement {
   if (id === 'item_hanamaru_tomato') return tomatoIcon('ready');
+  if (id === 'item_yakiimo') return art('item:yakiimo', 12, 12, YAKIIMO_ROWS, 0, 0, false);
   if (id === 'item_tomato_omiyage' && omakeFn()) return art('item:omake', 12, 12, OMAKE_ROWS);
   const rows = ITEM_ROWS[id] ?? ITEM_ROWS.item_otsukai_memo;
   return art('item:' + (ITEM_ROWS[id] ? id : 'item_otsukai_memo'), 12, 12, rows);
@@ -494,6 +517,30 @@ export function purseIcon(open = false): HTMLCanvasElement {
         '...PPPPPPPP...',
       ];
   return art(open ? 'purse:o' : 'purse', 16, 14, rows);
+}
+
+/**
+ * The 無人販売所's money box (料金箱, 16×14): a small wooden box with a slot
+ * in its lid and a paper label on its front. `drop` (0..1): a 100円 coin
+ * going in through the slot.
+ */
+export function coinBoxIcon(drop = -1): HTMLCanvasElement {
+  const f = drop < 0 ? -1 : Math.min(2, Math.floor(drop * 3));
+  const coin = f === 0 ? ['.....gWd......', '.....gdG......'] : f === 1 ? ['..............', '.....gWd......'] : ['..............', '..............'];
+  const rows = [
+    ...coin,
+    '.ZZZZZZZZZZZ..',
+    'ZbbbkkkkkbbBZ.',
+    'ZbbbbbbbbbbBZ.',
+    'ZBBBBBBBBBBBZ.',
+    'ZbbwwwwwwbbBZ.',
+    'ZbbwGGGGwbbBZ.',
+    'ZbbwwGwwwbbBZ.',
+    'ZbbwwwwwwbbBZ.',
+    'ZbbbbbbbbbbBZ.',
+    '.ZZZZZZZZZZZ..',
+  ];
+  return art(`coinbox:${f}`, 16, 14, rows);
 }
 
 // ---- ink pot (朱肉, 10×12) ----------------------------------------------------------------

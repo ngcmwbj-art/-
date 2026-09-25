@@ -18,6 +18,7 @@ import type { Gfx } from '../../engine/gfx';
 import { H, W } from '../../engine/screen';
 import { addItem, hasItem, setFlag, state, type Dir } from '../../game/state';
 import { field, FieldScene } from '../../world/field';
+import { getMapDef } from '../../world/maps';
 
 /** 52 1.3: [map, centre x, centre y, camera held on the centre]. */
 export const HOSHI_SCREENS: Record<string, [string, number, number, boolean]> = {
@@ -99,6 +100,9 @@ export function hoshiStageFlags(stage: number, o: HoshiQaOpts = {}): void {
   } else if (!hasItem('item_hanamaru_tomato')) addItem('item_hanamaru_tomato');
   if ((stage === 1 && o.gate !== false && (o.gate || stage >= 1)) || stage >= 2) for (const id of later.slice(6, 10)) f(id);
   if (stage === 1 && o.gate === false) for (const id of later.slice(6, 10)) f(id, 0);
+  // the sulking tomato beaten (evt_ch2_sune, before the はなまるトマト): its restored self on the plant
+  if (stage >= 1 || tomato) state.taken['sym_hoshi_house_00'] = true;
+  else delete state.taken['sym_hoshi_house_00'];
   if (stage >= 2) {
     f('flag_ch2_tetsuya_beaten');
     state.taken['sym_hoshi_07'] = true;
@@ -112,7 +116,16 @@ export function hoshiStageFlags(stage: number, o: HoshiQaOpts = {}): void {
 function go(map: string, x: number, y: number, dir: Dir, cam: [number, number] | null, stage: number): FieldScene | null {
   let f = field();
   if (!f) {
-    game.replaceAll(new FieldScene(map, x, y, dir));
+    // a new field runs the map's enter-events on enter(): a QA jump shows the
+    // screen itself, so they are held back for this one push
+    const def = getMapDef(map);
+    const onEnter = def?.onEnter;
+    if (def) def.onEnter = [];
+    try {
+      game.replaceAll(new FieldScene(map, x, y, dir));
+    } finally {
+      if (def) def.onEnter = onEnter;
+    }
     f = field();
   } else f.loadMap(map, x, y, dir);
   if (!f) return null;
@@ -210,4 +223,14 @@ registerDebug('hprops', (list: (string | [string, Record<string, unknown>])[] = 
   const l = list.map((e) => (typeof e === 'string' ? ([e, {}] as [string, Record<string, unknown>]) : e));
   game.replaceAll(new PropSheet(l, o.zoom ?? 1, o.flags ?? {}, o.t ?? 0));
   return l.map(([id]) => `${id}${hasProp(id) ? '' : ' (missing)'}`);
+});
+
+/** __game.cmd.hsymAt('sym_hoshi_07', 48.5, 4): put a symbol (or any actor) at a tile for a QA shot (x/y in tiles, fractions allowed). */
+registerDebug('hsymAt', (id: string, x: number, y: number) => {
+  const f = field();
+  const a = f?.actors.find((ac) => ac.id === id);
+  if (!a) return `${id}: not on this map`;
+  a.x = Math.round(x * 16 + 8);
+  a.y = Math.round(y * 16 + 16);
+  return `${id} (${x},${y})`;
 });

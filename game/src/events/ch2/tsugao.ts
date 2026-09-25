@@ -6,25 +6,29 @@
 //   npc_pokosha   — shy and strong; ぴーちゃん on his shoulder
 //   evt_ch2_delivery — (optional, stage 1) five parcels of last night's
 //                   おすそわけ to the houses, ポコシャさん third in the line
-// The words are generated from the design book (data/text/hoshi_tsugao).
+// The words are the design book's (data/text/hoshi_tsugao); the `!cue` lines
+// in them are the book's stage directions, staged here.
+//
+// The count of parcels is never saved (10.20): the delivery belongs to the
+// state it was started in — a load (a new state.flags object) starts it over.
+// flag_ch2_tsugao_awake is 1 while ツガオさん has his work cap on (cap_swap)
+// for the truck's picture.
 
 import type { Co } from '../../engine/co';
-import { game } from '../../engine/game';
+import { W, H } from '../../engine/screen';
 import { flag, setFlag, state } from '../../game/state';
-import { addItem } from '../../game/state';
-import { despawn, registerScript, spawn } from '../../world/api';
+import { face, registerScript, spawn } from '../../world/api';
 import type { Actor } from '../../world/actor';
 import { field, type FieldScene } from '../../world/field';
 import { registerWorldFx } from '../../world/fx';
-import { runMsg } from '../../world/msg';
-import { SPEAKERS } from '../../world/msg';
+import { runMsg, SPEAKERS } from '../../world/msg';
 import { completeChoreCard, hideChoreCard, setChoreCount, showChoreCard } from '../../ui/hud';
 import { DELI_TEXT, TSUGAO_NPC, TSUGAO_OBJ } from '../../data/text/hoshi_tsugao';
-import { F, stepBack } from '../lib';
+import { F, sendAway, stepBack } from '../lib';
 import { quietItem } from '../stage';
 import { sparkle } from '../fx';
-import { hasUi, musicParam, se, ui, uiCo } from './compat';
-import { hStage, npc, pickHText, poseIf, runCue, unpose, type Cues } from './common';
+import { hasUi, musicParam, se, seAt, ui, uiCo } from './compat';
+import { hStage, npc, pickHText, poseIf, routeTiles, runCue, unpose, type Cues } from './common';
 
 // ---------------------------------------------------------------- name tags
 
@@ -39,14 +43,16 @@ for (const [id, s] of Object.entries(TSUGAO_SPEAKERS)) SPEAKERS[id] = { ...s };
 const N = TSUGAO_NPC;
 const D = DELI_TEXT;
 
-/** The five parcels, in the slips' order (10.20): the stand's spot and the HUD's 「つぎ」. */
-const STOPS: { spot: string; next: string }[] = [
-  { spot: 'spot_h_deli_01', next: 'タケじい' },
-  { spot: 'spot_h_deli_02', next: 'エー区長' },
-  { spot: 'spot_h_deli_03', next: 'スギばあ' },
-  { spot: 'spot_h_deli_04', next: '集会所' },
-  { spot: 'spot_h_deli_05', next: 'トマじい' },
+/** The five parcels in the slips' order (10.20): the stand (52 3.5) and the HUD's 「つぎ」. */
+const STOPS: { spot: string; next: string; at: [number, number] | null }[] = [
+  { spot: 'spot_h_deli_01', next: 'タケじい', at: [43, 36] },
+  { spot: 'spot_h_deli_02', next: 'エー区長', at: [37, 36] },
+  { spot: 'spot_h_deli_03', next: 'スギばあ', at: [42, 26] },
+  { spot: 'spot_h_deli_04', next: '集会所', at: null },
+  { spot: 'spot_h_deli_05', next: 'トマじい', at: [17, 31] },
 ];
+/** Where ポコシャさん stands at the truck (52 3.4). */
+const POKO_HOME: [number, number] = [45, 42];
 
 export function deliveryOn(): boolean {
   return flag('flag_ch2_delivery_on') > 0;
@@ -61,37 +67,44 @@ function doneStops(): number {
   return STOPS.filter((s) => flag('flag_' + s.spot) > 0).length;
 }
 
-// ---------------------------------------------------------------- the HUD's おとどけ strip (52 13.1)
+/** The first block of `speaker`'s pages in a msg text (a line said again elsewhere). */
+function blockOf(src: string, speaker: string): string | null {
+  const m = new RegExp(`@${speaker}\\n(?:(?![@!]).*\\n?)+`).exec(src);
+  return m ? m[0].trimEnd() : null;
+}
 
-/** The UI's own strip when it has one (「おとどけ n/5」「つぎ：…」), else the chores' strip with one job. */
+// ---------------------------------------------------------------- the HUD's おとどけの札 (52 13.1)
+
+/**
+ * The UI's strip 「おとどけ n/5」「つぎ：…」 (ui/chore_card.ts); should it be
+ * missing, the chores' one-line strip with one job stands in.
+ */
 function cardShow(): void {
   if (hasUi('showDeliveryCard')) ui('showDeliveryCard', { total: STOPS.length, next: STOPS[0].next });
   else showChoreCard([{ label: 'おとどけ', total: STOPS.length }]);
 }
 function cardSet(n: number): void {
-  const next = STOPS[n]?.next ?? '';
-  if (hasUi('setDeliveryCount')) ui('setDeliveryCount', n, next);
+  if (hasUi('setDeliveryCount')) ui('setDeliveryCount', n, STOPS[n]?.next ?? '');
   else setChoreCount(0, n);
 }
 function* cardDone(): Co {
-  if (hasUi('completeDeliveryCard')) {
-    yield* uiCo('completeDeliveryCard');
-    return;
-  }
+  if (yield* uiCo('completeDeliveryCard')) return;
   yield* completeChoreCard();
 }
-function cardHide(): void {
-  if (hasUi('hideDeliveryCard')) ui('hideDeliveryCard');
-  else hideChoreCard(300);
+function cardHide(ms = 300): void {
+  if (hasUi('hideDeliveryCard')) ui('hideDeliveryCard', ms);
+  else hideChoreCard(ms);
 }
 
 // ---------------------------------------------------------------- ポコシャさん in the line (third, behind カネナリくん)
 
 const POKO = 'deli_pokosha';
-/** The follower's footsteps, newest last (world px). */
+/** The leader's footsteps, newest last (world px). */
 let steps: [number, number, string][] = [];
-/** The delivery runs in this session (a load in the middle of it starts over). */
-let running = false;
+/** The state the delivery was started in (a load or a new game replaces state.flags). */
+let runFlags: object | null = null;
+/** Out of the line for a scene (〔しめ〕: the crate back on the truck). */
+let parked = false;
 
 function pokoActor(f: FieldScene): Actor | null {
   return f.actorById(POKO) ?? null;
@@ -116,12 +129,12 @@ registerWorldFx({
       if (a) f.removeActor(a);
       return;
     }
-    // loaded in the middle of it (the page was hidden and saved): it starts over
-    if (!running) {
-      resetDelivery();
+    // a load in the middle of it (the page was hidden and saved, or a save was loaded): it starts over
+    if (state.flags !== runFlags) {
+      resetDelivery(false);
       return;
     }
-    if (!f.map.id.startsWith('map_hoshi')) return;
+    if (!f.map.id.startsWith('map_hoshi') || parked) return;
     const k = f.follower;
     let a = pokoActor(f);
     if (!a) a = spawnPoko(f, k?.x ?? f.player.x, (k?.y ?? f.player.y) + 2);
@@ -161,25 +174,49 @@ registerWorldFx({
   },
 });
 
-/** Everything back as before the delivery (not saved: a load starts over). */
-export function resetDelivery(): void {
+/**
+ * Everything back as before the delivery (the count is not saved). `walkHome`:
+ * ポコシャさん leaves the line and walks back to the truck (at once when the
+ * truck is off the screen, 10.20 〔やめる〕).
+ */
+export function resetDelivery(walkHome = true): void {
   setFlag('flag_ch2_delivery_on', 0);
   for (const s of STOPS) setFlag('flag_' + s.spot, 0);
   musicParam('h_deli', 0);
   cardHide();
-  running = false;
+  runFlags = null;
   steps = [];
+  parked = false;
   const f = field();
-  if (f) despawn(POKO);
+  if (!f) return;
+  const a = pokoActor(f);
+  const [hx, hy] = POKO_HOME;
+  const homeOnScreen =
+    f.map.id === 'map_hoshimidai' && Math.abs(hx * 16 + 8 - (f.camX + W / 2)) < W / 2 + 16 && Math.abs(hy * 16 + 8 - (f.camY + H / 2)) < H / 2 + 24;
+  const route = a && walkHome && homeOnScreen ? routeTiles(a.tileX, a.tileY, hx, hy) : null;
+  const from = a ? [a.x, a.y, a.dir] as const : null;
+  if (a) f.removeActor(a);
+  if (f.map.id !== 'map_hoshimidai') return;
+  // the map's own ポコシャさん comes back at the truck; in sight, he walks there from the line
+  f.refreshPresence();
+  const own = npc('npc_pokosha');
+  if (own && from && route && route.length) {
+    own.x = from[0];
+    own.y = from[1];
+    own.dir = from[2];
+    poseIf(own, 'carry');
+    sendAway(own, route, 2.2, 0, false);
+  }
 }
 
-// ---------------------------------------------------------------- the invitation (〔誘い〕)
+// ---------------------------------------------------------------- the staging of the book's directions
 
-/** ヒロスケさん waves, ポコシャさん hides, ツガオさん swaps caps: the staging of the delivery's words. */
+/** ヒロスケさん waves, ポコシャさん hides, ツガオさん swaps caps …: the `!cue` lines of the words. */
 function* stage(name: string): Co {
   const hiro = npc('npc_hirosuke');
-  const poko = npc('npc_pokosha') ?? field()?.actorById(POKO) ?? null;
-  const k = field()?.follower ?? null;
+  const f = field();
+  const poko = npc('npc_pokosha') ?? (f ? pokoActor(f) : null);
+  const k = f?.follower ?? null;
   switch (name) {
     case 'hide':
       if (poko) poseIf(poko, 'hide');
@@ -190,12 +227,33 @@ function* stage(name: string): Co {
       yield 400;
       return;
     case 'shh':
-      if (poko) poseIf(poko, 'shh');
-      yield 500;
+      // he looks at the three asleep on the cushions, a finger on his lips
+      if (poko) {
+        poko.dir = 'up';
+        poseIf(poko, 'shh');
+      }
+      yield 600;
+      if (poko) poseIf(poko, 'carry');
+      return;
+    case 'laugh':
+      if (hiro) {
+        poseIf(hiro, 'laugh');
+        hiro.hop(1, 140);
+      }
+      yield 400;
       return;
     case 'wave':
       if (hiro) poseIf(hiro, 'wave');
       yield 300;
+      return;
+    case 'knock':
+      // ヒロスケさん knocks on the driver's window (no sound: his voice wakes him)
+      if (hiro) {
+        hiro.dir = 'left';
+        poseIf(hiro, 'knock');
+      }
+      yield 500;
+      if (hiro) unpose(hiro);
       return;
     case 'flap':
       se('se_piichan_flap');
@@ -204,7 +262,7 @@ function* stage(name: string): Co {
       return;
     case 'give':
       // the slips through the window; カネナリくん puts them behind a flip
-      se('se_paper_bag', { vol: 0.4 });
+      se('se_page', { vol: 0.4 });
       if (k) poseIf(k, 'hold');
       yield 600;
       if (k) unpose(k);
@@ -214,6 +272,9 @@ function* stage(name: string): Co {
       yield 300;
       return;
     case 'cap_swap':
+    case 'cap_back':
+      // the nightcap for the work cap (and back again)
+      setFlag('flag_ch2_tsugao_awake', name === 'cap_swap' ? 1 : 0);
       yield 300;
       return;
     case 'yakiimo':
@@ -228,16 +289,23 @@ function* stage(name: string): Co {
   }
 }
 
-const cues: Cues = new Proxy({} as Cues, { get: (_t, name: string) => () => stage(name) });
+/** Every direction staged by stage(); `own` ones of a scene first. */
+function cuesWith(own: Cues = {}): Cues {
+  return new Proxy({} as Cues, { get: (_t, name: string) => own[name] ?? (() => stage(name)) });
+}
+const cues = cuesWith();
 
 function seen(id: string, key: string): boolean {
   return flag(`flag_seen_${id}_${key}`) > 0;
 }
 
+// ---------------------------------------------------------------- the invitation (〔誘い〕)
+
 /** 〔誘い〕 (and 〔誘い・2回目〕 after 「またこんど」): true when he said 「手伝う」. */
 function* invite(): Co<boolean> {
   if (flag('flag_ch2_deli_declined')) {
     const i = yield* runCue(D['誘い・2回目'], cues);
+    // 「またこんど」: no page; ツガオさん goes back to sleep
     if (i !== 0) return false;
   } else {
     yield* runCue(D['誘い'], cues);
@@ -249,6 +317,8 @@ function* invite(): Co<boolean> {
       setFlag('flag_seen_npc_pokosha_h0_1', 1);
       yield* stage('hide');
       yield* runCue(D['ポコシャさんに まだ 会っていない'], cues);
+      const pk = npc('npc_pokosha');
+      if (pk) unpose(pk);
     }
     yield* runCue(D['共通1'], cues);
     if (!seen('npc_tsugao', 'h0_1')) {
@@ -263,18 +333,17 @@ function* invite(): Co<boolean> {
     }
   }
   yield* runCue(D['共通2/手伝う'], cues);
-  // ポコシャさん shoulders the yellow crate and falls in third; ヒロスケさん waves them off
+  // the yellow crate on ポコシャさん's right shoulder: he falls in third; ヒロスケさん waves them off
   const f = F();
   const own = npc('npc_pokosha');
   const k = f.follower;
-  running = true;
+  runFlags = state.flags;
+  parked = false;
   setFlag('flag_ch2_delivery_on', 1);
   for (const s of STOPS) setFlag('flag_' + s.spot, 0);
-  spawnPoko(f, own?.x ?? (k?.x ?? f.player.x), own?.y ?? (k?.y ?? f.player.y));
-  if (own) {
-    own.visible = false;
-    own.solid = false;
-  }
+  spawnPoko(f, own?.x ?? k?.x ?? f.player.x, own?.y ?? k?.y ?? f.player.y);
+  // (the map's own ポコシャさん is not at the truck while he walks with them)
+  f.refreshPresence();
   const hiro = npc('npc_hirosuke');
   if (hiro) poseIf(hiro, 'wave');
   cardShow();
@@ -284,7 +353,7 @@ function* invite(): Co<boolean> {
 
 // ---------------------------------------------------------------- the stops
 
-/** ポコシャさn hands him the bag; he sets it on the stand (put_down 0.6 s). */
+/** ポコシャさん hands him the bag; he sets it on the stand (put_down 0.6 s). */
 function* putDown(): Co {
   const f = F();
   const p = f.player;
@@ -296,28 +365,52 @@ function* putDown(): Co {
   yield 300;
   if (a) poseIf(a, 'carry');
   poseIf(p, 'put_down');
-  se('se_h_deli_put');
+  const at = STOPS[doneStops()]?.at;
+  if (at) seAt('se_h_deli_put', at[0] * 16 + 8, at[1] * 16 + 8);
+  else se('se_h_deli_put');
   yield 600;
   unpose(p);
 }
 
-function* deliver(n: number): Co {
-  const key = `おとどけ ${n + 1}`;
-  const text = D[key];
-  if (!text) return;
-  if (!text.includes('!cue put_down') && n !== 3) yield* putDown();
-  yield* runCue(text, cues);
+/** The parcel is down: its flag and the strip's number (with the fifth, 「済」). */
+function* counted(n: number): Co {
+  if (flag('flag_' + STOPS[n].spot)) return;
   setFlag('flag_' + STOPS[n].spot, 1);
   cardSet(doneStops());
   if (doneStops() >= STOPS.length) yield* cardDone();
+}
+
+function* deliver(n: number): Co {
+  const text = D[`おとどけ ${n + 1}`];
+  if (!text) return;
+  // (the first stand has a page before the bag goes down; エー夫人 takes hers herself)
+  if (!text.includes('!cue put_down') && n !== 3) yield* putDown();
+  let countedYet = false;
+  yield* runCue(
+    text,
+    cuesWith({
+      *hide() {
+        // エー夫人 has taken the cucumbers: the strip counts them as he bows
+        if (n === 3 && !countedYet) {
+          countedYet = true;
+          yield* counted(n);
+        }
+        yield* stage('hide');
+      },
+      *done() {
+        countedYet = true;
+        yield* counted(n);
+      },
+    }),
+  );
+  if (!countedYet) yield* counted(n);
 }
 
 for (const [i, s] of STOPS.entries()) {
   if (i === 3) continue;
   registerScript(s.spot, function* (): Co {
     if (!deliveryOn()) return;
-    const n = doneStops();
-    if (n !== i) {
+    if (doneStops() !== i) {
       yield* runCue(D['順番のちがう置き台'], cues);
       return;
     }
@@ -325,7 +418,7 @@ for (const [i, s] of STOPS.entries()) {
   });
 }
 
-/** エー夫人 while the delivery waits at the gathering room (4つ目): she takes the cucumbers herself. */
+/** エー夫人 while the delivery waits at the gathering room (4つ目): she takes the cucumbers herself (no tea). */
 export function* deliveryAtYoshie(): Co<boolean> {
   if (!deliveryOn() || doneStops() !== 3) return false;
   yield* deliver(3);
@@ -342,36 +435,86 @@ registerScript('trig_ch2_deli_edge', function* (): Co {
     return;
   }
   yield* runCue(D['やめますか/やめる'], cues);
-  resetDelivery();
+  resetDelivery(true);
+  // the east edge is the foot of the slope to the barn: マサルさん stops him there (10.8)
+  const f = F();
+  const x = f.player.tileX;
+  const y = f.player.tileY;
+  if (f.map.id === 'map_hoshimidai' && x >= 46 && x <= 49 && y >= 36 && y <= 39 && flag('flag_ch2_got_tomato') && !flag('flag_ch2_met_gen')) {
+    const { evtGenStop } = (yield import('./barn')) as typeof import('./barn');
+    yield* evtGenStop();
+  }
 });
 
 /** 〔しめ〕 back at the truck with all five delivered. */
 registerScript('trig_ch2_deli_return', function* (): Co {
   if (!deliveryOn() || doneStops() < STOPS.length) return;
   const f = F();
-  f.player.dir = 'right';
+  const p = f.player;
+  const hiro = npc('npc_hirosuke');
+  if (hiro) {
+    p.dir = Math.abs(hiro.x - p.x) > Math.abs(hiro.y - p.y) ? (hiro.x > p.x ? 'right' : 'left') : hiro.y > p.y ? 'down' : 'up';
+    face('npc_hirosuke', 'player');
+  }
   const a = pokoActor(f);
   if (a) {
     // out of the line, the empty crate back on the truck
-    a.path = [[45 * 16 + 8, 42 * 16 + 16]];
-    a.pathSpeed = 48;
-    yield () => !a.path.length;
+    parked = true;
+    const route = routeTiles(a.tileX, a.tileY, POKO_HOME[0], POKO_HOME[1]);
+    if (route && route.length) {
+      a.pathSpeed = 2.4 * 16;
+      a.path = route.map(([x, y]) => [x * 16 + 8, y * 16 + 16] as [number, number]);
+      const t0 = f.t;
+      yield () => !a.path.length || f.t - t0 > 4000;
+      a.moving = false;
+    }
+    a.dir = 'left';
     se('se_truck_aori');
+    yield 300;
   }
-  yield* runCue(D['しめ'].replace(/(@sys\n焼き芋を 2つ もらった！)/, '!cue yakiimo_get\n$1'), {
-    ...Object.fromEntries(['hide', 'blush', 'shh', 'wave', 'flap', 'give', 'aori', 'cap_swap', 'yakiimo', 'put_down'].map((k) => [k, () => stage(k)])),
-    *yakiimo_get() {
-      for (let i = 0; i < 2; i++) yield* quietItem('item_yakiimo');
-    },
-  });
+  let got = 0;
+  yield* runCue(
+    D['しめ'].replace(/(@sys\n焼き芋を 2つ もらった！)/, '!cue yakiimo_get\n$1'),
+    cuesWith({
+      *yakiimo_get() {
+        for (let i = 0; i < 2; i++) if (yield* quietItem('item_yakiimo')) got++;
+      },
+    }),
+  );
+  if (got < 2) {
+    // a full bag: the rest when he next talks to ヒロスケさん (10 4.4)
+    setFlag('flag_ch2_yakiimo_owed', 2 - got);
+    yield* runMsg(`@narr\nもちものが いっぱいだ。`);
+  }
   setFlag('flag_ch2_delivery', 1);
   setFlag('flag_ch2_piichan_feather', 1);
   setFlag('flag_ch2_delivery_on', 0);
   musicParam('h_deli', 0);
-  running = false;
-  despawn(POKO);
+  cardHide(300);
+  runFlags = null;
+  parked = false;
+  // the three back in their places (52 3.4)
+  if (a) f.removeActor(a);
   f.refreshPresence();
+  const h2 = npc('npc_hirosuke');
+  if (h2) unpose(h2);
 });
+
+/** 焼き芋 he couldn't carry after the delivery: given the next time he talks to ヒロスケさん. */
+function* owedYakiimo(): Co<boolean> {
+  const owed = flag('flag_ch2_yakiimo_owed');
+  if (owed <= 0) return false;
+  let got = 0;
+  for (let i = 0; i < owed; i++) if (yield* quietItem('item_yakiimo')) got++;
+  if (!got) {
+    yield* runMsg(`@narr\nもちものが いっぱいだ。`);
+    return true;
+  }
+  setFlag('flag_ch2_yakiimo_owed', owed - got);
+  yield* stage('yakiimo');
+  yield* runMsg(`@sys\n焼き芋を ${got === 2 ? '2つ ' : ''}もらった！`);
+  return true;
+}
 
 // ---------------------------------------------------------------- the three of ツガオ便
 
@@ -390,14 +533,16 @@ registerScript('npc_tsugao', function* (): Co {
   }
   if (s === 2 && !seen('npc_tsugao', 'h2_1')) {
     setFlag('flag_seen_npc_tsugao_h2_1', 1);
+    // one eye open only
     yield* runCue(N.npc_tsugao.h2_1, cues);
     return;
   }
   if (!seen('npc_tsugao', 'h0_1')) {
     setFlag('flag_seen_npc_tsugao_h0_1', 1);
-    // one eye open; the nightcap swapped for the work cap
+    // one eye open; the nightcap swapped for the work cap — and back to sleep
     yield* stage('cap_swap');
     yield* runCue(N.npc_tsugao.h0_1, cues);
+    setFlag('flag_ch2_tsugao_awake', 0);
     return;
   }
   yield* runCue(N.npc_tsugao.h0_2, cues);
@@ -406,7 +551,13 @@ registerScript('npc_tsugao', function* (): Co {
 registerScript('npc_hirosuke', function* (): Co {
   const t = N.npc_hirosuke;
   const s = hStage();
-  if (deliveryOn()) return;
+  if (yield* owedYakiimo()) return;
+  if (deliveryOn()) {
+    // on the way: he sees them off again (his line when the crate went on ポコシャさん's shoulder)
+    yield* stage('wave');
+    yield* runCue(blockOf(D['共通2/手伝う'], 'npc_hirosuke') ?? t.h0_2, cues);
+    return;
+  }
   if (deliveryOpen()) {
     yield* invite();
     return;
@@ -427,6 +578,8 @@ registerScript('npc_hirosuke', function* (): Co {
     return;
   }
   yield* runCue(t.h0_2, cues);
+  const pk = npc('npc_pokosha');
+  if (pk) unpose(pk);
 });
 
 registerScript('npc_pokosha', function* (): Co {
@@ -479,14 +632,12 @@ registerScript('obj_hoshi_pokosha_bike', function* (): Co {
 
 /** QA: four of the five delivered (the fifth, トマじい's, is next). */
 export function debugDeliveryAlmost(): void {
-  running = true;
+  runFlags = state.flags;
+  parked = false;
   setFlag('flag_ch2_delivery_on', 1);
   for (const s of STOPS.slice(0, 4)) setFlag('flag_' + s.spot, 1);
   cardShow();
   cardSet(4);
   musicParam('h_deli', 1);
+  field()?.refreshPresence();
 }
-
-void game;
-void state;
-void addItem;

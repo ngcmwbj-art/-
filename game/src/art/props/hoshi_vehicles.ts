@@ -221,19 +221,28 @@ function busSide(lit: boolean): HTMLCanvasElement {
   p.rect(1, 23, W - 2, 3, P.leaf);
   p.hline(1, W - 2, 23, P.leafYoung);
   p.hline(1, W - 2, 25, P.leafDeep);
-  // the windscreen at the front (west), the driver's back behind it, the destination sign above it
-  p.rect(1, 10, 5, 12, P.navy);
-  p.line(2, 20, 4, 12, P.blue);
+  // the windscreen at the front (west), the driver behind it, the destination sign above it.
+  // At night the glass is black with only the sky's 1px on it (52 10.6).
+  const GLASS = lit ? P.navy : P.night;
+  const SKY = lit ? P.blue : P.nightShade;
+  p.rect(1, 10, 6, 12, GLASS);
+  p.line(2, 20, 5, 12, SKY);
   if (lit) {
     // the morning: cap on, driving
     p.rect(3, 13, 3, 2, P.navy);
     p.hline(2, 5, 15, P.navy);
-    p.rect(3, 16, 3, 4, P.aqua);
+    p.set(3, 16, P.skin3);
+    p.rect(3, 17, 3, 4, P.aqua);
   } else {
-    // h0–h2: asleep in his seat, the cap over his face (only its brim shows, 1px)
-    p.rect(3, 15, 3, 5, mix(P.navy, P.shadeDeep, 0.4));
-    p.hline(2, 5, 15, P.navy);
-    p.set(5, 14, P.blue);
+    // h0–h2: asleep in his seat, leaning back, the cap over his face:
+    // the cap's crown and its brim tipped up, the shoulders of the uniform
+    p.rect(4, 13, 3, 2, P.shadeDeep); // the cap over the face
+    p.set(3, 14, P.shadeDeep);
+    p.set(6, 12, P.nightShade); // the brim, tipped up
+    p.set(5, 12, P.nightShade);
+    p.rect(3, 15, 3, 1, mix(P.skin4, P.night, 0.55)); // the chin under it
+    p.rect(2, 16, 5, 5, mix(P.navy, P.night, 0.5)); // the shoulders, slumped
+    p.set(2, 16, P.nightShade);
   }
   p.rect(2, 9, 16, 4, P.charcoal);
   if (lit) fontTextSmall(p, 'ユウナリ前', 2, 6, P.horizon);
@@ -244,16 +253,21 @@ function busSide(lit: boolean): HTMLCanvasElement {
   p.rect(8, 15, 2, 7, P.navy);
   p.rect(12, 15, 2, 7, P.navy);
   p.hline(7, 14, 32, P.steel);
-  // six windows
+  // six windows: black at night with a 1px of the sky along the top (a star in one), glass by day
   for (let k = 0; k < 6; k++) {
     const x = 17 + k * 7;
-    p.rect(x, 13, 6, 8, P.navy);
-    p.hline(x, x + 5, 13, P.blue);
-    p.set(x + 1, 14, P.aqua);
+    p.rect(x, 13, 6, 8, GLASS);
+    p.hline(x, x + 5, 13, SKY);
+    if (lit) p.set(x + 1, 14, P.aqua);
+    else if (k === 2 || k === 5) p.set(x + 3 + (k & 1), 15, P.lilac);
   }
+  // a notice taped inside the second window (the timetable's 1日2本)
+  p.rect(25, 16, 3, 4, lit ? P.white : P.concrete);
+  // the lower body in its own shade under the band, the bumpers
+  p.rect(1, 26, W - 2, 4, mix(BODY, P.shade, 0.22));
+  p.hline(1, W - 2, 29, mix(BODY, P.shade, 0.35));
   // 「村営バス」 under the windows
   fontTextSmall(p, '村営バス', 22, 25, P.leafShade);
-  // the lower body, the bumpers
   p.rect(1, 30, W - 2, 3, P.concrete);
   p.hline(1, W - 2, 32, P.steel);
   p.rect(0, 28, 2, 5, P.steel);

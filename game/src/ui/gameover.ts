@@ -230,14 +230,19 @@ function drawNightPicture(ctx: CanvasRenderingContext2D, ox: number, oy: number,
       const v = x - y;
       const lane = u % 5;
       const stroke = Math.floor(u / 5);
-      // on the dark crayon the paper shows through less (it's pressed harder)
-      if (lane === 0 && hash2(stroke, Math.floor(v / 9), 33) < 0.22) continue;
-      put(x, y, colorAt(x, y), lane === 2 ? 0.92 : 0.95 + hash2(stroke, Math.floor(v / 13), 9) * 0.05);
+      // on the dark crayon the paper hardly shows through (it's pressed harder): where a stroke
+      // skipped, a lighter violet grain instead of white — a night sky, not rain
+      if (lane === 0 && hash2(stroke, Math.floor(v / 9), 33) < 0.11) {
+        put(x, y, colorAt(x, y));
+        if (y < horizon) put(x, y, y < 24 ? '#3A2B5C' : '#7A5AA0', 0.45);
+        continue;
+      }
+      put(x, y, colorAt(x, y), lane === 2 ? 0.96 : 0.97 + hash2(stroke, Math.floor(v / 13), 9) * 0.03);
     }
   // stars: yellow crayon crosses, one bigger that doesn't twinkle (the morning star)
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 24; i++) {
     const x = 6 + Math.floor(hash2(i, 1, 61) * (w - 12));
-    const y = 3 + Math.floor(hash2(i, 2, 61) * 22);
+    const y = 3 + Math.floor(hash2(i, 2, 61) * 24);
     put(x, y, '#F6D98A');
     if (i % 3 === 0) {
       put(x - 1, y, '#F6D98A', 0.7);

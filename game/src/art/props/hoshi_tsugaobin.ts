@@ -233,33 +233,77 @@ registerProp('prop_h_deli_note', (opts) => {
   return { ...art, oy: art.oy - 4, foot: 19 };
 });
 
-/** The vegetables left on the stand (6×6): 1 red tomatoes, 2 aubergines, 3 shishito, 5 a kabocha. */
+/**
+ * The vegetables left on a stand (52 3.5): a thin white produce bag, its
+ * handles tied, the vegetables showing through the film and out of its
+ * mouth — a different share at each house: 1 tomatoes and shishito, 2
+ * aubergines and a tomato, 3 a bunch of shishito and an aubergine, 4 a
+ * small kabocha beside a bag of tomatoes.
+ */
 registerProp('prop_h_deli_bag', (opts) => {
   const n = Number(opts.n ?? 1);
+  const FILM = (c: string) => mix(c, P.white, 0.28); // seen through the bag
+  const tomato = (p: PixelCanvas, x: number, y: number, film = true) => {
+    const f = film ? FILM : (c: string) => c;
+    p.rect(x, y, 3, 3, f('#E84E3C'));
+    p.set(x, y, f('#FF6A4D'));
+    p.set(x + 2, y + 2, f(P.vermShade));
+    p.set(x + 1, y, f(P.leafDeep)); // the calyx
+  };
+  const nasu = (p: PixelCanvas, x: number, y: number, len: number, film = true) => {
+    const f = film ? FILM : (c: string) => c;
+    for (let k = 0; k < len; k++) {
+      p.set(x + (k > len - 3 ? 1 : 0), y + k, f(k === 0 ? P.leafShade : '#4A2E5C'));
+      p.set(x + 1 + (k > len - 3 ? 1 : 0), y + k, f(k === 0 ? P.leafDeep : k === 1 ? '#7A5AA0' : '#5B3A6E'));
+    }
+  };
+  const shishito = (p: PixelCanvas, x: number, y: number, film = true) => {
+    const f = film ? FILM : (c: string) => c;
+    p.line(x, y, x + 1, y + 4, f(P.leaf));
+    p.set(x, y, f(P.leafShade));
+    p.set(x + 1, y + 3, f(P.leafYoung));
+  };
   return standProp(
-    8,
-    8,
+    12,
+    12,
     (p) => {
-      // a clear plastic bag, the vegetables showing through
-      p.rect(1, 2, 6, 6, mix(P.white, P.concrete, 0.4));
-      p.hline(2, 5, 1, P.white);
-      if (n === 1)
-        for (const [x, y] of [[2, 3], [4, 3], [3, 5]] as const) {
-          p.rect(x, y, 2, 2, '#E84E3C');
-          p.set(x, y, '#FF6A4D');
+      // the bag: white film, its folds shaded, the tied handles on top
+      const x0 = n === 4 ? 1 : 2;
+      for (let j = 4; j < 12; j++)
+        for (let i = x0; i < x0 + 8; i++) {
+          const edge = i === x0 || i === x0 + 7 || j === 11;
+          p.set(i, j, edge ? P.concrete : (i + j) % 5 === 0 ? P.concreteLt : P.white);
         }
-      else if (n === 2) {
-        p.rect(2, 3, 2, 4, '#7A5AA0');
-        p.rect(4, 4, 2, 3, '#7A5AA0');
-        p.set(2, 3, P.lilac);
-        p.set(3, 2, P.leafShade);
-      } else if (n === 3)
-        for (let k = 0; k < 4; k++) p.line(2 + k, 6, 3 + k, 3, k % 2 ? P.leaf : P.leafDeep);
-      else {
-        p.rect(2, 3, 5, 4, '#3F6A3A');
-        p.set(3, 4, P.brass);
-        p.set(5, 5, P.brass);
-        p.set(4, 2, P.woodDark);
+      if (n === 1) {
+        tomato(p, x0 + 1, 7);
+        tomato(p, x0 + 4, 8);
+        shishito(p, x0 + 4, 3, false);
+        shishito(p, x0 + 5, 4, false);
+      } else if (n === 2) {
+        nasu(p, x0 + 1, 3, 7, false);
+        nasu(p, x0 + 4, 4, 6, false);
+        tomato(p, x0 + 3, 8);
+      } else if (n === 3) {
+        for (let k = 0; k < 4; k++) shishito(p, x0 + 1 + k, 3 + (k & 1), k > 1);
+        nasu(p, x0 + 5, 5, 6);
+      } else {
+        tomato(p, x0 + 1, 6);
+        tomato(p, x0 + 4, 7);
+        tomato(p, x0 + 2, 8);
+      }
+      // the mouth of the bag and the knot of the handles
+      p.hline(x0 + 1, x0 + 6, 4, P.concreteLt);
+      p.set(x0 + 2, 3, P.white);
+      p.set(x0 + 5, 3, P.white);
+      p.set(x0 + 3, 2, P.concrete);
+      p.set(x0 + 4, 2, P.white);
+      if (n === 4) {
+        // a small kabocha beside the bag: dark green with pale specks, its stalk
+        p.ellipse(10, 9, 2, 2, '#3F6A3A');
+        p.set(9, 8, '#5A8A4A');
+        p.set(11, 10, P.brass);
+        p.set(9, 10, P.brass);
+        p.set(10, 6, P.woodDark);
       }
     },
     { cx: 7, base: 14, foot: 19, shadow: 4 },

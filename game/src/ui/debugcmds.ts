@@ -3,7 +3,23 @@
 import { registerDebug } from '../debug';
 import { game } from '../engine/game';
 import { ask, caption, choose, say } from './dialog';
-import { choreCardShowing, completeChoreCard, hideChoreCard, notifyItem, setChoreCount, showCallBubble, showChoreCard, showClock, showPlaceName, skipItemCard, uiHud } from './hud';
+import {
+  choreCardShowing,
+  completeChoreCard,
+  deliveryCardShowing,
+  hideChoreCard,
+  hideDeliveryCard,
+  notifyItem,
+  setChoreCount,
+  setDeliveryCount,
+  showCallBubble,
+  showChoreCard,
+  showClock,
+  showDeliveryCard,
+  showPlaceName,
+  skipItemCard,
+  uiHud,
+} from './hud';
 import { openMenu } from './menu';
 import { showTitle } from './title';
 import { openShop } from './shop';
@@ -18,7 +34,7 @@ import { field } from '../world/field';
 import { allItems, getEnemy, getSkill, HANKO_CASE_ORDER, PR_ORDER } from '../data/battle';
 import { fitWrap, phraseWrapInfo, textW } from './window';
 import { FOLD, LP, RP, SP } from './menu/notebook';
-import { BOOK2_ENEMIES, BOOK_ENEMIES, FUSHIGI2_BOOK, FUSHIGI_BOOK, pressedText, pressedText2, TSUKKOMI2_ENEMIES, TSUKKOMI_ENEMIES } from './menu/book';
+import { BOOK2_ENEMIES, BOOK_ENEMIES, FUSHIGI2_BOOK, FUSHIGI_BOOK, fushigiPageFit, pressedText, pressedText2, TSUKKOMI2_ENEMIES, TSUKKOMI_ENEMIES } from './menu/book';
 import { W } from '../engine/screen';
 import type { Scene } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
@@ -176,37 +192,39 @@ registerDebug('bubble', (id = 'player', text = 'まいど！') => showBubble(id,
  * the place it is shown. Reports texts that need more lines than there are,
  * lines wider than the column, and breaks that fell between characters.
  */
-registerDebug('wrap', (text: string, w = 144) => phraseWrapInfo(text, w));
+registerDebug('wrap', (text: string, w = 144, glue = false) => phraseWrapInfo(text, w, { glue: !!glue }));
 registerDebug('wrapCheck', () => {
   const issues: string[] = [];
   let n = 0;
-  const check = (where: string, text: string, w: number, maxLines: number) => {
+  const check = (where: string, text: string, w: number, maxLines: number, glue = false) => {
     if (!text) return;
     n++;
-    const { lines, forced } = phraseWrapInfo(text, w);
+    const { lines, forced } = phraseWrapInfo(text, w, { glue });
     const wide = lines.filter((l) => textW(l) > w + (/[、。]$/.test(l) ? 8 : /[！？」』）]$/.test(l) ? 16 : 0));
     if (lines.length > maxLines || forced || wide.length) issues.push(`${where}: ${lines.join('／')} (${lines.length}/${maxLines} lines${forced ? `, ${forced} forced` : ''}${wide.length ? ', too wide' : ''})`);
   };
   const shopW = W - 16 - 18 - 12;
   for (const it of allItems()) {
     const flavor = it.key ? it.desc[0] + (it.desc[1] ? '\n' + it.desc[1] : '') : it.desc[0];
-    check(`もちもの ${it.name}`, flavor, RP.w - 2, 4);
-    if (!it.key) check(`もちもの ${it.name} 効果`, it.desc[1], RP.w - 6, 3);
+    check(`もちもの ${it.name}`, flavor, RP.w - 2, 4, true);
+    if (!it.key) check(`もちもの ${it.name} 効果`, it.desc[1], RP.w - 6, 3, true);
     if (!it.key) {
-      const f = phraseWrapInfo(it.desc[0], shopW).lines.length;
-      const e = phraseWrapInfo(it.desc[1], shopW).lines.length;
+      const f = phraseWrapInfo(it.desc[0], shopW, { glue: true }).lines.length;
+      const e = phraseWrapInfo(it.desc[1], shopW, { glue: true }).lines.length;
       if (f + e > 3) issues.push(`ショップ ${it.name}: ${f}+${e} lines > 3`);
-      check(`ショップ ${it.name}`, it.desc[0], shopW, 2);
+      check(`ショップ ${it.name}`, it.desc[0], shopW, 2, true);
     }
   }
   const labelW = FOLD - 4 - (LP.x + 14);
   FUSHIGI_BOOK.forEach(([title], i) => {
     check(`ふしぎ${i + 1} 一覧`, title, labelW, 2);
     check(`ふしぎ${i + 1} 題`, title, RP.w, 2);
-    // the page body may set a too-long word a little tighter instead of splitting it
+    // the page body may set a too-long word a little tighter instead of splitting it; what fits is
+    // what the page has left under the title and the place (the page's own sums)
     const body = fitWrap(pressedText(i), RP.w);
+    const fit = fushigiPageFit(title, FUSHIGI_BOOK[i][1], pressedText(i));
     n++;
-    if (body.length > 4) issues.push(`ふしぎ${i + 1} 本文: ${body.map((l) => l.text).join('／')} (${body.length}/4 lines)`);
+    if (fit.body > fit.room) issues.push(`ふしぎ${i + 1} 本文: ${body.map((l) => l.text).join('／')} (${fit.body}/${fit.room} lines)`);
     if (phraseWrapInfo(pressedText(i), RP.w).forced && body.every((l) => !l.spacing)) issues.push(`ふしぎ${i + 1} 本文: forced break`);
   });
   for (const id of BOOK_ENEMIES) {
@@ -222,8 +240,9 @@ registerDebug('wrapCheck', () => {
     check(`②ふしぎ${i + 1} 一覧`, title, labelW, 2);
     check(`②ふしぎ${i + 1} 題`, title, RP.w, 2);
     const body = fitWrap(pressedText2(i), RP.w);
+    const fit = fushigiPageFit(title, FUSHIGI2_BOOK[i][1], pressedText2(i));
     n++;
-    if (body.length > 4) issues.push(`②ふしぎ${i + 1} 本文: ${body.map((l) => l.text).join('／')} (${body.length}/4 lines)`);
+    if (fit.body > fit.room) issues.push(`②ふしぎ${i + 1} 本文: ${body.map((l) => l.text).join('／')} (${fit.body}/${fit.room} lines)`);
   });
   for (const id of BOOK2_ENEMIES) {
     const e = getEnemy(id);
@@ -306,11 +325,11 @@ registerDebug('cut', (id = 'village', cue = 0) => {
   }
   if (id === 'sunriseplay') return id;
   if (id.startsWith('tsugao')) {
-    game.push(tsugaoStill(Math.max(0, Math.min(5, Number(id.slice(6)) || 0)) as 0 | 1 | 2 | 3 | 4 | 5));
+    game.push(tsugaoStill(Math.max(0, Math.min(8, Number(id.slice(6)) || 0))));
     return id;
   }
   const f = id === 'village' ? drawVillageLit : null;
-  if (!f) return ['village', 'sunrise0', 'sunrise1', 'sunrise2', 'dawn', 'tsugao0', 'tsugao1', 'tsugao2', 'tsugao3', 'tsugao4', 'tsugao5'];
+  if (!f) return ['village', 'sunrise0', 'sunrise1', 'sunrise2', 'dawn', 'tsugao0', 'tsugao1', 'tsugao2', 'tsugao3', 'tsugao4', 'tsugao5', 'tsugao6', 'tsugao7', 'tsugao8'];
   game.push(new CutPreview(f, cue));
   return id;
 });
@@ -368,6 +387,23 @@ registerDebug('chore', (n: number | 'done' | 'hide' = 0) => {
   }
   setChoreCount(0, Math.min(6, n));
   setChoreCount(1, Math.max(0, n - 6));
+  return n;
+});
+
+/** QA: the おとどけ strip — `n` parcels delivered (5: 軽トラへ and 「済」), 'close' as 〔しめ〕 closes it, 'hide'. */
+const DELI_STOPS = ['タケじい', 'エー区長', 'スギばあ', '集会所', 'トマじい'];
+registerDebug('deli', (n: number | 'close' | 'hide' = 0) => {
+  if (n === 'hide') {
+    hideDeliveryCard();
+    return 'hide';
+  }
+  if (n === 'close') {
+    setFlag('flag_ch2_delivery', 1);
+    return 'close';
+  }
+  setFlag('flag_ch2_delivery', 0);
+  if (!deliveryCardShowing()) showDeliveryCard({ total: 5, next: DELI_STOPS[0] });
+  setDeliveryCount(n, DELI_STOPS[n] ?? '');
   return n;
 });
 

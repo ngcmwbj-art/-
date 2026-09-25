@@ -16,7 +16,7 @@
 
 import type { Gfx } from '../../engine/gfx';
 import type { Input } from '../../engine/input';
-import { charWidth } from '../../engine/font';
+import { charWidth, drawText, measure } from '../../engine/font';
 import { makeCanvas } from '../../engine/pixel';
 import { hash2 } from '../../engine/rng';
 import { ease } from '../../engine/tween';
@@ -24,6 +24,7 @@ import { flag, state } from '../../game/state';
 import { getEnemy } from '../../data/battle';
 import { sfx } from '../../audio';
 import { charSprite, hasChar, idleFrame } from '../../art/chars';
+import { enemyArt } from '../../art/enemies';
 import { hanamaruFrame, kakimojiSmall, ovalStamp } from '../../battle/art/stamps';
 import { getFushigi } from '../../world/fushigi';
 import { digitsWidth, drawDigits } from '../digits';
@@ -251,25 +252,31 @@ export function hasBook2(): boolean {
 // ---- covers ---------------------------------------------------------------------------------
 
 const COVER = { w: 148, h: 176 };
+/** Room above the cover in its canvas (the feather sticks out over the top edge). */
+export const COVER_TOP = 4;
 const coverCache = new Map<string, HTMLCanvasElement>();
 
 /**
- * A notebook's cover (148×176): cloth in the notebook's colour with a
- * darker binding strip, a paper title label with the title written in by
- * hand, the class and name line under it. ② has its stickers — a red
- * tomato (10×10) and a gold star (7×7) — and, once chapter 2 is finished,
- * its long title and a 朱 はなまる.
+ * A notebook's cover (148×176, drawn COVER_TOP below its canvas's top): cloth
+ * in the notebook's colour with a darker binding strip, a paper title label
+ * sized to what is printed on it, the title written in by hand, the class
+ * and the name on two lines under it. ② has its stickers — a red tomato
+ * (10×10) and a gold star (7×7) — and, once chapter 2 is finished, its long
+ * title and a 朱 はなまる; the barn work adds the yellow ear tag sticker
+ * (`tag`), the vegetable delivery ぴーちゃん's white feather (`feather`),
+ * tucked in at the top right and sticking out 3px over the edge (52 13.2).
  */
-export function bookCover(vol: 1 | 2, done: boolean, tag = false): HTMLCanvasElement {
-  const key = `${vol}:${done}:${tag}`;
+export function bookCover(vol: 1 | 2, done: boolean, tag = false, feather = false): HTMLCanvasElement {
+  const key = `${vol}:${done}:${tag}:${feather}`;
   let c = coverCache.get(key);
   if (c) return c;
   const { w, h } = COVER;
-  const [cv, ctx] = makeCanvas(w + 3, h + 3);
+  const T = COVER_TOP;
+  const [cv, ctx] = makeCanvas(w + 3, h + 3 + T);
   const r = (x: number, y: number, ww: number, hh: number, col: string, a = 1) => {
     ctx.globalAlpha = a;
     ctx.fillStyle = col;
-    ctx.fillRect(x, y, ww, hh);
+    ctx.fillRect(x, y + T, ww, hh);
     ctx.globalAlpha = 1;
   };
   const base = vol === 1 ? '#2F4A8A' : '#2E6B4A';
@@ -292,49 +299,53 @@ export function bookCover(vol: 1 | 2, done: boolean, tag = false): HTMLCanvasEle
   r(1, 1, 16, h - 2, dark);
   r(16, 1, 1, h - 2, UI.border, 0.35);
   for (let y = 8; y < h - 6; y += 10) r(8, y, 2, 4, light);
-  // the paper title label
-  const lx = 28;
-  const ly = 30;
-  const lw = w - 40;
-  const lh = 58;
+  // the paper title label: as wide as its printed line (「じゆうけんきゅう」, set tight) and its margins
+  const PRINTED = 'じゆうけんきゅう';
+  const printedW = measure(PRINTED, -2);
+  const lw = printedW + 8;
+  const lx = Math.round(17 + (w - 17 - lw) / 2);
+  const ly = 26;
+  const lh = 66;
   r(lx - 1, ly - 1, lw + 2, lh + 2, UI.border);
   r(lx, ly, lw, lh, '#FBF7EC');
   r(lx + 2, ly + 2, lw - 4, 1, base);
   r(lx + 2, ly + lh - 3, lw - 4, 1, base);
   r(lx, ly, lw, 1, '#FFFFFF');
-  // printed 「じゆうけんきゅう」 small and the class / name line
-  const kx = lx + 6;
-  ctx.globalAlpha = 1;
-  drawSmall(ctx, 'じゆうけんきゅう', kx, ly + 6, base);
-  // hand-written title (pencil, doubled 1px like the ending's cover)
+  drawText(ctx, PRINTED, lx + 4, ly + 3 + T, { color: base, spacing: -2 });
+  // hand-written title (pencil, doubled 1px like the ending's cover), a line apart
   const lines = vol === 1 ? ['夕鳴町', 'みました帳 ①'] : done ? ['星見台', 'みました帳 ②'] : ['', 'みました帳 ②'];
   lines.forEach((l, i) => {
     if (!l) return;
     const tw = textW(l);
     let x = Math.round(lx + lw / 2 - tw / 2);
-    const y = ly + 18 + i * 18 - (lines[0] ? 0 : 8);
+    const y = ly + 24 + i * 20 - (lines[0] ? 0 : 10);
     [...l].forEach((ch, j) => {
       const dy = [0, 1, 0, -1, 0, 1][j % 6];
-      ctxText(ctx, ch, x, y + dy, UI.pencil);
-      ctxText(ctx, ch, x + 1, y + dy, UI.pencil);
+      ctxText(ctx, ch, x, y + dy + T, UI.pencil);
+      ctxText(ctx, ch, x + 1, y + dy + T, UI.pencil);
       x += charWidth(ch);
     });
   });
-  r(lx + 44, ly + lh + 18, lw - 44, 1, light);
-  drawSmall(ctx, '5年2組', lx, ly + lh + 8, '#FBF3DC');
-  drawSmall(ctx, '潮見 ミナト', lx + 46, ly + lh + 7, '#FBF3DC');
+  // the class, and the name on the line under it (written on a ruled line)
+  const cy = ly + lh + 6;
+  drawSmall(ctx, '5年2組', lx + 2, cy + T, '#FBF3DC');
+  const name = '潮見 ミナト';
+  const nx = lx + lw - textW(name) - 2;
+  drawSmall(ctx, name, nx, cy + 18 + T, '#FBF3DC');
+  r(nx - 4, cy + 35, lx + lw - nx + 4, 1, light);
   if (vol === 2) {
     // a red tomato sticker and a gold star sticker, a little crooked
-    ctx.drawImage(stickerTomato(), lx + lw - 8, ly - 7);
-    ctx.drawImage(stickerStar(), 22, h - 36);
-    if (tag) ctx.drawImage(stickerEarTag(), 32, h - 30);
+    ctx.drawImage(stickerTomato(), lx + lw - 9, ly - 7 + T);
+    ctx.drawImage(stickerStar(), 22, h - 30 + T);
+    if (tag) ctx.drawImage(stickerEarTag(), 32, h - 24 + T);
     if (done) {
       // the teacher's 朱 はなまる, pressed at the bottom right
       const hm = hanamaruFrame(30, 1, false, 2);
       ctx.globalAlpha = 0.95;
-      ctx.drawImage(hm, w - 42, h - 44);
+      ctx.drawImage(hm, w - 40, h - 36 + T);
       ctx.globalAlpha = 1;
     }
+    if (feather) ctx.drawImage(featherImg(), w - 14, 0);
   } else {
     // ① has seen a summer: a scuffed corner and a faded strip where the hand holds it
     r(w - 10, h - 10, 8, 8, light, 0.35);
@@ -343,6 +354,33 @@ export function bookCover(vol: 1 | 2, done: boolean, tag = false): HTMLCanvasEle
   c = cv;
   coverCache.set(key, c);
   return c;
+}
+
+let featherC: HTMLCanvasElement | null = null;
+/**
+ * ぴーちゃんの羽 (52 13.2): a small white feather (4×10, #F4F1E8, its shade
+ * #C8C2B4, the shaft a 1px #C8A06A line), leaning a little, drawn from the
+ * canvas top so its tip sticks out 3px over the cover's edge.
+ */
+function featherImg(): HTMLCanvasElement {
+  if (featherC) return featherC;
+  const rows = ['..w.', '.ww.', '.wwd', 'wwcd', 'wwcd', 'wcwd', 'wcwd', 'wcd.', '.c..', 'c...'];
+  const pal: Record<string, string> = { w: '#F4F1E8', d: '#C8C2B4', c: '#C8A06A' };
+  const [c, ctx] = makeCanvas(4, rows.length + 1);
+  rows.forEach((row, y) =>
+    [...row].forEach((ch, x) => {
+      if (ch === '.') return;
+      ctx.fillStyle = pal[ch];
+      ctx.fillRect(x, y + 1, 1, 1);
+    }),
+  );
+  featherC = c;
+  return c;
+}
+
+/** The vegetable delivery is done: ② has ぴーちゃん's feather. */
+export function hasFeather(): boolean {
+  return flag('flag_ch2_delivery') > 0 || flag('flag_ch2_piichan_feather') > 0;
 }
 
 function drawSmall(ctx: CanvasRenderingContext2D, s: string, x: number, y: number, color: string): void {
@@ -375,7 +413,8 @@ let earTagC: HTMLCanvasElement | null = null;
  */
 export function stickerEarTag(): HTMLCanvasElement {
   if (earTagC) return earTagC;
-  const rows = ['.oooooooo.', 'oYYYhYYYYo', 'oYYYYYYYYo', 'oYkkkkkkYo', 'oYYYYYYYYo', 'oYkkkkkYdo', 'oYYYYYYddo', '.oooooooo.'];
+  // a round-topped trapezoid (the tag's neck), the hole it hangs by, two lines of number you can't read
+  const rows = ['...oooo...', '..oYhYYo..', '.oYYYYYdo.', 'oYkkkkkkYo', 'oYYYYYYYdo', 'oYkkkkkYdo', 'oYYYYYYddo', '.oooooooo.'];
   const pal: Record<string, string> = { o: '#B8862A', Y: '#FFD23F', h: '#6A4A1A', k: '#2A2440', d: '#D9A441' };
   const [c, ctx] = makeCanvas(10, 8);
   rows.forEach((row, y) =>
@@ -420,7 +459,7 @@ const LABEL_W = FOLD - 4 - (LP.x + 14);
 const FLAG_Y = [SP.y + 34, SP.y + 50];
 /** Changing notebooks: the cover lies there, then opens. */
 const COVER_IN = 110;
-const COVER_HOLD = 300;
+const COVER_HOLD = 600;
 const COVER_OPEN = 230;
 
 interface Row {
@@ -455,7 +494,7 @@ export class BookPage implements MenuPage {
 
   private opened = false;
 
-  show(): void {
+  show(m: MenuCtx): void {
     // the notebook of the chapter being played is the one on top when the menu opens
     if (!this.opened) {
       this.opened = true;
@@ -463,12 +502,28 @@ export class BookPage implements MenuPage {
       this.sec = 0;
     }
     if (!hasBook2()) this.vol = 1;
+    // with two notebooks (chapter 2 on), the one on top lies closed on its cover — its
+    // stickers showing — until the cursor goes in (chapter 1's page opens as it always did)
+    this.closed = hasBook2();
+    this.shownAt = m.t;
   }
 
-  enter(): boolean {
+  enter(m: MenuCtx): boolean {
     if (!hasBook2()) this.vol = 1;
+    // opened: the cover turns over (after it has been seen for half a second at least)
+    if (this.closed) {
+      this.closed = false;
+      this.fromVol = this.vol;
+      const seen = m.t - this.shownAt;
+      this.volT = COVER_IN + Math.max(0, COVER_HOLD - Math.max(0, 500 - seen));
+      sfx('se_page', { pitch: 0.9 });
+    }
     return true;
   }
+
+  /** Lying closed on its cover (the tab is showing, the cursor not in it yet), since the menu's `shownAt`. */
+  private closed = false;
+  private shownAt = 0;
 
   private count(): number {
     const v = this.v;
@@ -479,6 +534,8 @@ export class BookPage implements MenuPage {
     this.moveT += dt;
     this.secT += dt;
     this.volT += dt;
+    // a key while the cover still lies there opens it at once
+    if (this.volT < COVER_IN + COVER_HOLD && (input.pressed('confirm') || input.pressed('up') || input.pressed('down'))) this.volT = COVER_IN + COVER_HOLD;
     if (input.repeat('right')) this.turn(1);
     else if (input.repeat('left')) this.turn(-1);
     else if (input.pressed('dash') && hasBook2()) this.swap(this.vol === 1 ? 2 : 1, 0);
@@ -541,7 +598,7 @@ export class BookPage implements MenuPage {
       this.drawList(g, m);
       this.drawDetail(g, m);
     });
-    this.drawCoverSwap(g);
+    this.drawCoverSwap(g, m);
   }
 
   drawBehind(g: Gfx, m: MenuCtx): void {
@@ -593,12 +650,18 @@ export class BookPage implements MenuPage {
    * The other notebook's cover is laid over the left page (0.11 s), rests
    * a moment and is opened like a page (0.23 s) onto the new index.
    */
-  private drawCoverSwap(g: Gfx): void {
+  private drawCoverSwap(g: Gfx, m: MenuCtx): void {
+    const img = bookCover(this.vol, !!flag('flag_ch2_clear'), this.vol === 2 && hasEarTag(), this.vol === 2 && hasFeather());
+    const x0 = SP.x + 5;
+    const y0 = SP.y + 6 - COVER_TOP;
+    if (this.closed && !m.focus) {
+      // lying closed: it slides in once, then stays
+      const k = ease.cubicOut(Math.min(1, (m.t - this.shownAt) / COVER_IN));
+      g.img(img, x0 + Math.round((1 - k) * 18), y0 + Math.round((1 - k) * 4), { alpha: k });
+      return;
+    }
     const t = this.volT;
     if (t >= COVER_IN + COVER_HOLD + COVER_OPEN) return;
-    const img = bookCover(this.vol, !!flag('flag_ch2_clear'), this.vol === 2 && hasEarTag());
-    const x0 = SP.x + 5;
-    const y0 = SP.y + 6;
     if (t < COVER_IN) {
       const k = ease.cubicOut(t / COVER_IN);
       g.img(img, x0 + Math.round((1 - k) * 18), y0 + Math.round((1 - k) * 4), { alpha: k });
@@ -900,7 +963,91 @@ function drawBoarGoingHome(g: Gfx, x: number, by: number, t: number): void {
 }
 
 function sprite(id: string, t: number): HTMLCanvasElement | null {
-  if (!hasChar(id)) return null;
-  const s = charSprite(id);
-  return idleFrame(s, 'down', t);
+  if (hasChar(id)) return idleFrame(charSprite(id), 'down', t);
+  return battleSketch(id);
+}
+
+/**
+ * How a ふしぎ's page lays out (the same sums as the page's drawing): the
+ * lines its stamped text takes, and how many fit under the title and the
+ * place (at the tightest line spacing the page uses, 15px). QA's wrapCheck
+ * asks this, so it flags exactly what the page would cut.
+ */
+export function fushigiPageFit(title: string, place: string, pressed: string): { body: number; room: number } {
+  const w = RP.w;
+  let y = SP.y + 28;
+  y += wrap(title, w).length * 17 + 1 + 4;
+  y += 6 + fitWrap(place, w - 8).slice(0, 2).length * 16;
+  const bottom = SP.y + SP.h - 10;
+  return { body: fitWrap(pressed, w).length, room: Math.floor((bottom - y) / 15) };
+}
+
+const sketchCache = new Map<string, HTMLCanvasElement | null>();
+/**
+ * While the field sprite of a chapter 2 enemy isn't there yet: the page
+ * still shows it. 「思いだした姿」 (restored_*) is the battle's own small
+ * restored object; the enemy itself a pencil sketch of its battle figure —
+ * its outline shape filled with pencil hatching, scaled to fit 40×40.
+ */
+function battleSketch(id: string): HTMLCanvasElement | null {
+  if (sketchCache.has(id)) return sketchCache.get(id)!;
+  let out: HTMLCanvasElement | null = null;
+  const restored = id.startsWith('restored_');
+  const art = enemyArt(restored ? id.slice(9) : id);
+  if (art && restored) out = art.restored();
+  else if (art) {
+    const src = art.frame({ pose: 'idle', t: 0, gt: 0, hpRate: 1, flags: {} });
+    const [sc, sctx] = makeCanvas(src.width, src.height, { willReadFrequently: true });
+    sctx.drawImage(src, 0, 0);
+    const d = sctx.getImageData(0, 0, src.width, src.height).data;
+    let x0 = src.width;
+    let y0 = src.height;
+    let x1 = -1;
+    let y1 = -1;
+    for (let y = 0; y < src.height; y++)
+      for (let x = 0; x < src.width; x++)
+        if (d[(y * src.width + x) * 4 + 3] > 40) {
+          x0 = Math.min(x0, x);
+          y0 = Math.min(y0, y);
+          x1 = Math.max(x1, x);
+          y1 = Math.max(y1, y);
+        }
+    if (x1 >= 0) {
+      const bw = x1 - x0 + 1;
+      const bh = y1 - y0 + 1;
+      const k = Math.min(1, 40 / bw, 40 / bh);
+      const w = Math.max(1, Math.round(bw * k));
+      const h = Math.max(1, Math.round(bh * k));
+      // the figure's shape at the small size (a pixel is in when most of what it covers is)
+      const inside = (px: number, py: number) => {
+        let n = 0;
+        let on = 0;
+        for (let yy = Math.floor(py / k); yy < Math.ceil((py + 1) / k); yy++)
+          for (let xx = Math.floor(px / k); xx < Math.ceil((px + 1) / k); xx++) {
+            n++;
+            if (d[((y0 + yy) * src.width + x0 + xx) * 4 + 3] > 40) on++;
+          }
+        return on * 2 > n;
+      };
+      const [c, ctx] = makeCanvas(w + 2, h + 2);
+      const set = (x: number, y: number, col: string) => {
+        ctx.fillStyle = col;
+        ctx.fillRect(x, y, 1, 1);
+      };
+      const m: boolean[] = [];
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) m[y * w + x] = inside(x, y);
+      const at = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && m[y * w + x];
+      for (let y = 0; y < h; y++)
+        for (let x = 0; x < w; x++) {
+          if (!at(x, y)) continue;
+          const edge = !at(x - 1, y) || !at(x + 1, y) || !at(x, y - 1) || !at(x, y + 1);
+          // the pencil line round it, and diagonal hatching inside
+          if (edge) set(x + 1, y + 1, UI.pencil);
+          else if ((x + y) % 3 === 0) set(x + 1, y + 1, '#B5AAC8');
+        }
+      out = c;
+    }
+  }
+  sketchCache.set(id, out);
+  return out;
 }

@@ -447,6 +447,20 @@ registerProp('prop_h_house_shell', () => {
     foot: 0,
     flat: true,
     img: (env) => (hs(env) >= 3 ? (day ??= houseShell(true).toCanvas()) : night),
+    light(g, x, y, env) {
+      // the morning coming in through the rolled-up side (ending cut 2b)
+      const e = houseDawnMs(env);
+      if (e < 0) return;
+      const k = Math.max(0, Math.min(4, Math.floor((e - ROLL_AT) / 100) + 1));
+      if (k <= 0) return;
+      const ex = x + 8 * 16;
+      const yTop = y + 17 * 16 - Math.round((17 * 16 - 8 * 16) * (k / 4));
+      const yBot = y + 17 * 16;
+      for (let j = yTop; j < yBot; j += 2) {
+        const x0 = Math.max(x + 17, ex - 72 + Math.round((yBot - j) * 0.3));
+        g.rect(x0, j, ex - x0 + 16, 2, 'rgb(255,214,140)', 0.42 * (k / 4));
+      }
+    },
     over(g, x, y, env) {
       const e = houseDawnMs(env);
       if (e >= 0) {
@@ -462,11 +476,15 @@ registerProp('prop_h_house_shell', () => {
           // the rolled film tube, now at the top of the opening
           g.rect(ex + 5, yTop - 3, 11, 3, P.concreteLt);
           g.rect(ex + 5, yTop - 1, 11, 1, P.steel);
-          // the light across the floor (#FFE7A3 α30%): a parallelogram from the opening, its west edge slanting
-          const a = 0.3 * (k / 4);
+          // the light across the floor (#FFE7A3 α30%): a parallelogram from
+          // the opening, its west edge slanting and dithered (the light map
+          // adds the same shape, so the plants standing in it are lit too)
+          const a = 0.18 * (k / 4);
           for (let j = yTop; j < yBot; j += 2) {
             const x0 = Math.max(x + 17, ex - 72 + Math.round((yBot - j) * 0.3));
             g.rect(x0, j, ex - x0, 2, '#FFE7A3', a);
+            if ((j >> 1) & 1) g.rect(x0 - 2, j, 2, 1, '#FFE7A3', a * 0.6);
+            else g.rect(x0 - 2, j + 1, 2, 1, '#FFE7A3', a * 0.6);
           }
         }
         return;
@@ -496,57 +514,82 @@ registerProp('prop_h_house_wire', () => {
 // ---------------------------------------------------------------- the tomato plants (夏秋トマト、8月末)
 
 /**
- * The plants of one row (52 4.2), 1 tile = 1 plant rising 24px above its
- * tile, so each hides the lower part of the one north of it. Drawn in three
- * passes so what the design asks to read still reads through the overlap:
+ * One plant per tile (52 4.2), each its own depth-sorted prop: the plant
+ * south of another hides that one's lower part and a character in the aisle
+ * goes behind the plants south of him and in front of the ones north, like
+ * any other thing on the floor. Each plant rises 40px from its foot to the
+ * overhead wire (1.5 tiles over its tile, taller than Minato):
  *
- *  1. north → south, each plant's foliage: compound leaves (small leaflets on
- *     drooping petioles, not rounded blobs), a narrow growing tip with a few
- *     yellow flowers (the upper trusses still flowering at the end of
- *     August), the full middle, and nothing below 9px (the lower leaves
- *     pruned, 下葉かき);
- *  2. every plant's pruned foot: a dark hollow under the leaves where the
- *     bare stem, its leaf scars, the bamboo stake and the string show;
- *  3. the trusses: 3–4 green fruit (3×3, #9BCB6B lit #C9E08A) at 10px and
- *     18px above the foot, hanging out to the aisle side (alternating), each
- *     on its little stalk with a dark calyx — the first thing picked out by
- *     the lantern along the aisle.
+ *  - the foot (the lowest 9px): the lower leaves are pruned (下葉かき), so
+ *    only the bare stem with its leaf scars, the bamboo stake, the string
+ *    and the black mulch show in a dark hollow;
+ *  - the leaf mass: compound leaves on drooping petioles, each a few oval
+ *    leaflets lit on their upper edge, over the shaded undersides; gaps
+ *    where the string and the dark show through;
+ *  - the top, at the wire: flat (the plants are trained to one height), the
+ *    growing tip bending over, the yellow flowers of the top truss;
+ *  - the trusses: 3–4 green fruit (3×3, #9BCB6B with a #C9E08A rim and a
+ *    dark underside) at 10px and 18px over the foot, hanging out to the
+ *    aisle. Those of the plant north of this one fall on this one's leaves,
+ *    so each plant paints its northern neighbour's trusses again over its
+ *    own leaves: the fruit along the aisle read the whole length of a row.
  */
 interface PlantAt {
-  x0: number;
-  foot: number;
-  seed: number;
   cx: number;
+  foot: number;
   top: number;
+  seed: number;
+  /** the aisle side of the lower truss (-1 west, 1 east) */
+  side: number;
 }
 
-function plantAt(x0: number, foot: number, seed: number): PlantAt {
-  return { x0, foot, seed, cx: x0 + 7 + (seed % 3) - 1, top: foot - 38 - (seed % 5) };
+/**
+ * The plant's canvas: 20×58, the foot line at y56 (the tile's y14), the wire
+ * at y≈16. The two empty rows over the wire keep the plants out of the
+ * lantern's rim for small props (a row of rims read as a fence).
+ */
+const PW = 20;
+const PTOP = 42;
+const PFOOT = PTOP + 14;
+
+function plantAt(seed: number, i: number, dy = 0): PlantAt {
+  return {
+    cx: 10 + (seed % 3) - 1,
+    foot: PFOOT + dy,
+    top: PFOOT + dy - 39 - (ihash(seed, 1, 4029) % 3),
+    seed,
+    side: i % 2 ? 1 : -1,
+  };
 }
 
-/** Half-width of the foliage d px above the foot (0: bare). */
-function leafSpan(d: number, h: number): number {
+/** Half-width of the foliage d px over the foot (0: the pruned foot). */
+function leafSpan(d: number, h: number, seed: number): number {
   if (d < 9) return 0;
-  if (d < 13) return 4;
-  if (d > h - 5) return 2 + ((h - d) >> 1);
-  if (d > h - 10) return 5;
-  return 7;
+  if (d < 12) return 3 + (seed & 1);
+  if (d > h - 2) return 5;
+  if (d > h - 4) return 6;
+  return 7 - (ihash(d >> 2, seed, 4033) % 3 === 0 ? 1 : 0);
 }
 
-/** A tomato leaflet (4×3) drooping to the right (flipped for the left): lit edge, body, shaded underside. */
-const LEAFLET = ['.ab.', 'abbc', '.cc.'];
-const LEAFLET_UP = ['.aa.', 'abbb', '..cc'];
+/** Leaflet shapes (right-hand; flipped for the left): a = lit upper edge, b = body, c = shaded underside. */
+const LEAFLETS = [
+  ['.aa.', 'abbb', '.cc.'],
+  ['aa.', 'bbc'],
+  ['.aaa', 'abbc', '..c.'],
+  ['aa', 'bc'],
+];
 
-function stampLeaflet(p: PixelCanvas, x: number, y: number, side: number, up: boolean, lit: number): void {
-  const rows = up ? LEAFLET_UP : LEAFLET;
-  // the leaves keep to the darker greens: the light yellow-greens are the fruit's
-  const A = lit > 0.6 ? mix(P.leaf, P.leafYoung, 0.3) : P.leaf;
-  const B = lit > 0.3 ? P.leafDeep : mix(P.leafDeep, P.leafShade, 0.5);
+function stampLeaflet(p: PixelCanvas, x: number, y: number, side: number, shape: number, lit: number): void {
+  const rows = LEAFLETS[shape % LEAFLETS.length];
+  const w = rows[0].length;
+  // the leaves keep to the bluish middle greens: the pale yellow-greens are the fruit's
+  const A = lit > 0.62 ? P.leaf : lit > 0.35 ? mix(P.leaf, P.leafDeep, 0.5) : P.leafDeep;
+  const B = lit > 0.45 ? P.leafDeep : mix(P.leafDeep, P.leafShade, 0.5);
   const C = P.leafShade;
   rows.forEach((r, j) =>
     [...r].forEach((ch, i) => {
       if (ch === '.') return;
-      const X = side > 0 ? x + i : x + 3 - i;
+      const X = side > 0 ? x + i : x + w - 1 - i;
       p.set(X, y + j, ch === 'a' ? A : ch === 'b' ? B : C);
     }),
   );
@@ -555,191 +598,248 @@ function stampLeaflet(p: PixelCanvas, x: number, y: number, side: number, up: bo
 function plantLeaves(p: PixelCanvas, a: PlantAt): void {
   const { cx, foot, top, seed } = a;
   const h = foot - top;
-  // the leaf mass's inside: the shaded undersides of the leaves, dense (late
-  // August), darker toward the middle, with gaps where the string shows
-  for (let y = top + 2; y < foot - 9; y++) {
-    const s = leafSpan(foot - y, h);
+  // the inside of the leaf mass: the shaded undersides, dense (late August),
+  // with dark gaps where the string and the stem show
+  for (let y = top + 1; y < foot - 9; y++) {
+    const s = leafSpan(foot - y, h, seed);
     for (let x = cx - s + 1; x <= cx + s - 1; x++) {
-      const n = valueNoise(x * 0.45, y * 0.45, 4035 + seed);
-      if (n < 0.28) continue;
-      p.under(x, y, n > 0.62 ? P.leafDeep : Math.abs(x - cx) < 2 ? mix(P.leafShade, P.ink, 0.35) : P.leafShade);
+      const n = valueNoise(x * 0.5, y * 0.42, 4035 + seed);
+      if (n < 0.3) continue;
+      p.under(x, y, n > 0.64 ? P.leafShade : mix(P.leafShade, P.ink, Math.abs(x - cx) < 2 ? 0.5 : 0.3));
     }
   }
-  // the stem, winding round the string (the part inside the leaves)
-  for (let y = foot - 9; y > top; y--) p.set(cx + ((y >> 2) % 2), y, P.leafShade);
-  // leaves: a petiole from the stem, drooping outward, leaflets along it
-  const leaves = 12 + (seed % 3);
+  // the stem winding round the string
+  for (let y = foot - 9; y > top + 2; y--) p.set(cx + ((y >> 2) % 2), y, mix(P.leafShade, P.leafDeep, 0.5));
+  // the compound leaves: a petiole from the stem out and down, leaflets along it
+  const leaves = 11 + (seed % 3);
   for (let k = 0; k < leaves; k++) {
     const hh = ihash(k, seed, 4031);
-    const d = (10 + (k * (h - 12)) / leaves + (hh % 4)) | 0;
+    const d = Math.min(h - 3, (11 + (k * (h - 13)) / (leaves - 1) + (hh % 3)) | 0);
     const side = (k + seed) % 2 ? 1 : -1;
-    const span = leafSpan(d, h);
+    const span = leafSpan(d, h, seed);
     if (span <= 0) continue;
-    const len = Math.max(2, span - ((hh >>> 4) % 2));
+    const len = Math.max(2, span - 1 - ((hh >>> 4) % 2));
     const y0 = foot - d;
     const sx = cx + (side > 0 ? 1 : 0);
-    // lit from the upper left (the lantern is carried high; the morning sun from the east is the grade's)
-    const litBase = side < 0 ? 0.55 : 0.35;
+    // lit from above (the lantern is carried high): the upper leaves and the west side a little more
+    const litBase = (side < 0 ? 0.5 : 0.38) + (d > h - 12 ? 0.22 : 0);
+    let lastX = sx;
+    let lastY = y0;
     for (let i = 1; i <= len; i++) {
       const X = sx + side * i;
       const Y = y0 + ((i * i) >> 3); // the droop
       p.set(X, Y, P.leafShade);
-      if (i % 2 === 0 || i === len) {
-        const up = (i + k) % 3 === 0;
-        const lit = litBase + (d > h - 12 ? 0.25 : 0) + h01(k, i, 4039 + seed) * 0.2;
-        stampLeaflet(p, side > 0 ? X - 1 : X - 2, Y - 2 + (up ? 0 : 1), side, up, lit);
+      lastX = X;
+      lastY = Y;
+      if (i % 2 === 0 && i < len) {
+        // a pair of side leaflets: one over, one under the petiole
+        const up = (i + k) % 2 === 0;
+        const lit = litBase + h01(k, i, 4039 + seed) * 0.2;
+        stampLeaflet(p, side > 0 ? X - 1 : X - 2, up ? Y - 2 : Y, side, (k + i) % 4, up ? lit : lit - 0.2);
       }
     }
+    // the terminal leaflet, the largest
+    stampLeaflet(p, side > 0 ? lastX - 1 : lastX - 3, lastY - 1, side, (hh >>> 7) % 3 === 0 ? 2 : 0, litBase + 0.12);
   }
-  // the growing tip: small, yellow-green leaves and the flowers of the top truss
-  p.set(cx, top, P.leafYoung);
-  p.set(cx - 1, top + 1, P.leaf);
-  p.set(cx + 1, top + 1, P.leafYoung);
-  p.set(cx + 2, top + 2, P.leaf);
-  p.set(cx - 2, top + 3, P.leaf);
-  p.set(cx, top + 2, P.leafDeep);
-  const fl = seed % 2 ? 1 : -1;
-  p.set(cx + fl * 3, top + 5, P.gold);
-  p.set(cx + fl * 3 + fl, top + 6, P.goldPale);
-  if (seed % 3 === 0) p.set(cx - fl * 3, top + 8, P.gold);
+  // the top at the wire: two leaves spread flat, the growing tip bent over, the flowers
+  const ty = top + 1;
+  for (const s of [-1, 1]) {
+    for (let i = 1; i <= 5; i++) p.set(cx + s * i, ty + (i > 3 ? 1 : 0), P.leafShade);
+    stampLeaflet(p, s > 0 ? cx + 2 : cx - 5, ty - 1, s, 2, 0.85);
+    stampLeaflet(p, s > 0 ? cx + 4 : cx - 7, ty + 1, s, 1, 0.7);
+  }
+  const bend = seed % 2 ? 1 : -1;
+  p.set(cx, ty - 1, P.leafYoung);
+  p.set(cx + bend, ty - 2, P.leafYoung);
+  p.set(cx + bend * 2, ty - 2, mix(P.leafYoung, P.leafLt, 0.4));
+  p.set(cx + bend * 3, ty - 1, P.leafYoung);
+  // the top truss in flower (small yellow stars), another bud lower down
+  const fx = cx - bend * 3;
+  p.set(fx, ty + 3, P.gold);
+  p.set(fx - bend, ty + 4, P.goldPale);
+  p.set(fx, ty + 5, P.gold);
+  if (seed % 3 !== 1) {
+    p.set(cx + bend * 4, ty + 7, P.gold);
+    p.set(cx + bend * 5, ty + 8, P.goldPale);
+  }
 }
 
-function plantFoot(p: PixelCanvas, a: PlantAt, ripe: boolean): void {
+function plantFoot(p: PixelCanvas, a: PlantAt): void {
   const { cx, foot, seed } = a;
-  // the hollow under the leaves (pruned): dark, the mulch showing at its foot
-  for (let y = foot - 8; y <= foot - 1; y++)
-    for (let x = cx - 4; x <= cx + 4; x++) {
-      const e = Math.abs(x - cx) + (foot - 1 - y) * 0.45;
-      if (e > 4.6) continue;
-      p.set(x, y, y > foot - 3 ? P.charcoal : mix(P.leafShade, P.ink, 0.55));
+  // the hollow under the leaves (pruned): dark, the mulch at its foot
+  for (let y = foot - 8; y <= foot + 1; y++)
+    for (let x = cx - 5; x <= cx + 5; x++) {
+      const e = Math.abs(x - cx) + (foot - 1 - y) * 0.5;
+      if (e > 5) continue;
+      p.set(x, y, y >= foot - 1 ? P.charcoal : mix(P.leafShade, P.ink, 0.62));
     }
   // the bamboo stake (to half the plant's height; hidden in the leaves above)
-  p.vline(cx - 2, foot - 9, foot - 1, P.woodLt);
-  p.set(cx - 2, foot - 1, P.brassOld);
-  // the string from the overhead wire, down the stem
-  p.vline(cx + 1, foot - 9, foot - 2, P.paperGrid);
+  p.vline(cx - 2, foot - 11, foot, P.woodLt);
+  p.set(cx - 2, foot - 11, lt(P.woodLt));
+  p.set(cx - 2, foot, P.brassOld);
+  // the string from the overhead wire, down the stem to the peg
+  p.vline(cx + 1, foot - 10, foot - 1, P.paperGrid);
+  p.set(cx + 1, foot, P.concrete);
   // the bare stem and its leaf scars (the leaves cut off)
-  for (let y = foot - 9; y <= foot - 1; y++) p.set(cx, y, (y & 1) ? P.leafDeep : P.leaf);
-  p.set(cx - 1, foot - 6, P.leafShade);
-  p.set(cx + 1, foot - 4, P.leafShade);
-  // a couple of dry lower leaves still hanging (the ones not yet pruned), some rows
+  for (let y = foot - 10; y <= foot; y++) p.set(cx, y, y & 1 ? P.leafDeep : P.leaf);
+  p.set(cx - 1, foot - 7, P.leafLt);
+  p.set(cx + 1, foot - 4, P.leafLt);
+  // a dry lower leaf not yet pruned, some plants
   if (seed % 4 === 1) {
-    p.set(cx + 2, foot - 8, P.brassOld);
-    p.set(cx + 3, foot - 7, P.woodLt);
+    p.set(cx + 2, foot - 9, P.brassOld);
+    p.set(cx + 3, foot - 8, P.woodLt);
+    p.set(cx + 4, foot - 8, P.brassOld);
   }
-  void ripe;
 }
 
 function plantFruit(p: PixelCanvas, a: PlantAt, i: number, ripe: boolean): void {
-  const { cx, foot, seed } = a;
+  const { cx, foot, seed, side: s0 } = a;
+  const h0 = ihash(i, seed, 4043);
   const trusses: [number, number][] = [
-    [foot - 10, i % 2 ? 1 : -1],
-    [foot - 18, i % 2 ? -1 : 1],
+    [foot - 10 - (h0 % 2), s0],
+    [foot - 18 - ((h0 >>> 2) % 3), (h0 >>> 5) % 4 === 0 ? s0 : -s0],
   ];
-  trusses.forEach(([ty0, side], t) => {
-    let ty = ty0;
+  // the bunches: round fruit packed under the stalk's end, out toward the aisle
+  const BUNCH: [number, number][][] = [
+    [[0, 0], [3, 1], [1, 3]],
+    [[0, 0], [3, 0], [1, 3], [4, 3]],
+    [[1, 0], [0, 3], [3, 3]],
+    [[0, 0], [2, 3]],
+  ];
+  trusses.forEach(([ty, side], t) => {
     const hh = ihash(i, t, 4041 + seed);
-    const n = t === 0 ? 2 + (hh % 3) : 2 + ((hh >>> 3) % 2);
-    ty += ((hh >>> 6) % 3) - 1;
-    // the truss stalk from the stem
-    const sx = cx + side;
-    for (let k = 0; k < 3; k++) p.set(sx + side * k, ty - 2 + (k >> 1), P.leafShade);
+    const bunch = BUNCH[t === 0 ? hh % 3 : 2 + ((hh >>> 3) % 2)];
+    // the truss stalk out from the stem, bending down
     const bx = cx + side * 3;
-    for (let f = 0; f < n; f++) {
-      // hang the fruit in a little bunch down and out from the stalk's end
-      const fx = bx + side * ((f % 2) * 4) - (side < 0 ? 2 : 0);
-      const fy = ty + (f >> 1) * 4 - (f % 2);
-      // a dark edge under and beside each fruit keeps the bunch readable as fruit
-      p.hline(fx, fx + 3, fy + 3, P.leafShade);
-      p.vline(fx + 3, fy, fy + 2, P.leafShade);
-      const body = ripe ? P.red : P.leafYoung;
-      const lit = ripe ? P.vermLt : P.leafLt;
-      const shade = ripe ? P.vermShade : P.leaf;
-      // a round 3×3 fruit: lit upper left, shaded lower right, the calyx on top
+    for (let k = 1; k <= 3; k++) p.set(cx + side * k, ty - 3 + (k >> 1), P.leafShade);
+    const at = bunch.map(([dx, dy]) => [side > 0 ? bx + dx - 1 : bx - dx - 1, ty + dy - 2] as [number, number]);
+    // a dark ring round each fruit first, so the packed fruit read one by one
+    for (const [fx, fy] of at) {
+      p.hline(fx, fx + 2, fy - 1, P.leafShade);
+      p.hline(fx, fx + 2, fy + 3, P.ink);
+      p.vline(fx - 1, fy, fy + 2, P.ink);
+      p.vline(fx + 3, fy, fy + 2, P.ink);
+    }
+    const body = ripe ? P.red : P.leafYoung;
+    const rimC = ripe ? P.vermLt : P.leafLt;
+    const shade = ripe ? P.vermShade : P.leaf;
+    at.forEach(([fx, fy], f) => {
+      // a round 3×3 fruit: the lit rim upper left, the shaded underside, the calyx on top
       p.rect(fx, fy, 3, 3, body);
-      p.set(fx, fy, lit);
+      p.set(fx, fy, rimC);
+      p.set(fx + 1, fy, rimC);
+      p.set(fx, fy + 1, rimC);
       p.set(fx + 2, fy + 2, shade);
       p.set(fx + 1, fy + 2, shade);
-      p.set(fx + 2, fy + 1, ripe ? P.red : mix(P.leafYoung, P.leaf, 0.5));
-      p.set(fx + 1, fy, P.leafShade); // the calyx
-      if (((seed + f) & 3) === 0) p.set(fx, fy + 1, lit);
-    }
+      p.set(fx + 1, fy - 1, P.leafDeep); // the calyx
+      if (((seed + f) & 3) === 0) p.set(fx, fy, ripe ? P.glint : P.white);
+    });
   });
 }
 
-registerProp('prop_h_tomato_row', (opts) => {
+/**
+ * One plant (52 4.2): `i` counted from the north end of its row of `n`,
+ * `north: 0` when the plant north of it is missing (the gap of ふしぎ07),
+ * `gap: 1` for the missing plant itself (the cut stake and the mulch).
+ * In the ending (cut 2b) the plants redden from the door to the back, a
+ * plant every 0.1 s after the film is rolled up.
+ */
+registerProp('prop_h_tomato', (opts) => {
+  const i = Number(opts.i ?? 0);
   const n = Number(opts.n ?? 13);
-  const gap = opts.gap === undefined ? -1 : Number(opts.gap);
-  const seed = Number(opts.seed ?? 0);
-  const W = 24;
-  const top = 40;
-  const H = n * 16 + top;
-  // k: how many plants, counted from the door (south), are already red
-  const make = (k: number) => {
-    const p = new PixelCanvas(W, H);
-    const plants: (PlantAt | null)[] = [];
-    for (let i = 0; i < n; i++) plants.push(i === gap ? null : plantAt(4, top + (i + 1) * 16 - 2, seed * 31 + i * 7));
-    for (const a of plants) if (a) plantLeaves(p, a);
-    plants.forEach((a, i) => a && plantFoot(p, a, i >= n - k));
-    plants.forEach((a, i) => a && plantFruit(p, a, i + seed, i >= n - k));
-    // the gap (a plant missing): only its cut stake and a little mulch
-    if (gap >= 0) {
-      const fy = top + (gap + 1) * 16 - 2;
-      p.vline(10, fy - 8, fy, P.woodLt);
-      p.set(10, fy - 8, P.brassOld);
-      p.set(9, fy - 1, P.leafShade);
-      p.set(11, fy - 2, P.leafShade);
+  const seed = Number(opts.seed ?? 0) * 31 + i * 7;
+  const hasNorth = i > 0 && opts.north !== 0;
+  const gap = opts.gap === 1;
+  const make = (ripe: boolean, northRipe: boolean) => {
+    const p = new PixelCanvas(PW, PTOP + 16);
+    const a = plantAt(seed, i);
+    if (gap) {
+      // the missing plant: only its cut stake and a little mulch
+      p.vline(a.cx, a.foot - 8, a.foot, P.woodLt);
+      p.set(a.cx, a.foot - 8, P.brassOld);
+      p.set(a.cx - 1, a.foot - 1, P.leafShade);
+      p.set(a.cx + 1, a.foot - 2, P.leafShade);
+      p.set(a.cx + 2, a.foot, P.charcoal);
+      return p.toCanvas();
     }
+    plantLeaves(p, a);
+    // the northern neighbour's trusses, over this plant's leaves
+    if (hasNorth) {
+      const north = plantAt(seed - 7, i - 1, -16);
+      plantFruit(p, north, i - 1, northRipe);
+    }
+    plantFoot(p, a);
+    plantFruit(p, a, i, ripe);
     outline(p, { bottom: false, soft: true });
     return p.toCanvas();
   };
-  const green = make(0);
-  const steps: (HTMLCanvasElement | null)[] = [];
+  const imgs: (HTMLCanvasElement | null)[] = [null, null, null];
+  const pick = (k: number) => (imgs[k] ??= make(k >= 1, k >= 2));
+  const ripenAt = (j: number) => RIPEN_AT + (n - 1 - j) * 100;
   const a: PropArt = {
-    ox: -4,
-    oy: -top,
-    w: W,
-    h: H,
-    foot: n * 16,
+    ox: -2,
+    oy: -PTOP,
+    w: PW,
+    h: PTOP + 16,
+    foot: 15,
     img: (env: PropEnv) => {
       const e = houseDawnMs(env);
-      if (e < 0) return green;
-      // fx_h_tomato_ripen: from the door to the back, a plant every 0.1 s after the side is rolled up
-      const k = Math.max(0, Math.min(n, Math.floor((e - RIPEN_AT) / 100) + 1));
-      return (steps[k] ??= make(k));
+      if (e < 0) return pick(0);
+      // fx_h_tomato_ripen: this plant, then (0.1 s later) the one north of it
+      return pick(e >= ripenAt(i - 1) ? 2 : e >= ripenAt(i) ? 1 : 0);
     },
   };
   return a;
 });
 
-/** The はなまるトマト on plant (5,2), 5th truss (12px up from the tile's foot): glowing until picked. */
+/**
+ * The はなまるトマト on plant (5,2), the 5th truss (12px over the tile's
+ * foot), on the plant's aisle side: drawn after the two plants south of it
+ * (their leaves would hide it: 1.5 tiles tall each) so it shows from the
+ * middle aisle all the way; glowing until picked.
+ */
 registerProp('prop_h_hanamaru', () => {
-  const fruit = new PixelCanvas(8, 8);
-  fruit.ellipse(3.5, 4, 3, 3, P.red);
-  fruit.set(2, 2, P.vermLt);
-  fruit.set(2, 3, P.glint);
-  fruit.set(5, 5, P.vermShade);
-  fruit.hline(2, 5, 1, P.leafDeep);
-  fruit.set(3, 0, P.leafYoung);
+  const fruit = new PixelCanvas(12, 12);
+  // its stalk from the plant's stem, curving down to the calyx
+  fruit.line(11, 1, 8, 2, P.leafShade);
+  fruit.line(8, 2, 6, 3, P.leafShade);
+  fruit.ellipse(4.5, 7, 3.5, 3.5, P.red);
+  fruit.ellipse(4, 6.5, 2, 2, P.vermLt);
+  fruit.set(3, 5, P.glint);
+  fruit.set(4, 5, P.glint);
+  fruit.set(6, 9, P.vermShade);
+  fruit.set(7, 8, P.vermShade);
+  fruit.set(5, 10, P.vermShade);
+  // the star of the calyx
+  fruit.hline(3, 6, 4, P.leafDeep);
+  fruit.set(4, 3, P.leafYoung);
+  fruit.set(2, 4, P.leafShade);
+  fruit.set(7, 4, P.leafShade);
+  outline(fruit, { bottom: true, soft: true });
   const imgF = fruit.toCanvas();
-  const bough = new PixelCanvas(8, 8);
+  const bough = new PixelCanvas(12, 12);
   // after: the empty branch pointing up
-  bough.line(1, 7, 5, 1, P.leafDeep);
-  bough.set(5, 0, P.leafYoung);
+  bough.line(11, 3, 7, 1, P.leafShade);
+  bough.line(7, 1, 5, 0, P.leafDeep);
+  bough.set(4, 0, P.leafYoung);
   const imgB = bough.toCanvas();
+  const picked = (env: PropEnv) => env.flag('flag_ch2_got_tomato') || env.flag('flag_ch2_tomato_picked');
   const a: PropArt = {
-    ox: 2,
-    oy: 16 - 12 - 7,
-    w: 8,
-    h: 8,
-    foot: 17,
-    img: (env: PropEnv) => (env.flag('flag_ch2_got_tomato') || env.flag('flag_ch2_tomato_picked') ? imgB : imgF),
+    // the fruit's centre at (85,36) in the room (the events' TOMATO_PX, the light's centre)
+    ox: 1,
+    oy: -3,
+    w: 12,
+    h: 12,
+    // after the plants (5,3) and (5,4) (their feet at 47 from here): 48
+    foot: 48,
+    img: (env: PropEnv) => (picked(env) ? imgB : imgF),
     glow(g, x, y, env) {
-      if (env.flag('flag_ch2_got_tomato') || env.flag('flag_ch2_tomato_picked')) return;
+      if (picked(env)) return;
+      // 0.8 Hz: the fruit's own light, a soft halo and the hot core
       const br = 0.85 + 0.15 * Math.sin(env.t * 0.0008 * Math.PI * 2);
-      glowDot(g, x + 5, y + 1, '#FFE7A3', '242,137,75', 12, 0.9 * br);
-      g.rect(x + 3, y - 1, 5, 5, '#F2894B', 0.55 * br);
-      g.rect(x + 4, y, 2, 2, '#FFE7A3', 0.8 * br);
+      glowDot(g, x + 4, y + 7, '#FFE7A3', '242,137,75', 14, 0.95 * br);
+      g.rect(x + 2, y + 5, 5, 5, '#F2894B', 0.5 * br);
+      g.rect(x + 3, y + 5, 2, 2, '#FFE7A3', 0.85 * br);
     },
   };
   return a;

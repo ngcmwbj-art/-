@@ -112,7 +112,6 @@ const s1 = { stage: 1 };
 const s2 = { stage: 2 };
 const s01 = { stage: '0-1' };
 const s12 = { stage: '1-2' };
-const s1p = { stage: '1+' };
 const s02 = { stage: '0-2' };
 
 /** Kakashi of 52 7.3: tile, dress, and the tile the text is read from. */
@@ -203,6 +202,8 @@ const OBJECTS: MapObj[] = [
   O('obj_hoshi_hyakuyobako', 33, 28, { prop: 'prop_h_hyakuyobako' }),
   O('obj_hoshi_tetsubou', 30, 30, { w: 3, face: 'down', prop: 'prop_h_tetsubou' }),
   O('obj_hoshi_sakura', 24, 30, { prop: 'prop_h_sakura' }),
+  // the school gate in the azalea hedge, its lamp lit for the meeting (the warm light north of the crossing, 52 3.10)
+  PR('prop_h_school_gate', 24, 31),
   O('obj_hoshi_monohoshi', 21, 28, { w: 3, face: 'up', prop: 'prop_h_monohoshi' }),
   O('obj_hoshi_zou', 28, 28, { prop: 'prop_h_zou' }),
   O('obj_hoshi_taiikukan', 38, 27, { face: 'left' }),
@@ -290,6 +291,11 @@ const OBJECTS: MapObj[] = [
   PR('prop_h_ichirinsha', 55, 35),
   PR('prop_h_blanket', 53, 33),
   PR('prop_h_hose_reel', 59, 32, {}, { solid: [0, 0, 1, 1] }),
+  // the working yard (52 7.3): the lime for the footbath, the empty sacks, boots drying, the tools
+  PR('prop_h_lime_bags', 58, 35, {}, { solid: [0, 0, 1, 1] }),
+  PR('prop_h_feedbag_stack', 58, 37, {}, { solid: [0, 0, 1, 1] }),
+  PR('prop_h_boots', 55, 38, {}, { solid: [0, 0, 1, 1] }),
+  PR('prop_h_yard_tools', 50, 38, {}, { solid: [0, 0, 1, 1] }),
   PR('prop_h_nuta_tree', 59, 11, {}, { solid: [0, 0, 1, 1] }),
 
   // ======================================================== 耕作放棄地・山道の入口 (dark)
@@ -367,18 +373,18 @@ const OBJECTS: MapObj[] = [
   }),
 
   // ======================================================== enemy symbols (52 1.5 / 51 11)
-  { t: 'sym', id: 'sym_hoshi_01', enemies: ['enemy_chototsu'], x: 8, y: 23, dir: 'down', move: 'boar', cond: s1p, restoreAt: [8, 23] },
-  { t: 'sym', id: 'sym_hoshi_02', enemies: ['enemy_mujin_hanbaiin'], x: 21, y: 37, dir: 'down', move: 'mujin', to: [21, 38], cond: s1p, restoreAt: [21, 37], restoreOff: [0, -4] },
+  { t: 'sym', id: 'sym_hoshi_01', enemies: ['enemy_chototsu'], x: 8, y: 23, dir: 'down', move: 'boar', cond: s12, restoreAt: [8, 23] },
+  { t: 'sym', id: 'sym_hoshi_02', enemies: ['enemy_mujin_hanbaiin'], x: 21, y: 37, dir: 'down', move: 'mujin', to: [21, 38], cond: s12, restoreAt: [21, 37], restoreOff: [0, -4] },
   {
     t: 'sym', id: 'sym_hoshi_03', enemies: ['enemy_henoheno_kacho'], x: 16, y: 5, dir: 'down', move: 'kakashi', to: [18, 5],
-    span: { x: 14, y: 5, w: 5, h: 1 }, cond: s1p, restoreAt: [17, 6],
+    span: { x: 14, y: 5, w: 5, h: 1 }, cond: s12, restoreAt: [17, 6],
   },
   {
     t: 'sym', id: 'sym_hoshi_04', enemies: ['enemy_biribiri_ban'], x: 37, y: 6, dir: 'down', move: 'fence', to: [37, 16],
-    span: { x: 37, y: 6, w: 2, h: 11 }, cond: s1p, restoreAt: [36, 11],
+    span: { x: 37, y: 6, w: 2, h: 11 }, cond: s12, restoreAt: [36, 11],
   },
-  { t: 'sym', id: 'sym_hoshi_05', enemies: ['enemy_chototsu'], x: 57, y: 11, dir: 'left', move: 'boar', cond: s1p, restoreAt: [57, 11] },
-  { t: 'sym', id: 'sym_hoshi_06', enemies: ['enemy_henoheno_kacho'], x: 41, y: 9, dir: 'down', move: 'kakashi_stand', cond: s1p, restoreAt: [41, 9] },
+  { t: 'sym', id: 'sym_hoshi_05', enemies: ['enemy_chototsu'], x: 57, y: 11, dir: 'left', move: 'boar', cond: s12, restoreAt: [57, 11] },
+  { t: 'sym', id: 'sym_hoshi_06', enemies: ['enemy_henoheno_kacho'], x: 41, y: 9, dir: 'down', move: 'kakashi_stand', cond: s12, restoreAt: [41, 9] },
   {
     t: 'sym', id: 'sym_hoshi_07', enemies: ['enemy_tetsuya'], x: 39, y: 4, dir: 'right', move: 'tetsuya', to: [56, 4],
     cond: { stage: 1, notFlag: 'flag_ch2_tetsuya_beaten' }, script: 'evt_ch2_tetsuya', restoreAt: [45, 2], music: 'bgm_midboss',
@@ -441,11 +447,15 @@ export const HOSHIMIDAI: MapDef = {
     { x: 0, y: 1, w: 13, h: 9, mat: 'sugi', ch: 'H' },
     { x: 0, y: 10, w: 13, h: 10, mat: 'take', ch: 'H' },
     { x: 36, y: 19, w: 11, h: 1, mat: 'zoki', ch: 'H' },
-    { x: 13, y: 40, w: 2, h: 4, mat: 'zoki', ch: 'H' },
+    { x: 13, y: 40, w: 2, h: 4, mat: 'zoki_grove', ch: 'H' },
     { x: 35, y: 46, w: 25, h: 1, mat: 'zoki', ch: 'H' },
+    // the turning circle's south edge drops to the slope: only the scrub and the tops of the trees below (ポコシャさん's bike at (45,44) stays in view)
+    { x: 35, y: 46, w: 11, h: 1, mat: 'yabu', ch: 'H' },
     { x: 0, y: 47, w: 60, h: 1, mat: 'yabu', ch: 'H' },
     { x: 21, y: 31, w: 13, h: 1, mat: 'tsutsuji', ch: 'H' },
     { x: 37, y: 0, w: 23, h: 18, mat: 'kuzu', ch: 'K' },
+    // south of the wallow (56–58,11–12) the kuzu only creeps: the mud, its gleam and the hoofprints stay in sight
+    { x: 55, y: 13, w: 5, h: 1, mat: 'kuzu_low', ch: 'K' },
     { x: 0, y: 19, w: 13, h: 1, mat: 'juugai', ch: 'F' },
     { x: 14, y: 1, w: 46, h: 18, mat: 'efence', ch: 'E' },
     { x: 46, y: 22, w: 1, h: 24, mat: 'ishigaki', ch: 'B' },
@@ -463,6 +473,9 @@ export const HOSHIMIDAI: MapDef = {
     { k: 'h_straw', x: 50, y: 23, w: 8, h: 1 } as never,
     { k: 'h_straw', x: 54, y: 32, w: 5, h: 3, v: 1 } as never,
     { k: 'h_straw', x: 47, y: 33, w: 3, h: 2, v: 2 } as never,
+    // the yard: the kei truck's track from the lane (52–53,40) up to the barn's apron, straw dropped on the way
+    { k: 'h_ruts', x: 52, y: 36, w: 2, h: 4, dir: 'v', v: 4 } as never,
+    { k: 'h_straw', x: 50, y: 36, w: 4, h: 1, v: 3 } as never,
     { k: 'h_stain', x: 50, y: 32, w: 3, h: 2 } as never,
     { k: 'h_shoukai', x: 50, y: 32, w: 3 } as never,
     { k: 'h_chalk', x: 21, y: 28, w: 13, h: 3 } as never,

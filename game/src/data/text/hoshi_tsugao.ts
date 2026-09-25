@@ -3,7 +3,9 @@
 // them. GENERATED from the design book by the scenario team's extractor
 // (the book was still moving on 2026-09-25): keys are the book's own
 // markers 〔…〕; `/<label>` is a branch of a choice; `共通N` the Nth common part;
-// `!cue <name>` a stage direction the script stages (src/events/ch2/tsugao.ts).
+// `!cue <name>` a stage direction the script stages (src/events/ch2/tsugao.ts;
+// the book's own directions between the pages: hide, shh, blush, laugh, wave,
+// flap, give, aori, knock, cap_swap / cap_back, yakiimo, put_down, done).
 
 export const TSUGAO_NPC: Record<string, Record<string, string>> = {
   npc_tsugao: {
@@ -223,6 +225,7 @@ export const DELI_TEXT: Record<string, string> = {
 @npc_hirosuke
 師匠ー！ 起きてー！{w=300}
 明かりが 来たよー！
+!cue knock
 @narr
 ツガオさんの 腕時計は、
 12時で 止まっている。
@@ -305,6 +308,7 @@ export const DELI_TEXT: Record<string, string> = {
 ええ きゅうりじゃ。
 ……漬けとくよ。
 !cue hide
+!cue shh
 @npc_pokosha
 ……ま、毎度、です。{w=300}
 最後は、トマじいさんの 家、です。`,
@@ -315,6 +319,7 @@ export const DELI_TEXT: Record<string, string> = {
 @npc_pokosha
 ……マルさんが 帰ったら、
 かぼちゃの 煮物、ですね。
+!cue done
 @npc_pokosha
 ……ぜ、ぜんぶ、配れました。
 {w=300}師匠に、報告を。`,
@@ -358,9 +363,11 @@ export const DELI_TEXT: Record<string, string> = {
 @npc_tsugao
 では、朝まで ひと休み。
 {w=300}つがおちゃん 寝る〜♪
+!cue cap_back
 @npc_pokosha
 さすが 師匠！
 !cue blush
+!cue laugh
 @npc_hirosuke
 わはは！{w=300}
 寝ても ほめられる 師匠だよ。`,
@@ -368,12 +375,21 @@ export const DELI_TEXT: Record<string, string> = {
 
 /** 9章 objects added with ツガオ便 (a plain text, or stage keys h0 / 'h1+'; the field reads them). */
 export const TSUGAO_OBJ: Record<string, string | Record<string, string>> = {
-  obj_hoshi_tsugao_truck: `@narr
+  obj_hoshi_tsugao_truck: {
+    h0: `@narr
 くすんだ 緑の 軽トラ。{w=300}ドアに
 白い 手書きの 字『青果 ツガオ便』。
 /
 荷台に、黄色い コンテナが
 きちんと 積んである。`,
+    /** h1〜: the tomato's light reaches into the cab (then 10.20 〔誘い〕 if not delivered yet). */
+    'h1+': `@narr
+ダッシュボードに、黒い スタンプ台。
+{w=300}……伝票に 押す ものらしい。
+/
+キーに、黄色い 札と、
+白い 羽が 1本 結んである。`,
+  },
   obj_hoshi_pokosha_bike: `@narr
 荷台つきの 黒い 自転車。{w=300}
 前かごに、わらが 敷いてある。

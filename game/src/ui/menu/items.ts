@@ -440,7 +440,7 @@ export class ItemsPage implements MenuPage {
     // a key item's two lines are one text; the second starts a new line, as written (10.2)
     const desc = itemDesc(row.id);
     const flavor = progressHead(row.id) ?? desc[0] + (row.key && desc[1] ? '\n' + desc[1] : '');
-    const lines = wrap(flavor, RP.w - 2);
+    const lines = wrap(flavor, RP.w - 2, { glue: true });
     for (const l of lines.slice(0, 4)) {
       g.text(l, x, y, { color: UI.text });
       y += 17;
@@ -450,7 +450,7 @@ export class ItemsPage implements MenuPage {
     const eff = prog !== null ? prog : row.key ? '' : desc[1];
     if (eff) {
       y += 3;
-      const el = wrap(eff, RP.w - 6);
+      const el = wrap(eff, RP.w - 6, { glue: true });
       el.slice(0, 3).forEach((l, i) => {
         // Minato's own hand: every other letter bobs a pixel (10.3 少し斜めの字)
         if (prog !== null) {

@@ -86,7 +86,12 @@ export function* evtGenStop(): Co {
   if (dog) delete dog.data.scripted;
 }
 registerScript('evt_ch2_gen_stop', evtGenStop);
-registerScript('trig_ch2_gen_stop', evtGenStop);
+registerScript('trig_ch2_gen_stop', function* (): Co {
+  // on the delivery's east edge (46,38–39) the question 「配達を やめますか？」 comes
+  // first; after 「やめる」 the delivery runs this scene itself (tsugao.ts)
+  if (flag('flag_ch2_delivery_on')) return;
+  yield* evtGenStop();
+});
 
 /** Once he has gone into the barn (met, the gate not yet open), he isn't on the terrace. */
 registerWorldFx({
@@ -142,13 +147,10 @@ export function* evtBarn(): Co {
         })(),
       );
       // the light passes over the pens
-      let shown = false;
       yield* all(walks, (function* (): Co {
         yield () => g.tileX >= 9;
-        shown = true;
         yield* runMsg(T.BARN_COWS);
       })());
-      void shown;
       yield* walk('player', [17, 6], { speed: 2 });
       g.dir = 'down';
       p.dir = 'down';
@@ -340,6 +342,8 @@ const SPOT_AT: Record<string, [number, number]> = {
 const QUICK_MS = 75000;
 
 const work = { ms: 0, esaSaid: false, cupSaid: false };
+/** The state the chores were started in (a load replaces state.flags: they start over, 10.19). */
+let workFlags: object | null = null;
 
 function doneCount(ids: string[]): number {
   return ids.filter((id) => flag('flag_' + id) > 0).length;
@@ -351,12 +355,19 @@ export function resetChores(): void {
   for (const id of [...ESA, ...CUPS]) setFlag('flag_' + id, 0);
   hideChoreCard(0);
   work.ms = 0;
+  workFlags = null;
+  const p = field()?.player;
+  if (p) delete p.data.tool;
 }
 
 registerWorldFx({
   map: 'map_hoshi_barn',
   update(f: FieldScene, dt: number) {
     if (!choresOn()) return;
+    if (state.flags !== workFlags) {
+      resetChores();
+      return;
+    }
     // the clock runs only while Minato can move (not in menus or talks)
     if (f.controllable && game.top === f && !game.ui.modal) work.ms += dt;
   },
@@ -370,6 +381,8 @@ function* workStart(): Co {
       // the scoop that leaned on the straw at (20,5)
       if (g) poseIf(g, 'give');
       se('se_item', { vol: 0.4 });
+      for (const id of [...ESA, ...CUPS]) setFlag('flag_' + id, 0);
+      workFlags = state.flags;
       setFlag('flag_ch2_barn_work_on', 1);
       yield 500;
       if (g) unpose(g);
@@ -378,6 +391,7 @@ function* workStart(): Co {
   });
   for (const id of [...ESA, ...CUPS]) setFlag('flag_' + id, 0);
   setFlag('flag_ch2_barn_work_on', 1);
+  workFlags = state.flags;
   work.ms = 0;
   work.esaSaid = false;
   work.cupSaid = false;
@@ -437,7 +451,10 @@ function* workDone(): Co {
   if (g) {
     g.data.scripted = true;
     unpose(g);
-    const tx = p.tileX <= 3 ? 4 : Math.min(20, p.tileX + 1);
+    let tx = p.tileX <= 3 ? 4 : Math.min(20, p.tileX + 1);
+    // カネナリくん on that tile of the one-tile aisle: he stops just behind him
+    const k = f.follower;
+    if (k && k.visible && k.tileY === 6 && k.tileX === tx && tx < 20) tx++;
     if (g.tileX !== tx || g.tileY !== 6) {
       const route = routeTiles(g.tileX, g.tileY, tx, 6);
       if (route && route.length) yield* walk('npc_hoshi_gen', route, { speed: 2.2 });
@@ -494,6 +511,7 @@ registerScript('trig_ch2_barn_work_quit', function* (): Co {
 
 /** QA: every spot done but 南5's feed (spot_h_esa_06, examined from (19,6) facing south). */
 export function debugChoresDone(): void {
+  workFlags = state.flags;
   for (const id of [...ESA, ...CUPS]) if (id !== 'spot_h_esa_06') setFlag('flag_' + id, 1);
   work.esaSaid = true;
   work.cupSaid = true;

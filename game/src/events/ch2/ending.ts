@@ -16,7 +16,7 @@ import type { Co } from '../../engine/co';
 import { all } from '../../engine/co';
 import { game } from '../../engine/game';
 import { animate, ease } from '../../engine/tween';
-import { flag, setFlag, state, type Dir } from '../../game/state';
+import { flag, setFlag, type Dir } from '../../game/state';
 import { ambientEvent, playAmbient, playBgm, setAmbientVol, stopAllAmbient, stopAmbient, stopBgm } from '../../audio';
 import { despawn, face, registerScript, roomLights, setFollowerVisible, setGradeH, spawn, takeItem, walk } from '../../world/api';
 import type { Actor } from '../../world/actor';
@@ -24,7 +24,7 @@ import { field } from '../../world/field';
 import { registerWorldFx } from '../../world/fx';
 import { runMsg } from '../../world/msg';
 import { clearRecordCh2 } from '../../ui/flow';
-import { fieldCurtain, setClockText, setFieldCurtain, showClock } from '../../ui/hud';
+import { setClockText, setFieldCurtain, showClock } from '../../ui/hud';
 import { openSunriseCut } from '../../ui/cut_sunrise';
 import { playEndingNotebookCh2 } from '../../ui/ending';
 import { playTsugaoRoom } from '../../ui/cut_tsugao';
@@ -34,7 +34,7 @@ import { getProp } from '../../art/props/registry';
 import { hoshiBusImage } from '../../art/props/hoshi_vehicles';
 import * as T from '../../data/text/hoshi_events';
 import { F, giveKey, holdBgm, panTo } from '../lib';
-import { bellGlow, puff, ring, sparkle, voiceLine } from '../fx';
+import { bellGlow, puff, ring, sparkle } from '../fx';
 import { morningChime, musicParam, paDistance, paMode, se, seLoop, space } from './compat';
 import { poseIf, runCue, unpose } from './common';
 
@@ -665,7 +665,3 @@ export const CH2_ENDING_CUTS: Record<number, () => Co> = {
   4: cut4BusStop,
   5: cut5Home,
 };
-
-void fieldCurtain;
-void voiceLine;
-void state;

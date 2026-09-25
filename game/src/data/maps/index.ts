@@ -9,3 +9,4 @@ import './hoshi_village';
 import './hoshi_qa';
 import './hoshi_rooms';
 import './hoshi_hill';
+import './hoshi_fx';

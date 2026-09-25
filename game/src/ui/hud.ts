@@ -19,7 +19,7 @@ import { colonDip, hud as worldHud, setFieldHud, type FieldHud } from '../world/
 import type { FieldScene } from '../world/field';
 import { fushigiActive } from '../world/fushigi';
 import { getMapDef, isCh2Map } from '../world/maps';
-import { drawChoreCard, hideChoreCard, updateChoreCard } from './chore_card';
+import { choreStripBottom, drawChoreCard, hideChoreCard, updateChoreCard } from './chore_card';
 import { prepareVillageLit } from './cut_village_lit';
 import { prepareSunrise } from './cut_sunrise';
 import { clearCallBubbleUi, drawCallBubbleUi, showCallBubble as showCallBubbleImpl, updateCallBubbleUi, callBubbleShowing, type CallBubbleHandle } from './call_bubble';
@@ -392,6 +392,12 @@ const SKIP_MS = 3000;
 
 let menuOpener: (() => void) | null = null;
 let menuEnabled = true;
+
+/** The menu tells the HUD whether it is up (it draws the clock plate itself then). */
+let menuUp: () => boolean = () => false;
+export function setMenuUp(fn: () => boolean): void {
+  menuUp = fn;
+}
 
 /** Installed by the menu module. */
 export function setMenuOpener(fn: () => void): void {
@@ -805,7 +811,8 @@ class UiHud implements FieldHud {
     drawChoreCard(g);
     // clock plate
     const y = Math.round(this.y);
-    if (y > -24) drawClockPlate(g, 324, y, this.clockView());
+    // (under the open menu the menu's own plate stands in: the field's, stopped mid-slide, would peek out)
+    if (y > -24 && !menuUp()) drawClockPlate(g, 324, y, this.clockView());
     // hanko icon (bottom left) and the place name beside it: under the
     // curtain they go with the world (only the parts `keep` names stay)
     const under = (part: CurtainPart, fn: () => void) => {
@@ -821,6 +828,9 @@ class UiHud implements FieldHud {
     let cardY = 8;
     const top = dialogTop();
     if (top !== null && top < 100) cardY = top + 64 + 8;
+    // …and under the おてつだい / おとどけ strip at the top left
+    const strip = choreStripBottom();
+    if (strip) cardY = Math.max(cardY, strip + 4);
     let slot = 0;
     for (const cd of this.cards) {
       if (cd.t < 0) continue;
@@ -964,7 +974,20 @@ export function showCallBubble(text: string, o: { cps?: number; voice?: string; 
 }
 
 export { playCallBubble, clearCallBubbleUi as clearCallBubble } from './call_bubble';
-export { showChoreCard, setChoreCount, choreCount, completeChoreCard, hideChoreCard, choreCardShowing, type ChoreItem } from './chore_card';
+export {
+  showChoreCard,
+  setChoreCount,
+  choreCount,
+  completeChoreCard,
+  hideChoreCard,
+  choreCardShowing,
+  showDeliveryCard,
+  setDeliveryCount,
+  completeDeliveryCard,
+  hideDeliveryCard,
+  deliveryCardShowing,
+  type ChoreItem,
+} from './chore_card';
 
 /** The HUD parts a curtain can leave showing. */
 export type CurtainPart = 'clock' | 'call' | 'cards' | 'hanko' | 'place';

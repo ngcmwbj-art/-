@@ -27,7 +27,7 @@ import { getItem, isKeyItem, shopLimit } from '../data/battle';
 import { sfx } from '../audio';
 import { dialogVisible, say } from './dialog';
 import { digitsWidth, drawDigits, drawNumerals, numeralsWidth } from './digits';
-import { itemIcon24, purseIcon } from './icons';
+import { coinBoxIcon, itemIcon12, itemIcon24, purseIcon } from './icons';
 import { HOSHI_SPEAKERS, MUJIN_SHOP } from '../data/text/hoshi_npcs';
 import { bagCount, BAG_MAX } from './menu/items';
 import { uiHud } from './hud';
@@ -69,6 +69,13 @@ export interface ShopDef {
   buySfx?: () => void;
   /** The sign's tape colour (default: the yellow of ひのや's). */
   signColor?: string;
+  /**
+   * An unmanned stall (無人販売所, 02 7章 / 51 6.3): a hand-lettered
+   * cardboard sign under the goods (`board`: its words), the vegetables
+   * painted on a little board beside it, and a wooden money box where the
+   * shop's purse would be.
+   */
+  stall?: { board: string };
 }
 
 const shops = new Map<string, ShopDef>();
@@ -145,6 +152,7 @@ registerShop({
   limit: (id) => MUJIN_SHOP.limits[id] ?? 3,
   perVisit: true,
   signColor: '#D8B888',
+  stall: { board: `どれでも ${MUJIN_SHOP.price}円` },
   buySfx: () => sfx('se_h_coin_box'),
   onBuy: (id) => {
     // the first ゆでとうもろこし has its own line; the first purchase ever
@@ -434,18 +442,53 @@ class ShopScene implements Scene {
     g.alpha(k, () => g.translated(0, Math.round((1 - e) * 10), () => this.drawDesc(g)));
   }
 
+  /**
+   * ソワカさん's hand-lettered sign, under the goods: a piece of cardboard
+   * (#D8B888, the corrugation showing as 1px lines every 3px, its corners a
+   * little crushed, a strip of packing tape), the words in a fat marker (the
+   * stroke doubled a pixel right); beside it a little board with the three
+   * vegetables painted on it.
+   */
+  private drawStallSign(g: Gfx, text: string): void {
+    const P = PANEL;
+    const tw = textW(text);
+    const w = tw + 14;
+    const h = 22;
+    const x = P.x + 10;
+    const y = P.y + P.h - h - 10;
+    rectA(g, x + 2, y + 2, w, h, UI.night, 0.25);
+    g.img(cardboardImg(w, h), x, y);
+    g.text(text, x + 7, y + 2, { color: UI.text });
+    g.text(text, x + 8, y + 2, { color: UI.text });
+    // the painted board: pale wood, three vegetables (the goods' own pictures), a nail at each end
+    const bx = x + w + 6;
+    const by = y - 1;
+    const goods = this.goods.slice(0, 3);
+    const bw = 8 + goods.length * 13;
+    rectA(g, bx + 2, by + 2, bw, 22, UI.night, 0.25);
+    g.rect(bx, by, bw, 22, '#6A4A2A');
+    g.rect(bx + 1, by + 1, bw - 2, 20, '#E8C890');
+    g.rect(bx + 1, by + 1, bw - 2, 1, '#FFF6D8');
+    for (let i = 0; i < bw - 4; i += 7) g.rect(bx + 2 + i, by + 16 + (i % 2), 5, 1, '#D8B888');
+    goods.forEach((id, i) => g.img(itemIcon12(id), bx + 4 + i * 13, by + 5));
+    g.px(bx + 2, by + 3, '#6B7186');
+    g.px(bx + bw - 3, by + 3, '#6B7186');
+  }
+
   private drawPanel(g: Gfx): void {
     const P = PANEL;
     drawWindow(g, P.x, P.y, P.w, P.h, UI, 1, { curl: true });
     // the shop's name on a strip of tape, like a sign
     drawTape(g, P.x + 10, P.y + 6, textW(this.def.title) + 18, 18, this.def.title, { color: this.def.signColor ?? '#F6D98A', seed: 7 });
-    // purse and money at the top right
+    // purse and money at the top right (an unmanned stall: the money box the coins go into)
     const open = this.purseT < 70;
     const money = `${state.money}円`;
     const mx = P.x + P.w - 12;
     const mw = digitsWidth(money);
     drawDigits(g, money, mx, P.y + 12, { color: UI.text, align: 'right' });
-    g.img(purseIcon(open), mx - mw - 20, P.y + 6 - (open ? 1 : 0));
+    if (this.def.stall) g.img(coinBoxIcon(this.purseT < 300 ? this.purseT / 300 : -1), mx - mw - 20, P.y + 4);
+    else g.img(purseIcon(open), mx - mw - 20, P.y + 6 - (open ? 1 : 0));
+    if (this.def.stall) this.drawStallSign(g, this.def.stall.board);
     // how full the bag is (left of the purse)
     const bag = `${bagCount()}/${BAG_MAX}`;
     const bx = mx - mw - 30;
@@ -549,8 +592,8 @@ class ShopScene implements Scene {
     const it = id ? getItem(id) : null;
     if (!it) return;
     const w = D.w - (D.textX - D.x) - 12;
-    const flavor = phraseWrap(it.desc[0], w);
-    const eff = it.desc[1] ? phraseWrap(it.desc[1], w) : [];
+    const flavor = phraseWrap(it.desc[0], w, { glue: true });
+    const eff = it.desc[1] ? phraseWrap(it.desc[1], w, { glue: true }) : [];
     // 1 line of flavour + 1 of effect normally; longer texts get 2 + 1
     const fl = flavor.slice(0, Math.max(1, 3 - eff.length));
     let y = D.y + 8;
@@ -677,4 +720,33 @@ export function* openShop(id = 'shop_hinoya'): Co {
   game.push(s);
   // the keeper's goodbye runs after the panel has closed
   yield () => s.done && s.finished;
+}
+
+const boardCache = new Map<string, HTMLCanvasElement>();
+/** A piece of cardboard (w×h): #D8B888, vertical corrugation every 3px, crushed corners, packing tape. */
+function cardboardImg(w: number, h: number): HTMLCanvasElement {
+  const key = `${w}x${h}`;
+  let c = boardCache.get(key);
+  if (c) return c;
+  const [cv, ctx] = makeCanvas(w, h);
+  const put = (x: number, y: number, col: string) => {
+    ctx.fillStyle = col;
+    ctx.fillRect(x, y, 1, 1);
+  };
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      // crushed corners: a pixel or two gone, the edge there darker
+      const corner = (x < 2 && y < 2) || (x > w - 3 && y > h - 3) || (x === 0 && y === h - 1) || (x === w - 1 && y === 0);
+      if (corner && !(x === 1 && y === 1) && !(x === w - 2 && y === h - 2)) continue;
+      let col = '#D8B888';
+      if (x % 3 === 1) col = '#C8A06A';
+      if (y === 0 || x === 0) col = '#E8C890';
+      if (y === h - 1 || x === w - 1) col = '#A8742A';
+      put(x, y, col);
+    }
+  // a strip of packing tape across the top right corner
+  for (let i = 0; i < 9; i++) for (let j = 0; j < 5; j++) if (w - 10 + i + j < w && i - j >= -1) put(w - 10 + i + j, i - 1 + 1, j === 0 ? '#F4E4C0' : '#EAD8A8');
+  c = cv;
+  boardCache.set(key, c);
+  return c;
 }

@@ -274,6 +274,7 @@ export const HOSHIMI_SUNRISE = { x: 366, y: 112 };
  *  - `lantern`: chapter 2 is under way — on the hill's slope where the
  *    village is, one pixel of tomato light (#F2894B), 1.2 s lit and 0.8 s
  *    back to the hill's own colour: someone is walking the village with it.
+ *    While lit, a faint 1px cross of its glow (α30%) helps the eye find it.
  *  - `dawn`: chapter 2 is finished — the ridge of 星見台's hill catches the
  *    morning (#FFE7A3 along its edge, dithered away at both ends) and the
  *    sun is a 朱 point just over it.
@@ -290,7 +291,15 @@ export function drawHoshimiMarks(g: Gfx, t: number, o: { lantern?: boolean; dawn
   }
   if (o.lantern) {
     const on = t % 2000 < 1200;
-    g.px(HOSHIMI_VILLAGE.x, HOSHIMI_VILLAGE.y, on ? '#F2894B' : '#B04A7A');
+    const { x, y } = HOSHIMI_VILLAGE;
+    // while it's lit, a faint cross of its glow round the pixel (α30%) so the eye finds it
+    if (on) g.alpha(0.3, () => {
+      g.px(x - 1, y, '#F2894B');
+      g.px(x + 1, y, '#F2894B');
+      g.px(x, y - 1, '#F2894B');
+      g.px(x, y + 1, '#F2894B');
+    });
+    g.px(x, y, on ? '#F2894B' : '#B04A7A');
   }
 }
 

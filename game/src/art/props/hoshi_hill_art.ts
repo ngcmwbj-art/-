@@ -141,32 +141,47 @@ function speakerPole(lampOn: boolean): HTMLCanvasElement {
   p.hline(cx - 3, cx + 2, by + 4, P.white);
   p.set(cx + 2, by + 7, P.charcoal);
   p.vline(cx + 2, POLE.hornY + 6, by - 1, P.charcoal);
-  // the red lamp above the box (3×3) on a little bracket
-  p.rect(cx - 1, POLE.lampY, 3, 3, lampOn ? P.red : P.asphalt);
-  p.set(cx - 1, POLE.lampY, lampOn ? P.vermLt : P.steel);
-  p.rect(cx - 2, POLE.lampY + 3, 5, 1, P.charcoal);
-  // the horns at the top: south (its mouth to us), east and west in profile, north behind the pole
+  // the red lamp above the box: a round red globe (3×3 inside a dark cage) on a bracket
+  const ly = POLE.lampY;
+  p.rect(cx - 2, ly - 1, 5, 5, P.charcoal);
+  p.rect(cx - 1, ly, 3, 3, lampOn ? P.red : P.asphalt);
+  p.set(cx - 1, ly, lampOn ? P.vermLt : P.steel);
+  p.set(cx + 1, ly + 2, lampOn ? P.vermShade : P.charcoal);
+  p.hline(cx - 3, cx + 3, ly + 4, P.charcoal);
+  // the horns at the top (51 10.9's colours): four trumpets on a cross mount,
+  // west and east in profile flaring out, the south one's round mouth to us,
+  // the north one's rim behind the pole
   const hy = POLE.hornY - 5;
-  p.rect(cx - 9, hy + 4, 18, 2, P.asphalt); // the cross mount
-  p.hline(cx - 9, cx + 8, hy + 4, P.steel);
-  // west horn (profile, opening left)
-  p.poly([[cx - 4, hy + 2], [cx - 14, hy - 2], [cx - 14, hy + 9], [cx - 4, hy + 6]], '#C8CDD4');
-  p.hline(cx - 13, cx - 5, hy + 7, P.steel);
-  p.vline(cx - 14, hy - 2, hy + 9, P.steel);
-  p.vline(cx - 15, hy - 1, hy + 8, P.ink);
-  // east horn (profile, opening right)
-  p.poly([[cx + 3, hy + 2], [cx + 13, hy - 2], [cx + 13, hy + 9], [cx + 3, hy + 6]], '#C8CDD4');
-  p.hline(cx + 4, cx + 12, hy + 7, P.steel);
-  p.vline(cx + 13, hy - 2, hy + 9, P.asphalt);
-  p.vline(cx + 14, hy - 1, hy + 8, P.ink);
-  // north horn: only its rim above the others
-  p.hline(cx - 4, cx + 3, hy - 4, P.steel);
-  p.hline(cx - 3, cx + 2, hy - 5, '#C8CDD4');
-  // south horn: the round mouth facing us
-  p.ellipse(cx - 0.5, hy + 5, 6, 6, '#C8CDD4');
-  p.ellipse(cx - 0.5, hy + 5, 4.5, 4.5, P.ink);
+  const HB = '#C8CDD4';
+  const HL = '#E8ECF0';
+  // north horn: its rim above the others
+  p.ellipse(cx - 0.5, hy - 1, 5, 2.5, P.steel);
+  p.hline(cx - 4, cx + 3, hy - 3, HL);
+  p.rect(cx - 10, hy + 4, 20, 2, P.asphalt); // the cross mount
+  p.hline(cx - 10, cx + 9, hy + 4, P.steel);
+  for (const side of [-1, 1]) {
+    // a flared trumpet: the throat at the mount, the bell 13px tall at the end
+    for (let i = 0; i <= 12; i++) {
+      const x = side < 0 ? cx - 3 - i : cx + 2 + i;
+      const half = 1.5 + (i * i) / 30;
+      const y0 = Math.round(hy + 4 - half);
+      const y1 = Math.round(hy + 5 + half);
+      for (let y = y0; y <= y1; y++) p.set(x, y, y === y0 ? HL : y >= y1 - 1 ? P.steel : HB);
+    }
+    // the bell's rim (seen edge-on) and its dark lip
+    const rx = side < 0 ? cx - 16 : cx + 15;
+    p.vline(rx, hy - 2, hy + 11, side < 0 ? P.steel : P.asphalt);
+    p.vline(rx + side, hy - 1, hy + 10, P.ink);
+  }
+  // south horn: the round mouth facing us — the rim lit on its upper left, the dark throat
+  p.ellipse(cx - 0.5, hy + 5, 6.5, 6.5, HB);
+  p.ellipse(cx - 0.5, hy + 5, 5, 5, '#2A2440');
   p.ellipse(cx - 0.5, hy + 5, 2, 2, P.night);
-  p.set(cx - 4, hy + 1, P.white);
+  for (let k = 0; k < 7; k++) {
+    const t = Math.PI * (1.05 + k * 0.1);
+    p.set(Math.round(cx - 0.5 + Math.cos(t) * 6), Math.round(hy + 5 + Math.sin(t) * 6), HL);
+  }
+  p.set(cx + 4, hy + 10, P.steel);
   // the antenna and its point of light
   p.vline(cx, 0, hy - 4, P.steel);
   p.set(cx, 0, P.glint);
@@ -199,8 +214,8 @@ registerProp('prop_h_speaker_pole', () => {
   const on = speakerPole(true);
   const off = speakerPole(false);
   const lampOn = (env: PropEnv) => !env.flag('flag_ch2_boss_beaten');
-  // the lamp breathes over 2 s
-  const k = (env: PropEnv) => 0.55 + 0.45 * Math.sin((env.t / 2000) * Math.PI * 2);
+  // the lamp breathes over 2 s (dim, never out)
+  const k = (env: PropEnv) => 0.4 + 0.6 * (0.5 + 0.5 * Math.sin((env.t / 2000) * Math.PI * 2));
   const top = 32 - POLE_H;
   const a: PropArt = {
     ox: 16 - 17,
@@ -225,15 +240,21 @@ registerProp('prop_h_speaker_pole', () => {
       const lx = x + 16;
       const ly = y + top + POLE.lampY + 1;
       const kk = k(env);
-      glowDot(g, lx, ly, '#FF6A4D', HLIGHT.red, 9, 0.95 * kk);
-      g.rect(lx - 1, ly - 1, 3, 3, '#E84E3C', 0.85 * kk);
-      g.rect(lx - 1, ly - 1, 1, 1, '#FFF6D8', 0.6 * kk);
+      // the brightest thing on the plaza: a hot core, the globe, a wide soft halo
+      glowDot(g, lx, ly, '#FFF6D8', HLIGHT.red, 22, kk);
+      drawLight(g, poolEllipse(9, 9, HLIGHT.red), lx, ly, 0.55 * kk);
+      g.rect(lx - 1, ly - 1, 3, 3, '#FF6A4D', 0.95 * kk);
+      g.rect(lx - 2, ly, 5, 1, '#E84E3C', 0.5 * kk);
+      g.rect(lx, ly - 2, 1, 5, '#E84E3C', 0.5 * kk);
+      g.rect(lx - 1, ly - 1, 1, 1, '#FFF6D8', 0.9 * kk);
       g.rect(x + 16, y + top, 1, 1, '#FFF6D8', 0.8); // the antenna's point
     },
     light(g: Gfx, x: number, y: number, env: PropEnv) {
       if (!lampOn(env)) return;
       // a red circle on the ground at its foot (#E84E3C α12%, 40px)
-      drawLight(g, poolEllipse(40, 26, HLIGHT.red), x + 16, y + 30, 0.3 * k(env) * Math.max(0.4, nightK(env)));
+      drawLight(g, poolEllipse(40, 26, HLIGHT.red), x + 16, y + 30, 0.6 * k(env) * Math.max(0.5, nightK(env)));
+      // and on the pole itself under the lamp
+      drawLight(g, poolEllipse(10, 16, HLIGHT.red), x + 16, y + top + POLE.lampY + 8, 0.5 * k(env));
     },
   };
   return a;

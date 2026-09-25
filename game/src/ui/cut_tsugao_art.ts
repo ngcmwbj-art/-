@@ -1,23 +1,28 @@
 // The pictures of cut_tsugao_room (52_ch2_level_art 12.5): the back of an old
 // office at night, lit by one green-shaded desk lamp. Built once and cached;
 // cut_tsugao.ts puts the moving layers on top (the clocks' hands, ツガオ's
-// arms and hands, the nightcap, the cards, the circular's page, the stamp,
-// ダコク).
+// arms and hands, the nightcap, the truck key, the cards, the circular's
+// page, the stamp, ダコク, the two shadows in the doorway).
 //
-// Sixteen colours (12.5 「光と色」), plus ダコク's rust. The room is dark;
-// the only light is the lamp's cone and its pool on the desk. 朱 appears on
-// the report cards only.
+// Eighteen colours (12.5 「光と色」: the olive of the work cap and the
+// yellow of the crate and the key's tag are ツガオ便's own), plus ダコク's
+// rust. The room is dark; the only light is the lamp's cone and its pool on
+// the desk. 朱 appears on the report cards only.
 //
 // Layout (screen px). The dialog window covers y148–212 for most of the
 // scene, so everything that acts stands on the desk top (y122–146) or above:
-//   clocks   夕鳴町 (96,34) · 星見台 (192,30) · 海ぞいの町 (288,34), Ø24, plates 28×7 below
+//   clocks   夕鳴町 (96,34) · 星見台 (192,30) · 海ぞいの町 (288,34), Ø24, name plates under them
 //   lamp     shade x80–122 y84–103, base on the desk at x92–114
-//   hat stand x132–147 (beside the chair, where ツガオ can reach), the cap on its left hook
+//   hat stand x145 (beside the chair, where ツガオ can reach), the nightcap on its right hook
 //   chair    x150–234 y50–126 · ツガオ x160–224 · desk top y122–146
-//   circular x176–208 y126–146 · stamp pad x226–244 · teacup x264–276 · ダコク x290–314 y108–136
+//   work cap x116–131 y119–127 and the truck key beside it (x132–143), in the cone's light
+//   circular x162–222 y124–146 · stamp pad x226–244 · teacup x264–276 · ダコク x292–312 y106–136
+//   shelf    x298–338 y64–118 · the frosted glass door x344–384 y40–121, half open (the two shadows)
+//   crate    under the desk on the left (the knee space, x112–146), seen when no line is up
 
 import { BAYER4, makeCanvas, PixelCanvas } from '../engine/pixel';
 import { hash2, valueNoise } from '../engine/rng';
+import { drawText, glyphImage } from '../engine/font';
 import { ovalStamp } from '../battle/art/stamps';
 
 export const P = {
@@ -37,6 +42,9 @@ export const P = {
   U: '#2F4A8A',
   R: '#E23B2E',
   A: '#7FD1E8',
+  /** ツガオ便: the work cap's olive, the crate's and the key tag's yellow. */
+  O: '#5A6B2A',
+  Yw: '#FFD23F',
   rust: '#A8742A',
 } as const;
 
@@ -54,9 +62,19 @@ export const BOARD = { x: 162, y: 124, w: 60, h: 22 };
 export const PAD = { x: 226, y: 130 };
 export const STAMP_REST = { x: 248, y: 116 };
 export const CUP = { x: 264, y: 120 };
-export const DAKOKU = { x: 290, y: 108 };
-/** The hook the nightcap hangs from. */
-export const HOOK = { x: 134, y: 50 };
+export const DAKOKU = { x: 292, y: 106 };
+/** The hat stand's pole, and the hook the nightcap hangs from (its right one, toward him). */
+export const STAND_X = 145;
+export const HOOK = { x: 152, y: 57 };
+/** The work cap lying on the desk (16×8) and where the truck key is put, beside it. */
+export const WORKCAP = { x: 116, y: 119 };
+export const KEY_AT = { x: 132, y: 121 };
+/** The frosted glass door (half open) and the dark gap the two shadows stand in. */
+export const DOOR = { x: 344, y: 40, gapX: 355 };
+/** Where the shadows' group is drawn (its canvas's top left). */
+export const SHADOWS_AT = { x: 356, y: 62 };
+/** Where the steam rises from (the tall shadow's chest). */
+export const STEAM_AT = { x: 366, y: 89 };
 
 const bay = (x: number, y: number) => (BAYER4[y & 3][x & 3] + 0.5) / 16;
 
@@ -163,7 +181,7 @@ export function plateAt(id: ClockId): { x: number; y: number; w: number; h: numb
 }
 
 function drawHatStand(p: PixelCanvas): void {
-  const x0 = 139;
+  const x0 = STAND_X;
   // pole (lit on the left, toward the lamp)
   for (let y = 46; y < DESK_Y; y++) {
     const v = wallLight(x0, y);
@@ -184,20 +202,25 @@ function drawHatStand(p: PixelCanvas): void {
   hook(-1, 48);
   hook(1, 49);
   hook(-1, 58);
-  hook(1, 57);
+  // the nightcap's hook (toward his chair): its tip at HOOK
+  hook(1, HOOK.y - 1);
 }
 
 function drawShelf(p: PixelCanvas): void {
-  const x0 = 322;
-  const x1 = 376;
-  const y0 = 36;
-  for (let y = y0; y < 110; y++)
+  // a low filing cabinet with glass doors, standing on the floor between the wall and the desk
+  const x0 = 298;
+  const x1 = 338;
+  const y0 = 64;
+  const y1 = 119;
+  for (let y = y0; y < y1; y++)
     for (let x = x0; x <= x1; x++) {
       const edge = x === x0 || x === x1 || y === y0 || x === x0 + 1;
       p.set(x, y, edge ? (x === x0 + 1 ? P.D : P.K) : P.N);
     }
+  // its plinth on the floor
+  for (let x = x0; x <= x1; x++) p.set(x, y1, P.K);
   // shelves and what stands on them
-  const shelfY = [54, 74, 94];
+  const shelfY = [82, 100, 116];
   let seed = 3;
   for (const sy of shelfY) {
     for (let x = x0 + 2; x < x1; x++) {
@@ -205,10 +228,11 @@ function drawShelf(p: PixelCanvas): void {
       p.set(x, sy + 1, P.K);
     }
     let x = x0 + 4;
+    const top = sy === 82 ? y0 + 2 : sy - 17;
     while (x < x1 - 4) {
       seed++;
       const bw = 3 + Math.floor(hash2(seed, sy, 5) * 3);
-      const bh = 12 + Math.floor(hash2(seed, sy, 6) * 5);
+      const bh = Math.min(sy - top - 1, 11 + Math.floor(hash2(seed, sy, 6) * 5));
       const lean = hash2(seed, sy, 8) < 0.15 && x > x0 + 10;
       const col = [P.D, P.N, P.G, P.D][seed % 4];
       for (let yy = 0; yy < bh; yy++)
@@ -218,18 +242,77 @@ function drawShelf(p: PixelCanvas): void {
           p.set(px, sy - 1 - yy, xx === 0 ? P.G : xx === bw - 1 ? P.K : col);
         }
       // a small label on the spine
-      if (bh > 13 && !lean) {
+      if (bh > 12 && !lean) {
         p.set(x + 1, sy - bh + 3, P.W);
         p.set(x + 1, sy - bh + 4, P.G);
       }
       x += bw + (hash2(seed, sy, 9) < 0.25 ? 3 : 0);
     }
   }
+  // the middle post between the two glass doors, and a key in its lock
+  for (let y = y0 + 1; y < y1; y++) p.set(318, y, P.K);
+  p.set(317, 90, P.G);
   // a box file lying on top
-  for (let y = 30; y < 36; y++) for (let x = 330; x < 356; x++) p.set(x, y, y === 30 ? P.G : x === 355 ? P.K : P.D);
-  for (let x = 334; x < 344; x++) p.set(x, 33, P.G);
-  // the glass of the doors catches one faint streak
-  for (let i = 0; i < 18; i++) p.set(x0 + 14 + Math.floor(i / 3), 40 + i * 3, P.D);
+  for (let y = y0 - 6; y < y0; y++) for (let x = x0 + 6; x < x0 + 30; x++) p.set(x, y, y === y0 - 6 ? P.G : x === x0 + 29 ? P.K : P.D);
+  for (let x = x0 + 10; x < x0 + 20; x++) p.set(x, y0 - 3, P.G);
+  // the glass of the doors catches one faint streak each
+  for (let i = 0; i < 16; i++) {
+    p.set(x0 + 8 + Math.floor(i / 3), y0 + 4 + i * 3, P.D);
+    p.set(x0 + 26 + Math.floor(i / 3), y0 + 6 + i * 3, P.D);
+  }
+}
+
+/**
+ * The frosted glass door at the right edge (x344–384, its lower part behind
+ * the desk), pushed half open into the corridor: its jamb, the panel seen
+ * edge-on as it swings away (frosted glass over a wooden kick panel), and the
+ * gap — a dim corridor, a faint light far down it, that the two shadows
+ * stand against (52 12.5).
+ */
+function drawDoor(p: PixelCanvas): void {
+  const { x: dx, y: dy, gapX } = DOOR;
+  const floorY = 112;
+  // the gap: the corridor, dark, with a faint light far down it (behind where the shadows stand)
+  for (let y = dy + 4; y < DESK_Y; y++)
+    for (let x = gapX; x < 384; x++) {
+      // a light far down the corridor, low: the two stand against it (backlit, so they read as shapes)
+      const glow = Math.exp(-Math.hypot((x - 367) / 15, (y - 78) / 32));
+      let v = 0.16 + 0.74 * glow;
+      if (y >= floorY) v = 0.22 + 0.32 * Math.exp(-Math.abs(x - 370) / 10) - (y - floorY) * 0.03; // the corridor's floor
+      if (x < gapX + 3) v -= 0.12; // the jamb's shadow on the gap's near side
+      p.set(x, y, step([P.K, P.N, P.D, P.G], v, x, y));
+    }
+  // the corridor floor's far edge catches a line of that light
+  for (let x = gapX + 3; x < 384; x++) if (Math.abs(x - 371) < 9) p.set(x, floorY, P.D);
+  // the lintel and the left jamb (dark wood)
+  for (let x = dx; x < 384; x++) {
+    p.set(x, dy, P.K);
+    for (let y = dy + 1; y < dy + 4; y++) p.set(x, y, y === dy + 1 ? P.D : P.N);
+  }
+  for (let y = dy; y < DESK_Y; y++) {
+    p.set(dx, y, P.K);
+    p.set(dx + 1, y, P.D);
+    p.set(dx + 2, y, P.N);
+    p.set(dx + 3, y, P.K);
+  }
+  // the panel, swung away from us: a narrow trapezoid (its far edge a little shorter)
+  const px0 = dx + 4;
+  const px1 = gapX - 1;
+  for (let x = px0; x <= px1; x++) {
+    const u = (x - px0) / (px1 - px0);
+    const top = dy + 4 + Math.round(u * 3);
+    const bot = DESK_Y + 6 - Math.round(u * 3);
+    for (let y = top; y < Math.min(DESK_Y, bot); y++) {
+      let col: string;
+      if (x === px0 || x === px1) col = x === px0 ? P.D : P.K; // the stiles
+      else if (y === top || y === top + 1) col = P.N; // the top rail
+      else if (y > 96 + Math.round(u * 2)) col = y === 97 + Math.round(u * 2) ? P.D : P.N; // the wooden kick panel
+      else col = bay(x, y) < 0.35 + (u < 0.5 ? 0.15 : 0) ? P.D : P.G; // frosted glass
+      p.set(x, y, col);
+    }
+  }
+  // the handle, a small black bar on the panel's near stile
+  for (let y = 80; y < 86; y++) p.set(px0 + 2, y, P.K);
 }
 
 /** The high-backed black leather chair behind ツガオ. */
@@ -265,6 +348,7 @@ export function buildRoomBack(): HTMLCanvasElement {
   drawWall(p);
   for (const id of Object.keys(CLOCKS) as ClockId[]) drawClockFrame(p, id);
   drawShelf(p);
+  drawDoor(p);
   drawHatStand(p);
   drawChair(p);
   return p.toCanvas();
@@ -324,6 +408,16 @@ function drawDesk(p: PixelCanvas): void {
   // the centre panel: a long shallow drawer under the top
   for (let x = 112; x <= 272; x++) p.set(x, 150, P.K);
   for (let x = 112; x <= 272; x++) p.set(x, 162, P.D);
+  // the knee space under it: a dark recess, its inner walls catching a little of the lamp
+  for (let y = 163; y < 216; y++)
+    for (let x = 108; x <= 276; x++) {
+      let col: string = P.K;
+      if (x < 112) col = x === 108 ? P.D : P.N; // the left drawer stack's inner side, toward the lamp
+      else if (x > 272) col = x === 276 ? P.K : P.K;
+      else if (y < 167) col = step([P.K, P.N], 0.6 - (y - 163) * 0.15, x, y); // under the drawer's lip
+      else if (y > 204) col = step([P.K, P.N], 0.2 + (y - 204) * 0.02 + 0.2 * Math.exp(-Math.abs(x - 130) / 40), x, y); // the floor
+      p.set(x, y, col);
+    }
 }
 
 function drawPapers(p: PixelCanvas): void {
@@ -440,14 +534,125 @@ function drawPad(p: PixelCanvas): void {
   );
 }
 
-/** Desk, papers, lamp, teacup, ink pad (in front of ツガオ's chair). */
+/**
+ * The olive work cap (16×8), taken off and put down crown up on the desk's
+ * far corner, its short brim toward the lamp — the same cap 村のツガオさん
+ * wears (52 6.4 / 12.5). Its seams and the button on top; the brim's shadow
+ * on the desk. The lamp's cone lies over it (buildLight).
+ */
+function drawWorkCap(p: PixelCanvas): void {
+  const { x, y } = WORKCAP;
+  rows(
+    p,
+    [
+      '.......NNGN.....',
+      '.....NNOOOONN...',
+      '....NOOOODOOON..',
+      '...NOOOOODOODDN.',
+      '...NOOOOOODODDN.',
+      '.NNNOOOOOODODDN.',
+      'NOOOONNNNNNNNNN.',
+      '.NNNNKKKKKKKKK..',
+    ],
+    { N: P.N, O: P.O, D: P.D, G: P.G, K: P.K },
+    x,
+    y,
+  );
+  // the brim's lit edge (it faces the lamp) and the crown's lit slope
+  p.set(x + 1, y + 6, P.c);
+  p.set(x + 2, y + 6, P.O);
+  for (const [cx, cy] of [
+    [5, 2],
+    [4, 3],
+    [4, 4],
+    [6, 1],
+  ])
+    p.set(x + cx, y + cy, bay(cx, cy) < 0.5 ? P.O : P.c);
+}
+
+/**
+ * The yellow crate (ツガオ便's, 30×18) on the floor in the desk's knee
+ * space, on the left, the delivery clipboard standing in it. In the desk's
+ * shadow: its yellow shows on the rim that catches the lamp's spill, the
+ * sides go down into the dark; the openwork of its walls, the hand hole.
+ */
+function drawCrate(p: PixelCanvas): void {
+  const x0 = 116;
+  const y0 = 186;
+  const w = 30;
+  const h = 18;
+  // the clipboard standing in it (behind the near wall): board, steel clip, a slip's edge
+  for (let y = y0 - 10; y < y0 + 2; y++)
+    for (let x = x0 + 17; x < x0 + 26; x++) p.set(x, y, x === x0 + 17 ? P.L : x === x0 + 25 ? P.N : y === y0 - 10 ? P.L : P.B);
+  for (let y = y0 - 8; y < y0; y++) for (let x = x0 + 18; x < x0 + 25; x++) p.set(x, y, y === y0 - 8 ? P.W : bay(x, y) < 0.5 ? P.G : P.D);
+  rows(p, ['.GGG.', 'GWGGN', '.NNN.'], { G: P.G, W: P.W, N: P.N }, x0 + 19, y0 - 12);
+  for (let y = y0; y < y0 + h; y++)
+    for (let x = x0; x < x0 + w; x++) {
+      const u = x - x0;
+      const v = y - y0;
+      // lighter up top (the spill from the lamp), down into the dark; the far end darker
+      const lv = 0.85 - v * 0.05 - Math.max(0, u - 18) * 0.03;
+      let col = step([P.N, P.B, P.c, P.Yw], lv, x, y);
+      if (v === 0) col = u < 20 ? P.Yw : P.c; // the rim, lit
+      else if (v === 1) col = P.c;
+      else if (v === 2) col = P.B; // the rim's shadow
+      else if (u === 0 || u === w - 1 || v === h - 1) col = P.N;
+      // the walls' openwork: rows of small oblong holes, and the hand hole
+      const hole = v >= 5 && v <= 15 && (v - 5) % 4 < 2 && u > 1 && u < w - 2 && (u - 2) % 5 < 3;
+      if (hole) col = P.K;
+      if (v >= 3 && v <= 3 && u >= 10 && u <= 19) col = P.K;
+      p.set(x, y, col);
+    }
+  // its shadow on the floor
+  for (let x = x0 + 1; x < x0 + w + 2; x++) p.set(x, y0 + h, P.K);
+}
+
+/** Desk, papers, lamp, teacup, ink pad, the work cap, the crate (in front of ツガオ's chair). */
 export function buildRoomFront(): HTMLCanvasElement {
   const p = new PixelCanvas(384, 216);
   drawDesk(p);
+  drawCrate(p);
   drawPapers(p);
   drawTeacup(p);
   drawPad(p);
   drawLamp(p);
+  drawWorkCap(p);
+  return p.toCanvas();
+}
+
+/**
+ * The truck key: `desk` lying beside the cap (12×7) — the brass key, its
+ * ring, the little yellow tag and one white feather (ぴーちゃんの); `hand`
+ * dangling from his fingers by the ring (7×11).
+ */
+export function keyImg(kind: 'desk' | 'hand'): HTMLCanvasElement {
+  const pal: Record<string, string> = { k: P.c, B: P.L, Y: P.Yw, y: P.c, F: P.Pp, f: P.W, N: P.N, K: P.K };
+  const art =
+    kind === 'desk'
+      ? [
+          '..FFF.......',
+          '.F.YYY......',
+          '...YYyN.....',
+          '....N.kk....',
+          '.....kNNk...',
+          '......kkkkkB',
+          '.......K.kKk',
+        ]
+      : [
+          '..kk...',
+          '.kNNk..',
+          '..kk...',
+          '..k....',
+          '..k.YY.',
+          '..kFYy.',
+          '..kF...',
+          '.kkFN..',
+          '..kF...',
+          '..k....',
+          '..B....',
+        ];
+  const p = new PixelCanvas(art[0].length, art.length);
+  rows(p, art, pal, 0, 0);
   return p.toCanvas();
 }
 
@@ -717,26 +922,23 @@ export function torsoImg(): HTMLCanvasElement {
   const cx = 38; // screen x192
   // neck (in the shadow under the jaw)
   for (let y = 0; y < 8; y++) for (let x = cx - 5; x <= cx + 4; x++) p.set(x, y, y < 2 ? P.B : x < cx - 2 ? P.S : P.L);
-  // jacket silhouette: shoulders at y8, padded, square
-  const half = (y: number) => (y < 8 ? 0 : y === 8 ? 22 : y === 9 ? 27 : y === 10 ? 29 : 30);
+  // jacket silhouette: shoulders at y8, padded, square; below them the body
+  // (the upper arms are drawn live from the shoulder points, so they can rise)
+  const half = (y: number) => (y < 8 ? 0 : y === 8 ? 22 : y === 9 ? 27 : y === 10 ? 29 : y === 11 ? 30 : 22);
   for (let y = 8; y < TORSO.h; y++) {
     const h = half(y);
-    for (let x = cx - h; x <= cx + h - 1; x++) {
-      const u = x - (cx - h);
+    const x0 = cx - h;
+    const x1 = y >= 12 ? cx + 21 : cx + h - 1;
+    for (let x = x0; x <= x1; x++) {
+      const u = x - x0;
       let col: string = P.D;
       if (x % 4 === 1 && y > 10) col = P.G; // stripes
-      if (u === 0) col = P.G; // lit edge (the lamp is to the left)
+      if (u === 0) col = y >= 12 ? P.N : P.G; // lit edge (the lamp is to the left); under the arm, its shadow
       else if (u === 1 && y > 9) col = bay(x, y) < 0.5 ? P.G : P.D;
-      if (x >= cx + h - 2) col = P.N; // the far edge
-      if (y === 8 || (y === 9 && (u < 6 || x > cx + h - 7))) col = y === 8 ? P.G : P.D;
+      if (x >= x1 - 1) col = P.N; // the far edge
+      if (y === 8 || (y === 9 && (u < 6 || x > x1 - 6))) col = y === 8 ? P.G : P.D;
       p.set(x, y, col);
     }
-  }
-  // the shoulder seams and the arm's crease (upper arms along the sides)
-  for (let y = 12; y < TORSO.h; y++) {
-    p.set(cx - 22, y, P.N);
-    p.set(cx + 21, y, P.N);
-    p.set(cx - 23, y, bay(0, y) < 0.5 ? P.G : P.D);
   }
   // shirt: the V between the lapels, from the collar to the top button
   for (let y = 6; y < 28; y++) {
@@ -839,38 +1041,86 @@ export function handImg(kind: 'rest' | 'point' | 'open' | 'grip', flip = false):
 
 // ---- things on the desk ---------------------------------------------------------------------
 
-/** ダコク's box (24×22) — a cream time recorder; `legs` are drawn apart (they bend when it sinks). */
+/** ダコク's box: its size, and where the card slot is (the legs are drawn live). */
+export const DAKOKU_BOX = { w: 20, h: 24, slotX: 5, slotY: 18, slotW: 10 };
+
+/**
+ * ダコク's box (20×24): an old upright time recorder in cream — a carrying
+ * handle joined to its top, a round clock face (stopped; no eyes, no mouth),
+ * under it the card slot in a grey plate with IN／OUT marks scored beside
+ * it; rust at the corners, the right side in shade. The thin legs are drawn
+ * live (they bend when it sinks).
+ */
 export function dakokuBox(): HTMLCanvasElement {
-  const pal: Record<string, string> = { C: P.C, c: P.c, r: P.rust, D: P.D, N: P.N, K: P.K, W: P.W, P: P.Pp, G: P.G, B: P.B };
-  const art = [
-    '.........NNNNNN.........',
-    '.........NGGGGN.........',
-    '.........N....N.........',
-    '.NNNNNNNNNNNNNNNNNNNNNN.',
-    'NrCCCCCCCCCCCCCCCCCCCcrN',
-    'NCPCCCCCCNNNNNNCCCCCCccN',
-    'NCCCCCCNNWPPPPWNNCCCCccN',
-    'NCCCCCNWPPPPPPPPWNCCCccN',
-    'NCCCCNWPPPPKPPPPPWNCCccN',
-    'NCCCCNPPPPPKPPPPPPNCCccN',
-    'NCCCNWPPPPPKPPPPPPWNCccN',
-    'NCCCNPKPPPPKKKKPPKPNCccN',
-    'NCCCNWPPPPPPPPPPPPWNCccN',
-    'NCCCCNPPPPPPPPPPPPNCCccN',
-    'NCCCCNWPPPPPKPPPPWNCCccN',
-    'NCCCCCNWPPPPPPPPWNCCCccN',
-    'NCCCCCCNNWWWWWWNNCCCCccN',
-    'NCCCCCCCCNNNNNNCCCCCCccN',
-    'NCCCCCKKKKKKKKKKKKCCCccN',
-    'NCCCCCcDDDDDDDDDDcCCCccN',
-    'NrccccccccccccccccccccrN',
-    '.NNNNNNNNNNNNNNNNNNNNNN.',
-  ];
-  const p = new PixelCanvas(24, art.length);
-  rows(p, art, pal, 0, 0);
-  // rust flecks down the right side
-  p.set(21, 9, P.rust);
-  p.set(22, 15, P.rust);
+  const { w, h, slotX, slotY, slotW } = DAKOKU_BOX;
+  const p = new PixelCanvas(w, h);
+  // the handle: a bar on two posts, joined to the lid
+  for (let x = 5; x <= 14; x++) {
+    p.set(x, 0, P.N);
+    p.set(x, 1, x === 5 || x === 14 ? P.N : P.G);
+  }
+  for (const x of [5, 6, 13, 14]) p.set(x, 2, x === 5 || x === 14 ? P.N : P.c);
+  p.set(6, 1, P.W);
+  // the body
+  const top = 3;
+  for (let y = top; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const corner = (y === top || y === h - 1) && (x === 0 || x === w - 1);
+      if (corner) continue;
+      let col: string = P.C;
+      if (x === 0 || x === w - 1 || y === top || y === h - 1) col = P.N;
+      else if (x >= w - 3) col = P.c; // the right side, away from the lamp
+      else if (y === top + 1) col = P.Pp; // the lid's lit edge
+      p.set(x, y, col);
+    }
+  // rust at the corners
+  for (const [x, y] of [
+    [1, top + 1],
+    [w - 2, top + 1],
+    [1, h - 2],
+    [w - 2, h - 2],
+    [w - 2, 12],
+    [w - 3, 17],
+  ])
+    p.set(x, y, P.rust);
+  // the clock face (Ø11), stopped
+  const cx = 9;
+  const cy = 9.5;
+  for (let y = top + 1; y < 16; y++)
+    for (let x = 2; x < 17; x++) {
+      const d = Math.hypot(x + 0.5 - (cx + 0.5), y + 0.5 - cy);
+      if (d > 5.9) continue;
+      p.set(x, y, d > 5 ? P.N : d > 4.3 && x + y > cx + cy + 2 ? P.W : P.Pp);
+    }
+  for (const [x, y] of [
+    [cx, 5],
+    [cx, 14],
+    [cx - 4, 10],
+    [cx + 4, 10],
+  ])
+    p.set(x, y, P.G);
+  // hands: the minute on the 12, the hour toward the 4
+  for (let y = 6; y <= 10; y++) p.set(cx, y, P.K);
+  p.set(cx + 1, 10, P.K);
+  p.set(cx + 2, 11, P.K);
+  // the slot plate and the slot
+  for (let x = slotX - 2; x < slotX + slotW + 2; x++) {
+    p.set(x, slotY - 1, P.G);
+    p.set(x, slotY + 2, P.G);
+  }
+  p.set(slotX - 2, slotY, P.G);
+  p.set(slotX - 2, slotY + 1, P.G);
+  p.set(slotX + slotW + 1, slotY, P.G);
+  p.set(slotX + slotW + 1, slotY + 1, P.G);
+  for (let x = slotX; x < slotX + slotW; x++) {
+    p.set(x, slotY, P.K);
+    p.set(x, slotY + 1, P.K);
+  }
+  p.set(slotX - 1, slotY, P.N);
+  p.set(slotX + slotW, slotY + 1, P.N);
+  // IN (left) and OUT (right) scored on the plate's lip: two short marks, then three
+  for (const x of [slotX, slotX + 2]) p.set(x, slotY + 3, P.c);
+  for (const x of [slotX + slotW - 5, slotX + slotW - 3, slotX + slotW - 1]) p.set(x, slotY + 3, P.c);
   return p.toCanvas();
 }
 
@@ -1014,6 +1264,78 @@ function addClip(c: HTMLCanvasElement): void {
   ctx.drawImage(p.toCanvas(), Math.round(c.width / 2) - 7, 0);
 }
 
+/**
+ * The two shadows in the doorway's gap (28×50, drawn at SHADOWS_AT): all one
+ * dark (#0B0B14) against the dim corridor, no faces, no eyes, no glint (52
+ * 12.5). The tall one (14×44), nearer, stands in profile toward the room: a
+ * round bare head, a long thin beard hanging from the chin, tapering, clear
+ * against the light behind. The broad one (18×40) keeps behind him — its
+ * left half hidden, only its own left side showing past his back: wide
+ * shoulders, a thick arm, and on that shoulder a small hen (a low comb, a
+ * beak). `tilt` 1: the hen cocks its head a pixel (「コケッ」).
+ */
+export function shadowsImg(tilt: 0 | 1): HTMLCanvasElement {
+  const w = 28;
+  const h = 50;
+  const p = new PixelCanvas(w, h);
+  const K = P.K;
+  const disc = (cx: number, cy: number, r: number) => {
+    for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++)
+      for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++) if (Math.hypot(x + 0.5 - cx, y + 0.5 - cy) <= r) p.set(x, y, K);
+  };
+  // the broad one, behind and to the right (x9–26): its head peeking past his, square shoulders, a thick arm
+  disc(17, 14.5, 3.6);
+  for (let y = 17; y < 21; y++) for (let x = 14; x < 20; x++) p.set(x, y, K); // the thick neck
+  for (let y = 20; y < 36; y++) {
+    const sh = y < 22 ? [2, 1][y - 20] : 0; // shoulders square off fast
+    for (let x = 9 + sh; x < 27 - sh; x++) p.set(x, y, K);
+  }
+  for (let y = 22; y < 38; y++) p.set(27, y, K); // the thick arm on its far side, a gap from the body
+  for (let y = 36; y < 48; y++) {
+    for (let x = 14; x < 19; x++) p.set(x, y, K);
+    for (let x = 21; x < 26; x++) p.set(x, y, K);
+  }
+  // the hen on that shoulder (6×6): a round body, the low comb, the beak toward the room
+  const hx = 21;
+  const hy = 14;
+  rows(p, ['...#..', '..###.', '.####.', '######', '######', '.####.'], { '#': K }, hx, hy);
+  if (tilt) {
+    // the head cocked: the comb and the beak a pixel lower
+    p.set(hx + 3, hy, 'transparent');
+    p.set(hx + 1, hy + 1, K);
+    p.set(hx, hy + 3, 'transparent');
+    p.set(hx, hy + 4, K);
+    p.set(hx - 1, hy + 4, K);
+  } else p.set(hx - 1, hy + 3, K);
+  // the tall one, in front (x2–15): profile toward the room (left)
+  disc(9.5, 9, 4.3);
+  for (let y = 12; y < 17; y++) for (let x = 7; x < 12; x++) p.set(x, y, K); // jaw and neck
+  // the beard: from the chin, down and a little forward 9px, tapering to one pixel
+  const beard = [
+    [5, 8, 12],
+    [5, 8, 13],
+    [4, 7, 14],
+    [4, 7, 15],
+    [4, 6, 16],
+    [3, 6, 17],
+    [3, 5, 18],
+    [3, 5, 19],
+    [2, 4, 20],
+    [2, 3, 21],
+  ];
+  for (const [x0, x1, y] of beard) for (let x = x0; x < x1; x++) p.set(x, y, K);
+  for (let y = 16; y < 32; y++) for (let x = 7; x < 16; x++) if (!(y < 18 && x > 14)) p.set(x, y, K); // chest and back
+  for (let y = 19; y < 31; y++) p.set(6, y, K); // the near arm, hanging
+  for (let y = 31; y < 48; y++) {
+    for (let x = 8; x < 11; x++) p.set(x, y, K);
+    for (let x = 12; x < 15; x++) if (y < 47) p.set(x, y, K);
+  }
+  // feet
+  for (let x = 6; x < 11; x++) p.set(x, 48, K);
+  for (let x = 14; x < 20; x++) p.set(x, 48, K);
+  return p.toCanvas();
+}
+
 /** The page turning over the clip (3 frames: lifted, upright, laid back). */
 export function boardFlip(i: 0 | 1 | 2): HTMLCanvasElement {
   const hs = [12, 4, 6];
@@ -1096,46 +1418,144 @@ function silhouetteOf(src: HTMLCanvasElement, color: string): HTMLCanvasElement 
 }
 
 /**
- * The print the black stamp leaves on the screen (96×40): the ink has run
- * out — only the left half of 「ま」 and a piece of the oval's left arc come
- * through, and those at 60% (ordered dither).
+ * The print the black stamp leaves on the screen (96×40, #0B0B14): the ink
+ * has run out. The oval's left arc (2px) and the left half of 「ま」 (its
+ * strokes 2px, the 16px letter doubled) come through, broken off along a
+ * ragged line down the middle of the letter, the ink thinning into specks
+ * toward the break; of 「だ」 and the right of the oval, only a few specks.
  */
 export function madaPrint(): HTMLCanvasElement {
   const w = 96;
   const h = 40;
-  const src = ovalStamp('まだ', w, h, 0.1, 9);
-  const [c, ctx] = makeCanvas(src.width, src.height);
-  ctx.drawImage(src, 0, 0);
-  const img = ctx.getImageData(0, 0, src.width, src.height);
+  const [c, ctx] = makeCanvas(w, h, { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = false;
+  // the oval ring (2px)
+  const inE = (x: number, y: number, rx: number, ry: number) => ((x + 0.5 - w / 2) / rx) ** 2 + ((y + 0.5 - h / 2) / ry) ** 2 <= 1;
+  const ring = (x: number, y: number) => inE(x, y, w / 2, h / 2) && !inE(x, y, w / 2 - 2, h / 2 - 2);
+  // the letters as a stamp prints them (the face is mirrored; the print reads right): 「ま」 then 「だ」, doubled
+  const gm = glyphImage('ま', '#0B0B14');
+  const gd = glyphImage('だ', '#0B0B14');
+  const lx = 16;
+  ctx.drawImage(gm, 0, 0, gm.width, gm.height, lx, 5, gm.width * 2, gm.height * 2);
+  ctx.drawImage(gd, 0, 0, gd.width, gd.height, lx + 34, 5, gd.width * 2, gd.height * 2);
+  const img = ctx.getImageData(0, 0, w, h);
   const d = img.data;
-  const sw = src.width;
-  // 「ま」 is the left glyph (16px, just left of the middle): keep its left half and the oval's left arc
-  const cut = Math.round(sw / 2 - 8);
-  for (let y = 0; y < src.height; y++)
-    for (let x = 0; x < sw; x++) {
-      const i = (y * sw + x) * 4;
-      if (!d[i + 3]) continue;
-      const keep = x < cut - (hash2(x >> 1, y >> 1, 4) < 0.5 ? 2 : 0) && bay(x, y) < 0.6 && !(x < 12 && (y < 8 || y > 31) && hash2(x, y, 6) < 0.6);
-      if (!keep) {
-        d[i + 3] = 0;
-        continue;
-      }
-      d[i] = 0x0b;
-      d[i + 1] = 0x0b;
-      d[i + 2] = 0x14;
+  const on = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) on[y * w + x] = d[(y * w + x) * 4 + 3] > 0 || ring(x, y) ? 1 : 0;
+  // where the ink gave out: a ragged line just right of 「ま」's upright stroke, wandering ±2px
+  const breakAt = (y: number) => lx + 20 + Math.round((valueNoise(3.3, y / 5, 11) - 0.5) * 5);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (!on[i]) continue;
+      const b = breakAt(y);
+      let keep: boolean;
+      if (x < b - 3) {
+        // solid, but the rubber didn't touch everywhere: a few pale blotches
+        keep = valueNoise(x / 3, y / 3, 17) < 0.8 || hash2(x, y, 2) < 0.5;
+        // the oval's upper and lower left edges fade where the stamp was tilted
+        if (ring(x, y) && x > 22 && hash2(x >> 1, y, 5) < 0.55) keep = false;
+      } else if (x < b + 1) keep = hash2(x, y, 7) < 0.55; // the torn edge: the ink thins
+      else keep = hash2(x >> 1, y >> 1, 9) < 0.035 && x < w - 12; // beyond: only specks
+      if (!keep) on[i] = 0;
     }
-  // wet ink shines a little along its upper-left edges (so the black reads on a dark picture)
-  const on = (x: number, y: number) => x >= 0 && y >= 0 && x < sw && y < src.height && d[(y * sw + x) * 4 + 3] > 0 && d[(y * sw + x) * 4] === 0x0b;
-  const sheen: number[] = [];
-  for (let y = 0; y < src.height; y++)
-    for (let x = 0; x < sw; x++) if (!on(x, y) && (on(x + 1, y) || on(x, y + 1))) sheen.push(x, y);
-  for (let k = 0; k < sheen.length; k += 2) {
-    const i = (sheen[k + 1] * sw + sheen[k]) * 4;
-    d[i] = 0x3a;
-    d[i + 1] = 0x3f;
-    d[i + 2] = 0x48;
-    d[i + 3] = 200;
+  for (let i = 0; i < w * h; i++) {
+    const k = i * 4;
+    if (on[i]) {
+      d[k] = 0x0b;
+      d[k + 1] = 0x0b;
+      d[k + 2] = 0x14;
+      d[k + 3] = 255;
+    } else d[k + 3] = 0;
   }
   ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+/**
+ * 「こちら側のページ」 (320×176): the sheet the stamp comes down on — the
+ * screen is our page. Unbleached paper #F4F1E8 with faint rules, its edges
+ * frayed by an ordered dither; drawn at α≈40% over the room.
+ */
+export function nearPageImg(): HTMLCanvasElement {
+  const w = 320;
+  const h = 176;
+  const p = new PixelCanvas(w, h);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const e = Math.min(x, y, w - 1 - x, h - 1 - y);
+      if (e < 8 && bay(x, y) > (e + 1) / 9 + (valueNoise(x / 6, y / 6, 21) - 0.5) * 0.3) continue;
+      let col: string = P.Pp;
+      if (y % 12 === 6 && x > 14 && x < w - 14) col = P.W; // a faint rule
+      else if (hash2(x, y, 31) < 0.02) col = P.W; // fibres
+      p.set(x, y, col);
+    }
+  return p.toCanvas();
+}
+
+/**
+ * The close-up of the circular's turned page (170×78), cut in for a moment
+ * so its heading reads for sure: the black board with its steel clip, the
+ * white sheet, 「海ぞいの 町」 in his hand (the 16px letters, black), a line
+ * under it and a few lines of notes (not to be read — chapter 3 decides them).
+ */
+export function pageCloseImg(): HTMLCanvasElement {
+  const w = 170;
+  const h = 78;
+  const p = new PixelCanvas(w, h);
+  // the board
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      let col: string = P.D;
+      if (x === 0 || y === h - 1) col = P.K;
+      else if (x === w - 1) col = P.N;
+      else if (y === 0 || x === 1) col = P.G;
+      else if ((x < 6 && y > h - 6) || (x > w - 7 && y < 4)) col = bay(x, y) < 0.4 ? P.G : P.D;
+      p.set(x, y, col);
+    }
+  // the sheet
+  for (let y = 8; y < h - 4; y++)
+    for (let x = 6; x < w - 6; x++) p.set(x, y, x === w - 7 || y === h - 5 ? P.W : P.Pp);
+  // a shadow under the sheet's right and bottom edges
+  for (let y = 9; y < h - 3; y++) p.set(w - 6, y, P.N);
+  for (let x = 7; x < w - 5; x++) p.set(x, h - 4, P.N);
+  // the notes: three lines of small handwriting (squiggles), the last one short
+  for (const [ly, len] of [
+    [44, 118],
+    [54, 132],
+    [64, 70],
+  ])
+    for (let x = 16; x < 16 + len; x++) {
+      const yy = ly + Math.round(Math.sin(x * 0.9 + ly) * 1.2 + (hash2(x >> 2, ly, 3) - 0.5) * 1.4);
+      if (hash2(x >> 3, ly, 4) < 0.14) continue; // gaps between words
+      p.set(x, yy, P.G);
+      if (hash2(x, ly, 5) < 0.3) p.set(x, yy - 1, P.G);
+    }
+  const c = p.toCanvas();
+  const ctx = c.getContext('2d')!;
+  // the heading, and a line drawn under it
+  drawText(ctx, '海ぞいの 町', 16, 14, { color: P.K });
+  ctx.fillStyle = P.K;
+  for (let x = 14; x < 110; x++) ctx.fillRect(x, 33 + (x % 29 === 0 ? 1 : 0), 1, 1);
+  // the steel clip across the top, bigger in the close-up
+  const clip = new PixelCanvas(34, 9);
+  rows(
+    clip,
+    [
+      '..GGGGGGGGGGGGGGGGGGGGGGGGGGGGGG..',
+      '.GWWWWWGGGGGGGGGGGGGGGGGGGGGGGGGN.',
+      'GWGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGN',
+      'GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGN',
+      'GGGGNNNNNNNNNNNNNNNNNNNNNNNNNNGGGN',
+      '.GGN..........................NGN.',
+      '.NNN..........................NNN.',
+      '..........................................',
+      '..........................................',
+    ],
+    { G: P.G, W: P.W, N: P.N },
+    0,
+    0,
+  );
+  ctx.drawImage(clip.toCanvas(), Math.round(w / 2) - 17, 3);
   return c;
 }

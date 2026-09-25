@@ -6,7 +6,7 @@
 //   __game.cmd.jump('gen')        the slope before マサルさん, stage 1, the lantern lit
 //   __game.cmd.jump('barnwork')   (optional) the chores in the barn
 //   __game.cmd.beat2()            the furthest chapter-2 beat the flags have reached
-//   __game.cmd.lvCh2(6)           both at Lv6 (51 18.5)
+//   __game.cmd.lvCh2(6)           both at Lv6 (51 18.5; the battle team's command)
 //   __game.cmd.endcut2(3)         one cut of the ending
 //   __game.cmd.ch2sounds()        cue-sheet sounds the scripts asked for that aren't registered
 //   __game.cmd.textcheck2()       every chapter-2 page against 3 lines × 336 px
@@ -25,6 +25,7 @@ import { stopAllAmbient, stopBgm } from '../../audio';
 import { HOSHI_NPC, KANENARI_FLIPS_HOSHI, KANENARI_USUAL_HOSHI, MUJIN_SHOP, KANENARI_FLIP_MUJIN_H1 } from '../../data/text/hoshi_npcs';
 import { HOSHI_FUSHIGI, HOSHI_OBJ, HOSHI_RESTORED } from '../../data/text/hoshi_objects';
 import * as EV from '../../data/text/hoshi_events';
+import { DELI_TEXT, TSUGAO_NPC, TSUGAO_OBJ, TS_LINES } from '../../data/text/hoshi_tsugao';
 import { resetStaging } from '../stage';
 import { resetStamp } from '../stamp';
 import { missingSounds } from './compat';
@@ -137,6 +138,14 @@ export const CHAIN2: Beat2[] = [
     desc: '（任意）野菜の配達（ヒロスケさん (43,43) に話す）',
     side: 'gen',
   },
+  // QA (tools/playthrough.mjs --side talk): the village after the gathering, to talk to everyone
+  {
+    beat: 'talk',
+    steps: [],
+    at: ['map_hoshimidai', 26, 34, 'up'],
+    desc: '（QA）寄り合いのあとの村（全員に話す）',
+    side: 'mitsu',
+  },
 ];
 
 /** The main line up to `beat` (the side beat 'barnwork' stands on 'houki'). */
@@ -228,17 +237,6 @@ export function beatCh2(): { beat: string; stage: number; map?: string } {
 
 registerDebug('beat2', () => beatCh2());
 
-/** 51 18.5 lvCh2(n): both at Lv n (5–7). */
-registerDebug('lvCh2', (n = 6) => {
-  const lv = Math.max(1, Math.min(7, Number(n)));
-  const total = lv >= 7 ? 336 : lv === 6 ? 236 : 150;
-  for (const m of state.party) {
-    setMemberLevel(m, lv);
-    m.exp = total;
-  }
-  return state.party.map((m) => `${m.id} Lv${m.level}`);
-});
-
 /** QA: jump to the ending's state and play one cut (1–5). */
 registerDebug('endcut2', (n = 1) => {
   jumpCh2('ch2ending', true);
@@ -323,6 +321,10 @@ function collectTexts(): [string, string][] {
   walk('obj', HOSHI_OBJ);
   walk('fushigi', HOSHI_FUSHIGI);
   walk('restored', HOSHI_RESTORED);
+  walk('tsugao', TSUGAO_NPC);
+  walk('ts', TS_LINES);
+  walk('deli', DELI_TEXT);
+  walk('tsugao_obj', TSUGAO_OBJ);
   for (const [k, v] of Object.entries(EV)) if (typeof v === 'string' && v.startsWith('@')) out.push([`ev.${k}`, v]);
   for (const [k, v] of Object.entries(MUJIN_SHOP)) if (Array.isArray(v)) v.forEach((x, i) => (Array.isArray(x) ? x : [x]).forEach((p) => typeof p === 'string' && out.push([`shop.${k}[${i}]`, '@sys\n' + p])));
   return out;

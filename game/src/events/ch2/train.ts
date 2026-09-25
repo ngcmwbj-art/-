@@ -11,7 +11,6 @@ import { animate, ease } from '../../engine/tween';
 import { flag, setFlag } from '../../game/state';
 import { playAmbient, playBgm, stopAmbient } from '../../audio';
 import { despawn, registerScript, setFollowerVisible, spawn, walk } from '../../world/api';
-import { field } from '../../world/field';
 import { runMsg } from '../../world/msg';
 import { setClockText, showClock } from '../../ui/hud';
 import { hoshiTrainSideImage } from '../../art/props/hoshi_vehicles';
@@ -19,7 +18,7 @@ import { HOSHI_NPC } from '../../data/text/hoshi_npcs';
 import * as T from '../../data/text/hoshi_events';
 import { F } from '../lib';
 import { musicParam, paMode, se, space } from './compat';
-import { npc, poseIf, unpose } from './common';
+import { poseIf, unpose } from './common';
 import { sceneCall } from './calls';
 
 /** From the prologue (on black): into the car at (2,3) facing east. */
@@ -165,6 +164,3 @@ export function* evtArrive(announced = false): Co {
 registerScript('evt_ch2_arrive', function* (): Co {
   if (!flag('flag_ch2_arrived')) yield* evtArrive(false);
 });
-
-void npc;
-void field;

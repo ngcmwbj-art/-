@@ -12,7 +12,7 @@ import { W, H } from '../../engine/screen';
 import { ease } from '../../engine/tween';
 import { state } from '../../game/state';
 import { sfx } from '../../audio';
-import { drawClockPlate, setMenuOpener, uiHud } from '../hud';
+import { drawClockPlate, setMenuOpener, setMenuUp, uiHud } from '../hud';
 import { UI } from '../window';
 import { drawMoney, drawSheet, drawSpread, drawTabs, TABS } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
@@ -171,7 +171,9 @@ export class MenuScene implements Scene, MenuCtx {
       // the clock plate slides in from the top while the menu is open
       const ck = Math.min(1, this.openT / 300);
       const cy = Math.round(-26 + ease.cubicOut(ck) * 30) - (this.closeT >= 0 ? Math.round(Math.min(1, this.closeT / CLOSE_MS) * 30) : 0);
-      drawClockPlate(g, 324, cy, uiHud.clockView());
+      // (the field under the menu is still: a flip it was in the middle of shows as done)
+      const cv = uiHud.clockView();
+      drawClockPlate(g, 324, cy, { ...cv, prev: cv.time, flipT: 1e9 });
     }
   }
 }
@@ -204,6 +206,7 @@ export function menuOpen(): boolean {
   return !!current && !current.done;
 }
 
+setMenuUp(() => !!current && !current.done && !current.titleMode);
 setMenuOpener(() => {
   openMenu();
 });

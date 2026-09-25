@@ -7,8 +7,7 @@
 // and the ふしぎ go through fushigi.ts. The 「思いだした姿」 too.
 
 import type { Co } from '../../engine/co';
-import { flag, setFlag, state } from '../../game/state';
-import { playBgm } from '../../audio';
+import { flag, setFlag } from '../../game/state';
 import { registerScript, type ScriptCtx } from '../../world/api';
 import { field } from '../../world/field';
 import { runMsg } from '../../world/msg';
@@ -124,6 +123,3 @@ for (const id of Object.keys(HOSHI_RESTORED))
     const t = pickHText(HOSHI_RESTORED[id] as string | Record<string, string>);
     if (t) yield* runMsg(t);
   });
-
-void state;
-void playBgm;

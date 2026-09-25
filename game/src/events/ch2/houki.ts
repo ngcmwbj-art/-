@@ -44,10 +44,15 @@ export function* evtTetsuya(): Co {
     ambVol('amb_h_tetsuya', 1, 0.6);
     if (tet) yield* panTo(Math.max(p.tileX - 3, Math.min(p.tileX + 3, tet.tileX)), Math.max(3, tet.tileY), 600);
     yield 300;
-    // it stops and turns the headlight on them: bright
+    // it stops and turns the headlight on them: bright. The lamp's own
+    // glow shows the machine in the dark for the scene (the lantern's
+    // circle only reaches its edge).
+    const glow = sceneLight(26, 0.5);
+    const follow = () => tet && glow.set(tet.x, tet.y - 8);
     if (tet) {
       holdSymbol('sym_hoshi_07', true);
       aimLamp('sym_hoshi_07', 'player');
+      follow();
     }
     se('se_glint', { pitch: 0.6, vol: 0.5 });
     game.flash('#FFF6D8', 70, 0.2);
@@ -66,9 +71,11 @@ export function* evtTetsuya(): Co {
       yield* animate(260, (q) => {
         tet.x = x0 + dx * ease.quadOut(q);
         tet.y = y0 + dy * ease.quadOut(q);
+        follow();
       });
     }
     yield 250;
+    glow.off();
     const r = yield* storyBattle({ enemies: ['enemy_tetsuya'], music: 'bgm_midboss', background: 'bg_h_tetsuya', canLose: true }, 'tetsuya');
     if (r === 'load') return;
     if (r === 'win') {

@@ -9,7 +9,7 @@
 // Like the town's hedges these are y-sorted cell sprites whose pattern is
 // placed in world space, so runs flow on from cell to cell and never repeat.
 
-import { PixelCanvas } from '../../engine/pixel';
+import { mix, PixelCanvas, rgba32 } from '../../engine/pixel';
 import { ihash, valueNoise } from './noise';
 import { P } from './palette';
 import type { CellArt, CellMask } from './structures';
@@ -177,15 +177,41 @@ function takeCell(tx: number, ty: number, m: CellMask, inside: Inside): CellArt 
 
 // ---------------------------------------------------------------- mixed woods (雑木)
 
-function zokiCell(tx: number, ty: number, m: CellMask, inside: Inside): CellArt {
+function zokiCell(tx: number, ty: number, m: CellMask, inside: Inside, grove = false): CellArt {
   const RISE = 30;
   const h = 16 + RISE;
   const p = new PixelCanvas(W, h);
   const wx0 = tx * 16;
   const wy0 = ty * 16 + 16 - h;
   const floorTop = m.n ? 0 : RISE - 2;
-  for (let y = floorTop; y < h; y++) for (let x = 0; x < W; x++) p.set(x, y, ihash((wx0 + x) >> 1, (wy0 + y) >> 1, 9) % 5 === 0 ? P.leafShade : P.night);
-  const trees = gridPoints(tx, ty, 9, 7, 831, 11).filter((t) => inside(t.x, t.y));
+  // the dark of the wood's floor between the trunks: inside the wood only; on
+  // an open side it stops short with a ragged edge (the crowns overhang it),
+  // so a narrow belt of trees never reads as a black box
+  for (let y = floorTop; y < h && !grove; y++)
+    for (let x = 0; x < W; x++) {
+      const wy = wy0 + y;
+      if (!m.w && x < 3 + Math.round(valueNoise(wy * 0.21, tx, 837) * 4)) continue;
+      if (!m.e && x > 12 - Math.round(valueNoise(wy * 0.21, tx + 3, 839) * 4)) continue;
+      if (!m.s && y > h - 3 - Math.round(valueNoise((wx0 + x) * 0.25, ty, 841) * 3)) continue;
+      p.set(x, y, ihash((wx0 + x) >> 1, (wy0 + y) >> 1, 9) % 5 === 0 ? P.leafShade : P.night);
+    }
+  const trees = (grove ? gridPoints(tx, ty, 8, 6, 832, 11) : gridPoints(tx, ty, 9, 7, 831, 11)).filter((t) => inside(t.x, t.y));
+  if (grove)
+    // a small grove on the grass: no forest floor, only each tree's own
+    // shade on the grass under its crown (to the lower right)
+    for (const t of trees) {
+      const bx = t.x - wx0;
+      const by = t.y - wy0;
+      const r = 6 + ((t.h >>> 4) % 4);
+      for (let y = -3; y <= 3; y++)
+        for (let x = -r; x <= r + 2; x++) {
+          if ((x - 1) * (x - 1) / ((r + 1) * (r + 1)) + (y * y) / 9 > 1) continue;
+          const X = bx + x + 1;
+          const Y = by + y - 1;
+          if (X < 0 || X >= W || Y < 0 || Y >= h) continue;
+          p.set(X, Y, (X + Y) % 4 === 0 ? P.leafShade : mix(P.leafShade, P.night, 0.45));
+        }
+    }
   for (const t of trees) {
     const bx = t.x - wx0;
     const by = t.y - wy0;
@@ -263,89 +289,188 @@ function yabuCell(tx: number, ty: number, m: CellMask, inside: Inside): CellArt 
 // ---------------------------------------------------------------- kuzu (クズ)
 
 /**
- * A heaped kuzu thicket: big three-lobed leaves overlapping, rising 12px
- * above the tile, a purple-red flower spike every other tile (it blooms at
- * the end of August), and now and then the shape of what it swallowed — a
- * post, a sapling — standing out of the mound.
+ * A heaped kuzu thicket (52 7.1 tile_h_kuzu): the abandoned field under a
+ * mound of big three-lobed leaves, 12px over the ground (here and there
+ * much higher, where it has swallowed a post or a sapling). The mound is
+ * built in world space so it flows on from cell to cell: its top a heap of
+ * overlapping leaves lit from above with the dark between them, its outline
+ * made of the leaves themselves (lobed, never a straight tile edge), its
+ * south face a darker curtain of hanging leaves with the shade it throws on
+ * the ground under it; purple-red flower spikes stand out of the top every
+ * other tile (it blooms at the end of August). `low`: a thin mat (4px), where
+ * it only creeps along the edge of something the eye must read (the wallow).
  */
-function kuzuCell(tx: number, ty: number, m: CellMask): CellArt {
-  const RISE = 13;
-  const h = 16 + RISE;
-  const p = new PixelCanvas(W, h);
+const KM = 5; // how far the leaves overhang a cell's sides
+function kuzuLift(wx: number, wy: number, rise: number): number {
+  let l = rise + Math.round((valueNoise(wx * 0.06, wy * 0.07, 861) - 0.5) * (rise > 6 ? 7 : 2));
+  // swallowed posts and saplings: a tall rounded hump (1 in 6 cells)
+  const bx = Math.floor(wx / 16);
+  const by = Math.floor(wy / 16);
+  for (let j = -1; j <= 1; j++)
+    for (let i = -1; i <= 1; i++) {
+      const h = ihash(bx + i, by + j, 863);
+      if (h % 6 !== 0 || rise < 8) continue;
+      const cx = (bx + i) * 16 + 4 + ((h >>> 4) % 8);
+      const cy = (by + j) * 16 + 4 + ((h >>> 8) % 8);
+      const d = ((wx - cx) * (wx - cx)) / 49 + ((wy - cy) * (wy - cy)) / 36;
+      if (d < 1) l = Math.max(l, rise + Math.round(9 * (1 - d)));
+    }
+  return l;
+}
+
+interface KLeaf {
+  x: number;
+  y: number;
+  r: number;
+  face: boolean;
+  h: number;
+}
+
+function kuzuCell(tx: number, ty: number, m: CellMask, low = false): CellArt {
+  const RISE = low ? 1 : 12;
+  const TOPM = RISE + 22;
+  const BOTM = m.s ? 2 : 7;
+  const CW = W + KM * 2;
+  const CH = TOPM + 16 + BOTM;
+  const p = new PixelCanvas(CW, CH);
   const wx0 = tx * 16;
-  const wy0 = ty * 16 + 16 - h;
-  // an organic mound: the open edges wander in world space (continuous from
-  // cell to cell), bulging where the kuzu has climbed something
-  const nz = (a: number, b: number, seed: number) => valueNoise(a, b, seed);
-  const topAt = (x: number) => (m.n ? -8 : RISE - 12 + Math.round(nz((wx0 + x) * 0.16, ty * 3.1, 841) * 9));
-  const leftAt = (y: number) => (m.w ? -8 : 1 + Math.round(nz((wy0 + y) * 0.2, tx * 2.3, 842) * 5));
-  const rightAt = (y: number) => (m.e ? W + 8 : W - 2 - Math.round(nz((wy0 + y) * 0.2, tx * 2.3 + 7, 844) * 5));
-  const footAt = (x: number) => (m.s ? h + 8 : h - 1 - Math.round(nz((wx0 + x) * 0.22, ty * 1.7, 846) * 3));
-  const inCore = (x: number, y: number) => x >= leftAt(y) && x <= rightAt(y) && y >= topAt(x) && y < Math.min(h, footAt(x));
-  const yt = m.n ? -8 : RISE - 12;
-  for (let y = 0; y < h; y++)
-    for (let x = 0; x < W; x++) if (inCore(x, y)) p.set(x, y, !m.s && y > footAt(x) - 4 ? P.ink : P.leafShade);
-  // what the kuzu swallowed (a post or a sapling), 1 cell in 5
-  const sw = ihash(tx, ty, 843);
-  if (sw % 5 === 0 && !m.n) {
-    const x = 4 + (sw >>> 4) % 8;
-    for (let y = yt - 7; y < yt + 6; y++) {
-      p.set(x, y, P.woodDark);
-      if ((y & 3) === 0) p.set(x + 1, y, P.leafDeep);
+  const wy0 = ty * 16;
+  const X0 = wx0 - KM; // canvas origin in world px
+  const Y0 = wy0 - TOPM;
+  const ground = wy0 + 16; // the tile's south edge (the mound's foot)
+  const lift = (wx: number, wy: number) => kuzuLift(wx, wy, RISE);
+  // ---- the leaves whose base lies in this cell (world space, a jittered 6×5 grid)
+  const leaves: KLeaf[] = [];
+  for (let gy = Math.floor(wy0 / 5) - 1; gy <= Math.floor((wy0 + 16) / 5); gy++)
+    for (let gx = Math.floor(wx0 / 6) - 1; gx <= Math.floor((wx0 + 16) / 6); gx++) {
+      const h = ihash(gx, gy, 865);
+      const bx = gx * 6 + (h % 5);
+      const by = gy * 5 + ((h >>> 3) % 4);
+      if (bx < wx0 || bx >= wx0 + 16 || by < wy0 || by >= wy0 + 16) continue;
+      leaves.push({ x: bx, y: by - lift(bx, by), r: 2 + ((h >>> 6) % 3 === 0 ? 1 : 0), face: false, h });
+    }
+  // the south face: a curtain of hanging leaves between the top's edge and the ground
+  if (!m.s)
+    for (let gx = Math.floor(wx0 / 5) - 1; gx <= Math.floor((wx0 + 16) / 5); gx++) {
+      const h = ihash(gx, ty, 867);
+      const bx = gx * 5 + (h % 4);
+      if (bx < wx0 || bx >= wx0 + 16) continue;
+      const top = ground - 1 - lift(bx, ground - 1);
+      for (let yy = top + 3 + ((h >>> 7) % 3); yy < ground + 1; yy += 3 + ((h >>> (9 + (yy & 3))) % 3)) {
+        const hh = ihash(bx, yy, 869);
+        leaves.push({ x: bx + (hh % 3) - 1, y: yy + ((hh >>> 3) % 2), r: 2 + ((hh >>> 5) % 4 === 0 ? 1 : 0), face: true, h: hh });
+      }
+    }
+  leaves.sort((a, b) => a.y - b.y || a.x - b.x);
+  // ---- the dark inside the heap: under every leaf, and the body of the mound
+  const DARK = mix(P.leafShade, P.ink, 0.45);
+  const FACEDK = mix(P.leafShade, P.ink, 0.7);
+  for (let y = 0; y < CH; y++)
+    for (let x = 0; x < CW; x++) {
+      const wx = X0 + x;
+      const wy = Y0 + y;
+      // inside this cell's own columns (its neighbours fill theirs); on an
+      // open side the fill stops short so the leaves make the outline
+      const inW = m.w ? wx0 : wx0 + 2 + Math.round(valueNoise(wy * 0.25, tx, 873) * 3);
+      const inE = m.e ? wx0 + 16 : wx0 + 14 - Math.round(valueNoise(wy * 0.25, tx + 5, 875) * 3);
+      if (wx < inW || wx >= inE) continue;
+      // from where this cell's own leaves start (the cell to the north keeps its leaves)
+      const topY = wy0 - lift(wx, wy0) + (m.n ? 1 : 3);
+      const footY = m.s ? wy0 + 16 + 1 : ground;
+      if (wy >= topY && wy < footY) p.set(x, y, !m.s && wy >= ground - lift(wx, ground - 1) ? FACEDK : DARK);
+    }
+  // the shade the mound throws on the ground to the south (4–5px, ragged)
+  if (!m.s)
+    for (let x = 0; x < CW; x++) {
+      const wx = X0 + x;
+      if ((wx < wx0 && !m.w) || (wx >= wx0 + 16 && !m.e)) continue;
+      const len = 3 + Math.round(valueNoise(wx * 0.3, ty, 871) * 3);
+      for (let k = 0; k < len; k++) {
+        const y = ground + k - Y0;
+        if (y >= 0 && y < CH && !p.alpha(x, y)) p.set(x, y, k < 2 ? P.ink : mix(P.ink, P.leafShade, 0.35));
+      }
+    }
+  // ---- the leaves, back to front: three broad lobes, lit on the upper left
+  const lobes: [number, number][] = [
+    [0, -2],
+    [-2.5, 0.5],
+    [2.5, 0.5],
+  ];
+  for (const lf of leaves) {
+    const hi = lf.face ? P.leafDeep : lf.h % 4 === 0 ? P.leafYoung : P.leaf;
+    const body = lf.face ? mix(P.leafDeep, P.leafShade, 0.5) : P.leafDeep;
+    const lo = lf.face ? FACEDK : P.leafShade;
+    const turn = (lf.h >>> 9) % 3 === 0 ? -1 : 1; // some leaves turned the other way (their lobes drooping)
+    for (const [lx0, ly0] of lobes) {
+      const lx = lx0;
+      const ly = lf.face ? ly0 + 1 : ly0 * turn;
+      const rx = lf.r + 0.2;
+      const ry = lf.r - 0.3;
+      for (let dy = -3; dy <= 3; dy++)
+        for (let dx = -4; dx <= 4; dx++) {
+          const u = (dx - (lx - Math.round(lx))) / rx;
+          const v = (dy - (ly - Math.round(ly))) / ry;
+          if (u * u + v * v > 1) continue;
+          const px = Math.round(lf.x + lx) + dx - X0;
+          const py = Math.round(lf.y + ly) + dy - Y0;
+          if (px < 0 || py < 0 || px >= CW || py >= CH) continue;
+          // the thin mat never climbs over the ground north of it
+          if (low && !m.n && py + Y0 < wy0 - 1) continue;
+          const lit = u * 0.7 + v;
+          p.set(px, py, lit < -0.55 ? hi : lit > 0.55 ? lo : body);
+        }
+    }
+    // the veins: from the leaf's centre into each lobe
+    const cx = Math.round(lf.x) - X0;
+    const cy = Math.round(lf.y) - Y0;
+    if (cx >= 0 && cy >= 0 && cx < CW && cy < CH) p.set(cx, cy, lo);
+    if (!lf.face && cy - 1 >= 0 && cx < CW && cx >= 0) p.set(cx, cy - 1, body);
+  }
+  // ---- the posts and saplings the kuzu swallowed: a tip standing out of the hump
+  for (let j = 0; j <= 0; j++) {
+    const h = ihash(tx, ty, 863);
+    if (h % 6 !== 0 || low || m.n) continue;
+    const bx = wx0 + 4 + ((h >>> 4) % 8);
+    const by = wy0 + 4 + ((h >>> 8) % 8);
+    const topY = by - lift(bx, by) - 3;
+    const x = bx - X0;
+    if ((h >>> 12) & 1) {
+      // an old field post: its grey top and a strand of vine round it
+      for (let y = topY - 4; y < topY + 2; y++) if (y - Y0 >= 0) p.set(x, y - Y0, y === topY - 4 ? P.steel : P.woodDark);
+      p.set(x + 1, topY - 2 - Y0, P.leaf);
+      p.set(x - 1, topY - Y0, P.leaf);
+    } else {
+      // a sapling: bare twigs over the hump
+      for (let k = 0; k < 5; k++) p.set(x + (k >> 1), topY - 3 - k - Y0, P.woodDark);
+      p.set(x - 1, topY - 6 - Y0, P.woodDark);
+      p.set(x - 2, topY - 7 - Y0, P.woodDark);
     }
   }
-  // leaves on a jittered 5px grid, back to front
-  for (let gy = Math.floor((wy0 - 8) / 5); gy <= Math.floor((wy0 + h) / 5); gy++)
-    for (let gx = Math.floor((wx0 - 8) / 5); gx <= Math.floor((wx0 + W + 8) / 5); gx++) {
-      const hh = ihash(gx, gy, 845);
-      const cx = gx * 5 + (hh % 3) - wx0;
-      const cy = gy * 5 + ((hh >>> 3) % 3) - wy0;
-      if (!inCore(cx, cy) && !inCore(cx, cy + 2)) continue;
-      if (cy >= h - 1) continue;
-      const face = !m.s && cy > footAt(Math.max(0, Math.min(W - 1, cx))) - 6;
-      // three lobes: left, right, top, each a small round blob
-      const lobes: [number, number][] = [[-2, 0], [2, 0], [0, -2]];
-      for (const [lx, ly] of lobes)
-        for (let y = -2; y <= 1; y++)
-          for (let x = -2; x <= 2; x++) {
-            if (x * x + y * y * 1.4 > 4.2) continue;
-            const px = cx + lx + x;
-            const py = cy + ly + y;
-            if (py >= h - 1 || px < 0 || px >= W) continue;
-            if (!m.s && py >= footAt(px)) continue;
-            let c: string = x + y < -1 ? P.leaf : x + y > 1 ? P.leafShade : P.leafDeep;
-            if (ly < 0 && y < 0 && x <= 0) c = P.leafYoung;
-            if (face) c = c === P.leafYoung ? P.leaf : c === P.leaf ? P.leafDeep : P.leafShade;
-            p.set(px, py, c);
-          }
-      // the leaf's central vein
-      if (cy >= 0 && cy < h - 1) p.set(cx, cy, face ? P.leafShade : P.leafDeep);
-    }
-  // flower spikes (every other tile, on top)
+  // ---- flower spikes (every other tile): upright racemes, purple-red, on the top
   const fh = ihash(tx, ty, 847);
-  if ((tx + ty) % 2 === 0 && fh % 3 !== 0) {
-    const fx = 3 + (fh >>> 4) % 10;
-    const fy = Math.max(1, yt - 1 + ((fh >>> 8) % 4));
+  if (!low && (tx + ty) % 2 === 0 && fh % 3 !== 0) {
+    const fxw = wx0 + 3 + ((fh >>> 4) % 10);
+    const fyw = wy0 + 3 + ((fh >>> 8) % 8);
+    const fx = fxw - X0;
+    const fy = fyw - lift(fxw, fyw) - 7 - Y0;
     for (let j = 0; j < 6; j++) {
       const c = j < 2 ? P.lilac : j % 2 ? P.sunShade : P.crimson;
       p.set(fx, fy + j, c);
-      if (j > 0 && j < 5) p.set(fx + ((j & 1) ? 1 : -1), fy + j, j < 3 ? P.lilac : P.sunShade);
+      if (j > 0 && j < 5) p.set(fx + (j & 1 ? 1 : -1), fy + j, j < 3 ? P.lilac : P.sunShade);
     }
     p.set(fx, fy + 6, P.leafDeep);
+    p.set(fx + 1, fy + 7, P.leafShade);
   }
-  // silhouette: lit top rim, ink foot at the south edge
-  const src = p.data.slice();
-  const op = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < h && src[y * W + x] >>> 24 !== 0;
-  for (let y = 0; y < h; y++)
-    for (let x = 0; x < W; x++) if (op(x, y) && !op(x, y - 1) && !m.n && p.get(x, y) !== src[y * W + x]) p.set(x, y, P.leaf);
-  if (!m.s)
-    for (let x = 0; x < W; x++) {
-      // the ink foot under the mound's south face, and the shade it throws
-      let yb = h - 1;
-      while (yb > 0 && !op(x, yb)) yb--;
-      if (op(x, yb)) p.set(x, yb, P.ink);
-    }
-  return { img: p.toCanvas(), ox: 0, oy: 16 - h, shadow: 0 };
+  // ---- the starlit top: the first leaf pixel from above in each column gets a lit rim
+  if (!m.n)
+    for (let x = 0; x < CW; x++)
+      for (let y = 0; y < CH; y++) {
+        if (!p.alpha(x, y)) continue;
+        const c = p.get(x, y);
+        if (c === rgba32(P.leaf) || c === rgba32(P.leafDeep) || c === rgba32(P.leafYoung)) p.set(x, y, (x + ty) % 3 ? P.leafYoung : P.leafLt);
+        break;
+      }
+  return { img: p.toCanvas(), ox: -KM, oy: -TOPM, shadow: 0 };
 }
 
 // ---------------------------------------------------------------- dry-stone wall (野面積み)
@@ -553,7 +678,7 @@ function marutaCell(tx: number, ty: number, m: CellMask): CellArt {
 const cache = new Map<string, CellArt>();
 
 /** Materials this module draws: [kind, mat]. */
-const H_MATS = new Set(['hedge|sugi', 'hedge|sugi_down', 'hedge|take', 'hedge|zoki', 'hedge|yabu', 'hedge|kuzu', 'wall|ishigaki', 'fence|juugai', 'fence|efence', 'fence|maruta']);
+const H_MATS = new Set(['hedge|sugi', 'hedge|sugi_down', 'hedge|take', 'hedge|zoki', 'hedge|zoki_grove', 'hedge|yabu', 'hedge|kuzu', 'hedge|kuzu_low', 'wall|ishigaki', 'fence|juugai', 'fence|efence', 'fence|maruta']);
 
 export function isHoshiMat(kind: string, mat: string): boolean {
   return H_MATS.has(kind + '|' + mat);
@@ -582,11 +707,17 @@ export function hoshiStructureCell(kind: string, mat: string, tx: number, ty: nu
     case 'zoki':
       a = zokiCell(tx, ty, m, inside);
       break;
+    case 'zoki_grove':
+      a = zokiCell(tx, ty, m, inside, true);
+      break;
     case 'yabu':
       a = yabuCell(tx, ty, m, inside);
       break;
     case 'kuzu':
       a = kuzuCell(tx, ty, m);
+      break;
+    case 'kuzu_low':
+      a = kuzuCell(tx, ty, m, true);
       break;
     case 'ishigaki':
       a = ishigakiCell(tx, ty, m);

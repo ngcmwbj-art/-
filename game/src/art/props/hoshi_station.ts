@@ -550,25 +550,42 @@ regStand(
   18,
   18,
   (p) => {
-    // a rounded natural stone, two figures side by side in low relief
-    p.ellipse(9, 8, 7.5, 7.5, P.steel);
-    p.ellipse(8.5, 7.5, 6.5, 6.5, P.concrete);
-    for (let y = 1; y < 17; y++) for (let x = 1; x < 17; x++) if (p.alpha(x, y) && ihash(x, y, 3711) % 9 === 0) p.set(x, y, P.leafShade);
-    // the two figures: heads, shoulders, joined hands
+    // a rounded natural stone (weathered granite, a step darker than new
+    // concrete, lichen on its shoulders), two figures side by side in low relief
+    p.ellipse(9, 8, 7.5, 7.5, P.asphalt);
+    p.ellipse(8.5, 7.5, 6.5, 6.5, P.steel);
+    p.ellipse(7.5, 6, 4, 4, mix(P.steel, P.concrete, 0.4)); // the lit upper left of the stone
+    for (let y = 1; y < 17; y++)
+      for (let x = 1; x < 17; x++) {
+        if (!p.alpha(x, y)) continue;
+        const h = ihash(x, y, 3711) % 11;
+        if (h === 0) p.set(x, y, P.leafShade);
+        else if (h === 1 && y < 8) p.set(x, y, mix(P.leafYoung, P.steel, 0.5)); // lichen
+      }
+    // the two figures: heads, shoulders, joined hands — carved, so lit on the upper left, dark in the cut
     for (const fx of [6, 11]) {
-      p.ellipse(fx, 5, 1.6, 1.6, P.concreteLt);
-      p.set(fx + 1, 6, P.steel);
-      p.rect(fx - 1, 7, 3, 5, P.concreteLt);
-      p.vline(fx + 1, 8, 11, P.steel);
+      p.ellipse(fx, 5, 1.6, 1.6, P.concrete);
+      p.set(fx - 1, 4, P.concreteLt);
+      p.set(fx + 1, 6, P.asphalt);
+      p.rect(fx - 1, 7, 3, 5, P.concrete);
+      p.vline(fx - 1, 7, 11, mix(P.concrete, P.concreteLt, 0.5));
+      p.vline(fx + 1, 8, 11, P.asphalt);
+      p.hline(fx - 1, fx + 1, 12, P.charcoal);
     }
-    p.hline(7, 10, 10, P.steel);
-    // the base and a small vase of flowers
-    p.rect(2, 14, 14, 4, P.asphalt);
-    p.hline(2, 15, 14, P.steel);
-    p.rect(14, 11, 3, 5, P.navy);
+    p.hline(7, 10, 10, P.asphalt);
+    // the base stone and a small bamboo vase with the flowers someone keeps fresh
+    p.rect(2, 14, 14, 4, P.charcoal);
+    p.hline(2, 15, 14, P.asphalt);
+    p.rect(14, 11, 3, 5, P.leafDeep);
+    p.vline(14, 11, 15, P.leaf);
+    p.hline(14, 16, 11, P.leafYoung);
     p.set(15, 10, P.leaf);
     p.set(16, 9, P.crimson);
+    p.set(15, 8, P.gold);
     p.set(14, 9, P.peach);
+    // a one-cup of sake left as an offering
+    p.rect(3, 12, 2, 2, P.concreteLt);
+    p.set(3, 12, P.white);
   },
   { cx: 8, base: 16, shadow: 14 },
 );

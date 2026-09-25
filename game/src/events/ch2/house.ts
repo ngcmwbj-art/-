@@ -22,7 +22,7 @@ import { F, floatLine, giveKey } from '../lib';
 import { burst, ring, sparkle } from '../fx';
 import { stampFushigi } from '../stamp';
 import { ambVol, musicParam, se } from './compat';
-import { animIf, firstThisLoad, npc, poseIf, runCue, storyBattle, unpose } from './common';
+import { animIf, firstThisLoad, npc, poseIf, runCue, sceneLight, storyBattle, unpose } from './common';
 import { fushigiReward } from './fushigi';
 
 // ---------------------------------------------------------------- 10.6 evt_ch2_mitsu
@@ -81,6 +81,10 @@ export function* evtSune(): Co {
     p.dir = 'up';
     // the symbol rolls out of the plant row into the aisle
     const s = f.actorById('sym_hoshi_house_00') ?? null;
+    // the far end's sunset colour spills down the aisle onto its back: a
+    // faint warm light that goes with it (the dark shows nothing unlit)
+    const spill = sceneLight(22, 0.4);
+    const follow = () => s && spill.set(s.x, s.y - 6);
     if (s) {
       holdSymbol('sym_hoshi_house_00', true);
       s.visible = true;
@@ -89,6 +93,7 @@ export function* evtSune(): Co {
       s.alpha = 0;
       s.dir = 'right';
       s.tempPose = null;
+      follow();
     }
     yield 250;
     se('se_h_roll');
@@ -101,11 +106,13 @@ export function* evtSune(): Co {
           s.alpha = Math.min(1, q * 3);
           s.x = x0 + (SUNE_AT[0] * 16 + 8 - x0) * ease.quadOut(q);
           s.y = SUNE_AT[1] * 16 + 16 - Math.round(Math.abs(Math.sin(q * Math.PI * 2)) * 2);
+          follow();
         },
         ease.linear,
       );
       s.anim = null;
       s.y = SUNE_AT[1] * 16 + 16;
+      follow();
       // ぷいっ: its back to Minato
       yield 160;
       s.dir = 'up';
@@ -130,6 +137,7 @@ export function* evtSune(): Co {
       },
     });
     const r = yield* storyBattle({ enemies: ['enemy_sune_tomato'], music: 'bgm_battle', background: 'bg_h_house', canLose: true }, 'sune');
+    spill.off();
     if (r === 'load') return;
     if (r === 'win') {
       setFlag('flag_ch2_sune_beaten', 1);

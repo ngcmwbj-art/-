@@ -37,7 +37,7 @@ const NET = { x: 126, y: 164 };
 /** The sky's steps: before dawn and after (top → horizon at y140). */
 const SKY_PRE = ['#1B1733', '#221C3E', '#2A2248', '#3A2B5C', '#5A4480', '#7A5AA0'];
 const SKY_DAWN = ['#7A5AA0', '#A07098', '#D8948A', '#F7C27A', '#FFD9A0', '#FFE7A3'];
-const DAWN_STEPS = 16;
+const DAWN_STEPS = 30;
 /** Wisps of morning mist over the valley (x, y, length). */
 const MIST: [number, number, number][] = [
   [10, 166, 70],
@@ -70,18 +70,33 @@ function ridge(x: number): number {
   return Math.round(Math.min(y + (SUN.y - y) * bump, 146));
 }
 
-/** The sky at dawn progress `k` (0..1): the morning spreads from the sun's notch outward, step by step. */
+/**
+ * How far the morning has come at this point of the sky, dawn progress `k`
+ * (0..1 over 3 s): the sky's bands change colour one after another, the
+ * lowest (by the sun) first and each one 0.2 s after the one below it; in
+ * each band the new colour comes in from the east (the sun's side, right)
+ * and runs west, its edge a slanting ordered dither 24px wide.
+ */
+function dawnLocal(x: number, y: number, k: number): number {
+  const band = Math.min(4, Math.floor((Math.min(139, Math.max(0, y)) / 140) * 5));
+  const delay = ((4 - band) * 0.2) / 3;
+  const t = (k - delay) / (1 - (4 * 0.2) / 3);
+  if (t <= 0) return 0;
+  const top = (band * 140) / 5;
+  const front = W + 30 - t * (W + 110) + (y - top) * 0.9;
+  return Math.max(0, Math.min(1, (x - front) / 24));
+}
+
+/** The sky at dawn progress `k` (0..1), the bands turning over from the east (see dawnLocal). */
 function skyFrame(k: number): HTMLCanvasElement {
   const p = new PixelCanvas(W, 150);
-  const front = k * 520;
   for (let y = 0; y < 150; y++) {
     const v = Math.min(1, y / 140) * (SKY_PRE.length - 1);
     const i = Math.min(SKY_PRE.length - 2, Math.floor(v));
     const f = v - i;
     for (let x = 0; x < W; x++) {
       const band = f > 0.6 && dith(x, y, (f - 0.6) / 0.4) ? i + 1 : i;
-      const dist = Math.hypot(x - SUN.x, (y - SUN.y) * 1.5);
-      const local = Math.max(0, Math.min(1, (front - dist) / 70));
+      const local = k >= 1 ? 1 : dawnLocal(x, y, k);
       const pal = local > 0 && dith(x, y, local) ? SKY_DAWN : SKY_PRE;
       p.set(x, y, pal[band]);
     }
@@ -120,17 +135,21 @@ const CLOUDS = [
 
 /** A long thin cloud; `lit` 0..1 lights its lower edge (#F2894B) once the sun is up. */
 function drawCloud(g: Gfx, c: (typeof CLOUDS)[number], dawn: number, lit: number): void {
-  const body = dawn > 0.5 ? '#C88AA0' : '#3A2F5C';
-  const top = dawn > 0.5 ? '#E8B0B0' : '#4A3E6E';
   for (let x = 0; x < c.len; x++) {
+    // the cloud turns with the sky behind it
+    const here = dawn >= 1 ? 1 : dawnLocal(c.x + x, c.y, dawn);
+    const morning = here > 0 && dith(c.x + x, c.y, here);
+    const body = morning ? '#C88AA0' : '#3A2F5C';
+    const top = morning ? '#E8B0B0' : '#4A3E6E';
     const u = x / c.len;
     const h = Math.max(0, Math.round(c.th * Math.sin(Math.PI * u) + (hash2(x >> 3, 0, c.seed) - 0.5) * 1.6));
     if (h <= 0) continue;
     const y0 = c.y + c.th + 1 - h;
     for (let y = y0; y <= c.y + c.th; y++) g.px(c.x + x, y, y === y0 ? top : body);
-    // the lower edge: violet before, lit orange after the sunrise (it spreads from the sun's side)
-    const reach = lit * 1.4 - Math.abs(c.x + x - SUN.x) / 300;
-    g.px(c.x + x, c.y + c.th + 1, reach > 0 && dith(c.x + x, c.y, Math.min(1, reach * 2)) ? '#F2894B' : dawn > 0.5 ? '#A07098' : '#2A2248');
+    // the lower edge: violet before; lit orange once the morning has reached the sky behind it
+    // (a beat after its band turned over)
+    const reach = lit >= 1 ? 1 : dawnLocal(c.x + x, c.y + c.th + 1, Math.max(0, lit - 0.08)) * 1.2 - 0.2;
+    g.px(c.x + x, c.y + c.th + 1, reach > 0 && dith(c.x + x, c.y, Math.min(1, reach)) ? '#F2894B' : morning ? '#A07098' : '#2A2248');
   }
 }
 

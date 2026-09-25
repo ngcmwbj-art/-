@@ -356,12 +356,22 @@ export function rectA(g: Gfx, x: number, y: number, w: number, h: number, color:
  * can't happen. Lines are subsequences of the input (only the spaces at the
  * break points are dropped), which the dialog's markup mapping relies on.
  */
-export function phraseWrap(text: string, maxW: number): string[] {
-  return phraseWrapInfo(text, maxW).lines;
+export function phraseWrap(text: string, maxW: number, o: WrapOpts = {}): string[] {
+  return phraseWrapInfo(text, maxW, o).lines;
+}
+
+export interface WrapOpts {
+  /**
+   * Don't leave a phrase of one or two letters alone at the head of a line
+   * (「確認印／用。」「半分／回復。」): the phrase before it comes down with it.
+   * For the short descriptions of items (the bag, the shops); dialogs keep
+   * the plain rule, so their pages stay as written.
+   */
+  glue?: boolean;
 }
 
 /** phraseWrap plus how many breaks had to fall between characters (rule 4; QA). */
-export function phraseWrapInfo(text: string, maxW: number): { lines: string[]; forced: number } {
+export function phraseWrapInfo(text: string, maxW: number, o: WrapOpts = {}): { lines: string[]; forced: number } {
   const out: string[] = [];
   let forced = 0;
   for (const para of text.split('\n')) {
@@ -386,6 +396,16 @@ export function phraseWrapInfo(text: string, maxW: number): { lines: string[]; f
       }
       if (fitW(seg.s) <= maxW) {
         // it fits on a line of its own: keep the phrase whole
+        if (o.glue && line && seg.sp && [...seg.s.replace(/[、。！？」』）…]+$/, '')].length <= 2) {
+          // …but a one- or two-letter phrase takes the phrase before it along (not left alone)
+          const k = line.lastIndexOf(' ');
+          const moved = k > 0 ? line.slice(k + 1) + ' ' + seg.s : '';
+          if (k > 0 && fitW(moved) <= maxW) {
+            out.push(line.slice(0, k));
+            line = moved;
+            continue;
+          }
+        }
         if (line) out.push(line);
         line = seg.s;
         continue;

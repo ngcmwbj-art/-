@@ -663,9 +663,15 @@ registerBuilding((opts: Record<string, unknown>) => {
       }
       if (n === 1) {
         // old film: yellowed, square repair tapes, a slack wrinkle
+        // the repair tapes: translucent, gone the colour of old paper, their edges lifting (darker)
         for (const [tx, ty] of [[9, 30], [31, 62], [15, 95], [36, 18]] as const) {
-          p.rect(tx, rY + ty, 5, 5, P.goldPale);
-          p.strokeRect(tx, rY + ty, 5, 5, P.brass);
+          for (let j = 0; j < 5; j++)
+            for (let i = 0; i < 5; i++) {
+              const edge = i === 0 || j === 0 || i === 4 || j === 4;
+              const under = p.get(tx + i, rY + ty + j) ? 0.45 : 0;
+              p.set(tx + i, rY + ty + j, edge ? mix(P.paperGrid, P.steel, 0.45) : mix(P.paperGrid, film, under));
+            }
+          p.set(tx + 4, rY + ty, P.concrete); // a corner coming unstuck
         }
         for (let j = rY + 40; j < rY + 80; j++) if (j % 3) p.set(18 + ((j >> 2) % 2), j, P.woodLt);
       }
@@ -743,6 +749,12 @@ function vinylLight(g: Gfx, x: number, y: number, env: PropEnv, b: Bld): void {
   if (env.flag('flag_ch2_got_tomato') || hs(env) >= 1) return;
   const breathe = Math.round(Math.sin(env.t * 0.0008 * Math.PI * 2) * 2);
   drawLight(g, poolEllipse(20 + breathe, 20 + breathe, '242,137,75'), x + 24, y + b.roofY + 12, 0.35 * nightK(env));
+  // the far glow comes out of the film door too: a faint orange fan on the
+  // yard to the south, so the house reads from the road and the bridge
+  // (52 3.10 2:55: 「3棟のうち西の1棟だけ光っている」)
+  const pulse = 0.85 + 0.15 * Math.sin(env.t * 0.0008 * Math.PI * 2);
+  const fan = poolTrapezoid(12, 48, 72, '242,137,75');
+  drawLightAt(g, fan, x + 24 - fan.width / 2, y + b.botY - 2, 0.6 * nightK(env) * pulse);
 }
 
 // ---------------------------------------------------------------- 待合室 (15,40) 7×4
@@ -799,28 +811,78 @@ registerProp('prop_h_machiai_front', () => {
   const W = 112;
   const p = new PixelCanvas(W, 20);
   wall(p, 0, 4, W, 16, wallLap(P.wood, 41, 5));
-  p.rect(48, 4, 16, 16, 'transparent');
-  for (let j = 4; j < 20; j++) p.set(48, j, 'transparent');
-  // clear the opening
+  // the eave's shadow on the top of the front wall (the roof overhangs it)
+  for (let j = 4; j < 8; j++) for (let i = 0; i < W; i++) p.set(i, j, mix(p.get(i, j) ? P.woodDark : P.woodDark, P.ink, j < 6 ? 0.55 : 0.3));
+  // the opening at x18: the dim inside under the roof — the bench's cushions
+  // (red-brown, a faded blue one) and a fleck of the timetable's white on the
+  // back wall — in its upper half; the floor shows through below
   for (let j = 0; j < 20; j++) for (let i = 48; i < 64; i++) p.set(i, j, 'transparent');
-  // the door posts
+  for (let j = 4; j < 11; j++)
+    for (let i = 48; i < 64; i++) p.set(i, j, j < 6 ? P.ink : mix(P.woodDark, P.ink, 0.5));
+  p.rect(49, 9, 6, 2, P.maroon);
+  p.hline(49, 54, 9, mix(P.maroon, P.peach, 0.35));
+  p.rect(56, 9, 5, 2, mix(P.navy, P.steel, 0.3));
+  p.hline(56, 60, 9, mix(P.navy, P.steel, 0.55));
+  p.rect(59, 6, 3, 2, P.concreteLt); // the timetable, far back
+  p.set(59, 6, P.white);
+  // the door posts (old timber, grey-brown)
   for (const px of [46, 64]) {
-    p.vline(px, 2, 19, P.woodDark);
-    p.vline(px + 1, 2, 19, P.wood);
+    p.vline(px, 2, 19, HP.oldWoodDk);
+    p.vline(px + 1, 2, 19, HP.oldWood);
+  }
+  // the corner posts
+  for (const px of [0, W - 2]) {
+    p.vline(px, 4, 19, HP.oldWood);
+    p.vline(px + 1, 4, 19, HP.oldWoodDk);
   }
   // a line of top rail
-  p.hline(0, 45, 4, P.woodLt);
-  p.hline(66, W - 1, 4, P.woodLt);
+  p.hline(2, 45, 8, P.woodLt);
+  p.hline(66, W - 3, 8, P.woodLt);
   // the swallow's nest under the eave at the west end (15,43)
   p.ellipse(8, 7, 3, 2, P.wood);
   p.hline(6, 10, 6, P.woodLt);
   p.set(8, 9, P.woodDark);
   p.hline(0, W - 1, 19, P.ink);
   const img = p.toCanvas();
-  // the roof: a painted-brown tin gable seen from above, over rows 39.5–43
-  const R = new PixelCanvas(W + 8, 64);
-  roofTinH(R, 0, 0, W + 8, 60, TIN_BROWN, 40, { ridgeFrac: 0.4, rust: 0.3, patches: 1 });
-  for (let i = 0; i < W + 8; i++) {
+  // the roof: a painted-brown corrugated tin gable seen from above, over rows
+  // 39.5–43 — the ridge cap catching the starlight, the ribs, rust running
+  // down from the nails, the barge boards at both gable ends, the eave's lip
+  const RW = W + 8;
+  const R = new PixelCanvas(RW, 64);
+  roofTinH(R, 0, 0, RW, 60, TIN_BROWN, 40, { ridgeFrac: 0.4, rust: 0.5, patches: 2 });
+  // stronger ribs (every 4px a lit crest) so the sheet reads as corrugated tin
+  for (let j = 28; j < 58; j++)
+    for (let i = 3; i < RW - 3; i += 4) {
+      R.set(i, j, j % 9 === 0 ? P.woodLt : mix(P.woodLt, P.goldPale, 0.25));
+      R.set(i + 2, j, mix(P.woodDark, P.ink, 0.2));
+    }
+  // rust streaks down the south slope
+  for (let k = 0; k < 7; k++) {
+    const x = 6 + ((k * 37 + 11) % (RW - 12));
+    const y0 = 30 + ((k * 13) % 12);
+    for (let j = y0; j < Math.min(58, y0 + 8 + (k % 3) * 5); j++) R.set(x, j, mix(P.brassOld, P.wood, (j - y0) / 20));
+  }
+  // the ridge cap: a rounded strip with its starlit crest
+  for (let i = 0; i < RW; i++) {
+    R.set(i, 23, P.woodDark);
+    R.set(i, 24, P.goldPale);
+    R.set(i, 25, P.woodLt);
+    R.set(i, 26, P.wood);
+    R.set(i, 27, P.woodDark);
+  }
+  // the barge boards at the gable ends (west lit, east in shade)
+  for (let j = 0; j < 60; j++) {
+    R.set(0, j, P.woodDark);
+    R.set(1, j, HP.oldWood);
+    R.set(2, j, HP.oldWoodDk);
+    R.set(RW - 3, j, HP.oldWoodDk);
+    R.set(RW - 2, j, HP.oldWoodDk);
+    R.set(RW - 1, j, P.ink);
+  }
+  // the eave's lip and the dark under it
+  for (let i = 0; i < RW; i++) {
+    R.set(i, 58, P.woodLt);
+    R.set(i, 59, P.wood);
     R.set(i, 60, P.woodDark);
     R.set(i, 61, P.ink);
   }
@@ -830,7 +892,8 @@ registerProp('prop_h_machiai_front', () => {
     oy: -4,
     w: W,
     h: 20,
-    foot: 16,
+    // one px before the row's foot: someone standing in the doorway (18,43) is drawn in front
+    foot: 15,
     img: () => img,
     fg: [{ ox: -4, oy: -62, img: () => roof, fade: { x: 4, y: -40, w: W - 8, h: 44, alpha: 0.2 } }],
   };

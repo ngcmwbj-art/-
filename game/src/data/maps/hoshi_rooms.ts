@@ -95,13 +95,21 @@ const HOUSE_ROWS = [
   '####D####', // 17
 ];
 
+/** A row of 13 plants (y2–14) at column x, each its own prop; `gap`: the missing plant's index. */
+function tomatoRow(x: number, seed: number, gap = -1): MapObj[] {
+  const n = 13;
+  return Array.from({ length: n }, (_, i) =>
+    PR('prop_h_tomato', x, 2 + i, { i, n, seed, ...(i === gap ? { gap: 1 } : {}), ...(i - 1 === gap ? { north: 0 } : {}) }),
+  );
+}
+
 const HOUSE_OBJ: MapObj[] = [
   PR('prop_h_house_shell', 0, 0),
-  // the four rows of plants (x1 has the gap at (1,8): ふしぎ07)
-  PR('prop_h_tomato_row', 1, 2, { n: 13, gap: 6, seed: 1 }),
-  PR('prop_h_tomato_row', 3, 2, { n: 13, seed: 3 }),
-  PR('prop_h_tomato_row', 5, 2, { n: 13, seed: 5, hanamaru: 1 }),
-  PR('prop_h_tomato_row', 7, 2, { n: 13, seed: 7 }),
+  // the four rows of plants, one prop per plant (x1 has the gap at (1,8): ふしぎ07)
+  ...tomatoRow(1, 1, 6),
+  ...tomatoRow(3, 3),
+  ...tomatoRow(5, 5),
+  ...tomatoRow(7, 7),
   PR('prop_h_hanamaru', 5, 2),
   PR('prop_h_subako', 2, 2),
   PR('prop_h_wakime_bucket', 1, 15),
@@ -124,11 +132,13 @@ const HOUSE_OBJ: MapObj[] = [
   // the sulking tomato (evt_ch2_sune rolls it out) and the pair at the end of the east aisle (h1〜)
   {
     t: 'sym', id: 'sym_hoshi_house_00', enemies: ['enemy_sune_tomato'], x: 4, y: 8, dir: 'down', move: 'sune',
-    script: 'evt_ch2_sune', restoreAt: [3, 8], restoreOff: [0, -12], cond: { notFlag: 'flag_ch2_sune_beaten' },
+    // beaten, it hangs back on the plant (3,8), on its aisle side: anchored a row
+    // lower so it sorts in front of the plant south of it, drawn 28px up
+    script: 'evt_ch2_sune', restoreAt: [3, 9], restoreOff: [4, -28], cond: { notFlag: 'flag_ch2_sune_beaten' },
   },
   {
     t: 'sym', id: 'sym_hoshi_house_01', enemies: ['enemy_sune_tomato', 'enemy_sune_tomato'], x: 6, y: 4, dir: 'up', move: 'sune',
-    restoreAt: [7, 4], restoreOff: [0, -12], cond: s1p,
+    restoreAt: [7, 5], restoreOff: [-4, -28], cond: { stage: '1-2' },
   },
   { t: 'trig', id: 'trig_ch2_sune', x: 4, y: 9, w: 1, h: 2, script: 'evt_ch2_sune', cond: { notFlag: 'flag_ch2_sune_beaten' } },
   { t: 'door', id: 'door_hoshi_house_out', x: 4, y: 17, to: 'map_hoshimidai', tx: 2, ty: 31, dir: 'down', se: 'se_h_vinyl_door' },
@@ -205,9 +215,10 @@ const PENS: { x: number; y: number; cows: Cow[]; sync?: boolean }[] = [
   { x: 11, y: 2, cows: PEN_C_N(), sync: true },
   { x: 14, y: 2, cows: PEN_D_N('face', 'spot_h_esa_03') },
   { x: 17, y: 2, cows: PEN_A_N('', 'belly_leg') },
-  // south: 南1 B, 南2 A (the white-bellied one at (9,8)), 南3 C, 南4 D, 南5 A
+  // south: 南1 B, 南2 A (the white-bellied one standing side-on in the middle
+  // of the pen, where the white under its belly shows from the aisle), 南3 C, 南4 D, 南5 A
   { x: 5, y: 8, cows: PEN_B_S('', 'spot_h_esa_04') },
-  { x: 8, y: 8, cows: PEN_A_S('belly') },
+  { x: 8, y: 8, cows: PEN_A_S('', 'belly') },
   { x: 11, y: 8, cows: PEN_C_S('face') },
   { x: 14, y: 8, cows: PEN_D_S('belly', 'spot_h_esa_05') },
   { x: 17, y: 8, cows: PEN_A_S('', 'leg', '', 'spot_h_esa_06') },
@@ -379,10 +390,11 @@ const SCHOOL_OBJ: MapObj[] = [
   PR('prop_h_kyotaku', 5, 3),
   PR('prop_h_getabako', 1, 10),
   PR('prop_h_kasatate', 6, 10),
-  PR('prop_h_desks', 13, 6),
-  PR('prop_h_kyotaku2', 15, 3),
-  PR('prop_h_shokuin_desk', 18, 3),
-  PR('prop_h_housou', 22, 3),
+  // the dark rooms' furniture: only what the lantern's circle shows (52 8.5)
+  PR('prop_h_desks', 13, 6, undefined, { litOnly: true }),
+  PR('prop_h_kyotaku2', 15, 3, undefined, { litOnly: true }),
+  PR('prop_h_shokuin_desk', 18, 3, undefined, { litOnly: true }),
+  PR('prop_h_housou', 22, 3, undefined, { litOnly: true }),
   PR('prop_h_school_lamps', 0, 0),
   // examine (52 4.4)
   O('obj_hoshi_kairan', 5, 3, { face: 'up' }),
@@ -447,7 +459,14 @@ registerMap({
   get lightRegions() {
     return flag('flag_ch2_stage') >= 3 ? undefined : SCHOOL_HALL_SPILL;
   },
-  dark: [{ x: 10, y: 0, w: 16, h: 12 }],
+  // 52 1.7 gives x10–25, y0–11, but the meeting room's floor runs to x10 (its
+  // wall is x11): the dark starts at the partition wall north of the hallway
+  // and at x10 in the hallway itself (trig_ch2_dark_school), so the lit room
+  // and まつ先生's window are never cut
+  dark: [
+    { x: 11, y: 0, w: 15, h: 9 },
+    { x: 10, y: 9, w: 16, h: 3 },
+  ],
   bgm: { 0: 'bgm_hoshi_night', 1: 'bgm_hoshi_night', 2: 'bgm_hoshi_night' },
   amb: { 0: ['amb_h_school', 'amb_h_insects'], 1: ['amb_h_school', 'amb_h_insects'], 2: ['amb_h_school', 'amb_h_insects'] },
 });
