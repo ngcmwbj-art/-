@@ -63,6 +63,9 @@ npm run build        # subsets the font, typechecks, builds dist/
 - `engine/touch.ts`: on-screen D-pad and buttons for touch devices. It sets `Screen.fixedScale` (device px per
   game px, may be fractional; drawn sharp-bilinear) so the picture fills the screen next to or below the controls,
   or the whole screen with translucent controls over its edges on wide tablet windows.
+- `ui/autosave.ts`: autosave into the one save slot when Minato stands free on the field after a map change or a
+  battle that gave EXP (note 「オートセーブ」 top right), and silently when the page is hidden. Touch 「もどる」
+  hides while he can walk (`setBackShown` in engine/touch.ts); `Input` latches presses shorter than a frame.
 - `audio/keepalive.ts`: brings the AudioContext back after the system stops it (alarm, call, app switch):
   resume on page show / focus / any gesture, plus a 1 s retry; SFX and blips are skipped while it is stopped.
 

@@ -22,6 +22,8 @@ const REPEAT_RATE = 75;
 export class Input {
   private keys = new Set<Action>();
   private virt = new Set<Action>();
+  /** Went down since the last update: a tap shorter than a frame still counts once. */
+  private latch = new Set<Action>();
   private cur: Record<Action, boolean> = blank();
   private prev: Record<Action, boolean> = blank();
   private held: Record<Action, number> = blankNum();
@@ -39,6 +41,7 @@ export class Input {
       if (a) {
         e.preventDefault();
         this.keys.add(a);
+        if (!e.repeat) this.latch.add(a);
       }
       this.anyKey = true;
       this.gesture();
@@ -64,8 +67,10 @@ export class Input {
 
   /** Virtual buttons (touch overlay) call this. */
   setVirtual(a: Action, on: boolean): void {
-    if (on) this.virt.add(a);
-    else this.virt.delete(a);
+    if (on) {
+      this.virt.add(a);
+      this.latch.add(a);
+    } else this.virt.delete(a);
     if (on) this.gesture();
   }
 
@@ -91,7 +96,7 @@ export class Input {
     }
     for (const a of ACTIONS) {
       this.prev[a] = this.cur[a];
-      this.cur[a] = this.keys.has(a) || this.virt.has(a) || padState[a];
+      this.cur[a] = this.keys.has(a) || this.virt.has(a) || this.latch.has(a) || padState[a];
       if (this.cur[a] && !this.prev[a]) this.anyKeyThisFrame = true;
       this.rep[a] = false;
       if (this.cur[a]) {
@@ -107,6 +112,7 @@ export class Input {
         this.held[a] = 0;
       }
     }
+    this.latch.clear();
   }
 
   /** Mark all input as eaten for the rest of this frame (modal UI). */

@@ -23,6 +23,7 @@ import { syncSettingFlags } from './settings';
 import { bookCounts, tsukkomiTotal } from './menu/book';
 import { caption } from './dialog';
 import { uiHud } from './hud';
+import { resetAutosave } from './autosave';
 import { ditherIn, ditherLevel, ditherOut } from './transition';
 
 export type NewGameHook = () => Co | void;
@@ -36,6 +37,7 @@ export function registerNewGameHook(fn: NewGameHook): void {
 /** Fresh state: Minato Lv1 alone, 16:52, stage 0, nothing in the bag. */
 export function resetForNewGame(): void {
   uiHud.reset();
+  resetAutosave();
   resetState();
   newGameParty();
   setFlag('flag_stage', 0);
@@ -111,6 +113,7 @@ export function* continueGame(): Co {
   const at = { map: state.map || 'map_home_2f', x: state.x, y: state.y, dir: state.dir };
   game.replaceAll(new StillScene());
   uiHud.reset();
+  resetAutosave();
   syncProgressSkills();
   syncSettingFlags();
   // whatever covered the screen, the field comes out of a dither

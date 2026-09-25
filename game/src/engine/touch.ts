@@ -32,7 +32,8 @@ const CSS = `
 .tc-btn{position:absolute;pointer-events:auto;touch-action:none;display:flex;align-items:center;justify-content:center;
   font-family:GameFont,"Hiragino Sans","Noto Sans JP",sans-serif;color:${INK};background:${PAPER};
   border:3px solid ${INK};box-shadow:0 4px 0 ${INK};border-radius:999px;line-height:1;letter-spacing:.04em;white-space:nowrap;
-  transition:transform 50ms,box-shadow 50ms,background 80ms}
+  transition:transform 50ms,box-shadow 50ms,background 80ms,opacity 120ms}
+.tc .tc-btn.away{opacity:0!important;pointer-events:none;transform:scale(.8)}
 .tc-btn.down{transform:translateY(3px);box-shadow:0 1px 0 ${INK}}
 .tc-a{background:${SHU};color:${PAPER}}
 .tc-a.down{background:#B8241E}
@@ -90,6 +91,17 @@ function div(cls: string, parent: Element, text?: string): HTMLDivElement {
 }
 
 type Mode = 'side' | 'bottom' | 'overlay';
+
+let backShown: () => boolean = () => true;
+
+/**
+ * Tell the controls when 「もどる」 has something to do. While Minato just
+ * walks around it would only open the menu, the same as 「メニュー」, so it
+ * steps aside there and comes back in menus, conversations and battles.
+ */
+export function setBackShown(fn: () => boolean): void {
+  backShown = fn;
+}
 
 export function installTouch(input: Input, screen?: Screen): void {
   const style = document.createElement('style');
@@ -200,6 +212,15 @@ export function installTouch(input: Input, screen?: Screen): void {
     input.setVirtual('dash', dashOn);
     buzz();
   });
+
+  let backAway = false;
+  window.setInterval(() => {
+    if (!active) return;
+    const away = !backShown();
+    if (away === backAway) return;
+    backAway = away;
+    btnB.classList.toggle('away', away);
+  }, 80);
 
   // Tapping the picture = けってい (advance text, talk).
   const canvas = document.getElementById('screen');

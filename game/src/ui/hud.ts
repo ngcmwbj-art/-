@@ -20,6 +20,7 @@ import { drawDigits, drawNumerals, numeralsWidth } from './digits';
 import { dialogTop } from './dialog';
 import { hudHanko, itemIcon24 } from './icons';
 import { syncSettingFlags } from './settings';
+import { autosaveTick, setAutosaveClock } from './autosave';
 import { blend, drawTape, rectA, textW, UI } from './window';
 import { hash2 } from '../engine/rng';
 
@@ -451,6 +452,12 @@ class UiHud implements FieldHud {
       this.show(4000);
       menuOpener();
     }
+    autosaveTick(dt, f);
+  }
+
+  /** Bottom edge of the clock plate while it is out (0 when it is away). */
+  clockBottom(): number {
+    return this.y > -24 ? Math.round(this.y) + 24 : 0;
   }
 
   private watchInventory(live: boolean): void {
@@ -720,6 +727,7 @@ export function isInventoryKey(id: string): boolean {
 /** Install the UI HUD into the field and route world/hud's show()/setTime() to it. */
 export function installHud(): void {
   setFieldHud(uiHud);
+  setAutosaveClock(() => uiHud.clockBottom());
   worldHud.show = (ms = 4000) => uiHud.show(ms);
   worldHud.setTime = (s) => uiHud.setTime(s);
 }

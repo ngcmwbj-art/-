@@ -5,7 +5,8 @@ import { loadFont, warmGlyphs } from './engine/font';
 import { game } from './engine/game';
 import { unlockAudio } from './audio';
 import { installDebug } from './debug';
-import { installTouch } from './engine/touch';
+import { installTouch, setBackShown } from './engine/touch';
+import { field } from './world/field';
 import { firstScene } from './boot';
 import './modules';
 
@@ -19,6 +20,10 @@ async function boot(): Promise<void> {
   game.init(canvas);
   game.input.onFirstGesture = () => unlockAudio();
   installTouch(game.input, game.screen);
+  setBackShown(() => {
+    const f = field();
+    return !(f && game.top === f && f.controllable);
+  });
   canvas.focus();
   installDebug();
   document.getElementById('boot')?.remove();
