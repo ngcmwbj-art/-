@@ -296,7 +296,7 @@ const kanenari: EnemyDef = {
   texts: {
     appear: ['カネナリくんが PRを はじめた！'],
     yousu: [
-      'カネナリくんは ミナトに\n手を ふっている。',
+      'カネナリくんは シュンに\n手を ふっている。',
       'カネナリくんは だれも いない\nほうにも 手を ふっている。',
       'カネナリくんの フリップ：\n『夕鳴町へ ようこそ！』',
     ],
@@ -304,7 +304,7 @@ const kanenari: EnemyDef = {
       round3: 'カネナリくんは、なにかを\n待っている ように 見える。',
       round4: 'カネナリくんの フリップ：\n『（……だれか、見てますか）』',
       // [events, QA round 2] the stronger hint from round 6 (texts.ts)
-      round6: 'ミナトは ふと 思った。\n（……見て ほしい のかな）',
+      round6: 'シュンは ふと 思った。\n（……見て ほしい のかな）',
     },
     tele: {
       skill_kn_fuusen: ['カネナリくんは ふうせんを くれた。'],
@@ -312,11 +312,11 @@ const kanenari: EnemyDef = {
       skill_kn_pose: ['カネナリくんは PRポーズを きめた。'],
     },
     extra: {
-      fuusenResult: ['ミナトの HPが 回復した。'],
-      goaisatsuResult: ['ミナトも つられて おじぎした。\nちからが 下がった。'],
+      fuusenResult: ['シュンの HPが 回復した。'],
+      goaisatsuResult: ['シュンも つられて おじぎした。\nちからが 下がった。'],
       poseResult: ['……なにも 起きない。'],
       fanService: ['カネナリくんは 攻撃を\nファンサービスだと 受け取った。'],
-      mimashita: ['ミナトは『みました』の\nハンコを 押した！', 'カネナリくんは 1年ぶりに\n見て もらえた。'],
+      mimashita: ['シュンは『みました』の\nハンコを 押した！', 'カネナリくんは 1年ぶりに\n見て もらえた。'],
       lowInk: ['朱肉は かすれていたが、\nちゃんと 押せた。'],
     },
     idle: [['カネナリくんは 手を ふった。']],
@@ -376,7 +376,7 @@ const boss: EnemyDef = {
       suitouResult: ['オムカエマチの HPが 回復した！'],
       kaerinokaiResult: ['『きょうの 反省……』'],
       kasaResult: ['オムカエマチの まもりが 上がった！'],
-      breakFirst: ['ミナトは $partに\n『みました』を 押した！'],
+      breakFirst: ['シュンは $partに\n『みました』を 押した！'],
       break_boss_omukaemachi_cap: ['通学帽の うらに 小さく『1ねん』。\n名前は ない。でも、ちゃんと 見た。'],
       break_boss_omukaemachi_bottle: ['水筒の 名前は にじんで 読めない。\nでも、ちゃんと 見た。'],
       break_boss_omukaemachi_shoe: ['上履きの かかとに、名前の 跡。\n消えかけて いても、ちゃんと 見た。'],
@@ -396,7 +396,7 @@ const boss: EnemyDef = {
       final4: ['…………鳴った。'],
       final5: ['ハンコケースが 光った。', '『おかえりなさい』が\n浮かびあがった。'],
       finalPrompt: ['――『おかえりなさい』を 押す。'],
-      finalStamp: ['ミナトは『おかえりなさい』の\nハンコを 押した。'],
+      finalStamp: ['シュンは『おかえりなさい』の\nハンコを 押した。'],
       finalTadaima: ['「…………」', '「……ただいま。」'],
       finalLeave: ['忘れ物たちが、ひとつずつ 光に\nなって、町の ほうへ 帰っていく。', '通学帽は 最後に、\n写真館の ほうへ 飛んでいった。'],
     },

@@ -241,8 +241,8 @@ export function drawClockPlate(g: Gfx, x: number, y: number, v: ClockView, alpha
 // ---- place names ---------------------------------------------------------------------
 
 const MAP_PLACE: Record<string, string> = {
-  map_home_2f: '潮見家',
-  map_home_1f: '潮見家',
+  map_home_2f: '小林家',
+  map_home_1f: '小林家',
   map_maruyama: '肉のマルヤマ',
   map_hinoya: '駄菓子 ひのや',
   map_laundry: 'コインランドリー ふわり',

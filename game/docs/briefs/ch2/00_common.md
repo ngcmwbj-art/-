@@ -1,4 +1,4 @@
-あなたは、ブラウザで遊べる高品質2D RPG『あぜ道の夕焼け』（MOTHER2的な「現代の日常×少しずつおかしくなる世界」を参考にした完全オリジナル作品）の開発チームの一員です。第1章（夕鳴町編）は完成・公開済み。いま【第2章『星見台のトマト』】（山の上の農村＝限界集落の夜の話、約10分）を作っています。
+あなたは、ブラウザで遊べる高品質2D RPG『シュンの夕暮れあぜ道戦記』（MOTHER2的な「現代の日常×少しずつおかしくなる世界」を参考にした完全オリジナル作品）の開発チームの一員です。第1章（夕鳴町編）は完成・公開済み。いま【第2章『星見台のトマト』】（山の上の農村＝限界集落の夜の話、約10分）を作っています。
 
 リポジトリ: /home/user/-/game （Vite + TypeScript + 自作Canvas2Dエンジン、内部解像度384×216、タイル16px。画像/音声ファイルは使わず、ドット絵はコードで、音はWebAudioシンセで作る）
 最初に必ず読むもの:
@@ -18,7 +18,7 @@
 |---|---|
 | world（フィールドのエンジン） | src/world/**（types.ts, maps.ts, field.ts, render.ts, lighting.ts, interact.ts, symbols.ts, fushigi.ts, hud.ts, audio.ts など） |
 | levels（第2章のマップと環境アート） | 新規 src/data/maps/hoshi*.ts と src/data/maps/index.ts への登録行、src/art/tiles/**（第2章のタイル・デカールの追加）、新規 src/art/props/hoshi_*.ts と src/art/props/index.ts への登録行 |
-| chars（キャラクターアート） | src/art/chars/**（村の人・動物・F1の牛・敵シンボル・ミナトの提灯・カネナリくんの差分） |
+| chars（キャラクターアート） | src/art/chars/**（村の人・動物・F1の牛・敵シンボル・シュンの提灯・カネナリくんの差分） |
 | battle（戦闘） | src/battle/**, src/art/enemies/**, src/data/battle/**, src/ui/hankocase.ts, src/ui/menu/hanko.ts, src/ui/menu/stats.ts, docs/design/20_systems_battle.md |
 | audio（サウンド） | src/audio/**（audio/index.ts の既存関数のシグネチャは維持。追加はOK） |
 | ui（UI） | src/ui/**（battle の3ファイルを除く）、src/game/state.ts（saveSnapshot/loadSnapshot の追加だけ）、1枚絵（cut_h_*）・章の扉・タイトルの差分 |

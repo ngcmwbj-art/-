@@ -569,7 +569,7 @@ registerProp('obj_minato_mailbox', () => {
 });
 
 registerProp('obj_minato_nameplate', () => {
-  // white porcelain plate, black brush text 潮見
+  // white porcelain plate, black brush text 小林
   const p = pc(10, 7);
   p.rect(1, 1, 8, 5, P.white);
   p.hline(1, 8, 1, P.glint);

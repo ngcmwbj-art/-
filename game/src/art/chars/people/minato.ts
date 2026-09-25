@@ -1,4 +1,4 @@
-// ミナト（主人公, 11）: bed-head with one ahoge, an oversized green tee with a
+// シュン（主人公, 11）: bed-head with one ahoge, an oversized green tee with a
 // mystery-fish print, navy shorts, red beach sandals, a house key on a blue
 // string and a bug net stuck in the back of his collar (the hoop pokes out
 // top-left of his head in the front view — his silhouette signature).

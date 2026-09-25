@@ -276,7 +276,7 @@ registerDebug('wrapCheck', () => {
  */
 registerDebug('titleState', (kind = 'ch2') => {
   const slot = (flags: Record<string, number>, map: string, x: number, y: number) =>
-    JSON.stringify({ party: [{ id: 'minato', name: 'ミナト', level: 5, exp: 150, hp: 72, maxHp: 72, mp: 22, maxMp: 22, atk: 17, def: 14, spd: 12, luck: 9, skills: [], status: {}, equip: {} }], inventory: [], money: 300, flags, map, x, y, dir: 'down', playTimeMs: 1234000, taken: {}, steps: 0 });
+    JSON.stringify({ party: [{ id: 'minato', name: 'シュン', level: 5, exp: 150, hp: 72, maxHp: 72, mp: 22, maxMp: 22, atk: 17, def: 14, spd: 12, luck: 9, skills: [], status: {}, equip: {} }], inventory: [], money: 300, flags, map, x, y, dir: 'down', playTimeMs: 1234000, taken: {}, steps: 0 });
   try {
     for (const k of ['yugure-rpg-save-v1', 'hanamaru-clear-v1', 'hanamaru-clear-ch2-v1', 'hanamaru-ch2-start-v1']) localStorage.removeItem(k);
     const rec1 = JSON.stringify({ fushigi: 9, aite: 6, tsukkomi: 15, tsukkomiTotal: 19 });

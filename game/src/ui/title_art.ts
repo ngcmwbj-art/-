@@ -1,7 +1,7 @@
 // Title screen art (30_level_art 11): the frozen sunset seen from the south
 // bridge — five silhouette layers (sky, far hills with 星見台, the town,
 // the near wires / crossing / bridge with Minato and Kanenari from behind,
-// swaying grass) — and the 「あぜ道の夕焼け」 logo, stamped in 朱.
+// swaying grass) — and the 「シュンの夕暮れあぜ道戦記」 logo, stamped in 朱.
 // Everything static is baked once; the scene animates clouds, the sun's
 // red-pen swirl, wires, grass, crows and the lit 「ユ」.
 //
@@ -652,7 +652,7 @@ function dilate(m: Mask, diag: boolean): Mask {
 }
 
 let logoC: HTMLCanvasElement | null = null;
-export const LOGO_CENTER = { x: 192, y: 42 };
+export const LOGO_CENTER = { x: 192, y: 44 };
 
 type Grid = Uint8Array;
 
@@ -682,8 +682,9 @@ function rims(g: Grid, W: number, H: number, isInk: (v: number) => boolean): voi
 }
 
 /**
- * 「あぜ道の夕焼け」: あぜ道の in round marker letters (Scale2x + a round
- * dilate), 夕焼け in fat brush letters (Scale2x + a square dilate), 朱 with a
+ * 「シュンの夕暮れあぜ道戦記」 (2026-09-26): シュンの in round marker letters
+ * (Scale2x + a round dilate) on the upper line, 夕暮れあぜ道戦記 in fat brush
+ * letters (Scale2x + a square dilate) on the lower line, 朱 with a
  * #FF6A4D light on the upper-left and a #B8241E shade on the lower-right, a
  * red-pen hanamaru circling 「夕」 (drawn behind, with its own rim), the
  * stamped かすれ (~4% of the ink knocked out at fixed spots), and a double
@@ -691,8 +692,8 @@ function rims(g: Grid, W: number, H: number, isInk: (v: number) => boolean): voi
  */
 export function logoCanvas(): HTMLCanvasElement {
   if (logoC) return logoC;
-  const W = 250;
-  const H = 76;
+  const W = 304;
+  const H = 86;
   // letters: 1 fill, 5 かすれ; rims 3 paper, 4 ink
   const g = new Uint8Array(W * H);
   // the pen ring behind: 2 pen; rims 3/4
@@ -706,21 +707,24 @@ export function logoCanvas(): HTMLCanvasElement {
           if (X >= 0 && Y >= 0 && X < W && Y < H) dst[Y * W + X] = v;
         }
   };
-  // あぜ道の: marker letters, bouncing a little
-  let x = 6;
-  const sb = [12, 9, 13, 10];
-  [...'あぜ道の'].forEach((ch, i) => {
+  // シュンの: marker letters on the upper line, bouncing a little (over 暮れ)
+  let x = 70;
+  const sb = [5, 2, 6, 3];
+  [...'シュンの'].forEach((ch, i) => {
     stamp(g, dilate(scale2x(glyphMask(ch)), false), x, sb[i], 1);
-    x += charWidth(ch) * 2 - 3;
+    x += charWidth(ch) * 2 - 5;
   });
-  // 夕焼け: brush letters, heavier
-  x += 8;
-  const bigY = 20;
+  // 夕暮れあぜ道戦記: brush letters on the lower line; the many-stroke kanji
+  // get the round dilate (暮, the busiest, none) so their strokes don't run together
+  x = 24;
+  const bigY = 38;
   const hc = { x: x + 16, y: bigY + 17 };
-  const bob = [0, -2, 1];
-  [...'夕焼け'].forEach((ch, i) => {
-    stamp(g, dilate(scale2x(glyphMask(ch)), true), x, bigY + bob[i], 1);
-    x += charWidth(ch) * 2 + 2;
+  const bob = [0, -2, 1, -1, 1, 0, -2, 1];
+  const busy = new Set([...'暮道戦記']);
+  [...'夕暮れあぜ道戦記'].forEach((ch, i) => {
+    const m2 = scale2x(glyphMask(ch));
+    stamp(g, ch === '暮' ? m2 : dilate(m2, !busy.has(ch)), x, bigY + bob[i], 1);
+    x += charWidth(ch) * 2 + 1;
   });
   // the red-pen hanamaru round 「夕」: its petal ring, open where the pen lifted
   const pts = hanamaruPath();

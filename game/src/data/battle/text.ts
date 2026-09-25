@@ -7,13 +7,13 @@ export const SYS = {
   startMulti: ['$enemyたちが 行く手を ふさいだ！'],
   initiative: ['$enemyは まだ こっちに\n気づいていない！'],
   ambush: ['うしろから $enemyに\n見つかった！'],
-  tataku: ['ミナトは 虫とりアミで たたいた！'],
-  tataku2: ['ミナトは アミを 往復させた！'],
+  tataku: ['シュンは 虫とりアミで たたいた！'],
+  tataku2: ['シュンは アミを 往復させた！'],
   tackle: ['カネナリくんは 2歩 助走して\n体当たりした！'],
   miss: ['$targetは ひょいと よけた。'],
   miss2: ['アミは 空を 切った。'],
   zero: ['$targetには 効いていない！'],
-  hankoReady: ['ミナトは『$skill』の\nハンコを かまえた！'],
+  hankoReady: ['シュンは『$skill』の\nハンコを かまえた！'],
   mimashita: ['$enemyは 見られて、\nちょっと 照れた。', '$enemyの まもりが 下がった！'],
   mimashitaAgain: ['$enemyは もう 見られている。\nまもりが 下がった！'],
   peke: ['巨大な ペケが 振りおろされた！'],
@@ -28,11 +28,11 @@ export const SYS = {
   kane: ['カネナリくんは 鐘を 鳴らした！', '……鳴らなかった。', 'すべった 空気で、\nキレが たまった！'],
   itemSelf: ['$actorは $itemを 使った！'],
   // 10〔もちもの・相手へ〕 with the giver and the receiver filled in (the
-  // narrative line is written for ミナト → カネナリくん only)
+  // narrative line is written for シュン → カネナリくん only)
   itemGive: ['$actorは $targetに\n$itemを わたした。'],
-  mamoruMinato: ['ミナトは 身がまえた。'],
+  mamoruMinato: ['シュンは 身がまえた。'],
   mamoruKanenari: ['カネナリくんは 着ぐるみの\n厚みで 身がまえた。'],
-  nigeru: ['ミナトたちは 逃げだした！'],
+  nigeru: ['シュンたちは 逃げだした！'],
   nigeruOk: ['うまく 逃げきった。'],
   nigeruFail1: ['逃げようと したら、\nビーサンが 脱げた。'],
   nigeruFail2: ['逃げ道を まちがえた。'],
@@ -66,10 +66,10 @@ export const SYS = {
   dropFull: ['もちものが いっぱいで、\n$itemは 持って いけなかった。'],
   levelUp: ['$actorの レベルが $nに 上がった！'],
   lv3: ['カネナリくんは『ごあいさつ』を\n覚えた！'],
-  lv4: ['ミナトの たたくが 2段に なった！'],
+  lv4: ['シュンの たたくが 2段に なった！'],
   lv5: ['ハンコの くっきりが\n出やすく なった！'],
   afterKo: ['$targetは なんとか\n起きあがった。'],
-  wipe: ['ミナトたちは 力つきた……。'],
+  wipe: ['シュンたちは 力つきた……。'],
   kireFull: ['キレが 3つ たまった！\nふたりの 息が そろっている。'],
   kanenariNoMp: ['カネナリくんには 朱肉が ない。\n……鐘に 押しても しかたない。'],
   keyItemFallback: ['今は 使う ときじゃない。'],
@@ -137,7 +137,7 @@ export const NORI = [
   { boke: ['カネナリくんは のぼり旗を ふって\nPRを はじめた！'], line: 'PRしてる 場合か！', pose: 'flag' },
   { boke: ['カネナリくんは フリップを かかげた。\n『（中の人より）』'], line: '中の人 いないんだろ！', pose: 'flip' },
 ];
-export const NORI_COMMON = ['ミナトは 全力で ツッコんだ！', '敵は まとめて\nボケ負けした！'];
+export const NORI_COMMON = ['シュンは 全力で ツッコんだ！', '敵は まとめて\nボケ負けした！'];
 /** 50 6.9〔ボケD〕: only in battles on the 星見台 maps (map_hoshi*). */
 export const NORI_HOSHI = { boke: ['カネナリくんは 稲わらを かぶって\nかかしの まねを した！'], line: 'かかし 増やすな！', pose: 'kakashi' };
 
@@ -147,9 +147,9 @@ export const REPORT = {
   /** Cover of the card: school, class and the owner's name in pencil. */
   school: '夕鳴小学校',
   coverClass: '5年 2組',
-  coverName: '潮見 ミナト',
+  coverName: '小林 シュン',
   nameLine1: { minato: '夕鳴小学校 5年2組', kanenari: '夕鳴町PR大使' } as Record<string, string>,
-  nameLine2: { minato: '潮見 ミナト', kanenari: 'カネナリくん' } as Record<string, string>,
+  nameLine2: { minato: '小林 シュン', kanenari: 'カネナリくん' } as Record<string, string>,
   stats: ['HP', '朱肉', 'ちから', 'まもり', 'すばやさ', 'うん'],
   kanenariMp: '（記入なし）',
   fromTeacher: 'せんせいより',
@@ -173,7 +173,7 @@ export const ITEM_TEXT: Record<string, { self: string[]; kanenari?: string[]; ex
   },
   item_fugashi: { self: ['$actorは ふがしを かじった。\n口の 中が、ぜんぶ ふがしに なった。'] },
   item_hakka_ame: { self: ['$actorは ハッカあめを なめた。\nすーっと した！'], extra: { none: ['すーっと した。\n……特に なにも 起きなかった。'] } },
-  item_stamp_pad: { self: ['ミナトは ハンコに\n朱肉を たっぷり つけた。'], kanenari: ['カネナリくんには 朱肉が ない。\n……鐘に 押しても しかたない。'] },
+  item_stamp_pad: { self: ['シュンは ハンコに\n朱肉を たっぷり つけた。'], kanenari: ['カネナリくんには 朱肉が ない。\n……鐘に 押しても しかたない。'] },
   item_oden_can: { self: ['八月の おでん缶を あけた。', 'あつい。\n夏なのに、あつい。'] },
   item_shippu: { self: ['$actorは ひえひえシップを はった。\nひやっ。背すじが のびた！'], kanenari: ['はる 場所を さがした。\n……着ぐるみの 上から はった。'] },
   item_capsule: {
@@ -182,19 +182,19 @@ export const ITEM_TEXT: Record<string, { self: string[]; kanenari?: string[]; ex
   },
   // 第2章（50 7.2）
   item_kyuri_zuke: { self: ['$actorは きゅうりの 一本漬けを\nかじった。ぽりっ。'], kanenari: ['割りばしだけ、ファスナーから\n出てきた。'] },
-  item_toumorokoshi: { self: ['ミナトは とうもろこしを 食べた。\n……1列ずつ。', 'ファスナーの 中から、\nぐるっと 回る 音が した。'] },
+  item_toumorokoshi: { self: ['シュンは とうもろこしを 食べた。\n……1列ずつ。', 'ファスナーの 中から、\nぐるっと 回る 音が した。'] },
   item_umeboshi: {
     self: ['$actorは 梅干しを 食べた。\nすっぱい！'],
     kanenari: ['カネナリくんの 鐘が、\n少し すぼまった。'],
     extra: { none: ['すっぱい。\n……目は もう さめている。'] },
   },
   item_yakiimo: { self: ['$actorは 焼き芋を 食べた。\nほくほく。'], kanenari: ['新聞紙だけ、ファスナーから\n出てきた。'] },
-  item_kairan_shuniku: { self: ['ミナトは ハンコに 回覧板の\n朱肉を つけた。'], kanenari: ['カネナリくんは、回覧板に\n判を 押す 係では ない。'] },
+  item_kairan_shuniku: { self: ['シュンは ハンコに 回覧板の\n朱肉を つけた。'], kanenari: ['カネナリくんは、回覧板に\n判を 押す 係では ない。'] },
 };
 
 /** Field hanko texts (11). */
 export const FIELD_TEXT = {
-  hanamaru: ['ミナトは『はなまる』を 押した。', '$targetの HPが $n 回復した。'],
+  hanamaru: ['シュンは『はなまる』を 押した。', '$targetの HPが $n 回復した。'],
   noFushigi: ['近くに、見るべき ものが ない。'],
   noTarget: ['いまは、押す 相手が いない。'],
   noInk: ['朱肉が 足りない。'],

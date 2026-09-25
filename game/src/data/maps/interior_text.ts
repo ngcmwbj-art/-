@@ -52,7 +52,7 @@ export const IOBJ: Record<string, StageText> = {
   },
   obj_tsuke_book: `@narr
 ツケの 帳面。{w=300}
-『潮見』の ページが、
+『小林』の ページが、
 新しく 作ってある。`,
 
   // ---------------------------------------------------------------- 7.4 駄菓子 ひのや
@@ -92,7 +92,7 @@ export const IOBJ: Record<string, StageText> = {
   // ---------------------------------------------------------------- 7.5 コインランドリー ふわり
   obj_dryer_1: `@narr
 からっぽ。{w=300}
-ガラスに ミナトの 顔が
+ガラスに シュンの 顔が
 まるく 映る。`,
   obj_dryer_2: `@narr
 タオルが 1枚。{w=300}
@@ -567,7 +567,7 @@ export const INUI_F05 = `@npc_inui
 
 export const EVT_MARUYAMA_FIRST_A = `@npc_maruyama
 へい、らっしゃい！{w=300}
-お、潮見さんとこの ボウズか。
+お、小林さんとこの ボウズか。
 /
 コロッケ 4つ？{w=300}
 悪いな、まだ 揚げてねえんだ。
@@ -583,7 +583,7 @@ export const EVT_MARUYAMA_FIRST_B = `@npc_maruyama
 つぶしてきな。`;
 
 export const EVT_OBAA_FIRST = `@npc_obaa
-おや、ミナト。{w=300}
+おや、シュン。{w=300}
 自由研究は？
 /
 ……白紙の 顔を してるね。

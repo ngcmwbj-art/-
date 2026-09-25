@@ -46,7 +46,7 @@ export const EXCELLENT: Record<string, Record<StatKey, number>> = {
   kanenari: { hp: 12, mp: 4, atk: 3, def: 3, spd: 2, luck: 2 },
 };
 
-export const MEMBER_NAMES: Record<string, string> = { minato: 'ミナト', kanenari: 'カネナリくん' };
+export const MEMBER_NAMES: Record<string, string> = { minato: 'シュン', kanenari: 'カネナリくん' };
 
 /** Growth-table values for a member at a level (1..8). */
 export function statsFor(memberId: string, level: number): GrowthRow {

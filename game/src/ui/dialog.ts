@@ -14,7 +14,7 @@
 // "next" mark. Speakers pick a style: normal, narr (地の文), sys (システム:
 // #4A3A6E, item names in 朱), flip (カネナリくんのフリップ: plain white
 // board, marker-bold letters, a mini board in the corner, pen squeak) and
-// inner (ミナトの心の声: pencil, no tag, no blips).
+// inner (シュンの心の声: pencil, no tag, no blips).
 //
 // One dialog box persists across consecutive say()/choose() calls of a
 // script, so a conversation doesn't blink closed between speakers, and a
@@ -192,7 +192,7 @@ export function styleFor(o: SayOpts): DialogStyle {
   if (v === 'flip' || v === 'npc_kanenari' || v === 'kanenari' || v === CARD_VOICE) return 'flip';
   if (v === 'sys' || v === 'system') return 'sys';
   if (v === 'narr' || v === 'narration') return 'narr';
-  if (v === 'minato' || v === 'inner' || ((o.name === 'minato' || o.name === 'ミナト') && !v)) return 'inner';
+  if (v === 'minato' || v === 'inner' || ((o.name === 'minato' || o.name === 'シュン') && !v)) return 'inner';
   return 'normal';
 }
 

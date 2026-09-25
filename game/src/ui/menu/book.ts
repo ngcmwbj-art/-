@@ -37,7 +37,7 @@ import type { MenuCtx, MenuPage } from './types';
 
 /** 13.1 みました帳「ふしぎ」の見出し, place, and the stamped text (00_concept 12). */
 export const FUSHIGI_BOOK: [string, string, string][] = [
-  ['おくれる カーブミラー', 'ひぐらし坂', '鏡の中の ミナトが あわてて 追いついた。'],
+  ['おくれる カーブミラー', 'ひぐらし坂', '鏡の中の シュンが あわてて 追いついた。'],
   ['半歩 おくれる 猫の影', 'ひぐらし坂', '影が 猫に 追いついて、ちょっと 照れた。'],
   ['五線譜の スズメ', 'ひぐらし坂', 'スズメたちは 別の 曲を はじめた。'],
   ['止まらない まいど', '夕鳴銀座', 'まめ吉は『……まいど』を 1回で やめた。'],
@@ -69,7 +69,7 @@ export const TSUKKOMI_ENEMIES = [...BOOK_ENEMIES, 'boss_omukaemachi'];
 
 /** ② ふしぎ: 見出し, place, and the first page of what the stamp did. */
 export const FUSHIGI2_BOOK: [string, string, string][] = [
-  ['待っている 駅ノート', '星見台駅', '白い ページに、ミナトの 字で『夕鳴町から 来ました』と 書かれた。'],
+  ['待っている 駅ノート', '星見台駅', '白い ページに、シュンの 字で『夕鳴町から 来ました』と 書かれた。'],
   ['4:59に なりたい 時刻表', '転回場', '時刻表は 照れて、『6:12』に 落ちついた。'],
   ['流されていく 星', '用水路', '星たちは 流れに さからって、空と 同じ 場所に もどった。'],
   ['回らない 回覧板', '空き家', '『森本』の 欄に、『みました』の 判が 押された。'],
@@ -329,7 +329,7 @@ export function bookCover(vol: 1 | 2, done: boolean, tag = false, feather = fals
   // the class, and the name on the line under it (written on a ruled line)
   const cy = ly + lh + 6;
   drawSmall(ctx, '5年2組', lx + 2, cy + T, '#FBF3DC');
-  const name = '潮見 ミナト';
+  const name = '小林 シュン';
   const nx = lx + lw - textW(name) - 2;
   drawSmall(ctx, name, nx, cy + 18 + T, '#FBF3DC');
   r(nx - 4, cy + 35, lx + lw - nx + 4, 1, light);

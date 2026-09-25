@@ -84,7 +84,7 @@ function antenna(p: PixelCanvas, x: number, y0: number, y1: number): void {
   p.line(x + 1, y0 + 6, x + 8, y1, P.asphalt);
 }
 
-// ---------------------------------------------------------------- 潮見家 (home)
+// ---------------------------------------------------------------- 小林家 (home)
 
 registerBuilding({
   id: 'bld_shiomi',

@@ -104,7 +104,7 @@ export function* ch2Move(c: BossMoveCtx): Co {
         },
       );
       const hit = hitDown(s, all, sk.status?.chance ?? 0.8, st.anySuccess);
-      if (st.anySuccess) pages.push(...fillAll(SYS.guarded, { target: all.length > 1 ? 'ミナトたち' : all[0]?.name ?? '' }));
+      if (st.anySuccess) pages.push(...fillAll(SYS.guarded, { target: all.length > 1 ? 'シュンたち' : all[0]?.name ?? '' }));
       else if (hit.length) pages.push(...e.def.texts.extra.aokusaiResult);
       break;
     }

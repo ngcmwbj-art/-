@@ -12,8 +12,8 @@ export const OBJ: Record<string, StageText> = {
 ピザの チラシが 3枚。{w=300}
 全部 同じ店。`,
   obj_minato_nameplate: `@narr
-『潮見』。{w=300}
-ミナトの 家だ。`,
+『小林』。{w=300}
+シュンの 家だ。`,
   obj_outdoor_unit: {
     s0: `@narr
 ぬるい 風が 出ている。{w=300}
@@ -561,7 +561,7 @@ export const REWARD_TEXT: Record<string, string> = {
   obj_backyard_cooler: `@narr
 クーラーボックス。{w=300}
 ラムネが 1本。
-『ミナトの』と 書いてある。`,
+『シュンの』と 書いてある。`,
   obj_catalley_bucket: `@narr
 ポリバケツの 上に 黒猫。{w=300}
 足もとに、ちびた スタンプ台が
@@ -586,7 +586,7 @@ export const TALK: Record<string, TalkTable> = {
 最終日 だから、
 今日のは ぜったい 描く。
 /
-ミナトは？{w=300}
+シュンは？{w=300}
 ……あ、白紙の 顔だ。`,
     s0_2: `@npc_sae
 夕日って、描いてる あいだに
@@ -809,7 +809,7 @@ export const TALK: Record<string, TalkTable> = {
 今日 3回目の 水まき。{w=300}
 今日の 地面は、よく 飲むのよ。`,
     s0_2: `@npc_mizumaki
-ミナトくん、おつかい？{w=300}
+シュンくん、おつかい？{w=300}
 マルヤマさんなら、
 坂を 上って、右よ。`,
     s1_1: `@npc_mizumaki

@@ -10,7 +10,7 @@ import { reversePads } from './town';
 const st = (b: BarCtx) => (b.p.stage >= 3 ? 0 : b.p.stage);
 
 // ---------------------------------------------------------------------------
-// bgm_home — ミナトの家 (6/8, 付点4分 = 54)
+// bgm_home — シュンの家 (6/8, 付点4分 = 54)
 
 export const HOME_MML = `
 @song bgm_home part=melody ins=ins_fm_epiano meter=6/8
@@ -89,7 +89,7 @@ function homeDef(): SongDef {
   ];
   return {
     id: 'bgm_home',
-    title: 'ミナトの家',
+    title: 'シュンの家',
     bpm: 81,
     bars: home.bars,
     intro: [],

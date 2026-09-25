@@ -2,7 +2,7 @@
 // page (consumables, then だいじなもの under a dotted rule), the chosen
 // thing on the right page (a sticky card with its icon at 2×, name in 朱,
 // flavour text, effect in pencil). 決定 opens a sticky note with
-// つかう／わたす／すてる: つかう = ミナト uses it himself, わたす = hand it
+// つかう／わたす／すてる: つかう = シュン uses it himself, わたす = hand it
 // to a companion, picked on a second note that shows each one's HP (with
 // カネナリくん it disappears into his zipper, 10.1). A use that would do
 // nothing — a heal at full HP, a cure with nothing to cure — is refused
@@ -226,7 +226,7 @@ export class ItemsPage implements MenuPage {
     return true;
   }
 
-  /** Companions a thing can be handed to (everyone but ミナト). */
+  /** Companions a thing can be handed to (everyone but シュン). */
   private companions(): string[] {
     const me = state.party[0]?.id;
     return state.party.filter((p) => p.id !== me).map((p) => p.id);

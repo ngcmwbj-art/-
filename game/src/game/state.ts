@@ -129,12 +129,18 @@ export function hasSave(): boolean {
   }
 }
 
+/** Saves from before the rename (2026-09-26: シュン → シュン, 小林 → 小林) get the new name. */
+function migrateNames(): void {
+  for (const m of state.party as { id?: string; name?: string }[]) if (m && m.name === 'シュン') m.name = 'シュン';
+}
+
 export function loadGame(): boolean {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return false;
     const s = JSON.parse(raw) as GameState;
     Object.assign(state, blankState(), s);
+    migrateNames();
     return true;
   } catch {
     return false;
@@ -162,6 +168,7 @@ export function loadSnapshot(key: string): boolean {
     if (!raw) return false;
     const s = JSON.parse(raw) as GameState;
     Object.assign(state, blankState(), s);
+    migrateNames();
     return true;
   } catch {
     return false;

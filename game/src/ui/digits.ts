@@ -50,11 +50,12 @@ const GLYPHS: Record<string, string[]> = {
   // 円 (yen, as a hand-drawn 5×7)
   '円': ['11111', '10101', '10101', '11111', '10001', '10001', '10011'],
   '→': ['00000', '00100', '00010', '11111', '00010', '00100', '00000'],
+  "'": ['01000', '01000', '10000', '00000', '00000', '00000', '00000'],
   '?': ['01110', '10001', '00001', '00110', '00100', '00000', '00100'],
 };
 
 /** Narrow glyphs (advance 2–4 px instead of 6). */
-const NARROW: Record<string, number> = { ':': 4, ' ': 4 };
+const NARROW: Record<string, number> = { ':': 4, ' ': 4, "'": 4 };
 
 export function digitAdvance(ch: string, spacing = 1): number {
   if (NARROW[ch] !== undefined) return NARROW[ch];

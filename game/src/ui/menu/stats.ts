@@ -2,7 +2,7 @@
 // Left page: the photo (portrait taped in), class and name, level and
 // experience, HP and 朱肉 bars. Right page: the ruled table of the six
 // abilities written in pencil (no grade stamps here) and 「せんせいより」.
-// ←→ (or ↑↓) switches between ミナト and カネナリくん, whose tabs are
+// ←→ (or ↑↓) switches between シュン and カネナリくん, whose tabs are
 // sticky notes on the right page.
 
 import type { Gfx } from '../../engine/gfx';

@@ -1182,7 +1182,7 @@ export function applyStatusOne(s: BattleScene, t: PartyUnit, sk: SkillDef, st: A
 export function applyStatusAll(s: BattleScene, list: PartyUnit[], sk: SkillDef, st: ActState): string[] {
   const out: string[] = [];
   if (st.anySuccess) {
-    if (list.length) out.push(...fillAll(SYS.guarded, { target: list.length > 1 ? 'ミナトたち' : list[0].name }));
+    if (list.length) out.push(...fillAll(SYS.guarded, { target: list.length > 1 ? 'シュンたち' : list[0].name }));
     return out.slice(0, 1);
   }
   for (const t of list) {

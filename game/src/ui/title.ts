@@ -424,10 +424,10 @@ export class TitleScene implements Scene {
     const x = Math.round(LOGO_CENTER.x - w / 2);
     const y = Math.round(LOGO_CENTER.y - h / 2);
     g.ctx.drawImage(img, x, y, w, h);
-    // AZEMICHI SUNSET in the 5×7 capitals, 2px apart
+    // SHUN'S TWILIGHT CHRONICLE in the 5×7 capitals, 2px apart
     if (k >= 1) {
       const a = Math.min(1, (this.t - LOGO_AT - 150) / 300);
-      if (a > 0) g.alpha(a, () => drawDigits(g, 'AZEMICHI SUNSET', LOGO_CENTER.x, LOGO_CENTER.y + 37, { color: UI.bg, outline: UI.border, align: 'center', spacing: 2 }));
+      if (a > 0) g.alpha(a, () => drawDigits(g, "SHUN'S TWILIGHT CHRONICLE", LOGO_CENTER.x, LOGO_CENTER.y + 44, { color: UI.bg, outline: UI.border, align: 'center', spacing: 2 }));
     }
   }
 

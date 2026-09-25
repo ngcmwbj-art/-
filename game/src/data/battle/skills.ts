@@ -61,7 +61,7 @@ const party: SkillDef[] = [
   },
   {
     id: 'skill_noritsukkomi', name: 'ノリツッコミ', user: 'both', kind: 'combo', target: 'enemies', attr: 'wara',
-    input: 'none', desc: ['カネナリくんが ボケて、ミナトが', '全力で ツッコむ。敵全体に 大ダメージ。'],
+    input: 'none', desc: ['カネナリくんが ボケて、シュンが', '全力で ツッコむ。敵全体に 大ダメージ。'],
   },
 ];
 

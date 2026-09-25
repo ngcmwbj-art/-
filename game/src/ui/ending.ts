@@ -344,7 +344,7 @@ class NotebookScene implements Scene {
       // 「じゆうけんきゅう」 printed small, the name in pencil
       g.text('じゆうけんきゅう', bx + 8, by + 5, { color: '#2F4A8A' });
       g.text('5年 2組', bx, by + TBOX.h + 6, { color: '#2F4A8A' });
-      g.text('潮見 ミナト', bx + 70, by + TBOX.h + 5, { color: UI.pencil });
+      g.text('小林 シュン', bx + 70, by + TBOX.h + 5, { color: UI.pencil });
       // the title, written in by hand (0.12 s a letter)
       const chars = [...TITLE];
       const tw = textW(TITLE);
@@ -461,7 +461,7 @@ function drawCoverLines(g: Gfx, vol: 1 | 2): void {
   const ink = COVERS[vol].tape;
   g.text('じゆうけんきゅう', bx + 8, by + 5, { color: ink });
   g.text('5年 2組', bx, by + TBOX.h + 6, { color: ink });
-  g.text('潮見 ミナト', bx + 70, by + TBOX.h + 5, { color: UI.pencil });
+  g.text('小林 シュン', bx + 70, by + TBOX.h + 5, { color: UI.pencil });
 }
 
 /** A paper sample card lying in a slot (26×26, its shadow on the velvet). */

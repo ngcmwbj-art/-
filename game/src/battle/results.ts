@@ -387,7 +387,7 @@ function* levelUpSequence(s: BattleScene, list: LevelUpResult[]): Co {
   let first = true;
   for (const lv of levels) {
     const rs = list.filter((r) => r.to === lv);
-    for (const r of rs) yield* say(s, fillAll(SYS.levelUp, { actor: r.memberId === 'minato' ? 'ミナト' : 'カネナリくん', n: r.to }));
+    for (const r of rs) yield* say(s, fillAll(SYS.levelUp, { actor: r.memberId === 'minato' ? 'シュン' : 'カネナリくん', n: r.to }));
     const card = new ReportCard(rs, first, s.party.some((u) => u.id === 'kanenari'), s.isBoss);
     first = false;
     const fx = s.addFx({ layer: 'top', dur: 0, ui: true, draw: (g) => card.draw(g) });

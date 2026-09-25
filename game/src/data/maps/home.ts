@@ -1,4 +1,4 @@
-// ミナトの家（潮見家）: map_home_2f（開始地点）と map_home_1f。
+// シュンの家（小林家）: map_home_2f（開始地点）と map_home_1f。
 // 30_level_art.md 4.1 / 4.2、テキストは 10_narrative.md 7.1 / 7.2。
 
 import { registerMap } from '../../world/maps';
@@ -99,7 +99,7 @@ const OBJ_2F: MapObj[] = [
 
 registerMap({
   id: 'map_home_2f',
-  name: 'ミナトの部屋',
+  name: 'シュンの部屋',
   kind: 'indoor',
   rows: ROWS_2F,
   legend: INDOOR_LEGEND,
@@ -188,7 +188,7 @@ const OBJ_1F: MapObj[] = [
 『ドラマ 最終回』。`, { flat: true }),
   T('obj_genkan', 1, 6, `@narr
 靴箱の 上の カギ置き。{w=300}
-ミナトの カギは、
+シュンの カギは、
 首に かかっている。`),
   T('obj_katori', 8, 7, {
     s0: `@narr
@@ -278,7 +278,7 @@ HPが 回復した。`,
 
 registerMap({
   id: 'map_home_1f',
-  name: '潮見家 1F',
+  name: '小林家 1F',
   kind: 'indoor',
   rows: ROWS_1F,
   legend: INDOOR_LEGEND,

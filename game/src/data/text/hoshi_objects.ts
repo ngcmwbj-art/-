@@ -311,7 +311,7 @@ export const HOSHI_OBJ: Record<string, HText> = {
   obj_hoshi_yuuin: `@narr
 トマトの 木が、上から 下がった
 ひもに そって のびている。{w=300}
-ミナトより ずっと 背が 高い。`,
+シュンより ずっと 背が 高い。`,
   obj_hoshi_aotomato: `@narr
 下の 段は、もう とり終えて
 茎だけ。{w=300}
@@ -450,7 +450,7 @@ export const HOSHI_OBJ: Record<string, HText> = {
 /
 下の 欄に、太い 字で
 『エサ寄せ 給水器 良し』。{w=300}
-その 横に 小さく『ミナト』。`,
+その 横に 小さく『シュン』。`,
   },
 
   // ================================================================ 9.6 旧 星見台分校・集会所
@@ -664,7 +664,7 @@ export const HOSHI_FUSHIGI: Record<string, HoshiFushigiText> = {
 白い ページで 止まった。{w=300}
 ……だれかを 待っている。`,
     pressed: `@narr
-白い ページに、ミナトの 字で
+白い ページに、シュンの 字で
 『夕鳴町から 来ました』と
 書かれた。`,
     after: `@narr

@@ -31,7 +31,7 @@ import { hud } from './hud';
 import type { NpcMove } from './types';
 import { currentStage, stageSourceFlag } from './maps';
 import { setLanternOverride } from './lantern';
-import { callNow, CALL_NAMES, noteCall, playCall, resetCallTimer, setCallHandler, setRoomLights, turnScarecrows } from './hoshi';
+import { callNow, CALL_NAMES, noteCall, playCall, resetCallTimer, setCallHandler, setRoomDawn, turnScarecrows } from './hoshi';
 import type { GradeHKey } from './lighting';
 
 export { registerScript, hasScript } from './scripts';
@@ -55,7 +55,7 @@ export function world(): FieldScene {
 }
 
 /**
- * Actor by id: 'player' (ミナト), 'kanenari' (the follower), NPC ids
+ * Actor by id: 'player' (シュン), 'kanenari' (the follower), NPC ids
  * ('npc_mother'), symbol ids ('sym_town_01'), restored objects ('restored:sym_town_02').
  */
 export function actor(id: string): Actor | null {
@@ -552,11 +552,19 @@ export function aimLamp(id: string, at: string | [number, number]): void {
 }
 
 /**
- * The room's own lights (the barn at 5:00, 52 4.3 カット2a): true sweeps them
- * on from the west end, six tubes 0.08 s apart (sweepMs for all six);
- * false holds the room dark; null gives it back to the stage (lit from h3).
+ * The morning coming into the current room (the barn at 5:00, 52 4.3
+ * カット2a, 2026-09-26): its tubes are on all night, so nothing switches on —
+ * true brings the morning in through the east over `ms` (1–1.5 s: the base
+ * goes over to the morning's, shafts of sun across the floor, the dim pen
+ * fills); false holds the room at night whatever the stage; null gives it
+ * back to the stage (the morning from h3).
  */
-export function roomLights(on: boolean | null, sweepMs = 480): void {
+export function roomMorning(on: boolean | null, ms = 1200): void {
   const f = field();
-  if (f) setRoomLights(f, on, sweepMs);
+  if (f) setRoomDawn(f, on, ms);
+}
+
+/** The old name of roomMorning (the tubes used to come on at 5:00). */
+export function roomLights(on: boolean | null, ms = 1200): void {
+  roomMorning(on, ms);
 }

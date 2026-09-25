@@ -9,11 +9,11 @@
 export const OPENING_CAPTION = ['8月31日。', '夏休み、最後の日。'];
 
 export const OPENING_CALL = `@母の声:mother
-ミナトー。{w=300}
+シュンー。{w=300}
 ちょっと 降りてきてー。`;
 
 export const OPENING_CALL2 = `@母の声:mother
-ミナトー？{w=300} 寝てるのー？`;
+シュンー？{w=300} 寝てるのー？`;
 
 /** A control guide row: the keys (drawn as keycaps; arrows by name) and what they do. */
 export type GuideRow = [keys: string[], label: string];
@@ -50,7 +50,7 @@ export const ERRAND_GET = `@sys
 
 export const MARUYAMA_FIRST_A = `@npc_maruyama
 へい、らっしゃい！{w=300}
-お、潮見さんとこの ボウズか。{w=300}
+お、小林さんとこの ボウズか。{w=300}
 コロッケ？ 悪いな、まだ 揚げてねえんだ。
 /
 揚げたては 5時の チャイムが
@@ -66,7 +66,7 @@ export const MARUYAMA_FIRST_B = `@npc_maruyama
 
 /** One page; the shop opens straight after it. */
 export const OBAA_FIRST = `@npc_obaa
-おや、ミナト。{w=300}自由研究は？{w=500}
+おや、シュン。{w=300}自由研究は？{w=500}
 ……白紙の 顔だね。先生を 40年 やると、
 白紙は 顔で わかるのさ。`;
 
@@ -110,7 +110,7 @@ export const HANKO_Q = `@npc_obaa
 
 /** ひのや not visited: she introduces herself first. */
 export const HANKO_Q_NOVISIT = `@npc_obaa
-あんた、潮見さんとこの ミナトだね。
+あんた、小林さんとこの シュンだね。
 ……見てたよ。{w=300}ツッコミ、いい 間だった。
 /
 あれ、ただの ハトじゃ なかったろ。
@@ -147,7 +147,7 @@ export const PARK_HINT_A = `@npc_obaa
 路地の 工事は 『17時まで』 だったろ？`;
 
 export const PARK_HINT_B = `@npc_obaa
-こら、ミナト。{w=600}……まあ いい。
+こら、シュン。{w=600}……まあ いい。
 押すのは 道々で いいさ。
 /
 公園の ほうでね、鐘の 頭を した のが、

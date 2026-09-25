@@ -153,7 +153,7 @@ export const YORIAI_A = `@npc_hoshi_kucho
 夕鳴町から 来ました。
 （PR大使です）
 /
-こちらは、ミナトくんです。
+こちらは、シュンくんです。
 （小学5年生です）
 @npc_hoshi_kucho
 えー、ただいま 寄り合いの
@@ -337,10 +337,10 @@ export const GEN_STOP = `@npc_hoshi_gen
 ……ペロリの とこの トマトか。
 {w=300}ボウズ、名前は？
 @flip
-ミナトくんです。
+シュンくんです。
 （ぼくは PR大使です）
 @npc_hoshi_gen
-……ミナト、か。{w=300}
+……シュン、か。{w=300}
 ちょうど いい。
 /
 牛舎の 見回りが、あと 1房。
@@ -618,7 +618,7 @@ export const END_3_B = `@flip
 @npc_hoshi_fumi
 タエ先生に、よろしく。
 @npc_hoshi_kucho
-えー、夕鳴町の ミナト様、
+えー、夕鳴町の シュン様、
 カネナリ様。
 /
 えー、星見台は、12人と
@@ -723,7 +723,7 @@ export const SAVE_KAIRAN = `@narr
 名前を 書きますか？（セーブ）
 ? 書く | 書かない`;
 export const SAVE_KAIRAN_DONE = `@narr
-『ミナト』と 書いた。{w=300}
+『シュン』と 書いた。{w=300}
 ……星見台の 名簿に、1行 ふえた。`;
 export const SAVE_KAIRAN_FLIP = `@flip
 （ぼくも 書きました）`;

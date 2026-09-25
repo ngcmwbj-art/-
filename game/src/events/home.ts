@@ -1,4 +1,4 @@
-// ミナトの家: evt_opening (5.2), the 20-second second call, evt_errand (5.3),
+// シュンの家: evt_opening (5.2), the 20-second second call, evt_errand (5.3),
 // 母 (6.1, evt_mom_rest).
 
 import type { Co } from '../engine/co';

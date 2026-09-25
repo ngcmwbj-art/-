@@ -64,7 +64,7 @@ export function useItemInField(itemId: string, memberId: string): string[] {
   if (!it || !m) return [];
   if (it.key) return ['今は 使う ときじゃない。'];
   const t = ITEM_TEXT[itemId];
-  const user = state.party[0]?.name ?? 'ミナト';
+  const user = state.party[0]?.name ?? 'シュン';
   const actor = memberId === 'kanenari' && itemId !== 'item_oden_can' ? user : m.name;
   const v = { actor, target: m.name, item: it.name };
   if (itemId === 'item_stamp_pad' && m.maxMp <= 0) return fillAll(t?.kanenari ?? FIELD_TEXT.noTarget, v);

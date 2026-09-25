@@ -485,12 +485,12 @@ function softBreaks(ch: string[]): Set<number> {
     const a = ch[i - 1];
     const b = ch[i];
     if (NO_LINE_START.has(b)) continue;
-    // after a particle that follows kanji / katakana / digits (猫の|影, ミナトが|…)
+    // after a particle that follows kanji / katakana / digits (猫の|影, シュンが|…)
     const p = ch[i - 2];
     if (PARTICLE.has(a) && p && (isKanji(p) || isKata(p) || /[0-9０-９]/.test(p))) at.add(i);
     // before an opening bracket (小さく|『帰りたい』)
     else if ('「『（'.includes(b)) at.add(i);
-    // where hiragana and katakana meet (あわてた|ミナト, ミナト|まで is covered above)
+    // where hiragana and katakana meet (あわてた|シュン, シュン|まで is covered above)
     else if ((isHira(a) && isKata(b)) || (isKata(a) && isHira(b) && !PARTICLE.has(b))) at.add(i);
   }
   return at;
