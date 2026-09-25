@@ -113,6 +113,8 @@ export function seTargetDb(id: string, group: string | undefined): number {
 const VOICE_TARGET: Record<string, number> = {
   narr: -32, sys: -99, flip: -26, cat: -24, hato: -22, crow: -22, dog: -21,
   broadcast: -16, broadcast_child: -18, kanenari_voice: -18, omukaemachi: -19,
+  // chapter 2: the boss speaks through the speaker right over you; the train's small speaker, the sign, the dog
+  yobimodoshi: -16, h_train: -22, h_mujin: -26, h_gon: -21, h_tetsuya: -20, broadcast_room: -22,
 };
 export function voiceTargetDb(id: string): number {
   return (VOICE_TARGET[id] ?? -20) + MASTER_LIFT_DB;
@@ -359,6 +361,8 @@ export const VOICE_TRIM: Record<string, number> = {
   chugaku: 15.5, postman: 11, madam: 17, girl: 16, kid: 17, ojii: 15, mizumaki: 14.5, shadow: 14, hato: 17.5,
   dog: 11.5, cat: 18, crow: 23, tv: 23.5, broadcast: 9.5, broadcast_child: 12.5, vending: 20.5, omukaemachi: 15.5,
   flip: 16.5, kanenari_voice: 15, default: 19,
+  // chapter 2
+  h_train: 21, h_tetsuya: 19, yobimodoshi: 10, h_mujin: 27.5, h_gon: 14.5, broadcast_room: 15,
 };
 export const AMB_TRIM: Record<string, number> = {
   amb_higurashi: 17, amb_still: 25, amb_s2_town: -1, amb_train_far: 0, amb_night_insects: 22.5, amb_fan: 16.5,

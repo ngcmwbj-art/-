@@ -336,7 +336,8 @@ export function drawCallBubble(g: Gfx, f: FieldScene): void {
     // over the horns of the loudspeaker pole (15–16, 2): tail down to it
     const [sx, sy] = f.worldToScreen(16 * 16, 2 * 16 - 26);
     tipX = sx;
-    tipY = sy;
+    // the horns may stand above the top of the screen: the bubble stays on it
+    tipY = Math.max(sy, h + 8);
     tailUp = false;
   }
   const k = Math.min(1, b.t / POP_MS);

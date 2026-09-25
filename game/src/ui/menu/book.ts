@@ -93,25 +93,11 @@ interface BookText {
   tsukkomi: string[];
 }
 
-/**
- * The written-down texts of ②, for as long as the battle data doesn't carry
- * them (50 8.11 / 6.9). The battle data wins when it has the enemy.
- */
-const BOOK2_TEXT: Record<string, BookText> = {
-  enemy_sune_tomato: { name: 'スネトマト', shotai: 'ミツばあの 3号ハウスの、まだ 色づいていない トマト。', hitokoto: '赤く なる 順番を、待っている。', tsukkomi: ['すねるな、熟せ！', '青くさいのは 当然！'] },
-  enemy_henoheno_kacho: { name: 'ヘノヘノ課長', shotai: 'トメじいの 背広を 着た、棚田の かかし。', hitokoto: 'かかしに、定年は ない。', tsukkomi: ['顔 描きなおすな！', '一本足で 課長 やるな！', '鳥 いないだろ！'] },
-  enemy_biribiri_ban: { name: 'ビリビリ番', shotai: 'イノシシよけの、電気柵の ひと区画。', hitokoto: '番を するのが 仕事。だれの 番かは、忘れた。', tsukkomi: ['人間は 通せ！', 'リズム 正確すぎ！'] },
-  enemy_chototsu: { name: 'チョトツ', shotai: '山から 下りてきた、イノシシ。', hitokoto: '曲がれない、と よく 言われる。', tsukkomi: ['曲がれるんかい！', '畑を 掘るな！'] },
-  enemy_mujin_hanbaiin: { name: 'ムジン販売員', shotai: '無人販売所の、料金箱。', hitokoto: 'だれも 見ていなくても、1円も まちがえない。', tsukkomi: ['無人だろ！', '押し売りか！'] },
-  enemy_tetsuya: { name: '耕うん機テツヤ', shotai: 'タケじいの、歩いて 押す 耕うん機。', hitokoto: '乗る人が いなくても、春を 待っている。', tsukkomi: ['寝ろ！', 'そこ 道！', 'エンスト するな！'] },
-  boss_yobimodoshi: { name: 'ヨビモドシ', shotai: '', hitokoto: '', tsukkomi: ['出席 とるな！', 'こんな 時間に 呼ぶな！', '山びこ かよ！'] },
-};
-
+/** What ② writes down about an enemy: the battle data's name, 正体, ひとこと and ツッコミ. */
 function textOf(id: string): BookText | null {
   const e = getEnemy(id);
-  const fb = BOOK2_TEXT[id];
-  if (e) return { name: e.name, shotai: e.book?.shotai || fb?.shotai || '', hitokoto: e.book?.hitokoto || fb?.hitokoto || '', tsukkomi: e.tsukkomi?.length ? e.tsukkomi : (fb?.tsukkomi ?? []) };
-  return fb ?? null;
+  if (!e) return null;
+  return { name: e.name, shotai: e.book?.shotai ?? '', hitokoto: e.book?.hitokoto ?? '', tsukkomi: e.tsukkomi ?? [] };
 }
 
 // ---- the two notebooks ------------------------------------------------------------------------
@@ -445,7 +431,7 @@ export class BookPage implements MenuPage {
     // the notebook of the chapter being played is the one on top when the menu opens
     if (!this.opened) {
       this.opened = true;
-      this.vol = hasBook2() && !flag('flag_ch2_clear') ? 2 : hasBook2() ? 2 : 1;
+      this.vol = hasBook2() ? 2 : 1;
       this.sec = 0;
     }
     if (!hasBook2()) this.vol = 1;
@@ -720,18 +706,22 @@ export class BookPage implements MenuPage {
       const bt = v.n === 1 ? (e ? { name: e.name, shotai: e.book.shotai, hitokoto: e.book.hitokoto, tsukkomi: e.tsukkomi } : null) : textOf(id);
       if (!bt) return;
       // the field look and the 「思いだした姿」 side by side
+      // (チョトツ has none: it went back to the woods — its back and its hoofprints, 52 13.2)
+      const boar = id === 'enemy_chototsu';
       const a = sprite(id, m.t);
-      const b = sprite('restored_' + id, m.t);
+      const b = boar ? null : sprite('restored_' + id, m.t);
       const by = y + 44;
       if (a) g.img(a, x + 18 - Math.round(a.width / 2), by - a.height);
-      // pencil arrow
-      for (let k = 0; k < 14; k++) g.px(x + 40 + k, by - 10, UI.pencil);
-      g.px(x + 52, by - 11, UI.pencil);
-      g.px(x + 52, by - 9, UI.pencil);
-      g.px(x + 51, by - 12, UI.pencil);
-      g.px(x + 51, by - 8, UI.pencil);
+      if (a && (b || boar)) {
+        // pencil arrow
+        for (let k = 0; k < 14; k++) g.px(x + 40 + k, by - 10, UI.pencil);
+        g.px(x + 52, by - 11, UI.pencil);
+        g.px(x + 52, by - 9, UI.pencil);
+        g.px(x + 51, by - 12, UI.pencil);
+        g.px(x + 51, by - 8, UI.pencil);
+      }
       if (b) g.img(b, x + 76 - Math.round(b.width / 2), by - b.height);
-      else if (id === 'enemy_chototsu') drawBoarGoingHome(g, x + 60, by, m.t);
+      else if (boar) drawBoarGoingHome(g, x + 60, by, m.t);
       g.rect(x, by + 1, w - 6, 1, UI.bg2);
       // 正体 in ink, ひとこと in pencil (the name itself is the index entry)
       y = by + 5;

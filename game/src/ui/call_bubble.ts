@@ -101,8 +101,9 @@ export function updateCallBubbleUi(dt: number): void {
     b.acc += (dt / 1000) * b.cps;
     while (b.acc >= 1 && b.shown < b.chars.length) {
       const ch = b.chars[b.shown++];
-      // the ellipsis is drawn out a little; a comma is a breath
-      b.acc -= ch === '…' ? 1.4 : ch === '、' ? 2.5 : 1;
+      // with its own voice the ellipsis is drawn out a little and a comma is a
+      // breath; when the caller plays the voice, the letters keep its even pace
+      b.acc -= !b.voice ? 1 : ch === '…' ? 1.4 : ch === '、' ? 2.5 : 1;
       if (b.voice && ch.trim() && ch !== '…' && ch !== '。' && ch !== '、') textBlip(b.voice, ch);
     }
     if (b.shown >= b.chars.length) {

@@ -15,7 +15,8 @@ import { CH2_AMBIENCE_IDS } from './ambience_ch2';
 import { CH2_SE_GROUPS } from './sfx_ch2';
 import * as A from './index';
 import { sfxInfo, sfxTable, songTable, type SfxOpts } from './registry';
-import { measure, pianoRoll, renderAmbient, renderSfx, renderSong, sealedCheck, spectrogram } from './report';
+import { measure, pianoRoll, renderAmbient, renderSfx, renderSong, renderVoice, sealedCheck, spectrogram } from './report';
+import type { PaMode } from './engine';
 import type { Params } from './sequencer';
 import { CLOSING_FOURTH_SHAPES, findSealedAnswer, findShape, MORNING_CHIME_SHAPE } from './theory';
 import { VOICES } from './voices';
@@ -136,6 +137,16 @@ export async function ch2Roll(
   return { stats: measure(r.buffer, kind === 'song' ? 0.5 : 0), notes: r.notes.length, pianoRoll: pianoRoll(r.notes, r.buffer.duration), spectrogram: spectrogram(r.buffer) };
 }
 
+/** The blips a voice plays for a line: [t, note, dur] (pitched layers only), and its level. */
+export async function ch2VoiceNotes(id: string, text?: string, pa?: PaMode) {
+  const r = await renderVoice(id, text, {}, pa);
+  const notes = r.notes
+    .filter((x) => x.wave !== 'noise' && x.freq > 60)
+    .sort((a, b) => a.t - b.t)
+    .map((x) => [r2(x.t), nameOf(midiOf(x.freq)), r2(x.dur)] as [number, string, number]);
+  return { stats: measure(r.buffer), notes };
+}
+
 /** Which of the design's ids (19章) are registered. */
 export function ch2Ids() {
   const missing = {
@@ -162,6 +173,7 @@ export function registerCh2QaCommands(): void {
   registerDebug('ch2Notes', ((id: string, o?: NotesOpts) => ch2Notes(id, o)) as never);
   registerDebug('ch2Roll', ((id: string, o?: Parameters<typeof ch2Roll>[1]) => ch2Roll(id, o)) as never);
   registerDebug('ch2Ids', (() => ch2Ids()) as never);
+  registerDebug('ch2VoiceNotes', ((id: string, text?: string, pa?: PaMode) => ch2VoiceNotes(id, text, pa)) as never);
   registerDebug('ch2Hoshi', ((stage = 0, variant = 'outdoor') => {
     A.unlockAudio();
     A.setMusicParam('h_stage', stage);

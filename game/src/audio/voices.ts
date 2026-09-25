@@ -189,7 +189,7 @@ export function blip(voiceId: string, ch: string, at?: number): void {
   const def = VOICES[id] ?? VOICES.default;
   const g = cur();
   const now = at ?? g.ctx.currentTime;
-  const s = (st[id] ??= { last: -1, lastSemi: 99, repeat: 0, seqI: 0, lastMidi: 60, lastT: 0, hist: [] });
+  const s = (st[id] ??= { last: -1, lastSemi: 99, repeat: 0, seqI: 0, lastMidi: 60, lastT: 0, hist: [], lineStart: true });
   const prevCh = s.prevCh;
   s.prevCh = ch;
   // a name line (53 9.2) ends with its sentence; a pause opens a new line.

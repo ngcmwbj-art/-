@@ -1,12 +1,12 @@
-// QA for the 星見台 field systems (02_ch2 7章 world: "デバッグ"): jump to the
-// village and its Visual-QA screens (52 1.3), switch 星見台's stage, show the
-// dark and the light's reach, force the lantern and its radius, fire the
-// loudspeaker's call, turn the scarecrows, and a small test ground of our
-// own (map_hoshi_qa) with every chapter-2 symbol behaviour, a dark half, a
-// stay trigger, the fence gate and water for the mirrored sky — for trying
-// the systems while the level team's maps are still being built.
+// QA for the 星見台 field systems (02_ch2 7章 world: "デバッグ"): switch
+// 星見台's stage, show the dark and the light's reach, force the lantern and
+// its radius, fire the loudspeaker's call, turn the scarecrows, light the
+// rooms, and small test grounds of our own (map_hoshi_qa: every chapter-2
+// symbol behaviour, a dark half, a stay trigger, the fence gate, water for
+// the mirrored sky; map_hoshi_qa_train / _barn: the rooms' own light).
+// The Visual-QA screens of the real maps are the level team's
+// __game.cmd.hoshi('arrive', 0) (src/data/maps/hoshi_qa.ts).
 //
-//   __game.cmd.hoshi('arrive')      screen_hoshi_arrive on map_hoshimidai
 //   __game.cmd.hstage(1)            stage h1 (and what it implies)
 //   __game.cmd.darkView()           outline the dark tiles and the light's reach
 //   __game.cmd.lanternR(60)         fix the lantern's radius (null: breathe again)
@@ -21,7 +21,7 @@ import { registerWorldFx } from './fx';
 import { callNow, callState, setRoomLights, turnScarecrows } from './hoshi';
 import { darkRectsOf, setLanternOverride, SHOW_MARGIN, SYM_MARGIN } from './lantern';
 import { GRADES_H, type GradeHKey } from './lighting';
-import { getMapDef, hasMap, isCh2Map, registerMap } from './maps';
+import { hasMap, isCh2Map, registerMap } from './maps';
 import type { MapDef, MapObj, TileSpec } from './types';
 
 // ---------------------------------------------------------------- the test ground (map_hoshi_qa)
@@ -154,34 +154,6 @@ function ensureQaMap(): void {
   if (!hasMap(QA_BARN.id)) registerMap(QA_BARN);
 }
 
-// ---------------------------------------------------------------- the village (levels team's map) and its QA screens
-
-/** 52 1.3: the camera centre of each Visual-QA screen of map_hoshimidai. */
-export const HOSHI_SCREENS: Record<string, [number, number]> = {
-  screen_hoshi_arrive: [25, 41],
-  screen_hoshi_bus: [38, 40],
-  screen_hoshi_tsuji: [26, 31],
-  screen_hoshi_school_e: [39, 28],
-  screen_hoshi_west: [6, 30],
-  screen_hoshi_kominka: [7, 42],
-  screen_hoshi_tanada: [24, 10],
-  screen_hoshi_barn: [52, 33],
-  screen_hoshi_gate: [49, 21],
-  screen_hoshi_houki: [47, 11],
-  screen_hoshi_yamaguchi: [48, 5],
-};
-
-/** The level team's 星見台 maps register from src/data/maps/index.ts; QA may load the village before that. */
-async function ensureVillage(): Promise<boolean> {
-  if (hasMap('map_hoshimidai')) return true;
-  try {
-    await import('../data/maps/hoshi_village');
-  } catch (e) {
-    console.warn('[hoshi_debug] map_hoshimidai could not be loaded', e);
-  }
-  return hasMap('map_hoshimidai');
-}
-
 /** The flags a 星見台 stage implies when QA jumps straight into it (02_ch2 4.5). */
 function applyHStageDefaults(n: number): void {
   setFlag('flag_ch2_started', 1);
@@ -226,24 +198,6 @@ function goto(map: string, x: number, y: number, dir: Dir = 'down'): FieldScene 
   return f;
 }
 
-registerDebug('hoshi', async (screen?: string, stage?: number) => {
-  if (!(await ensureVillage())) return 'map_hoshimidai is not there yet';
-  if (stage !== undefined) {
-    applyHStageDefaults(stage);
-    setFlag('flag_ch2_stage', stage);
-  } else if (!flag('flag_ch2_arrived')) applyHStageDefaults(flag('flag_ch2_stage'));
-  const id = screen ? (screen.startsWith('screen_') ? screen : 'screen_hoshi_' + screen) : 'screen_hoshi_arrive';
-  const c = HOSHI_SCREENS[id];
-  if (!c) return Object.keys(HOSHI_SCREENS);
-  const f = goto('map_hoshimidai', c[0], c[1] + 1, 'down');
-  if (!f) return 'no field';
-  f.syncFollower(true);
-  f.camOverride = { x: c[0] * 16 + 8, y: c[1] * 16 + 8 };
-  f.camX = Math.max(0, Math.min(f.map.w * 16 - 384, c[0] * 16 + 8 - 192));
-  f.camY = Math.max(0, Math.min(f.map.h * 16 - 216, c[1] * 16 + 8 - 108));
-  return `${id} at h${flag('flag_ch2_stage')}`;
-});
-
 registerDebug('hoshiQa', (stage?: number, x?: number, y?: number, room?: 'train' | 'barn') => {
   ensureQaMap();
   const n = stage ?? 1;
@@ -268,6 +222,8 @@ registerDebug('hstage', (n: number, ms?: number) => {
   const f = field();
   if (f && isCh2Map(f.map.def)) {
     f.setStage(n, ms ?? 0);
+    // QA: the lantern is simply lit (no waiting for evt_ch2_light's opening)
+    f.light.refresh();
     f.refreshPresence();
     f.syncFollower(true);
     f.applyAudio(false);
@@ -400,4 +356,3 @@ registerWorldFx({
   },
 });
 
-void getMapDef;

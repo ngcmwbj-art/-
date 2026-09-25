@@ -34,7 +34,7 @@
 
 import { registerDebug } from '../debug';
 import { createAmbient } from './ambience';
-import { buildGraph, gainToDb, resetOfflineState, setNoteLog, volCurve, withGraph, type Graph } from './engine';
+import { buildGraph, gainToDb, resetOfflineState, setNoteLog, volCurve, withGraph, type Graph, type PaMode } from './engine';
 import { PART_TRIM, partRole, QA_PARAMS, REF_PART, ROLE_TARGET, TARGET_OVERRIDE, BATTLE_PEAK_DB, BGM_TARGET, BGM_TRIM, mixState, seTargetDb, SE_NO_TRIM, SE_TRIM, AMB_TRIM, VOICE_TRIM, voiceTargetDb } from './mix';
 import { sfxInfo, sfxTable, songTable, type SfxOpts } from './registry';
 import { VOICE_SAMPLES, voiceCps } from './samples';
@@ -188,13 +188,15 @@ export async function renderAmbient(id: string, seconds = 12, stage = 0, ro: Ren
 }
 
 /** A voice speaking its sample line at the dialog speed (40 chars/s). */
-export async function renderVoice(id: string, text = VOICE_SAMPLES[id] ?? VOICE_SAMPLES.default, ro: RenderOpts = {}): Promise<RenderOut> {
+export async function renderVoice(id: string, text = VOICE_SAMPLES[id] ?? VOICE_SAMPLES.default, ro: RenderOpts = {}, pa?: PaMode): Promise<RenderOut> {
   const cps = voiceCps(id);
   const chars = [...text];
   const seconds = chars.length / cps + 1.2;
   return render(
     seconds,
-    () => {
+    (g) => {
+      // the voices of 星見台 (53 9) are heard through its speaker
+      if (pa ?? (/^(h_|yobimodoshi$)/.test(id) ? 'yama' : undefined)) g.pa.setMode(pa ?? 'yama', 0);
       resetVoiceState();
       chars.forEach((ch, i) => blip(id, ch, 0.1 + i / cps));
       resetVoiceState();

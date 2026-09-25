@@ -8,7 +8,8 @@
 import type { Gfx } from '../engine/gfx';
 import { game } from '../engine/game';
 import { PixelCanvas } from '../engine/pixel';
-import { W } from '../engine/screen';
+import { H, W } from '../engine/screen';
+import type { Co } from '../engine/co';
 import { ease } from '../engine/tween';
 import { flag, state } from '../game/state';
 import { isKeyItem, getItem } from '../data/battle';
@@ -18,7 +19,7 @@ import { hud as worldHud, setFieldHud, type FieldHud } from '../world/hud';
 import type { FieldScene } from '../world/field';
 import { fushigiActive } from '../world/fushigi';
 import { getMapDef, isCh2Map } from '../world/maps';
-import { drawCallBubbleUi, showCallBubble as showCallBubbleImpl, updateCallBubbleUi, callBubbleShowing, type CallBubbleHandle } from './call_bubble';
+import { clearCallBubbleUi, drawCallBubbleUi, showCallBubble as showCallBubbleImpl, updateCallBubbleUi, callBubbleShowing, type CallBubbleHandle } from './call_bubble';
 import { drawDigits, drawNumerals, numeralsWidth } from './digits';
 import { dialogTop } from './dialog';
 import { hudHanko, itemIcon24 } from './icons';
@@ -674,6 +675,8 @@ class UiHud implements FieldHud {
     this.inv.clear();
     this.skips.clear();
     this.lastFrame = -10;
+    curtain.a = 0;
+    clearCallBubbleUi();
   }
 
   /** Forget the place banner and item notes (a menu or shop covers the field). */
@@ -728,6 +731,8 @@ class UiHud implements FieldHud {
   }
 
   draw(g: Gfx, f: FieldScene): void {
+    // a curtain over the world with the HUD still showing (evt_ch2_ending: 「暗転のまま、時計だけ」)
+    if (curtain.a > 0) g.rect(0, 0, W, H, curtain.color, Math.min(1, curtain.a));
     // the loudspeaker's call (fx_h_call_bubble): ours, or the world's own if it raised one
     if (callBubbleShowing()) drawCallBubbleUi(g, f);
     else {
@@ -889,6 +894,29 @@ export function showCallBubble(text: string, o: { cps?: number; voice?: string; 
 }
 
 export { playCallBubble, clearCallBubbleUi as clearCallBubble } from './call_bubble';
+
+const curtain = { a: 0, color: '#0B0B14' };
+
+/**
+ * Darken the field under the HUD (0..1): the world goes black but the clock
+ * plate, the call bubble and the notes stay — e.g. evt_ch2_ending's first
+ * cut, where only 「4:59」 is seen in the dark. `ms` fades to it.
+ */
+export function* fieldCurtain(a: number, ms = 0, color = '#0B0B14'): Co {
+  curtain.color = color;
+  const a0 = curtain.a;
+  for (let t = 0; t < ms; t += 16.7) {
+    curtain.a = a0 + (a - a0) * (t / ms);
+    yield null;
+  }
+  curtain.a = a;
+}
+
+/** Set the field's curtain at once (see fieldCurtain). */
+export function setFieldCurtain(a: number, color = '#0B0B14'): void {
+  curtain.a = a;
+  curtain.color = color;
+}
 
 /** 19:30 / 19:31 / 6:10 / 6:12 on the plate (null: back to the map's own time). */
 export function setClockText(s: string | null): void {

@@ -32,9 +32,16 @@ export const VOICE_SAMPLES: Record<string, string> = {
   flip: 'ようこそ 夕鳴町へ！',
   kanenari_voice: '……おいしい。',
   default: 'こんにちは。いい 夕方ですね。',
+  // chapter 2 (53_ch2_audio 9)
+  h_train: 'つぎは、星見台。星見台です。',
+  h_tetsuya: '……マダ タガヤセマス。ヒト ウネ……モウ ヒト ウネ……。',
+  yobimodoshi: '……ナナミちゃん。……へんじが ありません。',
+  h_mujin: 'きゅうり 3本 100円。おすすめです。',
+  h_gon: 'ワン。……ワフ。',
+  broadcast_room: 'あー、あー。……本日は 晴天なり。',
 };
 
 /** Characters per second of the dialog box (10.1: 40 chars/s; {spd=0.4} for the last line). */
 export function voiceCps(id: string): number {
-  return id === 'kanenari_voice' ? 16 : id === 'omukaemachi' || id === 'shadow' ? 28 : 40;
+  return id === 'kanenari_voice' ? 16 : id === 'omukaemachi' || id === 'shadow' || id === 'yobimodoshi' ? 28 : 40;
 }

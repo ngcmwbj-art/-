@@ -14,3 +14,4 @@ import './kacho';
 import './biri';
 import './chototsu';
 import './mujin';
+import './tetsuya';
