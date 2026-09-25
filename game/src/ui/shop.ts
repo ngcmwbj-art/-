@@ -28,6 +28,7 @@ import { sfx } from '../audio';
 import { dialogVisible, say } from './dialog';
 import { digitsWidth, drawDigits, drawNumerals, numeralsWidth } from './digits';
 import { itemIcon24, purseIcon } from './icons';
+import { HOSHI_SPEAKERS, MUJIN_SHOP } from '../data/text/hoshi_npcs';
 import { bagCount, BAG_MAX } from './menu/items';
 import { uiHud } from './hud';
 import { ctxText, rgb, drawCursor, drawMarker, drawTape, drawWindow, dottedVLine, pencilLine, phraseWrap, rectA, tapeImg, textW, UI } from './window';
@@ -59,6 +60,15 @@ export interface ShopDef {
   soldOut?: string[];
   /** Lines when the player leaves. */
   bye?: () => string[] | null;
+  /**
+   * The limit is for one visit, not a day (無人販売所, 50_ch2_story 7.3):
+   * walking up to the stall again restocks it.
+   */
+  perVisit?: boolean;
+  /** The sound of paying (default: se_coin + se_shop_buy at the till). */
+  buySfx?: () => void;
+  /** The sign's tape colour (default: the yellow of ひのや's). */
+  signColor?: string;
 }
 
 const shops = new Map<string, ShopDef>();
@@ -114,6 +124,46 @@ registerShop({
     if (s === 1) return ['気を つけて おいき。'];
     return ['……ちゃんと 帰って おいでよ。'];
   },
+});
+
+// ---- 星見台 無人販売所 (50_ch2_story 7.3, 51 6.3) ------------------------------------------------
+//
+// The stall by the road: きゅうりの一本漬け, ゆでとうもろこし and 梅干し, 100円
+// each, at most 3 / 1 / 2 in one visit (walk up again and it's full). The
+// money goes into the wooden box (se_h_coin_box). サワコさん minds it — also
+// while ムジン販売員 is out and about. The words are the scenario's
+// (data/text/hoshi_npcs MUJIN_SHOP), so a rename there reaches the shop.
+
+const SAWAKO = HOSHI_SPEAKERS.npc_hoshi_sawako ?? { name: 'サワコさん', voice: 'h_sawako' };
+
+registerShop({
+  id: 'shop_hoshi_mujin',
+  title: MUJIN_SHOP.title,
+  keeper: { name: SAWAKO.name, voice: SAWAKO.voice },
+  goods: () => MUJIN_SHOP.goods.filter((id) => !!getItem(id)),
+  price: () => MUJIN_SHOP.price,
+  limit: (id) => MUJIN_SHOP.limits[id] ?? 3,
+  perVisit: true,
+  signColor: '#D8B888',
+  buySfx: () => sfx('se_h_coin_box'),
+  onBuy: (id) => {
+    // the first ゆでとうもろこし has its own line; the first purchase ever
+    // is the 「まいど」 she didn't mean to say; after that two lines in turn
+    if (id === 'item_toumorokoshi' && !flag('flag_ch2_mujin_corn')) {
+      setFlag('flag_ch2_mujin_corn', 1);
+      return MUJIN_SHOP.corn;
+    }
+    if (!flag('flag_ch2_mujin_first')) {
+      setFlag('flag_ch2_mujin_first', 1);
+      return MUJIN_SHOP.first;
+    }
+    const n = flag('flag_ch2_mujin_n');
+    setFlag('flag_ch2_mujin_n', n + 1);
+    return MUJIN_SHOP.again[n % MUJIN_SHOP.again.length];
+  },
+  noMoney: MUJIN_SHOP.noMoney,
+  bagFull: MUJIN_SHOP.bagFull,
+  bye: () => MUJIN_SHOP.bye,
 });
 
 /** 〔きなこぼうを初めて買ったとき〕: an あたり in the bag, and おばあ never put one in. */
@@ -182,6 +232,8 @@ class ShopScene implements Scene {
 
   constructor(private def: ShopDef) {
     this.goods = def.goods();
+    // a stall that restocks on every visit: the shelf is full again
+    if (def.perVisit) for (const id of this.goods) if (state.flags[soldKey(def.id, id)]) state.flags[soldKey(def.id, id)] = 0;
   }
 
   enter(): void {
@@ -339,8 +391,11 @@ class ShopScene implements Scene {
         setFlag(key, flag(key) + qty);
         setFlag('flag_bought', flag('flag_bought') + 1);
         self.purseT = 0;
-        sfx('se_coin');
-        sfx('se_shop_buy');
+        if (def.buySfx) def.buySfx();
+        else {
+          sfx('se_coin');
+          sfx('se_shop_buy');
+        }
         yield 180;
         const after = def.onBuy?.(id, flag('flag_bought'));
         if (Array.isArray(after)) {
@@ -383,7 +438,7 @@ class ShopScene implements Scene {
     const P = PANEL;
     drawWindow(g, P.x, P.y, P.w, P.h, UI, 1, { curl: true });
     // the shop's name on a strip of tape, like a sign
-    drawTape(g, P.x + 10, P.y + 6, textW(this.def.title) + 18, 18, this.def.title, { color: '#F6D98A', seed: 7 });
+    drawTape(g, P.x + 10, P.y + 6, textW(this.def.title) + 18, 18, this.def.title, { color: this.def.signColor ?? '#F6D98A', seed: 7 });
     // purse and money at the top right
     const open = this.purseT < 70;
     const money = `${state.money}円`;
@@ -465,7 +520,8 @@ class ShopScene implements Scene {
     g.text('円', px + numeralsWidth(pv) + 2, y, { color: UI.accent });
     const left = this.left(id);
     if (Number.isFinite(left)) {
-      const s = left > 0 ? 'きょうは あと' : 'きょうは うりきれ';
+      const visit = !!this.def.perVisit;
+      const s = left > 0 ? (visit ? 'のこり' : 'きょうは あと') : visit ? 'うりきれ' : 'きょうは うりきれ';
       g.text(s, x, y + 19, { color: left > 0 ? UI.pencil : UI.textDim });
       if (left > 0) {
         const lx = x + textW(s) + 5;

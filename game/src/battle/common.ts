@@ -329,6 +329,8 @@ export interface EnemyHitOpts {
   noNumber?: boolean;
   /** Where the number pops, when not from the core (a broken boss part). */
   at?: [number, number];
+  /** Number pop scale (0.8: the spill of はみだしペケ). */
+  pop?: number;
 }
 
 /** Enemies patterned like the digits themselves: their numbers sit on an opaque plate. */
@@ -356,7 +358,7 @@ export function hurtEnemy(s: BattleScene, e: EnemyUnit, dmg: number, o: EnemyHit
     // the second hit of a 2段 strike is the inverted colour; a busy enemy
     // (the vending machine's red-and-cream can rows) gets an opaque plate
     const kind = o.crit ? 'crit' : (o.stack ?? 0) > 0 ? 'dmg2' : 'dmg';
-    s.number(nx, ny, Math.max(0, Math.round(dmg)), { kind, big: o.big || o.crit, backing: true, plate: PLATE_ENEMIES.has(e.id) }, 'enemy', e);
+    s.number(nx, ny, Math.max(0, Math.round(dmg)), { kind, big: (o.big || o.crit) && !o.pop, pop: o.pop, backing: true, plate: PLATE_ENEMIES.has(e.id) }, 'enemy', e);
   }
   if (e.status.bokemake) s.memo.bokeHit = 1;
   if (dmg > 0 && e.hp > 0) enemyHurt(s, e, before);
@@ -487,6 +489,10 @@ export function* precacheRestored(s: BattleScene): Co {
  * already applied by the caller at t=0). `dropDelay` staggers multi-kills.
  */
 export function* defeatEnemy(s: BattleScene, e: EnemyUnit, dropDelay = 0, lastOne = true): Co {
+  if (e.def.defeatStyle === 'runaway') {
+    yield* runAway(s, e, dropDelay, lastOne);
+    return;
+  }
   e.dying = true;
   e.offX = 0;
   e.sx = e.sy = 1;
@@ -500,6 +506,8 @@ export function* defeatEnemy(s: BattleScene, e: EnemyUnit, dropDelay = 0, lastOn
   // the white silhouette is already up under the flash (QA round 2: one or
   // two frames of the old colours flickered between the flash and it)
   e.whiteFrames = 999;
+  // 耕うん機テツヤ: the engine runs down (its pitch sinks over 0.5s) and stops (51 9.4)
+  if (e.id === 'enemy_tetsuya') s.sfx('se_h_tiller', { level: 5, pitch: 0.7 });
   yield 34;
   // 267ms: white silhouette + confetti from the core
   const cx = e.coreX;
@@ -765,3 +773,91 @@ export function hideSticky(s: BattleScene): void {
 }
 
 export { all };
+
+/**
+ * チョトツ's 「山へ帰る」 (51 14.9): the 思いだす beats, but instead of
+ * shrinking into an object it turns right and runs off the edge of the
+ * screen; its split hoofprints stay where it stood, and the みました seal
+ * is pressed beside them.
+ */
+function* runAway(s: BattleScene, e: EnemyUnit, dropDelay: number, lastOne: boolean): Co {
+  e.dying = true;
+  e.offX = 0;
+  e.sx = e.sy = 1;
+  e.shear = 0;
+  s.hitstop(14);
+  e.whiteFrames = 0;
+  yield 1;
+  s.flash('#FFF6D8', 0.85, 2);
+  s.shake(3, 3, 8);
+  e.whiteFrames = 999;
+  yield 34;
+  const cx = e.coreX;
+  const cy = e.coreY;
+  const fy = Math.min(e.footY, 136);
+  s.burst(cx, cy, { count: 20, speed: [60, 200], life: [500, 900], colors: e.def.colors.slice(0, 4), gravity: 240, drag: 1, shape: 'sq', size: [2, 3], sizeEnd: 2 });
+  // it turns right and bolts off the edge (easeInQuad, 350ms), kicking up dust
+  e.flags.faceRight = 1;
+  e.setPose('run');
+  s.sfx('se_h_boar', { level: 2, vol: 0.8 });
+  const x0 = e.x;
+  let lastDust = 0;
+  yield* animateMs(350, (p) => {
+    const k = p * p;
+    e.offX = Math.round((420 - x0) * k);
+    if (p - lastDust > 0.12) {
+      lastDust = p;
+      s.burst(e.x + e.offX - 18, fy - 2, { count: 3, speed: [20, 60], angle: [-Math.PI * 0.95, -Math.PI * 0.55], life: [260, 420], colors: ['#6B5A4A', '#8A6A4A', '#4A3A2A'], gravity: 180, drag: 1.3, shape: 'sq', size: [1, 2] });
+    }
+  });
+  e.visible = false;
+  e.dead = true;
+  e.whiteFrames = 0;
+  e.offX = 0;
+  if (dropDelay) yield dropDelay;
+  // 617ms: the hoofprints (split in two, #3A2616, 6×4 × 3 toward the right)
+  const st = { y: 0, alpha: 1, seal: 0, prints: 0 };
+  const px = x0 - 16;
+  const fx = s.addFx({
+    layer: 'world',
+    dur: 0,
+    draw: (g) => {
+      if (st.alpha <= 0) return;
+      g.alpha(st.alpha, () => {
+        for (let i = 0; i < Math.min(3, st.prints); i++) hoofPrint(g, px + i * 14, fy - 3 - (i % 2) * 3);
+        if (st.seal > 0) {
+          const seal = ovalStamp('みました', 40, 20, 0, 5, true);
+          const k = Math.min(1, st.seal / 67);
+          const ss = 1.6 - 0.6 * k;
+          const w = seal.width * ss;
+          const h = seal.height * ss;
+          g.ctx.drawImage(seal, Math.round(px + 50 + seal.width / 2 - w / 2), Math.round(fy - 14 - h / 2), Math.round(w), Math.round(h));
+        }
+      });
+    },
+  });
+  for (let i = 1; i <= 3; i++) {
+    st.prints = i;
+    s.sfx('se_step_grass', { pitch: 1.2 + i * 0.05, vol: 0.5 });
+    yield 60;
+  }
+  yield 100;
+  // 900ms: the seal beside the prints
+  st.seal = 1;
+  s.sfx('se_stamp');
+  s.sfx('se_defeat_chord');
+  s.addFx({ layer: 'world', dur: 70, draw: () => {}, update: () => (st.seal += 1000 / 60) });
+  yield 100;
+  s.dropFxs.push({ fx, st });
+  if (lastOne) yield 100;
+}
+
+/** A split hoofprint (2 halves of 3×4, #3A2616, a lighter rim of dirt). */
+function hoofPrint(g: import('../engine/gfx').Gfx, x: number, y: number): void {
+  g.rect(x, y, 2, 4, '#3A2616');
+  g.rect(x + 3, y, 2, 4, '#3A2616');
+  g.px(x + 1, y + 3, '#2A1A10');
+  g.px(x + 4, y + 3, '#2A1A10');
+  g.rect(x - 1, y + 4, 7, 1, '#6B5A4A');
+  g.px(x + 2, y - 1, '#6B5A4A');
+}

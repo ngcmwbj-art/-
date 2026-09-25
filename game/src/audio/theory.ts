@@ -353,3 +353,27 @@ export function findSealedAnswer(seq: number[]): number {
   }
   return -1;
 }
+
+// ---------------------------------------------------------------------------
+// Chapter 2's sealed shapes (53_ch2_audio 1.3, 16.1), in any key.
+
+/** 星見台の朝のチャイム (M6: A F D C D F): only bgm_hoshi_morning and the 5:00 chime may sound it. */
+export const MORNING_CHIME_SHAPE = [-4, -3, -2, 2, 3];
+/**
+ * The closing chime's fourth note (M4): D6 A5 F♯5 D5 (major −5 −3 −4) or its
+ * minor D6 A5 F5 D5 (−5 −4 −3). Only the final phase's se_pa_chime_end says it.
+ */
+export const CLOSING_FOURTH_SHAPES = [
+  [-5, -3, -4],
+  [-5, -4, -3],
+];
+
+/** First index where `seq`'s successive intervals are `shape`, or −1. */
+export function findShape(seq: number[], shape: number[]): number {
+  for (let i = 0; i + shape.length < seq.length; i++) {
+    let ok = true;
+    for (let k = 0; k < shape.length && ok; k++) ok = seq[i + k + 1] - seq[i + k] === shape[k];
+    if (ok) return i;
+  }
+  return -1;
+}

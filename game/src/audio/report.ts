@@ -35,11 +35,11 @@
 import { registerDebug } from '../debug';
 import { createAmbient } from './ambience';
 import { buildGraph, gainToDb, resetOfflineState, setNoteLog, volCurve, withGraph, type Graph } from './engine';
-import { PART_TRIM, partRole, REF_PART, ROLE_TARGET, TARGET_OVERRIDE, BATTLE_PEAK_DB, BGM_TARGET, BGM_TRIM, mixState, seTargetDb, SE_NO_TRIM, SE_TRIM, AMB_TRIM, VOICE_TRIM, voiceTargetDb } from './mix';
+import { PART_TRIM, partRole, QA_PARAMS, REF_PART, ROLE_TARGET, TARGET_OVERRIDE, BATTLE_PEAK_DB, BGM_TARGET, BGM_TRIM, mixState, seTargetDb, SE_NO_TRIM, SE_TRIM, AMB_TRIM, VOICE_TRIM, voiceTargetDb } from './mix';
 import { sfxInfo, sfxTable, songTable, type SfxOpts } from './registry';
 import { VOICE_SAMPLES, voiceCps } from './samples';
 import { MUSIC_LOOKAHEAD, PARAM_DEFAULTS, SongPlayer, type Params, type SongDef } from './sequencer';
-import { findSealedAnswer, mmlErrors } from './theory';
+import { CLOSING_FOURTH_SHAPES, findSealedAnswer, findShape, mmlErrors, MORNING_CHIME_SHAPE } from './theory';
 import { AMBIENCE_IDS } from './ambience';
 import { blip, resetVoiceState, VOICES } from './voices';
 
@@ -128,7 +128,7 @@ const CHUNK = 0.5;
 const LOOKAHEAD = MUSIC_LOOKAHEAD;
 
 function startSong(g: Graph, def: SongDef, at: number, params: Partial<Params> = {}, solo?: string[]): SongPlayer {
-  return new SongPlayer(g, def, g.musicBus, { at, params: { stage: 0, kire: 0, boss_phase: 1, ...params }, solo });
+  return new SongPlayer(g, def, g.musicBus, { at, params: { stage: 0, kire: 0, boss_phase: 1, ...QA_PARAMS[def.id], ...params }, solo });
 }
 
 export async function renderSong(
@@ -173,12 +173,14 @@ export async function renderSfx(id: string, opts: SfxOpts = {}, seconds = 2.5, w
   );
 }
 
-export async function renderAmbient(id: string, seconds = 12, stage = 0, ro: RenderOpts = {}, ao: { vol?: number; lp?: number } = {}): Promise<RenderOut> {
+export async function renderAmbient(id: string, seconds = 12, stage = 0, ro: RenderOpts = {}, ao: { vol?: number; lp?: number } = {}, hStage = -1): Promise<RenderOut> {
   let inst: ReturnType<typeof createAmbient> = null;
   return render(
     seconds,
     (g) => {
-      inst = createAmbient(g, id, { fade: 0.05, ...ao }, g.ambBus, 0.02, stage);
+      // the 星見台 beds are heard in their own valley (the PA's voicing for amb_h_pa_hum)
+      if (id.startsWith('amb_h_')) g.pa.setMode('yama', 0);
+      inst = createAmbient(g, id, { fade: 0.05, ...ao }, g.ambBus, 0.02, stage, id.startsWith('amb_h_') && hStage < 0 ? 0 : hStage);
     },
     ro,
     (until) => inst?.impl.pump?.(until),
@@ -532,7 +534,21 @@ async function highpass(buf: AudioBuffer, hz: number): Promise<AudioBuffer> {
  * insects, wind) only need to reach the music's level there (≥ 0 dB). In
  * every case the music stays in front overall (ambience ≥ 4 LU quieter).
  */
-export const AMB_CONTEXT: { amb: string; song: string; stage: number; role: 'character' | 'bed'; vol?: number; lp?: number; where: string }[] = [
+export const AMB_CONTEXT: {
+  amb: string;
+  song: string;
+  stage: number;
+  role: 'character' | 'bed';
+  vol?: number;
+  lp?: number;
+  where: string;
+  /** 星見台's stage (53 6.1) for the song and the bed. */
+  hStage?: number;
+  /** bgm_hoshi_night's room (53 5.2: 1 house, 2 barn, 3 school, 4 hill). */
+  room?: number;
+  /** Where the room may be louder than its music (the barn's fans over its −18 dB song, 53 10.2). */
+  underMin?: number;
+}[] = [
   { amb: 'amb_clock_tick', song: 'bgm_shop', stage: 0, role: 'character', where: 'ひのや' },
   { amb: 'amb_dryer', song: 'bgm_shop', stage: 0, role: 'character', where: 'コインランドリー' },
   { amb: 'amb_oil', song: 'bgm_shop', stage: 0, role: 'character', where: '肉のマルヤマ' },
@@ -545,16 +561,40 @@ export const AMB_CONTEXT: { amb: string; song: string; stage: number; role: 'cha
   { amb: 'amb_kaitenyaki', song: 'bgm_mall', stage: 2, role: 'character', where: 'モール M2（近い）' },
   { amb: 'amb_mall_wind', song: 'bgm_mall', stage: 2, role: 'bed', where: 'モール M1' },
   { amb: 'amb_higurashi', song: 'bgm_town_s0', stage: 0, role: 'bed', where: '町・段階0' },
-  { amb: 'amb_kawabe', song: 'bgm_town_s0', stage: 0, role: 'character', where: '用水路' },
+  { amb: 'amb_kawabe', song: 'bgm_town_s0', stage: 0, role: 'character', underMin: 2, where: '用水路' },
   { amb: 'amb_arcade', song: 'bgm_town_s0', stage: 0, role: 'character', where: 'アーケード' },
   { amb: 'amb_wind', song: 'bgm_town_s0', stage: 0, role: 'bed', where: '公園・対岸' },
   { amb: 'amb_still', song: 'bgm_town_s1', stage: 1, role: 'bed', where: '町・段階1' },
   { amb: 'amb_s2_town', song: 'bgm_town_s2', stage: 2, role: 'bed', where: '町・段階2' },
   { amb: 'amb_train_far', song: 'bgm_town_s2', stage: 2, role: 'bed', where: '踏切の付近・段階2' },
   { amb: 'amb_night_insects', song: 'bgm_night', stage: 3, role: 'bed', where: 'エンディングの夜' },
+  // chapter 2 (53_ch2_audio 4.2, 10.2): measured at 段階1 (段階0's music is ~3 dB
+  // quieter still, and there the beds may stand in front of it). The village's
+  // sounds carry half of the night (1.1): the outdoor beds may come within
+  // 1–2 LU of the song; the tomato's hum and the tractor are what you walk
+  // towards; the train has no music at all (the next scene's song stands in)
+  { amb: 'amb_h_insects', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'bed', underMin: 1, where: '星見台・屋外' },
+  { amb: 'amb_h_wind', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'bed', underMin: 1, where: '星見台・屋外' },
+  { amb: 'amb_h_mizu', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'character', underMin: 2, where: '用水路' },
+  { amb: 'amb_h_tanada', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'character', underMin: 2, where: '棚田' },
+  { amb: 'amb_h_kusa', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'character', underMin: 2, where: '耕作放棄地' },
+  { amb: 'amb_h_fence', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'character', underMin: 2, where: '電気柵の電源装置' },
+  { amb: 'amb_h_barn_out', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'character', underMin: 2, where: '牛舎の外' },
+  { amb: 'amb_h_yama', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'bed', where: '村の北（段階1〜2）' },
+  { amb: 'amb_h_boukatou', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'bed', underMin: 2, where: '防犯灯の下' },
+  { amb: 'amb_h_tetsuya', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'character', underMin: 0, where: '耕作放棄地（テツヤ）' },
+  { amb: 'amb_h_pa_hum', song: 'bgm_hoshi_night', stage: 3, hStage: 2, role: 'bed', underMin: 2, where: '段階2・山道の入口' },
+  { amb: 'amb_h_house', song: 'bgm_hoshi_night', stage: 3, hStage: 1, room: 1, role: 'character', where: '3号ハウス' },
+  { amb: 'amb_h_tomato', song: 'bgm_hoshi_night', stage: 3, hStage: 0, room: 1, role: 'character', underMin: 0, where: '3号ハウス（奥のトマト）' },
+  { amb: 'amb_h_hachi', song: 'bgm_hoshi_night', stage: 3, hStage: 0, room: 1, role: 'bed', where: '3号ハウス（巣箱）' },
+  { amb: 'amb_h_barn', song: 'bgm_hoshi_night', stage: 3, hStage: 1, room: 2, role: 'character', underMin: -12, where: '石黒牛舎' },
+  { amb: 'amb_h_school', song: 'bgm_hoshi_night', stage: 3, hStage: 1, room: 3, role: 'character', where: '旧分校・集会所' },
+  { amb: 'amb_h_insects', song: 'bgm_hoshi_night', stage: 3, hStage: 1, room: 3, role: 'bed', vol: 0.35, lp: 2000, where: '集会所（窓ごし）' },
+  { amb: 'amb_h_train', song: 'bgm_hoshi_night', stage: 3, hStage: 0, role: 'character', underMin: -8, where: '夜の電車（曲なし）' },
+  { amb: 'amb_h_dawn', song: 'bgm_hoshi_morning', stage: 3, hStage: 2, role: 'bed', where: 'エンディングの夜明け' },
 ];
 
-export interface AmbRow { amb: string; song: string; role: string; where: string; margin: number; band: number; need: number; ambLufs: number; songLufs: number; under: number; peak: number; ok: boolean; bands: number[] }
+export interface AmbRow { amb: string; song: string; role: string; where: string; underMin?: number; margin: number; band: number; need: number; ambLufs: number; songLufs: number; under: number; peak: number; ok: boolean; bands: number[] }
 /** Key of an AMB_CONTEXT row in the report (the window case of 家2F is its own row). */
 const ambKey = (c: (typeof AMB_CONTEXT)[number]) => `${c.amb}${c.vol !== undefined ? '(' + c.where + ')' : ''}`;
 
@@ -564,14 +604,17 @@ export async function ambContext(o: { ids?: string[]; seconds?: number } = {}): 
   const rows: Record<string, AmbRow> = {};
   for (const c of AMB_CONTEXT) {
     if (o.ids && !o.ids.includes(c.amb)) continue;
-    const sk = `${c.song}@${c.stage}`;
+    const sk = `${c.song}@${c.stage}/${c.hStage ?? ''}/${c.room ?? ''}`;
     let sg = songs.get(sk);
     if (!sg) {
-      const r = await renderSong(c.song, secs, { bypass: true, params: { stage: c.stage } });
+      const params: Partial<Params> = { stage: c.stage };
+      if (c.hStage !== undefined) params.h_stage = c.hStage;
+      if (c.room !== undefined) params.h_room = c.room;
+      const r = await renderSong(c.song, secs, { bypass: true, params });
       sg = { mean: bandProfile(r.buffer, 'mean', 1), lufs: measure(r.buffer, 1).lufs };
       songs.set(sk, sg);
     }
-    const ra = await renderAmbient(c.amb, secs, c.stage, { bypass: true }, { vol: c.vol, lp: c.lp });
+    const ra = await renderAmbient(c.amb, secs, c.stage, { bypass: true }, { vol: c.vol, lp: c.lp }, c.hStage ?? -1);
     const mx = bandProfile(ra.buffer, 'max', 1);
     const over = mx.map((v, i) => round(v - sg!.mean[i]));
     let bi = 0;
@@ -582,8 +625,8 @@ export async function ambContext(o: { ids?: string[]; seconds?: number } = {}): 
     const st = measure(ra.buffer, 1);
     const under = round(sg.lufs - st.lufs);
     rows[ambKey(c)] = {
-      amb: c.amb, song: c.song, role: c.role, where: c.where, margin: over[bi], band: BANDS[bi], need, ambLufs: st.lufs, songLufs: sg.lufs, under, peak: st.peakDb,
-      ok: over[bi] >= need && under >= AMB_UNDER_MIN && st.peakDb <= AMB_PEAK_MAX, bands: over,
+      amb: c.amb, song: c.song, role: c.role, where: c.where, underMin: c.underMin, margin: over[bi], band: BANDS[bi], need, ambLufs: st.lufs, songLufs: sg.lufs, under, peak: st.peakDb,
+      ok: over[bi] >= need && under >= (c.underMin ?? AMB_UNDER_MIN) && st.peakDb <= AMB_PEAK_MAX, bands: over,
     };
   }
   return rows;
@@ -751,11 +794,16 @@ export async function voicingCheck(o: { songs?: string[]; seconds?: number } = {
 
 /** Which music an SE must cut through, and by how much (dB, some octave band). */
 export function seAudibility(id: string, group: string | undefined): { need: number; bgm: string } {
-  const battle = /^戦闘|ハンコ/.test(group ?? '') || /^se_(chime_chord|stamp|thud|mimashita)/.test(id);
-  const bgm = battle ? 'bgm_battle' : 'bgm_town_s0';
+  // chapter 2's groups read "第2章：…"; its field sounds play over 星見台の夜
+  const ch2 = /^第2章：/.test(group ?? '');
+  const g = (group ?? '').replace(/^第2章：/, '');
+  const battle = /^戦闘|ハンコ/.test(g) || /^se_(chime_chord|stamp|thud|mimashita)/.test(id);
+  const bgm = battle ? 'bgm_battle' : ch2 ? 'bgm_hoshi_night' : 'bgm_town_s0';
   // feet, the HP tick, the far train, a pen stroke: felt more than heard
   if (/^se_(step|stairs|hp_tick|pen_write|train_far|slider|count|star|glint|higurashi_call|furin|coo|sparrow)/.test(id)) return { need: 0, bgm };
-  if (/^(UI|会話|戦闘|ハンコ)/.test(group ?? '')) return { need: 6, bgm };
+  // 星見台's small things: a chew, a flashlight's click, chalk, idling engines, the sky brightening
+  if (/^se_h_(hansuu|kaichu|chalk|train_idle|bus_idle|cow_snort|kairan|boukatou_on|sunrise|barn_light)/.test(id)) return { need: 0, bgm };
+  if (/^(UI|会話|戦闘|ハンコ)/.test(g)) return { need: 6, bgm };
   return { need: 3, bgm };
 }
 
@@ -773,11 +821,21 @@ interface SongRow extends Stats {
 
 /** Indoor songs follow the town's stage (5.4): their stage-1 / 2 versions are measured as rows of their own. */
 const STAGE_ROWS = ['bgm_home', 'bgm_shop'];
+/** Chapter 2's forms measured as rows of their own (53 10.1): 星見台の夜 at 段階0 / 2, the battle songs at night. */
+const CH2_ROWS: [string, string, Partial<Params>][] = [
+  ['bgm_hoshi_night@h0', 'bgm_hoshi_night', { h_stage: 0 }],
+  ['bgm_hoshi_night@h2', 'bgm_hoshi_night', { h_stage: 2 }],
+  ['bgm_battle@night', 'bgm_battle', { h_stage: 0 }],
+  ['bgm_midboss@night', 'bgm_midboss', { h_stage: 0 }],
+];
+/** 段階0 has only the music box and the pad: ~3 dB under 段階1, by design (53 10.1). */
+const ROW_TARGET: Record<string, number> = { 'bgm_hoshi_night@h0': -9 };
 
 async function songRows(ids: string[], maxSeconds: number, raw: boolean, stageRows = false): Promise<Record<string, SongRow>> {
   const out: Record<string, SongRow> = {};
   const jobs: [string, string, Partial<Params>][] = ids.map((id) => [id, id, {}]);
   if (stageRows) for (const id of STAGE_ROWS) if (ids.includes(id)) for (const stage of [1, 2]) jobs.push([`${id}@stage${stage}`, id, { stage }]);
+  if (stageRows) for (const row of CH2_ROWS) if (ids.includes(row[1])) jobs.push(row);
   for (const [key, id, params] of jobs) {
     const def = songTable.get(id);
     if (!def) continue;
@@ -785,7 +843,7 @@ async function songRows(ids: string[], maxSeconds: number, raw: boolean, stageRo
     // (the victory jingle is measured on its 1.5 s fanfare; the afterglow sits −6 dB under it by design)
     const secs = def.jingle ? (def.jingle === 'replace' ? 1.9 : songLength(def) + 1.5) : Math.min(maxSeconds, songLength(def) * (params.stage === 2 ? 1.12 : 1) + 0.5);
     const r = await renderSong(id, secs, { bypass: raw, params });
-    out[key] = { ...measure(r.buffer, 0.1), seconds: round(secs), target: BGM_TARGET[id] ?? -3, clickAt: clickScan(r.buffer, 0.1).slice(0, 12) };
+    out[key] = { ...measure(r.buffer, 0.1), seconds: round(secs), target: ROW_TARGET[key] ?? BGM_TARGET[id] ?? -3, clickAt: clickScan(r.buffer, 0.1).slice(0, 12) };
     log(key, out[key].lufs, 'LUFS');
   }
   return out;
@@ -937,7 +995,9 @@ export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sf
  * Calibrate the mix.ts trims: measure every sound with the trims bypassed and
  * return the tables that put each one on its target (paste into mix.ts).
  */
-export async function audioMixSuggest(o: { songs?: boolean; sfx?: boolean; voices?: boolean; amb?: boolean; maxSeconds?: number } = {}) {
+export async function audioMixSuggest(
+  o: { songs?: boolean; sfx?: boolean; voices?: boolean; amb?: boolean; maxSeconds?: number; songIds?: string[]; sfxIds?: string[]; voiceIds?: string[]; ambIds?: string[] } = {},
+) {
   const q = (x: number) => Math.round(x * 2) / 2;
   const clamp = (x: number) => Math.max(-18, Math.min(28, x));
   const out: { BGM_TRIM?: Record<string, number>; SE_TRIM?: Record<string, number>; VOICE_TRIM?: Record<string, number>; AMB_TRIM?: Record<string, number>; ambNotes?: string[] } = {};
@@ -947,16 +1007,16 @@ export async function audioMixSuggest(o: { songs?: boolean; sfx?: boolean; voice
     // lowered: a bed that already carries stays as it is), as long as the
     // music stays ≥ 6 LU in front and the peak under the ceiling. Measured
     // with the current trims and songs as they will play.
-    const rows = await ambContext();
+    const rows = await ambContext({ ids: o.ambIds });
     const lift = new Map<string, number>();
     const room = new Map<string, number>();
     for (const r of Object.values(rows)) {
       lift.set(r.amb, Math.max(lift.get(r.amb) ?? -Infinity, r.need + 2 - r.margin));
-      room.set(r.amb, Math.min(room.get(r.amb) ?? Infinity, r.under - 6, AMB_PEAK_MAX - r.peak));
+      room.set(r.amb, Math.min(room.get(r.amb) ?? Infinity, r.under - ((r.underMin ?? AMB_UNDER_MIN) + 2), AMB_PEAK_MAX - r.peak));
     }
     const t: Record<string, number> = {};
     const notes: string[] = [];
-    for (const id of AMBIENCE_IDS) {
+    for (const id of o.ambIds ?? AMBIENCE_IDS) {
       const cur = AMB_TRIM[id] ?? 0;
       const want = Math.max(0, lift.get(id) ?? 0);
       const can = Math.max(0, room.get(id) ?? Infinity);
@@ -970,7 +1030,7 @@ export async function audioMixSuggest(o: { songs?: boolean; sfx?: boolean; voice
   try {
     if (o.songs !== false) {
       // loudness from the raw renders: battle is anchored on its peak, the rest follow 11.2
-      const rows = await songRows([...songTable.keys()], o.maxSeconds ?? 75, true);
+      const rows = await songRows(o.songIds ? [...new Set(['bgm_battle', ...o.songIds])] : [...songTable.keys()], o.maxSeconds ?? 75, true);
       const b = rows.bgm_battle;
       const battleTrim = BATTLE_PEAK_DB - b.peakDb;
       const refLufs = b.lufs + battleTrim;
@@ -980,7 +1040,7 @@ export async function audioMixSuggest(o: { songs?: boolean; sfx?: boolean; voice
     }
     if (o.sfx !== false) {
       const t: Record<string, number> = {};
-      for (const id of sfxInfo.keys()) {
+      for (const id of o.sfxIds ?? sfxInfo.keys()) {
         if (SE_NO_TRIM.has(id)) continue;
         const pk = await sePeak(id);
         if (pk < -120) continue;
@@ -990,7 +1050,7 @@ export async function audioMixSuggest(o: { songs?: boolean; sfx?: boolean; voice
     }
     if (o.voices !== false) {
       const t: Record<string, number> = {};
-      for (const id of Object.keys(VOICES)) {
+      for (const id of o.voiceIds ?? Object.keys(VOICES)) {
         if (id === 'sys') continue;
         const st = measure((await renderVoice(id, undefined, { bypass: true })).buffer);
         t[id] = q(clamp(voiceTargetDb(id) - st.peakDb));
@@ -1053,14 +1113,26 @@ export function currentTrims() {
   return { BGM_TRIM, SE_TRIM, VOICE_TRIM, AMB_TRIM };
 }
 
-/** The chime "answer" (−2, −3, +3) must not appear before the ending (1.3, 16.1). */
+/** Chapter 2's songs (53_ch2_audio): the closing chime's fourth note is sealed in these. */
+const CH2_SONGS = new Set(['bgm_hoshi_night', 'bgm_boss_yobimodoshi', 'bgm_hoshi_morning']);
+
+/**
+ * The sealed shapes (16.1): the town chime's "answer" (−2, −3, +3) must not
+ * appear before the ending (40 1.3); 星見台's morning chime (−4 −3 −2 +2 +3)
+ * only in bgm_hoshi_morning; the closing chime's fourth note (−5 −3 −4 /
+ * −5 −4 −3) in no chapter-2 song (53 1.3–1.4). Chapter 1's scores are not
+ * changed by chapter 2 (53 5.5): their plain triad arpeggios (the shop's bass,
+ * the vending machine's roulette) are not the chime and stay as they are.
+ */
 export function sealedCheck(): string[] {
   const leaks: string[] = [];
   for (const [id, def] of songTable) {
-    if (id === 'bgm_ending' || id === 'bgm_title_clear') continue;
     for (const part of def.parts) {
       const seq = (part as unknown as { melodySeq?: () => number[] }).melodySeq?.();
-      if (seq && findSealedAnswer(seq) >= 0) leaks.push(`${id}/${part.id}`);
+      if (!seq) continue;
+      if (id !== 'bgm_ending' && id !== 'bgm_title_clear' && findSealedAnswer(seq) >= 0) leaks.push(`${id}/${part.id}: the town's answer`);
+      if (id !== 'bgm_hoshi_morning' && findShape(seq, MORNING_CHIME_SHAPE) >= 0) leaks.push(`${id}/${part.id}: 星見台の朝のチャイム`);
+      if (CH2_SONGS.has(id) && CLOSING_FOURTH_SHAPES.some((sh) => findShape(seq, sh) >= 0)) leaks.push(`${id}/${part.id}: the closing chime's fourth note`);
     }
   }
   return leaks;

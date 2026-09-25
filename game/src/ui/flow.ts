@@ -26,9 +26,8 @@ import { game, type Scene } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { makeCanvas } from '../engine/pixel';
 import { H, W } from '../engine/screen';
-import { flag, loadGame, loadSnapshot, resetState, saveGame, saveSnapshot, setFlag, state, type Member } from '../game/state';
-import * as battleData from '../data/battle';
-import { EXP_TABLE, joinKanenari, learnSkill, newGameParty, statsFor, syncProgressSkills, type LevelUpResult } from '../data/battle';
+import { flag, loadGame, loadSnapshot, resetState, saveGame, saveSnapshot, setFlag, state } from '../game/state';
+import { chapter2Adjust, newChapter2Party, newGameParty, syncProgressSkills, type LevelUpResult } from '../data/battle';
 import { stopAllAmbient, stopBgm } from '../audio';
 import { FieldScene } from '../world/field';
 import { hasMap } from '../world/maps';
@@ -40,6 +39,25 @@ import { uiHud } from './hud';
 import { resetAutosave } from './autosave';
 import { ditherIn, ditherLevel, ditherOut } from './transition';
 import { playChapterDoor } from './chapter_door';
+import { CH2_CONTINUE_CLEARED, PROLOGUE_CAPTION } from '../data/text/hoshi_events';
+
+/**
+ * The pages of a scenario msg block (10_narrative 1.4) that has one
+ * speaker: the `@speaker` and `>` direction lines dropped, `/` between pages.
+ */
+export function msgPages(src: string): string[] {
+  const pages: string[][] = [[]];
+  for (const raw of src.split('\n')) {
+    const l = raw.trimEnd();
+    if (l.startsWith('@') || l.startsWith('>')) continue;
+    if (l.trim() === '/') {
+      pages.push([]);
+      continue;
+    }
+    pages[pages.length - 1].push(l);
+  }
+  return pages.map((p) => p.join('\n').trim()).filter((p) => p.length > 0);
+}
 
 export type NewGameHook = () => Co | void;
 const hooks: NewGameHook[] = [];
@@ -172,7 +190,7 @@ function* chapter2ClearedPage(): Co {
   game.fadeAlpha = 0;
   yield* ditherIn(1);
   yield 500;
-  yield* say('つづきは、また こんど。\n（第2章から、もう一度 遊べます）', { voice: 'sys' });
+  yield* say(msgPages(CH2_CONTINUE_CLEARED), { voice: 'sys' });
   yield 200;
   yield* toTitle(600);
 }
@@ -345,9 +363,6 @@ export function markClearCh2(): ClearRecord {
 
 // ---- chapter 2: the start ------------------------------------------------------------------
 
-type Api = Record<string, unknown>;
-const battleApi = battleData as unknown as Api;
-
 let lastLevelUps: LevelUpResult[] = [];
 
 /** Level-ups made by chapter2Adjust() at the last start (for the prologue's 「なつやすみの つうちひょう」). */
@@ -355,99 +370,28 @@ export function chapter2LevelUps(): LevelUpResult[] {
   return lastLevelUps;
 }
 
-/** The ch1 story flags (10_narrative 3.6) a 「第2章から」 start is given. */
-const CH1_STORY_FLAGS = [
-  'flag_opening_done',
-  'flag_errand',
-  'flag_met_maruyama',
-  'flag_met_obaa',
-  'flag_chime_stopped',
-  'flag_hato_beaten',
-  'flag_got_hanko',
-  'flag_fushigi_tutorial',
-  'flag_park_hint',
-  'flag_met_kanenari',
-  'flag_kanenari_joined',
-  'flag_broadcast',
-  'flag_parking_open',
-  'flag_ojigi_beaten',
-  'flag_mall_entered',
-  'flag_got_maigo_key',
-  'flag_soujirou_gate',
-  'flag_maigo_door_open',
-  'flag_boss_beaten',
-  'flag_clear',
-];
-
+/** The key items every chapter 2 party has (50 1.5). */
 const CH2_KEY_ITEMS = ['item_gamaguchi', 'item_hanko_case', 'item_mimashita_cho', 'item_hato_meishi'];
-const CH2_BAG = ['item_ramune', 'item_ramune', 'item_fugashi', 'item_fugashi', 'item_hakka_ame', 'item_stamp_pad', 'item_oden_can'];
 
 /**
- * 「第2章から（標準）」 (50 1.5, 51 3.2 D): both at Lv5 (150), the bag, 300円,
- * the four key items and chapter 1's story flags. The party itself comes
- * from the battle data's newChapter2Party() when it is there.
+ * 「第2章から（標準）」 (50 1.5, 51 3.2 D): newChapter2Party() — both at Lv5
+ * (150), the bag, 300円, chapter 1's story flags — on a fresh state.
  */
 function standardChapter2Start(): void {
   resetState();
-  const make = battleApi.newChapter2Party;
-  if (typeof make === 'function') (make as () => void)();
-  if (!state.party.length || state.party.length < 2) {
-    state.party = [];
-    newGameParty();
-    const mi = state.party[0];
-    setLevelKeepExp(mi, 5, 150);
-    const k = joinKanenari();
-    setLevelKeepExp(k, 5, 150);
-    state.inventory = [...CH2_BAG];
-    state.money = 300;
-  }
+  newChapter2Party();
   for (const id of CH2_KEY_ITEMS) if (!state.inventory.includes(id)) state.inventory.push(id);
-  for (const f of CH1_STORY_FLAGS) setFlag(f, 1);
-  setFlag('flag_stage', 3);
-  setFlag('flag_clock', 4);
-  learnSkill('minato', 'skill_okaerinasai');
   syncProgressSkills();
   restAll();
 }
 
-function setLevelKeepExp(m: Member, level: number, exp: number): void {
-  const s = statsFor(m.id, level);
-  m.level = level;
-  m.exp = exp;
-  m.maxHp = s.hp;
-  m.maxMp = s.mp;
-  m.atk = s.atk;
-  m.def = s.def;
-  m.spd = s.spd;
-  m.luck = s.luck;
-  m.hp = m.maxHp;
-  m.mp = m.maxMp;
-}
-
 /**
- * chapter2Adjust() (51 3.1): the battle data's when it is there; otherwise
- * the same steps here — at least 150 exp, the level recomputed (cap 7),
+ * chapter2Adjust() (51 3.1): at least 150 exp, the level recomputed (cap 7),
  * everyone rested, the croquettes gone.
  */
 function adjustForChapter2(): LevelUpResult[] {
   setFlag('flag_ch2_started', 1);
-  const adj = battleApi.chapter2Adjust;
-  let out: LevelUpResult[] = [];
-  if (typeof adj === 'function') out = ((adj as () => LevelUpResult[] | void)() ?? []) as LevelUpResult[];
-  else {
-    for (const m of state.party) {
-      m.exp = Math.max(m.exp, 150);
-      let lv = 1;
-      for (let i = 1; i < EXP_TABLE.length && i <= 7; i++) if (m.exp >= EXP_TABLE[i]) lv = i;
-      if (lv > m.level) {
-        const from = m.level;
-        const before = statsFor(m.id, from);
-        setLevelKeepExp(m, lv, m.exp);
-        out.push({ memberId: m.id, from, to: lv, before, after: statsFor(m.id, lv) });
-      }
-    }
-    syncProgressSkills();
-  }
+  const out = chapter2Adjust();
   state.inventory = state.inventory.filter((id) => id !== 'item_korokke');
   restAll();
   return out;
@@ -503,7 +447,7 @@ export function* startChapter2(from: 'continue' | 'title'): Co {
   }
   // no prologue written yet: the two lines, the chapter door, and on to the train
   yield 600;
-  yield* caption(['8月31日。', '夏休み、最後の 夜。']);
+  yield* caption(PROLOGUE_CAPTION);
   yield* playChapterDoor();
   setFlag('flag_ch2_prologue_done', 1);
   if (hasMap('map_hoshi_train')) game.replaceAll(new FieldScene('map_hoshi_train', 2, 3, 'right'));

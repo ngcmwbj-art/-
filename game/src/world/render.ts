@@ -17,7 +17,7 @@ import type { FieldScene, PropInst } from './field';
 import { css, HOSHI_INDOOR_BASE, HOSHI_INDOOR_MORNING, INDOOR_MUL, shadowDir } from './lighting';
 import { cellAt, groundAt, isCh2Map } from './maps';
 import type { Actor } from './actor';
-import { drawCallBubble, hud } from './hud';
+import { hud } from './hud';
 import { fxDraw, fxUpdate } from './fx';
 import * as snd from './audio';
 import { fanImage, lanternShadow, nightSilhouette, rimOf, sideToward, type LightCircle } from './lantern';
@@ -586,7 +586,6 @@ export class Renderer {
         else if (dx < 0) g.ctx.drawImage(src, W - 1, y, 1, 1, W + dx, y, -dx, 1);
       }
     } else g.ctx.drawImage(src, 0, 0);
-    drawCallBubble(g, f);
     hud.draw(g, f);
   }
 
@@ -665,9 +664,9 @@ export class Renderer {
 
   /** テツヤ's lamp: a 3×3 #FFE7A3 on the machine's nose (emissive). */
   private headlampGlow(a: Actor, cx: number, cy: number): void {
-    const ang = (a.data.lampAngle as number | undefined) ?? (a.dir === 'left' ? Math.PI : 0);
-    const lx = Math.round(a.x + Math.cos(ang) * 11 - cx);
-    const ly = Math.round(a.y - 9 + Math.sin(ang) * 3 - cy);
+    const [wx, wy] = lampPos(a);
+    const lx = Math.round(wx - cx);
+    const ly = Math.round(wy - cy);
     const e = this.eg;
     e.rect(lx - 3, ly - 2, 7, 5, '#F2894B', 0.25);
     e.rect(lx - 2, ly - 3, 5, 7, '#F2894B', 0.25);
@@ -766,27 +765,36 @@ export class Renderer {
   private skyStatic: HTMLCanvasElement | null = null;
   private skyFrame: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
   private skyMask: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
+  private skyShift: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
   private twinkles: [number, number, number][] = [];
 
   /** Milky way + the 30 steady stars, screen space (built once). */
   private buildSky(): HTMLCanvasElement {
     const [c, x] = makeCanvas(W, H);
     const rng = new Rng(20260925);
-    // the milky way: a soft 60px band from the top left to the bottom right
+    // the milky way (52 8.7): a soft band about 60px wide from the top left
+    // to the bottom right — #2A2440 thinning out to its edges (a 4×4
+    // ordered dither, so it stays pixel art), #3A2B5C clouds along its
+    // spine, and a dust of #7A5AA0 grains at α50%
     const len = Math.hypot(W, H);
     const nx = -H / len;
     const ny = W / len;
+    const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
     for (let y = 0; y < H; y++)
       for (let xx = 0; xx < W; xx++) {
-        const d = Math.abs(xx * nx + y * ny);
+        // the band wanders a little along its length
+        const along = (xx * ny - y * nx) / len;
+        const off = (valueNoise(along * 6, 0.5, 44) - 0.5) * 18;
+        const d = Math.abs(xx * nx + y * ny - off);
         if (d > 34) continue;
         const k = 1 - d / 34;
-        const n = valueNoise(xx / 11, y / 11, 31);
-        if (hash2(xx, y, 5) < k * 0.55) {
-          x.fillStyle = n > 0.62 && k > 0.4 ? 'rgba(58,43,92,0.9)' : 'rgba(42,36,64,0.8)';
+        const soft = k * k * (0.55 + 0.45 * valueNoise(xx / 23, y / 23, 45));
+        if (soft * 16 > BAYER[(y & 3) * 4 + (xx & 3)] + 0.5) {
+          const cloud = valueNoise(xx / 9, y / 9, 31) * (0.6 + 0.4 * valueNoise(xx / 31, y / 31, 32));
+          x.fillStyle = cloud > 0.5 && k > 0.45 ? '#3A2B5C' : '#2A2440';
           x.fillRect(xx, y, 1, 1);
         }
-        if (k > 0.3 && hash2(xx, y, 9) < 0.018 * k) {
+        if (k > 0.3 && hash2(xx, y, 9) < 0.012 * k) {
           x.fillStyle = 'rgba(122,90,160,0.5)';
           x.fillRect(xx, y, 1, 1);
         }
@@ -832,8 +840,10 @@ export class Renderer {
     this.skyStatic ??= this.buildSky();
     this.skyFrame ??= makeCanvas(W, H);
     this.skyMask ??= makeCanvas(W, H);
+    this.skyShift ??= makeCanvas(W, H);
     const [fc, fctx] = this.skyFrame;
-    // this frame's sky: milky way, stars (twinkling), the morning star
+    // this frame's sky (screen space, 52 8.7): the milky way, the stars (ten
+    // of them twinkle), the morning star
     fctx.globalCompositeOperation = 'source-over';
     fctx.globalAlpha = 1;
     fctx.clearRect(0, 0, W, H);
@@ -865,7 +875,9 @@ export class Renderer {
       }
     }
     const [mc, mctx] = this.skyMask;
-    const layMask = (clip: [number, number, number, number] | null, cut: [number, number, number, number] | null) => {
+    const rect = (x: number, y: number, w: number, h: number): [number, number, number, number] => [x * 16 - cx, y * 16 - cy, w * 16, h * 16];
+    /** The water pixels on screen (optionally only inside `clip`, less `cut`), filled with `src`. */
+    const masked = (src: HTMLCanvasElement | null, clip: [number, number, number, number] | null, cut: [number, number, number, number] | null): void => {
       mctx.globalCompositeOperation = 'source-over';
       mctx.globalAlpha = 1;
       mctx.clearRect(0, 0, W, H);
@@ -878,61 +890,90 @@ export class Renderer {
       for (const [mk, mx, my] of masks) mctx.drawImage(mk, mx, my);
       mctx.restore();
       if (cut) mctx.clearRect(cut[0], cut[1], cut[2], cut[3]);
-    };
-    const screenIt = (dx: number) => {
+      if (!src) return;
       mctx.globalCompositeOperation = 'source-in';
-      if (dx) {
-        mctx.drawImage(fc, dx, 0);
-        mctx.drawImage(fc, dx - W, 0);
-      } else mctx.drawImage(fc, 0, 0);
+      mctx.drawImage(src, 0, 0);
+      mctx.globalCompositeOperation = 'source-over';
+    };
+    const onto = (op: GlobalCompositeOperation, alpha = 1) => {
       const ctx = this.wctx;
       ctx.save();
-      ctx.globalCompositeOperation = 'screen';
+      ctx.globalCompositeOperation = op;
+      ctx.globalAlpha = alpha;
       ctx.drawImage(mc, 0, 0);
       ctx.restore();
     };
-    const rect = (x: number, y: number, w: number, h: number): [number, number, number, number] => [x * 16 - cx, y * 16 - cy, w * 16, h * 16];
-    // fushigi_ch2_03: in the canal only, the mirrored stars drift east at 6px/s (in world space)
+    // fushigi_ch2_03: in the canal only, the mirrored stars drift east at
+    // 6px/s in world space — they slip away from the sky's (screen) stars
     const canal = m.id === 'map_hoshimidai' && !fushigiDone('fushigi_ch2_03') ? rect(13, 20, 47, 2) : null;
-    layMask(null, canal);
-    screenIt(0);
-    if (canal) {
-      layMask(canal, null);
-      const drift = Math.floor(((f.t / 1000) * 6 + cx) % W);
-      screenIt(((drift % W) + W) % W);
+    masked(fc, null, canal);
+    onto('screen');
+    if (canal && canal[0] < W && canal[0] + canal[2] > 0 && canal[1] < H && canal[1] + canal[3] > 0) {
+      const [sc, sctx] = this.skyShift;
+      const drift = ((Math.floor((f.t / 1000) * 6 + cx) % W) + W) % W;
+      sctx.globalCompositeOperation = 'source-over';
+      sctx.clearRect(0, 0, W, H);
+      sctx.drawImage(fc, drift, 0);
+      sctx.drawImage(fc, drift - W, 0);
+      masked(sc, canal, null);
+      onto('screen');
+    }
+    // ripples: short 1px glints on the water, flowing with it (the canal
+    // east 6px/s, the stream south 10px/s; still water just shivers every 4
+    // frames). Night: a faint violet; morning: the pale sky
+    {
+      const [sc, sctx] = this.skyShift;
+      sctx.globalCompositeOperation = 'source-over';
+      sctx.clearRect(0, 0, W, H);
+      sctx.fillStyle = gd.night > 0.5 ? '#3A2B5C' : '#FFF6D8';
+      const tx0 = Math.max(0, Math.floor(cx / 16));
+      const ty0 = Math.max(0, Math.floor(cy / 16));
+      const tx1 = Math.min(m.w - 1, Math.floor((cx + W) / 16));
+      const ty1 = Math.min(m.h - 1, Math.floor((cy + H) / 16));
+      const t = f.t / 1000;
+      const shiver = Math.floor(f.t / 67) % 2;
+      for (let ty = ty0; ty <= ty1; ty++)
+        for (let tx = tx0; tx <= tx1; tx++) {
+          const g = String(groundAt(m, tx, ty));
+          if (!WATERY.has(g)) continue;
+          const flowX = g === 'h_canal' || g === 'water' ? 6 : 0;
+          const flowY = g === 'h_stream' ? 10 : 0;
+          for (let k = 0; k < 3; k++) {
+            const h = hash2(tx * 3 + k, ty, 91);
+            const len = 2 + Math.floor(h * 3);
+            const lx = (((Math.floor(h * 97) + t * flowX + (flowX || flowY ? 0 : shiver * (k % 2 ? 1 : -1))) % 16) + 16) % 16;
+            const ly = (((Math.floor(hash2(tx, ty * 3 + k, 92) * 16) + t * flowY) % 16) + 16) % 16;
+            sctx.fillRect(Math.floor(tx * 16 + lx - cx), Math.floor(ty * 16 + ly - cy), len, 1);
+          }
+        }
+      masked(sc, null, null);
+      onto('screen', gd.night > 0.5 ? 0.8 : 0.35);
     }
     // fushigi_ch2_05: the 5th terrace's western paddy mirrors an evening sky
     if (m.id === 'map_hoshimidai') {
       const pr = rect(14, 15, 5, 2);
       if (pr[0] < W && pr[1] < H && pr[0] + pr[2] > 0 && pr[1] + pr[3] > 0) {
-        layMask(pr, null);
+        masked(null, pr, null);
         mctx.globalCompositeOperation = 'source-in';
+        const gr = mctx.createLinearGradient(0, pr[1], 0, pr[1] + pr[3]);
         if (!fushigiDone('fushigi_ch2_05')) {
-          const gr = mctx.createLinearGradient(0, pr[1], 0, pr[1] + pr[3]);
           gr.addColorStop(0, '#F2894B');
           gr.addColorStop(1, '#D9728A');
           mctx.fillStyle = gr;
           mctx.fillRect(pr[0], pr[1], pr[2], pr[3]);
+          // the sun's line across the middle
           mctx.fillStyle = '#FFE7A3';
           mctx.fillRect(pr[0], pr[1] + Math.floor(pr[3] / 2), pr[2], 1);
-          const ctx = this.wctx;
-          ctx.save();
-          ctx.globalAlpha = 0.85;
-          ctx.drawImage(mc, 0, 0);
-          ctx.restore();
+          mctx.globalCompositeOperation = 'source-over';
+          onto('source-over', 0.85);
         } else {
           // after: the night again, only its bottom a little warmer (#3A2B5C)
-          const gr = mctx.createLinearGradient(0, pr[1], 0, pr[1] + pr[3]);
           gr.addColorStop(0, 'rgba(58,43,92,0)');
           gr.addColorStop(1, 'rgba(58,43,92,1)');
           mctx.fillStyle = gr;
           mctx.fillRect(pr[0], pr[1], pr[2], pr[3]);
-          const ctx = this.wctx;
-          ctx.save();
-          ctx.globalCompositeOperation = 'screen';
-          ctx.globalAlpha = 0.6;
-          ctx.drawImage(mc, 0, 0);
-          ctx.restore();
+          mctx.globalCompositeOperation = 'source-over';
+          onto('screen', 0.6);
         }
       }
     }
@@ -1498,8 +1539,7 @@ export class Renderer {
         if (!a.data.selfLit || !a.visible) continue;
         const ang = (a.data.lampAngle as number | undefined) ?? (a.dir === 'left' ? Math.PI : 0);
         const fan = fanImage(ang);
-        const hx = a.x + Math.cos(ang) * 10;
-        const hy = a.y - 6 + Math.sin(ang) * 2;
+        const [hx, hy] = lampPos(a);
         lx.drawImage(fan, Math.round(hx - cx - (fan.width - 1) / 2), Math.round(hy - cy - (fan.height - 1) / 2));
       }
       // ゲンさん's flashlight: a 10px circle, one frame a second
@@ -1760,6 +1800,15 @@ function holeMask(rx: number, ry: number): HTMLCanvasElement {
 function lerpRGB(a: [number, number, number], b: [number, number, number], t: number): [number, number, number] {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 }
+
+/** Where テツヤ's lamp sits (world px): on the machine's nose, turned with the beam. */
+function lampPos(a: Actor): [number, number] {
+  const ang = (a.data.lampAngle as number | undefined) ?? (a.dir === 'left' ? Math.PI : 0);
+  return [a.x + Math.cos(ang) * 11, a.y - 8 + Math.sin(ang) * 3];
+}
+
+/** Grounds whose navy pixels are open water (the ripples of the mirrored sky run on them). */
+const WATERY = new Set(['h_canal', 'h_stream', 'h_tanada', 'h_nuta', 'water', 'paddy']);
 
 /** 星見台's light-map base (52 4.0 / 8.3): outdoors the pal_h* multiply, indoors the room's own base. */
 function hoshiBase(f: FieldScene): string {

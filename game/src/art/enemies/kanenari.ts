@@ -2,7 +2,7 @@
 // Front battle sprite 48×64 (join battle, ノリツッコミ cut-ins) and the
 // 40×48 back view used for PR-activity cut-ins (12.4).
 
-import { PixelCanvas } from '../../engine/pixel';
+import { BAYER4, PixelCanvas } from '../../engine/pixel';
 import { hash2 } from '../../engine/rng';
 import { registerEnemyArt, loop, type EnemyArt, type EnemyView } from './index';
 import { K, Mask, ditherMask, rimLeft, shade } from './lib';
@@ -18,8 +18,12 @@ interface FrontPose {
   sway?: number;
   /** Bell tilt toward the camera (bow) 0..2. */
   bow?: number;
-  armL?: 'down' | 'up' | 'out' | 'wave1' | 'wave2' | 'mic' | 'point' | 'hold';
-  armR?: 'down' | 'up' | 'out' | 'wave1' | 'wave2' | 'mic' | 'point' | 'hold';
+  armL?: 'down' | 'up' | 'out' | 'wave1' | 'wave2' | 'mic' | 'point' | 'hold' | 'cross';
+  armR?: 'down' | 'up' | 'out' | 'wave1' | 'wave2' | 'mic' | 'point' | 'hold' | 'cross';
+  /** ボケD: standing on one leg (the other tucked up), 0 = both feet. */
+  oneLeg?: number;
+  /** ボケD: a heap of rice straw on his bell. */
+  straw?: boolean;
   clapper?: number;
   squash?: number;
   glow?: number;
@@ -123,9 +127,10 @@ function buildFrontRaw(o: FrontPose): PixelCanvas {
   const Y = (v: number) => v + OY;
   const sway = o.sway ?? 0;
   const sq = o.squash ?? 0;
-  // feet
+  // feet (on one leg, the left one is tucked up under him)
   for (const fx of [16, 29]) {
-    const f = new Mask(W, H).ellipse(X(fx + 1), Y(61), 5, 2.6);
+    const lift = o.oneLeg && fx === 16 ? 4 + o.oneLeg : 0;
+    const f = new Mask(W, H).ellipse(X(fx + 1 + (lift ? 3 : 0)), Y(61 - lift), 5, 2.6);
     shade(p, f, ['#6A3420', '#8A4424', '#C8643A', '#DE7642'], { mode: 'sphere', base: 0.55 });
   }
   // body
@@ -162,6 +167,9 @@ function buildFrontRaw(o: FrontPose): PixelCanvas {
         return [16, 38, false];
       case 'hold':
         return [bx - side * 3, 38, false];
+      case 'cross':
+        // straight out to the side at the shoulder, like a scarecrow's crossbar
+        return [bx + side * 9, 35, false];
       default:
         return [bx, 46, false];
     }
@@ -180,7 +188,32 @@ function buildFrontRaw(o: FrontPose): PixelCanvas {
   const cly = Y(31 + sq);
   p.rect(clx - 1, cly, 3, 2, '#6A4A1A');
   p.set(clx - 1, cly, '#A8742A');
+  if (o.straw) strawHeap(p, X(24 + sway), Y(2 + sq));
   return p;
+}
+
+/**
+ * ボケD's straw (51 14.13): a 24×16 heap of rice straw flopped over the top
+ * of his bell — gold stalks (#E8C878) in a dither, darker bundles (#B89848)
+ * inside, stray stalks hanging over the brim on both sides.
+ */
+function strawHeap(p: PixelCanvas, cx: number, top: number): void {
+  const m = new Mask(p.w, p.h);
+  for (let y = 0; y < 11; y++) {
+    const hw = Math.round(5 + Math.sqrt(y / 10) * 7);
+    m.rect(cx - hw, top + y, hw * 2 + 1, 1);
+  }
+  m.each((x, y) => {
+    const v = (x * 3 + y * 5) % 7;
+    const inner = (y - top) > 3 && Math.abs(x - cx) < 8;
+    p.set(x, y, inner && BAYER4[y & 3][x & 3] > 9 ? '#B89848' : v === 0 ? '#F6D98A' : v < 3 ? '#D8B868' : '#E8C878');
+  });
+  // stalks hanging down past the brim and sticking out on top
+  for (const [dx, len, lean] of [[-12, 7, -1], [-10, 9, 0], [-7, 5, 0], [9, 8, 1], [11, 6, 1], [4, 4, 0]] as [number, number, number][]) {
+    for (let i = 0; i < len; i++) p.set(cx + dx + Math.round((i / len) * lean * 2), top + 9 + i, i % 3 === 2 ? '#B89848' : '#E8C878');
+  }
+  for (const [dx, h] of [[-3, 3], [0, 4], [2, 3], [5, 2]] as [number, number][]) for (let i = 1; i <= h; i++) p.set(cx + dx + (i > 2 ? 1 : 0), top - i, '#E8C878');
+  p.hline(cx - 4, cx + 1, top + 1, '#FFF6D8');
 }
 
 // ---- back view (40×48, PR cut-ins) -----------------------------------------------------
@@ -195,9 +228,14 @@ function buildBack(frame: string): PixelCanvas {
   let bow = 0;
   let squash = 0;
   let armR: 'down' | 'up' | 'hit' = 'down';
+  /** 'hold': both mittens high on a pole at his right (the net held up like a banner). */
+  let hold = false;
   let lean = 0;
   let step = 0;
   switch (frame) {
+    case 'hold':
+      hold = true;
+      break;
     case 'step':
       squash = 2;
       step = 1;
@@ -257,10 +295,14 @@ function buildBack(frame: string): PixelCanvas {
   p.set(zx + 1, Y(24 + squash), '#E8ECF0');
   p.rect(zx + 1, Y(31 + squash), 2, 3, '#C0C6CC');
   // arms
-  const armL = new Mask(BW, BH).line(X(6 + lean), Y(30 + squash), X(3 + lean), Y(38), 3);
-  shade(p, armL, FUR, { base: 0.62 });
-  mitten(p, X(3 + lean), Y(39));
-  if (armR === 'hit' || armR === 'up') {
+  if (!hold) {
+    const armL = new Mask(BW, BH).line(X(6 + lean), Y(30 + squash), X(3 + lean), Y(38), 3);
+    shade(p, armL, FUR, { base: 0.62 });
+    mitten(p, X(3 + lean), Y(39));
+  }
+  if (hold) {
+    // (the mittens are drawn after the head, over the pole the battle adds)
+  } else if (armR === 'hit' || armR === 'up') {
     const hy = armR === 'hit' ? 6 : 10;
     const armRm = new Mask(BW, BH).line(X(33 + lean), Y(28), X(35), Y(hy + 4), 3);
     shade(p, armRm, FUR, { base: 0.5 });
@@ -300,13 +342,24 @@ function buildBack(frame: string): PixelCanvas {
     p.set(cx + 17, top + 8, '#FFF6D8');
     p.set(cx + 18, top + 10, '#FFF6D8');
   }
+  if (hold) {
+    // both arms reach up past the right of his bell to the pole (x33): the
+    // left one crosses high over his shoulder, the right grips below it;
+    // the mittens go over the pole the battle draws behind him
+    const armLm = new Mask(BW, BH).line(X(9), Y(29), X(31), Y(9), 3);
+    shade(p, armLm, FUR, { base: 0.66 });
+    const armRm = new Mask(BW, BH).line(X(33), Y(30), X(33), Y(17), 3);
+    shade(p, armRm, FUR, { base: 0.5 });
+    mitten(p, X(32), Y(8), true);
+    mitten(p, X(33), Y(16), true);
+  }
   p.outline(K.outline);
   rimLeft(p, K.rim, 0.5);
   return p;
 }
 
 const backCache = new Map<string, HTMLCanvasElement>();
-/** Back view (for PR / tackle cut-ins). Frames: idle step run slam ring hit raise bow1-3 walk1-2. */
+/** Back view (for PR / tackle cut-ins). Frames: idle step run slam ring hit raise hold bow1-3 walk1-2. */
 export function kanenariBack(frame: string): HTMLCanvasElement {
   let c = backCache.get(frame);
   if (!c) {
@@ -348,6 +401,11 @@ export function kanenariFront(pose: string, t: number): HTMLCanvasElement {
     return front(`flip${f}`, { armL: 'hold', armR: 'hold', sway: 0, clapper: f ? 1 : 0, squash: f, happy: true });
   }
   if (pose === 'kime') return front('kime', { armL: 'up', armR: 'up', happy: true, squash: 1, clapper: 1 });
+  if (pose === 'kakashi') {
+    // ボケD: straw on his head, arms out as the crossbar, on one leg — wobbling
+    const f = loop(t, 240, 2);
+    return front(`kakashi${f}`, { armL: 'cross', armR: 'cross', straw: true, oneLeg: 1 + f, sway: f ? 1 : -1, squash: 0, clapper: f ? 1 : -1 });
+  }
   return front('idle0', {});
 }
 

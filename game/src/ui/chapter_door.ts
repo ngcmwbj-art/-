@@ -23,6 +23,7 @@ import { ease } from '../engine/tween';
 import { sfx } from '../audio';
 import { tomatoIcon } from './icons';
 import { ctxText, rgb, textW, UI } from './window';
+import { CH2_TITLE_NAME, CH2_TITLE_STAMP } from '../data/text/hoshi_events';
 
 const BG = '#0B0B14';
 const INK = '#FBF3DC';
@@ -264,7 +265,7 @@ class ChapterDoor implements Widget {
  * Default: 「第2章」『星見台の トマト』.
  */
 export function* playChapterDoor(o: { chapter?: string; title?: string } = {}): Co {
-  const d = new ChapterDoor(o.chapter ?? '第2章', o.title ?? '星見台の トマト');
+  const d = new ChapterDoor(o.chapter ?? CH2_TITLE_STAMP, o.title ?? CH2_TITLE_NAME);
   game.ui.push(d);
   yield () => d.done;
 }

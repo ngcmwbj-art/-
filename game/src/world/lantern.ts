@@ -53,7 +53,7 @@ const DEFAULT_DARK: Record<string, TileRect[]> = {
 };
 const DEFAULT_DARK_LIGHTS: Record<string, DarkLight[]> = {
   // the はなまるトマト on its vine (5,2), 5th truss: until it is picked
-  map_hoshi_house: [{ x: 5, y: 2, ox: 8, oy: 4, r: 80, amp: 3, k: 0.6, cond: { notFlag: 'flag_ch2_got_tomato' } }],
+  map_hoshi_house: [{ x: 5, y: 2, ox: 8, oy: 4, r: 80, amp: 3, k: 0.6, cond: { notFlag: ['flag_ch2_got_tomato', 'flag_ch2_tomato_picked'] } }],
 };
 const DEFAULT_STARLIGHT: Record<string, StarlightSpot[]> = {
   map_hoshi_house: [{ x: 4, y: 16, r: 1.5 }],
@@ -133,6 +133,11 @@ function darkCanvas(m: LoadedMap): HTMLCanvasElement | null {
       for (let dy = -1; dy <= 1; dy++)
         for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && dark(tx + dx, ty + dy) !== me) diff.push([dx, dy]);
       if (!me && !diff.length) continue;
+      if (me && !diff.length) {
+        // deep in the dark: the whole tile
+        for (let ly = 0; ly < 16; ly++) px.fill(col, (ty * 16 + ly) * W + tx * 16, (ty * 16 + ly) * W + tx * 16 + 16);
+        continue;
+      }
       for (let ly = 0; ly < 16; ly++)
         for (let lx = 0; lx < 16; lx++) {
           const wx = tx * 16 + lx;
@@ -312,6 +317,11 @@ export function setLanternOverride(on: boolean | null): void {
   override = on;
 }
 
+/** The tomato held in Minato's hands / freshly in the net, before fx_h_lantern_on opens it (px). */
+const HELD_R = 22;
+/** A lantern lit mid-scene that nobody opens with lanternOn() opens by itself after this long (ms). */
+const HELD_MAX = 9000;
+
 export class LightState {
   /** The lantern this frame (null: not lit). */
   lantern: LightCircle | null = null;
@@ -320,6 +330,18 @@ export class LightState {
   /** 0..1 progress of fx_h_lantern_on (1 = done). */
   onT = 1;
   private onDur = 800;
+  /**
+   * The lantern was lit during this map (evt_ch2_tomato gives the tomato,
+   * then evt_ch2_light opens its circle): it glows small in the net until
+   * lightUp() — so the item pages between the two don't show the full circle.
+   */
+  private held = false;
+  private heldT = 0;
+  private wasWanted: boolean | null = null;
+  /** A swell of the lights standing in the dark (pulseDarkLight): strength × k for ms. */
+  private pulseK = 1;
+  private pulseT = 0;
+  private pulseDur = 0;
   private vis = new WeakMap<object, number>();
   /** Radius override (QA: __game.cmd.lanternR). */
   forceR: number | null = null;
@@ -335,13 +357,34 @@ export class LightState {
 
   /** fx_h_lantern_on: the circle opens 24 → 72px over 0.8 s (ease-out) with a light ring running once. */
   lightUp(ms = 800): void {
+    this.held = false;
+    this.heldT = 0;
     this.onT = 0;
-    this.onDur = ms;
+    this.onDur = Math.max(1, ms);
+  }
+
+  /** Is the lantern lit but still waiting, small, for lightUp()? */
+  get waiting(): boolean {
+    return this.held;
+  }
+
+  /** The lights standing in the dark swell (× k, sin envelope over ms). */
+  pulse(k = 1.5, ms = 300): void {
+    this.pulseK = k;
+    this.pulseT = 0;
+    this.pulseDur = Math.max(1, ms);
+  }
+
+  /** Current swell factor of the fixed dark lights (1 = none). */
+  private swell(): number {
+    if (this.pulseT >= this.pulseDur) return 1;
+    return 1 + (this.pulseK - 1) * Math.sin(Math.PI * (this.pulseT / this.pulseDur));
   }
 
   /** Current lantern radius (px, whole pixels). */
   radius(t: number): number {
     if (this.forceR !== null) return this.forceR;
+    if (this.held) return Math.round(HELD_R + 1.5 * Math.sin(2 * Math.PI * LANTERN_HZ * (t / 1000)));
     const breathe = LANTERN_R + LANTERN_AMP * Math.sin(2 * Math.PI * LANTERN_HZ * (t / 1000));
     if (this.onT < 1) return Math.round(24 + (breathe - 24) * ease.cubicOut(this.onT));
     return Math.round(breathe);
@@ -366,17 +409,32 @@ export class LightState {
       this.collectDarkThings();
     }
     if (this.onT < 1) this.onT = Math.min(1, this.onT + dt / this.onDur);
+    if (this.pulseT < this.pulseDur) this.pulseT += dt;
+    const wanted = lanternWanted(f);
+    // lit while on this map (not on arrival): wait, small, for lightUp()
+    if (this.wasWanted === false && wanted && this.forceR === null) {
+      this.held = true;
+      this.heldT = 0;
+    }
+    if (!wanted) this.held = false;
+    this.wasWanted = wanted;
+    if (this.held && (this.heldT += dt) > HELD_MAX) this.lightUp(800);
     const src: LightCircle[] = [];
     this.lantern = null;
-    if (lanternWanted(f) && f.player.visible) {
+    if (wanted && f.player.visible) {
       const [x, y] = this.lanternCentre();
-      this.lantern = { x, y, r: this.radius(f.t), k: 1, kind: 'lantern' };
+      this.lantern = { x, y, r: this.radius(f.t), k: this.held ? 0.75 : 1, kind: 'lantern' };
       src.push(this.lantern);
+    } else if (!wanted && f.player.visible && m.id === 'map_hoshi_house' && flag('flag_ch2_tomato_picked') && !flag('flag_ch2_got_tomato')) {
+      // the はなまるトマト has dropped into his hands (evt_ch2_tomato): its glow goes with him
+      const r = Math.round(HELD_R + 1.5 * Math.sin(2 * Math.PI * LANTERN_HZ * (f.t / 1000)));
+      src.push({ x: Math.round(f.player.x), y: Math.round(f.player.y - 12), r, k: 0.6, kind: 'fixed' });
     }
+    const sw = this.swell();
     for (const l of darkLightsOf(m)) {
       if (!condOk(l.cond)) continue;
-      const r = Math.round(l.r + (l.amp ?? 0) * Math.sin(2 * Math.PI * LANTERN_HZ * (f.t / 1000)));
-      src.push({ x: l.x * 16 + (l.ox ?? 8), y: l.y * 16 + (l.oy ?? 8), r, k: l.k ?? 1, kind: 'fixed' });
+      const r = Math.round(l.r + (l.amp ?? 0) * Math.sin(2 * Math.PI * LANTERN_HZ * (f.t / 1000)) + (sw - 1) * 24);
+      src.push({ x: l.x * 16 + (l.ox ?? 8), y: l.y * 16 + (l.oy ?? 8), r, k: Math.min(1, (l.k ?? 1) * sw), kind: 'fixed' });
     }
     for (const s of starlightOf(m)) if (condOk(s.cond)) src.push({ x: s.x * 16 + 8, y: s.y * 16 + 8, r: Math.round(s.r * 16), k: 0, kind: 'star' });
     if (!this.lantern) {
@@ -483,9 +541,21 @@ export class LightState {
     }
   }
 
-  /** Re-collect after props were rebuilt. */
+  /** Re-collect after props were rebuilt (a new map: a lantern already lit is simply lit). */
   refresh(): void {
     this.lastMap = null;
+    this.wasWanted = null;
+    this.held = false;
+    this.onT = 1;
+  }
+
+  /**
+   * Is this symbol within the reach of a light (its feet within R + 8px of
+   * the lantern's centre, 51 11.3)? Symbols off the dark are always seen.
+   */
+  symbolLit(a: Actor): boolean {
+    if (!this.actorInDark(a)) return true;
+    return this.inLight(a.x, a.y - 4, SYM_MARGIN);
   }
 
   // ------------------------------------------------------------ painting into the light map

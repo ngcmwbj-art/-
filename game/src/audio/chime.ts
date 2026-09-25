@@ -4,6 +4,7 @@
 import { atTime } from './clock';
 import { cur, dbToGain, hasGraph, noteMidi } from './engine';
 import { chimeNote } from './instruments';
+import { seTrim, trimOr1 } from './mix';
 import { duck, duckAmbience } from './music';
 
 export const CHIME_QUESTION = ['G4', 'A4', 'C5', 'E5'];
@@ -99,12 +100,14 @@ export function playMorningChime(opts: MorningChimeOpts = {}): Promise<void> {
   const t0 = Math.max(opts.at ?? g.ctx.currentTime, g.ctx.currentTime) + 0.05;
   const n = MORNING_CHIME.length;
   const ring = gap * (n - 1) + lastHold;
+  // the same speaker, the same level as the broadcast chime (the SE's fader: mix.ts)
+  const vol = 0.12 * trimOr1(seTrim('se_h_morning_chime'));
   duckAmbience(dbToGain(-6), 0.3, ring, 1.2);
   MORNING_CHIME.forEach((note, i) => {
     const t = t0 + i * gap;
     const last = i === n - 1;
     g.pa.open(t);
-    chimeNote(t, noteMidi(note), g.pa.input, g.pa.detune, last ? lastHold : 0.3, 0.12, 0, last ? 0.9 : undefined);
+    chimeNote(t, noteMidi(note), g.pa.input, g.pa.detune, last ? lastHold : 0.3, vol, 0, last ? 0.9 : undefined);
     if (opts.onNote && !g.offline) atTime(t, () => opts.onNote!(i));
   });
   // the valley's three answers (1.5 s apart at most) and the speaker's reverb

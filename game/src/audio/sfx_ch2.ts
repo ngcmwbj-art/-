@@ -45,7 +45,7 @@ function viaPa(c: SeCtx, id: string): SeCtx {
 // ============================================================================
 // 8.1 プロローグ・電車・駅
 
-const CROSS_STRIKE = [
+export const CROSS_STRIKE = [
   'fm f=760 fm=r2.76:i2.4→0.4/60 env=0/240/0/60 dur=20 v=.05',
   'sine f=1910 env=0/110/0/40 dur=10 v=.018',
   'noise env=0/6/0/3 dur=4 v=.02 flt=BP3200q2',
@@ -480,7 +480,7 @@ se('se_h_biri', {
   // the fence's pulse: exactly the same every time (51: 正確すぎる)
   layers: ['noise env=0/12/0/6 dur=4 v=.10 flt=HP2500', 'sq f=1200→600/20 env=0/15/0/8 dur=8 v=.03 flt=BP1800q2', 'tri f=90 env=0/40/0/15 dur=10 v=.03'],
 });
-const BOAR: string[][] = [
+export const BOAR: string[][] = [
   // 0: the charge / a boar far off (pawing the ground, "ブフッ")
   ['noise env=5/150/0/80 dur=100 v=.05 flt=BP650q1.2 am=40/.5', 'noise env=0/40/0/20 dur=20 v=.03 flt=LP900 rep=3x120 at=150'],
   // 1: the rush (hooves "ドドド", a low "ブォ")

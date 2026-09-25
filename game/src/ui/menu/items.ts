@@ -16,7 +16,8 @@ import { getItem, isKeyItem, useItemInField, canUseItemInField } from '../../dat
 import { sfx } from '../../audio';
 import { say } from '../dialog';
 import { drawDigits, drawNumerals } from '../digits';
-import { itemIcon12, itemIcon24 } from '../icons';
+import { itemIcon12, itemIcon24, setOmakeCheck } from '../icons';
+import { KAIRAN_MAP_LINE1, KAIRAN_MAP_LINES } from '../../data/text/hoshi_events';
 import { dottedLine, drawCursor, drawMarker, pencilLine, phraseWrap as wrap, rectA, textW, UI } from '../window';
 import { drawHeader, drawScroll, FOLD, hpColor, LP, Popup, RP, SP, type PopupOpt } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
@@ -58,10 +59,63 @@ export function memoProgress(): string {
     ['flag_mall_entered', '→ 迷子センターは 2F。カギ？'],
     ['flag_got_maigo_key', '→ 2Fの 迷子センターへ'],
     ['flag_boss_beaten', '→ 肉屋！'],
+    // chapter 2 carries the memo on: the errand was done (50_ch2_story 1.5)
+    ['flag_clear', '→ おつかい 完了。'],
   ];
   let s = '';
   for (const [f, t] of table) if (flag(f)) s = t;
   return s;
+}
+
+/** 回覧板の地図, line 2: the 区長's map, and where to go next (50_ch2_story 7.1). */
+export function kairanProgress(): string {
+  let s = '';
+  for (const [f, t] of KAIRAN_MAP_LINES) if (flag(f)) s = t;
+  return s;
+}
+
+/** Key items whose second line is a note in Minato's hand that follows the story. */
+function progressOf(id: string): string | null {
+  if (id === 'item_otsukai_memo') return memoProgress();
+  if (id === 'item_kairan_map') return kairanProgress();
+  return null;
+}
+
+/** The first line of such a note (fixed). */
+function progressHead(id: string): string | null {
+  if (id === 'item_otsukai_memo') return 'コロッケ 4つ。ソースは べつ。';
+  if (id === 'item_kairan_map') return KAIRAN_MAP_LINE1;
+  return null;
+}
+
+/** After chapter 2 one of the four tomatoes is left: the one for おばあ (50 7.1). */
+function omake(id: string): boolean {
+  return id === 'item_tomato_omiyage' && flag('flag_ch2_clear') > 0;
+}
+setOmakeCheck(() => flag('flag_ch2_clear') > 0);
+
+/** The name shown for an item (the tomatoes are 「トマト（おまけ）」 after chapter 2). */
+export function itemName(id: string): string {
+  if (omake(id)) return 'トマト（おまけ）';
+  return getItem(id)?.name ?? id;
+}
+
+/** The two lines shown for an item. */
+export function itemDesc(id: string): [string, string] {
+  if (omake(id)) return ['あした、ひのやの おばあちゃんに', '持っていく 分。'];
+  const it = getItem(id);
+  return [it?.desc[0] ?? '', it?.desc[1] ?? ''];
+}
+
+/**
+ * はなまるトマト glows: a 1px #FFE7A3 ring round its icon swells and fades
+ * every 2 s (52_ch2_level_art 13.3). `cx, cy` is the icon's centre.
+ */
+export function drawGlowRing(g: Gfx, id: string, cx: number, cy: number, r: number, t: number): void {
+  if (id !== 'item_hanamaru_tomato') return;
+  const k = (t % 2000) / 2000;
+  const a = k < 0.5 ? k * 2 : (1 - k) * 2;
+  if (a > 0.05) g.alpha(0.35 + 0.55 * a, () => g.ring(cx, cy, r + Math.round(a), '#FFE7A3'));
 }
 
 type Slot = { kind: 'row'; row: Row } | { kind: 'sep' };
@@ -263,9 +317,9 @@ export class ItemsPage implements MenuPage {
   private useKey(m: MenuCtx, id: string): void {
     if (id === 'item_hanko_case') m.goTab('hanko');
     else if (id === 'item_mimashita_cho') m.goTab('book');
-    else if (id === 'item_otsukai_memo') {
-      const p = memoProgress();
-      m.run(say(['コロッケ 4つ。ソースは べつ。' + (p ? '\n' + p : '')], { voice: 'narr' }));
+    else if (progressHead(id)) {
+      const p = progressOf(id);
+      m.run(say([progressHead(id) + (p ? '\n' + p : '')], { voice: 'narr' }));
     } else m.run(say('今は 使う ときじゃない。', { voice: 'sys' }));
   }
 
@@ -331,8 +385,9 @@ export class ItemsPage implements MenuPage {
       const row = sl.row;
       const it = getItem(row.id);
       const sel = k === this.sel;
-      const name = it?.name ?? row.id;
+      const name = it ? itemName(row.id) : row.id;
       if (sel) drawMarker(g, LP.x + 12, y + 1, textW(name) + 4, 15, m.focus && !this.popup ? Math.min(1, this.moveT / 70) : 1, m.focus ? UI.marker : '#EFE4C6');
+      drawGlowRing(g, row.id, LP.x + 3, y + 8, 8, m.t);
       g.img(itemIcon12(row.id), LP.x - 3, y + 2);
       if (row.n > 1) {
         // how many, pencilled on the icon's corner
@@ -362,6 +417,7 @@ export class ItemsPage implements MenuPage {
     g.rect(x, y, 30, 30, UI.stickyEdge);
     g.rect(x + 1, y + 1, 28, 28, UI.tape);
     g.rect(x + 1, y + 1, 28, 1, '#FBD9A0');
+    drawGlowRing(g, row.id, x + 15, y + 15, 13, m.t);
     g.img(itemIcon24(row.id), x + 3, y + 3);
     // kind + how many
     const kind = row.key ? 'だいじなもの' : it.cure ? 'くすり' : it.mp ? 'ハンコ用' : 'たべもの';
@@ -372,25 +428,28 @@ export class ItemsPage implements MenuPage {
     }
     // name in 朱 with a pencil underline
     y += 36;
-    g.text(it.name, x, y, { color: UI.accent });
-    pencilLine(g, x, y + 16, textW(it.name) + 2, 1, UI.accentDark, row.id.length);
+    const nm = itemName(row.id);
+    g.text(nm, x, y, { color: UI.accent });
+    pencilLine(g, x, y + 16, textW(nm) + 2, 1, UI.accentDark, row.id.length);
     y += 22;
     // flavour text
     // a key item's two lines are one text; the second starts a new line, as written (10.2)
-    const flavor = row.id === 'item_otsukai_memo' ? 'コロッケ 4つ。ソースは べつ。' : it.desc[0] + (row.key && it.desc[1] ? '\n' + it.desc[1] : '');
+    const desc = itemDesc(row.id);
+    const flavor = progressHead(row.id) ?? desc[0] + (row.key && desc[1] ? '\n' + desc[1] : '');
     const lines = wrap(flavor, RP.w - 2);
     for (const l of lines.slice(0, 4)) {
       g.text(l, x, y, { color: UI.text });
       y += 17;
     }
     // effect / progress in pencil
-    const eff = row.id === 'item_otsukai_memo' ? memoProgress() : row.key ? '' : it.desc[1];
+    const prog = progressOf(row.id);
+    const eff = prog !== null ? prog : row.key ? '' : desc[1];
     if (eff) {
       y += 3;
       const el = wrap(eff, RP.w - 6);
       el.slice(0, 3).forEach((l, i) => {
         // Minato's own hand: every other letter bobs a pixel (10.3 少し斜めの字)
-        if (row.id === 'item_otsukai_memo') {
+        if (prog !== null) {
           let cx = x + 2;
           [...l].forEach((ch, j) => {
             cx += g.text(ch, cx, y + i * 17 - (j % 3 === 1 ? 1 : 0), { color: UI.pencil });

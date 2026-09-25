@@ -7,19 +7,21 @@ import { rng } from '../engine/rng';
 import { ease } from '../engine/tween';
 import { flag, setFlag, state } from '../game/state';
 import { currentSpace, musicEncounter, musicReturnToField, playBgm, setSpace, sfx, stopBgm } from '../audio';
-import { BOSS_RETRY_FLIP, fillAll, syncProgressSkills, SYS, getEnemy, getItem, getSkill } from '../data/battle';
+import { BOSS_RETRY_FLIP, fillAll, syncProgressSkills, SYS, SYS2, getEnemy, getItem, getSkill } from '../data/battle';
 import type { BattleResult } from './api';
 import type { BattleScene } from './scene';
 import { FRAME } from './scene';
-import type { EnemyUnit, PartyCmd, PartyUnit } from './model';
+import { spdOf, type EnemyUnit, type PartyCmd, type PartyUnit } from './model';
 import { transitionIn, transitionOut } from './transition';
 import { inputCommands } from './menu';
 import { doAttack, doFlee, doGuard, doHanko, doItem, doNori, doPR, killSequence } from './party';
 import { decideEnemy, doEnemyAction } from './enemy';
-import { bossDecide, bossRoundEnd, bossRoundStart, bossTries, checkBossPhase, initBoss } from './boss';
+import { bossDecide, bossEntrance, bossRoundEnd, bossRoundStart, bossTriesOf, checkBossPhase, initBoss } from './boss';
+import { applyStartStatus, ch2RoundEnd, ch2RoundStart, enemyRests, restTurn } from './ch2rules';
 import { showFlip } from './tsukkomi';
 import { victory, wipeOut } from './results';
 import { hideSticky, precacheRestored, resetKire, sayFallen, statusText } from './common';
+import { yobiBlack, yobiMemory } from './boss_yobimodoshi';
 import { roundSeal } from './art/stamps';
 
 interface Act {
@@ -44,6 +46,8 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
   syncProgressSkills();
   const first = s.enemies[0];
   if (s.isBoss) initBoss(s);
+  // 第2章: enemies that start sulking / working all night (51 8.1, 9.2)
+  applyStartStatus(s);
   for (const e of s.enemies) e.appearT = -2;
   // セミファイナル is already lying there playing dead (11.2)
   semiRound(s, 1);
@@ -60,8 +64,10 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
   playBgm(music);
   s.showUi = true;
   // enemies pop in (0 → 1.15 → 1.0, 80ms apart); the boss rises out of darkness
-  const retry = s.isBoss && bossTries.lost > 0;
-  if (s.isBoss) yield* bossAppear(s, retry);
+  const retry = s.isBoss && bossTriesOf(s).lost > 0;
+  if (s.isBoss) {
+    if (!(yield* bossEntrance(s, retry))) yield* bossAppear(s, retry);
+  }
   else {
     for (const e of s.enemies) {
       e.appearT = 0;
@@ -72,8 +78,9 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
   }
   // appearance text (+ initiative on page 2)
   const pages: string[] = [];
-  const cones = s.enemies.filter((e) => e.id === 'enemy_cone_vocal');
-  if (cones.length > 1 && first.def.texts.extra.appearMulti) pages.push(...first.def.texts.extra.appearMulti);
+  // a group of the same enemy (the cones, the bunch of スネトマト) has its own line
+  const same = s.enemies.filter((e) => e.id === first?.id);
+  if (same.length > 1 && first.def.texts.extra.appearMulti) pages.push(...first.def.texts.extra.appearMulti);
   else if (first) pages.push(...first.def.texts.appear);
   const init = s.isEvent ? 'normal' : s.opts.initiative ?? 'normal';
   const ename = first?.def.name ?? '';
@@ -83,14 +90,22 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
   // while the opening line types (nothing else moves but the background)
   s.run(precacheRestored(s));
   yield* s.say(pages);
-  if (s.isBoss && first.def.texts.extra.opening && !retry) {
-    sfx('se_boss_voice');
-    yield* s.say(first.def.texts.extra.opening);
+  if (s.isBoss && first.def.texts.extra.opening) {
+    // ヨビモドシ: a retry keeps only the first page of 〔第1段階・開幕〕 (51 10.10)
+    if (s.bossKind === 'yobimodoshi') yield* s.say(retry ? first.def.texts.extra.opening.slice(0, 1) : first.def.texts.extra.opening, false, { voice: 'yobimodoshi' });
+    else if (!retry) {
+      sfx('se_boss_voice');
+      yield* s.say(first.def.texts.extra.opening);
+    }
   }
   // a retry: Kanenari-kun holds up what beat them last time
   if (retry && s.kanenari) {
     s.mood(s.kanenari, 'tsukkomi', 2000);
-    yield showFlip(s, BOSS_RETRY_FLIP, 2000);
+    if (s.bossKind === 'yobimodoshi') {
+      // the tomato's lesson once more, if it was never held up (51 10.10)
+      if (!yobiMemory.tomatoUsed) s.memo.tomatoTut = 1;
+      yield showFlip(s, SYS2.retryFlip, 2000);
+    } else yield showFlip(s, BOSS_RETRY_FLIP, 2000);
   }
   // round 0 (ambush): every enemy acts once before the first command
   if (init === 'enemy') {
@@ -111,6 +126,7 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
       delete s.memo['blocked_' + u.id];
     }
     if (s.isBoss) yield* bossRoundStart(s);
+    yield* ch2RoundStart(s);
     // commands
     s.noteActing('');
     const cmds = yield* inputCommands(s);
@@ -123,14 +139,16 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
       for (const e of s.aliveEnemies) {
         let skill = e.def.boss ? bossDecide(s, e) : decideEnemy(s, e, s.round);
         if (s.forceEnemy.length) skill = s.forceEnemy.shift()!;
-        if (skill) plans.push({ side: 'enemy', prio: 0, spd: e.def.spd * rng.range(0.9, 1.1), order: order++, e, skill });
+        if (skill) plans.push({ side: 'enemy', prio: 0, spd: spdOf(e.def.spd, e.stages.spd.lv) * rng.range(0.9, 1.1), order: order++, e, skill });
       }
     }
     const acts: Act[] = [];
     for (const c of cmds) {
-      let spd = c.u.m.spd;
+      let spd = spdOf(c.u.m.spd, c.u.stages.spd.lv);
       if (c.kind === 'nori') spd = Math.max(s.minato?.m.spd ?? 0, s.kanenari?.m.spd ?? 0);
-      const prio = (c.kind === 'guard' || c.kind === 'flee' ? 2 : 0) + (s.qaPartyFirst ? 10 : 0);
+      // まもる / にげる, and holding up the tomato (51 10.3: priority +2)
+      const itemPrio = c.kind === 'item' ? getItem(c.item)?.priority ?? 0 : 0;
+      const prio = (c.kind === 'guard' || c.kind === 'flee' ? 2 : itemPrio) + (s.qaPartyFirst ? 10 : 0);
       acts.push({ side: 'party', prio, spd: spd * rng.range(0.9, 1.1), order: c.u.id === 'minato' ? -2 : -1, cmd: c });
     }
     acts.push(...plans);
@@ -142,13 +160,15 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
       if (result) break;
       // entering the final phase cancels everything left in the round
       if (s.memo.bossFinal && !finalAtStart) break;
-      if (s.memo.bossFinal && !(a.cmd?.kind === 'hanko' && a.cmd.skill === 'skill_okaerinasai')) continue;
+      if (s.memo.bossFinal && !(a.cmd?.kind === 'hanko' && (a.cmd.skill === 'skill_okaerinasai' || a.cmd.skill === 'skill_oyasuminasai'))) continue;
       if (a.side === 'party' && a.cmd) {
         const r = yield* runParty(s, a.cmd);
         if (r) result = r;
       } else if (a.e && a.skill) {
         if (!a.e.alive) continue;
-        yield* doEnemyAction(s, a.e, a.skill);
+        // 休憩中: the turn passes without a "!" (51 7.2)
+        if (enemyRests(a.e)) yield* restTurn(s, a.e);
+        else yield* doEnemyAction(s, a.e, a.skill);
       }
       // anything knocked to 0 outside a strike (self-damage etc.) still gets its 思いだす
       const fallen = s.enemies.filter((e) => e.hp <= 0 && !e.dead && !e.dying && !e.def.boss);
@@ -166,6 +186,10 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
       if (result) break;
     }
     yield* roundEnd(s);
+    result = yield* checkEnd(s);
+    if (result) break;
+    // 徹夜 (HP+10, まもり+), the end of a rest, the hint to rest (51 9.2)
+    yield* ch2RoundEnd(s);
     result = yield* checkEnd(s);
   }
   return yield* finish(s, result);
@@ -188,7 +212,7 @@ function* runParty(s: BattleScene, c: PartyCmd): Co<BattleResult | null> {
   const u = c.u;
   if (c.kind === 'skip') {
     s.noteActing('');
-    const t = u.has('status_nemuri') ? 'status_nemuri' : u.has('status_tsukamare') ? 'status_tsukamare' : u.has('status_toosenbo') ? 'status_toosenbo' : '';
+    const t = u.has('status_nemuri') ? 'status_nemuri' : u.has('status_tsukamare') ? 'status_tsukamare' : u.has('status_toosenbo') ? 'status_toosenbo' : u.has('status_henji') ? 'status_henji' : '';
     if (t && u.alive) {
       s.memo['blocked_' + u.id] = 1;
       yield* s.say(statusText(t, 'act', u.name));
@@ -198,7 +222,7 @@ function* runParty(s: BattleScene, c: PartyCmd): Co<BattleResult | null> {
   if (c.kind !== 'nori') {
     if (!u.alive || u.has('status_rusu')) return null;
     if (!u.canAct) {
-      const t = u.has('status_nemuri') ? 'status_nemuri' : u.has('status_tsukamare') ? 'status_tsukamare' : 'status_toosenbo';
+      const t = u.has('status_nemuri') ? 'status_nemuri' : u.has('status_tsukamare') ? 'status_tsukamare' : u.has('status_henji') ? 'status_henji' : 'status_toosenbo';
       s.memo['blocked_' + u.id] = 1;
       yield* s.say(statusText(t, 'act', u.name));
       return null;
@@ -283,7 +307,7 @@ function* roundEnd(s: BattleScene): Co {
   for (const u of s.party) {
     u.guard = false;
     for (const k of Object.keys(u.ct)) if (u.ct[k] > 0) u.ct[k]--;
-    for (const k of ['atk', 'def', 'hit'] as const) {
+    for (const k of ['atk', 'def', 'hit', 'spd'] as const) {
       const st = u.stages[k];
       if (st.lv !== 0 && --st.turns <= 0) {
         st.lv = 0;
@@ -303,7 +327,7 @@ function* roundEnd(s: BattleScene): Co {
     // つかまった／とおせんぼ cost exactly one turn: they come off at the end of
     // the round in which the member's own turn was actually skipped — never
     // in the round they were put on (the victim may already have acted)
-    for (const id of ['status_tsukamare', 'status_toosenbo']) {
+    for (const id of ['status_tsukamare', 'status_toosenbo', 'status_henji']) {
       if (!st[id]) continue;
       if (s.memo['blocked_' + u.id]) {
         delete st[id];
@@ -329,8 +353,10 @@ function* roundEnd(s: BattleScene): Co {
       e.status.hiraki = undefined;
       if (e.pose === 'open') e.setPose('idle');
     }
-    for (const k of ['atk', 'def', 'hit'] as const) {
+    for (const k of ['atk', 'def', 'hit', 'spd'] as const) {
       const st = e.stages[k];
+      // 徹夜のまもり does not wear off with time (51 7.2)
+      if (k === 'def' && e.status.tetsuya) continue;
       if (st.lv !== 0 && --st.turns <= 0) {
         st.lv = 0;
         st.turns = 0;
@@ -349,6 +375,18 @@ function* finish(s: BattleScene, result: BattleResult): Co<BattleResult> {
     yield* victory(s);
     resetKire(s);
     cleanupStatuses(s);
+    if (s.bossKind === 'yobimodoshi') {
+      // 51 10.8 / 16.2: the night is asleep — the band goes, only black stays,
+      // and evt_ch2_ending's first cut (the HUD's 「4:59」 on black) takes over
+      setFlag('flag_ch2_boss_phase', 0);
+      setFlag('flag_ch2_boss_light', 0);
+      stopBgm(0);
+      s.hideAll = true;
+      s.transitionDraw = (g) => g.clear('#0B0B14');
+      game.fadeColor = '#0B0B14';
+      game.fadeAlpha = 1;
+      return 'win';
+    }
     if (s.isBoss) {
       // 13.7: no jingle; white fade straight into the ending (the event takes over)
       setFlag('flag_boss_phase', 0);
@@ -371,10 +409,11 @@ function* finish(s: BattleScene, result: BattleResult): Co<BattleResult> {
     return 'flee';
   }
   // wipe (18.4): the battle side plays up to the dark screen; evt_gameover follows
-  if (s.isBoss) bossTries.lost++;
+  if (s.isBoss) bossTriesOf(s).lost++;
   yield* wipeOut(s);
   cleanupStatuses(s);
-  if (s.isBoss) setFlag('flag_boss_phase', 0);
+  if (s.isBoss) setFlag(s.bossKind === 'yobimodoshi' ? 'flag_ch2_boss_phase' : 'flag_boss_phase', 0);
+  if (s.bossKind === 'yobimodoshi') setFlag('flag_ch2_boss_light', 0);
   s.hideAll = true;
   s.transitionDraw = (g) => g.clear('#0B0B14');
   if (s.prevSpace) setSpace(s.prevSpace);
@@ -451,6 +490,7 @@ function* bossAppear(s: BattleScene, fast = false): Co {
   yield 300 * k;
   void getEnemy;
   void flag;
+  void yobiBlack;
 }
 
 export type { PartyUnit };

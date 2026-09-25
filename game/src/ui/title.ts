@@ -13,6 +13,17 @@
 //    stop and the wires shiver once. The town stays stopped.
 //  - After the ending: bgm_title_clear (all eight notes, nothing stops) and a
 //    notebook card with the みました帳 counts.
+//
+// Chapter 2 (50_ch2_story 1.4, 52_ch2_level_art 12.4):
+//  - Once chapter 1 has been finished on this device a fourth tape
+//    「第2章から」 sits between つづきから and せってい; it asks first (and warns
+//    when the slot holds a game in progress that would be overwritten).
+//  - A slot in the middle of chapter 2: a little green sticky 「第2章」 is
+//    stuck to the back of the つづきから tape, and on 星見台's slope the
+//    tomato's light blinks where the village is.
+//  - After chapter 2: the patch of sky over 星見台 is a morning glow with the
+//    sun a 朱 point on the ridge, and the card has a page for each notebook
+//    (① 夕鳴町, ② 星見台) before its thank-you page. The music doesn't change.
 
 import type { Co } from '../engine/co';
 import { game, type Scene } from '../engine/game';
@@ -20,18 +31,22 @@ import type { Gfx } from '../engine/gfx';
 import { Particles } from '../engine/particles';
 import { H, W } from '../engine/screen';
 import { ease } from '../engine/tween';
-import { hasSave } from '../game/state';
 import { audioReady, musicPosition, playAmbient, playBgm, sfx, stopAllAmbient, stopBgm } from '../audio';
 import { registerScene } from '../boot';
 import { digitsWidth, drawDigits } from './digits';
-import { clearRecord, continueGame, startNewGame, type ClearRecord } from './flow';
+import { chapter1Cleared, clearRecord, clearRecordCh2, continueGame, msgPages, saveKind, startChapter2, startNewGame, type ClearRecord, type SaveKind } from './flow';
+import { CH2_TITLE_CONFIRM, CH2_TITLE_CONFIRM_OPTIONS, CH2_TITLE_OVERWRITE } from '../data/text/hoshi_events';
 import { runSettings } from './menu';
+import { ask } from './dialog';
+import { tomatoIcon8 } from './icons';
+import { drawCircledNum } from './menu/book';
 import { hanamaruFrame } from '../battle/art/stamps';
 import {
   CLOUDS,
   cloudCanvas,
   drawCrow,
   drawGrass,
+  drawHoshimiMarks,
   drawHoshimiNight,
   drawMallSign,
   drawSunSwirl,
@@ -50,7 +65,12 @@ import {
 import { dottedLine, drawCursor, drawTape, drawWindow, rectA, textW, UI } from './window';
 import { coverToFade, ditherOut } from './transition';
 
-const MENU = ['はじめる', 'つづきから', 'せってい'];
+type MenuId = 'new' | 'continue' | 'ch2' | 'settings';
+const LABELS: Record<MenuId, string> = { new: 'はじめる', continue: 'つづきから', ch2: '第2章から', settings: 'せってい' };
+/** The tapes' column (30 11.4): right-aligned block ending at y206. */
+const MENU_X = 284;
+const MENU_BOTTOM = 206;
+const MENU_STEP = 19;
 /** How deep the dusk is over the town behind the boot screen (it lifts from here). */
 const PRESS_SHADE = 0.72;
 const LOGO_AT = 600;
@@ -66,8 +86,15 @@ export class TitleScene implements Scene {
   private index = 0;
   private moveT = 999;
   private pickT = -1;
-  private readonly canLoad = hasSave();
-  private readonly clear: ClearRecord | null = clearRecord();
+  /** What the save slot holds (read once, without loading it). */
+  private readonly kind: SaveKind = saveKind();
+  private readonly canLoad = this.kind !== 'none';
+  private readonly clear2: ClearRecord | null = clearRecordCh2();
+  /** Chapter 1's counts after its ending (an empty card if only chapter 2's record survived). */
+  private readonly clear: ClearRecord | null = clearRecord() ?? (this.clear2 ? { fushigi: 0, aite: 0, tsukkomi: 0, tsukkomiTotal: 19 } : null);
+  private readonly menu: MenuId[] = chapter1Cleared() ? ['new', 'continue', 'ch2', 'settings'] : ['new', 'continue', 'settings'];
+  /** 「第2章から」 is asking (the tapes step back like under the settings sheet). */
+  private asking = false;
   private stamped = false;
   private notes = 0;
   private noteT = -9999;
@@ -115,7 +142,7 @@ export class TitleScene implements Scene {
     }
     this.t += dt;
     this.moveT += dt;
-    this.menuHide = Math.max(0, Math.min(1, this.menuHide + (this.busy ? dt : -dt) / 140));
+    this.menuHide = Math.max(0, Math.min(1, this.menuHide + (this.busy || this.asking ? dt : -dt) / 140));
     // the logo is stamped
     if (!this.stamped && this.t >= LOGO_AT) {
       this.stamped = true;
@@ -190,10 +217,11 @@ export class TitleScene implements Scene {
   }
 
   private move(d: number): void {
+    const n = this.menu.length;
     let i = this.index;
-    for (let k = 0; k < MENU.length; k++) {
-      i = (i + d + MENU.length) % MENU.length;
-      if (i !== 1 || this.canLoad) break;
+    for (let k = 0; k < n; k++) {
+      i = (i + d + n) % n;
+      if (this.menu[i] !== 'continue' || this.canLoad) break;
     }
     if (i !== this.index) {
       this.index = i;
@@ -203,14 +231,14 @@ export class TitleScene implements Scene {
   }
 
   private pick(): void {
-    const i = this.index;
-    if (i === 1 && !this.canLoad) {
+    const id = this.menu[this.index];
+    if (id === 'continue' && !this.canLoad) {
       sfx('se_buzzer');
       return;
     }
     sfx('se_confirm');
     this.pickT = 0;
-    if (i === 2) {
+    if (id === 'settings') {
       this.busy = true;
       const self = this;
       game.scripts.run(
@@ -223,6 +251,43 @@ export class TitleScene implements Scene {
       );
       return;
     }
+    if (id === 'ch2') {
+      this.askChapter2();
+      return;
+    }
+    this.leave(id);
+  }
+
+  /**
+   * 「第2章から」 (50 1.4): the question, with a first page warning that the
+   * slot's game in progress would be written over (chapter 1 or chapter 2
+   * under way). やめる (or キャンセル) goes back to the tapes.
+   */
+  private askChapter2(): void {
+    this.busy = true;
+    this.asking = true;
+    const self = this;
+    const q = msgPages(CH2_TITLE_CONFIRM);
+    const pages = this.kind === 'ch1' || this.kind === 'ch2' ? [...msgPages(CH2_TITLE_OVERWRITE), ...q] : q;
+    game.scripts.run(
+      (function* (): Co {
+        yield 140;
+        const i = yield* ask(pages, CH2_TITLE_CONFIRM_OPTIONS, { voice: 'sys', cancel: 1, index: 1 });
+        self.asking = false;
+        if (i === 0) {
+          self.busy = false;
+          self.leave('ch2');
+          return;
+        }
+        yield 120;
+        self.busy = false;
+        self.pickT = -1;
+      })(),
+    );
+  }
+
+  /** Leave the title for a new game, the save, or chapter 2. */
+  private leave(id: MenuId): void {
     this.phase = 'leaving';
     const self = this;
     game.scripts.run(
@@ -233,7 +298,8 @@ export class TitleScene implements Scene {
         yield* ditherOut(700, '#0B0B14');
         coverToFade();
         yield 250;
-        if (i === 0) yield* startNewGame();
+        if (id === 'new') yield* startNewGame();
+        else if (id === 'ch2') yield* startChapter2('title');
         else {
           const ok = yield* continueGame();
           if (!ok) {
@@ -284,8 +350,11 @@ export class TitleScene implements Scene {
       g.img(img, Math.round(x > W ? x - span : x), c.y + slide(1));
     });
     this.drawSun(g, slide(1));
-    g.translated(0, slide(2), () => drawHoshimiNight(g, t, false));
+    const dawn = !!this.clear2;
+    g.translated(0, slide(2), () => drawHoshimiNight(g, t, false, dawn ? 'dawn' : 'night'));
     g.img(farCanvas(this.sky), 0, 104 + slide(2));
+    // chapter 2's marks on 星見台's hill: the morning, the tomato's light in the village
+    if (dawn || this.kind === 'ch2') g.translated(0, slide(2), () => drawHoshimiMarks(g, t, { dawn, lantern: this.kind === 'ch2' }));
     g.img(midCanvas(this.sky), 0, 110 + slide(3));
     // 「ユ」 of ユウナリ flickers
     const flick = Math.floor(t / 90) % 37 === 0 || Math.floor(t / 90) % 53 === 0;
@@ -367,65 +436,136 @@ export class TitleScene implements Scene {
     // under the settings sheet the tapes are peeled away (they'd peek out past its edge)
     const shown = 1 - this.menuHide;
     if (shown <= 0) return;
-    MENU.forEach((label, i) => {
+    const n = this.menu.length;
+    const top = MENU_BOTTOM - 18 - (n - 1) * MENU_STEP;
+    this.menu.forEach((id, i) => {
       const k = Math.min(1, Math.max(0, (this.t - MENU_AT - i * 80) / 220)) * shown;
       if (k <= 0) return;
       const sel = i === this.index;
-      const dim = i === 1 && !this.canLoad;
-      const x = 284;
-      const y0 = 150 + i * 19;
+      const dim = id === 'continue' && !this.canLoad;
+      const x = MENU_X;
+      const y0 = top + i * MENU_STEP;
       const y = y0 + Math.round((1 - ease.backOut(k)) * 24) - (sel ? 1 : 0);
       const a = k * (dim ? 0.5 : 1);
+      // a game in chapter 2: the sticky 「第2章」 stuck to the back of the tape, peeking out on the left
+      const note = id === 'continue' && this.kind === 'ch2';
+      if (note) drawChapterNote(g, x - NOTE_W + 5, y + 1, k, sel);
       drawTape(g, x, y, 88, 18, '', { color: sel ? UI.tapeOn : UI.tapeOff, seed: 40 + i, alpha: a });
-      g.text(label, x + 44, y + 1, { color: dim ? UI.textDim : UI.text, align: 'center', alpha: k });
-      if (sel && k >= 1) drawCursor(g, x - 12, y, this.t, this.pickT >= 0 ? this.pickT : -1);
+      g.text(LABELS[id], x + 44, y + 1, { color: dim ? UI.textDim : UI.text, align: 'center', alpha: k });
+      if (sel && k >= 1) drawCursor(g, (note ? x - NOTE_W + 5 : x) - 12, y, this.t, this.pickT >= 0 ? this.pickT : -1);
     });
   }
 
   /**
-   * After the ending (11.4, 10_narrative 12.6): a scrap of notebook in the
-   * bottom-left corner, clear of the two silhouettes on the bridge. It has
-   * two pages, as the message has: the みました帳 counts, then
-   * 「ここまで 見てくれて、ありがとう。」; they turn every few seconds.
-   * The teacher's little はなまる is pressed over the top-right corner.
+   * After the ending (11.4, 10_narrative 12.6, 50_ch2_story 1.4): a scrap of
+   * notebook in the bottom-left corner, clear of the two silhouettes on the
+   * bridge. Its pages turn every few seconds: the みました帳 counts, then
+   * 「ここまで 見てくれて、ありがとう。」. After chapter 2 there is a page for
+   * each notebook — ① 夕鳴町 and ② 星見台 — and two little flags on the
+   * card's top edge (① blue, ② green with the tomato) say whose counts are
+   * showing. The teacher's little はなまる is pressed over the top-right corner.
    */
   private drawClearCard(g: Gfx): void {
+    if (this.asking) return;
     const c = this.clear!;
+    const c2 = this.clear2;
+    const pages: (1 | 2 | 0)[] = c2 ? [1, 2, 0] : [1, 0];
     const lt = this.t - MENU_AT;
     const k = Math.min(1, lt / 300);
     const { x, w, h } = CLEAR_CARD;
     const y = CLEAR_CARD.y + Math.round((1 - ease.cubicOut(k)) * 10);
-    drawWindow(g, x, y, w, h, UI, k, { curl: false });
     // which page, and how far through the turn
     const cyc = Math.max(0, lt - 300);
-    const page = Math.floor(cyc / CLEAR_PAGE_MS) % 2;
+    const pi = Math.floor(cyc / CLEAR_PAGE_MS) % pages.length;
+    const page = pages[pi];
     const pt = cyc % CLEAR_PAGE_MS;
     const turnIn = Math.min(1, pt / 220);
     const turnOut = pt > CLEAR_PAGE_MS - 220 ? (pt - (CLEAR_PAGE_MS - 220)) / 220 : 0;
     const ca = k * (lt < 300 ? 1 : cyc < CLEAR_PAGE_MS ? 1 - turnOut : turnIn * (1 - turnOut));
     const dx = Math.round((1 - turnIn) * 4 * (cyc < CLEAR_PAGE_MS ? 0 : 1) - turnOut * 4);
+    // the notebook flags stick up behind the card's top edge
+    if (c2) this.drawCardFlags(g, x, y, k, page);
+    drawWindow(g, x, y, w, h, UI, k, { curl: false });
     g.alpha(ca, () => {
       const lx = x + 7 + dx;
       const rx = x + w - 7 + dx;
       if (page === 0) {
-        const row = (label: string, v: string, ry: number) => {
-          g.text(label, lx, ry, { color: UI.text });
-          drawDigits(g, v, rx, ry + 5, { color: UI.accent, align: 'right' });
-          dottedLine(g, lx + textW(label) + 3, ry + 11, rx - digitsWidth(v) - 4, UI.bg2, 2);
-        };
-        row('ふしぎ', `${c.fushigi}/12`, y + 6);
-        row('あいて', `${c.aite}/7`, y + 23);
-        row('ツッコミ', `${c.tsukkomi}/${c.tsukkomiTotal || 19}`, y + 40);
-      } else {
         ['ここまで', '見てくれて、', 'ありがとう。'].forEach((l, i) => g.text(l, lx, y + 6 + i * 17, { color: UI.sys }));
+        return;
       }
+      const r = page === 1 ? c : c2!;
+      const tot = page === 1 ? [12, 7, r.tsukkomiTotal || 19] : [10, 6, r.tsukkomiTotal || 17];
+      const row = (label: string, v: string, ry: number) => {
+        g.text(label, lx, ry, { color: UI.text });
+        drawDigits(g, v, rx, ry + 5, { color: UI.accent, align: 'right' });
+        dottedLine(g, lx + textW(label) + 3, ry + 11, rx - digitsWidth(v) - 4, UI.bg2, 2);
+      };
+      row('ふしぎ', `${r.fushigi}/${tot[0]}`, y + 6);
+      row('あいて', `${r.aite}/${tot[1]}`, y + 23);
+      row('ツッコミ', `${r.tsukkomi}/${tot[2]}`, y + 40);
     });
     // page dots at the bottom edge
-    if (k >= 1)
-      for (let i = 0; i < 2; i++) g.rect(x + w / 2 - 4 + i * 6, y + h - 5, 2, 2, i === page ? UI.accent : UI.bg2);
+    if (k >= 1) {
+      const n = pages.length;
+      for (let i = 0; i < n; i++) g.rect(Math.round(x + w / 2 - (n * 6 - 2) / 2) + i * 6, y + h - 5, 2, 2, i === pi ? UI.accent : UI.bg2);
+    }
     // the はなまる, over the corner
     g.alpha(k, () => g.img(hanamaruFrame(24, 1, false, 2), x + w - 17, y - 9));
   }
+
+  /**
+   * ① ② flags (16×12, like the みました帳's) tucked behind the card's top
+   * edge; the one whose counts are showing stands 3 px taller. ② carries
+   * the tomato (8×8).
+   */
+  private drawCardFlags(g: Gfx, x: number, y: number, a: number, page: 0 | 1 | 2): void {
+    g.alpha(a, () => {
+      ([1, 2] as const).forEach((n, i) => {
+        const on = page === n;
+        const fx = x + 8 + i * 24;
+        const fy = y - 9 - (on ? 3 : 0);
+        const col = n === 1 ? (on ? '#7FD1E8' : '#B8DDE6') : on ? '#9BCB6B' : '#C3D9AE';
+        rectA(g, fx + 1, fy + 2, n === 2 ? 26 : 16, 12, UI.night, 0.3);
+        const fw = n === 2 ? 26 : 16;
+        g.rect(fx, fy, fw, 13, UI.border);
+        g.rect(fx + 1, fy + 1, fw - 2, 12, col);
+        g.rect(fx + 1, fy + 1, fw - 2, 1, '#FFFFFF');
+        drawCircledNum(g, n, fx + 3, fy + 2, on ? UI.text : UI.pencil);
+        if (n === 2) g.img(tomatoIcon8(), fx + 14, fy + 3);
+      });
+    });
+  }
+}
+
+/**
+ * The little sticky 「第2章」 on the つづきから tape (pale green, like ②'s
+ * flag): its glue end is tucked under the tape's left end, the free corner
+ * at the bottom left curls up a little, and it throws a soft shadow.
+ */
+const NOTE_W = 50;
+function drawChapterNote(g: Gfx, x: number, y: number, a: number, sel: boolean): void {
+  const w = NOTE_W;
+  const h = 16;
+  const paper = sel ? '#CDEBA8' : '#BFE095';
+  const deep = sel ? '#B2DA86' : '#A6CF78';
+  const edge = '#6F9F4E';
+  g.alpha(a, () => {
+    rectA(g, x + 2, y + 2, w - 2, h, UI.night, 0.32);
+    // the paper; the bottom-left corner (3 rows) is folded back, so those rows start further in
+    g.rect(x, y, w, h - 3, paper);
+    for (let r = 0; r < 3; r++) g.rect(x + r + 1, y + h - 3 + r, w - r - 1, 1, r === 2 ? edge : deep);
+    g.rect(x, y, 1, h - 3, edge);
+    g.rect(x + 1, y, w - 1, 1, '#E4F4CF');
+    g.rect(x + 1, y + h - 5, w - 1, 2, deep);
+    // the fold: the back of the paper, a little triangle lying on the front
+    g.px(x, y + h - 3, edge);
+    g.px(x + 1, y + h - 4, '#DDEFC6');
+    g.px(x + 2, y + h - 4, '#DDEFC6');
+    g.px(x + 2, y + h - 5, '#DDEFC6');
+    g.px(x + 3, y + h - 4, edge);
+    g.px(x + 1, y + h - 3, edge);
+    g.text('第2章', x + 6, y - 1, { color: UI.text });
+  });
 }
 
 /** The post-ending card: bottom-left, left of the silhouettes on the bridge (x ≥ 118). */

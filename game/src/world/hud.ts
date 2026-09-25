@@ -148,8 +148,24 @@ export interface ClockModel {
 }
 
 let clockOverride: string | null = null;
-let flickAt = 0;
-let flickNext = 9000;
+let dipAt = -1e9;
+let dipNext = 9000;
+
+/**
+ * h2 (52 13.1): every 7–11 s the stopped clock's colon dips to 50% for
+ * 80 ms, as if it nearly blinked. One clock for everything that shows it:
+ * the HUD plate and the school's wall clock (whose hand trembles with it).
+ * `t` is the field's clock (ms, only ever growing).
+ */
+export function colonDip(t: number): boolean {
+  if (flag('flag_ch2_stage') !== 2 || flag('flag_ch2_clock')) return false;
+  if (t < dipAt) dipAt = -1e9;
+  if (t >= dipNext || dipNext - t > 12000) {
+    if (t >= dipNext) dipAt = t;
+    dipNext = t + 7000 + Math.random() * 4000;
+  }
+  return t - dipAt < 80;
+}
 
 /** Clock text override (19:30 / 19:31 / 6:10 / 6:12, 50 1.4): kept here and passed on to the HUD. */
 export function setClockOverride(s: string | null): void {
@@ -172,14 +188,7 @@ export function ch2Clock(f: FieldScene | null, t: number): ClockModel | null {
   const st = flag('flag_ch2_stage');
   const stopped = onH && st <= 2 && !flag('flag_ch2_clock');
   const text = clockOverride ?? CLOCK_TIMES_H[Math.max(0, Math.min(1, flag('flag_ch2_clock')))];
-  let colonAlpha = 1;
-  if (stopped && st === 2) {
-    if (t >= flickNext) {
-      flickAt = t;
-      flickNext = t + 7000 + Math.random() * 4000;
-    }
-    if (t - flickAt < 80) colonAlpha = 0.5;
-  }
+  const colonAlpha = stopped && st === 2 && colonDip(t) ? 0.5 : 1;
   return { text, blink: !stopped, colonAlpha, always: stopped, stopped };
 }
 
@@ -408,7 +417,7 @@ class DefaultHud implements FieldHud {
       this.lastMap = f.map.id;
     }
     if (this.showT > 0) this.showT -= dt;
-    const h = ch2Clock(f, this.t);
+    const h = ch2Clock(f, f.t);
     const always = h ? h.always : flag('flag_stage') >= 1 && flag('flag_stage') < 3;
     const want = (this.showT > 0 || always || this.override) && !flag('flag_hud_hidden') ? 4 : -24;
     this.y += Math.sign(want - this.y) * Math.min(Math.abs(want - this.y), dt / 12);
@@ -438,13 +447,15 @@ class DefaultHud implements FieldHud {
   }
 
   draw(g: Gfx, f: FieldScene): void {
+    // the loudspeaker's call (a replacing HUD draws it itself, see drawCallBubble)
+    drawCallBubble(g, f);
     const st = flag('flag_stage');
     const y = Math.round(this.y);
     if (y > -20 && f.map.def.kind !== 'indoor' || y > -20) {
       const x = 324;
       if (st >= 3) g.rect(x - 3, y - 3, 58, 24, P.horizon, 0.18);
       g.img(plateImg(), x, y);
-      const h = ch2Clock(f, this.t);
+      const h = ch2Clock(f, f.t);
       const time = h ? h.text : this.override ?? TIMES[Math.max(0, Math.min(4, flag('flag_clock')))];
       const colonOn = h ? !h.blink || Math.floor(f.t / 500) % 2 === 0 : st >= 1 && st < 3 ? true : Math.floor(f.t / 500) % 2 === 0;
       const [hh, mm] = time.split(':');

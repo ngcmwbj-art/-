@@ -20,6 +20,9 @@ import { fitWrap, phraseWrapInfo, textW } from './window';
 import { FOLD, LP, RP, SP } from './menu/notebook';
 import { BOOK_ENEMIES, FUSHIGI_BOOK, pressedText, TSUKKOMI_ENEMIES } from './menu/book';
 import { W } from '../engine/screen';
+import type { Scene } from '../engine/game';
+import type { Gfx } from '../engine/gfx';
+import { drawVillageLit } from './cut_village_lit';
 
 const SAMPLES: Record<string, () => Generator> = {
   normal: function* () {
@@ -213,4 +216,65 @@ registerDebug('wrapCheck', () => {
   }
   void getSkill;
   return { checked: n, issues };
+});
+
+// ---- chapter 2 (50_ch2_story 1.4, 52_ch2_level_art 12–13) -------------------------------------
+
+/**
+ * QA: put the title into one of chapter 2's states and show it —
+ *   'fresh'    nothing on this device
+ *   'ch1'      a chapter 1 game in the slot, no clear yet (3 tapes)
+ *   'ch1clear' chapter 1 finished: the clear data in the slot (4 tapes)
+ *   'ch2'      the slot is in the middle of chapter 2 (sticky 「第2章」, the light on the hill)
+ *   'ch2clear' chapter 2 finished (the morning over 星見台, the ①② card)
+ */
+registerDebug('titleState', (kind = 'ch2') => {
+  const slot = (flags: Record<string, number>, map: string, x: number, y: number) =>
+    JSON.stringify({ party: [{ id: 'minato', name: 'ミナト', level: 5, exp: 150, hp: 72, maxHp: 72, mp: 22, maxMp: 22, atk: 17, def: 14, spd: 12, luck: 9, skills: [], status: {}, equip: {} }], inventory: [], money: 300, flags, map, x, y, dir: 'down', playTimeMs: 1234000, taken: {}, steps: 0 });
+  try {
+    for (const k of ['yugure-rpg-save-v1', 'hanamaru-clear-v1', 'hanamaru-clear-ch2-v1', 'hanamaru-ch2-start-v1']) localStorage.removeItem(k);
+    const rec1 = JSON.stringify({ fushigi: 9, aite: 6, tsukkomi: 15, tsukkomiTotal: 19 });
+    const rec2 = JSON.stringify({ fushigi: 7, aite: 5, tsukkomi: 12, tsukkomiTotal: 17 });
+    if (kind === 'ch1') localStorage.setItem('yugure-rpg-save-v1', slot({ flag_stage: 1 }, 'map_town', 30, 20));
+    if (kind === 'ch1clear' || kind === 'ch2' || kind === 'ch2clear') localStorage.setItem('hanamaru-clear-v1', rec1);
+    if (kind === 'ch1clear') localStorage.setItem('yugure-rpg-save-v1', slot({ flag_clear: 1, flag_stage: 3 }, 'map_town', 56, 22));
+    if (kind === 'ch2') localStorage.setItem('yugure-rpg-save-v1', slot({ flag_clear: 1, flag_ch2_started: 1, flag_ch2_stage: 1, flag_fushigi_ch2_01: 1, flag_fushigi_ch2_03: 1 }, 'map_hoshimidai', 30, 30));
+    if (kind === 'ch2clear') {
+      localStorage.setItem('hanamaru-clear-ch2-v1', rec2);
+      localStorage.setItem('yugure-rpg-save-v1', slot({ flag_clear: 1, flag_ch2_started: 1, flag_ch2_clear: 1, flag_ch2_stage: 3 }, 'map_home_2f', 5, 3));
+    }
+  } catch {
+    return 'no storage';
+  }
+  showTitle();
+  return kind;
+});
+
+/**
+ * QA: show one of chapter 2's pictures full screen. `cue` steps the lines
+ * the picture follows (cut_h_village_lit: 0–5); `ms` holds it that long.
+ */
+class CutPreview implements Scene {
+  transparent = false;
+  t = 0;
+  constructor(
+    private readonly draw0: (g: Gfx, t: number, cue: number) => void,
+    public cue = 0,
+  ) {}
+  update(dt: number): void {
+    this.t += dt;
+    if (game.input.pressed('confirm')) {
+      this.cue++;
+    }
+    if (game.input.pressed('cancel')) game.pop();
+  }
+  draw(g: Gfx): void {
+    this.draw0(g, this.t, this.cue);
+  }
+}
+registerDebug('cut', (id = 'village', cue = 0) => {
+  const f = id === 'village' ? drawVillageLit : null;
+  if (!f) return ['village'];
+  game.push(new CutPreview(f, cue));
+  return id;
 });

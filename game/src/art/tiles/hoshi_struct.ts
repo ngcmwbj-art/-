@@ -179,6 +179,46 @@ function zokiCell(tx: number, ty: number, m: CellMask, inside: Inside): CellArt 
   return { img: p.toCanvas(), ox: 0, oy: 16 - h, shadow: 0 };
 }
 
+// ---------------------------------------------------------------- low scrub (やぶ)
+
+/**
+ * The bank south of the siding (and other low edges): the tops of the trees
+ * growing on the slope below the village and low scrub — round clumps that
+ * rise only a few px, so the rails and the platform edge in front of them
+ * stay in view.
+ */
+function yabuCell(tx: number, ty: number, m: CellMask, inside: Inside): CellArt {
+  const RISE = 7;
+  const h = 16 + RISE;
+  const p = new PixelCanvas(W, h);
+  const wx0 = tx * 16;
+  const wy0 = ty * 16 + 16 - h;
+  const floorTop = m.n ? 0 : RISE + 3;
+  for (let y = floorTop; y < h; y++) for (let x = 0; x < W; x++) p.set(x, y, ihash((wx0 + x) >> 1, (wy0 + y) >> 1, 13) % 4 === 0 ? P.leafShade : P.night);
+  const clumps = gridPoints(tx, ty, 6, 5, 851, 7).filter((t) => inside(t.x, t.y));
+  for (const t of clumps) {
+    const bx = t.x - wx0;
+    const by = t.y - wy0;
+    const r = 3 + ((t.h >>> 4) % 3);
+    const cy = by - r + 2;
+    for (let y = -r; y <= r; y++)
+      for (let x = -r - 1; x <= r + 1; x++) {
+        const d = (x * x) / ((r + 1) * (r + 1)) + (y * y) / (r * r);
+        if (d > 1) continue;
+        const lit = x * 0.5 + y;
+        let c: string = lit < -r * 0.5 ? P.leaf : lit < r * 0.2 ? P.leafDeep : P.leafShade;
+        if (ihash(bx + x, cy + y, 853) % 5 === 0) c = c === P.leaf ? P.leafDeep : P.leafShade;
+        if (d > 0.8 && y > 0) c = P.night;
+        p.set(bx + x, cy + y, c);
+      }
+    // the starlit top of the clump
+    p.set(bx - 1, cy - r, P.leafYoung);
+    p.set(bx, cy - r, P.leaf);
+  }
+  if (!m.s) for (let x = 0; x < W; x++) if (p.alpha(x, h - 1)) p.set(x, h - 1, P.ink);
+  return { img: p.toCanvas(), ox: 0, oy: 16 - h, shadow: 0 };
+}
+
 // ---------------------------------------------------------------- kuzu (クズ)
 
 /**
@@ -459,7 +499,7 @@ function marutaCell(tx: number, ty: number, m: CellMask): CellArt {
 const cache = new Map<string, CellArt>();
 
 /** Materials this module draws: [kind, mat]. */
-const H_MATS = new Set(['hedge|sugi', 'hedge|take', 'hedge|zoki', 'hedge|kuzu', 'wall|ishigaki', 'fence|juugai', 'fence|efence', 'fence|maruta']);
+const H_MATS = new Set(['hedge|sugi', 'hedge|take', 'hedge|zoki', 'hedge|yabu', 'hedge|kuzu', 'wall|ishigaki', 'fence|juugai', 'fence|efence', 'fence|maruta']);
 
 export function isHoshiMat(kind: string, mat: string): boolean {
   return H_MATS.has(kind + '|' + mat);
@@ -484,6 +524,9 @@ export function hoshiStructureCell(kind: string, mat: string, tx: number, ty: nu
       break;
     case 'zoki':
       a = zokiCell(tx, ty, m, inside);
+      break;
+    case 'yabu':
+      a = yabuCell(tx, ty, m, inside);
       break;
     case 'kuzu':
       a = kuzuCell(tx, ty, m);

@@ -6,8 +6,10 @@ import { game, type Scene } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { registerScene } from '../boot';
 import { registerDebug } from '../debug';
-import { setFlag, state } from '../game/state';
-import { gainExp, getEnemy, joinKanenari, newGameParty, setMemberLevel, syncProgressSkills, type LevelUpResult } from '../data/battle';
+import { addItem, setFlag, state } from '../game/state';
+import {
+  chapter2Adjust, EXP_TABLE, gainExp, getEnemy, joinKanenari, newChapter2Party, newGameParty, setMemberLevel, syncProgressSkills, type LevelUpResult,
+} from '../data/battle';
 import { setBattleImpl, startBattle, type BattleOpts, type BattleResult } from './api';
 import { BattleScene } from './scene';
 import { battleFlow, getGameOverHook, setGameOverHook, type GameOverHook } from './flow';
@@ -19,6 +21,7 @@ import { playHankoLearnField, playHankoLearnIn } from './learn';
 import { playLevelUpField } from './results';
 import { addKire } from './common';
 import { syncBossFlags } from './boss';
+import { yobiState, raiseTomatoNow, dimNow } from './boss_yobimodoshi';
 import type { Judge, PartyCmd } from './model';
 import { C, drawNote } from './ui/note';
 import '../art/enemies/all';
@@ -114,8 +117,51 @@ export function* playLevelUp(results: LevelUpResult[]): Co<void> {
 
 // ---- QA: party setup ---------------------------------------------------------------------
 
+/**
+ * 51 18.5 lvCh2: a chapter-2 party (newChapter2Party + chapter2Adjust) at
+ * Lv `lv` (5–7): おつかれさま learned, the はなまるトマト in the bag, the
+ * battle tutorials of chapter 1 done, on the 星見台 map (the night's light).
+ */
+export function setupCh2(lv = 5, o: { otsukare?: boolean; tut?: boolean } = {}): void {
+  state.flags = {};
+  newChapter2Party();
+  chapter2Adjust();
+  for (const m of state.party) {
+    setMemberLevel(m, Math.max(1, Math.min(7, lv)));
+    m.exp = Math.max(m.exp, EXP_TABLE[Math.min(8, Math.max(5, lv))] ?? 150);
+  }
+  if (o.otsukare !== false) setFlag('flag_ch2_got_otsukare', 1);
+  setFlag('flag_ch2_got_tomato', 1);
+  setFlag('flag_fushigi_ch2_06', 1);
+  setFlag('flag_ch2_stage', 1);
+  if (!o.tut) for (const f of ['flag_tut_tsukkomi', 'flag_tut_ring', 'flag_tut_hanko', 'flag_tut_kire']) setFlag(f, 1);
+  for (const it of ['item_hanamaru_tomato', 'item_kairan_map', 'item_kyuri_zuke', 'item_kyuri_zuke', 'item_toumorokoshi', 'item_umeboshi', 'item_kairan_shuniku']) addItem(it);
+  state.map = 'map_hoshimidai';
+  syncProgressSkills();
+  for (const m of state.party) {
+    m.hp = m.maxHp;
+    m.mp = m.maxMp;
+  }
+}
+
+/** The chapter-2 battles by name (51 18.4). */
+const CH2_BATTLES: Record<string, Partial<BattleOpts> & { enemies: string[] }> = {
+  sune: { enemies: ['enemy_sune_tomato'], music: 'bgm_battle', background: 'bg_h_house', canLose: true },
+  sune2: { enemies: ['enemy_sune_tomato', 'enemy_sune_tomato'] },
+  kacho: { enemies: ['enemy_henoheno_kacho'] },
+  biri: { enemies: ['enemy_biribiri_ban'] },
+  cho: { enemies: ['enemy_chototsu'] },
+  mujin: { enemies: ['enemy_mujin_hanbaiin'] },
+  tetsuya: { enemies: ['enemy_tetsuya'], music: 'bgm_midboss', background: 'bg_h_tetsuya', canLose: true },
+  yobi: { enemies: ['boss_yobimodoshi'], boss: true, music: 'bgm_boss_yobimodoshi', background: 'bg_h_boss', canLose: true },
+};
+
 function setupParty(p: URLSearchParams | Record<string, string | number | undefined>): void {
   const get = (k: string) => (p instanceof URLSearchParams ? p.get(k) : p[k] !== undefined ? String(p[k]) : null);
+  if (get('ch2') === '1') {
+    setupCh2(Number(get('lv') ?? '5'), { tut: get('tut') === '1' });
+    return;
+  }
   const lv = Math.max(1, Math.min(8, Number(get('lv') ?? '2')));
   const two = (get('party') ?? '2') !== '1';
   newGameParty();
@@ -353,6 +399,79 @@ registerDebug('levelup', (lv = 2) => {
 registerDebug('hankolearn', (id = 'skill_hanamaru') => {
   game.scripts.run(playHankoLearn(id));
   return id;
+});
+
+// ---- chapter 2 (51 18.5) --------------------------------------------------------------------
+
+/** `lvCh2(n)`: a chapter-2 party at Lv n (5–7), flag_ch2_started on. */
+registerDebug('lvCh2', (n = 5, otsukare = true) => {
+  setupCh2(n, { otsukare: !!otsukare });
+  return state.party.map((m) => `${m.name} Lv${m.level} exp${m.exp}`);
+});
+/**
+ * `ch2battle(name, lv)`: straight into a chapter-2 battle — sune / sune2 /
+ * kacho / biri / cho / mujin / tetsuya / yobi. `lv` 0 keeps the party.
+ */
+registerDebug('ch2battle', (name = 'sune', lv = 5, o: Partial<BattleOpts> = {}) => {
+  const b = CH2_BATTLES[name];
+  if (!b) return `unknown: ${Object.keys(CH2_BATTLES).join(' ')}`;
+  if (lv) setupCh2(lv);
+  // the first スネトマト is fought before the tomato is picked (its glow is behind it)
+  if (name === 'sune') {
+    setFlag('flag_ch2_got_tomato', 0);
+    setFlag('flag_ch2_stage', 0);
+  }
+  game.scripts.run(
+    (function* () {
+      yield* startBattle({ ...b, ...o });
+    })(),
+  );
+  return 'started ' + name;
+});
+/** `bossLight()`: during ヨビモドシ, light it up (the tomato held up at once) / put it out. */
+registerDebug('bossLight', () => {
+  const s = current;
+  if (!s || s.bossKind !== 'yobimodoshi') return 'no yobimodoshi';
+  if (yobiState(s).light) dimNow(s);
+  else raiseTomatoNow(s, 'minato');
+  return yobiState(s).light ? 'light' : 'dark';
+});
+/** `tenko(n)`: set ヨビモドシ's lit name tags to n (0–4). */
+registerDebug('tenko', (n = 3) => {
+  const s = current;
+  if (!s || s.bossKind !== 'yobimodoshi') return 'no yobimodoshi';
+  s.bossChime.lit = Math.max(0, Math.min(4, n));
+  s.setMusicParam('tenko', s.bossChime.lit);
+  return s.bossChime.lit;
+});
+/** `restTest()`: every enemy gets two rests (おつかれさま's 休憩中). */
+registerDebug('restTest', () => {
+  const s = current;
+  if (!s) return 'no battle';
+  for (const e of s.aliveEnemies) {
+    e.status.kyuukei = 2;
+    e.status.kyuukeiSkipped = 0;
+    if (e.status.tetsuya) {
+      e.status.tetsuya = false;
+      e.stages.def.lv = 0;
+    }
+    e.setPose('rest');
+    e.params.tapeAt_kyuukei = s.t;
+  }
+  return s.aliveEnemies.map((e) => e.id);
+});
+/** `bkon(1|-1|0)`: the next かねを鳴らす (Lv6+) rings 「コン」 / never / by chance. */
+registerDebug('bkon', (n = 1) => {
+  if (!current) return 'no battle';
+  current.memo.forceKon = n;
+  return n;
+});
+/** `bphase(n)`: ヨビモドシ's HP to its phase-2 threshold (2) or the finale (3). */
+registerDebug('bphase', (n = 2) => {
+  const e = current?.enemies.find((x) => x.def.boss);
+  if (!current || !e) return 'no boss';
+  e.hp = n >= 3 ? 80 : 215;
+  return e.hp;
 });
 
 export { current as _battle };

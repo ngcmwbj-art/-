@@ -13,3 +13,8 @@ import './parking';
 import './lot_life';
 import './riverside';
 import './rooms';
+// Chapter 2 『星見台のトマト』 (levels team, 52_ch2_level_art 7章)
+import './hoshi_bld';
+import './hoshi_public';
+import './hoshi_station';
+import './hoshi_yard';

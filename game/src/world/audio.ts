@@ -20,7 +20,7 @@ function call(name: string, ...args: unknown[]): unknown {
   return undefined;
 }
 
-export function se(id: string, opts?: { pitch?: number; pan?: number; vol?: number }): void {
+export function se(id: string, opts?: { pitch?: number; pan?: number; vol?: number; level?: number }): void {
   audio.sfx(id, opts);
 }
 
@@ -58,7 +58,7 @@ export function placeOf(x: number, y: number): { pan: number; gain: number } | n
 }
 
 /** A sound effect made by something at (x, y) in the field: placed and faded with distance. */
-export function seAt(id: string, x: number, y: number, opts: { pitch?: number; vol?: number } = {}): void {
+export function seAt(id: string, x: number, y: number, opts: { pitch?: number; vol?: number; level?: number } = {}): void {
   const pl = placeOf(x, y);
   if (!pl) return;
   audio.sfx(id, { ...opts, pan: pl.pan, vol: (opts.vol ?? 1) * pl.gain });

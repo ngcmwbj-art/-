@@ -8,7 +8,7 @@ import { rng } from '../engine/rng';
 import { ease } from '../engine/tween';
 import { Gfx } from '../engine/gfx';
 import { BAYER4, makeCanvas } from '../engine/pixel';
-import { CAPSULE_TABLE, fillAll, getItem, getSkill, ITEM_TEXT, LABEL, NORI, NORI_COMMON, SYS } from '../data/battle';
+import { CAPSULE_TABLE, fillAll, getItem, getSkill, ITEM_TEXT, LABEL, NORI, NORI_COMMON, NORI_HOSHI, SYS, SYS2 } from '../data/battle';
 import type { BattleScene } from './scene';
 import { FRAME, STAGE_TOP } from './scene';
 import {
@@ -19,6 +19,7 @@ import {
   markDefeated, resetKire, showSticky, statusText,
 } from './common';
 import { drawNet, balloon, bigHeart, crowLit, mangaLettering, musicNote, noriBoard, poppedBalloon, sweatDrop, thickLine } from './art/fxart';
+import { straw } from './art/fxart_ch2';
 import { all } from '../engine/co';
 import { duckMusic, muteMusic, musicFlee, sfx, sfxLoop } from '../audio';
 import { beachSandal, hankoCloseup } from './art/fxart';
@@ -29,7 +30,9 @@ import { C, tapeCanvas } from './ui/note';
 import { FLAG_PAD, kanenariBack, kanenariFront, MIC_AT } from '../art/enemies/kanenari';
 import { portrait } from '../art/chars';
 import { bokemakeLabel, timingSlow, tsukkomiWindows } from './tsukkomi';
-import { onBossPartBreak, onBossBodyMimashita, bossUndo, doOkaerinasai } from './boss';
+import { onBossPartBreak, onBossBodyMimashita, bossUndo, doOkaerinasai, doOyasuminasai } from './boss';
+import { raiseTomato, yobiLit } from './boss_yobimodoshi';
+import { hankoOtsukaresama, hatoMeishiKacho, kaneKon, konRing, pekeHamidashi, shockBack, shockLine } from './party_ch2';
 
 // ---- helpers -----------------------------------------------------------------------
 
@@ -514,6 +517,8 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
       s.sfx('se_bell_dud', { pitch: 0.8 });
       back.frame = 'ring';
     }
+    // 感電 (51 8.3): each 打 that lands on the fence stings the one who hit it
+    if (r.hit && !r.killed && t.def.shock) s.run(shockBack(s, u, t));
     if (r.killed) {
       killed = true;
       break;
@@ -566,6 +571,7 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
   }
   if (netFx) netFx.done = true;
   yield 100;
+  if (target && target.def.shock) yield* shockLine(s, target);
 }
 
 /** Defeat one or more enemies (multi-kills drop 100ms apart). */
@@ -805,9 +811,25 @@ export function* doHanko(s: BattleScene, cmd: Extract<PartyCmd, { kind: 'hanko' 
   const u = cmd.u;
   const sk = getSkill(cmd.skill)!;
   const kanenariEvent = s.enemies.some((e) => e.id === 'enemy_kanenari');
+  if (cmd.skill === 'skill_oyasuminasai') {
+    yield* doOyasuminasai(s, u);
+    return;
+  }
+  // a dark ラッパ (51 10.2): still dark when the turn comes — nothing to see;
+  // the turn is spent, the ink is not
+  if (cmd.part && s.bossKind === 'yobimodoshi' && !yobiLit(s)) {
+    s.post(fillAll(SYS.hankoReady, { skill: sk.name }));
+    yield 300;
+    yield* s.say(SYS2.rappaDarkStamp);
+    return;
+  }
+  // テツヤ: おつかれさま can be pressed with too little ink (it is 0 then,
+  // and かすれ) — he is rested whatever the judgement (51 5.1)
+  const tetsuya = cmd.skill === 'skill_otsukaresama' && cmd.target.kind === 'enemy' && !!(cmd.target as EnemyUnit).def.restAlways;
   let lowInk = false;
   if (u.m.mp < (sk.cost ?? 0)) {
     if (kanenariEvent && cmd.skill === 'skill_mimashita') lowInk = true;
+    else if (tetsuya) lowInk = true;
     else {
       yield* s.say(SYS.noInk);
       return;
@@ -839,6 +861,9 @@ export function* doHanko(s: BattleScene, cmd: Extract<PartyCmd, { kind: 'hanko' 
       break;
     case 'skill_yarinaoshi':
       yield* hankoYarinaoshi(s, target as EnemyUnit, judge, cmd.part);
+      break;
+    case 'skill_otsukaresama':
+      yield* hankoOtsukaresama(s, u, target as EnemyUnit, judge);
       break;
   }
 }
@@ -880,8 +905,12 @@ function* hankoPeke(s: BattleScene, u: PartyUnit, e: EnemyUnit, j: Judge): Co {
   const killed = hurtEnemy(s, e, dmg, { big: j === 'kukkiri' });
   knock(s, e, 3);
   consumeBokemake(e, boke);
+  // Lv7 (51 3.5): a くっきり ペケ spills over — onto the neighbours, or the same edge again
+  const spill = j === 'kukkiri' ? yield* pekeHamidashi(s, u, e, dmg) : [];
+  const down = [...(killed ? [e] : []), ...spill.filter((x) => x !== e)];
+  if (!killed && spill.includes(e)) down.unshift(e);
   // a finishing stamp goes straight into 思いだす (its hitstop overrides the hit's)
-  if (killed) yield* killSequence(s, [e]);
+  if (down.length) yield* killSequence(s, down);
   else yield 400;
 }
 
@@ -965,6 +994,16 @@ function* hankoMimashita(s: BattleScene, u: PartyUnit, e: EnemyUnit, j: Judge, p
   else if (again) yield* s.say(fillAll(SYS.mimashitaAgain, { enemy: e.name }));
   else yield* s.say(fillAll(SYS.mimashita, { enemy: e.name }));
   void first;
+  // スネトマト (51 8.1): seen, it stops sulking and turns round to face us
+  if (e.status.sune) {
+    e.status.sune = false;
+    e.setPose('turnFront');
+    s.sfx('se_h_sune', { pitch: 1.25, vol: 0.7 });
+    s.memo.suneTut = 0;
+    yield 250;
+    yield* s.say(fillAll(e.def.texts.extra.mimashitaAfter ?? [], { enemy: e.name }));
+    if (e.pose === 'turnFront') e.setPose('idle');
+  }
   if (e.id === 'enemy_semi_final' && e.mem.seen === 1) {
     e.mem.seen = 2;
     yield* s.say(e.def.texts.extra.mimashitaAfter);
@@ -1235,6 +1274,46 @@ function* prKane(s: BattleScene, u: PartyUnit): Co {
   s.sfx('se_bell_dud');
   back.frame = 'idle';
   yield () => !s.msg.busy;
+  // Lv6 (51 3.5): one time in four, a small 「コン」 — no crow, キレ+2
+  if (kaneKon(s, u)) {
+    muteMusic(0.3);
+    s.freezeLook = { t: 0, x: 304 + 26, y: 96 };
+    s.freezeMs = 300;
+    yield null;
+    s.freezeLook = null;
+    konRing(s, 304, Math.round(back.y) - 30);
+    const bangK = kireIcon(true, true);
+    for (let i = 0; i < 2; i++) {
+      s.addFx({
+        layer: 'top',
+        dur: 900 + i * 80,
+        ui: true,
+        draw: (g, t) => {
+          const tt = t - i * 80;
+          if (tt < 0) return;
+          const sc = tt < 90 ? 1.8 - 0.8 * (tt / 90) : 1;
+          const w = bangK.width * sc;
+          const h = bangK.height * sc;
+          const bx = 304 + 8 + i * 12;
+          const by = Math.round(back.y) - 62 - (tt < 90 ? 0 : Math.min(3, (tt - 90) / 60));
+          g.alpha(tt > 700 ? (900 - tt) / 200 : 1, () => g.ctx.drawImage(bangK, Math.round(bx - w / 2), Math.round(by - h / 2), Math.round(w), Math.round(h)));
+        },
+      });
+    }
+    yield* s.say(SYS2.kaneKon.slice(0, 1));
+    addKire(s, 2);
+    yield* s.say(SYS2.kaneKon.slice(1));
+    s.msgInteractive = false;
+    for (let i = 0; i <= 8; i++) {
+      back.y = 142 + 88 * ease.quadIn(i / 8);
+      yield null;
+    }
+    fx.done = true;
+    const fullK = kireFullPages(s);
+    if (fullK.length) yield* s.say(fullK);
+    else yield 200;
+    return;
+  }
   // the whole screen stops for 0.3s (background, enemies, music): the frame
   // freezes grey, and the silence gets its manga lettering beside the bell
   muteMusic(0.3);
@@ -1317,6 +1396,17 @@ export function* doItem(s: BattleScene, u: PartyUnit, itemId: string, target0: P
   const it = getItem(itemId);
   if (!it) return;
   if (!state.inventory.includes(itemId)) return;
+  // the はなまるトマト held up (51 10.3): a key item, never used up
+  if (it.special === 'tomato') {
+    yield* raiseTomato(s, u);
+    return;
+  }
+  // ハトの名刺 to ヘノヘノ課長 (51 6.2): he draws a troubled face — ボケ負け
+  if (itemId === 'item_hato_meishi') {
+    const kacho = s.aliveEnemies.find((e) => e.id === 'enemy_henoheno_kacho');
+    if (kacho) yield* hatoMeishiKacho(s, kacho);
+    return;
+  }
   const text = ITEM_TEXT[itemId];
   const target = target0 && !target0.has('status_rusu') ? target0 : null;
   const toKanenari = target?.id === 'kanenari';
@@ -1329,11 +1419,13 @@ export function* doItem(s: BattleScene, u: PartyUnit, itemId: string, target0: P
   const giving = target && target !== u;
   // handing it over names the giver and the receiver; Kanenari-kun's own
   // reaction (the zipper…) follows when he is the one who gets it
+  // (ゆでとうもろこし: the second eater's line follows once both are healed)
+  const selfPages = it.special === 'corn' ? (text?.self ?? []).slice(0, 1) : text?.self;
   const first = giving
     ? [...fillAll(SYS.itemGive, v), ...(toKanenari && text?.kanenari ? text.kanenari : [])]
     : toKanenari && text?.kanenari
       ? text.kanenari
-      : fillAll(text?.self ?? SYS.itemSelf, v);
+      : fillAll(selfPages ?? SYS.itemSelf, v);
   s.post(first);
   // item icon arcs up from the bottom of the screen into the panel (250ms)
   const icon = itemIcon(itemId);
@@ -1365,7 +1457,8 @@ export function* doItem(s: BattleScene, u: PartyUnit, itemId: string, target0: P
       const wasDown = !d.alive;
       if (def.heal) healParty(s, d, def.heal);
       if (def.healRate) healParty(s, d, d.m.maxHp * def.healRate);
-      if (def.mp) healParty(s, d, def.mp, { mp: true });
+      // 朱肉 only goes into Minato (梅干し given to Kanenari-kun: just sour)
+      if (def.mp && d.m.maxMp > 0) healParty(s, d, def.mp, { mp: true });
       if (def.cure) for (const c of def.cure) if (d.has(c)) cureStatus(s, d, c);
       if (def.special === 'shippu')
         for (const k of ['atk', 'def', 'hit'] as const)
@@ -1389,6 +1482,13 @@ export function* doItem(s: BattleScene, u: PartyUnit, itemId: string, target0: P
     yield () => !s.msg.busy;
     yield* s.say(text!.extra!.none);
     return;
+  } else if (it.special === 'umeboshi' && target && !(it.cure ?? []).some((c) => target.has(c))) {
+    // nothing to wake from: sour all the same (the 朱肉 still goes in for Minato)
+    apply(itemId, dests);
+    yield 300;
+    yield () => !s.msg.busy;
+    if (!toKanenari) yield* s.say(text!.extra!.none);
+    return;
   } else {
     apply(itemId, dests);
   }
@@ -1400,6 +1500,7 @@ export function* doItem(s: BattleScene, u: PartyUnit, itemId: string, target0: P
     else out.push(...text!.extra!.atariFull);
   }
   if (itemId === 'item_oden_can' && text!.self.length > 1) out.unshift(text!.self[1]);
+  if (it.special === 'corn' && text!.self.length > 1) out.unshift(...text!.self.slice(1));
   if (out.length) yield* s.say(out);
 }
 
@@ -1535,12 +1636,14 @@ export function noriSpot(s: BattleScene): { x: number; foot: number; sc: number 
 export function* doNori(s: BattleScene): Co {
   const first = !s.memo.noriCount;
   s.memo.noriCount = (s.memo.noriCount ?? 0) + 1;
-  let pick = rng.int(0, NORI.length - 1);
-  if (pick === s.memo.noriLast) pick = (pick + 1) % NORI.length;
-  // QA: __game.cmd.bnori(n) picks the boke (1 sing, 2 flag, 3 flip)
-  if (s.memo.noriForce) pick = (s.memo.noriForce - 1) % NORI.length;
+  // 星見台 adds ボケD: straw on his head, the scarecrow (50 6.9, 51 14.13)
+  const bokes = s.hoshi ? [...NORI, NORI_HOSHI] : NORI;
+  let pick = rng.int(0, bokes.length - 1);
+  if (pick === s.memo.noriLast) pick = (pick + 1) % bokes.length;
+  // QA: __game.cmd.bnori(n) picks the boke (1 sing, 2 flag, 3 flip, 4 scarecrow)
+  if (s.memo.noriForce) pick = (s.memo.noriForce - 1) % bokes.length;
   s.memo.noriLast = pick;
-  const nori = NORI[pick];
+  const nori = bokes[pick];
   // 0: the three "!" fly to the centre, screen darkens
   s.sfx('se_kire_full');
   const bang = kireIcon(true, true);
@@ -1739,7 +1842,11 @@ export function* doNori(s: BattleScene): Co {
       // 40_audio 13.3: each boke has its own sound (cut by the tsukkomi)
       if (nori.pose === 'sing') singLoop = sfxLoop('se_nori_sing');
       else if (nori.pose === 'flag') s.sfx('se_nori_flag');
-      else {
+      else if (nori.pose === 'kakashi') {
+        // the straw drops on him with a whump; arms out like the crossbar, on one leg
+        s.sfx('se_umbrella_open', { pitch: 0.7 });
+        for (let i = 0; i < 6; i++) s.burst(kf.x + rng.int(-10, 10), spot.foot - 56 * spot.sc, { count: 1, speed: [20, 60], angle: [Math.PI * 0.2, Math.PI * 0.8], life: [300, 520], colors: ['#E8C878'], gravity: 260, shape: 'img', img: straw(i) }, true);
+      } else {
         s.sfx('se_flip');
         kf.boardT = bokeFx.t;
       }

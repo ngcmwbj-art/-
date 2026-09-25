@@ -29,6 +29,10 @@ import { initNpc } from './npc';
 import { defeatSymbol as defeatSym } from './symbols';
 import { hud } from './hud';
 import type { NpcMove } from './types';
+import { currentStage, stageSourceFlag } from './maps';
+import { setLanternOverride } from './lantern';
+import { callNow, CALL_NAMES, playCall, resetCallTimer, setCallHandler, turnScarecrows } from './hoshi';
+import type { GradeHKey } from './lighting';
 
 export { registerScript, hasScript } from './scripts';
 export type { ScriptCtx, ScriptFn } from './scripts';
@@ -280,9 +284,13 @@ export function* warp(map: string, x: number, y: number, dir: Dir = 'down', opts
   yield* f.warpCo(map, x, y, dir, opts.se, f.map.id);
 }
 
-/** Current stage (0/1/2, 3 = night). */
+/**
+ * Current stage of the map's world: chapter 1's flag_stage (0/1/2, 3 =
+ * night), or on 星見台 maps flag_ch2_stage (0 よなか, 1 ともしび, 2 よびごえ,
+ * 3 あさ; 02_ch2 6.2).
+ */
 export function stage(): number {
-  return flag('flag_stage');
+  return currentStage();
 }
 
 /**
@@ -295,7 +303,7 @@ export function setStage(n: number, opts: { ms?: number; music?: boolean } = {})
   if (f) {
     f.setStage(n, opts.ms);
     if (opts.music) f.applyAudio(false);
-  } else setFlag('flag_stage', n);
+  } else setFlag(stageSourceFlag(), n);
 }
 
 /** HUD clock (flag_clock 0..4 = 16:52 16:55 16:58 17:00 17:01). */
@@ -444,3 +452,99 @@ export function* msg(text: string): Co<number> {
 
 /** Tween any numeric props (re-export for cutscenes). */
 export { tween, animate, ease };
+
+// ---------------------------------------------------------------- 星見台 (chapter 2, 02_ch2 6.2〜6.3)
+
+/**
+ * fx_h_lantern_on (52 9.3): the tomato light opens from 24px to its radius
+ * over `ms` (ease-out) with a 1px ring running out once. Call it right
+ * after flag_ch2_got_tomato is set (evt_ch2_light); until then a freshly
+ * lit lantern waits, small, in Minato's hands.
+ */
+export function lanternOn(ms = 800): void {
+  field()?.light.lightUp(ms);
+}
+
+/** Force the lantern on / off for a scene (null: by the flags again). */
+export function lantern(on: boolean | null): void {
+  setLanternOverride(on);
+}
+
+/**
+ * A light standing in the dark swells for a moment (evt_ch2_tomato: the
+ * はなまるトマト blushes, ×1.5 for 300 ms, twice). `mapId` guards against
+ * calling it on another map.
+ */
+export function pulseDarkLight(mapId: string, k = 1.5, ms = 300): void {
+  const f = field();
+  if (!f || (mapId && f.map.id !== mapId)) return;
+  f.light.pulse(k, ms);
+}
+
+/**
+ * The dawn of the ending (52 8.3): tween the grade of a 星見台 map to one of
+ * the pal_h* presets ('h3a' before the chime, 'h3b' the sunrise 3.0 s,
+ * 'h3c' the morning). setStage(3) itself starts at h3a.
+ */
+export function setGradeH(key: GradeHKey, ms = 800): void {
+  field()?.setGradeH(key, ms);
+}
+
+/**
+ * fx_h_kakashi_turn (evt_ch2_yobigoe t=0.6): every scarecrow (and the
+ * restored ヘノヘノ課長) turns to the hill over 1.2 s, 0–6 frames apart, with
+ * se_h_kakashi_turn (the ones off screen only faintly). Where they rest
+ * afterwards follows flag_ch2_stage (2 = the hill): set the stage too.
+ */
+export function kakashiTurn(to: 'hill' | 'field' = 'hill'): void {
+  const f = field();
+  if (f) turnScarecrows(f, to);
+}
+
+/**
+ * The loudspeaker's calls (evt_ch2_calls, 45/30/15 s by stage; the world's
+ * timer). callNow() makes one at once; resetCalls() starts the count over
+ * (after a scripted call) and can set the next name (index into CALL_NAMES).
+ * callsHandler() lets an event say / do something else on the next calls.
+ */
+export function callsNow(): void {
+  const f = field();
+  if (f) callNow(f);
+}
+export function resetCalls(nextName?: number): void {
+  resetCallTimer(nextName);
+}
+export { playCall, setCallHandler as callsHandler, CALL_NAMES };
+
+/**
+ * Take an enemy symbol out of its field behaviour while a scene moves it
+ * (walk()/place() still work), or give it back to it.
+ */
+export function holdSymbol(id: string, on: boolean): void {
+  const a = actor(id);
+  if (a && a.kind === 'sym') a.data.scripted = on || undefined;
+}
+
+/**
+ * テツヤ's headlight (evt_ch2_tetsuya: he stops and turns the lamp on them):
+ * point a self-lit symbol's lamp at an actor ('player', 'kanenari', an id)
+ * or a tile. Holds the symbol (holdSymbol(id, false) gives it back).
+ */
+export function aimLamp(id: string, at: string | [number, number]): void {
+  const a = actor(id);
+  if (!a) return;
+  let tx: number;
+  let ty: number;
+  if (typeof at === 'string') {
+    const b = actor(at);
+    if (!b) return;
+    tx = b.x;
+    ty = b.y - 8;
+  } else {
+    tx = at[0] * 16 + 8;
+    ty = at[1] * 16 + 8;
+  }
+  a.data.scripted = true;
+  a.data.lampAngle = Math.atan2(ty - (a.y - 8), tx - a.x);
+  a.dir = Math.abs(tx - a.x) >= Math.abs(ty - a.y) ? (tx < a.x ? 'left' : 'right') : ty < a.y ? 'up' : 'down';
+}

@@ -8,7 +8,7 @@ import { addTask } from './clock';
 import { cur, dbToGain, hasGraph, midiHz, noiseSource, onSample, PaChain, makeIRMono, monoSum, spread, voice, type Graph, type VoiceOpts } from './engine';
 import { chimeNote, DRM } from './instruments';
 import { ambTrim, trimOr1 } from './mix';
-import { musicParams, stageListeners } from './music';
+import { hStageListeners, musicParams, stageListeners } from './music';
 import { sfxTable } from './registry';
 import { Rng } from '../engine/rng';
 
@@ -18,19 +18,23 @@ export interface AmbOpts {
   lp?: number;
 }
 
-interface AmbCtx {
+export interface AmbCtx {
   g: Graph;
   t0: number;
   /** Where every layer goes (the instance's volume / window filter). */
   dest: AudioNode;
   rng: Rng;
   stage: number;
+  /** 星見台's stage (53_ch2_audio 6.1; −1 away from 星見台). */
+  hStage: number;
   seed: number;
 }
 
-interface AmbImpl {
+export interface AmbImpl {
   pump?(until: number): void;
   setStage?(stage: number, at: number): void;
+  /** 53_ch2_audio 6.1: the amb_h_* hear 星見台's stage (hStageListeners). */
+  setHStage?(stage: number, at: number): void;
   event?(name: string, pan: number | undefined, at: number): void;
   /** Stop the sources (after the fade has run). */
   stop(at: number): void;
@@ -38,13 +42,13 @@ interface AmbImpl {
   windDown?(at: number, fade: number): void;
 }
 
-type AmbFactory = (c: AmbCtx) => AmbImpl;
+export type AmbFactory = (c: AmbCtx) => AmbImpl;
 
 // ---------------------------------------------------------------------------
 // building blocks
 
 /** A mono control-rate buffer (8 kHz) for slow modulations. */
-function modBuffer(g: Graph, seconds: number, fn: (t: number) => number): AudioBuffer {
+export function modBuffer(g: Graph, seconds: number, fn: (t: number) => number): AudioBuffer {
   const sr = 8000;
   const n = Math.floor(sr * seconds);
   const b = g.ctx.createBuffer(1, n, sr);
@@ -54,7 +58,7 @@ function modBuffer(g: Graph, seconds: number, fn: (t: number) => number): AudioB
 }
 
 /** Looping modulation into an AudioParam (added to its base value). */
-function modulate(g: Graph, at: number, buf: AudioBuffer, param: AudioParam, depth: number): { stop(t: number): void; k: GainNode } {
+export function modulate(g: Graph, at: number, buf: AudioBuffer, param: AudioParam, depth: number): { stop(t: number): void; k: GainNode } {
   const s = g.ctx.createBufferSource();
   s.buffer = buf;
   s.loop = true;
@@ -67,7 +71,7 @@ function modulate(g: Graph, at: number, buf: AudioBuffer, param: AudioParam, dep
 }
 
 /** Smooth random curve in [-1, 1] with the given rough frequency (Hz). */
-function smoothRandom(rng: Rng, hzLo: number, hzHi: number): (t: number) => number {
+export function smoothRandom(rng: Rng, hzLo: number, hzHi: number): (t: number) => number {
   const pts: [number, number][] = [[0, rng.range(-1, 1)]];
   let t = 0;
   while (t < 600) {
@@ -87,7 +91,7 @@ function smoothRandom(rng: Rng, hzLo: number, hzHi: number): (t: number) => numb
 }
 
 /** Sample & hold random in [0, 1] at a random rate between hzLo..hzHi. */
-function sampleHold(rng: Rng, hzLo: number, hzHi: number): (t: number) => number {
+export function sampleHold(rng: Rng, hzLo: number, hzHi: number): (t: number) => number {
   let next = 0;
   let v = 0;
   let last = -1;
@@ -104,7 +108,7 @@ function sampleHold(rng: Rng, hzLo: number, hzHi: number): (t: number) => number
   };
 }
 
-interface Bed {
+export interface Bed {
   gain: GainNode;
   filter: BiquadFilterNode;
   src: AudioScheduledSourceNode;
@@ -112,7 +116,7 @@ interface Bed {
 }
 
 /** Continuous filtered noise. */
-function noiseBed(c: AmbCtx, type: BiquadFilterType, freq: number, q: number, vol: number, dest: AudioNode = c.dest, pan = 0): Bed {
+export function noiseBed(c: AmbCtx, type: BiquadFilterType, freq: number, q: number, vol: number, dest: AudioNode = c.dest, pan = 0): Bed {
   const g = c.g;
   const src = noiseSource(g, c.t0);
   const f = g.ctx.createBiquadFilter();
@@ -135,7 +139,7 @@ function noiseBed(c: AmbCtx, type: BiquadFilterType, freq: number, q: number, vo
 }
 
 /** Continuous oscillator. */
-function toneBed(c: AmbCtx, type: OscillatorType | 'p25', freq: number, vol: number, dest: AudioNode = c.dest, lp?: number, q = 0.7): Bed {
+export function toneBed(c: AmbCtx, type: OscillatorType | 'p25', freq: number, vol: number, dest: AudioNode = c.dest, lp?: number, q = 0.7): Bed {
   const g = c.g;
   const o = g.ctx.createOscillator();
   o.type = type === 'p25' ? 'square' : type;
@@ -154,7 +158,7 @@ function toneBed(c: AmbCtx, type: OscillatorType | 'p25', freq: number, vol: num
 }
 
 /** Scheduler for randomly spaced events. */
-class Every {
+export class Every {
   next: number;
   constructor(
     public c: AmbCtx,
@@ -950,6 +954,16 @@ let task = false;
 
 export const AMBIENCE_IDS = Object.keys(AMB);
 
+/**
+ * Add an ambience recipe from another file (the chapter-2 beds live in
+ * ambience_ch2.ts). The id joins AMBIENCE_IDS, so the QA report and the sound
+ * test see it like any other.
+ */
+export function registerAmbience(id: string, f: AmbFactory): void {
+  if (!(id in AMB)) AMBIENCE_IDS.push(id);
+  AMB[id] = f;
+}
+
 /** Ambience schedules 0.3 s ahead like the music (a stall must not bunch the insects). */
 const AMB_LOOKAHEAD = 0.3;
 
@@ -966,10 +980,14 @@ function ensureTask(): void {
     const g = cur();
     for (const i of active.values()) i.impl.setStage?.(s, g.ctx.currentTime);
   });
+  hStageListeners.push((s) => {
+    const g = cur();
+    for (const i of active.values()) i.impl.setHStage?.(s, g.ctx.currentTime);
+  });
 }
 
 /** Build an ambience into any graph (live or offline). Returns the instance. */
-export function createAmbient(g: Graph, id: string, opts: AmbOpts, dest: AudioNode, at?: number, stage?: number): Inst | null {
+export function createAmbient(g: Graph, id: string, opts: AmbOpts, dest: AudioNode, at?: number, stage?: number, hStage?: number): Inst | null {
   const f = AMB[id];
   if (!f) {
     if (import.meta.env.DEV) console.warn(`[audio] unknown ambience ${id}`);
@@ -993,7 +1011,7 @@ export function createAmbient(g: Graph, id: string, opts: AmbOpts, dest: AudioNo
   lp.connect(dest);
   // live: a new take every time; offline QA renders: the same take for the same id
   const seed = g.offline ? [...id].reduce((h, ch) => (Math.imul(h, 31) + ch.charCodeAt(0)) | 0, 7) >>> 0 : (Math.random() * 1e9) | 0;
-  const impl = f({ g, t0, dest: out, rng: new Rng(seed), stage: stage ?? musicParams().stage, seed });
+  const impl = f({ g, t0, dest: out, rng: new Rng(seed), stage: stage ?? musicParams().stage, hStage: hStage ?? musicParams().h_stage, seed });
   return { id, out, lp, impl, stopping: false };
 }
 

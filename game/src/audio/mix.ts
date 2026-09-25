@@ -56,6 +56,25 @@ const SE_TARGET: Record<string, number> = {
   se_zipper: UI, se_paper_bag: UI, se_star: -18,
   // the PA and the bells
   se_chime_note: -12, se_pa_chime: -8, se_pa_chime_end: -8, se_bell_dud: -8,
+  // ---- chapter 2 (53_ch2_audio 8)
+  // the prologue, the train, the station
+  se_h_crossing_bell: -12, se_h_crossing_down: -14, se_h_train_brake: -12, se_h_train_idle: -22, se_h_train_door: -14,
+  se_h_train_chime: -12, se_h_seiriken: -16, se_h_coin_box: -14,
+  // the village, the greenhouse, the meeting room
+  se_h_vinyl_door: -14, se_h_yunomi: -16, se_h_yunomi_pour: -16, se_h_tomato_catch: -12, se_h_lantern_set: -14,
+  se_h_light_spread: SKILL, se_h_boukatou_on: -16, se_h_kaichu: -18, se_h_kakashi_turn: -16, se_h_keitora: -12,
+  se_h_keitora_go: -12, se_h_chalk: -18, se_h_chalk_erase: -18, se_h_kairan: -16,
+  // the barn and the farm (the cattle are never louder than a person nearby)
+  se_h_shodoku: -16, se_h_hansuu: -20, se_h_cow_snort: -18, se_h_moo: -14, se_h_barn_light: -16, se_h_feed_cart: -16,
+  se_h_feedbag: -16, se_h_gate_hook: -14, se_h_side_roll: -16, se_h_ripen: -12,
+  // the PA (bus_pa: the trim rides into the speaker)
+  se_h_pa_open: -12, se_h_pa_close: -14, se_h_pa_last: -8, se_h_morning_chime: -8,
+  // the fights: the enemies' moves, the boss, the new stamps (softer than an attack: 51 14.1)
+  se_h_yofukashi: HIT, se_h_howl: -14, se_h_dim: -14, se_h_amado: -8, se_h_yamabiko: -12, se_h_sukima: -12,
+  se_h_otsukare: -12, se_h_bell_kon: -12, se_h_charin: -12, se_h_aokusai: -12, se_h_roll: -12,
+  // feet, the scarecrow's hop, the ending
+  se_step_sheet: -24, se_h_kakashi_hop: -18, se_h_tomato_rise: -12, se_h_sunrise: -14, se_h_bus_idle: -18,
+  se_h_bus_door: -14, se_h_bus_depart: -14, se_h_bus_arrive: -14,
 };
 
 const GROUP_TARGET: Record<string, number> = {
@@ -68,6 +87,14 @@ const GROUP_TARGET: Record<string, number> = {
   '戦闘：共通': SKILL,
   '戦闘：能力': SKILL,
   '戦闘：敵の技': SKILL,
+  '第2章：プロローグ・電車・駅': -14,
+  '第2章：村・ハウス・集会所': UI,
+  '第2章：牛舎・農': UI,
+  '第2章：放送・チャイム': -8,
+  '第2章：戦闘・敵の技': SKILL,
+  '第2章：戦闘・ボス': SKILL,
+  '第2章：戦闘・ハンコ・能力': SKILL,
+  '第2章：足音・シンボル・エンディング': -14,
 };
 
 /** SEs that are silent by design (a cut): never trimmed. */
@@ -106,6 +133,18 @@ export const BGM_TARGET: Record<string, number> = {
   bgm_home: -4, bgm_shop: -4, bgm_mall: -4,
   bgm_title: -6, bgm_title_clear: -6, bgm_ending: -5, bgm_night: -8,
   bgm_jingle_victory: -1, bgm_jingle_levelup: -1, bgm_jingle_item: -2, bgm_jingle_join: -1, bgm_jingle_gameover: -6,
+  // chapter 2 (53_ch2_audio 10.1): 星見台の夜 is measured at 段階1 (the lantern
+  // singing); 段階0 has fewer parts and reads ~3 dB quieter, as it should
+  bgm_boss_yobimodoshi: 0, bgm_hoshi_morning: -4, bgm_hoshi_night: -6,
+};
+
+/**
+ * The params a song is measured at by the QA renders (report.ts) unless a
+ * check asks for others: 星見台の夜 at 段階1, 星見台の朝 past the dawn.
+ */
+export const QA_PARAMS: Record<string, Record<string, number>> = {
+  bgm_hoshi_night: { h_stage: 1 },
+  bgm_hoshi_morning: { h_stage: 3 },
 };
 
 // ---------------------------------------------------------------------------
@@ -120,6 +159,7 @@ export const ROLE_TARGET: Record<PartRole, number | null> = {
 /** The part every other part of a song is levelled against (its main tune). */
 export const REF_PART: Record<string, string> = {
   bgm_title: 'mbox', bgm_title_clear: 'mbox', bgm_home: 'melody', bgm_shop: 'melody', bgm_ending: 'melody', bgm_night: 'stars',
+  bgm_hoshi_night: 'lantern', bgm_hoshi_morning: 'lead', bgm_boss_yobimodoshi: 'lead',
 };
 /** Parts whose colour is the point of the song: a closer target than their role. */
 export const TARGET_OVERRIDE: Record<string, number> = {
@@ -136,6 +176,14 @@ const ROLE_OVERRIDE: Record<string, PartRole> = {
   'bgm_ending/melody': 'melody', 'bgm_ending/flute': 'counter', 'bgm_ending/counter': 'counter', 'bgm_ending/epiano': 'chords',
   'bgm_night/stars': 'melody',
   'bgm_battle/break': 'melody', 'bgm_battle/bass_intro': 'bass',
+  // chapter 2
+  'bgm_hoshi_night/lantern': 'melody', 'bgm_hoshi_night/stars': 'counter', 'bgm_hoshi_night/yobigoe': 'counter',
+  'bgm_hoshi_night/organ': 'pads',
+  'bgm_boss_yobimodoshi/organ': 'melody', 'bgm_boss_yobimodoshi/organ_chords': 'pads', 'bgm_boss_yobimodoshi/lantern': 'melody',
+  'bgm_boss_yobimodoshi/tenko': 'counter', 'bgm_boss_yobimodoshi/mic': 'drums', 'bgm_boss_yobimodoshi/pad_intro': 'pads',
+  'bgm_boss_yobimodoshi/intro': 'fx', 'bgm_boss_yobimodoshi/intro_chime': 'fx',
+  'bgm_hoshi_morning/mbox': 'counter', 'bgm_hoshi_morning/mbox_hi': 'counter', 'bgm_hoshi_morning/marimba': 'melody',
+  'bgm_hoshi_morning/chime': 'melody', 'bgm_hoshi_morning/pedal': 'bass', 'bgm_hoshi_morning/pad_dawn': 'pads',
 };
 export function partRole(song: string, part: string): PartRole {
   const o = ROLE_OVERRIDE[`${song}/${part}`];
@@ -170,6 +218,16 @@ export const PART_TRIM: Record<string, number> = {
   'bgm_town_s1/mbox': 4.5, 'bgm_town_s1/pad': -1.5, 'bgm_town_s1/sub': -6, 'bgm_town_s2/bass': -5.5,
   'bgm_town_s2/drums': 0, 'bgm_town_s2/epiano': -3, 'bgm_town_s2/marimba': 2.5, 'bgm_town_s2/mbox': 4.5,
   'bgm_town_s2/pad': -1.5, 'bgm_town_s2/sub': -6,
+  // chapter 2 (audioBalance at 段階1 / phase 1 / past the dawn, then by ear:
+  // the shaker and the microphone taps are a hat's level, not a kit's)
+  'bgm_hoshi_night/stars': 3.5, 'bgm_hoshi_night/pad': -1.5, 'bgm_hoshi_night/sub': -9, 'bgm_hoshi_night/bass': -5.5,
+  'bgm_hoshi_night/drums': 6, 'bgm_hoshi_night/yobigoe': 4,
+  'bgm_boss_yobimodoshi/organ': -3.5, 'bgm_boss_yobimodoshi/organ_chords': -6, 'bgm_boss_yobimodoshi/pad': -3,
+  'bgm_boss_yobimodoshi/pad_intro': -4, 'bgm_boss_yobimodoshi/bass': -6, 'bgm_boss_yobimodoshi/drums': -2,
+  'bgm_boss_yobimodoshi/mic': 8, 'bgm_boss_yobimodoshi/intro': -4,
+  'bgm_hoshi_morning/mbox_hi': 2.5, 'bgm_hoshi_morning/chime': 4, 'bgm_hoshi_morning/marimba': 2.5,
+  'bgm_hoshi_morning/epiano': -4, 'bgm_hoshi_morning/pad': -3, 'bgm_hoshi_morning/bass': -6, 'bgm_hoshi_morning/drums': 1.5,
+  'bgm_hoshi_morning/pedal': -10, 'bgm_hoshi_morning/mbox': 4,
 };
 /** (Not bypassed by mixState: the part balance is part of the arrangement.) */
 export function partTrim(song: string, part: string): number {
@@ -205,6 +263,12 @@ export const PART_PAN: Record<string, number> = {
   // jingles: the chord / brass answer left, the sparkle right
   'bgm_jingle_victory/brass': -0.3, 'bgm_jingle_levelup/brass': -0.3, 'bgm_jingle_item/chord': -0.3,
   'bgm_jingle_join/chord': -0.3, 'bgm_jingle_item/sparkle': 0.4,
+  // chapter 2: the stars over the lantern's right shoulder; the calls come
+  // from the hill (the middle — the echoes fan out on their own); the name
+  // tags ring from the speaker's pole a little right of the roll call
+  'bgm_hoshi_night/stars': 0.3, 'bgm_hoshi_night/yobigoe': 0,
+  'bgm_boss_yobimodoshi/tenko': 0.28, 'bgm_boss_yobimodoshi/lead_mbox': -0.3, 'bgm_boss_yobimodoshi/intro_chime': 0.2,
+  'bgm_hoshi_morning/chime': 0.12, 'bgm_hoshi_morning/mbox': 0.3, 'bgm_hoshi_morning/mbox_hi': 0.34,
 };
 export function partPan(song: string, part: string): number {
   return PART_PAN[`${song}/${part}`] ?? (part === 'chime' ? 0.45 : ROLE_PAN[partRole(song, part)]);
@@ -246,6 +310,8 @@ export const BGM_TRIM: Record<string, number> = {
   bgm_shop: 11.5, bgm_mall: 12.5, bgm_battle: 10.5, bgm_midboss: 11, bgm_boss: 9.5, bgm_ending: 13.5, bgm_night: 15,
   bgm_jingle_victory: 8, bgm_jingle_levelup: 6.5, bgm_jingle_item: 7.5, bgm_jingle_join: 8,
   bgm_jingle_gameover: 10.5,
+  // chapter 2
+  bgm_hoshi_night: 12.5, bgm_boss_yobimodoshi: 10.5, bgm_hoshi_morning: 12,
 };
 
 export const SE_TRIM: Record<string, number> = {
@@ -275,6 +341,18 @@ export const SE_TRIM: Record<string, number> = {
   se_hug: 31, se_ojigi_press: 2, se_atari: 17.5, se_hazure: 16.5, se_vending_voice: 23.5, se_vacuum: 25,
   se_bump: 17.5, se_momi: 19, se_remote: 22.5, se_glove: 16.5, se_bottle: 22, se_uwabaki: 34.5, se_hanko_charge: 21,
   se_roulette: 22,
+  // chapter 2 (audioMixSuggest over the 第2章 groups)
+  se_h_crossing_bell: 21.5, se_h_crossing_down: 18.5, se_h_train_brake: 22, se_h_train_idle: 29, se_h_train_door: 18, se_h_train_chime: 21.5,
+  se_h_seiriken: 30, se_h_coin_box: 19.5, se_h_vinyl_door: 23, se_h_yunomi: 16, se_h_yunomi_pour: 26.5, se_h_tomato_catch: 17.5,
+  se_h_lantern_set: 28, se_h_light_spread: 23, se_h_boukatou_on: 30.5, se_h_kaichu: 23, se_h_kakashi_turn: 33.5, se_h_keitora: 21,
+  se_h_keitora_go: 20.5, se_h_chalk: 29, se_h_chalk_erase: 31.5, se_h_kairan: 29, se_h_shodoku: 19, se_h_hansuu: 25.5,
+  se_h_cow_snort: 25.5, se_h_moo: 27, se_h_barn_light: 23.5, se_h_feed_cart: 28, se_h_feedbag: 18.5, se_h_gate_hook: 22.5,
+  se_h_side_roll: 22, se_h_ripen: 22.5, se_h_pa_open: 17.5, se_h_pa_close: 18, se_h_pa_last: 9, se_h_morning_chime: 0.5,
+  se_h_sune: 23, se_h_roll: 25.5, se_h_aokusai: 26, se_h_biri: 16.5, se_h_boar: 36, se_h_soil: 23.5,
+  se_h_charin: 18, se_h_tiller: 28, se_h_stall: 27.5, se_h_tenko: 14, se_h_howl: 27.5, se_h_yofukashi: 9.5,
+  se_h_ressha: 16.5, se_h_sukima: 21, se_h_amado: 22.5, se_h_yamabiko: 34.5, se_h_onamae: 20.5, se_h_tomato_glow: 19,
+  se_h_dim: 25, se_h_otsukare: 27, se_h_bell_kon: 14, se_h_hamidashi: 17.5, se_step_sheet: 25, se_h_kakashi_hop: 19.5,
+  se_h_tomato_rise: 26, se_h_sunrise: 20, se_h_bus_idle: 22, se_h_bus_door: 19, se_h_bus_depart: 26.5, se_h_bus_arrive: 25.5,
 };
 export const VOICE_TRIM: Record<string, number> = {
   narr: 24, mother: 15, maruyama: 8, obaa: 15, mamekichi: 15.5, inui: 17, tsurumi: 16, sae: 17, jk: 15.5,
@@ -287,6 +365,12 @@ export const AMB_TRIM: Record<string, number> = {
   amb_fridge: 20.5, amb_tv: 36.5, amb_clock_tick: 20, amb_oil: 25.5, amb_dryer: 18, amb_koban: 22.5,
   amb_fluorescent: 11.5, amb_fluorescent_flicker: 13.5, amb_kaitenyaki: 15.5, amb_mall_wind: 34.5, amb_kawabe: 32,
   amb_arcade: 38.5, amb_wind: 24,
+  // chapter 2 (audioMixSuggest: heard over 星見台の夜 where each one plays; the
+  // insects held at the town's night level, the barn's fans over its −18 dB
+  // song and the train with no music at all set by ear, 53 10.2)
+  amb_h_insects: 22, amb_h_kusa: 22, amb_h_tanada: 29.5, amb_h_mizu: 30, amb_h_wind: 35, amb_h_yama: 41,
+  amb_h_hachi: 26.5, amb_h_fence: 29.5, amb_h_barn_out: 30, amb_h_barn: 16, amb_h_house: 27, amb_h_tomato: 21.5,
+  amb_h_school: 28.5, amb_h_boukatou: 28, amb_h_tetsuya: 23.5, amb_h_train: 17, amb_h_pa_hum: 21, amb_h_dawn: 2.5,
 };
 
 /** A song's output level in dB: its own master gain plus the mix trim. */

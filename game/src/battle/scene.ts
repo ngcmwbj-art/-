@@ -122,6 +122,8 @@ export class BattleScene implements Scene {
   bossKind: '' | 'omukaemachi' | 'yobimodoshi' = '';
   /** A battle on the 星見台 maps (第2章: the tomato's light, ボケD). */
   hoshi: boolean;
+  /** Only the band on black (ヨビモドシ's quiet results). */
+  blackStage = false;
   // ui state
   showUi = false;
   uiAlpha = 1;
@@ -1205,6 +1207,19 @@ export class BattleScene implements Scene {
       this.transitionDraw?.(g);
       return;
     }
+    if (this.blackStage) {
+      // 51 16.2: the night has gone to sleep — only the band (and the report
+      // card) on black, no stage, no panels
+      g.clear('#0B0B14');
+      if (!this.msg.hidden) {
+        this.msg.alpha = 1;
+        this.msg.draw(g);
+      }
+      for (const f of this.fx) if (f.layer === 'top' && f.ui) f.draw(g, f.t, f.dur ? Math.min(1, f.t / f.dur) : 0);
+      for (const f of this.flashes) g.rect(0, 0, 384, 216, f.color, f.alpha);
+      this.transitionDraw?.(g);
+      return;
+    }
     ctx.save();
     ctx.translate(this.shk.x, this.shk.y);
     this.bg.draw(g);
@@ -1326,7 +1341,12 @@ export class BattleScene implements Scene {
       ctx.drawImage(src, 0, 0);
       ctx.globalCompositeOperation = 'source-atop';
       for (const d of e.decals) {
-        const img = d.kind === 'peke' ? pekeMark(20, d.variant, d.kasure) : ovalStamp('みました', 28, 14, d.kasure ? 0.4 : 0.1 + d.variant * 0.05, 3 + d.variant);
+        const img =
+          d.kind === 'peke'
+            ? pekeMark(20, d.variant, d.kasure)
+            : d.kind === 'otsukare'
+              ? ovalStamp('おつかれ', 28, 12, d.kasure ? 0.4 : 0.1 + d.variant * 0.05, 5 + d.variant)
+              : ovalStamp('みました', 28, 14, d.kasure ? 0.4 : 0.1 + d.variant * 0.05, 3 + d.variant);
         ctx.drawImage(img, Math.round(art.ox + d.x - img.width / 2), Math.round(art.oy + d.y - img.height / 2));
       }
       if (e.blushT > 0) {

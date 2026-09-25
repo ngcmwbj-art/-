@@ -109,7 +109,8 @@ export class PartyUnit {
 }
 
 export interface Decal {
-  kind: 'peke' | 'mimashita';
+  /** 'otsukare': the small oval of おつかれさま (第2章). */
+  kind: 'peke' | 'mimashita' | 'otsukare';
   x: number;
   y: number;
   variant: number;

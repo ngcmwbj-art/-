@@ -786,7 +786,7 @@ function blendFlag(col: string): string {
 }
 
 /** ① / ② in 5×7 pixels inside a 9×9 ring. */
-function drawCircledNum(g: Gfx, n: 1 | 2, x: number, y: number, color: string): void {
+export function drawCircledNum(g: Gfx, n: 1 | 2, x: number, y: number, color: string): void {
   const ring = ['..xxxxx..', '.x.....x.', 'x.......x', 'x.......x', 'x.......x', 'x.......x', 'x.......x', '.x.....x.', '..xxxxx..'];
   const one = ['.x.', 'xx.', '.x.', '.x.', 'xxx'];
   const two = ['xx.', '..x', '.x.', 'x..', 'xxx'];

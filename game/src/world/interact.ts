@@ -10,7 +10,7 @@ import type { Actor } from './actor';
 import { DIR_VEC } from './actor';
 import type { FieldScene } from './field';
 import { fushigiActive, fushigiDone, runFushigi } from './fushigi';
-import { pickStage } from './maps';
+import { currentStage, pickStage, stageKeyPrefix } from './maps';
 import { runMsg } from './msg';
 import { getScript, type ScriptCtx } from './scripts';
 import type { ExamineObj, NpcObj, SymbolObj, TalkTable } from './types';
@@ -22,22 +22,31 @@ function ctxFor(f: FieldScene, source: string, runDefault: () => Co, defaultText
   return { source, map: f.map.id, runDefault, defaultText };
 }
 
-/** Pick the talk key for the current stage, counting visits per stage (6.0). */
+/**
+ * Pick the talk key for the current stage, counting visits per stage (6.0).
+ * Chapter 1 reads flag_stage and the keys s0_1, s1, 's1-2'…; on 星見台 maps
+ * (stageFlag 'flag_ch2_stage', 02_ch2 6.2) the stage is flag_ch2_stage and
+ * the keys start with `h` (h0_1, h1, 'h1-2'…; the seen flags are
+ * flag_seen_<npc>_h0_1 and the visit count flag_seen_<npc>_h0). A table
+ * with no `h` keys at all is read with its `s` keys there.
+ */
 export function pickTalk(npcId: string, table: TalkTable): string | null {
-  const stage = flag('flag_stage');
+  const stage = currentStage();
+  const keys = Object.keys(table);
+  const pre = stageKeyPrefix() === 'h' && keys.some((k) => /^h\d/.test(k)) ? 'h' : 's';
   for (let s = stage; s >= 0; s--) {
-    // numbered keys sN_1, sN_2, ...
+    // numbered keys sN_1, sN_2, ... (hN_1 on 星見台)
     const numbered: string[] = [];
-    for (let n = 1; n <= 9; n++) if (table[`s${s}_${n}`] !== undefined) numbered.push(`s${s}_${n}`);
+    for (let n = 1; n <= 9; n++) if (table[`${pre}${s}_${n}`] !== undefined) numbered.push(`${pre}${s}_${n}`);
     if (numbered.length) {
-      const cf = `flag_seen_${npcId}_s${s}`;
+      const cf = `flag_seen_${npcId}_${pre}${s}`;
       const count = flag(cf);
       const key = numbered[Math.min(count, numbered.length - 1)];
       setFlag(cf, count + 1);
       setFlag(`flag_seen_${npcId}_${key}`, 1);
       return key;
     }
-    const direct = Object.keys(table).find((k) => k === `s${s}` || (k.startsWith('s') && matchRange(k.slice(1), s)));
+    const direct = keys.find((k) => k === `${pre}${s}` || (k.startsWith(pre) && matchRange(k.slice(1), s)));
     if (direct) return direct;
   }
   return table.default !== undefined ? 'default' : null;
@@ -45,6 +54,7 @@ export function pickTalk(npcId: string, table: TalkTable): string | null {
 
 function matchRange(spec: string, s: number): boolean {
   if (spec.endsWith('+')) return s >= parseInt(spec, 10);
+  if (spec.includes(',')) return spec.split(',').some((v) => /^\d$/.test(v) && +v === s);
   const m = /^(\d)-(\d)$/.exec(spec);
   if (m) return s >= +m[1] && s <= +m[2];
   return false;

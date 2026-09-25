@@ -10,7 +10,7 @@ import { hash2, rng } from '../engine/rng';
 import { ease } from '../engine/tween';
 import { addItem, setFlag, flag, state } from '../game/state';
 import { duckMusic, playBgm, sfx, stopBgm } from '../audio';
-import { EXCELLENT, fillAll, gainExp, getItem, REPORT, SYS, type LevelUpResult, type StatKey } from '../data/battle';
+import { EXCELLENT, fillAll, gainExp, getItem, REPORT, REPORT_CH2, SYS, SYS2, type LevelUpResult, type StatKey } from '../data/battle';
 import type { BattleScene } from './scene';
 import { FRAME } from './scene';
 import { gradeMark, hanamaruFrame, miniText, victorySeal } from './art/stamps';
@@ -113,7 +113,9 @@ function confetti(s: BattleScene, n: number, cx: number, cy: number): void {
 
 /** Victory sequence and all rewards. */
 export function* victory(s: BattleScene): Co {
-  const quiet = s.isBoss;
+  // ヨビモドシ: its own quiet results on black (51 16.2); オムカエマチ: silent
+  const yobi = s.bossKind === 'yobimodoshi';
+  const quiet = s.isBoss && !yobi;
   const event = s.enemies.some((e) => e.id === 'enemy_kanenari');
   const exp = s.enemies.reduce((a, e) => a + (e.dead || e.hp <= 0 || e.id === 'enemy_kanenari' ? e.def.exp : 0), 0);
   const money = s.enemies.reduce((a, e) => a + (e.dead ? e.def.money : 0), 0);
@@ -137,7 +139,7 @@ export function* victory(s: BattleScene): Co {
       sfx('se_hanko_learn', { vol: 0.35, pitch: 1.2 + i * 0.1 });
       yield 300;
     }
-  } else if (!quiet) {
+  } else if (!quiet && !yobi) {
     yield 200;
     // 16.12, made the moment it should be (QA round 1): a big seal in 32px
     // lettering slams down (1.7 → 0.92 → 1.06 → 1.0), vermilion spatters off
@@ -202,6 +204,26 @@ export function* victory(s: BattleScene): Co {
     for (const u of s.party) u.moodHold = null;
     return;
   }
+  if (yobi) {
+    // the night is asleep: on black, the band alone — the experience counts
+    // up (se_count), a level-up's report card on black without its jingle,
+    // no money; the last confirm leaves only black (51 16.2)
+    for (const u of s.party) {
+      if (u.m.hp <= 0) {
+        u.m.hp = 1;
+        delete u.m.status.status_hebatta;
+        u.drop = 0;
+      }
+    }
+    yield 300;
+    yield* countUp(s, SYS.exp, exp);
+    const ups: LevelUpResult[] = [];
+    for (const u of s.party) ups.push(...gainExp(u.m, exp));
+    if (ups.length) yield* levelUpSequence(s, ups);
+    s.msg.hidden = true;
+    yield 400;
+    return;
+  }
   // 1. experience (both members, even if down); the level-up itself is
   // judged and shown last (18.3), so the panels keep the old stats until then
   yield* countUp(s, SYS.exp, exp);
@@ -211,6 +233,13 @@ export function* victory(s: BattleScene): Co {
     yield* countUp(s, SYS.money, money);
     const oj = s.enemies.find((e) => e.id === 'enemy_ojigi_jihanki');
     if (oj?.def.texts.extra.otsuri) yield* say(s, oj.def.texts.extra.otsuri);
+    // ヘノヘノ課長: 「背広の ポケットに 入っていた。」 (51 16.1)
+    const kacho = s.enemies.find((e) => e.dead && e.id === 'enemy_henoheno_kacho');
+    if (kacho?.def.texts.extra.money) yield* say(s, kacho.def.texts.extra.money);
+  } else {
+    // ムジン販売員: no money — and that is the point (51 8.5)
+    const mujin = s.enemies.find((e) => e.dead && e.id === 'enemy_mujin_hanbaiin');
+    if (mujin?.def.texts.extra.money) yield* say(s, mujin.def.texts.extra.money);
   }
   // 3. drops
   for (const e of s.enemies) {
@@ -379,7 +408,15 @@ function learnedAt(lv: number, rs: LevelUpResult[]): string[] {
   }
   if (lv === 4 && rs.some((r) => r.memberId === 'minato')) learned.push(...SYS.lv4);
   if (lv === 5 && rs.some((r) => r.memberId === 'minato')) learned.push(...SYS.lv5);
+  learned.push(...ch2Rewards(lv, rs));
   return learned;
+}
+
+/** 第2章の報酬 (51 3.5, 16.4): Lv6 the bell's 「コン」, Lv7 はみだしペケ — one page per level-up. */
+function ch2Rewards(lv: number, rs: LevelUpResult[]): string[] {
+  if (lv === 6 && rs.some((r) => r.memberId === 'kanenari')) return [...SYS2.lv6];
+  if (lv === 7 && rs.some((r) => r.memberId === 'minato')) return [...SYS2.lv7];
+  return [];
 }
 
 // ---- report card -----------------------------------------------------------------------
@@ -491,6 +528,8 @@ class ReportCard {
     private withCover: boolean,
     private kanenariJoined: boolean,
     private quiet: boolean,
+    /** The cover's heading (the prologue's 「なつやすみの つうちひょう」). */
+    private title: string = REPORT.title,
   ) {
     this.cover = withCover ? 1 : 0;
     this.opened = !withCover;
@@ -602,7 +641,7 @@ class ReportCard {
         if (pi === 1) {
           const big = crest(48);
           g.img(big, px + PW / 2 - 24, y + 50);
-          g.text(REPORT.title, px + PW / 2, y + 110, { color: C.brass, align: 'center' });
+          g.text(this.title, px + PW / 2, y + 110, { color: C.brass, align: 'center' });
         }
         return;
       }
@@ -657,21 +696,23 @@ class ReportCard {
     if (inside) return;
     if (cover) {
       // the cover turns like a page: squash the pre-drawn cover horizontally
-      const img = coverCanvas();
+      const img = coverCanvas(this.title, !!flag('flag_ch2_started'));
       g.ctx.drawImage(img, x, y, w, h);
       if (w < 144) g.rect(x + w - 2, y + 1, 2, h - 2, C.grid);
     }
   }
 }
 
-let coverC: HTMLCanvasElement | null = null;
+const coverCache = new Map<string, HTMLCanvasElement>();
 /**
  * The report card's cover (144×168): thick card #FBF3DC, a creased spine, a
  * brass double rule with corner diamonds, the bell crest, the title, the
  * school, and the class and name written in pencil at the bottom.
  */
-function coverCanvas(): HTMLCanvasElement {
-  if (coverC) return coverC;
+function coverCanvas(heading: string, ch2: boolean): HTMLCanvasElement {
+  const key = heading + (ch2 ? ':2' : '');
+  const hit = coverCache.get(key);
+  if (hit) return hit;
   const W = 144;
   const H = 168;
   const [c, ctx] = makeCanvas(W, H);
@@ -712,13 +753,27 @@ function coverCanvas(): HTMLCanvasElement {
   // crest and title
   const cr = crest(32);
   ctx.drawImage(cr, Math.round(W / 2 - 16) + 2, 18);
-  const title = [...REPORT.title];
-  const tw = title.reduce((a, ch) => a + measure(ch), 0) + (title.length - 1) * 2;
-  let tx = Math.round(W / 2 + 2 - tw / 2);
-  for (const ch of title) {
-    drawText(ctx, ch, tx, 56, { color: C.ink });
-    tx += measure(ch) + 2;
+  // 第2章: a small circled ② right of the crest (52 13.7)
+  if (ch2) {
+    const ox = Math.round(W / 2) + 2 + 20;
+    const oy = 26;
+    const ring = ['..###..', '.#...#.', '#.....#', '#.....#', '#.....#', '#.....#', '#.....#', '.#...#.', '..###..'];
+    const two = ['.##.', '#..#', '...#', '..#.', '.#..', '####'];
+    ring.forEach((row, yy) => [...row].forEach((v, xx) => v === '#' && r(ox + xx, oy + yy, 1, 1, C.ink)));
+    two.forEach((row, yy) => [...row].forEach((v, xx) => v === "#" && r(ox + 2 + xx, oy + 2 + yy, 1, 1, C.ink)));
   }
+  // the heading: one line, or two when it is long (「なつやすみの／つうちひょう」)
+  const lines = measure(heading) + ([...heading].length - 1) * 2 > W - 30 ? heading.split(/\s+/) : [heading];
+  lines.forEach((line, li) => {
+    const title = [...line];
+    const tw = title.reduce((a, ch) => a + measure(ch), 0) + (title.length - 1) * 2;
+    let tx = Math.round(W / 2 + 2 - tw / 2);
+    const ty = lines.length > 1 ? 50 + li * 16 - 8 : 56;
+    for (const ch of title) {
+      drawText(ctx, ch, tx, ty, { color: C.ink });
+      tx += measure(ch) + 2;
+    }
+  });
   r(W / 2 + 2 - 30, 76, 60, 1, brass);
   r(W / 2 + 2 - 2, 75, 5, 3, brass);
   r(W / 2 + 2 - 1, 76, 3, 1, '#FFE7A3');
@@ -732,14 +787,18 @@ function coverCanvas(): HTMLCanvasElement {
   r(W - 5, H - 5, 5, 5, '#EFE2C2');
   r(W - 5, H - 5, 1, 1, C.paper);
   r(W - 1, H - 1, 1, 1, '#D9C8A0');
-  coverC = c;
+  coverCache.set(key, c);
   return c;
 }
 
-/** Public: run the report card outside a battle (e.g. exp from an event). */
-export function* playLevelUpField(results: LevelUpResult[]): Co {
+/**
+ * Public: run the report card outside a battle (e.g. exp from an event).
+ * `o.title` heads the cover (the chapter-2 prologue: 「なつやすみの
+ * つうちひょう」); the chapter-2 rewards of Lv6 / Lv7 follow the card.
+ */
+export function* playLevelUpField(results: LevelUpResult[], o: { title?: string; heading?: string } = {}): Co {
   if (!results.length) return;
-  const scene = new ReportScene(results);
+  const scene = new ReportScene(results, o.title ?? o.heading);
   game.push(scene);
   yield () => scene.done;
   if (game.top === scene) game.pop();
@@ -754,17 +813,24 @@ class ReportScene implements Scene {
   private wait = 0;
   private waitFn: (() => boolean) | null = null;
 
-  constructor(results: LevelUpResult[]) {
+  constructor(results: LevelUpResult[], title?: string) {
     const levels = [...new Set(results.map((r) => r.to))].sort((a, b) => a - b);
     const self = this;
     const hasK = state.party.some((m) => m.id === 'kanenari');
     this.co = (function* () {
       let first = true;
       for (const lv of levels) {
-        const card = new ReportCard(results.filter((r) => r.to === lv), first, hasK, false);
+        const rs = results.filter((r) => r.to === lv);
+        const card = new ReportCard(rs, first, hasK, false, title ?? REPORT.title);
         first = false;
         self.cards = [card];
         yield* card.run(self.msg, () => game.input.pressed('confirm'), () => {}, () => {});
+        self.cards = [];
+        const extra = ch2Rewards(lv, rs);
+        if (extra.length) {
+          self.msg.post(extra, { manual: true });
+          yield () => !self.msg.busy;
+        }
       }
       self.done = true;
     })();

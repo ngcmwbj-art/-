@@ -120,7 +120,7 @@ export function drawPanel(g: Gfx, u: PartyUnit, pc: PanelCtx): void {
     // status icons (3 × 2)
     const icons: HTMLCanvasElement[] = [];
     const pops: number[] = [];
-    for (const id of ['status_konran', 'status_nemuri', 'status_tsukamare', 'status_toosenbo', 'status_mamoru']) {
+    for (const id of ['status_konran', 'status_nemuri', 'status_tsukamare', 'status_toosenbo', 'status_henji', 'status_mamoru']) {
       if (id === 'status_mamoru' ? u.guard : u.has(id)) {
         const ic = statusIcon(id);
         if (ic) {

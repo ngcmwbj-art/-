@@ -6,6 +6,11 @@
 //   yield* saveMenu('jizo')   // evt_save_jizo, full text included
 //   yield* saveMenu('bench')  // evt_save_bench: rest (full heal) first
 //   const ok = yield* saveWithStamp();   // just save, with the stamp
+//   yield* saveConfirm('narr', { text: ['回覧板の 確認の 欄。', '名前を 書きますか？（セーブ）'],
+//                                options: ['書く', '書かない'] })   // the card, any question
+//
+// In chapter 2 (flag_ch2_started) the card counts みました帳 ②'s ふしぎ (/10)
+// and says so with a little ② and the tomato; the place names are 星見台's.
 
 import type { Co } from '../engine/co';
 import { game, type Widget } from '../engine/game';
@@ -18,7 +23,8 @@ import { roundSeal } from '../battle/art/stamps';
 import { ask, say } from './dialog';
 import { drawDigits } from './digits';
 import { placeNameFor } from './hud';
-import { bookCounts } from './menu/book';
+import { bookCounts, bookCountsCh2, drawCircledNum } from './menu/book';
+import { tomatoIcon8 } from './icons';
 import { registerScript } from '../world/scripts';
 import { drawTape, drawWindow, textW, UI } from './window';
 
@@ -29,6 +35,8 @@ interface SaveInfo {
   time: string;
   level: number;
   fushigi: number;
+  /** Counted in みました帳 ② (chapter 2): out of 10, not 12. */
+  ch2: boolean;
 }
 
 function fmtTime(ms: number): string {
@@ -38,11 +46,13 @@ function fmtTime(ms: number): string {
 }
 
 function infoNow(): SaveInfo {
+  const ch2 = !!flag('flag_ch2_started');
   return {
     place: placeNameFor(state.map, state.x, state.y, ''),
     time: fmtTime(state.playTimeMs),
     level: state.party[0]?.level ?? 1,
-    fushigi: bookCounts().fushigi,
+    fushigi: ch2 ? bookCountsCh2().fushigi : bookCounts().fushigi,
+    ch2,
   };
 }
 
@@ -52,9 +62,10 @@ function infoSaved(): SaveInfo | null {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
     const s = JSON.parse(raw) as { map?: string; x?: number; y?: number; playTimeMs?: number; party?: { level: number }[]; flags?: Record<string, number> };
+    const ch2 = !!s.flags?.flag_ch2_started;
     let f = 0;
-    for (let i = 1; i <= 12; i++) if (s.flags?.[`flag_fushigi_${String(i).padStart(2, '0')}`]) f++;
-    return { place: placeNameFor(s.map ?? '', s.x ?? 0, s.y ?? 0, ''), time: fmtTime(s.playTimeMs ?? 0), level: s.party?.[0]?.level ?? 1, fushigi: f };
+    for (let i = 1; i <= (ch2 ? 10 : 12); i++) if (s.flags?.[`flag_fushigi_${ch2 ? 'ch2_' : ''}${String(i).padStart(2, '0')}`]) f++;
+    return { place: placeNameFor(s.map ?? '', s.x ?? 0, s.y ?? 0, ''), time: fmtTime(s.playTimeMs ?? 0), level: s.party?.[0]?.level ?? 1, fushigi: f, ch2 };
   } catch {
     return null;
   }
@@ -101,7 +112,14 @@ class SaveCard implements Widget {
       const yy = y + 4;
       row('いま', this.now, yy + 7, false);
       g.text('ふしぎ', x + 10, yy + 26, { color: UI.pencil });
-      drawDigits(g, `${this.now.fushigi}/12`, x + 10 + textW('ふしぎ') + 5, yy + 31, { color: UI.accent });
+      let fx = x + 10 + textW('ふしぎ') + 5;
+      if (this.now.ch2) {
+        // みました帳 ②: its number in a ring and the tomato, like the notebook's own flag
+        drawCircledNum(g, 2, fx - 1, yy + 30, UI.pencil);
+        g.img(tomatoIcon8(), fx + 10, yy + 31);
+        fx += 22;
+      }
+      drawDigits(g, `${this.now.fushigi}/${this.now.ch2 ? 10 : 12}`, fx, yy + 31, { color: UI.accent });
       if (this.prev) {
         g.rect(x + 8, yy + 46, w - 16, 1, UI.bg2);
         row('まえ', this.prev, yy + 52, true);
@@ -164,11 +182,16 @@ export function* saveWithStamp(): Co<boolean> {
   return ok;
 }
 
-/** Ask 「……セーブしますか？」 with the record card; saves on する. */
-export function* saveConfirm(voice: 'narr' | 'sys' = 'narr'): Co<boolean> {
+/**
+ * Ask 「……セーブしますか？」 with the record card; true on する. `o.text` /
+ * `o.options` put another question to it (the first option saves), e.g. the
+ * 回覧板's 「名前を 書きますか？（セーブ）」 with 書く／書かない.
+ */
+export function* saveConfirm(voice: 'narr' | 'sys' = 'narr', o: { text?: string | string[]; options?: string[] } = {}): Co<boolean> {
   const card = new SaveCard();
   game.ui.push(card);
-  const i = yield* ask('……セーブしますか？', ['する', 'しない'], { voice, cancel: 1 });
+  const opts = o.options ?? ['する', 'しない'];
+  const i = yield* ask(o.text ?? '……セーブしますか？', opts, { voice, cancel: opts.length - 1 });
   card.close();
   return i === 0;
 }

@@ -47,6 +47,8 @@ export const SYS2 = {
   keepItem: [] as string[],
   /** ハトの名刺 on ヘノヘノ課長 (50 6.2): 課長 gets ボケ負け, the turn is used. */
   hatoMeishiKacho: ['ミナトは ハトの名刺を さしだした。', 'ヘノヘノ課長は 受けとって、\n困った 顔に 描きなおした。'],
+  /** A retry of the boss: Kanenari-kun's flip says what beat them (the chapter-1 flip's twin). */
+  retryFlip: '4つ目の 名前の 前は まもる',
   /** 〔にげる・テツヤ〕 (no turn). */
   noFleeTetsuya: ['テツヤが 山道の 入口を\n耕しつづけている。'],
 };

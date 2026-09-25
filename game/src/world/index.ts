@@ -12,6 +12,7 @@ import '../data/maps';
 import '../art/props';
 import './places';
 import './life';
+import './hoshi_debug';
 import { FieldScene, field } from './field';
 import { hasMap, mapIds } from './maps';
 import { setMsgHooks } from './msg';
@@ -229,7 +230,7 @@ registerDebug('collision', (on?: boolean) => {
 registerDebug('where', () => {
   const f = field();
   if (!f) return 'field not active';
-  return { map: f.map.id, x: f.player.tileX, y: f.player.tileY, px: Math.round(f.player.x), py: Math.round(f.player.y), dir: f.player.dir, stage: flag('flag_stage') };
+  return { map: f.map.id, x: f.player.tileX, y: f.player.tileY, px: Math.round(f.player.x), py: Math.round(f.player.y), dir: f.player.dir, stage: flag('flag_stage'), hstage: flag('flag_ch2_stage'), stageOfMap: f.stage };
 });
 registerDebug('flag', (id: string, v?: number) => {
   if (v !== undefined) setFlag(id, v);

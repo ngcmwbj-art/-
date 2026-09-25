@@ -61,13 +61,29 @@ export function onFushigiPressed(fn: (id: string) => void): void {
   pressListeners.push(fn);
 }
 
+/** A ふしぎ of 星見台 (みました帳 ②, fushigi_ch2_01〜10)? */
+export function isCh2Fushigi(id: string): boolean {
+  return id.startsWith('fushigi_ch2_');
+}
+
+/** How many of 星見台's ten are in みました帳 ②. */
+export function fushigiCh2Count(): number {
+  let n = 0;
+  for (let i = 1; i <= 10; i++) if (flag(`flag_fushigi_ch2_${String(i).padStart(2, '0')}`)) n++;
+  return n;
+}
+
 /** Is it currently an active (stampable) anomaly? */
 export function fushigiActive(id: string): boolean {
   const d = defs.get(id);
   if (!d) return false;
   if (fushigiDone(id)) return false;
+  // 星見台's ふしぎ (みました帳 ②) follow flag_ch2_stage and are over in the
+  // morning (h3); chapter 1's follow flag_stage (02_ch2 6.2)
+  const ch2 = isCh2Fushigi(id);
+  const s = flag(ch2 ? 'flag_ch2_stage' : 'flag_stage');
+  if (ch2 && s >= 3) return false;
   if (!d.stage) return true;
-  const s = flag('flag_stage');
   const m = /^(\d)(\+|-(\d))?$/.exec(d.stage);
   if (!m) return true;
   const lo = +m[1];
@@ -111,9 +127,15 @@ export function* runFushigi(id: string, seenOverride?: string): Co {
   }
   if (d.money) state.money += d.money;
   giveMp(2);
-  yield* runMsg(`@sys
+  yield* runMsg(
+    isCh2Fushigi(id)
+      ? `@sys
 朱肉が 2 たまった。
-みました帳に 書きこんだ。（ふしぎ ${fushigiCount()}/12）`);
+みました帳 ②に 書きこんだ。（ふしぎ ${fushigiCh2Count()}/10）`
+      : `@sys
+朱肉が 2 たまった。
+みました帳に 書きこんだ。（ふしぎ ${fushigiCount()}/12）`,
+  );
   // the tutorial fushigi leads to evt_obaa_park_hint
   if (id === 'fushigi_04' && !flag('flag_park_hint') && flag('flag_stage') === 1 && hasScript('evt_obaa_park_hint')) {
     const fn = getScript('evt_obaa_park_hint')!;

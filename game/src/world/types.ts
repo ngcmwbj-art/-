@@ -365,6 +365,12 @@ export interface MapDef {
   /** 'follow' (default for maps larger than the screen) or 'fixed' (centered). */
   camera?: 'follow' | 'fixed';
   /**
+   * Where the follow camera stops and holds (52 1.1: the hill's upper plaza
+   * y ≤ 7 is shown whole): while Minato stands in `x,y,w,h` (tiles) the
+   * camera eases to centre on tile `at` and stays there.
+   */
+  camLocks?: (TileRect & { at: [number, number] })[];
+  /**
    * View scale (default 1: every map, rooms included, is shown at 1×; the
    * small rooms are set into drawn surroundings). 2 = a 2× close-up view.
    */

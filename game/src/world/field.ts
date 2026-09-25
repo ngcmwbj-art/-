@@ -19,6 +19,7 @@ import { cellAt, condOk, currentStage, hasMap, isCh2Map, loadMap, setStageSource
 import { LightState } from './lantern';
 import {
   applyHoshiParams,
+  callAge,
   hoshiAmb,
   hoshiBgm,
   hoshiPositional,
@@ -32,7 +33,7 @@ import {
   resetHoshiPositional,
   villagePulse,
 } from './hoshi';
-import { updateCallBubble } from './hud';
+import { colonDip, updateCallBubble } from './hud';
 import { runMsg } from './msg';
 import { initNpc, updateNpc, type NpcWorld } from './npc';
 import { Renderer } from './render';
@@ -464,14 +465,14 @@ export class FieldScene implements Scene {
    * never stops between them), the beds of the stage, the space, the PA
    * shape and h_stage.
    */
-  private applyHoshiAudio(entering: boolean): void {
+  private applyHoshiAudio(entering: boolean, music = true): void {
     const def = this.map.def;
     const s = flag('flag_ch2_stage');
     snd.setSpace(hoshiSpace(def));
     snd.setMusicParam('stage', flag('flag_stage'));
     applyHoshiParams(def);
     const b = hoshiBgm(def, s);
-    if (b !== undefined && !flag('flag_bgm_hold')) {
+    if (music && b !== undefined && !flag('flag_bgm_hold')) {
       if (b) playHoshiBgm(b, def, entering ? 0.6 : 1.0);
       else snd.bgm(null, entering ? 0.6 : 1.0);
     }
@@ -555,10 +556,13 @@ export class FieldScene implements Scene {
     const key: GradeHKey = n >= 3 ? 'h3a' : gradeHKey(n);
     this.setGradeH(key, ms ?? (n === 1 ? 800 : n === 2 ? 1500 : n >= 3 ? 2000 : 600));
     snd.setMusicParam('h_stage', n);
-    if (prev !== n) {
-      this.refreshPresence();
-      this.reportOcclusion();
-    }
+    // (a scene may have written the flag itself before calling this: the
+    // presence is refreshed either way)
+    this.refreshPresence();
+    if (prev !== n) this.reportOcclusion();
+    // the beds of the new stage (53 4.2: amb_h_yama from h1, the open line's
+    // hum in h2); the song goes on by itself (h_stage), a scene may hold it
+    if (this.ch2 && n <= 2) this.applyHoshiAudio(false, false);
   }
 
   /** Tween to one of the pal_h* presets (the dawn of the ending: h3a → h3b 3.0 s → h3c). */
@@ -1344,6 +1348,16 @@ export class FieldScene implements Scene {
       const t = this.camFollow ?? this.player;
       fx = t.x + this.lookX;
       fy = t.y - 12 + this.lookY;
+      // a place the camera holds still over (the hill's plaza)
+      if (!this.camFollow)
+        for (const l of this.map.def.camLocks ?? []) {
+          const tx = this.player.tileX;
+          const ty = this.player.tileY;
+          if (tx < l.x || ty < l.y || tx >= l.x + l.w || ty >= l.y + l.h) continue;
+          fx = l.at[0] * 16 + 8;
+          fy = l.at[1] * 16 + 8;
+          break;
+        }
     }
     let x = fx - W / 2;
     let y = fy - H / 2;
@@ -1518,6 +1532,8 @@ export class FieldScene implements Scene {
       kakashi: ch2 && pi && isKakashi(pi) ? kakashiFrame(pi.seed, this.t) : 0,
       lampOn: ch2 ? lampOn(this.t, pi?.seed ?? 0) : true,
       lit: pi ? this.light.alphaOf(pi) : 1,
+      callAge: ch2 ? callAge() : 1e9,
+      colonDip: ch2 && colonDip(this.t),
     };
   }
 

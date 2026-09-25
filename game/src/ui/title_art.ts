@@ -207,27 +207,51 @@ export function farCanvas(sky: Sky): HTMLCanvasElement {
 }
 
 /**
- * The little patch of night above 星見台 (always night): a pocket of dusk
- * violet deepening to #3A2B5C, sitting on the hill, with its two stars.
+ * What the patch of sky over 星見台 looks like (52_ch2_level_art 12.4):
+ * 'night' (chapter 1, and chapter 2 not yet finished) or 'dawn' (chapter 2
+ * has been finished: the village's morning came).
  */
-export function drawHoshimiNight(g: Gfx, t: number, frozenStar: boolean): void {
+export type HoshimiSky = 'night' | 'dawn';
+
+/**
+ * The little patch of sky above 星見台, drawn behind the far hills. 'night':
+ * a pocket of dusk violet deepening to #3A2B5C with its two stars. 'dawn':
+ * the same pocket gone to morning glow — #FFE7A3 in the middle, #F7C27A,
+ * and an edge of #F2894B dithered into the sunset — with no stars.
+ */
+export function drawHoshimiNight(g: Gfx, t: number, frozenStar: boolean, sky: HoshimiSky = 'night'): void {
   const cx = 352;
   const cy = 100;
-  for (let y = -16; y <= 6; y++)
-    for (let x = -28; x <= 28; x++) {
+  const dawn = sky === 'dawn';
+  for (let y = -16; y <= (dawn ? 16 : 6); y++)
+    for (let x = -28; x <= (dawn ? 32 : 28); x++) {
       const X = cx + x;
       const Y = cy + y;
       if (Y >= farTop(X)) continue;
-      const d = (x * x) / 784 + (y * y) / 256;
+      // the glow wells up round the sunrise point on the ridge (366,112)
+      const gx = X - HOSHIMI_SUNRISE.x;
+      const gy = Y - HOSHIMI_SUNRISE.y;
+      const d = dawn ? (gx * gx) / 900 + (gy * gy) / 441 : (x * x) / 784 + (y * y) / 256;
       if (d > 1) continue;
-      let col = '#3A2B5C';
-      if (d > 0.72) {
-        if (!dith1(X, Y, (1 - d) / 0.28)) continue;
-        col = '#8A4E86';
-      } else if (d > 0.4) col = dith1(X, Y, (0.72 - d) / 0.32) ? '#4E3A70' : '#6A4680';
-      else if (d > 0.2) col = dith1(X, Y, (0.4 - d) / 0.2) ? '#3A2B5C' : '#4E3A70';
+      let col: string;
+      if (dawn) {
+        if (d > 0.72) {
+          if (!dith1(X, Y, (1 - d) / 0.28)) continue;
+          col = '#F2894B';
+        } else if (d > 0.45) col = dith1(X, Y, (0.72 - d) / 0.27) ? '#F7C27A' : '#F2A060';
+        else if (d > 0.18) col = dith1(X, Y, (0.45 - d) / 0.27) ? '#FFE7A3' : '#F7C27A';
+        else col = '#FFE7A3';
+      } else {
+        col = '#3A2B5C';
+        if (d > 0.72) {
+          if (!dith1(X, Y, (1 - d) / 0.28)) continue;
+          col = '#8A4E86';
+        } else if (d > 0.4) col = dith1(X, Y, (0.72 - d) / 0.32) ? '#4E3A70' : '#6A4680';
+        else if (d > 0.2) col = dith1(X, Y, (0.4 - d) / 0.2) ? '#3A2B5C' : '#4E3A70';
+      }
       g.px(X, Y, col);
     }
+  if (dawn) return;
   const tw = Math.floor(t / 700) % 3 !== 0;
   g.px(cx - 12, cy - 7, tw ? '#FFF6D8' : '#B8A8D8');
   g.px(cx + 9, cy - 10, '#FFF6D8');
@@ -237,6 +261,36 @@ export function drawHoshimiNight(g: Gfx, t: number, frozenStar: boolean): void {
     g.px(cx + 10, cy - 10, '#FFE7A3');
     g.px(cx + 9, cy - 11, '#FFE7A3');
     g.px(cx + 9, cy - 9, '#FFE7A3');
+  }
+}
+
+/** Where the village sits on 星見台's slope (52 12.4): the tomato's light walks there. */
+export const HOSHIMI_VILLAGE = { x: 336, y: 121 };
+/** The morning sun just over the ridge, once chapter 2 is finished. */
+export const HOSHIMI_SUNRISE = { x: 366, y: 112 };
+
+/**
+ * Chapter 2's marks on the title, drawn over the far hills (52 12.4):
+ *  - `lantern`: chapter 2 is under way — on the hill's slope where the
+ *    village is, one pixel of tomato light (#F2894B), 1.2 s lit and 0.8 s
+ *    back to the hill's own colour: someone is walking the village with it.
+ *  - `dawn`: chapter 2 is finished — the ridge of 星見台's hill catches the
+ *    morning (#FFE7A3 along its edge, dithered away at both ends) and the
+ *    sun is a 朱 point just over it.
+ */
+export function drawHoshimiMarks(g: Gfx, t: number, o: { lantern?: boolean; dawn?: boolean }): void {
+  if (o.dawn) {
+    for (let x = 318; x < 384; x++) {
+      // strongest under the glow, fading out toward the two ends
+      const u = 1 - Math.abs(x - HOSHIMI_SUNRISE.x) / 40;
+      if (u <= 0 || !dith1(x, 3, Math.min(1, u * 1.8))) continue;
+      g.px(x, farTop(x), '#FFE7A3');
+    }
+    g.px(HOSHIMI_SUNRISE.x, HOSHIMI_SUNRISE.y, '#E23B2E');
+  }
+  if (o.lantern) {
+    const on = t % 2000 < 1200;
+    g.px(HOSHIMI_VILLAGE.x, HOSHIMI_VILLAGE.y, on ? '#F2894B' : '#B04A7A');
   }
 }
 

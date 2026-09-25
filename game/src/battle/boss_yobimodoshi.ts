@@ -117,6 +117,8 @@ export function yobiState(s: BattleScene): Yobi {
 
 /** Boss wipes this session (a retry is short and re-teaches the tomato). */
 export const bossTries = { lost: 0 };
+/** Across retries: was the tomato ever held up? (the lesson is taught again if not) */
+export const yobiMemory = { tomatoUsed: false };
 
 const RAPPA_ORDER = ['boss_yobimodoshi_east', 'boss_yobimodoshi_west', 'boss_yobimodoshi_south', 'boss_yobimodoshi_north'];
 /** ハウリング pitch per ラッパ (53 8.6). */
@@ -414,11 +416,12 @@ function drawTop(s: BattleScene, g: Gfx): void {
       ctx.beginPath();
       ctx.rect(0, 0, 384, 150);
       ctx.clip();
-      g.img(img, Math.round(k.x - img.width / 2), Math.round(k.y - img.height));
+      // the pole goes behind him: his mittens hold it, his bell hides its foot
       if (k.frame === 'hold') {
         const net = tomatoNet(64, true);
         g.img(net, Math.round(k.x + 13 - net.width / 2), Math.round(k.y - img.height - net.height + 22));
       }
+      g.img(img, Math.round(k.x - img.width / 2), Math.round(k.y - img.height));
       ctx.restore();
     });
   }
@@ -910,6 +913,26 @@ function* dim(s: BattleScene, e: EnemyUnit): Co {
 
 // ---- the tomato (10.3, 14.2) ------------------------------------------------------------------
 
+/** QA: light it up at once (as if held up this round). */
+export function raiseTomatoNow(s: BattleScene, who: string): void {
+  const y = yobiState(s);
+  const e = boss(s);
+  if (!e) return;
+  Object.assign(y, { light: true, lightRound: 1, lightTo: 1, lightDir: 1, glowTo: 1, raiser: who, charge: 0, tagPop: s.t });
+  syncBossFlags(s, e);
+  s.setMusicParam('h_light', 1);
+}
+
+/** QA: put the light out at once (the recharge starts). */
+export function dimNow(s: BattleScene): void {
+  const y = yobiState(s);
+  const e = boss(s);
+  if (!e) return;
+  Object.assign(y, { light: false, lightRound: 0, lightTo: 0, lightDir: -1, glowTo: 0, raiser: null, charge: 2, tagPop: s.t });
+  syncBossFlags(s, e);
+  s.setMusicParam('h_light', 0);
+}
+
 /** Party action: hold up the はなまるトマト (priority +2). */
 export function* raiseTomato(s: BattleScene, u: PartyUnit): Co {
   const y = yobiState(s);
@@ -924,6 +947,8 @@ export function* raiseTomato(s: BattleScene, u: PartyUnit): Co {
     return;
   }
   y.tomatoUsed = true;
+  yobiMemory.tomatoUsed = true;
+  s.memo.tomatoTut = 0;
   hideSticky(s);
   const kan = u.id === 'kanenari';
   const pages = fillAll(kan ? SYS2.tomatoRaiseKanenari : SYS2.tomatoRaise, { actor: u.name });
@@ -937,12 +962,12 @@ export function* raiseTomato(s: BattleScene, u: PartyUnit): Co {
     dur: 0,
     ui: true,
     draw: (g) => {
-      if (back) {
-        const img = kanenariBack(back.frame);
-        g.alpha(net.a, () => g.img(img, Math.round(back.x - img.width / 2), Math.round(back.y - img.height)));
-      }
-      const img = tomatoNet(72, true);
+      const img = tomatoNet(back ? 40 : 72, true);
       g.alpha(net.a, () => g.img(img, Math.round(net.x - img.width / 2), Math.round(net.y - 10)));
+      if (back) {
+        const bk = kanenariBack(back.frame);
+        g.alpha(net.a, () => g.img(bk, Math.round(back.x - bk.width / 2), Math.round(back.y - bk.height)));
+      }
     },
   });
   for (let t = 0; t <= 300; t += FRAME) {
@@ -951,7 +976,9 @@ export function* raiseTomato(s: BattleScene, u: PartyUnit): Co {
     if (back) {
       back.x = 330 - 30 * p;
       back.y = 250 - (250 - 168) * p;
-      net.y = back.y - 52 - 12 * (1 - p);
+      // the net's pole in his raised mittens (the hoop at (300,116) when up: 14.2)
+      net.x = back.x + 13;
+      net.y = back.y - 61 - 12 * (1 - p);
     }
     yield null;
   }
@@ -1295,6 +1322,7 @@ export function* doOyasuminasai(s: BattleScene, u: PartyUnit): Co {
     yield null;
   }
   y.black = true;
+  s.blackStage = true;
   y.kanenariUp = null;
   darkFx.done = true;
   markFx.done = true;

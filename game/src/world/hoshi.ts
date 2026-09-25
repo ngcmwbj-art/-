@@ -31,6 +31,7 @@ import { fushigiDone, onFushigiPressed } from './fushigi';
 import { registerWorldFx } from './fx';
 import { callBubble, clearCallBubble } from './hud';
 import { condOk, isCh2Map, type LoadedMap } from './maps';
+import { getScript } from './scripts';
 import type { MapDef } from './types';
 
 // ---------------------------------------------------------------- props see the chapter-2 state
@@ -49,6 +50,10 @@ declare module '../art/props/types' {
     lampOn?: boolean;
     /** How visible this prop is in the dark (1 = fully; 52 8.5). */
     lit?: number;
+    /** ms since the loudspeaker's last call began (52 9.2: the bell trembles 1px, the shrine light wavers; 11.3 the horn's mouth glows). */
+    callAge?: number;
+    /** The HUD's colon almost blinks this instant (h2, 80 ms every 7–11 s): the school clock's hand trembles with it (52 9.2). */
+    colonDip?: boolean;
   }
   interface PropArt {
     /**
@@ -397,8 +402,26 @@ function startCall(f: FieldScene): void {
   }
   if (s >= 2) callAlt = !callAlt;
   const info: CallInfo = { stage: s, line, nameIndex, indoor };
+  const hill = f.map.id === 'map_hoshi_hill' && f.player.y < 8 * 16;
+  const def = () => playCall(line, { stage: s, indoor, hill });
+  // an event's own handler, else the scenario's evt_ch2_calls (it says the
+  // lines of 50 3.13 in its own order), else the default call. It runs
+  // beside the game: the player keeps walking.
   const custom = callHandler?.(info);
-  callTask = new Task(custom ?? playCall(line, { stage: s, indoor, hill: f.map.id === 'map_hoshi_hill' && f.player.y < 8 * 16 }));
+  const scr = getScript('evt_ch2_calls');
+  const co = custom ?? (scr ? scr({ source: 'calls', map: f.map.id, defaultText: line, runDefault: def }) : def());
+  callTask = new Task(co);
+  noteCall();
+}
+
+let lastCallAt = -1e9;
+/** A call has just begun (the world's timer, or an event making one itself): props and the HUD follow it. */
+export function noteCall(): void {
+  lastCallAt = clockNow;
+}
+/** ms since the last call began (the fire-watch bell trembles, the shrine light wavers, 52 9.2). */
+export function callAge(): number {
+  return clockNow - lastCallAt;
 }
 
 /**
@@ -423,7 +446,7 @@ export function* playCall(line: string, o: { stage?: number; indoor?: boolean; h
   yield () => typing.done;
   yield 400;
   if (open) snd.se('se_h_pa_close', { vol: o.indoor ? 0.35 : 1 });
-  else call('paSwell', 0.6, 2.0);
+  else call('paEcho', 0.6, 2.0);
   yield () => typing.gone;
 }
 
@@ -640,7 +663,12 @@ export function hoshiUpdate(f: FieldScene, dt: number, ctrl: boolean): void {
       timers.splice(i, 1);
       t.fn();
     }
-  if (kakashiAnim && f.t - kakashiAnim.t0 > KAKASHI_MS + 200) kakashiAnim = null;
+  // the turn holds where it ended until the stage agrees (a scene may turn
+  // them a moment before it sets flag_ch2_stage), or it is long over
+  if (kakashiAnim && f.t - kakashiAnim.t0 > KAKASHI_MS + 200) {
+    const rest = flag('flag_ch2_stage') === 2 ? 2 : 0;
+    if (rest === kakashiAnim.to || f.t - kakashiAnim.t0 > 60000 || f.t < kakashiAnim.t0) kakashiAnim = null;
+  }
   if (f.map !== enteredMap) {
     enteredMap = f.map;
     if (onHoshi(f)) fushigiBeds(f);

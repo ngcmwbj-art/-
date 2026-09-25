@@ -202,7 +202,9 @@ function hoshiNightDef(): SongDef {
         drm_rim: (b) => (st(b) >= 1 && inLoop(b) ? '........x.......' : null),
         drm_kick_soft: (b) => (st(b) === 2 && inLoop(b) ? 'x.......x.......' : null),
       },
-      vel: { drm_shaker: 0.35, drm_rim: 0.45, drm_kick_soft: 0.5 },
+      // 5.1's .35 / .45 / .5, levelled by ear: the swaying lantern is a hat's
+      // whisper, the stage-2 kick a heartbeat under it (the part trim is +6)
+      vel: { drm_shaker: 0.7, drm_rim: 0.9, drm_kick_soft: 0.3 },
       when: (b) => b.p.h_room !== 2 && b.p.h_room !== 3,
       aware: ['h_room'],
     }),

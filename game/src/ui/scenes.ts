@@ -8,6 +8,7 @@ import './shop';
 import './save';
 import './gameover';
 import './ending';
+import './cut_village_lit';
 import './debugcmds';
 
 installHud();
