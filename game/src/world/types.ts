@@ -71,6 +71,12 @@ export interface DarkLight {
   amp?: number;
   /** Strength of the three rings (1 = the lantern's). */
   k?: number;
+  /**
+   * A light that must read in a lit room too (the はなまるトマト in the
+   * house with its lamps on, 52 4.2): a halo of this radius (px) screened
+   * over the frame round its centre, breathing with it.
+   */
+  halo?: number;
   cond?: Cond;
 }
 
@@ -169,9 +175,10 @@ export interface PropObj extends Base {
   /** Collision rectangle in tiles relative to (x,y): [dx, dy, w, h]. Omit = ASCII decides. */
   solid?: [number, number, number, number];
   /**
-   * Drawn only inside the tomato light (52 8.5), even when it stands off a
-   * dark tile (things in dark tiles that are 32px or smaller get this
-   * automatically; buildings, walls and big props always show).
+   * Drawn only inside the tomato light (52 8.5, 2026-09-26): the little
+   * finds the light alone brings out (the child's footprints, the hearth).
+   * Everything else — in the dark or not — is always drawn; the dark only
+   * sinks it in the light map.
    */
   litOnly?: boolean;
 }
@@ -208,8 +215,8 @@ export interface ExamineObj extends Base {
   priority?: number;
   /**
    * Only drawn and examinable inside the tomato light (52 8.5, 50 5章 #18:
-   * the kitchen hearth), even when its tile is not a dark tile. Examinable
-   * things on dark tiles behave so without this.
+   * the kitchen hearth) — for the little finds off the story's path only.
+   * Everything else in the dark is always seen and examinable (2026-09-26).
    */
   litOnly?: boolean;
 }
@@ -354,10 +361,23 @@ export interface MapDef {
    * keys, bgm/amb per stage, grading and fushigi stages all read it.
    */
   stageFlag?: 'flag_stage' | 'flag_ch2_stage';
-  /** Dark tiles (52 1.7 / 8.5): tile rects. Only the tomato light shows what stands in them. */
+  /**
+   * Dark tiles (52 1.7 / 8.5): tile rects, a step darker than the ordinary
+   * night (DARK_COL). What stands in them is still drawn; the tomato light
+   * brings back its warm colour and detail.
+   */
   dark?: TileRect[];
+  /** The dark's colour in the light map when not DARK_COL (the barn's one dim pen under a dead tube). */
+  darkCol?: string;
+  /** How deep (px) the dark's dithered edge runs into it (default 12; a small dark wants less). */
+  darkEdge?: number;
   /** Readable patches in the dark without the lantern (the house door's starlight). */
   starlight?: StarlightSpot[];
+  /**
+   * The colour put back round Minato's feet in the dark without the lantern
+   * (default: outdoors the night's base, indoors STARLIGHT_ROOM; false: none).
+   */
+  darkStar?: string | false;
   /** Lights standing in the dark (the はなまるトマト before it is picked, 52 8.5 例外). */
   darkLights?: DarkLight[];
   /**

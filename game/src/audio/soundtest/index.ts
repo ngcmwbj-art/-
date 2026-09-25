@@ -174,6 +174,12 @@ const AMB_LABEL: Record<string, string> = {
   amb_tsugao_room: 'ツガオの部屋（スタンドのうなり、時計、波とサイレン）',
 };
 
+/** SE group headings that would run off the page, as the list shows them. */
+const HEAD_SHORT: Record<string, string> = {
+  '足音・シンボル・エンディング': 'エンディング・足音ほか',
+  'ツガオの部屋（第3章の予告）': 'ツガオの部屋（予告）',
+};
+
 /** 第2章's songs: 星見台's three, and the two battle songs heard at night (53 5.5). */
 const CH2_BGM: { id: string; label: string }[] = [
   { id: 'bgm_hoshi_night', label: '星見台の夜' },
@@ -209,8 +215,9 @@ function rowsFor(tab: TabId, ch: Chapter): Row[] {
         if (isCh2Se(info.group) !== two) continue;
         if (info.group !== g) {
           g = info.group;
-          // (the page already says 第2章)
-          out.push({ kind: 'head', id: `#${g}`, label: g.replace(/^第2章：/, '') });
+          // (the page already says 第2章; a heading too long for the page says it shorter)
+          const head = g.replace(/^第2章：/, '');
+          out.push({ kind: 'head', id: `#${g}`, label: HEAD_SHORT[head] ?? head });
         }
         out.push({ kind: 'item', id, label: info.label, group: info.group });
       }

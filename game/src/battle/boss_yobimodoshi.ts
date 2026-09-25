@@ -123,6 +123,8 @@ export const yobiMemory = { tomatoUsed: false };
 const RAPPA_ORDER = ['boss_yobimodoshi_east', 'boss_yobimodoshi_west', 'boss_yobimodoshi_south', 'boss_yobimodoshi_north'];
 /** ハウリング pitch per ラッパ (53 8.6). */
 const HOWL_PITCH: Record<string, number> = { east: 1.0, west: 0.89, south: 0.84, north: 0.75 };
+/** Name tags already lit when the battle starts (the roll call goes on). */
+export const YOBI_START_TAGS = 2;
 /** 点呼 notes by the count after it lights (53 8.6). */
 const TENKO_NOTES = ['D6', 'A5', 'F5'];
 
@@ -169,7 +171,11 @@ export function initBoss(s: BattleScene): void {
   s.memo.bossPhase = 1;
   setFlag('flag_ch2_boss_phase', 1);
   setFlag('flag_ch2_boss_light', 0);
-  s.bossChime.lit = 0;
+  // 「……点呼を 続けます。」: the night's roll call is already under way —
+  // two tags are lit when the fight begins (balance, QA round 1: from zero a
+  // player who used the tomato never saw 夜ふかし before the finale)
+  s.bossChime.lit = YOBI_START_TAGS;
+  for (let i = 0; i < YOBI_START_TAGS; i++) s.bossChime.pops[i] = 0;
   const e = boss(s);
   if (e) {
     e.params.light = 0;
@@ -409,8 +415,16 @@ function drawTop(s: BattleScene, g: Gfx): void {
     ctx.restore();
   }
   if (y.cut > 0) {
+    // the picture covers the stage and the panels, never the band: its six
+    // lines (「……牛舎に、明かり。」…) are read over it as subtitles
     const draw = battleCut('cut_h_village_lit') ?? drawVillageLit;
     g.alpha(y.cut, () => draw(g, y.cutT, y.cutCue));
+    if (!s.msg.hidden) {
+      const a = s.msg.alpha;
+      s.msg.alpha = 1;
+      s.msg.draw(g);
+      s.msg.alpha = a;
+    }
   }
   if (y.black) g.rect(0, 0, 384, 216, '#0B0B14');
 }
@@ -730,12 +744,21 @@ function echoRings(s: BattleScene, x: number, y: number, n: number): void {
 function* yofukashi(c: BossMoveCtx): Co {
   const { s, e, common, resolveGuard, all, pages, st } = c;
   const y = yobiState(s);
+  s.memo.yofukashiSeen = 1;
   const wave = { y: -60, a: 0 };
   const fx = s.addFx({
     layer: 'top',
     dur: 0,
     draw: (g) => {
       if (wave.a <= 0) return;
+      // the dark comes down over the stage only: the band keeps its lines
+      // whole (it just dims a little while the wave passes behind it)
+      const band = s.msg.hidden ? 0 : s.msg.bottom + 1;
+      const ctx = g.ctx;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(-8, band, 400, 240);
+      ctx.clip();
       g.alpha(wave.a, () => {
         const top = Math.round(wave.y);
         g.rect(0, Math.max(0, top - 60), 384, 60, '#0B0B14', 0.5);
@@ -744,6 +767,8 @@ function* yofukashi(c: BossMoveCtx): Co {
           g.rect(x, yy, 2, 2, '#1B1733');
         }
       });
+      ctx.restore();
+      if (band > 0 && wave.y > 0) g.rect(0, 0, 384, band, '#0B0B14', 0.18 * wave.a);
     },
   });
   // the tags pulse together
@@ -826,8 +851,11 @@ export function* bossRoundEnd(s: BattleScene): Co {
       }
       s.setMusicParam('tenko', 0);
       if (s.party.some((u) => u.alive)) yield* s.say(e.def.texts.extra.yofukashiAfter);
-    } else if (s.bossChime.lit >= 3 && !y.tomatoUsed && !s.memo.tomatoTutShown) {
-      // 付箋 flag_tut_tomato: the first time three tags are lit and the tomato is unused
+    }
+    // 付箋 flag_tut_tomato: the first time three tags are lit and the tomato
+    // is unused. In phase 2 the tags can go 2 → 4 in one roll call (straight
+    // into 夜ふかし), so a 夜ふかし counts too — the hint is never skipped.
+    if (!y.tomatoUsed && !s.memo.tomatoTutShown && (s.bossChime.lit >= 3 || s.memo.yofukashiSeen)) {
       s.memo.tomatoTutShown = 1;
       s.memo.tomatoTut = 1;
     }

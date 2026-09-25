@@ -14,15 +14,15 @@ import { drawWater, type Reflector, type WaterCtx } from '../art/tiles/water';
 import { drawGroundLife } from '../art/tiles/groundlife';
 import { CHUNK } from './ground_cache';
 import type { FieldScene, PropInst } from './field';
-import { css, HOSHI_INDOOR_BASE, HOSHI_INDOOR_MORNING, INDOOR_MUL, shadowDir } from './lighting';
+import { css, HOSHI_INDOOR_BASE, HOSHI_INDOOR_MORNING, INDOOR_MUL, shadowDir, type RGB } from './lighting';
 import { cellAt, groundAt, isCh2Map } from './maps';
 import type { Actor } from './actor';
 import { hud } from './hud';
 import { fxDraw, fxUpdate } from './fx';
 import * as snd from './audio';
-import { eraseDark, fanImage, lanternShadow, nightSilhouette, STARLIGHT_ROOM, type LightCircle } from './lantern';
+import { eraseDark, fanImage, haloImage, lanternShadow, LANTERN_HZ, nightSilhouette, STARLIGHT_ROOM, type LightCircle } from './lantern';
 import { charGlow, litRim } from '../art/chars/nightlight';
-import { genFlash, hoshiPositional, hoshiPositionalBeds, paintRoomLight, roomLit } from './hoshi';
+import { drawRoomDawnFx, genFlash, hoshiPositional, hoshiPositionalBeds, paintRoomLight, roomMorningK } from './hoshi';
 import { fushigiDone } from './fushigi';
 import { hash2, Rng, valueNoise } from '../engine/rng';
 
@@ -631,7 +631,7 @@ export class Renderer {
         const rim = litRim(d.img, l.x - fx, l.y - fy, '#F2894B');
         if (rim) {
           const q = dist / l.r;
-          ec.globalAlpha = 0.95 * (1 - q * q) * la;
+          ec.globalAlpha = 0.95 * (1 - q * q) * la * f.light.lightWeight(a.x, a.y - 2, 'rim');
           ec.drawImage(rim, d.ix!, d.iy!);
           ec.globalAlpha = 1;
           this.addGlowBox(d.ix!, d.iy!, d.img.width, d.img.height);
@@ -678,7 +678,7 @@ export class Renderer {
     const rim = litRim(d.img, l.x - fx, l.y - fy, '#F2894B');
     if (!rim) return;
     const q = dist / l.r;
-    this.pendingRim.set(p, [rim, d.ix!, d.iy!, 0.85 * (1 - q * q) * (d.alpha ?? 1)]);
+    this.pendingRim.set(p, [rim, d.ix!, d.iy!, 0.85 * (1 - q * q) * (d.alpha ?? 1) * this.f.light.lightWeight(fx, fy + 6, 'rim')]);
     // props with a glow flush it in their glow slot; the rest right now
     if (!a.glow || a.glowFg) this.flushRim(p);
     void cx;
@@ -726,7 +726,7 @@ export class Renderer {
     if (f.follower) acts.push(f.follower);
     for (const a of acts) {
       if (!a.visible || a.drawFn || a.shadowH === 0 || a.kind === 'restored') continue;
-      const la = f.light.actorAlpha(a);
+      const la = f.light.actorAlpha(a) * f.light.lightWeight(a.x, a.y - 2, 'shadow');
       if (la <= 0.05) continue;
       const sh = lanternShadow(l, a.x, a.y);
       if (!sh) continue;
@@ -737,10 +737,11 @@ export class Renderer {
     // Minato himself: the light is over his head to the upper left, a short shadow to the lower right
     {
       const p = f.player;
-      if (p.visible) {
+      const w = f.light.lightWeight(p.x, p.y - 2, 'shadow');
+      if (p.visible && w > 0.05) {
         const img = p.frame();
         const [ix, iy] = p.drawPos(img);
-        cast(img, ix, iy, Math.round(p.x), Math.round(p.y), 0.6, 0.8, 0.25, 0.3);
+        cast(img, ix, iy, Math.round(p.x), Math.round(p.y), 0.6, 0.8, 0.25, 0.3 * w);
       }
     }
     for (const p of f.props) {
@@ -752,7 +753,7 @@ export class Renderer {
       if (!visible(p.x + a.ox - 32, p.y + a.oy - 32, a.w + 64, a.h + 64)) continue;
       const sh = lanternShadow(l, fx, fy);
       if (!sh) continue;
-      const la = f.light.alphaOf(p);
+      const la = f.light.alphaOf(p) * f.light.lightWeight(fx, fy - 2, 'shadow');
       if (la <= 0.05) continue;
       const img = (a.shadowImg ?? a.img)(envOf(p));
       if (!img) continue;
@@ -784,6 +785,27 @@ export class Renderer {
       ctx.restore();
     }
     this.silLater = [];
+    // the lights that must read in a lit room too (the はなまるトマト among
+    // the greenhouse's lamps, 52 4.2): a halo screened over the frame,
+    // breathing with the light (0.8 Hz)
+    for (const s of L.sources) {
+      if (!s.halo) continue;
+      const beat = 0.72 + 0.28 * Math.sin(2 * Math.PI * LANTERN_HZ * (f.t / 1000));
+      ctx.save();
+      for (const layer of ['veil', 'core'] as const) {
+        const img = haloImage(s.halo, layer);
+        const R = (img.width - 1) / 2;
+        const hx = Math.round(s.x - cx) - R;
+        const hy = Math.round(s.y - cy) - R;
+        if (hx > W || hy > H || hx + img.width < 0 || hy + img.height < 0) continue;
+        ctx.globalCompositeOperation = layer === 'core' ? 'screen' : 'source-over';
+        ctx.globalAlpha = Math.min(1, beat * Math.min(1, s.k));
+        ctx.drawImage(img, hx, hy);
+      }
+      ctx.restore();
+    }
+    // the morning coming into a room (the barn at 5:00, ending cut 2a)
+    if (f.map.def.kind === 'indoor') drawRoomDawnFx(f, ctx, cx, cy);
     // マサルさん's flashlight, one frame a second: the bulb
     const g = genFlash(f);
     if (g) {
@@ -1579,11 +1601,11 @@ export class Renderer {
       }
       // (the starlight round his feet is the night's colour: indoors the
       // room's own light doesn't reach into its dark part)
-      f.light.paint(lx, cx, cy, indoor ? STARLIGHT_ROOM : base, W, H);
+      const star = f.map.def.darkStar;
+      f.light.paint(lx, cx, cy, star === false ? base : star ?? (indoor ? STARLIGHT_ROOM : base), W, H);
       if (indoor) lx.restore();
-      // the rooms' own light moving: the tubes coming on one by one, the
-      // starlight through the train's windows (hoshi.ts)
-      paintRoomLight(f, lx, cx, cy, HOSHI_INDOOR_MORNING[f.map.id] ?? HOSHI_INDOOR_MORNING.default);
+      // the rooms' own light moving: the starlight through the train's windows (hoshi.ts)
+      paintRoomLight(f, lx, cx, cy);
     }
     lx.globalCompositeOperation = 'lighter';
     if (ch2) {
@@ -1863,14 +1885,27 @@ function lampPos(a: Actor): [number, number] {
 /** Grounds whose navy pixels are open water (the ripples of the mirrored sky run on them). */
 const WATERY = new Set(['h_canal', 'h_stream', 'h_tanada', 'h_nuta', 'water', 'paddy']);
 
-/** 星見台's light-map base (52 4.0 / 8.3): outdoors the pal_h* multiply, indoors the room's own base. */
+/**
+ * 星見台's light-map base (52 4.0 / 8.3): outdoors the pal_h* multiply,
+ * indoors the room's own base — the night's, going over to the morning's as
+ * the morning comes in (hoshi.ts roomMorningK: ending cut 2a over 1.2 s).
+ */
 function hoshiBase(f: FieldScene): string {
   const def = f.map.def;
   if (def.kind !== 'indoor') return css(f.grade.mul);
-  const night = def.lightBase ?? HOSHI_INDOOR_BASE[def.id] ?? '#5C5A94';
-  const lit = roomLit(f.map.id);
-  if (lit === null ? flag('flag_ch2_stage') >= 3 : lit >= 1) return HOSHI_INDOOR_MORNING[def.id] ?? HOSHI_INDOOR_MORNING.default;
-  return night;
+  const night = def.lightBase ?? HOSHI_INDOOR_BASE[def.id] ?? '#9894C4';
+  const k = roomMorningK(f);
+  if (k <= 0) return night;
+  const morning = HOSHI_INDOOR_MORNING[def.id] ?? HOSHI_INDOOR_MORNING.default;
+  if (k >= 1) return morning;
+  const a = hexRgb(night);
+  const b = hexRgb(morning);
+  return css([a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]);
+}
+
+function hexRgb(h: string): RGB {
+  const v = parseInt(h.replace('#', ''), 16);
+  return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
 }
 
 const silColCache = new WeakMap<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();

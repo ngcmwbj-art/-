@@ -3,7 +3,9 @@
 // 星見台 branch school, now the meeting hall (26×12). Rows are 52 4.1–4.4
 // verbatim. Each room is painted by one shell prop (art/props/hoshi_rooms_*)
 // plus depth-sorted fittings; the dark (52 1.7) and the lights are declared
-// here for the world's light map.
+// here for the world's light map. Since 2026-09-26 the greenhouse's lamps
+// and the barn's tubes are on all night (only 南5, under its dead tube, is
+// dim); the school's far corridor and rooms stay a step darker than the night.
 
 import { flag } from '../../game/state';
 import { registerMap } from '../../world/maps';
@@ -66,7 +68,8 @@ registerMap({
   camera: 'fixed',
   onEnter: ['evt_ch2_train'],
   space: 'room',
-  lightBase: '#3E3E6A',
+  // the car's lights are off: the night through the windows, lighter since 2026-09-26 (52 4.1)
+  lightBase: '#6E6C9E',
   outside: '#0B0B14',
   bgm: { 0: null, 1: null, 2: null },
   amb: { 0: ['amb_h_train'], 1: ['amb_h_train'], 2: ['amb_h_train'] },
@@ -165,9 +168,11 @@ registerMap({
   variant: 'house',
   space: 'room',
   outside: '#0B0B14',
-  dark: [{ x: 0, y: 0, w: 9, h: 18 }],
-  starlight: [{ x: 4, y: 16, r: 1.5 }],
-  darkLights: [{ x: 5, y: 2, ox: 8, oy: 4, r: 80, amp: 3, k: 0.6, cond: { notFlag: 'flag_ch2_got_tomato' } }],
+  // the lamps are on (52 4.2, 2026-09-26): a warm white all through
+  lightBase: '#F0E6D2',
+  // the はなまるトマト (5,2), 5th truss, until it is picked: it glows even
+  // among the lamps — its own warm circle and a breathing halo on the fruit
+  darkLights: [{ x: 5, y: 2, ox: 8, oy: 4, r: 88, amp: 4, k: 1, halo: 18, cond: { notFlag: ['flag_ch2_got_tomato', 'flag_ch2_tomato_picked'] } }],
   bgm: { 0: 'bgm_hoshi_night', 1: 'bgm_hoshi_night', 2: 'bgm_hoshi_night' },
   amb: { 0: ['amb_h_house', 'amb_h_tomato', 'amb_h_hachi'], 1: ['amb_h_house', 'amb_h_hachi'], 2: ['amb_h_house', 'amb_h_hachi'] },
 });
@@ -353,7 +358,15 @@ registerMap({
   variant: 'barn',
   space: 'barn',
   outside: '#0B0B14',
-  dark: [{ x: 0, y: 0, w: 22, h: 12 }],
+  // the tubes over the feed aisle are on all night (52 4.3, 2026-09-26): the
+  // fluorescent white. 南5 (x17–19, y8–10) is dim under its one dead tube —
+  // the cows' shapes show, their faces don't: マサルさん's flashlight is flat
+  // too, so the round's last pen waits for the tomato's light
+  lightBase: '#E8ECF0',
+  dark: [{ x: 17, y: 8, w: 3, h: 3 }],
+  darkCol: '#6E6E86',
+  darkEdge: 6,
+  darkStar: false,
   bgm: { 0: 'bgm_hoshi_night', 1: 'bgm_hoshi_night', 2: 'bgm_hoshi_night' },
   amb: { 0: ['amb_h_barn'], 1: ['amb_h_barn'], 2: ['amb_h_barn'] },
 });
@@ -390,11 +403,11 @@ const SCHOOL_OBJ: MapObj[] = [
   PR('prop_h_kyotaku', 5, 3),
   PR('prop_h_getabako', 1, 10),
   PR('prop_h_kasatate', 6, 10),
-  // the dark rooms' furniture: only what the lantern's circle shows (52 8.5)
-  PR('prop_h_desks', 13, 6, undefined, { litOnly: true }),
-  PR('prop_h_kyotaku2', 15, 3, undefined, { litOnly: true }),
-  PR('prop_h_shokuin_desk', 18, 3, undefined, { litOnly: true }),
-  PR('prop_h_housou', 22, 3, undefined, { litOnly: true }),
+  // the dark rooms' furniture: always there, sunk a step darker than the night (52 8.5, 2026-09-26)
+  PR('prop_h_desks', 13, 6),
+  PR('prop_h_kyotaku2', 15, 3),
+  PR('prop_h_shokuin_desk', 18, 3),
+  PR('prop_h_housou', 22, 3),
   PR('prop_h_school_lamps', 0, 0),
   // examine (52 4.4)
   O('obj_hoshi_kairan', 5, 3, { face: 'up' }),
@@ -425,7 +438,8 @@ const SCHOOL_OBJ: MapObj[] = [
   { t: 'npc', id: 'npc_hoshi_kucho', x: 6, y: 3, dir: 'down', talk: htalk('npc_hoshi_kucho') },
   { t: 'npc', id: 'npc_hoshi_fumi', x: 9, y: 3, dir: 'up', talk: htalk('npc_hoshi_fumi'), cond: { stage: '0-1' } },
   { t: 'npc', id: 'npc_hoshi_yoshie', x: 2, y: 5, dir: 'left', talk: htalk('npc_hoshi_yoshie'), script: 'evt_ch2_rest_yoriai' },
-  // the dark corridor: pushed back until the lantern (52 1.6); facing it from the lit end asks the same
+  // the dark corridor: pushed back until the lantern (52 1.6: the floor is bad
+  // and the rooms at its end are dark); facing it from the lit end says the same
   O('obj_hoshi_rouka_dark', 10, 9, { h: 2, face: 'right', script: 'evt_ch2_dark_block', cond: { notFlag: 'flag_ch2_got_tomato' } }),
   { t: 'trig', id: 'trig_ch2_dark_school', x: 10, y: 9, w: 1, h: 2, script: 'evt_ch2_dark_block', cond: { notFlag: 'flag_ch2_got_tomato' } },
   { t: 'door', id: 'door_hoshi_school_out', x: 5, y: 11, to: 'map_hoshimidai', tx: 26, ty: 28, dir: 'down', se: 'se_door' },

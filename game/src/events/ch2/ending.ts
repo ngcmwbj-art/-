@@ -18,7 +18,7 @@ import { game } from '../../engine/game';
 import { animate, ease } from '../../engine/tween';
 import { flag, setFlag, type Dir } from '../../game/state';
 import { ambientEvent, playAmbient, playBgm, setAmbientVol, stopAllAmbient, stopAmbient, stopBgm } from '../../audio';
-import { despawn, face, registerScript, roomLights, setFollowerVisible, setGradeH, spawn, takeItem, walk } from '../../world/api';
+import { despawn, face, registerScript, roomMorning, setFollowerVisible, setGradeH, spawn, takeItem, walk } from '../../world/api';
 import type { Actor } from '../../world/actor';
 import { field } from '../../world/field';
 import { registerWorldFx } from '../../world/fx';
@@ -235,17 +235,19 @@ function* cut1Hill(): Co {
 // ---------------------------------------------------------------- カット2 村の朝
 
 function* cut2Morning(): Co {
-  // 2a the barn: the lights on the timer; マサルさん pushes the feed cart east; the cows get up
+  // 2a the barn (its tubes on all night, 2026-09-26): the morning comes in
+  // through the east windows (1.2 s: the white of the tubes warms to the
+  // morning, the dim pen fills) and the cows get up and put their heads in
+  // the troughs; マサルさん pushes the feed cart east
   yield* fadeCut(300);
   cutTo('map_hoshi_barn', 11, 6);
   setGradeH('h3c', 0);
-  roomLights(false);
+  roomMorning(false);
   put('npc_hoshi_gen', 4, 6, 'right', 'feed');
   playAmbient('amb_h_barn', { vol: 0.6, fade: 0.3 });
   yield* game.fadeIn(300);
   yield 200;
-  roomLights(true);
-  se('se_h_barn_light');
+  roomMorning(true, 1200);
   yield 500;
   se('se_h_feed_cart');
   game.scripts.run(walk('end_npc_hoshi_gen', [9, 6], { speed: 1.6 }));

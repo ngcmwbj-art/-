@@ -256,7 +256,7 @@ export const YOBI_PARTS: BossPartDef[] = [
 
 const yobimodoshi: EnemyDef = {
   id: 'boss_yobimodoshi', name: 'ヨビモドシ', lvl: 7, size: [128, 160], core: [64, 72], face: [64, 66], footY: 192, chapter: 2,
-  hp: 440, atk: 21, def: 12, spd: 8, luck: 8, exp: 100, money: 0, attr: NO_WEAK, drops: [], noFlee: true, noCrit: true,
+  hp: 520, atk: 21, def: 12, spd: 8, luck: 8, exp: 100, money: 0, attr: NO_WEAK, drops: [], noFlee: true, noCrit: true,
   bg: 'bg_h_boss', bgm: 'bgm_boss_yobimodoshi', tsukkomiCount: 3, boss: true, restActions: 0, parts: YOBI_PARTS,
   tsukkomi: ['出席 とるな！', 'こんな 時間に 呼ぶな！', '山びこ かよ！'],
   skills: ['skill_yobi_tenko', 'skill_yobi_yofukashi', 'skill_yobi_ressha', 'skill_yobi_sukima', 'skill_yobi_amado', 'skill_yobi_yamabiko', 'skill_yobi_onamae', 'skill_idle'],

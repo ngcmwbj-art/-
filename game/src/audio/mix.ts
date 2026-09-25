@@ -75,6 +75,8 @@ const SE_TARGET: Record<string, number> = {
   // feet, the scarecrow's hop, the ending
   se_step_sheet: -24, se_h_kakashi_hop: -18, se_h_tomato_rise: -12, se_h_sunrise: -14, se_h_bus_idle: -18,
   se_h_bus_door: -14, se_h_bus_depart: -14, se_h_bus_arrive: -14,
+  // a はなまる drawn by hand: a moment, but a pen on paper (under the hanko's はなまる)
+  se_hanamaru_draw: -16,
   // ツガオの部屋
   se_dakoku: -14, se_mada_stamp: HIT, se_lamp_click: -18, se_clock_restart: -16, se_clock_tick: -18,
   // ツガオ便 and the delivery (the hen as small as the town's pigeons and cats)
@@ -365,13 +367,14 @@ export const SE_TRIM: Record<string, number> = {
   se_h_seiriken: 30, se_h_coin_box: 19.5, se_h_vinyl_door: 23, se_h_yunomi: 16, se_h_yunomi_pour: 26.5, se_h_tomato_catch: 17.5,
   se_h_lantern_set: 28, se_h_light_spread: 23, se_h_boukatou_on: 30.5, se_h_kaichu: 23, se_h_kakashi_turn: 33.5, se_h_keitora: 21,
   se_h_keitora_go: 20.5, se_h_chalk: 29, se_h_chalk_erase: 31.5, se_h_kairan: 29, se_h_shodoku: 19, se_h_hansuu: 25.5,
-  se_h_cow_snort: 25.5, se_h_moo: 27, se_h_barn_light: 23.5, se_h_feed_cart: 28, se_h_feedbag: 18.5, se_h_gate_hook: 22.5,
+  se_h_cow_snort: 25.5, se_h_moo: 27, se_h_barn_light: 24, se_h_feed_cart: 28, se_h_feedbag: 18.5, se_h_gate_hook: 22.5,
   se_h_side_roll: 22, se_h_ripen: 22.5, se_h_pa_open: 17.5, se_h_pa_close: 18, se_h_pa_last: 9, se_h_morning_chime: 0.5,
   se_h_sune: 23, se_h_roll: 25.5, se_h_aokusai: 26, se_h_biri: 16.5, se_h_boar: 36, se_h_soil: 23.5,
   se_h_charin: 18, se_h_tiller: 28, se_h_stall: 27.5, se_h_tenko: 14, se_h_howl: 27.5, se_h_yofukashi: 9.5,
   se_h_ressha: 18.5, se_h_sukima: 21, se_h_amado: 22.5, se_h_yamabiko: 34.5, se_h_onamae: 20.5, se_h_tomato_glow: 19,
   se_h_dim: 25, se_h_otsukare: 27, se_h_bell_kon: 14, se_h_hamidashi: 17.5, se_step_sheet: 25, se_h_kakashi_hop: 19.5,
   se_h_tomato_rise: 26, se_h_sunrise: 20, se_h_bus_idle: 22, se_h_bus_door: 19, se_h_bus_depart: 26.5, se_h_bus_arrive: 25.5,
+  se_hanamaru_draw: 27,
   se_h_ibiki: 31.5, se_h_acha: 36, se_h_esayose: 32, se_h_watercup: 24.5,
   se_dakoku: 21.5, se_mada_stamp: 22, se_lamp_click: 20, se_clock_restart: 11.5, se_clock_tick: 23.5,
   se_h_deli_put: 19.5, se_truck_aori: 20.5, se_truck_key: 28.5, se_yakiimo: 27, se_piichan_flap: 28.5,

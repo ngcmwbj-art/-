@@ -664,66 +664,113 @@ onFushigiPressed((id) => {
 /** The night train (and its QA copy, hoshi_debug.ts). */
 const TRAIN_MAPS = new Set(['map_hoshi_train', 'map_hoshi_qa_train']);
 
-interface RoomLights {
+interface RoomDawn {
   map: string;
   on: boolean;
   t0: number;
   ms: number;
 }
-let roomLights: RoomLights | null = null;
+let roomDawnState: RoomDawn | null = null;
 
 /**
- * The barn's tubes at 5:00 (52 4.3 カット2a): `on` sweeps the room's light
- * on from the west end, six tubes 0.08 s apart (each one a frame too bright
- * as it catches); `off` holds the room dark whatever the stage. null gives
- * the room back to its stage (lit from h3). For the current map.
+ * The morning coming into a 星見台 room (52 4.3 カット2a, 2026-09-26): the
+ * barn's tubes are on all night, so at 5:00 nothing switches on — the
+ * morning light comes in through the east over `ms` (the base goes from the
+ * night's to the morning's, a few shafts of sun lie across the floor from
+ * the east, the dim pen under the dead tube fills). `on` starts it; `false`
+ * holds the room at night whatever the stage; null gives the room back to
+ * its stage (the morning from h3). For the current map.
  */
-export function setRoomLights(f: FieldScene, on: boolean | null, sweepMs = 480): void {
-  roomLights = on === null ? null : { map: f.map.id, on, t0: f.t, ms: Math.max(1, sweepMs) };
+export function setRoomDawn(f: FieldScene, on: boolean | null, ms = 1200): void {
+  roomDawnState = on === null ? null : { map: f.map.id, on, t0: f.t, ms: Math.max(1, ms) };
 }
 
-/** 0..1 how far the room's lights are on (null: by the stage). */
-export function roomLit(mapId: string): number | null {
-  const r = roomLights;
+/** 0..1 how far the morning has come into this room by a script (null: by the stage). */
+export function roomDawn(mapId: string, t?: number): number | null {
+  const r = roomDawnState;
   if (!r || r.map !== mapId) return null;
   if (!r.on) return 0;
-  const f = currentField;
-  if (!f) return 1;
-  return Math.min(1, (f.t - r.t0) / r.ms);
+  const now = t ?? currentField?.t;
+  if (now === undefined) return 1;
+  const k = Math.max(0, Math.min(1, (now - r.t0) / r.ms));
+  return k * k * (3 - 2 * k);
+}
+
+/** 0..1 of the morning in the field's room now (the script's, else 1 from h3). */
+export function roomMorningK(f: FieldScene): number {
+  const d = roomDawn(f.map.id, f.t);
+  if (d !== null) return d;
+  return flag('flag_ch2_stage') >= 3 ? 1 : 0;
+}
+
+/**
+ * The old name of roomDawn (chars' cattle read it lazily: a lying cow gets
+ * up once it is above 0 — the morning coming in at 5:00).
+ */
+export const roomLit = (mapId: string): number | null => roomDawn(mapId);
+
+/**
+ * The flags the props of a 星見台 map read (PropEnv.flag). The barn's tube
+ * fittings (levels' prop_h_barn_lights) show a tube on once
+ * `flag_ch2_barn_lights` is set: since 2026-09-26 the tubes over the feed
+ * aisle are on all night, so in the barn it always reads as set (the one
+ * dead tube is over 南5's pen, the dim pen in the light map).
+ */
+const barnFlag = (id: string): number => (id === 'flag_ch2_barn_lights' ? 1 : flag(id));
+export function propFlagOf(mapId: string): (id: string) => number {
+  return mapId === 'map_hoshi_barn' ? barnFlag : flag;
 }
 
 let currentField: FieldScene | null = null;
 
+/** The barn: where the morning comes in (the east end's windows over the sliding door, 52 4.3). */
+const DAWN_SHAFTS: Record<string, { x: number; y: number; w: number; lean: number }[]> = {
+  map_hoshi_barn: [
+    { x: 21 * 16, y: 2 * 16 + 6, w: 12, lean: 0.25 },
+    { x: 21 * 16, y: 5 * 16 + 4, w: 22, lean: 0.25 },
+    { x: 21 * 16, y: 8 * 16 + 10, w: 12, lean: 0.25 },
+  ],
+};
+
 /**
- * Light-map extras of the rooms, painted over the base (source-over): the
- * tubes sweeping on (the lit part of the room in `litCol`, each new tube's
- * strip white for one frame), and in the night train the starlight through
- * the north windows — 24px parallelograms of #7FD1E8 α10% running from
- * right to left over the seats and the floor at 90px/s, one every 1.4 s
- * (the train goes east, the light outside goes west: fx_h_train_window).
+ * The shafts of the morning sun in a room (post-grade, screened): long
+ * bands of #FFE7A3 from the east wall westward across the floor, falling
+ * 1px south for every 4 west (the sun is low in the east-south-east),
+ * fading out to the west; α follows the morning coming in.
  */
-export function paintRoomLight(f: FieldScene, lx: CanvasRenderingContext2D, cx: number, cy: number, litCol: string): void {
-  currentField = f;
-  const r = roomLights;
-  if (r && r.map === f.map.id && r.on) {
-    const k = Math.min(1, (f.t - r.t0) / r.ms);
-    if (k < 1) {
-      const n = 6;
-      const lit = Math.floor(k * n + 1e-6);
-      const segW = (f.map.w * 16) / n;
-      lx.save();
-      lx.globalCompositeOperation = 'source-over';
-      lx.fillStyle = litCol;
-      lx.fillRect(-cx, -cy, Math.round(segW * lit), f.map.h * 16);
-      // the tube that has just caught: one frame too bright
-      const fresh = k * n - lit < 0.035 * n && lit > 0;
-      if (fresh) {
-        lx.fillStyle = '#FFFFFF';
-        lx.fillRect(Math.round(segW * (lit - 1)) - cx, -cy, Math.round(segW), f.map.h * 16);
-      }
-      lx.restore();
+export function drawRoomDawnFx(f: FieldScene, ctx: CanvasRenderingContext2D, cx: number, cy: number): void {
+  const shafts = DAWN_SHAFTS[f.map.id];
+  if (!shafts || !isCh2Map(f.map.def)) return;
+  const k = roomMorningK(f);
+  if (k <= 0.01) return;
+  const len = 15 * 16;
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (const s of shafts) {
+    for (let d = 0; d < len; d += 2) {
+      const u = d / len;
+      const a = 0.26 * k * (1 - u) * (1 - u);
+      if (a < 0.01) break;
+      ctx.fillStyle = `rgba(255,231,163,${a.toFixed(3)})`;
+      const x = Math.round(s.x - d - 2 - cx);
+      const y = Math.round(s.y + d * s.lean - cy);
+      // the band's edges dithered: every other column a pixel narrower
+      const w = s.w - ((d >> 1) & 1);
+      ctx.fillRect(x, y, 2, w);
     }
   }
+  ctx.restore();
+}
+
+/**
+ * Light-map extras of the rooms, painted over the base (source-over): in
+ * the night train the starlight through the north windows — 24px
+ * parallelograms of #7FD1E8 α10% running from right to left over the seats
+ * and the floor at 90px/s, one every 1.4 s (the train goes east, the light
+ * outside goes west: fx_h_train_window).
+ */
+export function paintRoomLight(f: FieldScene, lx: CanvasRenderingContext2D, cx: number, cy: number): void {
+  currentField = f;
   if (TRAIN_MAPS.has(f.map.id) && flag('flag_ch2_stage') <= 2) {
     // inside the car: rows 2–5, x 1–15 (the driver's cab has its own dials)
     const x0 = 16 - cx;
@@ -773,6 +820,8 @@ export function hoshiUpdate(f: FieldScene, dt: number, ctrl: boolean): void {
   if (f.map !== enteredMap) {
     enteredMap = f.map;
     if (onHoshi(f)) fushigiBeds(f);
+    // a scene's hold on a room's morning ends when the room is left
+    if (roomDawnState && roomDawnState.map !== f.map.id) roomDawnState = null;
   }
   updateCalls(f, dt, ctrl);
   if (!onHoshi(f)) return;

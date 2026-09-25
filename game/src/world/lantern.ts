@@ -1,20 +1,26 @@
 // The dark and the tomato light (52 8.4 / 8.5, 50 4.5, 51 11.3, 02_ch2 6.3).
 //
 // A map lists its dark tiles (MapDef.dark). In the light map (render.ts,
-// the canvas multiplied over the graded world) they are painted #10101A,
-// the border dithered 3 steps deep into the dark (1/3, 2/3, full over 12px,
-// 2px cells) and wobbled ±2px so no tile corner shows. Without the lantern
-// Minato keeps a little starlight round his feet (16px, dithered out to
-// 24px). With the はなまるトマト in his net (flag_ch2_got_tomato) three
-// rings are *mixed* over the light map (source-over, not added: the night
-// under them is blue, adding would never give a warm colour), stronger in
-// the dark than on the ordinary night outside it.
+// the canvas multiplied over the graded world) they are painted DARK_COL —
+// since 2026-09-26 (the client's "4:59 is nearly morning; it's too hard to
+// see") a step darker than the ordinary night, not black: the ground, the
+// paths, fences, trees, people, symbols and things to examine all still
+// read in it. The border is dithered 3 steps deep into the dark (1/3, 2/3,
+// full over 12px, 2px cells) and wobbled ±2px so no tile corner shows.
+// Without the lantern Minato keeps a little of the ordinary night round his
+// feet (16px, dithered out to 24px). With the はなまるトマト in his net
+// (flag_ch2_got_tomato) three rings are *mixed* over the light map
+// (source-over, not added: the night under them is blue, adding would never
+// give a warm colour): in the dark they bring back the warm colour and the
+// detail; on the ordinary night and in the lit rooms they are only a warm
+// wash, never a spotlight.
 //
-// Things standing on dark tiles (NPCs, symbols, objects to examine, props
-// up to 32px) are only drawn — and only examinable — while they are inside
-// the light (R − 6px from its centre; symbols R + 8px): they fade in over
-// 0.15 s and out over 0.25 s. Buildings, walls, fences, trees are always
-// drawn: the light map just sinks them.
+// Everything is drawn and examinable in the dark too. Only the little finds
+// off the story's path that the light alone brings out (MapObj litOnly: the
+// child's footprints, the hearth) are drawn — and examinable — while inside
+// the light (R − 6px from its centre): they fade in over 0.15 s and out over
+// 0.25 s. Symbols in the dark are always seen; they only notice Minato once
+// the light's edge (R + 8px) reaches them (symbols.ts: 「？」 and 0.5 s).
 //
 // Everything expensive is cached: the dark coverage once per map, the ring
 // images once per radius (the radius breathes 69–75px at 0.8 Hz in whole
@@ -29,15 +35,16 @@ import type { FieldScene, PropInst } from './field';
 import { condOk, currentStage, isCh2Map, type LoadedMap } from './maps';
 import type { DarkLight, ExamineObj, StarlightSpot, TileRect } from './types';
 import { lanternOf } from '../art/chars/nightlight';
+import { roomMorningK } from './hoshi';
 
 /** Lantern radius (px), breathing amplitude (px) and rate (Hz) — 52 8.5. */
 export const LANTERN_R = 72;
 export const LANTERN_AMP = 3.2;
 export const LANTERN_HZ = 0.8;
-/** Colour of the dark in the light map. */
-export const DARK_COL = '#10101A';
-/** The starlight round Minato's feet in a room's dark part (the night through its windows, pal_h0). */
-export const STARLIGHT_ROOM = '#5C5A94';
+/** Colour of the dark in the light map: a step darker than the night of pal_h0 (#9894C4). */
+export const DARK_COL = '#46446E';
+/** The starlight round Minato's feet in a room's dark part (the night through its windows). */
+export const STARLIGHT_ROOM = '#7C78AA';
 /** Things are shown within R − 6px, symbols within R + 8px (02_ch2 5章 #9). */
 export const SHOW_MARGIN = -6;
 export const SYM_MARGIN = 8;
@@ -46,21 +53,23 @@ const FADE_OUT = 250;
 
 // ---------------------------------------------------------------- defaults (52 1.7)
 
-/** Used when a 星見台 map doesn't give MapDef.dark / darkLights / starlight itself. */
+/**
+ * Used when a 星見台 map doesn't give MapDef.dark / darkLights / starlight
+ * itself. The greenhouse has its lamps on and the barn its tubes (2026-09-26):
+ * only 南5 of the barn, under its one dead tube, is dim.
+ */
 const DEFAULT_DARK: Record<string, TileRect[]> = {
   map_hoshimidai: [{ x: 37, y: 0, w: 23, h: 18 }],
-  map_hoshi_house: [{ x: 0, y: 0, w: 9, h: 18 }],
-  map_hoshi_barn: [{ x: 0, y: 0, w: 22, h: 12 }],
+  map_hoshi_barn: [{ x: 17, y: 8, w: 3, h: 3 }],
   map_hoshi_school: [{ x: 10, y: 0, w: 16, h: 12 }],
   map_hoshi_hill: [{ x: 0, y: 8, w: 24, h: 12 }],
 };
 const DEFAULT_DARK_LIGHTS: Record<string, DarkLight[]> = {
-  // the はなまるトマト on its vine (5,2), 5th truss: until it is picked
-  map_hoshi_house: [{ x: 5, y: 2, ox: 8, oy: 4, r: 80, amp: 3, k: 0.6, cond: { notFlag: ['flag_ch2_got_tomato', 'flag_ch2_tomato_picked'] } }],
+  // the はなまるトマト on its vine (5,2), 5th truss: until it is picked — it
+  // has to glow in the lit house too (its halo, 52 4.2)
+  map_hoshi_house: [{ x: 5, y: 2, ox: 8, oy: 4, r: 88, amp: 4, k: 1, halo: 18, cond: { notFlag: ['flag_ch2_got_tomato', 'flag_ch2_tomato_picked'] } }],
 };
-const DEFAULT_STARLIGHT: Record<string, StarlightSpot[]> = {
-  map_hoshi_house: [{ x: 4, y: 16, r: 1.5 }],
-};
+const DEFAULT_STARLIGHT: Record<string, StarlightSpot[]> = {};
 
 export function darkRectsOf(m: LoadedMap): TileRect[] {
   return m.def.dark ?? (isCh2Map(m.def) ? DEFAULT_DARK[m.id] ?? [] : []);
@@ -116,6 +125,11 @@ export function isDarkPx(m: LoadedMap, x: number, y: number): boolean {
   return isDarkTile(m, Math.floor(x / 16), Math.floor(y / 16));
 }
 
+function hexRgb(h: string): [number, number, number] {
+  const v = parseInt(h.replace('#', ''), 16);
+  return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+}
+
 /** The dark coverage canvas of a map (built on first use; null when the map has no dark). */
 function darkCanvas(m: LoadedMap): HTMLCanvasElement | null {
   const d = darkOf(m);
@@ -126,7 +140,11 @@ function darkCanvas(m: LoadedMap): HTMLCanvasElement | null {
   const [c, ctx] = makeCanvas(W, H);
   const img = ctx.createImageData(W, H);
   const px = new Uint32Array(img.data.buffer);
-  const col = 0xff1a1010; // #10101A (ABGR)
+  const [cr, cg, cb] = hexRgb(m.def.darkCol ?? DARK_COL);
+  const col = (0xff << 24) | (cb << 16) | (cg << 8) | cr; // ABGR
+  // the dithered edge: 3 steps over `edge` px (12 by default)
+  const edge = Math.max(3, m.def.darkEdge ?? 12);
+  const wob = edge >= 9 ? 2 : 1;
   const dark = (tx: number, ty: number) => isDarkTile(m, tx, ty);
   for (let ty = 0; ty < m.h; ty++)
     for (let tx = 0; tx < m.w; tx++) {
@@ -156,9 +174,9 @@ function darkCanvas(m: LoadedMap): HTMLCanvasElement | null {
           }
           // signed: + into the dark, − out of it; then the ±2px wobble
           let s = me ? e : -e;
-          if (e < 16) s += (valueNoise(wx / 7, wy / 7, 4711) * 2 - 1) * 2;
+          if (e < 16) s += (valueNoise(wx / 7, wy / 7, 4711) * 2 - 1) * wob;
           if (s < 0) continue;
-          const density = s < 4 ? 1 : s < 8 ? 2 : 3;
+          const density = s < edge / 3 ? 1 : s < (edge * 2) / 3 ? 2 : 3;
           if (density < 3) {
             const v = ((((wx >> 1) + 2 * (wy >> 1)) % 3) + 3) % 3;
             if (v >= density) continue;
@@ -173,14 +191,19 @@ function darkCanvas(m: LoadedMap): HTMLCanvasElement | null {
 
 // ---------------------------------------------------------------- ring images (per radius)
 
-type RingMode = 'in' | 'out';
+type RingMode = 'in' | 'out' | 'room';
 const RING_COL: [number, number, number][] = [
   [0xff, 0xe7, 0xc0], // centre #FFE7C0
   [0xf7, 0xb0, 0x70], // middle #F7B070
   [0xf2, 0x89, 0x4b], // rim    #F2894B
 ];
-/** Mixing strength of the three rings in the dark / on the ordinary night (52 8.5). */
-const RING_A: Record<RingMode, number[]> = { in: [1, 0.67, 0.33], out: [0.7, 0.47, 0.23] };
+/**
+ * Mixing strength of the three rings (52 8.5): in the dark (the warm colour
+ * and the detail come back), on the ordinary night (a warm wash over the
+ * lighter night of 2026-09-26, not a spotlight) and in a lit room (the
+ * barn's tubes, the greenhouse's lamps: just a warmth round him).
+ */
+const RING_A: Record<RingMode, number[]> = { in: [0.85, 0.6, 0.3], out: [0.42, 0.28, 0.14], room: [0.22, 0.16, 0.09] };
 
 const ringCache = new Map<string, HTMLCanvasElement>();
 
@@ -294,6 +317,57 @@ export function fanImage(angle: number): HTMLCanvasElement {
   return c;
 }
 
+const haloCache = new Map<string, HTMLCanvasElement>();
+/**
+ * The halo of a light that has to read in a lit room too (DarkLight.halo:
+ * the はなまるトマト among the greenhouse's lamps, 52 4.2), in two layers,
+ * both 3 steps with a 2px checker between them, centre at (R, R):
+ * - 'core' (screened over the frame, radius r): #FFE7A3 / #F7B070 / #F2894B
+ *   at α .7 / .45 / .22 — the fruit shines;
+ * - 'veil' (mixed over it, radius 1.8r): #F7B070 / #F2894B / #F2894B at
+ *   α .26 / .16 / .08 — the sunset colour round it, which screening alone
+ *   would bleach out on the lamps' white.
+ */
+export function haloImage(r: number, layer: 'core' | 'veil' = 'core'): HTMLCanvasElement {
+  const key = `${r}:${layer}`;
+  const hit = haloCache.get(key);
+  if (hit) return hit;
+  const R = layer === 'core' ? r : Math.round(r * 1.8);
+  const size = R * 2 + 1;
+  const [c, ctx] = makeCanvas(size, size);
+  const img = ctx.createImageData(size, size);
+  const d = img.data;
+  const t = [0.35 * R, 0.68 * R, R];
+  const A = layer === 'core' ? [0.7, 0.45, 0.22] : [0.26, 0.16, 0.08];
+  const C = layer === 'core' ? [[0xff, 0xe7, 0xa3], RING_COL[1], RING_COL[2]] : [RING_COL[1], RING_COL[2], RING_COL[2]];
+  for (let y = 0; y < size; y++)
+    for (let x = 0; x < size; x++) {
+      const dist = Math.hypot(x - R, y - R);
+      let zone = 3;
+      for (let k = 0; k < 3; k++) {
+        if (dist < t[k] - 1) {
+          zone = k;
+          break;
+        }
+        if (dist < t[k] + 1) {
+          zone = (x + y) & 1 ? k : k + 1;
+          break;
+        }
+      }
+      if (zone >= 3) continue;
+      const i = (y * size + x) * 4;
+      const col = C[zone];
+      d[i] = col[0];
+      d[i + 1] = col[1];
+      d[i + 2] = col[2];
+      d[i + 3] = Math.round(A[zone] * 255);
+    }
+  ctx.putImageData(img, 0, 0);
+  haloCache.set(key, c);
+  if (haloCache.size > 40) haloCache.delete(haloCache.keys().next().value as string);
+  return c;
+}
+
 // ---------------------------------------------------------------- the light state of the field
 
 export interface LightCircle {
@@ -303,6 +377,8 @@ export interface LightCircle {
   /** Strength of its rings (1 = the lantern). */
   k: number;
   kind: 'lantern' | 'fixed' | 'star';
+  /** A halo (px) screened over the frame so it reads in a lit room too (DarkLight.halo). */
+  halo?: number;
 }
 
 /** Is the lantern (the はなまるトマト in Minato's net) lit here? */
@@ -356,7 +432,19 @@ export class LightState {
 
   /** Does the current map have dark tiles (while it's night: none in the morning)? */
   get hasDark(): boolean {
-    return darkOf(this.f.map).any && (!isCh2Map(this.f.map.def) || currentStage() <= 2) && !darkOffFlag();
+    return darkOf(this.f.map).any && this.darkK() > 0.001 && !darkOffFlag();
+  }
+
+  /**
+   * How strong the dark is (0..1): 1 through the night; gone in the
+   * morning — in a room it goes as the morning comes in (the barn's dim pen
+   * in ending cut 2a, hoshi.ts roomMorningK).
+   */
+  darkK(): number {
+    const m = this.f.map;
+    if (!isCh2Map(m.def)) return 1;
+    if (m.def.kind === 'indoor') return 1 - roomMorningK(this.f);
+    return currentStage() <= 2 ? 1 : 0;
   }
 
   /** fx_h_lantern_on: the circle opens 24 → 72px over 0.8 s (ease-out) with a light ring running once. */
@@ -448,38 +536,22 @@ export class LightState {
     } else if (!wanted && f.player.visible && m.id === 'map_hoshi_house' && flag('flag_ch2_tomato_picked') && !flag('flag_ch2_got_tomato')) {
       // the はなまるトマト has dropped into his hands (evt_ch2_tomato): its glow goes with him
       const r = Math.round(HELD_R + 1.5 * Math.sin(2 * Math.PI * LANTERN_HZ * (f.t / 1000)));
-      src.push({ x: Math.round(f.player.x), y: Math.round(f.player.y - 12), r, k: 0.6, kind: 'fixed' });
+      src.push({ x: Math.round(f.player.x), y: Math.round(f.player.y - 12), r, k: 0.6, kind: 'fixed', halo: 10 });
     }
     const sw = this.swell();
     for (const l of darkLightsOf(m)) {
       if (!condOk(l.cond)) continue;
       const r = Math.round(l.r + (l.amp ?? 0) * Math.sin(2 * Math.PI * LANTERN_HZ * (f.t / 1000)) + (sw - 1) * 24);
-      src.push({ x: l.x * 16 + (l.ox ?? 8), y: l.y * 16 + (l.oy ?? 8), r, k: Math.min(1, (l.k ?? 1) * sw), kind: 'fixed' });
+      src.push({ x: l.x * 16 + (l.ox ?? 8), y: l.y * 16 + (l.oy ?? 8), r, k: Math.min(1, (l.k ?? 1) * sw), kind: 'fixed', halo: l.halo ? Math.round(l.halo * sw) : undefined });
     }
     for (const s of starlightOf(m)) if (condOk(s.cond)) src.push({ x: s.x * 16 + 8, y: s.y * 16 + 8, r: Math.round(s.r * 16), k: 0, kind: 'star' });
-    if (!this.lantern) {
-      // starlight round Minato's feet (16px, 50% out to 24px)
+    if (!this.lantern && m.def.darkStar !== false) {
+      // the ordinary night round Minato's feet (16px, 50% out to 24px)
       src.push({ x: Math.round(f.player.x), y: Math.round(f.player.y - 4), r: 16, k: 0, kind: 'star' });
     }
     this.sources = src;
-    if (!this.hasDark && !this.darkThings.some((d) => d.lit)) return;
-    // fade the dark things in and out
-    for (const a of f.actors) {
-      if (a.kind === 'player' || a.kind === 'follower') continue;
-      if (!this.actorInDark(a)) {
-        this.vis.delete(a);
-        continue;
-      }
-      const margin = a.kind === 'sym' ? SYM_MARGIN : SHOW_MARGIN;
-      this.fade(a, this.inLight(a.x, a.y - 4, margin), dt);
-    }
-    for (const d of this.darkThings) {
-      if (!this.hasDark && !d.lit) {
-        this.vis.set(d.key, 1);
-        continue;
-      }
-      this.fade(d.key, this.inLight(d.x, d.y, SHOW_MARGIN), dt);
-    }
+    // only the little finds shown by the light alone (litOnly) fade in and out
+    for (const d of this.darkThings) this.fade(d.key, this.inLight(d.x, d.y, SHOW_MARGIN), dt);
   }
 
   private fade(key: object, on: boolean, dt: number): void {
@@ -500,6 +572,19 @@ export class LightState {
     return false;
   }
 
+  /**
+   * How much the tomato light is *the* light at world point (x, y), for its
+   * short shadows and its rims (2026-09-26): full in the dark, a little less
+   * on the lighter night, and in a lit room (the barn's tubes, the
+   * greenhouse's lamps, the meeting room) no shadows and only a faint rim.
+   */
+  lightWeight(x: number, y: number, what: 'shadow' | 'rim'): number {
+    const m = this.f.map;
+    if (this.hasDark && isDarkPx(m, x, y)) return Math.min(1, this.darkK());
+    if (m.def.kind === 'indoor') return what === 'shadow' ? 0 : 0.35;
+    return 0.8;
+  }
+
   /** Is this actor standing in the dark (its feet on a dark tile)? */
   actorInDark(a: Actor): boolean {
     if (!this.hasDark) return false;
@@ -507,64 +592,62 @@ export class LightState {
     return isDarkPx(this.f.map, a.x, a.y - 2);
   }
 
-  /** Drawing alpha of a thing (actor, PropInst, ExamineObj): 1 unless it stands in the dark. */
+  /** Drawing alpha of a thing (PropInst, ExamineObj): 1 unless it is a litOnly find outside the light. */
   alphaOf(key: object): number {
     const v = this.vis.get(key);
     return v === undefined ? 1 : v;
   }
 
-  /** Visibility of an actor (1 when it is not in the dark). */
+  /**
+   * Visibility of an actor: always 1 — people, animals and symbols in the
+   * dark are drawn and can be talked to (2026-09-26); the dark only sinks
+   * them in the light map.
+   */
   actorAlpha(a: Actor): number {
-    if (!this.actorInDark(a)) return 1;
-    return this.vis.get(a) ?? 0;
+    void a;
+    return 1;
   }
 
-  /** Can this examinable object be examined (α ≥ 0.5)? */
+  /** Can this examinable object be examined (α ≥ 0.5: a litOnly find only inside the light)? */
   canExamine(o: ExamineObj): boolean {
     return this.alphaOf(o) >= 0.5;
   }
 
-  /** Props and examinable objects whose visibility follows the light (52 8.5). */
+  /**
+   * The litOnly finds (52 8.5, 2026-09-26): only these follow the light.
+   * They start unseen (a map entered with the lantern lit shows them as it
+   * reaches them).
+   */
   private collectDarkThings(): void {
     const f = this.f;
     const m = f.map;
     this.vis = new WeakMap();
     this.clipped = new WeakSet();
     this.darkThings = [];
-    const hasDark = darkOf(m).any;
     const seen = new Set<object>();
+    const add = (key: object, x: number, y: number) => {
+      this.darkThings.push({ key, x, y, lit: true });
+      this.vis.set(key, 0);
+      seen.add(key);
+    };
     for (const p of f.props) {
       const a = p.art;
       const o = p.obj;
-      const lit = !!o.litOnly;
+      if (!o.litOnly) continue;
       const fx = p.x + (a.contactX ?? a.ox + a.w / 2);
       const fy = p.y + (a.flat ? a.oy + a.h / 2 : a.foot);
-      const small = a.w <= 32 && a.h <= 32;
-      const inDark = hasDark && isDarkPx(m, fx, Math.max(0, fy - 2));
-      if (lit && !small && !a.flat) {
-        // a big thing only the light shows (a pen of cows, a row of plants):
-        // drawn cut to the lights' circles rather than faded as one
+      if (!(a.w <= 32 && a.h <= 32) && !a.flat) {
+        // a big find only the light shows: drawn cut to the lights' circles rather than faded as one
         this.clipped.add(p);
         continue;
       }
-      if (lit || (inDark && small && !a.flat)) {
-        this.darkThings.push({ key: p, x: fx, y: fy - 4, lit });
-        seen.add(p);
-        if (o.t === 'obj') {
-          this.darkThings.push({ key: o, x: fx, y: fy - 4, lit });
-          seen.add(o);
-        }
-      }
+      add(p, fx, fy - 4);
+      if (o.t === 'obj') add(o, fx, fy - 4);
     }
-    // objects to examine (with or without art) standing in the dark
+    // litOnly objects to examine without art of their own
     for (const o of m.objects) {
-      if (o.t !== 'obj' || seen.has(o)) continue;
-      const cx = (o.x + (o.w ?? 1) / 2) * 16;
-      const cy = (o.y + (o.h ?? 1) / 2) * 16;
-      let inDark = !!o.litOnly;
-      if (!inDark && hasDark)
-        for (let y = o.y; y < o.y + (o.h ?? 1) && !inDark; y++) for (let x = o.x; x < o.x + (o.w ?? 1); x++) if (isDarkTile(m, x, y)) inDark = true;
-      if (inDark) this.darkThings.push({ key: o, x: cx, y: cy, lit: !!o.litOnly });
+      if (o.t !== 'obj' || seen.has(o) || !o.litOnly) continue;
+      add(o, (o.x + (o.w ?? 1) / 2) * 16, (o.y + (o.h ?? 1) / 2) * 16);
     }
   }
 
@@ -604,8 +687,10 @@ export class LightState {
   }
 
   /**
-   * Is this symbol within the reach of a light (its feet within R + 8px of
-   * the lantern's centre, 51 11.3)? Symbols off the dark are always seen.
+   * Has the light reached this symbol (its feet within R + 8px of the
+   * lantern's centre, 51 11.3)? A symbol in the dark is always seen, but
+   * only notices Minato once the light has reached it (symbols.ts: the
+   * 「？」 and 0.5 s dazzled). Symbols off the dark notice as usual.
    */
   symbolLit(a: Actor): boolean {
     if (!this.actorInDark(a)) return true;
@@ -616,16 +701,22 @@ export class LightState {
 
   /**
    * Paint the dark, the starlight and the rings into the light map `lx`
-   * (screen space, camera at cx, cy). The base colour is already there.
+   * (screen space, camera at cx, cy). The base colour is already there;
+   * `star` is the colour put back round his feet in the dark.
    */
-  paint(lx: CanvasRenderingContext2D, cx: number, cy: number, base: string, W: number, H: number): void {
+  paint(lx: CanvasRenderingContext2D, cx: number, cy: number, star: string, W: number, H: number): void {
     const m = this.f.map;
     const dc = this.hasDark ? darkCanvas(m) : null;
+    const dk = dc ? this.darkK() : 0;
     lx.save();
     lx.globalAlpha = 1;
     lx.globalCompositeOperation = 'source-over';
-    if (dc) blitRegion(lx, dc, cx, cy, 0, 0, W, H);
-    // starlight: the base colour back over the dark (only matters in the dark)
+    if (dc) {
+      lx.globalAlpha = Math.min(1, dk);
+      blitRegion(lx, dc, cx, cy, 0, 0, W, H);
+      lx.globalAlpha = 1;
+    }
+    // starlight: the night's colour back over the dark (only matters in the dark)
     if (dc)
       for (const s of this.sources) {
         if (s.kind !== 'star') continue;
@@ -638,36 +729,41 @@ export class LightState {
         sctx.globalCompositeOperation = 'copy';
         sctx.drawImage(disc, 0, 0);
         sctx.globalCompositeOperation = 'source-in';
-        sctx.fillStyle = base;
+        sctx.fillStyle = star;
         sctx.fillRect(0, 0, disc.width, disc.height);
         // only where it is dark (off the dark the place keeps its own light)
         sctx.globalCompositeOperation = 'destination-in';
         blitRegion(sctx, dc, sx + cx, sy + cy, 0, 0, disc.width, disc.height);
+        lx.globalAlpha = Math.min(1, dk);
         lx.drawImage(sc, 0, 0, disc.width, disc.height, sx, sy, disc.width, disc.height);
+        lx.globalAlpha = 1;
       }
     for (const s of this.sources) {
       if (s.kind === 'star' || s.k <= 0) continue;
-      this.paintRings(lx, dc, s.x - cx, s.y - cy, s.r, s.k, cx, cy, W, H);
+      this.paintRings(lx, dc, s, cx, cy, W, H);
     }
     lx.restore();
   }
 
-  /** The three rings at screen (x, y): the 'out' strength off the dark, 'in' on it. */
-  private paintRings(lx: CanvasRenderingContext2D, dc: HTMLCanvasElement | null, x: number, y: number, r: number, k: number, cx: number, cy: number, W: number, H: number): void {
+  /**
+   * The three rings of a light: the 'in' strength on the dark, off it the
+   * 'out' one on the night or the 'room' one in a lit room (a light with a
+   * halo — the はなまるトマト — mixes at full strength there, to read among
+   * the lamps).
+   */
+  private paintRings(lx: CanvasRenderingContext2D, dc: HTMLCanvasElement | null, l: LightCircle, cx: number, cy: number, W: number, H: number): void {
+    const r = l.r;
     const size = r * 2 + 1;
-    const sx = Math.round(x) - r;
-    const sy = Math.round(y) - r;
+    const sx = Math.round(l.x - cx) - r;
+    const sy = Math.round(l.y - cy) - r;
     if (sx > W || sy > H || sx + size < 0 || sy + size < 0) return;
-    const out = ringImage(r, 'out');
+    const offMode: RingMode = this.f.map.def.kind !== 'indoor' ? 'out' : l.halo ? 'in' : 'room';
+    const out = ringImage(r, offMode);
     const inn = ringImage(r, 'in');
-    // off the dark the rings are mixed into the ordinary night; in a lit
-    // room they may only lighten (a lantern never darkens the room's lamp)
-    const offOp: GlobalCompositeOperation = this.f.map.def.kind === 'indoor' ? 'lighten' : 'source-over';
-    lx.globalAlpha = Math.min(1, k);
+    lx.globalCompositeOperation = 'source-over';
+    lx.globalAlpha = Math.min(1, l.k);
     if (!dc) {
-      lx.globalCompositeOperation = offOp;
       lx.drawImage(out, sx, sy);
-      lx.globalCompositeOperation = 'source-over';
       lx.globalAlpha = 1;
       return;
     }
@@ -677,9 +773,7 @@ export class LightState {
     sctx.drawImage(out, 0, 0);
     sctx.globalCompositeOperation = 'destination-out';
     blitRegion(sctx, dc, sx + cx, sy + cy, 0, 0, size, size);
-    lx.globalCompositeOperation = offOp;
     lx.drawImage(sc, 0, 0, size, size, sx, sy, size, size);
-    lx.globalCompositeOperation = 'source-over';
     // on the dark
     sctx.globalCompositeOperation = 'copy';
     sctx.drawImage(inn, 0, 0);
@@ -701,6 +795,9 @@ export function eraseDark(ctx: CanvasRenderingContext2D, f: FieldScene, cx: numb
   if (!dc) return;
   ctx.save();
   ctx.globalCompositeOperation = 'destination-out';
+  // the dark is a step darker than the night, not black: the sky still
+  // shows in its puddles, a little more than half gone
+  ctx.globalAlpha = 0.6 * Math.min(1, f.light.darkK());
   blitRegion(ctx, dc, cx, cy, 0, 0, W, H);
   ctx.restore();
 }

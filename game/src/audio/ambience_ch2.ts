@@ -449,6 +449,34 @@ function barnFans(c: AmbCtx, dest: AudioNode, o: { air: [BiquadFilterType, numbe
 }
 
 /**
+ * Lights left on all night (2026-09-26, the client: the barn's tubes over the
+ * feed alley and the greenhouse's lamps are on): a ballast's faint 100 Hz
+ * buzz and the tube's thin hiss, chopped at 100 Hz — the "ジー" that says
+ * "a lamp is on" even on small speakers. Steady: no flicker, no "ジジッ" (the
+ * mall's tubes in the town are tired; these are simply on). The one dead tube
+ * over 南5 makes no sound at all. Far under the fans and the film.
+ */
+function lampHum(c: AmbCtx, buzzV: number, hissV: number, dest: AudioNode = c.dest): Bed[] {
+  const g = c.g;
+  const buzz = toneBed(c, 'square', 100, buzzV, dest, 520, 1.1);
+  const hiss = noiseBed(c, 'bandpass', 3200, 1.3, hissV, dest);
+  const chop = g.ctx.createGain();
+  chop.gain.value = 0.6;
+  hiss.filter.disconnect();
+  hiss.filter.connect(chop);
+  chop.connect(hiss.gain);
+  const lfo = g.ctx.createOscillator();
+  lfo.type = 'square';
+  lfo.frequency.value = 100;
+  const depth = g.ctx.createGain();
+  depth.gain.value = 0.4;
+  lfo.connect(depth);
+  depth.connect(chop.gain);
+  lfo.start(onSample(g.ctx, c.t0));
+  return [buzz, hiss, { gain: chop, filter: hiss.filter, src: lfo, stop: (t: number) => lfo.stop(t) }];
+}
+
+/**
  * amb_h_barn_out — outside 石黒牛舎: the fans through the wall, and now and then
  * a steer's snort.
  */
@@ -468,8 +496,8 @@ registerAmbience('amb_h_barn_out', (c) => {
 });
 
 /**
- * amb_h_barn — inside the barn on a summer night: three fans, six steers
- * chewing the cud around the pens (a jaw stroke about once a second, 40–60
+ * amb_h_barn — inside the barn on a summer night: three fans, the tubes over
+ * the feed alley humming (the barn is lit all night), six steers chewing the cud around the pens (a jaw stroke about once a second, 40–60
  * strokes to a cud, then 3–5 s to swallow and bring up the next), snorts, a
  * water cup (the steer pushes the paddle with its nose), one lying down or
  * getting up in the sawdust, a flank against the pipe rails. ふしぎ08:
@@ -479,6 +507,8 @@ registerAmbience('amb_h_barn_out', (c) => {
 registerAmbience('amb_h_barn', (c) => {
   const g = c.g;
   const beds = barnFans(c, c.dest, { air: ['bandpass', 300, 0.6, 0.007], hums: [44, 46, 49], humV: 0.004, pans: [-0.4, 0, 0.4], hiss: 0.002 });
+  // the tubes over the feed alley, on all night (up in the roof: a little room on them)
+  beds.push(...lampHum(c, 0.0011, 0.0009, lowpass(c, 5000)));
   // ② six steers chewing, each on its own clock
   const chewers = Array.from({ length: 6 }, (_, i) => {
     const pan = -0.6 + (1.2 * i) / 5 + c.rng.range(-0.08, 0.08);
@@ -565,11 +595,13 @@ registerAmbience('amb_h_barn', (c) => {
 /**
  * amb_h_house — greenhouse 3 breathing: the film swells and sinks on a 4 s
  * cycle (the same clock as the look of ふしぎ07), a small "ぱり" of the film at
- * the top of each breath; the frame creaks now and then. 'deep_breath': one
- * big breath over 2.5 s; 'calm': the breathing stops, the creaks stay.
+ * the top of each breath; the frame creaks now and then; the house's lamps,
+ * left on, hum very faintly under it all. 'deep_breath': one big breath over
+ * 2.5 s; 'calm': the breathing stops, the creaks (and the lamps) stay.
  */
 registerAmbience('amb_h_house', (c) => {
   const g = c.g;
+  const lamps = lampHum(c, 0.0006, 0.0003);
   const breathOut = sub(c, 1);
   const film = noiseBed(c, 'bandpass', 250, 0.7, 0, breathOut);
   // the upper film rustle, for small speakers
@@ -616,6 +648,7 @@ registerAmbience('amb_h_house', (c) => {
     stop(t) {
       film.stop(t);
       filmHi.stop(t);
+      lamps.forEach((b) => b.stop(t));
     },
   };
 });

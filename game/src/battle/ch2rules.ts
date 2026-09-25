@@ -28,7 +28,8 @@ export function applyStartStatus(s: BattleScene): void {
   if (s.enemies.some((e) => e.def.chapter === 2)) {
     s.setMusicParam('h_rest', 0);
     s.setMusicParam('h_light', 0);
-    s.setMusicParam('tenko', 0);
+    // (ヨビモドシ starts with its first tags already lit: initBoss ran first)
+    s.setMusicParam('tenko', s.bossKind === 'yobimodoshi' ? s.bossChime.lit : 0);
   }
 }
 

@@ -87,14 +87,21 @@ export const GRADES: Record<number, Grade> = {
  * moonless night: only the round contact shadows, and in h1+ the tomato
  * light's own short shadows); the wind has stopped (motion 0) until the
  * morning wind of h3c. The light bleeds in from the right (the east).
+ *
+ * 2026-09-26 (the client: "4:59 is nearly five in the morning — only what
+ * is round the hero can be seen, it's too hard"): 4:59 at the end of summer
+ * is the blue before dawn, the sky already paling in the east. The night is
+ * lighter (#5C5A94 → #9894C4): roads, houses, paddies, people, symbols and
+ * the things to examine read anywhere on the 1× screen; it stays blue-violet,
+ * the stars a little fewer, and the east edge whitens a little.
  */
 export type GradeHKey = 'h0' | 'h1' | 'h2' | 'h3a' | 'h3b' | 'h3c';
 
 const NIGHT_H = {
   skyTop: hx('#0B0B14'), skyBot: hx('#1B1733'), horizon: hx('#3A2B5C'), horizonA: 0,
-  mul: hx('#5C5A94'), glare: hx('#3A2B5C'), glareA: 0, topDark: hx('#0B0B14'), topA: 0.3,
-  shadow: hx('#0B0B14'), shadowA: 0.4, shadowLen: 0, toMall: 0, night: 1, rim: hx('#F2894B'), motion: 0, lit: 1, desat: 0.1,
-  glareRight: 1, glareW: 0.3, sunX: -1, rimRight: 0, stars: 1, milky: 1, venus: 2,
+  mul: hx('#908CCA'), glare: hx('#B4AEDA'), glareA: 0.08, topDark: hx('#0B0B14'), topA: 0.16,
+  shadow: hx('#0B0B14'), shadowA: 0.34, shadowLen: 0, toMall: 0, night: 1, rim: hx('#F2894B'), motion: 0, lit: 1, desat: 0.08,
+  glareRight: 1, glareW: 0.34, sunX: -1, rimRight: 0, stars: 0.8, milky: 0.8, venus: 2,
 };
 
 export const GRADES_H: Record<GradeHKey, Grade> = {
@@ -102,13 +109,13 @@ export const GRADES_H: Record<GradeHKey, Grade> = {
   h1: { ...NIGHT_H },
   h2: {
     ...NIGHT_H,
-    horizonA: 1, mul: hx('#605C96'), glare: hx('#3A2B5C'), glareA: 0.14, topA: 0.26, desat: 0.08, stars: 0.7, venus: 3,
+    horizonA: 1, mul: hx('#9C96D0'), glare: hx('#C4B8E0'), glareA: 0.16, topA: 0.12, desat: 0.06, stars: 0.55, milky: 0.6, venus: 3,
   },
   h3a: {
     ...NIGHT_H,
     skyTop: hx('#3A2B5C'), skyBot: hx('#7A5AA0'), horizon: hx('#F7C27A'), horizonA: 0.6,
-    mul: hx('#8A7AAE'), glare: hx('#7A5AA0'), glareA: 0.2, topDark: hx('#1B1733'), topA: 0.16, desat: 0.04,
-    shadow: hx('#1B1733'), shadowA: 0.35, night: 0.8, stars: 0.3, milky: 0.3, venus: 3,
+    mul: hx('#B8A8CC'), glare: hx('#D8B8D0'), glareA: 0.22, topDark: hx('#1B1733'), topA: 0.08, desat: 0.03,
+    shadow: hx('#1B1733'), shadowA: 0.32, night: 0.8, stars: 0.25, milky: 0.2, venus: 3,
   },
   h3b: {
     ...NIGHT_H,
@@ -133,21 +140,23 @@ export function gradeHKey(stage: number): GradeHKey {
 
 /**
  * Chapter-2 indoor light-map bases (52 4.0): 星見台's rooms don't grade by
- * stage, only by their own light (dark and lamps on top). Per map, used
- * when the map doesn't give MapDef.lightBase.
+ * stage, only by their own light (a dark part and lamps on top). Per map,
+ * used when the map doesn't give MapDef.lightBase. 2026-09-26: the barn's
+ * tubes over the feed aisle and the greenhouse's lamps are on all night;
+ * the unlit train is a little lighter.
  */
 export const HOSHI_INDOOR_BASE: Record<string, string> = {
-  map_hoshi_train: '#3E3E6A',
+  map_hoshi_train: '#6E6C9E',
   map_hoshi_school: '#F2E6D0',
-  map_hoshi_house: '#5C5A94',
-  map_hoshi_barn: '#5C5A94',
+  map_hoshi_house: '#F0E6D2',
+  map_hoshi_barn: '#E8ECF0',
 };
 /**
- * The morning (h3) base of the 星見台 rooms: the barn's fluorescent tubes
- * come on at 5:00 (#E8ECF0, 52 4.3), elsewhere the day is in.
+ * The morning (h3) base of the 星見台 rooms: at 5:00 the morning comes in
+ * through the east (the barn: the day over its tubes, 52 4.3 カット2a).
  */
 export const HOSHI_INDOOR_MORNING: Record<string, string> = {
-  map_hoshi_barn: '#E8ECF0',
+  map_hoshi_barn: '#FFF2E0',
   default: '#FFF0DC',
 };
 

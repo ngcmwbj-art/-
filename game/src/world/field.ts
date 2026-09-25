@@ -30,6 +30,7 @@ import {
   kakashiFrame,
   lampOn,
   playHoshiBgm,
+  propFlagOf,
   resetHoshiPositional,
   villagePulse,
 } from './hoshi';
@@ -1541,7 +1542,7 @@ export class FieldScene implements Scene {
       grade: this.grade,
       motion: this.grade.motion,
       mt: this.mt,
-      flag,
+      flag: ch2 ? propFlagOf(this.map.id) : flag,
       seed: pi?.seed ?? 0,
       near: Math.hypot(p.x - cx, p.y - cy),
       px: p.x,

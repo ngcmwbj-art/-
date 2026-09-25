@@ -18,7 +18,7 @@ import type { Gfx } from '../engine/gfx';
 import { addItem, flag, hasItem, setFlag, state, type Dir } from '../game/state';
 import { field, FieldScene } from './field';
 import { registerWorldFx } from './fx';
-import { callNow, callState, setRoomLights, turnScarecrows } from './hoshi';
+import { callNow, callState, setRoomDawn, turnScarecrows } from './hoshi';
 import { darkRectsOf, setLanternOverride, SHOW_MARGIN, SYM_MARGIN } from './lantern';
 import { GRADES_H, type GradeHKey } from './lighting';
 import { hasMap, isCh2Map, registerMap } from './maps';
@@ -70,7 +70,7 @@ const QA_OBJECTS: MapObj[] = [
   // a stay trigger (the train's front: stand 1.5 s)
   { t: 'trig', id: 'trig_qa_stay', x: 2, y: 2, w: 2, h: 2, on: 'stay', stayMs: 1500, text: '@narr\n1.5秒 とどまった。' },
   // things in the dark: an examinable object, a small prop, a person
-  { t: 'obj', id: 'obj_qa_dark_sign', x: 22, y: 12, text: '@narr\n暗がりの 立て札。\n灯りの 中でだけ 読める。' },
+  { t: 'obj', id: 'obj_qa_dark_sign', x: 22, y: 12, text: '@narr\n暗がりの 立て札。\n暗いが、形は 見える。' },
   { t: 'obj', id: 'obj_qa_kamado', x: 6, y: 13, text: '@narr\n灯りの 中でだけ 見える かまど。', litOnly: true },
   { t: 'prop', prop: 'obj_danball', x: 24, y: 8 },
   { t: 'prop', prop: 'obj_pots_1', x: 19, y: 13 },
@@ -110,7 +110,7 @@ const QA_MAP: MapDef = {
   ],
 };
 
-/** A copy of the night train's shape (52 4.1) and a dark room with tubes, for the rooms' light. */
+/** A copy of the night train's shape (52 4.1) and a lit room with tubes and one dim pen, for the rooms' light. */
 const INDOOR_QA: Record<string, TileSpec> = {
   '#': { ground: 'void', solid: true, tag: 'void' },
   W: { ground: 'void', solid: true, tag: 'iwall' },
@@ -131,6 +131,7 @@ const QA_TRAIN: MapDef = {
   objects: [{ t: 'trig', id: 'trig_qa_front', x: 14, y: 2, w: 2, h: 3, on: 'stay', stayMs: 1500, text: '@narr\n前の方で 1.5秒。' }],
   camera: 'fixed',
   outside: '#0B0B14',
+  lightBase: '#6E6C9E',
   bgm: { 0: null, 1: null, 2: null },
   amb: { 0: ['amb_h_train'], 1: ['amb_h_train'], 2: ['amb_h_train'] },
 };
@@ -145,7 +146,12 @@ const QA_BARN: MapDef = {
   objects: [],
   camera: 'fixed',
   outside: '#0B0B14',
-  dark: [{ x: 0, y: 0, w: 22, h: 12 }],
+  // the tubes on all night; one pen (南5's place) dim under its dead tube (52 4.3)
+  lightBase: '#E8ECF0',
+  dark: [{ x: 17, y: 8, w: 3, h: 3 }],
+  darkCol: '#6E6E86',
+  darkEdge: 6,
+  darkStar: false,
 };
 
 function ensureQaMap(): void {
@@ -210,12 +216,15 @@ registerDebug('hoshiQa', (stage?: number, x?: number, y?: number, room?: 'train'
   return `${id} at h${n}`;
 });
 
-registerDebug('roomLights', (on?: boolean | null, ms?: number) => {
+/** The morning coming into the room (the barn at 5:00): roomMorning(true, 1200) / (false) holds the night / (null) by the stage. */
+const roomMorningCmd = (on?: boolean | null, ms?: number) => {
   const f = field();
   if (!f) return 'no field';
-  setRoomLights(f, on === undefined ? true : on, ms ?? 480);
-  return `room lights ${on}`;
-});
+  setRoomDawn(f, on === undefined ? true : on, ms ?? 1200);
+  return `room morning ${on === undefined ? true : on}`;
+};
+registerDebug('roomMorning', roomMorningCmd);
+registerDebug('roomLights', roomMorningCmd);
 
 registerDebug('hstage', (n: number, ms?: number) => {
   applyHStageDefaults(n);

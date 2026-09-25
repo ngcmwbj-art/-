@@ -556,12 +556,11 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
   s.last = now;
   if (s.stam === ch && mode === undefined) s.stam = undefined;
   // ポコシャさん hesitates (53 9.2): a page that opens 「……」 or with a stammer
-  // waits 150 ms before its first blip
+  // waits 150 ms before its first blip; the words after it keep their spacing
+  // and come out that much later, in order (quietUntil below) — a murmured
+  // 「……さすが 師匠。」 is late, not swallowed
   let delay = 0;
-  if (id === 'pokosha' && s.firstVoiced && (s.headDots || mode === 'stam')) {
-    delay = 0.15;
-    s.last = now + delay;
-  }
+  if (id === 'pokosha' && s.firstVoiced && (s.headDots || mode === 'stam')) delay = 0.15;
   const headOfPage = !!s.firstVoiced;
   s.firstVoiced = false;
 

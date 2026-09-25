@@ -372,7 +372,7 @@ export const CH2_CUES: Cue[] = [
   },
   {
     id: 'h_morning',
-    label: '5:00 のチャイムと日の出',
+    label: '5:00のチャイムと日の出',
     ref: '12.14 カット1',
     build: (say) => [
       S(0, 'SILENCE, 4:59', () => {
@@ -423,9 +423,9 @@ export const CH2_CUES: Cue[] = [
         A.playAmbient('amb_h_dawn', { fade: 1 });
         if (A.currentBgmId() !== 'bgm_hoshi_morning') A.playBgm('bgm_hoshi_morning', { fade: 1 });
       }),
-      S(1.5, '2A BARN: LIGHTS, CART, ONE MOO', () => {
+      S(1.5, '2A BARN: MORNING LIGHT, CART, ONE MOO', () => {
         A.playAmbient('amb_h_barn', { vol: 0.6, fade: 1 });
-        A.sfx('se_h_barn_light');
+        A.sfx('se_h_barn_morning');
         const now = liveGraph()?.ctx.currentTime ?? 0;
         A.sfx('se_h_feed_cart', { at: now + 1.2 });
         A.sfx('se_h_moo', { at: now + 3.6 });
@@ -439,10 +439,12 @@ export const CH2_CUES: Cue[] = [
         A.sfx('se_glint', { vol: 0.3 });
         A.playAmbient('amb_h_tanada', { vol: 0.8, fade: 1 });
       }),
-      S(14, '2D WINDOW', () => {
+      S(13.4, '2D THE LAST SNORE (CUT AT 0.4 S)', () => {
         A.stopAmbient('amb_h_tanada', 1);
-        A.sfx('se_door', { pitch: 1.25, vol: 0.7 });
+        A.sfx('se_h_ibiki', { dur: 400 });
       }),
+      S(14.1, 'THE WINDOW', at('se_door', { pitch: 1.25, vol: 0.7 })),
+      S(14.6, 'SE_H_ACHA (AWAKE)', at('se_h_acha', { pitch: 1.15, vol: 0.8 })),
       S(16, '3 BUS IDLE (LOOP)', loop('se_h_bus_idle', { vol: 0.6 })),
       S(19, 'SE_H_BUS_DOOR', at('se_h_bus_door')),
       S(20.2, 'IDLE OFF -> SE_H_BUS_DEPART, THE PAPILLON BARKS', () => {

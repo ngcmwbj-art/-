@@ -12,6 +12,8 @@ import { seTrim, trimOr1 } from './mix';
 import { layer, playSe, se, sub, type SeCtx } from './recipe';
 import { loopTable, sfxTable, type LoopHandle, type SfxOpts } from './registry';
 import { BSAN, stepDef } from './sfx';
+import { higurashiCall } from './ambience';
+import { Rng } from '../engine/rng';
 
 const G_TRAIN = '第2章：プロローグ・電車・駅';
 const G_VILLAGE = '第2章：村・ハウス・集会所';
@@ -362,7 +364,25 @@ export const IBIKI = [
   'noise env=200/250/.5/200 dur=650 v=.004 flt=BP500q1.2 am=28/.5',
   'noise env=150/350/0/300 dur=450 v=.003 flt=BP2200q2 at=850',
 ];
-se('se_h_ibiki', { label: 'いびき（ぐぅ〜、すぴー）', group: G_VILLAGE, rand: [0.03, 0.08], layers: IBIKI });
+/**
+ * One snore. { dur: ms } cuts it short in the middle of the breath in — the
+ * last snore of the night, stopped when the sleeper wakes (ending cut 2d:
+ * { dur: 400 }): no "すぴー" follows.
+ */
+se('se_h_ibiki', {
+  label: 'いびき（ぐぅ〜、すぴー）',
+  group: G_VILLAGE,
+  rand: [0.03, 0.08],
+  fn(c) {
+    const cut = c.opts.dur;
+    if (!cut) {
+      for (const l of IBIKI) layer(c, l);
+      return;
+    }
+    // the breath in, caught at `cut` ms and let go in 80 ms (a sleeper waking with a start)
+    for (const l of IBIKI.slice(0, 2)) layer(c, l, { dur: Math.max(60, cut - 80), set: { R: 80 } });
+  },
+});
 // the sleep-talk 「……あちゃ〜……」 hummed, the colour of the vowel a only (no words, 1.7)
 export const ACHA = [
   'tri f=330 env=10/110/0/40 dur=80 v=.010 flt=BP800q3',
@@ -399,11 +419,38 @@ se('se_h_moo', {
     'noise env=150/400/.5/400 dur=1000 v=.008 flt=BP900q1.5 am=35/.3',
   ],
 });
+/**
+ * 5:00 in the barn (ending cut 2a). The tubes over the feed alley were on all
+ * night (2026-09-26, the client), so nothing switches on: the morning light
+ * comes in through the east windows — a soft warm swell, two small glints, the
+ * low warmth of the sunrise (se_h_sunrise's family, a room's size of it) — a
+ * dawn higurashi through the wall (53 7.2 amb_h_dawn: they sing at dawn too),
+ * and a steer getting up in the sawdust, then another (53 1.6). No cattle
+ * voice here (se_h_moo is its own, once). `se_h_barn_morning` is the same
+ * sound under a name that says what it is; the old id keeps working.
+ */
+function barnMorning(c: SeCtx): void {
+  layer(c, 'noise env=900/300/.5/1400 dur=1600 v=.006 flt=BP500→2200q0.7');
+  layer(c, 'saw f=F4 env=700/400/.6/1200 dur=1400 v=.004 flt=LP500→1600q0.7');
+  layer(c, 'saw f=C5 env=700/400/.6/1200 dur=1400 v=.003 flt=LP500→1600q0.7');
+  ['C6', 'F6'].forEach((n, i) => layer(c, `sine f=${n} env=300/1200/0/700 dur=300 v=.005`, { at: 350 + i * 450 }));
+  layer(c, 'sine f=87 env=800/0/1/1200 dur=1200 v=.012');
+  layer(c, 'tri f=174 env=800/0/1/1200 dur=1200 v=.006');
+  // a higurashi outside, through the east windows (far, dull)
+  higurashiCall(c.t + 0.6, c.dest, 0.55, c.pitch * 0.98, 2600, 0.025 * 0.45 * c.vol, new Rng(0x5a17 + Math.floor(c.t * 7)));
+  // a steer gets up in the sawdust (the weight settling), then a second one further down
+  for (const [at, p] of [[1100, -0.3], [1900, 0.25]] as const) {
+    layer(c, `noise env=60/200/.4/150 dur=400 v=.006 flt=LP600 pan=${p}`, { at });
+    layer(c, `sine f=70→50/100 env=5/120/0/50 dur=50 v=.008 pan=${p}`, { at: at + 250 });
+  }
+}
 se('se_h_barn_light', {
-  label: '牛舎の照明が点く（タイマーで。カチン、ジ……）',
+  label: '牛舎の朝（蛍光灯の下に朝の光が差しこむ。遠いヒグラシ、牛が立ち上がる）',
   group: G_BARN,
-  layers: ['tri f=1600 env=0/30/0/10 dur=8 v=.03', 'sq f=100 env=0/0/1/20 dur=40 v=.006 flt=LP700 rep=3x120 at=100', 'sine f=100 env=200/0/1/300 dur=400 v=.003 at=460'],
+  rev: 0.3,
+  fn: barnMorning,
 });
+sfxTable.set('se_h_barn_morning', (o) => sfxTable.get('se_h_barn_light')?.(o));
 se('se_h_feed_cart', {
   label: '給餌車を押す（ゴムの車輪、さらさら）',
   group: G_BARN,
@@ -812,6 +859,33 @@ se('se_h_bus_arrive', {
   label: 'バスが止まる（エアブレーキ）',
   group: G_END,
   layers: ['saw f=70→46/1000 env=0/0/1/300 dur=1000 v=.025 flt=LP500 am=35→23/1000/.45', 'noise env=5/400/0/150 dur=200 v=.04 flt=BP2600q0.8 at=1100'],
+});
+/**
+ * A はなまる drawn by hand (2026-09-26: the series' theme — Shun's はなまる is
+ * copied from hand to hand; in the ending the villagers draw it themselves).
+ * A felt pen goes round once ("くるっ"), five petals loop around it, and the
+ * pen lifts off with a small bright "ぽ" — the hanko's はなまる (se_hanamaru)
+ * remembered in one note, never its arpeggio. No chapter letter: later
+ * chapters draw it again. { pitch } for a smaller or bigger hand, { vol }.
+ */
+se('se_hanamaru_draw', {
+  label: 'はなまるを手で描き写す（ペンでくるっと、花びら5つ）',
+  group: G_END,
+  max: 3,
+  rand: [0.04, 0.1],
+  fn(c) {
+    // the ring: one stroke, the pen's felt on paper turning
+    layer(c, 'noise env=20/0/1/60 dur=380 v=.02 flt=BP2400→3400q1.4 am=38/.35');
+    // five petals, each a small loop (press, turn, lift)
+    for (let i = 0; i < 5; i++) {
+      const at = 430 + i * 150;
+      layer(c, `noise env=8/0/1/30 dur=110 v=.017 flt=BP${2600 + (i % 2) * 500}→${3300 - (i % 2) * 300}q1.6 am=44/.35`, { at });
+      layer(c, 'noise env=0/12/0/6 dur=6 v=.008 flt=HP5000', { at: at + 100 });
+    }
+    // the pen lifts: one small bright note and its sparkle
+    layer(c, 'tri f=C6 env=6/280/0/100 dur=20 v=.014 rev=.35 at=1230');
+    layer(c, 'sine f=2093 env=6/160/0/60 dur=20 v=.004 rev=.35 at=1230');
+  },
 });
 
 // ============================================================================

@@ -190,15 +190,28 @@ export async function renderAmbient(id: string, seconds = 12, stage = 0, ro: Ren
 /** A voice speaking its sample line at the dialog speed (40 chars/s). */
 export async function renderVoice(id: string, text = VOICE_SAMPLES[id] ?? VOICE_SAMPLES.default, ro: RenderOpts = {}, pa?: PaMode): Promise<RenderOut> {
   const cps = voiceCps(id);
-  const chars = [...text];
-  const seconds = chars.length / cps + 1.2;
+  // the script's markup, as the dialog box types it: {w=ms} waits, a line of
+  // its own "/" turns the page (the player's press: 1.2 s), line breaks and
+  // other {…} tags make no sound
+  const timed: [string, number][] = [];
+  let t = 0.1;
+  for (const tok of text.replace(/\n\/\n/g, '\u000c').match(/\{[^}]*\}|[\s\S]/gu) ?? []) {
+    const w = /^\{w=(\d+)\}$/.exec(tok);
+    if (w) t += Number(w[1]) / 1000;
+    else if (tok === '\u000c') t += 1.2;
+    else if (tok !== '\n' && !tok.startsWith('{')) {
+      timed.push([tok, t]);
+      t += 1 / cps;
+    }
+  }
+  const seconds = t + 1.2;
   return render(
     seconds,
     (g) => {
       // the voices of 星見台 (53 9) are heard through its speaker
       if (pa ?? (/^(h_|yobimodoshi$)/.test(id) ? 'yama' : undefined)) g.pa.setMode(pa ?? 'yama', 0);
       resetVoiceState();
-      chars.forEach((ch, i) => blip(id, ch, 0.1 + i / cps));
+      for (const [ch, at] of timed) blip(id, ch, at);
       resetVoiceState();
     },
     ro,

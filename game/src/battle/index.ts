@@ -467,6 +467,13 @@ registerDebug('bossLight', () => {
   else raiseTomatoNow(s, 'minato');
   return yobiState(s).light ? 'light' : 'dark';
 });
+/** `yobiInfo()`: ヨビモドシ's light state (QA / balance runs). */
+registerDebug('yobiInfo', () => {
+  const s = current;
+  if (!s || s.bossKind !== 'yobimodoshi') return null;
+  const y = yobiState(s);
+  return { light: y.light, lightRound: y.lightRound, charge: y.charge, tags: s.bossChime.lit, phase: s.memo.bossPhase ?? 1, final: !!s.memo.bossFinal };
+});
 /** `tenko(n)`: set ヨビモドシ's lit name tags to n (0–4). */
 registerDebug('tenko', (n = 3) => {
   const s = current;
@@ -501,7 +508,7 @@ registerDebug('bkon', (n = 1) => {
 registerDebug('bphase', (n = 2) => {
   const e = current?.enemies.find((x) => x.def.boss);
   if (!current || !e) return 'no boss';
-  e.hp = n >= 3 ? 80 : 215;
+  e.hp = n >= 3 ? Math.floor(e.maxHp * 0.2) - 8 : Math.floor(e.maxHp * 0.5) - 5;
   return e.hp;
 });
 

@@ -57,6 +57,8 @@ export const CH2_INDEX = {
     'se_step_sheet', 'se_h_kakashi_hop', 'se_h_tomato_rise', 'se_h_sunrise', 'se_h_bus_idle', 'se_h_bus_door', 'se_h_bus_depart', 'se_h_bus_arrive',
     'se_dakoku', 'se_mada_stamp', 'se_lamp_click', 'se_clock_restart', 'se_clock_tick',
     'se_h_deli_put', 'se_truck_aori', 'se_truck_key', 'se_yakiimo', 'se_piichan_flap',
+    // 2026-09-26: the barn is lit all night (5:00 is the morning light coming in), and the はなまる drawn by hand
+    'se_h_barn_morning', 'se_hanamaru_draw',
   ],
   voices: ['h_driver', 'h_train', 'h_kucho', 'h_yoshie', 'h_fumi', 'h_mitsu', 'h_gen', 'h_tome', 'h_sawako', 'h_tetsuya', 'yobimodoshi', 'h_mujin', 'h_gon', 'tsugao', 'dakoku', 'hirosuke', 'pokosha', 'piichan', 'broadcast', 'flip', 'kanenari_voice', 'mother', 'tv', 'narr', 'sys'],
 };

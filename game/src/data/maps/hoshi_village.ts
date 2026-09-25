@@ -298,7 +298,8 @@ const OBJECTS: MapObj[] = [
   PR('prop_h_yard_tools', 50, 38, {}, { solid: [0, 0, 1, 1] }),
   PR('prop_h_nuta_tree', 59, 11, {}, { solid: [0, 0, 1, 1] }),
 
-  // ======================================================== 耕作放棄地・山道の入口 (dark)
+  // ======================================================== 耕作放棄地・山道の入口 (dark: a step darker than the night;
+  // only the child's footprints are a find the tomato's light alone brings out)
   O('obj_hoshi_houki_sign', 46, 12, { prop: 'obj_hoshi_houki_sign' }),
   O('obj_hoshi_yamaguchi_sign', 47, 1, { prop: 'obj_hoshi_yamaguchi_sign' }),
   O('obj_hoshi_nuta', 56, 11, { w: 3, h: 2, flat: true }),
@@ -360,15 +361,15 @@ const OBJECTS: MapObj[] = [
   // ポコシャさん (ぴーちゃん on his left shoulder) behind the truck; while the delivery runs he walks in the line instead
   { t: 'npc', id: 'npc_pokosha', x: 45, y: 42, dir: 'left', talk: htalk('npc_pokosha'), cond: { stage: '0-1', notFlag: 'flag_ch2_delivery_on' } },
   { t: 'npc', id: 'npc_pokosha', x: 45, y: 42, dir: 'up', pose: 'look_hill', talk: htalk('npc_pokosha'), cond: s2 },
-  // the delivery stands (52 3.5): the stand always, its slip and note only in the lantern while the delivery runs, the vegetables once left
+  // the delivery stands (52 3.5): the stand always, its slip and note while the delivery runs (always seen, 2026-09-26), the vegetables once left
   ...DELI.flatMap(([n, x, y]) => {
     const spot = `spot_h_deli_0${n}`;
     return [
       PR('prop_h_deli_dai', x, y, { n }),
-      PR('prop_h_deli_note', x, y, { n }, { litOnly: true, cond: { flag: 'flag_ch2_delivery_on', notFlag: 'flag_' + spot } }),
+      PR('prop_h_deli_note', x, y, { n }, { cond: { flag: 'flag_ch2_delivery_on', notFlag: 'flag_' + spot } }),
       PR('prop_h_deli_bag', x, y, { n }, { cond: { flag: 'flag_ch2_delivery' } }),
       PR('prop_h_deli_bag', x, y, { n }, { cond: { flag: 'flag_' + spot, notFlag: 'flag_ch2_delivery' } }),
-      O(spot, x, y, { face: 'up', litOnly: true, priority: 1, cond: { flag: 'flag_ch2_delivery_on', notFlag: 'flag_' + spot } }),
+      O(spot, x, y, { face: 'up', priority: 1, cond: { flag: 'flag_ch2_delivery_on', notFlag: 'flag_' + spot } }),
     ];
   }),
 
