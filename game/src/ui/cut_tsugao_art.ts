@@ -50,7 +50,7 @@ export const CLOCKS = {
 } as const;
 export type ClockId = keyof typeof CLOCKS;
 export const DESK_Y = 122;
-export const BOARD = { x: 176, y: 126, w: 32, h: 20 };
+export const BOARD = { x: 162, y: 124, w: 60, h: 22 };
 export const PAD = { x: 226, y: 130 };
 export const STAMP_REST = { x: 248, y: 116 };
 export const CUP = { x: 264, y: 120 };
@@ -144,11 +144,22 @@ function drawClockFrame(p: PixelCanvas, id: ClockId): void {
   // the nail at the top
   p.set(c.x, c.y - 14, P.G);
   p.set(c.x, c.y - 13, P.N);
-  // the plate hangs from two strings
-  p.set(c.x - 9, c.y + 12, P.G);
-  p.set(c.x + 8, c.y + 12, P.G);
-  p.set(c.x - 9, c.y + 13, P.G);
-  p.set(c.x + 8, c.y + 13, P.G);
+  // the plate hangs from two strings tied under the rim, splaying out to its corners
+  const pl = plateAt(id);
+  const string = (x0: number, x1: number) => {
+    const y0 = c.y + 10;
+    const y1 = pl.y;
+    for (let y = y0; y < y1; y++) p.set(Math.round(x0 + ((x1 - x0) * (y - y0)) / Math.max(1, y1 - y0)), y, lit ? P.G : P.D);
+  };
+  string(c.x - 6, pl.x + 3);
+  string(c.x + 5, pl.x + pl.w - 4);
+}
+
+/** Where a clock's name plate hangs (its top-left and size). */
+export function plateAt(id: ClockId): { x: number; y: number; w: number; h: number } {
+  const c = CLOCKS[id];
+  const { w, h } = plateSize(id);
+  return { x: c.x - Math.floor(w / 2), y: c.y + 15, w, h };
 }
 
 function drawHatStand(p: PixelCanvas): void {
@@ -956,36 +967,51 @@ export function cardImg(n: 1 | 2): HTMLCanvasElement {
 }
 
 /**
- * The black circular (32×20) seen on the desk. `page` 0: its black cover
- * with 「まだまだ団」 in white; 1: turned — a white page, 「海ぞいの町」 at
- * the top, lines under it. The clip at the top is steel.
+ * The black circular (60×22) lying on the desk in front of him. `page` 0:
+ * its black cover with 「まだまだ団」 hand-lettered in white; 1: turned — a
+ * white page headed 「海ぞいの町」, lines of notes under it. The clip at the
+ * top is steel. (52 12.5 draws it 32×20; it is wider here so the lettering,
+ * at 10px, reads at 1×.)
  */
 export function boardImg(page: 0 | 1): HTMLCanvasElement {
-  const p = new PixelCanvas(BOARD.w, BOARD.h);
-  for (let y = 0; y < BOARD.h; y++)
-    for (let x = 0; x < BOARD.w; x++) p.set(x, y, x === 0 || y === BOARD.h - 1 ? P.K : y === 0 || x === 1 ? P.G : P.D);
+  const { w, h } = BOARD;
+  const p = new PixelCanvas(w, h);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      let col: string = P.D;
+      if (x === 0 || y === h - 1) col = P.K;
+      else if (y === 0 || x === 1) col = P.G;
+      else if (x === w - 1) col = P.N;
+      // worn corners: the board's fibre shows through
+      else if ((x < 4 && y > h - 4) || (x > w - 5 && y < 3)) col = bay(x, y) < 0.4 ? P.G : P.D;
+      p.set(x, y, col);
+    }
   if (page === 0) {
-    const t = glyphs5('まだまだ団', P.Pp, 1);
     const c = p.toCanvas();
-    c.getContext('2d')!.drawImage(t, Math.round((BOARD.w - t.width) / 2), 8);
+    const t = handLetters('まだまだ団', P.Pp);
+    const ctx = c.getContext('2d')!;
+    // the white marker, a pixel of its shadow under it
+    ctx.drawImage(handLetters('まだまだ団', P.N), Math.round((w - t.width) / 2) + 1, 9);
+    ctx.drawImage(t, Math.round((w - t.width) / 2), 8);
     addClip(c);
     return c;
   }
-  // a white sheet clipped on (a pixel in from the edges)
-  for (let y = 3; y < BOARD.h - 2; y++) for (let x = 2; x < BOARD.w - 2; x++) p.set(x, y, x === BOARD.w - 3 || y === BOARD.h - 3 ? P.W : P.Pp);
-  for (let y = 12; y < BOARD.h - 3; y += 2) for (let x = 4; x < BOARD.w - 5 - (y % 4) * 3; x++) if (hash2(x >> 1, y, 2) > 0.2) p.set(x, y, P.G);
+  // a white sheet clipped on (a pixel in from the edges), notes under the heading
+  for (let y = 3; y < h - 1; y++) for (let x = 2; x < w - 2; x++) p.set(x, y, x === w - 3 || y === h - 2 ? P.W : P.Pp);
+  for (const ly of [16, 18])
+    for (let x = 5; x < w - 6 - (ly === 18 ? 14 : 0); x++) if (hash2(x >> 1, ly, 2) > 0.22) p.set(x, ly, P.G);
   const c = p.toCanvas();
-  const t = glyphs5('海ぞいの町', P.K, 0);
-  c.getContext('2d')!.drawImage(t, Math.round((BOARD.w - t.width) / 2), 4);
+  const t = handLetters('海ぞいの町', P.K);
+  c.getContext('2d')!.drawImage(t, Math.round((w - t.width) / 2), 4);
   addClip(c);
   return c;
 }
 
 function addClip(c: HTMLCanvasElement): void {
   const ctx = c.getContext('2d')!;
-  const p = new PixelCanvas(12, 4);
-  rows(p, ['.GGGGGGGGGG.', 'GWGGGGGGGGGN', 'GGGNNNNNNGGN', '.NNNNNNNNNN.'], { G: P.G, W: P.W, N: P.N }, 0, 0);
-  ctx.drawImage(p.toCanvas(), 10, 0);
+  const p = new PixelCanvas(14, 4);
+  rows(p, ['.GGGGGGGGGGGG.', 'GWGGGGGGGGGGGN', 'GGGNNNNNNNNGGN', '.NNNNNNNNNNNN.'], { G: P.G, W: P.W, N: P.N }, 0, 0);
+  ctx.drawImage(p.toCanvas(), Math.round(c.width / 2) - 7, 0);
 }
 
 /** The page turning over the clip (3 frames: lifted, upright, laid back). */

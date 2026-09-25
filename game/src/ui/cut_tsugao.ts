@@ -49,6 +49,7 @@ import {
   HOOK,
   madaPrint,
   P,
+  plateAt,
   plateImg,
   STAMP_REST,
   stampFace,
@@ -374,7 +375,8 @@ class TsugaoRoomScene implements Scene {
     for (const id of Object.keys(CLOCKS) as ClockId[]) {
       const c = CLOCKS[id];
       g.img(a.faces[id], c.x - 10, c.y - 10);
-      g.img(a.plates[id], c.x - 14, c.y + 14);
+      const pl = plateAt(id);
+      g.img(a.plates[id], pl.x, pl.y);
       // hands: 夕鳴町 5:00, 星見台 4:59 (→ 5:00), 海ぞいの町 12:00 (both on the 12)
       let hh: number;
       let mm: number;
