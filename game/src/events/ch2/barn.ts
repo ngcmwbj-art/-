@@ -493,8 +493,11 @@ registerScript('trig_ch2_barn_work_quit', function* (): Co {
 
 // ---------------------------------------------------------------- QA
 
+/** QA: every spot done but 南5's feed (spot_h_esa_06, examined from (19,6) facing south). */
 export function debugChoresDone(): void {
-  for (const id of [...ESA, ...CUPS]) setFlag('flag_' + id, 1);
-  setChoreCount(0, 6);
+  for (const id of [...ESA, ...CUPS]) if (id !== 'spot_h_esa_06') setFlag('flag_' + id, 1);
+  work.esaSaid = true;
+  work.cupSaid = true;
+  setChoreCount(0, 5);
   setChoreCount(1, 3);
 }

@@ -23,3 +23,4 @@ import './hoshi_vehicles';
 import './hoshi_room_a';
 import './hoshi_room_b';
 import './hoshi_hill_art';
+import './hoshi_tsugaobin';

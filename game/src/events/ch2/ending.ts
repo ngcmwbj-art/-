@@ -101,7 +101,6 @@ function* beat(ms: number): Co {
 /** A drawn vehicle for a cut (the bus leaving, the bus at 夕鳴町's stop). */
 function vehicle(id: string, x: number, y: number, img: () => HTMLCanvasElement | null): Actor {
   const a = spawn(id, Math.floor(x / 16), Math.floor(y / 16), { sprite: 'kanenari', ghost: true });
-  a.kind = 'follower';
   a.data.scripted = true;
   a.solid = false;
   a.x = x;
@@ -441,7 +440,6 @@ function* cut4BusStop(): Co {
   const back = hoshiBusImage('back', true);
   const bus = vehicle('end_bus_town', 35 * 16 + 16, 13 * 16 + 14, () => back);
   const pool = spawn('end_bus_pool', 34, 11, { sprite: 'kanenari', ghost: true });
-  pool.kind = 'follower';
   pool.data.scripted = true;
   pool.solid = false;
   pool.alpha = 0;
@@ -550,7 +548,6 @@ function* cut5Home(): Co {
   const bagArt = getProp('prop_h_tomato_bag', {});
   const bagImg = bagArt?.img({} as never) ?? null;
   const bag = spawn('end_tomato_bag', 2, 7, { sprite: 'kanenari', ghost: true });
-  bag.kind = 'follower';
   bag.data.scripted = true;
   bag.solid = false;
   bag.drawFn = (g, x, y) => {

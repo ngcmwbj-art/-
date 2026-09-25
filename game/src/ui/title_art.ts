@@ -1,7 +1,7 @@
 // Title screen art (30_level_art 11): the frozen sunset seen from the south
 // bridge — five silhouette layers (sky, far hills with 星見台, the town,
 // the near wires / crossing / bridge with Minato and Kanenari from behind,
-// swaying grass) — and the 「はなまる夕焼け」 logo, stamped in 朱.
+// swaying grass) — and the 「あぜ道の夕焼け」 logo, stamped in 朱.
 // Everything static is baked once; the scene animates clouds, the sun's
 // red-pen swirl, wires, grass, crows and the lit 「ユ」.
 //
@@ -673,7 +673,7 @@ function rims(g: Grid, W: number, H: number, isInk: (v: number) => boolean): voi
 }
 
 /**
- * 「はなまる夕焼け」: はなまる in round marker letters (Scale2x + a round
+ * 「あぜ道の夕焼け」: あぜ道の in round marker letters (Scale2x + a round
  * dilate), 夕焼け in fat brush letters (Scale2x + a square dilate), 朱 with a
  * #FF6A4D light on the upper-left and a #B8241E shade on the lower-right, a
  * red-pen hanamaru circling 「夕」 (drawn behind, with its own rim), the
@@ -697,10 +697,10 @@ export function logoCanvas(): HTMLCanvasElement {
           if (X >= 0 && Y >= 0 && X < W && Y < H) dst[Y * W + X] = v;
         }
   };
-  // はなまる: marker letters, bouncing a little
+  // あぜ道の: marker letters, bouncing a little
   let x = 6;
   const sb = [12, 9, 13, 10];
-  [...'はなまる'].forEach((ch, i) => {
+  [...'あぜ道の'].forEach((ch, i) => {
     stamp(g, dilate(scale2x(glyphMask(ch)), false), x, sb[i], 1);
     x += charWidth(ch) * 2 - 3;
   });

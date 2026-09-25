@@ -19,7 +19,7 @@ import { getProp } from '../../art/props/registry';
 import * as T from '../../data/text/hoshi_events';
 import { F, floatLine, panBack, panTo, sendAway } from '../lib';
 import { ambVol, musicParam, paEcho, se } from './compat';
-import { npc, poseIf, runCue, storyBattle, unpose } from './common';
+import { npc, poseIf, runCue, sceneLight, storyBattle, unpose } from './common';
 
 // ---------------------------------------------------------------- 10.10 evt_ch2_houki
 
@@ -106,14 +106,17 @@ registerWorldFx({
   update(f: FieldScene) {
     if (!truckDriving) return;
     for (const p of f.props) if (p.obj.t === 'prop' && p.obj.prop === PARKED) p.present = false;
+    // まつ先生 and マサルさん of stage 2 are still in the truck
+    for (const id of ['npc_hoshi_fumi', 'npc_hoshi_gen']) {
+      const a = f.actorById(id);
+      if (a && a.kind === 'npc') a.visible = false;
+    }
   },
 });
 
 /** The light truck driving up the old lane, seen from behind (the parked prop's picture) with its lights on. */
 function spawnTruck(y: number): Actor {
   const a = spawn('ch2_yobi_truck', 50, y, { sprite: 'kanenari', ghost: true });
-  // it carries its own headlights: seen in the dark from afar
-  a.kind = 'follower';
   a.data.scripted = true;
   a.solid = false;
   a.x = 50 * 16;
@@ -139,6 +142,7 @@ export function* evtYobigoe(): Co {
   const p = f.player;
   const k = f.follower;
   p.dir = 'up';
+  truckDriving = true;
   // 1.0 s of quiet: the engine gone, only the insects
   yield 1000;
   // from the top of the mountain the broadcast comes, and doesn't stop
@@ -172,24 +176,32 @@ export function* evtYobigoe(): Co {
   yield 500;
 
   // headlights from behind: マサルさん's light truck up the old lane, stopping at the path's mouth
-  const own = { gen: npc('npc_hoshi_gen'), fumi: npc('npc_hoshi_fumi') };
-  for (const a of [own.gen, own.fumi]) if (a) a.visible = false;
-  truckDriving = true;
   const truck = spawnTruck(15);
+  // its headlights light the lane ahead of it (and it is seen by them)
+  const beams = sceneLight(46, 0.8);
+  const follow = () => beams.set(truck.x + 17, truck.y - 34);
+  follow();
   se('se_h_keitora');
   p.dir = 'down';
   if (k) k.dir = 'down';
   const y0 = truck.y;
   const y1 = 2 * 16 + 30;
-  yield* animate(3000, (q) => (truck.y = y0 + (y1 - y0) * ease.quadOut(q)), ease.linear);
+  yield* animate(
+    3000,
+    (q) => {
+      truck.y = y0 + (y1 - y0) * ease.quadOut(q);
+      follow();
+    },
+    ease.linear,
+  );
   truck.y = y1;
+  follow();
   p.dir = 'right';
   if (k) k.dir = 'right';
   yield 500;
   // マサルさん gets out and opens the passenger door; まつ先生 gets out and pushes up the glasses
   const gen = spawn('ch2_yobi_gen', 52, 3, { sprite: 'npc_hoshi_gen', dir: 'left', ghost: true });
   gen.data.scripted = true;
-  gen.kind = 'follower';
   se('se_door', { pitch: 1.2, vol: 0.6 });
   yield 500;
   yield* walk('ch2_yobi_gen', [[52, 4], [50, 4]], { speed: 2.4 });
@@ -199,7 +211,6 @@ export function* evtYobigoe(): Co {
   yield 300;
   const fumi = spawn('ch2_yobi_fumi', 50, 4, { sprite: 'npc_hoshi_fumi', dir: 'down', ghost: true });
   fumi.data.scripted = true;
-  fumi.kind = 'follower';
   fumi.alpha = 0;
   yield* animate(250, (q) => (fumi.alpha = q));
   yield* walk('ch2_yobi_gen', [51, 4], { speed: 2.4, face: 'left' });
@@ -221,13 +232,17 @@ export function* evtYobigoe(): Co {
   });
   // he walks back down to the gate; the truck stays with its lights on the path's mouth
   truckDriving = false;
+  beams.off();
   despawn('ch2_yobi_truck');
   sendAway(gen, [[51, 5], [51, 17], [50, 19]], 2.6, 0, true);
   // まつ先生 stays beside the path's mouth (47,2)
   yield* walk('ch2_yobi_fumi', [[48, 5], [47, 5], [47, 2]], { speed: 1.8, face: 'down' });
   despawn('ch2_yobi_fumi');
-  for (const a of [own.gen, own.fumi]) if (a) a.visible = true;
   const f2 = F();
+  for (const id of ['npc_hoshi_fumi', 'npc_hoshi_gen']) {
+    const a = f2.actorById(id);
+    if (a) a.visible = true;
+  }
   f2.refreshPresence();
   const fOwn = f2.actorById('npc_hoshi_fumi');
   if (fOwn) {

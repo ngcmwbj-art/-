@@ -56,10 +56,10 @@ const ROWS = [
   '.............=................................::::::::::::::', // 38
   '.............=................................::::::::::::::', // 39
   ',^^^^^^^^""""HHWWWWWWW%o%%%%o%%%%%%%%%%%%%%%%%B^^^^^::^^^^^^', // 40
-  ',^^^^^^^^""""HHWSSSSSW%%%%%%%%%%%%%oooo%%%%%%%B^^^^^::^^^^^^', // 41
-  ',WWWWWWWWooooHHW-----W%%%%%%%%%%%%%oooo%%%%%%%BWWWWW::WWWWWW', // 42
+  ',^^^^^^^^""""HHWSSSSSW%%%%%%%%%%%%%oooo%%%ooo%B^^^^^::^^^^^^', // 41
+  ',WWWWWWWWooooHHW-----W%%%%%%%%%%%%%oooo%%%ooo%BWWWWW::WWWWWW', // 42
   ',WWWWWWWWooooHHWWW-WWW%%%%%%%%%%%%o%%%%%%%%%%%BWWWWW::WWWWWW', // 43
-  ',::::::::::::::-------o-------o---%%oo%%%%%%%%B:::::::,,,,,,', // 44
+  ',::::::::::::::-------o-------o---%%oo%%%%%%%oB:::::::,,,,,,', // 44
   ',::::::::::::::-------------------%%%%%%%%%%%%B:::::::,,,,,,', // 45
   'RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRoHHHHHHHHHHHHHHHHHHHHHHHHH', // 46
   'HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH', // 47
@@ -123,6 +123,14 @@ const KAKASHI: [number, number, string][] = [
   [29, 12, 'jersey'],
   [25, 15, 'apron'],
   [15, 18, 'shirt'],
+];
+
+/** The delivery stands (52 3.5): [spot number, tile]; 4 is エー夫人 in the meeting hall (no stand). */
+const DELI: [number, number, number][] = [
+  [1, 43, 36],
+  [2, 37, 36],
+  [3, 42, 26],
+  [5, 17, 31],
 ];
 
 const OBJECTS: MapObj[] = [
@@ -225,8 +233,8 @@ const OBJECTS: MapObj[] = [
   PR('prop_h_eave', 17, 27, { set: 'fumi' }),
   PR('prop_h_eave', 41, 27, { set: 'minka2' }),
   PR('prop_h_eave', 14, 32, { set: 'minka1' }),
-  PR('prop_h_eave', 37, 37, { set: 'kucho' }),
-  PR('prop_h_eave', 43, 37, { set: 'minka3' }),
+  PR('prop_h_eave', 38, 37, { set: 'kucho' }),
+  PR('prop_h_eave', 44, 37, { set: 'minka3' }),
   PR('prop_h_eave', 57, 44, { set: 'gen' }),
 
   // ======================================================== 西の斜面 (area_hoshi_west)
@@ -335,6 +343,29 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_hoshi_gon', x: 53, y: 33, dir: 'down', pose: 'sit', animal: true, talk: htalk('npc_hoshi_gon'), cond: s1 },
   { t: 'npc', id: 'npc_hoshi_gon', x: 53, y: 33, dir: 'up', pose: 'stand_n', animal: true, talk: htalk('npc_hoshi_gon'), cond: s2 },
 
+  // ======================================================== ツガオ便 at the turning circle (52 3.4–3.6, 50 3.14–3.16・10.20)
+  PR('prop_tsugao_truck', 42, 41),
+  PR('prop_pokosha_bike', 45, 44),
+  O('obj_hoshi_tsugao_truck', 43, 41, { w: 2, h: 2 }),
+  O('obj_hoshi_pokosha_bike', 45, 44),
+  // ツガオさん asleep in the driver's seat (his picture is the truck's): spoken to through the window from (41,42) or (42,43)
+  { t: 'obj', id: 'npc_tsugao', x: 42, y: 42, script: 'npc_tsugao', cond: s02 } as MapObj,
+  { t: 'npc', id: 'npc_hirosuke', x: 43, y: 43, dir: 'up', talk: htalk('npc_hirosuke'), cond: s02 },
+  // ポコシャさん (ぴーちゃん on his left shoulder) behind the truck; while the delivery runs he walks in the line instead
+  { t: 'npc', id: 'npc_pokosha', x: 45, y: 42, dir: 'left', talk: htalk('npc_pokosha'), cond: { stage: '0-1', notFlag: 'flag_ch2_delivery_on' } },
+  { t: 'npc', id: 'npc_pokosha', x: 45, y: 42, dir: 'up', pose: 'look_hill', talk: htalk('npc_pokosha'), cond: s2 },
+  // the delivery stands (52 3.5): the stand always, its slip and note only in the lantern while the delivery runs, the vegetables once left
+  ...DELI.flatMap(([n, x, y]) => {
+    const spot = `spot_h_deli_0${n}`;
+    return [
+      PR('prop_h_deli_dai', x, y, { n }),
+      PR('prop_h_deli_note', x, y, { n }, { litOnly: true, cond: { flag: 'flag_ch2_delivery_on', notFlag: 'flag_' + spot } }),
+      PR('prop_h_deli_bag', x, y, { n }, { cond: { flag: 'flag_ch2_delivery' } }),
+      PR('prop_h_deli_bag', x, y, { n }, { cond: { flag: 'flag_' + spot, notFlag: 'flag_ch2_delivery' } }),
+      O(spot, x, y, { face: 'up', litOnly: true, priority: 1, cond: { flag: 'flag_ch2_delivery_on', notFlag: 'flag_' + spot } }),
+    ];
+  }),
+
   // ======================================================== enemy symbols (52 1.5 / 51 11)
   { t: 'sym', id: 'sym_hoshi_01', enemies: ['enemy_chototsu'], x: 8, y: 23, dir: 'down', move: 'boar', cond: s1p, restoreAt: [8, 23] },
   { t: 'sym', id: 'sym_hoshi_02', enemies: ['enemy_mujin_hanbaiin'], x: 21, y: 37, dir: 'down', move: 'mujin', to: [21, 38], cond: s1p, restoreAt: [21, 37], restoreOff: [0, -4] },
@@ -359,6 +390,11 @@ const OBJECTS: MapObj[] = [
   { t: 'trig', id: 'trig_ch2_gen_stop', x: 46, y: 36, w: 4, h: 4, script: 'evt_ch2_gen_stop', cond: { flag: 'flag_ch2_got_tomato', notFlag: 'flag_ch2_met_gen' } },
   { t: 'trig', id: 'trig_ch2_houki', x: 37, y: 3, w: 23, h: 15, script: 'evt_ch2_houki', cond: { notFlag: 'flag_ch2_houki_enter' } },
   { t: 'trig', id: 'trig_ch2_tetsuya', x: 38, y: 6, w: 20, h: 2, script: 'evt_ch2_tetsuya', cond: { flag: 'flag_ch2_gate_open', notFlag: 'flag_ch2_tetsuya_beaten' } },
+  // the delivery (50 10.20): back at the truck with all five done; the edges of the round (asks to stop)
+  { t: 'trig', id: 'trig_ch2_deli_return', x: 39, y: 40, w: 7, h: 6, script: 'trig_ch2_deli_return', cond: { flag: 'flag_ch2_delivery_on' } },
+  { t: 'trig', id: 'trig_ch2_deli_edge', x: 13, y: 38, w: 1, h: 2, script: 'trig_ch2_deli_edge', cond: { flag: 'flag_ch2_delivery_on' } },
+  { t: 'trig', id: 'trig_ch2_deli_edge_e', x: 46, y: 38, w: 1, h: 2, script: 'trig_ch2_deli_edge', cond: { flag: 'flag_ch2_delivery_on' } },
+  { t: 'trig', id: 'trig_ch2_deli_edge_n', x: 19, y: 21, w: 2, h: 1, script: 'trig_ch2_deli_edge', cond: { flag: 'flag_ch2_delivery_on' } },
 ];
 
 export const HOSHIMIDAI: MapDef = {

@@ -24,7 +24,7 @@ js = js.replace(fontRef, '`data:font/woff2;base64,' + font + '`');
 // A literal "</script" inside the bundle would end the inline script early.
 js = js.replace(/<\/script/gi, '<\\/script');
 
-const page = `<title>はなまる夕焼け</title>
+const page = `<title>あぜ道の夕焼け</title>
 <style>
   html, body { background: #0b0a12; height: 100%; margin: 0; overflow: hidden; }
   body { display: flex; align-items: center; justify-content: center; touch-action: none; }
@@ -32,7 +32,7 @@ const page = `<title>はなまる夕焼け</title>
   #boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
     color: #6f6a8a; font: 12px/1.4 monospace; letter-spacing: .2em; }
 </style>
-<canvas id="screen" tabindex="0" aria-label="はなまる夕焼け ゲーム画面"></canvas>
+<canvas id="screen" tabindex="0" aria-label="あぜ道の夕焼け ゲーム画面"></canvas>
 <div id="boot">LOADING</div>
 <script type="module">
 ${js}

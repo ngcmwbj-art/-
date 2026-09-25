@@ -244,6 +244,12 @@ interface Layers {
   bodyEdge: HTMLCanvasElement;
 }
 
+/** '#rrggbb' → the opaque ABGR word PixelCanvas keeps. */
+function u32Of(c: string): number {
+  const n = parseInt(c.slice(1), 16);
+  return (0xff000000 | ((n & 255) << 16) | (n & 0xff00) | ((n >> 16) & 255)) >>> 0;
+}
+
 /** Warm the down-facing edges, cool the up-facing ones (under-lit), then the ink edge. */
 function underFinish(p: PixelCanvas): void {
   const src = p.data.slice();
@@ -251,10 +257,16 @@ function underFinish(p: PixelCanvas): void {
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
       if (!on(x, y)) continue;
-      const v = src[y * W + x];
+      const v0 = src[y * W + x];
+      // the lantern is below: the lower part of every piece glows warm
+      // (strongest within 5px of its underside), the sprite's foot most
+      let below = 0;
+      while (below < 6 && on(x, y + below + 1)) below++;
+      const warm = (below < 6 ? 0.42 * (1 - below / 6) : 0) + 0.14 * (y / H);
+      const v = warm > 0 ? u32Of(mixU32(v0, below < 3 ? '#F7C27A' : '#F2894B', Math.min(0.55, warm))) : v0;
       // the upper faces sink toward #5B4A7A (the top of the sprite most)
       const top = 1 - y / H;
-      let c = mixU32(v, '#5B4A7A', 0.2 * top);
+      let c = mixU32(v, '#5B4A7A', 0.24 * top);
       if (!on(x, y + 1)) c = mixU32(v, y > H * 0.5 ? '#F7C27A' : '#F2894B', 0.6);
       else if (!on(x - 1, y)) c = mixU32(v, '#F2894B', 0.35);
       else if (!on(x, y - 1)) c = mixU32(v, '#5B4A7A', 0.45);

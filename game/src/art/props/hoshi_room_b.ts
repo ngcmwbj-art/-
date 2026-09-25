@@ -13,7 +13,8 @@
 
 import type { Gfx } from '../../engine/gfx';
 import { mix, PixelCanvas } from '../../engine/pixel';
-import { charSprite, hasChar } from '../chars/registry';
+import { charSprite, hasChar, type CharAnim } from '../chars/registry';
+import type { Dir } from '../../game/state';
 import { h01, ihash, valueNoise } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { dk, lt, outline } from './kit';
@@ -820,6 +821,35 @@ registerProp('prop_h_cow', (opts) => {
   const reach = String(opts.reach ?? '');
   const ext = hasProp('prop_h_cow_' + pose) ? getProp('prop_h_cow_' + pose, { right, white, phase, sync, n: opts.n, reach }) : null;
   if (ext) return { ...ext, ox: ext.ox + dx - 8, oy: ext.oy + dy - 16, foot: ext.foot + dy - 16, contactX: (ext.contactX ?? 8) + dx - 8 };
+  // the chars team's cattle as character sprites (feet-centre origin): a held
+  // anim named after the pose (or 'idle'), the chores' 'reach' while its spot waits
+  const cid = 'prop_h_cow_' + pose + (white ? '_' + white : '');
+  const chId = hasChar(cid) ? cid : hasChar('prop_h_cow_' + pose) ? 'prop_h_cow_' + pose : '';
+  if (chId) {
+    const sp = charSprite(chId);
+    const dir: Dir = pose === 'front' ? 'down' : pose === 'back' ? 'up' : right ? 'right' : 'left';
+    const still = sp.idle?.[dir]?.[0] ?? sp.walk[dir]?.[0] ?? sp.walk.down[0];
+    const play = (an: CharAnim | undefined, t: number): HTMLCanvasElement | null => {
+      if (!an || !an.frames.length) return null;
+      const ms = typeof an.ms === 'number' ? an.ms : an.ms[0] ?? 250;
+      return an.frames[Math.floor(t / ms) % an.frames.length];
+    };
+    return {
+      ox: dx - Math.round(sp.w / 2),
+      oy: dy - sp.h,
+      w: sp.w,
+      h: sp.h,
+      foot: dy - 1,
+      img: (env: PropEnv) => {
+        const ph = sync && !env.flag('flag_fushigi_ch2_08') ? 0 : phase;
+        const t = env.t + ph * 9000;
+        if (reach && spotPending(env, reach)) return play(sp.anims?.reach, env.t) ?? still;
+        return play(sp.anims?.[pose], t) ?? play(sp.anims?.idle, t) ?? still;
+      },
+      contact: pose === 'lie' || pose === 'sleep' ? 26 : pose === 'side' ? 24 : 16,
+      contactX: dx,
+    } as PropArt;
+  }
   const F = cowFrames(pose, white, right);
   const img0 = F.f[0];
   const lying = pose === 'lie' || pose === 'sleep';

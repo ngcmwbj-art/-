@@ -15,6 +15,12 @@
 //                                                     heals someone under 45% (はなまる / ふうせん / the bag)
 //   node tools/playthrough.mjs --fushigi-all          also stamp all 12 ふしぎ in the same run
 //   node tools/playthrough.mjs --headed               watch it
+//   node tools/playthrough.mjs --chapter 2            chapter 2『星見台のトマト』 (02_ch2_index 4.5): the title's
+//                                                     「第2章から」 → the prologue → … → the ending → ツガオの部屋 →
+//                                                     the title. --real sune,tetsuya,boss fights those with keys
+//                                                     (default: all won with __game.cmd.win()); --fushigi-all
+//                                                     stamps the ten ふしぎ ② before the boss; --from <beat> starts at
+//                                                     a CHAIN2 beat (jump('ch2:<beat>'))
 //
 // Beats (each one's flag must be set before the next begins):
 //   title  opening  errand  town  maruyama  hinoya  chime (★17:00 → ハト係長 → ハンコケース)
@@ -45,9 +51,10 @@ const opt = (name, def) => {
 const BASE = opt('--base', 'http://127.0.0.1:5173/');
 const OUT = opt('--out', '/tmp/claude-0/shots/playthrough');
 const FROM = opt('--from', '');
-const REAL = new Set(opt('--real', 'hato').split(',').filter(Boolean));
+const REAL = new Set(opt('--real', args.includes('--chapter') && opt('--chapter', '1') === '2' ? '' : 'hato').split(',').filter(Boolean));
 const HEADED = args.includes('--headed');
 const FUSHIGI_ALL = args.includes('--fushigi-all');
+const CHAPTER = Number(opt('--chapter', '1'));
 const checks = [];
 const travelLog = { walked: 0, skipped: 0, battles: 0 };
 
@@ -1111,10 +1118,281 @@ const BEATS = [
   },
 ];
 
+
+// ------------------------------------------------------------------ chapter 2 (--chapter 2, 02_ch2_index 4.5)
+
+/** Named places of 星見台 for the reachability checks (52 3章). */
+const PLACES2 = { station: [25, 44], school: [26, 28], house: [2, 31], barnDoor: [51, 32], gateNorth: [48, 17], houki: [48, 10] };
+const REACH2 = {
+  0: { station: true, school: true, house: true, barnDoor: true, gateNorth: false, houki: false },
+  1: { station: true, school: true, house: true, barnDoor: true, gateNorth: true, houki: true },
+};
+async function assertReach2(label, stage) {
+  const got = await reachable(PLACES2);
+  const want = REACH2[stage];
+  const bad = Object.keys(want).filter((k) => got[k] !== want[k]);
+  checks.push({ check: `reach 星見台 ${label}`, ok: !bad.length, got });
+  log(`  reach (${label}): ${Object.entries(got).map(([k, v]) => `${k}${v ? '' : '✗'}`).join(' ')}`);
+  if (bad.length) throw new Error(`reachability (${label}): ${bad.map((k) => `${k} ${got[k] ? 'open' : 'closed'} (want ${want[k] ? 'open' : 'closed'})`).join(', ')}`);
+}
+
+/** Enemy symbols standing on the map now (visible or not). */
+const symCount = () => page.evaluate(() => window.__game.cmd.fieldRef().actors.filter((a) => a.kind === 'sym').length);
+
+/** A chapter-2 story battle: keys with --real <name>, else won. */
+async function ch2Battle(name, maxMs = 300000) {
+  if (REAL.has(name)) {
+    for (let i = 0; i < 3; i++) {
+      const b = await battleByKeys(maxMs);
+      battleLog.push({ beat: beatName, try: i + 1, ...b });
+      const s = await waitFor((x) => x.top === 'FieldScene' || x.top === 'TitleScene' || x.modal, 30000, 'after the battle');
+      if (s.top !== 'FieldScene' || !(await page.evaluate(() => !!window.__game.cmd.bstate?.()))) return;
+    }
+    return;
+  }
+  await battleWin(120000);
+  battleLog.push({ beat: beatName, real: false });
+}
+
+/** Walk into a door cell (pushing `dir` from the tile before it) until the map changes. */
+async function enterDoor(x, y, dir, to) {
+  await travel(x, y);
+  await walk(dir, (s) => s.map === to || !s.ctrl, 5000);
+  await waitFor((s) => s.map === to, 8000, `into ${to}`);
+}
+
+/** The ten ふしぎ ② (--fushigi-all): each map in turn, stamped from beside the object. */
+async function stampAllCh2() {
+  const plan = [
+    ['map_hoshimidai', 25, 40, ['fushigi_ch2_01', 'fushigi_ch2_02', 'fushigi_ch2_03', 'fushigi_ch2_04', 'fushigi_ch2_05']],
+    ['map_hoshi_house', 4, 16, ['fushigi_ch2_07']],
+    ['map_hoshi_barn', 2, 10, ['fushigi_ch2_08']],
+    ['map_hoshi_school', 5, 10, ['fushigi_ch2_09', 'fushigi_ch2_10']],
+  ];
+  for (const [map, x, y, ids] of plan) {
+    await warp(map, x, y, 'up');
+    await sleep(600);
+    await advance({ label: 'warp' });
+    for (const id of ids) await stampObject(id);
+  }
+  const n = await page.evaluate(() => Array.from({ length: 10 }, (_, i) => window.__game.cmd.flag(`flag_fushigi_ch2_${String(i + 1).padStart(2, '0')}`)).filter(Boolean).length);
+  checks.push({ check: 'fushigi ② 10/10 before the boss', ok: n === 10, n });
+  log(`  ふしぎ② ${n}/10`);
+  if (n !== 10) throw new Error(`ふしぎ②: ${n}/10`);
+}
+
+const BEATS2 = [
+  {
+    name: 'title',
+    async run() {
+      await page.waitForFunction(() => window.__game?.game?.top?.constructor?.name === 'TitleScene', null, { timeout: 30000 });
+      await sleep(600);
+      await tap('KeyZ');
+      await sleep(2600);
+      await shot('menu');
+      // はじめる／つづきから／第2章から／せってい: with no save つづきから is greyed out
+      // and the cursor steps over it — one step down is 第2章から
+      await tap('ArrowDown');
+      await sleep(250);
+      await tap('KeyZ');
+      await sleep(900);
+      await shot('ask');
+      // the question defaults to やめる: up to はじめる
+      await tap('ArrowUp');
+      await sleep(200);
+      await tap('KeyZ');
+      await waitFor((s) => s.top === 'FieldScene' && s.map === 'map_town', 20000, 'chapter 2 from the title');
+    },
+  },
+  {
+    name: 'ch2',
+    async run() {
+      await need(['flag_ch2_started'], 'ch2 start');
+      await sleep(2500);
+      await shot('caption');
+      await sleep(4500);
+      await shot('door');
+      await advance({ shotEvery: 3, label: 'crossing', max: 120000 });
+      await need(['flag_ch2_prologue_done'], 'prologue');
+      const s = await st();
+      if (s.map !== 'map_hoshi_train') throw new Error(`the prologue ended on ${s.map}`);
+      await shot('train');
+    },
+  },
+  {
+    name: 'train',
+    async run() {
+      // to the front of the car and stay 1.5 s (trig_ch2_train_front, on: 'stay')
+      await travel(14, 3);
+      await sleep(1900);
+      await advance({ shotEvery: 3, label: 'arrive', max: 60000 });
+      await need(['flag_ch2_arrived'], 'arrive');
+      const v = await flags(['flag_ch2_stage', 'flag_ch2_clock']);
+      const syms = await symCount();
+      const ok = v.flag_ch2_stage === 0 && v.flag_ch2_clock === 0 && syms === 0;
+      checks.push({ check: 'arrive: stage 0, 4:59, no enemy symbols', ok, ...v, syms });
+      if (!ok) throw new Error(`arrive: ${JSON.stringify({ ...v, syms })}`);
+      await assertReach2('h0', 0);
+      await shot('platform');
+    },
+  },
+  {
+    name: 'yoriai',
+    async run() {
+      await enterDoor(26, 28, 'up', 'map_hoshi_school');
+      await advance({ shotEvery: 3, label: 'yoriai', max: 120000 });
+      await need(['flag_ch2_yoriai'], 'yoriai');
+      // the dark corridor without the lantern: pushed back at x10
+      await travel(9, 9);
+      await walk('right', (s) => !s.ctrl, 3000).catch(() => {});
+      await advance({ label: 'dark' });
+      const s = await st();
+      const ok = s.x <= 9;
+      checks.push({ check: 'school corridor dark block before the tomato', ok, x: s.x });
+      if (!ok) throw new Error(`dark block: at x${s.x}`);
+      await exitRoom('map_hoshimidai');
+    },
+  },
+  {
+    name: 'mitsu',
+    async run() {
+      await travel(4, 34);
+      await walk('up', (s) => !s.ctrl, 4000);
+      await advance({ shotEvery: 3, label: 'mitsu' });
+      await need(['flag_ch2_met_mitsu'], 'mitsu');
+    },
+  },
+  {
+    name: 'house',
+    async run() {
+      await enterDoor(2, 31, 'up', 'map_hoshi_house');
+      await advance({ label: 'enter' });
+      await travel(4, 12);
+      await walk('up', (s) => !s.ctrl, 4000);
+      await advance({ shotEvery: 2, label: 'sune', battles: 'stop' });
+      await ch2Battle('sune');
+      await advance({ label: 'after' });
+      await need(['flag_ch2_sune_beaten'], 'sune');
+    },
+  },
+  {
+    name: 'tomato',
+    async run() {
+      await travel(4, 2);
+      await page.evaluate(() => (window.__game.cmd.fieldRef().player.dir = 'right'));
+      await tap('KeyZ');
+      await advance({ shotEvery: 3, label: 'tomato', max: 90000 });
+      await need(['flag_fushigi_ch2_06', 'flag_ch2_got_tomato'], 'tomato');
+      const v = await flags(['flag_ch2_stage']);
+      const pair = await page.evaluate(() => !!window.__game.cmd.fieldRef().actorById('sym_hoshi_house_01'));
+      const ok = v.flag_ch2_stage === 1 && pair;
+      checks.push({ check: 'tomato: stage 1, the pair of sulking tomatoes', ok, stage: v.flag_ch2_stage, pair });
+      if (!ok) throw new Error(`tomato: ${JSON.stringify({ ...v, pair })}`);
+      await shot('lantern');
+      await exitRoom('map_hoshimidai');
+      await advance({ label: 'exit' });
+    },
+  },
+  {
+    name: 'gen',
+    async run() {
+      await travel(44, 38);
+      await walk('right', (s) => !s.ctrl, 5000);
+      await advance({ shotEvery: 3, label: 'gen' });
+      await need(['flag_ch2_met_gen'], 'gen');
+    },
+  },
+  {
+    name: 'barn',
+    async run() {
+      await enterDoor(51, 32, 'up', 'map_hoshi_barn');
+      await advance({ shotEvery: 4, label: 'barn', max: 180000 });
+      await need(['flag_ch2_got_otsukare', 'flag_ch2_gate_open'], 'barn → otsukare → gate');
+      await assertReach2('h1 after the gate', 1);
+    },
+  },
+  {
+    name: 'tetsuya',
+    async run() {
+      await travel(48, 9);
+      await walk('up', (s) => !s.ctrl, 5000);
+      await advance({ shotEvery: 3, label: 'tetsuya', battles: 'stop' });
+      await ch2Battle('tetsuya');
+      await advance({ shotEvery: 3, label: 'yobigoe', max: 120000 });
+      await need(['flag_ch2_tetsuya_beaten'], 'tetsuya');
+      const v = await flags(['flag_ch2_stage']);
+      checks.push({ check: 'yobigoe: stage 2', ok: v.flag_ch2_stage === 2, stage: v.flag_ch2_stage });
+      if (v.flag_ch2_stage !== 2) throw new Error(`yobigoe: stage ${v.flag_ch2_stage}`);
+    },
+  },
+  {
+    name: 'hill',
+    async run() {
+      if (FUSHIGI_ALL) await stampAllCh2();
+      if ((await st()).map !== 'map_hoshimidai') await warp('map_hoshimidai', 48, 3, 'up');
+      await enterDoor(48, 1, 'up', 'map_hoshi_hill');
+      await advance({ label: 'hill' });
+      await travel(15, 6);
+      await advance({ label: 'top' });
+      await shot('plaza');
+    },
+  },
+  {
+    name: 'boss',
+    async run() {
+      await walk('up', (s) => !s.ctrl, 5000);
+      await advance({ shotEvery: 2, label: 'intro', battles: 'stop' });
+      await ch2Battle('boss', 600000);
+      await need(['flag_ch2_boss_beaten'], 'boss');
+    },
+  },
+  {
+    name: 'ending',
+    async run() {
+      let lastTop = '';
+      let lastMap = '';
+      let lastShot = 0;
+      const t0 = Date.now();
+      for (;;) {
+        const s = await st();
+        if (s.top === 'TitleScene') break;
+        if (Date.now() - t0 > 420000) throw new Error('the ending did not reach the title');
+        if (s.top !== lastTop || s.map !== lastMap || Date.now() - lastShot > 2000) {
+          lastTop = s.top;
+          lastMap = s.map;
+          lastShot = Date.now();
+          await shot(s.top === 'FieldScene' ? (s.map ?? '').replace('map_', '') : s.top.replace('Scene', '').toLowerCase());
+        }
+        if (s.modal) await tap('KeyZ');
+        await sleep(300);
+      }
+      await sleep(4500);
+      await shot('title_clear');
+      const rec = await page.evaluate(() => localStorage.getItem('hanamaru-clear-ch2-v1'));
+      const v = await flags(['flag_ch2_clear', 'flag_ch2_omake']);
+      log('  chapter 2 clear record:', rec, JSON.stringify(v));
+      const ok = !!rec && v.flag_ch2_clear === 1;
+      checks.push({ check: 'chapter 2 clear record and flag_ch2_clear', ok, rec, ...v });
+      if (!ok) throw new Error('no chapter 2 clear record');
+    },
+  },
+];
+
 // ------------------------------------------------------------------ run
 
 const results = [];
 let failed = false;
+
+const LIST = CHAPTER === 2 ? BEATS2 : BEATS;
+if (CHAPTER === 2) {
+  // a player who has seen chapter 1's ending: the title shows 「第2章から」
+  await page.addInitScript(() => {
+    try {
+      localStorage.clear();
+      localStorage.setItem('hanamaru-clear-v1', JSON.stringify({ fushigi: 8, aite: 7, tsukkomi: 12, tsukkomiTotal: 19 }));
+    } catch {}
+  });
+}
 
 try {
   await page.goto(BASE, { waitUntil: 'load' });
@@ -1125,17 +1403,17 @@ try {
   await installCounter();
   let start = 0;
   if (FROM) {
-    start = BEATS.findIndex((b) => b.name === FROM);
-    if (start < 0) throw new Error(`--from: unknown beat ${FROM}; beats: ${BEATS.map((b) => b.name).join(' ')}`);
+    start = LIST.findIndex((b) => b.name === FROM);
+    if (start < 0) throw new Error(`--from: unknown beat ${FROM}; beats: ${LIST.map((b) => b.name).join(' ')}`);
     await tap('KeyZ');
     // test beats that are not story beats of jump(): the town's ふしぎ round starts in stage 2
-    const JUMP_AS = { fushigi: 'stage2' };
-    await page.evaluate((b) => window.__game.cmd.jump(b, true), JUMP_AS[FROM] ?? FROM);
+    const JUMP_AS = CHAPTER === 2 ? { ch2: 'ch2:ch2', train: 'ch2:train', yoriai: 'ch2:arrive', mitsu: 'ch2:mitsu', house: 'ch2:house', tomato: 'ch2:tomato', gen: 'ch2:gen', barn: 'ch2:barn', tetsuya: 'ch2:houki', hill: 'ch2:hill', boss: 'ch2:boss', ending: 'ch2:ch2ending' } : { fushigi: 'stage2' };
+    await page.evaluate(([b, run]) => window.__game.cmd.jump(b, !run), [JUMP_AS[FROM] ?? FROM, CHAPTER === 2 && (FROM === 'ch2' || FROM === 'ending')]);
     await waitFor((s) => s.top === 'FieldScene', 8000, 'jump');
     await sleep(600);
   }
-  for (let i = start; i < BEATS.length; i++) {
-    const b = BEATS[i];
+  for (let i = start; i < LIST.length; i++) {
+    const b = LIST[i];
     beatNo = i;
     beatName = b.name;
     shotNo = 0;
@@ -1175,6 +1453,7 @@ const counts = await readCounts();
 
 const summary = {
   base: BASE,
+  chapter: CHAPTER,
   counts,
   ok: !failed && !errors.some((e) => e.startsWith('[pageerror]')),
   seconds: Math.round((Date.now() - T0) / 1000),

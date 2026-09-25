@@ -753,6 +753,26 @@ ITEM_ICON_ROWS.item_hanamaru_tomato = [
   '................',
 ];
 
+// 焼き芋 (52 13.3): half out of its newspaper, the broken end yellow, two threads of steam
+ITEM_ICON_ROWS.item_yakiimo = [
+  '..........H..H..',
+  '.........H..H...',
+  '..........H..H..',
+  '.........kkkkk..',
+  '........kOOoOPk.',
+  '.......kOoOOPPk.',
+  '......kPOoPPPEk.',
+  '.....kPPPPPPEk..',
+  '..kkkkPPPPPEkk..',
+  '.kdwwwkPPPEkwdk.',
+  '.kwgggwkPEkggwk.',
+  '.kwwwwwwkkwwwdk.',
+  '.kwggggwwgggwdk.',
+  '..kwwwwwwwwwdk..',
+  '...kdddddddk....',
+  '....kkkkkkk.....',
+];
+
 export function itemIcon(id: string): HTMLCanvasElement {
   const rows = ITEM_ICON_ROWS[id];
   if (rows) return icon('item:' + id, rows);

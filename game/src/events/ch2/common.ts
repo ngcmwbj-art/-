@@ -11,6 +11,7 @@ import { SPEAKERS, runMsg } from '../../world/msg';
 import { hasMap } from '../../world/maps';
 import { registerWorldFx } from '../../world/fx';
 import type { Actor } from '../../world/actor';
+import type { DarkLight } from '../../world/types';
 import { runGameOver } from '../../ui/gameover';
 import { continueGame } from '../../ui/flow';
 import { sfx } from '../../audio';
@@ -202,6 +203,34 @@ export function unpose(...as: (Actor | null | undefined)[]): void {
     a.tempPose = null;
     a.anim = null;
   }
+}
+
+// ---------------------------------------------------------------- a light of the scene's own
+
+/**
+ * A light a scene carries through the dark (the truck's headlights, 10.12):
+ * one more of the map's dark lights (52 8.5), moved with set(px, py) and
+ * taken away with off(). The world reveals what stands in it.
+ */
+export function sceneLight(r = 44, k = 0.85): { set(px: number, py: number): void; off(): void } {
+  const f = field();
+  if (!f) return { set() {}, off() {} };
+  const def = f.map.def as { darkLights?: DarkLight[] };
+  const own = def.darkLights;
+  const light: DarkLight = { x: 0, y: 0, ox: 8, oy: 8, r, k };
+  def.darkLights = [...(own ?? []), light];
+  return {
+    set(px: number, py: number) {
+      light.x = Math.floor(px / 16);
+      light.y = Math.floor(py / 16);
+      light.ox = Math.round(px - light.x * 16);
+      light.oy = Math.round(py - light.y * 16);
+    },
+    off() {
+      if (own === undefined) delete def.darkLights;
+      else def.darkLights = own;
+    },
+  };
 }
 
 // ---------------------------------------------------------------- routes

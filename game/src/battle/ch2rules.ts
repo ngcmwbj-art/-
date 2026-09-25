@@ -23,6 +23,13 @@ export function applyStartStatus(s: BattleScene): void {
     }
   }
   if (s.enemies.some((e) => e.status.sune)) s.memo.suneTut = 1;
+  // the battle's own music parameters start clean (a retry after a loss
+  // while テツヤ rested must not keep his engine silent)
+  if (s.enemies.some((e) => e.def.chapter === 2)) {
+    s.setMusicParam('h_rest', 0);
+    s.setMusicParam('h_light', 0);
+    s.setMusicParam('tenko', 0);
+  }
 }
 
 /** Is this enemy's turn one it spends resting? */

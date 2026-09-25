@@ -21,6 +21,8 @@ const items: ItemDef[] = [
     id: 'item_umeboshi', name: '梅干し', price: 100, target: 'ally', mp: 3, cure: ['status_konran', 'status_nemuri', 'status_henji'], special: 'umeboshi', shopLimit: 2,
     desc: ['すっぱい。目が さめる。', 'こんらん・ねむり・へんじを 治す。朱肉 3 回復。'],
   },
+  // 51 6.1 (2026-09-25 その2): 野菜の配達のおだちん、2つだけ（非売品）
+  { id: 'item_yakiimo', name: '焼き芋', target: 'ally', heal: 60, desc: ['ヒロスケさんの 焼き芋。夏でも 熱い。', 'HPを 60 回復。'] },
   { id: 'item_kairan_shuniku', name: '回覧板の朱肉', target: 'minato', mp: 15, special: 'kairan', desc: ['回覧板の 確認印 用。ふたに『区』の字。', '朱肉を 15 回復。'] },
   // 大事なもの
   { id: 'item_otsukai_memo', name: 'おつかいメモ', key: true, target: 'none', desc: ['コロッケ 4つ。ソースは べつ。', ''], battleText: ['これは 晩ごはんの メモだ。'] },

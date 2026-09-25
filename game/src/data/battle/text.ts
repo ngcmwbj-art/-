@@ -188,6 +188,7 @@ export const ITEM_TEXT: Record<string, { self: string[]; kanenari?: string[]; ex
     kanenari: ['カネナリくんの 鐘が、\n少し すぼまった。'],
     extra: { none: ['すっぱい。\n……目は もう さめている。'] },
   },
+  item_yakiimo: { self: ['$actorは 焼き芋を 食べた。\nほくほく。'], kanenari: ['新聞紙だけ、ファスナーから\n出てきた。'] },
   item_kairan_shuniku: { self: ['ミナトは ハンコに 回覧板の\n朱肉を つけた。'], kanenari: ['カネナリくんは、回覧板に\n判を 押す 係では ない。'] },
 };
 
