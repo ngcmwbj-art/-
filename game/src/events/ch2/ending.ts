@@ -240,7 +240,7 @@ function* cut2Morning(): Co {
   cutTo('map_hoshi_barn', 11, 6);
   setGradeH('h3c', 0);
   roomLights(false);
-  const gen = put('npc_hoshi_gen', 4, 6, 'right', 'feed');
+  put('npc_hoshi_gen', 4, 6, 'right', 'feed');
   playAmbient('amb_h_barn', { vol: 0.6, fade: 0.3 });
   yield* game.fadeIn(300);
   yield 200;
@@ -254,7 +254,6 @@ function* cut2Morning(): Co {
   yield 700;
   yield* runMsg(flag('flag_ch2_barn_work') ? T.END_2A_WORKED : T.END_2A);
   yield* beat(500);
-  void gen;
 
   // 2b the house: he rolls up the east side; the green rows redden from the door to the back
   yield* fadeCut(300);
@@ -353,7 +352,7 @@ function* cut3Bus(): Co {
   // (two trips), ポコシャさん with a yellow crate on each shoulder; ツガオさん in
   // the driver's seat, awake in his work cap. No words, no sounds (50 10.16).
   const hiro = put('npc_hirosuke', 43, 43, 'up', 'carry_box');
-  const poko = put('npc_pokosha', 45, 42, 'left', 'carry2');
+  put('npc_pokosha', 45, 42, 'left', 'carry2');
   let loading = true;
   game.scripts.run(
     (function* (): Co {
@@ -366,7 +365,6 @@ function* cut3Bus(): Co {
       }
     })(),
   );
-  void poko;
   // the clock straight to 6:10 (a cut: no turning over)
   setClockText('6:10', { cut: true });
   const idle = seLoop('se_h_bus_idle', { vol: 0.5 });
@@ -381,6 +379,10 @@ function* cut3Bus(): Co {
     })(),
   );
   yield* game.fadeIn(300);
+  // in the driver's seat ツガオさん, awake in his work cap, gives Minato a small
+  // nod just before the tomatoes (50 10.16, 02 8 #12): flag_ch2_tsugao_bow for
+  // the truck's picture (about 0.6 s, no sound)
+  setFlag('flag_ch2_tsugao_bow', 1);
   yield 300;
   // ペロリ holds out the plastic bag
   const mitsu = people[4];
@@ -389,6 +391,7 @@ function* cut3Bus(): Co {
   poseIf(mitsu, 'give');
   p.dir = 'down';
   yield 300;
+  setFlag('flag_ch2_tsugao_bow', 0);
   yield* runMsg(T.END_3_MITSU);
   unpose(mitsu);
   giveKey('item_tomato_omiyage');

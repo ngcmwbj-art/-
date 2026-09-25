@@ -54,19 +54,16 @@ const tag = { n: 0, show: false, t: 0 };
 
 registerWorldFx({
   map: 'map_hoshi_hill',
-  update(f: FieldScene, dt: number) {
+  update(_f: FieldScene, dt: number) {
     if (look.on) look.t += dt;
     if (tag.show) tag.t += dt;
-    void f;
   },
-  draw(f: FieldScene, g: Gfx, cx: number, cy: number, layer) {
+  draw(_f: FieldScene, g: Gfx, cx: number, cy: number, layer) {
     if (layer === 'glow' && look.on) {
       // the red lamp's gaze: a faint red disc sweeping left and right, then resting on them
-      const p = f.player;
       const k = Math.min(1, look.t / 400);
       g.alpha(0.16 * k, () => g.circle(Math.round(look.x - cx), Math.round(look.y - cy), 12, '#E84E3C'));
       g.alpha(0.1 * k, () => g.circle(Math.round(look.x - cx), Math.round(look.y - cy), 18, '#FF6A4D'));
-      void p;
     }
     if (layer === 'top' && tag.show) {
       // a red name tag over the pole's plate, written one character at a time

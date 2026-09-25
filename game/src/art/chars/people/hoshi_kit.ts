@@ -104,3 +104,34 @@ export function crate(f: Fig, x: number, y: number, w = 6, h = 4, shift = 0): vo
 }
 
 export const CRATE = mat('#FFD23F', { shade: '#D9A441', light: '#FFE7A3', dark: '#A8742A' });
+
+// ---- the see-off wave (ending cut 4: everyone raises a hand as the bus leaves) -----------
+
+/**
+ * A raised, waving arm. Front: the viewer-right arm (his left) goes up
+ * beside the head; back: the viewer-right arm as well (his right); side: the
+ * near arm up in front of the face. `ph` 0/1 rocks the hand 1px. The caller
+ * leaves that arm out of its hanging arms.
+ */
+export function waveArm(f: Fig, view: 'down' | 'up' | 'left', sx: number, sy: number, o: { sleeve: string; hand: string; ph: number; cuff?: string }): void {
+  const k = o.ph ? 1 : 0;
+  if (view === 'left') {
+    f.part(o.sleeve, { shade: 'rb', light: 't' });
+    f.px(sx, sy).px(sx - 1, sy - 1).px(sx - 1, sy - 2);
+    if (o.cuff) f.part(o.cuff, { shade: 'rb', light: 't' });
+    f.px(sx - 2, sy - 3);
+    f.part(o.hand, { shade: 'rb', light: 't' });
+    f.rect(sx - 3 - k, sy - 6, 2, 2).px(sx - 2, sy - 4);
+    return;
+  }
+  const dir = view === 'down' ? 1 : 1;
+  f.part(o.sleeve, { shade: 'rb', light: 't', shift: view === 'up' ? -1 : 0 });
+  f.px(sx, sy).px(sx + dir, sy - 1).px(sx + dir, sy - 2);
+  if (o.cuff) f.part(o.cuff, { shade: 'rb', light: 't' });
+  f.px(sx + dir, sy - 3);
+  f.part(o.hand, { shade: 'rb', light: 't', shift: view === 'up' ? -1 : 0 });
+  f.rect(sx + dir + k, sy - 6, 2, 2).px(sx + dir, sy - 4);
+}
+
+/** The waving anim (6 beats then held up). */
+export const WAVE_ANIM = { frames: [{ ph: 0 }, { ph: 1 }, { ph: 0 }, { ph: 1 }, { ph: 0 }, { ph: 1 }, { ph: 0 }], ms: 180, loop: false, dirs: 'all' as const };

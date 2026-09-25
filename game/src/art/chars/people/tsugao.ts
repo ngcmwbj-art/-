@@ -528,7 +528,12 @@ function hiroBack(f: Fig, p: Pose) {
   // the apron's ties crossed at his back
   f.part('apron', { flat: true });
   f.t(0).hl(4, 11, 15 + b).t(-1).px(7, 16 + b).px(8, 17 + b).px(6, 17 + b).t(null);
-  if (act === 'sort') {
+  if (act === 'carry_box') {
+    // a crate against his chest: from behind, the arms forward, its ends either side
+    crate(f, 2, 12 + u, 12, 3, -1);
+    f.part('shirt', { shade: 'rb', light: 't', shift: -1 });
+    f.rect(3, 11 + u, 2, 3).rect(11, 11 + u, 2, 3);
+  } else if (act === 'sort') {
     // reaching up onto the truck bed, moving a crate
     f.part('shirt', { shade: 'rb', light: 't', shift: -1 });
     f.rect(2, 8 + u, 2, 4).rect(12, 8 + u, 2, 4);
@@ -615,7 +620,7 @@ registerChar('npc_hirosuke', () =>
       laugh: { dirs: ['down', 'left', 'right'] },
       yakiimo: { dirs: ['down', 'left', 'right'] },
       aori: { dirs: ['down'] },
-      carry_box: { dirs: ['down'] },
+      carry_box: { dirs: 'all' },
     },
     anims: {
       wave: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 0 }, { ph: 1 }, { ph: 0 }], ms: [180, 180, 180, 180, 400], loop: false, dirs: ['down', 'left', 'right'] },
@@ -901,6 +906,7 @@ function pokoSide(f: Fig, p: PokoPose) {
     f.part('skin', { shade: 'rb', light: 't' });
     f.rect(5, 11 + u, 3, 3).rect(3, hy + 6, 2, 3);
   } else if (carry >= 1) {
+    if (carry >= 2) crate(f, 6, 2 + u, 8, 4, -1);
     f.part('skin', { shade: 'rb', light: 't' });
     f.rect(5, 10 + u, 3, 3).rect(5, 7 + u, 2, 3);
     crate(f, 3, 3 + u, 8, 4);
@@ -960,7 +966,7 @@ function pokoSpec(id: string, asleep: boolean, carrying: number): SpriteSpec {
       blush: { dirs: ['down', 'left', 'right'] },
       shh: { dirs: ['down', 'left', 'right'] },
       give: { dirs: ['down'] },
-      carry2: { dirs: ['down', 'up'] },
+      carry2: { dirs: 'all' },
       ...(carrying ? { carry: { dirs: 'all' as const } } : {}),
     },
     anims: {

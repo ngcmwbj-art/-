@@ -33,6 +33,10 @@ export const MINATO_MATS: Mats = {
   blush: flat('#F2B894'),
   package: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFF6D8' }),
   kraft: mat('#E8D9B5', { shade: '#C8A06A', light: '#FBF3DC', dark: '#8A5A3A' }),
+  // chapter 2 chores: マサルさん's scoop (prop_h_scoop), the delivery bag's greens
+  blade: mat('#9AA0A8', { shade: '#6B7186', light: '#C8CDD4' }),
+  shaft: flat('#8A5A3A'),
+  greens: flat('#5FA85A'),
   tape: flat('#E84E3C'),
   hanko: mat('#E23B2E', { shade: '#B8241E', light: '#FF6A4D' }),
   hand: mat('#FFD9B8', { shade: '#E0A882', light: '#FFD9B8', dark: '#C98A6A' }),
@@ -425,6 +429,37 @@ function front(f: Fig, p: Pose) {
     teeFront(f, p, 12 + u, 17 + b, false);
     armTo(f, armL, 4, 17 + u);
     armTo(f, armR, 11, 17 + u);
+  } else if (act === 'scoop') {
+    // the scoop in both hands, its blade pushing the feed along the trough
+    // edge in front of his feet (it slides 4px over the three frames)
+    teeFront(f, p, 12 + u, 17 + b, false);
+    const bx = 2 + p.ph * 2;
+    f.part('shaft', { flat: true, rim: false });
+    f.line(11, 15 + u, bx + 3, 20);
+    f.part('blade', { shade: 'rb', light: 't' });
+    f.rect(bx, 20, 5, 2);
+    armTo(f, armL, 7 + p.ph, 17 + u, [4, 16 + u]);
+    armTo(f, armR, 11, 15 + u, [13, 16 + u]);
+  } else if (act === 'cup_clean') {
+    // through the rail to the water cup: reach in, scoop the feed out, press the paddle
+    teeFront(f, p, 12 + u, 17 + b, false);
+    armTo(f, armR, 13, 17 + u + swing(p, 1));
+    if (p.ph < 2) armTo(f, armL, 3, 19 + u + p.ph, [2, 16 + u]);
+    else {
+      armTo(f, armL, 5, 18 + u, [3, 16 + u]);
+      f.part('blade', { flat: true, rim: false });
+      f.px(5, 20 + u).px(6, 20 + u);
+    }
+  } else if (act === 'put_down') {
+    // the bag of vegetables from ポコシャさん: at his chest → lowered → set on the stand
+    teeFront(f, p, 12 + u, 17 + b, false);
+    const by = [13, 16, 19][p.ph] + u;
+    armTo(f, armL, 4, by + 1, [2, 15 + u]);
+    armTo(f, armR, 11, by + 1, [13, 15 + u]);
+    f.part('kraft', { shade: 'rb', light: 't' });
+    f.rect(4, by, 8, 3);
+    f.part('greens', { flat: true, rim: false });
+    f.px(6, by - 1).px(8, by - 1).px(9, by - 2);
   } else if (act === 'net_front') {
     // lantern_set: both hands forward on the net's pole (hands drawn by lanternSet)
     teeFront(f, p, 12 + u, 17 + b, false);
@@ -512,8 +547,25 @@ function back(f: Fig, p: Pose) {
   const armL: ArmSpec = { sx: 2, sy: 15 + u, hx: 0, hy: 2, segs: FOREARM, shift: -1 };
   const armR: ArmSpec = { sx: 13, sy: 15 + u, hx: 0, hy: 2, segs: FOREARM, shift: -1 };
   const lu = p.lookUp ? 1 : 0;
-  armTo(f, armL, 2 + lu, 17 + u + lu - swing(p, -1));
-  armTo(f, armR, 13 - lu, 17 + u + lu - swing(p, 1));
+  const chore = p.act === 'scoop' || p.act === 'cup_clean' || p.act === 'put_down';
+  if (chore) {
+    // both arms forward (toward the trough / the stand): the elbows bent, hands hidden
+    armTo(f, armL, 4, 15 + u, [2, 16 + u]);
+    armTo(f, armR, 11, 15 + u, [13, 16 + u]);
+    if (p.act === 'scoop') {
+      // the scoop's shaft out past his side, the blade sliding along the trough
+      f.part('shaft', { flat: true, rim: false });
+      f.line(12, 14 + u, 14, 10 + u);
+      f.part('blade', { shade: 'rb', light: 't' });
+      f.rect(11 + p.ph, 8 + u, 4, 2);
+    } else if (p.act === 'put_down') {
+      f.part('kraft', { shade: 'rb', light: 't' });
+      f.rect(1, [13, 15, 17][p.ph] + u, 2, 3).rect(13, [13, 15, 17][p.ph] + u, 2, 3);
+    }
+  } else {
+    armTo(f, armL, 2 + lu, 17 + u + lu - swing(p, -1));
+    armTo(f, armR, 13 - lu, 17 + u + lu - swing(p, 1));
+  }
   headBack(f, p, headY);
   const sway = p.mode === 'idle' ? (p.tick % 4 < 2 ? 0 : -1) : p.mode === 'walk' ? (p.step % 2 ? -1 : 0) : 0;
   ahoge(f, 6, headY - 2 + (p.lookUp ? 2 : 0), sway);
@@ -595,6 +647,29 @@ function side(f: Fig, p: Pose) {
       f.part('hanko', {});
       f.vl(0, 14 + u, 15 + u);
     }
+  } else if (act === 'scoop') {
+    slv(6 + lean, 12 + u);
+    const bx = 2 - p.ph;
+    f.part('shaft', { flat: true, rim: false });
+    f.line(8, 15 + u, bx + 2, 20);
+    f.part('blade', { shade: 'rb', light: 't' });
+    f.rect(bx - 1, 20, 3, 2);
+    armTo(f, { sx: 6, sy: 15 + u, hx: 0, hy: 0, segs: FOREARM }, 5, 17 + u);
+  } else if (act === 'cup_clean') {
+    slv(6 + lean, 12 + u);
+    armTo(f, { sx: 6, sy: 15 + u, hx: 0, hy: 0, segs: FOREARM }, p.ph < 2 ? 1 : 2, p.ph === 1 ? 18 + u : 16 + u);
+    if (p.ph === 2) {
+      f.part('blade', { flat: true, rim: false });
+      f.px(0, 16 + u);
+    }
+  } else if (act === 'put_down') {
+    slv(6 + lean, 12 + u);
+    const by = [13, 16, 19][p.ph] + u;
+    armTo(f, { sx: 6, sy: 15 + u, hx: 0, hy: 0, segs: FOREARM }, 3, by + 1);
+    f.part('kraft', { shade: 'rb', light: 't' });
+    f.rect(0, by, 4, 3);
+    f.part('greens', { flat: true, rim: false });
+    f.px(1, by - 1).px(2, by - 2);
   } else if (act === 'surprised') {
     slv(6, 11 + u);
     armTo(f, { sx: 6, sy: 13 + u, hx: 0, hy: 0, segs: FOREARM }, 4, 10 + u);
@@ -884,6 +959,10 @@ const CH2_EXTRAS: SpriteSpec['extras'] = {
   smug: { dirs: ['down', 'left', 'right'] },
   bow: { dirs: ['down'] },
   yawn: { dirs: ['down', 'left', 'right'] },
+  // the barn chores and the delivery (50 10.19–10.20)
+  scoop: { dirs: 'all', p: { ph: 1 } },
+  cup_clean: { dirs: 'all' },
+  put_down: { dirs: 'all', p: { ph: 2 } },
 };
 
 const CH2_ANIMS: SpriteSpec['anims'] = {
@@ -892,6 +971,9 @@ const CH2_ANIMS: SpriteSpec['anims'] = {
   // the north-facing wait of stage 2 (h2): breathing, head up 1px
   look_hill: { frames: [{ breath: 0 }, { breath: 0 }, { breath: 1 }, { breath: 1 }], ms: 250, dir: 'up' },
   lantern_set: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 2 }, { ph: 3 }], ms: [300, 300, 300, 300], loop: false },
+  scoop: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 2 }], ms: 200, loop: false, dirs: 'all' },
+  cup_clean: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 2 }], ms: [300, 300, 200], loop: false, dirs: 'all' },
+  put_down: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 2 }], ms: 200, loop: false, dirs: 'all' },
 };
 
 function variantSpec(id: string, m: NetMode): SpriteSpec {

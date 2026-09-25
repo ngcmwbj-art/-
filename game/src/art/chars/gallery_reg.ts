@@ -39,7 +39,7 @@ queueMicrotask(() => {
 // standing facings, the walk cycles, each extra (all its facings) and each
 // anim's frames — labelled, for visual QA of new art.
 queueMicrotask(() => {
-  registerDebug('charsSheet', (ids: string | string[], o: { zoom?: number; bg?: string; cols?: number; only?: string[] } = {}) => {
+  registerDebug('charsSheet', (ids: string | string[], o: { zoom?: number; bg?: string; cols?: number; only?: string[]; names?: string[] } = {}) => {
     const list = Array.isArray(ids) ? ids : [ids];
     const z = o.zoom ?? 4;
     const cols = o.cols ?? 12;
@@ -63,7 +63,7 @@ queueMicrotask(() => {
       if (want('extra')) {
         const ex: Cell[] = [];
         for (const name of Object.keys(s.extra ?? {})) {
-          if (s.anims?.[name]) continue;
+          if (s.anims?.[name] || (o.names && !o.names.includes(name))) continue;
           const byDir = s.extraDir?.[name];
           if (byDir) for (const d of dirs) { const c = byDir[d]; if (c) ex.push({ c, label: `${name} ${d[0]}` }); }
           else ex.push({ c: s.extra![name], label: name });
@@ -72,6 +72,7 @@ queueMicrotask(() => {
       }
       if (want('anims'))
         for (const name of Object.keys(s.anims ?? {})) {
+          if (o.names && !o.names.includes(name)) continue;
           const byDir = s.animsDir?.[name] ?? { down: s.anims![name] };
           const cells: Cell[] = [];
           for (const d of dirs) {

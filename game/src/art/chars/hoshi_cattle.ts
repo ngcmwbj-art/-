@@ -230,3 +230,42 @@ function cowArt(pose: CowPose, opts: Record<string, unknown>): PropArt {
 }
 
 for (const pose of COW_POSES) registerProp('prop_h_cow_' + pose, (opts) => cowArt(pose, opts));
+
+// ---- the gallery's night cows page (?scene=chars, 'night cows') ------------------------------
+
+import { addCowPreview, type NightItem } from './gallery_night';
+
+addCowPreview(() => {
+  const items: NightItem[] = [];
+  const env = (t: number, pending: string): PropEnv =>
+    ({
+      t,
+      stage: 3,
+      grade: { night: 1 },
+      motion: 1,
+      mt: t,
+      flag: (id: string) => (id === 'flag_ch2_gate_open' ? 1 : id === 'flag_' + pending ? 0 : 0),
+      seed: 0,
+      near: 0,
+      px: 0,
+      py: 0,
+      hstage: 1,
+    }) as unknown as PropEnv;
+  const list: [CowPose, string, boolean, string][] = [
+    ['side', '', false, ''], ['side', 'belly_leg', true, ''], ['lie', '', false, ''], ['lie', 'face', true, ''],
+    ['sleep', '', false, ''], ['front', '', false, ''], ['front', 'face', false, 'spot_h_esa_01'], ['back', 'belly', false, ''], ['back', '', false, 'spot_h_esa_04'],
+  ];
+  list.forEach(([pose, white, right, reach], i) => {
+    const art = cowArt(pose, { right, white, phase: i / list.length, n: i, reach });
+    items.push({
+      w: art.w + 4,
+      h: art.h + 2,
+      label: `${pose}${white ? ' ' + white : ''}${reach ? ' reach' : ''}`,
+      frames: (t) => {
+        const img = art.img(env(t, reach));
+        return img ? [{ img, x: 2, y: 2 + art.h - img.height }] : [];
+      },
+    });
+  });
+  return items;
+});

@@ -9,8 +9,43 @@ import { flat, mat, type Fig, type Mats, type RowMap } from '../fig';
 import { legs, type LegSpec, type Seg } from '../body';
 import { buildSprite, breathingIdle, rep, type IdleKey, type Pose } from '../rig';
 import { registerChar } from '../registry';
-import { hangArms, hatLift, head, sideArm, sideSwing, upper, type HeadT } from '../kit';
-import { BASE2, HAIR_GREY, lookHill, SKIN_DEEP, SKIN_FARM } from './hoshi_kit';
+import { hangArms as hangArms0, hatLift, head, sideArm as sideArm0, sideSwing, upper, type ArmsDef, type HeadT } from '../kit';
+import { BASE2, followFlag, HAIR_GREY, lookHill, SKIN_DEEP, SKIN_FARM, WAVE_ANIM, waveArm } from './hoshi_kit';
+import { flag } from '../../../game/state';
+
+// ---- the see-off wave: the dispatchers set WAVE, the arm helpers below obey it ----------
+
+let WAVE: { ph: number; sleeve: string; hand: string; cuff?: string } | null = null;
+
+function hangArms(f: Fig, p: Pose, a: ArmsDef, u: number, which: 'both' | 'L' | 'R' = 'both'): void {
+  if (WAVE && p.view !== 'left') {
+    if (which !== 'R') hangArms0(f, p, a, u, 'L');
+    waveArm(f, p.view === 'up' ? 'up' : 'down', a.rx, a.sy + u - 1, WAVE);
+    return;
+  }
+  hangArms0(f, p, a, u, which);
+}
+
+function sideArm(f: Fig, sx: number, sy: number, len: number, sw: number, segs: Seg[], shift = 0, w = 1): void {
+  if (WAVE && shift === 0) {
+    waveArm(f, 'left', sx, sy, WAVE);
+    return;
+  }
+  sideArm0(f, sx, sy, len, sw, segs, shift, w);
+}
+
+/** Draw `p` through `fn`; for act 'wave' the near / viewer-right arm is raised instead. */
+function waving(fn: (f: Fig, p: Pose) => void, sleeve: string, cuff?: string): (f: Fig, p: Pose) => void {
+  return (f, p) => {
+    if (p.act !== 'wave') return fn(f, p);
+    WAVE = { ph: p.ph, sleeve, hand: 'skin', cuff };
+    try {
+      fn(f, { ...p, act: '' });
+    } finally {
+      WAVE = null;
+    }
+  };
+}
 
 // =============================================================================
 // ペロリ (npc_hoshi_mitsu): 56, slim and tall (24), the village's youngest.
@@ -297,6 +332,14 @@ function mitsuSide(f: Fig, p: Pose) {
     f.hl(3, 5, 14 + u);
     f.part('bag', { shade: 'rb', light: 't' });
     f.rows(0, 11 + u, ['####', '####', '####', '.##.']);
+  } else if (act === 'crank') {
+    // the film roll-up handle at the house's side, turned round and round
+    f.part('shirt', { shade: 'rb', light: 't' });
+    f.rect(5, 12 + u, 3, 2);
+    f.part('skin', { shade: 'rb', light: 't' });
+    f.rect(2, (p.ph ? 12 : 14) + u, 2, 2);
+    f.part('crank', { flat: true, rim: false });
+    f.vl(1, 13 + u, 16 + u);
   } else if (seated) {
     f.part('shirt', { shade: 'rb', light: 't' });
     f.rect(6, 12 + u, 3, 3);
@@ -347,18 +390,19 @@ registerChar('npc_hoshi_mitsu', () =>
   buildSprite({
     id: 'npc_hoshi_mitsu',
     mats: MITSU,
-    draw: mitsuDraw,
+    draw: waving(mitsuDraw, 'shirt', 'cuff'),
     walkFrameMs: 150,
     idle: { down: breathingIdle(16, [11]), up: breathingIdle(), left: breathingIdle(16, [6]), right: breathingIdle(16, [6]) },
     idleFrameMs: 250,
     extras: {
       stand: { dirs: 'all', p: { bob: 1 } },
       give: { dirs: ['down', 'left', 'right'] },
-      crank: { dirs: ['down'] },
+      crank: { dirs: ['down', 'left', 'right'] },
       sit: { dirs: 'all', p: { act: 'sit' } },
     },
     anims: {
-      crank: { frames: [{ ph: 0 }, { ph: 1 }], ms: 220 },
+      crank: { frames: [{ ph: 0 }, { ph: 1 }], ms: 220, dirs: ['down', 'left', 'right'] },
+      wave: WAVE_ANIM,
     },
     poses: {
       sit: { down: MITSU_SIT, left: MITSU_SIT, right: MITSU_SIT, up: MITSU_SIT_BACK },
@@ -588,7 +632,7 @@ function genSide(f: Fig, p: Pose) {
   const sw = sideSwing(p);
   const hy = 2 + u + (lean ? 1 : 0);
   const hx = lean ? -1 : 0;
-  if (!lean && act !== 'point' && act !== 'give') sideArm(f, 9, 12 + u, 4, -sw, GEN_ARM, -1, 2);
+  if (!lean && act !== 'point' && act !== 'give' && act !== 'feed') sideArm(f, 9, 12 + u, 4, -sw, GEN_ARM, -1, 2);
   genLegs(f, p, b);
   f.part('suit', { shade: 'rb', light: 't' });
   f.hl(5 + hx, 10, 11 + u);
@@ -620,6 +664,12 @@ function genSide(f: Fig, p: Pose) {
     f.line(3, 12 + u, 0, 15 + u);
     f.part('scoop', { shade: 'rb', light: 't' });
     f.rows(0, 15 + u, ['##', '##']);
+  } else if (act === 'feed') {
+    // both fists on the feed cart's handle, low in front; a step of the push
+    f.part('suit', { shade: 'rb', light: 't' });
+    f.rect(3, 13 + u, 4, 2);
+    f.part('skin', { shade: 'rb', light: 't' });
+    f.rect(1 - p.ph, 15 + u, 3, 2);
   } else if (act === 'flash') {
     f.part('suit', { shade: 'rb', light: 't' });
     f.rect(5, 12 + u, 3, 2);
@@ -657,25 +707,27 @@ const LEAN: IdleKey[] = [
   { act: 'lean', blink: true }, { act: 'lean' }, { act: 'lean', breath: 1 }, { act: 'lean', breath: 1 },
 ];
 
-registerChar('npc_hoshi_gen', () =>
-  buildSprite({
-    id: 'npc_hoshi_gen',
+function genSprite(id: string, idleDown: IdleKey[]) {
+  return buildSprite({
+    id,
     mats: GEN,
-    draw: genDraw,
+    draw: waving(genDraw, 'suit'),
     walkFrameMs: 150,
-    idle: { down: GEN_IDLE, up: breathingIdle(), left: breathingIdle(16, [5]), right: breathingIdle(16, [5]) },
+    idle: { down: idleDown, up: breathingIdle(), left: breathingIdle(16, [5]), right: breathingIdle(16, [5]) },
     idleFrameMs: 250,
     extras: {
       lean: { dirs: ['left', 'right'] },
       point: { dirs: ['down', 'left', 'right'] },
       give: { dirs: ['down', 'left', 'right'] },
       write: { dirs: ['down'] },
-      feed: { dirs: ['down'] },
+      feed: { dirs: ['down', 'left', 'right'] },
       sit_bag: { dirs: ['down'] },
       flash: { dirs: ['down', 'left', 'right'] },
     },
     anims: {
       write: { frames: [{ ph: 0 }, { ph: 1 }], ms: 200 },
+      feed: { frames: [{ ph: 0 }, { ph: 1 }], ms: 260, dirs: ['down', 'left', 'right'] },
+      wave: WAVE_ANIM,
     },
     poses: {
       lean: { left: LEAN, right: LEAN, down: breathingIdle(), up: breathingIdle() },
@@ -684,5 +736,16 @@ registerChar('npc_hoshi_gen', () =>
     },
     shadow: 12,
     keep: GEN_KEEP,
-  }),
-);
+  });
+}
+
+// the flashlight shaking is the h0 picture (evt_ch2_gen_stop): after it he
+// only breathes and listens now and then, the dead torch in his pocket
+const GEN_IDLE_AFTER: IdleKey[] = [
+  ...rep([{ breath: 0 }, { breath: 0 }, { breath: 1 }, { breath: 1 }], 3),
+  { act: 'listen' }, { act: 'listen' }, { act: 'listen', breath: 1 }, { act: 'listen', blink: true },
+  { breath: 0 }, { breath: 1 },
+];
+registerChar('npc_hoshi_gen', () => genSprite('npc_hoshi_gen', GEN_IDLE));
+registerChar('npc_hoshi_gen_after', () => genSprite('npc_hoshi_gen_after', GEN_IDLE_AFTER));
+followFlag('npc_hoshi_gen', () => (flag('flag_ch2_met_gen') ? 'npc_hoshi_gen_after' : 'npc_hoshi_gen'));

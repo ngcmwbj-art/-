@@ -138,7 +138,8 @@ function animItem(id: string, name: string, dir: Dir = 'down'): NightItem | null
 const CH2_PEOPLE = [
   'minato_lantern', 'kanenari', 'npc_hoshi_mitsu', 'npc_hoshi_gen', 'npc_hoshi_fumi', 'npc_hoshi_kucho',
   'npc_hoshi_yoshie', 'npc_hoshi_tome', 'npc_hoshi_sawako', 'npc_hoshi_busdriver', 'npc_hoshi_traindriver',
-  'npc_hoshi_gon', 'prop_h_napper_masa', 'prop_h_napper_kiyo', 'prop_h_napper_take',
+  'npc_hoshi_gon', 'npc_tsugao', 'npc_hirosuke', 'npc_pokosha', 'npc_piichan', 'npc_tsugao_cab',
+  'prop_h_napper_masa', 'prop_h_napper_kiyo', 'prop_h_napper_take',
 ];
 
 export function nightCast(): NightItem[] {
@@ -150,6 +151,9 @@ export function nightCast(): NightItem[] {
   for (const [id, name] of [
     ['minato_lantern', 'hold_up'], ['minato_lantern', 'lantern_set'], ['minato_ch2', 'yawn'], ['minato_lantern', 'look_hill'],
     ['kanenari', 'hold_net'], ['kanenari', 'bow_small'],
+    ['minato_lantern', 'scoop'], ['minato_lantern', 'cup_clean'], ['minato_lantern', 'put_down'],
+    ['npc_hoshi_gen', 'lean'], ['npc_hoshi_mitsu', 'sit'], ['npc_hoshi_sawako', 'sit'], ['npc_hoshi_gon', 'lie'],
+    ['npc_hirosuke', 'wave'], ['npc_pokosha', 'blush'], ['npc_pokosha_carry', 'carry'],
   ] as const) {
     const it = animItem(id, name);
     if (it) out.push(it);
@@ -158,18 +162,23 @@ export function nightCast(): NightItem[] {
 }
 
 export function nightFoes(): NightItem[] {
+  const out0: NightItem[] = [];
   const ids = [
     'enemy_sune_tomato', 'enemy_sune_tomato_pair', 'enemy_henoheno_kacho', 'enemy_biribiri_ban', 'enemy_chototsu',
     'enemy_mujin_hanbaiin', 'enemy_tetsuya', 'restored_enemy_sune_tomato', 'restored_enemy_sune_tomato_pair',
     'restored_enemy_henoheno_kacho', 'restored_enemy_biribiri_ban', 'restored_enemy_chototsu',
     'restored_enemy_mujin_hanbaiin', 'restored_enemy_tetsuya',
   ];
+  for (const [id, name] of [['enemy_chototsu', 'charge'], ['enemy_chototsu', 'wallow'], ['enemy_sune_tomato', 'roll'], ['enemy_sune_tomato', 'sulk']] as const) {
+    const it = animItem(id, name, 'left');
+    if (it) out0.push(it);
+  }
   const out: NightItem[] = [];
   for (const id of ids) {
     const it = spriteItem(id, id.startsWith('enemy_') && id !== 'enemy_sune_tomato' ? 'left' : 'down');
     if (it) out.push(it);
   }
-  return out;
+  return out.concat(out0);
 }
 
 /** Extra items a module adds to the cows page (the pen preview lives with the cattle). */

@@ -455,6 +455,10 @@ async function stampObject(fid) {
     const w = o.w ?? 1;
     const h = o.h ?? 1;
     const cands = [];
+    // an object read from one side only (face): stand on that side first
+    if (o.face === 'down') for (let i = 0; i < w; i++) cands.push([o.x + i, o.y - 1, 'down']);
+    if (o.face === 'left') for (let j = 0; j < h; j++) cands.push([o.x + w, o.y + j, 'left']);
+    if (o.face === 'right') for (let j = 0; j < h; j++) cands.push([o.x - 1, o.y + j, 'right']);
     for (let i = 0; i < w; i++) cands.push([o.x + i, o.y + h, 'up']);
     if (o.face !== 'up') {
       for (let j = 0; j < h; j++) cands.push([o.x - 1, o.y + j, 'right'], [o.x + w, o.y + j, 'left']);
@@ -1164,8 +1168,13 @@ async function ch2Battle(name, maxMs = 300000) {
 
 /** Walk into a door cell (pushing `dir` from the tile before it) until the map changes. */
 async function enterDoor(x, y, dir, to) {
-  await travel(x, y);
-  await walk(dir, (s) => s.map === to || !s.ctrl, 5000);
+  try {
+    await travel(x, y);
+  } catch (e) {
+    // a run that overshot the tile before the door went through it: that is where we were going
+    if ((await st()).map !== to) throw e;
+  }
+  if ((await st()).map !== to) await walk(dir, (s) => s.map === to || !s.ctrl, 5000);
   await waitFor((s) => s.map === to, 8000, `into ${to}`);
 }
 
@@ -1710,6 +1719,12 @@ if (CHAPTER === 2) {
   const missing = await page.evaluate(() => window.__game?.cmd?.ch2sounds?.() ?? []).catch(() => []);
   checks.push({ check: 'cue-sheet sounds registered', ok: !missing.length, missing });
   log(`  sounds not registered: ${missing.length ? missing.join(' ') : 'none'}`);
+  // 10 13.4: every chapter-2 page at most 3 lines of 336 px
+  const tc = await page.evaluate(() => window.__game?.cmd?.textcheck2?.() ?? null).catch(() => null);
+  if (tc) {
+    checks.push({ check: 'chapter-2 pages: 3 lines × 336 px', ok: !tc.bad.length, total: tc.total, bad: tc.bad });
+    log(`  text: ${tc.total} pages, ${tc.bad.length} over the limits${tc.bad.length ? ': ' + tc.bad.slice(0, 5).join(' / ') : ''}`);
+  }
 }
 
 const counts = await readCounts();

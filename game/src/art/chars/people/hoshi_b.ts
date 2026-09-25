@@ -11,10 +11,44 @@ import { flat, mat, type Fig, type Mats, type RowMap } from '../fig';
 import { legs, sitLegs, type LegSpec, type Seg } from '../body';
 import { buildSprite, breathingIdle, rep, type IdleKey, type Pose } from '../rig';
 import { registerChar } from '../registry';
-import { hangArms, hatLift, head, sideArm, sideSwing, upper, type HeadT } from '../kit';
-import { BASE2, HAIR_GREY, HAIR_WHITE, lookHill, SKIN_FARM, SKIN_OLD } from './hoshi_kit';
+import { hangArms as hangArms0, hatLift, head, sideArm as sideArm0, sideSwing, upper, type ArmsDef, type HeadT } from '../kit';
+import { BASE2, HAIR_GREY, HAIR_WHITE, lookHill, SKIN_FARM, SKIN_OLD, WAVE_ANIM, waveArm } from './hoshi_kit';
 
 const T: RowMap = { h: [null, 0], H: [null, 1], d: [null, -1], D: [null, -2], K: [null, 2] };
+
+// ---- the see-off wave: the dispatchers set WAVE, the arm helpers below obey it ----------
+
+let WAVE: { ph: number; sleeve: string; hand: string; cuff?: string } | null = null;
+
+function hangArms(f: Fig, p: Pose, a: ArmsDef, u: number, which: 'both' | 'L' | 'R' = 'both'): void {
+  if (WAVE && p.view !== 'left') {
+    if (which !== 'R') hangArms0(f, p, a, u, 'L');
+    waveArm(f, p.view === 'up' ? 'up' : 'down', a.rx, a.sy + u - 1, WAVE);
+    return;
+  }
+  hangArms0(f, p, a, u, which);
+}
+
+function sideArm(f: Fig, sx: number, sy: number, len: number, sw: number, segs: Seg[], shift = 0, w = 1): void {
+  if (WAVE && shift === 0) {
+    waveArm(f, 'left', sx, sy, WAVE);
+    return;
+  }
+  sideArm0(f, sx, sy, len, sw, segs, shift, w);
+}
+
+/** Draw `p` through `fn`; for act 'wave' the near / viewer-right arm is raised instead. */
+function waving(fn: (f: Fig, p: Pose) => void, sleeve: string, cuff?: string): (f: Fig, p: Pose) => void {
+  return (f, p) => {
+    if (p.act !== 'wave') return fn(f, p);
+    WAVE = { ph: p.ph, sleeve, hand: 'skin', cuff };
+    try {
+      fn(f, { ...p, act: '' });
+    } finally {
+      WAVE = null;
+    }
+  };
+}
 
 // =============================================================================
 // まつ先生 (npc_hoshi_fumi): 67, the branch school's last teacher. Upright
@@ -218,7 +252,7 @@ registerChar('npc_hoshi_fumi', () =>
   buildSprite({
     id: 'npc_hoshi_fumi',
     mats: FUMI,
-    draw: fumiDraw,
+    draw: waving(fumiDraw, 'shirt'),
     walkFrameMs: 160,
     idle: { down: FUMI_IDLE, up: FUMI_IDLE, left: breathingIdle(16, [9]), right: breathingIdle(16, [9]) },
     extras: {
@@ -228,6 +262,7 @@ registerChar('npc_hoshi_fumi', () =>
     },
     anims: {
       glasses: { frames: [{ act: 'glasses' }, { act: 'glasses' }, { act: '' }], ms: [260, 200, 200], loop: false, dirs: ['down', 'up'] },
+      wave: WAVE_ANIM,
     },
     poses: { look_hill: lookHill() },
     shadow: 10,
@@ -389,7 +424,13 @@ function kuchoBack(f: Fig, p: Pose) {
   f.part('pants', { shade: 'rb', light: '' });
   f.rect(3, 17 + b, 10, 2);
   kuchoTorso(f, u, b, true);
-  hangArms(f, p, { lx: 3, rx: 12, sy: 13, hy: 18, segs: [{ mat: 'shirt', n: 2 }, { mat: 'skin' }] }, u);
+  if (p.act === 'open_window') {
+    // both arms up to the window frame, sliding it open (seen from behind)
+    f.part('shirt', { shade: 'rb', light: 't', shift: -1 });
+    f.rect(2, 10 + u, 2, 4).rect(12, 10 + u, 2, 4);
+    f.part('skin', { shade: 'rb', light: 't', shift: -1 });
+    f.rect(2, 8 + u, 2, 2).rect(12, 8 + u, 2, 2);
+  } else hangArms(f, p, { lx: 3, rx: 12, sy: 13, hy: 18, segs: [{ mat: 'shirt', n: 2 }, { mat: 'skin' }] }, u);
   // the armband on his left arm (viewer-left from behind), the board's edge
   f.part('band', { shade: 'r', light: 't' });
   f.rect(2, 14 + u, 2, 2);
@@ -419,17 +460,21 @@ function kuchoSide(f: Fig, p: Pose) {
   f.rect(5 + Math.round(hx / 2), 13 + u, 6, 18 + b - (13 + u));
   f.part('shirt', { flat: true });
   f.t(1).px(5 + hx, 13 + u).t(null);
-  // near arm (his left): armband and the board under it
-  f.part('board', { shade: 'r', light: 't' });
-  f.rect(8, 15 + u, 4, 4);
-  f.part('shirt', { shade: 'rb', light: 'tl' });
-  f.rect(7, 13 + u, 3, 2);
-  f.part('band', { shade: 'r', light: 't' });
-  f.rect(7, 15 + u, 2, 1);
-  f.part('skin', { shade: 'rb', light: 't' });
-  f.rect(7, 16 + u, 2, 2);
-  f.part('bandLine', { flat: true, rim: false });
-  f.px(8, 15 + u);
+  // near arm (his left): armband and the board under it (or up, waving)
+  if (WAVE) {
+    waveArm(f, 'left', 7, 13 + u, WAVE);
+  } else {
+    f.part('board', { shade: 'r', light: 't' });
+    f.rect(8, 15 + u, 4, 4);
+    f.part('shirt', { shade: 'rb', light: 'tl' });
+    f.rect(7, 13 + u, 3, 2);
+    f.part('band', { shade: 'r', light: 't' });
+    f.rect(7, 15 + u, 2, 1);
+    f.part('skin', { shade: 'rb', light: 't' });
+    f.rect(7, 16 + u, 2, 2);
+    f.part('bandLine', { flat: true, rim: false });
+    f.px(8, 15 + u);
+  }
   f.offset(hx, 0);
   kuchoDome(f, 'left', hy + (lp.lookUp ? -1 : 0));
   f.offset(0, 0);
@@ -457,19 +502,20 @@ registerChar('npc_hoshi_kucho', () =>
   buildSprite({
     id: 'npc_hoshi_kucho',
     mats: KUCHO,
-    draw: kuchoDraw,
+    draw: waving(kuchoDraw, 'shirt'),
     walkFrameMs: 170,
     idle: { down: KUCHO_IDLE, up: breathingIdle(), left: breathingIdle(16, [10]), right: breathingIdle(16, [10]) },
     extras: {
       bow: { dirs: ['down', 'left', 'right'] },
       write: { dirs: ['down'] },
-      open_window: { dirs: ['down'] },
+      open_window: { dirs: ['down', 'up'] },
       glasses: { dirs: ['down'] },
       cough: { dirs: ['down'] },
     },
     anims: {
       bow: { frames: [{ act: '' }, { act: 'bow' }, { act: 'bow' }, { act: '' }], ms: [120, 700, 300, 200], loop: false, dirs: ['down', 'left', 'right'] },
       write: { frames: [{ ph: 0 }, { ph: 1 }], ms: 180 },
+      wave: WAVE_ANIM,
     },
     poses: { look_hill: lookHill() },
     shadow: 11,
@@ -584,7 +630,7 @@ function yoshieFront(f: Fig, p: Pose) {
     f.rows(4, 16 + u, ['########', '.######.']);
     f.part('pickle', { flat: true, rim: false });
     f.px(6 + p.ph, 16 + u).px(8, 16 + u).px(9 - p.ph, 16 + u);
-  } else if (act === 'look_up' || p.lookUp) {
+  } else if (act === 'look_up' || p.lookUp || WAVE) {
     hangArms(f, p, { lx: 3, rx: 12, sy: 14, hy: 18, segs: [{ mat: 'blouse', n: 2 }, { mat: 'skin' }] }, u);
   } else {
     // both hands on the kettle in front of her
@@ -623,7 +669,7 @@ function yoshieSide(f: Fig, p: Pose) {
   const sw = sideSwing(p);
   const hy = 4 + u;
   const lp = act === 'look_hill' ? { ...p, lookUp: true } : p;
-  const carry = act !== 'look_hill' && !p.lookUp && p.mode !== 'walk';
+  const carry = act !== 'look_hill' && !p.lookUp && p.mode !== 'walk' && !WAVE;
   if (!carry) sideArm(f, 9, 14 + u, 3, -sw, [{ mat: 'blouse', n: 1 }, { mat: 'skin' }], -1);
   legs(f, p, YOSHIE_LEGS);
   f.part('skirt', { shade: 'rb', light: '' });
@@ -683,7 +729,7 @@ registerChar('npc_hoshi_yoshie', () =>
   buildSprite({
     id: 'npc_hoshi_yoshie',
     mats: YOSHIE,
-    draw: yoshieDraw,
+    draw: waving(yoshieDraw, 'blouse'),
     walkFrameMs: 170,
     idle: { down: YOSHIE_FRONT, up: breathingIdle(), left: YOSHIE_POUR, right: YOSHIE_POUR },
     extras: {
@@ -692,6 +738,7 @@ registerChar('npc_hoshi_yoshie', () =>
     },
     anims: {
       pour: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 1 }, { ph: 1 }, { ph: 0 }], ms: [150, 300, 400, 300, 200], loop: false, dirs: ['down', 'left', 'right'] },
+      wave: WAVE_ANIM,
     },
     poses: { look_hill: lookHill() },
     shadow: 10,
@@ -777,7 +824,7 @@ function tomeFront(f: Fig, p: Pose) {
     // hands at the small of the back, elbows out
     f.part('shirt', { shade: 'rb', light: 't' });
     f.rect(2, 12 + u, 2, 4).rect(12, 12 + u, 2, 4);
-  } else if (p.mode === 'walk' || p.lookUp) {
+  } else if (p.mode === 'walk' || p.lookUp || WAVE) {
     hangArms(f, p, { lx: 3, rx: 12, sy: 12, hy: 17, segs: ARM }, u);
   } else {
     // the inlet board held low in both hands
@@ -830,7 +877,7 @@ function tomeSide(f: Fig, p: Pose) {
   f.rect(5, 12 + u, 5, 17 + b - (12 + u));
   f.part('towel', { shade: 'r', light: 't' });
   f.rect(9, 15 + b, 2, 4);
-  if (p.mode === 'walk' || lp.lookUp) {
+  if (p.mode === 'walk' || lp.lookUp || WAVE) {
     f.part('shirt', { shade: 'rb', light: 'tl' });
     f.rect(6, 12 + u, 3, 2);
     sideArm(f, 7, 14 + u, 3, sw, [{ mat: 'shirt', n: 1 }, { mat: 'skin' }]);
@@ -866,10 +913,11 @@ registerChar('npc_hoshi_tome', () =>
   buildSprite({
     id: 'npc_hoshi_tome',
     mats: TOME,
-    draw: tomeDraw,
+    draw: waving(tomeDraw, 'shirt'),
     walkFrameMs: 175,
     idle: { down: TOME_IDLE, up: breathingIdle(), left: TOME_IDLE, right: TOME_IDLE },
     extras: { stretch: { dirs: ['down', 'left', 'right'] }, watch: { dirs: ['down', 'left', 'right'] } },
+    anims: { wave: WAVE_ANIM },
     poses: { look_hill: lookHill() },
     shadow: 10,
   }),
@@ -1122,10 +1170,11 @@ registerChar('npc_hoshi_sawako', () =>
   buildSprite({
     id: 'npc_hoshi_sawako',
     mats: SAWAKO,
-    draw: sawakoDraw,
+    draw: waving(sawakoDraw, 'smock'),
     walkFrameMs: 175,
     idle: { down: breathingIdle(16, [9]), up: breathingIdle(), left: breathingIdle(16, [9]), right: breathingIdle(16, [9]) },
     extras: { sit: { dirs: 'all', p: { act: 'sit' } }, measure: { dirs: ['down', 'left', 'right'] } },
+    anims: { wave: WAVE_ANIM },
     poses: {
       sit: { down: SAWAKO_SIT, left: SAWAKO_SIT_SIDE, right: SAWAKO_SIT_SIDE, up: SAWAKO_SIT_BACK },
       look_hill: lookHill({ up: 'sit_hill', side: 'sit_hill', down: SAWAKO_SIT }),
@@ -1298,8 +1347,9 @@ function driverBack(f: Fig, p: Pose) {
   f.rect(4, 11 + u, 8, 15 + b - (11 + u));
   f.part('pouch', { shade: 'rb', light: 't' });
   f.rect(3, 15 + b, 3, 2);
-  hangArms(f, p, { lx: 3, rx: 12, sy: 11, hy: 16, segs: [{ mat: 'shirt', n: 2 }, { mat: 'skin' }] }, u, p.mode === 'walk' ? 'R' : 'both');
-  if (p.mode === 'walk') {
+  const shouldered = p.mode === 'walk' || p.act === 'board';
+  hangArms(f, p, { lx: 3, rx: 12, sy: 11, hy: 16, segs: [{ mat: 'shirt', n: 2 }, { mat: 'skin' }] }, u, shouldered ? 'R' : 'both');
+  if (shouldered) {
     // the sack on his back over the left shoulder
     f.part('sack', { shade: 'rb', light: 't' });
     f.rows(1, 8 + u, ['.###.', '#####', '#####', '#####', '.###.']);
@@ -1369,14 +1419,17 @@ registerChar('npc_hoshi_busdriver', () =>
   buildSprite({
     id: 'npc_hoshi_busdriver',
     mats: DRIVER,
-    draw: driverDraw,
+    draw: waving(driverDraw, 'shirt'),
     walkFrameMs: 150,
     idle: { down: DRIVER_LEAN, up: breathingIdle(), left: breathingIdle(16, [9]), right: breathingIdle(16, [9]) },
     extras: {
       lean: { dirs: ['down'] },
-      board: { dirs: ['down', 'left', 'right'] },
+      board: { dirs: 'all' },
+      // the ending calls it 'bag': the mail sack over his shoulder
+      bag: { dirs: 'all', p: { act: 'board' } },
       watch: { dirs: ['down'] },
     },
+    anims: { wave: WAVE_ANIM },
     poses: {
       lean: { down: DRIVER_LEAN, left: breathingIdle(16, [9]), right: breathingIdle(16, [9]), up: breathingIdle() },
       look_hill: lookHill(),

@@ -8,6 +8,7 @@
 import { flat, mat, type Fig, type Mats } from '../fig';
 import { buildSprite, rep, type IdleKey, type Pose, type SpriteSpec } from '../rig';
 import { charSprite, registerChar, type CharSprite } from '../registry';
+import { PixelCanvas } from '../../../engine/pixel';
 import { C } from '../palette';
 import { flipBoard, flipBoardEdge } from '../flip';
 import { glowRing, GLOW_CENTER_DY } from '../glow';
@@ -344,12 +345,21 @@ function front(f: Fig, p: Pose) {
   } else if (act === 'surprised') {
     mitten(f, 0, ay - 3, 0);
     mitten(f, 14, ay - 3, -1);
+  } else if (act === 'hold_net') {
+    // Minato's net held upright like a flag at his right: both mittens on the
+    // pole (the pole and the net are composited above the frame, withNet)
+    f.part('furA', { shade: 'rb', light: 't', shift: -1 });
+    f.px(12, bodyY + 3).px(13, bodyY + 2);
   } else {
     const swing = walking ? (st === 1 ? 1 : st === 3 ? -1 : 0) : 0;
     mitten(f, 1, ay + swing, 0);
     mitten(f, 13, ay - swing, -1);
   }
-  bell(f, by, sway, 'front', p);
+  bell(f, by + (act === 'bow_small' ? 1 : 0), sway, 'front', act === 'bow_small' ? { ...p, act: 'bow30' } : p);
+  if (act === 'hold_net') {
+    mitten(f, 13, bodyY + 1, -1);
+    mitten(f, 13, bodyY - 4, 0);
+  }
   if (act === 'point') {
     f.part('furA', { shade: 'rb', light: 't', sep: true });
     f.rect(12, bodyY, 2, 2).rect(13, bodyY - 2, 2, 2).rect(14, bodyY - 4, 2, 2);
@@ -449,8 +459,16 @@ function side(f: Fig, p: Pose) {
     f.part('boardE', { flat: true, rim: false });
     f.vl(3, bodyY - 1, bodyY + 6);
     mitten(f, 3, bodyY + 2, 0);
+  } else if (act === 'hold_net') {
+    f.part('furA', { shade: 'rb', light: 't' });
+    f.px(5, bodyY + 3).px(4, bodyY + 2).px(3, bodyY + 1);
   } else mittenOnBody(f, 7 - swing, bodyY + 5, p.mirror);
-  bell(f, by, sway, 'side', p);
+  // bow_small: the bell tips 2px forward (the morning's small bow)
+  bell(f, by + (act === 'bow_small' ? 1 : 0), act === 'bow_small' ? -1 : sway, 'side', p);
+  if (act === 'hold_net') {
+    mitten(f, 1, bodyY, 0);
+    mitten(f, 1, bodyY - 5, 0);
+  }
 }
 
 function bowPose(f: Fig, p: Pose) {
@@ -525,8 +543,12 @@ export const KANENARI_SPEC: SpriteSpec = {
     happy: { dirs: ['down'] },
     glow: { dirs: ['down'] },
     zipper: { dirs: ['up'] },
+    // chapter 2 (52 10.2): the net held up like a flag, the small bow to the sunrise
+    hold_net: { dirs: ['down', 'left', 'right'] },
+    bow_small: { dirs: ['down', 'left', 'right'] },
   },
   anims: {
+    bow_small: { frames: [{ act: '' }, { act: 'bow_small' }, { act: 'bow_small' }, { act: '' }], ms: [120, 700, 300, 200], loop: false, dirs: ['down', 'left', 'right'] },
     // stand → 30° → deep → 90° held → back up through the same beats
     bow: {
       frames: [{ act: '' }, { act: 'bow30' }, { ph: 0 }, { ph: 1 }, { ph: 0 }, { act: 'bow30' }, { act: '' }],
@@ -583,8 +605,50 @@ function withRing(frame: HTMLCanvasElement, ring: HTMLCanvasElement | null): HTM
   return c;
 }
 
+/**
+ * hold_net (52 10.2): the pole of Minato's (empty) net run up through his
+ * mittens, the net 16px above the bell. The frame grows 18px taller (feet
+ * still at the bottom centre). `x` = the pole's column in the frame.
+ */
+function withNet(frame: HTMLCanvasElement, x: number, lowY: number): HTMLCanvasElement {
+  const up = 18;
+  const p = new PixelCanvas(frame.width, frame.height + up);
+  const top = 2;
+  // the hoop: a 6×5 cane oval round a sagging mesh, dark outline
+  const hx = x - 3;
+  p.art(
+    ['..OOOO..', '.OhHHhO.', 'OhnnNnhO', 'OhnNnNhO', 'OhNnNNhO', '.OhhhdO.', '..OOOO..'],
+    { O: '#5A3A2A', h: '#C8A06A', H: '#F6D98A', d: '#A8742A', n: '#F4F1E8', N: '#C8C2B4' },
+    hx - 1,
+    top - 1,
+  );
+  // the pole down to his lower mitten (cane, lit on the left, dark outline right)
+  for (let y = top + 6; y <= lowY + up; y++) {
+    p.set(x, y, '#C8A06A');
+    p.set(x - 1, y, y % 3 === 0 ? '#F6D98A' : '#5A3A2A');
+    p.set(x + 1, y, '#5A3A2A');
+  }
+  const c = p.toCanvas();
+  const g = c.getContext('2d')!;
+  // the figure over the pole's foot; above his upper mitten the pole passes
+  // in front of the bell's rim again
+  g.drawImage(frame, 0, up);
+  g.fillStyle = '#C8A06A';
+  g.fillRect(x, top + 6, 1, lowY + up - 6 - (top + 6));
+  g.fillStyle = '#5A3A2A';
+  g.fillRect(x + 1, top + 6, 1, lowY + up - 6 - (top + 6));
+  return c;
+}
+
 function buildKanenari(): CharSprite {
   const s = buildSprite(KANENARI_SPEC);
+  // the net held up: the pole at the mittens' column (front: his right; side: in front)
+  const hn = s.extraDir!.hold_net!;
+  const down = withNet(hn.down!, 16, 14 + 6);
+  const left = withNet(hn.left!, 3, 14 + 3);
+  const right = withNet(hn.right!, hn.right!.width - 4, 14 + 3);
+  s.extraDir!.hold_net = { down, left, right, up: down };
+  s.extra!.hold_net = down;
   // 鐘が光る (30_level_art 9.2): brass one step brighter, a flash halo, and
   // a #FFE7A3 ring that pulses outward twice (radius 8 → 14) and fades
   const lit = s.extra!.glow;
