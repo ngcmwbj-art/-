@@ -107,9 +107,8 @@ function go(map: string, x: number, y: number, dir: Dir, cam: [number, number] |
   f.applyAudio(false);
   if (cam) {
     f.camOverride = { x: cam[0] * 16 + 8, y: cam[1] * 16 + 8 };
-    f.camX = Math.max(0, Math.min(f.map.w * 16 - 384, cam[0] * 16 + 8 - 192));
-    f.camY = Math.max(0, Math.min(f.map.h * 16 - 216, cam[1] * 16 + 8 - 108));
-  }
+  } else f.camOverride = null;
+  f.snapCamera();
   return f;
 }
 

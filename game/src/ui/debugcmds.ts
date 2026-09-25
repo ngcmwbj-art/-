@@ -3,7 +3,7 @@
 import { registerDebug } from '../debug';
 import { game } from '../engine/game';
 import { ask, caption, choose, say } from './dialog';
-import { notifyItem, showCallBubble, showClock, showPlaceName, skipItemCard, uiHud } from './hud';
+import { choreCardShowing, completeChoreCard, hideChoreCard, notifyItem, setChoreCount, showCallBubble, showChoreCard, showClock, showPlaceName, skipItemCard, uiHud } from './hud';
 import { openMenu } from './menu';
 import { showTitle } from './title';
 import { openShop } from './shop';
@@ -23,6 +23,7 @@ import { W } from '../engine/screen';
 import type { Scene } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { drawVillageLit } from './cut_village_lit';
+import { CALL_NAMES, callLine } from '../data/text/hoshi_npcs';
 import { openSunriseCut, sunriseStill } from './cut_sunrise';
 
 const SAMPLES: Record<string, () => Generator> = {
@@ -303,7 +304,7 @@ registerDebug('dawn', () => {
 });
 
 /** QA: the loudspeaker's call bubble (fx_h_call_bubble) with its voice. */
-registerDebug('callBubble', (text = '……ナナミちゃん。') => {
+registerDebug('callBubble', (text = callLine(CALL_NAMES[0])) => {
   showCallBubble(text, { voice: 'broadcast' });
   return text;
 });
@@ -327,4 +328,20 @@ registerDebug('ch2Demo', (s = 1) => {
   for (const f of ['flag_tsukkomi_enemy_sune_tomato_1', 'flag_tsukkomi_enemy_henoheno_kacho_2', 'flag_tsukkomi_enemy_chototsu_1']) setFlag(f, 1);
   syncProgressSkills();
   return 'ok';
+});
+
+/** QA: the おてつだい strip — `n` jobs done (0–9: the first 6 are エサ寄せ), 'done' presses 「済」. */
+registerDebug('chore', (n: number | 'done' | 'hide' = 0) => {
+  if (n === 'hide') {
+    hideChoreCard();
+    return 'hide';
+  }
+  if (!choreCardShowing()) showChoreCard();
+  if (n === 'done') {
+    game.scripts.run(completeChoreCard());
+    return 'done';
+  }
+  setChoreCount(0, Math.min(6, n));
+  setChoreCount(1, Math.max(0, n - 6));
+  return n;
 });

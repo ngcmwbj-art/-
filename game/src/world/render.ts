@@ -20,7 +20,7 @@ import type { Actor } from './actor';
 import { hud } from './hud';
 import { fxDraw, fxUpdate } from './fx';
 import * as snd from './audio';
-import { fanImage, lanternShadow, nightSilhouette, type LightCircle } from './lantern';
+import { eraseDark, fanImage, lanternShadow, nightSilhouette, STARLIGHT_ROOM, type LightCircle } from './lantern';
 import { charGlow, litRim } from '../art/chars/nightlight';
 import { genFlash, hoshiPositional, hoshiPositionalBeds, paintRoomLight, roomLit } from './hoshi';
 import { fushigiDone } from './fushigi';
@@ -924,6 +924,8 @@ export class Renderer {
       for (const [mk, mx, my] of masks) mctx.drawImage(mk, mx, my);
       mctx.restore();
       if (cut) mctx.clearRect(cut[0], cut[1], cut[2], cut[3]);
+      // no sky out of the dark
+      eraseDark(mctx, f, cx, cy, W, H);
       if (!src) return;
       mctx.globalCompositeOperation = 'source-in';
       mctx.drawImage(src, 0, 0);
@@ -1575,7 +1577,9 @@ export class Renderer {
         lx.clip(this.roomClip());
         lx.setTransform(1, 0, 0, 1, 0, 0);
       }
-      f.light.paint(lx, cx, cy, base, W, H);
+      // (the starlight round his feet is the night's colour: indoors the
+      // room's own light doesn't reach into its dark part)
+      f.light.paint(lx, cx, cy, indoor ? STARLIGHT_ROOM : base, W, H);
       if (indoor) lx.restore();
       // the rooms' own light moving: the tubes coming on one by one, the
       // starlight through the train's windows (hoshi.ts)

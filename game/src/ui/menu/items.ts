@@ -386,14 +386,18 @@ export class ItemsPage implements MenuPage {
       const it = getItem(row.id);
       const sel = k === this.sel;
       const name = it ? itemName(row.id) : row.id;
-      if (sel) drawMarker(g, LP.x + 12, y + 1, textW(name) + 4, 15, m.focus && !this.popup ? Math.min(1, this.moveT / 70) : 1, m.focus ? UI.marker : '#EFE4C6');
+      if (sel) drawMarker(g, LP.x + 12, y + 1, Math.min(textW(name), FOLD - 4 - (LP.x + 14)) + 4, 15, m.focus && !this.popup ? Math.min(1, this.moveT / 70) : 1, m.focus ? UI.marker : '#EFE4C6');
       drawGlowRing(g, row.id, LP.x + 3, y + 8, 8, m.t);
       g.img(itemIcon12(row.id), LP.x - 3, y + 2);
       if (row.n > 1) {
         // how many, pencilled on the icon's corner
         drawDigits(g, String(Math.min(99, row.n)), LP.x + 11, y + 9, { color: UI.accent, outline: UI.bg, align: 'right' });
       }
-      g.text(name, LP.x + 14, y, { color: UI.text });
+      // a long name (きゅうりの一本漬け) is set a pixel or two tighter so it stays on its page
+      const room = FOLD - 4 - (LP.x + 14);
+      const nw = textW(name);
+      const sp = nw <= room ? 0 : nw - [...name].length <= room ? -1 : -2;
+      g.text(name, LP.x + 14, y, { color: UI.text, spacing: sp });
       if (sel && m.focus) drawCursor(g, SP.x + 1, y, m.t);
     }
     if (this.scroll > 0) drawScroll(g, FOLD - 18, LIST_Y - 5, true, m.t);

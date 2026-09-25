@@ -25,7 +25,7 @@
 //                                              snapshot, then evt_ch2_prologue on black
 //   chapter2LevelUps()                         what chapter2Adjust() raised (the 通知表)
 //   yield* playChapterDoor()                   章の扉: the 「第2章」 seal and the title by hand
-//   showCallBubble('……ナナミちゃん。')         the loudspeaker's bubble (the caller plays the voice)
+//   showCallBubble('……おぴぴちゃん。')       the loudspeaker's bubble (the caller plays the voice)
 //   yield* playCallBubble(text)                the bubble with its own 'broadcast' blips
 //   setClockText('19:31')                      the plate's time (null: the map's own)
 //   yield* fieldCurtain(1, 600) / setFieldCurtain(0)  the field goes dark under the HUD
@@ -34,6 +34,8 @@
 //   markClearCh2() / clearRecordCh2()          the chapter 2 clear data and record
 //   yield* openShop('shop_hoshi_mujin')        the 無人販売所 (per-visit limits, the coin box)
 //   yield* saveConfirm('narr', { text, options })  the save card with another question
+//   showChoreCard() / setChoreCount(0|1, n) / yield* completeChoreCard() / hideChoreCard()
+//                                              おてつだいの札 (evt_ch2_barn_work, 52 13.1)
 //   cut_h_village_lit is registered with the battle (registerBattleCut)
 
 export { say, choose, ask, caption, dialogVisible, type SayOpts, type ChooseOpts } from './dialog';
@@ -55,6 +57,12 @@ export {
   setClockText,
   fieldCurtain,
   setFieldCurtain,
+  showChoreCard,
+  setChoreCount,
+  choreCount,
+  completeChoreCard,
+  hideChoreCard,
+  choreCardShowing,
 } from './hud';
 export {
   registerNewGameHook,

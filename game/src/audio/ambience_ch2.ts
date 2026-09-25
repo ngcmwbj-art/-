@@ -19,7 +19,8 @@ import { dbToGain, onSample, voice, type VoiceOpts } from './engine';
 import { layer, type SeCtx } from './recipe';
 import { Rng } from '../engine/rng';
 import { Every, higurashiCall, modBuffer, modulate, noiseBed, registerAmbience, sampleHold, smoothRandom, toneBed, type AmbCtx, type Bed } from './ambience';
-import { BOAR, COW_SNORT, CROSS_STRIKE, HANSUU, SOIL } from './sfx_ch2';
+import { ACHA, BOAR, COW_SNORT, CROSS_STRIKE, HANSUU, IBIKI, SOIL } from './sfx_ch2';
+import { game } from '../engine/game';
 
 // ---------------------------------------------------------------------------
 // helpers
@@ -633,9 +634,15 @@ registerAmbience('amb_h_tomato', (c) => {
 });
 
 /**
- * amb_h_school — the meeting room of the old branch school at night: a
- * kettle breathing steam on the stove, its lid "カタ" now and then, and three
- * people asleep on floor cushions (breathing — never snoring).
+ * amb_h_school — the meeting room of the old branch school at night (53 7.2):
+ * a kettle breathing steam on the stove, its lid "カタ" now and then; シゲじい
+ * and スギばあ snoring on their floor cushions, 3.4 s and 3.1 s apart, so they
+ * drift in and out of step (a small laugh, never loud, never frightening);
+ * タケじい only breathing; and every 20–26 s one of them says 「……あちゃ〜……」
+ * in their sleep (a hum in the colour of a, no words) — on the world's clock
+ * when it sends ambientEvent('amb_h_school', 'acha', who: 0 シゲじい / 1 スギばあ),
+ * on its own otherwise. While a dialog window is up the snoring steps back
+ * −6 dB so it never covers the meeting's lines.
  */
 registerAmbience('amb_h_school', (c) => {
   const g = c.g;
@@ -645,29 +652,72 @@ registerAmbience('amb_h_school', (c) => {
     const n = c.rng.chance(0.4) ? 2 : 1;
     for (let i = 0; i < n; i++) v(c, { at: t + i * 0.09, wave: 'triangle', freq: 900 * c.rng.range(0.97, 1.03), dur: 0.01, attack: 0.001, decay: 0.03, sustain: 0, release: 0.02, vol: 0.004 * (i ? 0.6 : 1), pan: -0.35, reverb: 0.2 });
   }, 2, 8);
-  // three sleepers (マサじい, キヨばあ, タケじい), each on their own slow breath
-  const sleepers = [-0.1, 0.25, 0.55].map((pan) => {
-    const dest = panned(c, pan);
-    const period = c.rng.range(4, 5);
-    let next = c.t0 + c.rng.range(0, period);
+  // the sleepers' layer (steps back under a dialog window)
+  const sleepers = sub(c, 1);
+  let talking = false;
+  const snorers = [
+    { pan: -0.1, pitch: 1.0, period: 3.4 },
+    { pan: 0.35, pitch: 1.35, period: 3.1 },
+  ].map((o, i) => {
+    const dest = panned(c, o.pan, sleepers);
+    let next = c.t0 + 0.4 + i * 1.3 + c.rng.range(0, 0.5);
     return {
       pump(u: number) {
         let guard = 0;
         while (next < u && guard++ < 4) {
           const t = Math.max(next, g.ctx.currentTime);
-          const f = 700 * c.rng.range(0.9, 1.1);
-          // in (a little higher, shorter) … out (longer, lower)
-          v(c, { at: t, wave: 'noise', dur: 1.2, attack: 0.6, decay: 0.3, sustain: 0.6, release: 0.4, vol: 0.0016, filter: { type: 'bandpass', freq: f * 1.15, q: 0.8 } }, dest);
-          v(c, { at: t + 1.6, wave: 'noise', dur: 1.6, attack: 0.3, decay: 0.6, sustain: 0.5, release: 0.7, vol: 0.002, filter: { type: 'bandpass', freq: f, q: 0.8 } }, dest);
-          next = t + period * c.rng.range(0.95, 1.05);
+          for (const l of IBIKI) layer(seCtx(c, t, dest, c.rng.range(0.85, 1.05), 0.12, o.pitch * c.rng.range(0.98, 1.02)), l);
+          next = t + o.period;
         }
       },
     };
   });
+  // タケじい: breathing only (in, a little higher and shorter … out, longer and lower)
+  const takeDest = panned(c, 0.6, sleepers);
+  const takePeriod = c.rng.range(4, 5);
+  let takeNext = c.t0 + c.rng.range(0, takePeriod);
+  // the sleep-talk: シゲじい (pitch 0.8) and スギばあ (1.15) in turn
+  let who = 0;
+  let lastWorld = -1e9;
+  let achaNext = c.t0 + c.rng.range(8, 16);
+  const acha = (t: number, w: number) => {
+    const dest = panned(c, w === 1 ? 0.35 : -0.1, sleepers);
+    for (const l of ACHA) layer(seCtx(c, t, dest, 1, 0.15, w === 1 ? 1.15 : 0.8), l);
+  };
   return {
     pump(u) {
       lid.pump(u);
-      for (const s of sleepers) s.pump(u);
+      for (const s of snorers) s.pump(u);
+      let guard = 0;
+      while (takeNext < u && guard++ < 4) {
+        const t = Math.max(takeNext, g.ctx.currentTime);
+        const f = 700 * c.rng.range(0.9, 1.1);
+        v(c, { at: t, wave: 'noise', dur: 1.2, attack: 0.6, decay: 0.3, sustain: 0.6, release: 0.4, vol: 0.0016, filter: { type: 'bandpass', freq: f * 1.15, q: 0.8 } }, takeDest);
+        v(c, { at: t + 1.6, wave: 'noise', dur: 1.6, attack: 0.3, decay: 0.6, sustain: 0.5, release: 0.7, vol: 0.002, filter: { type: 'bandpass', freq: f, q: 0.8 } }, takeDest);
+        takeNext = t + takePeriod * c.rng.range(0.95, 1.05);
+      }
+      // the sleep-talk keeps its own clock only while the world sends none
+      const now = g.ctx.currentTime;
+      if (now - lastWorld > 30) {
+        while (achaNext < u) {
+          acha(Math.max(achaNext, now), who);
+          who = 1 - who;
+          achaNext += c.rng.range(20, 26);
+        }
+      } else achaNext = Math.max(achaNext, now + 20);
+      // a dialog window is up: the snoring steps back −6 dB
+      const open = !g.offline && game.ui.modal;
+      if (open !== talking) {
+        talking = open;
+        setLevel(sleepers.gain, open ? dbToGain(-6) : 1, now, 0.25);
+      }
+    },
+    event(name, pan, at) {
+      if (name !== 'acha') return;
+      lastWorld = at;
+      const w = pan === 1 ? 1 : 0;
+      who = 1 - w;
+      acha(at, w);
     },
     stop(t) {
       steam.stop(t);

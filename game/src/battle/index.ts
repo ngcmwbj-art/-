@@ -403,6 +403,15 @@ registerDebug('hankolearn', (id = 'skill_hanamaru') => {
 
 // ---- chapter 2 (51 18.5) --------------------------------------------------------------------
 
+/** QA: true once per new command-input phase (a round's first command window). */
+let readyRound = -1;
+registerDebug('bready', () => {
+  const s = current;
+  if (!s || !s.cmd || s.round === readyRound) return false;
+  readyRound = s.round;
+  return s.round;
+});
+
 /** `lvCh2(n)`: a chapter-2 party at Lv n (5–7), flag_ch2_started on. */
 registerDebug('lvCh2', (n = 5, otsukare = true) => {
   setupCh2(n, { otsukare: !!otsukare });

@@ -20,3 +20,6 @@ import './hoshi_station';
 import './hoshi_yard';
 import './hoshi_farm';
 import './hoshi_vehicles';
+import './hoshi_room_a';
+import './hoshi_room_b';
+import './hoshi_hill_art';

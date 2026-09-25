@@ -40,16 +40,16 @@ const FADE_MS = 800;
 const sealCache = new Map<string, HTMLCanvasElement>();
 
 /**
- * The oval seal (about 48×28): a 2px vermilion ring round the word, lit
+ * The oval seal (about 56×30): a 2px vermilion ring round the word, lit
  * from the top left (#FF6A4D) and pressed a shade darker at the bottom
  * right, the letters in the same ink, 4% かすれ where the ink didn't take.
  */
 export function chapterSeal(text: string): HTMLCanvasElement {
   let c = sealCache.get(text);
   if (c) return c;
-  const tw = textW(text) - [...text].length + 1; // set a pixel tighter, like a carved seal
-  const w = Math.max(48, tw + 14);
-  const h = 28;
+  const tw = textW(text);
+  const w = Math.max(48, tw + 16);
+  const h = 30;
   const [cv, ctx] = makeCanvas(w, h, { willReadFrequently: true });
   // the ring
   const cx = w / 2;
@@ -68,11 +68,11 @@ export function chapterSeal(text: string): HTMLCanvasElement {
       const d2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
       if (d <= 1 && d2 > 1) put(x, y, UI.accent);
     }
-  // the word, each letter a pixel closer than the font's pitch
+  // the word, carved in the middle of the ring
   let x = Math.round(cx - tw / 2);
   for (const ch of text) {
-    ctxText(ctx, ch, x, Math.round(cy - 8) - 1, UI.accent);
-    x += charWidth(ch) - 1;
+    ctxText(ctx, ch, x, Math.round(cy - 8), UI.accent);
+    x += charWidth(ch);
   }
   // light, pressure and かすれ
   const img = ctx.getImageData(0, 0, w, h);

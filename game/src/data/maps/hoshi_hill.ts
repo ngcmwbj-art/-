@@ -42,7 +42,6 @@ const OBJECTS: MapObj[] = [
   PR('prop_h_hill_trunk', 4, 13, { v: 2, marks: 1 }),
   PR('prop_h_hill_trunk', 13, 17, { v: 3 }),
   PR('prop_h_hill_view', 23, 1),
-  PR('prop_h_hill_roots', 0, 0),
   // examine (52 5章)
   O('obj_hoshi_speaker_plate', 15, 3, { face: 'up', cond: { flag: 'flag_ch2_boss_beaten' } }),
   O('obj_hoshi_dome', 4, 5, { face: 'up' }),
@@ -79,6 +78,8 @@ registerMap({
   },
   objects: OBJECTS,
   camera: 'follow',
+  // the plaza (y ≤ 7): the camera holds still over the whole of it (52 5章, trig_ch2_hill_top)
+  camLocks: [{ x: 0, y: 0, w: 24, h: 8, at: [12, 4] }],
   onEnter: ['evt_ch2_hill'],
   variant: 'hill',
   pa: 'yama',

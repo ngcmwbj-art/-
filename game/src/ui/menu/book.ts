@@ -260,8 +260,8 @@ const coverCache = new Map<string, HTMLCanvasElement>();
  * tomato (10×10) and a gold star (7×7) — and, once chapter 2 is finished,
  * its long title and a 朱 はなまる.
  */
-export function bookCover(vol: 1 | 2, done: boolean): HTMLCanvasElement {
-  const key = `${vol}:${done}`;
+export function bookCover(vol: 1 | 2, done: boolean, tag = false): HTMLCanvasElement {
+  const key = `${vol}:${done}:${tag}`;
   let c = coverCache.get(key);
   if (c) return c;
   const { w, h } = COVER;
@@ -327,6 +327,7 @@ export function bookCover(vol: 1 | 2, done: boolean): HTMLCanvasElement {
     // a red tomato sticker and a gold star sticker, a little crooked
     ctx.drawImage(stickerTomato(), lx + lw - 8, ly - 7);
     ctx.drawImage(stickerStar(), 22, h - 36);
+    if (tag) ctx.drawImage(stickerEarTag(), 32, h - 30);
     if (done) {
       // the teacher's 朱 はなまる, pressed at the bottom right
       const hm = hanamaruFrame(30, 1, false, 2);
@@ -366,6 +367,33 @@ export function stickerTomato(): HTMLCanvasElement {
 
 let starStickerC: HTMLCanvasElement | null = null;
 /** 7×7 gold star sticker (#F6D98A with a darker gold edge). */
+let earTagC: HTMLCanvasElement | null = null;
+/**
+ * おてつだいのシール (52 13.2): a yellow ear tag (10×8, #FFD23F, its shade
+ * #D9A441), the hole it hangs by, two black lines where the number is —
+ * you can't read it. Stuck on ②'s cover once the barn work is done.
+ */
+export function stickerEarTag(): HTMLCanvasElement {
+  if (earTagC) return earTagC;
+  const rows = ['.oooooooo.', 'oYYYhYYYYo', 'oYYYYYYYYo', 'oYkkkkkkYo', 'oYYYYYYYYo', 'oYkkkkkYdo', 'oYYYYYYddo', '.oooooooo.'];
+  const pal: Record<string, string> = { o: '#B8862A', Y: '#FFD23F', h: '#6A4A1A', k: '#2A2440', d: '#D9A441' };
+  const [c, ctx] = makeCanvas(10, 8);
+  rows.forEach((row, y) =>
+    [...row].forEach((ch, x) => {
+      if (ch === '.') return;
+      ctx.fillStyle = pal[ch];
+      ctx.fillRect(x, y, 1, 1);
+    }),
+  );
+  earTagC = c;
+  return c;
+}
+
+/** The barn work is done: ② has its ear tag sticker. */
+export function hasEarTag(): boolean {
+  return flag('flag_ch2_barn_work') > 0;
+}
+
 export function stickerStar(): HTMLCanvasElement {
   if (starStickerC) return starStickerC;
   const rows = ['...o...', '...O...', 'oOOjOOo', '.OjjjO.', '..OjO..', '.OO.OO.', 'oO...Oo'];
@@ -568,7 +596,7 @@ export class BookPage implements MenuPage {
   private drawCoverSwap(g: Gfx): void {
     const t = this.volT;
     if (t >= COVER_IN + COVER_HOLD + COVER_OPEN) return;
-    const img = bookCover(this.vol, !!flag('flag_ch2_clear'));
+    const img = bookCover(this.vol, !!flag('flag_ch2_clear'), this.vol === 2 && hasEarTag());
     const x0 = SP.x + 5;
     const y0 = SP.y + 6;
     if (t < COVER_IN) {

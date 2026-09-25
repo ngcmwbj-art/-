@@ -29,7 +29,7 @@ import { sfx, stopAllAmbient, stopBgm } from '../audio';
 import { petalSprites } from '../battle/art/stamps';
 import { caseBody, caseLid, CASE_H, CASE_SLOTS, CASE_W, drawCase, imprintFor, slotXY } from './hankocase';
 import { markClear, markClearCh2, toTitle } from './flow';
-import { stickerStar, stickerTomato } from './menu/book';
+import { hasEarTag, stickerEarTag, stickerStar, stickerTomato } from './menu/book';
 import {
   cloudCanvas,
   CLOUDS,
@@ -171,14 +171,15 @@ const COVERS = {
   2: { card: '#E4ECD4', speck: '#D6E0C2', light: '#F2F6E8', tape: '#2E6B4A', tapeDark: '#1F4E36', tapeLight: '#3FA66B' },
 } as const;
 
-const coverCache = new Map<number, HTMLCanvasElement>();
+const coverCache = new Map<string, HTMLCanvasElement>();
 /**
  * The cover of みました帳 ① (pale blue-green card, navy binding) or ②
  * (pale green card, deep green binding #2E6B4A, a tomato sticker and a gold
  * star sticker on it, 52_ch2_level_art 13.2).
  */
 function coverCanvas(vol: 1 | 2 = 1): HTMLCanvasElement {
-  const cached = coverCache.get(vol);
+  const tag = vol === 2 && hasEarTag();
+  const cached = coverCache.get(`${vol}:${tag}`);
   if (cached) return cached;
   const C = COVERS[vol];
   const { w, h } = COVER;
@@ -215,8 +216,10 @@ function coverCanvas(vol: 1 | 2 = 1): HTMLCanvasElement {
     ctx.drawImage(stickerTomato(), bx + bw - 9, by - 8);
     ctx.drawImage(stickerStar(), 34, h - 30);
     ctx.drawImage(stickerStar(), 44, h - 24);
+    // the barn work's ear tag, stuck beside the stars
+    if (tag) ctx.drawImage(stickerEarTag(), 58, h - 28);
   }
-  coverCache.set(vol, c);
+  coverCache.set(`${vol}:${tag}`, c);
   return c;
 }
 

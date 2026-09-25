@@ -124,26 +124,35 @@ export class HoshiHouseBg extends Background {
     this.bottom = '#1B1733';
     const r = new Rng(5);
     for (let i = 0; i < 12; i++) this.pollen.push({ x: 0, y: 0, a: r.range(0, 6.28), r: r.range(10, 40), s: r.range(0.3, 0.8) });
-    // the strings and their bunches, one tile of BG_H that loops upward
+    // the strings and their bunches, one tile of BG_H that loops upward:
+    // thin trained vines with a green tomato here and there, dark in the night
     const [c, ctx] = makeCanvas(384, BG_H);
     for (let x = 6; x < 384; x += 12) {
-      ctx.fillStyle = '#3A4A7A';
+      ctx.fillStyle = '#2A3A5E';
       ctx.fillRect(x, 0, 1, BG_H);
-      // a bunch every so often along the string, at its own heights
-      for (let k = 0; k < 3; k++) {
+      // the vine winding round the string, a leaf now and then
+      for (let y = 0; y < BG_H; y += 2) {
+        const wob = Math.round(Math.sin((y + x) / 7) * 1.5);
+        ctx.fillStyle = '#1E3A34';
+        ctx.fillRect(x + wob, y, 1, 2);
+        if (hash2(x, y, 9) < 0.08) {
+          ctx.fillStyle = '#244A3A';
+          ctx.fillRect(x + wob + (hash2(x, y, 10) < 0.5 ? -3 : 1), y, 3, 2);
+        }
+      }
+      // a truss of green tomatoes at its own height on each string
+      for (let k = 0; k < 2; k++) {
         const y = Math.floor(hash2(x, k, 3) * BG_H);
         const n = 2 + Math.floor(hash2(x, k, 4) * 3);
         for (let j = 0; j < n; j++) {
-          const rr = 4 + Math.floor(hash2(x + j, k, 5) * 4);
-          const bx = x + (j % 2 ? 4 : -3) + Math.floor(hash2(x, j, 6) * 3) - 1;
-          const by = (y + j * 7) % BG_H;
-          fillCircle(ctx, bx, by, rr, '#3A5A4A');
-          fillCircle(ctx, bx, by, rr - 1, '#2E6B4A');
+          const rr = 2 + Math.floor(hash2(x + j, k, 5) * 2);
+          const bx = x + (j % 2 ? 3 : -2) + Math.floor(hash2(x, j, 6) * 3) - 1;
+          const by = (y + j * 5) % BG_H;
+          fillCircle(ctx, bx, by, rr, '#1E4A34');
+          fillCircle(ctx, bx - 1, by - 1, Math.max(1, rr - 1), '#2E5A3E');
           // the lantern's light catches the lower left edge
           ctx.fillStyle = TOMATO;
-          ctx.fillRect(bx - rr + 1, by + Math.round(rr * 0.4), 1, 1);
-          ctx.fillStyle = '#4A7A5A';
-          ctx.fillRect(bx - Math.round(rr * 0.5), by - Math.round(rr * 0.5), 1, 1);
+          ctx.fillRect(bx - rr, by + 1, 1, 1);
         }
       }
     }
@@ -262,22 +271,31 @@ export class HoshiTanadaBg extends Background {
     const stiff = (this.flags.stiff ?? 0) > 0;
     const drift = (t * 8) % 384;
     for (let i = 0; i < 6; i++) {
-      const y0 = 60 + i * 15;
+      const y0 = 58 + i * 15;
       const shift = stiff ? 0 : Math.round(3 * Math.sin(2 * Math.PI * (t * 0.3 + i / 6)));
-      // water surface of this step, the ridge (畦) along its lower edge
+      // one step of the terraces: the ridge (畦) catching starlight on its top,
+      // its dark stone face, then the flooded paddy below reflecting the sky
       for (let x = 0; x < 384; x++) {
         const xx = (x + drift) % 384;
         const curve = Math.round(4 * Math.sin((xx + i * 40) / 60)) + shift;
         const top = y0 + curve;
-        ctx.fillStyle = '#3A2B5C';
-        ctx.fillRect(x, top, 1, 11);
+        ctx.fillStyle = '#5B4A7A';
+        ctx.fillRect(x, top, 1, 1);
+        ctx.fillStyle = '#141028';
+        ctx.fillRect(x, top + 1, 1, 3);
+        // the paddy water: sky-coloured, with ripple lines
         ctx.fillStyle = '#2A2440';
-        ctx.fillRect(x, top + 11, 1, 2);
-        // rice ears drooping over the ridge
-        if (hash2(Math.floor(xx), i, 7) < 0.22) {
-          ctx.fillStyle = '#2A3A2A';
+        ctx.fillRect(x, top + 4, 1, 11);
+        ctx.fillStyle = '#3A2B5C';
+        for (let r = 0; r < 3; r++) if (((x + r * 17 + Math.floor(t * 6)) % 23) < 9) ctx.fillRect(x, top + 6 + r * 3, 1, 1);
+        // rice ears drooping over the ridge, dark gold against the water
+        if (hash2(Math.floor(xx), i, 7) < 0.26) {
+          ctx.fillStyle = '#4A4A3A';
           ctx.fillRect(x, top - 2, 1, 2);
-          if (hash2(Math.floor(xx), i, 8) < 0.5) ctx.fillRect(x + 1, top - 2, 1, 1);
+          if (hash2(Math.floor(xx), i, 8) < 0.5) {
+            ctx.fillStyle = '#6A5A3A';
+            ctx.fillRect(x + 1, top - 2, 1, 1);
+          }
         }
       }
     }
@@ -285,7 +303,7 @@ export class HoshiTanadaBg extends Background {
     ctx.fillStyle = '#FFF6D8';
     for (const r of this.refl) {
       const x = Math.round((r.x + drift) % 384);
-      const y0 = 60 + r.step * 15;
+      const y0 = 62 + r.step * 15;
       const shift = stiff ? 0 : Math.round(3 * Math.sin(2 * Math.PI * (t * 0.3 + r.step / 6)));
       const y = y0 + Math.round(4 * Math.sin((r.x + r.step * 40) / 60)) + shift + 3 + (r.x % 6);
       ctx.globalAlpha = 0.4 + 0.5 * Math.max(0, Math.sin(t * 1.3 + r.ph));
@@ -503,7 +521,9 @@ export class HoshiYamaBg extends Background {
     ctx.fillStyle = TOMATO;
     ctx.fillRect(0, 108, 384, 10);
     ctx.restore();
-    enemyLift(ctx, 0.55);
+    // a dark boar on dark hills: the sky behind it is lifted (51 15.1)
+    enemyLift(ctx, 1);
+    enemyLift(ctx, 0.5);
   }
 
   protected drawL2(g: Gfx, t: number): void {
@@ -608,7 +628,7 @@ export class HoshiMujinBg extends Background {
         }
         // the coins turn in a wave across the grid
         const f = Math.floor(t * 4 + gx * 0.5 + gy * 0.3) % 4;
-        ctx.globalAlpha = 0.55;
+        ctx.globalAlpha = 0.28;
         if (doubled) ctx.drawImage(this.coinC[(f + 1) % 4], x - 8, y - 12);
         ctx.drawImage(this.coinC[(f + 4) % 4], x - 10, y - 10);
         ctx.globalAlpha = 1;

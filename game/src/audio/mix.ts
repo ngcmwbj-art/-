@@ -63,14 +63,14 @@ const SE_TARGET: Record<string, number> = {
   // the village, the greenhouse, the meeting room
   se_h_vinyl_door: -14, se_h_yunomi: -16, se_h_yunomi_pour: -16, se_h_tomato_catch: -12, se_h_lantern_set: -14,
   se_h_light_spread: SKILL, se_h_boukatou_on: -16, se_h_kaichu: -18, se_h_kakashi_turn: -16, se_h_keitora: -12,
-  se_h_keitora_go: -12, se_h_chalk: -18, se_h_chalk_erase: -18, se_h_kairan: -16,
+  se_h_keitora_go: -12, se_h_chalk: -18, se_h_chalk_erase: -18, se_h_kairan: -16, se_h_ibiki: -20, se_h_acha: -20,
   // the barn and the farm (the cattle are never louder than a person nearby)
   se_h_shodoku: -16, se_h_hansuu: -20, se_h_cow_snort: -18, se_h_moo: -14, se_h_barn_light: -16, se_h_feed_cart: -16,
-  se_h_feedbag: -16, se_h_gate_hook: -14, se_h_side_roll: -16, se_h_ripen: -12,
+  se_h_feedbag: -16, se_h_gate_hook: -14, se_h_side_roll: -16, se_h_ripen: -12, se_h_esayose: -18, se_h_watercup: -18,
   // the PA (bus_pa: the trim rides into the speaker)
   se_h_pa_open: -12, se_h_pa_close: -14, se_h_pa_last: -8, se_h_morning_chime: -8,
   // the fights: the enemies' moves, the boss, the new stamps (softer than an attack: 51 14.1)
-  se_h_yofukashi: HIT, se_h_howl: -14, se_h_dim: -14, se_h_amado: -8, se_h_yamabiko: -12, se_h_sukima: -12,
+  se_h_yofukashi: HIT, se_h_ressha: -8, se_h_howl: -14, se_h_dim: -14, se_h_amado: -8, se_h_yamabiko: -12, se_h_sukima: -12,
   se_h_otsukare: -12, se_h_bell_kon: -12, se_h_charin: -12, se_h_aokusai: -12, se_h_roll: -12,
   // feet, the scarecrow's hop, the ending
   se_step_sheet: -24, se_h_kakashi_hop: -18, se_h_tomato_rise: -12, se_h_sunrise: -14, se_h_bus_idle: -18,
@@ -114,7 +114,7 @@ const VOICE_TARGET: Record<string, number> = {
   narr: -32, sys: -99, flip: -26, cat: -24, hato: -22, crow: -22, dog: -21,
   broadcast: -16, broadcast_child: -18, kanenari_voice: -18, omukaemachi: -19,
   // chapter 2: the boss speaks through the speaker right over you; the train's small speaker, the sign, the dog
-  yobimodoshi: -16, h_train: -22, h_mujin: -26, h_gon: -21, h_tetsuya: -20, broadcast_room: -22,
+  yobimodoshi: -16, h_train: -22, h_mujin: -26, h_gon: -22, h_tetsuya: -20, broadcast_room: -22,
 };
 export function voiceTargetDb(id: string): number {
   return (VOICE_TARGET[id] ?? -20) + MASTER_LIFT_DB;
@@ -352,9 +352,10 @@ export const SE_TRIM: Record<string, number> = {
   se_h_side_roll: 22, se_h_ripen: 22.5, se_h_pa_open: 17.5, se_h_pa_close: 18, se_h_pa_last: 9, se_h_morning_chime: 0.5,
   se_h_sune: 23, se_h_roll: 25.5, se_h_aokusai: 26, se_h_biri: 16.5, se_h_boar: 36, se_h_soil: 23.5,
   se_h_charin: 18, se_h_tiller: 28, se_h_stall: 27.5, se_h_tenko: 14, se_h_howl: 27.5, se_h_yofukashi: 9.5,
-  se_h_ressha: 16.5, se_h_sukima: 21, se_h_amado: 22.5, se_h_yamabiko: 34.5, se_h_onamae: 20.5, se_h_tomato_glow: 19,
+  se_h_ressha: 18.5, se_h_sukima: 21, se_h_amado: 22.5, se_h_yamabiko: 34.5, se_h_onamae: 20.5, se_h_tomato_glow: 19,
   se_h_dim: 25, se_h_otsukare: 27, se_h_bell_kon: 14, se_h_hamidashi: 17.5, se_step_sheet: 25, se_h_kakashi_hop: 19.5,
   se_h_tomato_rise: 26, se_h_sunrise: 20, se_h_bus_idle: 22, se_h_bus_door: 19, se_h_bus_depart: 26.5, se_h_bus_arrive: 25.5,
+  se_h_ibiki: 31.5, se_h_acha: 36, se_h_esayose: 32, se_h_watercup: 24.5,
 };
 export const VOICE_TRIM: Record<string, number> = {
   narr: 24, mother: 15, maruyama: 8, obaa: 15, mamekichi: 15.5, inui: 17, tsurumi: 16, sae: 17, jk: 15.5,
@@ -362,7 +363,8 @@ export const VOICE_TRIM: Record<string, number> = {
   dog: 11.5, cat: 18, crow: 23, tv: 23.5, broadcast: 9.5, broadcast_child: 12.5, vending: 20.5, omukaemachi: 15.5,
   flip: 16.5, kanenari_voice: 15, default: 19,
   // chapter 2
-  h_train: 21, h_tetsuya: 19, yobimodoshi: 10, h_mujin: 27.5, h_gon: 14.5, broadcast_room: 15,
+  h_train: 21, h_tetsuya: 19, yobimodoshi: 10, h_mujin: 27.5, h_gon: 11.5, broadcast_room: 15,
+  h_driver: 17, h_kucho: 14, h_yoshie: 17, h_fumi: 14, h_mitsu: 16, h_gen: 12.5, h_tome: 16, h_sawako: 18,
 };
 export const AMB_TRIM: Record<string, number> = {
   amb_higurashi: 17, amb_still: 25, amb_s2_town: -1, amb_train_far: 0, amb_night_insects: 22.5, amb_fan: 16.5,
@@ -372,9 +374,9 @@ export const AMB_TRIM: Record<string, number> = {
   // chapter 2 (audioMixSuggest: heard over 星見台の夜 where each one plays; the
   // insects held at the town's night level, the barn's fans over its −18 dB
   // song and the train with no music at all set by ear, 53 10.2)
-  amb_h_insects: 22, amb_h_kusa: 22, amb_h_tanada: 29.5, amb_h_mizu: 30, amb_h_wind: 30, amb_h_yama: 41,
-  amb_h_hachi: 26.5, amb_h_fence: 29.5, amb_h_barn_out: 26, amb_h_barn: 16, amb_h_house: 27, amb_h_tomato: 21.5,
-  amb_h_school: 28.5, amb_h_boukatou: 16, amb_h_tetsuya: 22, amb_h_train: 17, amb_h_pa_hum: 21, amb_h_dawn: 16,
+  amb_h_insects: 22, amb_h_kusa: 22, amb_h_tanada: 29.5, amb_h_mizu: 30, amb_h_wind: 33, amb_h_yama: 41,
+  amb_h_hachi: 26.5, amb_h_fence: 29.5, amb_h_barn_out: 29, amb_h_barn: 16, amb_h_house: 27, amb_h_tomato: 21.5,
+  amb_h_school: 28.5, amb_h_boukatou: 19, amb_h_tetsuya: 22, amb_h_train: 17, amb_h_pa_hum: 21, amb_h_dawn: 16,
 };
 
 /** A song's output level in dB: its own master gain plus the mix trim. */

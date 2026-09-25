@@ -79,12 +79,22 @@ export const VOICES: Record<string, VoiceDef> = {
   flip: { label: 'カネナリくんのフリップ', wave: 'sawtooth', base: 2000, scale: [0, 1], len: 35, every: 3, v: 0.02, bp: [2400, 4], vib: [28, 60] },
   kanenari_voice: { label: 'カネナリくんの声', wave: 'triangle', wave2: ['sawtooth', 0.2], base: 'D3', scale: [0], len: 140, A: 20, R: 100, every: 1, v: 0.07, formant: true, rev: 0.35 },
   default: { label: '（指定なし）', wave: 'triangle', base: 'A4', scale: [0, 2, 4, 7, 9], len: 30, every: 2, v: 0.045, formant: true },
-  // ---- chapter 2 (53_ch2_audio 9.1)
+  // ---- chapter 2 (53_ch2_audio 9.1). The ids keep the first cast's names (50 3.2);
+  // the five men of the village and さんかど never share base, wave, set and pace
+  h_driver: { label: 'さんかど（郵便配達員）', wave: 'triangle', base: 'E4', scale: [0, 2, 4, 7], len: 34, A: 3, D: 20, S: 0.45, R: 10, every: 2, v: 0.055, lp: 2000, formant: true },
+  h_kucho: { label: 'エー区長', wave: 'pulse25', base: 'G3', scale: [0, 2, 4, 5, 7], len: 42, every: 2, v: 0.06, lp: 2000, formant: true },
+  h_yoshie: { label: 'エー夫人', wave: 'triangle', base: 'B4', scale: [0, 2, 4, 7], len: 28, every: 2, v: 0.055, formant: true },
+  h_fumi: { label: 'まつ先生', wave: 'triangle', base: 'C4', scale: [0, 2, 4, 7, 9], len: 46, A: 4, every: 2, v: 0.055, vib: [5, 6], rev: 0.15, formant: true, noise: { bp: 2000, q: 1, level: 0.08 } },
+  h_mitsu: { label: 'ペロリ', wave: 'triangle', base: 'A3', scale: [0, 3, 5, 7], len: 52, A: 6, every: 3, v: 0.06, lp: 1500, vib: [4, 8], formant: true, noise: { bp: 1200, q: 1, level: 0.12 } },
+  h_gen: { label: 'マサルさん', wave: 'square', base: 'F3', scale: [0, 3, 5, 7], len: 26, A: 0, D: 20, S: 0, every: 3, v: 0.06, lp: 1600, formant: true },
+  h_tome: { label: 'トマじい', wave: 'triangle', base: 'E3', scale: [0, 2, 5], len: 70, every: 3, v: 0.07, vib: [4.5, 18], formant: true },
+  h_sawako: { label: 'ソワカさん', wave: 'triangle', base: 'E5', scale: [0, 2, 4, 7, 9, 12], len: 32, every: 2, v: 0.05, scoop: [80, 20], formant: true },
   h_train: { label: '運転士（車内放送）', wave: 'square', base: 'F4', scale: [0, 2, 4], len: 36, every: 2, v: 0.04, bp: [1300, 2], rev: 0.2 },
   h_tetsuya: { label: '耕うん機テツヤ', wave: 'pulse12', base: 'D4', scale: [0], len: 50, A: 1, every: 2, v: 0.045, fixedSeq: [0, 0, 2, 0], am: [15, 0.6, 'square'] },
   yobimodoshi: { label: 'ヨビモドシ', wave: 'sine', base: 'G4', scale: [0, 2, 3, 7], len: 50, every: 2, v: 0.045, pa: true, noise: { bp: 1200, q: 4, level: 0.5 }, calls: true },
   h_mujin: { label: 'ムジン販売員の札', wave: 'sawtooth', base: 1600, scale: [0, 1], len: 35, every: 3, v: 0.02, bp: [2000, 4], vib: [28, 60] },
-  h_gon: { label: 'ゴン', wave: 'square', base: 'F#3', scale: [0, 0, 3], len: 30, every: 3, v: 0.05, lp: 900 },
+  // ふくじんづけ (a papillon; the id is the first cast's dog): コタロウ's bark +5, a small dog's 「キャン」
+  h_gon: { label: 'ふくじんづけ（パピヨン）', wave: 'square', base: 'D4', scale: [0, 0, 5], len: 22, every: 3, v: 0.045, lp: 1600 },
   // the branch school's broadcast room: its own small speaker, not the hill's (ふしぎ10, 53 8.9)
   broadcast_room: { label: '放送室の小さなスピーカー', wave: 'sine', base: 'A4', scale: [0, 2, 4], len: 45, every: 2, v: 0.04, lp: 800, noise: { bp: 900, q: 3, level: 0.4 }, rev: 0.15 },
 };
@@ -152,6 +162,12 @@ interface State {
   nameI?: number;
   /** The last character given, voiced or not (ちゃん / くん / さん). */
   prevCh?: string;
+  /** マサルさん's tsukkomi page (53 9.2). */
+  tsukkomi?: boolean;
+  /** How far into まつ先生's 「おはだっちょ」 the page is (0 = not). */
+  oha?: number;
+  /** ふくじんづけ is asleep for the rest of the page (「……ぷすー。」). */
+  asleep?: boolean;
 }
 const st: Record<string, State> = {};
 let kanenariSeq = 0;
@@ -161,6 +177,8 @@ let paSwellCheck: { t: number } | null = null;
 
 /** QA: forget the per-voice spacing state (offline renders start at t = 0). */
 export function resetVoiceState(): void {
+  // (an offline render ends here: a character still held is said)
+  flushHeld();
   for (const k of Object.keys(st)) delete st[k];
   kanenariSeq = 0;
   kanenariWord = 'oishii';
@@ -181,17 +199,48 @@ function isBattle(): boolean {
   return !!id && !!songTable.get(id)?.battle;
 }
 
+/**
+ * A character held back until the next one decides how it sounds (53 9.2:
+ * エー区長's 「えー」, ペロリ's 「なぁ」). It is let go 60 ms later at most.
+ */
+let held: { id: string; ch: string; t: number; kind: 'ee' | 'naa'; allowed: boolean } | null = null;
+
 /** One dialog character. `at` (ctx time) is only for offline renders (QA). */
 export function blip(voiceId: string, ch: string, at?: number): void {
   if (!hasGraph()) return;
   const id = resolve(voiceId);
   if (id === 'none' || id === 'sys') return;
+  const now = at ?? cur().ctx.currentTime;
+  if (held) {
+    const h = held;
+    held = null;
+    const long = h.id === id && ((h.kind === 'ee' && ch === 'ー') || (h.kind === 'naa' && ch === 'ぁ'));
+    if (long || h.allowed) blipAt(h.id, h.ch, h.t, long ? h.kind : 'plain');
+  }
+  blipAt(id, ch, now);
+}
+
+/** Let a held character go (the line ended on it). */
+function flushHeld(): void {
+  if (!held) return;
+  const h = held;
+  held = null;
+  if (h.allowed) blipAt(h.id, h.ch, h.t, 'plain');
+}
+
+function blipAt(id: string, ch: string, now: number, mode?: 'plain' | 'ee' | 'naa'): void {
   const def = VOICES[id] ?? VOICES.default;
   const g = cur();
-  const now = at ?? g.ctx.currentTime;
   const s = (st[id] ??= { last: -1, lastSemi: 99, repeat: 0, seqI: 0, lastMidi: 60, lastT: 0, hist: [], lineStart: true });
   const prevCh = s.prevCh;
   s.prevCh = ch;
+  // a page: the first character after a pause (0.8 s, 53 9.2)
+  const pageHead = now - s.lastT > 0.8 || s.lastT === 0;
+  if (pageHead && mode === undefined) {
+    s.tsukkomi = false;
+    s.oha = 0;
+    s.asleep = false;
+  }
   // a name line (53 9.2) ends with its sentence; a pause opens a new line.
   // Only 星見台's speaker calls names (夕鳴町's broadcast is chapter 1's, unchanged)
   const calls = !!def.calls && (id === 'yobimodoshi' || g.pa.mode === 'yama');
@@ -201,13 +250,30 @@ export function blip(voiceId: string, ch: string, at?: number): void {
       s.lineStart = true;
       s.nameLine = false;
     }
+    // 「……」 at the head of a line: a name is being called
+    if (s.lineStart && (ch === '…' || ch === '‥')) {
+      s.lineStart = false;
+      s.nameLine = true;
+      s.nameI = 0;
+    }
+  }
+  // ふくじんづけ asleep, 「……ぷすー。」: no blips, one breath through the nose
+  if (id === 'h_gon') {
+    if (ch === '。') s.asleep = false;
+    else if (s.asleep) return;
+    else if (ch === 'ぷ') {
+      s.asleep = true;
+      s.lastT = now;
+      voice({ at: now + 0.005, dest: g.voiceBus, wave: 'noise', dur: 0.09, attack: 0.015, decay: 0.05, sustain: 0.5, release: 0.04, vol: 0.006 * trimOr1(voiceTrim(id)), filter: { type: 'bandpass', freq: 1200, q: 1.4 } });
+      return;
+    }
   }
 
   // sentence endings: a little rise for "？", a push for "！"
   if (ch === '？' || ch === '?' || ch === '！' || ch === '!') {
     if (now - s.lastT < 0.5 && def.wave !== 'none' && id !== 'narr') {
       const q = ch === '？' || ch === '?';
-      play(def, id, s.lastMidi, now + 0.01, q ? 5 : 2, q ? 1 : 1.2, 'a', true);
+      play(def, id, s.lastMidi, now + 0.01, q ? 5 : 2, q ? 1 : 1.2 * (s.tsukkomi ? 1.25 : 1), 'a', true);
     }
     return;
   }
@@ -217,32 +283,72 @@ export function blip(voiceId: string, ch: string, at?: number): void {
     return;
   }
   if (SILENT.has(ch) || !ch.trim()) return;
-  // 53 9.2: a line that starts with a name (katakana, after the "……") is
-  // called, not said: the first blip on the voice's note, then 0 / −3 in turn
-  // (the falling minor third of 「ナ・ナ・ミー」); the last ん of ちゃん / くん /
-  // さん always sounds, low and long. The sealed answer cannot come out of it.
+  // 53 9.2: a line that starts with a name (after the "……", or a katakana
+  // name when the caller leaves the dots out) is called, not said: the first
+  // blip on the voice's note, then 0 / −3 in turn (the falling minor third of
+  // 「オ・ピ・ピー」); the last ん of ちゃん / くん / さん always sounds, low and
+  // long. The sealed answer cannot come out of it.
   if (calls && s.lineStart) {
     s.lineStart = false;
     s.nameLine = isKatakana(ch);
     s.nameI = 0;
   }
   const honorific = !!s.nameLine && ch === 'ん' && !!prevCh && 'ゃくさ'.includes(prevCh);
+  // マサルさん's tsukkomi (53 9.2): a page that opens with 「誰が」 comes out fast and loud
+  if (id === 'h_gen' && pageHead && ch === '誰') s.tsukkomi = true;
+  // まつ先生's 「おはだっちょ」: the four blips climb the major arpeggio 0 +4 +7 +12
+  let oha = -1;
+  if (id === 'h_fumi') {
+    const step = s.oha ?? 0;
+    if (pageHead && ch === 'お') oha = 0;
+    else if (step > 0 && ch === 'はだち'[step - 1]) oha = step;
+    s.oha = oha >= 0 && oha < 3 ? oha + 1 : 0;
+  }
   // spacing: the voice's interval in characters at 40 chars/s
-  const minGap = def.every * 0.025 * 0.9;
-  if (now - s.last < minGap && !honorific) return;
-  // a new page of the flip: the whole marker squeak
-  if (id === 'flip' && now - s.last > 0.8) {
+  const every = s.tsukkomi ? 1 : def.every;
+  const minGap = every * 0.025 * 0.9;
+  const allowed = now - s.last >= minGap;
+  // エー区長's 「えー」 and ペロリ's 「なぁ」: the next character decides
+  if (mode === undefined && ((id === 'h_kucho' && pageHead && ch === 'え') || (id === 'h_mitsu' && ch === 'な'))) {
+    held = { id, ch, t: now, kind: id === 'h_kucho' ? 'ee' : 'naa', allowed };
+    s.prevCh = prevCh;
+    if (!g.offline) {
+      const mine = held;
+      atTime(now + 0.06, () => {
+        if (held === mine) flushHeld();
+      });
+    }
+    return;
+  }
+  if (!allowed && !honorific && oha < 0 && mode !== 'ee' && mode !== 'naa') return;
+  // a new page of the flip (and the sign's cardboard): the whole marker squeak
+  if ((id === 'flip' || id === 'h_mujin') && now - s.last > 0.8) {
     s.last = now;
     s.lastT = now;
-    sfxTable.get('se_flip')?.({ vol: 0.9, at: now });
+    sfxTable.get('se_flip')?.({ vol: 0.9, at: now, pitch: id === 'h_mujin' ? 1.2 : 1 });
     return;
   }
   s.last = now;
 
   let semi: number;
-  let volK = 1;
+  let volK = s.tsukkomi ? 1.25 : 1;
   let longMs = 0;
-  if (s.nameLine) {
+  let glide = 0;
+  if (mode === 'ee') {
+    // 「えー」: one long blip, sinking 30 cents
+    semi = def.scale[0];
+    longMs = 280;
+    glide = -0.3;
+  } else if (mode === 'naa') {
+    // 「なぁ」: the な stretches to 160 ms and sighs down two semitones over 200 ms
+    semi = def.scale[hashCh(ch) % def.scale.length];
+    longMs = 160;
+    glide = -2;
+  } else if (oha >= 0) {
+    semi = [0, 4, 7, 12][oha];
+    if (oha === 3) longMs = 120;
+    if (currentId() === 'bgm_hoshi_morning') volK = 0.9;
+  } else if (s.nameLine) {
     const i = s.nameI ?? 0;
     s.nameI = i + 1;
     semi = honorific ? -3 : i === 0 ? 0 : i % 2 === 1 ? 0 : -3;
@@ -265,13 +371,16 @@ export function blip(voiceId: string, ch: string, at?: number): void {
       semi = map[ch] ?? 0;
       if (ch === 'い' && kanenariSeq >= 3) longMs = 300;
     }
+    if (longMs) glide = -2;
     kanenariSeq = ch === 'お' ? 1 : kanenariSeq + 1;
   } else {
-    semi = def.scale[hashCh(ch) % def.scale.length];
+    // マサルさん's tsukkomi uses only the top two notes of his set (5 7)
+    const scale = s.tsukkomi ? def.scale.slice(-2) : def.scale;
+    semi = scale[hashCh(ch) % scale.length];
     if (semi === s.lastSemi) {
       s.repeat++;
       if (s.repeat >= 2) {
-        semi = def.scale[(def.scale.indexOf(semi) + 1) % def.scale.length];
+        semi = scale[(scale.indexOf(semi) + 1) % scale.length];
         s.repeat = 0;
       }
     } else s.repeat = 0;
@@ -279,9 +388,9 @@ export function blip(voiceId: string, ch: string, at?: number): void {
     // of a chatty line either: step aside to the next note of the voice's set
     const h = s.hist;
     if (h.length >= 3 && h[1] - h[0] === -2 && h[2] - h[1] === -3 && semi - h[2] === 3) {
-      const i = def.scale.indexOf(semi);
-      semi = def.scale[(i + 1) % def.scale.length];
-      if (semi - h[2] === 3) semi = def.scale[(i + 2) % def.scale.length];
+      const i = scale.indexOf(semi);
+      semi = scale[(i + 1) % scale.length];
+      if (semi - h[2] === 3) semi = scale[(i + 2) % scale.length];
     }
   }
   s.hist.push(semi);
@@ -291,7 +400,7 @@ export function blip(voiceId: string, ch: string, at?: number): void {
   const midi = baseMidi + semi;
   s.lastMidi = midi;
   s.lastT = now;
-  play(def, id, midi, now + 0.005, 0, volK, vowelOf(ch), false, undefined, longMs);
+  play(def, id, midi, now + 0.005, 0, volK, mode === 'ee' ? 'e' : vowelOf(ch), false, undefined, longMs, glide);
   if (id === 'yobimodoshi') openLineHum(now);
   if (g.offline) return;
   if (id === 'kanenari_voice') {
@@ -392,7 +501,7 @@ function openLineHum(t: number): void {
   g.pa.wake(h.until + 1);
 }
 
-function play(def: VoiceDef, id: string, midi: number, t: number, bend: number, volK: number, vowel: string, isTail: boolean, revOverride?: number, longMs = 0): void {
+function play(def: VoiceDef, id: string, midi: number, t: number, bend: number, volK: number, vowel: string, isTail: boolean, revOverride?: number, longMs = 0, glideSemis = 0): void {
   if (def.wave === 'none') return;
   const g = cur();
   const dest = def.pa ? g.pa.input : g.voiceBus;
@@ -422,11 +531,12 @@ function play(def: VoiceDef, id: string, midi: number, t: number, bend: number, 
     base.dur = 0.07;
   }
   if (long) {
-    // a long last blip: Kanenari's words settle two semitones down (い −2 → …,
-    // う +5 → +3); a called name's last ん simply rings
-    if (id === 'kanenari_voice') {
-      base.freqEnd = f * Math.pow(2, -2 / 12);
-      base.glide = dur * 0.94;
+    // a long blip: Kanenari's words settle two semitones down (い −2 → …,
+    // う +5 → +3), 「なぁ」 sighs two down over 200 ms, 「えー」 sinks 30 cents;
+    // a called name's last ん simply rings
+    if (glideSemis) {
+      base.freqEnd = f * Math.pow(2, glideSemis / 12);
+      base.glide = id === 'h_mitsu' ? 0.2 : id === 'kanenari_voice' ? 0.3 : dur * 0.94;
     }
     base.dur = Math.max(0.02, dur - (def.R ?? 15) / 1000);
   }

@@ -19,6 +19,7 @@ import { hud as worldHud, setFieldHud, type FieldHud } from '../world/hud';
 import type { FieldScene } from '../world/field';
 import { fushigiActive } from '../world/fushigi';
 import { getMapDef, isCh2Map } from '../world/maps';
+import { drawChoreCard, hideChoreCard, updateChoreCard } from './chore_card';
 import { clearCallBubbleUi, drawCallBubbleUi, showCallBubble as showCallBubbleImpl, updateCallBubbleUi, callBubbleShowing, type CallBubbleHandle } from './call_bubble';
 import { drawDigits, drawNumerals, numeralsWidth } from './digits';
 import { dialogTop } from './dialog';
@@ -248,7 +249,7 @@ export function areaAt(tx: number, ty: number): string | null {
 const HOSHI_PLACE: Record<string, string> = {
   map_hoshi_train: '夜の電車',
   map_hoshimidai: '星見台',
-  map_hoshi_house: 'ミツばあの 3号ハウス',
+  map_hoshi_house: 'ペロリさんの 3号ハウス',
   map_hoshi_barn: '石黒牛舎',
   map_hoshi_school: '旧 星見台分校',
   map_hoshi_hill: '星見の丘',
@@ -411,10 +412,14 @@ class UiHud implements FieldHud {
     this.showT = Math.max(this.showT, ms);
   }
 
-  setTime(s: string | null): void {
+  /** `cut`: the plate shows the new time at once (a cut to another scene) instead of turning over. */
+  setTime(s: string | null, cut = false): void {
     this.override = s;
+    this.cutNext = cut;
     if (s) this.show();
   }
+
+  private cutNext = false;
 
   /** Current clock text. */
   timeText(): string {
@@ -485,12 +490,16 @@ class UiHud implements FieldHud {
     }
     const tt = this.timeText();
     if (tt !== this.shown) {
-      if (this.shown) {
+      if (this.shown && !this.cutNext) {
         this.prevShown = this.shown;
         this.flipT = 0;
         this.sinkT = 0;
+      } else {
+        this.prevShown = tt;
+        this.flipT = 999;
       }
       this.shown = tt;
+      this.cutNext = false;
     }
     if (this.showT > 0) this.showT -= dt;
     // 星見台: the plate stays up while the village is stopped (the time that doesn't move is the point)
@@ -535,8 +544,9 @@ class UiHud implements FieldHud {
       }
     }
     this.near = near;
-    // ---- the loudspeaker's call bubble
+    // ---- the loudspeaker's call bubble, the おてつだい strip
     updateCallBubbleUi(dt);
+    updateChoreCard(dt);
     // ---- place names (after the fade-in, not during the opening)
     let place = placeNameFor(f.map.id, f.player.tileX, f.player.tileY, f.map.def.name ?? '');
     if (f.map.id === 'map_hoshimidai') {
@@ -677,6 +687,7 @@ class UiHud implements FieldHud {
     this.lastFrame = -10;
     curtain.a = 0;
     clearCallBubbleUi();
+    hideChoreCard(0);
   }
 
   /** Forget the place banner and item notes (a menu or shop covers the field). */
@@ -739,6 +750,8 @@ class UiHud implements FieldHud {
       const wb = (worldHudMod as unknown as Record<string, unknown>).drawCallBubble;
       if (typeof wb === 'function') (wb as (g: Gfx, f: FieldScene) => void)(g, f);
     }
+    // the おてつだい strip (evt_ch2_barn_work)
+    drawChoreCard(g);
     // clock plate
     const y = Math.round(this.y);
     if (y > -24) drawClockPlate(g, 324, y, this.clockView());
@@ -894,6 +907,7 @@ export function showCallBubble(text: string, o: { cps?: number; voice?: string; 
 }
 
 export { playCallBubble, clearCallBubbleUi as clearCallBubble } from './call_bubble';
+export { showChoreCard, setChoreCount, choreCount, completeChoreCard, hideChoreCard, choreCardShowing, type ChoreItem } from './chore_card';
 
 const curtain = { a: 0, color: '#0B0B14' };
 
@@ -918,9 +932,13 @@ export function setFieldCurtain(a: number, color = '#0B0B14'): void {
   curtain.color = color;
 }
 
-/** 19:30 / 19:31 / 6:10 / 6:12 on the plate (null: back to the map's own time). */
-export function setClockText(s: string | null): void {
-  uiHud.setTime(s);
+/**
+ * 19:30 / 19:31 / 6:10 / 6:12 on the plate (null: back to the map's own
+ * time). It turns over (3 frames); `{ cut: true }` shows it at once, for a
+ * cut to another scene (50 10.16 カット3 「6:10」).
+ */
+export function setClockText(s: string | null, o: { cut?: boolean } = {}): void {
+  uiHud.setTime(s, !!o.cut);
 }
 
 /** Install the UI HUD into the field and route world/hud's show()/setTime() to it. */

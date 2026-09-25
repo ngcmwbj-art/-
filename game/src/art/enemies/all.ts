@@ -15,3 +15,4 @@ import './biri';
 import './chototsu';
 import './mujin';
 import './tetsuya';
+import './yobimodoshi';

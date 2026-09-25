@@ -351,6 +351,22 @@ se('se_h_chalk', {
 });
 se('se_h_chalk_erase', { label: '黒板消し（すっ）', group: G_VILLAGE, layers: ['noise env=30/200/0/60 dur=200 v=.015 flt=BP1600q0.7 am=20/.3'] });
 se('se_h_kairan', { label: '回覧板が出たり入ったり（カサ、コト）', group: G_VILLAGE, layers: ['noise env=10/120/0/40 dur=100 v=.02 flt=BP2000q0.8', 'tri f=600 env=0/30/0/10 dur=8 v=.015 at=150'] });
+// 集会所: シゲじい and スギばあ asleep on the floor cushions (2026-09-25; 53 8.2).
+// Never frightening, never loud: a small laugh of a sound
+export const IBIKI = [
+  'saw f=62→58/650 env=200/250/.6/200 dur=650 v=.008 flt=LP420 am=28/.7',
+  'noise env=200/250/.5/200 dur=650 v=.004 flt=BP500q1.2 am=28/.5',
+  'noise env=150/350/0/300 dur=450 v=.003 flt=BP2200q2 at=850',
+];
+se('se_h_ibiki', { label: 'いびき（ぐぅ〜、すぴー）', group: G_VILLAGE, rand: [0.03, 0.08], layers: IBIKI });
+// the sleep-talk 「……あちゃ〜……」 hummed, the colour of the vowel a only (no words, 1.7)
+export const ACHA = [
+  'tri f=330 env=10/110/0/40 dur=80 v=.010 flt=BP800q3',
+  'noise env=0/25/0/10 dur=15 v=.003 flt=HP3500 at=120',
+  'tri f=392→262/480 env=10/0/1/250 dur=520 v=.010 flt=BP800q3 vib=5/15 at=140',
+  'tri f=392→262/480 env=10/0/1/250 dur=520 v=.004 flt=BP1250q4 at=140',
+];
+se('se_h_acha', { label: '寝言「あちゃ〜」（母音のハミング）', group: G_VILLAGE, rev: 0.15, layers: ACHA });
 
 // ============================================================================
 // 8.3 牛舎・農
@@ -404,6 +420,24 @@ se('se_h_gate_hook', {
     'sine f=380→340/300 env=1/300/0/80 dur=40 v=.02 vib=14/30 at=60',
     'tri f=1100 env=0/40/0/15 dur=10 v=.035 at=560',
   ],
+});
+// 牛舎のおてつだい (50 10.19, 53 12.16): the tools, small, next to the cattle (no moo, no snort added)
+se('se_h_esayose', {
+  label: 'エサ寄せ（スコップ、さらさら）',
+  group: G_BARN,
+  rand: [0.06, 0.06],
+  layers: [
+    'noise env=5/120/0/60 dur=70 v=.022 flt=BP900q0.8',
+    'noise env=20/200/0/100 dur=150 v=.010 flt=BP3200q1 am=24/.5 at=40',
+    'noise env=5/120/0/60 dur=70 v=.018 flt=BP820q0.8 at=300',
+    'noise env=20/200/0/100 dur=150 v=.008 flt=BP3000q1 am=24/.5 at=340',
+  ],
+});
+se('se_h_watercup', {
+  label: '給水器（押し板カチ、こぽ、ちょろろ）',
+  group: G_BARN,
+  rev: 0.2,
+  layers: ['tri f=900 env=0/30/0/10 dur=8 v=.02', 'sine f=320→520/120 env=5/120/0/60 dur=60 v=.018 at=60', 'noise env=40/200/.3/200 dur=380 v=.009 flt=BP2600q2 am=18/.6 at=120'],
 });
 se('se_h_side_roll', {
   label: 'サイドの巻き上げ（ハウスのハンドルのラチェット）',

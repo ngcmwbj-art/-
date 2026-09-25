@@ -112,6 +112,13 @@ const K = {
   crimsonDk: c(P.sunShade),
   kuzuFlower: c(P.sunShade),
   oldWood: c(HP.oldWood),
+  gravel: c(mix(P.steel, P.brassOld, 0.35)),
+  gravelLt: c(mix(P.concrete, P.woodLt, 0.35)),
+  boardA: c(mix(P.woodLt, P.brassOld, 0.35)),
+  boardB: c(mix(P.brassOld, P.woodLt, 0.3)),
+  boardC: c(mix(P.brassOld, P.wood, 0.35)),
+  boardLit: c(mix(P.woodLt, P.goldPale, 0.35)),
+  boardGap: c(mix(P.wood, P.woodDark, 0.5)),
   oldWoodDk: c(HP.oldWoodDk),
 };
 
@@ -564,19 +571,21 @@ const texYamamichi: HTex = (x, y, v) => {
   return col;
 };
 
-/** 丘の上の広場: mown grass worn through to gravel along the paths. */
+/** 丘の上の広場: mown grass worn through to earth and fine gravel along the paths. */
 const texHilltop: HTex = (x, y, v) => {
   const big = fbm(x / 22, y / 18, 1161);
-  if (big < 0.34) {
-    // gravel
+  const path = big < 0.27;
+  if (path) {
+    // worn earth with fine gravel (brownish grey: it must not read as purple patches at night)
     const cx = Math.floor(x / 3);
     const cy = Math.floor(y / 3);
     const h = ihash(cx, cy, 1163 + v);
     const ox = x - cx * 3;
     const oy = y - cy * 3;
-    if (ox + oy === 0) return K.concreteLt;
-    if (ox === 2 || oy === 2) return big < 0.3 ? K.asphalt : K.leafDeep;
-    return h % 3 === 0 ? K.concrete : K.steel;
+    if (h % 4 === 0 && ox + oy === 0) return K.gravelLt;
+    if (h % 4 === 1 && ox === 1 && oy === 1) return K.gravel;
+    if (big > 0.27 && ((x + y) & 1)) return K.leafDeep;
+    return fbm(x / 6, y / 6, 1167) > 0.6 ? K.soil : ((x * 3 + y) % 4 === 0 ? K.leafShade : K.soilDk);
   }
   let col = big > 0.66 ? K.leafYoung : K.leaf;
   const h = ihash(x >> 2, y >> 2, 1165 + v);
@@ -584,7 +593,7 @@ const texHilltop: HTex = (x, y, v) => {
   const by = (y >> 2) * 4 + ((h >>> 2) & 1);
   if (x === bx && y === by) col = K.leafLt;
   if (x === bx + 1 && y === by + 1) col = K.leafDeep;
-  if (big < 0.4 && ((x + y) & 1)) col = K.leafDeep;
+  if (big < 0.36 && ((x + y) & 1)) col = K.leafDeep;
   return col;
 };
 
@@ -643,24 +652,25 @@ const texSawdust: HTex = (x, y, v) => {
   return col;
 };
 
-/** 分校の床: wide old boards, grey-brown with age, nail heads, worn pale along the corridor. */
+/** 分校の床: long old boards, warm brown with age, nail heads, a paler worn lane. */
 const texSchoolWood: HTex = (x, y, v) => {
   const bh = 6;
   const row = Math.floor(y / bh);
   const ly = y - row * bh;
-  const len = 56 + (ihash(0, row, 1251) % 40);
+  const len = 64 + (ihash(0, row, 1251) % 48);
   const off = ihash(1, row, 1253) % len;
   const bx = Math.floor((x + off) / len);
   const lx = (((x + off) % len) + len) % len;
   const hh = ihash(bx, row, 1255 + v);
-  if (ly === bh - 1) return K.woodDark;
-  if (lx === 0) return K.woodDark;
-  if ((lx === 3 || lx === len - 4) && ly === 2) return K.charcoal; // nail heads
-  const tone = hh % 4;
-  let col = tone === 0 ? K.oldWood : tone === 1 ? K.woodLt : K.brassOld;
-  if (ly === 0) col = tone === 0 ? K.concrete : K.goldPale;
-  const g = valueNoise(x / 10, row * 2.7, 1257 + (hh & 7));
-  if (g > 0.78) col = tone === 0 ? K.oldWoodDk : K.wood;
+  if (ly === bh - 1) return K.boardGap;
+  if (lx === 0) return K.boardGap;
+  if ((lx === 3 || lx === len - 4) && ly === 2) return K.woodDark; // nail heads
+  const tone = hh % 3;
+  let col = tone === 0 ? K.boardA : tone === 1 ? K.boardB : K.boardC;
+  if (ly === 0) col = K.boardLit;
+  const g = valueNoise(x / 12, row * 2.7, 1257 + (hh & 7));
+  if (g > 0.8) col = K.boardB === col ? K.boardC : K.boardB; // grain
+  if (((x * 7 + row * 13) & 31) === 0) col = K.boardC;
   return col;
 };
 

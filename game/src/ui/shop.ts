@@ -469,8 +469,12 @@ class ShopScene implements Scene {
       // a pin of masking tape on the left end
       g.img(tapeImgSmall(i), x - 3, y + 5);
       const focus = !this.confirm || this.confirm.id === id;
-      if (sel) drawMarker(g, x + 8, y + 3, textW(it.name) + 4, 14, Math.min(1, this.moveT / 70), focus ? UI.marker : '#EFE4C6');
-      g.text(it.name, x + 10, y + 2, { color: out ? UI.textDim : UI.text });
+      if (sel) drawMarker(g, x + 8, y + 3, Math.min(textW(it.name), CARD_W - 24 - digitsWidth(`${this.price(id)}円`)) + 4, 14, Math.min(1, this.moveT / 70), focus ? UI.marker : '#EFE4C6');
+      // a long name is set tighter so it clears the price
+      const room = CARD_W - 16 - digitsWidth(`${this.price(id)}円`) - 8;
+      const nw = textW(it.name);
+      const sp = nw <= room ? 0 : nw - [...it.name].length <= room ? -1 : -2;
+      g.text(it.name, x + 10, y + 2, { color: out ? UI.textDim : UI.text, spacing: sp });
       if (out) {
         // sold out for the day: the price is struck through and the shop's
         // 「売切」 seal is pressed beside it — the same on every card

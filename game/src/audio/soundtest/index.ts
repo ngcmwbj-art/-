@@ -165,7 +165,7 @@ const AMB_LABEL: Record<string, string> = {
   amb_h_barn: '牛舎の中（換気扇、反すう、給水器）',
   amb_h_house: '息をするハウス（ビニールの4秒の息）',
   amb_h_tomato: 'はなまるトマトの音（暗がりの道しるべ）',
-  amb_h_school: '集会所の夜（やかんと寝息）',
+  amb_h_school: '集会所の夜（やかん、いびき、寝言）',
   amb_h_boukatou: '防犯灯のうなり（はりきって点いている）',
   amb_h_tetsuya: '夜通しの耕うん機（空冷1気筒のドッドッ）',
   amb_h_train: '夜の電車の車内（レールの継ぎ目）',

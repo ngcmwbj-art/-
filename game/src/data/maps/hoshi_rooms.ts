@@ -271,7 +271,9 @@ const BARN_OBJ: MapObj[] = [
   PR('prop_h_barn_spare', 20, 2, { n: 4 }),
   PR('prop_h_barn_spare', 20, 7, { n: 4, v: 1 }),
   ...barnCows(),
-  PR('prop_h_barn_rails', 0, 0),
+  PR('prop_h_barn_rail', 5, 5, { side: 'n' }),
+  PR('prop_h_barn_rail', 5, 7, { side: 's' }),
+  PR('prop_h_barn_blower', 4, 3),
   PR('prop_h_barn_lights', 0, 0),
   // examine: the anteroom (52 4.3)
   O('obj_hoshi_shodoku', 2, 9, { flat: true }),

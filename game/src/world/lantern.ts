@@ -36,6 +36,8 @@ export const LANTERN_AMP = 3.2;
 export const LANTERN_HZ = 0.8;
 /** Colour of the dark in the light map. */
 export const DARK_COL = '#10101A';
+/** The starlight round Minato's feet in a room's dark part (the night through its windows, pal_h0). */
+export const STARLIGHT_ROOM = '#5C5A94';
 /** Things are shown within R − 6px, symbols within R + 8px (02_ch2 5章 #9). */
 export const SHOW_MARGIN = -6;
 export const SYM_MARGIN = 8;
@@ -638,6 +640,9 @@ export class LightState {
         sctx.globalCompositeOperation = 'source-in';
         sctx.fillStyle = base;
         sctx.fillRect(0, 0, disc.width, disc.height);
+        // only where it is dark (off the dark the place keeps its own light)
+        sctx.globalCompositeOperation = 'destination-in';
+        blitRegion(sctx, dc, sx + cx, sy + cy, 0, 0, disc.width, disc.height);
         lx.drawImage(sc, 0, 0, disc.width, disc.height, sx, sy, disc.width, disc.height);
       }
     for (const s of this.sources) {
@@ -655,9 +660,14 @@ export class LightState {
     if (sx > W || sy > H || sx + size < 0 || sy + size < 0) return;
     const out = ringImage(r, 'out');
     const inn = ringImage(r, 'in');
+    // off the dark the rings are mixed into the ordinary night; in a lit
+    // room they may only lighten (a lantern never darkens the room's lamp)
+    const offOp: GlobalCompositeOperation = this.f.map.def.kind === 'indoor' ? 'lighten' : 'source-over';
     lx.globalAlpha = Math.min(1, k);
     if (!dc) {
+      lx.globalCompositeOperation = offOp;
       lx.drawImage(out, sx, sy);
+      lx.globalCompositeOperation = 'source-over';
       lx.globalAlpha = 1;
       return;
     }
@@ -667,7 +677,9 @@ export class LightState {
     sctx.drawImage(out, 0, 0);
     sctx.globalCompositeOperation = 'destination-out';
     blitRegion(sctx, dc, sx + cx, sy + cy, 0, 0, size, size);
+    lx.globalCompositeOperation = offOp;
     lx.drawImage(sc, 0, 0, size, size, sx, sy, size, size);
+    lx.globalCompositeOperation = 'source-over';
     // on the dark
     sctx.globalCompositeOperation = 'copy';
     sctx.drawImage(inn, 0, 0);
@@ -676,6 +688,21 @@ export class LightState {
     lx.drawImage(sc, 0, 0, size, size, sx, sy, size, size);
     lx.globalAlpha = 1;
   }
+}
+
+/**
+ * Remove the dark parts of the map from `ctx` (screen space, camera at cx,
+ * cy): what is drawn after the grade — the sky mirrored in the water — must
+ * not shine out of the dark (the wallow's puddles, 52 8.5).
+ */
+export function eraseDark(ctx: CanvasRenderingContext2D, f: FieldScene, cx: number, cy: number, W: number, H: number): void {
+  if (!f.light.hasDark) return;
+  const dc = darkCanvas(f.map);
+  if (!dc) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  blitRegion(ctx, dc, cx, cy, 0, 0, W, H);
+  ctx.restore();
 }
 
 /** Is the dark switched off by a script (the barn's lights at 5:00)? */
