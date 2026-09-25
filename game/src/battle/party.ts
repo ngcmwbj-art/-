@@ -28,7 +28,7 @@ import { infoCardWidth, kireIconXY, PANEL_POS, panelOffset, type CardData } from
 import { C, tapeCanvas } from './ui/note';
 import { FLAG_PAD, kanenariBack, kanenariFront, MIC_AT } from '../art/enemies/kanenari';
 import { portrait } from '../art/chars';
-import { bokemakeLabel, tsukkomiWindows } from './tsukkomi';
+import { bokemakeLabel, timingSlow, tsukkomiWindows } from './tsukkomi';
 import { onBossPartBreak, onBossBodyMimashita, bossUndo, doOkaerinasai } from './boss';
 
 // ---- helpers -----------------------------------------------------------------------
@@ -99,15 +99,22 @@ export function* ringStrike(s: BattleScene, cx: () => number, cy: () => number, 
       });
     },
   });
-  for (let f = 0; ; f++) {
+  // runs slower than real time like the enemy wind-up (timingSlow)
+  const slow = timingSlow();
+  let sub = 0;
+  let lastF = -1;
+  for (let f = 0; ; ) {
+    const fresh = f !== lastF;
+    lastF = f;
     // the ring's own rising tone is the timing reference (40_audio se_ring)
-    if (f === lead) s.sfx('se_ring', { dur: Math.round(shrink * FRAME) });
+    if (fresh && f === lead) s.sfx('se_ring', { dur: Math.round(shrink * FRAME * slow) });
     if (f >= lead) {
+      const ff = f + sub;
       st.visible = true;
-      st.alpha = Math.min(1, (f - lead + 1) / 4);
-      st.r = f >= hitF ? 10 : 44 - 34 * ((f - lead) / shrink);
+      st.alpha = Math.min(1, (ff - lead + 1) / 4);
+      st.r = f >= hitF ? 10 : 44 - 34 * Math.min(1, (ff - lead) / shrink);
     }
-    if (tut && f === hitF - 4) {
+    if (fresh && tut && f === hitF - 4) {
       s.sticky = { text: '', t: 0 };
       showStickyRing(s);
     }
@@ -123,13 +130,18 @@ export function* ringStrike(s: BattleScene, cx: () => number, cy: () => number, 
         st.good = true;
       }
     }
-    onFrame(f, hitF);
+    if (fresh) onFrame(f, hitF);
     if (f >= hitF && (q !== 'none' || f >= hitF + win)) {
       resolvedAt = f;
       st.done = true;
       break;
     }
     yield null;
+    sub += 1 / slow;
+    if (sub >= 1) {
+      sub -= 1;
+      f++;
+    }
   }
   // keep the sight a moment (gold glow on a good hit)
   s.addFx({ layer: 'top', dur: 220, ui: true, draw: () => {}, update() {
@@ -584,7 +596,7 @@ export function* holdStamp(s: BattleScene, u: PartyUnit, forceKasure = false): C
     setFlag('flag_tut_hanko', 1);
     showSticky(s, 'hanko');
   }
-  const speed = tut ? 0.7 : 1;
+  const speed = (tut ? 0.7 : 1) / timingSlow();
   const kLo = u.m.level >= 5 ? 0.84 : 0.88;
   const st = { rise: 0, amount: 0, charging: false, lift: 0, drop: 0, inZone: false, shake: 0, visible: true };
   s.sfx('se_hanko_ready');

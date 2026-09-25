@@ -15,7 +15,7 @@ import {
   addKire, changeStage, giveStatus, hideSticky, healParty, hurtEnemy, hurtParty, kireFullPages, panelImpact, sayFallen, showSticky, statusText, tsukkomiFeel, type Guarded,
 } from './common';
 import {
-  bokemakeLabel, lateTip, markLineSeen, pickLine, popBang, RING_LEAD, showBang, showFlip, showKakimoji, showTsukRing, tsukkomiUnit, tsukkomiWindows, type TsukRing,
+  bokemakeLabel, lateTip, markLineSeen, pickLine, popBang, RING_LEAD, showBang, showFlip, showKakimoji, showTsukRing, timingSlow, tsukkomiUnit, tsukkomiWindows, type TsukRing,
 } from './tsukkomi';
 import { coinShiny, glove, meishiCard, musicNote, uwabaki, waterDrop, feather, spring, drawArc } from './art/fxart';
 import { PANEL_POS } from './ui/panels';
@@ -118,8 +118,15 @@ export function* hitLoop(s: BattleScene, o: LoopOpts): Co<(Guarded | null)[]> {
   // after a hit failed without an answer, a press in the next 24 frames is
   // a late reaction to the "!" (watched in real time, through the hitstop)
   let late: { on: boolean } | null = null;
+  // the whole wind-up runs slower than real time (timingSlow): a logic frame
+  // lasts a little more than one screen frame, presses are read every frame
+  const slow = timingSlow();
+  let sub = 0;
+  let lastF = -1;
   s.takeConfirm();
-  for (let f = 0; hi < hitFrames.length; f++) {
+  for (let f = 0; hi < hitFrames.length; ) {
+    const fresh = f !== lastF;
+    lastF = f;
     const hf = hitFrames[hi];
     const rel = f - hf;
     if (o.tsukkomi && !ring && rel >= -RING_LEAD) {
@@ -170,7 +177,7 @@ export function* hitLoop(s: BattleScene, o: LoopOpts): Co<(Guarded | null)[]> {
         if (ring) ring.state = 'ok';
       }
     }
-    o.onFrame?.(f, hi, hf - f);
+    if (fresh) o.onFrame?.(f, hi, hf - f);
     let resolve = false;
     let r: Guarded | null = null;
     if (rel >= 0 && pending) {
@@ -197,6 +204,11 @@ export function* hitLoop(s: BattleScene, o: LoopOpts): Co<(Guarded | null)[]> {
       bangShown = false;
     }
     yield null;
+    sub += 1 / slow;
+    if (sub >= 1) {
+      sub -= 1;
+      f++;
+    }
   }
   return results;
 }

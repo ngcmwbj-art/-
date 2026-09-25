@@ -35,6 +35,16 @@ export function tsukkomiWindows(): Windows {
   return wide ? { show: -22, from: -22, to: 4, justFrom: -6, justTo: 0 } : { show: -12, from: -12, to: 2, justFrom: -3, justTo: 0 };
 }
 
+/**
+ * How much slower than the animation's own frames the timing games run (the
+ * enemy wind-up with its "!" and closing ring, the たたく ring, the hanko ink
+ * ring). Playtest: on a phone everything came too fast, so every window gets
+ * this much longer in real time; ツッコミ判定：ひろい slows it a little more.
+ */
+export function timingSlow(): number {
+  return flag('flag_opt_tsukkomi_wide') ? 1.5 : 1.3;
+}
+
 /** Who performs the tsukkomi right now (Minato; Kanenari-kun's flip when Minato can't). */
 export function tsukkomiUnit(s: BattleScene): PartyUnit | null {
   const m = s.minato;
