@@ -216,12 +216,16 @@ registerBuilding({
     const p = b.p;
     const rY = b.roofY;
     const fY = b.faceY;
-    // the gap between the buildings (grass in shade) and the walkway's flat tin roof
-    for (let j = rY; j < fY; j++) for (let i = 0; i < 16; i++) p.set(i, j, h01(i, j, 3601) < 0.3 ? P.leafShade : P.night);
-    for (let j = rY + 14; j < fY + 2; j++)
-      for (let i = 1; i < 15; i++) p.set(i, j, j === rY + 14 ? P.concreteLt : (i % 3 === 0 ? P.steel : P.concrete));
-    p.vline(1, rY + 14, fY + 1, P.concreteLt);
-    p.vline(14, rY + 14, fY + 1, P.asphalt);
+    // the gap between the buildings (the back yard: weeds and dark earth), then the walkway's low tin roof
+    for (let j = rY; j < fY; j++)
+      for (let i = 0; i < 16; i++) {
+        const n = h01(i, j, 3601);
+        p.set(i, j, n < 0.25 ? P.leafShade : n < 0.5 ? mix(P.woodDark, P.night, 0.4) : n < 0.6 ? P.leafDeep : P.night);
+      }
+    for (let i = 0; i < 16; i++) {
+      p.set(i, rY + 4, P.charcoal); // the eaves of the two buildings' shadows
+    }
+    roofTinH(p, 0, rY + 40, 16, fY - rY - 38, TIN_GRAY, 32, { mono: true, rust: 0.3, patches: 0 });
     // the walkway: posts, a handrail, the dark passage behind
     p.rect(0, fY + 2, 16, 30, P.night);
     for (const px of [1, 13]) {

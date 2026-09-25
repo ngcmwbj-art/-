@@ -40,6 +40,12 @@ interface VoiceDef {
   pa?: boolean;
   noise?: { bp: number; q: number; level: number };
   fixedSeq?: number[];
+  /** Amplitude modulation on every blip: rate (Hz), depth, shape (an engine's grain). */
+  am?: [number, number, OscillatorType?];
+  /** Start every blip this many cents off and slide home (a rise at the attack). */
+  scoopAll?: [number, number];
+  /** 53 9.2: a page that starts with a name is called with the falling minor third (broadcast, yobimodoshi). */
+  calls?: boolean;
 }
 
 export const VOICES: Record<string, VoiceDef> = {
@@ -73,11 +79,26 @@ export const VOICES: Record<string, VoiceDef> = {
   flip: { label: 'カネナリくんのフリップ', wave: 'sawtooth', base: 2000, scale: [0, 1], len: 35, every: 3, v: 0.02, bp: [2400, 4], vib: [28, 60] },
   kanenari_voice: { label: 'カネナリくんの声', wave: 'triangle', wave2: ['sawtooth', 0.2], base: 'D3', scale: [0], len: 140, A: 20, R: 100, every: 1, v: 0.07, formant: true, rev: 0.35 },
   default: { label: '（指定なし）', wave: 'triangle', base: 'A4', scale: [0, 2, 4, 7, 9], len: 30, every: 2, v: 0.045, formant: true },
+  // ---- chapter 2 (53_ch2_audio 9.1)
+  h_train: { label: '運転士（車内放送）', wave: 'square', base: 'F4', scale: [0, 2, 4], len: 36, every: 2, v: 0.04, bp: [1300, 2], rev: 0.2 },
+  h_tetsuya: { label: '耕うん機テツヤ', wave: 'pulse12', base: 'D4', scale: [0], len: 50, A: 1, every: 2, v: 0.045, fixedSeq: [0, 0, 2, 0], am: [15, 0.6, 'square'] },
+  yobimodoshi: { label: 'ヨビモドシ', wave: 'sine', base: 'G4', scale: [0, 2, 3, 7], len: 50, every: 2, v: 0.045, pa: true, noise: { bp: 1200, q: 4, level: 0.5 }, calls: true },
+  h_mujin: { label: 'ムジン販売員の札', wave: 'sawtooth', base: 1600, scale: [0, 1], len: 35, every: 3, v: 0.02, bp: [2000, 4], vib: [28, 60] },
+  h_gon: { label: 'ゴン', wave: 'square', base: 'F#3', scale: [0, 0, 3], len: 30, every: 3, v: 0.05, lp: 900 },
+  // the branch school's broadcast room: its own small speaker, not the hill's (ふしぎ10, 53 8.9)
+  broadcast_room: { label: '放送室の小さなスピーカー', wave: 'sine', base: 'A4', scale: [0, 2, 4], len: 45, every: 2, v: 0.04, lp: 800, noise: { bp: 900, q: 3, level: 0.4 }, rev: 0.15 },
 };
+// 星見台 calls the names on the same speaker as the town's broadcast (53 9.2)
+VOICES.broadcast.calls = true;
 
 const ALIAS: Record<string, string> = {
   mom: 'mother', haha: 'mother', kanenari: 'flip', old: 'obaa', narration: 'narr', narrator: 'narr', system: 'sys',
   sand_girl: 'girl', gacha_boy: 'kid', shadow_man: 'shadow', kotaro: 'dog', minato: 'none', omu: 'omukaemachi',
+  // chapter 2: @npc_hoshi_* speak with their h_* voice (53 9.1)
+  hoshi_mitsu: 'h_mitsu', hoshi_gen: 'h_gen', hoshi_fumi: 'h_fumi', hoshi_kucho: 'h_kucho', hoshi_yoshie: 'h_yoshie',
+  hoshi_tome: 'h_tome', hoshi_sawako: 'h_sawako', hoshi_busdriver: 'h_driver', hoshi_driver: 'h_driver',
+  hoshi_traindriver: 'h_train', hoshi_gon: 'h_gon', hoshi_speaker: 'broadcast', hoshi_mujin: 'h_mujin',
+  tetsuya: 'h_tetsuya', boss_yobimodoshi: 'yobimodoshi', mujin: 'h_mujin', gon: 'h_gon',
 };
 
 // ---------------------------------------------------------------------------
@@ -124,15 +145,25 @@ interface State {
   lastT: number;
   /** The last three pitches (semitones from the base), for the sealed-answer guard. */
   hist: number[];
+  /** The next voiced character opens a line (a pause, or after 。). */
+  lineStart?: boolean;
+  /** This line calls a name (53 9.2): blips counted from its start. */
+  nameLine?: boolean;
+  nameI?: number;
+  /** The last character given, voiced or not (ちゃん / くん / さん). */
+  prevCh?: string;
 }
 const st: Record<string, State> = {};
 let kanenariSeq = 0;
+/** Which of Kanenari's two words is being said (the character after お decides: 53 9.3). */
+let kanenariWord: 'oishii' | 'ohayou' = 'oishii';
 let paSwellCheck: { t: number } | null = null;
 
 /** QA: forget the per-voice spacing state (offline renders start at t = 0). */
 export function resetVoiceState(): void {
   for (const k of Object.keys(st)) delete st[k];
   kanenariSeq = 0;
+  kanenariWord = 'oishii';
 }
 
 export function resolveVoice(voiceId: string): string {
@@ -159,6 +190,18 @@ export function blip(voiceId: string, ch: string, at?: number): void {
   const g = cur();
   const now = at ?? g.ctx.currentTime;
   const s = (st[id] ??= { last: -1, lastSemi: 99, repeat: 0, seqI: 0, lastMidi: 60, lastT: 0, hist: [] });
+  const prevCh = s.prevCh;
+  s.prevCh = ch;
+  // a name line (53 9.2) ends with its sentence; a pause opens a new line.
+  // Only 星見台's speaker calls names (夕鳴町's broadcast is chapter 1's, unchanged)
+  const calls = !!def.calls && (id === 'yobimodoshi' || g.pa.mode === 'yama');
+  if (calls) {
+    if (now - s.lastT > 0.6) s.lineStart = true;
+    if (ch === '。' || ch === '」' || ch === '？' || ch === '?' || ch === '\n') {
+      s.lineStart = true;
+      s.nameLine = false;
+    }
+  }
 
   // sentence endings: a little rise for "？", a push for "！"
   if (ch === '？' || ch === '?' || ch === '！' || ch === '!') {
@@ -174,9 +217,19 @@ export function blip(voiceId: string, ch: string, at?: number): void {
     return;
   }
   if (SILENT.has(ch) || !ch.trim()) return;
+  // 53 9.2: a line that starts with a name (katakana, after the "……") is
+  // called, not said: the first blip on the voice's note, then 0 / −3 in turn
+  // (the falling minor third of 「ナ・ナ・ミー」); the last ん of ちゃん / くん /
+  // さん always sounds, low and long. The sealed answer cannot come out of it.
+  if (calls && s.lineStart) {
+    s.lineStart = false;
+    s.nameLine = isKatakana(ch);
+    s.nameI = 0;
+  }
+  const honorific = !!s.nameLine && ch === 'ん' && !!prevCh && 'ゃくさ'.includes(prevCh);
   // spacing: the voice's interval in characters at 40 chars/s
   const minGap = def.every * 0.025 * 0.9;
-  if (now - s.last < minGap) return;
+  if (now - s.last < minGap && !honorific) return;
   // a new page of the flip: the whole marker squeak
   if (id === 'flip' && now - s.last > 0.8) {
     s.last = now;
@@ -187,12 +240,31 @@ export function blip(voiceId: string, ch: string, at?: number): void {
   s.last = now;
 
   let semi: number;
-  if (def.fixedSeq) {
+  let volK = 1;
+  let longMs = 0;
+  if (s.nameLine) {
+    const i = s.nameI ?? 0;
+    s.nameI = i + 1;
+    semi = honorific ? -3 : i === 0 ? 0 : i % 2 === 1 ? 0 : -3;
+    if (honorific) longMs = 120;
+  } else if (def.fixedSeq) {
     semi = def.fixedSeq[s.seqI++ % def.fixedSeq.length];
   } else if (id === 'kanenari_voice') {
+    // the character after お tells the two words apart (53 9.3):
     // "……おいしい。": お 0, い +3, し +3, い −2 (long, falling)
-    const map: Record<string, number> = { お: 0, い: kanenariSeq >= 2 ? -2 : 3, し: 3 };
-    semi = map[ch] ?? 0;
+    // "……おはよう。": お 0, は +5, よ +5 (a little softer), う +5 → +3 (long:
+    // it settles on F, the morning song's tonic)
+    if (ch === 'お') kanenariWord = 'oishii';
+    else if (kanenariSeq === 1) kanenariWord = ch === 'は' ? 'ohayou' : 'oishii';
+    if (kanenariWord === 'ohayou') {
+      semi = ch === 'お' ? 0 : 5;
+      if (ch === 'よ') volK = 0.85;
+      if (ch === 'う') longMs = 320;
+    } else {
+      const map: Record<string, number> = { お: 0, い: kanenariSeq >= 2 ? -2 : 3, し: 3 };
+      semi = map[ch] ?? 0;
+      if (ch === 'い' && kanenariSeq >= 3) longMs = 300;
+    }
     kanenariSeq = ch === 'お' ? 1 : kanenariSeq + 1;
   } else {
     semi = def.scale[hashCh(ch) % def.scale.length];
@@ -219,12 +291,24 @@ export function blip(voiceId: string, ch: string, at?: number): void {
   const midi = baseMidi + semi;
   s.lastMidi = midi;
   s.lastT = now;
-  const long = id === 'kanenari_voice' && ch === 'い' && kanenariSeq >= 4;
-  play(def, id, midi, now + 0.005, 0, 1, vowelOf(ch), false, undefined, long);
+  play(def, id, midi, now + 0.005, 0, volK, vowelOf(ch), false, undefined, longMs);
+  if (id === 'yobimodoshi') openLineHum(now);
   if (g.offline) return;
   if (id === 'kanenari_voice') {
     // the night song leans back (−4 dB) under the four hums
     duck(dbToGain(-4), 0.15, 0.6, 0.6);
+  } else if (def.pa && g.pa.mode === 'yama') {
+    // 星見台 (53 10.3): the calls come from far up the valley (−4 / −2 dB);
+    // close under the horns (the hill, the boss) they take more room (−6 / −4)
+    const d = g.pa.distance;
+    const near = (d.override ?? d.d) < 0.3 && !d.indoor;
+    if (near) {
+      duck(dbToGain(-6), 0.3, 0.5, 0.8);
+      duckAmbience(dbToGain(-4), 0.3, 0.5, 0.8);
+    } else {
+      duck(dbToGain(-4), 0.2, 0.5, 0.6);
+      duckAmbience(dbToGain(-2), 0.2, 0.5, 0.6);
+    }
   } else if (def.pa) {
     duck(dbToGain(-9), 0.3, 0.5, 0.8);
     duckAmbience(dbToGain(-6), 0.3, 0.5, 0.8);
@@ -247,12 +331,74 @@ function schedulePaSwell(): void {
   });
 }
 
-function play(def: VoiceDef, id: string, midi: number, t: number, bend: number, volK: number, vowel: string, isTail: boolean, revOverride?: number, long = false): void {
+/** Katakana (a name called on the speaker: ナナミ, ケンイチ…). */
+function isKatakana(ch: string): boolean {
+  return (ch >= 'ァ' && ch <= 'ヺ') || ch === 'ヴ';
+}
+
+/**
+ * ヨビモドシ's open line (53 9.2): a low hum (55 + 110 Hz, and the buzz of
+ * its harmonics that a small speaker carries) runs into the PA while it
+ * speaks, and fades 0.6 s after the last blip, over 0.4 s.
+ */
+const hums = new WeakMap<BaseAudioContext, { oscs: OscillatorNode[]; gain: GainNode; until: number }>();
+function openLineHum(t: number): void {
+  const g = cur();
+  const c = g.ctx;
+  let h = hums.get(c);
+  if (!h || h.until < t + 0.02) {
+    const gain = c.createGain();
+    gain.gain.value = 0;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(1, t + 0.12);
+    const oscs: OscillatorNode[] = [];
+    for (const [f, v, type] of [
+      [55, 0.006, 'sine'],
+      [110, 0.006, 'sine'],
+      [110, 0.0022, 'sawtooth'],
+    ] as [number, number, OscillatorType][]) {
+      const o = c.createOscillator();
+      o.type = type;
+      o.frequency.value = f;
+      const k = c.createGain();
+      k.gain.value = v * trimOr1(voiceTrim('yobimodoshi'));
+      let tail: AudioNode = k;
+      if (type === 'sawtooth') {
+        const lp = c.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 900;
+        k.connect(lp);
+        tail = lp;
+      }
+      o.connect(k);
+      tail.connect(gain);
+      o.start(t);
+      oscs.push(o);
+    }
+    gain.connect(g.pa.input);
+    h = { oscs, gain, until: t };
+    hums.set(c, h);
+    oscs[0].onended = () => gain.disconnect();
+  } else {
+    const p = h.gain.gain;
+    p.cancelScheduledValues(t);
+    p.setValueAtTime(1, t);
+  }
+  const fadeAt = t + 0.6;
+  h.gain.gain.setValueAtTime(1, fadeAt);
+  h.gain.gain.linearRampToValueAtTime(0, fadeAt + 0.4);
+  h.until = fadeAt + 0.4;
+  for (const o of h.oscs) o.stop(h.until + 0.05);
+  g.pa.wake(h.until + 1);
+}
+
+function play(def: VoiceDef, id: string, midi: number, t: number, bend: number, volK: number, vowel: string, isTail: boolean, revOverride?: number, longMs = 0): void {
   if (def.wave === 'none') return;
   const g = cur();
   const dest = def.pa ? g.pa.input : g.voiceBus;
   if (def.pa) g.pa.open(t);
-  const dur = (long ? 300 : def.len) / 1000;
+  const long = longMs > 0;
+  const dur = (long ? longMs : def.len) / 1000;
   const k = def.child ? 1.2 : 1;
   const [f1, f2] = FORMANT[vowel] ?? FORMANT.a;
   const f = def.wave === 'noise' ? 1000 : midiHz(midi);
@@ -276,9 +422,15 @@ function play(def: VoiceDef, id: string, midi: number, t: number, bend: number, 
     base.dur = 0.07;
   }
   if (long) {
-    base.freqEnd = f * Math.pow(2, -2 / 12);
-    base.glide = 0.3;
+    // a long last blip: Kanenari's words settle two semitones down (い −2 → …,
+    // う +5 → +3); a called name's last ん simply rings
+    if (id === 'kanenari_voice') {
+      base.freqEnd = f * Math.pow(2, -2 / 12);
+      base.glide = dur * 0.94;
+    }
+    base.dur = Math.max(0.02, dur - (def.R ?? 15) / 1000);
   }
+  if (def.am) base.am = { rate: def.am[0], depth: def.am[1], shape: def.am[2] };
   if (def.fall) {
     base.freqEnd = f * Math.pow(2, def.fall / 1200);
     base.glide = dur;

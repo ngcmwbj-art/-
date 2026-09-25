@@ -183,6 +183,8 @@ export interface ShadeOpts {
    * upper left. 第2章: NIGHT_LIGHT, the lantern low in front on the left.
    */
   light?: [number, number, number];
+  /** Which way the extra falloff brightens (default up-left [−1, −1]; night: down-left [−1, 1]). */
+  gradDir?: [number, number];
 }
 
 /** 第2章 (51 8.0): the tomato lantern, low and in front, on the left. */
@@ -232,7 +234,8 @@ export function shade(p: PixelCanvas, m: Mask, ramp: Ramp, o: ShadeOpts = {}): v
     }
     let lit = mode === 'flat' ? 0 : nx * lx + ny * ly + nz * lz - lz;
     if (mode === 'sphere' || mode === 'cyl') lit = nx * lx + ny * ly + nz * lz - 0.35;
-    const g = -((x + 0.5 - cx) / Math.max(1, bb.w)) * grad - ((y + 0.5 - cy) / Math.max(1, bb.h)) * grad;
+    const [gdx, gdy] = o.gradDir ?? [-1, -1];
+    const g = ((x + 0.5 - cx) / Math.max(1, bb.w)) * grad * gdx + ((y + 0.5 - cy) / Math.max(1, bb.h)) * grad * gdy;
     let v = base + lit * k + g;
     v = Math.max(0, Math.min(0.999, v));
     const t = (BAYER4[y & 3][x & 3] + 0.5) / 16 - 0.5;

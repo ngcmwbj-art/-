@@ -201,6 +201,12 @@ export interface ExamineObj extends Base {
   /** Lies flat on a walkable tile: also examinable while standing on it. */
   flat?: boolean;
   /**
+   * When several examinable things share a tile, the highest priority is
+   * the one examined (default 0; ties: the first listed). The barn chores'
+   * spots (spot_h_*, 50 10.19) sit on the trough tiles above their text.
+   */
+  priority?: number;
+  /**
    * Only drawn and examinable inside the tomato light (52 8.5, 50 5章 #18:
    * the kitchen hearth), even when its tile is not a dark tile. Examinable
    * things on dark tiles behave so without this.
@@ -297,6 +303,13 @@ export interface SymbolObj extends Base {
   /** Behaviour preset (defaults from the enemy id). */
   move?: SymbolMove;
   dir?: Dir;
+  /**
+   * Field sprite (default: the first enemy's id; an encounter of two of the
+   * same enemy uses `<enemy>_pair` when the character art has one — the
+   * 24×16 bunch of the two sulking tomatoes, 52 11.1). The restored object
+   * follows it (restored_<sprite>).
+   */
+  sprite?: string;
   /**
    * Patrol end point for cones, and for chapter 2: the far end of the
    * furrow テツヤ drives along ('tetsuya', (56,4)), the far end of the fence

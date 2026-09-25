@@ -3,13 +3,13 @@
 import { registerDebug } from '../debug';
 import { game } from '../engine/game';
 import { ask, caption, choose, say } from './dialog';
-import { notifyItem, showClock, showPlaceName, skipItemCard, uiHud } from './hud';
+import { notifyItem, showCallBubble, showClock, showPlaceName, skipItemCard, uiHud } from './hud';
 import { openMenu } from './menu';
 import { showTitle } from './title';
 import { openShop } from './shop';
 import { saveMenu } from './save';
 import { runGameOver } from './gameover';
-import { playEndingNotebook, playNightSkyCut } from './ending';
+import { playEndingNotebook, playEndingNotebookCh2, playNightSkyCut } from './ending';
 import { showGuide } from './guide';
 import { showBubble } from './bubble';
 import { addItem, setFlag, state } from '../game/state';
@@ -23,10 +23,15 @@ import { W } from '../engine/screen';
 import type { Scene } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { drawVillageLit } from './cut_village_lit';
+import { openSunriseCut, sunriseStill } from './cut_sunrise';
 
 const SAMPLES: Record<string, () => Generator> = {
   normal: function* () {
     yield* say(['あ、起きた。{w=300}\nおつかい 行ってきて。', 'コロッケ 4つ。ソースは 別。{w=300}\n別よ？'], { name: '母', voice: 'mother' });
+  },
+  mujin: function* () {
+    yield* say(['いらっしゃいませ。\nどれでも 100円。'], { voice: 'h_mujin' });
+    yield* say(['（札で 話す 人、ほかにも いたんですね）'], { name: 'カネナリくん', voice: 'flip' });
   },
   flip: function* () {
     yield* say(['（コロッケは 食べられません。\n中が 暗いので）'], { name: 'カネナリくん', voice: 'flip' });
@@ -146,8 +151,8 @@ registerDebug('ending', () => {
   );
   return 'ending';
 });
-registerDebug('notebook', () => {
-  game.scripts.run(playEndingNotebook());
+registerDebug('notebook', (ch = 1) => {
+  game.scripts.run(ch === 2 ? playEndingNotebookCh2({ toTitle: false }) : playEndingNotebook());
   return 'notebook';
 });
 registerDebug('guide', (text = '移動：十字キー\n調べる・話す：Z') => showGuide(text));
@@ -273,8 +278,53 @@ class CutPreview implements Scene {
   }
 }
 registerDebug('cut', (id = 'village', cue = 0) => {
+  if (id.startsWith('sunrise')) {
+    game.push(sunriseStill(Number(id.slice(7)) as 0 | 1 | 2));
+    return id;
+  }
+  if (id === 'sunriseplay') return id;
   const f = id === 'village' ? drawVillageLit : null;
-  if (!f) return ['village'];
+  if (!f) return ['village', 'sunrise0', 'sunrise1', 'sunrise2', 'dawn'];
   game.push(new CutPreview(f, cue));
   return id;
+});
+/** QA: the sunrise cut played through (the chime replaced by a 3 s wait). */
+registerDebug('dawn', () => {
+  game.scripts.run(
+    (function* () {
+      const cut = yield* openSunriseCut();
+      yield 3000;
+      yield* cut.rise();
+      yield* say('夕焼けを ためこんだ トマトが、\n朝焼けに なった。', { voice: 'narr' });
+      yield* cut.close();
+    })(),
+  );
+  return 'dawn';
+});
+
+/** QA: the loudspeaker's call bubble (fx_h_call_bubble) with its voice. */
+registerDebug('callBubble', (text = '……ナナミちゃん。') => {
+  showCallBubble(text, { voice: 'broadcast' });
+  return text;
+});
+
+/** QA: a chapter 2 party on 星見台 at stage `s` (the clock, the place names, the book ②). */
+registerDebug('ch2Demo', (s = 1) => {
+  if (!state.party.length || state.party.length < 2) {
+    state.party = [];
+    newGameParty();
+    joinKanenari();
+  }
+  setFlag('flag_clear', 1);
+  setFlag('flag_ch2_started', 1);
+  setFlag('flag_ch2_stage', s);
+  setFlag('flag_ch2_yoriai', 1);
+  if (s >= 1) setFlag('flag_ch2_got_tomato', 1);
+  for (const id of ['item_kairan_map', 'item_hanamaru_tomato', 'item_seiriken', 'item_kyuri_zuke', 'item_umeboshi', 'item_toumorokoshi', 'item_kairan_shuniku', 'item_mimashita_cho', 'item_hanko_case'])
+    if (!state.inventory.includes(id)) state.inventory.push(id);
+  for (const n of [1, 2, 3, 6, 8]) setFlag(`flag_fushigi_ch2_${String(n).padStart(2, '0')}`, 1);
+  for (const id of ['enemy_sune_tomato', 'enemy_henoheno_kacho', 'enemy_chototsu']) setFlag('flag_book_' + id, 1);
+  for (const f of ['flag_tsukkomi_enemy_sune_tomato_1', 'flag_tsukkomi_enemy_henoheno_kacho_2', 'flag_tsukkomi_enemy_chototsu_1']) setFlag(f, 1);
+  syncProgressSkills();
+  return 'ok';
 });

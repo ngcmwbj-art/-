@@ -28,6 +28,7 @@ import type { Actor } from './actor';
 import type { FieldScene, PropInst } from './field';
 import { condOk, currentStage, isCh2Map, type LoadedMap } from './maps';
 import type { DarkLight, ExamineObj, StarlightSpot, TileRect } from './types';
+import { lanternOf } from '../art/chars/nightlight';
 
 /** Lantern radius (px), breathing amplitude (px) and rate (Hz) — 52 8.5. */
 export const LANTERN_R = 72;
@@ -346,7 +347,8 @@ export class LightState {
   /** Radius override (QA: __game.cmd.lanternR). */
   forceR: number | null = null;
   private lastMap: LoadedMap | null = null;
-  private darkThings: { key: object; x: number; y: number }[] = [];
+  /** Things whose visibility follows the light; `lit`: litOnly (also off the dark). */
+  private darkThings: { key: object; x: number; y: number; lit: boolean }[] = [];
 
   constructor(private f: FieldScene) {}
 
@@ -390,15 +392,30 @@ export class LightState {
     return Math.round(breathe);
   }
 
-  /** The net's centre: Minato's feet + (−4, −6), bobbing 1px with his steps. */
-  lanternCentre(): [number, number] {
+  /**
+   * The pool's centre: where Minato's frame says his net hangs (chars'
+   * lanternOf: his feet + (−4, −6), 12px higher while he holds it up),
+   * bobbing 1px with his steps. Also the frame's radius scale (×1.2 held up).
+   */
+  lanternCentre(): [number, number, number] {
     const p = this.f.player;
     let bob = 0;
     if (p.moving) {
       const ms = p.running ? p.sprite.runFrameMs ?? 85 : p.sprite.walkFrameMs ?? 130;
       bob = Math.floor(p.walkT / ms) % 2 ? -1 : 0;
     }
-    return [Math.round(p.x - 4), Math.round(p.y - 6 + bob)];
+    let dx = -4;
+    let dy = -6;
+    let scale = 1;
+    const info = lanternOf(p.frame());
+    if (info) {
+      dx = info.dx + p.ox;
+      dy = info.dy + p.oy;
+      scale = info.scale;
+      // the walking frames carry the bob already
+      if (p.moving) bob = 0;
+    }
+    return [Math.round(p.x + dx), Math.round(p.y + dy + bob), scale];
   }
 
   update(dt: number): void {
@@ -422,8 +439,9 @@ export class LightState {
     const src: LightCircle[] = [];
     this.lantern = null;
     if (wanted && f.player.visible) {
-      const [x, y] = this.lanternCentre();
-      this.lantern = { x, y, r: this.radius(f.t), k: this.held ? 0.75 : 1, kind: 'lantern' };
+      const [x, y, scale] = this.lanternCentre();
+      const r = this.radius(f.t);
+      this.lantern = { x, y, r: this.forceR === null && !this.held ? Math.round(r * scale) : r, k: this.held ? 0.75 : 1, kind: 'lantern' };
       src.push(this.lantern);
     } else if (!wanted && f.player.visible && m.id === 'map_hoshi_house' && flag('flag_ch2_tomato_picked') && !flag('flag_ch2_got_tomato')) {
       // the はなまるトマト has dropped into his hands (evt_ch2_tomato): its glow goes with him
@@ -442,7 +460,7 @@ export class LightState {
       src.push({ x: Math.round(f.player.x), y: Math.round(f.player.y - 4), r: 16, k: 0, kind: 'star' });
     }
     this.sources = src;
-    if (!this.hasDark && !this.darkThings.some((d) => (d.key as { litOnly?: boolean }).litOnly)) return;
+    if (!this.hasDark && !this.darkThings.some((d) => d.lit)) return;
     // fade the dark things in and out
     for (const a of f.actors) {
       if (a.kind === 'player' || a.kind === 'follower') continue;
@@ -454,7 +472,7 @@ export class LightState {
       this.fade(a, this.inLight(a.x, a.y - 4, margin), dt);
     }
     for (const d of this.darkThings) {
-      if (!this.hasDark && !(d.key as { litOnly?: boolean }).litOnly) {
+      if (!this.hasDark && !d.lit) {
         this.vis.set(d.key, 1);
         continue;
       }
@@ -509,6 +527,7 @@ export class LightState {
     const f = this.f;
     const m = f.map;
     this.vis = new WeakMap();
+    this.clipped = new WeakSet();
     this.darkThings = [];
     const hasDark = darkOf(m).any;
     const seen = new Set<object>();
@@ -520,11 +539,17 @@ export class LightState {
       const fy = p.y + (a.flat ? a.oy + a.h / 2 : a.foot);
       const small = a.w <= 32 && a.h <= 32;
       const inDark = hasDark && isDarkPx(m, fx, Math.max(0, fy - 2));
+      if (lit && !small && !a.flat) {
+        // a big thing only the light shows (a pen of cows, a row of plants):
+        // drawn cut to the lights' circles rather than faded as one
+        this.clipped.add(p);
+        continue;
+      }
       if (lit || (inDark && small && !a.flat)) {
-        this.darkThings.push({ key: p, x: fx, y: fy - 4 });
+        this.darkThings.push({ key: p, x: fx, y: fy - 4, lit });
         seen.add(p);
         if (o.t === 'obj') {
-          this.darkThings.push({ key: o, x: fx, y: fy - 4 });
+          this.darkThings.push({ key: o, x: fx, y: fy - 4, lit });
           seen.add(o);
         }
       }
@@ -537,8 +562,35 @@ export class LightState {
       let inDark = !!o.litOnly;
       if (!inDark && hasDark)
         for (let y = o.y; y < o.y + (o.h ?? 1) && !inDark; y++) for (let x = o.x; x < o.x + (o.w ?? 1); x++) if (isDarkTile(m, x, y)) inDark = true;
-      if (inDark) this.darkThings.push({ key: o, x: cx, y: cy });
+      if (inDark) this.darkThings.push({ key: o, x: cx, y: cy, lit: !!o.litOnly });
     }
+  }
+
+  /** Big `litOnly` props, drawn cut to the lights (see clipToLights). */
+  private clipped = new WeakSet<object>();
+
+  /** Is this prop drawn only where the lights reach (a big litOnly prop)? */
+  isClipped(p: PropInst): boolean {
+    return this.clipped.has(p);
+  }
+
+  /**
+   * Clip `ctx` (screen space, camera at cx, cy) to the circles things are
+   * seen in (each light's R − 6px; starlight its own radius). False when
+   * no light is on: then nothing of it is drawn.
+   */
+  clipToLights(ctx: CanvasRenderingContext2D, cx: number, cy: number): boolean {
+    let any = false;
+    ctx.beginPath();
+    for (const s of this.sources) {
+      const r = s.kind === 'star' ? s.r : s.r + SHOW_MARGIN;
+      if (r <= 0) continue;
+      ctx.moveTo(s.x - cx + r, s.y - cy);
+      ctx.arc(s.x - cx, s.y - cy, r, 0, Math.PI * 2);
+      any = true;
+    }
+    if (any) ctx.clip();
+    return any;
   }
 
   /** Re-collect after props were rebuilt (a new map: a lantern already lit is simply lit). */
@@ -660,51 +712,7 @@ function blitRegion(ctx: CanvasRenderingContext2D, src: HTMLCanvasElement, wx: n
   void fillOutside;
 }
 
-// ---------------------------------------------------------------- rims and shadows (52 8.4 / 8.9)
-
-const rimCache = new WeakMap<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();
-/**
- * The 1px rim of a sprite on the side facing (dx, dy) (each −1, 0 or 1):
- * the sprite's own edge pixels whose neighbour that way is empty, in
- * `color`. Cached per frame canvas, side and colour.
- */
-export function rimOf(img: HTMLCanvasElement, dx: number, dy: number, color: string): HTMLCanvasElement {
-  let m = rimCache.get(img);
-  if (!m) {
-    m = new Map();
-    rimCache.set(img, m);
-  }
-  const key = `${dx},${dy},${color}`;
-  const hit = m.get(key);
-  if (hit) return hit;
-  const w = img.width;
-  const h = img.height;
-  const src = img.getContext('2d', { willReadFrequently: true })?.getImageData(0, 0, w, h).data;
-  const [c, ctx] = makeCanvas(w, h);
-  if (src) {
-    const out = ctx.createImageData(w, h);
-    const d = out.data;
-    const [r, g, b] = [parseInt(color.slice(1, 3), 16), parseInt(color.slice(3, 5), 16), parseInt(color.slice(5, 7), 16)];
-    const opaque = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && src[(y * w + x) * 4 + 3] > 40;
-    for (let y = 0; y < h; y++)
-      for (let x = 0; x < w; x++) {
-        if (!opaque(x, y)) continue;
-        // lit from that side: the neighbour that way is empty (diagonals: either axis)
-        const lit = (dx !== 0 && !opaque(x + dx, y)) || (dy !== 0 && !opaque(x, y + dy)) || (dx !== 0 && dy !== 0 && !opaque(x + dx, y + dy) && (!opaque(x + dx, y) || !opaque(x, y + dy)));
-        if (!lit) continue;
-        // the feet row stays unlit (the rim is on the body, not the ground contact)
-        if (dy > 0 && y >= h - 1) continue;
-        const i = (y * w + x) * 4;
-        d[i] = r;
-        d[i + 1] = g;
-        d[i + 2] = b;
-        d[i + 3] = 255;
-      }
-    ctx.putImageData(out, 0, 0);
-  }
-  m.set(key, c);
-  return c;
-}
+// ---------------------------------------------------------------- shadows (52 8.4; the rims are chars' litRim)
 
 const shadowSil = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
 /** A sprite as a #0B0B14 silhouette (the tomato light's shadows). */
@@ -734,14 +742,6 @@ export function lanternShadow(l: LightCircle, footX: number, footY: number): { d
   if (d >= l.r || d < 1) return null;
   const q = d / l.r;
   return { dx: vx / d, dy: vy / d, len: 0.4 + 1.2 * q, alpha: 0.35 * (1 - q * q) };
-}
-
-/** Which side a thing at (x, y) is lit from by light l, as −1/0/1 steps (8 directions). */
-export function sideToward(l: { x: number; y: number }, x: number, y: number): [number, number] {
-  const a = Math.atan2(l.y - y, l.x - x);
-  const oct = Math.round(a / (Math.PI / 4));
-  const dirs: [number, number][] = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
-  return dirs[((oct % 8) + 8) % 8];
 }
 
 export type { PropInst };

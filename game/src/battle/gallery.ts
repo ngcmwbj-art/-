@@ -11,12 +11,15 @@ export class EnemyGalleryScene implements Scene {
   private zoom: number;
   /** Skip the first N gallery poses (QA paging at high zoom). */
   private from: number;
+  /** &night=1: the chapter-2 night bands (with the tomato's one) behind the sprites. */
+  private night: boolean;
 
   constructor(params: URLSearchParams) {
     const id = params.get('id');
     this.ids = id ? id.split(',') : enemyArtIds();
     this.zoom = Math.max(1, Number(params.get('zoom') ?? '1'));
     this.from = Math.max(0, Number(params.get('from') ?? '0'));
+    this.night = params.get('night') === '1';
   }
 
   update(dt: number): void {
@@ -25,7 +28,7 @@ export class EnemyGalleryScene implements Scene {
 
   draw(g: Gfx): void {
     // sunset-ish backdrop bands so contrast can be judged
-    const bands = ['#F7C27A', '#F2894B', '#D9728A', '#7A5AA0', '#3A2B5C'];
+    const bands = this.night ? ['#0B0B14', '#1B1733', '#2A2440', '#3A2B5C', '#5B4A7A', '#F2894B', '#2A2440'] : ['#F7C27A', '#F2894B', '#D9728A', '#7A5AA0', '#3A2B5C'];
     for (let i = 0; i < bands.length; i++) g.rect(0, Math.floor((i * 216) / bands.length), 384, Math.ceil(216 / bands.length), bands[i]);
     let x = 4;
     let y = 4;

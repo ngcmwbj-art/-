@@ -203,7 +203,7 @@ export function drawCallBubbleUi(g: Gfx, f: FieldScene | null): void {
   const tailUp = at === 'top';
   // where the tail's tip is
   let tipX = Math.round(W / 2);
-  let tipY = 1;
+  let tipY = 5;
   if (at === 'speaker' && f) {
     const [sx, sy] = f.worldToScreen(HORNS.x, HORNS.y - 16);
     tipX = Math.round(sx);

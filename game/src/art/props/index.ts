@@ -18,3 +18,5 @@ import './hoshi_bld';
 import './hoshi_public';
 import './hoshi_station';
 import './hoshi_yard';
+import './hoshi_farm';
+import './hoshi_vehicles';

@@ -197,7 +197,7 @@ export function ch2Clock(f: FieldScene | null, t: number): ClockModel | null {
 export const HOSHI_MAP_NAMES: Record<string, string> = {
   map_hoshi_train: '夜の電車',
   map_hoshimidai: '星見台',
-  map_hoshi_house: 'ミツばあの 3号ハウス',
+  map_hoshi_house: 'ペロリさんの 3号ハウス',
   map_hoshi_barn: '石黒牛舎',
   map_hoshi_school: '旧 星見台分校',
   map_hoshi_hill: '星見の丘',

@@ -27,8 +27,8 @@ const ROWS = [
   'HHHHHHHHHHHHHs~~~~~nn~~~~~~~~~~~~~~~Ekkkkkkkkkkk::kkKKKKkkkk', // 9
   'HHHHHHHHHHHHHs~~~~~nn~~~~~~~~~~~~~~~Ekkkkkkkokkk::kkKKKKkkkk', // 10
   'HHHHHHHHHHHHHsaaaaannaaaaaaaaaaaaaaaEkkkkkkkkkkk::kkkkkkmmmk', // 11
-  'HHHHHHHHHHHHHs~~~~~nn~~~~~~~~~~~~~ooEkkKKKKkkkok::kkkkkkmmmk', // 12
-  'HHHHHHHHHHHHHs~~~~~nn~~~~~~~~~~~~~ooEkkKKKKkkkkk::kkkkoKKKKK', // 13
+  'HHHHHHHHHHHHHs~~~~~nn~~~~~~~~~~~~~OOEkkKKKKkkkok::kkkkkkmmmk', // 12
+  'HHHHHHHHHHHHHs~~~~~nn~~~~~~~~~~~~~OOEkkKKKKkkkkk::kkkkoKKKKK', // 13
   'HHHHHHHHHHHHHsaaaaannaaaaaaaaaaaaaaaEkkKKKKkkkkk::kKKkkKKKKK', // 14
   'HHHHHHHHHHHHHs~~~~~nn~~~~~~~~~~~~~~~EkkKKKKkkkkk::kKKkkKKKKK', // 15
   'HHHHHHHHHHHHHs~~~~~nn~~~~~~~~~~~~~~~EkoKKKKkkkkk::kKKkkKKKKK', // 16
@@ -83,19 +83,22 @@ const LEGEND: Record<string, TileSpec> = {
   m: { ground: hg('h_nuta'), step: 'se_step_dirt' },
   // solid
   H: { ground: 'grass', solid: true, tag: 'hedge' },
-  '^': { ground: 'auto', solid: true, tag: 'roof' },
-  W: { ground: 'auto', solid: true, tag: 'facade' },
-  D: { ground: 'auto', solid: true, door: true, tag: 'facade' },
+  // buildings stand on plain dirt (never 'auto': the canal and the paddies would spread under them)
+  '^': { ground: 'dirt', solid: true, tag: 'roof' },
+  W: { ground: 'dirt', solid: true, tag: 'facade' },
+  D: { ground: 'dirt', solid: true, door: true, tag: 'facade' },
   P: { ground: 'dirt', solid: true, door: true },
   B: { ground: 'grass', solid: true, tag: 'wall' },
   F: { ground: 'grass', solid: true, tag: 'fence' },
   E: { ground: 'grass', solid: true, tag: 'fence' },
   G: { ground: 'dirt', solid: true, tag: 'egate' },
-  V: { ground: 'auto', solid: true, tag: 'roof' },
-  v: { ground: 'auto', solid: true, tag: 'facade' },
+  V: { ground: 'dirt', solid: true, tag: 'roof' },
+  v: { ground: 'dirt', solid: true, tag: 'facade' },
   T: { ground: 'auto', solid: true, tag: 'trunk' },
   Y: { ground: 'auto', solid: true, tag: 'pole' },
   o: { ground: 'auto', solid: true, tag: 'prop' },
+  /** a prop standing among the paddies (the tool shed): on the ridge's earth */
+  O: { ground: hg('h_aze'), solid: true, tag: 'prop' },
   S: { ground: 'auto', solid: true, counter: true, tag: 'counter' },
   w: { ground: hg('h_canal'), solid: true, tag: 'water' },
   s: { ground: hg('h_stream'), solid: true, tag: 'water' },
@@ -141,6 +144,8 @@ const OBJECTS: MapObj[] = [
   PR('prop_h_bld_barn', 50, 24),
   PR('prop_h_shouboya', 43, 30),
   PR('prop_h_machiai', 15, 40),
+  PR('prop_h_machiai_front', 15, 43),
+  PR('prop_h_senpuki', 17, 42),
   PR('prop_h_vinyl', 1, 21, { n: 3 }),
   PR('prop_h_vinyl', 5, 21, { n: 2 }),
   PR('prop_h_vinyl', 9, 21, { n: 1 }),
@@ -162,7 +167,7 @@ const OBJECTS: MapObj[] = [
   // ======================================================== 駅と駅前 (area_hoshi_station, 52 3.5)
   O('obj_hoshi_ekimeihyo', 22, 44, { prop: 'prop_h_ekimeihyo' }),
   O('obj_hoshi_kurumadome', 34, 46, { prop: 'prop_h_kurumadome' }),
-  O('obj_hoshi_ekinote', 18, 41, { face: 'up', fushigi: 'fushigi_ch2_01' }),
+  O('obj_hoshi_ekinote', 18, 41, { face: 'up', fushigi: 'fushigi_ch2_01', prop: 'prop_h_ekinote' }),
   O('obj_hoshi_machiai_bench', 16, 41, { w: 2, face: 'up' }),
   PR('prop_h_machiai_bench', 16, 41),
   O('obj_hoshi_jikokuhyo_eki', 20, 40, { face: 'up' }),
@@ -220,10 +225,8 @@ const OBJECTS: MapObj[] = [
   PR('prop_h_eave', 17, 27, { set: 'fumi' }),
   PR('prop_h_eave', 41, 27, { set: 'minka2' }),
   PR('prop_h_eave', 14, 32, { set: 'minka1' }),
-  PR('prop_h_eave', 22, 37, { set: 'sawako' }),
-  PR('prop_h_eave', 36, 37, { set: 'kucho' }),
+  PR('prop_h_eave', 37, 37, { set: 'kucho' }),
   PR('prop_h_eave', 43, 37, { set: 'minka3' }),
-  PR('prop_h_eave', 7, 44, { set: 'kominka' }),
   PR('prop_h_eave', 57, 44, { set: 'gen' }),
 
   // ======================================================== 西の斜面 (area_hoshi_west)
@@ -242,7 +245,8 @@ const OBJECTS: MapObj[] = [
   PR('prop_h_bunsui', 13, 20),
   PR('prop_h_hatake', 9, 42),
   O2('obj_hoshi_kakashi', 7, 10, 42, { face: 'down', prop: 'prop_kakashi', opts: { v: 'kappougi' } }),
-  PR('prop_h_pump', 0, 36),
+  PR('prop_h_pump', 0, 36, {}, { solid: [0, 0, 1, 1] }),
+  PR('prop_h_kamado', 2, 43, {}, { litOnly: true }),
 
   // ======================================================== 棚田 (area_hoshi_tanada)
   O('obj_hoshi_tanada_yuyake', 14, 15, { w: 5, face: 'down', fushigi: 'fushigi_ch2_05' }),
@@ -276,7 +280,8 @@ const OBJECTS: MapObj[] = [
   O('obj_hoshi_dengen', 47, 19, { prop: 'obj_hoshi_dengen' }),
   O('obj_hoshi_shoukai', 51, 32, { flat: true }),
   PR('prop_h_ichirinsha', 55, 35),
-  PR('prop_h_hose_reel', 49, 30, {}),
+  PR('prop_h_hose_reel', 59, 32, {}, { solid: [0, 0, 1, 1] }),
+  PR('prop_h_nuta_tree', 59, 11, {}, { solid: [0, 0, 1, 1] }),
 
   // ======================================================== 耕作放棄地・山道の入口 (dark)
   O('obj_hoshi_houki_sign', 46, 12, { prop: 'obj_hoshi_houki_sign' }),
@@ -349,7 +354,7 @@ const OBJECTS: MapObj[] = [
 
   // ======================================================== event triggers (52 1.6)
   { t: 'trig', id: 'trig_ch2_mitsu', x: 0, y: 31, w: 6, h: 3, script: 'evt_ch2_mitsu', cond: { flag: 'flag_ch2_yoriai', notFlag: 'flag_ch2_met_mitsu' } },
-  { t: 'trig', id: 'trig_ch2_house_exit', x: 2, y: 31, w: 1, h: 1, script: 'evt_ch2_house_exit', cond: { flag: 'flag_ch2_got_tomato', notFlag: 'flag_ch2_house_exit' } },
+  { t: 'trig', id: 'trig_ch2_house_exit', x: 2, y: 31, w: 1, h: 1, cond: { flag: 'flag_ch2_got_tomato', notFlag: 'flag_ch2_house_exit' } },
   { t: 'trig', id: 'trig_ch2_gen_stop', x: 46, y: 36, w: 4, h: 4, script: 'evt_ch2_gen_stop', cond: { flag: 'flag_ch2_got_tomato', notFlag: 'flag_ch2_met_gen' } },
   { t: 'trig', id: 'trig_ch2_houki', x: 37, y: 3, w: 23, h: 15, script: 'evt_ch2_houki', cond: { notFlag: 'flag_ch2_houki_enter' } },
   { t: 'trig', id: 'trig_ch2_tetsuya', x: 38, y: 6, w: 20, h: 2, script: 'evt_ch2_tetsuya', cond: { flag: 'flag_ch2_gate_open', notFlag: 'flag_ch2_tetsuya_beaten' } },
@@ -365,7 +370,8 @@ export const HOSHIMIDAI: MapDef = {
   legend: LEGEND,
   objects: OBJECTS,
   camera: 'follow',
-  onEnter: ['map_hoshimidai_enter', 'evt_ch2_house_exit'],
+  // coming out of 3号 puts Minato on (2,31) itself (a trigger doesn't fire on the tile you arrive on)
+  onEnter: ['trig_ch2_house_exit'],
   variant: 'outdoor',
   pa: 'yama',
   space: 'yama',

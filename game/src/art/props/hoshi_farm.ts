@@ -130,21 +130,30 @@ regStand(
 regStand(
   'prop_h_shichu_taba',
   18,
-  28,
+  30,
   (p) => {
-    // a bundle of bamboo and steel-pipe stakes, tied, leaning
-    for (let k = 0; k < 7; k++) {
-      const x0 = 3 + k;
+    // a bundle of stakes stood on end, leaning a little: bamboo (nodes) and steel pipes, tied twice
+    for (let k = 0; k < 6; k++) {
       const bamboo = k % 3 !== 1;
-      p.line(x0, 27, x0 + 4, 0 + (k % 3), bamboo ? P.woodLt : P.steel);
-      if (bamboo) for (let y = 4; y < 26; y += 6) p.set(x0 + Math.round((27 - y) / 7), y, P.brassOld);
+      const top = 1 + ((k * 5) % 4);
+      for (let y = top; y < 28; y++) {
+        const x = 5 + k * 1.5 + (27 - y) / 9;
+        const c = bamboo ? ((y + k * 3) % 6 === 0 ? P.brassOld : k % 2 ? P.woodLt : P.goldPale) : y % 5 === 0 ? P.steel : P.concrete;
+        p.set(Math.round(x), y, c);
+      }
+      p.set(Math.round(5 + k * 1.5 + (27 - top) / 9), top, bamboo ? P.wood : P.concreteLt);
     }
-    // the ties
-    for (const y of [9, 19]) p.hline(4 + Math.round((27 - y) / 7), 11 + Math.round((27 - y) / 7), y, P.paperGrid);
-    // a coil of the tying string (誘引ひも)
-    p.ring(14, 24, 2.5, 2, P.paperGrid);
+    // the ties (誘引ひも, pale string)
+    for (const y of [9, 20]) {
+      const x0 = Math.round(4 + (27 - y) / 9);
+      p.hline(x0, x0 + 10, y, P.paperGrid);
+      p.set(x0 + 10, y + 1, P.paperGrid);
+    }
+    // the foot: the stakes' dirty ends, and a coil of string beside
+    p.hline(4, 14, 28, P.woodDark);
+    p.ring(15, 26, 2.5, 1.6, P.paperGrid);
   },
-  { cx: 8, base: 16, shadow: 24 },
+  { cx: 8, base: 16, shadow: 26 },
 );
 
 regStand(

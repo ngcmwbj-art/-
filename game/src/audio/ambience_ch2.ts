@@ -114,7 +114,8 @@ registerAmbience('amb_h_insects', (c) => {
     const dest = panned(c, c.rng.range(-0.6, 0.6), all);
     const f = 4400 * c.rng.range(0.98, 1.02);
     for (let i = 0; i < 4; i++) v(c, { at: t + i * 0.03, wave: 'sine', freq: f, dur: 0.018, attack: 0.002, decay: 0.012, sustain: 0.3, release: 0.006, vol: 0.004, reverb: 0.25 }, dest);
-    v(c, { at: t + 0.15, wave: 'sine', freq: f * 0.99, dur: 0.4, attack: 0.02, decay: 0.1, sustain: 0.8, release: 0.08, vol: 0.004, am: { rate: 30, depth: 1, shape: 'square' }, reverb: 0.25 }, dest);
+    // (a smooth 30 Hz trill: a hard square gate on a pure tone would splatter clicks down the spectrum)
+    v(c, { at: t + 0.15, wave: 'sine', freq: f * 0.99, dur: 0.4, attack: 0.02, decay: 0.1, sustain: 0.8, release: 0.08, vol: 0.0045, am: { rate: 30, depth: 1 }, reverb: 0.25 }, dest);
   }, 0.4, 2.5);
   // ③ one bell cricket far off (the town's "リーン", distant)
   const suzuPan = c.rng.range(-0.3, 0.5);
@@ -153,7 +154,7 @@ registerAmbience('amb_h_kusa', (c) => {
     for (let i = 0; i < n; i++) {
       // each "ガチャ" is a burst of noise chopped at 50 Hz; the phrase swells then fades
       const env = Math.sin((Math.PI * (i + 0.5)) / n) * 0.6 + 0.4;
-      v(c, { at: t + i * 0.18, wave: 'noise', dur: 0.1, attack: 0.008, decay: 0.03, sustain: 0.7, release: 0.02, vol: 0.006 * env, filter: { type: 'bandpass', freq: 5000 * c.rng.range(0.97, 1.03), q: 1 }, am: { rate: 50, depth: 1, shape: 'square' }, reverb: 0.2 }, dest);
+      v(c, { at: t + i * 0.18, wave: 'noise', dur: 0.1, attack: 0.008, decay: 0.03, sustain: 0.7, release: 0.02, vol: 0.006 * env, filter: { type: 'bandpass', freq: 5000 * c.rng.range(0.97, 1.03), q: 1 }, am: { rate: 50, depth: 1, shape: 'triangle' }, reverb: 0.2 }, dest);
     }
   }, 1, 6);
   const umaoi = new Every(c, 6, 12, (t) => {
@@ -460,13 +461,14 @@ registerAmbience('amb_h_barn_out', (c) => {
  */
 registerAmbience('amb_h_barn', (c) => {
   const g = c.g;
-  const beds = barnFans(c, c.dest, { air: ['bandpass', 300, 0.6, 0.01], hums: [44, 46, 49], humV: 0.004, pans: [-0.4, 0, 0.4], hiss: 0.002 });
+  const beds = barnFans(c, c.dest, { air: ['bandpass', 300, 0.6, 0.007], hums: [44, 46, 49], humV: 0.004, pans: [-0.4, 0, 0.4], hiss: 0.002 });
   // ② six steers chewing, each on its own clock
   const chewers = Array.from({ length: 6 }, (_, i) => {
     const pan = -0.6 + (1.2 * i) / 5 + c.rng.range(-0.08, 0.08);
     const dest = panned(c, pan);
     const pitch = c.rng.range(0.9, 1.1);
-    const lvl = c.rng.range(0.25, 0.35);
+    // (53 7.2 says ×.3 of the SE; over the fans it takes about twice that to be heard when you listen for it)
+    const lvl = c.rng.range(0.5, 0.65);
     let left = c.rng.int(10, 60);
     let next = c.t0 + c.rng.range(0.1, 4);
     return {
@@ -493,7 +495,7 @@ registerAmbience('amb_h_barn', (c) => {
       const t = Math.max(sync.next, g.ctx.currentTime);
       for (let k = 0; k < 4; k++) {
         const dest = panned(c, sync.pan + (k - 1.5) * 0.06);
-        for (const l of HANSUU) layer(seCtx(c, t, dest, 0.3, 0.1, 0.94 + k * 0.035), l);
+        for (const l of HANSUU) layer(seCtx(c, t, dest, 0.5, 0.1, 0.94 + k * 0.035), l);
       }
       sync.next = t + 1.0;
     }

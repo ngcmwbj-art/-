@@ -6,6 +6,14 @@
 //                                  // is written in by hand, the hanko case
 //                                  // opens (5 of 10, おやすみなさい faintly),
 //                                  // 「つづく」 is stamped → flag_clear → title
+//
+// Chapter 2 (50_ch2_story 10.16 カット6):
+//
+//   yield* playEndingNotebookCh2(); // the ① cover (「夕鳴町 みました帳 ①」) is
+//                                   // turned over; on the new one 「星見台
+//                                   // みました帳 ②」 is written in, the hanko case
+//                                   // opens (7 of 10, いただきます faintly),
+//                                   // 「つづく」 → markClearCh2() → the title
 
 import type { Co } from '../engine/co';
 import { game, type Scene } from '../engine/game';
@@ -17,10 +25,11 @@ import { H, W } from '../engine/screen';
 import { ease } from '../engine/tween';
 import { charWidth } from '../engine/font';
 import { state } from '../game/state';
-import { sfx } from '../audio';
+import { sfx, stopAllAmbient, stopBgm } from '../audio';
 import { petalSprites } from '../battle/art/stamps';
-import { caseBody, caseLid, CASE_H, CASE_W, drawCase } from './hankocase';
-import { markClear, toTitle } from './flow';
+import { caseBody, caseLid, CASE_H, CASE_SLOTS, CASE_W, drawCase, imprintFor, slotXY } from './hankocase';
+import { markClear, markClearCh2, toTitle } from './flow';
+import { stickerStar, stickerTomato } from './menu/book';
 import {
   cloudCanvas,
   CLOUDS,
@@ -154,9 +163,24 @@ const SEAL = { x: 322, y: 146, size: 68 };
 const PRESS_MS = 170;
 const TITLE = '夕鳴町 みました帳 ①';
 
-let coverC: HTMLCanvasElement | null = null;
-function coverCanvas(): HTMLCanvasElement {
-  if (coverC) return coverC;
+const TITLE2 = '星見台 みました帳 ②';
+
+/** Each notebook's colours: the card, its binding tape, the title box's rule. */
+const COVERS = {
+  1: { card: '#DCEBE6', speck: '#CFE0DA', light: '#EEF6F2', tape: '#2F4A8A', tapeDark: '#22386C', tapeLight: '#4A6AB0' },
+  2: { card: '#E4ECD4', speck: '#D6E0C2', light: '#F2F6E8', tape: '#2E6B4A', tapeDark: '#1F4E36', tapeLight: '#3FA66B' },
+} as const;
+
+const coverCache = new Map<number, HTMLCanvasElement>();
+/**
+ * The cover of みました帳 ① (pale blue-green card, navy binding) or ②
+ * (pale green card, deep green binding #2E6B4A, a tomato sticker and a gold
+ * star sticker on it, 52_ch2_level_art 13.2).
+ */
+function coverCanvas(vol: 1 | 2 = 1): HTMLCanvasElement {
+  const cached = coverCache.get(vol);
+  if (cached) return cached;
+  const C = COVERS[vol];
   const { w, h } = COVER;
   const [c, ctx] = makeCanvas(w + 4, h + 4);
   const r = (x: number, y: number, ww: number, hh: number, col: string, a = 1) => {
@@ -166,28 +190,33 @@ function coverCanvas(): HTMLCanvasElement {
     ctx.globalAlpha = 1;
   };
   r(4, 4, w, h, '#000000', 0.45);
-  // pale green-blue card cover with a navy binding tape on the left
   r(1, 0, w - 2, h, '#2A2440');
   r(0, 1, w, h - 2, '#2A2440');
-  r(1, 1, w - 2, h - 2, '#DCEBE6');
+  r(1, 1, w - 2, h - 2, C.card);
   for (let y = 1; y < h - 1; y++)
     for (let x = 1; x < w - 1; x++) {
-      const n = hash2(x, y, 13);
-      if (n < 0.03) r(x, y, 1, 1, '#CFE0DA');
-      else if (n > 0.99) r(x, y, 1, 1, '#EEF6F2');
+      const n = hash2(x, y, 13 + vol);
+      if (n < 0.03) r(x, y, 1, 1, C.speck);
+      else if (n > 0.99) r(x, y, 1, 1, C.light);
     }
-  r(1, 1, 22, h - 2, '#2F4A8A');
-  r(22, 1, 1, h - 2, '#22386C');
-  r(1, 1, 22, 1, '#4A6AB0');
+  r(1, 1, 22, h - 2, C.tape);
+  r(22, 1, 1, h - 2, C.tapeDark);
+  r(1, 1, 22, 1, C.tapeLight);
   // the title box
   const { x: bx, y: by, w: bw, h: bh } = TBOX;
-  r(bx - 1, by - 1, bw + 2, bh + 2, '#2F4A8A');
+  r(bx - 1, by - 1, bw + 2, bh + 2, C.tape);
   r(bx, by, bw, bh, '#FBF7EC');
-  r(bx + 2, by + 2, bw - 4, 1, '#2F4A8A');
-  r(bx + 2, by + bh - 3, bw - 4, 1, '#2F4A8A');
+  r(bx + 2, by + 2, bw - 4, 1, C.tape);
+  r(bx + 2, by + bh - 3, bw - 4, 1, C.tape);
   // name line under the title box
-  r(bx + 60, by + bh + 22, bw - 60, 1, '#2F4A8A');
-  coverC = c;
+  r(bx + 60, by + bh + 22, bw - 60, 1, C.tape);
+  if (vol === 2) {
+    // the stickers, a little crooked: the tomato on the title box's corner, the star low on the left
+    ctx.drawImage(stickerTomato(), bx + bw - 9, by - 8);
+    ctx.drawImage(stickerStar(), 34, h - 30);
+    ctx.drawImage(stickerStar(), 44, h - 24);
+  }
+  coverCache.set(vol, c);
   return c;
 }
 
@@ -303,7 +332,7 @@ class NotebookScene implements Scene {
     g.alpha(0.18, () => g.circle(192, 100, 150, '#FFE7A3'));
     const k = Math.min(1, this.t / 500);
     g.alpha(k, () => {
-      g.img(coverCanvas(), COVER.x, COVER.y + Math.round((1 - ease.cubicOut(k)) * 8));
+      g.img(coverCanvas(1), COVER.x, COVER.y + Math.round((1 - ease.cubicOut(k)) * 8));
       const bx = COVER.x + TBOX.x;
       const by = COVER.y + TBOX.y;
       // 「じゆうけんきゅう」 printed small, the name in pencil
@@ -397,4 +426,318 @@ export function* playEndingNotebook(o: { toTitle?: boolean } = {}): Co {
     yield* ditherIn(900);
   }
   void toTitle;
+}
+
+// ---- chapter 2: the notebook turns to ② (50_ch2_story 10.16 カット6) ---------------------------
+
+/** How long the ① cover takes to turn over. */
+const TURN_MS = 700;
+/** The hanko that are in the case at the end of chapter 2 (51 5.4). */
+const CH2_CASE = ['skill_mimashita', 'skill_peke', 'skill_hanamaru', 'skill_yarinaoshi', 'skill_okaerinasai', 'skill_oyasuminasai', 'skill_otsukaresama'];
+
+/** The title on a cover in Minato's pencil: each letter doubled a pixel right, bobbing a little. */
+function drawCoverTitle(g: Gfx, title: string, n: number, x0: number, y0: number, w: number): void {
+  const chars = [...title];
+  const tw = textW(title);
+  let x = Math.round(x0 + w / 2 - tw / 2);
+  chars.slice(0, n).forEach((ch, i) => {
+    const dy = [0, 1, 0, 0, -1, 0, 1, 0, 0, 1, 0][i % 11];
+    g.text(ch, x, y0 + dy, { color: UI.pencil });
+    g.text(ch, x + 1, y0 + dy, { color: UI.pencil });
+    x += charWidth(ch) + 1;
+  });
+}
+
+/** The printed and pencilled lines round the title box (the same on both covers). */
+function drawCoverLines(g: Gfx, vol: 1 | 2): void {
+  const bx = COVER.x + TBOX.x;
+  const by = COVER.y + TBOX.y;
+  const ink = COVERS[vol].tape;
+  g.text('じゆうけんきゅう', bx + 8, by + 5, { color: ink });
+  g.text('5年 2組', bx, by + TBOX.h + 6, { color: ink });
+  g.text('潮見 ミナト', bx + 70, by + TBOX.h + 5, { color: UI.pencil });
+}
+
+/** A paper sample card lying in a slot (26×26, its shadow on the velvet). */
+function drawSampleCard(g: Gfx, x: number, y: number): void {
+  rectA(g, x + 2, y + 2, 26, 26, '#3A0E16', 0.6);
+  g.rect(x, y, 26, 26, '#E8D9B5');
+  g.rect(x, y, 25, 25, UI.bg);
+  g.rect(x, y, 25, 1, '#FFFBEE');
+}
+
+/** おやすみなさい, pressed at last: the square seal with its five little stars (52 13.4). */
+function drawOyasumiImprint(g: Gfx, x: number, y: number, a: number): void {
+  const imp = imprintFor('skill_oyasuminasai');
+  g.alpha(a, () => {
+    drawSampleCard(g, x, y);
+    if (imp) g.img(imp, x + Math.round((25 - imp.width) / 2), y + Math.round((25 - imp.height) / 2));
+    for (const [sx, sy] of [
+      [2, 3],
+      [22, 2],
+      [23, 20],
+      [3, 21],
+      [12, 1],
+    ])
+      g.px(x + sx, y + sy, UI.accent);
+  });
+}
+
+let otsukareC: HTMLCanvasElement | null = null;
+/** The little oval 「おつかれ」 (26×13): a 1 px ring round four tiny carved letters, a speck or two missing. */
+function otsukareSeal(): HTMLCanvasElement {
+  if (otsukareC) return otsukareC;
+  const w = 26;
+  const h = 13;
+  const [c, ctx] = makeCanvas(w, h);
+  ctx.fillStyle = UI.accent;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const d = Math.hypot((x + 0.5 - w / 2) / (w / 2), (y + 0.5 - h / 2) / (h / 2));
+      if (d <= 1 && d > 0.8 && hash2(x, y, 23) > 0.06) ctx.fillRect(x, y, 1, 1);
+    }
+  const glyphs = [
+    ['.#...', '####.', '.#.#.', '##..#', '.#.#.'],
+    ['....', '###.', '...#', '..#.', '.#..'],
+    ['.#...', '####.', '.#.#.', '#..#.', '#.##.'],
+    ['.#...', '.###.', '##.#.', '.#.#.', '.#..#'],
+  ];
+  let gx = 3;
+  for (const gl of glyphs) {
+    gl.forEach((row, j) => [...row].forEach((ch, i) => ch === '#' && ctx.fillRect(gx + i, 4 + j, 1, 1)));
+    gx += gl[0].length + 0;
+  }
+  otsukareC = c;
+  return c;
+}
+
+/** おつかれさま's imprint for a case that has no slot for it yet: the oval seal and three wisps of steam. */
+function drawOtsukareImprint(g: Gfx, x: number, y: number, t: number, a: number): void {
+  const imp = otsukareSeal();
+  g.alpha(a, () => {
+    drawSampleCard(g, x, y);
+    g.img(imp, x, y + 10);
+    for (let k = 0; k < 3; k++)
+      for (let j = 0; j < 5; j++) g.px(x + 8 + k * 5 + Math.round(Math.sin(t / 300 + j * 0.9 + k) * 1), y + 8 - j, UI.accent);
+  });
+}
+
+/** いただきます's outline (a round seal, 22 px, lines you can't read), breathing α25% over 1 s. */
+function drawItadakimasuOutline(g: Gfx, x: number, y: number, t: number): void {
+  const a = 0.16 + 0.1 * (0.5 + 0.5 * Math.sin((t / 1000) * Math.PI * 2));
+  g.alpha(a, () => {
+    g.ring(x + 13, y + 13, 11, UI.accent);
+    g.ring(x + 13, y + 13, 10, UI.accent);
+    for (const [lx, ly, lw] of [
+      [7, 9, 12],
+      [6, 13, 14],
+      [8, 17, 10],
+    ])
+      for (let i = 0; i < lw; i++) if ((i * 7 + ly) % 5 !== 0) g.px(x + lx + i, y + ly + ((i >> 2) % 2), UI.accent);
+  });
+}
+
+class NotebookCh2Scene implements Scene {
+  transparent = false;
+  done = false;
+  t = 0;
+  turnT = -1;
+  written = 0;
+  caseT = -1;
+  lidT = -1;
+  stampT = -1;
+  fade = 0;
+  private penAcc = 0;
+  private parts = new Particles();
+  private petals = petalSprites();
+  private seal = tsuzukuSeal(SEAL.size);
+  private landed = false;
+
+  update(dt: number): void {
+    this.t += dt;
+    this.parts.update(dt);
+    if (this.turnT >= 0) this.turnT += dt;
+    const n = [...TITLE2].length;
+    if (this.turnT >= TURN_MS + 250 && this.written < n) {
+      this.penAcc += dt;
+      while (this.penAcc >= 120 && this.written < n) {
+        this.penAcc -= 120;
+        const ch = [...TITLE2][this.written++];
+        if (ch.trim()) sfx('se_pen_write');
+      }
+    }
+    if (this.caseT >= 0) this.caseT += dt;
+    if (this.lidT >= 0) this.lidT += dt;
+    if (this.stampT >= 0) {
+      this.stampT += dt;
+      if (!this.landed && this.stampT >= PRESS_MS) this.land();
+    }
+  }
+
+  stamp(): void {
+    this.stampT = 0;
+  }
+
+  private land(): void {
+    this.landed = true;
+    sfx('se_stamp_heavy');
+    game.hitstop(133);
+    game.shake(3, 160);
+    game.flash('#E23B2E', 90, 0.12);
+    for (let i = 0; i < 10; i++)
+      this.parts.burst(SEAL.x, SEAL.y, { count: 1, speed: [40, 110], life: [700, 1200], colors: ['#E23B2E'], gravity: 60, drag: 1.5, shape: 'img', img: this.petals[i % this.petals.length] });
+  }
+
+  get titleDone(): boolean {
+    return this.written >= [...TITLE2].length;
+  }
+
+  draw(g: Gfx): void {
+    g.clear('#1B1420');
+    for (let y = 0; y < H; y += 3) g.rect(0, y, W, 1, y % 6 ? '#221A28' : '#1E1724');
+    g.alpha(0.18, () => g.circle(192, 100, 150, '#FFE7A3'));
+    const k = Math.min(1, this.t / 500);
+    const cy = COVER.y + Math.round((1 - ease.cubicOut(k)) * 8);
+    g.alpha(k, () => {
+      // ② underneath, revealed as ① turns over
+      if (this.turnT >= 0) {
+        g.img(coverCanvas(2), COVER.x, cy);
+        drawCoverLines(g, 2);
+        drawCoverTitle(g, TITLE2, this.written, COVER.x + TBOX.x, COVER.y + TBOX.y + 25, TBOX.w);
+      }
+      const tk = this.turnT < 0 ? 0 : Math.min(1, this.turnT / TURN_MS);
+      if (tk < 1) this.drawTurning(g, cy, tk);
+    });
+    if (this.caseT >= 0) this.drawCaseCh2(g);
+    if (this.stampT >= 0) this.drawStamp(g);
+    this.parts.draw(g);
+    if (this.fade > 0) g.rect(0, 0, W, H, UI.darkest, this.fade);
+  }
+
+  /**
+   * The ① cover turning at its binding: it narrows toward the spine (its
+   * shading deepens as it tilts), then its back goes over the spine and out
+   * of sight on the left.
+   */
+  private drawTurning(g: Gfx, cy: number, tk: number): void {
+    const img = coverCanvas(1);
+    const e = ease.quadInOut(tk);
+    if (e < 0.5) {
+      const w = Math.max(1, Math.round(img.width * (1 - e * 2)));
+      // the shadow it throws on ② while it lifts
+      if (this.turnT >= 0) rectA(g, COVER.x + w, cy + 2, 10, COVER.h, '#0B0B14', 0.3 * (1 - e * 2));
+      g.ctx.drawImage(img, COVER.x, cy, w, img.height);
+      if (this.turnT < 0 || w > 40) {
+        // the title stays on it until it is too thin to read
+        g.ctx.save();
+        g.ctx.beginPath();
+        g.ctx.rect(COVER.x, cy, w, img.height);
+        g.ctx.clip();
+        const sx = w / img.width;
+        g.ctx.translate(COVER.x, 0);
+        g.ctx.scale(sx, 1);
+        g.ctx.translate(-COVER.x, 0);
+        drawCoverLines(g, 1);
+        drawCoverTitle(g, TITLE, [...TITLE].length, COVER.x + TBOX.x, COVER.y + TBOX.y + 25, TBOX.w);
+        g.ctx.restore();
+      }
+      if (this.turnT >= 0) g.alpha(0.5 * e * 2, () => g.rect(COVER.x, cy, w, img.height - 4, '#1B1420'));
+      return;
+    }
+    // past the spine: the back of the cover, going away to the left
+    const back = Math.round(22 * (1 - (e - 0.5) * 2));
+    if (back > 0) {
+      g.rect(COVER.x - back, cy + 1, back, COVER.h - 2, '#D8D0B8');
+      g.rect(COVER.x - back, cy + 1, 1, COVER.h - 2, '#2A2440');
+      g.alpha(0.4 * (1 - (e - 0.5) * 2), () => g.rect(COVER.x - back, cy + 1, back, COVER.h - 2, '#FFF6D8'));
+    }
+  }
+
+  private drawCaseCh2(g: Gfx): void {
+    const ck = Math.min(1, this.caseT / 200);
+    const cx = CASE_AT.x;
+    const cy = CASE_AT.y + Math.round((1 - ease.backOut(ck)) * 60);
+    if (this.lidT < 34) {
+      rectA(g, cx + 4, cy + 4, CASE_W, CASE_H, '#0B0B14', 0.5);
+      g.img(caseLid(), cx, cy);
+      return;
+    }
+    const have = new Set(state.party[0]?.skills ?? []);
+    const owned = (id: string) => have.has(id) || CH2_CASE.includes(id);
+    const appear = (i: number) => Math.min(1, (this.lidT - 34 - i * 30) / 200);
+    drawCase(g, cx, cy, { owned, clear: true, t: this.t, appear });
+    // a case that doesn't know chapter 2's slots yet: おやすみなさい pressed, おつかれさま, いただきます's outline
+    if (CASE_SLOTS[6] !== 'skill_otsukaresama') {
+      const [ox, oy] = slotXY(5);
+      if (appear(5) > 0) drawOyasumiImprint(g, cx + ox + 3, cy + oy + 3, Math.min(1, appear(5) * 1.5));
+      const [sx, sy] = slotXY(6);
+      const a = appear(6);
+      if (a > 0) drawOtsukareImprint(g, cx + sx + 3, cy + sy + 3, this.t, Math.min(1, a * 1.5));
+    }
+    if (CASE_SLOTS[7] !== 'skill_itadakimasu' && appear(7) > 0) {
+      const [sx, sy] = slotXY(7);
+      drawItadakimasuOutline(g, cx + sx + 3, cy + sy + 3, this.t);
+    }
+    const lk = Math.min(1, (this.lidT - 34) / 160);
+    if (lk < 1) g.alpha(1 - lk, () => g.img(caseLid(), cx, cy - Math.round(lk * 30)));
+  }
+
+  private drawStamp(g: Gfx): void {
+    const t = this.stampT;
+    if (t < PRESS_MS) {
+      const k = ease.quadIn(t / PRESS_MS);
+      const r = Math.round((SEAL.size * (0.95 - 0.4 * k)) / 2);
+      g.alpha(0.12 + 0.3 * k, () => g.circle(SEAL.x + 3 - Math.round(3 * k), SEAL.y + 4 - Math.round(4 * k), r, '#1B1420'));
+      return;
+    }
+    const lt = t - PRESS_MS;
+    const s = lt < 85 ? 1.25 - 0.25 * ease.quadOut(lt / 85) : 1;
+    const w = Math.round(this.seal.width * s);
+    if (lt < 500) g.alpha(0.3 * (1 - lt / 500), () => g.circle(SEAL.x, SEAL.y, Math.round(SEAL.size / 2 + 2 + lt / 60), '#E8A49C'));
+    g.ctx.drawImage(this.seal, Math.round(SEAL.x - w / 2), Math.round(SEAL.y - w / 2), w, w);
+  }
+}
+
+/**
+ * カット6 of evt_ch2_ending, through to the title (50_ch2_story 10.16, 53
+ * 12.14): the ① cover turns over, 「星見台 みました帳 ②」 is written on the
+ * new one, the hanko case opens (7 of 10, いただきます's outline), 「つづく」,
+ * the music and the ambience go, markClearCh2() (flag_ch2_clear, the ②
+ * record, the clear data in the slot), and the title — its sky over 星見台
+ * now a morning.
+ */
+export function* playEndingNotebookCh2(o: { toTitle?: boolean } = {}): Co {
+  const sc = new NotebookCh2Scene();
+  game.fadeColor = '#0B0B14';
+  if (game.fadeAlpha < 1) yield* game.fadeOut(400, '#0B0B14');
+  hideNightSky();
+  game.push(sc);
+  yield* game.fadeIn(500);
+  yield 700;
+  sc.turnT = 0;
+  sfx('se_page');
+  yield () => sc.titleDone;
+  yield 500;
+  sc.caseT = 0;
+  sfx('se_paper_bag', { vol: 0.6 });
+  yield 400;
+  sc.lidT = 0;
+  sfx('se_paper_open', { pitch: 0.7 });
+  yield 1300;
+  sc.stamp();
+  yield 2000;
+  stopBgm(1.5);
+  stopAllAmbient(1.0);
+  for (let t = 0; t < 1500; t += 16.7) {
+    sc.fade = t / 1500;
+    yield null;
+  }
+  sc.fade = 1;
+  markClearCh2();
+  if (o.toTitle !== false) {
+    yield* ditherOut(1, '#0B0B14');
+    const { TitleScene } = (yield import('./title')) as typeof import('./title');
+    game.replaceAll(new TitleScene(true));
+    yield* ditherIn(900);
+  }
 }

@@ -31,7 +31,7 @@ import { hud } from './hud';
 import type { NpcMove } from './types';
 import { currentStage, stageSourceFlag } from './maps';
 import { setLanternOverride } from './lantern';
-import { callNow, CALL_NAMES, playCall, resetCallTimer, setCallHandler, turnScarecrows } from './hoshi';
+import { callNow, CALL_NAMES, noteCall, playCall, resetCallTimer, setCallHandler, setRoomLights, turnScarecrows } from './hoshi';
 import type { GradeHKey } from './lighting';
 
 export { registerScript, hasScript } from './scripts';
@@ -515,6 +515,8 @@ export function resetCalls(nextName?: number): void {
   resetCallTimer(nextName);
 }
 export { playCall, setCallHandler as callsHandler, CALL_NAMES };
+/** A call a scene makes itself has begun (the bell on the fire tower trembles with it, 52 9.2). */
+export { noteCall };
 
 /**
  * Take an enemy symbol out of its field behaviour while a scene moves it
@@ -547,4 +549,14 @@ export function aimLamp(id: string, at: string | [number, number]): void {
   a.data.scripted = true;
   a.data.lampAngle = Math.atan2(ty - (a.y - 8), tx - a.x);
   a.dir = Math.abs(tx - a.x) >= Math.abs(ty - a.y) ? (tx < a.x ? 'left' : 'right') : ty < a.y ? 'up' : 'down';
+}
+
+/**
+ * The room's own lights (the barn at 5:00, 52 4.3 カット2a): true sweeps them
+ * on from the west end, six tubes 0.08 s apart (sweepMs for all six);
+ * false holds the room dark; null gives it back to the stage (lit from h3).
+ */
+export function roomLights(on: boolean | null, sweepMs = 480): void {
+  const f = field();
+  if (f) setRoomLights(f, on, sweepMs);
 }

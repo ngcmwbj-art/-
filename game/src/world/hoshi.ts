@@ -12,7 +12,7 @@
 //     screen; the bubble at the top of the screen (world/hud.ts)
 //   - stage looks (52 9章): the scarecrows turning to the hill, the one
 //     security light flickering in h0, moths at the lights from h1, the
-//     sounds that go with the fushigi's own clocks (53 8.9, 17 #8), ゲンさん's
+//     sounds that go with the fushigi's own clocks (53 8.9, 17 #8), マサルさん's
 //     flashlight
 //
 // Everything here only runs on 星見台 maps (MapDef.chapter 2 / stageFlag
@@ -32,6 +32,7 @@ import { registerWorldFx } from './fx';
 import { callBubble, clearCallBubble } from './hud';
 import { condOk, isCh2Map, type LoadedMap } from './maps';
 import { getScript } from './scripts';
+import * as hoshiNpcText from '../data/text/hoshi_npcs';
 import type { MapDef } from './types';
 
 // ---------------------------------------------------------------- props see the chapter-2 state
@@ -333,9 +334,14 @@ function powerUnit(f: FieldScene): [number, number] | null {
 
 // ---------------------------------------------------------------- the calls (evt_ch2_calls)
 
-/** The names the loudspeaker calls, in order, over and over (50 3.2). */
-export const CALL_NAMES = ['ナナミちゃん', 'ケンイチくん', 'ユウタくん', 'ミホちゃん', 'サトシくん', 'タクミくん', 'マユミさん', 'コウジさん'];
-export const CALL_PREFACE = 'こちらは、防災 星見台です。';
+/**
+ * The names the loudspeaker calls, in order, over and over (50 3.2) and the
+ * station's line of stage 2 — the scenario's text (data/text/hoshi_npcs)
+ * when it gives them, so a renamed villager changes in one place.
+ */
+const TEXT = hoshiNpcText as unknown as { CALL_NAMES?: string[]; CALL_HEAD?: string };
+export const CALL_NAMES: string[] = TEXT.CALL_NAMES?.length ? TEXT.CALL_NAMES : ['ナナミちゃん', 'ケンイチくん', 'ユウタくん', 'ミホちゃん', 'サトシくん', 'タクミくん', 'マユミさん', 'コウジさん'];
+export const CALL_PREFACE: string = TEXT.CALL_HEAD ?? 'こちらは、防災 星見台です。';
 /** Seconds between calls by stage (50 3.13). */
 export const CALL_EVERY: Record<number, number> = { 0: 45000, 1: 30000, 2: 15000 };
 
@@ -567,10 +573,13 @@ interface FClock {
  * 01 the notebook's page (turns at the start of each 6 s), 02 the timetable
  * (4 s: the digits flip to 4:59 and back), 04 the circular board (8 s:
  * slides out 4px, 0.4 s, back), 05 the paddy's evening glow (12 s: a
- * higurashi), 09 the duty board (3 s: a name written, then wiped).
+ * higurashi), 07 the breathing film (4 s), 09 the duty board (3 s: a name
+ * written, then wiped).
  */
 export const FUSHIGI_PERIOD: Record<string, number> = {
   fushigi_ch2_01: 6000,
+  /** 07 the greenhouse film breathes: 1px out and back, a band of light running down it */
+  fushigi_ch2_07: 4000,
   fushigi_ch2_02: 4000,
   fushigi_ch2_04: 8000,
   fushigi_ch2_05: 12000,
@@ -652,6 +661,9 @@ onFushigiPressed((id) => {
 
 // ---------------------------------------------------------------- the rooms' own light (52 4.1 / 4.3)
 
+/** The night train (and its QA copy, hoshi_debug.ts). */
+const TRAIN_MAPS = new Set(['map_hoshi_train', 'map_hoshi_qa_train']);
+
 interface RoomLights {
   map: string;
   on: boolean;
@@ -712,7 +724,7 @@ export function paintRoomLight(f: FieldScene, lx: CanvasRenderingContext2D, cx: 
       lx.restore();
     }
   }
-  if (f.map.id === 'map_hoshi_train' && flag('flag_ch2_stage') <= 2) {
+  if (TRAIN_MAPS.has(f.map.id) && flag('flag_ch2_stage') <= 2) {
     // inside the car: rows 2–5, x 1–15 (the driver's cab has its own dials)
     const x0 = 16 - cx;
     const x1 = 16 * 16 - cx;
@@ -772,7 +784,7 @@ export function hoshiUpdate(f: FieldScene, dt: number, ctrl: boolean): void {
   updateFushigiClocks(f);
   // the night train: the straps swing west every 5 s, and 0.3 s later the
   // car itself sways — it swings before the bend (52 4.1)
-  if (f.map.id === 'map_hoshi_train' && !flag('flag_ch2_arrived')) {
+  if (TRAIN_MAPS.has(f.map.id) && !flag('flag_ch2_arrived')) {
     const ph = f.t % 5000;
     if (ph >= 300 && ph - dt < 300) game.shake(1, 160);
   }
@@ -784,9 +796,9 @@ export function hoshiUpdate(f: FieldScene, dt: number, ctrl: boolean): void {
   }
 }
 
-// ---------------------------------------------------------------- ゲンさん's flashlight (52 3.4 / 8.6)
+// ---------------------------------------------------------------- マサルさん's flashlight (52 3.4 / 8.6)
 
-/** ゲンさん shaking his flat flashlight on the terrace (h0–h1, until evt_ch2_gen_stop). */
+/** マサルさん shaking his flat flashlight on the terrace (h0–h1, until evt_ch2_gen_stop). */
 export function genFlash(f: FieldScene): Actor | null {
   if (f.map.id !== 'map_hoshimidai' || flag('flag_ch2_met_gen') || flag('flag_ch2_stage') > 1) return null;
   const g = f.actors.find((a) => a.id === 'npc_hoshi_gen');

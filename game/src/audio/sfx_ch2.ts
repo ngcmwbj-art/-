@@ -130,7 +130,7 @@ se('se_h_crossing_down', {
   ],
 });
 se('se_h_train_brake', {
-  label: '明かりのない電車が止まる（キー……プシュ）',
+  label: '電車が止まる（明かりのない電車。キー……プシュ）',
   group: G_TRAIN,
   rev: 0.3,
   layers: [
@@ -141,7 +141,7 @@ se('se_h_train_brake', {
   ],
 });
 const TRAIN_IDLE = ['sine f=92 env=300/0/1/400 dur=2800 v=.006 am=0.5/.2', 'noise env=300/0/1/400 dur=2800 v=.004 flt=LP300'];
-se('se_h_train_idle', { label: '止まっている電車のうなり（ループ）', group: G_TRAIN, layers: TRAIN_IDLE });
+se('se_h_train_idle', { label: '電車のアイドリング（止まっている電車。ループ）', group: G_TRAIN, layers: TRAIN_IDLE });
 se('se_h_train_door', {
   label: '電車の扉（プシュー、トン）',
   group: G_TRAIN,
@@ -257,7 +257,7 @@ const YUNOMI_POUR = [
   'sine f=620→980/650 env=40/0/1/200 dur=650 v=.008 am=9/.8 at=450',
 ];
 se('se_h_yunomi', {
-  label: '湯のみを置いて、お茶を注ぐ（トポトポ）',
+  label: '湯のみとお茶（コト、コト、トポトポ）',
   group: G_VILLAGE,
   rev: 0.1,
   fn(c) {
@@ -279,7 +279,7 @@ se('se_h_tomato_catch', {
   ],
 });
 se('se_h_lantern_set', {
-  label: 'アミにトマトを入れて竿をかつぐ（ふさっ、コ）',
+  label: 'アミをかつぐ（トマトを入れて竿をかつぐ。ふさっ、コ）',
   group: G_VILLAGE,
   layers: ['noise env=20/200/0/80 dur=150 v=.03 flt=BP1800q0.7 am=18/.4', 'fm f=420 fm=r2.1:i1.2→0/40 env=0/100/0/30 dur=10 v=.02 at=320'],
 });
@@ -318,7 +318,7 @@ se('se_h_kakashi_turn', {
 });
 const KEITORA_DOOR = ['noise env=0/60/0/40 dur=20 v=.05 flt=LP1800', 'sine f=210 env=0/100/0/40 dur=20 v=.04'];
 se('se_h_keitora', {
-  label: '軽トラが上がってきて止まる',
+  label: '軽トラが来て止まる（古い農道を上がってきて、ドアが2回）',
   group: G_VILLAGE,
   rev: 0.2,
   fn(c) {
@@ -380,7 +380,7 @@ se('se_h_moo', {
   ],
 });
 se('se_h_barn_light', {
-  label: '牛舎の照明がタイマーで点く（カチン、ジ……）',
+  label: '牛舎の照明が点く（タイマーで。カチン、ジ……）',
   group: G_BARN,
   layers: ['tri f=1600 env=0/30/0/10 dur=8 v=.03', 'sq f=100 env=0/0/1/20 dur=40 v=.006 flt=LP700 rep=3x120 at=100', 'sine f=100 env=200/0/1/300 dur=400 v=.003 at=460'],
 });
@@ -394,9 +394,9 @@ se('se_h_feed_cart', {
     'tri f=300 env=0/60/0/20 dur=10 v=.015 at=1300',
   ],
 });
-se('se_h_feedbag', { label: '配合飼料の袋に腰をおろす（ざふっ）', group: G_BARN, layers: ['noise env=5/200/0/80 dur=120 v=.04 flt=BP1100q0.7', 'sine f=120→80/80 env=1/100/0/40 dur=30 v=.04'] });
+se('se_h_feedbag', { label: '飼料の袋に座る（配合飼料の袋に腰をおろす。ざふっ）', group: G_BARN, layers: ['noise env=5/200/0/80 dur=120 v=.04 flt=BP1100q0.7', 'sine f=120→80/80 env=1/100/0/40 dur=30 v=.04'] });
 se('se_h_gate_hook', {
-  label: 'ゲートの取っ手を支柱にかける（カチャ、ビン）',
+  label: 'ゲートの取っ手（支柱にかける。カチャ、ビン）',
   group: G_BARN,
   layers: [
     'tri f=1400→1200/20 env=0/40/0/15 dur=10 v=.04',
@@ -406,12 +406,12 @@ se('se_h_gate_hook', {
   ],
 });
 se('se_h_side_roll', {
-  label: 'ハウスのサイドを巻き上げる（ラチェット）',
+  label: 'サイドの巻き上げ（ハウスのハンドルのラチェット）',
   group: G_BARN,
   layers: ['tri f=1500 env=0/15/0/8 dur=6 v=.025 rep=10x180', 'noise env=0/10/0/5 dur=6 v=.02 flt=BP3000q2 rep=10x180', 'noise env=200/0/1/300 dur=2000 v=.02 flt=BP1600q0.8 am=5.5/.5'],
 });
 se('se_h_ripen', {
-  label: '青いトマトが手前から奥へ色づく',
+  label: 'トマトが色づく（青いトマトが手前から奥へ）',
   group: G_BARN,
   rev: 0.4,
   fn(c) {
@@ -443,7 +443,7 @@ se('se_h_pa_close', {
   },
 });
 se('se_h_pa_last', {
-  label: 'ピンポンパンポーンの最後の1音（D6）',
+  label: '放送の最後の1音（ピンポンパンポーンの D6）',
   group: G_PA,
   fn(c) {
     const p = viaPa(c, 'se_h_pa_last');
@@ -463,7 +463,7 @@ se('se_h_morning_chime', {
 // 8.5 戦闘：敵の技
 
 se('se_h_sune', {
-  label: 'スネトマトが背中を向ける（ぷいっ）',
+  label: 'スネトマトのぷいっ（背中を向ける）',
   group: G_ENEMY,
   rand: [0.03, 0.06],
   layers: ['p25 f=660→990/80 env=1/100/0/40 dur=80 v=.045 flt=LP3000', 'noise env=0/30/0/15 dur=20 v=.02 flt=BP2000q1.5 at=60', 'sine f=180→130/60 env=1/60/0/20 dur=20 v=.04 at=80'],
@@ -666,7 +666,7 @@ se('se_h_tomato_glow', {
   },
 });
 se('se_h_dim', {
-  label: '明るい2ラウンド目の終わり（光が落ちつく）',
+  label: '光が落ちつく（明るい2ラウンド目の終わり）',
   group: G_BOSS,
   layers: [...['F4', 'C5', 'E5'].map((n) => `saw f=${n} env=0/400/0/100 dur=20 v=.008 flt=LP2000→400`), 'tri f=D5→C5/300 env=5/350/0/100 dur=300 v=.02'],
 });
@@ -690,7 +690,7 @@ se('se_h_otsukare', {
   },
 });
 se('se_h_bell_kon', {
-  label: 'Lv6：鐘が小さく「コン」',
+  label: '鐘が小さくコン（Lv6：かねを鳴らす）',
   group: G_HANKO,
   rev: 0.2,
   bus: 'bell',
@@ -709,9 +709,9 @@ se('se_h_hamidashi', {
 // ============================================================================
 // 8.8 足音・8.10 シンボル・8.11 エンディング
 
-se('se_step_sheet', stepDef('足音：ハウスの防草シート（ぱさっ）', ['noise env=2/35/0/20 dur=25 v=.03 flt=BP3200q0.9 am=70/.5', 'noise env=2/30/0/15 dur=20 v=.015 flt=LP900', BSAN(0.8)], G_END));
+se('se_step_sheet', stepDef('足音：防草シート（ハウスの通路。ぱさっ）', ['noise env=2/35/0/20 dur=25 v=.03 flt=BP3200q0.9 am=70/.5', 'noise env=2/30/0/15 dur=20 v=.015 flt=LP900', BSAN(0.8)], G_END));
 se('se_h_kakashi_hop', {
-  label: 'ヘノヘノ課長のシンボルが跳ねる（コン、ぱさ）',
+  label: 'ヘノヘノ課長が跳ねる（シンボル。竹の足コン、背広ぱさ）',
   group: G_END,
   rand: [0.04, 0.08],
   layers: ['fm f=520 fm=r2.1:i1.5→0/40 env=0/120/0/30 dur=10 v=.035', 'noise env=5/80/0/30 dur=60 v=.015 flt=BP1500q0.9 at=30'],

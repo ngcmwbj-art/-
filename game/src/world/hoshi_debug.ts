@@ -18,7 +18,7 @@ import type { Gfx } from '../engine/gfx';
 import { addItem, flag, hasItem, setFlag, state, type Dir } from '../game/state';
 import { field, FieldScene } from './field';
 import { registerWorldFx } from './fx';
-import { callNow, callState, turnScarecrows } from './hoshi';
+import { callNow, callState, setRoomLights, turnScarecrows } from './hoshi';
 import { darkRectsOf, setLanternOverride, SHOW_MARGIN, SYM_MARGIN } from './lantern';
 import { GRADES_H, type GradeHKey } from './lighting';
 import { getMapDef, hasMap, isCh2Map, registerMap } from './maps';
@@ -74,6 +74,8 @@ const QA_OBJECTS: MapObj[] = [
   { t: 'obj', id: 'obj_qa_kamado', x: 6, y: 13, text: '@narr\n灯りの 中でだけ 見える かまど。', litOnly: true },
   { t: 'prop', prop: 'obj_danball', x: 24, y: 8 },
   { t: 'prop', prop: 'obj_pots_1', x: 19, y: 13 },
+  // a big thing only the light shows (drawn cut to the lights' circles)
+  { t: 'prop', prop: 'prop_pots_row', x: 9, y: 13, litOnly: true },
   { t: 'npc', id: 'npc_qa_farmer', sprite: 'npc_hoshi_gen', x: 26, y: 13, dir: 'left', talk: { default: '@narr\n暗がりの 人。' } },
   // the symbols (51 11.2)
   { t: 'sym', id: 'sym_qa_boar', enemies: ['enemy_chototsu'], x: 6, y: 2, dir: 'down', move: 'boar', cond: S1 },
@@ -108,8 +110,48 @@ const QA_MAP: MapDef = {
   ],
 };
 
+/** A copy of the night train's shape (52 4.1) and a dark room with tubes, for the rooms' light. */
+const INDOOR_QA: Record<string, TileSpec> = {
+  '#': { ground: 'void', solid: true, tag: 'void' },
+  W: { ground: 'void', solid: true, tag: 'iwall' },
+  '.': { ground: 'tile_floor', step: 'se_step_tile' },
+  S: { ground: 'tile_floor', solid: true, counter: true, tag: 'counter' },
+  C: { ground: 'tile_floor', solid: true, tag: 'prop' },
+  o: { ground: 'tile_floor', solid: true, tag: 'prop' },
+  D: { ground: 'void', solid: true, door: true, tag: 'door' },
+};
+const QA_TRAIN: MapDef = {
+  id: 'map_hoshi_qa_train',
+  name: '夜の電車（QA）',
+  kind: 'indoor',
+  chapter: 2,
+  stageFlag: 'flag_ch2_stage',
+  rows: ['####################', '#WWWWWWWWWWWWWWW#CC#', '#..SSSSSSSSSSS..SCC#', '#...............SCC#', '#...............SCC#', '#.o.SSSSSSSSSS.oSCC#', '##D############D####'],
+  legend: INDOOR_QA,
+  objects: [{ t: 'trig', id: 'trig_qa_front', x: 14, y: 2, w: 2, h: 3, on: 'stay', stayMs: 1500, text: '@narr\n前の方で 1.5秒。' }],
+  camera: 'fixed',
+  outside: '#0B0B14',
+  bgm: { 0: null, 1: null, 2: null },
+  amb: { 0: ['amb_h_train'], 1: ['amb_h_train'], 2: ['amb_h_train'] },
+};
+const QA_BARN: MapDef = {
+  id: 'map_hoshi_qa_barn',
+  name: '牛舎（QA）',
+  kind: 'indoor',
+  chapter: 2,
+  stageFlag: 'flag_ch2_stage',
+  rows: ['######################', '#WWWWWWWWWWWWWWWWWWWW#', '#o..#oooooooooooooooo#', '#...#oooooooooooooooo#', '#..o#oooooooooooooooo#', '#...#SSSSSSSSSSSSSSSo#', '#o...................#', '#...#SSSSSSSSSSSSSSSo#', '#...#oooooooooooooooo#', '#...#oooooooooooooooo#', '#...#oooooooooooooooo#', '##D###################'],
+  legend: INDOOR_QA,
+  objects: [],
+  camera: 'fixed',
+  outside: '#0B0B14',
+  dark: [{ x: 0, y: 0, w: 22, h: 12 }],
+};
+
 function ensureQaMap(): void {
   if (!hasMap(QA_MAP.id)) registerMap(QA_MAP);
+  if (!hasMap(QA_TRAIN.id)) registerMap(QA_TRAIN);
+  if (!hasMap(QA_BARN.id)) registerMap(QA_BARN);
 }
 
 // ---------------------------------------------------------------- the village (levels team's map) and its QA screens
@@ -202,14 +244,23 @@ registerDebug('hoshi', async (screen?: string, stage?: number) => {
   return `${id} at h${flag('flag_ch2_stage')}`;
 });
 
-registerDebug('hoshiQa', (stage?: number, x?: number, y?: number) => {
+registerDebug('hoshiQa', (stage?: number, x?: number, y?: number, room?: 'train' | 'barn') => {
   ensureQaMap();
   const n = stage ?? 1;
   applyHStageDefaults(n);
   setFlag('flag_ch2_stage', n);
-  const f = goto('map_hoshi_qa', x ?? 8, y ?? 8, 'right');
+  if (room === 'train') setFlag('flag_ch2_arrived', 0);
+  const id = room ? `map_hoshi_qa_${room}` : 'map_hoshi_qa';
+  const f = goto(id, x ?? (room === 'train' ? 2 : room === 'barn' ? 2 : 8), y ?? (room === 'train' ? 3 : room === 'barn' ? 9 : 8), 'right');
   f?.syncFollower(true);
-  return `map_hoshi_qa at h${n}`;
+  return `${id} at h${n}`;
+});
+
+registerDebug('roomLights', (on?: boolean | null, ms?: number) => {
+  const f = field();
+  if (!f) return 'no field';
+  setRoomLights(f, on === undefined ? true : on, ms ?? 480);
+  return `room lights ${on}`;
 });
 
 registerDebug('hstage', (n: number, ms?: number) => {

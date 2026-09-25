@@ -54,6 +54,14 @@ import { ROOM_SLIDE } from './roomview';
 export const WALK_SPEED = 4.5 * 16; // px/s
 export const DASH_SPEED = 7 * 16;
 export const FOLLOW_DELAY = 14; // frames
+/** A symbol's field sprite (SymbolObj.sprite, else the pair art of two of the same enemy, else the enemy's). */
+function symbolSprite(o: SymbolObj): string {
+  if (o.sprite) return o.sprite;
+  const e = o.enemies[0] ?? 'enemy_cone_vocal';
+  if (o.enemies.length === 2 && o.enemies[1] === e && hasChar(e + '_pair')) return e + '_pair';
+  return e;
+}
+
 /** Grace after a map change / an event / a battle before enemy symbols notice or charge (ms). */
 export const CALM_MS = 1500;
 /** Minimum personal space between characters (px): 12 wide, one tile deep. */
@@ -244,6 +252,16 @@ export class FieldScene implements Scene {
   /** Crossing between chapter 1 and 星見台 maps: jump straight to the right grade family. */
   private snapGradeFamily(): void {
     const fam: 1 | 2 = this.ch2 ? 2 : 1;
+    // between 星見台 maps at night the grade is the stage's preset (a scene
+    // may have written flag_ch2_stage before the warp); the dawn of the
+    // ending (h3) is the scenes' to set
+    if (fam === 2 && this.gradeFamily === 2 && this.gradeT >= 1 && flag('flag_ch2_stage') <= 2) {
+      const g = GRADES_H[gradeHKey(flag('flag_ch2_stage'))];
+      this.grade = cloneGrade(g);
+      this.gradeTo = cloneGrade(g);
+      this.gradeFrom = cloneGrade(g);
+      return;
+    }
     if (fam === this.gradeFamily) return;
     this.gradeFamily = fam;
     const g = fam === 2 ? GRADES_H[gradeHKey(flag('flag_ch2_stage'))] : GRADES[flag('flag_stage')] ?? GRADES[0];
@@ -309,8 +327,7 @@ export class FieldScene implements Scene {
       if (o.shadow !== undefined) a.shadowH = o.shadow;
       initNpc(a, o);
     } else {
-      const enemy = o.enemies[0] ?? 'enemy_cone_vocal';
-      a = new Actor(o.id, 'sym', enemy, o.x * 16 + 8, o.y * 16 + 16);
+      a = new Actor(o.id, 'sym', symbolSprite(o), o.x * 16 + 8, o.y * 16 + 16);
       a.dir = o.dir ?? 'down';
       this.symbols.init(a, o);
     }
@@ -322,7 +339,8 @@ export class FieldScene implements Scene {
   private spawnRestored(o: SymbolObj): void {
     const at = o.restoreAt ?? [o.x, o.y];
     const enemy = o.enemies[0] ?? (o.link ? 'enemy_cone_vocal' : 'enemy_cone_vocal');
-    const a = new Actor('restored:' + o.id, 'restored', 'restored_' + enemy, at[0] * 16 + 8, at[1] * 16 + 16);
+    const own = 'restored_' + symbolSprite(o);
+    const a = new Actor('restored:' + o.id, 'restored', hasChar(own) ? own : 'restored_' + enemy, at[0] * 16 + 8, at[1] * 16 + 16);
     if (o.restoreOff) {
       a.ox = o.restoreOff[0];
       a.oy = o.restoreOff[1];
@@ -585,7 +603,7 @@ export class FieldScene implements Scene {
     if (!c.solid) return false;
     if (c.tag === 'chain') return !(flag('flag_parking_open') > 0 || flag('flag_stage') >= 2);
     if (c.tag === 'barricade') return flag('flag_stage') === 0;
-    // 星見台's electric-fence gate (52 7.1 `G`): shut until ゲンさん opens it
+    // 星見台's electric-fence gate (52 7.1 `G`): shut until マサルさん opens it
     if (c.tag === 'egate') return !flag('flag_ch2_gate_open');
     return true;
   }
@@ -1072,6 +1090,7 @@ export class FieldScene implements Scene {
   }
 
   objectAt(tx: number, ty: number, dir: Dir | null): ExamineObj | null {
+    let best: ExamineObj | null = null;
     for (const o of this.map.objects) {
       if (o.t !== 'obj') continue;
       if (!condOk(o.cond)) continue;
@@ -1081,9 +1100,11 @@ export class FieldScene implements Scene {
       if (o.face && dir && o.face !== dir) continue;
       // in the dark only what the light shows can be examined (52 8.5)
       if (!this.light.canExamine(o)) continue;
-      return o;
+      // several on one tile: the higher priority, else the first listed
+      // (the barn chores' spots over the trough's own text, 50 10.19)
+      if (!best || (o.priority ?? 0) > (best.priority ?? 0)) best = o;
     }
-    return null;
+    return best;
   }
 
   /**

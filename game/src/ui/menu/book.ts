@@ -364,7 +364,7 @@ function drawSmall(ctx: CanvasRenderingContext2D, s: string, x: number, y: numbe
 
 let tomatoStickerC: HTMLCanvasElement | null = null;
 /** 10×10 round sticker: the tomato on white with a thin border. */
-function stickerTomato(): HTMLCanvasElement {
+export function stickerTomato(): HTMLCanvasElement {
   if (tomatoStickerC) return tomatoStickerC;
   const [c, ctx] = makeCanvas(14, 14);
   ctx.fillStyle = '#F4F1E8';
@@ -380,7 +380,7 @@ function stickerTomato(): HTMLCanvasElement {
 
 let starStickerC: HTMLCanvasElement | null = null;
 /** 7×7 gold star sticker (#F6D98A with a darker gold edge). */
-function stickerStar(): HTMLCanvasElement {
+export function stickerStar(): HTMLCanvasElement {
   if (starStickerC) return starStickerC;
   const rows = ['...o...', '...O...', 'oOOjOOo', '.OjjjO.', '..OjO..', '.OO.OO.', 'oO...Oo'];
   const [c, ctx] = makeCanvas(7, 7);
@@ -403,7 +403,7 @@ const VISIBLE = 8;
 /** Width of an index label (to just short of the fold). */
 const LABEL_W = FOLD - 4 - (LP.x + 14);
 /** The notebook flags on the left edge (16×12). */
-const FLAG_Y = [SP.y + 36, SP.y + 52];
+const FLAG_Y = [SP.y + 34, SP.y + 50];
 /** Changing notebooks: the cover lies there, then opens. */
 const COVER_IN = 110;
 const COVER_HOLD = 300;
@@ -439,11 +439,13 @@ export class BookPage implements MenuPage {
     return this.vol === 2 ? VOL2 : VOL1;
   }
 
+  private opened = false;
+
   show(): void {
-    // the notebook of the chapter being played is the one on top
-    const want: 1 | 2 = hasBook2() ? 2 : 1;
-    if (want !== this.vol && this.volT > 5000) {
-      this.vol = want;
+    // the notebook of the chapter being played is the one on top when the menu opens
+    if (!this.opened) {
+      this.opened = true;
+      this.vol = hasBook2() && !flag('flag_ch2_clear') ? 2 : hasBook2() ? 2 : 1;
       this.sec = 0;
     }
     if (!hasBook2()) this.vol = 1;
@@ -510,16 +512,16 @@ export class BookPage implements MenuPage {
 
   draw(g: Gfx, m: MenuCtx): void {
     const v = this.v;
-    drawHeader(g, 'みました帳', LP.x, SP.y + 6, v.tape, 1, 9 + v.n);
+    const two = hasBook2();
+    if (two) {
+      // the notebook's number written on the header tape after its name
+      drawTape(g, LP.x, SP.y + 6, textW('みました帳') + 28, 18, '', { color: v.tape, seed: 9 + v.n });
+      g.text('みました帳', LP.x + 8, SP.y + 7, { color: UI.text });
+      drawCircledNum(g, v.n, LP.x + 8 + textW('みました帳') + 2, SP.y + 11, UI.text);
+    } else drawHeader(g, 'みました帳', LP.x, SP.y + 6, v.tape, 1, 9 + v.n);
     const c = v.n === 1 ? bookCounts() : bookCountsCh2();
     const have = this.sec === 0 ? c.fushigi : this.sec === 1 ? c.aite : c.tsukkomi;
-    drawDigits(g, `${have}/${this.count()}`, FOLD - 12, SP.y + 12, { color: UI.pencil, align: 'right' });
-    if (hasBook2()) {
-      // the notebook's number beside its title, in the hand that wrote it
-      const hx = LP.x + textW('みました帳') + 20;
-      g.text(v.n === 1 ? '①' : '②', hx, SP.y + 7, { color: UI.pencil });
-      if (v.n === 2) g.img(tomatoIcon('ready'), hx + 17, SP.y + 9);
-    }
+    drawDigits(g, `${have}/${this.count()}`, FOLD - (two ? 6 : 12), SP.y + 12, { color: UI.pencil, align: 'right' });
     const k = Math.min(1, this.secT / 120);
     g.alpha(k, () => {
       this.drawList(g, m);
@@ -552,20 +554,24 @@ export class BookPage implements MenuPage {
     if (hasBook2()) this.drawFlags(g, m);
   }
 
-  /** ① ② flags on the notebook's left edge; the open one sticks out further. */
+  /**
+   * ① ② flags (16×12) tucked under the notebook's left edge like index
+   * stickers; the open one sticks out 3 px further and is the brighter.
+   */
   private drawFlags(g: Gfx, m: MenuCtx): void {
     ([1, 2] as const).forEach((n, i) => {
       const on = n === this.vol;
       const col = n === 1 ? VOL1.flag : VOL2.flag;
-      const x = SP.x - 13 - (on ? 3 : 0);
+      const x = SP.x - 14 - (on ? 3 : 0);
       const y = FLAG_Y[i];
-      rectA(g, x + 1, y + 2, 16, 12, UI.night, 0.35);
-      g.rect(x, y, 16, 12, UI.border);
-      g.rect(x + 1, y + 1, 15, 10, on ? col : blendFlag(col));
-      g.rect(x + 1, y + 1, 15, 1, '#FFFFFF');
-      g.rect(x + 1, y + 10, 15, 1, n === 1 ? '#5FB0C8' : '#6FA04A');
-      drawCircledNum(g, n, x + 3, y + 2, on ? UI.text : UI.pencil);
-      if (on && m.focus) g.px(x + 1, y + 5, UI.accent);
+      rectA(g, x + 1, y + 2, 20, 12, UI.night, 0.35);
+      g.rect(x, y, 20, 12, n === 1 ? '#4A8AA0' : '#4E7A36');
+      g.rect(x + 1, y + 1, 19, 10, on ? col : blendFlag(col));
+      g.rect(x + 1, y + 1, 19, 1, '#FFFFFF');
+      g.rect(x + 1, y + 9, 19, 2, n === 1 ? '#5FB0C8' : '#6FA04A');
+      drawCircledNum(g, n, x + 3, y + 1, on ? UI.text : UI.pencil);
+      // the page is open on this one: a 朱 tick by its number
+      if (on && m.focus) g.rect(x + 1, y + 4, 1, 3, UI.accent);
     });
   }
 

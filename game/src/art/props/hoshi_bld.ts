@@ -10,7 +10,7 @@
 // needs: the altar candles, the old man's night-light. Buildings anchor on
 // the top-left tile of their roof, like chapter 1's (bkit.registerBuilding).
 
-import { mix, type PixelCanvas } from '../../engine/pixel';
+import { mix, PixelCanvas } from '../../engine/pixel';
 import { h01, ihash } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { KAWARA_IBUSHI, KAWARA_OLD, registerBuilding, roofKawara, type Bld } from './bkit';
@@ -45,6 +45,7 @@ import {
   windowPool,
 } from './hoshi_kit';
 import { drawLight, poolEllipse } from './light';
+import { registerProp } from './registry';
 import { fontTextSmall } from './text';
 
 // ---------------------------------------------------------------- shared bits
@@ -732,3 +733,29 @@ registerBuilding({
 });
 
 void TIN_BROWN;
+
+// ---------------------------------------------------------------- 土間のかまど (2,43): only in the lantern's light
+
+registerProp('prop_h_kamado', () => {
+  // an earthen stove (#8A5A3A) with two fire mouths and a black rice pot, deep in the kitchen
+  const p = new PixelCanvas(18, 14);
+  p.rect(1, 5, 16, 9, P.wood);
+  p.hline(1, 16, 5, P.woodLt);
+  p.vline(16, 6, 13, P.woodDark);
+  for (let i = 2; i < 16; i++) if (h01(i, 9, 3541) < 0.25) p.set(i, 9 + (i % 3), P.woodDark);
+  // the fire mouths (cold)
+  for (const fx of [3, 10]) {
+    p.rect(fx, 9, 4, 4, P.night);
+    p.hline(fx, fx + 3, 9, P.ink);
+    p.set(fx + 1, 12, P.charcoal);
+  }
+  // the black pot (羽釜) with its wooden lid
+  p.ellipse(6, 4, 4, 2, P.charcoal);
+  p.hline(2, 10, 4, P.ink);
+  p.ellipse(6, 2.5, 3, 1.2, P.woodLt);
+  p.set(6, 1, P.wood);
+  p.ellipse(13, 4, 2.5, 1.5, P.steel); // a kettle
+  p.set(15, 3, P.steel);
+  const img = p.toCanvas();
+  return { ox: -1, oy: 2, w: 18, h: 14, foot: 17, img: () => img, contact: 0 };
+});

@@ -7,3 +7,5 @@ import './mall';
 // Chapter 2 『星見台のトマト』 (levels team, 52_ch2_level_art): the village and its rooms.
 import './hoshi_village';
 import './hoshi_qa';
+import './hoshi_rooms';
+import './hoshi_hill';

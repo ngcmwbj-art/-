@@ -20,7 +20,8 @@ import type { Actor } from './actor';
 import { hud } from './hud';
 import { fxDraw, fxUpdate } from './fx';
 import * as snd from './audio';
-import { fanImage, lanternShadow, nightSilhouette, rimOf, sideToward, type LightCircle } from './lantern';
+import { fanImage, lanternShadow, nightSilhouette, type LightCircle } from './lantern';
+import { charGlow, litRim } from '../art/chars/nightlight';
 import { genFlash, hoshiPositional, hoshiPositionalBeds, paintRoomLight, roomLit } from './hoshi';
 import { fushigiDone } from './fushigi';
 import { hash2, Rng, valueNoise } from '../engine/rng';
@@ -299,11 +300,19 @@ export class Renderer {
       // things in the dark: only inside the light (52 8.5)
       const la = f.light.alphaOf(p);
       if (la <= 0.01) continue;
+      const clipped = f.light.isClipped(p);
       const d: Drawable = {
         foot: p.y + a.foot,
         x: p.x,
         alpha: la < 1 ? la : undefined,
         draw: () => {
+          if (clipped) {
+            // a big thing only the light shows: cut to the lights' circles
+            ctx.save();
+            if (f.light.clipToLights(ctx, cx, cy)) drawProp();
+            ctx.restore();
+            return;
+          }
           if (la < 1) {
             ctx.globalAlpha = la;
             try {
@@ -404,7 +413,13 @@ export class Renderer {
           d.alpha = a.alpha * la;
         },
       };
-      if (ch2 && a !== f.player) d.glow = () => this.rimActor(a, d, lant);
+      if (ch2)
+        d.glow = () => {
+          // what the character carries that gives light (the tomato in the
+          // net, a flashlight): its own emissive layer (chars' nightlight)
+          this.charGlowOf(a, d);
+          if (a !== f.player) this.rimActor(a, d, lant);
+        };
       if (selfLit) {
         const g0 = d.glow;
         d.glow = () => {
@@ -613,23 +628,41 @@ export class Renderer {
       const fy = a.y - 10;
       const dist = Math.hypot(fx - l.x, fy - l.y);
       if (dist < l.r) {
-        const [sx, sy] = sideToward(l, fx, fy);
-        const rim = rimOf(d.img, sx, sy, '#F2894B');
-        const q = dist / l.r;
-        ec.globalAlpha = 0.95 * (1 - q * q) * la;
+        const rim = litRim(d.img, l.x - fx, l.y - fy, '#F2894B');
+        if (rim) {
+          const q = dist / l.r;
+          ec.globalAlpha = 0.95 * (1 - q * q) * la;
+          ec.drawImage(rim, d.ix!, d.iy!);
+          ec.globalAlpha = 1;
+          this.addGlowBox(d.ix!, d.iy!, d.img.width, d.img.height);
+        }
+      }
+    }
+    const rr = f.grade.rimRight;
+    if (rr > 0.02 && a.kind !== 'restored') {
+      const rim = litRim(d.img, 1, 0, '#F7C27A');
+      if (rim) {
+        ec.globalAlpha = Math.min(1, rr) * 0.9 * la;
         ec.drawImage(rim, d.ix!, d.iy!);
         ec.globalAlpha = 1;
         this.addGlowBox(d.ix!, d.iy!, d.img.width, d.img.height);
       }
     }
-    const rr = f.grade.rimRight;
-    if (rr > 0.02 && a.kind !== 'restored') {
-      const rim = rimOf(d.img, 1, 0, '#F7C27A');
-      ec.globalAlpha = Math.min(1, rr) * 0.9 * la;
-      ec.drawImage(rim, d.ix!, d.iy!);
-      ec.globalAlpha = 1;
-      this.addGlowBox(d.ix!, d.iy!, d.img.width, d.img.height);
-    }
+  }
+
+  /** A character frame's emissive layer (the lantern's tomato and its 12×12 halo, 52 8.5 / 10.1). */
+  private charGlowOf(a: Actor, d: Drawable): void {
+    if (!d.img || a.drawFn) return;
+    const la = d.alpha ?? 1;
+    if (la <= 0.05) return;
+    const g = charGlow(d.img);
+    if (!g) return;
+    const x = d.ix! + g.dx;
+    const y = d.iy! + g.dy;
+    this.ectx.globalAlpha = la;
+    this.ectx.drawImage(g.img, x, y);
+    this.ectx.globalAlpha = 1;
+    this.addGlowBox(x, y, g.img.width, g.img.height);
   }
 
   /** Rim of a small prop (a cow, a scarecrow, a box) inside the lantern's circle. */
@@ -642,9 +675,10 @@ export class Renderer {
     const fy = p.y + a.foot - 8;
     const dist = Math.hypot(fx - l.x, fy - l.y);
     if (dist >= l.r) return;
-    const [sx, sy] = sideToward(l, fx, fy);
+    const rim = litRim(d.img, l.x - fx, l.y - fy, '#F2894B');
+    if (!rim) return;
     const q = dist / l.r;
-    this.pendingRim.set(p, [rimOf(d.img, sx, sy, '#F2894B'), d.ix!, d.iy!, 0.85 * (1 - q * q) * (d.alpha ?? 1)]);
+    this.pendingRim.set(p, [rim, d.ix!, d.iy!, 0.85 * (1 - q * q) * (d.alpha ?? 1)]);
     // props with a glow flush it in their glow slot; the rest right now
     if (!a.glow || a.glowFg) this.flushRim(p);
     void cx;
@@ -726,7 +760,7 @@ export class Renderer {
     }
   }
 
-  /** Light effects over the graded frame: the lantern lighting up, テツヤ's shape in the dark, ゲンさん's flashlight. */
+  /** Light effects over the graded frame: the lantern lighting up, テツヤ's shape in the dark, マサルさん's flashlight. */
   private drawLightFx(cx: number, cy: number): void {
     const f = this.f;
     const ctx = this.wctx;
@@ -750,7 +784,7 @@ export class Renderer {
       ctx.restore();
     }
     this.silLater = [];
-    // ゲンさん's flashlight, one frame a second: the bulb
+    // マサルさん's flashlight, one frame a second: the bulb
     const g = genFlash(f);
     if (g) {
       const bx = Math.round(g.x + (g.dir === 'left' ? -6 : 6) - cx);
@@ -932,6 +966,7 @@ export class Renderer {
       const ty1 = Math.min(m.h - 1, Math.floor((cy + H) / 16));
       const t = f.t / 1000;
       const shiver = Math.floor(f.t / 67) % 2;
+      let dashes = 0;
       for (let ty = ty0; ty <= ty1; ty++)
         for (let tx = tx0; tx <= tx1; tx++) {
           const g = String(groundAt(m, tx, ty));
@@ -944,10 +979,13 @@ export class Renderer {
             const lx = (((Math.floor(h * 97) + t * flowX + (flowX || flowY ? 0 : shiver * (k % 2 ? 1 : -1))) % 16) + 16) % 16;
             const ly = (((Math.floor(hash2(tx, ty * 3 + k, 92) * 16) + t * flowY) % 16) + 16) % 16;
             sctx.fillRect(Math.floor(tx * 16 + lx - cx), Math.floor(ty * 16 + ly - cy), len, 1);
+            dashes++;
           }
         }
-      masked(sc, null, null);
-      onto('screen', gd.night > 0.5 ? 0.8 : 0.35);
+      if (dashes) {
+        masked(sc, null, null);
+        onto('screen', gd.night > 0.5 ? 0.8 : 0.35);
+      }
     }
     // fushigi_ch2_05: the 5th terrace's western paddy mirrors an evening sky
     if (m.id === 'map_hoshimidai') {
@@ -1529,8 +1567,16 @@ export class Renderer {
         lx.fillStyle = r.color;
         lx.fillRect(r.x * 16 - cx, r.y * 16 - cy, r.w * 16, r.h * 16);
       }
-      // the dark, the starlight, the tomato light (mixed, not added)
+      // the dark, the starlight, the tomato light (mixed, not added);
+      // indoors it stays inside the room's cells
+      if (indoor) {
+        lx.save();
+        lx.translate(-cx, -cy);
+        lx.clip(this.roomClip());
+        lx.setTransform(1, 0, 0, 1, 0, 0);
+      }
       f.light.paint(lx, cx, cy, base, W, H);
+      if (indoor) lx.restore();
       // the rooms' own light moving: the tubes coming on one by one, the
       // starlight through the train's windows (hoshi.ts)
       paintRoomLight(f, lx, cx, cy, HOSHI_INDOOR_MORNING[f.map.id] ?? HOSHI_INDOOR_MORNING.default);
@@ -1545,7 +1591,7 @@ export class Renderer {
         const [hx, hy] = lampPos(a);
         lx.drawImage(fan, Math.round(hx - cx - (fan.width - 1) / 2), Math.round(hy - cy - (fan.height - 1) / 2));
       }
-      // ゲンさん's flashlight: a 10px circle, one frame a second
+      // マサルさん's flashlight: a 10px circle, one frame a second
       const g = genFlash(f);
       if (g) {
         const gx = Math.round(g.x + (g.dir === 'left' ? -6 : 6) - cx);

@@ -8,3 +8,9 @@ import './souji';
 import './momi';
 import './kanenari';
 import './boss';
+// 第2章
+import './sune';
+import './kacho';
+import './biri';
+import './chototsu';
+import './mujin';
