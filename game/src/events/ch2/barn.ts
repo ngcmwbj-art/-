@@ -22,7 +22,7 @@ import * as T from '../../data/text/hoshi_events';
 import { F, sendAway } from '../lib';
 import { sparkle } from '../fx';
 import { hankoLearn, se, seAt } from './compat';
-import { firstThisLoad, npc, poseIf, routeTiles, runCue, unpose } from './common';
+import { firstThisLoad, npc, poseAny, poseIf, routeTiles, runCue, unpose } from './common';
 
 const G = HOSHI_NPC.npc_hoshi_gen;
 
@@ -409,12 +409,12 @@ function* doSpot(id: string): Co {
   const wy = sy * 16 + 8;
   if (esa) {
     // the feed swept back to the rail (0.6 s); the reaching cow lowers her head and eats
-    poseIf(p, 'scoop');
+    poseAny(p, 'scoop', 'give');
     seAt('se_h_esayose', wx, wy, { vol: 0.5 });
     yield 600;
   } else {
     // the fallen feed scooped out, then the press plate: clear water (0.8 s)
-    poseIf(p, 'cup_clean');
+    poseAny(p, 'cup_clean', 'give');
     se('se_h_shodoku', { pitch: 1.2, vol: 0.4 });
     yield 400;
     seAt('se_h_watercup', wx, wy);

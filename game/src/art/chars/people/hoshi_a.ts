@@ -6,6 +6,7 @@
 // added at run time (nightlight.ts: litRim).
 
 import { flat, mat, type Fig, type Mats, type RowMap } from '../fig';
+import { PixelCanvas } from '../../../engine/pixel';
 import { legs, type LegSpec, type Seg } from '../body';
 import { buildSprite, breathingIdle, rep, type IdleKey, type Pose } from '../rig';
 import { registerChar } from '../registry';
@@ -707,7 +708,53 @@ const LEAN: IdleKey[] = [
   { act: 'lean', blink: true }, { act: 'lean' }, { act: 'lean', breath: 1 }, { act: 'lean', breath: 1 },
 ];
 
+/**
+ * The feed cart in front of him (side views of 'feed', the ending's cut 2a):
+ * a steel box on small wheels with the morning's feed heaped in it and a
+ * towel on the handle, composited on a 34px frame (the feet stay centred).
+ */
+function withCart(frame: HTMLCanvasElement, right: boolean, ph: number): HTMLCanvasElement {
+  const W = 34;
+  const cart = new PixelCanvas(W, frame.height);
+  const b = frame.height - 24;
+  const X = (x: number) => (right ? W - 1 - x : x) - (right ? 0 : 0);
+  const px = (x: number, y: number, c: string) => cart.set(X(x - ph), y + b, c);
+  for (let x = 1; x <= 8; x++) for (let y = 15; y <= 19; y++) px(x, y, x === 8 ? '#6B7186' : '#9AA0A8');
+  for (let x = 1; x <= 8; x++) px(x, 15, '#C8CDD4');
+  for (let x = 1; x <= 8; x++) px(x, 19, '#6B7186');
+  for (let x = 2; x <= 7; x++) px(x, 14, x % 3 === 0 ? '#C8A06A' : '#E8D9B5');
+  px(3, 13, '#E8D9B5');
+  px(5, 13, '#E8D9B5');
+  for (const x of [2, 7]) {
+    px(x, 20, '#3A3F48');
+    px(x, 21, '#2A2440');
+    px(x + 1, 21, '#2A2440');
+    px(x, 22, '#2A2440');
+  }
+  // the handle up to his fists, the towel hanging from it
+  px(9, 15, '#6B7186');
+  px(10, 14, '#6B7186');
+  px(11, 14, '#6B7186');
+  px(10, 15, '#E8E4D8');
+  px(10, 16, '#E8E4D8');
+  cart.outline('#2A2440');
+  const c = cart.toCanvas();
+  c.getContext('2d')!.drawImage(frame, (W - frame.width) >> 1, 0);
+  return c;
+}
+
 function genSprite(id: string, idleDown: IdleKey[]) {
+  const s = genSpriteRaw(id, idleDown);
+  for (const d of ['left', 'right'] as const) {
+    const a = s.animsDir?.feed?.[d];
+    if (a) s.animsDir!.feed![d] = { ...a, frames: a.frames.map((fr, i) => withCart(fr, d === 'right', i % 2)) };
+    const e = s.extraDir?.feed?.[d];
+    if (e) s.extraDir!.feed![d] = withCart(e, d === 'right', 0);
+  }
+  return s;
+}
+
+function genSpriteRaw(id: string, idleDown: IdleKey[]) {
   return buildSprite({
     id,
     mats: GEN,

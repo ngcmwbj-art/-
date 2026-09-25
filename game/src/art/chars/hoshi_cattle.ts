@@ -124,6 +124,18 @@ function morning(env: PropEnv): boolean {
   return (env.hstage ?? -1) >= 3;
 }
 
+// The barn's tubes (the world's roomLights, ending cut 2a): the lying cows get
+// up when the lights come on. Looked up lazily — the world imports the art.
+let roomLitFn: ((mapId: string) => number | null) | null = null;
+void import('../../world/hoshi').then((m) => (roomLitFn = m.roomLit)).catch(() => {});
+
+/** Is the barn still dark for the cows (night, or the tubes not on yet at 5:00)? */
+function barnDark(env: PropEnv): boolean {
+  const lit = roomLitFn ? roomLitFn('map_hoshi_barn') : null;
+  if (lit !== null) return lit <= 0;
+  return !morning(env);
+}
+
 function cowArt(pose: CowPose, opts: Record<string, unknown>): PropArt {
   const right = !!opts.right;
   const white = String(opts.white ?? '');
@@ -147,7 +159,7 @@ function cowArt(pose: CowPose, opts: Record<string, unknown>): PropArt {
     }
     lastT = t;
     if (lying) {
-      if (!morning(env)) sawNight = true;
+      if (barnDark(env)) sawNight = true;
       else if (riseAt < 0) riseAt = sawNight ? t + 400 + ((seed * 1000) % 1400) : -2;
       if (riseAt === -2 || (riseAt >= 0 && t >= riseAt)) {
         const k = riseAt === -2 ? 9 : Math.floor((t - riseAt) / 220);

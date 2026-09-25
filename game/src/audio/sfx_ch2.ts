@@ -23,9 +23,11 @@ const G_HANKO = '第2章：戦闘・ハンコ・能力';
 const G_END = '第2章：足音・シンボル・エンディング';
 // ツガオの部屋 (53 8.12): used again in chapter 3, so its ids carry no chapter letter
 const G_TSUGAO = '第2章：ツガオの部屋（第3章の予告）';
+// ツガオ便 and the delivery (53 8.13): the truck's sounds and ぴーちゃん come back in chapter 3 too
+const G_DELI = '第2章：ツガオ便と野菜の配達';
 
 /** Every chapter-2 group (the sound test's 第2章 page lists them in this order). */
-export const CH2_SE_GROUPS = [G_TRAIN, G_VILLAGE, G_BARN, G_PA, G_ENEMY, G_BOSS, G_HANKO, G_END, G_TSUGAO];
+export const CH2_SE_GROUPS = [G_TRAIN, G_VILLAGE, G_BARN, G_PA, G_ENEMY, G_BOSS, G_HANKO, G_END, G_DELI, G_TSUGAO];
 
 // ---------------------------------------------------------------------------
 // the PA (bus_pa): these SEs sing through the speaker on the hill
@@ -269,7 +271,7 @@ se('se_h_yunomi', {
     for (const l of YUNOMI_POUR) layer(c, l);
   },
 });
-se('se_h_yunomi_pour', { label: 'お茶を注ぐだけ（ヨシエさんのお茶）', group: G_VILLAGE, rev: 0.1, fn: (c) => YUNOMI_POUR.forEach((l) => layer(c, l, { at: -450 })) });
+se('se_h_yunomi_pour', { label: 'お茶を注ぐだけ（エー夫人のお茶）', group: G_VILLAGE, rev: 0.1, fn: (c) => YUNOMI_POUR.forEach((l) => layer(c, l, { at: -450 })) });
 se('se_h_tomato_catch', {
   label: 'トマトが手の中に落ちる（ぽすっ）',
   group: G_VILLAGE,
@@ -303,7 +305,7 @@ se('se_h_boukatou_on', {
   layers: ['sq f=120 env=0/0/1/10 dur=60 v=.01 flt=LP800 rep=3x90', 'sine f=2600 env=0/20/0/10 dur=8 v=.006 at=300', 'noise env=0/40/0/20 dur=10 v=.01 flt=BP1800q1 at=420'],
 });
 se('se_h_kaichu', {
-  label: 'ゲンさんの懐中電灯（カチ、カラカラ）',
+  label: 'マサルさんの懐中電灯（カチ、カラカラ）',
   group: G_VILLAGE,
   layers: ['tri f=1900 env=0/20/0/10 dur=8 v=.025', 'noise env=0/25/0/10 dur=10 v=.012 flt=BP3000q3 rep=3x45 at=60'],
 });
@@ -840,11 +842,14 @@ se('se_lamp_click', { label: '電気スタンドを消す（カチ）', group: G
  * of オムカエマチ); 星見台's — { note: 'hoshimi' } or { level: 1 } — is the "コツ"
  * of ヨビモドシ's microphone (drm_mic_tap). amb_tsugao_room keeps it going.
  */
+/** When the last se_clock_restart began (ctx time): amb_tsugao_room's steady ticks take over after its fourth tick. */
+export const clockRestart = { t: -1e9 };
 se('se_clock_restart', {
   label: '止まった時計が動きだす（夕鳴町／星見台）',
   group: G_TSUGAO,
   rev: 0.2,
   fn(c) {
+    clockRestart.t = c.t;
     const hoshimi = c.opts.note === 'hoshimi' || (c.opts.level ?? 0) >= 1;
     [0, 1300, 2250, 3250].forEach((ms, i) => {
       const d = hoshimi ? DRM.drm_mic_tap : i % 2 ? DRM.drm_tock : DRM.drm_tick;
@@ -862,6 +867,103 @@ se('se_clock_tick', {
     DRM.drm_tick({ t: c.t, vel: 1, vol: 0.5 * 0.03 * c.vol, dest: c.dest });
   },
 });
+
+// ============================================================================
+// 8.13 ツガオ便 and the delivery (evt_ch2_delivery, 50 10.20)
+
+/** The delivery: a bag of vegetables set on a stand — the plastic's "カサ", the wooden stand's "とん" (seAt the stand). */
+se('se_h_deli_put', {
+  label: '野菜を置き台に置く（配達。ポリ袋のカサ、木の台にとん）',
+  group: G_DELI,
+  rand: [0.06, 0.06],
+  layers: [
+    'noise env=10/150/0/60 dur=100 v=.02 flt=BP2600q0.8 am=30/.4',
+    'sine f=240→180/60 env=1/90/0/40 dur=25 v=.04 at=120',
+    'tri f=520 env=0/40/0/15 dur=8 v=.012 at=125',
+  ],
+});
+/** The truck bed's side board let down or put back (the latch "カチャ", the board "ゴトン"). */
+se('se_truck_aori', {
+  label: 'あおりを外す・かける（軽トラの荷台の横の板。カチャ、ゴトン）',
+  group: G_DELI,
+  rand: [0.02, 0.04],
+  layers: [
+    'tri f=1500→1300/20 env=0/40/0/15 dur=10 v=.035',
+    'noise env=0/30/0/10 dur=10 v=.02 flt=BP2400q2',
+    'sine f=110→80/120 env=2/200/0/80 dur=60 v=.05 at=250',
+    'noise env=5/120/0/60 dur=60 v=.02 flt=LP900 at=250',
+  ],
+});
+/** The truck's key set down on the desk (cut 7): the tag knocks the key ("チャリ"), the wood under it. */
+se('se_truck_key', {
+  label: '軽トラの鍵を机に置く（チャリ）',
+  group: G_DELI,
+  rev: 0.15,
+  layers: ['sine f=3100 env=0/20/0/10 dur=20 v=.010', 'sine f=4700 env=0/20/0/10 dur=20 v=.008 at=40', 'tri f=900 env=0/30/0/10 dur=8 v=.012 at=60'],
+});
+/**
+ * A baked sweet potato unwrapped and held out: the newspaper, the foil, and a
+ * tiny "ほわ" of steam. Cut 7 hears it from behind the frosted door at vol .25
+ * — without the steam there: { level: 1 } leaves it out.
+ */
+export const YAKIIMO = [
+  'noise env=10/150/.4/100 dur=300 v=.02 flt=BP1800q0.7 am=22/.6',
+  'noise env=5/80/0/40 dur=40 v=.012 flt=HP4000 at=320',
+];
+se('se_yakiimo', {
+  label: '焼き芋を差し出す（新聞紙のガサガサ、ホイルのかさ、湯気のほわ）',
+  group: G_DELI,
+  fn(c) {
+    for (const l of YAKIIMO) layer(c, l);
+    if ((c.opts.level ?? 0) < 1 && (c.opts.vol ?? 1) > 0.3) layer(c, 'sine f=180→150/300 env=200/200/0/200 dur=200 v=.006 at=400');
+  },
+});
+/** ぴーちゃん spreads her wings ("バサッ": two beats of the feathers). */
+se('se_piichan_flap', {
+  label: 'ぴーちゃんが羽を広げる（バサッ）',
+  group: G_DELI,
+  rand: [0.04, 0.06],
+  layers: ['noise env=2/60/0/30 dur=30 v=.03 flt=BP1200q0.9 am=45/.7 rep=2x90', 'noise env=0/40/0/20 dur=20 v=.012 flt=HP4500 at=10'],
+});
+
+/**
+ * ぴーちゃん's three calls (53 9.1): a hen's small talk, never the rooster's
+ * crow (1.6). 「ココッ」 two clucks falling 1300 → 1100 Hz with a beak click,
+ * 「コケッ」 a lift and a drop through a narrow throat, 「クゥ」 a sleepy coo.
+ * { note: 'q' } lifts the last sound +3 semitones (a questioning 「ココッ？」).
+ * The voice `piichan` says them at the head of her pages; the field says
+ * them with seAt (asleep: se_piichan_kuu every 20 s; pecking: se_piichan_koko).
+ */
+export const PIICHAN_CRIES = {
+  koko: (q: number) => [
+    'sine f=1300→1100/30 env=2/22/0/8 dur=30 v=.03',
+    `sine f=${1300 * q}→${1100 * q}/30 env=2/22/0/8 dur=30 v=.03 at=90`,
+    'noise env=0/8/0/4 dur=10 v=.012 flt=BP2500q2 rep=2x90',
+  ],
+  koke: (q: number) => [
+    'sq f=900→1500/50 env=3/0/1/12 dur=50 v=.03 flt=BP2000q3',
+    `sq f=${1200 * q}→${800 * q}/60 env=0/0/1/25 dur=60 v=.03 flt=BP2000q3 at=55`,
+    'noise env=0/8/0/4 dur=8 v=.008 flt=BP2500q2',
+  ],
+  kuu: (q: number) => [`tri f=700→${600 * q}/150 env=25/0/1/60 dur=150 v=.01`, 'noise env=20/80/0/60 dur=100 v=.002 flt=BP1500q1'],
+};
+function piichanCry(kind: keyof typeof PIICHAN_CRIES, label: string): void {
+  se(`se_piichan_${kind}`, {
+    label,
+    group: G_DELI,
+    rand: [0.03, 0.05],
+    fn(c) {
+      const q = c.opts.note === 'q' ? Math.pow(2, 3 / 12) : 1;
+      // the voice passes the room's reverb (ツガオの部屋: .3)
+      const rev = (c.opts as SfxOpts & { rev?: number }).rev;
+      const c2 = rev !== undefined ? { ...c, rev } : c;
+      for (const l of PIICHAN_CRIES[kind](q)) layer(c2, l);
+    },
+  });
+}
+piichanCry('koko', 'ぴーちゃん「ココッ」（ついばむ）');
+piichanCry('koke', 'ぴーちゃん「コケッ」');
+piichanCry('kuu', 'ぴーちゃん「クゥ」（寝言）');
 
 /** One-shot fallbacks for the loops when called with sfx() (a short idle). */
 for (const id of ['se_h_crossing_bell', 'se_h_train_idle', 'se_h_bus_idle']) if (!sfxTable.has(id)) sfxTable.set(id, (o) => void playSe(id, { label: id, group: G_END }, o));

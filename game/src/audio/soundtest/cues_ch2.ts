@@ -482,32 +482,124 @@ export const CH2_CUES: Cue[] = [
         A.setPaMode('town');
       }),
       S(0.3, 'SE_CLOCK_TICK (ONE, IN THE DARK)', at('se_clock_tick')),
-      S(1.2, 'ROOM, AMB_TSUGAO_ROOM, BGM_TSUGAO (T1)', () => {
+      S(1.3, 'ROOM, AMB_TSUGAO_ROOM, BGM_TSUGAO (T1)', () => {
         A.setSpace('room');
         A.playAmbient('amb_tsugao_room', { fade: 1.5 });
         A.playBgm('bgm_tsugao', { fade: 2.0 });
       }),
+      S(3.5, 'SE_TRUCK_KEY (THE CAP, THE KEY)', at('se_truck_key', { vol: 0.6 })),
       S(5, 'VOICE DAKOKU (+ SE_DAKOKU)', () => void say('dakoku', 'ホウコク シマス。ガチャン。')),
+      S(7.5, 'THE CARD SLIDES OUT (SE_DAKOKU .6)', at('se_dakoku', { vol: 0.6 })),
       S(9, 'YUNARI: CLOCK RESTART, CLOCK 1', () => {
         A.sfx('se_clock_restart');
-        setTimeout(() => A.ambientEvent('amb_tsugao_room', 'tick', 'yunari'), 3300);
+        A.ambientEvent('amb_tsugao_room', 'tick', 'yunari');
       }),
-      S(14, 'VOICE TSUGAO', () => void say('tsugao', '……ふむ。ご苦労。')),
+      S(14, 'VOICE TSUGAO (ROOM REVERB .25)', () => void say('tsugao', '……ふむ。ご苦労。')),
       S(17, 'TSUGAO: つがおちゃん 寝る〜♪', () => void say('tsugao', 'では、つがおちゃん 寝る〜♪')),
-      S(20, 'HOSHIMI: CLOCK RESTART, CLOCK 2', () => {
+      S(20, 'DAKOKU: マダ ホウコクガ アリマス', () => void say('dakoku', 'マダ ホウコクガ アリマス。')),
+      S(23, 'HOSHIMI: CLOCK RESTART, CLOCK 2', () => {
         A.sfx('se_clock_restart', { note: 'hoshimi' });
-        setTimeout(() => A.ambientEvent('amb_tsugao_room', 'tick', 'hoshimi'), 3300);
+        A.ambientEvent('amb_tsugao_room', 'tick', 'hoshimi');
       }),
-      S(27, 'SE_PAGE, STOP BGM (0), UMI', () => {
+      S(28, 'VOICE TSUGAO', () => void say('tsugao', '……ほう。わたしが 寝て いる あいだに。')),
+      S(32, 'THE NAME TAG: SE_PEN_WRITE x2', () => {
+        const t = liveGraph()?.ctx.currentTime ?? 0;
+        [0, 0.3].forEach((d) => A.sfx('se_pen_write', { at: t + d, pitch: 0.8, vol: 0.5 }));
+      }),
+      S(34, 'BEHIND THE DOOR: SE_YAKIIMO .25', at('se_yakiimo', { vol: 0.25 })),
+      S(35, 'POKOSHA WHISPERS (V.5 LP1.2K REV.3)', () => void say('pokosha', '……さすが 師匠。')),
+      S(36.6, 'PIICHAN (V.6 REV.3)', () => void say('piichan', 'コケッ。')),
+      S(38, 'TSUGAO: まだ、夜ですよ', () => void say('tsugao', '……静かに。まだ、夜ですよ。')),
+      S(42, 'SE_PAGE, STOP BGM (0), UMI', () => {
         A.sfx('se_page');
         A.stopBgm(0);
         A.ambientEvent('amb_tsugao_room', 'umi');
       }),
-      S(30, 'SE_MADA_STAMP (DRY INK)', at('se_mada_stamp')),
-      S(34, 'SE_LAMP_CLICK, ALL OUT (0.5S)', () => {
+      S(46, 'SE_MADA_STAMP (DRY INK)', at('se_mada_stamp')),
+      S(48, 'TSUGAO: つがおちゃん 寝る〜♪', () => void say('tsugao', 'まあ、よろしい。つがおちゃん 寝る〜♪')),
+      S(52, 'SE_LAMP_CLICK, ALL OUT (0.5S)', () => {
         A.sfx('se_lamp_click');
         A.stopAllAmbient(0.5);
       }),
+      S(53.5, 'DAKOKU: タイキン (+ SE_DAKOKU), THEN SILENCE', () => void say('dakoku', 'タイキン、ダコク シマス。ガチャン。')),
+    ],
+  },
+  {
+    id: 'h_delivery',
+    label: '野菜の配達（ツガオ便）',
+    ref: '12.17',
+    build: (say) => {
+      const snore = (t: number) => S(t, t < 2 ? 'TSUGAO ASLEEP: SE_H_IBIKI .75 EVERY 4S' : '', at('se_h_ibiki', { pitch: 0.75, vol: 0.5 }));
+      return [
+        S(0, 'VILLAGE 1, BGM_HOSHI_NIGHT', () => {
+          stopCueLoops();
+          A.stopAllAmbient(0.6);
+          village(1);
+          A.setMusicParam('h_deli', 0);
+          A.playBgm('bgm_hoshi_night', { fade: 1, variant: 'outdoor' });
+        }),
+        snore(1),
+        snore(5),
+        snore(9),
+        S(2.5, 'PIICHAN: ココッ？', () => void say('piichan', 'ココッ？')),
+        S(4, 'HIROSUKE: ども！ (+4 +7)', () => void say('hirosuke', 'ども！ おっ、ぴーちゃんが 起きた！')),
+        S(7.5, 'POKOSHA: SMALL', () => void say('pokosha', '……自分も、外すと、人の 顔が 見られなくて……。')),
+        S(11.5, 'HIROSUKE: 師匠ー！ 起きてー！', () => void say('hirosuke', '師匠ー！ 起きてー！ 明かりが 来たよー！')),
+        S(14, 'TSUGAO WAKES (EVERY 4, V.85)', () => void say('tsugao', '……時計は、止めて あるのです。急がない ように。')),
+        S(18, 'POKOSHA: ……さすが 師匠。 (MURMURED)', () => void say('pokosha', '……さすが 師匠。頼み方が、しぶい……。')),
+        S(20, 'SE_PIICHAN_FLAP', at('se_piichan_flap')),
+        S(21.2, 'THE SLIPS (SE_PAGE .4)', at('se_page', { vol: 0.4 })),
+        S(22.5, 'SE_TRUCK_AORI', at('se_truck_aori')),
+        S(23.5, 'H_DELI 1: THE MARIMBA FROM THE NEXT BAR', () => A.setMusicParam('h_deli', 1)),
+        S(33, 'SE_H_DELI_PUT (THE STAND)', at('se_h_deli_put', { pan: -0.2 })),
+        S(45, 'SE_H_DELI_PUT (THE RICE BAG)', at('se_h_deli_put', { pan: 0.25, vol: 0.8 })),
+        S(47, 'BACK AT THE TRUCK: SE_TRUCK_AORI', at('se_truck_aori')),
+        S(48.5, 'HIROSUKE: 焼き芋 食うか？', () => void say('hirosuke', 'ありがとな！ おだちんだ。……焼き芋 食うか？')),
+        S(51, 'SE_YAKIIMO -> SE_ITEM', () => {
+          A.sfx('se_yakiimo');
+          A.sfx('se_item', { at: (liveGraph()?.ctx.currentTime ?? 0) + 0.8 });
+        }),
+        S(53.5, 'SE_PIICHAN_FLAP, PIICHAN: コケッ！', () => {
+          A.sfx('se_piichan_flap');
+          setTimeout(() => void say('piichan', 'コケッ！'), 350);
+        }),
+        S(55.5, 'TSUGAO: つがおちゃん 寝る〜♪', () => void say('tsugao', 'では、朝まで ひと休み。つがおちゃん 寝る〜♪')),
+        S(59, 'POKOSHA: さすが 師匠！ (OUT LOUD)', () => void say('pokosha', 'さすが 師匠！')),
+        S(60.5, 'HIROSUKE: わはは！', () => void say('hirosuke', 'わはは！ 寝ても ほめられる 師匠だよ。')),
+        S(62, 'H_DELI 0', () => A.setMusicParam('h_deli', 0)),
+        S(63.5, 'ASLEEP AGAIN', at('se_h_ibiki', { pitch: 0.75, vol: 0.5 })),
+        snore(67.5),
+      ];
+    },
+  },
+  {
+    id: 'h_barn_work',
+    label: '牛舎のおてつだい',
+    ref: '12.16',
+    build: (say) => [
+      S(0, 'BARN: VARIANT BARN (-12DB), NO DUCKING', () => {
+        stopCueLoops();
+        A.stopAllAmbient(0.6);
+        village(1, 'barn');
+        A.playBgm('bgm_hoshi_night', { fade: 1, variant: 'barn' });
+      }),
+      S(2, 'MASARU: 誰が らっきょやねん！ (FAST)', () => void say('hoshi_gen', '誰が らっきょやねん！')),
+      S(4.5, 'THE SHOVEL: SE_ITEM .4', at('se_item', { vol: 0.4 })),
+      S(6.5, 'ESAYOSE x3 (SEAT, .5)', () => {
+        const t = liveGraph()?.ctx.currentTime ?? 0;
+        [-0.3, 0, 0.3].forEach((pan, i) => A.sfx('se_h_esayose', { at: t + i * 1.6, pan, vol: 0.5 }));
+      }),
+      S(12, 'THE WATER CUP: SCOOP -> PLATE AND WATER', () => {
+        A.sfx('se_h_shodoku', { pitch: 1.2, vol: 0.4 });
+        A.sfx('se_h_watercup', { at: (liveGraph()?.ctx.currentTime ?? 0) + 0.4, pan: 0.2 });
+      }),
+      S(15, 'NINE DONE: SE_STAMP .4', at('se_stamp', { vol: 0.4 })),
+      S(17, 'BOOTS ON THE AISLE (STONE .9)', () => {
+        const t = liveGraph()?.ctx.currentTime ?? 0;
+        for (let i = 0; i < 4; i++) A.sfx('se_step_stone', { at: t + i * 0.42, pitch: 0.9, vol: 0.7 });
+      }),
+      S(20, 'SE_COIN (NO JINGLE)', at('se_coin')),
+      S(21.5, 'MASARU: ……おつかれさん。', () => void say('hoshi_gen', '……おつかれさん。')),
     ],
   },
   {

@@ -77,6 +77,9 @@ const SE_TARGET: Record<string, number> = {
   se_h_bus_door: -14, se_h_bus_depart: -14, se_h_bus_arrive: -14,
   // ツガオの部屋
   se_dakoku: -14, se_mada_stamp: HIT, se_lamp_click: -18, se_clock_restart: -16, se_clock_tick: -18,
+  // ツガオ便 and the delivery (the hen as small as the town's pigeons and cats)
+  se_h_deli_put: -16, se_truck_aori: -14, se_truck_key: -18, se_yakiimo: -16, se_piichan_flap: -14,
+  se_piichan_koko: -18, se_piichan_koke: -17, se_piichan_kuu: -20,
 };
 
 const GROUP_TARGET: Record<string, number> = {
@@ -97,6 +100,7 @@ const GROUP_TARGET: Record<string, number> = {
   '第2章：戦闘・ボス': SKILL,
   '第2章：戦闘・ハンコ・能力': SKILL,
   '第2章：足音・シンボル・エンディング': -14,
+  '第2章：ツガオ便と野菜の配達': UI,
 };
 
 /** SEs that are silent by design (a cut): never trimmed. */
@@ -117,6 +121,8 @@ const VOICE_TARGET: Record<string, number> = {
   broadcast: -16, broadcast_child: -18, kanenari_voice: -18, omukaemachi: -19,
   // chapter 2: the boss speaks through the speaker right over you; the train's small speaker, the sign, the dog
   yobimodoshi: -16, h_train: -22, h_mujin: -26, h_gon: -22, h_tetsuya: -20, broadcast_room: -22, dakoku: -22,
+  // ツガオ便: ポコシャさん's small voice is small on purpose (his 「さすが 師匠！」 ×1.8 rides above it)
+  pokosha: -24, hirosuke: -20,
 };
 export function voiceTargetDb(id: string): number {
   return (VOICE_TARGET[id] ?? -20) + MASTER_LIFT_DB;
@@ -184,7 +190,7 @@ const ROLE_OVERRIDE: Record<string, PartRole> = {
   'bgm_battle/break': 'melody', 'bgm_battle/bass_intro': 'bass',
   // chapter 2
   'bgm_hoshi_night/lantern': 'melody', 'bgm_hoshi_night/stars': 'counter', 'bgm_hoshi_night/yobigoe': 'counter',
-  'bgm_hoshi_night/organ': 'pads',
+  'bgm_hoshi_night/organ': 'pads', 'bgm_hoshi_night/deli': 'counter',
   'bgm_boss_yobimodoshi/organ': 'melody', 'bgm_boss_yobimodoshi/organ_chords': 'pads', 'bgm_boss_yobimodoshi/lantern': 'melody',
   'bgm_boss_yobimodoshi/tenko': 'counter', 'bgm_boss_yobimodoshi/mic': 'drums', 'bgm_boss_yobimodoshi/pad_intro': 'pads',
   'bgm_boss_yobimodoshi/intro': 'fx', 'bgm_boss_yobimodoshi/intro_chime': 'fx',
@@ -229,6 +235,8 @@ export const PART_TRIM: Record<string, number> = {
   // the shaker and the microphone taps are a hat's level, not a kit's)
   'bgm_hoshi_night/stars': 3.5, 'bgm_hoshi_night/pad': -1.5, 'bgm_hoshi_night/sub': -9, 'bgm_hoshi_night/bass': -5.5,
   'bgm_hoshi_night/drums': 6, 'bgm_hoshi_night/yobigoe': 4,
+  // the delivery's "ぽこ、ぽこ": as present as the stars, still well under the lantern
+  'bgm_hoshi_night/deli': 4,
   'bgm_boss_yobimodoshi/organ': -3.5, 'bgm_boss_yobimodoshi/organ_chords': -6, 'bgm_boss_yobimodoshi/pad': -3,
   'bgm_boss_yobimodoshi/pad_intro': -4, 'bgm_boss_yobimodoshi/bass': -6, 'bgm_boss_yobimodoshi/drums': -2,
   'bgm_boss_yobimodoshi/mic': 8, 'bgm_boss_yobimodoshi/intro': -4,
@@ -276,6 +284,8 @@ export const PART_PAN: Record<string, number> = {
   // from the hill (the middle — the echoes fan out on their own); the name
   // tags ring from the speaker's pole a little right of the roll call
   'bgm_hoshi_night/stars': 0.3, 'bgm_hoshi_night/yobigoe': 0,
+  // the delivery's "ぽこ、ぽこ" answers from the other side of the lantern (the crates at Minato's back)
+  'bgm_hoshi_night/deli': -0.3,
   'bgm_boss_yobimodoshi/tenko': 0.28, 'bgm_boss_yobimodoshi/lead_mbox': -0.3, 'bgm_boss_yobimodoshi/intro_chime': 0.2,
   'bgm_hoshi_morning/chime': 0.12, 'bgm_hoshi_morning/mbox': 0.3, 'bgm_hoshi_morning/mbox_hi': 0.34,
 };
@@ -364,6 +374,8 @@ export const SE_TRIM: Record<string, number> = {
   se_h_tomato_rise: 26, se_h_sunrise: 20, se_h_bus_idle: 22, se_h_bus_door: 19, se_h_bus_depart: 26.5, se_h_bus_arrive: 25.5,
   se_h_ibiki: 31.5, se_h_acha: 36, se_h_esayose: 32, se_h_watercup: 24.5,
   se_dakoku: 21.5, se_mada_stamp: 22, se_lamp_click: 20, se_clock_restart: 11.5, se_clock_tick: 23.5,
+  se_h_deli_put: 19.5, se_truck_aori: 20.5, se_truck_key: 28.5, se_yakiimo: 27, se_piichan_flap: 28.5,
+  se_piichan_koko: 20.5, se_piichan_koke: 26, se_piichan_kuu: 27.5,
 };
 export const VOICE_TRIM: Record<string, number> = {
   narr: 24, mother: 15, maruyama: 8, obaa: 15, mamekichi: 15.5, inui: 17, tsurumi: 16, sae: 17, jk: 15.5,
@@ -372,7 +384,9 @@ export const VOICE_TRIM: Record<string, number> = {
   flip: 16.5, kanenari_voice: 15, default: 19,
   // chapter 2
   h_train: 21, h_tetsuya: 19, yobimodoshi: 10, h_mujin: 27.5, h_gon: 11.5, broadcast_room: 15,
-  tsugao: 18, dakoku: 14,
+  tsugao: 19.5, dakoku: 14,
+  // ツガオ便: set on their everyday lines (ポコシャさん's outburst ×1.8 and ヒロスケさん's laugh ride above)
+  hirosuke: 16.5, pokosha: 13.5,
   h_driver: 17, h_kucho: 14, h_yoshie: 17, h_fumi: 14, h_mitsu: 16, h_gen: 12.5, h_tome: 16, h_sawako: 18,
 };
 export const AMB_TRIM: Record<string, number> = {
@@ -385,7 +399,7 @@ export const AMB_TRIM: Record<string, number> = {
   // song and the train with no music at all set by ear, 53 10.2)
   amb_h_insects: 22, amb_h_kusa: 22, amb_h_tanada: 29.5, amb_h_mizu: 30, amb_h_wind: 33, amb_h_yama: 41,
   amb_h_hachi: 26.5, amb_h_fence: 29.5, amb_h_barn_out: 29, amb_h_barn: 16, amb_h_house: 27, amb_h_tomato: 21.5,
-  amb_h_school: 28.5, amb_h_boukatou: 19, amb_h_tetsuya: 22, amb_h_train: 17, amb_h_pa_hum: 21, amb_h_dawn: 16, amb_tsugao_room: 9.5,
+  amb_h_school: 28.5, amb_h_boukatou: 19, amb_h_tetsuya: 22, amb_h_train: 17, amb_h_pa_hum: 21, amb_h_dawn: 16, amb_tsugao_room: 19.5,
 };
 
 /** A song's output level in dB: its own master gain plus the mix trim. */

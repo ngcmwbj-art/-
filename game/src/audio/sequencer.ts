@@ -48,10 +48,16 @@ export interface Params {
   h_room: number;
   /** 53 5.7: the wall clocks of ツガオ's room running again (0 none, 1 夕鳴町, 2 and 星見台). */
   clock: number;
+  /**
+   * 53 6.6: the vegetables being carried round the village (0 / 1): bgm_hoshi_night's
+   * marimba "ぽこ、ぽこ" (from the next bar). Only the event sets it back to 0 —
+   * a battle on the way does not end the delivery.
+   */
+  h_deli: number;
 }
 
 /** Every param's resting value (the chapter-1 state: nothing of chapter 2 is on). */
-export const PARAM_DEFAULTS: Readonly<Params> = { stage: 0, kire: 0, boss_phase: 1, h_stage: -1, h_light: 0, tenko: 0, h_rest: 0, h_room: 0, clock: 0 };
+export const PARAM_DEFAULTS: Readonly<Params> = { stage: 0, kire: 0, boss_phase: 1, h_stage: -1, h_light: 0, tenko: 0, h_rest: 0, h_room: 0, clock: 0, h_deli: 0 };
 
 /**
  * Changes that land on the next beat instead of the next bar: a kire rise

@@ -37,9 +37,9 @@ import { createAmbient } from './ambience';
 import { buildGraph, gainToDb, resetOfflineState, setNoteLog, volCurve, withGraph, type Graph, type PaMode } from './engine';
 import { PART_TRIM, partRole, QA_PARAMS, REF_PART, ROLE_TARGET, TARGET_OVERRIDE, BATTLE_PEAK_DB, BGM_TARGET, BGM_TRIM, mixState, seTargetDb, SE_NO_TRIM, SE_TRIM, AMB_TRIM, VOICE_TRIM, voiceTargetDb } from './mix';
 import { sfxInfo, sfxTable, songTable, type SfxOpts } from './registry';
-import { VOICE_SAMPLES, voiceCps } from './samples';
+import { VOICE_CAL, VOICE_SAMPLES, voiceCps } from './samples';
 import { MUSIC_LOOKAHEAD, PARAM_DEFAULTS, SongPlayer, type Params, type SongDef } from './sequencer';
-import { CLOSING_FOURTH_SHAPES, findSealedAnswer, findShape, mmlErrors, MORNING_CHIME_SHAPE } from './theory';
+import { CLOSING_FOURTH_SHAPES, findSealedAnswer, findShape, mmlErrors, MORNING_CHIME_SHAPE, TSUGAO_SHAPE } from './theory';
 import { AMBIENCE_IDS } from './ambience';
 import { blip, resetVoiceState, VOICES } from './voices';
 
@@ -920,14 +920,16 @@ export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sf
   if (o.voices !== false)
     for (const id of Object.keys(VOICES)) {
       if (id === 'sys') continue;
-      const st = measure((await renderVoice(id, undefined, { bypass: true })).buffer);
+      const st = measure((await renderVoice(id, VOICE_CAL[id], { bypass: true })).buffer);
       voices[id] = { peak: st.peakDb, target: voiceTargetDb(id), dev: round(st.peakDb - voiceTargetDb(id)) };
     }
   // ambience: heard where it plays (4.2 pairs), under its music, below the ceiling
   const amb = o.amb !== false ? await ambContext() : {};
   // (flip: its first character plays the whole se_flip squeak, which sits on the SE fader)
   // (and the sign of ムジン販売員, whose page opens with the same squeak, 53 9.1)
-  const voiceOff = Object.entries(voices).filter(([id, r]) => id !== 'flip' && id !== 'h_mujin' && Math.abs(r.dev) > 3).map(([id, r]) => `${id} (${r.dev})`);
+  // (ダコク's 「ガチャン」 is se_dakoku, and ぴーちゃん's calls are se_piichan_*: SE faders too)
+  const SE_VOICED = new Set(['flip', 'h_mujin', 'dakoku', 'piichan']);
+  const voiceOff = Object.entries(voices).filter(([id, r]) => !SE_VOICED.has(id) && Math.abs(r.dev) > 3).map(([id, r]) => `${id} (${r.dev})`);
   const ambOff = Object.entries(amb)
     .filter(([, r]) => !r.ok)
     .map(([id, r]) => `${id} vs ${r.song}: ${r.margin} dB @${r.band} Hz (need ${r.need}), ${r.under} LU under the music, peak ${r.peak}`);
@@ -1058,8 +1060,9 @@ export async function audioMixSuggest(
     if (o.voices !== false) {
       const t: Record<string, number> = {};
       for (const id of o.voiceIds ?? Object.keys(VOICES)) {
-        if (id === 'sys') continue;
-        const st = measure((await renderVoice(id, undefined, { bypass: true })).buffer);
+        // (ぴーちゃん has no blips: her calls are SEs with their own trims)
+        if (id === 'sys' || id === 'piichan') continue;
+        const st = measure((await renderVoice(id, VOICE_CAL[id], { bypass: true })).buffer);
         t[id] = q(clamp(voiceTargetDb(id) - st.peakDb));
       }
       out.VOICE_TRIM = t;
@@ -1140,6 +1143,8 @@ export function sealedCheck(): string[] {
       if (id !== 'bgm_ending' && id !== 'bgm_title_clear' && findSealedAnswer(seq) >= 0) leaks.push(`${id}/${part.id}: the town's answer`);
       if (id !== 'bgm_hoshi_morning' && findShape(seq, MORNING_CHIME_SHAPE) >= 0) leaks.push(`${id}/${part.id}: 星見台の朝のチャイム`);
       if (CH2_SONGS.has(id) && CLOSING_FOURTH_SHAPES.some((sh) => findShape(seq, sh) >= 0)) leaks.push(`${id}/${part.id}: the closing chime's fourth note`);
+      // M7 belongs to ツガオの部屋 alone (53 1.3): not in 星見台's songs, not in the delivery's marimba
+      if (CH2_SONGS.has(id) && id !== 'bgm_tsugao' && findShape(seq, TSUGAO_SHAPE) >= 0) leaks.push(`${id}/${part.id}: M7 (ツガオの動機)`);
     }
   }
   return leaks;

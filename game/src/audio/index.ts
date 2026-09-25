@@ -108,6 +108,15 @@ export function musicPosition(): { id: string; label: string; beat: number; bpm:
   return a ? { id: p.def.id, label: a.label, beat: a.beat, bpm: a.bpm, intro: a.intro, loop: a.loop } : null;
 }
 
+/**
+ * Lower the ambience beds for a moment (linear level, e.g. −4 dB = 0.63):
+ * ramp down over `attack`, hold, come back over `release` (seconds). The
+ * calls from the hill take this room under the insects (53 7.4, 10.3).
+ */
+export function duckAmbience(level: number, attack = 0.2, hold = 1.0, release = 0.6): void {
+  music.duckAmbience(level, attack, hold, release);
+}
+
 /** Temporarily lower music (linear amount, e.g. −12 dB = 0.25). */
 export function duckMusic(amount: number, seconds: number): void {
   music.duckMusic(amount, seconds);
@@ -129,10 +138,13 @@ export function muteMusic(seconds: number): void {
  * Chapter 2 (53_ch2_audio 6): 'h_stage' −1..3 (星見台の段階; −1 away from
  * 星見台), 'h_light' 0/1 (the tomato held up, Yobimodoshi), 'tenko' 0..4 (name
  * tags lit), 'h_rest' 0/1 (Tetsuya resting); 'clock' 0..2 (ツガオ's wall clocks
- * running: 1 夕鳴町, 2 and 星見台 — amb_tsugao_room's 'tick' sets it). Only changes are acted on.
+ * running: 1 夕鳴町, 2 and 星見台 — amb_tsugao_room's 'tick' sets it); 'h_deli' 0/1
+ * (the vegetables carried round 星見台, 53 6.6: bgm_hoshi_night's marimba answers
+ * from the next bar; set it back to 0 yourself — a battle or a new song does not).
+ * Only changes are acted on.
  */
 export function setMusicParam(
-  name: 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest' | 'clock',
+  name: 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest' | 'clock' | 'h_deli',
   value: number,
 ): void {
   music.setMusicParam(name, value);
@@ -156,6 +168,7 @@ export function getMusicParams(): Readonly<{
   tenko: number;
   h_rest: number;
   clock: number;
+  h_deli: number;
 }> {
   return music.musicParams();
 }

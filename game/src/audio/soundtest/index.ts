@@ -181,11 +181,11 @@ const CH2_BGM: { id: string; label: string }[] = [
   { id: 'bgm_hoshi_morning', label: '星見台の朝' },
   { id: 'bgm_battle@night', label: '通常戦（星見台の夜）' },
   { id: 'bgm_midboss@night', label: '中ボス（テツヤ）' },
-  { id: 'bgm_tsugao', label: 'ツガオの部屋（第3章の予告）' },
+  { id: 'bgm_tsugao', label: 'ツガオの部屋（予告）' },
 ];
 const CH2_SONG_IDS = new Set(['bgm_hoshi_night', 'bgm_boss_yobimodoshi', 'bgm_hoshi_morning', 'bgm_tsugao']);
 /** 第2章's voices (53 9.1) and the old ones it speaks with. */
-const CH2_VOICE_RE = /^(h_|yobimodoshi$|tsugao$|dakoku$|broadcast_room$)/;
+const CH2_VOICE_RE = /^(h_|yobimodoshi$|tsugao$|dakoku$|broadcast_room$|hirosuke$|pokosha$|piichan$)/;
 const CH2_VOICE_REUSED = ['broadcast', 'kanenari_voice'];
 /** Sample lines for the reused voices when heard on the 第2章 page. */
 const CH2_SAMPLES: Record<string, string> = {
@@ -275,13 +275,15 @@ const KNOBS_CH2: Knob[] = [
   { name: 'LIGHT', values: 2, get: () => musicParams().h_light, set: (v) => A.setMusicParam('h_light', v), show: (v) => (v ? 'ON' : 'OFF') },
   { name: 'TENKO', values: 5, get: () => musicParams().tenko, set: (v) => A.setMusicParam('tenko', v), show: String, style: 'arrows' },
   { name: 'REST', values: 2, get: () => musicParams().h_rest, set: (v) => A.setMusicParam('h_rest', v), show: (v) => (v ? 'ON' : 'OFF') },
+  { name: 'DELI', values: 2, get: () => musicParams().h_deli, set: (v) => A.setMusicParam('h_deli', v), show: (v) => (v ? 'ON' : 'OFF') },
   { name: 'BOSS', values: 3, get: () => musicParams().boss_phase - 1, set: (v) => A.setMusicParam('boss_phase', v + 1), show: (v) => String(v + 1) },
   { name: 'PA', values: 2, get: () => (A.getPaState().mode === 'yama' ? 1 : 0), set: (v) => A.setPaMode(v ? 'yama' : 'town'), show: (v) => (v ? 'YAMA' : 'TOWN') },
   { name: 'DIST', values: 11, get: () => Math.round(A.getPaState().d * 10), set: (v) => A.setPaDistance(v / 10, A.getPaState().indoor), show: (v) => (v / 10).toFixed(1), style: 'ruler' },
 ];
 const knobsOf = (ch: Chapter) => (ch === 2 ? KNOBS_CH2 : KNOBS);
-/** Knob rows are 9 px apart; eight of them (第2章) fit at 8. */
+/** Knob rows are 9 px apart; eight of them fit at 8 (第2章 has nine: the card scrolls). */
 const knobStep = (ch: Chapter) => (knobsOf(ch).length > 7 ? 8 : 9);
+const KNOB_ROWS = 8;
 
 /** The room each song is heard in (11.4), so the reverb matches the game. */
 const SONG_SPACE: Record<string, SpaceId> = {
@@ -313,6 +315,8 @@ const SE_VARIANTS: Record<string, { opts: A.SfxOpts; tag: string }[]> = {
   se_pa_chime_end: [{ opts: {}, tag: '' }, { opts: { pitch: 0.5, vol: 0.8 }, tag: 'FINAL 0.5' }],
   se_h_ibiki: [1, 1.35].map((p) => ({ opts: { pitch: p }, tag: p === 1 ? 'SHIGE 1.0' : 'SUGI 1.35' })),
   se_h_acha: [0.8, 1.15].map((p) => ({ opts: { pitch: p }, tag: p === 0.8 ? 'SHIGE 0.8' : 'SUGI 1.15' })),
+  se_yakiimo: [{ opts: {}, tag: 'VILLAGE' }, { opts: { vol: 0.25 }, tag: 'CUT 7 (BEHIND THE DOOR)' }],
+  se_piichan_koko: [{ opts: {}, tag: '' }, { opts: { note: 'q' }, tag: '?' }],
 };
 
 /** SE rows that are loops in the game: Z starts the loop, Z again stops it. */
@@ -904,7 +908,7 @@ class SoundTestScene implements Scene {
     const bpm = Math.round((jg ?? p).currentBar?.bpm ?? (jg ?? p).def.bpm);
     let parts = [pr.stage ? `STAGE ${pr.stage}` : '', def.battle ? `KIRE ${pr.kire}` : '', def.id === 'bgm_boss' ? `PH ${pr.boss_phase}` : ''].filter(Boolean).join(' ');
     // 第2章 (53 6): 星見台's stage and room, the boss's phase / light / name tags, Tetsuya's rest
-    if (def.id === 'bgm_hoshi_night') parts = `H${pr.h_stage} ${ROOMS[pr.h_room] ?? ''}`;
+    if (def.id === 'bgm_hoshi_night') parts = `H${pr.h_stage} ${ROOMS[pr.h_room] ?? ''}${pr.h_deli ? ' DELI' : ''}`;
     else if (def.id === 'bgm_hoshi_morning') parts = pr.h_stage >= 3 ? 'H3 MORNING' : `H${pr.h_stage} DAWN`;
     else if (def.id === 'bgm_boss_yobimodoshi') parts = `P${pr.boss_phase} L${pr.h_light} T${pr.tenko}`;
     else if (def.battle && pr.h_stage >= 0) parts = `NIGHT K${pr.kire}${def.id === 'bgm_midboss' ? ` R${pr.h_rest}` : ''}`;
@@ -1002,8 +1006,15 @@ class SoundTestScene implements Scene {
     this.drawCardFrame(g, KNOB_Y, KNOB_H, this.chapter === 2 ? 'つまみ（2章）' : 'つまみ');
     const step = knobStep(this.chapter);
     const y0 = KNOB_Y + (step < 9 ? 9 : 10);
-    knobsOf(this.chapter).forEach((k, i) => {
-      const y = y0 + i * step;
+    const all = knobsOf(this.chapter);
+    // more knobs than rows: the window follows the selection, a pencil arrow says there is more
+    const first = Math.max(0, Math.min(all.length - KNOB_ROWS, this.knob - KNOB_ROWS + 2));
+    const shown = all.slice(first, first + KNOB_ROWS);
+    if (first > 0) f5(ctx, '↑', CX + CW, y0, C.shadow, { align: 'right' });
+    if (first + KNOB_ROWS < all.length) f5(ctx, '↓', CX + CW, y0 + (KNOB_ROWS - 1) * step, C.shadow, { align: 'right' });
+    shown.forEach((k, j) => {
+      const i = first + j;
+      const y = y0 + j * step;
       const sel = this.focus === 'knobs' && this.knob === i;
       if (sel)
         g.alpha(0.75, () => {
@@ -1072,8 +1083,8 @@ if (import.meta.env.DEV) {
   // play one cue sheet from the console (the sound test's 演出 page, headless)
   registerDebug('cue', ((id: string) => {
     A.unlockAudio();
-    const cue = CUES.find((c) => c.id === id);
-    if (!cue) return CUES.map((c) => c.id);
+    const cue = ALL_CUES.find((c) => c.id === id);
+    if (!cue) return ALL_CUES.map((c) => c.id);
     startCue(cue, (voice, text) => {
       [...text].forEach((ch, i) => setTimeout(() => A.textBlip(voice, ch), i * 25));
       return text.length / 40;

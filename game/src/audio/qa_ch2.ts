@@ -18,7 +18,7 @@ import { sfxInfo, sfxTable, songTable, type SfxOpts } from './registry';
 import { measure, pianoRoll, renderAmbient, renderSfx, renderSong, renderVoice, sealedCheck, spectrogram } from './report';
 import type { PaMode } from './engine';
 import type { Params } from './sequencer';
-import { CLOSING_FOURTH_SHAPES, findSealedAnswer, findShape, MORNING_CHIME_SHAPE } from './theory';
+import { CLOSING_FOURTH_SHAPES, findSealedAnswer, findShape, MORNING_CHIME_SHAPE, TSUGAO_SHAPE } from './theory';
 import { VOICES } from './voices';
 
 const NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
@@ -56,8 +56,9 @@ export const CH2_INDEX = {
     'se_h_otsukare', 'se_h_bell_kon', 'se_h_hamidashi',
     'se_step_sheet', 'se_h_kakashi_hop', 'se_h_tomato_rise', 'se_h_sunrise', 'se_h_bus_idle', 'se_h_bus_door', 'se_h_bus_depart', 'se_h_bus_arrive',
     'se_dakoku', 'se_mada_stamp', 'se_lamp_click', 'se_clock_restart', 'se_clock_tick',
+    'se_h_deli_put', 'se_truck_aori', 'se_truck_key', 'se_yakiimo', 'se_piichan_flap',
   ],
-  voices: ['h_driver', 'h_train', 'h_kucho', 'h_yoshie', 'h_fumi', 'h_mitsu', 'h_gen', 'h_tome', 'h_sawako', 'h_tetsuya', 'yobimodoshi', 'h_mujin', 'h_gon', 'tsugao', 'dakoku', 'broadcast', 'flip', 'kanenari_voice', 'mother', 'tv', 'narr', 'sys'],
+  voices: ['h_driver', 'h_train', 'h_kucho', 'h_yoshie', 'h_fumi', 'h_mitsu', 'h_gen', 'h_tome', 'h_sawako', 'h_tetsuya', 'yobimodoshi', 'h_mujin', 'h_gon', 'tsugao', 'dakoku', 'hirosuke', 'pokosha', 'piichan', 'broadcast', 'flip', 'kanenari_voice', 'mother', 'tv', 'narr', 'sys'],
 };
 
 /** SE options that make a different sound (each is checked). */
@@ -68,6 +69,8 @@ const SE_VARIANTS: Record<string, SfxOpts[]> = {
   se_h_tenko: ['D6', 'A5', 'F5'].map((note) => ({ note })),
   se_h_tomato_glow: [{}, { grade: 'kukkiri' }],
   se_h_otsukare: (['kasure', 'futsu', 'kukkiri'] as const).map((grade) => ({ grade })),
+  se_piichan_koko: [{}, { note: 'q' }],
+  se_piichan_koke: [{}, { note: 'q' }],
 };
 
 /**
@@ -88,6 +91,7 @@ export async function ch2Sealed(): Promise<{ songs: string[]; sfx: string[]; che
       if (findSealedAnswer(seq) >= 0) out.push(`${tag}: the town's answer`);
       if (id !== 'se_h_morning_chime' && findShape(seq, MORNING_CHIME_SHAPE) >= 0) out.push(`${tag}: 星見台の朝のチャイム`);
       if (CLOSING_FOURTH_SHAPES.some((sh) => findShape(seq, sh) >= 0)) out.push(`${tag}: the closing chime's fourth note`);
+      if (findShape(seq, TSUGAO_SHAPE) >= 0) out.push(`${tag}: M7 (ツガオの動機)`);
     }
   }
   return { songs: sealedCheck(), sfx: out, checkedSfx: n };

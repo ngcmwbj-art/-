@@ -21,7 +21,7 @@ import * as T from '../../data/text/hoshi_events';
 import { F } from '../lib';
 import { holdCalls } from './calls';
 import { se } from './compat';
-import { firstThisLoad, runCue, storyBattle } from './common';
+import { firstThisLoad, poseAny, runCue, storyBattle, unpose } from './common';
 
 // ---------------------------------------------------------------- 10.13 evt_ch2_hill
 
@@ -138,7 +138,7 @@ export function* evtBossIntro(): Co {
           k.y = y0 - 6;
           k.dir = 'up';
           yield 120;
-          k.tempPose = k.sprite.extra?.hold_up || k.sprite.extraDir?.hold_up ? 'hold_up' : null;
+          poseAny(k, 'hold_up', 'flip_hold');
         }
         se('se_flip');
         yield 300;
@@ -146,7 +146,7 @@ export function* evtBossIntro(): Co {
     });
     const k = F().follower;
     if (k) {
-      k.tempPose = null;
+      unpose(k);
       delete k.data.scripted;
     }
     yield 600;

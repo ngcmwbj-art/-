@@ -3,9 +3,10 @@
 // a line always "sings" the same way. Kana vowels colour the tone with two
 // band-passes (a hum, never words).
 
+import { activeAmbients } from './ambience';
 import { cur, dbToGain, hasGraph, midiHz, noteMidi, voice, type VoiceOpts, type Wave } from './engine';
 import { currentId, duck, duckAmbience, musicParams } from './music';
-import { sfxTable } from './registry';
+import { sfxTable, type SfxOpts } from './registry';
 import { setTextBlip } from './index';
 import { trimOr1, voiceTrim } from './mix';
 import { songTable } from './registry';
@@ -95,9 +96,15 @@ export const VOICES: Record<string, VoiceDef> = {
   h_mujin: { label: 'ムジン販売員の札', wave: 'sawtooth', base: 1600, scale: [0, 1], len: 35, every: 3, v: 0.02, bp: [2000, 4], vib: [28, 60] },
   // ふくじんづけ (a papillon; the id is the first cast's dog): コタロウ's bark +5, a small dog's 「キャン」
   h_gon: { label: 'ふくじんづけ（パピヨン）', wave: 'square', base: 'D4', scale: [0, 0, 5], len: 22, every: 3, v: 0.045, lp: 1600 },
-  // ツガオの部屋 (53 9.1; chapter 3 hears them again): the calm, heavy boss and his time recorder
-  tsugao: { label: 'ツガオ（まだまだ団の団長）', wave: 'sawtooth', base: 'D3', scale: [0, 1, 5, 7], len: 50, A: 6, every: 3, v: 0.05, lp: 900, vib: [3, 5], rev: 0.25, formant: true },
+  // ツガオ (53 9.1; chapter 3 hears them again): the calm, heavy boss of まだまだ団 — and, the
+  // same voice, the village's ツガオさん of ツガオ便 (the room adds its reverb .25: roomRev)
+  tsugao: { label: 'ツガオ（ツガオ便／まだまだ団の団長）', wave: 'sawtooth', base: 'D3', scale: [0, 1, 5, 7], len: 50, A: 6, every: 3, v: 0.05, lp: 900, vib: [3, 5], formant: true },
   dakoku: { label: 'ダコク（タイムレコーダー）', wave: 'pulse12', base: 'C5', scale: [0], len: 25, every: 2, v: 0.035, fixedSeq: [0, 0, 7, 0] },
+  // ツガオ便's two (53 9.1, 9.2): ヒロスケさん, 44, sociable, talks a lot and laughs (a beard in the way);
+  // ポコシャさん, 40, a big man with a small shy voice; ぴーちゃん, a hen (no blips: one call a page)
+  hirosuke: { label: 'ヒロスケさん（ツガオ便）', wave: 'triangle', base: 'B3', scale: [0, 2, 4, 7], len: 30, A: 2, every: 2, v: 0.06, lp: 2000, vib: [5, 8], formant: true, noise: { bp: 900, q: 1, level: 0.03 } },
+  pokosha: { label: 'ポコシャさん（ツガオ便）', wave: 'sine', wave2: ['triangle', 0.25], base: 'D4', scale: [0, 2, 3], len: 32, A: 8, every: 3, v: 0.035, lp: 1400, formant: true },
+  piichan: { label: 'ぴーちゃん（めんどり）', wave: 'none', base: 0, scale: [0], len: 0, every: 99, v: 0 },
   // the branch school's broadcast room: its own small speaker, not the hill's (ふしぎ10, 53 8.9)
   broadcast_room: { label: '放送室のスピーカー', wave: 'sine', base: 'A4', scale: [0, 2, 4], len: 45, every: 2, v: 0.04, lp: 800, noise: { bp: 900, q: 3, level: 0.4 }, rev: 0.15 },
 };
@@ -173,8 +180,43 @@ interface State {
   asleep?: boolean;
   /** ツガオ's 「つがおちゃん 寝る〜♪」 page: an octave up, bright and bouncing. */
   chan?: boolean;
-  /** ダコク's 「ガチャン」: the rest of the word is the machine, not a blip. */
+  /** ダコクの「ガチャン」: the rest of the word is the machine, not a blip. */
   gachan?: number;
+  /** The last character of any kind (voiced or not): a page starts after 0.8 s of none. */
+  lastAny?: number;
+  /** The page opened with 「……」 (ポコシャさん hesitates before his first word). */
+  headDots?: boolean;
+  /** No voiced character of this page has sounded yet. */
+  firstVoiced?: boolean;
+  /** The next voiced character opens a line (a page, or after 。！？…). */
+  lineHead?: boolean;
+  /** ツガオ in the village: the first page after a long sleep (one eye open). */
+  wake?: boolean;
+  /** ヒロスケさん: 1 after the ど of 「ども」. */
+  domo?: number;
+  /** ヒロスケさん laughing (「わはは」「はっはっは」): the next step of 0 +4 +7, 0 = not. */
+  laugh?: number;
+  /** ヒロスケさん's 「焼き芋 食うか？」 line. */
+  imo?: boolean;
+  /** ポコシャさん's 「さすが 師匠」: how far into it (0 = not), and how it comes out. */
+  sasuga?: number;
+  sasugaForm?: 'loud' | 'quiet';
+  /** ポコシャさん after blurting it out: 1 = the next page is small, 2 = this page is. */
+  shy?: number;
+  /** ポコシャさん stammered 「こ、こ」: the character that repeats (it always sounds). */
+  stam?: string;
+  /** ポコシャさん's hesitation: no blip of his sounds before this (ctx time). */
+  quietUntil?: number;
+  /** ぴーちゃん's one call of the page, decided by its letters (53 9.1). */
+  hen?: Hen;
+}
+
+interface Hen {
+  kind: 'koko' | 'koke' | 'kuu' | null;
+  first: string;
+  q: boolean;
+  said: boolean;
+  t: number;
 }
 const st: Record<string, State> = {};
 let kanenariSeq = 0;
@@ -210,7 +252,34 @@ function isBattle(): boolean {
  * A character held back until the next one decides how it sounds (53 9.2:
  * エー区長's 「えー」, ペロリ's 「なぁ」). It is let go 60 ms later at most.
  */
-let held: { id: string; ch: string; t: number; kind: 'ee' | 'naa' | 'tsu' | 'ga'; allowed: boolean } | null = null;
+type HoldKind = 'ee' | 'naa' | 'tsu' | 'ga' | 'wa' | 'ha' | 'ka' | 'word';
+type BlipMode = 'plain' | 'ee' | 'naa' | 'chan' | 'gachan' | 'laugh' | 'imo' | 'stam' | 'sasuga';
+let held: { id: string; ch: string; t: number; kind: HoldKind; allowed: boolean } | null = null;
+
+/** What the character after a held one makes of it (null: it is said as it is). */
+function heldBecomes(kind: HoldKind, heldCh: string, next: string): BlipMode | null {
+  switch (kind) {
+    case 'ee':
+      return next === 'ー' ? 'ee' : null;
+    case 'naa':
+      return next === 'ぁ' ? 'naa' : null;
+    case 'tsu':
+      return next === 'が' ? 'chan' : null;
+    case 'ga':
+      return next === 'チ' ? 'gachan' : null;
+    // ヒロスケさん's 「わはは」 / 「はっはっは」
+    case 'wa':
+      return next === 'は' ? 'laugh' : null;
+    case 'ha':
+      return next === 'っ' ? 'laugh' : null;
+    // 「……焼き芋 食うか？」: the last か bounces up
+    case 'ka':
+      return next === '？' || next === '?' ? 'imo' : null;
+    // ポコシャさん: a word's first letter — 「こ、こんばんは」 or 「さすが 師匠」
+    case 'word':
+      return next === '、' ? 'stam' : heldCh === 'さ' && next === 'す' ? 'sasuga' : null;
+  }
+}
 
 /** One dialog character. `at` (ctx time) is only for offline renders (QA). */
 export function blip(voiceId: string, ch: string, at?: number): void {
@@ -221,27 +290,102 @@ export function blip(voiceId: string, ch: string, at?: number): void {
   if (held) {
     const h = held;
     held = null;
-    const hit = h.id === id && ((h.kind === 'ee' && ch === 'ー') || (h.kind === 'naa' && ch === 'ぁ') || (h.kind === 'tsu' && ch === 'が') || (h.kind === 'ga' && ch === 'チ'));
-    if (hit) blipAt(h.id, h.ch, h.t, h.kind === 'tsu' ? 'chan' : h.kind === 'ga' ? 'gachan' : h.kind);
+    const becomes = h.id === id ? heldBecomes(h.kind, h.ch, ch) : null;
+    if (becomes) blipAt(h.id, h.ch, h.t, becomes);
     else if (h.allowed) blipAt(h.id, h.ch, h.t, 'plain');
   }
   blipAt(id, ch, now);
 }
 
-/** Let a held character go (the line ended on it). */
+/** Let a held character go (the line ended on it), and a hen's call still waiting. */
 function flushHeld(): void {
-  if (!held) return;
-  const h = held;
-  held = null;
-  if (h.allowed) blipAt(h.id, h.ch, h.t, 'plain');
+  if (held) {
+    const h = held;
+    held = null;
+    if (h.allowed) blipAt(h.id, h.ch, h.t, 'plain');
+  }
+  const hen = st.piichan?.hen;
+  if (hen && !hen.said) sayHen(hen, hen.t + 0.12);
 }
 
-function blipAt(id: string, ch: string, now: number, mode?: 'plain' | 'ee' | 'naa' | 'chan' | 'gachan'): void {
+/**
+ * ツガオの部屋 (cut 7): its reverb for ツガオ, the whisper behind the frosted
+ * door for ポコシャさん and ぴーちゃん (53 9.1, 9.2). In the village the same
+ * voices are dry — the place's own space (yama) is their room.
+ */
+function inTsugaoRoom(): boolean {
+  return currentId() === 'bgm_tsugao' || activeAmbients().includes('amb_tsugao_room');
+}
+
+const LINE_END = '。！？!?\n';
+/** Characters after which a word begins (ポコシャさん's stammer and 「さすが」). */
+const WORD_EDGE = '…‥、。！？!? 　\n';
+
+/**
+ * ぴーちゃん (53 9.1, 9.2): no blips — one call at the head of the page, the
+ * one its letters say (「ココッ」「コケッ」「クゥ」); a 「？」 lifts its last sound
+ * +3. Heard when the line tells which (at its 。？！, or 0.15 s in).
+ */
+function henChar(s: State, ch: string, now: number, pageStart: boolean): void {
+  if (pageStart || !s.hen) {
+    if (s.hen && !s.hen.said) sayHen(s.hen, now);
+    s.hen = { kind: null, first: '', q: false, said: false, t: now };
+  }
+  const h = s.hen;
+  if (h.said) return;
+  if (ch === 'ク' || ch === 'く') h.kind = 'kuu';
+  else if (ch === 'コ' || ch === 'こ') {
+    if (h.first) h.kind ??= 'koko';
+    h.first = 'コ';
+  } else if ((ch === 'ケ' || ch === 'け') && h.first) h.kind = 'koke';
+  if (ch === '？' || ch === '?') h.q = true;
+  if (LINE_END.includes(ch)) {
+    sayHen(h, now);
+    return;
+  }
+  if (!cur().offline && (h.first || h.kind)) {
+    atTime(now + 0.15, () => {
+      if (!h.said) sayHen(h, Math.max(now + 0.15, cur().ctx.currentTime));
+    });
+  }
+}
+function sayHen(h: Hen, at: number): void {
+  if (h.said) return;
+  h.said = true;
+  const kind = h.kind ?? (h.first ? 'koko' : null);
+  if (!kind) return;
+  const g = cur();
+  const room = inTsugaoRoom();
+  const o: SfxOpts & { dest: AudioNode; rev: number } = { at, vol: room ? 0.6 : 1, note: h.q ? 'q' : undefined, dest: g.voiceBus, rev: room ? 0.3 : 0.08 };
+  sfxTable.get(`se_piichan_${kind}`)?.(o);
+  if (!g.offline && !isBattle()) duck(dbToGain(-2), 0.15, 0.35, 0.4);
+}
+
+function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
   const def = VOICES[id] ?? VOICES.default;
   const g = cur();
   const s = (st[id] ??= { last: -1, lastSemi: 99, repeat: 0, seqI: 0, lastMidi: 60, lastT: 0, hist: [], lineStart: true });
   const prevCh = s.prevCh;
   s.prevCh = ch;
+  // a page, counting every character (the dots too): 0.8 s of nothing before it
+  const pageStart = mode === undefined && (s.lastAny === undefined || now - s.lastAny > 0.8);
+  if (mode === undefined) s.lastAny = now;
+  if (pageStart) {
+    s.headDots = ch === '…' || ch === '‥';
+    s.firstVoiced = true;
+    s.lineHead = true;
+    s.laugh = 0;
+    s.imo = false;
+    s.sasuga = 0;
+    s.stam = undefined;
+    s.quietUntil = undefined;
+    // ポコシャさん: the page after his outburst is small; the one after that, his usual
+    s.shy = s.shy === 1 ? 2 : 0;
+  }
+  if (id === 'piichan') {
+    henChar(s, ch, now, pageStart);
+    return;
+  }
   // a page: the first character after a pause (0.8 s, 53 9.2)
   const pageHead = now - s.lastT > 0.8 || s.lastT === 0;
   if (pageHead && mode === undefined) {
@@ -249,6 +393,9 @@ function blipAt(id: string, ch: string, now: number, mode?: 'plain' | 'ee' | 'na
     s.oha = 0;
     s.asleep = false;
     s.chan = false;
+    s.domo = 0;
+    // ツガオさん in the village wakes for his first page after a long sleep (53 9.2)
+    if (id === 'tsugao') s.wake = (s.lastT === 0 || now - s.lastT > 20) && !inTsugaoRoom();
   }
   if (mode === 'chan') s.chan = true;
   // ダコクの「ガチャン」: the machine punches the card where the word stands (53 9.2)
@@ -290,11 +437,25 @@ function blipAt(id: string, ch: string, now: number, mode?: 'plain' | 'ee' | 'na
     }
   }
 
+  // lines and words for ツガオ便's two (53 9.2): a laugh, a 「焼き芋」 line and
+  // 「さすが 師匠」 end with their sentence
+  let blurted = false;
+  if (mode === undefined && (id === 'hirosuke' || id === 'pokosha')) {
+    if (LINE_END.includes(ch) || ch === '…' || ch === '‥') s.lineHead = true;
+    if (ch !== 'は' && ch !== 'っ' && ch !== 'ッ') s.laugh = 0;
+    if (LINE_END.includes(ch)) s.imo = false;
+    if (LINE_END.includes(ch) || ch === '、') {
+      blurted = !!s.sasuga && s.sasugaForm === 'loud';
+      // 「さすが 師匠！」 out loud: the next page comes out small (照れて)
+      if (blurted && (ch === '！' || ch === '!')) s.shy = 1;
+      s.sasuga = 0;
+    }
+  }
   // sentence endings: a little rise for "？", a push for "！"
   if (ch === '？' || ch === '?' || ch === '！' || ch === '!') {
     if (now - s.lastT < 0.5 && def.wave !== 'none' && id !== 'narr') {
       const q = ch === '？' || ch === '?';
-      play(def, id, s.lastMidi, now + 0.01, q ? 5 : 2, q ? 1 : 1.2 * (s.tsukkomi ? 1.25 : 1), 'a', true);
+      play(def, id, s.lastMidi, now + 0.01, q ? 5 : 2, q ? 1 : 1.2 * (s.tsukkomi ? 1.25 : 1) * (blurted ? 1.8 : 1), 'a', true, roomRev(id));
     }
     return;
   }
@@ -325,14 +486,54 @@ function blipAt(id: string, ch: string, now: number, mode?: 'plain' | 'ee' | 'na
     else if (step > 0 && ch === 'はだち'[step - 1]) oha = step;
     s.oha = oha >= 0 && oha < 3 ? oha + 1 : 0;
   }
-  // spacing: the voice's interval in characters at 40 chars/s
-  const every = s.tsukkomi || s.chan ? 1 : def.every;
+  // ヒロスケさん (53 9.2): 「ども」 opens bright (+4 +7); a 「焼き芋」 line bounces at its end
+  let forced = false;
+  let domo = -1;
+  if (id === 'hirosuke') {
+    if (pageHead && mode === undefined && ch === 'ど') domo = 0;
+    else if (s.domo === 1 && ch === 'も') domo = 1;
+    s.domo = domo === 0 ? 1 : 0;
+    if (s.lineHead && mode === undefined) s.imo = ch === '焼';
+  }
+  // ポコシャさん (53 9.2): 「さすが 師匠」 — out loud (a page's first word, or said
+  // after a pause in the middle of one), murmured (a page that opens 「……」),
+  // whispered behind the door in ツガオの部屋
+  if (id === 'pokosha') {
+    if (mode === 'sasuga') {
+      s.sasuga = 1;
+      s.sasugaForm = !inTsugaoRoom() && !(s.firstVoiced && s.headDots) ? 'loud' : 'quiet';
+    } else if (s.sasuga && mode === undefined) s.sasuga++;
+    if (s.stam === ch && mode === undefined) forced = true;
+  }
+  const loud = id === 'pokosha' && !!s.sasuga && s.sasugaForm === 'loud';
+  if (loud || domo >= 0 || mode === 'laugh' || mode === 'imo' || mode === 'stam' || (id === 'hirosuke' && s.laugh)) forced = true;
+  const lineHead = !!s.lineHead;
+  s.lineHead = false;
+  // spacing: the voice's interval in characters at 40 chars/s (ツガオさん waking: 4)
+  const every = s.tsukkomi || s.chan || loud ? 1 : s.wake ? 4 : def.every;
   const minGap = every * 0.025 * 0.9;
   const allowed = now - s.last >= minGap;
   // エー区長's 「えー」 and ペロリ's 「なぁ」: the next character decides
-  // (and ツガオ's 「つがおちゃん」, ダコク's 「ガチャン」)
-  const holdKind =
-    id === 'h_kucho' && pageHead && ch === 'え' ? 'ee' : id === 'h_mitsu' && ch === 'な' ? 'naa' : id === 'tsugao' && !s.chan && ch === 'つ' ? 'tsu' : id === 'dakoku' && ch === 'ガ' ? 'ga' : null;
+  // (and ツガオ's 「つがおちゃん」, ダコク's 「ガチャン」, ヒロスケさん's laugh and
+  // 「……か？」, ポコシャさん's first letters: a stammer or 「さすが」)
+  const holdKind: HoldKind | null =
+    id === 'h_kucho' && pageHead && ch === 'え'
+      ? 'ee'
+      : id === 'h_mitsu' && ch === 'な'
+        ? 'naa'
+        : id === 'tsugao' && !s.chan && ch === 'つ'
+          ? 'tsu'
+          : id === 'dakoku' && ch === 'ガ'
+            ? 'ga'
+            : id === 'hirosuke' && !s.laugh && ch === 'わ'
+              ? 'wa'
+              : id === 'hirosuke' && !s.laugh && ch === 'は'
+                ? 'ha'
+                : id === 'hirosuke' && s.imo && ch === 'か'
+                  ? 'ka'
+                  : id === 'pokosha' && !s.sasuga && !forced && (lineHead || prevCh === undefined || WORD_EDGE.includes(prevCh))
+                    ? 'word'
+                    : null;
   if (mode === undefined && holdKind) {
     held = { id, ch, t: now, kind: holdKind, allowed };
     s.prevCh = prevCh;
@@ -344,7 +545,7 @@ function blipAt(id: string, ch: string, now: number, mode?: 'plain' | 'ee' | 'na
     }
     return;
   }
-  if (!allowed && !honorific && oha < 0 && mode !== 'ee' && mode !== 'naa' && mode !== 'chan') return;
+  if (!allowed && !honorific && !forced && oha < 0 && mode !== 'ee' && mode !== 'naa' && mode !== 'chan') return;
   // a new page of the flip (and the sign's cardboard): the whole marker squeak
   if ((id === 'flip' || id === 'h_mujin') && now - s.last > 0.8) {
     s.last = now;
@@ -353,12 +554,56 @@ function blipAt(id: string, ch: string, now: number, mode?: 'plain' | 'ee' | 'na
     return;
   }
   s.last = now;
+  if (s.stam === ch && mode === undefined) s.stam = undefined;
+  // ポコシャさん hesitates (53 9.2): a page that opens 「……」 or with a stammer
+  // waits 150 ms before its first blip
+  let delay = 0;
+  if (id === 'pokosha' && s.firstVoiced && (s.headDots || mode === 'stam')) {
+    delay = 0.15;
+    s.last = now + delay;
+  }
+  const headOfPage = !!s.firstVoiced;
+  s.firstVoiced = false;
 
   let semi: number;
   let volK = s.tsukkomi ? 1.25 : 1;
   let longMs = 0;
   let glide = 0;
-  if (mode === 'ee') {
+  let lpOverride: number | undefined;
+  if (s.wake && id === 'tsugao' && !s.chan) volK *= 0.85;
+  if (id === 'pokosha') {
+    if (inTsugaoRoom()) {
+      // 「……さすが 師匠。」 from the dark behind the frosted door
+      volK *= 0.5;
+      lpOverride = 1200;
+    } else if (s.sasuga && s.sasugaForm === 'quiet') {
+      volK *= 0.6;
+      lpOverride = 1000;
+    } else if (loud) volK *= 1.8;
+    if (s.shy === 2) volK *= 0.8;
+    if (mode === 'stam') {
+      volK *= 0.7;
+      s.stam = ch;
+    }
+  }
+  if (loud) {
+    // さ す が 師 匠: 0 +4 +7 +9 (+9 held): the admiring voice rises
+    const i = (s.sasuga ?? 1) - 1;
+    semi = [0, 4, 7, 9, 9][Math.min(4, i)];
+    if (i >= 4) longMs = 110;
+  } else if (domo >= 0) {
+    semi = domo === 0 ? 4 : 7;
+  } else if (mode === 'laugh' || (id === 'hirosuke' && s.laugh)) {
+    // 「わはは」: short blips on 0 +4 +7 over and over (a laugh, not words)
+    const k = mode === 'laugh' ? 0 : s.laugh ?? 0;
+    semi = [0, 4, 7][k % 3];
+    s.laugh = k + 1;
+    longMs = 50;
+  } else if (mode === 'imo') {
+    // 「……焼き芋 食うか？」: the か jumps +5 and holds 140 ms (the ？ still lifts it)
+    semi = 5;
+    longMs = 140;
+  } else if (mode === 'ee') {
     // 「えー」: one long blip, sinking 30 cents
     semi = def.scale[0];
     longMs = 280;
@@ -429,9 +674,21 @@ function blipAt(id: string, ch: string, now: number, mode?: 'plain' | 'ee' | 'na
     // blip — and 「る」 turns 0 → +5 → 0 over 240 ms. The drop from the calm low
     // voice is the joke (53 9.2)
     const bright: VoiceDef = { ...def, wave: 'triangle', lp: 2600, scoop: [80, 20], vib: undefined };
-    if (ch === 'る') [0, 5, 0].forEach((k, i) => play(bright, id, midi + k, now + 0.005 + i * 0.08, 0, volK, 'u', false, undefined, 90));
-    else play(bright, id, midi, now + 0.005, 0, volK, vowelOf(ch), false);
-  } else play(def, id, midi, now + 0.005, 0, volK, mode === 'ee' ? 'e' : vowelOf(ch), false, undefined, longMs, glide);
+    if (ch === 'る') [0, 5, 0].forEach((k, i) => play(bright, id, midi + k, now + 0.005 + i * 0.08, 0, volK, 'u', false, roomRev(id), 90));
+    else play(bright, id, midi, now + 0.005, 0, volK, vowelOf(ch), false, roomRev(id));
+  } else {
+    let d = def;
+    // ヒロスケさん's pages open with a bounce (+60 cents → 0 in 15 ms)
+    if (id === 'hirosuke' && headOfPage) d = { ...d, scoop: [60, 15] };
+    if (lpOverride) d = { ...d, lp: lpOverride };
+    let at = now + 0.005 + delay;
+    if (id === 'pokosha') {
+      // after his hesitation the words keep their order (a stammer right behind it waits too)
+      if (!delay && s.quietUntil !== undefined && at < s.quietUntil) at = s.quietUntil;
+      s.quietUntil = delay || at === s.quietUntil ? at + 0.05 : s.quietUntil;
+    }
+    play(d, id, midi, at, 0, volK, mode === 'ee' ? 'e' : vowelOf(ch), false, roomRev(id), longMs, glide);
+  }
   if (id === 'yobimodoshi') openLineHum(now);
   if (g.offline) return;
   if (id === 'kanenari_voice') {
@@ -459,6 +716,12 @@ function blipAt(id: string, ch: string, now: number, mode?: 'plain' | 'ee' | 'na
   }
 }
 
+/** The reverb ツガオの部屋 gives a voice (53 9.1, 9.2); undefined = the voice's own. */
+function roomRev(id: string): number | undefined {
+  if (id !== 'tsugao' && id !== 'pokosha') return undefined;
+  return inTsugaoRoom() ? (id === 'tsugao' ? 0.25 : 0.3) : undefined;
+}
+
 /** After the last line of the broadcast, the PA echo answers three times (13.2). */
 function schedulePaSwell(): void {
   const g = cur();
@@ -471,7 +734,7 @@ function schedulePaSwell(): void {
   });
 }
 
-/** Katakana (a name called on the speaker: ナナミ, ケンイチ…). */
+/** Katakana (a name called on the speaker: シュンスケ, アスカ…). */
 function isKatakana(ch: string): boolean {
   return (ch >= 'ァ' && ch <= 'ヺ') || ch === 'ヴ';
 }

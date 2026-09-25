@@ -175,6 +175,10 @@ function applyRim(lo: string | null, hi: string | null): void {
 
 /** Rim colors for a stage and map (pal_stage0/1/2, pal_mall, pal_night). */
 export function rimForStage(stage: number, map = ''): [string | null, string | null] {
+  // 星見台 (chapter 2) is night from 4:59 to the dawn: no baked sunset rim.
+  // The rims there are the world's, at run time (52 8.5 / 8.9: the lantern's
+  // #F2894B on the side facing it, the morning's #F7C27A on the right).
+  if (map.startsWith('map_hoshi')) return [null, null];
   if (stage >= 3) return [null, null];
   if (map.startsWith('map_mall')) return ['#F4E6A8', '#F4E6A8'];
   if (stage === 2) return ['#E0567A', '#E0567A'];

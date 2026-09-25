@@ -116,3 +116,13 @@ queueMicrotask(() => {
     return out.toDataURL('image/png');
   });
 });
+
+// __game.cmd.ch2chars('cast' | 'foes' | 'cows', zoom): the chapter 2 night pages
+// (pal_h0 grading, the lantern walking the rows, glow layer and night rim).
+queueMicrotask(() => {
+  registerDebug('ch2chars', (which: 'cast' | 'foes' | 'cows' = 'cast', zoom = 1) => {
+    cur = new CharGallery({ page: 'night ' + which, zoom });
+    game.replaceAll(cur);
+    return 'night ' + which;
+  });
+});

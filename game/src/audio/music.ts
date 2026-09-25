@@ -8,7 +8,7 @@ import { songGainDb } from './mix';
 import { legacyBgm, songTable } from './registry';
 import { MUSIC_LOOKAHEAD, PARAM_DEFAULTS, SongPlayer, type Params, type SongDef } from './sequencer';
 
-export type MusicParam = 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest' | 'clock';
+export type MusicParam = 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest' | 'clock' | 'h_deli';
 
 export interface PlayOpts {
   /** Fade-in (and cross-fade) seconds. */
@@ -163,7 +163,8 @@ export function playBgm(idIn: string, opts: PlayOpts = {}): void {
   // every boss fight (a retry after a loss too) opens in phase 1; the battle
   // raises it to 2 and 3 as the fight goes on (7.3)
   if (id === 'bgm_boss' || id === 'bgm_boss_yobimodoshi') params.boss_phase = 1;
-  // the light, the name tags and Tetsuya's rest belong to one fight (53 6.2–6.4)
+  // the light, the name tags and Tetsuya's rest belong to one fight (53 6.2–6.4);
+  // h_deli is not among them: the delivery goes on after a fight on the way (6.6)
   params.h_light = 0;
   params.tenko = 0;
   params.h_rest = 0;

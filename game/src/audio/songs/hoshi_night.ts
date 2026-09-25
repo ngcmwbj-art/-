@@ -4,7 +4,11 @@
 // music box and a low pad (a quiet that is not lonely), stage 1 adds the
 // tomato lantern singing the town's question, stage 2 the calls from the hill
 // echoing across the valley. Indoors and on the hill the same song changes
-// its form (`variant` → h_room) without stopping.
+// its form (`variant` → h_room) without stopping. While the vegetables are
+// carried round the village (h_deli, 53 6.6) a marimba answers on beat 4 of
+// the six bars where the lantern holds or rests: "ぽこ、ぽこ", the crates on
+// the truck bed keeping step — the same instrument and the same falling two
+// notes as the shrug in ツガオ's room (bgm_tsugao), never M7's shape.
 
 import { DRM } from '../instruments';
 import { dbToGain } from '../engine';
@@ -74,6 +78,14 @@ B4  G/B            | -:8 D6:2 D6:2 B5:4 |
 C2  Am7            | -:8 C6:2 C6:2 A5:4 |
 C4  G/B            | -:8 D6:2 D6:2 B5:4 |
 C6  Cadd9          | -:8 G5:2 G5:2 E5:4 |
+
+@song bgm_hoshi_night part=deli ins=ins_fm_marimba meter=4/4
+A3  Em7            | -:12 B4:2 E4:2 |
+A8  Cadd9          | -:12 G5:2 D5:2 |
+B4  G/B            | -:12 D5:2 G4:2 |
+C2  Am7            | -:12 E5:2 A4:2 |
+C4  G/B            | -:12 B4:2 G4:2 |
+C6  Cadd9          | -:12 G5:2 C5:2 |
 `;
 
 export const HOSHI_NIGHT_CHORDS = `
@@ -113,9 +125,9 @@ const ROOM: { db: number; lp: number; parts: Record<string, number> }[] = [
   // 3号ハウス: through the plastic film
   { db: -4, lp: 2400, parts: { drums: dbToGain(-6) } },
   // 石黒牛舎: not to wake the cattle — the fans and the chewing lead
-  { db: -12, lp: 1200, parts: { stars: 0, yobigoe: 0, drums: 0, deco: 0 } },
-  // 旧分校: a lit classroom — the pump organ holds the chords
-  { db: -2, lp: 3200, parts: { pad: 0, drums: 0 } },
+  { db: -12, lp: 1200, parts: { stars: 0, yobigoe: 0, drums: 0, deco: 0, deli: 0 } },
+  // 旧分校: a lit classroom — the pump organ holds the chords (the delivery's marimba ×0.7)
+  { db: -2, lp: 3200, parts: { pad: 0, drums: 0, deli: 0.7 } },
   // 星見の丘: the speaker is close
   { db: -6, lp: 20000, parts: { yobigoe: dbToGain(4) } },
 ];
@@ -172,6 +184,14 @@ function hoshiNightDef(): SongDef {
       when: (b) => st(b) === 2 && b.p.h_room !== 2,
       aware: ['h_room'],
       fx: { hp: 500, lp: 2400, delay: { steps: 6, fb: 0.45, send: 0.5, bp: [900, 2600] } },
+    }),
+    // ---- the delivery (h_deli, stage 1 only: it never meets the calls of stage 2)
+    melody({
+      id: 'deli',
+      ins: 'ins_fm_marimba',
+      bars: hoshiNight.part('deli'),
+      o: { vol: 0.04, rev: 0.3 },
+      when: (b) => b.p.h_deli === 1 && st(b) === 1 && inLoop(b),
     }),
     // ---- the pad (the school's pump organ holds the chords instead)
     pads({

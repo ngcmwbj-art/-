@@ -47,14 +47,14 @@ function paint(f: Fig, x: number, y: number, rows: string[]) {
 // and back; the tail's plume arches over the rump.
 
 const SIDE_HEAD = [
-  '......ww..',
-  '.....bBw..',
-  '....bBBBw.',
-  '....BBpBw.',
-  '..bBBBBbw.',
-  '.BBeBBBb..',
+  '.......ww.',
+  '......bBw.',
+  '.....bBBw.',
+  '..TT.BpBw.',
+  '.WTBBBBbw.',
+  '.WeBBBBb..',
   'WWWWBBb...',
-  'nWWww.....',
+  'nWWw......',
 ];
 const SIDE_HEAD_UP = [
   '....ww....',
@@ -76,7 +76,7 @@ const SIDE_HEAD_BARK = [
   'WWWWBBb...',
   'nmmww.....',
 ];
-const SIDE_HEAD_SHUT = SIDE_HEAD.map((r, i) => (i === 5 ? '.BBbBBBb..' : r));
+const SIDE_HEAD_SHUT = SIDE_HEAD.map((r, i) => (i === 5 ? '.WbBBBBb..' : r));
 // body (rows 5..8 of the frame), tail plume over the back
 const SIDE_BODY = [
   '.....HWWBBWWH.',
@@ -177,6 +177,13 @@ function front(f: Fig, p: Pose) {
   const r = st === 3 ? 1 : 0;
   const lie = act === 'lie' || act === 'lie_eye';
   const sit = act === 'sit' || act === 'sit_l' || act === 'sit_r';
+  if (back && lie) {
+    // lying, seen from behind: the curled body, the plume over it, the ears up
+    paint(f, 2, 7, ['.HWWWBBWWw.', 'HWWWWBbWWWw', 'WWWWWWWWwwv']);
+    paint(f, 8, 4, ['.HH', 'HWW', 'WWw']);
+    paint(f, 0, 1, ['w...........w.', 'Hb.........bw.', 'TBb.......BBw.', '.TBBB...BBBb..', '.TTBBBBBBBbb..', '..TBBBBBBBb...', '...ccccgcc....']);
+    return;
+  }
   if (back) {
     // from behind: rump, the tail plume on it, the ears over the head
     f.part('white', { shade: 'r', light: '' });

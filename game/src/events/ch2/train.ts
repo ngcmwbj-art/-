@@ -18,7 +18,7 @@ import { HOSHI_NPC } from '../../data/text/hoshi_npcs';
 import * as T from '../../data/text/hoshi_events';
 import { F } from '../lib';
 import { musicParam, paMode, se, space } from './compat';
-import { poseIf, unpose } from './common';
+import { poseAny, unpose } from './common';
 import { sceneCall } from './calls';
 
 /** From the prologue (on black): into the car at (2,3) facing east. */
@@ -153,8 +153,8 @@ export function* evtArrive(announced = false): Co {
   const kk = F().follower;
   p.dir = 'up';
   if (kk) kk.dir = 'up';
-  poseIf(p, 'look_hill');
-  poseIf(kk, 'look_hill');
+  poseAny(p, 'look_hill', 'look_up');
+  poseAny(kk, 'look_hill', 'look_up');
   yield 1000;
   unpose(p, kk);
   se('se_flip');

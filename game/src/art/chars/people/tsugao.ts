@@ -298,10 +298,17 @@ function tsugaoCabDraw(f: Fig, p: Pose) {
   f.rows(3 - tip, hy + 3, ['.######.', '########', '########', '.######.']);
   f.part('hair', { flat: true });
   f.t(0).px(2 - tip, hy + 3).px(2 - tip, hy + 4).px(9 - tip, hy + 3).px(9 - tip, hy + 4).t(null);
-  f.part('brow', { flat: true, rim: false });
-  f.hl(4 - tip, 5 - tip, hy + 3).hl(7 - tip, 8 - tip, hy + 3);
-  f.part('eye', { flat: true, rim: false });
-  f.hl(4 - tip, 5 - tip, hy + 4).hl(7 - tip, 8 - tip, hy + 4);
+  if (awake) {
+    // thick brows over thin, sleepy eyes
+    f.part('brow', { flat: true, rim: false });
+    f.hl(4 - tip, 5 - tip, hy + 3).hl(7 - tip, 8 - tip, hy + 3);
+    f.part('eye', { flat: true, rim: false });
+    f.px(5 - tip, hy + 4).px(7 - tip, hy + 4);
+  } else {
+    // asleep under the nightcap: two short closed lids
+    f.part('eye', { flat: true, rim: false });
+    f.px(4 - tip, hy + 4).px(5 - tip, hy + 5).px(8 - tip, hy + 4).px(7 - tip, hy + 5);
+  }
   f.part('mouth', { flat: true, rim: false });
   f.hl(5 - tip, 6 - tip, hy + 6);
   if (awake) workCapCab(f, hy);
@@ -745,7 +752,7 @@ const POKO_ARM: Seg[] = [{ mat: 'skin' }];
 
 /** Where the hen sits and how, for this frame. */
 function henPose(p: Pose): string {
-  if (p.act === 'hide2' || p.act === 'flap') return 'flap';
+  if (p.act === 'hide2' || p.act === 'flap' || p.act === 'flapdown') return 'flap';
   const asleep = (p as Pose & { henAsleep?: boolean }).henAsleep;
   if (asleep) return 'sleep';
   if (p.act === 'bob' || p.mode === 'walk') return p.mode === 'walk' ? (p.step % 2 ? 'bob' : 'sit') : 'bob';
@@ -851,11 +858,34 @@ function pokoFront(f: Fig, p: PokoPose) {
     crate(f, 0, 5 + u, 6, 4);
   }
   if (carry >= 2) crate(f, 10, 5 + u, 6, 4, -1);
-  // ぴーちゃん on his left shoulder (viewer-right)
+  // ぴーちゃん on his left shoulder (viewer-right) — or down by his boot,
+  // pecking (every 12 s she hops down, pecks three times and flies back up)
   if (carry < 2) {
     const hide = act === 'hide' || act === 'hide2';
-    henSmall(f, hide ? 10 : 11, (hide ? 4 : 5) + u, henPose(p), true);
+    if (act === 'henpeck') henGround(f, 11, 17, p.ph);
+    else henSmall(f, hide ? 10 : 11, (hide ? 4 : 5) + u, henPose(p), true);
   }
+}
+
+/** The hen on the ground by his boot (6×6), pecking: ph 1 = the beak down. */
+function henGround(f: Fig, x: number, y: number, ph: number) {
+  f.part('hen', { shade: 'rb', light: 't' });
+  for (const [dx, dy, w] of [[1, 2, 4], [0, 3, 5], [1, 4, 4]] as const) for (let i = 0; i < w; i++) f.px(x + dx + i, y + dy);
+  f.px(x + 5, y + 1).px(x + 5, y + 2);
+  // head up, or down at the ground
+  const hy = ph ? 2 : 0;
+  f.part('hen', { shade: 'rb', light: 't' });
+  f.px(x, y + 1 + hy).px(x + 1, y + 1 + hy).px(x, y + 2 + hy);
+  f.part('comb', { flat: true, rim: false });
+  f.px(x, y + hy).px(x + 1, y + hy);
+  f.part('beak', { flat: true, rim: false });
+  f.px(x - 1, y + 2 + hy);
+  f.part('henEye', { flat: true, rim: false });
+  f.px(x + 1, y + 1 + hy);
+  f.part('scarf', { flat: true, rim: false });
+  f.px(x + 2, y + 3);
+  f.part('beak', { flat: true, rim: false });
+  f.px(x + 2, y + 5).px(x + 4, y + 5);
 }
 
 function pokoBack(f: Fig, p: PokoPose) {
@@ -939,6 +969,8 @@ function pokoDraw(f: Fig, p: Pose) {
 // lifts three crates one-handed → strokes the hen → half hides behind her (≈8s)
 const POKO_IDLE: IdleKey[] = [
   { breath: 0 }, { breath: 0 }, { breath: 1 }, { breath: 1 },
+  { act: 'flapdown' }, { act: 'henpeck', ph: 0 }, { act: 'henpeck', ph: 1 }, { act: 'henpeck', ph: 0 }, { act: 'henpeck', ph: 1 },
+  { act: 'henpeck', ph: 0 }, { act: 'henpeck', ph: 1 }, { act: 'henpeck', ph: 0 }, { act: 'flap' },
   { act: 'lift', ph: 0 }, { act: 'lift', ph: 1 }, { act: 'lift', ph: 1 }, { act: 'lift', ph: 1 }, { act: 'lift', ph: 0 },
   { breath: 0, blink: true }, { breath: 0 }, { act: 'tilt' }, { act: 'tilt' },
   { act: 'stroke', ph: 0 }, { act: 'stroke', ph: 1 }, { act: 'stroke', ph: 0 }, { act: 'stroke', ph: 1 }, { act: 'stroke', ph: 0 },
@@ -959,7 +991,7 @@ function pokoSpec(id: string, asleep: boolean, carrying: number): SpriteSpec {
     walkFrameMs: 150,
     idle: carrying
       ? breathingIdle(16, [9])
-      : { down: asleep ? POKO_IDLE.map((k) => (k.act === 'tilt' || k.act === 'bob' ? { breath: 0 } : k)) : POKO_IDLE, up: breathingIdle(), left: POKO_SIDE, right: POKO_SIDE },
+      : { down: asleep ? POKO_IDLE.map((k) => (['tilt', 'bob', 'henpeck', 'flap', 'flapdown'].includes(k.act ?? '') ? { breath: 0 } : k)) : POKO_IDLE, up: breathingIdle(), left: POKO_SIDE, right: POKO_SIDE },
     idleFrameMs: 250,
     extras: {
       hide: { dirs: ['down', 'left', 'right'] },
@@ -1252,18 +1284,23 @@ function dakokuDraw(f: Fig, p: Pose) {
   f.part('leg', { flat: true });
   f.vl(8, 20 + y, 27 - (st === 1 ? 1 : 0)).vl(15, 20 + y, 27 - (st === 3 ? 1 : 0));
   f.hl(7, 8, 27 - (st === 1 ? 1 : 0)).hl(15, 16, 27 - (st === 3 ? 1 : 0));
-  // the box
+  // the box (seen edge-on from the side: its depth is half its width)
+  const bx = p.view === 'left' ? 7 : 3;
+  const bw = p.view === 'left' ? 10 : 18;
   f.part('box', { shade: 'rb', light: 't' });
-  f.rect(3, 4 + y, 18, 17);
+  f.rect(bx, 4 + y, bw, 17);
   f.part('rust', { flat: true, rim: false });
-  f.px(3, 4 + y).px(20, 4 + y).px(3, 20 + y).px(20, 20 + y).px(4, 20 + y).px(19, 5 + y);
+  f.px(bx, 4 + y).px(bx + bw - 1, 4 + y).px(bx, 20 + y).px(bx + bw - 1, 20 + y).px(bx + 1, 20 + y).px(bx + bw - 2, 5 + y);
   // the handle on top
   f.part('handle', { shade: 'r', light: 't' });
   f.hl(9, 14, 2 + y).px(9, 3 + y).px(14, 3 + y);
   if (p.view === 'up') return;
   if (p.view === 'left') {
+    // the clock face's rim edge-on, the slot's lip
     f.part('rimM', { flat: true, rim: false });
-    f.vl(3, 7 + y, 13 + y);
+    f.vl(6, 7 + y, 13 + y);
+    f.part('slot', { flat: true, rim: false });
+    f.px(6, 16 + y);
     return;
   }
   // the clock face (stopped), its rim, the two hands
@@ -1277,8 +1314,11 @@ function dakokuDraw(f: Fig, p: Pose) {
   f.part('slot', { flat: true, rim: false });
   f.hl(8, 15, 16 + y).hl(8, 15, 17 + y);
   if (p.act === 'gachan') {
+    // ガチャン: the report card pushed 4px out of the slot, its lines showing
     f.part('card', { flat: true, rim: false });
-    f.rect(9, 12 + y, 6, 4);
+    f.rect(9, 17 + y, 6, 4);
+    f.part('rimM', { flat: true, rim: false });
+    f.hl(10, 13, 18 + y).hl(10, 12, 20 + y);
   }
 }
 

@@ -184,6 +184,12 @@ export function poseIf(a: Actor | null | undefined, name: string | null): boolea
   return true;
 }
 
+/** The first of these poses the sprite has (a scene's pose, then its nearest stand-in). */
+export function poseAny(a: Actor | null | undefined, ...names: string[]): boolean {
+  for (const n of names) if (poseIf(a, n)) return true;
+  return false;
+}
+
 /** Play a one-off anim if the sprite has it and wait for it (else just wait `ms`). */
 export function* animIf(a: Actor | null | undefined, name: string, ms: number): Co {
   if (a && a.sprite.anims?.[name]) {

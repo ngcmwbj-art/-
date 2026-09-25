@@ -368,6 +368,12 @@ export const CLOSING_FOURTH_SHAPES = [
   [-5, -4, -3],
 ];
 
+/**
+ * M7, ツガオの動機 (53 1.3, 5.7): D3 E♭3 D3 A2 (+1 −1 −5). Only bgm_tsugao's bass
+ * says it (T1, T5); the village — ツガオ便, the delivery's marimba — never does.
+ */
+export const TSUGAO_SHAPE = [1, -1, -5];
+
 /** First index where `seq`'s successive intervals are `shape`, or −1. */
 export function findShape(seq: number[], shape: number[]): number {
   for (let i = 0; i + shape.length < seq.length; i++) {

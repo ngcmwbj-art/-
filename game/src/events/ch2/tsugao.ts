@@ -28,7 +28,7 @@ import { F, sendAway, stepBack } from '../lib';
 import { quietItem } from '../stage';
 import { sparkle } from '../fx';
 import { hasUi, musicParam, se, seAt, ui, uiCo } from './compat';
-import { hStage, npc, pickHText, poseIf, routeTiles, runCue, unpose, type Cues } from './common';
+import { hStage, npc, pickHText, poseAny, poseIf, routeTiles, runCue, unpose, type Cues } from './common';
 
 // ---------------------------------------------------------------- name tags
 
@@ -116,7 +116,7 @@ function spawnPoko(f: FieldScene, x: number, y: number): Actor {
   a.y = y;
   a.data.scripted = true;
   a.solid = false;
-  poseIf(a, 'carry');
+  poseAny(a, 'carry', 'carry2');
   steps = [];
   return a;
 }
@@ -204,7 +204,7 @@ export function resetDelivery(walkHome = true): void {
     own.x = from[0];
     own.y = from[1];
     own.dir = from[2];
-    poseIf(own, 'carry');
+    poseAny(own, 'carry', 'carry2');
     sendAway(own, route, 2.2, 0, false);
   }
 }
@@ -233,7 +233,7 @@ function* stage(name: string): Co {
         poseIf(poko, 'shh');
       }
       yield 600;
-      if (poko) poseIf(poko, 'carry');
+      if (poko) poseAny(poko, 'carry', 'carry2');
       return;
     case 'laugh':
       if (hiro) {
@@ -250,7 +250,7 @@ function* stage(name: string): Co {
       // ヒロスケさん knocks on the driver's window (no sound: his voice wakes him)
       if (hiro) {
         hiro.dir = 'left';
-        poseIf(hiro, 'knock');
+        if (!poseIf(hiro, 'knock')) hiro.hop(1, 120);
       }
       yield 500;
       if (hiro) unpose(hiro);
@@ -268,8 +268,11 @@ function* stage(name: string): Co {
       if (k) unpose(k);
       return;
     case 'aori':
+      // ヒロスケさん takes the tailgate down (or hooks it back on)
+      if (hiro) poseIf(hiro, 'aori');
       se('se_truck_aori');
-      yield 300;
+      yield 400;
+      if (hiro) unpose(hiro);
       return;
     case 'cap_swap':
     case 'cap_back':
@@ -363,8 +366,8 @@ function* putDown(): Co {
     poseIf(a, 'give');
   }
   yield 300;
-  if (a) poseIf(a, 'carry');
-  poseIf(p, 'put_down');
+  if (a) poseAny(a, 'carry', 'carry2');
+  poseAny(p, 'put_down', 'give');
   const at = STOPS[doneStops()]?.at;
   if (at) seAt('se_h_deli_put', at[0] * 16 + 8, at[1] * 16 + 8);
   else se('se_h_deli_put');

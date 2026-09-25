@@ -21,7 +21,8 @@ import { currentId, setMusicParam } from './music';
 import { layer, type SeCtx } from './recipe';
 import { Rng } from '../engine/rng';
 import { Every, higurashiCall, modBuffer, modulate, noiseBed, registerAmbience, sampleHold, smoothRandom, toneBed, type AmbCtx, type Bed } from './ambience';
-import { ACHA, BOAR, COW_SNORT, CROSS_STRIKE, HANSUU, IBIKI, SOIL } from './sfx_ch2';
+import { ACHA, BOAR, clockRestart, COW_SNORT, CROSS_STRIKE, HANSUU, IBIKI, SOIL } from './sfx_ch2';
+import { atTime } from './clock';
 import { game } from '../engine/game';
 
 // ---------------------------------------------------------------------------
@@ -974,10 +975,20 @@ registerAmbience('amb_tsugao_room', (c) => {
       const town = arg as unknown as string | number | undefined;
       if (name === 'tick') {
         const hoshimi = town === 'hoshimi' || town === 1;
-        if (hoshimi) clocks.hoshimi = true;
-        else clocks.yunari = true;
-        if (next < at) next = at + 1.0;
-        setMusicParam('clock', clocks.hoshimi ? 2 : 1);
+        // a restart still finding its pace (se_clock_restart: ticks at 0 / 1.3 /
+        // 2.25 / 3.25 s) keeps the floor until its fourth tick; the steady second
+        // follows a second later — here, or in the song's beat
+        const r = clockRestart.t;
+        const from = at - r < 3.25 && at >= r - 0.05 ? r + 3.25 : at;
+        const start = () => {
+          if (umi) return;
+          if (hoshimi) clocks.hoshimi = true;
+          else clocks.yunari = true;
+          setMusicParam('clock', clocks.hoshimi ? 2 : 1);
+        };
+        if (next < from + 1.0) next = from + 1.0;
+        if (from > at + 0.02 && !g.offline) atTime(from, start);
+        else start();
       } else if (name === 'umi' && !umi) {
         // the clocks stop with the song
         clocks.yunari = clocks.hoshimi = false;

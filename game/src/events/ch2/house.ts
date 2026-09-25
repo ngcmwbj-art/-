@@ -22,7 +22,7 @@ import { F, floatLine, giveKey } from '../lib';
 import { burst, ring, sparkle } from '../fx';
 import { stampFushigi } from '../stamp';
 import { ambVol, musicParam, se } from './compat';
-import { animIf, firstThisLoad, npc, poseIf, runCue, sceneLight, storyBattle, unpose } from './common';
+import { animIf, firstThisLoad, hasPose, npc, poseIf, runCue, sceneLight, storyBattle, unpose } from './common';
 import { fushigiReward } from './fushigi';
 
 // ---------------------------------------------------------------- 10.6 evt_ch2_mitsu
@@ -209,7 +209,12 @@ export function* evtTomato(): Co {
   unpose(k);
   // the net round to the front, the tomato in, the pole on the shoulder: a lantern
   se('se_h_lantern_set');
-  yield* animIf(p, 'lantern_set', 1200);
+  if (hasPose(p, 'lantern_set')) yield* animIf(p, 'lantern_set', 1200);
+  else {
+    // (until Minato has the move itself: the net raised on its pole)
+    poseIf(p, 'hold_up');
+    yield 1200;
+  }
   unpose(p);
   // the item: jingle and the two @sys pages; the lantern lights with the flag
   giveKey('item_hanamaru_tomato');
