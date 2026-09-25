@@ -7,9 +7,15 @@
 //   __game.cmd.hoshi('houki', 1, { tomato: false })   // the dark without the lantern
 //   __game.cmd.hoshi()                 // the list of screens
 //   __game.cmd.hoshiAt('map_hoshimidai', 48, 19, 1)   // any tile
+//   __game.cmd.hoshi('barn_in', 1, { chores: true })   // 牛舎のおてつだい: the nine spots waiting
+//   __game.cmd.hprops(['prop_h_bus', ['prop_h_cow', { pose: 'front' }]], { zoom: 3 })   // the props alone
 
+import { getProp, hasProp } from '../../art/props/registry';
+import type { PropEnv } from '../../art/props/types';
 import { registerDebug } from '../../debug';
-import { game } from '../../engine/game';
+import { game, type Scene } from '../../engine/game';
+import type { Gfx } from '../../engine/gfx';
+import { H, W } from '../../engine/screen';
 import { addItem, hasItem, setFlag, state, type Dir } from '../../game/state';
 import { field, FieldScene } from '../../world/field';
 
@@ -64,7 +70,11 @@ export interface HoshiQaOpts {
   tomato?: boolean;
   /** h1: the gate already opened (マサルさん's events done). Default true for the fence / fields screens. */
   gate?: boolean;
+  /** h1 in the barn: the chores running (evt_ch2_barn_work), none of the nine spots done yet. */
+  chores?: boolean;
 }
+
+const CHORE_SPOTS = ['esa_01', 'esa_02', 'esa_03', 'esa_04', 'esa_05', 'esa_06', 'cup_01', 'cup_02', 'cup_03'].map((s) => 'flag_spot_h_' + s);
 
 /** Set the story flags a stage implies (02_ch2 4.5's beats, roughly). */
 export function hoshiStageFlags(stage: number, o: HoshiQaOpts = {}): void {
@@ -94,6 +104,9 @@ export function hoshiStageFlags(stage: number, o: HoshiQaOpts = {}): void {
     state.taken['sym_hoshi_07'] = true;
   } else delete state.taken['sym_hoshi_07'];
   if (stage >= 3) for (const id of later.slice(11)) f(id);
+  f('flag_ch2_barn_work', 0);
+  f('flag_ch2_barn_work_on', o.chores && stage === 1 ? 1 : 0);
+  for (const id of CHORE_SPOTS) f(id, 0);
 }
 
 function go(map: string, x: number, y: number, dir: Dir, cam: [number, number] | null, stage: number): FieldScene | null {
@@ -121,6 +134,11 @@ registerDebug('hoshi', (screen?: string, stage = 0, o: HoshiQaOpts = {}) => {
   const s = HOSHI_SCREENS[id];
   if (!s) return Object.keys(HOSHI_SCREENS);
   hoshiStageFlags(stage, o);
+  // on the hill: its enter-event and the plaza's first-arrival flip already seen
+  if (id.startsWith('hill') && stage < 3) {
+    setFlag('flag_ch2_hill', 1);
+    if (id === 'hill_top') setFlag('flag_ch2_hill_top', 1);
+  }
   const st = STAND[id] ?? [s[1], s[2], 'down'];
   go(s[0], st[0], st[1], st[2], s[3] ? [s[1], s[2]] : null, stage);
   return `screen_hoshi_${id} h${stage}`;
@@ -130,4 +148,66 @@ registerDebug('hoshiAt', (map: string, x: number, y: number, stage = 0, o: Hoshi
   hoshiStageFlags(stage, o);
   go(map, x, y, o.dir ?? 'down', null, stage);
   return `${map} (${x},${y}) h${stage}`;
+});
+
+// ---------------------------------------------------------------- the props themselves
+
+/**
+ * __game.cmd.hprops([['prop_h_bus', {view: 'back'}], 'prop_h_fumidai'], {zoom: 2, flags: {...}, t: 0})
+ * lays the given chapter-2 props out on a plain ground (daylight colours, no
+ * grade) to look at them one by one; any key to return to the field.
+ */
+class PropSheet implements Scene {
+  private t = 0;
+  constructor(
+    private list: [string, Record<string, unknown>][],
+    private zoom: number,
+    private flags: Record<string, number>,
+    private t0: number,
+  ) {}
+  update(dt: number): void {
+    this.t += dt * 1000;
+  }
+  draw(g: Gfx): void {
+    g.rect(0, 0, W, H, '#6E7A5E');
+    const env = {
+      t: this.t0 + this.t,
+      stage: 0,
+      grade: 'day',
+      motion: 1,
+      mt: this.t0 + this.t,
+      flag: (id: string) => this.flags[id] ?? 0,
+      seed: 1,
+      near: 999,
+      px: 0,
+      py: 0,
+    } as unknown as PropEnv;
+    let x = 4;
+    let y = 4;
+    let rowH = 0;
+    const z = this.zoom;
+    for (const [id, o] of this.list) {
+      const a = getProp(id, o);
+      const img = a?.img(env);
+      if (!img) {
+        g.text(id + '?', x, y, { color: '#FFD23F' });
+        x += 80;
+        continue;
+      }
+      if (x + img.width * z > W) {
+        x = 4;
+        y += rowH + 4;
+        rowH = 0;
+      }
+      g.img(img, x, y, { scale: z });
+      x += img.width * z + 4;
+      rowH = Math.max(rowH, img.height * z);
+    }
+  }
+}
+
+registerDebug('hprops', (list: (string | [string, Record<string, unknown>])[] = [], o: { zoom?: number; flags?: Record<string, number>; t?: number } = {}) => {
+  const l = list.map((e) => (typeof e === 'string' ? ([e, {}] as [string, Record<string, unknown>]) : e));
+  game.replaceAll(new PropSheet(l, o.zoom ?? 1, o.flags ?? {}, o.t ?? 0));
+  return l.map(([id]) => `${id}${hasProp(id) ? '' : ' (missing)'}`);
 });

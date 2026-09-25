@@ -26,6 +26,7 @@ import { drawVillageLit } from './cut_village_lit';
 import { CALL_NAMES, callLine } from '../data/text/hoshi_npcs';
 import { openSunriseCut, sunriseStill } from './cut_sunrise';
 import { playChapterDoor } from './chapter_door';
+import { playTsugaoRoom, setTsugaoAuto, tsugaoStill } from './cut_tsugao';
 
 const SAMPLES: Record<string, () => Generator> = {
   normal: function* () {
@@ -304,8 +305,12 @@ registerDebug('cut', (id = 'village', cue = 0) => {
     return id;
   }
   if (id === 'sunriseplay') return id;
+  if (id.startsWith('tsugao')) {
+    game.push(tsugaoStill(Math.max(0, Math.min(5, Number(id.slice(6)) || 0)) as 0 | 1 | 2 | 3 | 4 | 5));
+    return id;
+  }
   const f = id === 'village' ? drawVillageLit : null;
-  if (!f) return ['village', 'sunrise0', 'sunrise1', 'sunrise2', 'dawn'];
+  if (!f) return ['village', 'sunrise0', 'sunrise1', 'sunrise2', 'dawn', 'tsugao0', 'tsugao1', 'tsugao2', 'tsugao3', 'tsugao4', 'tsugao5'];
   game.push(new CutPreview(f, cue));
   return id;
 });
@@ -377,4 +382,17 @@ registerDebug('door', () => {
     })(),
   );
   return 'door';
+});
+
+/** QA: カット7 ツガオの部屋 played through (`skip`: as the second time, X leaves it). */
+registerDebug('tsugao', (skip = false, auto = 0) => {
+  game.scripts.run(playTsugaoRoom({ skippable: !!skip, auto }));
+  return 'tsugao';
+});
+
+/** QA: chapter 2's ending from カット6 on — the notebook, 「つづく」, markClearCh2, カット7, the title. */
+registerDebug('ending2', (auto = 0) => {
+  setTsugaoAuto(auto);
+  game.scripts.run(playEndingNotebookCh2());
+  return 'ending2';
 });

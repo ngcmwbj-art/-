@@ -185,7 +185,7 @@ const texAze: HTex = (x, y, v, ctx) => {
   const ly = ((y % 16) + 16) % 16;
   const tx = txOf(x);
   const ty = Math.floor(y / 16);
-  const n = fbm(x / 11, y / 7, 951 + v);
+  const n = fbm(x / 11, y / 7, 951);
   let col = n > 0.66 ? K.woodLt : n < 0.3 ? K.woodMd : K.wood;
   // the worn middle where feet go: paler, with a dithered edge
   const mid = Math.abs(ly - 7.5 - Math.round((valueNoise(x / 9, ty, 953) - 0.5) * 3));
@@ -282,7 +282,7 @@ const texPlatform: HTex = (x, y, v, ctx) => {
 
 /** 校庭: pale packed earth, a few pebbles, the faint wash of rain. */
 const texKotei: HTex = (x, y, v) => {
-  const n = fbm(x / 18, y / 14, 1001 + v);
+  const n = fbm(x / 18, y / 14, 1001);
   let col = n > 0.68 ? K.koteiLt : n < 0.28 ? K.koteiDk : K.kotei;
   const a = cluster(x, y, 5, 1003 + v, 0.09);
   if (a === 1) return K.paperGrid;
@@ -297,7 +297,7 @@ const texConcrete: HTex = (x, y, v) => {
   const ly = ((y % 16) + 16) % 16;
   if ((((x + 5) % 48) + 48) % 48 === 0 || (((y + 3) % 48) + 48) % 48 === 0) return K.steel;
   const brush = (y & 1) === 0;
-  const n = fbm(x / 22, y / 16, 1011 + v);
+  const n = fbm(x / 22, y / 16, 1011);
   let col = n > 0.7 ? K.concreteLt : n < 0.25 ? K.concreteMd : K.concrete;
   if (brush && ihash(x >> 3, y, 1013) % 3 === 0) col = col === K.concreteLt ? K.concrete : K.concreteMd;
   const a = cluster(x, y, 5, 1015 + v, 0.06);
@@ -316,7 +316,7 @@ const texHouki: HTex = (x, y, v) => {
   const soil = fbm(x / 26, y / 26, 1023);
   if (soil > 0.72) col = soil > 0.78 ? K.soilDk : K.soil;
   // creeping kuzu: big three-lobed leaves in clumps
-  const k = valueNoise(x / 14, y / 14, 1025 + v);
+  const k = valueNoise(x / 14, y / 14, 1025);
   if (k > 0.56) {
     const cx = Math.floor(x / 5);
     const cy = Math.floor(y / 5);
@@ -345,7 +345,7 @@ const texHouki: HTex = (x, y, v) => {
 
 /** 耕した畝: east–west ridges, the crests lit, the furrows dark; the lane is ploughed too. */
 const texTilled: HTex = (x, y, v) => {
-  const wob = Math.round((valueNoise(x / 14, 0.5, 1041 + v) - 0.5) * 3);
+  const wob = Math.round((valueNoise(x / 14, 0.5, 1041) - 0.5) * 3);
   const p = (((y + wob) % 6) + 6) % 6;
   let col = p === 0 ? K.woodLt : p <= 2 ? K.brassOld : p === 3 ? K.wood : K.woodDark;
   if (p === 5 && valueNoise(x / 4, y / 6, 1043) > 0.6) col = K.mudDk;
@@ -359,7 +359,7 @@ const texTilled: HTex = (x, y, v) => {
 
 /** ヌタ場: wallow mud with a wet sheen, shallow puddles (they mirror the sky) and hoof prints. */
 const texNuta: HTex = (x, y, v) => {
-  const n = fbm(x / 9, y / 9, 1051 + v);
+  const n = fbm(x / 9, y / 9, 1051);
   let col = n > 0.64 ? K.mudSheen : n < 0.28 ? K.mudDk : K.mud;
   if (ihash(x, y, 1053) % 23 === 0) col = K.mudSheen; // 1px gleam
   const pud = fbm(x / 13, y / 9, 1055);
@@ -569,7 +569,7 @@ const texRail: HTex = (x, y, v) => {
 
 /** 丘の山道: dark earth, cedar roots across it, fallen needles, a stone or two. */
 const texYamamichi: HTex = (x, y, v) => {
-  const n = fbm(x / 12, y / 12, 1151 + v);
+  const n = fbm(x / 12, y / 12, 1151);
   let col = n > 0.66 ? K.soil : n < 0.3 ? K.woodDark : K.wood;
   // roots: meandering dark bands
   const r = valueNoise(x / 7 + Math.sin(y / 9) * 0.8, y / 22, 1153);
@@ -619,7 +619,7 @@ const texTrainFloor: HTex = (x, y) => {
 /** 防草シート (the greenhouse aisles): black woven sheet, a darker weave grid, soil showing where it's torn. */
 const texSheet: HTex = (x, y, v) => {
   if ((x & 3) === 0 || (y & 3) === 0) return ihash(x, y, 1211) % 7 === 0 ? K.sheetLt : K.sheetWeave;
-  const tear = fbm(x / 7, y / 7, 1213 + v) > 0.78;
+  const tear = fbm(x / 7, y / 7, 1213) > 0.78;
   if (tear) return ((x + y) & 1) ? K.brassOld : K.soil;
   // fallen side-shoot leaves (脇芽)
   const h = ihash(x >> 3, y >> 3, 1215 + v);
@@ -652,7 +652,7 @@ const texBarnFloor: HTex = (x, y, v) => {
 
 /** おがくず (the pens' bedding): pale shavings, little curls, trodden a shade darker in patches. */
 const texSawdust: HTex = (x, y, v) => {
-  const n = fbm(x / 10, y / 10, 1241 + v);
+  const n = fbm(x / 10, y / 10, 1241);
   let col = n > 0.62 ? K.sawLt : n < 0.3 ? K.sawDk : K.saw;
   if (fbm(x / 22, y / 18, 1243) > 0.74) col = col === K.sawLt ? K.saw : K.sawDk; // trodden
   // curls: 2px strokes, lit and shaded
@@ -686,7 +686,7 @@ const texSchoolWood: HTex = (x, y, v) => {
 
 /** 昇降口の土間: speckled concrete, a little sand carried in on shoes. */
 const texGenkan: HTex = (x, y, v) => {
-  const n = fbm(x / 8, y / 8, 1261 + v);
+  const n = fbm(x / 8, y / 8, 1261);
   let col = n > 0.66 ? K.concreteLt : n < 0.3 ? K.concreteMd : K.concrete;
   const a = cluster(x, y, 3, 1263 + v, 0.18);
   if (a) col = a === 1 ? K.steel : a === 2 ? K.soilLt : K.concreteMd;

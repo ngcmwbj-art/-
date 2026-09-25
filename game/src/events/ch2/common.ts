@@ -9,6 +9,7 @@ import { startBattle, type BattleOpts } from '../../battle/api';
 import { field, type FieldScene } from '../../world/field';
 import { SPEAKERS, runMsg } from '../../world/msg';
 import { hasMap } from '../../world/maps';
+import { registerWorldFx } from '../../world/fx';
 import type { Actor } from '../../world/actor';
 import { runGameOver } from '../../ui/gameover';
 import { continueGame } from '../../ui/flow';
@@ -19,8 +20,9 @@ import { grace } from '../lib';
 
 // ---------------------------------------------------------------- name tags (50 2.4)
 
-// the village's tags and voices join the msg runner's table (world/msg.ts)
-for (const [id, s] of Object.entries(HOSHI_SPEAKERS)) if (!SPEAKERS[id]) SPEAKERS[id] = { ...s };
+// the village's tags and voices join the msg runner's table (world/msg.ts);
+// ours win (the name tags changed on 2026-09-25, the ids did not)
+for (const [id, s] of Object.entries(HOSHI_SPEAKERS)) SPEAKERS[id] = { ...s };
 
 // ---------------------------------------------------------------- maps and stage
 
@@ -104,6 +106,42 @@ export function pickHText(v: string | Record<string, string> | undefined, stage 
 export function* say(text: string | undefined | null): Co<number> {
   if (!text) return -1;
   return yield* runMsg(text);
+}
+
+export type Cues = Record<string, (arg?: string) => Co | void>;
+
+/**
+ * Run a msg block with `!cue <name> [arg]` lines (data/text/hoshi_events):
+ * the pages before a cue are shown, then the cue runs (a coroutine is
+ * waited for), then the block goes on with the same speaker. Returns the
+ * last choice made (−1 if none). A cue without a handler is skipped.
+ */
+export function* runCue(src: string, cues: Cues = {}): Co<number> {
+  let speaker = '';
+  let chunk: string[] = [];
+  let last = -1;
+  function* flush(): Co {
+    const body = chunk.filter((l) => l.trim() && !l.trim().startsWith('>'));
+    chunk = [];
+    if (!body.length) return;
+    const text = (body[0].trim().startsWith('@') || !speaker ? '' : speaker + '\n') + body.join('\n');
+    const r = yield* runMsg(text);
+    if (r >= 0) last = r;
+  }
+  for (const line of src.split('\n')) {
+    const t = line.trim();
+    const m = /^!cue\s+(\S+)(?:\s+(.*))?$/.exec(t);
+    if (m) {
+      yield* flush();
+      const r = cues[m[1]]?.(m[2]);
+      if (r) yield* r;
+      continue;
+    }
+    if (t.startsWith('@')) speaker = t;
+    chunk.push(line);
+  }
+  yield* flush();
+  return last;
 }
 
 /** An NPC's current actor on the field. */
@@ -256,23 +294,29 @@ export function* storyBattle(o: BattleOpts, kind: 'sune' | 'tetsuya' | 'boss'): 
 
 // ---------------------------------------------------------------- once per map load
 
-const ran = new WeakMap<FieldScene, Set<string>>();
-/** true the first time `key` is asked for during this field's current map (an onEnter hook listed twice runs once). */
+/** Every map load builds a new ground cache: its identity tells one load from the next. */
+let loadMark: unknown = null;
+const ranKeys = new Set<string>();
+
+function syncLoadMark(f: FieldScene): void {
+  if (f.ground !== loadMark) {
+    loadMark = f.ground;
+    ranKeys.clear();
+  }
+}
+registerWorldFx({
+  map: '',
+  update(f) {
+    syncLoadMark(f);
+  },
+});
+
+/** true the first time `key` is asked for during this load of the map (an onEnter hook listed twice runs once). */
 export function firstThisLoad(key: string): boolean {
   const f = field();
   if (!f) return true;
-  let s = ran.get(f);
-  const k = `${f.map.id}#${(f as unknown as { mapSerial?: number }).mapSerial ?? ''}:${key}`;
-  if (!s) ran.set(f, (s = new Set()));
-  if (s.has(k)) return false;
-  s.add(k);
-  // forget it once we leave the map
-  const map = f.map.id;
-  game.scripts.run(
-    (function* (): Co {
-      yield () => field() !== f || f.map.id !== map;
-      s!.delete(k);
-    })(),
-  );
+  syncLoadMark(f);
+  if (ranKeys.has(key)) return false;
+  ranKeys.add(key);
   return true;
 }

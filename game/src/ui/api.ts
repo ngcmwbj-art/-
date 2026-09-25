@@ -30,7 +30,15 @@
 //   setClockText('19:31')                      the plate's time (null: the map's own)
 //   yield* fieldCurtain(1, 600) / setFieldCurtain(0)  the field goes dark under the HUD
 //   const cut = yield* openSunriseCut()        cut_h_sunrise: cut.rise(), cut.close()
-//   yield* playEndingNotebookCh2()             カット6 → markClearCh2() → the title
+//   yield* playEndingNotebookCh2()             カット6 → markClearCh2() → カット7 → the title
+//                                              ({ toTitle: false } stops after カット6)
+//   yield* playTsugaoRoom({ skippable })       カット7 ツガオの部屋 whole: lines, moves, sounds
+//   const room = yield* openTsugaoRoom()       …or step it yourself: room.fadeIn(), armCard(n)
+//                                              (ダコク's next 「ガチャン」 spits it), clockRun(id),
+//                                              tapCard, leanBack, reachCap, stopAt('マダ'),
+//                                              putCapBack, arrangeCards, turnPage, stamp, capOn,
+//                                              lampOff, close — ダコク bobs and sinks with its
+//                                              own lines; ツガオ/ダコク get black name tapes
 //   markClearCh2() / clearRecordCh2()          the chapter 2 clear data and record
 //   yield* openShop('shop_hoshi_mujin')        the 無人販売所 (per-visit limits, the coin box)
 //   yield* saveConfirm('narr', { text, options })  the save card with another question
@@ -38,7 +46,7 @@
 //                                              おてつだいの札 (evt_ch2_barn_work, 52 13.1)
 //   cut_h_village_lit is registered with the battle (registerBattleCut)
 
-export { say, choose, ask, caption, dialogVisible, type SayOpts, type ChooseOpts } from './dialog';
+export { say, choose, ask, caption, dialogVisible, dialogSpeech, dismissDialog, type SayOpts, type ChooseOpts } from './dialog';
 export { openShop, registerShop, type ShopDef } from './shop';
 export { saveMenu, saveWithStamp, saveConfirm } from './save';
 export { openMenu, runMenu, runSettings, menuOpen } from './menu';
@@ -81,6 +89,7 @@ export {
 } from './flow';
 export { playChapterDoor } from './chapter_door';
 export { openSunriseCut, playSunriseCut, type SunriseCut } from './cut_sunrise';
+export { openTsugaoRoom, playTsugaoRoom, prepareTsugaoRoom, TSUGAO_LINES, type TsugaoRoom } from './cut_tsugao';
 export { drawVillageLit, prepareVillageLit } from './cut_village_lit';
 export { runGameOver } from './gameover';
 export { playNightSkyCut, hideNightSky, playEndingNotebook, playEndingNotebookCh2 } from './ending';

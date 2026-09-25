@@ -1026,6 +1026,29 @@ function endCrossingZoom(): void {
   cinemaOff();
 }
 
+/**
+ * The crossing close-up of cut 6, for evt_ch2_prologue (52 6.1: 「第1章の
+ * エンディングのカット6と同じ構図」): the camera held on the crossing, the
+ * ground laid on past the town's east edge, the 2× close-up.
+ */
+export function* crossingCloseUp(): Co<ZoomView> {
+  const f = F();
+  eastEdge.on = true;
+  const [vx, vy] = CROSS_VIEW;
+  holdCamera();
+  f.camX = vx - W / 2;
+  f.camY = Math.max(0, Math.min(f.map.h * 16 - H, vy - H / 2));
+  f.camOverride = { x: f.camX + W / 2, y: f.camY + H / 2 };
+  crossingZoom = yield* zoomIn(vx, vy, 0);
+  return crossingZoom;
+}
+
+/** Drop the crossing close-up (the prologue's train has gone). */
+export function crossingCloseUpOff(): void {
+  endCrossingZoom();
+  releaseCamera();
+}
+
 export function* evtEnding(): Co {
   const f = F();
   setFlag('flag_boss_beaten', 1);

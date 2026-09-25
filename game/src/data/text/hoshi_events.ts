@@ -1,7 +1,10 @@
 // 第2章『星見台のトマト』 — the words of the event scripts (50_ch2_story 10章,
-// 1.4, 5.3/7.1, 10.17, 10.18). Staging (camera, sound, moves) lives in
-// src/events/ch2; only the words live here, cut where the stage directions
-// fall between them. The msg-block format of 10_narrative 1.4 (world/msg.ts).
+// 1.4, 7.1, 10.17, 10.18, 10.19). Staging (camera, sound, moves) lives in
+// src/events/ch2. The msg-block format of 10_narrative 1.4 (world/msg.ts),
+// plus one line of our own: `!cue <name>` marks where the script does
+// something between two pages (src/events/ch2/common.ts runCue: the pages
+// before it are shown, the cue runs, the next pages keep the speaker).
+// `>` lines are the design book's stage directions, kept where they help.
 // Every page: at most 3 lines of 336 px (__game.cmd.textcheck2 checks them).
 
 // ================================================================ 1.4 タイトル・つづきから（UI が使う）
@@ -57,36 +60,38 @@ export const PROLOGUE_CAPTION = ['8月31日。', '夏休み、最後の 夜。']
 /** The report card's heading when chapter2Adjust() raised a level. */
 export const PROLOGUE_REPORT_TITLE = 'なつやすみの つうちひょう';
 
-export const PROLOGUE_FLIP_KOROKKE = `@flip
+/** At the crossing, 19:30. Cues: turn (he looks east), glow (the case), bell (the crossing rings, the train comes and stops). */
+export const PROLOGUE_A = `@flip
 コロッケ、ごちそうさまでした。
-（揚げたてでした）`;
-
-export const PROLOGUE_FLIP_NIGHT = `@flip
-（むこうは、いつも 夜です）`;
-
-export const PROLOGUE_CASE = `@narr
+（揚げたてでした）
+!cue turn
+@flip
+（むこうは、いつも 夜です）
+!cue glow
+@narr
 ポケットの ハンコケースが、
 かすかに あたたかい。
 /
 空き枠の『おやすみなさい』が、
-うっすら 光っている。`;
-
-export const PROLOGUE_NOT_NORMAL = `@narr
+うっすら 光っている。
+!cue train
+@narr
 ふつうの 電車は、
 踏切では 止まらない。{w=600}
 /
-これは、ふつうの 電車では ない。`;
-
-export const PROLOGUE_INVITE = `@flip
+これは、ふつうの 電車では ない。
+!cue face
+@flip
 見に いきませんか。
 （星見台）`;
 
-/** The page under which the choice 乗る / やめておく stays up. */
+/** The page the choice stays under. */
 export const PROLOGUE_ASK = `@narr
 お母さんには『すぐ もどる』と
-言って、出てきた。`;
-export const PROLOGUE_OPTIONS = ['乗る', 'やめておく'];
+言って、出てきた。
+? 乗る | やめておく`;
 
+/** 〔やめておく〕: back to the choice (as often as he likes). */
 export const PROLOGUE_WAIT = `@flip
 （待ってます）
 @narr
@@ -96,7 +101,7 @@ export const PROLOGUE_WAIT = `@flip
 時刻表に ない 電車は、
 待つのも 自由 らしい。`;
 
-// ================================================================ 10.3 evt_ch2_arrive
+// ================================================================ 10.3 evt_ch2_train / evt_ch2_arrive
 
 export const ARRIVE_ANNOUNCE = `@npc_hoshi_traindriver
 つぎは、星見台。{w=300}
@@ -126,18 +131,23 @@ export const DARK_FIRST = `@narr
 export const DARK_AGAIN = `@narr
 暗くて、足もとが 見えない。`;
 
+/** The school corridor, from the second time on. */
 export const DARK_SCHOOL_AGAIN = `@narr
 廊下の 先は、真っ暗だ。{w=300}
 ……明かりが あれば。`;
 
 // ================================================================ 10.5 evt_ch2_yoriai
 
+/**
+ * Cues: yunomi (エー夫人 puts two cups on the long desk), fumi (まつ先生
+ * turns; the glasses catch the light), case (the case's rim glows).
+ */
 export const YORIAI_A = `@npc_hoshi_kucho
 えー、これは これは。{w=300}
 夜分に、お若い お客様。
 /
 えー、星見台 区長の
-中村で ございます。{w=300}
+エーで ございます。{w=300}
 ……どちらから？
 @flip
 夕鳴町から 来ました。
@@ -157,64 +167,69 @@ export const YORIAI_A = `@npc_hoshi_kucho
 トマトは 赤く ならんし、
 洗濯物は 乾かんし。{w=300}
 /
-あんたら、お茶 飲みなさい。`;
-
-/** After the teacups are set down. */
-export const YORIAI_B = `@npc_hoshi_fumi
-……山の 放送の せいですよ。`;
-
-/** フミ先生 turns round. */
-export const YORIAI_C = `@npc_hoshi_fumi
+あんたら、お茶 飲みなさい。
+!cue yunomi
+!cue fumi
+@npc_hoshi_fumi
+おはだっちょ！{w=300}
+……と、言いたいのですが。
+朝が 来ないのは、山の 放送の せいです。
+/
 星見台の 防災無線は、むかし
 毎晩 9時に『おやすみ放送』を
-流していたの。
+流していたんです。
 /
 『きょうも 一日、
 おつかれさまでした。{w=300}
-おやすみなさい』って。
+おやすみなさい』と。
 /
 それが この夏、お盆の あとから、
 村を 出た 人の 名前を
-呼ぶように なってね。
+呼ぶように なりましてね。
 /
 へんじが ないから、
 点呼が 終わらない。{w=300}
 『おやすみなさい』まで、行かない。
 /
 夜が 終わらないから、
-朝の チャイムも 鳴らないの。`;
+朝の チャイムも 鳴らないんです。
+!cue case`;
 
-/** Her eyes on the hanko case (its rim glows). */
+/** The hanko case: a choice with two answers, then on together. */
 export const YORIAI_CASE = `@npc_hoshi_fumi
-……あら。{w=300}その ケース、
-タエちゃんの 採点ハンコじゃ
-ないの？
+……おや。{w=300}その ケース、
+タエ先生の 採点ハンコでは
+ありませんか？
 ? うなずく | 首を かしげる
 [うなずく]
 @npc_hoshi_fumi
 やっぱり。{w=300}
-師範学校の 同期なのよ。
+新任の ころ、となりの 組の
+先生でしてね。
 [首を かしげる]
 @npc_hoshi_fumi
 ひのやの 日野タエ先生。{w=300}
-師範学校の 同期なのよ。
+わたしの 新任の ころの、
+先輩ですよ。
 [-]`;
 
-export const YORIAI_D = `@npc_hoshi_fumi
+/** Cue: map (エー区長 draws the map on the back of the circular). */
+export const YORIAI_B = `@npc_hoshi_fumi
 防災無線は、山の 上の
 天文台の となり。
 /
 でも、山道は 真っ暗。{w=300}
 明かりが ないと 登れません。
 @npc_hoshi_yoshie
-明かりなら、ミツさんの
+明かりなら、ペロリさんの
 ハウスよ。{w=300}
 /
 トマトが 1つ、光っとるの。
-さっき 見た。{w=300}夕焼けの 色で。
+さっき 見た。{w=300}夕焼けの、ええ 色で。
 @npc_hoshi_kucho
-えー、では ミツさんの ハウスへ。
-西の 斜面の、3号で ございます。`;
+えー、では ペロリさんの ハウスへ。
+西の 斜面の、3号で ございます。
+!cue map`;
 
 export const YORIAI_GET_MAP = `@sys
 回覧板の地図を 受けとった！`;
@@ -230,29 +245,29 @@ export const YORIAI_GET_SHUNIKU = `@sys
 // ================================================================ 10.6 evt_ch2_mitsu
 
 export const MITSU_A = `@npc_hoshi_mitsu
-……だれじゃ？{w=300}
-その 背たけは、
-ナナミじゃ ないのう。
+……おぴぴか？{w=300}
+……いや、背たけが ちがうな。
 @flip
 夕鳴町から 来ました。
 （PR大使です）
 @npc_hoshi_mitsu
 夕鳴から。{w=300}
-ナナミの 高校の ある 町じゃ。
+娘の おぴぴが、そこの 高校に
+通ってる。
 /
 トマトかい。{w=300}
-区長さんに 聞いたんじゃな。
+区長さんに 聞いたんだね。
 /
 いちばん 奥で、1つだけ
-赤う なったのが おる。{w=300}
-夕焼けの 色で 光っとる。
+赤く なったのが いる。{w=300}
+夕焼けの 色で 光ってる。
 /
-わしは 目が 弱うて、暗いと
-足もとが 見えん。{w=300}
-とってきて くれるかい。
+おれは 夜目が きかなくてね。
+{w=300}暗い ハウスの 奥までは
+行けない。とってきて くれるかい。
 /
-……たぶん、あんたに
-見て ほしがっとる。`;
+……たぶん、きみに
+見て ほしがってる。`;
 
 // ================================================================ 10.7 evt_ch2_house → sune → tomato → light
 
@@ -260,24 +275,27 @@ export const HOUSE_ENTER = `@narr
 暗い。{w=300}
 ……でも、奥が 夕焼け色だ。`;
 
+/** Cue: glance (it looks at the red one at the far end, and away). */
 export const SUNE_A = `@narr
 青い トマトが、通路を
 ふさいでいる。{w=300}
 /
-……こっちに、背中を 向けた。`;
-
-export const SUNE_B = `@narr
+……こっちに、背中を 向けた。
+!cue glance
+@narr
 奥の 赤い トマトを 見て、
 ぷいっと した。`;
 
+/** Cues: catch (it drops into his hands), point (カネナリくん points at the net). */
 export const TOMATO_A = `@narr
 トマトは、見て もらえて、
 ぽっと 明るく なった。
 /
 ……それから、自分から
-枝を はなれた。`;
-
-export const TOMATO_FLIP = `@flip
+枝を はなれた。
+!cue catch
+!cue point
+@flip
 アミに 入れると、
 ちょうちんに なります。`;
 
@@ -294,26 +312,29 @@ export const LIGHT_A = `@narr
 ……光に 気づいて、
 なにかが こっちを 見た。`;
 
-/** 〔ハウスを出たとき〕 trig_ch2_house_exit. */
+/** 〔ハウスを出たとき〕 (trig_ch2_house_exit, once). */
 export const HOUSE_EXIT = `@npc_hoshi_mitsu
 ……ほう。{w=300}
-見えるぞ。夕焼け色じゃ。
+見えるよ。夕焼け色だ。
 /
-持っていき。{w=300}
-その 子も、行きたがっとる。`;
+持っていきな。{w=300}
+その 子も、行きたがってる。`;
 
 // ================================================================ 10.8 evt_ch2_gen_stop
 
-export const GEN_STOP_A = `@npc_hoshi_gen
+/** Cue: near (he walks up and looks at the lantern; it shines on his head). */
+export const GEN_STOP = `@npc_hoshi_gen
 ……なんだ、その 光。{w=300}
 朝か と 思った。
-/
-トマト？{w=300}
-ミツさんとこの か。`;
-
-/** He walks up and looks at the lantern. */
-export const GEN_STOP_B = `@npc_hoshi_gen
-ボウズ……{w=300}名前は？
+!cue near
+@npc_hoshi_gen
+……おい。{w=300}
+誰が らっきょやねん！
+@flip
+（まだ 何も 言っていません）
+@npc_hoshi_gen
+……ペロリの とこの トマトか。
+{w=300}ボウズ、名前は？
 @flip
 ミナトくんです。
 （ぼくは PR大使です）
@@ -321,56 +342,60 @@ export const GEN_STOP_B = `@npc_hoshi_gen
 ……ミナト、か。{w=300}
 ちょうど いい。
 /
-牛舎の 見回りが、
-あと 1房 残ってる。{w=300}
-懐中電灯が 切れた。
-/
-その 明かりで、
-手伝って くれんか。`;
+牛舎の 見回りが、あと 1房。
+懐中電灯が 切れてな。{w=300}
+その 明かりで、手伝って くれんか。`;
 
 // ================================================================ 10.9 evt_ch2_barn → otsukare → gate
 
+/** Cue: shodoku (they step through the footbath), walk (the walk down the aisle). */
 export const BARN_A = `@npc_hoshi_gen
 入る 前に、そこの
 消毒槽を 踏め。{w=300}
-牛の ための 決まりだ。`;
-
-export const BARN_B = `@npc_hoshi_gen
+牛の ための 決まりだ。
+!cue shodoku
+@npc_hoshi_gen
 ……よし。{w=300}
-静かに 歩け。`;
+静かに 歩け。
+!cue walk`;
 
-export const BARN_WALK = `@narr
+/** While the light passes the pens (shown on the walk, cue: stop at 南5). */
+export const BARN_COWS = `@narr
 黒い 牛が、4頭ずつ
 並んでいる。{w=300}
 /
 光が 通ると、耳の
 黄色い 耳標が 光る。`;
 
-export const BARN_HERE = `@npc_hoshi_gen
+/** Cues: holdup (the net held high), look (he checks them one by one), write (the round's book), sit (he sits on the feed bag). */
+export const BARN_B = `@npc_hoshi_gen
 ここだ。{w=300}
-照らして くれ。`;
-
-export const BARN_CHECK = `@npc_hoshi_gen
+照らして くれ。
+!cue holdup
+!cue look
+@npc_hoshi_gen
 ……食いは いい。{w=300}
 便も いい。
 /
 目も 澄んでる。{w=300}
-……よし。みんな 元気だ。`;
-
-export const BARN_NAMES = `@npc_hoshi_gen
+……よし。みんな 元気だ。
+!cue write
+@npc_hoshi_gen
 名前は、つけてない。
 番号で 呼ぶ。{w=300}
 /
 ……顔は、ぜんぶ
-覚えてるがな。`;
-
-export const BARN_SIGH = `@npc_hoshi_gen
+覚えてるがな。
+!cue sit
+@npc_hoshi_gen
 ……ふう。`;
 
+/** Before the hanko case (evt_ch2_otsukare). */
 export const OTSUKARE_A = `@narr
 ひと晩じゅう 見回りを していた
 人を、見届けた。`;
 
+/** Shown when the battle team's playHankoLearn is not there (it says these itself). */
 export const OTSUKARE_LEARN = `@sys
 ハンコケースに 新しい ハンコが
 浮かびあがった。
@@ -389,9 +414,10 @@ export const OTSUKARE_B = `@npc_hoshi_gen
 @npc_hoshi_gen
 ……おう。`;
 
+/** At the gate. Cue: hook (he unhooks the handle and hangs it on the post). */
 export const GATE_A = `@npc_hoshi_gen
 山へ 行くんだろ。{w=300}
-フミ先生の 話を 聞いた 顔だ。
+まつ先生の 話を 聞いた 顔だ。
 /
 この 先は、イノシシよけの
 電気柵だ。
@@ -400,9 +426,9 @@ export const GATE_A = `@npc_hoshi_gen
 ビリッと くる。
 /
 出入りは、この 取っ手だけを
-持って、外す。`;
-
-export const GATE_B = `@npc_hoshi_gen
+持って、外す。
+!cue hook
+@npc_hoshi_gen
 柵の 向こうは、耕作放棄地だ。
 むかしは 畑だった。{w=300}
 /
@@ -410,14 +436,17 @@ export const GATE_B = `@npc_hoshi_gen
 ひと晩じゅう 耕してる。
 /
 乗る 人も いないのにな。{w=300}
-……気を つけて 行け。`;
+……おれは、牛舎に おる。
+気を つけて 行け。`;
 
-// ================================================================ 10.10 evt_ch2_houki（歩きながら、auto 1500ms）
+// ================================================================ 10.10 evt_ch2_houki
 
+/** Shown while walking (auto, 1500 ms per page). */
 export const HOUKI_LINE = '背の 高い 草。{w=300}\nむかしは 畑だった ところだ。';
 
 // ================================================================ 10.11 evt_ch2_tetsuya
 
+/** Cue: rev (the engine revs, a tile forward; the name tag becomes テツヤ). */
 export const TETSUYA_A = `@耕うん機:h_tetsuya
 ……マダ タガヤセマス。
 /
@@ -439,36 +468,37 @@ export const TETSUYA_A = `@耕うん機:h_tetsuya
 
 // ================================================================ 10.12 evt_ch2_yobigoe
 
+/** The line stays open: the names in the voice of the loudspeaker. */
 export const YOBIGOE_BROADCAST = `@npc_hoshi_speaker
 こちらは、防災 星見台です。
 /
-……ナナミちゃん。ケンイチくん。
-{w=300}ユウタくん。
+……おぴぴちゃん。シュンスケくん。
+{w=300}もとくん。
 /
-……ミホちゃん。サトシくん。
+……アスカちゃん。サトシくん。
 タクミくん……`;
 
 export const YOBIGOE_KAKASHI = `@narr
 村じゅうの かかしが、
 いっせいに 山を 向いた。`;
 
-export const YOBIGOE_FUMI_A = `@npc_hoshi_fumi
+/** Cue: look (まつ先生 looks up at the mountain). */
+export const YOBIGOE_FUMI = `@npc_hoshi_fumi
 ……とうとう、止まらなく
 なりましたね。
 /
 あの 放送、むかしは
-わたしが 読んでいたの。{w=300}
+わたしが 読んでいたんです。{w=300}
 30年。毎晩 9時に。
 /
 分校が 閉じて、わたしが
 読まなく なってからも、
-スピーカーは 覚えていたのね。
+スピーカーは 覚えていたんですね。
 /
 ……村の 子の 名前を、
-ぜんぶ。`;
-
-/** She looks up at the mountain. */
-export const YOBIGOE_FUMI_B = `@npc_hoshi_fumi
+ぜんぶ。
+!cue look
+@npc_hoshi_fumi
 あの 放送の 最後は、いつも
 『おやすみなさい』でした。{w=300}
 /
@@ -481,7 +511,7 @@ export const YOBIGOE_FUMI_B = `@npc_hoshi_fumi
 軽トラの ライトは、点けとく。
 {w=300}帰り道の 目じるしだ。
 /
-ケンイチの 名前が 聞こえたら、
+シュンスケの 名前が 聞こえたら、
 元気だと 伝えといてくれ。`;
 
 // ================================================================ 10.13 evt_ch2_hill
@@ -490,13 +520,14 @@ export const HILL_ENTER = `@narr
 山道の 上で、赤い ランプが
 1つ、こっちを 見ている。`;
 
+/** On the upper plaza (y ≤ 7, once: trig_ch2_hill_top). */
 export const HILL_TOP = `@flip
 ベンチで ひと休み してから
 行きましょう。（夜は 長いので）`;
 
 // ================================================================ 10.14 evt_ch2_boss_intro
 
-/** The chime itself as a page: no text blips, se_pa_chime (−35 cents) instead (53 9.2). */
+/** 「ピンポンパンポーン。」: no text blips, se_pa_chime (−35 cents) instead (the script). */
 export const BOSS_CHIME = `@npc_hoshi_speaker
 ピンポンパンポーン。`;
 
@@ -504,12 +535,12 @@ export const BOSS_TENKO = `@npc_hoshi_speaker
 こちらは、防災 星見台です。
 {w=300}点呼を 続けます。
 /
-……ナナミちゃん。{w=600}
-……ケンイチくん。
+……おぴぴちゃん。{w=600}
+……シュンスケくん。
 /
 ……へんじが ありません。`;
 
-/** The lamp looks at Minato. */
+/** Cue: flip (カネナリくん steps forward and holds the board up high). */
 export const BOSS_ASK = `@？？？:yobimodoshi
 ……そこに、だれか いますか。
 ? 手を あげる | だまって 見る
@@ -519,9 +550,9 @@ export const BOSS_ASK = `@？？？:yobimodoshi
 [だまって 見る]
 @？？？:yobimodoshi
 ……へんじが ありません。
-[-]`;
-
-export const BOSS_FLIP = `@flip
+[-]
+!cue flip
+@flip
 （はい）
 @？？？:yobimodoshi
 ……へんじは、声で
@@ -540,32 +571,42 @@ export const BOSS_NAME = 'ヨビモドシ';
 
 // ================================================================ 10.16 evt_ch2_ending
 
+// ---- カット1 丘
+
 export const END_SUNRISE = `@narr
 夕焼けを ためこんだ トマトが、
 朝焼けに なった。`;
 
-/** The second voice of カネナリくん (no flip, the name tag only). */
+/** The second voice (after chapter 1's 「……おいしい。」). */
 export const END_OHAYOU = `@カネナリくん:kanenari_voice
 {spd=0.4}……おはよう。`;
 
+// ---- カット2 村の朝
+
 export const END_2A = `@npc_hoshi_gen
 ……よし。{w=300}朝だ。`;
+/** 2a when the chores were done (flag_ch2_barn_work=1). */
+export const END_2A_WORKED = `@npc_hoshi_gen
+……よし。{w=300}水も 出る。{w=300}朝だ。`;
 
 export const END_2B = `@npc_hoshi_mitsu
-止まっとった 3日ぶん、
-いっぺんに 色づいたのう。`;
+3日ぶん、いっぺんに 色づいた。
+{w=300}……ほどよいなぁ。`;
 
 export const END_2D = `@narr
-『……よう 寝た。』`;
+『……あちゃ〜、よう 寝た。』`;
 
 export const END_2E = `@npc_hoshi_fumi
-……おはようございます。`;
+おはだっちょ！{w=300}
+……やっと、朝に 言えました。`;
+
+// ---- カット3 転回場
 
 export const END_3_MITSU = `@npc_hoshi_mitsu
-ええ 色の 4つ。{w=300}
-1つは おまけじゃ。
+ほどよい 色の 4つ。{w=300}
+1つは おまけ。
 /
-だれかに あげなさい。`;
+だれかに あげると いい。`;
 
 export const END_3_GET = `@sys
 トマト（4つ）を 受けとった！`;
@@ -574,7 +615,7 @@ export const END_3_B = `@flip
 トマトは 食べられます。
 （前回 学びました）
 @npc_hoshi_fumi
-タエちゃんに、よろしくね。
+タエ先生に、よろしく。
 @npc_hoshi_kucho
 えー、夕鳴町の ミナト様、
 カネナリ様。
@@ -583,12 +624,15 @@ export const END_3_B = `@flip
 牛40頭で、お待ち して おります。
 @npc_hoshi_busdriver
 6:12発、ユウナリ前 ゆき。{w=300}
-……出発します。`;
+……手紙も、いっしょに 出発だ。`;
+
+// ---- カット4 夕鳴町のバス停
 
 export const END_4_DRIVER = `@npc_hoshi_busdriver
 ……夕鳴町は、まだ 夜か。{w=300}
 /
-運行表、書きなおしだな。`;
+この 手紙の 消印、
+どっちの 日付に なるかな。`;
 
 export const END_4_NARR = `@narr
 夕鳴町は 19:31。{w=300}
@@ -599,13 +643,16 @@ export const END_4_NARR = `@narr
 見回りに もどります。
 （踏切まで）`;
 
+// ---- カット5 家
+
+/** Cue: yawn (Minato yawns). */
 export const END_5_A = `@npc_mother
 おかえり。{w=300}
 早かったわね。
 /
-……あら、顔が 朝みたいよ。`;
-
-export const END_5_B = `@npc_mother
+……あら、顔が 朝みたいよ。
+!cue yawn
+@npc_mother
 それ、トマト？{w=300}
 4つ。
 /
@@ -636,13 +683,15 @@ export const END_5_TV = `@npc_tv
 あら。{w=300}
 お昼ごはん、何回 食べるのかしら。`;
 
-/** The notebook's new page, written by hand (1 char / 0.12 s). */
 export const END_NOTE_TITLE = '星見台 みました帳 ②';
 export const END_NOTE_COVER = '夕鳴町 みました帳 ①';
 export const END_TSUZUKU = 'つづく';
 
 /** In the chapter-2 clear data the bag keeps one of the four (7.1). */
 export const OMAKE_ITEM = 'item_tomato_omiyage';
+
+// ---- カット7 ツガオの部屋（第3章への引き）: the UI's cut_tsugao_room plays it
+// with its lines (src/ui/cut_tsugao.ts TSUGAO_LINES, 50 10.16 カット7).
 
 // ================================================================ 10.17 evt_gameover（第2章の差分）
 
@@ -696,3 +745,110 @@ export const SAVE_BENCH_DONE = `@sys
 /** A save that could not be written (storage full / private window). */
 export const SAVE_FAILED = `@sys
 セーブ できなかった。`;
+
+// ================================================================ 7.4 おつかれさま（フィールド）
+
+export const OTSUKARE_FIELD = `@sys
+いまは、押す 相手が いない。`;
+
+// ================================================================ 10.19 evt_ch2_barn_work（牛舎のおてつだい・任意）
+
+/** 〔誘い〕 after 〔h1_1〕 / 〔h1_3〕 while flag_ch2_barn_work=0. Returns the choice. */
+export const WORK_ASK = `@npc_hoshi_gen
+……それと。{w=300}
+手が あいてるなら、
+エサ寄せを 手伝って いくか。
+? 手伝う | またこんど`;
+
+export const WORK_LATER = `@npc_hoshi_gen
+……おう。{w=300}
+気が むいたら、来い。`;
+
+/** 〔手伝う〕. Cue: give (he hands over the scoop leaning on the straw at (20,5)). */
+export const WORK_HOW = `@npc_hoshi_gen
+牛は、食べながら 鼻で
+エサを 押しやる。
+/
+口の 届かない ところへ
+いった エサを、柵の 側へ
+寄せもどす。{w=300}それが エサ寄せだ。
+/
+暗くて、どこが 寄ってるか
+見えん。{w=300}
+その 明かりで 探せ。
+/
+それと、水だ。{w=300}
+給水器に エサが 落ちると、
+水が にごる。
+/
+すくって 出して、押し板を
+押して みろ。{w=300}
+水が 出れば、よし。
+/
+牛房には 入るな。{w=300}
+通路から、柵ごしに やれ。
+……静かにな。
+!cue give
+@flip
+（ぼくは、見守り係です）`;
+
+/** 〔エサ寄せ・1回目〕 (from the second, only the sound and the count). */
+export const WORK_ESA_FIRST = `@narr
+エサを、牛の 口の 届く
+ところへ 寄せた。{w=300}
+牛が、すぐに 顔を 寄せてきた。`;
+
+/** 〔給水器・1回目〕 */
+export const WORK_CUP_FIRST = `@narr
+落ちていた エサを すくって、
+押し板を 押した。{w=300}
+きれいな 水が 出た。`;
+
+/** 〔とちゅうで マサルさんに 話す〕 */
+export const WORK_TALK = `@npc_hoshi_gen
+……あわてるな。{w=300}
+明かりで、よく 見ろ。`;
+
+/** 〔とちゅうで 牛舎を 出ようとした〕 */
+export const WORK_QUIT_ASK = `@sys
+おてつだいを やめますか？
+? やめる | つづける`;
+export const WORK_QUIT = `@npc_hoshi_gen
+……おう。{w=300}
+また 気が むいたら、来い。`;
+
+/** 〔ぜんぶ終わった〕 */
+export const WORK_DONE = `@npc_hoshi_gen
+……よし。{w=300}
+エサも 寄ったし、
+水も きれいに 出る。`;
+/** Done within 75 s of the start. */
+export const WORK_DONE_FAST = `@npc_hoshi_gen
+手際が いいな。{w=300}
+……牛が、もう 食ってる。`;
+/** Over 75 s. */
+export const WORK_DONE_SLOW = `@npc_hoshi_gen
+ていねいだ。{w=300}
+牛の 仕事は、それで いい。`;
+
+/** Cues: holdup (the net held high; his head glows sunset), pay (+300円). */
+export const WORK_END = `!cue holdup
+@npc_hoshi_gen
+……おい。{w=300}
+誰が らっきょやねん！
+@flip
+（まだ 何も 言っていません）
+@npc_hoshi_gen
+……おだちんだ。{w=300}
+無人販売所で、なにか 買え。
+!cue pay
+@sys
+300円 もらった！
+@npc_hoshi_gen
+……おつかれさん。`;
+
+/** The strip on the HUD (52 13.1): the two counts. */
+export const WORK_CARD = [
+  { label: 'エサ寄せ', total: 6 },
+  { label: '水', total: 3 },
+];

@@ -27,6 +27,7 @@ import type { Gfx } from '../engine/gfx';
 import type { Input } from '../engine/input';
 import { H, W } from '../engine/screen';
 import { makeCanvas } from '../engine/pixel';
+import { hash2 } from '../engine/rng';
 import { ease } from '../engine/tween';
 import { sfx, textBlip, textFastForward } from '../audio';
 import { flipBoardMini, flipIcon } from '../art/chars';
@@ -47,6 +48,11 @@ export interface SayOpts {
   auto?: number;
   /** Style override (otherwise derived from voice / name). */
   style?: DialogStyle;
+  /**
+   * The name tag: masking tape (default), or black paper tape with white
+   * letters — ツガオの部屋 (52 12.5); ツガオ's and ダコク's voices get it by themselves.
+   */
+  tape?: 'tape' | 'black';
 }
 
 export interface ChooseOpts {
@@ -169,6 +175,12 @@ const NAMELESS_VOICES = new Set(['narr', 'sys', 'none']);
  * Kanenari-kun talks with his flip board (50_ch2_story 6.5, 52 13.6).
  */
 const CARD_VOICE = 'h_mujin';
+/** まだまだ団 (ツガオ, ダコク): black paper tape, white letters (52 12.5). */
+const BLACK_TAPE_VOICES = new Set(['tsugao', 'dakoku']);
+
+function tapeOf(o: SayOpts): 'tape' | 'black' {
+  return o.tape ?? (BLACK_TAPE_VOICES.has(o.voice ?? '') ? 'black' : 'tape');
+}
 
 export function styleFor(o: SayOpts): DialogStyle {
   if (o.style) return o.style;
@@ -272,6 +284,8 @@ class DialogBox implements Widget {
   private viewCard = false;
   private tagT = 999;
   private prevName = '';
+  private viewTape: 'tape' | 'black' = 'tape';
+  private prevTape: 'tape' | 'black' = 'tape';
   private styleT = 999;
   private pressT = -1;
   private ffwd = false;
@@ -279,6 +293,29 @@ class DialogBox implements Widget {
 
   get modal(): boolean {
     return !!this.cur && !this.done;
+  }
+
+  /** What is being said right now (the page typed so far). */
+  speech(): DialogSpeech | null {
+    const r = this.cur;
+    if (!r || this.done) return null;
+    const gl = this.glyphs;
+    let text = '';
+    for (let i = 0; i < this.shown && i < gl.length; i++) text += gl[i].ch;
+    return { voice: r.o.voice ?? '', name: this.viewName, page: this.page, text, typing: !this.pageDone && this.openK >= 0.5 };
+  }
+
+  /** Close at once: every waiting say() returns (a cut that is skipped). */
+  dismiss(): void {
+    for (const q of this.queue) q.done = true;
+    this.queue = [];
+    if (this.cur) this.cur.done = true;
+    this.cur = null;
+    if (this.choice && !this.choice.done) this.choice.done = true;
+    this.choice = null;
+    this.openK = 0;
+    this.done = true;
+    if (box === this) box = null;
   }
 
   get visible(): boolean {
@@ -304,10 +341,13 @@ class DialogBox implements Widget {
     const name = r.style === 'flip' ? r.o.name ?? (card ? 'ムジン販売員' : 'カネナリくん') : NAMELESS_VOICES.has(r.o.voice ?? '') || r.style === 'inner' ? '' : r.o.name ?? '';
     if (card !== this.viewCard && r.style === 'flip') this.styleT = 0;
     this.viewCard = card;
-    if (name !== this.viewName) {
+    const tape = tapeOf(r.o);
+    if (name !== this.viewName || tape !== this.viewTape) {
       this.prevName = this.viewName;
+      this.prevTape = this.viewTape;
       this.tagT = this.openK > 0.5 ? 0 : 999;
     }
+    this.viewTape = tape;
     if (r.style !== this.viewStyle || (r.style === 'flip' && this.openK < 0.5)) this.styleT = r.style === 'flip' || this.openK > 0.5 ? 0 : 999;
     this.viewName = name;
     this.viewStyle = r.style;
@@ -530,15 +570,17 @@ class DialogBox implements Widget {
     const tagY = this.viewPos === 'top' ? by + BOX.h - 5 : by - 13;
     if (this.prevName && k < 1) {
       const pw = textW(this.prevName) + 12;
-      g.img(tapeImg(pw, 18, UI.tape, this.prevName.length), 16, tagY - Math.round(k * 4), { alpha: alpha * (1 - k) });
+      const img = this.prevTape === 'black' ? blackTapeImg(pw, 18, this.prevName.length) : tapeImg(pw, 18, UI.tape, this.prevName.length);
+      g.img(img, 16, tagY - Math.round(k * 4), { alpha: alpha * (1 - k) });
     }
     if (!name) return;
     const icon = flip ? (this.viewCard ? 18 : 14) : 0;
     const w = textW(name) + 12 + icon;
     const dy = Math.round((1 - ease.backOut(k)) * -4);
     const a = alpha * k;
-    g.img(tapeImg(w, 18, UI.tape, name.length + (flip ? 3 : 0)), 16, tagY + dy, a < 1 ? { alpha: a } : {});
-    g.text(name, 22, tagY + dy + 1, { color: UI.text, alpha: a });
+    const black = this.viewTape === 'black';
+    g.img(black ? blackTapeImg(w, 18, name.length) : tapeImg(w, 18, UI.tape, name.length + (flip ? 3 : 0)), 16, tagY + dy, a < 1 ? { alpha: a } : {});
+    g.text(name, 22, tagY + dy + 1, { color: black ? '#F4F1E8' : UI.text, alpha: a });
     if (flip && this.viewCard) g.img(cardSignIcon(), 22 + textW(name) + 2, tagY + dy + 3, a < 1 ? { alpha: a } : {});
     else if (flip) g.img(flipIcon(), 22 + textW(name) + 3, tagY + dy + 5, a < 1 ? { alpha: a } : {});
   }
@@ -561,6 +603,43 @@ class DialogBox implements Widget {
       g.rect(12, wy + 27, 2, 2, UI.pencil);
     });
   }
+}
+
+const blackTapeCache = new Map<string, HTMLCanvasElement>();
+/**
+ * まだまだ団's name tag (52 12.5): black paper tape (#1B1733), the size of
+ * the masking tape — opaque, matte, a few lighter fibres, the ends cut
+ * with scissors (a slant on the left, a little nick on the right), a 1px
+ * highlight where the paper was creased along its top.
+ */
+function blackTapeImg(w: number, h: number, seed: number): HTMLCanvasElement {
+  w = Math.max(8, Math.round(w));
+  const key = `${w}x${h}:${seed}`;
+  let c = blackTapeCache.get(key);
+  if (c) return c;
+  const [cv, ctx] = makeCanvas(w, h);
+  for (let y = 0; y < h; y++) {
+    // left end: a slanted scissor cut; right end: straight, with a nick
+    const lx = Math.floor(((h - 1 - y) * 3) / h);
+    const rx = y === Math.floor(h / 2) || y === Math.floor(h / 2) + 1 ? 2 : 0;
+    for (let x = lx; x < w - rx; x++) {
+      const n = hash2(x, y, seed * 31 + w);
+      let col = '#1B1733';
+      if (y === 0) col = '#2A2440';
+      else if (y === h - 1) col = '#0B0B14';
+      else if ((x + y * 3 + seed) % 11 === 0 && n < 0.45) col = '#2A2440'; // fibres
+      else if (n < 0.035) col = '#0B0B14';
+      if (x === lx || x === w - rx - 1) col = y === 0 ? '#2A2440' : '#0B0B14';
+      ctx.fillStyle = col;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  // the crease a pixel under the top edge catches the light
+  ctx.fillStyle = 'rgba(58,63,72,0.55)';
+  ctx.fillRect(3, 1, w - 6, 1);
+  c = cv;
+  blackTapeCache.set(key, c);
+  return c;
 }
 
 /** ムジン販売員's cardboard (52 13.6): #D8B888 with its flutes. */
@@ -624,6 +703,27 @@ function ensureBox(): DialogBox {
 /** Top edge of the dialog window on screen (148 at the bottom, 8 at the top), or null. */
 export function dialogTop(): number | null {
   return box && box.visible ? box.top : null;
+}
+
+export interface DialogSpeech {
+  voice: string;
+  name: string;
+  /** Page of the current say(). */
+  page: number;
+  /** The characters of the page typed so far. */
+  text: string;
+  /** Still typing (not waiting for a key). */
+  typing: boolean;
+}
+
+/** The line being said right now, or null (a cut can move with the words: ダコク's 「ガチャン」). */
+export function dialogSpeech(): DialogSpeech | null {
+  return box ? box.speech() : null;
+}
+
+/** Take the dialog window down at once (a skipped cut); every say() waiting on it returns. */
+export function dismissDialog(): void {
+  box?.dismiss();
 }
 
 /** Is a dialog window on screen (typing, waiting, or lingering)? */

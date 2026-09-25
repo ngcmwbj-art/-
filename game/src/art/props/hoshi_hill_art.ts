@@ -101,48 +101,62 @@ registerBuilding({
 
 // ---------------------------------------------------------------- 防災無線の柱 (15–16,2–3)
 
+/** Rows of the pole's parts (canvas y; the foot is the last row). */
+const POLE = { hornY: 15, lampY: 29, boxY: 33, plateY: 49 } as const;
+
 function speakerPole(lampOn: boolean): HTMLCanvasElement {
   const W = 36;
   const H = POLE_H;
   const p = new PixelCanvas(W, H);
   const cx = 17;
   const foot = H - 1;
-  // the concrete pole (tapering), moss specks
-  for (let y = 16; y <= foot; y++) {
-    const half = y < 34 ? 2 : 3;
+  // the concrete pole: a slender shaft all the way up, a little wider at the
+  // foot, lit on its left, moss specks and a rust streak under the box
+  for (let y = POLE.hornY + 4; y <= foot; y++) {
+    const half = y > foot - 10 ? 3 : 2;
     for (let x = cx - half; x < cx + half; x++) {
       const u = (x - (cx - half)) / (half * 2 - 1);
       let c: string = u < 0.25 ? P.concreteLt : u > 0.7 ? P.asphalt : P.steel;
       if (h01(x, y, 4301) < 0.05) c = P.leaf;
+      if (x === cx && y > POLE.boxY + 11 && y < POLE.boxY + 17) c = mix(P.steel, P.brassOld, 0.5);
       p.set(x, y, c);
     }
   }
-  // the foot's plate (the nameplate) and base
+  // the base: a squat concrete block, and its step
   p.rect(cx - 6, foot - 3, 12, 4, P.concrete);
   p.hline(cx - 6, cx + 5, foot - 3, P.concreteLt);
-  p.rect(cx - 2, foot - 10, 5, 4, P.white);
-  p.hline(cx - 1, cx + 2, foot - 8, P.steel);
-  // the control box (#8E95A6) with a white line on its door
-  const by = 34;
-  p.rect(cx - 7, by, 14, 14, '#8E95A6');
-  p.hline(cx - 7, cx + 6, by, P.concrete);
-  p.vline(cx - 7, by, by + 13, P.concrete);
-  p.vline(cx + 6, by + 1, by + 13, P.asphalt);
-  p.hline(cx - 5, cx + 4, by + 6, P.white);
-  p.set(cx + 3, by + 11, P.charcoal);
-  // the red lamp on top of the box (3×3)
-  p.rect(cx - 1, by - 4, 3, 3, lampOn ? P.red : P.asphalt);
-  p.set(cx - 1, by - 4, lampOn ? P.vermLt : P.steel);
-  p.rect(cx - 2, by - 1, 5, 1, P.charcoal);
+  p.vline(cx + 5, foot - 2, foot, P.asphalt);
+  // the nameplate (white) on the shaft; its black 「まだ」 mark is drawn over it (fades at dawn)
+  p.rect(cx - 4, POLE.plateY, 8, 5, P.white);
+  p.hline(cx - 4, cx + 3, POLE.plateY, P.concreteLt);
+  p.hline(cx - 3, cx + 1, POLE.plateY + 2, P.steel);
+  p.hline(cx - 3, cx, POLE.plateY + 3, P.concrete);
+  // the control box (#8E95A6) on its south face, a white line across its door, a cable up the pole
+  const by = POLE.boxY;
+  p.rect(cx - 5, by, 10, 11, '#8E95A6');
+  p.hline(cx - 5, cx + 4, by, P.concrete);
+  p.vline(cx - 5, by, by + 10, P.concrete);
+  p.vline(cx + 4, by + 1, by + 10, P.asphalt);
+  p.hline(cx - 5, cx + 4, by + 10, P.asphalt);
+  p.hline(cx - 3, cx + 2, by + 4, P.white);
+  p.set(cx + 2, by + 7, P.charcoal);
+  p.vline(cx + 2, POLE.hornY + 6, by - 1, P.charcoal);
+  // the red lamp above the box (3×3) on a little bracket
+  p.rect(cx - 1, POLE.lampY, 3, 3, lampOn ? P.red : P.asphalt);
+  p.set(cx - 1, POLE.lampY, lampOn ? P.vermLt : P.steel);
+  p.rect(cx - 2, POLE.lampY + 3, 5, 1, P.charcoal);
   // the horns at the top: south (its mouth to us), east and west in profile, north behind the pole
-  const hy = 18;
-  p.hline(cx - 12, cx + 11, hy + 4, P.asphalt); // the mount
+  const hy = POLE.hornY - 5;
+  p.rect(cx - 9, hy + 4, 18, 2, P.asphalt); // the cross mount
+  p.hline(cx - 9, cx + 8, hy + 4, P.steel);
   // west horn (profile, opening left)
   p.poly([[cx - 4, hy + 2], [cx - 14, hy - 2], [cx - 14, hy + 9], [cx - 4, hy + 6]], '#C8CDD4');
+  p.hline(cx - 13, cx - 5, hy + 7, P.steel);
   p.vline(cx - 14, hy - 2, hy + 9, P.steel);
   p.vline(cx - 15, hy - 1, hy + 8, P.ink);
   // east horn (profile, opening right)
   p.poly([[cx + 3, hy + 2], [cx + 13, hy - 2], [cx + 13, hy + 9], [cx + 3, hy + 6]], '#C8CDD4');
+  p.hline(cx + 4, cx + 12, hy + 7, P.steel);
   p.vline(cx + 13, hy - 2, hy + 9, P.asphalt);
   p.vline(cx + 14, hy - 1, hy + 8, P.ink);
   // north horn: only its rim above the others
@@ -156,13 +170,30 @@ function speakerPole(lampOn: boolean): HTMLCanvasElement {
   // the antenna and its point of light
   p.vline(cx, 0, hy - 4, P.steel);
   p.set(cx, 0, P.glint);
-  p.hline(cx - 2, cx + 2, 6, P.steel);
+  p.hline(cx - 2, cx + 2, 3, P.steel);
   outline(p, { bottom: true, soft: true });
   return p.toCanvas();
 }
 
-/** The pole is 62px: its foot is (15–16,3), and the map's top edge is 64px above that (52 11.3 said 120). */
-const POLE_H = 62;
+/**
+ * The pole: 32×120 in 52 11.3, but its foot is (15–16,3) and the map's top
+ * edge (where the plaza's camera stops) is 64px above that, so it is drawn
+ * 64px tall — a slender shaft with the box halfway, the horns at the top of
+ * the screen — and the long shadow says the rest.
+ */
+const POLE_H = 64;
+
+/** The 「まだ」 mark's fade at dawn (ending cut 1): 0.8 s from the first frame drawn in h3. */
+let madaSeen = { t: -1, h3: false };
+function madaAlpha(env: PropEnv): number {
+  const dawn = hs(env) >= 3;
+  if (!dawn) {
+    madaSeen = { t: -1, h3: false };
+    return 1;
+  }
+  if (!madaSeen.h3) madaSeen = { t: env.t, h3: true };
+  return Math.max(0, 1 - (env.t - madaSeen.t) / 800);
+}
 
 registerProp('prop_h_speaker_pole', () => {
   const on = speakerPole(true);
@@ -170,13 +201,21 @@ registerProp('prop_h_speaker_pole', () => {
   const lampOn = (env: PropEnv) => !env.flag('flag_ch2_boss_beaten');
   // the lamp breathes over 2 s
   const k = (env: PropEnv) => 0.55 + 0.45 * Math.sin((env.t / 2000) * Math.PI * 2);
+  const top = 32 - POLE_H;
   const a: PropArt = {
     ox: 16 - 17,
-    oy: 32 - POLE_H,
+    oy: top,
     w: 36,
     h: POLE_H,
     foot: 31,
     img: (env) => (lampOn(env) ? on : off),
+    // the 「まだ」 mark: a tiny black stamp in the plate's corner (4×3; 50 1.2)
+    over(g: Gfx, x: number, y: number, env: PropEnv) {
+      const al = madaAlpha(env);
+      if (al <= 0) return;
+      g.rect(x + 16 + 1, y + top + POLE.plateY + 2, 3, 2, '#0B0B14', al);
+      g.rect(x + 16 + 2, y + top + POLE.plateY + 1, 1, 1, '#0B0B14', al * 0.8);
+    },
     shadow: 56,
     contact: 12,
     contactX: 16,
@@ -184,17 +223,17 @@ registerProp('prop_h_speaker_pole', () => {
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
       if (!lampOn(env)) return;
       const lx = x + 16;
-      const ly = y + 32 - POLE_H + 34 - 3;
+      const ly = y + top + POLE.lampY + 1;
       const kk = k(env);
-      glowDot(g, lx, ly, '#FF6A4D', HLIGHT.red, 8, 0.9 * kk);
-      g.rect(lx - 1, ly - 1, 3, 3, '#E84E3C', 0.8 * kk);
-      g.rect(lx, ly - 1, 1, 1, '#FFF6D8', 0.6 * kk);
-      g.rect(x + 16, y + 32 - POLE_H, 1, 1, '#FFF6D8', 0.8); // the antenna's point
+      glowDot(g, lx, ly, '#FF6A4D', HLIGHT.red, 9, 0.95 * kk);
+      g.rect(lx - 1, ly - 1, 3, 3, '#E84E3C', 0.85 * kk);
+      g.rect(lx - 1, ly - 1, 1, 1, '#FFF6D8', 0.6 * kk);
+      g.rect(x + 16, y + top, 1, 1, '#FFF6D8', 0.8); // the antenna's point
     },
     light(g: Gfx, x: number, y: number, env: PropEnv) {
       if (!lampOn(env)) return;
       // a red circle on the ground at its foot (#E84E3C α12%, 40px)
-      drawLight(g, poolEllipse(40, 26, HLIGHT.red), x + 16, y + 30, 0.28 * k(env) * Math.max(0.4, nightK(env)));
+      drawLight(g, poolEllipse(40, 26, HLIGHT.red), x + 16, y + 30, 0.3 * k(env) * Math.max(0.4, nightK(env)));
     },
   };
   return a;
@@ -275,26 +314,64 @@ registerProp('prop_h_kanbou_board', () => {
 });
 
 /** A cedar trunk standing in the path's bend (the `T` tiles); `marks` = three height scratches. */
+/**
+ * A cedar standing out of the wood beside the path (`T`, 52 5章): a straight
+ * grooved trunk with flared roots, the lowest dead twigs, and its crown of
+ * stacked sprays above (the wood's own cedars, one size larger). `marks`:
+ * three height scratches on the trunk at a child's height (obj_hoshi_sugi).
+ */
 registerProp('prop_h_hill_trunk', (opts) => {
   const v = Number(opts.v ?? 0);
   const marks = !!opts.marks;
+  // `h`: how tall it may stand (a cedar just below open ground is shorter: the path must stay visible)
+  const H = Math.max(28, Math.min(64, Number(opts.h ?? 64)));
   return standProp(
-    16,
-    48,
+    24,
+    H,
     (p) => {
-      for (let y = 0; y < 48; y++)
-        for (let x = 3; x < 13; x++) {
-          const u = (x - 3) / 9;
-          let c: string = u < 0.2 ? P.wood : u > 0.7 ? P.ink : P.woodDark;
-          if ((y * 3 + x + v) % 9 === 0 && u > 0.15 && u < 0.7) c = P.wood;
+      const cx = 12;
+      const foot = H - 1;
+      const crownBottom = foot - Math.round(Math.min(22, H * 0.36)) - (v % 2) * 2;
+      // the crown: stacked sprays (tiers of 4px), lit from the left, dark on the right
+      const top = 1 + (v % 3);
+      const half = H < 48 ? 8 : 10;
+      for (let y = top; y <= crownBottom; y++) {
+        const k = (y - top) / (crownBottom - top);
+        const tier = (y - top) % 4;
+        let hw = Math.round(2 + (half - 2) * k + (tier === 3 ? 1 : tier === 0 ? -1 : 0));
+        if (y - top < 2) hw = y - top;
+        for (let x = cx - hw; x <= cx + hw; x++) {
+          const u = (x - (cx - hw)) / Math.max(1, hw * 2);
+          let c: string = u < 0.3 ? P.leafDeep : u > 0.68 ? P.night : P.leafShade;
+          if (tier === 3 && u < 0.55) c = P.leaf;
+          if (tier === 0 && u > 0.4) c = P.ink;
+          if (y === top) c = P.leaf;
+          if (((x * 7 + y * 3 + v) & 15) === 0) c = P.night; // gaps between the sprays
           p.set(x, y, c);
         }
-      p.poly([[0, 47], [3, 38], [3, 47]], P.woodDark);
-      p.poly([[15, 47], [12, 39], [12, 47]], P.ink);
+      }
+      // the trunk: straight, grooved bark, lit on the left
+      for (let y = crownBottom - 6; y <= foot; y++)
+        for (let x = cx - 3; x <= cx + 2; x++) {
+          const u = (x - (cx - 3)) / 5;
+          let c: string = u < 0.2 ? P.wood : u > 0.75 ? P.ink : P.woodDark;
+          if (x === cx - 1 && (y + v) % 5 !== 0) c = mix(P.woodDark, P.ink, 0.35); // a groove
+          if (x === cx + 1 && (y * 3 + v) % 7 === 0) c = P.wood;
+          if (y < crownBottom + 2 && u > 0.4) c = P.ink; // the crown's shade on the trunk
+          p.set(x, y, c);
+        }
+      // flared roots
+      p.poly([[cx - 7, foot], [cx - 3, foot - 5], [cx - 3, foot]], P.woodDark);
+      p.poly([[cx + 6, foot], [cx + 2, foot - 4], [cx + 2, foot]], P.ink);
+      p.set(cx - 5, foot - 1, P.wood);
+      p.hline(cx - 7, cx + 6, foot, P.ink);
+      // dead twigs low on the trunk
+      p.line(cx - 3, crownBottom + 5, cx - 6, crownBottom + 3, P.woodDark);
+      p.line(cx + 2, crownBottom + 9, cx + 5, crownBottom + 8, P.ink);
       if (marks)
-        for (const [y, len] of [[20, 4], [26, 5], [31, 4]] as const) {
-          p.hline(5, 5 + len, y, P.woodLt);
-          if (y === 20) p.set(5, y, P.goldPale);
+        for (const [y, len] of [[foot - 14, 3], [foot - 11, 4], [foot - 8, 3]] as const) {
+          p.hline(cx - 3, cx - 3 + len, y, P.woodLt);
+          if (y === foot - 14) p.set(cx - 3, y, P.goldPale);
         }
     },
     { cx: 8, base: 16, shadow: 44 },

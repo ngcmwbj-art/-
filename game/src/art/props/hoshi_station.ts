@@ -431,10 +431,14 @@ registerProp('prop_h_mujin', () => {
     p.set(11, 9, P.ink);
     p.hline(15, 17, 9, P.ink);
     tiny(p, '100', 10, 8, P.verm);
-    p.rect(21, 8, 3, 4, P.verm);
-    p.set(22, 9, P.white);
+    // 円 (5×5): the open frame, the short stroke down and the bar across
+    p.hline(21, 25, 8, P.verm);
+    p.vline(21, 8, 12, P.verm);
+    p.vline(25, 8, 12, P.verm);
+    p.set(23, 9, P.verm);
+    p.hline(21, 25, 10, P.verm);
     p.set(26, 12, P.blue); // the signature
-    p.set(25, 12, P.leaf);
+    p.set(27, 12, P.leaf);
     // the painted board on the post: cucumber, aubergine, sweetcorn (16×8)
     p.rect(29, 12, 7, 7, P.paper);
     p.strokeRect(29, 12, 7, 7, P.wood);

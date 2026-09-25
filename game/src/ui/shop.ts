@@ -130,11 +130,11 @@ registerShop({
 //
 // The stall by the road: きゅうりの一本漬け, ゆでとうもろこし and 梅干し, 100円
 // each, at most 3 / 1 / 2 in one visit (walk up again and it's full). The
-// money goes into the wooden box (se_h_coin_box). サワコさん minds it — also
+// money goes into the wooden box (se_h_coin_box). ソワカさん (the artist) minds it — also
 // while ムジン販売員 is out and about. The words are the scenario's
 // (data/text/hoshi_npcs MUJIN_SHOP), so a rename there reaches the shop.
 
-const SAWAKO = HOSHI_SPEAKERS.npc_hoshi_sawako ?? { name: 'サワコさん', voice: 'h_sawako' };
+const SAWAKO = HOSHI_SPEAKERS.npc_hoshi_sawako ?? { name: 'ソワカさん', voice: 'h_sawako' };
 
 registerShop({
   id: 'shop_hoshi_mujin',

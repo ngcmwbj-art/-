@@ -16,7 +16,7 @@ import { battleFlow, getGameOverHook, setGameOverHook, type GameOverHook } from 
 import { runGameOver } from './gameover';
 import { restoreForRetry } from './results';
 import { hasSave } from '../game/state';
-import { EnemyGalleryScene } from './gallery';
+import { BgGalleryScene, EnemyGalleryScene } from './gallery';
 import { playHankoLearnField, playHankoLearnIn } from './learn';
 import { playLevelUpField } from './results';
 import { addKire } from './common';
@@ -262,6 +262,7 @@ let goRequested = false;
 registerDebug('bgo', () => (goRequested = true));
 registerScene('battle', (p) => new BattleTestScene(p));
 registerScene('enemies', (p) => new EnemyGalleryScene(p));
+registerScene('bgs', (p) => new BgGalleryScene(p));
 
 // ---- QA commands ---------------------------------------------------------------------------
 
@@ -387,10 +388,12 @@ registerDebug('bstate', () => {
   };
 });
 registerDebug('levelup', (lv = 2) => {
-  if (!state.party.length) setupParty({ lv: lv - 1, party: 2 });
+  // Lv6–7 are chapter 2's (the cap is 7 there): a chapter-2 party one below
+  if (lv >= 6) setupCh2(lv - 1);
+  else if (!state.party.length) setupParty({ lv: lv - 1, party: 2 });
   const res: LevelUpResult[] = [];
   for (const m of state.party) {
-    const need = [0, 0, 10, 40, 90, 150][lv] ?? 150;
+    const need = EXP_TABLE[lv] ?? 150;
     res.push(...gainExp(m, Math.max(0, need - m.exp)));
   }
   game.scripts.run(playLevelUp(res));
@@ -412,8 +415,27 @@ registerDebug('bready', () => {
   return s.round;
 });
 
-/** `lvCh2(n)`: a chapter-2 party at Lv n (5–7), flag_ch2_started on. */
-registerDebug('lvCh2', (n = 5, otsukare = true) => {
+/**
+ * `lvCh2(n)` (51 18.5): flag_ch2_started on and both at Lv n (5–7), the
+ * story as it is (the events' QA registers the same command). Without a
+ * chapter-2 party yet it makes one (newChapter2Party + chapter2Adjust).
+ */
+registerDebug('lvCh2', (n = 6) => {
+  const lv = Math.max(5, Math.min(7, Number(n)));
+  if (state.party.length < 2) {
+    newChapter2Party();
+    chapter2Adjust();
+  }
+  setFlag('flag_ch2_started', 1);
+  for (const m of state.party) {
+    setMemberLevel(m, lv);
+    m.exp = EXP_TABLE[lv] ?? 150;
+  }
+  syncProgressSkills();
+  return state.party.map((m) => `${m.id} Lv${m.level}`);
+});
+/** `ch2party(n, otsukare)`: a fresh chapter-2 QA party at Lv n — おつかれさま, the tomato, the new items, on 星見台. */
+registerDebug('ch2party', (n = 5, otsukare = true) => {
   setupCh2(n, { otsukare: !!otsukare });
   return state.party.map((m) => `${m.name} Lv${m.level} exp${m.exp}`);
 });

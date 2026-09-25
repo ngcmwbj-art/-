@@ -4,6 +4,7 @@ import type { Scene } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { enemyArt, enemyArtIds, type EnemyView } from '../art/enemies';
 import { desaturate } from '../art/enemies/lib';
+import { makeBackground, type Background } from './bg';
 
 export class EnemyGalleryScene implements Scene {
   private t = 0;
@@ -62,5 +63,40 @@ export class EnemyGalleryScene implements Scene {
         x += r.width + 8;
       }
     }
+  }
+}
+
+/**
+ * QA gallery for battle backgrounds: ?scene=bgs&id=bg_h_fence[&enemy=<id>][&flags=charge:1,light:1]
+ * — the background alone (and optionally its enemy standing where it would),
+ * with the flags a battle hands it.
+ */
+export class BgGalleryScene implements Scene {
+  private t = 0;
+  private bg: Background;
+  private enemy: string | null;
+  constructor(params: URLSearchParams) {
+    const id = params.get('id') ?? 'bg_h_house';
+    this.enemy = params.get('enemy');
+    this.bg = makeBackground(id, this.enemy ?? '');
+    for (const kv of (params.get('flags') ?? '').split(',').filter(Boolean)) {
+      const [k, v] = kv.split(':');
+      this.bg.flags[k] = Number(v ?? 1);
+    }
+  }
+
+  update(dt: number): void {
+    this.t += dt;
+    this.bg.update(dt);
+  }
+
+  draw(g: Gfx): void {
+    this.bg.draw(g);
+    const art = this.enemy ? enemyArt(this.enemy) : null;
+    if (!art) return;
+    const v: EnemyView = { pose: 'idle', t: this.t, gt: this.t, hpRate: 1, flags: {} };
+    const c = art.frame(v);
+    // core at (192, 104), like a lone enemy in battle
+    g.img(c, Math.round(192 - c.width / 2), Math.round(104 - c.height / 2));
   }
 }

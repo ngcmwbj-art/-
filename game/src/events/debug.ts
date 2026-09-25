@@ -20,6 +20,7 @@ import { keyGuide, resetStaging } from './stage';
 import { resetStamp } from './stamp';
 import { GUIDE_MENU, GUIDE_MOVE } from '../data/text/events';
 import { animFrame, charSprite, poseFrame, walkFrame } from '../art/chars';
+import { beatCh2, jumpCh2, listCh2 } from './ch2/debug';
 
 type Step = () => void;
 
@@ -161,14 +162,20 @@ function applyUpTo(beat: string): (typeof CHAIN)[number] | null {
 }
 
 const JUMP = (beat?: string, noRun = false): unknown => {
-  if (!beat) return CHAIN.map((c) => `${c.beat}: ${c.desc}`);
+  if (!beat) return [...CHAIN.map((c) => `${c.beat}: ${c.desc}`), ...listCh2().map((l) => `ch2:${l}`)];
+  // chapter 2's beats (02_ch2 4.5: CHAIN2): 'ch2:<beat>', or a beat name
+  // chapter 1 doesn't have (its 'boss' stays chapter 1's: 'ch2:boss')
+  if (beat.startsWith('ch2:') || !CHAIN.some((c) => c.beat === beat)) {
+    const ch2 = jumpCh2(beat.replace(/^ch2:/, ''), noRun);
+    if (ch2) return ch2;
+  }
   if (beat === 'opening' || beat === 'newgame') {
     game.scripts.clear();
     game.scripts.run(startNewGame());
     return 'new game';
   }
   const c = applyUpTo(beat);
-  if (!c) return `unknown beat ${beat}; beats: ${CHAIN.map((x) => x.beat).join(' ')}`;
+  if (!c) return `unknown beat ${beat}; beats: ${CHAIN.map((x) => x.beat).join(' ')} / ${listCh2().map((l) => l.split(':')[0]).join(' ')}`;
   game.scripts.clear();
   // widgets that paint through game.overlays (the 「ほぞん」 seal, captions)
   // take their overlay with them
@@ -205,6 +212,7 @@ registerDebug('jump', JUMP);
 
 /** The furthest beat the flags have reached (QA). */
 registerDebug('beat', () => {
+  if (flag('flag_ch2_started')) return beatCh2();
   const order: [string, string][] = [
     ['flag_boss_beaten', 'ending'],
     ['flag_maigo_door_open', 'boss'],

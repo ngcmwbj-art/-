@@ -1458,7 +1458,13 @@ export class BattleScene implements Scene {
         ctx.drawImage(src, 0, r, src.width, 1, dx + off, dy + Math.round(r * sy), Math.round(w), Math.max(1, Math.round(sy)));
       }
     } else ctx.drawImage(src, dx, dy, Math.round(w), Math.round(h));
-    if (e.whiteFrames > 0) ctx.drawImage(this.tinted(src, '#FFF6D8', 2), dx, dy, Math.round(w), Math.round(h));
+    if (e.whiteFrames > 0) {
+      if (e.id === 'boss_yobimodoshi' && (e.params.light ?? 1) < 0.5 && e.alive) {
+        // 51 10.9: in the dark only the silhouette's outline flashes white
+        const rim = rimFor(src);
+        ctx.drawImage(this.tinted(rim, '#FFF6D8', 2), Math.round(dx - sx), Math.round(dy - sy), Math.round(rim.width * sx), Math.round(rim.height * sy));
+      } else ctx.drawImage(this.tinted(src, '#FFF6D8', 2), dx, dy, Math.round(w), Math.round(h));
+    }
     ctx.globalAlpha = prevA;
     // live overlays (the vending machine's LED…) sit under a white flash,
     // not on top of it (QA round 3: a green 17:00 floated on the white)
@@ -1642,17 +1648,23 @@ export class BattleScene implements Scene {
     // to its feet (QA round 3: the ring's edge and the hato's tail touched
     // the sticky, a number landed on its tape). The boss fills the stage;
     // there only its own sprite counts.
+    const yobi = this.enemies.find((e) => e.id === 'boss_yobimodoshi' && e.alive && e.visible);
     const boxes: Rect[] = this.enemies
-      .filter((e) => e.alive && e.visible)
+      .filter((e) => e.alive && e.visible && e !== yobi)
       .map((e) =>
         e.def.boss
-          ? // ヨビモドシ's horns reach to the edges of its box but are thin at
-            // the very ends: a sticky may graze their mouths, not their bodies
-            e.id === 'boss_yobimodoshi'
-            ? { x0: e.left + 6, y0: e.top - 3, x1: e.left + e.sizeW - 6, y1: e.footY }
-            : { x0: e.left - 3, y0: e.top - 3, x1: e.left + e.sizeW + 3, y1: e.footY }
+          ? { x0: e.left - 3, y0: e.top - 3, x1: e.left + e.sizeW + 3, y1: e.footY }
           : { x0: Math.min(e.left - 3, e.coreX - 48), y0: STAGE_TOP, x1: Math.max(e.left + e.sizeW + 3, e.coreX + 48), y1: e.footY },
       );
+    if (yobi) {
+      // ヨビモドシ is a pole with four horns (51 13.1): the notes keep off each
+      // horn (the thing the notes ask you to look at) and the pole, not off
+      // the empty night between them
+      const L = yobi.left;
+      const T = yobi.top;
+      for (const [x, y, w, h] of [[44, 6, 40, 20], [0, 16, 46, 28], [46, 26, 36, 30], [82, 16, 46, 28], [60, 0, 8, 14], [38, 24, 52, 84], [52, 106, 24, 54]])
+        boxes.push({ x0: L + x - 2, y0: T + y - 2, x1: L + x + w + 2, y1: T + y + h + 2 });
+    }
     // the top of the hanko close-up's ink ring (its くっきり zone) rises there
     boxes.push({ x0: 14, y0: 108, x1: 92, y1: 150 });
     const variants = [text];
@@ -1667,9 +1679,12 @@ export class BattleScene implements Scene {
       const w = img.width - P - 3;
       const h = img.height - P - 3;
       const sides = preferRight ? [true, false] : [false, true];
-      for (const right of sides) {
+      // (beside ヨビモドシ the notes may also sit lower, under its horns)
+      const spots: [boolean, number][] = [];
+      for (const right of sides) spots.push([right, right && this.isBoss ? this.msg.bottom + 26 : 52]);
+      if (yobi) for (const right of sides) spots.push([right, yobi.top + 48]);
+      for (const [right, y0] of spots) {
         const x = right ? 381 - w - 3 : 8;
-        const y0 = right && this.isBoss ? this.msg.bottom + 26 : 52;
         const y = Math.max(this.msg.bottom + 4, Math.min(y0, 141 - h));
         const r = { x0: x, y0: y, x1: x + w, y1: y + h };
         let cost = 0;

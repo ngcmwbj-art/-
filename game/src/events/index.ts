@@ -12,4 +12,5 @@ import './park';
 import './parking';
 import './mall';
 import './ending';
+import './ch2';
 import './debug';

@@ -413,7 +413,8 @@ const SCHOOL_OBJ: MapObj[] = [
   { t: 'npc', id: 'npc_hoshi_kucho', x: 6, y: 3, dir: 'down', talk: htalk('npc_hoshi_kucho') },
   { t: 'npc', id: 'npc_hoshi_fumi', x: 9, y: 3, dir: 'up', talk: htalk('npc_hoshi_fumi'), cond: { stage: '0-1' } },
   { t: 'npc', id: 'npc_hoshi_yoshie', x: 2, y: 5, dir: 'left', talk: htalk('npc_hoshi_yoshie'), script: 'evt_ch2_rest_yoriai' },
-  // the dark corridor: pushed back until the lantern (52 1.6)
+  // the dark corridor: pushed back until the lantern (52 1.6); facing it from the lit end asks the same
+  O('obj_hoshi_rouka_dark', 10, 9, { h: 2, face: 'right', script: 'evt_ch2_dark_block', cond: { notFlag: 'flag_ch2_got_tomato' } }),
   { t: 'trig', id: 'trig_ch2_dark_school', x: 10, y: 9, w: 1, h: 2, script: 'evt_ch2_dark_block', cond: { notFlag: 'flag_ch2_got_tomato' } },
   { t: 'door', id: 'door_hoshi_school_out', x: 5, y: 11, to: 'map_hoshimidai', tx: 26, ty: 28, dir: 'down', se: 'se_door' },
 ];

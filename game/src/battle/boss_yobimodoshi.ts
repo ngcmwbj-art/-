@@ -378,7 +378,8 @@ function drawTomatoTag(g: Gfx, y: number, st: Yobi, t: number): void {
   if (state === 'lit')
     for (const [dx, dy] of [[-8, 0], [8, 0], [0, -8], [0, 8]] as [number, number][]) g.rect(x + 10 + dx - (dx ? 0 : 0), y + 10 + dy, dx ? 2 : 1, dy ? 2 : 1, '#FFE7A3');
   g.ctx.drawImage(icon, Math.round(x + 10 - iw / 2), Math.round(y + 10 - iw / 2), iw, iw);
-  const n = state === 'lit' ? 3 - st.lightRound : state === 'charge' ? st.charge : 0;
+  // (the finale's light is Kanenari-kun's, not a counted round: no digit)
+  const n = st.finale > 0 || st.lightRound <= 0 ? (state === 'charge' ? st.charge : 0) : state === 'lit' ? 3 - st.lightRound : state === 'charge' ? st.charge : 0;
   if (n > 0) handDigit(g, n, x + 22, y + 4, state === 'charge' ? '#6B7186' : '#B8241E');
 }
 
@@ -1322,11 +1323,12 @@ export function* doOyasuminasai(s: BattleScene, u: PartyUnit): Co {
   stopAllAmbient(1.5);
   const dark = { a: 0 };
   const darkFx = s.addFx({ layer: 'top', dur: 0, ui: true, draw: (g) => g.rect(0, 0, 384, 216, '#0B0B14', dark.a) });
-  s.showUi = false;
+  // (the panels and the band sink with the rest of the picture, not before it)
   for (let t = 0; t <= 800; t += FRAME) {
     dark.a = Math.min(1, t / 800);
     yield null;
   }
+  s.showUi = false;
   y.black = true;
   s.blackStage = true;
   y.kanenariUp = null;

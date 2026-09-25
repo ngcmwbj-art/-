@@ -14,7 +14,7 @@
 import type { Gfx } from '../../engine/gfx';
 import { mix, PixelCanvas } from '../../engine/pixel';
 import { charSprite, hasChar } from '../chars/registry';
-import { h01, ihash } from '../tiles/noise';
+import { h01, ihash, valueNoise } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { dk, lt, outline } from './kit';
 import { glowDot, HLIGHT, HP, hs, nightK, paintFrames, paperNote, standProp } from './hoshi_kit';
@@ -109,13 +109,20 @@ function barnShell(): PixelCanvas {
         let c: string;
         if (ty === 5) c = j < 3 ? P.concrete : j < 12 ? P.charcoal : j === 12 ? P.concreteLt : j < 15 ? P.concrete : P.steel;
         else c = j < 1 ? P.steel : j < 3 ? P.concreteLt : j < 12 ? P.charcoal : j === 12 ? P.concrete : P.steel;
-        const inner = ty === 5 ? j >= 3 && j < 12 : j >= 3 && j < 12;
+        const inner = j >= 3 && j < 12;
         if (inner) {
+          // the trough's worn concrete floor (mid grey, wet-dark streaks), the
+          // leftovers lying in clumps on the rail side (where the cows eat):
+          // rice straw (short pale strokes) and the concentrate's crumbs
+          const railSide = ty === 5 ? j < 7 : j > 7;
           const n = h01(x, y, 4101);
-          const clump = h01(x >> 3, ty, 4103) < 0.5; // straw lies in clumps along the trough
-          if (clump && n < 0.22) c = n < 0.05 ? P.woodLt : P.brassOld; // rice straw
-          else if (n > 0.9) c = P.wood; // the concentrate's crumbs
-          else if ((x + j) % 5 === 0) c = mix(P.charcoal, P.asphalt, 0.3);
+          c = (x * 3 + j * 7) % 11 === 0 ? P.asphalt : j === 3 || j === 11 ? mix(P.asphalt, P.charcoal, 0.5) : mix(P.steel, P.asphalt, 0.55);
+          const clump = valueNoise(x / 5, ty * 3.7, 4103) > (railSide ? 0.42 : 0.72);
+          if (clump) {
+            const stroke = (x + (j >> 1)) % 3 === 0;
+            c = stroke ? (n < 0.5 ? P.woodLt : P.goldPale) : n < 0.35 ? P.brassOld : n < 0.55 ? mix(P.woodLt, P.brassOld, 0.5) : c;
+            if (n > 0.9) c = P.paperGrid; // the concentrate's crumbs
+          } else if (n > 0.965) c = P.paperGrid;
         }
         p.set(x, y, c);
       }
@@ -380,14 +387,26 @@ function cupFlash(env: PropEnv, spot: string): boolean {
 
 /** 給水器 (8×6): a grey bowl on the rail and its push plate; a target is muddied with feed until cleaned. */
 const CUP = paintFrames(3, 8, 6, (p, k) => {
-  p.rect(0, 1, 8, 5, P.steel);
-  p.hline(0, 7, 1, P.concreteLt);
-  p.vline(7, 2, 5, P.asphalt);
-  p.rect(1, 2, 5, 2, k === 1 ? P.wood : P.navy); // the water: muddied (1) or clear
-  if (k === 1) p.set(3, 2, P.woodDark);
-  if (k === 2) p.set(2, 2, P.aqua);
-  p.rect(6, 0, 2, 3, P.asphalt); // the push plate
-  p.set(6, 0, P.steel);
+  // a round grey bowl on its bracket: the lit rim, the inside, the push plate
+  p.rect(1, 1, 6, 4, P.steel);
+  p.hline(1, 6, 0, P.concreteLt);
+  p.set(0, 1, P.concreteLt);
+  p.set(7, 1, P.asphalt);
+  p.hline(1, 6, 5, P.charcoal);
+  p.vline(0, 2, 3, P.steel);
+  p.vline(7, 2, 4, P.asphalt);
+  // the water: muddied with fallen feed (1) or clear (0, 2 = just cleaned, flashing)
+  if (k === 1) {
+    p.rect(2, 1, 4, 2, P.wood);
+    p.set(3, 1, P.brassOld);
+    p.set(4, 2, P.woodDark);
+  } else {
+    p.rect(2, 1, 4, 2, P.navy);
+    p.set(2, 1, k === 2 ? P.glint : P.aqua);
+    if (k === 2) p.set(3, 1, P.aqua);
+  }
+  p.rect(5, 3, 2, 2, P.asphalt); // the push plate
+  p.set(5, 3, P.concrete);
 });
 registerProp('prop_h_watercup', (opts) => {
   const spot = String(opts.spot ?? '');
@@ -434,9 +453,14 @@ registerProp('prop_h_scoop', () =>
  * lantern's light (the dark hides small things by itself).
  */
 function feedPile(): PixelCanvas {
+  // a low mound of straw ends and concentrate crumbs, a dark foot under it so it
+  // reads against the trough's own leftovers
   const p = new PixelCanvas(16, 5);
-  for (let k = 0; k < 5; k++) p.line(1 + k * 3, 4, 3 + k * 3, 1, k % 2 ? P.woodLt : P.brassOld);
-  for (const [x, y] of [[2, 2], [5, 3], [8, 1], [10, 3], [13, 2], [14, 4]]) p.set(x, y, P.paperGrid);
+  p.ellipse(7.5, 3, 7.5, 2.2, P.brassOld);
+  p.ellipse(7, 2.5, 5.5, 1.6, mix(P.woodLt, P.brassOld, 0.4));
+  for (let k = 0; k < 5; k++) p.line(1 + k * 3, 4, 3 + k * 3, 1, k % 2 ? P.goldPale : P.woodLt);
+  for (const [x, y] of [[2, 2], [5, 3], [8, 1], [10, 3], [13, 2], [11, 2]]) p.set(x, y, P.paperGrid);
+  for (let x = 1; x < 15; x++) if (p.alpha(x, 4)) p.set(x, 4, mix(P.wood, P.woodDark, 0.5));
   return p;
 }
 const PILE = feedPile().toCanvas();
@@ -468,37 +492,6 @@ registerProp('decal_h_feed', (opts) => {
 const COW_PAL: Record<string, string> = {
   O: '#1B1733', k: HP.cow, K: '#1B1733', l: HP.cowLt, s: HP.cowSheen, n: P.charcoal, N: P.steel, e: P.void, Y: P.gold, y: P.brass, h: P.charcoal,
 };
-/** 52 10.4's side view (32×21, facing left). */
-const COW_SIDE = [
-  '................................',
-  '................................',
-  '......OOO.......................',
-  '..OOOOkkYOOOOOOOOOOOOOOOOOO.....',
-  '.OklllklylklllllllllllllllkO....',
-  '.OlkkkkkkkkkkkkkkkkkkkkkkkkkO...',
-  'OklkekkkkkkkkssssssssskkkkkkkOO.',
-  'OkkkkkkkkkkkkkksssskkkkkkkkkkkkO',
-  'ONkkkkkkkkkkkkkkkkkkkkkkkkKKKkkO',
-  'OnkkkkkkkkkkkkkkkkkkkkkkkkKKKKkO',
-  'OnkkkkkkkkkkkkkkkkkkkkkkkkKKKKkO',
-  '.OOOOOkkkkkkkkkkkkkkkkkkkkKKKKkO',
-  '.....OkkkkkkkkkkkkkkkkkkkkKKKKkO',
-  '......OkkkkkkkkkkkkkkkkkkkKKKOkO',
-  '......OKKkkkKKKKKKKKKKKKKkkkOOkO',
-  '......OKKkkkOKKOOOOOOOKKOkkOOKKO',
-  '.......OOOkkOKKO.....OKKOkkOOKKO',
-  '.........OkkOKKO.....OKKOkkO.OO.',
-  '.........OkkOKKO.....OKKOkkO....',
-  '.........OhhOhhO.....OhhOhhO....',
-  '..........OO.OO.......OO.OO.....',
-];
-
-function paint(rows: string[], ox = 0, oy = 0, p?: PixelCanvas): PixelCanvas {
-  const q = p ?? new PixelCanvas(rows[0].length + ox, rows.length + oy);
-  rows.forEach((r, j) => [...r].forEach((ch, i) => ch !== '.' && q.set(i + ox, j + oy, COW_PAL[ch])));
-  return q;
-}
-
 /** A little white (5 cattle in 25 carry some): on the belly, a leg, the face. */
 function whiteMarks(p: PixelCanvas, pose: string, white: string): void {
   if (!white) return;
@@ -511,8 +504,8 @@ function whiteMarks(p: PixelCanvas, pose: string, white: string): void {
       p.hline(15, 18, by + 1, Ws);
     }
     if (white.includes('leg') && pose === 'side') {
-      p.vline(23, 17, 18, W);
-      p.vline(22, 17, 18, W);
+      p.vline(25, 16, 18, W);
+      p.vline(26, 17, 18, Ws);
     }
     if (white === 'face') p.set(2, pose === 'side' ? 5 : 4, W);
   } else if (pose === 'front') {
@@ -520,8 +513,7 @@ function whiteMarks(p: PixelCanvas, pose: string, white: string): void {
       p.set(10, 9, W);
       p.set(9, 10, W);
     }
-    if (white.includes('leg')) p.vline(6, 16, 18, W);
-  } else if (white.includes('leg')) p.vline(13, 17, 19, W);
+  } else if (white.includes('leg')) p.vline(14, 16, 18, W);
 }
 
 interface CowFrames {
@@ -531,6 +523,218 @@ interface CowFrames {
 }
 
 const cowCache = new Map<string, CowFrames>();
+
+/**
+ * The stand-in F1 fattening cattle (52 10.4), drawn from shapes rather than
+ * the reference grid alone so they read at a glance even as dark animals: a
+ * long, deep body with a straight, wide topline and a round rump, a short
+ * thick neck with the dewlap hanging under it, a longish face with a broad
+ * wet muzzle, short legs under the deep body, both ears out sideways with
+ * the yellow tags. The back carries a 1px sheen and the topline a lighter
+ * line (they catch the lantern). No expression: the eye is one dark pixel,
+ * no mouth line, no horns, no ring.
+ */
+const C = COW_PAL;
+
+// 52 10.4's shapes, finished: side 32×21 (facing left), lying 32×15, head-on
+// at the rail 20×21, from behind 20×21. O outline, k coat, K shade, l light,
+// s the sheen on the back, n the wet muzzle, N its shine, e the eye, Y/y the tag.
+const COW_SIDE = [
+  '................................',
+  '................................',
+  '........OOO.....................',
+  '...OOOOOkllOOOOOOOOOOOOOOOOO....',
+  '..OllllkkYkllllllllllllllllkOO..',
+  '.OlkkkkkkykkksssssssssssskkkkkO.',
+  '.OlkekkkkkkkkksssssssssskkkkkkOK',
+  '.OkkkkkkkkkkkkkkkkkkkkkkkkkkkkOK',
+  '.OkkkkkKkkkkkkkkkkkkkkkkkKkkkkOK',
+  'OnkkkkKOkkkkkkkkkkkkkkkkKKkkkkOK',
+  'ONkkkKOOkkkkkkkkkkkkkkkkKKkkkkOK',
+  'OnnkKO.OkkkkkkkkkkkkkkkkKKKkkOOK',
+  '.OnnO..OKkkkkkkkkkkkkkkkKKKkkO.K',
+  '..OO...OKKkkkkkkkkkkkkkkkKKkkO.K',
+  '.......OKKkkKKKKKKKKKKKKkkkkKO.K',
+  '.......OOKkkKKOOOOOOOOKKOkkkKOKK',
+  '.........OkkOKKO.....OKKOkkkO.KK',
+  '.........OkkOKKO.....OKKOkkKO...',
+  '.........OkkOKKO.....OKKOkkkO...',
+  '.........OhhOhhO.....OhhOhhhO...',
+  '..........OO.OO.......OO.OOO....',
+];
+const COW_LIE = [
+  '...OOOOOOO......................',
+  '..OllllkkYO.....................',
+  '.OlkkkkkkyOOOOOOOOOOOOOOOOOOO...',
+  '.OlkekkkkkkllllllllllllllllllOO.',
+  '.OkkkkkkkkkkksssssssssssskkkkkkO',
+  'OnkkkkKkkkkkkkssssssssskkkkkkkkO',
+  'ONkkkKOkkkkkkkkkkkkkkkkkkkkkkkkO',
+  'OnnkKOOkkkkkkkkkkkkkkkkkkkKkkkkO',
+  '.OnnO.OkkkkkkkkkkkkkkkkkkKKkkkkO',
+  '..OO..OKkkkkkkkkkkkkkkkkKKKkkkOK',
+  '......OKKkkkkkkkkkkkkkkkKKKkkkOK',
+  '.....OKKKKKKKKKKKKKKKKKKKKKKKKOK',
+  '....OhKKOOOOOOOOOOOOOOOOOKKKKOKK',
+  '....OOOO................OOOOO...',
+  '................................',
+];
+const COW_FRONT = [
+  '....OOOOOOOOOOOO....',
+  '..OOllllllllllllOO..',
+  '.OkkkssssssssskkkkO.',
+  '.OkkkkkkkkkkkkkkkkO.',
+  'OkkkkkkkkkkkkkkkkkkO',
+  'OkkkkKKkkkkkkKKkkkkO',
+  'OOkkKOOllllllOOKkkOO',
+  'OkOOOkkllllllkkOOOkO',
+  'OkkkkkkkkkkkkkkkkkkO',
+  '.OyOOkkkkkkkkkkOOyO.',
+  '.OYO.OkekkkkekO.OYO.',
+  '..O..OkkkkkkkkO..O..',
+  '.....OkkkkkkkkO.....',
+  '.....OkkkkkkkkO.....',
+  '......OkkkkkkO......',
+  '......OKkkkkKO......',
+  '......OnnnnnnO......',
+  '......ONnnnnNO......',
+  '......OnnnnnnO......',
+  '.......OOOOOO.......',
+  '....................',
+];
+const COW_BACK = [
+  'OOO..............OOO',
+  'OkkO.OOOOOOOOOO.OkkO',
+  'OYOOOllkkkkkkllOOOYO',
+  '.OkkkkkkkksskkkkkkO.',
+  'OkkkkkkkkksskkkkkkkO',
+  'OkkkkkkkkksskkkkkkkO',
+  'OkkkkkkkkksskkkkkkkO',
+  'OkkkkkkkkkOkkkkkkkkO',
+  'OkkkkkkkkkOkkkkkkkkO',
+  'OkkkkkkkkkOkkkkkkkkO',
+  'OkkkkkkkkkOkkkkkkkkO',
+  'OKkkkkkkkkOkkkkkkkKO',
+  '.OKkkkkkkkOkkkkkkKO.',
+  '.OKKkkkkkKKKkkkkKKO.',
+  '..OKKKKKKKKKKKKKKO..',
+  '...OkkKO.KK..OkkKO..',
+  '...OkkKO.KK..OkkKO..',
+  '...OkkKO.....OkkKO..',
+  '...OkkKO.....OkkKO..',
+  '...OhhhO.....OhhhO..',
+  '....OOO.......OOO...',
+];
+
+function fromGrid(rows: string[]): PixelCanvas {
+  const q = new PixelCanvas(rows[0].length, rows.length);
+  rows.forEach((r, j) => [...r].forEach((ch, i) => ch !== '.' && q.set(i, j, C[ch])));
+  return q;
+}
+
+/** Side view, standing, facing left: [0] rest [1] ear flick [2] chew [3] tail swish. */
+function cowSide(k: number): PixelCanvas {
+  const p = fromGrid(COW_SIDE);
+  if (k === 1) {
+    // the ear flicks up, the tag glints 1px higher
+    p.hline(8, 10, 1, C.O);
+    p.set(8, 2, C.k);
+    p.set(9, 2, C.k);
+    p.set(10, 2, C.O);
+    p.set(9, 4, C.Y);
+    p.set(9, 5, C.k);
+  }
+  if (k === 2) {
+    // chewing: the lower jaw drops 1px
+    p.set(1, 12, C.n);
+    p.set(2, 12, C.n);
+    p.set(3, 12, C.n);
+    p.set(4, 12, C.O);
+    p.hline(1, 3, 13, C.O);
+    p.set(2, 13, C.O);
+  }
+  if (k === 3) {
+    // the tail swings out from the rump
+    for (let y = 9; y <= 16; y++) p.set(31, y, 'transparent');
+    p.vline(30, 14, 16, 'transparent');
+    p.line(31, 6, 31, 9, C.K);
+    p.line(31, 10, 29, 16, C.K);
+    p.set(28, 16, C.K);
+  }
+  return p;
+}
+
+/** Lying, the legs folded under; `sleep`: the head turned back along the flank. */
+function cowLie(k: number, sleep: boolean): PixelCanvas {
+  const p = fromGrid(COW_LIE);
+  if (sleep) {
+    // no head up: the neck's line runs on into the body, the head lies back along the flank
+    for (let y = 0; y < 10; y++) for (let x = 0; x < 7; x++) p.set(x, y, 'transparent');
+    p.vline(6, 2, 9, C.O);
+    p.hline(7, 9, 1, 'transparent');
+    p.hline(6, 10, 2, C.O);
+    for (let y = 3; y < 10; y++) p.set(7, y, C.k);
+    p.rect(12, 2, 11, 3, C.k); // the head along the flank
+    p.hline(12, 22, 1, C.O);
+    p.hline(13, 20, 2, C.l);
+    p.rect(21, 3, 2, 2, C.n); // the muzzle at the hip
+    p.set(11, 3, C.Y); // the ear's tag
+    p.set(11, 4, C.y);
+  } else {
+    if (k === 1) {
+      p.set(9, 0, C.O);
+      p.set(9, 1, C.Y);
+      p.set(9, 2, C.k);
+    }
+    if (k === 2) {
+      p.set(1, 9, C.n);
+      p.set(2, 9, C.n);
+      p.set(3, 9, C.O);
+      p.hline(1, 2, 10, C.O);
+    }
+  }
+  if (k === 3) {
+    p.set(31, 9, 'transparent');
+    p.set(30, 12, C.K);
+  }
+  return p;
+}
+
+/** Head-on at the rail, the head down in the trough: [1] tags flick [2] the head bobs (eating). */
+function cowFront(k: number): PixelCanvas {
+  const base = fromGrid(COW_FRONT);
+  if (k === 0 || k === 3) return base;
+  const p = new PixelCanvas(base.w, base.h);
+  for (let y = 0; y < base.h; y++)
+    for (let x = 0; x < base.w; x++) {
+      const v = base.get(x, y);
+      if (!(v >>> 24)) continue;
+      // eating: everything from the eyes down drops 1px
+      const dy = k === 2 && y >= 9 && x >= 5 && x <= 14 ? 1 : 0;
+      p.set(x, y + dy, v);
+    }
+  if (k === 1) {
+    p.set(2, 9, C.Y);
+    p.set(17, 9, C.Y);
+  }
+  return p;
+}
+
+/** From behind: the round rump, the hooks, the tail down the middle ([3] swishes), the hind legs. */
+function cowBack(k: number): PixelCanvas {
+  const p = fromGrid(COW_BACK);
+  if (k === 1) {
+    p.set(1, 1, C.Y);
+    p.set(18, 1, C.Y);
+  }
+  if (k === 3) {
+    for (let y = 7; y <= 13; y++) {
+      p.set(10, y, C.k);
+      p.set(11, y, C.O);
+    }
+  }
+  return p;
+}
 
 /** Stand-in frames: [0] rest, [1] ears flick (tags glint), [2] chew / eat, [3] tail swish. */
 function cowFrames(pose: string, white: string, right: boolean): CowFrames {
@@ -543,89 +747,23 @@ function cowFrames(pose: string, white: string, right: boolean): CowFrames {
   for (let k = 0; k < 4; k++) {
     let p: PixelCanvas;
     if (pose === 'side') {
-      p = paint(COW_SIDE);
-      if (k === 1) p.set(8, 2, COW_PAL.Y); // the tag flashes on the flick
-      if (k === 3) {
-        p.set(31, 17, COW_PAL.O);
-        p.set(30, 18, COW_PAL.O);
-      }
+      p = cowSide(k);
       whiteMarks(p, pose, white);
       foot = 20;
       cx = 16;
     } else if (pose === 'lie' || pose === 'sleep') {
-      // the body over folded legs (32×15); the head up chewing, or turned back (sleep)
-      p = new PixelCanvas(32, 16);
-      paint(COW_SIDE.slice(3, 14), 0, 1, p);
-      for (let x = 7; x < 30; x++) {
-        p.set(x, 12, COW_PAL.K);
-        p.set(x, 13, x % 6 === 0 ? COW_PAL.h : COW_PAL.K);
-        p.set(x, 14, COW_PAL.O);
-      }
-      p.rect(0, 9, 7, 5, 'transparent');
-      if (pose === 'sleep') {
-        // the head laid back along the flank
-        p.rect(0, 0, 7, 12, 'transparent');
-        p.rect(18, 3, 9, 4, COW_PAL.k);
-        p.hline(18, 26, 2, COW_PAL.O);
-        p.set(19, 4, COW_PAL.l);
-        p.set(26, 3, COW_PAL.Y);
-        p.set(20, 5, COW_PAL.e);
-      } else {
-        // chewing: the lower jaw drops 1px
-        if (k === 2) {
-          p.set(1, 9, COW_PAL.n);
-          p.set(2, 9, COW_PAL.O);
-          p.set(1, 8, COW_PAL.N);
-        }
-        if (k === 1) p.set(8, 1, COW_PAL.Y);
-      }
+      p = cowLie(k, pose === 'sleep');
       whiteMarks(p, pose, white);
       foot = 14;
       cx = 16;
     } else if (pose === 'front') {
-      // head-on at the rail, the head down in the trough (20×20); ear tags left and right
-      p = new PixelCanvas(20, 21);
-      p.ellipse(9.5, 6, 9.5, 6.5, COW_PAL.k);
-      p.hline(3, 16, 0, COW_PAL.O);
-      p.hline(4, 15, 1, COW_PAL.l);
-      for (let x = 6; x < 14; x++) p.set(x, 2, COW_PAL.s);
-      const hy = k === 2 ? 1 : 0;
-      p.rect(6, 7 + hy, 8, 11, COW_PAL.k);
-      p.rect(7, 16 + hy, 6, 3, COW_PAL.n);
-      p.set(8, 18 + hy, COW_PAL.N);
-      p.set(11, 18 + hy, COW_PAL.N);
-      p.set(7, 10 + hy, COW_PAL.e);
-      p.set(12, 10 + hy, COW_PAL.e);
-      p.hline(6, 13, 7 + hy, COW_PAL.l);
-      // ears with the yellow tags
-      p.rect(2, 7 + hy, 4, 2, COW_PAL.k);
-      p.rect(14, 7 + hy, 4, 2, COW_PAL.k);
-      p.set(k === 1 ? 1 : 2, 9 + hy, COW_PAL.Y);
-      p.set(k === 1 ? 18 : 17, 9 + hy, COW_PAL.Y);
-      p.set(2, 10 + hy, COW_PAL.y);
-      p.set(17, 10 + hy, COW_PAL.y);
+      p = cowFront(k);
       whiteMarks(p, pose, white);
-      outline(p, { bottom: true, soft: false, ink: COW_PAL.O });
       foot = 20;
       cx = 10;
     } else {
-      // back view (20×20): the round rump, the tail, the hind legs; ear tips and tags beyond the body
-      p = new PixelCanvas(20, 21);
-      p.ellipse(9.5, 9, 9.5, 8, COW_PAL.k);
-      p.hline(4, 15, 1, COW_PAL.l);
-      p.hline(3, 16, 2, COW_PAL.k);
-      for (let y = 3; y < 9; y++) p.set(9, y, COW_PAL.s);
-      const sw = k === 3 ? 1 : 0;
-      p.vline(10 + sw, 6, 16, COW_PAL.O);
-      p.rect(9 + sw, 16, 2, 2, COW_PAL.K);
-      p.rect(4, 15, 3, 5, COW_PAL.K);
-      p.rect(13, 15, 3, 5, COW_PAL.K);
-      p.hline(4, 6, 19, COW_PAL.h);
-      p.hline(13, 15, 19, COW_PAL.h);
-      p.set(0, 3, COW_PAL.Y);
-      p.set(19, 3, COW_PAL.Y);
+      p = cowBack(k);
       whiteMarks(p, pose, white);
-      outline(p, { bottom: true, soft: false, ink: COW_PAL.O });
       foot = 20;
       cx = 10;
     }
@@ -707,8 +845,26 @@ registerProp('prop_h_cow', (opts) => {
     },
     contact: lying ? 26 : pose === 'side' ? 24 : 16,
     contactX: dx,
-  };
+    // the tags catch the lantern (52 4.3: the ear tags glint 1px as the light reaches the cow)
+    glow(g: Gfx, x: number, y: number, env: PropEnv) {
+      const near = env.near;
+      if (hs(env) >= 3 || near > 76) return;
+      const a = Math.min(1, (76 - near) / 30) * 0.9 * (env.lit ?? 1);
+      if (a <= 0.05) return;
+      const w = img0.width;
+      for (const [tx, ty] of COW_TAGS[pose] ?? []) g.rect(x + dx - F.cx + (right ? w - 1 - tx : tx), y + dy - F.foot - 1 + ty, 1, 1, '#FFD23F', a);
+    },
+  } as PropArt;
 });
+
+/** Where the stand-ins' ear tags are (art px, facing left / unmirrored). */
+const COW_TAGS: Record<string, [number, number][]> = {
+  side: [[9, 4]],
+  lie: [[9, 1]],
+  sleep: [[11, 3]],
+  front: [[2, 10], [17, 10]],
+  back: [[1, 2], [18, 2]],
+};
 
 // ================================================================ 4.4 map_hoshi_school (26×12)
 

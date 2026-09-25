@@ -402,12 +402,17 @@ registerBuilding({
     const k = nightK(env);
     if (k <= 0) return;
     // ear tags (#FFD23F) glinting in the dark pens; a pair where the lantern is near
+    // (the lantern is in world px: the barn stands at (50,24), its only placement)
     const lan = env.lantern;
+    const wx = 50 * 16;
+    const wy = 24 * 16 + b.faceY;
     for (let n = 0; n < 14; n++) {
       const tx = 4 + ((n * 37 + 11) % 150);
-      if (tx > 12 && tx < 36) continue;
+      // not over the door and the board, nor over the fans
+      if (tx > 12 && tx < 72) continue;
+      if (BARN_FANS.some(([fx]) => Math.abs(fx - tx) < 12)) continue;
       const ty = 8 + ((n * 5) % 7);
-      const near = lan ? Math.hypot(lan.x - (x + tx), lan.y - (fY + ty)) < 48 : false;
+      const near = lan ? Math.hypot(lan.x - (wx + tx), lan.y - (wy + ty)) < 56 : false;
       const per = 4000 + ((n * 977) % 4000);
       const on = near || (env.t + n * 613) % per < 90;
       if (!on) continue;
@@ -725,6 +730,14 @@ function vinylGlow(g: Gfx, x: number, y: number, env: PropEnv, b: Bld): void {
     const a = (0.45 - r * 0.13) * k;
     g.rect(cx - 12 + r * 2, ry, 24 - r * 4, 1, '#F2894B', a);
   }
+  // and down the length of the house, faint, so the film door at the south
+  // end shows the far light too (seen from the road below: 52 3.10 2:55)
+  const dx = x + 16;
+  const fy = y + b.faceY;
+  const pulse = 0.85 + 0.15 * Math.sin(env.t * 0.0008 * Math.PI * 2);
+  g.rect(dx + 3, fy + 11, 10, 7, '#F2894B', 0.16 * k * pulse);
+  g.rect(dx + 6, fy + 13, 4, 3, '#F2894B', 0.3 * k * pulse);
+  g.rect(dx + 7, fy + 14, 2, 1, '#FFE7A3', 0.55 * k * pulse);
 }
 function vinylLight(g: Gfx, x: number, y: number, env: PropEnv, b: Bld): void {
   if (env.flag('flag_ch2_got_tomato') || hs(env) >= 1) return;

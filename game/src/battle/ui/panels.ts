@@ -319,25 +319,31 @@ export interface ListRow {
 }
 
 export function drawList(g: Gfx, rows: ListRow[], index: number, scroll: number, t: number, pressed: boolean): void {
-  drawNote(g, 4, 58, 200, 88);
+  // the note widens when a long name and its right-hand word would touch
+  // (ヨビモドシ: 「はなまるトマト」 and 「光っている」, 51 13.3)
+  let W = 200;
+  for (const r of rows) if (r.right) W = Math.max(W, 22 + g.measure(r.name) + 12 + g.measure(r.right) + (r.rightIcon ? 12 : 0) + 8 - 4);
+  W = Math.min(260, W);
+  const R = 4 + W - 8;
+  drawNote(g, 4, 58, W, 88);
   for (let i = 0; i < 4; i++) {
     const r = rows[scroll + i];
     if (!r) break;
     const y = 64 + i * 18;
-    if (r.divider) g.rect(12, y - 2, 184, 1, C.gray);
+    if (r.divider) g.rect(12, y - 2, W - 16, 1, C.gray);
     g.text(r.name, 22, y, { color: r.dim ? C.gray : C.ink });
     if (r.right) {
       const w = g.measure(r.right);
-      g.text(r.right, 196, y, { color: r.dim ? C.gray : C.ink, align: 'right' });
-      if (r.rightIcon === 'ink') g.img(inkPot(), 196 - w - 12, y + 3);
+      g.text(r.right, R, y, { color: r.dim ? C.gray : C.ink, align: 'right' });
+      if (r.rightIcon === 'ink') g.img(inkPot(), R - w - 12, y + 3);
     }
     if (scroll + i === index) {
       const bob = Math.round(Math.sin(t / 130)) + (pressed ? 1 : 0);
       g.img(cursorStamp(pressed), 10, y + 3 + bob);
     }
   }
-  if (scroll > 0) g.img(scrollArrow(true), 193, 60);
-  if (scroll + 4 < rows.length) g.img(scrollArrow(false), 193, 140);
+  if (scroll > 0) g.img(scrollArrow(true), R - 3, 60);
+  if (scroll + 4 < rows.length) g.img(scrollArrow(false), R - 3, 140);
 }
 
 /** Boss chime counter sticky: 4 bells. `lit` count, `pop` per-bell ms. */

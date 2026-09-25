@@ -154,6 +154,13 @@ function queuedCommands(s: BattleScene): PartyCmd[] {
   const out: PartyCmd[] = [];
   const q = s.cmdQueue;
   s.cmdQueue = [];
+  if (s.memo.bossFinal) {
+    // the finale: Minato's one command is the last hanko, Kanenari-kun waits
+    const u = s.minato;
+    const e = s.aliveEnemies.find((x) => x.def.boss);
+    if (!u || !e) return [];
+    return [{ kind: 'hanko', u, skill: s.bossKind === 'yobimodoshi' ? 'skill_oyasuminasai' : 'skill_okaerinasai', target: e }];
+  }
   for (const c of q) {
     const u = s.party.find((p) => p.id === c.who);
     if (!u) continue;

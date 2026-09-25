@@ -40,17 +40,48 @@ type Inside = (wx: number, wy: number) => boolean;
 
 // ---------------------------------------------------------------- cedar (杉)
 
-function sugiCell(tx: number, ty: number, m: CellMask, inside: Inside): CellArt {
+/**
+ * Open tiles (not wood) of the map a downhill wood (`sugi_down`) belongs to.
+ * The hill (map_hoshi_hill) is a hilltop with the path winding up through the
+ * cedars: seen from there, the wood south of the plaza and of each turn of
+ * the path falls away downhill, so its crowns never rise more than a few px
+ * over the ground you walk on (the player is never lost behind a tree).
+ */
+let openAt: ((x: number, y: number) => boolean) | null = null;
+export function setDownhillOpen(fn: (x: number, y: number) => boolean): void {
+  openAt = fn;
+  for (const k of [...cache.keys()]) if (k.includes('|sugi_down|')) cache.delete(k);
+}
+
+/** The highest world y a crown at column px x (half-width hw) may reach, standing in row ty. */
+function crownLimit(x: number, hw: number, ty: number): number {
+  if (!openAt) return -1e9;
+  let lim = -1e9;
+  for (const cx of [Math.floor((x - hw) / 16), Math.floor(x / 16), Math.floor((x + hw + 1) / 16)])
+    for (let r = ty; r >= ty - 3; r--)
+      if (openAt(cx, r)) {
+        lim = Math.max(lim, (r + 1) * 16 - 5);
+        break;
+      }
+  return lim;
+}
+
+function sugiCell(tx: number, ty: number, m: CellMask, inside: Inside, down = false): CellArt {
   const RISE = 38;
   const h = 16 + RISE;
   const p = new PixelCanvas(W, h);
   const wx0 = tx * 16;
   const wy0 = ty * 16 + 16 - h;
   // forest floor and deep shade inside the wood
-  const floorTop = m.n ? 0 : RISE - 4;
+  // downhill under open ground: the crowns' tips make the edge, the dark between them starts lower
+  const lim = down ? crownLimit(tx * 16 + 8, 8, ty) - wy0 : -1e9;
+  const openN = lim > -1e8;
+  const floorTop = openN ? Math.max(0, lim + 7) : m.n ? 0 : RISE - 4;
   for (let y = floorTop; y < h; y++)
     for (let x = 0; x < W; x++) {
       const wy = wy0 + y;
+      // a ragged top to the dark under the downhill crowns
+      if (openN && y < floorTop + 4 && ihash(wx0 + x, 0, 17) % 5 < floorTop + 4 - y - 1) continue;
       const edgeS = !m.s && y > h - 5;
       p.set(x, y, edgeS ? (ihash(wx0 + x, wy, 3) % 3 ? P.leafShade : P.woodDark) : ihash((wx0 + x) >> 1, wy >> 1, 5) % 6 === 0 ? P.leafShade : P.night);
     }
@@ -59,13 +90,23 @@ function sugiCell(tx: number, ty: number, m: CellMask, inside: Inside): CellArt 
     const tall = 24 + (t.h >>> 4) % 12;
     const half = 5 + ((t.h >>> 9) % 3);
     const bx = t.x - wx0;
-    const by = t.y - wy0;
-    // trunk (visible under the lowest sprays)
-    for (let j = 0; j < 7; j++) {
-      p.set(bx, by - j, j === 0 ? P.ink : P.woodDark);
-      p.set(bx + 1, by - j, j === 0 ? P.ink : P.wood);
-      if (j > 1 && (t.h >>> 14) & 1) p.set(bx - 1, by - j, P.ink);
+    let by = t.y - wy0;
+    // downhill: a crown that would rise over open ground sinks (its trunk further down the slope, unseen)
+    let sunk = false;
+    if (down) {
+      const lim = crownLimit(t.x, half, ty) - wy0 + ((t.h >>> 18) % 7);
+      if (by - 5 - tall < lim) {
+        by = lim + 5 + tall;
+        sunk = true;
+      }
     }
+    // trunk (visible under the lowest sprays)
+    if (!sunk)
+      for (let j = 0; j < 7; j++) {
+        p.set(bx, by - j, j === 0 ? P.ink : P.woodDark);
+        p.set(bx + 1, by - j, j === 0 ? P.ink : P.wood);
+        if (j > 1 && (t.h >>> 14) & 1) p.set(bx - 1, by - j, P.ink);
+      }
     // crown: stacked sprays, each tier a little triangle; lit from the left
     const top = by - 5 - tall;
     for (let y = top; y <= by - 5; y++) {
@@ -233,11 +274,17 @@ function kuzuCell(tx: number, ty: number, m: CellMask): CellArt {
   const p = new PixelCanvas(W, h);
   const wx0 = tx * 16;
   const wy0 = ty * 16 + 16 - h;
-  const xl = m.w ? -8 : 2;
-  const xr = m.e ? W + 8 : W - 3;
-  const yt = m.n ? -8 : RISE - 8 + (ihash(tx, ty, 841) % 4);
-  const inCore = (x: number, y: number) => x >= xl && x <= xr && y >= yt && y < h;
-  for (let y = 0; y < h; y++) for (let x = 0; x < W; x++) if (inCore(x, y)) p.set(x, y, y > h - 4 && !m.s ? P.ink : P.leafShade);
+  // an organic mound: the open edges wander in world space (continuous from
+  // cell to cell), bulging where the kuzu has climbed something
+  const nz = (a: number, b: number, seed: number) => valueNoise(a, b, seed);
+  const topAt = (x: number) => (m.n ? -8 : RISE - 12 + Math.round(nz((wx0 + x) * 0.16, ty * 3.1, 841) * 9));
+  const leftAt = (y: number) => (m.w ? -8 : 1 + Math.round(nz((wy0 + y) * 0.2, tx * 2.3, 842) * 5));
+  const rightAt = (y: number) => (m.e ? W + 8 : W - 2 - Math.round(nz((wy0 + y) * 0.2, tx * 2.3 + 7, 844) * 5));
+  const footAt = (x: number) => (m.s ? h + 8 : h - 1 - Math.round(nz((wx0 + x) * 0.22, ty * 1.7, 846) * 3));
+  const inCore = (x: number, y: number) => x >= leftAt(y) && x <= rightAt(y) && y >= topAt(x) && y < Math.min(h, footAt(x));
+  const yt = m.n ? -8 : RISE - 12;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < W; x++) if (inCore(x, y)) p.set(x, y, !m.s && y > footAt(x) - 4 ? P.ink : P.leafShade);
   // what the kuzu swallowed (a post or a sapling), 1 cell in 5
   const sw = ihash(tx, ty, 843);
   if (sw % 5 === 0 && !m.n) {
@@ -255,7 +302,7 @@ function kuzuCell(tx: number, ty: number, m: CellMask): CellArt {
       const cy = gy * 5 + ((hh >>> 3) % 3) - wy0;
       if (!inCore(cx, cy) && !inCore(cx, cy + 2)) continue;
       if (cy >= h - 1) continue;
-      const face = !m.s && cy > h - 6;
+      const face = !m.s && cy > footAt(Math.max(0, Math.min(W - 1, cx))) - 6;
       // three lobes: left, right, top, each a small round blob
       const lobes: [number, number][] = [[-2, 0], [2, 0], [0, -2]];
       for (const [lx, ly] of lobes)
@@ -265,6 +312,7 @@ function kuzuCell(tx: number, ty: number, m: CellMask): CellArt {
             const px = cx + lx + x;
             const py = cy + ly + y;
             if (py >= h - 1 || px < 0 || px >= W) continue;
+            if (!m.s && py >= footAt(px)) continue;
             let c: string = x + y < -1 ? P.leaf : x + y > 1 ? P.leafShade : P.leafDeep;
             if (ly < 0 && y < 0 && x <= 0) c = P.leafYoung;
             if (face) c = c === P.leafYoung ? P.leaf : c === P.leaf ? P.leafDeep : P.leafShade;
@@ -290,7 +338,13 @@ function kuzuCell(tx: number, ty: number, m: CellMask): CellArt {
   const op = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < h && src[y * W + x] >>> 24 !== 0;
   for (let y = 0; y < h; y++)
     for (let x = 0; x < W; x++) if (op(x, y) && !op(x, y - 1) && !m.n && p.get(x, y) !== src[y * W + x]) p.set(x, y, P.leaf);
-  if (!m.s) for (let x = 0; x < W; x++) if (op(x, h - 1)) p.set(x, h - 1, P.ink);
+  if (!m.s)
+    for (let x = 0; x < W; x++) {
+      // the ink foot under the mound's south face, and the shade it throws
+      let yb = h - 1;
+      while (yb > 0 && !op(x, yb)) yb--;
+      if (op(x, yb)) p.set(x, yb, P.ink);
+    }
   return { img: p.toCanvas(), ox: 0, oy: 16 - h, shadow: 0 };
 }
 
@@ -499,7 +553,7 @@ function marutaCell(tx: number, ty: number, m: CellMask): CellArt {
 const cache = new Map<string, CellArt>();
 
 /** Materials this module draws: [kind, mat]. */
-const H_MATS = new Set(['hedge|sugi', 'hedge|take', 'hedge|zoki', 'hedge|yabu', 'hedge|kuzu', 'wall|ishigaki', 'fence|juugai', 'fence|efence', 'fence|maruta']);
+const H_MATS = new Set(['hedge|sugi', 'hedge|sugi_down', 'hedge|take', 'hedge|zoki', 'hedge|yabu', 'hedge|kuzu', 'wall|ishigaki', 'fence|juugai', 'fence|efence', 'fence|maruta']);
 
 export function isHoshiMat(kind: string, mat: string): boolean {
   return H_MATS.has(kind + '|' + mat);
@@ -518,6 +572,9 @@ export function hoshiStructureCell(kind: string, mat: string, tx: number, ty: nu
   switch (mat) {
     case 'sugi':
       a = sugiCell(tx, ty, m, inside);
+      break;
+    case 'sugi_down':
+      a = sugiCell(tx, ty, m, inside, true);
       break;
     case 'take':
       a = takeCell(tx, ty, m, inside);

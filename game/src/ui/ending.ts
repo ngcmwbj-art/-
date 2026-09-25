@@ -13,7 +13,9 @@
 //                                   // turned over; on the new one 「星見台
 //                                   // みました帳 ②」 is written in, the hanko case
 //                                   // opens (7 of 10, いただきます faintly),
-//                                   // 「つづく」 → markClearCh2() → the title
+//                                   // 「つづく」 → markClearCh2() → カット7 ツガオの部屋
+//                                   // (cut_tsugao.ts; { tsugao: false } leaves it out)
+//                                   // → the title
 
 import type { Co } from '../engine/co';
 import { game, type Scene } from '../engine/game';
@@ -28,7 +30,8 @@ import { state } from '../game/state';
 import { sfx, stopAllAmbient, stopBgm } from '../audio';
 import { petalSprites } from '../battle/art/stamps';
 import { caseBody, caseLid, CASE_H, CASE_SLOTS, CASE_W, drawCase, imprintFor, slotXY } from './hankocase';
-import { markClear, markClearCh2, toTitle } from './flow';
+import { clearRecordCh2, markClear, markClearCh2, toTitle } from './flow';
+import { playTsugaoRoom } from './cut_tsugao';
 import { hasEarTag, stickerEarTag, stickerStar, stickerTomato } from './menu/book';
 import {
   cloudCanvas,
@@ -709,7 +712,9 @@ class NotebookCh2Scene implements Scene {
  * record, the clear data in the slot), and the title — its sky over 星見台
  * now a morning.
  */
-export function* playEndingNotebookCh2(o: { toTitle?: boolean } = {}): Co {
+export function* playEndingNotebookCh2(o: { toTitle?: boolean; tsugao?: boolean } = {}): Co {
+  // カット7 can be skipped from the second time on: the ② record was there before this ending
+  const seenBefore = !!clearRecordCh2();
   const sc = new NotebookCh2Scene();
   game.fadeColor = '#0B0B14';
   if (game.fadeAlpha < 1) yield* game.fadeOut(400, '#0B0B14');
@@ -736,7 +741,9 @@ export function* playEndingNotebookCh2(o: { toTitle?: boolean } = {}): Co {
     yield null;
   }
   sc.fade = 1;
+  // the clear data is written before カット7: leaving it halfway keeps the record
   markClearCh2();
+  if (o.tsugao ?? o.toTitle !== false) yield* playTsugaoRoom({ skippable: seenBefore });
   if (o.toTitle !== false) {
     yield* ditherOut(1, '#0B0B14');
     const { TitleScene } = (yield import('./title')) as typeof import('./title');

@@ -13,8 +13,10 @@ import * as uiFlow from '../../ui/flow';
 import * as uiHud from '../../ui/hud';
 import * as worldApi from '../../world/api';
 import * as worldMaps from '../../world/maps';
+import * as worldAudio from '../../world/audio';
 import type { LevelUpResult } from '../../data/battle';
 import { playHankoLearnField } from '../../battle/learn';
+import { loopTable, sfxTable, type SfxOpts } from '../../audio/registry';
 
 type AnyFn = (...args: unknown[]) => unknown;
 
@@ -57,6 +59,47 @@ export function* awaitResult(r: unknown): Co {
 }
 
 // ---------------------------------------------------------------- sound (53 13章)
+
+/** Sound ids the chapter-2 scripts asked for that no one has registered (QA: __game.cmd.ch2sounds()). */
+export const missingSounds = new Set<string>();
+
+/** Is this SFX registered (the audio team adds them as they go)? */
+export function hasSfx(id: string): boolean {
+  return sfxTable.has(id);
+}
+
+/** A sound effect of the cue sheet (53 12章): silent — and noted for QA — while it is not registered. */
+export function se(id: string, opts?: SfxOpts): void {
+  if (!sfxTable.has(id)) {
+    missingSounds.add(id);
+    return;
+  }
+  audio.sfx(id, opts);
+}
+
+/** A sound effect at a place of the field (world px; the world pans and fades it by distance). */
+export function seAt(id: string, x: number, y: number, opts: { pitch?: number; vol?: number; level?: number } = {}): void {
+  if (!sfxTable.has(id)) {
+    missingSounds.add(id);
+    return;
+  }
+  worldAudio.seAt(id, x, y, opts);
+}
+
+/** A looping sound: a do-nothing handle while it is not registered. */
+export function seLoop(id: string, opts?: SfxOpts): { set(p: Record<string, number>): void; stop(fade?: number): void } {
+  if (!loopTable.has(id)) {
+    missingSounds.add(id);
+    return { set() {}, stop() {} };
+  }
+  const h = audio.sfxLoop(id, opts);
+  return {
+    set: (p) => {
+      for (const [k, v] of Object.entries(p)) h.set(k, v);
+    },
+    stop: (fade = 0.2) => h.stop(fade),
+  };
+}
 
 export function au(name: string, ...args: unknown[]): unknown {
   return call(audio, name, ...args);

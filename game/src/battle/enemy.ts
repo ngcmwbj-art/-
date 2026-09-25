@@ -618,6 +618,8 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
   }
   if (skillId === 'skill_semi_shindafuri' && e.mem.shindafuriShown) tele = [];
   if (skillId === 'skill_semi_shindafuri') e.mem.shindafuriShown = 1;
+  // 〔skill_yobi_onamae〕 names the one it calls (「ヨビモドシは $targetの…」)
+  if (tele.some((p) => p.includes('$'))) tele = fillAll(tele, { target: target?.name ?? '', enemy: e.name });
   s.msg.replace(tele.slice(0, 1));
   const telePages = tele.slice(1);
   if (sk.big) for (const u of s.party) u.moodHold = 'surprised';

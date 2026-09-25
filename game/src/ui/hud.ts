@@ -15,7 +15,7 @@ import { flag, state } from '../game/state';
 import { isKeyItem, getItem } from '../data/battle';
 import { sfx } from '../audio';
 import * as worldHudMod from '../world/hud';
-import { hud as worldHud, setFieldHud, type FieldHud } from '../world/hud';
+import { colonDip, hud as worldHud, setFieldHud, type FieldHud } from '../world/hud';
 import type { FieldScene } from '../world/field';
 import { fushigiActive } from '../world/fushigi';
 import { getMapDef, isCh2Map } from '../world/maps';
@@ -445,8 +445,7 @@ class UiHud implements FieldHud {
   /** On the hill: the finale's and the sunrise's pictures are built ahead. */
   private hillT = 0;
   private picturesReady = false;
-  private colonDipAt = -1e9;
-  private colonNext = 9000;
+  private colonDipNow = false;
 
   show(ms = 4000): void {
     this.showT = Math.max(this.showT, ms);
@@ -496,7 +495,7 @@ class UiHud implements FieldHud {
       t: this.t,
       sec: stopped ? 11 : this.backT > 0 ? Math.max(0, this.sec - 1) : this.sec,
       sink: this.sinkT < 120 ? 1 : 0,
-      colon: stopped ? (this.t - this.colonDipAt < 80 ? 0.5 : 1) : undefined,
+      colon: stopped ? (this.colonDipNow ? 0.5 : 1) : undefined,
       flap: ch2,
       flips: this.flips,
       glow: ch2 ? false : undefined,
@@ -519,11 +518,9 @@ class UiHud implements FieldHud {
     this.sinkT += dt;
     this.onHoshi = isCh2Map(f.map.def);
     const st = flag('flag_stage');
-    // h2: every 7–11 s the colon dips to half for 80 ms, as if it nearly blinked (52 13.1)
-    if (this.hoshiStopped() && flag('flag_ch2_stage') === 2 && this.t >= this.colonNext) {
-      this.colonDipAt = this.t;
-      this.colonNext = this.t + 7000 + Math.random() * 4000;
-    }
+    // h2: every 7–11 s the colon dips to half for 80 ms, as if it nearly blinked (52 13.1) —
+    // on the world's clock, so the school's wall clock trembles in the same instant
+    this.colonDipNow = this.onHoshi && this.hoshiStopped() && colonDip(f.t);
     // ---- clock
     if (st >= 3 || flag('flag_clock') >= 4) this.nightMs += dt;
     const c = flag('flag_clock') + flag('flag_ch2_clock') * 10;

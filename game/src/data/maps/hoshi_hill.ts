@@ -4,6 +4,7 @@
 // loudspeaker's pole (ヨビモドシ) east of centre, the bench of the star
 // parties, the fence with the eastern sky beyond it.
 
+import { setDownhillOpen } from '../../art/tiles/hoshi_struct';
 import { registerMap } from '../../world/maps';
 import type { MapObj } from '../../world/types';
 import { hg, O, PR } from './hoshi_common';
@@ -31,16 +32,22 @@ const ROWS = [
   'HHHHHHHHHHHDDHHHHHHHHHHH', // 19
 ];
 
+setDownhillOpen((x, y) => {
+  const c = ROWS[y]?.[x];
+  return c !== undefined && c !== 'H' && c !== 'T';
+});
+
 const OBJECTS: MapObj[] = [
   PR('prop_h_dome', 1, 1),
   PR('prop_h_speaker_pole', 15, 2),
   PR('prop_h_pier', 11, 3),
   PR('prop_h_hill_bench', 19, 6),
   PR('prop_h_kanbou_board', 13, 15),
-  PR('prop_h_hill_trunk', 5, 9, { v: 0 }),
-  PR('prop_h_hill_trunk', 19, 11, { v: 1 }),
+  // the cedars standing out beside the path (T); the ones just below open ground are kept short
+  PR('prop_h_hill_trunk', 5, 9, { v: 0, h: 42 }),
+  PR('prop_h_hill_trunk', 19, 11, { v: 1, h: 30 }),
   PR('prop_h_hill_trunk', 4, 13, { v: 2, marks: 1 }),
-  PR('prop_h_hill_trunk', 13, 17, { v: 3 }),
+  PR('prop_h_hill_trunk', 13, 17, { v: 3, h: 44 }),
   PR('prop_h_hill_view', 23, 1),
   // examine (52 5章)
   O('obj_hoshi_speaker_plate', 15, 3, { face: 'up', cond: { flag: 'flag_ch2_boss_beaten' } }),
@@ -91,7 +98,10 @@ registerMap({
     { id: 'area_hoshi_hill_path', name: '星見の丘', x: 0, y: 8, w: 24, h: 12, wind: 'sugi' },
   ],
   structMats: [
-    { x: 0, y: 0, w: 24, h: 20, mat: 'sugi', ch: 'H' },
+    // the cedars behind the plaza stand tall; the rest of the wood falls away
+    // downhill from the plaza and the path (its crowns never hide the ground you walk)
+    { x: 0, y: 0, w: 24, h: 1, mat: 'sugi', ch: 'H' },
+    { x: 0, y: 1, w: 24, h: 19, mat: 'sugi_down', ch: 'H' },
     { x: 0, y: 0, w: 24, h: 20, mat: 'maruta', ch: 'F' },
   ],
   bgm: { 0: 'bgm_hoshi_night', 1: 'bgm_hoshi_night', 2: 'bgm_hoshi_night' },

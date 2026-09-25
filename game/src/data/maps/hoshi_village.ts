@@ -418,7 +418,7 @@ export const HOSHIMIDAI: MapDef = {
     { k: 'h_manhole', x: 25, y: 33, v: 1 } as never,
     { k: 'h_manhole', x: 8, y: 38 } as never,
     // 軽トラのわだち: the farm lane north from the barn, the back lanes, the yards
-    { k: 'h_ruts', x: 48, y: 19, w: 2, h: 1, dir: 'h' } as never,
+    { k: 'h_ruts', x: 48, y: 19, w: 2, h: 1, dir: 'v' } as never,
     { k: 'h_ruts', x: 48, y: 22, w: 2, h: 10, dir: 'v' } as never,
     { k: 'h_ruts', x: 48, y: 6, w: 2, h: 12, dir: 'v', v: 1 } as never,
     { k: 'h_ruts', x: 0, y: 20, w: 12, h: 1, dir: 'h' } as never,

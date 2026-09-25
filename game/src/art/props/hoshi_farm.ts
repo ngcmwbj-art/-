@@ -651,8 +651,7 @@ registerProp('prop_h_egate', () => {
       // a short run of spring wire coiled on the east post
       for (let y = base - 6; y < base; y += 2) p.set(54, y, P.concreteLt);
     }
-    // mown grass under the fence (a lighter band)
-    for (let x = 0; x < 64; x++) if ((x & 1) === 0) p.set(x, base + 3, P.leafYoung);
+    // the gate stands across the farm lane: no mown band here (the fence's own cells carry it)
     return p.toCanvas();
   };
   const shut = make(false);
@@ -757,13 +756,29 @@ registerProp('prop_h_susuki', (opts) => {
           p.set(Math.round(x), y, j < 4 ? P.leafDeep : j > len - 3 ? P.leafLt : k % 3 ? P.leafYoung : P.leaf);
         }
       }
-      for (let e = 0; e < 3; e++) {
-        const x = 8 + e * 2 + v;
-        for (let j = 0; j < 22; j++) p.set(x + (j > 18 ? 1 : 0), 25 - j, j > 17 ? P.paperGrid : P.leaf);
-        p.set(x + 1, 5, P.paper);
-      }
+      // the clump's dark heart at the foot
+      p.hline(7, 13, 25, P.leafShade);
+      p.hline(8, 12, 24, P.leafShade);
+      // three young ears on slender stalks, each leaning its own way, the
+      // plume just out and drooping (8月末: pale, not yet the silver of autumn)
+      const ears: [number, number, number][] = [[18 + v, -0.12, 1], [22 - v, 0.1, -1], [15 + (v % 2) * 3, 0.22, 1]];
+      ears.forEach(([len, lean, droop], e) => {
+        let x = 9.5 + e - 1;
+        let y = 25;
+        for (let j = 0; j < len; j++) {
+          x += lean;
+          y = 25 - j;
+          p.set(Math.round(x), y, j < 5 ? P.leafShade : P.leafDeep);
+        }
+        const tx = Math.round(x);
+        for (let j = 0; j < 5; j++) {
+          const px = tx + (j > 1 ? droop : 0) + (j > 3 ? droop : 0);
+          p.set(px, y - 1 + j, j === 0 ? P.paper : j % 2 ? P.paperGrid : P.woodLt);
+          if (j > 0 && j < 4) p.set(px + droop, y - 1 + j, j === 2 ? P.woodLt : P.paperGrid);
+        }
+      });
     },
-    { cx: 8, base: 16, shadow: 0, contact: 10 },
+    { cx: 8, base: 16, shadow: 0, contact: 10, outline: false },
   );
 });
 
@@ -773,21 +788,31 @@ registerProp('prop_h_goldenrod', (opts) => {
     10,
     30,
     (p) => {
-      // tall stems and narrow leaves; no flowers (the yellow comes in autumn)
-      for (let s = 0; s < 3; s++) {
-        const x = 3 + s * 2 + (v % 2);
-        const top = 2 + s * 3 + v;
-        for (let y = top; y < 30; y++) {
-          p.set(x, y, y < top + 3 ? P.leafYoung : P.leafShade);
-          if ((y + s) % 4 === 0) {
-            p.set(x - 1, y - 1, P.leaf);
-            p.set(x + 1, y + 1, P.leafDeep);
+      // three tall stems, each leaning a little its own way, narrow leaves
+      // angled up and out along them (alternate sides), the tip a tight
+      // unopened head; no flowers (the yellow comes in autumn)
+      const stems: [number, number, number][] = [[4, 2 + v, 0.06], [6, 6 + (v % 2) * 2, -0.08], [3, 10 + v, 0.1]];
+      stems.forEach(([x0, top, lean], s) => {
+        let x = x0 + (v % 2);
+        for (let y = 29; y >= top; y--) {
+          x += lean;
+          const X = Math.round(x);
+          p.set(X, y, y < top + 3 ? P.leafYoung : (y + s) % 3 ? P.leafDeep : P.leafShade);
+          // a leaf every 3px: 3px long, angled up, the upper ones lighter
+          if ((y + s * 2) % 3 === 0 && y > top + 2 && y < 27) {
+            const side = ((y / 3) | 0) % 2 ? 1 : -1;
+            const c = y < top + 10 ? P.leaf : P.leafDeep;
+            p.set(X + side, y - 1, c);
+            p.set(X + side * 2, y - 2, c);
+            p.set(X + side * 2, y - 1, P.leafShade);
           }
         }
-        p.set(x, top - 1, P.leafLt);
-      }
+        p.set(Math.round(x), top - 1, P.leafLt);
+        p.set(Math.round(x) + 1, top, P.leafYoung);
+      });
+      p.hline(2, 7, 29, P.leafShade);
     },
-    { cx: 8, base: 16, shadow: 0, contact: 6 },
+    { cx: 8, base: 16, shadow: 0, contact: 6, outline: false },
   );
 });
 
