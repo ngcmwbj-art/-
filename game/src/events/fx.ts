@@ -1,0 +1,374 @@
+// Small presentation pieces of the story events that are not map data:
+//  - sparkle(x, y): a 4-point glint in world pixels (the fryer's oil, the bell)
+//  - playCaseGift(): evt_hanko_given's case that opens in the middle of the
+//    screen with みました and ペケ in it (10_narrative 5.8)
+//  - puff(x, y): a little dust ring (ハト → ハト係長, the ojigi hop)
+
+import type { Co } from '../engine/co';
+import { game, type Widget } from '../engine/game';
+import type { Gfx } from '../engine/gfx';
+import { PixelCanvas } from '../engine/pixel';
+import { W, H } from '../engine/screen';
+import { animate, ease } from '../engine/tween';
+import { registerWorldFx } from '../world/fx';
+import { caseLid, drawCase, CASE_H, CASE_W } from '../ui/hankocase';
+import { runMsg } from '../world/msg';
+import { sfx, textBlip } from '../audio';
+import { P } from '../art/tiles/palette';
+import { fontSmallWidth, fontTextSmall, handGlyph } from '../art/props/text';
+import { field } from '../world/field';
+import { charWidth, drawGlyph } from '../engine/font';
+
+// ---------------------------------------------------------------- world glints & puffs
+
+interface Spark {
+  x: number;
+  y: number;
+  t: number;
+  kind: 'glint' | 'puff' | 'ring' | 'glow' | 'burst';
+  color: string;
+  dur: number;
+}
+const sparks: Spark[] = [];
+
+let GLINT: HTMLCanvasElement[] | null = null;
+function glintFrames(): HTMLCanvasElement[] {
+  if (GLINT) return GLINT;
+  GLINT = [1, 2, 3, 2, 1].map((r) => {
+    const p = new PixelCanvas(9, 9);
+    for (let i = -r; i <= r; i++) {
+      p.set(4 + i, 4, i === 0 ? '#FFFFFF' : '#FFF6D8');
+      p.set(4, 4 + i, i === 0 ? '#FFFFFF' : '#FFF6D8');
+    }
+    if (r >= 2) {
+      p.set(3, 3, '#FFE7A3');
+      p.set(5, 5, '#FFE7A3');
+      p.set(5, 3, '#FFE7A3');
+      p.set(3, 5, '#FFE7A3');
+    }
+    return p.toCanvas();
+  });
+  return GLINT;
+}
+
+registerWorldFx({
+  map: '',
+  update(_f, dt) {
+    for (const s of sparks) s.t += dt;
+    for (let i = sparks.length - 1; i >= 0; i--) if (sparks[i].t > sparks[i].dur) sparks.splice(i, 1);
+  },
+  draw(_f, g, cx, cy, layer) {
+    if (layer !== 'glow' || !sparks.length) return;
+    for (const s of sparks) {
+      const k = s.t / s.dur;
+      const x = Math.round(s.x - cx);
+      const y = Math.round(s.y - cy);
+      if (s.kind === 'glint') {
+        const fr = glintFrames();
+        const img = fr[Math.min(fr.length - 1, Math.floor(k * fr.length))];
+        g.img(img, x - 4, y - 4);
+      } else if (s.kind === 'puff') {
+        // eight dust motes spreading on the ground
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          const r = 3 + ease.cubicOut(k) * 9;
+          g.alpha(1 - k, () => g.rect(Math.round(x + Math.cos(a) * r), Math.round(y + Math.sin(a) * r * 0.45), 2, 1, s.color));
+        }
+      } else if (s.kind === 'glow') {
+        // a golden bloom: three filled discs added onto the picture, swelling and fading
+        const a = Math.sin(Math.PI * Math.min(1, k * 1.15));
+        const ctx = g.ctx;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (const [r, al, col] of [[14, 0.16, '#D9A441'], [10, 0.24, '#FFD23F'], [6, 0.32, '#FFE7A3']] as const) {
+          ctx.globalAlpha = al * a;
+          g.circle(x, y, Math.round(r * (0.8 + 0.2 * a)), col);
+        }
+        ctx.restore();
+        // the highlight on the bell's shoulder
+        g.alpha(a, () => {
+          g.rect(x - 3, y - 3, 2, 1, '#FFF6D8');
+          g.rect(x - 4, y - 2, 1, 2, '#FFF6D8');
+        });
+      } else if (s.kind === 'burst') {
+        // a transformation pop: eight rays shooting out, then a dust ring
+        for (let i = 0; i < 8; i++) {
+          const an = (i / 8) * Math.PI * 2 + 0.2;
+          const r0 = 4 + ease.cubicOut(k) * 10;
+          const r1 = r0 + 4 * (1 - k);
+          g.alpha(1 - k, () =>
+            g.line(Math.round(x + Math.cos(an) * r0), Math.round(y + Math.sin(an) * r0 * 0.8), Math.round(x + Math.cos(an) * r1), Math.round(y + Math.sin(an) * r1 * 0.8), s.color),
+          );
+        }
+        const rr = Math.round(3 + ease.cubicOut(k) * 14);
+        g.alpha((1 - k) * 0.7, () => g.ring(x, y, rr, '#FFF6D8'));
+      } else {
+        const r = Math.round(2 + ease.cubicOut(k) * 12);
+        g.alpha((1 - k) * 0.9, () => g.ring(x, y, r, s.color));
+      }
+    }
+  },
+});
+
+/** A white 4-point glint at world pixel (x, y). */
+export function sparkle(x: number, y: number, dur = 420): void {
+  sparks.push({ x, y, t: 0, kind: 'glint', color: '#FFFFFF', dur });
+}
+
+/** A ring of dust at the feet (world px). */
+export function puff(x: number, y: number, color = '#E8D9B5'): void {
+  sparks.push({ x, y, t: 0, kind: 'puff', color, dur: 380 });
+}
+
+/** A widening light ring (world px). */
+export function ring(x: number, y: number, color = '#FFE7A3', dur = 500): void {
+  sparks.push({ x, y, t: 0, kind: 'ring', color, dur });
+}
+
+/** A golden bloom (the bell of カネナリくん): additive, peaks at mid-time. */
+export function bellGlow(x: number, y: number, dur = 600): void {
+  sparks.push({ x, y, t: 0, kind: 'glow', color: '#FFD23F', dur });
+}
+
+/** Rays and a ring bursting out (a transformation, a pop). */
+export function burst(x: number, y: number, color = '#FFE7A3', dur = 420): void {
+  sparks.push({ x, y, t: 0, kind: 'burst', color, dur });
+}
+
+// ---------------------------------------------------------------- a small far-off voice
+
+const SMALL = new Map<string, HTMLCanvasElement>();
+/** A half-size balloon (the style of まめ吉's 「まいど！」 over the street). */
+function smallBalloon(text: string): HTMLCanvasElement {
+  let c = SMALL.get(text);
+  if (c) return c;
+  const excl = text.endsWith('！');
+  const body = excl ? text.slice(0, -1) : text;
+  const tw = fontSmallWidth(body) + (excl ? 4 : 0);
+  const w = tw + 7;
+  const p = new PixelCanvas(w, 17);
+  p.rect(1, 1, w - 2, 11, P.white);
+  p.hline(2, w - 3, 1, P.glint);
+  p.strokeRect(0, 0, w, 13, P.ink);
+  for (const [x, y] of [[0, 0], [w - 1, 0], [0, 12], [w - 1, 12]]) p.set(x, y, 'transparent');
+  p.hline(2, w - 3, 11, P.concreteLt);
+  const tx = Math.floor(w / 2) - 1;
+  p.set(tx - 1, 13, P.ink);
+  p.hline(tx, tx + 1, 13, P.white);
+  p.set(tx + 2, 13, P.ink);
+  p.set(tx, 14, P.ink);
+  p.set(tx + 1, 14, P.ink);
+  p.hline(tx, tx + 1, 12, P.white);
+  fontTextSmall(p, body, 3, 2, P.verm, 1);
+  if (excl) handGlyph(p, 'excl', 3 + tw - 2, 3, P.verm);
+  c = p.toCanvas();
+  SMALL.set(text, c);
+  return c;
+}
+
+interface Voice {
+  id: string;
+  text: string;
+  t: number;
+  ms: number;
+}
+const voices: Voice[] = [];
+
+registerWorldFx({
+  map: '',
+  update(_f, dt) {
+    for (const v of voices) v.t += dt;
+    for (let i = voices.length - 1; i >= 0; i--) if (voices[i].t > voices[i].ms) voices.splice(i, 1);
+  },
+  draw(f, g, cx, cy, layer) {
+    if (layer !== 'fg' || !voices.length) return;
+    for (const v of voices) {
+      const a = f.actorById(v.id);
+      if (!a || !a.visible) continue;
+      const img = smallBalloon(v.text);
+      const pop = v.t < 80 ? 1 : 0;
+      const k = Math.min(1, v.t / 60) * (v.t > v.ms - 120 ? (v.ms - v.t) / 120 : 1);
+      g.alpha(k, () => g.img(img, Math.round(a.x + a.ox - img.width / 2 - cx), Math.round(a.y + a.oy - 24 - img.height - 2 - cy - pop)));
+    }
+  },
+});
+
+/** A small balloon over a field actor (a voice heard from a little way off). */
+export function smallVoice(id: string, text: string, ms = 800): void {
+  if (!field()) return;
+  voices.push({ id, text, t: 0, ms });
+}
+
+// ---------------------------------------------------------------- 5.8 the hanko case, handed over
+
+class CaseGift implements Widget {
+  modal = false;
+  done = false;
+  t = 0;
+  dim = 0;
+  rise = 0;
+  open = false;
+  lidLift = 0;
+  closing = 0;
+  appear = [0, 0];
+  orbit = -1;
+
+  update(dt: number): void {
+    this.t += dt;
+    if (this.orbit >= 0) this.orbit += dt;
+  }
+
+  draw(g: Gfx): void {
+    if (this.dim > 0) g.rect(0, 0, W, H, '#0B0B14', this.dim);
+    const x = Math.round(W / 2 - CASE_W / 2);
+    const y0 = 26;
+    const y = Math.round(y0 + (1 - ease.backOut(this.rise)) * 120 + ease.quadIn(this.closing) * 150);
+    if (this.rise <= 0) return;
+    if (!this.open) {
+      g.img(caseLid(), x, y);
+      return;
+    }
+    drawCase(g, x, y, {
+      owned: (id) => id === 'skill_mimashita' || id === 'skill_peke',
+      clear: false,
+      t: this.t,
+      appear: (i) => (i < 2 ? this.appear[i] : 1),
+    });
+    // the lid lifted away behind the case
+    if (this.lidLift < 1) g.alpha(1 - this.lidLift, () => g.img(caseLid(), x, y - Math.round(this.lidLift * 26)));
+    // a vermilion light runs once around the frame
+    if (this.orbit >= 0 && this.orbit < 700) {
+      const per = 2 * (CASE_W + CASE_H);
+      for (let k = 0; k < 6; k++) {
+        const d = ((this.orbit / 700) * per - k * 3 + per) % per;
+        let px: number;
+        let py: number;
+        if (d < CASE_W) [px, py] = [x + d, y];
+        else if (d < CASE_W + CASE_H) [px, py] = [x + CASE_W - 1, y + d - CASE_W];
+        else if (d < 2 * CASE_W + CASE_H) [px, py] = [x + CASE_W - 1 - (d - CASE_W - CASE_H), y + CASE_H - 1];
+        else [px, py] = [x, y + CASE_H - 1 - (d - 2 * CASE_W - CASE_H)];
+        g.rect(Math.round(px) - 1, Math.round(py) - 1, 2, 2, k === 0 ? '#FF6A4D' : '#E23B2E', 1 - k / 6);
+      }
+    }
+  }
+}
+
+/**
+ * 「ハンコケースのアイコンが画面中央でパカッと開く」: the case rises, the lid
+ * opens, みました and ペケ settle into their slots, the @sys pages run with the
+ * case open, then it closes and drops away.
+ */
+export function* playCaseGift(text: string): Co {
+  const w = new CaseGift();
+  game.ui.push(w);
+  yield* animate(200, (p) => {
+    w.dim = p * 0.5;
+    w.rise = p;
+  });
+  yield 150;
+  sfx('se_paper_open', { pitch: 0.7 });
+  w.open = true;
+  yield* animate(180, (p) => (w.lidLift = p), ease.quadOut);
+  w.orbit = 0;
+  yield 320;
+  for (let i = 0; i < 2; i++) {
+    sfx('se_hanko_learn', { vol: 0.8, pitch: i ? 1.12 : 1 });
+    yield* animate(220, (p) => (w.appear[i] = p), ease.quadOut);
+    yield 80;
+  }
+  yield* runMsg(text);
+  w.open = false;
+  sfx('se_paper_open', { pitch: 0.55, vol: 0.6 });
+  yield 90;
+  yield* animate(220, (p) => {
+    w.closing = p;
+    w.dim = 0.5 * (1 - p);
+  });
+  w.done = true;
+}
+
+// ---------------------------------------------------------------- a first voice (ending cut 6)
+
+/**
+ * 「……おいしい。」: not a window with a name tag but the words themselves,
+ * typed slowly in the dark under the two of them — warm cream on a soft
+ * shadow, the dots taking their time. Nobody presses anything; it holds,
+ * then fades.
+ */
+class VoiceLine implements Widget {
+  modal = true;
+  done = false;
+  private t = 0;
+  private shown = 0;
+  private acc = 0;
+  private wait: number;
+  private holdT = 0;
+  private fade = -1;
+  private chars: string[];
+
+  constructor(
+    text: string,
+    private o: { y: number; cps: number; hold: number; voice: string; lead: number },
+  ) {
+    this.chars = [...text];
+    this.wait = o.lead;
+  }
+
+  update(dt: number): void {
+    this.t += dt;
+    if (this.fade >= 0) {
+      this.fade += dt;
+      if (this.fade >= 700) this.done = true;
+      return;
+    }
+    if (this.wait > 0) {
+      this.wait -= dt;
+      return;
+    }
+    if (this.shown < this.chars.length) {
+      this.acc += (dt / 1000) * this.o.cps;
+      if (this.acc >= 1) {
+        this.acc = 0;
+        const ch = this.chars[this.shown++];
+        if (ch !== '…') textBlip(this.o.voice, ch);
+        // the dots are slow; a breath after them
+        const next = this.chars[this.shown];
+        this.wait = ch === '…' ? (next === '…' ? 260 : 700) : ch === '。' ? 0 : 60;
+      }
+      return;
+    }
+    this.holdT += dt;
+    if (this.holdT >= this.o.hold) this.fade = 0;
+  }
+
+  draw(g: Gfx): void {
+    const a = this.fade >= 0 ? 1 - this.fade / 700 : Math.min(1, this.t / 200);
+    const full = this.chars.reduce((w, c) => w + charWidth(c), 0);
+    const x0 = Math.round(W / 2 - full / 2);
+    const y = this.o.y;
+    // a soft band of dark behind the words (no frame: it is not a window)
+    g.alpha(0.42 * a, () => {
+      for (let i = 0; i < 6; i++) g.rect(x0 - 26 + i * 3, y - 4 + i, full + 52 - i * 6, 24 - i * 2, '#0B0B14', 0.22);
+    });
+    const ctx = g.ctx;
+    ctx.save();
+    ctx.globalAlpha = a;
+    let x = x0;
+    for (let i = 0; i < this.shown; i++) {
+      const ch = this.chars[i];
+      const fresh = i === this.shown - 1 && this.shown < this.chars.length;
+      const yy = y - (fresh ? 1 : 0);
+      drawGlyph(ctx, ch, x + 1, yy + 1, '#1B1733');
+      drawGlyph(ctx, ch, x, yy, '#FFF1C9');
+      x += charWidth(ch);
+    }
+    ctx.restore();
+  }
+}
+
+/** Type a spoken line in the middle of the screen, windowless, and wait until it has faded. */
+export function* voiceLine(text: string, o: { y?: number; cps?: number; hold?: number; voice?: string; lead?: number } = {}): Co {
+  const w = new VoiceLine(text, { y: o.y ?? 150, cps: o.cps ?? 5, hold: o.hold ?? 2000, voice: o.voice ?? 'kanenari_voice', lead: o.lead ?? 0 });
+  game.ui.push(w);
+  yield () => w.done;
+}

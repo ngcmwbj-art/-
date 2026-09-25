@@ -1,0 +1,832 @@
+// Hanko impressions and seals: みました ovals, ペケ brush X, round seals
+// (「！」「先制」「不意打ち」「100てん」「キマった」), はなまる swirl strokes,
+// and the big 32px inner-voice lettering (書き文字).
+
+import { glyphImage, charWidth, measure } from '../../engine/font';
+import { makeCanvas } from '../../engine/pixel';
+import { hash2, Rng } from '../../engine/rng';
+
+const SHU = '#E23B2E';
+const SHU_D = '#B8241E';
+const SHU_L = '#FF6A4D';
+const INK = '#2A2440';
+const PAPER = '#FBF3DC';
+const WHITE = '#F4F1E8';
+
+type Grid = { w: number; h: number; d: Uint8Array };
+
+function grid(w: number, h: number): Grid {
+  return { w, h, d: new Uint8Array(w * h) };
+}
+
+function toCanvas(g: Grid, pal: string[]): HTMLCanvasElement {
+  const [c, ctx] = makeCanvas(g.w, g.h);
+  const img = ctx.createImageData(g.w, g.h);
+  const rgb = pal.map((p) => {
+    const h = p.replace('#', '');
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  });
+  for (let i = 0; i < g.d.length; i++) {
+    const v = g.d[i];
+    if (!v) continue;
+    const [r, gg, b] = rgb[v - 1];
+    img.data[i * 4] = r;
+    img.data[i * 4 + 1] = gg;
+    img.data[i * 4 + 2] = b;
+    img.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+/** Glyph coverage mask of a text at 16px, scaled by s (area coverage threshold). */
+function textMask(text: string, s: number, thr = 0.3): Grid {
+  const w16 = measure(text);
+  const [c, ctx] = makeCanvas(w16 + 2, 18);
+  let x = 0;
+  for (const ch of text) {
+    ctx.drawImage(glyphImage(ch, '#ffffff'), x, 0);
+    x += charWidth(ch);
+  }
+  const src = ctx.getImageData(0, 0, c.width, c.height).data;
+  const W = Math.max(1, Math.round(c.width * s));
+  const H = Math.max(1, Math.round(16 * s));
+  const g = grid(W, H);
+  for (let y = 0; y < H; y++)
+    for (let xx = 0; xx < W; xx++) {
+      const x0 = xx / s;
+      const y0 = y / s;
+      const x1 = (xx + 1) / s;
+      const y1 = (y + 1) / s;
+      let tot = 0;
+      let on = 0;
+      for (let sy = Math.floor(y0); sy < Math.ceil(y1); sy++)
+        for (let sx = Math.floor(x0); sx < Math.ceil(x1); sx++) {
+          if (sx >= c.width || sy >= c.height) continue;
+          tot++;
+          if (src[(sy * c.width + sx) * 4 + 3] > 128) on++;
+        }
+      if (tot && on / tot >= thr) g.d[y * W + xx] = 1;
+    }
+  return g;
+}
+
+/** Knock random specks out of an ink grid (value 1 → 0) for a worn stamp. */
+function wear(g: Grid, amount: number, seed: number): void {
+  for (let y = 0; y < g.h; y++)
+    for (let x = 0; x < g.w; x++) {
+      const i = y * g.w + x;
+      if (!g.d[i]) continue;
+      const n = hash2(x, y, seed);
+      const blot = hash2(x >> 2, y >> 2, seed + 9);
+      if (n < amount * (0.5 + blot)) g.d[i] = 0;
+    }
+}
+
+/** Shade ink pixels: 1 = main, 2 = dark (lower/right edges), 3 = light specks. */
+function inkTone(g: Grid, seed: number): void {
+  const src = g.d.slice();
+  for (let y = 0; y < g.h; y++)
+    for (let x = 0; x < g.w; x++) {
+      const i = y * g.w + x;
+      if (src[i] !== 1) continue;
+      const below = y + 1 < g.h ? src[i + g.w] : 0;
+      const right = x + 1 < g.w ? src[i + 1] : 0;
+      if (!below || !right) g.d[i] = 2;
+      else if (hash2(x, y, seed + 3) < 0.06) g.d[i] = 3;
+    }
+}
+
+function ellipseRing(g: Grid, cx: number, cy: number, rx: number, ry: number, th: number, v = 1): void {
+  for (let y = 0; y < g.h; y++)
+    for (let x = 0; x < g.w; x++) {
+      const dx = (x + 0.5 - cx) / rx;
+      const dy = (y + 0.5 - cy) / ry;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      const dx2 = (x + 0.5 - cx) / (rx - th);
+      const dy2 = (y + 0.5 - cy) / (ry - th);
+      const d2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+      if (d <= 1 && d2 > 1) g.d[y * g.w + x] = v;
+    }
+}
+
+function blit(dst: Grid, src: Grid, ox: number, oy: number, v: number): void {
+  for (let y = 0; y < src.h; y++)
+    for (let x = 0; x < src.w; x++) {
+      if (!src.d[y * src.w + x]) continue;
+      const xx = x + ox;
+      const yy = y + oy;
+      if (xx >= 0 && yy >= 0 && xx < dst.w && yy < dst.h) dst.d[yy * dst.w + xx] = v;
+    }
+}
+
+/** White glyph pixels (read back once per character, then reused). */
+const glyphPx = new Map<string, { width: number; height: number; d: Uint8ClampedArray }>();
+function glyphPixels(ch: string): { width: number; height: number; d: Uint8ClampedArray } {
+  let g = glyphPx.get(ch);
+  if (!g) {
+    const gi = glyphImage(ch, '#ffffff');
+    g = { width: gi.width, height: gi.height, d: gi.getContext('2d')!.getImageData(0, 0, gi.width, gi.height).data };
+    glyphPx.set(ch, g);
+  }
+  return g;
+}
+
+const cache = new Map<string, HTMLCanvasElement>();
+function cached(key: string, f: () => HTMLCanvasElement): HTMLCanvasElement {
+  let c = cache.get(key);
+  if (!c) {
+    c = f();
+    cache.set(key, c);
+  }
+  return c;
+}
+
+/**
+ * Hand-drawn glyphs for the small みました seals (decals, the defeat seal):
+ * scaling the 16px font down that far turns the kana into mush. MICRO is
+ * 7×8 (defeat seal, 42+ wide), NANO 5×5 (the 28×14 decals).
+ */
+const MICRO: Record<string, string[]> = {
+  み: ['.####..', '....#..', '...#..#', '..#####', '.#.#..#', '#..#..#', '#.#...#', '.#...#.'],
+  ま: ['...#...', '#######', '...#...', '#######', '...#...', '.####..', '#..#.#.', '.##...#'],
+  し: ['.#.....', '.#.....', '.#.....', '.#.....', '.#.....', '.#....#', '.#...#.', '..###..'],
+  た: ['.#.....', '#####..', '.#.....', '.#.####', '.#.....', '#..#...', '#..#...', '#...###'],
+  // おつかれさま (the 64×24 seal of 51 14.1)
+  お: ['.#...#.', '####..#', '.#.....', '.####..', '##...#.', '#.#...#', '#.#...#', '.#..##.'],
+  つ: ['.......', '...###.', '###...#', '......#', '......#', '.....#.', '...##..', '.......'],
+  か: ['.#.....', '.#...#.', '#####.#', '.#..#.#', '.#..#..', '.#..#..', '#...#..', '#..##..'],
+  れ: ['.#.....', '.#.##..', '###..#.', '.#...#.', '.#...#.', '.#...#.', '##...#.', '.#....#'],
+  さ: ['...#...', '#######', '....#..', '.....#.', '.####..', '#......', '#......', '.#####.'],
+};
+const NANO: Record<string, string[]> = {
+  み: ['###.', '..#.', '.####', '#.#.#', '.#..#'],
+  ま: ['.#..', '####', '.#..', '####', '###.'],
+  し: ['#...', '#...', '#...', '#..#', '.##.'],
+  た: ['#...', '###.', '#.##', '#...', '#.##'],
+  // おつかれ (the case's sample card and the 28×12 decal)
+  お: ['.#..#', '###..', '.###.', '##..#', '.###.'],
+  つ: ['.....', '####.', '....#', '...#.', '.##..'],
+  か: ['.#...', '####.', '.#.##', '#..#.', '#.##.'],
+  れ: ['.#.#.', '###.#', '.#..#', '##..#', '.#..#'],
+};
+
+/** Mask of `text` in one of the hand-drawn glyph sets (null if a char is missing). */
+function glyphMask(text: string, font: Record<string, string[]>, gw: number, gh: number, gap: number): Grid | null {
+  const chars = [...text];
+  if (!chars.every((c) => font[c])) return null;
+  const W = chars.length * gw + (chars.length - 1) * gap;
+  const g = grid(W, gh);
+  chars.forEach((c, i) => font[c].forEach((row, y) => [...row].forEach((ch, x) => ch === '#' && x < gw && (g.d[y * W + i * (gw + gap) + x] = 1))));
+  return g;
+}
+
+/**
+ * Oval seal with text (みました / おかえりなさい): an ellipse frame (doubled
+ * on big seals) and the text in vermilion. With `fit` (default) the text
+ * gets its own legible glyphs — hand-drawn 7×8 / 5×5 kana on small seals,
+ * the 16px font on big ones — and the oval widens (up to +12px) until the
+ * text box clears the innermost ring: the words never run into the frame.
+ * `worn` 0..1 for かすれ; `halo` backs it with paper inside and a 1px paper
+ * rim outside, so it reads on any picture.
+ */
+export function ovalStamp(text: string, w: number, h: number, worn = 0, seed = 1, halo = false, fit = true): HTMLCanvasElement {
+  return cached(`oval2:${text}:${w}x${h}:${worn}:${seed}:${halo}:${fit}`, () => {
+    const th = h >= 30 ? 3 : 2;
+    const inner = h >= 44 || (!fit && w >= 40);
+    const innerOff = inner ? 2.5 : 0;
+    const ry = h / 2 - th - innerOff - 0.5;
+    const tight = h <= 16;
+    const widthFor = (m: Grid): number => {
+      const a = m.w / 2 + (tight ? 0 : 1.5);
+      const b = m.h / 2 + (tight ? 0 : 1);
+      if (b >= ry) return 9999;
+      const need = a / Math.sqrt(1 - (b * b) / (ry * ry));
+      return Math.ceil(need + th + innerOff + 0.5) * 2;
+    };
+    let tm: Grid;
+    let W = w;
+    if (fit) {
+      const cands: Grid[] = [];
+      const m1 = glyphMask(text, MICRO, 7, 8, 1);
+      const m2 = glyphMask(text, NANO, 5, 5, 0);
+      if (h >= 30) cands.push(textMask(text, Math.min(1, (h - th * 2 - 6) / 16), 0.4));
+      if (m1) cands.push(m1);
+      if (m2) cands.push(m2);
+      if (!cands.length) cands.push(textMask(text, Math.min(1, (h - th * 2 - 4) / 16), 0.3));
+      const sized = cands.map((m) => ({ m, W: widthFor(m) }));
+      const ok = sized.find((c) => c.W <= w + 12) ?? sized.reduce((p, c) => (c.W < p.W ? c : p));
+      tm = ok.m;
+      W = Math.max(w, Math.min(ok.W, w + 16));
+    } else {
+      const innerW = w - th * 2 - (w >= 40 ? 10 : 6);
+      const sc = Math.min(1, innerW / measure(text), (h - th * 2 - 4) / 16);
+      tm = textMask(text, sc, sc < 0.7 ? 0.28 : 0.4);
+    }
+    const g = grid(W, h);
+    ellipseRing(g, W / 2, h / 2, W / 2, h / 2, th);
+    if (inner) ellipseRing(g, W / 2, h / 2, W / 2 - th - 1.5, h / 2 - th - 1.5, 1);
+    blit(g, tm, Math.round((W - tm.w) / 2), Math.round((h - tm.h) / 2), 1);
+    if (worn) wear(g, worn, seed);
+    inkTone(g, seed);
+    if (halo) {
+      // paper inside the oval (with a few fibres), then a 1px paper rim outside
+      for (let y = 0; y < h; y++)
+        for (let x = 0; x < W; x++) {
+          if (g.d[y * W + x]) continue;
+          const dx = (x + 0.5 - W / 2) / (W / 2 - 0.5);
+          const dy = (y + 0.5 - h / 2) / (h / 2 - 0.5);
+          if (dx * dx + dy * dy <= 1) g.d[y * W + x] = hash2(x, y, seed + 70) < 0.08 ? 5 : 4;
+        }
+      const src = g.d.slice();
+      for (let y = 0; y < h; y++)
+        for (let x = 0; x < W; x++) {
+          if (src[y * W + x]) continue;
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const xx = x + dx;
+            const yy = y + dy;
+            if (xx >= 0 && yy >= 0 && xx < W && yy < h && src[yy * W + xx] && src[yy * W + xx] < 4) {
+              g.d[y * W + x] = 4;
+              break;
+            }
+          }
+        }
+    }
+    return toCanvas(g, [SHU, SHU_D, SHU_L, PAPER, '#F1E4C4']);
+  });
+}
+
+/** Round seal, filled vermilion with knocked-out (paper) text. */
+export function roundSeal(text: string, size: number, color = SHU, seed = 2): HTMLCanvasElement {
+  return cached(`round:${text}:${size}:${color}:${seed}`, () => {
+    const g = grid(size, size);
+    const r = size / 2;
+    const rr = new Rng(seed * 31 + size);
+    for (let y = 0; y < size; y++)
+      for (let x = 0; x < size; x++) {
+        const dx = x + 0.5 - r;
+        const dy = y + 0.5 - r;
+        const a = Math.atan2(dy, dx);
+        const edge = r - 0.6 - 0.9 * hash2(Math.round(a * 8), 0, seed);
+        const d = Math.hypot(dx, dy);
+        if (d <= edge) g.d[y * size + x] = 1;
+        if (d <= edge - 3 && d > edge - 4.2) g.d[y * size + x] = 4; // inner ring line (paper)
+      }
+    const lines = text.split('\n');
+    const maxW = size - 12;
+    const scale = Math.min(1, maxW / Math.max(...lines.map((l) => measure(l))), (size - 14) / (lines.length * 16));
+    const lh = Math.round(16 * scale) + 1;
+    const totalH = lh * lines.length - 1;
+    lines.forEach((l, i) => {
+      const tm = textMask(l, scale, scale < 0.7 ? 0.3 : 0.45);
+      blit(g, tm, Math.round((size - tm.w) / 2), Math.round((size - totalH) / 2 + i * lh), 4);
+    });
+    // worn specks inside the solid fill
+    for (let i = 0; i < size * 0.8; i++) {
+      const x = Math.floor(rr.next() * size);
+      const y = Math.floor(rr.next() * size);
+      if (g.d[y * size + x] === 1) g.d[y * size + x] = 3;
+    }
+    const src = g.d.slice();
+    for (let y = 0; y < size; y++)
+      for (let x = 0; x < size; x++) {
+        const i = y * size + x;
+        if (src[i] === 1 && (y + 1 >= size || !src[i + size] || x + 1 >= size || !src[i + 1])) g.d[i] = 2;
+      }
+    const dark = color === SHU ? SHU_D : '#2A2440';
+    const light = color === SHU ? SHU_L : '#6A5A8E';
+    return toCanvas(g, [color, dark, light, color === SHU ? PAPER : WHITE]);
+  });
+}
+
+/** Bold hand-drawn glyphs for the 「100てん」 seal (6×9 digits, 7×8 kana). */
+const SCORE: Record<string, string[]> = {
+  '1': ['..##..', '.###..', '####..', '..##..', '..##..', '..##..', '..##..', '..##..', '######'],
+  '0': ['.####.', '##..##', '##..##', '##..##', '##..##', '##..##', '##..##', '##..##', '.####.'],
+  て: ['#######', '....##.', '...#...', '..#....', '..#....', '..#....', '...#...', '....###'],
+  ん: ['..#....', '..#....', '.#.....', '.####..', '.#...#.', '#....#.', '#....#.', '#.....#'],
+};
+
+/**
+ * The 「100てん」 seal (QA round 2: the 16px font squeezed into a 36px disc
+ * read "I00てん"): a 40px round seal with the score in two tiers — "100" in
+ * bold hand-drawn digits over a smaller hand-drawn 「てん」 — knocked out of
+ * the vermilion.
+ */
+export function scoreSeal(size = 40): HTMLCanvasElement {
+  return cached(`score:${size}`, () => {
+    const g = grid(size, size);
+    const r = size / 2;
+    const seed = 3;
+    const rr = new Rng(seed * 31 + size);
+    for (let y = 0; y < size; y++)
+      for (let x = 0; x < size; x++) {
+        const dx = x + 0.5 - r;
+        const dy = y + 0.5 - r;
+        const a = Math.atan2(dy, dx);
+        const edge = r - 0.6 - 0.9 * hash2(Math.round(a * 8), 0, seed);
+        const d = Math.hypot(dx, dy);
+        if (d <= edge) g.d[y * size + x] = 1;
+        if (d <= edge - 3 && d > edge - 4.2) g.d[y * size + x] = 4;
+      }
+    const digits = glyphMask('100', SCORE, 6, 9, 1)!;
+    const kana = glyphMask('てん', SCORE, 7, 8, 2)!;
+    const top = Math.round(size / 2 - 10);
+    blit(g, digits, Math.round((size - digits.w) / 2), top, 4);
+    blit(g, kana, Math.round((size - kana.w) / 2), top + 12, 4);
+    for (let i = 0; i < size * 0.8; i++) {
+      const x = Math.floor(rr.next() * size);
+      const y = Math.floor(rr.next() * size);
+      if (g.d[y * size + x] === 1) g.d[y * size + x] = 3;
+    }
+    const src = g.d.slice();
+    for (let y = 0; y < size; y++)
+      for (let x = 0; x < size; x++) {
+        const i = y * size + x;
+        if (src[i] === 1 && (y + 1 >= size || !src[i + size] || x + 1 >= size || !src[i + 1])) g.d[i] = 2;
+      }
+    return toCanvas(g, [SHU, SHU_D, SHU_L, PAPER]);
+  });
+}
+
+/** Big brush-stroke ペケ (96×96) or small decal (20×20, 3 worn variants). */
+export function pekeMark(size: number, variant = 0, kasure = false): HTMLCanvasElement {
+  return cached(`peke:${size}:${variant}:${kasure}`, () => {
+    const g = grid(size, size);
+    const s = size / 96;
+    const rr = new Rng(17 + variant * 7);
+    const stroke = (x0: number, y0: number, x1: number, y1: number, w0: number, w1: number) => {
+      const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 1.5);
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        // brush pressure: thick in the middle, dry-brush tail
+        const w = (w0 + (w1 - w0) * t) * (0.75 + 0.35 * Math.sin(Math.PI * Math.min(1, t * 1.1)));
+        const x = x0 + (x1 - x0) * t + Math.sin(t * 5 + variant) * 1.2 * s;
+        const y = y0 + (y1 - y0) * t;
+        const r = Math.max(0.6, w / 2);
+        for (let yy = Math.floor(y - r); yy <= Math.ceil(y + r); yy++)
+          for (let xx = Math.floor(x - r); xx <= Math.ceil(x + r); xx++) {
+            if (xx < 0 || yy < 0 || xx >= size || yy >= size) continue;
+            if ((xx + 0.5 - x) ** 2 + (yy + 0.5 - y) ** 2 > r * r) continue;
+            // dry streaks near the tail
+            if (t > 0.78 && hash2(Math.round((xx - x) * 3 + (yy - y) * 2), variant, 5) < (t - 0.78) * 3.2) continue;
+            g.d[yy * size + xx] = 1;
+          }
+      }
+    };
+    stroke(14 * s, 12 * s, 84 * s, 86 * s, 17 * s, 9 * s);
+    stroke(82 * s, 10 * s, 12 * s, 84 * s, 16 * s, 8 * s);
+    // splatter dots
+    for (let i = 0; i < 10 * s + 2; i++) {
+      const x = Math.floor(rr.range(0.08, 0.92) * size);
+      const y = Math.floor(rr.range(0.08, 0.92) * size);
+      if (hash2(x, y, 3) < 0.5) g.d[y * size + x] = 1;
+    }
+    if (kasure) wear(g, 0.45, 40 + variant);
+    else if (size <= 24) wear(g, 0.08 + variant * 0.05, 11 + variant);
+    inkTone(g, variant + 1);
+    return toCanvas(g, [SHU, SHU_D, SHU_L]);
+  });
+}
+
+/** Hanamaru swirl path points (spiral + scalloped petals), normalized to radius 1. */
+export function hanamaruPath(): [number, number][] {
+  const pts: [number, number][] = [];
+  // inner spiral (1.75 turns, open so it doesn't clog at small sizes)
+  for (let i = 0; i <= 80; i++) {
+    const t = i / 80;
+    const a = -Math.PI / 2 - Math.PI * 3.5 + t * Math.PI * 3.5;
+    const r = 0.1 + t * 0.34;
+    pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+  }
+  // petals: 7 plump rounded lobes with pinched valleys (reads as a flower,
+  // not a gear, even at 24px)
+  const n = 7;
+  for (let i = 0; i <= 210; i++) {
+    const t = i / 210;
+    const a = -Math.PI / 2 + t * Math.PI * 2;
+    const r = 0.6 + 0.32 * Math.sqrt(Math.abs(Math.sin(t * n * Math.PI)));
+    pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+  }
+  return pts;
+}
+
+/**
+ * Hanamaru drawn up to fraction `k` of the path (size×size). `broken` leaves
+ * gaps in the line (かすれ).
+ */
+export function hanamaruFrame(size: number, k: number, broken = false, thick = 2): HTMLCanvasElement {
+  const kk = Math.round(k * 24) / 24;
+  return cached(`hana:${size}:${kk}:${broken}:${thick}`, () => {
+    const g = grid(size, size);
+    const pts = hanamaruPath();
+    const n = Math.floor((pts.length - 1) * kk);
+    const R = size / 2 - thick;
+    for (let i = 0; i < n; i++) {
+      if (broken && hash2(i >> 3, 0, 5) < 0.3) continue;
+      const [x0, y0] = pts[i];
+      const [x1, y1] = pts[i + 1];
+      const steps = 4;
+      for (let s = 0; s <= steps; s++) {
+        const x = size / 2 + (x0 + (x1 - x0) * (s / steps)) * R;
+        const y = size / 2 + (y0 + (y1 - y0) * (s / steps)) * R;
+        const r = thick / 2;
+        for (let yy = Math.floor(y - r); yy <= Math.ceil(y + r); yy++)
+          for (let xx = Math.floor(x - r); xx <= Math.ceil(x + r); xx++)
+            if (xx >= 0 && yy >= 0 && xx < size && yy < size && (xx + 0.5 - x) ** 2 + (yy + 0.5 - y) ** 2 <= r * r + 0.3)
+              g.d[yy * size + xx] = 1;
+      }
+    }
+    inkTone(g, 4);
+    return toCanvas(g, [SHU, SHU_D, SHU_L]);
+  });
+}
+
+// ---- 書き文字 (inner voice, 32px) -----------------------------------------------
+
+/**
+ * Large lettering: DotGothic16 ×2 (32px), paper-white fill, 2px vermilion
+ * edge, 1px ink outside. `just` = 3px edge + 2px drop shadow. Each glyph
+ * jitters ±1px vertically (seeded).
+ */
+export function kakimoji(text: string, just = false, seed = 7, scale = 2): HTMLCanvasElement {
+  return cached(`kaki:${text}:${just}:${seed}:${scale}`, () => {
+    const rr = new Rng(seed);
+    const edge = just ? 3 : 2;
+    const pad = edge + 1 + (just ? 2 : 0) + 1;
+    const w1 = measure(text);
+    const W = w1 * scale + pad * 2;
+    const H = 16 * scale + pad * 2 + 2;
+    const g = grid(W, H);
+    let x = 0;
+    for (const ch of text) {
+      const dy = rr.int(-1, 1);
+      const gi = glyphPixels(ch);
+      const d = gi.d;
+      for (let yy = 0; yy < gi.height; yy++)
+        for (let xx = 0; xx < gi.width; xx++) {
+          if (d[(yy * gi.width + xx) * 4 + 3] < 128) continue;
+          for (let sy = 0; sy < scale; sy++)
+            for (let sx = 0; sx < scale; sx++) {
+              const px = pad + x * scale + xx * scale + sx;
+              const py = pad + 1 + dy + yy * scale + sy;
+              if (px >= 0 && py >= 0 && px < W && py < H) g.d[py * W + px] = 1;
+            }
+        }
+      x += charWidth(ch);
+    }
+    const dilate = (from: number, to: number, times: number) => {
+      for (let t = 0; t < times; t++) {
+        const src = g.d.slice();
+        for (let y = 0; y < H; y++)
+          for (let xx = 0; xx < W; xx++) {
+            const i = y * W + xx;
+            if (src[i]) continue;
+            let hit = false;
+            for (let oy = -1; oy <= 1 && !hit; oy++)
+              for (let ox = -1; ox <= 1; ox++) {
+                if (!ox && !oy) continue;
+                if (t === 0 && ox && oy && times > 1) continue;
+                const X = xx + ox;
+                const Y = y + oy;
+                if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
+                const v = src[Y * W + X];
+                if (v && v <= from) {
+                  hit = true;
+                  break;
+                }
+              }
+            if (hit) g.d[i] = to;
+          }
+      }
+    };
+    dilate(2, 2, edge);
+    dilate(3, 3, 1);
+    if (just) {
+      // drop shadow: copy of the silhouette offset (+2,+2)
+      const src = g.d.slice();
+      for (let y = H - 1; y >= 0; y--)
+        for (let xx = W - 1; xx >= 0; xx--) {
+          const i = y * W + xx;
+          if (src[i]) continue;
+          const sx = xx - 2;
+          const sy = y - 2;
+          if (sx >= 0 && sy >= 0 && src[sy * W + sx]) g.d[i] = 4;
+        }
+    }
+    // highlight: top pixel row of each fill run gets the flash color
+    const src = g.d.slice();
+    for (let y = 1; y < H; y++)
+      for (let xx = 0; xx < W; xx++) {
+        const i = y * W + xx;
+        if (src[i] === 1 && src[i - W] !== 1) g.d[i] = 5;
+      }
+    return toCanvas(g, [WHITE, SHU, INK, '#5B4A7A', '#FFF6D8']);
+  });
+}
+
+/** Text scaled down (area-coverage) into a single-color canvas (tags, tiny labels). */
+export function miniText(text: string, scale: number, color: string, thr = 0.3): HTMLCanvasElement {
+  return cached(`mini:${text}:${scale}:${color}:${thr}`, () => {
+    const g = textMask(text, scale, thr);
+    return toCanvas(g, [color]);
+  });
+}
+
+/** Hand-stamped grade mark: ◎ (vermilion double ring) or ○ (ink ring), 14×14. */
+export function gradeMark(excellent: boolean, seed = 1): HTMLCanvasElement {
+  return cached(`grade:${excellent}:${seed}`, () => {
+    const g = grid(14, 14);
+    ellipseRing(g, 7, 7, 6.8, 6.8, 1.6);
+    if (excellent) ellipseRing(g, 7, 7, 3.6, 3.6, 1.4);
+    wear(g, 0.08, seed + 20);
+    inkTone(g, seed);
+    return excellent ? toCanvas(g, [SHU, SHU_D, SHU_L]) : toCanvas(g, [INK, '#1B1733', '#4A3A6E']);
+  });
+}
+
+/** Small 16px lettering with the same treatment (ノリツッコミ upper line). */
+export function kakimojiSmall(text: string): HTMLCanvasElement {
+  return kakimoji(text, false, 3, 1);
+}
+
+// ---- the final seal ------------------------------------------------------------
+
+/**
+ * Bold lettering at 16px: every stroke one pixel wider, paper-white fill, a
+ * 2px vermilion edge and a 1px ink outline — the 書き文字 treatment at 1x, so
+ * it stays readable on the boss's dark body.
+ */
+export function boldLettering(text: string, seed = 5): HTMLCanvasElement {
+  return cached(`boldlet:${text}:${seed}`, () => {
+    const rr = new Rng(seed);
+    const pad = 4;
+    const W = measure(text) + 1 + pad * 2;
+    const H = 16 + pad * 2 + 2;
+    const g = grid(W, H);
+    let x = 0;
+    for (const ch of text) {
+      const dy = rr.int(0, 1);
+      const gi = glyphPixels(ch);
+      const d = gi.d;
+      for (let yy = 0; yy < gi.height; yy++)
+        for (let xx = 0; xx < gi.width; xx++) {
+          if (d[(yy * gi.width + xx) * 4 + 3] < 128) continue;
+          for (const bx of [0, 1]) {
+            const px = pad + x + xx + bx;
+            const py = pad + dy + yy;
+            if (px < W && py < H) g.d[py * W + px] = 1;
+          }
+        }
+      x += charWidth(ch);
+    }
+    const ring = (val: number, n: number, diag: boolean) => {
+      for (let t = 0; t < n; t++) {
+        const src = g.d.slice();
+        for (let y = 0; y < H; y++)
+          for (let xx = 0; xx < W; xx++) {
+            if (src[y * W + xx]) continue;
+            let hit = false;
+            for (let oy = -1; oy <= 1 && !hit; oy++)
+              for (let ox = -1; ox <= 1; ox++) {
+                if ((!ox && !oy) || (!diag && ox && oy)) continue;
+                const X = xx + ox;
+                const Y = y + oy;
+                if (X >= 0 && Y >= 0 && X < W && Y < H && src[Y * W + X]) {
+                  hit = true;
+                  break;
+                }
+              }
+            if (hit) g.d[y * W + xx] = val;
+          }
+      }
+    };
+    ring(2, 1, true);
+    ring(2, 1, false);
+    ring(3, 1, true);
+    // top row of each stroke catches the light
+    const src = g.d.slice();
+    for (let y = 1; y < H; y++)
+      for (let xx = 0; xx < W; xx++) if (src[y * W + xx] === 1 && src[(y - 1) * W + xx] !== 1) g.d[y * W + xx] = 4;
+    return toCanvas(g, [WHITE, SHU, INK, '#FFF6D8']);
+  });
+}
+
+/**
+ * The big 「おかえりなさい」 seal of the finale (13.7): a vermilion double oval
+ * with a dithered ink wash inside and the bold lettering on top. `worn` for
+ * a かすれ press (the frame breaks up; the words always stay readable).
+ */
+export function finalSeal(text: string, worn = 0): HTMLCanvasElement {
+  return cached(`finalseal:${text}:${worn}`, () => {
+    const let_ = boldLettering(text, 9);
+    const w = let_.width + 22;
+    const h = 52;
+    const g = grid(w, h);
+    ellipseRing(g, w / 2, h / 2, w / 2, h / 2, 3);
+    ellipseRing(g, w / 2, h / 2, w / 2 - 5, h / 2 - 5, 1);
+    // ink wash inside the inner ring (ordered 25% dither)
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const dx = (x + 0.5 - w / 2) / (w / 2 - 6);
+        const dy = (y + 0.5 - h / 2) / (h / 2 - 6);
+        if (dx * dx + dy * dy <= 1 && (x + y * 2) % 4 === 0) g.d[y * w + x] = 3;
+      }
+    if (worn) wear(g, worn, 13);
+    inkTone(g, 4);
+    const c = toCanvas(g, [SHU, SHU_D, SHU_L]);
+    const ctx = c.getContext('2d')!;
+    ctx.drawImage(let_, Math.round((w - let_.width) / 2), Math.round((h - let_.height) / 2));
+    return c;
+  });
+}
+
+const petalCache: HTMLCanvasElement[] = [];
+/** Petals (16.0): 4×3 ovals in #FF6A4D / #F7C27A / #FFD9B8 / #E0567A, plus a turned 3×4 of each. */
+export function petalSprites(): HTMLCanvasElement[] {
+  if (petalCache.length) return petalCache;
+  const cols: [string, string][] = [
+    ['#FF6A4D', '#E23B2E'],
+    ['#F7C27A', '#D9A441'],
+    ['#FFD9B8', '#F2A98A'],
+    ['#E0567A', '#A83A5A'],
+  ];
+  for (const [c0, c1] of cols) {
+    for (const rows of [['.##.', '####', '.#o.'], ['.#.', '###', '##o', '.#.']]) {
+      const [cv, ctx] = makeCanvas(rows[0].length, rows.length);
+      rows.forEach((r, y) => [...r].forEach((ch, x) => {
+        if (ch === '.') return;
+        ctx.fillStyle = ch === 'o' ? c1 : c0;
+        ctx.fillRect(x, y, 1, 1);
+      }));
+      petalCache.push(cv);
+    }
+  }
+  return petalCache;
+}
+
+// ---- hit labels (16.0 / 10_narrative 9.0) ---------------------------------------------
+
+/**
+ * The on-stage labels (いい音！ くっきり！ かすれ…… ボケ負け ミス 部位破壊
+ * かぶせた……): brushed lettering stamped straight onto the picture, not a
+ * tag. Every letter is drawn bold (2px strokes) in vermilion — grey for the
+ * misses — with its top rows lit and bottom rows in the darker ink, then a
+ * paper-white rim and an ink outline so it reads on any background. The
+ * letters step up to the right like a hurried stamp (the grey ones sag),
+ * and the outline is chipped here and there. `worn` dries the brush out
+ * (かすれ): specks of the fill drop to the paper rim.
+ */
+export function inkLabel(text: string, tone: 'shu' | 'gray' = 'shu', worn = false): HTMLCanvasElement {
+  return cached(`inklabel:${text}:${tone}:${worn}`, () => {
+    const chars = [...text];
+    const rr = new Rng(text.length * 31 + (tone === 'shu' ? 3 : 7));
+    // baseline per letter: rising to the right (≈4°), the grey ones sagging
+    const step = tone === 'shu' ? -1 : 0.75;
+    const offs = chars.map((_, i) => Math.round(i * step) + (i && rr.next() < 0.25 ? (step < 0 ? -1 : 1) : 0));
+    const minO = Math.min(0, ...offs);
+    const maxO = Math.max(0, ...offs);
+    const pad = 3;
+    const W = measure(text) + 1 + pad * 2;
+    const H = 16 + pad * 2 + (maxO - minO);
+    const g = grid(W, H);
+    let x = 0;
+    chars.forEach((ch, i) => {
+      const gi = glyphPixels(ch);
+      const d = gi.d;
+      const oy = pad + offs[i] - minO;
+      for (let yy = 0; yy < gi.height; yy++)
+        for (let xx = 0; xx < gi.width; xx++) {
+          if (d[(yy * gi.width + xx) * 4 + 3] < 128) continue;
+          for (const bx of [0, 1]) {
+            const px = pad + x + xx + bx;
+            const py = oy + yy;
+            if (px < W && py < H) g.d[py * W + px] = 1;
+          }
+        }
+      x += charWidth(ch);
+    });
+    // lit top rows, darker bottom rows (only where a stroke is 2+ tall)
+    const src = g.d.slice();
+    for (let y = 1; y < H - 1; y++)
+      for (let xx = 0; xx < W; xx++) {
+        const i = y * W + xx;
+        if (src[i] !== 1) continue;
+        const up = src[i - W] === 1;
+        const dn = src[i + W] === 1;
+        if (!up && dn) g.d[i] = 3;
+        else if (up && !dn) g.d[i] = 2;
+      }
+    if (worn) {
+      for (let y = 0; y < H; y++)
+        for (let xx = 0; xx < W; xx++) {
+          const i = y * W + xx;
+          if (g.d[i] >= 1 && g.d[i] <= 3 && hash2(xx, y, 41) < 0.14 + 0.2 * hash2(xx >> 2, y >> 1, 43)) g.d[i] = 5;
+        }
+    }
+    const ring = (val: number) => {
+      const s2 = g.d.slice();
+      for (let y = 0; y < H; y++)
+        for (let xx = 0; xx < W; xx++) {
+          if (s2[y * W + xx]) continue;
+          let hit = false;
+          for (let oy = -1; oy <= 1 && !hit; oy++)
+            for (let ox = -1; ox <= 1; ox++) {
+              const X = xx + ox;
+              const Y = y + oy;
+              if ((ox || oy) && X >= 0 && Y >= 0 && X < W && Y < H && s2[Y * W + X]) {
+                hit = true;
+                break;
+              }
+            }
+          if (hit) g.d[y * W + xx] = val;
+        }
+    };
+    ring(5);
+    ring(4);
+    // chipped edge: a few outline pixels knocked out, a few rim pixels inked
+    for (let y = 0; y < H; y++)
+      for (let xx = 0; xx < W; xx++) {
+        const i = y * W + xx;
+        const n = hash2(xx, y, 53 + text.length);
+        if (g.d[i] === 4 && n < 0.07) g.d[i] = 0;
+        else if (g.d[i] === 5 && n > 0.95) g.d[i] = 4;
+      }
+    const pal = tone === 'shu' ? [SHU, SHU_D, SHU_L, INK, '#FFF6D8'] : ['#9AA0A8', '#6B7186', '#C4C8CE', INK, '#EDEAE0'];
+    return toCanvas(g, pal);
+  });
+}
+
+/**
+ * The victory seal (16.12, QA round 1): a big vermilion double oval with
+ * 「みました」 in 32px lettering of 2px strokes (the 16px font doubled), on a
+ * paper face with a dithered edge — the stamp of the win, readable from
+ * across the room.
+ */
+export function victorySeal(text = 'みました'): HTMLCanvasElement {
+  return cached(`victory:${text}`, () => {
+    const t = textMask(text, 2, 0.5);
+    const w = t.w + 40;
+    const h = t.h + 26;
+    const g = grid(w, h);
+    ellipseRing(g, w / 2, h / 2, w / 2, h / 2, 4);
+    ellipseRing(g, w / 2, h / 2, w / 2 - 7, h / 2 - 7, 1.5);
+    blit(g, t, Math.round((w - t.w) / 2), Math.round((h - t.h) / 2) + 1, 1);
+    wear(g, 0.05, 23);
+    inkTone(g, 8);
+    // paper face under the ink (value 4), its outer edge dithered
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        if (g.d[i]) continue;
+        const dx = (x + 0.5 - w / 2) / (w / 2 - 2);
+        const dy = (y + 0.5 - h / 2) / (h / 2 - 2);
+        const d = dx * dx + dy * dy;
+        if (d <= 0.9 || (d <= 1 && (x + y) % 2 === 0)) g.d[i] = 4;
+      }
+    return toCanvas(g, [SHU, SHU_D, SHU_L, PAPER]);
+  });
+}
+
+const flutterCache: HTMLCanvasElement[][] = [];
+/**
+ * Falling petals for the finale (13.7, QA round 1): a cherry-petal shape —
+ * a pointed tip, a notched wide end — in the four petal colours (#FF6A4D /
+ * #F7C27A / #FFD9B8 / #E0567A) with a lit face, a shaded underside and an
+ * outline in the petal's own dark tone. Four flutter frames each (flat,
+ * turning, edge-on, turning back) so a falling petal visibly tumbles.
+ * Returns [colour][frame].
+ */
+export function flutterPetals(): HTMLCanvasElement[][] {
+  if (flutterCache.length) return flutterCache;
+  const cols: [string, string, string, string][] = [
+    ['#FF6A4D', '#FFB09A', '#E23B2E', '#B8241E'],
+    ['#F7C27A', '#FFE7A3', '#D9A441', '#A8742A'],
+    ['#FFD9B8', '#FFF6D8', '#F2A98A', '#C8745A'],
+    ['#E0567A', '#F59AB2', '#A83A5A', '#7A2440'],
+  ];
+  // o outline, H lit, c base, d shade
+  const frames = [
+    ['..ooooo.', '.oHHHcco', 'oHHccdo.', '.occddco', '..ooooo.'],
+    ['...oo.', '..oHco', '.oHcdo', 'oHcdo.', 'occo..', '.oo...'],
+    ['.oooo.', 'oHHcdo', '.oooo.'],
+    ['.oo...', 'occo..', 'oHcdo.', '.oHcdo', '..oHco', '...oo.'],
+  ];
+  for (const [base, hi, shade, rim] of cols) {
+    const pal: Record<string, string> = { o: rim, H: hi, c: base, d: shade };
+    flutterCache.push(frames.map((rows) => artCanvas(rows, pal)));
+  }
+  return flutterCache;
+}
+
+function artCanvas(rows: string[], pal: Record<string, string>): HTMLCanvasElement {
+  const [c, ctx] = makeCanvas(rows[0].length, rows.length);
+  rows.forEach((r, y) =>
+    [...r].forEach((ch, x) => {
+      if (!pal[ch]) return;
+      ctx.fillStyle = pal[ch];
+      ctx.fillRect(x, y, 1, 1);
+    }),
+  );
+  return c;
+}
