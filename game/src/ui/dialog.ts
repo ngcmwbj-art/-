@@ -322,6 +322,16 @@ class DialogBox implements Widget {
     if (box === this) box = null;
   }
 
+  /** The tag rewrites itself on the open window (ツガオの部屋: 「？？？」 → 「ツガオ」). */
+  retag(name: string, tape: 'tape' | 'black'): void {
+    if (name === this.viewName && tape === this.viewTape) return;
+    this.prevName = this.viewName;
+    this.prevTape = this.viewTape;
+    this.viewName = name;
+    this.viewTape = tape;
+    this.tagT = this.openK > 0.5 ? 0 : 999;
+  }
+
   get visible(): boolean {
     return !this.done && this.openK > 0;
   }
@@ -723,6 +733,15 @@ export interface DialogSpeech {
 /** The line being said right now, or null (a cut can move with the words: ダコク's 「ガチャン」). */
 export function dialogSpeech(): DialogSpeech | null {
   return box ? box.speech() : null;
+}
+
+/**
+ * Rewrite the name tag of the window on screen (its old tag lifts away, the
+ * new one lands) — the page stays. ツガオの部屋: 「？？？」 becomes 「ツガオ」
+ * after his last line (52 12.5). The next say() sets its own tag as usual.
+ */
+export function retagDialog(name: string, o: { tape?: 'tape' | 'black' } = {}): void {
+  box?.retag(name, o.tape ?? 'tape');
 }
 
 /** Take the dialog window down at once (a skipped cut); every say() waiting on it returns. */

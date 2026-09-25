@@ -502,50 +502,65 @@ export function clockFace(id: ClockId): HTMLCanvasElement {
   return p.toCanvas();
 }
 
-// Hand-drawn glyphs (1px pen, a little shaky): 6px tall for the plates and
-// the circular's page, 5px for the circular's cover (まだまだ団).
-const GLYPH6: Record<string, string[]> = {
-  夕: ['..#..', '.####', '#...#', '.##.#', '...#.', '.##..'],
-  鳴: ['...#..', '##.###', '##.###', '...#..', '...###', '..#.##'],
-  町: ['###.##', '#.#..#', '###..#', '#.#..#', '###..#', '....##'],
-  星: ['.###.', '.#.#.', '.###.', '#.#..', '.###.', '#####'],
-  見: ['.###.', '.###.', '.#.#.', '.###.', '.#.#.', '#..##'],
-  台: ['..#..', '.#.#.', '#####', '.###.', '.#.#.', '.###.'],
-  海: ['#.#..', '..###', '#.#.#', '.####', '..#.#', '#.###'],
-  ぞ: ['###.#', '..#.#', '#####', '.#...', '#....', '.###.'],
-  い: ['#....', '#....', '#..#.', '#...#', '#...#', '.#...'],
-  の: ['.###.', '#.#.#', '#.#.#', '#.#.#', '#..#.', '.#...'],
-};
-const GLYPH5: Record<string, string[]> = {
-  ま: ['..#..', '#####', '..#..', '#####', '###..'],
-  だ: ['#..##', '###..', '#.###', '#....', '#.###'],
-  団: ['#####', '#..##', '####.', '#.#.#', '#####'],
+// Hand-lettered glyphs, 10px tall (a 1px pen, drawn one by one so they read
+// at 1×: the dakuten are two dots a pixel clear of the body). Used for the
+// clocks' name plates and the black circular (its cover and the turned page).
+const GLYPH10: Record<string, string[]> = {
+  夕: ['....#.....', '...######.', '..#.....#.', '.#.#...#..', '#...#.#...', '.....#....', '....#.....', '...#......', '.##.......', '#.........'],
+  鳴: ['.......#..', '....######', '###.#....#', '#.#.######', '#.#.#....#', '###.######', '....#.....', '....######', '....#.#.##', '...#.#.#.#'],
+  町: ['..........', '#####.####', '#.#.#...#.', '#####...#.', '#.#.#...#.', '#####...#.', '........#.', '........#.', '........#.', '.......##.'],
+  星: ['..######..', '..#....#..', '..######..', '..#....#..', '..######..', '.#...#....', '.#######..', '#....#....', '.....#....', '##########'],
+  見: ['.#######..', '.#.....#..', '.#######..', '.#.....#..', '.#######..', '.#.....#..', '.#######..', '...#.#....', '..#..#...#', '##...####.'],
+  台: ['....#.....', '...#......', '..#...#...', '.#.....#..', '########..', '..........', '.#######..', '.#.....#..', '.#.....#..', '.#######..'],
+  海: ['#.........', '.#..#.....', '...######.', '#.#.......', '.#.######.', '...#.#..#.', '..########', '..#.#..#..', '.#.######.', '#.......#.'],
+  ぞ: ['.......#.#', '.####..#.#', '...#......', '..#.......', '.######...', '...#......', '..#.......', '..#.......', '...#......', '....####..'],
+  い: ['#.......', '#.......', '#.....#.', '#......#', '#......#', '#......#', '#.#....#', '.##.....', '.#......', '........'],
+  の: ['..#####...', '.#..#..#..', '#...#...#.', '#...#...#.', '#...#...#.', '#..#....#.', '#..#...#..', '.##...#...', '.....#....', '..........'],
+  ま: ['....#....', '#########', '....#....', '#########', '....#....', '....#....', '.####....', '#...###..', '#...#..#.', '.###.....'],
+  だ: ['.#......#.', '.#####.#.#', '.#........', '##.######.', '.#........', '.#........', '#.........', '#...#.....', '#...#.....', '#....#####'],
+  団: ['##########', '#........#', '#.....#..#', '#.######.#', '#....##..#', '#...#.#..#', '#..#..#..#', '#.....#..#', '#....##..#', '##########'],
 };
 
-/** Hand-lettered text (6px glyphs, else 5px; unknown characters are skipped). */
-export function glyphs5(text: string, color: string, gap = 1): HTMLCanvasElement {
-  const set = [...text].every((ch) => GLYPH6[ch] || ch === ' ') ? GLYPH6 : GLYPH5;
-  const chars = [...text].filter((ch) => set[ch]);
-  const h = set === GLYPH6 ? 6 : 5;
-  const widths = chars.map((ch) => set[ch][0].length);
+/** Hand-lettered text, 10px tall (unknown characters are skipped; a space is 3px). */
+export function handLetters(text: string, color: string, gap = 1): HTMLCanvasElement {
+  const chars = [...text].filter((ch) => GLYPH10[ch] || ch === ' ');
+  const widths = chars.map((ch) => (ch === ' ' ? 3 : GLYPH10[ch][0].length));
   const w = Math.max(1, widths.reduce((a, b) => a + b, 0) + (chars.length - 1) * gap);
-  const p = new PixelCanvas(w, h);
+  const p = new PixelCanvas(w, 10);
   let x = 0;
   chars.forEach((ch, i) => {
-    rows(p, set[ch], { '#': color }, x, 0);
+    if (ch !== ' ') rows(p, GLYPH10[ch], { '#': color }, x, 0);
     x += widths[i] + gap;
   });
   return p.toCanvas();
 }
 
-/** The name plate under a clock: a white board 28×7, black handwriting. */
+/** The name plate's size (the lettering plus 3px each side; 12 tall). */
+export function plateSize(id: ClockId): { w: number; h: number } {
+  return { w: handLetters(CLOCKS[id].label, '#000').width + 6, h: 12 };
+}
+
+/**
+ * The name plate under a clock: a white board, black handwriting, 12px
+ * tall and as wide as its name (36 for three characters, 54 for
+ * 「海ぞいの町」). The lamp's side edge is paler; an old drawing-pin hole.
+ */
 export function plateImg(id: ClockId): HTMLCanvasElement {
-  const p = new PixelCanvas(28, 9);
-  const lit = wallLight(CLOCKS[id].x, CLOCKS[id].y + 16) > 0.45;
-  for (let y = 0; y < 9; y++) for (let x = 0; x < 28; x++) p.set(x, y, y === 8 || x === 27 ? P.G : x === 0 || y === 0 ? (lit ? P.Pp : P.W) : P.W);
+  const { w, h } = plateSize(id);
+  const p = new PixelCanvas(w, h);
+  const lit = wallLight(CLOCKS[id].x, CLOCKS[id].y + 18) > 0.45;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      let col: string = P.W;
+      if (y === h - 1 || x === w - 1) col = P.G;
+      else if (x === 0 || y === 0) col = lit ? P.Pp : P.W;
+      // a little grime in the lower corners
+      else if ((y === h - 2 && (x < 3 || x > w - 4)) || (x === w - 2 && y > h - 5)) col = bay(x, y) < 0.5 ? P.G : P.W;
+      p.set(x, y, col);
+    }
+  p.set(2, 1, P.G);
   const c = p.toCanvas();
-  const text = glyphs5(CLOCKS[id].label, P.K, CLOCKS[id].label.length > 3 ? 0 : 2);
-  c.getContext('2d')!.drawImage(text, Math.round((28 - text.width) / 2), 1);
+  c.getContext('2d')!.drawImage(handLetters(CLOCKS[id].label, P.K), 3, 1);
   return c;
 }
 
