@@ -329,7 +329,11 @@ function houseShell(dawn: boolean): PixelCanvas {
     for (let x = 0; x < W; x++) {
       if (x >= SIDE && x < SIDE + HW) continue;
       const stripe = Math.floor(x / 2) % 4 === 0 && h01(Math.floor(x / 2), Math.floor(y / 32), 4021) < 0.7;
-      p.set(x, y, stripe ? outB : outA);
+      // at dawn the east film (the sunrise side) warms, the far end is brightest
+      const east = dawn && x >= SIDE + HW ? 0.22 * Math.min(1, (x - SIDE - HW) / 60) : 0;
+      const far = dawn ? 0.12 * (1 - y / HH) : 0;
+      const c0 = stripe ? outB : outA;
+      p.set(x, y, dawn ? mix(mix(c0, P.peach, east), P.white, far) : c0);
     }
   // the next house (2号) to the east: its arches faint through two films
   for (let y = 0; y < HH; y++)

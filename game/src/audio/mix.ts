@@ -75,6 +75,8 @@ const SE_TARGET: Record<string, number> = {
   // feet, the scarecrow's hop, the ending
   se_step_sheet: -24, se_h_kakashi_hop: -18, se_h_tomato_rise: -12, se_h_sunrise: -14, se_h_bus_idle: -18,
   se_h_bus_door: -14, se_h_bus_depart: -14, se_h_bus_arrive: -14,
+  // ツガオの部屋
+  se_dakoku: -14, se_mada_stamp: HIT, se_lamp_click: -18, se_clock_restart: -16,
 };
 
 const GROUP_TARGET: Record<string, number> = {
@@ -114,7 +116,7 @@ const VOICE_TARGET: Record<string, number> = {
   narr: -32, sys: -99, flip: -26, cat: -24, hato: -22, crow: -22, dog: -21,
   broadcast: -16, broadcast_child: -18, kanenari_voice: -18, omukaemachi: -19,
   // chapter 2: the boss speaks through the speaker right over you; the train's small speaker, the sign, the dog
-  yobimodoshi: -16, h_train: -22, h_mujin: -26, h_gon: -22, h_tetsuya: -20, broadcast_room: -22,
+  yobimodoshi: -16, h_train: -22, h_mujin: -26, h_gon: -22, h_tetsuya: -20, broadcast_room: -22, dakoku: -22,
 };
 export function voiceTargetDb(id: string): number {
   return (VOICE_TARGET[id] ?? -20) + MASTER_LIFT_DB;
@@ -138,6 +140,8 @@ export const BGM_TARGET: Record<string, number> = {
   // chapter 2 (53_ch2_audio 10.1): 星見台の夜 is measured at 段階1 (the lantern
   // singing); 段階0 has fewer parts and reads ~3 dB quieter, as it should
   bgm_boss_yobimodoshi: 0, bgm_hoshi_morning: -4, bgm_hoshi_night: -6,
+  // ツガオの部屋 after 「つづく」: a small dark room, at bgm_night's level
+  bgm_tsugao: -8,
 };
 
 /**
@@ -161,7 +165,7 @@ export const ROLE_TARGET: Record<PartRole, number | null> = {
 /** The part every other part of a song is levelled against (its main tune). */
 export const REF_PART: Record<string, string> = {
   bgm_title: 'mbox', bgm_title_clear: 'mbox', bgm_home: 'melody', bgm_shop: 'melody', bgm_ending: 'melody', bgm_night: 'stars',
-  bgm_hoshi_night: 'lantern', bgm_hoshi_morning: 'lead', bgm_boss_yobimodoshi: 'lead',
+  bgm_hoshi_night: 'lantern', bgm_hoshi_morning: 'lead', bgm_boss_yobimodoshi: 'lead', bgm_tsugao: 'bass',
 };
 /** Parts whose colour is the point of the song: a closer target than their role. */
 export const TARGET_OVERRIDE: Record<string, number> = {
@@ -186,6 +190,7 @@ const ROLE_OVERRIDE: Record<string, PartRole> = {
   'bgm_boss_yobimodoshi/intro': 'fx', 'bgm_boss_yobimodoshi/intro_chime': 'fx',
   'bgm_hoshi_morning/mbox': 'counter', 'bgm_hoshi_morning/mbox_hi': 'counter', 'bgm_hoshi_morning/marimba': 'melody',
   'bgm_hoshi_morning/chime': 'melody', 'bgm_hoshi_morning/pedal': 'bass', 'bgm_hoshi_morning/pad_dawn': 'pads',
+  'bgm_tsugao/bass': 'melody', 'bgm_tsugao/marimba': 'counter', 'bgm_tsugao/sub': 'bass', 'bgm_tsugao/clock': 'drums',
 };
 export function partRole(song: string, part: string): PartRole {
   const o = ROLE_OVERRIDE[`${song}/${part}`];

@@ -47,6 +47,8 @@ export const VOICE_SAMPLES: Record<string, string> = {
   h_tome: '水の 見回りじゃ。穂が 実を ためとる ところでな。',
   h_sawako: 'いらっしゃい。……あら、いらっしゃいって 言っちゃった。',
   broadcast_room: 'あー、あー。……本日は 晴天なり。',
+  tsugao: '……ふむ。ご苦労。……偶然では ありませんな。',
+  dakoku: 'マダ ホウコクガ アリマス。ガチャン。',
 };
 
 /** Characters per second of the dialog box (10.1: 40 chars/s; {spd=0.4} for the last line). */

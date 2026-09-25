@@ -832,6 +832,23 @@ registerProp('prop_h_school_shell', () => {
     flat: true,
     img: () => img,
     over(g, x, y, env) {
+      // the morning (h3): the windows turn from the night to the dawn sky
+      if (hs(env) >= 3) {
+        const sky = [mix(P.lilac, P.concreteLt, 0.45), mix(P.lilac, P.peach, 0.55), mix(P.peach, P.goldPale, 0.5), P.goldPale];
+        for (let j = 0; j < 16; j++) g.rect(x + 148, y + 21 + j, 24, 1, sky[Math.min(3, j >> 2)]);
+        for (let i = 0; i < 24; i++) {
+          const top = 31 - Math.round(4 * Math.sin((i / 24) * Math.PI));
+          g.rect(x + 148 + i, y + top, 1, 37 - top, mix(P.leafShade, P.lilac, 0.35));
+        }
+        g.rect(x + 160, y + 26, 1, 1, P.white);
+        g.rect(x + 159, y + 27, 3, 1, P.white);
+        g.rect(x + 160, y + 21, 1, 16, P.woodDark);
+        for (const wx of [320, 380]) {
+          g.rect(x + wx, y + 22, 12, 4, sky[1]);
+          g.rect(x + wx, y + 26, 12, 4, sky[2]);
+          g.rect(x + wx + 6, y + 22, 1, 8, P.woodDark);
+        }
+      }
       // ふしぎ09: the 日直 name written and wiped every 3 s
       if (hs(env) >= 1 && !env.flag('flag_fushigi_ch2_09')) {
         const ph = env.t % 3000;

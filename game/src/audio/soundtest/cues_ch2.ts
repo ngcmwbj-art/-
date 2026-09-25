@@ -470,6 +470,46 @@ export const CH2_CUES: Cue[] = [
     ],
   },
   {
+    id: 'tsugao',
+    label: 'ツガオの部屋（つづくのあと）',
+    ref: '12.14 カット7',
+    build: (say) => [
+      S(0, 'BLACK, SILENCE', () => {
+        stopCueLoops();
+        A.stopBgm(0.3);
+        A.stopAllAmbient(0.3);
+        A.setMusicParam('h_stage', -1);
+        A.setPaMode('town');
+      }),
+      S(1.2, 'ROOM, AMB_TSUGAO_ROOM, BGM_TSUGAO (T1)', () => {
+        A.setSpace('room');
+        A.playAmbient('amb_tsugao_room', { fade: 1.5 });
+        A.playBgm('bgm_tsugao', { fade: 2.0 });
+      }),
+      S(5, 'VOICE DAKOKU (+ SE_DAKOKU)', () => void say('dakoku', 'ホウコク シマス。ガチャン。')),
+      S(9, 'YUNARI: CLOCK RESTART, CLOCK 1', () => {
+        A.sfx('se_clock_restart');
+        setTimeout(() => A.ambientEvent('amb_tsugao_room', 'tick', 'yunari'), 3300);
+      }),
+      S(14, 'VOICE TSUGAO', () => void say('tsugao', '……ふむ。ご苦労。')),
+      S(17, 'TSUGAO: つがおちゃん 寝る〜♪', () => void say('tsugao', 'では、つがおちゃん 寝る〜♪')),
+      S(20, 'HOSHIMI: CLOCK RESTART, CLOCK 2', () => {
+        A.sfx('se_clock_restart', { note: 'hoshimi' });
+        setTimeout(() => A.ambientEvent('amb_tsugao_room', 'tick', 'hoshimi'), 3300);
+      }),
+      S(27, 'SE_PAGE, STOP BGM (0), UMI', () => {
+        A.sfx('se_page');
+        A.stopBgm(0);
+        A.ambientEvent('amb_tsugao_room', 'umi');
+      }),
+      S(30, 'SE_MADA_STAMP (DRY INK)', at('se_mada_stamp')),
+      S(34, 'SE_LAMP_CLICK, ALL OUT (0.5S)', () => {
+        A.sfx('se_lamp_click');
+        A.stopAllAmbient(0.5);
+      }),
+    ],
+  },
+  {
     id: 'h_barn',
     label: '牛舎の夜（そろった反すう）',
     ref: '12.7 / 8.9 #08',

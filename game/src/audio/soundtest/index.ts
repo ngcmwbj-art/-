@@ -171,6 +171,7 @@ const AMB_LABEL: Record<string, string> = {
   amb_h_train: '夜の電車の車内（レールの継ぎ目）',
   amb_h_pa_hum: '開いたままの回線（段階2の放送のうなり）',
   amb_h_dawn: '夜明けのヒグラシ（朝も鳴く）',
+  amb_tsugao_room: 'ツガオの部屋（スタンドのうなり、時計、波とサイレン）',
 };
 
 /** 第2章's songs: 星見台's three, and the two battle songs heard at night (53 5.5). */
@@ -180,10 +181,11 @@ const CH2_BGM: { id: string; label: string }[] = [
   { id: 'bgm_hoshi_morning', label: '星見台の朝' },
   { id: 'bgm_battle@night', label: '通常戦（星見台の夜）' },
   { id: 'bgm_midboss@night', label: '中ボス（テツヤ）' },
+  { id: 'bgm_tsugao', label: 'ツガオの部屋（第3章の予告）' },
 ];
-const CH2_SONG_IDS = new Set(['bgm_hoshi_night', 'bgm_boss_yobimodoshi', 'bgm_hoshi_morning']);
+const CH2_SONG_IDS = new Set(['bgm_hoshi_night', 'bgm_boss_yobimodoshi', 'bgm_hoshi_morning', 'bgm_tsugao']);
 /** 第2章's voices (53 9.1) and the old ones it speaks with. */
-const CH2_VOICE_RE = /^(h_|yobimodoshi$)/;
+const CH2_VOICE_RE = /^(h_|yobimodoshi$|tsugao$|dakoku$|broadcast_room$)/;
 const CH2_VOICE_REUSED = ['broadcast', 'kanenari_voice'];
 /** Sample lines for the reused voices when heard on the 第2章 page. */
 const CH2_SAMPLES: Record<string, string> = {
@@ -287,7 +289,7 @@ const SONG_SPACE: Record<string, SpaceId> = {
   bgm_home: 'room', bgm_shop: 'room', bgm_mall: 'hall', bgm_battle: 'battle', bgm_midboss: 'battle', bgm_boss: 'maigo',
   bgm_ending: 'outdoor', bgm_night: 'night',
   // chapter 2 (53 3.4)
-  bgm_hoshi_night: 'yama', bgm_hoshi_morning: 'yama', bgm_boss_yobimodoshi: 'battle',
+  bgm_hoshi_night: 'yama', bgm_hoshi_morning: 'yama', bgm_boss_yobimodoshi: 'battle', bgm_tsugao: 'room',
 };
 
 /** SEs that take an option: each press plays the next variant. */
@@ -906,6 +908,7 @@ class SoundTestScene implements Scene {
     else if (def.id === 'bgm_hoshi_morning') parts = pr.h_stage >= 3 ? 'H3 MORNING' : `H${pr.h_stage} DAWN`;
     else if (def.id === 'bgm_boss_yobimodoshi') parts = `P${pr.boss_phase} L${pr.h_light} T${pr.tenko}`;
     else if (def.battle && pr.h_stage >= 0) parts = `NIGHT K${pr.kire}${def.id === 'bgm_midboss' ? ` R${pr.h_rest}` : ''}`;
+    else if (def.id === 'bgm_tsugao') parts = pr.clock ? `CLOCKS ${pr.clock}` : 'CLOCKS OFF';
     f5(ctx, `${bpm} BPM`, CX, y + 18, C.sys);
     if (parts) f5(ctx, parts, CX + CW, y + 18, C.shu, { align: 'right' });
   }

@@ -14,6 +14,7 @@ import './songs/jingles';
 import './songs/hoshi_night';
 import './songs/boss2';
 import './songs/hoshi_morning';
+import './songs/tsugao';
 import './sfx';
 import './sfx_ch2';
 import './ambience_ch2';

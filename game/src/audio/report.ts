@@ -1119,7 +1119,7 @@ export function currentTrims() {
 }
 
 /** Chapter 2's songs (53_ch2_audio): the closing chime's fourth note is sealed in these. */
-const CH2_SONGS = new Set(['bgm_hoshi_night', 'bgm_boss_yobimodoshi', 'bgm_hoshi_morning']);
+const CH2_SONGS = new Set(['bgm_hoshi_night', 'bgm_boss_yobimodoshi', 'bgm_hoshi_morning', 'bgm_tsugao']);
 
 /**
  * The sealed shapes (16.1): the town chime's "answer" (−2, −3, +3) must not
