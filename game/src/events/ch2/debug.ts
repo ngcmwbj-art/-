@@ -30,6 +30,7 @@ import { resetStamp } from '../stamp';
 import { missingSounds } from './compat';
 import { CH2_ENDING_CUTS } from './ending';
 import { debugChoresDone } from './barn';
+import { debugDeliveryAlmost } from './tsugao';
 
 type Step = () => void;
 
@@ -68,8 +69,8 @@ export interface Beat2 {
   at: [string, number, number, Dir];
   run?: string;
   desc: string;
-  /** Not on the main line (jump only). */
-  side?: boolean;
+  /** Not on the main line (jump only): the main-line beat it stands on. */
+  side?: string;
 }
 
 /** 02 4.5: the chapter's story in order; each beat = everything before it has happened. */
@@ -127,7 +128,14 @@ export const CHAIN2: Beat2[] = [
     steps: [],
     at: ['map_hoshi_barn', 19, 6, 'right'],
     desc: '（任意）牛舎のおてつだい（マサルさんに話す）',
-    side: true,
+    side: 'houki',
+  },
+  {
+    beat: 'delivery',
+    steps: [],
+    at: ['map_hoshimidai', 42, 43, 'right'],
+    desc: '（任意）野菜の配達（ヒロスケさん (43,43) に話す）',
+    side: 'gen',
   },
 ];
 
@@ -135,7 +143,7 @@ export const CHAIN2: Beat2[] = [
 export function applyUpTo2(beat: string): Beat2 | null {
   const target = CHAIN2.find((c) => c.beat === beat);
   if (!target) return null;
-  const upto = target.side ? 'houki' : beat;
+  const upto = target.side ?? beat;
   const idx = CHAIN2.findIndex((c) => c.beat === upto);
   resetState();
   newChapter2Party();
@@ -244,6 +252,12 @@ registerDebug('endcut2', (n = 1) => {
   } else game.fadeAlpha = 1;
   f.startScript(cut());
   return `cut ${n}`;
+});
+
+/** QA: the delivery with four parcels delivered (the fifth, トマじい's, is next). */
+registerDebug('deliveryAlmost', () => {
+  debugDeliveryAlmost();
+  return 'four delivered';
 });
 
 /** QA: the chores all done but the last (then examine the last spot). */

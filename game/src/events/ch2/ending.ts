@@ -349,6 +349,24 @@ function* cut3Bus(): Co {
   f.snapCamera();
   const people = SEE_OFF.map(([id, x, y, d]) => put(id, x, y, d));
   const sankado = put('npc_hoshi_busdriver', 37, 43, 'left', 'bag');
+  // east of the circle, ツガオ便 in the morning: ヒロスケさん loads ペロリ's boxes
+  // (two trips), ポコシャさん with a yellow crate on each shoulder; ツガオさん in
+  // the driver's seat, awake in his work cap. No words, no sounds (50 10.16).
+  const hiro = put('npc_hirosuke', 43, 43, 'up', 'carry_box');
+  const poko = put('npc_pokosha', 45, 42, 'left', 'carry2');
+  let loading = true;
+  game.scripts.run(
+    (function* (): Co {
+      for (let i = 0; i < 2 && loading; i++) {
+        yield 900;
+        hiro.dir = 'down';
+        yield* walk('end_npc_hirosuke', [43, 44], { speed: 1.6 });
+        yield 400;
+        yield* walk('end_npc_hirosuke', [43, 43], { speed: 1.6, face: 'up' });
+      }
+    })(),
+  );
+  void poko;
   // the clock straight to 6:10 (a cut: no turning over)
   setClockText('6:10', { cut: true });
   const idle = seLoop('se_h_bus_idle', { vol: 0.5 });
@@ -398,6 +416,7 @@ function* cut3Bus(): Co {
   se('se_h_bus_door');
   yield 700;
   // the bus leaves west down the road; everyone raises a hand; ふくじんづけ barks once
+  loading = false;
   idle.stop(0.2);
   smoke = false;
   busHidden.on = true;
