@@ -368,9 +368,9 @@ export const AMB_TRIM: Record<string, number> = {
   // chapter 2 (audioMixSuggest: heard over 星見台の夜 where each one plays; the
   // insects held at the town's night level, the barn's fans over its −18 dB
   // song and the train with no music at all set by ear, 53 10.2)
-  amb_h_insects: 22, amb_h_kusa: 22, amb_h_tanada: 29.5, amb_h_mizu: 30, amb_h_wind: 35, amb_h_yama: 41,
-  amb_h_hachi: 26.5, amb_h_fence: 29.5, amb_h_barn_out: 30, amb_h_barn: 16, amb_h_house: 27, amb_h_tomato: 21.5,
-  amb_h_school: 28.5, amb_h_boukatou: 28, amb_h_tetsuya: 23.5, amb_h_train: 17, amb_h_pa_hum: 21, amb_h_dawn: 2.5,
+  amb_h_insects: 22, amb_h_kusa: 22, amb_h_tanada: 29.5, amb_h_mizu: 30, amb_h_wind: 30, amb_h_yama: 41,
+  amb_h_hachi: 26.5, amb_h_fence: 29.5, amb_h_barn_out: 26, amb_h_barn: 16, amb_h_house: 27, amb_h_tomato: 21.5,
+  amb_h_school: 28.5, amb_h_boukatou: 16, amb_h_tetsuya: 22, amb_h_train: 17, amb_h_pa_hum: 21, amb_h_dawn: 16,
 };
 
 /** A song's output level in dB: its own master gain plus the mix trim. */

@@ -152,3 +152,19 @@ function peelTape(s: BattleScene, e: EnemyUnit): void {
   void FRAME;
   void flag;
 }
+
+/**
+ * The backgrounds follow what the enemy is doing (51 15章): 夜間通電中, 立ちっぱなし,
+ * 値札はりかえ, the charge of チョトツ / テツヤ, テツヤ resting or awake all night.
+ */
+export function syncCh2Bg(s: BattleScene): void {
+  const f = s.bg.flags;
+  const live = s.aliveEnemies;
+  const any = (fn: (e: EnemyUnit) => boolean) => (live.some(fn) ? 1 : 0);
+  f.charged = any((e) => e.id === 'enemy_biribiri_ban' && e.stages.atk.lv >= 1);
+  f.stiff = any((e) => e.id === 'enemy_henoheno_kacho' && e.stages.def.lv >= 1);
+  f.nefuda = any((e) => e.id === 'enemy_mujin_hanbaiin' && e.stages.atk.lv >= 1);
+  f.charge = any((e) => !!e.status.tame);
+  f.rest = any((e) => !!e.def.restAlways && ((e.status.kyuukei ?? 0) > 0 || !!e.mem.restEnded));
+  f.tetsuya = any((e) => !!e.status.tetsuya);
+}

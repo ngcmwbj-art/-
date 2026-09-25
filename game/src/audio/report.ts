@@ -548,6 +548,8 @@ export const AMB_CONTEXT: {
   room?: number;
   /** Where the room may be louder than its music (the barn's fans over its −18 dB song, 53 10.2). */
   underMin?: number;
+  /** A pass line of its own (dB over the music in some band): a faint hum, insects through a closed window. */
+  need?: number;
 }[] = [
   { amb: 'amb_clock_tick', song: 'bgm_shop', stage: 0, role: 'character', where: 'ひのや' },
   { amb: 'amb_dryer', song: 'bgm_shop', stage: 0, role: 'character', where: 'コインランドリー' },
@@ -579,9 +581,9 @@ export const AMB_CONTEXT: {
   { amb: 'amb_h_tanada', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'character', underMin: 2, where: '棚田' },
   { amb: 'amb_h_kusa', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'character', underMin: 2, where: '耕作放棄地' },
   { amb: 'amb_h_fence', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'character', underMin: 2, where: '電気柵の電源装置' },
-  { amb: 'amb_h_barn_out', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'character', underMin: 2, where: '牛舎の外' },
+  { amb: 'amb_h_barn_out', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'bed', underMin: 2, where: '牛舎の外' },
   { amb: 'amb_h_yama', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'bed', where: '村の北（段階1〜2）' },
-  { amb: 'amb_h_boukatou', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'bed', underMin: 2, where: '防犯灯の下' },
+  { amb: 'amb_h_boukatou', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'bed', underMin: 2, need: -8, where: '防犯灯の下（かすかなうなり）' },
   { amb: 'amb_h_tetsuya', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'character', underMin: 0, where: '耕作放棄地（テツヤ）' },
   { amb: 'amb_h_pa_hum', song: 'bgm_hoshi_night', stage: 3, hStage: 2, role: 'bed', underMin: 2, where: '段階2・山道の入口' },
   { amb: 'amb_h_house', song: 'bgm_hoshi_night', stage: 3, hStage: 1, room: 1, role: 'character', where: '3号ハウス' },
@@ -589,7 +591,7 @@ export const AMB_CONTEXT: {
   { amb: 'amb_h_hachi', song: 'bgm_hoshi_night', stage: 3, hStage: 0, room: 1, role: 'bed', where: '3号ハウス（巣箱）' },
   { amb: 'amb_h_barn', song: 'bgm_hoshi_night', stage: 3, hStage: 1, room: 2, role: 'character', underMin: -12, where: '石黒牛舎' },
   { amb: 'amb_h_school', song: 'bgm_hoshi_night', stage: 3, hStage: 1, room: 3, role: 'character', where: '旧分校・集会所' },
-  { amb: 'amb_h_insects', song: 'bgm_hoshi_night', stage: 3, hStage: 1, room: 3, role: 'bed', vol: 0.35, lp: 2000, where: '集会所（窓ごし）' },
+  { amb: 'amb_h_insects', song: 'bgm_hoshi_night', stage: 3, hStage: 1, room: 3, role: 'bed', vol: 0.35, lp: 2000, need: -12, where: '集会所（窓ごし）' },
   { amb: 'amb_h_train', song: 'bgm_hoshi_night', stage: 3, hStage: 0, role: 'character', underMin: -8, where: '夜の電車（曲なし）' },
   { amb: 'amb_h_dawn', song: 'bgm_hoshi_morning', stage: 3, hStage: 2, role: 'bed', where: 'エンディングの夜明け' },
 ];
@@ -621,7 +623,7 @@ export async function ambContext(o: { ids?: string[]; seconds?: number } = {}): 
     over.forEach((v, i) => {
       if (v > over[bi]) bi = i;
     });
-    const need = c.role === 'character' ? AMB_NEED.character : AMB_NEED.bed;
+    const need = c.need ?? (c.role === 'character' ? AMB_NEED.character : AMB_NEED.bed);
     const st = measure(ra.buffer, 1);
     const under = round(sg.lufs - st.lufs);
     rows[ambKey(c)] = {

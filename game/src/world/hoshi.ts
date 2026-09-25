@@ -650,6 +650,95 @@ onFushigiPressed((id) => {
   if (id === 'fushigi_ch2_08') snd.ambientEvent('amb_h_barn', 'sync_off', 0.2);
 });
 
+// ---------------------------------------------------------------- the rooms' own light (52 4.1 / 4.3)
+
+interface RoomLights {
+  map: string;
+  on: boolean;
+  t0: number;
+  ms: number;
+}
+let roomLights: RoomLights | null = null;
+
+/**
+ * The barn's tubes at 5:00 (52 4.3 カット2a): `on` sweeps the room's light
+ * on from the west end, six tubes 0.08 s apart (each one a frame too bright
+ * as it catches); `off` holds the room dark whatever the stage. null gives
+ * the room back to its stage (lit from h3). For the current map.
+ */
+export function setRoomLights(f: FieldScene, on: boolean | null, sweepMs = 480): void {
+  roomLights = on === null ? null : { map: f.map.id, on, t0: f.t, ms: Math.max(1, sweepMs) };
+}
+
+/** 0..1 how far the room's lights are on (null: by the stage). */
+export function roomLit(mapId: string): number | null {
+  const r = roomLights;
+  if (!r || r.map !== mapId) return null;
+  if (!r.on) return 0;
+  const f = currentField;
+  if (!f) return 1;
+  return Math.min(1, (f.t - r.t0) / r.ms);
+}
+
+let currentField: FieldScene | null = null;
+
+/**
+ * Light-map extras of the rooms, painted over the base (source-over): the
+ * tubes sweeping on (the lit part of the room in `litCol`, each new tube's
+ * strip white for one frame), and in the night train the starlight through
+ * the north windows — 24px parallelograms of #7FD1E8 α10% running from
+ * right to left over the seats and the floor at 90px/s, one every 1.4 s
+ * (the train goes east, the light outside goes west: fx_h_train_window).
+ */
+export function paintRoomLight(f: FieldScene, lx: CanvasRenderingContext2D, cx: number, cy: number, litCol: string): void {
+  currentField = f;
+  const r = roomLights;
+  if (r && r.map === f.map.id && r.on) {
+    const k = Math.min(1, (f.t - r.t0) / r.ms);
+    if (k < 1) {
+      const n = 6;
+      const lit = Math.floor(k * n + 1e-6);
+      const segW = (f.map.w * 16) / n;
+      lx.save();
+      lx.globalCompositeOperation = 'source-over';
+      lx.fillStyle = litCol;
+      lx.fillRect(-cx, -cy, Math.round(segW * lit), f.map.h * 16);
+      // the tube that has just caught: one frame too bright
+      const fresh = k * n - lit < 0.035 * n && lit > 0;
+      if (fresh) {
+        lx.fillStyle = '#FFFFFF';
+        lx.fillRect(Math.round(segW * (lit - 1)) - cx, -cy, Math.round(segW), f.map.h * 16);
+      }
+      lx.restore();
+    }
+  }
+  if (f.map.id === 'map_hoshi_train' && flag('flag_ch2_stage') <= 2) {
+    // inside the car: rows 2–5, x 1–15 (the driver's cab has its own dials)
+    const x0 = 16 - cx;
+    const x1 = 16 * 16 - cx;
+    const y0 = 2 * 16 - cy;
+    const y1 = 6 * 16 - cy;
+    const period = 1400;
+    const speed = 90 / 1000;
+    const span = speed * period;
+    lx.save();
+    lx.beginPath();
+    lx.rect(x0, y0, x1 - x0, y1 - y0);
+    lx.clip();
+    lx.globalCompositeOperation = 'source-over';
+    lx.fillStyle = 'rgba(127,209,232,0.10)';
+    const phase = (f.t * speed) % span;
+    for (let bx = x1 + 24 - phase; bx > x0 - 80; bx -= span) {
+      // leaning: the light falls from the north windows to the south
+      for (let y = y0; y < y1; y += 2) {
+        const lean = Math.round((y - y0) * 0.5);
+        lx.fillRect(Math.round(bx - lean), y, 24, 2);
+      }
+    }
+    lx.restore();
+  }
+}
+
 // ---------------------------------------------------------------- per-frame
 
 let enteredMap: LoadedMap | null = null;
@@ -681,6 +770,12 @@ export function hoshiUpdate(f: FieldScene, dt: number, ctrl: boolean): void {
     villageTick(f);
   }
   updateFushigiClocks(f);
+  // the night train: the straps swing west every 5 s, and 0.3 s later the
+  // car itself sways — it swings before the bend (52 4.1)
+  if (f.map.id === 'map_hoshi_train' && !flag('flag_ch2_arrived')) {
+    const ph = f.t % 5000;
+    if (ph >= 300 && ph - dt < 300) game.shake(1, 160);
+  }
   // the restored ヘノヘノ課長 turns with the scarecrows
   for (const a of f.actors) {
     if (a.kind !== 'restored' || a.data.enemy !== 'enemy_henoheno_kacho') continue;
@@ -762,4 +857,3 @@ registerWorldFx({
   },
 });
 
-void game;

@@ -6,6 +6,7 @@ import { KanenariBg } from './kanenari';
 import { OjigiBg } from './ojigi';
 import { MallBg } from './mall';
 import { BossBg } from './boss';
+import { HOSHI_BG_IDS, makeHoshiBackground } from './hoshi';
 
 export type { Background } from './common';
 
@@ -14,10 +15,12 @@ const ALIASES: Record<string, string> = {
   bg_boss_clocks: 'bg_boss',
 };
 
-export const BG_IDS = ['bg_residential', 'bg_reverse_rain', 'bg_kanenari', 'bg_ojigi', 'bg_mall_floor', 'bg_boss'];
+export const BG_IDS = ['bg_residential', 'bg_reverse_rain', 'bg_kanenari', 'bg_ojigi', 'bg_mall_floor', 'bg_boss', ...HOSHI_BG_IDS];
 
 export function makeBackground(id: string, enemyId: string): Background {
   const bid = ALIASES[id] ?? id;
+  const h = makeHoshiBackground(bid);
+  if (h) return h;
   switch (bid) {
     case 'bg_reverse_rain':
       return new RainBg(enemyId);

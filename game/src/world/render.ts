@@ -21,7 +21,7 @@ import { hud } from './hud';
 import { fxDraw, fxUpdate } from './fx';
 import * as snd from './audio';
 import { fanImage, lanternShadow, nightSilhouette, rimOf, sideToward, type LightCircle } from './lantern';
-import { genFlash, hoshiPositional, hoshiPositionalBeds } from './hoshi';
+import { genFlash, hoshiPositional, hoshiPositionalBeds, paintRoomLight, roomLit } from './hoshi';
 import { fushigiDone } from './fushigi';
 import { hash2, Rng, valueNoise } from '../engine/rng';
 
@@ -1531,6 +1531,9 @@ export class Renderer {
       }
       // the dark, the starlight, the tomato light (mixed, not added)
       f.light.paint(lx, cx, cy, base, W, H);
+      // the rooms' own light moving: the tubes coming on one by one, the
+      // starlight through the train's windows (hoshi.ts)
+      paintRoomLight(f, lx, cx, cy, HOSHI_INDOOR_MORNING[f.map.id] ?? HOSHI_INDOOR_MORNING.default);
     }
     lx.globalCompositeOperation = 'lighter';
     if (ch2) {
@@ -1814,8 +1817,10 @@ const WATERY = new Set(['h_canal', 'h_stream', 'h_tanada', 'h_nuta', 'water', 'p
 function hoshiBase(f: FieldScene): string {
   const def = f.map.def;
   if (def.kind !== 'indoor') return css(f.grade.mul);
-  if (flag('flag_ch2_stage') >= 3) return HOSHI_INDOOR_MORNING;
-  return def.lightBase ?? HOSHI_INDOOR_BASE[def.id] ?? '#5C5A94';
+  const night = def.lightBase ?? HOSHI_INDOOR_BASE[def.id] ?? '#5C5A94';
+  const lit = roomLit(f.map.id);
+  if (lit === null ? flag('flag_ch2_stage') >= 3 : lit >= 1) return HOSHI_INDOOR_MORNING[def.id] ?? HOSHI_INDOOR_MORNING.default;
+  return night;
 }
 
 const silColCache = new WeakMap<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();

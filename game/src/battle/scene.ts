@@ -26,6 +26,7 @@ import { C, cursorStamp, cursorStampSide, drawBar, slantTape, STICKY_PAD, sticky
 import { inkLabel, ovalStamp, pekeMark, petalSprites } from './art/stamps';
 import { hitCrack, hitSplash, sweatDrop } from './art/fxart';
 import { boarIcon, moyamoya } from './art/fxart_ch2';
+import { syncCh2Bg } from './ch2rules';
 
 export const FRAME = 1000 / 60;
 
@@ -282,6 +283,7 @@ export class BattleScene implements Scene {
     const sdt = dt * this.timeScale;
     this.t += sdt;
     this.runner.update(sdt);
+    if (this.hoshi) syncCh2Bg(this);
     this.bg.update(sdt);
     this.parts.update(sdt);
     this.partsTop.update(sdt);

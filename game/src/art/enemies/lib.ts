@@ -178,7 +178,15 @@ export interface ShadeOpts {
   ry?: number;
   /** Clip painting to this mask (shading still computed from `m`). */
   clip?: Mask;
+  /**
+   * Light direction (x, y, z; unit length). Default: the western sunset,
+   * upper left. 第2章: NIGHT_LIGHT, the lantern low in front on the left.
+   */
+  light?: [number, number, number];
 }
+
+/** 第2章 (51 8.0): the tomato lantern, low and in front, on the left. */
+export const NIGHT_LIGHT: [number, number, number] = [-0.62, 0.5, 0.6];
 
 /** Paint mask `m` with a lit ramp. */
 export function shade(p: PixelCanvas, m: Mask, ramp: Ramp, o: ShadeOpts = {}): void {
@@ -195,6 +203,7 @@ export function shade(p: PixelCanvas, m: Mask, ramp: Ramp, o: ShadeOpts = {}): v
   const ry = o.ry ?? bb.h / 2;
   const bev = o.bevel ?? Math.max(2, Math.min(6, Math.round(Math.min(bb.w, bb.h) / 4)));
   const dm = mode === 'bevel' ? distMap(m, bev) : null;
+  const [lx, ly, lz] = o.light ?? [LX, LY, LZ];
   const hAt = (x: number, y: number) => (x < 0 || y < 0 || x >= m.w || y >= m.h ? 0 : dm![y * m.w + x] / bev);
   m.each((x, y) => {
     if (o.clip && !o.clip.in(x, y)) return;
@@ -221,8 +230,8 @@ export function shade(p: PixelCanvas, m: Mask, ramp: Ramp, o: ShadeOpts = {}): v
       ny /= l;
       nz /= l;
     }
-    let lit = mode === 'flat' ? 0 : nx * LX + ny * LY + nz * LZ - LZ;
-    if (mode === 'sphere' || mode === 'cyl') lit = nx * LX + ny * LY + nz * LZ - 0.35;
+    let lit = mode === 'flat' ? 0 : nx * lx + ny * ly + nz * lz - lz;
+    if (mode === 'sphere' || mode === 'cyl') lit = nx * lx + ny * ly + nz * lz - 0.35;
     const g = -((x + 0.5 - cx) / Math.max(1, bb.w)) * grad - ((y + 0.5 - cy) / Math.max(1, bb.h)) * grad;
     let v = base + lit * k + g;
     v = Math.max(0, Math.min(0.999, v));

@@ -142,8 +142,14 @@ export const HOSHI_INDOOR_BASE: Record<string, string> = {
   map_hoshi_house: '#5C5A94',
   map_hoshi_barn: '#5C5A94',
 };
-/** The morning (h3) base of every 星見台 room: the lights are on, the day is in. */
-export const HOSHI_INDOOR_MORNING = '#FFF0DC';
+/**
+ * The morning (h3) base of the 星見台 rooms: the barn's fluorescent tubes
+ * come on at 5:00 (#E8ECF0, 52 4.3), elsewhere the day is in.
+ */
+export const HOSHI_INDOOR_MORNING: Record<string, string> = {
+  map_hoshi_barn: '#E8ECF0',
+  default: '#FFF0DC',
+};
 
 /** Indoor multiply colours per outdoor stage (pal_indoor). */
 export const INDOOR_MUL: Record<number, RGB> = {
