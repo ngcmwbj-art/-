@@ -1111,3 +1111,193 @@ registerChar('npc_piichan', () =>
     keep: ['#5A6B2A'],
   }),
 );
+
+// =============================================================================
+// ツガオ in his room (npc_tsugao_suit, 52 10.3 / 12.5): the same man as the
+// village's ツガオさん — the square crew cut, thick brows, the set mouth, the
+// ink on his fingertips — in a well-cut charcoal double-breasted suit (a
+// 1px pinstripe every 4px), white shirt, black tie, a black pocket square.
+// Broad shoulders, back straight. Eyes thin lines, no sunglasses, no badge,
+// nothing violent. Chapter 2 only shows him in the cut (cut_tsugao_room);
+// this field sprite is for chapter 3. Extras: sleep (the spotted nightcap,
+// the other half of the joke), stamp, look_up.
+
+const SUIT: Mats = {
+  ...BASE2,
+  skin: SKIN_DEEP,
+  hair: mat('#1B1733', { shade: '#0B0B14', light: '#3A3F48' }),
+  brow: flat('#1B1733'),
+  suit: mat('#2A2440', { shade: '#1B1733', light: '#3A3F48', dark: '#0B0B14' }),
+  stripe: flat('#3A3F48'),
+  shirt: flat('#E8E4D8'),
+  tie: flat('#0B0B14'),
+  cuff: flat('#F4F1E8'),
+  shoe: mat('#1B1733', { shade: '#0B0B14', light: '#3A3F48' }),
+  ink: flat('#0B0B14'),
+  night: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFF6D8', dark: '#9AA0A8' }),
+  dot: flat('#2F4A8A'),
+  stampH: flat('#2A2440'),
+};
+
+const SUIT_HEAD: HeadT = {
+  ...TSUGAO_HEAD,
+  // the crew cut: flat and square on top
+  hairD: [3, 0, ['.HHHHHHHh.', 'Hhhhhhhhhd', 'hhhhhhhhhd', 'h........d', 'd........d'], T],
+  hairU: [3, 0, ['.HHHHHHHh.', 'Hhhhhhhhhd', 'hhhhhhhhhd', 'hhhhhhhhhd', 'dhhhhhhhdd', '.dddddddd.'], T],
+  hairL: [3, 0, ['.HHHHHHh..', 'Hhhhhhhhd.', 'hhhhhhhhhd', '....hhhhd.', '.....hhd..'], T],
+};
+
+function suitDraw(f: Fig, p: Pose) {
+  const u = upper(p);
+  const b = p.bob;
+  const hy = 1 + u;
+  const act = p.act;
+  const L: LegSpec = { cx: 8, hip: 17, foot: 22, w: 3, gap: 2, mat: 'suit', shoe: 'shoe', shoeLen: 4 };
+  legs(f, p, L);
+  const side = p.view === 'left';
+  const back = p.view === 'up';
+  if (side) {
+    sideArm(f, 10, 11 + u, 4, -sideSwing(p), [{ mat: 'suit', n: 4 }, { mat: 'skin' }], -1, 2);
+    f.part('suit', { shade: 'rb', light: 't' });
+    f.hl(5, 10, 10 + u);
+    f.rect(3, 11 + u, 9, 18 + b - (11 + u));
+    f.part('shirt', { flat: true, rim: false });
+    f.px(4, 11 + u);
+    f.part('tie', { flat: true, rim: false });
+    f.px(4, 12 + u);
+    f.part('suit', { shade: 'rb', light: 'tl' });
+    f.rect(6, 11 + u, 4, 2);
+    sideArm(f, 7, 13 + u, 3, sideSwing(p), [{ mat: 'suit', n: 2 }, { mat: 'skin' }], 0, 2);
+    head(f, act === 'sleep' ? { ...p, blink: true, blinkClosed: true } : p, SUIT_HEAD, hy);
+    if (act === 'sleep') nightcap(f, 'left', hy);
+    return;
+  }
+  // the double-breasted jacket: wide shoulders, the pinstripes, a deep V
+  f.part('suit', { shade: 'rb', light: 't' });
+  f.hl(3, 12, 10 + u);
+  f.rect(2, 11 + u, 12, 18 + b - (11 + u));
+  f.part('stripe', { flat: true, rim: false });
+  for (let x = 3; x <= 12; x += 4) f.vl(x, 12 + u, 17 + b);
+  if (!back) {
+    f.part('shirt', { flat: true, rim: false });
+    f.rows(6, 11 + u, ['####', '.##.', '.##.']);
+    f.part('tie', { flat: true, rim: false });
+    f.vl(7, 11 + u, 14 + u).vl(8, 11 + u, 14 + u);
+    f.part('suit', { flat: true });
+    f.t(-2).line(9, 14 + u, 7, 17 + b).t(null);
+    f.part('tie', { flat: true, rim: false });
+    f.px(4, 12 + u).px(5, 12 + u); // the pocket square
+  }
+  const ARM: Seg[] = [{ mat: 'suit', n: 4 }, { mat: 'cuff' }, { mat: 'skin' }];
+  if (act === 'stamp' && !back) {
+    hangArms(f, p, { lx: 2, rx: 13, sy: 11, hy: 16, segs: ARM }, u, 'L');
+    f.part('suit', { shade: 'rb', light: 't', shift: -1 });
+    f.rect(12, 11 + u, 2, 3);
+    f.part('skin', { shade: 'rb', light: 't' });
+    f.rect(11, 14 + u + p.ph, 2, 2);
+    f.part('stampH', { flat: true, rim: false });
+    f.rect(11, 11 + u + p.ph, 2, 3);
+    f.part('ink', { flat: true, rim: false });
+    f.px(11, 16 + u + p.ph);
+  } else hangArms(f, p, { lx: 2, rx: 13, sy: 11, hy: 16, segs: ARM }, u);
+  if (!back) {
+    // ink on the fingertips of his right hand
+    f.part('ink', { flat: true, rim: false });
+    f.px(2, 18 + u + (p.mode === 'walk' ? [0, 1, 0, -1][p.step % 4] : 0));
+  }
+  head(f, act === 'sleep' ? { ...p, blink: true, blinkClosed: true } : p, SUIT_HEAD, hy);
+  if (act === 'sleep') nightcap(f, back ? 'up' : 'down', hy);
+}
+
+registerChar('npc_tsugao_suit', () =>
+  buildSprite({
+    id: 'npc_tsugao_suit',
+    mats: SUIT,
+    draw: suitDraw,
+    walkFrameMs: 190,
+    idle: rep([{ breath: 0 }, { breath: 0 }, { breath: 0 }, { breath: 1 }, { breath: 1 }, { breath: 1 }, { breath: 0 }, { breath: 0, blink: true }], 2),
+    idleFrameMs: 300,
+    extras: { sleep: { dirs: 'all' }, stamp: { dirs: ['down'], p: { ph: 1 } } },
+    anims: { stamp: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 1 }, { ph: 0 }], ms: [200, 120, 400, 200], loop: false } },
+    shadow: 12,
+    keep: ['#C98A6A', '#A86A4E'],
+  }),
+);
+
+// =============================================================================
+// ダコク (npc_dakoku, 52 12.5): まだまだ団's errand machine, an old time
+// recorder on two thin legs (24×28). Cream box, rust at the corners, a round
+// clock face whose hands never move (no eyes, no mouth), the black card
+// slot under it, a little handle on top. 'talk' bobs it 1px; 'gachan' sinks
+// it 2px and pushes a card 4px out of the slot.
+
+const DAKOKU: Mats = {
+  box: mat('#E8D9B5', { shade: '#C8A06A', light: '#FBF3DC', dark: '#A8742A' }),
+  rust: flat('#A8742A'),
+  face: flat('#E8E4D8'),
+  rimM: flat('#6B7186'),
+  hand: flat('#1B1733'),
+  slot: flat('#1B1733'),
+  card: flat('#F4F1E8'),
+  leg: flat('#3A3F48'),
+  handle: mat('#6B7186', { shade: '#3A3F48', light: '#9AA0A8' }),
+};
+
+function dakokuDraw(f: Fig, p: Pose) {
+  const sink = p.act === 'gachan' ? 2 : 0;
+  const bob = p.act === 'talk' ? p.ph : 0;
+  const y = sink - bob;
+  const st = p.mode === 'walk' ? p.step % 4 : 0;
+  // two thin legs, stepping stiffly
+  f.part('leg', { flat: true });
+  f.vl(8, 20 + y, 27 - (st === 1 ? 1 : 0)).vl(15, 20 + y, 27 - (st === 3 ? 1 : 0));
+  f.hl(7, 8, 27 - (st === 1 ? 1 : 0)).hl(15, 16, 27 - (st === 3 ? 1 : 0));
+  // the box
+  f.part('box', { shade: 'rb', light: 't' });
+  f.rect(3, 4 + y, 18, 17);
+  f.part('rust', { flat: true, rim: false });
+  f.px(3, 4 + y).px(20, 4 + y).px(3, 20 + y).px(20, 20 + y).px(4, 20 + y).px(19, 5 + y);
+  // the handle on top
+  f.part('handle', { shade: 'r', light: 't' });
+  f.hl(9, 14, 2 + y).px(9, 3 + y).px(14, 3 + y);
+  if (p.view === 'up') return;
+  if (p.view === 'left') {
+    f.part('rimM', { flat: true, rim: false });
+    f.vl(3, 7 + y, 13 + y);
+    return;
+  }
+  // the clock face (stopped), its rim, the two hands
+  f.part('rimM', { flat: true, rim: false });
+  f.rows(7, 6 + y, ['..####..', '.#....#.', '#......#', '#......#', '#......#', '#......#', '.#....#.', '..####..']);
+  f.part('face', { flat: true, rim: false });
+  f.rows(8, 7 + y, ['.####.', '######', '######', '######', '######', '.####.']);
+  f.part('hand', { flat: true, rim: false });
+  f.vl(11, 8 + y, 10 + y).hl(11, 13, 10 + y);
+  // the card slot, and the report card coming out of it
+  f.part('slot', { flat: true, rim: false });
+  f.hl(8, 15, 16 + y).hl(8, 15, 17 + y);
+  if (p.act === 'gachan') {
+    f.part('card', { flat: true, rim: false });
+    f.rect(9, 12 + y, 6, 4);
+  }
+}
+
+registerChar('npc_dakoku', () =>
+  buildSprite({
+    id: 'npc_dakoku',
+    w: 24,
+    h: 28,
+    mats: DAKOKU,
+    draw: dakokuDraw,
+    walkFrameMs: 160,
+    walkBob: [0, 0, 0, 0],
+    idle: [{}, {}, {}, {}],
+    idleFrameMs: 400,
+    extras: { gachan: { dirs: ['down'] } },
+    anims: {
+      talk: { frames: [{ ph: 0 }, { ph: 1 }], ms: 160 },
+      gachan: { frames: [{ act: '' }, { act: 'gachan' }], ms: [80, 600], loop: false },
+    },
+    shadow: 18,
+  }),
+);
