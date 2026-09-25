@@ -11,6 +11,7 @@ import './train';
 import './village';
 import './house';
 import './barn';
+import './tsugao';
 import './houki';
 import './hill';
 import './ending';

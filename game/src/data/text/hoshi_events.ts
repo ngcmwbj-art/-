@@ -165,7 +165,8 @@ export const YORIAI_A = `@npc_hoshi_kucho
 その ところで 止まって おります。
 @npc_hoshi_yoshie
 トマトは 赤く ならんし、
-洗濯物は 乾かんし。{w=300}
+洗濯物は 乾かんし、{w=300}
+ツガオさんの 軽トラも 出られん。
 /
 あんたら、お茶 飲みなさい。
 !cue yunomi

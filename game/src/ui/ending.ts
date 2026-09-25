@@ -29,7 +29,7 @@ import { charWidth } from '../engine/font';
 import { state } from '../game/state';
 import { sfx, stopAllAmbient, stopBgm } from '../audio';
 import { petalSprites } from '../battle/art/stamps';
-import { caseBody, caseLid, CASE_H, CASE_SLOTS, CASE_W, drawCase, imprintFor, slotXY } from './hankocase';
+import { caseBody, caseLid, CASE_H, CASE_SLOTS, CASE_W, drawCase, imprintFor, outlineShown, slotXY } from './hankocase';
 import { clearRecordCh2, markClear, markClearCh2, toTitle } from './flow';
 import { playTsugaoRoom } from './cut_tsugao';
 import { hasEarTag, stickerEarTag, stickerStar, stickerTomato } from './menu/book';
@@ -680,9 +680,29 @@ class NotebookCh2Scene implements Scene {
       const a = appear(6);
       if (a > 0) drawOtsukareImprint(g, cx + sx + 3, cy + sy + 3, this.t, Math.min(1, a * 1.5));
     }
-    if (CASE_SLOTS[7] !== 'skill_itadakimasu' && appear(7) > 0) {
+    // the 8th slot: いただきます's outline, breathing (50 10.16). The case only
+    // shows it once flag_ch2_clear is up, and that is written after this cut
+    // (markClearCh2) — so here it is always drawn, over the empty slot.
+    if (appear(7) > 0 && !(CASE_SLOTS[7] === 'skill_itadakimasu' && outlineShown('skill_itadakimasu', true))) {
       const [sx, sy] = slotXY(7);
-      drawItadakimasuOutline(g, cx + sx + 3, cy + sy + 3, this.t);
+      const k = Math.min(1, appear(7) * 1.5);
+      // the velvet of the slot again (the empty slot's pink dotted edge goes)
+      g.ctx.drawImage(caseBody(), sx + 2, sy + 2, 28, 28, cx + sx + 2, cy + sy + 2, 28, 28);
+      g.alpha(k, () => {
+        const imp = CASE_SLOTS[7] === 'skill_itadakimasu' ? imprintFor('skill_itadakimasu') : null;
+        if (imp) {
+          const a = 0.18 + 0.1 * (0.5 + 0.5 * Math.sin((this.t / 1000) * Math.PI * 2));
+          g.alpha(a, () => g.img(imp, cx + sx + 3 + Math.round((25 - imp.width) / 2), cy + sy + 3 + Math.round((25 - imp.height) / 2)));
+        } else drawItadakimasuOutline(g, cx + sx + 3, cy + sy + 3, this.t);
+        g.alpha(0.45, () => {
+          for (let i = 0; i < 26; i += 2) {
+            g.px(cx + sx + 3 + i, cy + sy + 3, '#E8D9B5');
+            g.px(cx + sx + 3 + i, cy + sy + 28, '#E8D9B5');
+            g.px(cx + sx + 3, cy + sy + 3 + i, '#E8D9B5');
+            g.px(cx + sx + 28, cy + sy + 3 + i, '#E8D9B5');
+          }
+        });
+      });
     }
     const lk = Math.min(1, (this.lidT - 34) / 160);
     if (lk < 1) g.alpha(1 - lk, () => g.img(caseLid(), cx, cy - Math.round(lk * 30)));

@@ -28,7 +28,10 @@
 //   showCallBubble('……おぴぴちゃん。')       the loudspeaker's bubble (the caller plays the voice)
 //   yield* playCallBubble(text)                the bubble with its own 'broadcast' blips
 //   setClockText('19:31')                      the plate's time (null: the map's own)
-//   yield* fieldCurtain(1, 600) / setFieldCurtain(0)  the field goes dark under the HUD
+//   yield* fieldCurtain(1, 600) / setFieldCurtain(0)  the field goes dark under the HUD: the
+//                                              clock, call bubble and notes stay; the hanko
+//                                              icon and place name go dark with the world
+//                                              (4th arg { keep: ['clock', 'hanko', …] } picks)
 //   const cut = yield* openSunriseCut()        cut_h_sunrise: cut.rise(), cut.close()
 //   yield* playEndingNotebookCh2()             カット6 → markClearCh2() → カット7 → the title
 //                                              ({ toTitle: false } stops after カット6)
@@ -65,6 +68,7 @@ export {
   setClockText,
   fieldCurtain,
   setFieldCurtain,
+  type CurtainPart,
   showChoreCard,
   setChoreCount,
   choreCount,

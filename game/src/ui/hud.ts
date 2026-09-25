@@ -806,10 +806,16 @@ class UiHud implements FieldHud {
     // clock plate
     const y = Math.round(this.y);
     if (y > -24) drawClockPlate(g, 324, y, this.clockView());
-    // hanko icon (bottom left)
-    if (flag('flag_got_hanko') && !flag('flag_hud_hidden')) this.drawHanko(g);
-    // place name (bottom left, beside the hanko)
-    if (this.banner) this.drawBanner(g, this.banner);
+    // hanko icon (bottom left) and the place name beside it: under the
+    // curtain they go with the world (only the parts `keep` names stay)
+    const under = (part: CurtainPart, fn: () => void) => {
+      const k = curtain.keep.has(part) ? 1 : Math.max(0, 1 - Math.min(1, curtain.a) * 2);
+      if (k >= 1) fn();
+      else if (k > 0) g.alpha(k, fn);
+    };
+    if (flag('flag_got_hanko') && !flag('flag_hud_hidden')) under('hanko', () => this.drawHanko(g));
+    const banner = this.banner;
+    if (banner) under('place', () => this.drawBanner(g, banner));
     // the notes stay clear of a conversation: under a window at the top, and
     // above the name tag of one at the bottom (3 notes end at y128 < 138)
     let cardY = 8;
@@ -960,15 +966,21 @@ export function showCallBubble(text: string, o: { cps?: number; voice?: string; 
 export { playCallBubble, clearCallBubbleUi as clearCallBubble } from './call_bubble';
 export { showChoreCard, setChoreCount, choreCount, completeChoreCard, hideChoreCard, choreCardShowing, type ChoreItem } from './chore_card';
 
-const curtain = { a: 0, color: '#0B0B14' };
+/** The HUD parts a curtain can leave showing. */
+export type CurtainPart = 'clock' | 'call' | 'cards' | 'hanko' | 'place';
+const CURTAIN_KEEP: readonly CurtainPart[] = ['clock', 'call', 'cards'];
+const curtain = { a: 0, color: '#0B0B14', keep: new Set<CurtainPart>(CURTAIN_KEEP) };
 
 /**
  * Darken the field under the HUD (0..1): the world goes black but the clock
  * plate, the call bubble and the notes stay — e.g. evt_ch2_ending's first
- * cut, where only 「4:59」 is seen in the dark. `ms` fades to it.
+ * cut, where only 「4:59」 is seen in the dark. The hanko icon and the place
+ * name go dark with the world (gone by a = 0.5). `ms` fades to it;
+ * `o.keep` picks the parts that stay (default: clock, call, cards).
  */
-export function* fieldCurtain(a: number, ms = 0, color = '#0B0B14'): Co {
+export function* fieldCurtain(a: number, ms = 0, color = '#0B0B14', o: { keep?: readonly CurtainPart[] } = {}): Co {
   curtain.color = color;
+  curtain.keep = new Set(o.keep ?? CURTAIN_KEEP);
   const a0 = curtain.a;
   for (let t = 0; t < ms; t += 16.7) {
     curtain.a = a0 + (a - a0) * (t / ms);
@@ -978,9 +990,10 @@ export function* fieldCurtain(a: number, ms = 0, color = '#0B0B14'): Co {
 }
 
 /** Set the field's curtain at once (see fieldCurtain). */
-export function setFieldCurtain(a: number, color = '#0B0B14'): void {
+export function setFieldCurtain(a: number, color = '#0B0B14', o: { keep?: readonly CurtainPart[] } = {}): void {
   curtain.a = a;
   curtain.color = color;
+  curtain.keep = new Set(o.keep ?? CURTAIN_KEEP);
 }
 
 /**

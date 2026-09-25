@@ -187,7 +187,6 @@ export function* evtBarn(): Co {
       // on the spare feed bag at the east end (20,7), the towel over his face, a long breath
       yield* walk('npc_hoshi_gen', [[19, 6], [20, 6]], { speed: 2 });
       g.dir = 'left';
-      g.y = 7 * 16 + 6;
       poseIf(g, 'sit_bag');
       se('se_h_feedbag');
       yield 700;

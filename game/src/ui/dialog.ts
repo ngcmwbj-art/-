@@ -50,7 +50,8 @@ export interface SayOpts {
   style?: DialogStyle;
   /**
    * The name tag: masking tape (default), or black paper tape with white
-   * letters — ツガオの部屋 (52 12.5); ツガオ's and ダコク's voices get it by themselves.
+   * letters — only inside ツガオの部屋 (52 12.5), set by the caller. The
+   * voice never picks it (the village's ツガオさん shares the voice `tsugao`).
    */
   tape?: 'tape' | 'black';
 }
@@ -175,11 +176,14 @@ const NAMELESS_VOICES = new Set(['narr', 'sys', 'none']);
  * Kanenari-kun talks with his flip board (50_ch2_story 6.5, 52 13.6).
  */
 const CARD_VOICE = 'h_mujin';
-/** まだまだ団 (ツガオ, ダコク): black paper tape, white letters (52 12.5). */
-const BLACK_TAPE_VOICES = new Set(['tsugao', 'dakoku']);
-
+/**
+ * The name tag's kind. Black paper tape is only ever asked for (カット7,
+ * ツガオの部屋 — 52 12.5): the voice alone never decides it, because the
+ * village's ツガオさん speaks with the same voice `tsugao` (53 9.1) and a
+ * black tag in the village would give the twist away.
+ */
 function tapeOf(o: SayOpts): 'tape' | 'black' {
-  return o.tape ?? (BLACK_TAPE_VOICES.has(o.voice ?? '') ? 'black' : 'tape');
+  return o.tape ?? 'tape';
 }
 
 export function styleFor(o: SayOpts): DialogStyle {

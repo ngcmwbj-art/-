@@ -1161,6 +1161,20 @@ async function enterDoor(x, y, dir, to) {
   await waitFor((s) => s.map === to, 8000, `into ${to}`);
 }
 
+/** Out of a room by its door; whatever starts outside (a line at the door) is pressed through. */
+async function leaveRoom(to) {
+  const d = await page.evaluate((to) => {
+    const f = window.__game.cmd.fieldRef();
+    const o = (f.map.def.objects ?? []).find((x) => x.t === 'door' && x.to === to);
+    return o ? [o.x, o.y] : null;
+  }, to);
+  if (!d) throw new Error(`leaveRoom: no door to ${to}`);
+  await travel(d[0], d[1] - 1);
+  await walk('down', (s) => s.map === to, 5000);
+  await sleep(400);
+  await advance({ label: 'out' });
+}
+
 /** The ten ふしぎ ② (--fushigi-all): each map in turn, stamped from beside the object. */
 async function stampAllCh2() {
   const plan = [
@@ -1250,7 +1264,7 @@ const BEATS2 = [
       const ok = s.x <= 9;
       checks.push({ check: 'school corridor dark block before the tomato', ok, x: s.x });
       if (!ok) throw new Error(`dark block: at x${s.x}`);
-      await exitRoom('map_hoshimidai');
+      await leaveRoom('map_hoshimidai');
     },
   },
   {
@@ -1289,8 +1303,8 @@ const BEATS2 = [
       checks.push({ check: 'tomato: stage 1, the pair of sulking tomatoes', ok, stage: v.flag_ch2_stage, pair });
       if (!ok) throw new Error(`tomato: ${JSON.stringify({ ...v, pair })}`);
       await shot('lantern');
-      await exitRoom('map_hoshimidai');
-      await advance({ label: 'exit' });
+      await leaveRoom('map_hoshimidai');
+      await need(['flag_ch2_house_exit'], 'ペロリ at the door');
     },
   },
   {

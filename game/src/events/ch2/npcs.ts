@@ -14,7 +14,9 @@ import { KANENARI_USUAL } from '../../data/maps/town_text';
 import { HOSHI_NPC, KANENARI_FLIPS_HOSHI, KANENARI_FLIP_MUJIN_H1, KANENARI_USUAL_HOSHI } from '../../data/text/hoshi_npcs';
 import { panBack, panTo } from '../lib';
 import { se } from './compat';
+import { TS_LINES } from '../../data/text/hoshi_tsugao';
 import { hStage, isHoshi, npc, pickH, say } from './common';
+import { deliveryAtYoshie } from './tsugao';
 
 const T = HOSHI_NPC;
 
@@ -25,7 +27,43 @@ function only(t: Record<string, string>, keys: string[]): Record<string, string>
   return o;
 }
 
+/** The key of a stage that repeats in this table (its last numbered key, or the plain hN), falling back like pickH. */
+function lastKey(table: Record<string, string>, stage: number): string | null {
+  for (let s = Math.min(stage, 3); s >= 0; s--) {
+    let last: string | null = null;
+    for (let n = 1; n <= 9; n++) if (table[`h${s}_${n}`] !== undefined) last = `h${s}_${n}`;
+    if (last) return last;
+    if (table[`h${s}`] !== undefined) return `h${s}`;
+  }
+  return null;
+}
+
+/**
+ * 〔deli〕 (after the delivery, the next talk, once) and 〔ts〕 (ツガオさんの話:
+ * once, the talk after the stage's repeating line has been seen; 50 3.0)
+ * come before the stage's own line. True when one was said.
+ */
+function* extraLine(id: string, table: Record<string, string>, stage: number): Co<boolean> {
+  const x = TS_LINES[id];
+  if (!x) return false;
+  if (x.deli && flag('flag_ch2_delivery') && !flag(`flag_seen_${id}_deli`)) {
+    setFlag(`flag_seen_${id}_deli`, 1);
+    yield* say(x.deli);
+    return true;
+  }
+  if (x.ts && !flag(`flag_seen_${id}_ts`)) {
+    const lk = lastKey(table, stage);
+    if (lk && flag(`flag_seen_${id}_${lk}`)) {
+      setFlag(`flag_seen_${id}_ts`, 1);
+      yield* say(x.ts);
+      return true;
+    }
+  }
+  return false;
+}
+
 function* talk(id: string, table: Record<string, string>, stage?: number): Co<string | null> {
+  if (yield* extraLine(id, table, stage ?? hStage())) return 'ts';
   const key = pickH(id, table, stage);
   if (key) yield* say(table[key]);
   return key;
@@ -73,7 +111,14 @@ function* yoshie(): Co {
     yield* evtYoriai();
     return;
   }
+  // the fourth parcel of the delivery: she takes the cucumbers (no tea this time)
+  if (yield* deliveryAtYoshie()) return;
   const t = T.npc_hoshi_yoshie;
+  // 〔deli〕 / 〔ts〕 (her repeating line is 〔h0_2〕 at every stage), each with the tea
+  if (yield* extraLine('npc_hoshi_yoshie', { h0_2: t.h0_2 }, 0)) {
+    yield* tea();
+    return;
+  }
   const n = flag('flag_ch2_yoshie_talks');
   setFlag('flag_ch2_yoshie_talks', n + 1);
   const s = Math.min(2, hStage());
@@ -103,6 +148,8 @@ registerScript('npc_hoshi_fumi', function* (): Co {
   }
   const t = T.npc_hoshi_fumi;
   if (hStage() >= 2) {
+    if (yield* extraLine('npc_hoshi_fumi', { h2: t.h2 }, 2)) return;
+    setFlag('flag_seen_npc_hoshi_fumi_h2', flag('flag_seen_npc_hoshi_fumi_h2') + 1);
     yield* say(t.h2);
     return;
   }
