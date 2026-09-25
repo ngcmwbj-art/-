@@ -392,7 +392,7 @@ regStand(
 
 type EavePaint = (p: PixelCanvas) => void;
 const EAVE: Record<string, [number, number, EavePaint]> = {
-  // フミ先生: a watering can and potted herbs
+  // まつ先生: a watering can and potted herbs
   fumi: [
     24,
     14,
@@ -473,7 +473,7 @@ const EAVE: Record<string, [number, number, EavePaint]> = {
       for (let x = 2; x < 28; x++) if (ihash(x, 1, 3841) % 7 === 0) p.set(x, 8, P.brassOld);
     },
   ],
-  // ゲンさん: a bucket and a coil of straw rope
+  // マサルさん: a bucket and a coil of straw rope
   gen: [
     20,
     12,

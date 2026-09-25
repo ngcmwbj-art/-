@@ -25,6 +25,7 @@ import type { Gfx } from '../engine/gfx';
 import { drawVillageLit } from './cut_village_lit';
 import { CALL_NAMES, callLine } from '../data/text/hoshi_npcs';
 import { openSunriseCut, sunriseStill } from './cut_sunrise';
+import { playChapterDoor } from './chapter_door';
 
 const SAMPLES: Record<string, () => Generator> = {
   normal: function* () {
@@ -363,4 +364,17 @@ registerDebug('chore', (n: number | 'done' | 'hide' = 0) => {
   setChoreCount(0, Math.min(6, n));
   setChoreCount(1, Math.max(0, n - 6));
   return n;
+});
+
+/** QA: 章の扉 (52 12.3) on a black screen. */
+registerDebug('door', () => {
+  game.scripts.run(
+    (function* () {
+      game.fadeColor = '#0B0B14';
+      game.fadeAlpha = 1;
+      yield* playChapterDoor();
+      game.fadeAlpha = 0;
+    })(),
+  );
+  return 'door';
 });

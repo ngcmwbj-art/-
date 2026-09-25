@@ -237,11 +237,14 @@ let otsuC: HTMLCanvasElement | null = null;
  */
 function otsukareImprint(): HTMLCanvasElement {
   if (otsuC) return otsuC;
-  const [c, ctx] = makeCanvas(24, 22);
-  ctx.drawImage(ovalStamp('おつかれ', 24, 16, 0.06, 6), 0, 6);
+  // the oval grows past 24px to fit its four kana: the canvas takes its width
+  const oval = ovalStamp('おつかれ', 24, 16, 0.06, 6);
+  const [c, ctx] = makeCanvas(oval.width, 22);
+  ctx.drawImage(oval, 0, 6);
   ctx.fillStyle = UI.accent;
-  for (const [x0, ph] of [[7, 0], [12, 1.4], [17, 2.6]] as [number, number][])
-    for (let y = 0; y < 6; y++) if (y !== 2 || x0 !== 12) ctx.fillRect(Math.round(x0 + Math.sin(y * 1.3 + ph) * 1.2), y, 1, 1);
+  const mid = Math.floor(oval.width / 2);
+  for (const [dx, ph] of [[-5, 0], [0, 1.4], [5, 2.6]] as [number, number][])
+    for (let y = 0; y < 6; y++) if (y !== 2 || dx !== 0) ctx.fillRect(Math.round(mid + dx + Math.sin(y * 1.3 + ph) * 1.2), y, 1, 1);
   otsuC = c;
   return c;
 }

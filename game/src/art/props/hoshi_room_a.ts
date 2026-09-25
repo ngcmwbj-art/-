@@ -1,5 +1,5 @@
 // Chapter-2 rooms, part 1 (52_ch2_level_art 4.1・4.2): the unlit one-man
-// train and ミツばあ's greenhouse No.3.
+// train and ペロリ's greenhouse No.3.
 //
 // Each room is one flat shell prop anchored at (0,0) (walls, seats, the
 // film, the fittings on the walls; the floors are the ground layer) plus

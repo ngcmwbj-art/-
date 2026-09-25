@@ -37,7 +37,7 @@ const items: ItemDef[] = [
   },
   { id: 'item_kairan_map', name: '回覧板の地図', key: true, target: 'none', desc: ['星見台の 回覧板。うらに 区長の 地図。', ''], battleText: ['回覧板を 見せた。\n……回す 相手が いない。'] },
   { id: 'item_seiriken', name: '整理券', key: true, target: 'none', desc: ['整理券。番号は『1』。', '……2人で 乗ったのに。'], battleText: ['整理券を 見せた。\n番号を 呼ばれる 気配は ない。'] },
-  { id: 'item_tomato_omiyage', name: 'トマト（4つ）', key: true, target: 'none', desc: ['ミツばあの トマト。4つ。', '……1つは おまけ。'], battleText: ['これは おみやげだ。'] },
+  { id: 'item_tomato_omiyage', name: 'トマト（4つ）', key: true, target: 'none', desc: ['ペロリさんの トマト。4つ。', '……1つは おまけ。'], battleText: ['これは おみやげだ。'] },
 ];
 
 const table = new Map<string, ItemDef>();

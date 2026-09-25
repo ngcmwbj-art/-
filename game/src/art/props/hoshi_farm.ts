@@ -2,9 +2,9 @@
 // 台地・耕作放棄地): harvest crates and shipping boxes in front of the tomato
 // houses, the irrigation tank with its timer stopped at 5:00, the stake
 // bundle, the water divider and the paddies' inlet board, the scarecrows (8,
-// each dressed differently, turning to the hill in h2), ミツばあ's kitchen
+// each dressed differently, turning to the hill in h2), ペロリ's kitchen
 // garden (her own tomatoes are red: those she lets ripen on the vine), the
-// hand pump, ゲンさん's kei truck with feed bags and the dog's blanket, the
+// hand pump, マサルさん's kei truck with feed bags and the dog's blanket, the
 // electric fence's gate, signs and solar power unit, and the abandoned
 // fields' pampas grass, goldenrod without flowers, fallen stakes, a
 // collapsed hut roof, the cedars at the mouth of the hill path, the signs,
@@ -47,7 +47,7 @@ regStand(
   { cx: 8, base: 16, shadow: 26 },
 );
 
-/** ミツばあ's seat: two crates, upside down (she sits on them; the NPC is drawn after). */
+/** ペロリ's seat: two crates, upside down (she sits on them; the NPC is drawn after). */
 registerProp('prop_h_container_seat', () =>
   standProp(
     16,
@@ -196,7 +196,7 @@ registerProp('prop_h_bunsui', () => {
   return { ox: -1, oy: -2, w: 18, h: 34, foot: 0, flat: true, img: () => img };
 });
 
-// ---------------------------------------------------------------- ミツばあの家庭菜園 (9,42) 64×32
+// ---------------------------------------------------------------- ペロリの家庭菜園 (9,42) 64×32
 
 regStand(
   'prop_h_hatake',
@@ -437,7 +437,7 @@ function feedSack(p: PixelCanvas, x: number, y: number, w = 8, h = 5): void {
   p.hline(x, x + w - 1, y + h - 1, P.brassOld);
 }
 
-/** ゲンさん's white kei truck, parked facing west (side view 60×32): feed sacks ×4 and the dog's blanket on the bed. */
+/** マサルさん's white kei truck, parked facing west (side view 60×32): feed sacks ×4 and the dog's blanket on the bed. */
 function keitoraSide(): HTMLCanvasElement {
   const p = new PixelCanvas(60, 32);
   const Wc = P.white;

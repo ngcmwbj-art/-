@@ -4,7 +4,7 @@
 // machine (the brightest thing in the village), the ticket box of the
 // unmanned station, the platform lamp, the bus stop and its timetable
 // (ふしぎ02), the bus shelter, the honesty stand, the signpost with its one
-// new board, the wayside gods, the round post box, サワコさん's stool, the
+// new board, the wayside gods, the round post box, ソワカさん's stool, the
 // empty house's mailbox (ふしぎ04) and the village's utility poles.
 
 import type { Gfx } from '../../engine/gfx';
@@ -592,7 +592,7 @@ regStand(
   { cx: 8, base: 16, shadow: 22 },
 );
 
-// ---------------------------------------------------------------- サワコさんの丸いす (23,37)
+// ---------------------------------------------------------------- ソワカさんの丸いす (23,37)
 
 regStand(
   'prop_h_marui_isu',

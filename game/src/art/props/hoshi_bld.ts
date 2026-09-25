@@ -1,9 +1,9 @@
 // The houses of 星見台 (52_ch2_level_art 3.3, 7.1 屋根と壁): every house its
-// own roof and wall (7.4) — フミ先生's tiled bungalow with its telescope
-// ornament, サワコさん's faded blue tin and her onions, 区長's tidy house
+// own roof and wall (7.4) — まつ先生's tiled bungalow with its telescope
+// ornament, ソワカさん's faded blue tin and her onions, 区長's tidy house
 // with the circular's shelf, the empty 森本 house with its shutters closed,
 // the ward storehouse, the old shop that is for sale, three more houses,
-// ゲンさん's house with its night-light and ミツばあ's farmhouse (tin over
+// マサルさん's house with its night-light and ペロリ's farmhouse (tin over
 // thatch, the earthen kitchen, the veranda and the altar's two candles).
 //
 // All windows are dark (52 7.1: "どれも窓は暗い") but the few the night
@@ -50,7 +50,7 @@ import { fontTextSmall } from './text';
 
 // ---------------------------------------------------------------- shared bits
 
-/** TV antenna on a ridge (フミ先生's house). */
+/** TV antenna on a ridge (まつ先生's house). */
 function antenna(p: PixelCanvas, x: number, y0: number, y1: number): void {
   p.vline(x, y0, y1, P.steel);
   p.vline(x + 1, y0 + 2, y1, P.charcoal);
@@ -138,7 +138,7 @@ function porchLamp(p: PixelCanvas, x: number, y: number): void {
   p.hline(x, x + 2, y + 4, P.charcoal);
 }
 
-// ---------------------------------------------------------------- フミ先生の家 (14,23) 5×(2+2)
+// ---------------------------------------------------------------- まつ先生の家 (14,23) 5×(2+2)
 
 registerBuilding({
   id: 'prop_h_bld_fumi',
@@ -362,7 +362,7 @@ registerBuilding({
   },
 });
 
-// ---------------------------------------------------------------- サワコさんの家 (21,33) 4×: 青いトタン、たまねぎ
+// ---------------------------------------------------------------- ソワカさんの家 (21,33) 4×: 青いトタン、たまねぎ
 
 registerBuilding({
   id: 'prop_h_bld_sawako',
@@ -476,7 +476,7 @@ registerBuilding({
   },
 });
 
-// ---------------------------------------------------------------- 区長の家 中村 (34,33)
+// ---------------------------------------------------------------- 区長の家 エー (34,33)
 
 registerBuilding({
   id: 'prop_h_bld_kucho',
@@ -500,7 +500,7 @@ registerBuilding({
     // entrance (1 tile east of the anchor: the door the text reads (35,36))
     hikido(b, 18, fY + 10, 16, 20, P.woodDark);
     genkanStep(p, 18, b.botY, 16);
-    // nameplate 中村 and the circular's shelf beside the door
+    // nameplate エー and the circular's shelf beside the door
     p.rect(34, fY + 11, 10, 5, P.goldPale);
     p.hline(34, 43, fY + 11, P.woodLt);
     p.hline(34, 43, fY + 15, P.brassOld);
@@ -521,7 +521,7 @@ registerBuilding({
   },
 });
 
-// ---------------------------------------------------------------- ゲンさんの家 (54,40) 6×: 大きな作業場の下屋、常夜灯
+// ---------------------------------------------------------------- マサルさんの家 (54,40) 6×: 大きな作業場の下屋、常夜灯
 
 registerBuilding({
   id: 'prop_h_bld_gen',
@@ -595,7 +595,7 @@ registerBuilding({
   },
 });
 
-// ---------------------------------------------------------------- ミツばあの家（古民家） (1,40) 8×: トタンをかぶせた茅葺き
+// ---------------------------------------------------------------- ペロリの家（古民家） (1,40) 8×: トタンをかぶせた茅葺き
 
 registerBuilding({
   id: 'prop_h_bld_kominka',

@@ -259,7 +259,7 @@ function barnChores(): { props: MapObj[]; spots: MapObj[] } {
   for (const [id, x, y] of ESA) props.push(PR('decal_h_feed', x, y, { spot: id, side: y === 5 ? 'n' : 's' }));
   // the spots themselves: examined before whatever else is on the trough tile, only while the chores run
   for (const [id, x, y] of [...ESA, ...CUPS])
-    spots.push(O(id, x, y, { face: y === 5 ? 'up' : 'down', cond: { flag: 'flag_ch2_barn_work_on', notFlag: 'flag_' + id } }));
+    spots.push(O(id, x, y, { face: y === 5 ? 'up' : 'down', priority: 1, cond: { flag: 'flag_ch2_barn_work_on', notFlag: 'flag_' + id } }));
   return { props, spots };
 }
 const CHORES = barnChores();

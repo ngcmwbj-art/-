@@ -85,15 +85,17 @@ export const HOSHI_OBJ: Record<string, HText> = {
 電車は、もう 行ってしまった。`,
   obj_hoshi_bus: `@narr
 小さな バス。方向幕『ユウナリ前』。
-/
 窓に 手書きの 紙。{w=300}
-『村営バス 1日2本
-いつも ありがとう』`,
+『村営バス 1日2本 ありがとう』
+/
+運転席で、運転手さんが
+帽子を 顔に のせて 眠っている。
+{w=300}札に『6:10に 起こして』。`,
   obj_hoshi_mujin: {
     h0: `@narr
-無人販売所。きゅうり、なす、
-とうもろこし。{w=300}
-どれでも 100円。`,
+無人販売所。手描きの 札に、
+きゅうりと なすと とうもろこしの
+絵。{w=300}どれでも 100円。`,
     /** h1〜, while ムジン販売員 is out (after it is beaten: restored_enemy_mujin_hanbaiin). */
     h1: `@narr
 台の 上の 料金箱が いない。
@@ -148,9 +150,9 @@ export const HOSHI_OBJ: Record<string, HText> = {
 鉄棒。いちばん 低い 段だけ、
 さびが 手の 形に とれている。
 {w=300}……だれかが、いまも 使っている。`,
-    /** The second look, while フミ先生 is in the gathering room (h0–h1). */
+    /** The second look, while まつ先生 is in the gathering room (h0–h1). */
     second: `@narr
-朝の 体操の あと、フミ先生が
+朝の 体操の あと、まつ先生が
 ぶら下がる らしい。`,
   },
   obj_hoshi_sakura: `@narr
@@ -179,8 +181,9 @@ export const HOSHI_OBJ: Record<string, HText> = {
   },
   obj_hoshi_kucho_house: {
     text: `@narr
-区長の 家。玄関に、回覧板を
-置く 台。{w=300}台の 上は からっぽ。`,
+区長の 家。表札は『エー』。
+玄関に、回覧板を 置く 台。
+{w=300}台の 上は からっぽ。`,
     /** After fushigi_ch2_04: the circular came round. */
     after_f04: `@narr
 台の 上に、回覧板が
@@ -192,9 +195,9 @@ export const HOSHI_OBJ: Record<string, HText> = {
 望遠鏡の 形の 置物。{w=300}
 表札の 横に、星の シール。`,
   obj_hoshi_sawako_house: `@narr
-軒下に、たまねぎが
+軒下に、たまねぎと 絵筆が
 つるしてある。{w=300}
-……無人販売所の 在庫 らしい。`,
+……どっちも 在庫 らしい。`,
   obj_hoshi_boukatou: {
     h0: `@narr
 防犯灯が 1本、切れかけて
@@ -210,7 +213,10 @@ export const HOSHI_OBJ: Record<string, HText> = {
 棚田を 回って、ここを 通る。`,
   obj_hoshi_post: `@narr
 赤い ポスト。取集時刻の 札。
-{w=300}『1日1回』。`,
+{w=300}『1日1回』。
+/
+中は からっぽ。{w=300}
+手紙は もう、郵便袋の 中だ。`,
   obj_hoshi_denchu: `@narr
 電柱の 張り紙『イノシシに
 注意』。{w=300}
@@ -316,8 +322,9 @@ export const HOSHI_OBJ: Record<string, HText> = {
 かき取った 脇芽の バケツ。{w=300}
 ……トマトの いい においが する。`,
   obj_hoshi_nisshi: `@narr
-作業日誌。大きな 字で
-『8月28日 5段目 色づき』。
+作業日誌。きちんとした 字で
+『8月28日 5段目 色づき。
+味見 ぺろり。ほどよい』。
 /
 その 次の 日から、
 日付が 進んでいない。`,
@@ -344,27 +351,27 @@ export const HOSHI_OBJ: Record<string, HText> = {
 牛の ごはんに なる。`,
   obj_hoshi_keitora: `@narr
 軽トラの 荷台に、配合飼料の 袋。
-{w=300}すみで、ゴンの 毛布が
+{w=300}すみで、ふくじんづけの 毛布が
 まるまっている。`,
   obj_hoshi_taihisha: `@narr
 堆肥舎。おがくずと ふんが、
 ゆっくり 堆肥に なっていく。
 /
 ほんのり あたたかい。{w=300}
-……ミツばあの ハウスへ 行く 土だ。`,
+……ペロリさんの ハウスへ 行く 土だ。`,
   obj_hoshi_gen_house: `@narr
-ゲンさんの 家。{w=300}
+マサルさんの 家。{w=300}
 奥の 部屋で、だれかが 静かに
 寝ている 気配。`,
   obj_hoshi_gate: {
     text: `@narr
 電気柵の ゲート。
 取っ手が かかっている。{w=300}
-……ゲンさんに 聞こう。`,
+……マサルさんに 聞こう。`,
     open: `@narr
 ゲートの 取っ手は、支柱に
 かけてある。{w=300}
-ゲンさんが 開けて くれた。`,
+マサルさんが 開けて くれた。`,
   },
   obj_hoshi_fence_sign: `@narr
 黄色い 表示板『危険 電気さく』。
@@ -437,6 +444,13 @@ export const HOSHI_OBJ: Record<string, HText> = {
 南5の 欄にも『良し』。{w=300}
 その 横に 小さく、
 『トマトの 明かりで 確認』。`,
+    /** After the chores (flag_ch2_barn_work=1, 10.19). */
+    worked: `@narr
+南5の 欄にも『良し』。{w=300}
+/
+下の 欄に、太い 字で
+『エサ寄せ 給水器 良し』。{w=300}
+その 横に 小さく『ミナト』。`,
   },
 
   // ================================================================ 9.6 旧 星見台分校・集会所
@@ -449,24 +463,30 @@ export const HOSHI_OBJ: Record<string, HText> = {
 座布団が 12枚、輪に なって
 並んでいる。{w=300}
 3枚は、いま 使用中。`,
+  // シゲじいとスギばあ always snore (amb_h_school's snoring layer); the
+  // 「あちゃ〜」 page plays se_h_acha (!se, before the page)
   obj_hoshi_nappers: {
     'h0-1': `@narr
-座布団で 3人、眠っている。
-/
-1人が 寝言。{w=300}
+座布団で 3人、眠っている。{w=300}
+シゲじいと スギばあは、
+そろって いびき。『ぐぅ……』
+!se se_h_acha
+寝言が 2つ。{w=300}『……あちゃ〜……』
 『……もう ひと畝……』`,
-    /** After テツヤ (stage 2). */
+    /** After テツヤ (stage 2): only タケじい's words change. */
     'h2+': `@narr
-座布団で 3人、眠っている。
-/
-1人が 寝言。{w=300}
+座布団で 3人、眠っている。{w=300}
+いびきは、ずっと 続いている。
+!se se_h_acha
+寝言が 2つ。{w=300}『……あちゃ〜……』
 『……よし、今日は ここまで……』`,
   },
   obj_hoshi_photo: `@narr
 満開の 桜の 下で、子どもが 5人、
 先生が 1人。
 /
-先生は、少し 若い フミ先生だ。`,
+先生は、少し 若い まつ先生だ。
+{w=300}メガネは、いまと 同じ。`,
   obj_hoshi_kouka: `@narr
 校歌の 額。{w=300}
 『星を 見上げて 手を つなぎ』。
@@ -482,9 +502,11 @@ export const HOSHI_OBJ: Record<string, HText> = {
 いちばん 前の 机にだけ、名札の 跡。`,
   obj_hoshi_gakkyu_nisshi: `@narr
 学級日誌の 最後の ページ。
-/
 『きょうで おしまい。
-みんな、元気でね。{w=300}先生より』`,
+みんな、元気でね。{w=300}先生より』
+/
+表紙の うらに、子どもの 字で
+『朝の あいさつ：おはだっちょ！』。`,
   /** Only in the lantern's light (h1〜). */
   obj_hoshi_yosegaki: `@narr
 模造紙の 寄せ書き。
@@ -505,7 +527,7 @@ export const HOSHI_OBJ: Record<string, HText> = {
   obj_hoshi_kagi: `@narr
 鍵かけの 札『天文台』の ところは、
 鍵が ない。{w=300}
-……フミ先生が 持っている らしい。`,
+……まつ先生が 持っている らしい。`,
   obj_hoshi_housou_kiki: `@narr
 放送の 機械。スイッチに
 『防災無線 遠隔』の テープ。
@@ -542,7 +564,7 @@ export const HOSHI_OBJ: Record<string, HText> = {
   obj_hoshi_koya: `@narr
 農具小屋。くわ、長靴、
 水口の 予備の 板。{w=300}
-壁に『トメキチ』の 字。`,
+壁に『トマキチ』の 字。`,
   obj_hoshi_houki_sign: `@narr
 朽ちた 看板『――さんの 畑』。
 {w=300}名前の ところだけ、読めない。`,
@@ -859,8 +881,8 @@ export const FUSHIGI2_BOOK: { id: string; title: string; place: string }[] = [
 
 /** みました帳 ② 「あいて」 (8.11): who they were, and a word. */
 export const AITE2_BOOK: { id: string; who: string; word: string }[] = [
-  { id: 'enemy_sune_tomato', who: 'ミツばあの 3号ハウスの、\nまだ 色づいていない トマト。', word: '赤く なる 順番を、待っている。' },
-  { id: 'enemy_henoheno_kacho', who: 'トメじいの 背広を 着た、\n棚田の かかし。', word: 'かかしに、定年は ない。' },
+  { id: 'enemy_sune_tomato', who: 'ペロリさんの 3号ハウスの、\nまだ 色づいていない トマト。', word: '赤く なる 順番を、待っている。' },
+  { id: 'enemy_henoheno_kacho', who: 'トマじいの 背広を 着た、\n棚田の かかし。', word: 'かかしに、定年は ない。' },
   { id: 'enemy_biribiri_ban', who: 'イノシシよけの、電気柵の\nひと区画。', word: '番を するのが 仕事。\nだれの 番かは、忘れた。' },
   { id: 'enemy_chototsu', who: '山から 下りてきた、イノシシ。', word: '曲がれない、と よく 言われる。' },
   { id: 'enemy_mujin_hanbaiin', who: '無人販売所の、料金箱。', word: 'だれも 見ていなくても、\n1円も まちがえない。' },

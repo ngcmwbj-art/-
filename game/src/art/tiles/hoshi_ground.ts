@@ -8,8 +8,8 @@
 //
 // Every material is painted in daylight colours (the night is the grade's
 // job, 52 7章) and computed per world pixel, so no two tiles repeat. Water
-// shows through as navy pixels: the water layer (hoshi_water.ts) puts the
-// night sky, the stars and the fushigi into exactly those pixels.
+// shows through as navy pixels: the world's renderer mirrors the night sky,
+// the stars and the fushigi (52 8.7) into exactly those pixels.
 
 import { mix, rgba32 } from '../../engine/pixel';
 import { fbm, h01, ihash, valueNoise } from './noise';

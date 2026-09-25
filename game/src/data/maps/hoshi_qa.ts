@@ -13,7 +13,7 @@ import { game } from '../../engine/game';
 import { addItem, hasItem, setFlag, state, type Dir } from '../../game/state';
 import { field, FieldScene } from '../../world/field';
 
-/** 52 1.3: [map, centre x, centre y, fixed camera] (the rooms that fit the screen are centred by the map). */
+/** 52 1.3: [map, centre x, centre y, camera held on the centre]. */
 export const HOSHI_SCREENS: Record<string, [string, number, number, boolean]> = {
   arrive: ['map_hoshimidai', 25, 41, true],
   bus: ['map_hoshimidai', 38, 40, true],
@@ -26,13 +26,15 @@ export const HOSHI_SCREENS: Record<string, [string, number, number, boolean]> = 
   gate: ['map_hoshimidai', 49, 21, true],
   houki: ['map_hoshimidai', 47, 11, true],
   yamaguchi: ['map_hoshimidai', 48, 5, true],
+  // the rooms and the hill: the map's own camera (a room narrower than the
+  // screen is centred by it, the hill's plaza has its camLock)
   train: ['map_hoshi_train', 9, 3, false],
-  house_in: ['map_hoshi_house', 4, 12, true],
-  house_top: ['map_hoshi_house', 4, 5, true],
+  house_in: ['map_hoshi_house', 4, 12, false],
+  house_top: ['map_hoshi_house', 4, 5, false],
   barn_in: ['map_hoshi_barn', 11, 6, false],
-  school_in: ['map_hoshi_school', 12, 6, true],
-  hill_path: ['map_hoshi_hill', 11, 13, true],
-  hill_top: ['map_hoshi_hill', 12, 4, true],
+  school_in: ['map_hoshi_school', 12, 6, false],
+  hill_path: ['map_hoshi_hill', 11, 13, false],
+  hill_top: ['map_hoshi_hill', 12, 4, false],
 };
 
 /** Where the player stands for a screen (a walkable tile near the centre). */
@@ -60,7 +62,7 @@ const STAND: Record<string, [number, number, Dir]> = {
 export interface HoshiQaOpts {
   /** Force the lantern on / off (default: on from h1). */
   tomato?: boolean;
-  /** h1: the gate already opened (ゲンさん's events done). Default true for the fence / fields screens. */
+  /** h1: the gate already opened (マサルさん's events done). Default true for the fence / fields screens. */
   gate?: boolean;
 }
 

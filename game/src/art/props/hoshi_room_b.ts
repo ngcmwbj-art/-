@@ -345,7 +345,7 @@ registerProp('prop_h_barn_spare', (opts) => {
 
 /**
  * The chores' state as the props read it (the events set these flags; none of
- * them is meant to be kept in a save): the chores are open while ゲンさん
+ * them is meant to be kept in a save): the chores are open while マサルさん
  * waits in the barn (gate open, before テツヤ) and haven't been done; while
  * they run `flag_ch2_barn_work_on` = 1; each spot done: `flag_<spot id>` = 1.
  */
@@ -354,6 +354,28 @@ export function choreOpen(env: PropEnv): boolean {
 }
 export function spotPending(env: PropEnv, spot: string): boolean {
   return choreOpen(env) && !env.flag('flag_' + spot);
+}
+
+/**
+ * fx_h_cup_clear (52 9.3): the moment a muddied cup is cleaned (its spot
+ * stops pending while it is being drawn) the clear water flashes twice in
+ * 0.4 s. The props see the change themselves, so the chores' script only has
+ * to set the spot's flag; a cup that wasn't on screen when it changed (a
+ * load, another map) just shows clear.
+ */
+const cupSeen = new Map<string, { pending: boolean; t: number; seen: number }>();
+function cupFlash(env: PropEnv, spot: string): boolean {
+  const pend = spotPending(env, spot);
+  let s = cupSeen.get(spot);
+  if (!s || env.t - s.seen > 500 || env.t < s.seen) {
+    s = { pending: pend, t: -1e9, seen: env.t };
+    cupSeen.set(spot, s);
+  }
+  if (s.pending && !pend) s.t = env.t;
+  s.pending = pend;
+  s.seen = env.t;
+  const dt = env.t - s.t;
+  return dt >= 0 && dt < 400 && Math.floor(dt / 100) % 2 === 0;
 }
 
 /** 給水器 (8×6): a grey bowl on the rail and its push plate; a target is muddied with feed until cleaned. */
@@ -378,16 +400,13 @@ registerProp('prop_h_watercup', (opts) => {
     foot: north ? 17 : 1,
     img: (env: PropEnv) => {
       if (!spot) return CUP[0];
+      const flash = cupFlash(env, spot);
       if (spotPending(env, spot)) return CUP[1];
       // just cleaned: the clear water flashes twice in 0.4 s (fx_h_cup_clear)
-      const t0 = env.flag('flag_' + spot + '_t');
-      if (t0 > 0 && env.t - t0 < 400 && Math.floor((env.t - t0) / 100) % 2 === 0) return CUP[2];
-      return CUP[0];
+      return flash ? CUP[2] : CUP[0];
     },
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
-      if (!spot) return;
-      const t0 = env.flag('flag_' + spot + '_t');
-      if (t0 > 0 && env.t - t0 < 400 && Math.floor((env.t - t0) / 100) % 2 === 0) g.rect(x + 6, y + (north ? 13 : 0), 2, 1, '#7FD1E8', 0.9);
+      if (spot && cupFlash(env, spot)) g.rect(x + 5, y + (north ? 13 : 0), 5, 2, '#7FD1E8', 0.9);
     },
     contact: 0,
   } as PropArt;
