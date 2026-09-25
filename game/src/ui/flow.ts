@@ -445,7 +445,9 @@ export function* startChapter2(from: 'continue' | 'title'): Co {
     f.runScriptId('evt_ch2_prologue', 'chapter2');
     return;
   }
-  // no prologue written yet: the two lines, the chapter door, and on to the train
+  // no prologue written yet: the two lines on black (the crossing's night song held back),
+  // the chapter door, and on to the train
+  stopBgm(0.2);
   yield 600;
   yield* caption(PROLOGUE_CAPTION);
   yield* playChapterDoor();

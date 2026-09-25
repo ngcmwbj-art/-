@@ -55,7 +55,7 @@ export const CH2_INDEX = {
     'se_h_tenko', 'se_h_howl', 'se_h_yofukashi', 'se_h_ressha', 'se_h_sukima', 'se_h_amado', 'se_h_yamabiko', 'se_h_onamae', 'se_h_tomato_glow', 'se_h_dim',
     'se_h_otsukare', 'se_h_bell_kon', 'se_h_hamidashi',
     'se_step_sheet', 'se_h_kakashi_hop', 'se_h_tomato_rise', 'se_h_sunrise', 'se_h_bus_idle', 'se_h_bus_door', 'se_h_bus_depart', 'se_h_bus_arrive',
-    'se_dakoku', 'se_mada_stamp', 'se_lamp_click', 'se_clock_restart',
+    'se_dakoku', 'se_mada_stamp', 'se_lamp_click', 'se_clock_restart', 'se_clock_tick',
   ],
   voices: ['h_driver', 'h_train', 'h_kucho', 'h_yoshie', 'h_fumi', 'h_mitsu', 'h_gen', 'h_tome', 'h_sawako', 'h_tetsuya', 'yobimodoshi', 'h_mujin', 'h_gon', 'tsugao', 'dakoku', 'broadcast', 'flip', 'kanenari_voice', 'mother', 'tv', 'narr', 'sys'],
 };

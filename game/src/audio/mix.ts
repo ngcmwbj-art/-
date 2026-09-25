@@ -76,7 +76,7 @@ const SE_TARGET: Record<string, number> = {
   se_step_sheet: -24, se_h_kakashi_hop: -18, se_h_tomato_rise: -12, se_h_sunrise: -14, se_h_bus_idle: -18,
   se_h_bus_door: -14, se_h_bus_depart: -14, se_h_bus_arrive: -14,
   // ツガオの部屋
-  se_dakoku: -14, se_mada_stamp: HIT, se_lamp_click: -18, se_clock_restart: -16,
+  se_dakoku: -14, se_mada_stamp: HIT, se_lamp_click: -18, se_clock_restart: -16, se_clock_tick: -18,
 };
 
 const GROUP_TARGET: Record<string, number> = {
@@ -320,7 +320,7 @@ export const BGM_TRIM: Record<string, number> = {
   bgm_jingle_victory: 8, bgm_jingle_levelup: 6.5, bgm_jingle_item: 7.5, bgm_jingle_join: 8,
   bgm_jingle_gameover: 10.5,
   // chapter 2
-  bgm_hoshi_night: 12.5, bgm_boss_yobimodoshi: 10.5, bgm_hoshi_morning: 12,
+  bgm_hoshi_night: 12.5, bgm_tsugao: 10, bgm_boss_yobimodoshi: 10.5, bgm_hoshi_morning: 12,
 };
 
 export const SE_TRIM: Record<string, number> = {
@@ -363,6 +363,7 @@ export const SE_TRIM: Record<string, number> = {
   se_h_dim: 25, se_h_otsukare: 27, se_h_bell_kon: 14, se_h_hamidashi: 17.5, se_step_sheet: 25, se_h_kakashi_hop: 19.5,
   se_h_tomato_rise: 26, se_h_sunrise: 20, se_h_bus_idle: 22, se_h_bus_door: 19, se_h_bus_depart: 26.5, se_h_bus_arrive: 25.5,
   se_h_ibiki: 31.5, se_h_acha: 36, se_h_esayose: 32, se_h_watercup: 24.5,
+  se_dakoku: 21.5, se_mada_stamp: 22, se_lamp_click: 20, se_clock_restart: 11.5, se_clock_tick: 23.5,
 };
 export const VOICE_TRIM: Record<string, number> = {
   narr: 24, mother: 15, maruyama: 8, obaa: 15, mamekichi: 15.5, inui: 17, tsurumi: 16, sae: 17, jk: 15.5,
@@ -371,6 +372,7 @@ export const VOICE_TRIM: Record<string, number> = {
   flip: 16.5, kanenari_voice: 15, default: 19,
   // chapter 2
   h_train: 21, h_tetsuya: 19, yobimodoshi: 10, h_mujin: 27.5, h_gon: 11.5, broadcast_room: 15,
+  tsugao: 18, dakoku: 14,
   h_driver: 17, h_kucho: 14, h_yoshie: 17, h_fumi: 14, h_mitsu: 16, h_gen: 12.5, h_tome: 16, h_sawako: 18,
 };
 export const AMB_TRIM: Record<string, number> = {
@@ -383,7 +385,7 @@ export const AMB_TRIM: Record<string, number> = {
   // song and the train with no music at all set by ear, 53 10.2)
   amb_h_insects: 22, amb_h_kusa: 22, amb_h_tanada: 29.5, amb_h_mizu: 30, amb_h_wind: 33, amb_h_yama: 41,
   amb_h_hachi: 26.5, amb_h_fence: 29.5, amb_h_barn_out: 29, amb_h_barn: 16, amb_h_house: 27, amb_h_tomato: 21.5,
-  amb_h_school: 28.5, amb_h_boukatou: 19, amb_h_tetsuya: 22, amb_h_train: 17, amb_h_pa_hum: 21, amb_h_dawn: 16,
+  amb_h_school: 28.5, amb_h_boukatou: 19, amb_h_tetsuya: 22, amb_h_train: 17, amb_h_pa_hum: 21, amb_h_dawn: 16, amb_tsugao_room: 9.5,
 };
 
 /** A song's output level in dB: its own master gain plus the mix trim. */

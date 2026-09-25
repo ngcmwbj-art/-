@@ -332,7 +332,7 @@ function blipAt(id: string, ch: string, now: number, mode?: 'plain' | 'ee' | 'na
   // エー区長's 「えー」 and ペロリ's 「なぁ」: the next character decides
   // (and ツガオ's 「つがおちゃん」, ダコク's 「ガチャン」)
   const holdKind =
-    id === 'h_kucho' && pageHead && ch === 'え' ? 'ee' : id === 'h_mitsu' && ch === 'な' ? 'naa' : id === 'tsugao' && pageHead && ch === 'つ' ? 'tsu' : id === 'dakoku' && ch === 'ガ' ? 'ga' : null;
+    id === 'h_kucho' && pageHead && ch === 'え' ? 'ee' : id === 'h_mitsu' && ch === 'な' ? 'naa' : id === 'tsugao' && !s.chan && ch === 'つ' ? 'tsu' : id === 'dakoku' && ch === 'ガ' ? 'ga' : null;
   if (mode === undefined && holdKind) {
     held = { id, ch, t: now, kind: holdKind, allowed };
     s.prevCh = prevCh;

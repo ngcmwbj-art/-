@@ -481,6 +481,7 @@ export const CH2_CUES: Cue[] = [
         A.setMusicParam('h_stage', -1);
         A.setPaMode('town');
       }),
+      S(0.3, 'SE_CLOCK_TICK (ONE, IN THE DARK)', at('se_clock_tick')),
       S(1.2, 'ROOM, AMB_TSUGAO_ROOM, BGM_TSUGAO (T1)', () => {
         A.setSpace('room');
         A.playAmbient('amb_tsugao_room', { fade: 1.5 });

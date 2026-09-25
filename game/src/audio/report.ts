@@ -596,6 +596,8 @@ export const AMB_CONTEXT: {
   { amb: 'amb_h_insects', song: 'bgm_hoshi_night', stage: 3, hStage: 1, room: 3, role: 'bed', vol: 0.35, lp: 2000, need: -12, where: '集会所（窓ごし）' },
   { amb: 'amb_h_train', song: 'bgm_hoshi_night', stage: 3, hStage: 0, role: 'character', underMin: -8, where: '夜の電車（曲なし）' },
   { amb: 'amb_h_dawn', song: 'bgm_hoshi_morning', stage: 3, hStage: 2, role: 'bed', where: 'エンディングの夜明け' },
+  // ツガオの部屋: the lamp's hum is felt more than heard (its clocks and the siren come with events)
+  { amb: 'amb_tsugao_room', song: 'bgm_tsugao', stage: 3, role: 'bed', need: -8, where: 'ツガオの部屋（スタンド）' },
 ];
 
 export interface AmbRow { amb: string; song: string; role: string; where: string; underMin?: number; margin: number; band: number; need: number; ambLufs: number; songLufs: number; under: number; peak: number; ok: boolean; bands: number[] }

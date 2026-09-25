@@ -853,5 +853,15 @@ se('se_clock_restart', {
   },
 });
 
+/** One tick of a stopped clock in the dark (cut 7 opens on it: drm_tick, v .5, rev .3). */
+se('se_clock_tick', {
+  label: '暗がりの時計のチッ（1つだけ）',
+  group: G_TSUGAO,
+  rev: 0.3,
+  fn(c) {
+    DRM.drm_tick({ t: c.t, vel: 1, vol: 0.5 * 0.03 * c.vol, dest: c.dest });
+  },
+});
+
 /** One-shot fallbacks for the loops when called with sfx() (a short idle). */
 for (const id of ['se_h_crossing_bell', 'se_h_train_idle', 'se_h_bus_idle']) if (!sfxTable.has(id)) sfxTable.set(id, (o) => void playSe(id, { label: id, group: G_END }, o));
