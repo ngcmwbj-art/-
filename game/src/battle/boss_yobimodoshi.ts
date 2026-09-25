@@ -407,29 +407,32 @@ function drawTop(s: BattleScene, g: Gfx): void {
     ctx.fillRect(0, 0, 384, 216);
     ctx.restore();
   }
-  if (y.kanenariUp) {
-    const k = y.kanenariUp;
-    const img = kanenariBack(k.frame);
-    g.alpha(k.a, () => {
-      const ctx = g.ctx;
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, 0, 384, 150);
-      ctx.clip();
-      // the pole goes behind him: his mittens hold it, his bell hides its foot
-      if (k.frame === 'hold') {
-        const net = tomatoNet(64, true);
-        g.img(net, Math.round(k.x + 13 - net.width / 2), Math.round(k.y - img.height - net.height + 22));
-      }
-      g.img(img, Math.round(k.x - img.width / 2), Math.round(k.y - img.height));
-      ctx.restore();
-    });
-  }
   if (y.cut > 0) {
     const draw = battleCut('cut_h_village_lit') ?? drawVillageLit;
     g.alpha(y.cut, () => draw(g, y.cutT, y.cutCue));
   }
   if (y.black) g.rect(0, 0, 384, 216, '#0B0B14');
+}
+
+/** Kanenari-kun stepping up with the net held high (a top-layer fx: the hanko case goes over him). */
+function drawKanenariUp(g: Gfx, y: Yobi): void {
+  if (!y.kanenariUp) return;
+  const k = y.kanenariUp;
+  const img = kanenariBack(k.frame);
+  g.alpha(k.a, () => {
+    const ctx = g.ctx;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, 384, 150);
+    ctx.clip();
+    // the pole goes behind him: his mittens hold it, his bell hides its foot
+    if (k.frame === 'hold') {
+      const net = tomatoNet(64, true);
+      g.img(net, Math.round(k.x + 13 - net.width / 2), Math.round(k.y - img.height - net.height + 22));
+    }
+    g.img(img, Math.round(k.x - img.width / 2), Math.round(k.y - img.height));
+    ctx.restore();
+  });
 }
 
 // ---- appearance (14.15) ----------------------------------------------------------------------
@@ -1172,6 +1175,9 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
   s.msg.post(e.def.texts.extra.final3);
   yield 300;
   y.kanenariUp = { x: 192, y: 250, frame: 'walk1', a: 1 };
+  // (drawn as a top fx, so the hanko case rising later covers him; it draws
+  // nothing once kanenariUp is cleared at the fade to black)
+  s.addFx({ layer: 'top', dur: 0, ui: true, draw: (g) => drawKanenariUp(g, y) });
   for (let t = 0, n = 0; t < 500; t += FRAME) {
     y.kanenariUp.y = 250 - 74 * ease.quadOut(t / 500);
     y.kanenariUp.frame = Math.floor(t / 150) % 2 ? 'walk1' : 'walk2';
@@ -1324,6 +1330,7 @@ export function* doOyasuminasai(s: BattleScene, u: PartyUnit): Co {
   y.black = true;
   s.blackStage = true;
   y.kanenariUp = null;
+
   darkFx.done = true;
   markFx.done = true;
   yield 1200;

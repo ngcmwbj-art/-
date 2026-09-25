@@ -10,7 +10,7 @@ import { hash2 } from '../engine/rng';
 import { ease } from '../engine/tween';
 import { sfx } from '../audio';
 import { fillAll, getSkill, HANKO_CASE_ORDER, SYS } from '../data/battle';
-import { state } from '../game/state';
+import { flag, state } from '../game/state';
 import type { BattleScene } from './scene';
 import { MessageBand } from './ui/message';
 import { drawCase as drawCaseUi, imprintFor } from '../ui/hankocase';
@@ -96,7 +96,8 @@ function drawCase(g: Gfx, st: CaseState): void {
   // the same case as the menu's ハンコ page, the gift and the ending
   // notebook (ui/hankocase): owned seals lie on cream sample cards with
   // their imprint in 朱 (QA round 3: here they were red on the red velvet)
-  drawCaseUi(g, CX, y, { owned: (id) => st.owned.includes(id) && id !== st.skill, clear: false, t: st.t });
+  // (the おやすみなさい outline is there from chapter 1's ending: 51 5.2 fills it)
+  drawCaseUi(g, CX, y, { owned: (id) => st.owned.includes(id) && id !== st.skill, clear: !!flag('flag_clear'), t: st.t });
   const i = HANKO_CASE_ORDER.indexOf(st.skill);
   if (i >= 0 && i < SLOTS) {
     const [ox, oy] = slotXY(i);

@@ -46,19 +46,22 @@ export interface Params {
   h_rest: number;
   /** 53 5.2: the room a song is heard from (bgm_hoshi_night's `variant`; 0 = outdoor). */
   h_room: number;
+  /** 53 5.7: the wall clocks of ツガオ's room running again (0 none, 1 夕鳴町, 2 and 星見台). */
+  clock: number;
 }
 
 /** Every param's resting value (the chapter-1 state: nothing of chapter 2 is on). */
-export const PARAM_DEFAULTS: Readonly<Params> = { stage: 0, kire: 0, boss_phase: 1, h_stage: -1, h_light: 0, tenko: 0, h_rest: 0, h_room: 0 };
+export const PARAM_DEFAULTS: Readonly<Params> = { stage: 0, kire: 0, boss_phase: 1, h_stage: -1, h_light: 0, tenko: 0, h_rest: 0, h_room: 0, clock: 0 };
 
 /**
  * Changes that land on the next beat instead of the next bar: a kire rise
  * (40_audio 7.2), the tomato light coming on, a name tag, Tetsuya's rest
- * (53 6.2–6.4) and a change of room (53 5.2, faded over 0.6 s by the song).
+ * (53 6.2–6.4), a change of room (53 5.2, faded over 0.6 s by the song) and
+ * a wall clock of ツガオ's room starting (53 5.7).
  */
 export function landsOnBeat(name: keyof Params, value: number, old: number): boolean {
   if (name === 'kire' || name === 'h_light') return value > old;
-  return name === 'tenko' || name === 'h_rest' || name === 'h_room';
+  return name === 'tenko' || name === 'h_rest' || name === 'h_room' || name === 'clock';
 }
 
 export interface BarDef {

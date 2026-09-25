@@ -11,7 +11,7 @@ import type { Gfx } from '../../engine/gfx';
 import { mix, PixelCanvas } from '../../engine/pixel';
 import { h01, ihash } from '../tiles/noise';
 import { P } from '../tiles/palette';
-import { glassPane, KAWARA_IBUSHI, registerBuilding, roofKawara, type Bld } from './bkit';
+import { glassPane, KAWARA_IBUSHI, registerBuilding, roofKawara, type Bld, type RoofPal } from './bkit';
 import { castRight, dk, lt, shadeRect } from './kit';
 import {
   darkWin,
@@ -538,16 +538,41 @@ registerBuilding({
 // ---------------------------------------------------------------- 稲わらのロールと片流れの屋根 (50,22) 8×1
 
 registerProp('prop_h_wara_shed', () => {
+  // A low lean-to against the canal's south wall: the galvanised roof (mono
+  // pitch, falling to the front), under its eave the dark back wall of old
+  // boards, the six rolls (直径 20px) standing in a row in front of it. The
+  // roof's back edge sits on the canal wall, so the shed hides the canal's
+  // south half like any building hides what is behind it.
   const W = 128;
-  const H = 44;
+  const H = 36;
   const p = new PixelCanvas(W, H);
   const base = H - 1; // the rolls' foot (bottom of tile row 22)
-  // the posts and the roof (mono pitch, sloping south), seen from above
-  for (const px of [1, 42, 85, 125]) {
-    p.vline(px, 8, base, P.woodDark);
-    p.vline(px + 1, 8, base, P.wood);
+  const ROOF = 11;
+  const GALV: RoofPal = { hi: P.concreteLt, base: P.concrete, lo: mix(P.concrete, P.steel, 0.6), deep: P.steel };
+  // the back wall and the shade under the roof (rough boards, gaps of dark)
+  for (let j = ROOF; j <= base; j++)
+    for (let i = 1; i < W - 1; i++) {
+      const board = Math.floor((i + (ihash(j >> 3, 0, 3811) % 3)) / 9);
+      let c: string = (i + 9) % 9 === 0 ? P.ink : ihash(board, 1, 3813) % 3 === 0 ? mix(P.woodDark, P.ink, 0.35) : mix(P.woodDark, P.ink, 0.55);
+      if (j === ROOF || j === ROOF + 1) c = P.ink; // the eave's own shadow
+      p.set(i, j, c);
+    }
+  // the ground under the shed: straw litter in the shade
+  for (let i = 2; i < W - 2; i++) if (ihash(i, 2, 3815) % 3 === 0) p.set(i, base - (ihash(i, 3, 3817) % 2), mix(P.woodLt, P.woodDark, 0.5));
+  // the corner posts (squared timber, weathered) and the middle posts behind the rolls
+  for (const px of [0, W - 2]) {
+    p.vline(px, ROOF - 1, base, P.woodDark);
+    p.vline(px + 1, ROOF - 1, base, P.wood);
   }
-  roofTinH(p, 0, 0, W, 14, TIN_RUST, 38, { mono: true, rust: 0.4, patches: 1 });
+  for (const px of [42, 85]) p.vline(px, ROOF, base - 18, P.wood);
+  // the roof: galvanised sheet, ribs down the slope, some rust, the front eave
+  roofTinH(p, 0, 0, W, ROOF, GALV, 38, { mono: true, rust: 0.35, patches: 1 });
+  p.hline(0, W - 1, 0, P.steel); // the back edge on the canal wall
+  p.hline(0, W - 1, ROOF - 1, P.white); // the lit front edge
+  for (let i = 0; i < W; i += 4) p.set(i, ROOF - 1, P.concreteLt);
+  // a stone on the roof against the wind, a coil of twine on a nail
+  p.ellipse(33, 4, 2.5, 1.5, P.steel);
+  p.hline(32, 34, 3, P.concreteLt);
   // six rolls (直径 20px): gold with a spiral of 1px
   for (let k = 0; k < 6; k++) {
     const cx = 11 + k * 21;
@@ -560,9 +585,14 @@ registerProp('prop_h_wara_shed', () => {
       const th = t * Math.PI * 6 + k;
       p.set(Math.round(cx + Math.cos(th) * r), Math.round(cy + Math.sin(th) * r * 0.95), P.brassOld);
     }
-    p.set(cx - 5, cy - 6, P.goldPale);
-    p.set(cx - 6, cy - 4, P.goldPale);
-    p.set(cx - 3, cy - 7, P.goldPale);
+    // the roof's shade on the rolls' tops
+    for (let i = -9; i <= 9; i++) {
+      const top = Math.round(cy - Math.sqrt(Math.max(0, 90 - i * i)) * 0.95);
+      for (let j = top; j < top + 2; j++) if (p.get(cx + i, j)) p.set(cx + i, j, P.brassOld);
+    }
+    p.set(cx - 5, cy - 5, P.goldPale);
+    p.set(cx - 6, cy - 3, P.goldPale);
+    p.set(cx - 3, cy - 6, P.goldPale);
     // loose straws
     for (let s = 0; s < 3; s++) p.set(cx - 9 + ((k * 7 + s * 5) % 18), base - (s % 2), P.woodLt);
   }

@@ -48,8 +48,8 @@ export const CH2_INDEX = {
   amb: [...CH2_AMBIENCE_IDS, 'amb_night_insects', 'amb_kawabe'],
   se: [
     'se_h_crossing_bell', 'se_h_crossing_down', 'se_h_train_brake', 'se_h_train_idle', 'se_h_train_door', 'se_h_train_chime', 'se_h_seiriken', 'se_h_coin_box',
-    'se_h_vinyl_door', 'se_h_yunomi', 'se_h_tomato_catch', 'se_h_lantern_set', 'se_h_light_spread', 'se_h_boukatou_on', 'se_h_kaichu', 'se_h_kakashi_turn', 'se_h_keitora', 'se_h_keitora_go', 'se_h_chalk', 'se_h_chalk_erase', 'se_h_kairan',
-    'se_h_shodoku', 'se_h_hansuu', 'se_h_cow_snort', 'se_h_moo', 'se_h_barn_light', 'se_h_feed_cart', 'se_h_feedbag', 'se_h_gate_hook', 'se_h_side_roll', 'se_h_ripen',
+    'se_h_vinyl_door', 'se_h_yunomi', 'se_h_tomato_catch', 'se_h_lantern_set', 'se_h_light_spread', 'se_h_boukatou_on', 'se_h_kaichu', 'se_h_kakashi_turn', 'se_h_keitora', 'se_h_keitora_go', 'se_h_chalk', 'se_h_chalk_erase', 'se_h_kairan', 'se_h_ibiki', 'se_h_acha',
+    'se_h_shodoku', 'se_h_hansuu', 'se_h_cow_snort', 'se_h_moo', 'se_h_barn_light', 'se_h_feed_cart', 'se_h_feedbag', 'se_h_gate_hook', 'se_h_side_roll', 'se_h_ripen', 'se_h_esayose', 'se_h_watercup',
     'se_h_pa_open', 'se_h_pa_close', 'se_h_pa_last', 'se_h_morning_chime', 'se_pa_chime', 'se_pa_chime_end', 'se_clock_flip',
     'se_h_sune', 'se_h_roll', 'se_h_aokusai', 'se_h_biri', 'se_h_boar', 'se_h_soil', 'se_h_charin', 'se_h_tiller', 'se_h_stall',
     'se_h_tenko', 'se_h_howl', 'se_h_yofukashi', 'se_h_ressha', 'se_h_sukima', 'se_h_amado', 'se_h_yamabiko', 'se_h_onamae', 'se_h_tomato_glow', 'se_h_dim',

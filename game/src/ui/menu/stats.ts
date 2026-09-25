@@ -8,7 +8,7 @@
 import type { Gfx } from '../../engine/gfx';
 import type { Input } from '../../engine/input';
 import { state, type Member } from '../../game/state';
-import { EXP_TABLE, expToNext, LEVEL_CAP, REPORT } from '../../data/battle';
+import { EXP_TABLE, expToNext, levelCap, REPORT } from '../../data/battle';
 import { sfx } from '../../audio';
 import { portrait } from '../../art/chars';
 import { drawDigits, drawNumerals, numeralsWidth } from '../digits';
@@ -112,7 +112,7 @@ export class StatsPage implements MenuPage {
     drawNumerals(g, String(mem.exp), right, y, { color: UI.text, align: 'right' });
     const next = expToNext(mem);
     const lo = EXP_TABLE[mem.level] ?? 0;
-    const hi = EXP_TABLE[Math.min(LEVEL_CAP, mem.level + 1)] ?? lo + 1;
+    const hi = EXP_TABLE[Math.min(levelCap(), mem.level + 1)] ?? lo + 1;
     y += 17;
     if (next === null) g.text('もう いっぱい', x, y, { color: UI.accent });
     else {

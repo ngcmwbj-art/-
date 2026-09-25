@@ -102,6 +102,8 @@ function go(map: string, x: number, y: number, dir: Dir, cam: [number, number] |
   } else f.loadMap(map, x, y, dir);
   if (!f) return null;
   f.setStage(stage, 0);
+  // the morning (h3): straight to pal_h3c (the stage change itself starts at the dawn's h3a)
+  if (stage >= 3) (f as unknown as { setGradeH?: (k: string, ms: number) => void }).setGradeH?.('h3c', 0);
   f.refreshPresence(true);
   f.syncFollower(true);
   f.applyAudio(false);

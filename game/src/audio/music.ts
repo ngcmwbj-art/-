@@ -8,7 +8,7 @@ import { songGainDb } from './mix';
 import { legacyBgm, songTable } from './registry';
 import { MUSIC_LOOKAHEAD, PARAM_DEFAULTS, SongPlayer, type Params, type SongDef } from './sequencer';
 
-export type MusicParam = 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest';
+export type MusicParam = 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest' | 'clock';
 
 export interface PlayOpts {
   /** Fade-in (and cross-fade) seconds. */
@@ -167,6 +167,8 @@ export function playBgm(idIn: string, opts: PlayOpts = {}): void {
   params.h_light = 0;
   params.tenko = 0;
   params.h_rest = 0;
+  // ツガオ's room opens with the clocks still stopped (53 5.7)
+  if (id === 'bgm_tsugao') params.clock = 0;
   // the speaker is right there while a battle plays (53 3.3, 17 #16)
   if (def.battle) liveGraph()?.pa.overrideDistance(0);
   else if (!def.jingle) liveGraph()?.pa.overrideDistance(null);

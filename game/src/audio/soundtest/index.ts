@@ -187,7 +187,7 @@ const CH2_VOICE_RE = /^(h_|yobimodoshi$)/;
 const CH2_VOICE_REUSED = ['broadcast', 'kanenari_voice'];
 /** Sample lines for the reused voices when heard on the 第2章 page. */
 const CH2_SAMPLES: Record<string, string> = {
-  broadcast: '……ナナミちゃん。',
+  broadcast: '……おぴぴちゃん。',
   kanenari_voice: '……おはよう。',
 };
 const isCh2Se = (group: string) => CH2_SE_GROUPS.includes(group);
@@ -309,6 +309,8 @@ const SE_VARIANTS: Record<string, { opts: A.SfxOpts; tag: string }[]> = {
   se_h_otsukare: (['kukkiri', 'futsu', 'kasure'] as const).map((g) => ({ opts: { grade: g }, tag: g })),
   se_h_howl: [1, 0.89, 0.84, 0.75].map((p, i) => ({ opts: { pitch: p }, tag: ['EAST', 'WEST', 'SOUTH', 'NORTH'][i] })),
   se_pa_chime_end: [{ opts: {}, tag: '' }, { opts: { pitch: 0.5, vol: 0.8 }, tag: 'FINAL 0.5' }],
+  se_h_ibiki: [1, 1.35].map((p) => ({ opts: { pitch: p }, tag: p === 1 ? 'SHIGE 1.0' : 'SUGI 1.35' })),
+  se_h_acha: [0.8, 1.15].map((p) => ({ opts: { pitch: p }, tag: p === 0.8 ? 'SHIGE 0.8' : 'SUGI 1.15' })),
 };
 
 /** SE rows that are loops in the game: Z starts the loop, Z again stops it. */
@@ -542,6 +544,8 @@ class SoundTestScene implements Scene {
         this.last = { tab, id: row.id };
         break;
       case 'voice':
+        // 第2章's voices speak in 星見台 (the calls through the valley's speaker); 第1章's in the town
+        A.setPaMode(this.chapter === 2 ? 'yama' : 'town');
         this.say(row.id, (this.chapter === 2 ? CH2_SAMPLES[row.id] : undefined) ?? VOICE_SAMPLES[row.id] ?? VOICE_SAMPLES.default);
         this.last = { tab, id: row.id };
         break;

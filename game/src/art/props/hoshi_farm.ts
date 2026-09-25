@@ -935,6 +935,22 @@ regStand(
   { cx: 8, base: 16, shadow: 20 },
 );
 
+// ---------------------------------------------------------------- ふくじんづけの毛布 (53,33)
+
+/** The dog's folded blanket on the concrete in front of the barn (he lies on it; 52 3.4). */
+registerProp('prop_h_blanket', () => {
+  const p = new PixelCanvas(18, 12);
+  p.rect(1, 2, 16, 9, P.wood);
+  p.hline(1, 16, 2, P.woodLt);
+  p.hline(1, 16, 6, P.woodDark);
+  p.hline(2, 15, 7, P.woodLt);
+  p.vline(16, 3, 10, P.woodDark);
+  for (let x = 3; x < 16; x += 4) p.set(x, 4, P.brassOld);
+  p.set(1, 10, P.woodDark);
+  const img = p.toCanvas();
+  return { ox: -1, oy: 5, w: 18, h: 12, foot: 0, flat: true, img: () => img };
+});
+
 // ---------------------------------------------------------------- 足あと
 
 /** Children's shoe prints on the old lane (x48–49, y7–15): drawn only in the lantern's light (litOnly). */

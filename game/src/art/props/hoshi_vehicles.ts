@@ -221,9 +221,20 @@ function busSide(lit: boolean): HTMLCanvasElement {
   p.rect(1, 23, W - 2, 3, P.leaf);
   p.hline(1, W - 2, 23, P.leafYoung);
   p.hline(1, W - 2, 25, P.leafDeep);
-  // the windscreen at the front (west), the destination sign above it
+  // the windscreen at the front (west), the driver's back behind it, the destination sign above it
   p.rect(1, 10, 5, 12, P.navy);
   p.line(2, 20, 4, 12, P.blue);
+  if (lit) {
+    // the morning: cap on, driving
+    p.rect(3, 13, 3, 2, P.navy);
+    p.hline(2, 5, 15, P.navy);
+    p.rect(3, 16, 3, 4, P.aqua);
+  } else {
+    // h0–h2: asleep in his seat, the cap over his face (only its brim shows, 1px)
+    p.rect(3, 15, 3, 5, mix(P.navy, P.shadeDeep, 0.4));
+    p.hline(2, 5, 15, P.navy);
+    p.set(5, 14, P.blue);
+  }
   p.rect(2, 9, 16, 4, P.charcoal);
   if (lit) fontTextSmall(p, 'ユウナリ前', 2, 6, P.horizon);
   else p.hline(3, 16, 11, P.nightShade);

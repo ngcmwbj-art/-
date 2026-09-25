@@ -1081,10 +1081,11 @@ export function setAmbientVol(id: string, vol: number, ramp = 0.3): void {
   i.out.gain.linearRampToValueAtTime(Math.max(0, vol), t + Math.max(0.01, ramp));
 }
 
-export function ambientEvent(id: string, name: string, pan?: number): void {
+export function ambientEvent(id: string, name: string, pan?: number | string): void {
   const i = active.get(id);
   if (!i || i.stopping) return;
-  i.impl.event?.(name, pan, cur().ctx.currentTime + 0.01);
+  // (a named argument — amb_tsugao_room's town — travels in the pan slot)
+  i.impl.event?.(name, pan as number | undefined, cur().ctx.currentTime + 0.01);
 }
 
 export function flushPendingAmbient(): void {

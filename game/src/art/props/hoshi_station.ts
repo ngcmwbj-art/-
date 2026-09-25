@@ -424,12 +424,25 @@ registerProp('prop_h_mujin', () => {
     }
     for (let y = 0; y < 6; y++) for (let x = 0; x < W; x++) p.set(x, y, y === 0 ? P.concreteLt : y === 5 ? P.charcoal : x % 4 === 0 ? P.concrete : P.steel);
     for (let x = 3; x < W; x += 7) p.set(x, 2, P.brassOld);
-    // the hand-written sign 「どれでも 100円」 hung under the roof
-    p.rect(8, 6, 20, 7, P.paper);
-    p.hline(8, 27, 6, P.white);
-    tiny(p, '100', 10, 7, P.verm);
-    p.rect(22, 8, 3, 3, P.verm);
-    p.set(23, 9, P.paper);
+    // ソワカさん's hand-painted sign 「どれでも 100円」: a white board, fat brush strokes, her little signature
+    p.rect(8, 6, 20, 8, P.white);
+    p.hline(8, 27, 6, P.glint);
+    p.hline(10, 13, 8, P.ink);
+    p.set(11, 9, P.ink);
+    p.hline(15, 17, 9, P.ink);
+    tiny(p, '100', 10, 8, P.verm);
+    p.rect(21, 8, 3, 4, P.verm);
+    p.set(22, 9, P.white);
+    p.set(26, 12, P.blue); // the signature
+    p.set(25, 12, P.leaf);
+    // the painted board on the post: cucumber, aubergine, sweetcorn (16×8)
+    p.rect(29, 12, 7, 7, P.paper);
+    p.strokeRect(29, 12, 7, 7, P.wood);
+    p.hline(30, 32, 14, P.leaf);
+    p.set(33, 15, '#7A5AA0');
+    p.set(33, 16, '#7A5AA0');
+    p.vline(31, 16, 17, P.gold);
+    p.set(30, 16, P.leaf);
     // the stand
     p.rect(1, 20, 34, 3, P.woodLt);
     p.hline(1, 34, 20, P.goldPale);
@@ -592,10 +605,12 @@ regStand(
     p.vline(3, 4, 10, P.steel);
     p.vline(8, 4, 10, P.steel);
     p.hline(3, 8, 7, P.concrete);
-    // the yarn bag at its foot
-    p.rect(8, 7, 4, 4, P.navy);
-    p.set(9, 7, P.gold);
-    p.set(10, 6, P.gold);
+    // her paint box at its foot (#8A5A3A, the colours showing)
+    p.rect(7, 7, 5, 4, P.wood);
+    p.hline(7, 11, 7, P.woodLt);
+    p.set(8, 8, P.red);
+    p.set(9, 8, P.gold);
+    p.set(10, 8, P.blue);
   },
   { cx: 8, base: 15, shadow: 0 },
 );

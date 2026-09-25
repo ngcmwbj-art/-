@@ -280,6 +280,7 @@ const OBJECTS: MapObj[] = [
   O('obj_hoshi_dengen', 47, 19, { prop: 'obj_hoshi_dengen' }),
   O('obj_hoshi_shoukai', 51, 32, { flat: true }),
   PR('prop_h_ichirinsha', 55, 35),
+  PR('prop_h_blanket', 53, 33),
   PR('prop_h_hose_reel', 59, 32, {}, { solid: [0, 0, 1, 1] }),
   PR('prop_h_nuta_tree', 59, 11, {}, { solid: [0, 0, 1, 1] }),
 

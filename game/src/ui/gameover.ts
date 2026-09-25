@@ -31,10 +31,14 @@ const PAGE = { x: 56, y: 8, w: 272, h: 200 };
 /** The 絵日記 picture box on the page (relative to the page). */
 const PIC = { x: 26, y: 31, w: 234, h: 82 };
 
-let pageC: HTMLCanvasElement | null = null;
-/** A single page of the notebook: grid, red margin, a torn left edge. */
-function pageCanvas(): HTMLCanvasElement {
-  if (pageC) return pageC;
+const pageCache = new Map<boolean, HTMLCanvasElement>();
+/**
+ * A single page of the notebook: grid, red margin, a torn left edge. `night`:
+ * the picture of chapter 2's night village instead of the sunset town.
+ */
+function pageCanvas(night = false): HTMLCanvasElement {
+  const cached = pageCache.get(night);
+  if (cached) return cached;
   const { w, h } = PAGE;
   const [c, ctx] = makeCanvas(w + 3, h + 3);
   const r = (x: number, y: number, ww: number, hh: number, col: string, a = 1) => {
@@ -62,8 +66,9 @@ function pageCanvas(): HTMLCanvasElement {
   // the page is a little warmer at the top, cooler at the bottom
   r(0, 0, w, 1, '#FFFBEE');
   r(0, h - 1, w, 1, '#E8D9B5');
-  drawPicture(ctx, PIC.x, PIC.y, PIC.w, PIC.h);
-  pageC = c;
+  if (night) drawNightPicture(ctx, PIC.x, PIC.y, PIC.w, PIC.h);
+  else drawPicture(ctx, PIC.x, PIC.y, PIC.w, PIC.h);
+  pageCache.set(night, c);
   return c;
 }
 
@@ -180,6 +185,115 @@ function drawPicture(ctx: CanvasRenderingContext2D, ox: number, oy: number, w: n
   }
 }
 
+/**
+ * Chapter 2's 絵日記 picture: the night village in crayon — a violet sky
+ * pricked with yellow stars (the one that doesn't twinkle a little bigger),
+ * the mountains, the roofs with one window lit, the greenhouse arches — and
+ * in front the net lying on its side in the grass with the tomato still
+ * glowing in it, the hanko rolled a little way off.
+ */
+function drawNightPicture(ctx: CanvasRenderingContext2D, ox: number, oy: number, w: number, h: number): void {
+  const put = (x: number, y: number, col: string, a = 1) => {
+    ctx.globalAlpha = a;
+    ctx.fillStyle = col;
+    ctx.fillRect(ox + x, oy + y, 1, 1);
+    ctx.globalAlpha = 1;
+  };
+  const horizon = 56;
+  // the mountains, then the village's roofs in front of them
+  const ridge = new Array<number>(w).fill(99);
+  for (let x = 0; x < w; x++) ridge[x] = Math.round(30 + Math.sin(x / 23) * 6 + Math.sin(x / 9 + 1) * 2);
+  const roofs = new Array<number>(w).fill(99);
+  let hx = 8;
+  let k = 0;
+  while (hx < w) {
+    const hw = 14 + Math.floor(hash2(k, 1, 23) * 10);
+    const top = 44 + Math.floor(hash2(k, 2, 23) * 5);
+    for (let x = hx; x < Math.min(w, hx + hw); x++) roofs[x] = Math.min(roofs[x], top + Math.max(0, Math.round(Math.abs(x - (hx + hw / 2))) - 4));
+    hx += hw + 6 + Math.floor(hash2(k, 3, 23) * 14);
+    k++;
+  }
+  // the greenhouses on the right: three low arches
+  for (const gx of [176, 196, 216])
+    for (let x = gx; x < gx + 16; x++) roofs[x] = Math.min(roofs[x], Math.round(47 - Math.sqrt(Math.max(0, 64 - (x - gx - 8) ** 2)) * 0.8));
+  const colorAt = (x: number, y: number): string => {
+    const j = Math.floor(hash2(x >> 2, 7, 5) * 3) - 1;
+    if (y < horizon && y >= roofs[x]) return y > horizon - 3 ? '#1B1733' : x >= 176 && x < 232 ? '#E8A070' : '#2A2440';
+    if (y < horizon && y >= ridge[x]) return '#1E1A36';
+    if (y < horizon) return y < 12 + j ? '#2A2248' : y < 24 + j ? '#3A2B5C' : '#5A4480';
+    if (y < horizon + 12 + j) return '#3A5A48';
+    return '#5A4A3A';
+  };
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const u = x + y;
+      const v = x - y;
+      const lane = u % 5;
+      const stroke = Math.floor(u / 5);
+      // on the dark crayon the paper shows through less (it's pressed harder)
+      if (lane === 0 && hash2(stroke, Math.floor(v / 9), 33) < 0.22) continue;
+      put(x, y, colorAt(x, y), lane === 2 ? 0.92 : 0.95 + hash2(stroke, Math.floor(v / 13), 9) * 0.05);
+    }
+  // stars: yellow crayon crosses, one bigger that doesn't twinkle (the morning star)
+  for (let i = 0; i < 16; i++) {
+    const x = 6 + Math.floor(hash2(i, 1, 61) * (w - 12));
+    const y = 3 + Math.floor(hash2(i, 2, 61) * 22);
+    put(x, y, '#F6D98A');
+    if (i % 3 === 0) {
+      put(x - 1, y, '#F6D98A', 0.7);
+      put(x + 1, y, '#F6D98A', 0.7);
+    }
+  }
+  for (const [dx, dy] of [
+    [0, 0],
+    [-1, 0],
+    [1, 0],
+    [0, -1],
+    [0, 1],
+    [-2, 0],
+    [2, 0],
+  ])
+    put(20 + dx, 20 + dy, '#FFF6D8');
+  // one window still lit, the rest asleep
+  for (let y = 49; y < 52; y++) for (let x = 70; x < 73; x++) put(x, y, '#F6D98A');
+  // grass tufts along the horizon
+  for (let x = 2; x < w - 2; x += 5 + Math.floor(hash2(x, 3, 4) * 4)) {
+    put(x, horizon - 1, '#2E5A3A');
+    put(x + 1, horizon - 2, '#2E5A3A');
+  }
+  const line = (x0: number, y0: number, x1: number, y1: number, col: string, a = 1) => {
+    const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let i = 0; i <= n; i++) put(Math.round(x0 + ((x1 - x0) * i) / n), Math.round(y0 + ((y1 - y0) * i) / n), col, a);
+  };
+  // the net on its side, the tomato glowing in it (a ring of light pressed round it)
+  line(38, 73, 116, 61, '#8A5A2A');
+  line(38, 74, 116, 62, '#A8742A');
+  for (let a = 0; a < Math.PI * 2; a += 0.06) put(Math.round(128 + Math.cos(a) * 17), Math.round(62 + Math.sin(a) * 11), '#F7C27A', 0.55);
+  for (let a = 0; a < Math.PI * 2; a += 0.08) put(Math.round(128 + Math.cos(a) * 12), Math.round(60 + Math.sin(a) * 7), '#6B7186');
+  for (let yy = -3; yy <= 3; yy++)
+    for (let xx = -4; xx <= 4; xx++) if (xx * xx + yy * yy * 1.6 <= 17) put(128 + xx, 61 + yy, xx + yy < -2 ? '#FF8A5A' : '#E84E3C');
+  put(127, 57, '#3FA66B');
+  put(128, 57, '#3FA66B');
+  for (let kk = -9; kk <= 9; kk += 3) line(128 + kk, 55 + Math.round(Math.abs(kk) / 3), 128 + kk + 2, 65 - Math.round(Math.abs(kk) / 3), '#F4F1E8', 0.6);
+  // the hanko, rolled away
+  line(160, 70, 168, 70, '#8A5A2A');
+  line(160, 71, 168, 71, '#C8A06A');
+  line(160, 72, 168, 72, '#A8742A');
+  for (let y = 68; y <= 74; y++) line(169, y, 172, y, '#E23B2E');
+  line(152, 67, 155, 67, '#F4F1E8', 0.6);
+  line(151, 71, 154, 71, '#F4F1E8', 0.6);
+  line(152, 75, 155, 75, '#F4F1E8', 0.6);
+  // the pencil frame round the picture, a little wobbly
+  for (let x = -1; x <= w; x++) {
+    put(x, -1 + (hash2(x >> 4, 1, 2) > 0.8 ? 1 : 0), '#4A3A6E');
+    put(x, h + (hash2(x >> 4, 2, 2) > 0.8 ? -1 : 0), '#4A3A6E');
+  }
+  for (let y = -1; y <= h; y++) {
+    put(-1, y, '#4A3A6E');
+    put(w, y, '#4A3A6E');
+  }
+}
+
 class GameOverScene implements Scene {
   transparent = false;
   done = false;
@@ -239,6 +353,8 @@ class GameOverScene implements Scene {
 
   draw(g: Gfx): void {
     g.clear(UI.darkest);
+    // chapter 2's night: the picture is of the village and the weather is the starry sky
+    const night = !!flag('flag_ch2_started') && !flag('flag_ch2_clear');
     // the page comes up out of the dark
     const k = Math.min(1, this.t / 600);
     const e = ease.cubicOut(k);
@@ -246,10 +362,11 @@ class GameOverScene implements Scene {
     const py = PAGE.y + Math.round((1 - e) * 10);
     const leave = this.pickT >= 0 ? Math.min(1, this.pickT / 320) : 0;
     g.alpha(e * (1 - leave * 0.6), () => {
-      g.img(pageCanvas(), px, py);
+      g.img(pageCanvas(night), px, py);
       // diary header: the date and the weather, in pencil
       g.text('8月31日', px + 26, py + 8, { color: UI.pencil });
-      g.text('てんき：ゆうやけ', px + PAGE.w - 12 - textW('てんき：ゆうやけ'), py + 8, { color: UI.pencil });
+      const weather = night ? 'てんき：ほしぞら' : 'てんき：ゆうやけ';
+      g.text(weather, px + PAGE.w - 12 - textW(weather), py + 8, { color: UI.pencil });
       pencilLine(g, px + 24, py + 26, PAGE.w - 34, 1, UI.pencil, 8);
       // the line, written by hand: letters bob a pixel, fresh ones darker
       const chars = [...this.title];

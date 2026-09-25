@@ -172,14 +172,6 @@ registerProp('prop_h_barn_rail', (opts) => {
     p.set(x, y0 + 7, P.steel);
     if (x % 16 === 0) p.vline(x, y0, y0 + 10, P.asphalt); // the uprights
   }
-  // one water cup per pen (a grey bowl on the rail, its paddle)
-  for (let k = 0; k < 5; k++) {
-    const cx = k * 48 + (north ? 44 : 4);
-    p.rect(cx, y0 + 3, 5, 3, P.steel);
-    p.hline(cx, cx + 4, y0 + 3, P.concreteLt);
-    p.set(cx + 2, y0 + 4, P.navy);
-    p.set(cx + 1, y0 + 5, P.charcoal);
-  }
   const img = p.toCanvas();
   return { ox: 0, oy: north ? -3 : 9, w: W, h: 12, foot: north ? 1 : 0, img: () => img, contact: 0 };
 });
@@ -347,6 +339,109 @@ registerProp('prop_h_barn_spare', (opts) => {
     },
     { cx: 8, base: n * 16, shadow: 0 },
   );
+});
+
+// ---------------------------------------------------------------- 牛舎のおてつだい (evt_ch2_barn_work, 50 10.19 / 52 4.3)
+
+/**
+ * The chores' state as the props read it (the events set these flags; none of
+ * them is meant to be kept in a save): the chores are open while ゲンさん
+ * waits in the barn (gate open, before テツヤ) and haven't been done; while
+ * they run `flag_ch2_barn_work_on` = 1; each spot done: `flag_<spot id>` = 1.
+ */
+export function choreOpen(env: PropEnv): boolean {
+  return env.flag('flag_ch2_gate_open') > 0 && !env.flag('flag_ch2_tetsuya_beaten') && !env.flag('flag_ch2_barn_work');
+}
+export function spotPending(env: PropEnv, spot: string): boolean {
+  return choreOpen(env) && !env.flag('flag_' + spot);
+}
+
+/** 給水器 (8×6): a grey bowl on the rail and its push plate; a target is muddied with feed until cleaned. */
+const CUP = paintFrames(3, 8, 6, (p, k) => {
+  p.rect(0, 1, 8, 5, P.steel);
+  p.hline(0, 7, 1, P.concreteLt);
+  p.vline(7, 2, 5, P.asphalt);
+  p.rect(1, 2, 5, 2, k === 1 ? P.wood : P.navy); // the water: muddied (1) or clear
+  if (k === 1) p.set(3, 2, P.woodDark);
+  if (k === 2) p.set(2, 2, P.aqua);
+  p.rect(6, 0, 2, 3, P.asphalt); // the push plate
+  p.set(6, 0, P.steel);
+});
+registerProp('prop_h_watercup', (opts) => {
+  const spot = String(opts.spot ?? '');
+  const north = opts.side !== 's';
+  return {
+    ox: 4,
+    oy: north ? 11 : -2,
+    w: 8,
+    h: 6,
+    foot: north ? 17 : 1,
+    img: (env: PropEnv) => {
+      if (!spot) return CUP[0];
+      if (spotPending(env, spot)) return CUP[1];
+      // just cleaned: the clear water flashes twice in 0.4 s (fx_h_cup_clear)
+      const t0 = env.flag('flag_' + spot + '_t');
+      if (t0 > 0 && env.t - t0 < 400 && Math.floor((env.t - t0) / 100) % 2 === 0) return CUP[2];
+      return CUP[0];
+    },
+    glow(g: Gfx, x: number, y: number, env: PropEnv) {
+      if (!spot) return;
+      const t0 = env.flag('flag_' + spot + '_t');
+      if (t0 > 0 && env.t - t0 < 400 && Math.floor((env.t - t0) / 100) % 2 === 0) g.rect(x + 6, y + (north ? 13 : 0), 2, 1, '#7FD1E8', 0.9);
+    },
+    contact: 0,
+  } as PropArt;
+});
+
+/** The scoop leaning on the straw at the east end (20,5); gone while Minato has it. */
+registerProp('prop_h_scoop', () =>
+  standProp(
+    8,
+    18,
+    (p) => {
+      p.line(2, 0, 5, 13, P.wood);
+      p.line(3, 0, 6, 13, P.woodLt);
+      p.rect(3, 13, 5, 5, P.steel);
+      p.hline(3, 7, 13, P.concreteLt);
+      p.set(7, 17, P.asphalt);
+    },
+    { cx: 6, base: 16, shadow: 0, contact: 0 },
+  ),
+);
+
+/**
+ * Feed pushed out of reach (decal_h_feed_pushed, 16×5 on the trough's aisle
+ * side) and, once swept back, near the rail (decal_h_feed_near). Only in the
+ * lantern's light (the dark hides small things by itself).
+ */
+function feedPile(): PixelCanvas {
+  const p = new PixelCanvas(16, 5);
+  for (let k = 0; k < 5; k++) p.line(1 + k * 3, 4, 3 + k * 3, 1, k % 2 ? P.woodLt : P.brassOld);
+  for (const [x, y] of [[2, 2], [5, 3], [8, 1], [10, 3], [13, 2], [14, 4]]) p.set(x, y, P.paperGrid);
+  return p;
+}
+const PILE = feedPile().toCanvas();
+registerProp('decal_h_feed', (opts) => {
+  const spot = String(opts.spot ?? '');
+  const north = opts.side !== 's';
+  // the aisle side of the north trough is its south edge; of the south trough, its north edge
+  const aisleY = north ? 10 : 1;
+  const railY = north ? 1 : 10;
+  return {
+    ox: 0,
+    oy: 0,
+    w: 16,
+    h: 16,
+    foot: 0,
+    flat: true,
+    litOnly: true,
+    img: () => null,
+    over(g: Gfx, x: number, y: number, env: PropEnv) {
+      if (!env.flag('flag_ch2_gate_open') || env.flag('flag_ch2_tetsuya_beaten')) return;
+      if ((env.lit ?? 1) < 0.1) return;
+      g.img(PILE, x, y + (spotPending(env, spot) ? aisleY : railY), (env.lit ?? 1) < 1 ? { alpha: env.lit } : {});
+    },
+  } as PropArt;
 });
 
 // ---------------------------------------------------------------- the F1 fattening cattle (stand-ins; 52 10.4)
@@ -525,6 +620,26 @@ function cowFrames(pose: string, white: string, right: boolean): CowFrames {
     }
     frames.push(p);
   }
+  // [4] [5] reach: the neck stretched 2px further through the rail (front: towards the trough;
+  // back: the ear tips 2px north), bobbing 1px every 2 s
+  for (let b = 0; b < 2; b++) {
+    const src = frames[0];
+    const front = pose === 'front';
+    const q = new PixelCanvas(src.w, src.h + (front ? 3 : 0));
+    for (let y = 0; y < src.h; y++)
+      for (let x = 0; x < src.w; x++) {
+        const v = src.get(x, y);
+        if (v >>> 24) q.set(x, y, v);
+      }
+    for (let y = 0; y < src.h; y++)
+      for (let x = 0; x < src.w; x++) {
+        const v = src.get(x, y);
+        if (!(v >>> 24)) continue;
+        if (front && x >= 5 && x <= 14 && y >= 8) q.set(x, y + 2 + b, v);
+        if (!front && y <= 4) q.set(x, y - 2 + b, v);
+      }
+    frames.push(q);
+  }
   const out = { f: frames.map((q) => q.toCanvas()), foot, cx };
   cowCache.set(key, out);
   return out;
@@ -545,7 +660,8 @@ registerProp('prop_h_cow', (opts) => {
   const dy = Number(opts.dy ?? 16);
   const phase = Number(opts.phase ?? 0);
   const sync = !!opts.sync;
-  const ext = hasProp('prop_h_cow_' + pose) ? getProp('prop_h_cow_' + pose, { right, white, phase, sync, n: opts.n }) : null;
+  const reach = String(opts.reach ?? '');
+  const ext = hasProp('prop_h_cow_' + pose) ? getProp('prop_h_cow_' + pose, { right, white, phase, sync, n: opts.n, reach }) : null;
   if (ext) return { ...ext, ox: ext.ox + dx - 8, oy: ext.oy + dy - 16, foot: ext.foot + dy - 16, contactX: (ext.contactX ?? 8) + dx - 8 };
   const F = cowFrames(pose, white, right);
   const img0 = F.f[0];
@@ -558,6 +674,8 @@ registerProp('prop_h_cow', (opts) => {
     foot: dy - 1,
     img: (env: PropEnv) => {
       const t = env.t;
+      // the chores (50 10.19): the one at the rail stretches for the feed it can't reach (2 s bob)
+      if (reach && spotPending(env, reach)) return F.f[Math.floor(t / 2000) % 2 ? 4 : 5];
       // 北3: the four jaws in step until the ふしぎ is stamped
       const ph = sync && !env.flag('flag_fushigi_ch2_08') ? 0 : phase;
       if (lying && pose === 'lie' && Math.floor((t + ph * 1200) / 600) % 2 === 1) return F.f[2];
@@ -839,7 +957,9 @@ registerProp('prop_h_napper', (opts) => {
         if (an) return an.frames[Math.floor(env.t / (typeof an.ms === 'number' ? an.ms : 1000)) % an.frames.length];
         return s.walk.down[0];
       }
-      return F[Math.floor(env.t / 2000) % 2];
+      // シゲじい snores every 3.4 s (chest up 2px, the cap lifts), スギばあ every 3.1 s, タケじい breathes every 2 s
+      const per = who === 'masa' ? 3400 : who === 'kiyo' ? 3100 : 2000;
+      return F[(env.t % per) < per * 0.45 ? 1 : 0];
     },
     over:
       who === 'take'

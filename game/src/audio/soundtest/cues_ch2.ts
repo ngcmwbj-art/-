@@ -123,7 +123,7 @@ export const CH2_CUES: Cue[] = [
         S(12.1, 'BGM_HOSHI_NIGHT (HI1, FADE 2.0)', () => A.playBgm('bgm_hoshi_night', { fade: 2.0, resume: false, variant: 'outdoor' })),
         S(12.2, 'PA DISTANCE 1.0 (THE STATION)', () => A.setPaDistance(1)),
       ];
-      call(say, s, 15.1, '……ナナミちゃん。', true);
+      call(say, s, 15.1, '……おぴぴちゃん。', true);
       return s;
     },
   },
@@ -186,18 +186,18 @@ export const CH2_CUES: Cue[] = [
         }),
         S(2.5, 'D = 1.0 (THE SOUTH END)', () => A.setPaDistance(1)),
       ];
-      let t = call(say, s, 3, '……ユウタくん。', true) + 1.5;
+      let t = call(say, s, 3, '……もとくん。', true) + 1.5;
       s.push(S(t, 'D = 0.35 (THE FOOT OF THE PATH)', () => A.setPaDistance(0.35)));
-      t = call(say, s, t + 0.5, '……サチコさん。', true) + 1.5;
+      t = call(say, s, t + 0.5, '……クリコさん。', true) + 1.5;
       s.push(S(t, 'INDOORS (-12DB, LP 1.2K)', () => A.setPaDistance(0.6, true)));
-      t = call(say, s, t + 0.5, '……ケンイチくん。', true) + 1.5;
+      t = call(say, s, t + 0.5, '……シュンスケくん。', true) + 1.5;
       s.push(S(t, 'H_STAGE 2: THE LINE STAYS OPEN', () => {
         A.setPaDistance(0.5);
         A.setMusicParam('h_stage', 2);
         A.playAmbient('amb_h_pa_hum', { fade: 2 });
       }));
       t = call(say, s, t + 2.5, 'こちらは、防災 星見台です。', false);
-      call(say, s, t + 1.5, '……ナナミちゃん。', false);
+      call(say, s, t + 1.5, '……アスカちゃん。', false);
       return s;
     },
   },
@@ -219,7 +219,7 @@ export const CH2_CUES: Cue[] = [
           A.sfx('se_pa_chime', { vol: 0.7, at: (liveGraph()?.ctx.currentTime ?? 0) + 0.3 });
           A.duckMusic(0.5, 9);
         }),
-        S(4, 'NAMES (BROADCAST)', () => void say('broadcast', '……ナナミちゃん。……ユウタくん。……サチコさん。')),
+        S(4, 'NAMES (BROADCAST)', () => void say('broadcast', '……おぴぴちゃん。……シュンスケくん。……もとくん。')),
         S(6.6, 'ECHO x3', () => A.paEcho(0.6, 2.0)),
       ];
       const t = 7;
@@ -445,10 +445,10 @@ export const CH2_CUES: Cue[] = [
       }),
       S(16, '3 BUS IDLE (LOOP)', loop('se_h_bus_idle', { vol: 0.6 })),
       S(19, 'SE_H_BUS_DOOR', at('se_h_bus_door')),
-      S(20.2, 'IDLE OFF -> SE_H_BUS_DEPART, GON BARKS', () => {
+      S(20.2, 'IDLE OFF -> SE_H_BUS_DEPART, THE PAPILLON BARKS', () => {
         stopLoop('se_h_bus_idle', 0.2)();
         A.sfx('se_h_bus_depart');
-        A.sfx('se_dog_bark', { pitch: 0.84, at: (liveGraph()?.ctx.currentTime ?? 0) + 1.2 });
+        A.sfx('se_dog_bark', { pitch: 1.33, at: (liveGraph()?.ctx.currentTime ?? 0) + 1.2 });
       }),
       S(25, '4 THE TOWN AT NIGHT: ALL OUT, H_STAGE -1', () => {
         A.stopBgm(1.0);

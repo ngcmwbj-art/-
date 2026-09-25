@@ -18,7 +18,7 @@ import { field } from '../world/field';
 import { allItems, getEnemy, getSkill, HANKO_CASE_ORDER, PR_ORDER } from '../data/battle';
 import { fitWrap, phraseWrapInfo, textW } from './window';
 import { FOLD, LP, RP, SP } from './menu/notebook';
-import { BOOK_ENEMIES, FUSHIGI_BOOK, pressedText, TSUKKOMI_ENEMIES } from './menu/book';
+import { BOOK2_ENEMIES, BOOK_ENEMIES, FUSHIGI2_BOOK, FUSHIGI_BOOK, pressedText, pressedText2, TSUKKOMI2_ENEMIES, TSUKKOMI_ENEMIES } from './menu/book';
 import { W } from '../engine/screen';
 import type { Scene } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
@@ -215,6 +215,25 @@ registerDebug('wrapCheck', () => {
     check(`あいて ${e.name} ひとこと`, e.book.hitokoto, RP.w - 4, 3);
   }
   for (const id of TSUKKOMI_ENEMIES) for (const l of getEnemy(id)?.tsukkomi ?? []) check(`ツッコミ 一覧`, l, labelW, 2);
+  // みました帳 ②
+  FUSHIGI2_BOOK.forEach(([title], i) => {
+    check(`②ふしぎ${i + 1} 一覧`, title, labelW, 2);
+    check(`②ふしぎ${i + 1} 題`, title, RP.w, 2);
+    const body = fitWrap(pressedText2(i), RP.w);
+    n++;
+    if (body.length > 4) issues.push(`②ふしぎ${i + 1} 本文: ${body.map((l) => l.text).join('／')} (${body.length}/4 lines)`);
+  });
+  for (const id of BOOK2_ENEMIES) {
+    const e = getEnemy(id);
+    if (!e) continue;
+    check(`②あいて ${e.name} 一覧`, e.name, labelW, 2);
+    // (the page sets a long 正体／ひとこと a pixel tighter: six lines between them)
+    const a = phraseWrapInfo(e.book.shotai, RP.w + 11).lines.length;
+    const b = phraseWrapInfo(e.book.hitokoto, RP.w + 5).lines.length;
+    n++;
+    if (a + b > 6) issues.push(`②あいて ${e.name}: 正体 ${a} + ひとこと ${b} lines > 6`);
+  }
+  for (const id of TSUKKOMI2_ENEMIES) for (const l of getEnemy(id)?.tsukkomi ?? []) check(`②ツッコミ 一覧`, l, labelW, 2);
   const infoW = SP.x + SP.w - 14 - LP.x;
   for (const id of [...HANKO_CASE_ORDER, ...PR_ORDER]) {
     const s = getSkill(id);

@@ -20,6 +20,8 @@ import type { FieldScene } from '../world/field';
 import { fushigiActive } from '../world/fushigi';
 import { getMapDef, isCh2Map } from '../world/maps';
 import { drawChoreCard, hideChoreCard, updateChoreCard } from './chore_card';
+import { prepareVillageLit } from './cut_village_lit';
+import { prepareSunrise } from './cut_sunrise';
 import { clearCallBubbleUi, drawCallBubbleUi, showCallBubble as showCallBubbleImpl, updateCallBubbleUi, callBubbleShowing, type CallBubbleHandle } from './call_bubble';
 import { drawDigits, drawNumerals, numeralsWidth } from './digits';
 import { dialogTop } from './dialog';
@@ -128,6 +130,12 @@ export interface ClockView {
   colon?: number;
   /** A change of time turns over like a flap (3 frames) instead of rolling digit by digit. */
   flap?: boolean;
+  /**
+   * How many times the flap turns for this change (default 1). A jump from
+   * one town's time to the other's (19:30 → 4:59, 6:12 → 19:31) riffles
+   * through 3 (「ぱらぱらと めくれて」, 50 10.3 / 10.16).
+   */
+  flips?: number;
   /** The night glow behind the plate (chapter 1's night). Default: stage ≥ 3. */
   glow?: boolean;
 }
@@ -156,6 +164,23 @@ function drawPlateTime(g: Gfx, s: string, x: number, y: number, colonA: number):
   }
 }
 
+/** One turn of a riffle (ms): the flap, then the face it showed for a moment. */
+const FLIP_SEG = 110;
+
+/** A time glimpsed while the plate riffles from `a` to `b` (the `i`th of the turns). */
+function riffleFace(a: string, b: string, i: number): string {
+  const n = hash2(a.length * 31 + b.charCodeAt(0), b.length * 17 + i, 7);
+  const h = Math.floor(n * 24);
+  const m = Math.floor(hash2(i, a.charCodeAt(a.length - 1), 11) * 60);
+  return `${h}:${String(m).padStart(2, '0')}`;
+}
+
+/** Minutes of a clock text 'H:MM' (NaN for anything else). */
+function clockMinutes(s: string): number {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(s);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : NaN;
+}
+
 /** Draw the clock plate at (x,y). Used by the field HUD, the menu and the title. */
 export function drawClockPlate(g: Gfx, x: number, y: number, v: ClockView, alpha = 1): void {
   g.alpha(alpha, () => {
@@ -167,12 +192,22 @@ export function drawClockPlate(g: Gfx, x: number, y: number, v: ClockView, alpha
     const cur = v.time;
     const prev = v.prev || cur;
     g.clip(x + 2, yy + 2, 48, 11, () => {
-      if ((v.flap || prev.length !== cur.length) && prev !== cur && v.flipT < 51) {
+      const flips = Math.max(1, v.flips ?? 1);
+      if ((v.flap || prev.length !== cur.length) && prev !== cur && v.flipT < FLIP_SEG * (flips - 1) + 51) {
         // the card turns over in 3 frames: the old time folds up, the edge
-        // of the flap, the new time comes down (52 13.1)
-        const f = Math.floor(v.flipT / 17);
-        if (f === 0) g.clip(x + 2, yy + 2, 48, 5, () => drawPlateTime(g, prev, x, ty, colonA));
-        else if (f === 2) g.clip(x + 2, yy + 8, 48, 5, () => drawPlateTime(g, cur, x, ty, colonA));
+        // of the flap, the new time comes down (52 13.1); a jump between the
+        // two towns riffles through a couple of times on the way
+        const seg = Math.min(flips - 1, Math.floor(v.flipT / FLIP_SEG));
+        const local = v.flipT - seg * FLIP_SEG;
+        const from = seg === 0 ? prev : riffleFace(prev, cur, seg);
+        const to = seg === flips - 1 ? cur : riffleFace(prev, cur, seg + 1);
+        if (local >= 51) {
+          drawPlateTime(g, to, x, ty, colonA);
+          return;
+        }
+        const f = Math.floor(local / 17);
+        if (f === 0) g.clip(x + 2, yy + 2, 48, 5, () => drawPlateTime(g, from, x, ty, colonA));
+        else if (f === 2) g.clip(x + 2, yy + 8, 48, 5, () => drawPlateTime(g, to, x, ty, colonA));
         g.rect(x + 4, yy + 7, 44, 1, '#9AA0A8');
         g.rect(x + 4, yy + (f === 1 ? 6 : f === 0 ? 8 : 6), 44, 1, '#C8C2B4');
         return;
@@ -378,6 +413,8 @@ class UiHud implements FieldHud {
   private shown = '';
   private prevShown = '';
   private flipT = 999;
+  /** How many turns the current change riffles through. */
+  private flips = 1;
   private sinkT = 999;
   // seconds hand
   private sec = 0;
@@ -405,6 +442,9 @@ class UiHud implements FieldHud {
   private field: FieldScene | null = null;
   // chapter 2: on a 星見台 map, the colon that almost blinks (h2)
   private onHoshi = false;
+  /** On the hill: the finale's and the sunrise's pictures are built ahead. */
+  private hillT = 0;
+  private picturesReady = false;
   private colonDipAt = -1e9;
   private colonNext = 9000;
 
@@ -425,7 +465,8 @@ class UiHud implements FieldHud {
   timeText(): string {
     if (this.override) return this.override;
     // 星見台 (50 1.2): stopped at 4:59; 5:00 when the morning comes
-    if (this.onHoshi) return CLOCK_TIMES_H[Math.max(0, Math.min(1, flag('flag_ch2_clock')))];
+    // (on the train and on the platform, until the arrival, it still says 夕鳴町's 19:30)
+    if (this.onHoshi) return flag('flag_ch2_arrived') || flag('flag_ch2_stage') > 0 ? CLOCK_TIMES_H[Math.max(0, Math.min(1, flag('flag_ch2_clock')))] : '19:30';
     // back in 夕鳴町 during chapter 2 (the crossing, the bus stop): 19:30, a minute on after the night
     if (flag('flag_ch2_started') && !flag('flag_ch2_clear') && flag('flag_ch2_stage') < 3) return '19:30';
     if (flag('flag_ch2_started') && (flag('flag_ch2_clear') || flag('flag_ch2_stage') >= 3)) return '19:31';
@@ -440,7 +481,8 @@ class UiHud implements FieldHud {
 
   /** 星見台 is stopped (4:59, before the morning): the colon and the seconds don't move. */
   private hoshiStopped(): boolean {
-    return this.onHoshi && !flag('flag_ch2_clock') && flag('flag_ch2_stage') <= 2 && !this.override;
+    const arrived = flag('flag_ch2_arrived') > 0 || flag('flag_ch2_stage') > 0;
+    return this.onHoshi && arrived && !flag('flag_ch2_clock') && flag('flag_ch2_stage') <= 2 && !this.override;
   }
 
   clockView(): ClockView {
@@ -456,6 +498,7 @@ class UiHud implements FieldHud {
       sink: this.sinkT < 120 ? 1 : 0,
       colon: stopped ? (this.t - this.colonDipAt < 80 ? 0.5 : 1) : undefined,
       flap: ch2,
+      flips: this.flips,
       glow: ch2 ? false : undefined,
     };
   }
@@ -491,6 +534,8 @@ class UiHud implements FieldHud {
     const tt = this.timeText();
     if (tt !== this.shown) {
       if (this.shown && !this.cutNext) {
+        const jump = Math.abs(clockMinutes(tt) - clockMinutes(this.shown));
+        this.flips = jump > 60 ? 3 : 1;
         this.prevShown = this.shown;
         this.flipT = 0;
         this.sinkT = 0;
@@ -547,6 +592,15 @@ class UiHud implements FieldHud {
     // ---- the loudspeaker's call bubble, the おてつだい strip
     updateCallBubbleUi(dt);
     updateChoreCard(dt);
+    // ---- on 星見の丘 the two pictures still to come are built ahead, a piece a frame, so
+    // the finale and the sunrise don't stall when they cross-fade in
+    if (f.map.id === 'map_hoshi_hill' && !this.picturesReady) {
+      this.hillT += dt;
+      if (this.hillT > 1200) {
+        prepareVillageLit();
+        this.picturesReady = prepareSunrise();
+      }
+    }
     // ---- place names (after the fade-in, not during the opening)
     let place = placeNameFor(f.map.id, f.player.tileX, f.player.tileY, f.map.def.name ?? '');
     if (f.map.id === 'map_hoshimidai') {

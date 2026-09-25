@@ -671,7 +671,7 @@ export function bandPower(buf: AudioBuffer, lo: number, hi: number, from = 0): n
  */
 export async function kireSteps(o: { songs?: string[]; seconds?: number } = {}) {
   const out: Record<string, { levels: { kire: number; lufs: number; high: number }[]; steps: { from: number; to: number; dLufs: number; dHigh: number; ok: boolean }[] }> = {};
-  for (const id of o.songs ?? ['bgm_battle', 'bgm_midboss', 'bgm_boss']) {
+  for (const id of o.songs ?? ['bgm_battle', 'bgm_midboss', 'bgm_boss', 'bgm_boss_yobimodoshi']) {
     const def = songTable.get(id);
     if (!def) continue;
     const levels: { kire: number; lufs: number; high: number }[] = [];
@@ -924,7 +924,8 @@ export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sf
   // ambience: heard where it plays (4.2 pairs), under its music, below the ceiling
   const amb = o.amb !== false ? await ambContext() : {};
   // (flip: its first character plays the whole se_flip squeak, which sits on the SE fader)
-  const voiceOff = Object.entries(voices).filter(([id, r]) => id !== 'flip' && Math.abs(r.dev) > 3).map(([id, r]) => `${id} (${r.dev})`);
+  // (and the sign of ムジン販売員, whose page opens with the same squeak, 53 9.1)
+  const voiceOff = Object.entries(voices).filter(([id, r]) => id !== 'flip' && id !== 'h_mujin' && Math.abs(r.dev) > 3).map(([id, r]) => `${id} (${r.dev})`);
   const ambOff = Object.entries(amb)
     .filter(([, r]) => !r.ok)
     .map(([id, r]) => `${id} vs ${r.song}: ${r.margin} dB @${r.band} Hz (need ${r.need}), ${r.under} LU under the music, peak ${r.peak}`);

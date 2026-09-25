@@ -417,26 +417,36 @@ const texTanada: HTex = (x, y, v, ctx) => {
     if ((hh >>> 7) % 7 === 0 && cx > 1) s = K.leafDeep; // moss
     return s;
   }
-  // water strip right under the 畦 (north edge of the upper row)
-  if (upper && ly < 2) return ly === 0 && (x & 3) === 0 ? K.leafDeep : K.navy;
-  // painted dividing 畦 (north–south), a different column in each terrace
-  const div = [28, 25, 31, 27, 24, 30][tier];
-  if (tx === div && (lx === 6 || lx === 7 || lx === 8)) {
-    if (lx === 6) return K.leafDeep;
-    return ihash(x, y >> 1, 1109) % 4 === 0 ? K.leaf : K.woodMd;
+  // water strip right under the 畦 (north edge of the upper row): broken by
+  // the 畦's grass hanging down and the first hills' leaf tips leaning up
+  if (upper && ly < 2) {
+    const g = ihash(x, ty, 1113) % 100;
+    if (ly === 0) return g < 22 ? K.leafDeep : g < 30 ? K.leaf : K.navy;
+    return g % 7 === 0 || ((x & 3) === 1 && g < 45) ? K.leafShade : K.navy;
   }
-  if (tx === div && (lx === 5 || lx === 9)) return K.navy;
+  // painted dividing 畦 (north–south), a different column in each terrace:
+  // a narrow grassy ridge — shade on the west, a worn line of soil, lit grass
+  const div = [28, 25, 31, 27, 24, 30][tier];
+  if (tx === div && lx >= 5 && lx <= 9) {
+    const g = ihash(x, y >> 1, 1109) % 6;
+    if (lx === 5) return (y & 7) === 3 ? K.navy : K.leafShade;
+    if (lx === 6) return g === 0 ? K.leafShade : K.leafDeep;
+    if (lx === 7) return g < 2 ? K.soilDk : g < 4 ? K.leaf : K.leafDeep;
+    if (lx === 8) return g < 3 ? K.leafYoung : K.leaf;
+    return g === 0 ? K.leafLt : K.leafYoung;
+  }
   // the hills: 4px columns, rows every 5px, shifted per column pair
   const col4 = Math.floor(x / 4);
   const gx = ((x % 4) + 4) % 4;
   const shift = (col4 & 1) * 2;
   const r5 = (((y + shift) % 5) + 5) % 5;
   const hh = ihash(col4, Math.floor((y + shift) / 5), 1111 + v);
-  // gaps between the rows: water (1px), often covered by an arching leaf
+  // gaps between the rows: shade, the water (1px) showing through only here
+  // and there where the arching leaves part
   if (gx === 3) {
-    const covered = ((hh >>> 3) % 3) !== 0 && r5 !== 2;
-    if (!covered) return K.navy;
-    return K.leafShade;
+    if (r5 === 2 && (hh >>> 3) % 5 < 2) return K.navy;
+    if (r5 === 3 && (hh >>> 3) % 5 === 0) return K.navy;
+    return r5 === 4 || (hh >>> 5) % 4 === 0 ? K.leafShade : K.leafDeep;
   }
   // leaves: lit on the upper-left of each hill
   let col = gx === 0 ? (r5 <= 1 ? K.leafYoung : K.leaf) : gx === 2 ? K.leafDeep : K.leaf;

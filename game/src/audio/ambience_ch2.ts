@@ -15,7 +15,9 @@
 // ambience bus, randomness is seeded fresh at every start (the same spot never
 // repeats itself), events are scheduled look-ahead from the audio clock.
 
-import { dbToGain, onSample, voice, type VoiceOpts } from './engine';
+import { dbToGain, onSample, PaChain, voice, type VoiceOpts } from './engine';
+import { DRM } from './instruments';
+import { currentId, setMusicParam } from './music';
 import { layer, type SeCtx } from './recipe';
 import { Rng } from '../engine/rng';
 import { Every, higurashiCall, modBuffer, modulate, noiseBed, registerAmbience, sampleHold, smoothRandom, toneBed, type AmbCtx, type Bed } from './ambience';
@@ -42,11 +44,24 @@ function sub(c: AmbCtx, level = 1, dest: AudioNode = c.dest): GainNode {
   return g;
 }
 
-/** A panned destination inside the ambience. */
+/**
+ * A panned destination inside the ambience. Seats are shared (pan rounded to
+ * 0.05, one panner per seat and destination), so an ambience that places a
+ * new cricket or snort every few seconds never piles up nodes over a long
+ * night: at most ~41 panners per destination, for as long as it plays.
+ */
+const seats = new WeakMap<AudioNode, Map<number, StereoPannerNode>>();
 function panned(c: AmbCtx, pan: number, dest: AudioNode = c.dest): AudioNode {
-  const p = c.g.ctx.createStereoPanner();
-  p.pan.value = Math.max(-1, Math.min(1, pan));
-  p.connect(dest);
+  const k = Math.round(Math.max(-1, Math.min(1, pan)) * 20);
+  let m = seats.get(dest);
+  if (!m) seats.set(dest, (m = new Map()));
+  let p = m.get(k);
+  if (!p) {
+    p = c.g.ctx.createStereoPanner();
+    p.pan.value = k / 20;
+    p.connect(dest);
+    m.set(k, p);
+  }
   return p;
 }
 
@@ -916,9 +931,95 @@ registerAmbience('amb_h_dawn', (c) => {
   };
 });
 
+// ---------------------------------------------------------------------------
+// 7.2 ツガオの部屋 (after 「つづく」; chapter 3 hears it again: no chapter letter)
+
+/**
+ * amb_tsugao_room — the back of an old office at night: the desk lamp's faint
+ * hum. ambientEvent('amb_tsugao_room', 'tick', 'yunari' | 'hoshimi'): a wall
+ * clock runs again — 夕鳴町's "チッ・タッ" (drm_tick / drm_tock, pan −.4), then
+ * 星見台's "コツ" (drm_mic_tap, centre), once a second; while bgm_tsugao plays
+ * the song carries those beats itself (its `clock` param is set here), so the
+ * two never tick against each other. Never a chime (53 1.4). 'umi' (「海ぞいの
+ * 町」): the clocks stop; far waves swell on an 8 s cycle, and a siren rises
+ * and stops just short of the top, holding there — through a far town's
+ * speaker (the town voicing, d .8). It only rises: it is no tune (chapter 3
+ * decides the noon chime). The lamp's click (se_lamp_click) is followed by
+ * stopAmbient(…, 0.5): complete silence.
+ */
+registerAmbience('amb_tsugao_room', (c) => {
+  const g = c.g;
+  const hum = toneBed(c, 'square', 100, 0.002, c.dest, 500);
+  const clocks = { yunari: false, hoshimi: false };
+  let next = 0;
+  let n = 0;
+  let umi: { beds: Bed[]; stop(t: number): void } | null = null;
+  const tickDest = sub(c, 1);
+  const songHasClock = () => currentId() === 'bgm_tsugao';
+  return {
+    pump(u) {
+      if (!clocks.yunari && !clocks.hoshimi) return;
+      let guard = 0;
+      while (next < u && guard++ < 4) {
+        const t = Math.max(next, g.ctx.currentTime);
+        if (!songHasClock()) {
+          if (clocks.yunari) (n % 2 ? DRM.drm_tock : DRM.drm_tick)({ t, vel: 1, vol: 0.5 * 0.03, pan: -0.4, dest: tickDest });
+          if (clocks.hoshimi) DRM.drm_mic_tap({ t: t + 0.5, vel: 1, vol: 0.4 * 0.05, dest: tickDest });
+        }
+        n++;
+        next = t + 1.0;
+      }
+    },
+    event(name, arg, at) {
+      const town = arg as unknown as string | number | undefined;
+      if (name === 'tick') {
+        const hoshimi = town === 'hoshimi' || town === 1;
+        if (hoshimi) clocks.hoshimi = true;
+        else clocks.yunari = true;
+        if (next < at) next = at + 1.0;
+        setMusicParam('clock', clocks.hoshimi ? 2 : 1);
+      } else if (name === 'umi' && !umi) {
+        // the clocks stop with the song
+        clocks.yunari = clocks.hoshimi = false;
+        // far waves on an 8 s swell, to the right
+        const wp = panned(c, 0.4);
+        const waves = noiseBed(c, 'lowpass', 600, 0.5, 0.0015, wp);
+        const wm = modulate(g, at, modBuffer(g, 8, (t) => 0.5 - 0.5 * Math.cos((t / 8) * Math.PI * 2)), waves.gain.gain, 0.0045);
+        // the siren that stopped just short of the top, heard through a far town's speaker
+        const lp = lowpass(c, 1500);
+        const pa = new PaChain(g.ctx, lp, 1.8, 3800);
+        pa.setDistance(0.8, false, 0.01, at);
+        const o = g.ctx.createOscillator();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(520, at);
+        o.frequency.linearRampToValueAtTime(690, at + 2.5);
+        const og = g.ctx.createGain();
+        og.gain.setValueAtTime(0, at);
+        og.gain.linearRampToValueAtTime(0.004, at + 0.6);
+        o.connect(og);
+        og.connect(pa.input);
+        o.start(onSample(g.ctx, at));
+        umi = {
+          beds: [waves],
+          stop(t: number) {
+            waves.stop(t);
+            wm.stop(t);
+            o.stop(t);
+            setTimeout(() => pa.dispose(), Math.max(0, t - g.ctx.currentTime) * 1000 + 8000);
+          },
+        };
+      }
+    },
+    stop(t) {
+      hum.stop(t);
+      umi?.stop(t);
+    },
+  };
+});
+
 export const CH2_AMBIENCE_IDS = [
   'amb_h_insects', 'amb_h_kusa', 'amb_h_tanada', 'amb_h_mizu', 'amb_h_wind', 'amb_h_yama', 'amb_h_hachi',
   'amb_h_fence', 'amb_h_barn_out', 'amb_h_barn', 'amb_h_house', 'amb_h_tomato', 'amb_h_school', 'amb_h_boukatou',
-  'amb_h_tetsuya', 'amb_h_train', 'amb_h_pa_hum', 'amb_h_dawn',
+  'amb_h_tetsuya', 'amb_h_train', 'amb_h_pa_hum', 'amb_h_dawn', 'amb_tsugao_room',
 ];
 

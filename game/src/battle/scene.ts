@@ -1646,7 +1646,11 @@ export class BattleScene implements Scene {
       .filter((e) => e.alive && e.visible)
       .map((e) =>
         e.def.boss
-          ? { x0: e.left - 3, y0: e.top - 3, x1: e.left + e.sizeW + 3, y1: e.footY }
+          ? // ヨビモドシ's horns reach to the edges of its box but are thin at
+            // the very ends: a sticky may graze their mouths, not their bodies
+            e.id === 'boss_yobimodoshi'
+            ? { x0: e.left + 6, y0: e.top - 3, x1: e.left + e.sizeW - 6, y1: e.footY }
+            : { x0: e.left - 3, y0: e.top - 3, x1: e.left + e.sizeW + 3, y1: e.footY }
           : { x0: Math.min(e.left - 3, e.coreX - 48), y0: STAGE_TOP, x1: Math.max(e.left + e.sizeW + 3, e.coreX + 48), y1: e.footY },
       );
     // the top of the hanko close-up's ink ring (its くっきり zone) rises there

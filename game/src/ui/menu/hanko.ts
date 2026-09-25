@@ -14,7 +14,7 @@ import { field } from '../../world/field';
 import { fushigiActive, runFushigi } from '../../world/fushigi';
 import { say } from '../dialog';
 import { drawDigits } from '../digits';
-import { CASE_SLOTS, CASE_W, drawCase, slotXY } from '../hankocase';
+import { CASE_SLOTS, CASE_W, drawCase, outlineShown, slotXY } from '../hankocase';
 import { inkPotIcon } from '../icons';
 import { drawCursor, pencilLine, phraseWrap as wrap, textW, UI } from '../window';
 import { drawBar, drawHeader, hpColor, LP, Popup, RP, SP } from './notebook';
@@ -85,8 +85,14 @@ export class HankoPage implements MenuPage {
 
   private use(m: MenuCtx): void {
     const id = CASE_SLOTS[this.sel];
-    if (!id || id === 'skill_oyasuminasai' || !ownsHanko(id)) {
+    if (!id || id === 'skill_itadakimasu' || !ownsHanko(id)) {
       sfx('se_buzzer');
+      return;
+    }
+    // the last stamps of each night are not for the field (50 7.4)
+    if (id === 'skill_oyasuminasai' || id === 'skill_okaerinasai') {
+      sfx('se_buzzer');
+      m.run(say(id === 'skill_oyasuminasai' ? '……いまは、押す ときじゃ ない。' : FIELD_TEXT.noTarget, { voice: 'sys' }));
       return;
     }
     if (id === 'skill_hanamaru') {
@@ -167,21 +173,23 @@ export class HankoPage implements MenuPage {
     if (!m.focus) {
       const lines = wrap('おばあの 採点ハンコ。押した モノを、認める 力が ある。', SP.w - 36);
       lines.forEach((l, i) => g.text(l, SP.x + 18, y0 + 6 + i * 17, { color: UI.pencil }));
-    } else if (id && (id !== 'skill_oyasuminasai' ? ownsHanko(id) : !!flag('flag_clear'))) {
+    } else if (id && (ownsHanko(id) || outlineShown(id, false))) {
       const s = getSkill(id);
-      const name = id === 'skill_oyasuminasai' ? '？？？' : s?.name ?? id;
+      // an outline not yet filled: its name is not known yet (51 5.2, 5.3)
+      const outline = !ownsHanko(id);
+      const name = outline ? '？？？' : s?.name ?? id;
       const nw = textW(name);
       g.text(name, LP.x, y0, { color: UI.accent });
       pencilLine(g, LP.x, y0 + 16, nw + 2, 1, UI.accentDark, 5);
       const cx = LP.x + nw + 12;
-      if (s?.cost) {
+      if (s?.cost && !outline) {
         g.img(inkPotIcon(), cx, y0 + 2);
         g.text('朱肉', cx + 12, y0, { color: UI.text });
         drawDigits(g, String(s.cost), cx + 12 + textW('朱肉') + 4, y0 + 5, { color: UI.accent });
       } else if (id === 'skill_okaerinasai') {
         g.text('最後に 使う', cx, y0, { color: UI.pencil });
       }
-      const desc = id === 'skill_oyasuminasai' ? ['（輪郭だけが、うっすら 見える）'] : s?.desc ?? [];
+      const desc = outline ? ['（輪郭だけが、うっすら 見える）'] : s?.desc ?? [];
       const lines = desc.filter((l) => l).flatMap((l) => wrap(l, infoW));
       lines.slice(0, 2).forEach((l, i) => g.text(l, LP.x, y0 + 18 + i * 17, { color: UI.text }));
     } else {

@@ -315,27 +315,32 @@ const HW = 9 * 16;
 const HH = 18 * 16;
 const SIDE = 120; // the film view outside the side walls (the camera centres the 144px room)
 
-function houseShell(): PixelCanvas {
+function houseShell(dawn: boolean): PixelCanvas {
   const W = HW + SIDE * 2;
   const p = new PixelCanvas(W, HH);
   const X = (x: number) => x + SIDE;
-  // outside the side films: 星あかりの薄い青 (#2A2440 with 2px #3A2B5C stripes), the neighbours' shapes
+  // outside the side films: 星あかりの薄い青 (#2A2440 with 2px #3A2B5C stripes),
+  // the neighbours' shapes; at dawn (h3) the films glow the sky's pale lilac
+  const outA = dawn ? mix(P.concreteLt, P.lilac, 0.4) : P.ink;
+  const outB = dawn ? mix(P.concrete, P.lilac, 0.45) : P.nightShade;
+  const shape = dawn ? mix(P.steel, P.lilac, 0.35) : P.nightShade;
+  const bamboo = dawn ? mix(P.leafDeep, P.lilac, 0.45) : P.night;
   for (let y = 0; y < HH; y++)
     for (let x = 0; x < W; x++) {
       if (x >= SIDE && x < SIDE + HW) continue;
       const stripe = Math.floor(x / 2) % 4 === 0 && h01(Math.floor(x / 2), Math.floor(y / 32), 4021) < 0.7;
-      p.set(x, y, stripe ? P.nightShade : P.ink);
+      p.set(x, y, stripe ? outB : outA);
     }
   // the next house (2号) to the east: its arches faint through two films
   for (let y = 0; y < HH; y++)
     for (let x = SIDE + HW + 24; x < SIDE + HW + 72; x++) {
       const u = Math.abs(x - (SIDE + HW + 48)) / 24;
-      if ((y % 16 === 0 && u < 1) || (u > 0.92 && u < 1)) p.set(x, y, P.nightShade);
+      if ((y % 16 === 0 && u < 1) || (u > 0.92 && u < 1)) p.set(x, y, shape);
     }
   // bamboo shapes on the slope to the west
   for (let k = 0; k < 7; k++) {
     const bx = 20 + k * 14 + (ihash(k, 1, 4023) % 6);
-    for (let y = 0; y < HH; y++) if ((y + k * 5) % 23 !== 0) p.set(bx, y, P.night);
+    for (let y = 0; y < HH; y++) if ((y + k * 5) % 23 !== 0) p.set(bx, y, bamboo);
   }
   // ---- the side films (x0 and x8): the film seen edge-on from inside, the arch pipes every 16px
   for (const sx of [0, 8]) {
@@ -343,9 +348,11 @@ function houseShell(): PixelCanvas {
     for (let y = 0; y < HH; y++)
       for (let i = 0; i < 16; i++) {
         const inner = sx === 0 ? i >= 10 : i < 6;
-        let c: string = inner ? mix(P.concreteLt, P.nightShade, 0.55) : mix(P.concrete, P.ink, 0.72);
-        if (inner && (sx === 0 ? i === 10 : i === 5)) c = mix(P.white, P.nightShade, 0.35);
-        if (y % 16 === 0) c = inner ? P.steel : P.charcoal;
+        let c: string = inner
+          ? mix(P.concreteLt, dawn ? P.paper : P.nightShade, dawn ? 0.3 : 0.55)
+          : mix(P.concrete, dawn ? P.lilac : P.ink, dawn ? 0.35 : 0.72);
+        if (inner && (sx === 0 ? i === 10 : i === 5)) c = mix(P.white, P.nightShade, dawn ? 0.1 : 0.35);
+        if (y % 16 === 0) c = inner ? P.steel : dawn ? P.steel : P.charcoal;
         p.set(x0 + i, y, c);
       }
     // the rolled side film at the foot of the wall (巻き上げの筒)
@@ -365,7 +372,7 @@ function houseShell(): PixelCanvas {
   for (let y = 0; y < 32; y++)
     for (let x = 16; x < 128; x++) {
       const u = Math.abs(x - 72) / 56;
-      let c: string = mix(P.concreteLt, P.ink, 0.62 + u * 0.2);
+      let c: string = dawn ? mix(P.concreteLt, P.lilac, 0.25 + u * 0.2) : mix(P.concreteLt, P.ink, 0.62 + u * 0.2);
       if (y === 31) c = P.steel;
       if (x % 16 === 0) c = P.steel;
       if (y === 10) c = P.concrete; // the tie bar
@@ -405,15 +412,16 @@ function houseShell(): PixelCanvas {
 }
 
 registerProp('prop_h_house_shell', () => {
-  const img = houseShell().toCanvas();
+  const night = houseShell(false).toCanvas();
+  let day: HTMLCanvasElement | null = null;
   const a: PropArt = {
     ox: -SIDE,
     oy: 0,
-    w: img.width,
+    w: night.width,
     h: HH,
     foot: 0,
     flat: true,
-    img: () => img,
+    img: (env) => (hs(env) >= 3 ? (day ??= houseShell(true).toCanvas()) : night),
     over(g, x, y, env) {
       // ふしぎ07: the film at (0,8) swells 1px and falls back every 4 s; a light band runs down it
       if (env.flag('flag_fushigi_ch2_07') > 0 || hs(env) < 1) return;

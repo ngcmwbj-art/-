@@ -7,7 +7,7 @@
 import { atTime } from './clock';
 import { playMorningChime } from './chime';
 import { cur, midiHz, noteMidi, voice, type VoiceHandle } from './engine';
-import { chimeNote } from './instruments';
+import { chimeNote, DRM } from './instruments';
 import { seTrim, trimOr1 } from './mix';
 import { layer, playSe, se, sub, type SeCtx } from './recipe';
 import { loopTable, sfxTable, type LoopHandle, type SfxOpts } from './registry';
@@ -21,9 +21,11 @@ const G_ENEMY = '第2章：戦闘・敵の技';
 const G_BOSS = '第2章：戦闘・ボス';
 const G_HANKO = '第2章：戦闘・ハンコ・能力';
 const G_END = '第2章：足音・シンボル・エンディング';
+// ツガオの部屋 (53 8.12): used again in chapter 3, so its ids carry no chapter letter
+const G_TSUGAO = '第2章：ツガオの部屋（第3章の予告）';
 
 /** Every chapter-2 group (the sound test's 第2章 page lists them in this order). */
-export const CH2_SE_GROUPS = [G_TRAIN, G_VILLAGE, G_BARN, G_PA, G_ENEMY, G_BOSS, G_HANKO, G_END];
+export const CH2_SE_GROUPS = [G_TRAIN, G_VILLAGE, G_BARN, G_PA, G_ENEMY, G_BOSS, G_HANKO, G_END, G_TSUGAO];
 
 // ---------------------------------------------------------------------------
 // the PA (bus_pa): these SEs sing through the speaker on the hill
@@ -808,6 +810,47 @@ se('se_h_bus_arrive', {
   label: 'バスが止まる（エアブレーキ）',
   group: G_END,
   layers: ['saw f=70→46/1000 env=0/0/1/300 dur=1000 v=.025 flt=LP500 am=35→23/1000/.45', 'noise env=5/400/0/150 dur=200 v=.04 flt=BP2600q0.8 at=1100'],
+});
+
+// ============================================================================
+// 8.12 ツガオの部屋 (after 「つづく」; chapter 3 hears them again)
+
+/** ダコク's punch (a time recorder's "ガチャン", the card sliding out "シュッ"); vol .6 plays the card alone. */
+se('se_dakoku', {
+  label: 'ダコクの打刻（ガチャン、シュッ）',
+  group: G_TSUGAO,
+  rand: [0.02, 0.05],
+  layers: [
+    'noise env=0/40/0/20 dur=25 v=.04 flt=BP1800q1.5',
+    'sq f=180→120/60 env=0/80/0/30 dur=40 v=.03 flt=LP1200',
+    'tri f=2400 env=0/60/0/30 dur=15 v=.015 at=60',
+    'noise env=20/120/0/60 dur=100 v=.012 flt=HP3000 at=180',
+  ],
+});
+se('se_mada_stamp', {
+  label: '黒い判「まだ」（インク切れ、ぺそっ）',
+  group: G_TSUGAO,
+  layers: ['sine f=90→60/60 env=0/90/0/40 dur=40 v=.10 drive=.5', 'noise env=0/50/0/20 dur=30 v=.02 flt=BP700q1.2', 'noise env=10/60/0/30 dur=40 v=.006 flt=HP4000 at=40'],
+});
+se('se_lamp_click', { label: '電気スタンドを消す（カチ）', group: G_TSUGAO, layers: ['tri f=1800 env=0/20/0/8 dur=6 v=.03', 'noise env=0/15/0/5 dur=8 v=.01 flt=HP5000'] });
+/**
+ * A stopped wall clock's second hand starting again: three uneven ticks (0 /
+ * 1300 / 2250 ms), then on the second (3250 ms), louder as it finds its pace.
+ * 夕鳴町's clock (default) ticks "チッ・タッ" (drm_tick / drm_tock, the clock
+ * of オムカエマチ); 星見台's — { note: 'hoshimi' } or { level: 1 } — is the "コツ"
+ * of ヨビモドシ's microphone (drm_mic_tap). amb_tsugao_room keeps it going.
+ */
+se('se_clock_restart', {
+  label: '止まった時計が動きだす（夕鳴町／星見台）',
+  group: G_TSUGAO,
+  rev: 0.2,
+  fn(c) {
+    const hoshimi = c.opts.note === 'hoshimi' || (c.opts.level ?? 0) >= 1;
+    [0, 1300, 2250, 3250].forEach((ms, i) => {
+      const d = hoshimi ? DRM.drm_mic_tap : i % 2 ? DRM.drm_tock : DRM.drm_tick;
+      d({ t: c.t + ms / 1000, vel: 1, vol: (hoshimi ? 0.05 : 0.08) * (0.6 + (0.4 * i) / 3) * c.vol, dest: c.dest });
+    });
+  },
 });
 
 /** One-shot fallbacks for the loops when called with sfx() (a short idle). */

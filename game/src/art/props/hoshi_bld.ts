@@ -392,16 +392,32 @@ registerBuilding({
       p.set(ox, oy, P.goldPale);
       p.set(ox + 2, oy + 2, P.brassOld);
     }
-    // a bench (縁台) with the knitting bag against the east wall
+    // her brushes hung beside the onions (ソワカさん paints: 52 7.1)
+    for (let k = 0; k < 4; k++) {
+      const bx = 13 + k;
+      p.vline(bx, fY + 4, fY + 11 - (k % 2), P.woodLt);
+      p.set(bx, fY + 12 - (k % 2), [P.red, P.leaf, P.blue, P.gold][k]);
+    }
+    p.hline(12, 17, fY + 4, P.woodDark);
+    // a little hand-painted vegetable picture by the nameplate (an aubergine and a cucumber)
+    p.rect(30, fY + 20, 6, 5, P.paper);
+    p.set(31, fY + 22, '#7A5AA0');
+    p.set(32, fY + 22, '#7A5AA0');
+    p.set(32, fY + 21, P.leafDeep);
+    p.hline(33, 34, fY + 23, P.leaf);
+    // the bench (縁台): her paint box and a small unfinished canvas (night sky, one star)
     p.rect(40, b.botY - 9, 20, 2, P.woodLt);
     p.hline(40, 59, b.botY - 9, P.goldPale);
     p.vline(41, b.botY - 7, b.botY - 2, P.wood);
     p.vline(58, b.botY - 7, b.botY - 2, P.wood);
-    p.rect(50, b.botY - 14, 7, 5, P.navy);
-    p.set(51, b.botY - 15, P.gold);
-    p.set(53, b.botY - 16, P.gold);
-    p.set(52, b.botY - 14, P.gold);
-    p.set(55, b.botY - 15, P.woodLt);
+    p.rect(42, b.botY - 12, 7, 3, P.wood);
+    p.hline(42, 48, b.botY - 12, P.woodLt);
+    for (const [dx, c] of [[43, P.red], [45, P.gold], [47, P.blue]] as const) p.set(dx, b.botY - 11, c);
+    p.rect(50, b.botY - 19, 8, 10, P.woodLt); // the canvas on a little easel
+    p.rect(51, b.botY - 18, 6, 7, P.navy);
+    p.set(54, b.botY - 16, P.glint);
+    p.set(52, b.botY - 13, P.aqua);
+    p.line(50, b.botY - 9, 49, b.botY - 7, P.wood);
     footing(p, 0, b.botY, 64, P.concrete, 7);
   },
 });
@@ -485,9 +501,15 @@ registerBuilding({
     hikido(b, 18, fY + 10, 16, 20, P.woodDark);
     genkanStep(p, 18, b.botY, 16);
     // nameplate 中村 and the circular's shelf beside the door
-    hyousatsu(p, 35, fY + 11, 7);
-    p.rect(38, fY + 17, 10, 2, P.woodLt);
-    p.hline(38, 47, fY + 17, P.goldPale);
+    p.rect(34, fY + 11, 10, 5, P.goldPale);
+    p.hline(34, 43, fY + 11, P.woodLt);
+    p.hline(34, 43, fY + 15, P.brassOld);
+    p.hline(35, 37, fY + 12, P.ink); // エ
+    p.set(36, fY + 13, P.ink);
+    p.hline(35, 37, fY + 14, P.ink);
+    p.hline(39, 42, fY + 13, P.ink); // ー
+    p.rect(38, fY + 18, 10, 2, P.woodLt);
+    p.hline(38, 47, fY + 18, P.goldPale);
     p.vline(39, fY + 19, fY + 21, P.wood);
     p.vline(46, fY + 19, fY + 21, P.wood);
     p.rect(40, fY + 13, 6, 4, P.blue); // a circular board waiting on it

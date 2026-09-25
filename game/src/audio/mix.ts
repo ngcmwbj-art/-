@@ -227,6 +227,8 @@ export const PART_TRIM: Record<string, number> = {
   'bgm_boss_yobimodoshi/organ': -3.5, 'bgm_boss_yobimodoshi/organ_chords': -6, 'bgm_boss_yobimodoshi/pad': -3,
   'bgm_boss_yobimodoshi/pad_intro': -4, 'bgm_boss_yobimodoshi/bass': -6, 'bgm_boss_yobimodoshi/drums': -2,
   'bgm_boss_yobimodoshi/mic': 8, 'bgm_boss_yobimodoshi/intro': -4,
+  // the kire layers sit where they sit in the other fights (40 7.2)
+  'bgm_boss_yobimodoshi/kire_hat': 16.5, 'bgm_boss_yobimodoshi/kire_clap': 18, 'bgm_boss_yobimodoshi/kire_arp': 16,
   'bgm_hoshi_morning/mbox_hi': 2.5, 'bgm_hoshi_morning/chime': 4, 'bgm_hoshi_morning/marimba': 2.5,
   'bgm_hoshi_morning/epiano': -4, 'bgm_hoshi_morning/pad': -3, 'bgm_hoshi_morning/bass': -6, 'bgm_hoshi_morning/drums': 1.5,
   'bgm_hoshi_morning/pedal': -10, 'bgm_hoshi_morning/mbox': 4,

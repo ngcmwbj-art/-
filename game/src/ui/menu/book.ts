@@ -751,13 +751,18 @@ export class BookPage implements MenuPage {
       if (b) g.img(b, x + 76 - Math.round(b.width / 2), by - b.height);
       else if (boar) drawBoarGoingHome(g, x + 60, by, m.t);
       g.rect(x, by + 1, w - 6, 1, UI.bg2);
-      // 正体 in ink, ひとこと in pencil (the name itself is the index entry)
+      // 正体 in ink, ひとこと in pencil (the name itself is the index entry);
+      // six lines fit under the pictures — a longer text is set a little tighter
       y = by + 5;
-      const body = wrap(bt.shotai, w + 2);
-      body.slice(0, 3).forEach((l, j) => g.text(l, x, y + j * 17, { color: UI.text }));
-      y += Math.min(3, body.length) * 17 + 3;
-      const hk = wrap(bt.hitokoto, w - 4);
-      hk.slice(0, 3).forEach((l, j) => g.text(l, x + 4, y + j * 17, { color: UI.pencil }));
+      let body = packLines(bt.shotai, w + 2, 3);
+      let hk = packLines(bt.hitokoto, w - 4, 3);
+      if (body.length + hk.length > 6) {
+        body = packLines(bt.shotai, w + 2, 6 - Math.min(2, hk.length));
+        hk = packLines(bt.hitokoto, w - 4, 6 - body.length);
+      }
+      body.forEach((l, j) => g.text(l.text, x, y + j * 17, { color: UI.text, spacing: l.spacing }));
+      y += body.length * 17 + 3;
+      hk.slice(0, Math.max(0, 6 - body.length)).forEach((l, j) => g.text(l.text, x + 4, y + j * 17, { color: UI.pencil, spacing: l.spacing }));
       // tsukkomi seen for this one
       let seen = 0;
       const tl = linesOf(id, v);
@@ -798,6 +803,25 @@ export class BookPage implements MenuPage {
     const sp = sprite(ent.enemy, m.t);
     if (sp) g.img(sp, x + w - 24 - Math.round(sp.width / 2), SP.y + SP.h - 30 - sp.height);
   }
+}
+
+/**
+ * Wrap `text` into at most `max` lines of `w` px if it can be done by setting
+ * the letters up to 2 px closer (字詰め); otherwise the plain wrap.
+ */
+function packLines(text: string, w: number, max: number): { text: string; spacing: number }[] {
+  const plain = wrap(text, w);
+  if (plain.length <= max) return plain.map((t) => ({ text: t, spacing: 0 }));
+  for (const sp of [1, 2]) {
+    const lines = wrap(text, w + sp * 9);
+    if (lines.length > max) continue;
+    return lines.map((t) => {
+      const over = textW(t) - w;
+      const n = Math.max(1, [...t].length - 1);
+      return { text: t, spacing: over <= 0 ? 0 : -Math.min(sp, Math.ceil(over / n)) };
+    });
+  }
+  return plain.map((t) => ({ text: t, spacing: 0 }));
 }
 
 function nameOf(id: string, v: Volume): string {

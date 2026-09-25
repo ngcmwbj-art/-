@@ -35,7 +35,7 @@ export const VOICE_SAMPLES: Record<string, string> = {
   // chapter 2 (53_ch2_audio 9)
   h_train: 'つぎは、星見台。星見台です。',
   h_tetsuya: '……マダ タガヤセマス。ヒト ウネ……モウ ヒト ウネ……。',
-  yobimodoshi: '……ナナミちゃん。……へんじが ありません。',
+  yobimodoshi: '……おぴぴちゃん。……へんじが ありません。',
   h_mujin: 'きゅうり 3本 100円。おすすめです。',
   h_gon: 'キャン！ キャンキャン！',
   h_driver: 'おや、電車で 来たのかい。ぼくは 郵便配達の さんかど。',

@@ -54,7 +54,7 @@ const MAT = {
   grass: m('#1D2034', '#4A4034', 0.35),
   grassHi: m('#232840', '#7A6038', 0.5),
   field: m('#231F36', '#5E3A34', 0.4),
-  fieldRow: m('#1E2A34', '#5A5A2E', 0.5),
+  fieldRow: m('#1E2630', '#6A5634', 0.45),
   yard: m('#2C2843', '#A06A50', 0.55),
   road: m('#2E2A45', '#A06A52', 0.55),
   roadEdge: m('#3A3654', '#D09468', 0.7),
@@ -509,7 +509,12 @@ function paintSchool(p: Painter): Zone {
   p.rect(187, 132, 12, 2, 'tile');
   p.rect(189, 136, 8, 10, 'woodDark');
   p.rect(190, 137, 6, 8, 'windowDark');
-  for (let j = 0; j < 8; j++) for (let i = 0; i < 6; i++) if (i !== 3 && (i + j) % 2 === 0) p.emit(190 + i, 137 + j, '#E8C878');
+  // the glass doors: the hall's light through them, the frame and the join dark
+  for (let j = 0; j < 8; j++)
+    for (let i = 0; i < 6; i++) {
+      if (i === 3 || j === 3) continue;
+      p.emit(190 + i, 137 + j, j < 3 ? '#F6D98A' : '#E0B868');
+    }
   // the memorial stone and a small pine
   p.art(['.SS.', 'SsSS', 'SsSS', 'SSSS', 'dddd'], { S: 'stoneHi', s: 'stone', d: 'stoneDark' }, 206, 146);
   p.art(['..t..', '.tTt.', 'tTttT', '..w..'], { t: 'tree', T: 'treeHi', w: 'trunk' }, 213, 145);
@@ -518,9 +523,10 @@ function paintSchool(p: Painter): Zone {
 
 /** A farmhouse: hip roof, the eave's shadow, walls, windows (asleep: dark), a 蔵 or a garden beside some. */
 function house(p: Painter, x: number, y: number, w: number, lived: boolean, seed: number): void {
-  const rh = Math.max(4, Math.round(w * 0.38));
+  // a low hip roof: a short ridge, gentle slopes, the eaves standing a pixel out past the walls
+  const rh = Math.max(3, Math.round(w * 0.3));
   for (let j = 0; j < rh; j++) {
-    const inset = Math.round((rh - 1 - j) * 0.9);
+    const inset = Math.round(((rh - 1 - j) / Math.max(1, rh - 1)) * w * 0.24) - (j === rh - 1 ? 1 : 0);
     for (let i = inset; i < w - inset; i++) p.put(x + i, y - rh + 1 + j, j === rh - 1 ? 'tileEave' : j === 0 ? 'tileRidge' : j % 2 ? 'tileRow' : 'tile');
   }
   const wh = Math.max(4, Math.round(w * 0.34));
@@ -541,7 +547,7 @@ function house(p: Painter, x: number, y: number, w: number, lived: boolean, seed
   // a garden plot in front of the lived-in ones (rows of vegetables)
   if (lived && hash2(seed, 1, 77) < 0.6) {
     const gy = y + wh + 2;
-    for (let j = 0; j < 3; j++) for (let i = 0; i < w - 2; i++) p.put(x + 1 + i, gy + j, j % 2 === 0 && i % 4 !== 3 ? 'fieldRow' : 'field');
+    for (let j = 0; j < 2; j++) for (let i = 0; i < w - 2; i++) p.put(x + 1 + i, gy + j, j === 0 && i % 3 !== 2 ? 'fieldRow' : 'field');
   }
 }
 

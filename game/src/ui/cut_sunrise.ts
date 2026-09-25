@@ -89,13 +89,27 @@ function skyFrame(k: number): HTMLCanvasElement {
   return p.toCanvas();
 }
 
-let skies: HTMLCanvasElement[] | null = null;
+const skies: HTMLCanvasElement[] = [];
 function skyAt(k: number): HTMLCanvasElement {
-  if (!skies) {
-    skies = [];
-    for (let i = 0; i <= DAWN_STEPS; i++) skies.push(skyFrame(i / DAWN_STEPS));
-  }
+  while (skies.length <= DAWN_STEPS) skies.push(skyFrame(skies.length / DAWN_STEPS));
   return skies[Math.max(0, Math.min(DAWN_STEPS, Math.round(k * DAWN_STEPS)))];
+}
+
+/**
+ * Build the picture a piece at a time before it is needed (the HUD calls it
+ * on 星見の丘): the layers, then one step of the dawn per call. True when
+ * everything is ready.
+ */
+export function prepareSunrise(): boolean {
+  if (!layers) {
+    layers = buildLayers();
+    return false;
+  }
+  if (skies.length <= DAWN_STEPS) {
+    skies.push(skyFrame(skies.length / DAWN_STEPS));
+    return false;
+  }
+  return true;
 }
 
 const CLOUDS = [
@@ -295,8 +309,8 @@ class SunriseScene implements Scene {
 
   /** Where the tomato is, and how big (px), at the rise's time. */
   tomatoAt(rt: number): { x: number; y: number; s: number } {
-    if (rt < 0) return { x: NET.x, y: NET.y, s: 8 };
-    if (rt < 800) return { x: NET.x, y: NET.y - Math.round(ease.quadOut(rt / 800) * 4), s: 8 };
+    if (rt < 0) return { x: NET.x, y: NET.y, s: 11 };
+    if (rt < 800) return { x: NET.x, y: NET.y - Math.round(ease.quadOut(rt / 800) * 4), s: 11 };
     // out of the net and up a gentle arc to the notch in the ridge (3.0 s), smaller as it goes
     const k = Math.min(1, (rt - 800) / 3000);
     const e = ease.sineInOut(k);
@@ -304,7 +318,7 @@ class SunriseScene implements Scene {
     const y0 = NET.y - 4;
     const x = x0 + (SUN.x - x0) * e;
     const y = y0 + (SUN.y - 4 - y0) * e - Math.sin(e * Math.PI) * 58;
-    return { x, y, s: 8 - 4 * e };
+    return { x, y, s: 11 - 8 * e };
   }
 
   draw(g: Gfx): void {
@@ -351,9 +365,9 @@ class SunriseScene implements Scene {
             g.rect(dx - 6, wy + 1, 4, 1, '#F2C8B8');
           }
         });
-      this.drawTomato(g);
       g.img(L.near, 0, 0);
       if (dawn > 0) g.alpha(dawn, () => g.img(L.rim, 0, 0));
+      this.drawTomato(g);
     });
   }
 
@@ -371,12 +385,28 @@ class SunriseScene implements Scene {
         if (hash2(q.x, q.y, 5) < 0.6) g.alpha(a, () => g.px(q.x, q.y, '#FFE7A3'));
       }
     }
-    const glow = 0.22 + 0.08 * Math.sin(this.t / 200);
-    g.alpha(glow, () => g.circle(Math.round(p.x), Math.round(p.y), Math.round(p.s * 0.6) + 3, '#FFB27A'));
-    g.alpha(glow * 0.6, () => g.circle(Math.round(p.x), Math.round(p.y), Math.round(p.s * 0.6) + 6, '#F2894B'));
+    // a stepped glow round it (0.8 Hz, like the lantern in the field)
+    const glow = 1 + 0.15 * Math.sin((this.t / 1000) * Math.PI * 2 * 0.8);
+    const cx = Math.round(p.x);
+    const cy = Math.round(p.y);
+    const r0 = Math.round(p.s * 0.5);
+    for (const [dr, a, col] of [
+      [8, 0.08, '#F2894B'],
+      [5, 0.12, '#F2894B'],
+      [3, 0.18, '#FFB27A'],
+    ] as [number, number, string][])
+      g.alpha(a * glow, () => g.circle(cx, cy, r0 + dr, col));
     const icon = tomatoIcon('lit');
     const s = Math.max(3, Math.round(p.s + 1));
     g.ctx.drawImage(icon, Math.round(p.x - s / 2), Math.round(p.y - s / 2), s, s);
+    // still in the net: the netting over its lower half
+    if (rt < 900) {
+      const lift = rt < 0 ? 0 : Math.round(ease.quadOut(Math.min(1, rt / 800)) * 4);
+      g.alpha(Math.max(0, 1 - Math.max(0, rt - 500) / 400) * 0.75, () => {
+        for (let y = 0; y <= 5; y++)
+          for (let x = -4; x <= 4; x++) if ((x + y) % 2 === 0 && x * x + y * y < 22) g.px(NET.x + x, NET.y + 1 + y + (y < 2 ? 0 : 0) - 0 * lift, '#141026');
+      });
+    }
   }
 }
 

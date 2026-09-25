@@ -1,10 +1,11 @@
 // The rooms of chapter 2 (52_ch2_level_art 4章): the unlit train (20×7),
-// ミツばあ's greenhouse No.3 (9×18), the Ishiguro barn (22×12) and the old
+// ペロリさん's greenhouse No.3 (9×18), the Ishiguro barn (22×12) and the old
 // 星見台 branch school, now the meeting hall (26×12). Rows are 52 4.1–4.4
 // verbatim. Each room is painted by one shell prop (art/props/hoshi_rooms_*)
 // plus depth-sorted fittings; the dark (52 1.7) and the lights are declared
 // here for the world's light map.
 
+import { flag } from '../../game/state';
 import { registerMap } from '../../world/maps';
 import type { MapObj, TileSpec } from '../../world/types';
 import { hg, htalk, INDOOR, O, O2, PR } from './hoshi_common';
@@ -71,7 +72,7 @@ registerMap({
   amb: { 0: ['amb_h_train'], 1: ['amb_h_train'], 2: ['amb_h_train'] },
 });
 
-// ================================================================ 4.2 map_hoshi_house（ミツばあの3号ハウス、9×18）
+// ================================================================ 4.2 map_hoshi_house（ペロリさんの3号ハウス、9×18）
 
 const HOUSE_ROWS = [
   '#WWWWWWW#', // 0
@@ -135,7 +136,7 @@ const HOUSE_OBJ: MapObj[] = [
 
 registerMap({
   id: 'map_hoshi_house',
-  name: 'ミツばあの 3号ハウス',
+  name: 'ペロリさんの 3号ハウス',
   kind: 'indoor',
   chapter: 2,
   stageFlag: 'flag_ch2_stage',
@@ -186,36 +187,37 @@ const BARN_ROWS = [
  * from behind (south pens), 'side' stand, 'lie' lie and chew the cud, 'sleep'
  * the head turned back.
  */
-type Cow = [string, number, number, boolean, string?];
-const PEN_A_N = (w1 = '', w4 = ''): Cow[] => [['front', 10, 46, false], ['front', 34, 46, false, w1], ['side', 22, 30, true], ['lie', 18, 16, false, w4]];
-const PEN_B_N = (w0 = ''): Cow[] => [['front', 24, 46, false, w0], ['lie', 14, 18, true], ['lie', 34, 30, false], ['side', 20, 34, false]];
+type Cow = [string, number, number, boolean, string?, string?];
+// the pen types (52 4.3); `reach` puts the chores' reaching cow (50 10.19) at the spot's tile
+const PEN_A_N = (w1 = '', w4 = '', reach = ''): Cow[] => [['front', 8, 46, false], ['front', 30, 46, false, w1, reach], ['side', 22, 30, true], ['lie', 18, 16, false, w4]];
+const PEN_B_N = (w0 = '', reach = ''): Cow[] => [['front', 34, 46, false, w0, reach], ['lie', 14, 18, true], ['lie', 34, 30, false], ['side', 18, 34, false]];
 const PEN_C_N = (): Cow[] => [['lie', 14, 14, true], ['lie', 34, 20, false], ['sleep', 16, 32, false], ['lie', 34, 38, true]];
-const PEN_D_N = (w2 = ''): Cow[] => [['front', 8, 46, false], ['front', 24, 46, false], ['front', 40, 46, false, w2], ['lie', 24, 22, true]];
-const PEN_A_S = (w0 = '', w2 = '', w3 = ''): Cow[] => [['back', 10, 20, false, w0], ['back', 34, 20, false], ['side', 22, 36, false, w2], ['lie', 26, 46, true, w3]];
-const PEN_B_S = (w0 = ''): Cow[] => [['back', 22, 20, false, w0], ['lie', 12, 36, true], ['lie', 34, 44, false], ['side', 30, 30, true]];
+const PEN_D_N = (w2 = '', reach = ''): Cow[] => [['front', 8, 46, false], ['front', 24, 46, false], ['front', 38, 46, false, w2, reach], ['lie', 24, 22, true]];
+const PEN_A_S = (w0 = '', w2 = '', w3 = '', reach = ''): Cow[] => [['back', 10, 20, false, w0], ['back', 36, 20, false, '', reach], ['side', 22, 36, false, w2], ['lie', 26, 46, true, w3]];
+const PEN_B_S = (w0 = '', reach = ''): Cow[] => [['back', 36, 20, false, w0, reach], ['lie', 12, 36, true], ['lie', 34, 44, false], ['side', 16, 28, true]];
 const PEN_C_S = (w3 = ''): Cow[] => [['lie', 14, 24, false], ['lie', 34, 28, true], ['lie', 16, 42, true], ['lie', 36, 46, false, w3]];
-const PEN_D_S = (w1 = ''): Cow[] => [['back', 8, 20, false], ['back', 24, 20, false, w1], ['back', 40, 20, false], ['lie', 22, 42, true]];
+const PEN_D_S = (w1 = '', reach = ''): Cow[] => [['back', 8, 20, false], ['back', 24, 20, false, w1, reach], ['back', 40, 20, false], ['lie', 22, 42, true]];
 
 const PENS: { x: number; y: number; cows: Cow[]; sync?: boolean }[] = [
   // north: 北1 A, 北2 B, 北3 C (ふしぎ08), 北4 D, 北5 A
-  { x: 5, y: 2, cows: PEN_A_N('belly') },
-  { x: 8, y: 2, cows: PEN_B_N('leg') },
+  { x: 5, y: 2, cows: PEN_A_N('belly', '', 'spot_h_esa_01') },
+  { x: 8, y: 2, cows: PEN_B_N('leg', 'spot_h_esa_02') },
   { x: 11, y: 2, cows: PEN_C_N(), sync: true },
-  { x: 14, y: 2, cows: PEN_D_N('face') },
+  { x: 14, y: 2, cows: PEN_D_N('face', 'spot_h_esa_03') },
   { x: 17, y: 2, cows: PEN_A_N('', 'belly_leg') },
   // south: 南1 B, 南2 A (the white-bellied one at (9,8)), 南3 C, 南4 D, 南5 A
-  { x: 5, y: 8, cows: PEN_B_S() },
+  { x: 5, y: 8, cows: PEN_B_S('', 'spot_h_esa_04') },
   { x: 8, y: 8, cows: PEN_A_S('belly') },
   { x: 11, y: 8, cows: PEN_C_S('face') },
-  { x: 14, y: 8, cows: PEN_D_S('belly') },
-  { x: 17, y: 8, cows: PEN_A_S('', 'leg') },
+  { x: 14, y: 8, cows: PEN_D_S('belly', 'spot_h_esa_05') },
+  { x: 17, y: 8, cows: PEN_A_S('', 'leg', '', 'spot_h_esa_06') },
 ];
 
 function barnCows(): MapObj[] {
   const out: MapObj[] = [];
   let n = 0;
   for (const pen of PENS)
-    for (const [pose, dx, dy, right, white] of pen.cows) {
+    for (const [pose, dx, dy, right, white, reach] of pen.cows) {
       // anchor on the tile the cow's feet are on, the rest as a pixel offset
       const px = pen.x * 16 + dx;
       const py = pen.y * 16 + dy;
@@ -230,12 +232,37 @@ function barnCows(): MapObj[] {
           dy: py - ty * 16,
           phase: ((n * 37) % 100) / 100,
           sync: pen.sync ? 1 : 0,
+          reach: reach ?? '',
           n: n++,
         }),
       );
     }
   return out;
 }
+
+/** 牛舎のおてつだい (50 10.19 / 52 4.3): the nine spots, the cups, the pushed feed. */
+const ESA: [string, number, number][] = [
+  ['spot_h_esa_01', 6, 5], ['spot_h_esa_02', 10, 5], ['spot_h_esa_03', 16, 5],
+  ['spot_h_esa_04', 7, 7], ['spot_h_esa_05', 15, 7], ['spot_h_esa_06', 19, 7],
+];
+const CUPS: [string, number, number][] = [['spot_h_cup_01', 8, 5], ['spot_h_cup_02', 11, 7], ['spot_h_cup_03', 17, 5]];
+
+function barnChores(): { props: MapObj[]; spots: MapObj[] } {
+  const props: MapObj[] = [];
+  const spots: MapObj[] = [];
+  // a water cup on every pen's west post (x5·8·11·14·17; north on the y4 rail, south on y8)
+  for (const x of [5, 8, 11, 14, 17])
+    for (const north of [true, false]) {
+      const spot = CUPS.find(([, cx, cy]) => cx === x && (cy === 5) === north);
+      props.push(PR('prop_h_watercup', x, north ? 4 : 8, { side: north ? 'n' : 's', spot: spot ? spot[0] : '' }));
+    }
+  for (const [id, x, y] of ESA) props.push(PR('decal_h_feed', x, y, { spot: id, side: y === 5 ? 'n' : 's' }));
+  // the spots themselves: examined before whatever else is on the trough tile, only while the chores run
+  for (const [id, x, y] of [...ESA, ...CUPS])
+    spots.push(O(id, x, y, { face: y === 5 ? 'up' : 'down', cond: { flag: 'flag_ch2_barn_work_on', notFlag: 'flag_' + id } }));
+  return { props, spots };
+}
+const CHORES = barnChores();
 
 /** What is examined across each trough tile (52 4.3 飼槽のタイルの調べる物). */
 function troughObjs(): MapObj[] {
@@ -268,13 +295,17 @@ const BARN_OBJ: MapObj[] = [
   PR('prop_h_barn_pillar', 3, 4),
   PR('prop_h_barn_cart', 1, 6),
   PR('prop_h_barn_shodoku', 2, 9),
-  PR('prop_h_barn_spare', 20, 2, { n: 4 }),
-  PR('prop_h_barn_spare', 20, 7, { n: 4, v: 1 }),
+  PR('prop_h_barn_spare', 20, 2, { n: 4, v: 1 }),
+  PR('prop_h_barn_spare', 20, 7, { n: 4 }),
+  PR('prop_h_scoop', 20, 5, {}, { cond: { notFlag: 'flag_ch2_barn_work_on' } }),
   ...barnCows(),
   PR('prop_h_barn_rail', 5, 5, { side: 'n' }),
   PR('prop_h_barn_rail', 5, 7, { side: 's' }),
+  ...CHORES.props,
   PR('prop_h_barn_blower', 4, 3),
   PR('prop_h_barn_lights', 0, 0),
+  // the chores' spots first (they win over the trough's own examine while the chores run)
+  ...CHORES.spots,
   // examine: the anteroom (52 4.3)
   O('obj_hoshi_shodoku', 2, 9, { flat: true }),
   O('obj_hoshi_haigou', 1, 2, { face: 'left' }),
@@ -283,9 +314,11 @@ const BARN_OBJ: MapObj[] = [
   O('obj_hoshi_kanki', 4, 3, { face: 'right' }),
   O('obj_hoshi_kyujisha', 1, 6, { face: 'left' }),
   ...troughObjs(),
-  // ゲンさん after the gate (h1): at the north pen 2's rail, his elbow on it
-  { t: 'npc', id: 'npc_hoshi_gen', x: 10, y: 6, dir: 'up', pose: 'lean', talk: htalk('npc_hoshi_gen'), cond: { stage: 1, flag: 'flag_ch2_gate_open' } },
-  { t: 'door', id: 'door_hoshi_barn_out', x: 2, y: 11, to: 'map_hoshimidai', tx: 51, ty: 32, dir: 'down', se: 'se_door_heavy' },
+  // マサルさん after the gate (h1): at the east end of the feed aisle, his elbow on 北5's rail (52 4.3)
+  { t: 'npc', id: 'npc_hoshi_gen', x: 20, y: 6, dir: 'left', pose: 'lean', talk: htalk('npc_hoshi_gen'), cond: { stage: 1, flag: 'flag_ch2_gate_open' } },
+  // leaving in the middle of the chores asks first (50 10.19): the door waits, the step before it asks
+  { t: 'trig', id: 'trig_ch2_barn_work_quit', x: 2, y: 10, w: 1, h: 1, cond: { flag: 'flag_ch2_barn_work_on' } },
+  { t: 'door', id: 'door_hoshi_barn_out', x: 2, y: 11, to: 'map_hoshimidai', tx: 51, ty: 32, dir: 'down', se: 'se_door_heavy', cond: { notFlag: 'flag_ch2_barn_work_on' } },
 ];
 
 registerMap({
@@ -338,6 +371,7 @@ const ZABUTON: [number, number][] = [
 const SCHOOL_OBJ: MapObj[] = [
   PR('prop_h_school_shell', 0, 0),
   ...ZABUTON.map(([x, y], i) => PR('prop_h_zabuton', x, y, { c: i % 3 })),
+  // シゲじい and スギばあ (a couple, snoring away) and タケじい (52 10.5; the chars ids keep the old names)
   PR('prop_h_napper', 5, 5, { who: 'masa' }),
   PR('prop_h_napper', 8, 6, { who: 'kiyo' }),
   PR('prop_h_napper', 6, 7, { who: 'take' }),
@@ -384,6 +418,8 @@ const SCHOOL_OBJ: MapObj[] = [
   { t: 'door', id: 'door_hoshi_school_out', x: 5, y: 11, to: 'map_hoshimidai', tx: 26, ty: 28, dir: 'down', se: 'se_door' },
 ];
 
+const SCHOOL_HALL_SPILL = [{ x: 1, y: 9, w: 9, h: 2, color: '#8A7E90' }];
+
 registerMap({
   id: 'map_hoshi_school',
   name: '旧 星見台分校',
@@ -405,7 +441,11 @@ registerMap({
   space: 'room',
   outside: '#0B0B14',
   lightBase: '#F2E6D0',
-  lightRegions: [{ x: 1, y: 9, w: 9, h: 2, color: '#8A7E90' }],
+  // the spill from the meeting room into the hallway (the night only: in the
+  // morning the day comes in through every window alike)
+  get lightRegions() {
+    return flag('flag_ch2_stage') >= 3 ? undefined : SCHOOL_HALL_SPILL;
+  },
   dark: [{ x: 10, y: 0, w: 16, h: 12 }],
   bgm: { 0: 'bgm_hoshi_night', 1: 'bgm_hoshi_night', 2: 'bgm_hoshi_night' },
   amb: { 0: ['amb_h_school', 'amb_h_insects'], 1: ['amb_h_school', 'amb_h_insects'], 2: ['amb_h_school', 'amb_h_insects'] },

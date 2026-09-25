@@ -3,17 +3,25 @@
 // (5×2, 32×32, 4px apart). Owned stamps lie in their slots on a little paper
 // sample card with their imprint in 朱; empty slots show a faint dotted
 // outline; the おやすみなさい slot shows its outline only after the ending.
-// Used by the menu (ハンコ) and the ending notebook.
+// 第2章 (51 5.4, 52 13.4): おつかれさま fills the 7th slot, おやすみなさい the
+// 6th (its outline since chapter 1) and いただきます shows as an outline in the
+// 8th once chapter 2 is cleared. Used by the menu (ハンコ), the learn scene
+// and the ending notebooks.
 
 import type { Gfx } from '../engine/gfx';
 import { makeCanvas, PixelCanvas } from '../engine/pixel';
 import { hash2 } from '../engine/rng';
 import { hanamaruFrame, ovalStamp, pekeMark } from '../battle/art/stamps';
+import { flag } from '../game/state';
 import { rectA, UI } from './window';
 
 export const CASE_W = 192;
 export const CASE_H = 104;
-/** Slot order (5×2). Index 5 is the おやすみなさい outline slot. */
+/**
+ * Slot order (5×2, 51 5.4 HANKO_CASE_ORDER). Index 5 is the おやすみなさい
+ * slot (an outline from chapter 1's ending), 6 おつかれさま, 7 the いただきます
+ * outline (after chapter 2), 8–9 empty.
+ */
 export const CASE_SLOTS: (string | null)[] = [
   'skill_mimashita',
   'skill_peke',
@@ -21,11 +29,18 @@ export const CASE_SLOTS: (string | null)[] = [
   'skill_yarinaoshi',
   'skill_okaerinasai',
   'skill_oyasuminasai',
-  null,
-  null,
+  'skill_otsukaresama',
+  'skill_itadakimasu',
   null,
   null,
 ];
+
+/** Slots that show a breathing outline before they are filled: おやすみなさい, いただきます. */
+export function outlineShown(id: string | null, clear: boolean): boolean {
+  if (id === 'skill_oyasuminasai') return clear || !!flag('flag_clear');
+  if (id === 'skill_itadakimasu') return !!flag('flag_ch2_clear');
+  return false;
+}
 
 export function slotXY(i: number): [number, number] {
   return [8 + (i % 5) * 36, 12 + Math.floor(i / 5) * 40];
@@ -215,6 +230,51 @@ const KANA7: Record<string, string[]> = {
   み: ['.####..', '....#..', '...#..#', '..#####', '.#.#..#', '#..#..#', '#.#...#', '.#...#.'],
 };
 
+let otsuC: HTMLCanvasElement | null = null;
+/**
+ * おつかれさま (52 13.4): the oval 「おつかれ」 (24×16) with three thin threads
+ * of steam rising off it in 朱, like the steam off a cup of tea.
+ */
+function otsukareImprint(): HTMLCanvasElement {
+  if (otsuC) return otsuC;
+  const [c, ctx] = makeCanvas(24, 22);
+  ctx.drawImage(ovalStamp('おつかれ', 24, 16, 0.06, 6), 0, 6);
+  ctx.fillStyle = UI.accent;
+  for (const [x0, ph] of [[7, 0], [12, 1.4], [17, 2.6]] as [number, number][])
+    for (let y = 0; y < 6; y++) if (y !== 2 || x0 !== 12) ctx.fillRect(Math.round(x0 + Math.sin(y * 1.3 + ph) * 1.2), y, 1, 1);
+  otsuC = c;
+  return c;
+}
+
+let oyaC: HTMLCanvasElement | null = null;
+/** おやすみなさい (52 13.4): the square 「おやすみ」 with five 1px stars round it. */
+function oyasumiImprint(): HTMLCanvasElement {
+  if (oyaC) return oyaC;
+  const [c, ctx] = makeCanvas(26, 26);
+  ctx.drawImage(squareSeal('おやすみ', 8), 1, 1);
+  ctx.fillStyle = UI.accent;
+  for (const [x, y] of [[8, 0], [17, 0], [0, 13], [25, 13], [13, 25]] as [number, number][]) ctx.fillRect(x, y, 1, 1);
+  oyaC = c;
+  return c;
+}
+
+let itaC: HTMLCanvasElement | null = null;
+/** いただきます (52 13.4): only a round outline (22px) with lines too faint to read. */
+function itadakiOutline(): HTMLCanvasElement {
+  if (itaC) return itaC;
+  const p = new PixelCanvas(22, 22);
+  for (let a = 0; a < 96; a++) {
+    const an = (a / 96) * Math.PI * 2;
+    p.set(Math.round(11 + Math.cos(an) * 10), Math.round(11 + Math.sin(an) * 10), UI.accent);
+    if (a % 3) p.set(Math.round(11 + Math.cos(an) * 9), Math.round(11 + Math.sin(an) * 9), UI.accent);
+  }
+  // strokes of two characters, blurred beyond reading
+  for (const [x, y, w] of [[6, 7, 4], [12, 7, 4], [7, 10, 3], [13, 10, 3], [6, 13, 10], [8, 15, 6]] as [number, number, number][])
+    for (let i = 0; i < w; i++) if (hash2(x + i, y, 4) < 0.7) p.set(x + i, y, UI.accent);
+  itaC = p.toCanvas();
+  return itaC;
+}
+
 const squareCache = new Map<string, HTMLCanvasElement>();
 /**
  * A square 認め印 (24×24): a 2px rounded frame and four kana in two rows
@@ -272,7 +332,11 @@ export function imprintFor(id: string): HTMLCanvasElement | null {
     case 'skill_okaerinasai':
       return squareSeal('おかえり', 5);
     case 'skill_oyasuminasai':
-      return squareSeal('おやすみ', 8);
+      return oyasumiImprint();
+    case 'skill_otsukaresama':
+      return otsukareImprint();
+    case 'skill_itadakimasu':
+      return itadakiOutline();
   }
   return null;
 }
@@ -316,7 +380,7 @@ export function drawCase(g: Gfx, x: number, y: number, v: CaseView): void {
     const id = CASE_SLOTS[i];
     const ax = x + sx;
     const ay = y + sy;
-    const own = !!id && id !== 'skill_oyasuminasai' && v.owned(id);
+    const own = !!id && id !== 'skill_itadakimasu' && v.owned(id);
     if (own) {
       const k = v.appear ? v.appear(i) : 1;
       if (k <= 0) continue;
@@ -330,11 +394,11 @@ export function drawCase(g: Gfx, x: number, y: number, v: CaseView): void {
           g.ctx.drawImage(imp, Math.round(ax + 3 + 12.5 - w / 2), Math.round(ay + 3 + 12.5 - h / 2), w, h);
         }
       });
-    } else if (id === 'skill_oyasuminasai' && v.clear) {
+    } else if (outlineShown(id, v.clear)) {
       // the outline only, breathing slowly (α25%, 1 s)
       const a = 0.18 + 0.1 * (0.5 + 0.5 * Math.sin((v.t / 1000) * Math.PI * 2));
       g.alpha(a, () => {
-        const imp = imprintFor(id);
+        const imp = imprintFor(id!);
         if (imp) g.img(imp, ax + 3 + Math.round((25 - imp.width) / 2), ay + 3 + Math.round((25 - imp.height) / 2));
       });
       dottedRect(g, ax + 3, ay + 3, 26, 26, '#E8D9B5', 0.45);

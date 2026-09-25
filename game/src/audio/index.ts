@@ -128,10 +128,11 @@ export function muteMusic(seconds: number): void {
  * 'detune' = a free pitch bend of the music in cents (added to the stage pitch).
  * Chapter 2 (53_ch2_audio 6): 'h_stage' −1..3 (星見台の段階; −1 away from
  * 星見台), 'h_light' 0/1 (the tomato held up, Yobimodoshi), 'tenko' 0..4 (name
- * tags lit), 'h_rest' 0/1 (Tetsuya resting). Only changes are acted on.
+ * tags lit), 'h_rest' 0/1 (Tetsuya resting); 'clock' 0..2 (ツガオ's wall clocks
+ * running: 1 夕鳴町, 2 and 星見台 — amb_tsugao_room's 'tick' sets it). Only changes are acted on.
  */
 export function setMusicParam(
-  name: 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest',
+  name: 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest' | 'clock',
   value: number,
 ): void {
   music.setMusicParam(name, value);
@@ -154,6 +155,7 @@ export function getMusicParams(): Readonly<{
   h_light: number;
   tenko: number;
   h_rest: number;
+  clock: number;
 }> {
   return music.musicParams();
 }
@@ -242,7 +244,12 @@ export function stopAllAmbient(fade?: number): void {
 export function setAmbientVol(id: string, v: number, ramp?: number): void {
   amb.setAmbientVol(id, v, ramp);
 }
-export function ambientEvent(id: string, name: string, pan?: number): void {
+/**
+ * An event inside a playing ambience (its own vocabulary: 'flicker', 'turn',
+ * 'pulse', a leaf zone…). The third argument is usually a pan; a few events
+ * name something instead (amb_tsugao_room 'tick' → 'yunari' | 'hoshimi').
+ */
+export function ambientEvent(id: string, name: string, pan?: number | string): void {
   amb.ambientEvent(id, name, pan);
 }
 /** Brief-compatible aliases. */

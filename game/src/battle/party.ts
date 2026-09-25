@@ -32,7 +32,7 @@ import { portrait } from '../art/chars';
 import { bokemakeLabel, timingSlow, tsukkomiWindows } from './tsukkomi';
 import { onBossPartBreak, onBossBodyMimashita, bossUndo, doOkaerinasai, doOyasuminasai } from './boss';
 import { raiseTomato, yobiLit } from './boss_yobimodoshi';
-import { hankoOtsukaresama, hatoMeishiKacho, kaneKon, konRing, pekeHamidashi, shockBack, shockLine } from './party_ch2';
+import { hankoOtsukaresama, hatoMeishiKacho, kaneKon, konRing, otsukareBlock, pekeHamidashi, shockBack, shockLine } from './party_ch2';
 
 // ---- helpers -----------------------------------------------------------------------
 
@@ -822,6 +822,15 @@ export function* doHanko(s: BattleScene, cmd: Extract<PartyCmd, { kind: 'hanko' 
     yield 300;
     yield* s.say(SYS2.rappaDarkStamp);
     return;
+  }
+  // おつかれさま on an enemy that is resting (or just back from a rest) by the
+  // time the turn comes: it cannot be pressed — no ink, no turn (51 4.3)
+  if (cmd.skill === 'skill_otsukaresama' && cmd.target.kind === 'enemy') {
+    const why = otsukareBlock(s, cmd.target as EnemyUnit);
+    if (why) {
+      yield* s.say(fillAll(why === 'after' ? SYS2.otsukareFail : SYS2.otsukareResting, { enemy: (cmd.target as EnemyUnit).name }));
+      return;
+    }
   }
   // テツヤ: おつかれさま can be pressed with too little ink (it is 0 then,
   // and かすれ) — he is rested whatever the judgement (51 5.1)
