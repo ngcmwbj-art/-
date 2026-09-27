@@ -38,8 +38,9 @@ import { hangArms, hatLift, head, sideArm, sideSwing, upper, type HeadT } from '
 import { BASE2, crate, CRATE, followFlag, lookHill, SKIN_DEEP, SKIN_FARM, stage } from './hoshi_kit';
 
 const T: RowMap = { h: [null, 0], H: [null, 1], d: [null, -1], D: [null, -2], K: [null, 2] };
-const OLIVE = mat('#5A6B2A', { shade: '#3A4A1A', light: '#7A8B3A', dark: '#2A3414' });
-const OLIVE_KEEP = ['#5A6B2A', '#3A4A1A', '#7A8B3A', '#2A3414'];
+// the olive's deepest shade is the shared outline #2A2440, so the three stay within 8 colours of their own
+const OLIVE = mat('#5A6B2A', { shade: '#3A4A1A', light: '#7A8B3A', dark: '#2A2440' });
+const OLIVE_KEEP = ['#5A6B2A', '#3A4A1A', '#7A8B3A'];
 
 // =============================================================================
 // ツガオさん
@@ -442,8 +443,10 @@ function hiroSmile(f: Fig, hy: number, open: boolean) {
   f.px(5, hy + 6).px(10, hy + 6);
   f.part('mouth', { flat: true, rim: false });
   f.px(6, hy + 6).hl(7, 8, hy + 7).px(9, hy + 6);
+  // the grin shows his teeth (a white 2px row between the raised corners):
+  // at 1x a smile, not a moustache line in the beard; laughing, the mouth opens
   if (open) f.part('#8A2E3A', { flat: true, rim: false }).hl(7, 8, hy + 6);
-  else f.part('skin', { flat: true, rim: false }).hl(7, 8, hy + 6);
+  else f.part('#F4F1E8', { flat: true, rim: false }).hl(7, 8, hy + 6);
 }
 
 const HIRO_LEGS: LegSpec = { cx: 8, hip: 17, foot: 22, w: 2, gap: 2, mat: 'pants', shoe: 'shoe', shoeLen: 3 };
