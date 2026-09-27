@@ -311,7 +311,9 @@ export const PART_TRIM: Record<string, number> = {
   'bgm_town_s2/drums': 0, 'bgm_town_s2/epiano': -3, 'bgm_town_s2/marimba': 2.5, 'bgm_town_s2/mbox': 4.5,
   'bgm_town_s2/pad': -1.5, 'bgm_town_s2/sub': -6,
   // chapter 2 (audioBalance at 段階1 / phase 1 / past the dawn, then by ear:
-  // the shaker and the microphone taps are a hat's level, not a kit's)
+  // the microphone taps are a hat's level, not a kit's). 星見台の夜's drums by
+  // audioParts: 段階1's shaker and rim 10–12 LU under the song (Ami's lantern
+  // swaying as she walks, heard), 段階2's soft kick 8–10 LU under it
   'bgm_hoshi_night/stars': 3.5, 'bgm_hoshi_night/pad': -1.5, 'bgm_hoshi_night/sub': -9, 'bgm_hoshi_night/bass': -5.5,
   'bgm_hoshi_night/drums': 19.5, 'bgm_hoshi_night/yobigoe': 4,
   // the delivery's "ぽこ、ぽこ": as present as the stars, still well under the lantern

@@ -510,7 +510,8 @@ registerAmbience('amb_h_barn_out', (c) => {
   const beds = barnFans(c, c.dest, { air: ['lowpass', 250, 0.6, 0.0035], hums: [43, 45, 47], humV: 0.0012, pans: [-0.3, 0, 0.3], hiss: 0, rush: 0.016, mid: wall });
   const snort = new Every(c, 8, 20, (t) => {
     const dest = panned(c, c.rng.range(-0.4, 0.4), wall);
-    for (const l of COW_SNORT) layer(seCtx(c, t, dest, 0.4, 0.2, c.rng.range(0.9, 1.08)), l);
+    // (over the fans' rush through the same wall: a snort has to stand out of it now and then)
+    for (const l of COW_SNORT) layer(seCtx(c, t, dest, 0.75, 0.2, c.rng.range(0.9, 1.08)), l);
   }, 3, 12);
   return {
     pump: (u) => snort.pump(u),
