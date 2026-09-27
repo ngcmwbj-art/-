@@ -55,7 +55,7 @@ export function world(): FieldScene {
 }
 
 /**
- * Actor by id: 'player' (シュン), 'kanenari' (the follower), NPC ids
+ * Actor by id: 'player' (しゅん), 'kanenari' (the follower), NPC ids
  * ('npc_mother'), symbol ids ('sym_town_01'), restored objects ('restored:sym_town_02').
  */
 export function actor(id: string): Actor | null {

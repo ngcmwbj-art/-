@@ -4,7 +4,7 @@
 
 export const VOICE_SAMPLES: Record<string, string> = {
   narr: 'ゆうがたの 町に、かげが のびていく。',
-  mother: 'シュン、ごはんまでには かえってきなさいね。',
+  mother: 'しゅん、ごはんまでには かえってきなさいね。',
   maruyama: 'へい、らっしゃい！ コロッケ あがったよ。',
   obaa: 'あんた、五時の チャイム、きこえたかい？',
   mamekichi: 'まいど！ きょうは なにに する？',

@@ -1254,6 +1254,10 @@ async function darkCheck2(label) {
         if (x < 16 || y < 30 || x > 384 - 16 || y > 216 - 4) continue;
         const d = L ? Math.hypot(a.x - L.x, a.y - 4 - L.y) : 1e9;
         if (id !== 'kanenari' && L && d <= L.r + 24) continue;
+        // a symbol walking its beat would change the picture by itself: held still for the test
+        const held = a.data.scripted;
+        a.data.scripted = true;
+        a.moving = false;
         g.advance(16);
         const A = grab(x, y);
         g.advance(16);
@@ -1263,6 +1267,8 @@ async function darkCheck2(label) {
         const B = grab(x, y);
         a.visible = true;
         g.advance(16);
+        if (held === undefined) delete a.data.scripted;
+        else a.data.scripted = held;
         const noise = diff(A, A2);
         const change = diff(A2, B);
         out.push({ id, changed: change > noise + 6, change, noise });
@@ -1558,7 +1564,9 @@ const BEATS2 = [
   {
     name: 'barn',
     async run() {
+      log(`  DIAG before barn: ${JSON.stringify(await flags(['flag_ch2_gate_open', 'flag_ch2_got_otsukare', 'flag_ch2_met_gen']))} ${JSON.stringify(await st())}`);
       await enterDoor(51, 32, 'up', 'map_hoshi_barn');
+      log(`  DIAG in barn: ${JSON.stringify(await flags(['flag_ch2_gate_open', 'flag_ch2_got_otsukare', 'flag_ch2_met_gen']))} ${JSON.stringify(await st())}`);
       await advance({ shotEvery: 4, label: 'barn', max: 180000 });
       await need(['flag_ch2_got_otsukare', 'flag_ch2_gate_open'], 'barn → otsukare → gate');
       await assertReach2('h1 after the gate', 1);

@@ -129,9 +129,9 @@ export function hasSave(): boolean {
   }
 }
 
-/** Saves from before the rename (2026-09-26: シュン → シュン, 小林 → 小林) get the new name. */
+/** Saves from before the renames (ミナト → シュン 2026-09-26, → しゅん 2026-09-28) get the new name. */
 function migrateNames(): void {
-  for (const m of state.party as { id?: string; name?: string }[]) if (m && m.name === 'シュン') m.name = 'シュン';
+  for (const m of state.party as { id?: string; name?: string }[]) if (m && (m.name === 'ミナト' || m.name === 'シュン')) m.name = 'しゅん';
 }
 
 export function loadGame(): boolean {

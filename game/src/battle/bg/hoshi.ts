@@ -159,18 +159,21 @@ export class HoshiHouseBg extends Background {
     // upper edge, a truss of green tomatoes here and there
     const [c, ctx] = makeCanvas(384, BG_H);
     for (let x = 6; x < 384; x += 12) {
-      ctx.fillStyle = '#4A5A8A';
+      // the white twine, lit by the lamps (paler toward its lit side)
+      ctx.fillStyle = '#7A7FA8';
       ctx.fillRect(x, 0, 1, BG_H);
       for (let y = 0; y < BG_H; y += 2) {
         const wob = Math.round(Math.sin((y + x) / 7) * 1.5);
-        ctx.fillStyle = '#2E5A3E';
+        ctx.fillStyle = '#356A45';
         ctx.fillRect(x + wob, y, 1, 2);
-        if (hash2(x, y, 9) < 0.1) {
+        if (hash2(x, y, 9) < 0.12) {
           const lx = x + wob + (hash2(x, y, 10) < 0.5 ? -3 : 1);
-          ctx.fillStyle = '#3F7A3A';
-          ctx.fillRect(lx, y, 3, 2);
-          ctx.fillStyle = '#5FA85A';
-          ctx.fillRect(lx, y, 2, 1);
+          ctx.fillStyle = '#2E5A3E';
+          ctx.fillRect(lx, y + 1, 3, 1);
+          ctx.fillStyle = '#4E9A48';
+          ctx.fillRect(lx, y, 3, 1);
+          ctx.fillStyle = '#86C86E';
+          ctx.fillRect(lx + (hash2(x, y, 11) < 0.5 ? 0 : 1), y, 1, 1);
         }
       }
       for (let k = 0; k < 2; k++) {
@@ -181,8 +184,8 @@ export class HoshiHouseBg extends Background {
           const bx = x + (j % 2 ? 3 : -2) + Math.floor(hash2(x, j, 6) * 3) - 1;
           const by = (y + j * 5) % BG_H;
           fillCircle(ctx, bx, by, rr, '#2E6B4A');
-          fillCircle(ctx, bx - 1, by - 1, Math.max(1, rr - 1), '#3FA66B');
-          ctx.fillStyle = '#9BCB6B';
+          fillCircle(ctx, bx - 1, by - 1, Math.max(1, rr - 1), '#46AE70');
+          ctx.fillStyle = '#C2E89A';
           ctx.fillRect(bx - 1, by - rr + 1, 1, 1);
           // the lantern's warmth on the lower left edge
           ctx.fillStyle = TOMATO;
@@ -194,12 +197,12 @@ export class HoshiHouseBg extends Background {
     // the roof: the film between the hoops, lit from inside (a pale violet
     // sheen along the ridge) with the lamps hung under it
     const [rc, rctx] = makeCanvas(384, 34);
-    rctx.drawImage(gradientTexture(['#5B4A7A', '#4A3E6E', '#3A2B5C', '#3A2B5C'], 34), 0, 0);
+    rctx.drawImage(gradientTexture(['#8A86B4', '#76709E', '#655E8E', '#5B5486'], 34), 0, 0);
     for (let x = 0; x < 384; x++) {
       // the film's creases catching the light
       if (hash2(x, 0, 71) < 0.18) {
-        rctx.fillStyle = '#8E95C8';
-        rctx.globalAlpha = 0.35;
+        rctx.fillStyle = '#C8CCE8';
+        rctx.globalAlpha = 0.4;
         rctx.fillRect(x, 2 + Math.floor(hash2(x, 1, 71) * 10), 1, 6 + Math.floor(hash2(x, 2, 71) * 8));
       }
     }
@@ -218,12 +221,20 @@ export class HoshiHouseBg extends Background {
   }
 
   protected paintL0(ctx: CanvasRenderingContext2D, t: number): void {
-    // lit inside: the house is brighter than the night outside
-    ctx.drawImage(gradientTexture(['#1B1733', '#2A2440', '#3A2B5C', '#3A2B5C', '#2A2440'], BG_H), 0, 0);
+    // the lights are on (2026-09-26 brief: the house is lit throughout): the
+    // air is a light, warm-tinged violet, the film overhead glows pale, and
+    // the floor between the rows takes the lamps' warmth — night is only
+    // what shows through the film at the very top
+    ctx.drawImage(gradientTexture(['#2A2440', '#4A4274', '#5A5284', '#5E5486', '#56497A', '#4A3E6E'], BG_H), 0, 0);
     ctx.drawImage(this.roofC, 0, 46);
-    // the night outside, through the film near the ridge: a few stars
+    // the night outside, through the film above the lamps: a few stars
     drawStars(ctx, this.stars, t);
-    enemyLift(ctx, 0.8);
+    // the aisle's floor, warm under the lamps (below the tomato band)
+    const fl = ctx.createLinearGradient(0, 128, 0, BG_H);
+    fl.addColorStop(0, 'rgba(247,194,122,0.10)');
+    fl.addColorStop(1, 'rgba(247,194,122,0)');
+    ctx.fillStyle = fl;
+    ctx.fillRect(0, 128, 384, BG_H - 128);
     tomatoBand(ctx, 118, t);
   }
 
@@ -242,9 +253,9 @@ export class HoshiHouseBg extends Background {
         const an = Math.PI + (a / 48) * Math.PI;
         const x = Math.round(cx + Math.cos(an) * 30);
         const y = Math.round(62 + Math.sin(an) * 18);
-        ctx.fillStyle = '#5B4A7A';
+        ctx.fillStyle = '#403A68';
         ctx.fillRect(x, y, 2, 2);
-        ctx.fillStyle = '#9AA0C8';
+        ctx.fillStyle = '#B8BCE0';
         ctx.fillRect(x, y + 1, 2, 1);
       }
     }
@@ -253,11 +264,23 @@ export class HoshiHouseBg extends Background {
     for (let i = 0; i < 4; i++) {
       const lx = 48 + i * 96 + Math.round(Math.sin(t * 0.8 + i) * 0.6);
       const ly = 58;
-      const halo = ctx.createRadialGradient(lx, ly + 3, 1, lx, ly + 3, 22);
-      halo.addColorStop(0, 'rgba(255,231,163,0.28)');
+      // the pool each lamp throws down over the rows (a soft, wide cone)
+      const cone = ctx.createLinearGradient(0, ly, 0, 132);
+      cone.addColorStop(0, 'rgba(255,231,163,0.16)');
+      cone.addColorStop(1, 'rgba(255,231,163,0)');
+      ctx.fillStyle = cone;
+      ctx.beginPath();
+      ctx.moveTo(lx - 3, ly + 1);
+      ctx.lineTo(lx + 4, ly + 1);
+      ctx.lineTo(lx + 30, 132);
+      ctx.lineTo(lx - 29, 132);
+      ctx.closePath();
+      ctx.fill();
+      const halo = ctx.createRadialGradient(lx, ly + 3, 1, lx, ly + 3, 26);
+      halo.addColorStop(0, 'rgba(255,231,163,0.4)');
       halo.addColorStop(1, 'rgba(255,231,163,0)');
       ctx.fillStyle = halo;
-      ctx.fillRect(lx - 22, ly - 19, 44, 44);
+      ctx.fillRect(lx - 26, ly - 23, 52, 52);
       ctx.fillStyle = '#2A2440';
       ctx.fillRect(lx, 44, 1, ly - 46);
       ctx.fillRect(lx - 3, ly - 2, 7, 2);
@@ -285,11 +308,18 @@ export class HoshiHouseBg extends Background {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const gl = ctx.createRadialGradient(96, 72, 1, 96, 72, R);
-    gl.addColorStop(0, 'rgba(255,231,163,0.7)');
-    gl.addColorStop(0.3, 'rgba(242,137,75,0.4)');
+    gl.addColorStop(0, 'rgba(255,231,163,0.85)');
+    gl.addColorStop(0.3, 'rgba(242,137,75,0.5)');
     gl.addColorStop(1, 'rgba(242,137,75,0)');
     ctx.fillStyle = gl;
     ctx.fillRect(96 - 34, 72 - 34, 68, 68);
+    ctx.restore();
+    // in the lit house the light also beats outward: a thin warm ring leaves
+    // the fruit on each pulse (0.8Hz) and fades — the field's 光の輪
+    const ph = (t * 0.8) % 1;
+    ctx.save();
+    ctx.globalAlpha = 0.55 * (1 - ph) * (1 - ph);
+    strokeCircle(ctx, 96, 70, Math.round(8 + ph * 22), '#FFE7A3');
     ctx.restore();
     // its vine and the stalk it hangs from
     ctx.fillStyle = '#2E5A3E';
@@ -1002,7 +1032,9 @@ export class HoshiMujinBg extends Background {
       const off = ((t * 24 * dir) % span + span) % span;
       for (let x = -span + off; x < 384; x += span) ctx.drawImage(img, Math.round(x), y + 1);
     };
-    band(36, (this.flags.nefuda ?? 0) > 0 ? '全品 200円' : 'どれでも 100円', -1);
+    // the upper band sits just under the two-line message band (51 15.6 had
+    // y36, which the band cut through the middle of its letters)
+    band(52, (this.flags.nefuda ?? 0) > 0 ? '全品 200円' : 'どれでも 100円', -1);
     band(124, 'いらっしゃいませ', 1);
     // while a move plays out the lower band sinks into the night (the heal
     // and damage numbers, the 「！」 and the name tags pop over it)

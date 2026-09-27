@@ -1,7 +1,7 @@
 // Title screen art (30_level_art 11): the frozen sunset seen from the south
 // bridge — five silhouette layers (sky, far hills with 星見台, the town,
 // the near wires / crossing / bridge with Minato and Kanenari from behind,
-// swaying grass) — and the 「シュンの夕暮れあぜ道戦記」 logo, stamped in 朱.
+// swaying grass) — and the 「しゅんの夕暮れあぜ道戦記」 logo, stamped in 朱.
 // Everything static is baked once; the scene animates clouds, the sun's
 // red-pen swirl, wires, grass, crows and the lit 「ユ」.
 //
@@ -682,7 +682,7 @@ function rims(g: Grid, W: number, H: number, isInk: (v: number) => boolean): voi
 }
 
 /**
- * 「シュンの夕暮れあぜ道戦記」 (2026-09-26): シュンの in round marker letters
+ * 「しゅんの夕暮れあぜ道戦記」 (2026-09-26): しゅんの in round marker letters
  * (Scale2x + a round dilate) on the upper line, 夕暮れあぜ道戦記 in fat brush
  * letters (Scale2x + a square dilate) on the lower line, 朱 with a
  * #FF6A4D light on the upper-left and a #B8241E shade on the lower-right, a
@@ -707,10 +707,10 @@ export function logoCanvas(): HTMLCanvasElement {
           if (X >= 0 && Y >= 0 && X < W && Y < H) dst[Y * W + X] = v;
         }
   };
-  // シュンの: marker letters on the upper line, bouncing a little (over 暮れ)
+  // しゅんの: marker letters on the upper line, bouncing a little (over 暮れ)
   let x = 70;
   const sb = [5, 2, 6, 3];
-  [...'シュンの'].forEach((ch, i) => {
+  [...'しゅんの'].forEach((ch, i) => {
     stamp(g, dilate(scale2x(glyphMask(ch)), false), x, sb[i], 1);
     x += charWidth(ch) * 2 - 5;
   });

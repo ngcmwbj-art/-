@@ -92,7 +92,7 @@ export const IOBJ: Record<string, StageText> = {
   // ---------------------------------------------------------------- 7.5 コインランドリー ふわり
   obj_dryer_1: `@narr
 からっぽ。{w=300}
-ガラスに シュンの 顔が
+ガラスに しゅんの 顔が
 まるく 映る。`,
   obj_dryer_2: `@narr
 タオルが 1枚。{w=300}
@@ -583,7 +583,7 @@ export const EVT_MARUYAMA_FIRST_B = `@npc_maruyama
 つぶしてきな。`;
 
 export const EVT_OBAA_FIRST = `@npc_obaa
-おや、シュン。{w=300}
+おや、しゅん。{w=300}
 自由研究は？
 /
 ……白紙の 顔を してるね。
