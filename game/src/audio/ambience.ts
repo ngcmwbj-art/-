@@ -944,6 +944,11 @@ interface Inst {
   id: string;
   out: GainNode;
   lp: BiquadFilterNode;
+  /** The mix trim (mix.ts) and its gain; a wall lowers it. */
+  trim: GainNode;
+  trimGain: number;
+  /** The window filter the scene asked for (playAmbient's lp); a wall closes it further. */
+  lpBase: number;
   impl: AmbImpl;
   stopping: boolean;
 }
@@ -1005,14 +1010,62 @@ export function createAmbient(g: Graph, id: string, opts: AmbOpts, dest: AudioNo
   lp.frequency.value = opts.lp ?? 20000;
   // the mix trim (mix.ts) sits behind the instance volume that setAmbientVol drives
   const trim = g.ctx.createGain();
-  trim.gain.value = trimOr1(ambTrim(id));
+  const trimGain = trimOr1(ambTrim(id));
+  trim.gain.value = trimGain;
   out.connect(trim);
   trim.connect(lp);
   lp.connect(dest);
   // live: a new take every time; offline QA renders: the same take for the same id
   const seed = g.offline ? [...id].reduce((h, ch) => (Math.imul(h, 31) + ch.charCodeAt(0)) | 0, 7) >>> 0 : (Math.random() * 1e9) | 0;
   const impl = f({ g, t0, dest: out, rng: new Rng(seed), stage: stage ?? musicParams().stage, hStage: hStage ?? musicParams().h_stage, seed });
-  return { id, out, lp, impl, stopping: false };
+  return { id, out, lp, trim, trimGain, lpBase: opts.lp ?? 20000, impl, stopping: false };
+}
+
+// ---------------------------------------------------------------------------
+// Walls (53_ch2_audio 7.2; the ending's cut 2a, where the dawn outside goes on
+// while we stand in the barn). A room's bed can hold other beds behind its
+// walls: while the room plays, each listed bed that is playing too is heard
+// through the wall — its trim lowered and its window filter closed — and it
+// comes back out as the room stops. Chapter 1 registers no walls: nothing
+// changes there.
+
+interface Wall {
+  ids: string[];
+  /** The wall's low-pass (Hz) and how much it takes (dB). */
+  lp: number;
+  db: number;
+}
+const walls = new Map<string, Wall>();
+export function registerWall(room: string, w: Wall): void {
+  walls.set(room, w);
+}
+function wallFor(id: string): Wall | null {
+  for (const [room, w] of walls) {
+    const r = active.get(room);
+    if (r && !r.stopping && w.ids.includes(id)) return w;
+  }
+  return null;
+}
+function applyWall(i: Inst, at: number, secs = 0.8): void {
+  const w = wallFor(i.id);
+  const lp = w ? Math.min(w.lp, i.lpBase) : i.lpBase;
+  i.lp.frequency.cancelScheduledValues(at);
+  i.lp.frequency.setTargetAtTime(lp, at, secs / 3);
+  i.trim.gain.cancelScheduledValues(at);
+  i.trim.gain.setTargetAtTime(i.trimGain * (w ? dbToGain(w.db) : 1), at, secs / 3);
+}
+/** A room started or stopped: the beds it walls in follow. */
+function applyWallsOf(room: string, at: number): void {
+  const w = walls.get(room);
+  if (!w) return;
+  for (const id of w.ids) {
+    const i = active.get(id);
+    if (i && !i.stopping) applyWall(i, at);
+  }
+}
+/** QA: which beds are behind a wall right now. */
+export function walledAmbients(): string[] {
+  return [...active.values()].filter((i) => !i.stopping && wallFor(i.id)).map((i) => i.id);
 }
 
 export function playAmbient(id: string, opts: AmbOpts = {}): void {
@@ -1025,7 +1078,11 @@ export function playAmbient(id: string, opts: AmbOpts = {}): void {
   if (ex && !ex.stopping) {
     const t = g.ctx.currentTime;
     if (opts.vol !== undefined) ex.out.gain.setTargetAtTime(opts.vol, t, (opts.fade ?? 0.3) / 3);
-    if (opts.lp !== undefined) ex.lp.frequency.setTargetAtTime(opts.lp, t, 0.1);
+    if (opts.lp !== undefined) {
+      ex.lpBase = opts.lp;
+      const w = wallFor(id);
+      ex.lp.frequency.setTargetAtTime(w ? Math.min(w.lp, opts.lp) : opts.lp, t, 0.1);
+    }
     return;
   }
   if (ex) active.delete(id);
@@ -1033,7 +1090,11 @@ export function playAmbient(id: string, opts: AmbOpts = {}): void {
   const inst = createAmbient(g, id, opts, g.ambBus);
   if (inst) {
     active.set(id, inst);
-    inst.impl.pump?.(g.ctx.currentTime + AMB_LOOKAHEAD);
+    const t = g.ctx.currentTime;
+    // behind a wall from its first sample; a room puts the beds it walls in behind it
+    if (wallFor(id)) applyWall(inst, t, 0.03);
+    applyWallsOf(id, t);
+    inst.impl.pump?.(t + AMB_LOOKAHEAD);
   }
 }
 
@@ -1044,6 +1105,8 @@ export function stopAmbient(id: string, fade = 0.3): void {
   i.stopping = true;
   const g = cur();
   const t = g.ctx.currentTime;
+  // a room going: what it walled in comes back out as it fades
+  applyWallsOf(id, t);
   const p = i.out.gain;
   p.cancelScheduledValues(t);
   p.setValueAtTime(p.value, t);

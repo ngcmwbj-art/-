@@ -22,6 +22,8 @@ export interface InsOpts {
   pull?: boolean;
   /** FM index override (e.g. softer bass). */
   index?: number;
+  /** ins_fm_fretless: a waveshaper after the filter (a parallel grit layer). */
+  drive?: number;
   indexEnd?: number;
   /** ins_choir: children's formants ×1.25. */
   child?: boolean;
@@ -386,8 +388,10 @@ function fretless(n: NoteCtx): void {
       sustain: 0.7,
       release: 0.12,
       vol: (n.o?.vol ?? 0.15) * n.vel,
-      fm: { ratio: 1, index: 1.2 },
-      filter: { type: 'lowpass', freq: 1600, q: 0.7 },
+      // (index / lp / drive: bgm_tsugao's grit layer; the patch's own values otherwise)
+      fm: { ratio: 1, index: n.o?.index ?? 1.2 },
+      filter: { type: 'lowpass', freq: n.o?.lp ?? 1600, q: 0.7 },
+      drive: n.o?.drive,
       detune: n.o?.detune,
     }),
   );

@@ -20,8 +20,8 @@ import { DRM } from './instruments';
 import { currentId, musicParams, setMusicParam } from './music';
 import { layer, type SeCtx } from './recipe';
 import { Rng } from '../engine/rng';
-import { Every, higurashiCall, modBuffer, modulate, noiseBed, registerAmbience, sampleHold, smoothRandom, toneBed, type AmbCtx, type Bed } from './ambience';
-import { ACHA, barnMorningAuto, BOAR, clockRestart, COW_SNORT, CROSS_STRIKE, HANSUU, IBIKI, PIICHAN_CRIES, SOIL } from './sfx_ch2';
+import { activeAmbients, Every, higurashiCall, modBuffer, modulate, noiseBed, registerAmbience, registerWall, sampleHold, smoothRandom, toneBed, type AmbCtx, type Bed } from './ambience';
+import { ACHA, barnMorningAuto, BOAR, clockRestart, COW_SNORT, CROSS_STRIKE, HANSUU, IBIKI, piichanCall, SOIL } from './sfx_ch2';
 import { atTime } from './clock';
 import { game } from '../engine/game';
 
@@ -433,16 +433,40 @@ registerAmbience('amb_h_fence', (c) => {
 /**
  * The barn's big ventilation fans (the whole summer long): air through the
  * blades and the blade-pass hum of three fans a little apart in speed (the
- * beat between them), with harmonics a laptop can play (16.2).
+ * beat between them). What a laptop or a phone plays of them (16.2: "牛舎の
+ * 換気扇が消えすぎない"): the rush of the air through the blades (400–1500 Hz,
+ * 9 dB under the low floor, swelling a little with each fan's turn) and the
+ * blade pass's harmonics up to the 15th (a saw under 700 Hz), not only its
+ * 44 Hz fundamental. `mid` (default: dest) is where those two go — outside,
+ * through the wall's low-pass.
  */
-function barnFans(c: AmbCtx, dest: AudioNode, o: { air: [BiquadFilterType, number, number, number]; hums: number[]; humV: number; pans: number[]; hiss: number }): Bed[] {
+function barnFans(
+  c: AmbCtx,
+  dest: AudioNode,
+  o: { air: [BiquadFilterType, number, number, number]; hums: number[]; humV: number; pans: number[]; hiss: number; rush: number; mid?: AudioNode },
+): Bed[] {
   const beds: Bed[] = [];
+  const mid = o.mid ?? dest;
   beds.push(noiseBed(c, o.air[0], o.air[1], o.air[2], o.air[3], dest));
+  // the rush through the blades, one per fan, each fluttering at its blade pass / 3
   o.hums.forEach((f, i) => {
-    const p = panned(c, o.pans[i] ?? 0, dest);
-    beds.push(toneBed(c, 'sine', f, o.humV, p));
-    // the blade pass is not a pure tone: its 2nd–4th harmonics carry it on small speakers
-    beds.push(toneBed(c, 'sawtooth', f, o.humV * 0.35, p, 260, 0.6));
+    const p = panned(c, o.pans[i] ?? 0, mid);
+    const b = noiseBed(c, 'bandpass', 780 + 90 * i, 0.7, o.rush / o.hums.length, p);
+    b.gain.gain.value *= 0.85;
+    beds.push(b);
+    const lfo = c.g.ctx.createOscillator();
+    lfo.frequency.value = f / 3;
+    const depth = c.g.ctx.createGain();
+    depth.gain.value = (o.rush / o.hums.length) * 0.15;
+    lfo.connect(depth);
+    depth.connect(b.gain.gain);
+    lfo.start(onSample(c.g.ctx, c.t0));
+    beds.push({ gain: depth, filter: b.filter, src: lfo, stop: (t: number) => lfo.stop(t) });
+  });
+  o.hums.forEach((f, i) => {
+    beds.push(toneBed(c, 'sine', f, o.humV, panned(c, o.pans[i] ?? 0, dest)));
+    // the blade pass is not a pure tone: its harmonics carry it on small speakers
+    beds.push(toneBed(c, 'sawtooth', f, o.humV * 0.5, panned(c, o.pans[i] ?? 0, mid), 700, 0.6));
   });
   if (o.hiss) beds.push(noiseBed(c, 'highpass', 2000, 0.5, o.hiss, dest));
   return beds;
@@ -481,8 +505,9 @@ function lampHum(c: AmbCtx, buzzV: number, hissV: number, dest: AudioNode = c.de
  * a steer's snort.
  */
 registerAmbience('amb_h_barn_out', (c) => {
-  const beds = barnFans(c, c.dest, { air: ['lowpass', 250, 0.6, 0.006], hums: [43, 45, 47], humV: 0.002, pans: [-0.3, 0, 0.3], hiss: 0 });
+  // the wall keeps what is under 900 Hz: the fans' rush and harmonics come through it, dulled
   const wall = lowpass(c, 900);
+  const beds = barnFans(c, c.dest, { air: ['lowpass', 250, 0.6, 0.0035], hums: [43, 45, 47], humV: 0.0012, pans: [-0.3, 0, 0.3], hiss: 0, rush: 0.016, mid: wall });
   const snort = new Every(c, 8, 20, (t) => {
     const dest = panned(c, c.rng.range(-0.4, 0.4), wall);
     for (const l of COW_SNORT) layer(seCtx(c, t, dest, 0.4, 0.2, c.rng.range(0.9, 1.08)), l);
@@ -509,7 +534,7 @@ registerAmbience('amb_h_barn_out', (c) => {
  */
 registerAmbience('amb_h_barn', (c) => {
   const g = c.g;
-  const beds = barnFans(c, c.dest, { air: ['bandpass', 300, 0.6, 0.007], hums: [44, 46, 49], humV: 0.004, pans: [-0.4, 0, 0.4], hiss: 0.002 });
+  const beds = barnFans(c, c.dest, { air: ['bandpass', 300, 0.6, 0.007], hums: [44, 46, 49], humV: 0.0032, pans: [-0.4, 0, 0.4], hiss: 0.002, rush: 0.005 });
   // the tubes over the feed alley, on all night (up in the roof: a little room on them)
   beds.push(...lampHum(c, 0.0011, 0.0009, lowpass(c, 5000)));
   // ② six steers chewing, each on its own clock
@@ -577,12 +602,13 @@ registerAmbience('amb_h_barn', (c) => {
   // ⑦ 5:00 (h_stage 3, the ending's cut 2a; 2026-09-26: the tubes were on all
   // night, so nothing switches on): the morning comes in through the east
   // windows (se_h_barn_morning, once, as the light warms), and from then on a
-  // dawn ヒグラシ now and then beyond the east wall, dulled by it (amb_h_dawn's
-  // cicadas, heard from inside)
+  // dawn ヒグラシ now and then beyond the east wall, dulled by it. One line
+  // only: when amb_h_dawn itself is on, the barn's wall already brings its
+  // cicadas in (BARN_WALL), and this one keeps quiet.
   let hStage = c.hStage;
   let morningAt = hStage === 3 ? c.t0 + 0.7 : -1;
   const dawn = new Every(c, 9, 16, (t) => {
-    if (hStage !== 3) return;
+    if (hStage !== 3 || (!g.offline && activeAmbients().includes('amb_h_dawn'))) return;
     higurashiCall(t, c.dest, c.rng.range(0.35, 0.7), c.rng.range(0.95, 1.04), 2200, 0.009, c.rng);
   }, 2.2, 4);
   return {
@@ -614,6 +640,15 @@ registerAmbience('amb_h_barn', (c) => {
     },
   };
 });
+
+/**
+ * The barn's walls (the ending's cut 2a: the dawn goes on outside while we
+ * stand at the feed alley): the village's outdoor beds, if they are still on,
+ * are heard through them — under 2 kHz and 8 dB down — and come back as the
+ * barn's bed stops.
+ */
+export const BARN_WALL = { ids: ['amb_h_dawn', 'amb_h_wind', 'amb_h_insects', 'amb_h_kusa', 'amb_h_tanada', 'amb_h_mizu', 'amb_h_yama'], lp: 2000, db: -8 };
+registerWall('amb_h_barn', BARN_WALL);
 
 /**
  * amb_h_house — greenhouse 3 breathing: the film swells and sinks on a 4 s
@@ -839,9 +874,8 @@ registerAmbience('amb_h_tsugaobin', (c) => {
         const pecking = hStage >= 1;
         // (walking the village with the party while the delivery is on)
         if (musicParams().h_deli !== 1) {
-          const cry = pecking ? PIICHAN_CRIES.koko(1) : PIICHAN_CRIES.kuu(1);
           const p = c.rng.range(0.97, 1.04);
-          for (const l of cry) layer(seCtx(c, t, henOut, pecking ? 0.4 : 0.5, 0.08, p), l);
+          piichanCall(seCtx(c, t, henOut, pecking ? 0.4 : 0.5, 0.08, p), pecking ? 'koko' : 'kuu');
         }
         henNext = t + (pecking ? 12 * c.rng.range(0.85, 1.15) : 20 * c.rng.range(0.9, 1.1));
       }
@@ -965,11 +999,15 @@ registerAmbience('amb_h_train', (c) => {
   const rm = modulate(g, c.t0, modBuffer(g, 23, smoothRandom(new Rng(c.seed + 3), 0.3, 1.2)), run.gain.gain, 0.003);
   const window = noiseBed(c, 'bandpass', 1200, 0.8, 0.004, c.dest, 0.3);
   const motor = toneBed(c, 'sine', 110, 0.003);
-  const motor2 = toneBed(c, 'triangle', 330, 0.0006);
+  const motor2 = toneBed(c, 'triangle', 330, 0.0012);
+  // the car body drumming over the bogies (the floor's rumble, where a laptop plays it)
+  const body = noiseBed(c, 'bandpass', 380, 0.8, 0.005);
   const clack = (t: number, k: number) => {
-    v(c, { at: t, wave: 'sine', freq: 70, freqEnd: 58, glide: 0.06, dur: 0.02, attack: 0.001, decay: 0.06, sustain: 0, release: 0.03, vol: 0.03 * k });
-    // the wheel on the joint, with a body a laptop can play
+    v(c, { at: t, wave: 'sine', freq: 70, freqEnd: 58, glide: 0.06, dur: 0.02, attack: 0.001, decay: 0.06, sustain: 0, release: 0.03, vol: 0.02 * k });
+    // the wheel on the joint, with a body a laptop (and a phone) can play
     v(c, { at: t, wave: 'triangle', freq: 150, freqEnd: 120, glide: 0.04, dur: 0.01, attack: 0.001, decay: 0.04, sustain: 0, release: 0.02, vol: 0.008 * k });
+    v(c, { at: t, wave: 'triangle', freq: 310, freqEnd: 240, glide: 0.04, dur: 0.01, attack: 0.001, decay: 0.035, sustain: 0, release: 0.02, vol: 0.009 * k });
+    v(c, { at: t, wave: 'noise', dur: 0.02, attack: 0.001, decay: 0.03, sustain: 0, release: 0.015, vol: 0.012 * k, filter: { type: 'bandpass', freq: 480, q: 1.1 } });
     v(c, { at: t, wave: 'noise', dur: 0.02, attack: 0.001, decay: 0.02, sustain: 0, release: 0.01, vol: 0.03 * k * 0.6, filter: { type: 'bandpass', freq: 1000, q: 1 } });
   };
   let next = c.t0 + 0.3;
@@ -999,7 +1037,7 @@ registerAmbience('amb_h_train', (c) => {
       }
     },
     stop(t) {
-      for (const b of [run, window, motor, motor2]) b.stop(t);
+      for (const b of [run, window, motor, motor2, body]) b.stop(t);
       rm.stop(t);
     },
   };
@@ -1042,7 +1080,9 @@ registerAmbience('amb_h_pa_hum', (c) => {
 /**
  * amb_h_dawn — the mountain village at daybreak: the evening cicadas sing at
  * dawn too — one or two ヒグラシ every 8–15 s — over still morning air. (No
- * cockerel: nobody here keeps chickens.)
+ * cockerel: nobody here keeps a rooster — ぴーちゃん is a hen, and she is
+ * asleep on the truck.) Inside the barn (the ending's cut 2a) it is heard
+ * through the wall (BARN_WALL).
  */
 registerAmbience('amb_h_dawn', (c) => {
   const air = noiseBed(c, 'lowpass', 500, 0.5, 0.004);

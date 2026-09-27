@@ -93,7 +93,7 @@ function hoshiMorningDef(): SongDef {
       len: 'next',
       o: { vol: 0.035 },
     }),
-    // the dawn pad opens from 900 Hz to 1.8 kHz over the two bars
+    // the dawn pad opens from 900 Hz to 1.8 kHz over the first two bars (then stays open: onBar)
     pads({ id: 'pad_dawn', when: dawn, per: 'bar', o: { vol: 0.03, attack: 2.0, release: 2.0 }, fx: { lp: 900, q: 0.7 } }),
     pads({ id: 'pad', when: (b) => mi(b) || A(b), o: (b) => ({ vol: mi(b) ? 0.03 : 0.025, attack: 0.8, release: 1.2 }), fx: { lp: 1800, q: 0.7 } }),
     // ---- bass: the C pedal under the dawn, then the town's walking shape
@@ -139,11 +139,17 @@ function hoshiMorningDef(): SongDef {
       if (!dawn(b)) return;
       const f = sp.partRt('pad_dawn')?.state.filter as BiquadFilterNode | undefined;
       if (!f) return;
-      // 900 → 1800 Hz across MD1–MD2 (and again on each repeat)
+      // 900 → 1800 Hz across the first MD1–MD2 only. The dawn repeats until
+      // h_stage is 3 (the tomato rising, 「……おはよう。」, the bell: 10–15 s);
+      // on those repeats the pad stays open — closing it again every 5.5 s
+      // would cloud the sky over and over under the one moment allowed to
+      // make people cry.
+      if (sp.state.dawnOpen) return;
       const end = b.t0 + b.steps * b.stepDur;
       f.frequency.cancelScheduledValues(b.t0);
       f.frequency.setValueAtTime(b.label === 'MD1' ? 900 : 1270, b.t0);
       f.frequency.exponentialRampToValueAtTime(b.label === 'MD1' ? 1270 : 1800, end);
+      if (b.label === 'MD2') sp.state.dawnOpen = true;
     },
   };
 }

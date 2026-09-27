@@ -6,7 +6,14 @@
 //
 // The tune is in the bass: M7, D3 E♭3 D3 A2 (+1 −1 −5), a slow tilt of the
 // head and settling back into the chair — only in T1 and T5. No pad, no high
-// tune: the room sounds dark and small. The wall clocks' second hands are the
+// tune: the room sounds dark and small. Dark is not the same as unheard,
+// though: a phone plays nothing under ~500 Hz, and a song of bass and sub
+// alone would be four marimba notes and the clocks there. So the fretless has
+// a grit layer — the same line through a waveshaper, only what lies between
+// 250 Hz and 2.2 kHz, 5 LU under it — the growl of an old amp in a small
+// office, which carries the tune on any speaker without adding a note. The
+// D2 pedal is low and short-lived: it leaves the bars whose harmony moves
+// off D (T6–T8), where it would beat against F2, E2 and A2. The wall clocks' second hands are the
 // beat, and only once they are running again (the `clock` param, set by
 // amb_tsugao_room's 'tick'): 夕鳴町's "チッ、タッ" (the clock of オムカエマチ)
 // on the quarters, then 星見台's "コツ" (ヨビモドシ's microphone) on the
@@ -51,14 +58,16 @@ const clock = (b: BarCtx) => b.p.clock;
 function tsugaoDef(): SongDef {
   const parts: PartDef[] = [
     // ---- M7 in the bass register: the song's tune (legato, the fretless glides)
-    melody({ id: 'bass', ins: 'ins_fm_fretless', bars: tsugao.part('bass'), o: { vol: 0.1 }, gate: 1 }),
+    melody({ id: 'bass', ins: 'ins_fm_fretless', bars: tsugao.part('bass'), o: { vol: 0.1, index: 1.8, lp: 2200 }, gate: 1 }),
+    // ---- its grit: the same line, driven, 250 Hz – 2.2 kHz (what a laptop or a phone plays of it)
+    melody({ id: 'bass_grit', ins: 'ins_fm_fretless', bars: tsugao.part('bass'), o: { vol: 0.04, index: 3.2, lp: 2600, drive: 3 }, gate: 1, fx: { hp: 250, lp: 2200 } }),
     // ---- the answering shrug: two marimba notes ("ぽこ、ぽこ")
     melody({ id: 'marimba', ins: 'ins_fm_marimba', bars: tsugao.part('marimba'), o: { vol: 0.05 } }),
-    // ---- the D2 pedal under it all
+    // ---- the D2 pedal under T1–T5 (T6–T8 move off D: F2, E2, A2 would beat against it)
     hits('sub', [
       {
-        when: (_b, s) => s === 0,
-        fn: (b, t, rt) => INS.ins_sub({ t, midi: 38, dur: b.time(b.steps) - t, vel: 1, dest: rt.input, det: rt.song.det, o: { vol: 0.06 } }),
+        when: (b, s) => s === 0 && !/^T[678]$/.test(b.label),
+        fn: (b, t, rt) => INS.ins_sub({ t, midi: 38, dur: b.time(b.steps) - t, vel: 1, dest: rt.input, det: rt.song.det, o: { vol: 0.03 } }),
       },
     ]),
     // ---- the wall clocks, once they run again

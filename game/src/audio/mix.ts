@@ -116,6 +116,83 @@ export function seTargetDb(id: string, group: string | undefined): number {
 }
 
 // ---------------------------------------------------------------------------
+// SE loudness ceilings (53 8.6 「小さく、高域は丸めて、耳に痛くしない」).
+// A peak target alone lets a long pitched tone — a howl, a note out of the
+// speaker — sound far louder than a blow with the same peak: a steady tone's
+// loudness sits a few dB under its peak, a hit's 15 dB under. So every SE's
+// loudest 400 ms (momentary LUFS at the master, before the dynamics, SE
+// volume 8 — the render its peak is measured on) also has a ceiling, and
+// audioMixSuggest never trims an SE past it:
+//   · over the music it plays with: that song's loudest 400 ms + 6 LU
+//   · the moments over a stopped or quiet song (the PA's notes, the chimes):
+//     no louder than chapter 1's 17:00 chime (se_pa_chime)
+//   · the bells that end a chapter: a little over that (se_bell_kanenari is
+//     the loudest moment of the game by design)
+
+/** How far an SE's loudest 400 ms may stand over the loudest 400 ms of its music (LU). */
+export const SE_LOUD_OVER_MUSIC = 6;
+/** Chapter 1's se_pa_chime (−12.8 momentary) rounded up: the ceiling of every chime and PA note. */
+export const SE_LOUD_CHIME = -12.5;
+/** The finale bells. */
+export const SE_LOUD_BELL = -10.5;
+const SE_LOUD_BELLS = new Set(['se_bell_kanenari', 'se_bell_kanenari_short']);
+/** Groups whose sounds are moments over a stopped or quiet song. */
+const SE_LOUD_MOMENT_GROUPS = new Set(['チャイム・鐘・放送', '第2章：放送・チャイム']);
+/**
+ * SEs levelled by loudness instead of their peak (momentary max, LUFS): the
+ * long pitched ones, whose peak says little about how loud they are heard.
+ * ヨビモドシ's howl sits 3 LU under chapter 1's heaviest stamp (four of them
+ * stacked in the 夜ふかし warning stay near it); the PA's single notes and
+ * the name call sit under the 17:00 chime, as a speaker on a hill should.
+ */
+export const SE_LOUD_TARGET: Record<string, number> = {
+  se_h_howl: -21,
+  se_h_pa_last: -14,
+  se_h_tenko: -14.5,
+  se_h_onamae: -14.5,
+  se_h_morning_chime: -13.5,
+  // the last train's 「ガタン・ゴトン」 through the speaker: an attack you feel over the boss song (its loudest −19.5)
+  se_h_ressha: -21,
+};
+/** Chapter 2's SEs of the ending, heard over the dawn of bgm_hoshi_morning (53 12). */
+const SE_LOUD_MORNING = /^se_h_(tomato_rise|sunrise|ripen|side_roll|moo|feed_cart|barn_light|bus_)/;
+/**
+ * SEs the design levels against another SE (53 8.12 se_mada_stamp: "the
+ * weight of the red se_stamp, without its ring"): their ceiling is that
+ * SE's loudness + 1 LU.
+ */
+export const SE_LOUD_LIKE: Record<string, string> = { se_mada_stamp: 'se_stamp' };
+/**
+ * The song an SE is heard over, for its loudness ceiling; null: a moment over
+ * a stopped or quiet song, or no song at all (the night train and the
+ * station of the prologue), with the fixed ceiling of seLoudFixed.
+ */
+export function seLoudMusic(id: string, group: string | undefined): string | null {
+  const g = group ?? '';
+  if (SE_LOUD_BELLS.has(id) || SE_LOUD_MOMENT_GROUPS.has(g) || /^se_(pa_chime|chime_note|h_pa_|h_morning_chime)/.test(id)) return null;
+  if (g === '第2章：プロローグ・電車・駅') return null;
+  if (g === '第2章：戦闘・ボス') return 'bgm_boss_yobimodoshi';
+  if (/^第2章：戦闘/.test(g)) return 'bgm_battle';
+  if (/^第2章：ツガオの部屋/.test(g)) return 'bgm_tsugao';
+  if (SE_LOUD_MORNING.test(id)) return 'bgm_hoshi_morning';
+  if (/^戦闘|ハンコ/.test(g) || /^se_(chime_chord|stamp|thud|mimashita)/.test(id)) return 'bgm_battle';
+  if (/^第2章：/.test(g)) return 'bgm_hoshi_night';
+  return 'bgm_town_s0';
+}
+/**
+ * Chapter 1 is out (00_common: its sounds do not change). Its SEs are
+ * measured against the same ceilings, but reported apart (audioReport
+ * seTooLoudCh1) — a note for the lead, not a failure of this chapter.
+ */
+export function seLoudFrozen(group: string | undefined): boolean {
+  return !/^第2章：/.test(group ?? '');
+}
+/** The fixed ceiling of an SE that is a moment (null: it follows its music). */
+export function seLoudFixed(id: string): number {
+  return SE_LOUD_BELLS.has(id) ? SE_LOUD_BELL : SE_LOUD_CHIME;
+}
+
+// ---------------------------------------------------------------------------
 // Voices (11.2: dialog −20 dBFS)
 
 const VOICE_TARGET: Record<string, number> = {
@@ -236,7 +313,7 @@ export const PART_TRIM: Record<string, number> = {
   // chapter 2 (audioBalance at 段階1 / phase 1 / past the dawn, then by ear:
   // the shaker and the microphone taps are a hat's level, not a kit's)
   'bgm_hoshi_night/stars': 3.5, 'bgm_hoshi_night/pad': -1.5, 'bgm_hoshi_night/sub': -9, 'bgm_hoshi_night/bass': -5.5,
-  'bgm_hoshi_night/drums': 6, 'bgm_hoshi_night/yobigoe': 4,
+  'bgm_hoshi_night/drums': 19.5, 'bgm_hoshi_night/yobigoe': 4,
   // the delivery's "ぽこ、ぽこ": as present as the stars, still well under the lantern
   'bgm_hoshi_night/deli': 4,
   'bgm_boss_yobimodoshi/organ': -3.5, 'bgm_boss_yobimodoshi/organ_chords': -6, 'bgm_boss_yobimodoshi/pad': -3,
@@ -332,7 +409,7 @@ export const BGM_TRIM: Record<string, number> = {
   bgm_jingle_victory: 8, bgm_jingle_levelup: 6.5, bgm_jingle_item: 7.5, bgm_jingle_join: 8,
   bgm_jingle_gameover: 10.5,
   // chapter 2
-  bgm_hoshi_night: 12.5, bgm_tsugao: 10, bgm_boss_yobimodoshi: 10.5, bgm_hoshi_morning: 12,
+  bgm_hoshi_night: 12, bgm_tsugao: 10, bgm_boss_yobimodoshi: 10.5, bgm_hoshi_morning: 12,
 };
 
 export const SE_TRIM: Record<string, number> = {
@@ -363,22 +440,22 @@ export const SE_TRIM: Record<string, number> = {
   se_bump: 17.5, se_momi: 19, se_remote: 22.5, se_glove: 16.5, se_bottle: 22, se_uwabaki: 34.5, se_hanko_charge: 21,
   se_roulette: 22,
   // chapter 2 (audioMixSuggest over the 第2章 groups)
-  se_h_crossing_bell: 21.5, se_h_crossing_down: 18.5, se_h_train_brake: 22, se_h_train_idle: 29, se_h_train_door: 18, se_h_train_chime: 21.5,
+  se_h_crossing_bell: 21.5, se_h_crossing_down: 18.5, se_h_train_brake: 24, se_h_train_idle: 28.5, se_h_train_door: 18, se_h_train_chime: 21.5,
   se_h_seiriken: 30, se_h_coin_box: 19.5, se_h_vinyl_door: 23, se_h_yunomi: 16, se_h_yunomi_pour: 26.5, se_h_tomato_catch: 17.5,
-  se_h_lantern_set: 28, se_h_light_spread: 23, se_h_boukatou_on: 30.5, se_h_kaichu: 23, se_h_kakashi_turn: 33.5, se_h_keitora: 21,
-  se_h_keitora_go: 20.5, se_h_chalk: 29, se_h_chalk_erase: 31.5, se_h_kairan: 29, se_h_shodoku: 19, se_h_hansuu: 25.5,
-  se_h_cow_snort: 25.5, se_h_moo: 27, se_h_barn_light: 24, se_h_feed_cart: 28, se_h_feedbag: 18.5, se_h_gate_hook: 22.5,
-  se_h_side_roll: 22, se_h_ripen: 22.5, se_h_pa_open: 17.5, se_h_pa_close: 18, se_h_pa_last: 9, se_h_morning_chime: 0.5,
-  se_h_sune: 23, se_h_roll: 25.5, se_h_aokusai: 26, se_h_biri: 16.5, se_h_boar: 36, se_h_soil: 23.5,
-  se_h_charin: 18, se_h_tiller: 28, se_h_stall: 27.5, se_h_tenko: 14, se_h_howl: 27.5, se_h_yofukashi: 9.5,
-  se_h_ressha: 18.5, se_h_sukima: 21, se_h_amado: 22.5, se_h_yamabiko: 34.5, se_h_onamae: 20.5, se_h_tomato_glow: 19,
+  se_h_lantern_set: 28, se_h_light_spread: 18, se_h_boukatou_on: 28, se_h_kaichu: 23, se_h_kakashi_turn: 33.5, se_h_keitora: 21,
+  se_h_keitora_go: 20.5, se_h_chalk: 29, se_h_chalk_erase: 31.5, se_h_kairan: 29, se_h_shodoku: 19, se_h_hansuu: 27,
+  se_h_cow_snort: 25.5, se_h_moo: 27, se_h_barn_light: 26, se_h_feed_cart: 28, se_h_feedbag: 21, se_h_gate_hook: 22.5,
+  se_h_side_roll: 22, se_h_ripen: 21, se_h_pa_open: 17.5, se_h_pa_close: 18, se_h_pa_last: 1, se_h_morning_chime: -1.5,
+  se_h_sune: 23, se_h_roll: 28.5, se_h_aokusai: 26, se_h_biri: 16.5, se_h_boar: 36, se_h_soil: 23.5,
+  se_h_charin: 18, se_h_tiller: 28, se_h_stall: 27.5, se_h_tenko: 9, se_h_howl: 17.5, se_h_yofukashi: 12.5,
+  se_h_ressha: 17.5, se_h_sukima: 21, se_h_amado: 22.5, se_h_yamabiko: 34.5, se_h_onamae: 16, se_h_tomato_glow: 19,
   se_h_dim: 25, se_h_otsukare: 27, se_h_bell_kon: 14, se_h_hamidashi: 17.5, se_step_sheet: 25, se_h_kakashi_hop: 19.5,
-  se_h_tomato_rise: 26, se_h_sunrise: 20, se_h_bus_idle: 22, se_h_bus_door: 19, se_h_bus_depart: 26.5, se_h_bus_arrive: 25.5,
+  se_h_tomato_rise: 22.5, se_h_sunrise: 20.5, se_h_bus_idle: 22, se_h_bus_door: 19, se_h_bus_depart: 26.5, se_h_bus_arrive: 25.5,
   se_hanamaru_draw: 27,
   se_h_ibiki: 31.5, se_h_acha: 36, se_h_esayose: 32, se_h_watercup: 24.5,
-  se_dakoku: 21.5, se_mada_stamp: 22, se_lamp_click: 20, se_clock_restart: 11.5, se_clock_tick: 23.5,
-  se_h_deli_put: 19.5, se_truck_aori: 20.5, se_truck_key: 28.5, se_yakiimo: 27, se_piichan_flap: 28.5,
-  se_piichan_koko: 20.5, se_piichan_koke: 26, se_piichan_kuu: 27.5,
+  se_dakoku: 21.5, se_mada_stamp: 24, se_lamp_click: 20, se_clock_restart: 11.5, se_clock_tick: 23.5,
+  se_h_deli_put: 19.5, se_truck_aori: 21, se_truck_key: 28.5, se_yakiimo: 27, se_piichan_flap: 28.5,
+  se_piichan_koko: 18, se_piichan_koke: 23, se_piichan_kuu: 25,
 };
 export const VOICE_TRIM: Record<string, number> = {
   narr: 24, mother: 15, maruyama: 8, obaa: 15, mamekichi: 15.5, inui: 17, tsurumi: 16, sae: 17, jk: 15.5,
@@ -401,7 +478,7 @@ export const AMB_TRIM: Record<string, number> = {
   // insects held at the town's night level, the barn's fans over its −18 dB
   // song and the train with no music at all set by ear, 53 10.2)
   amb_h_insects: 22, amb_h_kusa: 22, amb_h_tanada: 29.5, amb_h_mizu: 30, amb_h_wind: 33, amb_h_yama: 41,
-  amb_h_hachi: 26.5, amb_h_fence: 29.5, amb_h_barn_out: 29, amb_h_barn: 16, amb_h_house: 27, amb_h_tomato: 21.5,
+  amb_h_hachi: 26.5, amb_h_fence: 29.5, amb_h_barn_out: 32, amb_h_barn: 16, amb_h_house: 27, amb_h_tomato: 21.5,
   amb_h_school: 28.5, amb_h_boukatou: 19, amb_h_tetsuya: 22, amb_h_train: 17, amb_h_pa_hum: 21, amb_h_dawn: 16, amb_tsugao_room: 19.5,
   amb_h_tsugaobin: 28,
 };

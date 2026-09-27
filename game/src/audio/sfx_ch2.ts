@@ -12,8 +12,6 @@ import { seTrim, trimOr1 } from './mix';
 import { layer, playSe, se, sub, type SeCtx } from './recipe';
 import { loopTable, sfxTable, type LoopHandle, type SfxOpts } from './registry';
 import { BSAN, stepDef } from './sfx';
-import { higurashiCall } from './ambience';
-import { Rng } from '../engine/rng';
 
 const G_TRAIN = '第2章：プロローグ・電車・駅';
 const G_VILLAGE = '第2章：村・ハウス・集会所';
@@ -142,11 +140,20 @@ se('se_h_train_brake', {
   layers: [
     'sine f=2300→2180/1100 env=200/0/1/250 dur=1100 v=.010 vib=5/25 am=11/.3',
     'noise env=300/0/1/300 dur=1000 v=.03 flt=LP600→250',
-    'sine f=110→60/900 env=100/0/1/200 dur=900 v=.03',
+    'sine f=110→60/900 env=100/0/1/200 dur=900 v=.018',
+    // the wheels grinding on the rail, where a laptop (and a phone) still plays it
+    'noise env=200/0/1/300 dur=900 v=.022 flt=BP480→300q0.9 am=9→4/900/.35',
+    'tri f=220→120/900 env=150/0/1/200 dur=850 v=.007',
     'noise env=5/400/0/150 dur=200 v=.04 flt=BP2600q0.8 at=1250',
   ],
 });
-const TRAIN_IDLE = ['sine f=92 env=300/0/1/400 dur=2800 v=.006 am=0.5/.2', 'noise env=300/0/1/400 dur=2800 v=.004 flt=LP300'];
+const TRAIN_IDLE = [
+  'sine f=92 env=300/0/1/400 dur=2800 v=.001 am=0.5/.2',
+  'noise env=300/0/1/400 dur=2800 v=.0015 flt=LP300',
+  // the engine under the floor: its harmonics and the chug of the firing (16.2: a laptop hears it)
+  'saw f=92 env=300/0/1/400 dur=2800 v=.004 flt=LP900 am=11.5/.4',
+  'noise env=300/0/1/400 dur=2800 v=.01 flt=BP450q0.8 am=11.5/.55',
+];
 se('se_h_train_idle', { label: '電車のアイドリング（止まっている電車。ループ）', group: G_TRAIN, layers: TRAIN_IDLE });
 se('se_h_train_door', {
   label: '電車の扉（プシュー、トン）',
@@ -238,8 +245,10 @@ function idleLoop(id: string, layers: { wave: 'sine' | 'sawtooth' | 'noise'; f?:
   };
 }
 loopTable.set('se_h_train_idle', idleLoop('se_h_train_idle', [
-  { wave: 'sine', f: 92, v: 0.006, am: [0.5, 0.2] },
-  { wave: 'noise', v: 0.004, lp: 300 },
+  { wave: 'sine', f: 92, v: 0.001, am: [0.5, 0.2] },
+  { wave: 'noise', v: 0.0015, lp: 300 },
+  { wave: 'sawtooth', f: 92, v: 0.004, lp: 900, am: [11.5, 0.4] },
+  { wave: 'noise', v: 0.01, bp: [450, 0.8], am: [11.5, 0.55] },
 ]));
 
 // ============================================================================
@@ -403,8 +412,11 @@ se('se_h_shodoku', {
 });
 export const HANSUU = [
   'noise env=30/150/0/80 dur=120 v=.02 flt=BP450q1.5 am=16/.6',
-  'noise env=20/100/0/60 dur=80 v=.008 flt=BP1800q2 am=30/.5',
-  'sine f=95→80/120 env=20/100/0/50 dur=80 v=.012',
+  // the grass strands between the molars (the part a small speaker plays)
+  'noise env=20/100/0/60 dur=80 v=.015 flt=BP1800q2 am=30/.5',
+  // the chew itself: the wet grind of the cud
+  'noise env=15/90/0/50 dur=70 v=.016 flt=BP760q2 am=24/.6',
+  'sine f=95→80/120 env=20/100/0/50 dur=80 v=.005',
 ];
 se('se_h_hansuu', { label: '反すう1回（もぐ）', group: G_BARN, rand: [0.08, 0.08], max: 8, layers: HANSUU });
 export const COW_SNORT = ['noise env=5/180/0/100 dur=100 v=.03 flt=BP700q1.2 am=45/.5', 'noise env=5/120/0/80 dur=60 v=.01 flt=HP3000'];
@@ -422,12 +434,15 @@ se('se_h_moo', {
 /**
  * 5:00 in the barn (ending cut 2a). The tubes over the feed alley were on all
  * night (2026-09-26, the client), so nothing switches on: the morning light
- * comes in through the east windows — a soft warm swell, two small glints, the
- * low warmth of the sunrise (se_h_sunrise's family, a room's size of it) — a
- * dawn higurashi through the wall (53 7.2 amb_h_dawn: they sing at dawn too),
- * and a steer getting up in the sawdust, then another (53 1.6). No cattle
- * voice here (se_h_moo is its own, once). `se_h_barn_morning` is the same
- * sound under a name that says what it is; the old id keeps working.
+ * comes in through the east windows — a soft warm swell and the low warmth of
+ * the sunrise (se_h_sunrise's family, a room's size of it) — and a steer
+ * getting up in the sawdust, then another (53 1.6). No cattle voice here
+ * (se_h_moo is its own, once). No glints: bgm_hoshi_morning is singing the
+ * morning chime back (MI1–MI2) right then, and bells over it would blur it.
+ * No cicada of its own either: the dawn ヒグラシ is one line only — amb_h_dawn
+ * heard through the barn's wall (ambience.ts walls), or amb_h_barn's own when
+ * the dawn bed is not on. `se_h_barn_morning` is the same sound under a name
+ * that says what it is; the old id keeps working.
  */
 let lastBarnMorning: { ctx: BaseAudioContext; t: number; auto: boolean } | null = null;
 let autoBarnMorning = false;
@@ -441,11 +456,10 @@ function barnMorning(c: SeCtx): void {
   layer(c, 'noise env=900/300/.5/1400 dur=1600 v=.006 flt=BP500→2200q0.7');
   layer(c, 'saw f=F4 env=700/400/.6/1200 dur=1400 v=.004 flt=LP500→1600q0.7');
   layer(c, 'saw f=C5 env=700/400/.6/1200 dur=1400 v=.003 flt=LP500→1600q0.7');
-  ['C6', 'F6'].forEach((n, i) => layer(c, `sine f=${n} env=300/1200/0/700 dur=300 v=.005`, { at: 350 + i * 450 }));
-  layer(c, 'sine f=87 env=800/0/1/1200 dur=1200 v=.012');
-  layer(c, 'tri f=174 env=800/0/1/1200 dur=1200 v=.006');
-  // a higurashi outside, through the east windows (far, dull)
-  higurashiCall(c.t + 0.6, c.dest, 0.55, c.pitch * 0.98, 2600, 0.025 * 0.45 * c.vol, new Rng(0x5a17 + Math.floor(c.t * 7)));
+  layer(c, 'sine f=87 env=800/0/1/1200 dur=1200 v=.008');
+  // the low warmth where a laptop still plays it (F3 under the F4 / C5 swell)
+  layer(c, 'tri f=174 env=800/0/1/1200 dur=1200 v=.008');
+  layer(c, 'saw f=F3 env=900/0/1/1200 dur=1200 v=.003 flt=LP800q0.6');
   // a steer gets up in the sawdust (the weight settling), then a second one further down
   for (const [at, p] of [[1100, -0.3], [1900, 0.25]] as const) {
     layer(c, `noise env=60/200/.4/150 dur=400 v=.006 flt=LP600 pan=${p}`, { at });
@@ -482,7 +496,7 @@ se('se_h_feed_cart', {
     'tri f=300 env=0/60/0/20 dur=10 v=.015 at=1300',
   ],
 });
-se('se_h_feedbag', { label: '飼料の袋に座る（配合飼料の袋に腰をおろす。ざふっ）', group: G_BARN, layers: ['noise env=5/200/0/80 dur=120 v=.04 flt=BP1100q0.7', 'sine f=120→80/80 env=1/100/0/40 dur=30 v=.04'] });
+se('se_h_feedbag', { label: '飼料の袋に座る（配合飼料の袋に腰をおろす。ざふっ）', group: G_BARN, layers: ['noise env=5/200/0/80 dur=120 v=.04 flt=BP1100q0.7', 'noise env=5/220/0/90 dur=120 v=.03 flt=BP420q0.9', 'sine f=120→80/80 env=1/100/0/40 dur=30 v=.025'] });
 se('se_h_gate_hook', {
   label: 'ゲートの取っ手（支柱にかける。カチャ、ビン）',
   group: G_BARN,
@@ -574,7 +588,11 @@ se('se_h_sune', {
   rand: [0.03, 0.06],
   layers: ['p25 f=660→990/80 env=1/100/0/40 dur=80 v=.045 flt=LP3000', 'noise env=0/30/0/15 dur=20 v=.02 flt=BP2000q1.5 at=60', 'sine f=180→130/60 env=1/60/0/20 dur=20 v=.04 at=80'],
 });
-se('se_h_roll', { label: 'トマトが転がる（ごろごろ）', group: G_ENEMY, layers: ['noise env=40/350/0/100 dur=400 v=.04 flt=LP700 am=14/.8', 'sine f=150→110/400 env=40/350/0/100 dur=400 v=.03 am=14/.8'] });
+se('se_h_roll', {
+  label: 'トマトが転がる（ごろごろ）',
+  group: G_ENEMY,
+  layers: ['noise env=40/350/0/100 dur=400 v=.04 flt=LP700 am=14/.8', 'noise env=40/350/0/100 dur=400 v=.03 flt=BP520q1 am=14/.8', 'sine f=150→110/400 env=40/350/0/100 dur=400 v=.015 am=14/.8'],
+});
 se('se_h_aokusai', {
   label: '青くさい におい（もわ〜ん）',
   group: G_ENEMY,
@@ -676,11 +694,13 @@ se('se_h_yofukashi', {
   group: G_BOSS,
   duck: 'heavy',
   layers: [
-    'sine f=65→40/800 env=0/900/0/300 dur=60 v=.35 drive=1.2',
-    'noise env=0/600/0/300 dur=60 v=.10 flt=LP600',
+    'sine f=65→40/800 env=0/900/0/300 dur=60 v=.13 drive=1.2',
+    'noise env=0/600/0/300 dur=60 v=.07 flt=LP600',
     'saw f=220→110/1000 env=10/0/1/300 dur=1000 v=.02 flt=LP1200→300',
-    // its weight where a laptop can play it
+    // its weight where a laptop (and a phone) can play it: the body of the blow, 200–800 Hz
     'tri f=160→90/700 env=0/700/0/200 dur=24 v=.07 drive=1.4',
+    'tri f=330→190/600 env=0/550/0/200 dur=30 v=.07 drive=1.3',
+    'noise env=0/450/0/200 dur=40 v=.09 flt=BP420q0.9',
   ],
 });
 se('se_h_ressha', {
@@ -689,8 +709,17 @@ se('se_h_ressha', {
   max: 6,
   fn(c) {
     const p = viaPa(c, 'se_h_ressha');
-    const f = (c.opts.level ?? 0) >= 1 ? 75 : 90;
-    layer(p, `sine f=${f} env=0/80/0/30 dur=20 v=.06`);
+    const lo = (c.opts.level ?? 0) >= 1;
+    const f = lo ? 75 : 90;
+    // (the speaker cuts under 380 Hz: the low thud only drives its cone — kept small,
+    // or it would eat the drive's headroom and choke the body above it)
+    layer(p, `sine f=${f} env=0/80/0/30 dur=20 v=.02`);
+    // the wheel on the joint where the speaker still plays it: two axles, "ガ・タン"
+    // (400→280 Hz; ゴトン a little lower), each knock with the car body ringing after it
+    for (const [at, k] of [[0, 0.8], [85, 1]] as const) {
+      layer(p, `tri f=${lo ? 360 : 400}→${lo ? 250 : 280}/60 env=0/130/0/40 dur=50 v=${0.05 * k}`, { at });
+      layer(p, `noise env=0/110/0/40 dur=40 v=${0.05 * k} flt=BP700q1.2`, { at });
+    }
     layer(p, 'noise env=0/50/0/20 dur=20 v=.05 flt=BP1000q1');
     layer(p, 'noise env=0/30/0/15 dur=10 v=.02 flt=BP2600q2 at=30');
   },
@@ -844,9 +873,11 @@ se('se_h_sunrise', {
   fn(c) {
     layer(c, 'noise env=1500/0/1/1500 dur=2000 v=.01 flt=BP600→3000q0.7');
     ['C6', 'F6', 'A6'].forEach((n, i) => layer(c, `sine f=${n} env=400/1500/0/800 dur=400 v=.008`, { at: i * 400 }));
-    layer(c, 'sine f=87 env=1000/0/1/1500 dur=1500 v=.03');
-    // the low warmth where small speakers still play it
-    layer(c, 'tri f=174 env=1000/0/1/1500 dur=1500 v=.008');
+    layer(c, 'sine f=87 env=1000/0/1/1500 dur=1500 v=.018');
+    // the low warmth where small speakers still play it: F3 and C4 under the glints, 200–800 Hz
+    layer(c, 'tri f=174 env=1000/0/1/1500 dur=1500 v=.012');
+    layer(c, 'saw f=F3 env=1100/0/1/1500 dur=1500 v=.004 flt=LP800q0.6');
+    layer(c, 'saw f=C4 env=1200/0/1/1500 dur=1400 v=.003 flt=LP900q0.6');
   },
 });
 const BUS_IDLE = ['saw f=46 env=300/0/1/400 dur=2800 v=.02 flt=LP350 am=23/.45', 'noise env=300/0/1/400 dur=2800 v=.01 flt=BP500q0.8 am=23/.5', 'noise env=300/0/1/400 dur=2800 v=.003 flt=HP3000 am=23/.3'];
@@ -927,7 +958,14 @@ se('se_dakoku', {
 se('se_mada_stamp', {
   label: '黒い判「まだ」（インク切れ、ぺそっ）',
   group: G_TSUGAO,
-  layers: ['sine f=90→60/60 env=0/90/0/40 dur=40 v=.10 drive=.5', 'noise env=0/50/0/20 dur=30 v=.02 flt=BP700q1.2', 'noise env=10/60/0/30 dur=40 v=.006 flt=HP4000 at=40'],
+  layers: [
+    'sine f=90→60/60 env=0/90/0/40 dur=40 v=.055 drive=.5',
+    'noise env=0/50/0/20 dur=30 v=.02 flt=BP700q1.2',
+    // the dry 「ぺそっ」 of the block on paper (the body a small speaker plays; no ring)
+    'noise env=0/70/0/30 dur=30 v=.035 flt=BP430q1',
+    'tri f=240→160/50 env=0/60/0/25 dur=20 v=.03',
+    'noise env=10/60/0/30 dur=40 v=.006 flt=HP4000 at=40',
+  ],
 });
 se('se_lamp_click', { label: '電気スタンドを消す（カチ）', group: G_TSUGAO, layers: ['tri f=1800 env=0/20/0/8 dur=6 v=.03', 'noise env=0/15/0/5 dur=8 v=.01 flt=HP5000'] });
 /**
@@ -985,8 +1023,11 @@ se('se_truck_aori', {
   layers: [
     'tri f=1500→1300/20 env=0/40/0/15 dur=10 v=.035',
     'noise env=0/30/0/10 dur=10 v=.02 flt=BP2400q2',
-    'sine f=110→80/120 env=2/200/0/80 dur=60 v=.05 at=250',
+    'sine f=110→80/120 env=2/200/0/80 dur=60 v=.035 at=250',
     'noise env=5/120/0/60 dur=60 v=.02 flt=LP900 at=250',
+    // the board's 「ゴトン」 where a laptop plays it
+    'noise env=5/140/0/60 dur=60 v=.03 flt=BP500q1 at=250',
+    'tri f=220→160/100 env=2/160/0/60 dur=40 v=.02 at=250',
   ],
 });
 /** The truck's key set down on the desk (cut 7): the tag knocks the key ("チャリ"), the wood under it. */
@@ -1028,20 +1069,82 @@ se('se_piichan_flap', {
  * { note: 'q' } lifts the last sound +3 semitones (a questioning 「ココッ？」).
  * The voice `piichan` says them at the head of her pages; the field says
  * them with seAt (asleep: se_piichan_kuu every 20 s; pecking: se_piichan_koko).
+ *
+ * A hen's cluck is a throat sound, not a whistle: the pitch contour of the
+ * design rides on top (the sine / square layers, kept −6 dB under), and under
+ * it each cluck has a glottal buzz shaped by the throat (two formants,
+ * f1 700 / f2 1400) and a burst of breath at 600 Hz fluttering at 30–40 Hz —
+ * the "buk" that makes it a bird you could hold, not a bird in a tree or a
+ * beep of the UI. PIICHAN_CRIES holds the contour layers; piichanCall plays
+ * the whole call (the ambience amb_h_tsugaobin says it the same way).
  */
 export const PIICHAN_CRIES = {
   koko: (q: number) => [
-    'sine f=1300→1100/30 env=2/22/0/8 dur=30 v=.03',
-    `sine f=${1300 * q}→${1100 * q}/30 env=2/22/0/8 dur=30 v=.03 at=90`,
+    'sine f=1300→1100/30 env=2/22/0/8 dur=30 v=.015',
+    `sine f=${1300 * q}→${1100 * q}/30 env=2/22/0/8 dur=30 v=.015 at=90`,
     'noise env=0/8/0/4 dur=10 v=.012 flt=BP2500q2 rep=2x90',
   ],
   koke: (q: number) => [
-    'sq f=900→1500/50 env=3/0/1/12 dur=50 v=.03 flt=BP2000q3',
-    `sq f=${1200 * q}→${800 * q}/60 env=0/0/1/25 dur=60 v=.03 flt=BP2000q3 at=55`,
+    'sq f=900→1500/50 env=3/0/1/12 dur=50 v=.015 flt=BP2000q3',
+    `sq f=${1200 * q}→${800 * q}/60 env=0/0/1/25 dur=60 v=.015 flt=BP2000q3 at=55`,
     'noise env=0/8/0/4 dur=8 v=.008 flt=BP2500q2',
   ],
-  kuu: (q: number) => [`tri f=700→${600 * q}/150 env=25/0/1/60 dur=150 v=.01`, 'noise env=20/80/0/60 dur=100 v=.002 flt=BP1500q1'],
+  kuu: (q: number) => [`tri f=700→${600 * q}/150 env=25/0/1/60 dur=150 v=.007`, 'noise env=20/80/0/60 dur=100 v=.002 flt=BP1500q1'],
 };
+/** The throat under each sound of a call: [at ms, f0 from→to (Hz), length ms, level]. */
+const PIICHAN_THROAT: Record<keyof typeof PIICHAN_CRIES, (q: number) => [number, number, number, number, number][]> = {
+  koko: (q) => [
+    [0, 650, 550, 32, 1],
+    [90, 650 * q, 550 * q, 32, 1],
+  ],
+  koke: (q) => [
+    [0, 450, 750, 48, 1],
+    [55, 600 * q, 400 * q, 58, 0.9],
+  ],
+  kuu: (q) => [[0, 350, 300 * q, 150, 0.35]],
+};
+/** One whole call of ぴーちゃん into `c` (the contour, then the throat under it). */
+export function piichanCall(c: SeCtx, kind: keyof typeof PIICHAN_CRIES, q = 1): void {
+  for (const l of PIICHAN_CRIES[kind](q)) layer(c, l);
+  const soft = kind === 'kuu';
+  for (const [at, f0, f1, ms, k] of PIICHAN_THROAT[kind](q)) {
+    const t = c.t + at / 1000;
+    const dur = ms / 1000;
+    // the glottal buzz through the throat's two formants
+    voice({
+      at: t,
+      dest: c.dest,
+      wave: 'sawtooth',
+      freq: f0 * c.pitch,
+      freqEnd: f1 * c.pitch,
+      glide: dur,
+      dur,
+      attack: soft ? 0.02 : 0.002,
+      decay: dur * 0.8,
+      sustain: soft ? 0.6 : 0,
+      release: soft ? 0.05 : 0.012,
+      vol: 0.03 * k * c.vol,
+      formant: { f1: 700 * c.pitch, f2: 1400 * c.pitch, q1: 4, q2: 6, mix: 0.85 },
+      filter: { type: 'lowpass', freq: 2600 },
+      reverb: c.rev,
+    });
+    // the breath of it: noise at 600 Hz, fluttering (the "buk")
+    voice({
+      at: t,
+      dest: c.dest,
+      wave: 'noise',
+      dur: Math.min(dur, 0.04),
+      attack: 0.002,
+      decay: Math.min(dur, 0.04),
+      sustain: 0,
+      release: 0.015,
+      vol: (soft ? 0.006 : 0.02) * k * c.vol,
+      filter: { type: 'bandpass', freq: 600 * c.pitch, q: 2 },
+      am: { rate: soft ? 30 : 36, depth: 0.8 },
+      reverb: c.rev,
+    });
+  }
+}
 function piichanCry(kind: keyof typeof PIICHAN_CRIES, label: string): void {
   se(`se_piichan_${kind}`, {
     label,
@@ -1052,7 +1155,7 @@ function piichanCry(kind: keyof typeof PIICHAN_CRIES, label: string): void {
       // the voice passes the room's reverb (ツガオの部屋: .3)
       const rev = (c.opts as SfxOpts & { rev?: number }).rev;
       const c2 = rev !== undefined ? { ...c, rev } : c;
-      for (const l of PIICHAN_CRIES[kind](q)) layer(c2, l);
+      piichanCall(c2, kind, q);
     },
   });
 }

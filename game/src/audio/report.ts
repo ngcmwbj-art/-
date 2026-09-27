@@ -19,9 +19,16 @@
 //         ≥ 0 dB, the music still ≥ 4 LU in front, peaks under −16 dBFS
 //       · kire layers: each step 1→2, 2→3 ≥ +1 LU or ≥ +3 dB at 4–8 kHz
 //       · stereo width above 500 Hz: side 7–15 dB under mid, corr ≥ 0.4
-//       · laptop speakers: ≤ 3 LU lost through a 180 Hz 24 dB/oct high-pass
+//       · small speakers: ≤ 3 LU lost through a 180 Hz 24 dB/oct high-pass
+//         (laptop), and through 500 Hz (phone) ≤ 6 / 8 / 13 LU for songs /
+//         room beds / SEs — chapter 1's and chapter 2's (laptopCheck)
+//       · SEs too loud: an SE's loudest 400 ms ≤ its music's loudest + 6 LU
+//         (the chimes and the PA's notes: ≤ chapter 1's 17:00 chime); the
+//         long pitched SEs are levelled by loudness, not peak (mix.ts)
 //   __game.cmd.audioContext([...])    → those four (+ 'voicing': chord tops under the tune) alone
-//   __game.cmd.audioMixSuggest()      → calibrates the mix.ts trims (ambience: by the context check)
+//   __game.cmd.audioMixSuggest()      → calibrates the mix.ts trims (ambience: by the context check;
+//                                         SEs: never past their loudness ceiling)
+//   __game.cmd.audioLoud([ids])       → the SEs' loudness against their ceilings
 //   __game.cmd.audioRender(id, secs)  → stats + spectrogram / piano-roll PNGs
 //   __game.cmd.audioPerf()            → render speed of the densest songs (CPU budget, 15.3)
 //
@@ -35,7 +42,7 @@
 import { registerDebug } from '../debug';
 import { createAmbient } from './ambience';
 import { buildGraph, gainToDb, resetOfflineState, setNoteLog, volCurve, withGraph, type Graph, type PaMode } from './engine';
-import { PART_TRIM, partRole, QA_PARAMS, REF_PART, ROLE_TARGET, TARGET_OVERRIDE, BATTLE_PEAK_DB, BGM_TARGET, BGM_TRIM, mixState, seTargetDb, SE_NO_TRIM, SE_TRIM, AMB_TRIM, VOICE_TRIM, voiceTargetDb } from './mix';
+import { PART_TRIM, partRole, QA_PARAMS, REF_PART, ROLE_TARGET, TARGET_OVERRIDE, BATTLE_PEAK_DB, BGM_TARGET, BGM_TRIM, mixState, seTargetDb, seLoudFixed, seLoudFrozen, seLoudMusic, SE_LOUD_LIKE, SE_LOUD_OVER_MUSIC, SE_LOUD_TARGET, SE_NO_TRIM, SE_TRIM, AMB_TRIM, VOICE_TRIM, voiceTargetDb } from './mix';
 import { sfxInfo, sfxTable, songTable, type SfxOpts } from './registry';
 import { VOICE_CAL, VOICE_SAMPLES, voiceCps } from './samples';
 import { MUSIC_LOOKAHEAD, PARAM_DEFAULTS, SongPlayer, type Params, type SongDef } from './sequencer';
@@ -737,25 +744,47 @@ export async function widthCheck(o: { songs?: string[]; seconds?: number } = {})
 }
 
 /**
- * Laptop speakers (16.2): through a 180 Hz 24 dB/oct high-pass, the heavy
- * blows and hits may lose at most 3 LU of their loudest moment, and songs at
- * most 3 LU overall.
+ * Small speakers (16.2). A laptop: a 180 Hz 24 dB/oct high-pass; a phone
+ * (this game takes touch input): 500 Hz. The loudest moment of each SE, and
+ * the loudness of each song and room bed, may lose at most:
+ *   · laptop: 3 LU (the blows and hits, the songs, the engines' 「ドッ」, the
+ *     barn's fans and chewing — 53 16.2: "100 Hz 以上の成分がある")
+ *   · phone: songs 6 LU, beds 8 LU, SEs 13 LU (chapter 1's heaviest blows
+ *     lose 9–12.2 there: a phone has no low end at all, the rest must carry)
  */
-export const LAPTOP_SE = ['se_stamp_heavy', 'se_don', 'se_thud_low', 'se_ojigi_press', 'se_encounter', 'se_damage', 'se_crit', 'se_stamp', 'se_hit_pofu', 'se_hit_pashi', 'se_bishi'];
-export async function laptopCheck(o: { sfx?: string[]; songs?: string[] } = {}) {
-  const out: Record<string, { before: number; after: number; loss: number; ok: boolean }> = {};
+export const LAPTOP_SE = [
+  'se_stamp_heavy', 'se_don', 'se_thud_low', 'se_ojigi_press', 'se_encounter', 'se_damage', 'se_crit', 'se_stamp', 'se_hit_pofu', 'se_hit_pashi', 'se_bishi',
+  // chapter 2: the fights, the engines, the barn, the dawn, ツガオの部屋
+  'se_h_yofukashi', 'se_h_ressha', 'se_h_amado', 'se_h_roll', 'se_h_stall', 'se_h_tiller', 'se_h_keitora', 'se_h_train_brake', 'se_h_train_idle',
+  'se_h_bus_idle', 'se_h_hansuu', 'se_h_cow_snort', 'se_h_feedbag', 'se_h_moo', 'se_h_sunrise', 'se_h_barn_light', 'se_mada_stamp', 'se_truck_aori',
+];
+/** The songs (chapter 1's reference set and every chapter-2 song, at its QA form). */
+export const LAPTOP_SONGS = ['bgm_battle', 'bgm_boss', 'bgm_town_s0', 'bgm_title', 'bgm_night', 'bgm_home', 'bgm_shop', 'bgm_hoshi_night', 'bgm_hoshi_morning', 'bgm_boss_yobimodoshi', 'bgm_tsugao'];
+/** The room beds whose character is low: the barn's fans, the walking tractor, the train. */
+export const LAPTOP_AMB = ['amb_h_barn', 'amb_h_barn_out', 'amb_h_tetsuya', 'amb_h_train'];
+export const PHONE_MAX = { song: 6, amb: 8, se: 13 };
+type SpeakerRow = { before: number; after: number; loss: number; phone: number; ok: boolean };
+export async function laptopCheck(o: { sfx?: string[]; songs?: string[]; amb?: string[] } = {}) {
+  const out: Record<string, SpeakerRow> = {};
+  const row = async (buf: AudioBuffer, key: 'momentaryMax' | 'lufs', from: number, phoneMax: number): Promise<SpeakerRow> => {
+    const a = measure(buf, from)[key];
+    const b = measure(await highpass(buf, 180), from)[key];
+    const c = measure(await highpass(buf, 500), from)[key];
+    const loss = round(a - b);
+    const phone = round(a - c);
+    return { before: a, after: b, loss, phone, ok: loss <= 3 && phone <= phoneMax };
+  };
   for (const id of o.sfx ?? LAPTOP_SE) {
     if (!sfxTable.has(id)) continue;
-    const r = await renderSfx(id, {}, 2.5, undefined, { bypass: true });
-    const a = measure(r.buffer), b = measure(await highpass(r.buffer, 180));
-    const loss = round(a.momentaryMax - b.momentaryMax);
-    out[id] = { before: a.momentaryMax, after: b.momentaryMax, loss, ok: loss <= 3 };
+    out[id] = await row((await renderSfx(id, {}, 2.5, undefined, { bypass: true })).buffer, 'momentaryMax', 0, PHONE_MAX.se);
   }
-  for (const id of o.songs ?? ['bgm_battle', 'bgm_boss', 'bgm_town_s0', 'bgm_title', 'bgm_night', 'bgm_home', 'bgm_shop']) {
-    const r = await renderSong(id, 16, { bypass: true });
-    const a = measure(r.buffer, 1), b = measure(await highpass(r.buffer, 180), 1);
-    const loss = round(a.lufs - b.lufs);
-    out[id] = { before: a.lufs, after: b.lufs, loss, ok: loss <= 3 };
+  for (const id of o.songs ?? LAPTOP_SONGS) {
+    if (!songTable.has(id)) continue;
+    out[id] = await row((await renderSong(id, 16, { bypass: true })).buffer, 'lufs', 1, PHONE_MAX.song);
+  }
+  for (const id of o.amb ?? LAPTOP_AMB) {
+    if (!AMBIENCE_IDS.includes(id)) continue;
+    out[id] = await row((await renderAmbient(id, 12, 0, { bypass: true })).buffer, 'lufs', 1, PHONE_MAX.amb);
   }
   return out;
 }
@@ -828,6 +857,33 @@ export function seAudibility(id: string, group: string | undefined): { need: num
   return { need: 3, bgm };
 }
 
+/**
+ * An SE's loudness ceiling (mix.ts: momentary LUFS at the master before the
+ * dynamics, SE volume 8): the loudest 400 ms of the song it plays over + 6 LU,
+ * or the fixed ceiling of a moment (the chimes, the PA's notes, the bells).
+ * `cache` holds the songs' loudest 400 ms (render them before bypassing the trims).
+ */
+export async function seLoudCeiling(id: string, group: string | undefined, cache: Map<string, number>): Promise<{ ceiling: number; by: string }> {
+  const like = SE_LOUD_LIKE[id];
+  if (like && sfxTable.has(like)) {
+    const key = `sfx:${like}`;
+    let m = cache.get(key);
+    if (m === undefined) {
+      m = measure((await renderSfx(like, {}, 3, undefined, { bypass: true })).buffer).momentaryMax;
+      cache.set(key, m);
+    }
+    return { ceiling: round(m + 1), by: like };
+  }
+  const bgm = seLoudMusic(id, group);
+  if (!bgm || !songTable.has(bgm)) return { ceiling: seLoudFixed(id), by: 'moment' };
+  let m = cache.get(bgm);
+  if (m === undefined) {
+    m = measure((await renderSong(bgm, 20, { bypass: true })).buffer, 1).momentaryMax;
+    cache.set(bgm, m);
+  }
+  return { ceiling: round(m + SE_LOUD_OVER_MUSIC), by: bgm };
+}
+
 const log = (...a: unknown[]) => console.info('[audioReport]', ...a);
 
 interface SongRow extends Stats {
@@ -891,8 +947,9 @@ export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sf
   const bgmOff = Object.entries(songs).filter(([id, r]) => !/jingle/.test(id) && Math.abs(r.dev ?? 0) > 3).map(([id, r]) => `${id} (${r.dev} dB)`);
 
   // ---- SE: category peak (raw) and audibility over the music (raw, octave bands)
-  const sfx: Record<string, { peak: number; target: number; peakDev: number; margin?: number; band?: number; need?: number; ok?: boolean; clips: number }> = {};
+  const sfx: Record<string, { peak: number; target: number; peakDev: number; loud: number; loudCeiling: number; loudBy: string; margin?: number; band?: number; need?: number; ok?: boolean; clips: number }> = {};
   const bgBands = new Map<string, number[]>();
+  const musicLoud = new Map<string, number>();
   if (o.sfx !== false) {
     const list = o.sfx ?? [...sfxInfo.keys()];
     for (const id of list) {
@@ -901,7 +958,8 @@ export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sf
       const r = await renderSfx(id, {}, 3, undefined, { bypass: true });
       const st = { ...measure(r.buffer), peakDb: await sePeak(id) };
       const target = seTargetDb(id, group);
-      const row: (typeof sfx)[string] = { peak: st.peakDb, target, peakDev: round(st.peakDb - target), clips: st.clips };
+      const lc = await seLoudCeiling(id, group, musicLoud);
+      const row: (typeof sfx)[string] = { peak: st.peakDb, target, peakDev: round(st.peakDb - target), loud: st.momentaryMax, loudCeiling: lc.ceiling, loudBy: lc.by, clips: st.clips };
       const a = seAudibility(id, group);
       let bg = bgBands.get(a.bgm);
       if (!bg && songTable.has(a.bgm)) {
@@ -928,7 +986,14 @@ export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sf
     log('sfx done');
   }
   const seBuried = Object.entries(sfx).filter(([, r]) => r.ok === false).map(([id, r]) => `${id} (${r.margin} dB < ${r.need})`);
-  const seOffTarget = Object.entries(sfx).filter(([, r]) => Math.abs(r.peakDev) > 3).map(([id, r]) => `${id} (${r.peakDev > 0 ? '+' : ''}${r.peakDev})`);
+  // (the SEs levelled by loudness answer to their loudness target instead of the peak)
+  const seOffTarget = Object.entries(sfx)
+    .filter(([id, r]) => (SE_LOUD_TARGET[id] !== undefined ? Math.abs(r.loud - SE_LOUD_TARGET[id]) > 3 : Math.abs(r.peakDev) > 3))
+    .map(([id, r]) => (SE_LOUD_TARGET[id] !== undefined ? `${id} (${r.loud} LUFS vs ${SE_LOUD_TARGET[id]})` : `${id} (${r.peakDev > 0 ? '+' : ''}${r.peakDev})`));
+  const tooLoud = Object.entries(sfx).filter(([, r]) => r.loud > r.loudCeiling);
+  const loudRow = ([id, r]: [string, (typeof sfx)[string]]) => `${id} (${r.loud} LUFS > ${r.loudCeiling}, ${r.loudBy})`;
+  const seTooLoud = tooLoud.filter(([id]) => !seLoudFrozen(sfxInfo.get(id)?.group)).map(loudRow);
+  const seTooLoudCh1 = tooLoud.filter(([id]) => seLoudFrozen(sfxInfo.get(id)?.group)).map(loudRow);
 
   // ---- voices and ambience (raw peaks vs targets)
   const voices: Record<string, { peak: number; target: number; dev: number }> = {};
@@ -954,7 +1019,7 @@ export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sf
   const laptop = o.context !== false ? await laptopCheck() : {};
   const kireFlat = Object.entries(kire).flatMap(([id, r]) => r.steps.filter((x) => !x.ok).map((x) => `${id} kire ${x.from}→${x.to}: ${x.dLufs} LU, 4–8 kHz ${x.dHigh} dB`));
   const narrow = Object.entries(width).filter(([, r]) => !r.ok).map(([id, r]) => `${id} (side ${r.sideDb} dB, corr ${r.corr})`);
-  const thin = Object.entries(laptop).filter(([, r]) => !r.ok).map(([id, r]) => `${id} (−${r.loss} LU)`);
+  const thin = Object.entries(laptop).filter(([, r]) => !r.ok).map(([id, r]) => `${id} (laptop −${r.loss}, phone −${r.phone} LU)`);
 
   // ---- stress: the loudest moment of the game at volume 10 / 10
   let stress: Stats | null = null;
@@ -998,6 +1063,9 @@ export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sf
       bgmWithin3dB: bgmOff.length ? bgmOff : 'all',
       seBuried: seBuried.length ? seBuried : 'none',
       seOffPeakTarget: seOffTarget.length ? seOffTarget : 'none',
+      seTooLoud: seTooLoud.length ? seTooLoud : 'none',
+      // chapter 1 is out and does not change: its SEs over the same ceilings, for the record
+      seTooLoudCh1: seTooLoudCh1.length ? seTooLoudCh1 : 'none',
       voicesOffTarget: voiceOff.length ? voiceOff : 'none',
       ambienceNotHeardInContext: ambOff.length ? ambOff : 'none',
       kireStepsNotHeard: kireFlat.length ? kireFlat : 'none',
@@ -1024,7 +1092,7 @@ export async function audioMixSuggest(
 ) {
   const q = (x: number) => Math.round(x * 2) / 2;
   const clamp = (x: number) => Math.max(-18, Math.min(28, x));
-  const out: { BGM_TRIM?: Record<string, number>; SE_TRIM?: Record<string, number>; VOICE_TRIM?: Record<string, number>; AMB_TRIM?: Record<string, number>; ambNotes?: string[] } = {};
+  const out: { BGM_TRIM?: Record<string, number>; SE_TRIM?: Record<string, number>; seCapped?: string[]; VOICE_TRIM?: Record<string, number>; AMB_TRIM?: Record<string, number>; ambNotes?: string[] } = {};
   if (o.amb !== false) {
     // Ambience faders are set where the ambience is heard: each is raised
     // until every one of its 4.2 pairs clears its pass line by 2 dB (never
@@ -1050,6 +1118,11 @@ export async function audioMixSuggest(
     out.AMB_TRIM = t;
     out.ambNotes = notes;
   }
+  // the SEs' loudness ceilings follow the songs as they play (trims on): measure those first
+  const musicLoud = new Map<string, number>();
+  const sfxIds = o.sfx !== false ? [...(o.sfxIds ?? sfxInfo.keys())].filter((id) => !SE_NO_TRIM.has(id)) : [];
+  const ceilings = new Map<string, number>();
+  for (const id of sfxIds) if (!seLoudFrozen(sfxInfo.get(id)?.group)) ceilings.set(id, (await seLoudCeiling(id, sfxInfo.get(id)?.group, musicLoud)).ceiling);
   mixState.bypass = true;
   try {
     if (o.songs !== false) {
@@ -1064,13 +1137,21 @@ export async function audioMixSuggest(
     }
     if (o.sfx !== false) {
       const t: Record<string, number> = {};
-      for (const id of o.sfxIds ?? sfxInfo.keys()) {
-        if (SE_NO_TRIM.has(id)) continue;
+      const capped: string[] = [];
+      for (const id of sfxIds) {
         const pk = await sePeak(id);
         if (pk < -120) continue;
-        t[id] = q(Math.max(-18, Math.min(36, seTargetDb(id, sfxInfo.get(id)?.group) - pk)));
+        // the peak target — or, for the long pitched ones, the loudness target —
+        // and never past the loudness ceiling (0.5 LU under it)
+        const loud = measure((await renderSfx(id, {}, 3, undefined, { bypass: true })).buffer).momentaryMax;
+        const want = SE_LOUD_TARGET[id] !== undefined ? SE_LOUD_TARGET[id] - loud : seTargetDb(id, sfxInfo.get(id)?.group) - pk;
+        // (chapter 1 is out: its trims are not capped — seTooLoudCh1 records them)
+        const cap = seLoudFrozen(sfxInfo.get(id)?.group) ? Infinity : (ceilings.get(id) ?? Infinity) - 0.5 - loud;
+        if (cap < want) capped.push(`${id}: ${round(want)} → ${round(cap)} dB (loudness ceiling)`);
+        t[id] = q(Math.max(-18, Math.min(36, want, cap)));
       }
       out.SE_TRIM = t;
+      out.seCapped = capped;
     }
     if (o.voices !== false) {
       const t: Record<string, number> = {};
@@ -1297,6 +1378,19 @@ export function registerReportCommands(): void {
     voicing: what.includes('voicing') ? await voicingCheck({ songs: o.songs }) : undefined,
   })) as never);
   registerDebug('audioMixSuggest', ((o?: Parameters<typeof audioMixSuggest>[0]) => audioMixSuggest(o)) as never);
+  /** The SEs' loudness against their ceilings (mix.ts): audioLoud() or audioLoud(['se_h_howl', …]); `over` > 0 is too loud. */
+  registerDebug('audioLoud', (async (ids?: string[]) => {
+    const cache = new Map<string, number>();
+    const out: Record<string, { loud: number; ceiling: number; by: string; over: number; target?: number }> = {};
+    for (const id of ids ?? [...sfxInfo.keys()]) {
+      if (SE_NO_TRIM.has(id) || !sfxTable.has(id)) continue;
+      const loud = measure((await renderSfx(id, {}, 3, undefined, { bypass: true })).buffer).momentaryMax;
+      const c = await seLoudCeiling(id, sfxInfo.get(id)?.group, cache);
+      out[id] = { loud, ceiling: c.ceiling, by: c.by, over: round(loud - c.ceiling), target: SE_LOUD_TARGET[id] };
+    }
+    const over = Object.entries(out).filter(([, r]) => r.over > 0).map(([id]) => id);
+    return { music: Object.fromEntries(cache), tooLoud: over.filter((id) => !seLoudFrozen(sfxInfo.get(id)?.group)), ch1: over.filter((id) => seLoudFrozen(sfxInfo.get(id)?.group)), rows: out };
+  }) as never);
   registerDebug('audioTrims', (() => currentTrims()) as never);
   registerDebug('audioBalance', ((ids?: string[], seconds?: number) => audioBalance(ids, seconds)) as never);
   registerDebug('audioPerf', ((o?: Parameters<typeof audioPerf>[0]) => audioPerf(o)) as never);
