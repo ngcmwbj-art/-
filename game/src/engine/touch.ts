@@ -7,10 +7,9 @@
 //
 // Layout adapts to the device. The picture is scaled smoothly (not only in
 // whole steps) to the biggest size that leaves the controls beside it (phone,
-// landscape) or below it (portrait; tablets). When that would leave wide
-// empty bands (a tablet window wider than 16:9), the picture fills the screen
-// and translucent controls float over its left and right edges, in the middle
-// band where the game keeps no windows.
+// landscape) or below it (portrait; tablets, also in landscape). Only when
+// the window is too cramped for either does the picture fill the screen, with
+// translucent controls floating over its edges.
 
 import type { Action, Input } from './input';
 import { H, W, type Screen } from './screen';
@@ -284,7 +283,11 @@ export function installTouch(input: Input, screen?: Screen): void {
     const gFill = fitW(vw, vh);
     let mode: Mode = gSide >= gBottom ? 'side' : 'bottom';
     let g = Math.max(gSide, gBottom);
-    if (g <= 0 || g < gFill * (tablet ? 0.85 : 0.55)) {
+    // Tablets too keep the controls in a band of their own below (or beside)
+    // the picture, even when that costs some of its size: floating them over
+    // the middle of the picture hid the field (2026-09-28, the client on an
+    // iPad in landscape). Only a very cramped window floats them.
+    if (g <= 0 || g < gFill * 0.55) {
       mode = 'overlay';
       g = gFill;
     } else if (mode === 'side' ? g < (vh * W) / H - 0.5 : g < vw - 0.5) {

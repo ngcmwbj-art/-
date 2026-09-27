@@ -35,9 +35,9 @@ import { hStage, npc, pickHText, poseAny, poseIf, routeTiles, runCue, unpose, ty
 // ---------------------------------------------------------------- name tags
 
 const TSUGAO_SPEAKERS: Record<string, { name: string; voice: string }> = {
-  npc_tsugao: { name: 'ツガオさん', voice: 'tsugao' },
-  npc_hirosuke: { name: 'ヒロスケさん', voice: 'hirosuke' },
-  npc_pokosha: { name: 'ポコシャさん', voice: 'pokosha' },
+  npc_tsugao: { name: 'ツガオ', voice: 'tsugao' },
+  npc_hirosuke: { name: 'ヒロスケ', voice: 'hirosuke' },
+  npc_pokosha: { name: 'ポコシャ', voice: 'pokosha' },
   npc_piichan: { name: 'ぴーちゃん', voice: 'piichan' },
 };
 for (const [id, s] of Object.entries(TSUGAO_SPEAKERS)) SPEAKERS[id] = { ...s };

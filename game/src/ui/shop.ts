@@ -141,7 +141,7 @@ registerShop({
 // while ムジン販売員 is out and about. The words are the scenario's
 // (data/text/hoshi_npcs MUJIN_SHOP), so a rename there reaches the shop.
 
-const SAWAKO = HOSHI_SPEAKERS.npc_hoshi_sawako ?? { name: 'ソワカさん', voice: 'h_sawako' };
+const SAWAKO = HOSHI_SPEAKERS.npc_hoshi_sawako ?? { name: 'ソワカ', voice: 'h_sawako' };
 
 registerShop({
   id: 'shop_hoshi_mujin',

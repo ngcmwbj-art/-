@@ -295,9 +295,12 @@ registerAmbience('amb_h_wind', (c) => {
   // the pampas "しゃらしゃら": the plumes brushing each other (a slow grain on top of the gusts)
   const shara = modulate(g, c.t0, modBuffer(g, 17, sampleHold(new Rng(c.seed + 4), 9, 16)), susuki.bed.gain.gain, 0.0015);
   const sugi = leaf('bandpass', 900, 0.6, 0.005);
+  // The rice and the pampas are high, hissy noise and read far louder than
+  // their level: kept well under the rest (the client found the terraces too
+  // loud, 2026-09-28: ine −9 dB, susuki −6 dB).
   const zones: Record<WindZone, { air: number; ine: number; susuki: number; sugi: number }> = {
-    ine: { air: 1, ine: 1, susuki: 0, sugi: 0 },
-    susuki: { air: 1, ine: 0, susuki: 1, sugi: 0 },
+    ine: { air: 1, ine: 0.35, susuki: 0, sugi: 0 },
+    susuki: { air: 1, ine: 0, susuki: 0.5, sugi: 0 },
     sugi: { air: 1, ine: 0, susuki: 0, sugi: 1 },
     hill: { air: 1.3, ine: 0, susuki: 0, sugi: 0.6 },
     none: { air: 1, ine: 0, susuki: 0, sugi: 0 },

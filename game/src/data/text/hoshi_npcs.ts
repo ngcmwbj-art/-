@@ -18,12 +18,12 @@ import type { TalkTable } from '../../world/types';
 /** Name tags and voices of the village (50 3.2, 53 9.1). The voice ids keep the old names. */
 export const HOSHI_SPEAKERS: Record<string, { name: string; voice: string }> = {
   npc_hoshi_mitsu: { name: 'ペロリ', voice: 'h_mitsu' },
-  npc_hoshi_gen: { name: 'マサルさん', voice: 'h_gen' },
+  npc_hoshi_gen: { name: 'マサル', voice: 'h_gen' },
   npc_hoshi_fumi: { name: 'まつ先生', voice: 'h_fumi' },
   npc_hoshi_kucho: { name: 'エー区長', voice: 'h_kucho' },
   npc_hoshi_yoshie: { name: 'エー夫人', voice: 'h_yoshie' },
   npc_hoshi_tome: { name: 'トマじい', voice: 'h_tome' },
-  npc_hoshi_sawako: { name: 'ソワカさん', voice: 'h_sawako' },
+  npc_hoshi_sawako: { name: 'ソワカ', voice: 'h_sawako' },
   npc_hoshi_busdriver: { name: 'さんかど', voice: 'h_driver' },
   npc_hoshi_traindriver: { name: '運転士', voice: 'h_train' },
   npc_hoshi_gon: { name: 'ふくじんづけ', voice: 'h_gon' },

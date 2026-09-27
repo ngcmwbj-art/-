@@ -31,7 +31,7 @@ export const TSUGAO_NPC: Record<string, Record<string, string>> = {
 運転席で 寝ている。{w=300}
 ……とても よく 寝ている。`,
     "h1_2": `@narr
-ツガオさんが、寝言を 言った。
+ツガオが、寝言を 言った。
 @npc_tsugao
 ……まだ……{w=300}
 まだ、朝では ありませんな……。`,
@@ -227,7 +227,7 @@ export const DELI_TEXT: Record<string, string> = {
 明かりが 来たよー！
 !cue knock
 @narr
-ツガオさんの 腕時計は、
+ツガオの 腕時計は、
 12時で 止まっている。
 @npc_tsugao
 ……時計は、止めて あるのです。
@@ -278,14 +278,14 @@ export const DELI_TEXT: Record<string, string> = {
 伝票の 1枚目と、同じ 名前だ。
 !cue put_down
 @narr
-ペロリさんが とっておいた トマトを、
+ペロリが とっておいた トマトを、
 置き台に 置いた。{w=300}貼り紙に、
 『ひと畝 耕したら 食う　タケ』
 @npc_pokosha
 ……タケじいさん、耕うん機の
 名人、だったそうです。`,
   "おとどけ 2": `@narr
-ソワカさんの なすを、置き台に
+ソワカの なすを、置き台に
 置いた。{w=300}回覧板の 棚に 貼り紙。
 『えー、野菜は こちらへ　エー』
 @npc_piichan
@@ -293,7 +293,7 @@ export const DELI_TEXT: Record<string, string> = {
 @npc_pokosha
 ……次は、東の 小道の 奥、です。`,
   "おとどけ 3": `@narr
-ペロリさんの ししとうを、
+ペロリの ししとうを、
 勝手口の 置き台に 置いた。
 {w=300}『寝とったら、起こさんで ええ』
 @npc_pokosha
@@ -313,7 +313,7 @@ export const DELI_TEXT: Record<string, string> = {
 ……ま、毎度、です。{w=300}
 最後は、トマじいさんの 家、です。`,
   "おとどけ 5": `@narr
-シゲじいさんと スギばあさんからの
+シゲじいと スギばあからの
 かぼちゃを、米袋の 上に 置いた。
 {w=300}『マルは 町の 娘の とこ』
 @npc_pokosha
@@ -375,10 +375,10 @@ export const DELI_TEXT: Record<string, string> = {
   "しめ/1つ": `@sys
 焼き芋を 1つ もらった！{w=300}
 もちものが いっぱいだ。
-もう 1つは、ヒロスケさんが あずかる。`,
+もう 1つは、ヒロスケが あずかる。`,
   "しめ/0": `@sys
 もちものが いっぱいだ。{w=300}
-焼き芋は、ヒロスケさんが
+焼き芋は、ヒロスケが
 あずかって くれる。`,
 };
 

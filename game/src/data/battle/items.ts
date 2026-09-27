@@ -22,7 +22,7 @@ const items: ItemDef[] = [
     desc: ['すっぱい。目が さめる。', 'こんらん・ねむり・へんじを 治す。朱肉 3 回復。'],
   },
   // 51 6.1 (2026-09-25 その2): 野菜の配達のおだちん、2つだけ（非売品）
-  { id: 'item_yakiimo', name: '焼き芋', target: 'ally', heal: 60, desc: ['ヒロスケさんの 焼き芋。夏でも 熱い。', 'HPを 60 回復。'] },
+  { id: 'item_yakiimo', name: '焼き芋', target: 'ally', heal: 60, desc: ['ヒロスケの 焼き芋。夏でも 熱い。', 'HPを 60 回復。'] },
   { id: 'item_kairan_shuniku', name: '回覧板の朱肉', target: 'minato', mp: 15, special: 'kairan', desc: ['回覧板の 確認印 用。ふたに『区』の字。', '朱肉を 15 回復。'] },
   // 大事なもの
   { id: 'item_otsukai_memo', name: 'おつかいメモ', key: true, target: 'none', desc: ['コロッケ 4つ。ソースは べつ。', ''], battleText: ['これは 晩ごはんの メモだ。'] },
@@ -39,7 +39,7 @@ const items: ItemDef[] = [
   },
   { id: 'item_kairan_map', name: '回覧板の地図', key: true, target: 'none', desc: ['星見台の 回覧板。うらに 区長の 地図。', ''], battleText: ['回覧板を 見せた。\n……回す 相手が いない。'] },
   { id: 'item_seiriken', name: '整理券', key: true, target: 'none', desc: ['整理券。番号は『1』。', '……2人で 乗ったのに。'], battleText: ['整理券を 見せた。\n番号を 呼ばれる 気配は ない。'] },
-  { id: 'item_tomato_omiyage', name: 'トマト（4つ）', key: true, target: 'none', desc: ['ペロリさんの トマト。4つ。', '……1つは おまけ。'], battleText: ['これは おみやげだ。'] },
+  { id: 'item_tomato_omiyage', name: 'トマト（4つ）', key: true, target: 'none', desc: ['ペロリの トマト。4つ。', '……1つは おまけ。'], battleText: ['これは おみやげだ。'] },
 ];
 
 const table = new Map<string, ItemDef>();

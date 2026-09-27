@@ -87,9 +87,9 @@ export const VOICES: Record<string, VoiceDef> = {
   h_yoshie: { label: 'エー夫人', wave: 'triangle', base: 'B4', scale: [0, 2, 4, 7], len: 28, every: 2, v: 0.055, formant: true },
   h_fumi: { label: 'まつ先生', wave: 'triangle', base: 'C4', scale: [0, 2, 4, 7, 9], len: 46, A: 4, every: 2, v: 0.055, vib: [5, 6], rev: 0.15, formant: true, noise: { bp: 2000, q: 1, level: 0.08 } },
   h_mitsu: { label: 'ペロリ', wave: 'triangle', base: 'A3', scale: [0, 3, 5, 7], len: 52, A: 6, every: 3, v: 0.06, lp: 1500, vib: [4, 8], formant: true, noise: { bp: 1200, q: 1, level: 0.12 } },
-  h_gen: { label: 'マサルさん', wave: 'square', base: 'F3', scale: [0, 3, 5, 7], len: 26, A: 0, D: 20, S: 0, every: 3, v: 0.06, lp: 1600, formant: true },
+  h_gen: { label: 'マサル', wave: 'square', base: 'F3', scale: [0, 3, 5, 7], len: 26, A: 0, D: 20, S: 0, every: 3, v: 0.06, lp: 1600, formant: true },
   h_tome: { label: 'トマじい', wave: 'triangle', base: 'E3', scale: [0, 2, 5], len: 70, every: 3, v: 0.07, vib: [4.5, 18], formant: true },
-  h_sawako: { label: 'ソワカさん', wave: 'triangle', base: 'E5', scale: [0, 2, 4, 7, 9, 12], len: 32, every: 2, v: 0.05, scoop: [80, 20], formant: true },
+  h_sawako: { label: 'ソワカ', wave: 'triangle', base: 'E5', scale: [0, 2, 4, 7, 9, 12], len: 32, every: 2, v: 0.05, scoop: [80, 20], formant: true },
   h_train: { label: '運転士（車内放送）', wave: 'square', base: 'F4', scale: [0, 2, 4], len: 36, every: 2, v: 0.04, bp: [1300, 2], rev: 0.2 },
   h_tetsuya: { label: '耕うん機テツヤ', wave: 'pulse12', base: 'D4', scale: [0], len: 50, A: 1, every: 2, v: 0.045, fixedSeq: [0, 0, 2, 0], am: [15, 0.6, 'square'] },
   yobimodoshi: { label: 'ヨビモドシ', wave: 'sine', base: 'G4', scale: [0, 2, 3, 7], len: 50, every: 2, v: 0.045, pa: true, noise: { bp: 1200, q: 4, level: 0.5 }, calls: true },
@@ -102,8 +102,8 @@ export const VOICES: Record<string, VoiceDef> = {
   dakoku: { label: 'ダコク（タイムレコーダー）', wave: 'pulse12', base: 'C5', scale: [0], len: 25, every: 2, v: 0.035, fixedSeq: [0, 0, 7, 0] },
   // ツガオ便's two (53 9.1, 9.2): ヒロスケさん, 44, sociable, talks a lot and laughs (a beard in the way);
   // ポコシャさん, 40, a big man with a small shy voice; ぴーちゃん, a hen (no blips: one call a page)
-  hirosuke: { label: 'ヒロスケさん（ツガオ便）', wave: 'triangle', base: 'B3', scale: [0, 2, 4, 7], len: 30, A: 2, every: 2, v: 0.06, lp: 2000, vib: [5, 8], formant: true, noise: { bp: 900, q: 1, level: 0.03 } },
-  pokosha: { label: 'ポコシャさん（ツガオ便）', wave: 'sine', wave2: ['triangle', 0.25], base: 'D4', scale: [0, 2, 3], len: 32, A: 8, every: 3, v: 0.035, lp: 1400, formant: true },
+  hirosuke: { label: 'ヒロスケ（ツガオ便）', wave: 'triangle', base: 'B3', scale: [0, 2, 4, 7], len: 30, A: 2, every: 2, v: 0.06, lp: 2000, vib: [5, 8], formant: true, noise: { bp: 900, q: 1, level: 0.03 } },
+  pokosha: { label: 'ポコシャ（ツガオ便）', wave: 'sine', wave2: ['triangle', 0.25], base: 'D4', scale: [0, 2, 3], len: 32, A: 8, every: 3, v: 0.035, lp: 1400, formant: true },
   piichan: { label: 'ぴーちゃん（めんどり）', wave: 'none', base: 0, scale: [0], len: 0, every: 99, v: 0 },
   // the branch school's broadcast room: its own small speaker, not the hill's (ふしぎ10, 53 8.9)
   broadcast_room: { label: '放送室のスピーカー', wave: 'sine', base: 'A4', scale: [0, 2, 4], len: 45, every: 2, v: 0.04, lp: 800, noise: { bp: 900, q: 3, level: 0.4 }, rev: 0.15 },

@@ -129,14 +129,14 @@ export const CHAIN2: Beat2[] = [
     beat: 'barnwork',
     steps: [],
     at: ['map_hoshi_barn', 19, 6, 'right'],
-    desc: '（任意）牛舎のおてつだい（マサルさんに話す）',
+    desc: '（任意）牛舎のおてつだい（マサルに話す）',
     side: 'houki',
   },
   {
     beat: 'delivery',
     steps: [],
     at: ['map_hoshimidai', 42, 43, 'right'],
-    desc: '（任意）野菜の配達（ヒロスケさん (43,43) に話す）',
+    desc: '（任意）野菜の配達（ヒロスケ (43,43) に話す）',
     side: 'gen',
   },
   // QA (tools/playthrough.mjs --side talk): the village after the gathering, to talk to everyone

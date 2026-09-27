@@ -360,20 +360,20 @@ export const HOSHI_OBJ: Record<string, HText> = {
 ゆっくり 堆肥に なっていく。
 /
 ほんのり あたたかい。{w=300}
-……ペロリさんの ハウスへ 行く 土だ。`,
+……ペロリの ハウスへ 行く 土だ。`,
   obj_hoshi_gen_house: `@narr
-マサルさんの 家。{w=300}
+マサルの 家。{w=300}
 奥の 部屋で、だれかが 静かに
 寝ている 気配。`,
   obj_hoshi_gate: {
     text: `@narr
 電気柵の ゲート。
 取っ手が かかっている。{w=300}
-……マサルさんに 聞こう。`,
+……マサルに 聞こう。`,
     open: `@narr
 ゲートの 取っ手は、支柱に
 かけてある。{w=300}
-マサルさんが 開けて くれた。`,
+マサルが 開けて くれた。`,
   },
   obj_hoshi_fence_sign: `@narr
 黄色い 表示板『危険 電気さく』。
@@ -885,7 +885,7 @@ export const FUSHIGI2_BOOK: { id: string; title: string; place: string }[] = [
 
 /** みました帳 ② 「あいて」 (8.11): who they were, and a word. */
 export const AITE2_BOOK: { id: string; who: string; word: string }[] = [
-  { id: 'enemy_sune_tomato', who: 'ペロリさんの 3号ハウスの、\nまだ 色づいていない トマト。', word: '赤く なる 順番を、待っている。' },
+  { id: 'enemy_sune_tomato', who: 'ペロリの 3号ハウスの、\nまだ 色づいていない トマト。', word: '赤く なる 順番を、待っている。' },
   { id: 'enemy_henoheno_kacho', who: 'トマじいの 背広を 着た、\n棚田の かかし。', word: 'かかしに、定年は ない。' },
   { id: 'enemy_biribiri_ban', who: 'イノシシよけの、電気柵の\nひと区画。', word: '番を するのが 仕事。\nだれの 番かは、忘れた。' },
   { id: 'enemy_chototsu', who: '山から 下りてきた、イノシシ。', word: '曲がれない、と よく 言われる。' },

@@ -149,7 +149,7 @@ const HOUSE_OBJ: MapObj[] = [
 
 registerMap({
   id: 'map_hoshi_house',
-  name: 'ペロリさんの 3号ハウス',
+  name: 'ペロリの 3号ハウス',
   kind: 'indoor',
   chapter: 2,
   stageFlag: 'flag_ch2_stage',

@@ -316,7 +316,7 @@ se('se_h_boukatou_on', {
   layers: ['sq f=120 env=0/0/1/10 dur=60 v=.01 flt=LP800 rep=3x90', 'sine f=2600 env=0/20/0/10 dur=8 v=.006 at=300', 'noise env=0/40/0/20 dur=10 v=.01 flt=BP1800q1 at=420'],
 });
 se('se_h_kaichu', {
-  label: 'マサルさんの懐中電灯（カチ、カラカラ）',
+  label: 'マサルの懐中電灯（カチ、カラカラ）',
   group: G_VILLAGE,
   layers: ['tri f=1900 env=0/20/0/10 dur=8 v=.025', 'noise env=0/25/0/10 dur=10 v=.012 flt=BP3000q3 rep=3x45 at=60'],
 });
