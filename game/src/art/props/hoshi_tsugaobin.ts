@@ -22,6 +22,7 @@ import { mix, PixelCanvas } from '../../engine/pixel';
 import { P } from '../tiles/palette';
 import { outline } from './kit';
 import { hs, standProp } from './hoshi_kit';
+import { HANAMARU_CHALK as CHALK } from './hoshi_ending_art';
 import { hasProp, registerProp } from './registry';
 import type { PropArt, PropEnv } from './types';
 
@@ -84,9 +85,20 @@ function tsugaoTruck(morning: boolean, bob: number): HTMLCanvasElement {
   p.hline(17, 45, 18, OLIVE_DK);
   for (const x of [26, 36]) p.vline(x, 15, 21, OLIVE_DK);
   p.rect(45, 16, 2, 3, P.red);
-  // the clipboard of slips hung on the tailgate
-  p.rect(41, 15, 3, 4, P.woodLt);
-  p.hline(41, 43, 15, P.white);
+  if (morning) {
+    // the morning (h3, the ending's cut 3): at the back of the gate a small
+    // hanamaru in white chalk — ヒロスケさん copied Shun's stamp (50 10.16,
+    // 00 1.1) — the chalk thin in places; the slips' clipboard hung further up
+    CHALK.forEach((r, j) =>
+      [...r].forEach((ch, i) => ch === '#' && p.set(37 + i, 15 + j, (i * 5 + j * 3) % 7 === 0 ? P.concreteLt : P.white)),
+    );
+    p.rect(30, 15, 3, 4, P.woodLt);
+    p.hline(30, 32, 15, P.white);
+  } else {
+    // the clipboard of slips hung on the tailgate
+    p.rect(41, 15, 3, 4, P.woodLt);
+    p.hline(41, 43, 15, P.white);
+  }
   // the yellow crates, two tiers of three (the handle holes dark)
   for (const [x, y] of [[18, 9], [27, 9], [36, 9], [21, 4], [30, 4]] as const) {
     p.rect(x, y, 8, 5, P.gold);

@@ -111,12 +111,13 @@ function pokoActor(f: FieldScene): Actor | null {
 }
 
 function spawnPoko(f: FieldScene, x: number, y: number): Actor {
-  const a = spawn(POKO, Math.floor(x / 16), Math.floor((y - 1) / 16), { sprite: 'npc_pokosha', dir: f.player.dir, ghost: true });
+  // chars' npc_pokosha_carry: the yellow crate on his shoulder in every
+  // frame, walking and standing (no pose: the walk plays)
+  const a = spawn(POKO, Math.floor(x / 16), Math.floor((y - 1) / 16), { sprite: 'npc_pokosha_carry', dir: f.player.dir, ghost: true });
   a.x = x;
   a.y = y;
   a.data.scripted = true;
   a.solid = false;
-  poseAny(a, 'carry', 'carry2');
   steps = [];
   return a;
 }
@@ -366,7 +367,7 @@ function* putDown(): Co {
     poseIf(a, 'give');
   }
   yield 300;
-  if (a) poseAny(a, 'carry', 'carry2');
+  if (a) unpose(a);
   poseAny(p, 'put_down', 'give');
   const at = STOPS[doneStops()]?.at;
   if (at) seAt('se_h_deli_put', at[0] * 16 + 8, at[1] * 16 + 8);
@@ -473,6 +474,8 @@ registerScript('trig_ch2_deli_return', function* (): Co {
     }
     a.dir = 'left';
     se('se_truck_aori');
+    // the crate is on the truck again: off his right shoulder
+    a.setSprite('npc_pokosha');
     yield 300;
   }
   let got = 0;

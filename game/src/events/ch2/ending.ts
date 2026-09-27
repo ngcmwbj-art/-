@@ -1,5 +1,5 @@
 // evt_ch2_ending (50_ch2_story 10.16, 52 6.2〜6.4・12.2, 53 12.14): about 1 min
-// 10 s, then ツガオの部屋 (about 55 s) and the title.
+// 15 s, then ツガオの部屋 (about 85 s) and the title.
 //   カット1 the hill: 4:59 on black → 5:00, the morning chime, the tomato
 //          rises (cut_h_sunrise), 「……おはよう。」, the bell
 //   カット2 the village's morning: the barn, the house, the terraces, the
@@ -31,6 +31,8 @@ import { playTsugaoRoom } from '../../ui/cut_tsugao';
 import { ditherIn, ditherOut } from '../../ui/transition';
 import { uiHud } from '../../ui/hud';
 import { getProp } from '../../art/props/registry';
+import { feedCartImg, sketchbookImg } from '../../art/props/hoshi_ending_art';
+import { playMimawariHanamaru } from '../../ui/cut_mimawari';
 import { hoshiBusImage } from '../../art/props/hoshi_vehicles';
 import * as T from '../../data/text/hoshi_events';
 import { F, giveKey, holdBgm, panTo } from '../lib';
@@ -111,6 +113,20 @@ function vehicle(id: string, x: number, y: number, img: () => HTMLCanvasElement 
   };
   return a;
 }
+
+/**
+ * The barn's parked feed cart (prop_h_barn_cart at (1,6)) is off the map
+ * while マサルさん pushes it in cut 2a — and after he lets go of it in the
+ * aisle: one cart, not two (52 4.3).
+ */
+const cartHidden = { on: false };
+registerWorldFx({
+  map: 'map_hoshi_barn',
+  update(f) {
+    if (!cartHidden.on) return;
+    for (const p of f.props) if (p.obj.t === 'prop' && (p.obj as { prop?: string }).prop === 'prop_h_barn_cart') p.present = false;
+  },
+});
 
 /** The turning circle's bus prop (obj_hoshi_bus) is off the map while ours drives. */
 const busHidden = { on: false };
@@ -243,22 +259,43 @@ function* cut2Morning(): Co {
   cutTo('map_hoshi_barn', 11, 6);
   setGradeH('h3c', 0);
   roomMorning(false);
-  put('npc_hoshi_gen', 4, 6, 'right', 'feed');
+  const gen = put('npc_hoshi_gen', 4, 6, 'right', 'feed');
+  cartHidden.on = true;
   playAmbient('amb_h_barn', { vol: 0.6, fade: 0.3 });
   yield* game.fadeIn(300);
   yield 200;
   roomMorning(true, 1200);
   yield 500;
   se('se_h_feed_cart');
-  game.scripts.run(walk('end_npc_hoshi_gen', [9, 6], { speed: 1.6 }));
+  const push = game.scripts.run(walk('end_npc_hoshi_gen', [9, 6], { speed: 1.6 }));
   yield 900;
   se('se_h_moo');
   yield 700;
   yield* runMsg(flag('flag_ch2_barn_work') ? T.END_2A_WORKED : T.END_2A);
-  yield* beat(500);
+  // he lets go of the cart (it stays in the aisle) and, in the day's column
+  // of the rounds book, draws a small hanamaru with the red pen from his
+  // breast pocket — picture only, no line (50 10.16, 00 1.1)
+  yield () => push.done;
+  const cartImg = feedCartImg();
+  const cart = spawn('end_feed_cart', 9, 6, { sprite: 'kanenari', ghost: true });
+  cart.data.scripted = true;
+  cart.solid = false;
+  cart.x = gen.x;
+  cart.y = gen.y - 0.5;
+  cart.drawFn = (g, dx, dy) => g.img(cartImg, dx + 2, dy - 12);
+  unpose(gen);
+  gen.dir = 'down';
+  poseIf(gen, 'write');
+  yield 250;
+  const fc = F();
+  yield* playMimawariHanamaru(Math.round(gen.x - fc.camX), Math.round(gen.y - fc.camY - 30));
+  unpose(gen);
+  yield* beat(400);
 
   // 2b the house: he rolls up the east side; the green rows redden from the door to the back
   yield* fadeCut(300);
+  cartHidden.on = false;
+  despawn('end_feed_cart');
   stopAmbient('amb_h_barn', 0.3);
   cutTo('map_hoshi_house', 4, 12);
   setGradeH('h3c', 0);
@@ -428,7 +465,26 @@ function* cut3Bus(): Co {
   const busImg = hoshiBusImage('side', true);
   const bus = vehicle('end_bus', 35 * 16 + 32, 43 * 16, () => busImg);
   se('se_h_bus_depart');
-  for (const a of people) poseIf(a, 'wave');
+  // everyone raises a hand — ソワカさん, both hands: her sketchbook held up
+  // high to the bus, a big red hanamaru copied from Shun's stamp (50 10.16).
+  // No line.
+  const sowaka = people[3];
+  for (const a of people) if (a !== sowaka) poseIf(a, 'wave');
+  poseIf(sowaka, 'hold_up');
+  const book = sketchbookImg();
+  const held = spawn('end_sketchbook', 32, 44, { sprite: 'kanenari', ghost: true });
+  held.data.scripted = true;
+  held.solid = false;
+  held.x = sowaka.x;
+  held.y = sowaka.y + 0.5;
+  const raisedAt = game.time;
+  held.drawFn = (g, dx, dy) => {
+    const top = dy - sowaka.frame().height;
+    // up in 0.25 s, then a slow 1px sway as she holds it
+    const k = Math.min(1, (game.time - raisedAt) / 250);
+    const bob = k >= 1 && Math.floor((game.time - raisedAt) / 700) % 2 ? 1 : 0;
+    g.img(book, dx - 9, Math.round(top - 11 + (1 - k) * 6 + bob));
+  };
   yield 400;
   se('se_dog_bark', { pitch: 1.33 });
   people[7].hop(3, 200);
@@ -437,6 +493,7 @@ function* cut3Bus(): Co {
   yield* beat(500);
   busHidden.on = false;
   despawn('end_bus');
+  despawn('end_sketchbook');
   if (k) {
     k.alpha = 1;
     delete k.data.scripted;

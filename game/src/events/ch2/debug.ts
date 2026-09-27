@@ -17,6 +17,7 @@ import { measure } from '../../engine/font';
 import { flag, resetState, setFlag, state, type Dir } from '../../game/state';
 import { chapter2Adjust, newChapter2Party, setMemberLevel, syncProgressSkills } from '../../data/battle';
 import { registerDebug } from '../../debug';
+import { TSUGAO_LINES } from '../../ui/cut_tsugao';
 import { FieldScene, field } from '../../world/field';
 import { getScript } from '../../world/scripts';
 import { uiHud } from '../../ui/hud';
@@ -325,6 +326,8 @@ function collectTexts(): [string, string][] {
   walk('ts', TS_LINES);
   walk('deli', DELI_TEXT);
   walk('tsugao_obj', TSUGAO_OBJ);
+  // カット7 ツガオの部屋 (its pages live with the UI's scene)
+  walk('cut7', TSUGAO_LINES);
   for (const [k, v] of Object.entries(EV)) if (typeof v === 'string' && v.startsWith('@')) out.push([`ev.${k}`, v]);
   for (const [k, v] of Object.entries(MUJIN_SHOP)) if (Array.isArray(v)) v.forEach((x, i) => (Array.isArray(x) ? x : [x]).forEach((p) => typeof p === 'string' && out.push([`shop.${k}[${i}]`, '@sys\n' + p])));
   return out;

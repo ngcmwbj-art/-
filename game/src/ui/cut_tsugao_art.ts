@@ -1130,7 +1130,7 @@ export function dakokuBox(): HTMLCanvasElement {
  * a black 「まだ」 under a slanted 朱 「おかえりなさい」; 2: the loudspeaker's
  * horn, a black 「まだ」 under the square 朱 「おやすみなさい」 with its stars.
  */
-export function cardImg(n: 1 | 2): HTMLCanvasElement {
+export function cardImg(n: 1 | 2 | 3): HTMLCanvasElement {
   const p = new PixelCanvas(28, 18);
   for (let y = 0; y < 18; y++)
     for (let x = 0; x < 28; x++) {
@@ -1156,10 +1156,11 @@ export function cardImg(n: 1 | 2): HTMLCanvasElement {
     '4': ['#.', '##', '.#'],
     '5': ['##', '#.', '##'],
     '9': ['##', '##', '.#'],
+    '6': ['#.', '##', '##'],
     ':': ['.', '#', '#'],
   };
   let dx = 2;
-  for (const ch of n === 1 ? '17:00' : '4:59') {
+  for (const ch of n === 1 ? '17:00' : n === 2 ? '4:59' : '6:10') {
     rows(p, digits[ch].map((r) => r.replace(/#/g, 'K')), { K: P.D }, dx, 2);
     dx += ch === ':' ? 2 : 3;
   }
@@ -1186,6 +1187,24 @@ export function cardImg(n: 1 | 2): HTMLCanvasElement {
     rows(p, ['.KKKKK.', 'K.K.KKK', 'KKK.K.K', '.KKKKK.'], { K: P.K }, 15, 9);
     // … under the slanted 朱 「おかえりなさい」
     rows(p, ['...RRRR', '.RR..RR', 'RR.RR.R', 'R.R..R.', 'RR..RR.', '.RRRR..'], { R: P.R }, 18, 9);
+  } else if (n === 3) {
+    // 3: no black 「まだ」 on this one — two hanamaru the village drew by hand
+    // (50 10.16 カット7, 52 12.5). Left, ソワカさん's sketchbook: its rings, the
+    // white sheet, a big red hanamaru copied from Minato's stamp …
+    const HANA = ['.#.#.#.', '#.###.#', '.#...#.', '.#.#.#.', '.#..##.', '#.###.#', '.#.#.#.'];
+    rows(p, ['.K.K.K.K.K.'], { K: P.K }, 2, 7);
+    for (let y = 8; y <= 16; y++)
+      for (let x = 2; x <= 12; x++) p.set(x, y, x === 2 || x === 12 || y === 8 || y === 16 ? P.G : P.Pp);
+    p.hline(3, 11, 15, P.W); // the sheet's lower edge in shade
+    rows(p, HANA.map((r) => r.replace(/#/g, 'R')), { R: P.R }, 4, 9);
+    // … right, the olive tailgate of ツガオ便 (the yellow crates' corners over
+    // it), a small hanamaru in white chalk, the chalk thin in places
+    rows(p, ['..YYYY..YYYY.', '..YcYY..YcYY.'], { Y: P.Yw, c: P.c }, 14, 6);
+    for (let y = 8; y <= 16; y++)
+      for (let x = 14; x <= 26; x++) p.set(x, y, y === 8 || y === 16 ? P.G : x === 14 || x === 26 ? P.D : P.O);
+    p.hline(15, 25, 12, P.G); // the gate's pressed rib
+    const CHALK = ['..###..', '.#...#.', '#..#..#', '#.#.#.#', '#.#..#.', '.#.##..'];
+    rows(p, CHALK.map((r, j) => [...r].map((ch, i) => (ch === '#' ? ((i * 5 + j * 3) % 7 === 0 ? 'w' : 'C') : '.')).join('')), { C: P.Pp, w: P.W }, 17, 9);
   } else {
     // the horn of the loudspeaker
     rows(

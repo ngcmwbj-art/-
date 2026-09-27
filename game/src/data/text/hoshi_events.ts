@@ -621,7 +621,7 @@ export const END_3_B = `@flip
 @npc_hoshi_fumi
 タエ先生に、よろしく。
 @npc_hoshi_kucho
-えー、夕鳴町の しゅん様、
+えー、夕鳴町の 小林しゅん様、
 カネナリ様。
 /
 えー、星見台は、12人と

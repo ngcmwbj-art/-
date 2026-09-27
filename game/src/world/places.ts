@@ -218,9 +218,11 @@ function resetMap(f: FieldScene): void {
 }
 
 function spawnCarts(f: FieldScene): void {
+  // cart_2 starts at (46,12), a tile west of the lane up from (48,12) to the
+  // vending machine's spot (it stood at (47,12) and could block the way up)
   const starts: [number, number][] = [
     [39, 9],
-    [47, 12],
+    [46, 12],
     [53, 9],
   ];
   carts = starts.map(([x, y], i) => {

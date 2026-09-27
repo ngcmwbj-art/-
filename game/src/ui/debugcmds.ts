@@ -2,7 +2,7 @@
 
 import { registerDebug } from '../debug';
 import { game } from '../engine/game';
-import { ask, caption, choose, say } from './dialog';
+import { ask, caption, choose, dialogSpeech, say } from './dialog';
 import {
   choreCardShowing,
   completeChoreCard,
@@ -325,11 +325,11 @@ registerDebug('cut', (id = 'village', cue = 0) => {
   }
   if (id === 'sunriseplay') return id;
   if (id.startsWith('tsugao')) {
-    game.push(tsugaoStill(Math.max(0, Math.min(8, Number(id.slice(6)) || 0))));
+    game.push(tsugaoStill(Math.max(0, Math.min(9, Number(id.slice(6)) || 0))));
     return id;
   }
   const f = id === 'village' ? drawVillageLit : null;
-  if (!f) return ['village', 'sunrise0', 'sunrise1', 'sunrise2', 'dawn', 'tsugao0', 'tsugao1', 'tsugao2', 'tsugao3', 'tsugao4', 'tsugao5', 'tsugao6', 'tsugao7', 'tsugao8'];
+  if (!f) return ['village', 'sunrise0', 'sunrise1', 'sunrise2', 'dawn', 'tsugao0', 'tsugao1', 'tsugao2', 'tsugao3', 'tsugao4', 'tsugao5', 'tsugao6', 'tsugao7', 'tsugao8', 'tsugao9'];
   game.push(new CutPreview(f, cue));
   return id;
 });
@@ -418,6 +418,12 @@ registerDebug('door', () => {
     })(),
   );
   return 'door';
+});
+
+/** QA: the page on screen now (its text so far, the voice, still typing?) — null with no window. */
+registerDebug('speech', () => {
+  const sp = dialogSpeech();
+  return sp ? { voice: sp.voice, page: sp.page, text: sp.text, typing: sp.typing } : null;
 });
 
 /** QA: カット7 ツガオの部屋 played through (`skip`: as the second time, X leaves it). */

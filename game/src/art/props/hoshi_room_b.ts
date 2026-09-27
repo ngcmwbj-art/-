@@ -189,43 +189,43 @@ registerProp('prop_h_barn_rail', (opts) => {
 });
 
 /**
- * The aisle's fluorescent lights (foreground): off at night, on in the
- * morning (52 4.3 エンディング). Six fittings over the feed aisle (x5–20);
- * in cut 2a they come on one by one from the anteroom's end, 0.08 s apart.
- * The fittings, their glow and their light share one x (LX + k*40).
+ * The aisle's fluorescent lights (foreground). Since 2026-09-26 the tubes over
+ * the feed aisle burn all night (52 4.3): six fittings over x5–20, always on
+ * — no flag. And over 南5's pen (x17–19, y8–10) the one fitting whose tube
+ * has gone: the same fitting, its tube grey with blackened ends, no glow and
+ * no pool (the pen under it is the light map's dim patch). The fittings,
+ * their glow and their light share one x (LX + k*40).
  */
 registerProp('prop_h_barn_lights', () => {
   const N = 6;
   const LX = 80 + 8; // the first tube's west end (the aisle starts at x5 = 80px)
-  // n: how many of the six are on, from the west
-  const make = (n: number) => {
-    const p = new PixelCanvas(BW, 6);
-    for (let k = 0; k < N; k++) {
-      const x = LX + k * 40;
-      const on = k < n;
-      p.hline(x, x + 23, 2, on ? P.glint : P.steel);
-      p.hline(x, x + 23, 3, on ? P.white : P.asphalt);
-      p.set(x - 1, 2, P.charcoal);
-      p.set(x + 24, 2, P.charcoal);
-      p.set(x - 1, 3, P.charcoal);
-      p.set(x + 24, 3, P.charcoal);
-      p.vline(x + 11, 0, 1, P.charcoal);
-      p.hline(x + 1, x + 22, 4, on ? mix(P.white, P.steel, 0.4) : P.charcoal); // the reflector's lip
-    }
-    return p.toCanvas();
-  };
-  const imgs = Array.from({ length: N + 1 }, (_, n) => make(n));
-  const lit = (env: PropEnv, k: number) => {
-    if (hs(env) >= 3) return true;
-    const t0 = env.flag('flag_ch2_barn_lights');
-    return t0 > 0 && env.t - t0 > k * 80;
-  };
-  const count = (env: PropEnv) => {
-    let n = 0;
-    while (n < N && lit(env, n)) n++;
-    return n;
-  };
   const Y = 6 * 16 - 26;
+  /** The dead one over 南5: its tube's west end, and its y (over the pen's back half). */
+  const DX = 17 * 16 + 12;
+  const DY = 8 * 16 + 4;
+  const fitting = (p: PixelCanvas, x: number, y: number, on: boolean) => {
+    p.hline(x, x + 23, y + 2, on ? P.glint : P.steel);
+    p.hline(x, x + 23, y + 3, on ? P.white : P.asphalt);
+    p.set(x - 1, y + 2, P.charcoal);
+    p.set(x + 24, y + 2, P.charcoal);
+    p.set(x - 1, y + 3, P.charcoal);
+    p.set(x + 24, y + 3, P.charcoal);
+    p.vline(x + 11, y, y + 1, P.charcoal);
+    p.hline(x + 1, x + 22, y + 4, on ? mix(P.white, P.steel, 0.4) : P.charcoal); // the reflector's lip
+  };
+  const p = new PixelCanvas(BW, DY + 6);
+  for (let k = 0; k < N; k++) fitting(p, LX + k * 40, Y, true);
+  // the dead tube: dull grey, the ends gone black (a burnt-out fluorescent), a hanging chain each side
+  fitting(p, DX, DY, false);
+  p.hline(DX + 1, DX + 22, DY + 3, P.asphalt);
+  p.hline(DX + 1, DX + 22, DY + 2, P.steel);
+  for (const ex of [DX, DX + 1, DX + 22, DX + 23]) {
+    p.set(ex, DY + 2, P.charcoal);
+    p.set(ex, DY + 3, P.charcoal);
+  }
+  p.vline(DX + 3, DY - 3, DY + 1, P.charcoal);
+  p.vline(DX + 20, DY - 3, DY + 1, P.charcoal);
+  const img = p.toCanvas();
   const a: PropArt = {
     ox: 0,
     oy: 0,
@@ -234,18 +234,20 @@ registerProp('prop_h_barn_lights', () => {
     foot: 0,
     flat: true,
     img: () => null,
-    fg: [{ ox: 0, oy: Y, img: (env: PropEnv) => imgs[count(env)] }],
+    fg: [{ ox: 0, oy: 0, img: () => img }],
     glowFg: true,
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
-      const n = count(env);
-      for (let k = 0; k < n; k++) {
+      for (let k = 0; k < N; k++) {
         g.rect(x + LX + k * 40, y + Y + 2, 24, 2, '#F4F8FF', 0.8);
         g.rect(x + LX + k * 40 - 2, y + Y + 1, 28, 4, '#E8ECF0', 0.18);
       }
+      // the dead tube: now and then its west end catches a weak 1px flicker
+      // (twice, quick, every 5 s or so) — it lights nothing
+      const ph = env.t % 5200;
+      if (ph < 70 || (ph > 240 && ph < 300)) g.rect(x + DX + 2, y + DY + 2, 1, 2, '#E8ECF0', 0.4);
     },
-    light(g: Gfx, x: number, y: number, env: PropEnv) {
-      const n = count(env);
-      for (let k = 0; k < n; k++) drawLight(g, poolEllipse(30, 40, HLIGHT.led), x + LX + 12 + k * 40, y + 6 * 16, 0.6);
+    light(g: Gfx, x: number, y: number) {
+      for (let k = 0; k < N; k++) drawLight(g, poolEllipse(30, 40, HLIGHT.led), x + LX + 12 + k * 40, y + 6 * 16, 0.6);
     },
   };
   return a;

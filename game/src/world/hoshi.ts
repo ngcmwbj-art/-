@@ -340,7 +340,7 @@ function powerUnit(f: FieldScene): [number, number] | null {
  * when it gives them, so a renamed villager changes in one place.
  */
 const TEXT = hoshiNpcText as unknown as { CALL_NAMES?: string[]; CALL_HEAD?: string };
-export const CALL_NAMES: string[] = TEXT.CALL_NAMES?.length ? TEXT.CALL_NAMES : ['ナナミちゃん', 'ケンイチくん', 'ユウタくん', 'ミホちゃん', 'サトシくん', 'タクミくん', 'マユミさん', 'コウジさん'];
+export const CALL_NAMES: string[] = TEXT.CALL_NAMES?.length ? TEXT.CALL_NAMES : ['おぴぴちゃん', 'シュンスケくん', 'もとくん', 'アスカちゃん', 'サトシくん', 'タクミくん', 'クリコさん', 'タカシさん'];
 export const CALL_PREFACE: string = TEXT.CALL_HEAD ?? 'こちらは、防災 星見台です。';
 /** Seconds between calls by stage (50 3.13). */
 export const CALL_EVERY: Record<number, number> = { 0: 45000, 1: 30000, 2: 15000 };
@@ -356,7 +356,7 @@ export interface CallInfo {
 }
 
 let callTimer = 0;
-let callIdx = 1; // evt_ch2_arrive calls ナナミちゃん itself; the timer goes on from ケンイチくん
+let callIdx = 1; // evt_ch2_arrive calls おぴぴちゃん itself; the timer goes on from シュンスケくん
 let callAlt = false;
 let callTask: Task | null = null;
 let callStage = -1;
@@ -708,18 +708,6 @@ export function roomMorningK(f: FieldScene): number {
  * up once it is above 0 — the morning coming in at 5:00).
  */
 export const roomLit = (mapId: string): number | null => roomDawn(mapId);
-
-/**
- * The flags the props of a 星見台 map read (PropEnv.flag). The barn's tube
- * fittings (levels' prop_h_barn_lights) show a tube on once
- * `flag_ch2_barn_lights` is set: since 2026-09-26 the tubes over the feed
- * aisle are on all night, so in the barn it always reads as set (the one
- * dead tube is over 南5's pen, the dim pen in the light map).
- */
-const barnFlag = (id: string): number => (id === 'flag_ch2_barn_lights' ? 1 : flag(id));
-export function propFlagOf(mapId: string): (id: string) => number {
-  return mapId === 'map_hoshi_barn' ? barnFlag : flag;
-}
 
 let currentField: FieldScene | null = null;
 

@@ -182,6 +182,49 @@ async function walk(dir, until, timeout = 6000) {
   }
 }
 
+/**
+ * Hold up until an event takes the controls; when something stands in the
+ * way (the parking lot's stray carts wander into the lane) for 0.7 s, step a
+ * tile to the side (right, then left the next time) and go on up.
+ */
+async function walkUpAround(timeout = 10000) {
+  const t0 = Date.now();
+  let side = 1;
+  let s = await st();
+  while (s.ctrl) {
+    if (Date.now() - t0 > timeout) throw new Error(`walkUpAround: timeout (${JSON.stringify(s)})`);
+    await page.keyboard.down(KEY.up);
+    let lastY = s.y;
+    let moved = Date.now();
+    try {
+      for (;;) {
+        await sleep(60);
+        s = await st();
+        if (!s.ctrl) break;
+        if (s.y !== lastY) {
+          lastY = s.y;
+          moved = Date.now();
+        } else if (Date.now() - moved > 700) break;
+        if (Date.now() - t0 > timeout) break;
+      }
+    } finally {
+      await page.keyboard.up(KEY.up);
+      await sleep(40);
+    }
+    if (!s.ctrl) break;
+    // blocked: one tile to the side, then up again
+    const dir = side > 0 ? 'right' : 'left';
+    side = -side;
+    log(`  (the way up is blocked at (${s.x},${s.y}): a step ${dir})`);
+    await page.keyboard.down(KEY[dir]);
+    await sleep(140);
+    await page.keyboard.up(KEY[dir]);
+    await sleep(160);
+    s = await st();
+  }
+  return s;
+}
+
 /** Walk to a tile with the arrow keys (greedy; the other axis when blocked). Stops if an event starts. */
 async function walkTo(tx, ty, { vertFirst = true, timeout = 12000 } = {}) {
   const t0 = Date.now();
@@ -997,7 +1040,7 @@ const BEATS = [
           log('  (a symbol battle on the way: once more up to the door)');
           await travel(48, 12);
         }
-        await walk('up', (s) => !s.ctrl, 5000);
+        await walkUpAround(10000);
         await advance({ shotEvery: 3, label: 'ev', battles: REAL.has('ojigi') ? 'keys' : 'win', max: 240000 });
       }
       await need(['flag_ojigi_beaten'], 'ojigi');

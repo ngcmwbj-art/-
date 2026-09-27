@@ -1127,7 +1127,15 @@ function sawakoBack(f: Fig, p: Pose) {
   f.hl(3, 12, 13 + u);
   f.rect(2, 14 + u, 12, 19 + b - (14 + u));
   paintDots(f, [[5, 16 + u, 'paint3'], [11, 18 + b, 'paint1']]);
-  if (!seated) hangArms(f, p, { lx: 2, rx: 13, sy: 14, hy: 18, segs: [{ mat: 'smock', n: 3 }, { mat: 'skin' }] }, u);
+  if (!seated && p.act === 'hold_up') {
+    // the ending's cut 3: both arms straight up past the beret, holding the
+    // sketchbook high to the bus (the book itself is the cut's overlay, over
+    // her head: her hands are at its lower corners)
+    f.part('smock', { shade: 'rb', light: 't' });
+    f.rect(1, 5 + u, 2, 9).rect(13, 5 + u, 2, 9);
+    f.part('skin', { shade: 'rb', light: 't' });
+    f.rect(1, 2 + u, 2, 3).rect(13, 2 + u, 2, 3);
+  } else if (!seated) hangArms(f, p, { lx: 2, rx: 13, sy: 14, hy: 18, segs: [{ mat: 'smock', n: 3 }, { mat: 'skin' }] }, u);
   else {
     f.part('smock', { shade: 'rb', light: 't', shift: -1 });
     f.rect(1, 14 + u, 1, 4).rect(14, 14 + u, 1, 4);
@@ -1214,7 +1222,7 @@ registerChar('npc_hoshi_sawako', () =>
     draw: waving(sawakoDraw, 'smock'),
     walkFrameMs: 175,
     idle: { down: breathingIdle(16, [9]), up: breathingIdle(), left: breathingIdle(16, [9]), right: breathingIdle(16, [9]) },
-    extras: { sit: { dirs: 'all', p: { act: 'sit' } }, measure: { dirs: ['down', 'left', 'right'] } },
+    extras: { sit: { dirs: 'all', p: { act: 'sit' } }, measure: { dirs: ['down', 'left', 'right'] }, hold_up: { dirs: ['up'] } },
     anims: { wave: WAVE_ANIM },
     poses: {
       sit: { down: SAWAKO_SIT, left: SAWAKO_SIT_SIDE, right: SAWAKO_SIT_SIDE, up: SAWAKO_SIT_BACK },

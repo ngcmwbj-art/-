@@ -14,6 +14,7 @@
 //   room.clockRun('yunari');                // 夕鳴町's second hand starts (the caller plays the sound)
 //   yield* room.tapCard(); yield* room.leanBack(); yield* room.reachCap(); room.stopAt('マダ');
 //   yield* room.putCapBack(); room.clockRun('hoshimi'); yield* room.arrangeCards();
+//   room.spitCard(3); yield* room.cardsLanded();   // ダコク, unasked: the village's hand-drawn hanamaru
 //   yield* room.shadowsIn(); room.henTilt(); yield* room.shadowsOut();
 //   yield* room.turnPage(); yield* room.stamp(); yield* room.capOn(); yield* room.lampOff();
 //   room.close();
@@ -134,7 +135,7 @@ function getArt(): Art {
     capWorn: capImg('worn'),
     hands,
     box: dakokuBox(),
-    cards: [cardImg(1), cardImg(2)],
+    cards: [cardImg(1), cardImg(2), cardImg(3)],
     boards: [boardImg(0), boardImg(1)],
     flips: [boardFlip(0), boardFlip(1), boardFlip(2)],
     stamp: stampImg(),
@@ -173,7 +174,7 @@ interface Arm {
 }
 
 interface Card {
-  n: 1 | 2;
+  n: CardN;
   x: number;
   y: number;
   /** 'slot': coming out of ダコク's slot; 'slide': on its way to (tx,ty); 'desk': lying there. */
@@ -187,9 +188,14 @@ interface Card {
   held: boolean;
 }
 
-/** Where each card comes to rest in the lamplight, and where 「並べる」 puts them (clear of the key). */
-const CARD_LAND: Record<1 | 2, [number, number]> = { 1: [134, 128], 2: [117, 129] };
-const CARD_NEAT: Record<1 | 2, [number, number]> = { 1: [136, 128], 2: [104, 128] };
+type CardN = 1 | 2 | 3;
+/**
+ * Where each card comes to rest in the lamplight, and where 「並べる」 puts them
+ * (clear of the key). The third (the village's hand-drawn hanamaru, 2026-09-28)
+ * slides to the pool's west end, left of the second: the three in a row.
+ */
+const CARD_LAND: Record<CardN, [number, number]> = { 1: [134, 128], 2: [117, 129], 3: [75, 127] };
+const CARD_NEAT: Record<CardN, [number, number]> = { 1: [136, 128], 2: [104, 128], 3: [75, 127] };
 /** The wrists at rest, on the desk's far edge. */
 const REST: Record<Side, [number, number]> = { L: [171, 121], R: [213, 121] };
 /** The shoulder joints (the upper arms hang from them), before leaning. */
@@ -256,7 +262,7 @@ class TsugaoRoomScene implements Scene {
   private speechKey = '';
   private gaSeen = 0;
   private gaSeenLen = 0;
-  private armed: 0 | 1 | 2 = 0;
+  private armed: 0 | CardN = 0;
   private words: { word: string; fn: () => void; voice?: string }[] = [];
   skippable = false;
   skipRequested = false;
@@ -370,7 +376,7 @@ class TsugaoRoomScene implements Scene {
     }
   }
 
-  arm(n: 1 | 2): void {
+  arm(n: CardN): void {
     this.armed = n;
   }
 
@@ -746,7 +752,9 @@ export interface TsugaoRoom {
   /** ⓪ The truck key out of his jacket's inside pocket (2 frames), put down beside the work cap (2 frames). */
   placeKey(): Co;
   /** ダコク's next 「ガチャン」 spits out this report card (it slides into the lamplight). */
-  armCard(n: 1 | 2): void;
+  armCard(n: CardN): void;
+  /** ダコク spits out this card by itself (no line): the box sinks, the card slides into the lamplight. */
+  spitCard(n: CardN): void;
   /** Wait until the last card that came out lies on the desk. */
   cardsLanded(): Co;
   /** A wall clock's second hand starts (星見台: first the minute hand steps 4:59 → 5:00). */
@@ -863,6 +871,10 @@ export function* openTsugaoRoom(o: { skippable?: boolean } = {}): Co<TsugaoRoom>
     },
     armCard(n) {
       R.arm(n);
+    },
+    spitCard(n) {
+      R.arm(n);
+      R.gachan();
     },
     *cardsLanded(): Co {
       yield () => R.cards.every((c) => c.state === 'desk');
@@ -1085,8 +1097,19 @@ export const TSUGAO_LINES = {
   more: ['ダンチョウ。{w=300}\nマダ ホウコクガ アリマス。\nガチャン。'],
   hoshimi: ['ホシミダイ、4ジ59フン。{w=300}\n『オヤスミナサイ』ヲ\nオサレマシタ。ガチャン。'],
   hou: ['……ほう。{w=300}\nわたしが 寝て いる あいだに。'],
+  guuzen: ['夕鳴町と 星見台。{w=300}\nどちらも、赤い ハンコ。\n……偶然では ありませんな。'],
+  // the third card (2026-09-28, 00 1.1: the hanamaru copied by hand from town to town)
+  hanamaru: ['ホシミダイ。{w=300}\nハナマルノ シルシ、\nフエテ イマス。{w=300}ガチャン。'],
+  shirushi: [
+    '……わたしの 軽トラにまで。',
+    'ハンコは、雨が ふれば 消えます。{w=300}\nけれど、人が 自分の 手で 描いた\nしるしは、なかなか 消えない。',
+    'ああいう しるしが、町から 町へ\nふえて いくと……{w=300}\nいずれ『平和の 象徴』なんぞに なる。',
+    '……ダコク。{w=300}あの 子の 名前は。',
+  ],
+  // ダコク speaks in katakana: only here is his name シュン
+  namae: ['コバヤシ シュン。{w=300}ガチャン。'],
+  oboete: ['……しゅん、ですか。{w=300}\nおぼえて おきましょう。'],
   mada: [
-    '夕鳴町と 星見台。{w=300}\nどちらも、赤い ハンコ。\n……偶然では ありませんな。',
     'あの 子らの 気持ちは、\nはじめから あった ものです。\n{w=300}わたしは『まだ』を 押しただけ。',
     'まだ 来ない。{w=300}まだ 朝じゃない。\n……『まだ』の うちは、\n今日は 終わらない。',
     '止まった 時間は、休みの 貯金。\n{w=300}ためて おけば、ずっと\n休んで いられるのでね。',
@@ -1136,6 +1159,21 @@ function* director(room: TsugaoRoom): Co {
   yield* say(TSUGAO_LINES.hou, ANON);
   yield* room.arrangeCards();
   yield 2000;
+  yield* say(TSUGAO_LINES.guuzen, ANON);
+  // ダコク, unasked, spits a third card into the lamplight: the two hanamaru
+  // the village drew by hand (a sketchbook's, the truck's chalk one)
+  yield 400;
+  room.spitCard(3);
+  yield* room.cardsLanded();
+  yield 500;
+  yield* say(TSUGAO_LINES.hanamaru, DAKOKU_SPK);
+  yield 600;
+  yield* say(TSUGAO_LINES.shirushi, ANON);
+  yield* say(TSUGAO_LINES.namae, DAKOKU_SPK);
+  yield 300;
+  yield* say(TSUGAO_LINES.oboete, ANON);
+  // a second's pause, his eyes still on the third card; he sits up again
+  yield 1000;
   // the name tag becomes 「ツガオ」 as his last line ends (the page stays up)
   room.onWord(
     'いられるのでね',
@@ -1181,7 +1219,7 @@ function* director(room: TsugaoRoom): Co {
 }
 
 /**
- * カット7「ツガオの部屋」 in one go (about 65 s): the lines of 50 10.16, the
+ * カット7「ツガオの部屋」 in one go (about 85 s): the lines of 50 10.16, the
  * moves of 52 12.5, the sounds of 53 12.14. `skippable` (from the second
  * time: the chapter 2 clear record was there before this ending): X
  * leaves it at once. Ends on black, the room taken down.
@@ -1210,7 +1248,8 @@ export function* playTsugaoRoom(o: { skippable?: boolean; auto?: number } = {}):
  * nightcap on (the page turned), 3 the instant the lamp goes out, 4 the
  * stamp's face at us, 5 the print on our page, 6 the two shadows in the
  * doorway (the hen's head cocked, the steam), 7 the page's close-up, 8 his
- * hand at the hook with the nightcap (the arm bent at the elbow).
+ * hand at the hook with the nightcap (the arm bent at the elbow), 9 the
+ * three cards in a row (the third, the village's hanamaru, just landed).
  */
 export function tsugaoStill(phase: number): Scene {
   getArt();
@@ -1224,6 +1263,9 @@ export function tsugaoStill(phase: number): Scene {
     sc.running.hoshimi = 5000;
     sc.setHoshiMinute(60);
   }
+  // the third card (the village's hanamaru) from its lines on
+  if (phase >= 2 && phase !== 8)
+    sc.cards.push({ n: 3, x: CARD_NEAT[3][0], y: CARD_NEAT[3][1], state: 'desk', fx: 0, fy: 0, tx: 0, ty: 0, t: 0, held: false });
   if (phase >= 2 && phase <= 5) {
     sc.page = 1;
     sc.flip = 2;

@@ -283,6 +283,13 @@ function fanFrames(): HTMLCanvasElement[] {
   return out;
 }
 let FANS: HTMLCanvasElement[] | null = null;
+/** The stretches of the bird net between the door, the board and the fans (x0, x1, 南5's dim bay). */
+const BARN_NET_OPEN: [number, number, boolean][] = [
+  [3, 13, false],
+  [72, 93, false],
+  [115, 121, false],
+  [143, 158, true],
+];
 const BARN_FANS: [number, number][] = [
   [104, 12],
   [132, 12],
@@ -399,9 +406,19 @@ registerBuilding({
       g.rect(x, fY + 5, 160, 14, '#E8ECF0', 0.35);
       return;
     }
+    // the tubes over the feed aisle burn all night (52 4.3, 2026-09-26): their
+    // white comes out through the bird net over the pens — all but the east
+    // bay, 南5's, whose tube is dead (dimmer there)
+    // (only where the net shows: not over the sliding door, the board, the fans)
+    const netY = fY + 5;
+    for (const [x0, x1, dim] of BARN_NET_OPEN) {
+      g.rect(x + x0, netY + 1, x1 - x0 + 1, 13, '#E8ECF0', dim ? 0.1 : 0.3);
+      // brighter just under the curtain's roll, where the tube's light falls first
+      g.rect(x + x0, netY + 1, x1 - x0 + 1, 3, '#F4F8FF', dim ? 0.08 : 0.25);
+    }
     const k = nightK(env);
     if (k <= 0) return;
-    // ear tags (#FFD23F) glinting in the dark pens; a pair where the lantern is near
+    // ear tags (#FFD23F) glinting in the pens; a pair where the lantern is near
     // (the lantern is in world px: the barn stands at (50,24), its only placement)
     const lan = env.lantern;
     const wx = 50 * 16;
@@ -421,7 +438,12 @@ registerBuilding({
     }
   },
   light(g, x, y, env, b) {
-    if (hs(env) < 3) return;
+    if (hs(env) < 3) {
+      // the night: the tubes' white on the apron in front of the net (the east bay's weaker)
+      drawLight(g, poolEllipse(64, 12, HLIGHT.led), x + 64, y + b.botY + 3, 0.22);
+      drawLight(g, poolEllipse(20, 10, HLIGHT.led), x + 144, y + b.botY + 3, 0.08);
+      return;
+    }
     drawLight(g, poolEllipse(80, 14, HLIGHT.led), x + 80, y + b.botY + 4, 0.3);
   },
 });
@@ -719,9 +741,29 @@ registerBuilding((opts: Record<string, unknown>) => {
   };
 });
 
-/** 3号's far end in h0: the はなまるトマト's glow through the film (52 3.9). */
+/**
+ * 3号 at night: the lamps inside are on all night (52 4.2, 2026-09-26) — their
+ * warm white shows faintly through the film (h0〜h2): a wash over the hood,
+ * brighter along the crown where the lamps hang, the bulbs as soft spots, the
+ * film door at the south end. And in h0 the far end: the はなまるトマト's
+ * orange glow (52 3.9).
+ */
 function vinylGlow(g: Gfx, x: number, y: number, env: PropEnv, b: Bld): void {
-  if (env.flag('flag_ch2_got_tomato') || hs(env) >= 1) return;
+  const s = hs(env);
+  if (s < 3) {
+    const top = y + b.roofY + 5;
+    const bot = y + b.faceY + 2;
+    g.rect(x + 3, top, 42, bot - top, '#FFE9C4', 0.13);
+    g.rect(x + 17, top, 14, bot - top, '#FFEBC8', 0.1);
+    g.rect(x + 21, top, 6, bot - top, '#FFF6E0', 0.1);
+    for (let j = 0; j < 4; j++) {
+      const ly = y + b.roofY + 22 + j * 28;
+      g.rect(x + 21, ly, 6, 3, '#FFF6E0', 0.28);
+      g.rect(x + 23, ly + 1, 2, 1, '#FFFBEF', 0.5);
+    }
+    g.rect(x + 18, y + b.faceY + 10, 12, 22, '#FFF2D8', 0.18);
+  }
+  if (env.flag('flag_ch2_got_tomato') || s >= 1) return;
   const k = nightK(env);
   if (k <= 0) return;
   const breathe = Math.round(Math.sin(env.t * 0.0008 * Math.PI * 2) * 2);
@@ -746,6 +788,8 @@ function vinylGlow(g: Gfx, x: number, y: number, env: PropEnv, b: Bld): void {
   g.rect(dx + 7, fy + 14, 2, 1, '#FFE7A3', 0.55 * k * pulse);
 }
 function vinylLight(g: Gfx, x: number, y: number, env: PropEnv, b: Bld): void {
+  // the lamps' warm white out of the film door onto the yard (h0〜h2)
+  if (hs(env) < 3) drawLight(g, poolEllipse(22, 9, HLIGHT.bulb), x + 24, y + b.botY + 2, 0.16);
   if (env.flag('flag_ch2_got_tomato') || hs(env) >= 1) return;
   const breathe = Math.round(Math.sin(env.t * 0.0008 * Math.PI * 2) * 2);
   drawLight(g, poolEllipse(20 + breathe, 20 + breathe, '242,137,75'), x + 24, y + b.roofY + 12, 0.35 * nightK(env));
