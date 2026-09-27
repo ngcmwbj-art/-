@@ -366,7 +366,7 @@ export const BARN_A = `@npc_hoshi_gen
 /** While the light passes the pens (shown on the walk, cue: stop at 南5). */
 export const BARN_COWS = `@narr
 蛍光灯の 下に、黒い 牛が
-4頭ずつ 並んでいる。{w=300}
+3頭ずつ 並んでいる。{w=300}
 /
 トマトの 光が 通ると、耳の
 黄色い 耳標が きらっと 光る。`;
@@ -625,7 +625,7 @@ export const END_3_B = `@flip
 カネナリ様。
 /
 えー、星見台は、12人と
-牛40頭で、お待ち して おります。
+牛30頭で、お待ち して おります。
 @npc_hoshi_busdriver
 6:12発、ユウナリ前 ゆき。{w=300}
 ……手紙も、いっしょに 出発だ。`;

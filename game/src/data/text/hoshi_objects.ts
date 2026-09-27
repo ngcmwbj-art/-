@@ -780,10 +780,10 @@ export const HOSHI_FUSHIGI: Record<string, HoshiFushigiText> = {
   // 8.8 そろった反すう
   fushigi_ch2_08: {
     seen: `@narr
-北3の 牛房の 牛が 4頭、
+北3の 牛房の 牛が 3頭、
 反すうしている。
 /
-……4頭とも、口の 動きが
+……3頭とも、口の 動きが
 ぴったり そろっている。{w=300}
 夜が 長すぎて、拍子が そろった。`,
     pressed: `@narr

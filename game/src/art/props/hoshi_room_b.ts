@@ -856,7 +856,7 @@ registerProp('prop_h_cow', (opts) => {
   const phase = Number(opts.phase ?? 0);
   const sync = !!opts.sync;
   const reach = String(opts.reach ?? '');
-  const ext = hasProp('prop_h_cow_' + pose) ? getProp('prop_h_cow_' + pose, { right, white, phase, sync, n: opts.n, reach }) : null;
+  const ext = hasProp('prop_h_cow_' + pose) ? getProp('prop_h_cow_' + pose, { right, white, phase, sync, n: opts.n, reach, aisle: opts.aisle }) : null;
   if (ext) return { ...ext, ox: ext.ox + dx - 8, oy: ext.oy + dy - 16, foot: ext.foot + dy - 16, contactX: (ext.contactX ?? 8) + dx - 8 };
   // the chars team's cattle as character sprites (feet-centre origin): a held
   // anim named after the pose (or 'idle'), the chores' 'reach' while its spot waits

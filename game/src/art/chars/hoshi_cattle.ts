@@ -39,8 +39,8 @@
 // own beat a moment after the morning shows, on any visit. Facing the aisle
 // they take a 20px footprint where a side-on cow takes 32, so four up in one
 // pen stand side by side instead of piled on each other (the review's
-// 2a / h3 cows). The pen side comes from `n` (the levels' order: 40 cows,
-// the first 20 in the north pens) unless levels pass `aisle` ('down' | 'up').
+// 2a / h3 cows). The pen side comes from `n` (the levels' order: 30 cows, 3 to a pen,
+// the first 15 in the north pens) unless levels pass `aisle` ('down' | 'up').
 // The barn is lit at night (2026-09-26): the shapes read under the tubes; the
 // tomato's light only adds the warm glint of the tags and the sheen of the
 // back near it (what shows in the one dim pen, 南5). The night rim on the lit
@@ -222,7 +222,7 @@ function cowArt(pose: CowPose, opts: Record<string, unknown>): PropArt {
   const lying = pose === 'lie' || pose === 'sleep';
   // which way the aisle (and the morning feed) is from this cow's pen
   const nIdx = opts.n === undefined ? -1 : Number(opts.n);
-  const aisle = String(opts.aisle ?? (nIdx >= 20 ? 'up' : nIdx >= 0 ? 'down' : ''));
+  const aisle = String(opts.aisle ?? (nIdx >= 15 ? 'up' : nIdx >= 0 ? 'down' : ''));
 
   const frameAt = (env: PropEnv): [string, string] => {
     const t = env.t;

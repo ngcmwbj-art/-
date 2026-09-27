@@ -195,23 +195,25 @@ const BARN_ROWS = [
 ];
 
 /**
- * The cows (52 4.3): 4 to a pen, the pen types A–D, 1 in 5 with a little
- * white (8 of 40). Pens: x 5/8/11/14/17, north y2–4, south y8–10.
+ * The cows (52 4.3): 3 to a pen (2026-09-28: the client asked for 3, 4 looked
+ * crowded), the pen types A–D, 30 in all, 8 with a little white. Pens: x
+ * 5/8/11/14/17, north y2–4, south y8–10.
  * Each cow: [pose, dx, dy (px from the pen's top-left), facing right?, white].
  * 'front' feed at the rail facing the aisle (north pens), 'back' the same seen
  * from behind (south pens), 'side' stand, 'lie' lie and chew the cud, 'sleep'
- * the head turned back.
+ * the head turned back. The lying ones keep to the back of the pen, clear of
+ * the ones at the rail; the chores' reaching cow keeps its x (its spot's tile).
  */
 type Cow = [string, number, number, boolean, string?, string?];
 // the pen types (52 4.3); `reach` puts the chores' reaching cow (50 10.19) at the spot's tile
-const PEN_A_N = (w1 = '', w4 = '', reach = ''): Cow[] => [['front', 8, 46, false], ['front', 30, 46, false, w1, reach], ['side', 22, 30, true], ['lie', 18, 16, false, w4]];
-const PEN_B_N = (w0 = '', reach = ''): Cow[] => [['front', 34, 46, false, w0, reach], ['lie', 14, 18, true], ['lie', 34, 30, false], ['side', 18, 34, false]];
-const PEN_C_N = (): Cow[] => [['lie', 14, 14, true], ['lie', 34, 20, false], ['sleep', 16, 32, false], ['lie', 34, 38, true]];
-const PEN_D_N = (w2 = '', reach = ''): Cow[] => [['front', 8, 46, false], ['front', 24, 46, false], ['front', 38, 46, false, w2, reach], ['lie', 24, 22, true]];
-const PEN_A_S = (w0 = '', w2 = '', w3 = '', reach = ''): Cow[] => [['back', 10, 20, false, w0], ['back', 36, 20, false, '', reach], ['side', 22, 36, false, w2], ['lie', 26, 46, true, w3]];
-const PEN_B_S = (w0 = '', reach = ''): Cow[] => [['back', 36, 20, false, w0, reach], ['lie', 12, 36, true], ['lie', 34, 44, false], ['side', 16, 28, true]];
-const PEN_C_S = (w3 = ''): Cow[] => [['lie', 14, 24, false], ['lie', 34, 28, true], ['lie', 16, 42, true], ['lie', 36, 46, false, w3]];
-const PEN_D_S = (w1 = '', reach = ''): Cow[] => [['back', 8, 20, false], ['back', 24, 20, false, w1, reach], ['back', 40, 20, false], ['lie', 22, 42, true]];
+const PEN_A_N = (w1 = '', w4 = '', reach = ''): Cow[] => [['front', 8, 46, false], ['front', 30, 46, false, w1, reach], ['lie', 24, 20, false, w4]];
+const PEN_B_N = (w0 = '', reach = ''): Cow[] => [['front', 34, 46, false, w0, reach], ['lie', 18, 18, true], ['lie', 14, 42, false]];
+const PEN_C_N = (): Cow[] => [['lie', 16, 16, true], ['lie', 32, 30, false], ['sleep', 18, 45, false]];
+const PEN_D_N = (w2 = '', reach = ''): Cow[] => [['front', 8, 46, false], ['front', 24, 46, false], ['front', 38, 46, false, w2, reach]];
+const PEN_A_S = (w0 = '', w2 = '', _w3 = '', reach = ''): Cow[] => [['back', 10, 20, false, w0], ['back', 36, 20, false, '', reach], ['side', 22, 42, false, w2]];
+const PEN_B_S = (w0 = '', reach = ''): Cow[] => [['back', 36, 20, false, w0, reach], ['lie', 16, 34, true], ['lie', 32, 46, false]];
+const PEN_C_S = (w3 = ''): Cow[] => [['lie', 16, 24, false], ['lie', 32, 34, true], ['lie', 18, 46, true, w3]];
+const PEN_D_S = (w1 = '', reach = ''): Cow[] => [['back', 8, 20, false], ['back', 24, 20, false, w1, reach], ['back', 40, 20, false]];
 
 const PENS: { x: number; y: number; cows: Cow[]; sync?: boolean }[] = [
   // north: 北1 A, 北2 B, 北3 C (ふしぎ08), 北4 D, 北5 A
@@ -249,6 +251,8 @@ function barnCows(): MapObj[] {
           phase: ((n * 37) % 100) / 100,
           sync: pen.sync ? 1 : 0,
           reach: reach ?? '',
+          // which way the aisle (the morning feed) is: north pens look down, south up
+          aisle: pen.y < 5 ? 'down' : 'up',
           n: n++,
         }),
       );
