@@ -647,7 +647,7 @@ registerAmbience('amb_h_barn', (c) => {
  * are heard through them — under 2 kHz and 8 dB down — and come back as the
  * barn's bed stops.
  */
-export const BARN_WALL = { ids: ['amb_h_dawn', 'amb_h_wind', 'amb_h_insects', 'amb_h_kusa', 'amb_h_tanada', 'amb_h_mizu', 'amb_h_yama'], lp: 2000, db: -8 };
+export const BARN_WALL = { ids: ['amb_h_dawn', 'amb_h_wind', 'amb_h_insects', 'amb_h_kusa', 'amb_h_tanada', 'amb_h_mizu', 'amb_h_yama', 'amb_h_pa_hum'], lp: 2000, db: -8 };
 registerWall('amb_h_barn', BARN_WALL);
 
 /**
