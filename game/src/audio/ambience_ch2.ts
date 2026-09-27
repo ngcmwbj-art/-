@@ -21,7 +21,7 @@ import { currentId, musicParams, setMusicParam } from './music';
 import { layer, type SeCtx } from './recipe';
 import { Rng } from '../engine/rng';
 import { Every, higurashiCall, modBuffer, modulate, noiseBed, registerAmbience, sampleHold, smoothRandom, toneBed, type AmbCtx, type Bed } from './ambience';
-import { ACHA, BOAR, clockRestart, COW_SNORT, CROSS_STRIKE, HANSUU, IBIKI, PIICHAN_CRIES, SOIL } from './sfx_ch2';
+import { ACHA, barnMorningAuto, BOAR, clockRestart, COW_SNORT, CROSS_STRIKE, HANSUU, IBIKI, PIICHAN_CRIES, SOIL } from './sfx_ch2';
 import { atTime } from './clock';
 import { game } from '../engine/game';
 
@@ -502,7 +502,10 @@ registerAmbience('amb_h_barn_out', (c) => {
  * water cup (the steer pushes the paddle with its nose), one lying down or
  * getting up in the sawdust, a flank against the pipe rails. ふしぎ08:
  * 'sync_on' makes the four of 北3 chew at the same instant, 1.00 s apart;
- * 'sync_off' lets them go back to their own time.
+ * 'sync_off' lets them go back to their own time. At 5:00 (h_stage 3) the
+ * morning comes in by itself: se_h_barn_morning 0.7 s after the bed starts
+ * (the ending's cut 2a warms the light then), then a far dawn ヒグラシ now and
+ * then beyond the east wall.
  */
 registerAmbience('amb_h_barn', (c) => {
   const g = c.g;
@@ -571,6 +574,17 @@ registerAmbience('amb_h_barn', (c) => {
     for (const [f, k] of [[620, 1], [1540, 0.5]])
       v(c, { at: t, wave: 'sine', freq: f * c.rng.range(0.98, 1.02), dur: 0.01, attack: 0.002, decay: 0.3, sustain: 0, release: 0.1, vol: 0.004 * k, reverb: 0.3 }, dest);
   }, 10, 40);
+  // ⑦ 5:00 (h_stage 3, the ending's cut 2a; 2026-09-26: the tubes were on all
+  // night, so nothing switches on): the morning comes in through the east
+  // windows (se_h_barn_morning, once, as the light warms), and from then on a
+  // dawn ヒグラシ now and then beyond the east wall, dulled by it (amb_h_dawn's
+  // cicadas, heard from inside)
+  let hStage = c.hStage;
+  let morningAt = hStage === 3 ? c.t0 + 0.7 : -1;
+  const dawn = new Every(c, 9, 16, (t) => {
+    if (hStage !== 3) return;
+    higurashiCall(t, c.dest, c.rng.range(0.35, 0.7), c.rng.range(0.95, 1.04), 2200, 0.009, c.rng);
+  }, 2.2, 4);
   return {
     pump(u) {
       for (const ch of chewers) ch.pump(u);
@@ -579,6 +593,15 @@ registerAmbience('amb_h_barn', (c) => {
       cup.pump(u);
       straw.pump(u);
       rail.pump(u);
+      dawn.pump(u);
+      if (morningAt >= 0 && morningAt < u) {
+        barnMorningAuto(Math.max(morningAt, g.ctx.currentTime));
+        morningAt = -1;
+      }
+    },
+    setHStage(h, at) {
+      if (h === 3 && hStage !== 3) morningAt = at + 0.7;
+      hStage = h;
     },
     event(name, pan, at) {
       if (name === 'sync_on') {

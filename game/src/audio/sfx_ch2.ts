@@ -429,7 +429,15 @@ se('se_h_moo', {
  * voice here (se_h_moo is its own, once). `se_h_barn_morning` is the same
  * sound under a name that says what it is; the old id keeps working.
  */
+let lastBarnMorning: { ctx: BaseAudioContext; t: number; auto: boolean } | null = null;
+let autoBarnMorning = false;
 function barnMorning(c: SeCtx): void {
+  // amb_h_barn brings the morning in by itself when it starts at 5:00
+  // (barnMorningAuto): the ending's own call and the bed's never both sound
+  const ctx = c.dest.context;
+  const last = lastBarnMorning;
+  if (last && last.ctx === ctx && Math.abs(c.t - last.t) < 3 && (last.auto || autoBarnMorning)) return;
+  lastBarnMorning = { ctx, t: c.t, auto: autoBarnMorning };
   layer(c, 'noise env=900/300/.5/1400 dur=1600 v=.006 flt=BP500→2200q0.7');
   layer(c, 'saw f=F4 env=700/400/.6/1200 dur=1400 v=.004 flt=LP500→1600q0.7');
   layer(c, 'saw f=C5 env=700/400/.6/1200 dur=1400 v=.003 flt=LP500→1600q0.7');
@@ -451,6 +459,19 @@ se('se_h_barn_light', {
   fn: barnMorning,
 });
 sfxTable.set('se_h_barn_morning', (o) => sfxTable.get('se_h_barn_light')?.(o));
+/**
+ * The barn's bed at 5:00 (amb_h_barn at h_stage 3, the ending's cut 2a): the
+ * morning light's sound at `at`, unless the scene played se_h_barn_morning
+ * itself within 3 s (and then that one is skipped if it comes after).
+ */
+export function barnMorningAuto(at: number): void {
+  autoBarnMorning = true;
+  try {
+    sfxTable.get('se_h_barn_light')?.({ at });
+  } finally {
+    autoBarnMorning = false;
+  }
+}
 se('se_h_feed_cart', {
   label: '給餌車を押す（ゴムの車輪、さらさら）',
   group: G_BARN,
@@ -861,7 +882,7 @@ se('se_h_bus_arrive', {
   layers: ['saw f=70→46/1000 env=0/0/1/300 dur=1000 v=.025 flt=LP500 am=35→23/1000/.45', 'noise env=5/400/0/150 dur=200 v=.04 flt=BP2600q0.8 at=1100'],
 });
 /**
- * A はなまる drawn by hand (2026-09-26: the series' theme — Shun's はなまる is
+ * A はなまる drawn by hand (2026-09-26: the series' theme — しゅん's はなまる is
  * copied from hand to hand; in the ending the villagers draw it themselves).
  * A felt pen goes round once ("くるっ"), five petals loop around it, and the
  * pen lifts off with a small bright "ぽ" — the hanko's はなまる (se_hanamaru)
