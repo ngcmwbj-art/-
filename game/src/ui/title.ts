@@ -66,6 +66,8 @@ import { dottedLine, drawCursor, drawTape, drawWindow, rectA, textW, UI } from '
 import { coverToFade, ditherOut } from './transition';
 
 type MenuId = 'new' | 'continue' | 'ch2' | 'settings';
+/** The chapter-2 release page: 「第2章から」 without a chapter-1 clear (see menu). */
+const CH2_OPEN = import.meta.env.VITE_CH2_OPEN === '1';
 const LABELS: Record<MenuId, string> = { new: 'はじめる', continue: 'つづきから', ch2: '第2章から', settings: 'せってい' };
 /** The tapes' column (30 11.4): right-aligned block ending at y206. */
 const MENU_X = 284;
@@ -92,7 +94,12 @@ export class TitleScene implements Scene {
   private readonly clear2: ClearRecord | null = clearRecordCh2();
   /** Chapter 1's counts after its ending (an empty card if only chapter 2's record survived). */
   private readonly clear: ClearRecord | null = clearRecord() ?? (this.clear2 ? { fushigi: 0, aite: 0, tsukkomi: 0, tsukkomiTotal: 19 } : null);
-  private readonly menu: MenuId[] = chapter1Cleared() ? ['new', 'continue', 'ch2', 'settings'] : ['new', 'continue', 'settings'];
+  /**
+   * 「第2章から」 needs chapter 1 cleared on this device, except in the
+   * chapter-2 release page (VITE_CH2_OPEN=1): that page is a new origin with
+   * no records, so the tape is there from the start (50 1.4, standard data).
+   */
+  private readonly menu: MenuId[] = chapter1Cleared() || CH2_OPEN ? ['new', 'continue', 'ch2', 'settings'] : ['new', 'continue', 'settings'];
   /** 「第2章から」 is asking (the tapes step back like under the settings sheet). */
   private asking = false;
   private stamped = false;
