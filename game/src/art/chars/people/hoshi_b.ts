@@ -809,7 +809,7 @@ const TOME_HEAD: HeadT = {
   upD: { fringe: 'none', openEyes: true, whites: false },
 };
 
-/** The tall straw hat (mugiwara): a high round crown (his silhouette, taller than ペロリ's fedora), a green band, a round brim. */
+/** The tall straw hat (mugiwara): a high round crown (his silhouette, taller than ペロ's fedora), a green band, a round brim. */
 function mugiwara(f: Fig, view: 'down' | 'up' | 'left', hy: number) {
   f.part('straw', { flat: true });
   if (view === 'left') {

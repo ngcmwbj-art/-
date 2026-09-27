@@ -1598,7 +1598,7 @@ const BEATS2 = [
       if (!ok) throw new Error(`tomato: ${JSON.stringify({ ...v, pair })}`);
       await shot('lantern');
       await leaveRoom('map_hoshimidai');
-      await need(['flag_ch2_house_exit'], 'ペロリ at the door');
+      await need(['flag_ch2_house_exit'], 'ペロ at the door');
     },
   },
   {

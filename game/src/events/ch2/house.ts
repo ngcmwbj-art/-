@@ -1,10 +1,10 @@
 // 西の斜面と3号ハウス (50_ch2_story 10.6〜10.7, 53 12.4〜12.5):
-//   evt_ch2_mitsu  — ペロリ at the door of 3号 (after the gathering)
+//   evt_ch2_mitsu  — ペロ at the door of 3号 (after the gathering)
 //   evt_ch2_house  — the first step into the lit house; the far end glows
 //   evt_ch2_sune   — a green tomato rolls out and blocks the middle aisle → battle
 //   evt_ch2_tomato — 『みました』 on the はなまるトマト (fushigi_ch2_06 ★)
 //   evt_ch2_light  — the net becomes a lantern; stage 1 「ともしび」
-//   (leaving the house) — ペロリ: 「見えるよ。夕焼け色だ。」
+//   (leaving the house) — ペロ: 「見えるよ。夕焼け色だ。」
 
 import type { Co } from '../../engine/co';
 import { game } from '../../engine/game';
@@ -288,7 +288,7 @@ export function* houseExitLine(): Co {
 /**
  * Out of 3号 onto the village map: the world puts Minato on (2,31) itself
  * (a trigger doesn't fire on the tile one arrives on), so the map's enter
- * hook runs trig_ch2_house_exit — after the tomato, ペロリ's line.
+ * hook runs trig_ch2_house_exit — after the tomato, ペロ's line.
  */
 registerScript('trig_ch2_house_exit', function* (): Co {
   const f = field();

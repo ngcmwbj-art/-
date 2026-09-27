@@ -1,7 +1,7 @@
 // 第2章『星見台のトマト』 — the villagers' talk (50_ch2_story 3章), カネナリくん's
 // flips by place (3.1), the broadcast's names (3.2 / 3.13) and 無人販売所 (7.3).
 //
-// The ids stay the old ones (npc_hoshi_mitsu = ペロリ, npc_hoshi_gen = マサルさん,
+// The ids stay the old ones (npc_hoshi_mitsu = ペロ, npc_hoshi_gen = マサルさん,
 // npc_hoshi_fumi = まつ先生 …; 02_ch2_index 2.2): only the name tags, the
 // people and their words changed (2026-09-25).
 //
@@ -17,7 +17,7 @@ import type { TalkTable } from '../../world/types';
 
 /** Name tags and voices of the village (50 3.2, 53 9.1). The voice ids keep the old names. */
 export const HOSHI_SPEAKERS: Record<string, { name: string; voice: string }> = {
-  npc_hoshi_mitsu: { name: 'ペロリ', voice: 'h_mitsu' },
+  npc_hoshi_mitsu: { name: 'ペロ', voice: 'h_mitsu' },
   npc_hoshi_gen: { name: 'マサル', voice: 'h_gen' },
   npc_hoshi_fumi: { name: 'まつ先生', voice: 'h_fumi' },
   npc_hoshi_kucho: { name: 'エー区長', voice: 'h_kucho' },
@@ -104,7 +104,7 @@ export const HOSHI_NPC: Record<string, TalkTable> = {
   npc_hoshi_kucho: {
     /** After the gathering (the gathering itself was the first talk). */
     h0_2: `@npc_hoshi_kucho
-えー、ペロリさんの ハウスは、
+えー、ペロさんの ハウスは、
 西の 斜面で ございます。
 /
 県道の 沢の 橋を 渡って、
@@ -202,7 +202,7 @@ HPが 回復した。`,
 山の 上の 天文台までは、
 明かりが ないと 登れません。
 /
-ペロリさんの ハウスで、トマトが
+ペロさんの ハウスで、トマトが
 1つ 光っているそうですよ。{w=300}
 ……借りて いらっしゃい。`,
     /** The third time on: the morning star. */
@@ -258,7 +258,7 @@ HPが 回復した。`,
 その 1人は、わたしですよ。`,
   },
 
-  // ------------------------------------------------------------ 3.8 ペロリ（初回は evt_ch2_mitsu）
+  // ------------------------------------------------------------ 3.8 ペロ（初回は evt_ch2_mitsu）
   npc_hoshi_mitsu: {
     /** Before the gathering: talked to, or the closed door of 3号 examined (he calls from beside it). */
     h0_0: `@npc_hoshi_mitsu
@@ -406,7 +406,7 @@ HPが 回復した。`,
 トマトは 作っとらん。{w=300}
 米じゃ。
 /
-トマトは、ペロリの とこじゃ。
+トマトは、ペロの とこじゃ。
 {w=300}……名前で 決めるな。`,
     h1_1: `@npc_hoshi_tome
 ほう、明るいのう。{w=300}
@@ -457,13 +457,13 @@ HPが 回復した。`,
 今度は、わたしの 顔も 入れて。`,
     /** The third time on, after the gathering (before it, h0_2 repeats). */
     h0_3: `@npc_hoshi_sawako
-そうそう、ペロリさんの ハウス、
+そうそう、ペロさんの ハウス、
 さっき 奥が 光ってたのよ。{w=300}
 /
 西の 斜面の、いちばん 西の 1棟。
 /
-ペロリって、あだ名よ。{w=300}
-とれた トマトを ぺろりと
+ペロって、あだ名よ。{w=300}
+とれた トマトを ぺろっと
 食べて、色と 味を みるの。`,
     /** While ムジン販売員 is still about. */
     h1_1: `@npc_hoshi_sawako

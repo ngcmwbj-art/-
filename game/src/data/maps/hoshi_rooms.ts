@@ -1,5 +1,5 @@
 // The rooms of chapter 2 (52_ch2_level_art 4章): the unlit train (20×7),
-// ペロリさん's greenhouse No.3 (9×18), the Ishiguro barn (22×12) and the old
+// ペロさん's greenhouse No.3 (9×18), the Ishiguro barn (22×12) and the old
 // 星見台 branch school, now the meeting hall (26×12). Rows are 52 4.1–4.4
 // verbatim. Each room is painted by one shell prop (art/props/hoshi_rooms_*)
 // plus depth-sorted fittings; the dark (52 1.7) and the lights are declared
@@ -75,7 +75,7 @@ registerMap({
   amb: { 0: ['amb_h_train'], 1: ['amb_h_train'], 2: ['amb_h_train'] },
 });
 
-// ================================================================ 4.2 map_hoshi_house（ペロリさんの3号ハウス、9×18）
+// ================================================================ 4.2 map_hoshi_house（ペロさんの3号ハウス、9×18）
 
 const HOUSE_ROWS = [
   '#WWWWWWW#', // 0
@@ -149,7 +149,7 @@ const HOUSE_OBJ: MapObj[] = [
 
 registerMap({
   id: 'map_hoshi_house',
-  name: 'ペロリの 3号ハウス',
+  name: 'ペロの 3号ハウス',
   kind: 'indoor',
   chapter: 2,
   stageFlag: 'flag_ch2_stage',

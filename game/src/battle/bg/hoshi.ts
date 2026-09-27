@@ -136,7 +136,7 @@ function markerText(text: string, color: string): HTMLCanvasElement {
 // ---- bg_h_house (スネトマト) -------------------------------------------------------------------
 
 /**
- * 15.2: inside ペロリさん's 3号ハウス at night — the work lights are on
+ * 15.2: inside ペロさん's 3号ハウス at night — the work lights are on
  * (2026-09 brightness brief: the house is lit throughout), so the film and
  * its hoops glow a soft violet, the trained strings climb green with their
  * trusses of unripe tomatoes, and at the back the はなまるトマト hangs from

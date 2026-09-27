@@ -387,7 +387,7 @@ function* cut3Bus(): Co {
   f.snapCamera();
   const people = SEE_OFF.map(([id, x, y, d]) => put(id, x, y, d));
   const sankado = put('npc_hoshi_busdriver', 37, 43, 'left', 'bag');
-  // east of the circle, ツガオ便 in the morning: ヒロスケさん loads ペロリ's boxes
+  // east of the circle, ツガオ便 in the morning: ヒロスケさん loads ペロ's boxes
   // (two trips), ポコシャさん with a yellow crate on each shoulder; ツガオさん in
   // the driver's seat, awake in his work cap. No words, no sounds (50 10.16).
   const hiro = put('npc_hirosuke', 43, 43, 'up', 'carry_box');
@@ -423,7 +423,7 @@ function* cut3Bus(): Co {
   // the truck's picture (about 0.6 s, no sound)
   setFlag('flag_ch2_tsugao_bow', 1);
   yield 300;
-  // ペロリ holds out the plastic bag
+  // ペロ holds out the plastic bag
   const mitsu = people[4];
   mitsu.dir = 'up';
   face(`end_npc_hoshi_mitsu`, 'player');

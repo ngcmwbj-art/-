@@ -1,4 +1,4 @@
-// 星見台 villagers (1): ペロリ, マサルさん (52 10.3, 50 3.8–3.9).
+// 星見台 villagers (1): ペロ, マサルさん (52 10.3, 50 3.8–3.9).
 //
 // Both are drawn in the adult proportions (30 7.7: head 9px, 23–24px tall)
 // with straight backs (52 10.0). The night is made by the field's grading;
@@ -50,7 +50,7 @@ function waving(fn: (f: Fig, p: Pose) => void, sleeve: string, cuff?: string): (
 }
 
 // =============================================================================
-// ペロリ (npc_hoshi_mitsu): 56, slim and tall (24), the village's youngest.
+// ペロ (npc_hoshi_mitsu): 56, slim and tall (24), the village's youngest.
 // A wide-brimmed straw fedora with a black band, a trimmed grey moustache,
 // narrowed eyes (he cannot see well at night), grey hair combed back, an
 // indigo work shirt with the sleeves rolled twice, a red bandana, off-white

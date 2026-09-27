@@ -2,7 +2,7 @@
 // lines (h0_1 …), the branches on the story flags, エー夫人's tea (HP back,
 // evt_ch2_rest_yoriai), ソワカさん's 無人販売所 (7.3; the UI's shop
 // 'shop_hoshi_mujin') and カネナリくん's flips by place (3.1, 52 1.8).
-// The ids keep the old names (npc_hoshi_mitsu = ペロリ, _gen = マサルさん …).
+// The ids keep the old names (npc_hoshi_mitsu = ペロ, _gen = マサルさん …).
 
 import type { Co } from '../../engine/co';
 import { flag, setFlag, state } from '../../game/state';
@@ -156,7 +156,7 @@ registerScript('npc_hoshi_fumi', function* (): Co {
   yield* talk('npc_hoshi_fumi', only(t, ['h0_2', 'h0_3', 'h1_1', 'h1_2', 'h1_3']));
 });
 
-// ---------------------------------------------------------------- 3.8 ペロリ
+// ---------------------------------------------------------------- 3.8 ペロ
 
 registerScript('npc_hoshi_mitsu', function* (): Co {
   const t = T.npc_hoshi_mitsu;

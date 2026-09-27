@@ -3,7 +3,7 @@
 // ornament, ソワカさん's faded blue tin and her onions, 区長's tidy house
 // with the circular's shelf, the empty 森本 house with its shutters closed,
 // the ward storehouse, the old shop that is for sale, three more houses,
-// マサルさん's house with its night-light and ペロリ's farmhouse (tin over
+// マサルさん's house with its night-light and ペロ's farmhouse (tin over
 // thatch, the earthen kitchen, the veranda and the altar's two candles).
 //
 // All windows are dark (52 7.1: "どれも窓は暗い") but the few the night
@@ -595,7 +595,7 @@ registerBuilding({
   },
 });
 
-// ---------------------------------------------------------------- ペロリの家（古民家） (1,40) 8×: トタンをかぶせた茅葺き
+// ---------------------------------------------------------------- ペロの家（古民家） (1,40) 8×: トタンをかぶせた茅葺き
 
 registerBuilding({
   id: 'prop_h_bld_kominka',

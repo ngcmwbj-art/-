@@ -284,7 +284,7 @@ export function areaAt(tx: number, ty: number): string | null {
 const HOSHI_PLACE: Record<string, string> = {
   map_hoshi_train: '夜の電車',
   map_hoshimidai: '星見台',
-  map_hoshi_house: 'ペロリの 3号ハウス',
+  map_hoshi_house: 'ペロの 3号ハウス',
   map_hoshi_barn: '石黒牛舎',
   map_hoshi_school: '旧 星見台分校',
   map_hoshi_hill: '星見の丘',

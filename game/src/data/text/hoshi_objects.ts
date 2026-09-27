@@ -326,7 +326,7 @@ export const HOSHI_OBJ: Record<string, HText> = {
   obj_hoshi_nisshi: `@narr
 作業日誌。きちんとした 字で
 『8月28日 5段目 色づき。
-味見 ぺろり。ほどよい』。
+味見 ぺろっ。ほどよい』。
 /
 その 次の 日から、
 日付が 進んでいない。`,
@@ -360,7 +360,7 @@ export const HOSHI_OBJ: Record<string, HText> = {
 ゆっくり 堆肥に なっていく。
 /
 ほんのり あたたかい。{w=300}
-……ペロリの ハウスへ 行く 土だ。`,
+……ペロの ハウスへ 行く 土だ。`,
   obj_hoshi_gen_house: `@narr
 マサルの 家。{w=300}
 奥の 部屋で、だれかが 静かに
@@ -885,7 +885,7 @@ export const FUSHIGI2_BOOK: { id: string; title: string; place: string }[] = [
 
 /** みました帳 ② 「あいて」 (8.11): who they were, and a word. */
 export const AITE2_BOOK: { id: string; who: string; word: string }[] = [
-  { id: 'enemy_sune_tomato', who: 'ペロリの 3号ハウスの、\nまだ 色づいていない トマト。', word: '赤く なる 順番を、待っている。' },
+  { id: 'enemy_sune_tomato', who: 'ペロの 3号ハウスの、\nまだ 色づいていない トマト。', word: '赤く なる 順番を、待っている。' },
   { id: 'enemy_henoheno_kacho', who: 'トマじいの 背広を 着た、\n棚田の かかし。', word: 'かかしに、定年は ない。' },
   { id: 'enemy_biribiri_ban', who: 'イノシシよけの、電気柵の\nひと区画。', word: '番を するのが 仕事。\nだれの 番かは、忘れた。' },
   { id: 'enemy_chototsu', who: '山から 下りてきた、イノシシ。', word: '曲がれない、と よく 言われる。' },

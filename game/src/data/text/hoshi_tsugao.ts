@@ -278,7 +278,7 @@ export const DELI_TEXT: Record<string, string> = {
 伝票の 1枚目と、同じ 名前だ。
 !cue put_down
 @narr
-ペロリが とっておいた トマトを、
+ペロが とっておいた トマトを、
 置き台に 置いた。{w=300}貼り紙に、
 『ひと畝 耕したら 食う　タケ』
 @npc_pokosha
@@ -293,7 +293,7 @@ export const DELI_TEXT: Record<string, string> = {
 @npc_pokosha
 ……次は、東の 小道の 奥、です。`,
   "おとどけ 3": `@narr
-ペロリの ししとうを、
+ペロの ししとうを、
 勝手口の 置き台に 置いた。
 {w=300}『寝とったら、起こさんで ええ』
 @npc_pokosha

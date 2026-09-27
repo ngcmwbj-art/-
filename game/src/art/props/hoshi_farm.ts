@@ -2,7 +2,7 @@
 // 台地・耕作放棄地): harvest crates and shipping boxes in front of the tomato
 // houses, the irrigation tank with its timer stopped at 5:00, the stake
 // bundle, the water divider and the paddies' inlet board, the scarecrows (8,
-// each dressed differently, turning to the hill in h2), ペロリ's kitchen
+// each dressed differently, turning to the hill in h2), ペロ's kitchen
 // garden (her own tomatoes are red: those she lets ripen on the vine), the
 // hand pump, マサルさん's kei truck with feed bags and the dog's blanket, the
 // electric fence's gate, signs and solar power unit, and the abandoned
@@ -47,7 +47,7 @@ regStand(
   { cx: 8, base: 16, shadow: 26 },
 );
 
-/** ペロリ's seat: two crates, upside down (she sits on them; the NPC is drawn after). */
+/** ペロ's seat: two crates, upside down (she sits on them; the NPC is drawn after). */
 registerProp('prop_h_container_seat', () =>
   standProp(
     16,
@@ -196,7 +196,7 @@ registerProp('prop_h_bunsui', () => {
   return { ox: -1, oy: -2, w: 18, h: 34, foot: 0, flat: true, img: () => img };
 });
 
-// ---------------------------------------------------------------- ペロリの家庭菜園 (9,42) 64×32
+// ---------------------------------------------------------------- ペロの家庭菜園 (9,42) 64×32
 
 regStand(
   'prop_h_hatake',

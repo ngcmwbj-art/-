@@ -1,5 +1,5 @@
 // Chapter-2 rooms, part 1 (52_ch2_level_art 4.1・4.2): the unlit one-man
-// train and ペロリ's greenhouse No.3.
+// train and ペロ's greenhouse No.3.
 //
 // Each room is one flat shell prop anchored at (0,0) (walls, seats, the
 // film, the fittings on the walls; the floors are the ground layer) plus
@@ -318,7 +318,7 @@ const SIDE = 120; // the film view outside the side walls (the camera centres th
 /**
  * The house in the morning (ending cut 2b, 52 4.2): the clock starts the
  * first frame the house is drawn in h3 (the cut's fade-in). At ROLL_AT
- * ペロリ's crank rolls the east side's lower film up (4 frames, 0.4 s) and
+ * ペロ's crank rolls the east side's lower film up (4 frames, 0.4 s) and
  * the morning comes in from the east; at RIPEN_AT the green trusses redden
  * plant by plant from the door to the back (0.1 s each). A house not drawn
  * for half a second starts again (another visit, a load).
