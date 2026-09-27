@@ -3,7 +3,7 @@
 // import.meta.env.DEV, so none of this ships in `vite build` (40_audio 15.4).
 
 import { registerDebug } from '../debug';
-import { activeAmbients, AMBIENCE_IDS } from './ambience';
+import { activeAmbients, walledAmbients, AMBIENCE_IDS } from './ambience';
 import { hasGraph, lateStats, liveGraph } from './engine';
 import { clockStats } from './clock';
 import * as api from './index';
@@ -47,6 +47,8 @@ export function registerAudioCommands(): void {
     music: musicDebugState(),
     position: api.musicPosition(),
     ambience: activeAmbients(),
+    // beds heard through a room's wall right now (53 7.2: the dawn from inside the barn)
+    walled: walledAmbients(),
     counts: { bgm: songTable.size, sfx: sfxTable.size, amb: AMBIENCE_IDS.length, voices: Object.keys(VOICES).length },
   })) as never);
   // every id asked for that nothing registered, since the page loaded (53 16.1)

@@ -226,8 +226,11 @@ function hoshiNightDef(): SongDef {
       // the rim sit 10–12 LU under the song (the shaker a whisper, the rim
       // clearly there: Ami's lantern swaying as she walks), and at 段階2 the
       // soft kick 8–10 LU under it (a heartbeat you hear). The part trim is
-      // +19.5 (mix.ts); the kick's velocity holds it under the sway.
-      vel: { drm_shaker: 0.7, drm_rim: 0.9, drm_kick_soft: 0.14 },
+      // +19.5 (mix.ts); the kick's velocity holds it under the sway. The
+      // shaker is dulled (a 5 kHz low-pass on the part): the village's water
+      // and insects live up there and must stay heard over it (4.2).
+      vel: { drm_shaker: 0.55, drm_rim: 1, drm_kick_soft: 0.14 },
+      fx: { lp: 5000 },
       when: (b) => b.p.h_room !== 2 && b.p.h_room !== 3,
       aware: ['h_room'],
     }),

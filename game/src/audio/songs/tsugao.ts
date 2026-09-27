@@ -60,7 +60,7 @@ function tsugaoDef(): SongDef {
     // ---- M7 in the bass register: the song's tune (legato, the fretless glides)
     melody({ id: 'bass', ins: 'ins_fm_fretless', bars: tsugao.part('bass'), o: { vol: 0.1, index: 1.8, lp: 2200 }, gate: 1 }),
     // ---- its grit: the same line, driven, 250 Hz – 2.2 kHz (what a laptop or a phone plays of it)
-    melody({ id: 'bass_grit', ins: 'ins_fm_fretless', bars: tsugao.part('bass'), o: { vol: 0.04, index: 3.2, lp: 2600, drive: 3 }, gate: 1, fx: { hp: 250, lp: 2200 } }),
+    melody({ id: 'bass_grit', ins: 'ins_fm_fretless', bars: tsugao.part('bass'), o: { vol: 0.04, index: 3.2, lp: 2600, drive: 3 }, gate: 1, fx: { hp: 250, lp: 2200, air: -6 } }),
     // ---- the answering shrug: two marimba notes ("ぽこ、ぽこ")
     melody({ id: 'marimba', ins: 'ins_fm_marimba', bars: tsugao.part('marimba'), o: { vol: 0.05 } }),
     // ---- the D2 pedal under T1–T5 (T6–T8 move off D: F2, E2, A2 would beat against it)

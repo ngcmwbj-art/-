@@ -986,9 +986,11 @@ export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sf
     log('sfx done');
   }
   const seBuried = Object.entries(sfx).filter(([, r]) => r.ok === false).map(([id, r]) => `${id} (${r.margin} dB < ${r.need})`);
-  // (the SEs levelled by loudness answer to their loudness target instead of the peak)
+  // (the SEs levelled by loudness answer to their loudness target instead of the peak;
+  // an SE held under its peak target by its loudness ceiling — within 1.5 LU of it — is where it should be)
+  const heldByCeiling = (r: (typeof sfx)[string]) => r.peakDev < -3 && r.loud >= r.loudCeiling - 1.5;
   const seOffTarget = Object.entries(sfx)
-    .filter(([id, r]) => (SE_LOUD_TARGET[id] !== undefined ? Math.abs(r.loud - SE_LOUD_TARGET[id]) > 3 : Math.abs(r.peakDev) > 3))
+    .filter(([id, r]) => (SE_LOUD_TARGET[id] !== undefined ? Math.abs(r.loud - SE_LOUD_TARGET[id]) > 3 : Math.abs(r.peakDev) > 3 && !heldByCeiling(r)))
     .map(([id, r]) => (SE_LOUD_TARGET[id] !== undefined ? `${id} (${r.loud} LUFS vs ${SE_LOUD_TARGET[id]})` : `${id} (${r.peakDev > 0 ? '+' : ''}${r.peakDev})`));
   const tooLoud = Object.entries(sfx).filter(([, r]) => r.loud > r.loudCeiling);
   const loudRow = ([id, r]: [string, (typeof sfx)[string]]) => `${id} (${r.loud} LUFS > ${r.loudCeiling}, ${r.loudBy})`;
