@@ -286,7 +286,7 @@ export const PART_PAN: Record<string, number> = {
   // from the hill (the middle — the echoes fan out on their own); the name
   // tags ring from the speaker's pole a little right of the roll call
   'bgm_hoshi_night/stars': 0.3, 'bgm_hoshi_night/yobigoe': 0,
-  // the delivery's "ぽこ、ぽこ" answers from the other side of the lantern (the crates at Minato's back)
+  // the delivery's "ぽこ、ぽこ" answers from the other side of the lantern (the crates at しゅん's back)
   'bgm_hoshi_night/deli': -0.3,
   'bgm_boss_yobimodoshi/tenko': 0.28, 'bgm_boss_yobimodoshi/lead_mbox': -0.3, 'bgm_boss_yobimodoshi/intro_chime': 0.2,
   'bgm_hoshi_morning/chime': 0.12, 'bgm_hoshi_morning/mbox': 0.3, 'bgm_hoshi_morning/mbox_hi': 0.34,

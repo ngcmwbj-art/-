@@ -654,9 +654,10 @@ registerAmbience('amb_h_house', (c) => {
 });
 
 /**
- * amb_h_tomato — the はなまるトマト humming in the dark at the back of the
- * greenhouse (the way to it in the dark): F3 with F4 and C5, breathing at
- * 0.8 Hz like its light. The world raises it as Minato comes near.
+ * amb_h_tomato — the はなまるトマト humming at the back of the greenhouse
+ * (the house is lit, 2026-09-26, but this one still glows among the rows and
+ * the ear can follow it there): F3 with F4 and C5, breathing at 0.8 Hz like
+ * its light. The world raises it as しゅん comes near.
  */
 registerAmbience('amb_h_tomato', (c) => {
   const g = c.g;

@@ -1258,12 +1258,15 @@ async function darkCheck2(label) {
         const held = a.data.scripted;
         a.data.scripted = true;
         a.moving = false;
+        // the frames are redrawn without time passing (nothing moves between them)
+        const frame = () => (typeof g.draw === 'function' ? g.draw() : g.advance(16));
         g.advance(16);
+        frame();
         const A = grab(x, y);
-        g.advance(16);
+        frame();
         const A2 = grab(x, y);
         a.visible = false;
-        g.advance(16);
+        frame();
         const B = grab(x, y);
         a.visible = true;
         g.advance(16);
@@ -1564,9 +1567,7 @@ const BEATS2 = [
   {
     name: 'barn',
     async run() {
-      log(`  DIAG before barn: ${JSON.stringify(await flags(['flag_ch2_gate_open', 'flag_ch2_got_otsukare', 'flag_ch2_met_gen']))} ${JSON.stringify(await st())}`);
       await enterDoor(51, 32, 'up', 'map_hoshi_barn');
-      log(`  DIAG in barn: ${JSON.stringify(await flags(['flag_ch2_gate_open', 'flag_ch2_got_otsukare', 'flag_ch2_met_gen']))} ${JSON.stringify(await st())}`);
       await advance({ shotEvery: 4, label: 'barn', max: 180000 });
       await need(['flag_ch2_got_otsukare', 'flag_ch2_gate_open'], 'barn → otsukare → gate');
       await assertReach2('h1 after the gate', 1);
