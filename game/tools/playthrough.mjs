@@ -362,7 +362,7 @@ async function alignTile() {
  * are won; an NPC in the way is waited for and walked round; a path that stays blocked is
  * skipped by one run with a teleport (counted in the summary).
  */
-async function travel(tx, ty, { timeout = 90000 } = {}) {
+async function travel(tx, ty, { timeout = 90000, into = null } = {}) {
   const t0 = Date.now();
   let stalls = 0;
   let lastTile = '';
@@ -381,6 +381,9 @@ async function travel(tx, ty, { timeout = 90000 } = {}) {
         await page.keyboard.down('ShiftLeft');
         continue;
       }
+      // a run that overshot into the door we were heading for (`into`): the room's own
+      // event (onEnter) is the caller's to press through, not an event on the way
+      if (into && s.map === into) return s;
       if (!s.ctrl) {
         await advance({ label: 'onway' });
         continue;
@@ -1212,7 +1215,7 @@ async function ch2Battle(name, maxMs = 300000) {
 /** Walk into a door cell (pushing `dir` from the tile before it) until the map changes. */
 async function enterDoor(x, y, dir, to) {
   try {
-    await travel(x, y);
+    await travel(x, y, { into: to });
   } catch (e) {
     // a run that overshot the tile before the door went through it: that is where we were going
     if ((await st()).map !== to) throw e;
