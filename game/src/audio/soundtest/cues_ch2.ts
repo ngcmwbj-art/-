@@ -423,7 +423,7 @@ export const CH2_CUES: Cue[] = [
         A.playAmbient('amb_h_dawn', { fade: 1 });
         if (A.currentBgmId() !== 'bgm_hoshi_morning') A.playBgm('bgm_hoshi_morning', { fade: 1 });
       }),
-      S(1.5, '2A BARN: MORNING LIGHT, CART, ONE MOO', () => {
+      S(1.5, '2A BARN: DAWN THRU WALL, CART', () => {
         A.playAmbient('amb_h_barn', { vol: 0.6, fade: 1 });
         A.sfx('se_h_barn_morning');
         const now = liveGraph()?.ctx.currentTime ?? 0;

@@ -467,7 +467,7 @@ function barnMorning(c: SeCtx): void {
   }
 }
 se('se_h_barn_light', {
-  label: '牛舎の朝（蛍光灯の下に朝の光が差しこむ。遠いヒグラシ、牛が立ち上がる）',
+  label: '牛舎の朝（蛍光灯の下に東の窓から朝の光が差しこむ。牛が立ち上がる）',
   group: G_BARN,
   rev: 0.3,
   fn: barnMorning,

@@ -141,7 +141,7 @@ const SE_LOUD_MOMENT_GROUPS = new Set(['チャイム・鐘・放送', '第2章�
 /**
  * SEs levelled by loudness instead of their peak (momentary max, LUFS): the
  * long pitched ones, whose peak says little about how loud they are heard.
- * ヨビモドシ's howl sits 3 LU under chapter 1's heaviest stamp (four of them
+ * ヨビモドシ's howl sits 4 LU under chapter 1's heaviest stamp (four of them
  * stacked in the 夜ふかし warning stay near it); the PA's single notes and
  * the name call sit under the 17:00 chime, as a speaker on a hill should.
  */
@@ -187,7 +187,7 @@ export function seLoudMusic(id: string, group: string | undefined): string | nul
 export function seLoudFrozen(group: string | undefined): boolean {
   return !/^第2章：/.test(group ?? '');
 }
-/** The fixed ceiling of an SE that is a moment (null: it follows its music). */
+/** The fixed ceiling of an SE that is a moment (seLoudMusic gave null). */
 export function seLoudFixed(id: string): number {
   return SE_LOUD_BELLS.has(id) ? SE_LOUD_BELL : SE_LOUD_CHIME;
 }
