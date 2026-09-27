@@ -116,6 +116,12 @@ export interface EnemyDef {
   size: [number, number];
   core: [number, number];
   face: [number, number];
+  /**
+   * Where the ink marks (みました / ペケ / おつかれ) land, in sprite space.
+   * Default: the core — or, for a chapter-2 enemy whose face sits on its
+   * core, just under the face (so the mark never hides the face it is about).
+   */
+  decalAt?: [number, number];
   /** Foot line (default: core at y104, at most y136 — see stageFootY). */
   footY?: number;
   hp: number;

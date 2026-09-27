@@ -412,7 +412,8 @@ function* runList(s: BattleScene, items: ListItem[], remember: string): Co<Party
 }
 
 function skillDesc(id: string): string {
-  const d = getSkill(id)?.desc;
+  // chapter 2: おかえりなさい is a keepsake of 夕鳴町, not the last stamp
+  const d = id === 'skill_okaerinasai' && flag('flag_ch2_started') ? SYS2.okaeriDescCh2 : getSkill(id)?.desc;
   return d ? `${d[0]}\n${d[1]}` : '';
 }
 

@@ -35,6 +35,11 @@ export abstract class Background {
   wave: Wave = { A: 2, lambda: 64, f: 0.2, A2: 0, lambda2: 40, f2: 0.3, interlace: false };
   /** Distort only L1 (L0 drawn straight). */
   distortL1Only = false;
+  /**
+   * With distortL1Only: wrap each shifted L1 row round the screen edge (for
+   * a full-width L1 such as 第2章's terraces, so no bare strip opens at the edge).
+   */
+  wrapL1 = false;
   /** Color under the windows (y ≥ 150). */
   bottom = '#2A2440';
   /** Motif clock (advances with speed, stops when frozen). */
@@ -138,7 +143,7 @@ export abstract class Background {
           if (dy > 0) ctx.drawImage(s0, x, 0, 1, 1, x, 0, 1, dy);
         }
       } else ctx.drawImage(s0, 0, 0);
-      rows(filtered(this.l1), false);
+      rows(filtered(this.l1), this.wrapL1);
     } else {
       c0.drawImage(this.l1, 0, 0);
       rows(filtered(this.l0), true);

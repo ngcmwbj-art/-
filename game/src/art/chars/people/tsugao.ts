@@ -413,7 +413,8 @@ function hiroShades(f: Fig, view: 'down' | 'left', hy: number, lu: boolean) {
 
 /** The long beard from the chin to the chest, gathered by a red rubber band; `sway` 0/1. */
 function hiroBeard(f: Fig, view: 'down' | 'left', hy: number, sway: number, lu: boolean) {
-  const y = hy + 8 + (lu ? -1 : 0);
+  // it starts under the chin, a skin row below the mouth so the smile reads (52 10.3)
+  const y = hy + 9 + (lu ? -1 : 0);
   f.part('beard', { flat: true });
   if (view === 'left') {
     f.rows(2, y, ['Hhh', 'Hhd', 'hhd', '.hd', '.hd'], T);
@@ -431,11 +432,18 @@ function hiroBeard(f: Fig, view: 'down' | 'left', hy: number, sway: number, lu: 
   f.hl(7 + sway, 8 + sway, y + 6);
 }
 
-/** The upturned smile (always): corners up, 4px across. */
+/**
+ * The upturned smile (always, 52 10.3 その3): corners up, 4px across, the
+ * cheeks pushed up under the sunglasses (lit skin), the chin's skin under it
+ * before the beard begins — readable at 1x as a grin, not a line in the beard.
+ */
 function hiroSmile(f: Fig, hy: number, open: boolean) {
+  f.part('gloss', { flat: true, rim: false });
+  f.px(5, hy + 6).px(10, hy + 6);
   f.part('mouth', { flat: true, rim: false });
   f.px(6, hy + 6).hl(7, 8, hy + 7).px(9, hy + 6);
   if (open) f.part('#8A2E3A', { flat: true, rim: false }).hl(7, 8, hy + 6);
+  else f.part('skin', { flat: true, rim: false }).hl(7, 8, hy + 6);
 }
 
 const HIRO_LEGS: LegSpec = { cx: 8, hip: 17, foot: 22, w: 2, gap: 2, mat: 'pants', shoe: 'shoe', shoeLen: 3 };
@@ -924,22 +932,28 @@ function pokoSide(f: Fig, p: PokoPose) {
   legs(f, p, POKO_LEGS);
   f.part('pants', { shade: 'rb', light: '' });
   f.rect(4, 16 + b, 8, 2);
+  // a deep chest even side-on (the widest of the three, 52 10.3)
   f.part('tank', { shade: 'rb', light: 't' });
-  f.hl(5, 9, 10 + u);
-  f.rect(4, 11 + u, 7, 17 + b - (11 + u));
+  f.hl(4, 9, 10 + u);
+  f.rect(3, 11 + u, 8, 17 + b - (11 + u));
   f.part('vest', { shade: 'rb', light: 't' });
-  f.rect(4, 12 + u, 7, 17 + b - (12 + u));
+  f.rect(3, 12 + u, 8, 17 + b - (12 + u));
   f.part('pocket', { flat: true, rim: false });
-  f.hl(4, 6, 14 + u);
+  f.hl(3, 5, 14 + u);
+  // carrying (配達 / カット3): the crate on his right shoulder, the hen on his
+  // left. Facing left the left shoulder is the near one: the hen stays in
+  // view and the crate shows over the far shoulder behind his head; facing
+  // right (drawn mirrored) the crate sits on the near shoulder beside his head.
+  const nearCrate = (carry >= 1 && p.mirror) || carry >= 2;
+  if ((carry >= 1 && !p.mirror) || carry >= 2) crate(f, 8, hy + 1, 8, 4, carry >= 2 ? -1 : 0);
   // near arm, thick
   if (act === 'shh') {
     f.part('skin', { shade: 'rb', light: 't' });
     f.rect(5, 11 + u, 3, 3).rect(3, hy + 6, 2, 3);
   } else if (carry >= 1) {
-    if (carry >= 2) crate(f, 6, 2 + u, 8, 4, -1);
     f.part('skin', { shade: 'rb', light: 't' });
-    f.rect(5, 10 + u, 3, 3).rect(5, 7 + u, 2, 3);
-    crate(f, 3, 3 + u, 8, 4);
+    if (nearCrate) f.rect(5, 10 + u, 3, 2).rect(5, hy + 8, 2, 2);
+    else f.rect(5, 11 + u, 3, 5).rect(5, 16 + u, 3, 2);
   } else {
     f.part('skin', { shade: 'rb', light: 't' });
     f.rect(6 - sw, 11 + u, 3, 5);
@@ -954,8 +968,14 @@ function pokoSide(f: Fig, p: PokoPose) {
     f.part('ear', { flat: true, rim: false });
     f.px(8, hy + 5);
   }
-  // his left shoulder is the far one facing left: she sits up on it, behind his head
-  if (carry < 1) henSmall(f, 9, 6 + u, henPose(p), false);
+  // the hen on his shoulder, behind his head
+  if (carry < 1 || (!p.mirror && carry < 2)) henSmall(f, 9, 6 + u, henPose(p), false);
+  // facing right: the crate on the near (right) shoulder, beside his head, his hand under it
+  if (nearCrate) {
+    crate(f, 6, hy + 4, 8, 4);
+    f.part('skin', { shade: 'rb', light: 't' });
+    f.rect(5, hy + 8, 2, 2);
+  }
 }
 
 function pokoDraw(f: Fig, p: Pose) {

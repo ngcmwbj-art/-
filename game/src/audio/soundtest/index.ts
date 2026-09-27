@@ -172,6 +172,7 @@ const AMB_LABEL: Record<string, string> = {
   amb_h_pa_hum: '開いたままの回線（段階2の放送のうなり）',
   amb_h_dawn: '夜明けのヒグラシ（朝も鳴く）',
   amb_tsugao_room: 'ツガオの部屋（スタンドのうなり、時計、波とサイレン）',
+  amb_h_tsugaobin: '転回場のツガオ便（運転席の寝息、ぴーちゃん）',
 };
 
 /** SE group headings that would run off the page, as the list shows them. */

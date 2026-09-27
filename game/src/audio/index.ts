@@ -8,7 +8,7 @@ import { installKeepAlive, soundLive } from './keepalive';
 import { audioCtx, hasGraph, initAudio, liveGraph, setSpaceOn, volCurve, type PaMode, type SpaceId } from './engine';
 import * as amb from './ambience';
 import * as music from './music';
-import { hooks, legacyBgm, loopTable, sfxTable, type LoopHandle, type SfxFn, type SfxOpts, type Song } from './registry';
+import { hooks, legacyBgm, loopTable, noteUnknown, sfxTable, type LoopHandle, type SfxFn, type SfxOpts, type Song } from './registry';
 import type { SongDef } from './sequencer';
 import { songTable } from './registry';
 
@@ -58,7 +58,7 @@ export function sfx(id: string, opts?: SfxOpts): void {
     f(opts);
     hooks.onSfx?.(id);
     music.notifySongSfx(id);
-  } else if (import.meta.env.DEV) console.warn(`[audio] unknown sfx ${id}`);
+  } else noteUnknown('sfx', id);
 }
 
 const NULL_LOOP: LoopHandle = { set() {}, stop() {} };
@@ -68,7 +68,7 @@ export function sfxLoop(id: string, opts?: SfxOpts): LoopHandle {
   if (!soundLive()) return NULL_LOOP;
   const f = loopTable.get(id);
   if (f) return f(opts);
-  if (import.meta.env.DEV) console.warn(`[audio] unknown sfx loop ${id}`);
+  noteUnknown('sfx loop', id);
   return NULL_LOOP;
 }
 

@@ -67,7 +67,7 @@ const DEFAULT_DARK: Record<string, TileRect[]> = {
 const DEFAULT_DARK_LIGHTS: Record<string, DarkLight[]> = {
   // the はなまるトマト on its vine (5,2), 5th truss: until it is picked — it
   // has to glow in the lit house too (its halo, 52 4.2)
-  map_hoshi_house: [{ x: 5, y: 2, ox: 8, oy: 4, r: 88, amp: 4, k: 1, halo: 18, cond: { notFlag: ['flag_ch2_got_tomato', 'flag_ch2_tomato_picked'] } }],
+  map_hoshi_house: [{ x: 5, y: 2, ox: 8, oy: 4, r: 88, amp: 4, k: 1, halo: 22, cond: { notFlag: ['flag_ch2_got_tomato', 'flag_ch2_tomato_picked'] } }],
 };
 const DEFAULT_STARLIGHT: Record<string, StarlightSpot[]> = {};
 
@@ -203,7 +203,7 @@ const RING_COL: [number, number, number][] = [
  * lighter night of 2026-09-26, not a spotlight) and in a lit room (the
  * barn's tubes, the greenhouse's lamps: just a warmth round him).
  */
-const RING_A: Record<RingMode, number[]> = { in: [0.85, 0.6, 0.3], out: [0.42, 0.28, 0.14], room: [0.22, 0.16, 0.09] };
+const RING_A: Record<RingMode, number[]> = { in: [0.92, 0.64, 0.32], out: [0.42, 0.28, 0.14], room: [0.22, 0.16, 0.09] };
 
 const ringCache = new Map<string, HTMLCanvasElement>();
 
@@ -325,7 +325,7 @@ const haloCache = new Map<string, HTMLCanvasElement>();
  * - 'core' (screened over the frame, radius r): #FFE7A3 / #F7B070 / #F2894B
  *   at α .7 / .45 / .22 — the fruit shines;
  * - 'veil' (mixed over it, radius 1.8r): #F7B070 / #F2894B / #F2894B at
- *   α .26 / .16 / .08 — the sunset colour round it, which screening alone
+ *   α .3 / .2 / .1 — the sunset colour round it, which screening alone
  *   would bleach out on the lamps' white.
  */
 export function haloImage(r: number, layer: 'core' | 'veil' = 'core'): HTMLCanvasElement {
@@ -338,7 +338,7 @@ export function haloImage(r: number, layer: 'core' | 'veil' = 'core'): HTMLCanva
   const img = ctx.createImageData(size, size);
   const d = img.data;
   const t = [0.35 * R, 0.68 * R, R];
-  const A = layer === 'core' ? [0.7, 0.45, 0.22] : [0.26, 0.16, 0.08];
+  const A = layer === 'core' ? [0.7, 0.45, 0.22] : [0.3, 0.2, 0.1];
   const C = layer === 'core' ? [[0xff, 0xe7, 0xa3], RING_COL[1], RING_COL[2]] : [RING_COL[1], RING_COL[2], RING_COL[2]];
   for (let y = 0; y < size; y++)
     for (let x = 0; x < size; x++) {

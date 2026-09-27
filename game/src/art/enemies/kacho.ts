@@ -145,15 +145,28 @@ function build(o: Pose): PixelCanvas {
       const cyy = Y(cyL);
       p.vline(cxx, Y(26), cyy - 5, '#E8E4D8');
       const ph = (o.cd + i) % 4;
-      const hw = [4, 3, 1, 3][ph];
+      const hw = [4.5, 3, 1, 3][ph];
+      // a round disc turning on its thread: a grey rim, the silver face
+      // (lighter to the upper left), the clear hub ring and its hole, and
+      // a rainbow arc that runs round the face (the palette cycle)
       for (let y = -4; y <= 4; y++) {
-        const w = Math.round(hw * Math.sqrt(1 - (y * y) / 17));
-        for (let x = -w; x <= w; x++) p.set(cxx + x, cyy + y, x < 0 && y > 0 ? '#E8ECF0' : '#C8CDD4');
+        const w = Math.round(hw * Math.sqrt(Math.max(0, 1 - (y * y) / 20.25)));
+        for (let x = -w; x <= w; x++) {
+          const edge = Math.abs(x) === w || Math.abs(y) === 4;
+          p.set(cxx + x, cyy + y, edge ? '#8E95A6' : x + y < -1 ? '#E8ECF0' : '#C8CDD4');
+        }
       }
       if (hw >= 3) {
+        const sq = hw / 4.5;
+        for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as [number, number][]) p.set(cxx + Math.round(dx * sq), cyy + dy, '#9AA0A8');
         p.set(cxx, cyy, INK);
-        // the rainbow sheen (3px arc), cycling every 120ms
-        for (let k = 0; k < 3; k++) p.set(cxx - 2 + k, cyy - 2 + (k === 1 ? -1 : 0), RAINBOW[(o.cyc + k + i) % 4]);
+        for (let k = 0; k < 4; k++) {
+          const an = (o.cyc + i) * (Math.PI / 2) + k * 0.55;
+          p.set(cxx + Math.round(Math.cos(an) * 2.6 * sq), cyy + Math.round(Math.sin(an) * 2.6), RAINBOW[(k + i) % 4]);
+        }
+      } else {
+        // edge on: a bright sliver
+        p.vline(cxx, cyy - 3, cyy + 3, '#E8ECF0');
       }
       if (o.glint === i) {
         p.hline(cxx - 3, cxx + 3, cyy, '#FFF6D8');

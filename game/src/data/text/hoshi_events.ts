@@ -121,20 +121,20 @@ export const ARRIVE_FLIP = `@flip
 // ================================================================ 10.4 evt_ch2_dark_block
 
 export const DARK_FIRST = `@narr
-暗くて、足もとが 見えない。
+暗くて、足もとが あぶない。
 @flip
-（ぼくも 見えません。
+（ぼくは 入りません。
 中が 暗いので）
 /
 明かりが いりますね。`;
 
 export const DARK_AGAIN = `@narr
-暗くて、足もとが 見えない。`;
+暗くて、足もとが あぶない。`;
 
 /** The school corridor, from the second time on. */
 export const DARK_SCHOOL_AGAIN = `@narr
-廊下の 先は、真っ暗だ。{w=300}
-……明かりが あれば。`;
+廊下の 奥は、暗くて よく
+見えない。{w=300}……明かりが あれば。`;
 
 // ================================================================ 10.5 evt_ch2_yoriai
 
@@ -219,7 +219,7 @@ export const YORIAI_B = `@npc_hoshi_fumi
 防災無線は、山の 上の
 天文台の となり。
 /
-でも、山道は 真っ暗。{w=300}
+でも、山道は 暗い 杉の 森。{w=300}
 明かりが ないと 登れません。
 @npc_hoshi_yoshie
 明かりなら、ペロリさんの
@@ -263,9 +263,9 @@ export const MITSU_A = `@npc_hoshi_mitsu
 赤く なったのが いる。{w=300}
 夕焼けの 色で 光ってる。
 /
-おれは 夜目が きかなくてね。
-{w=300}暗い ハウスの 奥までは
-行けない。とってきて くれるかい。
+おれが 手を のばすと、{w=300}
+光を すっと 引っこめる。
+……とってきて くれるかい。
 /
 ……たぶん、きみに
 見て ほしがってる。`;
@@ -273,8 +273,9 @@ export const MITSU_A = `@npc_hoshi_mitsu
 // ================================================================ 10.7 evt_ch2_house → sune → tomato → light
 
 export const HOUSE_ENTER = `@narr
-暗い。{w=300}
-……でも、奥が 夕焼け色だ。`;
+ハウスの 中は、電気が ついていた。
+{w=300}……奥の 1つだけ、夕焼け色に
+光っている。`;
 
 /** Cue: glance (it looks at the red one at the far end, and away). */
 export const SUNE_A = `@narr
@@ -307,8 +308,8 @@ export const TOMATO_GET = `@sys
 照らされる ように なった。`;
 
 export const LIGHT_A = `@narr
-ハウスの 中が、夕焼け色に
-照らされた。{w=300}
+アミの 中で、トマトが
+夕焼け色に ともった。{w=300}
 /
 ……光に 気づいて、
 なにかが こっちを 見た。`;
@@ -344,7 +345,9 @@ export const GEN_STOP = `@npc_hoshi_gen
 ちょうど いい。
 /
 牛舎の 見回りが、あと 1房。
-懐中電灯が 切れてな。{w=300}
+{w=300}そこだけ、蛍光灯が 切れてる。
+/
+懐中電灯も、電池切れでな。{w=300}
 その 明かりで、手伝って くれんか。`;
 
 // ================================================================ 10.9 evt_ch2_barn → otsukare → gate
@@ -362,11 +365,11 @@ export const BARN_A = `@npc_hoshi_gen
 
 /** While the light passes the pens (shown on the walk, cue: stop at 南5). */
 export const BARN_COWS = `@narr
-黒い 牛が、4頭ずつ
-並んでいる。{w=300}
+蛍光灯の 下に、黒い 牛が
+4頭ずつ 並んでいる。{w=300}
 /
-光が 通ると、耳の
-黄色い 耳標が 光る。`;
+トマトの 光が 通ると、耳の
+黄色い 耳標が きらっと 光る。`;
 
 /** Cues: holdup (the net held high), look (he checks them one by one), write (the round's book), sit (he sits on the feed bag). */
 export const BARN_B = `@npc_hoshi_gen
@@ -774,9 +777,9 @@ export const WORK_HOW = `@npc_hoshi_gen
 いった エサを、柵の 側へ
 寄せもどす。{w=300}それが エサ寄せだ。
 /
-暗くて、どこが 寄ってるか
-見えん。{w=300}
-その 明かりで 探せ。
+首を のばしてる 牛が いたら、
+{w=300}その 前の エサが 遠い。
+よく 見て 探せ。
 /
 それと、水だ。{w=300}
 給水器に エサが 落ちると、
@@ -808,7 +811,7 @@ export const WORK_CUP_FIRST = `@narr
 /** 〔とちゅうで マサルさんに 話す〕 */
 export const WORK_TALK = `@npc_hoshi_gen
 ……あわてるな。{w=300}
-明かりで、よく 見ろ。`;
+首を のばしてる 牛を 見ろ。`;
 
 /** 〔とちゅうで 牛舎を 出ようとした〕 */
 export const WORK_QUIT_ASK = `@sys

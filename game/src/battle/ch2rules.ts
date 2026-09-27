@@ -43,7 +43,7 @@ export function* restTurn(s: BattleScene, e: EnemyUnit): Co {
   e.status.kyuukei = Math.max(0, (e.status.kyuukei ?? 0) - 1);
   e.status.kyuukeiSkipped = (e.status.kyuukeiSkipped ?? 0) + 1;
   if (e.pose !== 'rest') e.setPose('rest');
-  s.noteActing(e.name + '（休憩中）', undefined, true);
+  s.noteActing(e.name, undefined, 'rest');
   yield* s.say(fillAll(SYS2.restAct, { enemy: e.name }), false, { autoMs: 700 });
 }
 

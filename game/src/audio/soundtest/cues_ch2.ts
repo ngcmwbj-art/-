@@ -531,7 +531,6 @@ export const CH2_CUES: Cue[] = [
     label: '野菜の配達（ツガオ便）',
     ref: '12.17',
     build: (say) => {
-      const snore = (t: number) => S(t, t < 2 ? 'TSUGAO ASLEEP: SE_H_IBIKI .75 EVERY 4S' : '', at('se_h_ibiki', { pitch: 0.75, vol: 0.5 }));
       return [
         S(0, 'VILLAGE 1, BGM_HOSHI_NIGHT', () => {
           stopCueLoops();
@@ -540,14 +539,15 @@ export const CH2_CUES: Cue[] = [
           A.setMusicParam('h_deli', 0);
           A.playBgm('bgm_hoshi_night', { fade: 1, variant: 'outdoor' });
         }),
-        snore(1),
-        snore(5),
-        snore(9),
+        S(0.5, 'AMB_H_TSUGAOBIN: HIS SNORE EVERY 4S, THE HEN', () => A.playAmbient('amb_h_tsugaobin', { fade: 0.5 })),
         S(2.5, 'PIICHAN: ココッ？', () => void say('piichan', 'ココッ？')),
         S(4, 'HIROSUKE: ども！ (+4 +7)', () => void say('hirosuke', 'ども！ おっ、ぴーちゃんが 起きた！')),
         S(7.5, 'POKOSHA: SMALL', () => void say('pokosha', '……自分も、外すと、人の 顔が 見られなくて……。')),
         S(11.5, 'HIROSUKE: 師匠ー！ 起きてー！', () => void say('hirosuke', '師匠ー！ 起きてー！ 明かりが 来たよー！')),
-        S(14, 'TSUGAO WAKES (EVERY 4, V.85)', () => void say('tsugao', '……時計は、止めて あるのです。急がない ように。')),
+        S(14, 'TSUGAO WAKES (EVERY 4, V.85)', () => {
+          A.ambientEvent('amb_h_tsugaobin', 'awake');
+          void say('tsugao', '……時計は、止めて あるのです。急がない ように。');
+        }),
         S(18, 'POKOSHA: ……さすが 師匠。 (MURMURED)', () => void say('pokosha', '……さすが 師匠。頼み方が、しぶい……。')),
         S(20, 'SE_PIICHAN_FLAP', at('se_piichan_flap')),
         S(21.2, 'THE SLIPS (SE_PAGE .4)', at('se_page', { vol: 0.4 })),
@@ -568,9 +568,9 @@ export const CH2_CUES: Cue[] = [
         S(55.5, 'TSUGAO: つがおちゃん 寝る〜♪', () => void say('tsugao', 'では、朝まで ひと休み。つがおちゃん 寝る〜♪')),
         S(59, 'POKOSHA: さすが 師匠！ (OUT LOUD)', () => void say('pokosha', 'さすが 師匠！')),
         S(60.5, 'HIROSUKE: わはは！', () => void say('hirosuke', 'わはは！ 寝ても ほめられる 師匠だよ。')),
+        S(57.5, 'ASLEEP AGAIN (THE SNORE FROM 2S ON)', () => A.ambientEvent('amb_h_tsugaobin', 'asleep')),
         S(62, 'H_DELI 0', () => A.setMusicParam('h_deli', 0)),
-        S(63.5, 'ASLEEP AGAIN', at('se_h_ibiki', { pitch: 0.75, vol: 0.5 })),
-        snore(67.5),
+        S(70, 'END', () => A.stopAmbient('amb_h_tsugaobin', 1)),
       ];
     },
   },

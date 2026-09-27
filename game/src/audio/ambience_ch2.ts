@@ -17,11 +17,11 @@
 
 import { dbToGain, onSample, PaChain, voice, type VoiceOpts } from './engine';
 import { DRM } from './instruments';
-import { currentId, setMusicParam } from './music';
+import { currentId, musicParams, setMusicParam } from './music';
 import { layer, type SeCtx } from './recipe';
 import { Rng } from '../engine/rng';
 import { Every, higurashiCall, modBuffer, modulate, noiseBed, registerAmbience, sampleHold, smoothRandom, toneBed, type AmbCtx, type Bed } from './ambience';
-import { ACHA, BOAR, clockRestart, COW_SNORT, CROSS_STRIKE, HANSUU, IBIKI, SOIL } from './sfx_ch2';
+import { ACHA, BOAR, clockRestart, COW_SNORT, CROSS_STRIKE, HANSUU, IBIKI, PIICHAN_CRIES, SOIL } from './sfx_ch2';
 import { atTime } from './clock';
 import { game } from '../engine/game';
 
@@ -776,6 +776,75 @@ registerAmbience('amb_h_school', (c) => {
 });
 
 /**
+ * amb_h_tsugaobin — ツガオ便's light truck at the turnaround (53 12.17), heard
+ * from the field: ツガオさん asleep at the wheel, one soft snore every 4 s
+ * (se_h_ibiki at pitch .75, vol .5 — never frightening, never loud), and
+ * ぴーちゃん on ポコシャさん's shoulder: asleep at 段階0 (a sleepy 「クゥ」 every
+ * 20 s, vol .5), from 段階1 pecking now and then (「ココッ」 every 12 s, vol .4).
+ * While the vegetables are carried round (h_deli = 1) she walks with the
+ * party and says nothing here; under a dialog window the snore steps back
+ * −6 dB. The world sets its level by distance from the cab (the seAt of the
+ * design: full within 2 tiles, gone by ~10); the delivery's script tells it
+ * ambientEvent('amb_h_tsugaobin', 'awake') when he wakes and 'asleep' when he
+ * drops off again (the breathing comes back 2 s later).
+ */
+registerAmbience('amb_h_tsugaobin', (c) => {
+  const g = c.g;
+  const cab = panned(c, -0.1, sub(c, 1));
+  const snoreOut = sub(c, 1, cab);
+  const henOut = panned(c, 0.25);
+  let hStage = c.hStage;
+  let awakeUntil = -1;
+  let asleep = true;
+  let talking = false;
+  let snoreNext = c.t0 + c.rng.range(0.3, 2.5);
+  let henNext = c.t0 + c.rng.range(3, 9);
+  return {
+    pump(u) {
+      const now = g.ctx.currentTime;
+      let guard = 0;
+      while (snoreNext < u && guard++ < 4) {
+        const t = Math.max(snoreNext, now);
+        if (asleep && t >= awakeUntil)
+          for (const l of IBIKI) layer(seCtx(c, t, snoreOut, 0.5 * c.rng.range(0.9, 1.05), 0.1, 0.75 * c.rng.range(0.98, 1.02)), l);
+        snoreNext = t + 4.0 * c.rng.range(0.97, 1.03);
+      }
+      guard = 0;
+      while (henNext < u && guard++ < 4) {
+        const t = Math.max(henNext, now);
+        const pecking = hStage >= 1;
+        // (walking the village with the party while the delivery is on)
+        if (musicParams().h_deli !== 1) {
+          const cry = pecking ? PIICHAN_CRIES.koko(1) : PIICHAN_CRIES.kuu(1);
+          const p = c.rng.range(0.97, 1.04);
+          for (const l of cry) layer(seCtx(c, t, henOut, pecking ? 0.4 : 0.5, 0.08, p), l);
+        }
+        henNext = t + (pecking ? 12 * c.rng.range(0.85, 1.15) : 20 * c.rng.range(0.9, 1.1));
+      }
+      // a dialog window is up: the snore steps back −6 dB
+      const open = !g.offline && game.ui.modal;
+      if (open !== talking) {
+        talking = open;
+        setLevel(snoreOut.gain, open ? dbToGain(-6) : 1, now, 0.25);
+      }
+    },
+    setHStage(h) {
+      hStage = h;
+    },
+    event(name, _pan, at) {
+      if (name === 'awake') asleep = false;
+      else if (name === 'asleep') {
+        asleep = true;
+        // 「つがおちゃん 寝る〜♪」… and two seconds later, the breathing
+        awakeUntil = at + 2;
+        snoreNext = Math.max(snoreNext, at + 2);
+      }
+    },
+    stop() {},
+  };
+});
+
+/**
  * amb_h_boukatou — the one security light, lit and trying hard: a faint
  * steady hum (smaller than the town's fluorescent tubes, no flicker).
  */
@@ -1064,6 +1133,6 @@ registerAmbience('amb_tsugao_room', (c) => {
 export const CH2_AMBIENCE_IDS = [
   'amb_h_insects', 'amb_h_kusa', 'amb_h_tanada', 'amb_h_mizu', 'amb_h_wind', 'amb_h_yama', 'amb_h_hachi',
   'amb_h_fence', 'amb_h_barn_out', 'amb_h_barn', 'amb_h_house', 'amb_h_tomato', 'amb_h_school', 'amb_h_boukatou',
-  'amb_h_tetsuya', 'amb_h_train', 'amb_h_pa_hum', 'amb_h_dawn', 'amb_tsugao_room',
+  'amb_h_tetsuya', 'amb_h_train', 'amb_h_pa_hum', 'amb_h_dawn', 'amb_tsugao_room', 'amb_h_tsugaobin',
 ];
 

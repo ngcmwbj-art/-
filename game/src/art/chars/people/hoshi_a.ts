@@ -7,6 +7,7 @@
 
 import { flat, mat, type Fig, type Mats, type RowMap } from '../fig';
 import { PixelCanvas } from '../../../engine/pixel';
+import { P } from '../../tiles/palette';
 import { legs, type LegSpec, type Seg } from '../body';
 import { buildSprite, breathingIdle, rep, type IdleKey, type Pose } from '../rig';
 import { registerChar } from '../registry';
@@ -604,13 +605,33 @@ function genFront(f: Fig, p: Pose) {
   head(f, p, GEN_HEAD, hy);
   genGloss(f, 6, hy + (p.lookUp ? 2 : 1));
   if (sit) {
-    // the towel held up over the lower face
+    // the towel held up over the lower face, wiping (1px side to side)
     f.part('towel', { shade: 'rb', light: 't' });
-    f.rows(4, hy + 7, ['########', '.######.']);
+    f.rows(4 + (p.ph ?? 0), hy + 7, ['########', '.######.']);
   }
 }
 
 function genBack(f: Fig, p: Pose) {
+  if (p.act === 'sit_bag') {
+    // on the bag, seen from behind: the elbows up and out, the towel's ends by his ears
+    const u = upper(p) + 5;
+    const hy = 2 + u;
+    genSack(f, 2, 20, 12);
+    f.part('boot', { shade: 'r', light: '' });
+    f.rect(1, 21, 3, 2).rect(12, 21, 3, 2);
+    genBody(f, p, u, 5, true);
+    f.part('cap', { shade: 'rb', light: 't' });
+    f.rows(9, 18, ['###']);
+    f.part('suit', { shade: 'rb', light: 't' });
+    f.rect(0, 11 + u, 3, 2).rect(13, 11 + u, 3, 2);
+    f.rect(1, 9 + u, 2, 2).rect(13, 9 + u, 2, 2);
+    head(f, p, GEN_HEAD, hy);
+    genGloss(f, 6, hy + 1);
+    f.part('towel', { shade: 'rb', light: 't' });
+    const w = p.ph ?? 0;
+    f.rect(3 + w, hy + 6, 1, 3).rect(12 + w, hy + 6, 1, 3);
+    return;
+  }
   const u = upper(p);
   const b = p.bob;
   const hy = 2 + u - (p.act === 'look_hill' ? 1 : 0);
@@ -631,8 +652,16 @@ function genSide(f: Fig, p: Pose) {
   const u = upper(p) + (lean ? 1 : 0);
   const b = p.bob;
   const sw = sideSwing(p);
-  const hy = 2 + u + (lean ? 1 : 0);
+  const sit = act === 'sit_bag';
+  const hy = 2 + u + (lean ? 1 : 0) + (sit ? 5 : 0);
   const hx = lean ? -1 : 0;
+  if (sit) {
+    genSitSide(f, p, u + 5);
+    head(f, p, GEN_HEAD, hy, hx);
+    genGloss(f, 6 + hx, hy + 1);
+    genSitTowelSide(f, p, hy);
+    return;
+  }
   if (!lean && act !== 'point' && act !== 'give' && act !== 'feed') sideArm(f, 9, 12 + u, 4, -sw, GEN_ARM, -1, 2);
   genLegs(f, p, b);
   f.part('suit', { shade: 'rb', light: 't' });
@@ -689,6 +718,49 @@ function genSide(f: Fig, p: Pose) {
   genGloss(f, 6 + hx, hy + (p.lookUp ? 2 : 1));
 }
 
+/** The feed bag he sits on (#E8D9B5, the green band), lying on the floor. */
+function genSack(f: Fig, x: number, y: number, w: number) {
+  f.part('sack', { shade: 'rb', light: 't' });
+  f.rows(x, y, ['.' + '#'.repeat(w - 2) + '.', '#'.repeat(w), '#'.repeat(w)]);
+  f.part('stripe', { flat: true, rim: false });
+  f.hl(x + 1, x + w - 2, y + 1);
+}
+
+/** sit_bag seen from the side: on the bag, thighs forward, boots planted, the near arm up to his face. */
+function genSitSide(f: Fig, p: Pose, u: number) {
+  genSack(f, 4, 19, 10);
+  // the far arm, bent up to the face behind the head
+  f.part('suit', { shade: 'rb', light: '', shift: -1 });
+  f.rect(8, 12 + u - 1, 2, 3);
+  // thighs forward over the bag's edge, shins down, the white boots
+  f.part('suit', { shade: 'rb', light: 't' });
+  f.rect(2, 17, 7, 2);
+  f.rect(2, 19, 3, 2);
+  f.part('mud', { flat: true, rim: false });
+  f.px(2, 17).px(3, 17);
+  f.part('boot', { shade: 'r', light: 't' });
+  f.rect(1, 21, 4, 2);
+  // the torso, a little forward; the towel round his neck
+  f.part('suit', { shade: 'rb', light: 't' });
+  f.hl(5, 10, 11 + u);
+  f.rect(4, 12 + u, 7, Math.max(1, 19 - (12 + u)));
+  f.part('cap', { shade: 'r', light: 't' });
+  f.px(10, 17);
+  // the near arm: the elbow forward, the forearm up to the face
+  f.part('suit', { shade: 'rb', light: 't' });
+  f.rect(3, 12 + u, 3, 2).rect(2, 10 + u, 2, 2);
+  void p;
+}
+
+/** Wiping his face with the towel (sit_bag, side): the towel over the lower face, a 1px wipe. */
+function genSitTowelSide(f: Fig, p: Pose, hy: number) {
+  const w = p.ph ?? 0;
+  f.part('towel', { shade: 'rb', light: 't' });
+  f.rows(1 + w, hy + 6, ['####', '####', '.##.']);
+  f.part('skin', { shade: 'rb', light: 't' });
+  f.rect(1 + w, hy + 8, 2, 2);
+}
+
 function genDraw(f: Fig, p: Pose) {
   if (p.view === 'down') genFront(f, p);
   else if (p.view === 'up') genBack(f, p);
@@ -710,33 +782,46 @@ const LEAN: IdleKey[] = [
 
 /**
  * The feed cart in front of him (side views of 'feed', the ending's cut 2a):
- * a steel box on small wheels with the morning's feed heaped in it and a
- * towel on the handle, composited on a 34px frame (the feet stay centred).
+ * the barn's own cart (levels' prop_h_barn_cart, obj_hoshi_kyujisha): a steel
+ * box with the morning's feed heaped in it (配合飼料 and a few straws), two
+ * big black wheels, the handle up to his fists with the white towel on it.
+ * The wheels' hub mark turns a step with each push. Composited on a 34px
+ * frame (the feet stay centred).
  */
 function withCart(frame: HTMLCanvasElement, right: boolean, ph: number): HTMLCanvasElement {
   const W = 34;
   const cart = new PixelCanvas(W, frame.height);
   const b = frame.height - 24;
-  const X = (x: number) => (right ? W - 1 - x : x) - (right ? 0 : 0);
-  const px = (x: number, y: number, c: string) => cart.set(X(x - ph), y + b, c);
-  for (let x = 1; x <= 8; x++) for (let y = 15; y <= 19; y++) px(x, y, x === 8 ? '#6B7186' : '#9AA0A8');
-  for (let x = 1; x <= 8; x++) px(x, 15, '#C8CDD4');
-  for (let x = 1; x <= 8; x++) px(x, 19, '#6B7186');
-  for (let x = 2; x <= 7; x++) px(x, 14, x % 3 === 0 ? '#C8A06A' : '#E8D9B5');
-  px(3, 13, '#E8D9B5');
-  px(5, 13, '#E8D9B5');
-  for (const x of [2, 7]) {
-    px(x, 20, '#3A3F48');
-    px(x, 21, '#2A2440');
-    px(x + 1, 21, '#2A2440');
-    px(x, 22, '#2A2440');
+  const X = (x: number) => (right ? W - 1 - x : x);
+  const px = (x: number, y: number, c: string) => cart.set(X(x), y + b, c);
+  const rect = (x0: number, y0: number, w: number, h: number, c: string) => {
+    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) px(x, y, c);
+  };
+  // the box: lit rim on top, the far-side shade on the end toward him
+  rect(0, 15, 12, 6, P.steel);
+  for (let x = 0; x <= 11; x++) px(x, 15, P.concreteLt);
+  for (let y = 16; y <= 20; y++) px(11, y, P.asphalt);
+  for (let x = 0; x <= 11; x++) px(x, 20, P.asphalt);
+  // the feed heaped in it: 配合飼料 with straw ends
+  rect(1, 14, 10, 2, P.brassOld);
+  for (const x of [2, 4, 5, 7, 9]) px(x, 14, '#C8A06A');
+  px(3, 13, '#C8A06A');
+  px(6, 13, P.brassOld);
+  px(8, 13, '#E8D9B5');
+  // the wheels (black, a steel hub; the mark on the rim turns with the push)
+  for (const cx of [2, 10]) {
+    for (let y = 19; y <= 23; y++) for (let x = cx - 2; x <= cx + 2; x++) if (Math.abs(x - cx) + Math.abs(y - 21) <= 3) px(x, y, P.ink);
+    px(cx, 21, P.steel);
+    px(ph ? cx + 1 : cx - 1, ph ? 20 : 22, P.charcoal);
   }
-  // the handle up to his fists, the towel hanging from it
-  px(9, 15, '#6B7186');
-  px(10, 14, '#6B7186');
-  px(11, 14, '#6B7186');
-  px(10, 15, '#E8E4D8');
-  px(10, 16, '#E8E4D8');
+  // the handle from the box's end up to his fists, the towel hanging from it
+  px(11, 14, P.steel);
+  px(12, 13, P.steel);
+  px(13, 13, P.concrete);
+  px(12, 14, P.white);
+  px(12, 15, P.white);
+  px(13, 14, P.white);
+  px(12, 16, P.concreteLt);
   cart.outline('#2A2440');
   const c = cart.toCanvas();
   c.getContext('2d')!.drawImage(frame, (W - frame.width) >> 1, 0);
@@ -768,7 +853,7 @@ function genSpriteRaw(id: string, idleDown: IdleKey[]) {
       give: { dirs: ['down', 'left', 'right'] },
       write: { dirs: ['down'] },
       feed: { dirs: ['down', 'left', 'right'] },
-      sit_bag: { dirs: ['down'] },
+      sit_bag: { dirs: ['down', 'left', 'right', 'up'] },
       flash: { dirs: ['down', 'left', 'right'] },
     },
     anims: {
@@ -779,7 +864,11 @@ function genSpriteRaw(id: string, idleDown: IdleKey[]) {
     poses: {
       lean: { left: LEAN, right: LEAN, down: breathingIdle(), up: breathingIdle() },
       look_hill: lookHill(),
-      sit_bag: { down: rep([{ act: 'sit_bag', breath: 0 }, { act: 'sit_bag', breath: 1 }], 4) },
+      sit_bag: (() => {
+        // sat on the bag, wiping his face (the towel 1px each way), breathing
+        const k = rep([{ act: 'sit_bag', ph: 0, breath: 0 }, { act: 'sit_bag', ph: 0, breath: 0 }, { act: 'sit_bag', ph: 1, breath: 1 }, { act: 'sit_bag', ph: 1, breath: 1 }], 3);
+        return { down: k, left: k, right: k, up: k };
+      })(),
     },
     shadow: 12,
     keep: GEN_KEEP,

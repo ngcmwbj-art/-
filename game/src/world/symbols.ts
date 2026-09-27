@@ -4,11 +4,12 @@
 //
 // Chapter 2 (51_ch2_battle 11.2 / 11.3, 52 1.5 / 8.5) adds seven behaviours —
 // sune, boar, mujin, kakashi, kakashi_stand, fence, tetsuya — and the rule
-// of the dark: a symbol standing on a dark tile notices nothing while it is
-// out of the tomato light's reach (R + 8px); the moment it comes into it a
-// 「？」 pops over it and it stands dazzled for 0.5 s (the time to slip away
-// or get behind it). テツヤ carries his own headlight (render.ts draws the
-// fan from a.data.lampAngle).
+// of the dark: a symbol standing on a dark tile is always seen (2026-09-26:
+// the dark is only a step darker than the night) but notices nothing while
+// it is out of the tomato light's reach (R + 8px); the moment it comes into
+// it a 「？」 pops over it and it stands dazzled for 0.5 s (the time to slip
+// away or get behind it). テツヤ carries his own headlight (render.ts draws
+// the fan from a.data.lampAngle) and isn't dazzled.
 
 import type { Co } from '../engine/co';
 import { game } from '../engine/game';

@@ -258,11 +258,13 @@ export const HOSHI_OBJ: Record<string, HText> = {
 あけたら しめて』。`,
   obj_hoshi_house3_out: {
     h0: `@narr
-3号ハウス。ビニールの 奥で、
-橙の 点が ぼんやり 光っている。`,
+3号ハウス。中は 電気が ついている。
+{w=300}ビニールの 奥で、橙の 点が
+1つ ぼんやり 光っている。`,
     'h1+': `@narr
-3号ハウス。奥は 暗い。{w=300}
-……光は、いま アミの 中に ある。`,
+3号ハウス。電気は ついている。
+{w=300}……でも、橙の 光は、
+いま アミの 中に ある。`,
   },
   obj_hoshi_container: `@narr
 オレンジ色の 収穫コンテナが
@@ -586,7 +588,7 @@ export const HOSHI_OBJ: Record<string, HText> = {
 走っていった 足あと らしい。`,
   obj_hoshi_yamaguchi_sign: `@narr
 道標『星見の丘 天文台 →』。
-{w=300}矢印の 先は、真っ暗だ。`,
+{w=300}矢印の 先は、暗い 杉の 森だ。`,
 
   // ================================================================ 9.8 map_hoshi_hill（星見の丘）
   obj_hoshi_kanbou_board: {
@@ -744,7 +746,7 @@ export const HOSHI_FUSHIGI: Record<string, HoshiFushigiText> = {
   // 8.6 はなまるトマト ★（押したあとは evt_ch2_tomato）
   fushigi_ch2_06: {
     seen: `@narr
-暗い ハウスの いちばん 奥で、
+ハウスの いちばん 奥で、
 トマトが 1つだけ 光っている。
 /
 夕焼けの 色だ。{w=300}

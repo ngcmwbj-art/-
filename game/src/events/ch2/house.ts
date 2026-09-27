@@ -1,6 +1,6 @@
 // 西の斜面と3号ハウス (50_ch2_story 10.6〜10.7, 53 12.4〜12.5):
 //   evt_ch2_mitsu  — ペロリ at the door of 3号 (after the gathering)
-//   evt_ch2_house  — the first step into the dark house; the far end glows
+//   evt_ch2_house  — the first step into the lit house; the far end glows
 //   evt_ch2_sune   — a green tomato rolls out and blocks the middle aisle → battle
 //   evt_ch2_tomato — 『みました』 on the はなまるトマト (fushigi_ch2_06 ★)
 //   evt_ch2_light  — the net becomes a lantern; stage 1 「ともしび」
@@ -18,7 +18,7 @@ import { runMsg } from '../../world/msg';
 import { uiHud } from '../../ui/hud';
 import * as T from '../../data/text/hoshi_events';
 import { HOSHI_OBJ } from '../../data/text/hoshi_objects';
-import { F, floatLine, giveKey } from '../lib';
+import { F, floatLine, giveKey, panBack, panTo } from '../lib';
 import { burst, ring, sparkle } from '../fx';
 import { stampFushigi } from '../stamp';
 import { ambVol, musicParam, se } from './compat';
@@ -63,7 +63,11 @@ export function* evtHouse(): Co {
   const f = F();
   f.player.dir = 'up';
   yield 450;
+  // the lamps are on (2026-09-26): the camera goes up the middle aisle to
+  // the one that glows at its far end, and comes back (52 4.2)
+  yield* panTo(4, 5, 900);
   yield* runMsg(T.HOUSE_ENTER);
+  yield* panBack(700);
 }
 registerScript('evt_ch2_house', evtHouse);
 
@@ -82,7 +86,7 @@ export function* evtSune(): Co {
     // the symbol rolls out of the plant row into the aisle
     const s = f.actorById('sym_hoshi_house_00') ?? null;
     // the far end's sunset colour spills down the aisle onto its back: a
-    // faint warm light that goes with it (the dark shows nothing unlit)
+    // faint warm light that goes with it
     const spill = sceneLight(22, 0.4);
     const follow = () => s && spill.set(s.x, s.y - 6);
     if (s) {

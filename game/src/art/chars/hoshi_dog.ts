@@ -43,91 +43,77 @@ function paint(f: Fig, x: number, y: number, rows: string[]) {
 
 // ---- side (facing left) -----------------------------------------------------------
 //
-// The head at the left with the far ear behind the near one, both swept up
-// and back; the tail's plume arches over the rump.
+// Redrawn so the silhouette reads as a papillon at 1x (52 10.4, review 2026-09-25):
+// a small 4×4 tan head with a fine white-blazed muzzle and a dot eye, one big
+// upright ear (pink inside, fringe tufts at its tip and back edge) with the
+// far ear's tip showing in front of it, a narrow white body with a tan patch,
+// four 1px legs (the far pair a shade darker), the plume curled over the back.
 
 const SIDE_HEAD = [
-  '.......ww.',
-  '......bBw.',
-  '.....bBBw.',
-  '..TT.BpBw.',
-  '.WTBBBBbw.',
-  '.WeBBBBb..',
-  'WWWWBBb...',
-  'nWWw......',
+  '......w..',
+  '..w..wTw.',
+  '..Tw.wBBw',
+  '..BbwBpBw',
+  '.bBBBBpBw',
+  '.BBeBBBb.',
+  'nWWBBBc..',
 ];
-const SIDE_HEAD_UP = [
-  '....ww....',
-  '...bBw....',
-  '..bBBBw...',
-  '..BBpBw...',
-  'WbBBBbw...',
-  'nWeBBBb...',
-  '.WWBBb....',
-  '..wwb.....',
-];
-const SIDE_HEAD_BARK = [
-  '.....ww...',
-  '....bBw...',
-  '...bBBBw..',
-  '...BBpBw..',
-  '.bBBBBbw..',
-  'BBeBBBb...',
-  'WWWWBBb...',
-  'nmmww.....',
-];
-const SIDE_HEAD_SHUT = SIDE_HEAD.map((r, i) => (i === 5 ? '.WbBBBBb..' : r));
-// body (rows 5..8 of the frame), tail plume over the back
+const SIDE_HEAD_SHUT = SIDE_HEAD.map((r, i) => (i === 5 ? '.BBbBBBb.' : r));
+const SIDE_HEAD_BARK = ['.......w.', '...w..wTw', '...Tw.wBB', '...BbwBpB', '..bBBBBpB', '.BBeBBBBb', 'nmmWWBBc.'];
+const SIDE_HEAD_UP = ['.....w...', '.w..wTw..', '.Tw.wBBw.', '.BbwBpBw.', 'nbBBBpBw.', '.WeBBBb..', '..WWBBc..'];
+// the body and the plume (rows 3..8), the collar's tag under the jaw
 const SIDE_BODY = [
-  '.....HWWBBWWH.',
-  '....HWWBbbWWWw',
-  '.....WWWWWWWw.',
-  '.....wWWWWwww.',
+  '...........HH.',
+  '..........HWWH',
+  '..........WWww',
+  '........HWWWw.',
+  '..wWWcgWWBBWw.',
+  '...wWWWWBbbWw.',
 ];
-const SIDE_TAIL = [
-  '..HH.',
-  '.HWWH',
-  'HWWww',
-  'WWw.B',
-  'Ww...',
+const SIDE_BODY_WAG = SIDE_BODY.map((r, i) => (i < 3 ? r.slice(0, 10) + '.' + r.slice(10, 13) : r));
+// legs (rows 9..11) per walk step: near W, far w
+const SIDE_LEGS = [
+  ['....W.w...Ww..', '....W.w...W.w.', '....W.w...W.w.'],
+  ['...W...w.W..w.', '...W...w.W..w.', '...W....wW...w'],
+  ['....W.w...Ww..', '....W.w...W.w.', '....W.w...W.w.'],
+  ['....Ww.....Ww.', '....Ww....W.w.', '....Ww....Ww..'],
+];
+const SIDE_SIT = [
+  '..........HH..',
+  '..wWWcgHHWWWH.',
+  '...WWWWWWBbWWw',
+  '...wWWWWBbbWWw',
+  '....W.w.wWWwwv',
+  '....W.w.wwwww.',
+];
+const SIDE_LIE = [
+  '..........HH..',
+  '.........HWWH.',
+  '..wWWcgWWBBWWw',
+  '.WWWWWWWBbbWWw',
+  'WWw.wwwwwwwwwv',
 ];
 
 function side(f: Fig, p: Pose) {
   const act = p.act;
-  const st = p.mode === 'walk' ? p.step % 4 : 0;
-  const by = p.mode === 'walk' && st % 2 ? -1 : 0;
-  const wag = act === 'wag' ? p.ph : 0;
+  const head = (h: string[]) => (p.blink && h === SIDE_HEAD ? SIDE_HEAD_SHUT : h);
   if (act === 'lie' || act === 'lie_eye') {
     // stretched out on the floor, the head up, the ears still up
-    paint(f, 3, 7, ['..HWWBBWWHH.', '.WWWWBbbWWWw', 'wwWWWWWWWwwv']);
-    paint(f, 11, 4, ['.HH', 'HWW', 'WWw']);
-    paint(f, 0, 10, ['WWW.........', ]);
-    paint(f, 0, 2, act === 'lie_eye' ? SIDE_HEAD : SIDE_HEAD_SHUT);
-    paint(f, 5, 9, ['cc']);
+    paint(f, 0, 6, SIDE_LIE);
+    paint(f, 0, 3, act === 'lie_eye' ? SIDE_HEAD : SIDE_HEAD_SHUT);
     return;
   }
-  const sit = act === 'sit' || act === 'sit_l' || act === 'sit_r';
-  if (sit) {
-    // haunches down, forelegs straight, the tail curled round beside him
-    paint(f, 4, 5, ['..HWBBWW..', '.HWWBbbWW.', '.WWWWWWWWw', '..WWWWWwww', '..Ww..wwv.', '..W...ww..']);
-    paint(f, 10, 2, ['.HH.', 'HWWH', 'WWww']);
-    paint(f, 5, 11, ['ww...']);
-    paint(f, 0, 0, p.blink ? SIDE_HEAD_SHUT : SIDE_HEAD);
-    paint(f, 5, 7, ['cc', '.g']);
+  if (act === 'sit' || act === 'sit_l' || act === 'sit_r') {
+    // haunches down, forelegs straight, the plume curled beside him
+    paint(f, 0, 6, SIDE_SIT);
+    paint(f, 0, 1, head(p.lookUp ? SIDE_HEAD_UP : SIDE_HEAD));
     return;
   }
-  // legs: the far pair a step darker, 1px thin; a lifted paw per step
-  const lf = st === 1 ? -1 : st === 3 ? 1 : 0;
-  f.part('white', { shade: '', light: '', shift: -1 });
-  f.rect(5 - lf, 9 + by, 1, 2 - by).rect(11 + lf, 9 + by, 1, 2 - by);
-  f.part('white', { shade: 'r', light: '' });
-  f.rect(4 + lf, 9 + by, 1, 2 - by).rect(10 - lf, 9 + by, 1, 2 - by);
-  paint(f, 0, 5 + by, SIDE_BODY);
-  paint(f, 9 + wag, 1 + by, SIDE_TAIL);
-  const head = p.lookUp ? SIDE_HEAD_UP : act === 'bark' && p.ph ? SIDE_HEAD_BARK : p.blink ? SIDE_HEAD_SHUT : SIDE_HEAD;
-  paint(f, 0, by, head);
-  // the collar and its tag under the jaw
-  paint(f, 5, 7 + by, ['cc', '.g']);
+  const st = p.mode === 'walk' ? p.step % 4 : 0;
+  paint(f, 0, 3, act === 'wag' && p.ph ? SIDE_BODY_WAG : SIDE_BODY);
+  paint(f, 0, 9, SIDE_LEGS[st]);
+  const h = p.lookUp ? SIDE_HEAD_UP : act === 'bark' && p.ph ? SIDE_HEAD_BARK : SIDE_HEAD;
+  paint(f, 0, 0, head(h));
 }
 
 // ---- front ------------------------------------------------------------------------
@@ -280,6 +266,6 @@ registerChar('npc_hoshi_gon', () =>
       look_hill: { up: rep([{ act: 'look_hill' }, { act: 'look_hill', breath: 1 }], 3), down: STAND, left: STAND, right: STAND },
     },
     shadow: 10,
-    keep: ['#A8742A', '#7A5424'],
+    keep: ['#A8742A', '#7A5424', '#E8A08C', '#D9A441'],
   }),
 );

@@ -9,7 +9,7 @@ import { cur, dbToGain, hasGraph, midiHz, noiseSource, onSample, PaChain, makeIR
 import { chimeNote, DRM } from './instruments';
 import { ambTrim, trimOr1 } from './mix';
 import { hStageListeners, musicParams, stageListeners } from './music';
-import { sfxTable } from './registry';
+import { noteUnknown, sfxTable } from './registry';
 import { Rng } from '../engine/rng';
 
 export interface AmbOpts {
@@ -990,7 +990,7 @@ function ensureTask(): void {
 export function createAmbient(g: Graph, id: string, opts: AmbOpts, dest: AudioNode, at?: number, stage?: number, hStage?: number): Inst | null {
   const f = AMB[id];
   if (!f) {
-    if (import.meta.env.DEV) console.warn(`[audio] unknown ambience ${id}`);
+    noteUnknown('ambience', id);
     return null;
   }
   const t0 = at ?? g.ctx.currentTime + 0.03;

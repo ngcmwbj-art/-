@@ -12,7 +12,7 @@ import { CAPSULE_TABLE, fillAll, getItem, getSkill, ITEM_TEXT, LABEL, NORI, NORI
 import type { BattleScene } from './scene';
 import { FRAME, STAGE_TOP } from './scene';
 import {
-  attrMul, calcDamage, critRate, enemyDefIn, fixedDamage, JUDGE_MUL, MIMA_COEF, sfxGrade, type EnemyUnit, type Judge, type PartyCmd, type PartyUnit,
+  attrMul, calcDamage, critRate, decalSpot, enemyDefIn, fixedDamage, JUDGE_MUL, MIMA_COEF, sfxGrade, type EnemyUnit, type Judge, type PartyCmd, type PartyUnit,
 } from './model';
 import {
   addKire, arrows, cureStatus, defeatEnemy, dodge, fadeDrops, fadeDropsLater, healParty, hideSticky, hurtEnemy, hurtParty, kireFullPages, knock,
@@ -580,6 +580,9 @@ export function* killSequence(s: BattleScene, list: EnemyUnit[]): Co {
   const last = remaining.length === 0;
   // 40_audio 12.3: the battle song dips −12dB under the last 思いだす
   if (last && !s.isBoss) duckMusic(0.25, 1.4);
+  // the machine's engine stops with it: the backdrop's headlight and
+  // ridges go still (bg_h_tetsuya reads flags.stopped)
+  if (list.some((e) => e.def.restAlways)) s.bg.flags.stopped = 1;
   const cos = list.map((e, i) => defeatEnemy(s, e, i * 100, last));
   yield* all(...cos);
   for (const e of list) markDefeated(e);
@@ -728,8 +731,9 @@ const HANKO_CX = 52;
 // ---- hanko actions ---------------------------------------------------------------------
 
 function addDecal(e: EnemyUnit, kind: 'peke' | 'mimashita', kasure: boolean): void {
-  const x = e.def.core[0] + rng.int(-6, 6);
-  const y = e.def.core[1] + rng.int(-6, 6);
+  const d = decalSpot(e.def);
+  const x = d.x + rng.int(-d.jx, d.jx);
+  const y = d.y + rng.int(d.jy0, d.jy1);
   e.decals.push({ kind, x, y, variant: rng.int(0, 2), kasure });
   if (e.decals.length > 5) e.decals.shift();
 }

@@ -8,7 +8,7 @@ import { hasGraph, lateStats, liveGraph } from './engine';
 import { clockStats } from './clock';
 import * as api from './index';
 import { currentPlayer, musicDebugState } from './music';
-import { sfxInfo, sfxTable, songTable } from './registry';
+import { sfxInfo, sfxTable, songTable, unknownIds } from './registry';
 import { VOICES } from './voices';
 
 export function registerAudioCommands(): void {
@@ -49,6 +49,8 @@ export function registerAudioCommands(): void {
     ambience: activeAmbients(),
     counts: { bgm: songTable.size, sfx: sfxTable.size, amb: AMBIENCE_IDS.length, voices: Object.keys(VOICES).length },
   })) as never);
+  // every id asked for that nothing registered, since the page loaded (53 16.1)
+  registerDebug('audioUnknown', (() => [...unknownIds]) as never);
   registerDebug('audioIds', (() => ({
     bgm: [...songTable.keys()],
     sfx: [...sfxTable.keys()],

@@ -11,7 +11,7 @@ import { flat, mat, type Fig, type Mats, type RowMap } from '../fig';
 import { legs, sitLegs, type LegSpec, type Seg } from '../body';
 import { buildSprite, breathingIdle, rep, type IdleKey, type Pose } from '../rig';
 import { registerChar } from '../registry';
-import { hangArms as hangArms0, hatLift, head, sideArm as sideArm0, sideSwing, upper, type ArmsDef, type HeadT } from '../kit';
+import { hangArms as hangArms0, hatLift, head, sideArm as sideArm0, sideSwing, upper, type ArmsDef, type HeadT, upPt } from '../kit';
 import { BASE2, HAIR_GREY, HAIR_WHITE, lookHill, SKIN_FARM, SKIN_OLD, WAVE_ANIM, waveArm } from './hoshi_kit';
 
 const T: RowMap = { h: [null, 0], H: [null, 1], d: [null, -1], D: [null, -2], K: [null, 2] };
@@ -286,6 +286,7 @@ const KUCHO: Mats = {
   pants: mat('#6B7186', { shade: '#4A5068', light: '#8E95A6', dark: '#3A3F48' }),
   shoe: mat('#3A3F48', { shade: '#2A2440', light: '#6B7186' }),
   frame: flat('#2A2440'),
+  lens: flat('#E8F4F8'),
   band: mat('#3FA66B', { shade: '#2E6B4A', light: '#5FA85A' }),
   bandLine: flat('#F4F1E8'),
   board: mat('#4AA8E0', { shade: '#2F4A8A', light: '#7FD1E8', dark: '#223668' }),
@@ -324,13 +325,36 @@ function kuchoDome(f: Fig, view: 'down' | 'up' | 'left', hy: number) {
 
 const KUCHO_LEGS: LegSpec = { cx: 8, hip: 18, foot: 22, w: 2, gap: 2, mat: 'pants', shoe: 'shoe', shoeLen: 3 };
 
+/**
+ * Square black-rimmed glasses (52 10.3): two little square frames round the
+ * eyes, skin and the eye showing through, a pale glint in each lens, the rims
+ * meeting at the bridge — glasses, not dark glasses (ツガオ便 wear those), and
+ * square where まつ先生's are round and gold.
+ */
 function kuchoGlasses(f: Fig, p: Pose, hy: number) {
-  const y = hy + 4 + (p.lookUp ? -2 : 0);
+  const y = hy + 4 + (p.lookUp ? -2 : 0) + (p.act === 'glasses' ? -1 : 0);
   f.part('frame', { flat: true, rim: false });
-  // square black rims: the heavy top bars, the outer sides, a thin bridge
-  f.hl(5, 7, y).hl(8, 10, y).px(5, y + 1).px(10, y + 1);
-  f.part('#6B7186', { flat: true, rim: false });
-  f.px(5, y + 2).px(10, y + 2);
+  f.hl(5, 6, y).hl(9, 10, y);
+  f.px(4, y + 1).px(7, y + 1).px(8, y + 1).px(11, y + 1);
+  f.hl(5, 6, y + 2).hl(9, 10, y + 2);
+  f.part('lens', { flat: true, rim: false });
+  f.px(5, y + 1).px(10, y + 1);
+}
+
+/** The same in profile: one frame on the face (never past its outline), the temple back to the ear; tipped back with the head in look_up. */
+function kuchoGlassesSide(f: Fig, p: Pose, hx: number, hy: number) {
+  const k0 = 4 + (p.act === 'glasses' ? -1 : 0);
+  const at = (x: number, k: number, col: string) => {
+    const [X, K] = upPt(KUCHO_HEAD, p, x, k);
+    f.part(col, { flat: true, rim: false });
+    f.px(X + hx, hy + K);
+  };
+  for (let x = 3; x <= 6; x++) at(x, k0, 'frame');
+  at(6, k0 + 1, 'frame');
+  at(3, k0 + 1, 'lens');
+  at(4, k0 + 2, '#6B7186');
+  at(5, k0 + 2, '#6B7186');
+  at(7, k0, '#6B7186');
 }
 
 function kuchoBoard(f: Fig, x: number, y: number, w: number, h: number, page = 0) {
@@ -479,9 +503,7 @@ function kuchoSide(f: Fig, p: Pose) {
   kuchoDome(f, 'left', hy + (lp.lookUp ? -1 : 0));
   f.offset(0, 0);
   head(f, lp, KUCHO_HEAD, hy, hx);
-  const y = hy + 4 + (lp.lookUp ? -2 : 0);
-  f.part('frame', { flat: true, rim: false });
-  f.hl(3 + hx, 5 + hx, y).px(3 + hx, y + 1).px(5 + hx, y + 1).hl(6 + hx, 8 + hx, y);
+  kuchoGlassesSide(f, lp, hx, hy);
 }
 
 function kuchoDraw(f: Fig, p: Pose) {
@@ -584,9 +606,10 @@ function tenugui(f: Fig, view: 'down' | 'up' | 'left', hy: number) {
     f.part('flower', { flat: true, rim: false });
     f.px(5, hy + 2).px(8, hy + 2).px(11, hy + 2);
   } else {
-    // from behind: the knot, its two tails hanging over the nape
+    // from behind: the knot low at the back of the head, its tails hanging
+    // together over the nape to one side (no pair of dots at eye height)
     f.part('tenugui', { flat: true });
-    f.rows(6, hy + 3, ['DhhD', 'd..d', 'd..d'], T);
+    f.rows(6, hy + 4, ['DhhD', '.hd.', '..dd'], T);
   }
 }
 
@@ -786,18 +809,19 @@ const TOME_HEAD: HeadT = {
   upD: { fringe: 'none', openEyes: true, whites: false },
 };
 
-/** The tall straw hat (mugiwara): a high round crown, a green band, a round brim. */
+/** The tall straw hat (mugiwara): a high round crown (his silhouette, taller than ペロリ's fedora), a green band, a round brim. */
 function mugiwara(f: Fig, view: 'down' | 'up' | 'left', hy: number) {
   f.part('straw', { flat: true });
   if (view === 'left') {
-    f.rows(5, hy - 3, ['.HHhhd.', 'HHhhhhd', 'Hhhhhhd', '=======', ], { ...T, '=': ['strawBand', 0] });
+    f.rows(5, hy - 5, ['..HHh..', '.HHhhd.', 'HHhhhhd', 'Hhhhhhd', 'Hhhhhdd', '======='], { ...T, '=': ['strawBand', 0] });
     f.rows(1, hy + 1, ['.Hhhhhhhhhhhd', 'Hhhhhhhhhhhhhd', '.ddd......ddd'], T);
+    f.t(-1).px(7, hy - 2).px(9, hy - 3).t(null);
     return;
   }
-  f.rows(4, hy - 3, ['.HHhhhd.', 'HHhhhhhd', 'Hhhhhhdd', '========'], { ...T, '=': ['strawBand', 0] });
+  f.rows(4, hy - 5, ['..HHhh..', '.HHhhhd.', 'HHhhhhhd', 'Hhhhhhhd', 'Hhhhhhdd', '========'], { ...T, '=': ['strawBand', 0] });
   f.rows(1, hy + 1, ['.Hhhhhhhhhhhd.', 'HHhhhhhhhhhhhd', view === 'down' ? '.dd........dd.' : '.dddddddddddd.'], T);
   // the weave: a few darker stitches
-  f.t(-1).px(3, hy + 2).px(12, hy + 2).px(7, hy - 1).px(9, hy - 2).t(null);
+  f.t(-1).px(3, hy + 2).px(12, hy + 2).px(7, hy - 1).px(9, hy - 3).px(6, hy - 2).t(null);
 }
 
 const TOME_LEGS: LegSpec = { cx: 8, hip: 17, foot: 22, w: 2, gap: 2, mat: 'pants', low: { mat: 'boot', h: 4 }, shoe: 'boot', shoeLen: 3 };
@@ -806,34 +830,40 @@ function tomeFront(f: Fig, p: Pose) {
   const act = p.act;
   const u = upper(p) + (act === 'watch' ? 1 : 0) - (act === 'stretch' ? 1 : 0);
   const b = p.bob;
-  const hy = 2 + u;
+  // tall and lean (52 10.3): the head a pixel higher than the others', the waist narrow
+  const hy = 1 + u;
   legs(f, p, TOME_LEGS);
   f.part('pants', { shade: 'rb', light: '' });
-  f.rect(4, 16 + b, 8, 2);
+  f.rect(5, 16 + b, 6, 2);
   f.erase(7, 17 + b, 2, 1);
   f.part('shirt', { shade: 'rb', light: 't' });
-  f.hl(5, 10, 11 + u);
-  f.rect(4, 12 + u, 8, 17 + b - (12 + u));
+  f.hl(5, 10, 10 + u);
+  f.rect(4, 11 + u, 8, 2);
+  f.rect(5, 13 + u, 6, 17 + b - (13 + u));
   f.part('shirt', { flat: true });
-  f.t(-1).vl(8, 12 + u, 15 + b).t(null);
-  // the towel tucked in at the waist
+  f.t(-1).vl(8, 11 + u, 15 + b).t(null);
+  // the towel tucked in at the waist (small: the board is what he carries)
   f.part('towel', { shade: 'r', light: 't' });
-  f.rect(10, 15 + b, 2, 4);
+  f.rect(10, 16 + b, 1, 3);
   const ARM: Seg[] = [{ mat: 'shirt', n: 4 }, { mat: 'skin' }];
   if (act === 'stretch') {
     // hands at the small of the back, elbows out
     f.part('shirt', { shade: 'rb', light: 't' });
-    f.rect(2, 12 + u, 2, 4).rect(12, 12 + u, 2, 4);
+    f.rect(2, 11 + u, 2, 4).rect(12, 11 + u, 2, 4);
   } else if (p.mode === 'walk' || p.lookUp || WAVE) {
-    hangArms(f, p, { lx: 3, rx: 12, sy: 12, hy: 17, segs: ARM }, u);
+    hangArms(f, p, { lx: 3, rx: 12, sy: 11, hy: 17, segs: ARM }, u);
   } else {
-    // the inlet board held low in both hands
+    // the paddy's inlet board (水口の板) hanging from his right hand, in front
+    hangArms(f, p, { lx: 3, rx: 12, sy: 11, hy: 17, segs: ARM }, u, 'R');
     f.part('shirt', { shade: 'rb', light: 't' });
-    f.rect(3, 12 + u, 1, 4).rect(12, 12 + u, 1, 4);
-    f.part('board', { shade: 'rb', light: 't' });
-    f.rect(5 + (act === 'nudge' ? p.ph : 0), 16 + u, 6, 2);
+    f.rect(3, 11 + u, 1, 5);
+    const nx = act === 'nudge' ? p.ph : 0;
+    f.part('board', { shade: 'rb', light: 'tl' });
+    f.rect(2 + nx, 17 + u, 3, 6);
+    f.part('board', { flat: true, rim: false });
+    f.t(-1).hl(2 + nx, 4 + nx, 19 + u).t(null);
     f.part('skin', { shade: 'rb', light: 't' });
-    f.rect(4, 16 + u, 2, 2).rect(10, 16 + u, 2, 2);
+    f.rect(3 + nx, 16 + u, 2, 2);
   }
   head(f, p, TOME_HEAD, hy);
   if (!p.lookUp) {
@@ -847,16 +877,22 @@ function tomeFront(f: Fig, p: Pose) {
 function tomeBack(f: Fig, p: Pose) {
   const u = upper(p);
   const b = p.bob;
-  const hy = 2 + u - (p.act === 'look_hill' ? 1 : 0);
+  const hy = 1 + u - (p.act === 'look_hill' ? 1 : 0);
   legs(f, p, TOME_LEGS);
   f.part('pants', { shade: 'rb', light: '' });
-  f.rect(4, 16 + b, 8, 2);
+  f.rect(5, 16 + b, 6, 2);
   f.part('shirt', { shade: 'rb', light: 't' });
-  f.hl(5, 10, 11 + u);
-  f.rect(4, 12 + u, 8, 17 + b - (12 + u));
+  f.hl(5, 10, 10 + u);
+  f.rect(4, 11 + u, 8, 2);
+  f.rect(5, 13 + u, 6, 17 + b - (13 + u));
   f.part('towel', { shade: 'r', light: 't' });
-  f.rect(4, 15 + b, 2, 4);
-  hangArms(f, p, { lx: 3, rx: 12, sy: 12, hy: 17, segs: [{ mat: 'shirt', n: 4 }, { mat: 'skin' }] }, u);
+  f.rect(5, 16 + b, 1, 3);
+  hangArms(f, p, { lx: 3, rx: 12, sy: 11, hy: 17, segs: [{ mat: 'shirt', n: 4 }, { mat: 'skin' }] }, u);
+  // the board's edge at his side (it hangs from the right hand, viewer-right from behind)
+  if (p.mode !== 'walk' && !p.lookUp && !WAVE) {
+    f.part('board', { shade: 'r', light: '' });
+    f.rect(12, 17 + u, 2, 5);
+  }
   head(f, p, TOME_HEAD, hy);
   mugiwara(f, 'up', hy + hatLift(p));
 }
@@ -866,28 +902,33 @@ function tomeSide(f: Fig, p: Pose) {
   const u = upper(p) + (act === 'watch' ? 1 : 0) - (act === 'stretch' ? 1 : 0);
   const b = p.bob;
   const sw = sideSwing(p);
-  const hy = 2 + u;
+  const hy = 1 + u;
   const lp = act === 'look_hill' ? { ...p, lookUp: true } : p;
-  sideArm(f, 9, 12 + u, 4, -sw, [{ mat: 'shirt', n: 4 }, { mat: 'skin' }], -1);
+  sideArm(f, 9, 11 + u, 4, -sw, [{ mat: 'shirt', n: 4 }, { mat: 'skin' }], -1);
   legs(f, p, TOME_LEGS);
   f.part('pants', { shade: 'rb', light: '' });
-  f.rect(5, 16 + b, 6, 2);
+  f.rect(6, 16 + b, 5, 2);
   f.part('shirt', { shade: 'rb', light: 't' });
-  f.hl(6, 9, 11 + u);
-  f.rect(5, 12 + u, 5, 17 + b - (12 + u));
+  f.hl(6, 9, 10 + u);
+  f.rect(5, 11 + u, 5, 2);
+  f.rect(6, 13 + u, 4, 17 + b - (13 + u));
   f.part('towel', { shade: 'r', light: 't' });
-  f.rect(9, 15 + b, 2, 4);
+  f.rect(9, 16 + b, 1, 3);
   if (p.mode === 'walk' || lp.lookUp || WAVE) {
     f.part('shirt', { shade: 'rb', light: 'tl' });
-    f.rect(6, 12 + u, 3, 2);
-    sideArm(f, 7, 14 + u, 3, sw, [{ mat: 'shirt', n: 1 }, { mat: 'skin' }]);
+    f.rect(6, 11 + u, 3, 2);
+    sideArm(f, 7, 13 + u, 3, sw, [{ mat: 'shirt', n: 1 }, { mat: 'skin' }]);
   } else {
+    // the inlet board hanging from the near hand, in front of him
     f.part('shirt', { shade: 'rb', light: 'tl' });
-    f.rect(5, 12 + u, 3, 3);
-    f.part('board', { shade: 'rb', light: 't' });
-    f.rect(1 - (act === 'nudge' ? p.ph : 0), 15 + u, 2, 5);
+    f.rect(5, 11 + u, 3, 3).rect(5, 14 + u, 2, 2);
+    const nx = act === 'nudge' ? p.ph : 0;
+    f.part('board', { shade: 'rb', light: 'tl' });
+    f.rect(3 - nx, 17 + u, 3, 6);
+    f.part('board', { flat: true, rim: false });
+    f.t(-1).hl(3 - nx, 5 - nx, 19 + u).t(null);
     f.part('skin', { shade: 'rb', light: 't' });
-    f.rect(3, 15 + u, 2, 2);
+    f.rect(4 - nx, 16 + u, 2, 2);
   }
   head(f, lp, TOME_HEAD, hy);
   mugiwara(f, 'left', hy + (lp.lookUp ? -1 : 0));

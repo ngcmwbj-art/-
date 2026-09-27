@@ -21,8 +21,8 @@
 //                                                     (default: all won with __game.cmd.win()); --fushigi-all
 //                                                     stamps the ten ふしぎ ② before the boss; --from <beat> starts at
 //                                                     a CHAIN2 beat (jump('ch2:<beat>')). Checks: reachability per stage,
-//                                                     the dark corridor, nothing drawn in the dark outside the
-//                                                     lantern (a pixel diff), the hill door h1/h2, the clear record,
+//                                                     the dark corridor, the symbols in the dark drawn outside the
+//                                                     lantern too (a pixel diff), the hill door h1/h2, the clear record,
 //                                                     the title after it, the cue-sheet sounds registered
 //   node tools/playthrough.mjs --chapter 2 --side barnwork,delivery
 //                                                     the optional beats instead (牛舎のおてつだい, 野菜の配達),
@@ -1222,11 +1222,13 @@ const doorOpen = (to) =>
   }, to);
 
 /**
- * 02 4.5 ③: what stands in the dark outside the light is not drawn. With the
- * game paused and stepped a frame at a time, each enemy symbol on screen is
- * hidden and the low-res frame compared round it (its pixels against a frame
- * of noise): no change for those outside the light; カネナリくん (inside it)
- * is the control that must change the picture.
+ * 50 4.5 (2026-09-26, the client: "only what is round the hero can be
+ * seen"): what stands in the dark is drawn outside the light too — the dark
+ * is only a step darker than the night. With the game paused and stepped a
+ * frame at a time, each enemy symbol on screen outside the light is hidden
+ * and the low-res frame compared round it (its pixels against a frame of
+ * noise): the picture must change for every one of them, as it does for
+ * カネナリくん (inside the light, the control).
  */
 async function darkCheck2(label) {
   const res = await page.evaluate(() => {
@@ -1272,8 +1274,8 @@ async function darkCheck2(label) {
   });
   const control = res.find((r) => r.id === 'kanenari');
   const dark = res.filter((r) => r.id !== 'kanenari');
-  const ok = !!control?.changed && dark.length > 0 && dark.every((r) => !r.changed);
-  checks.push({ check: `dark: nothing drawn outside the light (${label})`, ok, res });
+  const ok = !!control?.changed && dark.length > 0 && dark.every((r) => r.changed);
+  checks.push({ check: `dark: symbols drawn outside the light too (${label})`, ok, res });
   log(`  dark (${label}): ${res.map((r) => `${r.id} ${r.changed ? 'drawn' : 'hidden'} (${r.change}/${r.noise})`).join(', ')}`);
   if (!ok) throw new Error(`dark check (${label}): ${JSON.stringify(res)}`);
 }
@@ -1565,7 +1567,7 @@ const BEATS2 = [
   {
     name: 'tetsuya',
     async run() {
-      // the old fields in the dark: the symbols outside the lantern are not drawn; the path's door is shut
+      // the old fields in the dark: the symbols outside the lantern are drawn all the same; the path's door is shut
       await travel(48, 14);
       await sleep(700);
       await darkCheck2('耕作放棄地 h1');

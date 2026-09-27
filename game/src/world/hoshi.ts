@@ -726,9 +726,9 @@ let currentField: FieldScene | null = null;
 /** The barn: where the morning comes in (the east end's windows over the sliding door, 52 4.3). */
 const DAWN_SHAFTS: Record<string, { x: number; y: number; w: number; lean: number }[]> = {
   map_hoshi_barn: [
-    { x: 21 * 16, y: 2 * 16 + 6, w: 12, lean: 0.25 },
-    { x: 21 * 16, y: 5 * 16 + 4, w: 22, lean: 0.25 },
-    { x: 21 * 16, y: 8 * 16 + 10, w: 12, lean: 0.25 },
+    { x: 21 * 16, y: 2 * 16 + 4, w: 16, lean: 0.25 },
+    { x: 21 * 16, y: 5 * 16 + 2, w: 26, lean: 0.25 },
+    { x: 21 * 16, y: 8 * 16 + 8, w: 16, lean: 0.25 },
   ],
 };
 
@@ -749,7 +749,7 @@ export function drawRoomDawnFx(f: FieldScene, ctx: CanvasRenderingContext2D, cx:
   for (const s of shafts) {
     for (let d = 0; d < len; d += 2) {
       const u = d / len;
-      const a = 0.26 * k * (1 - u) * (1 - u);
+      const a = 0.42 * k * (1 - u) * (1 - u);
       if (a < 0.01) break;
       ctx.fillStyle = `rgba(255,231,163,${a.toFixed(3)})`;
       const x = Math.round(s.x - d - 2 - cx);
@@ -765,7 +765,8 @@ export function drawRoomDawnFx(f: FieldScene, ctx: CanvasRenderingContext2D, cx:
 /**
  * Light-map extras of the rooms, painted over the base (source-over): in
  * the night train the starlight through the north windows — 24px
- * parallelograms of #7FD1E8 α10% running from right to left over the seats
+ * parallelograms of #7FD1E8 α18% (α10% before the lighter night of
+ * 2026-09-26) running from right to left over the seats
  * and the floor at 90px/s, one every 1.4 s (the train goes east, the light
  * outside goes west: fx_h_train_window).
  */
@@ -785,7 +786,7 @@ export function paintRoomLight(f: FieldScene, lx: CanvasRenderingContext2D, cx: 
     lx.rect(x0, y0, x1 - x0, y1 - y0);
     lx.clip();
     lx.globalCompositeOperation = 'source-over';
-    lx.fillStyle = 'rgba(127,209,232,0.10)';
+    lx.fillStyle = 'rgba(127,209,232,0.18)';
     const phase = (f.t * speed) % span;
     for (let bx = x1 + 24 - phase; bx > x0 - 80; bx -= span) {
       // leaning: the light falls from the north windows to the south

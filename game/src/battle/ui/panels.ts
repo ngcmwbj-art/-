@@ -267,6 +267,8 @@ export interface ActingView {
   name: string;
   /** An enemy's move: a small ボケ seal instead of an icon. */
   enemy?: boolean;
+  /** A resting enemy's skipped turn: a green 休憩 tape instead of ボケ. */
+  rest?: boolean;
   /** ms since the action started (the icon pops in). */
   t: number;
 }
@@ -281,10 +283,11 @@ export function drawActing(g: Gfx, v: ActingView | null, t: number, alpha: numbe
   if (!v) return;
   g.alpha(alpha, () => {
     const pop = v.t < 90 ? 1.4 - 0.4 * (v.t / 90) : 1;
-    const col = v.enemy ? C.shuDark : C.ink;
+    const col = v.rest ? C.ink : v.enemy ? C.shuDark : C.ink;
     if (v.enemy) {
-      // a strip of pink washi tape labelled ボケ (the enemy's turn)
-      const tag = tapeCanvas(38, 18, 'ボケ', '#F2B0BC', 5);
+      // a strip of pink washi tape labelled ボケ (the enemy's turn) — green
+      // 休憩 when it only rests (no ボケ, no 「！」: 51 7.2)
+      const tag = v.rest ? tapeCanvas(38, 18, '休憩', '#A8D8A0', 6) : tapeCanvas(38, 18, 'ボケ', '#F2B0BC', 5);
       const w = Math.round(tag.width * pop);
       const h = Math.round(tag.height * pop);
       g.ctx.drawImage(tag, Math.round(27 - w / 2), Math.round(164 - h / 2), w, h);
@@ -298,16 +301,82 @@ export function drawActing(g: Gfx, v: ActingView | null, t: number, alpha: numbe
     const ul = Math.min(1, v.t / 160);
     const ux = v.enemy ? 50 : 34;
     g.rect(ux, 170, Math.round((92 - ux) * ul), 1, C.grid);
-    if (v.name.includes('\n') || g.measure(v.name) > 84) {
-      // two lines, centred: at the given break, else between the halves
-      const ch = [...v.name];
-      const cut = Math.ceil(ch.length / 2);
-      const [l1, l2] = v.name.includes('\n') ? v.name.split('\n') : [ch.slice(0, cut).join(''), ch.slice(cut).join('')];
-      g.text(l1, 52, 175, { color: col, align: 'center' });
-      g.text(l2, 52, 192, { color: col, align: 'center' });
+    const lines = actingLines(v.name, (x) => g.measure(x));
+    if (lines.length > 1) {
+      // two lines, centred
+      g.text(lines[0], 52, 175, { color: col, align: 'center' });
+      g.text(lines[1], 52, 192, { color: col, align: 'center' });
     } else g.text(v.name, 10, 184, { color: col });
     void t;
   });
+}
+
+/**
+ * Where long move / enemy names break in the notebook: words that have no
+ * script change or particle to break at (a katakana loanword, a greeting).
+ */
+const ACTING_BREAKS: Record<string, string> = {
+  フルスロットル: 'フル\nスロットル',
+  ヘッドライト: 'ヘッド\nライト',
+  セミファイナル: 'セミ\nファイナル',
+  アリガトウゴザイマシタ: 'アリガトウ\nゴザイマシタ',
+  いらっしゃいませ: 'いらっしゃい\nませ',
+  おかえりなさい: 'おかえり\nなさい',
+  おやすみなさい: 'おやすみ\nなさい',
+  おつかれさま: 'おつかれ\nさま',
+  なにもしない: 'なにも\nしない',
+  へのへのもへじ: 'へのへの\nもへじ',
+  ふうせんくばり: 'ふうせん\nくばり',
+  ゆでとうもろこし: 'ゆで\nとうもろこし',
+};
+
+const KANA_SMALL = 'ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶー」』）、。・';
+function script(c: string): 'kanji' | 'hira' | 'kata' | 'latin' | 'other' {
+  const n = c.codePointAt(0) ?? 0;
+  if (n < 0x80) return /[A-Za-z0-9]/.test(c) ? 'latin' : 'other';
+  if (n >= 0x3040 && n <= 0x309f) return 'hira';
+  if ((n >= 0x30a0 && n <= 0x30ff) || (n >= 0xff66 && n <= 0xff9d)) return 'kata';
+  if (n >= 0x4e00 && n <= 0x9fff) return 'kanji';
+  return 'other';
+}
+
+/**
+ * The notebook's name in one line (≤88px from x10) or two centred lines
+ * (≤96px each), broken where a reader would: at a given \n, a known word
+ * break, before 「（」, after a space or の, at a change of script (耕うん機 /
+ * テツヤ) — never inside a katakana word when avoidable, before a small kana,
+ * or off the A / B that tells two of an enemy apart (QA: 「スネト／マトA」).
+ */
+export function actingLines(name: string, measure: (s: string) => number): string[] {
+  if (name.includes('\n')) return name.split('\n');
+  if (measure(name) <= 88) return [name];
+  const hint = ACTING_BREAKS[name];
+  if (hint) return hint.split('\n');
+  const ch = [...name];
+  let best: { i: number; score: number } | null = null;
+  for (let i = 1; i < ch.length; i++) {
+    const a = ch.slice(0, i).join('').trimEnd();
+    const b = ch.slice(i).join('').trimStart();
+    const wa = measure(a);
+    const wb = measure(b);
+    if (wa > 96 || wb > 96) continue;
+    const prev = ch[i - 1];
+    const next = ch[i];
+    if (KANA_SMALL.includes(next) || prev === '（' || prev === '「') continue;
+    if (script(next) === 'latin' && script(prev) !== 'latin' && i >= ch.length - 2) continue;
+    let score = Math.abs(wa - wb) / 16;
+    if (next === '（' || prev === ' ' || prev === '　' || prev === '・') score -= 6;
+    else if (prev === 'の' || prev === 'を' || prev === 'に' || prev === 'へ') score -= 4;
+    else if (script(next) === 'kata' && script(prev) !== 'kata') score -= 4;
+    else if (script(prev) !== script(next)) score -= 3;
+    else if (script(prev) === 'kata') score += 8;
+    if (!best || score < best.score) best = { i, score };
+  }
+  if (!best) {
+    const cut = Math.ceil(ch.length / 2);
+    return [ch.slice(0, cut).join(''), ch.slice(cut).join('')];
+  }
+  return [ch.slice(0, best.i).join('').trimEnd(), ch.slice(best.i).join('').trimStart()];
 }
 
 export interface ListRow {

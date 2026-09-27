@@ -9,7 +9,7 @@ import { ease } from '../engine/tween';
 import { fillAll, getItem, LABEL, SYS2 } from '../data/battle';
 import type { BattleScene } from './scene';
 import { FRAME } from './scene';
-import { fixedDamage, sfxGrade, type EnemyUnit, type Judge, type PartyUnit } from './model';
+import { decalSpot, fixedDamage, sfxGrade, type EnemyUnit, type Judge, type PartyUnit } from './model';
 import { arrows, hurtEnemy, knock } from './common';
 import { bokemakeLabel } from './tsukkomi';
 import { ovalStamp } from './art/stamps';
@@ -86,7 +86,8 @@ export function* hankoOtsukaresama(s: BattleScene, u: PartyUnit, e: EnemyUnit, j
     },
   });
   yield 150;
-  e.decals.push({ kind: 'otsukare', x: e.def.core[0] + rng.int(-4, 4), y: e.def.core[1] + rng.int(-4, 4), variant: rng.int(0, 2), kasure: j === 'kasure' });
+  const d = decalSpot(e.def);
+  e.decals.push({ kind: 'otsukare', x: d.x + rng.int(-4, 4), y: d.y + rng.int(Math.max(-4, d.jy0), Math.min(4, d.jy1)), variant: rng.int(0, 2), kasure: j === 'kasure' });
   if (e.decals.length > 5) e.decals.shift();
   // +100ms: three wavy threads of steam rise off the seal and fade (600ms)
   for (let i = 0; i < 3; i++) {
@@ -194,7 +195,8 @@ export function* pekeHamidashi(s: BattleScene, u: PartyUnit, e: EnemyUnit, dealt
       }
       yield 150;
       const dmg = Math.max(1, Math.round(dealt * 0.5));
-      n.decals.push({ kind: 'peke', x: n.def.core[0] + rng.int(-5, 5), y: n.def.core[1] + rng.int(-5, 5), variant: 2, kasure: true });
+      const d = decalSpot(n.def);
+      n.decals.push({ kind: 'peke', x: d.x + rng.int(-5, 5), y: d.y + rng.int(Math.max(-5, d.jy0), Math.min(5, d.jy1)), variant: 2, kasure: true });
       if (n.decals.length > 5) n.decals.shift();
       s.shuDrops(n.coreX, n.coreY, 5);
       if (hurtEnemy(s, n, dmg, { pop: 0.8, stack: 1 })) killed.push(n);

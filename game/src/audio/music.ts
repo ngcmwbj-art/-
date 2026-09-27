@@ -5,7 +5,7 @@
 import { addTask, atTime, removeTask } from './clock';
 import { cur, dbToGain, hasGraph, liveGraph, type Graph } from './engine';
 import { songGainDb } from './mix';
-import { legacyBgm, songTable } from './registry';
+import { legacyBgm, noteUnknown, songTable } from './registry';
 import { MUSIC_LOOKAHEAD, PARAM_DEFAULTS, SongPlayer, type Params, type SongDef } from './sequencer';
 
 export type MusicParam = 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest' | 'clock' | 'h_deli';
@@ -146,7 +146,7 @@ export function playBgm(idIn: string, opts: PlayOpts = {}): void {
       current = { id, player: null, legacyStop: legacy.start() };
       return;
     }
-    if (import.meta.env.DEV) console.warn(`[audio] unknown bgm ${id}`);
+    noteUnknown('bgm', id);
     return;
   }
   let fromLoopBar: number | undefined;

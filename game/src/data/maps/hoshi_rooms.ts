@@ -69,7 +69,7 @@ registerMap({
   onEnter: ['evt_ch2_train'],
   space: 'room',
   // the car's lights are off: the night through the windows, lighter since 2026-09-26 (52 4.1)
-  lightBase: '#6E6C9E',
+  lightBase: '#7A78AA',
   outside: '#0B0B14',
   bgm: { 0: null, 1: null, 2: null },
   amb: { 0: ['amb_h_train'], 1: ['amb_h_train'], 2: ['amb_h_train'] },
@@ -172,7 +172,7 @@ registerMap({
   lightBase: '#F0E6D2',
   // the はなまるトマト (5,2), 5th truss, until it is picked: it glows even
   // among the lamps — its own warm circle and a breathing halo on the fruit
-  darkLights: [{ x: 5, y: 2, ox: 8, oy: 4, r: 88, amp: 4, k: 1, halo: 18, cond: { notFlag: ['flag_ch2_got_tomato', 'flag_ch2_tomato_picked'] } }],
+  darkLights: [{ x: 5, y: 2, ox: 8, oy: 4, r: 88, amp: 4, k: 1, halo: 22, cond: { notFlag: ['flag_ch2_got_tomato', 'flag_ch2_tomato_picked'] } }],
   bgm: { 0: 'bgm_hoshi_night', 1: 'bgm_hoshi_night', 2: 'bgm_hoshi_night' },
   amb: { 0: ['amb_h_house', 'amb_h_tomato', 'amb_h_hachi'], 1: ['amb_h_house', 'amb_h_hachi'], 2: ['amb_h_house', 'amb_h_hachi'] },
 });
@@ -364,7 +364,7 @@ registerMap({
   // too, so the round's last pen waits for the tomato's light
   lightBase: '#E8ECF0',
   dark: [{ x: 17, y: 8, w: 3, h: 3 }],
-  darkCol: '#6E6E86',
+  darkCol: '#66667E',
   darkEdge: 6,
   darkStar: false,
   bgm: { 0: 'bgm_hoshi_night', 1: 'bgm_hoshi_night', 2: 'bgm_hoshi_night' },

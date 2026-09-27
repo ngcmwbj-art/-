@@ -7,7 +7,7 @@
 //  - シゲじい on his back, his hunting cap over his face, a brown knit vest:
 //    a snore every 3.4 s (the chest rises 2px, the cap lifts 1px);
 //  - スギばあ on her side under a pale blue towel blanket, a navy fan by
-//    her: a snore every 3.1 s (the shoulder rises 1px) — the two drift in
+//    her: a snore every 3.0 s (the shoulder rises 1px) — the two drift in
 //    and out of step (a small laugh, never loud);
 //  - タケじい on his back, arms folded, a towel on his belly, his straw hat
 //    beside him: a breath every 2 s, and over his head his sleep-talk is a
@@ -184,8 +184,12 @@ function sitUp(f: Fig, p: Pose, who: 'masa' | 'kiyo' | 'take') {
   const x = 5;
   const body = who === 'masa' ? 'vest' : who === 'kiyo' ? 'dress' : 'shirt';
   const stretch = p.act === 'stretch' ? p.ph : 0;
+  // sitting seiza on the hall's own cushion (the map draws it): only the lap
+  // and the folded shins show under the body — no cushion of their own
   f.part(who === 'kiyo' ? 'dress' : 'pants', { shade: 'rb', light: 't' });
-  f.rows(x, 12, ['.##########.', '############', '.##########.']);
+  f.rows(x + 1, 12, ['.########.', '##########', '.##....##.']);
+  f.part(who === 'take' ? 'skin' : 'sock', { shade: 'rb', light: 't' });
+  f.px(x + 1, 14).px(x + 10, 14);
   f.part(body, { shade: 'rb', light: 't' });
   f.rows(x + 2, 6, ['.######.', '########', '########', '########', '########', '########']);
   f.part('skin', { shade: 'rb', light: 't' });
@@ -210,9 +214,14 @@ function sitUp(f: Fig, p: Pose, who: 'masa' | 'kiyo' | 'take') {
 // ---- the clocks -------------------------------------------------------------------------
 
 /** The couple's sleep-talk: loop length and where the bubble shows (ms). */
+// Both loops are 51 s long (15 snores of 3.4 s for him, 17 of 3.0 s for her,
+// so each loop closes on a whole breath and the two stay a little out of
+// step), and their bubbles sit half a loop apart: one of them talks every
+// 25.5 s, always in turn (52 10.5: every 20–26 s, alternately), however
+// long the player stays.
 export const NAPPER_TALK = {
-  masa: { loop: 47600, at: 10000, len: 1000, snore: 3400 },
-  kiyo: { loop: 46500, at: 33000, len: 1000, snore: 3100 },
+  masa: { loop: 51000, at: 12000, len: 1000, snore: 3400 },
+  kiyo: { loop: 51000, at: 37500, len: 1000, snore: 3000 },
 } as const;
 
 /** Is シゲじい / スギばあ saying 「……あちゃ〜……」 at field time t (ms)? */

@@ -108,9 +108,30 @@ export const nameTag = (): HTMLCanvasElement =>
 /** A lit train window (6×4) sliding out of the east ラッパ. */
 export const trainWindow = (): HTMLCanvasElement => spr('trainwin', ['kkkkkkkk', 'ktttttYk', 'kttYtttk', 'kttttttk', 'kOOOOOOk', 'kkkkkkkk']);
 
-/** 8×8 boar head (the one チョトツ glares at): dark bristles, one white tusk. */
+/**
+ * 13×11 boar face, head on (the one チョトツ glares at), with a 1px cream
+ * outline so it reads on the panels: two pointed ears and the bristles
+ * between them, red glaring eyes, the pale snout disc with its nostrils
+ * and the two white tusks at the corners of the mouth.
+ */
 export const boarIcon = (): HTMLCanvasElement =>
-  spr('boarIcon', ['...bb.b.', '..bbbbbB', '.bbbbbbB', 'dbbWbbbB', 'dddbbbB.', 'd.WbbB..', '.Wd.B...', '........'], '#FFF6D8');
+  spr(
+    'boarIcon3',
+    [
+      'BB...b.b...BB',
+      'BbB.bBbBb.BbB',
+      'BbbBbbbbbBbbB',
+      '.BbbbbbbbbbB.',
+      '.BbrrbbbrrbB.',
+      '.BbbbbbbbbbB.',
+      '..BbbAAAbbB..',
+      '..BbAAAAAbB..',
+      '.WBAKAAAKABW.',
+      '.WWBAAAAABWW.',
+      '...BBBBBBB...',
+    ],
+    '#FFF6D8',
+  );
 
 /** The raised-hand icon of へんじ中 (10×10: glove #F4D2B0, a vermilion dot). */
 export const henjiHand = (): HTMLCanvasElement =>

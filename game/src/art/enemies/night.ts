@@ -22,7 +22,7 @@ export function nshade(p: PixelCanvas, m: Mask, ramp: Ramp, o: ShadeOpts = {}): 
  * bottom edges catch the lantern (#F2894B, `rim`), the top edges the stars
  * (#8E95C8, `star`). `skip(x, y)` leaves a pixel alone (eyes, emissive bits).
  */
-export function nightRim(p: PixelCanvas, rim = 0.55, star = 0.4, skip?: (x: number, y: number) => boolean): void {
+export function nightRim(p: PixelCanvas, rim = 0.55, star = 0.4, skip?: (x: number, y: number) => boolean, lanternZone?: (x: number, y: number) => boolean): void {
   const W = p.w;
   const H = p.h;
   const src = p.data.slice();
@@ -34,14 +34,17 @@ export function nightRim(p: PixelCanvas, rim = 0.55, star = 0.4, skip?: (x: numb
       const l = !on(x - 1, y);
       const b = !on(x, y + 1);
       const t = !on(x, y - 1);
-      if (l || b) p.set(x, y, mixU32(v, LANTERN, Math.min(0.85, rim * (l && b ? 1.25 : 1))));
+      // `lanternZone`: where the low light can reach at all (a bristly back
+      // is lit by the stars only, never ringed in orange)
+      const lz = !lanternZone || lanternZone(x, y);
+      if ((l || b) && lz) p.set(x, y, mixU32(v, LANTERN, Math.min(0.85, rim * (l && b ? 1.25 : 1))));
       else if (t) p.set(x, y, mixU32(v, STARLIGHT, star));
     }
 }
 
 /** Rims, then the ink outline (the usual finish of a chapter-2 sprite). */
-export function nightFinish(p: PixelCanvas, rim = 0.55, star = 0.4, skip?: (x: number, y: number) => boolean): void {
-  nightRim(p, rim, star, skip);
+export function nightFinish(p: PixelCanvas, rim = 0.55, star = 0.4, skip?: (x: number, y: number) => boolean, lanternZone?: (x: number, y: number) => boolean): void {
+  nightRim(p, rim, star, skip, lanternZone);
   p.outline(INK);
 }
 

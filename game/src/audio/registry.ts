@@ -49,3 +49,17 @@ export const hooks: {
   /** Called for every sfx() so songs can react (boss bell). */
   onSfx: ((id: string) => void) | null;
 } = { blip: null, onSfx: null };
+
+/**
+ * Ids asked for that nothing registered (dev builds): each is warned about
+ * once and kept here for QA (__game.cmd.audioUnknown(), 53_ch2_audio 16.1:
+ * a playthrough must leave this empty).
+ */
+export const unknownIds = new Set<string>();
+export function noteUnknown(kind: string, id: string): void {
+  if (!import.meta.env.DEV) return;
+  const k = `${kind} ${id}`;
+  if (unknownIds.has(k)) return;
+  unknownIds.add(k);
+  console.warn(`[audio] unknown ${k}`);
+}

@@ -131,7 +131,7 @@ const QA_TRAIN: MapDef = {
   objects: [{ t: 'trig', id: 'trig_qa_front', x: 14, y: 2, w: 2, h: 3, on: 'stay', stayMs: 1500, text: '@narr\n前の方で 1.5秒。' }],
   camera: 'fixed',
   outside: '#0B0B14',
-  lightBase: '#6E6C9E',
+  lightBase: '#7A78AA',
   bgm: { 0: null, 1: null, 2: null },
   amb: { 0: ['amb_h_train'], 1: ['amb_h_train'], 2: ['amb_h_train'] },
 };
@@ -149,7 +149,7 @@ const QA_BARN: MapDef = {
   // the tubes on all night; one pen (南5's place) dim under its dead tube (52 4.3)
   lightBase: '#E8ECF0',
   dark: [{ x: 17, y: 8, w: 3, h: 3 }],
-  darkCol: '#6E6E86',
+  darkCol: '#66667E',
   darkEdge: 6,
   darkStar: false,
 };
@@ -281,7 +281,10 @@ registerDebug('lightInfo', () => {
     waiting: L.waiting,
     sources: L.sources.map((s) => `${s.kind}@${s.x},${s.y} r${s.r} k${s.k}`),
     darkRects: darkRectsOf(f.map),
-    shown: f.actors.filter((a) => L.actorInDark(a)).map((a) => `${a.id}:${L.actorAlpha(a).toFixed(2)}`),
+    darkK: L.darkK(),
+    // in the dark (always drawn): whether the light has reached the symbols (they notice only then)
+    inDark: f.actors.filter((a) => L.actorInDark(a)).map((a) => `${a.id}${a.kind === 'sym' ? (L.symbolLit(a) ? ':lit' : ':unlit') : ''}`),
+    litOnly: f.props.filter((p) => p.obj.litOnly && p.present).map((p) => `${p.obj.t === 'prop' ? p.obj.prop : p.obj.id}:${L.alphaOf(p).toFixed(2)}`),
   };
 });
 
@@ -354,12 +357,20 @@ registerWorldFx({
         }
       }
     }
-    // each dark actor's visibility
-    ctx.fillStyle = '#FFF6D8';
+    // each actor in the dark (always drawn since 2026-09-26): a symbol the
+    // light has reached (it can notice him) gets a full bar, else a stub
     for (const a of f.actors) {
       if (!f.light.actorInDark(a)) continue;
-      const al = f.light.actorAlpha(a);
-      ctx.fillRect(Math.round(a.x - cx - 6), Math.round(a.y - cy + 2), Math.round(12 * al), 1);
+      const lit = a.kind !== 'sym' || f.light.symbolLit(a);
+      ctx.fillStyle = lit ? '#FFF6D8' : '#E84E3C';
+      ctx.fillRect(Math.round(a.x - cx - 6), Math.round(a.y - cy + 2), lit ? 12 : 3, 1);
+    }
+    // the litOnly finds: their fade
+    ctx.fillStyle = '#9BCB6B';
+    for (const p of f.props) {
+      if (!p.obj.litOnly || !p.present) continue;
+      const al = f.light.alphaOf(p);
+      ctx.fillRect(Math.round(p.x + 2 - cx), Math.round(p.y + 17 - cy), Math.round(12 * al) + 1, 1);
     }
     ctx.restore();
   },

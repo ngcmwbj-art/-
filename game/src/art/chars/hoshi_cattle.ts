@@ -11,12 +11,17 @@
 //                            2 frames × 600 ms; the four of 北3 in step until
 //                            ふしぎ08 is stamped).
 //   prop_h_cow_sleep  32×15  lying with the head turned back along the flank.
-//   prop_h_cow_front  20×20  at the feed rail facing the aisle (north pens):
-//                            the head goes down and up at the feed; the chores'
-//                            `reach` cow stretches its neck 2px toward feed it
-//                            cannot reach and holds, bobbing 1px every 2 s.
-//   prop_h_cow_back   20×20  the same seen from behind (south pens): the round
-//                            rump, the tail, the ear tips with their tags.
+//   prop_h_cow_front  20×34  at the feed rail facing the aisle (north pens): the
+//                            feet on row 19 (the anchor), the neck reaching down
+//                            past them under the rail's upper pipe into the
+//                            trough; the head goes down and up at the feed; the
+//                            chores' `reach` cow stretches its neck 2px toward
+//                            feed it cannot reach and holds, bobbing 1px every 2 s.
+//   prop_h_cow_back   20×32  the same seen from behind (south pens): the round
+//                            rump with the tail, the lit back, the neck going up
+//                            under the rail's upper pipe (drawn across it here,
+//                            the rail itself is behind the cow) to the poll and
+//                            the ears with their tags in the trough.
 //
 // opts: { right, white ('belly' | 'leg' | 'face' | 'belly_leg'), phase 0..1,
 // sync, n, reach (a spot_h_* id) }. Anchored like a standing prop: the
@@ -26,11 +31,16 @@
 // the back, deepest #1B1733); a small white on 1 cow in 5, never a big
 // patch (not a Holstein). Yellow tags in both ears. No expression (the eye
 // is a dot, no mouth line), no horns, no nose ring, no halter (50 2.2).
-// At dawn (h3) the lying cows get up, hind end first (4 frames), and stand.
-// In the dark they only show inside the lantern's light (levels: litOnly);
-// the night rim on the lit side is the world's (litRim on ≤32px props).
+// At dawn (h3) the lying cows get up, hind end first (4 frames), and stand —
+// in the ending's cut 2a a moment after the cut opens (or after the room's
+// lights come on, when the events switch them), on any visit.
+// The barn is lit at night (2026-09-26): the shapes read under the tubes; the
+// tomato's light only adds the warm glint of the tags and the sheen of the
+// back near it (what shows in the one dim pen, 南5). The night rim on the lit
+// side is the world's (litRim on ≤32px props).
 
 import { PixelCanvas } from '../../engine/pixel';
+import { P } from '../tiles/palette';
 import type { Gfx } from '../../engine/gfx';
 import { registerProp } from '../props/registry';
 import type { PropArt, PropEnv } from '../props/types';
@@ -57,6 +67,23 @@ export const COW_POSES: CowPose[] = ['side', 'lie', 'sleep', 'front', 'back'];
 
 const cache = new Map<string, HTMLCanvasElement>();
 
+/** Frame height: the side and lying views share the standing cow's 21 rows (feet on the bottom). */
+function frameH(pose: string, rows: string[]): number {
+  return rows[0].length === 32 ? 21 : rows.length;
+}
+
+/**
+ * The rail's upper pipe (prop_h_barn_rail, side 's': concreteLt over steel)
+ * crosses the neck of a cow feeding at the south rail: the rail is drawn
+ * behind the cows there, so the pipe is laid over the neck here (rows 8–9
+ * with the feet at dy 20 in the pen, 52 4.3). The north rail is drawn in
+ * front of its cows by the levels' prop.
+ */
+const BACK_PIPE: [number, string][] = [
+  [8, P.concreteLt],
+  [9, P.steel],
+];
+
 /** One frame of a cow (cached): pose, frame name, white kinds ('belly_leg'), facing right. */
 export function cowFrame(pose: string, frame: string, white = '', right = false): HTMLCanvasElement {
   const key = `${pose}|${frame}|${white}|${right ? 1 : 0}`;
@@ -66,7 +93,7 @@ export function cowFrame(pose: string, frame: string, white = '', right = false)
   const w = rows[0].length;
   // lying frames sit at the bottom of the standing cow's 21 rows, so a cow
   // getting up at dawn keeps its feet on the straw
-  const h = w === 32 ? 21 : rows.length;
+  const h = frameH(pose, rows);
   const top = h - rows.length;
   const grid = rows.map((r) => r.split(''));
   for (const kind of white.split('_').filter(Boolean)) {
@@ -79,24 +106,27 @@ export function cowFrame(pose: string, frame: string, white = '', right = false)
       const col = grid[y - top] ? PAL[grid[y - top][x]] : undefined;
       if (col) p.set(right ? w - 1 - x : x, y, col);
     }
+  if (pose === 'back')
+    for (const [y, col] of BACK_PIPE)
+      for (let x = 0; x < w; x++) if (grid[y] && PAL[grid[y][x]]) p.set(x, y, col);
   c = p.toCanvas();
   cache.set(key, c);
   return c;
 }
 
-/** Where the ear tags are in a frame (for the glint), in frame px. */
-const tagCache = new Map<string, [number, number][]>();
-function tagsOf(pose: string, frame: string, right: boolean): [number, number][] {
-  const key = `${pose}|${frame}|${right ? 1 : 0}`;
-  let t = tagCache.get(key);
+/** Where the pixels of some letters are in a frame (the tags' glint, the sheen), in frame px. */
+const pxCache = new Map<string, [number, number][]>();
+function pixelsOf(pose: string, frame: string, right: boolean, letters: string): [number, number][] {
+  const key = `${pose}|${frame}|${right ? 1 : 0}|${letters}`;
+  let t = pxCache.get(key);
   if (t) return t;
   const rows = COW_FRAMES[pose][frame] ?? COW_FRAMES[pose].base;
   const w = rows[0].length;
-  const top = (w === 32 ? 21 : rows.length) - rows.length;
-  t = [];
-  rows.forEach((r, y) => [...r].forEach((ch, x) => ch === 'Y' && t!.push([right ? w - 1 - x : x, y + top])));
-  tagCache.set(key, t);
-  return t;
+  const top = frameH(pose, rows) - rows.length;
+  const out: [number, number][] = [];
+  rows.forEach((r, y) => [...r].forEach((ch, x) => letters.includes(ch) && out.push([right ? w - 1 - x : x, y + top])));
+  pxCache.set(key, out);
+  return out;
 }
 
 /** The chores (50 10.19): open from the gate until the chores are done (levels' spotPending). */
@@ -116,7 +146,9 @@ function every(t: number, lo: number, hi: number, len: number, seed: number): nu
   return d >= 0 && d < len ? d : -1;
 }
 
-const SIZE: Record<CowPose, [number, number]> = { side: [32, 21], lie: [32, 21], sleep: [32, 21], front: [20, 20], back: [20, 20] };
+const SIZE: Record<CowPose, [number, number]> = { side: [32, 21], lie: [32, 21], sleep: [32, 21], front: [20, 34], back: [20, 32] };
+/** The row under the feet (the anchor line): the front view's head reaches down past its feet. */
+const FEET: Record<CowPose, number> = { side: 21, lie: 21, sleep: 21, front: 20, back: 32 };
 const CONTACT: Record<CowPose, number> = { side: 24, lie: 26, sleep: 26, front: 16, back: 16 };
 
 /** Is it morning in the barn (h3)? */
@@ -124,16 +156,17 @@ function morning(env: PropEnv): boolean {
   return (env.hstage ?? -1) >= 3;
 }
 
-// The barn's tubes (the world's roomLights, ending cut 2a): the lying cows get
-// up when the lights come on. Looked up lazily — the world imports the art.
+// The room's tubes as the events switch them (the world's roomLights): if
+// the events turn them off for a cut, the cows wait for them to come back on.
+// Looked up lazily — the world imports the art.
 let roomLitFn: ((mapId: string) => number | null) | null = null;
 void import('../../world/hoshi').then((m) => (roomLitFn = m.roomLit)).catch(() => {});
 
-/** Is the barn still dark for the cows (night, or the tubes not on yet at 5:00)? */
-function barnDark(env: PropEnv): boolean {
+/** Do the lying cows keep lying? All night; in the morning only while the events hold the lights off. */
+function stillNight(env: PropEnv): boolean {
+  if (!morning(env)) return true;
   const lit = roomLitFn ? roomLitFn('map_hoshi_barn') : null;
-  if (lit !== null) return lit <= 0;
-  return !morning(env);
+  return lit !== null && lit <= 0;
 }
 
 function cowArt(pose: CowPose, opts: Record<string, unknown>): PropArt {
@@ -144,25 +177,21 @@ function cowArt(pose: CowPose, opts: Record<string, unknown>): PropArt {
   const reach = String(opts.reach ?? '');
   const seed = Number(opts.n ?? 0) * 0.37 + phase;
   const [w, h] = SIZE[pose];
-  // the dawn: a lying cow gets up once, hind end first
+  // the dawn: a lying cow gets up once, hind end first, a moment after the
+  // morning shows (each cow on its own beat)
   let lastT = -1;
-  let sawNight = false;
   let riseAt = -1;
   const lying = pose === 'lie' || pose === 'sleep';
 
   const frameAt = (env: PropEnv): [string, string] => {
     const t = env.t;
-    if (t < lastT) {
-      // a new visit: the barn is set up again
-      sawNight = false;
-      riseAt = -1;
-    }
+    if (t < lastT) riseAt = -1; // a new visit: the barn is set up again
     lastT = t;
     if (lying) {
-      if (barnDark(env)) sawNight = true;
-      else if (riseAt < 0) riseAt = sawNight ? t + 400 + ((seed * 1000) % 1400) : -2;
-      if (riseAt === -2 || (riseAt >= 0 && t >= riseAt)) {
-        const k = riseAt === -2 ? 9 : Math.floor((t - riseAt) / 220);
+      if (stillNight(env)) riseAt = -1;
+      else if (riseAt < 0) riseAt = t + 500 + ((seed * 1000) % 1400);
+      if (riseAt >= 0 && t >= riseAt) {
+        const k = Math.floor((t - riseAt) / 220);
         if (k === 0) return [pose, 'base'];
         if (k === 1) return ['rise', 'r1'];
         if (k === 2) return ['rise', 'r2'];
@@ -189,7 +218,7 @@ function cowArt(pose: CowPose, opts: Record<string, unknown>): PropArt {
         const sw = every(t, 8000, 12000, 450, seed + 3);
         if (sw >= 0) return ['back', sw < 150 ? 'tail1' : sw < 300 ? 'tail2' : 'tail1'];
         if (every(t, 4000, 8000, 110, seed) >= 0) return ['back', 'ear'];
-        return ['back', 'base'];
+        return ['back', Math.floor((t + ph * 1400) / 700) % 2 ? 'eat' : 'base'];
       }
     }
     return [pose, 'base'];
@@ -205,7 +234,7 @@ function cowArt(pose: CowPose, opts: Record<string, unknown>): PropArt {
   }
 
   const ox = 8 - Math.floor(w / 2);
-  const oy = 16 - h;
+  const oy = 16 - FEET[pose];
   return {
     ox,
     oy,
@@ -217,24 +246,28 @@ function cowArt(pose: CowPose, opts: Record<string, unknown>): PropArt {
       // the standing frames after the dawn are taller: keep the feet on the ground
       return cowFrame(p, f, p === 'rise' ? '' : white, right);
     },
-    // the ear tags catch the tomato's light (1px, brighter while the ear flicks)
-    glow(g: Gfx, x: number, y: number, env: PropEnv) {
-      if (morning(env)) return;
-      const L = env.lantern;
-      const r = L ? L.r : 72;
+    // the tomato's light (52 10.4 光): the ear tags glint (brighter while the
+    // ear flicks), the sheen along the back and the lit top of the coat warm
+    // up near it. The barn is lit (2026-09-26), so this is what shows in the
+    // one dim pen (南5) and only as a warm touch elsewhere.
+    glow(this: PropArt, g: Gfx, x: number, y: number, env: PropEnv) {
+      if (morning(env) || !env.lantern) return;
+      const r = env.lantern.r;
       const near = env.near;
-      if (near > r + 4) return;
-      const [p, f] = frameAt(env);
-      const img = cowFrame(p, f, '', right);
-      const fx = x + 8 - Math.floor(img.width / 2);
-      const fy = y + 16 - img.height;
-      const k = Math.min(1, (r + 4 - near) / 28) * (env.lit ?? 1);
+      if (near > r + 8) return;
+      const k = Math.min(1, (r + 8 - near) / 36);
       if (k <= 0.05) return;
+      const [p, f] = frameAt(env);
+      // the image is drawn at the (levels-shifted) ox/oy of the art the renderer holds
+      const fx = x + this.ox;
+      const fy = y + this.oy;
       const flick = f === 'ear';
-      for (const [tx, ty] of tagsOf(p, f, right)) {
-        g.rect(fx + tx, fy + ty, 1, 1, '#FFE7A3', Math.min(1, (flick ? 1 : 0.7) * k));
+      for (const [tx, ty] of pixelsOf(p, f, right, 'Y')) {
+        g.rect(fx + tx, fy + ty, 1, 1, '#FFE7A3', Math.min(1, (flick ? 1 : 0.75) * k));
         if (flick) g.rect(fx + tx - 1, fy + ty, 3, 1, '#FFD23F', 0.25 * k);
       }
+      for (const [tx, ty] of pixelsOf(p, f, right, 's')) g.rect(fx + tx, fy + ty, 1, 1, '#F7C27A', 0.42 * k);
+      for (const [tx, ty] of pixelsOf(p, f, right, 'l')) g.rect(fx + tx, fy + ty, 1, 1, '#F2894B', 0.16 * k);
     },
     contact: CONTACT[pose],
     contactX: 8,

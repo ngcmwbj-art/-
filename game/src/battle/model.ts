@@ -279,6 +279,22 @@ export class EnemyUnit {
 
 // ---- formulas -------------------------------------------------------------
 
+/**
+ * The centre of a stamped mark on an enemy (sprite space) with its jitter:
+ * the core, unless the face sits on the core (スネトマト: the eyes and the
+ * pout are the core) — then the mark goes under the face, where the 14px
+ * oval clears the mouth (QA: the みました mark hid the face that turned).
+ */
+export function decalSpot(def: EnemyDef): { x: number; y: number; jx: number; jy0: number; jy1: number } {
+  if (def.decalAt) return { x: def.decalAt[0], y: def.decalAt[1], jx: 4, jy0: -1, jy1: 1 };
+  const [cx, cy] = def.core;
+  const [fx, fy] = def.face;
+  if ((def.chapter ?? 1) >= 2 && Math.abs(fx - cx) < 10 && Math.abs(fy - cy) < 10) {
+    return { x: cx, y: Math.min(def.size[1] - 6, fy + 13), jx: 4, jy0: 0, jy1: 1 };
+  }
+  return { x: cx, y: cy, jx: 6, jy0: -6, jy1: 6 };
+}
+
 export function stageMul(lv: number): number {
   return 1 + 0.25 * lv;
 }

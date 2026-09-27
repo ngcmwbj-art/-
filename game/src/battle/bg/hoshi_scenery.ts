@@ -131,3 +131,62 @@ export function tuftTile(key: string, h: number, density: number, color: string,
   tileCache.set(k, c);
   return c;
 }
+
+/**
+ * The Milky Way as a faint dust of 1px stars along a gentle arc (a 384 × h
+ * tile, transparent): denser at its spine, cream and pale violet grains, a
+ * few brighter knots. Seen between the band and the ridges (52 14.3: a
+ * night sky that is not just blue).
+ */
+export function milkyWayTile(key: string, h: number, spine: (x: number) => number, width: number, seed = 3): HTMLCanvasElement {
+  const k = `milky:${key}`;
+  const hit = tileCache.get(k);
+  if (hit) return hit;
+  const [c, ctx] = makeCanvas(384, h);
+  // the faint glow of the band itself (a pale violet haze along its spine,
+  // thinning out in clouds), then the grains over it
+  for (let x = 0; x < 384; x++) {
+    const sy = spine(x);
+    const cloud = 0.55 + 0.45 * Math.sin(x / 23 + seed) * Math.sin(x / 57 + seed * 2);
+    for (let y = 0; y < h; y++) {
+      const d = Math.abs(y - sy) / width;
+      if (d > 1) continue;
+      ctx.globalAlpha = 0.16 * (1 - d) * (1 - d) * cloud;
+      ctx.fillStyle = '#8E95C8';
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  for (let x = 0; x < 384; x++) {
+    const sy = spine(x);
+    const cloud = 0.6 + 0.4 * Math.sin(x / 23 + seed) * Math.sin(x / 57 + seed * 2);
+    for (let y = 0; y < h; y++) {
+      const d = Math.abs(y - sy) / width;
+      if (d > 1) continue;
+      const n = hash2(x, y, seed);
+      const dens = (1 - d) * (1 - d) * 0.2 * cloud;
+      if (n > dens) continue;
+      const m = hash2(x, y, seed + 1);
+      ctx.fillStyle = m < 0.12 ? '#FFF6D8' : m < 0.55 ? '#8E95C8' : '#5B4A7A';
+      ctx.globalAlpha = m < 0.12 ? 0.9 : 0.55 + 0.4 * (1 - d);
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  ctx.globalAlpha = 1;
+  tileCache.set(k, c);
+  return c;
+}
+
+/** Far farmhouse windows: warm 1px lights (a 2px one for the nearest) that dim and come back slowly. */
+export function drawFarLights(ctx: CanvasRenderingContext2D, lights: [number, number][], t: number, seed = 5): void {
+  ctx.save();
+  lights.forEach(([x, y], i) => {
+    const a = 0.75 + 0.25 * Math.sin(t * 0.7 + hash2(i, 1, seed) * 6.28);
+    ctx.globalAlpha = 0.22 * a;
+    ctx.fillStyle = '#F2894B';
+    ctx.fillRect(x - 1, y - 1, 3, 3);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = hash2(i, 2, seed) < 0.5 ? '#F7C27A' : '#FFE7A3';
+    ctx.fillRect(x, y, 1, 1);
+  });
+  ctx.restore();
+}

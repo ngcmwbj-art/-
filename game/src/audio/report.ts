@@ -609,6 +609,8 @@ export const AMB_CONTEXT: {
   { amb: 'amb_h_insects', song: 'bgm_hoshi_night', stage: 3, hStage: 1, room: 3, role: 'bed', vol: 0.35, lp: 2000, need: -12, where: '集会所（窓ごし）' },
   { amb: 'amb_h_train', song: 'bgm_hoshi_night', stage: 3, hStage: 0, role: 'character', underMin: -8, where: '夜の電車（曲なし）' },
   { amb: 'amb_h_dawn', song: 'bgm_hoshi_morning', stage: 3, hStage: 2, role: 'bed', where: 'エンディングの夜明け' },
+  // the turnaround: ツガオさん's snore and ぴーちゃん, small (you walk up to the cab to hear him)
+  { amb: 'amb_h_tsugaobin', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'character', underMin: 2, where: '転回場のツガオ便' },
   // ツガオの部屋: the lamp's hum is felt more than heard (its clocks and the siren come with events)
   { amb: 'amb_tsugao_room', song: 'bgm_tsugao', stage: 3, role: 'bed', need: -8, where: 'ツガオの部屋（スタンド）' },
 ];

@@ -15,7 +15,8 @@ import { hash2, Rng } from '../../engine/rng';
 import { drawText, measure } from '../../engine/font';
 import { flag } from '../../game/state';
 import { Background, BG_H, fillCircle, gradientTexture, pxLine, strokeCircle } from './common';
-import { drawLoop, loopHeight, ridgeTile, tuftTile } from './hoshi_scenery';
+import { tomatoIcon } from '../art/fxart_ch2';
+import { drawFarLights, drawLoop, loopHeight, milkyWayTile, ridgeTile, tuftTile } from './hoshi_scenery';
 
 const TOMATO = '#F2894B';
 
@@ -38,37 +39,58 @@ function tomatoBand(ctx: CanvasRenderingContext2D, y: number, t: number, h = 10,
 let liftC: HTMLCanvasElement | null = null;
 /**
  * The dark lifted behind the enemy (x120–264, y60–140, 51 15.1): a soft
- * dithered ellipse of #5B4A7A over #3A2B5C, so the boar's bristles or the
- * scarecrow's suit keep their edge on a night sky.
+ * ellipse of light, #3A2B5C at its rim rising to #5B4A7A at its heart, so
+ * the boar's bristles or the scarecrow's suit keep their edge on a night
+ * sky. A smooth falloff, no dither (QA: a 4×4 dot disc read as a halftone).
  */
 function enemyLift(ctx: CanvasRenderingContext2D, alpha = 1): void {
   if (!liftC) {
-    const [c, cx] = makeCanvas(160, 96);
-    const img = cx.createImageData(160, 96);
+    const w = 176;
+    const h = 104;
+    const [c, cx] = makeCanvas(w, h);
+    const img = cx.createImageData(w, h);
     const a = [0x3a, 0x2b, 0x5c];
     const b = [0x5b, 0x4a, 0x7a];
-    for (let y = 0; y < 96; y++)
-      for (let x = 0; x < 160; x++) {
-        const dx = (x - 80) / 80;
-        const dy = (y - 50) / 46;
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const dx = (x + 0.5 - w / 2) / (w / 2);
+        const dy = (y + 0.5 - h * 0.52) / (h / 2);
         const d = Math.sqrt(dx * dx + dy * dy);
         if (d >= 1) continue;
-        const k = (1 - d) * 3;
-        const lv = Math.floor(k) + (BAYER4[y & 3][x & 3] < (k % 1) * 16 ? 1 : 0);
-        if (lv <= 0) continue;
-        const col = lv >= 3 ? b : a;
-        const i = (y * 160 + x) * 4;
-        img.data[i] = col[0];
-        img.data[i + 1] = col[1];
-        img.data[i + 2] = col[2];
-        img.data[i + 3] = lv >= 2 ? 150 : 90;
+        const q = 1 - d;
+        const k = q * q * (3 - 2 * q);
+        const i = (y * w + x) * 4;
+        for (let ch = 0; ch < 3; ch++) img.data[i + ch] = Math.round(a[ch] + (b[ch] - a[ch]) * Math.min(1, k * 1.4));
+        img.data[i + 3] = Math.round(190 * k);
       }
     cx.putImageData(img, 0, 0);
     liftC = c;
   }
   ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.drawImage(liftC, 112, 50);
+  ctx.globalAlpha = Math.min(1, alpha);
+  ctx.drawImage(liftC, 104, 46);
+  ctx.restore();
+}
+
+/**
+ * 4:59, the night before dawn (52 14.3, 2026-09-26): the east — the right
+ * edge — has begun to pale. A faint lavender wash over the sky only, laid
+ * before the ridges so they stay dark against it.
+ */
+function dawnEdge(ctx: CanvasRenderingContext2D, y0: number, y1: number): void {
+  const g = ctx.createLinearGradient(384, 0, 190, 0);
+  g.addColorStop(0, 'rgba(142,149,200,0.2)');
+  g.addColorStop(0.45, 'rgba(142,149,200,0.07)');
+  g.addColorStop(1, 'rgba(142,149,200,0)');
+  const v = ctx.createLinearGradient(0, y0, 0, y1);
+  ctx.save();
+  ctx.fillStyle = g;
+  ctx.fillRect(190, y0, 194, y1 - y0);
+  // brighter toward the horizon
+  v.addColorStop(0, 'rgba(142,149,200,0)');
+  v.addColorStop(1, 'rgba(142,149,200,0.08)');
+  ctx.fillStyle = v;
+  ctx.fillRect(250, y0, 134, y1 - y0);
   ctx.restore();
 }
 
@@ -79,10 +101,10 @@ interface Star {
   a: number;
 }
 
-function makeStars(seed: number, n: number, yMax: number): Star[] {
+function makeStars(seed: number, n: number, yMax: number, yMin = 2): Star[] {
   const r = new Rng(seed);
   const out: Star[] = [];
-  for (let i = 0; i < n; i++) out.push({ x: r.int(2, 381), y: r.int(2, yMax), ph: r.range(0, 6.28), a: r.range(0.5, 1) });
+  for (let i = 0; i < n; i++) out.push({ x: r.int(2, 381), y: r.int(yMin, yMax), ph: r.range(0, 6.28), a: r.range(0.5, 1) });
   return out;
 }
 
@@ -113,35 +135,44 @@ function markerText(text: string, color: string): HTMLCanvasElement {
 
 // ---- bg_h_house (スネトマト) -------------------------------------------------------------------
 
-/** 15.2: inside 3号ハウス at night — strings of green tomatoes rising, the hoops, the tomato's glow. */
+/**
+ * 15.2: inside ペロリさん's 3号ハウス at night — the work lights are on
+ * (2026-09 brightness brief: the house is lit throughout), so the film and
+ * its hoops glow a soft violet, the trained strings climb green with their
+ * trusses of unripe tomatoes, and at the back the はなまるトマト hangs from
+ * its vine, the brightest, warmest thing in the house (until it is picked).
+ */
 export class HoshiHouseBg extends Background {
-  private stars = makeStars(21, 10, 40);
+  private stars = makeStars(21, 6, 60, 50);
   private pollen: { x: number; y: number; a: number; r: number; s: number }[] = [];
   private stringsC: HTMLCanvasElement;
+  private roofC: HTMLCanvasElement;
 
   constructor() {
     super('bg_h_house');
     this.wave = { A: 2, lambda: 48, f: 0.25, A2: 0, lambda2: 40, f2: 0.3, interlace: false };
     this.bottom = '#1B1733';
     const r = new Rng(5);
-    for (let i = 0; i < 12; i++) this.pollen.push({ x: 0, y: 0, a: r.range(0, 6.28), r: r.range(10, 40), s: r.range(0.3, 0.8) });
+    for (let i = 0; i < 14; i++) this.pollen.push({ x: 0, y: 0, a: r.range(0, 6.28), r: r.range(10, 40), s: r.range(0.3, 0.8) });
     // the strings and their bunches, one tile of BG_H that loops upward:
-    // thin trained vines with a green tomato here and there, dark in the night
+    // trained vines round each string, leaves catching the lamps on their
+    // upper edge, a truss of green tomatoes here and there
     const [c, ctx] = makeCanvas(384, BG_H);
     for (let x = 6; x < 384; x += 12) {
-      ctx.fillStyle = '#2A3A5E';
+      ctx.fillStyle = '#4A5A8A';
       ctx.fillRect(x, 0, 1, BG_H);
-      // the vine winding round the string, a leaf now and then
       for (let y = 0; y < BG_H; y += 2) {
         const wob = Math.round(Math.sin((y + x) / 7) * 1.5);
-        ctx.fillStyle = '#1E3A34';
+        ctx.fillStyle = '#2E5A3E';
         ctx.fillRect(x + wob, y, 1, 2);
-        if (hash2(x, y, 9) < 0.08) {
-          ctx.fillStyle = '#244A3A';
-          ctx.fillRect(x + wob + (hash2(x, y, 10) < 0.5 ? -3 : 1), y, 3, 2);
+        if (hash2(x, y, 9) < 0.1) {
+          const lx = x + wob + (hash2(x, y, 10) < 0.5 ? -3 : 1);
+          ctx.fillStyle = '#3F7A3A';
+          ctx.fillRect(lx, y, 3, 2);
+          ctx.fillStyle = '#5FA85A';
+          ctx.fillRect(lx, y, 2, 1);
         }
       }
-      // a truss of green tomatoes at its own height on each string
       for (let k = 0; k < 2; k++) {
         const y = Math.floor(hash2(x, k, 3) * BG_H);
         const n = 2 + Math.floor(hash2(x, k, 4) * 3);
@@ -149,15 +180,31 @@ export class HoshiHouseBg extends Background {
           const rr = 2 + Math.floor(hash2(x + j, k, 5) * 2);
           const bx = x + (j % 2 ? 3 : -2) + Math.floor(hash2(x, j, 6) * 3) - 1;
           const by = (y + j * 5) % BG_H;
-          fillCircle(ctx, bx, by, rr, '#1E4A34');
-          fillCircle(ctx, bx - 1, by - 1, Math.max(1, rr - 1), '#2E5A3E');
-          // the lantern's light catches the lower left edge
+          fillCircle(ctx, bx, by, rr, '#2E6B4A');
+          fillCircle(ctx, bx - 1, by - 1, Math.max(1, rr - 1), '#3FA66B');
+          ctx.fillStyle = '#9BCB6B';
+          ctx.fillRect(bx - 1, by - rr + 1, 1, 1);
+          // the lantern's warmth on the lower left edge
           ctx.fillStyle = TOMATO;
           ctx.fillRect(bx - rr, by + 1, 1, 1);
         }
       }
     }
     this.stringsC = c;
+    // the roof: the film between the hoops, lit from inside (a pale violet
+    // sheen along the ridge) with the lamps hung under it
+    const [rc, rctx] = makeCanvas(384, 34);
+    rctx.drawImage(gradientTexture(['#5B4A7A', '#4A3E6E', '#3A2B5C', '#3A2B5C'], 34), 0, 0);
+    for (let x = 0; x < 384; x++) {
+      // the film's creases catching the light
+      if (hash2(x, 0, 71) < 0.18) {
+        rctx.fillStyle = '#8E95C8';
+        rctx.globalAlpha = 0.35;
+        rctx.fillRect(x, 2 + Math.floor(hash2(x, 1, 71) * 10), 1, 6 + Math.floor(hash2(x, 2, 71) * 8));
+      }
+    }
+    rctx.globalAlpha = 1;
+    this.roofC = rc;
   }
 
   update(dt: number): void {
@@ -171,23 +218,13 @@ export class HoshiHouseBg extends Background {
   }
 
   protected paintL0(ctx: CanvasRenderingContext2D, t: number): void {
-    ctx.drawImage(gradientTexture(['#0B0B14', '#1B1733', '#2A2440'], BG_H), 0, 0);
+    // lit inside: the house is brighter than the night outside
+    ctx.drawImage(gradientTexture(['#1B1733', '#2A2440', '#3A2B5C', '#3A2B5C', '#2A2440'], BG_H), 0, 0);
+    ctx.drawImage(this.roofC, 0, 46);
+    // the night outside, through the film near the ridge: a few stars
     drawStars(ctx, this.stars, t);
     enemyLift(ctx, 0.8);
     tomatoBand(ctx, 118, t);
-    if (this.glowing()) {
-      // the はなまるトマト glowing at the back of the house (r30, ±2px)
-      const r = 30 + 2 * Math.sin(t * Math.PI * 2 * 0.8);
-      const g = ctx.createRadialGradient(96, 70, 2, 96, 70, r);
-      g.addColorStop(0, 'rgba(255,231,163,0.5)');
-      g.addColorStop(0.45, 'rgba(242,137,75,0.35)');
-      g.addColorStop(1, 'rgba(242,137,75,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(96 - 34, 70 - 34, 68, 68);
-      fillCircle(ctx, 96, 70, 3, '#FFE7A3');
-      ctx.fillStyle = '#FFF6D8';
-      ctx.fillRect(95, 69, 1, 1);
-    }
   }
 
   protected paintL1(ctx: CanvasRenderingContext2D, t: number): void {
@@ -199,15 +236,37 @@ export class HoshiHouseBg extends Background {
 
   protected drawL2(g: Gfx, t: number): void {
     const ctx = g.ctx;
-    // the hoops of the house, only their tops showing (every 48px)
-    ctx.fillStyle = '#5B4A7A';
+    // the hoops of the house (every 48px), lit on their inner edge
     for (let cx = 24; cx < 384 + 48; cx += 48) {
-      for (let a = 0; a <= 40; a++) {
-        const an = Math.PI + (a / 40) * Math.PI;
+      for (let a = 0; a <= 48; a++) {
+        const an = Math.PI + (a / 48) * Math.PI;
         const x = Math.round(cx + Math.cos(an) * 30);
-        const y = Math.round(40 + Math.sin(an) * 34);
-        if (y >= 0) ctx.fillRect(x, y, 2, 2);
+        const y = Math.round(62 + Math.sin(an) * 18);
+        ctx.fillStyle = '#5B4A7A';
+        ctx.fillRect(x, y, 2, 2);
+        ctx.fillStyle = '#9AA0C8';
+        ctx.fillRect(x, y + 1, 2, 1);
       }
+    }
+    // the work lamps hung from the ridge between the hoops: a warm bulb, its
+    // shade and a soft pool of light (they sway a little on their cords)
+    for (let i = 0; i < 4; i++) {
+      const lx = 48 + i * 96 + Math.round(Math.sin(t * 0.8 + i) * 0.6);
+      const ly = 58;
+      const halo = ctx.createRadialGradient(lx, ly + 3, 1, lx, ly + 3, 22);
+      halo.addColorStop(0, 'rgba(255,231,163,0.28)');
+      halo.addColorStop(1, 'rgba(255,231,163,0)');
+      ctx.fillStyle = halo;
+      ctx.fillRect(lx - 22, ly - 19, 44, 44);
+      ctx.fillStyle = '#2A2440';
+      ctx.fillRect(lx, 44, 1, ly - 46);
+      ctx.fillRect(lx - 3, ly - 2, 7, 2);
+      ctx.fillStyle = '#6B7186';
+      ctx.fillRect(lx - 2, ly - 2, 5, 1);
+      ctx.fillStyle = '#FFE7A3';
+      ctx.fillRect(lx - 1, ly, 3, 2);
+      ctx.fillStyle = '#FFF6D8';
+      ctx.fillRect(lx, ly, 1, 1);
     }
     if (!this.glowing()) {
       // after the tomato is picked: a warm bounce from below (#F2894B α12%)
@@ -218,13 +277,41 @@ export class HoshiHouseBg extends Background {
       ctx.fillRect(0, 60, 384, BG_H - 60);
       return;
     }
+    // the はなまるトマト at the back (96,70): its light breathing (r30 ±2,
+    // 0.8Hz) added over the house — warm, never muddy — and the fruit itself
+    // on its vine, red with its gloss, the calyx and the star mark
+    const pulse = Math.sin(t * Math.PI * 2 * 0.8);
+    const R = 30 + 2 * pulse;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const gl = ctx.createRadialGradient(96, 72, 1, 96, 72, R);
+    gl.addColorStop(0, 'rgba(255,231,163,0.7)');
+    gl.addColorStop(0.3, 'rgba(242,137,75,0.4)');
+    gl.addColorStop(1, 'rgba(242,137,75,0)');
+    ctx.fillStyle = gl;
+    ctx.fillRect(96 - 34, 72 - 34, 68, 68);
+    ctx.restore();
+    // its vine and the stalk it hangs from
+    ctx.fillStyle = '#2E5A3E';
+    ctx.fillRect(97, 48, 1, 16);
+    ctx.fillRect(98, 55, 3, 1);
+    ctx.fillStyle = '#5FA85A';
+    ctx.fillRect(99, 54, 2, 1);
+    const img = tomatoIcon('ready');
+    const sway = Math.round(Math.sin(t * 1.1) * 0.6);
+    ctx.drawImage(img, 91 + sway, 63);
+    // the light's sparkle on its shoulder
+    if (pulse > 0.6) {
+      ctx.fillStyle = '#FFF6D8';
+      ctx.fillRect(94 + sway, 66, 1, 1);
+    }
     // pollen-like motes drifting round the light
     ctx.fillStyle = '#F7C27A';
     for (const p of this.pollen) {
       const a = p.a + t * p.s;
       const x = Math.round(96 + Math.cos(a) * p.r * 1.3);
-      const y = Math.round(70 + Math.sin(a * 1.3) * p.r * 0.7);
-      ctx.globalAlpha = 0.4;
+      const y = Math.round(72 + Math.sin(a * 1.3) * p.r * 0.7);
+      ctx.globalAlpha = 0.5;
       ctx.fillRect(x, y, 1, 1);
     }
     ctx.globalAlpha = 1;
@@ -235,24 +322,29 @@ export class HoshiHouseBg extends Background {
 
 /** 15.3: the terraces — six steps of water, each rippling on its own phase; CDs turning. */
 export class HoshiTanadaBg extends Background {
-  private stars = makeStars(33, 12, 44);
+  private stars = makeStars(33, 12, 62, 49);
   private cds: { x: number; y: number; ph: number; spd: number }[] = [];
   private glintAt = 0;
   private glintCd = 0;
   /** The six steps (far → near): crest line, stone face, the flooded paddy. */
   private steps: { y: number; tile: HTMLCanvasElement; refl: { x: number; y: number; ph: number }[]; ripples: { x: number; y: number; w: number; ph: number }[] }[] = [];
   private far: HTMLCanvasElement;
+  private milky: HTMLCanvasElement;
 
   constructor() {
     super('bg_h_tanada');
     this.wave = { A: 2, lambda: 40, f: 0.3, A2: 0, lambda2: 40, f2: 0.3, interlace: false };
     this.distortL1Only = true;
+    this.wrapL1 = true;
     this.bottom = '#1B1733';
     const r = new Rng(8);
-    for (let i = 0; i < 4; i++) this.cds.push({ x: i * 110 + r.int(0, 40), y: 22 + r.int(0, 30), ph: r.range(0, 6.28), spd: r.range(9, 14) });
-    // the dark hill the terraces are cut into, cedars on its shoulder
-    this.far = ridgeTile('tanada_far', 40, (x) => loopHeight(x, 14, [[5, 1, 0.4], [3, 3, 1.9], [1.5, 7, 0.2]]), '#141028', { rim: '#5B4A7A', rimA: 0.7, trees: 0.16, treeH: 9, seed: 31, canopy: '#1B1733' });
-    const tops = [64, 74, 86, 100, 116, 135];
+    // the CDs hang in the open sky between the band and the hill (y56–72)
+    for (let i = 0; i < 4; i++) this.cds.push({ x: i * 110 + r.int(0, 40), y: 57 + r.int(0, 14), ph: r.range(0, 6.28), spd: r.range(9, 14) });
+    // the dark hill the terraces are cut into, cedars on its shoulder: the
+    // whole line (tips included) under the 2-line band, none of it hanging from it
+    this.far = ridgeTile('tanada_far3', 30, (x) => loopHeight(x, 9, [[2.5, 1, 0.4], [1.5, 3, 1.9], [1, 7, 0.2]]), '#141028', { rim: '#5B4A7A', rimA: 0.7, trees: 0.09, treeH: 6, seed: 31, canopy: '#1B1733' });
+    this.milky = milkyWayTile('tanada', 18, (x) => 8 + 4 * Math.sin((x / 384) * Math.PI * 2 + 2.2), 6, 37);
+    const tops = [72, 80, 90, 102, 117, 135];
     const walls = [2, 2, 3, 3, 4, 5];
     tops.forEach((y, i) => {
       const next = tops[i + 1] ?? BG_H + 4;
@@ -351,11 +443,16 @@ export class HoshiTanadaBg extends Background {
 
   protected paintL0(ctx: CanvasRenderingContext2D, t: number): void {
     // the sky pales toward the ridge so the hill's line reads
-    ctx.drawImage(gradientTexture(['#0B0B14', '#141028', '#1B1733', '#2A2440', '#3A2B5C'], 66), 0, 0);
+    ctx.drawImage(gradientTexture(['#0B0B14', '#141028', '#1B1733', '#2A2440', '#3A2B5C'], 70), 0, 0);
     ctx.fillStyle = '#3A2B5C';
-    ctx.fillRect(0, 66, 384, BG_H - 66);
+    ctx.fillRect(0, 70, 384, BG_H - 70);
+    dawnEdge(ctx, 40, 74);
+    ctx.drawImage(this.milky, 0, 48);
     drawStars(ctx, this.stars, t);
-    drawLoop(ctx, this.far, -t * 2, 40);
+    drawLoop(ctx, this.far, -t * 2, 58);
+    // the last farmhouses' windows up on the hill, drifting with it
+    const off = (((-t * 2) % 384) + 384) % 384;
+    drawFarLights(ctx, [[(40 + off) % 384, 72], [(150 + off) % 384, 74], [(291 + off) % 384, 71]], t, 33);
   }
 
   protected paintL1(ctx: CanvasRenderingContext2D, t: number): void {
@@ -403,103 +500,129 @@ export class HoshiTanadaBg extends Background {
 
   protected drawL2(g: Gfx, t: number): void {
     const ctx = g.ctx;
-    const rainbow = ['#E0567A', '#FFD23F', '#5FA85A', '#4AA8E0'];
     this.cds.forEach((c, i) => {
       const x = Math.round(((c.x + t * c.spd) % 440) - 28);
-      const y = Math.round(c.y + Math.sin(t * 0.7 + c.ph) * 3);
-      // the thread it hangs from
+      const y = Math.round(c.y + Math.sin(t * 0.7 + c.ph) * 2);
+      // the thread it hangs from (down out of the dark above)
       ctx.fillStyle = '#5B4A7A';
       ctx.fillRect(x, 0, 1, y - 5);
-      // the disc turning: its width breathes (seen edge-on now and then)
-      const w = Math.max(1, Math.round(5 * Math.abs(Math.cos(t * 1.1 + c.ph))));
-      for (let yy = -5; yy <= 5; yy++) {
-        const hw = Math.round(w * Math.sqrt(1 - (yy * yy) / 26));
-        ctx.fillStyle = yy < -2 ? '#E8ECF0' : yy > 2 ? '#8E95A6' : '#C8CDD4';
-        ctx.fillRect(x - hw, y + yy, hw * 2 + 1, 1);
-      }
-      ctx.fillStyle = '#2A2440';
-      ctx.fillRect(x, y, 1, 1);
-      // the rainbow arc cycling (120ms a step)
-      if (w >= 3) {
-        const k = Math.floor(t / 0.12) + i;
-        for (let a = 0; a < 3; a++) {
-          ctx.fillStyle = rainbow[(k + a) % 4];
-          ctx.fillRect(x - w + 1 + a, y - 3 + a, 1, 1);
-        }
-      }
-      if (i === this.glintCd && this.t - this.glintAt < 0.25) {
-        ctx.fillStyle = '#FFF6D8';
-        ctx.fillRect(x - 3, y, 7, 1);
-        ctx.fillRect(x, y - 3, 1, 7);
-      }
+      drawCd(ctx, x, y, Math.abs(Math.cos(t * 1.1 + c.ph)), Math.floor(t / 0.12) + i * 3, i === this.glintCd && this.t - this.glintAt < 0.25);
     });
+  }
+}
+
+/**
+ * An old CD hung as a bird scarer (10px, 51 15.3): a grey rim, the silver
+ * face lighter to the upper left, the clear hub ring round its hole, a
+ * rainbow arc running round the face (palette cycle). `turn` 1 = face on,
+ * 0 = edge on; `glint` flashes a white cross.
+ */
+function drawCd(ctx: CanvasRenderingContext2D, x: number, y: number, turn: number, cyc: number, glint: boolean): void {
+  const R = 5;
+  const hw = Math.max(0.6, R * turn);
+  for (let yy = -R; yy <= R; yy++) {
+    const w = Math.round(hw * Math.sqrt(Math.max(0, 1 - (yy * yy) / (R * R + 0.5))));
+    for (let xx = -w; xx <= w; xx++) {
+      const edge = Math.abs(xx) === w || Math.abs(yy) === R;
+      ctx.fillStyle = edge ? '#8E95A6' : xx + yy < -2 ? '#E8ECF0' : xx + yy > 3 ? '#AEB4C0' : '#C8CDD4';
+      ctx.fillRect(x + xx, y + yy, 1, 1);
+    }
+  }
+  if (hw >= 3) {
+    const sq = hw / R;
+    ctx.fillStyle = '#9AA0A8';
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1], [-1, 1], [1, -1]] as [number, number][]) ctx.fillRect(x + Math.round(dx * sq * 1.2), y + dy, 1, 1);
+    ctx.fillStyle = '#2A2440';
+    ctx.fillRect(x, y, 1, 1);
+    const rainbow = ['#E0567A', '#FFD23F', '#5FA85A', '#4AA8E0'];
+    for (let k = 0; k < 4; k++) {
+      const an = cyc * (Math.PI / 4) + k * 0.5;
+      ctx.fillStyle = rainbow[k];
+      ctx.fillRect(x + Math.round(Math.cos(an) * 3.2 * sq), y + Math.round(Math.sin(an) * 3.2), 1, 1);
+    }
+  } else {
+    ctx.fillStyle = '#E8ECF0';
+    ctx.fillRect(x, y - R + 1, 1, R * 2 - 1);
+  }
+  if (glint) {
+    ctx.fillStyle = '#FFF6D8';
+    ctx.fillRect(x - 3, y, 7, 1);
+    ctx.fillRect(x, y - 3, 1, 7);
   }
 }
 
 // ---- bg_h_fence (ビリビリ番) --------------------------------------------------------------------
 
-/** 15.4: three rows of electric fence in perspective, a pulse running along them every second. */
+/**
+ * 15.4: the electric fence line along the field's edge at night, seen from
+ * the path. The three rows run far off behind the enemy (thin and dark, the
+ * nearest only mid-grey and knee-high to it), so the one fence that is the
+ * enemy stands clear in front of a lifted patch of night. Above: the
+ * mountain the boars come down from, the Milky Way, two farmhouse windows
+ * and, far off at the forest's foot, another fence's pulse blinking.
+ */
 export class HoshiFenceBg extends Background {
-  private stars = makeStars(44, 12, 50);
+  private stars = makeStars(44, 14, 66, 49);
   private pulseX = -40;
   private lastPulse = -1;
   private far: HTMLCanvasElement;
   private bush: HTMLCanvasElement;
   private ground: HTMLCanvasElement;
-  private rows: { y: number; gap: number; post: number; h: number; tile: HTMLCanvasElement; wire: string }[] = [];
+  private milky: HTMLCanvasElement;
+  private rows: { y: number; gap: number; h: number; tile: HTMLCanvasElement; wire: string; pulse: number }[] = [];
+  /** Small warning plates on the middle row, clear of the enemy (x120–264). */
+  private plates = [26, 74, 298, 346];
 
   constructor() {
     super('bg_h_fence');
     this.wave = { A: 1, lambda: 48, f: 0.2, A2: 0, lambda2: 40, f2: 0.3, interlace: false };
     this.bottom = '#1B1733';
-    // the mountain the boars come down from, cedars along its shoulder
-    this.far = ridgeTile('fence_far', 44, (x) => loopHeight(x, 16, [[7, 1, 2.1], [3, 2, 0.3], [2, 5, 1.1]]), '#141028', { rim: '#5B4A7A', rimA: 0.8, trees: 0.2, treeH: 11, seed: 41, canopy: '#1B1733' });
+    // the mountain the boars come down from: its whole line and the cedar
+    // tips sit under the 2-line band (y ≥ 51), none of it hangs from the band
+    this.far = ridgeTile('fence_far3', 22, (x) => loopHeight(x, 9, [[3, 1, 2.1], [1.5, 2, 0.3], [1, 5, 1.1]]), '#141028', { rim: '#5B4A7A', rimA: 0.8, trees: 0.09, treeH: 6, seed: 41, canopy: '#1B1733' });
     // kudzu and brush at the forest's foot (lumpy, a few leaves catching starlight)
-    this.bush = ridgeTile('fence_bush', 20, (x) => loopHeight(x, 7, [[2.5, 4, 0.7], [1.5, 11, 2.2], [1, 23, 0.1]]), '#1B1733', { rim: '#3A2B5C', rimA: 1, seed: 42 });
-    // the mown strip along the fences and the field beyond (static)
-    const [g, gctx] = makeCanvas(384, BG_H - 86);
-    gctx.drawImage(gradientTexture(['#1B1733', '#2A2440', '#3A2B5C', '#2A2440'], BG_H - 86), 0, 0);
-    for (let y = 0; y < BG_H - 86; y += 2)
+    this.bush = ridgeTile('fence_bush2', 14, (x) => loopHeight(x, 6, [[2, 4, 0.7], [1.2, 11, 2.2], [0.8, 23, 0.1]]), '#1B1733', { rim: '#3A2B5C', rimA: 1, seed: 42 });
+    this.milky = milkyWayTile('fence', 20, (x) => 9 + 5 * Math.sin((x / 384) * Math.PI * 2 + 0.6), 7, 47);
+    // the mown strip and the field (static): brighter toward the middle
+    // distance, where the lantern's light lies on the grass
+    const gh = BG_H - 80;
+    const [g, gctx] = makeCanvas(384, gh);
+    gctx.drawImage(gradientTexture(['#1B1733', '#2A2440', '#3A2B5C', '#3A2B5C', '#2A2440'], gh), 0, 0);
+    for (let y = 0; y < gh; y += 2)
       for (let x = 0; x < 384; x++) {
         const n = hash2(x, y, 44);
-        const depth = y / (BG_H - 86);
-        if (n < 0.05 + depth * 0.08) {
-          gctx.fillStyle = n < 0.02 ? '#5B4A7A' : '#1E2A2E';
+        const depth = y / gh;
+        if (n < 0.04 + depth * 0.1) {
+          gctx.fillStyle = n < 0.015 ? '#5B4A7A' : n < 0.03 ? '#2E3A3A' : '#1E2A2E';
           gctx.fillRect(x, y, 1, 1 + Math.round(depth * 2));
         }
       }
     this.ground = g;
-    // three rows of fence, far to near: thin dark → white FRP posts with caps
+    // three rows, far to near — thin and dark, the nearest mid-grey; posts
+    // closer together the farther the row
     const specs = [
-      { y: 92, gap: 3, post: 22, h: 8, wire: '#5B4A7A', postC: '#5B4A7A', postS: '#3A2B5C', w: 1 },
-      { y: 106, gap: 5, post: 32, h: 13, wire: '#9AA0A8', postC: '#9AA0A8', postS: '#6B7186', w: 1 },
-      { y: 136, gap: 9, post: 48, h: 24, wire: '#E8E4D8', postC: '#E8E4D8', postS: '#9AA0A8', w: 2 },
+      { y: 84, gap: 2, post: 14, h: 5, wire: '#3A2B5C', postC: '#3A2B5C', w: 1, pulse: 0.45 },
+      { y: 92, gap: 3, post: 22, h: 7, wire: '#5B4A7A', postC: '#5B4A7A', w: 1, pulse: 0.7 },
+      { y: 103, gap: 4, post: 34, h: 11, wire: '#8E95A6', postC: '#8E95A6', w: 1, pulse: 1 },
     ];
     for (const r of specs) {
       const [c, ctx] = makeCanvas(384, r.h + 4);
       const base = r.h + 2;
       // mown grass along the line
-      for (let x = 0; x < 384; x++) if (hash2(x, r.y, 45) < 0.55) {
-        ctx.fillStyle = '#1E2A2E';
-        ctx.fillRect(x, base - 1 - Math.floor(hash2(x, r.y, 46) * (r.w + 1)), 1, 2);
-      }
-      for (let x = 8; x < 384; x += r.post) {
-        // the post (lit a little from the lantern on the left), a black cap
+      for (let x = 0; x < 384; x++)
+        if (hash2(x, r.y, 45) < 0.5) {
+          ctx.fillStyle = '#1E2A2E';
+          ctx.fillRect(x, base - 1 - Math.floor(hash2(x, r.y, 46) * 2), 1, 2);
+        }
+      for (let x = 5 + (r.y % 7); x < 384; x += r.post) {
         ctx.fillStyle = r.postC;
         ctx.fillRect(x, base - r.h, r.w, r.h);
-        if (r.w > 1) {
-          ctx.fillStyle = r.postS;
-          ctx.fillRect(x + 1, base - r.h, 1, r.h);
-        }
-        ctx.fillStyle = '#2A2440';
-        ctx.fillRect(x - (r.w > 1 ? 1 : 0), base - r.h - 1, r.w + (r.w > 1 ? 2 : 0), 2);
-        // black insulator clips where the two wires meet it
-        for (const wy of [base - Math.round(r.h * 0.35), base - Math.round(r.h * 0.35) - r.gap]) {
-          ctx.fillStyle = '#0B0B14';
-          ctx.fillRect(x - 1, wy - (r.w > 1 ? 1 : 0), r.w + 2, r.w > 1 ? 3 : 2);
-        }
+        // the cap, and the insulators where the two wires meet the post
+        ctx.fillStyle = '#141028';
+        ctx.fillRect(x, base - r.h - 1, r.w, 1);
+        for (const wy of [base - Math.round(r.h * 0.35), base - Math.round(r.h * 0.35) - r.gap]) ctx.fillRect(x + r.w, wy, 1, 1);
       }
-      this.rows.push({ y: r.y - r.h - 2, gap: r.gap, post: r.post, h: r.h, tile: c, wire: r.wire });
+      this.rows.push({ y: r.y - r.h - 2, gap: r.gap, h: r.h, tile: c, wire: r.wire, pulse: r.pulse });
     }
   }
 
@@ -521,15 +644,28 @@ export class HoshiFenceBg extends Background {
   protected paintL0(ctx: CanvasRenderingContext2D, t: number): void {
     // the sky pales toward the mountain so its line and the cedars read
     ctx.drawImage(gradientTexture(['#0B0B14', '#141028', '#1B1733', '#2A2440', '#3A2B5C'], 76), 0, 0);
-    ctx.fillStyle = '#3A2B5C';
-    ctx.fillRect(0, 76, 384, 10);
+    dawnEdge(ctx, 40, 80);
+    ctx.drawImage(this.milky, 0, 48);
     drawStars(ctx, this.stars, t);
-    drawLoop(ctx, this.far, 0, 40);
-    drawLoop(ctx, this.bush, 0, 74);
-    ctx.drawImage(this.ground, 0, 86);
+    drawLoop(ctx, this.far, 0, 60);
+    // two farmhouse windows at the mountain's foot, far to either side
+    drawFarLights(ctx, [[46, 75], [331, 74], [352, 76]], t, 48);
+    drawLoop(ctx, this.bush, 0, 70);
+    ctx.drawImage(this.ground, 0, 80);
+    // far off along the forest's edge, another fence's pulse blinks by
+    const fp = (t * 0.5) % 1;
+    const fx = Math.round(-10 + fp * 404);
+    ctx.fillStyle = '#7CFF9A';
+    for (let k = 0; k < 5; k++) {
+      ctx.globalAlpha = 0.5 * (1 - k / 5);
+      ctx.fillRect(fx - k, 79, 1, 1);
+    }
+    ctx.globalAlpha = 1;
     // the ground under the lantern: the one band of tomato light
     tomatoBand(ctx, 120, t);
-    enemyLift(ctx, 0.6);
+    // behind the enemy: the night lifted a step (the enemy's cream posts and
+    // yellow face stand on #5B4A7A, not on its own fence)
+    enemyLift(ctx, 1);
   }
 
   protected paintL1(ctx: CanvasRenderingContext2D, _t: number): void {
@@ -537,37 +673,29 @@ export class HoshiFenceBg extends Background {
     for (const r of this.rows) {
       ctx.drawImage(r.tile, 0, r.y);
       const base = r.y + r.h + 2;
-      const near = r.wire === '#E8E4D8';
       for (const wy of [base - Math.round(r.h * 0.35), base - Math.round(r.h * 0.35) - r.gap]) {
-        // the wire: near, a white-and-black twist; its 1px shadow below
         ctx.fillStyle = r.wire;
         ctx.fillRect(0, wy, 384, 1);
-        if (near) {
-          ctx.fillStyle = '#2A2440';
-          for (let x = 0; x < 384; x += 3) ctx.fillRect(x, wy, 1, 1);
-          ctx.fillStyle = '#6B7186';
-          ctx.fillRect(0, wy + 1, 384, 1);
-        }
         if (charged) {
           ctx.globalAlpha = 0.2;
           ctx.fillStyle = '#7CFF9A';
-          ctx.fillRect(0, wy - 1, 384, 3);
+          ctx.fillRect(0, wy, 384, 1);
           ctx.globalAlpha = 1;
         }
-        // the pulse: a 3px cream core and a 12px green tail (a soft glow round it)
-        const px = Math.round(this.pulseX);
+        // the pulse: a cream core and a green tail, dimmer on the far rows
+        const px = Math.round(this.pulseX * (0.8 + 0.2 * r.pulse));
         if (px > -16 && px < 400) {
-          ctx.globalAlpha = 0.25;
           ctx.fillStyle = '#7CFF9A';
-          ctx.fillRect(px - 6, wy - 2, 9, 5);
           for (let k = 0; k < 12; k++) {
-            ctx.globalAlpha = 1 - k / 12;
-            ctx.fillRect(px - 3 - k, wy, 1, 1);
+            ctx.globalAlpha = r.pulse * (1 - k / 12);
+            ctx.fillRect(px - 2 - k, wy, 1, 1);
           }
-          ctx.globalAlpha = 1;
+          ctx.globalAlpha = 0.2 * r.pulse;
+          ctx.fillRect(px - 4, wy - 1, 6, 3);
+          ctx.globalAlpha = r.pulse;
           ctx.fillStyle = '#FFF6D8';
-          ctx.fillRect(px - 2, wy, 3, 1);
-          ctx.fillRect(px - 1, wy - 1, 1, 3);
+          ctx.fillRect(px - 1, wy, 2, 1);
+          ctx.globalAlpha = 1;
         }
       }
     }
@@ -575,24 +703,23 @@ export class HoshiFenceBg extends Background {
 
   protected drawL2(g: Gfx, t: number): void {
     const ctx = g.ctx;
-    // yellow warning signs hung on the middle row, drifting left 10px/s
-    for (let i = 0; i < 5; i++) {
-      const x = Math.round(((i * 96 + 30 - t * 10) % 480 + 480) % 480) - 48;
-      const y = 97;
+    // small warning plates (7×5) on the middle row, never behind the enemy:
+    // a dull far-off yellow, a shade darker than the enemy's own sign
+    const row = this.rows[1];
+    const wy = row.y + row.h + 2 - Math.round(row.h * 0.35) - row.gap;
+    this.plates.forEach((x, i) => {
+      const sw = Math.round(Math.sin(t * 1.3 + i * 1.7) * 0.6);
+      const y = wy + 1;
+      ctx.fillStyle = '#141028';
+      ctx.fillRect(x - 1 + sw, y - 1, 9, 7);
+      ctx.fillStyle = '#B8962E';
+      ctx.fillRect(x + sw, y, 7, 5);
+      ctx.fillStyle = '#8A6A2A';
+      ctx.fillRect(x + sw, y + 4, 7, 1);
       ctx.fillStyle = '#2A2440';
-      ctx.fillRect(x - 1, y - 1, 14, 10);
-      ctx.fillStyle = '#FFD23F';
-      ctx.fillRect(x, y, 12, 8);
-      ctx.fillStyle = '#D9A441';
-      ctx.fillRect(x, y + 7, 12, 1);
-      ctx.fillRect(x + 11, y, 1, 8);
-      ctx.fillStyle = '#2A2440';
-      for (let k = 0; k < 3; k++) ctx.fillRect(x + 2, y + 2 + k * 2, k === 1 ? 6 : 8, 1);
-      // its wire hooks
-      ctx.fillStyle = '#9AA0A8';
-      ctx.fillRect(x + 2, y - 2, 1, 1);
-      ctx.fillRect(x + 9, y - 2, 1, 1);
-    }
+      ctx.fillRect(x + 1 + sw, y + 1, 5, 1);
+      ctx.fillRect(x + 1 + sw, y + 3, 4, 1);
+    });
   }
 
   draw(g: Gfx): void {
@@ -608,7 +735,8 @@ export class HoshiFenceBg extends Background {
 
 /** 15.5: three ridges in parallax with cedars, the near edge lit by the lantern; mud flying. */
 export class HoshiYamaBg extends Background {
-  private stars = makeStars(55, 14, 40);
+  private stars = makeStars(55, 14, 64, 49);
+  private milky = milkyWayTile('yama', 18, (x) => 7 + 5 * Math.sin((x / 384) * Math.PI * 2 + 1.3), 6, 57);
   private splashes: { x: number; t0: number; dir: number }[] = [];
   private nextSplash = 0;
   private px = [0, 0, 0];
@@ -704,6 +832,8 @@ export class HoshiYamaBg extends Background {
 
   protected paintL0(ctx: CanvasRenderingContext2D, t: number): void {
     ctx.drawImage(gradientTexture(['#0B0B14', '#1B1733', '#3A2B5C', '#5B4A7A'], BG_H), 0, 0);
+    dawnEdge(ctx, 40, 90);
+    ctx.drawImage(this.milky, 0, 47);
     drawStars(ctx, this.stars, t);
   }
 
@@ -848,6 +978,15 @@ export class HoshiMujinBg extends Background {
       }
   }
 
+  /** 0 = the lower band at full strength (command input) … 1 = sunk back (a move playing out). */
+  private quiet = 0;
+
+  update(dt: number): void {
+    super.update(dt);
+    const to = (this.flags.acting ?? 0) > 0 ? 1 : 0;
+    this.quiet += Math.sign(to - this.quiet) * Math.min(Math.abs(to - this.quiet), dt / 250);
+  }
+
   protected drawL2(g: Gfx, t: number): void {
     const ctx = g.ctx;
     const band = (y: number, text: string, dir: number) => {
@@ -865,6 +1004,15 @@ export class HoshiMujinBg extends Background {
     };
     band(36, (this.flags.nefuda ?? 0) > 0 ? '全品 200円' : 'どれでも 100円', -1);
     band(124, 'いらっしゃいませ', 1);
+    // while a move plays out the lower band sinks into the night (the heal
+    // and damage numbers, the 「！」 and the name tags pop over it)
+    if (this.quiet > 0) {
+      ctx.save();
+      ctx.globalAlpha = 0.62 * this.quiet;
+      ctx.fillStyle = '#1B1733';
+      ctx.fillRect(0, 123, 384, 20);
+      ctx.restore();
+    }
     // the tomato line: the lower band's bottom edge, lit by the lantern (y142, 2px)
     ctx.save();
     ctx.globalAlpha = 0.6 * (1 + 0.1 * Math.sin(t * Math.PI * 2 * 0.8));
@@ -878,14 +1026,17 @@ export class HoshiMujinBg extends Background {
 
 /** 15.7: ploughed ridges rushing out of the dark toward us, a headlight sweeping across. */
 export class HoshiTetsuyaBg extends Background {
-  private stars = makeStars(66, 12, 50);
+  private stars = makeStars(66, 12, 64, 49);
   private flow = 0;
   private sweep = 0;
+  /** 0→1 as the headlight dies after the engine stops. */
+  private offK = 0;
   private clods: { x: number; t0: number; c: string; vx: number }[] = [];
   private nextClod = 0;
   private far: HTMLCanvasElement;
   private hill: HTMLCanvasElement;
   private weeds: HTMLCanvasElement;
+  private milky: HTMLCanvasElement;
   /** The ploughed field in 16 phases of its flow toward us (one ridge a second). */
   private fieldFrames: HTMLCanvasElement[] = [];
 
@@ -893,7 +1044,10 @@ export class HoshiTetsuyaBg extends Background {
     super('bg_h_tetsuya');
     this.wave = { A: 1, lambda: 48, f: 0.2, A2: 0, lambda2: 40, f2: 0.3, interlace: false };
     this.bottom = '#1B1733';
-    this.far = ridgeTile('tetsuya_far', 40, (x) => loopHeight(x, 20, [[8, 1, 0.9], [4, 2, 2.4], [2, 6, 0.5]]), '#141028', { rim: '#5B4A7A', rimA: 0.7, trees: 0.22, treeH: 10, seed: 61, canopy: '#1B1733' });
+    // the mountain behind the old field: its line and the cedar tips all
+    // under the 2-line band (y ≥ 50)
+    this.far = ridgeTile('tetsuya_far3', 34, (x) => loopHeight(x, 11, [[4, 1, 0.9], [2, 2, 2.4], [1, 6, 0.5]]), '#141028', { rim: '#5B4A7A', rimA: 0.7, trees: 0.1, treeH: 7, seed: 61, canopy: '#1B1733' });
+    this.milky = milkyWayTile('tetsuya', 18, (x) => 9 + 5 * Math.sin((x / 384) * Math.PI * 2 + 4.1), 6, 67);
     // the abandoned field's edge: a low bank with susuki and weeds standing up
     this.hill = ridgeTile('tetsuya_bank', 16, (x) => loopHeight(x, 9, [[2, 2, 1.3], [1, 9, 0.2]]), '#1B1733', { rim: '#3A2B5C', rimA: 1, seed: 62 });
     this.weeds = tuftTile('tetsuya_weeds', 16, 0.13, '#141028', '#5B4A7A', 63);
@@ -948,7 +1102,9 @@ export class HoshiTetsuyaBg extends Background {
     }
   }
 
-  private mode(): 'run' | 'rest' | 'stall' {
+  private mode(): 'run' | 'rest' | 'stall' | 'off' {
+    // 「……エンジンを 止めた。」: the light goes out, the field lies still
+    if ((this.flags.stopped ?? 0) > 0) return 'off';
     if ((this.flags.charge ?? 0) > 0) return 'stall';
     if ((this.flags.rest ?? 0) > 0) return 'rest';
     return 'run';
@@ -959,7 +1115,8 @@ export class HoshiTetsuyaBg extends Background {
     const m = this.mode();
     const s = dt / 1000;
     if (m === 'run') this.flow += s * ((this.flags.burst ?? 0) > 0 ? 4 : 1);
-    if (m !== 'stall') this.sweep += s;
+    if (m === 'off') this.offK = Math.min(1, this.offK + s / 0.6);
+    if (m !== 'stall' && m !== 'off') this.sweep += s;
     if (m === 'run' && this.t > this.nextClod) {
       this.nextClod = this.t + 0.35;
       this.clods.push({ x: Math.random() * 384, t0: this.t, c: Math.random() < 0.3 ? '#3F7A3A' : '#6B5A4A', vx: (Math.random() - 0.5) * 60 });
@@ -971,9 +1128,13 @@ export class HoshiTetsuyaBg extends Background {
     ctx.drawImage(gradientTexture(['#0B0B14', '#141028', '#1B1733', '#2A2440', '#3A2B5C'], 90), 0, 0);
     ctx.fillStyle = '#3A2B5C';
     ctx.fillRect(0, 90, 384, 10);
+    dawnEdge(ctx, 40, 96);
+    ctx.drawImage(this.milky, 0, 48);
     drawStars(ctx, this.stars, t);
     // the mountain the path climbs, the bank of the old field, its susuki
-    drawLoop(ctx, this.far, 0, 50);
+    drawLoop(ctx, this.far, 0, 58);
+    // a farmhouse left on the far slope, its window still lit
+    drawFarLights(ctx, [[58, 81], [318, 79]], t, 61);
     drawLoop(ctx, this.hill, 0, 86);
     drawLoop(ctx, this.weeds, 0, 82);
   }
@@ -995,7 +1156,8 @@ export class HoshiTetsuyaBg extends Background {
     const p = (this.sweep % 3) / 3;
     const cx = -80 + p * 544;
     ctx.save();
-    ctx.globalAlpha = m === 'stall' ? 0.06 : a;
+    // switched off: the fan fades out where it stood (0.6s)
+    ctx.globalAlpha = m === 'off' ? 0.18 * (1 - this.offK) : m === 'stall' ? 0.06 : a;
     ctx.fillStyle = '#FFE7A3';
     ctx.beginPath();
     ctx.moveTo(192, 64);

@@ -52,66 +52,78 @@ function build(o: Pose): PixelCanvas {
   const Y = (v: number) => Math.round(v + OY + bob);
   if (o.belly) return buildBelly(o);
   const lie = o.legs === 'lie';
-  const drop = lie ? 6 : 0;
+  const drop = lie ? 7 : 0;
   const hd = (o.headDown ?? 0) + (lie ? 2 : 0);
-  // ---- legs (behind the body first: far side a shade darker) ----
+  // the head tips down about the neck (x20): the snout drops the most
+  const tip = (x: number, y: number): [number, number] => [X(x), Y(y + drop + (x < 20 ? (hd * (20 - x)) / 18 : 0))];
+  // ---- legs (far side first, a shade darker): a thick forearm / hock,
+  // a thinner shank, the split hoof with its dewclaw ----
   const legs = legFrames(o.legs);
-  for (const [lx, ly, len, far] of legs) {
-    // a thick haunch tapering to a thin shank
-    const ex2 = lx + (len[0] ?? 0);
-    const ey2 = ly + drop + len[1];
-    const m = new Mask(W, H).line(X(lx), Y(ly + drop - 2), X((lx + ex2) / 2), Y((ly + drop + ey2) / 2), 2.4).line(X((lx + ex2) / 2), Y((ly + drop + ey2) / 2), X(ex2), Y(ey2 - 1), 1.1);
-    nshade(p, m, HAIR, { base: far ? 0.28 : 0.46, k: 0.5 });
-    // split hoof
-    const hx = X(lx + (len[0] ?? 0));
-    const hy = Y(ly + drop + len[1]);
-    p.rect(hx - 1, hy, 3, 2, '#2A1A10');
+  for (const [lx, ly, [ldx, len], far, front] of legs) {
+    const top = ly + drop;
+    const kx = lx + ldx * 0.45;
+    const ky = top + len * 0.5;
+    const ex2 = lx + ldx;
+    const ey2 = top + len;
+    const m = new Mask(W, H)
+      .line(X(lx), Y(top - 3), X(kx), Y(ky), front ? 2.6 : 2.3)
+      .line(X(kx), Y(ky), X(ex2), Y(ey2 - 1), front ? 1.6 : 1.45);
+    nshade(p, m, HAIR, { base: far ? 0.24 : 0.44, k: 0.5 });
+    const hx = X(ex2);
+    const hy = Y(ey2);
+    // two toes and the cleft between them, a dewclaw behind
+    p.rect(hx - 1, hy, 3, 2, far ? '#1A0E08' : '#2A1A10');
     p.set(hx, hy + 1, '#0B0B14');
+    p.set(hx, hy, far ? '#2A1A10' : '#4A3A2A');
+    p.set(hx + 2, hy - 1, '#1A0E08');
     if (!far) p.set(hx - 1, hy, '#6B5A4A');
   }
-  // ---- body: a hump at the shoulders, falling away to the rump ----
-  const body = new Mask(W, H);
-  for (let x = 14; x <= 52; x++) {
-    const u = (x - 14) / 38;
-    const top = 11 + Math.round(5 * u * u) - Math.round(3 * Math.sin(u * Math.PI * 0.9)) + drop;
-    const bot = 31 - Math.round(3 * Math.pow(Math.abs(u - 0.45) * 2, 2)) + drop;
-    for (let y = top; y <= bot; y++) body.set(X(x), Y(y));
-  }
-  // ---- head: a wedge to the left, the snout tapering down to the disc ----
-  const head = new Mask(W, H);
-  for (let x = 2; x <= 20; x++) {
-    const u = (20 - x) / 18;
-    const top = 12 + Math.round(8 * u) + hd + drop;
-    const bot = 29 - Math.round(3 * u) + hd * (1 - u * 0.3) + drop;
-    for (let y = top; y <= bot; y++) head.set(X(x), Y(y));
-  }
+  // ---- body: the deep chest and the hump of the shoulders, the back
+  // falling away to a small rump (a boar is all front) ----
+  const body = new Mask(W, H).poly(
+    (
+      [
+        [15, 11], [19, 6], [25, 6], [32, 9], [40, 12], [46, 14], [50, 17], [51, 21], [50, 25], [48, 28],
+        [44, 28], [38, 30], [30, 31], [22, 31], [17, 31], [14, 28],
+      ] as [number, number][]
+    ).map(([x, y]) => [X(x), Y(y + drop)] as [number, number]),
+  );
+  // ---- head: a long wedge, the forehead running straight down into the
+  // snout, the jaw heavy under the eye ----
+  const head = new Mask(W, H).poly(
+    (
+      [
+        [22, 7], [16, 9], [10, 13], [5, 18], [1, 20], [0, 22], [0, 25], [2, 27], [7, 28], [12, 30], [18, 31], [22, 28],
+      ] as [number, number][]
+    ).map(([x, y]) => tip(x, y)),
+  );
   const all = body.clone().or(head);
   nshade(p, all, HAIR, { mode: 'bevel', bevel: 5, base: 0.5, k: 0.75, dither: 0.5 });
-  // the snout's bare skin and its disc
-  const snout = new Mask(W, H);
-  for (let x = 2; x <= 9; x++) {
-    const u = (9 - x) / 7;
-    const top = 20 + Math.round(1 * u) + hd + drop;
-    const bot = 27 - Math.round(2 * u) + hd + drop;
-    for (let y = top; y <= bot; y++) snout.set(X(x), Y(y));
-  }
+  // the belly and the chest's underside in shadow (the far legs show under it)
+  all.each((x, y) => {
+    const ly = y - OY - bob - drop;
+    const lx = x - OX;
+    if (lx > 16 && lx < 46 && !all.in(x, y + 2) && ly > 25) p.set(x, y, mixU32(p.data[y * W + x], '#0B0B14', 0.35));
+  });
+  // the snout's bare skin, tapering to the disc
+  const snout = new Mask(W, H).poly(([[0, 21], [6, 19], [8, 21], [8, 27], [2, 27], [0, 25]] as [number, number][]).map(([x, y]) => tip(x, y)));
   nshade(p, snout, SNOUT, { base: 0.55, k: 0.5 });
-  const dx = X(2 - (o.nose ?? 0));
-  const dy = Y(21 + hd + drop);
-  p.rect(dx - 1, dy, 2, 5, '#6A4A3A');
-  p.vline(dx - 1, dy, dy + 4, '#8A5A4A');
-  p.set(dx, dy + 1, '#2A1A10');
-  p.set(dx, dy + 3, '#2A1A10');
-  // the tusk: small, white, curving up out of the lip
-  const tx = X(8);
-  const ty = Y(26 + hd + drop);
+  const [dx, dy] = tip(-(o.nose ?? 0), 21);
+  p.rect(dx, dy, 2, 5, '#6A4A3A');
+  p.vline(dx, dy, dy + 4, '#A87A64');
+  p.set(dx + 1, dy + 1, '#2A1A10');
+  p.set(dx + 1, dy + 3, '#2A1A10');
+  // the mouth line and the tusk curling up out of the lip
+  const [mx, my] = tip(3, 26);
+  p.hline(mx, mx + 6, my, '#1A0E08');
+  const [tx, ty] = tip(7, 26);
   p.set(tx, ty, '#F4F1E8');
-  p.set(tx, ty - 1, '#F4F1E8');
-  p.set(tx - 1, ty - 2, '#FFFFFF');
+  p.set(tx, ty - 1, '#FFFFFF');
+  p.set(tx - 1, ty - 2, '#F4F1E8');
   p.set(tx + 1, ty, '#C8C2B4');
-  // the eye, small and dark, the lantern in it
-  const ex = X(12);
-  const ey = Y(16 + Math.round(hd * 0.6) + drop);
+  // the eye, small and dark under a heavy brow, the lantern in it
+  const [ex, ey] = tip(12, 16);
+  p.hline(ex - 2, ex + 1, ey - 1, '#1A0E08');
   if (o.eye === 'shut') p.hline(ex - 1, ex + 1, ey + 1, '#0B0B14');
   else {
     p.rect(ex - 1, ey, 2, 2, '#1A0E08');
@@ -121,24 +133,29 @@ function build(o: Pose): PixelCanvas {
       p.set(ex, ey - 1, '#FFE7A3');
     }
   }
-  // the ear: a small triangle that twitches
+  // the ear: a pointed leaf laid back, twitching
   const ear = o.ear ?? 0;
-  const eax = X(18);
-  const eay = Y(12 + hd + drop);
-  const earRows = ear ? ['.#..', '##..', '###.'] : ['..#.', '.##.', '###.'];
-  earRows.forEach((row, yy) => [...row].forEach((v, xx) => v === '#' && p.set(eax + xx, eay - 3 + yy, yy === 0 ? '#6E4A2E' : '#4A301C')));
-  // the mane: bristles along the top of the hump, pale-tipped, raised when it bristles
+  const [eax, eay] = tip(17, 8);
+  const earRows = ear ? ['..##', '.###', '###.'] : ['...#', '..##', '.###', '###.'];
+  earRows.forEach((row, yy) => [...row].forEach((v, xx) => v === '#' && p.set(eax + xx - 1, eay - earRows.length + 1 + yy, yy === 0 ? '#6E4A2E' : xx === 0 ? '#2A1A10' : '#4A301C')));
+  // the mane: stiff bristles from behind the ears along the hump, longest
+  // over the shoulders, pale-tipped; raised straight up when it bristles
   const br = o.bristle ?? 0;
-  for (let x = 17; x <= 46; x++) {
-    if (hash2(x, 1, 23) < 0.35) continue;
-    const u = (x - 14) / 38;
-    const top = 11 + Math.round(5 * u * u) - Math.round(3 * Math.sin(u * Math.PI * 0.9)) + drop;
-    // longest over the shoulders, slanting back toward the tail (upright when raised)
-    const h = Math.max(1, Math.round((x < 32 ? 3 : 2) * (1 - Math.abs(u - 0.35)) + br + hash2(x, 2, 23) * 1.4));
+  const backTop = (x: number): number => {
+    if (x <= 19) return 6 + Math.round((19 - x) * 0.75);
+    if (x <= 25) return 6;
+    if (x <= 32) return 6 + Math.round(((x - 25) * 3) / 7);
+    return 9 + Math.round(((x - 32) * 3) / 8);
+  };
+  for (let x = 13; x <= 42; x++) {
+    if (hash2(x, 1, 23) < 0.3) continue;
+    const top = backTop(x) + drop;
+    const u = (x - 13) / 29;
+    const h = Math.max(1, Math.round(4 * (1 - Math.abs(u - 0.3) * 1.3) + br + hash2(x, 2, 23) * 1.2));
     for (let k = 1; k <= h; k++) {
       const lean = br ? 0 : Math.floor(k / 2);
-      const tip = k === h && hash2(x, 3, 23) < 0.6;
-      p.set(X(x + lean), Y(top - k), tip ? '#8A5A3A' : k === 1 ? '#2A1A10' : '#3A2616');
+      const tipPx = k === h && hash2(x, 3, 23) < 0.65;
+      p.set(X(x + lean), Y(top - k + (x < 20 ? (hd * (20 - x)) / 18 : 0)), tipPx ? '#8A6A4A' : k === 1 ? '#2A1A10' : '#3A2616');
     }
   }
   // dried mud: flanks, legs, one clump on the back
@@ -147,36 +164,48 @@ function build(o: Pose): PixelCanvas {
     const lx = x - OX;
     const ly = y - OY - bob - drop;
     const n = valueNoise(lx / 5, ly / 3.5, 17) + (ly - 18) * 0.035;
-    if (lx > 14 && n > 0.86 - mud * 0.18) {
+    if (lx > 20 && n > 0.86 - mud * 0.18) {
       const v = p.data[y * W + x];
       p.set(x, y, mixU32(v, n > 0.95 ? '#8A7A5A' : '#6B5A4A', 0.5 + mud * 0.2));
-    } else if (lx > 22 && hash2(lx, ly, 18) < 0.02 + mud * 0.04) p.set(x, y, '#6B5A4A');
+    } else if (lx > 24 && hash2(lx, ly, 18) < 0.02 + mud * 0.04) p.set(x, y, '#6B5A4A');
   });
   p.rect(X(36), Y(12 + drop), 4, 2, '#6B5A4A');
   p.set(X(37), Y(12 + drop), '#8A7A5A');
-  // tail with a tuft, swinging
+  // the thin tail with its tuft, swinging
   const tsw = o.tail ?? 0;
-  const tlx = X(52);
-  const tly = Y(16 + drop);
-  p.line(tlx, tly, tlx + 3, tly + 4 + tsw, '#3A2616');
-  p.rect(tlx + 3, tly + 4 + tsw, 2, 3, '#2A1A10');
-  p.set(tlx + 4, tly + 6 + tsw, '#5A3A22');
-  nightFinish(p, 0.55, 0.4, (x, y) => Math.abs(x - ex) <= 2 && Math.abs(y - ey) <= 2);
+  const tlx = X(50);
+  const tly = Y(17 + drop);
+  p.line(tlx, tly, tlx + 2, tly + 5 + tsw, '#3A2616');
+  p.rect(tlx + 2, tly + 5 + tsw, 2, 3, '#2A1A10');
+  p.set(tlx + 3, tly + 7 + tsw, '#5A3A22');
+  // the lantern (low, front left) only reaches the head, the chest and the
+  // legs' fronts: the back and the rump are lit by the stars alone
+  nightFinish(
+    p,
+    0.55,
+    0.45,
+    (x, y) => Math.abs(x - ex) <= 2 && Math.abs(y - ey) <= 2,
+    (x, y) => {
+      const lx = x - OX;
+      const ly = y - OY - bob - drop;
+      return lx < 26 ? ly > 12 : lx < 40 ? ly > 26 : false;
+    },
+  );
   return p;
 }
 
-/** Legs: [x, y, [dx, len], far]. Near legs drawn after the far ones. */
-function legFrames(f: string): [number, number, [number, number], boolean][] {
-  const base: Record<string, [number, number, [number, number], boolean][]> = {
-    stand: [[15, 28, [0, 9], true], [47, 28, [-1, 9], true], [21, 29, [-1, 8], false], [41, 29, [0, 8], false]],
-    paw0: [[15, 28, [0, 9], true], [47, 28, [-1, 9], true], [21, 29, [-4, 6], false], [41, 29, [0, 8], false]],
-    paw1: [[15, 28, [0, 9], true], [47, 28, [-1, 9], true], [21, 29, [-2, 7], false], [41, 29, [0, 8], false]],
-    paw2: [[15, 28, [0, 9], true], [47, 28, [-1, 9], true], [21, 29, [1, 8], false], [41, 29, [0, 8], false]],
-    run0: [[15, 28, [-5, 7], true], [47, 28, [5, 7], true], [21, 29, [4, 7], false], [41, 29, [-4, 7], false]],
-    run1: [[15, 28, [-2, 8], true], [47, 28, [2, 8], true], [21, 29, [1, 8], false], [41, 29, [-1, 8], false]],
-    run2: [[15, 28, [4, 7], true], [47, 28, [-4, 7], true], [21, 29, [-5, 7], false], [41, 29, [5, 7], false]],
-    run3: [[15, 28, [1, 8], true], [47, 28, [-1, 8], true], [21, 29, [-2, 8], false], [41, 29, [2, 8], false]],
-    lie: [[16, 30, [-4, 3], true], [45, 30, [4, 3], true], [19, 31, [-5, 2], false], [42, 31, [5, 2], false]],
+/** Legs: [x, y, [dx, len], far, front]. Near legs drawn after the far ones. */
+function legFrames(f: string): [number, number, [number, number], boolean, boolean][] {
+  const base: Record<string, [number, number, [number, number], boolean, boolean][]> = {
+    stand: [[18, 28, [0, 10], true, true], [46, 26, [1, 12], true, false], [23, 29, [-1, 9], false, true], [42, 27, [0, 11], false, false]],
+    paw0: [[18, 28, [0, 10], true, true], [46, 26, [1, 12], true, false], [23, 29, [-5, 6], false, true], [42, 27, [0, 11], false, false]],
+    paw1: [[18, 28, [0, 10], true, true], [46, 26, [1, 12], true, false], [23, 29, [-3, 8], false, true], [42, 27, [0, 11], false, false]],
+    paw2: [[18, 28, [0, 10], true, true], [46, 26, [1, 12], true, false], [23, 29, [1, 9], false, true], [42, 27, [0, 11], false, false]],
+    run0: [[18, 28, [-5, 8], true, true], [46, 26, [6, 10], true, false], [23, 29, [4, 8], false, true], [42, 27, [-4, 10], false, false]],
+    run1: [[18, 28, [-2, 9], true, true], [46, 26, [2, 11], true, false], [23, 29, [1, 9], false, true], [42, 27, [-1, 11], false, false]],
+    run2: [[18, 28, [4, 8], true, true], [46, 26, [-4, 10], true, false], [23, 29, [-5, 8], false, true], [42, 27, [6, 10], false, false]],
+    run3: [[18, 28, [1, 9], true, true], [46, 26, [-1, 11], true, false], [23, 29, [-2, 9], false, true], [42, 27, [2, 11], false, false]],
+    lie: [[18, 30, [-4, 3], true, true], [45, 28, [4, 4], true, false], [22, 31, [-5, 2], false, true], [41, 29, [5, 3], false, false]],
   };
   return base[f] ?? base.stand;
 }

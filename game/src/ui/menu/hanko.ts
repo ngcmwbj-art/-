@@ -8,7 +8,7 @@ import type { Co } from '../../engine/co';
 import type { Gfx } from '../../engine/gfx';
 import type { Input } from '../../engine/input';
 import { flag, state } from '../../game/state';
-import { canUseSkillInField, FIELD_TEXT, getSkill, useSkillInField } from '../../data/battle';
+import { canUseSkillInField, FIELD_TEXT, getSkill, SYS2, useSkillInField } from '../../data/battle';
 import { sfx } from '../../audio';
 import { field } from '../../world/field';
 import { fushigiActive, runFushigi } from '../../world/fushigi';
@@ -175,6 +175,7 @@ export class HankoPage implements MenuPage {
       lines.forEach((l, i) => g.text(l, SP.x + 18, y0 + 6 + i * 17, { color: UI.pencil }));
     } else if (id && (ownsHanko(id) || outlineShown(id, false))) {
       const s = getSkill(id);
+      const ch2 = !!flag('flag_ch2_started');
       // an outline not yet filled: its name is not known yet (51 5.2, 5.3)
       const outline = !ownsHanko(id);
       const name = outline ? '？？？' : s?.name ?? id;
@@ -187,9 +188,9 @@ export class HankoPage implements MenuPage {
         g.text('朱肉', cx + 12, y0, { color: UI.text });
         drawDigits(g, String(s.cost), cx + 12 + textW('朱肉') + 4, y0 + 5, { color: UI.accent });
       } else if (id === 'skill_okaerinasai') {
-        g.text('最後に 使う', cx, y0, { color: UI.pencil });
+        g.text(ch2 ? SYS2.okaeriNoteCh2 : '最後に 使う', cx, y0, { color: UI.pencil });
       }
-      const desc = outline ? ['（輪郭だけが、うっすら 見える）'] : s?.desc ?? [];
+      const desc = outline ? ['（輪郭だけが、うっすら 見える）'] : id === 'skill_okaerinasai' && ch2 ? SYS2.okaeriDescCh2 : s?.desc ?? [];
       const lines = desc.filter((l) => l).flatMap((l) => wrap(l, infoW));
       lines.slice(0, 2).forEach((l, i) => g.text(l, LP.x, y0 + 18 + i * 17, { color: UI.text }));
     } else {

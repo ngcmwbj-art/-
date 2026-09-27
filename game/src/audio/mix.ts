@@ -403,6 +403,7 @@ export const AMB_TRIM: Record<string, number> = {
   amb_h_insects: 22, amb_h_kusa: 22, amb_h_tanada: 29.5, amb_h_mizu: 30, amb_h_wind: 33, amb_h_yama: 41,
   amb_h_hachi: 26.5, amb_h_fence: 29.5, amb_h_barn_out: 29, amb_h_barn: 16, amb_h_house: 27, amb_h_tomato: 21.5,
   amb_h_school: 28.5, amb_h_boukatou: 19, amb_h_tetsuya: 22, amb_h_train: 17, amb_h_pa_hum: 21, amb_h_dawn: 16, amb_tsugao_room: 19.5,
+  amb_h_tsugaobin: 28,
 };
 
 /** A song's output level in dB: its own master gain plus the mix trim. */

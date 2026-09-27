@@ -11,6 +11,10 @@ export const SYS2 = {
   restAct: ['$enemyは 休憩中だ。'],
   /** おかえりなさい chosen in a chapter-2 battle (no turn used). */
   okaeriCh2: ['これは、あの 子たちに\n押した ハンコだ。'],
+  /** おかえりなさい's description once chapter 2 has begun (it was used up in 夕鳴町). */
+  okaeriDescCh2: ['待っていた だれかに、押した ハンコ。', '（夕鳴町の、あの 子たちに）'],
+  /** The pencil note by its name in the hanko case, chapter 2. */
+  okaeriNoteCh2: '夕鳴町で 押した',
   /** おやすみなさい chosen in a battle after the chapter-2 boss (no turn used). */
   oyasumiAfter: ['……いまは、押す ときじゃ ない。'],
   // level rewards (50 6.8, 51 16.4)

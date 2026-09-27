@@ -188,7 +188,8 @@ function headFront(f: Fig, p: Pose, y: number) {
   // eyes
   const ey = y + 7;
   f.part('eye', { flat: true, rim: false });
-  if (p.act === 'hurt') {
+  if (p.act === 'hurt' || p.act === 'yawn') {
+    // squeezed shut (a yawn: the lids pressed into a > <, clear of the mouth below)
     f.px(4, ey).px(5, ey + 1).px(11, ey).px(10, ey + 1);
   } else if (p.blinkClosed) {
     f.hl(4, 5, ey + 1).hl(10, 11, ey + 1);
@@ -206,7 +207,12 @@ function headFront(f: Fig, p: Pose, y: number) {
   f.part('blush', { flat: true, rim: false });
   f.px(4, ey + 2).px(11, ey + 2);
   f.part('mouth', { flat: true, rim: false });
-  if (p.act === 'surprised') f.px(8, y + 9);
+  if (p.act === 'yawn') {
+    // the yawn: a tall open mouth under the squeezed eyes, wider as it peaks
+    f.part('#8A2E3A', { flat: true, rim: false });
+    if (p.ph === 1) f.rect(7, y + 9, 2, 2);
+    else f.rect(8, y + 9, 1, 2);
+  } else if (p.act === 'surprised') f.px(8, y + 9);
   else if (p.act === 'hurt') f.rect(7, y + 9, 2, 1);
   else if (p.act === 'smug') f.px(8, y + 9).px(9, y + 8);
   else f.px(8, y + 9);
@@ -509,16 +515,15 @@ function front(f: Fig, p: Pose) {
   }
   if (act === 'yawn') {
     // eyes squeezed shut, mouth wide open (the head tips back a touch)
+    // 0: stretching, the head tipped back, the mouth opening; 1: the mouth
+    // at its widest, a hand coming up to it
     const hy = headY - (p.ph === 0 ? 1 : 0);
-    headFront(f, { ...p, blink: true, blinkClosed: true, act: '' }, hy);
-    f.part('mouth', { flat: true, rim: false });
-    if (p.ph === 0) f.rect(7, hy + 8, 2, 2);
-    else f.rect(7, hy + 9, 2, 1);
+    headFront(f, { ...p, blink: false, blinkClosed: false, act: 'yawn' }, hy);
     ahoge(f, 9, hy - 2, 1);
     if (p.ph === 1) {
-      // the hand over the mouth
+      // the hand at the side of the open mouth
       f.part('hand', { shade: 'rb', light: 't' });
-      f.rect(9, hy + 8, 2, 2);
+      f.rect(9, hy + 9, 2, 2);
     }
     return;
   }
@@ -697,8 +702,9 @@ function side(f: Fig, p: Pose) {
   }
   if (act === 'yawn') {
     headSide(f, { ...p, blink: true, blinkClosed: true }, headY - (p.ph === 0 ? 1 : 0));
-    f.part('mouth', { flat: true, rim: false });
-    f.rect(2, headY + 9 - (p.ph === 0 ? 1 : 0), 2, p.ph === 0 ? 2 : 1);
+    // the open mouth (the same red as the front view's), under the shut eye
+    f.part('#8A2E3A', { flat: true, rim: false });
+    f.rect(2, headY + 9 - (p.ph === 0 ? 1 : 0), p.ph === 0 ? 1 : 2, 2);
   } else headSide(f, p, headY);
   const sway = p.mode === 'idle' ? (p.tick % 4 < 2 ? 0 : 1) : p.mode === 'walk' ? (p.step % 2 ? 1 : 0) : 1;
   if (p.lookUp) {

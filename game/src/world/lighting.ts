@@ -100,7 +100,7 @@ export type GradeHKey = 'h0' | 'h1' | 'h2' | 'h3a' | 'h3b' | 'h3c';
 const NIGHT_H = {
   skyTop: hx('#0B0B14'), skyBot: hx('#1B1733'), horizon: hx('#3A2B5C'), horizonA: 0,
   mul: hx('#908CCA'), glare: hx('#B4AEDA'), glareA: 0.08, topDark: hx('#0B0B14'), topA: 0.16,
-  shadow: hx('#0B0B14'), shadowA: 0.34, shadowLen: 0, toMall: 0, night: 1, rim: hx('#F2894B'), motion: 0, lit: 1, desat: 0.08,
+  shadow: hx('#0B0B14'), shadowA: 0.4, shadowLen: 0, toMall: 0, night: 1, rim: hx('#F2894B'), motion: 0, lit: 1, desat: 0.08,
   glareRight: 1, glareW: 0.34, sunX: -1, rimRight: 0, stars: 0.8, milky: 0.8, venus: 2,
 };
 
@@ -115,7 +115,7 @@ export const GRADES_H: Record<GradeHKey, Grade> = {
     ...NIGHT_H,
     skyTop: hx('#3A2B5C'), skyBot: hx('#7A5AA0'), horizon: hx('#F7C27A'), horizonA: 0.6,
     mul: hx('#B8A8CC'), glare: hx('#D8B8D0'), glareA: 0.22, topDark: hx('#1B1733'), topA: 0.08, desat: 0.03,
-    shadow: hx('#1B1733'), shadowA: 0.32, night: 0.8, stars: 0.25, milky: 0.2, venus: 3,
+    shadow: hx('#1B1733'), shadowA: 0.35, night: 0.8, stars: 0.25, milky: 0.2, venus: 3,
   },
   h3b: {
     ...NIGHT_H,
@@ -146,7 +146,7 @@ export function gradeHKey(stage: number): GradeHKey {
  * the unlit train is a little lighter.
  */
 export const HOSHI_INDOOR_BASE: Record<string, string> = {
-  map_hoshi_train: '#6E6C9E',
+  map_hoshi_train: '#7A78AA',
   map_hoshi_school: '#F2E6D0',
   map_hoshi_house: '#F0E6D2',
   map_hoshi_barn: '#E8ECF0',
@@ -156,7 +156,7 @@ export const HOSHI_INDOOR_BASE: Record<string, string> = {
  * through the east (the barn: the day over its tubes, 52 4.3 カット2a).
  */
 export const HOSHI_INDOOR_MORNING: Record<string, string> = {
-  map_hoshi_barn: '#FFF2E0',
+  map_hoshi_barn: '#F8ECD8',
   default: '#FFF0DC',
 };
 

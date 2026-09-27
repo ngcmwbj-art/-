@@ -310,6 +310,9 @@ export class BattleScene implements Scene {
   }
 
   private updateUi(dt: number): void {
+    // backdrops may quiet their busiest strips while a move plays out, so
+    // the numbers and labels read (bg_h_mujin's いらっしゃいませ band)
+    this.bg.flags.acting = this.cmd || this.list || this.target ? 0 : 1;
     this.msg.update(dt, this.msgConfirm());
     for (const f of this.fx) if (f.ui) this.stepFx(f, dt);
     for (const n of this.numbers) n.update(dt);
@@ -563,6 +566,12 @@ export class BattleScene implements Scene {
     let y = e.headY - 10 - 16;
     let x = Math.round(e.x - 26);
     let dy = -14;
+    // 第2章 (51 13.5: over the head): when the stack would reach under the
+    // band, it comes down onto the sprite's top edge (at most a fifth of its
+    // height) before it is moved to the side — テツヤ's tapes stay over his
+    // hood, clear of the handles and the claws (QA)
+    const need = STAGE_TOP + 1 - (y + dy * (list.length - 1));
+    if (need > 0 && e.def.chapter === 2 && need <= Math.round(e.sizeH * 0.2) + 10) y += need;
     if (y + dy * (list.length - 1) < STAGE_TOP) {
       y = Math.max(STAGE_TOP + 4, e.top + Math.round(e.sizeH * 0.3));
       x = Math.round(e.x + e.sizeW / 2 - 6);
@@ -1579,11 +1588,18 @@ export class BattleScene implements Scene {
       const tag = TAG[e.status.stareAt];
       const u = this.party.find((p) => p.id === e.status.stareAt);
       if (!tag || !u) continue;
-      const pulse = this.memo.starePulse && Math.floor(this.rt / 120) % 2 === 0;
+      // centred over the name tag, beating like a glare (a hard beat while
+      // it pulses at the charge); a thin red ring behind it (14.8)
       const img = boarIcon();
-      const k = pulse ? 1.3 : 1;
-      const iw = Math.round(img.width * k);
-      g.alpha(a, () => g.ctx.drawImage(img, Math.round(tag[0] + tag[2] - 6 - iw / 2), Math.round(tag[1] - 9 - (iw - img.width) / 2 + Math.round(Math.sin(this.rt / 200))), iw, iw));
+      const beat = this.memo.starePulse ? (Math.floor(this.rt / 120) % 2 === 0 ? 1.3 : 1) : Math.floor(this.rt / 260) % 3 === 0 ? 1.15 : 1;
+      const iw = Math.round(img.width * beat);
+      const ih = Math.round(img.height * beat);
+      const cx = tag[0] + tag[2] / 2;
+      const cy = tag[1] - 5 + Math.round(Math.sin(this.rt / 200));
+      g.alpha(a, () => {
+        g.alpha(0.35 + 0.25 * (beat - 1) * 3, () => g.ring(Math.round(cx), Math.round(cy), 9, '#E84E3C'));
+        g.ctx.drawImage(img, Math.round(cx - iw / 2), Math.round(cy - ih / 2), iw, ih);
+      });
     }
     if (this.party.length === 1) this.drawEmptySlot(g, a);
     if (this.kanenariJoined) drawKire(g, this.kire, this.kirePops, this.rt, a);
@@ -1744,17 +1760,21 @@ export class BattleScene implements Scene {
   }
 
   /** The move being played out, jotted in the command notebook (null: blank page). */
-  acting: { icon?: string; name: string; enemy?: boolean; t0: number } | null = null;
+  acting: { icon?: string; name: string; enemy?: boolean; rest?: boolean; t0: number } | null = null;
 
-  /** Note the move that is starting in the command notebook. */
-  noteActing(name: string, icon?: string, enemy = false): void {
-    this.acting = name ? { name, icon, enemy, t0: this.rt } : null;
+  /**
+   * Note the move that is starting in the command notebook. `enemy` puts the
+   * pink ボケ tape by it; 'rest' a green 休憩 tape instead (a resting enemy's
+   * skipped turn is not a ボケ, 51 7.2).
+   */
+  noteActing(name: string, icon?: string, enemy: boolean | 'rest' = false): void {
+    this.acting = name ? { name, icon, enemy: !!enemy, rest: enemy === 'rest', t0: this.rt } : null;
   }
 
   private drawIdleCommandBox(g: Gfx, a: number): void {
     // while not choosing: the notebook shows the move being played out
     const v = this.acting;
-    drawActing(g, v ? { icon: v.icon, name: v.name, enemy: v.enemy, t: this.rt - v.t0 } : null, this.rt, a);
+    drawActing(g, v ? { icon: v.icon, name: v.name, enemy: v.enemy, rest: v.rest, t: this.rt - v.t0 } : null, this.rt, a);
   }
 
   private drawEmptySlot(g: Gfx, a: number): void {
