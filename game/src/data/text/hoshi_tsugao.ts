@@ -278,7 +278,7 @@ export const DELI_TEXT: Record<string, string> = {
 伝票の 1枚目と、同じ 名前だ。
 !cue put_down
 @narr
-ペロリさんの 赤い トマトを、
+ペロリさんが とっておいた トマトを、
 置き台に 置いた。{w=300}貼り紙に、
 『ひと畝 耕したら 食う　タケ』
 @npc_pokosha
@@ -313,7 +313,7 @@ export const DELI_TEXT: Record<string, string> = {
 ……ま、毎度、です。{w=300}
 最後は、トマじいさんの 家、です。`,
   "おとどけ 5": `@narr
-シゲじいさんと スギばあさんの
+シゲじいさんと スギばあさんからの
 かぼちゃを、米袋の 上に 置いた。
 {w=300}『マルは 町の 娘の とこ』
 @npc_pokosha
@@ -371,6 +371,15 @@ export const DELI_TEXT: Record<string, string> = {
 @npc_hirosuke
 わはは！{w=300}
 寝ても ほめられる 師匠だよ。`,
+  // 「しめ」の @sys を、もちものに入った数で差しかえる（tsugao.ts）
+  "しめ/1つ": `@sys
+焼き芋を 1つ もらった！{w=300}
+もちものが いっぱいだ。
+もう 1つは、ヒロスケさんが あずかる。`,
+  "しめ/0": `@sys
+もちものが いっぱいだ。{w=300}
+焼き芋は、ヒロスケさんが
+あずかって くれる。`,
 };
 
 /** 9章 objects added with ツガオ便 (a plain text, or stage keys h0 / 'h1+'; the field reads them). */

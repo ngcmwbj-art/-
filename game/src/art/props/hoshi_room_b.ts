@@ -204,18 +204,28 @@ registerProp('prop_h_barn_lights', () => {
   const DX = 17 * 16 + 12;
   const DY = 8 * 16 + 4;
   const fitting = (p: PixelCanvas, x: number, y: number, on: boolean) => {
+    // hung from the roof on two chains, the fitting's dark body over the tube:
+    // a light hanging over the aisle, not a white bar of the rail (QA 8)
+    // (逆富士: a grey trapezoid body, the tube along its underside)
+    for (const cx of [x + 4, x + 19]) for (let yy = y - 6; yy <= y - 1; yy++) p.set(cx, yy, (yy & 1) === 0 ? P.charcoal : P.steel);
+    p.hline(x + 3, x + 20, y - 1, P.charcoal);
+    p.hline(x + 2, x + 21, y, P.concreteLt);
+    p.set(x + 2, y, P.charcoal);
+    p.set(x + 21, y, P.charcoal);
+    p.hline(x, x + 23, y + 1, P.steel);
+    p.set(x - 1, y + 1, P.charcoal);
+    p.set(x + 24, y + 1, P.charcoal);
     p.hline(x, x + 23, y + 2, on ? P.glint : P.steel);
     p.hline(x, x + 23, y + 3, on ? P.white : P.asphalt);
     p.set(x - 1, y + 2, P.charcoal);
     p.set(x + 24, y + 2, P.charcoal);
     p.set(x - 1, y + 3, P.charcoal);
     p.set(x + 24, y + 3, P.charcoal);
-    p.vline(x + 11, y, y + 1, P.charcoal);
     p.hline(x + 1, x + 22, y + 4, on ? mix(P.white, P.steel, 0.4) : P.charcoal); // the reflector's lip
   };
   const p = new PixelCanvas(BW, DY + 6);
   for (let k = 0; k < N; k++) fitting(p, LX + k * 40, Y, true);
-  // the dead tube: dull grey, the ends gone black (a burnt-out fluorescent), a hanging chain each side
+  // the dead tube: dull grey, the ends gone black (a burnt-out fluorescent), on the same two chains
   fitting(p, DX, DY, false);
   p.hline(DX + 1, DX + 22, DY + 3, P.asphalt);
   p.hline(DX + 1, DX + 22, DY + 2, P.steel);
@@ -223,8 +233,6 @@ registerProp('prop_h_barn_lights', () => {
     p.set(ex, DY + 2, P.charcoal);
     p.set(ex, DY + 3, P.charcoal);
   }
-  p.vline(DX + 3, DY - 3, DY + 1, P.charcoal);
-  p.vline(DX + 20, DY - 3, DY + 1, P.charcoal);
   const img = p.toCanvas();
   const a: PropArt = {
     ox: 0,
@@ -239,7 +247,10 @@ registerProp('prop_h_barn_lights', () => {
     glow(g: Gfx, x: number, y: number, env: PropEnv) {
       for (let k = 0; k < N; k++) {
         g.rect(x + LX + k * 40, y + Y + 2, 24, 2, '#F4F8FF', 0.8);
-        g.rect(x + LX + k * 40 - 2, y + Y + 1, 28, 4, '#E8ECF0', 0.18);
+        // a soft edge of light round the tube, most of it falling down from under the fitting
+        g.rect(x + LX + k * 40 - 1, y + Y + 2, 26, 2, '#E8ECF0', 0.2);
+        g.rect(x + LX + k * 40 + 1, y + Y + 5, 22, 1, '#F4F8FF', 0.22);
+        g.rect(x + LX + k * 40 + 3, y + Y + 6, 18, 1, '#F4F8FF', 0.1);
       }
       // the dead tube: now and then its west end catches a weak 1px flicker
       // (twice, quick, every 5 s or so) — it lights nothing

@@ -24,6 +24,7 @@ import { BAYER4, makeCanvas, PixelCanvas } from '../engine/pixel';
 import { hash2, valueNoise } from '../engine/rng';
 import { drawText, glyphImage } from '../engine/font';
 import { ovalStamp } from '../battle/art/stamps';
+import { HANAMARU_CHALK } from '../art/props/hoshi_ending_art';
 
 export const P = {
   K: '#0B0B14',
@@ -1203,8 +1204,7 @@ export function cardImg(n: 1 | 2 | 3): HTMLCanvasElement {
     for (let y = 8; y <= 16; y++)
       for (let x = 14; x <= 26; x++) p.set(x, y, y === 8 || y === 16 ? P.G : x === 14 || x === 26 ? P.D : P.O);
     p.hline(15, 25, 12, P.G); // the gate's pressed rib
-    const CHALK = ['..###..', '.#...#.', '#..#..#', '#.#.#.#', '#.#..#.', '.#.##..'];
-    rows(p, CHALK.map((r, j) => [...r].map((ch, i) => (ch === '#' ? ((i * 5 + j * 3) % 7 === 0 ? 'w' : 'C') : '.')).join('')), { C: P.Pp, w: P.W }, 17, 9);
+    rows(p, HANAMARU_CHALK.map((r, j) => [...r].map((ch, i) => (ch === '#' ? ((i * 5 + j * 3) % 7 === 0 ? 'w' : 'C') : '.')).join('')), { C: P.Pp, w: P.W }, 16, 8);
   } else {
     // the horn of the loudspeaker
     rows(

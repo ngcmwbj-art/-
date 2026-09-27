@@ -216,8 +216,9 @@ class MimawariCloseup implements Widget {
 
 /**
  * The close-up rises over his head at (sx, sy) (screen px), the pen draws the
- * hanamaru in one stroke (0.7 s, the pen's scratch twice, quietly), holds,
- * and goes. About 1.4 s. Picture only: no line.
+ * hanamaru in one stroke (1.15 s under se_hanamaru_draw: the spiral with its
+ * ring, the petals with its five loops; the pen lifts with its small 「ぽ」),
+ * holds, and goes. About 1.8 s. Picture only: no line.
  */
 export function* playMimawariHanamaru(sx: number, sy: number): Co {
   const cx = Math.max(W / 2 + 4, Math.min(384 - W / 2 - 4, sx));
@@ -230,19 +231,15 @@ export function* playMimawariHanamaru(sx: number, sy: number): Co {
   }
   w.shown = 1;
   yield 220;
-  sfx('se_pen_write', { vol: 0.3 });
-  const ms = 700;
-  let second = false;
+  // one hand-drawn hanamaru (53 8.11: the pen round once, five petals, the lift at 1.23 s)
+  sfx('se_hanamaru_draw');
+  const ms = 1150;
   for (let t = 0; t < ms; t += 16.7) {
     w.drawn = ease.sineInOut(t / ms);
-    if (!second && t > ms * 0.55) {
-      second = true;
-      sfx('se_pen_write', { vol: 0.25, pitch: 1.1 });
-    }
     yield null;
   }
   w.drawn = 1;
-  yield 480;
+  yield 330;
   for (let t = 0; t < 180; t += 16.7) {
     w.shown = 1 - t / 180;
     yield null;

@@ -527,7 +527,7 @@ registerAmbience('amb_h_barn_out', (c) => {
  * strokes to a cud, then 3–5 s to swallow and bring up the next), snorts, a
  * water cup (the steer pushes the paddle with its nose), one lying down or
  * getting up in the sawdust, a flank against the pipe rails. ふしぎ08:
- * 'sync_on' makes the four of 北3 chew at the same instant, 1.00 s apart;
+ * 'sync_on' makes the three of 北3 chew at the same instant, 1.00 s apart;
  * 'sync_off' lets them go back to their own time. At 5:00 (h_stage 3) the
  * morning comes in by itself: se_h_barn_morning 0.7 s after the bed starts
  * (the ending's cut 2a warms the light then), then a far dawn ヒグラシ now and
@@ -562,15 +562,15 @@ registerAmbience('amb_h_barn', (c) => {
       },
     };
   });
-  // ふしぎ08: the four of 北3 in step
+  // ふしぎ08: the three of 北3 in step (a pen holds three, 2026-09-28)
   let sync: { pan: number; next: number } | null = null;
   const pumpSync = (u: number) => {
     if (!sync) return;
     let guard = 0;
     while (sync.next < u && guard++ < 8) {
       const t = Math.max(sync.next, g.ctx.currentTime);
-      for (let k = 0; k < 4; k++) {
-        const dest = panned(c, sync.pan + (k - 1.5) * 0.06);
+      for (let k = 0; k < 3; k++) {
+        const dest = panned(c, sync.pan + (k - 1) * 0.06);
         for (const l of HANSUU) layer(seCtx(c, t, dest, 0.5, 0.1, 0.94 + k * 0.035), l);
       }
       sync.next = t + 1.0;

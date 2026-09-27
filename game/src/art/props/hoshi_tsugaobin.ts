@@ -86,19 +86,17 @@ function tsugaoTruck(morning: boolean, bob: number): HTMLCanvasElement {
   for (const x of [26, 36]) p.vline(x, 15, 21, OLIVE_DK);
   p.rect(45, 16, 2, 3, P.red);
   if (morning) {
-    // the morning (h3, the ending's cut 3): at the back of the gate a small
+    // the morning (h3, the ending's cut 3): on the gate's middle panel a
     // hanamaru in white chalk — ヒロスケさん copied Shun's stamp (50 10.16,
-    // 00 1.1) — the chalk thin in places; the slips' clipboard hung further up
+    // 00 1.1) — the petals round the spiral, the chalk thin in places; over
+    // the top rail and the pressed rib as a hand would draw it
     CHALK.forEach((r, j) =>
-      [...r].forEach((ch, i) => ch === '#' && p.set(37 + i, 15 + j, (i * 5 + j * 3) % 7 === 0 ? P.concreteLt : P.white)),
+      [...r].forEach((ch, i) => ch === '#' && p.set(27 + i, 14 + j, (i * 5 + j * 3) % 7 === 0 ? P.concreteLt : P.white)),
     );
-    p.rect(30, 15, 3, 4, P.woodLt);
-    p.hline(30, 32, 15, P.white);
-  } else {
-    // the clipboard of slips hung on the tailgate
-    p.rect(41, 15, 3, 4, P.woodLt);
-    p.hline(41, 43, 15, P.white);
   }
+  // the clipboard of slips hung on the tailgate
+  p.rect(41, 15, 3, 4, P.woodLt);
+  p.hline(41, 43, 15, P.white);
   // the yellow crates, two tiers of three (the handle holes dark)
   for (const [x, y] of [[18, 9], [27, 9], [36, 9], [21, 4], [30, 4]] as const) {
     p.rect(x, y, 8, 5, P.gold);

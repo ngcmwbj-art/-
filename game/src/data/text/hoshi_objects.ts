@@ -212,7 +212,7 @@ export const HOSHI_OBJ: Record<string, HText> = {
 用水路の 水は、山から 来て、
 棚田を 回って、ここを 通る。`,
   obj_hoshi_post: `@narr
-赤い ポスト。取集時刻の 札。
+赤い ポスト。集める 時間の 札。
 {w=300}『1日1回』。
 /
 中は からっぽ。{w=300}
@@ -393,8 +393,10 @@ export const HOSHI_OBJ: Record<string, HText> = {
 ビーサンでも、ちゃんと 踏んだ。`,
   obj_hoshi_cow: {
     text: `@narr
-黒い 牛が、ゆっくり
-反すうしている。{w=300}
+黒い 牛が、口を もぐもぐ させている。
+{w=300}反すう。のみこんだ エサを
+口に もどして、かみなおしている。
+/
 耳に 黄色い 耳標。10けたの 番号。`,
     /** The same pen again. */
     second: `@narr
@@ -406,8 +408,8 @@ export const HOSHI_OBJ: Record<string, HText> = {
 白が 少し ある 子。{w=300}
 ……顔つきも、ちょっと ちがう。`,
   obj_hoshi_shisou: `@narr
-飼槽に、稲わらが 少し
-残っている。{w=300}
+エサ箱（飼槽）に、稲わらが
+少し 残っている。{w=300}
 朝の エサは、まだ。`,
   obj_hoshi_haigou: `@narr
 配合飼料の 袋。{w=300}
@@ -423,14 +425,14 @@ export const HOSHI_OBJ: Record<string, HText> = {
 天井の 大きな 換気扇。{w=300}
 夏の 牛舎は、風が だいじ。`,
   obj_hoshi_kanriban: `@narr
-管理板。耳標の 番号と、
+管理板。耳標の 番号と『F1』の 字、
 来た 日と、出荷の 予定月。
 /
 字は 小さいが、ていねいだ。`,
   obj_hoshi_kyujisha: `@narr
-給餌車。ハンドルに
-タオルが 巻いてある。{w=300}
-毎日 にぎる ところだ。`,
+エサを 運ぶ 手押し車（給餌車）。
+ハンドルに タオルが 巻いてある。
+{w=300}毎日 にぎる ところだ。`,
   obj_hoshi_brush: `@narr
 柄の 長い ブラシ。{w=300}
 毛先が、牛の 背中の 形に
@@ -781,7 +783,7 @@ export const HOSHI_FUSHIGI: Record<string, HoshiFushigiText> = {
   fushigi_ch2_08: {
     seen: `@narr
 北3の 牛房の 牛が 3頭、
-反すうしている。
+もぐもぐ 反すうしている。
 /
 ……3頭とも、口の 動きが
 ぴったり そろっている。{w=300}

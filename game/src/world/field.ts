@@ -119,6 +119,12 @@ export class FieldScene implements Scene {
   /** Actors spawned from map objects, keyed by object id index. */
   private objActors = new Map<MapObj, Actor>();
   props: PropInst[] = [];
+  /**
+   * Cells blocked by a prop's / object's `solid` rectangle (PropObj.solid,
+   * cell key ty*4096+tx → who claims it). They block only while the thing is
+   * there: its PropInst `present` (cond, and a scene hiding it), else its cond.
+   */
+  private propSolid = new Map<number, { obj: PropObj | ExamineObj; inst: PropInst | null }[]>();
   structures: Structure[] = [];
   camX = 0;
   camY = 0;
@@ -286,6 +292,28 @@ export class FieldScene implements Scene {
       if (!art) continue;
       this.props.push({ obj: o, art, x: o.x * 16, y: o.y * 16, seed: (strSeed((o.id ?? id) + ':' + o.x + ',' + o.y) % 1000) / 1000, present: condOk(o.cond) });
     }
+    // the `solid` rectangles (the light truck, a tree, sacks by the barn...): cells nobody walks through
+    this.propSolid.clear();
+    for (const o of this.map.objects) {
+      if ((o.t !== 'prop' && o.t !== 'obj') || !o.solid) continue;
+      const [dx, dy, w, h] = o.solid;
+      const e = { obj: o, inst: this.props.find((p) => p.obj === o) ?? null };
+      for (let y = o.y + dy; y < o.y + dy + h; y++)
+        for (let x = o.x + dx; x < o.x + dx + w; x++) {
+          const k = y * 4096 + x;
+          const l = this.propSolid.get(k);
+          if (l) l.push(e);
+          else this.propSolid.set(k, [e]);
+        }
+    }
+  }
+
+  /** Is (tx, ty) blocked by the `solid` rectangle of a prop that is there now? */
+  propSolidAt(tx: number, ty: number): boolean {
+    const l = this.propSolid.get(ty * 4096 + tx);
+    if (!l) return false;
+    for (const e of l) if (e.inst ? e.inst.present : condOk(e.obj.cond)) return true;
+    return false;
   }
 
   /** Spawn / despawn objects whose conditions changed. */
@@ -599,6 +627,11 @@ export class FieldScene implements Scene {
   // ------------------------------------------------------------------ collision
 
   isSolidTile(tx: number, ty: number): boolean {
+    return this.tileSolid(tx, ty) || this.propSolidAt(tx, ty);
+  }
+
+  /** The cell's own solidity (the ASCII legend and its gates), props aside. */
+  private tileSolid(tx: number, ty: number): boolean {
     const c = cellAt(this.map, tx, ty);
     if (!c.solid) return false;
     if (c.tag === 'chain') return !(flag('flag_parking_open') > 0 || flag('flag_stage') >= 2);
@@ -617,9 +650,24 @@ export class FieldScene implements Scene {
     const b = y - 0.01;
     if (l < 0 || t < 0 || r >= this.map.w * 16 || b >= this.map.h * 16) return false;
     for (const px of [l, (l + r) / 2, r])
-      for (const py of [t, b]) if (this.isSolidTile(Math.floor(px / 16), Math.floor(py / 16))) return false;
+      for (const py of [t, b]) {
+        const tx = Math.floor(px / 16);
+        const ty = Math.floor(py / 16);
+        if (this.tileSolid(tx, ty)) return false;
+        // a prop that appeared on top of someone (the stage-2 light truck) never traps them: they may walk out
+        if (this.propSolidAt(tx, ty) && !this.boxOnTile(a, tx, ty)) return false;
+      }
     if (ignoreActors) return true;
     return !this.actorBlocking(a, x, y);
+  }
+
+  /** Does the collision box of `a` where it stands now overlap tile (tx, ty)? */
+  private boxOnTile(a: Actor, tx: number, ty: number): boolean {
+    const l = Math.floor((a.x - a.bw / 2) / 16);
+    const r = Math.floor((a.x + a.bw / 2 - 0.01) / 16);
+    const t = Math.floor((a.y - a.bh) / 16);
+    const b = Math.floor((a.y - 0.01) / 16);
+    return tx >= l && tx <= r && ty >= t && ty <= b;
   }
 
   /**

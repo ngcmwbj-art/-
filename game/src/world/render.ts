@@ -966,6 +966,20 @@ export class Renderer {
     const canal = m.id === 'map_hoshimidai' && !fushigiDone('fushigi_ch2_03') ? rect(13, 20, 47, 2) : null;
     masked(fc, null, canal);
     onto('screen');
+    // the canal and the stream (QA 13): under the night grade their water went
+    // near black, a dark crack through the village; the water holds a little of
+    // the dawn's light, a step off black (the paddies keep their own look)
+    if (m.id === 'map_hoshimidai' && gd.night > 0.3) {
+      for (const clip of [rect(13, 20, 47, 2), rect(13, 0, 1, 38)]) {
+        if (clip[0] >= W || clip[0] + clip[2] <= 0 || clip[1] >= H || clip[1] + clip[3] <= 0) continue;
+        masked(null, clip, null);
+        mctx.globalCompositeOperation = 'source-in';
+        mctx.fillStyle = '#34416A';
+        mctx.fillRect(0, 0, W, H);
+        mctx.globalCompositeOperation = 'source-over';
+        onto('screen', Math.min(1, gd.night) * 0.6);
+      }
+    }
     if (canal && canal[0] < W && canal[0] + canal[2] > 0 && canal[1] < H && canal[1] + canal[3] > 0) {
       const [sc, sctx] = this.skyShift;
       const drift = ((Math.floor((f.t / 1000) * 6 + cx) % W) + W) % W;

@@ -11,6 +11,7 @@ import type { Co } from '../../engine/co';
 import { flag, setFlag, state } from '../../game/state';
 import { emote, face, registerScript, walk } from '../../world/api';
 import { field } from '../../world/field';
+import { registerWorldFx } from '../../world/fx';
 import { runMsg } from '../../world/msg';
 import { saveConfirm, saveWithStamp } from '../../ui/save';
 import { msgPages } from '../../ui/flow';
@@ -18,7 +19,7 @@ import * as T from '../../data/text/hoshi_events';
 import { F, getKeyItem, panBack, panTo, stepBack } from '../lib';
 import { quietItem } from '../stage';
 import { ring, sparkle } from '../fx';
-import { ambVol, se } from './compat';
+import { ambVol, se, seAt } from './compat';
 import { firstThisLoad, npc, poseIf, runCue, unpose } from './common';
 
 // ---------------------------------------------------------------- 10.5 evt_ch2_yoriai
@@ -203,3 +204,23 @@ function* bench(): Co {
 }
 registerScript('evt_ch2_save_bench', bench);
 registerScript('obj_hoshi_hill_bench', bench);
+
+// ---------------------------------------------------------------- the security light comes on (53 12.5, evt_ch2_light)
+
+/**
+ * The moment the net becomes a lantern in the house (h0 → h1, evt_ch2_light),
+ * the village's one security light at (32,37) comes on with it:
+ * se_h_boukatou_on from where it stands. From inside the house it is far
+ * away, so it is hardly heard (53: 「ほぼ聞こえなくてよい」); amb_h_boukatou
+ * carries on from there (the world's beds of stage 1).
+ */
+let lightSeen = { map: '', stage: -1 };
+registerWorldFx({
+  map: '',
+  update(f) {
+    const s = flag('flag_ch2_stage');
+    const was = lightSeen;
+    lightSeen = { map: f.map.id, stage: s };
+    if (was.map === f.map.id && was.stage === 0 && s === 1 && flag('flag_ch2_got_tomato')) seAt('se_h_boukatou_on', 32 * 16 + 8, 37 * 16 + 8);
+  },
+});

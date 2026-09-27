@@ -113,6 +113,22 @@ export function* ch2RoundEnd(s: BattleScene): Co {
     s.memo.otsukareTut = 1;
     showSticky(s, 'otsukare', 'flag_tut_otsukare');
   }
+  // 51 9.2 もう一度 (2026-09-28): a child who read past the hint gets it back,
+  // short — rounds 6 and 10, while he is still 徹夜中 (never rested, or up
+  // again): カネナリくんの flip only (no page), the sticky again, pulsing,
+  // and the hanko icon pulsing at the next command with おつかれさま chosen
+  if (tetsu && (s.round === 6 || s.round === 10) && tetsu.status.tetsuya && !enemyRests(tetsu) && s.minato?.m.skills.includes('skill_otsukaresama')) {
+    const withFlip = !!(s.kanenari && s.kanenari.alive);
+    if (s.kanenari && withFlip) {
+      s.mood(s.kanenari, 'tsukkomi', 1400);
+      showFlip(s, (tetsu.def.texts.extra.hintFlip2 ?? tetsu.def.texts.extra.hintFlip ?? [''])[0], 1400);
+    }
+    // the sticky comes up as the flip goes (they share the top of the screen)
+    delete s.memo.stk_otsukare;
+    showSticky(s, 'otsukare', undefined, true, 0, withFlip ? 1400 : 0);
+    s.memo.otsukareTut = 1;
+    yield withFlip ? 1500 : 500;
+  }
 }
 
 /** 14.10: the claws go round (200ms), +10 in green, the red ▲ of まもり (max +2). */

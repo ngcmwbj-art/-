@@ -7,7 +7,8 @@
 //                     Shun's stamp (00 1.1)
 //   HANAMARU_9 / HANAMARU_7 / HANAMARU_CHALK   the hand-drawn hanamaru (a
 //                     spiral inside eight petals) at 9 and 7 px, and the chalk
-//                     spiral on ツガオ便's tailgate
+//                     one (9×8, petals and spiral) on ツガオ便's tailgate and
+//                     ダコク's third card
 
 import { PixelCanvas } from '../../engine/pixel';
 import { P } from '../tiles/palette';
@@ -27,10 +28,23 @@ export const HANAMARU_9 = [
 /** The same at 7×7 (a chalk mark, a card's picture). */
 export const HANAMARU_7 = ['.#.#.#.', '#.###.#', '.#...#.', '.#.#.#.', '.#..##.', '#.###.#', '.#.#.#.'];
 /**
- * A quick chalk one (7×6): at this size only the spiral reads, the petals
- * become noise — so the chalk mark is the spiral, drawn in one go.
+ * The chalk one (9×8): ヒロスケさん's copy of Shun's stamp on ツガオ便's
+ * tailgate, and the same mark on ダコク's third card. The scalloped ring of
+ * petals (two over the top, two under, two each side) with the spiral inside
+ * it (the stamp's hanamaruPath, its spiral cut to a turn and a quarter). At
+ * 7×6 it was the spiral alone and read as a clump of white specks (QA
+ * 2026-09-27): 9×8 is the least that keeps both the petals and the spiral.
  */
-export const HANAMARU_CHALK = ['..###..', '.#...#.', '#..#..#', '#.#.#.#', '#.#..#.', '.#.##..'];
+export const HANAMARU_CHALK = [
+  '..##.##..',
+  '.#..#..#.',
+  '#.......#',
+  '#..###..#',
+  '.#.#.#.#.',
+  '#..#..#.#',
+  '.#..##.#.',
+  '..##.##..',
+];
 
 /**
  * The feed cart standing on its own (16×13), the handle at the left: drawn

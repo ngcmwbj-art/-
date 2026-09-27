@@ -328,7 +328,9 @@ function collectTexts(): [string, string][] {
   walk('tsugao_obj', TSUGAO_OBJ);
   // カット7 ツガオの部屋 (its pages live with the UI's scene)
   walk('cut7', TSUGAO_LINES);
-  for (const [k, v] of Object.entries(EV)) if (typeof v === 'string' && v.startsWith('@')) out.push([`ev.${k}`, v]);
+  // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line
+  // lines shown without a speaker (HOUKI_LINE's float note: the same 336 px)
+  for (const [k, v] of Object.entries(EV)) if (typeof v === 'string' && (v.startsWith('@') || v.startsWith('!cue') || v.includes('\n'))) out.push([`ev.${k}`, v]);
   for (const [k, v] of Object.entries(MUJIN_SHOP)) if (Array.isArray(v)) v.forEach((x, i) => (Array.isArray(x) ? x : [x]).forEach((p) => typeof p === 'string' && out.push([`shop.${k}[${i}]`, '@sys\n' + p])));
   return out;
 }

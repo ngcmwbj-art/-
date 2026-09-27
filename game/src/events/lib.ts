@@ -12,6 +12,7 @@ import { addItem, flag, setFlag, state, type Dir } from '../game/state';
 import { getItem } from '../data/battle';
 import { startBattle, type BattleOpts } from '../battle/api';
 import { field, type FieldScene } from '../world/field';
+import { isCh2Map } from '../world/maps';
 import { runMsg } from '../world/msg';
 import { actor, walk } from '../world/api';
 import { DIR_VEC, type Actor } from '../world/actor';
@@ -351,6 +352,10 @@ export function stepBack(): void {
  * with a thought tail, typed in pencil. It follows him while he walks and
  * stays clear of the HUD row (place name, clock) and of the dialog window's
  * place, so nothing on screen is stacked on top of anything else.
+ * On chapter 2's maps a script taking the controls away (a scene starting
+ * while the note is up — テツヤ's, after the old fields' line) ends it at
+ * once (0.1 s), so the note never sits over the scene. Chapter 1 keeps it
+ * as it was.
  */
 class FloatLine implements Widget {
   modal = false;
@@ -362,12 +367,18 @@ class FloatLine implements Widget {
   private pause = 0;
   private holdT = 0;
   private outT = -1;
+  private outMs = 220;
   private w: number;
   private h: number;
   private map: string | undefined;
+  /** Chapter 2: end when a script takes the controls (after they were his once). */
+  private endOnLock: boolean;
+  private sawCtrl = false;
 
   constructor(text: string, private hold: number) {
-    this.map = field()?.map.id;
+    const f0 = field();
+    this.map = f0?.map.id;
+    this.endOnLock = isCh2Map(f0?.map.def);
     this.glyphs = layoutPages(text, 336, UI.pencil)[0] ?? [];
     let right = 0;
     let bottom = 0;
@@ -384,13 +395,22 @@ class FloatLine implements Widget {
     const f = field();
     if (this.outT >= 0) {
       this.outT += dt;
-      if (this.outT > 220) this.done = true;
+      if (this.outT > this.outMs) this.done = true;
       return;
     }
     // a scene taking the screen (a battle, a warp) ends the note
     if (!f || game.top !== f || f.map.id !== this.map) {
       this.outT = 0;
       return;
+    }
+    // (chapter 2) a script took the controls: the scene's, not the note's, screen
+    if (this.endOnLock) {
+      if (f.controllable) this.sawCtrl = true;
+      else if (this.sawCtrl) {
+        this.outMs = 100;
+        this.outT = 0;
+        return;
+      }
     }
     if (this.t < 140) return;
     if (this.shown < this.glyphs.length) {
@@ -415,7 +435,7 @@ class FloatLine implements Widget {
     const f = field();
     if (!f || game.top !== f) return;
     const kIn = ease.cubicOut(Math.min(1, this.t / 140));
-    const kOut = this.outT >= 0 ? 1 - Math.min(1, this.outT / 220) : 1;
+    const kOut = this.outT >= 0 ? 1 - Math.min(1, this.outT / this.outMs) : 1;
     const a = kIn * kOut;
     if (a <= 0) return;
     const p = f.player;

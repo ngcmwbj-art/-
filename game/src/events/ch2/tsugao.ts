@@ -15,11 +15,13 @@
 // for the truck's picture.
 
 import type { Co } from '../../engine/co';
+import { game } from '../../engine/game';
 import { W, H } from '../../engine/screen';
 import { flag, setFlag, state } from '../../game/state';
 import { face, registerScript, spawn } from '../../world/api';
 import type { Actor } from '../../world/actor';
-import { field, type FieldScene } from '../../world/field';
+import { field, registerAmbKeep, type FieldScene } from '../../world/field';
+import { activeAmbients, ambientEvent, placeOf, playAmbient, setAmbientVol, stopAmbient } from '../../world/audio';
 import { registerWorldFx } from '../../world/fx';
 import { runMsg, SPEAKERS } from '../../world/msg';
 import { completeChoreCard, hideChoreCard, setChoreCount, showChoreCard } from '../../ui/hud';
@@ -255,6 +257,8 @@ function* stage(name: string): Co {
       }
       yield 500;
       if (hiro) unpose(hiro);
+      // his voice wakes him: no snore under his words from here
+      wake(true);
       return;
     case 'flap':
       se('se_piichan_flap');
@@ -279,6 +283,7 @@ function* stage(name: string): Co {
     case 'cap_back':
       // the nightcap for the work cap (and back again)
       setFlag('flag_ch2_tsugao_awake', name === 'cap_swap' ? 1 : 0);
+      syncBin();
       yield 300;
       return;
     case 'yakiimo':
@@ -299,15 +304,79 @@ function cuesWith(own: Cues = {}): Cues {
 }
 const cues = cuesWith();
 
+// ---------------------------------------------------------------- his breathing and ぴーちゃん (53 12.17)
+
+/**
+ * amb_h_tsugaobin at stages 0–2 on the village map: its level by the distance
+ * from the driver's seat (42,42) as the world's seAt hears it (−12 dB per 8
+ * tiles, nothing off screen), and 'awake' / 'asleep' as he wakes and drops off
+ * (the bed breathes again 2 s after 'asleep'). The world's own beds don't
+ * list it, so this keeps it going (registerAmbKeep: re-entering the map).
+ */
+const BIN = 'amb_h_tsugaobin';
+const CAB: [number, number] = [42 * 16 + 8, 42 * 16 + 8];
+/** He talks with one eye open (no cap swap): awake for the words, then back to sleep. */
+let wakeTalk = false;
+/** What the bed was last told (a new bed starts asleep). */
+let binSent = false;
+let binT = 0;
+const binWanted = (mapId: string): boolean => mapId === 'map_hoshimidai' && hStage() <= 2;
+
+function syncBin(): void {
+  const awake = flag('flag_ch2_tsugao_awake') === 1 || wakeTalk;
+  if (awake === binSent) return;
+  binSent = awake;
+  ambientEvent(BIN, awake ? 'awake' : 'asleep');
+}
+
+function wake(on: boolean): void {
+  wakeTalk = on;
+  syncBin();
+}
+
+registerAmbKeep((mapId) => (binWanted(mapId) ? [BIN] : []));
+registerWorldFx({
+  map: 'map_hoshimidai',
+  update(f: FieldScene, dt: number) {
+    binT -= dt;
+    if (binT > 0) return;
+    binT = 160;
+    const playing = activeAmbients();
+    if (!playing) return;
+    const on = playing.includes(BIN);
+    if (!binWanted(f.map.id)) {
+      if (on) stopAmbient(BIN, 0.5);
+      return;
+    }
+    // a talk cut off halfway (a load): he is asleep again once no scene runs
+    if (wakeTalk && !game.scripts.busy) wakeTalk = false;
+    const v = placeOf(CAB[0], CAB[1])?.gain ?? 0;
+    if (on) setAmbientVol(BIN, v, 0.3);
+    else {
+      playAmbient(BIN, { vol: v, fade: 0.6 });
+      binSent = false;
+    }
+    syncBin();
+  },
+});
+
 function seen(id: string, key: string): boolean {
   return flag(`flag_seen_${id}_${key}`) > 0;
 }
 
 // ---------------------------------------------------------------- the invitation (〔誘い〕)
 
-/** 〔誘い〕 (and 〔誘い・2回目〕 after 「またこんど」): true when he said 「手伝う」. */
+/** 〔誘い〕 (and 〔誘い・2回目〕 after 「またこんど」): true when he said 「手伝う」. He sleeps again after it. */
 function* invite(): Co<boolean> {
+  const r = yield* inviteTalk();
+  wake(false);
+  return r;
+}
+
+function* inviteTalk(): Co<boolean> {
   if (flag('flag_ch2_deli_declined')) {
+    // he is the one who speaks first this time
+    wake(true);
     const i = yield* runCue(D['誘い・2回目'], cues);
     // 「またこんど」: no page; ツガオさん goes back to sleep
     if (i !== 0) return false;
@@ -479,19 +548,20 @@ registerScript('trig_ch2_deli_return', function* (): Co {
     yield 300;
   }
   let got = 0;
+  const GOT2 = /@sys\n焼き芋を 2つ もらった！\n/;
   yield* runCue(
-    D['しめ'].replace(/(@sys\n焼き芋を 2つ もらった！)/, '!cue yakiimo_get\n$1'),
+    // the @sys page says what really went in the bag (a full bag: 1 or 0)
+    D['しめ'].replace(GOT2, '!cue yakiimo_get\n'),
     cuesWith({
       *yakiimo_get() {
         for (let i = 0; i < 2; i++) if (yield* quietItem('item_yakiimo')) got++;
+        const two = (GOT2.exec(D['しめ'])?.[0] ?? '').trim();
+        yield* runMsg(got >= 2 ? two : got === 1 ? D['しめ/1つ'] : D['しめ/0']);
       },
     }),
   );
-  if (got < 2) {
-    // a full bag: the rest when he next talks to ヒロスケさん (10 4.4)
-    setFlag('flag_ch2_yakiimo_owed', 2 - got);
-    yield* runMsg(`@narr\nもちものが いっぱいだ。`);
-  }
+  // a full bag: the rest when he next talks to ヒロスケさん (10 4.4)
+  if (got < 2) setFlag('flag_ch2_yakiimo_owed', 2 - got);
   setFlag('flag_ch2_delivery', 1);
   setFlag('flag_ch2_piichan_feather', 1);
   setFlag('flag_ch2_delivery_on', 0);
@@ -540,7 +610,9 @@ registerScript('npc_tsugao', function* (): Co {
   if (s === 2 && !seen('npc_tsugao', 'h2_1')) {
     setFlag('flag_seen_npc_tsugao_h2_1', 1);
     // one eye open only
+    wake(true);
     yield* runCue(N.npc_tsugao.h2_1, cues);
+    wake(false);
     return;
   }
   if (!seen('npc_tsugao', 'h0_1')) {
@@ -549,6 +621,7 @@ registerScript('npc_tsugao', function* (): Co {
     yield* stage('cap_swap');
     yield* runCue(N.npc_tsugao.h0_1, cues);
     setFlag('flag_ch2_tsugao_awake', 0);
+    syncBin();
     return;
   }
   yield* runCue(N.npc_tsugao.h0_2, cues);

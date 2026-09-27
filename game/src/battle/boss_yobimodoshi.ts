@@ -531,11 +531,10 @@ export function* bossMoveImpl(c: BossMoveCtx): Co {
   const y = yobiState(s);
   if (sk.id === 'skill_yobi_yamabiko') {
     // 山びこ: the previous ラッパ move once more at half strength, same rhythm,
-    // voiced by the north ラッパ (and three echo rings)
+    // voiced by the north ラッパ (and three echo rings; se_h_yamabiko carries the echo itself)
     const prev = y.lastMove;
     s.sfx('se_h_yamabiko');
     const [nx, ny] = YOBI_SPOTS.north;
-    for (let i = 0; i < 3; i++) s.sfxLater('se_none', undefined, 1);
     echoRings(s, e.left + nx, e.top + ny, 3);
     yield 300;
     if (prev && prev !== 'skill_yobi_yamabiko') {

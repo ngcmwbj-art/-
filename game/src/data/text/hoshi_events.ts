@@ -165,7 +165,7 @@ export const YORIAI_A = `@npc_hoshi_kucho
 その ところで 止まって おります。
 @npc_hoshi_yoshie
 トマトは 赤く ならんし、
-洗濯物は 乾かんし、{w=300}
+洗濯物は 乾かないし、{w=300}
 ツガオさんの 軽トラも 出られん。
 /
 あんたら、お茶 飲みなさい。
@@ -188,9 +188,9 @@ export const YORIAI_A = `@npc_hoshi_kucho
 村を 出た 人の 名前を
 呼ぶように なりましてね。
 /
-へんじが ないから、
-点呼が 終わらない。{w=300}
-『おやすみなさい』まで、行かない。
+へんじが ないから、点呼が
+毎晩 のびて……{w=300}3日前から、
+『おやすみなさい』まで 行かない。
 /
 夜が 終わらないから、
 朝の チャイムも 鳴らないんです。
@@ -397,7 +397,7 @@ export const BARN_B = `@npc_hoshi_gen
 /** Before the hanko case (evt_ch2_otsukare). */
 export const OTSUKARE_A = `@narr
 ひと晩じゅう 見回りを していた
-人を、見届けた。`;
+人を、ちゃんと 見た。`;
 
 /** Shown when the battle team's playHankoLearn is not there (it says these itself). */
 export const OTSUKARE_LEARN = `@sys
@@ -727,6 +727,7 @@ export const SAVE_KAIRAN = `@narr
 ? 書く | 書かない`;
 export const SAVE_KAIRAN_DONE = `@narr
 『しゅん』と 書いた。{w=300}
+横に、はなまるを 1つ。
 ……星見台の 名簿に、1行 ふえた。`;
 export const SAVE_KAIRAN_FLIP = `@flip
 （ぼくも 書きました）`;

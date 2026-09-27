@@ -135,9 +135,9 @@ const HOUSE_OBJ: MapObj[] = [
   // the sulking tomato (evt_ch2_sune rolls it out) and the pair at the end of the east aisle (h1〜)
   {
     t: 'sym', id: 'sym_hoshi_house_00', enemies: ['enemy_sune_tomato'], x: 4, y: 8, dir: 'down', move: 'sune',
-    // beaten, it hangs back on the plant (3,8), on its aisle side: anchored a row
-    // lower so it sorts in front of the plant south of it, drawn 28px up
-    script: 'evt_ch2_sune', restoreAt: [3, 9], restoreOff: [4, -28], cond: { notFlag: 'flag_ch2_sune_beaten' },
+    // beaten, it stays where it was beaten, in the aisle (4,8) at the foot of
+    // the west row (on the plant itself it was 86% lost in the leaves, QA 3)
+    script: 'evt_ch2_sune', restoreAt: [4, 8], restoreOff: [-3, 0], cond: { notFlag: 'flag_ch2_sune_beaten' },
   },
   {
     t: 'sym', id: 'sym_hoshi_house_01', enemies: ['enemy_sune_tomato', 'enemy_sune_tomato'], x: 6, y: 4, dir: 'up', move: 'sune',
@@ -208,11 +208,13 @@ type Cow = [string, number, number, boolean, string?, string?];
 // the pen types (52 4.3); `reach` puts the chores' reaching cow (50 10.19) at the spot's tile
 const PEN_A_N = (w1 = '', w4 = '', reach = ''): Cow[] => [['front', 8, 46, false], ['front', 30, 46, false, w1, reach], ['lie', 24, 20, false, w4]];
 const PEN_B_N = (w0 = '', reach = ''): Cow[] => [['front', 34, 46, false, w0, reach], ['lie', 18, 18, true], ['lie', 14, 42, false]];
-const PEN_C_N = (): Cow[] => [['lie', 16, 16, true], ['lie', 32, 30, false], ['sleep', 18, 45, false]];
+// 北3 (ふしぎ08): all three lying and chewing the cud, their jaws in step (the text's 「3頭とも」)
+const PEN_C_N = (): Cow[] => [['lie', 16, 16, true], ['lie', 32, 30, false], ['lie', 20, 45, true]];
 const PEN_D_N = (w2 = '', reach = ''): Cow[] => [['front', 8, 46, false], ['front', 24, 46, false], ['front', 38, 46, false, w2, reach]];
 const PEN_A_S = (w0 = '', w2 = '', _w3 = '', reach = ''): Cow[] => [['back', 10, 20, false, w0], ['back', 36, 20, false, '', reach], ['side', 22, 42, false, w2]];
 const PEN_B_S = (w0 = '', reach = ''): Cow[] => [['back', 36, 20, false, w0, reach], ['lie', 16, 34, true], ['lie', 32, 46, false]];
-const PEN_C_S = (w3 = ''): Cow[] => [['lie', 16, 24, false], ['lie', 32, 34, true], ['lie', 18, 46, true, w3]];
+// 南3: the barn's one sleeper (the head turned back along the flank) moved here from 北3
+const PEN_C_S = (w3 = ''): Cow[] => [['lie', 16, 24, false], ['sleep', 32, 34, true], ['lie', 18, 46, true, w3]];
 const PEN_D_S = (w1 = '', reach = ''): Cow[] => [['back', 8, 20, false], ['back', 24, 20, false, w1, reach], ['back', 40, 20, false]];
 
 const PENS: { x: number; y: number; cows: Cow[]; sync?: boolean }[] = [
@@ -369,7 +371,8 @@ registerMap({
   lightBase: '#E8ECF0',
   dark: [{ x: 17, y: 8, w: 3, h: 3 }],
   darkCol: '#66667E',
-  darkEdge: 6,
+  // 10: three dither steps of ~3px with the ±2px wobble, so the dim patch has a soft, uneven edge (QA 9)
+  darkEdge: 10,
   darkStar: false,
   bgm: { 0: 'bgm_hoshi_night', 1: 'bgm_hoshi_night', 2: 'bgm_hoshi_night' },
   amb: { 0: ['amb_h_barn'], 1: ['amb_h_barn'], 2: ['amb_h_barn'] },

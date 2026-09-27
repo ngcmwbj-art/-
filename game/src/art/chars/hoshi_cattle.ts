@@ -8,14 +8,16 @@
 //                            an ear every 4–8 s (the tag catches the lantern),
 //                            swishes its tail every 8–12 s (3 frames).
 //   prop_h_cow_lie    32×15  lying down, head up, chewing the cud (the jaw
-//                            2 frames × 600 ms; the four of 北3 in step until
+//                            2 frames × 600 ms; the three of 北3 in step until
 //                            ふしぎ08 is stamped).
 //   prop_h_cow_sleep  32×15  lying with the head turned back along the flank.
 //   prop_h_cow_front  20×38  at the feed rail facing the aisle (north pens): the
-//                            feet on row 19 (the anchor), the neck reaching down
-//                            past them under both of the rail's pipes, the ears
-//                            and tags just below the lower one, the muzzle in
-//                            the trough; the head goes down and up at the feed; the
+//                            feet on row 19 (the anchor), the front legs under
+//                            the chest with the barrel bulging out past them, a
+//                            short thick neck (a fattening steer's) under the
+//                            upper pipe, the ears straight out with their tags
+//                            between the pipes, the muzzle down in the feed
+//                            below the lower one; the head goes down and up at the feed; the
 //                            chores' `reach` cow stretches its neck 2px toward
 //                            feed it cannot reach and holds, bobbing 1px every 2 s.
 //   prop_h_cow_back   20×32  the same seen from behind (south pens): the round
@@ -34,7 +36,7 @@
 // is a dot, no mouth line), no horns, no nose ring, no halter (50 2.2).
 // At dawn (h3) the lying cows get up, hind end first (r1, r2), and turn to
 // face the aisle where the morning feed is coming (the north pens' cows turn
-// to face it — `stand`, 20×26 — the south pens' show their rumps with the
+// to face it — `stand`, 20×23 — the south pens' show their rumps with the
 // heads up toward it — `rear`, the back view without the rail), each on its
 // own beat a moment after the morning shows, on any visit. Facing the aisle
 // they take a 20px footprint where a side-on cow takes 32, so four up in one

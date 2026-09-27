@@ -145,7 +145,7 @@ export function* evtSune(): Co {
     if (r === 'load') return;
     if (r === 'win') {
       setFlag('flag_ch2_sune_beaten', 1);
-      // it goes back up on the plant at (3,8), at the height of the 5th truss
+      // its restored self stays where it was beaten, in the aisle (4,8) (hoshi_rooms restoreAt)
       defeatSymbol('sym_hoshi_house_00');
       return;
     }

@@ -26,7 +26,7 @@
 // images once per radius (the radius breathes 69–75px at 0.8 Hz in whole
 // pixels, so 7 images), the fans of テツヤ's headlight once per angle.
 
-import { makeCanvas } from '../engine/pixel';
+import { BAYER4, makeCanvas } from '../engine/pixel';
 import { valueNoise } from '../engine/rng';
 import { ease } from '../engine/tween';
 import { flag } from '../game/state';
@@ -304,7 +304,10 @@ export function fanImage(angle: number): HTMLCanvasElement {
       let step = u < 1 / 3 ? 0 : u < 2 / 3 ? 1 : 2;
       const b = [FAN_LEN / 3, (FAN_LEN * 2) / 3][step];
       if (b !== undefined && Math.abs(dist - b) < 1 && (x + y) & 1) step = Math.min(2, step + 1);
-      if (dist > FAN_LEN - 2 && (x + y) & 1) continue;
+      // the far end thins out over its last 12px (a Bayer fade), so the beam
+      // dies away instead of stopping on a straight line (QA 11)
+      const tail = (dist - (FAN_LEN - 12)) / 12;
+      if (tail > 0 && BAYER4[y & 3][x & 3] < tail * 16) continue;
       const a = [0.5, 0.33, 0.17][step];
       const i = (y * size + x) * 4;
       d[i] = 0xff * a;
