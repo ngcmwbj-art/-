@@ -89,6 +89,58 @@ export function r2Doors(): { ok: number; problems: string[] } {
 }
 registerDebug('r2Doors', () => r2Doors());
 
+/**
+ * Every examinable of every room can be reached from where one arrives: a
+ * walk over the free tiles, then for each thing a free neighbour from which
+ * one faces it the way it asks (flat things: the tile itself).
+ */
+export function r2Reach(): { ok: number; problems: string[] } {
+  const out: string[] = [];
+  let ok = 0;
+  const D: [string, number, number][] = [['up', 0, 1], ['down', 0, -1], ['left', 1, 0], ['right', -1, 0]];
+  for (const id of ROOM2_MAPS) {
+    const m = loadMap(id);
+    if (!m) continue;
+    const solidAt = (x: number, y: number) =>
+      cellAt(m, x, y).solid ||
+      m.objects.some((q) => {
+        const s = (q as { solid?: [number, number, number, number] }).solid;
+        return !!s && x >= q.x + s[0] && x < q.x + s[0] + s[2] && y >= q.y + s[1] && y < q.y + s[1] + s[3];
+      });
+    const back = m.objects.find((q) => q.t === 'door') as DoorObj;
+    const seen = new Set<string>();
+    const q: [number, number][] = [[back.x, back.y - 1]];
+    seen.add(`${back.x},${back.y - 1}`);
+    while (q.length) {
+      const [x, y] = q.shift()!;
+      for (const [, dx, dy] of D) {
+        const nx = x + dx;
+        const ny = y + dy;
+        const k = `${nx},${ny}`;
+        if (seen.has(k) || nx < 0 || ny < 0 || nx >= m.w || ny >= m.h || solidAt(nx, ny)) continue;
+        seen.add(k);
+        q.push([nx, ny]);
+      }
+    }
+    for (const o of m.objects) {
+      if (o.t !== 'obj') continue;
+      const e = o as { id: string; x: number; y: number; w?: number; h?: number; face?: string; flat?: boolean };
+      let good = false;
+      for (let ix = 0; ix < (e.w ?? 1) && !good; ix++)
+        for (let iy = 0; iy < (e.h ?? 1) && !good; iy++) {
+          const tx = e.x + ix;
+          const ty = e.y + iy;
+          if (e.flat && seen.has(`${tx},${ty}`)) good = true;
+          for (const [dir, dx, dy] of D) if ((!e.face || e.face === dir) && seen.has(`${tx + dx},${ty + dy}`)) good = true;
+        }
+      if (good) ok++;
+      else out.push(`${id} ${e.id} (${e.x},${e.y}) can't be reached`);
+    }
+  }
+  return { ok, problems: out };
+}
+registerDebug('r2Reach', () => r2Reach());
+
 registerDebug('r2Finds', (reset = 0) => {
   const rows: string[] = [];
   for (const id of Object.keys(R2_FIND)) {

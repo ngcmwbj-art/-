@@ -959,7 +959,7 @@
 #....ttttOt#  3
 #....tttttt#  4
 #....ttOOtt#  5
-#....tttttt#  6
+#....tttttO#  6
 #gg..ttttOO#  7
 ##D#########  8
 ```
@@ -969,7 +969,7 @@
 | 出入口 | 外 (15–16,26)（15,27 から北へ押す）↔ 部屋 (2,8)、着くのは (2,7) 北向き。出ると (15,27)。`se_door_glass` |
 | 壁と戸 | 漆喰（長押・幅木）／ガラスの引き戸 |
 | 壁の物 | keys x3、paper(long) x5–6、window x7–8、calendar x9、frame(kansha) x10 |
-| 置き物 | prop_hr_shelf (1,2) { v: 'stars' }、prop_hr_clock (4,0)、prop_hr_workbench (5,2) { v: 'genko' }、prop_hr_telescope (9,3)、prop_hr_chabudai (7,5) { items: 'tea,hayami' }、prop_hr_tansu (9,7) { top: 'photo' }、prop_hr_katori (10,4)、prop_hr_furin (7,0)、prop_hr_lamp (7,7) { dx: 8 } |
+| 置き物 | prop_hr_shelf (1,2) { v: 'stars' }、prop_hr_clock (4,0)、prop_hr_workbench (5,2) { v: 'genko' }、prop_hr_telescope (9,3)、prop_hr_chabudai (7,5) { items: 'tea,hayami' }、prop_hr_tansu (9,7) { top: 'photo' }、prop_hr_katori (10,4)、prop_hr_senpuki (10,6) { on: true }、prop_hr_furin (7,0)、prop_hr_lamp (7,7) { dx: 8 } |
 | 調べる物 | 11（見つかる物を含む） |
 | 見つかる物 | 金平糖（obj_hr_fumi_konpeito (2,2)） |
 | 光 | 電気が点いたまま、光のマップの下地 #F2E6D0 |
@@ -1009,7 +1009,7 @@
 #tttttttttt#  3
 #tttttttttt#  4
 #ttttOOtttt#  5
-#tttttttttt#  6
+#Ottttttttt#  6
 #ggttttttOO#  7
 ##D#########  8
 ```
@@ -1019,7 +1019,7 @@
 | 出入口 | 外 (43,26)（43,27 から北へ押す）↔ 部屋 (2,8)、着くのは (2,7) 北向き。出ると (43,27)。`se_door_glass` |
 | 壁と戸 | 漆喰（長押・幅木）／ガラスの引き戸 |
 | 壁の物 | chart(shiritori) x3–4、frame(couple) x5、window x6–7、calendar x9、kamidana x10 |
-| 置き物 | prop_hr_shelf (1,2) { v: 'chadansu' }、prop_hr_tv (8,2) { top: 'clocks' }、prop_hr_futon2 (10,2)、prop_hr_chabudai (5,5) { items: 'two' }、prop_h_zabuton (4,5) { c: 1 }、prop_h_zabuton (7,5) { c: 0 }、prop_hr_tansu (9,7)、prop_hr_katori (3,6)、prop_hr_furin (6,0)、prop_hr_lamp (5,7) { kind: 'bulb', r: 60, dx: 8 } |
+| 置き物 | prop_hr_shelf (1,2) { v: 'chadansu' }、prop_hr_tv (8,2) { top: 'clocks' }、prop_hr_futon2 (10,2)、prop_hr_chabudai (5,5) { items: 'two' }、prop_h_zabuton (4,5) { c: 1 }、prop_h_zabuton (7,5) { c: 0 }、prop_hr_tansu (9,7)、prop_hr_kingyo (1,6)、prop_hr_katori (3,6)、prop_hr_furin (6,0)、prop_hr_lamp (5,7) { kind: 'bulb', r: 60, dx: 8 } |
 | 調べる物 | 10（見つかる物を含む） |
 | 見つかる物 | ハッカあめ（obj_hr_mk2_chadansu (1,2)） |
 | 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #B4A8C4 |
@@ -1084,7 +1084,7 @@
 #....o.....#  3
 #..........#  4
 #.....oo...#  5
-#KKk.......#  6
+#KKk......o#  6
 #kkk.......#  7
 ##D#########  8
 ```
@@ -1094,7 +1094,7 @@
 | 出入口 | 外 (21,36)（20,36 から東へ押す）↔ 部屋 (2,8)、着くのは (2,7) 北向き。出ると (20,36)。`se_door_glass` |
 | 壁と戸 | 古い板壁／ガラスの引き戸 |
 | 壁の物 | window x3–4、sketches x5–6、onions x7、calendar x8、paper(long) x9–10 |
-| 置き物 | prop_hr_shelf (1,2) { v: 'paint' }、prop_hr_workbench (9,2) { v: 'fuda' }、prop_hr_easel (5,3)、prop_hr_chabudai (6,5) { items: 'sketch' }、prop_hr_nagashi (1,6)、prop_hr_katori (8,6)、prop_hr_furin (3,0)、prop_hr_lamp (6,7) { dx: 8 } |
+| 置き物 | prop_hr_shelf (1,2) { v: 'paint' }、prop_hr_workbench (9,2) { v: 'fuda' }、prop_hr_easel (5,3)、prop_hr_chabudai (6,5) { items: 'sketch' }、prop_hr_nagashi (1,6)、prop_hr_senpuki (10,6) { on: true }、prop_hr_katori (8,6)、prop_hr_furin (3,0)、prop_hr_lamp (6,7) { dx: 8 } |
 | 調べる物 | 8（見つかる物を含む） |
 | 見つかる物 | きゅうりの一本漬け（obj_hr_sawako_ajimi (1,6)） |
 | 光 | 電気が点いたまま、光のマップの下地 #F2E6D0 |
@@ -1170,7 +1170,7 @@
 | 出入口 | 外 (16,36)（16,37 から北へ押す）↔ 部屋 (2,8)、着くのは (2,7) 北向き。出ると (16,37)。`se_door` |
 | 壁と戸 | 漆喰（長押・幅木）／木の引き戸 |
 | 壁の物 | window(amado) x3–4、calendar x5、paper x6、post x7、frame(ghost) x10 |
-| 置き物 | prop_hr_cloth (1,2)、prop_hr_cloth (8,2) { v: 'low' }、prop_hr_pillar (6,4)、prop_hr_cloth (9,6) { v: 'low' }、prop_hr_shaft (3,2) { w: 2, h: 4, shear: 0.3 }、prop_hr_shaft (2,7) { w: 1, h: 1, shear: 0 } |
+| 置き物 | prop_hr_cloth (1,2)、prop_hr_cloth (8,2) { v: 'low' }、prop_hr_pillar (6,4)、prop_hr_cloth (9,6) { v: 'low' }、prop_hr_shaft (3,2) { w: 2, h: 4, shear: 0.3 }、prop_hr_shaft (4,2) { w: 2, h: 3, shear: 0.35 }、prop_hr_shaft (2,7) { w: 1, h: 1, shear: 0 } |
 | 調べる物 | 9（見つかる物を含む） |
 | 見つかる物 | 10円（obj_hr_akiya_yuka (4,6)） |
 | 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #8E8ABA |
@@ -1195,7 +1195,7 @@
 | 出入口 | 外 (30,36)（30,37 から北へ押す）↔ 部屋 (5,8)、着くのは (5,7) 北向き。出ると (30,37)。`se_door_small` |
 | 壁と戸 | 明るい漆喰（店）／シャッター（くぐり戸） |
 | 壁の物 | board x5–7、paper(long) x8–9、calendar x10 |
-| 置き物 | prop_hr_shelf (1,2) { v: 'empty' }、prop_hr_shelf (3,2) { v: 'empty' }、prop_hr_counter (8,3)、prop_hr_freezer (4,4)、prop_hr_boxes (1,6) { v: 'crate' }、prop_hr_shaft (5,5) { w: 1, h: 3, shear: 0 } |
+| 置き物 | prop_hr_shelf (1,2) { v: 'empty' }、prop_hr_shelf (3,2) { v: 'empty' }、prop_hr_counter (8,3)、prop_hr_freezer (4,4)、prop_hr_boxes (1,6) { v: 'crate' }、prop_hr_shaft (5,5) { w: 1, h: 3, shear: 0 }、prop_hr_shaft (7,4) { w: 1, h: 3, shear: -0.2 }、prop_hr_shaft (2,3) { w: 1, h: 3, shear: -0.25 } |
 | 調べる物 | 8（見つかる物を含む） |
 | 見つかる物 | 10円（obj_hr_shoten_register (8,3)） |
 | 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #9490C0 |
@@ -1220,7 +1220,7 @@
 | 出入口 | 外 (36,31)（36,32 から北へ押す）↔ 部屋 (6,8)、着くのは (6,7) 北向き。出ると (36,32)。`se_door` |
 | 壁と戸 | トタンの波板／木の引き戸 |
 | 壁の物 | paper x3、window(amado) x5–6、hooks(tools) x9–10 |
-| 置き物 | prop_hr_boxes (1,2) { v: 'chochin' }、prop_hr_obj (4,2) { v: 'taiko' }、prop_hr_boxes (7,2) { v: 'tent' }、prop_hr_obj (9,4) { v: 'kusakari' }、prop_hr_boxes (1,5) { v: 'boards' }、prop_hr_workbench (7,6)、prop_hr_lamp (6,7) { kind: 'bulb', on: false }、prop_hr_shaft (5,2) { w: 2, h: 4, shear: 0.25 } |
+| 置き物 | prop_hr_boxes (1,2) { v: 'chochin' }、prop_hr_obj (4,2) { v: 'taiko' }、prop_hr_boxes (7,2) { v: 'tent' }、prop_hr_obj (9,4) { v: 'kusakari' }、prop_hr_boxes (1,5) { v: 'boards' }、prop_hr_workbench (7,6)、prop_hr_lamp (6,7) { kind: 'bulb', on: false }、prop_hr_shaft (5,2) { w: 2, h: 4, shear: 0.25 }、prop_hr_shaft (6,2) { w: 1, h: 3, shear: 0.3 } |
 | 調べる物 | 9（見つかる物を含む） |
 | 見つかる物 | ちびたスタンプ台（obj_hr_soko_stamp (7,6)） |
 | 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #9490C0 |
@@ -1246,7 +1246,7 @@
 | 出入口 | 外 (38,27)（39,27 から西へ押す）↔ 部屋 (14,9)、着くのは (14,8) 北向き。出ると (39,27)。`se_door_heavy` |
 | 壁と戸 | 腰板と漆喰／鉄の引き戸 |
 | 壁の物 | hoop x1、curtain x3–12、banner x3–12、window(high) x13–14、exit x13 |
-| 置き物 | prop_hr_stage (3,2)、prop_hr_shelf (13,2) { v: 'bichiku' }、prop_hr_chairs (1,6)、prop_hr_ballcage (13,7)、prop_hr_shaft (4,3) { w: 2, h: 5, shear: 0.5 }、prop_hr_shaft (10,3) { w: 2, h: 5, shear: 0.5 }、prop_hr_glow (13,0) { x: 8, y: 8, rgb: '96,255,140', c: '#7CFF9A' } |
+| 置き物 | prop_hr_stage (3,2)、prop_hr_shelf (13,2) { v: 'bichiku' }、prop_hr_chairs (1,6)、prop_hr_ballcage (13,7)、prop_hr_shaft (4,3) { w: 2, h: 5, shear: 0.5 }、prop_hr_shaft (10,3) { w: 2, h: 5, shear: 0.5 }、prop_hr_shaft (7,3) { w: 2, h: 4, shear: 0.5 }、prop_hr_glow (13,0) { x: 8, y: 8, rgb: '96,255,140', c: '#7CFF9A' } |
 | 調べる物 | 8（見つかる物を含む） |
 | 見つかる物 | 朱墨のかけら（obj_hr_gym_hikidashi (3,2)） |
 | 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #9894C4 |
@@ -1292,7 +1292,7 @@
 | 出入口 | 外 (34–35,13)（34,14 から北へ押す）↔ 部屋 (3,6)、着くのは (3,5) 北向き。出ると (34,14)。`se_door_small` |
 | 壁と戸 | 古い板壁／木の引き戸 |
 | 壁の物 | hooks(tools) x1–2、chart(mizu) x3、window x6 |
-| 置き物 | prop_hr_boxes (4,2) { v: 'boards' }、prop_hr_obj (1,4) { v: 'suito' }、prop_hr_obj (6,4) { v: 'kigae' } |
+| 置き物 | prop_hr_boxes (4,2) { v: 'boards' }、prop_hr_obj (1,4) { v: 'suito' }、prop_hr_obj (6,4) { v: 'kigae' }、prop_hr_shaft (6,2) { w: 1, h: 3, shear: -0.3 }、prop_hr_katori (4,4) |
 | 調べる物 | 6（見つかる物を含む） |
 | 見つかる物 | 梅干し（obj_hr_koya_suito (1,4)） |
 | 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #A09CC8 |
@@ -1315,7 +1315,7 @@
 | 出入口 | 外 (44,31)（44,32 から北へ押す）↔ 部屋 (3,6)、着くのは (3,5) 北向き。出ると (44,32)。`se_shutter` |
 | 壁と戸 | トタンの波板／シャッター（くぐり戸） |
 | 壁の物 | hooks(happi) x1–3、chart x4、hooks(helmets) x5、paper x6 |
-| 置き物 | prop_hr_pump (2,4)、prop_hr_obj (5,2) { v: 'hosebox' }、prop_hr_obj (6,4) { v: 'kyukyu' } |
+| 置き物 | prop_hr_pump (2,4)、prop_hr_obj (5,2) { v: 'hosebox' }、prop_hr_obj (6,4) { v: 'kyukyu' }、prop_hr_shaft (3,4) { w: 1, h: 2, shear: 0 }、prop_hr_glow (3,3) { x: 8, y: 4, rgb: '255,70,52', c: '#FF6A4D', blink: 1400 } |
 | 調べる物 | 6（見つかる物を含む） |
 | 見つかる物 | ひえひえシップ（obj_hr_shoubo_kyukyu (6,4)） |
 | 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #9C98C6 |
@@ -1342,7 +1342,7 @@
 | 出入口 | 外 (10,30)（10,31 から北へ押す）↔ 部屋 (4,10)、着くのは (4,9) 北向き。出ると (10,31)。`se_h_vinyl_door` |
 | 壁と戸 | ハウスの妻面（フィルムと骨）／フィルムの引き戸 |
 | 壁の物 | patch x1–2、fan x4、paper x6、patch x5–5 |
-| 置き物 | prop_hr_obj (7,9) { v: 'tape' } |
+| 置き物 | prop_hr_obj (7,9) { v: 'tape' }、prop_hr_katori (2,9) |
 | 調べる物 | 9（見つかる物を含む） |
 | 見つかる物 | 10円（obj_hr_h1_tape (7,9)） |
 | 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #9A98C8 |

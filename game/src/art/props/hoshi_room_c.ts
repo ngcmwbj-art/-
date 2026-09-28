@@ -987,6 +987,16 @@ furn('irori', {
     p.rect(8, 34, 2, 2, P.ink);
     p.set(8, 34, P.sunDeep); // one live coal
   },
+  extra() {
+    return {
+      glow(g: Gfx, x: number, y: number, env: PropEnv) {
+        // the one live coal breathes
+        const a = 0.45 + 0.35 * (0.5 + 0.5 * Math.sin(env.t / 900) * valueNoise(env.t / 400, 3, 11));
+        // the art's (8,34) is 12px under its top: (x + 8, y − 12 + 34)
+        g.rect(x + 8, y + 22, 2, 1, '#FF6A4D', a);
+      },
+    };
+  },
 });
 
 furn('telescope', {
@@ -1518,8 +1528,11 @@ registerProp('prop_hr_glow', (o) => {
     foot: 0,
     flat: true,
     img: () => null,
-    glow(g: Gfx, x: number, y: number) {
-      g.rect(x + lx - 3, y + ly - 1, 8, 3, c, 0.55);
+    glow(g: Gfx, x: number, y: number, env: PropEnv) {
+      // a pilot lamp may blink (o.blink: its period in ms)
+      const bl = Number(o.blink ?? 0);
+      const k = bl ? (Math.floor(env.t / bl) % 2 ? 0.25 : 1) : 1;
+      g.rect(x + lx - 3, y + ly - 1, 8, 3, c, 0.55 * k);
     },
     light(g: Gfx, x: number, y: number) {
       drawLight(g, poolEllipse(34, 26, rgb), x + lx, y + ly + 20, 0.3);
