@@ -9,6 +9,8 @@ import './people/town1';
 import './people/town2';
 import './people/town3';
 import './people/walkers';
+// 南の列の部屋の人：写真館の主人・かずお・ちずの母（02 #59）
+import './people/south_rooms';
 import './animals';
 import './enemies';
 import './restored';

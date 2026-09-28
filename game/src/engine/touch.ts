@@ -42,6 +42,14 @@ const CSS = `
 .tc-d.on .lamp{background:${SHU}}
 .tc.overlay .tc-pad,.tc.overlay .tc-btn{opacity:.55;transition:opacity .15s}
 .tc.overlay .tc-pad.held,.tc.overlay .tc-btn.down{opacity:.9}
+.tc-hint{position:absolute;right:calc(100% + .45em);top:50%;display:none;padding:.3em .55em .25em;
+  background:${PAPER};color:${SHU};border:3px solid ${INK};border-radius:.4em;box-shadow:0 3px 0 ${INK};
+  font-size:.82em;white-space:nowrap;pointer-events:none;transform:translateY(-50%);animation:tcBeat .56s ease-in-out infinite alternate}
+.tc-hint.on{display:block}
+.tc-hint.go{background:#FFD23F;color:${INK};animation-duration:.18s}
+.tc-a.hint{outline:4px solid #FFD23F;outline-offset:2px}
+.tc.overlay .tc-a.hint{opacity:.9}
+@keyframes tcBeat{from{transform:translateY(-50%) scale(1)}to{transform:translateY(-50%) scale(1.1)}}
 `;
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -93,6 +101,27 @@ type Mode = 'side' | 'bottom' | 'overlay';
 
 let backShown: () => boolean = () => true;
 
+/** Is the on-screen pad up (a phone / tablet, or ?touch)? */
+let touchShown = false;
+export function touchControlsOn(): boolean {
+  return touchShown;
+}
+
+let hintEl: HTMLDivElement | null = null;
+let hintBtn: HTMLDivElement | null = null;
+/**
+ * A word on the けってい button (the battle's 「長押し」→「はなす！」): the
+ * button gets a gold ring and a tag beside it says what to do with it.
+ * `null` takes it away. `go` = the moment to press / let go (gold, quick).
+ */
+export function setButtonHint(text: string | null, go = false): void {
+  if (!hintEl || !hintBtn) return;
+  hintEl.classList.toggle('on', !!text);
+  hintEl.classList.toggle('go', !!text && go);
+  hintBtn.classList.toggle('hint', !!text);
+  if (text && hintEl.textContent !== text) hintEl.textContent = text;
+}
+
 /**
  * Tell the controls when 「もどる」 has something to do. While Minato just
  * walks around it would only open the menu, the same as 「メニュー」, so it
@@ -110,6 +139,8 @@ export function installTouch(input: Input, screen?: Screen): void {
   const pad = div('tc-pad', root);
   pad.appendChild(buildDpad());
   const btnA = div('tc-btn tc-a', root, 'けってい');
+  hintEl = div('tc-hint', btnA);
+  hintBtn = btnA;
   const btnB = div('tc-btn tc-b', root, 'もどる');
   const btnD = div('tc-btn tc-d', root);
   div('lamp', btnD);
@@ -221,13 +252,25 @@ export function installTouch(input: Input, screen?: Screen): void {
     btnB.classList.toggle('away', away);
   }, 80);
 
-  // Tapping the picture = けってい (advance text, talk).
+  // Tapping the picture = けってい (advance text, talk). Holding it holds
+  // けってい too (the battle's 「長押し！」 works on the picture as well as on
+  // the button); a quick tap still lasts at least 90ms.
   const canvas = document.getElementById('screen');
   canvas?.addEventListener('pointerdown', (e) => {
     if (!active || e.pointerType === 'mouse') return;
     input.setVirtual('confirm', true);
-    const release = () => input.setVirtual('confirm', false);
-    window.setTimeout(release, 90);
+    const id = e.pointerId;
+    const t0 = performance.now();
+    capture(canvas, id);
+    const up = (ev: PointerEvent) => {
+      if (ev.pointerId !== id) return;
+      canvas.removeEventListener('pointerup', up);
+      canvas.removeEventListener('pointercancel', up);
+      const left = Math.max(0, 90 - (performance.now() - t0));
+      window.setTimeout(() => input.setVirtual('confirm', false), left);
+    };
+    canvas.addEventListener('pointerup', up);
+    canvas.addEventListener('pointercancel', up);
   });
 
   // ---- layout -----------------------------------------------------------------
@@ -384,6 +427,7 @@ export function installTouch(input: Input, screen?: Screen): void {
   const activate = () => {
     if (active) return;
     active = true;
+    touchShown = true;
     root.classList.add('on');
     layout();
   };

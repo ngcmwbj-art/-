@@ -253,6 +253,21 @@ const MAP_PLACE: Record<string, string> = {
   map_mall_2f: 'ユウナリ 2F通路',
   map_mall_maigo: 'ユウナリ 迷子センター',
   map_mall_roof: '屋上 ゆうやけひろば',
+  // 北の列の部屋（02 #58）
+  map_shingo: 'しんごの家',
+  map_shodo: 'ふでの書道教室',
+  map_tofu: '豆腐 くま吉',
+  map_clock: '時計店 チクタク堂',
+  map_cafe: '喫茶 夕顔',
+  map_sake: '山吹酒店',
+  // 南の列の部屋と公園のトイレ（02 #59）
+  map_chizu: 'ちずの家',
+  map_madam: 'なんばるわんの家',
+  map_photo: '夕鳴写真館',
+  map_sk_storage: '夕鳴銀座 商店会の倉庫',
+  map_sk_rest: 'ひと休み処',
+  map_sk_bait: 'つりえさ屋（閉店）',
+  map_park_toilet: '夕鳴公園 トイレ',
 };
 
 /** Town areas (01_index 2.1); the narrowest area containing the tile wins. */

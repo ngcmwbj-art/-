@@ -550,6 +550,90 @@ export function kakimojiSmall(text: string): HTMLCanvasElement {
   return kakimoji(text, false, 3, 1);
 }
 
+// ---- 操作の言葉 (長押し！ / はなす！ / いま！ / ツッコめ！) ----------------------------
+
+/**
+ * The words that say what to press, beside the gauge, the ring or the "!":
+ * DotGothic16 ×`scale`, level (no jitter — it is an instruction, not the
+ * inner voice), a solid `fill` with a 1px `light` top row, a 2px `edge`, a
+ * 1px ink outline and a 2px drop shadow. 'hold' = vermilion on white (the
+ * ink of the hanko: keep pressing), 'go' = gold on ink (now!), 'off' = grey.
+ */
+export type CueTone = 'hold' | 'go' | 'off';
+const CUE_PAL: Record<CueTone, [fill: string, light: string, edge: string]> = {
+  hold: [SHU, SHU_L, WHITE],
+  go: ['#FFD23F', '#FFF6D8', INK],
+  off: ['#C8C2B4', '#E8E2D4', '#6A6480'],
+};
+
+export function cueLettering(text: string, tone: CueTone, scale = 2): HTMLCanvasElement {
+  return cached(`cue:${text}:${tone}:${scale}`, () => {
+    const edge = scale >= 2 ? 2 : 1;
+    const pad = edge + 1 + 2;
+    const W = measure(text) * scale + pad * 2;
+    const H = 16 * scale + pad * 2;
+    const g = grid(W, H);
+    let x = 0;
+    for (const ch of text) {
+      const gi = glyphPixels(ch);
+      for (let yy = 0; yy < gi.height; yy++)
+        for (let xx = 0; xx < gi.width; xx++) {
+          if (gi.d[(yy * gi.width + xx) * 4 + 3] < 128) continue;
+          for (let sy = 0; sy < scale; sy++)
+            for (let sx = 0; sx < scale; sx++) {
+              const px = pad + (x + xx) * scale + sx;
+              const py = pad + yy * scale + sy;
+              if (px < W && py < H) g.d[py * W + px] = 1;
+            }
+        }
+      x += charWidth(ch);
+    }
+    // grow a ring of `to` around everything already drawn (8-neighbour)
+    const grow = (to: number, times: number) => {
+      for (let t = 0; t < times; t++) {
+        const src = g.d.slice();
+        for (let y = 0; y < H; y++)
+          for (let xx = 0; xx < W; xx++) {
+            const i = y * W + xx;
+            if (src[i]) continue;
+            let hit = false;
+            for (let oy = -1; oy <= 1 && !hit; oy++)
+              for (let ox = -1; ox <= 1; ox++) {
+                const X = xx + ox;
+                const Y = y + oy;
+                if ((ox || oy) && X >= 0 && Y >= 0 && X < W && Y < H && src[Y * W + X] && src[Y * W + X] !== 4) {
+                  hit = true;
+                  break;
+                }
+              }
+            if (hit) g.d[i] = to;
+          }
+      }
+    };
+    grow(2, edge);
+    grow(3, 1);
+    // drop shadow (+2,+2) under the whole silhouette
+    const sil = g.d.slice();
+    for (let y = H - 1; y >= 0; y--)
+      for (let xx = W - 1; xx >= 0; xx--) {
+        const i = y * W + xx;
+        if (sil[i]) continue;
+        const sx = xx - 2;
+        const sy = y - 2;
+        if (sx >= 0 && sy >= 0 && sil[sy * W + sx]) g.d[i] = 4;
+      }
+    // the top pixel row of each fill run catches the light
+    const src = g.d.slice();
+    for (let y = 1; y < H; y++)
+      for (let xx = 0; xx < W; xx++) {
+        const i = y * W + xx;
+        if (src[i] === 1 && src[i - W] !== 1) g.d[i] = 5;
+      }
+    const [fill, light, edgeC] = CUE_PAL[tone];
+    return toCanvas(g, [fill, edgeC, INK, '#5B4A7A', light]);
+  });
+}
+
 // ---- the final seal ------------------------------------------------------------
 
 /**

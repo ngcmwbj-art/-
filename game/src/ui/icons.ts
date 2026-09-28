@@ -409,6 +409,76 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// 02 #58: the north row's finds and しんご's たんかん — a summer mikan with its
+// leaf, a frozen mikan in its red net (frost on the skin), a red ink stick
+// worn to a stub, and the bumpy frozen たんかん (frost, a sprig of leaves)
+Object.assign(ITEM_ROWS, {
+  item_house_mikan: [
+    '.....mM...',
+    '....mMm...',
+    '...stsss..',
+    '..sttssss.',
+    '.sttsssssS',
+    '.stssssssS',
+    '.sssssssSS',
+    '.ssssssSS.',
+    '..sSSSSS..',
+    '...SSSS...',
+  ],
+  item_reitou_mikan: [
+    '....rr....',
+    '...r..r...',
+    '..sWrrsW..',
+    '.sCsrsCss.',
+    '.rWssrWsr.',
+    '.sr.sWrsS.',
+    '.sCrsCrsS.',
+    '..rssrsS..',
+    '...SrSS...',
+    '....rr....',
+  ],
+  item_shuzumi: [
+    '..........',
+    '.......rR.',
+    '......rlrR',
+    '.....rlOR.',
+    '....rlrR..',
+    '...rlOR...',
+    '..rlrR....',
+    '.rlrR.....',
+    '.RRR......',
+    '..........',
+  ],
+  item_tankan: [
+    '...MmmM...',
+    '.....M....',
+    '..sCsss...',
+    '.sCtsssS..',
+    'sCtsssssS.',
+    'stsCsssSS.',
+    'sssssssSS.',
+    '.sssCsSS..',
+    '..SSSSS...',
+    '..........',
+  ],
+});
+
+// 千歳あめ（02 #59、写真館の七五三コーナー）: the long red-and-white stick going into its paper bag (cranes in gold)
+Object.assign(ITEM_ROWS, {
+  item_chitose_ame: [
+    '.........W',
+    '........Wr',
+    '.......rW.',
+    '......Wr..',
+    '.aaaaar...',
+    '.aHaWaa...',
+    '.aaoaae...',
+    '.aoooae...',
+    '.aaoaae...',
+    '..eeeee...',
+  ],
+});
+
 /** トマト（おまけ）: after chapter 2, one tomato left in the bag (13.3). */
 const OMAKE_ROWS = ['.dW...Wd..', '.W.d.W.d..', '.WwwwwwwdG', 'Wwwwwwwwwd', 'WwwwwwwwWd', 'wwwwXXwwwd', 'wwwXELXwwd', 'wwwXLLXwwd', '.wwwXXwwd.', '..dddddd..'];
 

@@ -15,14 +15,15 @@ import * as audio from '../audio';
 import type { BattleOpts, BattleResult } from './api';
 import { getEnemy } from '../data/battle';
 import { makeBackground, type Background } from './bg';
-import { EnemyUnit, PartyUnit, type BossPart } from './model';
+import { EnemyUnit, PartyUnit, type BossPart, type LessonGate } from './model';
 import { DamageNumber, type NumOpts, type NumRect } from './fx/numbers';
 import { MessageBand, type BandPageOpts } from './ui/message';
 import { emptySlotCanvas } from './ui/panels';
 import {
-  CARD_H, CARD_Y, drawActing, drawChimeSticky, drawCommand, drawInfoCard, drawKire, drawList, drawPanel, KIRE_TAB, PANEL_POS, TAG, type CardData, type CmdView, type ListRow,
+  CARD_H, CARD_Y, drawActing, drawChimeSticky, drawCommand, drawInfoCard, drawKire, drawList, drawPanel, KIRE_TAB, PANEL_POS, panelOffset, TAG, type CardData, type CmdView, type ListRow,
 } from './ui/panels';
 import { C, cursorStamp, cursorStampSide, drawBar, slantTape, STICKY_PAD, stickyCanvas, tapeCanvas } from './ui/note';
+import { Cues } from './ui/cue';
 import { inkLabel, ovalStamp, pekeMark, petalSprites } from './art/stamps';
 import { hitCrack, hitSplash, sweatDrop } from './art/fxart';
 import { boarIcon, moyamoya } from './art/fxart_ch2';
@@ -137,6 +138,10 @@ export class BattleScene implements Scene {
   card: { data: CardData; t: number; closing: boolean } | null = null;
   /** Tutorial sticky; `ttl` (ms) peels it off by itself. */
   sticky: { text: string; t: number; pulse?: boolean; ttl?: number; pos?: 'left' | 'right' } | null = null;
+  /** 操作の言葉 (長押し！ / はなす！ / いま！ / ツッコめ！) beside the thing to press. */
+  cues = new Cues();
+  /** 練習の戦闘 (the park, evt_kn_lesson): what the lesson allows right now (lesson.ts). */
+  lesson: LessonGate | null = null;
   cursorPressed = 0;
   /** Directional screen shake. */
   private shk = { ax: 0, ay: 0, t: 0, dur: 0, x: 0, y: 0, n: 0 };
@@ -167,7 +172,7 @@ export class BattleScene implements Scene {
   /** Members knocked to 0 by the action playing out (〔へばった〕 is said once it ends). */
   fallen: PartyUnit[] = [];
   /** QA: automatic inputs (tsukkomi / ring / hold). */
-  auto: { tsuk?: string; ring?: string; hold?: 'kukkiri' | 'futsuu' | 'kasure'; crit?: boolean } = {};
+  auto: { tsuk?: string; ring?: string; hold?: 'kukkiri' | 'futsuu' | 'kasure'; crit?: boolean; flips?: boolean } = {};
   /** QA: queued party commands for the next input phase. */
   cmdQueue: { who: string; cmd: string; skill?: string; item?: string; target?: number | string; part?: string }[] = [];
   /** QA: forced enemy actions (in order). */
@@ -341,6 +346,7 @@ export class BattleScene implements Scene {
       this.sticky.t += dt;
       if (this.sticky.ttl && this.sticky.t > this.sticky.ttl + 200) this.sticky = null;
     }
+    this.cues.update(dt);
   }
 
   /** Blocking message pages may be skipped with confirm. */
@@ -1245,6 +1251,7 @@ export class BattleScene implements Scene {
     if (this.showUi) this.drawUi(g);
     for (const f of this.fx) if (f.layer === 'top') f.draw(g, f.t, f.dur ? Math.min(1, f.t / f.dur) : 0);
     if (this.showUi) this.drawSticky(g);
+    if (this.showUi) this.cues.draw(g, this.rt);
     // debris, stars, sweat and petals fly over the stage and the panels but
     // pass behind the band (its lines stay whole) and under the numbers —
     // the number is the reward of the hit and is never cut (QA round 2)
@@ -1582,6 +1589,11 @@ export class BattleScene implements Scene {
     if (this.cmd) drawCommand(g, { ...this.cmd, pressed: this.cursorPressed > 0 }, this.rt, a);
     else if (this.party.length) this.drawIdleCommandBox(g, a);
     for (const u of this.party) drawPanel(g, u, { t: this.t, kanenariJoined: this.kanenariJoined, alpha: a });
+    // whose turn it is: while a member chooses, a small vermilion arrow bobs
+    // over their name tag (the lifted, vermilion-edged panel alone was easy to miss)
+    if ((this.cmd || this.list || this.target) && this.party.length > 1) {
+      for (const u of this.party) if (u.acting && u.alive) this.drawTurnArrow(g, u, a);
+    }
     // チョトツ glares at X while it charges: a small boar head over X's name tag
     for (const e of this.enemies) {
       if (!e.alive || !e.status.stareAt) continue;
@@ -1683,6 +1695,8 @@ export class BattleScene implements Scene {
     }
     // the top of the hanko close-up's ink ring (its くっきり zone) rises there
     boxes.push({ x0: 14, y0: 108, x1: 92, y1: 150 });
+    // and off the words that say what to press (ツッコめ！ over the "!")
+    for (const r of this.cues.rects()) boxes.push({ x0: r.x0 - 2, y0: r.y0 - 2, x1: r.x1 + 2, y1: r.y1 + 2 });
     const variants = [text];
     for (const mw of [150, 120, 96]) {
       const v = wrapPhrases(text, mw);
@@ -1775,6 +1789,26 @@ export class BattleScene implements Scene {
     // while not choosing: the notebook shows the move being played out
     const v = this.acting;
     drawActing(g, v ? { icon: v.icon, name: v.name, enemy: v.enemy, rest: v.rest, t: this.rt - v.t0 } : null, this.rt, a);
+  }
+
+  private drawTurnArrow(g: Gfx, u: PartyUnit, a: number): void {
+    const tag = TAG[u.id];
+    if (!tag) return;
+    const { dx, dy } = panelOffset(u);
+    const cx = tag[0] + Math.round(tag[2] / 2) + dx;
+    const y = tag[1] - 9 + dy + (Math.floor(this.rt / 220) % 2 === 0 ? 0 : -2);
+    g.alpha(a, () => {
+      // 9×6 down-pointing arrow: ink outline, vermilion face, a lighter top row
+      for (let r = 0; r < 6; r++) {
+        const half = 5 - r;
+        g.rect(cx - half - 1, y + r, half * 2 + 3, 1, C.ink);
+      }
+      g.rect(cx, y + 6, 1, 1, C.ink);
+      for (let r = 1; r < 5; r++) {
+        const half = 4 - r;
+        g.rect(cx - half, y + r, half * 2 + 1, 1, r === 1 ? C.shuLight : C.shu);
+      }
+    });
   }
 
   private drawEmptySlot(g: Gfx, a: number): void {

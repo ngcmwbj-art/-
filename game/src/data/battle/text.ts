@@ -190,6 +190,8 @@ export const ITEM_TEXT: Record<string, { self: string[]; kanenari?: string[]; ex
   },
   item_yakiimo: { self: ['$actorは 焼き芋を 食べた。\nほくほく。'], kanenari: ['新聞紙だけ、ファスナーから\n出てきた。'] },
   item_kairan_shuniku: { self: ['しゅんは ハンコに 回覧板の\n朱肉を つけた。'], kanenari: ['カネナリくんは、回覧板に\n判を 押す 係では ない。'] },
+  // 02 #59 南の列（写真館）
+  item_chitose_ame: { self: ['$actorは 千歳あめを なめた。\n……なかなか 減らない。'], kanenari: ['千歳あめは、ファスナーの 中へ\n少しずつ 消えていった。'] },
 };
 
 /** Field hanko texts (11). */

@@ -94,6 +94,8 @@ export function hurtParty(s: BattleScene, u: PartyUnit, dmg: number, o: PartyHit
   dmg = Math.max(0, Math.round(dmg));
   const before = u.m.hp;
   u.m.hp = Math.max(0, u.m.hp - dmg);
+  // the park's lesson: nobody is knocked down (lesson.ts gives the HP back after)
+  if (s.lesson) u.m.hp = Math.max(1, u.m.hp);
   u.trailWait = 400;
   u.hpTrail = Math.max(u.hpTrail, before);
   if (!o.silent && dmg > 0) {
@@ -351,6 +353,8 @@ export function hurtEnemy(s: BattleScene, e: EnemyUnit, dmg: number, o: EnemyHit
   e.hp = Math.max(0, e.hp - Math.max(0, Math.round(dmg)));
   // boss HP floor before the final phase (13.7)
   if (e.def.boss && !s.memo.bossFinal && e.hp < 1) e.hp = 1;
+  // the lesson's 練習台 always stands up again
+  if (s.lesson && e.hp < 1) e.hp = 1;
   e.trailWait = 400;
   e.hpTrail = Math.max(e.hpTrail, before);
   if (!o.noNumber) {

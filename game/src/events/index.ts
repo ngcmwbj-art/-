@@ -9,6 +9,8 @@ import './chime';
 import './npcs';
 import './town';
 import './tsugao_ch1';
+// 北の列の部屋としんごのたんかん（02 #58）
+import './rooms_north';
 import './park';
 import './parking';
 import './mall';

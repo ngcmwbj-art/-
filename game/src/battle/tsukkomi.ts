@@ -12,6 +12,7 @@ import { bangBubble, flipBoardText } from './art/fxart';
 import { PANEL_POS } from './ui/panels';
 import { LABEL, TUT } from '../data/battle';
 import { C } from './ui/note';
+import { cueSize } from './ui/cue';
 
 /** Top of the inner-voice lettering canvas (text ≈ y59–91). */
 export const KAKI_TOP = 54;
@@ -113,6 +114,31 @@ export function showBang(s: BattleScene, targets: PartyUnit[], until: () => bool
     });
   }
 }
+
+/**
+ * 「ツッコめ！」 over the "!" (2026-09-28, the client: the same words as the
+ * hanko gauge's 長押し！). One word, centred over the bubble — over both
+ * bubbles' middle for a move on the whole party. hitLoop drops it on the
+ * answer (gold), on a かぶせ or a miss (grey).
+ */
+export function tsukCue(s: BattleScene, targets: PartyUnit[]): void {
+  if (!targets.length) return;
+  const text = 'ツッコめ！';
+  const scale = TSUK_CUE_SCALE;
+  const { w, h } = cueSize(text, scale);
+  const xs = targets.map((u) => bangPos(u)[0] + 8);
+  const cx = xs.reduce((a, b) => a + b, 0) / xs.length;
+  const by = Math.min(...targets.map((u) => bangPos(u)[1]));
+  s.cues.set('tsuk', text, {
+    x: Math.round(Math.max(4 + w / 2, Math.min(380 - w / 2, cx))),
+    y: by - 3 - h,
+    align: 'center',
+    tone: 'go',
+    mode: 'flash',
+    scale,
+  });
+}
+const TSUK_CUE_SCALE = 2;
 
 /** Frames before the hit at which the closing ring appears around the "!" spot. */
 export const RING_LEAD = 30;

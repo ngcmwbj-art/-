@@ -25,6 +25,8 @@ export function oneLine(text: string, subject: string): string {
 
 /** 〔様子〕 for the command phase (15.3): per enemy, per round, with specials. */
 export function yousuText(s: BattleScene): string {
+  // the park's lesson: the band keeps what to do now
+  if (s.lesson?.hint) return s.lesson.hint;
   const e = s.aliveEnemies.find((x) => x.def.boss) ?? s.aliveEnemies[0];
   if (!e) return '';
   const t = e.def.texts;

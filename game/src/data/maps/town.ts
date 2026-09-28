@@ -137,6 +137,14 @@ const OBJECTS: MapObj[] = [
   { t: 'door', id: 'door_town_hinoya', x: 32, y: 21, to: 'map_hinoya', tx: 4, ty: 6, dir: 'up', se: ['se_door', 'se_shop_bell'] },
   { t: 'door', id: 'door_town_laundry', x: 26, y: 31, to: 'map_laundry', tx: 3, ty: 5, dir: 'up', se: 'se_door_glass' },
   { t: 'door', id: 'door_town_koban', x: 51, y: 31, to: 'map_koban', tx: 4, ty: 5, dir: 'up', se: 'se_door_glass' },
+  // 南の列の部屋と公園のトイレ（02 #59、interior_south.ts）
+  { t: 'door', id: 'door_town_chizu', x: 11, y: 30, to: 'map_chizu', tx: 8, ty: 5, dir: 'up', se: 'se_door' },
+  { t: 'door', id: 'door_town_madam', x: 22, y: 30, to: 'map_madam', tx: 6, ty: 5, dir: 'up', se: 'se_door' },
+  { t: 'door', id: 'door_town_photo', x: 33, y: 31, w: 2, to: 'map_photo', tx: 6, ty: 5, dir: 'up', se: ['se_door_glass', 'se_shop_bell'] },
+  { t: 'door', id: 'door_town_sk_storage', x: 38, y: 31, to: 'map_sk_storage', tx: 4, ty: 5, dir: 'up', se: 'se_door' },
+  { t: 'door', id: 'door_town_sk_rest', x: 42, y: 31, to: 'map_sk_rest', tx: 6, ty: 5, dir: 'up', se: 'se_door_glass' },
+  { t: 'door', id: 'door_town_sk_bait', x: 46, y: 31, to: 'map_sk_bait', tx: 1, ty: 5, dir: 'up', se: 'se_door' },
+  { t: 'door', id: 'door_town_toilet', x: 1, y: 3, to: 'map_park_toilet', tx: 2, ty: 4, dir: 'up' },
   { t: 'door', id: 'door_town_mall', x: 50, y: 5, to: 'map_mall_hall', tx: 10, ty: 13, dir: 'up', se: 'se_auto_door', cond: { flag: 'flag_ojigi_beaten' } },
 
   // ======================================================== A ひぐらし坂

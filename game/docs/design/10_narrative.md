@@ -282,6 +282,7 @@
 | `enemy_soujirou` | ソウジロウ | 1体必須、1体任意 |
 | `enemy_momisugi` | モミスギ | 任意 |
 | `enemy_kanenari` | カネナリくん | 加入イベント戦（ダメージを受けない特殊敵） |
+| `enemy_renshudai` | 練習台 | 公園の練習の戦闘（5.12b、20 10.6）。カネナリくんのダンボールの練習台。図鑑に入れない |
 | `boss_omukaemachi` | オムカエマチ | ボス |
 | `boss_omukaemachi_cap` / `_umbrella` / `_bottle` / `_shoe` | 通学帽／傘／水筒／上履き | ボスの部位 |
 
@@ -368,6 +369,7 @@
 | `flag_park_hint` | area_ginza | evt_obaa_park_hint | 以後おばあは店内に戻る |
 | `flag_met_kanenari` | area_park | evt_kanenari_meet | 戦闘開始 |
 | `flag_kanenari_joined` | area_park | evt_kanenari_join | 仲間、はなまる |
+| `flag_kn_lesson` | area_park | evt_kn_lesson（練習の戦闘を終えた／「知ってる」で飛ばした） | 練習の戦闘は1回だけ |
 | `flag_broadcast` | area_park | evt_maigo_broadcast | stage=2。影が北東を向く |
 | `flag_parking_open` | area_parking | evt_maigo_broadcast | 駐車場のチェーンが外れる |
 | `flag_ojigi_beaten` | area_parking | evt_ojigi 勝利 | 自動ドアが通れる、八月のおでん缶 |
@@ -446,7 +448,8 @@
 | `evt_alley_open` | area_alley | 段階1で路地に入る（1回） | コーンがいない |
 | `evt_kanenari_meet` | area_park | カネナリくんに話しかける | 加入戦へ |
 | `evt_kanenari_join` | area_park | 加入戦の勝利 | 仲間、はなまる |
-| `evt_maigo_broadcast` ★ | area_park | evt_kanenari_join の直後 | 段階2へ |
+| `evt_kn_lesson` | area_park | evt_kanenari_join の最後（隊列に入ったあと） | 練習の戦闘（5.12b）。1回だけ |
+| `evt_maigo_broadcast` ★ | area_park | evt_kn_lesson の直後 | 段階2へ |
 | `evt_ojigi` | area_parking | モール入口に近づく | 中ボス |
 | `evt_mall_enter` | map_mall_hall | 初入場 | 閉店して1年 |
 | `evt_kaitenyaki` | map_mall_food | fushigi_12 を押す | 鍵、やりなおし |
@@ -502,6 +505,7 @@
   ▼ area_park
 [evt_kanenari_meet] → 戦闘 enemy_kanenari ─ flag_met_kanenari
 [evt_kanenari_join] ───────────────────────── flag_kanenari_joined（はなまる）
+[evt_kn_lesson] → 練習の戦闘 enemy_renshudai ─ flag_kn_lesson
 [evt_maigo_broadcast] ★ ──────────────────── flag_broadcast、stage=2、flag_parking_open
   │  任意：セミファイナル、コーン・ボーカル、ワスレガサ／ふしぎ／段階2の台詞
   ▼ area_parking
@@ -899,7 +903,119 @@ PR大使、ふっかつします
 /
 {c=#E23B2E}はなまる{/c}が 使えるように なった！
 > flag_kanenari_joined = 1。カネナリくんが隊列に入る。
-> そのまま evt_maigo_broadcast へ（間 1.0秒）。
+> そのまま evt_kn_lesson（5.12b）→ evt_maigo_broadcast へ（間 1.0秒）。
+```
+
+### 5.12b evt_kn_lesson（練習の戦闘：カネナリくんの 戦いかた講座）★2026-09-28 追加（依頼主の指示）
+
+依頼主「最初の公園で初戦は強制的に戦い方をカネナリに説明を受けながらやる方がいいかも」。加入の直後に1回だけ、強制。戦闘の決まりは 20 10.6。文の実装は `src/data/battle/text_lesson.ts`。フリップは1ページずつ決定で進む（戦闘の中では絵の上端に掲げる板。帯はその間しまう）。
+
+```msg
+> カネナリくんが隊列に入ったあと。しゅんがカネナリくんの方を向き、カネナリくんがフリップを掲げる（se_flip）。
+> [はじめて]（この端末で第1章をクリアしたことがない）選択肢なし
+@flip
+PR大使の 戦いかた 講座を
+ひらきます！
+/
+@flip
+練習台を 用意しました。
+（ダンボール です）
+> [2回目の通し]（chapter1Cleared()）
+@flip
+PR大使の 戦いかた 講座を
+ひらきます！
+? 教わる | 知ってる
+[教わる]
+@flip
+練習台を 用意しました。
+（ダンボール です）
+[知ってる]
+@flip
+さすが です。
+（ちょっと さみしい）
+> 戦闘なしで flag_kn_lesson = 1、evt_maigo_broadcast へ。
+> 共通：flag_kn_lesson = 1。startBattle({ enemies: ['enemy_renshudai'], background: 'bg_kanenari', music: 'bgm_battle', canLose: false, lesson: true })
+```
+
+```battle
+> 〔登場〕
+カネナリくんが 練習台を 置いた！
+> 〔フリップ・はじめ〕
+戦いかたを 4つ 教えます。
+（1分で 終わります）
+> 〔フリップ・たたく〕3行
+まずは『たたく』。
+輪が ちぢんで 重なったら
+決定！
+> 〔帯・たたく〕コマンドをえらぶ間
+『たたく』を えらんで 決定！
+> 〔フリップ・たたく・いい音〕
+いい音！
+その 調子 です。
+> 〔フリップ・たたく・早押し〕
+ちょっと はやい！
+輪が 重なるまで 待って。
+> 〔フリップ・たたく・押さない／遅い〕
+おしい！
+輪が 重なった ときに 決定。
+> 〔フリップ・ハンコ〕2ページ
+つぎは『ハンコ』。
+『ペケ』を 押して みましょう。
+/
+決定を 長押しして、
+赤い ところで はなす！
+> （スマホ・タブレットの2ページ目）
+けっていを 長押しして、
+赤い ところで はなす！
+> 〔帯・ハンコ〕
+『ハンコ』→『ペケ』を えらんで 決定！
+> 〔フリップ・ハンコ・くっきり〕
+くっきり！ 大成功 です。
+（朱肉は 使うと へります）
+> 〔フリップ・ハンコ・ふつう／かすれ〕
+おしい！ 赤い ところで
+はなすと くっきり です。
+> 〔フリップ・ツッコミ〕2ページ
+つぎは『ツッコミ』。
+練習台が ボケます。
+/
+『！』が 出たら すぐ 決定！
+ダメージが 半分に なります。
+> 〔skill_renshu_motare〕予告
+練習台が ぐらっと ゆれて、
+しゅんに もたれかかってきた！
+> 〔ツッコミ書き文字〕
+もたれかかるな！
+> 〔フリップ・ツッコミ・成功〕
+ナイス ツッコミ！
+（キレも たまります）
+> 〔フリップ・ツッコミ・かぶせ〕
+はやすぎ！
+『！』が 出てから 決定 です。
+> 〔フリップ・ツッコミ・失敗〕
+おしい！
+『！』が 出たら すぐに 決定。
+> 〔フリップ・ツッコミ・2回目の失敗のあと〕3回目からは「！」で時間を止めて待つ
+こんどは『！』で 止めます。
+（ゆっくり どうぞ）
+> 〔フリップ・みました〕
+さいごは『みました』。
+相手を よく 見る ハンコ です。
+> 〔帯・みました〕
+『ハンコ』→『みました』を
+えらんで 決定！
+> （みましたの判と情報カードのあと）〔フリップ・みました・効果〕2ページ
+HPや 弱点が 見えて、
+まもりも 下がります。
+/
+こまったら『みました』。
+（見て もらえると うれしい）
+> 〔フリップ・おわり〕練習台がハッピーの顔で揺れる
+ごうかく です！
+（練習台も よろこんでいます）
+> 〔帯・おわり〕
+練習は おしまい！
+> 通常の戻りの切り替え。フィールドに戻ると、間 0.45秒で evt_maigo_broadcast へ。
 ```
 
 ### 5.13 evt_maigo_broadcast ★（迷子のお知らせ／段階2へ）

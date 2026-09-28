@@ -16,6 +16,11 @@ export interface BattleOpts {
   background?: string;
   /** If true, losing does not trigger game over (scripted fights). */
   canLose?: boolean;
+  /**
+   * The park's lesson (evt_kn_lesson): Kanenari-kun teaches たたく → ハンコ →
+   * ツッコミ → みました on the 練習台 (battle/lesson.ts). Always 'win'.
+   */
+  lesson?: boolean;
 }
 
 export type BattleResult = 'win' | 'lose' | 'flee';

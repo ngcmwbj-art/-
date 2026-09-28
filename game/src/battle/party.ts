@@ -27,6 +27,7 @@ import { hanamaruFrame, kakimoji, kakimojiSmall, ovalStamp, pekeMark, roundSeal,
 import { itemIcon, kireIcon } from './art/icons';
 import { infoCardWidth, kireIconXY, PANEL_POS, panelOffset, type CardData } from './ui/panels';
 import { C, tapeCanvas } from './ui/note';
+import { cueSize } from './ui/cue';
 import { FLAG_PAD, kanenariBack, kanenariFront, MIC_AT } from '../art/enemies/kanenari';
 import { portrait } from '../art/chars';
 import { bokemakeLabel, timingSlow, tsukkomiWindows } from './tsukkomi';
@@ -117,10 +118,9 @@ export function* ringStrike(s: BattleScene, cx: () => number, cy: () => number, 
       st.alpha = Math.min(1, (ff - lead + 1) / 4);
       st.r = f >= hitF ? 10 : 44 - 34 * Math.min(1, (ff - lead) / shrink);
     }
-    if (fresh && tut && f === hitF - 4) {
-      s.sticky = { text: '', t: 0 };
-      showStickyRing(s);
-    }
+    // 「いま！」 beside the ring: it pops in vermilion as the ring closes and
+    // turns gold for the いい音 window (it replaced the first ring's sticky)
+    if (q === 'none' && f >= lead && hitF - f <= RING_CUE_F) ringCue(s, cx(), cy(), f >= hitF - win);
     let pressed = s.takeConfirm();
     if (s.auto.ring === 'good' && f === hitF) pressed = true;
     if (s.auto.ring === 'early' && f === lead + 2) pressed = true;
@@ -128,6 +128,7 @@ export function* ringStrike(s: BattleScene, cx: () => number, cy: () => number, 
       if (f < hitF - win) {
         q = 'early';
         st.gray = true;
+        s.cues.drop('ring', 'off');
       } else if (f <= hitF + win) {
         q = 'good';
         st.good = true;
@@ -137,6 +138,7 @@ export function* ringStrike(s: BattleScene, cx: () => number, cy: () => number, 
     if (f >= hitF && (q !== 'none' || f >= hitF + win)) {
       resolvedAt = f;
       st.done = true;
+      s.cues.drop('ring', q === 'good' ? 'go' : 'off');
       break;
     }
     yield null;
@@ -151,12 +153,26 @@ export function* ringStrike(s: BattleScene, cx: () => number, cy: () => number, 
     st.alpha = Math.max(0, 1 - this.t / 220);
     if (this.t >= 219) ring.done = true;
   } });
-  if (tut) hideSticky(s);
+  void tut;
+  if (s.lesson) s.lesson.ring = q;
   return { q, frame: resolvedAt };
 }
 
-function showStickyRing(s: BattleScene): void {
-  s.sticky = { text: 'いま！', t: 0, pulse: true };
+/** Frames before the hit at which 「いま！」 comes up beside the ring. */
+const RING_CUE_F = 12;
+
+function ringCue(s: BattleScene, x: number, y: number, now: boolean): void {
+  const text = 'いま！';
+  const { w, h } = cueSize(text);
+  // right of the ring, or left of it near the right edge
+  const right = x + 30 + w <= 380;
+  s.cues.set('ring', text, {
+    x: right ? x + 30 : x - 30,
+    y: Math.round(Math.max(STAGE_TOP, Math.min(140 - h, y - h / 2))),
+    align: right ? 'left' : 'right',
+    tone: now ? 'go' : 'hold',
+    mode: now ? 'flash' : 'still',
+  });
 }
 
 // ---- hit feel on enemies ------------------------------------------------------------
@@ -370,8 +386,9 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
   }
   const two = !tackle && u.m.level >= 4;
   s.post(tackle ? SYS.tackle : two ? SYS.tataku2 : SYS.tataku);
-  const tut = !tackle && !flag('flag_tut_ring');
-  if (tut) setFlag('flag_tut_ring', 1);
+  // the first ring (and every ring of the park's lesson) closes at half speed
+  const tut = (!tackle && !flag('flag_tut_ring')) || !!s.lesson?.slow;
+  if (!tackle) setFlag('flag_tut_ring', 1);
   const shrink1 = tut ? 58 : 29;
   const net = { x: 0, y: 0, a: 0, alpha: 0, ghost: -1, visible: true, mesh: 1, swing: 0 };
   const back = { x: 300, y: 200, sc: 1, frame: 'idle' as string, visible: tackle, alpha: 1 };
@@ -600,12 +617,11 @@ export function* killSequence(s: BattleScene, list: EnemyUnit[]): Co {
 
 /** The close-up stamp + ink ring; returns the judgement on release. */
 export function* holdStamp(s: BattleScene, u: PartyUnit, forceKasure = false): Co<Judge> {
+  // the first hanko fills slower (10.2); what to do is said by the words
+  // beside the gauge (長押し！ → はなす！), so it no longer has a sticky
   const tut = !flag('flag_tut_hanko');
-  if (tut) {
-    setFlag('flag_tut_hanko', 1);
-    showSticky(s, 'hanko');
-  }
-  const speed = (tut ? 0.7 : 1) / timingSlow();
+  if (tut) setFlag('flag_tut_hanko', 1);
+  const speed = (tut || s.lesson?.slow ? 0.7 : 1) / timingSlow();
   const kLo = u.m.level >= 5 ? 0.84 : 0.88;
   const st = { rise: 0, amount: 0, charging: false, lift: 0, drop: 0, inZone: false, shake: 0, visible: true };
   s.sfx('se_hanko_ready');
@@ -621,12 +637,12 @@ export function* holdStamp(s: BattleScene, u: PartyUnit, forceKasure = false): C
     s.uiAlpha = 1 - 0.4 * (i / 9);
     yield null;
   }
-  // wait for a fresh press
+  // wait for a fresh press: 「長押し！」 over the gauge (and on the button)
+  holdCue(s, 'wait');
   s.takeConfirm();
   const autoHold = s.auto.hold;
   if (!autoHold) while (!s.takeConfirm()) yield null;
   else yield 200;
-  if (tut) hideSticky(s);
   st.charging = true;
   let held = 0;
   let judge: Judge = 'kasure';
@@ -643,6 +659,7 @@ export function* holdStamp(s: BattleScene, u: PartyUnit, forceKasure = false): C
     hum.set('zone', st.inZone ? 1 : 0);
     if (st.inZone && !wasZone) s.sfx('se_hanko_zone');
     wasZone = st.inZone;
+    holdCue(s, st.inZone ? 'zone' : 'hold');
     let released = !s.confirmDown();
     if (autoHold) {
       const goal = autoHold === 'kukkiri' ? 0.95 : autoHold === 'futsuu' ? 0.62 : 0.2;
@@ -656,7 +673,9 @@ export function* holdStamp(s: BattleScene, u: PartyUnit, forceKasure = false): C
     yield null;
   }
   hum.stop(0.02);
+  s.cues.drop('hold', judge === 'kukkiri' ? 'go' : 'off');
   if (forceKasure) judge = 'kasure';
+  if (s.lesson) s.lesson.judge = judge;
   st.charging = false;
   // handle lifts 6px (40ms), then the close-up drops away (100ms)
   for (let i = 0; i <= 2; i++) {
@@ -727,6 +746,25 @@ function drawHankoCloseup(g: Gfx, st: { rise: number; amount: number; charging: 
 
 /** Centre x of the hanko close-up and its ink ring. */
 const HANKO_CX = 52;
+
+/**
+ * The word over the ink gauge (2026-09-28, the client): 「長押し！」 before the
+ * press and while holding, 「はなす！」 (gold, quick) while the ink is in the
+ * くっきり zone. On a phone the けってい button says the same.
+ */
+function holdCue(s: BattleScene, phase: 'wait' | 'hold' | 'zone'): void {
+  const text = phase === 'zone' ? 'はなす！' : '長押し！';
+  const { h } = cueSize(text);
+  // just above the ring (centre y146, r36), from the left edge of the screen
+  s.cues.set('hold', text, {
+    x: 4,
+    y: 146 - 38 - h,
+    align: 'left',
+    tone: phase === 'zone' ? 'go' : 'hold',
+    mode: phase === 'wait' ? 'beat' : phase === 'zone' ? 'flash' : 'still',
+    button: phase === 'zone' ? 'はなす！' : '長押し',
+  });
+}
 
 // ---- hanko actions ---------------------------------------------------------------------
 

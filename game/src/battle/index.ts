@@ -13,6 +13,7 @@ import {
 import { setBattleImpl, startBattle, type BattleOpts, type BattleResult } from './api';
 import { BattleScene } from './scene';
 import { battleFlow, getGameOverHook, setGameOverHook, type GameOverHook } from './flow';
+import { lessonFlow } from './lesson';
 import { runGameOver } from './gameover';
 import { restoreForRetry } from './results';
 import { hasSave } from '../game/state';
@@ -31,6 +32,9 @@ export type { GameOverHook };
 
 let current: BattleScene | null = null;
 
+/** The park's lesson (evt_kn_lesson, 20 10.6): what the event starts. */
+export const LESSON_BATTLE: BattleOpts = { enemies: ['enemy_renshudai'], music: 'bgm_battle', background: 'bg_kanenari', canLose: false, lesson: true };
+
 /** The running battle (QA / other modules). */
 export function currentBattle(): BattleScene | null {
   return current;
@@ -42,7 +46,7 @@ function* battleImpl(o: BattleOpts): Co<BattleResult> {
   game.push(scene);
   scene.run(
     (function* () {
-      scene.result = yield* battleFlow(scene);
+      scene.result = yield* (o.lesson ? lessonFlow(scene) : battleFlow(scene));
       scene.finished = true;
     })(),
   );
@@ -276,6 +280,16 @@ registerDebug('battle', (enemies: string[] = ['enemy_hato_kakaricho'], o: Partia
   );
   return 'started';
 });
+/** The park's lesson battle (evt_kn_lesson) on its own: `tut` keeps the first-time flags off. */
+registerDebug('lesson', (lv = 2, tut = false) => {
+  setupParty({ lv, party: 2, tut: tut ? 1 : 0, hanko: 1 });
+  game.scripts.run(
+    (function* () {
+      yield* startBattle(LESSON_BATTLE);
+    })(),
+  );
+  return 'started';
+});
 registerDebug('bsetup', (lv = 3, party = 2) => {
   setupParty({ lv, party });
   return state.party.map((m) => `${m.name} Lv${m.level}`);
@@ -296,6 +310,8 @@ registerDebug('win', (drop = false) => {
     e.visible = false;
   }
   current.memo.kanenariWin = current.enemies.some((e) => e.id === 'enemy_kanenari') ? 1 : 0;
+  // the park's lesson ends at its next step (lesson.ts)
+  current.memo.qaWin = 1;
   return 'ok';
 });
 registerDebug('lose', () => {
@@ -322,8 +338,8 @@ registerDebug('key', (name: string, on = true) => {
   game.input.setVirtual(name as never, !!on);
   return on;
 });
-/** Automatic inputs for deterministic QA: tsuk = just|ok|fail|kabuse, ring = good|early|none, hold = kukkiri|futsuu|kasure, crit = every strike is a 100てん */
-registerDebug('bauto', (o: { tsuk?: string; ring?: string; hold?: Judge; crit?: boolean } | null) => {
+/** Automatic inputs for deterministic QA: tsuk = just|ok|fail|kabuse, ring = good|early|none, hold = kukkiri|futsuu|kasure, crit = every strike is a 100てん, flips = the lesson's flip pages turn by themselves */
+registerDebug('bauto', (o: { tsuk?: string; ring?: string; hold?: Judge; crit?: boolean; flips?: boolean } | null) => {
   if (!current) return 'no battle';
   current.auto = o ?? {};
   return current.auto;

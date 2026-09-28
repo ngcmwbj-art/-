@@ -8,6 +8,8 @@ import './souji';
 import './momi';
 import './kanenari';
 import './boss';
+// 練習台 (the park's lesson, evt_kn_lesson)
+import './renshu';
 // 第2章
 import './sune';
 import './kacho';

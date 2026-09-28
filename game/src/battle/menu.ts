@@ -79,6 +79,9 @@ function commandIcons(s: BattleScene, u: PartyUnit): Icon[] {
   icons.push({ id: 'item', name: 'もちもの', sub: `${usableItems().reduce((a, b) => a + b.count, 0)}こ` });
   icons.push({ id: 'guard', name: 'まもる' });
   icons.push({ id: 'flee', name: 'にげる' });
+  // the park's lesson: only the command being taught works
+  const only = s.lesson?.icon;
+  if (only) for (const ic of icons) if (ic.id !== only) ic.dim = true;
   return icons;
 }
 
@@ -93,7 +96,8 @@ function noriAvailable(s: BattleScene): boolean {
 /** Collect this round's commands. */
 export function* inputCommands(s: BattleScene): Co<PartyCmd[]> {
   if (s.cmdQueue.length) return queuedCommands(s);
-  const actors = s.party.filter((u) => u.canAct && !(s.memo.bossFinal && u.id === 'kanenari'));
+  // (in the park's lesson Kanenari-kun is the teacher: only しゅん chooses)
+  const actors = s.party.filter((u) => u.canAct && !(s.memo.bossFinal && u.id === 'kanenari') && !(s.lesson && u.id !== 'minato'));
   const cmds: PartyCmd[] = [];
   const chosen: (PartyCmd | null)[] = actors.map(() => null);
   let i = 0;
@@ -131,6 +135,7 @@ export function* inputCommands(s: BattleScene): Co<PartyCmd[]> {
     if (cmds.some((c) => c.u === u)) continue;
     if (last.some((c) => c.kind === 'flee')) continue;
     if (s.memo.bossFinal && u.id === 'kanenari') continue;
+    if (s.lesson && u.id !== 'minato') continue;
     const reason = !u.alive
       ? 'status_hebatta'
       : u.has('status_rusu')
@@ -265,6 +270,14 @@ function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: R
     const pi = commandIcons(s, u).findIndex((ic) => ic.id === ch2Pulse);
     if (pi >= 0) index = pi;
   }
+  // the park's lesson: the cursor starts on the command being taught, which pulses
+  const lessonIcon = s.lesson?.icon;
+  if (lessonIcon) {
+    const li = commandIcons(s, u).findIndex((ic) => ic.id === lessonIcon);
+    if (li >= 0) index = li;
+    ch2Pulse = lessonIcon;
+    if (s.lesson?.skill) s.memo.list_hanko = Math.max(0, hankoSkills(u).indexOf(s.lesson.skill));
+  }
   let tabShown = false;
   for (;;) {
     const icons = commandIcons(s, u);
@@ -315,6 +328,11 @@ function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: R
       return { kind: 'nori', u };
     }
     const ic = icons[index];
+    if (lessonIcon && ic.id !== lessonIcon) {
+      // not this one yet: the taught command pulses on
+      s.sfx('se_cancel');
+      continue;
+    }
     const r = yield* runIcon(s, u, ic.id);
     if (r) {
       if (firstTut) {
@@ -372,13 +390,14 @@ interface ListItem {
   pick: () => Co<PartyCmd | null | 'stay'>;
 }
 
-function* runList(s: BattleScene, items: ListItem[], remember: string): Co<PartyCmd | null> {
+function* runList(s: BattleScene, items: ListItem[], remember: string, onIndex?: (i: number) => void): Co<PartyCmd | null> {
   const inp = game.input;
   let index = Math.min(items.length - 1, s.memo['list_' + remember] ?? 0);
   let scroll = 0;
   for (;;) {
     if (index < scroll) scroll = index;
     if (index >= scroll + 4) scroll = index - 3;
+    onIndex?.(index);
     s.list = { rows: items.map((i) => i.row), index, scroll };
     s.msg.setStatic(items[index]?.desc ?? '');
     yield null;
@@ -438,6 +457,9 @@ function* hankoMenu(s: BattleScene, u: PartyUnit): Co<PartyCmd | null> {
     }
     const inkOk = u.m.mp >= cost || (kanenariEvent && sk === 'skill_mimashita') || (sk === 'skill_otsukaresama' && tetsuya);
     let dim = !inkOk;
+    // the park's lesson: only the stamp being taught
+    const notYet = !!s.lesson?.skill && s.lesson.skill !== sk;
+    if (notYet) dim = true;
     const undoNone = sk === 'skill_yarinaoshi' && !s.aliveEnemies.some((e) => canUndo(s, e));
     if (undoNone) dim = true;
     // おつかれさま: grey when every enemy is resting or just back from a rest
@@ -447,6 +469,10 @@ function* hankoMenu(s: BattleScene, u: PartyUnit): Co<PartyCmd | null> {
       row: { name: def.name, right: String(cost), rightIcon: 'ink', dim },
       desc: skillDesc(sk),
       pick: function* (): Co<PartyCmd | null | 'stay'> {
+        if (notYet) {
+          s.sfx('se_cancel');
+          return 'stay';
+        }
         if (undoNone) {
           s.sfx('se_cancel');
           yield* s.say(SYS.yarinaoshiNone);
@@ -476,7 +502,13 @@ function* hankoMenu(s: BattleScene, u: PartyUnit): Co<PartyCmd | null> {
       },
     };
   });
-  return yield* runList(s, items, 'hanko');
+  // the ink the highlighted stamp would use blinks on the panel's ink bar
+  const costs = hankoSkills(u).map((sk) => (usableHanko(sk) ? getSkill(sk)?.cost ?? 0 : 0));
+  try {
+    return yield* runList(s, items, 'hanko', (i) => (u.inkPreview = costs[i] ?? 0));
+  } finally {
+    u.inkPreview = 0;
+  }
 }
 
 function* prMenu(s: BattleScene, u: PartyUnit): Co<PartyCmd | null> {

@@ -106,6 +106,16 @@ export function drawPanel(g: Gfx, u: PartyUnit, pc: PanelCtx): void {
       g.img(inkPot(), tx, y + ROW_SUB + 2);
       g.text(`${Math.round(u.mpShown)}/${u.m.maxMp}`, x + 130, y + ROW_SUB, { color: C.ink, align: 'right' });
       drawBar(g, tx, y + ROW_SUBBAR, 88, 3, u.m.mp / u.m.maxMp, C.shu, C.grid);
+      // choosing a hanko: the part of the bar it would use blinks (enough
+      // ink: pale; not enough: the whole bar blinks grey)
+      if (u.inkPreview > 0 && Math.floor(pc.t / 260) % 2 === 0) {
+        const bw = 88;
+        if (u.m.mp >= u.inkPreview) {
+          const x1 = Math.round((bw * u.m.mp) / u.m.maxMp);
+          const x0 = Math.round((bw * (u.m.mp - u.inkPreview)) / u.m.maxMp);
+          if (x1 > x0) g.rect(tx + x0, y + ROW_SUBBAR, x1 - x0, 3, C.flash);
+        } else g.rect(tx, y + ROW_SUBBAR, bw, 3, C.gray);
+      }
     } else if (u.id === 'kanenari') {
       // PR cool-downs
       const slot = (ix: number, icon: HTMLCanvasElement, skill: string) => {

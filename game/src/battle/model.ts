@@ -13,6 +13,26 @@ export function sfxGrade(j: Judge): 'kukkiri' | 'futsu' | 'kasure' {
   return j === 'futsuu' ? 'futsu' : j;
 }
 
+/**
+ * 練習の戦闘 (lesson.ts, the park after Kanenari-kun joins): what may be
+ * chosen right now, and how the last try went (the timing games write it).
+ */
+export interface LessonGate {
+  /** The one command icon that works ('tataku' | 'hanko'); the rest are grey. */
+  icon?: string;
+  /** In the hanko list, the one stamp that works. */
+  skill?: string;
+  /** The ring and the ink gauge run at the first-time (tutorial) speed. */
+  slow?: boolean;
+  /** The band's line while the command is chosen (the lesson's instruction). */
+  hint?: string;
+  /** The 練習台's wind-up stops at the "!" until the press (the third try). */
+  freeze?: boolean;
+  ring?: 'good' | 'early' | 'none';
+  judge?: Judge;
+  tsuk?: 'just' | 'ok' | 'kabuse' | 'late' | 'none';
+}
+
 export interface Stage {
   lv: number;
   turns: number;
@@ -39,6 +59,8 @@ export class PartyUnit {
   guard = false;
   ct: Record<string, number> = {};
   hanamaruMark = false;
+  /** 朱肉 the highlighted hanko would use (the panel's ink bar blinks that much). */
+  inkPreview = 0;
   // panel presentation
   lift = 0;
   liftTarget = 0;

@@ -33,6 +33,7 @@ import { joinKanenari, newGameParty, setMemberLevel, syncProgressSkills } from '
 import { field } from '../world/field';
 import { allItems, getEnemy, getSkill, HANKO_CASE_ORDER, PR_ORDER } from '../data/battle';
 import { fitWrap, phraseWrapInfo, textW } from './window';
+import { lessonTextIssues } from '../data/battle/text_lesson';
 import { FOLD, LP, RP, SP } from './menu/notebook';
 import { BOOK2_ENEMIES, BOOK_ENEMIES, FUSHIGI2_BOOK, FUSHIGI_BOOK, fushigiPageFit, pressedText, pressedText2, TSUKKOMI2_ENEMIES, TSUKKOMI_ENEMIES } from './menu/book';
 import { W } from '../engine/screen';
@@ -260,6 +261,10 @@ registerDebug('wrapCheck', () => {
     const s = getSkill(id);
     for (const l of s?.desc ?? []) check(`ハンコ ${s?.name}`, l, infoW, 1);
   }
+  // 公園の練習の戦闘（カネナリくんのフリップ・帯・選択肢。20 10.6）
+  const lesson = lessonTextIssues(textW);
+  n += lesson.checked;
+  issues.push(...lesson.issues);
   void getSkill;
   return { checked: n, issues };
 });

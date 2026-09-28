@@ -6,7 +6,9 @@ import { game } from '../engine/game';
 import { flag, setFlag } from '../game/state';
 import { joinKanenari, syncProgressSkills } from '../data/battle';
 import { startBattle } from '../battle/api';
-import { playHankoLearn } from '../battle';
+import { LESSON_BATTLE, playHankoLearn } from '../battle';
+import { LESSON_FIELD } from '../data/battle/text_lesson';
+import { chapter1Cleared } from '../ui/flow';
 import { duckMusic, playAmbient, playBgm, sfx, stopAmbient, stopBgm } from '../audio';
 import { actor, despawn, face, mapAudio, msg, refreshFollower, registerScript, setFollowerVisible, shadowSwing, stage, walk } from '../world/api';
 import * as T from '../data/text/events';
@@ -121,8 +123,51 @@ function* kanenariJoin(): Co {
     if (f.follower) f.follower.dir = dir;
   } else refreshFollower();
   yield 350;
+  yield* knLesson();
   yield* maigoBroadcast();
 }
+
+// ---------------------------------------------------------------- 5.12b evt_kn_lesson（練習の戦闘）
+
+/**
+ * 2026-09-28, the client: the first fight after he joins is a lesson — Kanenari-kun
+ * teaches たたく → ハンコ → ツッコミ → みました on his cardboard 練習台 (battle/lesson.ts,
+ * 20 10.6). Once per game; on a device where chapter 1 was cleared the flip asks
+ * first (「知ってる」 skips it).
+ */
+function* knLesson(): Co {
+  if (flag('flag_kn_lesson')) return;
+  const f = F();
+  const k = f.follower;
+  if (k) {
+    const p = f.player;
+    const dx = k.x - p.x;
+    const dy = k.y - p.y;
+    p.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
+    k.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'left' : 'right') : dy > 0 ? 'up' : 'down';
+    yield 200;
+    k.playAnim('flip');
+    sfx('se_flip');
+    yield 220;
+  }
+  let skip = false;
+  if (chapter1Cleared()) {
+    skip = (yield* msg(LESSON_FIELD.openAgain)) === 1;
+    yield* msg(skip ? LESSON_FIELD.skip : LESSON_FIELD.ready);
+  } else yield* msg(LESSON_FIELD.open);
+  if (k) k.anim = null;
+  setFlag('flag_kn_lesson', 1);
+  if (skip) {
+    yield 250;
+    return;
+  }
+  yield* startBattle(LESSON_BATTLE);
+  yield 450;
+}
+
+registerScript('evt_kn_lesson', function* (): Co {
+  yield* knLesson();
+});
 
 // ---------------------------------------------------------------- 5.13 evt_maigo_broadcast ★
 

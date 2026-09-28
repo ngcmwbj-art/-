@@ -24,6 +24,12 @@ const items: ItemDef[] = [
   // 51 6.1 (2026-09-25 その2): 野菜の配達のおだちん、2つだけ（非売品）
   { id: 'item_yakiimo', name: '焼き芋', target: 'ally', heal: 60, desc: ['ヒロスケの 焼き芋。夏でも 熱い。', 'HPを 60 回復。'] },
   { id: 'item_kairan_shuniku', name: '回覧板の朱肉', target: 'minato', mp: 15, special: 'kairan', desc: ['回覧板の 確認印 用。ふたに『区』の字。', '朱肉を 15 回復。'] },
+  // 02 #58（2026-09-28）北の列の部屋の見つけ物としんごのお礼（非売品）
+  { id: 'item_house_mikan', name: 'ハウスみかん', target: 'ally', heal: 15, desc: ['夏の みかん。ゆずの『ご自由に』。', 'HPを 15 回復。'] },
+  { id: 'item_reitou_mikan', name: '冷凍みかん', target: 'ally', heal: 30, desc: ['しんごの お礼。皮まで 凍っている。', 'HPを 30 回復。'] },
+  { id: 'item_shuzumi', name: '朱墨のかけら', target: 'minato', mp: 8, desc: ['はなまるを 描く ための 朱い 墨。', '朱肉を 8 回復。'] },
+  // 02 #59（2026-09-28）南の列：写真館の七五三コーナーの見つけ物（非売品）
+  { id: 'item_chitose_ame', name: '千歳あめ', target: 'ally', heal: 25, desc: ['写真館の 七五三の おまけ。長い。', 'HPを 25 回復。'] },
   // 大事なもの
   { id: 'item_otsukai_memo', name: 'おつかいメモ', key: true, target: 'none', desc: ['焼きそば 4つ。青のりは べつ。', ''], battleText: ['これは 晩ごはんの メモだ。'] },
   { id: 'item_gamaguchi', name: 'がま口', key: true, target: 'none', desc: ['母の がま口。ぱちん、と', '閉まる 音が いい。'], battleText: ['がま口を 開けた。\n……戦いに お金は いらない。'] },
@@ -34,6 +40,8 @@ const items: ItemDef[] = [
   { id: 'item_korokke', name: 'できたて焼きそば', key: true, target: 'none', desc: ['4つ。青のりは 別。', '……1つは おまけ。'], battleText: ['これは 晩ごはんだ。'] },
   // 屋上 ゆうやけひろば (10_narrative 7.18 ★2026-09-28): the 4th handshake
   { id: 'item_akushuken', name: '握手券', key: true, target: 'none', desc: ['カネナリくん 握手会の 握手券。', '番号は 4。有効期限は なし。'], battleText: ['握手券を 見せた。\n$enemyは 手を 出しかけて やめた。'] },
+  // しんごのたんかん（02 #58）：喫茶 夕顔の冷凍庫から → しんごへ（渡すと外れる）
+  { id: 'item_tankan', name: '冷凍たんかん', key: true, target: 'none', desc: ['喫茶 夕顔の 冷凍庫の 奥に いた。', '冬の みかん。いまは 8月。'], battleText: ['たんかんを 見せた。\n$enemyは 季節に ついて 考えている。'] },
   // 10 6.10 (02_ch2_index #56): 段階2の郵便屋さんから。第2章でさんかどに あずける
   { id: 'item_ashita_tegami', name: '『あした』宛ての手紙', key: true, target: 'none', desc: ['差出人『ユウナリ 迷子センター』。すみに 黒い しみ。', '切手は、はなまる。'], battleText: ['手紙を 見せた。\n……宛先は、ここでは ない。'] },
   // 大事なもの（第2章、50 7.1）

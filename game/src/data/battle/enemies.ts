@@ -326,6 +326,34 @@ const kanenari: EnemyDef = {
   book: { short: 'カネナリくん', shotai: '夕鳴町の PR大使。', weak: '―', hitokoto: '―' },
 };
 
+/**
+ * 練習台 (the park's lesson right after Kanenari-kun joins, evt_kn_lesson;
+ * 20 10.6). Cardboard stacked by Kanenari-kun: it only takes turns when the
+ * lesson asks it to, its HP never runs out (lesson.ts keeps it above 0) and
+ * it is in no book (みました帳 counts BOOK_ENEMIES / TSUKKOMI_ENEMIES only).
+ */
+const renshu: EnemyDef = {
+  id: 'enemy_renshudai', name: '練習台', lvl: 1, size: [48, 56], core: [24, 30], face: [24, 22],
+  hp: 60, atk: 4, def: 2, spd: 1, luck: 1, exp: 0, money: 0, attr: NO_WEAK,
+  drops: [], noFlee: true, noCrit: true, bg: 'bg_kanenari', bgm: 'bgm_battle', tsukkomiCount: 1,
+  tsukkomi: ['もたれかかるな！'],
+  skills: ['skill_renshu_motare'],
+  colors: ['#C4904E', '#E4BA7A', '#E8D8A8', '#E23B2E', '#C8962E'],
+  ai: () => 'skill_renshu_motare',
+  texts: {
+    appear: ['カネナリくんが 練習台を 置いた！'],
+    yousu: ['練習台は じっと 待っている。'],
+    tele: {
+      skill_renshu_motare: ['練習台が ぐらっと ゆれて、\nしゅんに もたれかかってきた！'],
+    },
+    extra: {},
+    idle: [['練習台は じっと 待っている。']],
+    defeat: [],
+    noFlee: ['練習は まだ 終わっていない。'],
+  },
+  book: { short: '練習台', shotai: 'カネナリくんが ダンボールで 作った 練習台。', weak: 'なし。何回でも 立ちあがる。', hitokoto: '顔は カネナリくんの 手描き。' },
+};
+
 const boss: EnemyDef = {
   id: 'boss_omukaemachi', name: 'オムカエマチ', lvl: 4, size: [160, 128], core: [80, 64], face: [80, 40], footY: 153,
   // QA round 3 (tempo): 380 took a careful player 12 rounds (≈3 min). At 270
@@ -407,7 +435,7 @@ const boss: EnemyDef = {
   book: { short: '忘れ物', shotai: '迎えに 来て もらえなかった、忘れ物たちの 待ちくたびれた 気持ち。', weak: '光った 部位。名前を、見て あげること。', hitokoto: 'ずっと、名前を 呼ばれるのを 待っていた。' },
 };
 
-const list = [hato, semi, cone, kasa, ojigi, souji, momi, kanenari, boss, ...CH2_ENEMIES];
+const list = [hato, semi, cone, kasa, ojigi, souji, momi, kanenari, renshu, boss, ...CH2_ENEMIES];
 const table = new Map<string, EnemyDef>();
 for (const e of list) table.set(e.id, e);
 

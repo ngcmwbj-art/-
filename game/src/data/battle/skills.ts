@@ -77,6 +77,8 @@ const enemies: SkillDef[] = [
     status: { id: 'buff_hit', chance: 1, turns: 3, stage: -1 },
   }),
   enemy({ id: 'skill_hato_teiji', name: '定時退社', target: 'self', windupMs: 600, noDamage: true }),
+  // 練習台（公園の練習の戦闘 evt_kn_lesson）: a long, even rock back so the "!" is easy to read
+  enemy({ id: 'skill_renshu_motare', name: 'もたれかかり', target: 'enemy', power: 0.2, hits: [0], windupMs: 700, tsukkomi: [1] }),
   // セミファイナル
   enemy({ id: 'skill_semi_shindafuri', name: '死んだふり', target: 'self', windupMs: 600, noDamage: true }),
   enemy({ id: 'skill_semi_final', name: 'セミファイナル', target: 'enemy', power: 0.45, hits: [0, 16, 24], windupMs: 300, tsukkomi: [1, 3] }),

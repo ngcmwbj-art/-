@@ -95,9 +95,21 @@ const CHAIN: { beat: string; steps: Step[]; at: [string, number, number, Dir]; r
   { beat: 'alley', steps: [set('flag_fushigi_04', 'flag_fushigi_tutorial', 'flag_park_hint')], at: ['map_town', 19, 22, 'up'], desc: '路地（evt_alley_open）→ 公園' },
   { beat: 'kanenari', steps: [taken('trig:map_town:trig_alley_open')], at: ['map_town', 16, 13, 'up'], desc: '時計塔のカネナリくん（加入戦）' },
   {
-    beat: 'broadcast',
+    beat: 'lesson',
     steps: [
       set('flag_met_kanenari', 'flag_kanenari_joined'),
+      () => {
+        joinKanenari();
+      },
+    ],
+    at: ['map_town', 16, 13, 'up'],
+    run: 'evt_kn_lesson',
+    desc: '練習の戦闘（カネナリくんの戦いかた講座）',
+  },
+  {
+    beat: 'broadcast',
+    steps: [
+      set('flag_met_kanenari', 'flag_kanenari_joined', 'flag_kn_lesson'),
       () => {
         joinKanenari();
       },

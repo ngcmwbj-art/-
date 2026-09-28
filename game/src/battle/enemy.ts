@@ -15,7 +15,7 @@ import {
   addKire, changeStage, giveStatus, hideSticky, healParty, hurtEnemy, hurtParty, kireFullPages, panelImpact, sayFallen, showSticky, statusText, tsukkomiFeel, type Guarded,
 } from './common';
 import {
-  bokemakeLabel, lateTip, markLineSeen, pickLine, popBang, RING_LEAD, showBang, showFlip, showKakimoji, showTsukRing, timingSlow, tsukkomiUnit, tsukkomiWindows, type TsukRing,
+  bokemakeLabel, lateTip, markLineSeen, pickLine, popBang, RING_LEAD, showBang, showFlip, showKakimoji, showTsukRing, timingSlow, tsukCue, tsukkomiUnit, tsukkomiWindows, type TsukRing,
 } from './tsukkomi';
 import { coinShiny, glove, meishiCard, musicNote, uwabaki, waterDrop, feather, spring, drawArc } from './art/fxart';
 import { PANEL_POS } from './ui/panels';
@@ -79,6 +79,8 @@ function pickTarget(s: BattleScene, e: EnemyUnit, sk: SkillDef): PartyUnit | und
   const list = targetable(s);
   if (!list.length) return undefined;
   if (sk.id === 'skill_momi_momi') return [...list].sort((a, b) => b.hpRate - a.hpRate)[0];
+  // the park's lesson: the 練習台 leans on しゅん (he is the one learning to answer)
+  if (sk.id === 'skill_renshu_motare') return list.find((u) => u.id === 'minato') ?? list[0];
   if (sk.id === 'skill_kasa_dakitsuki') {
     const free = list.filter((u) => !u.has('status_tsukamare'));
     if (free.length) return rng.pick(free);
@@ -173,6 +175,7 @@ export function* hitLoop(s: BattleScene, o: LoopOpts): Co<(Guarded | null)[]> {
       const who = o.bang(hi);
       s.sfx('se_warn');
       showBang(s, who, () => bangDone, !!o.tutorial);
+      tsukCue(s, who);
     }
     if (o.tutorial && rel === -8 && !frozenTut) {
       // time stops; the "!" pulses until the player presses (counts as just)
@@ -184,6 +187,7 @@ export function* hitLoop(s: BattleScene, o: LoopOpts): Co<(Guarded | null)[]> {
       }
       hideSticky(s);
       pending = 'just';
+      s.cues.drop('tsuk', 'go');
       popBang(s, o.bang(hi), true);
       bangDone = true;
       if (ring) ring.state = 'ok';
@@ -197,12 +201,15 @@ export function* hitLoop(s: BattleScene, o: LoopOpts): Co<(Guarded | null)[]> {
       if (rel < W.from) {
         kabuse = true;
         if (ring) ring.state = 'gray';
+        s.cues.drop('tsuk', 'off');
+        if (s.lesson) s.lesson.tsuk = 'kabuse';
         s.sfx('se_kabuse');
         const [px, py] = PANEL_POS[o.bang(hi)[0]?.id ?? 'minato'];
         // beside the "!" bubble it jumped the gun on (never on the name tag)
         s.labelNear(LABEL.kabuse, () => ({ x0: px + 24, y0: py - 24, x1: px + 40, y1: py - 4 }), ['right', 'above', 'left'], 'gray', 700, true);
       } else if (rel <= W.to) {
         pending = rel >= W.justFrom && rel <= W.justTo ? 'just' : 'ok';
+        s.cues.drop('tsuk', 'go');
         popBang(s, o.bang(hi), pending === 'just');
         bangDone = true;
         if (ring) ring.state = 'ok';
@@ -222,6 +229,8 @@ export function* hitLoop(s: BattleScene, o: LoopOpts): Co<(Guarded | null)[]> {
       bangDone = true;
       if (ring && ring.state !== 'ok') ring.state = 'done';
       ring = null;
+      s.cues.drop('tsuk', r ? 'go' : 'off');
+      if (s.lesson && o.tsukkomi && (r || s.lesson.tsuk !== 'kabuse')) s.lesson.tsuk = r ?? 'none';
       if (o.tsukkomi && !r && !kabuse) {
         if (late) late.on = false;
         late = watchLate(s, 24);
@@ -255,6 +264,7 @@ function watchLate(s: BattleScene, frames: number): { on: boolean } {
     update() {
       if (!w.on) this.done = true;
       else if (game.input.pressed('confirm')) {
+        if (s.lesson && s.lesson.tsuk === 'none') s.lesson.tsuk = 'late';
         lateTip(s);
         this.done = true;
       }
@@ -629,7 +639,7 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
   // 2. wind-up → hits
   const windupF = Math.max(6, Math.round((sk.windupMs ?? 400) / FRAME));
   e.setPose('windup', skillId);
-  const tutorial = e.id === 'enemy_hato_kakaricho' && skillId === 'skill_hato_meishi' && !flag('flag_tut_tsukkomi') && canTsuk;
+  const tutorial = (e.id === 'enemy_hato_kakaricho' && skillId === 'skill_hato_meishi' && !flag('flag_tut_tsukkomi') && canTsuk) || (!!s.lesson?.freeze && canTsuk);
   const hits = sk.hits ?? [0];
   const resolveGuard = (r: Guarded | null, i: number) => {
     st.results.push(r);
@@ -688,6 +698,26 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
     case 'skill_hato_teiji': {
       yield* selfMove(s, common, resolveGuard, () => e.setPose('attack', skillId));
       telePages.push(...e.def.texts.extra.teijiResult);
+      break;
+    }
+    // ---- 練習台（公園の練習の戦闘） -------------------------------------------
+    case 'skill_renshu_motare': {
+      // it rocks back through the whole wind-up, then leans on the target
+      yield* hitLoop(s, {
+        ...common,
+        onFrame: (_f, _i, toHit) => {
+          if (toHit === 8) {
+            e.setPose('attack', skillId);
+            rush(s, e, { scale: 1.08, dy: 4, dx: towardX(e, target, 0.1, 10), inF: 8, holdF: 6, outF: 10 });
+            s.sfx('se_swing', { vol: 0.5, pitch: 0.8 });
+          }
+        },
+        onHit: (i, r) => {
+          resolveGuard(r, i);
+          damageTo(s, e, target!, sk.power ?? 0.2, r);
+          s.sfx('se_hit_pofu');
+        },
+      });
       break;
     }
     // ---- セミファイナル --------------------------------------------------------
