@@ -284,15 +284,13 @@ function extrasFront(L: Look, f: Fig, p: Pose, hy: number): void {
     // white triangle scarf over the crown, the knot at the nape
     f.part('scarf', { shade: 'rb', light: 't' });
     if (p.view === 'down') {
-      f.hl(5, 10, hy - 1 + (up ? 1 : 0));
-      f.hl(4, 11, hy + (up ? 1 : 0));
-      f.hl(3, 12, hy + 1 + (up ? 1 : 0));
-      f.hl(3, 12, hy + 2);
+      f.hl(5, 10, hy + (up ? 1 : 0));
+      f.hl(4, 11, hy + 1 + (up ? 1 : 0));
+      if (!up) f.hl(3, 12, hy + 2);
     } else {
-      f.hl(5, 10, hy - 1);
-      f.hl(4, 11, hy);
-      f.hl(3, 12, hy + 1);
-      f.hl(4, 11, hy + 2);
+      f.hl(5, 10, hy);
+      f.hl(4, 11, hy + 1);
+      f.hl(3, 12, hy + 2);
       f.rows(6, hy + 3, ['.##.', '#..#']);
     }
   }
@@ -323,10 +321,10 @@ function extrasSide(L: Look, f: Fig, p: Pose, hy: number): void {
   }
   if (L.scarf) {
     f.part('scarf', { shade: 'rb', light: 't' });
-    f.hl(5, 10, hy - 1);
-    f.hl(3, 11, hy);
-    f.hl(3, 12, hy + 1);
-    f.rows(11, hy + 2, ['##', '.#']);
+    f.hl(5, 10, hy);
+    f.hl(3, 11, hy + 1);
+    f.hl(4, 12, hy + 2);
+    f.rows(11, hy + 3, ['##', '.#']);
   }
   if (L.headband) {
     f.part('band', { shade: 'r', light: '' });

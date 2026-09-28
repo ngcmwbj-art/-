@@ -266,6 +266,15 @@ registerDebug('wrapCheck', () => {
   n += lesson.checked;
   issues.push(...lesson.issues);
   void getSkill;
+  // the pages of the rooms added later (3 lines × 336 px, 10 1.1): each room set
+  // registers its own page check — 南の列（02 #59）southText
+  const cmds = (window as unknown as { __game?: { cmd?: Record<string, () => { pages?: number; total?: number; bad: string[] }> } }).__game?.cmd ?? {};
+  for (const name of ['southText']) {
+    const r = cmds[name]?.();
+    if (!r) continue;
+    n += r.pages ?? r.total ?? 0;
+    for (const b of r.bad) issues.push(`${name}: ${b}`);
+  }
   return { checked: n, issues };
 });
 

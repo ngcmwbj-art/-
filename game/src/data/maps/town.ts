@@ -27,8 +27,8 @@ const ROWS = [
   'B:o::o"B^^^^^B^^^^CCCHHH^^^^^^^^^^^^^^^^^^^...^^^^^^^^^^HHFbRbF,', // 17
   'B::::""BWWWWWBWWWW...HHH^^^^^^^^^^^^^^^^^^^...^^^^^^^^^^HHFbRbF,', // 18
   'Bo"""""BWWWWWBWWWW...HHHWWWWWWWWWWWWWWWWWWW...WWWWWWWWWWHHFbRbF,', // 19
-  'BFFF::oBWWWWWBWWWW...,THWWWWWWWWWWWWWWWWWWW...WWWWWWWWWWHHFbRbF,', // 20
-  '.........oooo.o...zzz..oSSWDWWWWDWWSSSSWWWW...WWWWWWWWWWYoFbRbF,', // 21
+  'BFFF::oBWWWDWBWWWD...,THWWWWWWWWWWWWWWWWWWW...WWWWWWWWWWHHFbRbF,', // 20
+  '.........oo.ooo...zzz..oSSWDWWWWDWWSSSDWWWD...WWDDWWDDDWYoFbRbF,', // 21
   '________________..zzz..aaaoaaaooaaoaaaaoaaaaaaaoaaaoaaao..XXXXX.', // 22
   'BBBYBBTBBBBBBYBB.......aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..XXXXX.', // 23
   'o,,,,,,,%,,ooo,B.......aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..XXXXX.', // 24
@@ -137,6 +137,14 @@ const OBJECTS: MapObj[] = [
   { t: 'door', id: 'door_town_hinoya', x: 32, y: 21, to: 'map_hinoya', tx: 4, ty: 6, dir: 'up', se: ['se_door', 'se_shop_bell'] },
   { t: 'door', id: 'door_town_laundry', x: 26, y: 31, to: 'map_laundry', tx: 3, ty: 5, dir: 'up', se: 'se_door_glass' },
   { t: 'door', id: 'door_town_koban', x: 51, y: 31, to: 'map_koban', tx: 4, ty: 5, dir: 'up', se: 'se_door_glass' },
+  // 北の列の部屋（02 #58、interior_north.ts）：しんごの家・坂の上の書道教室（門）・
+  // 豆腐屋の奥（カウンター東端のはね上げ板）・時計店・喫茶（2マスの扉）・酒店（3枚の戸）
+  { t: 'door', id: 'door_town_shingo', x: 11, y: 20, to: 'map_shingo', tx: 5, ty: 6, dir: 'up', se: 'se_door' },
+  { t: 'door', id: 'door_town_shodo', x: 17, y: 20, to: 'map_shodo', tx: 9, ty: 6, dir: 'up', se: 'se_door' },
+  { t: 'door', id: 'door_town_tofu', x: 38, y: 21, to: 'map_tofu', tx: 9, ty: 6, dir: 'up', se: 'se_door_small' },
+  { t: 'door', id: 'door_town_clock', x: 42, y: 21, to: 'map_clock', tx: 7, ty: 5, dir: 'up', se: ['se_door_glass', 'se_shop_bell'] },
+  { t: 'door', id: 'door_town_cafe', x: 48, y: 21, w: 2, to: 'map_cafe', tx: 6, ty: 6, dir: 'up', se: ['se_door', 'se_shop_bell'] },
+  { t: 'door', id: 'door_town_sake', x: 52, y: 21, w: 3, to: 'map_sake', tx: 6, ty: 6, dir: 'up', se: 'se_door_glass' },
   // 南の列の部屋と公園のトイレ（02 #59、interior_south.ts）
   { t: 'door', id: 'door_town_chizu', x: 11, y: 30, to: 'map_chizu', tx: 8, ty: 5, dir: 'up', se: 'se_door' },
   { t: 'door', id: 'door_town_madam', x: 22, y: 30, to: 'map_madam', tx: 6, ty: 5, dir: 'up', se: 'se_door' },
@@ -181,7 +189,8 @@ const OBJECTS: MapObj[] = [
   O('obj_rusty_bike', 1, 19),
   O('obj_akichi_sign', 6, 20),
   { t: 'obj', id: 'obj_tires', x: 5, y: 17, text: REWARD_TEXT.obj_tires, reward: { item: 'item_kinakobou', flag: 'flag_hidden_tires', after: OBJ2.obj_tires } },
-  O('obj_pots_1', 11, 21, { w: 2 }),
+  // one tile east of the door of しんごの家 (11,20) since 02 #58
+  O('obj_pots_1', 12, 21, { w: 2 }),
   O('obj_pots_3', 14, 21),
   O('obj_nameplate_calligraphy', 17, 20, { face: 'up' }),
   O('obj_higurashi_tree', 22, 20),

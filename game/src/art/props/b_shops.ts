@@ -321,11 +321,24 @@ registerBuilding({
     fillWall(p, 4, fY + 36, 56, 12, wallBoards(P.woodLt, 7, 6));
     p.hline(4, 59, fY + 36, P.wood);
     // price cards on the counter front
-    for (const [cx, txt] of [[8, '120'], [40, '90']] as [number, string][]) {
+    for (const [cx, txt] of [[8, '120'], [28, '90']] as [number, string][]) {
       p.rect(cx, fY + 38, 14, 7, P.paper);
       p.strokeRect(cx, fY + 38, 14, 7, P.woodDark);
       tiny(p, txt, cx + 2, fY + 39, P.navy);
     }
+    // the way into the back (door_town_tofu, 02 #58): at the east end the
+    // counter's flap is lifted (the board stands up against the post) and a
+    // low swing door with a diagonal brace closes the gap below it
+    p.rect(49, fY + 33, 10, 3, P.shadeDeep);
+    p.hline(49, 58, fY + 35, P.charcoal);
+    p.rect(56, fY + 20, 3, 15, P.concreteLt);
+    p.vline(56, fY + 20, fY + 34, P.white);
+    p.vline(58, fY + 21, fY + 34, P.steel);
+    p.rect(49, fY + 36, 10, 10, P.wood);
+    p.strokeRect(49, fY + 36, 10, 10, P.woodDark);
+    p.line(50, fY + 44, 57, fY + 37, P.woodLt);
+    p.set(57, fY + 40, P.brass);
+    p.rect(49, fY + 46, 10, 2, P.shadeDeep);
     facadeFoot(p, 0, b.botY, 64, P.steel);
     rimLeft(p, fY, b.botY);
   },

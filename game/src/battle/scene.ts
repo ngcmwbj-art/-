@@ -142,6 +142,8 @@ export class BattleScene implements Scene {
   cues = new Cues();
   /** 練習の戦闘 (the park, evt_kn_lesson): what the lesson allows right now (lesson.ts). */
   lesson: LessonGate | null = null;
+  /** QA: the page of Kanenari-kun's flip board that is up ('' when none). */
+  flipText = '';
   cursorPressed = 0;
   /** Directional screen shake. */
   private shk = { ax: 0, ay: 0, t: 0, dur: 0, x: 0, y: 0, n: 0 };

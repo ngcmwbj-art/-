@@ -47,6 +47,8 @@ function* battleImpl(o: BattleOpts): Co<BattleResult> {
   scene.run(
     (function* () {
       scene.result = yield* (o.lesson ? lessonFlow(scene) : battleFlow(scene));
+      // (the words go with the battle — and the けってい button's hint with them)
+      scene.cues.clear();
       scene.finished = true;
     })(),
   );
@@ -401,6 +403,10 @@ registerDebug('bstate', () => {
     memo: s.memo,
     msg: s.msg.text,
     interactive: s.msgInteractive,
+    // the park's lesson (lesson.ts): what it is teaching now, the flip page up
+    lesson: s.opts.lesson ? { icon: s.lesson?.icon ?? '', skill: s.lesson?.skill ?? '', flip: s.flipText } : null,
+    choosing: !!(s.cmd || s.list || s.target),
+    cues: s.cues.peek(),
   };
 });
 registerDebug('levelup', (lv = 2) => {

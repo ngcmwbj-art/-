@@ -1,4 +1,4 @@
-// 南の列の部屋の絵（2）：シャッターの3軒と公園のトイレ。30_level_art 4.10〜4.13。
+// 南の列の部屋の絵（2）：シャッターの3軒と公園のトイレ。30_level_art 4.16〜4.19。
 //   map_sk_storage  商店会の倉庫（元 クリーニング、シャッター1）
 //   map_sk_rest     ひと休み処（元 たばこ屋、シャッター2）
 //   map_sk_bait     閉店した つりえさ屋（シャッター3）
@@ -12,7 +12,7 @@ import { dust, screenPool, warmPool } from './ishell';
 import { castRight, dk, finish, lt } from './kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
-import { fontTextSmall, printLines, tiny } from './text';
+import { fontSmallWidth, fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 import { box, frameOn, pcv, southShell, wallClock } from './int_south_kit';
 
@@ -230,25 +230,28 @@ southShell({
   base: P.woodDark,
   baseH: 2,
   decor: (p) => {
-    // (4,0–1) the cork board: radio exercise, the lost dog found, the torn-off corner of a poster
-    p.rect(58, 5, 28, 20, P.woodLt);
-    p.strokeRect(57, 4, 30, 22, P.wood);
-    for (let j = 6; j < 24; j++) for (let i = 59; i < 85; i++) if (ihash(i, j, 5903) % 9 === 0) p.set(i, j, P.brass);
-    notice(p, 60, 7, 9, 11, { paper: P.white, ink: P.steel, head: P.leafYoung, seed: 81, tape: false });
-    notice(p, 71, 6, 8, 9, { paper: P.paper, ink: P.blue, head: P.gold, seed: 82, tape: false });
+    // (3–4,0–1) the cork board: radio exercise, the lost dog found, the torn-off corner of a poster
+    const cx = 48;
+    p.rect(cx + 1, 5, 28, 20, P.woodLt);
+    p.strokeRect(cx, 4, 30, 22, P.wood);
+    for (let j = 6; j < 24; j++) for (let i = cx + 2; i < cx + 28; i++) if (ihash(i, j, 5903) % 9 === 0) p.set(i, j, P.brass);
+    notice(p, cx + 3, 7, 9, 11, { paper: P.white, ink: P.steel, head: P.leafYoung, seed: 81, tape: false });
+    notice(p, cx + 14, 6, 8, 9, { paper: P.paper, ink: P.blue, head: P.gold, seed: 82, tape: false });
     // the poster torn off: only the pinned corners and a strip of it are left
-    p.rect(74, 17, 3, 2, P.gold);
-    p.set(81, 17, P.verm);
-    p.set(81, 22, P.verm);
-    p.set(74, 22, P.verm);
-    castRight(p, 57, 4, 30, 22, 2);
-    // (1,0–1) 『ひと休み処 ご自由に どうぞ』 on a hanging board
-    p.rect(18, 6, 26, 8, P.woodLt);
-    p.hline(18, 43, 6, P.goldPale);
-    fontTextSmall(p, 'ひと休み処', 19, 5, P.woodDark, 2);
-    p.vline(22, 2, 6, P.steel);
-    p.vline(40, 2, 6, P.steel);
-    castRight(p, 18, 6, 26, 8, 2);
+    p.rect(cx + 17, 17, 3, 2, P.gold);
+    p.set(cx + 24, 17, P.verm);
+    p.set(cx + 24, 22, P.verm);
+    p.set(cx + 17, 22, P.verm);
+    castRight(p, cx, 4, 30, 22, 2);
+    // (6–7,0) 『ひと休み処』 on a hanging board, over the fridge and the doodle book
+    const tw = fontSmallWidth('ひと休み処', -1);
+    const sx = 126 - tw;
+    p.rect(sx - 1, 5, tw + 2, 9, P.woodLt);
+    p.hline(sx - 1, sx + tw, 5, P.goldPale);
+    fontTextSmall(p, 'ひと休み処', sx, 5, P.woodDark, 2, { spacing: -1 });
+    p.vline(sx + 3, 2, 5, P.steel);
+    p.vline(sx + tw - 4, 2, 5, P.steel);
+    castRight(p, sx - 1, 5, tw + 2, 9, 2);
   },
   town: [42, 31],
   bld: [39, 43, 26],
@@ -260,7 +263,7 @@ southShell({
 });
 
 // (5,1) the wall clock
-wallClock('in_sr_clock', { r: 5, rim: P.leafShade, face: P.white, ox: 2, oy: -2 });
+wallClock('in_sr_clock', { r: 5, rim: P.leafShade, face: P.white, ox: -1, oy: -2 });
 
 // (1–2,2) the manga shelf 『ご自由に お読みください』 (vol. 3 missing; the spines lean north-east in stage 2)
 registerProp('in_sr_books', () => {

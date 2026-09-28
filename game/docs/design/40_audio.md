@@ -310,6 +310,19 @@
 | `map_hinoya` | `bgm_shop`＋`amb_clock_tick` | `bgm_shop`（時計の音は止まる） | `bgm_shop` | ― |
 | `map_laundry` | `bgm_shop`＋`amb_dryer` | 同左 | 同左（ふしぎ#5を押すと `amb_dryer` が止まる） | ― |
 | `map_koban` | `bgm_shop`＋`amb_koban` | 同左 | 同左 | ― |
+| `map_shingo`（しんごの家 ★2026-09-28、02 #58） | `bgm_home`＋`amb_fan`＋`amb_fridge`（扇風機と、冷凍みかんの冷蔵庫） | `bgm_home`（段階1の変換。扇風機も冷蔵庫も止まる＝環境音なし） | `bgm_home`（段階2の変換）＋`amb_fan`＋`amb_fridge`（扇風機は逆に回る） | ― |
+| `map_shodo`（ふでの書道教室） | `bgm_home`＋`amb_clock_tick`（柱時計） | `bgm_home`（時計の音は止まる） | `bgm_home` | ― |
+| `map_tofu`（豆腐 くま吉の奥） | `bgm_shop`＋`amb_fridge`（水槽と冷蔵のうなり） | `bgm_shop`（止まる） | `bgm_shop`＋`amb_fridge` | ― |
+| `map_clock`（時計店 チクタク堂） | `bgm_shop`＋`amb_clock_tick`（店じゅうの時計） | `bgm_shop`（ぜんぶ止まる。時計店がしんとする） | `bgm_shop`（秒針は1つ進んで1つ戻るが、音は戻らない） | ― |
+| `map_cafe`（喫茶 夕顔） | `bgm_shop`＋`amb_fan`（天井の扇風機） | `bgm_shop`（止まる） | `bgm_shop`＋`amb_fan`（逆に回る） | ― |
+| `map_sake`（山吹酒店） | `bgm_shop`＋`amb_fridge`（ガラスの冷蔵ケース） | `bgm_shop`（モーターが止まる。おかみの〔s1_1〕） | `bgm_shop`＋`amb_fridge` | ― |
+| `map_chizu`（ちずの家 ★2026-09-28、02 #59） | `bgm_home`＋`amb_fan`（ピンクの扇風機） | `bgm_home`＋`amb_fan`（首ふりが止まる） | `bgm_home`＋`amb_fan` | ― |
+| `map_madam`（なんばるわんの家） | `bgm_home`＋`amb_tv`（時代劇の再放送） | `bgm_home`＋`amb_tv`（同じ原稿のくり返し） | `bgm_home`＋`amb_tv`（テスト信号） | ― |
+| `map_photo`（夕鳴写真館） | `bgm_shop`＋`amb_clock_tick`（壁の時計） | `bgm_shop`（時計の音は止まる） | `bgm_shop` | ― |
+| `map_sk_storage`（商店会の倉庫） | `bgm_shop` | `bgm_shop` | `bgm_shop` | ― |
+| `map_sk_rest`（ひと休み処） | `bgm_shop`＋`amb_fridge`（麦茶の冷蔵庫） | `bgm_shop`（冷蔵庫の音が止まる） | `bgm_shop` | ― |
+| `map_sk_bait`（つりえさ屋・閉店） | `bgm_shop` | `bgm_shop` | `bgm_shop` | ― |
+| `map_park_toilet`（公園のトイレ） | 公園のまま `bgm_town_s0`（同じ ID なので続きから）＋`amb_fridge`（換気扇のうなり） | `bgm_town_s1`（`flag_bgm_hold` の間は鳴らさない。換気扇は止まる） | `bgm_town_s2` | ― |
 | `map_mall_hall`（M1） | ― | ― | `bgm_mall`＋`amb_fluorescent`＋`amb_kaitenyaki`（遠い）＋`amb_mall_wind` | ― |
 | `map_mall_food`（M2） | ― | ― | `bgm_mall`＋`amb_fluorescent`＋`amb_kaitenyaki`（近い） | ― |
 | `map_mall_health`（M3） | ― | ― | `bgm_mall`＋`amb_fluorescent` | ― |
@@ -321,6 +334,7 @@
 - ※2 区域の環境音は `30_level_art.md` 1.8 の環境音ゾーンに従う。ワールドは `map_town` に入ったら全部を v 0 で鳴らし始め、プレイヤーの位置から毎フレーム（10フレームに1回でよい）`setAmbientVol(id, v, 0.3)` で音量を決める：`amb_kawabe` は用水路（y36）に近いほど大きく、y28 より北で0。`amb_arcade` は `area_arcade` の中で1、外へ4タイルで0。`amb_wind` は `area_park` と `area_taigan` の中で1。`amb_higurashi` は、ひぐらしの木 (22,20) と公園の木から8タイル以内で +6dB。
 - 屋内のBGMは `setMusicParam('stage', n)` の値で段階の変換がかかる（7.1）。`bgm_town_sN` を鳴らすと、stage も自動で N になる。
 - 屋内から外へ出たときは、町のBGMを**続きから**再生する（12.2）。
+- 北の列の部屋の戸の音（★2026-09-28、02 #58。新しい音は作らず今の音を使う）：しんごの家・書道教室は `se_door`（引き戸・門）、豆腐屋の奥は `se_door_small`（はね上げ板の木戸の「カチャ」）、時計店は `se_door_glass`＋`se_shop_bell`、喫茶 夕顔は `se_door`＋`se_shop_bell`（ドアベル）、山吹酒店は `se_door_glass`（ガラスの引き戸）。足音は畳 `se_step_tatami`、土間 `se_step_stone`、店の板 `se_step_wood`、酒店のタイル `se_step_tile`。
 
 ---
 

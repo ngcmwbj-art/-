@@ -9,15 +9,13 @@
 // (no experience, no results).
 
 import type { Co } from '../engine/co';
-import { game } from '../engine/game';
 import { ease } from '../engine/tween';
 import { currentSpace, musicEncounter, musicReturnToField, playBgm, setSpace, sfx } from '../audio';
-import { syncProgressSkills } from '../data/battle';
+import { getSkill, syncProgressSkills } from '../data/battle';
 import { FLIP, LESSON_BAND, LESSON_HINT } from '../data/battle/text_lesson';
 import { touchControlsOn } from '../engine/touch';
 import type { BattleResult } from './api';
 import type { BattleScene } from './scene';
-import { FRAME } from './scene';
 import type { PartyCmd } from './model';
 import { transitionIn, transitionOut } from './transition';
 import { inputCommands } from './menu';
@@ -74,7 +72,7 @@ export function* lessonFlow(s: BattleScene): Co<BattleResult> {
   if (me && dummy && !qaDone(s)) {
     yield* flip(s, touchControlsOn() ? FLIP.hankoTouch : FLIP.hanko);
     while (!qaDone(s)) {
-      topUpInk(s);
+      topUpInk(s, 'skill_peke');
       s.lesson = { icon: 'hanko', skill: 'skill_peke', hint: LESSON_HINT.hanko, slow: true };
       const c = yield* choose(s);
       if (c?.kind === 'hanko') {
@@ -109,7 +107,7 @@ export function* lessonFlow(s: BattleScene): Co<BattleResult> {
   if (me && dummy && !qaDone(s)) {
     yield* flip(s, FLIP.mimashita);
     while (!qaDone(s)) {
-      topUpInk(s);
+      topUpInk(s, 'skill_mimashita');
       s.lesson = { icon: 'hanko', skill: 'skill_mimashita', hint: LESSON_HINT.mimashita, slow: true };
       const c = yield* choose(s);
       if (c?.kind === 'hanko') {
@@ -177,10 +175,11 @@ function* act(s: BattleScene, c: PartyCmd, run: () => Co): Co {
   yield 250;
 }
 
-/** The ink never runs out in the lesson (it is given back afterwards anyway). */
-function topUpInk(s: BattleScene): void {
+/** The ink never runs out in the lesson: refilled only when the stamp would not fit (it is all given back afterwards). */
+function topUpInk(s: BattleScene, skill: string): void {
   const m = s.minato;
-  if (m && m.m.mp < 6) m.m.mp = m.m.maxMp;
+  const cost = getSkill(skill)?.cost ?? 0;
+  if (m && m.m.mp < cost) m.m.mp = m.m.maxMp;
 }
 
 /**
@@ -240,6 +239,7 @@ export function* flip(s: BattleScene, pages: string[]): Co {
       st.turn = -1;
     }
     if (k) s.mood(k, 'tsukkomi', 60000);
+    s.flipText = pages[i];
     st.ready = false;
     // a short look before 決定 counts (a held press from the action does not skip it)
     const shown = s.t;
@@ -251,10 +251,9 @@ export function* flip(s: BattleScene, pages: string[]): Co {
     s.sfx('se_page');
   }
   st.down = 0;
+  s.flipText = '';
   yield 150;
   fx.done = true;
   s.msg.hidden = false;
   if (k) k.moodOverride = null;
-  void FRAME;
-  void game;
 }

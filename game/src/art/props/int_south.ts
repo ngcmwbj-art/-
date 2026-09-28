@@ -1,5 +1,5 @@
 // 南の列の部屋の絵（1）：ちずの家（map_chizu）、なんばるわんの家（map_madam）、
-// 夕鳴写真館（map_photo）。30_level_art 4.7〜4.9。
+// 夕鳴写真館（map_photo）。30_level_art 4.13〜4.15。
 //
 // 床は各マップの地面（畳・板・土間）をそのまま焼き、壁の飾りは殻に描く。
 // 北の壁ぎわの家具も、部屋の中ほどの家具も、深さ順に並ぶ小物（prop）。
@@ -623,7 +623,10 @@ southShell({
     p.set(dx + 9, 21, P.brass);
     p.rect(dx + 2, 3, 8, 5, P.ink);
     p.rect(dx + 3, 4, 6, 3, P.vermShade);
-    fontTextSmall(p, '暗室', dx - 1, 13, P.white, 2);
+    // the 『暗室』 plate on the door
+    p.rect(dx + 3, 13, 6, 4, P.white);
+    p.hline(dx + 4, dx + 7, 14, P.ink);
+    p.hline(dx + 4, dx + 6, 15, P.ink);
     // (6,0–1) a cluster of framed photos: school entrance, a wedding, the town's old festival
     const fr: [number, number, number, number, string][] = [[99, 9, 9, 7, P.woodDark], [109, 8, 7, 9, P.brass], [100, 18, 7, 8, P.brass], [108, 19, 9, 6, P.woodDark]];
     fr.forEach(([x, y, w, h, c], i) =>

@@ -362,13 +362,13 @@ export const NOBJ: Record<string, StageText> = {
 5時を さしている。`,
 
   // ---------------------------------------------------------------- 山吹酒店
-  obj_sk_shelf: `@narr
+  obj_yb_shelf: `@narr
 一升瓶が ずらり。{w=300}
 『夕鳴』『ひぐらし』『星見台』。
 /
 『星見台』の ラベルには、
 小さな 星が 1つ。`,
-  obj_sk_fridge: {
+  obj_yb_fridge: {
     s0: `@narr
 ガラスの 冷蔵ケース。{w=300}
 ビールと ジュースと、
@@ -380,24 +380,24 @@ export const NOBJ: Record<string, StageText> = {
 冷蔵ケースの しずくが、
 下から 上へ のぼっていく。`,
   },
-  obj_sk_display: `@narr
+  obj_yb_display: `@narr
 台の 上に、おつまみと ジュース。{w=300}
 『星見台 トマトジュース』。
 /
 ラベルの すみに、小さく
 『ツガオ便』。`,
-  obj_sk_uchiwa: `@narr
+  obj_yb_uchiwa: `@narr
 壁に、色あせた うちわ。{w=300}
 『ユウナリ 開店10周年』。
 /
 描いてある 顔は、
 どこかで 見たような
 鐘の 顔。`,
-  obj_sk_calendar: `@narr
+  obj_yb_calendar: `@narr
 酒蔵の カレンダー。{w=300}
 9月の ページに、
 『新米 まだかな』の 書きこみ。`,
-  obj_sk_register: `@narr
+  obj_yb_register: `@narr
 古い レジ。{w=300}
 ボタンを 押すと、
 『チーン』と 鳴る タイプだ。`,
@@ -448,7 +448,7 @@ export const NREWARD: Record<string, string> = {
 @npc_master
 前の お客さんの だな。{w=300}
 見つけた 人の ものだ。`,
-  obj_sk_bottles: `@narr
+  obj_yb_bottles: `@narr
 空きびんの ケースの すきまに、
 10円玉が 2枚。
 @npc_okami
@@ -483,7 +483,7 @@ export const NREWARD_AFTER: Record<string, StageText> = {
 テーブルの ゲーム機。{w=300}
 画面の 中で、宇宙人が
 夕日に 向かって 並んでいる。`,
-  obj_sk_bottles: `@narr
+  obj_yb_bottles: `@narr
 空きびんの ケース。{w=300}
 びんが、夕日の 色を
 1本ずつ 分けあっている。`,

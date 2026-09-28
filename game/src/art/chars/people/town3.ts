@@ -313,23 +313,24 @@ registerChar('npc_kotaro', () =>
 );
 
 // =============================================================================
-// しんご (npc_ojii; 縁台将棋のおじいさん): 70s. Short white hair, thick white brows, white
-// running shirt, steteko, a towel round the neck, a navy uchiwa. Sits on the
-// bench at the shogi board. Idle: fans (2 frames) → now and then moves a
-// piece (pachi). Extras: sit, move, look_up.
+// しんご (npc_ojii; 縁台将棋のおじさん): 50s (★2026-09-28, 02 #58: みかんが
+// めっちゃ好きなおじさん). Short salt-and-pepper hair, thick dark-grey brows,
+// white running shirt, steteko, a mikan-orange towel round the neck, a navy
+// uchiwa. Sits on the bench at the shogi board. Idle: fans (2 frames) → now
+// and then moves a piece (pachi). Extras: sit, move, look_up.
 
 const OJII: Mats = {
   ...base,
   skin: SKIN_MID,
-  hair: mat('#E8E4D8', { shade: '#BDB6AC', light: '#FFFFFF', dark: '#8E887E', rim: '#FFD8B0' }),
+  hair: mat('#8E8A84', { shade: '#66625E', light: '#C8C4BC', dark: '#3E3A38', rim: '#D8B8A0' }),
   shirt: mat('#F4F1E8', { shade: '#CFC8BC', light: '#FFFFFF', dark: '#9E978C', rim: '#FFDCB4' }),
   steteko: mat('#E8E4D8', { shade: '#C4BCB0', light: '#FAF6EC', dark: '#9A9088', rim: '#FFD6A8' }),
   geta: mat('#A8784A', { shade: '#7A5430', light: '#C8A06A' }),
-  towel: mat('#9FC8E0', { shade: '#78A0C0', light: '#C8E4F0' }),
+  towel: mat('#F2894B', { shade: '#C8643A', light: '#F7C27A' }),
   fan: mat('#2F4A8A', { shade: '#223668', light: '#4766A8' }),
   fanH: flat('#D9A441'),
   piece: flat('#F0D8A0'),
-  brow: flat('#F4F1E8'),
+  brow: flat('#4E4A46'),
 };
 
 const OJII_HEAD: HeadT = {

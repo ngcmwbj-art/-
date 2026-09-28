@@ -1,4 +1,4 @@
-// 南の列の部屋の人（02 #59、10_narrative 6.22〜6.24、30_level_art 9.3 に追記）:
+// 南の列の部屋の人（02 #59、10_narrative 6.23・7.20、30_level_art 4.13〜4.19）:
 //   npc_photo_master  写真館の主人 — 70代。紺のベレー帽、白い横の髪と白い口ひげ、
 //                     丸めがね、白いシャツに茶色のベスト、首から古いカメラ。立ち姿。
 //   npc_kazuo         かずお（なんばるわんの夫）— 60代。グレーの七三の短髪、めがね、
@@ -23,18 +23,18 @@ const base = {
 
 const WHITE_HAIR = mat('#E8E4D8', { shade: '#BDB6AC', light: '#FFFFFF', dark: '#8E887E', rim: '#FFD8B0' });
 
-/** Round glasses over the front eyes (x = viewer-left eye, d = distance), or one lens from the side. */
+/**
+ * Glasses (16px style): the rims beside and between the eyes on the eye
+ * row, in a light frame colour, so they read as glasses and not as a band.
+ */
 function glasses(f: Fig, p: Pose, hy: number, ex: number, d: number, ey: number, sx: number) {
   if (p.lookUp) return;
   f.part('glass', { flat: true, rim: false, ol: false });
+  const y = hy + ey;
   if (p.view === 'down') {
-    const y = hy + ey;
-    f.hl(ex - 1, ex + 1, y - 1).hl(ex + d - 1, ex + d + 1, y - 1);
-    f.px(ex - 1, y).px(ex + d + 1, y).px(ex + 1, y).px(ex + d - 1, y);
-  } else if (p.view === 'left') {
-    const y = hy + ey;
-    f.hl(sx - 1, sx + 1, y - 1).px(sx - 1, y).px(sx + 2, y - 1);
-  }
+    f.px(ex - 1, y).px(ex + 1, y).px(ex + d - 1, y).px(ex + d + 1, y);
+    f.px(ex, y - 1).px(ex + d, y - 1);
+  } else if (p.view === 'left') f.px(sx - 1, y).px(sx + 1, y).px(sx, y - 1);
 }
 
 // =============================================================================
@@ -52,7 +52,7 @@ const PM: Mats = {
   cam: mat('#3A3F48', { shade: '#2A2440', light: '#6B7186' }),
   lens: flat('#C0C6CC'),
   strap: flat('#2A2440'),
-  glass: flat('#2A2440'),
+  glass: flat('#C8A06A'),
   stache: flat('#F4F1E8'),
   brow: flat('#E8E4D8'),
 };
@@ -164,7 +164,7 @@ const KZ: Mats = {
   shoe: mat('#5A3A2A', { shade: '#3A2B24', light: '#8A5A3A' }),
   paper: mat('#FBF3DC', { shade: '#E8D9B5', light: '#FFFFFF', dark: '#C8C2B4' }),
   ink: flat('#9AA0A8'),
-  glass: flat('#2A2440'),
+  glass: flat('#6B7186'),
   brow: flat('#747A88'),
 };
 

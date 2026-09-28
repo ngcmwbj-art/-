@@ -5,6 +5,7 @@
 // src/events/npcs.ts. The world's pickTalk() reads the sN_n keys.
 
 import type { TalkTable } from '../../world/types';
+import { SHINGO_TALK } from '../maps/interior_north_text';
 
 export const NPC: Record<string, TalkTable> = {
   // ------------------------------------------------------------ 6.1 母
@@ -457,30 +458,9 @@ export const NPC: Record<string, TalkTable> = {
   },
 
   // ------------------------------------------------------------ 6.14 しんご
-  npc_ojii: {
-    s0_1: `@npc_ojii
-毎日 5時に 孫が 将棋を 指しに 来る。{w=300}
-それまで ひとりで 両方 指す。{w=500}
-勝っても 負けても、おれだ。`,
-    s0_2: `@npc_ojii
-待ったは なし。{w=600}
-……相手も なし。`,
-    s1_1: `@npc_ojii
-5時に 来る はずなんだが、
-5時が 来ない。`,
-    s1_2: `@npc_ojii
-5時に 来る はずなんだが、
-5時が 来ない。
-@narr
-しんごは 同じ 駒を、
-同じ ところに 置きなおした。`,
-    s2_1: `@npc_ojii
-駒がな、1枚 足りない。{w=300}
-『歩』が 1枚、迷子だ。`,
-    s2_2: `@npc_ojii
-迷子なら、だれかが
-迎えに 行って やらんとな。`,
-  },
+  // ★2026-09-28（02 #58）みかんがめっちゃ好きなおじさん、たんかんを探している。
+  // 台詞とたんかんの流れは data/maps/interior_north_text.ts・events/rooms_north.ts。
+  npc_ojii: SHINGO_TALK,
 
   // ------------------------------------------------------------ 6.15 ちず
   npc_mizumaki: {

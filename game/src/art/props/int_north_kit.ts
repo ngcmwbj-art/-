@@ -66,11 +66,12 @@ export function wetConcrete(seed: number, gutterY: number): (x: number, y: numbe
       if (y === gutterY) return P.charcoal;
       return (x >> 1) % 3 === 0 ? P.asphalt : P.charcoal;
     }
-    const n = valueNoise(x / 14, y / 10, seed);
-    const wet = valueNoise(x / 22 + 7, y / 16, seed + 5) > 0.66;
-    if (wet) return n > 0.55 ? '#8A90A0' : P.steel;
-    if ((x + y * 3) % 23 === 0) return P.steel;
-    return n > 0.7 ? P.concreteLt : n < 0.25 ? '#B4AEA0' : P.concrete;
+    const n = valueNoise(x / 10, y / 8, seed);
+    const wet = valueNoise(x / 26 + 7, y / 18, seed + 5) > 0.72;
+    // 32px trowelled slabs with a fine joint
+    if (x % 32 === 0 || y % 32 === 0) return '#B4AEA0';
+    if (wet) return n > 0.5 ? '#A8AAB0' : '#B4B4B4';
+    return n > 0.78 ? P.concreteLt : n < 0.2 ? '#BCB6A8' : P.concrete;
   };
 }
 

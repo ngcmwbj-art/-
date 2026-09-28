@@ -3,6 +3,7 @@
 // Scenario scripts registered with the same id replace these.
 
 import type { StageText, TalkTable } from '../../world/types';
+import { SHINGO_TALK } from './interior_north_text';
 
 // ---- examine texts (obj_*) ------------------------------------------------------
 
@@ -782,32 +783,8 @@ export const TALK: Record<string, TalkTable> = {
 ……でも、100円 あるから 平気。{w=300}
 100円は 強いから。`,
   },
-  npc_ojii: {
-    s0_1: `@npc_ojii
-毎日 5時に 孫が 来るんだ。{w=300}
-将棋の 相手でな。
-/
-それまで ひとりで 両方 指す。{w=300}
-勝っても 負けても、おれだ。`,
-    s0_2: `@npc_ojii
-待ったは なし。{w=600}
-……相手も なし。`,
-    s1_1: `@npc_ojii
-5時に 来る はずなんだが、
-5時が 来ない。`,
-    s1_2: `@npc_ojii
-5時に 来る はずなんだが、
-5時が 来ない。
-@narr
-しんごは 同じ 駒を、
-同じ ところに 置きなおした。`,
-    s2_1: `@npc_ojii
-駒がな、1枚 足りない。{w=300}
-『歩』が 1枚、迷子だ。`,
-    s2_2: `@npc_ojii
-迷子なら、だれかが
-迎えに 行って やらんとな。`,
-  },
+  // しんご（02 #58：みかん好きのおじさん・たんかん）は interior_north_text.ts が正
+  npc_ojii: SHINGO_TALK,
   npc_mizumaki: {
     s0_1: `@npc_mizumaki
 今日 3回目の 水まき。{w=300}

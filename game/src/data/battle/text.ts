@@ -84,7 +84,8 @@ export type SysKey = keyof typeof SYS;
 export const TUT = {
   tsukkomi: '『！』が 出たら 決定！\nツッコミで ダメージ 半分。',
   firstCommand: 'たたく を えらぼう',
-  ring: 'いま！',
+  // (the first ring's 「いま！」 and the first hanko's sticky are gone: the
+  // words beside the ring and the gauge say it in every battle — 20 10.7)
   // (QA round 2: 「『！』の すぐあとに」 sent reacting players in too late;
   // the ring that closes on the hit is the cue, and ひろい is one step away)
   // (QA round 3: it has to fit beside the hato's column — ring, number and
@@ -92,7 +93,6 @@ export const TUT = {
   rhythm: '輪に 合わせて 決定！\n（せってい→ 『ひろい』も）',
   tsukkomiOk: 'ツッコまれた 相手は\n『ボケ負け』に なる。',
   bokemake: 'ボケ負けの 相手には\nダメージ 1.5倍！',
-  hanko: '長おしで 朱肉が たまる。\n赤い ところで はなす！',
   kire: 'キレが たまった！\nノリツッコミが つかえる。',
   oshirase: '光っている 部位に\n『みました』！',
   // the boss's 4th chime is next (QA round 3: button-mashers lost to it

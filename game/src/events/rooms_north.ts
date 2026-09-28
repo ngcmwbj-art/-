@@ -125,9 +125,9 @@ registerScript('obj_cf_freezer', function* (): Co {
 
 // ---------------------------------------------------------------- 山吹酒店: the うちわ
 
-registerScript('obj_sk_uchiwa', function* (): Co {
+registerScript('obj_yb_uchiwa', function* (): Co {
   sfx('se_examine');
-  yield* msg(N.NOBJ.obj_sk_uchiwa as string);
+  yield* msg(N.NOBJ.obj_yb_uchiwa as string);
   if (flag('flag_kanenari_joined') && !flag('flag_follower_hidden') && !flag('flag_uchiwa_flip')) {
     setFlag('flag_uchiwa_flip', 1);
     sfx('se_flip');
@@ -262,3 +262,13 @@ registerDebug('tankan', (step = 2) => {
   }
   return { heard: flag('flag_tankan_heard'), got: flag('flag_got_tankan'), given: flag('flag_tankan_given'), holding: state.inventory.includes('item_tankan') };
 });
+
+/** QA: money, the bag and the finds of the north row. */
+registerDebug('northState', () => ({
+  money: state.money,
+  bag: [...state.inventory],
+  finds: Object.fromEntries(
+    ['sg_zabuton', 'sg_freebox', 'sd_suzuri', 'tf_ramune', 'tf_sack', 'ck_candy', 'cf_game', 'yb_bottles'].map((k) => [k, flag('flag_find_' + k)]),
+  ),
+  tankan: { heard: flag('flag_tankan_heard'), got: flag('flag_got_tankan'), given: flag('flag_tankan_given'), owed: flag('flag_tankan_owed') },
+}));

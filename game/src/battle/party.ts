@@ -26,7 +26,7 @@ import { beachSandal, hankoCloseup } from './art/fxart';
 import { hanamaruFrame, kakimoji, kakimojiSmall, ovalStamp, pekeMark, roundSeal, scoreSeal } from './art/stamps';
 import { itemIcon, kireIcon } from './art/icons';
 import { infoCardWidth, kireIconXY, PANEL_POS, panelOffset, type CardData } from './ui/panels';
-import { C, tapeCanvas } from './ui/note';
+import { C, STICKY_PAD, tapeCanvas } from './ui/note';
 import { cueSize } from './ui/cue';
 import { FLAG_PAD, kanenariBack, kanenariFront, MIC_AT } from '../art/enemies/kanenari';
 import { portrait } from '../art/chars';
@@ -164,11 +164,23 @@ const RING_CUE_F = 12;
 function ringCue(s: BattleScene, x: number, y: number, now: boolean): void {
   const text = 'いま！';
   const { w, h } = cueSize(text);
-  // right of the ring, or left of it near the right edge
-  const right = x + 30 + w <= 380;
+  const top = Math.round(Math.max(STAGE_TOP, Math.min(140 - h, y - h / 2)));
+  // right of the ring, or left of it: whichever side stays on screen and
+  // off the tutorial sticky (it is what the player must read)
+  const sp = s.stickyPlace();
+  const cost = (x0: number): number => {
+    let c = x0 < 4 || x0 + w > 380 ? 1e6 : 0;
+    if (sp) {
+      const ox = Math.min(x0 + w, sp.x + sp.img.width - STICKY_PAD) - Math.max(x0, sp.x);
+      const oy = Math.min(top + h, sp.y + sp.img.height - STICKY_PAD) - Math.max(top, sp.y);
+      if (ox > 0 && oy > 0) c += ox * oy;
+    }
+    return c;
+  };
+  const right = cost(x + 30) <= cost(x - 30 - w);
   s.cues.set('ring', text, {
     x: right ? x + 30 : x - 30,
-    y: Math.round(Math.max(STAGE_TOP, Math.min(140 - h, y - h / 2))),
+    y: top,
     align: right ? 'left' : 'right',
     tone: now ? 'go' : 'hold',
     mode: now ? 'flash' : 'still',

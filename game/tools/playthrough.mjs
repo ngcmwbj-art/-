@@ -9,6 +9,8 @@
 //   node tools/playthrough.mjs --out /tmp/claude-0/shots/playthrough
 //   node tools/playthrough.mjs --from kanenari        start at a story beat (__game.cmd.jump)
 //   node tools/playthrough.mjs --real hato,ojigi      battles fought with real command input
+//                                                     (default hato,lesson: 'lesson' = the park's lesson
+//                                                     battle evt_kn_lesson, menus and flips with Z)
 //                                                     (default: hato; the rest use __game.cmd.win()).
 //                                                     The key bot answers every prompt with Z; in long
 //                                                     fights it guards on the boss's third chime and
@@ -57,7 +59,8 @@ const opt = (name, def) => {
 const BASE = opt('--base', 'http://127.0.0.1:5173/');
 const OUT = opt('--out', '/tmp/claude-0/shots/playthrough');
 const FROM = opt('--from', '');
-const REAL = new Set(opt('--real', args.includes('--chapter') && opt('--chapter', '1') === '2' ? '' : 'hato').split(',').filter(Boolean));
+// (chapter 1 default: ハト係長 and the park's lesson battle — evt_kn_lesson — with keys)
+const REAL = new Set(opt('--real', args.includes('--chapter') && opt('--chapter', '1') === '2' ? '' : 'hato,lesson').split(',').filter(Boolean));
 const HEADED = args.includes('--headed');
 const FUSHIGI_ALL = args.includes('--fushigi-all');
 /** Chapter 2's optional beats to run instead of the story (each from its own jump): barnwork, delivery. */
@@ -676,6 +679,57 @@ async function battleByKeys(maxMs = 180000) {
   return { real: true, presses, rounds, ms: Date.now() - t0 };
 }
 
+/**
+ * The park's lesson battle (evt_kn_lesson, 20 10.6), gone through with Z: the
+ * menus (only the taught command works), the flip pages and the four lessons.
+ * The timing itself is answered by __game.cmd.bauto (a good ring, くっきり, a
+ * tsukkomi), so each lesson passes on its first try. Checks that all four
+ * lessons came up, in order.
+ */
+async function battleLesson(maxMs = 150000) {
+  const t0 = Date.now();
+  let presses = 0;
+  let lastShot = 0;
+  const seen = [];
+  const note = (k) => {
+    if (!seen.includes(k)) seen.push(k);
+  };
+  await page.evaluate(() => window.__game.cmd.bauto({ ring: 'good', hold: 'kukkiri', tsuk: 'ok' }));
+  await shot('lesson_start');
+  for (;;) {
+    const s = await st();
+    if (s.top === 'FieldScene' && !s.battle) break;
+    if (Date.now() - t0 > maxMs) {
+      log('  lesson took too long: finishing with __game.cmd.win()');
+      await battleWin();
+      return { real: false, lesson: true, seen };
+    }
+    const b = await page.evaluate(() => window.__game.cmd.bstate?.()).catch(() => null);
+    if (b?.lesson) {
+      if (b.lesson.icon === 'tataku') note('tataku');
+      if (b.lesson.icon === 'hanko' && b.lesson.skill === 'skill_peke') note('hanko');
+      if ((b.cues ?? []).includes('ツッコめ！')) note('tsukkomi');
+      if (b.lesson.icon === 'hanko' && b.lesson.skill === 'skill_mimashita') note('mimashita');
+      if ((b.lesson.flip ?? '').startsWith('ごうかく')) note('end');
+    }
+    if (Date.now() - lastShot > 4000) {
+      lastShot = Date.now();
+      await shot('lesson');
+    }
+    // Z only for the menus, the flip pages and the band — never while a
+    // timing game runs (a stray press there is an early press)
+    if (b && (b.choosing || b.lesson?.flip || b.interactive)) {
+      await tap('KeyZ', 50);
+      presses++;
+    }
+    await sleep(220);
+  }
+  const want = ['tataku', 'hanko', 'tsukkomi', 'mimashita', 'end'];
+  if (want.join() !== seen.join()) throw new Error(`the lesson went ${seen.join(' → ')} (want ${want.join(' → ')})`);
+  log(`  lesson: ${seen.join(' → ')} in ${Math.round((Date.now() - t0) / 1000)}s, ${presses} presses`);
+  return { real: true, lesson: true, presses, ms: Date.now() - t0 };
+}
+
 /** Shortened battle: guard for everyone, then __game.cmd.win(). */
 async function battleWin(maxMs = 60000) {
   const t0 = Date.now();
@@ -780,7 +834,15 @@ async function advance({ max = 60000, gap = 260, shotEvery = 0, label = 'ev', ba
     if (s.top === 'TitleScene') return out;
     if (s.battle || s.top === 'BattleScene') {
       if (battles === 'stop') return out;
-      const b = battles === 'keys' ? await battleByKeys() : (await battleWin(), { real: false });
+      // the park's lesson (evt_kn_lesson) has its own driver (--real lesson)
+      const lesson = await page.evaluate(() => !!window.__game.cmd.bstate?.()?.lesson).catch(() => false);
+      const b = lesson
+        ? REAL.has('lesson')
+          ? await battleLesson()
+          : (await battleWin(), { real: false, lesson: true })
+        : battles === 'keys'
+          ? await battleByKeys()
+          : (await battleWin(), { real: false });
       out.battles.push(b);
       battleLog.push({ beat: beatName, ...b });
       continue;
@@ -1016,7 +1078,7 @@ const BEATS = [
       await talkTo('npc_kanenari', { side: 'below' });
       await advance({ shotEvery: 3, label: 'ev', battles: REAL.has('kanenari') ? 'keys' : 'win', max: 240000 });
       await shot('stage2');
-      await need(['flag_kanenari_joined', 'flag_broadcast', 'flag_parking_open'], 'kanenari → broadcast');
+      await need(['flag_kanenari_joined', 'flag_kn_lesson', 'flag_broadcast', 'flag_parking_open'], 'kanenari → lesson → broadcast');
       if ((await flag('flag_stage')) !== 2) throw new Error('not stage 2 after the broadcast');
       await assertReach(2);
     },

@@ -1,5 +1,5 @@
-// 南の列（川べり通りの北側）の建物と公園のトイレの部屋（30_level_art 4.7〜4.13、
-// テキストは 10_narrative 7.19、02_ch2_index #59。2026-09-28 依頼主の指示）。
+// 南の列（川べり通りの北側）の建物と公園のトイレの部屋（30_level_art 4.13〜4.19、
+// テキストは 10_narrative 7.20・6.23、02_ch2_index #59。2026-09-28 依頼主の指示）。
 //
 //   map_chizu        ちずの家（bld_mizumaki (9,25)、扉 (11,30)）
 //   map_madam        なんばるわんの家（bld_madam (19,26)、扉 (22,30)）
@@ -97,7 +97,7 @@ registerMap({
     PR('in_cz_table', 2, 4),
     PR('in_cz_boots', 7, 4),
     PR('in_cz_shoebox', 8, 4),
-    PR('prop_ceiling_light', 5, 4, { ly: -30, cord: 20 }),
+    PR('prop_ceiling_light', 5, 4, { ly: -38, cord: 10 }),
     // examine
     O('obj_cz_calendar', 3, 1, { face: 'up' }),
     O('obj_cz_clock', 6, 1, { face: 'up' }),

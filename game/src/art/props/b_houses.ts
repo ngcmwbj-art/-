@@ -269,20 +269,25 @@ registerBuilding({
     p.hline(6, 73, fY + 11, P.woodDark);
     // sliding shoji doors behind glass with bamboo blinds (すだれ)
     windowAt(b, 6, fY + 17, 40, 26, 'shoji', { sill: false });
-    for (let i = 4; i < 48; i++) {
+    for (let i = 4; i < 46; i++) {
       for (let j = fY + 15; j < fY + 36; j++) {
         if ((j - fY) % 2 === 0) p.set(i, j, (i + j) % 7 === 0 ? P.woodLt : P.goldPale);
         else if (i % 9 === 0) p.set(i, j, P.brassOld);
       }
     }
     // blind cords and hem
-    p.hline(4, 47, fY + 36, P.brassOld);
+    p.hline(4, 45, fY + 36, P.brassOld);
     p.vline(10, fY + 36, fY + 39, P.verm);
     p.vline(40, fY + 36, fY + 39, P.verm);
-    castRight(p, 4, fY + 15, 44, 22, 3);
-    // entrance
-    slidingDoor(b, 54, fY + 19, 18, 29, P.woodDark);
-    p.rect(54, fY + 15, 18, 3, P.woodDark);
+    castRight(p, 4, fY + 15, 42, 22, 3);
+    // entrance (the door of map_shingo at tile 11, 02 #58: moved 7px west onto
+    // its tile; the bonsai shelf stands east of it)
+    slidingDoor(b, 47, fY + 19, 18, 29, P.woodDark);
+    p.rect(47, fY + 15, 18, 3, P.woodDark);
+    // a mikan-coloured noren-less door charm: one mikan hung on the lintel
+    p.rect(55, fY + 18, 3, 3, P.sun);
+    p.set(55, fY + 18, P.sky);
+    p.set(56, fY + 17, P.leafDeep);
     // house number plate & small mailbox slot
     p.rect(74, fY + 20, 4, 6, P.white);
     p.vline(75, fY + 21, fY + 24, P.ink);
@@ -330,6 +335,15 @@ registerBuilding({
     p.line(59, fY + 24, 61, fY + 26, P.ink);
     p.set(60, fY + 20, P.ink);
     castRight(p, 58, fY + 17, 5, 10, 2);
+    // the calligraphy class's own board on the wall by the gate (02 #58:
+    // ふでの書道教室) — just as fluent, with a red seal at the foot
+    p.rect(37, fY + 19, 5, 11, P.paper);
+    p.vline(37, fY + 19, fY + 29, P.paperGrid);
+    p.line(39, fY + 20, 40, fY + 22, P.ink);
+    p.line(40, fY + 22, 38, fY + 24, P.ink);
+    p.line(38, fY + 24, 40, fY + 26, P.ink);
+    p.set(39, fY + 28, P.verm);
+    castRight(p, 37, fY + 19, 5, 11, 2);
     // stone wall
     for (let j = fY + 30; j < b.botY; j++)
       for (let i = 0; i < 44; i++) {
@@ -387,15 +401,16 @@ registerBuilding({
       p.set(i, fY + 23, i % 4 === 1 ? P.crimson : P.peach);
       p.set(i + 1, fY + 23, P.leaf);
     }
-    // front door with a porch lamp
-    p.rect(34, fY + 18, 18, 30, P.concreteLt);
-    p.rect(36, fY + 21, 14, 27, P.wood);
-    p.vline(36, fY + 21, b.botY - 1, P.woodLt);
-    p.rect(39, fY + 24, 8, 10, P.woodDark);
-    p.set(47, fY + 36, P.brass);
-    p.rect(52, fY + 22, 3, 5, P.goldPale);
-    p.set(52, fY + 22, P.glint);
-    castRight(p, 52, fY + 22, 3, 5, 2);
+    // front door with a porch lamp — on the east tile (22,30), clear of
+    // コタロウ's doghouse in front of (21,31) (02 #59: the door opens now)
+    p.rect(44, fY + 18, 18, 30, P.concreteLt);
+    p.rect(46, fY + 21, 14, 27, P.wood);
+    p.vline(46, fY + 21, b.botY - 1, P.woodLt);
+    p.rect(49, fY + 24, 8, 10, P.woodDark);
+    p.set(57, fY + 36, P.brass);
+    p.rect(39, fY + 22, 3, 5, P.goldPale);
+    p.set(39, fY + 22, P.glint);
+    castRight(p, 39, fY + 22, 3, 5, 2);
     // 犬に注意 plate
     p.rect(8, fY + 32, 12, 7, P.white);
     p.strokeRect(8, fY + 32, 12, 7, P.steel);

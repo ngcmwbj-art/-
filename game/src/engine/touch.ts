@@ -42,14 +42,14 @@ const CSS = `
 .tc-d.on .lamp{background:${SHU}}
 .tc.overlay .tc-pad,.tc.overlay .tc-btn{opacity:.55;transition:opacity .15s}
 .tc.overlay .tc-pad.held,.tc.overlay .tc-btn.down{opacity:.9}
-.tc-hint{position:absolute;right:calc(100% + .45em);top:50%;display:none;padding:.3em .55em .25em;
+.tc-hint{position:absolute;left:50%;bottom:calc(100% + .5em);display:none;padding:.3em .55em .25em;
   background:${PAPER};color:${SHU};border:3px solid ${INK};border-radius:.4em;box-shadow:0 3px 0 ${INK};
-  font-size:.82em;white-space:nowrap;pointer-events:none;transform:translateY(-50%);animation:tcBeat .56s ease-in-out infinite alternate}
+  font-size:.82em;white-space:nowrap;pointer-events:none;transform:translateX(-50%);animation:tcBeat .56s ease-in-out infinite alternate}
 .tc-hint.on{display:block}
 .tc-hint.go{background:#FFD23F;color:${INK};animation-duration:.18s}
-.tc-a.hint{outline:4px solid #FFD23F;outline-offset:2px}
+.tc-a.hint{outline:4px solid #FFD23F;outline-offset:2px;z-index:3}
 .tc.overlay .tc-a.hint{opacity:.9}
-@keyframes tcBeat{from{transform:translateY(-50%) scale(1)}to{transform:translateY(-50%) scale(1.1)}}
+@keyframes tcBeat{from{transform:translateX(-50%) scale(1)}to{transform:translateX(-50%) scale(1.1)}}
 `;
 
 const SVG_NS = 'http://www.w3.org/2000/svg';

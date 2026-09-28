@@ -259,31 +259,68 @@ function shutterPaint(v: number) {
     for (let i = 5; i < 59; i++) if (ihash(i, v, 1601) % 7 === 0) p.set(i, fY + 4 + (i % 7), board);
     // shutter box and slats
     const top = fY + 15;
-    p.rect(1, top, 62, 4, P.steel);
-    p.hline(1, 62, top, P.concreteLt);
-    p.hline(1, 62, top + 3, P.asphalt);
+    // 02 #59: every shutter has a way in now — v1 a wicket door cut into the
+    // shutter (38,31), v2 a glass side door at the east end by the lane
+    // (42,31), v3 a steel side door at the west end by the lane (46,31)
+    const [sx0, sx1] = v === 2 ? [1, 46] : v === 3 ? [16, 62] : [1, 62];
+    p.rect(sx0, top, sx1 - sx0 + 1, 4, P.steel);
+    p.hline(sx0, sx1, top, P.concreteLt);
+    p.hline(sx0, sx1, top + 3, P.asphalt);
     const open = v === 3 ? 10 : 0;
     for (let j = top + 4; j < b.botY - open; j++) {
       const ly = (j - top) % 3;
-      p.hline(2, 61, j, ly === 0 ? P.concreteLt : ly === 1 ? P.concrete : P.steel);
+      p.hline(sx0 + 1, sx1 - 1, j, ly === 0 ? P.concreteLt : ly === 1 ? P.concrete : P.steel);
     }
-    p.vline(1, top, b.botY - 1, P.asphalt);
-    p.vline(62, top, b.botY - 1, P.charcoal);
+    p.vline(sx0, top, b.botY - 1, P.asphalt);
+    p.vline(sx1, top, b.botY - 1, P.charcoal);
     if (open) {
-      p.rect(2, b.botY - open, 60, open, P.night);
-      p.hline(2, 61, b.botY - open, P.charcoal);
+      p.rect(sx0 + 1, b.botY - open, sx1 - sx0 - 1, open, P.night);
+      p.hline(sx0 + 1, sx1 - 1, b.botY - open, P.charcoal);
       // something glints inside
       p.set(20, b.botY - 4, P.steel);
       p.set(44, b.botY - 6, P.shade);
     }
     // rust streaks at the foot of the shutter
-    for (let i = 3; i < 61; i += 5) if (ihash(i, v, 1603) % 2) p.vline(i, b.botY - open - 4, b.botY - open - 1, P.brassOld);
+    for (let i = sx0 + 2; i < sx1 - 1; i += 5) if (ihash(i, v, 1603) % 2) p.vline(i, b.botY - open - 4, b.botY - open - 1, P.brassOld);
+    if (v === 1) {
+      // the wicket door (くぐり戸) in the shutter: an inset frame, a handle, the 『片づけ中』 note
+      const kx = 50;
+      const ky = top + 9;
+      p.vline(kx, ky, b.botY - 1, P.charcoal);
+      p.hline(kx, kx + 10, ky, P.charcoal);
+      p.vline(kx + 10, ky + 1, b.botY - 1, P.white);
+      p.vline(kx + 1, ky + 1, b.botY - 1, P.steel);
+      p.rect(kx + 8, ky + 11, 1, 3, P.charcoal);
+      p.set(kx + 8, ky + 15, P.ink);
+      p.rect(kx + 3, ky + 3, 5, 5, P.paper);
+      p.hline(kx + 4, kx + 6, ky + 5, P.steel);
+      p.set(kx + 5, ky + 3, P.goldPale);
+    } else if (v === 2) {
+      // the glass side door, the hanging board 『ひと休み処』 and 『ご自由に どうぞ』
+      glassDoor(b, 47, fY + 18, 15, 30, P.steel);
+      p.rect(49, fY + 22, 11, 5, P.woodLt);
+      p.hline(49, 59, fY + 22, P.goldPale);
+      printLines(p, 50, fY + 24, 9, 1, P.woodDark, 7, 1);
+      p.set(54, fY + 21, P.steel);
+      p.rect(50, fY + 30, 8, 6, P.white);
+      printLines(p, 51, fY + 31, 6, 2, P.verm, 9, 1);
+    } else if (v === 3) {
+      // the steel side door (通用口), left ajar, 『換気中』 on a card
+      p.rect(2, fY + 18, 13, b.botY - fY - 18, P.charcoal);
+      p.rect(3, fY + 19, 11, b.botY - fY - 19, P.steel);
+      p.vline(3, fY + 19, b.botY - 1, P.concrete);
+      p.vline(13, fY + 19, b.botY - 1, P.night);
+      p.hline(3, 12, fY + 19, P.concreteLt);
+      p.rect(11, fY + 32, 1, 3, P.charcoal);
+      p.rect(5, fY + 24, 5, 4, P.paper);
+      p.hline(6, 8, fY + 26, P.blue);
+    }
     // graffiti / notices
     if (v === 1) {
-      fontTextSmall(p, 'ここに夢を', 8, top + 7, P.crimson, 1);
-      fontTextSmall(p, '置いていく', 14, top + 17, P.crimson, 1);
-      p.set(52, top + 24, P.crimson);
-      p.set(52, top + 25, P.crimson);
+      fontTextSmall(p, 'ここに夢を', 4, top + 7, P.crimson, 1);
+      fontTextSmall(p, '置いていく', 8, top + 17, P.crimson, 1);
+      p.set(46, top + 24, P.crimson);
+      p.set(46, top + 25, P.crimson);
     } else if (v === 3) {
       // closing notice taped on
       p.rect(20, top + 7, 20, 14, P.paper);
@@ -317,14 +354,15 @@ registerBuilding((opts) => {
             const top = b.faceY + 15;
             const look = stage === 2 ? 'ne' : 'side';
             // repaint the three faces for this stage
-            for (const [fx, fy] of [[6, top + 6], [26, top + 14], [46, top + 5]]) {
+            // (02 #59: moved west, clear of the glass side door at the east end)
+            for (const [fx, fy] of [[3, top + 6], [17, top + 14], [31, top + 5]]) {
               for (let j = fy - 1; j < fy + 15; j++) {
                 for (let i = fx - 1; i < fx + 15; i++) {
                   const ly = (j - top) % 3;
                   p.set(i, j, ly === 0 ? P.concreteLt : ly === 1 ? P.concrete : P.steel);
                 }
               }
-              henohe(p, fx, fy, fx === 26 ? P.blue : P.ink, look);
+              henohe(p, fx, fy, fx === 17 ? P.blue : P.ink, look);
             }
           }
         : undefined,
