@@ -173,7 +173,7 @@ queueMicrotask(() => {
 
 /**
  * The stand at a house's door (52 3.5), drawn at the foot of the wall tile it
- * is read from: 1 タケじい's crate, 2 エー区長's low stand, 3 the back-door
+ * is read from: 1 タケじい's crate, 2 ハモ区長's low stand, 3 the back-door
  * stand of シゲじい and スギばあ, 5 the rice sack at トマじい's door.
  */
 registerProp('prop_h_deli_dai', (opts) => {

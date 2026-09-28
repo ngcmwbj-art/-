@@ -139,7 +139,7 @@ export const DARK_SCHOOL_AGAIN = `@narr
 // ================================================================ 10.5 evt_ch2_yoriai
 
 /**
- * Cues: yunomi (エー夫人 puts two cups on the long desk), fumi (まつ先生
+ * Cues: yunomi (ぴょん夫人 puts two cups on the long desk), fumi (まつ先生
  * turns; the glasses catch the light), case (the case's rim glows).
  */
 export const YORIAI_A = `@npc_hoshi_kucho
@@ -147,7 +147,7 @@ export const YORIAI_A = `@npc_hoshi_kucho
 夜分に、お若い お客様。
 /
 えー、星見台 区長の
-エーで ございます。{w=300}
+ハモで ございます。{w=300}
 ……どちらから？
 @flip
 夕鳴町から 来ました。
@@ -199,7 +199,7 @@ export const YORIAI_A = `@npc_hoshi_kucho
 /** The hanko case: a choice with two answers, then on together. */
 export const YORIAI_CASE = `@npc_hoshi_fumi
 ……おや。{w=300}その ケース、
-タエ先生の 採点ハンコでは
+はっち先生の 採点ハンコでは
 ありませんか？
 ? うなずく | 首を かしげる
 [うなずく]
@@ -209,12 +209,12 @@ export const YORIAI_CASE = `@npc_hoshi_fumi
 先生でしてね。
 [首を かしげる]
 @npc_hoshi_fumi
-ひのやの 日野タエ先生。{w=300}
+ひのやの 日野はっち先生。{w=300}
 わたしの 新任の ころの、
 先輩ですよ。
 [-]`;
 
-/** Cue: map (エー区長 draws the map on the back of the circular). */
+/** Cue: map (ハモ区長 draws the map on the back of the circular). */
 export const YORIAI_B = `@npc_hoshi_fumi
 防災無線は、山の 上の
 天文台の となり。
@@ -246,14 +246,14 @@ export const YORIAI_GET_SHUNIKU = `@sys
 // ================================================================ 10.6 evt_ch2_mitsu
 
 export const MITSU_A = `@npc_hoshi_mitsu
-……おぴぴか？{w=300}
+……くりこか？{w=300}
 ……いや、背たけが ちがうな。
 @flip
 夕鳴町から 来ました。
 （PR大使です）
 @npc_hoshi_mitsu
 夕鳴から。{w=300}
-娘の おぴぴが、そこの 高校に
+娘の くりこが、そこの 高校に
 通ってる。
 /
 トマトかい。{w=300}
@@ -476,7 +476,7 @@ export const TETSUYA_A = `@耕うん機:h_tetsuya
 export const YOBIGOE_BROADCAST = `@npc_hoshi_speaker
 こちらは、防災 星見台です。
 /
-……おぴぴちゃん。シュンスケくん。
+……くりこちゃん。シュンスケくん。
 {w=300}もとくん。
 /
 ……アスカちゃん。サトシくん。
@@ -539,7 +539,7 @@ export const BOSS_TENKO = `@npc_hoshi_speaker
 こちらは、防災 星見台です。
 {w=300}点呼を 続けます。
 /
-……おぴぴちゃん。{w=600}
+……くりこちゃん。{w=600}
 ……シュンスケくん。
 /
 ……へんじが ありません。`;
@@ -619,7 +619,7 @@ export const END_3_B = `@flip
 トマトは 食べられます。
 （前回 学びました）
 @npc_hoshi_fumi
-タエ先生に、よろしく。
+はっち先生に、よろしく。
 @npc_hoshi_kucho
 えー、夕鳴町の 小林しゅん様、
 カネナリ様。

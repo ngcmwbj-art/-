@@ -1464,12 +1464,12 @@ const SIDE2 = [
         await examineHere('up', id.slice(-2));
         await need(['flag_' + id], id);
       }
-      // 4つ目: エー夫人 in the gathering room
+      // 4つ目: ぴょん夫人 in the gathering room
       await enterDoor(26, 28, 'up', 'map_hoshi_school');
       await advance({ label: 'school' });
       await talkTo('npc_hoshi_yoshie', { side: 'right' });
       await advance({ label: 'yoshie', shotEvery: 2 });
-      await need(['flag_spot_h_deli_04'], 'エー夫人');
+      await need(['flag_spot_h_deli_04'], 'ぴょん夫人');
       await leaveRoom('map_hoshimidai');
       await travel(17, 32);
       await examineHere('up', '05');

@@ -83,8 +83,8 @@ export const VOICES: Record<string, VoiceDef> = {
   // ---- chapter 2 (53_ch2_audio 9.1). The ids keep the first cast's names (50 3.2);
   // the five men of the village and さんかど never share base, wave, set and pace
   h_driver: { label: 'さんかど（郵便配達員）', wave: 'triangle', base: 'E4', scale: [0, 2, 4, 7], len: 34, A: 3, D: 20, S: 0.45, R: 10, every: 2, v: 0.055, lp: 2000, formant: true },
-  h_kucho: { label: 'エー区長', wave: 'pulse25', base: 'G3', scale: [0, 2, 4, 5, 7], len: 42, every: 2, v: 0.06, lp: 2000, formant: true },
-  h_yoshie: { label: 'エー夫人', wave: 'triangle', base: 'B4', scale: [0, 2, 4, 7], len: 28, every: 2, v: 0.055, formant: true },
+  h_kucho: { label: 'ハモ区長', wave: 'pulse25', base: 'G3', scale: [0, 2, 4, 5, 7], len: 42, every: 2, v: 0.06, lp: 2000, formant: true },
+  h_yoshie: { label: 'ぴょん夫人', wave: 'triangle', base: 'B4', scale: [0, 2, 4, 7], len: 28, every: 2, v: 0.055, formant: true },
   h_fumi: { label: 'まつ先生', wave: 'triangle', base: 'C4', scale: [0, 2, 4, 7, 9], len: 46, A: 4, every: 2, v: 0.055, vib: [5, 6], rev: 0.15, formant: true, noise: { bp: 2000, q: 1, level: 0.08 } },
   h_mitsu: { label: 'ペロ', wave: 'triangle', base: 'A3', scale: [0, 3, 5, 7], len: 52, A: 6, every: 3, v: 0.06, lp: 1500, vib: [4, 8], formant: true, noise: { bp: 1200, q: 1, level: 0.12 } },
   h_gen: { label: 'マサル', wave: 'square', base: 'F3', scale: [0, 3, 5, 7], len: 26, A: 0, D: 20, S: 0, every: 3, v: 0.06, lp: 1600, formant: true },
@@ -250,7 +250,7 @@ function isBattle(): boolean {
 
 /**
  * A character held back until the next one decides how it sounds (53 9.2:
- * エー区長's 「えー」, ペロ's 「なぁ」). It is let go 60 ms later at most.
+ * ハモ区長's 「えー」, ペロ's 「なぁ」). It is let go 60 ms later at most.
  */
 type HoldKind = 'ee' | 'naa' | 'tsu' | 'ga' | 'wa' | 'ha' | 'ka' | 'word';
 type BlipMode = 'plain' | 'ee' | 'naa' | 'chan' | 'gachan' | 'laugh' | 'imo' | 'stam' | 'sasuga';
@@ -513,7 +513,7 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
   const every = s.tsukkomi || s.chan || loud ? 1 : s.wake ? 4 : def.every;
   const minGap = every * 0.025 * 0.9;
   const allowed = now - s.last >= minGap;
-  // エー区長's 「えー」 and ペロ's 「なぁ」: the next character decides
+  // ハモ区長's 「えー」 and ペロ's 「なぁ」: the next character decides
   // (and ツガオ's 「つがおちゃん」, ダコク's 「ガチャン」, ヒロスケさん's laugh and
   // 「……か？」, ポコシャさん's first letters: a stammer or 「さすが」)
   const holdKind: HoldKind | null =

@@ -196,7 +196,7 @@ const CH2_VOICE_RE = /^(h_|yobimodoshi$|tsugao$|dakoku$|broadcast_room$|hirosuke
 const CH2_VOICE_REUSED = ['broadcast', 'kanenari_voice'];
 /** Sample lines for the reused voices when heard on the 第2章 page. */
 const CH2_SAMPLES: Record<string, string> = {
-  broadcast: '……おぴぴちゃん。',
+  broadcast: '……くりこちゃん。',
   kanenari_voice: '……おはよう。',
 };
 const isCh2Se = (group: string) => CH2_SE_GROUPS.includes(group);

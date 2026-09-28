@@ -326,7 +326,7 @@ function* cut2Morning(): Co {
   yield* beat(2400);
   stopAmbient('amb_h_tanada', 0.4);
 
-  // 2d the gathering room: the last snore; エー区長 opens the window; the three wake up
+  // 2d the gathering room: the last snore; ハモ区長 opens the window; the three wake up
   yield* fadeCut(300);
   cutTo('map_hoshi_school', 6, 7);
   setGradeH('h3c', 0);

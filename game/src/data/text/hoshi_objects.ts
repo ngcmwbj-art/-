@@ -181,7 +181,7 @@ export const HOSHI_OBJ: Record<string, HText> = {
   },
   obj_hoshi_kucho_house: {
     text: `@narr
-区長の 家。表札は『エー』。
+区長の 家。表札は『ほうき』。
 玄関に、回覧板を 置く 台。
 {w=300}台の 上は からっぽ。`,
     /** After fushigi_ch2_04: the circular came round. */

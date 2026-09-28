@@ -282,7 +282,7 @@ se('se_h_yunomi', {
     for (const l of YUNOMI_POUR) layer(c, l);
   },
 });
-se('se_h_yunomi_pour', { label: 'お茶を注ぐだけ（エー夫人のお茶）', group: G_VILLAGE, rev: 0.1, fn: (c) => YUNOMI_POUR.forEach((l) => layer(c, l, { at: -450 })) });
+se('se_h_yunomi_pour', { label: 'お茶を注ぐだけ（ぴょん夫人のお茶）', group: G_VILLAGE, rev: 0.1, fn: (c) => YUNOMI_POUR.forEach((l) => layer(c, l, { at: -450 })) });
 se('se_h_tomato_catch', {
   label: 'トマトが手の中に落ちる（ぽすっ）',
   group: G_VILLAGE,

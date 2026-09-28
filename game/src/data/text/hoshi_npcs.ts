@@ -20,8 +20,8 @@ export const HOSHI_SPEAKERS: Record<string, { name: string; voice: string }> = {
   npc_hoshi_mitsu: { name: 'ペロ', voice: 'h_mitsu' },
   npc_hoshi_gen: { name: 'マサル', voice: 'h_gen' },
   npc_hoshi_fumi: { name: 'まつ先生', voice: 'h_fumi' },
-  npc_hoshi_kucho: { name: 'エー区長', voice: 'h_kucho' },
-  npc_hoshi_yoshie: { name: 'エー夫人', voice: 'h_yoshie' },
+  npc_hoshi_kucho: { name: 'ハモ区長', voice: 'h_kucho' },
+  npc_hoshi_yoshie: { name: 'ぴょん夫人', voice: 'h_yoshie' },
   npc_hoshi_tome: { name: 'トマじい', voice: 'h_tome' },
   npc_hoshi_sawako: { name: 'ソワカ', voice: 'h_sawako' },
   npc_hoshi_busdriver: { name: 'さんかど', voice: 'h_driver' },
@@ -100,7 +100,7 @@ export const HOSHI_NPC: Record<string, TalkTable> = {
 終点で ございます。`,
   },
 
-  // ------------------------------------------------------------ 3.5 エー区長（初回は evt_ch2_yoriai）
+  // ------------------------------------------------------------ 3.5 ハモ区長（初回は evt_ch2_yoriai）
   npc_hoshi_kucho: {
     /** After the gathering (the gathering itself was the first talk). */
     h0_2: `@npc_hoshi_kucho
@@ -151,7 +151,7 @@ export const HOSHI_NPC: Record<string, TalkTable> = {
 ……古い ほうの 名簿の。`,
   },
 
-  // ------------------------------------------------------------ 3.6 エー夫人（evt_ch2_rest_yoriai）
+  // ------------------------------------------------------------ 3.6 ぴょん夫人（evt_ch2_rest_yoriai）
   npc_hoshi_yoshie: {
     /** The first time after the gathering (then the tea). */
     h0_1: `@npc_hoshi_yoshie
@@ -167,10 +167,11 @@ export const HOSHI_NPC: Record<string, TalkTable> = {
 やかんが 休まらん。`,
     /** The third time only (once, at whatever stage). */
     h0_3: `@npc_hoshi_yoshie
-うちの 人は『えー、』。{w=300}
-あたしは『ええ 色』『ええ 子』。
+うちは『ほうき』って いうの。{w=300}
+村では、うちの 人が ハモ区長、
+あたしが ぴょん夫人。
 /
-それで 村では、エー夫婦。{w=300}
+だれが 言いだしたんだか。{w=300}
 ……ええ 名前じゃろ。`,
     h1_1: `@npc_hoshi_yoshie
 あら、ええ 色。{w=300}
@@ -235,8 +236,8 @@ HPが 回復した。`,
 あそこで 読んでいたんですよ。`,
     /** The third time on: the hanko case. */
     h1_3: `@npc_hoshi_fumi
-タエ先生は、お元気ですか。{w=300}
-ひのやの 日野タエ先生。
+はっち先生は、お元気ですか。{w=300}
+ひのやの 日野はっち先生。
 /
 新任の ころ、となりの 組でね。
 {w=300}はなまるの 描き方を、
@@ -297,7 +298,7 @@ HPが 回復した。`,
 /
 ……ほどよいなぁ。`,
     h2_1: `@npc_hoshi_mitsu
-放送が、おぴぴの 名前を
+放送が、くりこの 名前を
 呼んでる。{w=300}
 ……娘だよ。
 /
@@ -582,12 +583,12 @@ export const KANENARI_USUAL_HOSHI: string[] = [
  * The names the broadcast calls, in this order, over and over (50 3.2; all
  * fictional). The world's timer (world/hoshi.ts) reads them from here.
  */
-export const CALL_NAMES: string[] = ['おぴぴちゃん', 'シュンスケくん', 'もとくん', 'アスカちゃん', 'サトシくん', 'タクミくん', 'クリコさん', 'タカシさん'];
+export const CALL_NAMES: string[] = ['くりこちゃん', 'シュンスケくん', 'もとくん', 'アスカちゃん', 'サトシくん', 'タクミくん', 'ゆきちゃん', 'タカシさん'];
 
 /** Stage 2 alternates this line with the names. */
 export const CALL_HEAD = 'こちらは、防災 星見台です。';
 
-/** One call's bubble text: 「……おぴぴちゃん。」 */
+/** One call's bubble text: 「……くりこちゃん。」 */
 export function callLine(name: string): string {
   return `……${name}。`;
 }

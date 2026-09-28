@@ -1,8 +1,8 @@
-// 星見台 villagers (2): まつ先生, エー区長, エー夫人, トマじい, ソワカさん,
+// 星見台 villagers (2): まつ先生, ハモ区長, ぴょん夫人, トマじい, ソワカさん,
 // さんかど (the mail carrier), the night train's driver (52 10.3, 50 3.3–3.11).
 //
 // Every one has a different build (30 9.0: never the same body in another
-// colour): まつ先生 upright and narrow, エー区長 short and square, エー夫人
+// colour): まつ先生 upright and narrow, ハモ区長 short and square, ぴょん夫人
 // small and round, トマじい tall and thin, ソワカさん plump and seated,
 // さんかど long-legged. Elders are drawn with their dignity: slower idles,
 // no exaggerated stoop (52 10.0).
@@ -270,7 +270,7 @@ registerChar('npc_hoshi_fumi', () =>
 );
 
 // =============================================================================
-// エー区長 (npc_hoshi_kucho): 79, short and square-set, thin white hair combed
+// ハモ区長 (npc_hoshi_kucho): 79, short and square-set, thin white hair combed
 // over a bald crown, square black-rimmed glasses (the other teacher has
 // round gold ones), a white open-collar shirt, grey trousers, the green
 // 区長 armband (two white lines) on his left arm, the blue circular board
@@ -545,7 +545,7 @@ registerChar('npc_hoshi_kucho', () =>
 );
 
 // =============================================================================
-// エー夫人 (npc_hoshi_yoshie): 74, small (21) and round-faced, a blue tenugui
+// ぴょん夫人 (npc_hoshi_yoshie): 74, small (21) and round-faced, a blue tenugui
 // over her hair, a pink apron sprigged with white flowers over a cream
 // blouse, the kettle in both hands. By the tea table (facing west).
 // Idle: pours into a cup (the kettle tips, 2 frames) → straightens the

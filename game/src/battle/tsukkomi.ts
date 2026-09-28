@@ -42,7 +42,8 @@ export function tsukkomiWindows(): Windows {
  * this much longer in real time; ツッコミ判定：ひろい slows it a little more.
  */
 export function timingSlow(): number {
-  return flag('flag_opt_tsukkomi_wide') ? 1.5 : 1.3;
+  // 2026-09-28, the client: still too fast to follow → 1.3/1.5 became 1.5/1.8
+  return flag('flag_opt_tsukkomi_wide') ? 1.8 : 1.5;
 }
 
 /** Who performs the tsukkomi right now (Minato; Kanenari-kun's flip when Minato can't). */
@@ -194,17 +195,18 @@ export function popBang(s: BattleScene, targets: PartyUnit[], just: boolean): vo
 }
 
 /**
- * Inner-voice lettering: slides in from the right edge (150ms, easeOutBack),
- * drifts left 12px (250ms), then accelerates out while fading (100ms).
- * Longer than 8 chars → +30ms per char. Baseline y62.
+ * Inner-voice lettering: slides in from the right edge (200ms, easeOutBack),
+ * drifts left 12px while it is read (1.2 s; longer than 6 chars → +80ms per
+ * char), then accelerates out while fading (220ms). Baseline y62.
+ * (2026-09-28, the client: at 0.5 s the lines went by too fast to read.)
  */
 export function showKakimoji(s: BattleScene, text: string, just: boolean): number {
   const img = kakimoji(text, just, s.seed);
   const n = [...text].length;
-  const extra = Math.max(0, n - 8) * 30;
-  const T1 = 150;
-  const T2 = 400 + extra;
-  const T3 = 500 + extra;
+  const extra = Math.max(0, n - 6) * 80;
+  const T1 = 200;
+  const T2 = 1400 + extra;
+  const T3 = T2 + 220;
   const cx = 192 - img.width / 2;
   // over the enemies' upper half (baseline ≈ y90), clear of the band (y4–48)
   const y = KAKI_TOP;
@@ -259,8 +261,11 @@ export function showKakimoji(s: BattleScene, text: string, just: boolean): numbe
   return T3;
 }
 
-/** Kanenari-kun's flip tsukkomi: the board jumps up from the bottom centre (500ms). */
-export function showFlip(s: BattleScene, text: string, ms = 700): number {
+/**
+ * Kanenari-kun's flip tsukkomi: the board jumps up from the bottom centre and
+ * stays long enough to read (1.2 s + 80ms a char past 6; was 0.7 s).
+ */
+export function showFlip(s: BattleScene, text: string, ms = 1200 + Math.max(0, [...text].length - 6) * 80): number {
   const wrapped = wrapFlip(`（${text}）`);
   const img = flipBoardText(wrapped);
   s.sfx('se_flip');

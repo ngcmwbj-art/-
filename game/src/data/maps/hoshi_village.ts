@@ -124,7 +124,7 @@ const KAKASHI: [number, number, string][] = [
   [15, 18, 'shirt'],
 ];
 
-/** The delivery stands (52 3.5): [spot number, tile]; 4 is エー夫人 in the meeting hall (no stand). */
+/** The delivery stands (52 3.5): [spot number, tile]; 4 is ぴょん夫人 in the meeting hall (no stand). */
 const DELI: [number, number, number][] = [
   [1, 43, 36],
   [2, 37, 36],

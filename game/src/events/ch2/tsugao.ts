@@ -48,7 +48,7 @@ const D = DELI_TEXT;
 /** The five parcels in the slips' order (10.20): the stand (52 3.5) and the HUD's 「つぎ」. */
 const STOPS: { spot: string; next: string; at: [number, number] | null }[] = [
   { spot: 'spot_h_deli_01', next: 'タケじい', at: [43, 36] },
-  { spot: 'spot_h_deli_02', next: 'エー区長', at: [37, 36] },
+  { spot: 'spot_h_deli_02', next: 'ハモ区長', at: [37, 36] },
   { spot: 'spot_h_deli_03', next: 'スギばあ', at: [42, 26] },
   { spot: 'spot_h_deli_04', next: '集会所', at: null },
   { spot: 'spot_h_deli_05', next: 'トマじい', at: [17, 31] },
@@ -456,14 +456,14 @@ function* counted(n: number): Co {
 function* deliver(n: number): Co {
   const text = D[`おとどけ ${n + 1}`];
   if (!text) return;
-  // (the first stand has a page before the bag goes down; エー夫人 takes hers herself)
+  // (the first stand has a page before the bag goes down; ぴょん夫人 takes hers herself)
   if (!text.includes('!cue put_down') && n !== 3) yield* putDown();
   let countedYet = false;
   yield* runCue(
     text,
     cuesWith({
       *hide() {
-        // エー夫人 has taken the cucumbers: the strip counts them as he bows
+        // ぴょん夫人 has taken the cucumbers: the strip counts them as he bows
         if (n === 3 && !countedYet) {
           countedYet = true;
           yield* counted(n);
@@ -491,7 +491,7 @@ for (const [i, s] of STOPS.entries()) {
   });
 }
 
-/** エー夫人 while the delivery waits at the gathering room (4つ目): she takes the cucumbers herself (no tea). */
+/** ぴょん夫人 while the delivery waits at the gathering room (4つ目): she takes the cucumbers herself (no tea). */
 export function* deliveryAtYoshie(): Co<boolean> {
   if (!deliveryOn() || doneStops() !== 3) return false;
   yield* deliver(3);

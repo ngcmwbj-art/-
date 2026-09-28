@@ -123,7 +123,7 @@ export const CH2_CUES: Cue[] = [
         S(12.1, 'BGM_HOSHI_NIGHT (HI1, FADE 2.0)', () => A.playBgm('bgm_hoshi_night', { fade: 2.0, resume: false, variant: 'outdoor' })),
         S(12.2, 'PA DISTANCE 1.0 (THE STATION)', () => A.setPaDistance(1)),
       ];
-      call(say, s, 15.1, '……おぴぴちゃん。', true);
+      call(say, s, 15.1, '……くりこちゃん。', true);
       return s;
     },
   },
@@ -188,7 +188,7 @@ export const CH2_CUES: Cue[] = [
       ];
       let t = call(say, s, 3, '……もとくん。', true) + 1.5;
       s.push(S(t, 'D = 0.35 (THE FOOT OF THE PATH)', () => A.setPaDistance(0.35)));
-      t = call(say, s, t + 0.5, '……クリコさん。', true) + 1.5;
+      t = call(say, s, t + 0.5, '……ゆきちゃん。', true) + 1.5;
       s.push(S(t, 'INDOORS (-12DB, LP 1.2K)', () => A.setPaDistance(0.6, true)));
       t = call(say, s, t + 0.5, '……シュンスケくん。', true) + 1.5;
       s.push(S(t, 'H_STAGE 2: THE LINE STAYS OPEN', () => {
@@ -219,7 +219,7 @@ export const CH2_CUES: Cue[] = [
           A.sfx('se_pa_chime', { vol: 0.7, at: (liveGraph()?.ctx.currentTime ?? 0) + 0.3 });
           A.duckMusic(0.5, 9);
         }),
-        S(4, 'NAMES (BROADCAST)', () => void say('broadcast', '……おぴぴちゃん。……シュンスケくん。……もとくん。')),
+        S(4, 'NAMES (BROADCAST)', () => void say('broadcast', '……くりこちゃん。……シュンスケくん。……もとくん。')),
         S(6.6, 'ECHO x3', () => A.paEcho(0.6, 2.0)),
       ];
       const t = 7;

@@ -476,7 +476,7 @@ registerBuilding({
   },
 });
 
-// ---------------------------------------------------------------- 区長の家 エー (34,33)
+// ---------------------------------------------------------------- 区長の家 ほうき (34,33)
 
 registerBuilding({
   id: 'prop_h_bld_kucho',
@@ -500,14 +500,20 @@ registerBuilding({
     // entrance (1 tile east of the anchor: the door the text reads (35,36))
     hikido(b, 18, fY + 10, 16, 20, P.woodDark);
     genkanStep(p, 18, b.botY, 16);
-    // nameplate エー and the circular's shelf beside the door
+    // nameplate ほうき and the circular's shelf beside the door
     p.rect(34, fY + 11, 10, 5, P.goldPale);
     p.hline(34, 43, fY + 11, P.woodLt);
     p.hline(34, 43, fY + 15, P.brassOld);
-    p.hline(35, 37, fY + 12, P.ink); // エ
-    p.set(36, fY + 13, P.ink);
-    p.hline(35, 37, fY + 14, P.ink);
-    p.hline(39, 42, fY + 13, P.ink); // ー
+    // ほうき in three strokes too small to read, like a real nameplate from the path
+    p.vline(35, fY + 12, fY + 14, P.ink); // ほ
+    p.set(36, fY + 12, P.ink);
+    p.set(36, fY + 14, P.ink);
+    p.set(38, fY + 12, P.ink); // う
+    p.set(39, fY + 13, P.ink);
+    p.set(38, fY + 14, P.ink);
+    p.vline(41, fY + 12, fY + 13, P.ink); // き
+    p.set(42, fY + 12, P.ink);
+    p.set(42, fY + 14, P.ink);
     p.rect(38, fY + 18, 10, 2, P.woodLt);
     p.hline(38, 47, fY + 18, P.goldPale);
     p.vline(39, fY + 19, fY + 21, P.wood);

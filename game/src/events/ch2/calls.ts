@@ -16,7 +16,7 @@ import { CALL_NAMES, callLine } from '../../data/text/hoshi_npcs';
 import { hStage } from './common';
 
 /**
- * A call made by a scene (evt_ch2_arrive's first 「……おぴぴちゃん。」):
+ * A call made by a scene (evt_ch2_arrive's first 「……くりこちゃん。」):
  * name `index` of CALL_NAMES in the stage's way; the world's count starts
  * over and goes on with the next name.
  */

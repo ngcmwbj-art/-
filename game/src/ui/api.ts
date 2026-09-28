@@ -25,7 +25,7 @@
 //                                              snapshot, then evt_ch2_prologue on black
 //   chapter2LevelUps()                         what chapter2Adjust() raised (the 通知表)
 //   yield* playChapterDoor()                   章の扉: the 「第2章」 seal and the title by hand
-//   showCallBubble('……おぴぴちゃん。')       the loudspeaker's bubble (the caller plays the voice)
+//   showCallBubble('……くりこちゃん。')       the loudspeaker's bubble (the caller plays the voice)
 //   yield* playCallBubble(text)                the bubble with its own 'broadcast' blips
 //   setClockText('19:31')                      the plate's time (null: the map's own)
 //   yield* fieldCurtain(1, 600) / setFieldCurtain(0)  the field goes dark under the HUD: the

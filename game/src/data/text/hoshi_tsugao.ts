@@ -287,7 +287,7 @@ export const DELI_TEXT: Record<string, string> = {
   "おとどけ 2": `@narr
 ソワカの なすを、置き台に
 置いた。{w=300}回覧板の 棚に 貼り紙。
-『えー、野菜は こちらへ　エー』
+『えー、野菜は こちらへ　ハモ』
 @npc_piichan
 ココッ。
 @npc_pokosha

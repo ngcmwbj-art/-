@@ -1,5 +1,5 @@
 // The village's talk (50_ch2_story 3章): every NPC of 星見台 with its stage
-// lines (h0_1 …), the branches on the story flags, エー夫人's tea (HP back,
+// lines (h0_1 …), the branches on the story flags, ぴょん夫人's tea (HP back,
 // evt_ch2_rest_yoriai), ソワカさん's 無人販売所 (7.3; the UI's shop
 // 'shop_hoshi_mujin') and カネナリくん's flips by place (3.1, 52 1.8).
 // The ids keep the old names (npc_hoshi_mitsu = ペロ, _gen = マサルさん …).
@@ -84,7 +84,7 @@ registerScript('npc_hoshi_busdriver', function* (): Co {
   }
 });
 
-// ---------------------------------------------------------------- 3.5 エー区長
+// ---------------------------------------------------------------- 3.5 ハモ区長
 
 registerScript('npc_hoshi_kucho', function* (): Co {
   if (!flag('flag_ch2_yoriai')) {
@@ -95,7 +95,7 @@ registerScript('npc_hoshi_kucho', function* (): Co {
   yield* talk('npc_hoshi_kucho', only(T.npc_hoshi_kucho, ['h0_2', 'h0_3', 'h1_1', 'h1_2', 'h2_1', 'h2_2']));
 });
 
-// ---------------------------------------------------------------- 3.6 エー夫人（evt_ch2_rest_yoriai）
+// ---------------------------------------------------------------- 3.6 ぴょん夫人（evt_ch2_rest_yoriai）
 
 /** The tea: HP full (not 朱肉), as often as he likes. */
 function* tea(): Co {

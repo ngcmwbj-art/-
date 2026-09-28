@@ -35,11 +35,11 @@ export const VOICE_SAMPLES: Record<string, string> = {
   // chapter 2 (53_ch2_audio 9)
   h_train: 'つぎは、星見台。星見台です。',
   h_tetsuya: '……マダ タガヤセマス。ヒト ウネ……モウ ヒト ウネ……。',
-  yobimodoshi: '……おぴぴちゃん。……へんじが ありません。',
+  yobimodoshi: '……くりこちゃん。……へんじが ありません。',
   h_mujin: 'きゅうり 3本 100円。おすすめです。',
   h_gon: 'キャン！ キャンキャン！',
   h_driver: 'おや、電車で 来たのかい。ぼくは 郵便配達の さんかど。',
-  h_kucho: 'えー、星見台 区長の エーで ございます。',
+  h_kucho: 'えー、星見台 区長の ハモで ございます。',
   h_yoshie: 'お茶 飲んで いきなさい。……ええから、食べなさい。',
   h_fumi: 'おはだっちょ！ ……いや、夜だったね。',
   h_mitsu: '……ほどよいなぁ。',

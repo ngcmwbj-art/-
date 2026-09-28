@@ -8,7 +8,7 @@
 // pole's horns instead, tail down to them — you can see where the voice is.
 // Indoors there is no bubble (only the muffled voice).
 //
-//   showCallBubble('……おぴぴちゃん。')            // returns a handle at once
+//   showCallBubble('……くりこちゃん。')            // returns a handle at once
 //   yield* playCallBubble('……シュンスケくん。', { voice: 'broadcast' })
 //                                                   // types with the voice's blips,
 //                                                   // resolves when the line is out

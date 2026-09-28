@@ -5,7 +5,7 @@
 //   evt_ch2_save_dosojin — 道祖神 on the road (save)
 //   evt_ch2_save_kairan  — the circular on the lectern (save; after the meeting)
 //   evt_ch2_save_bench   — the bench on 星見の丘 (HP and 朱肉, then save)
-// エー夫人's tea (evt_ch2_rest_yoriai) is in npcs.ts.
+// ぴょん夫人's tea (evt_ch2_rest_yoriai) is in npcs.ts.
 
 import type { Co } from '../../engine/co';
 import { flag, setFlag, state } from '../../game/state';
@@ -45,7 +45,7 @@ export function* evtYoriai(): Co {
   const fumi = npc('npc_hoshi_fumi');
   const yoshie = npc('npc_hoshi_yoshie');
   for (const a of [kucho, fumi, yoshie]) if (a) a.data.scripted = true;
-  // エー区長 notices them and pushes his glasses up
+  // ハモ区長 notices them and pushes his glasses up
   yield 300;
   if (kucho) face('npc_hoshi_kucho', 'player');
   yield* emote('npc_hoshi_kucho', 'exclaim', { wait: true });
@@ -78,7 +78,7 @@ export function* evtYoriai(): Co {
   yield* runMsg(T.YORIAI_CASE);
   yield* runCue(T.YORIAI_B, {
     *map() {
-      // エー区長 draws the map on the back of the circular (1.0 s)
+      // ハモ区長 draws the map on the back of the circular (1.0 s)
       if (kucho) poseIf(kucho, 'write');
       for (let i = 0; i < 6; i++) {
         se('se_pen_write');
