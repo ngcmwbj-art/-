@@ -72,7 +72,14 @@ export function tick(): void {
 
 const WORKER_SRC = 'let h=0;onmessage=(e)=>{clearInterval(h);if(e.data>0)h=setInterval(()=>postMessage(0),e.data)};';
 
+let worker: Worker | null = null;
+let interval: ReturnType<typeof setInterval> | null = null;
+
 function startTicker(): void {
+  if (worker) {
+    worker.postMessage(25);
+    return;
+  }
   try {
     if (typeof Worker !== 'undefined' && typeof Blob !== 'undefined' && typeof URL !== 'undefined') {
       const url = URL.createObjectURL(new Blob([WORKER_SRC], { type: 'text/javascript' }));
@@ -80,14 +87,22 @@ function startTicker(): void {
       URL.revokeObjectURL(url);
       w.onmessage = tick;
       w.postMessage(25);
+      worker = w;
       clockStats.source = 'worker';
       return;
     }
   } catch {
     /* CSP or no workers: fall back */
   }
-  setInterval(tick, 25);
+  interval ??= setInterval(tick, 25);
   clockStats.source = 'interval';
+}
+
+/** No ticks while the page is hidden (2026-09-28): the sound is suspended then (keepalive.ts), there is nothing to schedule, and 40 wake-ups a second kept a phone's CPU from sleeping. */
+function stopTicker(): void {
+  worker?.postMessage(0);
+  if (interval) clearInterval(interval);
+  interval = null;
 }
 
 export function startClock(): void {
@@ -98,5 +113,10 @@ export function startClock(): void {
   if (typeof document !== 'undefined')
     document.addEventListener('visibilitychange', () => {
       lastTick = 0;
+      if (document.hidden) stopTicker();
+      else {
+        startTicker();
+        tick();
+      }
     });
 }

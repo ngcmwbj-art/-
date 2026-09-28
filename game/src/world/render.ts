@@ -10,7 +10,7 @@ import { flag } from '../game/state';
 import type { PropEnv } from '../art/props/types';
 import { P } from '../art/tiles/palette';
 import { drawWires, type WireOccluder, type WireSet } from '../art/props/wires';
-import { drawWater, type Reflector, type WaterCtx } from '../art/tiles/water';
+import { drawWater, fillSkyBase, hasWaterRuns, skyBaseStops, type Reflector, type WaterCtx } from '../art/tiles/water';
 import { drawGroundLife } from '../art/tiles/groundlife';
 import { CHUNK } from './ground_cache';
 import type { FieldScene, PropInst } from './field';
@@ -142,6 +142,11 @@ export class Renderer {
 
   onMapChange(): void {
     this.clipPath = null;
+    this.skyMaskKey = '';
+    this.vwKey = '';
+    this.waterKey = '';
+    this.ripples.clear();
+    this.waterRuns = hasWaterRuns(this.f.map);
     this.mapLit = this.f.props.some((p) => !!p.art.light);
     this.waterMasks.clear();
     this.wires = this.f.map.def.wires ? { lines: this.f.map.def.wires, map: this.f.map.id } : null;
@@ -239,6 +244,7 @@ export class Renderer {
     ectx.globalCompositeOperation = 'source-over';
     ectx.clearRect(0, 0, W, H);
     this.glowBox = null;
+    this.glowRects.length = 0;
     const paintGlow = (p: PropInst) => {
       const a = p.art;
       ectx.save();
@@ -457,14 +463,7 @@ export class Renderer {
         const x = d.ix!;
         const y = d.iy!;
         // cut the glows behind this drawable
-        const gb = this.glowBox;
-        if (gb && x < gb[2] && y < gb[3] && x + w > gb[0] && y + h > gb[1]) {
-          ectx.globalCompositeOperation = 'destination-out';
-          ectx.globalAlpha = d.alpha ?? 1;
-          ectx.drawImage(d.img, x, y);
-          ectx.globalAlpha = 1;
-          ectx.globalCompositeOperation = 'source-over';
-        }
+        this.cutGlow(d.img, x, y, d.alpha ?? 1);
         // occluders of the seers already drawn (things, and passing traffic)
         if (!d.actor || d.actor.data.vehicle)
           for (const s of sil) {
@@ -526,14 +525,7 @@ export class Renderer {
           s.used = true;
         }
         // canopies and overhead parts hide the glows behind them
-        const gb = this.glowBox;
-        if (gb && x - cx < gb[2] && y - cy < gb[3] && x - cx + img.width > gb[0] && y - cy + img.height > gb[1]) {
-          ectx.globalCompositeOperation = 'destination-out';
-          ectx.globalAlpha = alpha;
-          ectx.drawImage(img, Math.round(x - cx), Math.round(y - cy));
-          ectx.globalAlpha = 1;
-          ectx.globalCompositeOperation = 'source-over';
-        }
+        this.cutGlow(img, Math.round(x - cx), Math.round(y - cy), alpha);
       }
     }
     // glows of foreground parts (lanterns under an overhead sign)
@@ -570,12 +562,20 @@ export class Renderer {
     // 9. emissive (lamps, lit glass, neon), already cut by whatever stands in
     // front; screen-blended, so light never darkens what is under it
     if (this.glowBox) {
-      ctx.globalCompositeOperation = 'screen';
-      // stage 1 outdoors: the lights of the stopped town die down
-      ctx.globalAlpha = f.map.def.kind === 'indoor' ? 1 : Math.max(0, Math.min(1, f.grade.lit));
-      ctx.drawImage(this.ec, 0, 0);
-      ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = 'source-over';
+      // only the part of the buffer that holds glows (the rest is empty)
+      const gb = this.glowBox;
+      const x0 = Math.max(0, Math.floor(gb[0]));
+      const y0 = Math.max(0, Math.floor(gb[1]));
+      const x1 = Math.min(W, Math.ceil(gb[2]));
+      const y1 = Math.min(H, Math.ceil(gb[3]));
+      if (x1 > x0 && y1 > y0) {
+        ctx.globalCompositeOperation = 'screen';
+        // stage 1 outdoors: the lights of the stopped town die down
+        ctx.globalAlpha = f.map.def.kind === 'indoor' ? 1 : Math.max(0, Math.min(1, f.grade.lit));
+        ctx.drawImage(this.ec, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+      }
     }
     fxDraw(f, wg, cx, cy, 'glow');
     if (ch2) this.drawLightFx(cx, cy);
@@ -822,6 +822,8 @@ export class Renderer {
   private skyFrame: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
   private skyMask: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
   private skyShift: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
+  /** What the water mask in skyMask was built for (camera, the dark's strength). */
+  private skyMaskKey = '';
   private twinkles: [number, number, number][] = [];
 
   /** Milky way + the 30 steady stars, screen space (built once). */
@@ -882,177 +884,243 @@ export class Renderer {
     const f = this.f;
     const gd = f.grade;
     const m = f.map;
-    const x0 = Math.max(0, Math.floor(cx / CHUNK));
-    const y0 = Math.max(0, Math.floor(cy / CHUNK));
-    const x1 = Math.min(Math.ceil((m.w * 16) / CHUNK) - 1, Math.floor((cx + W) / CHUNK));
-    const y1 = Math.min(Math.ceil((m.h * 16) / CHUNK) - 1, Math.floor((cy + H) / CHUNK));
-    const masks: [HTMLCanvasElement, number, number][] = [];
-    for (let ky = y0; ky <= y1; ky++)
-      for (let kx = x0; kx <= x1; kx++) {
-        const mk = this.waterMask(kx, ky);
-        if (mk) masks.push([mk, kx * CHUNK - cx, ky * CHUNK - cy]);
-      }
-    if (!masks.length) return;
+    const vw = this.screenWater(cx, cy);
+    if (!vw) return;
     this.skyStatic ??= this.buildSky();
-    this.skyFrame ??= makeCanvas(W, H);
     this.skyMask ??= makeCanvas(W, H);
     this.skyShift ??= makeCanvas(W, H);
-    const [fc, fctx] = this.skyFrame;
-    // this frame's sky (screen space, 52 8.7): the milky way, the stars (ten
-    // of them twinkle), the morning star
-    fctx.globalCompositeOperation = 'source-over';
-    fctx.globalAlpha = 1;
-    fctx.clearRect(0, 0, W, H);
+    this.skyFrame ??= makeCanvas(W, H);
+    // Light (2026-09-28, phones ran hot): every layer used to be masked and
+    // screened over the whole frame on its own (five or six full-screen
+    // passes each, ~30 a frame). Now the water mask is built once (and kept
+    // while the camera and the dark stand still), the layers are summed into
+    // one (screen is associative: a ⊕ b ⊕ c), masked once and screened once;
+    // the small ones (the canal, the stream, the paddy) touch only their rects.
+    const [mc, mctx] = this.skyMask;
+    const dk = f.light.hasDark ? f.light.darkK() : -1;
+    const vKey = `${cx},${cy},${dk}`;
+    if (this.skyMaskKey !== vKey) {
+      this.skyMaskKey = vKey;
+      mctx.globalCompositeOperation = 'copy';
+      mctx.globalAlpha = 1;
+      mctx.drawImage(vw, 0, 0);
+      mctx.globalCompositeOperation = 'source-over';
+      // no sky out of the dark
+      eraseDark(mctx, f, cx, cy, W, H);
+    }
+    const rect = (x: number, y: number, w: number, h: number): [number, number, number, number] => [x * 16 - cx, y * 16 - cy, w * 16, h * 16];
+    const onScreen = (r: [number, number, number, number]) => r[0] < W && r[0] + r[2] > 0 && r[1] < H && r[1] + r[3] > 0;
+    // the layer: this frame's sky (screen space, 52 8.7) — the milky way, the
+    // stars (ten of them twinkle), the morning star
+    const [lc, lctx] = this.skyShift;
+    lctx.globalCompositeOperation = 'source-over';
+    lctx.globalAlpha = 1;
+    lctx.clearRect(0, 0, W, H);
     if (gd.milky > 0.01 || gd.stars > 0.01) {
-      fctx.globalAlpha = Math.max(gd.milky, gd.stars);
-      fctx.drawImage(this.skyStatic, 0, 0);
-      fctx.globalAlpha = 1;
+      lctx.globalAlpha = Math.max(gd.milky, gd.stars);
+      lctx.drawImage(this.skyStatic, 0, 0);
+      lctx.globalAlpha = 1;
       for (let i = 0; i < this.twinkles.length; i++) {
         const [sx, sy, per] = this.twinkles[i];
         // in h2 three stars in ten are gone
         if (hash2(i, 3, 17) > gd.stars) continue;
         const on = Math.floor((f.t + i * 311) / per) % 3 !== 0;
-        fctx.fillStyle = on ? '#FFF6D8' : '#9AA0A8';
-        fctx.fillRect(sx, sy, 1, 1);
+        lctx.fillStyle = on ? '#FFF6D8' : '#9AA0A8';
+        lctx.fillRect(sx, sy, 1, 1);
       }
     }
     // 明けの明星 at (344,36): 2×2, h2 3×3 with the cross #FFE7A3; it doesn't twinkle
     const v = Math.round(gd.venus);
     if (v >= 2) {
       if (v >= 3) {
-        fctx.fillStyle = '#FFE7A3';
-        fctx.fillRect(343, 36, 3, 1);
-        fctx.fillRect(344, 35, 1, 3);
-        fctx.fillStyle = '#FFF6D8';
-        fctx.fillRect(344, 36, 1, 1);
+        lctx.fillStyle = '#FFE7A3';
+        lctx.fillRect(343, 36, 3, 1);
+        lctx.fillRect(344, 35, 1, 3);
+        lctx.fillStyle = '#FFF6D8';
+        lctx.fillRect(344, 36, 1, 1);
       } else {
-        fctx.fillStyle = '#FFF6D8';
-        fctx.fillRect(344, 36, 2, 2);
+        lctx.fillStyle = '#FFF6D8';
+        lctx.fillRect(344, 36, 2, 2);
       }
     }
-    const [mc, mctx] = this.skyMask;
-    const rect = (x: number, y: number, w: number, h: number): [number, number, number, number] => [x * 16 - cx, y * 16 - cy, w * 16, h * 16];
-    /** The water pixels on screen (optionally only inside `clip`, less `cut`), filled with `src`. */
-    const masked = (src: HTMLCanvasElement | null, clip: [number, number, number, number] | null, cut: [number, number, number, number] | null): void => {
-      mctx.globalCompositeOperation = 'source-over';
-      mctx.globalAlpha = 1;
-      mctx.clearRect(0, 0, W, H);
-      mctx.save();
-      if (clip) {
-        mctx.beginPath();
-        mctx.rect(clip[0], clip[1], clip[2], clip[3]);
-        mctx.clip();
-      }
-      for (const [mk, mx, my] of masks) mctx.drawImage(mk, mx, my);
-      mctx.restore();
-      if (cut) mctx.clearRect(cut[0], cut[1], cut[2], cut[3]);
-      // no sky out of the dark
-      eraseDark(mctx, f, cx, cy, W, H);
-      if (!src) return;
-      mctx.globalCompositeOperation = 'source-in';
-      mctx.drawImage(src, 0, 0);
-      mctx.globalCompositeOperation = 'source-over';
-    };
-    const onto = (op: GlobalCompositeOperation, alpha = 1) => {
-      const ctx = this.wctx;
-      ctx.save();
-      ctx.globalCompositeOperation = op;
-      ctx.globalAlpha = alpha;
-      ctx.drawImage(mc, 0, 0);
-      ctx.restore();
-    };
     // fushigi_ch2_03: in the canal only, the mirrored stars drift east at
     // 6px/s in world space — they slip away from the sky's (screen) stars
     const canal = m.id === 'map_hoshimidai' && !fushigiDone('fushigi_ch2_03') ? rect(13, 20, 47, 2) : null;
-    masked(fc, null, canal);
-    onto('screen');
+    if (canal && onScreen(canal)) {
+      // the canal's rect on screen: its own stars, shifted (a copy of the sky
+      // drawn at +drift and +drift − W, as the whole-frame shift did)
+      const ax = Math.max(0, canal[0]);
+      const ay = Math.max(0, canal[1]);
+      const bw = Math.min(W, canal[0] + canal[2]) - ax;
+      const bh = Math.min(H, canal[1] + canal[3]) - ay;
+      const [fc, fctx] = this.skyFrame;
+      const drift = ((Math.floor((f.t / 1000) * 6 + cx) % W) + W) % W;
+      fctx.globalCompositeOperation = 'source-over';
+      fctx.globalAlpha = 1;
+      fctx.clearRect(0, 0, bw, bh);
+      fctx.drawImage(lc, drift - ax, -ay);
+      fctx.drawImage(lc, drift - W - ax, -ay);
+      lctx.clearRect(canal[0], canal[1], canal[2], canal[3]);
+      lctx.drawImage(fc, 0, 0, bw, bh, ax, ay, bw, bh);
+    } else if (canal) lctx.clearRect(canal[0], canal[1], canal[2], canal[3]);
+    lctx.globalCompositeOperation = 'screen';
     // the canal and the stream (QA 13): under the night grade their water went
     // near black, a dark crack through the village; the water holds a little of
     // the dawn's light, a step off black (the paddies keep their own look)
     if (m.id === 'map_hoshimidai' && gd.night > 0.3) {
-      for (const clip of [rect(13, 20, 47, 2), rect(13, 0, 1, 38)]) {
-        if (clip[0] >= W || clip[0] + clip[2] <= 0 || clip[1] >= H || clip[1] + clip[3] <= 0) continue;
-        masked(null, clip, null);
-        mctx.globalCompositeOperation = 'source-in';
-        mctx.fillStyle = '#34416A';
-        mctx.fillRect(0, 0, W, H);
-        mctx.globalCompositeOperation = 'source-over';
-        onto('screen', Math.min(1, gd.night) * 0.6);
-      }
-    }
-    if (canal && canal[0] < W && canal[0] + canal[2] > 0 && canal[1] < H && canal[1] + canal[3] > 0) {
-      const [sc, sctx] = this.skyShift;
-      const drift = ((Math.floor((f.t / 1000) * 6 + cx) % W) + W) % W;
-      sctx.globalCompositeOperation = 'source-over';
-      sctx.clearRect(0, 0, W, H);
-      sctx.drawImage(fc, drift, 0);
-      sctx.drawImage(fc, drift - W, 0);
-      masked(sc, canal, null);
-      onto('screen');
+      lctx.globalAlpha = Math.min(1, gd.night) * 0.6;
+      lctx.fillStyle = '#34416A';
+      for (const clip of [rect(13, 20, 47, 2), rect(13, 0, 1, 38)]) if (onScreen(clip)) lctx.fillRect(clip[0], clip[1], clip[2], clip[3]);
+      lctx.globalAlpha = 1;
     }
     // ripples: short 1px glints on the water, flowing with it (the canal
     // east 6px/s, the stream south 10px/s; still water just shivers every 4
-    // frames). Night: a faint violet; morning: the pale sky
+    // frames). Night: a faint violet; morning: the pale sky. Drawn on their
+    // own (overlapping dashes stay one colour), then summed in.
     {
-      const [sc, sctx] = this.skyShift;
-      sctx.globalCompositeOperation = 'source-over';
-      sctx.clearRect(0, 0, W, H);
-      sctx.fillStyle = gd.night > 0.5 ? '#3A2B5C' : '#FFF6D8';
+      const [rc, rctx] = this.skyFrame;
       const tx0 = Math.max(0, Math.floor(cx / 16));
       const ty0 = Math.max(0, Math.floor(cy / 16));
       const tx1 = Math.min(m.w - 1, Math.floor((cx + W) / 16));
       const ty1 = Math.min(m.h - 1, Math.floor((cy + H) / 16));
       const t = f.t / 1000;
       const shiver = Math.floor(f.t / 67) % 2;
-      let dashes = 0;
+      let bx0 = W;
+      let by0 = H;
+      let bx1 = 0;
+      let by1 = 0;
+      rctx.globalCompositeOperation = 'source-over';
+      rctx.globalAlpha = 1;
+      rctx.clearRect(0, 0, W, H);
+      const col = gd.night > 0.5 ? '#3A2B5C' : '#FFF6D8';
+      // still water (paddies, puddles) only shivers between two positions:
+      // its dashes come baked per map chunk (hundreds of 1px rects a frame
+      // on the terraces)
+      for (let ky = Math.max(0, Math.floor(cy / CHUNK)); ky <= Math.floor((cy + H) / CHUNK); ky++)
+        for (let kx = Math.max(0, Math.floor(cx / CHUNK)); kx <= Math.floor((cx + W) / CHUNK); kx++) {
+          const rc2 = this.stillRipples(kx, ky, shiver, col);
+          if (!rc2) continue;
+          const dx = kx * CHUNK - cx;
+          const dy = ky * CHUNK - cy;
+          rctx.drawImage(rc2, dx, dy);
+          bx0 = Math.min(bx0, dx);
+          by0 = Math.min(by0, dy);
+          bx1 = Math.max(bx1, dx + rc2.width);
+          by1 = Math.max(by1, dy + rc2.height);
+        }
+      rctx.fillStyle = col;
       for (let ty = ty0; ty <= ty1; ty++)
         for (let tx = tx0; tx <= tx1; tx++) {
           const g = String(groundAt(m, tx, ty));
           if (!WATERY.has(g)) continue;
           const flowX = g === 'h_canal' || g === 'water' ? 6 : 0;
           const flowY = g === 'h_stream' ? 10 : 0;
+          if (!flowX && !flowY) continue;
           for (let k = 0; k < 3; k++) {
             const h = hash2(tx * 3 + k, ty, 91);
             const len = 2 + Math.floor(h * 3);
             const lx = (((Math.floor(h * 97) + t * flowX + (flowX || flowY ? 0 : shiver * (k % 2 ? 1 : -1))) % 16) + 16) % 16;
             const ly = (((Math.floor(hash2(tx, ty * 3 + k, 92) * 16) + t * flowY) % 16) + 16) % 16;
-            sctx.fillRect(Math.floor(tx * 16 + lx - cx), Math.floor(ty * 16 + ly - cy), len, 1);
-            dashes++;
+            const dx = Math.floor(tx * 16 + lx - cx);
+            const dy = Math.floor(ty * 16 + ly - cy);
+            rctx.fillRect(dx, dy, len, 1);
+            bx0 = Math.min(bx0, dx);
+            by0 = Math.min(by0, dy);
+            bx1 = Math.max(bx1, dx + len);
+            by1 = Math.max(by1, dy + 1);
           }
         }
-      if (dashes) {
-        masked(sc, null, null);
-        onto('screen', gd.night > 0.5 ? 0.8 : 0.35);
+      bx0 = Math.max(0, bx0);
+      by0 = Math.max(0, by0);
+      bx1 = Math.min(W, bx1);
+      by1 = Math.min(H, by1);
+      if (bx1 > bx0 && by1 > by0) {
+        lctx.globalAlpha = gd.night > 0.5 ? 0.8 : 0.35;
+        lctx.drawImage(rc, bx0, by0, bx1 - bx0, by1 - by0, bx0, by0, bx1 - bx0, by1 - by0);
+        lctx.globalAlpha = 1;
       }
     }
+    // the sum, on the water pixels only, screened over the frame once
+    lctx.globalCompositeOperation = 'destination-in';
+    lctx.drawImage(mc, 0, 0);
+    lctx.globalCompositeOperation = 'source-over';
+    const ctx = this.wctx;
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 1;
+    ctx.drawImage(lc, 0, 0);
+    ctx.restore();
     // fushigi_ch2_05: the 5th terrace's western paddy mirrors an evening sky
     if (m.id === 'map_hoshimidai') {
       const pr = rect(14, 15, 5, 2);
-      if (pr[0] < W && pr[1] < H && pr[0] + pr[2] > 0 && pr[1] + pr[3] > 0) {
-        masked(null, pr, null);
-        mctx.globalCompositeOperation = 'source-in';
-        const gr = mctx.createLinearGradient(0, pr[1], 0, pr[1] + pr[3]);
-        if (!fushigiDone('fushigi_ch2_05')) {
+      if (onScreen(pr)) {
+        const [pc, pctx] = this.skyFrame;
+        const pw = pr[2];
+        const ph = pr[3];
+        pctx.globalCompositeOperation = 'source-over';
+        pctx.globalAlpha = 1;
+        pctx.clearRect(0, 0, pw, ph);
+        pctx.drawImage(mc, pr[0], pr[1], pw, ph, 0, 0, pw, ph);
+        pctx.globalCompositeOperation = 'source-in';
+        const gr = pctx.createLinearGradient(0, 0, 0, ph);
+        const done = fushigiDone('fushigi_ch2_05');
+        if (!done) {
           gr.addColorStop(0, '#F2894B');
           gr.addColorStop(1, '#D9728A');
-          mctx.fillStyle = gr;
-          mctx.fillRect(pr[0], pr[1], pr[2], pr[3]);
+          pctx.fillStyle = gr;
+          pctx.fillRect(0, 0, pw, ph);
           // the sun's line across the middle
-          mctx.fillStyle = '#FFE7A3';
-          mctx.fillRect(pr[0], pr[1] + Math.floor(pr[3] / 2), pr[2], 1);
-          mctx.globalCompositeOperation = 'source-over';
-          onto('source-over', 0.85);
+          pctx.fillStyle = '#FFE7A3';
+          pctx.fillRect(0, Math.floor(ph / 2), pw, 1);
         } else {
           // after: the night again, only its bottom a little warmer (#3A2B5C)
           gr.addColorStop(0, 'rgba(58,43,92,0)');
           gr.addColorStop(1, 'rgba(58,43,92,1)');
-          mctx.fillStyle = gr;
-          mctx.fillRect(pr[0], pr[1], pr[2], pr[3]);
-          mctx.globalCompositeOperation = 'source-over';
-          onto('screen', 0.6);
+          pctx.fillStyle = gr;
+          pctx.fillRect(0, 0, pw, ph);
         }
+        pctx.globalCompositeOperation = 'source-over';
+        ctx.save();
+        ctx.globalCompositeOperation = done ? 'screen' : 'source-over';
+        ctx.globalAlpha = done ? 0.6 : 0.85;
+        ctx.drawImage(pc, 0, 0, pw, ph, pr[0], pr[1], pw, ph);
+        ctx.restore();
       }
     }
+  }
+
+  /** Baked ripple dashes of the still water per map chunk: `kx,ky,shiver,colour` → canvas (null: none there). */
+  private ripples = new Map<string, HTMLCanvasElement | null>();
+
+  /** The still water's ripple dashes of one map chunk (drawSkyInWater's, baked; +4px for dashes running over the edge). */
+  private stillRipples(kx: number, ky: number, shiver: number, col: string): HTMLCanvasElement | null {
+    const key = `${kx},${ky},${shiver},${col}`;
+    const hit = this.ripples.get(key);
+    if (hit !== undefined) return hit;
+    if (this.ripples.size > 48) this.ripples.clear();
+    const m = this.f.map;
+    let c: HTMLCanvasElement | null = null;
+    let x: CanvasRenderingContext2D | null = null;
+    const tx0 = (kx * CHUNK) / 16;
+    const ty0 = (ky * CHUNK) / 16;
+    for (let ty = ty0; ty < Math.min(m.h, ty0 + CHUNK / 16); ty++)
+      for (let tx = tx0; tx < Math.min(m.w, tx0 + CHUNK / 16); tx++) {
+        const g = String(groundAt(m, tx, ty));
+        if (!WATERY.has(g) || g === 'h_canal' || g === 'water' || g === 'h_stream') continue;
+        if (!c) {
+          [c, x] = makeCanvas(CHUNK + 4, CHUNK);
+          x.fillStyle = col;
+        }
+        for (let k = 0; k < 3; k++) {
+          const h = hash2(tx * 3 + k, ty, 91);
+          const len = 2 + Math.floor(h * 3);
+          const lx = (((Math.floor(h * 97) + shiver * (k % 2 ? 1 : -1)) % 16) + 16) % 16;
+          const ly = ((Math.floor(hash2(tx, ty * 3 + k, 92) * 16) % 16) + 16) % 16;
+          x!.fillRect(tx * 16 + lx - kx * CHUNK, ty * 16 + ly - ky * CHUNK, len, 1);
+        }
+      }
+    this.ripples.set(key, c);
+    return c;
   }
 
   private zc: HTMLCanvasElement | null = null;
@@ -1098,7 +1166,54 @@ export class Renderer {
     }
   }
 
+  /** Every rect painted into the emissive buffer this frame (x0, y0, x1, y1, ...). */
+  private glowRects: number[] = [];
+
+  /**
+   * Cut the glows behind a drawable out of the emissive buffer. Only the part
+   * that meets a glow painted so far is cut (2026-09-28, phones ran hot: with
+   * one bounding box round all the glows — on 星見台 the lantern's rims all
+   * over the screen — every sprite and building was erased whole, a frame's
+   * worth of pixels each frame; outside the glows the buffer is empty).
+   */
+  private cutGlow(img: HTMLCanvasElement, x: number, y: number, alpha: number): void {
+    const gb = this.glowBox;
+    const w = img.width;
+    const h = img.height;
+    if (!gb || x >= gb[2] || y >= gb[3] || x + w <= gb[0] || y + h <= gb[1]) return;
+    let ux0 = Infinity;
+    let uy0 = Infinity;
+    let ux1 = -Infinity;
+    let uy1 = -Infinity;
+    const r = this.glowRects;
+    for (let i = 0; i < r.length; i += 4) {
+      const a0 = Math.max(x, r[i]);
+      const b0 = Math.max(y, r[i + 1]);
+      const a1 = Math.min(x + w, r[i + 2]);
+      const b1 = Math.min(y + h, r[i + 3]);
+      if (a1 <= a0 || b1 <= b0) continue;
+      if (a0 < ux0) ux0 = a0;
+      if (b0 < uy0) uy0 = b0;
+      if (a1 > ux1) ux1 = a1;
+      if (b1 > uy1) uy1 = b1;
+    }
+    if (ux1 <= ux0 || uy1 <= uy0) return;
+    const e = this.ectx;
+    e.globalCompositeOperation = 'destination-out';
+    e.globalAlpha = alpha;
+    if (Number.isInteger(x) && Number.isInteger(y)) {
+      ux0 = Math.max(x, Math.floor(ux0));
+      uy0 = Math.max(y, Math.floor(uy0));
+      ux1 = Math.min(x + w, Math.ceil(ux1));
+      uy1 = Math.min(y + h, Math.ceil(uy1));
+      e.drawImage(img, ux0 - x, uy0 - y, ux1 - ux0, uy1 - uy0, ux0, uy0, ux1 - ux0, uy1 - uy0);
+    } else e.drawImage(img, x, y);
+    e.globalAlpha = 1;
+    e.globalCompositeOperation = 'source-over';
+  }
+
   private addGlowBox(x: number, y: number, w: number, h: number): void {
+    this.glowRects.push(x, y, x + w, y + h);
     const b = this.glowBox;
     if (!b) this.glowBox = [x, y, x + w, y + h];
     else {
@@ -1156,7 +1271,10 @@ export class Renderer {
   private xrayHole(p: PropInst, comp: HTMLCanvasElement, px: number, py: number, seers: Actor[], cx: number, cy: number): void {
     const a = p.art;
     const foot = p.y + a.foot;
-    const pm = liveMask(this.xctx, comp.width, comp.height);
+    // the composed picture's pixels are read back only when someone stands
+    // behind it (or its hole is still closing): in a room most things stand
+    // near Minato, and each was read back every frame (2026-09-28)
+    let pm: Uint8Array | null = null;
     const holes: [number, number][] = [];
     let best = 0;
     for (const s of seers) {
@@ -1170,6 +1288,7 @@ export class Renderer {
       const x1 = Math.min(px + comp.width, sx + si.width);
       const y1 = Math.min(py + comp.height, sy + si.height);
       if (x1 <= x0 || y1 <= y0) continue;
+      pm ??= liveMask(this.xctx, comp.width, comp.height);
       const sm = alphaMask(si);
       let hid = 0;
       for (let y = y0; y < y1; y++) {
@@ -1302,8 +1421,68 @@ export class Renderer {
     return out;
   }
 
+  /** Does this map have a canal or paddies (water.ts paints more than the sky on them)? */
+  private waterRuns = true;
+  private vw: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
+  private vwKey = '';
+  private vwAny = false;
+  private waterLayer: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
+  private waterKey = '';
+
+  /**
+   * The water pixels on screen: the chunks' water masks put together once per
+   * camera position (the shadows, the water layer and the sky in the water all
+   * use it). Null when no water is on screen.
+   */
+  private screenWater(cx: number, cy: number): HTMLCanvasElement | null {
+    const key = `${cx},${cy}`;
+    if (key === this.vwKey) return this.vwAny ? this.vw![0] : null;
+    this.vwKey = key;
+    const f = this.f;
+    const x0 = Math.max(0, Math.floor(cx / CHUNK));
+    const y0 = Math.max(0, Math.floor(cy / CHUNK));
+    const x1 = Math.min(Math.ceil((f.map.w * 16) / CHUNK) - 1, Math.floor((cx + W) / CHUNK));
+    const y1 = Math.min(Math.ceil((f.map.h * 16) / CHUNK) - 1, Math.floor((cy + H) / CHUNK));
+    this.vwAny = false;
+    for (let ky = y0; ky <= y1; ky++)
+      for (let kx = x0; kx <= x1; kx++) {
+        const mask = this.waterMask(kx, ky);
+        if (!mask) continue;
+        this.vw ??= makeCanvas(W, H);
+        const m = this.vw[1];
+        if (!this.vwAny) {
+          m.globalCompositeOperation = 'source-over';
+          m.globalAlpha = 1;
+          m.clearRect(0, 0, W, H);
+          this.vwAny = true;
+        }
+        m.drawImage(mask, kx * CHUNK - cx, ky * CHUNK - cy);
+      }
+    return this.vwAny ? this.vw![0] : null;
+  }
+
   private drawWaterLayer(cx: number, cy: number): void {
     const f = this.f;
+    if (!this.waterRuns) {
+      // no canal and no paddies (星見台): the water is the stage sky in screen
+      // space on the water pixels — one layer, kept while nothing moves
+      const vw = this.screenWater(cx, cy);
+      if (!vw) return;
+      this.waterLayer ??= makeCanvas(W, H);
+      const [lc, l] = this.waterLayer;
+      const key = `${cx},${cy},${skyBaseStops(f.grade).join()}`;
+      if (key !== this.waterKey) {
+        this.waterKey = key;
+        l.globalCompositeOperation = 'source-over';
+        l.globalAlpha = 1;
+        fillSkyBase(l, f.grade, 0, 0, W, H);
+        l.globalCompositeOperation = 'destination-in';
+        l.drawImage(vw, 0, 0);
+        l.globalCompositeOperation = 'source-over';
+      }
+      this.wctx.drawImage(lc, 0, 0);
+      return;
+    }
     let refl: Reflector[] | null = null;
     const x0 = Math.max(0, Math.floor(cx / CHUNK));
     const y0 = Math.max(0, Math.floor(cy / CHUNK));
@@ -1404,6 +1583,9 @@ export class Renderer {
 
   // ---------------------------------------------------------------- shadows
 
+  /** Did the last frame leave anything in the shadow layer? */
+  private shadowDirty = true;
+
   private drawShadows(
     cx: number,
     cy: number,
@@ -1416,12 +1598,15 @@ export class Renderer {
     const L = gd.shadowLen;
     s.setTransform(1, 0, 0, 1, 0, 0);
     s.globalCompositeOperation = 'source-over';
-    s.clearRect(0, 0, W, H);
+    if (this.shadowDirty) s.clearRect(0, 0, W, H);
     s.fillStyle = '#000';
     const indoor = f.map.def.kind === 'indoor';
     // a map may fix the direction (the mall's roof: straight down)
     const fixed = f.map.def.shadowVec;
     const dirAt = (tx: number, ty: number): [number, number] => fixed ?? shadowDir(gd, tx, ty);
+    // nothing cast (星見台's night has no sun shadows, rooms none): the
+    // layer's colouring and compositing are skipped (four full-frame passes)
+    let castAny = false;
     const cast = (img: HTMLCanvasElement, footX: number, footY: number, imgX: number, imgY: number, hgt: number, tx: number, ty: number) => {
       if (L <= 0.01 || indoor) return;
       const [dx, dy] = dirAt(tx, ty);
@@ -1434,6 +1619,7 @@ export class Renderer {
       const top = Math.max(0, rows - hgt);
       s.drawImage(sil, 0, top, img.width, rows - top, imgX - footX, imgY + top - footY, img.width, rows - top);
       s.setTransform(1, 0, 0, 1, 0, 0);
+      castAny = true;
     };
     // actors
     const acts: Actor[] = [...f.actors, f.player];
@@ -1461,6 +1647,7 @@ export class Renderer {
         const [dx, dy] = dirAt(p.x / 16, p.y / 16);
         a.shadowFn(s, p.x - cx, p.y - cy, [dx, dy], L, e);
         s.setTransform(1, 0, 0, 1, 0, 0);
+        castAny = true;
         continue;
       }
       const img = (a.shadowImg ?? a.img)(e);
@@ -1476,16 +1663,19 @@ export class Renderer {
       if (!visible(x - 64, y, 16 + 128, st.art.img.height + 32)) continue;
       cast(st.art.img, st.tx * 16 + 8, st.foot, x, y, st.art.shadow, st.tx, st.ty);
     }
-    // shadows falling on water keep only 20% (7.4; the canal shows reflections, not blobs)
-    this.eraseOnWater(s, cx, cy, 0.8);
-    // colourise and composite
-    s.globalCompositeOperation = 'source-in';
-    s.fillStyle = css(gd.shadow);
-    s.fillRect(0, 0, W, H);
-    s.globalCompositeOperation = 'source-over';
-    this.wctx.globalAlpha = gd.shadowA;
-    this.wctx.drawImage(this.sc, 0, 0);
-    this.wctx.globalAlpha = 1;
+    this.shadowDirty = castAny;
+    if (castAny) {
+      // shadows falling on water keep only 20% (7.4; the canal shows reflections, not blobs)
+      this.eraseOnWater(s, cx, cy, 0.8);
+      // colourise and composite
+      s.globalCompositeOperation = 'source-in';
+      s.fillStyle = css(gd.shadow);
+      s.fillRect(0, 0, W, H);
+      s.globalCompositeOperation = 'source-over';
+      this.wctx.globalAlpha = gd.shadowA;
+      this.wctx.drawImage(this.sc, 0, 0);
+      this.wctx.globalAlpha = 1;
+    }
     // contact shadows (all stages; 星見台: #0B0B14 α40%, 52 8.4)
     const ch2 = isCh2Map(f.map.def);
     this.wctx.fillStyle = ch2 ? 'rgba(11,11,20,0.4)' : 'rgba(42,36,64,0.4)';
@@ -1516,20 +1706,13 @@ export class Renderer {
 
   /** Remove `amount` of whatever is in ctx over the water pixels on screen. */
   private eraseOnWater(ctx: CanvasRenderingContext2D, cx: number, cy: number, amount: number): void {
-    const f = this.f;
-    const x0 = Math.max(0, Math.floor(cx / CHUNK));
-    const y0 = Math.max(0, Math.floor(cy / CHUNK));
-    const x1 = Math.min(Math.ceil((f.map.w * 16) / CHUNK) - 1, Math.floor((cx + W) / CHUNK));
-    const y1 = Math.min(Math.ceil((f.map.h * 16) / CHUNK) - 1, Math.floor((cy + H) / CHUNK));
+    const vw = this.screenWater(cx, cy);
+    if (!vw) return;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalCompositeOperation = 'destination-out';
     ctx.globalAlpha = amount;
-    for (let ky = y0; ky <= y1; ky++)
-      for (let kx = x0; kx <= x1; kx++) {
-        const mask = this.waterMask(kx, ky);
-        if (mask) ctx.drawImage(mask, kx * CHUNK - cx, ky * CHUNK - cy);
-      }
+    ctx.drawImage(vw, 0, 0);
     ctx.restore();
   }
 
@@ -1557,12 +1740,13 @@ export class Renderer {
     ctx.clip();
     const offX = ((((flow - cx) % 24) + 24) % 24) - 24;
     const offY = (((-cy % 12) + 12) % 12) - 12;
+    // the 24×12 tiles laid over the screen once (one draw each instead of ~300)
     ctx.globalAlpha = 0.18 * a * (1 - gd.night);
     ctx.globalCompositeOperation = 'screen';
-    for (let yy = offY; yy < H; yy += 12) for (let xx = offX; xx < W; xx += 24) ctx.drawImage(lightImg, xx, yy);
+    ctx.drawImage(tiled(lightImg), offX, offY);
     ctx.globalAlpha = 0.14 * a * (1 - gd.night);
     ctx.globalCompositeOperation = 'multiply';
-    for (let yy = offY; yy < H; yy += 12) for (let xx = offX; xx < W; xx += 24) ctx.drawImage(shadeImg, xx, yy);
+    ctx.drawImage(tiled(shadeImg), offX, offY);
     // fx_arcade_roof: faint corrugated-roof lines scrolling at 1.1× the camera, beams every 12 tiles
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 0.08;
@@ -1797,6 +1981,19 @@ function silhouetteOf(img: HTMLCanvasElement): HTMLCanvasElement {
 }
 
 /** Stripe pattern tiles (24×12, slope 2:1) for the arcade light. */
+const tiledCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+/** A small tile repeated over the screen plus one tile each way (for scrolling offsets in −tile..0). */
+function tiled(tile: HTMLCanvasElement): HTMLCanvasElement {
+  let c = tiledCache.get(tile);
+  if (!c) {
+    const [cv, x] = makeCanvas(W + tile.width, H + tile.height);
+    for (let yy = 0; yy < cv.height; yy += tile.height) for (let xx = 0; xx < cv.width; xx += tile.width) x.drawImage(tile, xx, yy);
+    c = cv;
+    tiledCache.set(tile, c);
+  }
+  return c;
+}
+
 function makeStripes(flip: boolean): [HTMLCanvasElement, HTMLCanvasElement] {
   const [lc, lctx] = makeCanvas(24, 12);
   const [sc, sctx] = makeCanvas(24, 12);
@@ -1841,10 +2038,13 @@ const SIL_EDGE = '#6E1E3C';
 const XM = 20;
 
 /** Opaque-pixel mask of a canvas that changes every frame (the scratch canvas). */
+let liveBuf = new Uint8Array(0);
+/** Opaque-pixel mask of what is in ctx now (a reused buffer: valid until the next call). */
 function liveMask(ctx: CanvasRenderingContext2D, w: number, h: number): Uint8Array {
   const d = ctx.getImageData(0, 0, w, h).data;
-  const m = new Uint8Array(w * h);
-  for (let i = 0; i < m.length; i++) m[i] = d[i * 4 + 3] > 0 ? 1 : 0;
+  if (liveBuf.length < w * h) liveBuf = new Uint8Array(w * h);
+  const m = liveBuf;
+  for (let i = 0; i < w * h; i++) m[i] = d[i * 4 + 3] > 0 ? 1 : 0;
   return m;
 }
 

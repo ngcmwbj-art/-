@@ -154,16 +154,35 @@ export function drawWater(w: WaterCtx): void {
   drawPaddies(w, pal);
 }
 
-function drawSkyBase(w: WaterCtx): void {
-  const { ctx, grade } = w;
-  const sy0 = w.worldY - w.camY;
-  const g = ctx.createLinearGradient(0, -sy0, 0, H - sy0);
-  g.addColorStop(0, css(mixc(grade.skyTop, GLINT, 0.1 * (1 - grade.night))));
-  g.addColorStop(0.7, css(grade.skyBot));
-  g.addColorStop(1, css(mixc(grade.skyBot, SUNSHADE, 0.3)));
+/** The stage sky's colours down the screen (top, 70%, bottom). */
+export function skyBaseStops(grade: Grade): [string, string, string] {
+  return [css(mixc(grade.skyTop, GLINT, 0.1 * (1 - grade.night))), css(grade.skyBot), css(mixc(grade.skyBot, SUNSHADE, 0.3))];
+}
+
+/** The stage sky as a vertical gradient over the screen (0..H), in `ctx`'s screen coordinates. */
+export function fillSkyBase(ctx: CanvasRenderingContext2D, grade: Grade, x: number, y: number, w: number, h: number, top = 0): void {
+  const [a, b, c] = skyBaseStops(grade);
+  const g = ctx.createLinearGradient(0, top, 0, top + H);
+  g.addColorStop(0, a);
+  g.addColorStop(0.7, b);
+  g.addColorStop(1, c);
   ctx.fillStyle = g;
+  ctx.fillRect(x, y, w, h);
+}
+
+function drawSkyBase(w: WaterCtx): void {
   const [rx, ry, rw, rh] = w.vis ?? [0, 0, w.w, w.h];
-  ctx.fillRect(rx, ry, rw, rh);
+  fillSkyBase(w.ctx, w.grade, rx, ry, rw, rh, -(w.worldY - w.camY));
+}
+
+/** Does the map have ground that drawWater paints more than the sky on (the canal, the paddies)? */
+export function hasWaterRuns(map: LoadedMap): boolean {
+  for (let ty = 0; ty < map.h; ty++)
+    for (let tx = 0; tx < map.w; tx++) {
+      const g = groundAt(map, tx, ty);
+      if (g === 'water' || g === 'paddy') return true;
+    }
+  return false;
 }
 
 // ---------------------------------------------------------------- canal

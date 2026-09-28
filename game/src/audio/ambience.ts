@@ -955,7 +955,22 @@ interface Inst {
   lpBase: number;
   impl: AmbImpl;
   stopping: boolean;
+  /**
+   * Parked (2026-09-28, phones ran hot): a bed held at level 0 for
+   * PARK_AFTER s has its sources stopped and its recipe dropped — a
+   * positional bed out of earshot (星見台's paddies, water and barn from the
+   * far side of the village) cost as much as one being heard. The chain
+   * (trim, window filter) stays; a level above 0 starts a new take that
+   * ramps in, as the old one would have. It still counts as playing.
+   */
+  parked?: boolean;
+  /** Level 0 was asked for (the park timer is running or has run). */
+  silent?: boolean;
+  parkTimer?: ReturnType<typeof setTimeout>;
 }
+
+/** Seconds a bed stays at level 0 before its sources are stopped. */
+const PARK_AFTER = 2;
 
 const active = new Map<string, Inst>();
 const pendingAmb = new Map<string, AmbOpts>();
@@ -982,16 +997,16 @@ function ensureTask(): void {
   addTask({
     lookahead: AMB_LOOKAHEAD,
     pump(until) {
-      for (const i of active.values()) i.impl.pump?.(until);
+      for (const i of active.values()) if (!i.parked) i.impl.pump?.(until);
     },
   });
   stageListeners.push((s) => {
     const g = cur();
-    for (const i of active.values()) i.impl.setStage?.(s, g.ctx.currentTime);
+    for (const i of active.values()) if (!i.parked) i.impl.setStage?.(s, g.ctx.currentTime);
   });
   hStageListeners.push((s) => {
     const g = cur();
-    for (const i of active.values()) i.impl.setHStage?.(s, g.ctx.currentTime);
+    for (const i of active.values()) if (!i.parked) i.impl.setHStage?.(s, g.ctx.currentTime);
   });
 }
 
@@ -1072,6 +1087,57 @@ export function walledAmbients(): string[] {
   return [...active.values()].filter((i) => !i.stopping && wallFor(i.id)).map((i) => i.id);
 }
 
+/** Stop a silent bed's sources (see Inst.parked). */
+function park(i: Inst): void {
+  if (i.parked || i.stopping || active.get(i.id) !== i) return;
+  const t = cur().ctx.currentTime;
+  i.parked = true;
+  const old = i.out;
+  i.impl.stop(t + 0.02);
+  setTimeout(() => {
+    try {
+      old.disconnect();
+    } catch {
+      /* gone */
+    }
+  }, 300);
+}
+
+/** A parked bed heard again: a new take into a fresh input, ramping from 0 to `vol` over `ramp` s. */
+function unpark(i: Inst, vol: number, ramp: number): void {
+  const f = AMB[i.id];
+  if (!f || !i.parked) return;
+  const g = cur();
+  const t = g.ctx.currentTime;
+  const t0 = t + 0.03;
+  const out = g.ctx.createGain();
+  out.gain.value = 0;
+  out.gain.setValueAtTime(0, t0);
+  out.gain.linearRampToValueAtTime(Math.max(0, vol), t0 + Math.max(0.02, ramp));
+  out.connect(i.trim);
+  const seed = (Math.random() * 1e9) | 0;
+  i.out = out;
+  i.parked = false;
+  i.impl = f({ g, t0, dest: out, rng: new Rng(seed), stage: musicParams().stage, hStage: musicParams().h_stage, seed });
+  i.impl.pump?.(t + AMB_LOOKAHEAD);
+}
+
+/** Keep track of a bed's asked-for level: park it after PARK_AFTER s at 0, and cancel that when it rises. */
+function noteLevel(i: Inst, vol: number, ramp: number): void {
+  if (vol > 0) {
+    i.silent = false;
+    if (i.parkTimer !== undefined) clearTimeout(i.parkTimer);
+    i.parkTimer = undefined;
+    return;
+  }
+  i.silent = true;
+  if (i.parkTimer !== undefined || i.parked || cur().offline) return;
+  i.parkTimer = setTimeout(() => {
+    i.parkTimer = undefined;
+    if (i.silent) park(i);
+  }, (Math.max(0, ramp) + PARK_AFTER) * 1000);
+}
+
 export function playAmbient(id: string, opts: AmbOpts = {}): void {
   if (!hasGraph()) {
     pendingAmb.set(id, opts);
@@ -1079,9 +1145,25 @@ export function playAmbient(id: string, opts: AmbOpts = {}): void {
   }
   const ex = active.get(id);
   const g = cur();
+  if (ex && !ex.stopping && ex.parked) {
+    // parked (silent): only a level above 0 brings it back
+    if (opts.lp !== undefined) {
+      ex.lpBase = opts.lp;
+      const w = wallFor(id);
+      ex.lp.frequency.setTargetAtTime(w ? Math.min(w.lp, opts.lp) : opts.lp, g.ctx.currentTime, 0.1);
+    }
+    if (opts.vol !== undefined && opts.vol > 0) {
+      noteLevel(ex, opts.vol, opts.fade ?? 0.3);
+      unpark(ex, opts.vol, opts.fade ?? 0.3);
+    }
+    return;
+  }
   if (ex && !ex.stopping) {
     const t = g.ctx.currentTime;
-    if (opts.vol !== undefined) ex.out.gain.setTargetAtTime(opts.vol, t, (opts.fade ?? 0.3) / 3);
+    if (opts.vol !== undefined) {
+      ex.out.gain.setTargetAtTime(opts.vol, t, (opts.fade ?? 0.3) / 3);
+      noteLevel(ex, opts.vol, opts.fade ?? 0.3);
+    }
     if (opts.lp !== undefined) {
       ex.lpBase = opts.lp;
       const w = wallFor(id);
@@ -1094,6 +1176,7 @@ export function playAmbient(id: string, opts: AmbOpts = {}): void {
   const inst = createAmbient(g, id, opts, g.ambBus);
   if (inst) {
     active.set(id, inst);
+    if (opts.vol !== undefined) noteLevel(inst, opts.vol, opts.fade ?? 0.3);
     const t = g.ctx.currentTime;
     // behind a wall from its first sample; a room puts the beds it walls in behind it
     if (wallFor(id)) applyWall(inst, t, 0.03);
@@ -1107,10 +1190,25 @@ export function stopAmbient(id: string, fade = 0.3): void {
   const i = active.get(id);
   if (!i || i.stopping) return;
   i.stopping = true;
+  if (i.parkTimer !== undefined) clearTimeout(i.parkTimer);
+  i.parkTimer = undefined;
   const g = cur();
   const t = g.ctx.currentTime;
   // a room going: what it walled in comes back out as it fades
   applyWallsOf(id, t);
+  if (i.parked) {
+    // nothing sounding: just take the chain down
+    setTimeout(() => {
+      if (active.get(id) === i) active.delete(id);
+      try {
+        i.lp.disconnect();
+        i.trim.disconnect();
+      } catch {
+        /* gone */
+      }
+    }, 50);
+    return;
+  }
   const p = i.out.gain;
   p.cancelScheduledValues(t);
   p.setValueAtTime(p.value, t);
@@ -1142,6 +1240,11 @@ export function setAmbientVol(id: string, vol: number, ramp = 0.3): void {
     return;
   }
   if (i.stopping) return;
+  noteLevel(i, vol, ramp);
+  if (i.parked) {
+    if (vol > 0) unpark(i, vol, ramp);
+    return;
+  }
   const t = cur().ctx.currentTime;
   i.out.gain.cancelScheduledValues(t);
   i.out.gain.setValueAtTime(i.out.gain.value, t);
@@ -1150,7 +1253,7 @@ export function setAmbientVol(id: string, vol: number, ramp = 0.3): void {
 
 export function ambientEvent(id: string, name: string, pan?: number | string): void {
   const i = active.get(id);
-  if (!i || i.stopping) return;
+  if (!i || i.stopping || i.parked) return;
   // (a named argument — amb_tsugao_room's town — travels in the pan slot)
   i.impl.event?.(name, pan as number | undefined, cur().ctx.currentTime + 0.01);
 }
@@ -1162,6 +1265,13 @@ export function flushPendingAmbient(): void {
 
 export function activeAmbients(): string[] {
   return [...active.values()].filter((i) => !i.stopping).map((i) => i.id);
+}
+
+/** QA: the beds playing and their levels right now (parked = silent, its sources stopped). */
+export function ambientLevels(): { id: string; vol: number; parked: boolean }[] {
+  return [...active.values()]
+    .filter((i) => !i.stopping)
+    .map((i) => ({ id: i.id, vol: i.parked ? 0 : Math.round(i.out.gain.value * 1000) / 1000, parked: !!i.parked }));
 }
 
 export { dbToGain, midiHz };
