@@ -30,6 +30,7 @@ import { registerWorldFx } from '../world/fx';
 import { BOX, dialogVisible } from '../ui/dialog';
 import { uiHud } from '../ui/hud';
 import { drawWindow, textW, UI } from '../ui/window';
+import { markText } from '../engine/textzones';
 
 // ---------------------------------------------------------------- 2× close-ups
 
@@ -518,6 +519,8 @@ class KeyGuide implements Widget {
     const h = this.rows.length * rh + 9;
     const x = this.x0;
     const y = H - h - 8 + Math.round((1 - ease.cubicOut(inK)) * 6);
+    // brief (4.5s): a touch control in its way (the D-pad) fades out while it shows
+    markText(x, H - h - 8, w, h + 6, true);
     drawWindow(g, x, y, w, h, UI, a, { curl: false });
     this.rows.forEach(([keys, label], i) => {
       const ry = y + 5 + i * rh;

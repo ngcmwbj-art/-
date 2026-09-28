@@ -5,6 +5,7 @@ import { game, type Widget } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { ease } from '../engine/tween';
 import { drawWindow, textW, UI } from './window';
+import { markText } from '../engine/textzones';
 
 class Guide implements Widget {
   modal = false;
@@ -23,6 +24,8 @@ class Guide implements Widget {
     const h = this.lines.length * 17 + 10;
     const x = 8;
     const y = 216 - h - 8 + Math.round((1 - ease.cubicOut(inK)) * 6);
+    // brief (4s): a touch control in its way (the D-pad) fades out while it shows
+    markText(x, 216 - h - 8, w, h + 6, true);
     drawWindow(g, x, y, w, h, UI, a, { curl: false });
     this.lines.forEach((l, i) => g.text(l, x + 10, y + 5 + i * 17, { color: UI.pencil, alpha: a }));
   }

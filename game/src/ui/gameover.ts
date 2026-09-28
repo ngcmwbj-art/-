@@ -24,6 +24,7 @@ import { GAMEOVER } from '../data/battle';
 import { say } from './dialog';
 import { toTitle } from './flow';
 import { drawCursor, drawTape, pencilLine, textW, UI } from './window';
+import { markText } from '../engine/textzones';
 
 export type GameOverChoice = 'retry' | 'load';
 
@@ -358,6 +359,8 @@ class GameOverScene implements Scene {
 
   draw(g: Gfx): void {
     g.clear(UI.darkest);
+    // the diary page: the touch controls keep off it
+    markText(PAGE.x, PAGE.y, PAGE.w, PAGE.h);
     // chapter 2's night: the picture is of the village and the weather is the starry sky
     const night = !!flag('flag_ch2_started') && !flag('flag_ch2_clear');
     // the page comes up out of the dark

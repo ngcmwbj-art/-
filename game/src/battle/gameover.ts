@@ -17,6 +17,7 @@ import { GAMEOVER } from '../data/battle';
 import { C, cursorStamp, drawNote, tapeCanvas } from './ui/note';
 import { BAYER4, PixelCanvas } from '../engine/pixel';
 import { flipBoardText } from './art/fxart';
+import { markText } from '../engine/textzones';
 
 export type GameOverChoice = 'retry' | 'load';
 
@@ -96,6 +97,10 @@ class GameOverScene implements Scene {
     }
     // the day's last line, handwritten (a little uneven), and its underline
     const ta = Math.min(1, Math.max(0, (this.t - 250) / 500));
+    // the line and its underline: the touch controls keep off it
+    const tx0 = Math.min(134, 192 - Math.round(g.measure(GAMEOVER.title) / 2));
+    const tx1 = Math.max(251, 192 + Math.round(g.measure(GAMEOVER.title) / 2) + 1);
+    markText(tx0, 56, tx1 - tx0, 28);
     g.alpha(ta, () => {
       const title = [...GAMEOVER.title];
       let x = 192 - Math.round(g.measure(GAMEOVER.title) / 2);
@@ -116,6 +121,7 @@ class GameOverScene implements Scene {
     const tw = Math.max(...opts.map((o) => g.measure(o)));
     const ww = tw + 24 + 12;
     const wx = Math.round(192 - ww / 2);
+    markText(wx, 99, ww + 2, 51);
     g.alpha(k, () => {
       drawNote(g, wx, wy, ww, 48);
       g.img(tapeCanvas(22, 7, '', C.tape, 4), 181, wy - 3);

@@ -28,6 +28,7 @@ import { inkLabel, ovalStamp, pekeMark, petalSprites } from './art/stamps';
 import { hitCrack, hitSplash, sweatDrop } from './art/fxart';
 import { boarIcon, moyamoya } from './art/fxart_ch2';
 import { syncCh2Bg } from './ch2rules';
+import { markText } from '../engine/textzones';
 
 export const FRAME = 1000 / 60;
 
@@ -1576,6 +1577,10 @@ export class BattleScene implements Scene {
 
   private drawUi(g: Gfx): void {
     const a = this.uiAlpha;
+    // the touch controls keep off the text: the command notebook, the panels
+    // and their name tags (y144, the kire tab between them) at rest (the
+    // band, the list and the みました card mark themselves)
+    if (this.party.length) markText(4, 144, 376, 68);
     // enemy HP bars (みました済み) during command input & target selection
     for (const e of this.enemies) {
       const by = this.enemyBarY(e);
@@ -1760,6 +1765,10 @@ export class BattleScene implements Scene {
       const sx = sp.x;
       const sy = sp.y;
       const dir = sp.right ? 1 : -1;
+      // where the note rests (and, for one that peels off, the 10px aside /
+      // 12px down it goes): the touch controls keep off it
+      const go = st.ttl ? 1 : 0;
+      markText(sx - P - (sp.right ? 0 : 10 * go), sy - P, img.width + 10 * go, img.height + 12 * go);
       g.alpha(k, () => g.img(img, sx - P + dir * Math.round(out * 10), sy - P - Math.round((1 - Math.min(1, st.t / 120)) * 6) + Math.round(out * out * 12)));
       if (glow) g.alpha(0.35 * k, () => g.rect(sx, sy, img.width - P - 3, img.height - P - 3, '#FFFFFF'));
     }

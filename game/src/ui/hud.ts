@@ -31,6 +31,7 @@ import { autosaveTick, setAutosaveClock } from './autosave';
 import { blend, drawTape, rectA, textW, UI } from './window';
 import { hash2 } from '../engine/rng';
 import { ROOM2_PLACE } from '../data/maps/hoshi_rooms2_names';
+import { markText } from '../engine/textzones';
 
 // ---- clock -------------------------------------------------------------------------
 
@@ -831,7 +832,11 @@ class UiHud implements FieldHud {
     // clock plate
     const y = Math.round(this.y);
     // (under the open menu the menu's own plate stands in: the field's, stopped mid-slide, would peek out)
-    if (y > -24 && !menuUp()) drawClockPlate(g, 324, y, this.clockView());
+    if (y > -24 && !menuUp()) {
+      // the plate where it rests (y6, 52×18 and its shadow): the touch controls keep off it
+      markText(324, 6, 52, 20);
+      drawClockPlate(g, 324, y, this.clockView());
+    }
     // hanko icon (bottom left) and the place name beside it: under the
     // curtain they go with the world (only the parts `keep` names stay)
     const under = (part: CurtainPart, fn: () => void) => {
@@ -902,6 +907,8 @@ class UiHud implements FieldHud {
     const a = 1 - outK;
     const shown = Math.round((w + 2) * inK);
     if (shown <= 0 || a <= 0) return;
+    // brief: a touch control in its way (the D-pad) fades out while it shows
+    markText(x, b.y - 3, w + 2, h + 4, true);
     const seed = 3 + ([...b.text].length % 5);
     g.clip(x, y - 1, shown, h + 3, () => {
       // a soft shadow under the strip so it reads over the busiest ground
@@ -926,6 +933,8 @@ class UiHud implements FieldHud {
     const x = 8;
     const y = y0 - Math.round(peel * 10);
     const a = 1 - peel;
+    // brief (2.8s): a touch control in its way fades out while it shows
+    markText(x - Math.ceil(w * 0.1) - 1, y0 - 10 - Math.ceil(h * 0.1), Math.ceil(w * 1.2) + 5, Math.ceil(h * 1.2) + 13, true);
     const s = 1.2 - 0.2 * ease.cubicOut(stick);
     const cw = Math.round(w * s);
     const ch = Math.round(h * s);

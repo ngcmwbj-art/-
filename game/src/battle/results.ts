@@ -19,6 +19,7 @@ import { C, tapeCanvas } from './ui/note';
 import { MessageBand } from './ui/message';
 import { PANEL_POS } from './ui/panels';
 import { drawNumerals, numeralsWidth } from '../ui/digits';
+import { markText } from '../engine/textzones';
 
 // ---- victory --------------------------------------------------------------------------
 
@@ -600,6 +601,9 @@ class ReportCard {
   }
 
   draw(g: Gfx): void {
+    // the open report card (x48–336, y44–212; the closed one rises to its
+    // right half): the touch controls keep off it
+    if (this.closing < 1) markText(48, 44, 288, 168);
     g.rect(0, 0, 384, 216, '#1B1733', 0.55 * this.dim * (1 - this.closing));
     // せんせいより: the band sits above the dimming (full contrast), under the card
     if (this.msg && this.msg.tag) this.msg.draw(g);

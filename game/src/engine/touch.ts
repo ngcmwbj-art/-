@@ -10,10 +10,15 @@
 // landscape) or below it (portrait; an upright tablet). A tablet held
 // sideways plays full screen: the picture fills the window and translucent
 // controls float over its bottom corners (also any window too cramped for
-// either layout).
+// either layout). There they keep off the text (engine/textzones.ts): over a
+// dialog window they rise to just above it, in a battle they sit between the
+// band and the panels (a little smaller when the gap is low), and on a text
+// screen (the menu, a shop) — or when no gap is left — the picture shrinks a
+// little and they stand beside it.
 
 import type { Action, Input } from './input';
 import { H, W, type Screen } from './screen';
+import { onTextZones, uiBands } from './textzones';
 
 const INK = '#2A2440';
 const PAPER = '#FBF3DC';
@@ -43,6 +48,12 @@ const CSS = `
 .tc-d.on .lamp{background:${SHU}}
 .tc.overlay .tc-pad,.tc.overlay .tc-btn{opacity:.55;transition:opacity .15s}
 .tc.overlay .tc-pad.held,.tc.overlay .tc-btn.down{opacity:.9}
+.tc.glide .tc-pad,.tc.glide .tc-btn{transition:opacity .15s,left .18s ease-out,top .18s ease-out,width .18s ease-out,height .18s ease-out,font-size .18s ease-out}
+.tc.glide:not(.overlay) .tc-btn{transition:opacity .15s,left .18s ease-out,top .18s ease-out,width .18s ease-out,height .18s ease-out,font-size .18s ease-out,transform 50ms,box-shadow 50ms,background 80ms}
+.tc .tc-pad.veil:not(.held),.tc .tc-btn.veil:not(.down){opacity:0!important}
+.tc.hl .tc-hint{left:auto;right:calc(100% + .45em);bottom:auto;top:50%;transform:translateY(-50%);animation-name:tcBeatL}
+@keyframes tcBeatL{from{transform:translateY(-50%) scale(1)}to{transform:translateY(-50%) scale(1.1)}}
+#screen.tc-zoom{transition:width .2s ease-out,height .2s ease-out}
 .tc-hint{position:absolute;left:50%;bottom:calc(100% + .5em);display:none;padding:.3em .55em .25em;
   background:${PAPER};color:${SHU};border:3px solid ${INK};border-radius:.4em;box-shadow:0 3px 0 ${INK};
   font-size:.82em;white-space:nowrap;pointer-events:none;transform:translateX(-50%);animation:tcBeat .56s ease-in-out infinite alternate}
@@ -101,6 +112,18 @@ function div(cls: string, parent: Element, text?: string): HTMLDivElement {
 type Mode = 'side' | 'bottom' | 'overlay';
 
 let backShown: () => boolean = () => true;
+
+let layoutInfo: () => { active: boolean; sideways: boolean; sideCols: boolean; scale: number | null; fit: string } = () => ({
+  active: false,
+  sideways: false,
+  sideCols: false,
+  scale: null,
+  fit: '',
+});
+/** QA: the touch layout's state (a sideways tablet; its picture shrunk beside the controls). */
+export function touchLayoutInfo(): ReturnType<typeof layoutInfo> {
+  return layoutInfo();
+}
 
 /** Is the on-screen pad up (a phone / tablet, or ?touch)? */
 let touchShown = false;
@@ -168,6 +191,9 @@ export function installTouch(input: Input, screen?: Screen): void {
 
   // ---- D-pad --------------------------------------------------------------
   let padId: number | null = null;
+  /** The pad kept its place under a thumb when the text moved: lay out again once it lets go. */
+  let padStay = false;
+  let layoutSoon = () => {};
   const dirs: Action[] = ['up', 'down', 'left', 'right'];
   const held = new Set<Action>();
   const setDirs = (want: Set<Action>) => {
@@ -210,9 +236,21 @@ export function installTouch(input: Input, screen?: Screen): void {
     padId = null;
     pad.classList.remove('held');
     setDirs(new Set());
+    // text came or went while the thumb was on the pad: now it may move
+    if (padStay) {
+      padStay = false;
+      layoutSoon();
+    }
   };
   pad.addEventListener('pointerup', endPad);
   pad.addEventListener('pointercancel', endPad);
+  /** The pad moved away under the thumb (it made room for text): let go, don't read a new direction. */
+  const releasePad = () => {
+    if (padId === null) return;
+    padId = null;
+    pad.classList.remove('held');
+    setDirs(new Set());
+  };
 
   // ---- buttons --------------------------------------------------------------
   const bindHold = (el: HTMLElement, a: Action) => {
@@ -293,7 +331,235 @@ export function installTouch(input: Input, screen?: Screen): void {
   const btnFit = (b: Box, M: number, pillH: number, withPill: boolean) =>
     Math.min((b.w - 2 * M) / 1.95, (b.h - 2 * M - (withPill ? pillH + M : 0)) / 1.26);
 
-  const layout = () => {
+  // A tablet held sideways (full screen; the controls keep off the text) and
+  // whether its picture is shrunk with the controls beside it right now.
+  let sideways = false;
+  let sideCols = false;
+  let zoomT = 0;
+  /** The last spots placed (sideways), and how the clusters fitted (QA). */
+  let lastPlan: Record<string, Box> | null = null;
+  let lastFit = '';
+
+  const fitW = (w: number, h: number) => Math.max(0, Math.min(w, (h * W) / H));
+  const fitFont = (f: number, w: number, chars: number) => Math.min(f, (w - 10) / (chars * 1.08));
+  /** Device px per game px for a picture `g` CSS px wide; a whole number when that costs under 3%. */
+  const scaleFor = (g: number, dpr: number) => {
+    let sc = Math.max(1, (g * dpr) / W);
+    if ((sc - Math.floor(sc)) / sc < 0.03) sc = Math.floor(sc);
+    return sc;
+  };
+
+  // ---- a tablet held sideways ------------------------------------------------------
+  /** A control's spot; `ghost` = room kept clear without an element (the けってい word tag). */
+  type Spot = Box & { font?: number; ghost?: boolean; sh?: number; ring?: number };
+  type Cluster = Record<string, Spot>;
+  const SHADOW = 5; // the ink shadow under a button, outside its box
+  const AIR = 4; // between a control (and its shadow) and a text box, CSS px
+  /**
+   * Sizes (× the corner size) and pill placement (false: above, true: beside)
+   * tried in order when a gap is low — only a little smaller: below 0.8 the
+   * picture shrinks and the controls stand beside it instead.
+   */
+  const TRIES: [number, boolean][] = [
+    [1, false],
+    [0.9, false],
+    [1, true],
+    [0.9, true],
+    [0.8, false],
+    [0.8, true],
+  ];
+  const meets = (a: Box, rs: Box[]) => rs.some((r) => a.x < r.x + r.w && a.x + a.w > r.x && a.y < r.y + r.h && a.y + a.h > r.y);
+  /** What a spot must keep clear (its box, the shadow under it, the gold ring of a hint, and air), moved down by dy. */
+  const keepClear = (p: Spot, dy: number): Box => {
+    const e = AIR + (p.ring ?? 0);
+    return { x: p.x - e, y: dy + p.y - e, w: p.w + 2 * e, h: p.h + (p.sh ?? SHADOW) + 2 * e };
+  };
+  /**
+   * The lowest bottom edge (≤ yMax) for a cluster of controls (parts' y are
+   * relative to that edge) where no part meets a text box nor rises above
+   * yMin; null when there is none.
+   */
+  const drop = (parts: Spot[], rs: Box[], yMin: number, yMax: number): number | null => {
+    const cands = [yMax];
+    // (whole px, rounded up the screen: a float hair must not make a spot that just fits fail)
+    for (const r of rs) for (const p of parts) cands.push(Math.floor(r.y - AIR - (p.ring ?? 0) - (p.y + p.h + (p.sh ?? SHADOW)) - 1e-6));
+    cands.sort((a, b) => b - a);
+    for (const yb of cands) {
+      if (yb > yMax) continue;
+      if (parts.some((p) => yb + p.y - (p.ring ?? 0) < yMin)) return null;
+      if (!parts.some((p) => meets(keepClear(p, yb), rs))) return yb;
+    }
+    return null;
+  };
+
+  /**
+   * Full screen on a tablet held sideways. With no text on screen the
+   * controls sit in the bottom corners as always. Text boxes (a dialog
+   * window and its name tag, a choice, a battle's band and panels) push each
+   * cluster up to just above them — the lowest spot that is clear, a little
+   * smaller or with メニュー/ダッシュ beside rather than above when the gap is
+   * low. A text screen (the menu, a shop), or text that leaves no gap, shrinks
+   * the picture a little and stands the controls beside it. Brief words (the
+   * battle's 「長押し！」…) move nothing: the controls in their way fade out
+   * while they are up.
+   */
+  const layoutSideways = (vw: number, vh: number, dpr: number, S0: number, M: number, pill: { w: number; h: number }, bw0: number, safeB: number, glide: boolean) => {
+    const body = document.body;
+    const zones = uiBands();
+    const yMax = vh - safeB - M;
+    const yMin = 6;
+    const y0 = vh * 0.42;
+    const half: Box = { x: 0, y: y0, w: vw / 2, h: vh - y0 - safeB };
+    const S1 = Math.max(96, Math.min(S0 * 0.85, padFit(half, M, pill.h, true)));
+    const bw1 = Math.max(58, Math.min(bw0 * 0.85, btnFit(half, M, pill.h, true)));
+    const font = clamp(S0 * 0.85 * 0.11, 13, 20);
+    const pillAt = (s: number) => {
+      const w = Math.max(80, pill.w * s);
+      return { w, h: Math.max(30, pill.h * s), font: fitFont(font * 0.9 * Math.max(0.8, s), w - 12, 5) };
+    };
+    // the word tag of けってい (setButtonHint: 「長押し」「はなす！」) at font
+    // .82em of the button's, beating up to 1.1×: above the button, or left of it
+    const hintAt = (A: Spot, left: boolean): Spot => {
+      const hf = (A.font ?? font) * 0.82;
+      const w = (hf * 5.3 + 6) * 1.1;
+      const h = (hf * 1.55 + 9) * 1.1;
+      return left
+        ? { x: A.x - hf * 0.45 - w, y: A.y + A.h / 2 - h / 2, w, h, ghost: true, sh: 0 }
+        : { x: A.x + A.w / 2 - w / 2, y: A.y - hf * 0.5 - h, w, h, ghost: true, sh: 0 };
+    };
+    // D-pad with メニュー above (or beside) it, anchored at its bottom-left
+    const leftAt = (s: number, beside: boolean, x: number): Cluster => {
+      const S = S1 * s;
+      const p = pillAt(s);
+      const gap = M * s;
+      return {
+        pad: { x, y: -S, w: S, h: S, sh: Math.max(SHADOW, S * 0.04) },
+        M: beside ? { x: x + S + gap, y: -S / 2 - p.h / 2, ...p } : { x: x + (S - p.w) / 2, y: -S - gap - p.h, ...p },
+      };
+    };
+    // けってい / もどる in a thumb arc with ダッシュ above (or beside), anchored at its bottom-right
+    const rightAt = (s: number, beside: boolean, xr: number): Cluster => {
+      const bw = bw1 * s;
+      const bs = bw * 0.84;
+      const p = pillAt(s);
+      const gap = M * s;
+      const left = xr - bw * 1.95;
+      const aX = left + bw * 0.95;
+      const aY = -bw * 1.26;
+      const f = font * Math.max(0.8, s);
+      const A: Spot = { x: aX, y: aY, w: bw, h: bw, font: fitFont(f, bw, 4), ring: 6 };
+      return {
+        A,
+        B: { x: left, y: aY + bw * 0.42, w: bs, h: bs, font: fitFont(f * 0.92, bs, 3) },
+        D: beside ? { x: left - gap - p.w, y: aY / 2 - p.h / 2, ...p } : { x: aX + bw - p.w, y: aY - gap - p.h, ...p },
+        H: hintAt(A, beside),
+      };
+    };
+    const frame = (sc: number) => {
+      const w = (W * sc) / dpr;
+      const h = (H * sc) / dpr;
+      return { x: (vw - w) / 2, y: (vh - h) / 2, k: w / W };
+    };
+    const onScreen = (rs: readonly Box[], f: { x: number; y: number; k: number }) =>
+      rs.map((r) => ({ x: f.x + r.x * f.k, y: f.y + r.y * f.k, w: r.w * f.k, h: r.h * f.k }));
+
+    let sc = scaleFor(fitW(vw, vh), dpr);
+    let plan: Cluster | null = null;
+    const fit: string[] = [];
+    let hintLeft = false;
+    if (!zones.full) {
+      const rs = onScreen(zones.rects, frame(sc));
+      const settle = (build: (s: number, beside: boolean) => Cluster): [Cluster, boolean] | null => {
+        for (const [s, beside] of TRIES) {
+          const c = build(s, beside);
+          const parts = Object.values(c);
+          const yb = drop(parts, rs, yMin, yMax);
+          if (yb === null) continue;
+          for (const p of parts) p.y += yb;
+          fit.push(`${s}${beside ? ' beside' : ''}`);
+          return [c, beside];
+        }
+        fit.push('-');
+        return null;
+      };
+      const l = settle((s, beside) => leftAt(s, beside, M * 1.4));
+      const r = settle((s, beside) => rightAt(s, beside, vw - M * 1.4));
+      if (l && r) {
+        const lRight = Math.max(...Object.values(l[0]).map((p) => p.x + p.w));
+        const rLeft = Math.min(...Object.values(r[0]).map((p) => p.x));
+        if (lRight + M < rLeft) {
+          plan = { ...l[0], ...r[0] };
+          hintLeft = r[1];
+        }
+      }
+    }
+    const cols = !plan;
+    // the pad doesn't slide out from under a thumb walking on it (a place
+    // name, a dialog starting mid-step: the thumb hides that spot anyway);
+    // it moves when the thumb lets go
+    if (plan && glide && padId !== null && !sideCols && lastPlan?.pad && lastPlan.M) {
+      plan.pad = { ...lastPlan.pad, sh: plan.pad.sh };
+      plan.M = { ...lastPlan.M, font: plan.M.font };
+      padStay = true;
+    }
+    if (!plan) {
+      // the picture a little smaller, the controls in the columns beside it:
+      // the D-pad with メニュー above it on the left; けってい at the bottom
+      // right, もどる above it and ダッシュ above that
+      sc = scaleFor(fitW(vw - 2 * clamp(vw * 0.13, 118, 160), vh), dpr);
+      const col = frame(sc).x;
+      const m = clamp(col * 0.07, 8, 12);
+      const cc = col - 2 * m;
+      const S = Math.min(S1, cc);
+      const p = pillAt(1);
+      const pw = Math.min(p.w, cc);
+      const gap = M * 0.8;
+      const bw = Math.min(bw1, cc / 1.3);
+      const bs = bw * 0.84;
+      const aY = yMax - bw;
+      const bY = aY - 8 - bs;
+      plan = {
+        pad: { x: (col - S) / 2, y: yMax - S, w: S, h: S },
+        M: { x: (col - pw) / 2, y: yMax - S - gap - p.h, w: pw, h: p.h, font: fitFont(p.font, pw - 12, 5) },
+        A: { x: vw - m - bw, y: aY, w: bw, h: bw, font: fitFont(font, bw, 4), ring: 6 },
+        B: { x: vw - col + m, y: bY, w: bs, h: bs, font: fitFont(font * 0.92, bs, 3) },
+        D: { x: vw - col + (col - pw) / 2, y: bY - gap - p.h, w: pw, h: p.h, font: fitFont(p.font, pw - 12, 5) },
+      };
+    }
+
+    root.classList.toggle('glide', glide);
+    root.classList.toggle('overlay', !cols);
+    root.classList.toggle('hl', hintLeft);
+    if (sc !== screen!.fixedScale) {
+      // switching to / from a text screen: the picture eases to its new size
+      const cv = screen!.display;
+      window.clearTimeout(zoomT);
+      cv.classList.toggle('tc-zoom', glide && cols !== sideCols);
+      zoomT = window.setTimeout(() => cv.classList.remove('tc-zoom'), 260);
+      screen!.fixedScale = sc;
+      screen!.resize();
+      screen!.present();
+    }
+    sideCols = cols;
+    body.style.boxSizing = 'border-box';
+    body.style.alignItems = 'center';
+    body.style.paddingTop = '';
+    const was = pad.style.cssText;
+    const els: Record<string, HTMLElement> = { pad, M: btnM, A: btnA, B: btnB, D: btnD };
+    // brief words: whatever is in their way fades out while they are up
+    const brief = onScreen(zones.brief, frame(sc));
+    for (const [k, p] of Object.entries(plan)) {
+      const el = els[k];
+      if (!el) continue;
+      place(el, p.x, p.y, p.w, p.h, p.font);
+      el.classList.toggle('veil', meets(keepClear(p, 0), brief));
+    }
+    if (pad.style.cssText !== was) releasePad();
+    lastPlan = plan;
+    lastFit = cols ? 'beside the picture' : `left ${fit[0]}, right ${fit[1]}`;
+  };
+
+  const layout = (glide = false) => {
     if (!screen) return;
     const body = document.body;
     if (!active) {
@@ -316,12 +582,25 @@ export function installTouch(input: Input, screen?: Screen): void {
     const safeB = portrait ? 22 : 8; // home indicator
     const pill = { w: clamp(S0 * 0.62, 84, 124), h: clamp(S0 * 0.24, 34, 46) };
     let bw0 = clamp(S0 * 0.6, 70, 116); // wanted けってい size
+    // A tablet held sideways plays full screen: the picture as big as the
+    // window allows, the translucent controls floating over its bottom
+    // corners (2026-09-28, the client on an iPad: first the controls in the
+    // middle hid the field, then the picture shrunk above a control band was
+    // too small) — and off the text (「キーと文字がかぶるのは避けたい」).
+    // Upright, the band below the picture is free anyway.
+    sideways = tablet && !portrait;
+    if (sideways) {
+      layoutSideways(vw, vh, dpr, S0, M, pill, bw0, safeB, glide);
+      return;
+    }
+    sideCols = false;
+    root.classList.remove('glide', 'hl');
+    for (const el of [pad, btnA, btnB, btnD, btnM]) el.classList.remove('veil');
     const minS = Math.max(104, S0 * 0.66);
     const minBw = Math.max(60, bw0 * 0.66);
 
     // How wide can the picture get with the controls beside it, below it, or
     // floating over it? (CSS px; the picture keeps its 16:9 shape)
-    const fitW = (w: number, h: number) => Math.max(0, Math.min(w, (h * W) / H));
     const midRoom = (S: number, bw: number) => vw - 2.8 * M - S - 1.95 * bw - 2 * M >= 2 * pill.w + M;
     const sideNeed = Math.max(minS, 1.95 * minBw) + 2 * M;
     const bandNeed = Math.max(minS, 1.26 * minBw) + 2 * M + 8 + safeB + (midRoom(minS, minBw) ? 0 : pill.h + M);
@@ -330,24 +609,15 @@ export function installTouch(input: Input, screen?: Screen): void {
     const gFill = fitW(vw, vh);
     let mode: Mode = gSide >= gBottom ? 'side' : 'bottom';
     let g = Math.max(gSide, gBottom);
-    // A tablet held sideways plays full screen: the picture as big as the
-    // window allows, the translucent controls floating over its bottom
-    // corners (2026-09-28, the client on an iPad: first the controls in the
-    // middle hid the field, then the picture shrunk above a control band was
-    // too small). Upright, the band below the picture is free anyway.
-    // Elsewhere only a very cramped window floats them.
-    if (tablet && !portrait) {
-      mode = 'overlay';
-      g = gFill;
-    } else if (g <= 0 || g < gFill * 0.55) {
+    // Elsewhere only a very cramped window floats the controls over the picture.
+    if (g <= 0 || g < gFill * 0.55) {
       mode = 'overlay';
       g = gFill;
     } else if (mode === 'side' ? g < (vh * W) / H - 0.5 : g < vw - 0.5) {
       g *= 0.97; // the controls are what limits the picture: give them a little air
     }
     // device px per game px; a whole number when that costs under 3%
-    let sc = Math.max(1, (g * dpr) / W);
-    if ((sc - Math.floor(sc)) / sc < 0.03) sc = Math.floor(sc);
+    const sc = scaleFor(g, dpr);
     screen.fixedScale = sc;
     screen.resize();
     const gw = (W * sc) / dpr;
@@ -366,9 +636,9 @@ export function installTouch(input: Input, screen?: Screen): void {
       L = { x: 0, y: top, w: vw / 2, h: vh - top - safeB };
       R = { x: vw / 2, y: top, w: vw / 2, h: vh - top - safeB };
     } else if (tablet) {
-      // full screen: the D-pad in the bottom-left corner, けってい/もどる in
-      // the bottom-right, メニュー/ダッシュ above them — never the middle of
-      // the picture
+      // (a cramped upright tablet) the D-pad in the bottom-left corner,
+      // けってい/もどる in the bottom-right, メニュー/ダッシュ above them —
+      // never the middle of the picture
       const y0 = vh * 0.42;
       L = { x: 0, y: y0, w: vw / 2, h: vh - y0 - safeB };
       R = { x: vw / 2, y: y0, w: vw / 2, h: vh - y0 - safeB };
@@ -390,7 +660,6 @@ export function installTouch(input: Input, screen?: Screen): void {
       bw = Math.max(58, Math.min(bw0, btnFit(R, M, pill.h, true)));
     }
     const font = clamp(S0 * 0.11, 13, 20);
-    const fitFont = (f: number, w: number, chars: number) => Math.min(f, (w - 10) / (chars * 1.08));
 
     // ---- left: D-pad
     const padX = mode === 'side' ? L.x + (L.w - S) / 2 : L.x + M * 1.4;
@@ -443,6 +712,21 @@ export function installTouch(input: Input, screen?: Screen): void {
     cancelAnimationFrame(queued);
     queued = requestAnimationFrame(() => layout());
   };
+  // Text came, moved or went (told at the end of the frame that drew it,
+  // before it is shown): the controls glide out of its way at once, and back
+  // only once it has stayed gone a moment (between two lines, a page turn).
+  layoutSoon = () => {
+    if (active && sideways) layout(true);
+  };
+  let calmT = 0;
+  onTextZones(() => {
+    if (!active || !sideways) return;
+    window.clearTimeout(calmT);
+    const z = uiBands();
+    if (z.full || z.rects.length || z.brief.length) layout(true);
+    else calmT = window.setTimeout(() => layout(true), 220);
+  });
+  layoutInfo = () => ({ active, sideways, sideCols, scale: screen?.fixedScale ?? null, fit: sideways ? lastFit : '' });
   window.addEventListener('resize', relayout);
   window.addEventListener('orientationchange', relayout);
   window.addEventListener('touchstart', activate, { once: true, passive: true });

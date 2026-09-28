@@ -34,6 +34,7 @@ import { sfx } from '../audio';
 import { flag } from '../game/state';
 import { digitsWidth, drawDigits } from './digits';
 import { drawTape, rectA, textW, UI } from './window';
+import { markText } from '../engine/textzones';
 
 export interface ChoreItem {
   label: string;
@@ -160,6 +161,7 @@ export function drawChoreCard(g: Gfx): void {
   // (room is kept at the right end for 「済」)
   const w = 12 + parts.reduce((s, p, i) => s + textW(p.label) + 3 + digitsWidth(p.num) + (i < parts.length - 1 ? GAP : 0), 0) + 13;
   const x = X - Math.round((1 - inK) * 12);
+  markText(X, Y, w + 2, H + 2);
   g.alpha(a, () => {
     rectA(g, x + 2, Y + 2, w, H, UI.night, 0.3);
     drawTape(g, x, Y, w, H, '', { color: UI.tape, seed: 23 });
@@ -302,6 +304,7 @@ function drawDeliveryCard(g: Gfx): void {
   const row2 = textW(NEXT_HEAD) + Math.max(textW(d.next), textW(TRUCK));
   const w = 16 + Math.max(row1, row2) + 4;
   const x = X - Math.round((1 - inK) * 12);
+  markText(X, Y, w + 2, DELI_H + 2);
   g.alpha(a, () => {
     rectA(g, x + 2, Y + 2, w, DELI_H, UI.night, 0.3);
     drawTape(g, x, Y, w, DELI_H, '', { color: UI.tape, seed: 29 });

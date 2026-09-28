@@ -27,6 +27,7 @@ import { bookCounts, bookCountsCh2, drawCircledNum } from './menu/book';
 import { tomatoIcon8 } from './icons';
 import { registerScript } from '../world/scripts';
 import { drawTape, drawWindow, textW, UI } from './window';
+import { markText } from '../engine/textzones';
 
 const SAVE_KEY = 'yugure-rpg-save-v1';
 
@@ -99,6 +100,8 @@ class SaveCard implements Widget {
     const h = this.prev ? 80 : 46;
     const x = Math.round(192 - w / 2);
     const y = 10 + Math.round((1 - ease.cubicOut(Math.min(1, k))) * -8);
+    // at rest, with its きろく tape: the touch controls keep off it
+    markText(x, 8, w + 2, h + 8);
     drawWindow(g, x, y + 4, w, h, UI, k, { curl: false });
     g.alpha(k, () => {
       drawTape(g, x + w - 58, y - 2, 50, 16, 'きろく', { color: '#F6D98A', seed: 14 });

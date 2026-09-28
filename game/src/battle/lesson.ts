@@ -24,6 +24,7 @@ import { doEnemyAction } from './enemy';
 import { hideSticky, resetKire } from './common';
 import { flipBoardText } from './art/fxart';
 import { C } from './ui/note';
+import { markText } from '../engine/textzones';
 
 /** The lesson battle's whole flow (battleImpl runs it instead of battleFlow). */
 export function* lessonFlow(s: BattleScene): Co<BattleResult> {
@@ -217,6 +218,8 @@ export function* flip(s: BattleScene, pages: string[]): Co {
       const sy = st.turn >= 0 && st.turn < 140 ? Math.abs(Math.cos((st.turn / 140) * Math.PI)) : 1;
       const h = Math.max(1, Math.round(img.height * sy));
       const x = Math.round(192 - img.width / 2);
+      // the board where it stands (in place of the band): the touch controls keep off it
+      markText(x, y0, img.width, img.height);
       g.ctx.drawImage(img, x, y + Math.round((img.height - h) / 2), img.width, h);
       if (st.ready && st.down < 0 && Math.floor(s.rt / 400) % 2 === 0) {
         // ▼ inside the lower right corner, above the mitten

@@ -62,7 +62,10 @@ npm run build        # subsets the font, typechecks, builds dist/
 - `tools/shot.mjs` re-waits for `__game` if Vite HMR reloads the page mid-run.
 - `engine/touch.ts`: on-screen D-pad and buttons for touch devices. It sets `Screen.fixedScale` (device px per
   game px, may be fractional; drawn sharp-bilinear) so the picture fills the screen next to or below the controls,
-  or the whole screen with translucent controls over its edges on wide tablet windows.
+  or the whole screen with translucent controls over its edges on wide tablet windows. There (an iPad held
+  sideways) the controls keep off the text: `engine/textzones.ts` — call `markText(x, y, w, h)` (game px, the
+  box at rest; `brief = true` for words up only for a moment) or `markTextScreen()` (a whole text screen) from
+  the draw of any new text window; `uiBands()` / `__game.cmd.textZones()` read the last frame's (30 10.11).
 - `ui/autosave.ts`: autosave into the one save slot when Minato stands free on the field after a map change or a
   battle that gave EXP (note 「オートセーブ」 top right), and silently when the page is hidden. Touch 「もどる」
   hides while he can walk (`setBackShown` in engine/touch.ts); `Input` latches presses shorter than a frame.

@@ -26,6 +26,7 @@ import { textBlip } from '../audio';
 import type { FieldScene } from '../world/field';
 import { field } from '../world/field';
 import { textW, UI } from './window';
+import { markText } from '../engine/textzones';
 
 const POP_MS = 120;
 const HOLD_MS = 2400;
@@ -220,6 +221,9 @@ export function drawCallBubbleUi(g: Gfx, f: FieldScene | null): void {
   const a = (b.t > end ? Math.max(0, 1 - (b.t - end) / FADE_MS) : 1) * Math.min(1, k * 2);
   if (a <= 0) return;
   const s = 1.2 - 0.2 * ease.cubicOut(k);
+  // the bubble at the top at its biggest (the 1.2× pop round the tail's tip):
+  // the touch controls keep off it
+  if (at === 'top') markText(tipX + (x - tipX) * 1.2, tipY + (y - tipY) * 1.2, w * 1.2, h * 1.2);
   const ctx = g.ctx;
   ctx.save();
   ctx.globalAlpha *= a;

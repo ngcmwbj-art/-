@@ -4,8 +4,9 @@
 import { loadFont, warmGlyphs } from './engine/font';
 import { game } from './engine/game';
 import { unlockAudio } from './audio';
-import { installDebug } from './debug';
-import { installTouch, setBackShown } from './engine/touch';
+import { installDebug, registerDebug } from './debug';
+import { installTouch, setBackShown, touchLayoutInfo } from './engine/touch';
+import { commitTextZones, uiBands } from './engine/textzones';
 import { field } from './world/field';
 import { firstScene } from './boot';
 import './modules';
@@ -19,6 +20,8 @@ async function boot(): Promise<void> {
   warmGlyphs('あいうえおアイウエオ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ');
   game.init(canvas);
   game.input.onFirstGesture = () => unlockAudio();
+  // the text boxes each frame drew (the touch controls keep off them)
+  game.overlays.push(commitTextZones);
   installTouch(game.input, game.screen);
   setBackShown(() => {
     const f = field();
@@ -26,6 +29,7 @@ async function boot(): Promise<void> {
   });
   canvas.focus();
   installDebug();
+  registerDebug('textZones', () => ({ ...uiBands(), touch: touchLayoutInfo() }));
   document.getElementById('boot')?.remove();
   game.push(await firstScene());
   game.start();

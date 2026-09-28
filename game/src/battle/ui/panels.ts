@@ -11,6 +11,7 @@ import {
 } from '../art/icons';
 import type { PartyUnit } from '../model';
 import { C, cursorStamp, drawBar, drawNote, tapeCanvas, tapeCorner } from './note';
+import { markText } from '../../engine/textzones';
 
 export const PANEL_POS: Record<string, [number, number]> = { minato: [104, 150], kanenari: [244, 150] };
 /**
@@ -404,6 +405,7 @@ export function drawList(g: Gfx, rows: ListRow[], index: number, scroll: number,
   for (const r of rows) if (r.right) W = Math.max(W, 22 + g.measure(r.name) + 12 + g.measure(r.right) + (r.rightIcon ? 12 : 0) + 8 - 4);
   W = Math.min(260, W);
   const R = 4 + W - 8;
+  markText(4, 58, W, 88);
   drawNote(g, 4, 58, W, 88);
   for (let i = 0; i < 4; i++) {
     const r = rows[scroll + i];
@@ -484,6 +486,9 @@ export function drawInfoCard(g: Gfx, d: CardData, slide: number): void {
   const rest = d.x ?? (d.side === 'left' ? 8 : 216);
   const x = d.side === 'left' ? Math.round(rest - (1 - slide) * (rest + w + 4)) : Math.round(rest + (1 - slide) * (388 - rest));
   const y = CARD_Y;
+  // the card at rest with its tape: brief (it closes by itself at 1.4s) —
+  // the touch controls in its way fade out rather than move
+  markText(rest, y - 4, w, CARD_H + 4, true);
   drawNote(g, x, y, w, CARD_H);
   // the tape is stuck across the card's top edge, fully under the band
   g.img(tapeCanvas(64, 16, 'みました', C.tape, 12), x + Math.round(w / 2) - 32, y - 4);

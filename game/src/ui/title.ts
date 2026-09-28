@@ -64,6 +64,7 @@ import {
 } from './title_art';
 import { dottedLine, drawCursor, drawTape, drawWindow, rectA, textW, UI } from './window';
 import { coverToFade, ditherOut } from './transition';
+import { markText } from '../engine/textzones';
 
 type MenuId = 'new' | 'continue' | 'ch2' | 'settings';
 /** The chapter-2 release page: 「第2章から」 without a chapter-1 clear (see menu). */
@@ -430,6 +431,8 @@ export class TitleScene implements Scene {
     const h = Math.round(img.height * s);
     const x = Math.round(LOGO_CENTER.x - w / 2);
     const y = Math.round(LOGO_CENTER.y - h / 2);
+    // the logo at rest and the line of capitals under it: the touch controls keep off them
+    markText(LOGO_CENTER.x - img.width / 2, LOGO_CENTER.y - img.height / 2, img.width, Math.max(img.height, img.height / 2 + 52));
     g.ctx.drawImage(img, x, y, w, h);
     // SHUN'S TWILIGHT CHRONICLE in the 5×7 capitals, 2px apart
     if (k >= 1) {
@@ -445,6 +448,9 @@ export class TitleScene implements Scene {
     if (shown <= 0) return;
     const n = this.menu.length;
     const top = MENU_BOTTOM - 18 - (n - 1) * MENU_STEP;
+    // the tapes, the cursor left of them (and the 「第2章」 note): the touch controls keep off them
+    const x0 = MENU_X - (this.kind === 'ch2' && this.menu.includes('continue') ? NOTE_W - 5 : 0) - 14;
+    markText(x0, top - 2, MENU_X + 90 - x0, MENU_BOTTOM - top + 3);
     this.menu.forEach((id, i) => {
       const k = Math.min(1, Math.max(0, (this.t - MENU_AT - i * 80) / 220)) * shown;
       if (k <= 0) return;
@@ -481,6 +487,7 @@ export class TitleScene implements Scene {
     const k = Math.min(1, lt / 300);
     const { x, w, h } = CLEAR_CARD;
     const y = CLEAR_CARD.y + Math.round((1 - ease.cubicOut(k)) * 10);
+    markText(x, CLEAR_CARD.y - 6, w + 2, h + 8);
     // which page, and how far through the turn
     const cyc = Math.max(0, lt - 300);
     const pi = Math.floor(cyc / CLEAR_PAGE_MS) % pages.length;

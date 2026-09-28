@@ -10,6 +10,7 @@ import type { Gfx } from '../../engine/gfx';
 import { ease } from '../../engine/tween';
 import { cueLettering, type CueTone } from '../art/stamps';
 import { setButtonHint } from '../../engine/touch';
+import { markText } from '../../engine/textzones';
 
 export type { CueTone };
 
@@ -126,6 +127,9 @@ export class Cues {
       const w = Math.round(img.width * k);
       const h = Math.round(img.height * k);
       const bx = c.align === 'left' ? c.x : c.align === 'right' ? c.x - img.width : c.x - img.width / 2;
+      // the word at its biggest (the 1.3× pop): brief — the touch controls
+      // in its way fade out instead of moving in the middle of a timing
+      markText(bx - img.width * 0.15, c.y - img.height * 0.15, img.width * 1.3, img.height * 1.3, true);
       const x = Math.round(bx + img.width / 2 - w / 2);
       const y = Math.round(c.y + img.height / 2 - h / 2);
       g.alpha(a, () => g.ctx.drawImage(img, x, y, w, h));

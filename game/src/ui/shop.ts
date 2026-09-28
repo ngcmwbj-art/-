@@ -32,6 +32,7 @@ import { HOSHI_SPEAKERS, MUJIN_SHOP } from '../data/text/hoshi_npcs';
 import { bagCount, BAG_MAX } from './menu/items';
 import { uiHud } from './hud';
 import { ctxText, rgb, drawCursor, drawMarker, drawTape, drawWindow, dottedVLine, pencilLine, phraseWrap, rectA, tapeImg, textW, UI } from './window';
+import { markTextScreen } from '../engine/textzones';
 
 export interface ShopKeeper {
   name: string;
@@ -432,6 +433,8 @@ class ShopScene implements Scene {
   }
 
   draw(g: Gfx): void {
+    // a text screen: the touch controls stand beside the picture
+    markTextScreen();
     const openK = Math.min(1, this.openT / 160);
     const k = this.closeT >= 0 ? 1 - Math.min(1, this.closeT / 140) : openK;
     const e = ease.cubicOut(k);

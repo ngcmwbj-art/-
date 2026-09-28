@@ -28,6 +28,7 @@ import type { Input } from '../engine/input';
 import { H, W } from '../engine/screen';
 import { makeCanvas } from '../engine/pixel';
 import { hash2 } from '../engine/rng';
+import { markText } from '../engine/textzones';
 import { ease } from '../engine/tween';
 import { sfx, textBlip, textFastForward } from '../audio';
 import { flipBoardMini, flipIcon } from '../art/chars';
@@ -522,6 +523,9 @@ class DialogBox implements Widget {
     if (flip && this.styleT < 200) fdy = Math.round((1 - ease.backOut(this.styleT / 200)) * 10);
     const wy = by + fdy;
     const card = flip && this.viewCard;
+    // the window at rest (the flip's mini board pokes 5px over its top edge),
+    // so the touch controls keep off it
+    markText(BOX.x, this.top - (flip ? 5 : 0), BOX.w, BOX.h + (flip ? 5 : 0));
     drawWindow(g, BOX.x, wy, BOX.w, BOX.h, UI, alpha, flip ? { grid: false, paper: card ? CARD_PAPER : UI.flipPaper, curl: false } : { margin: 14, curl: false });
     if (card) drawCardboard(g, BOX.x, wy, BOX.w, BOX.h, alpha);
     else if (flip) this.drawFlipDecor(g, wy, alpha);
@@ -584,12 +588,15 @@ class DialogBox implements Widget {
     const tagY = this.viewPos === 'top' ? by + BOX.h - 5 : by - 13;
     if (this.prevName && k < 1) {
       const pw = textW(this.prevName) + 12;
+      markText(16, tagY - 4, pw, 22);
       const img = this.prevTape === 'black' ? blackTapeImg(pw, 18, this.prevName.length) : tapeImg(pw, 18, UI.tape, this.prevName.length);
       g.img(img, 16, tagY - Math.round(k * 4), { alpha: alpha * (1 - k) });
     }
     if (!name) return;
     const icon = flip ? (this.viewCard ? 18 : 14) : 0;
     const w = textW(name) + 12 + icon;
+    // the tag with the 4px it drops in from (the touch controls keep off it)
+    markText(16, tagY - 4, w, 22);
     const dy = Math.round((1 - ease.backOut(k)) * -4);
     const a = alpha * k;
     const black = this.viewTape === 'black';
@@ -854,6 +861,7 @@ export class ChoiceBox implements Widget {
 
   draw(g: Gfx): void {
     const [x, y0] = this.pos;
+    markText(x, y0, this.w, this.h);
     const k = Math.min(1, this.t / 100);
     const y = y0 + Math.round((1 - ease.cubicOut(k)) * 4);
     drawWindow(g, x, y, this.w, this.h, UI, k, { curl: false });
@@ -957,6 +965,7 @@ class Caption implements Widget {
       const full = textW(this.lines[i]);
       const x0 = Math.round(W / 2 - full / 2);
       const y = this.o.y - Math.round(((total - 1) * 24) / 2) + i * 24;
+      markText(x0, y - 1, full, LINE_H + 2, true);
       let x = x0;
       for (let j = 0; j < n; j++) {
         const fresh = i === this.line && j >= n - 1 && this.shown < s.length;

@@ -10,6 +10,7 @@ import type { Gfx } from '../../engine/gfx';
 import { C, drawNote, tapeCanvas } from './note';
 import { miniText } from '../art/stamps';
 import { textSpeedMul } from '../../ui/settings';
+import { markText } from '../../engine/textzones';
 
 interface G {
   ch: string;
@@ -107,6 +108,8 @@ export class MessageBand {
   /** Boss battles use a 1-line band that grows for 2-line pages. */
   bossMode = false;
   private h = 44;
+  /** The height the band is growing / shrinking to. */
+  private goalH = 44;
   private queue: Page[] = [];
   private cur: { glyphs: G[]; lines: number } | null = null;
   private curOpts: BandPageOpts = {};
@@ -255,6 +258,7 @@ export class MessageBand {
     const L0 = this.cur ?? this.staticLayout ?? this.linger;
     const lines = L0 ? L0.lines : 1;
     const targetH = this.bossMode ? (lines >= 2 ? 44 : 26) : 44;
+    this.goalH = targetH;
     if (this.h !== targetH) {
       const step = (18 / 80) * dt;
       this.h = this.h < targetH ? Math.min(targetH, this.h + step) : Math.max(targetH, this.h - step);
@@ -300,6 +304,9 @@ export class MessageBand {
     // unrolls from its top edge in OPEN_MS (the text rows appear as they fit)
     const k = this.openT >= OPEN_MS ? 1 : 1 - (1 - this.openT / OPEN_MS) ** 2;
     const h = Math.max(6, Math.round(this.h * k));
+    // the band at its full height (and its tag in the left margin): the
+    // touch controls keep off it
+    markText(this.x - 3, this.y, this.w + 3, Math.max(Math.ceil(this.h), this.goalH));
     drawNote(g, this.x, this.y, this.w, h, { margin: 8 }, this.alpha);
     let tagW = 0;
     if (this.tag) {

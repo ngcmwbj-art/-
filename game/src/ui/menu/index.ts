@@ -21,6 +21,7 @@ import { HankoPage } from './hanko';
 import { StatsPage } from './stats';
 import { BookPage } from './book';
 import { SettingsPage } from './settingsPage';
+import { markTextScreen } from '../../engine/textzones';
 
 const OPEN_MS = 160;
 const CLOSE_MS = 130;
@@ -150,6 +151,8 @@ export class MenuScene implements Scene, MenuCtx {
   }
 
   draw(g: Gfx): void {
+    // a text screen: the touch controls stand beside the picture
+    markTextScreen();
     // dim the world (#1B1733 α40%)
     const dim = this.closeT >= 0 ? 1 - Math.min(1, this.closeT / CLOSE_MS) : Math.min(1, this.openT / OPEN_MS);
     // from the title: a heavier curtain (the title's own menu has stepped
