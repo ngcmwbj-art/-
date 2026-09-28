@@ -252,6 +252,7 @@ const MAP_PLACE: Record<string, string> = {
   map_mall_health: 'ユウナリ 健康器具コーナー',
   map_mall_2f: 'ユウナリ 2F通路',
   map_mall_maigo: 'ユウナリ 迷子センター',
+  map_mall_roof: '屋上 ゆうやけひろば',
 };
 
 /** Town areas (01_index 2.1); the narrowest area containing the tile wins. */

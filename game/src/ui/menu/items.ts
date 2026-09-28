@@ -433,8 +433,12 @@ export class ItemsPage implements MenuPage {
     // name in 朱 with a pencil underline
     y += 36;
     const nm = itemName(row.id);
-    g.text(nm, x, y, { color: UI.accent });
-    pencilLine(g, x, y + 16, textW(nm) + 2, 1, UI.accentDark, row.id.length);
+    // a long name (『あした』宛ての手紙) is set a pixel or two tighter, like the list, to stay on the page
+    const nmRoom = RP.w + 4;
+    const nmW = textW(nm);
+    const nmSp = nmW <= nmRoom ? 0 : nmW - [...nm].length <= nmRoom ? -1 : -2;
+    g.text(nm, x, y, { color: UI.accent, spacing: nmSp });
+    pencilLine(g, x, y + 16, nmW + nmSp * [...nm].length + 2, 1, UI.accentDark, row.id.length);
     y += 22;
     // flavour text
     // a key item's two lines are one text; the second starts a new line, as written (10.2)

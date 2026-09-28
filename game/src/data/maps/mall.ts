@@ -12,6 +12,7 @@ import { registerMap } from '../../world/maps';
 import type { MapObj, TileSpec } from '../../world/types';
 import { IOBJ, IREWARD3 } from './interior_text';
 import { CLEANING_SPEC } from './lv_logic';
+import { ROOF_OBJ } from '../text/mall_roof';
 
 const MALL_LEGEND: Record<string, TileSpec> = {
   '#': { ground: 'void', solid: true, tag: 'void' },
@@ -257,7 +258,7 @@ registerMap({
 
 export const ROWS_M4 = [
   '#WWWWWWWWWWWWWWWWWWWW#',
-  '#WWWWWWWWWWWWWWWWWWDW#',
+  '#WDWWWWWWWWWWWWWWWWDW#',
   '#mmmmmmmmmmmmmmommmmm#',
   '#ommmmmmmmmmmmmommmmm#',
   '#UmmmmmmmmmmmmmCmmmmm#',
@@ -293,7 +294,10 @@ registerMap({
     PR('mall_shaft', 0, 0, { fx: 98, fy: 36, fw: 46, fh: 42, rise: 34, shear: 0.55, motes: 8, seed: 5401 }),
     PR('mall_shaft', 0, 0, { fx: 280, fy: 34, fw: 44, fh: 26, rise: 32, shear: 0.55, motes: 10, seed: 5402, a: 0.26 }),
     PR('mall_maigo_door', 19, 0),
+    // the steel door up to the roof (屋上 ゆうやけひろば, 5.6 ★2026-09-28)
+    PR('mall_roof_door', 2, 0),
     // examine
+    { t: 'obj', id: 'obj_m4_roof_door', x: 2, y: 1, face: 'up', text: ROOF_OBJ.obj_m4_roof_door } as MapObj,
     O('obj_toy_shutter', 3, 1, { w: 5, face: 'up', script: 'lv_toy_shutter' }),
     O('obj_glasses_sign', 10, 1, { w: 3, face: 'up' }),
     O('obj_maigo_door', 19, 1, { face: 'up', script: 'evt_maigo_door' }),
@@ -305,6 +309,7 @@ registerMap({
     O('obj_cleaning_sign', 15, 4, { cond: { notTaken: 'sym_mall_2f_01' } }),
     { t: 'trig', id: 'trig_maigo_door_rest', x: 18, y: 2, w: 3, h: 2, once: true, script: 'trig_maigo_door_rest', cond: { flag: 'flag_maigo_door_open' } },
     { t: 'door', id: 'door_m4_m5', x: 19, y: 1, to: 'map_mall_maigo', tx: 6, ty: 9, dir: 'up', se: 'se_door_heavy', cond: { flag: 'flag_maigo_door_open' } },
+    { t: 'door', id: 'door_m4_roof', x: 2, y: 1, to: 'map_mall_roof', tx: 2, ty: 4, dir: 'down', se: 'se_door_heavy' },
     { t: 'door', id: 'door_m3_m4_escalator', x: 1, y: 4, to: 'map_mall_health', tx: 7, ty: 3, dir: 'down', step: true, se: 'se_escalator_step' },
     { t: 'sym', id: 'sym_mall_2f_01', enemies: ['enemy_soujirou'], x: 8, y: 3, dir: 'right', move: 'soujirou', restoreAt: [8, 2], restoreOff: [0, 3] },
   ],

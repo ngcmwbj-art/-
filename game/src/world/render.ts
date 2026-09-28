@@ -1419,9 +1419,12 @@ export class Renderer {
     s.clearRect(0, 0, W, H);
     s.fillStyle = '#000';
     const indoor = f.map.def.kind === 'indoor';
+    // a map may fix the direction (the mall's roof: straight down)
+    const fixed = f.map.def.shadowVec;
+    const dirAt = (tx: number, ty: number): [number, number] => fixed ?? shadowDir(gd, tx, ty);
     const cast = (img: HTMLCanvasElement, footX: number, footY: number, imgX: number, imgY: number, hgt: number, tx: number, ty: number) => {
       if (L <= 0.01 || indoor) return;
-      const [dx, dy] = shadowDir(gd, tx, ty);
+      const [dx, dy] = dirAt(tx, ty);
       const bx = footX - cx;
       const by = footY - cy;
       const rows = Math.max(0, Math.min(img.height, footY - imgY));
@@ -1455,7 +1458,7 @@ export class Renderer {
       const e = envOf(p);
       if (indoor) continue;
       if (a.shadowFn) {
-        const [dx, dy] = shadowDir(gd, p.x / 16, p.y / 16);
+        const [dx, dy] = dirAt(p.x / 16, p.y / 16);
         a.shadowFn(s, p.x - cx, p.y - cy, [dx, dy], L, e);
         s.setTransform(1, 0, 0, 1, 0, 0);
         continue;

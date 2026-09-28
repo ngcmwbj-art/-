@@ -63,14 +63,15 @@ registerProp('mall_m4_shell', () => {
   // in perspective (mall_atrium.ts); over() redraws it with the parallax slide
   atriumStatic(p);
   // ---- north wall (rows 0–1)
-  // (1–2) 『↓1F』 escalator sign
-  p.rect(20, 10, 22, 9, P.navy);
-  p.hline(20, 41, 10, P.blue);
-  tiny(p, '1F', 23, 12, P.white);
-  p.vline(36, 11, 16, P.gold);
-  p.set(35, 15, P.gold);
-  p.set(37, 15, P.gold);
-  castRight(p, 20, 10, 22, 9, 2);
+  // (1) 『↓1F』 escalator sign — narrowed to tile 1 (2026-09-28): the steel
+  // door up to the roof (mall_roof_door, 屋上 ゆうやけひろば) is on tile 2
+  p.rect(17, 10, 14, 9, P.navy);
+  p.hline(17, 30, 10, P.blue);
+  tiny(p, '1F', 18, 12, P.white);
+  p.vline(27, 11, 16, P.gold);
+  p.set(26, 15, P.gold);
+  p.set(28, 15, P.gold);
+  castRight(p, 17, 10, 14, 9, 1);
   // (3–7) the toy shop: bright fascia, shutter with kits showing under a 3px gap
   fasciaText(p, 50, 2, 76, 13, P.gold, 'おもちゃ', P.red, P.brass);
   p.rect(128 - 2, 3, 1, 1, P.white);

@@ -71,6 +71,17 @@ export function faceToward(a: Actor, target: Actor): void {
 export function* interactActor(f: FieldScene, a: Actor): Co {
   const p = f.player;
   if (a.kind === 'follower') {
+    // a map may stage him itself (the mall's roof: the handshake, 10_narrative 7.18);
+    // its runDefault is the ordinary flip
+    const own = getScript('kanenari_' + f.map.id);
+    if (own) {
+      yield* own(
+        ctxFor(f, 'npc_kanenari', function* () {
+          yield* kanenariFlip(f, a);
+        }),
+      );
+      return;
+    }
     yield* kanenariFlip(f, a);
     return;
   }

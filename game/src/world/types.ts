@@ -435,4 +435,11 @@ export interface MapDef {
   outside?: string;
   /** Indoor: which side the window light comes from (for grading). */
   light?: 'left' | 'top';
+  /**
+   * Outdoors: one fixed direction for every long shadow of this map instead
+   * of the sun's / the mall's (shadowDir), as [dx, dy] per px of height. The
+   * mall's roof (map_mall_roof, 30 5.6): [0, 0.34], straight down — in the
+   * town every shadow points at the mall, and up here the mall is below.
+   */
+  shadowVec?: [number, number];
 }

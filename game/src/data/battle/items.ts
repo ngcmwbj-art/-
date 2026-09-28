@@ -32,6 +32,8 @@ const items: ItemDef[] = [
   { id: 'item_maigo_key', name: '迷子センターの鍵', key: true, target: 'none', desc: ['小さな カギ。', 'キーホルダーは、カバ。'], battleText: ['カギは、ここで 使う ものじゃない。'] },
   { id: 'item_hato_meishi', name: 'ハトの名刺', key: true, target: 'none', desc: ['『夕鳴町 鳩課 係長』。', '裏に 小さく『帰りたい』。'], battleText: ['名刺を さしだした。\n……受けとって もらえなかった。'] },
   { id: 'item_korokke', name: '揚げたてコロッケ', key: true, target: 'none', desc: ['4つ。ソースは 別。', '……1つは おまけ。'], battleText: ['これは 晩ごはんだ。'] },
+  // 屋上 ゆうやけひろば (10_narrative 7.18 ★2026-09-28): the 4th handshake
+  { id: 'item_akushuken', name: '握手券', key: true, target: 'none', desc: ['カネナリくん 握手会の 握手券。', '番号は 4。有効期限は なし。'], battleText: ['握手券を 見せた。\n$enemyは 手を 出しかけて やめた。'] },
   // 10 6.10 (02_ch2_index #56): 段階2の郵便屋さんから。第2章でさんかどに あずける
   { id: 'item_ashita_tegami', name: '『あした』宛ての手紙', key: true, target: 'none', desc: ['差出人『ユウナリ 迷子センター』。すみに 黒い しみ。', '切手は、はなまる。'], battleText: ['手紙を 見せた。\n……宛先は、ここでは ない。'] },
   // 大事なもの（第2章、50 7.1）

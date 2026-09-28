@@ -313,6 +313,31 @@ se('se_gacha', {
     layer(c, 'noise env=10/180/0/40 dur=180 v=.015 flt=BP3000q2 am=25/.8 at=700');
   },
 });
+// 屋上 ゆうやけひろば (10_narrative 7.18, 40_audio 9.4 ★2026-09-28): the 100-yen panda car —
+// an old toy speaker's tune over its little motor, 3.1 s (the ride goes 1 m and comes back)
+const PANDA_TUNE: [string, number][] = [
+  ['E5', 1], ['G5', 1], ['A5', 1], ['G5', 1], ['E5', 2], ['C5', 1], ['D5', 1],
+  ['E5', 1], ['E5', 1], ['D5', 1], ['C5', 1], ['D5', 2], ['G4', 2],
+  ['C5', 1], ['E5', 1], ['G5', 1], ['C6', 3],
+];
+se('se_panda_ride', {
+  label: 'パンダカーのメロディ（100円・1m進んで戻る）',
+  group: TOWN,
+  fn(c) {
+    const step = 140;
+    let at = 0;
+    for (const [n, len] of PANDA_TUNE) {
+      const d = len * step;
+      layer(c, `p25 f=${n} env=2/${Math.round(d * 0.5)}/.45/40 dur=${Math.round(d * 0.7)} v=.03 flt=BP1700q0.7 vib=6/12`, { at });
+      at += d;
+    }
+    // oom-pah under it
+    for (let b = 0; b < 11; b++) layer(c, `tri f=${b % 2 ? 'G3' : 'C3'} env=2/90/0/30 dur=60 v=.035 flt=LP1400`, { at: b * step * 2 });
+    // the little motor, and the wheels on the turf
+    layer(c, 'saw f=70→64/2800 env=80/0/1/200 dur=2900 v=.006 flt=LP320 am=7/.4', { at: 250 });
+    layer(c, 'noise env=80/0/1/200 dur=2900 v=.004 flt=BP900q0.8 am=11/.6', { at: 250 });
+  },
+});
 se('se_glint', { label: 'ふしぎのきらり', group: TOWN, layers: ['sine f=3136→4186/80 env=1/180/0/60 dur=20 v=.025', 'sine f=6272 env=1/120/0/40 dur=10 v=.012 at=40'] });
 se('se_semi_hop', { label: 'セミのシンボルが跳ねる', group: TOWN, layers: ['noise env=5/120/0/40 dur=100 v=.03 flt=BP4000q3 am=110/.9', 'sine f=300→500/50 env=1/50/0/20 dur=20 v=.02'] });
 se('se_cart_rattle', {

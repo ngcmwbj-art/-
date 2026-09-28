@@ -12,6 +12,7 @@ import './tsugao_ch1';
 import './park';
 import './parking';
 import './mall';
+import './mall_roof';
 import './ending';
 import './ch2';
 import './debug';

@@ -390,6 +390,23 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// 握手券 (屋上 ゆうやけひろば, 10_narrative 7.18, 02_ch2_index #55): a small ticket, the red
+// band of the event, the gold bell of its mascot, a line of print, the torn perforation
+Object.assign(ITEM_ROWS, {
+  item_akushuken: [
+    '..........',
+    'WWWWWWWWWd',
+    'WrrrrrrrRd',
+    'WwwwwwwwwG',
+    'WwOOwkkwwG',
+    'WwOhwwwwwG',
+    'WwwwwkkkwG',
+    'WwwwwwwwwG',
+    'W.W.W.W.WG',
+    '.d.d.d.d..',
+  ],
+});
+
 /** トマト（おまけ）: after chapter 2, one tomato left in the bag (13.3). */
 const OMAKE_ROWS = ['.dW...Wd..', '.W.d.W.d..', '.WwwwwwwdG', 'Wwwwwwwwwd', 'WwwwwwwwWd', 'wwwwXXwwwd', 'wwwXELXwwd', 'wwwXLLXwwd', '.wwwXXwwd.', '..dddddd..'];
 
