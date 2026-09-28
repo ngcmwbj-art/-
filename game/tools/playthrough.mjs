@@ -901,7 +901,22 @@ const BEATS = [
   {
     name: 'town',
     async run() {
-      await waitFor((s) => s.map === 'map_town' && s.ctrl, 8000, 'the town');
+      // the first step out: ツガオ便 comes along the river road and stops by
+      // the house (evt_tsugao_hello, 10_narrative 6.21) — two pages, then it drives on
+      await waitFor((s) => s.map === 'map_town' && (s.ctrl || s.modal), 12000, 'the town (or ツガオ便 at the door)');
+      await sleep(700);
+      if (!(await st()).ctrl) {
+        await shot('tsugao');
+        await advance({ shotEvery: 2, label: 'tsugao', max: 20000 });
+      }
+      await need(['flag_tsugao_hello'], 'ツガオ便 by the house');
+      checks.push({
+        check: 'ツガオ便 drives on after the first step out (evt_tsugao_hello)',
+        ok: await page.evaluate(() => {
+          const a = window.__game.cmd.fieldRef().actorById('veh_kei_truck');
+          return !!a && !a.data.scripted;
+        }),
+      });
       await sleep(600);
       await shot('home_front');
       await need(['flag_errand', 'flag_opening_done'], 'town');

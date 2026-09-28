@@ -8,6 +8,7 @@ import './shops';
 import './chime';
 import './npcs';
 import './town';
+import './tsugao_ch1';
 import './park';
 import './parking';
 import './mall';

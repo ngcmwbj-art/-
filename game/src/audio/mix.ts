@@ -52,7 +52,7 @@ const SE_TARGET: Record<string, number> = {
   se_shutter: UI, se_chain: -18, se_shadow_swing: -14, se_crow: UI, se_coo: -18, se_cat: -18, se_dog_bark: UI,
   se_sparrow_a: -18, se_sparrow_b: -18, se_higurashi_call: -18, se_furin: -18, se_fry: -18, se_crossing_up: -12,
   se_train_pass: -8, se_train_far: -18.5, se_gacha: -14, se_glint: -18, se_semi_hop: -18, se_cart_rattle: -18,
-  se_umbrella_hop: UI, se_robot_bump: -14, se_kaitenyaki_stop: -14, se_escalator_step: UI, se_rumble: SKILL,
+  se_umbrella_hop: UI, se_robot_bump: -14, se_kaitenyaki_stop: -14, se_keitora_stop: -14, se_keitora_go: -14, se_escalator_step: UI, se_rumble: SKILL,
   se_zipper: UI, se_paper_bag: UI, se_star: -18,
   // the PA and the bells
   se_chime_note: -12, se_pa_chime: -8, se_pa_chime_end: -8, se_bell_dud: -8,
@@ -426,7 +426,7 @@ export const SE_TRIM: Record<string, number> = {
   se_chain: 10, se_shadow_swing: 22, se_crow: 25.5, se_coo: 15.5, se_cat: 27.5, se_dog_bark: 19.5,
   se_sparrow_a: 21.5, se_sparrow_b: 21, se_higurashi_call: 22.5, se_furin: 13, se_fry: 9, se_crossing_up: 20.5,
   se_train_pass: 23.5, se_train_far: 23.5, se_gacha: 19, se_glint: 22, se_semi_hop: 23.5, se_cart_rattle: 26.5,
-  se_umbrella_hop: 24.5, se_robot_bump: 22.5, se_kaitenyaki_stop: 17.5, se_escalator_step: 16, se_rumble: 16.5,
+  se_umbrella_hop: 24.5, se_robot_bump: 22.5, se_kaitenyaki_stop: 17.5, se_keitora_stop: 21, se_keitora_go: 20.5, se_escalator_step: 16, se_rumble: 16.5,
   se_zipper: 25.5, se_paper_bag: 26, se_star: 26.5, se_stamp: 7.5, se_stamp_heavy: 3.5, se_stamp_light: 13,
   se_hanko_ready: 16, se_hanko_zone: 22, se_thud_low: 3.5, se_peke_fall: 23, se_mimashita: 22, se_hanko_learn: 16.5,
   se_paper_open: 20.5, se_chime_note: 1.5, se_chime_chord: 14.5, se_pa_chime: 3, se_pa_chime_end: 1,

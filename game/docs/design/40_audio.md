@@ -1490,6 +1490,17 @@ se_kaitenyaki_stop 回転焼き機がようやく止まる（ふしぎ#12）    
   L2 sine  f=2000→1500/1100 env=0/0/1/100 dur=1100 v=.008 am=5→1/1100          ← きしみが間遠になる
   L3 sine  f=90 env=1/150/0/50 dur=20 v=.06 at=1300
   L4 noise        env=0/40/0/20 dur=10 v=.03 flt=LP1200 at=1300
+se_keitora_stop  ツガオ便が川べり通りを来て、しゅんの横で止まる（evt_tsugao_hello。10_narrative 6.21）。★2026-09-28   3000ms
+  L1 saw   f=56→62/1400 env=300/0/1/300 dur=2100 v=.02 flt=LP500 am=21/.5 pan=-.5→0   ← 3気筒のエンジン（se_h_keitora と同じ 21Hz）
+  L2 noise        env=300/0/1/400 dur=1900 v=.01 flt=BP650q0.8 am=21/.4 pan=-.5→0     ← アスファルトのタイヤ（砂利ではない）
+  L3 sine  f=2300→2150/200 env=30/120/.3/60 dur=200 v=.005 at=2250                   ← 小さなブレーキ
+  L4 saw   f=62→36/450 env=0/0/1/350 dur=900 v=.018 flt=LP420 am=21→8/450/.5 at=2100 ← アイドリングへ
+  ドアの音はない（だれも降りない）
+se_keitora_go    ツガオ便が東へ走り去る（2ページのあと）。★2026-09-28      2900ms
+  L1 saw   f=36→58/500 env=60/0/1/100 dur=500 v=.018 flt=LP500 am=8→21/500/.5
+  L2 saw   f=58→64/2200 env=0/0/1/1700 dur=2400 v=.02 flt=LP500→250 am=21/.5 at=500 pan=0→.5
+  L3 noise        env=150/0/1/1500 dur=2200 v=.009 flt=BP650q0.8 am=21/.4 at=450 pan=0→.5
+  段階1〜2の寝ているツガオには、第2章の se_h_ibiki（53 8.2）を流用する（運転席から4.5秒ごと、ワールドの seAt で距離に応じて小さく。話しかけたときにも1回）
 se_escalator_step 止まったエスカレーターを1段上る（金属の段）。「ありがとうございました」は vending のボイスで出す   120ms
   L1 sine  f=180 env=0/100/0/20 dur=10 v=.04
   L2 sine  f=470 env=0/70/0/20 dur=10 v=.02
@@ -2371,7 +2382,7 @@ export function unlockAudio(): void;                                     // 既�
 `se_step_asphalt` `se_step_stone` `se_step_dirt` `se_step_grass` `se_step_sand` `se_step_gravel` `se_step_wood` `se_step_wood_bare` `se_step_tatami` `se_step_tile` `se_step_metal` `se_step_kanenari` `se_door` `se_door_glass` `se_auto_door` `se_door_heavy` `se_door_small` `se_stairs` `se_shop_bell` `se_shop_shutter`
 
 **SE：町の音・イベント**
-`se_shutter` `se_chain` `se_shadow_swing` `se_crow` `se_coo` `se_cat` `se_dog_bark` `se_sparrow_a` `se_sparrow_b` `se_higurashi_call` `se_furin` `se_fry` `se_crossing_up` `se_train_pass` `se_train_far` `se_gacha` `se_glint` `se_semi_hop` `se_cart_rattle` `se_umbrella_hop` `se_robot_bump` `se_kaitenyaki_stop` `se_escalator_step` `se_rumble` `se_zipper` `se_paper_bag` `se_star`
+`se_shutter` `se_chain` `se_shadow_swing` `se_crow` `se_coo` `se_cat` `se_dog_bark` `se_sparrow_a` `se_sparrow_b` `se_higurashi_call` `se_furin` `se_fry` `se_crossing_up` `se_train_pass` `se_train_far` `se_gacha` `se_glint` `se_semi_hop` `se_cart_rattle` `se_umbrella_hop` `se_robot_bump` `se_kaitenyaki_stop` `se_keitora_stop` `se_keitora_go` `se_escalator_step` `se_rumble` `se_zipper` `se_paper_bag` `se_star`
 
 **SE：ハンコ**
 `se_stamp` `se_stamp_heavy` `se_stamp_light` `se_hanko_ready` `se_hanko_charge` `se_hanko_zone` `se_thud_low` `se_peke_fall` `se_mimashita` `se_hanko_learn` `se_paper_open`

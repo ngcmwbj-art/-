@@ -401,13 +401,10 @@ function tsugaoSide(k: number, d: Driver, b: number): HTMLCanvasElement {
   p.set(58, 7, P.charcoal);
   p.rect(59, 6, 2, 3, P.charcoal);
   p.set(59, 6, P.asphalt);
-  // 「青果 ツガオ便」 on the door: white strokes, not to be read
-  p.hline(42, 44, 15, P.white);
-  p.hline(46, 48, 15, P.white);
-  p.set(43, 16, P.white);
-  p.set(46, 16, P.white);
-  p.set(48, 16, P.white);
-  p.hline(42, 48, 17, P.white);
+  // 「青果 ツガオ便」 on the door: a white panel, its letters dots too small
+  // to read (no stroke may look like a word)
+  p.rect(42, 15, 7, 3, P.white);
+  for (const x of [43, 45, 47]) p.set(x, 16, OLIVE_DK);
   // headlight, indicator, grille slot on the face
   p.rect(56, 15, 2, 2, P.goldPale);
   p.set(56, 15, P.glint);

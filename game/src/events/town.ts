@@ -11,6 +11,7 @@ import { CART_CORRAL_DONE, FUSHIGI_TEXT, GACHA_GINZA, GACHA_GINZA_S1, OBJ_TEXT, 
 import { placeWaitingObaa } from './chime';
 import { F, holdBgm, itemName } from './lib';
 import { quietItem } from './stage';
+import { tsugaoHello, tsugaoHelloDue } from './tsugao_ch1';
 
 // ---------------------------------------------------------------- map_town_enter
 
@@ -33,6 +34,8 @@ registerScript('map_town_enter', function* (): Co {
     vm.x = 51 * 16 + 8;
     vm.y = 6 * 16 + 16;
   }
+  // ツガオ便 stops by the house the first time Shun steps out on the errand
+  if (tsugaoHelloDue()) yield* tsugaoHello();
 });
 
 // ---------------------------------------------------------------- examine overrides

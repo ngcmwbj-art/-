@@ -1040,6 +1040,41 @@ registerProp('obj_beer_crate', () => {
   return stand(p.toCanvas(), { shadow: 26 });
 });
 
+// 星見台の やさい (2026-09-28, 10_narrative 6.21): ツガオ便's wooden crate at the
+// sake shop's front, (53,22) — tomatoes, cucumbers and an eggplant on a slatted
+// box with a paper label (its letters too small to read)
+registerProp('obj_hoshimi_yasai', () => {
+  const p = pc(16, 15);
+  // the crate: two slats and the end posts
+  p.rect(1, 7, 14, 7, P.woodLt);
+  p.hline(1, 14, 7, P.goldPale);
+  p.hline(1, 14, 10, P.wood);
+  p.vline(1, 8, 13, P.wood);
+  p.vline(14, 8, 13, P.woodDark);
+  p.hline(2, 13, 13, P.wood);
+  // the paper label 『星見台の やさい』 (and 『ツガオ便』 small in its corner)
+  p.rect(4, 8, 8, 4, P.paper);
+  for (const x of [5, 7, 9]) p.set(x, 9, P.ink);
+  p.hline(5, 9, 10, P.paperGrid);
+  p.set(10, 11, P.leafShade);
+  // on top: tomatoes at the left, cucumbers across, an eggplant at the right
+  for (const [x, y] of [[2, 5], [4, 4], [5, 6], [3, 6]] as const) {
+    p.rect(x, y, 2, 2, P.red);
+    p.set(x, y, P.vermLt);
+  }
+  p.set(3, 4, P.leafShade);
+  p.set(5, 3, P.leafShade);
+  p.hline(7, 11, 5, P.leaf);
+  p.hline(7, 11, 6, P.leafShade);
+  p.hline(8, 12, 4, P.leafDeep);
+  p.set(8, 4, P.leafLt);
+  p.rect(11, 5, 3, 2, P.shadeDeep);
+  p.set(11, 5, P.lilac);
+  p.set(14, 5, P.leafShade); // its green cap
+  finish(p, { soft: true });
+  return stand(p.toCanvas(), { shadow: 12 });
+});
+
 registerProp('obj_danball', () => {
   const p = pc(20, 16);
   p.rect(1, 5, 17, 10, P.woodLt);

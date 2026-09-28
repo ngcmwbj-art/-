@@ -439,8 +439,9 @@ const OBJECTS: MapObj[] = [
 
   // ======================================================== passers-by & traffic (QA round 1)
   // Stage 0 has the town's everyday traffic; after 17:00 the people and
-  // animals go round and round the same walk while the truck stands dead
-  // where it was (30_level_art 7.8, world/npc.ts route); in stage 2 the people
+  // animals go round and round the same walk while the truck (ツガオ便)
+  // stands parked by the police box, its driver asleep (30_level_art 7.8,
+  // world/npc.ts route); in stage 2 the people
   // walk on as shadows only and the rest are gone. Walkers whose sprite isn't drawn yet (char
   // art: npc_walker_*) stay away until it is.
   {
@@ -451,12 +452,12 @@ const OBJECTS: MapObj[] = [
     // beside him (evt_tsugao_hello, events/tsugao_ch1.ts)
     t: 'npc', id: 'veh_kei_truck', vehicle: 'tsugao_truck', passerby: true, x: -3, y: 34, dir: 'right', cond: s0,
     noTurn: true, script: 'npc_tsugao_ch1',
-    move: { kind: 'route', points: [[-4, 33.5], [49, 33.5]], speed: 3.2, wait: 12000, hide: [0], phase: 2, keepLeft: 8 },
+    move: { kind: 'route', points: [[-4, 33.5], [48, 33.5]], speed: 3.2, wait: 12000, hide: [0], phase: 2, keepLeft: 8 },
   },
   {
     // from 17:00 ツガオ便 stands where it parked, ツガオ asleep at the wheel
     // in his nightcap (the stage-0 truck's place at the east end, north lane)
-    t: 'npc', id: 'veh_tsugao_nap', vehicle: 'tsugao_truck_nap', x: 49, y: 33, dir: 'right', cond: { stage: '1-2' },
+    t: 'npc', id: 'veh_tsugao_nap', vehicle: 'tsugao_truck_nap', x: 48, y: 33, dir: 'right', cond: { stage: '1-2' },
     noTurn: true, script: 'npc_tsugao_ch1',
   },
   {

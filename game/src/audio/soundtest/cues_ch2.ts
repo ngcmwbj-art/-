@@ -546,7 +546,7 @@ export const CH2_CUES: Cue[] = [
         S(11.5, 'HIROSUKE: 師匠ー！ 起きてー！', () => void say('hirosuke', '師匠ー！ 起きてー！ 明かりが 来たよー！')),
         S(14, 'TSUGAO WAKES (EVERY 4, V.85)', () => {
           A.ambientEvent('amb_h_tsugaobin', 'awake');
-          void say('tsugao', '……時計は、止めて あるのです。急がない ように。');
+          void say('tsugao', '……時計は、止めて あんのよ。急がねえ ようにな。');
         }),
         S(18, 'POKOSHA: ……さすが 師匠。 (MURMURED)', () => void say('pokosha', '……さすが 師匠。頼み方が、しぶい……。')),
         S(20, 'SE_PIICHAN_FLAP', at('se_piichan_flap')),
@@ -565,7 +565,7 @@ export const CH2_CUES: Cue[] = [
           A.sfx('se_piichan_flap');
           setTimeout(() => void say('piichan', 'コケッ！'), 350);
         }),
-        S(55.5, 'TSUGAO: つがおちゃん 寝る〜♪', () => void say('tsugao', 'では、朝まで ひと休み。つがおちゃん 寝る〜♪')),
+        S(55.5, 'TSUGAO: つがおちゃん 寝る〜♪', () => void say('tsugao', 'じゃ、朝まで ひと休みだ。つがおちゃん 寝る〜♪')),
         S(59, 'POKOSHA: さすが 師匠！ (OUT LOUD)', () => void say('pokosha', 'さすが 師匠！')),
         S(60.5, 'HIROSUKE: わはは！', () => void say('hirosuke', 'わはは！ 寝ても ほめられる 師匠だよ。')),
         S(57.5, 'ASLEEP AGAIN (THE SNORE FROM 2S ON)', () => A.ambientEvent('amb_h_tsugaobin', 'asleep')),

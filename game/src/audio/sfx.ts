@@ -326,6 +326,31 @@ se('se_cart_rattle', {
 se('se_umbrella_hop', { label: 'ワスレガサが跳ねる', group: TOWN, layers: ['noise env=2/60/0/30 dur=30 v=.03 flt=BP1200q1', 'tri f=400→700/60 env=1/50/0/20 dur=20 v=.02'] });
 se('se_robot_bump', { label: 'ソウジロウが壁に当たる', group: TOWN, layers: ['tri f=300→240/40 env=1/60/0/30 dur=20 v=.04', 'noise env=0/20/0/10 dur=8 v=.02 flt=BP1500q1', 'p12 f=1760 env=1/40/0/20 dur=40 v=.015 at=70'] });
 se('se_kaitenyaki_stop', { label: '回転焼き機が止まる', group: TOWN, rev: 0.2, layers: ['saw f=140→40/1200 env=0/0/1/200 dur=1200 v=.03 flt=LP500', 'sine f=2000→1500/1100 env=0/0/1/100 dur=1100 v=.008 am=5→1/1100/.8', 'sine f=90 env=1/150/0/50 dur=20 v=.06 at=1300', 'noise env=0/40/0/20 dur=10 v=.03 flt=LP1200 at=1300'] });
+// ツガオ便 in 夕鳴町 (2026-09-28, 40_audio 9.x): the kei truck's 3-cylinder
+// engine (≈21 Hz firing, as se_h_keitora) on the town's asphalt — no gravel,
+// no doors: it comes along the river road and slows to an idle beside Shun,
+// and pulls away east after his two pages
+se('se_keitora_stop', {
+  label: '軽トラが来て止まる（夕鳴町の川ぞいの道。アイドリングで止まる）',
+  group: TOWN,
+  rev: 0.15,
+  fn(c) {
+    layer(c, 'saw f=56→62/1400 env=300/0/1/300 dur=2100 v=.02 flt=LP500 am=21/.5 pan=-.5→0');
+    layer(c, 'noise env=300/0/1/400 dur=1900 v=.01 flt=BP650q0.8 am=21/.4 pan=-.5→0');
+    layer(c, 'sine f=2300→2150/200 env=30/120/.3/60 dur=200 v=.005 at=2250');
+    layer(c, 'saw f=62→36/450 env=0/0/1/350 dur=900 v=.018 flt=LP420 am=21→8/450/.5 at=2100');
+  },
+});
+se('se_keitora_go', {
+  label: '軽トラが走り去る（東へ）',
+  group: TOWN,
+  rev: 0.15,
+  fn(c) {
+    layer(c, 'saw f=36→58/500 env=60/0/1/100 dur=500 v=.018 flt=LP500 am=8→21/500/.5');
+    layer(c, 'saw f=58→64/2200 env=0/0/1/1700 dur=2400 v=.02 flt=LP500→250 am=21/.5 at=500 pan=0→.5');
+    layer(c, 'noise env=150/0/1/1500 dur=2200 v=.009 flt=BP650q0.8 am=21/.4 at=450 pan=0→.5');
+  },
+});
 se('se_escalator_step', { label: 'エスカレーター1段（止まった）', group: TOWN, rand: STEP, max: 2, rev: 0.2, layers: ['sine f=180 env=0/100/0/20 dur=10 v=.04', 'sine f=470 env=0/70/0/20 dur=10 v=.02', 'sine f=1210 env=0/40/0/10 dur=10 v=.01', 'noise env=0/15/0/8 dur=8 v=.02 flt=BP2000q1'] });
 se('se_rumble', { label: '忘れ物の山がふるえる', group: TOWN, rev: 0.2, layers: ['sine f=45 env=200/600/.5/300 dur=900 v=.10 am=8/.5', 'noise env=200/600/.5/300 dur=900 v=.03 flt=LP200', 'saw f=55 env=200/600/.5/300 dur=900 v=.01 flt=LP150', 'tri f=90 env=200/600/.5/300 dur=900 v=.015 am=8/.5'] });
 se('se_zipper', { label: '背中のファスナー（ジーッ）', group: TOWN, layers: ['noise env=30/0/1/60 dur=600 v=.035 flt=BP3200q2 am=95→60/600/.8'] });

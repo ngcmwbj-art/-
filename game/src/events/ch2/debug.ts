@@ -18,6 +18,7 @@ import { flag, resetState, setFlag, state, type Dir } from '../../game/state';
 import { chapter2Adjust, newChapter2Party, setMemberLevel, syncProgressSkills } from '../../data/battle';
 import { registerDebug } from '../../debug';
 import { TSUGAO_LINES } from '../../ui/cut_tsugao';
+import { HOSHIMI_YASAI, TSUGAO_HELLO, TSUGAO_TALK } from '../../data/text/tsugao_ch1';
 import { FieldScene, field } from '../../world/field';
 import { getScript } from '../../world/scripts';
 import { uiHud } from '../../ui/hud';
@@ -328,6 +329,8 @@ function collectTexts(): [string, string][] {
   walk('tsugao_obj', TSUGAO_OBJ);
   // カット7 ツガオの部屋 (its pages live with the UI's scene)
   walk('cut7', TSUGAO_LINES);
+  // 第1章のツガオ便 (the same man's pages in 夕鳴町, 10_narrative 6.21)
+  walk('ch1_tsugao', { hello: TSUGAO_HELLO, ...TSUGAO_TALK, ...HOSHIMI_YASAI });
   // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line
   // lines shown without a speaker (HOUKI_LINE's float note: the same 336 px)
   for (const [k, v] of Object.entries(EV)) if (typeof v === 'string' && (v.startsWith('@') || v.startsWith('!cue') || v.includes('\n'))) out.push([`ev.${k}`, v]);

@@ -6,24 +6,28 @@
 // `!cue <name>` a stage direction the script stages (src/events/ch2/tsugao.ts;
 // the book's own directions between the pages: hide, shh, blush, laugh, wave,
 // flap, give, aori, knock, cap_swap / cap_back, yakiimo, put_down, done).
+// 2026-09-28 (依頼主の指示): ツガオ's surface face is everyone's old man — a warm,
+// rough 「おう！」, the children by name — and he knows Shun from 夕鳴町 (the
+// truck of chapter 1, 10_narrative 6.21), so 〔h0_1〕 is a meeting again. Only
+// the room of cut 7 (ui/cut_tsugao.ts) keeps the calm, polite voice.
 
 export const TSUGAO_NPC: Record<string, Record<string, string>> = {
   npc_tsugao: {
     "h0_1": `@npc_tsugao
-……おや。{w=300}
-電車で 来た ぼっちゃんですかな。
+……ん？{w=300}
+おう！ 夕鳴町の しゅんじゃ ねえか！
 /
-わたしは ツガオ。{w=300}
-村の 野菜を、この 軽トラで
-ふもとの 町へ 運んで おります。
+こんな 山の 上で 会うとはな。
+{w=300}ここの 野菜も、おれが この
+軽トラで ふもとへ 運んでんだ。
 /
 朝の 5時に、集めて 回る。
-{w=300}……その 5時が、まだ 来ません。
+{w=300}……その 5時が、まだ 来ねえ。
 /
-まあ、よろしい。{w=300}
-まだ、急ぐ ことは ありません。
+まあ、ええわい！{w=300}
+まだ、急ぐ こたあ ねえ。
 /
-では、つがおちゃん 寝る〜♪
+じゃ、つがおちゃん 寝る〜♪
 @flip
 （……寝ました）`,
     "h0_2": `@narr
@@ -34,14 +38,14 @@ export const TSUGAO_NPC: Record<string, Record<string, string>> = {
 ツガオが、寝言を 言った。
 @npc_tsugao
 ……まだ……{w=300}
-まだ、朝では ありませんな……。`,
+まだ、朝じゃ ねえ……。`,
     "h2_1": `@npc_tsugao
-……放送が、にぎやかですな。
-{w=300}山へ、行きますか。
+……放送が、にぎやかだな。
+{w=300}山へ 行くのか？
 /
-まだ、夜ですよ。{w=300}
-……まあ、よろしい。
-お気を つけて。`,
+まだ 夜だぞ。{w=300}
+……まあ、ええわい。
+気ぃ つけてな。`,
   },
   npc_hirosuke: {
     "h0_1": `@npc_hirosuke
@@ -230,32 +234,33 @@ export const DELI_TEXT: Record<string, string> = {
 ツガオの 腕時計は、
 12時で 止まっている。
 @npc_tsugao
-……時計は、止めて あるのです。
-{w=300}急がない ように。`,
+……時計は、止めて あんのよ。
+{w=300}急がねえ ようにな。`,
   "ツガオさんに まだ 会っていない": `@npc_tsugao
-わたしは ツガオ。{w=300}村の 野菜を、
-ふもとの 町へ 運んで おります。`,
+おう、夕鳴町の しゅんか！{w=300}
+ここの 野菜も、おれが
+ふもとへ 運んでんだ。`,
   "共通2": `@npc_tsugao
-……ゆうべの おすそわけを、
-配りそこねましたな。
+……ゆうべの おすそわけをな、
+配りそこねちまった。
 /
-ぼっちゃん。{w=300}その 明かりで、
-配達を 手伝って いただけますかな。
+しゅん。{w=300}その 明かりで、
+配達 手伝って くれるか？
 ? 手伝う | またこんど`,
   "共通2/またこんど": `@npc_tsugao
-まあ、よろしい。{w=300}
-まだ、急ぐ ことは ありません。
+まあ、ええわい！{w=300}
+まだ、急ぐ こたあ ねえ。
 @npc_hirosuke
 じゃ、またな！{w=300}
 焼き芋、とっとくよ！`,
   "共通2/手伝う": `@npc_pokosha
 ……さすが 師匠。{w=300}
-頼み方が、しぶい……。
+頼み方が、まっすぐ……。
 !cue flap
 @npc_tsugao
 伝票は 5枚。{w=300}
-伝票の 順に、置き台へ。
-表札を 照らして くだされ。
+伝票の 順に、置き台へ 置く。
+表札を 照らして くれりゃ ええ。
 !cue give
 @narr
 伝票の すみに、小さな 黒い 判。
@@ -270,8 +275,8 @@ export const DELI_TEXT: Record<string, string> = {
 {w=300}まず、タケじいさんの 家、です。
 !cue aori`,
   "誘い・2回目": `@npc_tsugao
-……おや。{w=300}配達、
-手伝って いただけますかな。
+おう。{w=300}配達、
+手伝って くれるか？
 ? 手伝う | またこんど`,
   "おとどけ 1": `@narr
 表札を 照らした。{w=300}
@@ -340,12 +345,12 @@ export const DELI_TEXT: Record<string, string> = {
 ぜんぶ、です。
 !cue cap_swap
 @npc_tsugao
-……ほう。{w=300}
-伝票の 字が、読めましたか。
+おう、ごくろうさん！{w=300}
+伝票の 字、ちゃんと 読めたか。
 /
-ぼっちゃんの 明かりは、
-ちょうど よろしい。{w=300}
-……明るすぎなくて。
+しゅんの 明かりは、
+ちょうど ええ。{w=300}
+……明るすぎなくてな。
 @npc_hirosuke
 ありがとな！ おだちんだ。
 {w=300}焼き芋 食うか？
@@ -361,7 +366,7 @@ export const DELI_TEXT: Record<string, string> = {
 ぴーちゃんの 白い 羽が、
 みました帳に はさまった。
 @npc_tsugao
-では、朝まで ひと休み。
+じゃ、朝まで ひと休みだ。
 {w=300}つがおちゃん 寝る〜♪
 !cue cap_back
 @npc_pokosha
