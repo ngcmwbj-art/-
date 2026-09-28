@@ -385,6 +385,14 @@ async function travel(tx, ty, { timeout = 90000, into = null } = {}) {
       // event (onEnter) is the caller's to press through, not an event on the way
       if (into && s.map === into) return s;
       if (!s.ctrl) {
+        // heading into a door: no control for a moment is most likely the door's own
+        // fade — wait for the room before pressing through anything (else the room's
+        // event, pressed through here, can take him back out: the barn → the gate)
+        if (into) {
+          const w = await waitFor((x) => x.map === into || x.ctrl || x.modal || x.battle, 1500, 'the door').catch(() => null);
+          if (w && w.map === into) return w;
+          if (w && w.ctrl) continue;
+        }
         await advance({ label: 'onway' });
         continue;
       }
