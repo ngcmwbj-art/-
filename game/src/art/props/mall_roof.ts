@@ -441,6 +441,37 @@ function paintHopscotch(p: PixelCanvas): void {
   for (const [t, nx, ny] of nums) tiny(p, t, nx, ny, P.concreteLt);
 }
 
+/** The oval track of the mini train (gone with the closing), left in the deck (x 214–286, y 118–166). */
+function paintTrack(p: PixelCanvas): void {
+  const cx = 250;
+  const cy = 142;
+  for (const [rx, ry] of [[34, 22], [30, 18]] as [number, number][]) {
+    for (let a = 0; a < Math.PI * 2; a += 0.012) {
+      const x = Math.round(cx + Math.cos(a) * rx);
+      const y = Math.round(cy + Math.sin(a) * ry);
+      // rusted on the far side, polished where the wheels ran on the near one
+      p.set(x, y, Math.sin(a) > 0.3 ? P.concreteLt : h01(x, y, 5791) < 0.4 ? P.brassOld : P.steel);
+    }
+  }
+  // sleepers between the two rails
+  for (let k = 0; k < 28; k++) {
+    const a = (k / 28) * Math.PI * 2;
+    const x0 = cx + Math.cos(a) * 29;
+    const y0 = cy + Math.sin(a) * 17;
+    const x1 = cx + Math.cos(a) * 35;
+    const y1 = cy + Math.sin(a) * 23;
+    const n = 4;
+    for (let i = 0; i <= n; i++) {
+      const x = Math.round(x0 + ((x1 - x0) * i) / n);
+      const y = Math.round(y0 + ((y1 - y0) * i) / n);
+      if (p.get(x, y) !== 0 && h01(x, y, 5793) < 0.85) shadeRect(p, x, y, 1, 1, 2);
+    }
+  }
+  // where the little station stood: four bolt holes and a paler rectangle
+  for (let y = 136; y < 146; y++) for (let x = 243; x < 257; x++) if (((x + y) & 1) === 0) lightRect(p, x, y, 1, 1, 1);
+  for (const [bx, by] of [[243, 136], [256, 136], [243, 145], [256, 145]]) p.set(bx, by, P.asphalt);
+}
+
 registerProp('mall_roof_shell', () => {
   const p = new PixelCanvas(W, H);
   paintView(p);
@@ -448,6 +479,7 @@ registerProp('mall_roof_shell', () => {
   paintParapets(p);
   paintDeck(p);
   paintTurf(p);
+  paintTrack(p);
   paintQueue(p);
   paintHopscotch(p);
   // drains in the corners, damp and mossy in the south-west one
@@ -455,7 +487,7 @@ registerProp('mall_roof_shell', () => {
   moss(p, 20, 216, 4, 5713);
   drain(p, 356, 214, 5715);
   drain(p, 356, 36, 5717);
-  puddleMark(p, 248, 150, 12, 5, 5719);
+  puddleMark(p, 300, 200, 10, 4, 5719);
   puddleMark(p, 118, 58, 9, 4, 5721);
   puddleMark(p, 330, 118, 7, 3, 5723);
   // confetti left from the event, gone pale, around the stage
@@ -837,46 +869,47 @@ registerProp('mall_roof_stage', () => {
 
 registerProp('mall_roof_table', () => {
   const build = (names: number, lift: boolean) => {
-    const p = new PixelCanvas(20, 26);
+    const p = new PixelCanvas(22, 26);
     // legs under the cloth
     p.vline(4, 20, 25, P.steel);
-    p.vline(15, 20, 25, P.steel);
-    // the cloth over the top, hanging in folds
-    p.rect(1, 8, 18, 13, P.white);
-    p.hline(1, 18, 8, P.glint);
-    for (const fx of [4, 8, 12, 16]) p.vline(fx, 12, 20, P.concreteLt);
-    for (const fx of [5, 13]) p.vline(fx, 14, 20, P.concrete);
-    p.hline(1, 18, 20, P.concrete);
-    // the book, open
-    p.rect(4, 5, 11, 5, P.paper);
-    p.vline(9, 5, 9, P.paperGrid);
-    p.hline(4, 14, 9, P.paperGrid);
+    p.vline(17, 20, 25, P.steel);
+    // the cloth: white on top, the event's red band hanging in front, in folds
+    p.rect(1, 9, 20, 12, P.white);
+    p.hline(1, 20, 9, P.glint);
+    p.rect(1, 13, 20, 7, P.red);
+    for (const fx of [4, 9, 14, 18]) p.vline(fx, 13, 19, P.vermShade);
+    for (const fx of [5, 15]) p.vline(fx, 13, 19, P.vermLt);
+    p.hline(1, 20, 20, P.maroon);
+    // the book, open, its navy cover showing round the pages
+    p.rect(4, 3, 14, 8, P.navy);
+    p.rect(5, 4, 6, 6, P.paper);
+    p.rect(11, 4, 6, 6, P.paper);
+    p.vline(11, 4, 9, P.paperGrid);
+    p.hline(5, 16, 9, P.paperGrid);
     for (let i = 0; i < names; i++) {
-      const y = 6 + (i % 2) * 2;
-      const x = i < 2 ? 5 : 10;
-      p.hline(x, x + (i === 3 ? 2 : 3), y, i === 3 ? P.navy : P.ink);
+      const x = i < 2 ? 6 : 12;
+      const y = 5 + (i % 2) * 2;
+      p.hline(x, x + (i === 3 ? 3 : 3), y, i === 3 ? P.blue : P.ink);
     }
     if (lift) {
-      p.set(14, 5, P.glint);
-      p.set(13, 4, P.paper);
-      p.set(14, 4, P.paper);
+      p.set(16, 4, P.glint);
+      p.set(15, 3, P.paper);
+      p.set(16, 3, P.paper);
     }
     // the pen on its string, the tent card 『お名前を どうぞ』
-    p.line(15, 7, 17, 11, P.verm);
-    p.set(17, 12, P.steel);
-    p.line(16, 12, 18, 16, P.white);
-    p.rect(1, 3, 3, 5, P.white);
-    p.set(2, 2, P.white);
-    p.set(1, 5, P.verm);
-    p.set(2, 5, P.verm);
+    p.line(18, 6, 20, 10, P.verm);
+    p.set(20, 11, P.steel);
+    p.rect(0, 5, 3, 5, P.white);
+    p.set(1, 4, P.white);
+    p.set(1, 7, P.verm);
     finish(p, { soft: true });
     return p.toCanvas();
   };
   const imgs = [build(3, false), build(3, true), build(4, false), build(4, true)];
   return {
-    ox: -2,
+    ox: -3,
     oy: -10,
-    w: 20,
+    w: 22,
     h: 26,
     foot: 15,
     img: (env: PropEnv) => {
@@ -1562,4 +1595,3 @@ export function drawScopeView(g: Gfx, sw: number, sh: number, k: number, pan: nu
   ctx.restore();
 }
 
-void lightRect;

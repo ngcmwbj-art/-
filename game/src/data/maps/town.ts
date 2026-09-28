@@ -263,7 +263,7 @@ const OBJECTS: MapObj[] = [
   { t: 'prop', prop: 'prop_arcade_pillar', x: 33, y: 25, opts: { banner: 'dagashi' } },
   { t: 'prop', prop: 'prop_arcade_pillar', x: 39, y: 25, opts: { banner: 'tofu' } },
   { t: 'prop', prop: 'prop_arcade_pillar', x: 49, y: 25, opts: { banner: 'clock' } },
-  { t: 'prop', prop: 'prop_arcade_pillar', x: 55, y: 25, opts: { banner: 'korokke' } },
+  { t: 'prop', prop: 'prop_arcade_pillar', x: 55, y: 25, opts: { banner: 'yakisoba' } },
   // parked west of him, clear of the 銀 emblem and the pillar (QA round 2)
   { t: 'prop', prop: 'prop_postman_bike', x: 44, y: 24, cond: { stage: '1-2' } },
   { t: 'prop', prop: 'decal_emblem', x: 28, y: 23 },

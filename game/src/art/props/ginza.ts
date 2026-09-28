@@ -155,7 +155,7 @@ const BANNERS: Record<string, { bg: string; fg: string; text: string }> = {
   dagashi: { bg: P.gold, fg: P.verm, text: '駄菓子' },
   tofu: { bg: P.navy, fg: P.white, text: 'とうふ' },
   clock: { bg: P.leafDeep, fg: P.white, text: '時計修理' },
-  korokke: { bg: P.white, fg: P.red, text: 'コロッケ' },
+  yakisoba: { bg: P.white, fg: P.red, text: 'やきそば' },
 };
 
 function nobori(kind: string, k: number): PixelCanvas {

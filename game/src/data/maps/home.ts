@@ -131,8 +131,8 @@ const OBJ_1F: MapObj[] = [
   { t: 'prop', prop: 'prop_ceiling_light', x: 9, y: 4, opts: { ly: -28 } },
   T('obj_cabbage', 1, 2, `@narr
 キャベツの 千切りが 山に
-なっている。{w=300}コロッケを
-迎える 準備は 万全だ。`),
+なっている。{w=300}焼きそばに
+キャベツを 足す 気だ。`),
   { t: 'prop', prop: 'prop_cutting_board', x: 2, y: 2 },
   T('obj_rice_cooker', 3, 2, {
     s0: `@narr
@@ -210,7 +210,7 @@ const OBJ_1F: MapObj[] = [
     t: 'npc', id: 'npc_mother', x: 2, y: 3, dir: 'up', script: 'npc_mother', pose: 'chop',
     talk: {
       s0_1: `@npc_mother
-コロッケ 4つ。ソースは 別。{w=300}
+焼きそば 4つ。青のりは 別。{w=300}
 ……はい、復唱。
 ? べつ | いっしょ
 [べつ]
@@ -221,7 +221,7 @@ const OBJ_1F: MapObj[] = [
 別！
 [-]`,
       s0_2: `@npc_mother
-肉屋は 坂を 上って、右。
+モモセは 坂を 上って、右。
 チャイムが 鳴るまでに 帰ること。`,
       s1_1: `@npc_mother
 チャイム、途中で 止まったわね。
@@ -262,7 +262,7 @@ HPが 回復した。`,
 いつのまにか からに なっていた。`,
       s2_2: `@npc_mother
 キャベツ、切りすぎちゃった。{w=300}
-……コロッケ、まだかしら。
+……焼きそば、まだかしら。
 /
 麦茶 飲んでいきなさい。
 !heal

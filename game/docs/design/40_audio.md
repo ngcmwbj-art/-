@@ -315,6 +315,7 @@
 | `map_mall_health`（M3） | ― | ― | `bgm_mall`＋`amb_fluorescent` | ― |
 | `map_mall_2f`（M4） | ― | ― | `bgm_mall`＋`amb_fluorescent` | ― |
 | `map_mall_maigo`（M5） | ― | ― | **BGMなし**＋`amb_fluorescent_flicker` | ― |
+| `map_mall_roof`（屋上 ゆうやけひろば ★2026-09-28、30 5.6） | ― | ― | モールの外なので町と同じ `bgm_town_s2`＋`amb_s2_town`＋`amb_wind`（位置で変えない。北東からの風） | ― |
 
 - ※1 段階0→1の切り替わり（17:00の瞬間）から `evt_hanko_given` までは**BGMなし**（`amb_still` と区域の環境音だけ）。`evt_hanko_given` で `bgm_town_s1` がフェードインする（13.1）。
 - ※2 区域の環境音は `30_level_art.md` 1.8 の環境音ゾーンに従う。ワールドは `map_town` に入ったら全部を v 0 で鳴らし始め、プレイヤーの位置から毎フレーム（10フレームに1回でよい）`setAmbientVol(id, v, 0.3)` で音量を決める：`amb_kawabe` は用水路（y36）に近いほど大きく、y28 より北で0。`amb_arcade` は `area_arcade` の中で1、外へ4タイルで0。`amb_wind` は `area_park` と `area_taigan` の中で1。`amb_higurashi` は、ひぐらしの木 (22,20) と公園の木から8タイル以内で +6dB。
@@ -1501,6 +1502,13 @@ se_keitora_go    ツガオ便が東へ走り去る（2ページのあと）。�
   L2 saw   f=58→64/2200 env=0/0/1/1700 dur=2400 v=.02 flt=LP500→250 am=21/.5 at=500 pan=0→.5
   L3 noise        env=150/0/1/1500 dur=2200 v=.009 flt=BP650q0.8 am=21/.4 at=450 pan=0→.5
   段階1〜2の寝ているツガオには、第2章の se_h_ibiki（53 8.2）を流用する（運転席から4.5秒ごと、ワールドの seAt で距離に応じて小さく。話しかけたときにも1回）
+se_panda_ride    屋上のパンダカー（100円）。古いおもちゃのスピーカーの曲と小さなモーター。★2026-09-28（10_narrative 7.18）   3100ms
+  L1 p25   メロディ（8分=140ms）E5 G5 A5 G5 E5(2) C5 D5 | E5 E5 D5 C5 D5(2) G4(2) | C5 E5 G5 C6(3)
+           各音 env=2/(長さ×0.5)/.45/40 dur=長さ×0.7 v=.03 flt=BP1700q0.7 vib=6/12   ← 小さなスピーカー、少しゆれる
+  L2 tri   f=C3/G3 交互、4分ごと env=2/90/0/30 dur=60 v=.035 flt=LP1400             ← ズン・チャ
+  L3 saw   f=70→64/2800 env=80/0/1/200 dur=2900 v=.006 flt=LP320 am=7/.4 at=250     ← モーター
+  L4 noise        env=80/0/1/200 dur=2900 v=.004 flt=BP900q0.8 am=11/.6 at=250      ← 人工芝の上の車輪
+  パンダが1m進んで1m下がるあいだ（3.2秒）に1回。ミックスの目標 −16 dB、トリム 16（audioMixSuggest で測った値）
 se_escalator_step 止まったエスカレーターを1段上る（金属の段）。「ありがとうございました」は vending のボイスで出す   120ms
   L1 sine  f=180 env=0/100/0/20 dur=10 v=.04
   L2 sine  f=470 env=0/70/0/20 dur=10 v=.02
@@ -2382,7 +2390,7 @@ export function unlockAudio(): void;                                     // 既�
 `se_step_asphalt` `se_step_stone` `se_step_dirt` `se_step_grass` `se_step_sand` `se_step_gravel` `se_step_wood` `se_step_wood_bare` `se_step_tatami` `se_step_tile` `se_step_metal` `se_step_kanenari` `se_door` `se_door_glass` `se_auto_door` `se_door_heavy` `se_door_small` `se_stairs` `se_shop_bell` `se_shop_shutter`
 
 **SE：町の音・イベント**
-`se_shutter` `se_chain` `se_shadow_swing` `se_crow` `se_coo` `se_cat` `se_dog_bark` `se_sparrow_a` `se_sparrow_b` `se_higurashi_call` `se_furin` `se_fry` `se_crossing_up` `se_train_pass` `se_train_far` `se_gacha` `se_glint` `se_semi_hop` `se_cart_rattle` `se_umbrella_hop` `se_robot_bump` `se_kaitenyaki_stop` `se_keitora_stop` `se_keitora_go` `se_escalator_step` `se_rumble` `se_zipper` `se_paper_bag` `se_star`
+`se_shutter` `se_chain` `se_shadow_swing` `se_crow` `se_coo` `se_cat` `se_dog_bark` `se_sparrow_a` `se_sparrow_b` `se_higurashi_call` `se_furin` `se_fry` `se_crossing_up` `se_train_pass` `se_train_far` `se_gacha` `se_glint` `se_semi_hop` `se_cart_rattle` `se_umbrella_hop` `se_robot_bump` `se_kaitenyaki_stop` `se_keitora_stop` `se_keitora_go` `se_panda_ride` `se_escalator_step` `se_rumble` `se_zipper` `se_paper_bag` `se_star`
 
 **SE：ハンコ**
 `se_stamp` `se_stamp_heavy` `se_stamp_light` `se_hanko_ready` `se_hanko_charge` `se_hanko_zone` `se_thud_low` `se_peke_fall` `se_mimashita` `se_hanko_learn` `se_paper_open`

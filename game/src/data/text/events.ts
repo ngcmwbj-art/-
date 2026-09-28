@@ -34,12 +34,12 @@ export const GUIDE_MENU: GuideRow[] = [
 
 export const ERRAND_A = `@npc_mother
 あ、起きた。{w=300}おつかい 行ってきて。
-肉のマルヤマで コロッケ 4つ。
-ソースは 別。{w=300}別よ？
+モモセで 焼きそば 4つ。
+青のりは 別。{w=300}別よ？
 /
 1つは おまけ。だれかに あげなさい。
 チャイムが 鳴るまでに 帰ること。{w=300}
-肉屋は 坂を 上って 右。はい、がま口。`;
+モモセは 坂を 上って 右。はい、がま口。`;
 
 export const ERRAND_GET = `@sys
 がま口を 受けとった！（500円）
@@ -51,11 +51,11 @@ export const ERRAND_GET = `@sys
 export const MARUYAMA_FIRST_A = `@npc_maruyama
 へい、らっしゃい！{w=300}
 お、小林さんとこの ボウズか。{w=300}
-コロッケ？ 悪いな、まだ 揚げてねえんだ。
+焼きそば？ 悪いな、まだ 焼いてねえんだ。
 /
-揚げたては 5時の チャイムが
+焼くのは 5時の チャイムが
 鳴り終わってから。{w=500}
-オレの 信念じゃない。油の 信念だ。`;
+オレの 信念じゃない。鉄板の 信念だ。`;
 
 export const MARUYAMA_FIRST_B = `@npc_maruyama
 金が 足りなきゃ ツケで いい。
@@ -70,10 +70,11 @@ export const OBAA_FIRST = `@npc_obaa
 ……白紙の 顔だね。先生を 40年 やると、
 白紙は 顔で わかるのさ。`;
 
-/** (ひのや before 肉のマルヤマ: she guesses the errand.) */
+/** (ひのや before 焼きそばのモモセ: she guesses the errand.) */
 export const OBAA_FIRST_NOMEAT = `@npc_obaa
-コロッケかい？{w=300}
-マルヤマは 5時からだよ。好きなの 選びな。`;
+焼きそばかい？{w=300}
+モモセは 5時から 焼きはじめるよ。
+好きなの 選びな。`;
 
 // ---------------------------------------------------------------- 5.6 evt_chime_stop
 
@@ -134,7 +135,7 @@ export const HANKO_GET = `@sys
 export const HANKO_C = `@npc_obaa
 宿題はね、ぜんぶは 見きれなかった。{w=500}
 だから 今度は、あんたが 見ておいで。{w=300}
-ためしに ほら、まめ吉の 『まいど』。`;
+ためしに ほら、くま吉の 『まいど』。`;
 
 /** The how-to, once, beside the HUD hanko it points at. */
 export const GUIDE_FUSHIGI = '調べると 『みました』を 押せる。\nふしぎの 近くでは ハンコが ゆれる。';
@@ -284,15 +285,15 @@ export const BOSS_B_AGAIN = `@？？？:omukaemachi
 
 /** The price is in his line; the bag goes onto the counter (no @sys window: the ending keeps one line per beat). */
 export const END_MEAT_A = `@npc_maruyama
-揚がった！{w=300} 油が、やっと 納得した。
-コロッケ 4つ、ソースは 別で 320円。{w=400}
+焼けた！{w=300} 鉄板が、やっと 納得した。
+焼きそば 4つ、青のりは 別で 320円。{w=400}
 ……わかってるよ。`;
 /** Short of 320 yen: the rest goes on the tab. */
 export const END_MEAT_TSUKE = `@npc_maruyama
 足りない 分は ツケだ。{w=300}
 夏休みの 最終日 だからな。`;
 
-/** 「ソースは 別」 was his line; she asks only about the extra one. */
+/** 「青のりは 別」 was his line; she asks only about the extra one. */
 export const END_HOME = `@npc_mother
 おかえり。{w=300}
 で、おまけの 1つ。あげる 人、見つかった？

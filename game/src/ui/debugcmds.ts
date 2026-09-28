@@ -46,14 +46,14 @@ import { playTsugaoRoom, setTsugaoAuto, tsugaoStill } from './cut_tsugao';
 
 const SAMPLES: Record<string, () => Generator> = {
   normal: function* () {
-    yield* say(['あ、起きた。{w=300}\nおつかい 行ってきて。', 'コロッケ 4つ。ソースは 別。{w=300}\n別よ？'], { name: '母', voice: 'mother' });
+    yield* say(['あ、起きた。{w=300}\nおつかい 行ってきて。', '焼きそば 4つ。青のりは 別。{w=300}\n別よ？'], { name: '母', voice: 'mother' });
   },
   mujin: function* () {
     yield* say(['いらっしゃいませ。\nどれでも 100円。'], { voice: 'h_mujin' });
     yield* say(['（札で 話す 人、ほかにも いたんですね）'], { name: 'カネナリくん', voice: 'flip' });
   },
   flip: function* () {
-    yield* say(['（コロッケは 食べられません。\n中が 暗いので）'], { name: 'カネナリくん', voice: 'flip' });
+    yield* say(['（焼きそばは 食べられません。\n中が 暗いので）'], { name: 'カネナリくん', voice: 'flip' });
   },
   sys: function* () {
     yield* say('ラムネを 手に入れた！', { voice: 'sys' });
@@ -73,19 +73,19 @@ const SAMPLES: Record<string, () => Generator> = {
     yield* say('{wave}ふしぎな 音が する……{/wave}{w=300}\n{shake}鐘が 鳴らない。{/shake}\n{c=#E23B2E}みました{/c}を 押しますか？', { name: 'おばあ', voice: 'obaa' });
   },
   chain: function* () {
-    yield* say('揚げたては 五時の チャイムが\n鳴り終わってから だ。', { name: '丸山', voice: 'maruyama' });
-    yield* say('オレの 信念じゃない。{w=300}\n油の 信念だ。', { name: '丸山', voice: 'maruyama' });
-    yield* say('ひのやで 時間でも つぶしてきな。', { name: '丸山', voice: 'maruyama' });
+    yield* say('焼くのは 五時の チャイムが\n鳴り終わってから だ。', { name: '百瀬', voice: 'maruyama' });
+    yield* say('オレの 信念じゃない。{w=300}\n鉄板の 信念だ。', { name: '百瀬', voice: 'maruyama' });
+    yield* say('ひのやで 時間でも つぶしてきな。', { name: '百瀬', voice: 'maruyama' });
     const i = yield* choose(['うなずく', '首を かしげる']);
-    yield* say(i === 0 ? 'よし。' : '……わかんねえか。', { name: '丸山', voice: 'maruyama' });
+    yield* say(i === 0 ? 'よし。' : '……わかんねえか。', { name: '百瀬', voice: 'maruyama' });
   },
   ask: function* () {
-    const i = yield* ask(['おかえり。{w=300}\nソースは？', 'ちゃんと 別に してもらった？'], ['べつ', 'いっしょ'], { name: '母', voice: 'mother' });
+    const i = yield* ask(['おかえり。{w=300}\n青のりは？', 'ちゃんと 別に してもらった？'], ['べつ', 'いっしょ'], { name: '母', voice: 'mother' });
     yield* say(i === 0 ? 'えらい。' : '……今日だけよ。', { name: '母', voice: 'mother' });
   },
   mix: function* () {
     yield* say('いい においが します。', { name: 'カネナリくん', voice: 'flip' });
-    yield* say('揚げたて コロッケを 受けとった！', { voice: 'sys' });
+    yield* say('できたて 焼きそばを 受けとった！', { voice: 'sys' });
     yield* say('（たぶん）', { name: 'カネナリくん', voice: 'flip' });
   },
   long: function* () {

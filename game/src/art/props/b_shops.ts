@@ -1,5 +1,5 @@
-// 夕鳴銀座・北の列（看板建築, 30_level_art 6.2）: 肉のマルヤマ, 駄菓子ひのや,
-// 豆腐まめ吉, 時計店チクタク堂, 喫茶 夕顔, 山吹酒店. Each facade faces the
+// 夕鳴銀座・北の列（看板建築, 30_level_art 6.2）: 焼きそばのモモセ, 駄菓子ひのや,
+// 豆腐くま吉, 時計店チクタク堂, 喫茶 夕顔, 山吹酒店. Each facade faces the
 // arcade; signs are drawn facing the screen (3.10).
 
 import type { Gfx } from '../../engine/gfx';
@@ -86,10 +86,23 @@ const FURIN = frames(3, 7, 14, 700, (p, k) => {
   p.set(2 + sx, 12, P.crimson);
 });
 
-// ---------------------------------------------------------------- 肉のマルヤマ
+// ---------------------------------------------------------------- 焼きそばのモモセ
+
+/** The shop mark: a peach (モモ) — a round fruit, its crease, a leaf. */
+function peach(p: PixelCanvas, x: number, y: number, r: number, body: string, blush: string, crease: string, leaf: string): void {
+  p.ellipse(x, y, r, r - 0.4, body);
+  p.ellipse(x + r * 0.35, y + r * 0.2, r * 0.55, r * 0.55, blush);
+  p.vline(Math.round(x), Math.round(y - r + 1), Math.round(y + r * 0.5), crease);
+  p.set(Math.round(x) + 1, Math.round(y - r), leaf);
+  p.set(Math.round(x) + 2, Math.round(y - r) - 1, leaf);
+}
 
 const NOREN_MEAT = norenFrames(16, 9, P.verm, 2, (p) => {
-  handGlyph(p, '肉', 2, 0, P.white);
+  // a white peach on the noren
+  p.ellipse(8, 4.5, 3, 2.8, P.white);
+  p.vline(8, 2, 5, P.vermLt);
+  p.set(9, 1, P.white);
+  p.set(10, 0, P.white);
 });
 
 registerBuilding({
@@ -118,32 +131,38 @@ registerBuilding({
     fillWall(p, 0, fY, 96, 48, wallMortar(P.concreteLt, 3));
     eaveShadow(p, 0, fY, 96, 2);
     signBoard(p, 3, fY + 2, 90, 16, P.white, P.steel, 3);
-    // big red 肉 in a red ring + マルヤマ
+    // the peach mark in a red ring + モモセ
     p.ellipse(13, fY + 10, 8, 7, P.verm);
     p.ellipse(13, fY + 10, 7, 6, P.white);
-    handGlyph(p, '肉', 7, fY + 4, P.red, P.vermShade);
-    const mw = fontWidth('マルヤマ');
-    fontText(p, 'マルヤマ', 24 + Math.floor((66 - mw) / 2), fY + 4, P.red, { shadow: P.vermShade });
+    peach(p, 13, fY + 11, 4.6, P.skin2, P.crimson, P.sunShade, P.leaf);
+    const mw = fontWidth('モモセ');
+    fontText(p, 'モモセ', 24 + Math.floor((66 - mw) / 2), fY + 4, P.red, { shadow: P.vermShade });
     // red tent
     awning(p, 0, fY + 19, 96, 5, P.red, P.white, true);
-    // showcase (tiles 24–25 → x 0..31): warm lit glass case
+    // the storefront teppan (tiles 24–25 → x 0..31): a warm lit window over
+    // the griddle where it is sold out front — the black plate still empty
+    // (5時から), the stack of clear packs waiting; above it a paper 『やきそば』
     const sy = fY + 32;
+    p.rect(1, fY + 24, 30, 8, P.paper);
+    p.hline(1, 30, fY + 31, P.paperGrid);
+    p.vline(30, fY + 24, fY + 31, P.paperGrid);
+    const lw = fontSmallWidth('やきそば');
+    fontTextSmall(p, 'やきそば', 1 + Math.floor((30 - lw) / 2), fY + 24, P.red, 1);
+    castRight(p, 1, fY + 24, 30, 8, 2);
     p.rect(1, sy, 30, 16, P.steel);
     p.rect(2, sy + 1, 28, 9, P.goldPale);
     glassPane(p, b.mask, 2, sy + 1, 28, 9, { base: P.goldPale, glint: true });
-    // meat trays inside
-    for (let k = 0; k < 4; k++) {
-      const tx = 3 + k * 7;
-      p.rect(tx, sy + 5, 6, 4, P.white);
-      p.rect(tx + 1, sy + 6, 4, 2, k % 2 ? P.crimson : P.peach);
-      p.set(tx + 1, sy + 6, P.skin1);
+    // the griddle inside, and the empty clear packs stacked on its right
+    p.rect(3, sy + 7, 18, 3, P.charcoal);
+    p.hline(3, 20, sy + 7, P.asphalt);
+    for (let k = 0; k < 3; k++) {
+      p.rect(22, sy + 8 - k * 2, 7, 2, P.glint);
+      p.hline(22, 28, sy + 9 - k * 2, P.aqua);
     }
-    // croquettes on a tray
-    for (let k = 0; k < 5; k++) p.rect(4 + k * 5, sy + 2, 3, 2, P.brass);
     p.rect(1, sy + 10, 30, 6, P.concreteLt);
     p.hline(1, 30, sy + 10, P.white);
     p.hline(1, 30, sy + 15, P.charcoal);
-    // price tag: コロッケ 80円
+    // price tag: 焼きそば 80円
     p.rect(20, sy + 11, 10, 4, P.paper);
     tiny(p, '80', 21, sy + 11, P.verm);
     b.lights.push([2, sy + 1, 28, 9]);
@@ -155,7 +174,7 @@ registerBuilding({
     printLines(p, 37, fY + 30, 6, 4, P.verm, 3);
     // glass door (27,21)
     glassDoor(b, 49, fY + 24, 14, 24, P.steel);
-    // fryer window (tiles 28–29): steam and warm light
+    // kitchen window (tiles 28–29): steam and warm light
     windowAt(b, 66, fY + 27, 26, 12, 'alu', { curtain: undefined, sill: true });
     p.rect(66, fY + 33, 26, 6, P.brassOld);
     p.hline(66, 91, fY + 33, P.goldPale);
@@ -254,7 +273,7 @@ registerBuilding({
   },
 });
 
-// ---------------------------------------------------------------- 豆腐まめ吉（開いた店先）
+// ---------------------------------------------------------------- 豆腐くま吉（開いた店先）
 
 const NOREN_TOFU = norenFrames(56, 9, P.navy, 4, (p, k) => {
   // white 豆 on the two middle panels
@@ -280,11 +299,11 @@ registerBuilding({
     p.rect(43, rY - 12, 8, 3, P.asphalt);
     p.hline(43, 50, rY - 12, P.steel);
     castRight(p, 44, rY - 10, 6, 24, 4);
-    // rooftop sign facing the arcade: 豆腐 まめ吉
+    // rooftop sign facing the arcade: 豆腐 くま吉
     signBoard(p, 1, rY + 26, 62, 16, P.paper, P.navy, 2);
     p.rect(3, rY + 28, 12, 12, P.navy);
     handGlyph(p, '豆', 5, rY + 30, P.white);
-    fontText(p, 'まめ吉', 16, rY + 27, P.navy, { spacing: -2 });
+    fontText(p, 'くま吉', 16, rY + 27, P.navy, { spacing: -2 });
     for (const lx of [10, 52]) p.vline(lx, rY + 42, rY + 47, P.asphalt);
     // facade: plaster above the open front
     fillWall(p, 0, fY, 64, 8, wallPlaster(P.concreteLt, 31));

@@ -156,6 +156,11 @@ registerScript('kanenari_' + ROOF, function* (ctx): Co {
   yield* handshake();
 });
 
+// (also runnable by id, for QA: __game.cmd.run('evt_roof_handshake'))
+registerScript('evt_roof_handshake', function* (): Co {
+  yield* handshake();
+});
+
 function* handshake(): Co {
   const f = F();
   const p = f.player;

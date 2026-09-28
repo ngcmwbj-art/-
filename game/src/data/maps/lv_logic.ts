@@ -546,6 +546,7 @@ const SPOTS: Record<string, [string, number, number, Dir, number]> = {
   m3: ['map_mall_health', 1, 7, 'right', 2],
   m4: ['map_mall_2f', 2, 4, 'right', 2],
   m5: ['map_mall_maigo', 6, 9, 'up', 2],
+  roof: ['map_mall_roof', 12, 13, 'up', 2],
 };
 
 /**
@@ -587,7 +588,7 @@ registerDebug('lvGate', (on?: boolean) => {
  * step-door (no bounce), and a way back. __game.cmd.lvDoors()
  */
 registerDebug('lvDoors', () => {
-  const MAPS = ['map_town', 'map_maruyama', 'map_hinoya', 'map_laundry', 'map_koban', 'map_mall_hall', 'map_mall_food', 'map_mall_health', 'map_mall_2f', 'map_mall_maigo'];
+  const MAPS = ['map_town', 'map_maruyama', 'map_hinoya', 'map_laundry', 'map_koban', 'map_mall_hall', 'map_mall_food', 'map_mall_health', 'map_mall_2f', 'map_mall_maigo', 'map_mall_roof'];
   const out: string[] = [];
   let ok = 0;
   for (const id of MAPS) {

@@ -25,7 +25,7 @@ export const HOSHI_SPEAKERS: Record<string, { name: string; voice: string }> = {
   npc_hoshi_tome: { name: 'トマじい', voice: 'h_tome' },
   npc_hoshi_sawako: { name: 'ソワカ', voice: 'h_sawako' },
   npc_hoshi_busdriver: { name: 'さんかど', voice: 'h_driver' },
-  npc_hoshi_traindriver: { name: '運転士', voice: 'h_train' },
+  npc_hoshi_traindriver: { name: 'みっちゃそ', voice: 'h_train' },
   npc_hoshi_gon: { name: 'ふくじんづけ', voice: 'h_gon' },
   npc_hoshi_speaker: { name: '防災無線', voice: 'broadcast' },
 };
@@ -104,7 +104,7 @@ export const HOSHI_NPC: Record<string, TalkTable> = {
 手紙を いちばん 上に 入れた。`,
   },
 
-  // ------------------------------------------------------------ 3.4 運転士（車内）
+  // ------------------------------------------------------------ 3.4 みっちゃそ（電車の運転士・車内）
   npc_hoshi_traindriver: {
     /** The first time: the sign on the cab window. */
     first: `@narr
@@ -621,7 +621,7 @@ export const KANENARI_USUAL_HOSHI: string[] = [
  * The names the broadcast calls, in this order, over and over (50 3.2; all
  * fictional). The world's timer (world/hoshi.ts) reads them from here.
  */
-export const CALL_NAMES: string[] = ['くりこちゃん', 'シュンスケくん', 'もとくん', 'アスカちゃん', 'サトシくん', 'タクミくん', 'ゆきちゃん', 'タカシさん'];
+export const CALL_NAMES: string[] = ['くりこちゃん', 'シュンスケくん', 'もとくん', 'アスカちゃん', 'サトシくん', 'タクミくん', 'ゆきちゃん', 'まさとさん'];
 
 /** Stage 2 alternates this line with the names. */
 export const CALL_HEAD = 'こちらは、防災 星見台です。';

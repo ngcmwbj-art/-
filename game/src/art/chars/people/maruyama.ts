@@ -1,7 +1,8 @@
-// 丸山 (npc_maruyama): big man in his 50s. White cook hat, thick brows, tanned
-// skin, white coat with rolled sleeves, red apron, white towel round the neck.
-// Idle: arms folded → every 4s peeks at the fryer (to his right).
-// Extras: look_up, fry (ending), peek.
+// 百瀬 (npc_maruyama; the id is the first cast's butcher): 焼きそばのモモセ.
+// Big man in his 50s. White cook hat, thick brows, tanned skin, white coat
+// with rolled sleeves, red apron, white towel round the neck.
+// Idle: arms folded → every 4s peeks at the griddle (to his right).
+// Extras: look_up, fry (the ending: a spatula in each hand over the griddle), peek.
 
 import { flat, mat, type Fig, type Mats } from '../fig';
 import { HAIR_BLACK, SKIN_LIGHT, SKIN_MID, SKIN_TAN } from '../mats';
@@ -28,8 +29,9 @@ const M: Mats = {
   // against the white coat
   towel: mat('#FBF3DC', { shade: '#E8D9B5', light: '#FFF6D8', dark: '#C8A06A' }),
   stripe: flat('#4AA8E0'),
-  stick: flat('#D9A441'),
-  oil: flat('#F6D98A'),
+  // the spatulas (ヘラ): wooden handles, steel blades
+  stick: flat('#8A5A3A'),
+  blade: flat('#C8CDD4'),
 };
 
 const HEAD: HeadT = {
@@ -115,9 +117,9 @@ function front(f: Fig, p: Pose) {
     f.part('skin', { shade: 'rb', light: 't' });
     f.rect(2, 16 + u, 3, 2).rect(11, 16 + u, 3, 2);
     f.part('stick', { flat: true, rim: false });
-    f.line(5, 17 + u, 7, 21).line(10, 17 + u, 8, 21);
-    f.part('oil', { flat: true, rim: false });
-    f.px(7, 22).px(8, 21);
+    f.line(5, 17 + u, 6, 20).line(10, 17 + u, 9, 20);
+    f.part('blade', { flat: true, rim: false });
+    f.hl(5, 7, 21).hl(8, 10, 21);
   } else hangArms(f, p, { lx: 0, rx: 15, sy: 13, hy: 18, segs: ARM }, u);
   towel(f, u, 'down');
   const hy = 4 + u;
@@ -180,7 +182,9 @@ function side(f: Fig, p: Pose) {
     f.part('skin', { shade: 'b', light: 't' });
     f.rect(3, 16 + u, 5, 2);
     f.part('stick', { flat: true, rim: false });
-    f.line(2, 16 + u, 0, 21);
+    f.line(2, 16 + u, 1, 20);
+    f.part('blade', { flat: true, rim: false });
+    f.hl(0, 2, 21);
   } else sideArm(f, 8, 16 + u, 2, sw, [{ mat: 'skin' }], 0, 2);
   towel(f, u, 'left');
   head(f, p, HEAD, 4 + u);

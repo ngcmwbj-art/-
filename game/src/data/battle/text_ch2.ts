@@ -61,7 +61,7 @@ export const SYS2 = {
  * 点呼 names in order (50 3.2): the ones who left, called every night. The
  * boss starts again from the top when the list runs out.
  */
-export const TENKO_NAMES = ['くりこちゃん', 'シュンスケくん', 'もとくん', 'アスカちゃん', 'サトシくん', 'タクミくん', 'ゆきちゃん', 'タカシさん'];
+export const TENKO_NAMES = ['くりこちゃん', 'シュンスケくん', 'もとくん', 'アスカちゃん', 'サトシくん', 'タクミくん', 'ゆきちゃん', 'まさとさん'];
 
 /** The chapter-2 report card's せんせいより use REPORT.teacher[6|7]; the cover gets a small ②. */
 export const REPORT_CH2 = {

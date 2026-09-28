@@ -1,5 +1,6 @@
-// Animals & the cow statue: npc_hato (+ generic pigeons), npc_sparrow,
-// npc_crow, npc_cat_sauce / npc_cat_mike (+ extra coats), npc_cow_statue.
+// Animals & the shop statue: npc_hato (+ generic pigeons), npc_sparrow,
+// npc_crow, npc_cat_sauce / npc_cat_mike (+ extra coats), npc_cow_statue
+// (now 焼きそばのモモセ's ヤキソバン; the id is the first cast's cow).
 // Every one of them has 'look_up' for the 17:00 moment.
 
 import { flat, mat, type Fig, type Mats } from './fig';
@@ -727,81 +728,132 @@ registerChar('npc_cat_hachi', () => catSprite('npc_cat_hachi', HACHI, 'curl'));
 registerChar('npc_cat_shiro', () => catSprite('npc_cat_shiro', SHIRO, 'sit'));
 
 // =============================================================================
-// 牛の置物 (npc_cow_statue): the butcher's FRP cow — white with black patches,
-// glossy highlights, red sash, smiling wink, one front hoof raised, on a small
-// base. Static; 'look_up' tilts the head to the sky (stays that way in
-// stages 1–2). Canvas 20×26.
+// ヤキソバン (npc_cow_statue; the id is the first cast's cow): 焼きそばのモモセ's
+// FRP statue out front, an original design — a jolly round-faced man with a
+// big black moustache and rosy cheeks, a heap of sauced noodles piled on his
+// head for hair (青のり specks, one bit of 紅しょうが on top, strands hanging
+// at his temples), a green 青のり cape with darker specks, a white shirt with
+// a red sash, navy trousers; his right hand holds a spatula (ヘラ) high, the
+// left is on his hip; on a small grey base. Glossy highlights. Static;
+// 'look_up' tips his head back to the sky (stays that way in stages 1–2).
+// Canvas 20×26.
 
 const COW: Mats = {
-  white: mat('#F4F1E8', { shade: '#CFC8BC', light: '#FFFFFF', dark: '#9E978C', spec: '#FFFFFF', rim: '#FFDCB4' }),
-  black: mat('#2E2838', { shade: '#1E1A28', light: '#4A4258', spec: '#8A8298' }),
-  snout: mat('#F0A0A8', { shade: '#D07888', light: '#FFC8D0' }),
-  horn: mat('#F6D98A', { shade: '#D9A441', light: '#FFF0B8' }),
-  hoof: flat('#4A3A3A'),
-  sash: mat('#E84E3C', { shade: '#B8302A', light: '#FF7A5A' }),
-  text: flat('#FBF3DC'),
+  noodle: mat('#E0A848', { shade: '#B8742A', light: '#F6D98A', dark: '#8A5220', spec: '#FFF6D8', rim: '#FFE7A3' }),
+  aonori: flat('#3F7A3A'),
+  beni: flat('#E23B2E'),
+  skin: mat('#F2B894', { shade: '#D9967A', light: '#FFD9B8', dark: '#B87860', rim: '#FFE0B8' }),
+  cheek: flat('#E8806A'),
+  stache: flat('#3A2B24'),
+  mouth: flat('#8A3A2A'),
   eye: flat('#2A2440'),
+  cape: mat('#5FA85A', { shade: '#2E6B4A', light: '#9BCB6B', dark: '#1F4E36', rim: '#C9E08A' }),
+  shirt: mat('#F4F1E8', { shade: '#CFC8BC', light: '#FFFFFF', dark: '#9E978C', spec: '#FFFFFF', rim: '#FFDCB4' }),
+  sash: mat('#E84E3C', { shade: '#B8302A', light: '#FF7A5A' }),
+  pants: mat('#2F4A8A', { shade: '#23386A', light: '#4A6AB0', dark: '#1B2A50' }),
+  shoe: flat('#3A2B24'),
+  blade: mat('#C8CDD4', { shade: '#9AA0A8', light: '#FFFFFF', dark: '#6B7186' }),
+  handle: flat('#8A5A3A'),
   base: mat('#9AA0A8', { shade: '#6B7186', light: '#C8CDD4', dark: '#4A4F63' }),
   gloss: flat('#FFFFFF'),
 };
 
 function cow(f: Fig, p: Pose) {
   const up = p.lookUp;
+  const hy = up ? -1 : 0;
   // base plinth
   f.part('base', { shade: 'rb', light: 't' });
   f.rect(3, 22, 14, 2);
-  // legs (standing on hind legs, like a shop mascot)
-  f.part('white', { shade: 'rb', light: 't' });
-  f.rect(6, 18, 3, 4).rect(11, 18, 3, 4);
-  f.part('hoof', { flat: true, rim: false });
-  f.hl(6, 8, 21).hl(11, 13, 21);
-  // body
-  f.part('white', { shade: 'rb', light: 't' });
-  f.rows(4, 10, ['..########..', '.##########.', '############', '############', '############', '############', '.##########.', '..########..']);
-  f.part('black', { shade: 'rb', light: 't' });
-  f.rows(11, 11, ['###', '####', '.##']);
-  f.rows(5, 15, ['##', '###']);
-  // sash
+  // the cape, behind everything: over the shoulders, a flare round the legs
+  f.part('cape', { shade: 'rb', light: 't', inner: false });
+  f.rows(2, 12, [
+    '.##..........##.',
+    '..#..........#..',
+    '..#..........#..',
+    '..#..........#..',
+    '..#..........#..',
+    '..#..........#..',
+    '..#..........#..',
+    '.####......####.',
+    '#######..#######',
+    '#####......#####',
+  ]);
+  f.part('aonori', { flat: true, rim: false });
+  f.px(3, 13).px(16, 15).px(4, 19).px(15, 20).px(2, 21).px(17, 20);
+  // trousers and shoes
+  f.part('pants', { shade: 'rb', light: 't' });
+  f.rows(6, 17, ['########', '########', '###..###', '###..###']);
+  f.part('shoe', { flat: true, rim: false });
+  f.hl(5, 8, 21).hl(11, 14, 21);
+  // shirt with the red sash
+  f.part('shirt', { shade: 'rb', light: 't' });
+  f.rect(5, 12, 10, 5);
   f.part('sash', { shade: 'b', light: '' });
-  for (let i = 0; i < 8; i++) f.px(14 - i, 10 + i).px(13 - i, 10 + i);
-  f.part('text', { flat: true, rim: false });
-  f.px(12, 12).px(10, 14).px(8, 16);
-  // raised front hoof (viewer left) + resting one
-  f.part('white', { shade: 'rb', light: 't' });
-  f.rows(1, 7, ['.##', '###', '###', '.##']);
-  f.px(3, 10).px(4, 11);
-  f.part('hoof', { flat: true, rim: false });
-  f.hl(2, 3, 6);
-  f.part('white', { shade: 'rb', light: 't' });
-  f.rect(15, 12, 2, 4);
-  f.part('hoof', { flat: true, rim: false });
-  f.hl(15, 16, 16);
-  // head
-  const hy = up ? -2 : 0;
-  f.part('horn', { shade: 'r', light: 't' });
-  f.px(5, 1 + hy).px(6, 2 + hy).px(14, 1 + hy).px(13, 2 + hy);
-  f.part('white', { shade: 'rb', light: 't' });
-  f.rows(4, 2 + hy, ['.##########.', '############', '############', '############', '.##########.']);
-  // ears
-  f.part('black', { shade: 'r', light: '' });
-  f.px(3, 3 + hy).px(2, 4 + hy).px(16, 3 + hy).px(17, 4 + hy);
-  f.part('black', { shade: 'rb', light: 't' });
-  f.rect(11, 2 + hy, 3, 2);
-  // snout
-  f.part('snout', { shade: 'rb', light: 't' });
-  f.rows(6, 6 + hy - (up ? 1 : 0), ['.######.', '########', '.######.']);
-  f.part('eye', { flat: true, rim: false });
-  f.px(8, 7 + hy - (up ? 1 : 0)).px(11, 7 + hy - (up ? 1 : 0));
-  // eyes: left open, right winking
-  f.part('eye', { flat: true, rim: false });
-  if (up) f.px(7, 2 + hy).px(12, 2 + hy);
-  else {
-    f.rect(7, 3 + hy, 1, 2);
-    f.hl(11, 13, 4 + hy);
-  }
+  for (const [sx, sy] of [[13, 12], [12, 13], [10, 14], [9, 15], [7, 16]] as const) f.hl(sx, sx + 1, sy);
+  // the left arm on his hip (viewer right)
+  f.part('shirt', { shade: 'rb', light: 't' });
+  f.rect(15, 12, 2, 2);
+  f.part('skin', { shade: 'rb', light: 't' });
+  f.px(16, 14).px(15, 15).px(14, 16).px(15, 16);
+  // the right arm raised (viewer left) with the spatula held high
+  f.part('shirt', { shade: 'rb', light: 't' });
+  f.rect(3, 9, 2, 3).px(5, 12);
+  f.part('skin', { shade: 'rb', light: 't' });
+  f.vl(3, 6, 8).rect(2, 4, 2, 2);
+  f.part('handle', { flat: true });
+  f.vl(2, 3, 3);
+  f.part('blade', { shade: 'rb', light: 't' });
+  f.rect(0, 0, 4, 3);
+  // neck and face
+  f.part('skin', { shade: 'rb', light: 't', inner: false });
+  f.hl(8, 11, 11);
+  f.rows(5, 4 + hy, [
+    '.########.',
+    '##########',
+    '##########',
+    '##########',
+    '##########',
+    '##########',
+    '.########.',
+  ]);
+  f.part('cheek', { flat: true, rim: false, ol: false });
+  f.px(6, 7 + hy).px(13, 7 + hy);
+  f.part('eye', { flat: true, rim: false, ol: false });
+  if (up) f.px(7, 4).px(12, 4);
+  else f.hl(7, 8, 6).hl(11, 12, 6);
+  f.part('stache', { flat: true, rim: false });
+  f.hl(7, 12, 8 + hy).px(6, 9 + hy).px(13, 9 + hy);
+  f.part('mouth', { flat: true, rim: false, ol: false });
+  // a big grin under the moustache; looking up, a small 'o'
+  if (up) f.hl(9, 10, 9);
+  else f.hl(8, 11, 9);
+  // the noodles heaped on his head — a curly outline, wavy sauced strands
+  // through it — and strands hanging at his temples
+  f.part('noodle', { shade: 'rb', light: 't' });
+  f.rows(3, hy, [
+    '..#.##.###.#..',
+    '.############.',
+    '##############',
+    '.############.',
+    '.#..........#.',
+    '.#..........#.',
+    '.#..........#.',
+  ]);
+  f.part('noodle', { flat: true, rim: false, ol: false });
+  for (let y = 1; y <= 3; y++)
+    for (let x = 4; x <= 15; x++) {
+      const k = (x + y * 2) % 5;
+      if (k === 0) f.t(-2).px(x, y + hy);
+      else if (k === 2 && y < 3) f.t(1).px(x, y + hy);
+    }
+  f.t(null);
+  f.part('aonori', { flat: true, rim: false, ol: false });
+  f.px(6, 1 + hy).px(12, 2 + hy).px(9, 2 + hy).px(14, 1 + hy).px(5, 3 + hy);
+  f.part('beni', { flat: true, rim: false });
+  f.px(9, hy).px(10, hy).px(10, 1 + hy);
   // FRP gloss
   f.part('gloss', { flat: true, rim: false, ol: false });
-  f.px(6, 3 + hy).px(6, 11).px(7, 11).px(5, 12);
+  f.px(7, 1 + hy).px(6, 5 + hy).px(6, 13).px(1, 0);
 }
 
 registerChar('npc_cow_statue', () =>

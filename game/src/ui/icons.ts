@@ -262,17 +262,19 @@ const ITEM_ROWS: Record<string, string[]> = {
     '.ddddddddd',
     '..........',
   ],
-  // 揚げたてコロッケ: a paper bag, spots of oil, the top folded down
+  // できたて焼きそば: a clear pack, sauced noodles with 青のり and a bit of
+  // 紅しょうが showing through the lid (a white glint), a rubber band round
+  // it, the dark tray underneath
   item_korokke: [
     '..........',
-    '.YYYYYYYh.',
-    '.hhhhhhhh.',
-    '.eeeeeeeb.',
-    '.eaaeeYeb.',
-    '.eaeeeeeb.',
-    '.eeeYeeeb.',
-    '.eeeeeeeb.',
-    '.ebbbbbbb.',
+    '.vvvvvvvv.',
+    '.vWhohoov.',
+    '.vWohmhov.',
+    '.aaaaaaaa.',
+    '.vohrohov.',
+    '.vhomohhv.',
+    '.VVVVVVVV.',
+    '..VVVVVV..',
     '..........',
   ],
 };

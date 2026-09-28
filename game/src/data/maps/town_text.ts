@@ -122,7 +122,7 @@ export const OBJ: Record<string, StageText> = {
 『夕鳴銀座』の 『銀』だけ、
 電球が 切れている。`,
   obj_meat_showcase: `@narr
-『コロッケ 80円』の 札。{w=300}
+『焼きそば 80円』の 札。{w=300}
 その下に 小さく、『5時から』。`,
   obj_meishi_ground: `@narr
 名刺が 落ちている。{w=300}
@@ -600,7 +600,7 @@ export const TALK: Record<string, TalkTable> = {
 観察が はかどる。{w=300}
 天才かも。
 @narr
-サエは さっきと 同じ 線を、
+さやは さっきと 同じ 線を、
 同じ 速さで 引いた。`,
     s2_1: `@npc_sae
 ……同じ絵が 12枚に なった。{w=300}
@@ -698,19 +698,21 @@ export const TALK: Record<string, TalkTable> = {
   npc_madam: {
     s0_1: `@npc_madam
 この子、夕方の 散歩が
-いちばん 好きなの。`,
+いちばん 好きなの。{w=300}
+暑さにも 坂にも、負けない！`,
     s0_2: `@npc_madam
 コタロウって いうの。{w=300}
 人見知りだけど、
 ゆるキャラには なつくのよ。`,
     s1_1: `@npc_madam
 今日 この子、半音 低く
-吠えるのよ。{w=300}風邪かしら。`,
+吠えるのよ。{w=300}風邪かしら。{w=300}
+……風邪なんかに、負けない！`,
     s1_2: `@npc_madam
 今日 この子、半音 低く
 吠えるのよ。{w=300}風邪かしら。
 @narr
-日傘の人は、同じ ところで
+なんばるわんは、同じ ところで
 日傘を くるっと 回した。`,
     s2_1: `@npc_madam
 ……この子の 影、
@@ -721,7 +723,9 @@ export const TALK: Record<string, TalkTable> = {
     s2_2: `@npc_madam
 あら、コタロウが しっぽ
 振ってる。{w=300}
-ゆるキャラ、好きなのよ。`,
+ゆるキャラ、好きなのよ。
+/
+……わたしだって、負けない！`,
   },
   npc_kotaro: {
     s0: `!se se_dog_bark
@@ -769,7 +773,7 @@ export const TALK: Record<string, TalkTable> = {
 ガチャの 中も、
 17時で 止まってるんだ。
 @narr
-男の子は さっきと 同じ ところで、
+ともきは さっきと 同じ ところで、
 ハンドルを 止めた。`,
     s2_1: `@npc_gacha_boy
 ママ、迎えに 来ない。{w=300}
@@ -795,7 +799,7 @@ export const TALK: Record<string, TalkTable> = {
 5時に 来る はずなんだが、
 5時が 来ない。
 @narr
-おじいさんは 同じ 駒を、
+しんごは 同じ 駒を、
 同じ ところに 置きなおした。`,
     s2_1: `@npc_ojii
 駒がな、1枚 足りない。{w=300}
@@ -810,7 +814,7 @@ export const TALK: Record<string, TalkTable> = {
 今日の 地面は、よく 飲むのよ。`,
     s0_2: `@npc_mizumaki
 しゅんくん、おつかい？{w=300}
-マルヤマさんなら、
+モモセさんなら、
 坂を 上って、右よ。`,
     s1_1: `@npc_mizumaki
 ホースの 水がね、
@@ -819,7 +823,7 @@ export const TALK: Record<string, TalkTable> = {
 ホースの 水がね、
 途中で 迷ってるの。
 @narr
-水まきの人は、同じ ところに
+ちずは、同じ ところに
 同じ 水を まいた。`,
     s2_1: `@npc_mizumaki
 打ち水がね、ぜんぶ
@@ -832,7 +836,8 @@ export const TALK: Record<string, TalkTable> = {
   npc_shadow_man: {
     s2_1: `@npc_shadow_man
 本体が 先に 帰っちゃってね。{w=300}
-影だけ 残業だよ。`,
+影だけ 残業だよ。{w=500}
+限界です……`,
     s2_2: `@npc_shadow_man
 うちの 本体、昔 ユウナリで
 働いてたんだ。{w=300}
@@ -906,11 +911,13 @@ export const TALK: Record<string, TalkTable> = {
   },
   npc_cow_statue: {
     s0: `@narr
-牛の 置物。たすきに
-『モ〜っと おいしく！』。{w=300}
-……牛が 言って いいのか。`,
+置物の 『ヤキソバン』。{w=300}
+頭に 麺を のせて、ヘラを かかげている。
+/
+……焼く ほうなのか、
+焼かれる ほうなのか。`,
     's1-2': `@narr
-牛の 置物が、空を 見上げたまま
+ヤキソバンが、空を 見上げたまま
 固まっている。{w=300}
 ……もともと 固まっているが。`,
   },
@@ -920,7 +927,7 @@ export const TALK: Record<string, TalkTable> = {
 今日は 豆腐じゃ ないの？{w=300}
 まいど！
 /
-コロッケなら マルヤマだい！
+焼きそばなら モモセだい！
 2軒 西！{w=300} まいど！`,
     s0_2: `@npc_mamekichi
 まいど！{w=300}
@@ -970,7 +977,7 @@ export const KANENARI_FLIPS: Record<string, string> = {
 おじゃま しません。
 （ゆるキャラ なので）`,
   meat: `@flip
-コロッケは 食べられません。
+焼きそばは 食べられません。
 （中が 暗いので）`,
   hinoya: `@flip
 おばあさんには 毎年

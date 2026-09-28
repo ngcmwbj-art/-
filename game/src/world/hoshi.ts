@@ -340,7 +340,7 @@ function powerUnit(f: FieldScene): [number, number] | null {
  * when it gives them, so a renamed villager changes in one place.
  */
 const TEXT = hoshiNpcText as unknown as { CALL_NAMES?: string[]; CALL_HEAD?: string };
-export const CALL_NAMES: string[] = TEXT.CALL_NAMES?.length ? TEXT.CALL_NAMES : ['くりこちゃん', 'シュンスケくん', 'もとくん', 'アスカちゃん', 'サトシくん', 'タクミくん', 'ゆきちゃん', 'タカシさん'];
+export const CALL_NAMES: string[] = TEXT.CALL_NAMES?.length ? TEXT.CALL_NAMES : ['くりこちゃん', 'シュンスケくん', 'もとくん', 'アスカちゃん', 'サトシくん', 'タクミくん', 'ゆきちゃん', 'まさとさん'];
 export const CALL_PREFACE: string = TEXT.CALL_HEAD ?? 'こちらは、防災 星見台です。';
 /** Seconds between calls by stage (50 3.13). */
 export const CALL_EVERY: Record<number, number> = { 0: 45000, 1: 30000, 2: 15000 };

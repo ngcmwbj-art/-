@@ -1489,7 +1489,7 @@ registerChar('npc_hoshi_busdriver', () =>
 );
 
 // =============================================================================
-// 運転士 (npc_hoshi_traindriver): the night train's driver, only ever seen
+// みっちゃそ (npc_hoshi_traindriver): the night train's driver, only ever seen
 // from behind through the cab glass (face never drawn): the navy cap and
 // uniform, seated, his left hand on the master controller; a 1px slanting
 // glint of the glass crosses him. Every facing shows the same back view.

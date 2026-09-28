@@ -217,7 +217,7 @@ function markSys(text: string): string {
 function markPlain(text: string): string {
   if (!text) return text;
   if (!itemRes) {
-    // the text is 分かち書き: 「揚げたて コロッケ」 must match 「揚げたてコロッケ」
+    // the text is 分かち書き: 「できたて 焼きそば」 must match 「できたて焼きそば」
     const names = allItems()
       .map((i) => i.name)
       .sort((a, b) => b.length - a.length);

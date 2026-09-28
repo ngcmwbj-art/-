@@ -51,14 +51,14 @@ export function bagCount(): number {
 /** おつかいメモ, line 2: what Minato scribbled last (10_narrative 10.3). */
 export function memoProgress(): string {
   const table: [string, string][] = [
-    ['flag_errand', '→ 肉のマルヤマ（坂を 上って 右）'],
-    ['flag_met_maruyama', '→ 揚げたては 5時の チャイムの あと'],
+    ['flag_errand', '→ 焼きそばのモモセ（坂を 上って 右）'],
+    ['flag_met_maruyama', '→ 焼くのは 5時の チャイムの あと'],
     ['flag_chime_stopped', '→ チャイムが 止まった？'],
     ['flag_got_hanko', '→ 公園？ 鐘の 頭の 人'],
     ['flag_broadcast', '→ モール 迷子センター（北東）'],
     ['flag_mall_entered', '→ 迷子センターは 2F。カギ？'],
     ['flag_got_maigo_key', '→ 2Fの 迷子センターへ'],
-    ['flag_boss_beaten', '→ 肉屋！'],
+    ['flag_boss_beaten', '→ モモセ！'],
     // chapter 2 carries the memo on: the errand was done (50_ch2_story 1.5)
     ['flag_clear', '→ おつかい 完了。'],
   ];
@@ -83,7 +83,7 @@ function progressOf(id: string): string | null {
 
 /** The first line of such a note (fixed). */
 function progressHead(id: string): string | null {
-  if (id === 'item_otsukai_memo') return 'コロッケ 4つ。ソースは べつ。';
+  if (id === 'item_otsukai_memo') return '焼きそば 4つ。青のりは べつ。';
   if (id === 'item_kairan_map') return KAIRAN_MAP_LINE1;
   return null;
 }

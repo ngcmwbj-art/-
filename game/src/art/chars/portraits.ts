@@ -663,7 +663,7 @@ npcPortrait('npc_obaa', {
   },
 });
 
-// 丸山: tall toque, thick brows, tanned wide face, towel round the neck
+// 百瀬: tall toque, thick brows, tanned wide face, towel round the neck
 npcPortrait('npc_maruyama', {
   sky: { top: '#FFD8B0', bot: '#E8603C' },
   mats: {

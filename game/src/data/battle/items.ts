@@ -25,13 +25,13 @@ const items: ItemDef[] = [
   { id: 'item_yakiimo', name: '焼き芋', target: 'ally', heal: 60, desc: ['ヒロスケの 焼き芋。夏でも 熱い。', 'HPを 60 回復。'] },
   { id: 'item_kairan_shuniku', name: '回覧板の朱肉', target: 'minato', mp: 15, special: 'kairan', desc: ['回覧板の 確認印 用。ふたに『区』の字。', '朱肉を 15 回復。'] },
   // 大事なもの
-  { id: 'item_otsukai_memo', name: 'おつかいメモ', key: true, target: 'none', desc: ['コロッケ 4つ。ソースは べつ。', ''], battleText: ['これは 晩ごはんの メモだ。'] },
+  { id: 'item_otsukai_memo', name: 'おつかいメモ', key: true, target: 'none', desc: ['焼きそば 4つ。青のりは べつ。', ''], battleText: ['これは 晩ごはんの メモだ。'] },
   { id: 'item_gamaguchi', name: 'がま口', key: true, target: 'none', desc: ['母の がま口。ぱちん、と', '閉まる 音が いい。'], battleText: ['がま口を 開けた。\n……戦いに お金は いらない。'] },
   { id: 'item_hanko_case', name: 'ハンコケース', key: true, target: 'none', desc: ['おばあの 採点ハンコが 入っている。', '枠は 10。'], battleText: ['ハンコケースを 見せた。\n$enemyは 少し 身がまえた。'] },
   { id: 'item_mimashita_cho', name: 'みました帳', key: true, target: 'none', desc: ['白紙だった 自由研究の ノート。', '見たものを 書きこんでいく。'], battleText: ['ノートを 開いた。\n……いまは 書いている ひまが ない。'] },
   { id: 'item_maigo_key', name: '迷子センターの鍵', key: true, target: 'none', desc: ['小さな カギ。', 'キーホルダーは、カバ。'], battleText: ['カギは、ここで 使う ものじゃない。'] },
   { id: 'item_hato_meishi', name: 'ハトの名刺', key: true, target: 'none', desc: ['『夕鳴町 鳩課 係長』。', '裏に 小さく『帰りたい』。'], battleText: ['名刺を さしだした。\n……受けとって もらえなかった。'] },
-  { id: 'item_korokke', name: '揚げたてコロッケ', key: true, target: 'none', desc: ['4つ。ソースは 別。', '……1つは おまけ。'], battleText: ['これは 晩ごはんだ。'] },
+  { id: 'item_korokke', name: 'できたて焼きそば', key: true, target: 'none', desc: ['4パック。青のりは 別。', '……1つは おまけ。'], battleText: ['これは 晩ごはんだ。'] },
   // 屋上 ゆうやけひろば (10_narrative 7.18 ★2026-09-28): the 4th handshake
   { id: 'item_akushuken', name: '握手券', key: true, target: 'none', desc: ['カネナリくん 握手会の 握手券。', '番号は 4。有効期限は なし。'], battleText: ['握手券を 見せた。\n$enemyは 手を 出しかけて やめた。'] },
   // 10 6.10 (02_ch2_index #56): 段階2の郵便屋さんから。第2章でさんかどに あずける

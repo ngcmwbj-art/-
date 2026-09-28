@@ -1,11 +1,13 @@
-// 肉のマルヤマ interior (30_level_art 4.3, 10×8: a second row of floor for the
-// customers, review round 1). A narrow butcher's: white
-// tiled walls under cream plaster, the meat-cut poster, a stainless fryer
-// whose oil quietly glows and pulses, a refrigerated showcase with an empty
-// croquette tray (「5時から」), the old register with a beckoning cat, a
-// spring scale, a kamidana shelf, wooden menu plaques, two bare bulbs; by
-// the door the delivery crates and the waiting stool for the five o'clock
-// queue. Outside: the arcade (iexterior.ts).
+// 焼きそばのモモセ interior (30_level_art 4.3, 10×8: a second row of floor for
+// the customers, review round 1). A narrow yakisoba shop: white tiled walls
+// under cream plaster, the 『焼きそばの 焼き方』 poster, a stainless back bench
+// with the pot of house sauce (its surface quietly glows and pulses) and a
+// can of sauce, the long teppan counter in front of 百瀬 — a black iron
+// griddle, the spatulas laid on it, the sauce bottle, the 青のり shaker and
+// the 「5時から」 card — the old register with a beckoning cat, the noodle
+// scale, a kamidana shelf, wooden menu plaques, two bare bulbs; by the door
+// the delivery crates and the waiting stool for the five o'clock queue.
+// Outside: the arcade (iexterior.ts).
 
 import type { Gfx } from '../../engine/gfx';
 import { PixelCanvas } from '../../engine/pixel';
@@ -19,7 +21,7 @@ import { exteriorGlow, exteriorImg, exteriorOver, withExterior } from './iexteri
 import { castRight, finish, lt } from './kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
-import { fontTextSmall, printLines, tiny } from './text';
+import { fontSmallWidth, fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 
 // ---------------------------------------------------------------- shell
@@ -44,12 +46,12 @@ registerProp('in_mr_shell', () => {
     baseH: 3,
   });
   const p = sh.p;
-  // ---- floor details: grease sheen by the fryer, a ribbed rubber mat, a drain grate
+  // ---- floor details: a sauce-and-grease sheen by the back bench, a ribbed rubber mat, a drain grate
   for (let y = 48; y < 64; y++)
     for (let x = 32; x < 64; x++) {
       if (valueNoise(x / 6, y / 4, 74) > 0.7) blend(p, x, y, P.brassOld, 0.35);
     }
-  // rubber mat in front of the fryer (row 3, x 2–3)
+  // rubber mat in front of the back bench (row 3, x 2–3)
   for (let y = 50; y < 61; y++)
     for (let x = 34; x < 62; x++) {
       const edge = y === 50 || y === 60 || x === 34 || x === 61;
@@ -65,16 +67,16 @@ registerProp('in_mr_shell', () => {
   for (let x = 88; x < 134; x++) for (let y = 97; y < 110; y++) if (valueNoise(x / 7, y / 4, 76) > 0.72) blend(p, x, y, P.woodDark, 0.3);
   p.rect(120, 90, 3, 2, P.white);
   p.set(121, 90, P.verm);
-  // a croquette paper bag's twist, a bottle cap by the crates
+  // a dropped paper napkin, a bottle cap by the crates
   p.rect(98, 102, 4, 2, P.paper);
   p.set(101, 102, P.paperGrid);
   p.set(99, 104, P.paperGrid);
   p.rect(33, 106, 2, 2, P.gold);
   p.set(33, 106, P.goldPale);
   // ---- north wall
-  // meat-cut poster (1–2): 『牛・豚・鶏 部位の図』
-  meatChart(p, 17, 4);
-  // range hood over the fryer + stainless backsplash with grease streaks
+  // the how-to poster (1–2): 『焼きそばの 焼き方』
+  howtoPoster(p, 17, 4);
+  // range hood over the back bench + stainless backsplash with sauce streaks
   for (let y = 3; y <= 12; y++) {
     const k = (y - 3) / 9;
     const x0 = Math.round(45 - k * 5);
@@ -97,12 +99,18 @@ registerProp('in_mr_shell', () => {
     p.set(rx, 15, P.steel);
     p.set(rx, 25, P.steel);
   }
-  // a hook rail with a ladle and a strainer above the backsplash
+  // a hook rail above the backsplash: two spare spatulas (ヘラ) and the oil brush
   p.hline(36, 62, 16, P.steel);
-  p.vline(40, 16, 22, P.asphalt);
-  p.ellipse(40.5, 23, 2, 1.5, P.asphalt);
-  p.vline(59, 16, 20, P.asphalt);
-  p.ring(59.5, 22.5, 2.5, 2.5, P.steel);
+  for (const hx of [39, 44]) {
+    p.vline(hx + 1, 16, 19, P.wood);
+    p.set(hx + 1, 17, P.woodLt);
+    p.rect(hx, 20, 3, 3, P.steel);
+    p.hline(hx, hx + 2, 20, P.concreteLt);
+    p.hline(hx, hx + 2, 22, P.asphalt);
+  }
+  p.vline(59, 16, 20, P.wood);
+  p.rect(58, 21, 3, 2, P.brassOld);
+  p.hline(58, 60, 23, P.goldPale);
   // wooden menu plaques on a bar (tiles 5–6)
   p.hline(78, 111, 4, P.woodDark);
   p.hline(78, 111, 3, P.wood);
@@ -120,22 +128,22 @@ registerProp('in_mr_shell', () => {
     p.hline(x + 1, x + 2, 5 + h - 3, P.white);
     castRight(p, x, 5, 4, h, 1);
   }
-  // the croquette plaque gets a yellow sticky note 「5時」 hanging askew
+  // the yakisoba plaque gets a yellow sticky note 「5時」 hanging askew
   p.rect(90, 17, 5, 4, P.gold);
   p.set(90, 17, P.goldPale);
   p.hline(91, 93, 19, P.vermShade);
   p.set(94, 20, P.brass);
   // kamidana: a pale-cypress shrine on a shelf, sakaki in two vases, paper shide
   kamidana(p, 112, 1);
-  // business licence in a frame and the wholesaler's cow calendar
+  // business licence in a frame and the sauce maker's calendar
   {
     const [ix, iy, iw, ih] = framed(p, 113, 16, 10, 9, P.woodDark);
     p.rect(ix, iy, iw, ih, P.white);
     printLines(p, ix + 1, iy + 1, iw - 2, 3, P.steel, 61);
     p.set(ix + iw - 2, iy + ih - 2, P.verm);
   }
-  cowCalendar(p, 126, 14);
-  // the back of the showcase: a white wall strip with a plug socket
+  sauceCalendar(p, 126, 14);
+  // behind the counter: a white wall strip with a plug socket
   p.rect(98, 22, 4, 4, P.concreteLt);
   p.set(99, 23, P.charcoal);
   p.set(100, 23, P.charcoal);
@@ -152,7 +160,7 @@ registerProp('in_mr_shell', () => {
   p.hline(dx - 1, dx + 16, dy + 10, P.charcoal);
   const W = p.w;
   // the arcade outside: the town's mosaic floor and the shop mat; ひのや and
-  // まめ吉 next door to the east, the hedge and the road up the slope with its
+  // くま吉 next door to the east, the hedge and the road up the slope with its
   // crossing to the west (the town's own, moved out to the room's walls)
   const ext = withExterior(p, sh.glass, {
     rows,
@@ -175,7 +183,7 @@ registerProp('in_mr_shell', () => {
       const n = env.grade.night;
       // bare bulbs: warm pools on the floor (α20%)
       for (const bx of [56, 104]) screenPool(g, x + bx, y + 74, 36, 20, P.sky, 0.26 + n * 0.12);
-      // the fryer's oil lights the mat a little
+      // the burner under the sauce pot lights the mat a little
       screenPool(g, x + 48, y + 50, 18, 8, P.sun, 0.12);
       // the doorway spills the street's sky onto the boards
       screenSpill(g, x + 72, y + dy, 18, 34, 22, rgbHex(env.grade.skyBot), 0.2 - n * 0.12, true);
@@ -192,8 +200,13 @@ function rgbHex(c: [number, number, number]): string {
   return `#${h(c[0])}${h(c[1])}${h(c[2])}`;
 }
 
-/** 『牛・豚・鶏 部位の図』 22×21: a proud cow over a pig and a hen, cuts in reds. */
-function meatChart(p: PixelCanvas, x: number, y: number): void {
+/**
+ * 『焼きそばの 焼き方』 22×21: a red header, three steps down the left —
+ * the steamed noodles, the cabbage, the sauce bottle pouring — each with its
+ * printed line, and the last line twice as thick in red
+ * (『ソースは 最後に 一気に！』).
+ */
+function howtoPoster(p: PixelCanvas, x: number, y: number): void {
   const W = 22;
   const H = 21;
   p.rect(x, y, W, H, P.paper);
@@ -201,47 +214,27 @@ function meatChart(p: PixelCanvas, x: number, y: number): void {
   p.vline(x + W - 1, y, y + H - 1, P.paperGrid);
   p.rect(x + 1, y + 1, W - 2, 3, P.red);
   printLines(p, x + 3, y + 2, 16, 1, P.white, 5);
-  // cow: body with four cuts divided by white lines, head raised to the right
-  const cx = x + 2;
-  const cy = y + 6;
-  const cow = [
-    '.....aaabbbbccccdd.',
-    '....aaaabbbbccccddd',
-    '...aaaaabbbbccccddd',
-    '..eaaaaabbbbccccdd.',
-    '..eeeeffffffggggg..',
-    '...eeeffffffgggg...',
-    '...h..h......h..h..',
-  ];
-  p.art(cow, { a: P.crimson, b: P.red, c: P.peach, d: P.sunShade, e: P.sunShade, f: P.peach, g: P.crimson, h: P.maroon }, cx, cy);
-  for (const lx of [4, 8, 12]) p.vline(cx + lx + 1, cy, cy + 4, P.white);
-  p.hline(cx + 3, cx + 16, cy + 4, P.white);
-  // proud head: up and to the right, one horn, a smug eye
-  p.rect(cx + 16, cy - 3, 3, 3, P.sunShade);
-  p.set(cx + 19, cy - 2, P.sunShade);
-  p.set(cx + 17, cy - 4, P.goldPale);
-  p.set(cx + 17, cy - 2, P.ink);
-  p.set(cx + 18, cy - 1, P.white);
-  // pig (left) and hen (right)
-  const py = y + 14;
-  p.ellipse(x + 6, py + 2.5, 4, 2.5, P.skin2);
-  p.vline(x + 5, py, py + 4, P.white);
-  p.vline(x + 8, py, py + 4, P.white);
-  p.set(x + 2, py + 1, P.skin3);
-  p.set(x + 1, py + 2, P.skin3);
-  p.set(x + 10, py + 1, P.skin3);
-  p.set(x + 9, py + 1, P.ink);
-  p.vline(x + 4, py + 5, py + 5, P.skin4);
-  p.vline(x + 8, py + 5, py + 5, P.skin4);
-  // hen
-  p.ellipse(x + 16, py + 3, 3, 2.5, P.white);
-  p.hline(x + 14, x + 18, py + 5, P.concrete);
-  p.rect(x + 18, py, 2, 2, P.white);
-  p.set(x + 18, py - 1, P.red);
-  p.set(x + 19, py - 1, P.red);
-  p.set(x + 20, py + 1, P.gold);
-  p.set(x + 19, py, P.ink);
-  p.vline(x + 16, py + 3, py + 4, P.concrete);
+  // 1: the noodles, a pale wavy bundle
+  const sx = x + 2;
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 5; c++) if ((c + r) % 2 === 0) p.set(sx + c, y + 5 + r, r === 1 ? P.brass : P.goldPale);
+  printLines(p, x + 9, y + 5, 10, 1, P.steel, 21);
+  // 2: the cabbage, a green leaf with a pale rib
+  p.ellipse(sx + 2, y + 10.5, 2.5, 1.8, P.leafYoung);
+  p.hline(sx + 1, sx + 3, y + 10, P.leafLt);
+  p.set(sx + 4, y + 11, P.leaf);
+  printLines(p, x + 9, y + 10, 10, 1, P.steel, 22);
+  // 3: the sauce bottle tipped over a heap, the brown stream between
+  p.rect(sx, y + 13, 2, 3, P.woodDark);
+  p.set(sx, y + 13, P.verm);
+  p.set(sx + 2, y + 15, P.wood);
+  p.set(sx + 3, y + 16, P.wood);
+  p.hline(sx + 2, sx + 5, y + 17, P.brassOld);
+  p.set(sx + 3, y + 17, P.woodDark);
+  printLines(p, x + 9, y + 14, 10, 1, P.steel, 23);
+  // the last line, big: 『ソースは 最後に 一気に！』
+  p.rect(x + 9, y + 17, 9, 2, P.red);
+  p.vline(x + 19, y + 16, y + 17, P.red);
+  p.set(x + 19, y + 19, P.red);
   castRight(p, x, y, W, H, 2);
   // pins
   p.set(x + 1, y, P.verm);
@@ -283,19 +276,21 @@ function kamidana(p: PixelCanvas, x: number, y: number): void {
   castRight(p, x, y + 1, 24, 13, 2);
 }
 
-function cowCalendar(p: PixelCanvas, x: number, y: number): void {
+/** The sauce maker's calendar: a photo of a plate of yakisoba on a warm ground, the name band, the dates. */
+function sauceCalendar(p: PixelCanvas, x: number, y: number): void {
   p.vline(x + 7, y - 2, y - 1, P.charcoal);
   p.rect(x, y, 15, 14, P.white);
-  // photo: blue sky, green field, a black-and-white cow
-  p.rect(x + 1, y + 1, 13, 3, P.aqua);
-  p.rect(x + 1, y + 4, 13, 3, P.leaf);
-  p.rect(x + 4, y + 3, 6, 3, P.white);
-  p.set(x + 5, y + 3, P.ink);
-  p.set(x + 8, y + 4, P.ink);
-  p.rect(x + 10, y + 2, 2, 2, P.white);
-  p.set(x + 11, y + 2, P.ink);
+  // photo: a warm orange ground, a white plate, the brown heap with 青のり and 紅しょうが
+  p.rect(x + 1, y + 1, 13, 6, P.sky);
+  p.hline(x + 1, x + 13, y + 1, P.horizon);
+  p.ellipse(x + 7, y + 4.5, 5, 2, P.white);
+  p.ellipse(x + 7, y + 4, 3.5, 1.6, P.brassOld);
+  p.hline(x + 5, x + 9, y + 3, P.brass);
+  p.set(x + 6, y + 4, P.leaf);
+  p.set(x + 8, y + 3, P.leafShade);
+  p.set(x + 9, y + 4, P.verm);
   // name band and the date grid
-  p.rect(x + 1, y + 7, 13, 1, P.red);
+  p.rect(x + 1, y + 7, 13, 1, P.woodDark);
   for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) p.set(x + 2 + c * 2, y + 9 + r * 2, c === 5 ? P.verm : P.steel);
   p.ring(x + 11.5, y + 11.5, 1.5, 1.5, P.verm);
   p.hline(x, x + 14, y + 13, P.concrete);
@@ -364,20 +359,22 @@ registerProp('in_mr_prep', () =>
     p.rect(0, 4, 16, 5, P.concreteLt);
     p.hline(0, 15, 4, P.white);
     p.hline(0, 15, 8, P.steel);
-    // tray with six breaded (raw) croquettes waiting for five o'clock
+    // a tray of steamed noodles in six bundles, waiting for five o'clock
     p.rect(1, 3, 9, 5, P.steel);
     p.rect(2, 3, 7, 4, P.concrete);
     for (let k = 0; k < 6; k++) {
       const cx = 2 + (k % 3) * 2 + (k >= 3 ? 1 : 0);
       const cy = 3 + Math.floor(k / 3) * 2;
       p.rect(cx, cy, 2, 1, P.goldPale);
-      p.set(cx + 1, cy, P.brass);
+      p.set(cx + ((k + 1) % 2), cy, P.brass);
     }
-    // flour and egg bowls
-    p.ellipse(12.5, 4.5, 2.5, 1.5, P.white);
-    p.hline(11, 14, 5, P.concreteLt);
-    p.ellipse(12.5, 7, 2, 1, P.gold);
-    p.set(12, 6, P.goldPale);
+    // a bowl heaped with chopped cabbage, a smaller one of 紅しょうが
+    p.ellipse(12.5, 5, 2.5, 1.5, P.white);
+    p.hline(11, 14, 4, P.leafLt);
+    p.set(12, 3, P.leafYoung);
+    p.set(13, 4, P.leaf);
+    p.ellipse(12.5, 7, 2, 1, P.concreteLt);
+    p.hline(12, 13, 7, P.verm);
     // apron and legs, a lower shelf with a bucket and stacked trays
     p.rect(0, 9, 16, 2, P.steel);
     p.vline(1, 11, 21, P.steel);
@@ -391,79 +388,81 @@ registerProp('in_mr_prep', () =>
   }, { base: 16, contact: 0, shadow: 0 }),
 );
 
-// ---------------------------------------------------------------- the fryer (2–3,2)
+// ---------------------------------------------------------------- the back bench (2–3,2): the sauce pot and the can
 
-const FRYER_OX = 0;
+/** Where the pot's sauce shows (image px): the dark surface inside the rim. */
+const POT = { x0: 4, x1: 13, y: 3 };
 registerProp('in_mr_fryer', () => {
   const p = pc(32, 24);
-  // back rail with two frying baskets hanging
-  p.hline(2, 29, 1, P.steel);
-  for (const bx of [5, 18]) {
-    p.rect(bx, 0, 8, 4, P.concrete);
-    for (let i = bx; i < bx + 8; i += 2) p.vline(i, 1, 3, P.steel);
-    p.hline(bx, bx + 7, 0, P.concreteLt);
-    p.vline(bx + 8, 1, 2, P.asphalt);
-  }
-  // body (stainless), the recessed oil well
+  // body (stainless) and its top
   p.rect(0, 4, 32, 20, P.concrete);
   p.hline(0, 31, 4, P.white);
   p.vline(0, 4, 23, P.concreteLt);
   p.vline(31, 5, 23, P.asphalt);
-  p.rect(2, 5, 28, 7, P.steel);
-  p.rect(3, 6, 26, 5, P.brassOld);
-  p.hline(3, 28, 6, P.wood);
-  p.set(3, 10, P.wood);
-  p.set(28, 10, P.woodDark);
-  // front: control panel, dials, a drip tray lip
+  p.rect(1, 5, 30, 7, P.concreteLt);
+  p.hline(1, 30, 11, P.steel);
+  // the house sauce (つぎたし) in a stainless stock pot, a ladle leaning in it
+  p.rect(2, 4, 14, 8, P.concrete);
+  p.vline(2, 4, 11, P.concreteLt);
+  p.vline(3, 5, 10, P.white);
+  p.vline(15, 4, 11, P.asphalt);
+  p.hline(2, 15, 11, P.steel);
+  p.set(1, 6, P.steel);
+  p.set(16, 6, P.asphalt);
+  p.ellipse(8.5, 3, 7, 2, P.steel);
+  p.hline(3, 14, 1, P.concreteLt);
+  p.ellipse(8.5, 3, 5.6, 1.2, '#5A3A22');
+  p.hline(POT.x0, POT.x1, 2, '#8A5220');
+  p.line(12, 3, 15, 0, P.steel);
+  p.set(15, 0, P.concreteLt);
+  // an 18-litre can of sauce: silver, the brown label with its red stripe, the red cap
+  p.rect(19, 0, 10, 12, P.concreteLt);
+  p.hline(19, 28, 0, P.white);
+  p.vline(28, 1, 11, P.steel);
+  p.rect(26, 0, 2, 1, P.red);
+  p.rect(19, 4, 10, 5, P.woodDark);
+  p.hline(19, 28, 5, P.red);
+  p.hline(21, 26, 7, P.paper);
+  p.vline(28, 4, 8, P.maroon);
+  p.hline(19, 28, 11, P.steel);
+  // front: two cupboard doors with bar handles, the plinth
   p.rect(1, 13, 30, 1, P.asphalt);
-  p.rect(2, 15, 28, 5, P.concreteLt);
-  for (const dx of [6, 13]) {
-    p.ellipse(dx + 0.5, 17.5, 2, 2, P.charcoal);
-    p.set(dx, 16, P.white);
+  for (const dx of [2, 17]) {
+    p.rect(dx, 14, 13, 7, P.concreteLt);
+    p.hline(dx, dx + 12, 14, P.white);
+    p.vline(dx + 12, 14, 20, P.steel);
   }
-  p.rect(19, 16, 6, 3, P.ink);
-  tiny(p, '180', 19, 16, P.red, undefined, 0);
-  p.rect(26, 16, 2, 3, P.red);
+  p.hline(12, 13, 17, P.charcoal);
+  p.hline(18, 19, 17, P.charcoal);
   p.hline(1, 30, 21, P.steel);
   p.rect(1, 22, 30, 2, P.charcoal);
   finish(p, { soft: true });
   const img = p.toCanvas();
   const a = stand(img, { cx: 16, base: 16, shadow: 0, contact: 0 });
   a.over = (g: Gfx, x: number, y: number, env: PropEnv) => {
-    const ox = x + a.ox + FRYER_OX;
+    const ox = x + a.ox;
     const oy = y + a.oy;
     const t = env.t;
-    if (env.stage >= 3) {
-      // the ending: it's frying — bubbles (4 frames)
-      const f = Math.floor(t / 110) % 4;
-      for (let k = 0; k < 7; k++) {
-        const hh = ihash(k, f, 91);
-        g.rect(ox + 4 + (hh % 24), oy + 7 + ((hh >>> 5) % 3), 1, 1, (hh >>> 9) & 1 ? P.horizon : P.goldPale);
-      }
-      return;
-    }
+    if (env.stage >= 3) return;
     if (env.stage === 2) {
-      // the sunset shows in the oil (under a roof)
-      g.rect(ox + 7, oy + 7, 12, 1, P.sun);
-      g.rect(ox + 10, oy + 8, 8, 1, P.crimson);
-      g.rect(ox + 13, oy + 7, 3, 1, P.horizon);
+      // the sunset shows in the sauce (under a roof)
+      g.rect(ox + POT.x0 + 1, oy + POT.y, 8, 1, P.sun);
+      g.rect(ox + POT.x0 + 3, oy + POT.y, 3, 1, P.horizon);
       return;
     }
-    // a 2px highlight that slowly pulses (2 s); stage 1: now and then a small sigh
+    // a glossy highlight that slowly pulses (2 s); stage 1: now and then a small sigh (ぷく)
     let k: number;
     if (env.stage === 1) {
       const u = (t % 5200) / 5200;
       k = u < 0.08 ? Math.sin((u / 0.08) * Math.PI) : 0;
     } else k = Math.sin(((t % 2000) / 2000) * Math.PI * 2) * 0.5 + 0.5;
-    const len = 2 + Math.round(k * 4);
-    g.rect(ox + 8, oy + 7, len, 1, k > 0.55 ? P.horizon : P.goldPale);
-    g.rect(ox + 9, oy + 8, Math.max(1, len - 2), 1, P.brass);
-    if (env.stage === 1 && k > 0.4) g.rect(ox + 19, oy + 8, 1, 1, P.goldPale);
+    const len = 1 + Math.round(k * 3);
+    g.rect(ox + POT.x0 + 2, oy + POT.y, len, 1, k > 0.55 ? P.goldPale : P.brassOld);
+    if (env.stage === 1 && k > 0.4) g.rect(ox + POT.x0 + 7, oy + POT.y, 1, 1, P.brass);
   };
   a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
     const n = env.grade.night;
-    const k = env.stage === 0 ? Math.sin(((env.t % 2000) / 2000) * Math.PI * 2) * 0.5 + 0.5 : 0.3;
-    screenPool(g, x + a.ox + 16, y + a.oy + 8, 18, 7, P.sky, 0.1 + k * 0.06 + n * 0.12);
+    screenPool(g, x + a.ox + 9, y + a.oy + 4, 10, 4, P.sky, 0.06 + n * 0.1);
     // the hood's two little lamps
     g.rect(x + a.ox + 12, y + a.oy - 20, 2, 1, P.horizon, 0.8);
     g.rect(x + a.ox + 20, y + a.oy - 20, 2, 1, P.horizon, 0.8);
@@ -515,140 +514,121 @@ registerProp('in_mr_freezer', () =>
   }, { cx: 16, base: 16, contact: 0, shadow: 0 }),
 );
 
-// ---------------------------------------------------------------- the showcase (1–6,4)
+// ---------------------------------------------------------------- the teppan counter (1–6,4)
+
+/** The griddle on the counter (image px): the plate, and its front gutter row. */
+const PLATE = { x0: 3, x1: 68, y0: 2, y1: 11 };
+
+/** The shop mark on the counter front: a peach (モモ), 7×7. */
+function peachMark(p: PixelCanvas, x: number, y: number): void {
+  p.ellipse(x + 3, y + 4, 3, 2.6, P.skin2);
+  p.ellipse(x + 4, y + 4.5, 1.6, 1.6, P.crimson);
+  p.set(x + 2, y + 3, P.skin1);
+  p.vline(x + 3, y + 2, y + 5, P.sunShade);
+  p.set(x + 3, y + 1, P.woodDark);
+  p.set(x + 4, y + 1, P.leaf);
+  p.set(x + 5, y + 0, P.leafYoung);
+}
 
 registerProp('in_mr_showcase', () => {
-  const p = pc(96, 28);
-  // glass top (we look down through it at the trays)
-  p.rect(0, 0, 96, 16, P.steel);
-  p.rect(1, 1, 94, 14, P.shadeDeep);
-  // interior: white enamel floor and a warm tube at the back
-  p.rect(2, 2, 92, 12, P.concreteLt);
-  p.hline(2, 93, 2, P.goldPale);
-  // trays: meat, mince, ham, sausages, karaage — and the empty croquette tray
-  const trays: [number, string][] = [
-    [3, 'loin'], [15, 'mince'], [27, 'ham'], [39, 'sausage'], [51, 'karaage'], [64, 'empty'], [78, 'loin2'],
-  ];
-  /** The green plastic grass (バラン) that divides the trays: a zigzag strip. */
-  const baran = (bx: number) => {
-    for (let j = 5; j <= 10; j++) {
-      p.set(bx + (j % 2), j, P.leafDeep);
-      p.set(bx + 1 - (j % 2), j, P.leaf);
+  const build = (tools: boolean) => {
+    const p = pc(96, 28);
+    // the stainless counter top
+    p.rect(0, 0, 96, 16, P.concreteLt);
+    p.hline(0, 95, 0, P.white);
+    p.hline(0, 95, 15, P.steel);
+    // the griddle: a black iron plate, years of seasoning in it, a low
+    // splash guard at the back and the grease gutter along the front
+    const { x0, x1, y0, y1 } = PLATE;
+    p.hline(x0 - 1, x1 + 1, y0 - 1, P.steel);
+    p.rect(x0, y0, x1 - x0 + 1, y1 - y0 + 1, P.charcoal);
+    for (let y = y0; y <= y1; y++)
+      for (let x = x0; x <= x1; x++) {
+        const v = valueNoise(x / 7, y / 2, 83);
+        if (v > 0.74) p.set(x, y, P.ink);
+        else if (v < 0.2 && ihash(x, y, 84) % 3 === 0) p.set(x, y, P.asphalt);
+      }
+    p.vline(x0, y0, y1, P.asphalt);
+    p.hline(x0, x1, y0, P.asphalt);
+    p.hline(x0 - 1, x1 + 1, y1 + 1, P.steel);
+    p.hline(x0 - 1, x1 + 1, y1 + 2, P.asphalt);
+    p.set(x1 + 1, y1 + 2, P.ink);
+    if (tools) {
+      // the two spatulas (ヘラ) laid on the right of the plate, handles to the back
+      for (const [bx, by] of [[54, 6], [58, 8]] as const) {
+        p.rect(bx, by, 4, 3, P.steel);
+        p.hline(bx, bx + 3, by, P.concreteLt);
+        p.set(bx, by + 2, P.asphalt);
+        p.line(bx + 4, by, bx + 8, by - 3, P.wood);
+        p.set(bx + 8, by - 3, P.woodLt);
+      }
     }
-    p.set(bx, 4, P.leafYoung);
+    // the ledge on the right: the sauce bottle, the 青のり shaker, the 「5時から」 card
+    p.rect(71, 3, 3, 7, P.woodDark);
+    p.vline(71, 3, 9, P.wood);
+    p.rect(71, 5, 3, 2, P.sun);
+    p.set(72, 1, P.red);
+    p.rect(71, 2, 3, 1, P.red);
+    p.rect(75, 5, 3, 5, P.leafShade);
+    p.vline(75, 5, 9, P.leaf);
+    p.hline(75, 77, 7, P.paper);
+    p.rect(75, 4, 3, 1, P.concreteLt);
+    p.hline(75, 77, 3, P.white);
+    // the card: white, a big red hand-written 5
+    p.rect(78, 2, 6, 8, P.white);
+    p.hline(78, 83, 9, P.concrete);
+    p.vline(83, 2, 9, P.concreteLt);
+    p.hline(79, 82, 3, P.verm);
+    p.vline(79, 3, 5, P.verm);
+    p.hline(79, 81, 5, P.verm);
+    p.vline(82, 5, 7, P.verm);
+    p.hline(79, 81, 8, P.verm);
+    // the ledger (ツケ) with its string, at the east end
+    p.rect(84, 2, 9, 7, P.navy);
+    p.rect(85, 2, 7, 6, P.paper);
+    p.vline(85, 2, 7, P.navy);
+    printLines(p, 87, 3, 4, 2, P.ink, 7);
+    p.hline(87, 90, 6, P.steel);
+    p.line(92, 7, 94, 10, P.verm);
+    // stainless lip, white enamel front with a red stripe, the peach marks and モモセ
+    p.rect(0, 16, 96, 2, P.concrete);
+    p.hline(0, 95, 16, P.white);
+    p.rect(0, 18, 96, 8, P.white);
+    p.hline(0, 95, 25, P.red);
+    for (const mx of [20, 68]) peachMark(p, mx, 18);
+    const tw = fontSmallWidth('モモセ');
+    fontTextSmall(p, 'モモセ', 48 - Math.floor(tw / 2), 18, P.verm, 1);
+    p.rect(0, 26, 96, 2, P.charcoal);
+    finish(p, { soft: true });
+    return p.toCanvas();
   };
-  for (const [tx, kind] of trays) {
-    const w = kind === 'empty' ? 13 : 11;
-    p.rect(tx, 4, w, 8, P.white);
-    p.hline(tx, tx + w - 1, 11, P.concrete);
-    p.vline(tx + w - 1, 4, 11, P.concrete);
-    const ix = tx + 1;
-    if (kind !== 'empty') baran(tx + w - 3);
-    switch (kind) {
-      case 'loin':
-      case 'loin2':
-        // three slices: red lean, a white rim of fat, marbling, a wet glint
-        for (let j = 0; j < 3; j++) {
-          const c = kind === 'loin' ? P.red : P.crimson;
-          p.rect(ix + j * 3 - (j > 0 ? 1 : 0), 5, 3, 6, c);
-          p.vline(ix + j * 3 - (j > 0 ? 1 : 0), 5, 10, P.skin1);
-          p.set(ix + j * 3 + 1 - (j > 0 ? 1 : 0), 7 + (j % 2), P.peach);
-          p.set(ix + j * 3 + 1 - (j > 0 ? 1 : 0), 5, P.glint);
-          p.set(ix + j * 3 + 2 - (j > 0 ? 1 : 0), 10, P.vermShade);
-        }
-        break;
-      case 'mince':
-        // a mound of mince: pink with darker specks, a lit top, a glint
-        p.ellipse(ix + 3.5, 7.5, 4, 3, P.peach);
-        p.hline(ix + 1, ix + 5, 5, P.skin2);
-        for (let j = 0; j < 7; j++) p.set(ix + 1 + ((j * 5) % 6), 6 + ((j * 3) % 4), j % 2 ? P.sunShade : P.crimson);
-        p.set(ix + 2, 5, P.glint);
-        p.set(ix + 3, 5, P.skin1);
-        break;
-      case 'ham':
-        // round slices of ham fanned out, each with a pale rim and a glint
-        for (let j = 0; j < 3; j++) {
-          p.ellipse(ix + 2 + j * 2.5, 7.5, 2, 2.4, P.crimson);
-          p.set(ix + 1 + j * 2.5, 6, P.skin1);
-          p.set(ix + 2 + j * 2.5, 9, P.sunShade);
-        }
-        p.set(ix + 6, 6, P.glint);
-        break;
-      case 'sausage':
-        for (let j = 0; j < 3; j++) {
-          p.rect(ix, 5 + j * 2, 7, 2, P.sunShade);
-          p.hline(ix, ix + 6, 5 + j * 2, P.peach);
-          p.set(ix, 5 + j * 2, P.maroon);
-          p.set(ix + 2 + j, 5 + j * 2, P.glint);
-        }
-        break;
-      case 'karaage':
-        for (let j = 0; j < 5; j++) {
-          const kx = ix + (j % 3) * 2 + (j > 2 ? 1 : 0);
-          const ky = 5 + Math.floor(j / 3) * 3;
-          p.rect(kx, ky, 3, 3, P.brassOld);
-          p.set(kx, ky, P.goldPale);
-          p.set(kx + 1, ky, P.brass);
-          p.set(kx + 2, ky + 2, P.wood);
-        }
-        break;
-      case 'empty':
-        // the croquette tray, empty: bare white, a few crumbs, the grease
-        // stain where they sat, and a white card with a big red 5 (5時から)
-        p.rect(ix, 5, w - 3, 6, P.glint);
-        p.hline(ix, ix + w - 4, 10, P.concreteLt);
-        for (const [cx, cy] of [[ix + 1, 9], [ix + 3, 10], [ix + 8, 9], [ix + 2, 6]] as const) p.set(cx, cy, P.brass);
-        p.set(ix + 9, 7, P.goldPale);
-        p.rect(ix + 4, 3, 7, 7, P.white);
-        p.hline(ix + 4, ix + 10, 9, P.concrete);
-        p.vline(ix + 10, 3, 9, P.concreteLt);
-        // the hand-written 5
-        p.hline(ix + 6, ix + 9, 4, P.verm);
-        p.vline(ix + 6, 4, 6, P.verm);
-        p.hline(ix + 6, ix + 8, 6, P.verm);
-        p.vline(ix + 9, 6, 7, P.verm);
-        p.hline(ix + 6, ix + 8, 8, P.verm);
-        break;
+  const a = stand(build(true), { cx: 48, base: 16, shadow: 0, contact: 0 });
+  const bare = build(false);
+  const withTools = a.img;
+  // the ending: the spatulas are in 百瀬's hands (events/ending.ts)
+  a.img = (env: PropEnv) => (env.stage >= 3 ? bare : withTools(env));
+  a.over = (g: Gfx, x: number, y: number, env: PropEnv) => {
+    const ox = x + a.ox;
+    const oy = y + a.oy;
+    const t = env.t;
+    if (env.stage >= 3) return;
+    if (env.stage === 2) {
+      // the sunset shows in the iron (under a roof)
+      g.rect(ox + 22, oy + 5, 16, 1, P.sun, 0.55);
+      g.rect(ox + 26, oy + 6, 10, 1, P.crimson, 0.45);
+      g.rect(ox + 28, oy + 5, 4, 1, P.horizon, 0.6);
+      return;
     }
-  }
-  // the front glass: lit edge, two diagonal glints
-  p.hline(1, 94, 13, P.aqua);
-  p.hline(1, 94, 14, P.steel);
-  for (const gx of [8, 44, 70]) {
-    p.line(gx, 13, gx + 3, 10, P.white);
-  }
-  // the ledger (ツケ) with its string, on the glass top at the east end
-  p.rect(84, 2, 9, 7, P.navy);
-  p.rect(85, 2, 7, 6, P.paper);
-  p.vline(85, 2, 7, P.navy);
-  printLines(p, 87, 3, 4, 2, P.ink, 7);
-  p.hline(87, 90, 6, P.steel);
-  p.line(92, 7, 94, 10, P.verm);
-  // stainless lip, white enamel front with a red stripe and the shop mark
-  p.rect(0, 16, 96, 2, P.concrete);
-  p.hline(0, 95, 16, P.white);
-  p.rect(0, 18, 96, 8, P.white);
-  p.hline(0, 95, 25, P.red);
-  for (const mx of [20, 68]) {
-    p.ellipse(mx + 3.5, 23.5, 3, 3, P.verm);
-    p.ellipse(mx + 3.5, 23.5, 2, 2, P.white);
-    p.set(mx + 3, 23, P.verm);
-    p.set(mx + 4, 24, P.verm);
-  }
-  fontTextSmall(p, 'マルヤマ', 32, 18, P.verm, 1);
-  p.rect(0, 26, 96, 2, P.charcoal);
-  finish(p, { soft: true });
-  const img = p.toCanvas();
-  const a = stand(img, { cx: 48, base: 16, shadow: 0, contact: 0 });
+    // the plate heating: a dull sheen that slowly swells and fades (2.4 s);
+    // stage 1 it hangs, still
+    const k = env.stage === 1 ? 0.35 : Math.sin(((t % 2400) / 2400) * Math.PI * 2) * 0.5 + 0.5;
+    const len = 6 + Math.round(k * 10);
+    g.rect(ox + 14, oy + 4, len, 1, P.asphalt, 0.5 + k * 0.4);
+    g.rect(ox + 16, oy + 5, Math.max(2, len - 6), 1, P.steel, 0.25 + k * 0.3);
+  };
   a.light = (g: Gfx, x: number, y: number, env: PropEnv) => {
     const n = env.grade.night;
     lightPool(g, x + a.ox + 48, y + a.oy + 20, 56, 14, P.goldPale, 0.05 + n * 0.22);
-  };
-  a.glow = (g: Gfx, x: number, y: number, env: PropEnv) => {
-    // the case's warm tube and the glow on the trays
-    const n = env.grade.night;
-    g.rect(x + a.ox + 3, y + a.oy + 2, 90, 1, P.glint, 0.55 + n * 0.3);
-    g.rect(x + a.ox + 2, y + a.oy + 3, 92, 10, P.goldPale, 0.07 + n * 0.08);
   };
   return a;
 });
@@ -656,7 +636,7 @@ registerProp('in_mr_showcase', () => {
 // ---------------------------------------------------------------- register + beckoning cat (7,4), scale (8,4)
 
 function cabinet(p: PixelCanvas, y: number): void {
-  // continues the showcase's front: steel lip, white enamel, red stripe
+  // continues the counter's front: steel lip, white enamel, red stripe
   p.rect(0, y, 16, 2, P.concrete);
   p.hline(0, 15, y, P.white);
   p.rect(0, y + 2, 16, 8, P.white);
@@ -742,18 +722,22 @@ registerProp('in_mr_board', () =>
     p.rect(1, 2, 14, 18, P.wood);
     p.hline(1, 14, 2, P.woodLt);
     p.rect(2, 3, 12, 16, P.leafShade);
-    // chalk: a line of 『本日のおすすめ』 (just strokes), a croquette drawn in
-    // yellow chalk with crumbs, its price 80 in pink, underlined in red
+    // chalk: a line of 『本日のおすすめ』 (just strokes), a plate of yakisoba
+    // drawn in chalk — the white plate, the noodles in wavy yellow and brown,
+    // green dots of 青のり — its price 80 in pink, underlined in red
     p.hline(3, 5, 5, P.concreteLt);
     p.hline(7, 8, 5, P.concreteLt);
     p.hline(10, 12, 5, P.concreteLt);
     p.set(4, 4, P.concreteLt);
     p.set(11, 4, P.concreteLt);
-    p.ellipse(7.5, 10, 4, 2.5, P.goldPale);
-    p.ellipse(7, 9.5, 2.5, 1.5, P.gold);
-    p.set(5, 9, P.white);
-    for (const [cx2, cy2] of [[4, 11], [9, 8], [10, 11], [6, 12]] as const) p.set(cx2, cy2, P.brass);
-    p.hline(5, 10, 12, P.brassOld);
+    p.ellipse(7.5, 11, 5, 1.6, P.concreteLt);
+    for (let j = 0; j < 7; j++) {
+      p.set(5 + j, 9 + (j % 2), j % 3 === 1 ? P.brass : P.goldPale);
+      p.set(5 + j, 10 - (j % 2), P.goldPale);
+    }
+    p.set(6, 8, P.leafYoung);
+    p.set(9, 8, P.leafYoung);
+    p.set(8, 9, P.vermLt);
     tiny(p, '80', 5, 13, P.peach, undefined, 1);
     p.hline(3, 12, 18, P.vermLt);
     p.hline(1, 14, 20, P.woodDark);
@@ -766,7 +750,7 @@ registerProp('in_mr_board', () =>
 
 registerProp('in_mr_crates', () =>
   prop(16, 26, (p) => {
-    // two blue plastic crates (通い箱) stacked, 『マルヤマ』 in marker on the
+    // two blue plastic crates (通い箱) stacked, 『モモセ』 in marker on the
     // front, the top one holding folded paper bags and a roll of twine
     const crate = (y: number, h: number) => {
       p.rect(1, y, 14, h, P.blue);
