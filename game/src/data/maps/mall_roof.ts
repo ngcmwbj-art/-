@@ -1,9 +1,10 @@
 // 屋上 ゆうやけひろば (map_mall_roof, 24×15; 30_level_art 5.6, 10_narrative
 // 7.18 — the side quest 「屋上ゆうやけひろばの『4人目』」, ★2026-09-28 追加).
 //
-// Up the stairs behind the steel door at the west end of M4's north wall; they
-// come out at the south edge (12,14) — so the way up is pushed north and the
-// way down south, and holding the key through a door never bounces back.
+// Up the stairs in the west end of M4's north wall (two tiles wide, ★2026-09-28
+// 依頼主の指摘); they come out at the south edge (11–12,14), lane for lane —
+// so the way up is pushed north and the way down south, and holding the key
+// through the stairs never bounces back.
 // A rooftop playground closed for a year: the little stage of カネナリくん's
 // handshake event against the north fence (the name book on the table
 // beside it, three pipe chairs, the queue line painted all the way to a
@@ -47,7 +48,7 @@ export const ROWS_ROOF = [
   '#,,,,,ooo..............#',
   '#............o.........#',
   '#.............ooo......#',
-  '###########D############',
+  '###########DD###########',
 ];
 
 const O = (id: string, x: number, y: number, extra: Record<string, unknown> = {}): MapObj =>
@@ -110,8 +111,10 @@ registerMap({
     { ...O('obj_roof_balloon', 21, 1, { face: 'up' }), id: 'obj_roof_balloon_e' } as MapObj,
     // the town over the south parapet (everything in it points its shadow here)
     O('obj_roof_town', 1, 14, { w: 10, face: 'down' }),
-    { ...O('obj_roof_town', 14, 14, { w: 9, face: 'down' }), id: 'obj_roof_town_e' } as MapObj,
-    { t: 'door', id: 'door_roof_m4', x: 12, y: 14, to: 'map_mall_2f', tx: 2, ty: 2, dir: 'down', se: ['se_stairs', 'se_door_heavy'] },
+    { ...O('obj_roof_town', 13, 14, { w: 10, face: 'down' }), id: 'obj_roof_town_e' } as MapObj,
+    // down the stairs, two tiles wide: each lane to its own lane of M4's stairwell (2–3,1)
+    { t: 'door', id: 'door_roof_m4', x: 11, y: 14, to: 'map_mall_2f', tx: 2, ty: 2, dir: 'down', se: 'se_stairs' },
+    { t: 'door', id: 'door_roof_m4_b', x: 12, y: 14, to: 'map_mall_2f', tx: 3, ty: 2, dir: 'down', se: 'se_stairs' },
     // ワスレガサ (someone's umbrella, left by the chairs) and a セミファイナル at the east fence
     { t: 'sym', id: 'sym_mall_roof_01', enemies: ['enemy_wasuregasa'], x: 15, y: 8, move: 'umbrella', radius: 2, restoreAt: [7, 3], restoreOff: [3, 0] },
     { t: 'sym', id: 'sym_mall_roof_02', enemies: ['enemy_semi_final'], x: 22, y: 7, move: 'semi', restoreAt: [22, 8], restoreOff: [3, -8] },

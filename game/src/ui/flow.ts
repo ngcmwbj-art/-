@@ -294,7 +294,8 @@ function writeChapter1ClearData(): void {
   state.x = 56;
   state.y = 22;
   state.dir = 'right';
-  state.inventory = state.inventory.filter((id) => id !== 'item_korokke');
+  // the yakisoba (dinner) and a frozen たんかん never handed to しんご stay in 夕鳴町
+  state.inventory = state.inventory.filter((id) => id !== 'item_korokke' && id !== 'item_tankan');
   restAll();
   saveGame();
 }
@@ -392,7 +393,8 @@ function standardChapter2Start(): void {
 function adjustForChapter2(): LevelUpResult[] {
   setFlag('flag_ch2_started', 1);
   const out = chapter2Adjust();
-  state.inventory = state.inventory.filter((id) => id !== 'item_korokke');
+  // the yakisoba (dinner) and a frozen たんかん never handed to しんご stay in 夕鳴町
+  state.inventory = state.inventory.filter((id) => id !== 'item_korokke' && id !== 'item_tankan');
   restAll();
   return out;
 }

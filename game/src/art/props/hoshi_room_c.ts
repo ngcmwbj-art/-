@@ -1395,34 +1395,39 @@ registerProp('prop_hr_lamp', (o) => {
   const kind = String(o.kind ?? 'ring');
   const on = o.on !== false;
   const r = Number(o.r ?? 70);
-  const p = new PixelCanvas(24, 16);
+  // hung from the ceiling on a long cord: the shade floats over the room's middle
+  const p = new PixelCanvas(24, 44);
   if (kind === 'bulb') {
-    p.vline(12, 0, 8, P.charcoal);
-    p.rect(10, 8, 5, 3, P.steel);
-    p.ellipse(12, 12, 3, 3, on ? P.goldPale : P.concrete);
+    p.vline(12, 0, 34, P.charcoal);
+    p.rect(10, 34, 5, 3, P.steel);
+    p.ellipse(12, 39, 3, 3, on ? P.goldPale : P.concrete);
+    p.set(11, 38, on ? P.white : P.concreteLt);
   } else {
-    p.vline(12, 0, 5, P.charcoal);
-    p.ellipse(12, 8, 10, 3, P.concreteLt);
-    p.ellipse(12, 8, 7, 2, on ? P.white : P.concrete);
-    p.ellipse(12, 7, 10, 2, P.white);
-    p.vline(18, 9, 15, P.steel); // the pull cord
-    p.set(18, 15, P.brass);
+    // the ring fluorescent's shade (seen from below and aside) and its pull cord
+    p.vline(12, 0, 28, P.charcoal);
+    p.rect(9, 28, 7, 2, P.steel);
+    p.ellipse(12, 33, 10, 3, P.concrete);
+    p.hline(3, 21, 31, P.concreteLt);
+    p.ellipse(12, 34, 8, 2, on ? P.white : P.concreteLt);
+    p.hline(5, 19, 36, P.steel);
+    p.vline(19, 36, 43, P.steel);
+    p.set(19, 43, P.brass);
   }
   const img = p.toCanvas();
   return {
     ox: -4,
-    oy: -40,
+    oy: -64,
     w: 0,
     h: 0,
     foot: 0,
     flat: true,
     img: () => null,
-    fg: [{ ox: -4, oy: -40, img: () => img }],
+    fg: [{ ox: -4, oy: -64, img: () => img }],
     moths: on ? { x: 8, y: -30, r: 12 } : undefined,
     glow(g: Gfx, x: number, y: number) {
       if (!on) return;
-      if (kind === 'bulb') g.rect(x + 7, y - 30, 3, 2, '#FFF6D8', 0.9);
-      else g.rect(x + 2, y - 33, 13, 1, '#FFF6D8', 0.8);
+      if (kind === 'bulb') g.rect(x + 6, y - 27, 4, 3, '#FFF6D8', 0.9);
+      else g.rect(x + 1, y - 30, 15, 1, '#FFF6D8', 0.85);
     },
     light(g: Gfx, x: number, y: number) {
       if (!on) return;

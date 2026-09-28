@@ -5,12 +5,13 @@
 // The names in the note are the client's (2026-09-28): はらぺこはっち,
 // よっしー, おかみ — who they are is never said.
 
-/** Things to examine on the roof (and the sign by the door in M4). */
+/** Things to examine on the roof (and the stairs up from M4). */
 export const ROOF_OBJ: Record<string, string> = {
-  // M4 2F通路, the steel door at the west end of the north wall
-  obj_m4_roof_door: `@narr
+  // M4 2F通路, the stairs up in the west end of the north wall
+  obj_m4_roof_stairs: `@narr
 『屋上 ゆうやけひろば』。{w=300}
-営業時間は、10:00〜17:00。`,
+営業時間は、10:00〜17:00。
+階段の 上から、夕日の 色が おりてくる。`,
   obj_roof_welcome: `@narr
 『うこそ ゆうやけひろば』。{w=300}
 『よ』は、足もとに 落ちている。`,

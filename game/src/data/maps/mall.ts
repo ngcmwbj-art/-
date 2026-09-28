@@ -258,7 +258,7 @@ registerMap({
 
 export const ROWS_M4 = [
   '#WWWWWWWWWWWWWWWWWWWW#',
-  '#WDWWWWWWWWWWWWWWWWDW#',
+  '#WDDWWWWWWWWWWWWWWWDW#',
   '#mmmmmmmmmmmmmmommmmm#',
   '#ommmmmmmmmmmmmommmmm#',
   '#UmmmmmmmmmmmmmCmmmmm#',
@@ -294,11 +294,14 @@ registerMap({
     PR('mall_shaft', 0, 0, { fx: 98, fy: 36, fw: 46, fh: 42, rise: 34, shear: 0.55, motes: 8, seed: 5401 }),
     PR('mall_shaft', 0, 0, { fx: 280, fy: 34, fw: 44, fh: 26, rise: 32, shear: 0.55, motes: 10, seed: 5402, a: 0.26 }),
     PR('mall_maigo_door', 19, 0),
-    // the steel door up to the roof (屋上 ゆうやけひろば, 5.6 ★2026-09-28)
-    PR('mall_roof_door', 2, 0),
+    // the stairs up to the roof (屋上 ゆうやけひろば, 5.6), two tiles wide
+    // (★2026-09-28 依頼主の指摘): the stairwell in the wall at (2–3,0–1),
+    // the 『屋上 ↑』 board over it, the lowest step and the floor sticker
+    // 『ゆうやけ ひろば』 on the corridor, the roof's light down the steps
+    PR('mall_roof_stairs_up', 2, 0),
     // examine
-    { t: 'obj', id: 'obj_m4_roof_door', x: 2, y: 1, face: 'up', text: ROOF_OBJ.obj_m4_roof_door } as MapObj,
-    O('obj_toy_shutter', 3, 1, { w: 5, face: 'up', script: 'lv_toy_shutter' }),
+    { t: 'obj', id: 'obj_m4_roof_stairs', x: 2, y: 1, w: 2, face: 'up', text: ROOF_OBJ.obj_m4_roof_stairs } as MapObj,
+    O('obj_toy_shutter', 5, 1, { w: 3, face: 'up', script: 'lv_toy_shutter' }),
     O('obj_glasses_sign', 10, 1, { w: 3, face: 'up' }),
     O('obj_maigo_door', 19, 1, { face: 'up', script: 'evt_maigo_door' }),
     O('obj_skylight', 6, 2, { w: 3, h: 3, flat: true }),
@@ -309,7 +312,9 @@ registerMap({
     O('obj_cleaning_sign', 15, 4, { cond: { notTaken: 'sym_mall_2f_01' } }),
     { t: 'trig', id: 'trig_maigo_door_rest', x: 18, y: 2, w: 3, h: 2, once: true, script: 'trig_maigo_door_rest', cond: { flag: 'flag_maigo_door_open' } },
     { t: 'door', id: 'door_m4_m5', x: 19, y: 1, to: 'map_mall_maigo', tx: 6, ty: 9, dir: 'up', se: 'se_door_heavy', cond: { flag: 'flag_maigo_door_open' } },
-    { t: 'door', id: 'door_m4_roof', x: 2, y: 1, to: 'map_mall_roof', tx: 12, ty: 13, dir: 'up', se: ['se_door_heavy', 'se_stairs'] },
+    // up the stairs: each lane comes out on its own lane of the roof's stairs (11–12,14)
+    { t: 'door', id: 'door_m4_roof', x: 2, y: 1, to: 'map_mall_roof', tx: 11, ty: 13, dir: 'up', se: 'se_stairs' },
+    { t: 'door', id: 'door_m4_roof_b', x: 3, y: 1, to: 'map_mall_roof', tx: 12, ty: 13, dir: 'up', se: 'se_stairs' },
     { t: 'door', id: 'door_m3_m4_escalator', x: 1, y: 4, to: 'map_mall_health', tx: 7, ty: 3, dir: 'down', step: true, se: 'se_escalator_step' },
     { t: 'sym', id: 'sym_mall_2f_01', enemies: ['enemy_soujirou'], x: 8, y: 3, dir: 'right', move: 'soujirou', restoreAt: [8, 2], restoreOff: [0, 3] },
   ],

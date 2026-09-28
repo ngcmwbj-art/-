@@ -2,7 +2,8 @@
 //
 // A rooftop playground closed for a year, at 17:00 of stage 2: over the north
 // fence the dusk (lilac, rose, the last orange low in the west) and the far
-// hills with a few roofs; the top of the stairs from M4 at the south edge;
+// hills with a few roofs; the top of the stairs from M4 at the south edge
+// (two tiles wide, like the stairwell in M4's wall);
 // the lift's machine room in the north-west carrying the board
 // 『ようこそ ゆうやけひろば』 (its よ has fallen onto the deck); the
 // little stage of カネナリくん's handshake event (red carpet, 紅白幕, the
@@ -247,7 +248,7 @@ function paintParapets(p: PixelCanvas): void {
       }
   }
   // south (224–239): the deck's last shadow, the coping top, the outside wall going down
-  // (the stairs at x 182–217 draw their own walls over it)
+  // (the stairs at x 168–215 draw their own walls over it)
   for (let x = 0; x < W; x++) {
     p.set(x, 226, P.concreteLt);
     for (let y = 227; y < 232; y++) p.set(x, y, h01(x, y, 5651) < 0.07 ? P.steel : P.concrete);
@@ -652,18 +653,19 @@ registerProp('mall_roof_machine', () => {
   } as PropArt;
 });
 
-// ================================================================ the stairs down (11,14): x11–13, the exit at (12,14)
+// ================================================================ the stairs down (11,14): x11–12, the exits at (11,14)(12,14)
 
-// Where one comes up from M4 (the steel door at the west end of its north
-// wall): the top of the stairs at the south edge, between two low walls with
-// pipe handrails, the steps going down into the dark; a 『↓2F』 plate, and
-// the evening falling a little way in.
+// Where one comes up from M4 (the stairwell in the west end of its north
+// wall, two tiles wide ★2026-09-28): the top of the stairs at the south
+// edge, as wide as two people, between two low walls with pipe handrails,
+// the steps going down into the dark; a 『↓2F』 plate, and the evening
+// falling a little way in.
 registerProp('mall_roof_stairs', () => {
-  // image: world x 174–225, y 206–239 (anchor (176,224))
-  const p = new PixelCanvas(52, 34);
-  const X = (wx: number) => wx - 174;
+  // image: world x 158–217, y 206–239 (anchor (176,224))
+  const p = new PixelCanvas(60, 34);
+  const X = (wx: number) => wx - 158;
   const Y = (wy: number) => wy - 206;
-  // the steps (x 190–209), lit at the top, dark further down
+  // the steps (x 176–207), lit at the top, dark further down
   const steps: [number, number, string, string][] = [
     [218, 222, P.concreteLt, P.concrete],
     [223, 227, P.concrete, P.steel],
@@ -672,39 +674,39 @@ registerProp('mall_roof_stairs', () => {
     [237, 239, P.charcoal, P.ink],
   ];
   for (const [y0, y1, top, face] of steps)
-    for (let y = y0; y <= y1; y++) p.hline(X(190), X(209), Y(y), y === y0 ? top : face);
+    for (let y = y0; y <= y1; y++) p.hline(X(176), X(207), Y(y), y === y0 ? top : face);
   // the non-slip edges
-  for (const [y0] of steps.slice(0, 3)) for (let x = 191; x < 209; x += 3) p.set(X(x), Y(y0) + 1, P.brassOld);
+  for (const [y0] of steps.slice(0, 3)) for (let x = 177; x < 207; x += 3) p.set(X(x), Y(y0) + 1, P.brassOld);
   // the low side walls with their coping
-  for (const wx of [182, 210]) {
+  for (const wx of [168, 208]) {
     p.rect(X(wx), Y(214), 8, 26, P.concrete);
     p.hline(X(wx), X(wx + 7), Y(214), P.concreteLt);
     p.vline(X(wx), Y(214), Y(239), P.concreteLt);
     p.vline(X(wx + 7), Y(215), Y(239), P.steel);
   }
   // the inner faces of the walls going down with the stairs
-  p.vline(X(189), Y(218), Y(239), P.shade);
-  p.vline(X(210), Y(218), Y(239), P.asphalt);
+  p.vline(X(175), Y(218), Y(239), P.shade);
+  p.vline(X(208), Y(218), Y(239), P.asphalt);
   // pipe handrails on posts
-  for (const hx of [185, 213]) {
+  for (const hx of [171, 211]) {
     p.vline(X(hx), Y(208), Y(214), P.steel);
     p.vline(X(hx), Y(226), Y(232), P.steel);
     p.vline(X(hx), Y(208), Y(233), P.concreteLt);
     p.set(X(hx), Y(208), P.white);
   }
   // 『↓2F』 on the west wall
-  p.rect(X(175), Y(215), 7, 12, P.navy);
-  p.hline(X(175), X(181), Y(215), P.blue);
-  tiny(p, '2F', X(176), Y(217), P.white);
-  p.vline(X(178), Y(223), Y(225), P.gold);
-  p.set(X(177), Y(224), P.gold);
-  p.set(X(179), Y(224), P.gold);
+  p.rect(X(160), Y(215), 7, 12, P.navy);
+  p.hline(X(160), X(166), Y(215), P.blue);
+  tiny(p, '2F', X(161), Y(217), P.white);
+  p.vline(X(163), Y(223), Y(225), P.gold);
+  p.set(X(162), Y(224), P.gold);
+  p.set(X(164), Y(224), P.gold);
   finish(p, { soft: true, rim: false });
   const img = p.toCanvas();
   return {
-    ox: -2,
+    ox: -18,
     oy: -18,
-    w: 52,
+    w: 60,
     h: 34,
     foot: 15,
     img: () => img,
@@ -712,7 +714,7 @@ registerProp('mall_roof_stairs', () => {
     contact: 0,
     // the evening on the top steps
     light(g: Gfx, x: number, y: number) {
-      g.rect(x + 14, y - 6, 20, 5, '#F7C27A', 0.12);
+      g.rect(x, y - 6, 32, 5, '#F7C27A', 0.12);
     },
   } as PropArt;
 });
@@ -1297,7 +1299,8 @@ registerProp('mall_roof_ac', () => {
 registerProp('mall_roof_fence_s', () => {
   // image: world x 0–383, y 204–239 (anchor (0,224)); a low safety fence on the coping (base y 230)
   const p = new PixelCanvas(W, 36);
-  const gap = (x: number) => x >= 180 && x < 220;
+  // cut at the stairs (their walls x 168–215)
+  const gap = (x: number) => x >= 166 && x < 218;
   for (let y = 15; y < 25; y++)
     for (let x = 12; x < W - 12; x++) {
       if (gap(x)) continue;
@@ -1306,7 +1309,7 @@ registerProp('mall_roof_fence_s', () => {
       if (d1 && d2) p.set(x, y, P.concreteLt);
       else if ((d1 || d2) && (x & 1) === 0) p.set(x, y, P.steel);
     }
-  for (const [a, b] of [[8, 179], [220, W - 9]]) {
+  for (const [a, b] of [[8, 165], [218, W - 9]]) {
     p.hline(a, b, 12, P.white);
     p.hline(a, b, 13, P.concreteLt);
     p.hline(a, b, 14, P.steel);
@@ -1317,7 +1320,7 @@ registerProp('mall_roof_fence_s', () => {
     p.vline(x, 11, 26, P.concreteLt);
     p.vline(x + 1, 11, 26, P.steel);
   }
-  for (const x of [178, 220]) {
+  for (const x of [164, 218]) {
     p.vline(x, 11, 26, P.concreteLt);
     p.vline(x + 1, 11, 26, P.steel);
   }
