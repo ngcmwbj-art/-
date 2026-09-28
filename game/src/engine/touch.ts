@@ -307,7 +307,10 @@ export function installTouch(input: Input, screen?: Screen): void {
     const vh = window.innerHeight;
     const dpr = window.devicePixelRatio || 1;
     const portrait = vh > vw;
-    const tablet = Math.min(vw, vh) >= 600;
+    // a tablet by its own screen, not only the window: inside the Claude app an
+    // iPad's page can be as low as ~540 CSS px (2026-09-28)
+    const scr = window.screen;
+    const tablet = Math.min(vw, vh) >= 600 || (!!scr && Math.min(scr.width, scr.height) >= 700);
     let S0 = clamp(Math.min(vw, vh) * (portrait ? 0.42 : 0.34), 120, 200); // wanted D-pad size
     const M = clamp(S0 * 0.12, 12, 24); // margin
     const safeB = portrait ? 22 : 8; // home indicator
