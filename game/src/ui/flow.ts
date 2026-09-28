@@ -268,7 +268,7 @@ export interface ClearRecord {
  * Remember the finished run (called when the ending's 「つづく」 has been
  * stamped), and write the 「第1章クリアデータ」 into the save slot
  * (50_ch2_story 1.4): the crossing at map_town (56,22) facing east, night,
- * the croquettes eaten, everyone rested.
+ * the yakisoba eaten, everyone rested.
  */
 export function markClear(): ClearRecord {
   setFlag('flag_clear', 1);
@@ -387,7 +387,7 @@ function standardChapter2Start(): void {
 
 /**
  * chapter2Adjust() (51 3.1): at least 150 exp, the level recomputed (cap 7),
- * everyone rested, the croquettes gone.
+ * everyone rested, the yakisoba gone.
  */
 function adjustForChapter2(): LevelUpResult[] {
   setFlag('flag_ch2_started', 1);

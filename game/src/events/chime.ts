@@ -68,12 +68,12 @@ function tileNear(px: number, py: number, sx: number, sy: number, d: number): [n
 
 // ---------------------------------------------------------------- 5.6 evt_chime_stop ★
 
-/** まめ吉 held in the middle of his 「まいど」 bow while time stops. */
+/** くま吉 held in the middle of his 「まいど」 bow while time stops. */
 const freeze = { mame: false };
 registerWorldFx({
   map: 'map_town',
   update() {
-    // only while the scene runs (a jump out of it lets まめ吉 go)
+    // only while the scene runs (a jump out of it lets くま吉 go)
     if (!game.scripts.busy) {
       freeze.mame = false;
       card.on = false;
@@ -129,7 +129,7 @@ registerScript('evt_chime_stop', function* (): Co {
   yield 300;
   void playChimeMotif({ notes: 4, gap: 0.45, cut: true, cutAt: 1.9 });
   // t=2.8: everyone on screen looks up at the sky (0–4 frames apart);
-  // まめ吉 stops in the middle of his bow. The frame narrows, the camera
+  // くま吉 stops in the middle of his bow. The frame narrows, the camera
   // tilts a little towards the sky.
   yield 1500;
   setFlag('flag_maido_hold', 1);
@@ -167,12 +167,12 @@ registerScript('evt_chime_stop', function* (): Co {
   if (sae && saeHere) sae.data.scripted = true;
   const cow = actor('npc_cow_statue');
   if (cow) cow.pose = 'look_up';
-  // サエ goes off to the park to keep observing
+  // さや goes off to the park to keep observing
   if (sae && saeHere) sendAway(sae, [[sae.tileX, 21], [20, 21], [20, 15]], 3, 900);
   yield 100;
   yield* msg(T.CHIME_STOP);
   yield* emote('player', 'question');
-  // far off, only a small balloon: まめ吉, twice
+  // far off, only a small balloon: くま吉, twice
   if (actor('npc_mamekichi')) {
     smallVoice('npc_mamekichi', 'まいど！', 700);
     yield 950;
@@ -266,7 +266,7 @@ function* hatoBlock(): Co {
   for (let tries = 0; ; tries++) {
     // close in (2×) on the two of them: the gag is a card of a few pixels
     // and a tie; the pair sits in the upper middle, clear of the window
-    // (まめ吉's 「まいど」 over the shop would be cut by the frame's top edge)
+    // (くま吉's 「まいど」 over the shop would be cut by the frame's top edge)
     setFlag('flag_maido_hold', 1);
     const z = yield* zoomIn(Math.round((p.x + hato.x) / 2), Math.round(Math.max(p.y, hato.y)) - 14, 380);
     // nobody else's head over the window's edge in this shot
@@ -461,7 +461,7 @@ registerScript('evt_obaa_park_hint', function* (ctx): Co {
   yield* settle(p);
   let ob = actor('npc_obaa');
   if (ctx.source === 'fushigi_04') {
-    // A: after the stamp on まめ吉. She turns to Minato.
+    // A: after the stamp on くま吉. She turns to Minato.
     if (!ob) ob = spawn('npc_obaa', HINOYA_FRONT[0], HINOYA_FRONT[1], { dir: 'down' });
     ob.data.scripted = true;
     face('npc_obaa', 'player');

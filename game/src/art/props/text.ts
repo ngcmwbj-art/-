@@ -4,7 +4,7 @@
 //   for the big readable shop names (ひのや, 交番, ユウナリ...).
 // - fontTextSmall(): the same glyphs box-sampled down to 8px (bold), for
 //   small kana on boards.
-// - handGlyph(): hand-made pixel glyphs (肉, 豆, 銀...).
+// - handGlyph(): hand-made pixel glyphs (豆, 銀, 交番...).
 // - tiny(): 3×5 latin/digit font (KOBAN, 17:00, COIN LAUNDRY).
 // - scribble(): "text-like strokes" where reading is not needed.
 
@@ -161,21 +161,6 @@ export function fontSmallWidth(s: string, spacing = 0): number {
 // ---- hand glyphs ------------------------------------------------------------------
 
 const HAND: Record<string, string[]> = {
-  // 12×12 big 肉 for the butcher (6.2)
-  肉: [
-    '.....##.....',
-    '############',
-    '##...##...##',
-    '##..####..##',
-    '##.##..##.##',
-    '####....####',
-    '##...##...##',
-    '##..####..##',
-    '##.##..##.##',
-    '####....####',
-    '##........##',
-    '##......####',
-  ],
   // 8×8 豆 for the tofu noren
   豆: [
     '########',

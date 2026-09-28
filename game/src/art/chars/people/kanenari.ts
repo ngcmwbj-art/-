@@ -335,9 +335,12 @@ function front(f: Fig, p: Pose) {
     mitten(f, 1, bodyY + 1, 0);
     mitten(f, 13, bodyY + 1, -1);
   } else if (act === 'hold') {
-    // receiving the korokke parcel in both mittens (ending)
-    f.part('kraft', { shade: 'rb', light: 't' });
+    // receiving the extra pack of yakisoba in both mittens (ending): the
+    // clear lid over the sauced noodles, a red rubber band round it
+    f.part('clapper', { shade: 'rb', light: 't' });
     f.rect(4, bodyY + 2, 8, 3);
+    f.part('board', { flat: true, rim: false });
+    f.hl(4, 11, bodyY + 2);
     f.part('red', { flat: true, rim: false });
     f.vl(8, bodyY + 2, bodyY + 4);
     mitten(f, 2, bodyY + 3, 0);

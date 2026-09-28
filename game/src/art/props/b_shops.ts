@@ -166,7 +166,7 @@ registerBuilding({
     p.rect(20, sy + 11, 10, 4, P.paper);
     tiny(p, '80', 21, sy + 11, P.verm);
     b.lights.push([2, sy + 1, 28, 9]);
-    // pillar between showcase and door
+    // pillar between the teppan window and the door
     p.rect(32, fY + 24, 16, 24, P.concreteLt);
     fillWall(p, 32, fY + 24, 16, 24, wallMortar(P.white, 9));
     // menu board: 手書きのお品書き
@@ -189,13 +189,13 @@ registerBuilding({
     g.img(NOREN_MEAT.f[f], x + 48, y + b.faceY + 24);
   },
   glow(g, x, y, env, b) {
-    // the showcase glass is lit (a little by day, fully at night)
+    // the teppan window is lit (a little by day, fully at night)
     const a = 0.1 + 0.3 * env.grade.night;
     g.rect(x + 2, y + b.faceY + 33, 28, 9, P.goldPale, a);
     g.rect(x + 3, y + b.faceY + 38, 26, 3, P.horizon, a * 0.8);
   },
   light(g, x, y, env, b) {
-    // warm showcase light spilling onto the arcade floor
+    // warm window light spilling onto the arcade floor
     const n = env.grade.night;
     if (n < 0.05) return;
     drawLightAt(g, poolTrapezoid(30, 44, 22, LIGHT.window), x + 16 - 22, y + b.botY - 1, 0.7 * n);

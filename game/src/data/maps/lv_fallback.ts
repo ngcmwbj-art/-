@@ -74,7 +74,7 @@ registerScript('evt_obaa_first', function* () {
   setFlag('flag_met_obaa', 1);
 });
 
-// ---------------------------------------------------------------- 6.5 乾: the f05 line once after fushigi_05
+// ---------------------------------------------------------------- 6.5 えすけ: the f05 line once after fushigi_05
 
 registerScript('npc_inui', function* (ctx: ScriptCtx) {
   if (fushigiDone('fushigi_05') && !flag('flag_seen_npc_inui_f05')) {

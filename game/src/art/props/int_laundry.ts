@@ -2,7 +2,7 @@
 // dryers (16×32, round glass window over the coin slot): No.3 keeps turning
 // with warm light in its window (fushigi_05), the others hold their own small
 // stories (a towel, 故障中, one sock, a coin trace). Two big washers, a row of
-// plastic seats where 乾 waits, a folding table with the lost-sock basket, a
+// plastic seats where えすけ waits, a folding table with the lost-sock basket, a
 // small detergent vending machine, a corkboard of flyers, pale tiled walls
 // with an aqua band, a vinyl checker floor under white tube light.
 
@@ -31,7 +31,7 @@ function rgbHex(c: [number, number, number]): string {
 /**
  * Dryer No.3's warm light on the floor (map px): an oval in the strip of
  * floor between the dryers' feet (y48) and the bench's backs (y60), so the
- * whole of it shows above 乾's head and none of it hides behind the bench.
+ * whole of it shows above えすけ's head and none of it hides behind the bench.
  */
 const NO3_POOL = { x: 72, y: 54, rx: 20, ry: 6 };
 

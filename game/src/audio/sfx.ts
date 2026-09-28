@@ -272,13 +272,21 @@ se('se_furin', {
   },
 });
 se('se_fry', {
-  label: '揚げる（じゅわー）',
+  label: '鉄板で焼く（ジュージュー）',
   group: TOWN,
   fn(c) {
-    layer(c, 'noise env=30/0/1/800 dur=2200 v=.06 flt=HP2500');
-    layer(c, 'noise env=50/0/1/800 dur=2200 v=.015 flt=LP500 am=9/.4');
-    // 40 spatters, thinning out over 2.5 s
-    for (let i = 0; i < 40; i++) {
+    // the noodles on the hot iron: a bright hiss that swells and falls as the
+    // spatulas turn them over (ジュー、ジュー), a low body under it
+    layer(c, 'noise env=30/0/1/800 dur=2200 v=.055 flt=HP2800 am=3/.35');
+    layer(c, 'noise env=50/0/1/800 dur=2200 v=.015 flt=LP600 am=6/.3');
+    // the spatulas on the iron: three light metal taps (カチャ)
+    for (const at of [260, 780, 1300]) {
+      layer(c, 'sine f=2900 env=0/70/0/20 dur=10 v=.018', { at });
+      layer(c, 'sine f=4350 env=0/45/0/15 dur=10 v=.01', { at: at + 6 });
+      layer(c, 'noise env=0/4/0/2 dur=3 v=.02 flt=BP5200q2', { at });
+    }
+    // 30 spatters, thinning out over 2.5 s
+    for (let i = 0; i < 30; i++) {
       const at = 2500 * Math.pow(arand(), 1.8);
       const f = 3000 + arand() * 3000;
       layer(c, `noise env=0/${(3 + arand() * 3).toFixed(0)}/0/2 dur=3 v=${(0.02 + arand() * 0.03).toFixed(3)} flt=BP${f.toFixed(0)}q1.5`, { at, set: { pan: arand() * 0.8 - 0.4 } });
@@ -379,7 +387,7 @@ se('se_keitora_go', {
 se('se_escalator_step', { label: 'エスカレーター1段（止まった）', group: TOWN, rand: STEP, max: 2, rev: 0.2, layers: ['sine f=180 env=0/100/0/20 dur=10 v=.04', 'sine f=470 env=0/70/0/20 dur=10 v=.02', 'sine f=1210 env=0/40/0/10 dur=10 v=.01', 'noise env=0/15/0/8 dur=8 v=.02 flt=BP2000q1'] });
 se('se_rumble', { label: '忘れ物の山がふるえる', group: TOWN, rev: 0.2, layers: ['sine f=45 env=200/600/.5/300 dur=900 v=.10 am=8/.5', 'noise env=200/600/.5/300 dur=900 v=.03 flt=LP200', 'saw f=55 env=200/600/.5/300 dur=900 v=.01 flt=LP150', 'tri f=90 env=200/600/.5/300 dur=900 v=.015 am=8/.5'] });
 se('se_zipper', { label: '背中のファスナー（ジーッ）', group: TOWN, layers: ['noise env=30/0/1/60 dur=600 v=.035 flt=BP3200q2 am=95→60/600/.8'] });
-se('se_paper_bag', { label: 'コロッケの包み（かさっ）', group: TOWN, layers: ['noise env=5/150/0/60 dur=150 v=.04 flt=BP3000q0.8 am=35/.6'] });
+se('se_paper_bag', { label: '焼きそばの袋（かさっ）', group: TOWN, layers: ['noise env=5/150/0/60 dur=150 v=.04 flt=BP3000q0.8 am=35/.6'] });
 se('se_star', { label: '星がひとつ止まる（チン）', group: TOWN, rev: 0.3, layers: ['sine f=4186 env=1/100/.5/5 dur=500 v=.015'] });
 
 // ============================================================================

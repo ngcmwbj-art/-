@@ -1,4 +1,4 @@
-// Town NPCs (2): 中学生, 郵便屋さん, ガチャの男の子, 砂場の女の子.
+// Town NPCs (2): 中学生, 郵便屋さん, ともき (ガチャの男の子), ひより (砂場の女の子).
 
 import { flat, mat, type Fig, type Mats } from '../fig';
 import { HAIR_BLACK, SKIN_LIGHT, SKIN_MID, SKIN_TAN } from '../mats';
@@ -305,7 +305,7 @@ registerChar('npc_postman', () =>
 );
 
 // =============================================================================
-// ガチャの男の子 (npc_gacha_boy): ~2nd grader. Buzz cut, a big plaster on
+// ともき (npc_gacha_boy; ガチャの男の子): ~2nd grader. Buzz cut, a big plaster on
 // his forehead, white tank top, orange shorts, blue sandals, an empty capsule.
 // Idle: cranks the gacha handle (3 frames) → shakes the capsule at his ear.
 
@@ -453,7 +453,7 @@ registerChar('npc_gacha_boy', () =>
 );
 
 // =============================================================================
-// 砂場の女の子 (npc_sand_girl): 5–6. White gym cap with the chin elastic,
+// ひより (npc_sand_girl; 砂場の女の子): 5–6. White gym cap with the chin elastic,
 // white gym shirt, deep-red shorts, a plaster on her knee, a blue shovel.
 // Base pose: crouching in the sandbox. Idle: piles sand (2 frames) → looks at
 // the western sun. Extras: crouch, proud (fushigi_07), look_up.

@@ -8,7 +8,7 @@
 //   written big enough to read; then the camera pulls back and the seal
 //   settles on the thing itself (world size) and fades while the text goes on.
 //
-// The first stamp of the game (the tutorial on まめ吉) takes its time; later
+// The first stamp of the game (the tutorial on くま吉) takes its time; later
 // ones push in and out quicker.
 
 import type { Co } from '../engine/co';

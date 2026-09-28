@@ -11,7 +11,7 @@ const common = {
   blush: flat('#F4A08C'),
 };
 
-// まめ吉 (npc_mamekichi): 30s, twisted white/navy headband, white tee, navy
+// くま吉 (npc_mamekichi): 30s, twisted white/navy headband, white tee, navy
 // apron with white beans, black rubber boots, tofu scoop in hand.
 // Idle: scoops tofu from the tank → a quick "まいど！" bow. Extras: bow.
 

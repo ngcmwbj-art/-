@@ -1,4 +1,4 @@
-// Town NPCs (3): 日傘の人 + コタロウ, おじいさん, 水まきの人, 影の人.
+// Town NPCs (3): なんばるわん + コタロウ, しんご, ちず, ぶーさん.
 
 import { flat, mat, type Fig, type Mats } from '../fig';
 import { HAIR_BLACK, SKIN_LIGHT, SKIN_MID, SKIN_TAN } from '../mats';
@@ -15,7 +15,7 @@ const base = {
 };
 
 // =============================================================================
-// 日傘の人 (npc_madam): 60s. White lace parasol (twirls, 3 frames), lilac
+// なんばるわん (npc_madam): 60s. White lace parasol (twirls, 3 frames), lilac
 // blouse, white trousers, short grey hair, a red leash to コタロウ.
 // Canvas 20×28 so the parasol can overhang; feet at the bottom centre.
 
@@ -313,7 +313,7 @@ registerChar('npc_kotaro', () =>
 );
 
 // =============================================================================
-// おじいさん (npc_ojii): 70s. Short white hair, thick white brows, white
+// しんご (npc_ojii; 縁台将棋のおじいさん): 70s. Short white hair, thick white brows, white
 // running shirt, steteko, a towel round the neck, a navy uchiwa. Sits on the
 // bench at the shogi board. Idle: fans (2 frames) → now and then moves a
 // piece (pachi). Extras: sit, move, look_up.
@@ -428,7 +428,7 @@ registerChar('npc_ojii', () =>
 );
 
 // =============================================================================
-// 水まきの人 (npc_mizumaki): 50s. Brown permed hair, white sun visor, floral
+// ちず (npc_mizumaki; 水まきの人): 50s. Brown permed hair, white sun visor, floral
 // apron, pink rubber boots, a green hose. Idle: waters the road — the water
 // arch animates (3 frames) and swings left / right. 'spray_frozen' is the
 // stage-1 still arch. Canvas 40×24 (person in the middle, arch to the sides).
@@ -615,7 +615,7 @@ registerChar('npc_mizumaki', () =>
 );
 
 // =============================================================================
-// 影の人 (npc_shadow_man): no body, only the cast shadow (#3A2B5C, 70%) of a
+// ぶーさん (npc_shadow_man; 影だけの会社員): no body, only the cast shadow (#3A2B5C, 70%) of a
 // salaryman sitting on the bench (30_level_art 9.3, 10_narrative 6.16). The
 // shadow lies on the surfaces it falls on: head and shoulders across the
 // backrest slats, the lap on the seat, a darker 1px fold where it bends over

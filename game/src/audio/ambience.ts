@@ -557,25 +557,29 @@ const AMB: Record<string, AmbFactory> = {
   },
 
   amb_oil(c) {
-    // the heater stays under the oil (its hum is felt, the oil is heard)
-    const heat = toneBed(c, 'sine', 100, 0.0022);
-    const heat2 = toneBed(c, 'sine', 200, 0.0008);
-    // the hot oil waiting: a faint high sizzle that flickers, and every
-    // 4–9 s a "ぷつ" — sometimes answered by one or two more (ぷつ…ぷつぷつ)
-    const sizzle = noiseBed(c, 'bandpass', 5200, 0.9, 0.0022);
-    const fl = modulate(c.g, c.t0, modBuffer(c.g, 16, sampleHold(new Rng(c.seed + 3), 9, 22)), sizzle.gain.gain, 0.0022);
+    // 焼きそばのモモセ: the teppan heating, waiting for five o'clock. The gas
+    // under the plate is a low soft roar (felt more than heard) with the
+    // burner's hum; the thin film of oil on the iron sizzles faintly and
+    // flickers (ジー…), and every 3–7 s a short "ジュッ" where a drop lands —
+    // sometimes answered by a "ぱちっ" or two
+    const gas = noiseBed(c, 'lowpass', 380, 0.7, 0.0032);
+    const heat = toneBed(c, 'sine', 100, 0.0016);
+    const sizzle = noiseBed(c, 'bandpass', 4600, 0.8, 0.0026);
+    const fl = modulate(c.g, c.t0, modBuffer(c.g, 16, sampleHold(new Rng(c.seed + 3), 7, 18)), sizzle.gain.gain, 0.0022);
     const pop = (t: number, k: number) =>
-      v(c, { at: t, wave: 'noise', dur: 0.004, attack: 0.001, decay: 0.008, sustain: 0, release: 0.004, vol: 0.016 * k, filter: { type: 'bandpass', freq: 2000 * c.rng.range(0.8, 1.5), q: 1.5 }, pan: c.rng.range(-0.3, 0.3) });
-    const e = new Every(c, 4, 9, (t) => {
-      pop(t, 1);
+      v(c, { at: t, wave: 'noise', dur: 0.004, attack: 0.001, decay: 0.008, sustain: 0, release: 0.004, vol: 0.014 * k, filter: { type: 'bandpass', freq: 2400 * c.rng.range(0.8, 1.5), q: 1.5 }, pan: c.rng.range(-0.3, 0.3) });
+    const jut = (t: number) =>
+      v(c, { at: t, wave: 'noise', dur: 0.05, attack: 0.004, decay: 0.26, sustain: 0, release: 0.06, vol: 0.011, filter: { type: 'bandpass', freq: 3800 * c.rng.range(0.9, 1.15), q: 0.9 }, pan: c.rng.range(-0.25, 0.25) });
+    const e = new Every(c, 3, 7, (t) => {
+      jut(t);
       const more = c.rng.int(0, 2);
-      for (let i = 1; i <= more; i++) pop(t + i * c.rng.range(0.07, 0.19), c.rng.range(0.5, 0.9));
-    }, 1, 5);
+      for (let i = 1; i <= more; i++) pop(t + 0.12 + i * c.rng.range(0.07, 0.19), c.rng.range(0.5, 0.9));
+    }, 1, 4);
     return {
       pump: (u) => e.pump(u),
       stop(t) {
+        gas.stop(t);
         heat.stop(t);
-        heat2.stop(t);
         sizzle.stop(t);
         fl.stop(t);
       },

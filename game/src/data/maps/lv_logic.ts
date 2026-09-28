@@ -11,7 +11,7 @@
 //    still turns, so nothing restarts after its stop event; turn / flicker
 //    events synced with the art.
 //  - fushigi_11's 「アリガトウゴザイマシタ」 balloons on the stopped escalator.
-//  - idle routines of the shopkeepers (丸山 peeks at the fryer every 4 s, おばあ
+//  - idle routines of the shopkeepers (百瀬 peeks at the griddle every 4 s, おばあ
 //    breathes on her stamp then reads the ledger, 巡査 flips his notebook).
 //  - onEnter wrappers that start the first-visit events only once.
 //  - the robot vacuums keep to their beat (2F x2–14, never into the exits).
@@ -21,7 +21,7 @@
 //    shop's in M4 is lifted to peek under it (se_shop_shutter).
 //  - M2's leak drips on the art's beat (se_drip); a train goes by far off
 //    beyond M1's glass doors now and then (se_train_far).
-//  - at the butcher's counter カネナリくん stands beside Minato, not behind.
+//  - at the yakisoba shop's counter カネナリくん stands beside Minato, not behind.
 //  - debug: __game.cmd.lv(name[, x, y]) jumps into any interior; lvDoors()
 //    checks every door; lvGate(on) / lvWon(symId) / lvPile('shake'|'hide'|'show').
 
@@ -127,11 +127,11 @@ function onEnterMap(f: FieldScene): void {
 }
 
 /**
- * At the butcher's counter the two stand side by side (both looking at the
- * showcase), not in a queue: arriving at the counter row (y5) with カネナリくん
+ * At the yakisoba shop's counter the two stand side by side (both looking at
+ * the griddle), not in a queue: arriving at the counter row (y5) with カネナリくん
  * put right behind Minato on the waiting row, he steps in beside him instead
  * (x2–8 is floor on y5). Also keeps the 2× room view from sliding down for
- * his feet and cutting 丸山 off at the top in a cutscene.
+ * his feet and cutting 百瀬 off at the top in a cutscene.
  */
 function counterSideBySide(f: FieldScene): void {
   const p = f.player;
@@ -339,7 +339,7 @@ function shopkeepers(f: FieldScene, dt: number): void {
   };
   switch (f.map.id) {
     case 'map_maruyama':
-      // arms folded → every 4 s a look at the fryer
+      // arms folded → every 4 s a look at the griddle
       step('npc_maruyama', 4000, 1300, 'peek', null);
       break;
     case 'map_hinoya':

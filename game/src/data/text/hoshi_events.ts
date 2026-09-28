@@ -62,8 +62,8 @@ export const PROLOGUE_REPORT_TITLE = 'なつやすみの つうちひょう';
 
 /** At the crossing, 19:30. Cues: turn (he looks east), glow (the case), bell (the crossing rings, the train comes and stops). */
 export const PROLOGUE_A = `@flip
-コロッケ、ごちそうさまでした。
-（揚げたてでした）
+焼きそば、ごちそうさまでした。
+（焼きたてでした）
 !cue turn
 @flip
 （むこうは、いつも 夜です）

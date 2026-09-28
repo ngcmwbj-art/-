@@ -200,7 +200,7 @@ registerFushigi({
 まいどって 言った？{w=300}
 まいど！`,
   pressed: `@narr
-まめ吉は 『……まいど』を、
+くま吉は 『……まいど』を、
 1回で やめた。`,
   after: `@npc_mamekichi
 まいど。{w=300}
@@ -247,7 +247,7 @@ registerFushigi({
 夕日が 沈まないように、
 砂で せきとめてるの。`,
   pressed: `@narr
-女の子は ほこらしげに
+ひよりは ほこらしげに
 胸を はった。`,
   after: `@npc_sand_girl
 見てた？{w=300}

@@ -1,11 +1,10 @@
 // Pictures that belong to the story scenes, drawn at their own resolution:
 //  - photoClose(): the family photo of 写真館 for the ending close-up, 96×72
 //    at 1× (the field photo is 32×24; this is the same photograph, seen up close)
-//  - dinnerSet(): what is on the chabudai in the ending (croquettes, the
-//    cabbage mountain, rice, the sauce)
+//  - dinnerSet(): what is on the chabudai in the ending (three plates of
+//    yakisoba, the mother's extra cabbage, the 青のり on the side)
 //  - meishi(): ハト係長's business card, held out and lying on the ground
-//  - paperBag(): 肉のマルヤマ's kraft bag of hot croquettes (ending cut 2)
-//  - fryBasket(): the fryer's wire basket with four croquettes (ending cut 2)
+//  - shopBag(): 焼きそばのモモセ's bag with the four packs (ending cut 2)
 
 import { PixelCanvas, mix, rgba32 } from '../engine/pixel';
 import { hash2 } from '../engine/rng';
@@ -331,155 +330,82 @@ function rgbOf(p: PixelCanvas, x: number, y: number): string {
 
 let DINNER: HTMLCanvasElement | null = null;
 
-/** 26×14: the platter (cabbage mountain, three croquettes), two bowls of rice, the sauce. */
+/** Where the three plates' heaps are in the dinner picture (image px): the steam rises from them. */
+export const DINNER_STEAM: [number, number][] = [[5, 8], [13, 9], [21, 8]];
+
+/**
+ * 26×14: three plates of yakisoba (3つは 夕飯; the fourth went to カネナリくん),
+ * the bowl of cabbage the mother cut too much of, and the bag of 青のり on
+ * the side — 青のりは 別.
+ */
 export function dinnerSet(): HTMLCanvasElement {
   if (DINNER) return DINNER;
   const p = new PixelCanvas(26, 14);
-  // platter
-  p.ellipse(11, 9, 8.5, 3.6, P.concrete);
-  p.ellipse(11, 8.6, 7.6, 3, P.white);
-  p.hline(5, 17, 12, P.steel);
-  // cabbage mountain (shredded: stripes of three greens)
-  for (let y = 0; y < 7; y++)
-    for (let x = 0; x < 8; x++) {
-      const dx = x - 3.5;
-      if (dx * dx * 0.55 + (y - 6) * (y - 6) * 1.1 > 11) continue;
-      p.set(12 + x, 2 + y, hash2(x, y, 4) < 0.35 ? P.leafLt : (x + y) % 3 === 0 ? P.leaf : P.leafYoung);
+  // the bowl of shredded cabbage at the back (stripes of three greens)
+  p.ellipse(12.5, 4.5, 4.5, 2.2, P.concrete);
+  p.ellipse(12.5, 4, 3.8, 1.8, P.white);
+  for (let y = 0; y < 4; y++)
+    for (let x = 0; x < 7; x++) {
+      const dx = x - 3;
+      if (dx * dx * 0.5 + (y - 3) * (y - 3) * 1.2 > 5) continue;
+      p.set(9 + x, 1 + y, hash2(x, y, 4) < 0.35 ? P.leafLt : (x + y) % 3 === 0 ? P.leaf : P.leafYoung);
     }
-  // three croquettes
-  const kor = (cx: number, cy: number) => {
-    p.ellipse(cx, cy, 3, 2, P.brassOld);
-    p.ellipse(cx - 0.5, cy - 0.5, 2.3, 1.3, P.brass);
-    p.set(cx - 1, cy - 1, P.goldPale);
-    p.set(cx + 1, cy, P.wood);
-    p.set(cx + 2, cy + 1, P.woodDark);
-  };
-  kor(7, 9);
-  kor(11, 10);
-  kor(9, 6);
-  // two bowls of rice, left and right
-  const bowl = (x: number, y: number) => {
-    p.rect(x, y + 1, 4, 2, P.navy);
-    p.hline(x, x + 3, y + 1, P.blue);
-    p.hline(x, x + 3, y, P.white);
-    p.set(x + 1, y - 1, P.white);
-    p.set(x + 2, y - 1, P.concreteLt);
-  };
-  bowl(0, 10);
-  bowl(21, 10);
-  // the sauce bottle, at the back — ソースは 別
-  p.rect(21, 1, 3, 6, P.woodDark);
-  p.rect(21, 3, 3, 2, P.sun);
-  p.set(22, 0, P.verm);
-  p.set(21, 1, P.wood);
+  // the three plates, each with its heap of sauced noodles and a bit of 紅しょうが
+  for (const [cx, cy] of DINNER_STEAM) {
+    p.ellipse(cx, cy + 2, 4.2, 1.8, P.concrete);
+    p.ellipse(cx, cy + 1.6, 3.6, 1.4, P.white);
+    p.ellipse(cx, cy + 1, 2.6, 1.4, P.brassOld);
+    p.hline(cx - 2, cx + 1, cy, P.brass);
+    p.set(cx - 1, cy + 1, P.wood);
+    p.set(cx + 1, cy + 1, P.woodDark);
+    p.set(cx + 1, cy, P.verm);
+    p.set(cx - 2, cy + 1, P.leafYoung);
+  }
+  // the bag of 青のり, standing at the back right — 青のりは 別
+  p.rect(20, 0, 4, 5, P.white);
+  p.rect(20, 2, 4, 3, P.leafShade);
+  p.set(21, 3, P.leaf);
+  p.hline(20, 23, 0, P.verm);
   p.outline(P.ink);
   DINNER = p.toCanvas();
   return DINNER;
 }
 
-// ---------------------------------------------------------------- the croquette bag
+// ---------------------------------------------------------------- the shop's bag
 
 let BAG: HTMLCanvasElement | null = null;
 
 /**
- * 14×18: a kraft paper bag, its top folded over twice, the shop's vermilion
- * マル stamp, a grease spot showing through (they are hot), a warm outline.
+ * 14×18: a white plastic shop bag, its two handles tied at the top, the
+ * four clear packs stacked inside showing through (the brown of the sauced
+ * noodles), the shop's little red peach printed on it, a warm outline.
  */
-export function paperBag(): HTMLCanvasElement {
+export function shopBag(): HTMLCanvasElement {
   if (BAG) return BAG;
-  const kraft = '#C8A06A';
-  const kraftLt = '#E2C08A';
-  const kraftDk = '#A07A48';
+  const white = '#F4F1E8';
+  const shade = '#D8D2C4';
   const p = new PixelCanvas(14, 18);
-  // body, lit from the upper left: a light left face, the side gusset darker
-  p.rect(1, 6, 12, 11, kraft);
-  p.rect(1, 6, 3, 11, kraftLt);
-  p.rect(10, 6, 3, 11, kraftDk);
-  for (let y = 7; y < 16; y += 2) p.set(10, y, kraft);
-  // the bottom fold
-  p.hline(1, 12, 16, kraftDk);
-  // the top, folded over twice (a zig-zag cut edge)
-  p.rect(2, 2, 10, 4, kraftLt);
-  p.hline(2, 11, 5, '#8A5A3A');
-  p.hline(2, 11, 3, kraftDk);
-  for (let x = 2; x < 12; x++) p.set(x, 1 + (x & 1), kraftLt);
-  // the grease spot, darker and a little glossy
-  for (const [x, y] of [[7, 13], [8, 13], [8, 14], [9, 14], [7, 14], [8, 12]] as const) p.set(x, y, kraftDk);
-  p.set(8, 13, '#B89060');
-  // the shop's stamp: a vermilion ring with a dot
-  p.ellipse(5.5, 10.5, 2.4, 2.4, P.verm);
-  p.ellipse(5.5, 10.5, 1.3, 1.3, kraftLt);
-  p.set(5, 10, P.verm);
+  // the tied handles
+  p.rect(4, 0, 2, 3, white);
+  p.rect(8, 0, 2, 3, white);
+  p.rect(5, 2, 4, 2, shade);
+  // the body, lit from the upper left; the side in shade
+  p.rect(1, 4, 12, 13, white);
+  p.rect(10, 4, 3, 13, shade);
+  p.hline(1, 12, 16, shade);
+  // the packs showing through: two stacks of clear lids over brown noodles
+  for (const y of [7, 11]) {
+    p.hline(2, 10, y, '#BDEFFA');
+    p.rect(2, y + 1, 9, 2, '#C8A06A');
+    p.set(4, y + 1, '#A07A48');
+    p.set(8, y + 2, '#A07A48');
+  }
+  // the shop's peach, printed in red
+  p.ellipse(9.5, 14, 1.6, 1.4, '#E0567A');
+  p.set(10, 12, '#5FA85A');
   p.outline('#5A3A2A');
   BAG = p.toCanvas();
   return BAG;
-}
-
-// ---------------------------------------------------------------- the fryer basket (ending cut 2)
-
-let BASKET: HTMLCanvasElement | null = null;
-
-/** Rows of the basket canvas: the croquettes' tops (0–3), the rim (3), the mesh (4–8), the bottom (9). */
-export const BASKET_RIM = 3;
-
-/**
- * 18×10: the fryer's wire basket seen from the front and a little above,
- * four croquettes heaped in it — fried golden, lit from the bulb above: a
- * pale crumb top, a deep brown underside, a few dark crumbs. The mesh is
- * open (the fryer shows through), the rim a bright steel line.
- */
-export function fryBasket(): HTMLCanvasElement {
-  if (BASKET) return BASKET;
-  const w = 18;
-  const h = 10;
-  const p = new PixelCanvas(w, h);
-  const out = '#5A3A22';
-  const crumbLt = '#F6D98A';
-  const crumb = '#E0A848';
-  const crumbDk = '#B8742A';
-  const fried = '#8A5220';
-  // four croquettes, a little uneven: two in front, two behind them, higher
-  const cq: [number, number][] = [[2, 1], [6, 0], [10, 1], [13, 0]];
-  for (const [cx, cy] of cq) {
-    for (let y = 0; y < 4; y++)
-      for (let x = 0; x < 5; x++) {
-        const corner = (x === 0 || x === 4) && (y === 0 || y === 3);
-        if (corner) continue;
-        const px = cx + x;
-        const py = cy + y;
-        if (px >= w || py >= h) continue;
-        const lit = y === 0 || (y === 1 && x < 3);
-        p.set(px, py, lit ? crumbLt : y >= 2 && x >= 3 ? crumbDk : crumb);
-      }
-    // crumbs: the breading catches light in dots
-    for (let i = 0; i < 3; i++) {
-      const x = cx + 1 + Math.floor(hash2(cx, i, 41) * 3);
-      const y = cy + 1 + Math.floor(hash2(cx, i, 43) * 2);
-      p.set(x, y, hash2(cx, i, 47) < 0.5 ? crumbDk : fried);
-    }
-    p.set(cx + 1, cy, '#FFF6D8');
-  }
-  p.outline(out);
-  // the rim: steel with a short highlight where the bulb catches it
-  p.hline(0, w - 1, BASKET_RIM, '#9AA0A8');
-  p.hline(2, 6, BASKET_RIM, '#E8ECF0');
-  p.set(0, BASKET_RIM, '#4A4F63');
-  p.set(w - 1, BASKET_RIM, '#4A4F63');
-  // the mesh: dark wires over the fried croquettes seen through it
-  for (let y = BASKET_RIM + 1; y < h - 1; y++)
-    for (let x = 0; x < w; x++) {
-      const upright = x % 2 === 0;
-      const cross = y === BASKET_RIM + 3;
-      if (x === 0 || x === w - 1) p.set(x, y, '#3A3F48');
-      else if (cross || upright) p.set(x, y, cross && upright ? '#6B7186' : '#4A4F63');
-      else p.set(x, y, y === BASKET_RIM + 1 ? '#A8742A' : hash2(x, y, 53) < 0.5 ? '#7A4A1A' : '#5A3A22');
-    }
-  // oil caught on the lower wires glints gold
-  for (const x of [4, 8, 13]) p.set(x, h - 3, '#D9A441');
-  p.hline(0, w - 1, h - 1, '#3A3F48');
-  p.hline(1, w - 2, h - 2, '#4A4F63');
-  BASKET = p.toCanvas();
-  return BASKET;
 }
 
 // ---------------------------------------------------------------- ハト係長's business card

@@ -216,7 +216,7 @@ export const CH2_START_EXP = 150;
  * at least 150 and recomputes the level from it — the level only ever goes
  * up, and by one step at most with chapter-1 data (133–275) — restores HP
  * and 朱肉, clears battle statuses, syncs the learned skills and takes the
- * コロッケ out of the bag. Returns the level-ups (for the 通知表).
+ * 焼きそば (item_korokke) out of the bag. Returns the level-ups (for the 通知表).
  */
 export function chapter2Adjust(): LevelUpResult[] {
   setFlag('flag_ch2_started', 1);

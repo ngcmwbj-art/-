@@ -60,7 +60,7 @@ export function boards(s: BoardStyle): FloorPainter {
   };
 }
 
-// ---------------------------------------------------------------- quarry tiles (butcher's back)
+// ---------------------------------------------------------------- quarry tiles (the yakisoba shop's back)
 
 /** 8×8 terracotta quarry tiles with grout, a wet sheen near the prep area. */
 export function quarry(seed: number): FloorPainter {

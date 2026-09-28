@@ -424,7 +424,7 @@ export const SE_TRIM: Record<string, number> = {
   se_step_metal: 14, se_step_kanenari: 13.5, se_door: 20.5, se_door_glass: 26.5, se_auto_door: 20.5,
   se_door_heavy: 15.5, se_door_small: 24, se_stairs: 16.5, se_shop_bell: 15.5, se_shop_shutter: 20, se_shutter: 21.5,
   se_chain: 10, se_shadow_swing: 22, se_crow: 25.5, se_coo: 15.5, se_cat: 27.5, se_dog_bark: 19.5,
-  se_sparrow_a: 21.5, se_sparrow_b: 21, se_higurashi_call: 22.5, se_furin: 13, se_fry: 9, se_crossing_up: 20.5,
+  se_sparrow_a: 21.5, se_sparrow_b: 21, se_higurashi_call: 22.5, se_furin: 13, se_fry: 9.5, se_crossing_up: 20.5,
   se_train_pass: 23.5, se_train_far: 23.5, se_gacha: 19, se_panda_ride: 16, se_glint: 22, se_semi_hop: 23.5, se_cart_rattle: 26.5,
   se_umbrella_hop: 24.5, se_robot_bump: 22.5, se_kaitenyaki_stop: 17.5, se_keitora_stop: 21, se_keitora_go: 20.5, se_escalator_step: 16, se_rumble: 16.5,
   se_zipper: 25.5, se_paper_bag: 26, se_star: 26.5, se_stamp: 7.5, se_stamp_heavy: 3.5, se_stamp_light: 13,
@@ -473,7 +473,7 @@ export const VOICE_TRIM: Record<string, number> = {
 };
 export const AMB_TRIM: Record<string, number> = {
   amb_higurashi: 17, amb_still: 25, amb_s2_town: -1, amb_train_far: 0, amb_night_insects: 22.5, amb_fan: 16.5,
-  amb_fridge: 20.5, amb_tv: 36.5, amb_clock_tick: 20, amb_oil: 25.5, amb_dryer: 18, amb_koban: 22.5,
+  amb_fridge: 20.5, amb_tv: 36.5, amb_clock_tick: 20, amb_oil: 22, amb_dryer: 18, amb_koban: 22.5,
   amb_fluorescent: 11.5, amb_fluorescent_flicker: 13.5, amb_kaitenyaki: 15.5, amb_mall_wind: 34.5, amb_kawabe: 32,
   amb_arcade: 38.5, amb_wind: 24,
   // chapter 2 (audioMixSuggest: heard over 星見台の夜 where each one plays; the

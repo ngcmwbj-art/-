@@ -490,14 +490,17 @@ function front(f: Fig, p: Pose) {
       armTo(f, armR, 10, 11 + u, [12, 14 + u]);
     }
   } else if (act === 'hold') {
-    // the warm korokke parcel held against his tummy with both hands
+    // the warm bag of yakisoba held against his tummy with both hands: the
+    // white shop bag, the packs' brown showing through, the red print
     teeFront(f, p, 12 + u, 17 + b, false);
     armTo(f, armL, 4, 16 + u, [2, 15 + u]);
     armTo(f, armR, 11, 16 + u, [13, 15 + u]);
-    f.part('kraft', { shade: 'rb', light: 't' });
+    f.part('package', { shade: 'rb', light: 't' });
     f.rect(4, 14 + u, 8, 3);
+    f.part('kraft', { flat: true, rim: false });
+    f.hl(5, 10, 15 + u);
     f.part('tape', { flat: true, rim: false });
-    f.vl(8, 14 + u, 16 + u).hl(4, 11, 15 + u);
+    f.px(9, 16 + u);
     f.part('hand', { shade: 'rb', light: '' });
     f.px(4, 16 + u).px(11, 16 + u);
   } else {
@@ -586,8 +589,8 @@ function back(f: Fig, p: Pose) {
   }
   netHoop(f, 1, 0 + u, false, true, netLag(p));
   if (p.act === 'hold') {
-    // package edges peeking out at his sides
-    f.part('kraft', { shade: 'rb', light: 't' });
+    // the bag's edges peeking out at his sides
+    f.part('package', { shade: 'rb', light: 't' });
     f.rect(1, 15 + u, 1, 2).rect(14, 15 + u, 1, 2);
   }
 }
@@ -689,7 +692,7 @@ function side(f: Fig, p: Pose) {
   } else if (act === 'hold') {
     slv(6 + lean, 12 + u);
     armTo(f, { sx: 7, sy: 15 + u, hx: 0, hy: 0, segs: FOREARM }, 4, 16 + u);
-    f.part('kraft', { shade: 'rb', light: 't' });
+    f.part('package', { shade: 'rb', light: 't' });
     f.rect(1 + lean, 14 + u, 4, 3);
     f.part('tape', { flat: true, rim: false });
     f.vl(3 + lean, 14 + u, 16 + u);
@@ -828,7 +831,7 @@ export const MINATO_SPEC: SpriteSpec = {
 
 registerChar('minato', () => buildSprite(MINATO_SPEC));
 
-// Ending: walking to the crossing with the korokke parcel in both hands.
+// Ending: walking to the crossing with the bag of yakisoba in both hands.
 registerChar('minato_hold', () =>
   buildSprite({
     ...MINATO_SPEC,

@@ -321,7 +321,7 @@ function potBase(p: PixelCanvas, x: number, y: number, w: number, col: string): 
 }
 
 registerProp('obj_pots_1', () => {
-  // three cacti and an aloe (おじいさんの家)
+  // three cacti and an aloe (しんごの家)
   const p = pc(32, 18);
   const pots = [3, 10, 17];
   for (const [i, x] of pots.entries()) {

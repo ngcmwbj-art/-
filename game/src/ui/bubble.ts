@@ -1,4 +1,4 @@
-// Little speech bubbles over a character's head (30_level_art 10.4: まめ吉's
+// Little speech bubbles over a character's head (30_level_art 10.4: くま吉's
 // 「まいど！」, the escalator's thanks): #FBF3DC with a 1px #2A2440 frame, a
 // 3px tail, 16px text, popping in over 0.12 s (1.2 → 1.0).
 //

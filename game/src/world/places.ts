@@ -402,7 +402,7 @@ registerWorldFx({
       drawFlies(g, cx, cy, f.t, stage);
     }
     if (layer === 'fg' && stage < 3) drawDust(g, cx, cy, f.mt, stage);
-    // flag_maido_hold (scenario, evt_chime_stop): まめ吉 is frozen mid-bow; no balloon
+    // flag_maido_hold (scenario, evt_chime_stop): くま吉 is frozen mid-bow; no balloon
     if (layer === 'fg' && stage >= 1 && stage < 3 && !fushigiDone('fushigi_04') && !flag('flag_maido_hold')) drawMaido(f, g, cx, cy);
     if (layer === 'fg' && train.active) drawTrain(g, cx, cy);
   },
@@ -481,7 +481,7 @@ function drawDust(g: Gfx, cx: number, cy: number, mt: number, stage: number): vo
   }
 }
 
-// ---------------------------------------------------------------- fushigi_04: 「まいど！」 over まめ吉
+// ---------------------------------------------------------------- fushigi_04: 「まいど！」 over くま吉
 
 let MAIDO: HTMLCanvasElement | null = null;
 function maidoBalloon(): HTMLCanvasElement {

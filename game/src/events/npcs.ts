@@ -1,5 +1,5 @@
 // Every NPC's talk (10_narrative 6章) with its stage / second-time / flag
-// branches. 母 is in home.ts, 丸山 and おばあ in shops.ts, カネナリくん's
+// branches. 母 is in home.ts, 百瀬 and おばあ in shops.ts, カネナリくん's
 // flips while following are the world's (6.17 key by place).
 
 import type { Co } from '../engine/co';
@@ -43,7 +43,7 @@ registerScript('npc_postman', function* (): Co {
   }
 });
 
-// ---------------------------------------------------------------- 6.5 乾: the f05 line once after fushigi_05
+// ---------------------------------------------------------------- 6.5 えすけ: the f05 line once after fushigi_05
 
 registerScript('npc_inui', function* (): Co {
   const t = NPC.npc_inui;
@@ -56,7 +56,7 @@ registerScript('npc_inui', function* (): Co {
   if (key) yield* msg(s[key]);
 });
 
-// ---------------------------------------------------------------- 6.4 まめ吉 (fushigi_04 ★ tutorial)
+// ---------------------------------------------------------------- 6.4 くま吉 (fushigi_04 ★ tutorial)
 
 registerScript('npc_mamekichi', function* (): Co {
   const t = NPC.npc_mamekichi;
@@ -148,7 +148,7 @@ registerScript('npc_crow', function* (): Co {
   yield* msg(key === 's2_2' && flag('flag_kanenari_joined') ? t.s2_2 : t.s2_1);
 });
 
-// ---------------------------------------------------------------- 6.11 日傘の人とコタロウ (both stop when either is spoken to)
+// ---------------------------------------------------------------- 6.11 なんばるわんとコタロウ (both stop when either is spoken to)
 
 function pairTalk(id: string, other: string): void {
   registerScript(id, function* (): Co {

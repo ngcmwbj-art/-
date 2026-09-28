@@ -1,5 +1,5 @@
 // Small presentation pieces of the story events that are not map data:
-//  - sparkle(x, y): a 4-point glint in world pixels (the fryer's oil, the bell)
+//  - sparkle(x, y): a 4-point glint in world pixels (the griddle's iron, the bell)
 //  - playCaseGift(): evt_hanko_given's case that opens in the middle of the
 //    screen with みました and ペケ in it (10_narrative 5.8)
 //  - puff(x, y): a little dust ring (ハト → ハト係長, the ojigi hop)
@@ -138,7 +138,7 @@ export function burst(x: number, y: number, color = '#FFE7A3', dur = 420): void 
 // ---------------------------------------------------------------- a small far-off voice
 
 const SMALL = new Map<string, HTMLCanvasElement>();
-/** A half-size balloon (the style of まめ吉's 「まいど！」 over the street). */
+/** A half-size balloon (the style of くま吉's 「まいど！」 over the street). */
 function smallBalloon(text: string): HTMLCanvasElement {
   let c = SMALL.get(text);
   if (c) return c;

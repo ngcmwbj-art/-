@@ -5,7 +5,7 @@
 // The ASCII is the level-design grid verbatim. Examine hit areas are placed
 // where the field's examine probe can reach them: through a counter the probe
 // reaches one tile beyond it, so things behind a counter sit on the row right
-// behind it (e.g. the fryer and the meat chart on row 3 of the butcher's).
+// behind it (e.g. the sauce pot and the how-to poster on row 3 of the yakisoba shop).
 
 import '../../art/props/interiors';
 import { registerMap } from '../../world/maps';

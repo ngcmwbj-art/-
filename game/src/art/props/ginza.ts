@@ -267,7 +267,7 @@ registerProp('prop_planter', () => {
 });
 
 registerProp('prop_shop_mats', () => {
-  // entrance mats: butcher (27,22) and candy shop (32,22)
+  // entrance mats: yakisoba shop (27,22) and candy shop (32,22)
   const p = pc(16 * 10, 12);
   const mat = (x: number, c: string, c2: string) => {
     p.rect(x, 1, 14, 9, c);

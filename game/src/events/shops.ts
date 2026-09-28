@@ -1,4 +1,4 @@
-// 肉のマルヤマ (5.4, 6.2) and 駄菓子 ひのや (5.5, 6.3, 12.1).
+// 焼きそばのモモセ (5.4, 6.2) and 駄菓子 ひのや (5.5, 6.3, 12.1).
 
 import type { Co } from '../engine/co';
 import { flag, setFlag, state } from '../game/state';
@@ -26,20 +26,21 @@ function* maruyamaFirst(): Co {
   f.player.dir = 'up';
   yield 250;
   if (m) {
-    // arms folded at the back of the showcase; he looks up
+    // arms folded behind the teppan counter; he looks up
     m.data.scripted = true;
     m.pose = null;
     m.lift = 90;
     face('npc_maruyama', 'player');
   }
-  // close on the two across the showcase (2×) for the first talk
+  // close on the two across the counter (2×) for the first talk
   const z = yield* talkZoom(f.player, m);
   yield* msg(T.MARUYAMA_FIRST_A);
-  // a glance at the fryer; the oil catches the light once
+  // a glance at the griddle; the iron catches the light once
   if (m) {
     m.pose = 'peek';
     yield 350;
-    sparkle(3 * 16 + 4, 2 * 16 + 20, 520);
+    // (on a spatula's blade laid on the griddle, to his right)
+    sparkle(4 * 16 + 12, 3 * 16 + 12, 520);
     sfx('se_glint', { vol: 0.5 });
     yield 650;
     m.pose = null;

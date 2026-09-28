@@ -142,7 +142,7 @@ const AMB_LABEL: Record<string, string> = {
   amb_fridge: '冷蔵庫のうなり',
   amb_tv: 'テレビの声（家1F）',
   amb_clock_tick: '柱時計（ひのや）',
-  amb_oil: '静かに待つ油',
+  amb_oil: '静かに待つ鉄板',
   amb_dryer: '3番の乾燥機',
   amb_koban: '交番の無線',
   amb_fluorescent: '蛍光灯のうなり',

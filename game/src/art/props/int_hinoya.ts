@@ -164,7 +164,7 @@ registerProp('in_hi_shell', () => {
   p.hline(dx - 1, dx + 17, dy + 11, P.ink);
   const W = p.w;
   // outside: the arcade mosaic with the green mat, the two gacha machines
-  // and the fire bucket of the town; マルヤマ next door to the west, まめ吉
+  // and the fire bucket of the town; モモセ next door to the west, くま吉
   // and the clock shop to the east (the town's own, moved out to the walls)
   const ext = withExterior(p, sh.glass, {
     rows,

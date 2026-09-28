@@ -1,4 +1,4 @@
-// Town NPCs (1): 乾 (laundry), 鶴見巡査, サエ, 女子高生.
+// Town NPCs (1): えすけ (laundry), ワイスタ巡査, さや, 女子高生.
 
 import { flat, mat, type Fig, type Mats } from '../fig';
 import { HAIR_BLACK, SKIN_LIGHT, SKIN_MID, SKIN_TAN } from '../mats';
@@ -19,7 +19,7 @@ const skinMid = SKIN_MID;
 const blackHair = HAIR_BLACK;
 
 // =============================================================================
-// 乾 (npc_inui): 20s, slim. Round glasses, messy black hair, stretched grey
+// えすけ (npc_inui): 20s, slim. Round glasses, messy black hair, stretched grey
 // tee, khaki half pants, sandals, a paperback. Sits on the laundromat bench:
 // reads → turns a page → looks up at dryer No.3 (4s loop). Extras: sit, look_up.
 
@@ -187,7 +187,7 @@ registerChar('npc_inui', () =>
 );
 
 // =============================================================================
-// 鶴見巡査 (npc_tsurumi): late 20s, navy uniform and cap with a 1px gold badge,
+// ワイスタ巡査 (npc_tsurumi): late 20s, navy uniform and cap with a 1px gold badge,
 // white gloves, right hand always at his brow in a salute, straight back,
 // flashlight on the belt. Idle: holds the salute, sways 1px each second,
 // sometimes flips his notebook with the left hand.
@@ -350,7 +350,7 @@ registerChar('npc_tsurumi', () =>
 );
 
 // =============================================================================
-// サエ (npc_sae): Minato's classmate. Straw hat with a red ribbon, shoulder-
+// さや (npc_sae): Minato's classmate. Straw hat with a red ribbon, shoulder-
 // length black hair, white tee, pale-blue overall shorts, white sneakers, a
 // big sketchbook, pencil behind her ear. Idle: sketches (2 frames) → looks up
 // at the sunset. Extras: sketch, look_up.

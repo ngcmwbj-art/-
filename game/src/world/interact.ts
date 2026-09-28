@@ -117,7 +117,7 @@ export function* interactActor(f: FieldScene, a: Actor): Co {
 
 function* npcDefault(f: FieldScene, a: Actor, def: NpcObj): Co {
   let table: TalkTable | undefined = def.talk;
-  // まめ吉: after the stamp he says "まいど" once
+  // くま吉: after the stamp he says "まいど" once
   if (def.id === 'npc_mamekichi' && flag('flag_stage') === 1 && fushigiDone('fushigi_04')) table = MAMEKICHI_DONE;
   // fushigi on this NPC (stage-active, not yet stamped): talk first, then offer the stamp
   if (def.fushigi) {
