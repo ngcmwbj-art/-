@@ -8,7 +8,7 @@ import { actor, msg, registerScript, stage } from '../world/api';
 import { pickTalk } from '../world/interact';
 import { fushigiDone, runFushigi } from '../world/fushigi';
 import { NPC } from '../data/text/npcs';
-import { once, stageKeys } from './lib';
+import { getKeyItem, once, stageKeys } from './lib';
 
 /** Plain NPCs: the stage line, counting visits (6.0). */
 function simple(id: string): void {
@@ -20,8 +20,28 @@ function simple(id: string): void {
   });
 }
 
-for (const id of ['npc_tsurumi', 'npc_sae', 'npc_jk', 'npc_chugaku', 'npc_postman', 'npc_gacha_boy', 'npc_ojii', 'npc_mizumaki', 'npc_shadow_man', 'npc_cat_mike', 'npc_cow_statue'])
+for (const id of ['npc_tsurumi', 'npc_sae', 'npc_jk', 'npc_chugaku', 'npc_gacha_boy', 'npc_ojii', 'npc_mizumaki', 'npc_shadow_man', 'npc_cat_mike', 'npc_cow_statue'])
   simple(id);
+
+// ---------------------------------------------------------------- 6.10 郵便屋さん: 『あした』宛ての手紙
+
+/**
+ * Like the plain NPCs, and once — right after the first 〔s2_2〕 (「……料金
+ * 不足かなあ。」) — 〔s2_3〕: one letter for 『あした』, the key item
+ * item_ashita_tegami (flag_got_ashita_tegami). Chapter 2's さんかど takes it on
+ * the first bus and it gets its postmark in the ending (02_ch2_index #56).
+ */
+registerScript('npc_postman', function* (): Co {
+  if (stage() >= 3) return;
+  const t = NPC.npc_postman;
+  const s = stageKeys(t);
+  const key = pickTalk('npc_postman', s);
+  if (key) yield* msg(s[key]);
+  if (key === 's2_2' && once('flag_got_ashita_tegami')) {
+    yield* msg(t.tegami);
+    yield* getKeyItem('item_ashita_tegami', t.tegami_get);
+  }
+});
 
 // ---------------------------------------------------------------- 6.5 乾: the f05 line once after fushigi_05
 

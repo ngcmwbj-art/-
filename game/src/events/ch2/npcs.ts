@@ -5,13 +5,13 @@
 // The ids keep the old names (npc_hoshi_mitsu = ペロ, _gen = マサルさん …).
 
 import type { Co } from '../../engine/co';
-import { flag, setFlag, state } from '../../game/state';
+import { flag, hasItem, removeItem, setFlag, state } from '../../game/state';
 import { registerScript } from '../../world/api';
 import { field, type FieldScene } from '../../world/field';
 import { runMsg } from '../../world/msg';
 import { openShop } from '../../ui/shop';
 import { KANENARI_USUAL } from '../../data/maps/town_text';
-import { HOSHI_NPC, KANENARI_FLIPS_HOSHI, KANENARI_FLIP_MUJIN_H1, KANENARI_USUAL_HOSHI } from '../../data/text/hoshi_npcs';
+import { HOSHI_NPC, KANENARI_FLIPS_HOSHI, KANENARI_FLIP_MUJIN_H1, KANENARI_FLIP_SHIRITORI, KANENARI_USUAL_HOSHI } from '../../data/text/hoshi_npcs';
 import { panBack, panTo } from '../lib';
 import { se } from './compat';
 import { TS_LINES } from '../../data/text/hoshi_tsugao';
@@ -72,7 +72,9 @@ function* talk(id: string, table: Record<string, string>, stage?: number): Co<st
 // ---------------------------------------------------------------- 3.3 さんかど（郵便配達員）
 
 registerScript('npc_hoshi_busdriver', function* (): Co {
-  const key = yield* talk('npc_hoshi_busdriver', T.npc_hoshi_busdriver);
+  const t = T.npc_hoshi_busdriver;
+  const key = yield* talk('npc_hoshi_busdriver', t);
+  const letter = hasItem('item_ashita_tegami') && !flag('flag_ch2_tegami');
   if (key === 'h0_1') {
     // 「明かりが 見えるだろ。」: the camera looks north at the gathering room's window (0.6 s) and back
     const f = field();
@@ -81,6 +83,18 @@ registerScript('npc_hoshi_busdriver', function* (): Co {
       yield 700;
       yield* panBack(600);
     }
+    // chapter 1's letter for 『あした』 rustles in the pocket: something to show him next time
+    if (letter) yield* say(t.tegami_hint);
+    return;
+  }
+  // 『あした』宛ての手紙 (02_ch2_index #56): once, after his line, from the second talk on
+  // (not after an extra line — 〔ts〕〔deli〕 — which keeps it for the next talk)
+  if (letter && key && key !== 'ts') {
+    yield* say(t.tegami);
+    se('se_page');
+    removeItem('item_ashita_tegami');
+    setFlag('flag_ch2_tegami', 1);
+    yield* say(t.tegami_put);
   }
 });
 
@@ -323,6 +337,11 @@ export function hoshiPlaceKey(f: FieldScene): string {
  * three usual ones of chapter 2 in turn (counted apart from chapter 1's).
  */
 export function hoshiFlipText(f: FieldScene): string {
+  // 寝言しりとり (02_ch2_index #56): after the third sleep-talk, in the gathering room, once
+  if (f.map.id === 'map_hoshi_school' && flag('flag_ch2_negoto_n') && !flag('flag_kanenari_flip_shiritori')) {
+    setFlag('flag_kanenari_flip_shiritori', 1);
+    return KANENARI_FLIP_SHIRITORI;
+  }
   const key = hoshiPlaceKey(f);
   if (key === 'hoshi_mujin' && (hStage() >= 1 || flag('flag_book_enemy_mujin_hanbaiin'))) {
     if (!flag('flag_kanenari_flip_hoshi_mujin_h1')) {

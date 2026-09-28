@@ -484,6 +484,18 @@ export const HOSHI_OBJ: Record<string, HText> = {
 !se se_h_acha
 寝言が 2つ。{w=300}『……あちゃ〜……』
 『……よし、今日は ここまで……』`,
+    // 寝言しりとり (02_ch2_index #56): each look moves the old couple's sleep-talk on —
+    // the stage's text above → negoto2 → negoto3 → the stage's text again … (src/events/ch2/objects.ts)
+    negoto2: `@narr
+シゲじいと スギばあの 寝言が 2つ。
+{w=300}『……すいか……』
+『……かぼちゃ……』`,
+    negoto3: `@narr
+寝言が 2つ。{w=300}『……やかん……』
+!se se_h_acha
+『……あちゃ〜……』
+{w=300}しりとりは、また『ん』で
+終わった らしい。`,
   },
   obj_hoshi_photo: `@narr
 満開の 桜の 下で、子どもが 5人、

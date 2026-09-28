@@ -339,6 +339,17 @@ export const NPC: Record<string, TalkTable> = {
 切手の かわりに、
 はなまるが 貼ってあるんだ。{w=300}
 ……料金 不足かなあ。`,
+    // 〔s2_3〕 once, right after the first 〔s2_2〕 (02_ch2_index #56): the letter for 『あした』.
+    // Not an sN_n key, so the stage's talk count leaves it alone (src/events/npcs.ts).
+    tegami: `@npc_postman
+1通だけ、頼めないかな。{w=300}
+宛先は 『あした』。
+/
+僕は 今日で 手一杯でね。{w=300}
+きみなら、あしたに
+行けそうだ。`,
+    tegami_get: `@sys
+『あした』宛ての手紙を 受けとった！`,
   },
 
   // ------------------------------------------------------------ 6.11 日傘の人とコタロウ

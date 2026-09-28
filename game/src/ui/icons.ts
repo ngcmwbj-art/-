@@ -373,6 +373,23 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// 『あした』宛ての手紙 (10_narrative 6.10, 02_ch2_index #56): a white envelope, the address
+// in grey pencil, a red はなまる for the stamp, and one black speck in the sender's corner
+Object.assign(ITEM_ROWS, {
+  item_ashita_tegami: [
+    '..........',
+    'WWWWWWWWWd',
+    'WwwwwwlrRd',
+    'WwgggwrwRd',
+    'WwwwwwRRRd',
+    'Wwwggggwwd',
+    'Wwwwwwwwwd',
+    'Wwggggwwwd',
+    'Wkwwwwwwwd',
+    'dddddddddG',
+  ],
+});
+
 /** トマト（おまけ）: after chapter 2, one tomato left in the bag (13.3). */
 const OMAKE_ROWS = ['.dW...Wd..', '.W.d.W.d..', '.WwwwwwwdG', 'Wwwwwwwwwd', 'WwwwwwwwWd', 'wwwwXXwwwd', 'wwwXELXwwd', 'wwwXLLXwwd', '.wwwXXwwd.', '..dddddd..'];
 

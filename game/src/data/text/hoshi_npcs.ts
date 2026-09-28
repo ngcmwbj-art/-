@@ -84,6 +84,24 @@ export const HOSHI_NPC: Record<string, TalkTable> = {
 6:12発。{w=300}
 いつでも 出られる ように、
 袋の 口は しばってあるよ。`,
+    // 『あした』宛ての手紙 (02_ch2_index #56; only with item_ashita_tegami from chapter 1).
+    /** After 〔h0_1〕 (the first talk): the letter rustles — talk to him again. */
+    tegami_hint: `@narr
+ポケットの 中で、『あした』宛ての
+手紙が かさっと 鳴った。`,
+    /** Once, after his line from the second talk on (h0–h2): he takes it on the first bus. */
+    tegami: `@narr
+しゅんは、『あした』宛ての 手紙を
+さんかどに 見せた。
+@npc_hoshi_busdriver
+『あした』宛て？{w=300}
+……局の 区域には、ない 町だね。
+/
+でも、朝の 便なら 6:12発。{w=300}
+いっしょに 持って いこう。`,
+    tegami_put: `@narr
+さんかどは 袋の ひもを ほどいて、
+手紙を いちばん 上に 入れた。`,
   },
 
   // ------------------------------------------------------------ 3.4 運転士（車内）
@@ -564,6 +582,26 @@ export const KANENARI_FLIPS_HOSHI: Record<string, string> = {
 /** 〔hoshi_mujin〕 from stage 1 on (ムジン販売員 is up and about). */
 export const KANENARI_FLIP_MUJIN_H1 = `@flip
 （キャラが かぶっています）`;
+
+/**
+ * 〔寝言しりとり〕 in the gathering room, once, after the third sleep-talk (02_ch2_index #56):
+ * he joins the old couple's しりとり and loses on his own name. The last flip is the
+ * one exception to 2.1 「口癖は本人のもの」 — シゲじいとスギばあ's 「あちゃ〜」, with
+ * their se_h_acha a little higher (50 3.2 / 9.6).
+ */
+export const KANENARI_FLIP_SHIRITORI = `@flip
+（ぼくも 入ります）
+!se se_flip
+@flip
+（カネナリくん）
+@narr
+……『ん』だ。
+!se se_flip
+@flip
+（名前で 負けました）
+!se se_h_acha 1.25
+@flip
+（あちゃ〜）`;
 
 /** 〔いつもの・第2章〕 after the place flips: the three in turn (counted apart from chapter 1's). */
 export const KANENARI_USUAL_HOSHI: string[] = [

@@ -32,6 +32,8 @@ const items: ItemDef[] = [
   { id: 'item_maigo_key', name: '迷子センターの鍵', key: true, target: 'none', desc: ['小さな カギ。', 'キーホルダーは、カバ。'], battleText: ['カギは、ここで 使う ものじゃない。'] },
   { id: 'item_hato_meishi', name: 'ハトの名刺', key: true, target: 'none', desc: ['『夕鳴町 鳩課 係長』。', '裏に 小さく『帰りたい』。'], battleText: ['名刺を さしだした。\n……受けとって もらえなかった。'] },
   { id: 'item_korokke', name: '揚げたてコロッケ', key: true, target: 'none', desc: ['4つ。ソースは 別。', '……1つは おまけ。'], battleText: ['これは 晩ごはんだ。'] },
+  // 10 6.10 (02_ch2_index #56): 段階2の郵便屋さんから。第2章でさんかどに あずける
+  { id: 'item_ashita_tegami', name: '『あした』宛ての手紙', key: true, target: 'none', desc: ['差出人『ユウナリ 迷子センター』。すみに 黒い しみ。', '切手は、はなまる。'], battleText: ['手紙を 見せた。\n……宛先は、ここでは ない。'] },
   // 大事なもの（第2章、50 7.1）
   {
     id: 'item_hanamaru_tomato', name: 'はなまるトマト', key: true, target: 'none', special: 'tomato', usableInBattleWith: ['boss_yobimodoshi'], priority: 2,

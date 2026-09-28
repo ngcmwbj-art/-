@@ -24,7 +24,8 @@ import { getScript } from '../../world/scripts';
 import { uiHud } from '../../ui/hud';
 import { setFieldCurtain } from '../../ui/hud';
 import { stopAllAmbient, stopBgm } from '../../audio';
-import { HOSHI_NPC, KANENARI_FLIPS_HOSHI, KANENARI_USUAL_HOSHI, MUJIN_SHOP, KANENARI_FLIP_MUJIN_H1 } from '../../data/text/hoshi_npcs';
+import { HOSHI_NPC, KANENARI_FLIPS_HOSHI, KANENARI_USUAL_HOSHI, MUJIN_SHOP, KANENARI_FLIP_MUJIN_H1, KANENARI_FLIP_SHIRITORI } from '../../data/text/hoshi_npcs';
+import { NPC } from '../../data/text/npcs';
 import { HOSHI_FUSHIGI, HOSHI_OBJ, HOSHI_RESTORED } from '../../data/text/hoshi_objects';
 import * as EV from '../../data/text/hoshi_events';
 import { DELI_TEXT, TSUGAO_NPC, TSUGAO_OBJ, TS_LINES } from '../../data/text/hoshi_tsugao';
@@ -320,6 +321,7 @@ function collectTexts(): [string, string][] {
   walk('flip', KANENARI_FLIPS_HOSHI);
   walk('flip', KANENARI_USUAL_HOSHI);
   walk('flip', KANENARI_FLIP_MUJIN_H1);
+  walk('flip', KANENARI_FLIP_SHIRITORI);
   walk('obj', HOSHI_OBJ);
   walk('fushigi', HOSHI_FUSHIGI);
   walk('restored', HOSHI_RESTORED);
@@ -331,6 +333,8 @@ function collectTexts(): [string, string][] {
   walk('cut7', TSUGAO_LINES);
   // 第1章のツガオ便 (the same man's pages in 夕鳴町, 10_narrative 6.21)
   walk('ch1_tsugao', { hello: TSUGAO_HELLO, ...TSUGAO_TALK, ...HOSHIMI_YASAI });
+  // 第1章の郵便屋さんの『あした』宛ての手紙 (10_narrative 6.10, 02_ch2_index #56)
+  walk('ch1_postman', { tegami: NPC.npc_postman.tegami, tegami_get: NPC.npc_postman.tegami_get });
   // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line
   // lines shown without a speaker (HOUKI_LINE's float note: the same 336 px)
   for (const [k, v] of Object.entries(EV)) if (typeof v === 'string' && (v.startsWith('@') || v.startsWith('!cue') || v.includes('\n'))) out.push([`ev.${k}`, v]);

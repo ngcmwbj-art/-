@@ -101,6 +101,29 @@ registerScript('obj_hoshi_mimawari', function* (): Co {
   yield* runMsg(part('obj_hoshi_mimawari', key));
 });
 
+/**
+ * 9.6 眠っている3人 — 寝言しりとり (02_ch2_index #56): every look moves the old
+ * couple's sleep-talk on, a round of しりとり that ends in 『ん』 again: the
+ * stage's own text (h0-1 / h2+) → negoto2 (すいか・かぼちゃ) → negoto3 (やかん,
+ * 「あちゃ〜」) → the stage's text … flag_ch2_negoto is the next of the three;
+ * flag_ch2_negoto_n says negoto3 has been seen (カネナリくん's flip, npcs.ts).
+ */
+registerScript('obj_hoshi_nappers', function* (): Co {
+  se('se_examine');
+  const n = flag('flag_ch2_negoto') % 3;
+  setFlag('flag_ch2_negoto', (n + 1) % 3);
+  if (n === 1) {
+    yield* runMsg(part('obj_hoshi_nappers', 'negoto2'));
+    return;
+  }
+  if (n === 2) {
+    yield* runMsg(part('obj_hoshi_nappers', 'negoto3'));
+    setFlag('flag_ch2_negoto_n', 1);
+    return;
+  }
+  yield* runMsg(pickHText(HOSHI_OBJ.obj_hoshi_nappers) ?? '');
+});
+
 /** 9.8 倒れた案内板: he stands it up the first time (the prop reads the seen flag). */
 registerScript('obj_hoshi_kanbou_board', function* (): Co {
   se('se_examine');

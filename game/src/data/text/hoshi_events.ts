@@ -638,6 +638,21 @@ export const END_4_DRIVER = `@npc_hoshi_busdriver
 この 手紙の 消印、
 どっちの 日付に なるかな。`;
 
+/**
+ * 『あした』宛ての手紙 (02_ch2_index #56): only when it was left with him
+ * (flag_ch2_tegami). 夕鳴町 is still 8月31日 19:31; 星見台's morning is the
+ * next day (three days at once, 「ひと足 早く、朝が 来ました」) — 9月1日, 『あした』.
+ */
+export const END_4_TEGAMI = `@npc_hoshi_busdriver
+その『あした』宛ても、
+星見台の 消印なら 9月1日だ。
+/
+……宛先に、着いてるよ。`;
+
+/** After the stamp (se_stamp_light). */
+export const END_4_TEGAMI_STAMP = `@narr
+はなまるの 切手に、消印が 押された。`;
+
 export const END_4_NARR = `@narr
 夕鳴町は 19:31。{w=300}
 /

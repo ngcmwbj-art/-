@@ -559,6 +559,15 @@ function* cut4BusStop(): Co {
   yield 500;
   face('end_npc_hoshi_busdriver', 'player');
   yield* runMsg(T.END_4_DRIVER);
+  // 『あした』宛ての手紙, left with him on 星見台 (02_ch2_index #56): its postmark — about 5 s more
+  if (flag('flag_ch2_tegami')) {
+    yield* runMsg(T.END_4_TEGAMI);
+    yield 200;
+    sankado.hop(1, 120);
+    se('se_stamp_light');
+    yield 450;
+    yield* runMsg(T.END_4_TEGAMI_STAMP);
+  }
   // he nods, shoulders the bag again and walks west off the frame
   sankado.hop(1, 160);
   yield 300;
