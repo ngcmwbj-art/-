@@ -1414,24 +1414,26 @@ registerProp('prop_hr_lamp', (o) => {
     p.set(19, 43, P.brass);
   }
   const img = p.toCanvas();
+  // anchored two rows below what it hangs over (the table): dx shifts it to a 2-tile table's middle
+  const dx = Number(o.dx ?? 0);
   return {
-    ox: -4,
+    ox: -4 + dx,
     oy: -64,
     w: 0,
     h: 0,
     foot: 0,
     flat: true,
     img: () => null,
-    fg: [{ ox: -4, oy: -64, img: () => img }],
-    moths: on ? { x: 8, y: -30, r: 12 } : undefined,
+    fg: [{ ox: -4 + dx, oy: -64, img: () => img }],
+    moths: on ? { x: 8 + dx, y: -30, r: 12 } : undefined,
     glow(g: Gfx, x: number, y: number) {
       if (!on) return;
-      if (kind === 'bulb') g.rect(x + 6, y - 27, 4, 3, '#FFF6D8', 0.9);
-      else g.rect(x + 1, y - 30, 15, 1, '#FFF6D8', 0.85);
+      if (kind === 'bulb') g.rect(x + 6 + dx, y - 27, 4, 3, '#FFF6D8', 0.9);
+      else g.rect(x + 1 + dx, y - 30, 15, 1, '#FFF6D8', 0.85);
     },
     light(g: Gfx, x: number, y: number) {
       if (!on) return;
-      drawLight(g, poolEllipse(r, Math.round(r * 0.6), kind === 'bulb' ? HLIGHT.warm : HLIGHT.bulb), x + 8, y, 0.3);
+      drawLight(g, poolEllipse(r, Math.round(r * 0.6), kind === 'bulb' ? HLIGHT.warm : HLIGHT.bulb), x + 8 + dx, y - 22, 0.3);
     },
   } as PropArt;
 });

@@ -1426,6 +1426,14 @@ registerProp('mall_roof_stairs_up', () => {
   hl(62, 63, 35, P.asphalt);
   // the step's shadow on the corridor floor
   for (let x = 32; x <= 63; x++) set(x, 36, '#5B4A7A55');
+  // on the wall beside it (tile 4): the notice 『営業時間 10:00〜17:00』, taped
+  rc(67, 20, 9, 8, P.white);
+  hl(68, 74, 21, P.verm);
+  hl(68, 73, 23, P.ink);
+  hl(68, 74, 25, P.ink);
+  set(67, 20, P.goldPale);
+  set(75, 20, P.goldPale);
+  castRight(p, X(67), 20, 9, 8, 1);
 
   // ---- the floor sticker 『ゆうやけ ひろば』 (x 30–65, y 38–57), a year of shoes on it
   const sx = 30;

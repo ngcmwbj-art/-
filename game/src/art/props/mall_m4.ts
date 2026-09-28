@@ -22,7 +22,7 @@ import { atriumGlow, atriumOver, atriumStatic } from './mall_atrium';
 import { arrowSign, bannerScrap, fasciaText, mallGrade, mallLampLight, mallLamps, mallWall, posterGhost, shutter, skyPatch, skyPatchRim, type Lamp } from './mall_kit';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
-import { fontTextSmall, tiny } from './text';
+import { fontSmallWidth, fontTextSmall, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
 import { charSprite, idleFrame } from '../chars';
 
@@ -31,6 +31,11 @@ const M4_LAMPS: Lamp[] = [
 ];
 /** Below the map (rows 8+): the atrium seen from the gallery. */
 const BELOW = 44;
+/** The toy shop's shutter (tiles 5–7 since the stairs, 2026-09-28): slats x 83–124, y 18–28 over a 3px gap. */
+const TOY = { x: 83, y: 18, w: 42, slats: 11, lift: 4 };
+const KITS = [P.red, P.blue, P.gold, P.leafDeep, P.crimson, P.aqua, P.sun, P.navy];
+/** How many boxed kits stand behind the shutter. */
+const KIT_N = Math.floor((TOY.w - 4) / 9);
 
 // ---------------------------------------------------------------- shell
 
@@ -63,8 +68,9 @@ registerProp('mall_m4_shell', () => {
   // in perspective (mall_atrium.ts); over() redraws it with the parallax slide
   atriumStatic(p);
   // ---- north wall (rows 0–1)
-  // (1) 『↓1F』 escalator sign — narrowed to tile 1 (2026-09-28): the steel
-  // door up to the roof (mall_roof_door, 屋上 ゆうやけひろば) is on tile 2
+  // (1) 『↓1F』 escalator sign — narrowed to tile 1 (2026-09-28): the stairs
+  // up to the roof (mall_roof_stairs_up, 屋上 ゆうやけひろば) are on tiles 2–3,
+  // their 『屋上 ↑』 board reaching over tile 4
   p.rect(17, 10, 14, 9, P.navy);
   p.hline(17, 30, 10, P.blue);
   tiny(p, '1F', 18, 12, P.white);
@@ -72,14 +78,32 @@ registerProp('mall_m4_shell', () => {
   p.set(26, 15, P.gold);
   p.set(28, 15, P.gold);
   castRight(p, 17, 10, 14, 9, 1);
-  // (3–7) the toy shop: bright fascia, shutter with kits showing under a 3px gap
-  fasciaText(p, 50, 2, 76, 13, P.gold, 'おもちゃ', P.red, P.brass);
-  p.rect(128 - 2, 3, 1, 1, P.white);
-  shutter(p, 52, 18, 72, 14, { gap: 3 });
-  for (let k = 0; k < 8; k++) {
-    const c = [P.red, P.blue, P.gold, P.leafDeep, P.crimson, P.aqua, P.sun, P.navy][k];
-    p.rect(54 + k * 9, 29, 7, 3, c);
-    p.hline(54 + k * 9, 60 + k * 9, 29, lt(c));
+  // (5–7) the toy shop, moved east and narrowed for the stairs (2026-09-28):
+  // bright fascia, shutter with kits showing under a 3px gap
+  {
+    const fx = 82;
+    const fw = 44;
+    p.rect(fx, 2, fw, 13, P.gold);
+    p.hline(fx, fx + fw - 1, 2, lt(P.gold));
+    p.hline(fx, fx + fw - 1, 14, dk(P.gold));
+    const tw = fontSmallWidth('おもちゃ');
+    fontTextSmall(p, 'おもちゃ', fx + Math.floor((fw - tw) / 2), 5, P.red, 1, { shadow: P.brass });
+    // a star each side
+    for (const sx of [fx + 3, fx + fw - 4]) {
+      p.set(sx, 7, P.white);
+      p.set(sx - 1, 8, P.white);
+      p.set(sx + 1, 8, P.white);
+      p.set(sx, 8, P.red);
+      p.set(sx, 9, P.white);
+    }
+    castRight(p, fx, 2, fw, 13, 2);
+    p.rect(fx + fw - 2, 3, 1, 1, P.white);
+  }
+  shutter(p, TOY.x, TOY.y, TOY.w, 14, { gap: 3 });
+  for (let k = 0; k < KIT_N; k++) {
+    const c = KITS[k];
+    p.rect(TOY.x + 2 + k * 9, 29, 7, 3, c);
+    p.hline(TOY.x + 2 + k * 9, TOY.x + 8 + k * 9, 29, lt(c));
   }
   // (8–9) ghost of a poster, a 『迷子センター →』 sign
   posterGhost(p, 132, 6, 12, 16);
@@ -141,13 +165,11 @@ registerProp('mall_m4_shell', () => {
 
 /**
  * obj_toy_shutter 「すき間から、プラモデルの 箱。」: Minato lifts the shutter
- * (slats x 52–123, y 18–28 over a 3px gap) a little with the rattle of
+ * (slats x 83–124, y 18–28 over a 3px gap) a little with the rattle of
  * se_shop_shutter and holds it while he looks; when he lets go it drops
  * back (lv_logic: lv_toy_shutter). Lifting rolls the top slats into the box
  * and shows more of the boxed kits standing inside.
  */
-const TOY = { x: 52, y: 18, w: 72, slats: 11, lift: 4 };
-const KITS = [P.red, P.blue, P.gold, P.leafDeep, P.crimson, P.aqua, P.sun, P.navy];
 function toyPeek(g: Gfx, shell: HTMLCanvasElement, x: number, y: number, env: PropEnv): void {
   const t0 = lvTime.toyPeekT0;
   if (!t0 || lvTime.map !== 'map_mall_2f') return;
@@ -173,7 +195,7 @@ function toyPeek(g: Gfx, shell: HTMLCanvasElement, x: number, y: number, env: Pr
   const gy = Y + TOY.slats - L;
   const bottom = Y + TOY.slats;
   g.rect(X + 1, gy, TOY.w - 2, L, P.ink);
-  for (let k = 0; k < 8; k++) {
+  for (let k = 0; k < KIT_N; k++) {
     const bx = X + 2 + k * 9;
     const top = gy + ((k * 5) % 3 === 0 ? 1 : 0);
     if (top >= bottom) continue;
