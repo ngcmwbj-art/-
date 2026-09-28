@@ -17,7 +17,7 @@ import { registerWorldFx } from '../../world/fx';
 import { runMsg } from '../../world/msg';
 import { getProp } from '../../art/props/registry';
 import * as T from '../../data/text/hoshi_events';
-import { F, floatLine, panBack, panTo, sendAway } from '../lib';
+import { F, floatLine, panBack, panTo, sendAway, tileFree, tileRoute } from '../lib';
 import { ambVol, musicParam, paEcho, se } from './compat';
 import { npc, poseIf, runCue, sceneLight, storyBattle, unpose } from './common';
 
@@ -144,6 +144,53 @@ function spawnTruck(y: number): Actor {
   return a;
 }
 
+/**
+ * The truck drives up the old lane (its picture covers x 800–834 from y15 to
+ * the path's mouth): whoever stands in it steps off to the side first, so the
+ * truck never drives through しゅん and カネナリくん (2026-09-28, the client).
+ */
+function* clearLane(): Co {
+  const f = F();
+  const inLane = (a: Actor) => a.x + a.bw / 2 > 797 && a.x - a.bw / 2 < 837 && a.y > 2 * 16 && a.y < 16 * 16 + 32;
+  // the two keep to the same side of the lane when they can (`side` −1 west, +1 east)
+  const aside = (a: Actor, avoid: [number, number][], side = 0): [number, number][] | null => {
+    let best: [number, number][] | null = null;
+    let bestCost = Infinity;
+    for (const tx of [48, 53, 47, 54, 46, 55])
+      for (const dy of [0, -1, 1, -2, 2]) {
+        const to: [number, number] = [tx, a.tileY + dy];
+        if (!tileFree(to[0], to[1]) || avoid.some(([x, y]) => x === to[0] && y === to[1])) continue;
+        const r = tileRoute([a.tileX, a.tileY], to, avoid, 9);
+        if (!r) continue;
+        const cost = r.length + (side && Math.sign(tx - 50.5) !== side ? 4 : 0);
+        if (cost < bestCost) {
+          best = r;
+          bestCost = cost;
+        }
+      }
+    return best;
+  };
+  const moves: Co[] = [];
+  const taken: [number, number][] = [];
+  let side = 0;
+  for (const a of [f.player, f.follower]) {
+    if (!a || !a.visible) continue;
+    if (!inLane(a)) {
+      taken.push([a.tileX, a.tileY]);
+      side ||= a.x < 816 ? -1 : 1;
+      continue;
+    }
+    const r = aside(a, taken, side);
+    if (!r || !r.length) continue;
+    const end = r[r.length - 1];
+    taken.push(end);
+    side ||= end[0] < 50 ? -1 : 1;
+    const id = a === f.player ? 'player' : a.id;
+    moves.push(walk(id, r, { speed: 3.4, face: end[0] < 50 ? 'right' : 'left' }));
+  }
+  if (moves.length) yield* all(...moves);
+}
+
 export function* evtYobigoe(): Co {
   const f = F();
   const p = f.player;
@@ -191,6 +238,8 @@ export function* evtYobigoe(): Co {
   se('se_h_keitora');
   p.dir = 'down';
   if (k) k.dir = 'down';
+  yield 300;
+  yield* clearLane();
   const y0 = truck.y;
   const y1 = 2 * 16 + 30;
   yield* animate(
@@ -203,8 +252,8 @@ export function* evtYobigoe(): Co {
   );
   truck.y = y1;
   follow();
-  p.dir = 'right';
-  if (k) k.dir = 'right';
+  p.dir = p.x < 816 ? 'right' : 'left';
+  if (k) k.dir = k.x < 816 ? 'right' : 'left';
   yield 500;
   // マサルさん gets out and opens the passenger door; まつ先生 gets out and pushes up the glasses
   const gen = spawn('ch2_yobi_gen', 52, 3, { sprite: 'npc_hoshi_gen', dir: 'left', ghost: true });
