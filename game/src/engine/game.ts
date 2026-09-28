@@ -210,13 +210,17 @@ export class Game {
   start(): void {
     let last = performance.now();
     let acc = 0;
+    // Drawn only when the simulation moved: on a 90/120 Hz phone the browser
+    // calls back 2× as often as the game ticks, and drawing (and scaling up)
+    // the same picture twice was half of what made phones run hot
+    // (2026-09-28). A paused game (QA stepping) still draws each callback.
     const loop = (now: number) => {
       let el = now - last;
       last = now;
       if (el > 250) el = 250; // tab was hidden
+      let steps = 0;
       if (!this.paused) {
         acc += el;
-        let steps = 0;
         while (acc >= FRAME_MS && steps < 5) {
           this.tick(FRAME_MS);
           acc -= FRAME_MS;
@@ -224,7 +228,7 @@ export class Game {
         }
         if (steps === 5) acc = 0;
       }
-      this.draw();
+      if (steps > 0 || this.paused) this.draw();
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);

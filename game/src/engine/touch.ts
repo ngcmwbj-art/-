@@ -7,9 +7,10 @@
 //
 // Layout adapts to the device. The picture is scaled smoothly (not only in
 // whole steps) to the biggest size that leaves the controls beside it (phone,
-// landscape) or below it (portrait; tablets, also in landscape). Only when
-// the window is too cramped for either does the picture fill the screen, with
-// translucent controls floating over its edges.
+// landscape) or below it (portrait; an upright tablet). A tablet held
+// sideways plays full screen: the picture fills the window and translucent
+// controls float over its bottom corners (also any window too cramped for
+// either layout).
 
 import type { Action, Input } from './input';
 import { H, W, type Screen } from './screen';
@@ -326,11 +327,16 @@ export function installTouch(input: Input, screen?: Screen): void {
     const gFill = fitW(vw, vh);
     let mode: Mode = gSide >= gBottom ? 'side' : 'bottom';
     let g = Math.max(gSide, gBottom);
-    // Tablets too keep the controls in a band of their own below (or beside)
-    // the picture, even when that costs some of its size: floating them over
-    // the middle of the picture hid the field (2026-09-28, the client on an
-    // iPad in landscape). Only a very cramped window floats them.
-    if (g <= 0 || g < gFill * 0.55) {
+    // A tablet held sideways plays full screen: the picture as big as the
+    // window allows, the translucent controls floating over its bottom
+    // corners (2026-09-28, the client on an iPad: first the controls in the
+    // middle hid the field, then the picture shrunk above a control band was
+    // too small). Upright, the band below the picture is free anyway.
+    // Elsewhere only a very cramped window floats them.
+    if (tablet && !portrait) {
+      mode = 'overlay';
+      g = gFill;
+    } else if (g <= 0 || g < gFill * 0.55) {
       mode = 'overlay';
       g = gFill;
     } else if (mode === 'side' ? g < (vh * W) / H - 0.5 : g < vw - 0.5) {
@@ -357,16 +363,14 @@ export function installTouch(input: Input, screen?: Screen): void {
       L = { x: 0, y: top, w: vw / 2, h: vh - top - safeB };
       R = { x: vw / 2, y: top, w: vw / 2, h: vh - top - safeB };
     } else if (tablet) {
-      // over the picture's edges, between its bottom windows (dialog with its
-      // name tag, battle commands: lowest 38%) and its top window (battle
-      // text: top 22%)
-      const top = (vh - gh) / 2;
-      const y0 = top + gh * 0.22;
-      const y1 = Math.min(vh - safeB, top + gh * 0.62 + M);
-      L = { x: 0, y: y0, w: vw / 2, h: y1 - y0 };
-      R = { x: vw / 2, y: y0, w: vw / 2, h: y1 - y0 };
-      S0 *= 0.78;
-      bw0 *= 0.78;
+      // full screen: the D-pad in the bottom-left corner, けってい/もどる in
+      // the bottom-right, メニュー/ダッシュ above them — never the middle of
+      // the picture
+      const y0 = vh * 0.42;
+      L = { x: 0, y: y0, w: vw / 2, h: vh - y0 - safeB };
+      R = { x: vw / 2, y: y0, w: vw / 2, h: vh - y0 - safeB };
+      S0 *= 0.85;
+      bw0 *= 0.85;
     } else {
       L = { x: 0, y: 0, w: vw / 2, h: vh - safeB };
       R = { x: vw / 2, y: 0, w: vw / 2, h: vh - safeB };

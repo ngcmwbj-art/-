@@ -16,12 +16,11 @@ export class Screen {
    * Device px per game px chosen by the touch layout (engine/touch.ts), or
    * null for the largest whole-number scale that fits the window. A
    * fractional scale is drawn "sharp bilinear": a whole-number
-   * nearest-neighbour upscale first, then one smooth resize of that, so every
-   * game pixel still reads as an even square.
+   * nearest-neighbour upscale on the canvas, then one smooth resize of that
+   * by the browser (CSS size, image-rendering: auto), so every game pixel
+   * still reads as an even square.
    */
   fixedScale: number | null = null;
-  private mid: HTMLCanvasElement | null = null;
-  private mctx: CanvasRenderingContext2D | null = null;
 
   constructor(display: HTMLCanvasElement) {
     this.display = display;
@@ -44,47 +43,37 @@ export class Screen {
       s = Math.floor(Math.min(availW / W, availH / H));
       if (s < 1) s = Math.min(availW / W, availH / H);
     }
-    this.scale = s;
-    const pw = Math.round(W * s);
-    const ph = Math.round(H * s);
-    this.display.width = pw;
-    this.display.height = ph;
-    this.display.style.width = `${pw / dpr}px`;
-    this.display.style.height = `${ph / dpr}px`;
-    this.dctx.imageSmoothingEnabled = false;
+    // A fractional scale: the canvas holds only the whole-number
+    // nearest-neighbour upscale, and the browser's compositor makes the one
+    // smooth resize to the size on screen (image-rendering: auto). Same
+    // "sharp bilinear" picture as before, but the page no longer redraws a
+    // second full-screen, device-resolution image every frame — on a phone at
+    // 3× that was millions of pixels 60–120 times a second (2026-09-28: phones
+    // ran hot).
     const n = Math.floor(s);
-    if (n >= 1 && s - n > 1e-6) {
-      if (!this.mid) {
-        this.mid = document.createElement('canvas');
-        this.mctx = this.mid.getContext('2d', { alpha: false })!;
-      }
-      if (this.mid.width !== W * n) {
-        this.mid.width = W * n;
-        this.mid.height = H * n;
-      }
-    } else {
-      this.mid = null;
-      this.mctx = null;
-    }
+    const frac = n >= 1 && s - n > 1e-6;
+    const cs = frac ? n : s;
+    this.scale = cs;
+    this.display.width = Math.round(W * cs);
+    this.display.height = Math.round(H * cs);
+    this.display.style.width = `${(W * s) / dpr}px`;
+    this.display.style.height = `${(H * s) / dpr}px`;
+    this.display.style.imageRendering = frac ? 'auto' : '';
+    this.dctx.imageSmoothingEnabled = false;
   }
 
   /** Copy the low-res buffer to the display canvas, applying a whole-pixel offset (screen shake). */
   present(offX = 0, offY = 0): void {
     const d = this.dctx;
     const s = this.scale;
-    d.fillStyle = '#000';
-    d.fillRect(0, 0, this.display.width, this.display.height);
     const x = Math.round(offX) * s;
     const y = Math.round(offY) * s;
-    if (this.mid && this.mctx) {
-      const n = this.mid.width / W;
-      this.mctx.imageSmoothingEnabled = false;
-      this.mctx.drawImage(this.buffer, 0, 0, W * n, H * n);
-      d.imageSmoothingEnabled = true;
-      d.drawImage(this.mid, x, y, W * s, H * s);
-    } else {
-      d.imageSmoothingEnabled = false;
-      d.drawImage(this.buffer, x, y, W * s, H * s);
+    // the picture covers the whole canvas; only a shake leaves an edge to clear
+    if (x || y) {
+      d.fillStyle = '#000';
+      d.fillRect(0, 0, this.display.width, this.display.height);
     }
+    d.imageSmoothingEnabled = false;
+    d.drawImage(this.buffer, x, y, W * s, H * s);
   }
 }
