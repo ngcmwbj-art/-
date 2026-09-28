@@ -240,6 +240,8 @@ const OBJECTS: MapObj[] = [
   O('obj_cafe_sample', 46, 21, { face: 'up' }),
   O('obj_cafe_board', 47, 22),
   O('obj_beer_crate', 51, 22),
+  // 星見台の やさい: ツガオ便's crate at the sake shop's front (2026-09-28)
+  { t: 'obj', id: 'obj_hoshimi_yasai', x: 53, y: 22, cond: s02, script: 'obj_hoshimi_yasai', solid: [0, 0, 1, 1] } as MapObj,
   { t: 'obj', id: 'obj_vending_ginza', x: 55, y: 22, cond: s01, text: OBJ.obj_vending_ginza,
     reward: { money: 10, flag: 'flag_hidden_vending', second: true, after: OBJ.obj_vending_ginza } },
   { ...O('obj_vending_trace', 55, 22), cond: s2 } as MapObj,
@@ -442,10 +444,20 @@ const OBJECTS: MapObj[] = [
   // walk on as shadows only and the rest are gone. Walkers whose sprite isn't drawn yet (char
   // art: npc_walker_*) stay away until it is.
   {
-    // along the middle of the river road, keeping left: east in the north
-    // lane, parks by the sake shop, U-turns and goes back in the south lane
-    t: 'npc', id: 'veh_kei_truck', vehicle: 'kei_truck', passerby: true, x: -3, y: 34, dir: 'right', cond: s01,
-    move: { kind: 'route', points: [[-4, 33.5], [49, 33.5]], speed: 3.2, wait: 9000, hide: [0], phase: 2, keepLeft: 8 },
+    // ツガオ便 (2026-09-28, 10_narrative 6.21): along the middle of the river
+    // road, keeping left: east in the north lane past the house, parks by the
+    // police box (talkable while it stands there), U-turns and goes back in
+    // the south lane. The first time Shun steps out of the house it stops
+    // beside him (evt_tsugao_hello, events/tsugao_ch1.ts)
+    t: 'npc', id: 'veh_kei_truck', vehicle: 'tsugao_truck', passerby: true, x: -3, y: 34, dir: 'right', cond: s0,
+    noTurn: true, script: 'npc_tsugao_ch1',
+    move: { kind: 'route', points: [[-4, 33.5], [49, 33.5]], speed: 3.2, wait: 12000, hide: [0], phase: 2, keepLeft: 8 },
+  },
+  {
+    // from 17:00 ツガオ便 stands where it parked, ツガオ asleep at the wheel
+    // in his nightcap (the stage-0 truck's place at the east end, north lane)
+    t: 'npc', id: 'veh_tsugao_nap', vehicle: 'tsugao_truck_nap', x: 49, y: 33, dir: 'right', cond: { stage: '1-2' },
+    noTurn: true, script: 'npc_tsugao_ch1',
   },
   {
     // sits at the east end a step short of the pole (QA round 3: it sat right behind it)

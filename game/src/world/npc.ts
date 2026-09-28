@@ -284,10 +284,13 @@ function route(a: Actor, mv: Extract<NpcMove, { kind: 'route' }>, def: NpcObj, d
     a.data.spdF = 0;
     const at = a.data.at as number | undefined;
     a.visible = !(at !== undefined && hideAt(at));
+    // standing at a visible end of its run: one with a script can be talked to (ツガオ便)
+    a.data.parked = a.visible;
     if (mv.endPose) a.pose = mv.endPose;
     return;
   }
   a.visible = true;
+  a.data.parked = false;
   a.pose = def.pose ?? null;
   const [tx, ty] = pt(i);
   const speed = mv.speed * 16;

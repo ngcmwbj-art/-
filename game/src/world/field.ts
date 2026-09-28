@@ -65,6 +65,16 @@ function symbolSprite(o: SymbolObj): string {
 /** Grace after a map change / an event / a battle before enemy symbols notice or charge (ms). */
 export const CALM_MS = 1500;
 /** Minimum personal space between characters (px): 12 wide, one tile deep. */
+/**
+ * A passer-by on its way: not someone to talk to. One that stands at a
+ * visible end of its run and has a script of its own can be (ツガオ便 parked
+ * by the police box, 10_narrative 6.21).
+ */
+function passing(a: Actor): boolean {
+  if (!a.data.passerby) return false;
+  return !(a.data.parked && (a.data.def as NpcObj | undefined)?.script);
+}
+
 const CHAR_SPACE = 12;
 const CHAR_DEPTH = 16;
 
@@ -170,6 +180,10 @@ export class FieldScene implements Scene {
   /** Warp in progress. */
   warping = false;
   private enteredFrom: string | null = null;
+  /** The map the player came from by the last door / warp (null: a load, a jump, a new game). */
+  get cameFrom(): string | null {
+    return this.enteredFrom;
+  }
   /**
    * Enemy symbols leave the party alone until this time (field clock, ms):
    * set on every map change and whenever control comes back (an event, a
@@ -1117,7 +1131,7 @@ export class FieldScene implements Scene {
     let best: Actor | null = null;
     let bestScore = Infinity;
     for (const a of cands) {
-      if (!a.visible || a.data.passerby || this.light.actorAlpha(a) < 0.5) continue;
+      if (!a.visible || passing(a) || this.light.actorAlpha(a) < 0.5) continue;
       const [l, t, r, b] = this.talkBox(a, pad);
       if (px < l || px > r || py < t || py > b) continue;
       let score = Math.hypot(px - (a.x + a.ox), py - (a.y - 6));
@@ -1133,7 +1147,7 @@ export class FieldScene implements Scene {
   /** An actor whose feet stand on tile (tx, ty) (the natural talk target). */
   actorOnTile(tx: number, ty: number): Actor | null {
     const cands = [...this.actors, ...(this.follower ? [this.follower] : [])];
-    for (const a of cands) if (a.visible && !a.data.passerby && a.kind !== 'restored' && a.tileX === tx && a.tileY === ty && this.light.actorAlpha(a) >= 0.5) return a;
+    for (const a of cands) if (a.visible && !passing(a) && a.kind !== 'restored' && a.tileX === tx && a.tileY === ty && this.light.actorAlpha(a) >= 0.5) return a;
     return null;
   }
 
