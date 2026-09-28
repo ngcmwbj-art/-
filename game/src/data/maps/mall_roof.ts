@@ -1,7 +1,9 @@
 // 屋上 ゆうやけひろば (map_mall_roof, 24×15; 30_level_art 5.6, 10_narrative
 // 7.18 — the side quest 「屋上ゆうやけひろばの『4人目』」, ★2026-09-28 追加).
 //
-// Up the stairs behind the steel door at the west end of M4's north wall.
+// Up the stairs behind the steel door at the west end of M4's north wall; they
+// come out at the south edge (12,14) — so the way up is pushed north and the
+// way down south, and holding the key through a door never bounces back.
 // A rooftop playground closed for a year: the little stage of カネナリくん's
 // handshake event against the north fence (the name book on the table
 // beside it, three pipe chairs, the queue line painted all the way to a
@@ -33,8 +35,8 @@ const ROOF_LEGEND: Record<string, TileSpec> = {
 export const ROWS_ROOF = [
   'WWWWWWWWWWWWWWWWWWWWWWWW',
   'WWWWWWWWWWWWWWWWWWWWWWWW',
-  '#oooo...oooooooo.......#',
-  '#oDoo...ooooooooo.....o#',
+  '#oooo...oooooooo..ooo..#',
+  '#oooo...ooooooooo.....o#',
   '#......................#',
   '#,,,,,...o.o.o.........#',
   '#qq,,,.................#',
@@ -43,9 +45,9 @@ export const ROWS_ROOF = [
   '#,,qq,............ooo..#',
   '#,,,,,ooo.........ooo..#',
   '#,,,,,ooo..............#',
-  '#...........o..........#',
+  '#............o.........#',
   '#.............ooo......#',
-  '########################',
+  '###########D############',
 ];
 
 const O = (id: string, x: number, y: number, extra: Record<string, unknown> = {}): MapObj =>
@@ -74,9 +76,11 @@ registerMap({
   outside: '#1B1733',
   objects: [
     PR('mall_roof_shell', 0, 0),
-    PR('mall_roof_stairhouse', 1, 2),
+    PR('mall_roof_machine', 1, 2),
+    PR('mall_roof_stairs', 11, 14),
     PR('mall_roof_stage', 8, 2),
     PR('mall_roof_table', 16, 3),
+    PR('mall_roof_planters', 18, 2),
     PR('mall_roof_scope', 22, 3),
     PR('mall_roof_chair', 9, 5, { v: 0 }),
     PR('mall_roof_chair', 11, 5, { v: 1 }),
@@ -85,7 +89,7 @@ registerMap({
     PR('mall_roof_panda', 3, 9),
     PR('mall_roof_tank', 18, 9),
     PR('mall_roof_skylight', 6, 10),
-    PR('mall_roof_saigobi', 12, 12),
+    PR('mall_roof_saigobi', 13, 12),
     PR('mall_roof_ac', 14, 13),
     PR('mall_roof_fence_s', 0, 14),
     // examine
@@ -101,13 +105,13 @@ registerMap({
     O('obj_roof_tank', 18, 9, { w: 3, h: 2 }),
     O('obj_roof_skylight', 6, 10, { w: 3, h: 2 }),
     O('obj_roof_ac', 14, 13, { w: 3 }),
-    O('obj_roof_saigobi', 12, 12),
+    O('obj_roof_saigobi', 13, 12),
     O('obj_roof_balloon', 6, 1, { face: 'up' }),
-    { ...O('obj_roof_balloon', 18, 1, { face: 'up' }), id: 'obj_roof_balloon_e' } as MapObj,
+    { ...O('obj_roof_balloon', 21, 1, { face: 'up' }), id: 'obj_roof_balloon_e' } as MapObj,
     // the town over the south parapet (everything in it points its shadow here)
-    O('obj_roof_town', 1, 14, { w: 13, face: 'down' }),
-    { ...O('obj_roof_town', 17, 14, { w: 6, face: 'down' }), id: 'obj_roof_town_e' } as MapObj,
-    { t: 'door', id: 'door_roof_m4', x: 2, y: 3, to: 'map_mall_2f', tx: 2, ty: 2, dir: 'down', se: 'se_door_heavy' },
+    O('obj_roof_town', 1, 14, { w: 10, face: 'down' }),
+    { ...O('obj_roof_town', 14, 14, { w: 9, face: 'down' }), id: 'obj_roof_town_e' } as MapObj,
+    { t: 'door', id: 'door_roof_m4', x: 12, y: 14, to: 'map_mall_2f', tx: 2, ty: 2, dir: 'down', se: ['se_stairs', 'se_door_heavy'] },
     // ワスレガサ (someone's umbrella, left by the chairs) and a セミファイナル at the east fence
     { t: 'sym', id: 'sym_mall_roof_01', enemies: ['enemy_wasuregasa'], x: 15, y: 8, move: 'umbrella', radius: 2, restoreAt: [7, 3], restoreOff: [3, 0] },
     { t: 'sym', id: 'sym_mall_roof_02', enemies: ['enemy_semi_final'], x: 22, y: 7, move: 'semi', restoreAt: [22, 8], restoreOff: [3, -8] },

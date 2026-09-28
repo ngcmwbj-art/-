@@ -53,10 +53,10 @@ import { talkZoom, zoomOut } from './stage';
 
 const ROOF = 'map_mall_roof';
 /** Where カネナリくん stands on the stage (world px, feet) and how high the stage is. */
-const STAGE_SPOT: [number, number] = [192, 64];
+const STAGE_SPOT: [number, number] = [188, 64];
 const STAGE_H = 7;
 /** Where しゅん stands to shake hands (world px, feet): just below the stage's edge. */
-const SHAKE_SPOT: [number, number] = [192, 80];
+const SHAKE_SPOT: [number, number] = [203, 80];
 
 // ---------------------------------------------------------------- small staging helpers
 
@@ -195,13 +195,17 @@ function* handshake(): Co {
   yield 200;
   const z = yield* talkZoom(k, p, 450);
   // the handshake: his mitten round しゅん's hand, shaken three times
-  roofRt.clasp = { x: STAGE_SPOT[0] + 1, y: STAGE_SPOT[1] - STAGE_H - 3, t0: f.t };
+  roofRt.clasp = { x: Math.round((STAGE_SPOT[0] + SHAKE_SPOT[0]) / 2), y: STAGE_SPOT[1] - STAGE_H - 2, t0: f.t };
   sfx('se_step_kanenari', { vol: 0.35, pitch: 1.3 });
   yield 1000;
   yield* msg(HS_WARM);
   roofRt.clasp = null;
   yield 200;
   yield* flipMsg(HS_FLIP);
+  // a small bow from the stage
+  k.playAnim('bow_small');
+  yield 1300;
+  k.anim = null;
   yield* zoomOut(z, 420);
   // the 4th line of the book
   const toBook = routeTo(p, [[16, 4], [17, 3]], [[k.tileX, k.tileY]]);
@@ -260,17 +264,25 @@ registerWorldFx({
     const bob = u < 1300 ? [0, -1, 0, 1][Math.floor(u / 110) % 4] : 0;
     const x = Math.round(c.x - cx);
     const y = Math.round(c.y - cy) + bob;
-    // しゅん's arm reaching up past his head (the tee's sleeve, then the hand)
-    g.rect(x + 2, y + 4, 2, 3, '#5FA85A');
-    g.rect(x + 1, y + 2, 2, 2, '#FFD9B8');
-    // カネナリくん's mitten over it, his fur arm from above
-    g.rect(x - 2, y - 3, 2, 3, '#F2894B');
-    g.rect(x - 2, y - 1, 5, 3, '#F2894B');
-    g.rect(x - 1, y - 1, 3, 1, '#F7C27A');
+    // しゅん's arm reaching up and in from his shoulder (the tee's sleeve, then the hand)
+    g.rect(x + 4, y + 6, 2, 2, '#5FA85A');
+    g.px(x + 3, y + 5, '#FFD9B8');
+    g.px(x + 4, y + 5, '#FFD9B8');
+    g.px(x + 2, y + 4, '#FFD9B8');
+    g.px(x + 3, y + 4, '#E0A882');
+    // カネナリくん's fur arm down to it, the mitten round しゅん's hand
+    g.px(x - 3, y - 3, '#F2894B');
+    g.px(x - 2, y - 2, '#F2894B');
+    g.px(x - 3, y - 2, '#C8643A');
+    g.rect(x - 2, y - 1, 4, 3, '#F2894B');
+    g.rect(x - 1, y - 1, 2, 1, '#F7C27A');
+    g.px(x + 2, y, '#FFD9B8');
+    g.rect(x - 2, y + 2, 4, 1, '#2A2440');
     g.px(x - 3, y, '#2A2440');
-    g.rect(x - 2, y + 2, 5, 1, '#2A2440');
-    g.px(x + 3, y, '#2A2440');
-    g.px(x + 3, y + 1, '#2A2440');
+    g.px(x - 3, y + 1, '#2A2440');
+    g.px(x + 2, y + 1, '#2A2440');
+    // the evening catches the two hands
+    g.px(x - 1, y - 2, '#FFE7A3');
   },
 });
 
@@ -375,6 +387,18 @@ registerDebug('roof', (x = 2, y = 4, dir = 'down') => {
   const cmd = (window as unknown as { __game: { cmd: Record<string, (...a: unknown[]) => unknown> } }).__game.cmd;
   cmd.jump?.('mall2f', true);
   return cmd.warp?.(ROOF, x, y, dir);
+});
+
+/** QA: hold the view through the binocular at a turn (0 the town … 1 the night); roofScope(-1) closes it. */
+registerDebug('roofScope', (pan = 0.5) => {
+  if (pan < 0) {
+    scope.on = false;
+    return 'closed';
+  }
+  scope.on = true;
+  scope.k = 1;
+  scope.pan = pan;
+  return `scope ${pan}`;
 });
 
 /** QA: forget the roof's quest (the book, the handshake, the coins). */

@@ -2,8 +2,9 @@
 //
 // A rooftop playground closed for a year, at 17:00 of stage 2: over the north
 // fence the dusk (lilac, rose, the last orange low in the west) and the far
-// hills with a few roofs; the stair house in the north-west with its
-// 『ようこそ ゆうやけひろば』 board (the よ has fallen onto the deck); the
+// hills with a few roofs; the top of the stairs from M4 at the south edge;
+// the lift's machine room in the north-west carrying the board
+// 『ようこそ ゆうやけひろば』 (its よ has fallen onto the deck); the
 // little stage of カネナリくん's handshake event (red carpet, 紅白幕, the
 // backdrop, a mic stand with no mic, bunting, two drooping bell balloons);
 // the name book on a table beside it; three pipe chairs (one turned away);
@@ -245,6 +246,7 @@ function paintParapets(p: PixelCanvas): void {
       }
   }
   // south (224–239): the deck's last shadow, the coping top, the outside wall going down
+  // (the stairs at x 182–217 draw their own walls over it)
   for (let x = 0; x < W; x++) {
     p.set(x, 226, P.concreteLt);
     for (let y = 227; y < 232; y++) p.set(x, y, h01(x, y, 5651) < 0.07 ? P.steel : P.concrete);
@@ -280,8 +282,8 @@ function paintDeck(p: PixelCanvas): void {
       if (tone === 0) c = dith(x, y, 0.22, P.concrete, P.concreteLt);
       else if (tone === 3) c = dith(x, y, 0.1, P.concrete, P.steel);
       // the grain of the concrete
-      if (hh < 0.035) c = P.concreteLt;
-      else if (hh > 0.965) c = P.steel;
+      if (hh < 0.02) c = P.concreteLt;
+      else if (hh > 0.98) c = P.steel;
       // joints (sealant, cracked open here and there) with the lit edge beside them
       const jx = (x - x0 + 8) % 48;
       const jy = (y - y0 + 18) % 48;
@@ -326,7 +328,7 @@ function paintTurf(p: PixelCanvas): void {
   const bald: [number, number, number, number][] = [
     [32, 108, 15, 5],
     [64, 156, 15, 5],
-    [90, 134, 6, 10],
+    [92, 134, 3, 7],
   ];
   for (let y = y0; y < y1; y++)
     for (let x = x0; x < x1; x++) {
@@ -361,7 +363,8 @@ const QUEUE: [number, number][] = [
   [152, 128],
   [152, 160],
   [200, 160],
-  [200, 200],
+  [200, 198],
+  [214, 198],
 ];
 function paintQueue(p: PixelCanvas): void {
   let run = 0;
@@ -496,7 +499,7 @@ registerProp('mall_roof_shell', () => {
     img: () => img,
     // two bell balloons tied to the north fence's top rail, drooping, turned to the stage
     over(g: Gfx, x: number, y: number, env: PropEnv) {
-      for (const [bx, look, s] of [[102, 1, 1], [292, -1, 2]] as [number, -1 | 1, number][]) {
+      for (const [bx, look, s] of [[102, 1, 1], [340, -1, 2]] as [number, -1 | 1, number][]) {
         const d = sway(env, s, 1100);
         g.line(x + bx + 1, y + 3, x + bx + 1 + d, y + 7, P.white);
         g.img(look > 0 ? HUSK.r : HUSK.l, x + bx - 5 + d, y + 7);
@@ -505,9 +508,12 @@ registerProp('mall_roof_shell', () => {
   } as PropArt;
 });
 
-// ================================================================ the stair house (1,2): x1–4, door at (2,3)
+// ================================================================ the machine room (1,2): x1–4, the welcome board on top
 
-registerProp('mall_roof_stairhouse', () => {
+// The lift's machine room: a locked louvred door, the panda car's faded
+// poster; on its roof the board 『ようこそ ゆうやけひろば』 faces the stairs
+// across the roof (its よ lies on the deck in front, 10_narrative 7.18).
+registerProp('mall_roof_machine', () => {
   // image: world x 14–81, y 0–63 (anchor (16,32))
   const p = new PixelCanvas(68, 64);
   const X = (wx: number) => wx - 14;
@@ -552,31 +558,29 @@ registerProp('mall_roof_stairhouse', () => {
     const len = 4 + ((hh >>> 8) % 12);
     for (let j = 0; j < len; j++) if (j < 3 || ((hh >>> (10 + (j % 12))) & 1)) p.set(x, f0 + 1 + j, P.concrete);
   }
-  // the steel door (world x 33–46, y 38–63) in its frame
+  // the louvred steel door (world x 33–46, y 38–63), padlocked, its 『関係者以外 立入禁止』 plate
   const dx = X(32);
   p.rect(dx, 36, 16, 28, P.asphalt);
   p.rect(dx + 1, 37, 14, 27, P.steel);
   p.vline(dx + 1, 37, 63, P.concreteLt);
   p.hline(dx + 1, dx + 14, 37, P.concreteLt);
   p.vline(dx + 14, 38, 63, P.asphalt);
-  // the wired-glass window, dark stairwell behind
-  p.rect(dx + 4, 41, 8, 7, P.nightShade);
-  for (let i = 0; i < 8; i += 3) p.vline(dx + 4 + i, 41, 47, P.shadeDeep);
-  for (let j = 0; j < 7; j += 3) p.hline(dx + 4, dx + 11, 41 + j, P.shadeDeep);
-  p.set(dx + 5, 42, P.lilac);
-  p.set(dx + 6, 42, P.shade);
-  p.strokeRect(dx + 3, 40, 10, 9, P.asphalt);
-  // lever handle, kick plate
-  p.rect(dx + 11, 51, 3, 1, P.brass);
-  p.set(dx + 13, 52, P.brassOld);
+  for (let y = 48; y < 58; y += 2) {
+    p.hline(dx + 3, dx + 12, y, P.asphalt);
+    p.hline(dx + 3, dx + 12, y + 1, P.concrete);
+  }
+  p.rect(dx + 3, 40, 10, 6, P.white);
+  p.hline(dx + 4, dx + 11, 41, P.verm);
+  p.hline(dx + 4, dx + 10, 43, P.ink);
+  p.hline(dx + 4, dx + 9, 44, P.ink);
+  p.rect(dx + 11, 51, 2, 3, P.brass);
+  p.set(dx + 11, 50, P.brassOld);
+  p.set(dx + 12, 50, P.brassOld);
   p.rect(dx + 2, 59, 12, 4, P.concrete);
   p.hline(dx + 2, dx + 13, 59, P.concreteLt);
-  // the green exit sign over the door
-  p.rect(X(35), 30, 10, 5, P.leafShade);
-  p.rect(X(36), 31, 8, 3, P.leaf);
-  p.set(X(38), 31, P.white);
-  p.line(X(38), 32, X(40), 33, P.white);
-  p.set(X(41), 32, P.white);
+  // a vent louvre high on the wall
+  p.rect(X(36), 29, 8, 5, P.steel);
+  for (let y = 30; y < 34; y += 2) p.hline(X(37), X(42), y, P.asphalt);
   // a bulkhead lamp (off) left of the door, a faded poster of the panda car right of it
   p.rect(X(24), 32, 4, 4, P.concrete);
   p.rect(X(25), 33, 2, 2, P.goldPale);
@@ -612,10 +616,70 @@ registerProp('mall_roof_stairhouse', () => {
     img: () => img,
     shadow: 18,
     contact: 0,
-    // the exit sign's green, even at dusk
-    glow(g: Gfx, x: number, y: number) {
-      g.rect(x - 2 + X(36), y - 32 + 31, 8, 3, '#5FA85A', 0.5);
-      g.rect(x - 2 + X(35), y - 32 + 30, 10, 5, '#9BCB6B', 0.14);
+  } as PropArt;
+});
+
+// ================================================================ the stairs down (11,14): x11–13, the exit at (12,14)
+
+// Where one comes up from M4 (the steel door at the west end of its north
+// wall): the top of the stairs at the south edge, between two low walls with
+// pipe handrails, the steps going down into the dark; a 『↓2F』 plate, and
+// the evening falling a little way in.
+registerProp('mall_roof_stairs', () => {
+  // image: world x 174–225, y 206–239 (anchor (176,224))
+  const p = new PixelCanvas(52, 34);
+  const X = (wx: number) => wx - 174;
+  const Y = (wy: number) => wy - 206;
+  // the steps (x 190–209), lit at the top, dark further down
+  const steps: [number, number, string, string][] = [
+    [218, 222, P.concreteLt, P.concrete],
+    [223, 227, P.concrete, P.steel],
+    [228, 232, P.steel, P.asphalt],
+    [233, 236, P.asphalt, P.charcoal],
+    [237, 239, P.charcoal, P.ink],
+  ];
+  for (const [y0, y1, top, face] of steps)
+    for (let y = y0; y <= y1; y++) p.hline(X(190), X(209), Y(y), y === y0 ? top : face);
+  // the non-slip edges
+  for (const [y0] of steps.slice(0, 3)) for (let x = 191; x < 209; x += 3) p.set(X(x), Y(y0) + 1, P.brassOld);
+  // the low side walls with their coping
+  for (const wx of [182, 210]) {
+    p.rect(X(wx), Y(214), 8, 26, P.concrete);
+    p.hline(X(wx), X(wx + 7), Y(214), P.concreteLt);
+    p.vline(X(wx), Y(214), Y(239), P.concreteLt);
+    p.vline(X(wx + 7), Y(215), Y(239), P.steel);
+  }
+  // the inner faces of the walls going down with the stairs
+  p.vline(X(189), Y(218), Y(239), P.shade);
+  p.vline(X(210), Y(218), Y(239), P.asphalt);
+  // pipe handrails on posts
+  for (const hx of [185, 213]) {
+    p.vline(X(hx), Y(208), Y(214), P.steel);
+    p.vline(X(hx), Y(226), Y(232), P.steel);
+    p.vline(X(hx), Y(208), Y(233), P.concreteLt);
+    p.set(X(hx), Y(208), P.white);
+  }
+  // 『↓2F』 on the west wall
+  p.rect(X(175), Y(215), 7, 12, P.navy);
+  p.hline(X(175), X(181), Y(215), P.blue);
+  tiny(p, '2F', X(176), Y(217), P.white);
+  p.vline(X(178), Y(223), Y(225), P.gold);
+  p.set(X(177), Y(224), P.gold);
+  p.set(X(179), Y(224), P.gold);
+  finish(p, { soft: true, rim: false });
+  const img = p.toCanvas();
+  return {
+    ox: -2,
+    oy: -18,
+    w: 52,
+    h: 34,
+    foot: 15,
+    img: () => img,
+    shadow: 0,
+    contact: 0,
+    // the evening on the top steps
+    light(g: Gfx, x: number, y: number) {
+      g.rect(x + 14, y - 6, 20, 5, '#F7C27A', 0.12);
     },
   } as PropArt;
 });
@@ -688,7 +752,8 @@ registerProp('mall_roof_stage', () => {
   p.set(lx + 5, ly + 2, P.peach);
   p.rect(lx - 1, ly - 13, 2, 3, P.brass);
   // the letters
-  fontTextSmall(p, 'カネナリくん', X(180), Y(10), P.navy, 1);
+  tiny(p, 'KANENARI', X(180), Y(10), P.navy);
+  tiny(p, 'KUN', X(215), Y(10), P.verm);
   fontText(p, '握手会', X(182), Y(19), P.verm);
   // hearts and stars in the corners, the tape that held a sign
   for (const [hx, hy, c] of [[X(229), Y(11), P.crimson], [X(228), Y(31), P.gold], [X(150), Y(33), P.crimson]] as [number, number, string][]) {
@@ -1149,7 +1214,7 @@ registerProp('mall_roof_saigobi', () => {
   p.set(25, 12, P.concrete);
   p.set(24, 12, P.concreteLt);
   finish(p, { soft: true });
-  return stand(p.toCanvas(), { cx: 14, base: 16, contact: 12, shadow: 28 });
+  return stand(p.toCanvas(), { cx: 10, base: 16, contact: 12, shadow: 28 });
 });
 
 // ================================================================ the air-con units (14,13), fans turned by the wind
@@ -1198,18 +1263,27 @@ registerProp('mall_roof_ac', () => {
 registerProp('mall_roof_fence_s', () => {
   // image: world x 0–383, y 204–239 (anchor (0,224)); a low safety fence on the coping (base y 230)
   const p = new PixelCanvas(W, 36);
+  const gap = (x: number) => x >= 180 && x < 220;
   for (let y = 15; y < 25; y++)
     for (let x = 12; x < W - 12; x++) {
+      if (gap(x)) continue;
       const d1 = (((x + y) % 8) + 8) % 8 === 0;
       const d2 = (((x - y) % 8) + 8) % 8 === 0;
       if (d1 && d2) p.set(x, y, P.concreteLt);
       else if ((d1 || d2) && (x & 1) === 0) p.set(x, y, P.steel);
     }
-  p.hline(8, W - 9, 12, P.white);
-  p.hline(8, W - 9, 13, P.concreteLt);
-  p.hline(8, W - 9, 14, P.steel);
-  p.hline(8, W - 9, 25, P.steel);
+  for (const [a, b] of [[8, 179], [220, W - 9]]) {
+    p.hline(a, b, 12, P.white);
+    p.hline(a, b, 13, P.concreteLt);
+    p.hline(a, b, 14, P.steel);
+    p.hline(a, b, 25, P.steel);
+  }
   for (let x = 6; x < W; x += 32) {
+    if (gap(x) || gap(x + 1)) continue;
+    p.vline(x, 11, 26, P.concreteLt);
+    p.vline(x + 1, 11, 26, P.steel);
+  }
+  for (const x of [178, 220]) {
     p.vline(x, 11, 26, P.concreteLt);
     p.vline(x + 1, 11, 26, P.steel);
   }
@@ -1227,30 +1301,40 @@ registerProp('mall_roof_fence_s', () => {
  */
 registerProp('mall_roof_door', () => {
   const p = new PixelCanvas(16, 32);
-  // the plate
-  p.rect(0, 0, 16, 10, P.navy);
-  p.hline(0, 15, 0, P.blue);
-  fontTextSmall(p, '屋上', 0, 1, P.white, 1);
+  // the plate: 『↑RF』 (the roof floor, as on a lift's buttons)
+  p.rect(1, 1, 14, 6, P.navy);
+  p.hline(1, 14, 1, P.blue);
+  tiny(p, 'RF', 7, 2, P.white);
+  p.vline(4, 2, 5, P.gold);
+  p.set(3, 3, P.gold);
+  p.set(5, 3, P.gold);
   // frame and leaf
-  p.rect(1, 11, 14, 21, P.asphalt);
-  p.rect(2, 12, 12, 20, P.concrete);
-  p.vline(2, 12, 31, P.concreteLt);
-  p.hline(2, 13, 12, P.concreteLt);
-  p.vline(13, 13, 31, P.steel);
+  p.rect(1, 7, 14, 25, P.asphalt);
+  p.rect(2, 8, 12, 24, P.concrete);
+  p.vline(2, 8, 31, P.concreteLt);
+  p.hline(2, 13, 8, P.concreteLt);
+  p.vline(13, 9, 31, P.steel);
   // the window: warm light from the stairs up to the roof
-  p.rect(5, 15, 6, 5, P.sky);
-  p.hline(5, 10, 15, P.horizon);
-  p.set(7, 17, P.sun);
-  p.vline(8, 15, 19, P.brass);
-  p.hline(5, 10, 17, P.brass);
-  p.strokeRect(4, 14, 8, 7, P.steel);
+  p.rect(5, 10, 6, 5, P.sky);
+  p.hline(5, 10, 10, P.horizon);
+  p.set(6, 11, P.glint);
+  p.vline(8, 10, 14, P.brass);
+  p.hline(5, 10, 12, P.brass);
+  p.strokeRect(4, 9, 8, 7, P.steel);
+  // the notice: 『屋上 ゆうやけひろば 営業時間 10:00〜17:00』
+  p.rect(4, 17, 8, 6, P.white);
+  p.hline(5, 10, 18, P.verm);
+  p.hline(5, 9, 20, P.ink);
+  p.hline(5, 10, 21, P.ink);
+  p.set(4, 17, P.goldPale);
+  p.set(11, 17, P.goldPale);
   // push bar, kick plate, the warm line at the threshold
-  p.hline(4, 12, 23, P.steel);
-  p.hline(4, 12, 24, P.asphalt);
-  p.rect(3, 28, 10, 3, P.steel);
-  p.hline(3, 12, 28, P.concreteLt);
+  p.hline(3, 12, 24, P.steel);
+  p.hline(3, 12, 25, P.asphalt);
+  p.rect(3, 27, 10, 3, P.steel);
+  p.hline(3, 12, 27, P.concreteLt);
   p.hline(2, 13, 31, P.sky);
-  castRight(p, 0, 0, 16, 32, 1);
+  castRight(p, 1, 1, 14, 31, 1);
   const img = p.toCanvas();
   return {
     ox: 0,
@@ -1261,7 +1345,7 @@ registerProp('mall_roof_door', () => {
     flat: true,
     img: () => img,
     glow(g: Gfx, x: number, y: number) {
-      g.rect(x + 5, y + 15, 6, 5, '#F7C27A', 0.35);
+      g.rect(x + 5, y + 10, 6, 5, '#F7C27A', 0.35);
       g.rect(x + 2, y + 31, 12, 1, '#FFE7A3', 0.6);
     },
     light(g: Gfx, x: number, y: number) {
@@ -1272,16 +1356,47 @@ registerProp('mall_roof_door', () => {
   } as PropArt;
 });
 
+// ================================================================ planters by the north fence (18,2)
+
+registerProp('mall_roof_planters', () => {
+  // image: world x 286–337, y 20–47 (anchor (288,32)): a long box of dried-out flowers
+  const p = new PixelCanvas(52, 28);
+  p.rect(2, 16, 48, 11, P.concrete);
+  p.hline(2, 49, 16, P.concreteLt);
+  p.hline(2, 49, 26, P.steel);
+  for (const px of [17, 33]) p.vline(px, 17, 25, P.steel);
+  p.rect(3, 14, 46, 3, P.woodDark);
+  // dried stalks, seed heads, one weed that made it
+  for (let k = 0; k < 16; k++) {
+    const x = 4 + ((k * 7 + (ihash(k, 1, 5781) % 3)) % 44);
+    const h = 5 + (ihash(k, 2, 5781) % 9);
+    const lean = (ihash(k, 3, 5781) % 3) - 1;
+    for (let j = 0; j < h; j++) p.set(x + (j > h / 2 ? lean : 0), 14 - j, j === h - 1 ? P.brass : P.brassOld);
+    if (k % 4 === 1) p.rect(x - 1 + lean, 14 - h, 3, 2, P.wood);
+  }
+  p.set(40, 13, P.leaf);
+  p.set(41, 12, P.leafYoung);
+  p.set(39, 12, P.leaf);
+  // a plant label, sun-bleached: 『ひまわり』
+  p.rect(10, 9, 5, 6, P.white);
+  p.vline(12, 15, 16, P.white);
+  p.hline(11, 13, 11, P.steel);
+  finish(p, { soft: true });
+  const img = p.toCanvas();
+  return { ox: -2, oy: -12, w: 52, h: 28, foot: 15, img: () => img, shadow: 14, contact: 0 } as PropArt;
+});
+
 // ================================================================ the view through the binocular (evt_roof_scope)
 
 let scopePano: HTMLCanvasElement | null = null;
 
 /**
- * The east from the roof, 640×216: the railway and the level crossing, the
- * roofs of 夕鳴町 in the dusk, the river bridge, the mountains — and above
- * and beyond them a patch of night that should not be there yet: stars, and
- * on a far hill with terraced fields the few small lights of a village
- * (星見台; nobody in it is shown).
+ * The east from the roof, 640×216. The low sun is behind the one looking:
+ * the town is lit warm — its west walls, the roofs, the railway and the
+ * level crossing, the poles — and the mountains beyond take the last rose.
+ * Past them, over a gap in the ridge, a patch of night that should not be
+ * there yet: stars, and on a far hill with terraced fields the few small
+ * lights of a village (星見台; nobody in it is shown).
  */
 function panorama(): HTMLCanvasElement {
   if (scopePano) return scopePano;
@@ -1289,86 +1404,107 @@ function panorama(): HTMLCanvasElement {
   const PH = 216;
   const p = new PixelCanvas(PW, PH);
   // the near mountains fall away on the right, into a gap: the far hill shows beyond it
-  const ridge = (x: number) => Math.round(92 + 10 * Math.sin(x / 70 + 0.4) + 6 * Math.sin(x / 23) + (x > 400 ? Math.min(34, (x - 400) / 4) : 0));
-  const hillTop = (x: number) => Math.round(108 - 16 * Math.sin(Math.max(0, Math.min(1, (x - 452) / 170)) * Math.PI));
-  // the sky: dusk on the left, going to night past the mountains
+  const ridge = (x: number) => Math.round(96 + 9 * Math.sin(x / 70 + 0.4) + 5 * Math.sin(x / 23) + (x > 400 ? Math.min(30, (x - 400) / 4) : 0));
+  const hillTop = (x: number) => Math.round(110 - 15 * Math.sin(Math.max(0, Math.min(1, (x - 452) / 170)) * Math.PI));
+  const nightAt = (x: number) => Math.max(0, Math.min(1, (x - 385) / 70));
+  // the sky: the rose of the dusk on the left, night past the ridge
+  const bands: [number, string][] = [[0, P.lilac], [34, P.peach], [62, P.crimson], [80, P.sun], [92, P.sky], [100, P.horizon]];
   for (let y = 0; y < PH; y++)
     for (let x = 0; x < PW; x++) {
-      const night = Math.max(0, Math.min(1, (x - 330) / 150));
-      const v = y / 120;
-      let c: string = v < 0.3 ? P.lilac : v < 0.55 ? P.peach : v < 0.75 ? P.crimson : P.sun;
-      if (v > 0.25 && v < 0.35) c = dith(x, y, (v - 0.25) / 0.1, P.lilac, P.peach);
-      if (v > 0.5 && v < 0.6) c = dith(x, y, (v - 0.5) / 0.1, P.peach, P.crimson);
-      if (night > 0) {
-        const n = y < 70 ? P.night : y < 100 ? P.nightShade : P.shadeDeep;
-        c = dith(x, y, night, c, n);
-      }
+      let i = 0;
+      while (i < bands.length - 1 && y >= bands[i + 1][0]) i++;
+      let c: string = bands[i][1];
+      if (i < bands.length - 1 && bands[i + 1][0] - y < 4) c = dith(x, y, 1 - (bands[i + 1][0] - y) / 4, c, bands[i + 1][1]);
+      const n = nightAt(x);
+      if (n > 0) c = dith(x, y, n, c, y < 60 ? P.night : y < 90 ? P.nightShade : P.shadeDeep);
       p.set(x, y, c);
     }
+  // a long cloud catching the light
+  for (let i = 0; i < 120; i++) {
+    p.set(60 + i, 46 + Math.round(Math.sin(i / 20)), i % 9 === 0 ? P.peach : P.sky);
+    if (i > 6 && i < 112) p.set(60 + i, 47 + Math.round(Math.sin(i / 20)), P.sunShade);
+  }
   // stars in the night part
-  for (let k = 0; k < 90; k++) {
-    const sx = 420 + (ihash(k, 1, 5771) % 220);
-    const sy = 4 + (ihash(k, 2, 5771) % 90);
-    if (sy > ridge(sx) - 4) continue;
+  for (let k = 0; k < 110; k++) {
+    const sx = 400 + (ihash(k, 1, 5771) % 240);
+    const sy = 4 + (ihash(k, 2, 5771) % 100);
+    if (sy > ridge(sx) - 6 || sy > hillTop(sx) - 4 || nightAt(sx) < 0.6) continue;
     p.set(sx, sy, ihash(k, 3, 5771) % 4 ? P.horizon : P.glint);
     if (ihash(k, 4, 5771) % 9 === 0) {
       p.set(sx - 1, sy, P.shade);
       p.set(sx + 1, sy, P.shade);
     }
   }
-  // the far range
+  // the far range (the last rose on its crest)
   for (let x = 0; x < PW; x++) {
-    const far = ridge(x) - 8 + Math.round(4 * Math.sin(x / 31));
-    const night = Math.max(0, Math.min(1, (x - 330) / 150));
-    for (let y = far; y < PH; y++) p.set(x, y, night > 0.5 ? P.nightShade : P.shade);
-    if (night < 0.5) p.set(x, far, P.lilac);
+    const far = ridge(x) - 10 + Math.round(4 * Math.sin(x / 31));
+    const n = nightAt(x);
+    for (let y = far; y < PH; y++) p.set(x, y, dith(x, y, n, P.lilac, P.nightShade));
+    if (n < 0.5) p.set(x, far, P.peach);
   }
   // the far hill beyond the gap: terraced fields in the night, a village's few lights
   for (let x = 452; x < 622; x++)
     for (let y = hillTop(x); y < PH; y++) p.set(x, y, (y - hillTop(x)) % 4 === 3 ? P.nightShade : P.night);
-  for (const [lx, ly, c] of [[498, 104, P.gold], [521, 99, P.sky], [540, 102, P.gold], [563, 106, P.goldPale], [590, 112, P.sky], [612, 118, P.gold]] as [number, number, string][]) {
+  for (const [lx, ly, c] of [[498, 106, P.gold], [521, 101, P.sky], [540, 104, P.gold], [563, 108, P.goldPale], [590, 114, P.sky], [608, 119, P.gold]] as [number, number, string][]) {
     p.set(lx, ly, c);
     p.set(lx + 1, ly, dk(c));
   }
-  // the near mountains
+  // the near mountains, lit on their west slopes
   for (let x = 0; x < PW; x++) {
     const near = ridge(x);
-    const night = Math.max(0, Math.min(1, (x - 330) / 150));
-    for (let y = near; y < PH; y++) p.set(x, y, night > 0.5 ? P.night : P.shadeDeep);
-    if (night < 0.5) p.set(x, near, P.shade);
+    const n = nightAt(x);
+    // the smooth line of the range (without the small bumps) decides which slopes face the sun
+    const base = (xx: number) => 96 + 9 * Math.sin(xx / 70 + 0.4);
+    const lit = base(x + 8) - base(x - 8) > 0.6;
+    for (let y = near; y < PH; y++) {
+      let c: string = lit && y < near + 10 ? P.lilac : y > near + 16 ? P.shadeDeep : P.shade;
+      if (n > 0) c = dith(x, y, n, c, P.night);
+      p.set(x, y, c);
+    }
+    if (n < 0.5) p.set(x, near, P.peach);
   }
-  // the town: roofs under the mountains (tiles, flat roofs), poles and wires
+  // the town: roofs and west walls in the low sun
   let x = 0;
   let k = 0;
-  while (x < 420) {
+  while (x < 440) {
     const hh = ihash(k, 5, 5773);
-    const w = 16 + (hh % 30);
-    const top = 128 + ((hh >>> 6) % 22);
-    const roof = [P.shade, P.sunShade, P.lilac, P.shadeDeep][(hh >>> 12) % 4];
-    for (let i = 0; i < w && x + i < PW; i++) {
-      for (let y = top; y < PH; y++) p.set(x + i, y, y < top + 4 ? roof : y % 7 === 0 ? P.shadeDeep : P.shade);
-      if (i === 0) for (let y = top; y < PH; y++) p.set(x + i, y, P.nightShade);
-    }
-    if ((hh >>> 16) % 3 === 0) p.set(x + 4 + ((hh >>> 18) % Math.max(1, w - 8)), top + 8, P.goldPale);
-    x += w;
+    const w = 16 + (hh % 28);
+    const top = 124 + ((hh >>> 6) % 24);
+    const roof = [P.sunShade, P.verm, P.shade, P.brassOld, P.navy, P.maroon][(hh >>> 12) % 6];
+    const wall = [P.goldPale, P.sky, P.concreteLt, P.paperGrid][(hh >>> 15) % 4];
+    for (let i = 0; i < w && x + i < PW; i++)
+      for (let y = top; y < PH; y++) {
+        let c: string = y < top + 5 ? (y === top ? lt(roof) : roof) : wall;
+        if (i === 0 || i === w - 1) c = y < top + 5 ? dk(roof) : dk(wall);
+        if (y >= top + 5 && (y - top) % 9 === 4 && i % 7 > 2 && i % 7 < 6) c = P.shade;
+        p.set(x + i, y, c);
+      }
+    x += w + ((hh >>> 20) % 3);
     k++;
   }
-  // the railway embankment and its rails across the foot of the view, the crossing's lamps
-  for (let xx = 0; xx < 440; xx++) {
+  // poles and wires
+  for (let px = 30; px < 440; px += 58) {
+    p.vline(px, 108, 176, P.woodDark);
+    p.hline(px - 3, px + 3, 112, P.woodDark);
+    for (let i = 0; i < 58 && px + i < 440; i++) p.set(px + i, 113 + Math.round(Math.sin((i / 58) * Math.PI) * 4), P.shadeDeep);
+  }
+  // the railway embankment across the foot of the view, the crossing's post
+  for (let xx = 0; xx < 460; xx++) {
+    for (let y = 172; y < 188; y++) p.set(xx, y, (xx * 3 + y) % 5 ? P.brassOld : P.wood);
     p.set(xx, 176, P.steel);
-    p.set(xx, 180, P.steel);
-    for (let y = 181; y < 186; y++) p.set(xx, y, (xx + y) % 4 ? P.shadeDeep : P.shade);
-    if (xx % 6 === 0) p.vline(xx, 177, 179, P.wood);
+    p.set(xx, 175, P.white);
+    p.set(xx, 181, P.steel);
+    p.set(xx, 180, P.white);
+    if (xx % 6 === 0) {
+      p.vline(xx, 177, 179, P.woodDark);
+      p.vline(xx, 182, 184, P.woodDark);
+    }
   }
-  p.vline(150, 150, 176, P.charcoal);
-  p.rect(146, 152, 9, 3, P.charcoal);
-  p.set(147, 153, P.red);
-  p.set(153, 153, P.maroon);
-  for (let px = 40; px < 440; px += 64) {
-    p.vline(px, 112, 176, P.nightShade);
-    p.hline(px - 3, px + 3, 116, P.nightShade);
-    for (let i = 0; i < 64 && px + i < 440; i++) p.set(px + i, 117 + Math.round(Math.sin((i / 64) * Math.PI) * 4), P.shadeDeep);
-  }
+  p.vline(150, 146, 172, P.charcoal);
+  p.rect(146, 148, 9, 3, P.charcoal);
+  p.set(147, 149, P.red);
+  p.set(153, 149, P.maroon);
+  for (let i = 0; i < 11; i++) p.set(150 + i, 158, i % 4 < 2 ? P.gold : P.ink);
   scopePano = p.toCanvas();
   return scopePano;
 }
@@ -1393,21 +1529,34 @@ export function drawScopeView(g: Gfx, sw: number, sh: number, k: number, pan: nu
     const jx = Math.round(Math.sin(t / 530) * 0.8);
     const jy = Math.round(Math.sin(t / 410 + 1) * 0.8);
     const sx = Math.round(pan * (pano.width - sw)) + jx;
-    ctx.beginPath();
-    ctx.moveTo(cx0 + r, cy);
-    ctx.arc(cx0, cy, r, 0, Math.PI * 2);
-    ctx.moveTo(cx1 + r, cy);
-    ctx.arc(cx1, cy, r, 0, Math.PI * 2);
+    const circles = (c: CanvasRenderingContext2D, rr: number) => {
+      c.beginPath();
+      c.moveTo(cx0 + rr, cy);
+      c.arc(cx0, cy, rr, 0, Math.PI * 2);
+      c.moveTo(cx1 + rr, cy);
+      c.arc(cx1, cy, rr, 0, Math.PI * 2);
+    };
+    circles(ctx, r);
     ctx.clip();
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(pano, sx, jy, sw, sh, 0, 0, sw, sh);
-    // the lens's rim: darker toward the edge
-    for (const cx of [cx0, cx1]) {
-      const gr = ctx.createRadialGradient(cx, cy, r * 0.62, cx, cy, r);
-      gr.addColorStop(0, 'rgba(11,11,20,0)');
-      gr.addColorStop(1, 'rgba(11,11,20,0.75)');
-      ctx.fillStyle = gr;
-      ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    // the lens barrel's edge: a dark rim round the outside of the pair only
+    for (const [cx, other] of [[cx0, cx1], [cx1, cx0]]) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, sw, sh);
+      ctx.moveTo(other + r - 1, cy);
+      ctx.arc(other, cy, r - 1, 0, Math.PI * 2);
+      ctx.clip('evenodd');
+      ctx.strokeStyle = 'rgba(11,11,20,0.55)';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r - 1, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(11,11,20,0.35)';
+      ctx.lineWidth = 12;
+      ctx.stroke();
+      ctx.restore();
     }
   }
   ctx.restore();

@@ -309,7 +309,7 @@ registerMap({
     O('obj_cleaning_sign', 15, 4, { cond: { notTaken: 'sym_mall_2f_01' } }),
     { t: 'trig', id: 'trig_maigo_door_rest', x: 18, y: 2, w: 3, h: 2, once: true, script: 'trig_maigo_door_rest', cond: { flag: 'flag_maigo_door_open' } },
     { t: 'door', id: 'door_m4_m5', x: 19, y: 1, to: 'map_mall_maigo', tx: 6, ty: 9, dir: 'up', se: 'se_door_heavy', cond: { flag: 'flag_maigo_door_open' } },
-    { t: 'door', id: 'door_m4_roof', x: 2, y: 1, to: 'map_mall_roof', tx: 2, ty: 4, dir: 'down', se: 'se_door_heavy' },
+    { t: 'door', id: 'door_m4_roof', x: 2, y: 1, to: 'map_mall_roof', tx: 12, ty: 13, dir: 'up', se: ['se_door_heavy', 'se_stairs'] },
     { t: 'door', id: 'door_m3_m4_escalator', x: 1, y: 4, to: 'map_mall_health', tx: 7, ty: 3, dir: 'down', step: true, se: 'se_escalator_step' },
     { t: 'sym', id: 'sym_mall_2f_01', enemies: ['enemy_soujirou'], x: 8, y: 3, dir: 'right', move: 'soujirou', restoreAt: [8, 2], restoreOff: [0, 3] },
   ],
