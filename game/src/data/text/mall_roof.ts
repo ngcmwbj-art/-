@@ -106,6 +106,9 @@ export const ROOF_FLIP_FIRST = `@flip
 ここで 握手会を しました。
 （ノートが 残っているはずです）`;
 
+/** M4 2F, the first time there: held up over his head for a moment (not a window; 1 board, ≤ 104 px a line). */
+export const ROOF_HINT = '（上にも 何か あります）';
+
 /** After the handshake, every time on the roof. */
 export const ROOF_FLIP_DONE = `@flip
 本日の 握手会は 終了しました。

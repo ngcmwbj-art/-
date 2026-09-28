@@ -305,15 +305,15 @@ registerBuilding({
     wall(p, 0, fY, 80, 32, wallOld(5));
     eaveDark(p, 0, fY, 80, 3);
     // all the rain shutters closed
-    amado(p, 4, fY + 6, 32, 14, 5, 'r');
+    amado(p, 2, fY + 6, 28, 14, 5, 'r');
     amado(p, 58, fY + 6, 16, 14, 6, null);
-    // the entrance: old sliding door, the nameplate 森本
-    hikido(b, 44, fY + 10, 12, 20, HP.oldWoodDk);
-    hyousatsu(p, 40, fY + 12, 5);
-    genkanStep(p, 44, b.botY, 12);
+    // the entrance: old sliding door (on its tile x16, 02 #61: the mailbox's post stands beside it), the nameplate 森本
+    hikido(b, 34, fY + 10, 12, 20, HP.oldWoodDk);
+    hyousatsu(p, 48, fY + 12, 5);
+    genkanStep(p, 34, b.botY, 12);
     // weeds against the wall (the front of the door itself is mown: 52 3.5)
     for (let i = 0; i < 80; i++) {
-      if (i > 40 && i < 60) continue;
+      if (i > 30 && i < 50) continue;
       const hh = ihash(i, 3, 3513);
       if (hh % 3) continue;
       const len = 2 + (hh % 5);
@@ -382,11 +382,15 @@ registerBuilding({
     hikido(b, 16, fY + 10, 14, 20, P.steel);
     genkanStep(p, 16, b.botY, 14);
     hyousatsu(p, 31, fY + 12, 6);
-    // onions hung under the west eave (#D9A441 × 6)
-    p.hline(1, 12, fY + 3, P.woodDark);
+    // the kitchen door at the west end (02 #61): the front door is behind the
+    // 無人販売所's stand, so one goes in from the west lane (20,36)
+    hikido(b, 1, fY + 13, 11, 17, P.steel);
+    genkanStep(p, 1, b.botY, 11);
+    // onions hung under the west eave (#D9A441 × 6), over the kitchen door
+    p.hline(1, 12, fY + 2, P.woodDark);
     for (let k = 0; k < 6; k++) {
       const ox = 2 + (k % 3) * 4;
-      const oy = fY + 5 + Math.floor(k / 3) * 4;
+      const oy = fY + 4 + Math.floor(k / 3) * 4;
       p.vline(ox + 1, fY + 3, oy, P.woodLt);
       p.rect(ox, oy, 3, 3, P.brass);
       p.set(ox, oy, P.goldPale);
@@ -469,9 +473,14 @@ registerBuilding({
     fontTextSmall(p, '売家', sx + 2, sy + 1, P.verm);
     for (let i = sx + 3; i < sx + 17; i++) if (ihash(i, 1, 3525) % 3) p.set(i, sy + 9, mix(P.verm, P.white, 0.55));
     castRight(p, sx, sy, 20, 11, 2);
-    // the old red phone booth's mark and a sun-bleached poster ghost
-    p.rect(54, fY + 15, 10, 12, mix(P.concrete, P.steel, 0.2));
-    for (let j = fY + 16; j < fY + 26; j += 2) p.hline(55, 62, j, mix(P.steel, P.concrete, 0.5));
+    // the pass door cut in the shutter (02 #61, (30,36)) with its paper 『見学 ご自由に』
+    p.rect(50, fY + 15, 12, 15, P.charcoal);
+    for (let j = fY + 16; j < b.botY - 1; j++)
+      for (let i = 51; i < 61; i++) p.set(i, j, (j - fY) % 3 === 0 ? P.steel : mix(P.steel, P.asphalt, 0.55));
+    p.rect(58, fY + 22, 2, 2, P.concreteLt); // the latch
+    p.rect(52, fY + 17, 5, 4, P.white);
+    p.hline(53, 55, fY + 18, P.ink);
+    p.hline(53, 54, fY + 19, P.ink);
     footing(p, 0, b.botY, 80, P.concrete, 8);
   },
 });

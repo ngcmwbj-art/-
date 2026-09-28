@@ -267,8 +267,13 @@ A5  F5  D5  C5 ｜ D5  F5（最後をのばす）
 | `map_hoshi_barn` | （入れない） | `bgm_hoshi_night`（`'barn'`）＋`amb_h_barn`。空間 `barn` | 同左 | カット2a：`bgm_hoshi_morning` のまま＋`amb_h_barn`（朝） |
 | `map_hoshi_school` | `bgm_hoshi_night`（`'school'`）＋`amb_h_school`＋`amb_h_insects`（窓ごし：`{ vol: 0.35, lp: 2000 }`）。空間 `room` | 同左 | 同左 | カット2d：`bgm_hoshi_morning` のまま |
 | `map_hoshi_hill` | ― | ― | `bgm_hoshi_night`（`'hill'`）＋`amb_h_insects`＋`amb_h_wind`（丘）＋`amb_h_pa_hum`（近い）。空間 `yama` | ボス後はイベントが制御 |
+| 家々の中 ★2026-09-28（52 4.5：`map_hoshi_fumi` `_minka1〜3` `_kucho` `_sawako` `_gen` `_kominka` `_akiya` `_shoten`） | `bgm_hoshi_night`（`'house'`＝壁ごし −4dB・LP2400）＋`amb_h_insects`（壁ごし `{ vol: 0.35, lp: 2000 }`）。マサルの家だけ `amb_h_barn_out` も窓ごしに `{ vol: 0.3, lp: 1200 }`（牛舎の換気扇）。空間 `room` | 同左 | 同左 | （入らない） |
+| 小屋・倉庫（`map_hoshi_soko` `_shouboya` `_koya` `_taihisha`） | `bgm_hoshi_night`（`'house'`）＋`amb_h_insects`（板やトタンごし `{ vol: 0.55, lp: 3500 }`。農具小屋 `{ 0.6, 4000 }`＋`amb_h_tanada` `{ 0.35, 2500 }`、前の開いた堆肥舎 `{ 0.7, 6000 }`＋`amb_h_barn_out` `{ 0.45, 2500 }`）。空間 `room` | 同左 | 同左 | （入らない） |
+| 1号・2号ハウス（`map_hoshi_house1` `_house2`） | `bgm_hoshi_night`（`'house'`）＋`amb_h_insects`（フィルムごし `{ vol: 0.6, lp: 4000 }`）。2号は `amb_h_hachi` `{ vol: 0.45 }` も（巣箱の中の小さな羽音）。空間 `room` | 同左 | 同左 | （入らない） |
+| 分校の体育館（`map_hoshi_gym`） | `bgm_hoshi_night`（`'school'`）＋`amb_h_insects`（高い窓ごし `{ vol: 0.3, lp: 1800 }`）。空間 `room` | 同左 | 同左 | （入らない） |
 
-- **放送の呼び声**（`evt_ch2_calls`）は、屋外でも屋内でも鳴る。屋内は `setPaDistance(d, true)`（3.3）。段階ごとの鳴り方は7.4。
+- **放送の呼び声**（`evt_ch2_calls`）は、屋外でも屋内でも鳴る。屋内は `setPaDistance(d, true)`（3.3）。段階ごとの鳴り方は7.4。家々の中（★2026-09-28）も同じ（屋内の −12dB・LP1.2kHz）。
+- **壁ごしの環境音**（★2026-09-28、02 #61）：マップの `ambVol: { [id]: { vol, lp } }` で、その部屋での音量と LP を決める（ワールドが `playAmbient` に渡す。分校の窓ごしの虫はこれまでどおり）。新しい音は作らない。扉の音は既存の `se_door_glass`（ガラスの引き戸）`se_door`（木の戸）`se_door_small`（くぐり戸・小屋）`se_door_heavy`（体育館の鉄の引き戸）`se_shutter`（消防小屋）`se_h_vinyl_door`（ハウス）。2号ハウスに初めて入ったときだけ、戸を閉める `se_h_vinyl_door`（pitch 0.9）をもう1回。
 - **段階が変わったとき**と**ロードしたとき**、ワールドは `setMusicParam('h_stage', flag_ch2_stage)` を呼ぶ（6.1）。夕鳴町にいるあいだ（プロローグ、エンディングのカット4以降、第1章）は `h_stage = -1`。
 - 屋内から外へ出たときは、`bgm_hoshi_night` が**止まらずに続く**（同じID）。戦闘から戻ったときは続きから（40 12.3）。
 

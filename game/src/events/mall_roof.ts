@@ -11,6 +11,8 @@
 //  - evt_roof_panda: 100 yen, the panda goes 1 m and comes back.
 //  - evt_roof_scope: 100 yen (once — the timer never runs, it is 17:00),
 //    the east through the lenses: beyond the mountains it is night.
+//  - M4 2F: the first time there, カネナリくん holds up 「（上にも 何か
+//    あります）」 over his head for a moment (non-blocking, flag_roof_hint).
 //  - debug: __game.cmd.roof() (stage 2 with カネナリくん, on the roof),
 //    roofReset(), roofText() (every page: 3 lines × 336 px).
 
@@ -24,6 +26,8 @@ import { registerWorldFx } from '../world/fx';
 import type { Actor } from '../world/actor';
 import { animate, ease } from '../engine/tween';
 import { W, H } from '../engine/screen';
+import { game } from '../engine/game';
+import { flipBoardText } from '../art/chars';
 import { drawScopeView, RIDE, roofRt } from '../art/props/mall_roof';
 import {
   HS_FLIP,
@@ -35,6 +39,7 @@ import {
   HS_WRITE,
   ROOF_FLIP_DONE,
   ROOF_FLIP_FIRST,
+  ROOF_HINT,
   ROOF_NO_COIN,
   ROOF_NOTE,
   ROOF_NOTE_AFTER,
@@ -375,6 +380,69 @@ registerWorldFx({
   },
 });
 
+// ---------------------------------------------------------------- M4: the stairs, pointed out once
+
+/**
+ * The first time on 2F (before the roof was ever visited, 10_narrative
+ * 7.18): a moment after arriving, カネナリくん turns to the stairs and holds
+ * up his board 「（上にも 何か あります）」 over his head for 2.6 s. Nothing
+ * stops — the player can walk on while it is up (flag_roof_hint).
+ */
+const HINT_MS = 2600;
+const hint = { field: null as unknown, map: '', enterT: 0, t0: -1, posed: false };
+registerWorldFx({
+  map: '',
+  update(f) {
+    if (f !== hint.field || f.map.id !== hint.map) {
+      if (hint.posed && f.follower?.tempPose === 'flip_hold') f.follower.tempPose = null;
+      hint.field = f;
+      hint.map = f.map.id;
+      hint.enterT = f.t;
+      hint.t0 = -1;
+      hint.posed = false;
+    }
+    if (f.map.id !== 'map_mall_2f') return;
+    const k = f.follower;
+    if (hint.t0 < 0) {
+      if (flag('flag_roof_hint') || flag('flag_roof_visited') || !flag('flag_kanenari_joined')) return;
+      if (f.t - hint.enterT < 700 || game.scripts.busy || f.talking !== null || !f.controllable) return;
+      if (!k || !k.visible || k.data.scripted) return;
+      setFlag('flag_roof_hint', 1);
+      hint.t0 = f.t;
+      sfx('se_flip');
+      if (!k.moving) {
+        k.tempPose = 'flip_hold';
+        hint.posed = true;
+      }
+      return;
+    }
+    const u = f.t - hint.t0;
+    // he lowers it at the end, or as soon as he walks off / something else takes him
+    if (hint.posed && k && (u > HINT_MS || k.moving || k.data.scripted || game.scripts.busy)) {
+      if (k.tempPose === 'flip_hold') k.tempPose = null;
+      hint.posed = false;
+    }
+  },
+  draw(f, g, cx, cy, layer) {
+    if (layer !== 'top' || f.map.id !== 'map_mall_2f' || hint.t0 < 0) return;
+    const u = f.t - hint.t0;
+    const k = f.follower;
+    if (u > HINT_MS + 180 || !k || !k.visible || game.scripts.busy) return;
+    const img = flipBoardText(ROOF_HINT, { maxW: 104 });
+    // pops in (1.15 → 1), fades at the end; beside his head but never over
+    // the stairs, their board and the arrow (map x 16–83): just east of them
+    const s = 1.15 - 0.15 * ease.cubicOut(Math.min(1, u / 140));
+    const w = Math.round(img.width * s);
+    const h = Math.round(img.height * s);
+    const ax = Math.round(k.x + k.ox - cx);
+    const ay = Math.round(k.y + Math.min(0, k.oy) - cy - 22);
+    const x = Math.max(4, Math.min(W - w - 4, Math.max(86 - cx, ax + 10)));
+    const y = Math.max(4, ay - h);
+    const a = Math.min(1, u / 90) * (u > HINT_MS ? Math.max(0, 1 - (u - HINT_MS) / 180) : 1);
+    g.alpha(a, () => g.ctx.drawImage(img, x, y, w, h));
+  },
+});
+
 // ---------------------------------------------------------------- entering
 
 registerScript('lv_in_mall_roof', function* (): Co {
@@ -408,7 +476,7 @@ registerDebug('roofScope', (pan = 0.5) => {
 
 /** QA: forget the roof's quest (the book, the handshake, the coins). */
 registerDebug('roofReset', () => {
-  for (const id of ['flag_roof_note', 'flag_roof_flip', 'flag_roof_hs_declined', 'flag_roof_handshake', 'flag_roof_scope_paid', 'flag_roof_panda_rides', 'flag_seen_obj_roof_panda'])
+  for (const id of ['flag_roof_hint', 'flag_roof_note', 'flag_roof_flip', 'flag_roof_hs_declined', 'flag_roof_handshake', 'flag_roof_scope_paid', 'flag_roof_panda_rides', 'flag_seen_obj_roof_panda'])
     setFlag(id, 0);
   state.inventory = state.inventory.filter((i) => i !== 'item_akushuken');
   return 'roof reset';

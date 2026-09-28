@@ -52,6 +52,7 @@
 | `map_hoshi_barn` | 石黒牛舎 | **22×12** | 屋内 | **固定**（画面に収まる） | 給餌通路の上の蛍光灯が点いていて明るい（下地 #E8ECF0）。南5の牛房だけ薄暗い |
 | `map_hoshi_school` | 旧 星見台分校（集会所） | 26×12 | 屋内 | 追従（横） | 集会所と入口側の廊下だけ明るい。東は暗がり |
 | `map_hoshi_hill` | 星見の丘 | 24×20 | 屋外 | 追従（上の広場 y≤7 に入ったら固定） | 山道が暗がり。上の広場は星あかり |
+| `map_hoshi_fumi` ほか16（★2026-09-28、4.5） | 家々の中（まつ先生の家、トマじいの家、シゲじいとスギばあの家、タケじいの家、ほうき家、ソワカの家、マサルの家、ペロの家、森本の家、旧商店、区の倉庫、分校の体育館、堆肥舎、トマキチの小屋、消防小屋、ペロの 1号ハウス・2号ハウス） | 8×7〜16×10 | 屋内 | 固定 | 電気が点いたまま #F2E6D0、または消えている（夜の窓あかり。どこでも読める明るさ） |
 | （再利用）`map_town` | 夕鳴町 | 64×44 | 屋外（夜＝段階3） | 固定の構図（6章） | 第1章の夜 |
 | （再利用）`map_home_1f` | 小林家 1F | 14×9 | 屋内（夜） | 固定 | 第1章の夜 |
 
@@ -106,6 +107,7 @@
 | `door_hoshi_house` | map_hoshimidai (2,30) 3号の南の妻面 | map_hoshi_house (4,17) | ハウス (4,16) N ／ 村 (2,31) S | `flag_ch2_met_mitsu`（それまでは closed のテキストに 16章の〔h0_0〕を出す。ペロが横から声をかける） | `se_h_vinyl_door` |
 | `door_hoshi_barn` | map_hoshimidai (51,31) 牛舎の南の壁・西の端 | map_hoshi_barn (2,11) | 牛舎 (2,10) N ／ 村 (51,32) S | `flag_ch2_met_gen`（それまでは 50 3.9 の h0_1／h0_2） | `se_door_heavy` |
 | `door_hoshi_hill` | map_hoshimidai (48–49,0) 山道の入口 | map_hoshi_hill (11–12,19) | 丘 (11–12,18) N ／ 村 (48–49,1) S | `flag_ch2_tetsuya_beaten` | `se_step_dirt` だけ（戸はない） |
+| `door_hoshi_<部屋>` ×17 ★2026-09-28 | map_hoshimidai の家・小屋・ハウスの戸（4.5 の表） | map_hoshi_<部屋> の南の壁の `D` | 部屋の `D` の1つ上 N ／ 村の戸の前（4.5）。部屋の側は `door_hoshi_<部屋>_out` | ― | 4.5 の表（`se_door_glass` `se_door` `se_door_small` `se_door_heavy` `se_shutter` `se_h_vinyl_door`） |
 
 **イベントでの移動（door なし）**
 
@@ -309,7 +311,7 @@
  10 HHHHHHHHHHHHHw~~~~~nn~~~~~~~~~~~~~~~Ekkkkkkkokkk::kkKKKKkkkk
  11 HHHHHHHHHHHHHwaaaaannaaaaaaaaaaaaaaaEkkkkkkkkkkk::kkkkkkmmmk
  12 HHHHHHHHHHHHHw~~~~~nn~~~~~~~~~~~~~ooEkkKKKKkkkok::kkkkkkmmmk
- 13 HHHHHHHHHHHHHw~~~~~nn~~~~~~~~~~~~~ooEkkKKKKkkkkk::kkkkoKKKKK
+ 13 HHHHHHHHHHHHHw~~~~~nn~~~~~~~~~~~~~DDEkkKKKKkkkkk::kkkkoKKKKK
  14 HHHHHHHHHHHHHwaaaaannaaaaaaaaaaaaaaaEkkKKKKkkkkk::kKKkkKKKKK
  15 HHHHHHHHHHHHHw~~~~~nn~~~~~~~~~~~~~~~EkkKKKKkkkkk::kKKkkKKKKK
  16 HHHHHHHHHHHHHw~~~~~nn~~~~~~~~~~~~~~~EkoKKKKkkkkk::kKKkkKKKKK
@@ -322,24 +324,24 @@
  23 :VVV:VVV:VVV:w^^^^^::^^^^^^^^^^^^^^^^^^::^^^^^B,::,,,,,,,,,,
  24 :VVV:VVV:VVV:w^^^^^::^^^^^^^^^^^^^^^^^^::^^^^^B,::^^^^^^^^^^
  25 :VVV:VVV:VVV:wWWWWW::^^^^^^^^^^^^^^^^^^::WWWWWB,::^^^^^^^^^^
- 26 :VVV:VVV:VVV:wWWWWW::WWWWWWWWWWWWWWWWWW::WWWWWB,::^^^^^^^^^^
- 27 :VVV:VVV:VVV:w,,,,,::WWWWWDWWWWWWWWWWWW::,,,,,B,::^^^^^^^^^^
+ 26 :VVV:VVV:VVV:wWDDWW::WWWWWWWWWWWWWWWWWW::WWDWWB,::^^^^^^^^^^
+ 27 :VVV:VVV:VVV:w,,,,,::WWWWWDWWWWWWWWWWWD::,,,,,B,::^^^^^^^^^^
  28 :VVV:VVV:VVV:w^^^^^::ooot..totttto^^^^^::"""o"B,::^^^^^^^^^^
  29 :vvv:vvv:vvv:w^^^^^::tttt..ttttttt^^^^^::"""""B,::^^^^^^^^^^
- 30 :vDv:vvv:vvv:wWWWWW::ottT..tttoootWWWWW::oooooB,::WWWWWWWWWW
- 31 :::::::::::::wWWWWW::HHHH..HHHHHHHWWWWWo:oooooB,::WDWWWWWWWW
+ 30 :vDv:vDv:vDv:wWWWWW::ottT..tttoootWWWWW::oooooB,::WWWWWWWWWW
+ 31 :::::::::::::wWWDWW::HHHH..HHHHHHHWWDWWo:oooDoB,::WDWWWWWWWW
  32 o::::o::::o::w:::::::::::..:::::::::::::::::::Bcccccccccoooc
  33 :::::::::::::w^^^^^::^^^^..^^^^^,,^^^^^::^^^^^Bcccccccccoooc
  34 :::::::::::::w^^^^^::^^^^..^^^^^,,^^^^^::^^^^^Bccccccccccccc
  35 :::::::o:::::wWWWWW::WWWW..WWWWW,,WWWWW::WWWWWB:::::::::::::
- 36 :::::::::::::wWWWWW::WWWW..WWWWW,,WWWWW::WWWWWBY::::::::::::
+ 36 :::::::::::::wWWDWW::DWWW..WWWDW,,WDWWW::WWWDWBY::::::::::::
  37 ::::::::::::Yw",,o"Y,SSoo..o,,,,Y,,,,,,Y,,,,,,B:::::::::::::
  38 .............=................................::::::::::::::
  39 .............=................................::::::::::::::
  40 ,^^^^^^^^""""HHWWWWWWW%o%%%%o%%%%%%%%%%%%%%%%%B^^^^^::^^^^^^
  41 ,^^^^^^^^""""HHWSSSSSW%%%%%%%%%%%%%oooo%%%ooo%B^^^^^::^^^^^^
  42 ,WWWWWWWWooooHHW-----W%%%%%%%%%%%%%oooo%%%ooo%BWWWWW::WWWWWW
- 43 ,WWWWWWWWooooHHWWW-WWW%%%%%%%%%%%%o%%%%%%%%%%%BWWWWW::WWWWWW
+ 43 ,WDWWWWWWooooHHWWW-WWW%%%%%%%%%%%%o%%%%%%%%%%%BWWDWW::WWWDDW
  44 ,::::::::::::::-------o-------o---%%oo%%%%%%%oB:::::::,,,,,,
  45 ,::::::::::::::-------------------%%%%%%%%%%%%B:::::::,,,,,,
  46 RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRoHHHHHHHHHHHHHHHHHHHHHHHHH
@@ -416,7 +418,7 @@
 - 用水路の岸の小道（x14–18, y22）：まつ先生の家の裏。ふしぎ03（用水路の星）を見る所。
 
 **西の斜面（x0–12, y19–45）**
-- 3棟の雨よけハウスは南北に長い（屋根 y21–28、妻面 y29–30）。東から **1号（x9–11）・2号（x5–7）・3号（x1–3）**。入れるのは 3号だけ（入口 (2,30)）。
+- 3棟の雨よけハウスは南北に長い（屋根 y21–28、妻面 y29–30）。東から **1号（x9–11）・2号（x5–7）・3号（x1–3）**。物語で入るのは 3号（入口 (2,30)）。★2026-09-28：1号 (10,30)・2号 (6,30) にも入れる（4.5。1号は古いフィルムで電気が消えている、2号はハチの巣箱）。
 - ハウスの前（y31–37）が作業場。収穫コンテナ、出荷の段ボール、堆肥の袋、支柱の束。ハウスのあいだの路地（x0, x4, x8, x12）は裏の道（y20）へ抜ける。
 - 裏の道の北に獣害ネット（y19）、その向こうは杉林。
 - 県道の南にペロの家（古民家、x1–8, y40–43）。南向きの縁側と庭（y44–45）。庭は、ホームの西の端へ続く。
@@ -931,6 +933,449 @@
 
 ---
 
+### 4.5 星見台の家々の中（★2026-09-28 追加。02 #61）
+
+依頼主の指示で、村の地図の建物に全部入れる。部屋は `data/maps/hoshi_rooms2.ts`（17部屋）、絵は `art/props/hoshi_room_c.ts`、文は 50 9.9（`data/text/hoshi_rooms2.ts`）。
+
+**共通の作り**
+
+- どの部屋も1画面以内（カメラ固定）。北の2行が壁の面（`W`）、南の壁の `D` が出入口。着くのは `D` の1つ上、北向き。部屋の `D` に向かって押すと、外の同じ扉の前（下の表の「出ると」）に戻る。外の扉の前に立って押す向きは、たいてい北。ソワカの家は西の路地 (20,36) から東へ（表の戸は無人販売所の台の裏なので、西の端に勝手口）、体育館は東の小道 (39,27) から西へ（鉄の引き戸は倉庫の屋根側）。
+- 凡例：`.` 板の間 / `t` 畳 / `g` 玄関のたたき / `d` 土間 / `c` コンクリート / `k` 台所 / `w` 体育館の床 / `s` ハウスのシート / `p` トマトの株の列（衝突）。大文字や `o` `x` `X` `K` `V` `Q` `O` は、同じ床の上の家具（衝突）。
+- 殻 `prop_hr_shell`：壁の面（素材は部屋ごと：漆喰、古い板壁、トタン、ブロック、体育館、ハウスの妻面、店）と壁にかかった物（opts.deco：窓、カレンダー、額、鍵かけ、地図、貼り紙、表、帽子や法被のフック、神棚、掛け軸、スケッチ、たまねぎ、横断幕と幕、ゴール、非常口の灯り、品書き、補修テープ、換気扇）、外の暗がりとの4pxの壁、南の壁の出入口（戸の種類）、壁ぎわの接地の影。
+- 家具 `prop_hr_*`：本棚・茶だんす・備蓄の棚（shelf）、たんす、仏壇（灯明が点いている家は光る）、テレビ（点けっぱなしは砂あらし）、ちゃぶ台、布団（寝ている人は息でふくらむ）とたたんだ布団（futon2）、冷蔵庫、流し、かまど、囲炉裏、望遠鏡、イーゼル、箱（提灯・米袋・テント・堆肥の袋・板・ラムネのケース）、作業台・文机、小物（obj：水がめ、米びつ、漬物おけ、バケツのラムネ、太鼓、常夜灯、駄菓子のかご、救急箱、植木鉢、水筒、温度計、ホース、草刈り機、フォーク、犬の寝床、『おまけ』の箱、軍手の箱、かかしの着がえ、補修テープ）、蚊遣り豚（katori：煙がのぼる）、扇風機、金魚鉢、風鈴、天井の灯り（lamp：ちゃぶ台の上に吊る。光の円と、h1〜の蛾）、柱時計、雨戸のすきまの光（shaft：ほこりが舞う）、白い布をかけた家具、背くらべの柱、アイスの冷凍庫、店のカウンター、消防ポンプ、舞台、パイプいす、ボールかご、堆肥の山（湯気）、ハチ。ハウスの株は3号と同じ `prop_h_tomato`、巣箱は `prop_h_subako`、座布団は `prop_h_zabuton`。
+- **動く物**（どの部屋にも3つ以上をめざす）：蚊取り線香の煙、風鈴、扇風機、金魚、テレビ、灯明、常夜灯、寝息、湯気、ほこり、ハチ、h1〜の蛾。
+- **段階**：h1〜はトマトの灯り（ワールド）と蛾。**h2** は、山側の窓の中で放送の柱の赤いランプがまたたく（`hill: true` の窓）、柱時計の秒針が1つ進んではもどる、風鈴の短冊が山（北）へ向いて止まる、点けっぱなしのテレビに名前の字幕が流れる。文は 50 9.9 の段階ごと。
+- **明るさ**（2026-09-26 の決まり）：電気が点いたままの部屋は #F2E6D0（ペロの家は裸電球 #E2D6C6）。消えている部屋も、道・物・人がどこでも読める明るさにする（空き家 #8E8ABA、店・倉庫 #9490C0、体育館 #9894C4、ハウス #9A98C8、小屋 #A09CC8、シゲじいとスギばあの家は豆電球 #B4A8C4、マサルの家は常夜灯と灯明 #ACA2C2）。
+- **外の変更**：村の地図（3.1）の扉の `D`（農具小屋は `Q`、畦の土の扉）を17軒ぶん足した。空き家A（森本）の戸を1タイル西 (16,36) へ（郵便受けの柱が戸の横になる）、ソワカの家の西の端に勝手口、旧商店のシャッターにくぐり戸（紙『見学 ご自由に』）を描いた。民家3の自転車を (41,37)、マサルの家のバケツと縄を (55,44) へ動かした（戸の前をあける）。
+- **入れない物**：稲わら置き場（ロールで奥へ入れない。東の端 (57,22) のすきまで10円）、朽ちた小屋 (43,16)（屋根だけ。下の缶に50円）、丘の天文台（閉まっている。小窓 `obj_hr_dome_mado` (7,4) を (8,4) から西向きにのぞく）。
+- QA：`__game.cmd.r2('fumi', 2)`（部屋へ）、`r2Doors()`（34の扉：行き先・着く所・戻る扉・扉のマス）、`r2Finds(1)`、`r2Text()`。
+
+#### map_hoshi_fumi（まつ先生の家、12×9）
+
+```
+#WWWWWWWWWW#  0
+#WWWWWWWWWW#  1
+#oo..OOtttt#  2
+#....ttttOt#  3
+#....tttttt#  4
+#....ttOOtt#  5
+#....tttttt#  6
+#gg..ttttOO#  7
+##D#########  8
+```
+
+| 項目 | 内容 |
+|---|---|
+| 出入口 | 外 (15–16,26)（15,27 から北へ押す）↔ 部屋 (2,8)、着くのは (2,7) 北向き。出ると (15,27)。`se_door_glass` |
+| 壁と戸 | 漆喰（長押・幅木）／ガラスの引き戸 |
+| 壁の物 | keys x3、paper(long) x5–6、window x7–8、calendar x9、frame(kansha) x10 |
+| 置き物 | prop_hr_shelf (1,2) { v: 'stars' }、prop_hr_clock (4,0)、prop_hr_workbench (5,2) { v: 'genko' }、prop_hr_telescope (9,3)、prop_hr_chabudai (7,5) { items: 'tea,hayami' }、prop_hr_tansu (9,7) { top: 'photo' }、prop_hr_katori (10,4)、prop_hr_furin (7,0)、prop_hr_lamp (7,7) { dx: 8 } |
+| 調べる物 | 11（見つかる物を含む） |
+| 見つかる物 | 金平糖（obj_hr_fumi_konpeito (2,2)） |
+| 光 | 電気が点いたまま、光のマップの下地 #F2E6D0 |
+| 音 | bgm_hoshi_night（variant 'house'）＋`amb_h_insects`（insects: vol: 0.35, lp: 2000） |
+
+#### map_hoshi_minka1（トマじいの家、12×9）
+
+```
+#WWWWWWWWWW#  0
+#WWWWWWWWWW#  1
+#KKKktOtOtt#  2
+#kkkktttttt#  3
+#Kkkktttttt#  4
+#kkkktOOttt#  5
+#kkkktttttt#  6
+#ggGkttOttt#  7
+##D#########  8
+```
+
+| 項目 | 内容 |
+|---|---|
+| 出入口 | 外 (16,31)（16,32 から北へ押す）↔ 部屋 (2,8)、着くのは (2,7) 北向き。出ると (16,32)。`se_door_glass` |
+| 壁と戸 | 漆喰（長押・幅木）／ガラスの引き戸 |
+| 壁の物 | shelf x2–3、calendar x4、hooks(hanger) x5、kamidana x6、frame(couple) x7、window x9–10 |
+| 置き物 | prop_hr_fridge (1,2)、prop_hr_nagashi (2,2)、prop_hr_tv (6,2)、prop_hr_butsudan (8,2)、prop_hr_obj (1,4) { v: 'komebitsu' }、prop_hr_chabudai (6,5) { items: 'tea' }、prop_hr_obj (3,7) { v: 'kagu' }、prop_hr_kingyo (7,7)、prop_hr_katori (10,5)、prop_hr_furin (9,0)、prop_hr_lamp (6,7) { dx: 8 } |
+| 調べる物 | 11（見つかる物を含む） |
+| 見つかる物 | きなこぼう（obj_hr_mk1_kago (3,7)） |
+| 光 | 電気が点いたまま、光のマップの下地 #F2E6D0 |
+| 音 | bgm_hoshi_night（variant 'house'）＋`amb_h_insects`（insects: vol: 0.35, lp: 2000） |
+
+#### map_hoshi_minka2（シゲじいとスギばあの家、12×9）
+
+```
+#WWWWWWWWWW#  0
+#WWWWWWWWWW#  1
+#OOtttttOtO#  2
+#tttttttttt#  3
+#tttttttttt#  4
+#ttttOOtttt#  5
+#tttttttttt#  6
+#ggttttttOO#  7
+##D#########  8
+```
+
+| 項目 | 内容 |
+|---|---|
+| 出入口 | 外 (43,26)（43,27 から北へ押す）↔ 部屋 (2,8)、着くのは (2,7) 北向き。出ると (43,27)。`se_door_glass` |
+| 壁と戸 | 漆喰（長押・幅木）／ガラスの引き戸 |
+| 壁の物 | chart(shiritori) x3–4、frame(couple) x5、window x6–7、calendar x9、kamidana x10 |
+| 置き物 | prop_hr_shelf (1,2) { v: 'chadansu' }、prop_hr_tv (8,2) { top: 'clocks' }、prop_hr_futon2 (10,2)、prop_hr_chabudai (5,5) { items: 'two' }、prop_h_zabuton (4,5) { c: 1 }、prop_h_zabuton (7,5) { c: 0 }、prop_hr_tansu (9,7)、prop_hr_katori (3,6)、prop_hr_furin (6,0)、prop_hr_lamp (5,7) { kind: 'bulb', r: 60, dx: 8 } |
+| 調べる物 | 10（見つかる物を含む） |
+| 見つかる物 | ハッカあめ（obj_hr_mk2_chadansu (1,2)） |
+| 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #B4A8C4 |
+| 音 | bgm_hoshi_night（variant 'house'）＋`amb_h_insects`（insects: vol: 0.35, lp: 2000） |
+
+#### map_hoshi_minka3（タケじいの家、12×9）
+
+```
+#WWWWWWWWWW#  0
+#WWWWWWWWWW#  1
+#xxddttOtOO#  2
+#ddddtttttt#  3
+#ddddtttttt#  4
+#xdddttttOt#  5
+#ddddtttttt#  6
+#ddddttOOtt#  7
+##D#########  8
+```
+
+| 項目 | 内容 |
+|---|---|
+| 出入口 | 外 (44,36)（44,37 から北へ押す）↔ 部屋 (2,8)、着くのは (2,7) 北向き。出ると (44,37)。`se_door` |
+| 壁と戸 | 漆喰（長押・幅木）／木の引き戸 |
+| 壁の物 | hooks(tools) x1–2、hooks(hat) x3、chart(une) x4、window x5–6、calendar x8 |
+| 置き物 | prop_hr_workbench (1,2) { v: 'manual' }、prop_hr_tv (7,2) { on: true }、prop_hr_tansu (9,2)、prop_hr_obj (1,5) { v: 'bucket' }、prop_hr_senpuki (9,5) { on: true }、prop_hr_chabudai (7,7) { items: 'tea' }、prop_hr_katori (5,6)、prop_hr_lamp (7,6) |
+| 調べる物 | 9（見つかる物を含む） |
+| 見つかる物 | ラムネ（obj_hr_mk3_bucket (1,5)） |
+| 光 | 電気が点いたまま、光のマップの下地 #F2E6D0 |
+| 音 | bgm_hoshi_night（variant 'house'）＋`amb_h_insects`（insects: vol: 0.35, lp: 2000） |
+
+#### map_hoshi_kucho（ほうき家、14×9）
+
+```
+#WWWWWWWWWWWW#  0
+#WWWWWWWWWWWW#  1
+#oo..ttOOtOOt#  2
+#....tttttttt#  3
+#....tttttttt#  4
+#o...ttOOtttt#  5
+#....tttttttt#  6
+#gg..ttttttOt#  7
+##D###########  8
+```
+
+| 項目 | 内容 |
+|---|---|
+| 出入口 | 外 (35,36)（35,37 から北へ押す）↔ 部屋 (2,8)、着くのは (2,7) 北向き。出ると (35,37)。`se_door_glass` |
+| 壁と戸 | 漆喰（長押・幅木）／ガラスの引き戸 |
+| 壁の物 | map x3、calendar x4、window x5–6、scroll x8、frame(wedding) x9、kamidana x10、paper x12 |
+| 置き物 | prop_hr_shelf (1,2) { v: 'kairan' }、prop_hr_workbench (7,2) { v: 'shikiji' }、prop_hr_obj (10,2) { v: 'bonsai' }、prop_hr_obj (11,2) { v: 'bonsai' }、prop_hr_obj (1,5) { v: 'oke' }、prop_hr_chabudai (7,5) { items: 'tea' }、prop_hr_kingyo (11,7)、prop_hr_katori (4,6)、prop_hr_furin (5,0)、prop_hr_lamp (7,7) { dx: 8 } |
+| 調べる物 | 10（見つかる物を含む） |
+| 見つかる物 | 回覧板の朱肉（obj_hr_kucho_shuniku (8,2)） |
+| 光 | 電気が点いたまま、光のマップの下地 #F2E6D0 |
+| 音 | bgm_hoshi_night（variant 'house'）＋`amb_h_insects`（insects: vol: 0.35, lp: 2000） |
+
+#### map_hoshi_sawako（ソワカの家、12×9）
+
+```
+#WWWWWWWWWW#  0
+#WWWWWWWWWW#  1
+#oo......oo#  2
+#....o.....#  3
+#..........#  4
+#.....oo...#  5
+#KKk.......#  6
+#kkk.......#  7
+##D#########  8
+```
+
+| 項目 | 内容 |
+|---|---|
+| 出入口 | 外 (21,36)（20,36 から東へ押す）↔ 部屋 (2,8)、着くのは (2,7) 北向き。出ると (20,36)。`se_door_glass` |
+| 壁と戸 | 古い板壁／ガラスの引き戸 |
+| 壁の物 | window x3–4、sketches x5–6、onions x7、calendar x8、paper(long) x9–10 |
+| 置き物 | prop_hr_shelf (1,2) { v: 'paint' }、prop_hr_workbench (9,2) { v: 'fuda' }、prop_hr_easel (5,3)、prop_hr_chabudai (6,5) { items: 'sketch' }、prop_hr_nagashi (1,6)、prop_hr_katori (8,6)、prop_hr_furin (3,0)、prop_hr_lamp (6,7) { dx: 8 } |
+| 調べる物 | 8（見つかる物を含む） |
+| 見つかる物 | きゅうりの一本漬け（obj_hr_sawako_ajimi (1,6)） |
+| 光 | 電気が点いたまま、光のマップの下地 #F2E6D0 |
+| 音 | bgm_hoshi_night（variant 'house'）＋`amb_h_insects`（insects: vol: 0.35, lp: 2000） |
+
+#### map_hoshi_gen（マサルの家、14×9）
+
+```
+#WWWWWWWWWWWW#  0
+#WWWWWWWWWWWW#  1
+#oo..tttOttOO#  2
+#....tttttttt#  3
+#....ttttOttt#  4
+#....ttttOOtt#  5
+#....tttttttt#  6
+#gg..tttttttt#  7
+##D###########  8
+```
+
+| 項目 | 内容 |
+|---|---|
+| 出入口 | 外 (57–58,43)（57,44 から北へ押す）↔ 部屋 (2,8)、着くのは (2,7) 北向き。出ると (57,44)。`se_door_glass` |
+| 壁と戸 | 漆喰（長押・幅木）／ガラスの引き戸 |
+| 壁の物 | hooks(hat) x1、calendar(kyuji) x3、chart x4、window x5–6、frame(work) x7、post x9、scroll x10 |
+| 置き物 | prop_hr_workbench (1,2) { v: 'hikae' }、prop_hr_butsudan (8,2) { lit: true }、prop_hr_tansu (11,2) { top: 'radio' }、prop_hr_futon (9,4)、prop_hr_obj (10,5) { v: 'andon' }、prop_hr_obj (3,6) { v: 'dogbed' }、prop_hr_katori (6,6) |
+| 調べる物 | 9（見つかる物を含む） |
+| 見つかる物 | 10円（obj_hr_gen_hiroimono (3,6)） |
+| 光 | 電気が点いたまま、光のマップの下地 #ACA2C2 |
+| 音 | bgm_hoshi_night（variant 'house'）＋`amb_h_insects`, `amb_h_barn_out`（... insects: vol: 0.35, lp: 2000 , barn_out: vol: 0.3, lp: 1200） |
+
+#### map_hoshi_kominka（ペロの家、16×10）
+
+```
+#WWWWWWWWWWWWWW#  0
+#WWWWWWWWWWWWWW#  1
+#xxdxd....tttOt#  2
+#ddddd....ttttt#  3
+#ddddd.oo.ttttt#  4
+#xdddd.oo.tOOtt#  5
+#ddddd....ttttt#  6
+#ddddd....ttttt#  7
+#ddddd....ttttt#  8
+##D#############  9
+```
+
+| 項目 | 内容 |
+|---|---|
+| 出入口 | 外 (2,43)（2,44 から北へ押す）↔ 部屋 (2,9)、着くのは (2,8) 北向き。出ると (2,44)。`se_door` |
+| 壁と戸 | 古い板壁／木の引き戸 |
+| 壁の物 | shelf x1–2、calendar x3、post x5、window(shoji) x6–7、frame(photo) x8、post x9、hooks(hats3) x10–11、scroll x12、kamidana x14 |
+| 置き物 | prop_hr_kamado (1,2)、prop_hr_obj (4,2) { v: 'mizugame' }、prop_hr_obj (1,5) { v: 'omake' }、prop_hr_irori (7,4)、prop_hr_butsudan (13,2) { lit: true }、prop_hr_chabudai (11,5) { items: 'letters' }、prop_hr_katori (9,7)、prop_hr_lamp (8,8) { kind: 'bulb', r: 80, dx: 8 } |
+| 調べる物 | 10（見つかる物を含む） |
+| 見つかる物 | ふがし（obj_hr_kominka_omake (1,5)） |
+| 光 | 電気が点いたまま、光のマップの下地 #E2D6C6 |
+| 音 | bgm_hoshi_night（variant 'house'）＋`amb_h_insects`（insects: vol: 0.35, lp: 2000） |
+
+#### map_hoshi_akiya（森本の家、12×9）
+
+```
+#WWWWWWWWWW#  0
+#WWWWWWWWWW#  1
+#OOtttttOOt#  2
+#tttttttttt#  3
+#tttttOtttt#  4
+#tttttttttt#  5
+#ttttttttOO#  6
+#ggtttttttt#  7
+##D#########  8
+```
+
+| 項目 | 内容 |
+|---|---|
+| 出入口 | 外 (16,36)（16,37 から北へ押す）↔ 部屋 (2,8)、着くのは (2,7) 北向き。出ると (16,37)。`se_door` |
+| 壁と戸 | 漆喰（長押・幅木）／木の引き戸 |
+| 壁の物 | window(amado) x3–4、calendar x5、paper x6、post x7、frame(ghost) x10 |
+| 置き物 | prop_hr_cloth (1,2)、prop_hr_cloth (8,2) { v: 'low' }、prop_hr_pillar (6,4)、prop_hr_cloth (9,6) { v: 'low' }、prop_hr_shaft (3,2) { w: 2, h: 4, shear: 0.3 }、prop_hr_shaft (2,7) { w: 1, h: 1, shear: 0 } |
+| 調べる物 | 9（見つかる物を含む） |
+| 見つかる物 | 10円（obj_hr_akiya_yuka (4,6)） |
+| 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #8E8ABA |
+| 音 | bgm_hoshi_night（variant 'house'）＋`amb_h_insects`（insects: vol: 0.35, lp: 2000） |
+
+#### map_hoshi_shoten（旧商店、12×9）
+
+```
+#WWWWWWWWWW#  0
+#WWWWWWWWWW#  1
+#XXXXcccccc#  2
+#cccccccXXc#  3
+#cccXXccccc#  4
+#cccccccccc#  5
+#XXcccccccc#  6
+#cccccccccc#  7
+#####D######  8
+```
+
+| 項目 | 内容 |
+|---|---|
+| 出入口 | 外 (30,36)（30,37 から北へ押す）↔ 部屋 (5,8)、着くのは (5,7) 北向き。出ると (30,37)。`se_door_small` |
+| 壁と戸 | 明るい漆喰（店）／シャッター（くぐり戸） |
+| 壁の物 | board x5–7、paper(long) x8–9、calendar x10 |
+| 置き物 | prop_hr_shelf (1,2) { v: 'empty' }、prop_hr_shelf (3,2) { v: 'empty' }、prop_hr_counter (8,3)、prop_hr_freezer (4,4)、prop_hr_boxes (1,6) { v: 'crate' }、prop_hr_shaft (5,5) { w: 1, h: 3, shear: 0 } |
+| 調べる物 | 8（見つかる物を含む） |
+| 見つかる物 | 10円（obj_hr_shoten_register (8,3)） |
+| 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #9490C0 |
+| 音 | bgm_hoshi_night（variant 'house'）＋`amb_h_insects`（insects: vol: 0.35, lp: 2000） |
+
+#### map_hoshi_soko（区の倉庫、12×9）
+
+```
+#WWWWWWWWWW#  0
+#WWWWWWWWWW#  1
+#XXcXccXXcc#  2
+#cccccccccc#  3
+#ccccccccXc#  4
+#XXcccccccc#  5
+#ccccccXXcc#  6
+#cccccccccc#  7
+######D#####  8
+```
+
+| 項目 | 内容 |
+|---|---|
+| 出入口 | 外 (36,31)（36,32 から北へ押す）↔ 部屋 (6,8)、着くのは (6,7) 北向き。出ると (36,32)。`se_door` |
+| 壁と戸 | トタンの波板／木の引き戸 |
+| 壁の物 | paper x3、window(amado) x5–6、hooks(tools) x9–10 |
+| 置き物 | prop_hr_boxes (1,2) { v: 'chochin' }、prop_hr_obj (4,2) { v: 'taiko' }、prop_hr_boxes (7,2) { v: 'tent' }、prop_hr_obj (9,4) { v: 'kusakari' }、prop_hr_boxes (1,5) { v: 'boards' }、prop_hr_workbench (7,6)、prop_hr_lamp (6,7) { kind: 'bulb', on: false }、prop_hr_shaft (5,2) { w: 2, h: 4, shear: 0.25 } |
+| 調べる物 | 9（見つかる物を含む） |
+| 見つかる物 | ちびたスタンプ台（obj_hr_soko_stamp (7,6)） |
+| 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #9490C0 |
+| 音 | bgm_hoshi_night（variant 'house'）＋`amb_h_insects`（insects: vol: 0.55, lp: 3500） |
+
+#### map_hoshi_gym（分校の体育館、16×10）
+
+```
+#WWWWWWWWWWWWWW#  0
+#WWWWWWWWWWWWWW#  1
+#wwVVVVVVVVVVVV#  2
+#wwwwwwwwwwwwww#  3
+#wwwwwwwwwwwwww#  4
+#Vwwwwwwwwwwwww#  5
+#Vwwwwwwwwwwwww#  6
+#wwwwwwwwwwwwVw#  7
+#wwwwwwwwwwwwww#  8
+##############D#  9
+```
+
+| 項目 | 内容 |
+|---|---|
+| 出入口 | 外 (38,27)（39,27 から西へ押す）↔ 部屋 (14,9)、着くのは (14,8) 北向き。出ると (39,27)。`se_door_heavy` |
+| 壁と戸 | 腰板と漆喰／鉄の引き戸 |
+| 壁の物 | hoop x1、curtain x3–12、banner x3–12、window(high) x13–14、exit x13 |
+| 置き物 | prop_hr_stage (3,2)、prop_hr_shelf (13,2) { v: 'bichiku' }、prop_hr_chairs (1,6)、prop_hr_ballcage (13,7)、prop_hr_shaft (4,3) { w: 2, h: 5, shear: 0.5 }、prop_hr_shaft (10,3) { w: 2, h: 5, shear: 0.5 }、prop_hr_glow (13,0) { x: 8, y: 8, rgb: '96,255,140', c: '#7CFF9A' } |
+| 調べる物 | 8（見つかる物を含む） |
+| 見つかる物 | 朱墨のかけら（obj_hr_gym_hikidashi (3,2)） |
+| 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #9894C4 |
+| 音 | bgm_hoshi_night（variant 'school'）＋`amb_h_insects`（insects: vol: 0.3, lp: 1800） |
+
+#### map_hoshi_taihisha（堆肥舎、10×7）
+
+```
+#WWWWWWWW#  0
+#WWWWWWWW#  1
+#XXXXcXXX#  2
+#XXXccXXX#  3
+#XXcccccc#  4
+#cccccccX#  5
+####D#####  6
+```
+
+| 項目 | 内容 |
+|---|---|
+| 出入口 | 外 (49,43)（49,44 から北へ押す）↔ 部屋 (4,6)、着くのは (4,5) 北向き。出ると (49,44)。`se_step_stone` |
+| 壁と戸 | コンクリートブロック／前が開いた区画 |
+| 壁の物 | paper x5 |
+| 置き物 | prop_hr_heap (1,2)、prop_hr_heap (6,2)、prop_hr_obj (4,2) { v: 'fork' }、prop_hr_boxes (1,4) { v: 'bags' }、prop_hr_obj (8,5) { v: 'gunte' } |
+| 調べる物 | 6（見つかる物を含む） |
+| 見つかる物 | 10円（obj_hr_taihi_gunte (8,5)） |
+| 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #A09CC8 |
+| 音 | bgm_hoshi_night（variant 'house'）＋`amb_h_insects`, `amb_h_barn_out`（insects: vol: 0.7, lp: 6000 , barn_out: vol: 0.45, lp: 2500） |
+
+#### map_hoshi_koya（トマキチの小屋、8×7）
+
+```
+#WWWWWW#  0
+#WWWWWW#  1
+#dddxxd#  2
+#dddddd#  3
+#xddddx#  4
+#dddddd#  5
+###D####  6
+```
+
+| 項目 | 内容 |
+|---|---|
+| 出入口 | 外 (34–35,13)（34,14 から北へ押す）↔ 部屋 (3,6)、着くのは (3,5) 北向き。出ると (34,14)。`se_door_small` |
+| 壁と戸 | 古い板壁／木の引き戸 |
+| 壁の物 | hooks(tools) x1–2、chart(mizu) x3、window x6 |
+| 置き物 | prop_hr_boxes (4,2) { v: 'boards' }、prop_hr_obj (1,4) { v: 'suito' }、prop_hr_obj (6,4) { v: 'kigae' } |
+| 調べる物 | 6（見つかる物を含む） |
+| 見つかる物 | 梅干し（obj_hr_koya_suito (1,4)） |
+| 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #A09CC8 |
+| 音 | bgm_hoshi_night（variant 'house'）＋`amb_h_insects`, `amb_h_tanada`（insects: vol: 0.6, lp: 4000 , tanada: vol: 0.35, lp: 2500） |
+
+#### map_hoshi_shouboya（消防小屋、8×7）
+
+```
+#WWWWWW#  0
+#WWWWWW#  1
+#ccccXc#  2
+#cXXXcc#  3
+#cXXXcX#  4
+#cccccc#  5
+###D####  6
+```
+
+| 項目 | 内容 |
+|---|---|
+| 出入口 | 外 (44,31)（44,32 から北へ押す）↔ 部屋 (3,6)、着くのは (3,5) 北向き。出ると (44,32)。`se_shutter` |
+| 壁と戸 | トタンの波板／シャッター（くぐり戸） |
+| 壁の物 | hooks(happi) x1–3、chart x4、hooks(helmets) x5、paper x6 |
+| 置き物 | prop_hr_pump (2,4)、prop_hr_obj (5,2) { v: 'hosebox' }、prop_hr_obj (6,4) { v: 'kyukyu' } |
+| 調べる物 | 6（見つかる物を含む） |
+| 見つかる物 | ひえひえシップ（obj_hr_shoubo_kyukyu (6,4)） |
+| 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #9C98C6 |
+| 音 | bgm_hoshi_night（variant 'house'）＋`amb_h_insects`（insects: vol: 0.55, lp: 3500） |
+
+#### map_hoshi_house1（ペロの 1号ハウス、9×11）
+
+```
+#WWWWWWW#  0
+#WWWWWWW#  1
+#pspspsp#  2
+#pspspsp#  3
+#pspspsp#  4
+#pspspsp#  5
+#pspspsp#  6
+#pspspsp#  7
+#pspspsp#  8
+#ssssssQ#  9
+####D####  10
+```
+
+| 項目 | 内容 |
+|---|---|
+| 出入口 | 外 (10,30)（10,31 から北へ押す）↔ 部屋 (4,10)、着くのは (4,9) 北向き。出ると (10,31)。`se_h_vinyl_door` |
+| 壁と戸 | ハウスの妻面（フィルムと骨）／フィルムの引き戸 |
+| 壁の物 | patch x1–2、fan x4、paper x6、patch x5–5 |
+| 置き物 | prop_hr_obj (7,9) { v: 'tape' } |
+| 調べる物 | 9（見つかる物を含む） |
+| 見つかる物 | 10円（obj_hr_h1_tape (7,9)） |
+| 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #9A98C8 |
+| 音 | bgm_hoshi_night（variant 'house'）＋`amb_h_insects`（insects: vol: 0.6, lp: 4000） |
+
+#### map_hoshi_house2（ペロの 2号ハウス、9×11）
+
+```
+#WWWWWWW#  0
+#WWWWWWW#  1
+#pspspsp#  2
+#pspspsp#  3
+#pspspsp#  4
+#pspspsp#  5
+#pspspsp#  6
+#pspspsp#  7
+#pspspsp#  8
+#Qssssss#  9
+####D####  10
+```
+
+| 項目 | 内容 |
+|---|---|
+| 出入口 | 外 (6,30)（6,31 から北へ押す）↔ 部屋 (4,10)、着くのは (4,9) 北向き。出ると (6,31)。`se_h_vinyl_door` |
+| 壁と戸 | ハウスの妻面（フィルムと骨）／フィルムの引き戸 |
+| 壁の物 | paper x2、fan x4、paper x6 |
+| 置き物 | prop_h_subako (1,9)、prop_hr_bee (1,9)、prop_hr_shell (0,0) { map: r.map, wall: r.wall, door: r.door, deco: r.deco } |
+| 調べる物 | 12（見つかる物を含む） |
+| 見つかる物 | 10円（obj_hr_h2_mat (4,9)）、10円（obj_hr_wara_sukima (57,22)）、50円（obj_hr_kuchita (43,16)） |
+| 光 | 電気は消えている（夜の窓あかり）、光のマップの下地 #9A98C8 |
+| 音 | bgm_hoshi_night（variant 'house'）＋`amb_h_insects`, `amb_h_hachi`（insects: vol: 0.6, lp: 4000 , hachi: vol: 0.45） |
+
+
 ## 5. map_hoshi_hill（星見の丘、24×20）
 
 ```
@@ -1076,11 +1521,11 @@
 | 体育館 | 緑のトタンの切妻（#3FA66B の色あせ） | 高い位置の横長の窓、閉まった鉄の引き戸 |
 | 渡り廊下 | 平らなトタン | 柱と手すり |
 | まつ先生の家 | 瓦の平屋、テレビのアンテナ | 窓辺に望遠鏡の形の置物（#2F4A8A の小さな筒）、表札の横に星のシール（#FFD23F 1px） |
-| ソワカさんの家 | 青いトタン（#4AA8E0 の色あせ → #2F4A8A） | 軒下に**たまねぎの束**（#D9A441 の丸が6つ）と絵筆の束。縁台に絵の具の箱と、描きかけの小さなキャンバス（12×10、夜空の #2F4A8A に星の 1px）。表札の横に、手描きの小さな野菜の絵 |
+| ソワカさんの家 | 青いトタン（#4AA8E0 の色あせ → #2F4A8A） | ★2026-09-28：表の戸は無人販売所の台の裏なので、西の端に**勝手口**（スチールの細い引き戸、たまねぎの下。西の路地 (20,36) から入る、4.5）。軒下に**たまねぎの束**（#D9A441 の丸が6つ）と絵筆の束。縁台に絵の具の箱と、描きかけの小さなキャンバス（12×10、夜空の #2F4A8A に星の 1px）。表札の横に、手描きの小さな野菜の絵 |
 | 区長の家 | 瓦、きちんとした棟 | 表札「ほうき」、玄関の横の回覧板の棚、植木鉢の列（きちんと並ぶ） |
-| 空き家A（森本） | 瓦が数枚ずれて、屋根に草の房（2px） | **雨戸**（#8E867A の古材）が全部閉まっている。門柱の郵便受け（青い回覧板）。玄関の前の路肩だけ草が刈ってある |
+| 空き家A（森本） | 瓦が数枚ずれて、屋根に草の房（2px） | ★2026-09-28：玄関の引き戸を (16,36) のタイルへ1つ西に寄せた（郵便受けの柱 (17,37) が戸の横。4.5）。**雨戸**（#8E867A の古材）が全部閉まっている。門柱の郵便受け（青い回覧板）。玄関の前の路肩だけ草が刈ってある |
 | 空き家B（区の倉庫） | 錆びたトタン | 戸に紙「区の 倉庫」、軒先の木の箱 |
-| 旧商店（売家） | トタンの庇 | 下りたシャッター（#9AA0A8 の横の波、錆）、色あせた看板（店の名前は最後の「商店」だけ読める線）、白い板に赤い「売家」の札（字は手描きドットで読ませる。連絡先の字はにじんだ線） |
+| 旧商店（売家） | トタンの庇 | 下りたシャッター（#9AA0A8 の横の波、錆）。★2026-09-28：シャッターの東寄り (30,36) に**くぐり戸**（白い紙『見学 ご自由に』。4.5）。色あせた看板（店の名前は最後の「商店」だけ読める線）、白い板に赤い「売家」の札（字は手描きドットで読ませる。連絡先の字はにじんだ線） |
 | 民家1／2／3 | 1：瓦に太陽熱温水器／2：赤いトタン／3：灰色の瓦に物干し台 | 家ごとに窓の数と戸の色をかえる。どれも窓は暗い |
 | 牛舎 | 長い切妻の波板（#6B7186、光 #9AA0A8）と、棟の上にもう1段の**越屋根**（換気の細い屋根と、その下の暗いすき間） | 下は**コンクリートブロックの腰壁**（#C8C2B4 の格子）、上は**開口部**（巻き上げたカーテンの白い筒が軒の下に、開口には緑の**防鳥ネット**）。開口の奥は暗い牛房（耳標の黄色がときどき）。東の方に**壁の換気扇2台**（直径 20px、ゆっくり回る）。入口は西の端の引き戸 (51,31) |
 | 堆肥舎 | 片流れの波板 | 前が開いたコンクリートの区画3つ。黒茶の堆肥の山（#5A3A2A、光 #8A5A3A）。山の上から白い湯気（α20% の 1px の粒、ゆっくり上がる） |

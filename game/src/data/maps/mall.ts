@@ -299,6 +299,8 @@ registerMap({
     // the 『屋上 ↑』 board over it, the lowest step and the floor sticker
     // 『ゆうやけ ひろば』 on the corridor, the roof's light down the steps
     PR('mall_roof_stairs_up', 2, 0),
+    // the evening pouring down the well onto the floor in front of it
+    PR('mall_shaft', 2, 0, { fx: 3, fy: 34, fw: 26, fh: 20, rise: 34, shear: 0.12, motes: 6, seed: 5403, a: 0.22 }),
     // examine
     { t: 'obj', id: 'obj_m4_roof_stairs', x: 2, y: 1, w: 2, face: 'up', text: ROOF_OBJ.obj_m4_roof_stairs } as MapObj,
     O('obj_toy_shutter', 5, 1, { w: 3, face: 'up', script: 'lv_toy_shutter' }),

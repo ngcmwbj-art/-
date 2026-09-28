@@ -586,15 +586,21 @@ registerProp('prop_hr_shell', (opts) => {
     foot: 0,
     flat: true,
     img: () => get().img,
-    over(g: Gfx, x: number, y: number, env: PropEnv) {
+    over(g: Gfx, x: number, y: number) {
       const sh = get();
       for (const [sx, sy, w, h, al] of sh.shade) g.rect(x + sx, y + sy, w, h, P.ink, al);
-      // from h2 the loudspeaker's red lamp on the hill, in the windows that face it
-      if (hs(env) === 2)
-        for (const [wx, wy, ww, wh] of sh.hillWins) {
-          const on = Math.floor(env.t / 900) % 2 === 0;
-          if (on) g.rect(x + wx + Math.floor(ww * 0.6), y + wy + Math.floor(wh * 0.45), 1, 1, P.red);
-        }
+    },
+    glow(g: Gfx, x: number, y: number, env: PropEnv) {
+      // from h2 the loudspeaker's red lamp on the hill, in the windows that face it (the calling doesn't stop)
+      if (hs(env) !== 2) return;
+      const sh = get();
+      const on = Math.floor(env.t / 900) % 2 === 0;
+      for (const [wx, wy, ww, wh] of sh.hillWins) {
+        const lx = x + wx + Math.floor(ww * 0.6);
+        const ly = y + wy + Math.floor(wh * 0.4);
+        g.rect(lx - 1, ly - 1, 3, 3, '#E84E3C', on ? 0.35 : 0.12);
+        g.rect(lx, ly, 1, 1, '#FF6A4D', on ? 1 : 0.4);
+      }
     },
   } as PropArt;
   return a;

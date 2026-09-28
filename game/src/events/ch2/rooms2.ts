@@ -8,7 +8,7 @@
 
 import type { Co } from '../../engine/co';
 import { measure } from '../../engine/font';
-import { flag, setFlag } from '../../game/state';
+import { flag, setFlag, state } from '../../game/state';
 import { registerDebug } from '../../debug';
 import { registerScript } from '../../world/api';
 import { cellAt, loadMap } from '../../world/maps';
@@ -97,6 +97,7 @@ registerDebug('r2Finds', (reset = 0) => {
     rows.push(`${id}: ${flag(f) ? 'taken' : '-'}`);
   }
   if (reset) setFlag('flag_ch2_house2_shime', 0);
+  rows.push(`money ${state.money}`, `inventory ${state.inventory.join(',')}`);
   return rows;
 });
 

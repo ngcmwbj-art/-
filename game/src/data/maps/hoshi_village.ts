@@ -243,8 +243,9 @@ const OBJECTS: MapObj[] = [
   PR('prop_h_eave', 41, 27, { set: 'minka2' }),
   PR('prop_h_eave', 14, 32, { set: 'minka1' }),
   PR('prop_h_eave', 38, 37, { set: 'kucho' }),
-  PR('prop_h_eave', 44, 37, { set: 'minka3' }),
-  PR('prop_h_eave', 57, 44, { set: 'gen' }),
+  // (民家3's bicycle and マサル's bucket stand clear of their doors since 02 #61)
+  PR('prop_h_eave', 41, 37, { set: 'minka3' }),
+  PR('prop_h_eave', 55, 44, { set: 'gen' }),
 
   // ======================================================== 西の斜面 (area_hoshi_west)
   O('obj_hoshi_house1', 10, 30, { face: 'up' }),
