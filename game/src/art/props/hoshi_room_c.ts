@@ -109,7 +109,7 @@ function nightPane(p: PixelCanvas, x: number, y: number, w: number, h: number, s
   for (let j = 0; j < h; j++)
     for (let i = 0; i < w; i++) {
       const top = Math.round(h * 0.62 - 3 * Math.sin(((i + seed) / (w + 6)) * Math.PI * 1.3));
-      let c = j < h * 0.35 ? P.night : P.nightShade;
+      let c: string = j < h * 0.35 ? P.night : P.nightShade;
       if (j >= top) c = P.ink;
       p.set(x + i, y + j, c);
     }
@@ -217,6 +217,11 @@ function paintDeco(p: PixelCanvas, d: WallDeco, fy: number): void {
         p.rect(x + 7, y + 5, 2, 5, mix(P.woodDark, P.brassOld, 0.5));
         p.set(x + 3, y + 4, P.concreteLt);
         p.set(x + 7, y + 4, P.concreteLt);
+      } else if (d.v === 'ghost') {
+        // where a frame hung: the plaster not faded by the sun, the nail
+        p.rect(x, y, 12, 11, PLASTER_LT);
+        p.hline(x, x + 11, y, mix(PLASTER_LT, P.white, 0.5));
+        p.set(x + 6, y - 1, P.steel);
       } else {
         p.rect(x + 1, y + 1, 10, 9, P.aqua);
         p.rect(x + 1, y + 7, 10, 3, P.leaf);
@@ -760,6 +765,20 @@ furn('tv', {
     p.rect(17, 8, 2, 1, P.steel);
   },
   extra(o) {
+    if (o.top === 'clocks') {
+      // two alarm clocks on the set, both stopped at the same time
+      const c = new PixelCanvas(22, 8);
+      for (const cx of [5, 14]) {
+        c.circle(cx, 4, 3, cx === 5 ? P.red : P.blue);
+        c.circle(cx, 4, 2, P.white);
+        c.set(cx, 3, P.ink);
+        c.set(cx + 1, 4, P.ink);
+        c.set(cx - 2, 0, P.brass);
+        c.set(cx + 2, 0, P.brass);
+      }
+      const img = c.toCanvas();
+      return { fg: [{ ox: -3, oy: -14, img: () => img }] };
+    }
     if (!o.on) return {};
     return {
       glow(g: Gfx, x: number, y: number, env: PropEnv) {
@@ -865,6 +884,22 @@ furn('futon', {
         if (b > 0.2) g.rect(x + 3, y - 18 + 12, 12, 1, '#F4F1E8', 0.7);
       },
     };
+  },
+});
+
+furn('futon2', {
+  w: 18,
+  h: 26,
+  paint(p) {
+    // two sets folded, the two pillows facing each other on top
+    for (let k = 0; k < 2; k++) {
+      const x = k * 9;
+      blk(p, x, 10, 9, 16, k ? P.peach : P.blue);
+      p.hline(x, x + 8, 15, P.white);
+      p.hline(x, x + 8, 20, P.white);
+    }
+    blk(p, 2, 6, 6, 4, P.white);
+    blk(p, 10, 6, 6, 4, P.white);
   },
 });
 
@@ -1098,6 +1133,18 @@ furn('workbench', {
 furn('obj', {
   w: 18,
   h: 26,
+  extra(o) {
+    if (o.v !== 'andon') return {};
+    // the night-light by the old woman's pillow
+    return {
+      glow(g: Gfx, x: number, y: number, env: PropEnv) {
+        g.rect(x + 5, y - 5, 7, 10, '#FFE7A3', 0.35 + 0.05 * Math.sin(env.t / 700));
+      },
+      light(g: Gfx, x: number, y: number) {
+        drawLight(g, poolEllipse(40, 26, HLIGHT.warm), x + 8, y + 6, 0.5);
+      },
+    };
+  },
   paint(p, o) {
     const v = String(o.v ?? 'mizugame');
     if (v === 'mizugame') {
@@ -1192,6 +1239,31 @@ furn('obj', {
       for (let k = 0; k < 4; k++) p.line(9 + k, 2, 8 + k, 0, P.steel);
       p.line(12, 25, 15, 6, P.wood);
       p.rect(13, 3, 4, 4, P.steel);
+    } else if (v === 'omake') {
+      // ペロ's shelf in the earthen kitchen: the box marked 『おまけ』
+      blk(p, 0, 12, 18, 14, HP.oldWood);
+      p.hline(0, 17, 18, HP.oldWoodDk);
+      blk(p, 3, 5, 12, 8, mix(P.woodLt, P.goldPale, 0.3));
+      p.rect(5, 7, 8, 3, P.paper);
+      p.hline(6, 11, 8, P.verm);
+    } else if (v === 'gunte') {
+      blk(p, 1, 12, 16, 12, mix(P.woodLt, P.goldPale, 0.3));
+      p.hline(1, 16, 16, P.brassOld);
+      for (let k = 0; k < 3; k++) p.rect(3 + k * 4, 8 + (k % 2), 3, 5, P.white);
+    } else if (v === 'kigae') {
+      // the scarecrows' change of clothes in a basket
+      p.ellipse(8, 19, 8, 6, P.brassOld);
+      for (let i = 1; i < 16; i += 2) p.vline(i, 15, 24, P.woodLt);
+      p.rect(3, 10, 5, 5, P.navy);
+      p.rect(8, 11, 6, 4, P.brass);
+      p.rect(6, 8, 4, 3, P.red);
+    } else if (v === 'tape') {
+      blk(p, 1, 14, 16, 4, P.woodLt);
+      p.vline(3, 18, 25, P.woodDark);
+      p.vline(14, 18, 25, P.woodDark);
+      p.circle(6, 11, 3, mix(P.goldPale, P.concrete, 0.4));
+      p.circle(6, 11, 1, P.woodDark);
+      p.circle(12, 12, 2, mix(P.aqua, P.white, 0.5));
     } else if (v === 'dogbed') {
       p.ellipse(9, 20, 8, 5, P.maroon);
       p.ellipse(9, 19, 6, 3, mix(P.peach, P.white, 0.4));
@@ -1419,6 +1491,29 @@ registerProp('prop_hr_shaft', (o) => {
   } as PropArt;
 });
 
+/** A small light of its own (the gym's exit sign): an emissive dot and its pool. */
+registerProp('prop_hr_glow', (o) => {
+  const lx = Number(o.x ?? 8);
+  const ly = Number(o.y ?? 8);
+  const rgb = String(o.rgb ?? HLIGHT.warm);
+  const c = String(o.c ?? '#FFE7A3');
+  return {
+    ox: 0,
+    oy: 0,
+    w: 16,
+    h: 16,
+    foot: 0,
+    flat: true,
+    img: () => null,
+    glow(g: Gfx, x: number, y: number) {
+      g.rect(x + lx - 3, y + ly - 1, 8, 3, c, 0.55);
+    },
+    light(g: Gfx, x: number, y: number) {
+      drawLight(g, poolEllipse(34, 26, rgb), x + lx, y + ly + 20, 0.3);
+    },
+  } as PropArt;
+});
+
 // ---------------------------------------------------------------- the empty house, the shop, the store, the gym
 
 furn('cloth', {
@@ -1518,7 +1613,7 @@ furn('pump', {
 furn('stage', {
   w: 160,
   h: 18,
-  cx: 8,
+  cx: 80,
   paint(p) {
     // the stage's front (10 tiles): boards, the step at its west end
     p.rect(0, 0, 160, 14, P.woodLt);
@@ -1567,6 +1662,7 @@ furn('heap', {
   w: 44,
   h: 26,
   cx: 24,
+  base: 32,
   paint(p) {
     for (let j = 0; j < 22; j++) {
       const hw = Math.round(6 + j * 0.9);

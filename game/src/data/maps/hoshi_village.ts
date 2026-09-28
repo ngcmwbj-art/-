@@ -8,11 +8,14 @@
 //
 // Rows are 52 3.1 verbatim, except that the stream (x13) is written `s` so it
 // can be drawn as a stream rather than the canal (`w`), and the mouth of the
-// hill path (48–49,0) `P` (a door with no building round it).
+// hill path (48–49,0) `P` (a door with no building round it). Since 02 #61
+// every house, shed and greenhouse has its door `D` (the tool shed's `Q`):
+// the rooms are data/maps/hoshi_rooms2.ts.
 
 import { registerMap } from '../../world/maps';
 import type { MapDef, MapObj, TileSpec } from '../../world/types';
 import { hg, htalk, htext, narrowFirst, O, O2, PR } from './hoshi_common';
+import { ROOM2_OUTSIDE, ROOM2_VILLAGE_DOORS } from './hoshi_rooms2';
 
 const ROWS = [
   'HHHHHHHHHHHHHsHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHPPHHHHHHHHHH', // 0
@@ -28,7 +31,7 @@ const ROWS = [
   'HHHHHHHHHHHHHs~~~~~nn~~~~~~~~~~~~~~~Ekkkkkkkokkk::kkKKKKkkkk', // 10
   'HHHHHHHHHHHHHsaaaaannaaaaaaaaaaaaaaaEkkkkkkkkkkk::kkkkkkmmmk', // 11
   'HHHHHHHHHHHHHs~~~~~nn~~~~~~~~~~~~~OOEkkKKKKkkkok::kkkkkkmmmk', // 12
-  'HHHHHHHHHHHHHs~~~~~nn~~~~~~~~~~~~~OOEkkKKKKkkkkk::kkkkoKKKKK', // 13
+  'HHHHHHHHHHHHHs~~~~~nn~~~~~~~~~~~~~QQEkkKKKKkkkkk::kkkkoKKKKK', // 13
   'HHHHHHHHHHHHHsaaaaannaaaaaaaaaaaaaaaEkkKKKKkkkkk::kKKkkKKKKK', // 14
   'HHHHHHHHHHHHHs~~~~~nn~~~~~~~~~~~~~~~EkkKKKKkkkkk::kKKkkKKKKK', // 15
   'HHHHHHHHHHHHHs~~~~~nn~~~~~~~~~~~~~~~EkoKKKKkkkkk::kKKkkKKKKK', // 16
@@ -41,24 +44,24 @@ const ROWS = [
   ':VVV:VVV:VVV:s^^^^^::^^^^^^^^^^^^^^^^^^::^^^^^B,::,,,,,,,,,,', // 23
   ':VVV:VVV:VVV:s^^^^^::^^^^^^^^^^^^^^^^^^::^^^^^B,::^^^^^^^^^^', // 24
   ':VVV:VVV:VVV:sWWWWW::^^^^^^^^^^^^^^^^^^::WWWWWB,::^^^^^^^^^^', // 25
-  ':VVV:VVV:VVV:sWWWWW::WWWWWWWWWWWWWWWWWW::WWWWWB,::^^^^^^^^^^', // 26
-  ':VVV:VVV:VVV:s,,,,,::WWWWWDWWWWWWWWWWWW::,,,,,B,::^^^^^^^^^^', // 27
+  ':VVV:VVV:VVV:sWDDWW::WWWWWWWWWWWWWWWWWW::WWDWWB,::^^^^^^^^^^', // 26
+  ':VVV:VVV:VVV:s,,,,,::WWWWWDWWWWWWWWWWWD::,,,,,B,::^^^^^^^^^^', // 27
   ':VVV:VVV:VVV:s^^^^^::ooot..totttto^^^^^::"""o"B,::^^^^^^^^^^', // 28
   ':vvv:vvv:vvv:s^^^^^::tttt..ttttttt^^^^^::"""""B,::^^^^^^^^^^', // 29
-  ':vDv:vvv:vvv:sWWWWW::ottT..tttoootWWWWW::oooooB,::WWWWWWWWWW', // 30
-  ':::::::::::::sWWWWW::HHHH..HHHHHHHWWWWWo:oooooB,::WDWWWWWWWW', // 31
+  ':vDv:vDv:vDv:sWWWWW::ottT..tttoootWWWWW::oooooB,::WWWWWWWWWW', // 30
+  ':::::::::::::sWWDWW::HHHH..HHHHHHHWWDWWo:oooDoB,::WDWWWWWWWW', // 31
   'o::::o::::o::s:::::::::::..:::::::::::::::::::Bcccccccccoooc', // 32
   ':::::::::::::s^^^^^::^^^^..^^^^^,,^^^^^::^^^^^Bcccccccccoooc', // 33
   ':::::::::::::s^^^^^::^^^^..^^^^^,,^^^^^::^^^^^Bccccccccccccc', // 34
   ':::::::o:::::sWWWWW::WWWW..WWWWW,,WWWWW::WWWWWB:::::::::::::', // 35
-  ':::::::::::::sWWWWW::WWWW..WWWWW,,WWWWW::WWWWWBY::::::::::::', // 36
+  ':::::::::::::sWWDWW::DWWW..WWWDW,,WDWWW::WWWDWBY::::::::::::', // 36
   '::::::::::::Ys",,o"Y,SSoo..o,,,,Y,,,,,,Y,,,,,,B:::::::::::::', // 37
   '.............=................................::::::::::::::', // 38
   '.............=................................::::::::::::::', // 39
   ',^^^^^^^^""""HHWWWWWWW%o%%%%o%%%%%%%%%%%%%%%%%B^^^^^::^^^^^^', // 40
   ',^^^^^^^^""""HHWSSSSSW%%%%%%%%%%%%%oooo%%%ooo%B^^^^^::^^^^^^', // 41
   ',WWWWWWWWooooHHW-----W%%%%%%%%%%%%%oooo%%%ooo%BWWWWW::WWWWWW', // 42
-  ',WWWWWWWWooooHHWWW-WWW%%%%%%%%%%%%o%%%%%%%%%%%BWWWWW::WWWWWW', // 43
+  ',WDWWWWWWooooHHWWW-WWW%%%%%%%%%%%%o%%%%%%%%%%%BWWDWW::WWWDDW', // 43
   ',::::::::::::::-------o-------o---%%oo%%%%%%%oB:::::::,,,,,,', // 44
   ',::::::::::::::-------------------%%%%%%%%%%%%B:::::::,,,,,,', // 45
   'RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRoHHHHHHHHHHHHHHHHHHHHHHHHH', // 46
@@ -88,6 +91,8 @@ const LEGEND: Record<string, TileSpec> = {
   W: { ground: 'dirt', solid: true, tag: 'facade' },
   D: { ground: 'dirt', solid: true, door: true, tag: 'facade' },
   P: { ground: 'dirt', solid: true, door: true },
+  /** the tool shed's door among the paddies (02 #61): the ridge's earth */
+  Q: { ground: hg('h_aze'), solid: true, door: true, tag: 'prop' },
   B: { ground: 'grass', solid: true, tag: 'wall' },
   F: { ground: 'grass', solid: true, tag: 'fence' },
   E: { ground: 'grass', solid: true, tag: 'fence' },
@@ -167,6 +172,9 @@ const OBJECTS: MapObj[] = [
   { t: 'door', id: 'door_hoshi_barn', x: 51, y: 31, to: 'map_hoshi_barn', tx: 2, ty: 10, dir: 'up', se: 'se_door_heavy', cond: { flag: 'flag_ch2_met_gen' } },
   { t: 'door', id: 'door_hoshi_hill', x: 48, y: 0, to: 'map_hoshi_hill', tx: 11, ty: 18, dir: 'up', cond: { flag: 'flag_ch2_tetsuya_beaten' } },
   { t: 'door', id: 'door_hoshi_hill_e', x: 49, y: 0, to: 'map_hoshi_hill', tx: 12, ty: 18, dir: 'up', cond: { flag: 'flag_ch2_tetsuya_beaten' } },
+  // the houses, sheds and greenhouses (02 #61), and what is found outside them
+  ...ROOM2_VILLAGE_DOORS,
+  ...ROOM2_OUTSIDE,
   // the doors while they are shut: examining them (and the scripts say why)
   O('door_hoshi_house_closed', 2, 30, { face: 'up', cond: { notFlag: 'flag_ch2_met_mitsu' }, text: htalk('npc_hoshi_mitsu')?.h0_0 }),
   O('door_hoshi_barn_closed', 51, 31, { face: 'up', cond: { notFlag: 'flag_ch2_met_gen' } }),

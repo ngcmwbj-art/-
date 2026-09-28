@@ -562,6 +562,10 @@ export class FieldScene implements Scene {
       if (def.id === 'map_hoshi_school' && id === 'amb_h_insects') {
         opts.vol = 0.35;
         opts.lp = 2000;
+      } else if (def.ambVol?.[id]) {
+        // the rooms of 星見台 (02_ch2_index #61): the bed through the walls
+        opts.vol = def.ambVol[id].vol;
+        opts.lp = def.ambVol[id].lp ?? 20000;
       } else if (positional.includes(id)) {
         if (on) delete opts.vol;
         else opts.vol = 0;

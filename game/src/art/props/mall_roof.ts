@@ -22,6 +22,7 @@ import { PixelCanvas } from '../../engine/pixel';
 import { h01, ihash, valueNoise } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { castRight, dk, finish, lightRect, lt, outline, shadeRect } from './kit';
+import { lightPool } from './ishell';
 import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
 import { drain, moss, puddleMark } from './roofkit';
@@ -1324,67 +1325,201 @@ registerProp('mall_roof_fence_s', () => {
   return { ox: 0, oy: -20, w: W, h: 36, foot: 6, img: () => img, xray: 0.35 } as PropArt;
 });
 
-// ================================================================ M4's steel door up to the roof (map_mall_2f (2,0)–(2,1))
+// ================================================================ M4's stairs up to the roof (map_mall_2f (2–3,0–1))
 
 /**
- * On M4's north wall, tile 2 (the 『↓1F』 sign beside it was narrowed to
- * tile 1): a plain steel door under a 『屋上』 plate, its wired-glass
- * window lit from above — the stairwell's evening — and a line of it under
- * the door, a small warm pool on the floor in front.
+ * The stairwell in M4's north wall, two tiles wide (★2026-09-28, the
+ * client: 「2人分の幅で階段を作って、上にもあるよというアピールを」): the
+ * steps go up into the wall between two pipe handrails, the roof's evening
+ * lying on the top ones; a 『屋上 ↑』 board over it (big type, the dusk's
+ * colours in a band under it); a balloon peeking in from above and the end
+ * of the roof's bunting hanging down the stairwell (both move a little in
+ * the draught); the lowest step stands out on the corridor floor, and a
+ * floor sticker 『ゆうやけ ひろば』 in front. The landing's light comes down
+ * the steps onto the floor (light), with a little dust in it (glow).
+ * World px (anchor (32,0)): board x 30–79 y 0–17, opening x 34–61 y 18–31,
+ * the bottom step y 32–35, the sticker x 30–65 y 38–57.
  */
-registerProp('mall_roof_door', () => {
-  const p = new PixelCanvas(16, 32);
-  // the plate: 『↑RF』 (the roof floor, as on a lift's buttons)
-  p.rect(1, 1, 14, 6, P.navy);
-  p.hline(1, 14, 1, P.blue);
-  tiny(p, 'RF', 7, 2, P.white);
-  p.vline(4, 2, 5, P.gold);
-  p.set(3, 3, P.gold);
-  p.set(5, 3, P.gold);
-  // frame and leaf
-  p.rect(1, 7, 14, 25, P.asphalt);
-  p.rect(2, 8, 12, 24, P.concrete);
-  p.vline(2, 8, 31, P.concreteLt);
-  p.hline(2, 13, 8, P.concreteLt);
-  p.vline(13, 9, 31, P.steel);
-  // the window: warm light from the stairs up to the roof
-  p.rect(5, 10, 6, 5, P.sky);
-  p.hline(5, 10, 10, P.horizon);
-  p.set(6, 11, P.glint);
-  p.vline(8, 10, 14, P.brass);
-  p.hline(5, 10, 12, P.brass);
-  p.strokeRect(4, 9, 8, 7, P.steel);
-  // the notice: 『屋上 ゆうやけひろば 営業時間 10:00〜17:00』
-  p.rect(4, 17, 8, 6, P.white);
-  p.hline(5, 10, 18, P.verm);
-  p.hline(5, 9, 20, P.ink);
-  p.hline(5, 10, 21, P.ink);
-  p.set(4, 17, P.goldPale);
-  p.set(11, 17, P.goldPale);
-  // push bar, kick plate, the warm line at the threshold
-  p.hline(3, 12, 24, P.steel);
-  p.hline(3, 12, 25, P.asphalt);
-  p.rect(3, 27, 10, 3, P.steel);
-  p.hline(3, 12, 27, P.concreteLt);
-  p.hline(2, 13, 31, P.sky);
-  castRight(p, 1, 1, 14, 31, 1);
+const SU = { x0: 26, w: 58, h: 60 };
+/** The steps, top to bottom: tread y (2 px), then its riser (2 px); the last one stands on the corridor floor. */
+const SU_STEPS: [number, string, string, string][] = [
+  // [tread y, tread, nosing, riser]
+  [20, P.horizon, P.brass, P.woodLt],
+  [24, P.goldPale, P.brassOld, P.steel],
+  [28, P.concreteLt, P.steel, P.asphalt],
+  [32, P.concreteLt, P.steel, P.asphalt],
+];
+registerProp('mall_roof_stairs_up', () => {
+  const p = new PixelCanvas(SU.w, SU.h);
+  const X = (wx: number) => wx - SU.x0;
+  const set = (wx: number, wy: number, c: string) => p.set(X(wx), wy, c);
+  const hl = (a: number, b: number, wy: number, c: string) => p.hline(X(a), X(b), wy, c);
+  const vl = (wx: number, a: number, b: number, c: string) => p.vline(X(wx), a, b, c);
+  const rc = (wx: number, wy: number, w: number, h: number, c: string) => p.rect(X(wx), wy, w, h, c);
+
+  // ---- the board 『屋上 ↑』 (x 30–79, y 0–17)
+  rc(30, 0, 50, 18, P.navy);
+  hl(30, 79, 0, P.blue);
+  hl(30, 79, 1, P.blue);
+  vl(30, 0, 17, P.blue);
+  // the dusk in a band along its foot: orange → rose → lilac
+  const band = [P.sky, P.sun, P.sunDeep, P.crimson, P.peach, P.sunShade, P.lilac];
+  for (let x = 31; x <= 79; x++) {
+    const c = band[Math.min(band.length - 1, Math.floor(((x - 31) / 49) * band.length))];
+    set(x, 15, c);
+    set(x, 16, c);
+  }
+  hl(30, 79, 17, P.nightShade);
+  fontText(p, '屋上', X(33), 1, P.white, { shadow: P.ink });
+  // the arrow (x 67–77): a gold head over a shaft
+  for (let k = 0; k < 5; k++) hl(72 - k, 72 + k, 2 + k, P.gold);
+  hl(68, 76, 6, P.brass);
+  rc(70, 7, 5, 7, P.gold);
+  vl(74, 7, 13, P.brass);
+  hl(70, 74, 13, P.brass);
+  set(72, 2, P.glint);
+  set(71, 3, P.glint);
+  vl(70, 7, 12, P.goldPale);
+  // two screws
+  set(32, 3, P.steel);
+  set(78, 3, P.steel);
+  castRight(p, X(30), 0, 50, 18, 2);
+
+  // ---- the stairwell (x 32–63): jambs, the landing, the steps, the side walls
+  // the landing at the top, where the roof's light comes in
+  rc(34, 18, 28, 2, P.horizon);
+  hl(34, 61, 18, P.glint);
+  for (const [ty, tread, nose, riser] of SU_STEPS) {
+    hl(34, 61, ty, tread);
+    hl(34, 61, ty + 1, tread);
+    for (let x = 35; x < 61; x += 3) set(x, ty + 1, nose);
+    hl(34, 61, ty + 2, riser);
+    hl(34, 61, ty + 3, ty >= 32 ? P.charcoal : dk(riser));
+  }
+  // the inner side walls: the west one in shade, the east one catching the landing
+  for (let y = 18; y <= 31; y++) {
+    const up = y < 22;
+    set(34, y, up ? P.brassOld : P.shade);
+    set(35, y, up ? P.woodLt : P.asphalt);
+    set(60, y, up ? P.goldPale : P.steel);
+    set(61, y, up ? P.sky : P.concrete);
+  }
+  // pipe handrails on both walls, the ends turned down to a post at the bottom step
+  for (const [hx, lit, shade] of [[37, P.concreteLt, P.steel], [58, P.white, P.steel]] as const) {
+    vl(hx, 19, 33, lit);
+    vl(hx + (hx < 48 ? 1 : -1), 20, 33, shade);
+    for (const by of [22, 29]) set(hx < 48 ? hx - 1 : hx + 1, by, P.charcoal);
+    vl(hx, 34, 35, P.steel);
+    set(hx, 19, P.glint);
+  }
+  // the jambs (down to the floor: the stairwell's walls end there)
+  for (let y = 18; y <= 35; y++) {
+    set(32, y, P.concreteLt);
+    set(33, y, P.concrete);
+    set(62, y, P.concrete);
+    set(63, y, P.steel);
+  }
+  hl(32, 33, 35, P.steel);
+  hl(62, 63, 35, P.asphalt);
+  // the step's shadow on the corridor floor
+  for (let x = 32; x <= 63; x++) set(x, 36, '#5B4A7A55');
+
+  // ---- the floor sticker 『ゆうやけ ひろば』 (x 30–65, y 38–57), a year of shoes on it
+  const sx = 30;
+  const sy = 38;
+  const sw = 36;
+  const sh = 20;
+  rc(sx, sy, sw, sh, P.white);
+  rc(sx + 1, sy + 1, sw - 2, sh - 2, P.sun);
+  for (const [cx, cy] of [[sx, sy], [sx + sw - 1, sy], [sx, sy + sh - 1], [sx + sw - 1, sy + sh - 1]]) set(cx, cy, 'transparent');
+  const l1 = 'ゆうやけ';
+  const l2 = 'ひろば';
+  fontTextSmall(p, l1, X(sx + 2), sy + 2, P.white, 1, { shadow: P.sunDeep });
+  fontTextSmall(p, l2, X(sx + 6), sy + 11, P.white, 1, { shadow: P.sunDeep });
+  // worn: the white edge scuffed off in bits, a few grey scuffs across it
+  for (let x = sx; x < sx + sw; x++)
+    for (const y of [sy, sy + sh - 1]) if (ihash(x, y, 5471) % 5 === 0) set(x, y, 'transparent');
+  for (let k = 0; k < 7; k++) {
+    const x = sx + 2 + (ihash(k, 1, 5473) % (sw - 4));
+    const y = sy + 2 + (ihash(k, 2, 5473) % (sh - 4));
+    set(x, y, P.sky);
+    set(x + 1, y, P.sky);
+  }
+
   const img = p.toCanvas();
   return {
-    ox: 0,
+    ox: SU.x0 - 32,
     oy: 0,
-    w: 16,
-    h: 32,
+    w: SU.w,
+    h: SU.h,
     foot: 0,
     flat: true,
     img: () => img,
-    glow(g: Gfx, x: number, y: number) {
-      g.rect(x + 5, y + 10, 6, 5, '#F7C27A', 0.35);
-      g.rect(x + 2, y + 31, 12, 1, '#FFE7A3', 0.6);
+    // the balloon peeking in from above and the end of the bunting (a draught down the stairs)
+    over(g: Gfx, x: number, y: number, env: PropEnv) {
+      const W0 = x - 32;
+      // the balloon (red, its top behind the lintel), bobbing 1 px; the string to the west rail
+      const bob = Math.round(Math.sin(env.mt / 1100) * 1.2);
+      const bx = W0 + 40;
+      const by = y + 18 + bob;
+      g.rect(bx, by, 6, 3, P.red);
+      g.rect(bx + 1, by + 3, 4, 1, P.red);
+      g.rect(bx, by + 2, 1, 1, P.vermShade);
+      g.rect(bx + 5, by, 1, 2, P.vermShade);
+      g.rect(bx + 1, by + 1, 1, 1, P.vermLt);
+      g.rect(bx + 2, by + 4, 2, 1, P.vermShade);
+      for (let k = 0; k < 6; k++) g.rect(bx + 3 - (k > 3 ? 1 : 0), by + 5 + k, 1, 1, P.white);
+      // the bunting's end: down from under the lintel (x 47) to the east rail (x 57, y 26)
+      const sw = Math.round(Math.sin(env.mt / 700 + 1.3) * 1);
+      const flags = [P.red, P.gold, P.blue, P.leafDeep, P.white];
+      for (let k = 0; k <= 10; k++) {
+        const t = k / 10;
+        const sx = W0 + 47 + Math.round(t * 10);
+        const sy = y + 18 + Math.round(t * 8 + Math.sin(t * Math.PI) * 1.5) + (k > 2 && k < 9 ? sw * (k % 2) : 0);
+        g.rect(sx, sy, 1, 1, P.concreteLt);
+        if (k % 2 === 1) {
+          const c = flags[(k >> 1) % flags.length];
+          g.rect(sx - 1, sy + 1, 3, 2, c);
+          g.rect(sx, sy + 3, 1, 1, c);
+        }
+      }
     },
-    light(g: Gfx, x: number, y: number) {
-      // the evening that comes down the stairs, a little on the floor in front
-      g.rect(x + 1, y + 32, 14, 3, '#F7C27A', 0.18);
-      g.rect(x + 3, y + 35, 10, 3, '#F7C27A', 0.1);
+    glow(g: Gfx, x: number, y: number, env: PropEnv) {
+      const a = 1 - env.grade.night;
+      if (a <= 0.01) return;
+      const W0 = x - 32;
+      // the landing and the top step, lit by the roof
+      g.rect(W0 + 34, y + 18, 28, 2, '#FFE7A3', 0.5 * a);
+      g.rect(W0 + 34, y + 20, 28, 2, '#F7C27A', 0.22 * a);
+      // the light coming down the steps and out over the floor
+      const ctx = g.ctx;
+      ctx.save();
+      const gr = ctx.createLinearGradient(0, y + 18, 0, y + 62);
+      gr.addColorStop(0, `rgba(255,231,163,${0.22 * a})`);
+      gr.addColorStop(0.45, `rgba(247,194,122,${0.1 * a})`);
+      gr.addColorStop(1, 'rgba(247,194,122,0)');
+      ctx.fillStyle = gr;
+      ctx.beginPath();
+      ctx.moveTo(W0 + 35, y + 18);
+      ctx.lineTo(W0 + 61, y + 18);
+      ctx.lineTo(W0 + 68, y + 62);
+      ctx.lineTo(W0 + 28, y + 62);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+      // a little dust drifting down in it
+      for (let k = 0; k < 6; k++) {
+        const u = ((env.mt / (5200 + k * 700) + k * 0.37) % 1 + 1) % 1;
+        const dx = W0 + 38 + ((k * 7) % 22) + Math.round(Math.sin(env.mt / 900 + k) * 2) + u * 4;
+        const dy = y + 20 + u * 38;
+        g.rect(Math.round(dx), Math.round(dy), 1, 1, '#FFF6D8', 0.55 * a * Math.sin(u * Math.PI));
+      }
+    },
+    light(g: Gfx, x: number, y: number, env: PropEnv) {
+      const a = 1 - env.grade.night;
+      if (a <= 0.01) return;
+      lightPool(g, x + 16, y + 44, 24, 15, P.sky, 0.42 * a);
+      lightPool(g, x + 16, y + 33, 16, 6, P.horizon, 0.38 * a);
     },
   } as PropArt;
 });

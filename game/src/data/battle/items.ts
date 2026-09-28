@@ -30,6 +30,8 @@ const items: ItemDef[] = [
   { id: 'item_shuzumi', name: '朱墨のかけら', target: 'minato', mp: 8, desc: ['はなまるを 描く ための 朱い 墨。', '朱肉を 8 回復。'] },
   // 02 #59（2026-09-28）南の列：写真館の七五三コーナーの見つけ物（非売品）
   { id: 'item_chitose_ame', name: '千歳あめ', target: 'ally', heal: 25, desc: ['写真館の 七五三の おまけ。長い。', 'HPを 25 回復。'] },
+  // 02 #61（2026-09-28）第2章 まつ先生の家の見つけ物（非売品）
+  { id: 'item_konpeito', name: '金平糖', target: 'ally', heal: 20, desc: ['星の 形の さとう菓子。観望会の 分。', 'HPを 20 回復。'] },
   // 大事なもの
   { id: 'item_otsukai_memo', name: 'おつかいメモ', key: true, target: 'none', desc: ['焼きそば 4つ。青のりは べつ。', ''], battleText: ['これは 晩ごはんの メモだ。'] },
   { id: 'item_gamaguchi', name: 'がま口', key: true, target: 'none', desc: ['母の がま口。ぱちん、と', '閉まる 音が いい。'], battleText: ['がま口を 開けた。\n……戦いに お金は いらない。'] },

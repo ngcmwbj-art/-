@@ -8,6 +8,7 @@ import { setDownhillOpen } from '../../art/tiles/hoshi_struct';
 import { registerMap } from '../../world/maps';
 import type { MapObj } from '../../world/types';
 import { hg, O, PR } from './hoshi_common';
+import { R2_MISC } from '../text/hoshi_rooms2';
 
 const ROWS = [
   'HHHHHHHHHHHHHHHHHHHHHHHH', // 0
@@ -52,6 +53,8 @@ const OBJECTS: MapObj[] = [
   // examine (52 5章)
   O('obj_hoshi_speaker_plate', 15, 3, { face: 'up', cond: { flag: 'flag_ch2_boss_beaten' } }),
   O('obj_hoshi_dome', 4, 5, { face: 'up' }),
+  // the observatory stays shut (観望会 休止中, the key is まつ先生's): a look through its little window (02 #61)
+  { t: 'obj', id: 'obj_hr_dome_mado', x: 7, y: 4, face: 'right', text: R2_MISC.obj_hr_dome_mado } as MapObj,
   O('obj_hoshi_pier', 11, 3),
   O('obj_hoshi_hill_bench', 19, 6, { w: 2 }),
   O('obj_hoshi_view_east', 23, 4, { face: 'right' }),

@@ -843,7 +843,7 @@ export const FREEZER_LABEL = `@narr
 アイスクリームと、冷凍みかん。
 /
 奥に 1つだけ、ちがう 札。{w=300}
-『たんかん（しんごさん用）』。`;
+『たんかん　しんご 取りおき』。`;
 
 /** The master, when the たんかん isn't asked for (the label was seen). */
 export const MASTER_NOT_YET = `@npc_master

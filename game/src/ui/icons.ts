@@ -477,6 +477,19 @@ Object.assign(ITEM_ROWS, {
     '.aaoaae...',
     '..eeeee...',
   ],
+  // 02 #61: まつ先生's 金平糖 — a clear little bag tied in red, star candies
+  item_konpeito: [
+    '....rr....',
+    '...wWWw...',
+    '..wWwwWw..',
+    '.wqwOwuwW.',
+    '.wwowwqwd.',
+    '.wuwwOwwd.',
+    '.wwqwuwwd.',
+    '.wOwwwqwd.',
+    '..wdddwd..',
+    '...dddd...',
+  ],
 });
 
 /** トマト（おまけ）: after chapter 2, one tomato left in the bag (13.3). */

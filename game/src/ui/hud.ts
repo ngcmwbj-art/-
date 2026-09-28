@@ -30,6 +30,7 @@ import { syncSettingFlags } from './settings';
 import { autosaveTick, setAutosaveClock } from './autosave';
 import { blend, drawTape, rectA, textW, UI } from './window';
 import { hash2 } from '../engine/rng';
+import { ROOM2_PLACE } from '../data/maps/hoshi_rooms2_names';
 
 // ---- clock -------------------------------------------------------------------------
 
@@ -304,6 +305,8 @@ const HOSHI_PLACE: Record<string, string> = {
   map_hoshi_barn: '石黒牛舎',
   map_hoshi_school: '旧 星見台分校',
   map_hoshi_hill: '星見の丘',
+  // 星見台の家々の中（02_ch2_index #61）
+  ...ROOM2_PLACE,
 };
 
 /**

@@ -413,6 +413,11 @@ export interface MapDef {
   /** Music/ambience per stage: { 0: 'bgm_town_s0', ... }. */
   bgm?: Partial<Record<number, string | null>>;
   amb?: Partial<Record<number, string[]>>;
+  /**
+   * A bed's own level and low-pass in this map (星見台's rooms hear the night
+   * insects through their walls, 53 4.2 / 02_ch2_index #61): { vol, lp }.
+   */
+  ambVol?: Record<string, { vol: number; lp?: number }>;
   /** Acoustic space for the audio module. */
   space?: string;
   /** Ground style variant (per-area art choices) – see art/tiles. */

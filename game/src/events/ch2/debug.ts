@@ -36,6 +36,7 @@ import { missingSounds } from './compat';
 import { CH2_ENDING_CUTS } from './ending';
 import { debugChoresDone } from './barn';
 import { debugDeliveryAlmost } from './tsugao';
+import { ROOMS2_TEXTS } from './rooms2';
 
 type Step = () => void;
 
@@ -336,6 +337,8 @@ function collectTexts(): [string, string][] {
   walk('ch1_tsugao', { hello: TSUGAO_HELLO, ...TSUGAO_TALK, ...HOSHIMI_YASAI });
   // 第1章の郵便屋さんの『あした』宛ての手紙 (10_narrative 6.10, 02_ch2_index #56)
   walk('ch1_postman', { tegami: NPC.npc_postman.tegami, tegami_get: NPC.npc_postman.tegami_get });
+  // 星見台の家々の中 (02_ch2_index #61)
+  walk('rooms2', ROOMS2_TEXTS);
   // 第1章の北の列の部屋・しんごのたんかん (10_narrative 6.14 / 6.22 / 7.19, 02_ch2_index #58)
   walk('ch1_north', NORTH_TEXTS);
   // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line

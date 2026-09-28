@@ -13,6 +13,7 @@ import type { FieldScene } from './field';
 import { fushigiActive } from './fushigi';
 import { isCh2Map } from './maps';
 import * as snd from './audio';
+import { ROOM2_PLACE } from '../data/maps/hoshi_rooms2_names';
 
 export interface FieldHud {
   update(dt: number, f: FieldScene): void;
@@ -201,6 +202,8 @@ export const HOSHI_MAP_NAMES: Record<string, string> = {
   map_hoshi_barn: '石黒牛舎',
   map_hoshi_school: '旧 星見台分校',
   map_hoshi_hill: '星見の丘',
+  // 星見台の家々の中（02_ch2_index #61）
+  ...ROOM2_PLACE,
 };
 export const HOSHI_AREA_NAMES: Record<string, string> = {
   area_hoshi_station: '駅と駅前',

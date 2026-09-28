@@ -15,6 +15,7 @@ import { HOSHI_NPC, KANENARI_FLIPS_HOSHI, KANENARI_FLIP_MUJIN_H1, KANENARI_FLIP_
 import { panBack, panTo } from '../lib';
 import { se } from './compat';
 import { TS_LINES } from '../../data/text/hoshi_tsugao';
+import { ROOM2_KEYS } from '../../data/maps/hoshi_rooms2';
 import { hStage, isHoshi, npc, pickH, say } from './common';
 import { deliveryAtYoshie } from './tsugao';
 
@@ -317,6 +318,8 @@ export function hoshiPlaceKey(f: FieldScene): string {
   const inR = (x0: number, x1: number, y0: number, y1: number) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
   const v = m === 'map_hoshimidai';
   if (m === 'map_hoshi_train') return 'hoshi_train';
+  // the rooms of the houses (02_ch2_index #61): one flip each
+  if (ROOM2_KEYS[m]) return ROOM2_KEYS[m];
   if (v && inR(19, 24, 36, 39)) return 'hoshi_mujin';
   if (v && inR(33, 45, 40, 45)) return 'hoshi_bus';
   if (v && inR(14, 32, 40, 46)) return 'hoshi_station';
