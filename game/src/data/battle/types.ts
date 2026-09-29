@@ -164,6 +164,12 @@ export interface EnemyDef {
   restActions?: number;
   /** おつかれさま always succeeds regardless of the judgement (テツヤ). */
   restAlways?: boolean;
+  /**
+   * The look and sound of a `status_tetsuya` enemy that is not テツヤ (セキトメ, 02 #65):
+   * the tape's word (default 「徹夜中」), the sound when it is rested / starts again /
+   * hardens at the round's end, and the pose of that round's end (default 'retill').
+   */
+  duty?: { tape?: string; restSe?: string; restartSe?: string; nightSe?: string; nightPose?: string };
   /** Boss parts (per boss; see BOSS_PARTS). */
   parts?: BossPartDef[];
 }

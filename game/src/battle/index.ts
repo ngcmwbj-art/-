@@ -159,6 +159,8 @@ const CH2_BATTLES: Record<string, Partial<BattleOpts> & { enemies: string[] }> =
   cho: { enemies: ['enemy_chototsu'] },
   mujin: { enemies: ['enemy_mujin_hanbaiin'] },
   tetsuya: { enemies: ['enemy_tetsuya'], music: 'bgm_midboss', background: 'bg_h_tetsuya', canLose: true },
+  // 沢の上のセキトメ (02 #65)
+  seki: { enemies: ['enemy_sekitome'], background: 'bg_h_sawa', canLose: true },
   yobi: { enemies: ['boss_yobimodoshi'], boss: true, music: 'bgm_boss_yobimodoshi', background: 'bg_h_boss', canLose: true },
 };
 

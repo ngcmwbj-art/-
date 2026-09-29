@@ -1572,6 +1572,57 @@ const SIDE2 = [
       await shot('done');
     },
   },
+  {
+    // 02 #65: 沢の上「水の 元」 — マル's word, トマじい's request, the stream, セキトメ, the name stone, the spring
+    name: 'sawa',
+    async run() {
+      // トマじい (21,11) from (20,11): 〔maru〕 (マル's word from chapter 1), then 〔h1_3〕 the request
+      await examineHere('right', 'dengon');
+      if ((await flag('flag_ch2_maru_told')) !== 2) throw new Error('sawa: マル\'s word was not given');
+      await examineHere('right', 'ask');
+      await need(['flag_ch2_sawa_open', 'flag_ch2_sawa_wait'], 'sawa: the fence\'s door');
+      const at = await st();
+      checks.push({ check: 'sawa: the request takes him to the door (14,2)', ok: at.x === 14 && at.y === 2, x: at.x, y: at.y });
+      // up through the door (14,1) into the stream (12,25)
+      await enterDoor(14, 0, 'up', 'map_hoshi_sawa');
+      await advance({ label: 'in' });
+      await shot('in');
+      // up the path to the dam's west end, then into セキトメ (16,11)
+      await travel(13, 11);
+      await walk('right', (s) => !s.ctrl || s.battle, 4000);
+      await advance({ label: 'seki', shotEvery: 2 });
+      await need(['flag_ch2_sawa_seki'], 'sawa: セキトメ');
+      await shot('seki');
+      // the name stone (18,12), from the crest (18,11)
+      await travel(18, 11);
+      await examineHere('down', 'ishi');
+      await need(['flag_ch2_sawa_ishi_get'], 'sawa: the name stone');
+      // the spring (16–18,1–3) from (19,2): すくう (the first choice)
+      await travel(19, 2);
+      await examineHere('left', 'wakimizu');
+      await need(['flag_ch2_wakimizu_count'], 'sawa: the spring');
+      await shot('wakimizu');
+      // back down and out (12,26) → (14,1); the step onto (14,2) is the way back (evt_ch2_sawa_back)
+      await enterDoor(12, 26, 'down', 'map_hoshimidai');
+      await sleep(400);
+      await advance({ label: 'out' });
+      if (!(await flag('flag_ch2_sawa_back'))) {
+        await walk('down', (s) => !s.ctrl, 3000).catch(() => {});
+        await advance({ label: 'back', shotEvery: 2 });
+      }
+      await need(['flag_ch2_sawa_back', 'flag_ch2_sawa_ishi'], 'sawa: back with the stone');
+      await sleep(3000);
+      const v = await flags(['flag_ch2_sawa_wait']);
+      const tome = await page.evaluate(() => {
+        const a = window.__game.cmd.fieldRef().actorById('npc_hoshi_tome');
+        return a ? [a.tileX, a.tileY] : null;
+      });
+      const ok = !v.flag_ch2_sawa_wait && !!tome && tome[0] === 21 && tome[1] === 11;
+      checks.push({ check: 'sawa: トマじい back at (21,11), the wait over', ok, tome, ...v });
+      if (!ok) throw new Error(`sawa: ${JSON.stringify({ tome, ...v })}`);
+      await shot('done');
+    },
+  },
 ];
 
 const BEATS2 = [

@@ -27,7 +27,7 @@ for (const [id, s] of Object.entries(HOSHI_SPEAKERS)) SPEAKERS[id] = { ...s };
 
 // ---------------------------------------------------------------- maps and stage
 
-export const HOSHI_MAPS = ['map_hoshi_train', 'map_hoshimidai', 'map_hoshi_house', 'map_hoshi_barn', 'map_hoshi_school', 'map_hoshi_hill'];
+export const HOSHI_MAPS = ['map_hoshi_train', 'map_hoshimidai', 'map_hoshi_house', 'map_hoshi_barn', 'map_hoshi_school', 'map_hoshi_hill', 'map_hoshi_sawa'];
 
 export function isHoshi(mapId: string | null | undefined): boolean {
   return !!mapId && mapId.startsWith('map_hoshi');

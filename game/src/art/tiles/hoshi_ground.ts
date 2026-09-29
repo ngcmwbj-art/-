@@ -51,6 +51,9 @@ export const H_GROUNDS = [
   'h_hilltop',
   'h_schoolwood',
   'h_genkan',
+  // 沢の上 (map_hoshi_sawa, 02 #65): a mountain stream of any width, and the still pool / the spring
+  'h_sawa',
+  'h_sawaike',
 ] as const;
 export type HGround = (typeof H_GROUNDS)[number];
 
@@ -696,6 +699,62 @@ const texStream: HTex = (x, y, v, ctx) => {
   return K.navy;
 };
 
+/**
+ * 沢の上の水 (map_hoshi_sawa, 52 4.6): a mountain stream of any width and the
+ * children's pool above the dam. Rounded stones heap up along every edge that
+ * meets land (the neighbours tell which), a few boulders stand in the flow
+ * with the spray in a V below them, the open water is navy broken by short
+ * dark troughs (the stars drift over it on the glow layer, props/hoshi_sawa).
+ */
+function sawaTex(x: number, y: number, v: number, ctx: HTexCtx, still: boolean): number {
+  const tx = txOf(x);
+  const ty = Math.floor(y / 16);
+  const lx = lxOf(x);
+  const ly = ((y % 16) + 16) % 16;
+  const wet = (gx: number, gy: number) => {
+    const g = ctx.ground(gx, gy);
+    return g === 'h_sawa' || g === 'h_sawaike';
+  };
+  // how far into the water from a land edge (px), the edge wobbling a little
+  let d = 99;
+  const wob = (k: number) => Math.round((valueNoise(k / 5, tx * 7 + ty, 1171) - 0.5) * 3);
+  if (!wet(tx - 1, ty)) d = Math.min(d, lx - wob(y));
+  if (!wet(tx + 1, ty)) d = Math.min(d, 15 - lx - wob(y + 40));
+  if (!wet(tx, ty - 1)) d = Math.min(d, ly - wob(x));
+  if (!wet(tx, ty + 1)) d = Math.min(d, 15 - ly - wob(x + 40));
+  const stone = (sx: number, sy: number): number => {
+    const cx = Math.floor(sx / 4);
+    const cy = Math.floor(sy / 4);
+    const h = ihash(cx, cy, 1173 + v);
+    const ox = sx - cx * 4 - (h & 1);
+    const oy = sy - cy * 4 - ((h >>> 1) & 1);
+    if (ox < 0 || oy < 0 || ox > 2 || oy > 2) return K.charcoal;
+    if (ox + oy === 0) return (h >>> 7) % 5 < 2 ? K.white : K.concreteLt;
+    if (ox + oy >= 4) return K.asphalt;
+    return (h >>> 4) % 4 === 0 ? K.leafDeep : (h >>> 4) % 3 === 0 ? K.concrete : K.steel;
+  };
+  if (d < 3) return stone(x, y);
+  if (d === 3 && ihash(x, y >> 1, 1175) % 3 === 0) return y & 1 ? K.concreteLt : K.white;
+  // a boulder now and then in the running water, the spray in a V below it (never in the still pool)
+  const bh = ihash(tx, Math.floor(y / 14), 1177);
+  if (!still && bh % 5 === 0 && d > 5) {
+    const bx = 4 + (bh >>> 4) % 8;
+    const by = Math.floor(y / 14) * 14 + 3 + ((bh >>> 8) % 5);
+    const dx = lx - bx;
+    const dy = y - by;
+    if (dx * dx + dy * dy * 1.3 <= 5) return dx + dy < 0 ? K.concreteLt : dx + dy > 1 ? K.asphalt : K.steel;
+    if (dy >= 2 && dy <= 5 && Math.abs(Math.abs(dx) - (dy - 1)) < 0.6) return dy < 4 ? K.white : K.concreteLt;
+  }
+  // the troughs of the current: short dark dashes
+  const seg = Math.floor((y + (ihash(x, 0, 1179) % 7)) / (3 + (ihash(x, 1, 1181) % 3)));
+  const h = ihash(x, seg, 1183);
+  if ((x & 1) === 0 && h % (still ? 9 : 5) === 0) return K.canalDk;
+  if (h % 17 === 0) return K.canalMd;
+  return K.navy;
+}
+const texSawa: HTex = (x, y, v, ctx) => sawaTex(x, y, v, ctx, false);
+const texSawaIke: HTex = (x, y, v, ctx) => sawaTex(x, y, v, ctx, true);
+
 /** 線路 (east–west siding): ballast, sleepers every 6px, two rusty rails, grass between the sleepers. */
 const texRail: HTex = (x, y, v) => {
   const ly = ((y % 16) + 16) % 16;
@@ -919,6 +978,8 @@ export const H_TEX: Record<HGround, HTex> = {
   h_hilltop: texHilltop,
   h_schoolwood: texSchoolWood,
   h_genkan: texGenkan,
+  h_sawa: texSawa,
+  h_sawaike: texSawaIke,
 };
 
 /** Per-tile variants (the no-repeat rule picks one per tile). */
@@ -946,6 +1007,8 @@ export const H_NVAR: Partial<Record<HGround, number>> = {
 export const H_PRIO: Partial<Record<HGround, number>> = {
   h_canal: 0,
   h_stream: 0,
+  h_sawa: 0,
+  h_sawaike: 0,
   h_tanada: 1,
   h_road: 2,
   h_rail: 3,
@@ -965,7 +1028,7 @@ export const H_SOFT: HGround[] = ['h_aze', 'h_kotei', 'h_houki', 'h_tilled', 'h_
 /** Green materials (get the grass lip). */
 export const H_GREEN: HGround[] = ['h_houki', 'h_hilltop'];
 /** Materials that keep a straight edge (never wander, never get wandered into). */
-export const H_HARD: HGround[] = ['h_canal', 'h_stream', 'h_tanada', 'h_rail', 'h_platform', 'h_ishidan', 'h_trainfloor', 'h_sheet', 'h_mulch', 'h_barnfloor', 'h_sawdust', 'h_schoolwood', 'h_genkan'];
+export const H_HARD: HGround[] = ['h_canal', 'h_stream', 'h_sawa', 'h_sawaike', 'h_tanada', 'h_rail', 'h_platform', 'h_ishidan', 'h_trainfloor', 'h_sheet', 'h_mulch', 'h_barnfloor', 'h_sawdust', 'h_schoolwood', 'h_genkan'];
 
 export function isHGround(g: string): g is HGround {
   return (H_TEX as Record<string, HTex>)[g] !== undefined;

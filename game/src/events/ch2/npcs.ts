@@ -18,6 +18,8 @@ import { TS_LINES } from '../../data/text/hoshi_tsugao';
 import { ROOM2_KEYS } from '../../data/maps/hoshi_rooms2';
 import { hStage, isHoshi, npc, pickH, say } from './common';
 import { deliveryAtYoshie } from './tsugao';
+import { mushiAtYoshie } from './mushi';
+import { fumiSawa, sawaFlip, tomeSawa } from './sawa';
 
 const T = HOSHI_NPC;
 
@@ -128,6 +130,11 @@ function* yoshie(): Co {
   }
   // the fourth parcel of the delivery: she takes the cucumbers (no tea this time)
   if (yield* deliveryAtYoshie()) return;
+  // 捕まえない自由研究 (02_ch2_index #64): the five voices told apart — 「……ええ 耳ね。」, with the tea
+  if (yield* mushiAtYoshie()) {
+    yield* tea();
+    return;
+  }
   const t = T.npc_hoshi_yoshie;
   // 〔deli〕 / 〔ts〕 (her repeating line is 〔h0_2〕 at every stage), each with the tea
   if (yield* extraLine('npc_hoshi_yoshie', { h0_2: t.h0_2 }, 0)) {
@@ -162,6 +169,8 @@ registerScript('npc_hoshi_fumi', function* (): Co {
     return;
   }
   const t = T.npc_hoshi_fumi;
+  // 〔sawa〕 沢の上のプールの2人の自由研究 (02 #65): once, after セキトメ
+  if (yield* fumiSawa()) return;
   if (hStage() >= 2) {
     if (yield* extraLine('npc_hoshi_fumi', { h2: t.h2 }, 2)) return;
     setFlag('flag_seen_npc_hoshi_fumi_h2', flag('flag_seen_npc_hoshi_fumi_h2') + 1);
@@ -270,6 +279,8 @@ registerScript('npc_hoshi_tome', function* (): Co {
     yield* say(t.kacho_done);
     return;
   }
+  // マルの伝言・沢の頼み・名前の石 (02 #65, events/ch2/sawa.ts)
+  if (yield* tomeSawa()) return;
   yield* talk('npc_hoshi_tome', only(t, ['h0_1', 'h0_2', 'h0_3', 'h1_1', 'h1_2', 'h2_1']));
 });
 
@@ -331,6 +342,8 @@ export function hoshiPlaceKey(f: FieldScene): string {
   if (v && inR(14, 35, 1, 19)) return 'hoshi_tanada';
   if (v && inR(37, 59, 0, 17)) return 'hoshi_houki';
   if (m === 'map_hoshi_hill') return 'hoshi_hill';
+  // 沢の上 (02 #65): its flip is data/text/maru.ts's SAWA_FLIP
+  if (m === 'map_hoshi_sawa') return 'hoshi_sawa';
   return '';
 }
 
@@ -346,6 +359,8 @@ export function hoshiFlipText(f: FieldScene): string {
     return KANENARI_FLIP_SHIRITORI;
   }
   const key = hoshiPlaceKey(f);
+  const sawa = key === 'hoshi_sawa' ? sawaFlip() : null;
+  if (sawa) return sawa;
   if (key === 'hoshi_mujin' && (hStage() >= 1 || flag('flag_book_enemy_mujin_hanbaiin'))) {
     if (!flag('flag_kanenari_flip_hoshi_mujin_h1')) {
       setFlag('flag_kanenari_flip_hoshi_mujin_h1', 1);

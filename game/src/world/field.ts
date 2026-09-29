@@ -656,6 +656,8 @@ export class FieldScene implements Scene {
     if (c.tag === 'barricade') return flag('flag_stage') === 0;
     // 星見台's electric-fence gate (52 7.1 `G`): shut until マサルさん opens it
     if (c.tag === 'egate') return !flag('flag_ch2_gate_open');
+    // the fence's door up to the stream (14,1), 02 #65: shut until トマじい unhooks it
+    if (c.tag === 'sgate') return !flag('flag_ch2_sawa_open');
     return true;
   }
 

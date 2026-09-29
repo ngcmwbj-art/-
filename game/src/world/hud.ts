@@ -202,6 +202,8 @@ export const HOSHI_MAP_NAMES: Record<string, string> = {
   map_hoshi_barn: '石黒牛舎',
   map_hoshi_school: '旧 星見台分校',
   map_hoshi_hill: '星見の丘',
+  // 沢の上「水の 元」（02_ch2_index #65）
+  map_hoshi_sawa: '沢の上',
   // 星見台の家々の中（02_ch2_index #61）
   ...ROOM2_PLACE,
 };

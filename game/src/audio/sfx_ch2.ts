@@ -1165,3 +1165,51 @@ piichanCry('kuu', 'ぴーちゃん「クゥ」（寝言）');
 
 /** One-shot fallbacks for the loops when called with sfx() (a short idle). */
 for (const id of ['se_h_crossing_bell', 'se_h_train_idle', 'se_h_bus_idle']) if (!sfxTable.has(id)) sfxTable.set(id, (o) => void playSe(id, { label: id, group: G_END }, o));
+
+// ============================================================================
+// 沢の上とセキトメ (02 #65, 53 8.5・8.14): the lifeguard's whistle, the pool's
+// splash, the pool closing (the long whistle), the dam coming undone (stones
+// clacking down, then the stream let go). Nothing frightening at night (53 1.7).
+se('se_h_whistle', {
+  label: 'セキトメの笛（ピッ）',
+  group: G_ENEMY,
+  rand: [0.02, 0.04],
+  layers: [
+    // the pea rattling in the whistle: a high square-ish tone trilled fast
+    'sine f=2900 env=2/110/0/30 dur=80 v=.03 vib=38/60',
+    'tri f=2900 env=2/90/0/30 dur=70 v=.012 vib=38/60',
+    'noise env=0/60/0/20 dur=50 v=.01 flt=BP3200q2',
+  ],
+});
+se('se_h_seki_heijou', {
+  label: 'セキトメの閉場（ピーーッ、長い笛）',
+  group: G_ENEMY,
+  layers: [
+    'sine f=2850→2700/700 env=6/700/0/160 dur=620 v=.028 vib=36/50',
+    'tri f=2850→2700/700 env=6/600/0/160 dur=560 v=.01 vib=36/50',
+    'noise env=0/80/0/30 dur=60 v=.008 flt=BP3200q2',
+  ],
+});
+se('se_h_splash', {
+  label: 'しぶき（ざぶん、ぱしゃ）',
+  group: G_ENEMY,
+  rand: [0.05, 0.08],
+  layers: [
+    'noise env=2/220/0/90 dur=160 v=.04 flt=BP1300q0.8',
+    'noise env=10/260/0/120 dur=220 v=.018 flt=BP3400q1 am=22/.5 at=40',
+    'sine f=420→220/90 env=1/90/0/30 dur=50 v=.02',
+  ],
+});
+se('se_h_seki_undo', {
+  label: 'せきがほどける（石がころころ、水が流れだす）',
+  group: G_ENEMY,
+  rev: 0.2,
+  layers: [
+    'tri f=520 env=0/40/0/15 dur=10 v=.03',
+    'tri f=430 env=0/40/0/15 dur=10 v=.028 at=130',
+    'tri f=610 env=0/40/0/15 dur=10 v=.026 at=240',
+    'tri f=380 env=0/40/0/15 dur=10 v=.026 at=330',
+    'noise env=120/700/.35/500 dur=1100 v=.02 flt=BP1100q1.2 am=16/.5 at=300',
+    'noise env=200/600/0/400 dur=900 v=.008 flt=LP300 at=350',
+  ],
+});

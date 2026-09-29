@@ -15,4 +15,6 @@ import './hoshi_village';
 import './hoshi_qa';
 import './hoshi_rooms';
 import './hoshi_hill';
+// 沢の上「水の 元」（02_ch2_index #65）
+import './hoshi_sawa';
 import './hoshi_fx';

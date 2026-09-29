@@ -32,6 +32,64 @@ import { tomatoIcon } from '../icons';
 import { ctxText, drawCursor, drawMarker, dottedLine, drawTape, fitWrap, pencilLine, phraseWrap as wrap, rectA, textW, UI } from '../window';
 import { drawHeader, drawScroll, FOLD, LP, RP, SP } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
+import { MUSHI_BOOK, MUSHI_PAGE_TITLE } from '../../data/text/hoshi_mushi';
+import { MUSHI5, mushiSketch, type MushiKind } from '../../art/props/hoshi_mushi';
+
+// ---- ② 『むし』: 捕まえない自由研究 (50_ch2_story 10.21, 52_ch2_level_art 13.2, 02_ch2_index #64) ----
+
+/** The fourth section of ②, once カネナリくん has talked しゅん into it (flag_ch2_mushi). */
+const MUSHI_SEC = 3;
+const MUSHI_TAB = 'むし';
+
+function hasMushi(): boolean {
+  return flag('flag_ch2_mushi') > 0;
+}
+
+function mushiSeenKind(kind: MushiKind): boolean {
+  return flag(`flag_ch2_mushi_${kind}`) > 0;
+}
+
+function mushiSeenCount(): number {
+  return MUSHI5.filter(mushiSeenKind).length;
+}
+
+/** The five, and the beetle after them once it has been seen. */
+function mushiRows(): (typeof MUSHI_BOOK)[number][] {
+  return MUSHI_BOOK.filter((b) => b.kind !== 'kabuto' || mushiSeenKind('kabuto'));
+}
+
+/**
+ * One insect's page: しゅん's pencil sketch of it (2×), its name, its call in
+ * his hand, where it was (the map pin) and his note. Not seen yet: only its
+ * voice, and where it seems to come from.
+ */
+function drawMushiPage(g: Gfx, b: (typeof MUSHI_BOOK)[number] | undefined, x: number, y: number, w: number): void {
+  if (!b) return;
+  const call = b.call.startsWith('（') ? b.call : `「${b.call}」`;
+  if (!mushiSeenKind(b.kind)) {
+    dottedLine(g, x, y + 14, x + w - 8, UI.textDim, 3);
+    g.text('まだ 見ていない。', x, y + 22, { color: UI.textDim });
+    g.text('声だけ 聞いた：', x, y + 50, { color: UI.pencil });
+    fitWrap(call, w - 4).forEach((l, j) => g.text(l.text, x + 4, y + 68 + j * 17, { color: UI.pencil, spacing: l.spacing }));
+    if (b.hint) fitWrap(`（${b.hint}）`, w).slice(0, 2).forEach((l, j) => g.text(l.text, x, y + 90 + j * 17, { color: UI.pencil, spacing: l.spacing }));
+    return;
+  }
+  const img = mushiSketch(b.kind);
+  g.img(img, x + Math.round((w - 6 - img.width * 2) / 2), y - 6, { scale: 2 });
+  let ty = y + 52;
+  g.text(b.name, x, ty, { color: UI.text });
+  ty += 17;
+  fitWrap(call, w - 4).slice(0, 1).forEach((l) => g.text(l.text, x + 4, ty, { color: UI.pencil, spacing: l.spacing }));
+  ty += 18;
+  // the place, with a map pin
+  g.rect(x + 1, ty + 5, 3, 3, UI.accent);
+  g.px(x + 2, ty + 8, UI.accentDark);
+  const pl = fitWrap(b.place, w - 8).slice(0, 2);
+  pl.forEach((l, j) => g.text(l.text, x + 7, ty + j * 16, { color: UI.pencil, spacing: l.spacing }));
+  ty += pl.length * 16 + 2;
+  const note = b.noteGenjiro && flag('flag_seen_obj_mushikago') ? b.noteGenjiro : b.note;
+  fitWrap(note, w).slice(0, 2).forEach((l, j) => g.text(l.text, x, ty + j * 16, { color: UI.text, spacing: l.spacing }));
+}
 
 // ---- data: ① 夕鳴町 ----------------------------------------------------------------------------
 
@@ -81,10 +139,10 @@ export const FUSHIGI2_BOOK: [string, string, string][] = [
   ['本日は 晴天なり', '旧分校', 'マイクは 小さく、『……本日は 晴天なり』と 言った。'],
 ];
 
-/** The six 「あいて」 of ② (the boss is not counted). */
-export const BOOK2_ENEMIES = ['enemy_sune_tomato', 'enemy_henoheno_kacho', 'enemy_biribiri_ban', 'enemy_chototsu', 'enemy_mujin_hanbaiin', 'enemy_tetsuya'];
+/** The seven 「あいて」 of ② (the boss is not counted; セキトメ of the stream, 02 #65, is the optional seventh). */
+export const BOOK2_ENEMIES = ['enemy_sune_tomato', 'enemy_henoheno_kacho', 'enemy_biribiri_ban', 'enemy_chototsu', 'enemy_mujin_hanbaiin', 'enemy_tetsuya', 'enemy_sekitome'];
 
-/** ② ツッコミ: 17 lines (6.9), with the boss. */
+/** ② ツッコミ: 19 lines (6.9), with the boss (セキトメ's two, 02 #65). */
 export const TSUKKOMI2_ENEMIES = [...BOOK2_ENEMIES, 'boss_yobimodoshi'];
 
 interface BookText {
@@ -236,7 +294,7 @@ export function bookCounts(): { fushigi: number; aite: number; tsukkomi: number 
   return { fushigi: f, aite: a, tsukkomi: seenTsukkomi().length };
 }
 
-/** みました帳 ②'s counts (ふしぎ /10, あいて /6, ツッコミ /17). */
+/** みました帳 ②'s counts (ふしぎ /10, あいて /7, ツッコミ /19). */
 export function bookCountsCh2(): { fushigi: number; aite: number; tsukkomi: number } {
   let f = 0;
   for (let i = 0; i < FUSHIGI2_BOOK.length; i++) if (fushigi2Done(i)) f++;
@@ -475,13 +533,18 @@ export class BookPage implements MenuPage {
   private vol: 1 | 2 = 1;
   private sec = 0;
   private sel = [
-    [0, 0, 0],
-    [0, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
   ];
   private scroll = [
-    [0, 0, 0],
-    [0, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
   ];
+
+  /** The sections of the open notebook (② gets 『むし』 once 捕まえない自由研究 has begun, 02_ch2_index #64). */
+  private sections(vol: 1 | 2 = this.vol): string[] {
+    return vol === 2 && hasMushi() ? [...SECTIONS, MUSHI_TAB] : SECTIONS;
+  }
   private moveT = 999;
   private secT = 999;
   /** Since the notebooks were swapped (the cover animation). */
@@ -527,6 +590,7 @@ export class BookPage implements MenuPage {
 
   private count(): number {
     const v = this.v;
+    if (this.sec === MUSHI_SEC) return mushiRows().length;
     return this.sec === 0 ? v.fushigi.length : this.sec === 1 ? v.enemies.length : totalIn(v, v.n === 1 ? 19 : 17);
   }
 
@@ -553,11 +617,13 @@ export class BookPage implements MenuPage {
   /** ←→: the next section; past the last one, on into the other notebook. */
   private turn(d: number): void {
     const next = this.sec + d;
-    if (hasBook2() && (next > 2 || next < 0)) {
-      this.swap(this.vol === 1 ? 2 : 1, next > 2 ? 0 : 2);
+    const last = this.sections().length - 1;
+    if (hasBook2() && (next > last || next < 0)) {
+      const other = this.vol === 1 ? 2 : 1;
+      this.swap(other, next > last ? 0 : this.sections(other).length - 1);
       return;
     }
-    this.sec = (next + 3) % 3;
+    this.sec = (next + last + 1) % (last + 1);
     this.secT = 0;
     sfx('se_page');
   }
@@ -566,7 +632,7 @@ export class BookPage implements MenuPage {
     if (vol === this.vol) return;
     this.fromVol = this.vol;
     this.vol = vol;
-    this.sec = sec;
+    this.sec = Math.min(sec, this.sections(vol).length - 1);
     this.secT = 0;
     this.volT = 0;
     sfx('se_page', { pitch: 0.8 });
@@ -591,8 +657,10 @@ export class BookPage implements MenuPage {
       drawCircledNum(g, v.n, LP.x + 8 + textW('みました帳') + 2, SP.y + 11, UI.text);
     } else drawHeader(g, 'みました帳', LP.x, SP.y + 6, v.tape, 1, 9 + v.n);
     const c = v.n === 1 ? bookCounts() : bookCountsCh2();
-    const have = this.sec === 0 ? c.fushigi : this.sec === 1 ? c.aite : c.tsukkomi;
-    drawDigits(g, `${have}/${this.count()}`, FOLD - (two ? 6 : 12), SP.y + 12, { color: UI.pencil, align: 'right' });
+    const have = this.sec === MUSHI_SEC ? mushiSeenCount() : this.sec === 0 ? c.fushigi : this.sec === 1 ? c.aite : c.tsukkomi;
+    // (『むし』 counts the five: the beetle is a bonus)
+    const total = this.sec === MUSHI_SEC ? 5 : this.count();
+    drawDigits(g, `${have}/${total}`, FOLD - (two ? 6 : 12), SP.y + 12, { color: UI.pencil, align: 'right' });
     const k = Math.min(1, this.secT / 120);
     g.alpha(k, () => {
       this.drawList(g, m);
@@ -602,21 +670,24 @@ export class BookPage implements MenuPage {
   }
 
   drawBehind(g: Gfx, m: MenuCtx): void {
-    // section tabs sticking out of the notebook's top edge
-    let tx = SP.x + 80;
+    // section tabs sticking out of the notebook's top edge (four — with 『むし』 —
+    // sit a little tighter and further left, clear of the clock)
+    const secs = this.sections();
+    const pad = secs.length > 3 ? 8 : 14;
+    let tx = SP.x + (secs.length > 3 ? 56 : 80);
     const v = this.v;
     if (m.focus) {
       // ←→ turns the section: little pencil chevrons either side of the tabs
       const b = Math.floor(m.t / 300) % 2;
       chevron(g, tx - 8 - b, SP.y - 10, -1);
-      chevron(g, tx + SECTIONS.reduce((a, n) => a + textW(n) + 16, 0) + 4 + b, SP.y - 10, 1);
+      chevron(g, tx + secs.reduce((a, n) => a + textW(n) + pad + 2, 0) + 4 + b, SP.y - 10, 1);
     }
-    SECTIONS.forEach((name, i) => {
-      const w = textW(name) + 14;
+    secs.forEach((name, i) => {
+      const w = textW(name) + pad;
       const sel = i === this.sec;
       const y = SP.y - 18 - (sel ? 2 : 0);
       drawTape(g, tx, y, w, 20, '', { color: sel ? v.tabOn : '#D8CBA8', seed: 20 + i });
-      g.text(name, tx + 7, y + 1, { color: sel ? UI.text : UI.pencil });
+      g.text(name, tx + pad / 2, y + 1, { color: sel ? UI.text : UI.pencil });
       if (sel && m.focus) {
         g.rect(tx + 2, y + 17, w - 4, 1, UI.accent);
       }
@@ -692,6 +763,8 @@ export class BookPage implements MenuPage {
       return { lines, done, num, color };
     };
     const num = (i: number) => String(i + 1).padStart(2, '0');
+    // 『むし』: the five by name (the beetle, a bonus, after them without a number)
+    if (this.sec === MUSHI_SEC) return mushiRows().map((b, i) => wrapRow(b.name, mushiSeenKind(b.kind), b.kind === 'kabuto' ? '' : num(i), UI.text));
     if (this.sec === 0) return v.fushigi.map((f, i) => wrapRow(f[0], v.done(i), num(i), UI.text));
     if (this.sec === 1) return v.enemies.map((id, i) => wrapRow(nameOf(id, v), !!flag('flag_book_' + id), num(i), UI.text));
     const seen = seenIn(v);
@@ -743,6 +816,12 @@ export class BookPage implements MenuPage {
       if (sel && m.focus) drawCursor(g, SP.x + 1, y, m.t);
       line += r.lines.length;
     }
+    // 『むし』: the title しゅん gave the page once the five were seen (〔開花〕), in pencil, underlined
+    if (s === MUSHI_SEC && flag('flag_ch2_mushi_done')) {
+      const ty = LIST_Y + 7 * ROW_H - 4;
+      g.text(MUSHI_PAGE_TITLE, LP.x + 6, ty, { color: UI.pencil });
+      pencilLine(g, LP.x + 4, ty + 17, textW(MUSHI_PAGE_TITLE) + 6, 1, UI.pencil, 7);
+    }
     if (scroll[s] > 0) drawScroll(g, FOLD - 18, LIST_Y - 7, true, m.t);
     if (k < rows.length) drawScroll(g, FOLD - 18, LIST_Y + VISIBLE * ROW_H + 2, false, m.t);
   }
@@ -759,6 +838,10 @@ export class BookPage implements MenuPage {
       dottedLine(g, x, y + 32, x + w - 40, UI.textDim, 3);
       g.text('まだ 書いていない。', x, y + 44, { color: UI.textDim });
     };
+    if (s === MUSHI_SEC) {
+      drawMushiPage(g, mushiRows()[i], x, y, w);
+      return;
+    }
     if (s === 0) {
       if (!v.done(i)) return empty();
       const [title, place] = v.fushigi[i];

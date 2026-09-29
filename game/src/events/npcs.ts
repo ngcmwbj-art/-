@@ -20,8 +20,9 @@ function simple(id: string): void {
   });
 }
 
-// (しんご npc_ojii: events/rooms_north.ts — his たんかん, 02 #58)
-for (const id of ['npc_tsurumi', 'npc_sae', 'npc_jk', 'npc_chugaku', 'npc_gacha_boy', 'npc_mizumaki', 'npc_shadow_man', 'npc_cat_mike', 'npc_cow_statue'])
+// (しんご npc_ojii: events/rooms_north.ts — his たんかん, 02 #58;
+//  ワイスタ巡査 npc_tsurumi: events/kensui.ts — the pull-up and its はなまる, 02 #64)
+for (const id of ['npc_sae', 'npc_jk', 'npc_chugaku', 'npc_gacha_boy', 'npc_mizumaki', 'npc_shadow_man', 'npc_cat_mike', 'npc_cow_statue'])
   simple(id);
 
 // ---------------------------------------------------------------- 6.10 郵便屋さん: 『あした』宛ての手紙

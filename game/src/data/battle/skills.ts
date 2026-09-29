@@ -178,6 +178,10 @@ const enemies: SkillDef[] = [
   enemy({ id: 'skill_tetsuya_rotary', name: 'ロータリー', target: 'allies', power: 0.35, hits: [0, 16, 20], windupMs: 500, tsukkomi: [2] }),
   enemy({ id: 'skill_tetsuya_ensuto', name: 'エンスト', target: 'self', windupMs: 600, tsukkomi: [3], noDamage: true, big: true }),
   enemy({ id: 'skill_tetsuya_fullthrottle', name: 'フルスロットル', target: 'allies', power: 1.4, hits: [0], windupMs: 500, tsukkomi: [3], big: true }),
+  // セキトメ（沢の上の任意の敵、02 #65・51 8.7）
+  enemy({ id: 'skill_seki_fue', name: '笛', target: 'enemy', power: 1.0, hits: [0], windupMs: 450, tsukkomi: [1] }),
+  enemy({ id: 'skill_seki_shibuki', name: 'しぶき', target: 'allies', power: 0.45, hits: [0, 16], windupMs: 450, tsukkomi: [2] }),
+  enemy({ id: 'skill_seki_mansui', name: '満水', target: 'self', windupMs: 500, tsukkomi: [2], noDamage: true }),
   // ヨビモドシ
   enemy({ id: 'skill_yobi_tenko', name: '点呼', target: 'none', noDamage: true }),
   enemy({ id: 'skill_yobi_yofukashi', name: '夜ふかし', target: 'allies', hits: [0], windupMs: 900, tsukkomi: [1], big: true, status: { id: 'status_nemuri', chance: 0.3 } }),

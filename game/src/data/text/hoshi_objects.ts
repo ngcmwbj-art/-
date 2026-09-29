@@ -580,7 +580,7 @@ export const HOSHI_OBJ: Record<string, HText> = {
   obj_hoshi_koya: `@narr
 農具小屋。くわ、長靴、
 水口の 予備の 板。{w=300}
-壁に『トマキチ』の 字。`,
+壁に『とまたろう』の 字。`,
   obj_hoshi_houki_sign: `@narr
 朽ちた 看板『――さんの 畑』。
 {w=300}名前の ところだけ、読めない。`,

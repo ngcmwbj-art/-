@@ -66,6 +66,9 @@ export const VOICES: Record<string, VoiceDef> = {
   girl: { label: 'ひより', wave: 'triangle', base: 'E5', scale: [0, 2, 4, 7, 9, 12], len: 28, every: 2, v: 0.05, formant: true, child: true },
   kid: { label: 'ともき', wave: 'square', base: 'G5', scale: [0, 2, 4, 7], len: 20, every: 2, v: 0.045, formant: true, child: true },
   ojii: { label: 'しんご', wave: 'triangle', base: 'G3', scale: [0, 2, 5], len: 60, every: 3, v: 0.07, vib: [5, 20], formant: true },
+  // マル (02 #65, 53 9.1): とまたろうの妻、89歳。小さく、やわらかく、ゆっくり。おばあ（E4・かすれ）、
+  // ぴょん夫人（B4・速い）と、基準音・速さ・ビブラートで分ける
+  maru: { label: 'マル（とまたろうの妻）', wave: 'triangle', base: 'G4', scale: [0, 2, 4, 7], len: 48, A: 6, every: 3, v: 0.055, vib: [5, 14], lp: 2200, formant: true },
   mizumaki: { label: 'ちず', wave: 'pulse25', base: 'F4', scale: [0, 4, 7, 12], len: 30, every: 2, v: 0.05, scoop: [100, 20] },
   shadow: { label: 'ぶーさん', wave: 'square', base: 'A3', scale: [0, 2, 3, 7], len: 40, every: 2, v: 0.05, lp: 500, lpQ: 2, rev: 0.3 },
   hato: { label: 'ハト／ハト係長', wave: 'pulse12', base: 'E6', scale: [0, 2, 4], len: 14, every: 2, v: 0.035 },

@@ -569,7 +569,7 @@ export class BattleScene implements Scene {
     if (!e.alive || !e.visible) return [];
     const list: { text: string; color: string; kind: string }[] = [];
     if (e.status.kyuukei || (e.status.kyuukeiSkipped && !e.status.tetsuya)) list.push({ text: '休憩中', color: '#9BCB6B', kind: 'kyuukei' });
-    else if (e.status.tetsuya) list.push({ text: '徹夜中', color: '#F6D98A', kind: 'tetsuya' });
+    else if (e.status.tetsuya) list.push({ text: e.def.duty?.tape ?? '徹夜中', color: '#F6D98A', kind: 'tetsuya' });
     if (e.status.tame) list.push({ text: '溜め中', color: C.tape, kind: 'tame' });
     if (!list.length) return [];
     let y = e.headY - 10 - 16;

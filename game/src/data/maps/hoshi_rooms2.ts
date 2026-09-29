@@ -17,7 +17,7 @@
 //   map_hoshi_soko      区の倉庫                12×9  door (36,31)
 //   map_hoshi_gym       体育館                  16×10 door (38,27) — the iron door off the east lane
 //   map_hoshi_taihisha  堆肥舎                  10×7  door (49,43) — the middle bay
-//   map_hoshi_koya      農具小屋（トマキチ）    8×7   door (34–35,13)
+//   map_hoshi_koya      農具小屋（とまたろう）  8×7   door (34–35,13)
 //   map_hoshi_shouboya  消防小屋                8×7   door (44,31)
 //   map_hoshi_house1    1号ハウス               9×11  door (10,30)
 //   map_hoshi_house2    2号ハウス（ハチ）       9×11  door (6,30)
@@ -386,6 +386,9 @@ export const ROOMS2: Room2[] = [
       X('obj_hr_kucho_bonsai', 10, 2, { w: 2 }),
       X('obj_hr_kucho_tsukemono', 1, 5),
       X('obj_hr_kucho_kingyo', 11, 7),
+      // ぴょん夫人's スズムシ in their case beside the goldfish (捕まえない自由研究, 02_ch2_index #64)
+      PR('prop_hr_mushi_case', 12, 7, {}, { solid: [0, 0, 1, 1] }),
+      X('obj_hr_kucho_mushi', 12, 7),
     ],
     out: { x: 35, y: 36, stand: [35, 37], dir: 'up', se: 'se_door_glass' },
     lit: true,
@@ -771,11 +774,11 @@ export const ROOMS2: Room2[] = [
     amb: ['amb_h_insects', 'amb_h_barn_out'],
     ambVol: { amb_h_insects: { vol: 0.7, lp: 6000 }, amb_h_barn_out: { vol: 0.45, lp: 2500 } },
   },
-  // ============================================================ 農具小屋（トマキチ）
+  // ============================================================ 農具小屋（とまたろう）
   {
     key: 'koya',
     map: 'map_hoshi_koya',
-    name: 'トマキチの小屋',
+    name: 'とまたろうの小屋',
     rows: [
       '#WWWWWW#',
       '#WWWWWW#',

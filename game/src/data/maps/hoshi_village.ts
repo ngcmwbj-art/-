@@ -18,8 +18,8 @@ import { hg, htalk, htext, narrowFirst, O, O2, PR } from './hoshi_common';
 import { ROOM2_OUTSIDE, ROOM2_VILLAGE_DOORS } from './hoshi_rooms2';
 
 const ROWS = [
-  'HHHHHHHHHHHHHsHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHPPHHHHHHHHHH', // 0
-  'HHHHHHHHHHHHHsEEEEEEEEEEEEEEEEEEEEEEEKKKKKKK:::o::::::KKKKKK', // 1
+  'HHHHHHHHHHHHHsPHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHPPHHHHHHHHHH', // 0  (14,0) 沢の上への口 (02 #65)
+  'HHHHHHHHHHHHHsgEEEEEEEEEEEEEEEEEEEEEEKKKKKKK:::o::::::KKKKKK', // 1  (14,1) 電気柵の戸
   'HHHHHHHHHHHHHsaaaaannaaaaaaaaaaaaaaaEKKKKKKK::::::::::KKKKKK', // 2
   'HHHHHHHHHHHHHs~~~~~nn~~~~~~~~~~~~~~~EkuuuuuuuuuuuuuuuuuuuuKK', // 3
   'HHHHHHHHHHHHHs~~~~~nn~~~~~~~~~~~~~~~EkuuuuuuuuuuuuuuuuuuuuKK', // 4
@@ -97,6 +97,8 @@ const LEGEND: Record<string, TileSpec> = {
   F: { ground: 'grass', solid: true, tag: 'fence' },
   E: { ground: 'grass', solid: true, tag: 'fence' },
   G: { ground: 'dirt', solid: true, tag: 'egate' },
+  /** the fence's door up to the stream (02 #65): shut until トマじい unhooks it (flag_ch2_sawa_open) */
+  g: { ground: hg('h_aze'), solid: true, tag: 'sgate' },
   V: { ground: 'dirt', solid: true, tag: 'roof' },
   v: { ground: 'dirt', solid: true, tag: 'facade' },
   T: { ground: 'auto', solid: true, tag: 'trunk' },
@@ -172,6 +174,11 @@ const OBJECTS: MapObj[] = [
   { t: 'door', id: 'door_hoshi_barn', x: 51, y: 31, to: 'map_hoshi_barn', tx: 2, ty: 10, dir: 'up', se: 'se_door_heavy', cond: { flag: 'flag_ch2_met_gen' } },
   { t: 'door', id: 'door_hoshi_hill', x: 48, y: 0, to: 'map_hoshi_hill', tx: 11, ty: 18, dir: 'up', cond: { flag: 'flag_ch2_tetsuya_beaten' } },
   { t: 'door', id: 'door_hoshi_hill_e', x: 49, y: 0, to: 'map_hoshi_hill', tx: 12, ty: 18, dir: 'up', cond: { flag: 'flag_ch2_tetsuya_beaten' } },
+  // 沢の上「水の 元」(02 #65, 52 4.6): the fence's door (14,1) トマじい unhooks, the path's mouth (14,0)
+  { t: 'door', id: 'door_hoshi_sawa', x: 14, y: 0, to: 'map_hoshi_sawa', tx: 12, ty: 25, dir: 'up', se: 'se_step_dirt', cond: { flag: 'flag_ch2_sawa_open' } },
+  PR('prop_h_sawa_gate', 14, 1),
+  { t: 'obj', id: 'obj_hoshi_sawa_gate', x: 14, y: 1, face: 'up', script: 'obj_hoshi_sawa_gate' } as MapObj,
+  { t: 'trig', id: 'trig_ch2_sawa_back', x: 14, y: 2, w: 1, h: 1, script: 'evt_ch2_sawa_back', cond: { flag: 'flag_ch2_sawa_seki', notFlag: 'flag_ch2_sawa_back' } },
   // the houses, sheds and greenhouses (02 #61), and what is found outside them
   ...ROOM2_VILLAGE_DOORS,
   ...ROOM2_OUTSIDE,
@@ -341,6 +348,27 @@ const OBJECTS: MapObj[] = [
   PR('decal_h_inoshishi_ashiato', 8, 19, { len: 5, dir: 'n' }, { cond: { taken: 'sym_hoshi_01' } }),
   PR('decal_h_inoshishi_ashiato', 57, 6, { len: 6, dir: 'ne' }, { cond: { taken: 'sym_hoshi_05' } }),
 
+  // ======================================================== 捕まえない自由研究 (50 10.21, 52 7.5, 02 #64)
+  // the host plants are always there; the insects only in the lantern's light
+  // (litOnly), once カネナリくん has talked しゅん into it (flag_ch2_mushi).
+  // ぴょん夫人's スズムシ is in her house (hoshi_rooms2.ts).
+  PR('prop_h_yomogi', 21, 8),
+  PR('prop_h_shitakusa', 23, 30),
+  // (the クヌギ grows out of the thicket's edge by the hill path: seen from (44,1))
+  PR('prop_h_kunugi', 43, 1),
+  ...(
+    [
+      ['kantan', 21, 8, { flat: true }],
+      ['enma', 46, 37, { priority: 1 }],
+      ['kutsuwa', 42, 14, { priority: 1 }],
+      ['umaoi', 23, 30, { flat: true }],
+      ['kabuto', 43, 1, { face: 'left', priority: 1 }],
+    ] as [string, number, number, Record<string, unknown>][]
+  ).flatMap(([k, x, y, extra]) => [
+    PR('prop_h_mushi', x, y, { k }, { litOnly: true, cond: { flag: 'flag_ch2_mushi' } }),
+    O(`obj_hoshi_mushi_${k}`, x, y, { litOnly: true, cond: { flag: 'flag_ch2_mushi' }, ...extra }),
+  ]),
+
   // ======================================================== NPCs (52 3.4)
   { t: 'npc', id: 'npc_hoshi_mitsu', x: 3, y: 32, dir: 'right', pose: 'sit', off: [0, -2], talk: htalk('npc_hoshi_mitsu'), cond: s01 },
   { t: 'npc', id: 'npc_hoshi_mitsu', x: 3, y: 32, dir: 'right', pose: 'look_hill', off: [0, -2], talk: htalk('npc_hoshi_mitsu'), cond: s2 },
@@ -350,8 +378,11 @@ const OBJECTS: MapObj[] = [
   },
   { t: 'npc', id: 'npc_hoshi_gen', x: 50, y: 19, dir: 'left', talk: htalk('npc_hoshi_gen'), cond: s2 },
   { t: 'npc', id: 'npc_hoshi_fumi', x: 47, y: 2, dir: 'down', talk: htalk('npc_hoshi_fumi'), cond: s2 },
-  { t: 'npc', id: 'npc_hoshi_tome', x: 21, y: 11, dir: 'down', talk: htalk('npc_hoshi_tome'), cond: s01 },
-  { t: 'npc', id: 'npc_hoshi_tome', x: 21, y: 11, dir: 'up', pose: 'look_hill', talk: htalk('npc_hoshi_tome'), cond: s2 },
+  { t: 'npc', id: 'npc_hoshi_tome', x: 21, y: 11, dir: 'down', talk: htalk('npc_hoshi_tome'), cond: { stage: '0-1', notFlag: 'flag_ch2_sawa_wait' } },
+  { t: 'npc', id: 'npc_hoshi_tome', x: 21, y: 11, dir: 'up', pose: 'look_hill', talk: htalk('npc_hoshi_tome'), cond: { stage: 2, notFlag: 'flag_ch2_sawa_wait' } },
+  // 沢の頼み (02 #65): he waits by the fence's door until しゅん comes back down (h1–h2)
+  { t: 'npc', id: 'npc_hoshi_tome', x: 15, y: 2, dir: 'left', talk: htalk('npc_hoshi_tome'), cond: { stage: 1, flag: 'flag_ch2_sawa_wait' } },
+  { t: 'npc', id: 'npc_hoshi_tome', x: 15, y: 2, dir: 'up', pose: 'look_hill', talk: htalk('npc_hoshi_tome'), cond: { stage: 2, flag: 'flag_ch2_sawa_wait' } },
   { t: 'npc', id: 'npc_hoshi_sawako', x: 23, y: 37, dir: 'down', pose: 'sit', off: [0, -2], talk: htalk('npc_hoshi_sawako'), noTurn: false },
   { t: 'npc', id: 'npc_hoshi_busdriver', x: 36, y: 40, dir: 'down', pose: 'lean', talk: htalk('npc_hoshi_busdriver'), cond: s01 },
   { t: 'npc', id: 'npc_hoshi_busdriver', x: 36, y: 40, dir: 'up', pose: 'look_hill', talk: htalk('npc_hoshi_busdriver'), cond: s2 },

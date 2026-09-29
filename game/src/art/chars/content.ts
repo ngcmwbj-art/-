@@ -20,8 +20,12 @@ import './portrait64';
 import './people/hoshi_a';
 import './people/hoshi_b';
 import './people/tsugao';
+// マル（とまたろうの妻。第1章のバス停と第2章のエンディング、02 #65）
+import './people/maru';
 import './hoshi_dog';
 import './hoshi_cattle';
 import './hoshi_nappers';
 import './hoshi_foes';
+// 沢の上：セキトメのシンボル、沢ガニ（02 #65）
+import './hoshi_sawa_chars';
 import './hoshi_restored';

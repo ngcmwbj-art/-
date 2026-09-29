@@ -17,5 +17,7 @@ import './songs/hoshi_morning';
 import './songs/tsugao';
 import './sfx';
 import './sfx_ch2';
+// 捕まえない自由研究の虫の声（02_ch2_index #64）
+import './sfx_mushi';
 import './ambience_ch2';
 import './voices';

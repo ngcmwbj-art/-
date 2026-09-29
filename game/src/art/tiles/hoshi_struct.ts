@@ -47,14 +47,19 @@ type Inside = (wx: number, wy: number) => boolean;
  * the path falls away downhill, so its crowns never rise more than a few px
  * over the ground you walk on (the player is never lost behind a tree).
  */
-let openAt: ((x: number, y: number) => boolean) | null = null;
-export function setDownhillOpen(fn: (x: number, y: number) => boolean): void {
-  openAt = fn;
-  for (const k of [...cache.keys()]) if (k.includes('|sugi_down|')) cache.delete(k);
+const openers = new Map<string, (x: number, y: number) => boolean>();
+/**
+ * `mat` names the downhill wood of one map: 'sugi_down' is the hill's,
+ * 'sugi_sawa' the stream's (map_hoshi_sawa, 02 #65) — each map its own open tiles.
+ */
+export function setDownhillOpen(fn: (x: number, y: number) => boolean, mat = 'sugi_down'): void {
+  openers.set(mat, fn);
+  for (const k of [...cache.keys()]) if (k.includes(`|${mat}|`)) cache.delete(k);
 }
 
 /** The highest world y a crown at column px x (half-width hw) may reach, standing in row ty. */
-function crownLimit(x: number, hw: number, ty: number): number {
+function crownLimit(x: number, hw: number, ty: number, mat: string): number {
+  const openAt = openers.get(mat);
   if (!openAt) return -1e9;
   let lim = -1e9;
   for (const cx of [Math.floor((x - hw) / 16), Math.floor(x / 16), Math.floor((x + hw + 1) / 16)])
@@ -66,7 +71,7 @@ function crownLimit(x: number, hw: number, ty: number): number {
   return lim;
 }
 
-function sugiCell(tx: number, ty: number, m: CellMask, inside: Inside, down = false): CellArt {
+function sugiCell(tx: number, ty: number, m: CellMask, inside: Inside, down: string | false = false): CellArt {
   const RISE = 38;
   const h = 16 + RISE;
   const p = new PixelCanvas(W, h);
@@ -74,7 +79,7 @@ function sugiCell(tx: number, ty: number, m: CellMask, inside: Inside, down = fa
   const wy0 = ty * 16 + 16 - h;
   // forest floor and deep shade inside the wood
   // downhill under open ground: the crowns' tips make the edge, the dark between them starts lower
-  const lim = down ? crownLimit(tx * 16 + 8, 8, ty) - wy0 : -1e9;
+  const lim = down ? crownLimit(tx * 16 + 8, 8, ty, down) - wy0 : -1e9;
   const openN = lim > -1e8;
   const floorTop = openN ? Math.max(0, lim + 7) : m.n ? 0 : RISE - 4;
   for (let y = floorTop; y < h; y++)
@@ -94,7 +99,7 @@ function sugiCell(tx: number, ty: number, m: CellMask, inside: Inside, down = fa
     // downhill: a crown that would rise over open ground sinks (its trunk further down the slope, unseen)
     let sunk = false;
     if (down) {
-      const lim = crownLimit(t.x, half, ty) - wy0 + ((t.h >>> 18) % 7);
+      const lim = crownLimit(t.x, half, ty, down) - wy0 + ((t.h >>> 18) % 7);
       if (by - 5 - tall < lim) {
         by = lim + 5 + tall;
         sunk = true;
@@ -678,7 +683,7 @@ function marutaCell(tx: number, ty: number, m: CellMask): CellArt {
 const cache = new Map<string, CellArt>();
 
 /** Materials this module draws: [kind, mat]. */
-const H_MATS = new Set(['hedge|sugi', 'hedge|sugi_down', 'hedge|take', 'hedge|zoki', 'hedge|zoki_grove', 'hedge|yabu', 'hedge|kuzu', 'hedge|kuzu_low', 'wall|ishigaki', 'fence|juugai', 'fence|efence', 'fence|maruta']);
+const H_MATS = new Set(['hedge|sugi', 'hedge|sugi_down', 'hedge|sugi_sawa', 'hedge|take', 'hedge|zoki', 'hedge|zoki_grove', 'hedge|yabu', 'hedge|kuzu', 'hedge|kuzu_low', 'wall|ishigaki', 'fence|juugai', 'fence|efence', 'fence|maruta']);
 
 export function isHoshiMat(kind: string, mat: string): boolean {
   return H_MATS.has(kind + '|' + mat);
@@ -699,7 +704,8 @@ export function hoshiStructureCell(kind: string, mat: string, tx: number, ty: nu
       a = sugiCell(tx, ty, m, inside);
       break;
     case 'sugi_down':
-      a = sugiCell(tx, ty, m, inside, true);
+    case 'sugi_sawa':
+      a = sugiCell(tx, ty, m, inside, mat);
       break;
     case 'take':
       a = takeCell(tx, ty, m, inside);

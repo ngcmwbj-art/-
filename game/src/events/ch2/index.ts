@@ -17,4 +17,8 @@ import './hill';
 import './ending';
 // 星見台の家々の中（02_ch2_index #61）
 import './rooms2';
+// 捕まえない自由研究（02_ch2_index #64）
+import './mushi';
+// マルととまたろう・沢の上「水の 元」（02_ch2_index #65）
+import './sawa';
 import './debug';

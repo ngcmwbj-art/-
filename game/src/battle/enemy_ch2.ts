@@ -16,6 +16,7 @@ import { hitLoop, panelHitPoint } from './enemy';
 import { PANEL_POS } from './ui/panels';
 import { clodGrass, clodL, clodS, crossGlint, cucumber, mudDrop, silverCoin } from './art/fxart_ch2';
 import { thickLine } from './art/fxart';
+import { SEKI_MOVES, sekiMove } from './enemy_sekitome';
 
 const MOVES = new Set([
   'skill_sune_suneru',
@@ -39,6 +40,8 @@ const MOVES = new Set([
   'skill_tetsuya_rotary',
   'skill_tetsuya_ensuto',
   'skill_tetsuya_fullthrottle',
+  // セキトメ (02 #65): battle/enemy_sekitome.ts
+  ...SEKI_MOVES,
 ]);
 
 export function isCh2Move(id: string): boolean {
@@ -448,6 +451,12 @@ export function* ch2Move(c: BossMoveCtx): Co {
       s.bg.flags.burst = 0;
       break;
     }
+    // ---- セキトメ (51 8.7、02 #65) -----------------------------------------------------------
+    case 'skill_seki_fue':
+    case 'skill_seki_shibuki':
+    case 'skill_seki_mansui':
+      yield* sekiMove(c);
+      break;
     default:
       yield 300;
   }

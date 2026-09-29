@@ -17,7 +17,7 @@ export const ROOM2_PLACE: Record<string, string> = {
   map_hoshi_soko: '区の倉庫',
   map_hoshi_gym: '分校の体育館',
   map_hoshi_taihisha: '堆肥舎',
-  map_hoshi_koya: 'トマキチの小屋',
+  map_hoshi_koya: 'とまたろうの小屋',
   map_hoshi_shouboya: '消防小屋',
   map_hoshi_house1: 'ペロの 1号ハウス',
   map_hoshi_house2: 'ペロの 2号ハウス',

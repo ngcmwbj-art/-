@@ -276,7 +276,17 @@ function tsuruDraw(f: Fig, p: Pose) {
       f.px(7, 12 + u).px(9, 12 + u);
     }
     const arm: Seg[] = [{ mat: 'uni', n: 3 }, { mat: 'glove' }];
-    if (p.view === 'down') {
+    const grin = p.act === 'grin';
+    if (p.view === 'down' && grin) {
+      // grin (10_narrative 6.6 〔懸垂〕): for once the salute is let go — the
+      // right hand (viewer-left) comes down in front of his chest, thumb up
+      f.part('uni', { shade: 'rb', light: 't' });
+      f.rows(1, 12 + u, ['##..', '#...', '##..', '.##.']);
+      f.part('glove', { shade: 'rb', light: 't' });
+      f.rect(3, 13 + u, 2, 2);
+      f.px(3, 12 + u).px(3, 11 + u);
+      hangArms(f, p, { lx: 3, rx: 12, sy: 12, hy: 17, segs: arm }, u, 'R');
+    } else if (p.view === 'down') {
       // salute: right arm (viewer-left) with the elbow flung out past the
       // shoulder, so the upper arm, forearm and head frame a gap of ground —
       // the salute reads from the silhouette alone
@@ -303,7 +313,7 @@ function tsuruDraw(f: Fig, p: Pose) {
     }
     head(f, note && p.view === 'down' ? { ...p } : p, TSURU_HEAD, hy);
     policeCap(f, p.view, hy - 1 + hatLift(p), p.lookUp);
-    if (p.view === 'down') {
+    if (p.view === 'down' && !grin) {
       // glove flat against the brim, on top of the cap
       f.part('glove', { shade: 'rb', light: 't' });
       f.rect(1, 5 + u + (p.lookUp ? -1 : 0), 3, 2);
@@ -345,7 +355,7 @@ registerChar('npc_tsurumi', () =>
     mats: TSURU,
     draw: tsuruDraw,
     idle: { down: TSURU_IDLE, left: breathingIdle(), right: breathingIdle(), up: breathingIdle() },
-    extras: { note: { dirs: ['down'], p: { ph: 1 } }, surprised: { dirs: ['down'] } },
+    extras: { note: { dirs: ['down'], p: { ph: 1 } }, surprised: { dirs: ['down'] }, grin: { dirs: ['down'] } },
   }),
 );
 

@@ -24,3 +24,7 @@ import './hoshi_room_a';
 import './hoshi_room_b';
 import './hoshi_hill_art';
 import './hoshi_tsugaobin';
+// 捕まえない自由研究の虫と、その宿の草木（02_ch2_index #64）
+import './hoshi_mushi';
+// 沢の上「水の 元」と電気柵の戸（02_ch2_index #65）
+import './hoshi_sawa';

@@ -5,7 +5,8 @@
 //   カット2 the village's morning: the barn, the house, the terraces, the
 //          gathering room, the path's mouth (4 s each)
 //   カット3 the turning circle: the tomatoes, the send-off, the first bus
-//   カット4 夕鳴町's bus stop: 6:12 → 19:31
+//   カット4 夕鳴町's bus stop: 6:12 → 19:31; マル boards (02 #65)
+//   カット4b the turning circle again: マル steps down, とまたろう meets her
 //   カット5 home: 「……1つ、おまけ？」, the weather
 //   カット6 the notebook ② and 「つづく」 (the UI; the clear data is written)
 //   カット7 ツガオの部屋 (the UI's cut_tsugao_room; X skips it from the second time)
@@ -35,10 +36,12 @@ import { feedCartImg, sketchbookImg } from '../../art/props/hoshi_ending_art';
 import { playMimawariHanamaru } from '../../ui/cut_mimawari';
 import { hoshiBusImage } from '../../art/props/hoshi_vehicles';
 import * as T from '../../data/text/hoshi_events';
+import { MARU_END } from '../../data/text/maru';
 import { F, giveKey, holdBgm, panTo } from '../lib';
 import { bellGlow, puff, ring, sparkle } from '../fx';
 import { morningChime, musicParam, paDistance, paMode, se, seLoop, space } from './compat';
 import { poseIf, runCue, unpose } from './common';
+import { forceBoxPos } from '../stage';
 
 // ---------------------------------------------------------------- staging helpers
 
@@ -529,6 +532,10 @@ function* cut4BusStop(): Co {
     for (let r = 0; r < 18; r++) g.rect(Math.round(x - 6 - r / 3), Math.round(y - 30 + r * 2), Math.round(12 + (r * 2) / 3), 2, '#F6D98A', 0.25 * pool.alpha);
   };
   setClockText('6:12', { cut: true });
+  // マル (02 #65) on her walker by the stop, where she has waited since five: in
+  // every run, 「第2章から」 too — the picture and her one page
+  const maru = put('npc_maru', 32, 10, 'right');
+  maru.pose = 'sit';
   yield* game.fadeIn(300);
   se('se_h_bus_arrive');
   yield 500;
@@ -581,7 +588,27 @@ function* cut4BusStop(): Co {
   );
   yield* walk('end_npc_hoshi_busdriver', [[33, 13], [26, 13]], { speed: 2.4 });
   despawn('end_npc_hoshi_busdriver');
-  // the bus, empty, goes north a little and turns right: back to 星見台
+  // マル gets up off her walker: the five o'clock bus, two and a half hours late.
+  // Those who took her word to とまたろう (flag_ch2_maru_told 2) get カネナリくん's
+  // flip and her small bow. Then she pushes the walker to the door (34,10) and boards.
+  maru.pose = null;
+  maru.hop(1, 160);
+  yield 300;
+  yield* runMsg(MARU_END.bus);
+  if (flag('flag_ch2_maru_told') === 2) {
+    p.dir = 'left';
+    yield* runMsg(MARU_END.told);
+    maru.dir = 'right';
+    poseIf(maru, 'bow');
+    yield 500;
+    unpose(maru);
+  }
+  yield* walk('end_npc_maru', [[33, 10], [34, 10]], { speed: 1.6, face: 'right' });
+  yield* animate(260, (q) => (maru.alpha = 1 - q));
+  maru.visible = false;
+  se('se_h_bus_door');
+  yield 300;
+  // the bus, マル aboard, goes north a little and turns right: back to 星見台
   se('se_h_bus_depart', { vol: 0.6, pan: 0.3 });
   yield* animate(300, (q) => (pool.alpha = 1 - q));
   const y0 = bus.y;
@@ -599,6 +626,7 @@ function* cut4BusStop(): Co {
   yield* animate(1600, (q) => (bus.x = x0 + 240 * ease.quadIn(q)), ease.linear);
   despawn('end_bus_town');
   despawn('end_bus_pool');
+  despawn('end_npc_maru');
   yield* runMsg(T.END_4_NARR);
   // カネナリくん waves and toddles off towards the crossing
   k.dir = 'right';
@@ -617,6 +645,84 @@ function* cut4BusStop(): Co {
   yield* animate(300, (q) => (k.alpha = 1 - q));
   despawn('end_kanenari');
   yield* beat(400);
+}
+
+// ---------------------------------------------------------------- カット4b 転回場（マルが帰る）
+
+/**
+ * The same bus back on 星見台 in the morning (02 #65, 50 10.16): it stands at
+ * the turning circle, idling; とまたろう waits by the stop's sign (no clock plate).
+ * マル steps down with her walker (the door (35,43), as in カット3), three pages,
+ * the yakisoba handed over, and the two go off up toward the village, one
+ * behind the other. About 6 s besides the pages; no music, the morning's birds.
+ */
+function* cut4bReunion(): Co {
+  yield* fadeCut(300);
+  stopAllAmbient(0.3);
+  cutTo('map_hoshimidai', 35, 42);
+  setGradeH('h3c', 0);
+  // no clock plate here (whose time would it tell?): the HUD is off for this cut
+  setClockText(null, { cut: true });
+  setFlag('flag_hud_hidden', 1);
+  musicParam('h_stage', 3);
+  paMode('yama');
+  space('yama');
+  playAmbient('amb_h_dawn', { vol: 0.8, fade: 0.4 });
+  const f = F();
+  f.camOverride = { x: 35 * 16 + 8, y: 42 * 16 + 8 };
+  f.snapCamera();
+  // the map's own bus is off while ours stands there
+  busHidden.on = true;
+  const busImg = hoshiBusImage('side', true);
+  vehicle('end_bus_home', 35 * 16 + 32, 43 * 16, () => busImg);
+  const tome = put('npc_hoshi_tome', 33, 44, 'right');
+  const idle = seLoop('se_h_bus_idle', { vol: 0.4 });
+  let smoke = true;
+  game.scripts.run(
+    (function* (): Co {
+      while (smoke) {
+        puff(38 * 16 + 14, 42 * 16 + 12, '#E8E4D8');
+        yield 420;
+      }
+    })(),
+  );
+  yield* game.fadeIn(300);
+  yield 300;
+  se('se_h_bus_door');
+  yield 300;
+  // マル steps down from the door with the walker, one careful step toward him
+  const maru = put('npc_maru', 35, 43, 'down');
+  maru.alpha = 0;
+  yield* animate(260, (q) => (maru.alpha = q));
+  yield* walk('end_npc_maru', [35, 44], { speed: 1.6, face: 'left' });
+  yield 300;
+  // the two stand low in the frame: the window goes to the top
+  forceBoxPos('top');
+  yield* runCue(MARU_END.reunion, {
+    *give() {
+      maru.dir = 'left';
+      poseIf(maru, 'give');
+      yield 500;
+      tome.hop(1, 140);
+      yield 200;
+      unpose(maru);
+    },
+  });
+  forceBoxPos(null);
+  // the bus sits idling; he turns for home up the lane, she follows with the walker
+  smoke = false;
+  idle.stop(0.6);
+  game.scripts.run(walk('end_npc_hoshi_tome', [33, 39], { speed: 1.2 }));
+  yield 350;
+  game.scripts.run(walk('end_npc_maru', [[34, 44], [33, 44], [33, 40]], { speed: 1.2 }));
+  yield* beat(1300);
+  yield* fadeCut(400);
+  busHidden.on = false;
+  despawn('end_bus_home');
+  despawn('end_npc_maru');
+  despawn('end_npc_hoshi_tome');
+  stopAmbient('amb_h_dawn', 0.3);
+  setFlag('flag_hud_hidden', 0);
 }
 
 // ---------------------------------------------------------------- カット5 家
@@ -702,6 +808,7 @@ export function* evtEnding(): Co {
   yield* cut2Morning();
   yield* cut3Bus();
   yield* cut4BusStop();
+  yield* cut4bReunion();
   yield* cut5Home();
   // カット6: the notebook ②, the case (7 of 10, いただきます's outline), 「つづく」; the clear data is written
   yield* playEndingNotebookCh2({ toTitle: false });
@@ -734,5 +841,6 @@ export const CH2_ENDING_CUTS: Record<number, () => Co> = {
   2: cut2Morning,
   3: cut3Bus,
   4: cut4BusStop,
+  4.5: cut4bReunion,
   5: cut5Home,
 };

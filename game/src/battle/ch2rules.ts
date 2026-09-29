@@ -55,7 +55,8 @@ export function* ch2RoundStart(s: BattleScene): Co {
     if (!e.def.restAlways) continue;
     // the engine turns over, the body hops 2px, the headlight opens, the
     // tape changes from 休憩中 to 徹夜中 (its まもり counted from 0 again)
-    s.sfx('se_h_tiller', { level: 4 });
+    if (e.def.duty?.restartSe) s.sfx(e.def.duty.restartSe);
+    else s.sfx('se_h_tiller', { level: 4 });
     e.setPose('restart');
     for (let i = 0; i < 2; i++) {
       e.offY = -2;
@@ -133,8 +134,9 @@ export function* ch2RoundEnd(s: BattleScene): Co {
 
 /** 14.10: the claws go round (200ms), +10 in green, the red ▲ of まもり (max +2). */
 function* tetsuyaNight(s: BattleScene, e: EnemyUnit): Co {
-  e.setPose('retill');
-  s.sfx('se_h_soil', { vol: 0.6 });
+  // (セキトメ, 02 #65: it piles a stone back on and blows its whistle — 「閉場 1分前です」)
+  e.setPose(e.def.duty?.nightPose ?? 'retill');
+  s.sfx(e.def.duty?.nightSe ?? 'se_h_soil', { vol: 0.6 });
   yield 200;
   const before = e.hp;
   e.hp = Math.min(e.maxHp, e.hp + 10);

@@ -37,6 +37,8 @@ import { CH2_ENDING_CUTS } from './ending';
 import { debugChoresDone } from './barn';
 import { debugDeliveryAlmost } from './tsugao';
 import { ROOMS2_TEXTS } from './rooms2';
+import { MUSHI_PAGES } from '../../data/text/hoshi_mushi';
+import { MARU_CH1, MARU_END, MARU_TOME, SAWA_EVT, SAWA_FLIP, SAWA_FUMI, SAWA_OBJ, SAWA_WAKIMIZU } from '../../data/text/maru';
 
 type Step = () => void;
 
@@ -100,7 +102,8 @@ export const CHAIN2: Beat2[] = [
   { beat: 'tomato', steps: [set('flag_ch2_sune_beaten'), taken('sym_hoshi_house_00', 'evt:evt_ch2_house')], at: ['map_hoshi_house', 4, 2, 'right'], desc: '★はなまるトマト（ふしぎ06 → 段階1）' },
   {
     beat: 'gen',
-    steps: [set('flag_fushigi_ch2_06', 'flag_ch2_got_tomato', 'flag_ch2_house_exit'), keys('item_hanamaru_tomato'), val('flag_ch2_stage', 1)],
+    // (flag_ch2_mushi: カネナリくん's invitation at the house door, 02 #64)
+    steps: [set('flag_fushigi_ch2_06', 'flag_ch2_got_tomato', 'flag_ch2_house_exit', 'flag_ch2_mushi'), keys('item_hanamaru_tomato'), val('flag_ch2_stage', 1)],
     at: ['map_hoshimidai', 45, 38, 'right'],
     desc: '東の台地への坂道（evt_ch2_gen_stop）',
   },
@@ -142,6 +145,15 @@ export const CHAIN2: Beat2[] = [
     at: ['map_hoshimidai', 42, 43, 'right'],
     desc: '（任意）野菜の配達（ヒロスケ (43,43) に話す）',
     side: 'gen',
+  },
+  // optional (02 #65): 沢の上「水の 元」 — トマじい's request, the stream, セキトメ, the name stone.
+  // With マル's word from chapter 1 (flag_maru_dengon), so his 〔maru〕 comes first.
+  {
+    beat: 'sawa',
+    steps: [set('flag_met_maru', 'flag_maru_dengon')],
+    at: ['map_hoshimidai', 20, 11, 'right'],
+    desc: '（任意）沢の上（トマじい (21,11) に話す → 頼み → 戸 (14,1) → セキトメ）',
+    side: 'houki',
   },
   // QA (tools/playthrough.mjs --side talk): the village after the gathering, to talk to everyone
   {
@@ -341,6 +353,11 @@ function collectTexts(): [string, string][] {
   walk('rooms2', ROOMS2_TEXTS);
   // 第1章の北の列の部屋・しんごのたんかん (10_narrative 6.14 / 6.22 / 7.19, 02_ch2_index #58)
   walk('ch1_north', NORTH_TEXTS);
+  // 捕まえない自由研究 (50 10.21, 02_ch2_index #64)
+  walk('mushi', MUSHI_PAGES);
+  // マルととまたろう・沢の上 (10_narrative 6.24, 50 3.10・10.22・10.16, 02_ch2_index #65; 第1章のマルも)
+  walk('maru', { ch1: MARU_CH1, tome: MARU_TOME, end: MARU_END, fumi: SAWA_FUMI, flip: SAWA_FLIP });
+  walk('sawa', { obj: SAWA_OBJ, evt: SAWA_EVT, wakimizu: SAWA_WAKIMIZU });
   // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line
   // lines shown without a speaker (HOUKI_LINE's float note: the same 336 px)
   for (const [k, v] of Object.entries(EV)) if (typeof v === 'string' && (v.startsWith('@') || v.startsWith('!cue') || v.includes('\n'))) out.push([`ev.${k}`, v]);

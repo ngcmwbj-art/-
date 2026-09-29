@@ -17,4 +17,6 @@ import './biri';
 import './chototsu';
 import './mujin';
 import './tetsuya';
+// 沢の上のセキトメ（02 #65）
+import './sekitome';
 import './yobimodoshi';

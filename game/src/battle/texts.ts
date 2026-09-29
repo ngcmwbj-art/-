@@ -92,7 +92,10 @@ function ch2Yousu(s: BattleScene, e: EnemyUnit, r: number): string {
     case 'enemy_mujin_hanbaiin':
       // the first round: Kanenari-kun's flip; then 2 and 3 in turn
       return r === 1 && sp.first ? sp.first : t.yousu[r % t.yousu.length];
+    case 'enemy_sekitome':
     case 'enemy_tetsuya':
+      // (セキトメ, 02 #65: the first round is カネナリくん's flip, as ムジン販売員's; then like テツヤ)
+      if (r === 1 && sp.first) return sp.first;
       if ((e.status.kyuukei ?? 0) > 0 || e.mem.restEnded) return sp.kyuukei ?? rot(t.yousu);
       if (e.status.tame && sp.tame) return sp.tame;
       if (e.status.tetsuya && sp.tetsuya && r % 2 === 1) return sp.tetsuya;

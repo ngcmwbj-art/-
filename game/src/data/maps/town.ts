@@ -440,6 +440,8 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_ojii', x: 10, y: 21, dir: 'down', cond: s02, talk: TALK.npc_ojii, pose: 'sit', off: [0, -2] },
   { t: 'npc', id: 'npc_mizumaki', x: 11, y: 32, dir: 'down', cond: s02, talk: TALK.npc_mizumaki },
   { t: 'npc', id: 'npc_shadow_man', x: 8, y: 6, dir: 'down', cond: { stage: 2 }, talk: TALK.npc_shadow_man, ghost: true, noTurn: true, shadow: 0 },
+  // マル (10 6.24, 02 #65): beside the bus stop 「ユウナリ前」, seated on her walker, facing the lane
+  { t: 'npc', id: 'npc_maru', x: 34, y: 12, dir: 'right', cond: { stage: 2 }, script: 'npc_maru', pose: 'sit' },
   {
     t: 'npc', id: 'npc_kanenari', x: 16, y: 9, dir: 'down', cond: { stage: '1-2', notFlag: 'flag_kanenari_joined' },
     script: 'evt_kanenari_meet', move: { kind: 'orbit', cx: 256, cy: 112, r: 32, period: 6000, cw: true, waveEvery: 7000 },

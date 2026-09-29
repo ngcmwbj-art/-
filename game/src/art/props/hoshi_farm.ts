@@ -413,17 +413,28 @@ registerProp('prop_h_canal_steps', (opts) => {
 });
 
 registerProp('prop_h_intake', () => {
-  // a small wooden weir across the stream where the paddies take their water
-  const p = new PixelCanvas(16, 14);
-  p.rect(1, 4, 14, 4, P.wood);
-  p.hline(1, 14, 4, P.woodLt);
-  p.vline(2, 1, 11, P.woodDark);
-  p.vline(13, 1, 11, P.woodDark);
-  for (let x = 3; x < 13; x += 2) p.set(x, 8, P.white);
-  p.set(4, 9, P.aqua);
-  p.set(9, 10, P.aqua);
-  const img = p.toCanvas();
-  return { ox: 0, oy: 2, w: 16, h: 14, foot: 0, flat: true, img: () => img };
+  // a small wooden weir across the stream where the paddies take their water.
+  // Until セキトメ up the stream is undone (02 #65) only a thread of water spills
+  // over it (トマじい「上の 取水口の 水が、細い」); then the whole lip runs white.
+  const make = (full: boolean) => {
+    const p = new PixelCanvas(16, 14);
+    p.rect(1, 4, 14, 4, P.wood);
+    p.hline(1, 14, 4, P.woodLt);
+    p.vline(2, 1, 11, P.woodDark);
+    p.vline(13, 1, 11, P.woodDark);
+    if (full) {
+      for (let x = 3; x < 13; x += 2) p.set(x, 8, P.white);
+      p.set(4, 9, P.aqua);
+      p.set(9, 10, P.aqua);
+    } else {
+      p.set(7, 8, P.white);
+      p.set(7, 9, P.aqua);
+    }
+    return p.toCanvas();
+  };
+  const thin = make(false);
+  const full = make(true);
+  return { ox: 0, oy: 2, w: 16, h: 14, foot: 0, flat: true, img: (env) => (env.flag('flag_ch2_sawa_seki') ? full : thin) };
 });
 
 // ---------------------------------------------------------------- 東の台地：軽トラ・一輪車・ホース

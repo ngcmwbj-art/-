@@ -46,6 +46,8 @@ const items: ItemDef[] = [
   { id: 'item_tankan', name: '冷凍たんかん', key: true, target: 'none', desc: ['喫茶 夕顔の 冷凍庫から。', '冬の みかん。いまは 8月。'], battleText: ['たんかんを 見せた。\n$enemyは 季節に ついて 考えている。'] },
   // 10 6.10 (02_ch2_index #56): 段階2の郵便屋さんから。第2章でさんかどに あずける
   { id: 'item_ashita_tegami', name: '『あした』宛ての手紙', key: true, target: 'none', desc: ['差出人『ユウナリ 迷子センター』。すみに 黒い しみ。', '切手は、はなまる。'], battleText: ['手紙を 見せた。\n……宛先は、ここでは ない。'] },
+  // 10 6.6〔懸垂〕（02 #64）：公園の鉄棒で懸垂に挑戦したあと、交番のワイスタ巡査から
+  { id: 'item_hanamaru_kensui', name: 'はなまる「懸垂挑戦！」', key: true, target: 'none', desc: ['ワイスタ巡査の 手帳の 1枚。', '赤ペンの はなまる。記録は 0回。'], battleText: ['はなまるを 見せた。\n$enemyは 少し 背すじを のばした。'] },
   // 大事なもの（第2章、50 7.1）
   {
     id: 'item_hanamaru_tomato', name: 'はなまるトマト', key: true, target: 'none', special: 'tomato', usableInBattleWith: ['boss_yobimodoshi'], priority: 2,
@@ -54,6 +56,8 @@ const items: ItemDef[] = [
   { id: 'item_kairan_map', name: '回覧板の地図', key: true, target: 'none', desc: ['星見台の 回覧板。うらに 区長の 地図。', ''], battleText: ['回覧板を 見せた。\n……回す 相手が いない。'] },
   { id: 'item_seiriken', name: '整理券', key: true, target: 'none', desc: ['整理券。番号は『1』。', '……2人で 乗ったのに。'], battleText: ['整理券を 見せた。\n番号を 呼ばれる 気配は ない。'] },
   { id: 'item_tomato_omiyage', name: 'トマト（4つ）', key: true, target: 'none', desc: ['ペロの トマト。4つ。', '……1つは おまけ。'], battleText: ['これは おみやげだ。'] },
+  // 沢の上（02 #65）：セキトメがほどけたあと、岸に残った平たい石。トマじいに見せると、あずかる
+  { id: 'item_namae_ishi', name: '名前の石', key: true, target: 'none', desc: ['沢の 岸の、平たい 石。', '『とまたろう』と、小さく『マル』。'], battleText: ['石を 見せた。\n$enemyは 字の 大きさを 見くらべた。'] },
 ];
 
 const table = new Map<string, ItemDef>();

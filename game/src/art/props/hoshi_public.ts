@@ -530,7 +530,7 @@ registerBuilding({
   },
 });
 
-// ---------------------------------------------------------------- 農具小屋 トマキチ (34,12) 2×(1+1)
+// ---------------------------------------------------------------- 農具小屋 とまたろう (34,12) 2×(1+1)
 
 registerBuilding({
   id: 'prop_h_koya',
@@ -546,10 +546,10 @@ registerBuilding({
     roofTinH(p, 0, rY, 32, 20, TIN_RUST, 37, { ridgeFrac: 0.3, rust: 0.6, patches: 1 });
     wall(p, 0, fY, 32, 16, wallOld(37, 5));
     eaveDark(p, 0, fY, 32, 2);
-    // the door with 「トマキチ」 in ink (a few strokes)
+    // the door with 「とまたろう」 in ink (a few strokes, one per kana)
     p.rect(9, fY + 3, 14, 13, HP.oldWoodDk);
     p.strokeRect(9, fY + 3, 14, 13, P.woodDark);
-    for (let k = 0; k < 4; k++) {
+    for (let k = 0; k < 5; k++) {
       p.hline(12, 14 + (k % 2), fY + 5 + k * 2, P.ink);
       if (k % 2) p.set(18, fY + 5 + k * 2, P.ink);
     }

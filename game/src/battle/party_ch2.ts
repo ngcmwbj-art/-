@@ -145,7 +145,9 @@ export function* hankoOtsukaresama(s: BattleScene, u: PartyUnit, e: EnemyUnit, j
     s.setMusicParam('h_rest', 1);
     s.bg.flags.rest = 1;
     s.bg.flags.tetsuya = 0;
-    s.sfx('se_h_tiller', { level: 5 });
+    // (セキトメ, 02 #65: its own sound — the long whistle of the pool closing)
+    if (e.def.duty?.restSe) s.sfx(e.def.duty.restSe);
+    else s.sfx('se_h_tiller', { level: 5 });
   }
   e.setPose('rest');
   e.params.tapeAt_kyuukei = s.t;

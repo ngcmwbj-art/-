@@ -17,6 +17,7 @@ import { flag } from '../../game/state';
 import { Background, BG_H, fillCircle, gradientTexture, pxLine, strokeCircle } from './common';
 import { tomatoIcon } from '../art/fxart_ch2';
 import { drawFarLights, drawLoop, loopHeight, milkyWayTile, ridgeTile, tuftTile } from './hoshi_scenery';
+import { HoshiSawaBg } from './hoshi_sawa';
 
 const TOMATO = '#F2894B';
 
@@ -1440,8 +1441,11 @@ export function makeHoshiBackground(id: string): Background | null {
       return new HoshiTetsuyaBg();
     case 'bg_h_boss':
       return new HoshiBossBg();
+    // 沢の上のセキトメ（02 #65）
+    case 'bg_h_sawa':
+      return new HoshiSawaBg();
   }
   return null;
 }
 
-export const HOSHI_BG_IDS = ['bg_h_house', 'bg_h_tanada', 'bg_h_fence', 'bg_h_yama', 'bg_h_mujin', 'bg_h_tetsuya', 'bg_h_boss'];
+export const HOSHI_BG_IDS = ['bg_h_house', 'bg_h_tanada', 'bg_h_fence', 'bg_h_yama', 'bg_h_mujin', 'bg_h_tetsuya', 'bg_h_sawa', 'bg_h_boss'];

@@ -843,6 +843,77 @@ registerChar('minato_hold', () =>
   }),
 );
 
+// Chapter 1, the park's high bar (10_narrative 7.9 〔懸垂〕, 30_level_art 9.1):
+// hanging from it, seen from the front, on a 16×34 canvas. The hands grip at
+// rows HANG_GRIP_ROW…+1 and never move; the body hangs under them with its
+// feet 3px above the canvas's bottom (the ground). ph 0 = hanging, arms
+// straight; ph 1 = pulling: the body 3px up, the elbows out, eyes squeezed
+// shut and red cheeks — the chin still far under the bar; ph 2 = ph 1
+// trembling 1px to the side, one leg kicking, a drop of sweat.
+
+/** The canvas row of the hands (the bar's line); the actor's feet go 34 − this below the bar. */
+export const HANG_GRIP_ROW = 5;
+export const HANG_H = 34;
+
+function hangPose(f: Fig, p: Pose) {
+  const pull = p.ph > 0;
+  const jx = p.ph === 2 ? 1 : 0;
+  const d = pull ? 4 : 7;
+  // the body in its standing coordinates, moved down under the bar
+  f.offset(jx, d);
+  netHoop(f, 1, 0);
+  legs(f, { ...p, step: p.ph === 2 ? 1 : 0, mode: 'extra', bob: 0 }, LEGS);
+  shortsFront(f, 18);
+  teeFront(f, p, 12, 17, false);
+  headFront(f, { ...p, act: pull ? 'hurt' : '', blink: false, blinkClosed: false, lookUp: false }, 2);
+  ahoge(f, 9, 0, pull ? 1 : 0);
+  if (pull) {
+    // straining: the cheeks go red past the blush
+    f.part('blush', { flat: true, rim: false });
+    f.px(3, 11).px(12, 11).px(4, 10).px(11, 10);
+  }
+  // the arms and hands in the canvas's own coordinates (the hands stay on the bar)
+  f.offset(0, 0);
+  const g = HANG_GRIP_ROW;
+  const sh = d + 13;
+  const armL: ArmSpec = { sx: 2 + jx, sy: sh, hx: 0, hy: 0, segs: FOREARM };
+  const armR: ArmSpec = { sx: 13 + jx, sy: sh, hx: 0, hy: 0, segs: FOREARM, shift: -1 };
+  if (pull) {
+    armTo(f, armL, 2, g + 2, [0, sh - 5]);
+    armTo(f, armR, 13, g + 2, [15, sh - 5]);
+  } else {
+    armTo(f, armL, 1, g + 2);
+    armTo(f, armR, 14, g + 2);
+  }
+  f.part('hand', { shade: 'rb', light: 't' });
+  f.rect(1, g, 2, 2).rect(13, g, 2, 2);
+  if (p.ph === 2) {
+    f.part('#BDEFFA', { flat: true, rim: false });
+    f.px(15, d + 6).px(15, d + 7);
+  }
+}
+
+registerChar('minato_hang', () =>
+  buildSprite({
+    ...MINATO_SPEC,
+    id: 'minato_hang',
+    h: HANG_H,
+    run: false,
+    walkFrames: 1,
+    idle: [{}],
+    draw: hangPose,
+    extras: { hang: { dirs: ['down'] }, pull: { dirs: ['down'], p: { ph: 1 } }, shake: { dirs: ['down'], p: { ph: 2 } } },
+    // hang → pull and tremble (ぷるぷる) → sag back: about 1.9 s, and not one pull-up
+    anims: {
+      pullup: {
+        frames: [{ ph: 0 }, { ph: 1 }, { ph: 2 }, { ph: 1 }, { ph: 2 }, { ph: 1 }, { ph: 2 }, { ph: 1 }, { ph: 0 }],
+        ms: [520, 300, 90, 90, 90, 90, 90, 160, 420],
+        loop: false,
+      },
+    },
+  }),
+);
+
 // =============================================================================
 // Chapter 2 (52 10.1): the tomato lantern and the new extras.
 //

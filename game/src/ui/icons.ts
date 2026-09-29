@@ -392,6 +392,41 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// はなまる「懸垂挑戦！」 (10_narrative 6.6 〔懸垂〕, 02_ch2_index #64): a page torn out of
+// ワイスタ巡査's notebook, a red-pen はなまる on it (the ring, its spiral and four petals
+// at the corners — the same little はなまる as the 'light' emote's) and a line of pencil
+Object.assign(ITEM_ROWS, {
+  item_hanamaru_kensui: [
+    'W.WWW.WWW.',
+    'Wlwlrrwlwd',
+    'Wwlwwwrwwd',
+    'Wlwwrwwrwd',
+    'Wrwrwrwrwd',
+    'WrwwrRwRwd',
+    'WwrwwwRwwd',
+    'WrwRRRwRwd',
+    'Wwggggwgwd',
+    'ddddddddGG',
+  ],
+});
+
+// 名前の石 (沢の上, 50 10.22, 02_ch2_index #65): a flat grey stone from the stream, two
+// names scratched in it — a long one (とまたろう) and, under it, a short one (マル) — moss
+Object.assign(ITEM_ROWS, {
+  item_namae_ishi: [
+    '..........',
+    '...dddd...',
+    '.ddwwwddd.',
+    'dwwddddddg',
+    'ddGGGGGGdg',
+    'ddddddddgg',
+    'dddGGddddg',
+    'gdddddmmgg',
+    '.gggggggG.',
+    '..GGGGGG..',
+  ],
+});
+
 // 握手券 (屋上 ゆうやけひろば, 10_narrative 7.18, 02_ch2_index #55): a small ticket, the red
 // band of the event, the gold bell of its mascot, a line of print, the torn perforation
 Object.assign(ITEM_ROWS, {

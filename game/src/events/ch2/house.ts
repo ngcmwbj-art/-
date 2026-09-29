@@ -24,6 +24,7 @@ import { stampFushigi } from '../stamp';
 import { ambVol, musicParam, se } from './compat';
 import { animIf, firstThisLoad, hasPose, npc, poseIf, runCue, sceneLight, storyBattle, unpose } from './common';
 import { fushigiReward } from './fushigi';
+import { mushiInvite } from './mushi';
 
 // ---------------------------------------------------------------- 10.6 evt_ch2_mitsu
 
@@ -283,6 +284,8 @@ export function* houseExitLine(): Co {
     m.dir = 'right';
     delete m.data.scripted;
   }
+  // カネナリくん: the lantern's first night out — 捕まえない自由研究 (02_ch2_index #64)
+  yield* mushiInvite();
 }
 
 /**

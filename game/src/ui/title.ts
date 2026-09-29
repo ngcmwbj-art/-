@@ -508,7 +508,8 @@ export class TitleScene implements Scene {
         return;
       }
       const r = page === 1 ? c : c2!;
-      const tot = page === 1 ? [12, 7, r.tsukkomiTotal || 19] : [10, 6, r.tsukkomiTotal || 17];
+      // ② あいて 7 with セキトメ of the stream (02 #65), ツッコミ 19
+      const tot = page === 1 ? [12, 7, r.tsukkomiTotal || 19] : [10, 7, r.tsukkomiTotal || 19];
       const row = (label: string, v: string, ry: number) => {
         g.text(label, lx, ry, { color: UI.text });
         drawDigits(g, v, rx, ry + 5, { color: UI.accent, align: 'right' });

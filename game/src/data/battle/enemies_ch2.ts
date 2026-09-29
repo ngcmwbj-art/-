@@ -4,6 +4,8 @@
 
 import type { AiCtx, BossPartDef, EnemyDef } from './types';
 import { SYS2 } from './text_ch2';
+// 沢の上のセキトメ（任意の敵、02 #65）
+import { SEKITOME } from './enemy_sekitome';
 
 const NO_WEAK = { da: 1, han: 1, wara: 1 };
 
@@ -328,4 +330,4 @@ const yobimodoshi: EnemyDef = {
 };
 
 /** Every chapter-2 enemy definition. */
-export const CH2_ENEMIES: EnemyDef[] = [sune, kacho, biri, chototsu, mujin, tetsuya, yobimodoshi];
+export const CH2_ENEMIES: EnemyDef[] = [sune, kacho, biri, chototsu, mujin, tetsuya, SEKITOME, yobimodoshi];
