@@ -668,7 +668,7 @@ canvas { display: block; width: 100%; height: 100%; }
     return null;
   }
   // 泥の穴の斜面の横幅と、x での泥の表面の高さ
-  const pitRun = w => Math.min(34, w * 0.3);
+  const pitRun = w => Math.min(56, w * 0.42);
   function pitSurface(pit, x) {
     const r = pitRun(pit.w), rel = x - pit.x;
     if (rel < r) return GROUND + clamp(rel / r, 0, 1) * PIT_D;
@@ -1101,14 +1101,14 @@ canvas { display: block; width: 100%; height: 100%; }
     truck.y = Math.min(truck.y + truck.vy * dt, surf);
     if (truck.y >= surf) {
       truck.vy = 0;
-      if (!truck.splashed && surf >= GROUND + PIT_D - 4) {
+      if (!truck.splashed && truck.y >= WATER_Y + 10) {
         truck.splashed = true;
         truck.splashT = truck.fallT;
         truck.mud = 1;
         sfx('mud');
         shake = 0.25;
-        mudSplash(22, cx, GROUND + PIT_D - 8, 240, 480);
-        emit(10, cx, GROUND + PIT_D - 6, { vx: [-160, 160], vy: [-300, -120], life: [0.4, 0.8], r: [1.5, 3], col: 'rgba(210,190,160,.8)' });
+        mudSplash(22, cx, WATER_Y, 240, 480);
+        emit(14, cx, WATER_Y, { vx: [-200, 200], vy: [-340, -120], life: [0.4, 0.8], r: [1.5, 3], col: 'rgba(200,215,205,.8)' });
       }
     }
     // 斜面では鼻先から突っ込み、転がり始めたら水平に戻る
@@ -1186,7 +1186,7 @@ canvas { display: block; width: 100%; height: 100%; }
       // トマトは道で止まる
       if (p.tomato || p.stick) {
         const pit = find('gap', p.x);
-        const floor = (pit ? pitSurface(pit, p.x) : GROUND) - (p.tomato ? 4 : 1);
+        const floor = (pit ? Math.min(pitSurface(pit, p.x), WATER_Y + 2) : GROUND) - (p.tomato ? 4 : 1);
         if (p.y > floor) { p.y = floor; p.vy = 0; p.vx *= p.stick ? 0.2 : 0.8; if (p.stick) p.flat = true; }
       }
     }
@@ -1363,161 +1363,142 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.fillRect(a, GROUND + 8, b - a, 2);
     ctx.fillRect(a, GROUND + 14, b - a, 2);
   }
-  // 泥の穴：縁が崩れたぬかるみの斜面、底に泥水。ぬめりの光沢、滑った跡、稲わら
+  // あぜが崩れた所：切れ目の両端がぬかるんだ泥の斜面になり、その先は田んぼの水。
+  // 崩れた土で田んぼが濁り、苗が倒れている。水の色は季節に合わせる
+  const WATER_Y = GROUND + ROAD_H - 4;   // 手前の田んぼの水面
   function mudPit(a, b, seed = 0) {
-    const w = b - a, r = pitRun(w), bot = GROUND + PIT_D;
+    const w = b - a, r = pitRun(w);
+    const rw = r * (WATER_Y - GROUND) / PIT_D;   // 水面までの斜面の横幅
     const hs = k => hash(seed * 0.013 + k);
-    // 輪郭（縁は少し崩れて丸く、斜面はでこぼこ）
-    const pts = [[a - 5, GROUND]];
-    for (let k = 1; k <= 6; k++) {
-      const f = k / 6;
-      pts.push([a + r * f + (hs(k) - 0.5) * 5 * (1 - f), GROUND + PIT_D * Math.pow(f, 0.85) + (hs(k + 9) - 0.5) * 3]);
-    }
-    for (let k = 1; k < 6; k++) pts.push([a + r + (w - 2 * r) * k / 6, bot + 2 + Math.sin(k * 1.7 + seed) * 1.5]);
-    for (let k = 6; k >= 1; k--) {
-      const f = k / 6;
-      pts.push([b - r * f - (hs(k + 20) - 0.5) * 5 * (1 - f), GROUND + PIT_D * Math.pow(f, 0.85) + (hs(k + 29) - 0.5) * 3]);
-    }
-    pts.push([b + 5, GROUND]);
-    const path = () => {
-      ctx.beginPath();
-      ctx.moveTo(pts[0][0], pts[0][1]);
-      for (let i = 1; i < pts.length; i++) {
-        const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
-        ctx.quadraticCurveTo(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
-      }
-      ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
-      ctx.closePath();
-    };
-    // あぜの断面（土の層と小石）
-    const sg = ctx.createLinearGradient(0, GROUND, 0, bot + 6);
-    sg.addColorStop(0, '#94704a');
-    sg.addColorStop(1, '#5e4429');
-    ctx.fillStyle = sg;
-    ctx.fillRect(a - 1, GROUND, w + 2, PIT_D + 6);
-    ctx.strokeStyle = 'rgba(70,48,26,.45)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let k = 1; k <= 3; k++) {
-      const y = GROUND + k * 12 + (hs(k + 140) - 0.5) * 3;
-      ctx.moveTo(a, y); ctx.quadraticCurveTo(a + w / 2, y + (hs(k + 150) - 0.5) * 5, b, y + 1);
-    }
-    ctx.stroke();
-    ctx.fillStyle = '#a39a88';
-    for (let i = 0; i < 4; i++) {
-      ctx.beginPath(); ctx.ellipse(a + hs(i + 160) * w, GROUND + 8 + hs(i + 170) * (PIT_D - 6), 2 + hs(i + 180) * 1.5, 1.4, 0, 0, Math.PI * 2); ctx.fill();
-    }
-    // 穴の中：向こう側のぬかるんだ壁（奥ほど暗い）
-    const g = ctx.createLinearGradient(0, GROUND, 0, bot + 6);
-    g.addColorStop(0, '#5a3d22');
-    g.addColorStop(0.5, '#3f2915');
-    g.addColorStop(1, '#2a1b0d');
-    ctx.fillStyle = g;
-    path(); ctx.fill();
+    const cx = (a + b) / 2;
+    // 崩れた土で濁った田んぼの水（まわりの水に溶けこむように、ふちは透明）
     ctx.save();
-    path(); ctx.clip();
-    // 色むら
-    for (let i = 0; i < 14; i++) {
-      ctx.fillStyle = MUD_COLS[i % 4];
-      ctx.globalAlpha = 0.18 + hs(i + 40) * 0.2;
-      ctx.beginPath();
-      ctx.ellipse(a + hs(i + 50) * w, GROUND + 6 + hs(i + 60) * PIT_D, 6 + hs(i + 70) * 14, 3 + hs(i + 80) * 5, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-    // 斜面を滑り落ちた筋（暗い溝と、その横の光る縁）
-    for (const side of [0, 1]) {
-      for (let i = 0; i < 4; i++) {
-        const f = (i + 0.5) / 4;
-        const x0 = side ? b - r * 0.15 * f : a + r * 0.15 * f;
-        const x1 = side ? b - r * (0.55 + f * 0.45) : a + r * (0.55 + f * 0.45);
-        const y0 = GROUND + 3 + f * 5, y1 = bot - 3;
-        ctx.strokeStyle = 'rgba(30,18,8,.55)';
-        ctx.lineWidth = 1.6;
-        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo((x0 + x1) / 2 + (side ? 3 : -3), (y0 + y1) / 2, x1, y1); ctx.stroke();
-        ctx.strokeStyle = 'rgba(214,176,130,.35)';
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(x0 + 1.5, y0); ctx.quadraticCurveTo((x0 + x1) / 2 + (side ? 4 : -2), (y0 + y1) / 2, x1 + 1.5, y1); ctx.stroke();
-      }
-    }
-    // ぬめりの光沢（空が映った白いハイライト）
-    ctx.strokeStyle = 'rgba(255,244,225,.45)';
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(a + r * 0.2, GROUND + 7); ctx.quadraticCurveTo(a + r * 0.45, GROUND + 14, a + r * 0.55, GROUND + 26);
-    ctx.moveTo(b - r * 0.3, GROUND + 9); ctx.quadraticCurveTo(b - r * 0.5, GROUND + 18, b - r * 0.58, GROUND + 28);
-    ctx.stroke();
-    // 稲わらのくず
-    ctx.strokeStyle = '#cdb46a';
+    ctx.beginPath(); ctx.rect(a - 80, WATER_Y, w + 160, 90); ctx.clip();
+    ctx.translate(cx, WATER_Y);
+    ctx.scale(1, 0.32);
+    const R = w / 2 + 46;
+    const pg = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+    pg.addColorStop(0, 'rgba(86,60,34,.9)');
+    pg.addColorStop(0.55, 'rgba(104,78,48,.6)');
+    pg.addColorStop(1, 'rgba(110,86,56,0)');
+    ctx.fillStyle = pg;
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    // 水面の泥の筋と、浮いた泥のかたまり
+    ctx.strokeStyle = 'rgba(70,46,24,.5)';
     ctx.lineWidth = 1.2;
     ctx.beginPath();
+    for (let i = 0; i < 4; i++) {
+      const y = WATER_Y + 4 + i * 5;
+      const half = (w / 2 + 30) * (1 - i * 0.18);
+      ctx.moveTo(cx - half, y); ctx.quadraticCurveTo(cx, y + 2 + hs(i + 200) * 2, cx + half, y);
+    }
+    ctx.stroke();
+    ctx.fillStyle = '#5a3d22';
     for (let i = 0; i < 5; i++) {
-      const x = a + 6 + hs(i + 90) * (w - 12), y = GROUND + 10 + hs(i + 95) * (PIT_D - 16), an = hs(i + 99) * Math.PI;
-      ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(an) * 6, y + Math.sin(an) * 3);
-    }
-    ctx.stroke();
-    // 底の泥水：空がぼんやり映り、表面にうっすら光
-    const wx0 = a + r * 0.55, wx1 = b - r * 0.55;
-    if (wx1 > wx0 + 4) {
-      const wg = ctx.createLinearGradient(0, bot - 7, 0, bot + 6);
-      wg.addColorStop(0, '#8a7458');
-      wg.addColorStop(0.35, '#5e4a33');
-      wg.addColorStop(1, '#3a2b1b');
-      ctx.fillStyle = wg;
       ctx.beginPath();
-      ctx.moveTo(wx0, bot - 3);
-      ctx.quadraticCurveTo((wx0 + wx1) / 2, bot - 8, wx1, bot - 3);
-      ctx.lineTo(wx1, bot + 6); ctx.lineTo(wx0, bot + 6);
-      ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = 'rgba(235,225,205,.5)';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(wx0 + 6, bot - 4.5); ctx.lineTo(wx0 + 6 + (wx1 - wx0) * 0.35, bot - 5.5); ctx.stroke();
-      // あぶく
-      ctx.strokeStyle = 'rgba(200,180,150,.6)';
-      for (let i = 0; i < 3; i++) {
-        const x = wx0 + 5 + hs(i + 110) * Math.max(1, wx1 - wx0 - 10);
-        const pr = 1.5 + (Math.sin(runTime * 3 + i * 2 + seed) + 1) * 0.8;
-        ctx.beginPath(); ctx.arc(x, bot - 3, pr, Math.PI, 0); ctx.stroke();
-      }
+      ctx.ellipse(cx + (hs(i + 210) - 0.5) * (w + 40), WATER_Y + 3 + hs(i + 220) * 16, 3 + hs(i + 230) * 4, 1.6, 0, 0, Math.PI * 2);
+      ctx.fill();
     }
-    ctx.restore();
-    // 斜面をおおう、どろどろの泥の層（道の上にははみ出さない）
-    ctx.save();
-    ctx.beginPath(); ctx.rect(a - 12, GROUND + 1, w + 24, PIT_D + 20); ctx.clip();
+    // 泥をかぶって倒れた苗
+    ctx.strokeStyle = env.rice;
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < pts.length; i++) {
-      const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
-      ctx.quadraticCurveTo(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
+    for (let i = 0; i < 4; i++) {
+      const x = cx + (hs(i + 240) - 0.5) * (w + 60), y = WATER_Y + 10 + hs(i + 250) * 18;
+      const dir = hs(i + 260) > 0.5 ? 1 : -1;
+      ctx.moveTo(x, y); ctx.lineTo(x + dir * 11, y - 3);
+      ctx.moveTo(x, y); ctx.lineTo(x + dir * 9, y - 6);
     }
-    ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#3b2613';
-    ctx.lineWidth = 7;
     ctx.stroke();
-    ctx.strokeStyle = '#654428';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.restore();
-    // 縁の崩れた土くれと、しみ出した水気
-    for (const [x, dir] of [[a, -1], [b, 1]]) {
-      const lg = ctx.createLinearGradient(x + dir * 18, 0, x, 0);
+    // 水面の光
+    ctx.strokeStyle = 'rgba(235,228,210,.45)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx - w * 0.3, WATER_Y + 2); ctx.lineTo(cx + w * 0.05, WATER_Y + 2); ctx.stroke();
+
+    // 切れ目の両端：あぜが崩れてできた泥の斜面
+    for (const side of [-1, 1]) {
+      const x0 = side < 0 ? a : b;                 // 道の端
+      const x1 = x0 - side * rw;                   // 水面に着くところ
+      const g = ctx.createLinearGradient(0, GROUND, 0, WATER_Y + 4);
+      g.addColorStop(0, '#8a6440');
+      g.addColorStop(1, '#5c3f24');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(x0 + side * 3, GROUND);
+      ctx.quadraticCurveTo(x0 - side * rw * 0.2, GROUND + 1, x0 - side * rw * 0.5, GROUND + (WATER_Y - GROUND) * 0.5);
+      ctx.quadraticCurveTo(x1 + side * rw * 0.15, WATER_Y - 1, x1 - side * 4, WATER_Y + 3);
+      ctx.lineTo(x0 + side * 3, WATER_Y + 3);
+      ctx.closePath();
+      ctx.fill();
+      // 斜面の表面：どろっとした泥の層とぬめりの光
+      ctx.strokeStyle = '#4a311b';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(x0 + side * 1, GROUND + 1);
+      ctx.quadraticCurveTo(x0 - side * rw * 0.2, GROUND + 1, x0 - side * rw * 0.5, GROUND + (WATER_Y - GROUND) * 0.5);
+      ctx.quadraticCurveTo(x1 + side * rw * 0.15, WATER_Y - 1, x1 - side * 4, WATER_Y + 3);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,240,215,.45)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x0 - side * rw * 0.15, GROUND + 3);
+      ctx.quadraticCurveTo(x0 - side * rw * 0.45, GROUND + 8, x0 - side * rw * 0.6, GROUND + 13);
+      ctx.stroke();
+      // 滑った跡の筋
+      ctx.strokeStyle = 'rgba(40,24,10,.45)';
+      ctx.beginPath();
+      for (let i = 1; i <= 2; i++) {
+        const f = i / 3;
+        ctx.moveTo(x0 + side * 1 - side * f * 3, GROUND + 4 + f * 3);
+        ctx.lineTo(x0 - side * rw * (0.5 + f * 0.3), WATER_Y - 1);
+      }
+      ctx.stroke();
+      // 稲わらのくず
+      ctx.strokeStyle = '#cdb46a';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      const sx = x0 - side * rw * (0.2 + hs(side + 270) * 0.3), sy = GROUND + 6 + hs(side + 280) * 8;
+      ctx.moveTo(sx, sy); ctx.lineTo(sx + 6, sy + 2);
+      ctx.stroke();
+      // 崩れた縁の土くれ、道にしみ出した水気、垂れる泥
+      const lg = ctx.createLinearGradient(x0 + side * 18, 0, x0, 0);
       lg.addColorStop(0, 'rgba(70,45,22,0)');
-      lg.addColorStop(1, 'rgba(70,45,22,.55)');
+      lg.addColorStop(1, 'rgba(70,45,22,.5)');
       ctx.fillStyle = lg;
-      ctx.fillRect(Math.min(x, x + dir * 18), GROUND, 18, ROAD_H);
+      ctx.fillRect(Math.min(x0, x0 + side * 18), GROUND, 18, ROAD_H - 4);
       ctx.fillStyle = '#5b3d22';
       for (let i = 0; i < 3; i++) {
         ctx.beginPath();
-        ctx.ellipse(x - dir * (2 + i * 4) + dir * 1, GROUND + 2 + hs(i + 120 + dir) * 4, 2.5 + hs(i + 130) * 2, 1.8, 0, 0, Math.PI * 2);
+        ctx.ellipse(x0 + side * (2 + i * 4), GROUND + 1 + hs(i + 290 + side) * 3, 2.4 + hs(i + 300) * 1.8, 1.6, 0, 0, Math.PI * 2);
         ctx.fill();
       }
-      // 垂れる泥
       ctx.fillStyle = '#4a311b';
       ctx.beginPath();
-      ctx.ellipse(x - dir * 5, GROUND + 7 + (Math.sin(runTime * 2 + x) + 1) * 1.5, 1.6, 3, 0, 0, Math.PI * 2);
+      ctx.ellipse(x0 - side * rw * 0.4, GROUND + 12 + (Math.sin(runTime * 2 + x0) + 1) * 1.5, 1.5, 2.8, 0, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+  // 落ちた軽トラを半分沈める、手前の濁った水
+  function drawPitWater() {
+    const pit = truck.pit;
+    if (!pit) return;
+    const cx = truckX + TRUCK_W / 2;
+    ctx.save();
+    const R = 110;
+    ctx.beginPath(); ctx.rect(cx - R - 4, WATER_Y, 2 * R + 8, 80); ctx.clip();
+    ctx.translate(cx, WATER_Y);
+    ctx.scale(1, 0.45);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
+    g.addColorStop(0, 'rgba(84,60,36,.9)');
+    g.addColorStop(0.6, 'rgba(96,72,44,.75)');
+    g.addColorStop(1, 'rgba(100,78,50,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(235,225,205,.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx - 52, WATER_Y + 1); ctx.lineTo(cx + 40, WATER_Y + 1); ctx.stroke();
   }
 
   function drawRoad() {
@@ -2012,7 +1993,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
   function drawRipples() {
     const t = truck.fallT - truck.splashT;
-    const x = truckX + TRUCK_W / 2, y = GROUND + PIT_D - 4;
+    const x = truckX + TRUCK_W / 2, y = WATER_Y + 1;
     ctx.lineWidth = 1.2;
     for (let i = 0; i < 3; i++) {
       const k = t * 1.2 - i * 0.25;
@@ -2262,8 +2243,9 @@ canvas { display: block; width: 100%; height: 100%; }
     drawMarkers();
     drawHazards();
     drawGhost();
-    if (truck.falling && truck.splashed) drawRipples();
     drawTruck(mainTruckSpec());
+    if (truck.falling && truck.y > WATER_Y) drawPitWater();
+    if (truck.falling && truck.splashed) drawRipples();
     drawBoars();
     drawParts();
     drawNight();
