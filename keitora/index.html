@@ -173,6 +173,7 @@ canvas { display: block; width: 100%; height: 100%; }
 /* モード選択 */
 .modes { display: flex; gap: 1.8cqw; flex-wrap: wrap; }
 .start-row { display: flex; align-items: center; gap: 2.4cqw; flex-wrap: wrap; }
+.btn.small { font-size: clamp(13px, 2.1cqw, 20px); padding: .36em 1.1em; }
 .best-chip { font-size: clamp(11px, 1.8cqw, 16px); color: var(--muted); font-variant-numeric: tabular-nums; }
 .best-chip b { color: var(--accent); font-weight: normal; }
 .howto { margin: 0; font-size: clamp(10px, 1.5cqw, 14px); color: var(--muted); }
@@ -254,6 +255,55 @@ canvas { display: block; width: 100%; height: 100%; }
 .btn-row { display: flex; gap: 2cqw; flex-wrap: wrap; justify-content: center; margin-top: .6cqh; }
 .card .btn { font-size: clamp(15px, min(2.7cqw, 5.4cqh), 26px); }
 .kbd-hint { margin: 0; font-size: clamp(9px, 1.35cqw, 12px); color: var(--muted); }
+
+/* みんなのランキング */
+#board { z-index: 3; background: rgba(27, 34, 22, .82); }
+.board-card { gap: 1cqh; padding: 3cqh 4cqw 2.6cqh; width: min(560px, 88cqw); }
+.board-card .reason { font-size: clamp(16px, min(3.2cqw, 6.4cqh), 34px); }
+.rk-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 0 1 auto;
+  font-variant-numeric: tabular-nums;
+}
+.rk-list li {
+  display: grid;
+  grid-template-columns: 2.4em minmax(0, 1fr) auto auto;
+  gap: 0 1em;
+  align-items: baseline;
+  padding: .22em .6em;
+  font-size: clamp(11px, min(1.9cqw, 3.8cqh), 18px);
+  color: var(--ink);
+  text-align: left;
+  border-radius: 6px;
+}
+.rk-list li:nth-child(odd) { background: rgba(246, 239, 217, .05); }
+.rk-list li.me { background: rgba(242, 179, 61, .18); box-shadow: inset 0 0 0 1px var(--accent); }
+.rk-list li.empty { display: block; text-align: center; color: var(--muted); }
+.rk-no { color: var(--muted); }
+.rk-list li:nth-child(-n+3) .rk-no { color: var(--accent); }
+.rk-nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-sc { color: var(--accent); }
+.rk-m { color: var(--muted); font-size: .85em; }
+.rk-form { display: flex; align-items: center; gap: 1.2cqw; flex-wrap: wrap; justify-content: center; }
+.rk-form label { font-size: clamp(11px, 1.7cqw, 15px); color: var(--muted); }
+.rk-form input {
+  font: inherit;
+  font-size: clamp(13px, min(2cqw, 4cqh), 18px);
+  width: 11em;
+  color: var(--ink);
+  background: rgba(0, 0, 0, .25);
+  border: 1px solid var(--panel-edge);
+  border-radius: 8px;
+  padding: .3em .6em;
+}
+.rk-form input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rk-form .btn { font-size: clamp(13px, min(2cqw, 4cqh), 18px); padding: .3em 1.1em; }
+.rk-over { margin: 0; font-size: clamp(12px, min(2cqw, 4cqh), 18px); color: var(--accent); }
 
 /* 縦持ちのとき：ゲームの下を親指で押すパッドにする */
 .pad {
@@ -341,6 +391,7 @@ canvas { display: block; width: 100%; height: 100%; }
         </ul>
         <div class="start-row">
           <button class="btn" id="startBtn" type="button">出発</button>
+          <button class="btn ghost small" id="rankBtn" type="button" hidden>ランキング</button>
           <span class="best-chip" id="bestEndless">記録なし</span>
         </div>
         <p class="howto"><span class="touch-only">画面をタップで</span><span class="kbd-only">クリック か <kbd>Space</kbd> で</span>ジャンプ。長押しで高く、空中でもう一度で2段ジャンプ</p>
@@ -355,9 +406,11 @@ canvas { display: block; width: 100%; height: 100%; }
         <p class="result" id="result">0<small>m</small></p>
         <p class="rank" id="rankLine">称号 <b id="rankName">見習い運転手</b></p>
         <p class="sub" id="bestLine"></p>
+        <p class="rk-over" id="rkOver" hidden></p>
         <dl class="stats" id="stats"></dl>
         <div class="btn-row">
           <button class="btn" id="retryBtn" type="button">もう一回</button>
+          <button class="btn ghost" id="rankBtn2" type="button" hidden>ランキング</button>
           <button class="btn ghost" id="toTitleBtn" type="button">タイトル</button>
         </div>
         <p class="kbd-hint kbd-only">Space でもう一回 ／ Esc でタイトル</p>
@@ -373,6 +426,21 @@ canvas { display: block; width: 100%; height: 100%; }
           <button class="btn ghost" id="quitBtn" type="button">やめる</button>
         </div>
         <p class="kbd-hint kbd-only">P か Esc でも再開</p>
+      </div>
+    </div>
+
+    <div class="overlay dim" id="board" hidden>
+      <div class="card board-card">
+        <p class="reason win">みんなのランキング</p>
+        <ol class="rk-list" id="rkList"></ol>
+        <p class="sub" id="rkMine"></p>
+        <form class="rk-form" id="rkForm" hidden>
+          <label for="rkName">名前</label>
+          <input id="rkName" type="text" maxlength="12" autocomplete="nickname" placeholder="ニックネーム" enterkeyhint="done">
+          <button class="btn" type="submit">登録</button>
+        </form>
+        <p class="kbd-hint" id="rkNote"></p>
+        <button class="btn ghost" id="boardClose" type="button">閉じる</button>
       </div>
     </div>
   </div>
@@ -411,7 +479,7 @@ canvas { display: block; width: 100%; height: 100%; }
   const app = $('app'), stage = $('stage'), cv = $('cv');
   const mainCtx = cv.getContext('2d');
   let ctx = mainCtx;
-  const titleEl = $('title'), overEl = $('over'), pauseEl = $('pause');
+  const titleEl = $('title'), overEl = $('over'), pauseEl = $('pause'), boardEl = $('board');
   const soundBtn = $('soundBtn'), pauseBtn = $('pauseBtn');
   const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -882,7 +950,7 @@ canvas { display: block; width: 100%; height: 100%; }
   // ---- 入力 ----
   function press() {
     initAudio();
-    if (paused) return;
+    if (paused || !boardEl.hidden) return;
     if (state === 'play') { jumpBuf = 0.12; holding = true; }
     else if (state === 'title') start();
     else if (state === 'over' && dieT > 0.7) start();
@@ -894,7 +962,7 @@ canvas { display: block; width: 100%; height: 100%; }
   app.addEventListener('pointerdown', e => {
     if (e.target.closest('button')) return;
     if (state === 'over' && e.target.closest('.card')) return;
-    if (paused) return;
+    if (paused || !boardEl.hidden) return;
     e.preventDefault();
     if (state === 'play') $('pad').classList.add('on');
     press();
@@ -904,6 +972,10 @@ canvas { display: block; width: 100%; height: 100%; }
   window.addEventListener('pointercancel', up);
   const JUMP_KEYS = ['Space', 'ArrowUp', 'KeyW'];
   window.addEventListener('keydown', e => {
+    if (!boardEl.hidden) {
+      if (e.code === 'Escape') { e.preventDefault(); closeBoard(); }
+      return;   // 名前の入力中はジャンプにしない
+    }
     if (e.code === 'KeyP' || e.code === 'Escape') {
       if (state === 'play') { e.preventDefault(); setPaused(!paused); }
       else if (state === 'over' && e.code === 'Escape') toTitle();
@@ -950,6 +1022,7 @@ canvas { display: block; width: 100%; height: 100%; }
     renderPad();
   }
   function toTitle() {
+    closeBoard(true);
     reset();
     state = 'title';
     overEl.hidden = true;
@@ -1017,7 +1090,7 @@ canvas { display: block; width: 100%; height: 100%; }
         // エンドレスは「運んだトマト × 距離」の合計が配達スコア
         const prev = bestScore;
         rec = score > bestScore;
-        if (rec) { bestScore = score; store.set('keitora-best-score', bestScore); }
+        if (rec) { bestScore = score; store.set('keitora-best-score', bestScore); store.set('keitora-best-score-m', m); }
         if (m > best) { best = m; store.set('keitora-best', best); }
         $('result').innerHTML = `${fmtM(score)}<small>点</small>`;
         $('rankLine').hidden = false;
@@ -1028,6 +1101,9 @@ canvas { display: block; width: 100%; height: 100%; }
       }
     }
     $('newrec').hidden = !rec;
+    rk.lastRun = score;
+    renderOverRank();
+    if (rec) submitBest();
     overEl.hidden = false;
     renderPad();
     focusIfKeyboard($('retryBtn'));
@@ -2819,6 +2895,150 @@ canvas { display: block; width: 100%; height: 100%; }
     };
   }
 
+  // ---- みんなのランキング（共有の db に自己ベストを載せる。使えない場所ではボタンごと隠れる） ----
+  const RK_TOP = 10, RK_WINDOW = 50;
+  const rk = { db: null, id: null, write: false, rows: [], mine: null, name: store.get('keitora-name', ''), busy: false, lastRun: 0, from: null };
+  // 他の人が書いた行はそのまま信じない（数値と長さを整える）
+  const cleanRow = d => ({
+    name: String((d && d.name) || '').slice(0, 12),
+    score: Math.max(0, Math.floor(Number(d && d.score) || 0)),
+    m: Math.max(0, Math.floor(Number(d && d.m) || 0)),
+    at: Number(d && d.at) || 0,
+  });
+  const myRank = () => rk.id ? rk.rows.findIndex(r => r.id === rk.id) + 1 : 0;
+  async function initRanking() {
+    const c = window.claude;
+    if (!c || typeof c.use !== 'function') return;
+    let db = null, user = null;
+    try { [db, user] = await Promise.all([c.use('db'), c.use('user')]); } catch (e) { return; }
+    if (!db) return;
+    rk.db = db;
+    if (user) {
+      try {
+        rk.id = await user.id();
+        const can = await user.can('data.write');
+        rk.write = !!rk.id && can !== false;   // null（不明）は書いてみて断られたら閲覧のみにする
+      } catch (e) {}
+    }
+    $('rankBtn').hidden = false;
+    $('rankBtn2').hidden = false;
+    db.collection('scores').orderBy('score', 'desc').limit(RK_WINDOW).onSnapshot(snap => {
+      rk.rows = snap.docs.map(d => ({ id: d.id, ...cleanRow(d.data()) })).filter(r => r.score > 0);
+      const me = rk.rows.find(r => r.id === rk.id);
+      if (me) rk.mine = me;
+      renderBoard();
+      renderOverRank();
+    }, () => { rk.rows = []; renderBoard(); });
+    if (rk.id) {
+      try {
+        const s = await db.doc('scores/' + rk.id).get();
+        if (s.exists) rk.mine = { id: rk.id, ...cleanRow(s.data()) };
+      } catch (e) {}
+    }
+    renderBoard();
+    renderOverRank();
+    submitBest();   // ランキングができる前の自己ベストも載せる
+  }
+  // 自己ベストが載っている記録より良ければ（または名前を変えたら）書き込む
+  async function submitBest() {
+    if (!rk.db || !rk.write || !rk.name || rk.busy || bestScore <= 0) return;
+    const mine = rk.mine;
+    const better = !mine || bestScore > mine.score;
+    if (!better && mine.name === rk.name) return;
+    const body = better
+      ? { name: rk.name, score: bestScore, m: Number(store.get('keitora-best-score-m', 0)) || 0, at: Date.now() }
+      : { name: rk.name, score: mine.score, m: mine.m, at: mine.at };
+    rk.busy = true;
+    try {
+      await rk.db.doc('scores/' + rk.id).set(body);
+      rk.mine = { id: rk.id, ...body };
+    } catch (e) {
+      const code = e && e.code;
+      if (code === 'unavailable') setTimeout(() => submitBest(), 1500 + Math.random() * 1500);
+      else if (code !== 'resource_exhausted') rk.write = false;   // 登録できない人：見るだけにする
+      rk.err = code || 'unknown';
+    }
+    rk.busy = false;
+    renderBoard();
+    renderOverRank();
+  }
+  function renderOverRank() {
+    const el = $('rkOver');
+    if (!rk.db) { el.hidden = true; return; }
+    const i = myRank();
+    let t = '';
+    if (rk.mine && i > 0) t = `みんなのランキング ${i} 位` + (rk.lastRun >= rk.mine.score && rk.lastRun > 0 ? '　この記録で登録!' : '');
+    else if (rk.mine) t = `みんなのランキング ${RK_WINDOW} 位圏外`;
+    else if (rk.write && !rk.name && bestScore > 0) t = 'ランキングに名前を載せよう';
+    el.textContent = t;
+    el.hidden = !t;
+  }
+  function renderBoard() {
+    const list = $('rkList');
+    list.textContent = '';
+    const top = rk.rows.slice(0, RK_TOP);
+    if (!top.length) {
+      const li = document.createElement('li');
+      li.className = 'empty';
+      li.textContent = 'まだ誰も載っていません。一番乗りしよう!';
+      list.appendChild(li);
+    }
+    top.forEach((r, i) => {
+      const li = document.createElement('li');
+      if (r.id === rk.id) li.className = 'me';
+      const cells = [[`${i + 1}位`, 'rk-no'], [r.name || '名無しの運転手', 'rk-nm'], [`${fmtM(r.score)} 点`, 'rk-sc'], [r.m ? `${fmtM(r.m)} m` : '', 'rk-m']];
+      for (const [text, cls] of cells) {
+        const sp = document.createElement('span');
+        sp.className = cls;
+        sp.textContent = text;
+        li.appendChild(sp);
+      }
+      list.appendChild(li);
+    });
+    const i = myRank();
+    let mine = '';
+    if (rk.mine) mine = i > RK_TOP ? `あなた：${i} 位（${fmtM(rk.mine.score)} 点）` : i > 0 ? '' : `あなた：${fmtM(rk.mine.score)} 点（${RK_WINDOW} 位圏外）`;
+    else if (rk.write) mine = bestScore > 0 ? `名前を入れると自己ベスト ${fmtM(bestScore)} 点が載ります` : '走って記録を作ったら名前を入れよう';
+    $('rkMine').textContent = mine;
+    $('rkMine').hidden = !mine;
+    $('rkForm').hidden = !rk.write;
+    const input = $('rkName');
+    if (document.activeElement !== input) input.value = rk.name;
+    $('rkNote').textContent = rk.write ? '名前はみんなに見えます。本名は入れないでね'
+      : '見ることはできますが、登録できるのは招待されたメンバーだけです';
+  }
+  function openBoard() {
+    if (!rk.db) return;
+    rk.from = document.activeElement;
+    renderBoard();
+    boardEl.hidden = false;
+    sfx('ui');
+    if (rk.write && !rk.name) $('rkName').focus();
+    else focusIfKeyboard($('boardClose'));
+  }
+  function closeBoard(quiet) {
+    if (boardEl.hidden) return;
+    boardEl.hidden = true;
+    $('rkName').blur();
+    if (!quiet && rk.from && rk.from.focus) focusIfKeyboard(rk.from);
+  }
+  $('rankBtn').addEventListener('click', openBoard);
+  $('rankBtn2').addEventListener('click', openBoard);
+  $('boardClose').addEventListener('click', () => closeBoard());
+  $('rkForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = $('rkName').value.replace(/\s+/g, ' ').trim().slice(0, 12);
+    if (!name) { $('rkName').focus(); return; }
+    rk.name = name;
+    store.set('keitora-name', name);
+    $('rkName').blur();
+    sfx('ui');
+    submitBest();
+    renderBoard();
+  });
+  // 下のゲーム画面に押下を渡さない（タイトルで出発してしまうので）
+  boardEl.addEventListener('pointerdown', e => { e.stopPropagation(); if (e.target === boardEl) closeBoard(); });
+
   // ---- ページが新しい版に差し替わっても、走っている途中から続けられるようにする ----
   function snapshotRun() {
     if (state !== 'play' || truck.falling || truck.dead) return {};
@@ -2857,6 +3077,7 @@ canvas { display: block; width: 100%; height: 100%; }
   if (hot && hot.ready) hot.ready(boot); else boot(hot && hot.data);
   resize();
   renderTitleBest();
+  initRanking();
   drawIcons();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(drawIcons);
   requestAnimationFrame(frame);
