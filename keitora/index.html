@@ -359,7 +359,7 @@ canvas { display: block; width: 100%; height: 100%; }
             <span class="mode-best" id="bestTa">記録なし</span>
           </button>
         </div>
-        <p class="howto"><span class="touch-only">画面をタップで</span><span class="kbd-only">クリック か <kbd>Space</kbd> で</span>ジャンプ。長押しで高く跳ぶ</p>
+        <p class="howto"><span class="touch-only">画面をタップで</span><span class="kbd-only">クリック か <kbd>Space</kbd> で</span>ジャンプ。長押しで高く、空中でもう一度で2段ジャンプ</p>
       </div>
     </div>
 
@@ -411,6 +411,7 @@ canvas { display: block; width: 100%; height: 100%; }
   const GRAV = 2300;
   const JUMP_V = 780;
   const AIR = 2 * JUMP_V / GRAV; // 目いっぱい跳んだときの滞空時間
+  const AIR2 = 0.95;             // 2段ジャンプを使ったときの、無理のない滞空時間
   const TRUCK_X = 140;           // 画面上の軽トラの左端
   const TRUCK_W = 96;
   const TRUCK_FRONT = TRUCK_X + TRUCK_W;
@@ -437,13 +438,13 @@ canvas { display: block; width: 100%; height: 100%; }
     set(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} },
   };
   let best = Number(store.get('keitora-best', 0)) || 0;               // エンドレスの最長距離（m）
-  let bestTime = Number(store.get('keitora-best-time-2', 0)) || 0;      // タイムアタックの最速（秒）
+  let bestTime = Number(store.get('keitora-best-time-3', 0)) || 0;      // タイムアタックの最速（秒）
   let soundOn = store.get('keitora-sound', '1') === '1';
   let mode = store.get('keitora-mode', 'endless') === 'ta' ? 'ta' : 'endless';
   let bestScore = Number(store.get('keitora-best-score', 0)) || 0;    // エンドレスの配達スコア
   function loadGhost() {
     try {
-      const g = JSON.parse(store.get('keitora-ghost-2', 'null'));
+      const g = JSON.parse(store.get('keitora-ghost-3', 'null'));
       return g && g.seed === TA_SEED && Array.isArray(g.f) && g.f.length >= 6 ? g : null;
     } catch (e) { return null; }
   }
@@ -489,6 +490,7 @@ canvas { display: block; width: 100%; height: 100%; }
     if (!ac || !soundOn) return;
     try {
       if (k === 'jump') tone('square', 260, 620, 0.14, 0.07);
+      else if (k === 'jump2') { tone('square', 520, 1100, 0.12, 0.06); tone('triangle', 780, 1400, 0.1, 0.04, 0.04); }
       else if (k === 'bump') tone('square', 140, 90, 0.06, 0.04);
       else if (k === 'clunk') { tone('square', 120, 60, 0.18, 0.09); noise(0.12, 0.15, 600); }
       else if (k === 'slip') { tone('sawtooth', 600, 140, 0.35, 0.05); noise(0.25, 0.12, 2500); }
@@ -522,7 +524,7 @@ canvas { display: block; width: 100%; height: 100%; }
   // ---- 画面サイズ ----
   let VH = H;      // 表示する論理的な高さ（H 以上）
   let isPortrait = false;
-  const PAD_TEXT = { play: ['タップでジャンプ', '長押しで高く跳ぶ'], over: ['タップでもう一回', ''] };
+  const PAD_TEXT = { play: ['タップでジャンプ', '空中でもう一度タップで2段ジャンプ'], over: ['タップでもう一回', ''] };
   function renderPad() {
     const pad = $('pad');
     pad.hidden = !isPortrait;
@@ -595,7 +597,7 @@ canvas { display: block; width: 100%; height: 100%; }
   function reset() {
     cam = 0; speed = 250; vel = 250; runTime = 0;
     truck = { y: GROUND, vy: 0, grounded: true, falling: false, dead: false, coyote: 0, bumpT: 0, jumped: false,
-      angle: 0, fallV: 0, fallT: 0, squash: 0, dent: 0, flat: false, spilled: false, pit: null };
+      angle: 0, fallV: 0, fallT: 0, squash: 0, dent: 0, flat: false, spilled: false, pit: null, airJumps: 0 };
     obs = []; parts = []; popups = [];
     nextX = 900;
     slip = 0; shake = 0; flash = 0; jumpBuf = 0; holding = false; dieT = 0; wheelA = 0;
@@ -640,7 +642,9 @@ canvas { display: block; width: 100%; height: 100%; }
         : pick([['gap', 40], ['puddle', 20], ['bump', m > 150 ? 16 : 8], ['boar', m > 200 ? 18 : 0]]);
       if (type === 'gap') {
         // 減速していても跳べるよう、少し控えめの速度で幅を決める
-        const w = Math.max(72, sp * 0.92 * (AIR - jumpWindow(m)) * rr(0.7, 1));
+        // 500 m を過ぎると、ときどき2段ジャンプ前提の広い穴が混ざる（距離が伸びるほど増える）
+        const wide = m > 500 && rng() < Math.min(0.35, (m - 500) / 1500);
+        const w = Math.max(72, sp * 0.92 * ((wide ? AIR2 : AIR) - jumpWindow(m)) * (wide ? rr(0.85, 1) : rr(0.7, 1)));
         if (nextX + w > limit) break;
         obs.push({ t: 'gap', x: nextX, w });
         nextX += w + spacing();
@@ -853,9 +857,9 @@ canvas { display: block; width: 100%; height: 100%; }
       rec = prev === 0 || goalTime < prev;
       if (rec) {
         bestTime = goalTime;
-        store.set('keitora-best-time-2', bestTime.toFixed(3));
+        store.set('keitora-best-time-3', bestTime.toFixed(3));
         ghost = { seed: TA_SEED, dt: GHOST_DT, t: goalTime, f: ghostRec };
-        store.set('keitora-ghost-2', JSON.stringify(ghost));
+        store.set('keitora-ghost-3', JSON.stringify(ghost));
       }
       reasonEl.textContent = 'ゴール!';
       reasonEl.classList.add('win');
@@ -982,6 +986,21 @@ canvas { display: block; width: 100%; height: 100%; }
       stats.jumps++;
       sfx('jump');
       emit(6, cam + TRUCK_X + 16, GROUND, { vx: [-160, -40], vy: [-160, -40], life: [0.3, 0.6], r: [3, 6], col: '#b89468' });
+    } else if (state === 'play' && jumpBuf > 0 && !truck.grounded && truck.airJumps < 1 && slip <= 0) {
+      // 2段ジャンプ：空中でもう一度だけ跳べる（1回目より少し弱い）
+      truck.vy = -JUMP_V * 0.82;
+      truck.airJumps = 1;
+      truck.jumped = true;
+      truck.squash = 0.6;
+      jumpBuf = 0;
+      stats.jumps++;
+      sfx('jump2');
+      // 空気を蹴った輪
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        emit(1, cam + TRUCK_X + TRUCK_W / 2 + Math.cos(a) * 20, truck.y + 2 + Math.sin(a) * 5,
+          { vx: [Math.cos(a) * 170, Math.cos(a) * 170], vy: [Math.sin(a) * 40, Math.sin(a) * 40], life: [0.25, 0.35], r: [2, 3], col: 'rgba(255,255,255,.85)', g: 0 });
+      }
     }
 
     truck.squash = Math.max(0, truck.squash - dt * 5);
@@ -1009,7 +1028,7 @@ canvas { display: block; width: 100%; height: 100%; }
           emit(8, cam + TRUCK_X + 20, GROUND, { vx: [-200, 40], vy: [-120, -20], life: [0.3, 0.6], r: [3, 6], col: '#b89468' });
         }
         truck.y = GROUND; truck.vy = 0;
-        truck.grounded = true; truck.jumped = false;
+        truck.grounded = true; truck.jumped = false; truck.airJumps = 0;
         truck.coyote = 0.09;
       } else {
         truck.grounded = false;
@@ -2084,6 +2103,9 @@ canvas { display: block; width: 100%; height: 100%; }
     if (state === 'title' || state === 'over') return;
     const m = meters();
     const t = state === 'goal' ? goalTime : runTime;
+    // 2段ジャンプで軽トラが左上の表示に重なるときは、表示を薄くして軽トラを見せる
+    const truckTop = truck.y + (VH - H) - 70;
+    ctx.globalAlpha = clamp((truckTop - 55) / 70, 0.25, 1);
     if (mode === 'ta') {
       label(fmtTime(t), 22, 56, '44px ' + FONT, '#fffbea', 'left', 'rgba(27,34,22,.85)', 7);
       let sub, col = '#fffbea';
@@ -2109,6 +2131,7 @@ canvas { display: block; width: 100%; height: 100%; }
       label(sub + '  ' + fmtTime(t), 24, 82, '15px ' + FONT, subCol, 'left', 'rgba(27,34,22,.85)', 4);
     }
     drawTires();
+    ctx.globalAlpha = 1;
     drawSpeedo();
 
     if (banner) {
