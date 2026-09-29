@@ -37,7 +37,7 @@ import { MUSHI5, mushiSketch, type MushiKind } from '../../art/props/hoshi_mushi
 
 // ---- ② 『むし』: 捕まえない自由研究 (50_ch2_story 10.21, 52_ch2_level_art 13.2, 02_ch2_index #64) ----
 
-/** The fourth section of ②, once カネナリくん has talked しゅん into it (flag_ch2_mushi). */
+/** The fourth section of ②, once グソっ君 has talked しゅん into it (flag_ch2_mushi). */
 const MUSHI_SEC = 3;
 const MUSHI_TAB = 'むし';
 
@@ -109,7 +109,7 @@ export const FUSHIGI_BOOK: [string, string, string][] = [
   ['名前の ない 回転焼き', 'ユウナリ フードコート', '回転焼き機は ようやく 止まった。'],
 ];
 
-/** The seven 「あいて」 (カネナリくんとオムカエマチは数えない). */
+/** The seven 「あいて」 (グソっ君（加入戦の enemy_kanenari）とオムカエマチは数えない). */
 export const BOOK_ENEMIES = [
   'enemy_hato_kakaricho',
   'enemy_semi_final',

@@ -299,7 +299,7 @@ function* strikeOnce(
   const hitRate = u.stages.hit.lv <= -1 ? 0.8 : 1;
   const e = target;
   anim(res.frame, res.frame, 'post');
-  // special: カネナリくん (event) — fan service
+  // special: グソっ君 (event) — fan service
   if (e.def.invulnerable) {
     fanService(s, e);
     return { killed: false, hit: true, boke: false };
@@ -558,7 +558,7 @@ export function* doAttack(s: BattleScene, u: PartyUnit, target0: EnemyUnit): Co 
   if (target && bokeUsed) consumeBokemake(target, true);
   if (killed && target) {
     // 16.8: the finishing hit goes straight into 思いだす (its 14f hitstop
-    // overrides the hit's); the net / Kanenari-kun leave in parallel
+    // overrides the hit's); the net / グソっ君 leave in parallel
     const b0 = { x: back.x, y: back.y };
     s.addFx({
       layer: 'top',
@@ -1538,7 +1538,7 @@ export function* doItem(s: BattleScene, u: PartyUnit, itemId: string, target0: P
       const wasDown = !d.alive;
       if (def.heal) healParty(s, d, def.heal);
       if (def.healRate) healParty(s, d, d.m.maxHp * def.healRate);
-      // 朱肉 only goes into Minato (梅干し given to Kanenari-kun: just sour)
+      // 朱肉 only goes into Minato (梅干し given to グソっ君: just sour)
       if (def.mp && d.m.maxMp > 0) healParty(s, d, def.mp, { mp: true });
       if (def.cure) for (const c of def.cure) if (d.has(c)) cureStatus(s, d, c);
       if (def.special === 'shippu')
@@ -1692,7 +1692,7 @@ export function* doFlee(s: BattleScene, u: PartyUnit): Co<boolean> {
 // ---- ノリツッコミ (16.10) -------------------------------------------------------------------
 
 /**
- * Where Kanenari-kun performs: the x in 244–350 farthest from every standing
+ * Where グソっ君 performs: the x in 244–350 farthest from every standing
  * enemy (the dimmed audience). When even that is crowded (three enemies) he
  * stands 8px in front at 85% so he reads as the one on stage.
  */
@@ -1755,7 +1755,7 @@ export function* doNori(s: BattleScene): Co {
     dur: 0,
     draw: (g) => g.rect(0, 0, 384, 216, '#0B0B14', dark.a),
     update() {
-      // the enemies stay dimmed while Kanenari-kun performs (he is the stage)
+      // the enemies stay dimmed while グソっ君 performs (he is the stage)
       if (dark.off) dark.a = Math.max(0, dark.a - 0.1);
       else dark.a = this.t < 150 ? 0.5 * (this.t / 150) : 0.5;
     },
@@ -1790,7 +1790,7 @@ export function* doNori(s: BattleScene): Co {
   });
   duckMusic(0.25, first ? 2.6 : 1.5);
   yield 200;
-  // 350–1350 (or a 400ms cut): the boke. Kanenari-kun slides in from the
+  // 350–1350 (or a 400ms cut): the boke. グソっ君 slides in from the
   // right into a warm spotlight (placed in the widest gap between the dimmed
   // enemies; in front and a little smaller when the stage is full), hops once,
   // hits his landing pose for 2 frames, then performs.
@@ -1909,7 +1909,8 @@ export function* doNori(s: BattleScene): Co {
       kf.t0 = bokeFx.t;
       // 40_audio 13.3: each boke has its own sound (cut by the tsukkomi)
       if (nori.pose === 'sing') singLoop = sfxLoop('se_nori_sing');
-      else if (nori.pose === 'flag') s.sfx('se_nori_flag');
+      // ボケB: the claps are heard on the claps (below; the banner's flap is gone)
+      else if (nori.pose === 'flag') s.sfx('se_hit_pashi', { vol: 0.4, pitch: 1.35 });
       else if (nori.pose === 'kakashi') {
         // the straw drops on him with a whump; arms out like the crossbar, on one leg
         s.sfx('se_umbrella_open', { pitch: 0.7 });
@@ -1935,7 +1936,11 @@ export function* doNori(s: BattleScene): Co {
       if (nori.pose === 'flag') {
         // a puff of dust at his feet on every swing
         const f = Math.floor(pt / 110) % 4;
-        if (f !== lastFlag && (f === 0 || f === 2)) s.burst(kf.x + (f ? 10 : -10), spot.foot, { count: 2, speed: [15, 35], angle: [-Math.PI * 0.9, -Math.PI * 0.1], life: [200, 300], colors: ['#F7C27A', '#FFE7A3'], shape: 'sq', size: [1, 2] });
+        if (f !== lastFlag && (f === 0 || f === 2)) {
+          s.burst(kf.x + (f ? 10 : -10), spot.foot, { count: 2, speed: [15, 35], angle: [-Math.PI * 0.9, -Math.PI * 0.1], life: [200, 300], colors: ['#F7C27A', '#FFE7A3'], shape: 'sq', size: [1, 2] });
+          // パチパチ: every little leg together
+          s.sfx('se_hit_pashi', { vol: 0.35, pitch: 1.25 + rng.range(0, 0.25) });
+        }
         lastFlag = f;
       }
     }

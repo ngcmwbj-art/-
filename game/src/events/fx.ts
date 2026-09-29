@@ -125,7 +125,7 @@ export function ring(x: number, y: number, color = '#FFE7A3', dur = 500): void {
   sparks.push({ x, y, t: 0, kind: 'ring', color, dur });
 }
 
-/** A golden bloom (the bell of カネナリくん): additive, peaks at mid-time. */
+/** A golden bloom (the bell of グソっ君): additive, peaks at mid-time. */
 export function bellGlow(x: number, y: number, dur = 600): void {
   sparks.push({ x, y, t: 0, kind: 'glow', color: '#FFD23F', dur });
 }

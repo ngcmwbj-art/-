@@ -1,5 +1,6 @@
 // Tsukkomi (the defensive input, 10.3 / 16.6): frame windows, line choice,
-// the inner-voice lettering sweeping across the screen, the flip board.
+// the inner-voice lettering sweeping across the screen. (グソっ君's own
+// tsukkomi, when しゅん can't, is a balloon: battle/gusokkun.ts.)
 
 import { flag, setFlag } from '../game/state';
 import { rng } from '../engine/rng';
@@ -8,7 +9,7 @@ import type { BattleScene } from './scene';
 import { STAGE_TOP } from './scene';
 import type { EnemyUnit, PartyUnit } from './model';
 import { kakimoji, roundSeal } from './art/stamps';
-import { bangBubble, flipBoardText } from './art/fxart';
+import { bangBubble } from './art/fxart';
 import { PANEL_POS } from './ui/panels';
 import { LABEL, TUT } from '../data/battle';
 import { C } from './ui/note';
@@ -47,7 +48,7 @@ export function timingSlow(): number {
   return flag('flag_opt_tsukkomi_wide') ? 1.8 : 1.5;
 }
 
-/** Who performs the tsukkomi right now (Minato; Kanenari-kun's flip when Minato can't). */
+/** Who performs the tsukkomi right now (Minato; グソっ君 — 「なんでやねん！」 — when Minato can't). */
 export function tsukkomiUnit(s: BattleScene): PartyUnit | null {
   const m = s.minato;
   const ok = (u: PartyUnit | undefined) => !!u && u.alive && !u.has('status_nemuri') && !u.has('status_rusu');
@@ -285,40 +286,6 @@ export function showKakimoji(s: BattleScene, text: string, just: boolean): numbe
     });
   }
   return T3;
-}
-
-/**
- * Kanenari-kun's flip tsukkomi: the board jumps up from the bottom centre and
- * stays long enough to read (1.2 s + 80ms a char past 6; was 0.7 s).
- */
-export function showFlip(s: BattleScene, text: string, ms = 1200 + Math.max(0, [...text].length - 6) * 80): number {
-  const wrapped = wrapFlip(`（${text}）`);
-  const img = flipBoardText(wrapped);
-  s.sfx('se_flip');
-  s.addFx({
-    layer: 'top',
-    dur: ms,
-    ui: true,
-    draw: (g, t) => {
-      const up = t < 120 ? ease.backOut(t / 120) : 1;
-      const a = t > ms - 140 ? Math.max(0, (ms - t) / 140) : 1;
-      const x = Math.round(192 - img.width / 2);
-      const y = Math.round(216 - (216 - 60) * up);
-      g.alpha(a, () => g.img(img, x, y));
-    },
-  });
-  return ms;
-}
-
-function wrapFlip(t: string): string {
-  const chars = [...t];
-  if (chars.length <= 9) return t;
-  // break at a space near the middle
-  const mid = Math.floor(chars.length / 2);
-  let best = -1;
-  for (let i = 0; i < chars.length; i++) if (chars[i] === ' ' && (best < 0 || Math.abs(i - mid) < Math.abs(best - mid))) best = i;
-  if (best < 0) best = mid;
-  return chars.slice(0, best).join('') + '\n' + chars.slice(best).join('').trim();
 }
 
 /**

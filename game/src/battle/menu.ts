@@ -97,7 +97,7 @@ function noriAvailable(s: BattleScene): boolean {
 /** Collect this round's commands. */
 export function* inputCommands(s: BattleScene): Co<PartyCmd[]> {
   if (s.cmdQueue.length) return queuedCommands(s);
-  // (in the park's lesson Kanenari-kun is the teacher: only しゅん chooses)
+  // (in the park's lesson グソっ君 is the teacher: only しゅん chooses)
   const actors = s.party.filter((u) => u.canAct && !(s.memo.bossFinal && u.id === 'kanenari') && !(s.lesson && u.id !== 'minato'));
   const cmds: PartyCmd[] = [];
   const chosen: (PartyCmd | null)[] = actors.map(() => null);
@@ -161,7 +161,7 @@ function queuedCommands(s: BattleScene): PartyCmd[] {
   const q = s.cmdQueue;
   s.cmdQueue = [];
   if (s.memo.bossFinal) {
-    // the finale: Minato's one command is the last hanko, Kanenari-kun waits
+    // the finale: Minato's one command is the last hanko, グソっ君 waits
     const u = s.minato;
     const e = s.aliveEnemies.find((x) => x.def.boss);
     if (!u || !e) return [];

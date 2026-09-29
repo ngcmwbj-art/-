@@ -41,7 +41,7 @@ function phaseMul(s: BattleScene): number {
 
 /**
  * Boss wipes this session (QA round 3: a retry after a wipe is short — the
- * rise and the opening line are cut, Kanenari-kun's flip says what beat
+ * rise and the opening line are cut, グソっ君's line says what beat
  * them, and at the 3rd chime the cursor waits on まもる).
  */
 export const bossTries = { lost: 0 };

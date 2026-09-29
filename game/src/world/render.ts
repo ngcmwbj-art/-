@@ -386,7 +386,7 @@ export class Renderer {
       // [chars hook, QA round 2] the follower walking right behind Minato
       // (he faces up, the bell is 16px south of his feet) would cover him
       // from the chest down: where their sprites overlap, the leader is
-      // drawn on top — unless a scene has taken カネナリくん over
+      // drawn on top — unless a scene has taken グソっ君 over
       const under =
         a === f.follower && !a.anim && !a.tempPose && !a.data.scripted &&
         a.y > f.player.y && a.y - f.player.y < 22 && Math.abs(a.x - f.player.x) < 13;

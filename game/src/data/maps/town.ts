@@ -460,7 +460,8 @@ const OBJECTS: MapObj[] = [
   // goes round the tower.
   {
     t: 'npc', id: 'npc_kanenari', x: 16, y: 9, dir: 'down', cond: { stage: '1-2', notFlag: 'flag_kanenari_joined' },
-    script: 'evt_kanenari_meet', pose: 'fallen', noTurn: true,
+    // (drawn 6px up, against the tower's base: しゅん talking from below would hide him)
+    script: 'evt_kanenari_meet', pose: 'fallen', noTurn: true, off: [0, -6],
   },
   { t: 'npc', id: 'npc_hato', x: 33, y: 22, dir: 'down', cond: s0, talk: TALK.npc_hato, pose: 'peck' },
   { t: 'npc', id: 'npc_cat_sauce', x: 15, y: 24, dir: 'right', cond: s02, talk: TALK.npc_cat_sauce, ghost: true, off: [0, -14], fushigi: 'fushigi_02' },

@@ -15,7 +15,7 @@ import {
   addKire, changeStage, giveStatus, hideSticky, healParty, hurtEnemy, hurtParty, kireFullPages, panelImpact, sayFallen, showSticky, statusText, tsukkomiFeel, type Guarded,
 } from './common';
 import {
-  bokemakeLabel, lateTip, markLineSeen, pickLine, popBang, RING_LEAD, showBang, showFlip, showKakimoji, showTsukRing, timingSlow, tsukCue, tsukkomiUnit, tsukkomiWindows, type TsukRing,
+  bokemakeLabel, lateTip, markLineSeen, pickLine, popBang, RING_LEAD, showBang, showKakimoji, showTsukRing, timingSlow, tsukCue, tsukkomiUnit, tsukkomiWindows, type TsukRing,
 } from './tsukkomi';
 import { coinShiny, glove, meishiCard, musicNote, uwabaki, waterDrop, feather, spring, drawArc } from './art/fxart';
 import { PANEL_POS } from './ui/panels';
@@ -1127,7 +1127,7 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
       telePages.push(...e.def.texts.extra.otameshiResult);
       break;
     }
-    // ---- カネナリくん（加入戦） ------------------------------------------------------
+    // ---- グソっ君（加入戦） ------------------------------------------------------
     case 'skill_kn_fuusen':
     case 'skill_kn_goaisatsu':
     case 'skill_kn_pose': {

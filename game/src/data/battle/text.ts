@@ -125,7 +125,7 @@ export const GAMEOVER = {
   retry: '戦う前から やりなおす',
   load: 'セーブから',
   /** グソっ君's line after the second wipe at the boss (spoken, 5.21). */
-  bossFlip: 'ベンチで 休んでから\n行こか。',
+  bossFlip: 'いっぺん、ベンチで 休もか。\n負けたって、また 行ったら ええねん。',
 };
 
 /** On-screen labels (9.0). */

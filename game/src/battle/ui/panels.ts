@@ -506,7 +506,7 @@ export function drawInfoCard(g: Gfx, d: CardData, slide: number): void {
   if (!d.hidden) drawBar(g, x + 12, y + 80, w - 24, 4, Math.min(1, d.hpRate), C.shu, C.grid, 0);
 }
 
-// ---- empty right-hand slot (before Kanenari-kun joins) -------------------------
+// ---- empty right-hand slot (before グソっ君 joins) -------------------------
 
 let emptySlotC: HTMLCanvasElement | null = null;
 

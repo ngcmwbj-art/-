@@ -143,7 +143,7 @@ export class BattleScene implements Scene {
   cues = new Cues();
   /** 練習の戦闘 (the park, evt_kn_lesson): what the lesson allows right now (lesson.ts). */
   lesson: LessonGate | null = null;
-  /** QA: the page of Kanenari-kun's flip board that is up ('' when none). */
+  /** QA: the page of グソっ君's lines that is up ('' when none). */
   flipText = '';
   cursorPressed = 0;
   /** Directional screen shake. */
@@ -1662,7 +1662,7 @@ export class BattleScene implements Scene {
 
   /**
    * Where the tutorial sticky sits and how its text wraps (QA round 2: it
-   * was stuck over Kanenari-kun's bell and the vending machine's top — the
+   * was stuck over グソっ君's bell and the vending machine's top — the
    * very thing the note asks you to look at). The spot is solved once per
    * note: the left (8,52) or right corner under the band, the text re-wrapped
    * narrower phrase by phrase until the note clears every enemy's box.
@@ -1823,7 +1823,7 @@ export class BattleScene implements Scene {
   }
 
   private drawEmptySlot(g: Gfx, a: number): void {
-    // right-hand slot before Kanenari-kun joins: a torn-out page of the blank
+    // right-hand slot before グソっ君 joins: a torn-out page of the blank
     // free-research notebook, taped in at two corners, with a blank name tag
     // that only has a pencilled "？" — a friend's place, still empty
     g.alpha(a * 0.92, () => g.img(emptySlotCanvas(), 248, 156));

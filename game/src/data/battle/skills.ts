@@ -122,7 +122,7 @@ const enemies: SkillDef[] = [
   }),
   enemy({ id: 'skill_momi_kyou', name: '強モード', target: 'enemy', power: 1.2, hits: [0], windupMs: 400, tsukkomi: [2] }),
   enemy({ id: 'skill_momi_otameshi', name: 'お試し10分', target: 'self', windupMs: 500, noDamage: true }),
-  // カネナリくん（加入戦）
+  // グソっ君（加入戦）
   enemy({ id: 'skill_kn_fuusen', name: 'ふうせんを配る', target: 'enemy', windupMs: 500, noDamage: true }),
   enemy({ id: 'skill_kn_goaisatsu', name: 'ごあいさつ', target: 'enemy', windupMs: 500, noDamage: true }),
   enemy({ id: 'skill_kn_pose', name: 'PRポーズ', target: 'self', windupMs: 400, noDamage: true }),

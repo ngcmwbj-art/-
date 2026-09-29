@@ -86,6 +86,7 @@ function* kanenariEats(): Co {
   p.tempPose = null;
   // the smell: he rolls over and is up on his hind legs in one go
   k.pose = null;
+  k.oy = 0;
   k.dir = 'down';
   face('npc_kanenari', 'player');
   k.hop(5, 240);

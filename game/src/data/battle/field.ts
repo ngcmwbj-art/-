@@ -56,7 +56,7 @@ function applyItemEffect(itemId: string, m: Member, out: string[]): void {
 
 /**
  * Use an item from the menu. Consumes it and returns the pages to show.
- * (Stamp pad on Kanenari-kun is refused without consuming the item.)
+ * (Stamp pad on グソっ君 is refused without consuming the item.)
  */
 export function useItemInField(itemId: string, memberId: string): string[] {
   const it = getItem(itemId);

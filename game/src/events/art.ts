@@ -334,7 +334,7 @@ let DINNER: HTMLCanvasElement | null = null;
 export const DINNER_STEAM: [number, number][] = [[5, 8], [13, 9], [21, 8]];
 
 /**
- * 26×14: three plates of yakisoba (3つは 夕飯; the fourth went to カネナリくん),
+ * 26×14: three plates of yakisoba (3つは 夕飯; the fourth went to グソっ君),
  * the bowl of cabbage the mother cut too much of, and the bag of 青のり on
  * the side — 青のりは 別.
  */

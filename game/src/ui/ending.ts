@@ -26,7 +26,7 @@ import { hash2 } from '../engine/rng';
 import { H, W } from '../engine/screen';
 import { ease } from '../engine/tween';
 import { charWidth } from '../engine/font';
-import { state } from '../game/state';
+import { flag, setFlag, state } from '../game/state';
 import { sfx, stopAllAmbient, stopBgm } from '../audio';
 import { petalSprites } from '../battle/art/stamps';
 import { caseBody, caseLid, CASE_H, CASE_SLOTS, CASE_W, drawCase, imprintFor, outlineShown, slotXY } from './hankocase';
@@ -484,7 +484,10 @@ class TsuzukuOverlay implements Widget {
 export function* stampTsuzuku(): Co {
   const w = game.ui.push(new TsuzukuOverlay());
   yield PRESS_MS + 200;
+  // (the clear data is written with the HUD up; this picture keeps it down)
+  const hud = flag('flag_hud_hidden');
   markClear();
+  setFlag('flag_hud_hidden', hud);
   yield 1800;
   void w;
 }

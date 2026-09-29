@@ -32,7 +32,8 @@
 //
 // Beats (each one's flag must be set before the next begins):
 //   title  opening  errand  town  maruyama  hinoya  chime (★17:00 → ハト係長 → ハンコケース)
-//   mamekichi (fushigi_04, 公園のヒント)  alley  kanenari (加入戦 → 迷子のお知らせ → 段階2)
+//   mamekichi (fushigi_04, 公園のヒント)  alley  kanenari (倒れているグソっ君に売れ残りの焼きそば → 加入 →
+//   練習の戦闘 → 迷子のお知らせ → 段階2)
 //   ojigi  mall  kaitenyaki (鍵・やりなおし)  mall2f (ベンチでセーブ・ソウジロウ)  door  boss  ending
 // Movement: across the town Minato walks with the arrow keys along a BFS path over the tiles
 // (travel(): symbol battles on the way are fought, an NPC in the way is waited for; only a
@@ -681,7 +682,8 @@ async function battleByKeys(maxMs = 180000) {
 
 /**
  * The park's lesson battle (evt_kn_lesson, 20 10.6), gone through with Z: the
- * menus (only the taught command works), the flip pages and the four lessons.
+ * menus (only the taught command works), グソっ君's lines (★2026-09-29: no flip
+ * board; bstate().lesson.flip is the line on the band) and the four lessons.
  * The timing itself is answered by __game.cmd.bauto (a good ring, くっきり, a
  * tsukkomi), so each lesson passes on its first try. Checks that all four
  * lessons came up, in order.
@@ -708,7 +710,8 @@ async function battleLesson(maxMs = 150000) {
     if (b?.lesson) {
       if (b.lesson.icon === 'tataku') note('tataku');
       if (b.lesson.icon === 'hanko' && b.lesson.skill === 'skill_peke') note('hanko');
-      if ((b.cues ?? []).includes('ツッコめ！')) note('tsukkomi');
+      // (the 「ツッコめ！」 cue is up only a moment: グソっ君's lines of the step count too)
+      if ((b.cues ?? []).includes('ツッコめ！') || /ツッコミ/.test(b.lesson.flip ?? '')) note('tsukkomi');
       if (b.lesson.icon === 'hanko' && b.lesson.skill === 'skill_mimashita') note('mimashita');
       if ((b.lesson.flip ?? '').startsWith('ごうかく')) note('end');
     }
@@ -1005,7 +1008,8 @@ const BEATS = [
       await sleep(900);
       await shot('in');
       await advance({ shotEvery: 3, label: 'talk' });
-      await need(['flag_met_maruyama'], 'maruyama');
+      // ★2026-09-29: たかし gives last night's leftover (for グソっ君 in the park)
+      await need(['flag_met_maruyama', 'flag_got_urenokori'], 'maruyama');
       await walk('down', (s) => s.map === 'map_town', 4000);
       await waitFor((s) => s.ctrl, 5000, 'outside');
     },
@@ -1078,7 +1082,7 @@ const BEATS = [
       await talkTo('npc_kanenari', { side: 'below' });
       await advance({ shotEvery: 3, label: 'ev', battles: REAL.has('kanenari') ? 'keys' : 'win', max: 240000 });
       await shot('stage2');
-      await need(['flag_kanenari_joined', 'flag_kn_lesson', 'flag_broadcast', 'flag_parking_open'], 'kanenari → lesson → broadcast');
+      await need(['flag_met_kanenari', 'flag_gave_urenokori', 'flag_kanenari_joined', 'flag_kn_lesson', 'flag_broadcast', 'flag_parking_open'], 'グソっ君 (the leftover) → lesson → broadcast');
       if ((await flag('flag_stage')) !== 2) throw new Error('not stage 2 after the broadcast');
       await assertReach(2);
     },

@@ -14,7 +14,7 @@ export function sfxGrade(j: Judge): 'kukkiri' | 'futsu' | 'kasure' {
 }
 
 /**
- * 練習の戦闘 (lesson.ts, the park after Kanenari-kun joins): what may be
+ * 練習の戦闘 (lesson.ts, the park after グソっ君 joins): what may be
  * chosen right now, and how the last try went (the timing games write it).
  */
 export interface LessonGate {

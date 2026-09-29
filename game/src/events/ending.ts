@@ -717,7 +717,7 @@ function* cut1Chime(): Co {
   const z = yield* zoomIn(50 * 16, 7 * 16 - 2, 0);
   sfx('se_auto_door');
   game.scripts.run(game.fadeIn(800));
-  // カネナリくん comes round to stand beside him (not stacked up behind
+  // グソっ君 comes round to stand beside him (not stacked up behind
   // him): the two side by side under the chime — walking out together
   const k0 = f.follower;
   yield* all(
@@ -1054,7 +1054,7 @@ function* cut6Crossing(): Co {
   crossingZoom = yield* zoomIn(vx, vy, 0);
   const p = f.player;
   p.visible = false;
-  // カネナリくん, waiting in front of the crossing — seen once the train has gone
+  // グソっ君, waiting in front of the crossing — seen once the train has gone
   const k: Actor = spawn('ending_kanenari', 57, 22, { sprite: 'kanenari', dir: 'left', ghost: true });
   k.data.scripted = true;
   k.alpha = 0;

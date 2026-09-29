@@ -1012,7 +1012,7 @@ export class FieldScene implements Scene {
     if (f.data.scripted) return;
     const p = this.player;
     // in a scene (a talk, a cutscene), once Minato has stood still for a
-    // moment, カネナリくん steps to his side instead of standing in his back
+    // moment, グソっ君 steps to his side instead of standing in his back
     // (QA round 2: the bell hid Minato from the shoulders down)
     const inScene = (this.locks > 0 || game.scripts.busy) && !p.moving && !p.path.length;
     this.stillT = inScene ? this.stillT + dt : 0;
