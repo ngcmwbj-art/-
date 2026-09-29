@@ -566,6 +566,8 @@ registerMap({
   legend: TOWN_LEGEND,
   objects: OBJECTS,
   camera: 'follow',
+  // 8月31日の 稲：穂が 出て、垂れはじめている（依頼主の指示で 分水の 田んぼと そろえた。water.ts riceLayer）
+  riceHeads: 0.55,
   bgm: { 0: 'bgm_town_s0', 1: 'bgm_town_s1', 2: 'bgm_town_s2' },
   amb: {
     0: ['amb_higurashi', 'amb_kawabe', 'amb_arcade', 'amb_wind'],

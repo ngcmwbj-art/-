@@ -449,8 +449,9 @@ export interface MapDef {
   shadowVec?: [number, number];
   /**
    * Paddies: the share (0..1) of rice tufts drawn with a drooping ear
-   * (art/tiles/water.ts riceLayer). 畦道の先の 分水 (map_aze, 02 #67): the
-   * rice of 8月31日, headed and starting to bow. Default 0.
+   * (art/tiles/water.ts riceLayer). 畦道の先の 分水 (map_aze, 02 #67) and 夕鳴町
+   * (map_town, 依頼主の指示で そろえた): the rice of 8月31日, headed and
+   * starting to bow. Default 0.
    */
   riceHeads?: number;
 }
