@@ -30,7 +30,9 @@ import type { Actor } from '../world/actor';
 import { animate, ease } from '../engine/tween';
 import { W, H } from '../engine/screen';
 import { game } from '../engine/game';
-import { bubbleCanvas, drawBubble } from '../ui/bubble';
+import { drawText } from '../engine/font';
+import { makeCanvas } from '../engine/pixel';
+import { textW, UI } from '../ui/window';
 import { drawScopeView, RIDE, roofRt } from '../art/props/mall_roof';
 import {
   HS_FLIP,
@@ -401,10 +403,48 @@ registerWorldFx({
 
 /**
  * The first time on 2F (before the roof was ever visited, 10_narrative
- * 7.18): a moment after arriving, グソっ君 turns to the stairs and says
+ * 7.18): a moment after arriving, グソっ君 points to the stairs and says
  * 「上にも なんか あるで」 in a little bubble for 2.6 s. Nothing stops — the
  * player can walk on while it is up (flag_roof_hint).
  */
+
+/**
+ * The bubble for it, as ui/bubble's (#FBF3DC, a 1px #2A2440 frame, 16px
+ * text) but with its tail on the left side, pointing back at him: it sits
+ * east of his head so it never covers the stairs and their board.
+ */
+let sideBubble: HTMLCanvasElement | null = null;
+function sideBubbleCanvas(text: string): HTMLCanvasElement {
+  if (sideBubble) return sideBubble;
+  const w = textW(text) + 10;
+  const h = 18;
+  const t = 4; // the tail's length
+  const [cv, ctx] = makeCanvas(w + t + 1, h + 1);
+  const r = (x: number, y: number, ww: number, hh: number, col: string) => {
+    ctx.fillStyle = col;
+    ctx.fillRect(x, y, ww, hh);
+  };
+  const x0 = t;
+  r(x0 + 1, 1, w, h, UI.shadow);
+  ctx.clearRect(x0, 0, w, h);
+  r(x0 + 1, 0, w - 2, h, UI.border);
+  r(x0, 1, w, h - 2, UI.border);
+  r(x0 + 1, 1, w - 2, h - 2, UI.bg);
+  r(x0 + 1, 1, w - 2, 1, '#FFFBEE');
+  // the tail: a small wedge out of the left side, level with the middle
+  const my = 8;
+  for (let i = 0; i < t; i++) {
+    const half = Math.max(0, 2 - Math.floor(i / 2));
+    r(x0 - 1 - i, my - half, 1, half * 2 + 1, UI.bg);
+    r(x0 - 1 - i, my - half - 1, 1, 1, UI.border);
+    r(x0 - 1 - i, my + half + 1, 1, 1, UI.border);
+  }
+  r(0, my, 1, 1, UI.border);
+  r(x0, my - 2, 1, 5, UI.bg);
+  drawText(ctx, text, x0 + 5, 1, { color: UI.text });
+  sideBubble = cv;
+  return cv;
+}
 const HINT_MS = 2600;
 const hint = { field: null as unknown, map: '', enterT: 0, t0: -1, posed: false };
 registerWorldFx({
@@ -445,15 +485,19 @@ registerWorldFx({
     const u = f.t - hint.t0;
     const k = f.follower;
     if (u > HINT_MS + 180 || !k || !k.visible || game.scripts.busy) return;
-    // a speech bubble over his head (it pops in and fades at the end), kept
-    // off the stairs, their board and the arrow (map x 16–83): just east of them
-    const bw = bubbleCanvas(ROOF_HINT).width;
+    // a speech bubble beside his head, its tail pointing back at him (it pops
+    // in and fades at the end), kept off the stairs, their board and the arrow
+    // (map x 16–83): just east of them
+    const img = sideBubbleCanvas(ROOF_HINT);
+    const s = 1.15 - 0.15 * ease.cubicOut(Math.min(1, u / 140));
+    const w = Math.round(img.width * s);
+    const h = Math.round(img.height * s);
     const ax = Math.round(k.x + k.ox - cx);
-    const ay = Math.round(k.y + Math.min(0, k.oy) - cy - 24);
-    const x = Math.max(4 + bw / 2, Math.min(W - bw / 2 - 4, Math.max(86 - cx + bw / 2, ax)));
-    const y = Math.max(26, ay);
-    const a = u > HINT_MS ? Math.max(0, 1 - (u - HINT_MS) / 180) : 1;
-    drawBubble(g, ROOF_HINT, Math.round(x), y, u, a);
+    const ay = Math.round(k.y + Math.min(0, k.oy) - cy - 18);
+    const x = Math.max(4, Math.min(W - w - 4, Math.max(86 - cx, ax + 7)));
+    const y = Math.max(4, ay - Math.round(h / 2));
+    const a = Math.min(1, u / 90) * (u > HINT_MS ? Math.max(0, 1 - (u - HINT_MS) / 180) : 1);
+    g.alpha(a, () => g.ctx.drawImage(img, x, y, w, h));
   },
 });
 

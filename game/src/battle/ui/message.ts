@@ -5,7 +5,7 @@
 
 import { textBlip } from '../../audio';
 import type { Co } from '../../engine/co';
-import { charWidth, drawGlyph } from '../../engine/font';
+import { charWidth, drawGlyph, drawText, measure } from '../../engine/font';
 import type { Gfx } from '../../engine/gfx';
 import { C, drawNote, tapeCanvas } from './note';
 import { miniText } from '../art/stamps';
@@ -251,7 +251,8 @@ export class MessageBand {
     this.linger = null;
     this.lingerTag = '';
     // (a tagged page — せんせいより, one line per member — keeps its lines)
-    this.cur = this.bossMode && !this.tag ? oneLineLayout(p.text, this.w - 22) : layout(p.text);
+    // (a speaker's tag takes the band's left margin: less room on the one line)
+    this.cur = this.bossMode && !this.tag ? oneLineLayout(p.text, this.w - 22 - (p.o.tag ? measure(p.o.tag) + 2 : 0)) : layout(p.text);
     this.curOpts = p.o;
     this.shown = p.o.instant ? this.cur.glyphs.length : 0;
     this.acc = 0;
@@ -323,10 +324,18 @@ export class MessageBand {
     // a page's own speaker tag (one line), else the band's tag (せんせいより)
     const pageTag = this.cur ? this.curOpts.tag ?? '' : !this.staticLayout && this.linger ? this.lingerTag : '';
     const tag = pageTag || this.tag;
-    if (tag) {
+    if (pageTag) {
+      // a speaker's tag (グソっ君): a strip of masking tape in the left margin
+      // with the name in the ordinary letters, so it reads at a glance
+      tagW = measure(pageTag) + 12;
+      const th = 20;
+      const ty = this.y + Math.round((Math.min(h, 44) - th) / 2);
+      g.img(tapeCanvas(tagW, th, '', C.tape, 3), this.x - 3, ty);
+      drawText(g.ctx, pageTag, this.x + 3, ty + 2, { color: C.ink });
+    } else if (tag) {
       // the tape tag (せんせいより) sits in the left margin, its words on two
       // short lines, so the band keeps almost its full width for the text
-      const words = pageTag ? [pageTag] : splitTag(tag);
+      const words = splitTag(tag);
       const imgs = words.map((w) => miniText(w, 0.62, C.ink));
       tagW = Math.max(...imgs.map((i) => i.width)) + 8;
       const th = imgs.reduce((a, i) => a + i.height + 1, 3);

@@ -3,6 +3,7 @@
 // broadcast that turns the town to stage 2 (evt_maigo_broadcast 5.13).
 
 import type { Co } from '../engine/co';
+import type { Actor } from '../world/actor';
 import { game } from '../engine/game';
 import { flag, removeItem, setFlag, state } from '../game/state';
 import { joinKanenari, syncProgressSkills } from '../data/battle';
@@ -36,6 +37,8 @@ registerScript('evt_kanenari_meet', function* (): Co {
   k.data.scripted = true;
   face('player', 'npc_kanenari');
   f.player.moving = false;
+  // right next to him, しゅん would hide him (he is small, lying down): a step back
+  yield* stepBack(k);
   yield 250;
   const first = !flag('flag_met_kanenari');
   setFlag('flag_met_kanenari', 1);
@@ -53,6 +56,20 @@ registerScript('evt_kanenari_meet', function* (): Co {
   yield* kanenariEats();
   yield* kanenariJoin();
 });
+
+/** しゅん steps back a tile from him (facing him still), when there is room. */
+function* stepBack(k: Actor): Co {
+  const f = F();
+  const p = f.player;
+  const dx = p.tileX - k.tileX;
+  const dy = p.tileY - k.tileY;
+  if (Math.abs(dx) + Math.abs(dy) !== 1) return;
+  const tx = p.tileX + dx;
+  const ty = p.tileY + dy;
+  if (!f.free(p, tx * 16 + 8, ty * 16 + 16, true)) return;
+  yield* walk('player', [[tx, ty]], { speed: 2, lockFace: true });
+  face('player', 'npc_kanenari');
+}
 
 /** The leftover handed over, eaten — the freeze, and the shock. */
 function* kanenariEats(): Co {

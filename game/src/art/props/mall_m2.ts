@@ -225,10 +225,14 @@ function deepSeaPoster(p: PixelCanvas, x: number, y: number): void {
   p.line(x + 6, y + 14, x + 8, y + 12, P.steel);
   p.set(x + 8, y + 11, P.goldPale);
   p.set(x + 9, y + 11, P.glint);
-  // a small pale octopus drifting on the right
-  p.ellipse(x + 10, y + 8, 2, 1.5, P.peach);
-  p.set(x + 9, y + 10, P.peach);
-  p.set(x + 11, y + 10, P.peach);
+  // a small pale octopus drifting on the right: a dome, two dark eyes, three little legs
+  p.hline(x + 9, x + 11, y + 7, P.peach);
+  p.hline(x + 8, x + 12, y + 8, P.peach);
+  p.set(x + 9, y + 8, P.ink);
+  p.set(x + 11, y + 8, P.ink);
+  p.set(x + 8, y + 9, P.peach);
+  p.set(x + 10, y + 9, P.peach);
+  p.set(x + 12, y + 9, P.peach);
   // the date line at the foot (too faded to read), the corner curling
   printLines(p, x + 2, y + 21, w - 6, 1, P.peach, 133);
   p.set(x + w - 2, y + h - 2, P.paperGrid);

@@ -151,8 +151,8 @@ export const NORI: { boke: string[]; line: string; pose: string; upper?: string 
   { boke: ['グソっ君は 胸を はった。\n『深海から 来ました〜』'], upper: '……って、どこから 来たか', line: '分からないんだろ！', pose: 'flip' },
 ];
 export const NORI_COMMON = ['しゅんは 全力で ツッコんだ！', '敵は まとめて\nボケ負けした！'];
-/** 50 6.9〔ボケD〕: only in battles on the 星見台 maps (map_hoshi*). */
-export const NORI_HOSHI: { boke: string[]; line: string; pose: string; upper?: string } = { boke: ['グソっ君は 稲わらを かぶって\nかかしの まねを した！'], line: 'かかし 増やすな！', pose: 'kakashi' };
+/** 50 6.9〔ボケD〕: only in battles on the 星見台 maps (map_hoshi*). The straw scarecrow stays; the tsukkomi is グソっ君's (his feelers poke out of the straw). */
+export const NORI_HOSHI: { boke: string[]; line: string; pose: string; upper?: string } = { boke: ['グソっ君は 稲わらを かぶって\nかかしの まねを した！'], upper: '……って、かかしに', line: '触角 ないだろ！', pose: 'kakashi' };
 
 /** 通知表 (9.8). */
 export const REPORT = {

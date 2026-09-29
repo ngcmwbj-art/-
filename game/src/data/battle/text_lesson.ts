@@ -8,7 +8,7 @@
 // フリップは やめて、関西弁で ふつうに 話す。04_gusokkun_plan 2章 5).
 //
 // In battle his lines go in the message band with his name tag (battle/
-// gusokkun.ts): a page ≤ 2 lines, each ≤ 298px (the tag takes the band's left
+// gusokkun.ts): a page ≤ 2 lines, each ≤ 272px (the tag takes the band's left
 // margin). `touch` variants replace a page on phones and tablets (the button
 // is labelled けってい there).
 
@@ -79,7 +79,7 @@ export const LESSON_BAND = {
 };
 
 /** Widest line of a page he says in battle (the name tag takes the band's left margin). */
-export const TALK_W = 298;
+export const TALK_W = 272;
 
 /**
  * The width check of every page (wrapCheck): the field's pages ≤ 3 lines ×
