@@ -2073,6 +2073,7 @@ se_tsuri_nushi    ぬしの気配（土管の奥から 大きな泡、ゴボッ�
 | `flip` | カネナリくんのフリップ | saw BP2.4kHz Q4（ペン先） | 2000Hz | 0 1 | 35、vib 28Hz ±60セント | 3 | .02 | ページの1文字目だけ `se_flip` をまるごと鳴らす |
 | `kanenari_voice` | カネナリくんの声（エンディングで1回） | tri＋saw（0.2） | D3 | 下の表 | 140、A20 R100 | 1 | .07 | フォルマント、rev .35。言葉には聞こえない、母音の色のついたやわらかいハミング |
 | `tamotsu` **（新規 ★2026-09-29、02 #66。★2026-09-29 依頼主の指示で たもつ→おぴぃ（40代の女性）に 作り直し。IDは 据え置き）** | おぴぃ（閉店した つりえさ屋の元店主、40代の女性。10 6.25） | tri＋sq（0.12）、LP1.9kHz | C#4 | 0 2 5 7 | 32、A2 D22 S.4 R10 | 2 | .055 | 各ブリップを −45セントへ 落とす（語尾が ぼそっと 下がる）、ビブラートなし、フォルマント。さっぱり・さばさば、口数 少なめ。ふでの先生（`h_fumi` C4・ビブラート・リバーブ）、よね（D4・頭が はずむ）、きぬ（`h_yoshie` B4）、母（A4）、ちず・おかみ（`mizumaki` F4）と、高さ・語尾の 落ち・こもりで 分ける。前の たもつ（F3・3文字に1音・しゃがれ）は 使わない |
+| `tokio` **（新規 ★2026-09-29、02 #69。依頼主の指示で 時計店の ときお→ゆう（40代の女性）に したとき、`postman` から 分けた。IDは `npc_tokio` に そろえた）** | ゆう（時計店チクタク堂の店主、40代の女性。10 6.22） | tri＋sine（0.4）、LP2.4kHz | F#4 | 0 2 5 7 9 | 34、A3 D22 S.5 R12 | 2 | .055 | 各ブリップを +30セントへ 上げて 終える（ていねいで、語尾が 少し 上がる）、ビブラートなし、フォルマント。落ち着いた 中音。ちず・おかみ（`mizumaki` F4・矩形波25%・頭で はずむ）、母（`mother` A4・三角波だけ）、おぴぃ（`tamotsu` C#4・語尾が 落ちる）、ふでの先生（`h_fumi` C4・ビブラート・リバーブ）、よね（`yone` D4・しゃくり上げ）、きぬ（`h_yoshie` B4）と、音の 高さ・波形・語尾の 向きで 分ける。トリム 13.5 dB（audioMixSuggest） |
 
 **`kanenari_voice` の「……おいしい。」**（`{spd=0.4}`。1文字＝1ブリップ）
 
@@ -2499,7 +2500,7 @@ export function unlockAudio(): void;                                     // 既�
 `se_tsuri_open` `se_tsuri_cast` `se_tsuri_pochan` `se_tsuri_line` `se_tsuri_tsun` `se_tsuri_gui` `se_tsuri_snag` `se_tsuri_reel` `se_tsuri_slip` `se_tsuri_thrash` `se_tsuri_poton` `se_tsuri_hayai` `se_tsuri_net` `se_tsuri_agari` `se_tsuri_card` `se_tsuri_release` `se_tsuri_nushi`
 
 **ボイス**
-`narr` `sys` `mother` `maruyama` `obaa` `mamekichi` `inui` `tsurumi` `sae` `jk` `chugaku` `postman` `madam` `girl` `kid` `ojii` `mizumaki` `shadow` `hato` `dog` `cat` `crow` `tv` `broadcast` `broadcast_child` `vending` `omukaemachi` `flip` `kanenari_voice` `tamotsu` `yone` `toyozou`（★2026-09-29、02 #67）
+`narr` `sys` `mother` `maruyama` `obaa` `mamekichi` `inui` `tsurumi` `sae` `jk` `chugaku` `postman` `madam` `girl` `kid` `ojii` `mizumaki` `shadow` `hato` `dog` `cat` `crow` `tv` `broadcast` `broadcast_child` `vending` `omukaemachi` `flip` `kanenari_voice` `tamotsu` `yone` `toyozou`（★2026-09-29、02 #67） `tokio`（★2026-09-29、02 #69）
 
 **音楽パラメータ・空間**
 `stage` `kire` `boss_phase` `muffle`／`outdoor` `room` `hall` `maigo` `battle` `night`

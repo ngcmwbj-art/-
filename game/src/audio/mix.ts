@@ -464,6 +464,11 @@ export const VOICE_TRIM: Record<string, number> = {
   chugaku: 15.5, postman: 11, madam: 17, girl: 16, kid: 17, ojii: 15, mizumaki: 14.5, shadow: 14, hato: 17.5,
   dog: 11.5, cat: 18, crow: 23, tv: 23.5, broadcast: 9.5, broadcast_child: 12.5, vending: 20.5, omukaemachi: 15.5,
   flip: 16.5, kanenari_voice: 15, default: 19,
+  // ゆう（時計店。02 #69、audioMixSuggest）
+  tokio: 13.5,
+  // マル（02 #65）・おぴぃ（02 #66）・よね・とよぞう（02 #67）：足したときに trim が
+  // 入っておらず、ほかの声より 15〜19 dB 小さかった（audioMixSuggest、samples.ts の見本の台詞で）
+  maru: 19, tamotsu: 15.5, yone: 17, toyozou: 11.5,
   // chapter 2
   h_train: 21, h_tetsuya: 19, yobimodoshi: 10, h_mujin: 27.5, h_gon: 11.5, broadcast_room: 15,
   tsugao: 19.5, dakoku: 14,

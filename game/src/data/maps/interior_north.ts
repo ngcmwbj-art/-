@@ -31,7 +31,7 @@ Object.assign(SPEAKERS, {
   npc_yuzu: { name: 'ゆず', voice: 'mother' },
   npc_fudeno: { name: 'ふでの先生', voice: 'h_fumi' },
   npc_kinu: { name: 'きぬ', voice: 'h_yoshie' },
-  npc_tokio: { name: 'ときお', voice: 'postman' },
+  npc_tokio: { name: 'ゆう', voice: 'tokio' }, // ★2026-09-29 ときお→ゆう（40代の女性）。IDは据え置き
   npc_master: { name: 'マスター', voice: 'h_mitsu' },
   npc_okami: { name: 'おかみ', voice: 'mizumaki' },
 });
@@ -232,8 +232,8 @@ registerMap({
 // ================================================================ 4.10 map_clock（時計店 チクタク堂、10×7）
 
 // Clocks on every wall: the grandfather clock, the wall of clocks and the
-// cuckoo clock behind the glass counter (examined across it), ときお with
-// his loupe at the counter, the repair shelf (one alarm clock waiting to be
+// cuckoo clock behind the glass counter (examined across it), ゆう with
+// her pocket watch at the counter, the repair shelf (one alarm clock waiting to be
 // collected), the 『ご自由に どうぞ』 candy tin and the table of alarm clocks.
 export const ROWS_CLOCK = [
   '#WWWWWWWW#',
@@ -267,7 +267,7 @@ registerMap({
     PR('in_ck_candy', 1, 5),
     PR('in_ck_table', 4, 5),
     // examine (across the counter from row 4: x2 the wall of clocks, x3 the
-    // showcase, x4 ときお, x5 the workbench, x6 the cuckoo clock)
+    // showcase, x4 ゆう, x5 the workbench, x6 the cuckoo clock)
     O('obj_ck_grandfather', 1, 2),
     O('obj_ck_wall', 2, 2),
     O('obj_ck_cuckoo', 6, 2),

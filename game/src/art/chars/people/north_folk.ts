@@ -10,8 +10,10 @@
 //               細い老眼鏡。机の奥に正座、筆を運ぶ
 //   npc_kinu    きぬ（くま吉の妻）40代。黒髪をひっつめて白い三角巾、
 //               白い上っぱりに紺の前かけ、黒い長靴。手をふいている
-//   npc_tokio   ときお（時計店）70代。はげ頭に白い横髪、丸めがね、
-//               白いシャツに茶のアームカバー、灰のベスト。ルーペをのぞく
+//   npc_tokio   ゆう（時計店）40代の女性（★2026-09-29 依頼主の指示で ときお→ゆう。
+//               IDは据え置き）。こげ茶の髪を 低い おだんごに まとめて 真ちゅうの
+//               ピン、細い めがね、白い ブラウスに 紺の 腕カバー、えんじの 店の
+//               エプロン、灰の スカート。懐中時計を めがねの 前へ（ルーペ）
 //   npc_master  マスター（喫茶）60代。なでつけた灰色の髪と口ひげ、白い
 //               シャツに黒いベストと蝶ネクタイ。カップをみがく
 //   npc_okami   おかみ（酒店）60代。黒髪のおだんごに藍の手ぬぐい、
@@ -24,7 +26,7 @@ import { SKIN_LIGHT, SKIN_MID } from '../mats';
 import { legs, type LegSpec, type Seg } from '../body';
 import { buildSprite, rep, type IdleKey, type Pose } from '../rig';
 import { registerChar } from '../registry';
-import { hangArms, head, sideArm, sideSwing, upper, type HeadT } from '../kit';
+import { hangArms, head, sideArm, sideSwing, upPt, upper, type HeadT } from '../kit';
 
 const base = {
   eye: flat('#2A1C28'),
@@ -91,21 +93,26 @@ const HEAD_SCARF: HeadT = {
   neckL: [5, 9, 2],
 };
 
-/** Bald crown, white hair round the sides (ときお). The crown is face. */
-const HEAD_BALD: HeadT = {
-  faceD: [4, 1, ['..####..', '.######.', '########', '########', '########', '########', '.######.', '..####..']],
-  hairD: [3, 3, ['h........d', 'hh......dd', 'h........d']],
-  upD: { fringe: 'none' },
-  eyesD: { x: 6, d: 3, y: 5, h: 1, brow: { dy: -1, mat: 'brow', w: 2 } },
-  mouthD: [7, 8, 2],
+/**
+ * Hair swept back into a low bun at the nape (ゆう): a side parting with the
+ * fringe swept to her left, the sides tucked behind the ears (short in front,
+ * so it reads as tied back), the bun under the crown from the side and back.
+ */
+const HEAD_KNOT: HeadT = {
+  faceD: [4, 3, ['.######.', '########', '########', '########', '.######.', '..####..']],
+  hairD: [3, 0, ['..hhHhhh..', '.hhHKhhhd.', 'hhhHhhhhhd', 'hh..hhhhdd', 'h......hdd', 'h........d', 'hh......dd', '.d......d.', '.dd....dd.']],
+  eyesD: { x: 6, d: 3, y: 5, h: 2, brow: { dy: -1, mat: 'brow', w: 1 } },
+  mouthD: [7, 7, 2],
+  blushD: [5, 10, 7],
   neckD: [7, 9, 2],
-  hairU: [3, 3, ['hhhhhhhhhd', 'hhhhhhhhdd', '.hhhhhhdd.']],
-  napeU: [4, 1, ['..####..', '.######.']],
-  faceL: [3, 1, ['..###...', '.#####..', '######..', '######..', '######..', '#####...', '.####...', '..##....']],
-  hairL: [3, 3, ['.....hhhd.', '.....hhhdd', '......hhd.']],
-  eyeL: { x: 4, y: 5, h: 1, brow: { dy: -1, mat: 'brow', w: 2 } },
+  hairU: [3, 0, ['..hhHhhh..', '.hhHKhhhd.', 'hhhHhhhhhd', 'hhhhhhhhhd', 'hhhhhhhhdd', '.hhdddddd.', '..hHKhhd..', '..hHhhhd..', '...dddd...']],
+  napeU: [5, 8, ['.####.']],
+  faceL: [3, 3, ['.####...', '#####...', '######..', '#####...', '.####...', '..##....']],
+  hairL: [2, 0, ['...hHhhh....', '..hHhhhhdd..', '.hhhhhhhhdd.', '.hh.hhhhhdd.', '......hhhdd.', '.......hhdHh', '........hhhd', '.........hd.']],
+  eyeL: { x: 4, y: 5, h: 2, brow: { dy: -1, mat: 'brow', w: 1 } },
   earL: [8, 5],
-  mouthL: [3, 8],
+  mouthL: [3, 7],
+  blushL: [5, 7],
   neckL: [5, 9, 2],
 };
 
@@ -139,18 +146,29 @@ interface Look {
   kneel?: boolean;
   /** Sleeve length on the arm (segments of 'top' before the skin). */
   sleeve: number;
-  /** Arm covers (ときお): the forearm in this material. */
+  /** Arm covers (ゆう): the forearm in this material. */
   cuff?: string;
   apron?: 'bib' | 'waist';
+  /** The bib apron's straps run from the shoulders to the waist tie on the back (ゆう). */
+  apronBack?: boolean;
+  /** Rows of the apron below the waist (default 4; 3 lets a skirt show). */
+  apronLen?: number;
+  /** A skirt from the waist down to row `bottom` (the legs show below it). */
+  skirt?: { mat: string; bottom: number };
   vest?: boolean;
   bowtie?: boolean;
-  glasses?: 'round' | 'thin';
+  /** 'slim': thin rims beside and under the eyes (ゆう), the eyes stay clear. */
+  glasses?: 'round' | 'thin' | 'slim';
   moustache?: boolean;
   scarf?: boolean;
   headband?: boolean;
   hairpin?: boolean;
+  /** A brass pin stuck through the low bun (ゆう): side and back views. */
+  bunPin?: boolean;
   /** Draws what the idle act holds (front view, after the arms). */
   act?: (f: Fig, p: Pose, u: number) => boolean;
+  /** Front view, after the head and glasses: what the act holds up before the face. */
+  over?: (f: Fig, p: Pose, u: number) => void;
   idle: IdleKey[];
 }
 
@@ -170,7 +188,19 @@ function drawFolk(L: Look, f: Fig, p: Pose): void {
       f.hl(4, 11, 22);
       f.part(L.legs.shoe, { shade: '', light: '' });
       if (p.view === 'up') f.hl(5, 10, 22);
-    } else legs(f, p, L.legs);
+    } else {
+      legs(f, p, L.legs);
+      if (L.skirt) {
+        // a skirt that flares a little toward the hem
+        const top = 16 + b;
+        f.part(L.skirt.mat, { shade: 'r', light: 't' });
+        for (let y = top; y <= L.skirt.bottom; y++) {
+          const w = y === L.skirt.bottom ? 1 : 0;
+          f.hl(4 - w, 11 + w, y);
+        }
+        f.t(-1).vl(8, top + 2, L.skirt.bottom).t(null);
+      }
+    }
     f.part('top', { shade: 'rb', light: 't' });
     f.hl(4, 11, 11 + u);
     f.rect(3, 12 + u, 10, 17 + b - (12 + u) + (seated ? 1 : 0));
@@ -183,8 +213,8 @@ function drawFolk(L: Look, f: Fig, p: Pose): void {
       }
       if (L.apron === 'bib') {
         f.part('apron', { shade: 'rb', light: 't' });
-        f.rect(5, 13 + u, 6, 19 + b - (13 + u));
-        f.rect(4, 16 + b, 8, seated ? 3 : 4);
+        f.rect(5, 13 + u, 6, (L.apronLen ? 16 + L.apronLen : 19) + b - (13 + u));
+        f.rect(4, 16 + b, 8, seated ? 3 : L.apronLen ?? 4);
         f.part('strap', { flat: true, rim: false });
         f.px(5, 12 + u).px(10, 12 + u);
       } else if (L.apron === 'waist') {
@@ -204,6 +234,7 @@ function drawFolk(L: Look, f: Fig, p: Pose): void {
       f.part('strap', { flat: true, rim: false });
       f.hl(4, 11, 16 + b);
       f.px(7, 17 + b).px(8, 17 + b).px(6, 18 + b).px(9, 18 + b);
+      if (L.apronBack) f.vl(5, 12 + u, 15 + b).vl(10, 12 + u, 15 + b);
     }
     let held = false;
     if (p.view === 'down' && L.act) held = L.act(f, p, u);
@@ -215,6 +246,7 @@ function drawFolk(L: Look, f: Fig, p: Pose): void {
     }
     head(f, p, L.head, hy);
     extrasFront(L, f, p, hy);
+    if (p.view === 'down' && L.over) L.over(f, p, u);
     return;
   }
   // side (left; right is mirrored)
@@ -227,7 +259,17 @@ function drawFolk(L: Look, f: Fig, p: Pose): void {
     f.hl(5, 11, 22);
     f.part(L.legs.shoe, { shade: '', light: '' });
     f.px(11, 22).px(12, 22);
-  } else legs(f, p, L.legs);
+  } else {
+    legs(f, p, L.legs);
+    if (L.skirt) {
+      const top = 16 + b;
+      f.part(L.skirt.mat, { shade: 'r', light: 't' });
+      for (let y = top; y <= L.skirt.bottom; y++) {
+        const w = y === L.skirt.bottom ? 1 : 0;
+        f.hl(5 - w, 10 + w, y);
+      }
+    }
+  }
   f.part('top', { shade: 'rb', light: 't' });
   f.hl(6, 10, 11 + u);
   f.rect(5, 12 + u, 6, 17 + b - (12 + u) + (seated ? 1 : 0));
@@ -237,7 +279,7 @@ function drawFolk(L: Look, f: Fig, p: Pose): void {
   }
   if (L.apron) {
     f.part('apron', { shade: 'rb', light: 't' });
-    f.rect(4, (L.apron === 'bib' ? 13 + u : 16 + b), 2, L.apron === 'bib' ? 19 + b - (13 + u) : seated ? 3 : 5);
+    f.rect(4, (L.apron === 'bib' ? 13 + u : 16 + b), 2, L.apron === 'bib' ? (L.apronLen ? 16 + L.apronLen : 19) + b - (13 + u) : seated ? 3 : 5);
     f.part('strap', { flat: true, rim: false });
     f.hl(6, 10, 16 + b);
   }
@@ -266,7 +308,11 @@ function extrasFront(L: Look, f: Fig, p: Pose, hy: number): void {
   const up = p.lookUp;
   if (p.view === 'down') {
     const ey = hy + L.head.eyesD.y + (up ? -2 : 0);
-    if (L.glasses && !up) {
+    if (L.glasses === 'slim' && !up) {
+      // thin rims beside each eye (a light metal, so the eyes stay clear)
+      f.part('glass', { flat: true, rim: false, ol: false });
+      f.px(5, ey).px(7, ey).px(8, ey).px(10, ey);
+    } else if (L.glasses && !up) {
       f.part('glass', { flat: true, rim: false });
       if (L.glasses === 'round') f.px(5, ey).px(7, ey).px(8, ey).px(10, ey).px(6, ey + 1).px(9, ey + 1);
       else f.hl(5, 10, ey + 1);
@@ -305,15 +351,37 @@ function extrasFront(L: Look, f: Fig, p: Pose, hy: number): void {
     f.part('pin', { flat: true, rim: false });
     f.px(10, hy + 2).px(11, hy + 2);
   }
+  if (L.bunPin && p.view === 'up') {
+    // through the bun, the head end up to her right
+    const k = up ? 1 : 0;
+    f.part('pin', { flat: true, rim: false, ol: false });
+    f.px(6, hy + 7 + k).px(9, hy + 5 + k).px(10, hy + 4 + k);
+    f.part('pinHead', { flat: true, rim: false, ol: false });
+    f.px(11, hy + 3 + k);
+  }
 }
 
 function extrasSide(L: Look, f: Fig, p: Pose, hy: number): void {
   const up = p.lookUp;
-  if (L.glasses && !up) {
+  if (L.glasses === 'slim' && !up) {
+    // the lens rim in front of the eye, the temple back to the ear
+    const ey = hy + L.head.eyeL.y;
+    f.part('glass', { flat: true, rim: false, ol: false });
+    f.px(3, ey).hl(5, 6, ey);
+  } else if (L.glasses && !up) {
     f.part('glass', { flat: true, rim: false });
     f.hl(3, 7, hy + L.head.eyeL.y + (L.glasses === 'thin' ? 1 : 0));
     f.part('lens', { flat: true, rim: false });
     f.px(3, hy + L.head.eyeL.y - (L.glasses === 'round' ? 1 : 0));
+  }
+  if (L.bunPin) {
+    // the pin through the bun, the head end up behind the crown
+    const [ax, ay] = upPt(L.head, p, 12, 7);
+    const [bx, by] = upPt(L.head, p, 14, 4);
+    f.part('pin', { flat: true, rim: false, ol: false });
+    f.px(ax - 1, hy + ay + 1).px(bx - 1, hy + by + 1);
+    f.part('pinHead', { flat: true, rim: false, ol: false });
+    f.px(bx, hy + by);
   }
   if (L.moustache && !up) {
     f.part('stache', { flat: true, rim: false });
@@ -487,47 +555,79 @@ folk({
   idle: [...breathe(2), { act: 'wipe', ph: 0 }, { act: 'wipe', ph: 1 }, { act: 'wipe', ph: 0 }, { act: 'wipe', ph: 1 }, { breath: 0, blink: true }, ...breathe(1)],
 });
 
-// ---------------------------------------------------------------- ときお（時計店）
+// ---------------------------------------------------------------- ゆう（時計店）
+// ★2026-09-29 依頼主の指示で ときお（70代の男性）→ ゆう（40代の女性）。IDは据え置き。
 
 folk({
   id: 'npc_tokio',
   mats: {
     ...base,
-    skin: SKIN_MID,
-    hair: mat('#E8E4D8', { shade: '#C8C2B4', light: '#FFF6D8', dark: '#9E978C', rim: '#FFE0B8' }),
-    brow: flat('#C8C2B4'),
+    skin: SKIN_LIGHT,
+    hair: mat('#5A3A2A', { shade: '#3A2B2A', light: '#8A5A3A', dark: '#2B1E1A', rim: '#C8845A' }),
+    brow: flat('#5A3A2A'),
     top: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFFFFF', dark: '#9AA0A8', rim: '#FFE0B8' }),
-    vest: mat('#6B7186', { shade: '#4E5262', light: '#8A90A0', dark: '#2A2440', rim: '#B89A9A' }),
-    cuffM: mat('#8A5A3A', { shade: '#5A3A2A', light: '#A8742A' }),
-    slacks: mat('#5A3A2A', { shade: '#3A2B2A', light: '#8A5A3A' }),
-    shoe: mat('#3A3F48', { shade: '#2A2440', light: '#6B7186' }),
-    glass: flat('#3A3F48'),
-    lens: flat('#BDEFFA'),
-    loupe: flat('#2A2440'),
-    loupeG: flat('#7FD1E8'),
-    watch: flat('#D9A441'),
+    apron: mat('#8A2E3A', { shade: '#5E1E2A', light: '#B04A5A', dark: '#3A1B2A', rim: '#E0567A' }),
+    strap: flat('#5E1E2A'),
+    cuffM: mat('#2F4A8A', { shade: '#243A72', light: '#4A6AAE', dark: '#1B1733' }),
+    skirt: mat('#6B7186', { shade: '#4E5262', light: '#8A90A0', dark: '#2A2440', rim: '#B89A9A' }),
+    shoe: mat('#5A3A2A', { shade: '#3A2B2A', light: '#8A5A3A' }),
+    glass: flat('#A8742A'),
+    pin: flat('#D9A441'),
+    pinHead: flat('#E84E3C'),
+    watch: mat('#D9A441', { shade: '#A8742A', light: '#FFD23F' }),
+    watchF: flat('#FFF6D8'),
+    chain: flat('#A8742A'),
   },
-  head: HEAD_BALD,
+  head: HEAD_KNOT,
   hy: 2,
-  legs: { cx: 8, hip: 17, foot: 22, w: 2, gap: 2, mat: 'slacks', shoe: 'shoe', shoeLen: 3 },
-  sleeve: 2,
+  legs: { cx: 8, hip: 21, foot: 22, w: 2, gap: 2, mat: 'skin', shoe: 'shoe', shoeLen: 3 },
+  sleeve: 1,
   cuff: 'cuffM',
-  vest: true,
-  glasses: 'round',
-  // a pocket watch held up to the eye loupe
+  apron: 'bib',
+  apronBack: true,
+  apronLen: 3,
+  skirt: { mat: 'skirt', bottom: 21 },
+  glasses: 'slim',
+  bunPin: true,
+  // a pocket watch on its chain: looked at in her hand (ph 0), then held up
+  // before her glasses like a loupe (ph 1; drawn over the face by `over`)
   act(f, p, u) {
     if (p.act !== 'loupe') return false;
-    const seg: Seg[] = [{ mat: 'top', n: 2 }, { mat: 'cuffM', n: 2 }, { mat: 'skin' }];
+    const seg: Seg[] = [{ mat: 'top', n: 1 }, { mat: 'cuffM', n: 2 }, { mat: 'skin' }];
     hangArms(f, p, { lx: 3, rx: 12, sy: 12, hy: 16, segs: seg }, u, 'L');
+    f.part('top', { shade: 'rb', light: 't', shift: -1 });
+    f.px(12, 12 + u);
+    if (!p.ph) {
+      // the forearm across the waist, the watch in her palm, the chain to the pocket
+      f.part('cuffM', { shade: 'rb', light: 't', shift: -1 });
+      f.line(12, 13 + u, 10, 15 + u);
+      f.part('skin', { shade: '', light: '' });
+      f.px(9, 15 + u).px(9, 14 + u);
+      f.part('watch', { shade: 'rb', light: 't' });
+      f.rect(7, 14 + u, 2, 2);
+      f.part('watchF', { flat: true, rim: false, ol: false });
+      f.px(7, 14 + u);
+      f.part('chain', { flat: true, rim: false, ol: false });
+      f.px(6, 16 + u).px(6, 17 + u);
+      return true;
+    }
+    // raised: the forearm up her side, the watch held before the lens on the viewer's right
     f.part('cuffM', { shade: 'rb', light: 't', shift: -1 });
-    f.line(12, 13 + u, 10, 14 + u);
+    f.line(12, 13 + u, 12, 11 + u);
     f.part('skin', { shade: '', light: '' });
-    f.px(9, 14 + u).px(9, 13 + u);
-    f.part('watch', { flat: true, rim: false });
-    f.px(8, 13 + u + (p.ph ? 0 : 1));
+    f.px(11, 10 + u).px(11, 9 + u);
     return true;
   },
-  idle: [...breathe(2), { act: 'loupe', ph: 0 }, { act: 'loupe', ph: 0 }, { act: 'loupe', ph: 1 }, { act: 'loupe', ph: 1 }, { act: 'loupe', ph: 0, blink: true }, ...breathe(1)],
+  over(f, p, u) {
+    if (p.act !== 'loupe' || !p.ph) return;
+    f.part('watch', { shade: 'rb', light: 't' });
+    f.rect(9, 7 + u, 2, 2);
+    f.part('watchF', { flat: true, rim: false, ol: false });
+    f.px(9, 7 + u);
+    f.part('chain', { flat: true, rim: false, ol: false });
+    f.px(9, 9 + u).px(9, 10 + u);
+  },
+  idle: [...breathe(2), { act: 'loupe', ph: 0 }, { act: 'loupe', ph: 0 }, { act: 'loupe', ph: 1 }, { act: 'loupe', ph: 1 }, { act: 'loupe', ph: 1, blink: true }, { act: 'loupe', ph: 0 }, ...breathe(1)],
 });
 
 // ---------------------------------------------------------------- マスター（喫茶 夕顔）
