@@ -144,10 +144,10 @@ export const SAWA_FUMI = `@npc_hoshi_fumi
 『沢の 水は どこから 来るか』
 でした。
 /
-……答えは、しゅんさんが
+……答えは、しゅんくんが
 先に 見ましたね。`;
 
-/** 沢の上（map_hoshi_sawa）の調べる物（52 4.6・50 9.10）。before/after はセキトメの前後。 */
+/** 沢の上（map_hoshi_sawa）の調べる物（52 4.6・50 10.22）。before/after はセキトメの前後。 */
 export const SAWA_OBJ = {
   obj_sawa_kui: `@narr
 杭に 札。『用水 点検道』。
