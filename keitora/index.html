@@ -1123,7 +1123,6 @@ canvas { display: block; width: 100%; height: 100%; }
         if (!(mode === 'ta' && m >= GOAL_M)) {
           const left = mode === 'ta' ? `残り ${fmtM(GOAL_M - lastMile * 100)} m` : (lastMile % 5 === 0 ? 'スピードアップ!' : null);
           showBanner(lastMile * 100 + ' m', '#fffbea', left);
-          sfx('mile');
         }
       }
       if (mode === 'endless' && !passedBest && m > best) {
@@ -2315,7 +2314,7 @@ canvas { display: block; width: 100%; height: 100%; }
       const tt = (st.x - cam - TRUCK_FRONT) / Math.max(60, vel);
       if (tt > 1.6) return;
       const hi = rise > 100;
-      if (!st.warned) { st.warned = true; sfx(hi ? 'warnHi' : 'warnLo'); }
+      st.warned = true;
       const onScreen = st.x - cam < W - 30;
       const x = onScreen ? st.x - cam : W - 44;
       const y = GROUND - st.h - (onScreen ? 60 : 30);
