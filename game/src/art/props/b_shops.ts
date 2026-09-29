@@ -137,8 +137,10 @@ registerBuilding({
     p.ellipse(13, fY + 10, 8, 7, P.verm);
     p.ellipse(13, fY + 10, 7, 6, P.white);
     peach(p, 13, fY + 11, 4.6, P.skin2, P.crimson, P.sunShade, P.leaf);
+    // (the hiragana stand 14px tall, 1px taller than モモセ did: set 1px higher so
+    // the letters stay inside the board's frame, fY+3..fY+16, the shadow on the frame)
     const mw = fontWidth('たかし');
-    fontText(p, 'たかし', 24 + Math.floor((66 - mw) / 2), fY + 4, P.red, { shadow: P.vermShade });
+    fontText(p, 'たかし', 24 + Math.floor((66 - mw) / 2), fY + 3, P.red, { shadow: P.vermShade });
     // red tent
     awning(p, 0, fY + 19, 96, 5, P.red, P.white, true);
     // the storefront teppan (tiles 24–25 → x 0..31): a warm lit window over
