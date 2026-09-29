@@ -8,13 +8,15 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@500;900&display=swap">
 <style>
-/* 1画面ゲーム：中央に16:9のキャンバス、上に被せるHTMLのメニュー。夕方の田んぼ道の一色で統一 */
+/* 画面いっぱいのゲーム。キャンバスの上にHTMLのメニューを重ねる。色は夕方の田んぼ道で統一（単一テーマ） */
 :root {
-  --ground: #1e2618;      /* ページの地：暗い畦の土色 */
-  --panel: #2b3522;
-  --ink: #f4ecd6;         /* 文字：わら色がかった白 */
-  --muted: #b9b39a;
+  --night: #1b2216;       /* ページの地：暗いあぜの土色 */
+  --panel: #26301d;
+  --panel-edge: #4b5a36;
+  --ink: #f6efd9;         /* 文字：わら色がかった白 */
+  --muted: #bdb79c;
   --accent: #f2b33d;      /* 稲穂の黄色 */
+  --accent-deep: #a8700f;
   --danger: #e2543a;
   --font-display: "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
   --font-pixel: "DotGothic16", "MS Gothic", "Osaka-Mono", monospace;
@@ -23,180 +25,396 @@
 html, body { height: 100%; }
 body {
   margin: 0;
-  background: var(--ground);
+  background: var(--night);
   color: var(--ink);
   font-family: var(--font-pixel);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding-inline: 16px;
-  box-sizing: border-box;
+  overflow: hidden;
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
-.stage {
-  position: relative;
-  width: min(100%, 960px, calc((100vh - 90px) * 16 / 9));
-  aspect-ratio: 16 / 9;
-  max-width: 100%;
-  border-radius: 6px;
-  overflow: hidden;
-  touch-action: none;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, .45);
-  background: #8fd0e8;
-}
-canvas { display: block; width: 100%; height: 100%; }
 [hidden] { display: none !important; }
-.overlay {
-  position: absolute;
+
+.app {
+  position: fixed;
   inset: 0;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(6px, 2vw, 14px);
-  background: rgba(24, 30, 18, .62);
-  text-align: center;
-  padding: 12px;
+  gap: 14px;
 }
-.logo {
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: clamp(34px, 9vw, 84px);
-  line-height: 1;
-  letter-spacing: .02em;
-  color: var(--ink);
-  transform: skewX(-10deg);
-  text-shadow: 4px 4px 0 var(--danger), 8px 8px 0 rgba(0, 0, 0, .35);
-  margin: 0;
+.app.portrait { justify-content: flex-start; padding-top: max(24px, env(safe-area-inset-top, 0px)); }
+.stage {
+  position: relative;
+  container-type: size;
+  overflow: hidden;
+  touch-action: none;
+  background: #8fd0e8;
+  border-radius: 8px;
+  box-shadow: 0 14px 50px rgba(0, 0, 0, .5);
 }
-.tagline { font-size: clamp(13px, 2.6vw, 20px); color: var(--accent); margin: 0; }
-.legend {
+.stage.compact { border-radius: 0; box-shadow: none; }
+canvas { display: block; width: 100%; height: 100%; }
+
+/* ---- 右上のボタン ---- */
+.tools {
+  position: absolute;
+  top: 2.2cqh;
+  right: 1.6cqw;
+  display: flex;
+  gap: 1cqw;
+  z-index: 3;
+}
+.icon-btn {
+  width: max(34px, 5.4cqw);
+  height: max(34px, 5.4cqw);
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, auto));
-  gap: 2px 18px;
-  font-size: clamp(10px, 1.9vw, 14px);
-  color: var(--muted);
-  text-align: left;
-  margin: 0;
+  place-items: center;
   padding: 0;
-  list-style: none;
+  color: var(--ink);
+  background: rgba(27, 34, 22, .55);
+  border: 2px solid rgba(246, 239, 217, .35);
+  border-radius: 10px;
+  cursor: pointer;
 }
-.legend b { color: var(--ink); font-weight: normal; }
+.icon-btn svg { width: 55%; height: 55%; }
+.icon-btn:hover { background: rgba(27, 34, 22, .75); }
+.icon-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* ---- 重ねるメニュー ---- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4cqh 5cqw;
+  box-sizing: border-box;
+}
 .btn {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: clamp(16px, 3.4vw, 26px);
+  font-size: clamp(16px, 3.4cqw, 30px);
+  letter-spacing: .08em;
   color: #2a1d08;
   background: var(--accent);
   border: 0;
   border-radius: 999px;
-  padding: .45em 1.6em;
+  padding: .42em 1.5em;
   cursor: pointer;
-  box-shadow: 0 4px 0 #a36f14;
+  box-shadow: 0 .18em 0 var(--accent-deep);
 }
-.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a36f14; }
-.btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
-.reason {
+.btn:active { transform: translateY(.14em); box-shadow: 0 .04em 0 var(--accent-deep); }
+.btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 4px; }
+.btn.ghost {
+  color: var(--ink);
+  background: transparent;
+  box-shadow: inset 0 0 0 2px rgba(246, 239, 217, .45);
+}
+
+/* タイトル：左に寄せて、右側の軽トラと空を見せる */
+#title {
+  justify-content: flex-start;
+  background: linear-gradient(90deg, rgba(27, 34, 22, .88) 0%, rgba(27, 34, 22, .7) 48%, rgba(27, 34, 22, 0) 78%);
+}
+.title-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2.4cqh;
+  max-width: 62cqw;
+}
+.eyebrow {
+  margin: 0;
+  font-size: clamp(10px, 1.7cqw, 15px);
+  letter-spacing: .3em;
+  color: var(--accent);
+}
+.logo {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: clamp(24px, 6vw, 54px);
+  font-size: clamp(36px, 10.5cqw, 110px);
+  line-height: .95;
+  letter-spacing: -.01em;
   color: var(--ink);
-  text-shadow: 3px 3px 0 var(--danger);
   margin: 0;
+  transform: skewX(-9deg);
+  transform-origin: left bottom;
+  text-shadow: .045em .045em 0 var(--danger), .09em .09em 0 rgba(0, 0, 0, .35);
 }
-.sub { font-size: clamp(12px, 2.2vw, 17px); color: var(--muted); margin: 0; }
-.result { font-size: clamp(22px, 5vw, 44px); color: var(--accent); margin: 0; font-variant-numeric: tabular-nums; }
-.result small { font-size: .5em; color: var(--ink); }
-.newrec { color: var(--danger); font-size: clamp(12px, 2.4vw, 18px); margin: 0; }
-.hint { font-size: 12px; color: var(--muted); margin: 0; text-align: center; }
-.sound {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  font-family: var(--font-pixel);
-  font-size: 12px;
+.tagline { margin: 0; font-size: clamp(12px, 2.1cqw, 19px); color: var(--ink); }
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2cqh 2.4cqw;
+}
+.legend li { display: flex; align-items: center; gap: 1.2cqw; min-width: 0; }
+.legend canvas {
+  flex: none;
+  width: clamp(40px, 7.6cqw, 72px);
+  height: auto;
+  aspect-ratio: 5 / 3;
+  background: rgba(143, 208, 232, .18);
+  border-radius: 6px;
+}
+.legend span { font-size: clamp(10px, 1.6cqw, 14px); color: var(--muted); line-height: 1.35; }
+.legend b { display: block; color: var(--ink); font-weight: normal; font-size: 1.12em; }
+.start-row { display: flex; align-items: center; gap: 2.4cqw; flex-wrap: wrap; }
+.best-chip { font-size: clamp(11px, 1.8cqw, 16px); color: var(--muted); font-variant-numeric: tabular-nums; }
+.best-chip b { color: var(--accent); font-weight: normal; }
+.howto { margin: 0; font-size: clamp(10px, 1.55cqw, 14px); color: var(--muted); }
+.howto kbd {
+  font-family: inherit;
   color: var(--ink);
-  background: rgba(0, 0, 0, .35);
-  border: 1px solid rgba(255, 255, 255, .25);
+  padding: 0 .4em;
+  border: 1px solid rgba(246, 239, 217, .4);
+  border-bottom-width: 2px;
   border-radius: 4px;
-  padding: 3px 8px;
-  cursor: pointer;
-  z-index: 2;
 }
-.sound:focus-visible { outline: 2px solid var(--accent); }
+
+/* ゲームオーバー／一時停止：中央のカード */
+.dim { background: rgba(27, 34, 22, .5); }
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.3cqh;
+  text-align: center;
+  background: var(--panel);
+  border: 2px solid var(--panel-edge);
+  border-radius: 14px;
+  padding: 4.2cqh 4.4cqw 3.2cqh;
+  box-shadow: 0 .6cqh 0 rgba(0, 0, 0, .35);
+  max-width: 88cqw;
+  max-height: 92cqh;
+  box-sizing: border-box;
+  animation: pop .28s cubic-bezier(.2, 1.4, .4, 1) both;
+}
+@keyframes pop { from { transform: scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
+.reason {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(18px, min(4.2cqw, 8cqh), 46px);
+  line-height: 1.1;
+  color: var(--ink);
+  text-shadow: .06em .06em 0 var(--danger);
+}
+.sub { margin: 0; font-size: clamp(11px, 1.8cqw, 16px); color: var(--muted); }
+.result {
+  margin: 0;
+  font-size: clamp(30px, min(7cqw, 15cqh), 88px);
+  line-height: 1;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.result small { font-size: .38em; color: var(--ink); margin-left: .15em; }
+.ribbon {
+  position: absolute;
+  top: -1.1em;
+  left: 50%;
+  transform: translateX(-50%) rotate(-3deg);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(12px, 2.2cqw, 20px);
+  color: #fff;
+  background: var(--danger);
+  padding: .2em 1em;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, .3);
+}
+.rank { margin: 0; font-size: clamp(11px, min(1.8cqw, 3.6cqh), 17px); color: var(--muted); }
+.rank b { font-weight: normal; color: var(--ink); padding: .1em .6em; margin-left: .3em; border: 1px solid var(--panel-edge); border-radius: 999px; }
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 3cqw;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.stats div { display: flex; flex-direction: column-reverse; align-items: center; }
+.stats dt { font-size: clamp(9px, 1.4cqw, 13px); color: var(--muted); }
+.stats dd { margin: 0; font-size: clamp(13px, min(2.4cqw, 4.8cqh), 24px); color: var(--ink); }
+.btn-row { display: flex; gap: 2cqw; flex-wrap: wrap; justify-content: center; margin-top: .6cqh; }
+.card .btn { font-size: clamp(15px, min(2.7cqw, 5.4cqh), 26px); }
+.kbd-hint { margin: 0; font-size: clamp(9px, 1.35cqw, 12px); color: var(--muted); }
+
+/* 縦持ちのとき：ゲームの下を親指で押すパッドにする */
+.pad {
+  flex: 1;
+  width: calc(100% - 32px);
+  max-height: 420px;
+  min-height: 120px;
+  margin-inline: 16px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 2px dashed rgba(246, 239, 217, .28);
+  border-radius: 20px;
+  color: var(--muted);
+  touch-action: none;
+}
+.pad.on { background: rgba(242, 179, 61, .12); border-color: var(--accent); }
+.pad-main { font-family: var(--font-display); font-weight: 900; font-size: 22px; color: var(--ink); letter-spacing: .08em; }
+.pad-sub { font-size: 13px; }
+/* 縦持ちのときの案内 */
+.rotate-hint {
+  margin: 0;
+  padding-inline: 16px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
+.rotate-hint b { color: var(--accent); font-weight: normal; }
+
+.touch-only { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .touch-only { display: inline; }
+  .kbd-only { display: none !important; }
+}
+/* 幅の狭い画面（縦持ちのスマホ）では説明を省く。障害物は走りながら吹き出しで説明する */
+@container (max-width: 560px) {
+  .legend, .tagline { display: none; }
+  .title-col { gap: 3.6cqh; max-width: 70cqw; }
+  .logo { font-size: 15cqw; }
+  #title { background: linear-gradient(90deg, rgba(27, 34, 22, .85) 0%, rgba(27, 34, 22, .55) 55%, rgba(27, 34, 22, 0) 80%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card { animation: none; }
+}
 </style>
 </head>
 <body>
+<div class="app" id="app">
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
 
-<div class="stage" id="stage">
-  <canvas id="cv"></canvas>
+    <div class="tools">
+      <button class="icon-btn" id="soundBtn" type="button" aria-label="音を消す" aria-pressed="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" stroke="none"/>
+          <path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>
+          <path class="mute" d="M16 9l6 6M22 9l-6 6" hidden/>
+        </svg>
+      </button>
+      <button class="icon-btn" id="pauseBtn" type="button" aria-label="一時停止" hidden>
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+      </button>
+    </div>
 
-  <div class="overlay" id="title">
-    <h1 class="logo">軽トラ走!</h1>
-    <p class="tagline">田んぼに落ちずに、あぜ道をどこまでも</p>
-    <ul class="legend">
-      <li><b>田んぼ</b> 落ちたら終わり</li>
-      <li><b>イノシシ</b> ぶつかったら終わり</li>
-      <li><b>水たまり</b> スリップでジャンプ不可</li>
-      <li><b>ボコボコ道</b> 跳ねてジャンプが弱い</li>
-    </ul>
-    <button class="btn" id="startBtn" type="button">出発</button>
+    <div class="overlay" id="title">
+      <div class="title-col">
+        <p class="eyebrow">あぜ道ランナー</p>
+        <h1 class="logo">軽トラ走!</h1>
+        <p class="tagline">田んぼに落ちずに、どこまで走れるか。</p>
+        <ul class="legend">
+          <li><canvas data-icon="gap" width="120" height="72"></canvas><span><b>田んぼ</b>落ちたら終わり</span></li>
+          <li><canvas data-icon="boar" width="120" height="72"></canvas><span><b>イノシシ</b>ぶつかったら終わり</span></li>
+          <li><canvas data-icon="puddle" width="120" height="72"></canvas><span><b>水たまり</b>滑ってジャンプ不可</span></li>
+          <li><canvas data-icon="bump" width="120" height="72"></canvas><span><b>ボコボコ道</b>跳ねてジャンプが弱い</span></li>
+        </ul>
+        <div class="start-row">
+          <button class="btn" id="startBtn" type="button">出発</button>
+          <span class="best-chip" id="titleBest" hidden>ベスト <b id="titleBestM">0</b> m</span>
+        </div>
+        <p class="howto"><span class="touch-only">画面をタップで</span><span class="kbd-only">クリック か <kbd>Space</kbd> で</span>ジャンプ。長押しで高く跳ぶ</p>
+      </div>
+    </div>
+
+    <div class="overlay dim" id="over" hidden>
+      <div class="card">
+        <span class="ribbon" id="newrec" hidden>自己ベスト更新!</span>
+        <p class="reason" id="reason">田んぼに突っ込んだ!</p>
+        <p class="sub" id="reasonSub"></p>
+        <p class="result"><span id="finalM">0</span><small>m</small></p>
+        <p class="rank">称号 <b id="rankName">見習い運転手</b></p>
+        <p class="sub" id="bestLine">ベスト <span id="bestM">0</span> m</p>
+        <dl class="stats">
+          <div><dt>最高速度</dt><dd><span id="stSpeed">0</span> km/h</dd></div>
+          <div><dt>ジャンプ</dt><dd><span id="stJumps">0</span> 回</dd></div>
+          <div><dt>イノシシ回避</dt><dd><span id="stBoars">0</span> 頭</dd></div>
+        </dl>
+        <div class="btn-row">
+          <button class="btn" id="retryBtn" type="button">もう一回</button>
+          <button class="btn ghost" id="toTitleBtn" type="button">タイトル</button>
+        </div>
+        <p class="kbd-hint kbd-only">Space でもう一回 ／ Esc でタイトル</p>
+      </div>
+    </div>
+
+    <div class="overlay dim" id="pause" hidden>
+      <div class="card">
+        <p class="reason">一時停止</p>
+        <p class="sub" id="pauseM">0 m 地点</p>
+        <div class="btn-row">
+          <button class="btn" id="resumeBtn" type="button">再開</button>
+          <button class="btn ghost" id="quitBtn" type="button">やめる</button>
+        </div>
+        <p class="kbd-hint kbd-only">P か Esc でも再開</p>
+      </div>
+    </div>
   </div>
-
-  <div class="overlay" id="over" hidden>
-    <p class="reason" id="reason">田んぼに突っ込んだ!</p>
-    <p class="sub" id="reasonSub"></p>
-    <p class="result"><span id="finalM">0</span><small> m</small></p>
-    <p class="newrec" id="newrec" hidden>自己ベスト更新!</p>
-    <p class="sub">ベスト <span id="bestM">0</span> m</p>
-    <button class="btn" id="retryBtn" type="button">もう一回</button>
+  <div class="pad" id="pad" hidden>
+    <span class="pad-main">タップでジャンプ</span>
+    <span class="pad-sub">長押しで高く跳ぶ</span>
   </div>
-
-  <button class="sound" id="soundBtn" type="button">音: ON</button>
+  <p class="rotate-hint" id="rotateHint" hidden>横向きにすると<b>大きな画面</b>で遊べます</p>
 </div>
-
-<p class="hint">タップ / スペースキーでジャンプ。長押しで高く跳ぶ</p>
 
 <script>
 (() => {
   'use strict';
 
   // ---- 定数 ----
-  const W = 800, H = 450;
-  const GROUND = 330;          // 道の表面
-  const ROAD_H = 24;           // あぜ道の厚み
+  const W = 800, H = 450;        // 論理座標。縦に長い画面では空を上に足す
+  const GROUND = 330;            // 道の表面
+  const ROAD_H = 24;             // あぜ道の厚み
   const GRAV = 2300;
   const JUMP_V = 780;
-  const TRUCK_X = 140;         // 画面上の軽トラの左端
+  const AIR = 2 * JUMP_V / GRAV; // 目いっぱい跳んだときの滞空時間
+  const TRUCK_X = 140;           // 画面上の軽トラの左端
   const TRUCK_W = 96;
-  const PX_PER_M = 25;         // 25px = 1m
+  const TRUCK_FRONT = TRUCK_X + TRUCK_W;
+  const PX_PER_M = 25;           // 25px = 1m
   const SLIP_TIME = 0.9;
+  const MAX_SPEED = 760;
 
-  const stage = document.getElementById('stage');
-  const cv = document.getElementById('cv');
-  const ctx = cv.getContext('2d');
-  const titleEl = document.getElementById('title');
-  const overEl = document.getElementById('over');
-  const soundBtn = document.getElementById('soundBtn');
+  const $ = id => document.getElementById(id);
+  const app = $('app'), stage = $('stage'), cv = $('cv');
+  const mainCtx = cv.getContext('2d');
+  let ctx = mainCtx;
+  const titleEl = $('title'), overEl = $('over'), pauseEl = $('pause');
+  const soundBtn = $('soundBtn'), pauseBtn = $('pauseBtn');
+  const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // ---- 保存 ----
-  const BEST_KEY = 'keitora-best';
-  const loadBest = () => { try { return Number(localStorage.getItem(BEST_KEY)) || 0; } catch (e) { return 0; } };
-  const saveBest = v => { try { localStorage.setItem(BEST_KEY, String(v)); } catch (e) {} };
-  let best = loadBest();
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} },
+  };
+  let best = Number(store.get('keitora-best', 0)) || 0;
+  let soundOn = store.get('keitora-sound', '1') === '1';
 
   // ---- 音 ----
-  let ac = null, soundOn = true;
+  let ac = null;
   function initAudio() {
-    if (ac) return;
-    try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; }
+    if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; } }
+    if (ac && ac.state === 'suspended') ac.resume();
   }
-  function tone(type, f0, f1, dur, vol) {
-    const t = ac.currentTime;
+  function tone(type, f0, f1, dur, vol, delay = 0) {
+    const t = ac.currentTime + delay;
     const o = ac.createOscillator(), g = ac.createGain();
     o.type = type;
     o.frequency.setValueAtTime(f0, t);
@@ -222,51 +440,111 @@ canvas { display: block; width: 100%; height: 100%; }
   function sfx(k) {
     if (!ac || !soundOn) return;
     try {
-      if (k === 'jump') tone('square', 260, 620, 0.14, 0.08);
-      else if (k === 'bump') tone('square', 140, 90, 0.06, 0.05);
+      if (k === 'jump') tone('square', 260, 620, 0.14, 0.07);
+      else if (k === 'bump') tone('square', 140, 90, 0.06, 0.04);
       else if (k === 'slip') { tone('sawtooth', 700, 160, 0.35, 0.05); noise(0.25, 0.12, 2500); }
-      else if (k === 'warn') { tone('square', 900, 900, 0.08, 0.06); setTimeout(() => sfx('warn2'), 120); }
-      else if (k === 'warn2') tone('square', 900, 900, 0.08, 0.06);
+      else if (k === 'warn') { tone('square', 900, 900, 0.08, 0.06); tone('square', 900, 900, 0.08, 0.06, 0.13); }
       else if (k === 'crash') { noise(0.5, 0.35, 900); tone('square', 180, 40, 0.4, 0.08); }
       else if (k === 'splash') { noise(0.7, 0.3, 1400); tone('sine', 300, 60, 0.5, 0.1); }
       else if (k === 'land') tone('square', 110, 70, 0.05, 0.04);
+      else if (k === 'mile') { tone('square', 660, 660, 0.09, 0.05); tone('square', 990, 990, 0.14, 0.05, 0.09); }
+      else if (k === 'record') { [523, 659, 784, 1046].forEach((f, i) => tone('square', f, f, 0.12, 0.05, i * 0.08)); }
+      else if (k === 'dodge') tone('triangle', 500, 900, 0.1, 0.06);
+      else if (k === 'ui') tone('square', 440, 440, 0.04, 0.03);
     } catch (e) {}
   }
-  soundBtn.addEventListener('click', e => {
-    e.stopPropagation();
+  function renderSoundBtn() {
+    soundBtn.querySelector('.wave').toggleAttribute('hidden', !soundOn);
+    soundBtn.querySelector('.mute').toggleAttribute('hidden', soundOn);
+    soundBtn.setAttribute('aria-pressed', String(soundOn));
+    soundBtn.setAttribute('aria-label', soundOn ? '音を消す' : '音を出す');
+  }
+  soundBtn.addEventListener('click', () => {
     soundOn = !soundOn;
-    soundBtn.textContent = soundOn ? '音: ON' : '音: OFF';
+    store.set('keitora-sound', soundOn ? '1' : '0');
+    renderSoundBtn();
+    initAudio(); sfx('ui');
   });
-  soundBtn.addEventListener('pointerdown', e => e.stopPropagation());
+  renderSoundBtn();
 
   // ---- 画面サイズ ----
+  let VH = H;      // 表示する論理的な高さ（H 以上）
+  let isPortrait = false;
+  const PAD_TEXT = { title: ['タップで出発', '走り出したら、ここでジャンプ'], play: ['タップでジャンプ', '長押しで高く跳ぶ'], over: ['タップでもう一回', ''] };
+  function renderPad() {
+    const pad = $('pad');
+    pad.hidden = !isPortrait;
+    const [a, b] = PAD_TEXT[state === 'dying' ? 'play' : state];
+    pad.querySelector('.pad-main').textContent = a;
+    pad.querySelector('.pad-sub').textContent = b;
+  }
   function resize() {
-    const r = stage.getBoundingClientRect();
+    const cs = getComputedStyle(app);
+    const aw0 = app.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const ah0 = app.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const portrait = ah0 > aw0 * 1.1;
+    const compact = Math.min(aw0, ah0) < 560 || portrait;
+    const gut = compact ? 0 : 28;
+    const aw = aw0 - gut * 2;
+    const ah = ah0 - gut * 2 - (portrait ? 220 : 0);
+    const viewH = Math.max(400, Math.min(portrait ? 640 : 520, W * ah / aw));
+    let sw = aw, sh = aw * viewH / W;
+    if (sh > ah) { sh = ah; sw = ah * W / viewH; }
+    if (!compact && sw > 1280) { sw = 1280; sh = sw * viewH / W; }
+    sw = Math.floor(sw); sh = Math.floor(sh);
+    stage.style.width = sw + 'px';
+    stage.style.height = sh + 'px';
+    stage.classList.toggle('compact', compact);
+    $('rotateHint').hidden = !portrait;
+    isPortrait = portrait;
+    app.classList.toggle('portrait', portrait);
+    renderPad();
+    VH = viewH;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    cv.width = Math.round(r.width * dpr);
-    cv.height = Math.round(r.height * dpr);
-    const s = (r.width / W) * dpr;
-    ctx.setTransform(s, 0, 0, s, 0, 0);
+    cv.width = Math.round(sw * dpr);
+    cv.height = Math.round(sh * dpr);
+    const s = (sw / W) * dpr;
+    mainCtx.setTransform(s, 0, 0, s, 0, 0);
   }
   window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 
   // ---- ゲーム状態 ----
   let state = 'title';   // title / play / dying / over
-  let cam, speed, runTime, truck, obs, parts, nextX, slip, shake, jumpBuf, holding, dieT, wheelA, slipFx;
+  let paused = false;
+  let usedKeyboard = false;
+  window.addEventListener('keydown', () => { usedKeyboard = true; }, true);
+  window.addEventListener('pointerdown', () => { usedKeyboard = false; }, true);
+  const focusIfKeyboard = el => { if (usedKeyboard) el.focus({ preventScroll: true }); };
+  let cam, speed, runTime, truck, obs, parts, nextX, slip, shake, flash, jumpBuf, holding, dieT, wheelA;
+  let stats, banner, lastMile, passedBest, popups;
+  let truckX = 560;              // 描画上の軽トラの位置（タイトルでは右寄せ）
+  const seenTypes = new Set();   // このセッションで説明済みの障害物
   const rand = (a, b) => a + Math.random() * (b - a);
 
   function reset() {
     cam = 0; speed = 250; runTime = 0;
-    truck = { y: GROUND, vy: 0, grounded: true, falling: false, dead: false, coyote: 0, bumpT: 0, jumped: false, angle: 0, fallV: 0 };
-    obs = []; parts = [];
-    nextX = 1000;
-    slip = 0; shake = 0; jumpBuf = 0; holding = false; dieT = 0; wheelA = 0; slipFx = 0;
+    truck = { y: GROUND, vy: 0, grounded: true, falling: false, dead: false, coyote: 0, bumpT: 0, jumped: false, angle: 0, fallV: 0, squash: 0 };
+    obs = []; parts = []; popups = [];
+    nextX = 900;
+    slip = 0; shake = 0; flash = 0; jumpBuf = 0; holding = false; dieT = 0; wheelA = 0;
+    stats = { jumps: 0, boars: 0, maxKmh: 0 };
+    banner = null; lastMile = 0; passedBest = best === 0;
   }
 
   const meters = () => Math.floor(cam / PX_PER_M);
+  const kmh = v => Math.round(v / PX_PER_M * 3.6);
 
   // ---- コース生成 ----
-  function gap() { return 170 + speed * 0.25 + Math.random() * speed * 0.9; }
+  // 田んぼの幅は「踏み切りの猶予時間」から決める。距離が伸びるほど猶予が短くなる
+  function jumpWindow(m) {
+    return m < 1150 ? 0.38 - m * 0.0002 : Math.max(0.1, 0.15 - (m - 1150) * 0.00003);
+  }
+  function spacing() {
+    const m = cam / PX_PER_M;
+    const dense = Math.max(0.62, 1 - m / 3500);
+    return (170 + speed * 0.25 + Math.random() * speed * 0.9) * dense;
+  }
   function pick(list) {
     let sum = 0; for (const [, w] of list) sum += w;
     let r = Math.random() * sum;
@@ -278,28 +556,27 @@ canvas { display: block; width: 100%; height: 100%; }
       const m = nextX / PX_PER_M;
       const type = m < 80
         ? pick([['gap', 70], ['puddle', 30]])
-        : pick([['gap', 40], ['puddle', 20], ['bump', m > 150 ? 18 : 8], ['boar', m > 200 ? 18 : 0]]);
+        : pick([['gap', 40], ['puddle', 18], ['bump', m > 150 ? 18 : 8], ['boar', m > 200 ? 18 : 0]]);
       if (type === 'gap') {
-        const w = 70 + Math.random() * Math.min(speed * 0.34, 220);
+        const w = Math.max(56, speed * (AIR - jumpWindow(m)) * rand(0.7, 1));
         obs.push({ t: 'gap', x: nextX, w });
-        nextX += w + gap();
+        nextX += w + spacing();
       } else if (type === 'puddle') {
         const w = rand(60, 130);
         obs.push({ t: 'puddle', x: nextX, w });
         // スリップ中に次の障害物が来ないよう間をあける
-        nextX += w + speed * 1.25 * SLIP_TIME + 150 + Math.random() * speed * 0.6;
+        nextX += w + speed * 1.25 * SLIP_TIME + 150 + Math.random() * speed * 0.5;
       } else if (type === 'bump') {
         const w = rand(220, 480);
         obs.push({ t: 'bump', x: nextX, w, seed: Math.random() * 100 });
-        nextX += w + gap() * 0.8;
+        nextX += w + spacing() * 0.8;
       } else {
         // イノシシは画面の右端から出てくるので、その手前を空けておく
         const bx = nextX + 650;
-        obs.push({ t: 'boar', x: bx, state: 'pending', px: 0, vx: 0, leg: 0, wt: 0 });
-        nextX = bx + 220 + gap();
+        obs.push({ t: 'boar', x: bx, w: 0, state: 'pending', px: 0, vx: 0, leg: 0, wt: 0, counted: false });
+        nextX = bx + 220 + spacing();
       }
     }
-    // 画面外に出たものを捨てる
     obs = obs.filter(o => (o.t === 'boar' ? (o.state !== 'gone') : (o.x + o.w > cam - 200)));
   }
 
@@ -308,57 +585,106 @@ canvas { display: block; width: 100%; height: 100%; }
     return null;
   }
 
-  // ---- パーティクル ----
+  // ---- パーティクル・表示 ----
   function emit(n, wx, y, opt) {
     for (let i = 0; i < n; i++) {
+      const life = rand(opt.life[0], opt.life[1]);
       parts.push({
-        x: wx, y,
-        vx: rand(opt.vx[0], opt.vx[1]), vy: rand(opt.vy[0], opt.vy[1]),
-        life: rand(opt.life[0], opt.life[1]), max: 0,
-        r: rand(opt.r[0], opt.r[1]), col: opt.col, g: opt.g ?? 900,
+        x: wx, y, vx: rand(opt.vx[0], opt.vx[1]), vy: rand(opt.vy[0], opt.vy[1]),
+        life, max: life, r: rand(opt.r[0], opt.r[1]), col: opt.col, g: opt.g ?? 900,
       });
-      parts[parts.length - 1].max = parts[parts.length - 1].life;
     }
   }
+  function showBanner(text, color, sub) { banner = { text, sub, color, t: 1.6 }; }
+  function popup(text, color) { popups.push({ text, color, t: 0.9 }); }
 
   // ---- 入力 ----
   function press() {
     initAudio();
-    if (ac && ac.state === 'suspended') ac.resume();
+    if (paused) return;
     if (state === 'play') { jumpBuf = 0.12; holding = true; }
     else if (state === 'title') start();
-    else if (state === 'over' && dieT > 0.6) start();
+    else if (state === 'over' && dieT > 0.7) start();
   }
   function release() {
     holding = false;
     if (state === 'play' && truck.jumped && truck.vy < -250) truck.vy *= 0.45;
   }
-  stage.addEventListener('pointerdown', e => {
+  app.addEventListener('pointerdown', e => {
     if (e.target.closest('button')) return;
+    if (state === 'over' && e.target.closest('.card')) return;
+    if (paused) return;
     e.preventDefault();
+    if (state === 'play') $('pad').classList.add('on');
     press();
   });
-  window.addEventListener('pointerup', release);
-  window.addEventListener('pointercancel', release);
+  const up = () => { $('pad').classList.remove('on'); release(); };
+  window.addEventListener('pointerup', up);
+  window.addEventListener('pointercancel', up);
+  const JUMP_KEYS = ['Space', 'ArrowUp', 'KeyW'];
   window.addEventListener('keydown', e => {
-    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Enter') {
-      if (e.target.closest && e.target.closest('button') && e.code === 'Enter') return;
+    if (e.code === 'KeyP' || e.code === 'Escape') {
+      if (state === 'play') { e.preventDefault(); setPaused(!paused); }
+      else if (state === 'over' && e.code === 'Escape') toTitle();
+      return;
+    }
+    if (JUMP_KEYS.includes(e.code) || (e.code === 'Enter' && !(e.target.closest && e.target.closest('button')))) {
       e.preventDefault();
       if (!e.repeat) press();
     }
   });
-  window.addEventListener('keyup', e => {
-    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Enter') release();
-  });
-  document.getElementById('startBtn').addEventListener('click', () => { initAudio(); start(); });
-  document.getElementById('retryBtn').addEventListener('click', () => { initAudio(); start(); });
+  window.addEventListener('keyup', e => { if (JUMP_KEYS.includes(e.code) || e.code === 'Enter') release(); });
+  $('startBtn').addEventListener('click', () => { initAudio(); start(); });
+  $('retryBtn').addEventListener('click', () => { initAudio(); start(); });
+  $('toTitleBtn').addEventListener('click', () => toTitle());
+  $('resumeBtn').addEventListener('click', () => setPaused(false));
+  $('quitBtn').addEventListener('click', () => { setPaused(false); toTitle(); });
+  pauseBtn.addEventListener('click', () => setPaused(!paused));
+  document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') setPaused(true); });
+
+  function setPaused(p) {
+    if (state !== 'play') p = false;
+    paused = p;
+    pauseEl.hidden = !p;
+    pauseBtn.hidden = p || state !== 'play';
+    holding = false;
+    if (p) $('pauseM').textContent = meters().toLocaleString('ja-JP') + ' m 地点';
+    last = performance.now();
+    sfx('ui');
+  }
 
   function start() {
     reset();
     state = 'play';
+    paused = false;
     titleEl.hidden = true;
     overEl.hidden = true;
+    pauseEl.hidden = true;
+    pauseBtn.hidden = false;
+    renderPad();
   }
+  function toTitle() {
+    reset();
+    state = 'title';
+    overEl.hidden = true;
+    pauseEl.hidden = true;
+    pauseBtn.hidden = true;
+    renderTitleBest();
+    titleEl.hidden = false;
+    renderPad();
+    focusIfKeyboard($('startBtn'));
+  }
+  function renderTitleBest() {
+    $('titleBest').hidden = best <= 0;
+    $('titleBestM').textContent = best.toLocaleString('ja-JP');
+  }
+
+  // 走った距離でもらえる称号
+  const RANKS = [
+    [0, '見習い運転手'], [150, '若葉マーク'], [300, '田植え帰り'], [500, 'あぜ道の常連'],
+    [800, '牧草ロール運び名人'], [1200, '農道の韋駄天'], [1800, 'あぜ道マスター'], [2600, '伝説の軽トラ乗り'],
+  ];
+  const rankOf = m => RANKS.filter(([d]) => m >= d).pop()[1];
 
   const REASONS = {
     fall: ['田んぼに突っ込んだ!', '稲がめちゃくちゃ…'],
@@ -370,32 +696,57 @@ canvas { display: block; width: 100%; height: 100%; }
     dieT = 0;
     truck.dead = true;
     truck.deathKind = kind;
-    if (kind === 'boar') { shake = 0.45; sfx('crash'); }
+    pauseBtn.hidden = true;
+    if (kind === 'boar') { shake = 0.45; flash = 0.25; sfx('crash'); }
   }
   function showOver() {
     state = 'over';
+    dieT = 0;
     const m = meters();
+    const prev = best;
     const rec = m > best;
-    if (rec) { best = m; saveBest(best); }
-    document.getElementById('reason').textContent = REASONS[truck.deathKind][0];
-    document.getElementById('reasonSub').textContent = REASONS[truck.deathKind][1];
-    document.getElementById('finalM').textContent = m.toLocaleString('ja-JP');
-    document.getElementById('bestM').textContent = best.toLocaleString('ja-JP');
-    document.getElementById('newrec').hidden = !rec;
+    if (rec) { best = m; store.set('keitora-best', best); }
+    $('rankName').textContent = rankOf(m);
+    $('bestLine').textContent = !rec ? `ベスト ${best.toLocaleString('ja-JP')} m（あと ${(best - m).toLocaleString('ja-JP')} m）`
+      : prev > 0 ? `これまでのベスト ${prev.toLocaleString('ja-JP')} m を ${(m - prev).toLocaleString('ja-JP')} m 更新` : 'はじめての記録';
+    $('reason').textContent = REASONS[truck.deathKind][0];
+    $('reasonSub').textContent = REASONS[truck.deathKind][1];
+    $('finalM').textContent = m.toLocaleString('ja-JP');
+    $('newrec').hidden = !rec;
+    $('stSpeed').textContent = stats.maxKmh;
+    $('stJumps').textContent = stats.jumps;
+    $('stBoars').textContent = stats.boars;
     overEl.hidden = false;
+    renderPad();
+    focusIfKeyboard($('retryBtn'));
   }
 
   // ---- 更新 ----
   function update(dt) {
-    if (state === 'title') { cam += 60 * dt; wheelA += 60 * dt / 11; return; }
+    const tx = state === 'title' ? 560 : TRUCK_X;
+    truckX += (tx - truckX) * Math.min(1, dt * (reduceMotion ? 60 : 5));
+    if (state === 'title') { cam += 70 * dt; wheelA += 70 * dt / 11; updateParts(dt); return; }
     if (state === 'over') { dieT += dt; updateParts(dt); return; }
 
     const cx = cam + TRUCK_X + TRUCK_W / 2;
 
     if (state === 'play') {
       runTime += dt;
-      speed = Math.min(700, 250 + meters() * 0.3);
+      const mm = meters();
+      speed = mm < 1700 ? Math.min(MAX_SPEED, 250 + mm * 0.3) : Math.min(900, MAX_SPEED + (mm - 1700) * 0.04);
       generate();
+      const m = meters();
+      // 100m ごとの区切り
+      if (Math.floor(m / 100) > lastMile) {
+        lastMile = Math.floor(m / 100);
+        showBanner(lastMile * 100 + ' m', '#fffbea', lastMile % 5 === 0 ? 'スピードアップ!' : null);
+        sfx('mile');
+      }
+      if (!passedBest && m > best) {
+        passedBest = true;
+        showBanner('ベスト更新!', '#f2b33d');
+        sfx('record');
+      }
     }
 
     // 前進
@@ -404,6 +755,7 @@ canvas { display: block; width: 100%; height: 100%; }
     else if (truck.dead) v = 0;
     cam += v * dt;
     wheelA += v * dt / 11;
+    if (state === 'play') stats.maxKmh = Math.max(stats.maxKmh, kmh(v));
 
     // ジャンプ
     jumpBuf -= dt;
@@ -415,6 +767,7 @@ canvas { display: block; width: 100%; height: 100%; }
       truck.jumped = true;
       truck.coyote = 0;
       jumpBuf = 0;
+      stats.jumps++;
       sfx('jump');
       emit(6, cam + TRUCK_X + 16, GROUND, { vx: [-160, -40], vy: [-160, -40], life: [0.3, 0.6], r: [3, 6], col: '#b89468' });
     }
@@ -424,6 +777,7 @@ canvas { display: block; width: 100%; height: 100%; }
       truck.vy += GRAV * dt;
       truck.y += truck.vy * dt;
     }
+    truck.squash = Math.max(0, truck.squash - dt * 5);
     const hole = find('gap', cx);
     if (truck.falling) {
       if (truck.y > GROUND + 40 && !truck.splashed) {
@@ -445,11 +799,10 @@ canvas { display: block; width: 100%; height: 100%; }
           die('fall');
         }
       } else if (truck.y >= GROUND) {
-        if (!truck.grounded) {
-          if (truck.vy > 500) {
-            sfx('land');
-            emit(8, cam + TRUCK_X + 20, GROUND, { vx: [-200, 40], vy: [-120, -20], life: [0.3, 0.6], r: [3, 6], col: '#b89468' });
-          }
+        if (!truck.grounded && truck.vy > 500) {
+          sfx('land');
+          truck.squash = 1;
+          emit(8, cam + TRUCK_X + 20, GROUND, { vx: [-200, 40], vy: [-120, -20], life: [0.3, 0.6], r: [3, 6], col: '#b89468' });
         }
         truck.y = GROUND; truck.vy = 0;
         truck.grounded = true; truck.jumped = false;
@@ -473,7 +826,6 @@ canvas { display: block; width: 100%; height: 100%; }
       // 水たまり：スリップ
       if (truck.grounded && slip <= 0 && find('puddle', cx)) {
         slip = SLIP_TIME;
-        slipFx = 1;
         sfx('slip');
         emit(18, cx, GROUND, { vx: [-260, 120], vy: [-320, -90], life: [0.4, 0.8], r: [2, 5], col: '#7c9bb0' });
       }
@@ -510,25 +862,39 @@ canvas { display: block; width: 100%; height: 100%; }
         if (o.px < cam - 150) o.state = 'gone';
         if (o.state === 'run' && state === 'play' && !truck.falling) {
           const bs = o.px - cam;
-          const tl = TRUCK_X + 10, tr = TRUCK_X + TRUCK_W - 4;
+          const tl = TRUCK_X + 10, tr = TRUCK_FRONT - 4;
           const tb = truck.y - 4, tt = truck.y - 46;
           const bl = bs - 24, br = bs + 22, bt = GROUND - 30, bb = GROUND;
           if (tr > bl && tl < br && tb > bt && tt < bb) {
             o.state = 'hit';
             emit(20, o.px, GROUND - 20, { vx: [-200, 250], vy: [-450, -150], life: [0.4, 0.9], r: [2, 5], col: '#fff3c4' });
             die('boar');
+          } else if (!o.counted && br < tl) {
+            o.counted = true;
+            stats.boars++;
+            popup('かわした!', '#f2b33d');
+            sfx('dodge');
           }
         }
       }
     }
 
-    slipFx = Math.max(0, slipFx - dt);
+    // 初めて見る障害物は、軽トラを通り過ぎたら説明済みにする
+    for (const o of obs) {
+      if (o.t !== 'boar' && o.x + o.w < cam + TRUCK_X) seenTypes.add(o.t);
+      if (o.t === 'boar' && o.counted) seenTypes.add('boar');
+    }
+
     shake = Math.max(0, shake - dt);
+    flash = Math.max(0, flash - dt);
+    if (banner) { banner.t -= dt; if (banner.t <= 0) banner = null; }
+    for (const p of popups) p.t -= dt;
+    popups = popups.filter(p => p.t > 0);
     updateParts(dt);
 
     if (state === 'dying') {
       dieT += dt;
-      if (dieT > 1.0) { dieT = 0; showOver(); }
+      if (dieT > 1.0) showOver();
     }
   }
 
@@ -544,27 +910,28 @@ canvas { display: block; width: 100%; height: 100%; }
 
   // ---- 描画 ----
   function hash(n) { const s = Math.sin(n * 127.1) * 43758.5453; return s - Math.floor(s); }
+  const FONT = '"DotGothic16", "MS Gothic", "Osaka-Mono", monospace';
+  const bold = s => `900 ${s}px "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif`;
 
   function drawSky() {
-    const g = ctx.createLinearGradient(0, 0, 0, 250);
-    g.addColorStop(0, '#6fc0e6');
+    const top = -(VH - H);
+    const g = ctx.createLinearGradient(0, top, 0, 250);
+    g.addColorStop(0, '#5fb3dd');
     g.addColorStop(1, '#fbe8b8');
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, 260);
+    ctx.fillRect(0, top, W, 260 - top);
     // 太陽
     ctx.fillStyle = 'rgba(255, 240, 190, .9)';
-    ctx.beginPath(); ctx.arc(640, 90, 34, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(600, 120, 32, 0, Math.PI * 2); ctx.fill();
     // 雲
     ctx.fillStyle = 'rgba(255,255,255,.85)';
     const cOff = (cam * 0.05) % 1200;
     for (let i = 0; i < 4; i++) {
       const x = ((i * 330 - cOff) % 1200 + 1200) % 1200 - 200;
-      const y = 40 + hash(i) * 60;
-      ctx.beginPath();
-      ctx.ellipse(x, y, 46, 14, 0, 0, Math.PI * 2);
-      ctx.ellipse(x + 30, y - 8, 30, 14, 0, 0, Math.PI * 2);
-      ctx.ellipse(x - 26, y - 4, 24, 10, 0, 0, Math.PI * 2);
-      ctx.fill();
+      const y = 110 + hash(i) * 60 + top * 0.4;
+      for (const [dx, dy, rx, ry] of [[0, 0, 46, 14], [30, -8, 30, 14], [-26, -4, 24, 10]]) {
+        ctx.beginPath(); ctx.ellipse(x + dx, y + dy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+      }
     }
   }
 
@@ -584,17 +951,14 @@ canvas { display: block; width: 100%; height: 100%; }
   }
 
   function drawFarField() {
-    // 奥の田んぼ（青い稲が並ぶ）
     const top = 238;
     ctx.fillStyle = '#86b94c';
     ctx.fillRect(0, top, W, GROUND - top + 10);
-    const off = cam * 0.5;
     for (let row = 0; row < 7; row++) {
       const y = top + 4 + row * row * 1.8 + row * 3;
       ctx.fillStyle = row % 2 ? '#78ab41' : '#93c457';
       ctx.fillRect(0, y, W, 2 + row * 0.8);
     }
-    // 奥のあぜ
     ctx.fillStyle = '#a28a5c';
     ctx.fillRect(0, top + 22, W, 3);
     // 電柱
@@ -618,14 +982,12 @@ canvas { display: block; width: 100%; height: 100%; }
   }
 
   function drawForeField() {
-    // 手前の水田
     const top = GROUND + ROAD_H - 4;
     const g = ctx.createLinearGradient(0, top, 0, H);
     g.addColorStop(0, '#6f9e8a');
     g.addColorStop(1, '#3e6a5c');
     ctx.fillStyle = g;
-    ctx.fillRect(0, top, W, H - top);
-    // 稲の株
+    ctx.fillRect(0, top, W, H - top + 2);
     ctx.strokeStyle = '#5fa032';
     ctx.lineWidth = 2;
     const rows = [[GROUND + 44, 30, 0.9], [GROUND + 72, 36, 1.0], [GROUND + 104, 42, 1.1]];
@@ -642,27 +1004,49 @@ canvas { display: block; width: 100%; height: 100%; }
     }
   }
 
+  function roadStrip(a, b) {
+    ctx.fillStyle = '#b08a5a';
+    ctx.fillRect(a, GROUND, b - a, ROAD_H);
+    ctx.fillStyle = '#c9a473';
+    ctx.fillRect(a, GROUND, b - a, 4);
+    ctx.fillStyle = '#7a5a36';
+    ctx.fillRect(a, GROUND + ROAD_H - 4, b - a, 4);
+    ctx.fillStyle = 'rgba(90,64,38,.35)';
+    ctx.fillRect(a, GROUND + 8, b - a, 2);
+    ctx.fillRect(a, GROUND + 14, b - a, 2);
+  }
+  function paddyHole(a, b) {
+    const wg = ctx.createLinearGradient(0, GROUND - 6, 0, GROUND + ROAD_H);
+    wg.addColorStop(0, '#9cc9c4');
+    wg.addColorStop(1, '#6f9e8a');
+    ctx.fillStyle = wg;
+    ctx.fillRect(a, GROUND - 6, b - a, ROAD_H + 6);
+    ctx.fillStyle = '#6b4c2c';
+    ctx.fillRect(a - 3, GROUND, 3, ROAD_H + 2);
+    ctx.fillRect(b, GROUND, 3, ROAD_H + 2);
+    ctx.fillStyle = 'rgba(235,250,250,.6)';
+    ctx.fillRect(a + 6, GROUND - 5, (b - a) * 0.3, 2);
+    ctx.strokeStyle = '#4f9a2a';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let x = a + 10; x < b - 6; x += 18) {
+      const y = GROUND + 12;
+      ctx.moveTo(x, y); ctx.lineTo(x - 5, y - 16);
+      ctx.moveTo(x, y); ctx.lineTo(x, y - 20);
+      ctx.moveTo(x, y); ctx.lineTo(x + 5, y - 16);
+    }
+    ctx.stroke();
+  }
+
   function drawRoad() {
-    // 穴（田んぼに落ちる区間）を除いてあぜ道を描く
     const holes = obs.filter(o => o.t === 'gap' && o.x + o.w > cam && o.x < cam + W)
       .map(o => [o.x - cam, o.x + o.w - cam]).sort((a, b) => a[0] - b[0]);
     const segs = [];
     let s = -10;
     for (const [a, b] of holes) { if (a > s) segs.push([s, a]); s = Math.max(s, b); }
     if (s < W + 10) segs.push([s, W + 10]);
-
     for (const [a, b] of segs) {
-      ctx.fillStyle = '#b08a5a';
-      ctx.fillRect(a, GROUND, b - a, ROAD_H);
-      ctx.fillStyle = '#c9a473';
-      ctx.fillRect(a, GROUND, b - a, 4);
-      ctx.fillStyle = '#7a5a36';
-      ctx.fillRect(a, GROUND + ROAD_H - 4, b - a, 4);
-      // 轍
-      ctx.fillStyle = 'rgba(90,64,38,.35)';
-      ctx.fillRect(a, GROUND + 8, b - a, 2);
-      ctx.fillRect(a, GROUND + 14, b - a, 2);
-      // 手前の草
+      roadStrip(a, b);
       ctx.strokeStyle = '#6e9e3a';
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -673,73 +1057,124 @@ canvas { display: block; width: 100%; height: 100%; }
       }
       ctx.stroke();
     }
-    // 穴の縁の土壁と水面
-    for (const [a, b] of holes) {
-      // 穴の中は水を張った田んぼ
-      const wg = ctx.createLinearGradient(0, GROUND - 6, 0, GROUND + ROAD_H);
-      wg.addColorStop(0, '#9cc9c4');
-      wg.addColorStop(1, '#6f9e8a');
-      ctx.fillStyle = wg;
-      ctx.fillRect(a, GROUND - 6, b - a, ROAD_H + 6);
-      ctx.fillStyle = '#6b4c2c';
-      ctx.fillRect(a - 3, GROUND, 3, ROAD_H + 2);
-      ctx.fillRect(b, GROUND, 3, ROAD_H + 2);
-      ctx.fillStyle = 'rgba(235,250,250,.6)';
-      ctx.fillRect(a + 6, GROUND - 5, (b - a) * 0.3, 2);
-      // 稲
-      ctx.strokeStyle = '#4f9a2a';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      for (let x = a + 10; x < b - 6; x += 18) {
-        const y = GROUND + 12;
-        ctx.moveTo(x, y); ctx.lineTo(x - 5, y - 16);
-        ctx.moveTo(x, y); ctx.lineTo(x, y - 20);
-        ctx.moveTo(x, y); ctx.lineTo(x + 5, y - 16);
+    for (const [a, b] of holes) paddyHole(a, b);
+  }
+
+  // 100m ごとの距離標とベストの旗
+  function drawMarkers() {
+    const first = Math.floor((cam - 60) / (100 * PX_PER_M));
+    for (let k = Math.max(1, first); k <= first + 2; k++) {
+      const sx = k * 100 * PX_PER_M + TRUCK_FRONT - cam;
+      if (sx < -40 || sx > W + 40 || find('gap', sx + cam)) continue;
+      ctx.fillStyle = '#e8e2d0';
+      ctx.fillRect(sx - 7, GROUND - 26, 14, 26);
+      ctx.fillStyle = '#b9b19a';
+      ctx.fillRect(sx - 7, GROUND - 26, 14, 3);
+      ctx.fillStyle = '#3b3326';
+      ctx.font = '10px ' + FONT;
+      ctx.textAlign = 'center';
+      ctx.fillText(String(k * 100), sx, GROUND - 9, 12);
+    }
+    if (best > 0 && state !== 'title') {
+      const sx = best * PX_PER_M + TRUCK_FRONT - cam;
+      if (sx > -40 && sx < W + 60) {
+        ctx.fillStyle = '#5b4a3a';
+        ctx.fillRect(sx - 1.5, GROUND - 70, 3, 70);
+        const wave = Math.sin(runTime * 8) * 3;
+        ctx.fillStyle = '#e2543a';
+        ctx.beginPath();
+        ctx.moveTo(sx + 1.5, GROUND - 70);
+        ctx.quadraticCurveTo(sx + 22, GROUND - 66 + wave, sx + 42, GROUND - 62);
+        ctx.lineTo(sx + 42, GROUND - 46);
+        ctx.quadraticCurveTo(sx + 22, GROUND - 50 + wave, sx + 1.5, GROUND - 52);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = '11px ' + FONT;
+        ctx.textAlign = 'left';
+        ctx.fillText('BEST', sx + 7, GROUND - 56);
       }
-      ctx.stroke();
     }
   }
 
+  function drawPuddle(sx, w) {
+    ctx.fillStyle = '#5f7f96';
+    ctx.beginPath();
+    ctx.ellipse(sx + w / 2, GROUND + 3, w / 2, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(220,240,255,.7)';
+    ctx.fillRect(sx + w * 0.25, GROUND + 1, w * 0.25, 2);
+  }
+  function drawBumps(sx, w, seed) {
+    for (let x = 0; x < w; x += 16) {
+      const h = 3 + hash(seed + x) * 6;
+      ctx.fillStyle = '#8f6c44';
+      ctx.beginPath();
+      ctx.ellipse(sx + x + 8, GROUND + 1, 9, h, 0, Math.PI, 0);
+      ctx.fill();
+      if (hash(seed + x * 3) > 0.6) {
+        ctx.fillStyle = '#9a9488';
+        ctx.beginPath();
+        ctx.ellipse(sx + x + 4, GROUND - 1, 4, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
   function drawHazards() {
     for (const o of obs) {
       const sx = o.x - cam;
       if (o.t === 'puddle') {
         if (sx > W || sx + o.w < 0) continue;
-        ctx.fillStyle = '#5f7f96';
-        ctx.beginPath();
-        ctx.ellipse(sx + o.w / 2, GROUND + 3, o.w / 2, 5, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = 'rgba(220,240,255,.7)';
-        ctx.fillRect(sx + o.w * 0.25, GROUND + 1, o.w * 0.25, 2);
+        drawPuddle(sx, o.w);
       } else if (o.t === 'bump') {
         if (sx > W || sx + o.w < 0) continue;
-        // 凸凹と石
-        for (let x = 0; x < o.w; x += 16) {
-          const h = 3 + hash(o.seed + x) * 6;
-          ctx.fillStyle = '#8f6c44';
-          ctx.beginPath();
-          ctx.ellipse(sx + x + 8, GROUND + 1, 9, h, 0, Math.PI, 0);
-          ctx.fill();
-          if (hash(o.seed + x * 3) > 0.6) {
-            ctx.fillStyle = '#9a9488';
-            ctx.beginPath();
-            ctx.ellipse(sx + x + 4, GROUND - 1, 4, 3, 0, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-        // 立て札
-        if (sx - 30 > -40 && sx - 30 < W) {
+        drawBumps(sx, o.w, o.seed);
+        if (sx - 30 > -50 && sx - 30 < W) {
           ctx.fillStyle = '#6a4b2a';
           ctx.fillRect(sx - 30, GROUND - 34, 3, 34);
           ctx.fillStyle = '#f0d27a';
-          ctx.fillRect(sx - 44, GROUND - 46, 32, 16);
+          ctx.fillRect(sx - 46, GROUND - 48, 36, 18);
           ctx.fillStyle = '#3a2a14';
-          ctx.font = '10px ' + getComputedStyle(document.body).fontFamily;
+          ctx.font = '11px ' + FONT;
           ctx.textAlign = 'center';
           ctx.fillText('悪路', sx - 28, GROUND - 34);
         }
       }
     }
+  }
+
+  // 初めて出てきた障害物に吹き出しで説明を出す
+  const CALLOUTS = { gap: 'タップでジャンプ!', puddle: '水たまり 滑るぞ', bump: 'ボコボコ道', boar: 'イノシシ! 跳び越えろ' };
+  function drawCallouts() {
+    if (state !== 'play') return;
+    for (const o of obs) {
+      if (seenTypes.has(o.t)) continue;
+      let sx, y;
+      if (o.t === 'boar') { if (o.state !== 'run') continue; sx = o.px - cam; y = GROUND - 58; }
+      else { sx = o.x - cam + Math.min(o.w, 160) / 2; y = GROUND - 44; }
+      const near = o.t === 'boar' ? sx - TRUCK_FRONT < 120 : o.x - cam - TRUCK_FRONT < 30;
+      if (near || sx > W - 20) continue;
+      ctx.font = '15px ' + FONT;
+      const half = ctx.measureText(CALLOUTS[o.t]).width / 2 + 10;
+      bubble(CALLOUTS[o.t], Math.min(W - half - 8, Math.max(TRUCK_FRONT + half + 8, sx)), y, sx);
+      break;
+    }
+  }
+  function bubble(text, x, y, tipX) {
+    ctx.font = '15px ' + FONT;
+    const w = ctx.measureText(text).width + 20;
+    const h = 26;
+    ctx.fillStyle = '#fffbea';
+    ctx.strokeStyle = '#3a2a14';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(x - w / 2, y - h - 8, w, h, 6);
+    ctx.moveTo(tipX - 6, y - 8.5); ctx.lineTo(tipX, y); ctx.lineTo(tipX + 6, y - 8.5);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fffbea';
+    ctx.fillRect(tipX - 5, y - 11, 10, 3);
+    ctx.fillStyle = '#3a2a14';
+    ctx.textAlign = 'center';
+    ctx.fillText(text, x, y - 15);
   }
 
   function drawBoars() {
@@ -748,20 +1183,22 @@ canvas { display: block; width: 100%; height: 100%; }
       if (o.state === 'warn') {
         if (Math.floor(o.wt * 10) % 2 === 0) {
           ctx.fillStyle = '#e2543a';
+          ctx.strokeStyle = '#fffbea';
+          ctx.lineWidth = 3;
           ctx.beginPath();
-          ctx.moveTo(W - 34, GROUND - 70); ctx.lineTo(W - 10, GROUND - 28); ctx.lineTo(W - 58, GROUND - 28);
-          ctx.closePath(); ctx.fill();
-          ctx.fillStyle = '#fff';
-          ctx.font = 'bold 26px sans-serif';
+          ctx.moveTo(W - 36, GROUND - 76); ctx.lineTo(W - 8, GROUND - 26); ctx.lineTo(W - 64, GROUND - 26);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#fffbea';
+          ctx.font = bold(28);
           ctx.textAlign = 'center';
-          ctx.fillText('!', W - 34, GROUND - 33);
+          ctx.fillText('!', W - 36, GROUND - 32);
         }
       } else if (o.state === 'run' || o.state === 'hit') {
         const sx = o.px - cam;
         if (sx < -80 || sx > W + 80) continue;
-        const onHole = find('gap', o.px);
-        const y = onHole ? GROUND - 26 : GROUND;
+        const y = find('gap', o.px) ? GROUND - 26 : GROUND;
         drawBoar(sx, y, o.leg, o.state === 'hit');
+        if (o.state === 'run' && Math.random() < 0.3) emit(1, o.px + 26, GROUND - 2, { vx: [20, 80], vy: [-50, -10], life: [0.2, 0.4], r: [2, 5], col: '#c7a77c', g: 50 });
       }
     }
   }
@@ -770,7 +1207,6 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.save();
     ctx.translate(x, y);
     if (hit) ctx.rotate(0.5);
-    // 脚
     ctx.strokeStyle = '#3b2616';
     ctx.lineWidth = 4;
     ctx.beginPath();
@@ -780,46 +1216,44 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.moveTo(10, -8); ctx.lineTo(10 + s2, 0);
     ctx.moveTo(16, -8); ctx.lineTo(16 + s1, 0);
     ctx.stroke();
-    // 胴
     ctx.fillStyle = '#6b4526';
     ctx.beginPath(); ctx.ellipse(2, -18, 26, 13, 0, 0, Math.PI * 2); ctx.fill();
-    // 背中の毛
     ctx.fillStyle = '#4a2e18';
     ctx.beginPath(); ctx.ellipse(6, -27, 18, 5, 0, 0, Math.PI * 2); ctx.fill();
-    // 頭（左向き）
     ctx.fillStyle = '#5e3b20';
     ctx.beginPath();
     ctx.moveTo(-18, -26); ctx.lineTo(-36, -14); ctx.lineTo(-34, -8); ctx.lineTo(-16, -8);
     ctx.closePath(); ctx.fill();
-    // 鼻
     ctx.fillStyle = '#c98a6a';
     ctx.fillRect(-38, -15, 4, 7);
-    // 牙
     ctx.strokeStyle = '#fff6e0';
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(-30, -9); ctx.lineTo(-34, -16); ctx.stroke();
-    // 目・耳
     ctx.fillStyle = '#111';
     ctx.fillRect(-25, -21, 3, 3);
     ctx.fillStyle = '#4a2e18';
     ctx.beginPath(); ctx.moveTo(-18, -26); ctx.lineTo(-14, -34); ctx.lineTo(-11, -25); ctx.fill();
-    // しっぽ
     ctx.strokeStyle = '#4a2e18';
     ctx.beginPath(); ctx.moveTo(27, -22); ctx.lineTo(33, -26 + Math.sin(leg) * 3); ctx.stroke();
-    // 砂煙
     ctx.restore();
-    if (!hit && Math.random() < 0.3) emit(1, x + cam + 26, GROUND - 2, { vx: [20, 80], vy: [-50, -10], life: [0.2, 0.4], r: [2, 5], col: '#c7a77c', g: 50 });
   }
 
   function drawTruck() {
     const wob = slip > 0 ? Math.sin(runTime * 32) : 0;
-    ctx.save();
-    ctx.translate(TRUCK_X + TRUCK_W / 2 + wob * 5, truck.y);
-    ctx.rotate(truck.angle + wob * 0.07);
-    ctx.translate(-TRUCK_W / 2, 0);
-
+    const sq = truck.squash;
     // 影
-    // シャシー
+    if (!truck.falling) {
+      const lift = Math.max(0, GROUND - truck.y);
+      ctx.fillStyle = `rgba(40,30,15,${0.25 * Math.max(0.2, 1 - lift / 160)})`;
+      ctx.beginPath();
+      ctx.ellipse(truckX + TRUCK_W / 2, GROUND + 1, 46 * Math.max(0.5, 1 - lift / 260), 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.save();
+    ctx.translate(truckX + TRUCK_W / 2 + wob * 5, truck.y);
+    ctx.rotate(truck.angle + wob * 0.07);
+    ctx.scale(1 + sq * 0.06, 1 - sq * 0.1);
+    ctx.translate(-TRUCK_W / 2, 0);
     ctx.fillStyle = '#3a3a3a';
     ctx.fillRect(4, -16, 90, 7);
     // 荷台
@@ -829,39 +1263,30 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.fillRect(2, -32, 58, 3);
     ctx.fillRect(20, -32, 2, 17);
     ctx.fillRect(40, -32, 2, 17);
-    // 荷台の牧草ロール
+    // 牧草ロール
     ctx.fillStyle = '#e9e2cf';
     ctx.beginPath(); ctx.arc(28, -44, 15, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#b8ad8e';
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(28, -44, 9, 0, Math.PI * 2); ctx.stroke();
     ctx.beginPath(); ctx.arc(28, -44, 3.5, 0, Math.PI * 2); ctx.stroke();
-    // 鳥居（キャブ後ろの枠）
+    // 鳥居
     ctx.fillStyle = '#9aa2a5';
     ctx.fillRect(58, -50, 4, 36);
     // キャブ
     ctx.fillStyle = '#f7f8f8';
     ctx.beginPath();
-    ctx.moveTo(61, -52);
-    ctx.lineTo(84, -52);
-    ctx.lineTo(93, -30);
-    ctx.lineTo(96, -28);
-    ctx.lineTo(96, -12);
-    ctx.lineTo(61, -12);
-    ctx.closePath();
-    ctx.fill();
-    // 窓
+    ctx.moveTo(61, -52); ctx.lineTo(84, -52); ctx.lineTo(93, -30); ctx.lineTo(96, -28); ctx.lineTo(96, -12); ctx.lineTo(61, -12);
+    ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#8cc3dc';
     ctx.beginPath();
     ctx.moveTo(65, -48); ctx.lineTo(82, -48); ctx.lineTo(89, -32); ctx.lineTo(65, -32);
     ctx.closePath(); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,.6)';
     ctx.fillRect(70, -46, 3, 12);
-    // ドアの線・取っ手
     ctx.fillStyle = '#c9cfd1';
     ctx.fillRect(64, -30, 1.5, 17);
     ctx.fillRect(68, -27, 6, 2);
-    // バンパー・ライト
     ctx.fillStyle = '#9aa2a5';
     ctx.fillRect(90, -16, 8, 5);
     ctx.fillStyle = '#ffe28a';
@@ -870,7 +1295,7 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.fillStyle = '#3b2a1e';
     ctx.beginPath(); ctx.arc(74, -40, 5, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#2f6a3a';
-    ctx.fillRect(68, -46, 12, 3); // 帽子
+    ctx.fillRect(68, -46, 12, 3);
     // タイヤ
     for (const wx of [20, 78]) {
       ctx.fillStyle = '#1f1f1f';
@@ -891,80 +1316,176 @@ canvas { display: block; width: 100%; height: 100%; }
 
   function drawParts() {
     for (const p of parts) {
-      const a = Math.max(0, p.life / p.max);
-      ctx.globalAlpha = a;
+      ctx.globalAlpha = Math.max(0, p.life / p.max);
       ctx.fillStyle = p.col;
       ctx.beginPath(); ctx.arc(p.x - cam, p.y, p.r, 0, Math.PI * 2); ctx.fill();
     }
     ctx.globalAlpha = 1;
   }
 
+  // 縁取りつきの文字（空・雲・田んぼのどこでも読める）
+  function label(text, x, y, font, fill, align = 'left', stroke = 'rgba(27,34,22,.85)', lw = 5) {
+    ctx.font = font;
+    ctx.textAlign = align;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lw;
+    ctx.strokeText(text, x, y);
+    ctx.fillStyle = fill;
+    ctx.fillText(text, x, y);
+  }
+
   function drawHUD() {
-    if (state === 'title') return;
-    const font = getComputedStyle(document.body).fontFamily;
-    ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(0,0,0,.35)';
-    ctx.font = '34px ' + font;
-    const m = meters().toLocaleString('ja-JP') + ' m';
-    ctx.fillText(m, 22, 50);
-    ctx.fillStyle = '#fffbea';
-    ctx.fillText(m, 20, 48);
-    ctx.font = '14px ' + font;
-    ctx.fillStyle = '#2d3a22';
-    ctx.fillText('ベスト ' + Math.max(best, 0).toLocaleString('ja-JP') + ' m', 22, 70);
+    if (state === 'title' || state === 'over') return;
+    const m = meters();
+    const ms = m.toLocaleString('ja-JP');
+    label(ms, 22, 56, '44px ' + FONT, '#fffbea', 'left', 'rgba(27,34,22,.85)', 7);
+    const numW = ctx.measureText(ms).width;
+    label('m', 28 + numW, 56, '22px ' + FONT, '#fffbea');
+    let sub, subCol = '#fffbea';
+    if (best <= 0) sub = 'はじめての走行';
+    else if (m <= best) sub = 'ベストまで あと ' + (best - m).toLocaleString('ja-JP') + ' m';
+    else { sub = 'ベスト更新中 +' + (m - best).toLocaleString('ja-JP') + ' m'; subCol = '#f2b33d'; }
+    label(sub, 24, 82, '15px ' + FONT, subCol, 'left', 'rgba(27,34,22,.85)', 4);
 
-    // 速度計
-    const kmh = Math.round(speed * (slip > 0 ? 1.25 : 1) / PX_PER_M * 3.6);
-    ctx.textAlign = 'right';
-    ctx.font = '26px ' + font;
-    ctx.fillStyle = 'rgba(0,0,0,.35)';
-    ctx.fillText(kmh + ' km/h', W - 18, 46);
-    ctx.fillStyle = '#fffbea';
-    ctx.fillText(kmh + ' km/h', W - 20, 44);
+    drawSpeedo();
 
-    if (slip > 0 && state === 'play') {
-      ctx.textAlign = 'center';
-      ctx.font = '22px ' + font;
-      ctx.fillStyle = '#e2543a';
-      ctx.fillText('スリップ!', TRUCK_X + TRUCK_W / 2, truck.y - 72);
+    if (banner) {
+      const t = banner.t;
+      const a = Math.min(1, t / 0.3);
+      const pop = reduceMotion ? 1 : 1 + Math.max(0, t - 1.35) * 1.6;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, a);
+      ctx.translate(W / 2, 140);
+      ctx.scale(pop, pop);
+      label(banner.text, 0, 0, bold(44), banner.color, 'center', 'rgba(27,34,22,.9)', 8);
+      if (banner.sub) label(banner.sub, 0, 30, '18px ' + FONT, '#f2b33d', 'center', 'rgba(27,34,22,.9)', 5);
+      ctx.restore();
+    }
+    // 軽トラの上の短い表示
+    const top = VH - H;
+    let py = truck.y + top - 76;
+    if (slip > 0 && state === 'play') { label('スリップ!', TRUCK_X + TRUCK_W / 2, py, '20px ' + FONT, '#ffb49f', 'center'); py -= 24; }
+    for (const p of popups) {
+      ctx.globalAlpha = Math.min(1, p.t / 0.3);
+      label(p.text, TRUCK_X + TRUCK_W / 2, py - (0.9 - p.t) * 30, '20px ' + FONT, p.color, 'center');
+      ctx.globalAlpha = 1;
+      py -= 24;
     }
   }
 
+  // 右下の速度計（0〜120 km/h）
+  function drawSpeedo() {
+    const v = speed * (slip > 0 ? 1.25 : 1);
+    const k = state === 'play' || state === 'dying' ? kmh(truck.dead ? 0 : v) : 0;
+    const cx = W - 70, cy = VH - 18, r = 46;
+    ctx.fillStyle = 'rgba(27,34,22,.72)';
+    ctx.beginPath(); ctx.arc(cx, cy, r + 8, Math.PI, 0); ctx.closePath(); ctx.fill();
+    for (let i = 0; i <= 12; i++) {
+      const a = Math.PI + (i / 12) * Math.PI;
+      const r0 = i % 2 === 0 ? r - 9 : r - 5;
+      ctx.strokeStyle = i >= 10 ? '#e2543a' : 'rgba(246,239,217,.8)';
+      ctx.lineWidth = i % 2 === 0 ? 2 : 1;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
+      ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      ctx.stroke();
+    }
+    const na = Math.PI + Math.min(1, k / 120) * Math.PI;
+    ctx.strokeStyle = '#f2b33d';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(na) * (r - 6), cy + Math.sin(na) * (r - 6));
+    ctx.stroke();
+    ctx.fillStyle = '#f2b33d';
+    ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fffbea';
+    ctx.textAlign = 'center';
+    ctx.font = '18px ' + FONT;
+    ctx.fillText(String(k), cx, cy - 16);
+    ctx.font = '10px ' + FONT;
+    ctx.fillStyle = 'rgba(246,239,217,.7)';
+    ctx.fillText('km/h', cx, cy - 4);
+  }
+
   function draw() {
+    ctx = mainCtx;
     ctx.save();
-    if (shake > 0) ctx.translate(rand(-6, 6) * shake * 2, rand(-6, 6) * shake * 2);
+    ctx.translate(0, VH - H);
+    if (shake > 0 && !reduceMotion) ctx.translate(rand(-6, 6) * shake * 2, rand(-6, 6) * shake * 2);
     drawSky();
     drawMountains(0.08, 205, 50, '#9fb8b2', 0);
     drawMountains(0.18, 228, 34, '#6f9870', 3);
     drawFarField();
     drawForeField();
     drawRoad();
+    drawMarkers();
     drawHazards();
-    // 田んぼに落ちた軽トラは水面の奥に
     if (truck.falling) {
       ctx.save();
-      ctx.beginPath(); ctx.rect(0, 0, W, GROUND + ROAD_H + 10); ctx.clip();
+      ctx.beginPath(); ctx.rect(-20, -1000, W + 40, GROUND + ROAD_H + 10 + 1000); ctx.clip();
       drawTruck();
       ctx.restore();
     } else drawTruck();
     drawBoars();
     drawParts();
+    drawCallouts();
     ctx.restore();
+
+    if (flash > 0) {
+      ctx.fillStyle = `rgba(255,250,235,${flash * 2})`;
+      ctx.fillRect(0, 0, W, VH);
+    }
     drawHUD();
+  }
+
+  // ---- タイトルの障害物アイコン ----
+  function drawIcons() {
+    const saveCam = cam;
+    for (const c of document.querySelectorAll('canvas[data-icon]')) {
+      ctx = c.getContext('2d');
+      const kind = c.dataset.icon;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, c.width, c.height);
+      ctx.translate(0, 52 - GROUND);   // 道の表面を y=52 に
+      cam = 0;
+      if (kind === 'gap') { roadStrip(-4, 38); roadStrip(88, 124); paddyHole(38, 88); }
+      else if (kind === 'puddle') { roadStrip(-4, 124); drawPuddle(26, 70); }
+      else if (kind === 'bump') { roadStrip(-4, 124); drawBumps(8, 104, 7); }
+      else if (kind === 'boar') { roadStrip(-4, 124); drawBoar(64, GROUND, 1, false); }
+    }
+    cam = saveCam;
+    ctx = mainCtx;
   }
 
   // ---- ループ ----
   let last = performance.now();
+  let simMode = false;   // 試運転用：true の間はループが更新しない
   function frame(now) {
     const dt = Math.min(0.033, (now - last) / 1000);
     last = now;
-    update(dt);
+    if (!simMode && !paused) update(dt);
     draw();
     requestAnimationFrame(frame);
   }
 
+  // 試運転用のフック（URL末尾が #debug のときだけ）
+  if (location.hash === '#debug') {
+    window.__kt = {
+      get state() { return state; }, get truck() { return truck; }, get obs() { return obs; },
+      get cam() { return cam; }, get speed() { return speed; }, get slip() { return slip; },
+      get stats() { return stats; }, get paused() { return paused; },
+      TRUCK_X, TRUCK_W, W, JUMP_V, GRAV, meters, press, release, start, update, draw, setPaused,
+      set sim(v) { simMode = v; }, set best(v) { best = v; },
+    };
+  }
+
   reset();
   resize();
+  renderTitleBest();
+  drawIcons();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(drawIcons);
   requestAnimationFrame(frame);
 })();
 </script>
