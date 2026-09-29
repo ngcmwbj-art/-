@@ -1,6 +1,6 @@
 // 1枚絵 cut_h_village_lit (52_ch2_level_art 12.1, 50_ch2_story 10.15, 51 10.8):
 // the finale of the ヨビモドシ battle. From the plaza on 星見の丘 the whole
-// village below, lit by the はなまるトマト that Kanenari-kun holds up at the
+// village below, lit by the はなまるトマト that グソっ君 holds up at the
 // bottom of the frame. **No villagers are drawn** — buildings, fields,
 // water and lights only.
 //
@@ -992,6 +992,7 @@ function drawNet(g: Gfx, t: number, breath: number): void {
     g.rect(xx - 1, yy, 2, 1, '#1B1420');
     g.px(xx - 1, yy, '#6A3A2E');
   }
+  drawHolder(g, x, sway);
   // the hoop and the netting (every other pixel, lit from inside); the tomato
   g.ring(nx, y, 7, '#3A2A2E');
   g.px(nx - 5, y - 5, '#F2894B');
@@ -1009,6 +1010,31 @@ function drawNet(g: Gfx, t: number, breath: number): void {
   g.px(nx - 1, y - 1 + bob, '#3FA66B');
   g.px(nx, y - 2 + bob, '#3FA66B');
   g.px(nx + 1, y - 1 + bob, '#3FA66B');
+}
+
+/**
+ * グソっ君 (★2026-09-29 カネナリくん→グソっ君) holds the pole up from below the
+ * frame: the tips of his two long feelers rise on either side of it, their
+ * inner edges lit by the tomato, and his hand grips the pole at the bottom.
+ */
+function drawHolder(g: Gfx, x: number, sway: number): void {
+  const feel: [number, number][] = [[11, 216], [11, 215], [11, 214], [12, 213], [12, 212], [12, 211], [13, 210], [13, 209], [14, 208], [15, 207], [16, 206], [17, 206], [18, 207]];
+  for (const [dx, yy] of feel) {
+    g.px(x - dx, yy, '#4A3A6E');
+    g.px(x + dx, yy, '#4A3A6E');
+  }
+  // the light from the net catches their inner edge
+  for (const [dx, yy] of feel.slice(3, 11)) {
+    g.px(x - dx + 1, yy, '#C98A6A');
+    g.px(x + dx - 1, yy, '#C98A6A');
+  }
+  // his hand round the pole (grey-violet, lit from above)
+  const hx = Math.round(x + sway * ((H - 213) / (H - SRC.y)));
+  g.rect(hx - 2, 212, 4, 3, '#6E6890');
+  g.rect(hx - 2, 212, 4, 1, '#C6BEDA');
+  g.px(hx - 3, 213, '#4A3A6E');
+  g.px(hx + 2, 213, '#4A3A6E');
+  g.px(hx - 1, 213, '#9A92AE');
 }
 
 registerBattleCut('cut_h_village_lit', drawVillageLit);

@@ -25,6 +25,7 @@ import { hash2 } from '../engine/rng';
 import { ease } from '../engine/tween';
 import { sfx } from '../audio';
 import { tomatoIcon } from './icons';
+import { gusokkunSilhouette } from './silhouette_gusokkun';
 
 const W = 384;
 const H = 216;
@@ -258,7 +259,7 @@ function buildLayers(): Layers {
     if (hash2(x, 1, 37) < 0.4) near.set(x, top - 1, col);
     if (hash2(x, 2, 37) < 0.15) near.set(x, top - 2, col);
   }
-  // Minato (the net over his shoulder, empty now) and Kanenari (the bell), from behind
+  // Minato (the net over his shoulder, empty now) and グソっ君, from behind
   const who = new PixelCanvas(W, H);
   const fy = 206;
   const mx = 146;
@@ -283,18 +284,9 @@ function buildLayers(): Layers {
   who.ring(mx - 20, fy - 41, 6, 4.5, col);
   who.ring(mx - 20, fy - 41, 5, 3.5, col);
   for (let y = -3; y <= 5; y++) for (let x = -4; x <= 3; x++) if ((x + y) % 2 === 0 && x * x + (y - 1) * (y - 1) < 20) who.set(mx - 21 + x, fy - 36 + y, col);
-  const kx = 168;
-  for (let y = fy - 40; y <= fy - 19; y++) {
-    const u = (y - (fy - 40)) / 21;
-    const half = u < 0.3 ? Math.sqrt(Math.max(0, 1 - Math.pow((0.3 - u) / 0.3, 2))) * 6.5 : 6.5 + Math.pow((u - 0.3) / 0.7, 1.6) * 6;
-    for (let x = Math.round(kx - half); x <= Math.round(kx + half); x++) who.set(x, y, col);
-  }
-  who.rect(kx - 13, fy - 20, 27, 2, col);
-  who.ring(kx + 0.5, fy - 43, 2.5, 2.5, col);
-  who.rect(kx - 9, fy - 18, 19, 13, col);
-  who.rect(kx - 11, fy - 16, 3, 8, col);
-  who.rect(kx + 9, fy - 16, 3, 8, col);
-  who.rect(kx - 8, fy - 5, 17, 5, col);
+  // グソっ君 (★2026-09-29 カネナリくん→グソっ君): the armour's saw-tooth sides,
+  // the feelers, the fan tail hanging like a cape
+  gusokkunSilhouette(who, 168, fy, col);
   // the morning rim: 1 px of #F7C27A on the right edges of the two (the sun is on their right)
   near.blit(who, 0, 0);
   const rim = new PixelCanvas(W, H);

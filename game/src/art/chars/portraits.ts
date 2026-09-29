@@ -330,145 +330,221 @@ function face(f: Fig, mood: string, tilt: number) {
 
 registerPortrait('minato', (mood) => minato(MOODS.includes(mood) ? mood : 'normal'));
 
-// ---- Kanenari ----------------------------------------------------------------
-// He cannot speak, so the moods lean on the bell and a tiny flip board.
+// ---- グソっ君 (id 'kanenari', ★2026-09-29 依頼主の指示で カネナリくん→グソっ君。IDは据え置き) --------
+// A close-up of the round isopod: the wide head plate, the two big compound
+// eyes like sunglasses, the feelers, the pale underside at the bottom. He
+// shows how he feels with the glint, the feelers, the tilt of his head and
+// the pink of his cheeks. Besides MOODS he has 'shock' (衝撃: the eyes flash,
+// the feelers stand straight up), 'gentle' (やさしい) and 'sad' (しんみり);
+// 'yasashii' / 'shinmiri' are accepted as their names too.
+
+export const KAN_MOODS = [...MOODS, 'shock', 'gentle', 'sad'];
+const KAN_ALIAS: Record<string, string> = { yasashii: 'gentle', shinmiri: 'sad', shogeki: 'shock' };
 
 const KAN: Mats = {
-  brass: mat('#D9A441', { shade: '#A8742A', light: '#F6D98A', spec: '#FFF6D8', dark: '#7A5424', rim: '#FFC46A', ol: '#4A2E22' }),
-  brassK: mat('#B8A07A', { shade: '#8A7858', light: '#D8C8A8', dark: '#5A4A38', rim: '#D8B890', ol: '#3A2E26' }),
-  brassD: mat('#B8843A', { shade: '#8A5E24', light: '#E0B45A', dark: '#5A3A1A', ol: '#4A2E22' }),
-  inside: flat('#2E1C16'),
-  clapper: mat('#9A6A2A', { shade: '#6A4A1A', light: '#C89A4A', dark: '#4A3010' }),
-  fur: mat('#F2894B', { shade: '#C8643A', light: '#F7A86A', dark: '#A04E2E', rim: '#FFB878', ol: '#5A2A2E', soft: true }),
-  sash: mat('#F4F1E8', { shade: '#D8CCB8', light: '#FFF6D8' }),
-  red: flat('#E84E3C'),
-  eye: flat('#2A1E1A'),
+  shell: mat('#9A92AE', { shade: '#6E6890', light: '#C6BEDA', dark: '#4A3A6E', rim: '#C6BEDA' }),
+  shellK: mat('#8E8A9A', { shade: '#6E6A7E', light: '#B0ACBA', dark: '#4A465A', rim: '#B0ACBA' }),
+  belly: mat('#C6BEDA', { shade: '#9A92AE', light: '#E8E4D8', dark: '#6E6890' }),
+  bellyK: mat('#B0ACBA', { shade: '#8E8A9A', light: '#C8C4CE', dark: '#6E6A7E' }),
+  leg: mat('#C6BEDA', { shade: '#9A92AE', light: '#E8E4D8', dark: '#6E6890' }),
+  ant: flat('#4A3A6E'),
+  eye: flat('#1B1733'),
+  eyeS: flat('#4A3A6E'),
   white: flat('#FFF6D8'),
+  flash: flat('#FFE7A3'),
   cheek: flat('#F08A7A'),
-  board: mat('#F4F1E8', { shade: '#D8CCB8', light: '#FFF6D8', dark: '#A89C88' }),
-  ink: flat('#2A2440'),
-  inkR: flat('#E23B2E'),
-  crack: flat('#6A4A1A'),
+  cheekL: flat('#F7B0A0'),
+  mouth: flat('#2A2440'),
   sweat: mat('#9FD8F0', { shade: '#6FB4D8', light: '#E8F8FF' }),
   glow: flat('#FFF6D8'),
 };
 
+const SKY_KAN: Record<string, Sky> = {
+  shock: { top: '#FFF6D8', bot: '#9FC8E0' },
+  gentle: { top: '#FFE7A3', bot: '#F7C27A', sun: '#FFF6D8' },
+  sad: { top: '#7A6A9E', bot: '#C88A96' },
+};
+
+/** A long feeler as a 1px line through the points. */
+function kanFeeler(f: Fig, pts: [number, number][]) {
+  f.part('ant', { flat: true, rim: false, ol: false });
+  for (let i = 0; i + 1 < pts.length; i++) f.line(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]);
+}
+
 function kanenari(mood: string): HTMLCanvasElement {
   const f = new Fig(S, S, KAN);
   const ko = mood === 'ko';
-  const tip = ko ? 2 : mood === 'hurt' ? 1 : 0;
-  const brass = ko ? 'brassK' : 'brass';
-  // fluffy shoulders + sash
-  f.part('fur', { shade: 'rb', light: 't' });
-  f.ell(16, 32, 13, 7);
-  f.part('sash', { shade: 'b', light: '' });
-  for (let i = 0; i < 8; i++) f.px(8 + i, 26 + i).px(9 + i, 26 + i).px(10 + i, 26 + i);
-  f.part('red', { flat: true, rim: false });
-  f.px(10, 28).px(13, 31);
-  // bell (tips over when hurt / ko)
-  const bx = 16 + tip;
-  f.part('brassD', { shade: 'r', light: 't' });
-  f.rows(bx - 2, 0, ['.##.', '#..#']);
-  f.part(brass, { shade: '', light: '' });
-  const prof = [3, 5, 6, 7, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, 11, 11, 12, 13, 14];
-  prof.forEach((hw, j) => {
-    const sh = Math.round((tip * (prof.length - j)) / prof.length);
-    f.hl(bx - hw + sh, bx + hw - 1 + sh, 2 + j);
-  });
-  // metallic shading: light band left, falloff right
-  prof.forEach((hw, j) => {
-    const sh = Math.round((tip * (prof.length - j)) / prof.length);
-    const y = 2 + j;
-    f.retone(bx - hw + sh + 1, y, 1).retone(bx - hw + sh + 2, y, j > 2 ? 1 : 0);
-    f.retone(bx + hw - 1 + sh, y, -2).retone(bx + hw - 2 + sh, y, -1).retone(bx + hw - 3 + sh, y, -1);
-  });
-  f.retone(bx - 4, 5, 2).retone(bx - 5, 6, 2).retone(bx - 5, 7, 2);
-  f.part('brassD', { shade: 'r', light: 't' });
-  f.hl(bx - 14, bx + 13, 21);
-  f.part('inside', { flat: true, rim: false });
-  f.hl(bx - 12, bx + 11, 22);
-  f.part('clapper', { shade: 'r', light: 'l' });
-  const cl = mood === 'surprised' ? 3 : ko ? -2 : 0;
-  f.rect(bx - 2 + cl, 22, 4, 3);
-  if (mood === 'hurt') {
-    f.part('crack', { flat: true, rim: false });
-    f.px(bx + 6, 6).px(bx + 5, 7).px(bx + 6, 8).px(bx + 5, 9);
+  const shell = ko ? 'shellK' : 'shell';
+  // the head tips: hurt / ko / sad lean it, gentle tilts it kindly
+  const tilt = ko ? 2 : mood === 'hurt' ? 1 : mood === 'gentle' ? -1 : 0;
+  const drop = ko ? 2 : mood === 'sad' ? 1 : mood === 'shock' || mood === 'surprised' ? -1 : 0;
+  const hx = 16 + tilt;
+  const hy = 13 + drop;
+  // shoulders: the armour round the pale underside, the folded little legs
+  f.part(shell, { shade: 'rb', light: 't', inner: false });
+  f.ell(16, 33, 14, 9);
+  f.t(-1).hl(3, 7, 27).hl(25, 29, 27).hl(2, 6, 30).hl(26, 30, 30).t(null);
+  f.part(ko ? 'bellyK' : 'belly', { shade: 'rb', light: 'tl', inner: false });
+  f.ell(16, 33, 7.5, 8);
+  f.part('leg', { flat: true, rim: false, ol: false });
+  f.t(-1).hl(10, 12, 28).hl(20, 22, 28).hl(10, 12, 31).hl(20, 22, 31).t(1).px(13, 28).px(19, 28).px(13, 31).px(19, 31).t(null);
+  // long feelers behind the head, out of the frame's top
+  const up = mood === 'shock' || mood === 'surprised';
+  const droop = ko || mood === 'hurt' || mood === 'sad';
+  if (up) {
+    kanFeeler(f, [[hx - 5, hy - 7], [hx - 6, hy - 11], [hx - 6, hy - 16]]);
+    kanFeeler(f, [[hx + 4, hy - 7], [hx + 5, hy - 11], [hx + 5, hy - 16]]);
+  } else if (droop) {
+    kanFeeler(f, [[hx - 5, hy - 7], [hx - 10, hy - 10], [hx - 15, hy - 8], [hx - 17, hy - 3]]);
+    kanFeeler(f, [[hx + 4, hy - 7], [hx + 9, hy - 10], [hx + 14, hy - 8], [hx + 16, hy - 3]]);
+  } else if (mood === 'happy') {
+    kanFeeler(f, [[hx - 5, hy - 7], [hx - 9, hy - 12], [hx - 14, hy - 14], [hx - 16, hy - 12]]);
+    kanFeeler(f, [[hx + 4, hy - 7], [hx + 8, hy - 12], [hx + 13, hy - 14], [hx + 15, hy - 12]]);
+  } else {
+    kanFeeler(f, [[hx - 5, hy - 7], [hx - 9, hy - 12], [hx - 15, hy - 14], [hx - 19, hy - 13]]);
+    kanFeeler(f, [[hx + 4, hy - 7], [hx + 8, hy - 12], [hx + 14, hy - 14], [hx + 18, hy - 13]]);
   }
-  // face
-  const ey = 12;
-  const E = (x: number, y: number, w: number, h: number) => f.part('eye', { flat: true, rim: false }).rect(x, y, w, h);
-  const ex1 = bx - 6;
-  const ex2 = bx + 4;
+  // the head: a wide dome
+  f.part(shell, { shade: 'rb', light: 't' });
+  f.ell(hx, hy, 12.5, 9.2);
+  f.retone(hx - 7, hy - 6, 1).retone(hx - 8, hy - 5, 1).retone(hx - 6, hy - 7, 1).retone(hx - 5, hy - 7, 1);
+  // the head plate's rim over the brow
+  f.part(shell, { flat: true });
+  f.t(-1);
+  for (let x = hx - 8; x <= hx + 8; x++) f.px(x, hy - 4 - Math.round(2 * (1 - ((x - hx) / 9) ** 2)));
+  f.t(null);
+  // short feelers: a little V on the brow
+  f.part('ant', { flat: true, rim: false, ol: false });
+  if (up) f.px(hx - 1, hy - 7).px(hx - 2, hy - 8).px(hx - 2, hy - 9).px(hx + 1, hy - 7).px(hx + 2, hy - 8).px(hx + 2, hy - 9);
+  else f.px(hx - 1, hy - 7).px(hx - 2, hy - 8).px(hx - 3, hy - 9).px(hx + 1, hy - 7).px(hx + 2, hy - 8).px(hx + 3, hy - 9);
+  // eyes: two big dark ovals low on the head
+  const ey = hy + 2;
+  const ex = [hx - 6, hx + 6];
+  const OVAL = ['..####..', '.######.', '########', '########', '########', '.######.', '..####..'];
+  const oval = (cx: number, cut = 0, rows = OVAL) => {
+    f.part('eye', { flat: true, rim: false });
+    f.rows(cx - 4, ey - 3, rows.map((r, j) => (j < cut ? '........' : r)));
+    if (rows !== OVAL) return;
+    f.part('eyeS', { flat: true, rim: false });
+    f.hl(cx - 1, cx + 1, ey + 3).hl(cx - 2, cx + 2, ey + 2).px(cx - 3, ey + 1);
+  };
   switch (mood) {
     case 'hurt':
       f.part('eye', { flat: true, rim: false });
-      f.px(ex1, ey).px(ex1 + 1, ey + 1).px(ex1, ey + 2).px(ex2 + 1, ey).px(ex2, ey + 1).px(ex2 + 1, ey + 2);
+      f.rows(ex[0] - 3, ey - 2, ['##.....', '.###...', '...####', '.###...', '##.....']);
+      f.rows(ex[1] - 3, ey - 2, ['.....##', '...###.', '####...', '...###.', '.....##']);
       f.part('sweat', { shade: 'r', light: 't' });
-      f.rows(bx + 9, 8, ['.#.', '###', '.#.']);
-      break;
-    case 'happy':
-      f.part('eye', { flat: true, rim: false });
-      f.px(ex1 - 1, ey + 1).px(ex1, ey).px(ex1 + 1, ey + 1).px(ex2 - 1, ey + 1).px(ex2, ey).px(ex2 + 1, ey + 1);
-      f.part('glow', { flat: true, rim: false, ol: false });
-      f.px(bx - 9, 4).px(bx + 9, 3).px(bx + 10, 4).px(bx + 9, 5).px(bx + 8, 4);
-      break;
-    case 'surprised':
-      f.part('white', { flat: true, rim: false });
-      f.rect(ex1 - 1, ey - 1, 4, 4).rect(ex2 - 1, ey - 1, 4, 4);
-      E(ex1, ey, 2, 2);
-      E(ex2, ey, 2, 2);
+      f.rows(hx + 9, hy - 7, ['.#.', '###', '###', '.#.']);
       break;
     case 'ko':
       f.part('eye', { flat: true, rim: false });
-      f.px(ex1, ey).px(ex1 + 2, ey).px(ex1 + 1, ey + 1).px(ex1, ey + 2).px(ex1 + 2, ey + 2);
-      f.px(ex2, ey).px(ex2 + 2, ey).px(ex2 + 1, ey + 1).px(ex2, ey + 2).px(ex2 + 2, ey + 2);
+      for (const cx of ex) f.rows(cx - 2, ey - 2, ['#...#', '.#.#.', '..#..', '.#.#.', '#...#']);
+      break;
+    case 'happy':
+      f.part('eye', { flat: true, rim: false });
+      for (const cx of ex) f.rows(cx - 4, ey - 1, ['..####..', '.##..##.', '##....##']);
       break;
     case 'tsukkomi':
-      E(ex1, ey, 2, 3);
-      E(ex2, ey, 2, 3);
-      f.part('eye', { flat: true, rim: false });
-      f.px(ex1 - 1, ey - 2).px(ex1, ey - 2).px(ex1 + 1, ey - 1).px(ex2 + 2, ey - 2).px(ex2 + 1, ey - 2).px(ex2, ey - 1);
+      // sharp: the top of each eye cut on a slant, a bright glint, the mouth open wide
+      for (const [i, cx] of ex.entries()) {
+        oval(cx);
+        f.part(shell, { flat: true });
+        f.t(0);
+        if (i === 0) f.hl(cx - 4, cx, ey - 3).hl(cx - 4, cx - 2, ey - 2).px(cx - 4, ey - 1);
+        else f.hl(cx - 1, cx + 3, ey - 3).hl(cx + 1, cx + 3, ey - 2).px(cx + 3, ey - 1);
+        f.t(null);
+        f.part('white', { flat: true, rim: false });
+        f.rect(cx - 1, ey - 1, 2, 2);
+      }
+      f.part('mouth', { flat: true, rim: false });
+      f.rows(hx - 2, hy + 6, ['####', '####', '.##.']);
+      break;
+    case 'surprised':
+      for (const cx of ex) {
+        oval(cx);
+        f.part('white', { flat: true, rim: false });
+        f.rect(cx - 3, ey - 2, 3, 3).px(cx + 2, ey + 2);
+      }
+      f.part('mouth', { flat: true, rim: false });
+      f.rect(hx - 1, hy + 7, 2, 2);
+      break;
+    case 'shock':
+      // な、なんやこれ……！: the eyes flash, rays off them
+      for (const cx of ex) {
+        oval(cx);
+        f.part('flash', { flat: true, rim: false });
+        f.rect(cx - 3, ey - 2, 5, 4).px(cx + 3, ey + 2);
+        f.part('white', { flat: true, rim: false });
+        f.rect(cx - 3, ey - 2, 2, 2);
+      }
+      f.part('mouth', { flat: true, rim: false });
+      f.rows(hx - 1, hy + 6, ['##', '##', '##']);
+      break;
+    case 'gentle':
+      // a soft smile: the eyes curve up underneath (にこっ), a small warm glint
+      for (const cx of ex) {
+        oval(cx, 1, ['........', '..####..', '.######.', '########', '###..###', '##....##']);
+        f.part('white', { flat: true, rim: false });
+        f.px(cx - 2, ey - 1);
+      }
+      break;
+    case 'sad':
+      // しんみり: the upper edge of each eye droops toward the outside, the glint sinks
+      for (const [i, cx] of ex.entries()) {
+        oval(cx, 2);
+        f.part(shell, { flat: true });
+        f.t(-1);
+        if (i === 0) f.hl(cx - 4, cx - 2, ey - 1).px(cx - 4, ey);
+        else f.hl(cx + 1, cx + 3, ey - 1).px(cx + 3, ey);
+        f.t(null);
+        f.part('white', { flat: true, rim: false });
+        f.px(cx - 1, ey + 2);
+      }
       break;
     default:
-      E(ex1, ey, 2, 3);
-      E(ex2, ey, 2, 3);
+      for (const cx of ex) {
+        oval(cx);
+        f.part('white', { flat: true, rim: false });
+        f.rect(cx - 3, ey - 2, 2, 2).px(cx + 2, ey + 1);
+      }
   }
-  f.part('cheek', { flat: true, rim: false });
-  if (!ko) f.hl(ex1 - 2, ex1 - 1, ey + 4).hl(ex2 + 2, ex2 + 3, ey + 4);
-  // the little flip board says what he can't
-  const board = (x: number, y: number, draw: () => void) => {
-    f.part('board', { shade: 'rb', light: 'tl' });
-    f.rect(x, y, 11, 8);
-    draw();
-    f.part('fur', { shade: 'rb', light: 't' });
-    f.rect(x - 1, y + 5, 2, 3).rect(x + 10, y + 5, 2, 3);
-  };
-  if (mood === 'tsukkomi')
-    board(19, 21, () => {
-      f.part('ink', { flat: true, rim: false });
-      f.vl(24, 22, 25).px(24, 27).px(23, 22).px(25, 22);
-      f.part('inkR', { flat: true, rim: false });
-      f.px(21, 23).px(27, 23).px(21, 26).px(27, 26);
-    });
-  else if (mood === 'surprised')
-    board(20, 22, () => {
-      f.part('ink', { flat: true, rim: false });
-      f.vl(22, 23, 25).px(22, 27).rows(25, 23, ['##.', '..#', '.#.', '...', '.#.']);
-    });
-  else if (mood === 'happy')
-    board(20, 22, () => {
-      f.part('inkR', { flat: true, rim: false });
-      f.rows(22, 23, ['.##.##.', '#######', '.#####.', '..###..', '...#...']);
-    });
-  else if (mood === 'hurt')
-    board(20, 23, () => {
-      f.part('ink', { flat: true, rim: false });
-      f.px(22, 27).px(25, 27).px(28, 27);
-    });
-  return compose(mood, f);
+  // cheeks
+  if (!ko && mood !== 'sad') {
+    f.part('cheek', { flat: true, rim: false });
+    const cy = ey + 5;
+    f.hl(ex[0] - 4, ex[0] - 2, cy).hl(ex[1] + 2, ex[1] + 4, cy);
+    if (mood === 'happy' || mood === 'gentle' || mood === 'shock') {
+      f.part('cheekL', { flat: true, rim: false });
+      f.px(ex[0] - 5, cy).px(ex[1] + 5, cy);
+    }
+  }
+  // a hand: raised for the tsukkomi (なんでやねん), at his cheek in shock
+  if (mood === 'tsukkomi') {
+    f.part('leg', { shade: 'rb', light: 't' });
+    f.line(27, 30, 29, 23).rect(28, 20, 3, 3);
+  } else if (mood === 'shock') {
+    f.part('leg', { shade: 'rb', light: 't' });
+    f.line(4, 31, 3, 26).rect(2, 23, 3, 3);
+  } else if (mood === 'gentle') {
+    f.part('leg', { shade: 'rb', light: 't' });
+    f.line(26, 31, 25, 28).rect(24, 26, 3, 3);
+  }
+  if (mood === 'happy') {
+    f.part('glow', { flat: true, rim: false, ol: false });
+    f.px(4, 4).px(27, 3).px(28, 4).px(27, 5).px(26, 4);
+  }
+  const sky = SKY_KAN[mood];
+  const out = compose(mood === 'shock' ? 'surprised' : sky ? 'normal' : mood, f, sky);
+  if (mood === 'shock') {
+    // ぱっ: short rays off the eyes
+    const g = out.getContext('2d')!;
+    g.fillStyle = '#FFF6D8';
+    for (const [x, y, w, h] of [[1, 12, 3, 1], [2, 9, 2, 1], [28, 12, 3, 1], [28, 9, 2, 1]] as [number, number, number, number][]) g.fillRect(x, y, w, h);
+  }
+  return out;
 }
 
-registerPortrait('kanenari', (mood) => kanenari(MOODS.includes(mood) ? mood : 'normal'));
+registerPortrait('kanenari', (mood) => kanenari(KAN_MOODS.includes(mood) ? mood : KAN_ALIAS[mood] ?? 'normal'));
 
 // ---- NPC faces for dialog (normal / happy / surprised) ----------------------
 

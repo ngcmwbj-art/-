@@ -1,6 +1,6 @@
 // Title screen art (30_level_art 11): the frozen sunset seen from the south
 // bridge — five silhouette layers (sky, far hills with 星見台, the town,
-// the near wires / crossing / bridge with Minato and Kanenari from behind,
+// the near wires / crossing / bridge with Minato and グソっ君 from behind,
 // swaying grass) — and the 「しゅんの夕暮れあぜ道戦記」 logo, stamped in 朱.
 // Everything static is baked once; the scene animates clouds, the sun's
 // red-pen swirl, wires, grass, crows and the lit 「ユ」.
@@ -12,6 +12,7 @@ import type { Gfx } from '../engine/gfx';
 import { BAYER4, makeCanvas, PixelCanvas } from '../engine/pixel';
 import { hash2 } from '../engine/rng';
 import { hanamaruPath } from '../battle/art/stamps';
+import { gusokkunSilhouette } from './silhouette_gusokkun';
 
 export type Sky = 'sunset' | 'night';
 
@@ -452,7 +453,7 @@ export function nearCanvas(sky: Sky): HTMLCanvasElement {
   rect(0, 199, 384, 2);
   for (let x = 6; x < 384; x += 30) rect(x, 199, 4, 17);
   for (let x = 0; x < 384; x += 2) p.set(x, 203, sky === 'sunset' ? '#3A2B5C' : '#1E1834');
-  // ---- Minato (the bug net over his shoulder) and Kanenari (bell), from behind
+  // ---- Minato (the bug net over his shoulder) and グソっ君, from behind
   const mx = 146;
   const fy = 204; // feet, behind the railing
   const body = (x: number, y: number, w: number, h: number) => rect(x, y, w, h);
@@ -476,20 +477,10 @@ export function nearCanvas(sky: Sky): HTMLCanvasElement {
   // the bag of netting hanging off the hoop (every other pixel: it's see-through)
   for (let y = -3; y <= 5; y++)
     for (let x = -4; x <= 3; x++) if ((x + y) % 2 === 0 && x * x + (y - 1) * (y - 1) < 20) p.set(mx - 21 + x, fy - 36 + y, col);
-  // Kanenari: the big bell head (a dome that flares into a lip), its hanging loop, a stubby body
+  // グソっ君 (★2026-09-29 カネナリくん→グソっ君): the armour's saw-tooth sides,
+  // the feelers, the fan tail hanging like a cape
   const kx = 168;
-  for (let y = fy - 40; y <= fy - 19; y++) {
-    const u = (y - (fy - 40)) / 21;
-    // dome for the top third, then flaring out to the lip
-    const half = u < 0.3 ? Math.sqrt(Math.max(0, 1 - Math.pow((0.3 - u) / 0.3, 2))) * 6.5 : 6.5 + Math.pow((u - 0.3) / 0.7, 1.6) * 6;
-    for (let x = Math.round(kx - half); x <= Math.round(kx + half); x++) p.set(x, y, col);
-  }
-  body(kx - 13, fy - 20, 27, 2); // the lip
-  p.ring(kx + 0.5, fy - 43, 2.5, 2.5, col);
-  body(kx - 9, fy - 18, 19, 13);
-  body(kx - 11, fy - 16, 3, 8); // arms
-  body(kx + 9, fy - 16, 3, 8);
-  body(kx - 8, fy - 5, 17, 3);
+  gusokkunSilhouette(p, kx, fy - 2, col);
   // 1px rim light on their left edges (the sun is on the left)
   const src = p.data.slice();
   const colV = src[(fy - 25) * 384 + mx];

@@ -1,117 +1,186 @@
-// カネナリくん: the retired town-mascot costume with a brass-bell head.
-// Front battle sprite 48×64 (join battle, ノリツッコミ cut-ins) and the
-// 40×48 back view used for PR-activity cut-ins (12.4).
+// グソっ君 (id 'kanenari' / 'enemy_kanenari', ★2026-09-29 依頼主の指示で
+// カネナリくん→グソっ君。IDは据え置き): a round giant isopod standing on his hind
+// legs. Front battle sprite 56×68 (ノリツッコミ cut-ins, the join battle's
+// poses) and the 44×52 back view for the cut-ins where we see him from
+// behind (こうらタックル, おてつだい, the bosses): seven thick chest plates,
+// the fan tail hanging behind him like a cape.
 
 import { BAYER4, PixelCanvas } from '../../engine/pixel';
-import { hash2 } from '../../engine/rng';
 import { registerEnemyArt, loop, type EnemyArt, type EnemyView } from './index';
-import { K, Mask, ditherMask, rimLeft, shade } from './lib';
+import { K, Mask, rimLeft, shade } from './lib';
 
-const BRASS = ['#6A4A1A', '#A8742A', '#C28C36', '#D9A441', '#E8BC62', '#F6D98A'];
-const FUR = ['#8A4424', '#C8643A', '#DE7642', '#F2894B', '#F7A86A'];
+// dark → light
+const SHELL = ['#2A2440', '#3A2B5C', '#4A3A6E', '#6E6890', '#857E9E', '#9A92AE', '#B0A8C4', '#C6BEDA'];
+const BELLY = ['#6E6890', '#8A83A2', '#9A92AE', '#B0A8C4', '#C6BEDA', '#D8D2E6', '#E8E4F0'];
+const LEG = ['#6E6890', '#9A92AE', '#B0A8C4', '#C6BEDA', '#E8E4F0'];
+const EYE = '#1B1733';
+const EYE2 = '#2A2440';
+const EYE_S = '#4A3A6E';
+const GLINT = '#FFF6D8';
+const CHEEK = '#F08A7A';
+const CHEEK_L = '#F7B0A0';
 const W = 56;
 const H = 68;
 const OX = 4;
 const OY = 4;
 
+type ArmPos = 'down' | 'up' | 'out' | 'wave1' | 'wave2' | 'mic' | 'point' | 'hold' | 'cross' | 'present' | 'clap';
+type Eyes = 'open' | 'happy' | 'wide' | 'flash' | 'hurt' | 'soft';
+type Ant = 'normal' | 'up' | 'mic' | 'droop' | 'swayL' | 'swayR';
+
 interface FrontPose {
   sway?: number;
-  /** Bell tilt toward the camera (bow) 0..2. */
+  /** Head tipped toward the camera (bow) 0..2. */
   bow?: number;
-  armL?: 'down' | 'up' | 'out' | 'wave1' | 'wave2' | 'mic' | 'point' | 'hold' | 'cross';
-  armR?: 'down' | 'up' | 'out' | 'wave1' | 'wave2' | 'mic' | 'point' | 'hold' | 'cross';
+  armL?: ArmPos;
+  armR?: ArmPos;
   /** ボケD: standing on one leg (the other tucked up), 0 = both feet. */
   oneLeg?: number;
-  /** ボケD: a heap of rice straw on his bell. */
+  /** ボケD: a heap of rice straw on his head. */
   straw?: boolean;
-  clapper?: number;
   squash?: number;
   glow?: number;
-  /** Eyes closed happy ^^ */
-  happy?: boolean;
+  eyes?: Eyes;
+  ant?: Ant;
+  /** The small legs on his tummy: folded, or out clapping (0/1). */
+  clap?: number;
+  /** Seen from behind (a spin). */
   turned?: boolean;
 }
 
-/** Bell head (front) into p with its top-left at (x, y); 40×32 area. */
-function bellFront(p: PixelCanvas, x: number, y: number, o: { bow: number; clapper: number; glow: number; happy: boolean; face: boolean }): void {
-  const cx = x + 20;
-  const bow = o.bow;
-  const top = y + 3 + bow * 2;
-  const lip = y + 30;
-  const m = new Mask(p.w, p.h);
-  for (let yy = top; yy <= lip; yy++) {
-    const k = (yy - top) / (lip - top);
-    let hw = 8 + 10.5 * Math.pow(k, 1.35);
-    if (yy >= lip - 2) hw += 1.5;
-    if (yy === top) hw -= 3;
-    if (yy === top + 1) hw -= 1;
-    for (let xx = Math.round(cx - hw); xx <= Math.round(cx + hw); xx++) m.set(xx, yy);
-  }
-  shade(p, m, BRASS, { mode: 'cyl', cx: cx - 1, rx: 20, base: 0.6, k: 0.75, grad: 0.12, dither: 0.5 });
-  // lip ring (one step darker) and the dark mouth with the clapper
-  for (let xx = cx - 19; xx <= cx + 19; xx++) {
-    if (m.in(xx, lip)) p.set(xx, lip, BRASS[1]);
-    if (m.in(xx, lip - 1)) p.set(xx, lip - 1, (xx - cx) < -12 ? BRASS[4] : BRASS[2]);
-  }
-  // specular streaks (left)
-  for (let yy = top + 4; yy < lip - 4; yy++) {
-    const k = (yy - top) / (lip - top);
-    const hx = Math.round(cx - (6 + 8 * k));
-    if (m.in(hx, yy)) p.set(hx, yy, '#FFF6D8');
-    if ((yy & 3) === 0 && m.in(hx + 2, yy)) p.set(hx + 2, yy, BRASS[5]);
-  }
-  p.set(cx - 7, top + 4, '#FFFFFF');
-  // hanging ring on top
-  p.rect(cx - 2, top - 3, 4, 1, BRASS[1]);
-  p.set(cx - 3, top - 2, BRASS[1]);
-  p.set(cx + 2, top - 2, BRASS[1]);
-  p.set(cx - 3, top - 1, BRASS[2]);
-  p.set(cx + 2, top - 1, BRASS[0]);
-  p.set(cx - 2, top - 3, BRASS[4]);
-  // band ring around the shoulder of the bell
-  const band = top + 6;
-  for (let xx = cx - 17; xx <= cx + 17; xx++) if (m.in(xx, band)) p.set(xx, band, xx < cx - 6 ? BRASS[4] : BRASS[1]);
-  if (o.face) {
-    const ey = top + 12 - bow;
-    if (o.happy) {
-      for (const ex of [cx - 6, cx + 5]) {
-        p.set(ex - 1, ey + 1, '#2A1E1A');
-        p.set(ex, ey, '#2A1E1A');
-        p.set(ex + 1, ey + 1, '#2A1E1A');
-      }
-    } else {
-      p.rect(cx - 7, ey, 2, 3, '#2A1E1A');
-      p.rect(cx + 5, ey, 2, 3, '#2A1E1A');
-      p.set(cx - 7, ey, '#5A3A2A');
-      p.set(cx + 5, ey, '#5A3A2A');
+// ---- pieces -------------------------------------------------------------------------------
+
+/** Horizontal half-width of an ellipse mask row (for plate lines that follow the curve). */
+function rowSpan(m: Mask, y: number): [number, number] | null {
+  let a = -1;
+  let b = -1;
+  for (let x = 0; x < m.w; x++)
+    if (m.in(x, y)) {
+      if (a < 0) a = x;
+      b = x;
     }
-    p.rect(cx - 11, ey + 5, 4, 2, '#F08A7A');
-    p.rect(cx + 7, ey + 5, 4, 2, '#F08A7A');
-    p.set(cx - 11, ey + 5, '#F7B0A0');
-  }
-  if (o.glow) {
-    // soft glow on the crown
-    ditherMask(p, new Mask(p.w, p.h).ellipse(cx - 4, top + 5, 10, 5).and(m), '#FFF6D8', 0.35 * o.glow);
+  return a < 0 ? null : [a, b];
+}
+
+/**
+ * Plate edges on an armour mask: at each row in `edges` a dark line that
+ * dips `dip` px in the middle (the round back), a shadow under it, a lit row
+ * over it on the lit (left) side; the ends of every edge poke out as small
+ * points (the saw-tooth sides). `only` keeps the lines to the sides (front
+ * view: the plates wrap round beside the pale tummy).
+ */
+function plates(p: PixelCanvas, m: Mask, edges: number[], dip: number, only?: Mask, points = true): void {
+  const bb = m.bbox();
+  const cx = bb.x + bb.w / 2;
+  const rx = bb.w / 2;
+  for (const e of edges) {
+    const span = rowSpan(m, e);
+    if (!span) continue;
+    for (let x = span[0]; x <= span[1]; x++) {
+      const k = (x + 0.5 - cx) / rx;
+      const d = Math.round(dip * (1 - k * k));
+      const y = e + d;
+      if (!m.in(x, y) || (only && only.in(x, y))) continue;
+      p.set(x, y, k > 0.55 ? SHELL[1] : SHELL[2]);
+      if (m.in(x, y + 1) && !(only && only.in(x, y + 1))) p.set(x, y + 1, k > 0.3 ? SHELL[3] : SHELL[4]);
+      if (m.in(x, y - 1) && !(only && only.in(x, y - 1)) && k < 0.1) p.set(x, y - 1, k < -0.5 ? SHELL[7] : SHELL[6]);
+    }
+    if (points) {
+      // the plate's side points
+      p.set(span[0] - 1, e, SHELL[3]);
+      p.set(span[0] - 1, e - 1, SHELL[5]);
+      p.set(span[1] + 1, e, SHELL[1]);
+      p.set(span[1] + 1, e - 1, SHELL[2]);
+    }
   }
 }
 
-function fur(p: PixelCanvas, m: Mask, seed: number): void {
-  shade(p, m, FUR, { mode: 'sphere', base: 0.6, k: 0.6, dither: 0.5 });
-  // fluffy tufts: small lighter curls and a dithered fuzzy edge
+/** One compound eye: a big dark oval, the glassy sheen low, the glint high on the left. */
+function eye(p: PixelCanvas, cx: number, cy: number, e: Eyes, right: boolean): void {
+  if (e === 'happy') {
+    // ^ : the eye bends into a smiling arc
+    const m = new Mask(p.w, p.h);
+    m.curve(cx - 6, cy + 2, cx, cy - 6, cx + 6, cy + 2, 1.3);
+    m.each((x, y) => p.set(x, y, EYE));
+    return;
+  }
+  if (e === 'hurt') {
+    // > <
+    const m = new Mask(p.w, p.h);
+    const s = right ? -1 : 1;
+    m.line(cx - 5 * s, cy - 4, cx + 3 * s, cy, 1.1).line(cx + 3 * s, cy, cx - 5 * s, cy + 4, 1.1);
+    m.each((x, y) => p.set(x, y, EYE));
+    return;
+  }
+  const soft = e === 'soft';
+  const m = new Mask(p.w, p.h).ellipse(cx, cy, 6, soft ? 4.2 : 5.6);
+  if (soft) m.sub(new Mask(p.w, p.h).rect(cx - 8, cy - 8, 16, 5));
   m.each((x, y) => {
-    const n = hash2(x, y, seed);
-    const edge = !m.in(x - 1, y) || !m.in(x + 1, y) || !m.in(x, y - 1) || !m.in(x, y + 1);
-    if (edge && n < 0.35) p.set(x, y, 'transparent');
-    else if (!edge && n > 0.93) p.set(x, y, FUR[4]);
-    else if (!edge && n < 0.05) p.set(x, y, FUR[1]);
+    const v = (y + 0.5 - cy) / 5.6;
+    let c = EYE;
+    if (v > 0.35) c = (x + y) % 2 === 0 ? EYE_S : EYE2;
+    if (v > 0.65) c = EYE_S;
+    p.set(x, y, c);
   });
+  if (e === 'flash' || e === 'wide') {
+    const gc = e === 'flash' ? '#FFE7A3' : GLINT;
+    p.rect(cx - 4, cy - 4, 4, 3, gc);
+    p.rect(cx - 3, cy - 5, 2, 1, gc);
+    p.rect(cx + 2, cy + 1, 2, 2, gc);
+    if (e === 'flash') p.rect(cx - 3, cy - 3, 2, 1, '#FFFFFF');
+  } else if (soft) {
+    p.rect(cx - 3, cy - 2, 2, 2, GLINT);
+  } else {
+    p.rect(cx - 4, cy - 3, 3, 2, GLINT);
+    p.set(cx - 3, cy - 4, GLINT);
+    p.set(cx + 2, cy + 2, GLINT);
+  }
 }
 
-function mitten(p: PixelCanvas, x: number, y: number, up = false): void {
-  const m = new Mask(p.w, p.h).ellipse(x, y, 3.5, up ? 4 : 3.5);
-  shade(p, m, FUR, { mode: 'sphere', base: 0.62 });
-  p.set(Math.round(x + (up ? 0 : 2)), Math.round(y - 3), FUR[4]);
+/** A long feeler: a two-pixel stroke along a curve (antenna segments as lighter dots). */
+function feeler(p: PixelCanvas, x0: number, y0: number, cx: number, cy: number, x1: number, y1: number, far = false): void {
+  const m = new Mask(p.w, p.h).curve(x0, y0, cx, cy, x1, y1, 0.9);
+  m.each((x, y) => p.set(x, y, far ? SHELL[3] : SHELL[2]));
+  // the lit upper-left edge of the stroke and a joint every few px
+  const n = 14;
+  for (let i = 1; i < n; i += 3) {
+    const t = i / n;
+    const x = (1 - t) * (1 - t) * x0 + 2 * (1 - t) * t * cx + t * t * x1;
+    const y = (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * cy + t * t * y1;
+    p.set(Math.floor(x), Math.floor(y), far ? SHELL[4] : SHELL[4]);
+  }
 }
+
+function hand(p: PixelCanvas, x: number, y: number): void {
+  const m = new Mask(p.w, p.h).ellipse(x, y, 3, 3);
+  shade(p, m, LEG, { mode: 'sphere', base: 0.62 });
+  p.set(Math.round(x - 1), Math.round(y - 2), LEG[4]);
+}
+
+/** The small legs folded on the tummy (three pairs showing), or out and clapping. */
+function smallLegs(p: PixelCanvas, cx: number, top: number, clap: number | undefined): void {
+  for (let i = 0; i < 4; i++) {
+    const y = top + i * 4;
+    for (const s of [-1, 1]) {
+      const m = new Mask(p.w, p.h);
+      if (clap === undefined) {
+        // folded: a short leg lying across the edge of the tummy, tip inward
+        m.line(cx + s * 8, y, cx + s * 4, y + 1.5, 1);
+      } else if (clap) {
+        // clapping, apart: the legs swing out past the tummy
+        m.line(cx + s * 7, y + 1, cx + s * 13, y - 2, 1);
+      } else {
+        // clapping, together: the tips meet in the middle
+        m.line(cx + s * 8, y + 1, cx + s * 1, y, 1);
+      }
+      // a dark line under each leg, then the leg
+      m.shifted(0, 1).sub(m).each((x, yy) => p.set(x, yy, clap === undefined ? BELLY[1] : SHELL[2]));
+      shade(p, m, LEG, { base: 0.66, k: 0.4 });
+    }
+  }
+}
+
+// ---- front ---------------------------------------------------------------------------------
 
 function buildFront(o: FrontPose): PixelCanvas {
   const p = buildFrontRaw(o);
@@ -127,96 +196,175 @@ function buildFrontRaw(o: FrontPose): PixelCanvas {
   const Y = (v: number) => v + OY;
   const sway = o.sway ?? 0;
   const sq = o.squash ?? 0;
-  // feet (on one leg, the left one is tucked up under him)
-  for (const fx of [16, 29]) {
-    const lift = o.oneLeg && fx === 16 ? 4 + o.oneLeg : 0;
-    const f = new Mask(W, H).ellipse(X(fx + 1 + (lift ? 3 : 0)), Y(61 - lift), 5, 2.6);
-    shade(p, f, ['#6A3420', '#8A4424', '#C8643A', '#DE7642'], { mode: 'sphere', base: 0.55 });
+  const bx = 24 + sway * 0.5;
+  // the fan tail behind him, flaring out beside his legs
+  {
+    const m = new Mask(W, H);
+    m.poly([[X(12), Y(44)], [X(2), Y(58)], [X(4), Y(61)], [X(14), Y(59)]]);
+    m.poly([[X(36), Y(44)], [X(46), Y(58)], [X(44), Y(61)], [X(34), Y(59)]]);
+    m.poly([[X(20), Y(50)], [X(28), Y(50)], [X(26), Y(61)], [X(22), Y(61)]]);
+    shade(p, m, SHELL.slice(1, 6), { base: 0.45, k: 0.5 });
+    // the fringe of the paddles
+    for (const x of [3, 5, 43, 45]) p.set(X(x), Y(60), SHELL[2]);
   }
-  // body
-  const body = new Mask(W, H).ellipse(X(24 + sway * 0.5), Y(45 + sq), 17, 14 - sq);
-  fur(p, body, 7);
-  // tummy lighter patch
-  ditherMask(p, new Mask(W, H).ellipse(X(22 + sway * 0.5), Y(47 + sq), 9, 7).and(body), FUR[4], 0.35);
-  // sash: left shoulder → right hip
-  for (let i = 0; i < 30; i++) {
-    const t = i / 29;
-    const sx = Math.round(X(10 + sway * 0.5) + t * 24);
-    const sy = Math.round(Y(33 + sq) + t * 20);
-    for (let w = 0; w < 4; w++) {
-      if (!body.in(sx + w, sy)) continue;
-      const stripe = i % 7 === 3 && w > 0 && w < 3;
-      p.set(sx + w, sy, stripe ? '#E84E3C' : w === 3 ? '#C8C2B4' : '#F4F1E8');
+  // hind legs and feet (on one leg, the left one is tucked up)
+  for (const fx of [17, 31]) {
+    const lift = o.oneLeg && fx === 17 ? 5 + o.oneLeg : 0;
+    const leg = new Mask(W, H).line(X(fx), Y(50 + sq), X(fx + (lift ? 3 : 0)), Y(58 - lift), 2.4);
+    shade(p, leg, LEG, { base: 0.55 });
+    const f = new Mask(W, H).ellipse(X(fx + (lift ? 3 : fx < 24 ? -1 : 1)), Y(59.5 - lift), 5, 2.6);
+    shade(p, f, LEG, { mode: 'sphere', base: 0.5 });
+  }
+  // body: the armour round the pale tummy
+  const body = new Mask(W, H).ellipse(X(bx), Y(41 + sq), 16.5, 12.5 - sq);
+  shade(p, body, SHELL, { mode: 'sphere', base: 0.58, k: 0.62, dither: 0.5 });
+  const belly = new Mask(W, H).ellipse(X(bx - 0.5), Y(42.5 + sq), 9.5, 10.5 - sq).and(body);
+  if (o.turned) {
+    plates(p, body, [31, 35, 39, 43, 47, 51].map((v) => Y(v + sq)), 2);
+  } else {
+    plates(p, body, [32, 36, 40, 44, 48].map((v) => Y(v + sq)), 1, belly);
+    shade(p, belly, BELLY, { mode: 'sphere', base: 0.6, k: 0.55, dither: 0.4 });
+    // the underside's segment lines
+    for (const v of [37, 41, 45, 49]) {
+      const y = Y(v + sq);
+      const span = rowSpan(belly, y);
+      if (span) for (let x = span[0] + 2; x <= span[1] - 2; x++) p.set(x, y, x < X(bx) - 2 ? BELLY[2] : BELLY[1]);
     }
+    smallLegs(p, X(bx - 0.5), Y(35 + sq), o.clap);
   }
-  // arms / mittens
-  const armPos = (side: -1 | 1, a: FrontPose['armL']): [number, number, boolean] => {
-    const bx = 24 + sway * 0.5 + side * 17;
+  // arms
+  const armPos = (side: -1 | 1, a: ArmPos | undefined): [number, number] => {
+    const sx = bx + side * 15;
     switch (a) {
       case 'up':
-        return [bx + side * 2, 24, true];
+        return [sx + side * 4, 10];
       case 'out':
-        return [bx + side * 6, 38, false];
+        return [sx + side * 7, 34];
       case 'wave1':
-        return [bx + side * 4, 26, true];
+        return [sx + side * 5, 20];
       case 'wave2':
-        return [bx + side * 7, 28, true];
+        return [sx + side * 8, 23];
       case 'mic':
-        return [24 + side * 9, 33, true];
+        return [bx - 6, 34];
       case 'point':
-        return [16, 38, false];
+        return [sx + side * 7, 24];
       case 'hold':
-        return [bx - side * 3, 38, false];
+        return [bx - side * 4, 37];
+      case 'present':
+        return [sx + side * 8, 30];
+      case 'clap':
+        return [bx + side * 3, 29];
       case 'cross':
         // straight out to the side at the shoulder, like a scarecrow's crossbar
-        return [bx + side * 9, 35, false];
+        return [sx + side * 10, 33];
       default:
-        return [bx, 46, false];
+        return [sx + side * 3, 45];
     }
   };
+  const arms: [number, number][] = [];
   for (const side of [-1, 1] as const) {
-    const [ax, ay, up] = armPos(side, side < 0 ? o.armL : o.armR);
-    // short arm tube
-    const arm = new Mask(W, H).line(X(24 + side * 13 + sway * 0.5), Y(40 + sq), X(ax), Y(ay), 3);
-    shade(p, arm, FUR, { base: 0.58 });
-    mitten(p, X(ax), Y(ay), up);
+    const [ax, ay] = armPos(side, side < 0 ? o.armL : o.armR);
+    const arm = new Mask(W, H).line(X(bx + side * 13), Y(36 + sq), X(ax), Y(ay), 1.6);
+    shade(p, arm, LEG, { base: 0.6 });
+    arms.push([X(ax), Y(ay)]);
   }
-  // bell head
-  bellFront(p, X(4 + sway), Y(0 + sq), { bow: o.bow ?? 0, clapper: o.clapper ?? 0, glow: o.glow ?? 0, happy: !!o.happy, face: !o.turned });
-  // clapper peeking under the lip
-  const clx = X(24 + sway + (o.clapper ?? 0));
-  const cly = Y(31 + sq);
-  p.rect(clx - 1, cly, 3, 2, '#6A4A1A');
-  p.set(clx - 1, cly, '#A8742A');
-  if (o.straw) strawHeap(p, X(24 + sway), Y(2 + sq));
+  // head: a wide dome, the big eyes low in it like a pair of sunglasses
+  const bow = o.bow ?? 0;
+  const hx = X(24 + sway);
+  const hy = Y(18 + sq + bow * 2);
+  const ant = o.ant ?? 'normal';
+  const top = hy - 12;
+  // long feelers from the top of the head
+  if (!o.straw) {
+    const l: Record<Ant, [number, number, number, number]> = {
+      normal: [hx - 14, top - 10, hx - 22, top - 2],
+      up: [hx - 8, top - 16, hx - 11, top - 20],
+      mic: [hx - 7, top + 12, hx - 2, hy + 9],
+      droop: [hx - 16, top - 3, hx - 23, top + 10],
+      swayL: [hx - 16, top - 8, hx - 24, top - 5],
+      swayR: [hx - 12, top - 11, hx - 19, top - 3],
+    };
+    const [c1x, c1y, e1x, e1y] = l[ant];
+    if (ant !== 'mic') feeler(p, hx - 5, top + 2, c1x, c1y, e1x, e1y);
+    const r = ant === 'mic' ? l.normal : l[ant === 'swayL' ? 'swayR' : ant === 'swayR' ? 'swayL' : ant];
+    feeler(p, hx + 5, top + 2, 2 * hx - r[0], r[1], 2 * hx - r[2], r[3]);
+  }
+  const head = new Mask(W, H).ellipse(hx, hy, 18.5, 12.8);
+  shade(p, head, SHELL, { mode: 'sphere', base: 0.6, k: 0.62, dither: 0.5 });
+  // the head plate's rim: a soft line over the brow
+  for (let x = hx - 13; x <= hx + 13; x++) {
+    const y = hy - 5 - Math.round(3 * (1 - ((x - hx) / 14) ** 2));
+    if (head.in(x, y) && !o.turned && bow < 2) p.set(x, y, x < hx - 4 ? SHELL[5] : SHELL[4]);
+  }
+  if (!o.turned) {
+    const e = o.eyes ?? 'open';
+    const ey = hy + 2 + bow;
+    eye(p, hx - 9, ey, e, false);
+    eye(p, hx + 9, ey, e, true);
+    // cheeks
+    for (const s of [-1, 1]) {
+      p.rect(hx + s * 12 - 2, ey + 6, 4, 2, CHEEK);
+      p.set(hx + s * 12 - 2, ey + 6, CHEEK_L);
+    }
+    // short feelers: a little V on the brow
+    if (!o.straw) {
+      const up = ant === 'up' ? 2 : 0;
+      for (const s of [-1, 1]) {
+        const m = new Mask(W, H).line(hx + s * 2, top + 3, hx + s * 5, top - 3 - up, 0.8);
+        m.each((x, y) => p.set(x, y, SHELL[2]));
+      }
+    }
+    if (o.glow) {
+      // the eyes light up: a pale bloom round each glint
+      for (const s of [-1, 1]) {
+        const g = new Mask(W, H).ellipse(hx + s * 9 - 2, ey - 2, 4, 3);
+        g.each((x, y) => {
+          if (BAYER4[y & 3][x & 3] < 6 * (o.glow ?? 1)) p.set(x, y, '#FFE7A3');
+        });
+      }
+    }
+  } else {
+    // from behind: the head plate's lit crown
+    for (let x = hx - 10; x <= hx - 2; x++) p.set(x, hy - 9, SHELL[7]);
+  }
+  if (ant === 'mic' && !o.straw) {
+    // the left feeler bent forward and down in front of his face: its tip
+    // hangs at his mouth like a microphone (the tip itself: singFrame)
+    const m = new Mask(W, H).curve(hx - 5, top + 2, hx - 10, top + 12, hx - 5, hy + 8, 0.5);
+    m.each((x, y) => p.set(x, y, SHELL[1]));
+  }
+  // hands last (they go over the head when raised)
+  for (const [ax, ay] of arms) hand(p, ax, ay);
+  if (o.straw) strawHeap(p, hx, hy - 17);
   return p;
 }
 
 /**
  * ボケD's straw (51 14.13): a 24×16 heap of rice straw flopped over the top
- * of his bell — gold stalks (#E8C878) in a dither, darker bundles (#B89848)
+ * of his head — gold stalks (#E8C878) in a dither, darker bundles (#B89848)
  * inside, stray stalks hanging over the brim on both sides.
  */
 function strawHeap(p: PixelCanvas, cx: number, top: number): void {
   const m = new Mask(p.w, p.h);
   for (let y = 0; y < 11; y++) {
-    const hw = Math.round(5 + Math.sqrt(y / 10) * 7);
+    const hw = Math.round(5 + Math.sqrt(y / 10) * 8);
     m.rect(cx - hw, top + y, hw * 2 + 1, 1);
   }
   m.each((x, y) => {
     const v = (x * 3 + y * 5) % 7;
-    const inner = (y - top) > 3 && Math.abs(x - cx) < 8;
+    const inner = y - top > 3 && Math.abs(x - cx) < 8;
     p.set(x, y, inner && BAYER4[y & 3][x & 3] > 9 ? '#B89848' : v === 0 ? '#F6D98A' : v < 3 ? '#D8B868' : '#E8C878');
   });
-  // stalks hanging down past the brim and sticking out on top
-  for (const [dx, len, lean] of [[-12, 7, -1], [-10, 9, 0], [-7, 5, 0], [9, 8, 1], [11, 6, 1], [4, 4, 0]] as [number, number, number][]) {
+  for (const [dx, len, lean] of [[-13, 7, -1], [-11, 9, 0], [-7, 5, 0], [10, 8, 1], [12, 6, 1], [4, 4, 0]] as [number, number, number][]) {
     for (let i = 0; i < len; i++) p.set(cx + dx + Math.round((i / len) * lean * 2), top + 9 + i, i % 3 === 2 ? '#B89848' : '#E8C878');
   }
-  for (const [dx, h] of [[-3, 3], [0, 4], [2, 3], [5, 2]] as [number, number][]) for (let i = 1; i <= h; i++) p.set(cx + dx + (i > 2 ? 1 : 0), top - i, '#E8C878');
+  // his two feelers poke out through the straw
+  for (const s of [-1, 1]) for (let i = 1; i <= 5; i++) p.set(cx + s * (3 + Math.floor(i / 2)), top - i, SHELL[2]);
+  for (const [dx, h] of [[-5, 3], [0, 4], [2, 3], [7, 2]] as [number, number][]) for (let i = 1; i <= h; i++) p.set(cx + dx + (i > 2 ? 1 : 0), top - i, '#E8C878');
   p.hline(cx - 4, cx + 1, top + 1, '#FFF6D8');
 }
 
-// ---- back view (40×48, PR cut-ins) -----------------------------------------------------
+// ---- back view (44×52: the cut-ins from behind) ----------------------------------------------
 
 const BW = 44;
 const BH = 52;
@@ -228,10 +376,10 @@ function buildBack(frame: string): PixelCanvas {
   let bow = 0;
   let squash = 0;
   let armR: 'down' | 'up' | 'hit' = 'down';
-  /** 'hold': both mittens high on a pole at his right (the net held up like a banner). */
   let hold = false;
   let lean = 0;
   let step = 0;
+  let banzai = false;
   switch (frame) {
     case 'hold':
       hold = true;
@@ -245,8 +393,10 @@ function buildBack(frame: string): PixelCanvas {
       step = 2;
       break;
     case 'slam':
+      // こうらタックル: head tucked, the armour first
       lean = 3;
       squash = 1;
+      bow = 2;
       break;
     case 'ring':
       lean = -1;
@@ -256,6 +406,9 @@ function buildBack(frame: string): PixelCanvas {
       break;
     case 'raise':
       armR = 'up';
+      break;
+    case 'banzai':
+      banzai = true;
       break;
     case 'bow1':
       bow = 1;
@@ -275,83 +428,78 @@ function buildBack(frame: string): PixelCanvas {
   }
   const X = (v: number) => v + ox;
   const Y = (v: number) => v + oy;
-  // feet (soles visible from behind)
+  // feet (soles and heels from behind), under the fan
   const fo = step === 1 ? 1 : step === 2 ? -1 : 0;
-  for (const [fx, d] of [[12, fo], [26, -fo]] as [number, number][]) {
-    const f = new Mask(BW, BH).ellipse(X(fx + 1), Y(45 - Math.max(0, d)), 4.5, 2.4);
-    shade(p, f, ['#6A3420', '#8A4424', '#C8643A'], { base: 0.5 });
+  for (const [fx, d] of [[13, fo], [27, -fo]] as [number, number][]) {
+    const f = new Mask(BW, BH).ellipse(X(fx), Y(46 - Math.max(0, d)), 4.2, 2.4);
+    shade(p, f, LEG, { base: 0.45 });
   }
-  // fluffy back
-  const body = new Mask(BW, BH).ellipse(X(20 + lean * 0.5), Y(33 + squash), 16, 13 - squash);
-  fur(p, body, 3);
-  // zipper, slightly open: pitch-dark inside
-  const zx = X(20 + lean * 0.5);
-  for (let yy = Y(22 + squash); yy < Y(44); yy++) {
-    if (!body.in(zx, yy)) continue;
-    p.set(zx, yy, '#C0C6CC');
-    p.set(zx + 1, yy, (yy & 1) ? '#9AA0A8' : '#C0C6CC');
+  const cx = X(20 + lean * 0.5);
+  // arms at his sides (behind the armour's edge)
+  if (!hold && !banzai) {
+    const armL = new Mask(BW, BH).line(X(6 + lean), Y(28 + squash), X(2 + lean), Y(36), 1.5);
+    shade(p, armL, LEG, { base: 0.5 });
+    hand(p, X(2 + lean), Y(37));
+    if (armR === 'down') {
+      const a = new Mask(BW, BH).line(X(34 + lean), Y(28 + squash), X(38 + lean), Y(36), 1.5);
+      shade(p, a, LEG, { base: 0.4 });
+      hand(p, X(38 + lean), Y(37));
+    }
   }
-  p.rect(zx - 1, Y(25 + squash), 2, 6, '#0B0B14');
-  p.set(zx + 1, Y(24 + squash), '#E8ECF0');
-  p.rect(zx + 1, Y(31 + squash), 2, 3, '#C0C6CC');
-  // arms
-  if (!hold) {
-    const armL = new Mask(BW, BH).line(X(6 + lean), Y(30 + squash), X(3 + lean), Y(38), 3);
-    shade(p, armL, FUR, { base: 0.62 });
-    mitten(p, X(3 + lean), Y(39));
-  }
-  if (hold) {
-    // (the mittens are drawn after the head, over the pole the battle adds)
-  } else if (armR === 'hit' || armR === 'up') {
-    const hy = armR === 'hit' ? 6 : 10;
-    const armRm = new Mask(BW, BH).line(X(33 + lean), Y(28), X(35), Y(hy + 4), 3);
-    shade(p, armRm, FUR, { base: 0.5 });
-    mitten(p, X(35), Y(hy + 3), true);
-  } else {
-    const armRm = new Mask(BW, BH).line(X(34 + lean), Y(30 + squash), X(37 + lean), Y(38), 3);
-    shade(p, armRm, FUR, { base: 0.5 });
-    mitten(p, X(37 + lean), Y(39));
-  }
-  // bell head from behind (no face), tilting forward when bowing
-  const cx = X(20 + lean);
-  const top = Y(1 + bow * 3 + squash);
-  const lip = Y(24 + squash + (bow ? 1 : 0));
-  const m = new Mask(BW, BH);
-  for (let yy = top; yy <= lip; yy++) {
-    const k = (yy - top) / Math.max(1, lip - top);
-    let hw = 7 + 9 * Math.pow(k, 1.35);
-    if (yy >= lip - 1) hw += 1;
-    if (yy === top) hw -= 2;
-    for (let xx = Math.round(cx - hw); xx <= Math.round(cx + hw); xx++) m.set(xx, yy);
-  }
-  shade(p, m, BRASS, { mode: 'cyl', cx: cx - 1, rx: 17, base: 0.55, k: 0.75, dither: 0.5 });
-  for (let yy = top + 3; yy < lip - 3; yy++) {
-    const hx = Math.round(cx - (5 + 7 * ((yy - top) / (lip - top))));
-    if (m.in(hx, yy)) p.set(hx, yy, '#FFF6D8');
-  }
-  for (let xx = cx - 16; xx <= cx + 16; xx++) if (m.in(xx, lip)) p.set(xx, lip, BRASS[1]);
-  const band = top + 5;
-  for (let xx = cx - 14; xx <= cx + 14; xx++) if (m.in(xx, band)) p.set(xx, band, xx < cx - 5 ? BRASS[4] : BRASS[1]);
-  if (!bow) {
-    p.rect(cx - 2, top - 3, 4, 1, BRASS[1]);
-    p.set(cx - 3, top - 2, BRASS[1]);
-    p.set(cx + 2, top - 2, BRASS[0]);
+  // the head: its crown over the first plate, feelers up and out
+  const htop = Y(2 + bow * 3 + squash);
+  const head = new Mask(BW, BH).ellipse(X(20 + lean), htop + 9, 13.5, 9.5);
+  const aL = bow >= 2 ? [cx - 8, htop + 4, cx - 12, htop + 10] : [cx - 12, htop - 7, cx - 19, htop - 1];
+  feeler(p, cx - 4 + lean * 0.5, htop + 3, aL[0], aL[1], aL[2], aL[3]);
+  feeler(p, cx + 4 + lean * 0.5, htop + 3, 2 * cx - aL[0] + lean, aL[1], 2 * cx - aL[2] + lean, aL[3]);
+  shade(p, head, SHELL, { mode: 'sphere', base: 0.6, k: 0.6, dither: 0.5 });
+  // the armour: seven chest plates
+  const body = new Mask(BW, BH).ellipse(cx, Y(29 + squash * 0.5), 16, 14 - squash * 0.5);
+  shade(p, body, SHELL, { mode: 'sphere', base: 0.6, k: 0.6, dither: 0.5 });
+  plates(p, body, [18, 21.5, 25, 28.5, 32, 35.5, 39].map((v) => Math.round(Y(v + squash * 0.6))), 2);
+  // the fan tail: the tail plate between two paddles, hanging like a cape
+  {
+    const pad = new Mask(BW, BH);
+    pad.poly([[cx - 7, Y(38)], [cx - 17 - fo, Y(46)], [cx - 13 - fo, Y(49)], [cx - 4, Y(44)]]);
+    pad.poly([[cx + 7, Y(38)], [cx + 17 - fo, Y(46)], [cx + 13 - fo, Y(49)], [cx + 4, Y(44)]]);
+    shade(p, pad, SHELL.slice(1, 7), { base: 0.5, k: 0.5 });
+    // the fringe along the paddles' hems
+    for (let i = 0; i < 4; i++) {
+      p.set(cx - 16 - fo + i, Y(47 + (i % 2)), SHELL[2]);
+      p.set(cx + 13 - fo + i, Y(47 + (i % 2)), SHELL[1]);
+    }
+    const tail = new Mask(BW, BH).poly([[cx - 8, Y(37)], [cx + 8, Y(37)], [cx + 6, Y(44)], [cx, Y(49)], [cx - 6, Y(44)]]);
+    shade(p, tail, SHELL, { base: 0.62, k: 0.6 });
+    for (let y = Y(39); y < Y(48); y++) if (tail.in(cx, y)) p.set(cx, y, SHELL[3]);
+    for (let y = Y(39); y < Y(45); y++) if (tail.in(cx - 3, y)) p.set(cx - 3, y, SHELL[6]);
+    // its spiny rim
+    for (const [dx, dy] of [[-5, 45], [5, 45], [-3, 47], [3, 47]] as [number, number][]) p.set(cx + dx, Y(dy), SHELL[2]);
   }
   if (frame === 'ring') {
-    // the bell sways after the impact
-    p.set(cx + 17, top + 8, '#FFF6D8');
-    p.set(cx + 18, top + 10, '#FFF6D8');
+    p.set(cx + 18, Y(10), '#FFF6D8');
+    p.set(cx + 19, Y(12), '#FFF6D8');
+  }
+  if (armR === 'hit' || armR === 'up') {
+    const hy = armR === 'hit' ? 6 : 10;
+    const a = new Mask(BW, BH).line(X(33 + lean), Y(26), X(36), Y(hy + 4), 1.5);
+    shade(p, a, LEG, { base: 0.5 });
+    hand(p, X(36), Y(hy + 3));
+  }
+  if (banzai) {
+    for (const s of [-1, 1]) {
+      const a = new Mask(BW, BH).line(cx + s * 13, Y(26), cx + s * 17, Y(9), 1.5);
+      shade(p, a, LEG, { base: 0.5 });
+      hand(p, cx + s * 17, Y(8));
+    }
   }
   if (hold) {
-    // both arms reach up past the right of his bell to the pole (x33): the
-    // left one crosses high over his shoulder, the right grips below it;
-    // the mittens go over the pole the battle draws behind him
-    const armLm = new Mask(BW, BH).line(X(9), Y(29), X(31), Y(9), 3);
-    shade(p, armLm, FUR, { base: 0.66 });
-    const armRm = new Mask(BW, BH).line(X(33), Y(30), X(33), Y(17), 3);
-    shade(p, armRm, FUR, { base: 0.5 });
-    mitten(p, X(32), Y(8), true);
-    mitten(p, X(33), Y(16), true);
+    // both arms up at the right of his head to the pole (x≈35): the left one
+    // reaches round in front of him (only its hand shows), the right one is
+    // up beside his head; the hands go over the pole the battle draws behind him
+    const aR = new Mask(BW, BH).line(X(33), Y(28), X(33), Y(17), 1.5);
+    shade(p, aR, LEG, { base: 0.5 });
+    hand(p, X(32), Y(8));
+    hand(p, X(33), Y(16));
   }
   p.outline(K.outline);
   rimLeft(p, K.rim, 0.5);
@@ -359,7 +507,7 @@ function buildBack(frame: string): PixelCanvas {
 }
 
 const backCache = new Map<string, HTMLCanvasElement>();
-/** Back view (for PR / tackle cut-ins). Frames: idle step run slam ring hit raise hold bow1-3 walk1-2. */
+/** Back view (for the cut-ins from behind). Frames: idle step run slam ring hit raise hold banzai bow1-3 walk1-2. */
 export function kanenariBack(frame: string): HTMLCanvasElement {
   let c = backCache.get(frame);
   if (!c) {
@@ -380,158 +528,87 @@ function front(key: string, o: FrontPose): HTMLCanvasElement {
 }
 
 /**
- * Front sprite for the ノリツッコミ boke (16.10), 56 wide; the flag frames are
- * wider/taller (the banner) and share the same foot line, so callers anchor
- * on the bottom centre of `kanenariFrontFoot()`.
- * - 'sing': a little brass hand bell for a microphone, the other arm flung
- *   out / up, swaying (2 frames);
- * - 'flag': a nobori banner swung left → up → right → up (4 frames);
- * - 'flip': both mittens in front of the tummy, holding the flip board that
- *   the battle draws over him (2 frames of bob);
- * - 'kime': the landing pose (arms up, happy) held for 2 frames on arrival.
+ * Front sprite for the ノリツッコミ boke (16.10), 56 wide; the 'flag' frames
+ * are padded (FLAG_PAD) and share the same foot line, so callers anchor on
+ * the bottom centre.
+ * - 'sing': one long feeler bent down in front of his face for a microphone,
+ *   held in his hand, the other arm out / up, swaying (2 frames);
+ * - 'flag': (ボケB) clapping with all his little legs — they swing out and in,
+ *   パチパチ marks round him (4 frames);
+ * - 'flip': (ボケC) the boke gesture — one hand out, presenting himself, head
+ *   tilted (2 frames of bob; the battle may still hold a board over his tummy);
+ * - 'kime': the landing pose (arms up, happy) held for 2 frames on arrival;
+ * - 'kakashi': (ボケD) rice straw on his head, arms out as the crossbar, on one leg.
  */
 export function kanenariFront(pose: string, t: number): HTMLCanvasElement {
-  if (pose === 'sing') {
-    const f = loop(t, 190, 2);
-    return singFrame(f);
-  }
-  if (pose === 'flag') return flagFrame(loop(t, 110, 4));
+  if (pose === 'sing') return singFrame(loop(t, 190, 2));
+  if (pose === 'flag') return clapFrame(loop(t, 110, 4));
   if (pose === 'flip') {
     const f = loop(t, 280, 2);
-    return front(`flip${f}`, { armL: 'hold', armR: 'hold', sway: 0, clapper: f ? 1 : 0, squash: f, happy: true });
+    return front(`flip${f}`, { armL: 'down', armR: 'present', sway: f ? 1 : 0, squash: f, eyes: 'happy', ant: f ? 'swayR' : 'swayL' });
   }
-  if (pose === 'kime') return front('kime', { armL: 'up', armR: 'up', happy: true, squash: 1, clapper: 1 });
+  if (pose === 'kime') return front('kime', { armL: 'up', armR: 'up', eyes: 'happy', squash: 1, ant: 'up' });
   if (pose === 'kakashi') {
-    // ボケD: straw on his head, arms out as the crossbar, on one leg — wobbling
     const f = loop(t, 240, 2);
-    return front(`kakashi${f}`, { armL: 'cross', armR: 'cross', straw: true, oneLeg: 1 + f, sway: f ? 1 : -1, squash: 0, clapper: f ? 1 : -1 });
+    return front(`kakashi${f}`, { armL: 'cross', armR: 'cross', straw: true, oneLeg: 1 + f, sway: f ? 1 : -1, squash: 0, eyes: 'open' });
   }
   return front('idle0', {});
 }
 
-/** Extra pixels the flag frames add on the left / top of the 56×68 body canvas. */
-export const FLAG_PAD = { x: 6, y: 30, w: 34 };
+/** Extra pixels the flag (clap) frames add on the left / top / right of the 56×68 body canvas. */
+export const FLAG_PAD = { x: 8, y: 8, w: 8 };
 
-/** Where the microphone (hand bell) is on the 'sing' frames, from the canvas' top-left. */
-export const MIC_AT: [number, number] = [OX + 15, OY + 21];
+/** Where the microphone (the tip of his feeler) is on the 'sing' frames, from the canvas' top-left. */
+export const MIC_AT: [number, number] = [OX + 19, OY + 28];
 
 function singFrame(f: number): HTMLCanvasElement {
   const key = 'singm' + f;
   let c = frontCache.get(key);
   if (c) return c;
-  const p = buildFrontRaw({ armL: 'mic', armR: f ? 'up' : 'out', sway: f ? 1 : -1, clapper: f ? 1 : -1, happy: true });
-  p.outline(K.outline);
-  rimLeft(p, K.rim, 0.5);
-  // the "microphone": a little silver hand bell on a wooden grip, held up to
-  // the lip of his own bell (where a mouth would be); it gets its own ink
-  // contour so it reads over the brass
-  const mic = [
-    '..kkk..',
-    '.kWssk.',
-    'kWsssgk',
-    'kWsssgk',
-    'ksssggk',
-    'kGGGGGk',
-    'kkkbkkk',
-    '..kbk..',
-    '..kbk..',
-    '..kbk..',
-  ];
-  const mx = OX + 15 - 3 + (f ? 1 : 0);
-  const my = OY + 33 - 12;
-  p.art(mic, { k: K.outline, W: '#FFFFFF', s: '#D8DCE2', g: '#9AA0A8', G: '#6B7186', b: '#C8A06A' }, mx, my);
-  // the mitten wraps the grip
-  mitten(p, OX + 15, OY + 33, true);
-  for (const [dx, dy] of [[-4, -1], [-4, 0], [-4, 1], [4, -1], [4, 0], [4, 1], [-3, 3], [3, 3], [-2, 4], [2, 4], [-1, 4], [0, 4], [1, 4]] as [number, number][])
-    p.set(OX + 15 + dx, OY + 33 + dy, K.outline);
-  c = p.toCanvas();
+  const p = buildFrontRaw({ armL: 'mic', armR: f ? 'up' : 'out', sway: f ? 1 : -1, eyes: 'happy', ant: 'mic' });
+  // the feeler's tip, curled into a little ball in his hand: the "microphone"
+  const mx = MIC_AT[0] + (f ? 1 : -1);
+  const my = MIC_AT[1];
+  p.art(['.kkkk.', 'kWWssk', 'kWsssk', 'ksssgk', 'kssggk', '.kkkk.'], { k: K.outline, W: '#E8E4F0', s: SHELL[6], g: SHELL[4] }, mx - 3, my - 3);
+  c = (() => {
+    p.outline(K.outline);
+    rimLeft(p, K.rim, 0.5);
+    return p.toCanvas();
+  })();
   frontCache.set(key, c);
   return c;
 }
 
 /**
- * Nobori banner frames. The pole is gripped in both mittens at his right
- * side and swung through −26° / −6° / +16° / −6°; the cloth hangs from a
- * crossbar at the top and ripples, its free edge lagging behind the swing.
+ * ボケB: clapping with all his legs. The little legs swing out (1, 3) and in
+ * (0, 2) while the arms clap over his head; short white パチパチ marks pop
+ * beside him on every "in".
  */
-/**
- * Three little brush-written characters down the middle of the banner (the
- * town's PR slogan — too small to read, but they have the shape of words):
- * 6×5 cells in cloth space, one every 9px along the pole.
- */
-const BANNER_GLYPHS = [
-  ['..#...', '######', '..#.#.', '.#..#.', '#..##.'],
-  ['##.###', '#..#.#', '##.###', '#..#.#', '##.###'],
-  ['.#..#.', '######', '.#..#.', '.####.', '.#..#.'],
-  ['..##..', '.#..#.', '######', '.#..#.', '##..##'],
-];
-function bannerInk(u: number, v: number, cw: number): boolean {
-  const gu = Math.floor(u) - 6;
-  const gv = Math.floor(v - (cw - 6) / 2);
-  if (gu < 0 || gv < 0 || gv > 5) return false;
-  const k = Math.floor(gu / 8);
-  const row = gu % 8;
-  if (k >= BANNER_GLYPHS.length || row > 4) return false;
-  return BANNER_GLYPHS[k][row][gv] === '#';
-}
-
-function flagFrame(f: number): HTMLCanvasElement {
-  const key = 'flag4' + f;
+function clapFrame(f: number): HTMLCanvasElement {
+  const key = 'clap' + f;
   let c = frontCache.get(key);
   if (c) return c;
-  const ang = [-26, -6, 16, -6][f] * (Math.PI / 180);
-  const lag = [-1.4, 0.2, 1.4, 0.2][f];
-  const base = buildFrontRaw({ armL: 'up', armR: 'up', sway: [-1, 0, 1, 0][f], clapper: [1, 0, -1, 0][f], happy: true });
+  const open = f % 2;
+  const base = buildFrontRaw({ armL: open ? 'up' : 'clap', armR: open ? 'up' : 'clap', sway: [-1, 0, 1, 0][f], eyes: 'happy', clap: open, ant: f < 2 ? 'swayL' : 'swayR', squash: open ? 0 : 1 });
+  base.outline(K.outline);
+  rimLeft(base, K.rim, 0.5);
   const PW = W + FLAG_PAD.w + FLAG_PAD.x;
   const PH = H + FLAG_PAD.y;
   const p = new PixelCanvas(PW, PH);
-  const bx = FLAG_PAD.x;
-  const by = FLAG_PAD.y;
-  // grip between the raised mittens (right of the bell)
-  const gx = bx + OX + 38;
-  const gy = by + OY + 28;
-  const dx = Math.sin(ang);
-  const dy = -Math.cos(ang);
-  const L = 54;
-  const tx = gx + dx * L;
-  const ty = gy + dy * L;
-  // cloth: hangs from the crossbar, along the pole on its right
-  const nx = Math.cos(ang);
-  const ny = Math.sin(ang);
-  const CL = 40;
-  const CW = 16;
-  for (let u = 0; u <= CL; u += 0.4)
-    for (let v = 0; v <= CW; v += 0.4) {
-      const ripple = Math.sin(u * 0.28 + f * 1.6) * (v / CW) * 1.6 + lag * (v / CW) * (u / CL) * 3;
-      const x = tx - dx * (u + 2) + nx * (v + 1) + ripple * dx;
-      const y = ty - dy * (u + 2) + ny * (v + 1) + ripple * dy + Math.max(0, lag) * (v / CW) * 0.6;
-      let col = '#F4F1E8';
-      const edge = v < 1.6 || v > CW - 1.6 || u < 1.4 || u > CL - 1.6;
-      if (edge) col = '#E84E3C';
-      else if (bannerInk(u, v, CW)) col = '#C8313A'; // brushed characters down the middle
-      else if (ripple > 0.9) col = '#FFFFFF';
-      else if (ripple < -0.9) col = '#D8D2C4';
-      p.set(Math.round(x), Math.round(y), col);
+  p.blit(base, FLAG_PAD.x, FLAG_PAD.y);
+  if (!open) {
+    // パチパチ: three short strokes off each side, and over the hands
+    const cy = FLAG_PAD.y + OY + 40;
+    for (const s of [-1, 1]) {
+      const x0 = FLAG_PAD.x + OX + 24 + s * 26;
+      for (const [dx, dy] of [[0, -6], [2 * s, -2], [0, 3]] as [number, number][]) {
+        p.set(x0 + dx, cy + dy, '#FFF6D8');
+        p.set(x0 + dx + s, cy + dy, '#FFF6D8');
+      }
     }
-  // loops (chichi) that hold the cloth to the pole
-  for (let u = 4; u < CL; u += 7) p.set(Math.round(tx - dx * (u + 2) + nx * 0.5), Math.round(ty - dy * (u + 2) + ny * 0.5), '#B8241E');
-  // the body goes over the cloth's lower end, the pole over both
-  p.blit(base, bx, by);
-  for (let i = 0; i <= L + 2; i++) {
-    const x = gx + dx * (i - 2);
-    const y = gy + dy * (i - 2);
-    p.set(Math.round(x), Math.round(y), '#C8A06A');
-    p.set(Math.round(x + nx), Math.round(y + ny), '#8A6A4A');
+    const hy = FLAG_PAD.y + OY + 12;
+    for (const [dx, dy] of [[-3, -2], [0, -4], [3, -2]] as [number, number][]) p.set(FLAG_PAD.x + OX + 24 + dx, hy + dy, '#FFF6D8');
   }
-  // crossbar and a brass finial
-  for (let v = -1; v <= CW + 1; v++) p.set(Math.round(tx - dx * 2 + nx * v), Math.round(ty - dy * 2 + ny * v), '#8A6A4A');
-  p.set(Math.round(tx + dx), Math.round(ty + dy), BRASS[4]);
-  p.set(Math.round(tx), Math.round(ty), BRASS[2]);
-  // the mittens stay on top of the pole
-  mitten(p, gx - 3, gy + 2, true);
-  mitten(p, gx + 2, gy - 4, true);
-  p.outline(K.outline);
-  rimLeft(p, K.rim, 0.5);
   c = p.toCanvas();
   frontCache.set(key, c);
   return c;
@@ -547,34 +624,34 @@ registerEnemyArt('enemy_kanenari', (): EnemyArt => ({
   oy: OY,
   frame(v: EnemyView): HTMLCanvasElement {
     const sway = [0, 1, 0, -1][loop(v.gt, 220, 4)];
-    const clap = [0, 1, 0, -1][loop(v.gt, 160, 4)];
+    const ant: Ant = (['normal', 'swayL', 'normal', 'swayR'] as Ant[])[loop(v.gt, 220, 4)];
     switch (v.pose) {
       case 'windup':
       case 'attack': {
-        if (v.skill === 'skill_kn_fuusen') return front(`fuu${v.t > 300 ? 1 : 0}`, { armL: v.t > 300 ? 'up' : 'out', armR: 'out', clapper: clap });
-        if (v.skill === 'skill_kn_goaisatsu') return front(`bow${v.t > 200 ? 2 : 1}`, { bow: v.t > 200 ? 2 : 1, armL: 'down', armR: 'down', squash: 1 });
+        if (v.skill === 'skill_kn_fuusen') return front(`fuu${v.t > 300 ? 1 : 0}`, { armL: v.t > 300 ? 'up' : 'out', armR: 'out', eyes: 'happy', ant });
+        if (v.skill === 'skill_kn_goaisatsu') return front(`bow${v.t > 200 ? 2 : 1}`, { bow: v.t > 200 ? 2 : 1, armL: 'down', armR: 'down', squash: 1, eyes: 'soft', ant: 'droop' });
         const kind = (v.params?.pose ?? 0) % 3;
-        if (kind === 0) return front('pose0', { armL: 'up', armR: 'up', happy: true, clapper: clap });
-        if (kind === 1) return front('pose1', { armL: 'point', armR: 'out', clapper: clap });
+        if (kind === 0) return front('pose0', { armL: 'up', armR: 'up', eyes: 'happy', ant: 'up' });
+        if (kind === 1) return front('pose1', { armL: 'out', armR: 'point', eyes: 'wide', ant: 'up' });
         const spin = loop(v.t, 90, 4);
-        return spin === 2 ? front('spin', { turned: true, armL: 'out', armR: 'out' }) : front(`posesp${spin}`, { armL: 'out', armR: 'out', sway: spin - 1 });
+        return spin === 2 ? front('spin', { turned: true, armL: 'out', armR: 'out' }) : front(`posesp${spin}`, { armL: 'out', armR: 'out', sway: spin - 1, eyes: 'wide' });
       }
       case 'fan': {
         const f = loop(v.t, 100, 2);
-        return front(`fan${f}`, { armL: 'up', armR: 'up', happy: true, squash: f ? 1 : 0 });
+        return front(`fan${f}`, { armL: 'up', armR: 'up', eyes: 'happy', squash: f ? 1 : 0, ant: 'up' });
       }
       case 'seen':
-        return front(`seen${loop(v.gt, 300, 2)}`, { happy: true, glow: 1, armL: 'down', armR: 'down' });
+        return front(`seen${loop(v.gt, 300, 2)}`, { eyes: 'happy', glow: 1, armL: 'down', armR: 'down' });
       case 'hurt':
-        return front('hurt', { squash: 1, happy: true });
+        return front('hurt', { squash: 1, eyes: 'hurt', ant: 'droop' });
       default: {
-        // occasionally waves at nobody
+        // now and then he waves at nobody
         const cyc = v.gt % 5200;
         if (cyc > 3600 && cyc < 4400) {
           const w = loop(cyc, 110, 4);
-          return front(`wave${w}${sway}`, { armR: w % 2 ? 'wave1' : 'wave2', sway, clapper: clap });
+          return front(`wave${w}${sway}`, { armR: w % 2 ? 'wave1' : 'wave2', sway, ant });
         }
-        return front(`idle${sway}${clap}`, { sway, clapper: clap });
+        return front(`idle${sway}${ant}`, { sway, ant });
       }
     }
   },
@@ -589,5 +666,6 @@ registerEnemyArt('enemy_kanenari', (): EnemyArt => ({
     { pose: 'windup', skill: 'skill_kn_pose', t: 0 },
     { pose: 'fan' },
     { pose: 'seen' },
+    { pose: 'hurt' },
   ],
 }));
