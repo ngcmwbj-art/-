@@ -344,18 +344,18 @@ canvas { display: block; width: 100%; height: 100%; }
         <ul class="legend">
           <li><canvas data-icon="gap" width="120" height="72"></canvas><span><b>泥の斜面</b>落ちたら転がって終わり</span></li>
           <li><canvas data-icon="boar" width="120" height="72"></canvas><span><b>イノシシ</b>ぶつかったら終わり</span></li>
-          <li><canvas data-icon="puddle" width="120" height="72"></canvas><span><b>水たまり</b>滑って減速</span></li>
+          <li><canvas data-icon="puddle" width="120" height="72"></canvas><span><b>水たまり</b>滑って減速。トマトが落ちる</span></li>
           <li><canvas data-icon="bump" width="120" height="72"></canvas><span><b>ボコボコ道</b>減速。3回乗るとパンク</span></li>
         </ul>
         <div class="modes">
           <button class="mode" type="button" data-mode="endless">
             <span class="mode-name">エンドレス</span>
-            <span class="mode-desc">どこまで走れるか</span>
+            <span class="mode-desc">トマトを運んだ距離で勝負</span>
             <span class="mode-best" id="bestEndless">記録なし</span>
           </button>
           <button class="mode" type="button" data-mode="ta">
             <span class="mode-name">タイムアタック</span>
-            <span class="mode-desc">1,000 m を最速で</span>
+            <span class="mode-desc">毎回同じコース 1,000 m</span>
             <span class="mode-best" id="bestTa">記録なし</span>
           </button>
         </div>
@@ -420,6 +420,8 @@ canvas { display: block; width: 100%; height: 100%; }
   const ACCEL = 170;             // 減速から立ち直る加速（px/s²）
   const BUMP_LIMIT = 3;          // ボコボコ道に何回乗るとパンクするか
   const GOAL_M = 1000;           // タイムアタックの距離
+  const TA_SEED = 20260929;      // タイムアタックは毎回同じコース
+  const GHOST_DT = 1 / 30;       // ゴーストを記録する間隔（秒）
 
   const $ = id => document.getElementById(id);
   const app = $('app'), stage = $('stage'), cv = $('cv');
@@ -438,6 +440,14 @@ canvas { display: block; width: 100%; height: 100%; }
   let bestTime = Number(store.get('keitora-best-time', 0)) || 0;      // タイムアタックの最速（秒）
   let soundOn = store.get('keitora-sound', '1') === '1';
   let mode = store.get('keitora-mode', 'endless') === 'ta' ? 'ta' : 'endless';
+  let bestScore = Number(store.get('keitora-best-score', 0)) || 0;    // エンドレスの配達スコア
+  function loadGhost() {
+    try {
+      const g = JSON.parse(store.get('keitora-ghost', 'null'));
+      return g && g.seed === TA_SEED && Array.isArray(g.f) && g.f.length >= 6 ? g : null;
+    } catch (e) { return null; }
+  }
+  let ghost = loadGhost();
 
   const fmtM = m => m.toLocaleString('ja-JP');
   function fmtTime(sec) {
@@ -562,9 +572,24 @@ canvas { display: block; width: 100%; height: 100%; }
 
   let cam, speed, vel, runTime, truck, obs, parts, nextX, slip, shake, flash, jumpBuf, holding, dieT, wheelA;
   let stats, banner, lastMile, passedBest, popups, bumpHits, tireFlash, goalTime;
+  let tomatoes, ghostRec, recT, seasonIdx, score, scoreM, lastRefill;
+  const REFILL_M = 500;          // エンドレスでトマト畑に寄る間隔
   let truckX = 560;              // 描画上の軽トラの位置（タイトルでは右寄せ）
   const seenTypes = new Set();   // このセッションで説明済みの障害物
   const rand = (a, b) => a + Math.random() * (b - a);
+  // コース生成用の乱数。タイムアタックでは種を固定して毎回同じコースにする
+  function seeded(seed) {
+    let a = seed >>> 0;
+    return () => {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  let rng = Math.random;
+  const rr = (a, b) => a + rng() * (b - a);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
   function reset() {
@@ -574,7 +599,9 @@ canvas { display: block; width: 100%; height: 100%; }
     obs = []; parts = []; popups = [];
     nextX = 900;
     slip = 0; shake = 0; flash = 0; jumpBuf = 0; holding = false; dieT = 0; wheelA = 0;
-    stats = { jumps: 0, boars: 0, maxKmh: 0, slows: 0 };
+    stats = { jumps: 0, boars: 0, maxKmh: 0, slows: 0, lost: 0 };
+    tomatoes = TOMATO_MAX; ghostRec = []; recT = 0; seasonIdx = 0;
+    score = 0; scoreM = 0; lastRefill = 0;
     banner = null; lastMile = 0; passedBest = best === 0; bumpHits = 0; tireFlash = 0; goalTime = 0;
   }
 
@@ -593,11 +620,11 @@ canvas { display: block; width: 100%; height: 100%; }
   function spacing() {
     const m = cam / PX_PER_M;
     const dense = Math.max(0.62, 1 - m / 3500);
-    return (170 + speed * 0.25 + Math.random() * speed * 0.9) * dense;
+    return (170 + speed * 0.25 + rng() * speed * 0.9) * dense;
   }
   function pick(list) {
     let sum = 0; for (const [, w] of list) sum += w;
-    let r = Math.random() * sum;
+    let r = rng() * sum;
     for (const [k, w] of list) { if ((r -= w) < 0) return k; }
     return list[0][0];
   }
@@ -611,24 +638,25 @@ canvas { display: block; width: 100%; height: 100%; }
         : pick([['gap', 40], ['puddle', 20], ['bump', m > 150 ? 16 : 8], ['boar', m > 200 ? 18 : 0]]);
       if (type === 'gap') {
         // 減速していても跳べるよう、少し控えめの速度で幅を決める
-        const w = Math.max(72, sp * 0.92 * (AIR - jumpWindow(m)) * rand(0.7, 1));
+        const w = Math.max(72, sp * 0.92 * (AIR - jumpWindow(m)) * rr(0.7, 1));
         if (nextX + w > limit) break;
         obs.push({ t: 'gap', x: nextX, w });
         nextX += w + spacing();
       } else if (type === 'puddle') {
-        const w = rand(60, 130);
+        const w = rr(60, 130);
         obs.push({ t: 'puddle', x: nextX, w });
-        nextX += w + sp * SLIP_TIME + 250 + Math.random() * sp * 0.5;
+        nextX += w + sp * SLIP_TIME + 250 + rng() * sp * 0.5;
       } else if (type === 'bump') {
         // 跳び越えられる長さにする（上手に跳べばパンクしない）
-        const w = sp * AIR * rand(0.35, 0.78);
-        obs.push({ t: 'bump', x: nextX, w, seed: Math.random() * 100, hit: false });
+        const w = sp * AIR * rr(0.35, 0.78);
+        obs.push({ t: 'bump', x: nextX, w, seed: rng() * 100, hit: false });
         nextX += w + spacing() * 0.8 + sp * 0.8;
       } else {
         // イノシシは画面の右端から出てくるので、その手前を空けておく
         const bx = nextX + 650;
         if (bx + 220 > limit) break;
-        obs.push({ t: 'boar', x: bx, w: 0, state: 'pending', px: 0, vx: 0, leg: 0, wt: 0, counted: false, fy: 0, fvy: 0, rot: 0 });
+        const vx0 = rr(170, 300) + Math.min(bx / PX_PER_M * 0.04, 90);
+        obs.push({ t: 'boar', x: bx, w: 0, state: 'pending', px: 0, vx: 0, vx0, leg: 0, wt: 0, counted: false, fy: 0, fvy: 0, rot: 0 });
         nextX = bx + 220 + spacing();
       }
     }
@@ -659,6 +687,14 @@ canvas { display: block; width: 100%; height: 100%; }
     }
   }
   const spillTomatoes = (n, wx, y, vx) => emit(n, wx, y, { vx, vy: [-420, -150], life: [0.8, 1.4], r: [4, 6], col: '#e0392b', tomato: true });
+  function loseTomato(n, why) {
+    if (tomatoes <= 0 || state !== 'play') return;
+    const k = Math.min(n, tomatoes);
+    tomatoes -= k;
+    stats.lost += k;
+    spillTomatoes(k, cam + TRUCK_X + 22, truck.y - 48, [-240, -80]);
+    if (why) popup(tomatoes > 0 ? `${why} 残り ${tomatoes} 個` : 'トマトが空っぽ!', '#ff8f7a');
+  }
   function showBanner(text, color, sub) { banner = { text, sub, color, t: 1.6 }; }
   function popup(text, color) { popups.push({ text, color, t: 1.1 }); }
 
@@ -731,6 +767,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
   function start(m) {
     setMode(m);
+    rng = mode === 'ta' ? seeded(TA_SEED) : Math.random;
     reset();
     state = 'play';
     paused = false;
@@ -753,8 +790,8 @@ canvas { display: block; width: 100%; height: 100%; }
     focusIfKeyboard(document.querySelector('.mode.selected'));
   }
   function renderTitleBest() {
-    $('bestEndless').innerHTML = best > 0 ? `ベスト <b>${fmtM(best)} m</b>` : '記録なし';
-    $('bestTa').innerHTML = bestTime > 0 ? `ベスト <b>${fmtTime(bestTime)}</b>` : '記録なし';
+    $('bestEndless').innerHTML = bestScore > 0 ? `ベスト <b>${fmtM(bestScore)} 点</b>（${fmtM(best)} m）` : (best > 0 ? `ベスト <b>${fmtM(best)} m</b>` : '記録なし');
+    $('bestTa').innerHTML = bestTime > 0 ? `ベスト <b>${fmtTime(bestTime)}</b>　ゴーストと競走` : '記録なし';
   }
 
   // 称号
@@ -792,6 +829,7 @@ canvas { display: block; width: 100%; height: 100%; }
     state = 'goal';
     dieT = 0;
     goalTime = runTime;
+    ghostRec.push(Math.round(cam), Math.round(truck.y), Math.round(truck.angle * 100));
     pauseBtn.hidden = true;
     sfx('goal');
     for (let i = 0; i < 4; i++) {
@@ -811,7 +849,12 @@ canvas { display: block; width: 100%; height: 100%; }
     if (mode === 'ta' && endState === 'goal') {
       const prev = bestTime;
       rec = prev === 0 || goalTime < prev;
-      if (rec) { bestTime = goalTime; store.set('keitora-best-time', bestTime.toFixed(3)); }
+      if (rec) {
+        bestTime = goalTime;
+        store.set('keitora-best-time', bestTime.toFixed(3));
+        ghost = { seed: TA_SEED, dt: GHOST_DT, t: goalTime, f: ghostRec };
+        store.set('keitora-ghost', JSON.stringify(ghost));
+      }
       reasonEl.textContent = 'ゴール!';
       reasonEl.classList.add('win');
       $('reasonSub').textContent = '1,000 m 走りきった';
@@ -820,25 +863,29 @@ canvas { display: block; width: 100%; height: 100%; }
       $('rankName').textContent = taRankOf(goalTime);
       $('bestLine').textContent = rec ? (prev > 0 ? `これまでのベスト ${fmtTime(prev)} を ${(prev - goalTime).toFixed(2)} 秒 縮めた` : 'はじめての記録')
         : `ベスト ${fmtTime(bestTime)}（+${(goalTime - bestTime).toFixed(2)} 秒）`;
-      $('stats').innerHTML = statHTML([['最高速度', stats.maxKmh + ' km/h'], ['減速', stats.slows + ' 回'], ['イノシシ回避', stats.boars + ' 頭']]);
+      $('stats').innerHTML = statHTML([['運べたトマト', `${tomatoes} / ${TOMATO_MAX}`], ['減速', stats.slows + ' 回'], ['最高速度', stats.maxKmh + ' km/h']]);
     } else {
       reasonEl.classList.remove('win');
       reasonEl.textContent = REASONS[truck.deathKind][0];
       $('reasonSub').textContent = REASONS[truck.deathKind][1];
-      $('result').innerHTML = `${fmtM(m)}<small>m</small>`;
       if (mode === 'ta') {
+        $('result').innerHTML = `${fmtM(m)}<small>m</small>`;
         $('rankLine').hidden = true;
         $('bestLine').textContent = `リタイア。ゴールまで あと ${fmtM(Math.max(0, GOAL_M - m))} m`;
+        $('stats').innerHTML = statHTML([['タイム', fmtTime(runTime)], ['運べたトマト', `${tomatoes} / ${TOMATO_MAX}`], ['最高速度', stats.maxKmh + ' km/h']]);
       } else {
-        const prev = best;
-        rec = m > best;
-        if (rec) { best = m; store.set('keitora-best', best); }
+        // エンドレスは「運んだトマト × 距離」の合計が配達スコア
+        const prev = bestScore;
+        rec = score > bestScore;
+        if (rec) { bestScore = score; store.set('keitora-best-score', bestScore); }
+        if (m > best) { best = m; store.set('keitora-best', best); }
+        $('result').innerHTML = `${fmtM(score)}<small>点</small>`;
         $('rankLine').hidden = false;
         $('rankName').textContent = rankOf(m);
-        $('bestLine').textContent = !rec ? `ベスト ${fmtM(best)} m（あと ${fmtM(best - m)} m）`
-          : prev > 0 ? `これまでのベスト ${fmtM(prev)} m を ${fmtM(m - prev)} m 更新` : 'はじめての記録';
+        $('bestLine').textContent = `${fmtM(m)} m 走行　` + (!rec ? `ベスト ${fmtM(bestScore)} 点`
+          : prev > 0 ? `ベストを ${fmtM(score - prev)} 点 更新` : 'はじめての記録');
+        $('stats').innerHTML = statHTML([['タイム', fmtTime(runTime)], ['落としたトマト', stats.lost + ' 個'], ['イノシシ回避', stats.boars + ' 頭']]);
       }
-      $('stats').innerHTML = statHTML([['タイム', fmtTime(runTime)], ['最高速度', stats.maxKmh + ' km/h'], ['イノシシ回避', stats.boars + ' 頭']]);
     }
     $('newrec').hidden = !rec;
     overEl.hidden = false;
@@ -878,7 +925,25 @@ canvas { display: block; width: 100%; height: 100%; }
         showBanner('ベスト更新!', '#f2b33d');
         sfx('record');
       }
-      if (mode === 'ta' && cam + TRUCK_FRONT >= goalX()) finish();
+      if (mode === 'ta') {
+        while (recT <= runTime) { ghostRec.push(Math.round(cam), Math.round(truck.y), Math.round(truck.angle * 100)); recT += GHOST_DT; }
+        if (cam + TRUCK_FRONT >= goalX()) finish();
+      }
+      // 配達スコア：1 m 進むごとに、積んでいるトマトの数だけ加点
+      if (m > scoreM) { score += (m - scoreM) * tomatoes; scoreM = m; }
+      // エンドレスは 500 m ごとのトマト畑で満杯に積み直す
+      if (mode === 'endless' && Math.floor(m / REFILL_M) > lastRefill) {
+        lastRefill = Math.floor(m / REFILL_M);
+        const add = TOMATO_MAX - tomatoes;
+        tomatoes = TOMATO_MAX;
+        popup(add > 0 ? `トマト畑で積み直し +${add} 個` : 'トマト畑を通過 全部無事!', '#a8e27f');
+        sfx('dodge');
+      }
+      const si = seasonAt(m).i;
+      if (si !== seasonIdx) {
+        seasonIdx = si;
+        if (!banner || banner.t < 0.8) showBanner(SEASONS[si].name, '#fffbea', SEASONS[si].sub);
+      }
     }
 
     // 前進：普段は巡航速度へ加速、ボコボコ道の上では減速
@@ -935,6 +1000,8 @@ canvas { display: block; width: 100%; height: 100%; }
         }
       } else if (truck.y >= GROUND) {
         if (!truck.grounded && truck.vy > 500) {
+          // 目いっぱい跳んでドスンと着地すると、ときどきトマトが落ちる
+          if (truck.vy > 740 && Math.random() < 0.2) loseTomato(1, 'ドスン! トマトが落ちた');
           sfx('land');
           truck.squash = 1;
           emit(8, cam + TRUCK_X + 20, GROUND, { vx: [-200, 40], vy: [-120, -20], life: [0.3, 0.6], r: [3, 6], col: '#b89468' });
@@ -965,6 +1032,7 @@ canvas { display: block; width: 100%; height: 100%; }
             truck.grounded = false;
             truck.jumped = false;
             truck.bumpT = rand(0.1, 0.26);
+            if (Math.random() < 0.25) loseTomato(1, 'ガタガタ! トマトが落ちた');
             sfx('bump');
             emit(3, cam + TRUCK_X + 76, GROUND, { vx: [-120, 20], vy: [-150, -60], life: [0.2, 0.4], r: [2, 5], col: '#8a6a45' });
           }
@@ -974,6 +1042,7 @@ canvas { display: block; width: 100%; height: 100%; }
           slip = SLIP_TIME;
           vel *= 0.45;
           stats.slows++;
+          loseTomato(1);
           sfx('slip');
           emit(18, cx, GROUND, { vx: [-260, 120], vy: [-320, -90], life: [0.4, 0.8], r: [2, 5], col: '#7c9bb0' });
         }
@@ -1063,7 +1132,7 @@ canvas { display: block; width: 100%; height: 100%; }
         if (o.wt <= 0) {
           o.state = 'run';
           o.px = cam + W + 40;
-          o.vx = rand(170, 300) + Math.min(meters() * 0.04, 90);
+          o.vx = o.vx0;
         }
       }
       if (o.state === 'hit') {
@@ -1109,6 +1178,49 @@ canvas { display: block; width: 100%; height: 100%; }
     parts = parts.filter(p => p.life > 0);
   }
 
+  // ---- 季節と時間帯（距離で移り変わり、2,000 m で一巡する） ----
+  const SEASON_LEN = 2000;
+  const SEASONS = [
+    { m: 0, name: '田植え', sub: '水を張った田んぼ', skyTop: '#6ec3ea', skyBot: '#f4f1dc', sun: '#fff3c8', sunY: 120, sunR: 32,
+      mtnFar: '#a9c1bb', mtnNear: '#7fa37e', field: '#9cc3b0', stripeA: '#8db8a3', stripeB: '#b3d5c5',
+      water1: '#86b5ab', water2: '#4d7d71', rice: '#86c45a', riceH: 0.55, grain: 0, night: 0, cloud: 0.85 },
+    { m: 350, name: '青田', sub: '稲がぐんぐん伸びる', skyTop: '#5fb3dd', skyBot: '#fbe8b8', sun: '#fff0be', sunY: 120, sunR: 32,
+      mtnFar: '#9fb8b2', mtnNear: '#6f9870', field: '#86b94c', stripeA: '#78ab41', stripeB: '#93c457',
+      water1: '#6f9e8a', water2: '#3e6a5c', rice: '#5fa032', riceH: 1, grain: 0, night: 0, cloud: 0.85 },
+    { m: 750, name: '黄金の稲穂', sub: '稲刈りの季節', skyTop: '#6fb0da', skyBot: '#fde2a4', sun: '#fff0be', sunY: 120, sunR: 32,
+      mtnFar: '#b0b597', mtnNear: '#8c9352', field: '#d8b449', stripeA: '#c7a03a', stripeB: '#e7c75c',
+      water1: '#9a9a62', water2: '#5d5f3b', rice: '#d1a534', riceH: 1.25, grain: 1, night: 0, cloud: 0.85 },
+    { m: 1150, name: '夕焼け', sub: '日が傾いてきた', skyTop: '#3c5b92', skyBot: '#f7a25c', sun: '#ff8a4a', sunY: 210, sunR: 40,
+      mtnFar: '#8a7890', mtnNear: '#5f5a5c', field: '#b98a3c', stripeA: '#a77a32', stripeB: '#c99a48',
+      water1: '#8a6f55', water2: '#4a3d35', rice: '#b0832e', riceH: 1.25, grain: 1, night: 0.15, cloud: 0.6 },
+    { m: 1550, name: '夜', sub: 'ライトを点けて走れ', skyTop: '#0b1430', skyBot: '#2a3a68', sun: '#f4f1d8', sunY: 90, sunR: 20,
+      mtnFar: '#26324d', mtnNear: '#1c2630', field: '#2f4030', stripeA: '#283828', stripeB: '#36483a',
+      water1: '#2a3d48', water2: '#122029', rice: '#3c5a33', riceH: 1.1, grain: 0, night: 1, cloud: 0.12 },
+  ];
+  const COLOR_KEYS = ['skyTop', 'skyBot', 'sun', 'mtnFar', 'mtnNear', 'field', 'stripeA', 'stripeB', 'water1', 'water2', 'rice'];
+  const NUM_KEYS = ['sunY', 'sunR', 'riceH', 'grain', 'night', 'cloud'];
+  const toRGB = c => { const n = parseInt(c.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+  for (const se of SEASONS) for (const k of COLOR_KEYS) se['_' + k] = toRGB(se[k]);
+  // 次の季節の 120 m 手前から少しずつ色が移る
+  function seasonAt(m) {
+    const mm = ((m % SEASON_LEN) + SEASON_LEN) % SEASON_LEN;
+    let i = 0;
+    for (let k = 0; k < SEASONS.length; k++) if (mm >= SEASONS[k].m) i = k;
+    const nextM = i + 1 < SEASONS.length ? SEASONS[i + 1].m : SEASON_LEN;
+    return { i, j: (i + 1) % SEASONS.length, t: clamp((mm - (nextM - 120)) / 120, 0, 1) };
+  }
+  function envAt(m) {
+    const { i, j, t } = seasonAt(m);
+    const a = SEASONS[i], b = SEASONS[j], e = {};
+    for (const k of COLOR_KEYS) {
+      const x = a['_' + k], y = b['_' + k];
+      e[k] = `rgb(${Math.round(x[0] + (y[0] - x[0]) * t)},${Math.round(x[1] + (y[1] - x[1]) * t)},${Math.round(x[2] + (y[2] - x[2]) * t)})`;
+    }
+    for (const k of NUM_KEYS) e[k] = a[k] + (b[k] - a[k]) * t;
+    return e;
+  }
+  let env = envAt(350);
+
   // ---- 描画 ----
   function hash(n) { const s = Math.sin(n * 127.1) * 43758.5453; return s - Math.floor(s); }
   const FONT = '"DotGothic16", "MS Gothic", "Osaka-Mono", monospace';
@@ -1117,13 +1229,29 @@ canvas { display: block; width: 100%; height: 100%; }
   function drawSky() {
     const top = -(VH - H);
     const g = ctx.createLinearGradient(0, top, 0, 250);
-    g.addColorStop(0, '#5fb3dd');
-    g.addColorStop(1, '#fbe8b8');
+    g.addColorStop(0, env.skyTop);
+    g.addColorStop(1, env.skyBot);
     ctx.fillStyle = g;
     ctx.fillRect(0, top, W, 260 - top);
-    ctx.fillStyle = 'rgba(255, 240, 190, .9)';
-    ctx.beginPath(); ctx.arc(600, 120, 32, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    // 星
+    if (env.night > 0.05) {
+      ctx.fillStyle = `rgba(255,250,230,${env.night * 0.9})`;
+      for (let i = 0; i < 46; i++) {
+        const x = hash(i * 3.1) * W, y = top + hash(i * 7.7) * (210 - top);
+        const r = hash(i * 1.3) > 0.8 ? 2.2 : 1.4;
+        ctx.fillRect(x, y, r, r);
+      }
+    }
+    // 太陽（夜は三日月）
+    ctx.fillStyle = env.sun;
+    ctx.beginPath(); ctx.arc(600, env.sunY, env.sunR, 0, Math.PI * 2); ctx.fill();
+    if (env.night > 0.5) {
+      ctx.globalAlpha = (env.night - 0.5) * 2;
+      ctx.fillStyle = env.skyTop;
+      ctx.beginPath(); ctx.arc(608, env.sunY - 5, env.sunR * 0.88, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.fillStyle = `rgba(255,255,255,${env.cloud})`;
     const cOff = (cam * 0.05) % 1200;
     for (let i = 0; i < 4; i++) {
       const x = ((i * 330 - cOff) % 1200 + 1200) % 1200 - 200;
@@ -1151,11 +1279,11 @@ canvas { display: block; width: 100%; height: 100%; }
 
   function drawFarField() {
     const top = 238;
-    ctx.fillStyle = '#86b94c';
+    ctx.fillStyle = env.field;
     ctx.fillRect(0, top, W, GROUND - top + 10);
     for (let row = 0; row < 7; row++) {
       const y = top + 4 + row * row * 1.8 + row * 3;
-      ctx.fillStyle = row % 2 ? '#78ab41' : '#93c457';
+      ctx.fillStyle = row % 2 ? env.stripeA : env.stripeB;
       ctx.fillRect(0, y, W, 2 + row * 0.8);
     }
     ctx.fillStyle = '#a28a5c';
@@ -1182,23 +1310,30 @@ canvas { display: block; width: 100%; height: 100%; }
   function drawForeField() {
     const top = GROUND + ROAD_H - 4;
     const g = ctx.createLinearGradient(0, top, 0, H);
-    g.addColorStop(0, '#6f9e8a');
-    g.addColorStop(1, '#3e6a5c');
+    g.addColorStop(0, env.water1);
+    g.addColorStop(1, env.water2);
     ctx.fillStyle = g;
     ctx.fillRect(0, top, W, H - top + 2);
-    ctx.strokeStyle = '#5fa032';
+    ctx.strokeStyle = env.rice;
     ctx.lineWidth = 2;
     const rows = [[GROUND + 44, 30, 0.9], [GROUND + 72, 36, 1.0], [GROUND + 104, 42, 1.1]];
+    const tips = [];
     for (const [y, sp, sc] of rows) {
       const off = (cam * sc) % sp;
+      const h = 10 * sc * env.riceH;
       ctx.beginPath();
       for (let x = -sp - off; x < W + sp; x += sp) {
-        const h = 10 * sc;
         ctx.moveTo(x, y); ctx.lineTo(x - 4 * sc, y - h);
         ctx.moveTo(x, y); ctx.lineTo(x, y - h * 1.2);
         ctx.moveTo(x, y); ctx.lineTo(x + 4 * sc, y - h);
+        if (env.grain > 0.3) tips.push(x - 4 * sc, y - h, x + 1, y - h * 1.2, x + 4 * sc, y - h);
       }
       ctx.stroke();
+    }
+    // 実った稲穂の粒
+    if (tips.length) {
+      ctx.fillStyle = `rgba(240,207,90,${env.grain})`;
+      for (let i = 0; i < tips.length; i += 2) ctx.fillRect(tips[i] - 1.5, tips[i + 1] - 1.5, 3, 3);
     }
   }
 
@@ -1297,6 +1432,13 @@ canvas { display: block; width: 100%; height: 100%; }
       ctx.fillText(String(k * 100), sx, GROUND - 9, 12);
     }
     if (state === 'title') return;
+    if (mode === 'endless') {
+      const k0 = Math.max(1, Math.floor((cam - 200) / (REFILL_M * PX_PER_M)));
+      for (let k = k0; k <= k0 + 1; k++) {
+        const sx = k * REFILL_M * PX_PER_M + TRUCK_FRONT - cam;
+        if (sx > -120 && sx < W + 120) drawStand(sx);
+      }
+    }
     if (mode === 'ta') {
       const sx = goalX() - cam;
       if (sx > -80 && sx < W + 80) drawGoal(sx);
@@ -1319,6 +1461,30 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.fillText('BEST', sx + 7, GROUND - 56);
       }
     }
+  }
+  // トマト畑の直売所（道の奥）
+  function drawStand(sx) {
+    const y = GROUND - 2;
+    // 畑の支柱とトマト
+    for (let i = 0; i < 5; i++) {
+      const x = sx - 110 + i * 16;
+      ctx.fillStyle = '#7a6040'; ctx.fillRect(x, y - 44, 2, 44);
+      ctx.fillStyle = '#4f8f36';
+      ctx.beginPath(); ctx.ellipse(x + 1, y - 26, 7, 16, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#e0392b';
+      for (let j = 0; j < 3; j++) { ctx.beginPath(); ctx.arc(x - 3 + (j % 2) * 7, y - 34 + j * 9, 2.6, 0, Math.PI * 2); ctx.fill(); }
+    }
+    // 小屋
+    ctx.fillStyle = '#8a6a44'; ctx.fillRect(sx - 26, y - 46, 52, 46);
+    ctx.fillStyle = '#6b4f30';
+    ctx.beginPath(); ctx.moveTo(sx - 34, y - 44); ctx.lineTo(sx, y - 64); ctx.lineTo(sx + 34, y - 44); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#3d2c1a'; ctx.fillRect(sx - 18, y - 32, 36, 32);
+    ctx.fillStyle = '#c9a05e'; ctx.fillRect(sx - 22, y - 12, 44, 12);
+    ctx.fillStyle = '#e0392b';
+    for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.arc(sx - 16 + i * 6.4, y - 14, 3, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = '#fffbea'; ctx.fillRect(sx - 24, y - 58, 48, 13);
+    ctx.fillStyle = '#3a2a14'; ctx.font = '10px ' + FONT; ctx.textAlign = 'center';
+    ctx.fillText('トマト畑', sx, y - 48);
   }
   function drawGoal(sx) {
     // 市松模様の地面のライン
@@ -1504,8 +1670,8 @@ canvas { display: block; width: 100%; height: 100%; }
   for (const [y, xs] of [[-37, [8, 17, 26, 35, 44, 53]], [-45, [12, 21, 30, 39, 48]], [-53, [17, 26, 35, 43]], [-60, [22, 31]]]) {
     for (const x of xs) TOMATOES.push([x, y]);
   }
-  function drawTomatoes(keep) {
-    const n = Math.round(TOMATOES.length * keep);
+  const TOMATO_MAX = TOMATOES.length;
+  function drawTomatoes(n) {
     for (let i = 0; i < n; i++) {
       const [x, y] = TOMATOES[i];
       ctx.fillStyle = i % 3 === 1 ? '#c92f22' : '#e0392b';
@@ -1520,27 +1686,31 @@ canvas { display: block; width: 100%; height: 100%; }
     }
   }
 
-  function drawTruck() {
-    const wob = slip > 0 ? Math.sin(runTime * 32) : 0;
-    const sq = truck.squash;
-    if (!truck.falling) {
-      const lift = Math.max(0, GROUND - truck.y);
+  function mainTruckSpec() {
+    return {
+      x: truckX, y: truck.y, angle: truck.angle, pivot: truck.falling ? 26 : 0,
+      wob: slip > 0 ? Math.sin(runTime * 32) : 0, squash: truck.squash, dent: truck.dent, flat: truck.flat,
+      load: truck.spilled ? Math.min(tomatoes, 5) : tomatoes, shadow: !truck.falling,
+    };
+  }
+  function drawTruck(sp) {
+    const { x, y, angle, pivot, wob, squash: sq, dent: d, flat, load } = sp;
+    if (sp.shadow) {
+      const lift = Math.max(0, GROUND - y);
       ctx.fillStyle = `rgba(40,30,15,${0.25 * Math.max(0.2, 1 - lift / 160)})`;
       ctx.beginPath();
-      ctx.ellipse(truckX + TRUCK_W / 2, GROUND + 1, 46 * Math.max(0.5, 1 - lift / 260), 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(x + TRUCK_W / 2, GROUND + 1, 46 * Math.max(0.5, 1 - lift / 260), 4, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     // 転がるときは車体の中心を軸に回す
-    const pivot = truck.falling ? 26 : 0;
     ctx.save();
-    ctx.translate(truckX + TRUCK_W / 2 + wob * 4, truck.y - pivot);
-    ctx.rotate(truck.angle + wob * 0.05);
+    ctx.translate(x + TRUCK_W / 2 + wob * 4, y - pivot);
+    ctx.rotate(angle + wob * 0.05);
     ctx.scale(1 + sq * 0.06, 1 - sq * 0.1);
     ctx.translate(-TRUCK_W / 2, pivot);
     ctx.fillStyle = '#3a3a3a';
     ctx.fillRect(4, -16, 90, 7);
-    // トマトの山（荷台の後ろ側から描く）
-    drawTomatoes(truck.spilled ? 0.35 : 1);
+    drawTomatoes(load);
     // 荷台
     ctx.fillStyle = '#eef0f0';
     ctx.fillRect(2, -32, 58, 17);
@@ -1552,7 +1722,6 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.fillStyle = '#9aa2a5';
     ctx.fillRect(58, -50, 4, 36);
     // キャブ（ぶつけると前がへこむ）
-    const d = truck.dent;
     ctx.fillStyle = '#f7f8f8';
     ctx.beginPath();
     ctx.moveTo(61, -52); ctx.lineTo(84 - d * 3, -52 + d * 2); ctx.lineTo(93 - d * 8, -30); ctx.lineTo(96 - d * 7, -28 + d * 3);
@@ -1581,15 +1750,15 @@ canvas { display: block; width: 100%; height: 100%; }
     if (d) drawDents();
     // タイヤ（パンクすると前輪がつぶれる）
     for (const wx of [20, 78]) {
-      const flat = truck.flat && wx === 78;
+      const isFlat = flat && wx === 78;
       ctx.fillStyle = '#1f1f1f';
       ctx.beginPath();
-      if (flat) ctx.ellipse(wx, -6, 12, 6, 0, 0, Math.PI * 2);
+      if (isFlat) ctx.ellipse(wx, -6, 12, 6, 0, 0, Math.PI * 2);
       else ctx.arc(wx, -10, 10, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#b8bec0';
-      ctx.beginPath(); ctx.arc(wx, flat ? -8 : -10, 4.5, 0, Math.PI * 2); ctx.fill();
-      if (!flat) {
+      ctx.beginPath(); ctx.arc(wx, isFlat ? -8 : -10, 4.5, 0, Math.PI * 2); ctx.fill();
+      if (!isFlat) {
         ctx.strokeStyle = '#555';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -1602,6 +1771,64 @@ canvas { display: block; width: 100%; height: 100%; }
     }
     ctx.restore();
   }
+
+  // ---- ゴースト（タイムアタックの自己ベストの走り） ----
+  function ghostFrame(t) {
+    const f = ghost.f, n = f.length / 3;
+    const x = t / ghost.dt;
+    const i = Math.min(n - 1, Math.floor(x)), j = Math.min(n - 1, i + 1), u = Math.min(1, x - i);
+    return { cam: f[i * 3] + (f[j * 3] - f[i * 3]) * u, y: f[i * 3 + 1] + (f[j * 3 + 1] - f[i * 3 + 1]) * u, a: (f[i * 3 + 2] + (f[j * 3 + 2] - f[i * 3 + 2]) * u) / 100 };
+  }
+  // ゴーストがその地点を通った時刻
+  function ghostTimeAt(c) {
+    const f = ghost.f, n = f.length / 3;
+    if (c <= f[0]) return 0;
+    if (c >= f[(n - 1) * 3]) return ghost.t;
+    let lo = 0, hi = n - 1;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (f[mid * 3] <= c) lo = mid; else hi = mid; }
+    const c0 = f[lo * 3], c1 = f[hi * 3];
+    return (lo + (c1 > c0 ? (c - c0) / (c1 - c0) : 0)) * ghost.dt;
+  }
+  function drawGhost() {
+    if (mode !== 'ta' || !ghost || state === 'title' || state === 'over') return;
+    const g = ghostFrame(state === 'goal' ? goalTime : runTime);
+    const sx = g.cam - cam + TRUCK_X;
+    if (sx > -TRUCK_W && sx < W) {
+      ctx.save();
+      ctx.globalAlpha = 0.38;
+      drawTruck({ x: sx, y: g.y, angle: g.a, pivot: 0, wob: 0, squash: 0, dent: 0, flat: false, load: TOMATO_MAX, shadow: false });
+      ctx.restore();
+      label('ベスト', sx + TRUCK_W / 2, g.y - 72, '12px ' + FONT, 'rgba(255,251,234,.85)', 'center', 'rgba(27,34,22,.6)', 3);
+    } else {
+      const dm = Math.round((g.cam - cam) / PX_PER_M);
+      const ahead = dm > 0;
+      label(ahead ? `ベストの軽トラ ${dm} m 先 ▶` : `◀ ベストの軽トラ ${-dm} m 後ろ`, ahead ? W - 14 : 14, GROUND - 96,
+        '13px ' + FONT, 'rgba(255,251,234,.9)', ahead ? 'right' : 'left', 'rgba(27,34,22,.75)', 3);
+    }
+  }
+
+  // 夜はあたりを暗くして、ヘッドライトで前を照らす
+  function drawNight() {
+    const n = env.night;
+    if (n <= 0.01) return;
+    ctx.fillStyle = `rgba(8,12,35,${n * 0.42})`;
+    ctx.fillRect(-20, -(VH - H) - 20, W + 40, VH + 40);
+    if (n < 0.3 || truck.falling) return;
+    const hx = truckX + TRUCK_W - 2, hy = truck.y - 22;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createLinearGradient(hx, 0, hx + 340, 0);
+    g.addColorStop(0, `rgba(255,236,170,${0.34 * n})`);
+    g.addColorStop(1, 'rgba(255,236,170,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(hx, hy - 3); ctx.lineTo(hx + 340, hy - 46); ctx.lineTo(hx + 340, hy + 70); ctx.lineTo(hx, hy + 4);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = `rgba(255,240,190,${0.5 * n})`;
+    ctx.beginPath(); ctx.arc(hx, hy, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
   // ボコボコになった車体：へこみの影、窓のひび、荷台のゆがみ
   function drawDents() {
     ctx.strokeStyle = 'rgba(80,85,90,.75)';
@@ -1658,6 +1885,12 @@ canvas { display: block; width: 100%; height: 100%; }
       if (state === 'goal') { sub = 'ゴール!'; col = '#f2b33d'; }
       else sub = `ゴールまで ${fmtM(Math.max(0, GOAL_M - m))} m`;
       label(sub, 24, 82, '15px ' + FONT, col, 'left', 'rgba(27,34,22,.85)', 4);
+      if (ghost) {
+        const diff = (state === 'goal' ? goalTime : runTime) - ghostTimeAt(cam);
+        const w = ctx.measureText(sub).width;
+        label(`ベスト比 ${diff >= 0 ? '+' : '−'}${Math.abs(diff).toFixed(2)}`, 36 + w, 82, '15px ' + FONT,
+          diff > 0.005 ? '#ff8f7a' : '#a8e27f', 'left', 'rgba(27,34,22,.85)', 4);
+      }
       drawProgress(Math.min(1, m / GOAL_M));
     } else {
       const ms = fmtM(m);
@@ -1715,6 +1948,18 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(cx - 6, cy - 6); ctx.lineTo(cx + 6, cy + 6); ctx.stroke();
       }
+    }
+    // 荷台のトマトの数（エンドレスは配達スコアも）
+    const tx = x0 + 60 + BUMP_LIMIT * 22 + 16;
+    ctx.fillStyle = 'rgba(27,34,22,.85)';
+    ctx.beginPath(); ctx.arc(tx, y0, 9.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e0392b';
+    ctx.beginPath(); ctx.arc(tx, y0 + 1, 7.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3f8a2a';
+    ctx.fillRect(tx - 3, y0 - 7, 6, 2.5);
+    label('×' + tomatoes, tx + 12, y0 + 5, '15px ' + FONT, tomatoes <= 5 ? '#ff8f7a' : '#fffbea', 'left', 'rgba(27,34,22,.85)', 4);
+    if (mode === 'endless') {
+      label(`スコア ${fmtM(score)}`, tx + 48, y0 + 5, '15px ' + FONT, '#f2b33d', 'left', 'rgba(27,34,22,.85)', 4);
     }
   }
 
@@ -1782,20 +2027,23 @@ canvas { display: block; width: 100%; height: 100%; }
 
   function draw() {
     ctx = mainCtx;
+    env = envAt(state === 'title' ? 350 : cam / PX_PER_M);
     ctx.save();
     ctx.translate(0, VH - H);
     if (shake > 0 && !reduceMotion) ctx.translate(rand(-6, 6) * shake * 2, rand(-6, 6) * shake * 2);
     drawSky();
-    drawMountains(0.08, 205, 50, '#9fb8b2', 0);
-    drawMountains(0.18, 228, 34, '#6f9870', 3);
+    drawMountains(0.08, 205, 50, env.mtnFar, 0);
+    drawMountains(0.18, 228, 34, env.mtnNear, 3);
     drawFarField();
     drawForeField();
     drawRoad();
     drawMarkers();
     drawHazards();
-    drawTruck();
+    drawGhost();
+    drawTruck(mainTruckSpec());
     drawBoars();
     drawParts();
+    drawNight();
     drawCallouts();
     ctx.restore();
 
@@ -1843,6 +2091,7 @@ canvas { display: block; width: 100%; height: 100%; }
       get cam() { return cam; }, get speed() { return speed; }, get vel() { return vel; }, get slip() { return slip; },
       get stats() { return stats; }, get paused() { return paused; }, get bumpHits() { return bumpHits; },
       get runTime() { return runTime; }, get goalTime() { return goalTime; }, get mode() { return mode; },
+      get tomatoes() { return tomatoes; }, get score() { return score; },
       TRUCK_X, TRUCK_W, W, JUMP_V, GRAV, meters, press, release, start, update, draw, setPaused,
       set sim(v) { simMode = v; }, set best(v) { best = v; },
     };
