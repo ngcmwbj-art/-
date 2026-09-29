@@ -1582,34 +1582,49 @@ canvas { display: block; width: 100%; height: 100%; }
     if (env.harvest > 0.02) drawHarvest();
   }
 
-  // 収穫の時期：奥の田んぼでコンバインが稲を刈り、はさ掛けで稲を干す人がいる
-  const HARVEST_GAP = 900;       // 奥の景色の中での間隔
+  // 収穫の時期：奥の田んぼに、コンバイン・はさ掛け・稲束を運ぶ人。奥行きを2層にしてにぎやかに
   function drawHarvest() {
     ctx.save();
-    ctx.globalAlpha = env.harvest;
-    const far = cam * 0.5;         // 奥の田んぼと同じ速さで流れる
-    const k0 = Math.floor((far - 300) / HARVEST_GAP);
-    for (let k = k0; k <= k0 + 2; k++) {
-      const x = k * HARVEST_GAP + hash(k * 4.1) * 300 - far;
-      if (k % 2 === 0) {
-        // コンバインは少しずつ右へ刈り進む。端まで行ったら薄く消えて、また左から
-        const run = (clock * 12 + k * 97) % 600;
-        const fade = Math.min(1, run / 60, (600 - run) / 60);
-        ctx.globalAlpha = env.harvest * fade;
-        drawCombine(x + run - 300, 300, k);
-        ctx.globalAlpha = env.harvest;
-      } else drawHazakake(x, 296, k);
-    }
+    // いちばん奥の層（小さく、ゆっくり流れる）
+    drawHarvestLayer(0.38, 262, 0.55, 300, 11);
+    // 手前寄りの層
+    drawHarvestLayer(0.5, 300, 1, 470, 0);
     ctx.restore();
   }
+  function drawHarvestLayer(par, y, sc, gap, seed) {
+    const far = cam * par;
+    const k0 = Math.floor((far - 200) / gap);
+    for (let k = k0; k <= k0 + Math.ceil(W / gap) + 2; k++) {
+      const x = k * gap + hash(k * 4.1 + seed) * gap * 0.4 - far;
+      if (x < -200 || x > W + 200) continue;
+      const kind = ((k % 4) + 4) % 4;   // 0:コンバイン 1:はさ掛け（人つき） 2:長いはさ掛け 3:稲束を運ぶ人
+      ctx.globalAlpha = env.harvest;
+      if (kind === 0) {
+        // コンバインは少しずつ右へ刈り進む。端まで行ったら薄く消えて、また左から
+        const run = (clock * 12 + k * 97) % 360;
+        ctx.globalAlpha = env.harvest * Math.min(1, run / 50, (360 - run) / 50);
+        drawCombine(x + (run - 180) * sc, y, k, sc);
+      } else if (kind === 1) {
+        drawHazakake(x, y - 4 * sc, k, sc, 120, 1, true);
+      } else if (kind === 2) {
+        drawHazakake(x, y - 4 * sc, k, sc, 170, 2, hash(k * 2.3 + seed) > 0.5);
+      } else {
+        // 稲束を肩にかついで、はさ掛けへ運ぶ人（2人組のことも）
+        const walk = (clock * 16 + k * 53) % 140;
+        drawFarmer(x + walk * sc, y, k, sc, 'carry');
+        if (hash(k * 7.7 + seed) > 0.4) drawFarmer(x + walk * sc - 26 * sc, y, k + 1, sc, 'carry');
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
   // コンバイン：赤い車体、刈り取り部、ガラスの運転席、黒いクローラ、もみを出す筒
-  function drawCombine(x, y, k) {
-    if (x < -120 || x > W + 120) return;
+  function drawCombine(x, y, k, sc = 1, stubble = true) {
+    if (x < -160 * sc || x > W + 160 * sc) return;
     ctx.save();
     ctx.translate(x, y);
+    ctx.scale(sc, sc);
     // 刈ったあとの切り株（後ろに帯）
-    ctx.fillStyle = 'rgba(150,120,60,.55)';
-    ctx.fillRect(-160, -2, 150, 5);
+    if (stubble) { ctx.fillStyle = 'rgba(150,120,60,.55)'; ctx.fillRect(-160, -2, 150, 5); }
     // クローラ
     ctx.fillStyle = '#2b2b2b';
     ctx.beginPath(); ctx.roundRect(-32, -8, 52, 9, 4); ctx.fill();
@@ -1620,6 +1635,8 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.fillRect(-34, -30, 46, 22);
     ctx.fillStyle = '#b8381f';
     ctx.fillRect(-34, -30, 46, 4);
+    ctx.fillStyle = 'rgba(255,255,255,.18)';
+    ctx.fillRect(-30, -22, 20, 3);
     // もみタンクと排出オーガ
     ctx.fillStyle = '#c63f27';
     ctx.fillRect(-30, -40, 22, 10);
@@ -1640,59 +1657,107 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.beginPath();
     for (let i = 0; i < 3; i++) { const a = r + i * 2.1; ctx.moveTo(26, -12); ctx.lineTo(26 + Math.cos(a) * 7, -12 + Math.sin(a) * 7); }
     ctx.stroke();
-    // 排気の煙と、もみがら
+    // 排気の煙と、後ろに吐き出すわらくず
     ctx.fillStyle = 'rgba(120,120,120,.35)';
     const puff = (clock * 2 + k) % 1;
     ctx.beginPath(); ctx.arc(-10 - puff * 10, -54 - puff * 14, 3 + puff * 5, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = 'rgba(230,200,120,.6)';
-    for (let i = 0; i < 4; i++) { const t = (clock * 1.5 + i * 0.25) % 1; ctx.fillRect(-38 - t * 20, -12 + Math.sin(t * 6 + i) * 3, 2, 2); }
+    ctx.fillStyle = 'rgba(230,200,120,.7)';
+    for (let i = 0; i < 6; i++) { const t = (clock * 1.5 + i * 0.17) % 1; ctx.fillRect(-38 - t * 26, -12 + Math.sin(t * 6 + i) * 4 + t * 8, 3, 1.5); }
     ctx.restore();
   }
-  // はさ掛け：竹竿に稲束を掛けて干す。農家の人が稲束を持ち上げて掛けている
-  function drawHazakake(x, y, k) {
-    if (x < -120 || x > W + 120) return;
+  // はさ掛け：竿に稲束を掛けて干す。長いものは2段。農家の人が稲束を持ち上げて掛けている
+  function drawHazakake(x, y, k, sc = 1, len = 110, tiers = 1, farmer = true) {
+    if (x < -220 * sc || x > W + 60) return;
     ctx.save();
     ctx.translate(x, y);
-    const len = 110;
-    // 支柱（三脚）と竿
+    ctx.scale(sc, sc);
+    const barY = tiers === 2 ? [-44, -24] : [-26];
+    const topY = barY[0] - 6;
+    // 支柱と竿
     ctx.strokeStyle = '#6b5236'; ctx.lineWidth = 2.2;
     ctx.beginPath();
-    for (const px of [0, len / 2, len]) { ctx.moveTo(px - 6, 0); ctx.lineTo(px, -30); ctx.lineTo(px + 6, 0); }
-    ctx.moveTo(-4, -26); ctx.lineTo(len + 4, -26);
+    const n = Math.max(2, Math.round(len / 55));
+    for (let i = 0; i <= n; i++) { const px = (len * i) / n; ctx.moveTo(px - 6, 0); ctx.lineTo(px, topY); ctx.lineTo(px + 6, 0); }
+    for (const by of barY) { ctx.moveTo(-4, by); ctx.lineTo(len + 4, by); }
     ctx.stroke();
-    // 掛けてある稲束（逆V字に垂れる）
-    for (let i = 0; i < 11; i++) {
-      const bx = 6 + i * 9.5;
-      if (bx > len - 4) break;
-      ctx.fillStyle = i % 2 ? '#d7ae4a' : '#c9a040';
-      ctx.beginPath(); ctx.moveTo(bx - 5, -8); ctx.lineTo(bx, -27); ctx.lineTo(bx + 5, -8); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#b08a35';
-      ctx.fillRect(bx - 1, -28, 2, 3);
+    // 掛けてある稲束（逆V字に垂れる）。すき間なくぎっしり
+    for (const by of barY) {
+      for (let bx = 5, i = 0; bx < len - 2; bx += 7, i++) {
+        const tone = hash(k * 1.3 + i * 0.7 + by) * 0.18;
+        ctx.fillStyle = `rgb(${Math.round(215 - tone * 90)},${Math.round(174 - tone * 80)},${Math.round(74 - tone * 40)})`;
+        const hang = 17 + hash(i + k) * 3;
+        ctx.beginPath(); ctx.moveTo(bx - 4.5, by + hang); ctx.lineTo(bx, by - 1); ctx.lineTo(bx + 4.5, by + hang); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#9c7a2e';
+        ctx.fillRect(bx - 1, by - 2, 2, 3);
+      }
     }
-    // 農家の人（麦わら帽子・手ぬぐい・作業着）。腕を上げ下げして稲束を掛ける
-    const lift = (Math.sin(clock * 2.2 + k) + 1) / 2;
-    const px = len + 18;
-    ctx.fillStyle = '#3f5a7a';                       // もんぺ
-    ctx.fillRect(px - 4, -12, 3, 12); ctx.fillRect(px + 1, -12, 3, 12);
-    ctx.fillStyle = '#5f7fa3';                       // 上着
-    ctx.fillRect(px - 5, -24, 10, 13);
-    ctx.fillStyle = '#e8c9a4';                       // 顔
-    ctx.beginPath(); ctx.arc(px, -28, 3.6, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#e9e2cf';                       // 手ぬぐい
-    ctx.fillRect(px - 3.6, -31, 7.2, 2);
-    ctx.fillStyle = '#e3c170';                       // 麦わら帽子
-    ctx.beginPath(); ctx.ellipse(px, -31, 7.5, 2, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(px, -32, 3.6, Math.PI, 0); ctx.fill();
-    // 腕と、持ち上げている稲束
-    const hx = px - 8 - lift * 3, hy = -20 - lift * 10;
-    ctx.strokeStyle = '#5f7fa3'; ctx.lineWidth = 2.4;
-    ctx.beginPath(); ctx.moveTo(px - 3, -21); ctx.lineTo(hx, hy); ctx.stroke();
-    ctx.fillStyle = '#d7ae4a';
-    ctx.beginPath(); ctx.moveTo(hx - 4, hy + 2); ctx.lineTo(hx, hy - 12); ctx.lineTo(hx + 4, hy + 2); ctx.closePath(); ctx.fill();
-    // 足元に置いた稲束の山
-    ctx.fillStyle = '#c9a040';
-    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.ellipse(px + 12 + i * 5, -2, 5, 3, -0.3, 0, Math.PI * 2); ctx.fill(); }
     ctx.restore();
+    if (farmer) drawFarmer(x + (len + 18) * sc, y, k, sc, 'hang');
+    // 足元に置いた稲束の山
+    ctx.save();
+    ctx.translate(x, y); ctx.scale(sc, sc);
+    ctx.fillStyle = '#c9a040';
+    for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse(len + 30 + i * 5, -2 - (i % 2) * 3, 5, 3, -0.3, 0, Math.PI * 2); ctx.fill(); }
+    ctx.restore();
+  }
+  // 農家の人（麦わら帽子・手ぬぐい・作業着）。'hang' は稲束を竿に掛ける、'carry' は肩にかついで歩く
+  function drawFarmer(x, y, k, sc, pose) {
+    if (x < -40 || x > W + 40) return;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(sc, sc);
+    const shirt = ['#5f7fa3', '#8a5a44', '#6f8a4a', '#9a7fb0'][((k % 4) + 4) % 4];
+    const stepT = clock * 6 + k;
+    const legA = pose === 'carry' ? Math.sin(stepT) * 3 : 0;
+    ctx.fillStyle = '#3f4a5a';                       // もんぺ
+    ctx.fillRect(-4 + legA, -12, 3, 12); ctx.fillRect(1 - legA, -12, 3, 12);
+    ctx.fillStyle = shirt;                           // 上着
+    ctx.fillRect(-5, -24, 10, 13);
+    ctx.fillStyle = '#e8c9a4';                       // 顔
+    ctx.beginPath(); ctx.arc(0, -28, 3.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e9e2cf';                       // 手ぬぐい
+    ctx.fillRect(-3.6, -31, 7.2, 2);
+    ctx.fillStyle = '#e3c170';                       // 麦わら帽子
+    ctx.beginPath(); ctx.ellipse(0, -31, 7.5, 2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -32, 3.6, Math.PI, 0); ctx.fill();
+    ctx.strokeStyle = shirt; ctx.lineWidth = 2.4;
+    if (pose === 'hang') {
+      // 腕を上げ下げして、稲束を竿へ
+      const lift = (Math.sin(clock * 2.2 + k) + 1) / 2;
+      const hx = -8 - lift * 3, hy = -20 - lift * 10;
+      ctx.beginPath(); ctx.moveTo(-3, -21); ctx.lineTo(hx, hy); ctx.stroke();
+      ctx.fillStyle = '#d7ae4a';
+      ctx.beginPath(); ctx.moveTo(hx - 4, hy + 2); ctx.lineTo(hx, hy - 12); ctx.lineTo(hx + 4, hy + 2); ctx.closePath(); ctx.fill();
+    } else {
+      // 肩にかついだ稲束
+      ctx.beginPath(); ctx.moveTo(2, -21); ctx.lineTo(6, -27); ctx.stroke();
+      ctx.fillStyle = '#d2a845';
+      ctx.save(); ctx.translate(4, -27); ctx.rotate(-0.25);
+      ctx.beginPath(); ctx.ellipse(0, 0, 11, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#b08a35'; ctx.fillRect(-2, -3.5, 3, 7);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  // 手前の田んぼの稲刈り：コンバインが通ったあとは切り株になり、その先はまだ稲穂が立っている
+  const CUT_ZONE = 1500;          // 手前の田んぼの区画（稲の列と同じ流れ方の座標）
+  const cutT0 = new Map();        // 区画が初めて見えた時刻（コンバインはそこから刈り進む）
+  function harvestIntervals() {
+    const out = [];
+    if (env.harvest < 0.5) return out;
+    const k0 = Math.floor((cam - 400) / CUT_ZONE);
+    for (let k = k0; k <= k0 + 2; k++) {
+      const r = hash(k * 3.3);
+      const z0 = k * CUT_ZONE + 150, zLen = 1000;
+      if (r < 0.2) continue;                                 // まだ手つかずの田んぼ
+      if (r > 0.82) { out.push({ a: z0, b: z0 + zLen, k, combine: null }); continue; }   // 刈り終わった田んぼ
+      if (!cutT0.has(k)) cutT0.set(k, clock);
+      const prog = Math.min(zLen, zLen * (0.2 + hash(k * 5.9) * 0.5) + (clock - cutT0.get(k)) * 26);
+      out.push({ a: z0, b: z0 + prog, k, combine: z0 + prog });
+    }
+    if (cutT0.size > 40) cutT0.clear();
+    return out;
   }
 
   function drawForeField() {
@@ -1708,15 +1773,42 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.lineWidth = 2;
     const rows = [[GROUND + 44, 30, 0.9], [GROUND + 72, 36, 1.0], [GROUND + 104, 42, 1.1]];
     const tips = [];
+    const cuts = harvestIntervals();
+    // 刈ったところ（画面の x）かどうか。区画は真ん中の列の流れ方で決める
+    const isCut = sx => { const wx = sx + cam; for (const c of cuts) if (wx >= c.a && wx <= c.b) return true; return false; };
+    const stubble = [];
     for (const [y, sp, sc] of rows) {
       const off = (cam * sc) % sp;
       const h = 10 * sc * env.riceH;
       ctx.beginPath();
       for (let x = -sp - off; x < W + sp; x += sp) {
+        if (cuts.length && isCut(x)) { stubble.push(x, y, sc); continue; }
         ctx.moveTo(x, y); ctx.lineTo(x - 4 * sc, y - h);
         ctx.moveTo(x, y); ctx.lineTo(x, y - h * 1.2);
         ctx.moveTo(x, y); ctx.lineTo(x + 4 * sc, y - h);
         if (env.grain > 0.3) tips.push(x - 4 * sc, y - h, -1, x, y - h * 1.2, 1, x + 4 * sc, y - h, 1);
+      }
+      ctx.stroke();
+    }
+    // 切り株と、散らばった稲わら
+    if (stubble.length) {
+      ctx.strokeStyle = '#b08a3a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < stubble.length; i += 3) {
+        const x = stubble[i], y = stubble[i + 1], sc = stubble[i + 2];
+        ctx.moveTo(x - 3 * sc, y); ctx.lineTo(x - 3.5 * sc, y - 4 * sc);
+        ctx.moveTo(x, y); ctx.lineTo(x, y - 5 * sc);
+        ctx.moveTo(x + 3 * sc, y); ctx.lineTo(x + 3.5 * sc, y - 4 * sc);
+      }
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(226,196,120,.7)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for (let i = 0; i < stubble.length; i += 3) {
+        const x = stubble[i], y = stubble[i + 1];
+        const hh = hash(Math.floor(x + cam) * 0.37);
+        ctx.moveTo(x + 6, y - 2 + hh * 6); ctx.lineTo(x + 14, y - 3 + hh * 4);
       }
       ctx.stroke();
     }
@@ -1743,6 +1835,15 @@ canvas { display: block; width: 100%; height: 100%; }
       ctx.lineCap = 'butt';
     }
     if (env.duck > 0.02) drawDucks();
+    // 手前の田んぼで稲を刈っているコンバイン（稲の列の間を進む）
+    for (const c of cuts) {
+      if (c.combine === null) continue;
+      const sx = c.combine - cam;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, (env.harvest - 0.5) * 2);
+      drawCombine(sx - 38 * 1.3, GROUND + 96, c.k, 1.3, false);
+      ctx.restore();
+    }
   }
 
   // アイガモ農法：田植え〜青田の間、親子で列になって田んぼを泳ぐ
