@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>軽トラ走</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@500;900&display=swap">
+<style>
+/* 1画面ゲーム：中央に16:9のキャンバス、上に被せるHTMLのメニュー。夕方の田んぼ道の一色で統一 */
+:root {
+  --ground: #1e2618;      /* ページの地：暗い畦の土色 */
+  --panel: #2b3522;
+  --ink: #f4ecd6;         /* 文字：わら色がかった白 */
+  --muted: #b9b39a;
+  --accent: #f2b33d;      /* 稲穂の黄色 */
+  --danger: #e2543a;
+  --font-display: "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  --font-pixel: "DotGothic16", "MS Gothic", "Osaka-Mono", monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-pixel);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding-inline: 16px;
+  box-sizing: border-box;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.stage {
+  position: relative;
+  width: min(100%, 960px, calc((100vh - 90px) * 16 / 9));
+  aspect-ratio: 16 / 9;
+  max-width: 100%;
+  border-radius: 6px;
+  overflow: hidden;
+  touch-action: none;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, .45);
+  background: #8fd0e8;
+}
+canvas { display: block; width: 100%; height: 100%; }
+[hidden] { display: none !important; }
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(6px, 2vw, 14px);
+  background: rgba(24, 30, 18, .62);
+  text-align: center;
+  padding: 12px;
+}
+.logo {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(34px, 9vw, 84px);
+  line-height: 1;
+  letter-spacing: .02em;
+  color: var(--ink);
+  transform: skewX(-10deg);
+  text-shadow: 4px 4px 0 var(--danger), 8px 8px 0 rgba(0, 0, 0, .35);
+  margin: 0;
+}
+.tagline { font-size: clamp(13px, 2.6vw, 20px); color: var(--accent); margin: 0; }
+.legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, auto));
+  gap: 2px 18px;
+  font-size: clamp(10px, 1.9vw, 14px);
+  color: var(--muted);
+  text-align: left;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.legend b { color: var(--ink); font-weight: normal; }
+.btn {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(16px, 3.4vw, 26px);
+  color: #2a1d08;
+  background: var(--accent);
+  border: 0;
+  border-radius: 999px;
+  padding: .45em 1.6em;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #a36f14;
+}
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a36f14; }
+.btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.reason {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(24px, 6vw, 54px);
+  color: var(--ink);
+  text-shadow: 3px 3px 0 var(--danger);
+  margin: 0;
+}
+.sub { font-size: clamp(12px, 2.2vw, 17px); color: var(--muted); margin: 0; }
+.result { font-size: clamp(22px, 5vw, 44px); color: var(--accent); margin: 0; font-variant-numeric: tabular-nums; }
+.result small { font-size: .5em; color: var(--ink); }
+.newrec { color: var(--danger); font-size: clamp(12px, 2.4vw, 18px); margin: 0; }
+.hint { font-size: 12px; color: var(--muted); margin: 0; text-align: center; }
+.sound {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  color: var(--ink);
+  background: rgba(0, 0, 0, .35);
+  border: 1px solid rgba(255, 255, 255, .25);
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+  z-index: 2;
+}
+.sound:focus-visible { outline: 2px solid var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <canvas id="cv"></canvas>
+
+  <div class="overlay" id="title">
+    <h1 class="logo">軽トラ走!</h1>
+    <p class="tagline">田んぼに落ちずに、あぜ道をどこまでも</p>
+    <ul class="legend">
+      <li><b>田んぼ</b> 落ちたら終わり</li>
+      <li><b>イノシシ</b> ぶつかったら終わり</li>
+      <li><b>水たまり</b> スリップでジャンプ不可</li>
+      <li><b>ボコボコ道</b> 跳ねてジャンプが弱い</li>
+    </ul>
+    <button class="btn" id="startBtn" type="button">出発</button>
+  </div>
+
+  <div class="overlay" id="over" hidden>
+    <p class="reason" id="reason">田んぼに突っ込んだ!</p>
+    <p class="sub" id="reasonSub"></p>
+    <p class="result"><span id="finalM">0</span><small> m</small></p>
+    <p class="newrec" id="newrec" hidden>自己ベスト更新!</p>
+    <p class="sub">ベスト <span id="bestM">0</span> m</p>
+    <button class="btn" id="retryBtn" type="button">もう一回</button>
+  </div>
+
+  <button class="sound" id="soundBtn" type="button">音: ON</button>
+</div>
+
+<p class="hint">タップ / スペースキーでジャンプ。長押しで高く跳ぶ</p>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---- 定数 ----
+  const W = 800, H = 450;
+  const GROUND = 330;          // 道の表面
+  const ROAD_H = 24;           // あぜ道の厚み
+  const GRAV = 2300;
+  const JUMP_V = 780;
+  const TRUCK_X = 140;         // 画面上の軽トラの左端
+  const TRUCK_W = 96;
+  const PX_PER_M = 25;         // 25px = 1m
+  const SLIP_TIME = 0.9;
+
+  const stage = document.getElementById('stage');
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const titleEl = document.getElementById('title');
+  const overEl = document.getElementById('over');
+  const soundBtn = document.getElementById('soundBtn');
+
+  // ---- 保存 ----
+  const BEST_KEY = 'keitora-best';
+  const loadBest = () => { try { return Number(localStorage.getItem(BEST_KEY)) || 0; } catch (e) { return 0; } };
+  const saveBest = v => { try { localStorage.setItem(BEST_KEY, String(v)); } catch (e) {} };
+  let best = loadBest();
+
+  // ---- 音 ----
+  let ac = null, soundOn = true;
+  function initAudio() {
+    if (ac) return;
+    try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; }
+  }
+  function tone(type, f0, f1, dur, vol) {
+    const t = ac.currentTime;
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g).connect(ac.destination);
+    o.start(t); o.stop(t + dur);
+  }
+  function noise(dur, vol, freq) {
+    const t = ac.currentTime;
+    const buf = ac.createBuffer(1, Math.floor(ac.sampleRate * dur), ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = ac.createBufferSource(); src.buffer = buf;
+    const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = freq;
+    const g = ac.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.connect(f).connect(g).connect(ac.destination);
+    src.start(t);
+  }
+  function sfx(k) {
+    if (!ac || !soundOn) return;
+    try {
+      if (k === 'jump') tone('square', 260, 620, 0.14, 0.08);
+      else if (k === 'bump') tone('square', 140, 90, 0.06, 0.05);
+      else if (k === 'slip') { tone('sawtooth', 700, 160, 0.35, 0.05); noise(0.25, 0.12, 2500); }
+      else if (k === 'warn') { tone('square', 900, 900, 0.08, 0.06); setTimeout(() => sfx('warn2'), 120); }
+      else if (k === 'warn2') tone('square', 900, 900, 0.08, 0.06);
+      else if (k === 'crash') { noise(0.5, 0.35, 900); tone('square', 180, 40, 0.4, 0.08); }
+      else if (k === 'splash') { noise(0.7, 0.3, 1400); tone('sine', 300, 60, 0.5, 0.1); }
+      else if (k === 'land') tone('square', 110, 70, 0.05, 0.04);
+    } catch (e) {}
+  }
+  soundBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    soundOn = !soundOn;
+    soundBtn.textContent = soundOn ? '音: ON' : '音: OFF';
+  });
+  soundBtn.addEventListener('pointerdown', e => e.stopPropagation());
+
+  // ---- 画面サイズ ----
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(r.width * dpr);
+    cv.height = Math.round(r.height * dpr);
+    const s = (r.width / W) * dpr;
+    ctx.setTransform(s, 0, 0, s, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+
+  // ---- ゲーム状態 ----
+  let state = 'title';   // title / play / dying / over
+  let cam, speed, runTime, truck, obs, parts, nextX, slip, shake, jumpBuf, holding, dieT, wheelA, slipFx;
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  function reset() {
+    cam = 0; speed = 250; runTime = 0;
+    truck = { y: GROUND, vy: 0, grounded: true, falling: false, dead: false, coyote: 0, bumpT: 0, jumped: false, angle: 0, fallV: 0 };
+    obs = []; parts = [];
+    nextX = 1000;
+    slip = 0; shake = 0; jumpBuf = 0; holding = false; dieT = 0; wheelA = 0; slipFx = 0;
+  }
+
+  const meters = () => Math.floor(cam / PX_PER_M);
+
+  // ---- コース生成 ----
+  function gap() { return 170 + speed * 0.25 + Math.random() * speed * 0.9; }
+  function pick(list) {
+    let sum = 0; for (const [, w] of list) sum += w;
+    let r = Math.random() * sum;
+    for (const [k, w] of list) { if ((r -= w) < 0) return k; }
+    return list[0][0];
+  }
+  function generate() {
+    while (nextX < cam + W + 900) {
+      const m = nextX / PX_PER_M;
+      const type = m < 80
+        ? pick([['gap', 70], ['puddle', 30]])
+        : pick([['gap', 40], ['puddle', 20], ['bump', m > 150 ? 18 : 8], ['boar', m > 200 ? 18 : 0]]);
+      if (type === 'gap') {
+        const w = 70 + Math.random() * Math.min(speed * 0.34, 220);
+        obs.push({ t: 'gap', x: nextX, w });
+        nextX += w + gap();
+      } else if (type === 'puddle') {
+        const w = rand(60, 130);
+        obs.push({ t: 'puddle', x: nextX, w });
+        // スリップ中に次の障害物が来ないよう間をあける
+        nextX += w + speed * 1.25 * SLIP_TIME + 150 + Math.random() * speed * 0.6;
+      } else if (type === 'bump') {
+        const w = rand(220, 480);
+        obs.push({ t: 'bump', x: nextX, w, seed: Math.random() * 100 });
+        nextX += w + gap() * 0.8;
+      } else {
+        // イノシシは画面の右端から出てくるので、その手前を空けておく
+        const bx = nextX + 650;
+        obs.push({ t: 'boar', x: bx, state: 'pending', px: 0, vx: 0, leg: 0, wt: 0 });
+        nextX = bx + 220 + gap();
+      }
+    }
+    // 画面外に出たものを捨てる
+    obs = obs.filter(o => (o.t === 'boar' ? (o.state !== 'gone') : (o.x + o.w > cam - 200)));
+  }
+
+  function find(t, wx) {
+    for (const o of obs) if (o.t === t && wx > o.x && wx < o.x + o.w) return o;
+    return null;
+  }
+
+  // ---- パーティクル ----
+  function emit(n, wx, y, opt) {
+    for (let i = 0; i < n; i++) {
+      parts.push({
+        x: wx, y,
+        vx: rand(opt.vx[0], opt.vx[1]), vy: rand(opt.vy[0], opt.vy[1]),
+        life: rand(opt.life[0], opt.life[1]), max: 0,
+        r: rand(opt.r[0], opt.r[1]), col: opt.col, g: opt.g ?? 900,
+      });
+      parts[parts.length - 1].max = parts[parts.length - 1].life;
+    }
+  }
+
+  // ---- 入力 ----
+  function press() {
+    initAudio();
+    if (ac && ac.state === 'suspended') ac.resume();
+    if (state === 'play') { jumpBuf = 0.12; holding = true; }
+    else if (state === 'title') start();
+    else if (state === 'over' && dieT > 0.6) start();
+  }
+  function release() {
+    holding = false;
+    if (state === 'play' && truck.jumped && truck.vy < -250) truck.vy *= 0.45;
+  }
+  stage.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    e.preventDefault();
+    press();
+  });
+  window.addEventListener('pointerup', release);
+  window.addEventListener('pointercancel', release);
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Enter') {
+      if (e.target.closest && e.target.closest('button') && e.code === 'Enter') return;
+      e.preventDefault();
+      if (!e.repeat) press();
+    }
+  });
+  window.addEventListener('keyup', e => {
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Enter') release();
+  });
+  document.getElementById('startBtn').addEventListener('click', () => { initAudio(); start(); });
+  document.getElementById('retryBtn').addEventListener('click', () => { initAudio(); start(); });
+
+  function start() {
+    reset();
+    state = 'play';
+    titleEl.hidden = true;
+    overEl.hidden = true;
+  }
+
+  const REASONS = {
+    fall: ['田んぼに突っ込んだ!', '稲がめちゃくちゃ…'],
+    boar: ['イノシシに激突!', 'バンパーがへこんだ…'],
+  };
+  function die(kind) {
+    if (state !== 'play') return;
+    state = 'dying';
+    dieT = 0;
+    truck.dead = true;
+    truck.deathKind = kind;
+    if (kind === 'boar') { shake = 0.45; sfx('crash'); }
+  }
+  function showOver() {
+    state = 'over';
+    const m = meters();
+    const rec = m > best;
+    if (rec) { best = m; saveBest(best); }
+    document.getElementById('reason').textContent = REASONS[truck.deathKind][0];
+    document.getElementById('reasonSub').textContent = REASONS[truck.deathKind][1];
+    document.getElementById('finalM').textContent = m.toLocaleString('ja-JP');
+    document.getElementById('bestM').textContent = best.toLocaleString('ja-JP');
+    document.getElementById('newrec').hidden = !rec;
+    overEl.hidden = false;
+  }
+
+  // ---- 更新 ----
+  function update(dt) {
+    if (state === 'title') { cam += 60 * dt; wheelA += 60 * dt / 11; return; }
+    if (state === 'over') { dieT += dt; updateParts(dt); return; }
+
+    const cx = cam + TRUCK_X + TRUCK_W / 2;
+
+    if (state === 'play') {
+      runTime += dt;
+      speed = Math.min(700, 250 + meters() * 0.3);
+      generate();
+    }
+
+    // 前進
+    let v = speed * (slip > 0 ? 1.25 : 1);
+    if (truck.falling) { truck.fallV *= Math.pow(0.08, dt); v = truck.fallV; }
+    else if (truck.dead) v = 0;
+    cam += v * dt;
+    wheelA += v * dt / 11;
+
+    // ジャンプ
+    jumpBuf -= dt;
+    truck.coyote -= dt;
+    slip -= dt;
+    if (state === 'play' && jumpBuf > 0 && truck.coyote > 0 && slip <= 0 && !truck.falling) {
+      truck.vy = -JUMP_V * (find('bump', cx) ? 0.8 : 1);
+      truck.grounded = false;
+      truck.jumped = true;
+      truck.coyote = 0;
+      jumpBuf = 0;
+      sfx('jump');
+      emit(6, cam + TRUCK_X + 16, GROUND, { vx: [-160, -40], vy: [-160, -40], life: [0.3, 0.6], r: [3, 6], col: '#b89468' });
+    }
+
+    // 物理
+    if (!truck.dead || truck.falling) {
+      truck.vy += GRAV * dt;
+      truck.y += truck.vy * dt;
+    }
+    const hole = find('gap', cx);
+    if (truck.falling) {
+      if (truck.y > GROUND + 40 && !truck.splashed) {
+        truck.splashed = true;
+        sfx('splash');
+        emit(28, cx, GROUND + 30, { vx: [-220, 220], vy: [-520, -180], life: [0.5, 1.0], r: [3, 7], col: '#9fd3d6' });
+        emit(14, cx, GROUND + 30, { vx: [-160, 160], vy: [-400, -120], life: [0.5, 1.0], r: [3, 6], col: '#6aa23c' });
+        truck.vy *= 0.25;
+      }
+      if (truck.y > GROUND + 52) { truck.y = GROUND + 52; truck.vy = 0; }
+      truck.angle += (0.55 - truck.angle) * Math.min(1, dt * 4);
+    } else if (!truck.dead) {
+      if (hole) {
+        truck.grounded = false;
+        if (truck.y > GROUND + 8) {
+          truck.falling = true;
+          truck.fallV = v;
+          truck.vy = Math.max(truck.vy, 100);
+          die('fall');
+        }
+      } else if (truck.y >= GROUND) {
+        if (!truck.grounded) {
+          if (truck.vy > 500) {
+            sfx('land');
+            emit(8, cam + TRUCK_X + 20, GROUND, { vx: [-200, 40], vy: [-120, -20], life: [0.3, 0.6], r: [3, 6], col: '#b89468' });
+          }
+        }
+        truck.y = GROUND; truck.vy = 0;
+        truck.grounded = true; truck.jumped = false;
+        truck.coyote = 0.09;
+      } else {
+        truck.grounded = false;
+      }
+
+      // ボコボコ道：勝手に跳ねる
+      if (truck.grounded && find('bump', cx)) {
+        truck.bumpT -= dt;
+        if (truck.bumpT <= 0) {
+          truck.vy = -rand(90, 260);
+          truck.grounded = false;
+          truck.jumped = false;
+          truck.bumpT = rand(0.1, 0.28);
+          sfx('bump');
+          emit(3, cam + TRUCK_X + 76, GROUND, { vx: [-120, 20], vy: [-150, -60], life: [0.2, 0.4], r: [2, 5], col: '#8a6a45' });
+        }
+      }
+      // 水たまり：スリップ
+      if (truck.grounded && slip <= 0 && find('puddle', cx)) {
+        slip = SLIP_TIME;
+        slipFx = 1;
+        sfx('slip');
+        emit(18, cx, GROUND, { vx: [-260, 120], vy: [-320, -90], life: [0.4, 0.8], r: [2, 5], col: '#7c9bb0' });
+      }
+      // 走行中の土ぼこり
+      if (truck.grounded && Math.random() < dt * 18) {
+        emit(1, cam + TRUCK_X + 8, GROUND - 2, { vx: [-90, -30], vy: [-60, -10], life: [0.3, 0.6], r: [3, 6], col: slip > 0 ? '#7c9bb0' : '#c7a77c', g: 60 });
+      }
+    }
+
+    // 角度
+    if (!truck.falling) {
+      let target = 0;
+      if (truck.dead) target = -0.25;
+      else if (!truck.grounded) target = Math.max(-0.2, Math.min(0.3, truck.vy / 2500));
+      truck.angle += (target - truck.angle) * Math.min(1, dt * 10);
+    }
+
+    // イノシシ
+    for (const o of obs) {
+      if (o.t !== 'boar') continue;
+      if (o.state === 'pending' && cam + W >= o.x - speed * 0.9) {
+        o.state = 'warn'; o.wt = 0.9; sfx('warn');
+      }
+      if (o.state === 'warn') {
+        o.wt -= dt;
+        if (o.wt <= 0) {
+          o.state = 'run';
+          o.px = cam + W + 40;
+          o.vx = rand(170, 300) + Math.min(meters() * 0.04, 90);
+        }
+      }
+      if (o.state === 'run' || o.state === 'hit') {
+        if (o.state === 'run') { o.px -= o.vx * dt; o.leg += dt * 22; }
+        if (o.px < cam - 150) o.state = 'gone';
+        if (o.state === 'run' && state === 'play' && !truck.falling) {
+          const bs = o.px - cam;
+          const tl = TRUCK_X + 10, tr = TRUCK_X + TRUCK_W - 4;
+          const tb = truck.y - 4, tt = truck.y - 46;
+          const bl = bs - 24, br = bs + 22, bt = GROUND - 30, bb = GROUND;
+          if (tr > bl && tl < br && tb > bt && tt < bb) {
+            o.state = 'hit';
+            emit(20, o.px, GROUND - 20, { vx: [-200, 250], vy: [-450, -150], life: [0.4, 0.9], r: [2, 5], col: '#fff3c4' });
+            die('boar');
+          }
+        }
+      }
+    }
+
+    slipFx = Math.max(0, slipFx - dt);
+    shake = Math.max(0, shake - dt);
+    updateParts(dt);
+
+    if (state === 'dying') {
+      dieT += dt;
+      if (dieT > 1.0) { dieT = 0; showOver(); }
+    }
+  }
+
+  function updateParts(dt) {
+    for (const p of parts) {
+      p.vy += p.g * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt;
+    }
+    parts = parts.filter(p => p.life > 0);
+  }
+
+  // ---- 描画 ----
+  function hash(n) { const s = Math.sin(n * 127.1) * 43758.5453; return s - Math.floor(s); }
+
+  function drawSky() {
+    const g = ctx.createLinearGradient(0, 0, 0, 250);
+    g.addColorStop(0, '#6fc0e6');
+    g.addColorStop(1, '#fbe8b8');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, 260);
+    // 太陽
+    ctx.fillStyle = 'rgba(255, 240, 190, .9)';
+    ctx.beginPath(); ctx.arc(640, 90, 34, 0, Math.PI * 2); ctx.fill();
+    // 雲
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    const cOff = (cam * 0.05) % 1200;
+    for (let i = 0; i < 4; i++) {
+      const x = ((i * 330 - cOff) % 1200 + 1200) % 1200 - 200;
+      const y = 40 + hash(i) * 60;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 46, 14, 0, 0, Math.PI * 2);
+      ctx.ellipse(x + 30, y - 8, 30, 14, 0, 0, Math.PI * 2);
+      ctx.ellipse(x - 26, y - 4, 24, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawMountains(par, base, amp, col, seed) {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(0, 260);
+    const off = cam * par;
+    for (let x = 0; x <= W + 20; x += 20) {
+      const wx = (x + off) / 140 + seed;
+      const y = base - amp * (0.55 * Math.sin(wx) + 0.3 * Math.sin(wx * 2.3 + 1) + 0.15 * Math.sin(wx * 5.1));
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(W, 260);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawFarField() {
+    // 奥の田んぼ（青い稲が並ぶ）
+    const top = 238;
+    ctx.fillStyle = '#86b94c';
+    ctx.fillRect(0, top, W, GROUND - top + 10);
+    const off = cam * 0.5;
+    for (let row = 0; row < 7; row++) {
+      const y = top + 4 + row * row * 1.8 + row * 3;
+      ctx.fillStyle = row % 2 ? '#78ab41' : '#93c457';
+      ctx.fillRect(0, y, W, 2 + row * 0.8);
+    }
+    // 奥のあぜ
+    ctx.fillStyle = '#a28a5c';
+    ctx.fillRect(0, top + 22, W, 3);
+    // 電柱
+    const poleGap = 380;
+    const pOff = (cam * 0.6) % poleGap;
+    ctx.strokeStyle = 'rgba(60,50,40,.55)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = -1; i < 4; i++) {
+      const x = i * poleGap - pOff;
+      ctx.moveTo(x, 196);
+      ctx.quadraticCurveTo(x + poleGap / 2, 214, x + poleGap, 196);
+    }
+    ctx.stroke();
+    ctx.fillStyle = '#5b4a3a';
+    for (let i = -1; i < 4; i++) {
+      const x = i * poleGap - pOff;
+      ctx.fillRect(x - 2, 188, 4, 70);
+      ctx.fillRect(x - 10, 194, 20, 3);
+    }
+  }
+
+  function drawForeField() {
+    // 手前の水田
+    const top = GROUND + ROAD_H - 4;
+    const g = ctx.createLinearGradient(0, top, 0, H);
+    g.addColorStop(0, '#6f9e8a');
+    g.addColorStop(1, '#3e6a5c');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, top, W, H - top);
+    // 稲の株
+    ctx.strokeStyle = '#5fa032';
+    ctx.lineWidth = 2;
+    const rows = [[GROUND + 44, 30, 0.9], [GROUND + 72, 36, 1.0], [GROUND + 104, 42, 1.1]];
+    for (const [y, sp, sc] of rows) {
+      const off = (cam * sc) % sp;
+      ctx.beginPath();
+      for (let x = -sp - off; x < W + sp; x += sp) {
+        const h = 10 * sc;
+        ctx.moveTo(x, y); ctx.lineTo(x - 4 * sc, y - h);
+        ctx.moveTo(x, y); ctx.lineTo(x, y - h * 1.2);
+        ctx.moveTo(x, y); ctx.lineTo(x + 4 * sc, y - h);
+      }
+      ctx.stroke();
+    }
+  }
+
+  function drawRoad() {
+    // 穴（田んぼに落ちる区間）を除いてあぜ道を描く
+    const holes = obs.filter(o => o.t === 'gap' && o.x + o.w > cam && o.x < cam + W)
+      .map(o => [o.x - cam, o.x + o.w - cam]).sort((a, b) => a[0] - b[0]);
+    const segs = [];
+    let s = -10;
+    for (const [a, b] of holes) { if (a > s) segs.push([s, a]); s = Math.max(s, b); }
+    if (s < W + 10) segs.push([s, W + 10]);
+
+    for (const [a, b] of segs) {
+      ctx.fillStyle = '#b08a5a';
+      ctx.fillRect(a, GROUND, b - a, ROAD_H);
+      ctx.fillStyle = '#c9a473';
+      ctx.fillRect(a, GROUND, b - a, 4);
+      ctx.fillStyle = '#7a5a36';
+      ctx.fillRect(a, GROUND + ROAD_H - 4, b - a, 4);
+      // 轍
+      ctx.fillStyle = 'rgba(90,64,38,.35)';
+      ctx.fillRect(a, GROUND + 8, b - a, 2);
+      ctx.fillRect(a, GROUND + 14, b - a, 2);
+      // 手前の草
+      ctx.strokeStyle = '#6e9e3a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      const off = cam % 14;
+      for (let x = Math.ceil((a + off) / 14) * 14 - off; x < b; x += 14) {
+        const h = 4 + hash(Math.floor((x + cam) / 14)) * 6;
+        ctx.moveTo(x, GROUND + ROAD_H - 2); ctx.lineTo(x - 2, GROUND + ROAD_H - 2 - h);
+      }
+      ctx.stroke();
+    }
+    // 穴の縁の土壁と水面
+    for (const [a, b] of holes) {
+      // 穴の中は水を張った田んぼ
+      const wg = ctx.createLinearGradient(0, GROUND - 6, 0, GROUND + ROAD_H);
+      wg.addColorStop(0, '#9cc9c4');
+      wg.addColorStop(1, '#6f9e8a');
+      ctx.fillStyle = wg;
+      ctx.fillRect(a, GROUND - 6, b - a, ROAD_H + 6);
+      ctx.fillStyle = '#6b4c2c';
+      ctx.fillRect(a - 3, GROUND, 3, ROAD_H + 2);
+      ctx.fillRect(b, GROUND, 3, ROAD_H + 2);
+      ctx.fillStyle = 'rgba(235,250,250,.6)';
+      ctx.fillRect(a + 6, GROUND - 5, (b - a) * 0.3, 2);
+      // 稲
+      ctx.strokeStyle = '#4f9a2a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let x = a + 10; x < b - 6; x += 18) {
+        const y = GROUND + 12;
+        ctx.moveTo(x, y); ctx.lineTo(x - 5, y - 16);
+        ctx.moveTo(x, y); ctx.lineTo(x, y - 20);
+        ctx.moveTo(x, y); ctx.lineTo(x + 5, y - 16);
+      }
+      ctx.stroke();
+    }
+  }
+
+  function drawHazards() {
+    for (const o of obs) {
+      const sx = o.x - cam;
+      if (o.t === 'puddle') {
+        if (sx > W || sx + o.w < 0) continue;
+        ctx.fillStyle = '#5f7f96';
+        ctx.beginPath();
+        ctx.ellipse(sx + o.w / 2, GROUND + 3, o.w / 2, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(220,240,255,.7)';
+        ctx.fillRect(sx + o.w * 0.25, GROUND + 1, o.w * 0.25, 2);
+      } else if (o.t === 'bump') {
+        if (sx > W || sx + o.w < 0) continue;
+        // 凸凹と石
+        for (let x = 0; x < o.w; x += 16) {
+          const h = 3 + hash(o.seed + x) * 6;
+          ctx.fillStyle = '#8f6c44';
+          ctx.beginPath();
+          ctx.ellipse(sx + x + 8, GROUND + 1, 9, h, 0, Math.PI, 0);
+          ctx.fill();
+          if (hash(o.seed + x * 3) > 0.6) {
+            ctx.fillStyle = '#9a9488';
+            ctx.beginPath();
+            ctx.ellipse(sx + x + 4, GROUND - 1, 4, 3, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        // 立て札
+        if (sx - 30 > -40 && sx - 30 < W) {
+          ctx.fillStyle = '#6a4b2a';
+          ctx.fillRect(sx - 30, GROUND - 34, 3, 34);
+          ctx.fillStyle = '#f0d27a';
+          ctx.fillRect(sx - 44, GROUND - 46, 32, 16);
+          ctx.fillStyle = '#3a2a14';
+          ctx.font = '10px ' + getComputedStyle(document.body).fontFamily;
+          ctx.textAlign = 'center';
+          ctx.fillText('悪路', sx - 28, GROUND - 34);
+        }
+      }
+    }
+  }
+
+  function drawBoars() {
+    for (const o of obs) {
+      if (o.t !== 'boar') continue;
+      if (o.state === 'warn') {
+        if (Math.floor(o.wt * 10) % 2 === 0) {
+          ctx.fillStyle = '#e2543a';
+          ctx.beginPath();
+          ctx.moveTo(W - 34, GROUND - 70); ctx.lineTo(W - 10, GROUND - 28); ctx.lineTo(W - 58, GROUND - 28);
+          ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 26px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('!', W - 34, GROUND - 33);
+        }
+      } else if (o.state === 'run' || o.state === 'hit') {
+        const sx = o.px - cam;
+        if (sx < -80 || sx > W + 80) continue;
+        const onHole = find('gap', o.px);
+        const y = onHole ? GROUND - 26 : GROUND;
+        drawBoar(sx, y, o.leg, o.state === 'hit');
+      }
+    }
+  }
+
+  function drawBoar(x, y, leg, hit) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (hit) ctx.rotate(0.5);
+    // 脚
+    ctx.strokeStyle = '#3b2616';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    const s1 = Math.sin(leg) * 6, s2 = Math.sin(leg + Math.PI) * 6;
+    ctx.moveTo(-14, -8); ctx.lineTo(-14 + s1, 0);
+    ctx.moveTo(-6, -8); ctx.lineTo(-6 + s2, 0);
+    ctx.moveTo(10, -8); ctx.lineTo(10 + s2, 0);
+    ctx.moveTo(16, -8); ctx.lineTo(16 + s1, 0);
+    ctx.stroke();
+    // 胴
+    ctx.fillStyle = '#6b4526';
+    ctx.beginPath(); ctx.ellipse(2, -18, 26, 13, 0, 0, Math.PI * 2); ctx.fill();
+    // 背中の毛
+    ctx.fillStyle = '#4a2e18';
+    ctx.beginPath(); ctx.ellipse(6, -27, 18, 5, 0, 0, Math.PI * 2); ctx.fill();
+    // 頭（左向き）
+    ctx.fillStyle = '#5e3b20';
+    ctx.beginPath();
+    ctx.moveTo(-18, -26); ctx.lineTo(-36, -14); ctx.lineTo(-34, -8); ctx.lineTo(-16, -8);
+    ctx.closePath(); ctx.fill();
+    // 鼻
+    ctx.fillStyle = '#c98a6a';
+    ctx.fillRect(-38, -15, 4, 7);
+    // 牙
+    ctx.strokeStyle = '#fff6e0';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-30, -9); ctx.lineTo(-34, -16); ctx.stroke();
+    // 目・耳
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-25, -21, 3, 3);
+    ctx.fillStyle = '#4a2e18';
+    ctx.beginPath(); ctx.moveTo(-18, -26); ctx.lineTo(-14, -34); ctx.lineTo(-11, -25); ctx.fill();
+    // しっぽ
+    ctx.strokeStyle = '#4a2e18';
+    ctx.beginPath(); ctx.moveTo(27, -22); ctx.lineTo(33, -26 + Math.sin(leg) * 3); ctx.stroke();
+    // 砂煙
+    ctx.restore();
+    if (!hit && Math.random() < 0.3) emit(1, x + cam + 26, GROUND - 2, { vx: [20, 80], vy: [-50, -10], life: [0.2, 0.4], r: [2, 5], col: '#c7a77c', g: 50 });
+  }
+
+  function drawTruck() {
+    const wob = slip > 0 ? Math.sin(runTime * 32) : 0;
+    ctx.save();
+    ctx.translate(TRUCK_X + TRUCK_W / 2 + wob * 5, truck.y);
+    ctx.rotate(truck.angle + wob * 0.07);
+    ctx.translate(-TRUCK_W / 2, 0);
+
+    // 影
+    // シャシー
+    ctx.fillStyle = '#3a3a3a';
+    ctx.fillRect(4, -16, 90, 7);
+    // 荷台
+    ctx.fillStyle = '#eef0f0';
+    ctx.fillRect(2, -32, 58, 17);
+    ctx.fillStyle = '#c9cfd1';
+    ctx.fillRect(2, -32, 58, 3);
+    ctx.fillRect(20, -32, 2, 17);
+    ctx.fillRect(40, -32, 2, 17);
+    // 荷台の牧草ロール
+    ctx.fillStyle = '#e9e2cf';
+    ctx.beginPath(); ctx.arc(28, -44, 15, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#b8ad8e';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(28, -44, 9, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(28, -44, 3.5, 0, Math.PI * 2); ctx.stroke();
+    // 鳥居（キャブ後ろの枠）
+    ctx.fillStyle = '#9aa2a5';
+    ctx.fillRect(58, -50, 4, 36);
+    // キャブ
+    ctx.fillStyle = '#f7f8f8';
+    ctx.beginPath();
+    ctx.moveTo(61, -52);
+    ctx.lineTo(84, -52);
+    ctx.lineTo(93, -30);
+    ctx.lineTo(96, -28);
+    ctx.lineTo(96, -12);
+    ctx.lineTo(61, -12);
+    ctx.closePath();
+    ctx.fill();
+    // 窓
+    ctx.fillStyle = '#8cc3dc';
+    ctx.beginPath();
+    ctx.moveTo(65, -48); ctx.lineTo(82, -48); ctx.lineTo(89, -32); ctx.lineTo(65, -32);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.6)';
+    ctx.fillRect(70, -46, 3, 12);
+    // ドアの線・取っ手
+    ctx.fillStyle = '#c9cfd1';
+    ctx.fillRect(64, -30, 1.5, 17);
+    ctx.fillRect(68, -27, 6, 2);
+    // バンパー・ライト
+    ctx.fillStyle = '#9aa2a5';
+    ctx.fillRect(90, -16, 8, 5);
+    ctx.fillStyle = '#ffe28a';
+    ctx.fillRect(92, -26, 4, 5);
+    // 運転手
+    ctx.fillStyle = '#3b2a1e';
+    ctx.beginPath(); ctx.arc(74, -40, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2f6a3a';
+    ctx.fillRect(68, -46, 12, 3); // 帽子
+    // タイヤ
+    for (const wx of [20, 78]) {
+      ctx.fillStyle = '#1f1f1f';
+      ctx.beginPath(); ctx.arc(wx, -10, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#b8bec0';
+      ctx.beginPath(); ctx.arc(wx, -10, 4.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let k = 0; k < 3; k++) {
+        const a = wheelA + k * Math.PI * 2 / 3;
+        ctx.moveTo(wx, -10); ctx.lineTo(wx + Math.cos(a) * 8, -10 + Math.sin(a) * 8);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawParts() {
+    for (const p of parts) {
+      const a = Math.max(0, p.life / p.max);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = p.col;
+      ctx.beginPath(); ctx.arc(p.x - cam, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawHUD() {
+    if (state === 'title') return;
+    const font = getComputedStyle(document.body).fontFamily;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.font = '34px ' + font;
+    const m = meters().toLocaleString('ja-JP') + ' m';
+    ctx.fillText(m, 22, 50);
+    ctx.fillStyle = '#fffbea';
+    ctx.fillText(m, 20, 48);
+    ctx.font = '14px ' + font;
+    ctx.fillStyle = '#2d3a22';
+    ctx.fillText('ベスト ' + Math.max(best, 0).toLocaleString('ja-JP') + ' m', 22, 70);
+
+    // 速度計
+    const kmh = Math.round(speed * (slip > 0 ? 1.25 : 1) / PX_PER_M * 3.6);
+    ctx.textAlign = 'right';
+    ctx.font = '26px ' + font;
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.fillText(kmh + ' km/h', W - 18, 46);
+    ctx.fillStyle = '#fffbea';
+    ctx.fillText(kmh + ' km/h', W - 20, 44);
+
+    if (slip > 0 && state === 'play') {
+      ctx.textAlign = 'center';
+      ctx.font = '22px ' + font;
+      ctx.fillStyle = '#e2543a';
+      ctx.fillText('スリップ!', TRUCK_X + TRUCK_W / 2, truck.y - 72);
+    }
+  }
+
+  function draw() {
+    ctx.save();
+    if (shake > 0) ctx.translate(rand(-6, 6) * shake * 2, rand(-6, 6) * shake * 2);
+    drawSky();
+    drawMountains(0.08, 205, 50, '#9fb8b2', 0);
+    drawMountains(0.18, 228, 34, '#6f9870', 3);
+    drawFarField();
+    drawForeField();
+    drawRoad();
+    drawHazards();
+    // 田んぼに落ちた軽トラは水面の奥に
+    if (truck.falling) {
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, 0, W, GROUND + ROAD_H + 10); ctx.clip();
+      drawTruck();
+      ctx.restore();
+    } else drawTruck();
+    drawBoars();
+    drawParts();
+    ctx.restore();
+    drawHUD();
+  }
+
+  // ---- ループ ----
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  reset();
+  resize();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
