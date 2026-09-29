@@ -480,6 +480,7 @@ canvas { display: block; width: 100%; height: 100%; }
         sfxBus = ac.createGain(); sfxBus.gain.value = 1; sfxBus.connect(ac.destination);
         musicBus = ac.createGain(); musicBus.gain.value = 0; musicBus.connect(ac.destination);
         setInterval(musicTick, 30);
+        loadBgm();
       } catch (e) { ac = null; }
     }
     // タブを切り替えたり、ページが新しい版に替わったりすると止まっていることがある（iPhone では interrupted）
@@ -607,10 +608,51 @@ canvas { display: block; width: 100%; height: 100%; }
       src.connect(f).connect(g).connect(musicBus); src.start(t);
     }
   }
+  // ---- BGM の曲（bgm.mp3「VIVA‼︎つがお組長」）。読めないときだけ上の手作りの曲を流す ----
+  let bgmMode = 'loading';      // loading / buffer（Web Audio で再生）/ element（audio 要素で再生）/ synth
+  let bgmBuf = null, bgmSrc = null, bgmEl = null;
+  const bgmFetch = fetch('bgm.mp3').then(r => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status)))).catch(() => null);
+  function loadBgm() {
+    bgmFetch.then(ab => (ab ? ac.decodeAudioData(ab) : Promise.reject(new Error('no file'))))
+      .then(buf => { bgmBuf = buf; bgmMode = 'buffer'; })
+      .catch(() => {
+        // ファイルを直接開いたときなど fetch できない場合は audio 要素で
+        bgmEl = new Audio('bgm.mp3');
+        bgmEl.loop = true;
+        bgmEl.addEventListener('canplay', () => { if (bgmMode === 'loading') bgmMode = 'element'; }, { once: true });
+        bgmEl.addEventListener('error', () => { bgmMode = 'synth'; }, { once: true });
+        bgmEl.load();
+      });
+  }
+  // 走り出すたびに曲の頭から
+  function restartBgm() {
+    if (bgmSrc) { try { bgmSrc.stop(); } catch (e) {} bgmSrc = null; }
+    if (bgmEl) { try { bgmEl.currentTime = 0; } catch (e) {} }
+  }
   function musicPlaying() { return musicOn && soundOn && !paused && (state === 'play' || state === 'title'); }
   function musicTick() {
     if (!ac || !musicBus) return;
-    const want = musicPlaying() ? (state === 'title' ? 0.35 : 0.55) : 0;
+    const playing = musicPlaying();
+    if (bgmMode === 'buffer' || bgmMode === 'element' || bgmMode === 'loading') {
+      // 曲の音量は大きめなので控えめに流す
+      const vol = playing ? (state === 'title' ? 0.22 : 0.34) : 0;
+      if (bgmMode === 'buffer') {
+        musicBus.gain.setTargetAtTime(vol, ac.currentTime, vol ? 0.2 : 0.08);
+        if (!bgmSrc && playing) {
+          bgmSrc = ac.createBufferSource();
+          bgmSrc.buffer = bgmBuf;
+          bgmSrc.loop = true;
+          bgmSrc.connect(musicBus);
+          bgmSrc.start();
+        }
+      } else if (bgmMode === 'element') {
+        bgmEl.volume = Math.min(1, vol * 1.6);
+        if (playing && bgmEl.paused) bgmEl.play().catch(() => {});
+        if (!playing && !bgmEl.paused) bgmEl.pause();
+      }
+      return;
+    }
+    const want = playing ? (state === 'title' ? 0.35 : 0.55) : 0;
     musicBus.gain.setTargetAtTime(want, ac.currentTime, want ? 0.15 : 0.08);
     if (!want) { mNext = 0; return; }
     if (mNext < ac.currentTime) mNext = ac.currentTime + 0.05;
@@ -971,6 +1013,7 @@ canvas { display: block; width: 100%; height: 100%; }
 
   function start(m) {
     setMode(m);
+    restartBgm();
     rng = mode === 'ta' ? seeded(TA_SEED) : Math.random;
     reset();
     state = 'play';
@@ -2986,7 +3029,7 @@ canvas { display: block; width: 100%; height: 100%; }
       get stats() { return stats; }, get paused() { return paused; }, get bumpHits() { return bumpHits; },
       get runTime() { return runTime; }, get goalTime() { return goalTime; }, get mode() { return mode; },
       get tomatoes() { return tomatoes; }, get score() { return score; }, get steps() { return steps; },
-      get audio() { return { state: ac && ac.state, music: musicBus && +musicBus.gain.value.toFixed(2), step: mStep }; },
+      get audio() { return { state: ac && ac.state, music: musicBus && +musicBus.gain.value.toFixed(2), step: mStep, bgm: bgmMode, pos: bgmEl ? bgmEl.currentTime : null, src: !!bgmSrc }; },
       suspendAudio() { return ac && ac.suspend(); }, get clock() { return clock; },
       TRUCK_X, TRUCK_W, W, JUMP_V, GRAV, meters, press, release, start, update, draw, setPaused,
       set sim(v) { simMode = v; }, set best(v) { best = v; },
