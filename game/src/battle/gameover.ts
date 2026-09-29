@@ -5,7 +5,7 @@
 // in the middle (no window) with the game-over jingle; after 1.0s a small
 // graph-paper window offers 「戦う前から やりなおす」「セーブから」 (greyed out
 // and skipped by the cursor when there is no save). From the second wipe on,
-// the boss battle adds Kanenari-kun's flip before the retry.
+// the boss battle adds グソっ君's line (a balloon) before the retry.
 
 import type { Co } from '../engine/co';
 import { game, type Scene } from '../engine/game';
@@ -16,7 +16,7 @@ import { playBgm, sfx } from '../audio';
 import { GAMEOVER } from '../data/battle';
 import { C, cursorStamp, drawNote, tapeCanvas } from './ui/note';
 import { BAYER4, PixelCanvas } from '../engine/pixel';
-import { flipBoardText } from './art/fxart';
+import { taggedBalloon } from './gusokkun';
 import { markText } from '../engine/textzones';
 
 export type GameOverChoice = 'retry' | 'load';
@@ -47,7 +47,7 @@ class GameOverScene implements Scene {
       if (this.pickT > 260) {
         if (this.choice === 'retry' && this.bossNote) {
           this.flipT = 0;
-          sfx('se_flip');
+          sfx('se_page');
         } else this.done = true;
       }
       return;
@@ -138,7 +138,7 @@ class GameOverScene implements Scene {
       }
     });
     if (this.flipT >= 0) {
-      const img = flipBoardText(GAMEOVER.bossFlip);
+      const img = taggedBalloon(GAMEOVER.bossFlip);
       const up = ease.backOut(Math.min(1, this.flipT / 160));
       g.rect(0, 0, 384, 216, C.darkest, 0.55 * Math.min(1, this.flipT / 160));
       g.img(img, Math.round(192 - img.width / 2), Math.round(216 - (216 - 70) * up));

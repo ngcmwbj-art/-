@@ -111,8 +111,7 @@ registerScript('evt_ojigi', function* (): Co {
       sfx('se_bow', { vol: 0.5 });
       yield 500;
       k.anim = null;
-      k.tempPose = 'flip_hold';
-      sfx('se_flip');
+      k.tempPose = 'happy';
       yield 200;
     }
     yield* msg(T.OJIGI_AFTER);

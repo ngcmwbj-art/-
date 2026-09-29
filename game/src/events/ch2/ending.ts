@@ -1,11 +1,14 @@
 // evt_ch2_ending (50_ch2_story 10.16, 52 6.2〜6.4・12.2, 53 12.14): about 1 min
 // 15 s, then ツガオの部屋 (about 85 s) and the title.
 //   カット1 the hill: 4:59 on black → 5:00, the morning chime, the tomato
-//          rises (cut_h_sunrise), 「……おはよう。」, the bell
+//          rises (cut_h_sunrise), グソっ君's first sunrise on land
+//          (★2026-09-29 カネナリくん→グソっ君: no 「……おはよう。」, no bell)
 //   カット2 the village's morning: the barn, the house, the terraces, the
 //          gathering room, the path's mouth (4 s each)
-//   カット3 the turning circle: the tomatoes, the send-off, the first bus
-//   カット4 夕鳴町's bus stop: 6:12 → 19:31; マル boards (02 #65)
+//   カット3 the turning circle: the tomatoes (「トマトも 美味いやんけ！」),
+//          the send-off, the first bus
+//   カット4 夕鳴町's bus stop: 6:12 → 19:31; マル boards (02 #65); しゅんと
+//          グソっ君 go home together
 //   カット4b the turning circle again: マル steps down, とまたろう meets her
 //   カット5 home: 「……1つ、おまけ？」, the weather
 //   カット6 the notebook ② and 「つづく」 (the UI; the clear data is written)
@@ -38,14 +41,14 @@ import { hoshiBusImage } from '../../art/props/hoshi_vehicles';
 import * as T from '../../data/text/hoshi_events';
 import { MARU_END } from '../../data/text/maru';
 import { F, giveKey, holdBgm, panTo } from '../lib';
-import { bellGlow, puff, ring, sparkle } from '../fx';
+import { puff, sparkle } from '../fx';
 import { morningChime, musicParam, paDistance, paMode, se, seLoop, space } from './compat';
 import { poseIf, runCue, unpose } from './common';
 import { forceBoxPos } from '../stage';
 
 // ---------------------------------------------------------------- staging helpers
 
-/** Load a map for a cut: Minato and カネナリくん out of the frame (or placed), the camera on (cx, cy). */
+/** Load a map for a cut: Minato and グソっ君 out of the frame (or placed), the camera on (cx, cy). */
 function cutTo(map: string, cx: number, cy: number, o: { show?: boolean; dir?: Dir } = {}): void {
   const f = F();
   f.loadMap(map, cx, cy, o.dir ?? 'down');
@@ -220,24 +223,19 @@ function* cut1Hill(): Co {
   poseIf(p, 'look_up');
   if (k) poseIf(k, 'look_up');
   yield* beat(1500);
-  // カネナリくん bows a little to the sun
+  // グソっ君 takes a little hop at the sun: his first sunrise on land (the
+  // light catches his eyes), then his words
   if (k) {
     unpose(k);
     k.dir = 'right';
     k.hop(1, 200);
+    poseIf(k, 'shock');
+    sparkle(k.x + 3, k.y - 18, 500);
   }
   yield 500;
-  // the second voice (after 「……おいしい。」): no flip, no board
+  if (k) unpose(k);
   yield* runMsg(T.END_OHAYOU);
   yield* beat(1000);
-  // the bell rings once, by itself
-  se('se_bell_kanenari_short');
-  if (k) {
-    if (k.sprite.anims?.glow) k.playAnim('glow');
-    bellGlow(k.x, k.y - 20, 900);
-    ring(k.x, k.y - 20, '#FFE7A3', 700);
-    sparkle(k.x + 3, k.y - 26, 600);
-  }
   // stage 3: the morning's theme at the next bar
   setFlag('flag_ch2_stage', 3);
   setFlag('flag_ch2_clock', 1);
@@ -444,8 +442,28 @@ function* cut3Bus(): Co {
   yield* runMsg(T.END_3_GET);
   unpose(p);
   p.dir = 'down';
-  yield* runMsg(T.END_3_B);
-  // on board: カネナリくん, Minato, then さんかど with the mailbag
+  // ペロ hands グソっ君 a split one: 「トマトも 美味いやんけ！」 (the yakisoba's line once more)
+  yield* runCue(T.END_3_B, {
+    *eat() {
+      poseIf(mitsu, 'give');
+      yield 300;
+      unpose(mitsu);
+      if (k) {
+        k.dir = 'down';
+        poseIf(k, 'eat');
+      }
+      yield 700;
+      if (k) {
+        unpose(k);
+        poseIf(k, 'shock');
+        k.hop(2, 160);
+        sparkle(k.x, k.y - 20, 400);
+      }
+      yield 300;
+    },
+  });
+  if (k) unpose(k);
+  // on board: グソっ君, Minato, then さんかど with the mailbag
   if (k) {
     se('se_step_kanenari');
     yield* walk('kanenari', [[34, 43], [35, 43]], { speed: 2.2, face: 'up' });
@@ -541,7 +559,7 @@ function* cut4BusStop(): Co {
   yield 500;
   se('se_h_bus_door');
   yield* animate(300, (q) => (pool.alpha = q));
-  // Minato, カネナリくん, さんかど step down
+  // Minato, グソっ君, さんかど step down
   const p = f.player;
   p.x = 34 * 16 + 8;
   p.y = 12 * 16 + 16;
@@ -589,8 +607,8 @@ function* cut4BusStop(): Co {
   yield* walk('end_npc_hoshi_busdriver', [[33, 13], [26, 13]], { speed: 2.4 });
   despawn('end_npc_hoshi_busdriver');
   // マル gets up off her walker: the five o'clock bus, two and a half hours late.
-  // Those who took her word to とまたろう (flag_ch2_maru_told 2) get カネナリくん's
-  // flip and her small bow. Then she pushes the walker to the door (34,10) and boards.
+  // Those who took her word to とまたろう (flag_ch2_maru_told 2) get グソっ君's
+  // line and her small bow. Then she pushes the walker to the door (34,10) and boards.
   maru.pose = null;
   maru.hop(1, 160);
   yield 300;
@@ -627,23 +645,30 @@ function* cut4BusStop(): Co {
   despawn('end_bus_town');
   despawn('end_bus_pool');
   despawn('end_npc_maru');
+  // 「ほな、帰ろか。しゅんの 家。」: the two go home together, west along the
+  // road (グソっ君 has been at Shun's side since chapter 1; ★2026-09-29)
+  k.dir = 'down';
+  p.dir = 'up';
   yield* runMsg(T.END_4_NARR);
-  // カネナリくん waves and toddles off towards the crossing
-  k.dir = 'right';
   poseIf(k, 'wave');
-  yield 500;
+  yield 400;
   unpose(k);
   game.scripts.run(
     (function* (): Co {
       for (let i = 0; i < 4; i++) {
-        se('se_step_kanenari', { vol: 0.7 - i * 0.15 });
+        se('se_step_kanenari', { vol: 0.6 - i * 0.12 });
         yield 360;
       }
     })(),
   );
-  yield* walk('end_kanenari', [[34, 12], [40, 12]], { speed: 1.8 });
-  yield* animate(300, (q) => (k.alpha = 1 - q));
+  yield* all(walk('end_kanenari', [[33, 11], [27, 11]], { speed: 1.8 }), walk('player', [[33, 12], [27, 12]], { speed: 1.8 }));
+  yield* animate(300, (q) => {
+    k.alpha = 1 - q;
+    p.alpha = 1 - q;
+  });
   despawn('end_kanenari');
+  p.visible = false;
+  p.alpha = 1;
   yield* beat(400);
 }
 
@@ -731,7 +756,8 @@ function* cut5Home(): Co {
   yield* fadeCut(300);
   stopAllAmbient(0.3);
   cutTo('map_home_1f', 2, 7, { show: true, dir: 'up' });
-  setFollowerVisible(false);
+  // グソっ君 comes home with him (his corner by the door)
+  setFollowerVisible(true);
   const f = F();
   const p = f.player;
   p.visible = true;

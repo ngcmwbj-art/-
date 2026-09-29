@@ -286,49 +286,54 @@ const momi: EnemyDef = {
   book: { short: 'マッサージチェア', shotai: '健康器具コーナーで 1年、お試しの 客を 待っていた チェア。', weak: 'クッションで たたくは 効きにくい。くっきりの ペケで 押しきれ。', hitokoto: '最後の 客は、居眠りして 帰った。' },
 };
 
+/**
+ * The join battle (加入戦). ★2026-09-29: no longer fought — グソっ君 joins after
+ * the leftover yakisoba (10 5.11–5.12, 04_gusokkun_plan 2章). Kept for the
+ * gallery and old QA; its words are グソっ君's.
+ */
 const kanenari: EnemyDef = {
-  id: 'enemy_kanenari', name: 'カネナリくん', lvl: 2, size: [48, 64], core: [24, 30], face: [24, 18],
+  id: 'enemy_kanenari', name: 'グソっ君', lvl: 2, size: [48, 64], core: [24, 30], face: [24, 18],
   hp: 999, atk: 7, def: 10, spd: 4, luck: 3, exp: 8, money: 0, attr: { da: 0, han: 0, wara: 0 },
   drops: [], noFlee: true, invulnerable: true, bg: 'bg_kanenari', bgm: 'bgm_battle', tsukkomiCount: 0, tsukkomi: [],
   skills: ['skill_kn_fuusen', 'skill_kn_goaisatsu', 'skill_kn_pose'],
   colors: ['#D9A441', '#F2894B', '#F4F1E8', '#E84E3C'],
   ai: (c: AiCtx) => c.pick([['skill_kn_fuusen', 40], ['skill_kn_goaisatsu', 30], ['skill_kn_pose', 30]]),
   texts: {
-    appear: ['カネナリくんが PRを はじめた！'],
+    appear: ['グソっ君が 手を ふっている！'],
     yousu: [
-      'カネナリくんは しゅんに\n手を ふっている。',
-      'カネナリくんは だれも いない\nほうにも 手を ふっている。',
-      'カネナリくんの フリップ：\n『夕鳴町へ ようこそ！』',
+      'グソっ君は しゅんに\n手を ふっている。',
+      'グソっ君は だれも いない\nほうにも 手を ふっている。',
+      'グソっ君の 触角が\nゆれている。',
     ],
     yousuSpecial: {
-      round3: 'カネナリくんは、なにかを\n待っている ように 見える。',
-      round4: 'カネナリくんの フリップ：\n『（……だれか、見てますか）』',
+      round3: 'グソっ君は、なにかを\n待っている ように 見える。',
+      round4: 'グソっ君は、しゅんを\nじっと 見ている。',
       // [events, QA round 2] the stronger hint from round 6 (texts.ts)
       round6: 'しゅんは ふと 思った。\n（……見て ほしい のかな）',
     },
     tele: {
-      skill_kn_fuusen: ['カネナリくんは ふうせんを くれた。'],
-      skill_kn_goaisatsu: ['カネナリくんは 深々と おじぎした。'],
-      skill_kn_pose: ['カネナリくんは PRポーズを きめた。'],
+      skill_kn_fuusen: ['グソっ君は おにぎりを くれた。'],
+      skill_kn_goaisatsu: ['グソっ君は 深々と おじぎした。'],
+      skill_kn_pose: ['グソっ君は ポーズを きめた。'],
     },
     extra: {
       fuusenResult: ['しゅんの HPが 回復した。'],
       goaisatsuResult: ['しゅんも つられて おじぎした。\nちからが 下がった。'],
       poseResult: ['……なにも 起きない。'],
-      fanService: ['カネナリくんは 攻撃を\nファンサービスだと 受け取った。'],
-      mimashita: ['しゅんは『みました』の\nハンコを 押した！', 'カネナリくんは 1年ぶりに\n見て もらえた。'],
+      fanService: ['グソっ君は 攻撃を\nあいさつだと 受け取った。'],
+      mimashita: ['しゅんは『みました』の\nハンコを 押した！', 'グソっ君は、ちゃんと\n見て もらえた。'],
       lowInk: ['朱肉は かすれていたが、\nちゃんと 押せた。'],
     },
-    idle: [['カネナリくんは 手を ふった。']],
+    idle: [['グソっ君は 手を ふった。']],
     defeat: [],
-    noFlee: ['カネナリくんが ついてくる。\nPRは 終わらない。'],
+    noFlee: ['グソっ君が ついてくる。'],
   },
-  book: { short: 'カネナリくん', shotai: '夕鳴町の PR大使。', weak: '―', hitokoto: '―' },
+  book: { short: 'グソっ君', shotai: 'オオグソクムシ。どこから 来たのかは、本人も 知らない。', weak: '―', hitokoto: '―' },
 };
 
 /**
- * 練習台 (the park's lesson right after Kanenari-kun joins, evt_kn_lesson;
- * 20 10.6). Cardboard stacked by Kanenari-kun: it only takes turns when the
+ * 練習台 (the park's lesson right after グソっ君 joins, evt_kn_lesson;
+ * 20 10.6). Cardboard stacked by グソっ君: it only takes turns when the
  * lesson asks it to, its HP never runs out (lesson.ts keeps it above 0) and
  * it is in no book (みました帳 counts BOOK_ENEMIES / TSUKKOMI_ENEMIES only).
  */
@@ -341,7 +346,7 @@ const renshu: EnemyDef = {
   colors: ['#C4904E', '#E4BA7A', '#E8D8A8', '#E23B2E', '#C8962E'],
   ai: () => 'skill_renshu_motare',
   texts: {
-    appear: ['カネナリくんが 練習台を 置いた！'],
+    appear: ['グソっ君が 練習台を 置いた！'],
     yousu: ['練習台は じっと 待っている。'],
     tele: {
       skill_renshu_motare: ['練習台が ぐらっと ゆれて、\nしゅんに もたれかかってきた！'],
@@ -351,7 +356,7 @@ const renshu: EnemyDef = {
     defeat: [],
     noFlee: ['練習は まだ 終わっていない。'],
   },
-  book: { short: '練習台', shotai: 'カネナリくんが ダンボールで 作った 練習台。', weak: 'なし。何回でも 立ちあがる。', hitokoto: '顔は カネナリくんの 手描き。' },
+  book: { short: '練習台', shotai: 'グソっ君が ダンボールで 作った 練習台。', weak: 'なし。何回でも 立ちあがる。', hitokoto: '顔は グソっ君の 手描き。' },
 };
 
 const boss: EnemyDef = {
@@ -414,19 +419,29 @@ const boss: EnemyDef = {
       chime: ['きーん……'],
       chime4: ['4つ目の 音が、鳴りひびいた！'],
       chimeAfter: ['チャイムは、また 最初に もどった。'],
-      yoikoFail: ['カネナリくんは つられて\n帰っていった……。'],
-      yoikoBack: ['カネナリくんは 帰る 家が\nなかったので、すぐ 戻ってきた。'],
-      yoikoGuard: ['カネナリくんは 帰りかけて、\nふみとどまった！'],
+      // よいこは (★2026-09-29 グソっ君): he goes, and comes straight back —
+      // yoikoBackLine is his own line (the band's グソっ君 tag)
+      yoikoFail: ['グソっ君は つられて\n帰っていった……。'],
+      yoikoBack: ['グソっ君が、すぐに 戻ってきた。'],
+      yoikoBackLine: ['……帰る 家、\n分からへんかったわ。'],
+      yoikoGuard: ['グソっ君は 帰りかけて、\nふみとどまった！'],
       phase2: ['「チャイムが 鳴ったら、\nみんな 帰っちゃう。」', '「……ぼくたちの ほかは、\nみんな。」'],
+      // the final phase (★2026-09-29, 04_gusokkun_plan 3章): グソっ君 puts
+      // down his guard, crouches and holds out his hand; it takes the hand,
+      // and the clock tower's chime rings its 4th note. finalKn / finalKnAfter
+      // are his own lines (the band's グソっ君 tag)
       final1: ['オムカエマチは 手を 止めた。'],
-      final2: ['「ぼくたちは、だれも\n迎えに 来ない。」', '「だから、鳴らさない。」'],
-      final3: ['カネナリくんが 前に 出た。', 'カネナリくんは 鐘を 鳴らした。'],
-      final4: ['…………鳴った。'],
+      final2: ['「……おむかえ、まだ かな。」', '「ぼくたちは、だれも\n迎えに 来ない。」'],
+      final3: ['グソっ君が 構えを といて、\n前に 出た。', 'グソっ君は しゃがんで、\n手を さしだした。'],
+      finalKn: ['……迎えに 来たで。', 'わいもな、だれも 迎えに\n来ぇへんかってん。', 'せやから、分かるねん。', 'いっしょに 帰ろ。'],
+      finalHold: ['「…………」', 'オムカエマチが、\nその 手を にぎった。'],
+      final4: ['遠くで、時計塔の チャイムが\n4つ目の 音を 鳴らした。', '時計が、前へ 動きだした。'],
       final5: ['ハンコケースが 光った。', '『おかえりなさい』が\n浮かびあがった。'],
       finalPrompt: ['――『おかえりなさい』を 押す。'],
       finalStamp: ['しゅんは『おかえりなさい』の\nハンコを 押した。'],
       finalTadaima: ['「…………」', '「……ただいま。」'],
       finalLeave: ['忘れ物たちが、ひとつずつ 光に\nなって、町の ほうへ 帰っていく。', '通学帽は 最後に、\n写真館の ほうへ 飛んでいった。'],
+      finalKnAfter: ['……ええ ハンコやな。', 'わいも いつか、押して\nもらえるやろか。'],
     },
     idle: [['オムカエマチは ひざを かかえた。']],
     defeat: [],

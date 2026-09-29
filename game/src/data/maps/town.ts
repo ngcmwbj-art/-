@@ -455,9 +455,12 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_maru', x: 34, y: 12, dir: 'right', cond: { stage: 2 }, script: 'npc_maru', pose: 'sit' },
   // おぴぃ (10 6.25, 02 #66): the east end of the paddy path, on her upturned bucket, watching the inlet
   { t: 'npc', id: 'npc_tamotsu', x: 21, y: 39, dir: 'down', cond: s02, script: 'npc_tamotsu', pose: 'sit' },
+  // グソっ君 (★2026-09-29, 04_gusokkun_plan 2章 3): on his back under the clock
+  // tower, his little legs paddling slowly — hungry (10 5.11). He no longer
+  // goes round the tower.
   {
     t: 'npc', id: 'npc_kanenari', x: 16, y: 9, dir: 'down', cond: { stage: '1-2', notFlag: 'flag_kanenari_joined' },
-    script: 'evt_kanenari_meet', move: { kind: 'orbit', cx: 256, cy: 112, r: 32, period: 6000, cw: true, waveEvery: 7000 },
+    script: 'evt_kanenari_meet', pose: 'fallen', noTurn: true,
   },
   { t: 'npc', id: 'npc_hato', x: 33, y: 22, dir: 'down', cond: s0, talk: TALK.npc_hato, pose: 'peck' },
   { t: 'npc', id: 'npc_cat_sauce', x: 15, y: 24, dir: 'right', cond: s02, talk: TALK.npc_cat_sauce, ghost: true, off: [0, -14], fushigi: 'fushigi_02' },

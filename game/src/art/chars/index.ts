@@ -16,18 +16,20 @@
 //    'peck', 'sleep', 'dead', 'hop', 'beckon') are looping anims with their
 //    breathing / blinking / fidget, so `actor.pose = name` stays alive and
 //    keeps facing the player. Use animFrame(s, name, t, dir) / animOf().
-//  - Kanenari's 'flip' extra has the 24×16 board composited in (24×39 frame);
-//    anims 'flip' (raise) and 'flip_turn' (turn the board over). The raw
-//    arms-up pose is 'flip_raw' + FLIP_ANCHOR for callers with their own board.
+//  - グソっ君 (id 'kanenari', ★2026-09-29 カネナリくん→グソっ君): 'flip' is one
+//    hand up, talking (no board); anims 'flip' (raise) and 'flip_turn' (the
+//    hand turns). 'flip_raw' is the same gesture; FLIP_ANCHOR still says where
+//    a 24×16 board would sit for callers that draw one.
 //  - Flip boards for UI / battle: flipBoard(variant), flipBoardText(text),
 //    flipBoardPanel(w, h), flipBoardMini() (16×12), flipIcon() (10×8),
 //    flipBoardEdge() (mid-turn).
-//  - Kanenari's frames are 20px wide (arms of 'wave' / 'pose' reach past the
-//    bell); like every frame they are centred on the feet. His 'glow' anim
-//    has the pulsing #FFE7A3 ring composited in (32×34 frames); glowRing(i)
-//    (32×32, 8 frames: two pulses r8→14) is the same ring as an overlay for
-//    battle / UI, centred at (feetX, feetY + GLOW_CENTER_DY).
-//  - Frame widths can differ from CharSprite.w (Kanenari's glow / flip,
+//  - グソっ君's frames are 20px wide (his arms reach past the body), his
+//    feelers rise into the headroom; like every frame they are centred on the
+//    feet. His 'glow' anim is his compound eyes flashing twice (20px frames);
+//    glowRing(i) (32×32, 8 frames: two pulses r8→14) is a ring overlay for
+//    battle / UI, centred at (feetX, feetY + GLOW_CENTER_DY). 'fallen'
+//    (あおむけ) frames are laid on their side: 26×20-ish, head to the right.
+//  - Frame widths can differ from CharSprite.w (グソっ君's fallen / hold_net,
 //    the ojigi machine's cord): always centre on the feet.
 //  - Portraits are 32×32; portrait(id, mood, { size: 64 }) gives a 64×64
 //    close-up (drawn at 64 for minato:tsukkomi, a clean 2× of the 32 face

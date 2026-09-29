@@ -40,8 +40,11 @@ const items: ItemDef[] = [
   { id: 'item_maigo_key', name: '迷子センターの鍵', key: true, target: 'none', desc: ['小さな カギ。', 'キーホルダーは、カバ。'], battleText: ['カギは、ここで 使う ものじゃない。'] },
   { id: 'item_hato_meishi', name: 'ハトの名刺', key: true, target: 'none', desc: ['『夕鳴町 鳩課 係長』。', '裏に 小さく『帰りたい』。'], battleText: ['名刺を さしだした。\n……受けとって もらえなかった。'] },
   { id: 'item_korokke', name: 'できたて焼きそば', key: true, target: 'none', desc: ['4つ。青のりは 別。', '……1つは おまけ。'], battleText: ['これは 晩ごはんだ。'] },
-  // 屋上 ゆうやけひろば (10_narrative 7.18 ★2026-09-28): the 4th handshake
-  { id: 'item_akushuken', name: '握手券', key: true, target: 'none', desc: ['カネナリくん 握手会の 握手券。', '番号は 4。有効期限は なし。'], battleText: ['握手券を 見せた。\n$enemyは 手を 出しかけて やめた。'] },
+  // 04_gusokkun_plan 2章（★2026-09-29 依頼主）：はじめての 焼きそば屋で たかしが 持たせる。
+  // 公園で 倒れている グソっ君に わたすと 外れる（10 5.4・5.11）
+  { id: 'item_urenokori', name: '売れ残りの焼きそば', key: true, target: 'none', desc: ['ゆうべの 売れ残り。冷たい。青のりは 別。', ''], battleText: ['これは 腹 へってる だれかの 分だ。'] },
+  // 屋上 ゆうやけひろば (10_narrative 7.18 ★2026-09-28): the handshake (★2026-09-29 グソっ君の はじめての 握手会。04 2章 8 案A)
+  { id: 'item_akushuken', name: '握手券', key: true, target: 'none', desc: ['グソっ君の はじめての 握手会。', '番号は 1。有効期限は なし。'], battleText: ['握手券を 見せた。\n$enemyは 手を 出しかけて やめた。'] },
   // しんごのたんかん（02 #58）：喫茶 夕顔の冷凍庫から → しんごへ（渡すと外れる）
   { id: 'item_tankan', name: '冷凍たんかん', key: true, target: 'none', desc: ['喫茶 夕顔の 冷凍庫から。', '冬の みかん。いまは 8月。'], battleText: ['たんかんを 見せた。\n$enemyは 季節に ついて 考えている。'] },
   // 10 6.10 (02_ch2_index #56): 段階2の郵便屋さんから。第2章でさんかどに あずける

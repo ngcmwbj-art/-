@@ -18,7 +18,7 @@
 //                                   // → the title
 
 import type { Co } from '../engine/co';
-import { game, type Scene } from '../engine/game';
+import { game, type Scene, type Widget } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { BAYER4, makeCanvas } from '../engine/pixel';
 import { Particles } from '../engine/particles';
@@ -432,6 +432,61 @@ export function* playEndingNotebook(o: { toTitle?: boolean } = {}): Co {
     yield* ditherIn(900);
   }
   void toTitle;
+}
+
+/**
+ * 「つづく」 pressed over the picture on screen (★2026-09-29: chapter 1 ends
+ * on グソっ君's 「めっちゃ美味いやんけ！」 at the crossing — no notebook after
+ * it). The seal's shadow closes in, it lands (se_stamp_heavy, a little
+ * hitstop and shake, petals), then flag_clear and the clear record
+ * (markClear). The seal stays until the screen has faded out.
+ */
+class TsuzukuOverlay implements Widget {
+  modal = false;
+  done = false;
+  stampT = 0;
+  private landed = false;
+  private parts = new Particles();
+  private petals = petalSprites();
+  private seal = tsuzukuSeal(SEAL.size);
+  update(dt: number): void {
+    this.stampT += dt;
+    this.parts.update(dt);
+    if (!this.landed && this.stampT >= PRESS_MS) {
+      this.landed = true;
+      sfx('se_stamp_heavy');
+      game.hitstop(133);
+      game.shake(3, 160);
+      game.flash('#E23B2E', 90, 0.12);
+      for (let i = 0; i < 12; i++)
+        this.parts.burst(SEAL.x, SEAL.y, { count: 1, speed: [40, 120], life: [700, 1200], colors: ['#E23B2E'], gravity: 60, drag: 1.5, shape: 'img', img: this.petals[i % this.petals.length] });
+    }
+    if (this.landed && game.fadeAlpha >= 0.98) this.done = true;
+  }
+  draw(g: Gfx): void {
+    const t = this.stampT;
+    if (t < PRESS_MS) {
+      const k = ease.quadIn(t / PRESS_MS);
+      const r = Math.round((SEAL.size * (0.95 - 0.4 * k)) / 2);
+      g.alpha(0.12 + 0.3 * k, () => g.circle(SEAL.x + 3 - Math.round(3 * k), SEAL.y + 4 - Math.round(4 * k), r, '#1B1420'));
+    } else {
+      const lt = t - PRESS_MS;
+      const sc = lt < 85 ? 1.25 - 0.25 * ease.quadOut(lt / 85) : 1;
+      const w = Math.round(this.seal.width * sc);
+      if (lt < 500) g.alpha(0.3 * (1 - lt / 500), () => g.circle(SEAL.x, SEAL.y, Math.round(SEAL.size / 2 + 2 + lt / 60), '#E8A49C'));
+      g.ctx.drawImage(this.seal, Math.round(SEAL.x - w / 2), Math.round(SEAL.y - w / 2), w, w);
+    }
+    this.parts.draw(g);
+  }
+}
+
+/** Press 「つづく」 over the last picture of chapter 1, and mark the clear. */
+export function* stampTsuzuku(): Co {
+  const w = game.ui.push(new TsuzukuOverlay());
+  yield PRESS_MS + 200;
+  markClear();
+  yield 1800;
+  void w;
 }
 
 // ---- chapter 2: the notebook turns to ② (50_ch2_story 10.16 カット6) ---------------------------

@@ -3,8 +3,8 @@
 // thing on the right page (a sticky card with its icon at 2×, name in 朱,
 // flavour text, effect in pencil). 決定 opens a sticky note with
 // つかう／わたす／すてる: つかう = しゅん uses it himself, わたす = hand it
-// to a companion, picked on a second note that shows each one's HP (with
-// カネナリくん it disappears into his zipper, 10.1). A use that would do
+// to a companion, picked on a second note that shows each one's HP (グソっ君
+// eats it and says what he thinks, 10.1). A use that would do
 // nothing — a heal at full HP, a cure with nothing to cure — is refused
 // and the item kept.
 
@@ -12,7 +12,7 @@ import type { Co } from '../../engine/co';
 import type { Gfx } from '../../engine/gfx';
 import type { Input } from '../../engine/input';
 import { flag, state } from '../../game/state';
-import { getItem, isKeyItem, useItemInField, canUseItemInField } from '../../data/battle';
+import { getItem, isKeyItem, ITEM_TEXT, useItemInField, canUseItemInField } from '../../data/battle';
 import { sfx } from '../../audio';
 import { say } from '../dialog';
 import { drawDigits, drawNumerals } from '../digits';
@@ -54,7 +54,7 @@ export function memoProgress(): string {
     ['flag_errand', '→ 焼きそばのたかし（坂を 上って 右）'],
     ['flag_met_maruyama', '→ 焼くのは 5時の チャイムの あと'],
     ['flag_chime_stopped', '→ チャイムが 止まった？'],
-    ['flag_got_hanko', '→ 公園？ 鐘の 頭の 人'],
+    ['flag_got_hanko', '→ 公園？ でっかい 虫'],
     ['flag_broadcast', '→ モール 迷子センター（北東）'],
     ['flag_mall_entered', '→ 迷子センターは 2F。カギ？'],
     ['flag_got_maigo_key', '→ 2Fの 迷子センターへ'],
@@ -354,9 +354,11 @@ export class ItemsPage implements MenuPage {
     const pages = useItemInField(id, target).map((p) => p.replace(/^(.+)の HPが 0 回復した。$/m, '$1の HPは もう いっぱいだ。'));
     if (!pages.length) return;
     const healed = pages.some((p) => p.includes('回復') || p.includes('すっきり'));
-    if (target === 'kanenari') sfx('se_zipper', { vol: 0.8 });
     if (healed) sfx('se_heal');
     yield* say(pages, { voice: 'sys' });
+    // グソっ君 says what he thinks of it (★2026-09-29: no zipper, he eats it)
+    const says = target === 'kanenari' ? ITEM_TEXT[id]?.kanenariSays : undefined;
+    if (says?.length) yield* say(says, { name: 'グソっ君', voice: 'gusokkun' });
     this.fix(this.slots());
   }
 

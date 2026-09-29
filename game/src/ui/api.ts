@@ -12,7 +12,8 @@
 //   registerNewGameHook(fn)                    runs on 「はじめる」
 //   yield* runGameOver({ boss })               evt_gameover for canLose battles
 //   yield* playNightSkyCut()                   ending cut 6 (cut_night_sky)
-//   yield* playEndingNotebook()                ending cut 7 → 「つづく」 → title
+//   yield* playEndingNotebook()                (chapter 1's notebook; the ending no longer plays it)
+//   yield* stampTsuzuku()                      「つづく」 over the last picture, flag_clear
 //   yield* toTitle()                           back to the title
 //   showPlaceName('夕鳴公園') / notifyItem('item_ramune') / showClock()
 //   skipItemCard('item_hanko_case')          the next pick-up of it makes no HUD note
@@ -110,7 +111,7 @@ export { openSunriseCut, playSunriseCut, type SunriseCut } from './cut_sunrise';
 export { openTsugaoRoom, playTsugaoRoom, prepareTsugaoRoom, TSUGAO_LINES, type TsugaoRoom } from './cut_tsugao';
 export { drawVillageLit, prepareVillageLit } from './cut_village_lit';
 export { runGameOver } from './gameover';
-export { playNightSkyCut, hideNightSky, playEndingNotebook, playEndingNotebookCh2 } from './ending';
+export { playNightSkyCut, hideNightSky, playEndingNotebook, playEndingNotebookCh2, stampTsuzuku } from './ending';
 export { showGuide } from './guide';
 export { showBubble, bubble, drawBubble } from './bubble';
 export { ditherOut, ditherIn } from './transition';

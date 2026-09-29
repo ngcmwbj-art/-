@@ -1,6 +1,6 @@
 // The rooms of 星見台 that can now be entered (02_ch2_index #61): the one
 // script they need (the 2号 greenhouse's door, shut behind you the first
-// time), カネナリくん's flip once per room, and the QA commands
+// time), グソっ君's line once per room, and the QA commands
 //   __game.cmd.r2('fumi', 2)   jump into a room (at its door) in a stage; r2() lists them
 //   __game.cmd.r2Doors()       every door between the village and the rooms: target, arrival, a way back
 //   __game.cmd.r2Finds(reset)  the finds and whether they were taken (reset = 1 clears them)
@@ -19,7 +19,7 @@ import { R2_AFTER, R2_FIND, R2_FLIPS, R2_MISC, R2_OBJ } from '../../data/text/ho
 import { KANENARI_FLIPS_HOSHI } from '../../data/text/hoshi_npcs';
 import { se } from './compat';
 
-// カネナリくん's flips of the rooms join the chapter's table (keys hoshi_r_<room>, npcs.ts hoshiPlaceKey)
+// グソっ君's lines of the rooms join the chapter's table (keys hoshi_r_<room>, npcs.ts hoshiPlaceKey)
 Object.assign(KANENARI_FLIPS_HOSHI, R2_FLIPS);
 
 /** 2号ハウス: 『ハチ 飼育中 あけたら しめて』 — the first time in, he shuts the door. */

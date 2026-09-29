@@ -15,7 +15,8 @@ import { registerWorldFx } from '../world/fx';
 import { fushigiCount, fushigiDone } from '../world/fushigi';
 import { stampFushigi } from './stamp';
 import * as T from '../data/text/events';
-import { KAITENYAKI_AGAIN, KAITENYAKI_ANSWER, KAITENYAKI_FLIP, KAITENYAKI_KEY, KAITENYAKI_PRESSED, KAITENYAKI_SEEN, YAKINAMES, YAKINAMES_KANA } from '../data/text/mall';
+import { DEEPSEA_POSTER_KANENARI, KAITENYAKI_AGAIN, KAITENYAKI_ANSWER, KAITENYAKI_FLIP, KAITENYAKI_KEY, KAITENYAKI_PRESSED, KAITENYAKI_SEEN, YAKINAMES, YAKINAMES_KANA } from '../data/text/mall';
+import { IOBJ } from '../data/maps/interior_text';
 import { addMp, eventBattle, F, getKeyItem } from './lib';
 import { puff, sparkle } from './fx';
 import { bossEyes, bossField, BOSS_FIELD } from './art';
@@ -43,11 +44,15 @@ registerScript('evt_mall_enter', function* (): Co {
   yield* msg(T.MALL_ENTER);
   yield* zoomOut(z, 420);
   if (flag('flag_kanenari_joined')) {
+    // グソっ君's first mall: the shock (his eyes flash), every shop in one box
     const k = F().follower;
     if (k) {
       k.data.scripted = true;
-      k.tempPose = 'flip_hold';
-      sfx('se_flip');
+      k.dir = 'down';
+      k.tempPose = 'shock';
+      k.hop(3, 160);
+      sfx('se_emote', { vol: 0.6 });
+      yield 250;
     }
     yield* msg(T.MALL_ENTER_FLIP);
     if (k) {
@@ -98,9 +103,9 @@ registerScript('evt_kaitenyaki', function* (): Co {
     if (kn) {
       kn.data.scripted = true;
       kn.tempPose = 'flip_hold';
-      sfx('se_flip');
     }
-    yield* msg(KAITENYAKI_FLIP(k === 1));
+    // 回転焼き (the third name) is what グソっ君 calls it too
+    yield* msg(KAITENYAKI_FLIP(k === 2));
     if (kn) {
       kn.tempPose = null;
       delete kn.data.scripted;
@@ -111,8 +116,29 @@ registerScript('evt_kaitenyaki', function* (): Co {
   F().applyAudio(false);
 });
 
+// ---------------------------------------------------------------- M2: the old 『ふしぎな 深海生物展』 poster
+
+/**
+ * In the far west corner of the food court (★2026-09-29, 04_gusokkun_plan
+ * 2章 9): a hint about where グソっ君 came from that answers nothing. With
+ * him in the party, the first time, he stops in front of it: one word.
+ */
+registerScript('obj_deepsea_poster', function* (): Co {
+  sfx('se_examine');
+  yield* msg(String(IOBJ.obj_deepsea_poster));
+  const k = F().follower;
+  if (!flag('flag_kanenari_joined') || !k || !k.visible || flag('flag_deepsea_poster')) return;
+  setFlag('flag_deepsea_poster', 1);
+  k.data.scripted = true;
+  k.dir = 'up';
+  yield 500;
+  yield* msg(DEEPSEA_POSTER_KANENARI);
+  delete k.data.scripted;
+});
+
 // ---------------------------------------------------------------- 5.17 evt_maigo_door
 
+/** グソっ君 says a line, talking with his hands (the pose keeps the old name 'flip_hold'). */
 function* flip(text: string): Co {
   const k = F().follower;
   if (!flag('flag_kanenari_joined') || !k) {
@@ -121,7 +147,6 @@ function* flip(text: string): Co {
   }
   k.data.scripted = true;
   k.tempPose = 'flip_hold';
-  sfx('se_flip');
   yield* msg(text);
   k.tempPose = null;
   delete k.data.scripted;
@@ -158,7 +183,7 @@ registerScript('trig_maigo_door_rest', function* (): Co {
 /**
  * trig_maigo_door_rest (5.17 「扉の前に立ったとき、一度だけ」): after the door is
  * opened, once Minato has stepped away from it, the next time he stands at
- * the door (x18–20, y2–3) カネナリくん suggests the bench.
+ * the door (x18–20, y2–3) グソっ君 suggests the bench.
  */
 const REST_KEY = 'trig:map_mall_2f:trig_maigo_door_rest';
 const rest = { armed: false };
@@ -281,6 +306,8 @@ registerScript('evt_boss_intro', function* (): Co {
   // its face stays up in the close-up; the window keeps to the bottom
   forceBoxPos('bottom');
   yield* msg(again ? T.BOSS_B_AGAIN : T.BOSS_B);
+  // グソっ君, quietly (the first time only)
+  if (!again && flag('flag_kanenari_joined')) yield* msg(T.BOSS_KANENARI);
   forceBoxPos(null);
   setFlag('flag_boss_intro_seen', 1);
   // one chime note, E5

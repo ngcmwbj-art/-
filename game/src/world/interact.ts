@@ -72,17 +72,17 @@ export function* interactActor(f: FieldScene, a: Actor): Co {
   const p = f.player;
   if (a.kind === 'follower') {
     // a map may stage him itself (the mall's roof: the handshake, 10_narrative 7.18);
-    // its runDefault is the ordinary flip
+    // its runDefault is his ordinary line of the place
     const own = getScript('kanenari_' + f.map.id);
     if (own) {
       yield* own(
         ctxFor(f, 'npc_kanenari', function* () {
-          yield* kanenariFlip(f, a);
+          yield* kanenariTalk(f, a);
         }),
       );
       return;
     }
-    yield* kanenariFlip(f, a);
+    yield* kanenariTalk(f, a);
     return;
   }
   if (a.kind === 'restored') {
@@ -185,26 +185,36 @@ function* talkTable(id: string, table: TalkTable | undefined): Co {
   yield* runMsg(table[key], id);
 }
 
-/** Kanenari's flip board by place (6.17). */
-function* kanenariFlip(f: FieldScene, a: Actor): Co {
+/**
+ * グソっ君's line of the place (6.17; ★2026-09-29 the flip board is gone —
+ * he talks in the ordinary window as @npc_kanenari, raising a hand as he
+ * speaks). Each place's line once (`flag_kanenari_flip_<key>`, the flag
+ * names kept), then 「いつもの」 in turn. The texts are town_text.ts'
+ * KANENARI_FLIPS / KANENARI_USUAL (a page without a speaker is his).
+ */
+function* kanenariTalk(f: FieldScene, a: Actor): Co {
   faceToward(a, f.player);
   const key = placeKey(f);
-  snd.se('se_flip');
-  const seenFlag = `flag_kanenari_flip_${key}`;
-  if (key && KANENARI_FLIPS[key] && !flag(seenFlag)) {
-    setFlag(seenFlag, 1);
-    yield* runMsg(KANENARI_FLIPS[key]);
-    if (key === 'koban' && f.map.id === 'map_koban')
-      yield* runMsg(`@npc_tsurumi
+  if (a.sprite.anims?.flip) a.playAnim('flip');
+  try {
+    const seenFlag = `flag_kanenari_flip_${key}`;
+    if (key && KANENARI_FLIPS[key] && !flag(seenFlag)) {
+      setFlag(seenFlag, 1);
+      yield* runMsg(KANENARI_FLIPS[key], 'npc_kanenari');
+      if (key === 'koban' && f.map.id === 'map_koban')
+        yield* runMsg(`@npc_tsurumi
 その節は 失礼 いたしました！`);
-    return;
+      return;
+    }
+    const n = flag('flag_kanenari_usual');
+    setFlag('flag_kanenari_usual', n + 1);
+    yield* runMsg(KANENARI_USUAL[n % KANENARI_USUAL.length], 'npc_kanenari');
+  } finally {
+    if (a.anim === 'flip') a.anim = null;
   }
-  const n = flag('flag_kanenari_usual');
-  setFlag('flag_kanenari_usual', n + 1);
-  yield* runMsg(KANENARI_USUAL[n % KANENARI_USUAL.length]);
 }
 
-/** Place key for Kanenari's flips (30_level_art 1.6). */
+/** Place key for グソっ君's line of the place (30_level_art 1.6). */
 export function placeKey(f: FieldScene): string {
   const m = f.map.id;
   const x = f.player.tileX;

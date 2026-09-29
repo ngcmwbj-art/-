@@ -927,14 +927,14 @@ const BOARD = mkFrames(2, 34, 28, (p, k) => {
   p.rect(1, 1, 32, 20, P.woodLt);
   p.strokeRect(1, 1, 32, 20, P.woodDark);
   p.rect(1, 0, 32, 2, P.leafDeep);
-  // four posters: retirement ceremony (kanenari), bon odori, lost cat, radio calisthenics
+  // four posters: ユウナリ's closing-down sale (the mall's bell mark, last year's), bon odori, lost cat, radio calisthenics
   const post = (x: number, y: number, bg: string, art: (px: number, py: number) => void) => {
     p.rect(x, y, 7, 8, bg);
     art(x, y);
     p.set(x + 3, y, P.red);
   };
   post(3, 4, P.gold, (x, y) => {
-    p.ellipse(x + 3, y + 3, 2, 2, P.brass); // the bell (Kanenari)
+    p.ellipse(x + 3, y + 3, 2, 2, P.brass); // the bell (the mall's mark)
     p.set(x + 3, y + 5, P.sun);
     printLines(p, x + 1, y + 6, 5, 1, P.verm, 1);
   });

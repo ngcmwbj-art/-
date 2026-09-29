@@ -171,8 +171,8 @@ export const OBJ: Record<string, StageText> = {
 背もたれに 『夕鳴信用金庫』。
 夕日で 熱い。`,
   obj_poster_board: `@narr
-『夕鳴町PR大使 カネナリくん
-引退セレモニー』。{w=300}
+『ショッピングプラザ・ユウナリ
+閉店セール』。{w=300}
 去年の 日付だ。`,
   obj_postbox: {
     s0: `@narr
@@ -336,7 +336,7 @@ LEDの 時計が 『17:00』。{w=300}
   obj_semi_shell: `@narr
 セミの ぬけがら。{w=300}
 背中が きれいに 割れている。
-中の人は、もう いない。`,
+中身は、もう 飛んで いった。`,
   obj_kaba: `@narr
 カバの 遊具。{w=300}
 口の 中が すべり台に なっている。
@@ -470,7 +470,7 @@ LEDの 時計が 『17:00』。{w=300}
   obj_balloon_husk: `@narr
 植え込みの 中に、しぼんだ
 風船。{w=300}『ユウナリ』と、
-鐘の 顔が 描いてある。`,
+鐘の マークが 描いてある。`,
   obj_ojigi_restored: `@narr
 自販機は、まっすぐ 立っている。{w=300}
 ボタンを 押してみた。
@@ -607,15 +607,13 @@ export const TALK: Record<string, TalkTable> = {
 ……同じ絵が 12枚に なった。{w=300}
 これ、研究って 言える？`,
     s2_2: `@npc_sae
-あ、カネナリくん。{w=300}
-……1年前、握手 したよ。
+あ、しゅん。{w=300}……それ、グソクムシ？
+水族館で 見た。
 ?? flag_kanenari_joined
-@flip
-おぼえてます。
-（3人目の 人）
+@npc_kanenari
+わいとちゃう……と 思うで。
 @npc_sae
-3人しか いなかったの？{w=300}
-……じゃあ、覚えてて 当然か。`,
+……自信 ないんだ。`,
     s2_3: `@npc_sae
 影だけ 動いてるの。北東に。{w=300}
 13枚目は、影を 描こうかな。`,
@@ -642,10 +640,11 @@ export const TALK: Record<string, TalkTable> = {
 ときどき 聞こえる。{w=300}
 ……夜の ほうから。`,
     s2_2: `?? flag_kanenari_joined
-@flip
-（むこうは、いつも 夜です）
+@npc_kanenari
+むこう、ずっと 夜やな。{w=300}
+……深い 海みたいや。
 @npc_jk
-……ゆるキャラが 言うと、
+……深海の 生き物が 言うと、
 なんか 説得力 あるね。`,
   },
   npc_chugaku: {
@@ -704,7 +703,7 @@ export const TALK: Record<string, TalkTable> = {
     s0_2: `@npc_madam
 コタロウって いうの。{w=300}
 人見知りだけど、
-ゆるキャラには なつくのよ。`,
+よろいの ある 子には なつくのよ。`,
     s1_1: `@npc_madam
 今日 この子、半音 低く
 吠えるのよ。{w=300}風邪かしら。{w=300}
@@ -724,8 +723,12 @@ export const TALK: Record<string, TalkTable> = {
     s2_2: `@npc_madam
 あら、コタロウが しっぽ
 振ってる。{w=300}
-ゆるキャラ、好きなのよ。
-/
+よろいの ある 子、好きなのよ。
+?? flag_kanenari_joined
+@npc_kanenari
+おおきに。{w=300}わいも、
+ふわふわの 子は 好きやで。
+@npc_madam
 ……わたしだって、負けない！`,
   },
   npc_kotaro: {
@@ -749,8 +752,9 @@ export const TALK: Record<string, TalkTable> = {
 夕日が 沈まないように、
 砂で せきとめてるの。`,
     s1_2: `@npc_sand_girl
-かねの 人、ずーっと 回ってるよ。{w=300}
-目が まわらないのかな。`,
+あっちで、でっかい 虫さんが
+ひっくりかえってるよ。{w=300}
+おなか、すいてるのかな。`,
     s2_1: `@npc_sand_girl
 ……せきとめ すぎた？`,
     s2_2: `@npc_sand_girl
@@ -882,9 +886,12 @@ export const TALK: Record<string, TalkTable> = {
 動かない。`,
     s2_2: `?? flag_kanenari_joined
 @narr
-カラスは カネナリくんを 見て、
-『カア』と 1回だけ 鳴いた。{w=300}
-……すべった ときの 声だ。`,
+カラスは グソっ君を 見て、
+首を かしげた。{w=300}
+……食べられるか、考えている 顔だ。
+@npc_kanenari
+食われへんで。{w=300}
+よろい、かたいからな。`,
   },
   npc_cow_statue: {
     s0: `@narr
@@ -945,51 +952,58 @@ export const MAMEKICHI_DONE: TalkTable = {
 ……聞こえないのに、するんだよ。`,
 };
 
-/** Kanenari's place flips (6.17). */
+/**
+ * グソっ君's word by place (6.17, 04_gusokkun_plan 4): once per place
+ * (flag_kanenari_flip_<key>; the ids keep the old names), then the three
+ * usual ones in turn. He talks like anyone else now (@npc_kanenari).
+ */
 export const KANENARI_FLIPS: Record<string, string> = {
-  town: `@flip
-モールは 北東です。
-（影が 教えてくれます）`,
-  home: `@flip
-おじゃま しません。
-（ゆるキャラ なので）`,
-  meat: `@flip
-焼きそばは 食べられません。
-（中が 暗いので）`,
-  hinoya: `@flip
-おばあさんには 毎年
-年賀状を もらいます。（去年も）`,
-  photo: `@flip
-（……）`,
-  koban: `@flip
-職務質問 されたことが あります。
-（中の人に ついて）`,
-  laundry: `@flip
-着ぐるみは 乾燥機 禁止です。
-（ちぢむので）`,
-  jizo: `@flip
-となりに 立つと、
-ちょっと 仲間っぽいです。`,
-  park: `@flip
-ここで 1年、回って いました。
-（だれも 止めて くれなかった）`,
-  crossing: `@flip
-（むこうは、いつも 夜です）`,
-  mall: `@flip
-ここの 風船、ぼくの 顔でした。
-（天井に まだ 1つ）`,
-  mall_2f: `@flip
-（……この先、知っている
-気がします）`,
+  town: `@npc_kanenari
+影が、みんな 北東 向いとるな。{w=300}
+海の 底やと、影も できへんかったで。`,
+  home: `@npc_kanenari
+しゅんの 家、ええ においや。{w=300}
+げんかんの すみ、つめたくて
+落ち着くわ。`,
+  meat: `@npc_kanenari
+ここの 焼きそばは、{w=300}
+わいの 命の 恩人や。`,
+  hinoya: `@npc_kanenari
+飴 もろた。{w=300}
+……これ、どうやって 食うん？`,
+  photo: `@npc_kanenari
+写真は あかん。{w=300}
+まぶしいねん。`,
+  koban: `@npc_kanenari
+職務質問 されたわ。{w=300}なんの 生き物か
+聞かれて、わいも 分からんかった。`,
+  laundry: `@npc_kanenari
+乾燥機は 勘弁してや。{w=300}
+しめっとる ほうが 好きやねん。`,
+  jizo: `@npc_kanenari
+じっと するんは 得意やで。{w=300}
+何年でも いけるわ。`,
+  park: `@npc_kanenari
+ここで 倒れとったんや。{w=300}
+しゅんが おらんかったら、今ごろ……`,
+  crossing: `@npc_kanenari
+むこう、ずっと 夜やな。{w=300}
+……深い 海みたいや。`,
+  mall: `@npc_kanenari
+風船、あれ 急に われるやろ。{w=300}
+こわいわ。`,
+  mall_2f: `@npc_kanenari
+動く 階段て、ほんまか？{w=300}
+止まっとったら、ただの 階段やん。`,
 };
 
 export const KANENARI_USUAL = [
-  `@flip
-なかのひとなど いません。`,
-  `@flip
-夕鳴町を よろしく
-おねがいします。`,
-  `@flip
-（ちゃんと 見て もらえると、
-うれしいです）`,
+  `@npc_kanenari
+ダンゴムシちゃうで。{w=300}
+エビや カニの なかまや。`,
+  `@npc_kanenari
+陸って、おもろいな。`,
+  `@npc_kanenari
+ちゃんと 見て もらえると、{w=300}
+うれしいもんやな。`,
 ];

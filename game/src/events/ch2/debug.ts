@@ -103,7 +103,7 @@ export const CHAIN2: Beat2[] = [
   { beat: 'tomato', steps: [set('flag_ch2_sune_beaten'), taken('sym_hoshi_house_00', 'evt:evt_ch2_house')], at: ['map_hoshi_house', 4, 2, 'right'], desc: '★はなまるトマト（ふしぎ06 → 段階1）' },
   {
     beat: 'gen',
-    // (flag_ch2_mushi: カネナリくん's invitation at the house door, 02 #64)
+    // (flag_ch2_mushi: グソっ君's invitation at the house door, 02 #64)
     steps: [set('flag_fushigi_ch2_06', 'flag_ch2_got_tomato', 'flag_ch2_house_exit', 'flag_ch2_mushi'), keys('item_hanamaru_tomato'), val('flag_ch2_stage', 1)],
     at: ['map_hoshimidai', 45, 38, 'right'],
     desc: '東の台地への坂道（evt_ch2_gen_stop）',

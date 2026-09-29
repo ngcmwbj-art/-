@@ -69,7 +69,8 @@ function commandIcons(s: BattleScene, u: PartyUnit): Icon[] {
     const ready = PR_ORDER.filter((sk) => u.m.skills.includes(sk) && !(u.ct[sk] > 0)).length;
     return [
       { id: 'tackle', name: 'タックル' },
-      { id: 'pr', name: 'PR活動', sub: `つかえる ${ready}` },
+      // 「PR活動」→「おてつだい」（★2026-09-29 グソっ君。04_gusokkun_plan 5章。id は 'pr' のまま）
+      { id: 'pr', name: 'おてつだい', sub: `つかえる ${ready}` },
       { id: 'item', name: 'もちもの', sub: `${usableItems().reduce((a, b) => a + b.count, 0)}こ` },
       { id: 'guard', name: 'まもる' },
     ];

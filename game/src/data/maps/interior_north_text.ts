@@ -391,9 +391,9 @@ export const NOBJ: Record<string, StageText> = {
 壁に、色あせた うちわ。{w=300}
 『ユウナリ 開店10周年』。
 /
-描いてある 顔は、
-どこかで 見たような
-鐘の 顔。`,
+描いてあるのは、
+ユウナリの 鐘の マーク。{w=300}
+骨が 1本、折れている。`,
   obj_yb_calendar: `@narr
 酒蔵の カレンダー。{w=300}
 9月の ページに、
@@ -721,8 +721,9 @@ export const NTALK: Record<string, TalkTable> = {
 うちの 息子も 昔、
 ユウナリで 迷子に なってね。
 /
-迎えに 行ったら、着ぐるみに
-うちわで あおいで もらってたよ。`,
+迎えに 行ったら、迷子センターの
+人に、うちわで あおいで
+もらってたよ。`,
   },
   // 山吹酒店の黒猫（ビールケースの上で寝ている）
   npc_sake_cat: {
@@ -877,31 +878,30 @@ export const FREEZER_AFTER = `@narr
 たんかんの 札だけが、
 奥に 残っている。`;
 
-/** うちわ at the sake shop, with カネナリくん in the party (once). */
-export const UCHIWA_FLIP = `@flip
-（…………）
-/
-（若いころの 仕事です）`;
+/** うちわ at the sake shop, with グソっ君 in the party (once). */
+export const UCHIWA_FLIP = `@npc_kanenari
+これで あおぐと、風が 来るんか。{w=300}
+……海やと、水が ゆれる だけやで。`;
 
-// ================================================================ カネナリくん's flips in the rooms (once each)
+// ================================================================ グソっ君's word in the rooms (once each; ids keep the old names)
 
 export const NFLIPS: Record<string, string> = {
-  map_shingo: `@flip
-みかんは むけません。
-（手が 大きいので）`,
-  map_shodo: `@flip
-フリップの 字は、自分で 書いてます。
-（ほめて ください）`,
-  map_tofu: `@flip
-豆腐は 持てません。
-（くずれるので）`,
-  map_clock: `@flip
-ぼくの 頭も、時間を
-知らせる ほうです。（鐘なので）`,
-  map_cafe: `@flip
-クリームソーダは 飲めません。
-（ストローが 届かないので）`,
-  map_sake: `@flip
-お酒は 飲めません。
-（着ぐるみ なので）`,
+  map_shingo: `@npc_kanenari
+みかんて、皮 むくんか。{w=300}
+……わいも 脱皮 するで。`,
+  map_shodo: `@npc_kanenari
+筆て、ええな。{w=300}
+わいの 触角と そっくりや。`,
+  map_tofu: `@npc_kanenari
+この 白いの、ぷるぷるやな。{w=300}
+……クラゲの 親戚か？`,
+  map_clock: `@npc_kanenari
+海の 底には、時計 なかったで。{w=300}
+朝も 夜も、ずっと 同じ 色や。`,
+  map_cafe: `@npc_kanenari
+しゅわしゅわの 上に、アイス……！？{w=300}
+陸の 人、天才か。`,
+  map_sake: `@npc_kanenari
+お酒は、大人の 飲みもんやて。{w=300}
+……わい、大人なんやろか。`,
 };

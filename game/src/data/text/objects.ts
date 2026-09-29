@@ -18,8 +18,8 @@ export const OBJ_TEXT: Record<string, StageText> = {
 駐車場の ほうへ 続いている。`,
   // 7.8 掲示板のポスター
   obj_poster_board: `@narr
-『夕鳴町PR大使 カネナリくん
-引退セレモニー』。{w=300}
+『ショッピングプラザ・ユウナリ
+閉店セール』。{w=300}
 去年の 日付だ。`,
   // 7.12 M1 フロア案内板: the floor list is broken between the floors (a
   // line mustn't start with 「・」)
@@ -36,10 +36,10 @@ export const OBJ_TEXT: Record<string, StageText> = {
 カートたちは 家出中 らしい。`,
 };
 
-/** 7.8 obj_poster_board while Kanenari-kun is in the party. */
-export const POSTER_WITH_KANENARI = `@narr
-カネナリくんは、ポスターを
-見ないように している。`;
+/** 7.8 obj_poster_board: グソっ君's word after the poster, while he is in the party (the id keeps the old name). */
+export const POSTER_WITH_KANENARI = `@npc_kanenari
+閉店て、店が 閉まるんか。{w=300}
+……海は、年中 開いとるで。`;
 
 /** 8.9 obj_cart_corral after fushigi_09. */
 export const CART_CORRAL_DONE = `@narr

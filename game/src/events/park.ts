@@ -1,9 +1,10 @@
-// 夕鳴公園: evt_kanenari_meet (5.11), evt_kanenari_join (5.12) and the ★
+// 夕鳴公園: evt_kanenari_meet (5.11 — グソっ君, fallen and hungry, and the
+// leftover yakisoba), evt_kanenari_join (5.12), the lesson (5.12b) and the ★
 // broadcast that turns the town to stage 2 (evt_maigo_broadcast 5.13).
 
 import type { Co } from '../engine/co';
 import { game } from '../engine/game';
-import { flag, setFlag } from '../game/state';
+import { flag, removeItem, setFlag, state } from '../game/state';
 import { joinKanenari, syncProgressSkills } from '../data/battle';
 import { startBattle } from '../battle/api';
 import { LESSON_BATTLE, playHankoLearn } from '../battle';
@@ -13,61 +14,88 @@ import { duckMusic, playAmbient, playBgm, sfx, stopAmbient, stopBgm } from '../a
 import { actor, despawn, face, mapAudio, msg, refreshFollower, registerScript, setFollowerVisible, shadowSwing, stage, walk } from '../world/api';
 import * as T from '../data/text/events';
 import { besideToward, F, followerSpot, holdBgm, panBack, panTo, settle, tileRoute } from './lib';
-import { bellGlow, ring, sparkle, voiceLine } from './fx';
+import { sparkle, voiceLine } from './fx';
 import { zoomIn, zoomOut } from './stage';
 import { registerWorldFx } from '../world/fx';
 
-const BELL_DY = -20;
-
 // ---------------------------------------------------------------- 5.11 evt_kanenari_meet
 
+/**
+ * ★2026-09-29 (04_gusokkun_plan 2章 3, 10_narrative 5.11): グソっ君 lies on his
+ * back under the clock tower, his little legs paddling slowly — too hungry
+ * to move. しゅん gives him the leftover yakisoba from 焼きそばのたかし (the
+ * key item goes); he eats, freezes, and the first land food hits him. He
+ * gives his name, asks to come along, and joins — and はなまる rises in the
+ * case (しゅん saw him well again). No join battle any more.
+ */
 registerScript('evt_kanenari_meet', function* (): Co {
   if (flag('flag_kanenari_joined')) return;
   const f = F();
   const k = actor('npc_kanenari');
   if (!k) return;
-  // he stops going round and turns to Minato
   k.data.scripted = true;
-  k.anim = null;
-  k.moving = false;
-  k.path = [];
-  face('npc_kanenari', 'player');
   face('player', 'npc_kanenari');
   f.player.moving = false;
-  yield 350;
-  // the flip board goes up — and on the pause it is turned over: 「（引退しました）」
-  k.playAnim('flip');
-  sfx('se_flip');
-  yield 220;
-  let turned = false;
-  const turn = () => {
-    if (turned) return;
-    turned = true;
-    k.playAnim('flip_turn');
-    sfx('se_flip');
-  };
-  game.scripts.run(
-    (function* (): Co {
-      yield 820;
-      turn();
-    })(),
-  );
-  yield* msg(T.KANENARI_MEET);
-  turn();
-  // the PR pose; the clapper of the bell sways — and the PR starts (the
-  // battle's own first line says it: 「カネナリくんが PRを はじめた！」)
-  k.playAnim('pose');
-  sfx('se_flip', { vol: 0.5, pitch: 1.3 });
-  yield 650;
+  yield 250;
+  const first = !flag('flag_met_kanenari');
   setFlag('flag_met_kanenari', 1);
-  k.anim = null;
-  const r = yield* startBattle({ enemies: ['enemy_kanenari'], music: 'bgm_battle', background: 'bg_kanenari', canLose: false });
-  if (r !== 'win') {
+  yield* msg(first ? T.KANENARI_MEET : T.KANENARI_MEET_AGAIN);
+  if (!state.inventory.includes('item_urenokori')) {
+    yield* msg(T.KANENARI_NOFOOD);
     delete k.data.scripted;
     return;
   }
+  if ((yield* msg(T.KANENARI_GIVE_Q)) !== 0) {
+    yield* msg(T.KANENARI_GIVE_NO);
+    delete k.data.scripted;
+    return;
+  }
+  yield* kanenariEats();
   yield* kanenariJoin();
 });
+
+/** The leftover handed over, eaten — the freeze, and the shock. */
+function* kanenariEats(): Co {
+  const f = F();
+  const k = actor('npc_kanenari');
+  const p = f.player;
+  if (!k) return;
+  // しゅん crouches and holds the pack out; it is gone from the bag
+  removeItem('item_urenokori');
+  setFlag('flag_gave_urenokori', 1);
+  p.tempPose = 'give';
+  sfx('se_paper_bag');
+  yield 450;
+  p.tempPose = null;
+  // the smell: he rolls over and is up on his hind legs in one go
+  k.pose = null;
+  k.dir = 'down';
+  face('npc_kanenari', 'player');
+  k.hop(5, 240);
+  sfx('se_step_kanenari');
+  yield 320;
+  // he eats — munch, munch (the pack at his mouth)
+  k.playAnim('eat', true);
+  for (let i = 0; i < 4; i++) {
+    sfx('se_paper_bag', { vol: 0.25, pitch: 1.5 + i * 0.05 });
+    yield 420;
+  }
+  // …and freezes
+  k.anim = null;
+  k.tempPose = 'eat';
+  yield 700;
+  // the shock: his eyes flash (shock_pack), a jolt, the first land food
+  k.tempPose = 'shock_pack';
+  k.hop(3, 160);
+  sfx('se_emote');
+  k.showEmote('exclaim', 1100);
+  yield 450;
+  yield* msg(T.KANENARI_SHOCK);
+  k.tempPose = 'eat';
+  yield* msg(T.KANENARI_SEA);
+  k.tempPose = null;
+  face('npc_kanenari', 'player');
+}
 
 // ---------------------------------------------------------------- 5.12 evt_kanenari_join
 
@@ -76,34 +104,32 @@ function* kanenariJoin(): Co {
   const k = actor('npc_kanenari');
   if (k) {
     k.data.scripted = true;
+    k.pose = null;
     face('npc_kanenari', 'player');
     face('player', 'npc_kanenari');
     yield 200;
-    // the bell glows, twice — it does not ring
-    k.playAnim('glow');
-    for (let i = 0; i < 2; i++) {
-      bellGlow(k.x, k.y + BELL_DY, 560);
-      ring(k.x, k.y + BELL_DY, '#FFE7A3', 480);
-      sfx('se_glint', { vol: 0.45, pitch: 1 + i * 0.12 });
-      yield 520;
-    }
-    sparkle(k.x + 3, k.y + BELL_DY - 5);
-    yield 220;
-    k.anim = null;
-    k.playAnim('flip');
-    sfx('se_flip');
-    yield 220;
+    // talking with a hand up
+    if (k.sprite.anims?.flip) k.playAnim('flip');
   }
-  yield* msg(T.KANENARI_JOIN_FLIP);
-  if (k) k.anim = null;
+  yield* msg(T.KANENARI_NAME);
+  if (k) {
+    k.anim = null;
+    // he is glad: his eyes flash twice
+    k.playAnim('glow');
+    sparkle(k.x + 3, k.y - 30);
+    sfx('se_glint', { vol: 0.45, pitch: 1.1 });
+  }
   playBgm('bgm_jingle_join');
   // he is still standing here as himself: the party's follower waits,
-  // hidden, until he has walked round into its place (no second Kanenari)
+  // hidden, until he has walked round into its place (no second one)
   if (k) setFollowerVisible(false);
   joinKanenari();
   setFlag('flag_kanenari_joined', 1);
   syncProgressSkills();
   yield* msg(T.KANENARI_JOIN_SYS);
+  if (k) k.anim = null;
+  // はなまる: しゅん saw him well again (the hanko case warms, the new hanko rises)
+  yield* msg(T.KANENARI_HANAMARU);
   yield* playHankoLearn('skill_hanamaru');
   // he falls in behind Minato: walks round to the follower's place, and
   // the follower takes over right there
@@ -130,10 +156,10 @@ function* kanenariJoin(): Co {
 // ---------------------------------------------------------------- 5.12b evt_kn_lesson（練習の戦闘）
 
 /**
- * 2026-09-28, the client: the first fight after he joins is a lesson — Kanenari-kun
- * teaches たたく → ハンコ → ツッコミ → みました on his cardboard 練習台 (battle/lesson.ts,
- * 20 10.6). Once per game; on a device where chapter 1 was cleared the flip asks
- * first (「知ってる」 skips it).
+ * 2026-09-28, the client: the first fight after he joins is a lesson — グソっ君
+ * teaches たたく → ハンコ → ツッコミ on his cardboard 練習台, and しゅん shows him
+ * みました (battle/lesson.ts, 20 10.6). Once per game; on a device where chapter 1
+ * was cleared he asks first (「知ってる」 skips it).
  */
 function* knLesson(): Co {
   if (flag('flag_kn_lesson')) return;
@@ -146,9 +172,7 @@ function* knLesson(): Co {
     p.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
     k.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'left' : 'right') : dy > 0 ? 'up' : 'down';
     yield 200;
-    k.playAnim('flip');
-    sfx('se_flip');
-    yield 220;
+    if (k.sprite.anims?.flip) k.playAnim('flip');
   }
   let skip = false;
   if (chapter1Cleared()) {
@@ -264,13 +288,12 @@ function* maigoBroadcast(): Co {
   );
   yield* msg(T.BROADCAST_SHADOWS);
   chain();
-  // カネナリくん points the way: north-east, where the shadows point
+  // グソっ君 points the way: north-east, where the shadows point
   const k = f.follower;
   if (k) {
     k.data.scripted = true;
     k.dir = 'right';
     k.tempPose = 'point';
-    sfx('se_flip');
     yield 250;
   }
   yield* msg(T.BROADCAST_FLIP);

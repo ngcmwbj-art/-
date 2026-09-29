@@ -1,5 +1,6 @@
 // Chapter-2 party actions (51 3.5, 5.1, 6章, 8.3, 14.1, 14.7, 14.14):
-// the おつかれさま hanko, the Lv7 はみだしペケ, the Lv6 「コン」 of the bell,
+// the おつかれさま hanko, the Lv7 はみだしペケ, the Lv6 「半分だけ まるく なれた」
+// of グソっ君's まるくなる (★2026-09-29; was the bell's 「コン」),
 // the shock a 打 hit on ビリビリ番 gives back, and the new items (the boiled
 // corn for everyone, 梅干し, 回覧板の朱肉, ハトの名刺 on ヘノヘノ課長).
 
@@ -222,25 +223,25 @@ export function* pekeHamidashi(s: BattleScene, u: PartyUnit, e: EnemyUnit, dealt
   return killed;
 }
 
-// ---- かねを鳴らす Lv6 (3.5) ----------------------------------------------------------------------
+// ---- まるくなる Lv6 (3.5; skill_kane) ---------------------------------------------------------------
 
-/** Lv6 and up: one action in four, the bell gives a small 「コン」 (キレ+2). */
+/** Lv6 and up: one action in four, グソっ君 curls up halfway (キレ+2). The names keep the old 'kane'. */
 export function kaneKon(s: BattleScene, u: PartyUnit): boolean {
   if (u.id !== 'kanenari' || u.m.level < 6) return false;
   if (s.memo.forceKon) return s.memo.forceKon > 0;
   return rng.next() < 0.25;
 }
 
-/** The small gold ring off the bell's rim (#FFE7A3, r 4 → 12, 200ms). */
+/** A small soft puff off his shell as it half curls (a pale ring, r 4 → 12, 200ms; a soft ポフ, no bell). */
 export function konRing(s: BattleScene, x: number, y: number): void {
-  s.sfx('se_h_bell_kon');
+  s.sfx('se_hit_pofu', { vol: 0.7, pitch: 0.8 });
   s.addFx({
     layer: 'top',
     dur: 200,
     ui: true,
     draw: (g, t) => {
       const r = 4 + 8 * ease.quadOut(t / 200);
-      g.alpha(1 - (t / 200) * 0.6, () => g.ring(x, y, r, '#FFE7A3'));
+      g.alpha(1 - (t / 200) * 0.6, () => g.ring(x, y, r, '#E8E4F0'));
     },
   });
 }

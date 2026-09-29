@@ -10,6 +10,11 @@
 // rough 「おう！」, the children by name — and he knows Shun from 夕鳴町 (the
 // truck of chapter 1, 10_narrative 6.21), so 〔h0_1〕 is a meeting again. Only
 // the room of cut 7 (ui/cut_tsugao.ts) keeps the calm, polite voice.
+// ★2026-09-29 (カネナリくん→グソっ君): the first time ツガオ sees グソっ君 — 〔h0_1〕,
+// or the delivery's 〔ツガオさんに まだ 会っていない〕 — there is one short beat
+// before 「……でっけえ エビ 連れてんな」 and he looks away; グソっ君 doesn't
+// notice (「エビ ちゃうで、グソクムシや！」). Nothing more is said (03_ch3_memo:
+// chapter 3's truth stays unsaid). グソっ君 talks @npc_kanenari, no flips.
 
 export const TSUGAO_NPC: Record<string, Record<string, string>> = {
   npc_tsugao: {
@@ -17,7 +22,15 @@ export const TSUGAO_NPC: Record<string, Record<string, string>> = {
 ……ん？{w=300}
 おう！ 夕鳴町の しゅんじゃ ねえか！
 /
-こんな 山の 上で 会うとはな。
+{w=600}……でっけえ エビ
+連れてんな。
+@narr
+ツガオは、ふいっと
+フロントガラスの ほうを 向いた。
+@npc_kanenari
+エビ ちゃうで、グソクムシや！
+@npc_tsugao
+……こんな 山の 上で 会うとはな。
 {w=300}ここの 野菜も、おれが この
 軽トラで ふもとへ 運んでんだ。
 /
@@ -28,8 +41,8 @@ export const TSUGAO_NPC: Record<string, Record<string, string>> = {
 まだ、急ぐ こたあ ねえ。
 /
 じゃ、つがおちゃん 寝る〜♪
-@flip
-（……寝ました）`,
+@npc_kanenari
+……寝てもうた。`,
     "h0_2": `@narr
 水玉の ナイトキャップの 人が、
 運転席で 寝ている。{w=300}
@@ -59,8 +72,8 @@ export const TSUGAO_NPC: Record<string, Record<string, string>> = {
 ゆうべの おすそわけを、
 配りそこねちゃってさ。{w=300}
 ……焼き芋 食うか？
-@flip
-（8月です）
+@npc_kanenari
+今、8月やで？
 @npc_hirosuke
 わはは！{w=300}夏でも、芋は
 焼ける！ ほかほかだよ。`,
@@ -216,9 +229,9 @@ export const DELI_TEXT: Record<string, string> = {
   "共通1": `@npc_hirosuke
 明るいねえ！{w=300}
 これなら 表札が 読めるよ！
-@flip
-（その メガネ、夜は
-暗いのでは）
+@npc_kanenari
+その メガネ、夜は
+暗ないか？
 @npc_hirosuke
 わはは！ 師匠に もらったからさ、
 外せないんだよ。{w=300}
@@ -237,8 +250,17 @@ export const DELI_TEXT: Record<string, string> = {
 ……時計は、止めて あんのよ。
 {w=300}急がねえ ようにな。`,
   "ツガオさんに まだ 会っていない": `@npc_tsugao
-おう、夕鳴町の しゅんか！{w=300}
-ここの 野菜も、おれが
+おう、夕鳴町の しゅんか！
+/
+{w=600}……でっけえ エビ
+連れてんな。
+@narr
+ツガオは、ふいっと
+フロントガラスの ほうを 向いた。
+@npc_kanenari
+エビ ちゃうで、グソクムシや！
+@npc_tsugao
+……ここの 野菜も、おれが
 ふもとへ 運んでんだ。`,
   "共通2": `@npc_tsugao
 ……ゆうべの おすそわけをな、
@@ -265,8 +287,8 @@ export const DELI_TEXT: Record<string, string> = {
 @narr
 伝票の すみに、小さな 黒い 判。
 {w=300}……かすれて、読めない。
-@flip
-（ぼくは、伝票係です）
+@npc_kanenari
+ほな、わいは 伝票係や。
 @npc_hirosuke
 荷は、ポコシャが かつぐよ。
 {w=300}こいつ、力持ちなんだ！
@@ -357,8 +379,9 @@ export const DELI_TEXT: Record<string, string> = {
 !cue yakiimo
 @sys
 焼き芋を 2つ もらった！
-@flip
-（あとで いただきます）
+@npc_kanenari
+やきいも……！{w=300}
+あとで 食べよ。楽しみや。
 !cue flap
 @npc_piichan
 コケッ！

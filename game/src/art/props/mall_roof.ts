@@ -6,8 +6,10 @@
 // (two tiles wide, like the stairwell in M4's wall);
 // the lift's machine room in the north-west carrying the board
 // 『ようこそ ゆうやけひろば』 (its よ has fallen onto the deck); the
-// little stage of カネナリくん's handshake event (red carpet, 紅白幕, the
-// backdrop, a mic stand with no mic, bunting, two drooping bell balloons);
+// little stage of the mall's old handshake event (red carpet, 紅白幕, the
+// backdrop with the mall's bell mark and 『YUNARI 握手会』, a mic stand with
+// no mic, bunting, two drooping balloons with the smiling bell mark) — where
+// グソっ君 holds his first handshake event (04_gusokkun_plan 2章 8, 案A);
 // the name book on a table beside it; three pipe chairs (one turned away);
 // the queue line taped all the way down to a 『最後尾』 placard; two panda
 // cars on the faded turf (one 故障中, staring at the other); a coin binocular
@@ -63,7 +65,7 @@ function dith(x: number, y: number, t: number, a: string, b: string): string {
   return t > m ? b : a;
 }
 
-/** A deflated bell balloon (the one in the parking lot's hedge, 30 3.5), face turned to `look` (−1 left, 1 right). */
+/** A deflated balloon with the mall's smiling bell mark (the one in the parking lot's hedge, 30 3.5), turned to `look` (−1 left, 1 right). */
 function balloonHusk(look: -1 | 1): HTMLCanvasElement {
   const p = new PixelCanvas(12, 12);
   // a wrinkled, sagging bag hanging from its string
@@ -769,7 +771,7 @@ registerProp('mall_roof_stage', () => {
       p.set(x, y, c);
     }
   p.vline(b0 + 94, Y(7), Y(37), P.concrete);
-  // the bell face (カネナリくん's head as a logo), a little faded
+  // the mall's bell mark (no face: the logo of ユウナリ), a little faded
   const lx = X(166);
   const ly = Y(22);
   p.ellipse(lx, ly, 9, 10, P.gold);
@@ -778,17 +780,13 @@ registerProp('mall_roof_stage', () => {
   for (let i = -8; i <= 8; i++) if (h01(i, 1, 5751) < 0.4) p.set(lx + i, ly - 8 + Math.abs(i) / 3, P.goldPale);
   p.ellipse(lx + 3, ly + 3, 6, 6, P.brass);
   p.ellipse(lx + 1, ly + 1, 6, 6, P.gold);
-  p.set(lx - 4, ly, P.ink);
-  p.set(lx - 4, ly - 1, P.ink);
-  p.set(lx + 3, ly, P.ink);
-  p.set(lx + 3, ly - 1, P.ink);
-  p.hline(lx - 2, lx + 1, ly + 4, P.ink);
-  p.set(lx - 6, ly + 2, P.peach);
-  p.set(lx + 5, ly + 2, P.peach);
+  // the clapper under the rim, a highlight on the shoulder
+  p.rect(lx - 1, ly + 10, 3, 2, P.brassOld);
+  p.set(lx - 4, ly - 4, P.goldPale);
+  p.set(lx - 5, ly - 3, P.goldPale);
   p.rect(lx - 1, ly - 13, 2, 3, P.brass);
-  // the letters
-  tiny(p, 'KANENARI', X(180), Y(10), P.navy);
-  tiny(p, 'KUN', X(215), Y(10), P.verm);
+  // the letters: 『YUNARI』 (the mall) over 『握手会』
+  tiny(p, 'YUNARI', X(184), Y(10), P.navy);
   fontText(p, '握手会', X(182), Y(19), P.verm);
   // hearts and stars in the corners, the tape that held a sign
   for (const [hx, hy, c] of [[X(229), Y(11), P.crimson], [X(228), Y(31), P.gold], [X(150), Y(33), P.crimson]] as [number, number, string][]) {

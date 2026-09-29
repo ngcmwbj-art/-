@@ -30,12 +30,10 @@ export const HOSHI_OBJ: Record<string, HText> = {
   obj_hoshi_nakazuri: `@narr
 中づり広告『星見台 天文台
 夏の 観望会 入場無料』。
-/
-小さく『ゲスト：夕鳴町PR大使
-カネナリくん』。{w=300}
-……10年前の 日付だ。
-@flip
-（なつかしいです）`,
+{w=300}……10年前の 日付だ。
+@npc_kanenari
+かんぼうかい……？{w=300}
+星を 見る 会か。ええなあ。`,
   obj_hoshi_seiriken: {
     text: `@narr
 整理券の 機械。{w=300}
@@ -230,8 +228,9 @@ export const HOSHI_OBJ: Record<string, HText> = {
   obj_hoshi_hinomi: `@narr
 火の見やぐら。{w=300}
 てっぺんに、小さな 半鐘。
-@flip
-（同業者です）`,
+@npc_kanenari
+高いなあ……。{w=300}
+わいは、のぼらんとくわ。`,
   obj_hoshi_zou: `@narr
 空を 指さす 子どもの 像。
 台座に『星を 見上げて』。
@@ -685,7 +684,8 @@ export const HOSHI_FUSHIGI: Record<string, HoshiFushigiText> = {
 書かれた。`,
     after: `@narr
 『夕鳴町から 来ました』の 下に、
-鐘の 絵が 描きたしてある。`,
+触角の ある 虫の 絵が
+描きたしてある。`,
   },
   // 8.2 1日2本の時刻表
   fushigi_ch2_02: {

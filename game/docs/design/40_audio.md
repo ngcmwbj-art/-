@@ -1314,7 +1314,7 @@ se_clock_flip    HUD時計の数字がめくれる（プレートが1px沈む「
 - **家の中ははだし**（`se_step_wood_bare` `se_step_tatami`）。ビーサン層なし。
 - 歩きのアニメの接地フレーム（4フレームのうち0と2）で鳴らす。ダッシュは v×1.3、pitch×1.06。
 - すべての足音に rnd=4%（音程）と v の ±12%。左右の足で pan を ±0.05 交互に。
-- カネナリくんの足音は v×0.7、しゅんの足音と重ならないよう半拍（歩きの周期の1/4）ずらす。
+- グソっ君（id は `kanenari` のまま。★2026-09-29 依頼主の指示で カネナリくん→グソっ君）の足音は v×0.7、しゅんの足音と重ならないよう半拍（歩きの周期の1/4）ずらす。
 - 地面の種類は、`30_level_art.md` 3.2 と4章の凡例のタイルから決める。下の表が正（30 の「足音（案）」はそのまま採用）。
 
 | タイル（30_level_art） | 足音 |
@@ -1374,10 +1374,11 @@ se_step_metal    側溝のふた・マンホール（かん）                  
   L2 sine  f=1130 env=0/40/0/15 dur=10 v=.015
   L3 noise        env=0/15/0/8 dur=8 v=.02 flt=BP3000q1
   ＋ビーサン層
-se_step_kanenari カネナリくん（着ぐるみの「ぽふ」＋鐘の舌の鈍い「コ」）   90ms
-  L1 sine  f=110→80/50 env=3/60/0/30 dur=30 v=.04
-  L2 noise        env=2/30/0/15 dur=20 v=.02 flt=LP600
-  L3 tri   f=740 env=1/20/0/10 dur=8 v=.008 at=40      ← 鐘の舌。鳴らない鐘なので、にごった短い音だけ
+se_step_kanenari グソっ君（小さな「ぺた」。★2026-09-29 カネナリくん→グソっ君。IDは据え置き）   50ms
+  L1 noise        env=0/22/0/10 dur=12 v=.03 flt=BP1100q1.4   ← 足の うらの しめった「ぺ」
+  L2 sine  f=150→100/30 env=1/35/0/12 dur=14 v=.035          ← やわらかい 小さな 重み
+  L3 noise        env=0/14/0/6 dur=6 v=.012 flt=BP700q1 at=30 ← 足が はなれる「た」
+  高い 乾いた ノイズ（HP・am）は 使わない：「カサカサ」に 聞こえないように。トリム 14.5 dB（audioMixSuggest。ほかの 足音と 同じ ピーク −22、ラウドネスは 石畳と 草の あいだ）
 ```
 
 ```
@@ -2074,6 +2075,7 @@ se_tsuri_nushi    ぬしの気配（土管の奥から 大きな泡、ゴボッ�
 | `kanenari_voice` | カネナリくんの声（エンディングで1回） | tri＋saw（0.2） | D3 | 下の表 | 140、A20 R100 | 1 | .07 | フォルマント、rev .35。言葉には聞こえない、母音の色のついたやわらかいハミング |
 | `tamotsu` **（新規 ★2026-09-29、02 #66。★2026-09-29 依頼主の指示で たもつ→おぴぃ（40代の女性）に 作り直し。IDは 据え置き）** | おぴぃ（閉店した つりえさ屋の元店主、40代の女性。10 6.25） | tri＋sq（0.12）、LP1.9kHz | C#4 | 0 2 5 7 | 32、A2 D22 S.4 R10 | 2 | .055 | 各ブリップを −45セントへ 落とす（語尾が ぼそっと 下がる）、ビブラートなし、フォルマント。さっぱり・さばさば、口数 少なめ。ふでの先生（`h_fumi` C4・ビブラート・リバーブ）、よね（D4・頭が はずむ）、きぬ（`h_yoshie` B4）、母（A4）、ちず・おかみ（`mizumaki` F4）と、高さ・語尾の 落ち・こもりで 分ける。前の たもつ（F3・3文字に1音・しゃがれ）は 使わない |
 | `tokio` **（新規 ★2026-09-29、02 #69。依頼主の指示で 時計店の ときお→ゆう（40代の女性）に したとき、`postman` から 分けた。IDは `npc_tokio` に そろえた）** | ゆう（時計店チクタク堂の店主、40代の女性。10 6.22） | tri＋sine（0.4）、LP2.4kHz | F#4 | 0 2 5 7 9 | 34、A3 D22 S.5 R12 | 2 | .055 | 各ブリップを +30セントへ 上げて 終える（ていねいで、語尾が 少し 上がる）、ビブラートなし、フォルマント。落ち着いた 中音。ちず・おかみ（`mizumaki` F4・矩形波25%・頭で はずむ）、母（`mother` A4・三角波だけ）、おぴぃ（`tamotsu` C#4・語尾が 落ちる）、ふでの先生（`h_fumi` C4・ビブラート・リバーブ）、よね（`yone` D4・しゃくり上げ）、きぬ（`h_yoshie` B4）と、音の 高さ・波形・語尾の 向きで 分ける。トリム 13.5 dB（audioMixSuggest） |
+| `gusokkun` **（新規 ★2026-09-29 依頼主の指示で カネナリくん→グソっ君。04_gusokkun_plan 7）** | グソっ君（フレンドリーな 関西弁。やさしくて なれなれしい） | p25＋tri（0.35）、LP2.6kHz | C4 | 0 2 4 5 7 9（低い組 0 2 4 と 高い組 5 7 9 を 交互に） | 24、A1 D16 S.45 R8 | 2 | .055 | **はずむ 関西弁**：各ブリップの 頭が +70セントから 16ms で 落ちつく（はね）。音の 高さは 低い組と 高い組を 1音ずつ 交互に とる（上下に はずむ。句の 頭で もどす）。**語尾を はっきり 曲げる**：「、」で +3、「！」で +5（〜やで↑、美味いやんけ↑）、「？」で +7、「。」で −4（〜や↓）。「……」は 鳴らさない（間）。フォルマント。明るい 中音で 速い。くま吉（`mamekichi` C5・矩形波）、ワイスタ巡査（`tsurumi` A4・矩形波）、区長（`h_kucho` G3・25%・ゆっくり）、ちず（`mizumaki` F4・25%）、ヒロスケ（`hirosuke` B3・三角波）、ポコシャ（`pokosha` D4・サイン）と、高さ・波形・はずみ・語尾で 分ける。見本「な、なんやこれ……！ めっちゃ 美味いやんけ！」。トリム 13.5 dB（audioMixSuggest） |
 
 **`kanenari_voice` の「……おいしい。」**（`{spd=0.4}`。1文字＝1ブリップ）
 
@@ -2500,7 +2502,7 @@ export function unlockAudio(): void;                                     // 既�
 `se_tsuri_open` `se_tsuri_cast` `se_tsuri_pochan` `se_tsuri_line` `se_tsuri_tsun` `se_tsuri_gui` `se_tsuri_snag` `se_tsuri_reel` `se_tsuri_slip` `se_tsuri_thrash` `se_tsuri_poton` `se_tsuri_hayai` `se_tsuri_net` `se_tsuri_agari` `se_tsuri_card` `se_tsuri_release` `se_tsuri_nushi`
 
 **ボイス**
-`narr` `sys` `mother` `maruyama` `obaa` `mamekichi` `inui` `tsurumi` `sae` `jk` `chugaku` `postman` `madam` `girl` `kid` `ojii` `mizumaki` `shadow` `hato` `dog` `cat` `crow` `tv` `broadcast` `broadcast_child` `vending` `omukaemachi` `flip` `kanenari_voice` `tamotsu` `yone` `toyozou`（★2026-09-29、02 #67） `tokio`（★2026-09-29、02 #69）
+`narr` `sys` `mother` `maruyama` `obaa` `mamekichi` `inui` `tsurumi` `sae` `jk` `chugaku` `postman` `madam` `girl` `kid` `ojii` `mizumaki` `shadow` `hato` `dog` `cat` `crow` `tv` `broadcast` `broadcast_child` `vending` `omukaemachi` `flip` `kanenari_voice` `tamotsu` `yone` `toyozou`（★2026-09-29、02 #67） `tokio`（★2026-09-29、02 #69） `gusokkun`（★2026-09-29 カネナリくん→グソっ君）
 
 **音楽パラメータ・空間**
 `stage` `kire` `boss_phase` `muffle`／`outdoor` `room` `hall` `maigo` `battle` `night`

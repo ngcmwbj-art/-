@@ -3,7 +3,7 @@
 // pencil writes 「きょうは ここまで。」 (#4A3A6E) with bgm_jingle_gameover; a
 // second later two strips of masking tape: 「戦う前から やりなおす」 and
 // 「セーブから」 (greyed out without a save). After the second wipe in the
-// boss battle, Kanenari-kun's flip suggests resting on the bench first.
+// boss battle, グソっ君 suggests resting on the bench first.
 //
 // Installed as the battle's game-over hook; events with canLose battles can
 // call runGameOver() themselves.
@@ -22,6 +22,7 @@ import { registerScene } from '../boot';
 import { setGameOverHook } from '../battle';
 import { GAMEOVER } from '../data/battle';
 import { say } from './dialog';
+import { SPEAKERS } from '../world/msg';
 import { toTitle } from './flow';
 import { drawCursor, drawTape, pencilLine, textW, UI } from './window';
 import { markText } from '../engine/textzones';
@@ -419,7 +420,7 @@ export function* runGameOver(o: { boss?: boolean } = {}): Co<GameOverChoice> {
   game.push(sc);
   yield () => sc.done;
   if (sc.choice === 'retry' && o.boss && flag('flag_lost_count') >= 2) {
-    yield* say('（ベンチで 休んでから\n行きましょう）', { name: 'カネナリくん', voice: 'flip' });
+    yield* say('いっぺん、ベンチで 休もか。\n負けたって、また 行ったら ええねん。', SPEAKERS.npc_kanenari);
   }
   const i = game.scenes.indexOf(sc);
   if (i === game.scenes.length - 1) game.pop();

@@ -46,7 +46,8 @@ export const EXCELLENT: Record<string, Record<StatKey, number>> = {
   kanenari: { hp: 12, mp: 4, atk: 3, def: 3, spd: 2, luck: 2 },
 };
 
-export const MEMBER_NAMES: Record<string, string> = { minato: 'しゅん', kanenari: 'カネナリくん' };
+/** ★2026-09-29 依頼主の指示で カネナリくん→グソっ君（id は 'kanenari' のまま）。 */
+export const MEMBER_NAMES: Record<string, string> = { minato: 'しゅん', kanenari: 'グソっ君' };
 
 /** Growth-table values for a member at a level (1..8). */
 export function statsFor(memberId: string, level: number): GrowthRow {
@@ -106,7 +107,7 @@ export function newGameParty(): void {
   state.party = [makeMember('minato', 1, 0, ['skill_tataku'])];
 }
 
-/** Add Kanenari-kun (same level/exp as Minato, full HP). Idempotent. */
+/** Add グソっ君 (member id 'kanenari'; same level/exp as Minato, full HP). Idempotent. */
 export function joinKanenari(): Member {
   const existing = state.party.find((m) => m.id === 'kanenari');
   if (existing) return existing;
@@ -188,6 +189,7 @@ export const CH1_MAIN_FLAGS = [
   'flag_opening_done',
   'flag_errand',
   'flag_met_maruyama',
+  'flag_got_urenokori',
   'flag_met_obaa',
   'flag_chime_stopped',
   'flag_hato_beaten',
@@ -195,6 +197,7 @@ export const CH1_MAIN_FLAGS = [
   'flag_fushigi_tutorial',
   'flag_park_hint',
   'flag_met_kanenari',
+  'flag_gave_urenokori',
   'flag_kanenari_joined',
   'flag_broadcast',
   'flag_parking_open',

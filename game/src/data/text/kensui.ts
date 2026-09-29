@@ -22,10 +22,10 @@ export const KENSUI_TRY1_DOWN = `@narr
 懸垂、0回。{w=300}
 夕日だけが、少し 近かった。`;
 
-/** カネナリくん watching (when he is with him, stage 2). */
-export const KENSUI_FLIP = `@flip
-（ぼくは 鐘が 重いので
-見学です）`;
+/** グソっ君 watching (when he is with him, stage 2; the id keeps the old name). */
+export const KENSUI_FLIP = `@npc_kanenari
+わいは 見とくわ。{w=300}
+こう見えて 重いねん。`;
 
 /** Every try after the first. */
 export const KENSUI_AGAIN = `@narr

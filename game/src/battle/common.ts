@@ -234,8 +234,8 @@ const STATUS_TEXT: Record<string, { on: keyof typeof SYS; act: keyof typeof SYS;
 
 export function statusText(id: string, kind: 'on' | 'act' | 'off', target: string): string[] {
   if (id === 'status_henji') {
-    // 50 6.7: the one who answers decides the line (Minato says it, Kanenari-kun writes it)
-    if (kind === 'on') return [...(target === 'カネナリくん' ? SYS2.henjiOnKanenari : SYS2.henjiOnMinato)];
+    // 50 6.7: the one who answers decides the line (Minato says it; グソっ君 — ★2026-09-29 — says 『はいな！』)
+    if (kind === 'on') return [...(target === 'カネナリくん' || target === 'グソっ君' ? SYS2.henjiOnKanenari : SYS2.henjiOnMinato)];
     return fillAll(kind === 'act' ? SYS2.henjiAct : SYS2.henjiOff, { target });
   }
   const k = STATUS_TEXT[id];

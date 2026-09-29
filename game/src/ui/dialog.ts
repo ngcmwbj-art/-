@@ -12,9 +12,9 @@
 // Look (30_level_art 10.4): graph-paper window (8,148) 368×64 with the red
 // margin line, a masking-tape name tag, a little vermilion hanko as the
 // "next" mark. Speakers pick a style: normal, narr (地の文), sys (システム:
-// #4A3A6E, item names in 朱), flip (カネナリくんのフリップ: plain white
-// board, marker-bold letters, a mini board in the corner, pen squeak) and
-// inner (しゅんの心の声: pencil, no tag, no blips).
+// #4A3A6E, item names in 朱), flip (ムジン販売員's cardboard sign: brown
+// board, marker-bold letters) and inner (しゅんの心の声: pencil, no tag, no
+// blips). グソっ君 (npc_kanenari, ★2026-09-29) talks in the normal window.
 //
 // One dialog box persists across consecutive say()/choose() calls of a
 // script, so a conversation doesn't blink closed between speakers, and a
@@ -31,7 +31,6 @@ import { hash2 } from '../engine/rng';
 import { markText } from '../engine/textzones';
 import { ease } from '../engine/tween';
 import { sfx, textBlip, textFastForward } from '../audio';
-import { flipBoardMini, flipIcon } from '../art/chars';
 import { allItems, getSkill } from '../data/battle';
 import { textSpeedMul } from './settings';
 import { cursorImg, drawCursor, drawMarker, drawWindow, phraseWrap, tapeImg, textW, UI } from './window';
@@ -173,8 +172,8 @@ export function layoutPages(text: string, maxW = TEXT_W, baseColor: string = UI.
 
 const NAMELESS_VOICES = new Set(['narr', 'sys', 'none']);
 /**
- * ムジン販売員 talks with a cardboard sign on a split chopstick, the way
- * Kanenari-kun talks with his flip board (50_ch2_story 6.5, 52 13.6).
+ * ムジン販売員 talks with a cardboard sign on a split chopstick (50_ch2_story
+ * 6.5, 52 13.6). (カネナリくん's flip board is gone: グソっ君 talks, 04_gusokkun_plan.)
  */
 const CARD_VOICE = 'h_mujin';
 /**
@@ -190,7 +189,7 @@ function tapeOf(o: SayOpts): 'tape' | 'black' {
 export function styleFor(o: SayOpts): DialogStyle {
   if (o.style) return o.style;
   const v = o.voice ?? '';
-  if (v === 'flip' || v === 'npc_kanenari' || v === 'kanenari' || v === CARD_VOICE) return 'flip';
+  if (v === CARD_VOICE) return 'flip';
   if (v === 'sys' || v === 'system') return 'sys';
   if (v === 'narr' || v === 'narration') return 'narr';
   if (v === 'minato' || v === 'inner' || ((o.name === 'minato' || o.name === 'しゅん') && !v)) return 'inner';
@@ -353,7 +352,7 @@ class DialogBox implements Widget {
     this.page = 0;
     this.resetPage();
     const card = r.style === 'flip' && r.o.voice === CARD_VOICE;
-    const name = r.style === 'flip' ? r.o.name ?? (card ? 'ムジン販売員' : 'カネナリくん') : NAMELESS_VOICES.has(r.o.voice ?? '') || r.style === 'inner' ? '' : r.o.name ?? '';
+    const name = r.style === 'flip' ? r.o.name ?? 'ムジン販売員' : NAMELESS_VOICES.has(r.o.voice ?? '') || r.style === 'inner' ? '' : r.o.name ?? '';
     if (card !== this.viewCard && r.style === 'flip') this.styleT = 0;
     this.viewCard = card;
     const tape = tapeOf(r.o);
@@ -528,7 +527,6 @@ class DialogBox implements Widget {
     markText(BOX.x, this.top - (flip ? 5 : 0), BOX.w, BOX.h + (flip ? 5 : 0));
     drawWindow(g, BOX.x, wy, BOX.w, BOX.h, UI, alpha, flip ? { grid: false, paper: card ? CARD_PAPER : UI.flipPaper, curl: false } : { margin: 14, curl: false });
     if (card) drawCardboard(g, BOX.x, wy, BOX.w, BOX.h, alpha);
-    else if (flip) this.drawFlipDecor(g, wy, alpha);
     if (st === 'inner') this.drawThought(g, wy, alpha);
     this.drawTag(g, by, alpha);
     if (k < 0.5) return;
@@ -593,7 +591,7 @@ class DialogBox implements Widget {
       g.img(img, 16, tagY - Math.round(k * 4), { alpha: alpha * (1 - k) });
     }
     if (!name) return;
-    const icon = flip ? (this.viewCard ? 18 : 14) : 0;
+    const icon = flip && this.viewCard ? 18 : 0;
     const w = textW(name) + 12 + icon;
     // the tag with the 4px it drops in from (the touch controls keep off it)
     markText(16, tagY - 4, w, 22);
@@ -603,17 +601,6 @@ class DialogBox implements Widget {
     g.img(black ? blackTapeImg(w, 18, name.length) : tapeImg(w, 18, UI.tape, name.length + (flip ? 3 : 0)), 16, tagY + dy, a < 1 ? { alpha: a } : {});
     g.text(name, 22, tagY + dy + 1, { color: black ? '#F4F1E8' : UI.text, alpha: a });
     if (flip && this.viewCard) g.img(cardSignIcon(), 22 + textW(name) + 2, tagY + dy + 3, a < 1 ? { alpha: a } : {});
-    else if (flip) g.img(flipIcon(), 22 + textW(name) + 3, tagY + dy + 5, a < 1 ? { alpha: a } : {});
-  }
-
-  private drawFlipDecor(g: Gfx, wy: number, alpha: number): void {
-    // the mini board in the top-left corner, pinned over the frame
-    const mini = flipBoardMini();
-    g.img(mini, BOX.x + BOX.w - 24, wy - 5, alpha < 1 ? { alpha } : {});
-    // a faint ghost of an erased word on the board (it's been used a lot)
-    g.alpha(alpha * 0.35, () => {
-      for (let i = 0; i < 22; i++) if ((i * 7) % 5 !== 0) g.px(BOX.x + BOX.w - 64 + i, wy + BOX.h - 9 + ((i >> 2) % 2), '#C8C2B4');
-    });
   }
 
   private drawThought(g: Gfx, wy: number, alpha: number): void {

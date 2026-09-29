@@ -35,11 +35,10 @@ registerScript('evt_ch2_hill', function* (): Co {
   yield* runMsg(T.HILL_ENTER);
 });
 
-/** The upper plaza (y ≤ 7), once: カネナリくん suggests the bench first. */
+/** The upper plaza (y ≤ 7), once: グソっ君 suggests the bench first. */
 registerScript('trig_ch2_hill_top', function* (): Co {
   if (flag('flag_ch2_hill_top')) return;
   setFlag('flag_ch2_hill_top', 1);
-  se('se_flip');
   yield* runMsg(T.HILL_TOP);
 });
 
@@ -129,8 +128,8 @@ export function* evtBossIntro(): Co {
     yield* runMsg(T.BOSS_CHIME.replace('@npc_hoshi_speaker', '@防災無線:none'));
     yield* runMsg(T.BOSS_TENKO);
     yield* runCue(T.BOSS_ASK, {
-      *flip() {
-        // カネナリくん steps forward and holds a flip high
+      *step() {
+        // グソっ君 steps forward and raises an arm: 「はーい！ ここに おるで！」
         const k = F().follower;
         if (k) {
           k.data.scripted = true;
@@ -138,9 +137,9 @@ export function* evtBossIntro(): Co {
           k.y = y0 - 6;
           k.dir = 'up';
           yield 120;
-          poseAny(k, 'hold_up', 'flip_hold');
+          poseAny(k, 'wave', 'hold_up');
+          k.hop(1, 140);
         }
-        se('se_flip');
         yield 300;
       },
     });

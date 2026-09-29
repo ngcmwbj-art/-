@@ -147,7 +147,7 @@ function spawnTruck(y: number): Actor {
 /**
  * The truck drives up the old lane (its picture covers x 800–834 from y15 to
  * the path's mouth): whoever stands in it steps off to the side first, so the
- * truck never drives through しゅん and カネナリくん (2026-09-28, the client).
+ * truck never drives through しゅん and グソっ君 (2026-09-28, the client).
  */
 function* clearLane(): Co {
   const f = F();

@@ -1,4 +1,4 @@
-// 捕まえない自由研究（50_ch2_story 10.21、02_ch2_index #64）: the pages. カネナリくん
+// 捕まえない自由研究（50_ch2_story 10.21、02_ch2_index #64）: the pages. グソっ君
 // talks しゅん into it once the lantern is lit (at the greenhouse door, after
 // ペロ's line): the net is full of tomato, so it is a 自由研究 of looking, not
 // catching. Five insects of an August night in a mountain village (53 1.6),
@@ -6,17 +6,20 @@
 // he has come to like telling their voices apart — and from then on what he
 // notices about each is a little more (〔くわしく〕). ぴょん夫人 hears of it
 // (「……ええ 耳ね。」, 朱肉 +2). The beetle at the クヌギ is a bonus, not counted.
+// ★2026-09-29 カネナリくん→グソっ君 (@npc_kanenari, no flips): at the fifth,
+// 「わいは 数に 入れんといてや。エビや カニの なかまやからな」.
 
 import type { MushiKind } from '../../art/props/hoshi_mushi';
 
-/** カネナリくん's invitation (once, after 〔ハウスを出たとき〕). */
-export const MUSHI_INVITE = `@flip
-（この 灯りで、村中に いる
-虫たちを 探して みようよ）
-@flip
-アミは トマトで ふさがって
-いますので、捕まえない、
-見るだけの 自由研究です。
+/** グソっ君's invitation (once, after 〔ハウスを出たとき〕). */
+export const MUSHI_INVITE = `@npc_kanenari
+なあ、しゅん。{w=300}
+この 灯りで、村中の 虫、
+探して みいひん？
+/
+アミは トマトで いっぱいやから、
+捕まえへんで。{w=300}
+見るだけの 自由研究や。
 @sys
 みました帳 ②に、
 『むし』の らんが できた。`;
@@ -75,8 +78,9 @@ export const MUSHI_TEXT: Record<Exclude<MushiKind, 'kabuto'>, MushiText> = {
 クズの 大きな 葉の 上。{w=300}
 緑の 太い 虫が、
 ガチャガチャ ガチャガチャ……。
-@flip
-（1回 100円では ありません）
+@npc_kanenari
+ガチャガチャ いうても、
+100円は いらんのやな。
 @narr
 クツワムシ。{w=300}
 馬の くつわが 鳴る 音に
@@ -173,9 +177,13 @@ export const MUSHI_BLOSSOM = `@narr
 しゅんは、虫の 声を
 聞きわけるのが、
 好きに なって いた。
-@flip
-（来年の 自由研究、
-もう 決まりましたね）`;
+@npc_kanenari
+5つ そろたな！{w=300}
+来年の 自由研究も、決まりやな。
+/
+……あ、わいは 数に
+入れんといてや。{w=300}
+エビや カニの なかまやからな。`;
 
 /** ぴょん夫人, the next talk after the fifth (once): 朱肉 +2. */
 export const MUSHI_YOSHIE = `@npc_hoshi_yoshie
@@ -185,9 +193,8 @@ export const MUSHI_YOSHIE = `@npc_hoshi_yoshie
 ……ええ 耳ね。`;
 export const MUSHI_YOSHIE_GET = `@sys
 朱肉が 2 たまった。`;
-export const MUSHI_YOSHIE_FLIP = `@flip
-（ほめられた 耳が、
-赤く なって います）`;
+export const MUSHI_YOSHIE_FLIP = `@npc_kanenari
+しゅん、耳 赤なっとるで。`;
 
 /** みました帳 ②『むし』: the index name, the call, the place, しゅん's note (the beetle's: ゲンジロウ's, if he looked at his own in chapter 1), and — not seen yet — where the voice comes from. */
 export const MUSHI_BOOK: { kind: MushiKind; name: string; call: string; place: string; note: string; hint: string; noteGenjiro?: string }[] = [

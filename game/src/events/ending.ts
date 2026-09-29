@@ -1,7 +1,9 @@
 // ★ evt_ending (10_narrative 5.20, 00_concept 13, 40_audio 13.5): about a
 // minute. The chime rings all eight notes → 焼きそばのたかし → the family photo →
-// home → the weather on TV → the crossing at night, 「……おいしい。」 → the
-// night sky → the notebook → the title.
+// home → the weather on TV → the night sky (the star over 星見台 stops) → the
+// crossing at night: the extra one, fresh, to グソっ君 — 「めっちゃ美味いやんけ！」,
+// and chapter 1 ends there (★2026-09-29 依頼主: the leftover began it, the fresh
+// one ends it; 「つづく」 is stamped over that last picture) → the title.
 
 import type { Co } from '../engine/co';
 import { all } from '../engine/co';
@@ -17,14 +19,14 @@ import { playBgm, playChimeMotif, setSpace, sfx, stopAllAmbient, stopAmbient, st
 import { actor, face, msg, place, registerScript, setClock, setClockText, setFollowerVisible, spawn, trainPass } from '../world/api';
 import type { Actor } from '../world/actor';
 import type { FieldScene } from '../world/field';
-import { playEndingNotebook, playNightSkyCut } from '../ui/api';
+import { hideNightSky, playNightSkyCut, stampTsuzuku } from '../ui/api';
 import { ditherIn, ditherOut } from '../ui/transition';
 import { uiHud } from '../ui/hud';
 import { registerWorldFx } from '../world/fx';
 import { CHUNK } from '../world/ground_cache';
 import * as T from '../data/text/events';
 import { F, holdBgm, holdCamera, releaseCamera, tileRoute, walkTo } from './lib';
-import { bellGlow, ring, sparkle, voiceLine } from './fx';
+import { sparkle } from './fx';
 import { DINNER_STEAM, dinnerSet, photoClose, shopBag } from './art';
 import { cinema, cinemaOff, forceBoxPos, quietItem, zoomIn, zoomOut, zoomPan, zoomScale, type ZoomView } from './stage';
 
@@ -798,7 +800,7 @@ function* cut2Meat(): Co {
   hudHankoHidden(false);
   cutTo('map_maruyama', 4, 5, 'up');
   setSpace('room');
-  // カネナリくん at the counter beside Minato (the bag goes down on his other side)
+  // グソっ君 at the counter beside Minato (the bag goes down on his other side)
   const k = f.follower;
   if (k) {
     k.data.scripted = true;
@@ -884,6 +886,15 @@ function* cut2Meat(): Co {
   yield* quietItem('item_korokke');
   playBgm('bgm_jingle_item');
   yield* beat(550);
+  // グソっ君, at the counter beside him: the first fresh one's smell
+  if (k) {
+    k.dir = 'up';
+    k.playAnim('glow');
+  }
+  forceBoxPos('bottom');
+  yield* msg(T.END_MEAT_KN);
+  forceBoxPos(null);
+  if (k) k.anim = null;
   teppan.bag = null;
   yield* zoomOut(z, 400);
   if (k) delete k.data.scripted;
@@ -926,7 +937,7 @@ function* cut3Photo(): Co {
 function* cut4Home(): Co {
   const f = F();
   yield* fadeTo(300);
-  // カネナリくん waits at the gate; he doesn't come in
+  // グソっ君 waits at the gate; he doesn't come in
   setFollowerVisible(false);
   cutTo('map_home_1f', 2, 7, 'up');
   setSpace('room');
@@ -1070,39 +1081,42 @@ function* cut6Crossing(): Co {
   yield* walkTo('player', 56, 22, { speed: 2.6, face: 'right' });
   face('ending_kanenari', 'player');
   yield* beat(250);
-  // the extra one, held out and taken (no window: the picture says it)
+  // the extra one, fresh, held out and taken (no window: the picture says it)
   p.tempPose = 'give';
   yield* beat(450);
   sfx('se_paper_bag');
   p.tempPose = null;
   k.tempPose = 'hold';
   yield* beat(650);
-  // he turns his back, opens the zip — dark inside — and puts it in
-  k.dir = 'up';
-  k.tempPose = 'zipper';
-  sfx('se_zipper');
-  yield* beat(650);
-  k.tempPose = null;
-  k.dir = 'left';
-  // 1.5 s: only the insects — and the camera closes in on the two of them
-  // (2× → 3×), the frame narrowing
+  // the camera closes in on the two of them (2× → 3×), the frame narrowing
   game.scripts.run(cinema(true, 1200));
   if (crossingZoom) {
     const cz = crossingZoom;
     yield* all(zoomScale(cz, 3, 1300), zoomPan(cz, Math.round((p.x + k.x) / 2), p.y - 14, 1300));
   } else yield 1300;
-  yield* beat(250);
-  // the first voice: no window, no name tag — only the words, slowly
-  yield* voiceLine(T.END_VOICE_TEXT, { y: 170, cps: 5, hold: 1300 });
-  yield* beat(400);
-  // the bell rings once, by itself
-  sfx('se_bell_kanenari_short');
-  k.playAnim('glow');
-  bellGlow(k.x, k.y - 20, 900);
-  ring(k.x, k.y - 20, '#FFE7A3', 700);
-  sparkle(k.x + 3, k.y - 26, 600);
-  yield* beat(800);
+  // he eats it, there and then (munch, munch) — and stops
+  k.tempPose = null;
+  k.playAnim('eat', true);
+  for (let i = 0; i < 4; i++) {
+    sfx('se_paper_bag', { vol: 0.2, pitch: 1.5 + i * 0.05 });
+    yield* beat(420);
+  }
   k.anim = null;
+  k.tempPose = 'eat';
+  yield* beat(650);
+  // the shock again — the fresh one
+  k.tempPose = 'shock_pack';
+  k.hop(3, 160);
+  sfx('se_emote');
+  k.showEmote('exclaim', 1000);
+  yield* beat(400);
+  forceBoxPos('bottom');
+  yield* msg(T.END_VOICE);
+  forceBoxPos(null);
+  // chapter 1 ends on it: he goes on eating, happily, under 「つづく」
+  k.tempPose = null;
+  k.playAnim('eat', true);
+  yield* beat(600);
 }
 
 /** QA / the night sky: drop the crossing close-up. */
@@ -1139,6 +1153,24 @@ export function crossingCloseUpOff(): void {
   releaseCamera();
 }
 
+/**
+ * Out of cut 5's black: the night panorama (cut_night_sky) — the star over
+ * 星見台 stops twinkling — and back to black for the crossing.
+ */
+function* nightSky(): Co {
+  game.fadeColor = '#0B0B14';
+  if (game.fadeAlpha < 1) yield* fadeTo(300);
+  yield* all(
+    playNightSkyCut({ hold: 1100 }),
+    (function* (): Co {
+      yield 800;
+      yield* game.fadeIn(400);
+    })(),
+  );
+  yield* fadeTo(400);
+  hideNightSky();
+}
+
 export function* evtEnding(): Co {
   const f = F();
   setFlag('flag_boss_beaten', 1);
@@ -1159,28 +1191,19 @@ export function* evtEnding(): Co {
   yield* cut3Photo();
   yield* cut4Home();
   yield* cut5Tv();
+  // the night sky (cut_night_sky): the star over 星見台 stops twinkling —
+  // before the crossing now (★2026-09-29: chapter 1 ends on グソっ君's line)
+  yield* nightSky();
   yield* cut6Crossing();
-  // the night sky (cut_night_sky): the star over 星見台 stops twinkling
-  yield* playNightSkyCut({ hold: 700 });
+  // 「つづく」 over the last picture (flag_clear, the clear record); the
+  // ending's song and night bed are let go here, before the title — the title
+  // is the last to start an ambience (its evening)
+  yield* stampTsuzuku();
+  stopBgm(1.5);
+  stopAllAmbient(1.0);
+  yield* fadeTo(1200);
   endCrossingZoom();
-  // the notebook: 「夕鳴町 みました帳 ①」, the case, 「つづく」. The ending's
-  // song and night bed are let go here, before the title — the title is the
-  // last to start an ambience (its evening), nothing of ours stops it later
   releaseCamera();
-  let closed = false;
-  yield* all(
-    (function* (): Co {
-      yield* playEndingNotebook({ toTitle: false });
-      closed = true;
-    })(),
-    (function* (): Co {
-      const t0 = performance.now();
-      yield () => closed || performance.now() - t0 > 6600;
-      stopBgm(1.5);
-      yield () => closed || performance.now() - t0 > 8400;
-      stopAllAmbient(1.0);
-    })(),
-  );
   stopBgm(0.4);
   stopAllAmbient(0.4);
   holdBgm(false);
@@ -1205,6 +1228,8 @@ export const ENDING_CUTS: Record<number, () => Co> = {
     yield 1500;
     endCrossingZoom();
   },
+  /** The night sky alone (it now comes before the crossing). */
+  7: nightSky,
 };
 
 registerScript('evt_ending', function* (): Co {

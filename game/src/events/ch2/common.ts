@@ -293,7 +293,7 @@ export type Ch2BattleResult = 'win' | 'retry' | 'load';
 /**
  * A story battle of chapter 2 that can be lost: 'win'; 'retry' (「戦う前から
  * やりなおす」: HP full, 朱肉 back to the start; the caller replays its event,
- * after the chapter-2 flip on the second wipe-out of テツヤ / ヨビモドシ);
+ * after グソっ君's line on the second wipe-out of テツヤ / ヨビモドシ);
  * 'load' (the save was loaded, the caller stops).
  */
 export function* storyBattle(o: BattleOpts, kind: 'sune' | 'tetsuya' | 'boss'): Co<Ch2BattleResult> {
@@ -319,7 +319,7 @@ export function* storyBattle(o: BattleOpts, kind: 'sune' | 'tetsuya' | 'boss'): 
   }
   if (flag('flag_lost_count') >= 2 && (kind === 'tetsuya' || kind === 'boss')) {
     game.fadeAlpha = 1;
-    sfx('se_flip');
+    // グソっ君: 「ひと休み してから 行こ」 (the constants keep their old names)
     yield* runMsg(kind === 'boss' ? GAMEOVER_FLIP_BOSS : GAMEOVER_FLIP_TETSUYA);
   }
   game.fadeColor = '#0B0B14';

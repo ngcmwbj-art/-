@@ -562,6 +562,23 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// 売れ残りの焼きそば（04_gusokkun_plan 2章、★2026-09-29）: the same clear pack
+// as できたて焼きそば, but cold — dull brown noodles, no 青のり (別), no glint
+Object.assign(ITEM_ROWS, {
+  item_urenokori: [
+    '..........',
+    '.vvvvvvvv.',
+    '.vabybbyv.',
+    '.vybbybBv.',
+    '.aaaaaaaa.',
+    '.vbyBbybv.',
+    '.vBbybbBv.',
+    '.VVVVVVVV.',
+    '..VVVVVV..',
+    '..........',
+  ],
+});
+
 /** トマト（おまけ）: after chapter 2, one tomato left in the bag (13.3). */
 const OMAKE_ROWS = ['.dW...Wd..', '.W.d.W.d..', '.WwwwwwwdG', 'Wwwwwwwwwd', 'WwwwwwwwWd', 'wwwwXXwwwd', 'wwwXELXwwd', 'wwwXLLXwwd', '.wwwXXwwd.', '..dddddd..'];
 

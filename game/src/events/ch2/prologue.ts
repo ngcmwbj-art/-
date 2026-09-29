@@ -1,10 +1,12 @@
 // evt_ch2_prologue (50_ch2_story 10.1〜10.2, 52 6.1, 53 12.1): 8月31日, 19:30,
 // the crossing of 夕鳴町. The two lines on black, the chapter's door (the
 // 「第2章」 seal), the report card if chapter2Adjust() raised a level, then the
-// crossing from the same frame as chapter 1's last cut: the two flips, the
+// crossing from the same frame as chapter 1's last cut: グソっ君's words (the
+// yakisoba, 「むこう、ずっと 夜やな」; ★2026-09-29 no flips), the
 // case glowing in his pocket, the bell that never rang in chapter 1, the
 // unlit one-car train that stops ON the crossing, its door, the little step,
-// 乗る / やめておく, and in.
+// 「見に 行かへん？ 星見台」, 乗る / やめておく, and in (his feelers catch
+// on the door's frame).
 //
 // ui/flow.startChapter2 starts it as a field script on map_town (56,22) E with
 // the screen black (game.fadeAlpha = 1).
@@ -137,7 +139,6 @@ export function* evtPrologue(): Co {
       yield 600;
       k.dir = 'right';
       yield 300;
-      se('se_flip');
     },
     *glow() {
       // the case's rim glows red twice in his pocket
@@ -186,7 +187,6 @@ export function* evtPrologue(): Co {
     *face() {
       k.dir = 'left';
       yield 250;
-      se('se_flip');
     },
   });
   // 乗る / やめておく — the train waits as long as he likes
@@ -195,12 +195,14 @@ export function* evtPrologue(): Co {
     if (i === 0) break;
     yield* runMsg(T.PROLOGUE_WAIT);
   }
-  // カネナリくん goes up first (the bell knocks the door's frame), Minato after him
+  // グソっ君 goes up first (his long feelers catch on the door's frame: a
+  // little bump, he ducks and goes in), Minato after him
   k.dir = 'right';
   se('se_step_kanenari');
   yield* walk('ch2_prologue_kanenari', [58, 22], { speed: 1.6 });
-  se('se_bell_dud', { vol: 0.5 });
+  se('se_bump', { vol: 0.35, pitch: 1.6 });
   k.hop(1, 120);
+  yield 200;
   yield* animate(260, (q) => {
     k.x = 58 * 16 + 8 + q * 10;
     k.alpha = 1 - q;

@@ -106,7 +106,7 @@ registerScript('obj_hoshi_mimawari', function* (): Co {
  * couple's sleep-talk on, a round of しりとり that ends in 『ん』 again: the
  * stage's own text (h0-1 / h2+) → negoto2 (すいか・かぼちゃ) → negoto3 (やかん,
  * 「あちゃ〜」) → the stage's text … flag_ch2_negoto is the next of the three;
- * flag_ch2_negoto_n says negoto3 has been seen (カネナリくん's flip, npcs.ts).
+ * flag_ch2_negoto_n says negoto3 has been seen (グソっ君's しりとり, npcs.ts).
  */
 registerScript('obj_hoshi_nappers', function* (): Co {
   se('se_examine');

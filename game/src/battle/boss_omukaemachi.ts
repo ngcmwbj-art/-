@@ -1,5 +1,6 @@
 // オムカエマチ (13): parts & 迷子のお知らせ, the chime counter, phase 2,
-// よいこは (るす), and the final phase where the bell finally rings.
+// よいこは (るす), and the final phase where グソっ君 holds out his hand and
+// the chime rings its 4th note (★2026-09-29).
 // (Dispatched from ./boss by the boss's enemy id.)
 
 import type { Co } from '../engine/co';
@@ -18,6 +19,7 @@ import { doEnemyAction, hitLoop } from './enemy';
 import { glove, uwabaki } from './art/fxart';
 import { finalSeal, flutterPetals, ovalStamp } from './art/stamps';
 import { kanenariBack } from '../art/enemies/kanenari';
+import { knSay } from './gusokkun';
 import { bokemakeLabel } from './tsukkomi';
 import { LABEL } from '../data/battle';
 import { holdStamp } from './party';
@@ -315,7 +317,7 @@ export function* bossMoveImpl(c: BossMoveCtx): Co {
   }
 }
 
-/** Kanenari-kun trudges off to the lower right (800ms); panel greys out with a るす seal. */
+/** グソっ君 trudges off to the lower right (800ms); panel greys out with a るす seal. */
 function* sendHome(s: BattleScene, k: PartyUnit): Co {
   const st = { x: 290, y: 200, a: 1, f: 0 };
   const fx = s.addFx({
@@ -340,13 +342,14 @@ function* sendHome(s: BattleScene, k: PartyUnit): Co {
   s.memo.disabled_kanenari = 1;
 }
 
-/** Round start: Kanenari-kun comes back when るす has ended. */
+/** Round start: グソっ君 comes back when るす has ended — 「……帰る 家、分からへんかったわ。」 */
 export function* bossRoundStart(s: BattleScene): Co {
   const k = s.kanenari;
   if (k && k.away && !k.has('status_rusu')) {
     k.away = false;
     const e = s.enemies.find((x) => x.def.boss);
     yield* s.say(e?.def.texts.extra.yoikoBack ?? []);
+    if (e?.def.texts.extra.yoikoBackLine) yield* knSay(s, e.def.texts.extra.yoikoBackLine);
   }
 }
 
@@ -507,6 +510,16 @@ function* bossPhase2(s: BattleScene, e: EnemyUnit): Co {
   syncBossFlags(s, e);
 }
 
+/**
+ * The final phase (13.7; ★2026-09-29 rewritten for グソっ君, 04_gusokkun_plan
+ * 3章 / 10_narrative 5.19). It asks for the one who comes to fetch it, again;
+ * グソっ君 puts down his guard and walks up to it (the strength he had in the
+ * sea, not used), crouches and holds out his hand — 「……迎えに 来たで。」 — and
+ * it takes the hand. Then, far away, the clock tower's chime rings the 4th
+ * note it stopped on (se_bell_kanenari: the big bell's flash behind the
+ * clocks, and the boss song's pad crossing home to C — bellMorph), the clocks
+ * start forward, and おかえりなさい rises in the case.
+ */
 function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
   s.memo.bossFinal = 1;
   s.memo.bossPhase = 3;
@@ -523,10 +536,11 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
   e.setPose('still');
   yield 600;
   yield* s.say(e.def.texts.extra.final1);
+  sfx('se_boss_voice');
   yield* s.say(e.def.texts.extra.final2.map((p) => `{spd=0.5}${p}`));
-  // Kanenari-kun steps forward (back view, centre bottom) and raises a hand to the bell
+  // グソっ君 puts down his guard and steps forward (back view, centre bottom)
   const k = s.kanenari;
-  const st = { y: 240, f: 'walk1', a: 1 };
+  const st = { y: 240, f: 'walk1', a: 1, dy: 0 };
   const fx = s.addFx({
     layer: 'top',
     dur: 0,
@@ -539,7 +553,7 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
       ctx.beginPath();
       ctx.rect(0, 0, 384, 144);
       ctx.clip();
-      g.alpha(st.a, () => g.img(img, 192 - Math.round(img.width / 2), Math.round(st.y - img.height)));
+      g.alpha(st.a, () => g.img(img, 192 - Math.round(img.width / 2), Math.round(st.y + st.dy - img.height)));
       ctx.restore();
     },
   });
@@ -547,35 +561,67 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
     k.bounceT = 250;
     k.away = false;
     delete k.m.status.status_rusu;
+    s.mood(k, 'gentle', 60000);
   }
   s.msg.post(e.def.texts.extra.final3.slice(0, 1));
   // he stops a little above the name tags, so the whole of him is seen
-  for (let t = 0, n = 0; t < 500; t += FRAME) {
-    st.y = 240 - 102 * ease.quadOut(t / 500);
-    st.f = Math.floor(t / 150) % 2 ? 'walk1' : 'walk2';
-    if (t >= n * 170) {
-      sfx('se_step_kanenari');
+  for (let t = 0, n = 0; t < 700; t += FRAME) {
+    st.y = 240 - 102 * ease.quadOut(t / 700);
+    st.f = Math.floor(t / 170) % 2 ? 'walk1' : 'walk2';
+    if (t >= n * 190) {
+      sfx('se_step_kanenari', { vol: 0.8 });
       n++;
     }
     yield null;
   }
-  st.f = 'raise';
+  st.f = 'idle';
   yield () => !s.msg.busy;
+  yield 250;
+  // he crouches down in front of it (as at a nursery's gate) and holds out a hand
+  st.f = 'bow1';
+  yield 110;
+  st.f = 'bow2';
+  for (let i = 0; i <= 6; i++) {
+    st.dy = Math.round((i / 6) * 5);
+    yield null;
+  }
   yield* s.say(e.def.texts.extra.final3.slice(1));
-  // the 0.6s before the bell is complete silence
+  st.f = 'raise';
+  sfx('se_bow', { vol: 0.4, pitch: 1.3 });
+  yield 300;
+  // 「……迎えに 来たで。」
+  yield* knSay(s, e.def.texts.extra.finalKn.slice(0, 1));
+  e.setPose('lookup');
+  yield* knSay(s, e.def.texts.extra.finalKn.slice(1));
+  // it takes the hand: a warm light where the two hands meet
+  sfx('se_boss_voice');
+  yield* s.say(e.def.texts.extra.finalHold.slice(0, 1).map((p) => `{spd=0.5}${p}`));
+  const hx = 192 + 14;
+  const hy = Math.round(st.y + st.dy) - 46;
+  const handGlow = s.addFx({
+    layer: 'top',
+    dur: 0,
+    draw: (g, t) => {
+      const r = 3 + Math.min(5, t / 90) + Math.sin(t / 180);
+      g.alpha(0.35, () => g.circle(hx, hy, Math.round(r + 3), '#FFE7A3'));
+      g.alpha(0.8, () => g.circle(hx, hy, Math.round(r), '#FFF6D8'));
+    },
+  });
+  s.sparkle(hx, hy);
+  sfx('se_glint', { vol: 0.6 });
+  yield* s.say(e.def.texts.extra.finalHold.slice(1));
+  // the 0.6s before the chime is complete silence
   muteMusic(0.6);
-  st.f = 'hit';
   yield 600;
-  // +500ms: the bell rings for the first time — three rings of sound roll
-  // out from his bell to the edges of the screen, the great bell behind
-  // the clocks lights once, and both faces look up
+  // far away, the clock tower's chime rings the 4th note it stopped on: the
+  // great bell behind the clocks lights once, three rings of sound roll in
+  // from the far tower (top centre) over the whole picture, both look up
   sfx('se_bell_kanenari');
-  bg.frozen = true;
   s.bossChime.gold = true;
   s.shake(1, 1, 60);
   (s.bg as unknown as { bellFlash: number }).bellFlash = 1100;
   const ringX = 192;
-  const ringY = Math.round(st.y) - 40;
+  const ringY = 40;
   for (let i = 0; i < 3; i++) {
     const d = i * 180;
     s.addFx({
@@ -590,8 +636,8 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
         const th = Math.max(1, Math.round(4 * (1 - p * 0.6)));
         g.alpha(0.95 * (1 - p * p), () => {
           const steps = Math.round(r * 3.2);
-          for (let k = 0; k < steps; k++) {
-            const an = (k / steps) * Math.PI * 2;
+          for (let k2 = 0; k2 < steps; k2++) {
+            const an = (k2 / steps) * Math.PI * 2;
             const ca = Math.cos(an);
             const sa = Math.sin(an) * 0.8;
             for (let j = 0; j < th; j++) g.px(Math.round(ringX + ca * (r - j)), Math.round(ringY + sa * (r - j)), j === 0 ? '#FFF6D8' : '#FFE7A3');
@@ -623,19 +669,29 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
       if (this.t % 90 < FRAME) s.burst(rng.range(0, 384), 216, { count: 2, speed: [20, 50], angle: [-Math.PI * 0.6, -Math.PI * 0.4], life: [1200, 2200], colors: ['#FFE7A3', '#FFF6D8'], shape: 'sq', size: [1, 2] }, true);
     },
   });
-  st.f = 'ring';
   yield 1400;
-  yield* s.say(e.def.texts.extra.final4);
-  st.f = 'idle';
-  // +4000ms: the hanko case — おかえりなさい rises while the band reads 9.7
+  yield* s.say(e.def.texts.extra.final4.slice(0, 1));
+  // time moves: the clocks behind start again — forward now (the phases ran them backwards)
+  bg.frozen = false;
+  bg.speed = 0;
+  s.addFx({ layer: 'back', dur: 1200, draw: () => {}, update() {
+    bg.speed = -0.5 * Math.min(1, this.t / 1200);
+  } });
+  yield* s.say(e.def.texts.extra.final4.slice(1));
+  handGlow.done = true;
+  // the hanko case — おかえりなさい rises while the band reads 9.7
   yield* playHankoLearnIn(s, 'skill_okaerinasai', e.def.texts.extra.final5);
   const mi = s.minato;
   if (mi && !mi.m.skills.includes('skill_okaerinasai')) mi.m.skills.push('skill_okaerinasai');
+  // he stands up and goes back to his place
+  st.dy = 0;
+  st.f = 'idle';
   for (let t = 0; t < 300; t += FRAME) {
     st.y = 138 + 108 * ease.quadIn(t / 300);
     yield null;
   }
   fx.done = true;
+  if (k) k.moodOverride = null;
   s.msg.setStatic(e.def.texts.extra.finalPrompt[0]);
   // Minato may be down: she stands up for the last stamp
   if (mi && !mi.alive) {
@@ -803,6 +859,10 @@ export function* doOkaerinasai(s: BattleScene, u: PartyUnit): Co {
   yield* s.say(e.def.texts.extra.finalLeave);
   yield () => e.alpha <= 0.02;
   yield 400;
+  // グソっ君, looking at the stamp: 「……ええ ハンコやな。」
+  const k = s.kanenari;
+  if (k) s.mood(k, 'gentle', 6000);
+  if (e.def.texts.extra.finalKnAfter) yield* knSay(s, e.def.texts.extra.finalKnAfter.map((p) => `{spd=0.7}${p}`));
   markFx.done = true;
   e.dead = true;
   e.visible = false;

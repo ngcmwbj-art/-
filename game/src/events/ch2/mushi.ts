@@ -1,7 +1,7 @@
 // 捕まえない自由研究（50_ch2_story 10.21、52_ch2_level_art 7.5、53_ch2_audio 8.14、
 // 02_ch2_index #64）
 //
-// Once the tomato is in the net, the net can't catch anything: カネナリくん
+// Once the tomato is in the net, the net can't catch anything: グソっ君
 // talks しゅん into a 自由研究 of looking (mushiInvite(), at the end of
 // 〔ハウスを出たとき〕, once: flag_ch2_mushi). Five insects of an August night,
 // each where it really lives — drawn only in the lantern's light (litOnly):
@@ -66,12 +66,11 @@ export function mushiCount(): number {
   return MUSHI5.filter(mushiSeen).length;
 }
 
-/** カネナリくん's invitation (once; called at the end of 〔ハウスを出たとき〕). */
+/** グソっ君's invitation (once; called at the end of 〔ハウスを出たとき〕). */
 export function* mushiInvite(): Co {
   if (flag(MUSHI_FLAG)) return;
   setFlag(MUSHI_FLAG, 1);
   yield 300;
-  se('se_flip');
   yield* say(MUSHI_INVITE);
 }
 
@@ -183,7 +182,6 @@ export function* mushiAtYoshie(): Co<boolean> {
   if (m) m.mp = Math.min(m.maxMp, m.mp + 2);
   se('se_item');
   yield* say(MUSHI_YOSHIE_GET);
-  se('se_flip');
   yield* say(MUSHI_YOSHIE_FLIP);
   return true;
 }

@@ -31,7 +31,7 @@ export function* evtYoriai(): Co {
   p.dir = 'up';
   // the talk is louder than the snoring (amb_h_school −6 dB while they talk)
   ambVol('amb_h_school', 0.5, 0.6);
-  // up the step into the room, カネナリくん beside him: both stand clear of
+  // up the step into the room, グソっ君 beside him: both stand clear of
   // the window (and its name tag at the left) under the ring of cushions
   const k = f.follower;
   if (p.tileY >= 9 && p.tileX >= 3 && p.tileX <= 7) {
@@ -110,8 +110,11 @@ registerScript('evt_ch2_yoriai', function* (): Co {
 
 /**
  * Stepping into the dark without the lantern: the input stops for 0.3 s,
- * one step back, and the reason (the first time カネナリくん says a light is
- * needed; the school corridor has its own line after that).
+ * one step back, and the reason. The first time (flag_ch2_dark_block),
+ * グソっ君 goes in first — 「暗い とこは 得意やで。深い 海みたいや」 — a few
+ * tiles into the dark, and comes back: the floor creaks, しゅん needs a
+ * light (★2026-09-29). Only しゅん is kept out; the corridor opens with the
+ * tomato as before. The school corridor has its own line after that.
  */
 export function* evtDarkBlock(examined = false): Co {
   if (flag('flag_ch2_got_tomato')) return;
@@ -124,7 +127,26 @@ export function* evtDarkBlock(examined = false): Co {
   const school = f.map.id === 'map_hoshi_school';
   if (!flag('flag_ch2_dark_block')) {
     setFlag('flag_ch2_dark_block', 1);
-    yield* runMsg(T.DARK_FIRST);
+    const k = f.follower;
+    const p = f.player;
+    const walkIn = !!(k && k.visible && school);
+    // his own lane of the two-tile corridor (y9–10), so he never walks through しゅん
+    const lane = p.tileY === 9 ? 10 : 9;
+    const from: [number, number] = k ? [k.tileX, k.tileY] : [p.tileX, lane];
+    yield* runCue(T.DARK_FIRST, {
+      *in() {
+        if (!walkIn || !k) return;
+        k.data.scripted = true;
+        yield* walk('kanenari', [[Math.min(from[0], 9), lane], [12, lane]], { speed: 2.2, face: 'left' });
+        yield 400;
+      },
+      *back() {
+        if (!walkIn || !k) return;
+        yield* walk('kanenari', [[Math.min(from[0], 9), lane], from], { speed: 2.4 });
+        delete k.data.scripted;
+        f.syncFollower(true);
+      },
+    });
     return;
   }
   yield* runMsg(school ? T.DARK_SCHOOL_AGAIN : T.DARK_AGAIN);
@@ -175,9 +197,9 @@ function* kairan(): Co {
     return;
   }
   yield* runMsg(T.SAVE_KAIRAN_DONE);
+  // グソっ君 writes his name too, once (the flag keeps its old name)
   if (!flag('flag_ch2_kairan_flip')) {
     setFlag('flag_ch2_kairan_flip', 1);
-    se('se_flip');
     yield* runMsg(T.SAVE_KAIRAN_FLIP);
   }
 }

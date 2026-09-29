@@ -126,7 +126,7 @@ export function* evtBarn(): Co {
   yield 500;
   yield* runCue(T.BARN_A, {
     *shodoku() {
-      // one step north into the footbath: ちゃぷ (and カネナリくん, lower)
+      // one step north into the footbath: ちゃぷ (and グソっ君, lower)
       yield* walk('player', [2, 9], { speed: 2 });
       se('se_h_shodoku');
       yield 300;
@@ -452,7 +452,7 @@ function* workDone(): Co {
     g.data.scripted = true;
     unpose(g);
     let tx = p.tileX <= 3 ? 4 : Math.min(20, p.tileX + 1);
-    // カネナリくん on that tile of the one-tile aisle: he stops just behind him
+    // グソっ君 on that tile of the one-tile aisle: he stops just behind him
     const k = f.follower;
     if (k && k.visible && k.tileY === 6 && k.tileX === tx && tx < 20) tx++;
     if (g.tileX !== tx || g.tileY !== 6) {

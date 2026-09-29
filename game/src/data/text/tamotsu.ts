@@ -236,9 +236,9 @@ export const RECORD = `@npc_tamotsu
 ……記録、更新。{w=300}
 ザリ拓、なぞりなおす。`;
 
-/** カネナリくんが いっしょのとき、はじめて盛ったあと（1回）。 */
-export const FLIP_MORI = `@flip
-（盛りましたね）
+/** グソっ君が いっしょのとき、はじめて盛ったあと（1回。IDは 据え置き）。 */
+export const FLIP_MORI = `@npc_kanenari
+今、盛ったやろ。
 @npc_tamotsu
 ……定規が のびるの。`;
 
@@ -274,8 +274,8 @@ export const BOOT = `@narr
 @npc_tamotsu
 ……それ、あたしの。{w=300}
 去年 なくしたやつ。`;
-export const BOOT_FLIP = `@flip
-（もう 片方は、どこですか）
+export const BOOT_FLIP = `@npc_kanenari
+もう 片方は、どこ 行ったん？
 @npc_tamotsu
 ……家で 待ってる。{w=300}
 1年、片方で。`;

@@ -1,19 +1,22 @@
 // 屋上 ゆうやけひろば (map_mall_roof): the side quest 「屋上ゆうやけひろばの
 // 『4人目』」 (10_narrative 7.18, ★2026-09-28 — docs/ideas/2026-09-28 #2).
 //
-//  - evt_roof_note: 『握手会 お名前ノート』 (three names; four after).
-//  - カネナリくん on the roof (kanenari_map_mall_roof, from interact.ts): the
-//    first time the place flip (the note must still be here); once the note
-//    is read he goes up on the stage by himself — evt_roof_handshake:
-//    「握手する」→ the warm hand, 「（4人目の 人）」「（記録 更新です）」,
+//  - evt_roof_note: 『握手会 お名前ノート』 of some old event (three names;
+//    four after). The first time, グソっ君 looks at the stage: an idea.
+//  - グソっ君 on the roof (kanenari_map_mall_roof, from interact.ts; the ids
+//    keep the old names): the first time his word about the sky; once the
+//    note is read, 「ほな、わいも やったろか。握手会」 and he goes up on the
+//    stage by himself — evt_roof_handshake (04_gusokkun_plan 2章 8, 案A):
+//    「握手する」→ 「手ぇ、どれで したら ええねん」 (the little legs all come
+//    forward), the handshake (extra 'handshake'), 「しゅんが 1人目や」,
 //    しゅん writes his name on the 4th line, 握手券. 「やめておく」→
-//    「（あと 1年は 待てます）」 (he asks again next time).
+//    「え、せえへんの！？」 (he asks again next time).
 //  - evt_roof_panda: 100 yen, the panda goes 1 m and comes back.
 //  - evt_roof_scope: 100 yen (once — the timer never runs, it is 17:00),
 //    the east through the lenses: beyond the mountains it is night.
-//  - M4 2F: the first time there, カネナリくん holds up 「（上にも 何か
-//    あります）」 over his head for a moment (non-blocking, flag_roof_hint).
-//  - debug: __game.cmd.roof() (stage 2 with カネナリくん, on the roof),
+//  - M4 2F: the first time there, グソっ君 says 「上にも なんか あるで」 in a
+//    little bubble for a moment (non-blocking, flag_roof_hint).
+//  - debug: __game.cmd.roof() (stage 2 with グソっ君, on the roof),
 //    roofReset(), roofText() (every page: 3 lines × 336 px).
 
 import type { Co } from '../engine/co';
@@ -27,15 +30,17 @@ import type { Actor } from '../world/actor';
 import { animate, ease } from '../engine/tween';
 import { W, H } from '../engine/screen';
 import { game } from '../engine/game';
-import { flipBoardText } from '../art/chars';
+import { bubbleCanvas, drawBubble } from '../ui/bubble';
 import { drawScopeView, RIDE, roofRt } from '../art/props/mall_roof';
 import {
   HS_FLIP,
   HS_NO,
   HS_OPEN,
   HS_OPEN_AGAIN,
+  HS_START,
   HS_TICKET,
   HS_WARM,
+  HS_WHICH,
   HS_WRITE,
   ROOF_FLIP_DONE,
   ROOF_FLIP_FIRST,
@@ -57,7 +62,7 @@ import { F, getKeyItem, panBack, panTo, tileFree, tileRoute } from './lib';
 import { talkZoom, zoomOut } from './stage';
 
 const ROOF = 'map_mall_roof';
-/** Where カネナリくん stands on the stage (world px, feet) and how high the stage is. */
+/** Where グソっ君 stands on the stage (world px, feet) and how high the stage is. */
 const STAGE_SPOT: [number, number] = [188, 64];
 const STAGE_H = 7;
 /** Where しゅん stands to shake hands (world px, feet): just below the stage's edge. */
@@ -65,14 +70,13 @@ const SHAKE_SPOT: [number, number] = [203, 80];
 
 // ---------------------------------------------------------------- small staging helpers
 
-/** カネナリくん holds up his board for one message (as events/mall.ts flip()). */
+/** グソっ君 says one message, talking with his hands (the pose keeps the old name; as events/mall.ts flip()). */
 function* flipMsg(text: string): Co<number> {
   const k = F().follower;
   if (!k) return yield* msg(text);
   const had = !!k.data.scripted;
   k.data.scripted = true;
   k.tempPose = 'flip_hold';
-  sfx('se_flip');
   const i = yield* msg(text);
   k.tempPose = null;
   if (!had) delete k.data.scripted;
@@ -130,19 +134,20 @@ registerScript('evt_roof_note', function* (): Co {
   yield* msg(ROOF_NOTE);
   const first = !flag('flag_roof_note');
   setFlag('flag_roof_note', 1);
-  // the first time, カネナリくん looks over at the stage (the hint: talk to him)
+  // the first time, グソっ君 looks over at the stage: an idea (the hint: talk to him)
   const k = F().follower;
   if (first && k && flag('flag_kanenari_joined')) {
     k.data.scripted = true;
     k.dir = 'up';
     yield 200;
-    k.showEmote('dots', 900);
+    k.showEmote('light', 900);
+    sfx('se_emote_light', { vol: 0.7 });
     yield 900;
     delete k.data.scripted;
   }
 });
 
-// ---------------------------------------------------------------- カネナリくん on the roof
+// ---------------------------------------------------------------- グソっ君 on the roof
 
 registerScript('kanenari_' + ROOF, function* (ctx): Co {
   if (flag('flag_roof_handshake')) {
@@ -174,6 +179,13 @@ function* handshake(): Co {
   k.data.scripted = true;
   p.path = [];
   p.moving = false;
+  const again = !!flag('flag_roof_hs_declined');
+  // the idea, the first time: 「ほな、わいも やったろか。握手会」
+  if (!again) {
+    k.dir = k.tileX < p.tileX ? 'right' : k.tileX > p.tileX ? 'left' : k.tileY < p.tileY ? 'down' : 'up';
+    yield* flipMsg(HS_START);
+    k.data.scripted = true;
+  }
   // he goes up on the stage by himself (the camera shows the stage)
   k.hop(3, 150);
   sfx('se_emote_light');
@@ -184,7 +196,6 @@ function* handshake(): Co {
   yield* hopTo(k, STAGE_SPOT[0], STAGE_SPOT[1], -STAGE_H);
   k.dir = 'down';
   yield 250;
-  const again = !!flag('flag_roof_hs_declined');
   const choice = yield* flipMsg(again ? HS_OPEN_AGAIN : HS_OPEN);
   if (choice !== 0) {
     setFlag('flag_roof_hs_declined', 1);
@@ -204,12 +215,18 @@ function* handshake(): Co {
   p.moving = false;
   yield 200;
   const z = yield* talkZoom(k, p, 450);
-  // the handshake: his mitten round しゅん's hand, shaken three times
+  // which hand? — the little legs all come forward (わしゃっ)
+  k.playAnim('washa', true);
+  yield* msg(HS_WHICH);
+  k.anim = null;
+  // the handshake: his front hand round しゅん's hand, shaken three times
+  k.tempPose = 'handshake';
   roofRt.clasp = { x: Math.round((STAGE_SPOT[0] + SHAKE_SPOT[0]) / 2), y: STAGE_SPOT[1] - STAGE_H - 2, t0: f.t };
   sfx('se_step_kanenari', { vol: 0.35, pitch: 1.3 });
   yield 1000;
   yield* msg(HS_WARM);
   roofRt.clasp = null;
+  k.tempPose = null;
   yield 200;
   yield* flipMsg(HS_FLIP);
   // a small bow from the stage
@@ -280,12 +297,12 @@ registerWorldFx({
     g.px(x + 4, y + 5, '#FFD9B8');
     g.px(x + 2, y + 4, '#FFD9B8');
     g.px(x + 3, y + 4, '#E0A882');
-    // カネナリくん's fur arm down to it, the mitten round しゅん's hand
-    g.px(x - 3, y - 3, '#F2894B');
-    g.px(x - 2, y - 2, '#F2894B');
-    g.px(x - 3, y - 2, '#C8643A');
-    g.rect(x - 2, y - 1, 4, 3, '#F2894B');
-    g.rect(x - 1, y - 1, 2, 1, '#F7C27A');
+    // グソっ君's armoured arm down to it, his hand round しゅん's
+    g.px(x - 3, y - 3, '#9A92AE');
+    g.px(x - 2, y - 2, '#9A92AE');
+    g.px(x - 3, y - 2, '#6E6890');
+    g.rect(x - 2, y - 1, 4, 3, '#9A92AE');
+    g.rect(x - 1, y - 1, 2, 1, '#C6BEDA');
     g.px(x + 2, y, '#FFD9B8');
     g.rect(x - 2, y + 2, 4, 1, '#2A2440');
     g.px(x - 3, y, '#2A2440');
@@ -384,9 +401,9 @@ registerWorldFx({
 
 /**
  * The first time on 2F (before the roof was ever visited, 10_narrative
- * 7.18): a moment after arriving, カネナリくん turns to the stairs and holds
- * up his board 「（上にも 何か あります）」 over his head for 2.6 s. Nothing
- * stops — the player can walk on while it is up (flag_roof_hint).
+ * 7.18): a moment after arriving, グソっ君 turns to the stairs and says
+ * 「上にも なんか あるで」 in a little bubble for 2.6 s. Nothing stops — the
+ * player can walk on while it is up (flag_roof_hint).
  */
 const HINT_MS = 2600;
 const hint = { field: null as unknown, map: '', enterT: 0, t0: -1, posed: false };
@@ -394,7 +411,7 @@ registerWorldFx({
   map: '',
   update(f) {
     if (f !== hint.field || f.map.id !== hint.map) {
-      if (hint.posed && f.follower?.tempPose === 'flip_hold') f.follower.tempPose = null;
+      if (hint.posed && f.follower?.tempPose === 'point') f.follower.tempPose = null;
       hint.field = f;
       hint.map = f.map.id;
       hint.enterT = f.t;
@@ -409,9 +426,9 @@ registerWorldFx({
       if (!k || !k.visible || k.data.scripted) return;
       setFlag('flag_roof_hint', 1);
       hint.t0 = f.t;
-      sfx('se_flip');
+      sfx('se_emote_light', { vol: 0.6 });
       if (!k.moving) {
-        k.tempPose = 'flip_hold';
+        k.tempPose = 'point';
         hint.posed = true;
       }
       return;
@@ -419,7 +436,7 @@ registerWorldFx({
     const u = f.t - hint.t0;
     // he lowers it at the end, or as soon as he walks off / something else takes him
     if (hint.posed && k && (u > HINT_MS || k.moving || k.data.scripted || game.scripts.busy)) {
-      if (k.tempPose === 'flip_hold') k.tempPose = null;
+      if (k.tempPose === 'point') k.tempPose = null;
       hint.posed = false;
     }
   },
@@ -428,18 +445,15 @@ registerWorldFx({
     const u = f.t - hint.t0;
     const k = f.follower;
     if (u > HINT_MS + 180 || !k || !k.visible || game.scripts.busy) return;
-    const img = flipBoardText(ROOF_HINT, { maxW: 104 });
-    // pops in (1.15 → 1), fades at the end; beside his head but never over
-    // the stairs, their board and the arrow (map x 16–83): just east of them
-    const s = 1.15 - 0.15 * ease.cubicOut(Math.min(1, u / 140));
-    const w = Math.round(img.width * s);
-    const h = Math.round(img.height * s);
+    // a speech bubble over his head (it pops in and fades at the end), kept
+    // off the stairs, their board and the arrow (map x 16–83): just east of them
+    const bw = bubbleCanvas(ROOF_HINT).width;
     const ax = Math.round(k.x + k.ox - cx);
-    const ay = Math.round(k.y + Math.min(0, k.oy) - cy - 22);
-    const x = Math.max(4, Math.min(W - w - 4, Math.max(86 - cx, ax + 10)));
-    const y = Math.max(4, ay - h);
-    const a = Math.min(1, u / 90) * (u > HINT_MS ? Math.max(0, 1 - (u - HINT_MS) / 180) : 1);
-    g.alpha(a, () => g.ctx.drawImage(img, x, y, w, h));
+    const ay = Math.round(k.y + Math.min(0, k.oy) - cy - 24);
+    const x = Math.max(4 + bw / 2, Math.min(W - bw / 2 - 4, Math.max(86 - cx + bw / 2, ax)));
+    const y = Math.max(26, ay);
+    const a = u > HINT_MS ? Math.max(0, 1 - (u - HINT_MS) / 180) : 1;
+    drawBubble(g, ROOF_HINT, Math.round(x), y, u, a);
   },
 });
 
@@ -455,7 +469,7 @@ registerScript('lv_in_mall_roof', function* (): Co {
 
 // ---------------------------------------------------------------- debug
 
-/** QA: straight onto the roof in stage 2 with カネナリくん (via the 2F beat). */
+/** QA: straight onto the roof in stage 2 with グソっ君 (via the 2F beat). */
 registerDebug('roof', (x = 2, y = 4, dir = 'down') => {
   const cmd = (window as unknown as { __game: { cmd: Record<string, (...a: unknown[]) => unknown> } }).__game.cmd;
   cmd.jump?.('mall2f', true);

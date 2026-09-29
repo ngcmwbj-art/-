@@ -129,9 +129,15 @@ export function hasSave(): boolean {
   }
 }
 
-/** Saves from before the renames (ミナト → シュン 2026-09-26, → しゅん 2026-09-28) get the new name. */
+/**
+ * Saves from before the renames (ミナト → シュン 2026-09-26, → しゅん 2026-09-28;
+ * カネナリくん → グソっ君 2026-09-29, id 'kanenari') get the new name.
+ */
 function migrateNames(): void {
-  for (const m of state.party as { id?: string; name?: string }[]) if (m && (m.name === 'ミナト' || m.name === 'シュン')) m.name = 'しゅん';
+  for (const m of state.party as { id?: string; name?: string }[]) {
+    if (m && (m.name === 'ミナト' || m.name === 'シュン')) m.name = 'しゅん';
+    if (m && m.id === 'kanenari' && m.name === 'カネナリくん') m.name = 'グソっ君';
+  }
 }
 
 export function loadGame(): boolean {

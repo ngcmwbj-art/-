@@ -1,7 +1,7 @@
 // M5 迷子センター (30_level_art 5.5, 14×11). The boss room: darker than the
 // rest (pal_maigo), lit by one fluorescent tube that comes on and goes out
 // every 1.3 s (in step with amb_fluorescent_flicker). Pastel wallpaper gone
-// grey, the 『まいごセンター』 sign, a faded poster of the bell-headed mascot,
+// grey, the 『まいごセンター』 sign, a faded poster (the mall's bell mark waving),
 // children's drawings; the low counter 『どうしたの？』 with the log book and
 // the dead microphone; a heap of unclaimed lost things in the corner whose
 // outline trembles 1px (#3A2B5C) — the boss is waiting in it.
@@ -68,7 +68,7 @@ registerProp('mall_m5_shell', () => {
   p.hline(bx + 1, bx + bw - 2, 20, P.sunShade);
   fontText(p, 'まいごセンター', bx + 6, 5, P.white, { shadow: P.sunShade });
   castRight(p, bx, 3, bw, 18, 3);
-  // ---- the faded mascot poster (the bell-headed one) on the left
+  // ---- the faded poster 『まいごに なったら、ここで まってて ね』 (the bell mark waving) on the left
   mascotPoster(p, 18, 5);
   // ---- a board of 『迷子のお知らせ』 sheets
   p.rect(52, 24, 30, 18, P.woodLt);
@@ -153,7 +153,7 @@ function foamMat(x: number, y: number): string {
   return c;
 }
 
-/** The mall mascot poster, bleached: the bell-headed character waving, 『よいこの みかた』. */
+/** The maigo center's poster, bleached: the mall's bell mark with arms, waving — 『まいごに なったら、ここで まってて ね』. */
 function mascotPoster(p: PixelCanvas, x: number, y: number): void {
   const w = 28;
   const h = 40;
@@ -178,7 +178,7 @@ function mascotPoster(p: PixelCanvas, x: number, y: number): void {
   p.line(cx + 5, y + 20, cx + 9, y + 16, P.skin2);
   p.rect(cx - 4, y + 27, 3, 3, P.skin3);
   p.rect(cx + 2, y + 27, 3, 3, P.skin3);
-  // text strokes 『よいこの みかた カネナリくん』
+  // text strokes 『まいごに なったら、ここで まってて ね』
   printLines(p, x + 3, y + 31, 22, 2, P.peach, 91, 2);
   printLines(p, x + 6, y + 36, 16, 1, P.skin3, 93);
   castRight(p, x, y, w, h, 2);

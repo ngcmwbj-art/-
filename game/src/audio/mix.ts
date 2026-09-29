@@ -421,7 +421,7 @@ export const SE_TRIM: Record<string, number> = {
   se_examine: 18.5, se_fushigi: 21, se_symbol_notice: 19.5, se_flip: 24.5, se_pen_write: 25.5, se_clock_flip: 12.5,
   se_step_asphalt: 17, se_step_grass: 18, se_step_sand: 21.5, se_step_gravel: 21, se_step_wood: 13,
   se_step_wood_bare: 16.5, se_step_tatami: 26.5, se_step_tile: 23.5, se_step_stone: 18, se_step_dirt: 18,
-  se_step_metal: 14, se_step_kanenari: 13.5, se_door: 20.5, se_door_glass: 26.5, se_auto_door: 20.5,
+  se_step_metal: 14, se_step_kanenari: 14.5, se_door: 20.5, se_door_glass: 26.5, se_auto_door: 20.5,
   se_door_heavy: 15.5, se_door_small: 24, se_stairs: 16.5, se_shop_bell: 15.5, se_shop_shutter: 20, se_shutter: 21.5,
   se_chain: 10, se_shadow_swing: 22, se_crow: 25.5, se_coo: 15.5, se_cat: 27.5, se_dog_bark: 19.5,
   se_sparrow_a: 21.5, se_sparrow_b: 21, se_higurashi_call: 22.5, se_furin: 13, se_fry: 9.5, se_crossing_up: 20.5,
@@ -466,6 +466,8 @@ export const VOICE_TRIM: Record<string, number> = {
   flip: 16.5, kanenari_voice: 15, default: 19,
   // ゆう（時計店。02 #69、audioMixSuggest）
   tokio: 13.5,
+  // グソっ君（★2026-09-29 カネナリくん→グソっ君。audioMixSuggest、samples.ts の見本の台詞で）
+  gusokkun: 13.5,
   // マル（02 #65）・おぴぃ（02 #66）・よね・とよぞう（02 #67）：足したときに trim が
   // 入っておらず、ほかの声より 15〜19 dB 小さかった（audioMixSuggest、samples.ts の見本の台詞で）
   maru: 19, tamotsu: 15.5, yone: 17, toyozou: 11.5,

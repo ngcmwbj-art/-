@@ -11,7 +11,7 @@ import type { BattleScene } from './scene';
 import { FRAME } from './scene';
 import type { EnemyUnit } from './model';
 import { arrows, showSticky } from './common';
-import { showFlip } from './tsukkomi';
+import { knSay, showKnLine } from './gusokkun';
 import { C, tapeCanvas } from './ui/note';
 
 /** Statuses on at the start of a chapter-2 battle (51 8.1, 9.2). */
@@ -106,25 +106,25 @@ export function* ch2RoundEnd(s: BattleScene): Co {
   const tetsu = s.aliveEnemies.find((e) => e.def.restAlways);
   if (tetsu && s.round === 2 && !s.memo.otsukareUsed && !s.memo.otsukareHint && s.minato?.m.skills.includes('skill_otsukaresama')) {
     s.memo.otsukareHint = 1;
+    // グソっ君 says it (★2026-09-29: no flip); a line of narration when he is down
     if (s.kanenari && s.kanenari.alive) {
       s.mood(s.kanenari, 'tsukkomi', 1800);
-      showFlip(s, (tetsu.def.texts.extra.hintFlip ?? [''])[0], 1800);
-    }
-    yield* s.say(tetsu.def.texts.extra.hint ?? []);
+      yield* knSay(s, tetsu.def.texts.extra.hint ?? []);
+    } else yield* s.say(tetsu.def.texts.extra.hintNarr ?? []);
     s.memo.otsukareTut = 1;
     showSticky(s, 'otsukare', 'flag_tut_otsukare');
   }
   // 51 9.2 もう一度 (2026-09-28): a child who read past the hint gets it back,
   // short — rounds 6 and 10, while he is still 徹夜中 (never rested, or up
-  // again): カネナリくんの flip only (no page), the sticky again, pulsing,
+  // again): グソっ君's balloon only (no page), the sticky again, pulsing,
   // and the hanko icon pulsing at the next command with おつかれさま chosen
   if (tetsu && (s.round === 6 || s.round === 10) && tetsu.status.tetsuya && !enemyRests(tetsu) && s.minato?.m.skills.includes('skill_otsukaresama')) {
     const withFlip = !!(s.kanenari && s.kanenari.alive);
     if (s.kanenari && withFlip) {
       s.mood(s.kanenari, 'tsukkomi', 1400);
-      showFlip(s, (tetsu.def.texts.extra.hintFlip2 ?? tetsu.def.texts.extra.hintFlip ?? [''])[0], 1400);
+      showKnLine(s, (tetsu.def.texts.extra.hintFlip2 ?? tetsu.def.texts.extra.hintFlip ?? [''])[0], 1400);
     }
-    // the sticky comes up as the flip goes (they share the top of the screen)
+    // the sticky comes up as his balloon goes
     delete s.memo.stk_otsukare;
     showSticky(s, 'otsukare', undefined, true, 0, withFlip ? 1400 : 0);
     s.memo.otsukareTut = 1;

@@ -22,8 +22,9 @@ export const KANENARI_MATS: Mats = {
   shellD: mat('#6E6890', { shade: '#4A3A6E', light: '#9A92AE', dark: '#3A2B5C' }),
   belly: mat('#C6BEDA', { shade: '#9A92AE', light: '#E8E4D8', dark: '#6E6890' }),
   leg: mat('#C6BEDA', { shade: '#9A92AE', light: '#E8E4D8', dark: '#6E6890' }),
-  ant: flat('#4A3A6E'),
-  antL: flat('#6E6890'),
+  // feelers: one mid tone, so they read on the sunset ground and on the night's too
+  ant: flat('#6E6890'),
+  antL: flat('#9A92AE'),
   eye: flat('#2A2440'),
   eyeS: flat('#4A3A6E'),
   glint: flat('#FFF6D8'),
@@ -755,49 +756,55 @@ function side(f: Fig, p: Pose) {
 }
 
 /**
- * Lying on his back (belly up, 20×12 in the frame's bottom rows): the head
- * on the left, the tail fan on the right, the little legs up in the air
- * paddling slowly (ph 0/1). Hungry, not hurt.
+ * Lying on his back (あおむけ), drawn as the front view: belly and face up to
+ * the sky, the arms and the small legs out in the air, paddling slowly (ph
+ * 0/1). buildKanenari() turns these frames a quarter round (head to the
+ * right, lying on the ground). Hungry, not hurt.
  */
 function fallen(f: Fig, p: Pose) {
-  f.offset(0, 0);
   const ph = p.ph % 2;
-  const g = H - 1;
-  // the tail fan on the ground at the right
-  f.part('shellD', { shade: 'rb', light: 't' });
-  f.poly([[14.5, g - 4.5], [19.6, g - 5.5 + ph], [19.6, g + 0.6], [14.5, g + 0.6]]);
-  // the armoured hull underneath, rocking a little
-  f.part('shell', { shade: 'rb', light: 't', inner: false });
-  f.ell(10.5, g - 2.4, 6.6, 2.9);
-  for (const x of [7, 9, 11, 13, 15]) for (let y = g - 1; y <= g; y++) if (f.filled(x, y)) f.retone(x, y, -1);
-  // the pale belly turned up to the sky
-  f.part('belly', { shade: 'rb', light: 'tl', inner: false });
-  f.ell(10.5, g - 4.4, 5.8, 1.9);
-  // the little legs up in the air, paddling slowly (two sets take turns)
+  const by = 10;
+  fanFront(f, by, ph ? 1 : 0);
+  legs(f, { ...p, mode: 'extra' }, by, 'front');
+  bodyFront(f, by);
+  // the small legs out of the tummy's edges, taking turns
   f.part('leg', { shade: 'rb', light: 't' });
-  [8, 10.5, 13, 15].forEach((x, i) => {
-    const up = (i + ph) % 2 === 0 ? 2 : 1;
-    f.vl(Math.round(x), g - 6 - up, g - 6);
-  });
-  // the head at the left end, face up, one big eye looking at the sky
-  f.part('shell', { shade: 'rb', light: 't' });
-  f.ell(4.2, g - 3, 3.8, 3.3);
-  f.retone(7, g - 4, -2).retone(8, g - 3, -2).retone(8, g - 2, -2);
-  f.part('eye', { flat: true, rim: false });
-  f.rows(2, g - 5, ['.##', '###', '##.']);
-  f.part('eyeS', { flat: true, rim: false });
-  f.px(2, g - 2);
-  f.part('glint', { flat: true, rim: false });
-  f.px(3, g - 5 + ph);
-  f.part('cheek', { flat: true, rim: false });
-  f.px(5, g - 2);
-  // the arms flopped up over the chest
-  f.part('leg', { shade: 'rb', light: 't' });
-  f.px(6, g - 6).px(6, g - 7).px(5 + ph, g - 8);
-  // the feelers, limp on the ground
-  f.part('ant', { flat: true, rim: false, ol: false });
-  f.px(1, g - 6).px(0, g - 5).px(0, g - 4).px(0, g - 3);
-  f.px(2, g - 7).px(1, g - 8).px(0, g - 8 + ph);
+  for (const [i, r] of [[0, 3], [1, 5], [2, 7]] as const) {
+    const up = (i + ph) % 2 === 0;
+    f.hl(up ? 1 : 2, 3, by + r).hl(12, up ? 14 : 13, by + r);
+  }
+  headFront(f, 3, { eyes: ph ? 'open' : 'down', ant: 'droop', sway: ph }, 0);
+  const sy = by + 3;
+  arm(f, 2, sy, -1, sy - 3 + ph);
+  arm(f, 13, sy, 15, sy - 2 - ph, -1);
+}
+
+/**
+ * A frame turned a quarter round clockwise (head to the right, the lit left
+ * edge now on top), lying on the frame's bottom row.
+ */
+function lieDown(c: HTMLCanvasElement): HTMLCanvasElement {
+  const w = c.width;
+  const h = c.height;
+  const src = c.getContext('2d')!.getImageData(0, 0, w, h);
+  // rows of the turned picture = columns of the frame; drop the empty ones at the bottom
+  const empty = (x: number) => ![...Array(h).keys()].some((y) => src.data[(y * w + x) * 4 + 3]);
+  let hi = w - 1;
+  while (hi > 0 && empty(hi)) hi--;
+  const out = document.createElement('canvas');
+  out.width = h;
+  out.height = hi + 1;
+  const g = out.getContext('2d')!;
+  const dst = g.createImageData(out.width, out.height);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x <= hi; x++) {
+      const i = (y * w + x) * 4;
+      if (!src.data[i + 3]) continue;
+      const j = (x * out.width + (h - 1 - y)) * 4;
+      dst.data.set(src.data.subarray(i, i + 4), j);
+    }
+  g.putImageData(dst, 0, 0);
+  return out;
 }
 
 /** Deep bow toward the viewer: the head tips right down, the chest plates show above it. */
@@ -957,6 +964,20 @@ function buildKanenari(): CharSprite {
   s.extra!.hold_net = down;
   // the raw gesture for callers that composite a board of their own
   s.extra!.flip_raw = s.extra!.flip;
+  // あおむけ: the fallen frames are drawn standing and laid down here
+  const turned = new Map<HTMLCanvasElement, HTMLCanvasElement>();
+  const lie = (c: HTMLCanvasElement) => {
+    let r = turned.get(c);
+    if (!r) turned.set(c, (r = lieDown(c)));
+    return r;
+  };
+  s.extra!.fallen = lie(s.extra!.fallen);
+  const fd = s.extraDir!.fallen;
+  if (fd) for (const d of Object.keys(fd) as (keyof typeof fd)[]) fd[d] = lie(fd[d]!);
+  const fa = s.anims!.fallen;
+  s.anims!.fallen = { ...fa, frames: fa.frames.map(lie) };
+  const fad = s.animsDir?.fallen;
+  if (fad) for (const d of Object.keys(fad) as (keyof typeof fad)[]) fad[d] = { ...fad[d]!, frames: fad[d]!.frames.map(lie) };
   return s;
 }
 

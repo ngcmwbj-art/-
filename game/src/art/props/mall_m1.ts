@@ -869,7 +869,7 @@ registerProp('mall_info_counter', () => {
     p.rect(41, 9, 8, 5, P.white);
     p.hline(42, 47, 11, P.concrete);
     p.line(52, 13, 56, 11, P.navy);
-    // a poster on the front: 『カネナリくん 握手会』, faded, one corner loose
+    // a poster on the front: an old 『握手会』 of the mall's, faded, one corner loose
     p.rect(26, 23, 14, 5, P.paper);
     p.rect(27, 24, 3, 3, P.sun);
     p.set(28, 23, P.brass);
@@ -1093,7 +1093,7 @@ registerProp('mall_exit_sign', (opts) => {
 
 registerProp('mall_balloon', () => {
   const frames = mkFrames(3, 16, 34, (p, k) => {
-    // a bell-faced balloon (the mascot's face), string swaying 1px
+    // a balloon with the mall's smiling bell mark, string swaying 1px
     p.ellipse(8, 7, 6.5, 6, P.sun);
     p.ellipse(7, 6, 5, 4.5, P.sky);
     p.rect(4, 3, 2, 2, P.goldPale);

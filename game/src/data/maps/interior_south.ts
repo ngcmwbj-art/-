@@ -408,7 +408,7 @@ registerScript('south_enter', function* () {
   yield* runMsg(SENTER[id]);
 });
 
-/** 倉庫の垂れ幕：カネナリくんが仲間なら、フリップを1枚（見ないように している）。 */
+/** 倉庫の垂れ幕（夏まつり）：グソっ君が仲間なら、ひとこと（まつりを 知らない）。 */
 registerScript('obj_sk_banner', function* () {
   sfx('se_examine');
   yield* runMsg(flag('flag_kanenari_joined') ? `${SBANNER}\n${SBANNER_FLIP}` : SBANNER);

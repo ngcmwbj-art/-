@@ -27,11 +27,16 @@ export const KAITENYAKI_KEY = (count: number): string => `@sys
 みました帳に 書きこんだ。（ふしぎ ${count}/12）
 迷子センターの鍵を 手に入れた！`;
 
-/** カネナリくん's board: one window (大判焼き派 — and whether they agree). */
-export const KAITENYAKI_FLIP = (agree: boolean): string => `@flip
-ぼくは 大判焼き派です。
-${agree ? '（気が 合いますね）' : '（でも、いい 名前です）'}`;
+/** グソっ君: one window (回転焼き派 — and whether しゅん picked the same name). */
+export const KAITENYAKI_FLIP = (agree: boolean): string => `@npc_kanenari
+${agree ? '回転焼き！{w=300}わいも そう 呼ぶで。' : 'わいは 回転焼き派や。{w=300}'}
+……食うたこと、ないけどな。`;
 
+
+/** The 『ふしぎな 深海生物展』 poster in M2's corner: グソっ君's word, once (it answers nothing). */
+export const DEEPSEA_POSTER_KANENARI = `@npc_kanenari
+…………。{w=500}
+……なんか、なつかしい 気ぃ するわ。`;
 
 export const KAITENYAKI_AGAIN = (name: string): string => `@narr
 回転焼き機は 止まっている。{w=300}

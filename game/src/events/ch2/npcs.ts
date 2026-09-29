@@ -1,7 +1,8 @@
 // The village's talk (50_ch2_story 3章): every NPC of 星見台 with its stage
 // lines (h0_1 …), the branches on the story flags, ぴょん夫人's tea (HP back,
 // evt_ch2_rest_yoriai), ソワカさん's 無人販売所 (7.3; the UI's shop
-// 'shop_hoshi_mujin') and カネナリくん's flips by place (3.1, 52 1.8).
+// 'shop_hoshi_mujin') and グソっ君's words by place (3.1, 52 1.8; the ids keep
+// the old 'flip' names — ★2026-09-29 カネナリくん→グソっ君, no flips).
 // The ids keep the old names (npc_hoshi_mitsu = ペロ, _gen = マサルさん …).
 
 import type { Co } from '../../engine/co';
@@ -171,6 +172,12 @@ registerScript('npc_hoshi_fumi', function* (): Co {
   const t = T.npc_hoshi_fumi;
   // 〔sawa〕 沢の上のプールの2人の自由研究 (02 #65): once, after セキトメ
   if (yield* fumiSawa()) return;
+  // マリンスノー (★2026-09-29, 04 6章): once, the talk after her first line of the night (stages 0–1)
+  if (hStage() <= 1 && !flag('flag_ch2_marine_snow') && (flag('flag_seen_npc_hoshi_fumi_h0_2') || flag('flag_seen_npc_hoshi_fumi_h1_1'))) {
+    setFlag('flag_ch2_marine_snow', 1);
+    yield* say(t.marine);
+    return;
+  }
   if (hStage() >= 2) {
     if (yield* extraLine('npc_hoshi_fumi', { h2: t.h2 }, 2)) return;
     setFlag('flag_seen_npc_hoshi_fumi_h2', flag('flag_seen_npc_hoshi_fumi_h2') + 1);
@@ -319,7 +326,7 @@ registerScript('npc_hoshi_gon', function* (): Co {
   yield* say(s >= 2 ? t.h2 : t.h1);
 });
 
-// ---------------------------------------------------------------- 3.1 カネナリくんのフリップ（場所ごと）
+// ---------------------------------------------------------------- 3.1 グソっ君の場所ごとのひとこと
 
 /** The place key of 52 1.8 (checked top to bottom) for where Minato stands. */
 export function hoshiPlaceKey(f: FieldScene): string {
@@ -329,7 +336,7 @@ export function hoshiPlaceKey(f: FieldScene): string {
   const inR = (x0: number, x1: number, y0: number, y1: number) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
   const v = m === 'map_hoshimidai';
   if (m === 'map_hoshi_train') return 'hoshi_train';
-  // the rooms of the houses (02_ch2_index #61): one flip each
+  // the rooms of the houses (02_ch2_index #61): one line each
   if (ROOM2_KEYS[m]) return ROOM2_KEYS[m];
   if (v && inR(19, 24, 36, 39)) return 'hoshi_mujin';
   if (v && inR(33, 45, 40, 45)) return 'hoshi_bus';
@@ -342,15 +349,15 @@ export function hoshiPlaceKey(f: FieldScene): string {
   if (v && inR(14, 35, 1, 19)) return 'hoshi_tanada';
   if (v && inR(37, 59, 0, 17)) return 'hoshi_houki';
   if (m === 'map_hoshi_hill') return 'hoshi_hill';
-  // 沢の上 (02 #65): its flip is data/text/maru.ts's SAWA_FLIP
+  // 沢の上 (02 #65): its line is data/text/maru.ts's SAWA_FLIP
   if (m === 'map_hoshi_sawa') return 'hoshi_sawa';
   return '';
 }
 
 /**
- * The flip for talking to カネナリくん on 星見台, as one msg block: the
- * place's flip the first time there (flag_kanenari_flip_<place>), else the
- * three usual ones of chapter 2 in turn (counted apart from chapter 1's).
+ * グソっ君's words when talked to on 星見台, as one msg block: the place's
+ * line the first time there (flag_kanenari_flip_<place>), else the three
+ * usual ones of chapter 2 in turn (counted apart from chapter 1's).
  */
 export function hoshiFlipText(f: FieldScene): string {
   // 寝言しりとり (02_ch2_index #56): after the third sleep-talk, in the gathering room, once
@@ -369,8 +376,11 @@ export function hoshiFlipText(f: FieldScene): string {
   } else if (key && KANENARI_FLIPS_HOSHI[key] && !flag(`flag_kanenari_flip_${key}`)) {
     setFlag(`flag_kanenari_flip_${key}`, 1);
     let text = KANENARI_FLIPS_HOSHI[key];
-    // the one who came: まつ先生, if he is in the gathering room
-    if (key === 'hoshi_school' && f.map.id === 'map_hoshi_school' && f.actorById('npc_hoshi_fumi')) text += '\n' + T.npc_hoshi_fumi.school_flip;
+    // まつ先生 in the gathering room: her マリンスノー follows, once (★2026-09-29)
+    if (key === 'hoshi_school' && f.map.id === 'map_hoshi_school' && f.actorById('npc_hoshi_fumi') && !flag('flag_ch2_marine_snow')) {
+      setFlag('flag_ch2_marine_snow', 1);
+      text += '\n' + T.npc_hoshi_fumi.marine;
+    }
     return text;
   }
   const n = flag('flag_kanenari_usual_hoshi');
@@ -381,15 +391,14 @@ export function hoshiFlipText(f: FieldScene): string {
 export function* kanenariFlipHoshi(): Co<boolean> {
   const f = field();
   if (!f || !isHoshi(f.map.id)) return false;
-  se('se_flip');
   yield* runMsg(hoshiFlipText(f));
   return true;
 }
 
 /**
- * The world asks for カネナリくん's words through chapter 1's table (it has no
- * hook for a chapter's own flips yet): on 星見台 the entries of that table
- * answer with chapter 2's flips. Off 星見台 they are chapter 1's own.
+ * The world asks for グソっ君's words through chapter 1's table (it has no
+ * hook for a chapter's own lines yet): on 星見台 the entries of that table
+ * answer with chapter 2's lines. Off 星見台 they are chapter 1's own.
  */
 {
   const own = [...KANENARI_USUAL];

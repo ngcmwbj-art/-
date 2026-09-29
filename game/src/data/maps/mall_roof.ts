@@ -5,8 +5,8 @@
 // 依頼主の指摘); they come out at the south edge (11–12,14), lane for lane —
 // so the way up is pushed north and the way down south, and holding the key
 // through the stairs never bounces back.
-// A rooftop playground closed for a year: the little stage of カネナリくん's
-// handshake event against the north fence (the name book on the table
+// A rooftop playground closed for a year: the little stage of the mall's old
+// handshake event (where グソっ君 holds his first one) against the north fence (the name book on the table
 // beside it, three pipe chairs, the queue line painted all the way to a
 // 『最後尾』 placard), two panda cars on the faded turf (one 故障中, one runs
 // for 100 yen), a coin binocular at the east fence (100 yen: beyond the

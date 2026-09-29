@@ -182,7 +182,7 @@ const mujin: EnemyDef = {
     appear: ['ムジン販売員が 札を かかげて\nとびだしてきた！'],
     // 〔様子1〕 is the first round only (texts.ts); then 2 and 3 alternate
     yousu: ['ムジン販売員の 札：\n『どれでも 100円』。', 'ムジン販売員の 中で、100円玉が\n1枚 ころんと 鳴った。'],
-    yousuSpecial: { first: 'カネナリくんの フリップ：\n『（キャラが かぶっています）』' },
+    yousuSpecial: { first: 'グソっ君「しゃべらん 店員さんか。\nわいと 正反対やな」' },
     tele: {
       skill_mujin_irasshai: ['ムジン販売員は 札を かかげた。\n『いらっしゃいませ』'],
       skill_mujin_osusume: ['ムジン販売員は きゅうりを\n押しつけてきた！『おすすめ』'],
@@ -238,10 +238,12 @@ const tetsuya: EnemyDef = {
       cancel: ['テツヤは エンストした まま、\nチョークを 引きなおした。'],
       otsukareOk: ['テツヤの ヘッドライトが、\n半分 閉じた。', 'テツヤは 休憩に 入った！'],
       restEnd: ['テツヤは『モウ ヒト ウネ』と、\nエンジンを かけなおした。'],
-      hint: ['カネナリくんの フリップ：\n『（あの人、休んで いません）』'],
-      hintFlip: ['あの人、休んで いません'],
-      // rounds 6 and 10, while he is still 徹夜中 (51 9.2 もう一度): the flip only, no page
-      hintFlip2: ['あの人、まだ 休んで いません'],
+      // 51 9.2 ヒント (★2026-09-29): グソっ君 says it (battle/gusokkun.ts knSay); hintNarr when he is down
+      hint: ['あの 耕うん機、\nぜんぜん 休んでへんで。'],
+      hintNarr: ['テツヤは、ひと晩じゅう\n休んで いない。'],
+      hintFlip: ['あの 耕うん機、\nぜんぜん 休んでへんで'],
+      // rounds 6 and 10, while he is still 徹夜中 (51 9.2 もう一度): his balloon only, no page
+      hintFlip2: ['まだ 休んでへんで'],
     },
     idle: [['テツヤは ひと畝 バックして、\n耕しなおした。'], ['テツヤは 同じ ところを\n2回 耕した。']],
     defeat: ['耕うん機テツヤは\nエンジンを 止めた。', '……ひと晩じゅう、\nたがやしていた。'],
@@ -303,10 +305,10 @@ const yobimodoshi: EnemyDef = {
       phase2: ['「……お盆にも、だれも\n帰って こなかった。」', '「名簿の 名前は、\nまだ 30人 あります。」'],
       final1: ['ヨビモドシは 点呼を 止めた。'],
       final2: ['「……だれも、へんじを\nしません。」', '「朝が 来たら、きょうも\nだれも 帰らなかった ことに なる。」', '「だから、点呼を\n終われません。」'],
-      final3: ['カネナリくんが 前に 出た。'],
-      final4: ['カネナリくんは しゅんの アミを\n受けとって、高く かかげた！'],
-      finalFlipText: ['カネナリくんの フリップ：\n『星見台へ ようこそ！』', '『（となり町の PR大使ですが）』'],
-      finalFlip: ['星見台へ ようこそ！', '（となり町の PR大使ですが）'],
+      final3: ['グソっ君が 前に 出た。'],
+      final4: ['グソっ君は しゅんの アミを\n受けとって、高く かかげた！'],
+      // グソっ君's own words (battle/gusokkun.ts knSay: the band's name tag, no 「」)
+      finalFlipText: ['星見台、ええ とこやで。', 'わいが 見てきたんや。'],
       finalCut: [
         'トマトの 光が、夜の 村を\nすみずみまで 照らした。',
         '「……牛舎に、明かり。」',

@@ -1,5 +1,7 @@
-// 第2章『星見台のトマト』 — the villagers' talk (50_ch2_story 3章), カネナリくん's
-// flips by place (3.1), the broadcast's names (3.2 / 3.13) and 無人販売所 (7.3).
+// 第2章『星見台のトマト』 — the villagers' talk (50_ch2_story 3章), グソっ君's
+// words by place (3.1; ★2026-09-29 カネナリくん→グソっ君: he talks, in Kansai
+// dialect, @npc_kanenari — no flips), the broadcast's names (3.2 / 3.13) and
+// 無人販売所 (7.3).
 //
 // The ids stay the old ones (npc_hoshi_mitsu = ペロ, npc_hoshi_gen = マサルさん,
 // npc_hoshi_fumi = まつ先生 …; 02_ch2_index 2.2): only the name tags, the
@@ -199,8 +201,11 @@ export const HOSHI_NPC: Record<string, TalkTable> = {
 お茶 飲んで いきなさい。`,
     /** After h1_1's tea. */
     h1_1_after: `@narr
-カネナリくんの 湯のみは、
-いつのまにか からに なっていた。`,
+グソっ君の 湯のみは、
+いつのまにか からに なっていた。
+@npc_kanenari
+あったかい 水って、
+はじめて 飲んだわ。`,
     h2_1: `@npc_hoshi_yoshie
 放送、止まらんねえ。{w=300}
 名前、ぜんぶ 覚えとるよ。
@@ -272,9 +277,22 @@ HPが 回復した。`,
 『おやすみなさい』でした。{w=300}
 /
 ……言わせて あげて くださいね。`,
-    /** After カネナリくん's 〔hoshi_school〕 flip, in the gathering room. */
-    school_flip: `@npc_hoshi_fumi
-その 1人は、わたしですよ。`,
+    /**
+     * マリンスノー (★2026-09-29, 04 6章): once (flag_ch2_marine_snow) — after
+     * グソっ君's 〔hoshi_school〕 line with her in the gathering room, or at her
+     * next talk after her first line of the night (src/events/ch2/npcs.ts).
+     * The biggest hint of where he comes from; nothing more is said.
+     */
+    marine: `@npc_hoshi_fumi
+……おや。{w=300}あなた、
+深い 海の 生き物ですね。
+/
+深い 海にもね、星が 降るんだよ。
+{w=300}マリンスノー って いうの。
+@npc_kanenari
+……知っとる。{w=600}
+下から、ずっと 見上げとった
+気が するわ。`,
   },
 
   // ------------------------------------------------------------ 3.8 ペロ（初回は evt_ch2_mitsu）
@@ -351,8 +369,8 @@ HPが 回復した。`,
 /
 ……頭は 光らんぞ。{w=300}
 誰が らっきょやねん！
-@flip
-（まだ 何も 言っていません）`,
+@npc_kanenari
+まだ 何も 言うてへんで。`,
     /** In the barn at (20,6) after the round; 10.19's invitation follows while flag_ch2_barn_work=0. */
     h1_1: `@npc_hoshi_gen
 ゲートは 開けといた。{w=300}
@@ -537,82 +555,88 @@ HPが 回復した。`,
   },
 };
 
-// ---------------------------------------------------------------- 3.1 カネナリくんのフリップ（場所ごと）
+// ---------------------------------------------------------------- 3.1 グソっ君の場所ごとのひとこと
 
-/** Place key (52 1.8) → the flip shown the first time there. */
+/**
+ * Place key (52 1.8) → グソっ君's line the first time there (the ids keep the
+ * old 'flip' names: flag_kanenari_flip_<key>). Everything on land is new to him.
+ */
 export const KANENARI_FLIPS_HOSHI: Record<string, string> = {
-  hoshi_train: `@flip
-電車は ひさしぶりです。
-（つり革に 鐘が あたります）`,
-  hoshi_station: `@flip
-となり町の 駅です。
-（PRは 管轄外です）`,
-  hoshi_bus: `@flip
-1日2本。
-（ぼくの 出番も 年2回でした）`,
+  hoshi_train: `@npc_kanenari
+電車って、はじめて 乗ったわ。
+{w=300}つり革に 触角が あたるねん。`,
+  hoshi_station: `@npc_kanenari
+ちっちゃい 駅やなあ。{w=300}
+線路の 先、まっくらや。`,
+  hoshi_bus: `@npc_kanenari
+バス、1日2本 やて。{w=300}
+乗りのがしたら、
+えらいこっちゃ。`,
   /** Before ムジン販売員 is met (stage 0). */
-  hoshi_mujin: `@flip
-どれでも 100円。
-（ぼくは 非売品です）`,
-  hoshi_school: `@flip
-ここで 観望会の PRを しました。
-（1人 来ました）`,
-  hoshi_house: `@flip
-トマトは 苦手では ありません。
-（見つめられるのが 苦手です）`,
-  hoshi_barn: `@flip
-夕鳴町にも 牛が います。
-（置物です）`,
-  hoshi_tanada: `@flip
-田んぼが 階段に なっています。
-（のぼると 鐘が ゆれます）`,
-  hoshi_fence: `@flip
-柵には さわりません。
-（マサルさんに 言われたので）`,
-  hoshi_houki: `@flip
-ここは、むかし 畑でした。
-（クズが そう 言っています）`,
-  hoshi_akiya: `@flip
-（……）`,
-  hoshi_hill: `@flip
-（……ここから、夕鳴町が
-見えます）`,
+  hoshi_mujin: `@npc_kanenari
+どれでも 100円 やて。{w=300}
+……わいは 売りもん ちゃうで。`,
+  /** In the gathering room with まつ先生 there, her マリンスノー follows once (npcs.ts). */
+  hoshi_school: `@npc_kanenari
+ここ、学校 なんか。{w=300}
+わい、学校って
+行ったこと ないわ。`,
+  hoshi_house: `@npc_kanenari
+ビニールの 中、ぬくいなあ。
+{w=300}海の 底より、ずっと
+あったかいわ。`,
+  hoshi_barn: `@npc_kanenari
+牛って、でっかいなあ……。
+{w=300}海には おらんかったで。`,
+  hoshi_tanada: `@npc_kanenari
+田んぼが 階段に なっとる。
+{w=300}のぼったら、息 切れるわ。`,
+  hoshi_fence: `@npc_kanenari
+柵には さわらへんで。{w=300}
+ビリッと くるんやろ。`,
+  hoshi_houki: `@npc_kanenari
+むかしは 畑やったんやて。
+{w=300}……今は、クズの 海やな。`,
+  hoshi_akiya: `@npc_kanenari
+……だれも おらへんな。`,
+  hoshi_hill: `@npc_kanenari
+……ここから、夕鳴町が
+見えるで。`,
 };
 
-/** 〔hoshi_mujin〕 from stage 1 on (ムジン販売員 is up and about). */
-export const KANENARI_FLIP_MUJIN_H1 = `@flip
-（キャラが かぶっています）`;
+/** 〔hoshi_mujin〕 from stage 1 on (ムジン販売員 is up and about: it never says a word). */
+export const KANENARI_FLIP_MUJIN_H1 = `@npc_kanenari
+しゃべらん 店員さんか。{w=300}
+わいと 正反対やな。`;
 
 /**
  * 〔寝言しりとり〕 in the gathering room, once, after the third sleep-talk (02_ch2_index #56):
- * he joins the old couple's しりとり and loses on his own name. The last flip is the
- * one exception to 2.1 「口癖は本人のもの」 — シゲじいとスギばあ's 「あちゃ〜」, with
- * their se_h_acha a little higher (50 3.2 / 9.6).
+ * he joins the old couple's しりとり and loses on his own name, 「グソっくん」. The
+ * last line is the one exception to 2.1 「口癖は本人のもの」 — シゲじいとスギばあ's
+ * 「あちゃ〜」, with their se_h_acha a little higher (50 3.2 / 9.6).
  */
-export const KANENARI_FLIP_SHIRITORI = `@flip
-（ぼくも 入ります）
-!se se_flip
-@flip
-（カネナリくん）
+export const KANENARI_FLIP_SHIRITORI = `@npc_kanenari
+わいも 入れてや。{w=300}
+ほな……グソっくん。
 @narr
 ……『ん』だ。
-!se se_flip
-@flip
-（名前で 負けました）
+@npc_kanenari
+名前で 負けてもうた。
 !se se_h_acha 1.25
-@flip
-（あちゃ〜）`;
+@npc_kanenari
+あちゃ〜。`;
 
-/** 〔いつもの・第2章〕 after the place flips: the three in turn (counted apart from chapter 1's). */
+/** 〔いつもの・第2章〕 after the place lines: the three in turn (counted apart from chapter 1's). */
 export const KANENARI_USUAL_HOSHI: string[] = [
-  `@flip
-星見台は、となり町です。`,
-  `@flip
-夕鳴町を よろしく
-おねがいします。（となりも）`,
-  `@flip
-（トマトの 光、
-あったかいです）`,
+  `@npc_kanenari
+星見台、ええ とこやな。`,
+  `@npc_kanenari
+夜の 虫の 声、ええなあ。
+{w=300}海の 底は、しーんと
+しとったで。`,
+  `@npc_kanenari
+トマトの 灯り、
+あったかいなあ。`,
 ];
 
 // ---------------------------------------------------------------- 3.2 / 3.13 防災無線の呼び声

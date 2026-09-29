@@ -94,6 +94,11 @@ export interface BandPageOpts {
   minMs?: number;
   /** A speaking voice: text blips as the page types (the boss's lines: 'yobimodoshi'). */
   voice?: string;
+  /**
+   * A speaker's name on a tape tag in the band's left margin, for this page
+   * only (グソっ君's lines: 'グソっ君'). One line, unlike the band's own `tag`.
+   */
+  tag?: string;
 }
 
 interface Page {
@@ -128,6 +133,8 @@ export class MessageBand {
    * while an action plays out (15.3: the text of the action stays up).
    */
   private linger: { glyphs: G[]; lines: number } | null = null;
+  /** The speaker tag of the lingering page (a page's own `tag`). */
+  private lingerTag = '';
   /** Extra drawing inside the band (e.g. target HP bar). */
   extra: ((g: Gfx, x: number, y: number) => void) | null = null;
   /** Tape label on the left end (せんせいより). */
@@ -234,11 +241,15 @@ export class MessageBand {
     const p = this.queue.shift();
     if (!p) {
       // the finished page stays up (typed out) until something replaces it
-      if (this.cur) this.linger = this.cur;
+      if (this.cur) {
+        this.linger = this.cur;
+        this.lingerTag = this.curOpts.tag ?? '';
+      }
       this.cur = null;
       return;
     }
     this.linger = null;
+    this.lingerTag = '';
     // (a tagged page — せんせいより, one line per member — keeps its lines)
     this.cur = this.bossMode && !this.tag ? oneLineLayout(p.text, this.w - 22) : layout(p.text);
     this.curOpts = p.o;
@@ -309,10 +320,13 @@ export class MessageBand {
     markText(this.x - 3, this.y, this.w + 3, Math.max(Math.ceil(this.h), this.goalH));
     drawNote(g, this.x, this.y, this.w, h, { margin: 8 }, this.alpha);
     let tagW = 0;
-    if (this.tag) {
+    // a page's own speaker tag (one line), else the band's tag (せんせいより)
+    const pageTag = this.cur ? this.curOpts.tag ?? '' : !this.staticLayout && this.linger ? this.lingerTag : '';
+    const tag = pageTag || this.tag;
+    if (tag) {
       // the tape tag (せんせいより) sits in the left margin, its words on two
       // short lines, so the band keeps almost its full width for the text
-      const words = splitTag(this.tag);
+      const words = pageTag ? [pageTag] : splitTag(tag);
       const imgs = words.map((w) => miniText(w, 0.62, C.ink));
       tagW = Math.max(...imgs.map((i) => i.width)) + 8;
       const th = imgs.reduce((a, i) => a + i.height + 1, 3);
@@ -328,7 +342,7 @@ export class MessageBand {
     // a new page shows its first glyph on the frame it replaces the last
     // one (QA round 3: a frame of blank paper flashed between pages)
     const shown = this.cur ? Math.max(1, this.shown) : L.glyphs.length;
-    const ox = this.x + 14 + (this.tag ? tagW - 10 : 0);
+    const ox = this.x + 14 + (tag ? tagW - 10 : 0);
     const oy = this.y + 5;
     const ctx = g.ctx;
     const prev = ctx.globalAlpha;

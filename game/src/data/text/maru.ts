@@ -54,8 +54,9 @@ export const MARU_CH1 = {
 あの 人、ひとりじゃと
 ごはんを 食べんのよ。{w=300}
 ……あんた、名前は？
-@flip
-（しゅんくんです）
+@npc_kanenari
+こっちは しゅんや。{w=300}
+わいを 助けて くれた 子や。
 @npc_maru
 しゅんちゃん。{w=300}もし 星見台の
 とまたろうに 会うたら、言うて おくれ。
@@ -70,10 +71,10 @@ export const MARU_CH1 = {
 
 /** 第2章：トマじい（とまたろう）の足す台詞（50 3.10）。 */
 export const MARU_TOME = {
-  /** 〔maru〕第1章でマルの伝言をあずかった人（flag_maru_dengon）。1回。 */
-  dengon: `@flip
-（マルさんから、伝言です）
-（『5時の バスで 帰る』）
+  /** 〔maru〕第1章でマルの伝言をあずかった人（flag_maru_dengon）。1回。グソっ君が伝える。 */
+  dengon: `@npc_kanenari
+マルさんから 伝言やで。{w=300}
+『5時の バスで 帰る』やて。
 @npc_hoshi_tome
 ……5時の バスか。{w=300}
 あいつは、待つのが うまい。
@@ -81,9 +82,9 @@ export const MARU_TOME = {
 わしは 下手じゃ。{w=300}
 水口ばっかり、のぞいとる。`,
   /** 〔maru〕マルに会っただけの人（flag_met_maru）。1回。 */
-  met: `@flip
-（ユウナリ前で、マルさんが）
-（バスを 待って いました）
+  met: `@npc_kanenari
+ユウナリ前で、マルさんが
+バス 待っとったで。
 @npc_hoshi_tome
 ……待っとったか。{w=300}
 あいつは、待つのが うまい。
@@ -195,8 +196,9 @@ export const SAWA_OBJ = {
   obj_sawa_kani: `@narr
 沢ガニが、横に 歩いていく。
 {w=300}……はさみを 1回 あげた。
-@flip
-（あいさつ だと 思います）`,
+@npc_kanenari
+おっ、カニや。{w=300}
+親戚みたいな もんやで。`,
   obj_sawa_pool: {
     before: `@narr
 せきの 上に、水が たっぷり
@@ -235,8 +237,8 @@ export const SAWA_OBJ = {
   obj_sawa_iwa: `@narr
 苔の 岩。{w=300}さわると、
 しっとり 冷たい。
-@flip
-（ここは、夏でも 秋です）`,
+@npc_kanenari
+ひんやりして、落ち着くわ。`,
 };
 
 /** わき水（「水の 元」。手ですくうと HP が回復する。何度でも）。first / again のあと、すくうなら drink。 */
@@ -308,8 +310,8 @@ export const MARU_END = {
 ……来た 来た。{w=300}
 2時間半の おくれじゃね。`,
   /** カット4：伝言をとまたろうにとどけた人だけ（flag_ch2_maru_told）。 */
-  told: `@flip
-（伝言、とどけました）`,
+  told: `@npc_kanenari
+伝言、ちゃんと とどけたで。`,
   /** カット4b：星見台の転回場。バスから降りるマルと、待っていたとまたろう。 */
   reunion: `@npc_hoshi_tome
 ……遅いぞ。
@@ -323,7 +325,8 @@ export const MARU_END = {
 2人で 食べるか。`,
 };
 
-/** カネナリくんのフリップ（沢の上で1回。場所キー hoshi_sawa）。 */
-export const SAWA_FLIP = `@flip
-沢の 水は、冷たいです。
-（さわって きました）`;
+/** グソっ君のひとこと（沢の上で1回。場所キー hoshi_sawa。IDは据え置き）。 */
+export const SAWA_FLIP = `@npc_kanenari
+沢の 水、ええ 音や。{w=300}
+……せやけど、海の 水とは
+においが ちゃうな。`;

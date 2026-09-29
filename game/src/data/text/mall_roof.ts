@@ -4,6 +4,9 @@
 //
 // The names in the note are the client's (2026-09-28): はらぺこはっち,
 // よっしー, おかみ — who they are is never said.
+// ★2026-09-29 グソっ君 (04_gusokkun_plan 2章 8, 案A): the note is from some
+// old event of the mall's; グソっ君 reads it and holds his own first
+// handshake event — しゅん is his first, the note's 4th.
 
 /** Things to examine on the roof (and the stairs up from M4). */
 export const ROOF_OBJ: Record<string, string> = {
@@ -16,7 +19,7 @@ export const ROOF_OBJ: Record<string, string> = {
 『うこそ ゆうやけひろば』。{w=300}
 『よ』は、足もとに 落ちている。`,
   obj_roof_stage: `@narr
-『カネナリくん 握手会』。{w=300}
+『ユウナリ 握手会』。{w=300}
 マイクスタンドに、マイクは ない。`,
   obj_roof_chair: `@narr
 パイプいす。{w=300}
@@ -38,7 +41,8 @@ export const ROOF_OBJ: Record<string, string> = {
 ステージまで、線が 12m 続いている。`,
   obj_roof_balloon: `@narr
 手すりに、しぼんだ 風船。{w=300}
-鐘の 顔が、ステージの ほうを 向いている。`,
+鐘の マークが、
+ステージの ほうを 向いている。`,
   obj_roof_town: `@narr
 夕鳴町が 見える。{w=300}
 町じゅうの 影が、こっちを 向いている。`,
@@ -99,41 +103,57 @@ export const ROOF_SCOPE_AGAIN = `@narr
 export const ROOF_SCOPE_SEEN2 = `@narr
 山の むこうは、まだ 夜だ。`;
 
-// ---------------------------------------------------------------- カネナリくん on the roof
+// ---------------------------------------------------------------- グソっ君 on the roof
 
-/** The place flip, the first time (before the note). */
-export const ROOF_FLIP_FIRST = `@flip
-ここで 握手会を しました。
-（ノートが 残っているはずです）`;
+/** His word the first time on the roof (before the note). */
+export const ROOF_FLIP_FIRST = `@npc_kanenari
+空って、こんなに 近いんか。{w=300}
+海の 底からやと、見えへんかったで。`;
 
-/** M4 2F, the first time there: held up over his head for a moment (not a window; 1 board, ≤ 104 px a line). */
-export const ROOF_HINT = '（上にも 何か あります）';
+/** M4 2F, the first time there: a little speech bubble over his head for a moment (not a window). */
+export const ROOF_HINT = '上にも なんか あるで';
 
 /** After the handshake, every time on the roof. */
-export const ROOF_FLIP_DONE = `@flip
-本日の 握手会は 終了しました。
-（またの お越しを）`;
+export const ROOF_FLIP_DONE = `@npc_kanenari
+本日の 握手会は、終了や。{w=300}
+……またの お越しを、やで。`;
 
 // ---------------------------------------------------------------- the handshake (evt_roof_handshake)
 
-/** On the stage (he has gone up by himself), the first time. */
-export const HS_OPEN = `@flip
-ただいまより、握手会を
-再開します。（1年ぶり）
+/** Talking to him after the note, the first time: the idea (then he goes up by himself). */
+export const HS_START = `@npc_kanenari
+握手会、か。{w=300}
+……ほな、わいも やったろか。握手会。`;
+
+/** On the stage, the first time. */
+export const HS_OPEN = `@npc_kanenari
+ただいまより、グソっ君の
+はじめての 握手会や！{w=300}並んでや！
 ? 握手する | やめておく`;
 
 /** On the stage again, after 「やめておく」. */
-export const HS_OPEN_AGAIN = `@flip
-握手会、まだ やってます。
+export const HS_OPEN_AGAIN = `@npc_kanenari
+握手会、まだ やっとるで。
 ? 握手する | やめておく`;
 
-export const HS_WARM = `@narr
-カネナリくんの 手は、夕日で あたたかい。`;
+/** しゅん holds out his hand: which of his hands? (the little legs all come forward) */
+export const HS_WHICH = `@npc_kanenari
+……手ぇ、どれで したら ええねん。
+@narr
+小さい 足が、いっせいに
+わしゃっと 前へ 出た。`;
 
-export const HS_FLIP = `@flip
-（4人目の 人）
+/** The one page that is a little moving (the rest is laughs). */
+export const HS_WARM = `@narr
+グソっ君の 手は、ひんやりして かたい。{w=300}
+にぎり返す 力は、やさしかった。`;
+
+export const HS_FLIP = `@npc_kanenari
+これが 握手か。{w=300}
+……なんや、ええもんやな。
 /
-（記録 更新です）`;
+しゅんが 1人目や。{w=300}
+ノートやと、4人目やけどな。`;
 
 export const HS_WRITE = `@narr
 しゅんは、ノートの 4行目に
@@ -142,8 +162,9 @@ export const HS_WRITE = `@narr
 export const HS_TICKET = `@sys
 握手券を 受けとった！`;
 
-export const HS_NO = `@flip
-（あと 1年は 待てます）`;
+export const HS_NO = `@npc_kanenari
+え、せえへんの！？{w=300}
+……ほな、また 今度な。`;
 
 /** Every page above, for the width check (roofText). */
 export const ROOF_TEXTS: Record<string, string> = {
@@ -161,8 +182,10 @@ export const ROOF_TEXTS: Record<string, string> = {
   ROOF_SCOPE_SEEN2,
   ROOF_FLIP_FIRST,
   ROOF_FLIP_DONE,
+  HS_START,
   HS_OPEN,
   HS_OPEN_AGAIN,
+  HS_WHICH,
   HS_WARM,
   HS_FLIP,
   HS_WRITE,

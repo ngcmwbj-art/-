@@ -202,13 +202,12 @@ export function* evtTomato(): Co {
       yield 1000;
     },
     *point() {
-      // カネナリくん points at the net on his back
+      // グソっ君 points at the net on his back: the lantern is his idea
       if (k) {
         k.dir = p.x < k.x ? 'left' : 'right';
         poseIf(k, 'point');
       }
       yield 300;
-      se('se_flip');
     },
   });
   unpose(k);
@@ -284,7 +283,7 @@ export function* houseExitLine(): Co {
     m.dir = 'right';
     delete m.data.scripted;
   }
-  // カネナリくん: the lantern's first night out — 捕まえない自由研究 (02_ch2_index #64)
+  // グソっ君: the lantern's first night out — 捕まえない自由研究 (02_ch2_index #64)
   yield* mushiInvite();
 }
 

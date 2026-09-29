@@ -12,7 +12,7 @@
 //   答える種が ないときは 段階の台詞（s0_1/s0_2、s1 は {wave}、s2「糸が 北東へ……」）。
 //   最後に「……やってく？」→ ザリガニ釣り（src/events/tsuri.ts）。水口を 調べても 同じ。
 // 釣ったあと：計る（盛る）→ はじめての1匹は ラムネ → 記録は ザリ拓（つりえさ屋の壁、
-//   魚拓の となり）→ カネナリくんの「（盛りましたね）」（1回）→ 放す。
+//   魚拓の となり）→ グソっ君の「今、盛ったやろ」（1回）→ 放す。
 //   長靴（おぴぃの。1回）、空き缶（持って帰る → ほめる）、ぬし（計らない。おぴぃの浮き）。
 //
 //   __game.cmd.tamotsu(stage)          対岸の おぴぃの前へ（段階 0/1/2 の状態を作る）
@@ -302,7 +302,6 @@ function* afterRound(panel: TsuriPanel, r: RoundResult, s: number): Co {
     yield* msg(BOOT);
     if (kanenariWatching() && !flag(TF.flipBoot)) {
       setFlag(TF.flipBoot, 1);
-      se('se_flip');
       yield* msg(BOOT_FLIP);
     }
     yield* msg(BOOT_END);
@@ -341,7 +340,6 @@ function* afterRound(panel: TsuriPanel, r: RoundResult, s: number): Co {
   yield* cardMori(panel, cert);
   if (cert > r.cm && kanenariWatching() && !flag(TF.flipMori)) {
     setFlag(TF.flipMori, 1);
-    se('se_flip');
     yield* msg(FLIP_MORI);
   }
   const first = !flag(TF.count);

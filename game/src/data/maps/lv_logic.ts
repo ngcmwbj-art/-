@@ -21,7 +21,7 @@
 //    shop's in M4 is lifted to peek under it (se_shop_shutter).
 //  - M2's leak drips on the art's beat (se_drip); a train goes by far off
 //    beyond M1's glass doors now and then (se_train_far).
-//  - at the yakisoba shop's counter カネナリくん stands beside Minato, not behind.
+//  - at the yakisoba shop's counter グソっ君 stands beside Minato, not behind.
 //  - debug: __game.cmd.lv(name[, x, y]) jumps into any interior; lvDoors()
 //    checks every door; lvGate(on) / lvWon(symId) / lvPile('shake'|'hide'|'show').
 
@@ -128,7 +128,7 @@ function onEnterMap(f: FieldScene): void {
 
 /**
  * At the yakisoba shop's counter the two stand side by side (both looking at
- * the griddle), not in a queue: arriving at the counter row (y5) with カネナリくん
+ * the griddle), not in a queue: arriving at the counter row (y5) with グソっ君
  * put right behind Minato on the waiting row, he steps in beside him instead
  * (x2–8 is floor on y5). Also keeps the 2× room view from sliding down for
  * his feet and cutting たかし off at the top in a cutscene.
@@ -478,7 +478,7 @@ registerScript('lv_toy_shutter', function* (ctx) {
 
 /**
  * obj_rest_bench: 「すわると、体が かるくなった。」 — the party really sits
- * down for it. Minato (and カネナリくん, when he is with him) hop onto the
+ * down for it. Minato (and グソっ君, when he is with him) hop onto the
  * bench and stay seated through the whole save point (the registered
  * evt_save_bench: the UI's rest → heal → save), then hop off onto the tiles
  * they came from. The seated figures are drawn by the bench prop
@@ -494,7 +494,7 @@ registerScript('lv_rest_bench', function* (ctx) {
   const p = f.player;
   const k = f.follower && f.follower.visible ? f.follower : null;
   const was = { x: p.x, y: p.y, dir: p.dir, kx: k?.x ?? 0, ky: k?.y ?? 0, kdir: k?.dir ?? 'down' };
-  // Minato takes the west half (clear of the 休憩所 plate); カネナリくん the east one
+  // Minato takes the west half (clear of the 休憩所 plate); グソっ君 the east one
   const sitters = [{ sprite: p.spriteId, x: 8 }];
   if (k) sitters.push({ sprite: k.spriteId, x: 23 });
   p.hop(4, 160);

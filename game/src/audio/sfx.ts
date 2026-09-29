@@ -123,7 +123,10 @@ se('se_step_metal', stepDef('足音：側溝のふた（かん）', ['sine f=420
 sfxTable.set('se_step', (o) => {
   playSe('se_step', seDefs.get('se_step_stone')!, { ...o, vol: (o?.vol ?? 1) * 0.9 });
 });
-se('se_step_kanenari', { label: '足音：カネナリくん（ぽふ＋コ）', group: STEPS, rand: STEP, max: 2, layers: ['sine f=110→80/50 env=3/60/0/30 dur=30 v=.04', 'noise env=2/30/0/15 dur=20 v=.02 flt=LP600', 'tri f=740 env=1/20/0/10 dur=8 v=.008 at=40'] });
+// グソっ君 (★2026-09-29 カネナリくん→グソっ君): a small soft 「ぺた」 — the pad of
+// his foot (a damp band of noise, low and short) over a little thump, and the
+// 「た」 as it lifts off. No high, dry noise: never a 「カサカサ」
+se('se_step_kanenari', { label: '足音：グソっ君（ぺた）', group: STEPS, rand: STEP, max: 2, layers: ['noise env=0/22/0/10 dur=12 v=.03 flt=BP1100q1.4', 'sine f=150→100/30 env=1/35/0/12 dur=14 v=.035', 'noise env=0/14/0/6 dur=6 v=.012 flt=BP700q1 at=30'] });
 
 se('se_door', { label: '引き戸（ガラガラ）', group: STEPS, rev: 0.12, layers: ['noise env=10/300/.5/80 dur=320 v=.05 flt=BP900q0.8 am=22/.6', 'noise env=10/250/0/80 dur=250 v=.015 flt=BP3500q3 am=31/.8', 'sine f=120 env=1/60/0/40 dur=20 v=.05 at=340'] });
 se('se_door_glass', { label: '店のガラス戸', group: STEPS, rev: 0.12, layers: ['noise env=5/180/.4/60 dur=180 v=.04 flt=BP1400q0.9 am=26/.5', 'tri f=1800 env=0/20/0/10 dur=8 v=.02 at=220'] });

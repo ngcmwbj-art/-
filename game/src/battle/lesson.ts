@@ -1,10 +1,11 @@
 // 公園の練習の戦闘 (evt_kn_lesson; 20_systems_battle 10.6, 10_narrative
 // 5.12b). 2026-09-28, the client: 「最初の公園で初戦は強制的に戦い方をカネナリに
-// 説明を受けながらやる方がいいかも」. Right after Kanenari-kun joins he sets
-// up a cardboard 練習台 and teaches, one at a time, the inputs of chapter 1:
-// たたく (the ring) → ハンコ (hold, let go in the red) → ツッコミ (the "!") →
-// みました. Each lesson is tried for real and waits until it works; a miss
-// only gets a cheering flip. Nobody can be knocked down, the 練習台 never
+// 説明を受けながらやる方がいいかも」. Right after グソっ君 joins (★2026-09-29:
+// 「海の 中では 敵なしやったんや。戦い方、教えたるわ」) he sets up a cardboard
+// 練習台 and teaches, one at a time, the inputs of chapter 1: たたく (the
+// ring) → ハンコ (hold, let go in the red) → ツッコミ (the "!"); the last,
+// みました, しゅん teaches him (「……倒さんで ええんか？」). Each lesson is tried
+// for real and waits until it works; a miss only gets a cheering line. Nobody can be knocked down, the 練習台 never
 // falls, and HP / ink are given back afterwards: it is a lesson, not a fight
 // (no experience, no results).
 
@@ -12,7 +13,7 @@ import type { Co } from '../engine/co';
 import { ease } from '../engine/tween';
 import { currentSpace, musicEncounter, musicReturnToField, playBgm, setSpace, sfx } from '../audio';
 import { getSkill, syncProgressSkills } from '../data/battle';
-import { FLIP, LESSON_BAND, LESSON_HINT } from '../data/battle/text_lesson';
+import { LESSON_BAND, LESSON_HINT, LESSON_NARR, TALK } from '../data/battle/text_lesson';
 import { touchControlsOn } from '../engine/touch';
 import type { BattleResult } from './api';
 import type { BattleScene } from './scene';
@@ -22,9 +23,7 @@ import { inputCommands } from './menu';
 import { doAttack, doHanko } from './party';
 import { doEnemyAction } from './enemy';
 import { hideSticky, resetKire } from './common';
-import { flipBoardText } from './art/fxart';
-import { C } from './ui/note';
-import { markText } from '../engine/textzones';
+import { knOpts } from './gusokkun';
 
 /** The lesson battle's whole flow (battleImpl runs it instead of battleFlow). */
 export function* lessonFlow(s: BattleScene): Co<BattleResult> {
@@ -49,11 +48,11 @@ export function* lessonFlow(s: BattleScene): Co<BattleResult> {
   sfx('se_enemy_appear');
   yield 400;
   yield* s.say(dummy?.def.texts.appear ?? []);
-  yield* flip(s, FLIP.intro);
+  yield* talk(s, TALK.intro);
 
   // ① たたく: the ring, at the first-time (half) speed until it sounds good
   if (me && dummy) {
-    yield* flip(s, FLIP.tataku);
+    yield* talk(s, TALK.tataku);
     while (!qaDone(s)) {
       s.lesson = { icon: 'tataku', hint: LESSON_HINT.tataku, slow: true };
       const c = yield* choose(s);
@@ -61,17 +60,17 @@ export function* lessonFlow(s: BattleScene): Co<BattleResult> {
         yield* act(s, c, () => doAttack(s, me, dummy));
         const q = s.lesson?.ring;
         if (q === 'good') {
-          yield* flip(s, FLIP.tatakuOk);
+          yield* talk(s, TALK.tatakuOk);
           break;
         }
-        yield* flip(s, q === 'early' ? FLIP.tatakuEarly : FLIP.tatakuLate);
+        yield* talk(s, q === 'early' ? TALK.tatakuEarly : TALK.tatakuLate);
       }
     }
   }
 
   // ② ハンコ: ペケ, hold and let go in the red (くっきり)
   if (me && dummy && !qaDone(s)) {
-    yield* flip(s, touchControlsOn() ? FLIP.hankoTouch : FLIP.hanko);
+    yield* talk(s, touchControlsOn() ? TALK.hankoTouch : TALK.hanko);
     while (!qaDone(s)) {
       topUpInk(s, 'skill_peke');
       s.lesson = { icon: 'hanko', skill: 'skill_peke', hint: LESSON_HINT.hanko, slow: true };
@@ -79,34 +78,36 @@ export function* lessonFlow(s: BattleScene): Co<BattleResult> {
       if (c?.kind === 'hanko') {
         yield* act(s, c, () => doHanko(s, c));
         if (s.lesson?.judge === 'kukkiri') {
-          yield* flip(s, FLIP.hankoOk);
+          yield* talk(s, TALK.hankoOk);
           break;
         }
-        yield* flip(s, FLIP.hankoNg);
+        yield* talk(s, TALK.hankoNg);
       }
     }
   }
 
   // ③ ツッコミ: the 練習台 leans on しゅん; from the third try it stops at the "!"
   if (dummy && !qaDone(s)) {
-    yield* flip(s, FLIP.tsukkomi);
+    yield* talk(s, TALK.tsukkomi);
     for (let tries = 1; !qaDone(s); tries++) {
       s.lesson = { freeze: tries >= 3 };
       s.noteActing('');
       yield* doEnemyAction(s, dummy, 'skill_renshu_motare');
       const r = s.lesson?.tsuk;
       if (r === 'just' || r === 'ok') {
-        yield* flip(s, FLIP.tsukkomiOk);
+        yield* talk(s, TALK.tsukkomiOk);
         break;
       }
-      yield* flip(s, r === 'kabuse' ? FLIP.tsukkomiEarly : FLIP.tsukkomiLate);
-      if (tries === 2) yield* flip(s, FLIP.tsukkomiWait);
+      yield* talk(s, r === 'kabuse' ? TALK.tsukkomiEarly : TALK.tsukkomiLate);
+      if (tries === 2) yield* talk(s, TALK.tsukkomiWait);
     }
   }
 
-  // ④ みました: any judgement will do — the card and the HP bar come up
+  // ④ みました: 「とどめや！」 — and しゅん shows him the みました hanko instead
+  // (any judgement will do — the card and the HP bar come up)
   if (me && dummy && !qaDone(s)) {
-    yield* flip(s, FLIP.mimashita);
+    yield* talk(s, TALK.mimashita);
+    yield* talk(s, LESSON_NARR.mimashita, true);
     while (!qaDone(s)) {
       topUpInk(s, 'skill_mimashita');
       s.lesson = { icon: 'hanko', skill: 'skill_mimashita', hint: LESSON_HINT.mimashita, slow: true };
@@ -116,20 +117,20 @@ export function* lessonFlow(s: BattleScene): Co<BattleResult> {
         break;
       }
     }
-    // let the みました card close before the board goes up over it
+    // let the みました card close before he speaks: 「……倒さんで ええんか？」
     yield () => !s.card;
-    if (!qaDone(s)) yield* flip(s, FLIP.mimashitaOk);
+    if (!qaDone(s)) yield* talk(s, TALK.mimashitaOk);
   }
 
   // ごうかく: the 練習台 is pleased (it wobbles), and the lesson is over
   if (dummy) {
     dummy.flags.happy = 1;
-    // (__game.cmd.win() hid it: it stands there again for the last flip)
+    // (__game.cmd.win() hid it: it stands there again for his last line)
     dummy.dead = false;
     dummy.visible = true;
     dummy.hp = Math.max(1, dummy.hp);
   }
-  yield* flip(s, FLIP.end);
+  yield* talk(s, TALK.end);
   s.lesson = null;
   yield* s.say(LESSON_BAND.end);
   // everything back as it was before the lesson
@@ -184,79 +185,21 @@ function topUpInk(s: BattleScene, skill: string): void {
 }
 
 /**
- * Kanenari-kun's flip board on the stage: it comes up from below, each page
- * waits for 決定 (a small ▼ blinks in its corner), the board turns over
- * between pages, and it goes back down after the last one.
+ * グソっ君 says `pages` in the band with his name tag (battle/gusokkun.ts);
+ * each page waits for 決定 (the band's ▼), or turns by itself for QA
+ * (bauto({ flips: true }) / __game.cmd.win()). `narr` = the band's own
+ * narration (no tag).
  */
-export function* flip(s: BattleScene, pages: string[]): Co {
+export function* talk(s: BattleScene, pages: string[], narr = false): Co {
   if (!pages.length) return;
-  // the band steps aside: the board goes up at the top of the stage, over
-  // the 練習台's head, where the band was
-  s.msg.clear();
-  s.msg.clearStatic();
-  s.msg.hidden = true;
   const k = s.kanenari;
-  const st = { i: 0, t: 0, turn: -1, down: -1, ready: false };
-  const imgs = pages.map((p) => flipBoardText(p));
-  s.sfx('se_flip');
-  const fx = s.addFx({
-    layer: 'top',
-    dur: 0,
-    ui: true,
-    update(dt) {
-      st.t += dt;
-      if (st.turn >= 0) st.turn += dt;
-      if (st.down >= 0) st.down += dt;
-    },
-    draw: (g) => {
-      const img = imgs[Math.min(st.i, imgs.length - 1)];
-      const up = st.t < 140 ? ease.backOut(st.t / 140) : 1;
-      const down = st.down >= 0 ? ease.quadIn(Math.min(1, st.down / 140)) : 0;
-      const y0 = 8;
-      const y = Math.round(216 - (216 - y0) * up + (216 - y0) * down);
-      // turning over: the board squashes to a line and opens again
-      const sy = st.turn >= 0 && st.turn < 140 ? Math.abs(Math.cos((st.turn / 140) * Math.PI)) : 1;
-      const h = Math.max(1, Math.round(img.height * sy));
-      const x = Math.round(192 - img.width / 2);
-      // the board where it stands (in place of the band): the touch controls keep off it
-      markText(x, y0, img.width, img.height);
-      g.ctx.drawImage(img, x, y + Math.round((img.height - h) / 2), img.width, h);
-      if (st.ready && st.down < 0 && Math.floor(s.rt / 400) % 2 === 0) {
-        // ▼ inside the lower right corner, above the mitten
-        const tx = x + img.width - 22;
-        const ty = y + img.height - 17;
-        g.rect(tx, ty, 7, 1, C.ink);
-        g.rect(tx + 1, ty + 1, 5, 1, C.ink);
-        g.rect(tx + 2, ty + 2, 3, 1, C.ink);
-        g.rect(tx + 3, ty + 3, 1, 1, C.ink);
-      }
-    },
-  });
-  for (let i = 0; i < pages.length; i++) {
-    if (i > 0) {
-      st.turn = 0;
-      s.sfx('se_flip');
-      yield 70;
-      st.i = i;
-      yield 70;
-      st.turn = -1;
-    }
-    if (k) s.mood(k, 'tsukkomi', 60000);
-    s.flipText = pages[i];
-    st.ready = false;
-    // a short look before 決定 counts (a held press from the action does not skip it)
-    const shown = s.t;
-    s.takeConfirm();
-    yield () => s.t - shown >= 350;
-    s.takeConfirm();
-    st.ready = true;
-    yield () => s.takeConfirm() || ((!!s.auto.flips || qaDone(s)) && s.t - shown >= 600);
+  for (const p of pages) {
+    if (k && !narr) s.mood(k, 'happy', 60000);
+    s.flipText = p;
+    const auto = !!s.auto.flips || qaDone(s);
+    yield* s.say([p], !auto, narr ? {} : knOpts());
     s.sfx('se_page');
   }
-  st.down = 0;
   s.flipText = '';
-  yield 150;
-  fx.done = true;
-  s.msg.hidden = false;
   if (k) k.moodOverride = null;
 }

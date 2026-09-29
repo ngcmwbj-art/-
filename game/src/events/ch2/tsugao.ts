@@ -98,7 +98,7 @@ function cardHide(ms = 300): void {
   else hideChoreCard(ms);
 }
 
-// ---------------------------------------------------------------- ポコシャさん in the line (third, behind カネナリくん)
+// ---------------------------------------------------------------- ポコシャさん in the line (third, behind グソっ君)
 
 const POKO = 'deli_pokosha';
 /** The leader's footsteps, newest last (world px). */
@@ -266,7 +266,7 @@ function* stage(name: string): Co {
       yield 400;
       return;
     case 'give':
-      // the slips through the window; カネナリくん puts them behind a flip
+      // the slips through the window; グソっ君 takes them (「ほな、わいは 伝票係や」)
       se('se_page', { vol: 0.4 });
       if (k) poseIf(k, 'hold');
       yield 600;

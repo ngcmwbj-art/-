@@ -51,10 +51,11 @@ const SAMPLES: Record<string, () => Generator> = {
   },
   mujin: function* () {
     yield* say(['いらっしゃいませ。\nどれでも 100円。'], { voice: 'h_mujin' });
-    yield* say(['（札で 話す 人、ほかにも いたんですね）'], { name: 'カネナリくん', voice: 'flip' });
+    yield* say(['しゃべらん 店員さんか。\nわいと 正反対やな。'], { name: 'グソっ君', voice: 'gusokkun' });
   },
+  /** グソっ君 (★2026-09-29: no flip board — he talks in the ordinary window). */
   flip: function* () {
-    yield* say(['（焼きそばは 食べられません。\n中が 暗いので）'], { name: 'カネナリくん', voice: 'flip' });
+    yield* say(['ここの 焼きそばは、\nわいの 命の 恩人や。'], { name: 'グソっ君', voice: 'gusokkun' });
   },
   sys: function* () {
     yield* say('ラムネを 手に入れた！', { voice: 'sys' });
@@ -85,9 +86,9 @@ const SAMPLES: Record<string, () => Generator> = {
     yield* say(i === 0 ? 'えらい。' : '……今日だけよ。', { name: '母', voice: 'mother' });
   },
   mix: function* () {
-    yield* say('いい においが します。', { name: 'カネナリくん', voice: 'flip' });
+    yield* say('……焼きたては、\nこんな においなんか。', { name: 'グソっ君', voice: 'gusokkun' });
     yield* say('できたて 焼きそばを 受けとった！', { voice: 'sys' });
-    yield* say('（たぶん）', { name: 'カネナリくん', voice: 'flip' });
+    yield* say('めっちゃ美味いやんけ！', { name: 'グソっ君', voice: 'gusokkun' });
   },
   long: function* () {
     yield* say('これは とても 長い 文章なので 自動的に 改ページ されるかどうかを 確認するための テストです。三行を 超えたら 次の ページに 送られる はず。ページの 送りの 印は 朱の 小さな ハンコ。', { name: '郵便屋さん', voice: 'postman' });
@@ -261,7 +262,7 @@ registerDebug('wrapCheck', () => {
     const s = getSkill(id);
     for (const l of s?.desc ?? []) check(`ハンコ ${s?.name}`, l, infoW, 1);
   }
-  // 公園の練習の戦闘（カネナリくんのフリップ・帯・選択肢。20 10.6）
+  // 公園の練習の戦闘（グソっ君の台詞・帯・選択肢。20 10.6）
   const lesson = lessonTextIssues(textW);
   n += lesson.checked;
   issues.push(...lesson.issues);

@@ -1,6 +1,6 @@
 // The north row's rooms (02_ch2_index #58, 10_narrative 6.14 / 6.22 / 7.19):
 // しんご and his たんかん, the 喫茶 夕顔 master and his freezer, the うちわ at
-// the sake shop, カネナリくん's flip once in each room, and the QA commands
+// the sake shop, グソっ君's word once in each room, and the QA commands
 //   __game.cmd.lvN('cafe')   jump into one of the rooms (lvN() lists them)
 //   __game.cmd.lvDoorsN()    every door of the rooms and their town doors
 //   __game.cmd.northText()   every new page: ≤ 3 lines, ≤ 336 px a line
@@ -130,19 +130,17 @@ registerScript('obj_yb_uchiwa', function* (): Co {
   yield* msg(N.NOBJ.obj_yb_uchiwa as string);
   if (flag('flag_kanenari_joined') && !flag('flag_follower_hidden') && !flag('flag_uchiwa_flip')) {
     setFlag('flag_uchiwa_flip', 1);
-    sfx('se_flip');
     yield* msg(N.UCHIWA_FLIP);
   }
 });
 
-// ---------------------------------------------------------------- カネナリくん, once in each room
+// ---------------------------------------------------------------- グソっ君, once in each room (ids keep the old names)
 
 for (const id of NORTH_MAPS)
   registerScript('kanenari_' + id, function* (ctx): Co {
     const seen = 'flag_kanenari_flip_' + id;
     if (N.NFLIPS[id] && !flag(seen)) {
       setFlag(seen, 1);
-      sfx('se_flip');
       yield* msg(N.NFLIPS[id]);
       return;
     }

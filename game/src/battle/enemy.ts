@@ -19,6 +19,7 @@ import {
 } from './tsukkomi';
 import { coinShiny, glove, meishiCard, musicNote, uwabaki, waterDrop, feather, spring, drawArc } from './art/fxart';
 import { PANEL_POS } from './ui/panels';
+import { showKnTsukkomi } from './gusokkun';
 import { C } from './ui/note';
 
 // ---- AI --------------------------------------------------------------------------------
@@ -571,17 +572,19 @@ function lineFor(s: BattleScene, e: EnemyUnit, sk: SkillDef, st: ActState): { n:
 }
 
 /**
- * Show the lettering for the move (Minato's inner voice, or Kanenari's flip).
- * Returns how long it stays on screen (ms).
+ * Show the lettering for the move (Minato's inner voice), or — when しゅん
+ * can't and グソっ君 answers instead — his 「なんでやねん！」 in a balloon
+ * over his panel (★2026-09-29; the line itself is not heard, so it is not
+ * counted as seen). Returns how long it stays on screen (ms).
  */
 function letter(s: BattleScene, e: EnemyUnit, sk: SkillDef, st: ActState): number {
   const tu = tsukkomiUnit(s);
   const { n, text } = lineFor(s, e, sk, st);
   st.lastLine = n;
   if (!text) return 0;
-  markLineSeen(s, e, n);
   s.memo['used_' + sk.id] = 1;
-  if (tu?.id === 'kanenari') return showFlip(s, text);
+  if (tu?.id === 'kanenari') return showKnTsukkomi(s);
+  markLineSeen(s, e, n);
   return showKakimoji(s, text, st.lastJust);
 }
 

@@ -165,6 +165,8 @@ registerMap({
     PR('mall_leak', 16, 8),
     // examine
     O('obj_ramen_shutter', 2, 2, { w: 4, face: 'up' }),
+    // the far west corner: an old 『ふしぎな 深海生物展』 poster (★2026-09-29, 04_gusokkun_plan 2章 9; events/mall.ts)
+    O('obj_deepsea_poster', 1, 2, { face: 'up', script: 'obj_deepsea_poster' }),
     O('obj_menu_sign', 8, 2, { w: 4, face: 'up' }),
     O('obj_kaitenyaki', 9, 3, { w: 2, fushigi: 'fushigi_12', script: 'evt_kaitenyaki' }),
     O('obj_lost_counter', 13, 3, { w: 4 }),

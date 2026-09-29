@@ -63,7 +63,13 @@ const CHAIN: { beat: string; steps: Step[]; at: [string, number, number, Dir]; r
     desc: '家の前。焼きそばのたかしへ',
   },
   { beat: 'maruyama', steps: [], at: ['map_town', 27, 23, 'up'], desc: '焼きそばのたかしの前（初入店で evt_maruyama_first）' },
-  { beat: 'hinoya', steps: [set('flag_met_maruyama'), () => setFlag('flag_clock', 2)], at: ['map_town', 32, 23, 'up'], desc: 'ひのやの前（evt_obaa_first）' },
+  {
+    beat: 'hinoya',
+    // たかし gave last night's leftover (★2026-09-29, for グソっ君)
+    steps: [set('flag_met_maruyama', 'flag_got_urenokori'), keys('item_urenokori'), () => setFlag('flag_clock', 2)],
+    at: ['map_town', 32, 23, 'up'],
+    desc: 'ひのやの前（evt_obaa_first）',
+  },
   { beat: 'chime', steps: [set('flag_met_obaa')], at: ['map_town', 32, 22, 'down'], run: 'evt_chime_stop', desc: '★17:00 の瞬間 → ハト係長' },
   {
     beat: 'hato',
@@ -93,18 +99,19 @@ const CHAIN: { beat: string; steps: Step[]; at: [string, number, number, Dir]; r
     desc: 'くま吉に みました（fushigi_04 → 公園のヒント）',
   },
   { beat: 'alley', steps: [set('flag_fushigi_04', 'flag_fushigi_tutorial', 'flag_park_hint')], at: ['map_town', 19, 22, 'up'], desc: '路地（evt_alley_open）→ 公園' },
-  { beat: 'kanenari', steps: [taken('trig:map_town:trig_alley_open')], at: ['map_town', 16, 13, 'up'], desc: '時計塔のカネナリくん（加入戦）' },
+  { beat: 'kanenari', steps: [taken('trig:map_town:trig_alley_open')], at: ['map_town', 16, 13, 'up'], desc: '時計塔の下で倒れているグソっ君（売れ残りの焼きそば → 加入）' },
   {
     beat: 'lesson',
     steps: [
-      set('flag_met_kanenari', 'flag_kanenari_joined'),
+      set('flag_met_kanenari', 'flag_gave_urenokori', 'flag_kanenari_joined'),
       () => {
+        state.inventory = state.inventory.filter((id) => id !== 'item_urenokori');
         joinKanenari();
       },
     ],
     at: ['map_town', 16, 13, 'up'],
     run: 'evt_kn_lesson',
-    desc: '練習の戦闘（カネナリくんの戦いかた講座）',
+    desc: '練習の戦闘（グソっ君の戦いかた講座）',
   },
   {
     beat: 'broadcast',

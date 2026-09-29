@@ -352,7 +352,7 @@ export const SOBJ: Record<string, StageText> = {
 『ラジオ体操 毎朝 6:30』
 『迷い犬 見つかりました』
 /
-『カネナリくん 引退セレモニー』の
+『ユウナリ 閉店セール』の
 ポスターは、はがした あとだけ
 残っている。`,
   obj_sr_bench: {
@@ -591,14 +591,14 @@ export const SREWARD_AFTER: Record<string, StageText> = {
   },
 };
 
-/** カネナリくんが仲間のときだけ足すフリップ（倉庫の垂れ幕）。 */
+/** 倉庫の垂れ幕（先週 終わった 夏まつりの）。グソっ君が仲間なら、続けて SBANNER_FLIP。 */
 export const SBANNER = `@narr
 丸めた 垂れ幕。{w=300}
 はしから 字が 見える。
-『……ナリくん 引退 セレモ……』`;
-export const SBANNER_FLIP = `@flip
-……ぼくは なにも
-見ていません。`;
+『……銀座 夏まつ……』`;
+export const SBANNER_FLIP = `@npc_kanenari
+まつりて、なんや？{w=300}
+……おもろいんか。ほな、来年は 行こな。`;
 
 /** はじめて入ったときの1ページ（倉庫・つりえさ屋。人のいない部屋に入るわけ）。 */
 export const SENTER: Record<string, string> = {

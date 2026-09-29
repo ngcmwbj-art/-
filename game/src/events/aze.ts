@@ -10,17 +10,17 @@
 //     水が 北東へ 寄って、となり町の 分が 減る → 「ほんなら お茶を 多めに くれ。」→
 //     しゅんが 水筒を 受けとって ベンチを 回り、とよぞうに 渡す（選択肢「渡す」）→
 //     よねの ハッカあめが 肩ごしに 飛んでくる。そのあとは とよぞうが 水筒を 持って 注ぐ。
-//   ・分水を カネナリくんと 調べると フリップ「（上から 見ると、はなまるです）」（1回）。
+//   ・分水を グソっ君と 調べると「上から 見たら、はなまるやん。」（1回）。
 //   ・赤とんぼ（world fx 'fg'）：境を 行ったり 来たり。段階1は 宙で 止まる、段階2は 北東を 向く。
 // map_town：
-//   ・祠の 東の きつねの 前の 小皿（obj_kitsune_sara）→ カネナリくんがいれば フリップで
+//   ・祠の 東の きつねの 前の 小皿（obj_kitsune_sara）→ グソっ君がいれば ひとことで
 //     豆腐屋へ 誘う（flag_kitsune_sasoi）。小皿を 見たあと くま吉に 話すと 1回だけ 油揚げ
 //     （item_abura_age、大事なもの。npc_mamekichi の台本を 包む）。
 //   ・祠か 小皿で「のせる」→ 画面を 出て 戻ると なくなっている（段階1なら 口が 半分 あいた
 //     まま 止まる）。そのあと もう一度だけ 手を あわせられる（朱肉だけ 回復。全回復は 1回の まま）。
 //
 // QA:
-//   __game.cmd.aze(stage = 0)      段階0/1/2 の 状態で 分水の 前へ（2 は カネナリくん つき）
+//   __game.cmd.aze(stage = 0)      段階0/1/2 の 状態で 分水の 前へ（2 は グソっ君 つき）
 //   __game.cmd.azeReset()          2人の 話と 水筒・きつねの 流れを 忘れる
 //   __game.cmd.azeText()           ページの 字の 幅（3行・336px）と、第1章の 禁句
 //   __game.cmd.kitsune(state)      'sara' 小皿の前へ / 'abura' 油揚げを 持って / 'offered' のせた あと / 'eaten' 食べた あと
@@ -50,7 +50,7 @@ SPEAKERS.npc_toyozou ??= { name: 'とよぞう', voice: 'toyozou' };
 
 const MAP = 'map_aze';
 
-/** Is カネナリくん walking with Minato right now (the flip board)? */
+/** Is グソっ君 walking with Minato right now? */
 function kanenariHere(): boolean {
   const f = field();
   return !!f?.follower && f.follower.visible && flag('flag_kanenari_joined') > 0;
@@ -192,7 +192,7 @@ registerScript('lv_in_aze', function* (): Co {
 
 // ================================================================ examine
 
-/** The diversion: its stage text; with カネナリくん, the flip once. */
+/** The diversion: its stage text; with グソっ君, his word once. */
 registerScript('obj_bunsui', function* (): Co {
   snd.se('se_examine');
   const t = pickStage(AZE_OBJ.obj_bunsui as Record<string, string>);
@@ -201,7 +201,6 @@ registerScript('obj_bunsui', function* (): Co {
     setFlag('flag_bunsui_flip', 1);
     const k = F().follower;
     if (k) k.showEmote('light', 900);
-    snd.se('se_flip');
     yield* msg(AZE_OBJ.bunsui_flip);
   }
 });
@@ -371,10 +370,7 @@ function* dishState(): Co<boolean> {
     if (!flag('flag_kitsune_seen')) {
       setFlag('flag_kitsune_seen', 1);
       yield* msg(KITSUNE_TEXT.eaten);
-      if (kanenariHere()) {
-        snd.se('se_flip');
-        yield* msg(KITSUNE_TEXT.flip_joren);
-      }
+      if (kanenariHere()) yield* msg(KITSUNE_TEXT.flip_joren);
       return true;
     }
     return false;
@@ -382,10 +378,7 @@ function* dishState(): Co<boolean> {
   if (flag('flag_abura_offered')) {
     if (flag('flag_abura_frozen') && stage() === 1) {
       yield* msg(KITSUNE_TEXT.frozen);
-      if (kanenariHere()) {
-        snd.se('se_flip');
-        yield* msg(KITSUNE_TEXT.flip_joren);
-      }
+      if (kanenariHere()) yield* msg(KITSUNE_TEXT.flip_joren);
     } else yield* msg(KITSUNE_TEXT.offered);
     return true;
   }
@@ -407,7 +400,6 @@ registerScript('obj_kitsune_sara', function* (): Co {
   }
   if (flag('flag_abura_got')) return;
   if (kanenariHere()) {
-    snd.se('se_flip');
     if (!flag('flag_kitsune_sasoi')) {
       setFlag('flag_kitsune_sasoi', 1);
       yield* msg(KITSUNE_TEXT.sara_flip);
@@ -491,10 +483,8 @@ function aburaReady(): boolean {
     if (stage() === 0 && !flag('flag_seen_npc_mamekichi_s0_1') && orig) yield* orig(ctx);
     const m = actor('npc_mamekichi');
     if (m) m.pose = null;
-    if (kanenariHere()) {
-      snd.se('se_flip');
-      yield* msg(ABURA_TEXT.flip);
-    } else yield* msg(ABURA_TEXT.narr);
+    if (kanenariHere()) yield* msg(ABURA_TEXT.flip);
+    else yield* msg(ABURA_TEXT.narr);
     yield* msg(ABURA_TEXT.give);
     if (stage() === 1) yield* msg(ABURA_TEXT.give_s1);
     setFlag('flag_abura_got', 1);
@@ -543,7 +533,7 @@ registerDebug('azeText', () => azeTextCheck());
 type Cmd = Record<string, (...a: unknown[]) => unknown>;
 const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cmd;
 
-/** QA: into map_aze in a stage (0 the evening, 1 the stopped time, 2 with カネナリくん). */
+/** QA: into map_aze in a stage (0 the evening, 1 the stopped time, 2 with グソっ君). */
 registerDebug('aze', (st = 0, x = 12, y = 11, dir = 'down') => {
   const beat = st >= 2 ? 'stage2' : st === 1 ? 'alley' : 'town';
   cmd().jump?.(beat, true);

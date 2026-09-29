@@ -2,7 +2,7 @@
 // Left page: the photo (portrait taped in), class and name, level and
 // experience, HP and 朱肉 bars. Right page: the ruled table of the six
 // abilities written in pencil (no grade stamps here) and 「せんせいより」.
-// ←→ (or ↑↓) switches between しゅん and カネナリくん, whose tabs are
+// ←→ (or ↑↓) switches between しゅん and グソっ君, whose tabs are
 // sticky notes on the right page.
 
 import type { Gfx } from '../../engine/gfx';
@@ -73,7 +73,7 @@ export class StatsPage implements MenuPage {
     let x = SP.x + 72;
     state.party.forEach((p, i) => {
       const sel = i === this.who;
-      const label = p.id === 'kanenari' ? 'カネナリくん' : p.name;
+      const label = p.id === 'kanenari' ? 'グソっ君' : p.name;
       const w = textW(label) + 14;
       const y = SP.y - 18 - (sel ? 2 : 0);
       drawTape(g, x, y, w, 20, '', { color: sel ? '#D8F0B8' : '#D8CBA8', seed: 10 + i });

@@ -76,6 +76,10 @@ registerProp('mall_m2_shell', () => {
   p.hline(33, 38, 28, P.charcoal);
   p.set(34, 22, P.crimson);
   p.set(34, 23, P.white);
+  // ---- (1) in the far west corner, an old poster of some event long ago:
+  // 『ふしぎな 深海生物展』 (★2026-09-29, 04_gusokkun_plan 2章 9): the deep
+  // blue gone dull, marine snow, an anglerfish's lure, a small octopus
+  deepSeaPoster(p, 17, 19);
   // ---- (6–7) a menu poster of bowls, a ghost of another
   {
     const x = 99;
@@ -187,6 +191,52 @@ function kaitenyakiSign(p: PixelCanvas, x: number, y: number): void {
     small(p, word, sx + 1, sy + 1, P.woodDark);
     castRight(p, sx, sy, w, 10, 1);
   }
+}
+
+/**
+ * 『ふしぎな 深海生物展』 (14×23), long faded: a title band, the deep (navy
+ * into violet) with marine snow falling, an anglerfish with its lit lure, a
+ * small pale octopus; the date line at the foot too faded to read.
+ */
+function deepSeaPoster(p: PixelCanvas, x: number, y: number): void {
+  const w = 14;
+  const h = 23;
+  p.rect(x, y, w, h, P.paper);
+  p.hline(x, x + w - 1, y + h - 1, P.paperGrid);
+  p.vline(x + w - 1, y, y + h - 1, P.paperGrid);
+  // the title: two rows of faded navy strokes
+  printLines(p, x + 1, y + 1, w - 3, 2, P.navy, 131, 2);
+  // the deep: navy at the top, violet below (dithered), gone a little dull
+  for (let j = 0; j < 15; j++)
+    for (let i = 0; i < w - 2; i++) {
+      const t = j / 14;
+      const m = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5][(j & 3) * 4 + (i & 3)] / 16;
+      p.set(x + 1 + i, y + 5 + j, t > m ? P.shadeDeep : P.navy);
+    }
+  // marine snow
+  for (let k = 0; k < 9; k++) {
+    const hh = ihash(k, 7, 5213);
+    p.set(x + 1 + (hh % (w - 2)), y + 5 + ((hh >>> 5) % 14), k % 3 ? P.concrete : P.white);
+  }
+  // the anglerfish: a dark body low on the left, its stalk and the lit lure
+  p.ellipse(x + 5, y + 16, 3, 2, P.ink);
+  p.set(x + 3, y + 17, P.white);
+  p.set(x + 4, y + 17, P.white);
+  p.line(x + 6, y + 14, x + 8, y + 12, P.steel);
+  p.set(x + 8, y + 11, P.goldPale);
+  p.set(x + 9, y + 11, P.glint);
+  // a small pale octopus drifting on the right
+  p.ellipse(x + 10, y + 8, 2, 1.5, P.peach);
+  p.set(x + 9, y + 10, P.peach);
+  p.set(x + 11, y + 10, P.peach);
+  // the date line at the foot (too faded to read), the corner curling
+  printLines(p, x + 2, y + 21, w - 6, 1, P.peach, 133);
+  p.set(x + w - 2, y + h - 2, P.paperGrid);
+  p.set(x + w - 3, y + h - 1, P.concreteLt);
+  castRight(p, x, y, w, h, 2);
+  // the tape at the top corners
+  p.rect(x - 1, y - 1, 3, 2, P.goldPale);
+  p.rect(x + w - 2, y - 1, 3, 2, P.goldPale);
 }
 
 function staffDoor(p: PixelCanvas, x: number, y: number): void {

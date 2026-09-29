@@ -41,6 +41,7 @@ import {
   YAKINAMES,
   YAKINAMES_KANA,
 } from './interior_text';
+import { KAITENYAKI_FLIP } from '../text/mall';
 
 const itemName = (id: string) => getItem(id)?.name ?? id;
 
@@ -219,13 +220,7 @@ ${YAKINAMES_KANA[k]}`);
   yield* runMsg(`@sys
 迷子センターの カギを
 手に入れた！`);
-  if (flag('flag_kanenari_joined')) {
-    yield* runMsg(`@flip
-ぼくは 大判焼き派です。`);
-    yield* runMsg(k === 1 ? `@flip
-（気が 合いますね）` : `@flip
-（でも、いい 名前です）`);
-  }
+  if (flag('flag_kanenari_joined')) yield* runMsg(KAITENYAKI_FLIP(k === 2));
   yield* runMsg(`@sys
 ハンコケースに 新しい ハンコが
 浮かびあがった。
@@ -268,14 +263,15 @@ registerScript('trig_maigo_door_rest', function* () {
   yield* runMsg(EVT_MAIGO_REST);
 });
 
-// ---------------------------------------------------------------- M5: the faded mascot poster
+// ---------------------------------------------------------------- M5: the faded poster (『まいごに なったら……』)
 
 registerScript('obj_maigo_poster', function* () {
   snd.se('se_examine');
   yield* runMsg(String(IOBJ.obj_maigo_poster));
   if (flag('flag_kanenari_joined'))
-    yield* runMsg(`@flip
-（……ぼくです）`);
+    yield* runMsg(`@npc_kanenari
+待つのは 得意やで。{w=300}
+……得意に なるほど、待ったんかな。`);
 });
 
 // ---------------------------------------------------------------- 5.22 evt_save_bench
@@ -339,8 +335,8 @@ registerScript('evt_boss_intro', function* (ctx: ScriptCtx) {
 鳴らさない。{w=600}
 鳴ったら、今日が 終わっちゃう。`);
   if (flag('flag_kanenari_joined'))
-    yield* runMsg(`@flip
-（……）`);
+    yield* runMsg(`@npc_kanenari
+……待っとるんか。{w=300}ずっと。`);
   maigoPileHide(true);
   snd.se('se_chime_note', { pitch: 1 });
   yield 500;

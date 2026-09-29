@@ -18,7 +18,7 @@ import { doAttack, doFlee, doGuard, doHanko, doItem, doNori, doPR, killSequence 
 import { decideEnemy, doEnemyAction } from './enemy';
 import { bossDecide, bossEntrance, bossRoundEnd, bossRoundStart, bossTriesOf, checkBossPhase, initBoss } from './boss';
 import { applyStartStatus, ch2RoundEnd, ch2RoundStart, enemyRests, restTurn } from './ch2rules';
-import { showFlip } from './tsukkomi';
+import { showKnLine } from './gusokkun';
 import { victory, wipeOut } from './results';
 import { hideSticky, precacheRestored, resetKire, sayFallen, statusText } from './common';
 import { yobiBlack, yobiMemory } from './boss_yobimodoshi';
@@ -98,14 +98,14 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
       yield* s.say(first.def.texts.extra.opening);
     }
   }
-  // a retry: Kanenari-kun holds up what beat them last time
+  // a retry: グソっ君 says what beat them last time (a balloon over his panel)
   if (retry && s.kanenari) {
     s.mood(s.kanenari, 'tsukkomi', 2000);
     if (s.bossKind === 'yobimodoshi') {
       // the tomato's lesson once more, if it was never held up (51 10.10)
       if (!yobiMemory.tomatoUsed) s.memo.tomatoTut = 1;
-      yield showFlip(s, SYS2.retryFlip, 2000);
-    } else yield showFlip(s, BOSS_RETRY_FLIP, 2000);
+      yield showKnLine(s, SYS2.retryFlip, 2000);
+    } else yield showKnLine(s, BOSS_RETRY_FLIP, 2000);
   }
   // round 0 (ambush): every enemy acts once before the first command
   if (init === 'enemy') {
@@ -275,7 +275,7 @@ function noteMove(s: BattleScene, c: PartyCmd): void {
       s.noteActing(getSkill(c.skill)?.name ?? 'ハンコ', c.skill === 'skill_okaerinasai' ? 'okaeri' : 'hanko');
       break;
     case 'pr':
-      s.noteActing(getSkill(c.skill)?.name ?? 'PR活動', 'pr');
+      s.noteActing(getSkill(c.skill)?.name ?? 'おてつだい', 'pr');
       break;
     case 'item':
       s.noteActing(getItem(c.item)?.name ?? 'もちもの', 'item');

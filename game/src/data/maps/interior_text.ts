@@ -209,7 +209,7 @@ export const IOBJ: Record<string, StageText> = {
 来れますように』。`,
   obj_ceiling_balloon: `@narr
 天井に 風船が 1つ。{w=300}
-鐘の 顔が 描いてある。
+ユウナリの、笑った 鐘の マーク。
 1年、天井で 待っている。`,
   obj_info_counter: `@narr
 呼び鈴を 押すと、
@@ -261,6 +261,15 @@ export const IOBJ: Record<string, StageText> = {
   obj_ramen_shutter: `@narr
 『スープ 切れ』。{w=300}
 去年から。`,
+  // ★2026-09-29 (04_gusokkun_plan 2章 9): the far west corner of the food court,
+  // an old event's poster. It answers nothing; with グソっ君, one word (events/mall.ts).
+  obj_deepsea_poster: `@narr
+色あせた ポスター。{w=300}
+『ふしぎな 深海生物展』。
+/
+チョウチンアンコウ、メンダコ、
+ダイオウイカ……{w=300}
+あとは、日に 焼けて 読めない。`,
   obj_food_table: `@narr
 テーブルに 子ども用の いす。{w=300}
 座面に、ジュースの
@@ -370,11 +379,14 @@ export const IOBJ: Record<string, StageText> = {
 傘、水筒、片方の 手袋。{w=300}
 ……将棋の 『歩』が 1枚、
 まじっている。`,
-  // level-side: the faded mascot poster on the west wall of M5
+  // level-side: the faded poster on the west wall of M5 (the mall's bell mark waving)
   obj_maigo_poster: `@narr
 色あせた ポスター。{w=300}
-『よいこの みかた カネナリくん』。
-鐘の 色が、ほとんど 白い。`,
+『まいごに なったら、ここで
+まってて ね』。
+/
+鐘の マークが、手を ふっている。{w=300}
+色が、ほとんど 白い。`,
 
   // ---------------------------------------------------------------- level-side (30_level_art 1.4 / 5.2 / 5.3)
   // The STAFF door between the food court and the health corner.
@@ -463,10 +475,11 @@ export const ITALK: Record<string, TalkTable> = {
 ……宿題から 逃げてる 顔だ。`,
     s1_1: `@npc_obaa
 公園へ 行っておいで。{w=300}
-鐘の 頭が 待ってるよ。`,
+でっかい 虫が 倒れてるって 話だよ。`,
     s1_2: `@npc_obaa
-あの子も 昔は 人気者 だったんだ。
-握手会なんか、3人も 並んでね。`,
+でっかい 虫の 子、どこから
+来たんだろうね。{w=300}見た 人の
+話じゃ、目が やさしいんだとさ。`,
     s2_1: `@npc_obaa
 迷子センター？{w=300}
 去年から だれも いないよ。
@@ -474,11 +487,11 @@ export const ITALK: Record<string, TalkTable> = {
 ……だれも、
 迎えに 行って ないんだ。`,
     s2_2: `@npc_obaa
-カネナリくん。{w=300}
-あんた、ちゃんと 見て
-もらえたかい。
-@flip
-はなまる もらいました。
+あんたが、公園の 子かい。{w=300}
+……ちゃんと 食べたかい。
+@npc_kanenari
+焼きそば もろた。{w=300}
+ほんで、はなまるも もろたで。
 @npc_obaa
 そうかい。{w=300}
 ……はい、よくできました。`,
@@ -542,7 +555,7 @@ export const ITALK: Record<string, TalkTable> = {
 異常に 入りますかね？
 /
 それと、公園で
-『引退した 方が 勤務中』との
+『大きな 虫が 倒れている』との
 通報が ありました！
 /
 あそこの 公園の 鉄棒は いいぞー！{w=300}
@@ -614,9 +627,10 @@ export const EVT_OBAA_FIRST_MEAT = `@npc_obaa
 export const EVT_MALL_ENTER = `@narr
 ショッピングプラザ・ユウナリ。{w=300}
 閉店して、ちょうど 1年。
-@flip
-ここで 握手会を したことが
-あります。（3人 来ました）`;
+@npc_kanenari
+な、なんや ここ……！{w=300}
+店が ぎょうさん、1つの 箱に
+入っとる……！`;
 
 export const EVT_MAIGO_DOOR_LOCKED = `@narr
 カギが かかっている。
@@ -624,16 +638,17 @@ export const EVT_MAIGO_DOOR_LOCKED = `@narr
 貼り紙：『カギは フードコートの
 忘れ物カウンターで
 お預かり しています』
-@flip
-（フードコートは 1Fです）`;
+@npc_kanenari
+フードコートは 1階やで。{w=300}
+……フードて、食いもんの ことか？`;
 export const EVT_MAIGO_DOOR_OPEN = `@sys
 迷子センターの カギを 使った。`;
-export const EVT_MAIGO_DOOR_FLIP = `@flip
-（……ここ、知っている
-気がします）`;
-export const EVT_MAIGO_REST = `@flip
+export const EVT_MAIGO_DOOR_FLIP = `@npc_kanenari
+ここ……なんか、落ち着くな。{w=300}
+だれか 待っとった 気が するわ。`;
+export const EVT_MAIGO_REST = `@npc_kanenari
 ベンチで ひと休み してから
-行きましょう。`;
+行こか。`;
 
 export const EVT_SAVE_BENCH = `@narr
 休憩ベンチ。

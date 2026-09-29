@@ -350,7 +350,7 @@ const OBJECTS: MapObj[] = [
 
   // ======================================================== 捕まえない自由研究 (50 10.21, 52 7.5, 02 #64)
   // the host plants are always there; the insects only in the lantern's light
-  // (litOnly), once カネナリくん has talked しゅん into it (flag_ch2_mushi).
+  // (litOnly), once グソっ君 has talked しゅん into it (flag_ch2_mushi).
   // ぴょん夫人's スズムシ is in her house (hoshi_rooms2.ts).
   PR('prop_h_yomogi', 21, 8),
   PR('prop_h_shitakusa', 23, 30),

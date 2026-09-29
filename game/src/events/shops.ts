@@ -1,4 +1,6 @@
-// 焼きそばのたかし (5.4, 6.2) and 駄菓子 ひのや (5.5, 6.3, 12.1).
+// 焼きそばのたかし (5.4, 6.2) and 駄菓子 ひのや (5.5, 6.3, 12.1). The first
+// visit to たかし ends with last night's leftover for グソっ君 (★2026-09-29,
+// 04_gusokkun_plan 2章 1: item_urenokori, flag_got_urenokori).
 
 import type { Co } from '../engine/co';
 import { flag, setFlag, state } from '../game/state';
@@ -8,7 +10,7 @@ import { openShop } from '../ui/api';
 import { sfx } from '../audio';
 import * as T from '../data/text/events';
 import { NPC } from '../data/text/npcs';
-import { F, onMap, stageKeys } from './lib';
+import { F, getKeyItem, onMap, stageKeys } from './lib';
 import { sparkle } from './fx';
 import { talkZoom, zoomOut } from './stage';
 
@@ -47,6 +49,7 @@ function* maruyamaFirst(): Co {
     face('npc_maruyama', 'player');
     yield 150;
   }
+  yield* giveUrenokori(T.MARUYAMA_URENOKORI);
   yield* msg(T.MARUYAMA_FIRST_B);
   yield* zoomOut(z, 300);
   firstShopClock();
@@ -55,6 +58,30 @@ function* maruyamaFirst(): Co {
 }
 registerScript('evt_maruyama_first', maruyamaFirst);
 
+/**
+ * Last night's leftover: he reaches under the counter and sets a cold pack
+ * in front of しゅん (「ゆうべの 売れ残りだ。……腹 へってる やつに でも
+ * やってくれ。」). Once.
+ */
+function* giveUrenokori(text: string): Co {
+  if (flag('flag_got_urenokori')) return;
+  const m = actor('npc_maruyama');
+  if (m) {
+    m.pose = null;
+    face('npc_maruyama', 'player');
+    m.hop(1, 140);
+  }
+  yield* msg(text);
+  sfx('se_paper_bag');
+  setFlag('flag_got_urenokori', 1);
+  yield* getKeyItem('item_urenokori', T.MARUYAMA_URENOKORI_GET);
+}
+
+/** グソっ君 not met yet and no leftover (the insurance 17:00 came before this shop): he gives it now. */
+function needsUrenokori(): boolean {
+  return stage() === 1 && !flag('flag_got_urenokori') && !flag('flag_kanenari_joined');
+}
+
 registerScript('npc_maruyama', function* (): Co {
   const s = stage();
   if (s === 0 && !flag('flag_met_maruyama')) {
@@ -62,6 +89,12 @@ registerScript('npc_maruyama', function* (): Co {
     return;
   }
   if (s >= 3) return;
+  if (needsUrenokori()) {
+    firstShopClock();
+    setFlag('flag_met_maruyama', 1);
+    yield* giveUrenokori(T.MARUYAMA_URENOKORI_LATE);
+    return;
+  }
   const m = actor('npc_maruyama');
   if (m) m.pose = null;
   const t = stageKeys(NPC.npc_maruyama);

@@ -32,7 +32,7 @@ export function* toTrain(): Co {
   yield* game.fadeIn(600);
 }
 
-/** The car itself: the room's sound; カネナリくん back in the line. */
+/** The car itself: the room's sound; グソっ君 back in the line. */
 export function* evtTrain(): Co {
   space('room');
   musicParam('h_stage', -1);
@@ -111,7 +111,7 @@ export function* evtArrive(announced = false): Co {
   f.snapCamera();
   yield 200;
   yield* game.fadeIn(1000);
-  // off the train: one tile north, カネナリくん after him
+  // off the train: one tile north, グソっ君 after him
   yield* walk('player', [25, 44], { speed: 2.5, face: 'up' });
   if (k) {
     k.visible = true;
@@ -129,7 +129,7 @@ export function* evtArrive(announced = false): Co {
   const x0 = train.a.x;
   yield* animate(3600, (q) => (train.a.x = x0 - 460 * ease.quadIn(q)), ease.linear);
   despawn('ch2_arrive_train');
-  // カネナリくん comes up beside him (both look north later)
+  // グソっ君 comes up beside him (both look north later)
   if (k) {
     yield* walk('kanenari', [[26, 45], [26, 44]], { speed: 2.5, face: 'up' });
     delete k.data.scripted;
@@ -157,7 +157,6 @@ export function* evtArrive(announced = false): Co {
   poseAny(kk, 'look_hill', 'look_up');
   yield 1000;
   unpose(p, kk);
-  se('se_flip');
   yield* runMsg(T.ARRIVE_FLIP);
 }
 

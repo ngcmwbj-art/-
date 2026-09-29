@@ -141,7 +141,8 @@ export const VOICES: Record<string, VoiceDef> = {
 VOICES.broadcast.calls = true;
 
 const ALIAS: Record<string, string> = {
-  mom: 'mother', haha: 'mother', kanenari: 'flip', old: 'obaa', narration: 'narr', narrator: 'narr', system: 'sys',
+  // (kanenari / npc_kanenari: グソっ君 talks now, ★2026-09-29 — no more flip board)
+  mom: 'mother', haha: 'mother', kanenari: 'gusokkun', old: 'obaa', narration: 'narr', narrator: 'narr', system: 'sys',
   sand_girl: 'girl', gacha_boy: 'kid', shadow_man: 'shadow', kotaro: 'dog', minato: 'none', omu: 'omukaemachi',
   // chapter 2: @npc_hoshi_* speak with their h_* voice (53 9.1)
   hoshi_mitsu: 'h_mitsu', hoshi_gen: 'h_gen', hoshi_fumi: 'h_fumi', hoshi_kucho: 'h_kucho', hoshi_yoshie: 'h_yoshie',

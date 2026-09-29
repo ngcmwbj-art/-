@@ -980,7 +980,7 @@ export const ROOM2_VILLAGE_DOORS: DoorObj[] = [];
 /** QA: where each room is entered (map, x, y). */
 export const ROOM2_SPOTS: Record<string, [string, number, number]> = {};
 export const ROOM2_MAPS: string[] = [];
-/** map id → カネナリくん's place key. */
+/** map id → グソっ君's place key (his line once per room). */
 export const ROOM2_KEYS: Record<string, string> = {};
 export const ROOM2_NAMES: Record<string, string> = {};
 

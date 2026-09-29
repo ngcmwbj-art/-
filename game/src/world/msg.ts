@@ -1,7 +1,8 @@
 // Runner for the "msg" block format of 10_narrative.md 1.4, so NPC and
 // examine texts can be pasted from the design book almost verbatim:
 //
-//   @npc_mother            speaker (npc id → name tag + voice), @narr, @sys, @flip, @名札:voice
+//   @npc_mother            speaker (npc id → name tag + voice), @narr, @sys, @名札:voice
+//                          (@npc_kanenari = グソっ君; the old @flip reads the same)
 //   text line              shown as written (one line = one display line)
 //   /                      page break
 //   ? べつ | いっしょ        choice (result drives the [label] branches below)
@@ -24,7 +25,10 @@ export interface Speaker {
 export const SPEAKERS: Record<string, Speaker> = {
   narr: { voice: 'narr' },
   sys: { voice: 'sys' },
-  flip: { name: 'カネナリくん', voice: 'flip' },
+  // グソっ君（★2026-09-29 依頼主の指示で カネナリくん→グソっ君。IDは据え置き）は
+  // ふつうの会話ウィンドウで話す（フリップはやめた。04_gusokkun_plan 0章）。
+  // 古い台本の @flip も、グソっ君の ふつうの台詞として出す。
+  flip: { name: 'グソっ君', voice: 'gusokkun' },
   npc_mother: { name: '母', voice: 'mother' },
   // たかし（★2026-09-29 依頼主の指示で 百瀬→たかし。本名 百瀬たかし（ももせ たかし）、名札・店の名前は たかし。IDは据え置き）
   npc_maruyama: { name: 'たかし', voice: 'maruyama' },
@@ -49,7 +53,7 @@ export const SPEAKERS: Record<string, Speaker> = {
   npc_crow: { name: 'カラス', voice: 'crow' },
   npc_tv: { name: 'テレビ', voice: 'tv' },
   npc_broadcast: { name: '防災無線', voice: 'broadcast' },
-  npc_kanenari: { name: 'カネナリくん', voice: 'flip' },
+  npc_kanenari: { name: 'グソっ君', voice: 'gusokkun' },
 };
 
 export function speakerOf(tag: string): Speaker {

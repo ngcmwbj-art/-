@@ -5,8 +5,8 @@
 // しゅん walks under the high bar, jumps up to it (minato_hang), trembles
 // (the anim 'pullup', about 1.9 s) and drops — not one. The first time, while
 // he still hangs, 「……うっ。あごが、鉄棒まで とどかない。」, and on the ground
-// 「懸垂、0回。」 (with カネナリくん watching at stage 2: 「（ぼくは 鐘が 重いので
-// 見学です）」). flag_kensui_try counts the tries.
+// 「懸垂、0回。」 (with グソっ君 watching at stage 2: 「わいは 見とくわ。こう見えて
+// 重いねん。」). flag_kensui_try counts the tries.
 //
 // At the police box, the next talk after a try (once): 「挑戦してきたね！ 顔で
 // 分かるよ！」 — his salute let go for once (pose 'grin'), then he tears a page
@@ -49,7 +49,7 @@ import { puff } from './fx';
 const BAR_X = 375;
 const BAR_Y = 37;
 
-/** Is カネナリくん with him and in sight (stage 2)? */
+/** Is グソっ君 with him and in sight (stage 2)? */
 function kanenariWatching(): boolean {
   const f = field();
   return !!flag('flag_kanenari_joined') && !!f?.follower?.visible;

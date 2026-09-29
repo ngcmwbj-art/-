@@ -1,4 +1,6 @@
-// Skills: party abilities (ハンコ術, PR活動) and enemy moves (20_systems_battle.md 6, 11, 13).
+// Skills: party abilities (ハンコ術, おてつだい — was PR活動) and enemy moves (20_systems_battle.md 6, 11, 13).
+// グソっ君's skills keep their ids (★2026-09-29, 04_gusokkun_plan 5章): skill_tackle こうらタックル,
+// skill_fuusen おすそわけ, skill_goaisatsu ごあいさつ, skill_kane まるくなる.
 
 import type { SkillDef } from './types';
 
@@ -44,24 +46,24 @@ const party: SkillDef[] = [
     noDamage: true, desc: ['（輪郭だけが、うっすら 見える）', '―'],
   },
   {
-    id: 'skill_tackle', name: 'もこもこタックル', user: 'kanenari', kind: 'attack', ct: 0, target: 'enemy', power: 1.0,
-    attr: 'da', input: 'ring', desc: ['2歩 助走して 体当たり。', '輪に 合わせて 決定で いい音。'],
+    id: 'skill_tackle', name: 'こうらタックル', user: 'kanenari', kind: 'attack', ct: 0, target: 'enemy', power: 1.0,
+    attr: 'da', input: 'ring', desc: ['こうらを 前に 体当たり。', '輪に 合わせて 決定で いい音。'],
   },
   {
-    id: 'skill_fuusen', name: 'ふうせんくばり', user: 'kanenari', kind: 'pr', ct: 1, target: 'allies', input: 'none',
-    noDamage: true, desc: ['ふうせんを 配って、みんなを', '少し 回復する。たまに 割れる。'],
+    id: 'skill_fuusen', name: 'おすそわけ', user: 'kanenari', kind: 'pr', ct: 1, target: 'allies', input: 'none',
+    noDamage: true, desc: ['おにぎりを 配って、みんなを', '少し 回復する。たまに 半分。'],
   },
   {
     id: 'skill_goaisatsu', name: 'ごあいさつ', user: 'kanenari', kind: 'pr', ct: 2, target: 'enemies', input: 'none',
-    noDamage: true, desc: ['深々と おじぎ。敵も つられて、', 'ちからが 下がる。（2ターン）'],
+    noDamage: true, desc: ['陸の あいさつ。敵も つられて、', 'ちからが 下がる。（2ターン）'],
   },
   {
-    id: 'skill_kane', name: 'かねを鳴らす', user: 'kanenari', kind: 'pr', ct: 0, target: 'none', input: 'none',
-    noDamage: true, desc: ['鐘を 鳴らす。……鳴らない。', 'すべった 空気で キレが たまる。'],
+    id: 'skill_kane', name: 'まるくなる', user: 'kanenari', kind: 'pr', ct: 0, target: 'none', input: 'none',
+    noDamage: true, desc: ['まるく なる。……なれない。', 'すべった 空気で キレが たまる。'],
   },
   {
     id: 'skill_noritsukkomi', name: 'ノリツッコミ', user: 'both', kind: 'combo', target: 'enemies', attr: 'wara',
-    input: 'none', desc: ['カネナリくんが ボケて、しゅんが', '全力で ツッコむ。敵全体に 大ダメージ。'],
+    input: 'none', desc: ['グソっ君が ボケて、しゅんが', '全力で ツッコむ。敵全体に 大ダメージ。'],
   },
 ];
 

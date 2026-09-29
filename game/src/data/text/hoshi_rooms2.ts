@@ -6,7 +6,7 @@
 //   R2_OBJ    what is examined (plain, or stage keys h0 / 'h1+' / h2 / 'h0-1')
 //   R2_FIND   the finds' first look (the item / money line follows: world)
 //   R2_AFTER  the finds' later looks
-//   R2_FLIPS  カネナリくん's flip, once per room (keys hoshi_r_<room>)
+//   R2_FLIPS  グソっ君's line, once per room (keys hoshi_r_<room>; the id keeps 'FLIPS')
 //   R2_MISC   the rest (the greenhouse door, the dome's little window …)
 //
 // Every page: at most 3 lines of 336 px (__game.cmd.textcheck2 checks them).
@@ -1037,59 +1037,68 @@ export const R2_AFTER: Record<string, R2Text> = {
 {w=300}すきまから、クズの つる。`,
 };
 
-/** カネナリくん's flip in each room, once (50 3.1: the place keys). */
+/** グソっ君's line in each room, once (50 3.1: the place keys). Everything on land is new to him. */
 export const R2_FLIPS: Record<string, string> = {
-  hoshi_r_fumi: `@flip
-10年前の 観望会では、
-（お世話に なりました）`,
-  hoshi_r_minka1: `@flip
-棚田の お米、
-（PRさせて ください）`,
-  hoshi_r_minka2: `@flip
-お留守です。
-（2人とも、集会所で ぐっすり）`,
-  hoshi_r_minka3: `@flip
-耕うん機の 持ち主さんの 家。
-（畝が まっすぐです。図の 上でも）`,
-  hoshi_r_kucho: `@flip
-区長さんの お宅。
-（式辞は 長そうです）`,
-  hoshi_r_sawako: `@flip
-絵の モデル、
-（いつでも 引き受けます）`,
-  hoshi_r_gen: `@flip
-しーっ。
-（おばあさんが ねています）`,
-  hoshi_r_kominka: `@flip
-古い お家です。
-（梁が りっぱです）`,
-  hoshi_r_akiya: `@flip
-おじゃまします。
-（……だれも いませんが）`,
-  hoshi_r_shoten: `@flip
-売家……。
-（PR、お手伝い できます）`,
-  hoshi_r_soko: `@flip
-夏祭り……。
-（PRの 出番が ありそうです）`,
-  hoshi_r_gym: `@flip
-舞台が あると、
-（立ちたく なります）`,
-  hoshi_r_taihisha: `@flip
-土に 戻る ところです。
-（湯気が あたたかいです）`,
-  hoshi_r_koya: `@flip
-とまたろうさんの 小屋。
-（名前は トマでも、米の 人です）`,
-  hoshi_r_shouboya: `@flip
-火の 用心。
-（夜回りも PRします）`,
-  hoshi_r_house1: `@flip
-1号さん。
-（先輩の ハウスです）`,
-  hoshi_r_house2: `@flip
-ハチさんは おやすみ中です。
-（しずかに PRします）`,
+  hoshi_r_fumi: `@npc_kanenari
+星の 本ばっかりや。{w=300}
+先生、ほんまに 星が
+好きなんやな。`,
+  hoshi_r_minka1: `@npc_kanenari
+お米の におい、するなあ。
+{w=300}ええ におい。`,
+  hoshi_r_minka2: `@npc_kanenari
+お留守や。{w=300}
+2人とも、集会所で
+ぐっすりやもんな。`,
+  hoshi_r_minka3: `@npc_kanenari
+耕うん機の 持ち主の 家か。
+{w=300}畑の 図、まっすぐな
+線ばっかりや。`,
+  hoshi_r_kucho: `@npc_kanenari
+区長さんの 家か。{w=300}
+……あいさつ、長そうやな。`,
+  hoshi_r_sawako: `@npc_kanenari
+絵の モデルなら、
+わい、じっと するん
+得意やで。`,
+  hoshi_r_gen: `@npc_kanenari
+しーっ。{w=300}
+おばあちゃん、寝とるで。`,
+  hoshi_r_kominka: `@npc_kanenari
+古い 家やなあ。{w=300}
+梁が、わいの 背中みたいや。`,
+  hoshi_r_akiya: `@npc_kanenari
+おじゃまします……。{w=300}
+だれも おらへんけど。`,
+  hoshi_r_shoten: `@npc_kanenari
+売家……。{w=300}
+ここ、むかしは
+店やったんやな。`,
+  hoshi_r_soko: `@npc_kanenari
+夏祭りの 道具や。{w=300}
+わい、祭りって
+行ってみたいわ。`,
+  hoshi_r_gym: `@npc_kanenari
+広いなあ。{w=300}
+声、ひびきそうや。`,
+  hoshi_r_taihisha: `@npc_kanenari
+湯気が あったかい。{w=300}
+……ここ、ちょっと
+海の 底の においや。`,
+  hoshi_r_koya: `@npc_kanenari
+トマじいの 小屋や。{w=300}
+名前は トマでも、
+米の 人やねんな。`,
+  hoshi_r_shouboya: `@npc_kanenari
+火の 用心。{w=300}
+……火って、わい、
+あんまり 見たこと ないねん。`,
+  hoshi_r_house1: `@npc_kanenari
+1号の ハウスや。{w=300}
+3号の 先輩やな。`,
+  hoshi_r_house2: `@npc_kanenari
+ハチ、寝とるで。{w=300}
+そーっと しとこ。`,
 };
 
 export const R2_MISC = {
@@ -1106,7 +1115,6 @@ export const R2_MISC = {
 {w=300}いすが 重ねてある。
 /
 壁に 観望会の 写真。{w=300}
-すみに、見覚えの ある 着ぐるみ。
-@flip
-（わたしです）`,
+子どもたちが 並んで、
+空を 指さしている。`,
 };

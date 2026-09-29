@@ -2,7 +2,7 @@
 // (10_narrative 7.6 / 7.8 / 7.10 / 8.9 / 12.2 / 13.3).
 
 import type { Co } from '../engine/co';
-import { flag } from '../game/state';
+import { flag, setFlag } from '../game/state';
 import { actor, msg, registerScript, stage } from '../world/api';
 import { pickStage } from '../world/maps';
 import { fushigiDone, getFushigi, registerFushigi } from '../world/fushigi';
@@ -52,7 +52,12 @@ registerScript('obj_floor_guide', () => plain('obj_floor_guide'));
 
 registerScript('obj_poster_board', function* (): Co {
   sfx('se_examine');
-  yield* msg(flag('flag_kanenari_joined') ? POSTER_WITH_KANENARI : String(OBJ_TEXT.obj_poster_board));
+  yield* msg(String(OBJ_TEXT.obj_poster_board));
+  // グソっ君's word on it, once
+  if (flag('flag_kanenari_joined') && !flag('flag_follower_hidden') && !flag('flag_poster_board_gk')) {
+    setFlag('flag_poster_board_gk', 1);
+    yield* msg(POSTER_WITH_KANENARI);
+  }
 });
 
 registerScript('obj_cart_corral', function* (): Co {

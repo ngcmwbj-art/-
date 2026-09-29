@@ -3,7 +3,8 @@
 // well past the 20×26 field sprite. Frames 0–3 are one pulse (radius 8 → 14,
 // fading), 4–7 the second. Draw it centred on the bell:
 //   centre = (feetX, feetY + GLOW_CENTER_DY)   → top-left = centre − 16.
-// The field anim 'glow' already has it composited in (32×34 frames).
+// (★2026-09-29 カネナリくん→グソっ君: the field anim 'glow' is now his eyes
+// flashing, without the ring; the ring stays for callers that want it.)
 
 import { PixelCanvas } from '../../engine/pixel';
 

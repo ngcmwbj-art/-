@@ -2,8 +2,10 @@
 // Dark / light (the はなまるトマト held up: 2 rounds light, 2 rounds to
 // recharge), the four ラッパ broken by みました while lit, the 点呼 name
 // tags that fill on dark round ends (the 4th: 夜ふかし), phase 2 (tags two at
-// a time, おなまえ よびだし), and the finale: Kanenari-kun lights the village,
+// a time, おなまえ よびだし), and the finale: グソっ君 holds the tomato up
+// high — 「星見台、ええ とこやで。わいが 見てきたんや。」 — the village is lit,
 // the picture, 「おやすみなさい」, the lamp goes out, and the quiet results.
+// (★2026-09-29 カネナリくん→グソっ君: no flips; the member id stays 'kanenari'.)
 
 import type { Co } from '../engine/co';
 import { game } from '../engine/game';
@@ -20,7 +22,8 @@ import { fixedDamage, JUDGE_MUL, type BossPart, type EnemyUnit, type Judge, type
 import { changeStage, giveStatus, hideSticky, hurtEnemy, hurtParty, knock, showSticky } from './common';
 import type { BossMoveCtx } from './enemy';
 import { hitLoop, panelHitPoint } from './enemy';
-import { bokemakeLabel, showFlip } from './tsukkomi';
+import { bokemakeLabel } from './tsukkomi';
+import { knSay } from './gusokkun';
 import { holdStamp } from './party';
 import { playHankoLearnIn } from './learn';
 import { ovalStamp, finalSeal } from './art/stamps';
@@ -1192,7 +1195,7 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
   const voice = { voice: 'yobimodoshi' };
   yield* s.say(e.def.texts.extra.final1);
   yield* s.say(e.def.texts.extra.final2, false, voice);
-  // Kanenari-kun steps forward: his panel hops 4px, his back walks up to (192,176)
+  // グソっ君 steps forward: his panel hops 4px, his back walks up to (192,176)
   const k = s.kanenari;
   if (k) {
     k.bounceT = 250;
@@ -1251,12 +1254,11 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
     y.finale = Math.min(1, t / 2000);
     yield null;
   }
-  // +3000ms: two flips
-  yield* s.say(e.def.texts.extra.finalFlipText.slice(0, 1), false);
-  showFlip(s, e.def.texts.extra.finalFlip[0].replace(/[（）]/g, ''), 1400);
-  yield 600;
-  showFlip(s, e.def.texts.extra.finalFlip[1].replace(/[（）]/g, ''), 1600);
-  yield* s.say(e.def.texts.extra.finalFlipText.slice(1), false);
+  // +3000ms: グソっ君, the net up high: 「星見台、ええ とこやで。」「わいが 見てきたんや。」
+  s.mood(s.kanenari, 'happy', 3000);
+  yield* knSay(s, e.def.texts.extra.finalFlipText.slice(0, 1));
+  yield 300;
+  yield* knSay(s, e.def.texts.extra.finalFlipText.slice(1));
   // the picture (0.8s cross-fade); only the insects; the village is seen
   y.cutT = 0;
   y.cutCue = 0;
@@ -1278,7 +1280,7 @@ function* bossFinal(s: BattleScene, e: EnemyUnit): Co {
     y.cutCue = i;
     yield* s.say([cut[i]], false, i === 0 ? {} : voice);
   }
-  // back to the battle (0.6s) — Kanenari-kun still holding it up
+  // back to the battle (0.6s) — グソっ君 still holding it up
   for (let t = 0; t <= 600; t += FRAME) {
     y.cut = 1 - Math.min(1, t / 600);
     yield null;

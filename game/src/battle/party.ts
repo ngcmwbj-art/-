@@ -18,7 +18,7 @@ import {
   addKire, arrows, cureStatus, defeatEnemy, dodge, fadeDrops, fadeDropsLater, healParty, hideSticky, hurtEnemy, hurtParty, kireFullPages, knock,
   markDefeated, resetKire, showSticky, statusText,
 } from './common';
-import { drawNet, balloon, bigHeart, crowLit, mangaLettering, musicNote, noriBoard, poppedBalloon, sweatDrop, thickLine } from './art/fxart';
+import { drawNet, bigHeart, crowLit, mangaLettering, musicNote, sweatDrop, thickLine } from './art/fxart';
 import { straw } from './art/fxart_ch2';
 import { all } from '../engine/co';
 import { duckMusic, muteMusic, musicFlee, sfx, sfxLoop } from '../audio';
@@ -29,6 +29,7 @@ import { infoCardWidth, kireIconXY, PANEL_POS, panelOffset, type CardData } from
 import { C, STICKY_PAD, tapeCanvas } from './ui/note';
 import { cueSize } from './ui/cue';
 import { FLAG_PAD, kanenariBack, kanenariFront, MIC_AT } from '../art/enemies/kanenari';
+import { knOpts, knSay, riceBall } from './gusokkun';
 import { portrait } from '../art/chars';
 import { bokemakeLabel, timingSlow, tsukkomiWindows } from './tsukkomi';
 import { onBossPartBreak, onBossBodyMimashita, bossUndo, doOkaerinasai, doOyasuminasai } from './boss';
@@ -1237,17 +1238,22 @@ export function* doPR(s: BattleScene, u: PartyUnit, skill: string): Co {
   else if (skill === 'skill_kane') yield* prKane(s, u);
 }
 
+/**
+ * おすそわけ (skill_fuusen; ★2026-09-29 グソっ君): he hands little rice balls
+ * round — they arc from his panel to each one's. 1/8: he has eaten half of
+ * the first one on the way (「……半分、わいが 食べてもうた。」), half the heal.
+ */
 function* prFuusen(s: BattleScene, u: PartyUnit): Co {
   s.post(SYS.fuusen);
-  s.sfx('se_balloon');
+  s.sfx('se_paper_bag', { vol: 0.7, pitch: 1.2 });
   const [kx, ky] = PANEL_POS[u.id];
   const pop = rng.next() < 1 / 8;
   const targets = s.party.filter((p) => !p.has('status_rusu'));
   const amount = 12 + u.m.def;
   targets.forEach((t, i) => {
     const [tx, ty] = PANEL_POS[t.id];
-    const img = balloon(i % 2 === 1);
     const popsThis = pop && i === 0;
+    const img = riceBall(popsThis);
     s.addFx({
       layer: 'top',
       dur: 700,
@@ -1257,19 +1263,21 @@ function* prFuusen(s: BattleScene, u: PartyUnit): Co {
         const x = kx + 60 + (tx + 20 - kx - 60) * p + Math.sin(tt / 90 + i) * 3;
         const y = ky - 4 + (ty - 16 - ky + 4) * p - Math.sin(p * Math.PI) * 30;
         if (tt < 600) g.img(img, Math.round(x - 5), Math.round(y - 12));
-        else if (popsThis) g.img(poppedBalloon(), Math.round(x - 2), Math.round(y - 6 + (tt - 600) / 8));
       },
     });
   });
   yield 600;
-  if (pop) s.sfx('se_balloon_pop');
+  if (pop) s.sfx('se_zero');
   targets.forEach((t, i) => {
     const [tx, ty] = PANEL_POS[t.id];
     s.stars(tx + 20, ty - 16, 3, [30, 70]);
     healParty(s, t, pop && i === 0 ? amount / 2 : pop ? amount / 2 : amount);
   });
   yield 400;
-  if (pop) yield* s.say(SYS.fuusenPop);
+  if (pop) {
+    yield* knSay(s, SYS.fuusenPop.slice(0, 1));
+    yield* s.say(SYS.fuusenPop.slice(1));
+  }
 }
 
 function* prGoaisatsu(s: BattleScene, u: PartyUnit): Co {
@@ -1330,11 +1338,20 @@ function* prKane(s: BattleScene, u: PartyUnit): Co {
     back.y = 230 - 88 * ease.backOut(i / 8);
     yield null;
   }
+  // まるくなる (skill_kane; ★2026-09-29 グソっ君): he tucks his head in and
+  // tries to roll up — and can't (he is no pill bug): a bump, and the flop
   s.msgInteractive = true;
   s.msg.post(SYS.kane[0]);
-  back.frame = 'hit';
-  yield 120;
-  s.sfx('se_bell_dud');
+  back.frame = 'bow1';
+  yield 90;
+  back.frame = 'bow2';
+  yield 90;
+  back.frame = 'bow3';
+  s.sfx('se_bow', { vol: 0.6, pitch: 0.8 });
+  yield 260;
+  s.sfx('se_bump', { vol: 0.7 });
+  back.frame = 'bow2';
+  yield 90;
   back.frame = 'idle';
   yield () => !s.msg.busy;
   // Lv6 (51 3.5): one time in four, a small 「コン」 — no crow, キレ+2
@@ -1421,9 +1438,9 @@ function* prKane(s: BattleScene, u: PartyUnit): Co {
       }
     },
   });
-  yield* s.say([SYS.kane[1]]);
+  yield* knSay(s, [SYS.kane[1]]);
   // the flop lands: the kire "!" lights (with its pop and se_kire_up) as the
-  // line saying so appears — and a little "!" pops over Kanenari-kun's bell
+  // line saying so appears — and a little "!" pops over グソっ君's head
   const [px, py] = PANEL_POS[u.id];
   s.addFx({ layer: 'top', dur: 700, ui: true, draw: (g, t) => g.alpha(1 - t / 700, () => g.img(sweatDrop(), px + 34, py + 6 + Math.round(t / 70))) });
   const bang = kireIcon(true, true);
@@ -1480,8 +1497,8 @@ export function* doItem(s: BattleScene, u: PartyUnit, itemId: string, target0: P
   removeItem(itemId);
   const v = { actor: u.name, target: target?.name ?? '', item: it.name };
   const giving = target && target !== u;
-  // handing it over names the giver and the receiver; Kanenari-kun's own
-  // reaction (the zipper…) follows when he is the one who gets it
+  // handing it over names the giver and the receiver; グソっ君's own
+  // reaction (he eats it, then says what he thinks) follows when he gets it
   // (ゆでとうもろこし: the second eater's line follows once both are healed)
   const selfPages = it.special === 'corn' ? (text?.self ?? []).slice(0, 1) : text?.self;
   const first = giving
@@ -1490,6 +1507,7 @@ export function* doItem(s: BattleScene, u: PartyUnit, itemId: string, target0: P
       ? text.kanenari
       : fillAll(selfPages ?? SYS.itemSelf, v);
   s.post(first);
+  if (toKanenari && text?.kanenariSays) s.msg.post(text.kanenariSays, knOpts());
   // item icon arcs up from the bottom of the screen into the panel (250ms)
   const icon = itemIcon(itemId);
   const dests = target ? [target] : s.party.filter((p) => !p.has('status_rusu'));
@@ -1779,7 +1797,6 @@ export function* doNori(s: BattleScene): Co {
   const spot = noriSpot(s);
   const kf = { x: 440, hop: 0, sq: 0, pose: 'kime', t0: 0, board: 0, boardT: -1, leave: 0 };
   const notes: { x: number; y: number; vx: number; t: number; i: number }[] = [];
-  const board = noriBoard(['（中の人', 'より）']);
   const bodyCx = (pose: string) => (pose === 'flag' ? FLAG_PAD.x : 0) + 28;
   const bokeFx = s.addFx({
     layer: 'top',
@@ -1832,33 +1849,21 @@ export function* doNori(s: BattleScene): Co {
       const w = img.width * sx;
       const h = img.height * sy;
       const x = lx - bodyCx(kf.pose) * sx;
-      // with the flip board up, he rises onto his toes if the board would
-      // otherwise reach down into the tape row (the 85% stand in front)
-      const raise = kf.boardT >= 0 ? Math.max(0, Math.round(spot.foot - 42 * sc + board.height - 142)) : 0;
-      const y = spot.foot - kf.hop - raise - h;
+      const y = spot.foot - kf.hop - h;
       g.alpha(1 - kf.leave, () => ctx.drawImage(img, Math.round(x), Math.round(y), Math.round(w), Math.round(h)));
-      // the flip board, flipped round into view in front of his tummy
-      if (kf.boardT >= 0) {
+      // ボケC 『深海から 来ました〜』: presenting himself, bubbles rise round
+      // him as from the deep (the flip board is gone, ★2026-09-29)
+      if (kf.boardT >= 0 && kf.leave === 0) {
         const bt = t - kf.boardT;
-        const k = Math.min(1, bt / 110);
-        // (the board keeps its size even when he stands smaller: it has to be read)
-        const bw = board.width * Math.max(0.06, Math.abs(Math.cos((1 - k) * Math.PI * 0.5)));
-        const bh = board.height;
-        // held up in front of him, his eyes and cheeks peeking over the top;
-        // on every other beat he thrusts it up 3px at the audience ("ジャン")
-        const beat = k >= 1 ? Math.floor((bt - 110) / 300) % 2 : 0;
-        // the clip sits on his chin: the board's top edge just under his cheeks
-        const by = Math.round(spot.foot - 42 * sc - raise - kf.hop - beat * 3);
-        g.alpha(1 - kf.leave, () => ctx.drawImage(board, Math.round(lx - bw / 2), by, Math.round(bw), Math.round(bh)));
-        const bt2 = (bt - 110) % 600;
-        if (k >= 1 && beat && bt2 >= 300 && bt2 < 420 && kf.leave === 0) {
-          // emphasis strokes off the two top corners of the board
-          const x0 = Math.round(lx - bw / 2) + 6;
-          const x1 = Math.round(lx + bw / 2) - 7;
-          const y0 = by + 3;
-          for (const [ax, dir] of [[x0, -1], [x1, 1]] as [number, number][])
-            for (const [dx, dy] of [[6, -1], [5, -5], [1, -7]] as [number, number][])
-              g.line(ax + dir * Math.round(dx * 0.45), y0 + Math.round(dy * 0.45) - 2, ax + dir * dx, y0 + dy - 2, '#FFF6D8');
+        for (let i = 0; i < 6; i++) {
+          const ph = (bt / 900 + i / 6) % 1;
+          const bx = Math.round(lx + (i % 2 ? 1 : -1) * (18 + (i % 3) * 7) * sc + Math.sin(bt / 160 + i) * 2);
+          const by = Math.round(spot.foot - 20 * sc - ph * 64 * sc);
+          const r = 1 + (i % 3 === 0 ? 1 : 0);
+          g.alpha(0.85 * (1 - ph), () => {
+            g.ring(bx, by, r + 1, '#BDEFFA');
+            g.px(bx - 1, by - 1, '#FFFFFF');
+          });
         }
       }
       // notes rising from the hand-bell microphone
@@ -1910,7 +1915,8 @@ export function* doNori(s: BattleScene): Co {
         s.sfx('se_umbrella_open', { pitch: 0.7 });
         for (let i = 0; i < 6; i++) s.burst(kf.x + rng.int(-10, 10), spot.foot - 56 * spot.sc, { count: 1, speed: [20, 60], angle: [Math.PI * 0.2, Math.PI * 0.8], life: [300, 520], colors: ['#E8C878'], gravity: 260, shape: 'img', img: straw(i) }, true);
       } else {
-        s.sfx('se_flip');
+        // ボケC: 『深海から 来ました〜』 — bubbles (no board any more)
+        s.sfx('se_glint', { vol: 0.6, pitch: 0.8 });
         kf.boardT = bokeFx.t;
       }
     } else {
@@ -1951,7 +1957,7 @@ export function* doNori(s: BattleScene): Co {
   // 1500: tsukkomi — Minato's face ×2 slides in from the lower left, under
   // the lettering (never behind it); the two tiers slam down to the right
   const face = portrait('minato', 'tsukkomi', { size: 64 });
-  const upper = kakimojiSmall('……って、');
+  const upper = kakimojiSmall(nori.upper ?? '……って、');
   const lower = kakimoji(nori.line, true, s.seed + pick);
   const LOW_Y = 66;
   const lowCx = Math.max(Math.round(lower.width / 2) + 2, Math.min(382 - Math.round(lower.width / 2), 208));

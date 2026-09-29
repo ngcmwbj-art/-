@@ -171,7 +171,7 @@ export function* fumiSawa(): Co<boolean> {
   return true;
 }
 
-// ---------------------------------------------------------------- カネナリくんのフリップ（沢の上で1回）
+// ---------------------------------------------------------------- グソっ君のひとこと（沢の上で1回）
 
 export function sawaFlip(): string | null {
   if (flag('flag_kanenari_flip_hoshi_sawa')) return null;
