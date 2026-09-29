@@ -1,9 +1,9 @@
 // ザリガニ釣り「ザリガニは 可」（02_ch2_index #66、10_narrative 7.21、30_level_art 3.13・10.12、
-// 40_audio 9.x se_tsuri_*）。たもつ（src/events/tamotsu.ts）が 道具を 貸して、
+// 40_audio 9.x se_tsuri_*）。おぴぃ（src/events/tamotsu.ts）が 道具を 貸して、
 // となりで 見ている。1回 20〜40秒、何度でも。
 //
 //   画面：フィールドの上に 重ねる 小窓（水口の 断面の 絵。src/art/props/tsuri_art.ts）。
-//     しっぽの 先が 水口 (20,41) を さす。カメラは しゅんと たもつを 右下に。
+//     しっぽの 先が 水口 (20,41) を さす。カメラは しゅんと おぴぃを 右下に。
 //   流れ：場所えらび（← →、決定で 下ろす。もどるで やめる）→ ポチャン、糸が はる
 //     → 待つ（ザリガニが 出てきて、ツン……ツン と味見。ここで押すと「早い！」で 逃げる）
 //     → ぐいっ（はさんで 横へ 引く。「長押し！」。2.6秒 押さないと 持ってかれる）
@@ -11,7 +11,7 @@
 //       ザリガニが 上がる。赤い所（速すぎ）に 入ると「はなす！」、はさむ力が へって、
 //       0で「ぽとん」。指を はなすと はりが 下がり、ザリガニは 底へ 戻っていく。
 //       水面の 手前ほど 赤い所が 広い。大きいのは 暴れて、はりが はねる。
-//     → 水面に 来たら たもつの たも網。
+//     → 水面に 来たら おぴぃの たも網。
 //   段階1：時間が 止まっている。3つの 場所に ザリガニが はさみを 開いたまま 止まっていて、
 //     するめは その はさみに 落ちる。暴れない、戻らない、はなさない（必ず 取れる）。
 //     落ちる 水も、泡も、ゴミも 止まっている。
@@ -102,7 +102,7 @@ const KIND: Record<CatchKind, KindSpec> = {
   can: { cm: [3, 5], back: 0.045, danger: 0.9, drain: 1.4, thrash: 0, walk: 14 },
 };
 
-/** 場所ごとの 出かた（段階0・2）。長靴は 1回だけ（たもつの）。ぬしは 段階2で 出やすい。 */
+/** 場所ごとの 出かた（段階0・2）。長靴は 1回だけ（おぴぃの）。ぬしは 段階2で 出やすい。 */
 function weights(spot: Spot, stage: number, bootFound: boolean): [CatchKind, number][] {
   if (spot === 'kusa') return [['kozari', 55], ['zari', 28], ['makka', 5], ['boot', bootFound ? 0 : 12]];
   if (spot === 'ishi') return [['kozari', 25], ['zari', 45], ['makka', 25], ['can', 5]];
@@ -177,7 +177,7 @@ export class TsuriPanel implements Widget {
   open = 0;
   phase: Phase = 'pick';
   spot: Spot = 'kusa';
-  /** 記録（たもつ 認定の いちばん大きい cm）。0 = なし。 */
+  /** 記録（おぴぃ 認定の いちばん大きい cm）。0 = なし。 */
   record = 0;
 
   // ---- input (captured by update, taken by the round)
@@ -188,7 +188,7 @@ export class TsuriPanel implements Widget {
   hold = false;
   /** QA: the round plays itself (drops at once, holds with a good rhythm). */
   auto = false;
-  /** Called as the net goes in and when it has come out (the field shows たもつ holding it out). */
+  /** Called as the net goes in and when it has come out (the field shows おぴぃ holding it out). */
   onNet: ((on: boolean) => void) | null = null;
 
   // ---- the line and the bait (scene px)
@@ -586,7 +586,7 @@ export class TsuriPanel implements Widget {
 
   private drawCard(g: Gfx, ox: number, oy: number): void {
     const c = this.card!;
-    // tamotsu's notebook page: paper and its grid
+    // おぴぃ's notebook page: paper and its grid
     g.rect(ox, oy, SCN_W, SCN_H, UI.bg);
     for (let x = 6; x < SCN_W; x += 12) g.rect(ox + x, oy, 1, SCN_H, UI.bg2);
     for (let y = 6; y < SCN_H; y += 12) g.rect(ox, oy + y, SCN_W, 1, UI.bg2);
@@ -622,8 +622,8 @@ export class TsuriPanel implements Widget {
       g.img(tr.img, cx, cy, { scale: S });
       if (c.label) {
         g.text(c.label, ox + SCN_W - 20, oy + 16, { color: UI.pencil, align: 'right' });
-        g.text('（たもつ 認定）', ox + SCN_W - 20, oy + 34, { color: UI.pencil, align: 'right' });
-        // the vermilion 認 of his seal
+        g.text('（おぴぃ 認定）', ox + SCN_W - 20, oy + 34, { color: UI.pencil, align: 'right' });
+        // the vermilion 認 of her seal
         const sx = ox + SCN_W - 44;
         const sy = oy + 54;
         g.rect(sx, sy, 20, 20, UI.accent);
@@ -1151,7 +1151,7 @@ export function* playRound(p: TsuriPanel, o: RoundOpts): Co<RoundResult> {
     yield* dragHome(p, homeX);
     return { outcome: 'lost', spot, kind, cm };
   }
-  // ---- たも網: tamotsu scoops it at the surface
+  // ---- たも網: おぴぃ scoops it at the surface
   p.phase = 'scoop';
   p.netX = SCN_W + 20;
   p.onNet?.(true);
@@ -1247,7 +1247,7 @@ function sfxPoll(): (t: number, zone: boolean) => void {
 
 // ---------------------------------------------------------------- after the catch: the card, the release
 
-/** The catch on tamotsu's page: on the ruler (or not), then the number, the stroke, the certified one. */
+/** The catch on おぴぃ's page: on the ruler (or not), then the number, the stroke, the certified one. */
 export function* cardShow(p: TsuriPanel, kind: CatchKind, cm: number, o: { noRuler?: boolean } = {}): Co {
   p.phase = 'card';
   p.card = { kind, cm, cert: cm, step: 0, t: 0, noRuler: o.noRuler };
@@ -1255,7 +1255,7 @@ export function* cardShow(p: TsuriPanel, kind: CatchKind, cm: number, o: { noRul
   yield 380;
 }
 
-/** tamotsu measures: the pencil number. */
+/** おぴぃ measures: the pencil number. */
 export function* cardMeasure(p: TsuriPanel): Co {
   if (!p.card) return;
   sfx('se_pen_write');

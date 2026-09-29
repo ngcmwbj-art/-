@@ -338,7 +338,7 @@ const OBJECTS: MapObj[] = [
   { t: 'obj', id: 'obj_kitsune_sara', x: 7, y: 38, face: 'up', script: 'obj_kitsune_sara', text: `@narr
 きつねの 前に、からっぽの 小皿。` } as MapObj,
   O('obj_scarecrow', 16, 41, { face: 'down' }),
-  // たもつの水口 (02 #66, 10 7.21): the pipe mouth in the ridge, the fall, the PET-bottle
+  // おぴぃの水口 (02 #66, 10 7.21): the pipe mouth in the ridge, the fall, the PET-bottle
   // trap — examined from the path (20,40) facing south; the pool is kept clear of rice (water.ts INLETS 'p')
   { t: 'obj', id: 'obj_tamotsu_mizuguchi', x: 20, y: 41, face: 'down', prop: 'prop_tamotsu_mizuguchi' } as MapObj,
   // an egret wading in the far paddy, another near the water gate
@@ -453,7 +453,7 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_shadow_man', x: 8, y: 6, dir: 'down', cond: { stage: 2 }, talk: TALK.npc_shadow_man, ghost: true, noTurn: true, shadow: 0 },
   // マル (10 6.24, 02 #65): beside the bus stop 「ユウナリ前」, seated on her walker, facing the lane
   { t: 'npc', id: 'npc_maru', x: 34, y: 12, dir: 'right', cond: { stage: 2 }, script: 'npc_maru', pose: 'sit' },
-  // たもつ (10 6.25, 02 #66): the east end of the paddy path, on his upturned bucket, watching the inlet
+  // おぴぃ (10 6.25, 02 #66): the east end of the paddy path, on her upturned bucket, watching the inlet
   { t: 'npc', id: 'npc_tamotsu', x: 21, y: 39, dir: 'down', cond: s02, script: 'npc_tamotsu', pose: 'sit' },
   {
     t: 'npc', id: 'npc_kanenari', x: 16, y: 9, dir: 'down', cond: { stage: '1-2', notFlag: 'flag_kanenari_joined' },

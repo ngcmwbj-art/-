@@ -410,7 +410,7 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
-// たもつの浮き (対岸の水口のぬし, 10_narrative 6.25, 02_ch2_index #66): an old float
+// おぴぃの浮き (対岸の水口のぬし, 10_narrative 6.25, 02_ch2_index #66): an old float
 // standing upright — a red cap, a white body with a gold band, a thin stem below, the
 // line's little ring at the top
 Object.assign(ITEM_ROWS, {

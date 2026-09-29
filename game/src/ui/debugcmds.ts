@@ -268,7 +268,7 @@ registerDebug('wrapCheck', () => {
   void getSkill;
   // the pages of the rooms added later (3 lines × 336 px, 10 1.1): each room set
   // registers its own page check — 南の列（02 #59）southText、公園の鉄棒と交番の懸垂（02 #64）kensuiText、
-  // みました帳 ②『むし』の列（02 #64）mushiBookText、対岸の たもつと ザリガニ釣り（02 #66）tamotsuText
+  // みました帳 ②『むし』の列（02 #64）mushiBookText、対岸の おぴぃと ザリガニ釣り（02 #66）tamotsuText
   const cmds = (window as unknown as { __game?: { cmd?: Record<string, () => { pages?: number; total?: number; bad: string[] }> } }).__game?.cmd ?? {};
   for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText']) {
     const r = cmds[name]?.();

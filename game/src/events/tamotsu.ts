@@ -1,20 +1,21 @@
 // 第1章「浮きを 見ている だけ」（2026-09-29 依頼主の採用。02_ch2_index #66、
 // 10_narrative 6.25・7.21、30_level_art 3.4・3.5・3.13・4.18・9.3）。
 //
-// たもつ（npc_tamotsu）：閉店した つりえさ屋の元店主、70代。対岸の畦道の 東の端 (21,39)、
+// おぴぃ（npc_tamotsu。★2026-09-29 依頼主の指示で たもつ→おぴぃ、40代の女性。IDは 据え置き）：
+// 閉店した つりえさ屋の元店主。対岸の畦道の 東の端 (21,39)、
 // 伏せた バケツに 座って、田んぼの 水口 (20,41) の ペットボトルの しかけを 見ている。
-//   1回目：2倍に寄って〔meet〕（小林さんとこの しゅん、たも網の たもつ、道具を 貸す）。
+//   1回目：2倍に寄って〔meet〕（小林さんとこの しゅんくん、あだ名は おぴぃ、道具を 貸す）。
 //   それから：北岸に 置いたままの種を、話すたびに 1つずつ（見た物だけ。メダカは 最後）
 //     uki（石段の浮き）→ kanban（看板の『ザリガニは 可』）→ gyotaku（32cm → 29cm）
-//     → sao（竿は おまわりの あずかりもの。懸垂の はなまるを もらった人には 地の文を1行）
-//     → medaka（『換気中』も えさも たもつ。「店は 3月で 閉めた。メダカは、閉められねえ。」）
+//     → sao（竿は おまわりさんの あずかりもの。懸垂の はなまるを もらった人には 地の文を1行）
+//     → medaka（『換気中』も えさも おぴぃ。「店は 3月で 閉めた。メダカは、閉められない。」）
 //   答える種が ないときは 段階の台詞（s0_1/s0_2、s1 は {wave}、s2「糸が 北東へ……」）。
-//   最後に「……やってくか？」→ ザリガニ釣り（src/events/tsuri.ts）。水口を 調べても 同じ。
+//   最後に「……やってく？」→ ザリガニ釣り（src/events/tsuri.ts）。水口を 調べても 同じ。
 // 釣ったあと：計る（盛る）→ はじめての1匹は ラムネ → 記録は ザリ拓（つりえさ屋の壁、
 //   魚拓の となり）→ カネナリくんの「（盛りましたね）」（1回）→ 放す。
-//   長靴（たもつの。1回）、空き缶（持って帰る → ほめる）、ぬし（計らない。たもつの浮き）。
+//   長靴（おぴぃの。1回）、空き缶（持って帰る → ほめる）、ぬし（計らない。おぴぃの浮き）。
 //
-//   __game.cmd.tamotsu(stage)          対岸の たもつの前へ（段階 0/1/2 の状態を作る）
+//   __game.cmd.tamotsu(stage)          対岸の おぴぃの前へ（段階 0/1/2 の状態を作る）
 //   __game.cmd.tsuri(opts)             釣りを すぐに（{ stage, spot, kind, cm, outcome, auto }）
 //   __game.cmd.zari({ best, count })   記録と 釣った数を 入れる（0 で消す）
 //   __game.cmd.tamotsuText()           全ページの 文字幅（3行・336px。wrapCheck も 呼ぶ）
@@ -96,7 +97,7 @@ export const TF = {
   count: 'flag_zari_count',
   /** 釣りを した回数（1回＝下ろした 1回）。 */
   tries: 'flag_zari_try',
-  /** 記録：たもつ 認定の いちばん大きい cm（ザリ拓）。 */
+  /** 記録：おぴぃ 認定の いちばん大きい cm（ザリ拓）。 */
   best: 'flag_zari_best',
   ramune: 'flag_zari_ramune',
   ramuneOwed: 'flag_zari_ramune_owed',
@@ -130,7 +131,7 @@ function nextSeed(): (typeof SEEDS)[number]['key'] | null {
   return null;
 }
 
-/** His line of the stage (s1: the same words every time, and the narration adds a line the 2nd time). */
+/** Her line of the stage (s1: the same words every time, and the narration adds a line the 2nd time). */
 function stageLine(s: number): string {
   const f = `flag_seen_npc_tamotsu_s${s}`;
   const n = flag(f);
@@ -148,7 +149,7 @@ function kanenariWatching(): boolean {
 let qaForce: { kind?: CatchKind; cm?: number; spot?: Spot; outcome?: Outcome } | undefined;
 let qaAuto = false;
 
-// ---------------------------------------------------------------- talking to たもつ
+// ---------------------------------------------------------------- talking to おぴぃ
 
 function* giveOwedRamune(): Co {
   if (!flag(TF.ramuneOwed)) return;
@@ -188,7 +189,7 @@ registerScript('npc_tamotsu', function* (): Co {
   if (i === 0) yield* tsuriSession();
 });
 
-/** 水口 (20,41): what is in it by the stage; then, once he has been met, the same offer. */
+/** 水口 (20,41): what is in it by the stage; then, once she has been met, the same offer. */
 registerScript('obj_tamotsu_mizuguchi', function* (): Co {
   se('se_examine');
   const s = stage();
@@ -219,7 +220,7 @@ function* tsuriSession(): Co {
   const f = F();
   const p = f.player;
   const s = stage();
-  // to the edge of the inlet, facing it; たもつ watches the same water
+  // to the edge of the inlet, facing it; おぴぃ watches the same water
   if (p.tileX !== 20 || p.tileY !== 40) yield* walkTo('player', 20, 40, { face: 'down' });
   p.dir = 'down';
   const a = actor('npc_tamotsu');
@@ -235,7 +236,7 @@ function* tsuriSession(): Co {
   panel.onNet = (on) => {
     if (a) a.tempPose = on ? 'scoop' : null;
   };
-  // the first time: he tells how it goes, with the water in view
+  // the first time: she tells how it goes, with the water in view
   if (!flag(TF.tries)) {
     yield* msg(TAMOTSU.howto);
     panel.clearInput();
@@ -329,7 +330,7 @@ function* afterRound(panel: TsuriPanel, r: RoundResult, s: number): Co {
     yield* cardShow(panel, 'can', r.cm, { noRuler: true });
     yield* msg(CAN);
   }
-  // on the ruler: the pencil number, then his bump
+  // on the ruler: the pencil number, then her bump
   yield* cardShow(panel, r.kind, r.cm);
   if (s === 1) yield* msg(STILL_HOLD);
   yield* cardMeasure(panel);
@@ -416,7 +417,7 @@ registerDebug('tamotsuText', () => tamotsuTextCheck());
 
 const BEAT: Record<number, string> = { 0: 'town', 1: 'alley', 2: 'stage2' };
 
-/** QA: in front of たもつ at a stage (0/1/2). `talk`: flags as if he was met and every seed seen. */
+/** QA: in front of おぴぃ at a stage (0/1/2). `talk`: flags as if she was met and every seed seen. */
 registerDebug('tamotsu', (st = 0, o: { met?: boolean; seeds?: boolean; x?: number; y?: number; dir?: string } = {}) => {
   const cmd = (window as unknown as { __game: { cmd: Record<string, (...a: unknown[]) => unknown> } }).__game.cmd;
   cmd.jump?.(BEAT[st] ?? 'town', true);
@@ -426,7 +427,7 @@ registerDebug('tamotsu', (st = 0, o: { met?: boolean; seeds?: boolean; x?: numbe
 });
 
 /**
- * QA: start the fishing at once, from where he stands by たもつ. opts:
+ * QA: start the fishing at once, from where he stands by おぴぃ. opts:
  * { spot: 'kusa'|'ishi'|'dokan', kind, cm, outcome: 'drop', auto: true } (auto plays itself).
  */
 registerDebug('tsuri', (o: { spot?: Spot; kind?: CatchKind; cm?: number; outcome?: Outcome; auto?: boolean; met?: boolean } = {}) => {

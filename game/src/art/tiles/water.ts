@@ -610,7 +610,7 @@ function riceLayer(map: LoadedMap, lean: number): { c: HTMLCanvasElement; x0: nu
   for (const [wx, wy, dir] of INLETS) {
     const lx = wx - x0 * 16;
     const ly = wy - y0 * 16;
-    // たもつの水口 (02 #66): only the pool is kept clear; the pipe, the fall and
+    // おぴぃの水口 (02 #66): only the pool is kept clear; the pipe, the fall and
     // the trap are the prop_tamotsu_mizuguchi drawn over it
     if (dir === 'p') {
       ctx.clearRect(lx - 7, ly - 9, 17, 12);
@@ -696,7 +696,7 @@ const PADDY_PATCH: [number, number] = [31.5 * 16, 41 * 16 + 8];
 const INLETS: [number, number, 'w' | 'n' | 'p'][] = [
   [13 * 16 + 1, 42 * 16 + 7, 'w'],
   [36 * 16 + 6, 39 * 16 + 5, 'n'],
-  // たもつの水口 (20,41): the pool round the pipe mouth and the trap (02 #66)
+  // おぴぃの水口 (20,41): the pool round the pipe mouth and the trap (02 #66)
   [20 * 16 + 7, 41 * 16 + 11, 'p'],
 ];
 

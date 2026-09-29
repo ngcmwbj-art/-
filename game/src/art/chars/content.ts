@@ -22,7 +22,7 @@ import './people/hoshi_b';
 import './people/tsugao';
 // マル（とまたろうの妻。第1章のバス停と第2章のエンディング、02 #65）
 import './people/maru';
-// たもつ（閉店した つりえさ屋の元店主。対岸の水口、02 #66）
+// おぴぃ（閉店した つりえさ屋の元店主、40代の女性。対岸の水口、02 #66。IDは npc_tamotsu のまま）
 import './people/tamotsu';
 // よねと とよぞう（畦道の先の 分水、02 #67）
 import './people/aze';
