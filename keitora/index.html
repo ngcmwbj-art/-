@@ -682,7 +682,7 @@ canvas { display: block; width: 100%; height: 100%; }
       const life = rand(opt.life[0], opt.life[1]);
       parts.push({
         x: wx, y, vx: rand(opt.vx[0], opt.vx[1]), vy: rand(opt.vy[0], opt.vy[1]),
-        life, max: life, r: rand(opt.r[0], opt.r[1]), col: opt.col, g: opt.g ?? 900, tomato: !!opt.tomato,
+        life, max: life, r: rand(opt.r[0], opt.r[1]), col: opt.col, g: opt.g ?? 900, tomato: !!opt.tomato, stick: !!opt.stick,
       });
     }
   }
@@ -1084,36 +1084,47 @@ canvas { display: block; width: 100%; height: 100%; }
     }
   }
 
-  // 泥の斜面を滑り落ちて、ごろごろ転がる
+  // 泥の斜面を滑り落ち、車体の前後の軸でごろごろ横転する
+  const MUD_COLS = ['#3e2814', '#4f341b', '#5f4124', '#6e4c2b'];
+  function mudSplash(n, wx, y, spread, up) {
+    for (let i = 0; i < n; i++) {
+      emit(1, wx, y, { vx: [-spread, spread], vy: [-up, -up * 0.3], life: [0.6, 1.2], r: [1.5, 4.5], col: MUD_COLS[i % MUD_COLS.length], stick: true });
+    }
+  }
   function updateFall(dt, cx) {
     const pit = truck.pit;
     truck.fallT += dt;
     // 穴の向こう側の斜面の手前で止まる
-    if (cx > pit.x + pit.w - pitRun(pit.w) - 46) { truck.fallV = 0; vel = 0; }
-    const surf = pitSurface(pit, cx) - 2;
+    if (cx > pit.x + pit.w - pitRun(pit.w) - 40) { truck.fallV = 0; vel = 0; }
+    const surf = pitSurface(pit, cx);
     truck.vy += GRAV * dt;
     truck.y = Math.min(truck.y + truck.vy * dt, surf);
     if (truck.y >= surf) {
       truck.vy = 0;
       if (!truck.splashed && surf >= GROUND + PIT_D - 4) {
         truck.splashed = true;
+        truck.splashT = truck.fallT;
+        truck.mud = 1;
         sfx('mud');
         shake = 0.25;
-        emit(26, cx, GROUND + PIT_D - 6, { vx: [-240, 240], vy: [-460, -140], life: [0.5, 1.1], r: [3, 7], col: '#5c3d20' });
+        mudSplash(22, cx, GROUND + PIT_D - 8, 240, 480);
+        emit(10, cx, GROUND + PIT_D - 6, { vx: [-160, 160], vy: [-300, -120], life: [0.4, 0.8], r: [1.5, 3], col: 'rgba(210,190,160,.8)' });
       }
     }
-    // 最初は斜面に沿って滑り、途中から1回転半して逆さまに止まる
-    const t = clamp(truck.fallT / 1.3, 0, 1);
+    // 斜面では鼻先から突っ込み、転がり始めたら水平に戻る
+    const slide = clamp(truck.fallT / 0.3, 0, 1);
+    const t = clamp((truck.fallT - 0.12) / 1.4, 0, 1);
     const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    const prev = truck.angle;
-    truck.angle = 3 * Math.PI * e;
-    if (Math.floor(prev / Math.PI) !== Math.floor(truck.angle / Math.PI)) {
+    const prev = truck.roll || 0;
+    truck.roll = 3 * Math.PI * e;
+    truck.angle = 0.42 * slide * (1 - Math.min(1, e * 2.5));
+    if (Math.floor(prev / (Math.PI / 2)) !== Math.floor(truck.roll / (Math.PI / 2))) {
       sfx('roll');
-      emit(8, cx, truck.y - 4, { vx: [-120, 120], vy: [-240, -60], life: [0.4, 0.8], r: [2, 5], col: '#6e4a2a' });
+      mudSplash(4, cx, truck.y - 6, 130, 260);
     }
-    if (!truck.spilled && truck.fallT > 0.25) {
+    if (!truck.spilled && truck.fallT > 0.3) {
       truck.spilled = true;
-      spillTomatoes(16, cx - 20, truck.y - 40, [-120, 220]);
+      spillTomatoes(Math.min(16, tomatoes + 2), cx - 10, truck.y - 44, [-140, 240]);
     }
   }
 
@@ -1173,7 +1184,11 @@ canvas { display: block; width: 100%; height: 100%; }
       p.y += p.vy * dt;
       p.life -= dt;
       // トマトは道で止まる
-      if (p.tomato && p.y > GROUND - 4 && !find('gap', p.x)) { p.y = GROUND - 4; p.vy = 0; p.vx *= 0.8; }
+      if (p.tomato || p.stick) {
+        const pit = find('gap', p.x);
+        const floor = (pit ? pitSurface(pit, p.x) : GROUND) - (p.tomato ? 4 : 1);
+        if (p.y > floor) { p.y = floor; p.vy = 0; p.vx *= p.stick ? 0.2 : 0.8; if (p.stick) p.flat = true; }
+      }
     }
     parts = parts.filter(p => p.life > 0);
   }
@@ -1348,48 +1363,160 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.fillRect(a, GROUND + 8, b - a, 2);
     ctx.fillRect(a, GROUND + 14, b - a, 2);
   }
-  // 泥の穴：両側がぬかるんだ斜面、底に泥だまり
+  // 泥の穴：縁が崩れたぬかるみの斜面、底に泥水。ぬめりの光沢、滑った跡、稲わら
   function mudPit(a, b, seed = 0) {
-    const r = pitRun(b - a);
-    const bot = GROUND + PIT_D;
-    // 奥の暗い泥
-    ctx.fillStyle = '#3f2a16';
+    const w = b - a, r = pitRun(w), bot = GROUND + PIT_D;
+    const hs = k => hash(seed * 0.013 + k);
+    // 輪郭（縁は少し崩れて丸く、斜面はでこぼこ）
+    const pts = [[a - 5, GROUND]];
+    for (let k = 1; k <= 6; k++) {
+      const f = k / 6;
+      pts.push([a + r * f + (hs(k) - 0.5) * 5 * (1 - f), GROUND + PIT_D * Math.pow(f, 0.85) + (hs(k + 9) - 0.5) * 3]);
+    }
+    for (let k = 1; k < 6; k++) pts.push([a + r + (w - 2 * r) * k / 6, bot + 2 + Math.sin(k * 1.7 + seed) * 1.5]);
+    for (let k = 6; k >= 1; k--) {
+      const f = k / 6;
+      pts.push([b - r * f - (hs(k + 20) - 0.5) * 5 * (1 - f), GROUND + PIT_D * Math.pow(f, 0.85) + (hs(k + 29) - 0.5) * 3]);
+    }
+    pts.push([b + 5, GROUND]);
+    const path = () => {
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) {
+        const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+        ctx.quadraticCurveTo(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
+      }
+      ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+      ctx.closePath();
+    };
+    // あぜの断面（土の層と小石）
+    const sg = ctx.createLinearGradient(0, GROUND, 0, bot + 6);
+    sg.addColorStop(0, '#94704a');
+    sg.addColorStop(1, '#5e4429');
+    ctx.fillStyle = sg;
+    ctx.fillRect(a - 1, GROUND, w + 2, PIT_D + 6);
+    ctx.strokeStyle = 'rgba(70,48,26,.45)';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(a, GROUND); ctx.lineTo(b, GROUND); ctx.lineTo(b, bot + 6); ctx.lineTo(a, bot + 6);
-    ctx.closePath(); ctx.fill();
-    // 斜面
-    const g = ctx.createLinearGradient(0, GROUND, 0, bot);
-    g.addColorStop(0, '#8a5f36');
-    g.addColorStop(1, '#5a3b1f');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.moveTo(a - 2, GROUND); ctx.lineTo(a + r, bot); ctx.lineTo(a - 2, bot + 6);
-    ctx.closePath(); ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(b + 2, GROUND); ctx.lineTo(b - r, bot); ctx.lineTo(b + 2, bot + 6);
-    ctx.closePath(); ctx.fill();
-    // 斜面のぬめり（滑った跡の筋）
-    ctx.strokeStyle = 'rgba(190,150,105,.55)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    for (let i = 1; i <= 3; i++) {
-      const f = i / 4;
-      ctx.moveTo(a + r * f * 0.3, GROUND + 4 + f * 6); ctx.lineTo(a + r * (0.4 + f * 0.5), bot - 6);
-      ctx.moveTo(b - r * f * 0.3, GROUND + 4 + f * 6); ctx.lineTo(b - r * (0.4 + f * 0.5), bot - 6);
+    for (let k = 1; k <= 3; k++) {
+      const y = GROUND + k * 12 + (hs(k + 140) - 0.5) * 3;
+      ctx.moveTo(a, y); ctx.quadraticCurveTo(a + w / 2, y + (hs(k + 150) - 0.5) * 5, b, y + 1);
     }
     ctx.stroke();
-    // 底の泥だまり
-    ctx.fillStyle = '#4b3220';
+    ctx.fillStyle = '#a39a88';
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath(); ctx.ellipse(a + hs(i + 160) * w, GROUND + 8 + hs(i + 170) * (PIT_D - 6), 2 + hs(i + 180) * 1.5, 1.4, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    // 穴の中：向こう側のぬかるんだ壁（奥ほど暗い）
+    const g = ctx.createLinearGradient(0, GROUND, 0, bot + 6);
+    g.addColorStop(0, '#5a3d22');
+    g.addColorStop(0.5, '#3f2915');
+    g.addColorStop(1, '#2a1b0d');
+    ctx.fillStyle = g;
+    path(); ctx.fill();
+    ctx.save();
+    path(); ctx.clip();
+    // 色むら
+    for (let i = 0; i < 14; i++) {
+      ctx.fillStyle = MUD_COLS[i % 4];
+      ctx.globalAlpha = 0.18 + hs(i + 40) * 0.2;
+      ctx.beginPath();
+      ctx.ellipse(a + hs(i + 50) * w, GROUND + 6 + hs(i + 60) * PIT_D, 6 + hs(i + 70) * 14, 3 + hs(i + 80) * 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // 斜面を滑り落ちた筋（暗い溝と、その横の光る縁）
+    for (const side of [0, 1]) {
+      for (let i = 0; i < 4; i++) {
+        const f = (i + 0.5) / 4;
+        const x0 = side ? b - r * 0.15 * f : a + r * 0.15 * f;
+        const x1 = side ? b - r * (0.55 + f * 0.45) : a + r * (0.55 + f * 0.45);
+        const y0 = GROUND + 3 + f * 5, y1 = bot - 3;
+        ctx.strokeStyle = 'rgba(30,18,8,.55)';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo((x0 + x1) / 2 + (side ? 3 : -3), (y0 + y1) / 2, x1, y1); ctx.stroke();
+        ctx.strokeStyle = 'rgba(214,176,130,.35)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x0 + 1.5, y0); ctx.quadraticCurveTo((x0 + x1) / 2 + (side ? 4 : -2), (y0 + y1) / 2, x1 + 1.5, y1); ctx.stroke();
+      }
+    }
+    // ぬめりの光沢（空が映った白いハイライト）
+    ctx.strokeStyle = 'rgba(255,244,225,.45)';
+    ctx.lineWidth = 1.4;
     ctx.beginPath();
-    ctx.ellipse((a + b) / 2, bot, (b - a) / 2 - r * 0.6, 6, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(230,200,160,.45)';
-    ctx.fillRect(a + r + 6, bot - 3, Math.max(6, (b - a - 2 * r) * 0.3), 2);
-    // 泥のあぶく
-    ctx.fillStyle = '#6e4a2a';
-    for (let i = 0; i < 3; i++) {
-      const x = a + r + hash(seed + i) * Math.max(4, b - a - 2 * r);
-      ctx.beginPath(); ctx.arc(x, bot - 2, 2 + hash(seed + i * 7) * 2, Math.PI, 0); ctx.fill();
+    ctx.moveTo(a + r * 0.2, GROUND + 7); ctx.quadraticCurveTo(a + r * 0.45, GROUND + 14, a + r * 0.55, GROUND + 26);
+    ctx.moveTo(b - r * 0.3, GROUND + 9); ctx.quadraticCurveTo(b - r * 0.5, GROUND + 18, b - r * 0.58, GROUND + 28);
+    ctx.stroke();
+    // 稲わらのくず
+    ctx.strokeStyle = '#cdb46a';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const x = a + 6 + hs(i + 90) * (w - 12), y = GROUND + 10 + hs(i + 95) * (PIT_D - 16), an = hs(i + 99) * Math.PI;
+      ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(an) * 6, y + Math.sin(an) * 3);
+    }
+    ctx.stroke();
+    // 底の泥水：空がぼんやり映り、表面にうっすら光
+    const wx0 = a + r * 0.55, wx1 = b - r * 0.55;
+    if (wx1 > wx0 + 4) {
+      const wg = ctx.createLinearGradient(0, bot - 7, 0, bot + 6);
+      wg.addColorStop(0, '#8a7458');
+      wg.addColorStop(0.35, '#5e4a33');
+      wg.addColorStop(1, '#3a2b1b');
+      ctx.fillStyle = wg;
+      ctx.beginPath();
+      ctx.moveTo(wx0, bot - 3);
+      ctx.quadraticCurveTo((wx0 + wx1) / 2, bot - 8, wx1, bot - 3);
+      ctx.lineTo(wx1, bot + 6); ctx.lineTo(wx0, bot + 6);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(235,225,205,.5)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(wx0 + 6, bot - 4.5); ctx.lineTo(wx0 + 6 + (wx1 - wx0) * 0.35, bot - 5.5); ctx.stroke();
+      // あぶく
+      ctx.strokeStyle = 'rgba(200,180,150,.6)';
+      for (let i = 0; i < 3; i++) {
+        const x = wx0 + 5 + hs(i + 110) * Math.max(1, wx1 - wx0 - 10);
+        const pr = 1.5 + (Math.sin(runTime * 3 + i * 2 + seed) + 1) * 0.8;
+        ctx.beginPath(); ctx.arc(x, bot - 3, pr, Math.PI, 0); ctx.stroke();
+      }
+    }
+    ctx.restore();
+    // 斜面をおおう、どろどろの泥の層（道の上にははみ出さない）
+    ctx.save();
+    ctx.beginPath(); ctx.rect(a - 12, GROUND + 1, w + 24, PIT_D + 20); ctx.clip();
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) {
+      const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+      ctx.quadraticCurveTo(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
+    }
+    ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#3b2613';
+    ctx.lineWidth = 7;
+    ctx.stroke();
+    ctx.strokeStyle = '#654428';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.restore();
+    // 縁の崩れた土くれと、しみ出した水気
+    for (const [x, dir] of [[a, -1], [b, 1]]) {
+      const lg = ctx.createLinearGradient(x + dir * 18, 0, x, 0);
+      lg.addColorStop(0, 'rgba(70,45,22,0)');
+      lg.addColorStop(1, 'rgba(70,45,22,.55)');
+      ctx.fillStyle = lg;
+      ctx.fillRect(Math.min(x, x + dir * 18), GROUND, 18, ROAD_H);
+      ctx.fillStyle = '#5b3d22';
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.ellipse(x - dir * (2 + i * 4) + dir * 1, GROUND + 2 + hs(i + 120 + dir) * 4, 2.5 + hs(i + 130) * 2, 1.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // 垂れる泥
+      ctx.fillStyle = '#4a311b';
+      ctx.beginPath();
+      ctx.ellipse(x - dir * 5, GROUND + 7 + (Math.sin(runTime * 2 + x) + 1) * 1.5, 1.6, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
@@ -1688,13 +1815,13 @@ canvas { display: block; width: 100%; height: 100%; }
 
   function mainTruckSpec() {
     return {
-      x: truckX, y: truck.y, angle: truck.angle, pivot: truck.falling ? 26 : 0,
+      x: truckX, y: truck.y, angle: truck.angle, pivot: 0, roll: truck.falling ? (truck.roll || 0) : undefined, mud: truck.mud || 0,
       wob: slip > 0 ? Math.sin(runTime * 32) : 0, squash: truck.squash, dent: truck.dent, flat: truck.flat,
       load: truck.spilled ? Math.min(tomatoes, 5) : tomatoes, shadow: !truck.falling,
     };
   }
   function drawTruck(sp) {
-    const { x, y, angle, pivot, wob, squash: sq, dent: d, flat, load } = sp;
+    const { x, y, angle, pivot, wob, squash: sq } = sp;
     if (sp.shadow) {
       const lift = Math.max(0, GROUND - y);
       ctx.fillStyle = `rgba(40,30,15,${0.25 * Math.max(0.2, 1 - lift / 160)})`;
@@ -1702,12 +1829,18 @@ canvas { display: block; width: 100%; height: 100%; }
       ctx.ellipse(x + TRUCK_W / 2, GROUND + 1, 46 * Math.max(0.5, 1 - lift / 260), 4, 0, 0, Math.PI * 2);
       ctx.fill();
     }
-    // 転がるときは車体の中心を軸に回す
     ctx.save();
+    if (sp.roll !== undefined) { drawRolling(sp); ctx.restore(); return; }
     ctx.translate(x + TRUCK_W / 2 + wob * 4, y - pivot);
     ctx.rotate(angle + wob * 0.05);
     ctx.scale(1 + sq * 0.06, 1 - sq * 0.1);
     ctx.translate(-TRUCK_W / 2, pivot);
+    drawTruckBody(sp);
+    ctx.restore();
+  }
+  // 車体の側面（ローカル座標：左端 x=0、タイヤの接地 y=0）
+  function drawTruckBody(sp) {
+    const { dent: d, flat, load } = sp;
     ctx.fillStyle = '#3a3a3a';
     ctx.fillRect(4, -16, 90, 7);
     drawTomatoes(load);
@@ -1769,7 +1902,77 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.stroke();
       }
     }
-    ctx.restore();
+    if (sp.mud) drawMudOnBody(sp.mud);
+  }
+  // 泥だらけの車体
+  function drawMudOnBody(k) {
+    ctx.globalAlpha = 0.85 * k;
+    for (let i = 0; i < 16; i++) {
+      ctx.fillStyle = MUD_COLS[i % 4];
+      const x = 4 + hash(i * 2.3) * 90, y = -4 - hash(i * 5.1) * 30 * (0.4 + hash(i * 1.7));
+      ctx.beginPath(); ctx.ellipse(x, y, 3 + hash(i * 3.3) * 6, 2 + hash(i * 4.4) * 3, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = '#4f341b';
+    ctx.fillRect(4, -14, 90, 6);
+    ctx.globalAlpha = 1;
+  }
+
+  // 横転：車体の前後の軸まわりに回す。横から見ると側面が縦につぶれ、屋根や車の底が見えてくる
+  const TRUCK_DEPTH = 40;
+  function drawRolling(sp) {
+    const phi = sp.roll, c = Math.cos(phi), s = Math.sin(phi), D = TRUCK_DEPTH;
+    const support = 26 * Math.abs(c) + (D / 2) * Math.abs(s);   // 地面から車体の中心までの高さ
+    ctx.translate(sp.x + TRUCK_W / 2, sp.y - support);
+    ctx.rotate(sp.angle);
+    // 高さ h（中心から上向き）・奥行き z の点が、画面のどこに来るか
+    const Y = (h, z) => -(h * c) + z * s;
+    const band = (x0, x1, h, fill, stroke) => {
+      const y0 = Y(h, -D / 2), y1 = Y(h, D / 2);
+      ctx.fillStyle = fill;
+      ctx.fillRect(x0 - TRUCK_W / 2, Math.min(y0, y1), x1 - x0, Math.abs(y1 - y0));
+      if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.strokeRect(x0 - TRUCK_W / 2, Math.min(y0, y1), x1 - x0, Math.abs(y1 - y0)); }
+    };
+    if (s > 0.03) {
+      // 上の面：キャブの屋根と、上から見た荷台（トマト）
+      band(61, 86, 26, '#e9ecec', '#c3c9cb');
+      band(86, 95, 8, '#dfe3e3');
+      band(2, 60, 6, '#d6dada', '#aeb5b8');
+      const y0 = Y(6, -D / 2 + 4), y1 = Y(6, D / 2 - 4);
+      ctx.fillStyle = '#7d8386';
+      ctx.fillRect(5 - TRUCK_W / 2, Math.min(y0, y1), 52, Math.abs(y1 - y0));
+      const n = Math.min(sp.load, 12);
+      ctx.fillStyle = '#e0392b';
+      for (let i = 0; i < n; i++) {
+        const tx = 10 + (i % 6) * 8.5 - TRUCK_W / 2, tz = (i < 6 ? -1 : 1) * D * 0.18;
+        ctx.beginPath(); ctx.ellipse(tx, Y(6, tz), 3.6, Math.max(1, 3.6 * Math.abs(s)), 0, 0, Math.PI * 2); ctx.fill();
+      }
+      if (sp.mud) { ctx.globalAlpha = 0.6 * sp.mud; ctx.fillStyle = '#4f341b'; ctx.fillRect(62 - TRUCK_W / 2, Math.min(Y(26, -D / 2), Y(26, D / 2)), 10, Math.abs(D * s) * 0.6); ctx.globalAlpha = 1; }
+    } else if (s < -0.03) {
+      // 車の底：シャシーと車軸、4本のタイヤ
+      band(4, 94, -17, '#2c2c2c');
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 2;
+      for (const wx of [20, 78]) {
+        ctx.beginPath(); ctx.moveTo(wx - TRUCK_W / 2, Y(-18, -D / 2)); ctx.lineTo(wx - TRUCK_W / 2, Y(-18, D / 2)); ctx.stroke();
+        for (const z of [-D / 2 + 5, D / 2 - 5]) {
+          const ya = Y(-22, z - 5), yb = Y(-22, z + 5);
+          ctx.fillStyle = '#141414';
+          ctx.fillRect(wx - 10 - TRUCK_W / 2, Math.min(ya, yb), 20, Math.max(1.5, Math.abs(yb - ya)));
+        }
+      }
+      ctx.fillStyle = '#3d3d3d';
+      ctx.fillRect(40 - TRUCK_W / 2, Math.min(Y(-18, -4), Y(-18, 4)), 30, Math.max(1, Math.abs(8 * s)));
+      if (sp.mud) { ctx.globalAlpha = 0.7 * sp.mud; ctx.fillStyle = '#5f4124'; ctx.fillRect(4 - TRUCK_W / 2, Math.min(Y(-17, -D / 2), Y(-17, D / 2)), 90, Math.abs(D * s) * 0.5); ctx.globalAlpha = 1; }
+    }
+    // 側面：手前の面（c > 0）か、裏返った向こう側の面（c < 0）
+    if (Math.abs(c) > 0.03) {
+      ctx.save();
+      ctx.translate(0, (c > 0 ? D / 2 : -D / 2) * s);
+      ctx.scale(1, c);
+      ctx.translate(-TRUCK_W / 2, 26);
+      drawTruckBody(sp);
+      ctx.restore();
+    }
   }
 
   // ---- ゴースト（タイムアタックの自己ベストの走り） ----
@@ -1804,6 +2007,18 @@ canvas { display: block; width: 100%; height: 100%; }
       const ahead = dm > 0;
       label(ahead ? `ベストの軽トラ ${dm} m 先 ▶` : `◀ ベストの軽トラ ${-dm} m 後ろ`, ahead ? W - 14 : 14, GROUND - 96,
         '13px ' + FONT, 'rgba(255,251,234,.9)', ahead ? 'right' : 'left', 'rgba(27,34,22,.75)', 3);
+    }
+  }
+
+  function drawRipples() {
+    const t = truck.fallT - truck.splashT;
+    const x = truckX + TRUCK_W / 2, y = GROUND + PIT_D - 4;
+    ctx.lineWidth = 1.2;
+    for (let i = 0; i < 3; i++) {
+      const k = t * 1.2 - i * 0.25;
+      if (k <= 0 || k > 1) continue;
+      ctx.strokeStyle = `rgba(220,205,180,${0.6 * (1 - k)})`;
+      ctx.beginPath(); ctx.ellipse(x, y, 20 + k * 70, 2 + k * 4, 0, 0, Math.PI * 2); ctx.stroke();
     }
   }
 
@@ -1855,9 +2070,16 @@ canvas { display: block; width: 100%; height: 100%; }
 
   function drawParts() {
     for (const p of parts) {
-      ctx.globalAlpha = Math.max(0, Math.min(1, p.life / p.max * (p.tomato ? 3 : 1)));
+      ctx.globalAlpha = Math.max(0, Math.min(1, p.life / p.max * (p.tomato || p.stick ? 3 : 1)));
       ctx.fillStyle = p.col;
-      ctx.beginPath(); ctx.arc(p.x - cam, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath();
+      if (p.stick) {
+        // 泥のしぶき：飛んでいる間は伸び、着いたら平たくつぶれる
+        if (p.flat) ctx.ellipse(p.x - cam, p.y, p.r * 1.5, p.r * 0.5, 0, 0, Math.PI * 2);
+        else ctx.ellipse(p.x - cam, p.y, p.r, p.r * (1 + Math.min(1.2, Math.abs(p.vy) / 500)), Math.atan2(p.vy, p.vx) - Math.PI / 2, 0, Math.PI * 2);
+        ctx.fill();
+        if (!p.flat && p.r > 3.5) { ctx.fillStyle = 'rgba(255,235,210,.35)'; ctx.beginPath(); ctx.arc(p.x - cam - p.r * 0.3, p.y - p.r * 0.3, p.r * 0.3, 0, Math.PI * 2); ctx.fill(); }
+      } else { ctx.arc(p.x - cam, p.y, p.r, 0, Math.PI * 2); ctx.fill(); }
       if (p.tomato) { ctx.fillStyle = '#3f8a2a'; ctx.fillRect(p.x - cam - 1.5, p.y - p.r - 1, 3, 2); }
     }
     ctx.globalAlpha = 1;
@@ -2040,6 +2262,7 @@ canvas { display: block; width: 100%; height: 100%; }
     drawMarkers();
     drawHazards();
     drawGhost();
+    if (truck.falling && truck.splashed) drawRipples();
     drawTruck(mainTruckSpec());
     drawBoars();
     drawParts();
