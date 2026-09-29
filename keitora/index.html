@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>軽トラ走</title>
+<title>爆走！つがおのビバベジ便！</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@500;900&display=swap">
@@ -137,15 +137,19 @@ canvas { display: block; width: 100%; height: 100%; }
 .logo {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: clamp(36px, 10cqw, 104px);
-  line-height: .95;
+  line-height: 1;
   letter-spacing: -.01em;
   color: var(--ink);
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .12em;
   transform: skewX(-9deg);
   transform-origin: left bottom;
   text-shadow: .045em .045em 0 var(--danger), .09em .09em 0 rgba(0, 0, 0, .35);
 }
+.logo-top { font-size: clamp(30px, 8.4cqw, 88px); color: var(--accent); }
+.logo-main { font-size: clamp(22px, 5.6cqw, 60px); white-space: nowrap; }
 .legend {
   list-style: none;
   margin: 0;
@@ -310,7 +314,8 @@ canvas { display: block; width: 100%; height: 100%; }
 @container (max-width: 560px) {
   .legend, .mode-desc, .howto { display: none; }
   .title-col { gap: 3cqh; max-width: 92cqw; }
-  .logo { font-size: 14cqw; }
+  .logo-top { font-size: 12cqw; }
+  .logo-main { font-size: 8.4cqw; }
   .mode { min-width: 0; font-size: 11px; }
   #title { background: linear-gradient(90deg, rgba(27, 34, 22, .85) 0%, rgba(27, 34, 22, .6) 60%, rgba(27, 34, 22, .1) 90%); }
 }
@@ -348,7 +353,7 @@ canvas { display: block; width: 100%; height: 100%; }
     <div class="overlay" id="title">
       <div class="title-col">
         <p class="eyebrow">あぜ道ランナー</p>
-        <h1 class="logo">軽トラ走!</h1>
+        <h1 class="logo"><span class="logo-top">爆走！</span><span class="logo-main">つがおのビバベジ便！</span></h1>
         <ul class="legend">
           <li><canvas data-icon="gap" width="120" height="72"></canvas><span><b>泥の斜面</b>落ちたら転がって終わり</span></li>
           <li><canvas data-icon="boar" width="120" height="72"></canvas><span><b>イノシシ</b>ぶつかったら終わり</span></li>
