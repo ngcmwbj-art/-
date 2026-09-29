@@ -306,7 +306,7 @@
 | `map_town` 踏切の付近（`area_crossing`） | 同上 | 同上 | 同上＋`amb_train_far` | ― |
 | `map_home_2f` | `bgm_home`＋`amb_fan`＋`amb_higurashi`（窓ごし、−8dB、LP2.5kHz） | `bgm_home`（段階1の変換）＋`amb_fan`（首ふり停止） | `bgm_home`（段階2の変換）＋`amb_fan`（首ふり停止） | ― |
 | `map_home_1f` | `bgm_home`＋`amb_fridge`＋`amb_tv`＋`se_furin`（ときどき） | `bgm_home`＋`amb_tv`（同じ原稿のくり返し） | `bgm_home`＋`amb_tv`（テスト信号） | `bgm_ending` のまま |
-| `map_maruyama`（焼きそばのモモセ） | `bgm_shop`＋`amb_oil`（静かに待つ鉄板） | 同左（段階1の変換） | 同左（段階2の変換） | `bgm_ending` のまま＋`se_fry`（鉄板のジュージュー） |
+| `map_maruyama`（焼きそばのたかし） | `bgm_shop`＋`amb_oil`（静かに待つ鉄板） | 同左（段階1の変換） | 同左（段階2の変換） | `bgm_ending` のまま＋`se_fry`（鉄板のジュージュー） |
 | `map_hinoya` | `bgm_shop`＋`amb_clock_tick` | `bgm_shop`（時計の音は止まる） | `bgm_shop` | ― |
 | `map_laundry` | `bgm_shop`＋`amb_dryer` | 同左 | 同左（ふしぎ#5を押すと `amb_dryer` が止まる） | ― |
 | `map_koban` | `bgm_shop`＋`amb_koban` | 同左 | 同左 | ― |
@@ -1167,7 +1167,7 @@ G2  Fmaj7(add9)    | G4:16 |
 | `amb_fridge` | 家1F 段階0 | 冷蔵庫のうなり | sine 50Hz＋100Hz＋150Hz（各 v 0.004／0.003／0.002）。段階1で消える（台本「冷蔵庫の 音が 止まっている」） |
 | `amb_tv` | 家1F | テレビの声 | 段階0：ノイズ BP1kHz Q1（v 0.006）に、4〜6Hzのランダムな音節のAM＋sine の短いブリップ（200〜600Hz、ランダム）で「遠くの話し声」。**段階1**：同じ音を**3.2秒ごとに同じ乱数で**くり返す（同じ原稿を3回読む）。**段階2**：1kHz の sine（v 0.003、テスト信号）だけ |
 | `amb_clock_tick` | ひのや 段階0 | 柱時計 | `drm_tick`／`drm_tock` を1秒ごとに交互（v 0.02、リバーブ room）。段階1以降は鳴らない |
-| `amb_oil`（IDは旧名のまま） | 焼きそばのモモセ | 静かに待つ鉄板 | 5時を待って温まっている鉄板。ガスの低いゴーッ（ノイズ LP380Hz、v 0.0032）＋バーナーのうなり（sine 100Hz、v 0.0016）＋鉄板の薄い油のかすかなジー（ノイズ BP4.6kHz Q0.8、v 0.0026、7〜18Hz のサンプル&ホールドでちらつく）＋3〜7秒ごとの「ジュッ」（ノイズ BP3.8kHz、立ち上がり4ms・減衰260ms、v 0.011）、ときどき「ぱちっ」が1〜2回続く（ノイズ BP2.4kHz 8ms）。音量は `AMB_TRIM` 22 dB（audioContext で `bgm_shop` の下 9.9 LU、はっきり度の余裕 5 dB。交番・冷蔵庫と同じ5 dB にそろえた） |
+| `amb_oil`（IDは旧名のまま） | 焼きそばのたかし | 静かに待つ鉄板 | 5時を待って温まっている鉄板。ガスの低いゴーッ（ノイズ LP380Hz、v 0.0032）＋バーナーのうなり（sine 100Hz、v 0.0016）＋鉄板の薄い油のかすかなジー（ノイズ BP4.6kHz Q0.8、v 0.0026、7〜18Hz のサンプル&ホールドでちらつく）＋3〜7秒ごとの「ジュッ」（ノイズ BP3.8kHz、立ち上がり4ms・減衰260ms、v 0.011）、ときどき「ぱちっ」が1〜2回続く（ノイズ BP2.4kHz 8ms）。音量は `AMB_TRIM` 22 dB（audioContext で `bgm_shop` の下 9.9 LU、はっきり度の余裕 5 dB。交番・冷蔵庫と同じ5 dB にそろえた） |
 | `amb_dryer` | コインランドリー | 3番の乾燥機 | ノイズ LP180Hz（v 0.03）＋1.7秒ごとの「ゴトン」（sine 70Hz 80ms＋ノイズ LP400Hz、v 0.04）＋ランダムなファスナーの「チャリ」（sine 3.1kHz と 4.7kHz、20ms、v 0.008）。ふしぎ#5 を押したら `stopAmbient('amb_dryer', 1.2)`（回転が落ちるように、LP を 180→60Hz へ） |
 | `amb_koban` | 交番 | 無線 | 12〜25秒ごとに、ノイズ BP1.8kHz Q2 の250ms（v 0.01）＋ビープ sine 1.2kHz 60ms |
 | `amb_fluorescent` | モール M1〜M4 | 蛍光灯のうなり | sine 60Hz（v 0.015）＋120Hz（0.02）＋矩形波120Hz LP700Hz Q2（0.006）＋ノイズ HP5kHz（0.002）。2〜7秒ごとにランダムな「ジジッ」（上の矩形波を80〜200msだけ×3）。ワールドから `ambientEvent('amb_fluorescent', 'flicker')` を受けたら、そのときも鳴らす（ちらつく蛍光灯と同期） |
@@ -2044,7 +2044,7 @@ se_tsuri_nushi    ぬしの気配（土管の奥から 大きな泡、ゴボッ�
 | `narr` | 地の文 | ノイズ BP3kHz Q1.5 | ― | ― | 12、A0 D10 | 3 | .012 | 紙の擦れ。ほぼ聞こえない |
 | `sys` | システム | なし | | | | | | 入手などはジングルやSEが鳴る |
 | `mother` | 母 | tri | A4 | 0 2 4 7 9 | 40、A2 D30 S.5 R15 | 2 | .07 | フォルマント |
-| `maruyama` | 百瀬（焼きそば屋） | fm（r1 i2.5→0.8/40） | D3 | 0 3 5 7 10 | 45 | 2 | .09 | LP1.4kHz。低く太い |
+| `maruyama` | たかし（焼きそば屋） | fm（r1 i2.5→0.8/40） | D3 | 0 3 5 7 10 | 45 | 2 | .09 | LP1.4kHz。低く太い |
 | `obaa` | おばあ | tri＋ノイズ（BP2kHz、0.4） | E4 | 0 2 5 7 | 50 | 3 | .06 | vib 6Hz ±25セント（ふるえ）。フォルマント |
 | `mamekichi` | くま吉 | sq | C5 | 0 2 4 7 9 12 | 22 | 2 | .05 | 速い。フォルマント |
 | `inui` | えすけ | tri | G4 | 0 2 4 | 55、A8 | 3 | .05 | LP2kHz。ゆっくり |

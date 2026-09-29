@@ -1864,7 +1864,7 @@ se_h_seki_undo   せきがほどける（石が4つころころ → 水が流れ
 | カットの切り替え（0.3秒） | `stopAllAmbient(0.3)`。`setMusicParam('h_stage', 3)`、`setPaMode('yama')`、`setSpace('yama')`。`playAmbient('amb_h_dawn', { vol: 0.8, fade: 0.4 })`。**BGM なし**（カット4からの静けさのまま） |
 | バスがアイドリング | `se_h_bus_idle` のループ（vol .4）。排気の白い粒 |
 | 扉が開き、マルが降りる | `se_h_bus_door` |
-| とまたろうとマルの3ページ | voice `h_tome`・`maru`。「はい、モモセの 焼きそば」のあと、とまたろうが受けとる（音なし） |
+| とまたろうとマルの3ページ | voice `h_tome`・`maru`。「はい、たかしの 焼きそば」のあと、とまたろうが受けとる（音なし） |
 | 2人が北へ歩いていく | `se_h_bus_idle` を 0.6秒で止める。足音はつけない。フェードアウト 0.4秒、`stopAmbient('amb_h_dawn', 0.3)` |
 
 **カット5（1:03〜1:15）家**
