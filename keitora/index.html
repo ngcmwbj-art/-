@@ -448,13 +448,13 @@ canvas { display: block; width: 100%; height: 100%; }
     set(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} },
   };
   let best = Number(store.get('keitora-best', 0)) || 0;               // エンドレスの最長距離（m）
-  let bestTime = Number(store.get('keitora-best-time-4', 0)) || 0;      // タイムアタックの最速（秒）
+  let bestTime = Number(store.get('keitora-best-time-5', 0)) || 0;      // タイムアタックの最速（秒）
   let soundOn = store.get('keitora-sound', '1') === '1';
   let mode = store.get('keitora-mode', 'endless') === 'ta' ? 'ta' : 'endless';
   let bestScore = Number(store.get('keitora-best-score', 0)) || 0;    // エンドレスの配達スコア
   function loadGhost() {
     try {
-      const g = JSON.parse(store.get('keitora-ghost-4', 'null'));
+      const g = JSON.parse(store.get('keitora-ghost-5', 'null'));
       return g && g.seed === TA_SEED && Array.isArray(g.f) && g.f.length >= 6 ? g : null;
     } catch (e) { return null; }
   }
@@ -786,33 +786,32 @@ canvas { display: block; width: 100%; height: 100%; }
         const wide = m > 500 && rng() < Math.min(0.35, (m - 500) / 1500);
         const w = Math.max(72, sp * 0.92 * ((wide ? AIR2 : AIR) - jumpWindow(m)) * (wide ? rr(0.85, 1) : rr(0.7, 1)));
         if (nextX + w > limit) break;
-        obs.push({ t: 'gap', x: nextX, w });
+        obs.push({ t: 'gap', x: nextX, w, lv: levelAt(nextX) });
         nextX += w + spacing();
       } else if (type === 'puddle') {
         const w = rr(60, 130);
-        obs.push({ t: 'puddle', x: nextX, w });
+        obs.push({ t: 'puddle', x: nextX, w, lv: levelAt(nextX) });
         nextX += w + sp * SLIP_TIME + 250 + rng() * sp * 0.5;
       } else if (type === 'bump') {
         // 跳び越えられる長さにする。前半は短く、踏み切りに余裕を持たせる
         const w = Math.max(56, sp * 0.85 * (AIR - bumpWindow(m)) * rr(0.6, 1));
-        obs.push({ t: 'bump', x: nextX, w, seed: rng() * 100, hit: false });
+        obs.push({ t: 'bump', x: nextX, w, seed: rng() * 100, hit: false, lv: levelAt(nextX) });
         nextX += w + spacing() * 0.8 + sp * 0.8;
       } else if (type === 'terrace') {
-        // 棚田：段を登って、上の田んぼのあぜ道を走り、また下りる。
+        // 棚田：段を登って上の田んぼへ。段は登るだけで、下りはない。
         // 350 m を過ぎると、2段ジャンプでないと登れない石垣が混ざる
         const hiOk = m > 350;
+        const base = levelAt(nextX);
         const first = hiOk && rng() < Math.min(0.5, 0.2 + (m - 350) / 2000) ? STEP_HI : STEP_LO;
         // 段の手前は踏み切りのための助走区間を空ける（石垣は壁の0.3秒ほど手前で跳ぶ必要がある）
-        let x = nextX + sp * (first === STEP_HI ? 0.55 : 0.3) + 60, h = first;
+        let x = nextX + sp * (first === STEP_HI ? 0.55 : 0.3) + 60, h = base + first;
         const plan = [[x, h]];
-        x += rr(0.9, 1.5) * sp;
-        if (first === STEP_LO && m > 250 && rng() < 0.45) {
-          // 土手をもう一段（両方とも1回のジャンプで登れる）。奥で2段目が石垣になることも
-          h += hiOk && rng() < 0.3 ? STEP_HI - STEP_LO : STEP_LO;
-          plan.push([x, h]);
+        if (first === STEP_LO && m > 250 && rng() < 0.4) {
+          // 土手をもう一段続けて登る。2段目が石垣になることも
           x += rr(0.9, 1.4) * sp;
+          h += hiOk && rng() < 0.3 ? STEP_HI : STEP_LO;
+          plan.push([x, h]);
         }
-        plan.push([x, 0]);
         if (x + spacing() > limit) break;
         for (const [px, ph] of plan) steps.push({ x: px, h: ph, seen: false });
         nextX = x + spacing() + sp * 0.35;
@@ -821,7 +820,7 @@ canvas { display: block; width: 100%; height: 100%; }
         const bx = nextX + 650;
         if (bx + 220 > limit) break;
         const vx0 = rr(170, 300) + Math.min(bx / PX_PER_M * 0.04, 90);
-        obs.push({ t: 'boar', x: bx, w: 0, state: 'pending', px: 0, vx: 0, vx0, leg: 0, wt: 0, counted: false, fy: 0, fvy: 0, rot: 0 });
+        obs.push({ t: 'boar', x: bx, w: 0, state: 'pending', px: 0, vx: 0, vx0, leg: 0, wt: 0, counted: false, fy: 0, fvy: 0, rot: 0, lv: levelAt(nextX) });
         nextX = bx + 220 + spacing();
       }
     }
@@ -857,10 +856,10 @@ canvas { display: block; width: 100%; height: 100%; }
   // 泥の穴の斜面の横幅と、x での泥の表面の高さ
   const pitRun = w => Math.min(56, w * 0.42);
   function pitSurface(pit, x) {
-    const r = pitRun(pit.w), rel = x - pit.x;
-    if (rel < r) return GROUND + clamp(rel / r, 0, 1) * PIT_D;
-    if (rel > pit.w - r) return GROUND + clamp((pit.w - rel) / r, 0, 1) * PIT_D;
-    return GROUND + PIT_D;
+    const r = pitRun(pit.w), rel = x - pit.x, g = GROUND - (pit.lv || 0);
+    if (rel < r) return g + clamp(rel / r, 0, 1) * PIT_D;
+    if (rel > pit.w - r) return g + clamp((pit.w - rel) / r, 0, 1) * PIT_D;
+    return g + PIT_D;
   }
 
   // ---- パーティクル・表示 ----
@@ -1007,7 +1006,7 @@ canvas { display: block; width: 100%; height: 100%; }
     if (kind === 'boar') {
       shake = 0.5; flash = 0.25; truck.dent = 1; truck.spilled = true;
       sfx('boar');
-      spillTomatoes(14, cam + TRUCK_X + 28, GROUND - 50, [-60, 260]);
+      spillTomatoes(14, cam + TRUCK_X + 28, truck.y - 50, [-60, 260]);
     } else if (kind === 'wall') {
       shake = 0.45; flash = 0.2; truck.dent = 1; truck.spilled = true;
       truck.vy = -220;
@@ -1046,9 +1045,9 @@ canvas { display: block; width: 100%; height: 100%; }
       rec = prev === 0 || goalTime < prev;
       if (rec) {
         bestTime = goalTime;
-        store.set('keitora-best-time-4', bestTime.toFixed(3));
+        store.set('keitora-best-time-5', bestTime.toFixed(3));
         ghost = { seed: TA_SEED, dt: GHOST_DT, t: goalTime, f: ghostRec };
-        store.set('keitora-ghost-4', JSON.stringify(ghost));
+        store.set('keitora-ghost-5', JSON.stringify(ghost));
       }
       reasonEl.textContent = 'ゴール!';
       reasonEl.classList.add('win');
@@ -1147,7 +1146,8 @@ canvas { display: block; width: 100%; height: 100%; }
     // 前進：普段は巡航速度へ加速、ボコボコ道の上では減速
     if (state === 'play') {
       let target = speed;
-      if (find('bump', cx) && GROUND - truck.y < 40) target = speed * 0.4;
+      const bmp = find('bump', cx);
+      if (bmp && GROUND - bmp.lv - truck.y < 40) target = speed * 0.4;
       vel += clamp(target - vel, -900 * dt, ACCEL * dt);
     } else if (state === 'goal') {
       vel *= Math.pow(0.3, dt);
@@ -1170,7 +1170,7 @@ canvas { display: block; width: 100%; height: 100%; }
     slip -= dt;
     tireFlash = Math.max(0, tireFlash - dt);
     const lift = GROUND - supportY();
-    camY += (lift * 0.7 - camY) * Math.min(1, dt * 3);
+    camY += (lift - camY) * Math.min(1, dt * 3.5);
     if (state === 'play' && jumpBuf > 0 && truck.coyote > 0 && slip <= 0) {
       truck.vy = -JUMP_V * (find('bump', cx) ? 0.8 : 1);
       truck.grounded = false;
@@ -1205,7 +1205,7 @@ canvas { display: block; width: 100%; height: 100%; }
       const hole = state === 'play' ? find('gap', cx) : null;
       if (hole) {
         truck.grounded = false;
-        if (truck.y > GROUND + 8) {
+        if (truck.y > GROUND - (hole.lv || 0) + 8) {
           truck.falling = true;
           truck.pit = hole;
           truck.fallV = vel;
@@ -1335,14 +1335,15 @@ canvas { display: block; width: 100%; height: 100%; }
     truck.y = Math.min(truck.y + truck.vy * dt, surf);
     if (truck.y >= surf) {
       truck.vy = 0;
-      if (!truck.splashed && truck.y >= WATER_Y + 10) {
+      const wy = WATER_Y - (pit.lv || 0);
+      if (!truck.splashed && truck.y >= wy + 10) {
         truck.splashed = true;
         truck.splashT = truck.fallT;
         truck.mud = 1;
         sfx('mud');
         shake = 0.25;
-        mudSplash(22, cx, WATER_Y, 240, 480);
-        emit(14, cx, WATER_Y, { vx: [-200, 200], vy: [-340, -120], life: [0.4, 0.8], r: [1.5, 3], col: 'rgba(200,215,205,.8)' });
+        mudSplash(22, cx, wy, 240, 480);
+        emit(14, cx, wy, { vx: [-200, 200], vy: [-340, -120], life: [0.4, 0.8], r: [1.5, 3], col: 'rgba(200,215,205,.8)' });
       }
     }
     // 斜面では鼻先から突っ込み、転がり始めたら水平に戻る
@@ -1394,11 +1395,12 @@ canvas { display: block; width: 100%; height: 100%; }
           const bs = o.px - cam;
           const tl = TRUCK_X + 10, tr = TRUCK_FRONT - 4;
           const tb = truck.y - 4, tt = truck.y - 46;
-          const bl = bs - 24, br = bs + 22, bt = GROUND - 30, bb = GROUND;
+          const bg = GROUND - (o.lv || 0);
+          const bl = bs - 24, br = bs + 22, bt = bg - 30, bb = bg;
           if (tr > bl && tl < br && tb > bt && tt < bb) {
             o.state = 'hit';
             o.fvx = 260; o.fvy = -520; o.fy = 0; o.rot = 0;
-            emit(20, o.px, GROUND - 20, { vx: [-200, 250], vy: [-450, -150], life: [0.4, 0.9], r: [2, 5], col: '#fff3c4' });
+            emit(20, o.px, bg - 20, { vx: [-200, 250], vy: [-450, -150], life: [0.4, 0.9], r: [2, 5], col: '#fff3c4' });
             die('boar');
           } else if (!o.counted && br < tl) {
             o.counted = true;
@@ -1420,7 +1422,7 @@ canvas { display: block; width: 100%; height: 100%; }
       // トマトは道で止まる
       if (p.tomato || p.stick) {
         const pit = find('gap', p.x);
-        const floor = (pit ? Math.min(pitSurface(pit, p.x), WATER_Y + 2) : groundAt(p.x)) - (p.tomato ? 4 : 1);
+        const floor = (pit ? Math.min(pitSurface(pit, p.x), WATER_Y - (pit.lv || 0) + 2) : groundAt(p.x)) - (p.tomato ? 4 : 1);
         if (p.y > floor) { p.y = floor; p.vy = 0; p.vx *= p.stick ? 0.2 : 0.8; if (p.stick) p.flat = true; }
       }
     }
@@ -1476,7 +1478,7 @@ canvas { display: block; width: 100%; height: 100%; }
   const bold = s => `900 ${s}px "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif`;
 
   function drawSky() {
-    const top = -(VH - H) - camY - 10;
+    const top = -(VH - H) - 10;
     const g = ctx.createLinearGradient(0, top, 0, 250);
     g.addColorStop(0, env.skyTop);
     g.addColorStop(1, env.skyBot);
@@ -1563,6 +1565,8 @@ canvas { display: block; width: 100%; height: 100%; }
     g.addColorStop(1, env.water2);
     ctx.fillStyle = g;
     ctx.fillRect(0, top, W, H - top + 2);
+    ctx.fillStyle = env.water2;
+    ctx.fillRect(0, H, W, 600);
     ctx.strokeStyle = env.rice;
     ctx.lineWidth = 2;
     const rows = [[GROUND + 44, 30, 0.9], [GROUND + 72, 36, 1.0], [GROUND + 104, 42, 1.1]];
@@ -1646,53 +1650,6 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.fillStyle = 'rgba(90,64,38,.35)';
     ctx.fillRect(a, top + 8, b - a, 2);
     ctx.fillRect(a, top + 14, b - a, 2);
-  }
-  // 上の段の田んぼ：あぜ道の下は、低い段なら草の土手、高い段なら石垣
-  function drawTerrace(a, b, h, stone) {
-    const top = GROUND - h + ROAD_H - 4, bot = WATER_Y + 2;
-    if (stone) {
-      ctx.fillStyle = '#6d6252';
-      ctx.fillRect(a, top, b - a, bot - top);
-      // 石を積んだ目地
-      const rowH = 14;
-      for (let r = 0, y = top; y < bot; r++, y += rowH) {
-        let x = a - (r % 2) * 11 - ((cam * 0) % 22);
-        for (let i = 0; x < b; i++) {
-          const wS = 18 + hash((a + cam) * 0.01 + r * 7 + i) * 10;
-          const x0 = Math.max(a, x + 1), x1 = Math.min(b, x + wS - 1);
-          if (x1 > x0) {
-            const tone = 0.85 + hash(r * 3.3 + i * 1.7 + (a + cam) * 0.001) * 0.3;
-            ctx.fillStyle = `rgb(${Math.round(150 * tone)},${Math.round(140 * tone)},${Math.round(122 * tone)})`;
-            ctx.beginPath(); ctx.roundRect(x0, y + 1, x1 - x0, Math.min(rowH - 2, bot - y - 1), 3); ctx.fill();
-          }
-          x += wS;
-        }
-      }
-      ctx.fillStyle = 'rgba(40,30,20,.25)';
-      ctx.fillRect(a, top, b - a, 4);
-    } else {
-      const g = ctx.createLinearGradient(0, top, 0, bot);
-      g.addColorStop(0, '#6f9a3e');
-      g.addColorStop(1, '#4f7430');
-      ctx.fillStyle = g;
-      ctx.fillRect(a, top, b - a, bot - top);
-      ctx.strokeStyle = 'rgba(40,70,25,.5)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      const off = cam % 9;
-      for (let x = a - off; x < b; x += 9) {
-        const hh = hash(Math.floor((x + cam) / 9) * 1.3);
-        ctx.moveTo(x, top + 6 + hh * 10); ctx.lineTo(x + 2, top + 14 + hh * 14);
-      }
-      ctx.stroke();
-      // すそは土がのぞく
-      ctx.fillStyle = 'rgba(110,80,45,.55)';
-      ctx.fillRect(a, bot - 6, b - a, 6);
-    }
-    // 段の両脇に影をつけて、壁の面を見せる
-    const sg = ctx.createLinearGradient(a, 0, a + 10, 0);
-    sg.addColorStop(0, 'rgba(0,0,0,.28)'); sg.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = sg; ctx.fillRect(a, GROUND - h, 10, bot - GROUND + h);
   }
   // あぜが崩れた所：切れ目の両端がぬかるんだ泥の斜面になり、その先は田んぼの水。
   // 崩れた土で田んぼが濁り、苗が倒れている。水の色は季節に合わせる
@@ -1833,29 +1790,27 @@ canvas { display: block; width: 100%; height: 100%; }
   }
 
   function drawRoad() {
-    const holes = obs.filter(o => o.t === 'gap' && o.x + o.w > cam && o.x < cam + W)
-      .map(o => [o.x - cam, o.x + o.w - cam, o.x]).sort((a, b) => a[0] - b[0]);
-    // 段ごとに道を描く。高い段の下は土手か石垣
-    const lvls = levelSegments(cam - 20, cam + W + 20);
+    const holes = obs.filter(o => o.t === 'gap' && o.x + o.w > cam - 20 && o.x < cam + W + 20)
+      .map(o => [o.x - cam, o.x + o.w - cam, o.x, o.lv || 0]).sort((a, b) => a[0] - b[0]);
+    const lvls = levelSegments(cam - 40, cam + W + 40);
     for (let li = 0; li < lvls.length; li++) {
       const sg = lvls[li];
       const a0 = sg.a - cam, b0 = sg.b - cam, top = GROUND - sg.h;
-      if (sg.h > 0) {
-        // 手前の段から 100px より高く積んだところは石垣、それ以外は草の土手
-        const prevH = li > 0 ? lvls[li - 1].h : levelAt(sg.a - 1);
-        drawTerrace(a0, b0, sg.h, sg.h - prevH > 100);
+      // この段の手前の田んぼ（水・苗・アイガモ）
+      ctx.save();
+      ctx.beginPath(); ctx.rect(a0, -4000, b0 - a0, 8000); ctx.clip();
+      ctx.translate(0, -sg.h);
+      drawForeField();
+      ctx.restore();
+      // あぜ道（泥の穴のところは切る）
+      const pieces = [];
+      let s0 = a0;
+      for (const [a, b] of holes) {
+        if (b <= a0 || a >= b0) continue;
+        if (a > s0) pieces.push([s0, Math.min(a, b0)]);
+        s0 = Math.max(s0, b);
       }
-      let pieces = [[a0, b0]];
-      if (sg.h === 0) {
-        pieces = [];
-        let s0 = a0;
-        for (const [a, b] of holes) {
-          if (b <= a0 || a >= b0) continue;
-          if (a > s0) pieces.push([s0, Math.min(a, b0)]);
-          s0 = Math.max(s0, b);
-        }
-        if (s0 < b0) pieces.push([s0, b0]);
-      }
+      if (s0 < b0) pieces.push([s0, b0]);
       for (const [a, b] of pieces) {
         roadStrip(a, b, top);
         ctx.strokeStyle = '#6e9e3a';
@@ -1868,8 +1823,51 @@ canvas { display: block; width: 100%; height: 100%; }
         }
         ctx.stroke();
       }
+      // 段の境目：下の段から登る壁（低い段は草の土手、高い段は石垣）
+      if (li > 0 && sg.h > lvls[li - 1].h) drawRiser(a0, lvls[li - 1].h, sg.h);
     }
-    for (const [a, b, wx] of holes) mudPit(a, b, wx);
+    for (const [a, b, wx, lv] of holes) {
+      ctx.save();
+      ctx.translate(0, -lv);
+      mudPit(a, b, wx);
+      ctx.restore();
+    }
+  }
+  // 棚田のあぜ：上の段の田んぼを支える壁。段の高さ分より下の田んぼの中まで続く
+  function drawRiser(x, hLow, hHigh) {
+    const stone = hHigh - hLow > 100;
+    const top = GROUND - hHigh, bot = WATER_Y - hLow + 600;
+    const wR = stone ? 26 : 18;
+    // 左に落ちる影
+    const sg = ctx.createLinearGradient(x - 14, 0, x, 0);
+    sg.addColorStop(0, 'rgba(0,0,0,0)'); sg.addColorStop(1, 'rgba(0,0,0,.25)');
+    ctx.fillStyle = sg; ctx.fillRect(x - 14, top, 14, bot - top);
+    if (stone) {
+      ctx.fillStyle = '#6d6252';
+      ctx.fillRect(x, top, wR, bot - top);
+      for (let r = 0, y = top; y < bot; r++, y += 13) {
+        for (let c = 0; c < 2; c++) {
+          const x0 = x + 1 + c * 12 + (r % 2) * 5, w0 = Math.min(11 + hash(r * 3.1 + c + x * 0.01) * 4, x + wR - x0 - 1);
+          if (w0 <= 2) continue;
+          const tone = 0.85 + hash(r * 1.7 + c * 5.3) * 0.3;
+          ctx.fillStyle = `rgb(${Math.round(150 * tone)},${Math.round(140 * tone)},${Math.round(122 * tone)})`;
+          ctx.beginPath(); ctx.roundRect(x0, y + 1, w0, 11, 3); ctx.fill();
+        }
+      }
+    } else {
+      const g = ctx.createLinearGradient(0, top, 0, bot);
+      g.addColorStop(0, '#6f9a3e'); g.addColorStop(1, '#4a6d2d');
+      ctx.fillStyle = g;
+      ctx.fillRect(x, top, wR, bot - top);
+      ctx.strokeStyle = 'rgba(40,70,25,.55)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let y = top + 6; y < bot; y += 7) { const d = hash(y * 0.37 + x) * 6; ctx.moveTo(x + 2 + d, y); ctx.lineTo(x + 5 + d, y + 6); }
+      ctx.stroke();
+    }
+    // 上の段のあぜ道の角
+    ctx.fillStyle = 'rgba(255,240,210,.25)';
+    ctx.fillRect(x, top, wR, 3);
   }
 
   // 100m ごとの距離標、ベストの旗、タイムアタックのゴール
@@ -1995,11 +1993,19 @@ canvas { display: block; width: 100%; height: 100%; }
   function drawHazards() {
     for (const o of obs) {
       const sx = o.x - cam;
+      ctx.save();
+      ctx.translate(0, -(o.lv || 0));
+      drawHazard(o, sx);
+      ctx.restore();
+    }
+  }
+  function drawHazard(o, sx) {
+    {
       if (o.t === 'puddle') {
-        if (sx > W || sx + o.w < 0) continue;
+        if (sx > W || sx + o.w < 0) return;
         drawPuddle(sx, o.w);
       } else if (o.t === 'bump') {
-        if (sx > W || sx + o.w < 0) continue;
+        if (sx > W || sx + o.w < 0) return;
         drawBumps(sx, o.w, o.seed);
         if (sx - 30 > -50 && sx - 30 < W) {
           ctx.fillStyle = '#6a4b2a';
@@ -2033,8 +2039,8 @@ canvas { display: block; width: 100%; height: 100%; }
     for (const o of obs) {
       if (seenTypes.has(o.t)) continue;
       let sx, y;
-      if (o.t === 'boar') { if (o.state !== 'run') continue; sx = o.px - cam; y = GROUND - 58; }
-      else { sx = o.x - cam + Math.min(o.w, 160) / 2; y = GROUND - 44; }
+      if (o.t === 'boar') { if (o.state !== 'run') continue; sx = o.px - cam; y = GROUND - (o.lv || 0) - 58; }
+      else { sx = o.x - cam + Math.min(o.w, 160) / 2; y = GROUND - (o.lv || 0) - 44; }
       const near = o.t === 'boar' ? sx - TRUCK_FRONT < 120 : o.x - cam - TRUCK_FRONT < 30;
       if (near || sx > W - 20) continue;
       ctx.font = '15px ' + FONT;
@@ -2064,6 +2070,14 @@ canvas { display: block; width: 100%; height: 100%; }
   function drawBoars() {
     for (const o of obs) {
       if (o.t !== 'boar') continue;
+      ctx.save();
+      ctx.translate(0, -(o.lv || 0));
+      drawBoarObj(o);
+      ctx.restore();
+    }
+  }
+  function drawBoarObj(o) {
+    {
       if (o.state === 'warn') {
         if (Math.floor(o.wt * 10) % 2 === 0) {
           ctx.fillStyle = '#e2543a';
@@ -2079,10 +2093,10 @@ canvas { display: block; width: 100%; height: 100%; }
         }
       } else if (o.state === 'run' || o.state === 'hit') {
         const sx = o.px - cam;
-        if (sx < -80 || sx > W + 80) continue;
+        if (sx < -80 || sx > W + 80) return;
         const y = o.state === 'hit' ? GROUND + o.fy : (find('gap', o.px) ? GROUND - 26 : GROUND);
         drawBoar(sx, y, o.leg, o.state === 'hit' ? o.rot : 0);
-        if (o.state === 'run' && Math.random() < 0.3) emit(1, o.px + 26, GROUND - 2, { vx: [20, 80], vy: [-50, -10], life: [0.2, 0.4], r: [2, 5], col: '#c7a77c', g: 50 });
+        if (o.state === 'run' && Math.random() < 0.3) emit(1, o.px + 26, GROUND - (o.lv || 0) - 2, { vx: [20, 80], vy: [-50, -10], life: [0.2, 0.4], r: [2, 5], col: '#c7a77c', g: 50 });
         if (o.state === 'hit' && o.fy === 0) drawStars(sx, GROUND - 44);
       }
     }
@@ -2603,21 +2617,25 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx = mainCtx;
     env = envAt(state === 'title' ? 350 : cam / PX_PER_M);
     ctx.save();
-    ctx.translate(0, VH - H + camY * 0.35);
+    ctx.translate(0, VH - H);
     if (shake > 0 && !reduceMotion) ctx.translate(rand(-6, 6) * shake * 2, rand(-6, 6) * shake * 2);
     drawSky();
     drawMountains(0.08, 205, 50, env.mtnFar, 0);
     drawMountains(0.18, 228, 34, env.mtnNear, 3);
     drawFarField();
-    ctx.translate(0, camY * 0.65);
-    drawForeField();
+    ctx.translate(0, camY);
     drawRoad();
     drawMarkers();
     drawHazards();
     drawGhost();
     drawTruck(mainTruckSpec());
-    if (truck.falling && truck.y > WATER_Y) drawPitWater();
-    if (truck.falling && truck.splashed) drawRipples();
+    if (truck.falling && truck.pit) {
+      ctx.save();
+      ctx.translate(0, -(truck.pit.lv || 0));
+      if (truck.y + (truck.pit.lv || 0) > WATER_Y) drawPitWater();
+      if (truck.splashed) drawRipples();
+      ctx.restore();
+    }
     drawBoars();
     drawParts();
     drawNight();
