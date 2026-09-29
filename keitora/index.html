@@ -437,13 +437,13 @@ canvas { display: block; width: 100%; height: 100%; }
     set(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} },
   };
   let best = Number(store.get('keitora-best', 0)) || 0;               // エンドレスの最長距離（m）
-  let bestTime = Number(store.get('keitora-best-time', 0)) || 0;      // タイムアタックの最速（秒）
+  let bestTime = Number(store.get('keitora-best-time-2', 0)) || 0;      // タイムアタックの最速（秒）
   let soundOn = store.get('keitora-sound', '1') === '1';
   let mode = store.get('keitora-mode', 'endless') === 'ta' ? 'ta' : 'endless';
   let bestScore = Number(store.get('keitora-best-score', 0)) || 0;    // エンドレスの配達スコア
   function loadGhost() {
     try {
-      const g = JSON.parse(store.get('keitora-ghost', 'null'));
+      const g = JSON.parse(store.get('keitora-ghost-2', 'null'));
       return g && g.seed === TA_SEED && Array.isArray(g.f) && g.f.length >= 6 ? g : null;
     } catch (e) { return null; }
   }
@@ -617,6 +617,8 @@ canvas { display: block; width: 100%; height: 100%; }
   function jumpWindow(m) {
     return m < 1150 ? 0.38 - m * 0.0002 : Math.max(0.1, 0.15 - (m - 1150) * 0.00003);
   }
+  // ボコボコ道を跳び越えるときの踏み切りの猶予（秒）。前半ほど長い
+  function bumpWindow(m) { return Math.max(0.15, 0.44 - m * 0.0002); }
   function spacing() {
     const m = cam / PX_PER_M;
     const dense = Math.max(0.62, 1 - m / 3500);
@@ -647,8 +649,8 @@ canvas { display: block; width: 100%; height: 100%; }
         obs.push({ t: 'puddle', x: nextX, w });
         nextX += w + sp * SLIP_TIME + 250 + rng() * sp * 0.5;
       } else if (type === 'bump') {
-        // 跳び越えられる長さにする（上手に跳べばパンクしない）
-        const w = sp * AIR * rr(0.35, 0.78);
+        // 跳び越えられる長さにする。前半は短く、踏み切りに余裕を持たせる
+        const w = Math.max(56, sp * 0.85 * (AIR - bumpWindow(m)) * rr(0.6, 1));
         obs.push({ t: 'bump', x: nextX, w, seed: rng() * 100, hit: false });
         nextX += w + spacing() * 0.8 + sp * 0.8;
       } else {
@@ -851,9 +853,9 @@ canvas { display: block; width: 100%; height: 100%; }
       rec = prev === 0 || goalTime < prev;
       if (rec) {
         bestTime = goalTime;
-        store.set('keitora-best-time', bestTime.toFixed(3));
+        store.set('keitora-best-time-2', bestTime.toFixed(3));
         ghost = { seed: TA_SEED, dt: GHOST_DT, t: goalTime, f: ghostRec };
-        store.set('keitora-ghost', JSON.stringify(ghost));
+        store.set('keitora-ghost-2', JSON.stringify(ghost));
       }
       reasonEl.textContent = 'ゴール!';
       reasonEl.classList.add('win');
