@@ -719,13 +719,16 @@ canvas { display: block; width: 100%; height: 100%; }
   // コース生成用の乱数。タイムアタックでは種を固定して毎回同じコースにする
   function seeded(seed) {
     let a = seed >>> 0;
-    return () => {
+    const next = () => {
       a = (a + 0x6D2B79F5) >>> 0;
       let t = a;
       t = Math.imul(t ^ (t >>> 15), t | 1);
       t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
+    next.getState = () => a;
+    next.setState = v => { a = v >>> 0; };
+    return next;
   }
   let rng = Math.random;
   const rr = (a, b) => a + rng() * (b - a);
@@ -1134,7 +1137,10 @@ canvas { display: block; width: 100%; height: 100%; }
       const si = seasonAt(m).i;
       if (si !== seasonIdx) {
         seasonIdx = si;
-        if (!banner || banner.t < 0.8) showBanner(SEASONS[si].name, '#fffbea', SEASONS[si].sub);
+        // 2,000 m で季節が一巡しても、コースは続いている。2周目からは「2年目の田植え」
+        const year = Math.floor(m / SEASON_LEN) + 1;
+        const name = si === 0 && year > 1 ? `${year}年目の${SEASONS[si].name}` : SEASONS[si].name;
+        if (!banner || banner.t < 0.8) showBanner(name, '#fffbea', SEASONS[si].sub);
       }
     }
 
@@ -2670,8 +2676,47 @@ canvas { display: block; width: 100%; height: 100%; }
     };
   }
 
+  // ---- ページが新しい版に差し替わっても、走っている途中から続けられるようにする ----
+  function snapshotRun() {
+    if (state !== 'play' || truck.falling || truck.dead) return { mode };
+    return {
+      mode,
+      run: {
+        cam, speed, vel, runTime, nextX, slip, tomatoes, score, scoreM, lastRefill, bumpHits, lastMile, passedBest, seasonIdx, recT,
+        truck: { y: truck.y, vy: truck.vy, grounded: truck.grounded, airJumps: truck.airJumps, spilled: truck.spilled },
+        obs: JSON.parse(JSON.stringify(obs)), steps: JSON.parse(JSON.stringify(steps)),
+        stats: { ...stats }, ghostRec: ghostRec.slice(), rngState: rng.getState ? rng.getState() : null,
+      },
+    };
+  }
+  function restoreRun(run) {
+    rng = mode === 'ta' ? seeded(TA_SEED) : Math.random;
+    if (run.rngState !== null && rng.setState) rng.setState(run.rngState);
+    reset();
+    cam = run.cam; speed = run.speed; vel = run.vel; runTime = run.runTime; nextX = run.nextX; slip = run.slip;
+    tomatoes = run.tomatoes; score = run.score; scoreM = run.scoreM; lastRefill = run.lastRefill; bumpHits = run.bumpHits;
+    lastMile = run.lastMile; passedBest = run.passedBest; seasonIdx = run.seasonIdx; recT = run.recT;
+    Object.assign(truck, run.truck);
+    obs = run.obs || []; steps = run.steps || []; stats = { ...stats, ...run.stats }; ghostRec = run.ghostRec || [];
+    state = 'play';
+    titleEl.hidden = true;
+    truckX = TRUCK_X;
+    renderPad();
+    // 一時停止した状態で戻す。「再開」で続きから走れる
+    setPaused(true);
+    $('pauseM').textContent = `新しい版に更新しました。${mode === 'ta' ? fmtTime(runTime) + ' ／ ' : ''}${fmtM(meters())} m 地点から続けられます`;
+  }
+  function boot(data) {
+    if (!data || !data.run) return;
+    mode = data.mode === 'ta' ? 'ta' : 'endless';
+    setMode(mode);
+    try { restoreRun(data.run); } catch (e) { reset(); state = 'title'; titleEl.hidden = false; }
+  }
   reset();
   setMode(mode);
+  const hot = window.claude && window.claude.hot;
+  if (hot && hot.snapshot) { try { hot.snapshot(snapshotRun); } catch (e) {} }
+  if (hot && hot.ready) hot.ready(boot); else boot(hot && hot.data);
   resize();
   renderTitleBest();
   drawIcons();
