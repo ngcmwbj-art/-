@@ -10,6 +10,8 @@ import './mall_roof';
 import './interior_north';
 // 南の列の部屋と公園のトイレ（ちずの家・なんばるわんの家・写真館・シャッターの3軒・トイレ、02 #59）
 import './interior_south';
+// 畦道の先の 分水（円筒分水・よねと とよぞう、02 #67）
+import './aze';
 // Chapter 2 『星見台のトマト』 (levels team, 52_ch2_level_art): the village and its rooms.
 import './hoshi_village';
 import './hoshi_qa';

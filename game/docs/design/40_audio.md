@@ -329,6 +329,7 @@
 | `map_mall_2f`（M4） | ― | ― | `bgm_mall`＋`amb_fluorescent` | ― |
 | `map_mall_maigo`（M5） | ― | ― | **BGMなし**＋`amb_fluorescent_flicker` | ― |
 | `map_mall_roof`（屋上 ゆうやけひろば ★2026-09-28、30 5.6） | ― | ― | モールの外なので町と同じ `bgm_town_s2`＋`amb_s2_town`＋`amb_wind`（位置で変えない。北東からの風） | ― |
+| `map_aze`（畦道の先の 分水 ★2026-09-29、30 3.14、02 #67） | 町と同じ `bgm_town_s0`（同じ ID なので続きから）＋`amb_higurashi`＋`amb_kawabe`（分水と水路の水の音）＋`amb_wind`（田んぼの風）。位置で変えない | `bgm_town_s1`＋`amb_still` だけ（分水が あふれる 途中で 止まっているので、水の音も 風も 止める） | `bgm_town_s2`＋`amb_s2_town`＋`amb_kawabe`＋`amb_wind` | ― |
 
 - ※1 段階0→1の切り替わり（17:00の瞬間）から `evt_hanko_given` までは**BGMなし**（`amb_still` と区域の環境音だけ）。`evt_hanko_given` で `bgm_town_s1` がフェードインする（13.1）。
 - ※2 区域の環境音は `30_level_art.md` 1.8 の環境音ゾーンに従う。ワールドは `map_town` に入ったら全部を v 0 で鳴らし始め、プレイヤーの位置から毎フレーム（10フレームに1回でよい）`setAmbientVol(id, v, 0.3)` で音量を決める：`amb_kawabe` は用水路（y36）に近いほど大きく、y28 より北で0。`amb_arcade` は `area_arcade` の中で1、外へ4タイルで0。`amb_wind` は `area_park` と `area_taigan` の中で1。`amb_higurashi` は、ひぐらしの木 (22,20) と公園の木から8タイル以内で +6dB。
@@ -1942,6 +1943,73 @@ se_uwabaki       上履きキック（ゴム底の「キュッ」）            
 
 ---
 
+### 9.10 ザリガニ釣り（対岸の水口。★2026-09-29、02 #66。10 7.21）
+
+夕方の 田んぼの 水口の、小さな音だけ。大きな音は 使わない（となりに たもつ）。音量は ほかの SE の はんい（v .005〜.055）。実装 `src/audio/sfx_tsuri.ts`。
+
+```
+se_tsuri_open     小窓が開く（紙を1枚めくる かわいた音と、水の気配）          130ms
+  L1 noise        env=8/90/0/40 dur=80 v=.035 flt=BP2600→4200q0.8
+  L2 sine  f=520→680/90 env=4/90/0/40 dur=60 v=.012 at=40
+se_tsuri_cast     するめを下ろす（割りばしを ふる、ひゅっ）                    120ms
+  L1 noise        env=20/60/0/30 dur=90 v=.02 flt=BP1800→3600q1.2
+se_tsuri_pochan   ポチャン（小さな水の音：高い「ぽ」と しぶき）  rand 5%/10%   200ms
+  L1 sine  f=1250→420/70 env=0/90/0/30 dur=40 v=.05
+  L2 noise        env=1/80/0/40 dur=60 v=.022 flt=BP2400q1.2
+  L3 sine  f=900→600/40 env=0/40/0/20 dur=15 v=.012 at=110
+se_tsuri_line     糸がはる（たこ糸なので 低めの「ピン」）                        100ms
+  L1 tri   f=1180→1520/60 env=1/70/0/30 dur=40 v=.028
+  L2 noise        env=0/25/0/10 dur=15 v=.008 flt=HP5000
+se_tsuri_tsun     ツン（味見。糸が小さく2回ふるえる）  rand 6%/10%               100ms
+  L1 tri   f=1480 env=0/20/0/8 dur=8 v=.03
+  L2 tri   f=1320 env=0/20/0/8 dur=8 v=.022 at=70
+  L3 noise        env=0/15/0/6 dur=6 v=.008 flt=BP4000q2
+se_tsuri_gui      ぐいっ（はさんで横へ引く：糸が のびる「グッ」と、はる音）       180ms
+  L1 sine  f=210→150/80 env=1/110/0/40 dur=60 v=.055
+  L2 tri   f=980→1400/90 env=2/100/0/40 dur=70 v=.026 at=20
+  L3 noise        env=2/80/0/30 dur=50 v=.012 flt=BP900q1
+se_tsuri_snag     ぐぐっ（長靴が 草の根に 引っかかる。重く にぶい）              300ms
+  L1 sine  f=160→120/140 env=4/160/0/60 dur=120 v=.05
+  L2 tri   f=700→820/160 env=6/160/0/60 dur=120 v=.016
+se_tsuri_reel     引き上げる間の 糸のきしみ（粒。長押しの間 82ms ごとに、pitch＝1＋0.6×はり、赤い所では vol 1.1）  max 3   100ms
+  L1 tri   f=620 env=6/60/.3/30 dur=70 v=.014 am=38/.5
+  L2 noise        env=4/50/0/20 dur=40 v=.005 flt=BP2600q2
+se_tsuri_slip     キュッ（赤い所に入った：はさみが すべる）                       120ms
+  L1 sq    f=2100→2600/60 env=0/50/0/20 dur=40 v=.014 flt=LP5000
+  L2 sq    f=2300→2800/50 env=0/40/0/20 dur=30 v=.01 at=70 flt=LP5000
+se_tsuri_thrash   暴れる（しっぽで水をたたく、ばちゃっ）  rand 6%/10%             120ms
+  L1 noise        env=1/90/0/40 dur=70 v=.026 flt=BP1400q0.9
+  L2 sine  f=520→300/60 env=0/60/0/20 dur=30 v=.015
+se_tsuri_poton    ぽとん（はなして水に落ちる）                                    160ms
+  L1 sine  f=760→260/110 env=0/130/0/40 dur=70 v=.05
+  L2 noise        env=1/70/0/30 dur=40 v=.014 flt=BP1800q1 at=10
+se_tsuri_hayai    早い！（しっぽを はねて逃げる：シュッ、泡）                      150ms
+  L1 noise        env=0/70/0/30 dur=50 v=.024 flt=BP3000→1400q1
+  L2 sine  f=1400→700/60 env=0/50/0/20 dur=20 v=.01 at=40
+  L3 sine  f=1600→900/50 env=0/40/0/20 dur=15 v=.008 at=90
+se_tsuri_net      たも網が水に入る（すっ）                                        200ms
+  L1 noise        env=30/120/0/60 dur=120 v=.016 flt=BP1600→900q0.9
+se_tsuri_agari    ざばっ（網ですくう、しずくが3つ）                              620ms
+  L1 noise        env=2/200/0/80 dur=150 v=.034 flt=BP1300q0.8
+  L2 noise        env=10/220/0/100 dur=180 v=.014 flt=BP3400q1 am=22/.5 at=40
+  L3 sine  f=1500→650/60 env=0/70/0/30 dur=18 v=.014 at=280
+  L4 sine  f=1300→600/50 env=0/60/0/30 dur=15 v=.011 at=420
+  L5 sine  f=1700→700/50 env=0/60/0/30 dur=15 v=.009 at=560
+se_tsuri_card     手帳を開く（計る）                                              110ms
+  L1 noise        env=10/100/0/40 dur=100 v=.04 flt=BP2400→4400q0.7
+  L2 noise        env=0/15/0/8 dur=8 v=.018 flt=HP6000 at=90
+se_tsuri_release  放す（ちゃぷ）                                                  120ms
+  L1 sine  f=880→520/60 env=0/80/0/30 dur=30 v=.03
+  L2 noise        env=4/60/0/30 dur=40 v=.01 flt=BP2000q1.2 at=30
+se_tsuri_nushi    ぬしの気配（土管の奥から 大きな泡、ゴボッ）  rev .25             450ms
+  L1 sine  f=140→90/220 env=10/260/0/120 dur=200 v=.05
+  L2 sine  f=420→900/160 env=5/180/0/60 dur=120 v=.018 at=160
+  L3 noise        env=20/200/0/80 dur=160 v=.01 flt=LP500
+```
+
+- 場所えらびの カーソルは `se_cursor`、計る 数字と 盛りは `se_pen_write`（盛りは pitch 1.15、なぞりは 0.9）、ラムネは `se_item`、たもつの浮きは `bgm_jingle_item`、カネナリくんは `se_flip`。BGM は 町の曲のまま（段階の曲）。「長押し！」の間も ダックしない（音が小さいので）。
+
+
 ## 10. ボイス（文字送りの音）
 
 `textBlip(voiceId, ch)`。会話ウィンドウが1文字出すたびにUIが呼ぶ。鳴らすかどうか、どの高さで鳴らすかはオーディオ側が決める。
@@ -1990,6 +2058,8 @@ se_uwabaki       上履きキック（ゴム底の「キュッ」）            
 | `kid` | ともき | sq | G5 | 0 2 4 7 | 20 | 2 | .045 | 子ども |
 | `ojii` | しんご | tri | G3 | 0 2 5 | 60 | 3 | .07 | vib 5Hz ±20セント |
 | `mizumaki` | ちず | p25 | F4 | 0 4 7 12 | 30 | 2 | .05 | 各ブリップの頭で +100セント→0（20ms。はずむ） |
+| `yone` **（★2026-09-29、02 #67）** | よね（畦道の先の 分水、70代） | tri＋sq（0.1） | D4 | 0 2 4 7 9 | 30、A2 | 2 | .055 | vib 6Hz ±10セント、各ブリップの頭で +60セント→0（15ms）。フォルマント。口が 早い。おばあ（E4・かすれ・間隔3）、マル（G4・ゆっくり）と 分ける |
+| `toyozou` **（★2026-09-29、02 #67）** | とよぞう（畦道の先の 分水、70代） | tri＋sine（0.5） | A2 | 0 2 5 7 | 62、A6 | 3 | .07 | LP1.5kHz、vib 4Hz ±10セント。フォルマント。低く まるく、言葉少な。トマじい（E3）、たもつ（F3・しゃがれ）、しんご（G3）より 低い |
 | `shadow` | ぶーさん | sq | A3 | 0 2 3 7 | 40 | 2 | .05 | LP500Hz Q2（こもる）、rev .3 |
 | `hato` | ハト／ハト係長 | p12 | E6 | 0 2 4 | 14 | 2 | .035 | |
 | `dog` | コタロウ | sq | A3 | 0 0 3 | 30 | 3 | .05 | LP900Hz。段階1以降は −100セント |
@@ -2002,6 +2072,7 @@ se_uwabaki       上履きキック（ゴム底の「キュッ」）            
 | `omukaemachi` | オムカエマチ | ①saw 110Hz LP600（A60 R150、v .04）②tri A5（音列 0 2 3 7、v .035、15ms遅れ） | | | ①120 ②40 | 3 | | 2層を同時に。rev .5。子ども（×1.2）のフォルマントを②に |
 | `flip` | カネナリくんのフリップ | saw BP2.4kHz Q4（ペン先） | 2000Hz | 0 1 | 35、vib 28Hz ±60セント | 3 | .02 | ページの1文字目だけ `se_flip` をまるごと鳴らす |
 | `kanenari_voice` | カネナリくんの声（エンディングで1回） | tri＋saw（0.2） | D3 | 下の表 | 140、A20 R100 | 1 | .07 | フォルマント、rev .35。言葉には聞こえない、母音の色のついたやわらかいハミング |
+| `tamotsu` **（新規 ★2026-09-29、02 #66）** | たもつ（閉店した つりえさ屋の元店主、70代。10 6.25） | tri＋sq（0.18）、LP1.5kHz、ノイズ（BP1.6kHz、0.1。少し しゃがれ） | F3 | 0 3 5 | 52、A3 | 3 | .06 | vib 4Hz ±8セント、フォルマント。短く ぶっきらぼう。しんご（G3）・トマじい（E3）・ツガオ（のこぎり波）と 基準音・波形で分ける |
 
 **`kanenari_voice` の「……おいしい。」**（`{spd=0.4}`。1文字＝1ブリップ）
 
@@ -2424,8 +2495,11 @@ export function unlockAudio(): void;                                     // 既�
 **SE：戦闘・敵の技**
 `se_meishi` `se_semi_buzz` `se_semi_miin` `se_cone_sing` `se_cone_tap` `se_siren` `se_umbrella_open` `se_drip` `se_hug` `se_ojigi_press` `se_roulette` `se_atari` `se_hazure` `se_vending_voice` `se_vacuum` `se_bump` `se_momi` `se_remote` `se_glove` `se_bottle` `se_uwabaki`
 
+**SE：ザリガニ釣り（02 #66）**
+`se_tsuri_open` `se_tsuri_cast` `se_tsuri_pochan` `se_tsuri_line` `se_tsuri_tsun` `se_tsuri_gui` `se_tsuri_snag` `se_tsuri_reel` `se_tsuri_slip` `se_tsuri_thrash` `se_tsuri_poton` `se_tsuri_hayai` `se_tsuri_net` `se_tsuri_agari` `se_tsuri_card` `se_tsuri_release` `se_tsuri_nushi`
+
 **ボイス**
-`narr` `sys` `mother` `maruyama` `obaa` `mamekichi` `inui` `tsurumi` `sae` `jk` `chugaku` `postman` `madam` `girl` `kid` `ojii` `mizumaki` `shadow` `hato` `dog` `cat` `crow` `tv` `broadcast` `broadcast_child` `vending` `omukaemachi` `flip` `kanenari_voice`
+`narr` `sys` `mother` `maruyama` `obaa` `mamekichi` `inui` `tsurumi` `sae` `jk` `chugaku` `postman` `madam` `girl` `kid` `ojii` `mizumaki` `shadow` `hato` `dog` `cat` `crow` `tv` `broadcast` `broadcast_child` `vending` `omukaemachi` `flip` `kanenari_voice` `tamotsu` `yone` `toyozou`（★2026-09-29、02 #67）
 
 **音楽パラメータ・空間**
 `stage` `kire` `boss_phase` `muffle`／`outdoor` `room` `hall` `maigo` `battle` `night`

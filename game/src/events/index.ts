@@ -17,6 +17,10 @@ import './kensui';
 import './parking';
 // バス停のマル（とまたろうの妻。02 #65）
 import './maru';
+// 対岸の たもつと ザリガニ釣り（02 #66）
+import './tamotsu';
+// 畦道の先の 分水（よねと とよぞう）と、祠の きつねの 常連（くま吉の 油揚げ）（02 #67）
+import './aze';
 import './mall';
 import './mall_roof';
 import './ending';

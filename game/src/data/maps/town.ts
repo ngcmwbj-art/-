@@ -50,7 +50,7 @@ const ROWS = [
   '~~~::%%%::::::::::::::~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 40 gravel approach to the shrine
   '~~~~~o%o~~~~:~~~o~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 41
   '~~~~~~~~~~~~:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 42
-  '~~~~~~~~~~~~:~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 43
+  '~~~~~~~~~~~~E~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~FbRbF,', // 43 E: on to 畦道の先の 分水 (map_aze, 02 #67)
 ];
 
 export const TOWN_LEGEND: Record<string, TileSpec> = {
@@ -90,6 +90,8 @@ export const TOWN_LEGEND: Record<string, TileSpec> = {
   b: { ground: 'ballast', solid: true },
   R: { ground: 'rail', solid: true },
   X: { ground: 'crossing', solid: true, tag: 'crossing' },
+  // the paddy path's south end: it goes on to the diversion (door_town_aze → map_aze, 02 #67)
+  E: { ground: 'dirt', solid: true, door: true },
 };
 
 const s0 = { stage: 0 };
@@ -331,12 +333,21 @@ const OBJECTS: MapObj[] = [
 [-]`, text2: `@narr
 きつねは、すまし顔の ままだ。` } as MapObj,
   { t: 'prop', prop: 'prop_torii', x: 5, y: 41 },
+  // きつねの 常連 (10 7.22, 02 #67): the little dish in front of the east fox (events/aze.ts)
+  { t: 'prop', prop: 'prop_kitsune_sara', x: 7, y: 38 },
+  { t: 'obj', id: 'obj_kitsune_sara', x: 7, y: 38, face: 'up', script: 'obj_kitsune_sara', text: `@narr
+きつねの 前に、からっぽの 小皿。` } as MapObj,
   O('obj_scarecrow', 16, 41, { face: 'down' }),
+  // たもつの水口 (02 #66, 10 7.21): the pipe mouth in the ridge, the fall, the PET-bottle
+  // trap — examined from the path (20,40) facing south; the pool is kept clear of rice (water.ts INLETS 'p')
+  { t: 'obj', id: 'obj_tamotsu_mizuguchi', x: 20, y: 41, face: 'down', prop: 'prop_tamotsu_mizuguchi' } as MapObj,
   // an egret wading in the far paddy, another near the water gate
   { t: 'prop', prop: 'prop_heron', x: 24, y: 42, opts: { seed: 0 }, cond: s02 },
   { t: 'prop', prop: 'prop_heron', x: 43, y: 40, opts: { seed: 3 }, cond: s02 },
   O('obj_paddy', 13, 41, { w: 45, h: 3, face: 'down', flat: true }),
-  { t: 'trig', id: 'trig_edge_south', x: 12, y: 43, w: 1, h: 1, on: 'bump', text: OBJ.obj_edge_south as string },
+  // the paddy path goes on south to 畦道の先の 分水 (map_aze; its one line
+  // 「畦道の 先は、となり町。」 moved to that map's south end. 02 #67)
+  { t: 'door', id: 'door_town_aze', x: 12, y: 43, to: 'map_aze', tx: 12, ty: 1, dir: 'down', se: 'se_step_dirt' },
   { t: 'trig', id: 'trig_edge_west', x: 0, y: 21, w: 1, h: 2, on: 'bump', text: OBJ.obj_edge_west as string },
   { t: 'trig', id: 'trig_edge_west2', x: 0, y: 33, w: 1, h: 2, on: 'bump', text: OBJ.obj_edge_west as string },
   { t: 'prop', prop: 'tree_cherry', x: 16, y: 35, opts: { v: 0 } },
@@ -442,6 +453,8 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_shadow_man', x: 8, y: 6, dir: 'down', cond: { stage: 2 }, talk: TALK.npc_shadow_man, ghost: true, noTurn: true, shadow: 0 },
   // マル (10 6.24, 02 #65): beside the bus stop 「ユウナリ前」, seated on her walker, facing the lane
   { t: 'npc', id: 'npc_maru', x: 34, y: 12, dir: 'right', cond: { stage: 2 }, script: 'npc_maru', pose: 'sit' },
+  // たもつ (10 6.25, 02 #66): the east end of the paddy path, on his upturned bucket, watching the inlet
+  { t: 'npc', id: 'npc_tamotsu', x: 21, y: 39, dir: 'down', cond: s02, script: 'npc_tamotsu', pose: 'sit' },
   {
     t: 'npc', id: 'npc_kanenari', x: 16, y: 9, dir: 'down', cond: { stage: '1-2', notFlag: 'flag_kanenari_joined' },
     script: 'evt_kanenari_meet', move: { kind: 'orbit', cx: 256, cy: 112, r: 32, period: 6000, cw: true, waveEvery: 7000 },

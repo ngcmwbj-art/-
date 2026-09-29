@@ -410,6 +410,41 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// たもつの浮き (対岸の水口のぬし, 10_narrative 6.25, 02_ch2_index #66): an old float
+// standing upright — a red cap, a white body with a gold band, a thin stem below, the
+// line's little ring at the top
+Object.assign(ITEM_ROWS, {
+  item_tamotsu_uki: [
+    '....gg....',
+    '....rr....',
+    '...rlrR...',
+    '...rrrR...',
+    '...wwwd...',
+    '...OOOo...',
+    '...wwwd...',
+    '....wd....',
+    '....y.....',
+    '....b.....',
+  ],
+});
+
+// 油揚げ (祠の きつねの 常連, 10_narrative 6.4〔abura〕・7.22, 02_ch2_index #67): one sheet of
+// fried tofu, golden, puffed, its crisp skin freckled with little blisters, the edges browner
+Object.assign(ITEM_ROWS, {
+  item_abura_age: [
+    '..........',
+    '..jjjjjjj.',
+    '.jOOoooooh',
+    '.jOoYooyoh',
+    '.joooooooh',
+    '.jooyooYoh',
+    '.jYooooooh',
+    '.joooyoooh',
+    '..hhhhhhhh',
+    '..........',
+  ],
+});
+
 // 名前の石 (沢の上, 50 10.22, 02_ch2_index #65): a flat grey stone from the stream, two
 // names scratched in it — a long one (とまたろう) and, under it, a short one (マル) — moss
 Object.assign(ITEM_ROWS, {

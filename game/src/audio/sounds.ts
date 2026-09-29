@@ -19,5 +19,7 @@ import './sfx';
 import './sfx_ch2';
 // 捕まえない自由研究の虫の声（02_ch2_index #64）
 import './sfx_mushi';
+// ザリガニ釣り（02_ch2_index #66）
+import './sfx_tsuri';
 import './ambience_ch2';
 import './voices';

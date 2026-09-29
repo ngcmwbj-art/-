@@ -12,6 +12,8 @@ import './park';
 import './parking';
 import './lot_life';
 import './riverside';
+// 対岸の たもつの 水口と、つりえさ屋の ザリ拓（02_ch2_index #66）
+import './tamotsu';
 import './rooms';
 // Chapter 2 『星見台のトマト』 (levels team, 52_ch2_level_art 7章)
 import './hoshi_bld';

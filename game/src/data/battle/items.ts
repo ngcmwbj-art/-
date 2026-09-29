@@ -48,6 +48,10 @@ const items: ItemDef[] = [
   { id: 'item_ashita_tegami', name: '『あした』宛ての手紙', key: true, target: 'none', desc: ['差出人『ユウナリ 迷子センター』。すみに 黒い しみ。', '切手は、はなまる。'], battleText: ['手紙を 見せた。\n……宛先は、ここでは ない。'] },
   // 10 6.6〔懸垂〕（02 #64）：公園の鉄棒で懸垂に挑戦したあと、交番のワイスタ巡査から
   { id: 'item_hanamaru_kensui', name: 'はなまる「懸垂挑戦！」', key: true, target: 'none', desc: ['ワイスタ巡査の 手帳の 1枚。', '赤ペンの はなまる。記録は 0回。'], battleText: ['はなまるを 見せた。\n$enemyは 少し 背すじを のばした。'] },
+  // 10 6.25〔ぬし〕（02 #66）：対岸の水口で ぬしを 釣ったあと、たもつから
+  { id: 'item_tamotsu_uki', name: 'たもつの浮き', key: true, target: 'none', desc: ['つりえさ屋の、最後の 浮き。', '針は ついていない。'], battleText: ['浮きを 見せた。\n$enemyは、浮きを 見ている だけだ。'] },
+  // 10 6.4〔abura〕（02 #67）：祠の からっぽの小皿を 見たあと、くま吉から ただで。祠で のせると 外れる
+  { id: 'item_abura_age', name: '油揚げ', key: true, target: 'none', desc: ['豆腐くま吉の 油揚げ。1枚。', 'お代は、祠の きつねの ツケ。'], battleText: ['油揚げを 見せた。\n……これは、きつねの 分だ。'] },
   // 大事なもの（第2章、50 7.1）
   {
     id: 'item_hanamaru_tomato', name: 'はなまるトマト', key: true, target: 'none', special: 'tomato', usableInBattleWith: ['boss_yobimodoshi'], priority: 2,

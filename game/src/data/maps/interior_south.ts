@@ -337,6 +337,8 @@ registerMap({
   objects: [
     PR('in_sb_shell', 0, 0),
     PR('in_sb_fish', 6, 0),
+    // たもつの ザリ拓（魚拓の となり。記録ができてから。02 #66、10 7.21）
+    { t: 'prop', prop: 'prop_zari_taku', x: 7, y: 0, cond: { flag: 'flag_zari_best' } } as MapObj,
     PR('in_sb_case', 1, 2),
     PR('in_sb_rods', 4, 2),
     PR('in_sb_tank', 7, 2),

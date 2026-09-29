@@ -39,6 +39,7 @@ import { debugDeliveryAlmost } from './tsugao';
 import { ROOMS2_TEXTS } from './rooms2';
 import { MUSHI_PAGES } from '../../data/text/hoshi_mushi';
 import { MARU_CH1, MARU_END, MARU_TOME, SAWA_EVT, SAWA_FLIP, SAWA_FUMI, SAWA_OBJ, SAWA_WAKIMIZU } from '../../data/text/maru';
+import { AZE_TEXTS } from '../../data/text/aze';
 
 type Step = () => void;
 
@@ -358,6 +359,8 @@ function collectTexts(): [string, string][] {
   // マルととまたろう・沢の上 (10_narrative 6.24, 50 3.10・10.22・10.16, 02_ch2_index #65; 第1章のマルも)
   walk('maru', { ch1: MARU_CH1, tome: MARU_TOME, end: MARU_END, fumi: SAWA_FUMI, flip: SAWA_FLIP });
   walk('sawa', { obj: SAWA_OBJ, evt: SAWA_EVT, wakimizu: SAWA_WAKIMIZU });
+  // 第1章の 畦道の先の 分水・きつねの 常連 (10_narrative 6.26・7.22, 02_ch2_index #67)
+  walk('aze', AZE_TEXTS);
   // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line
   // lines shown without a speaker (HOUKI_LINE's float note: the same 336 px)
   for (const [k, v] of Object.entries(EV)) if (typeof v === 'string' && (v.startsWith('@') || v.startsWith('!cue') || v.includes('\n'))) out.push([`ev.${k}`, v]);

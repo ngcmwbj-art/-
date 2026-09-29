@@ -536,6 +536,8 @@ function riceLayer(map: LoadedMap, lean: number): { c: HTMLCanvasElement; x0: nu
     ctx.fillRect(x, y, 1, 1);
   };
   const isPaddy = (wx: number, wy: number) => groundAt(map, Math.floor(wx / 16), Math.floor(wy / 16)) === 'paddy';
+  // the share of tufts with a drooping ear (0 = the town's even green, MapDef.riceHeads)
+  const heads = map.def.riceHeads ?? 0;
   const leafMid = [P.leafYoung, P.leaf, P.leafDeep, P.leafShade];
   const leafRich = [P.leaf, P.leafDeep, P.leafShade, P.ink];
   const leafPale = [P.leafLt, P.leafYoung, P.leaf, P.leafDeep];
@@ -590,6 +592,17 @@ function riceLayer(map: LoadedMap, lean: number): { c: HTMLCanvasElement; x0: nu
       px(lx + bendT, ty2 + tipUp, P.leaf);
       if ((hh >>> 13) % 2) px(lx + 2 + bendT, ty2 + tipUp, P.leafYoung);
       if ((hh >>> 14) % 6 === 0) px(lx + 1 + bendT, ty2 - 1 + tipUp, P.goldPale);
+      // headed rice (MapDef.riceHeads, 02 #67: 8月31日、穂が出て 垂れはじめた 稲): an ear
+      // arching over from the top of the stem, yellow-green, its tip hanging lower
+      if (heads > 0 && ((hh >>> 16) % 100) < heads * 100) {
+        const side = lean === 1 ? -1 : lean === 2 ? 1 : (hh >>> 23) & 1 ? 1 : -1;
+        const ex = lx + 1 + bendT;
+        const ey = ty2 + tipUp;
+        px(ex, ey - 1, P.leafLt);
+        px(ex + side, ey - 1, P.goldPale);
+        px(ex + 2 * side, ey, P.goldPale);
+        px(ex + 2 * side, ey + 1, (hh >>> 20) % 3 ? P.leafLt : P.brass);
+      }
     }
   }
   // water inlets (水口): a concrete notch in the ridge where water runs in,
@@ -597,6 +610,12 @@ function riceLayer(map: LoadedMap, lean: number): { c: HTMLCanvasElement; x0: nu
   for (const [wx, wy, dir] of INLETS) {
     const lx = wx - x0 * 16;
     const ly = wy - y0 * 16;
+    // たもつの水口 (02 #66): only the pool is kept clear; the pipe, the fall and
+    // the trap are the prop_tamotsu_mizuguchi drawn over it
+    if (dir === 'p') {
+      ctx.clearRect(lx - 7, ly - 9, 17, 12);
+      continue;
+    }
     ctx.clearRect(lx - 1, ly - 5, dir === 'w' ? 9 : 6, dir === 'w' ? 7 : 10);
     if (dir === 'w') {
       // on the west bank: box in the ridge, water flowing east
@@ -674,9 +693,11 @@ export function paddyStars(map: LoadedMap): [number, number, number][] {
 const PADDY_PATCH: [number, number] = [31.5 * 16, 41 * 16 + 8];
 
 /** Water inlets of the paddies (world px, which bank they sit on). */
-const INLETS: [number, number, 'w' | 'n'][] = [
+const INLETS: [number, number, 'w' | 'n' | 'p'][] = [
   [13 * 16 + 1, 42 * 16 + 7, 'w'],
   [36 * 16 + 6, 39 * 16 + 5, 'n'],
+  // たもつの水口 (20,41): the pool round the pipe mouth and the trap (02 #66)
+  [20 * 16 + 7, 41 * 16 + 11, 'p'],
 ];
 
 /**

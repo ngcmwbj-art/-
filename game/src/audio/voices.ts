@@ -69,6 +69,14 @@ export const VOICES: Record<string, VoiceDef> = {
   // マル (02 #65, 53 9.1): とまたろうの妻、89歳。小さく、やわらかく、ゆっくり。おばあ（E4・かすれ）、
   // ぴょん夫人（B4・速い）と、基準音・速さ・ビブラートで分ける
   maru: { label: 'マル（とまたろうの妻）', wave: 'triangle', base: 'G4', scale: [0, 2, 4, 7], len: 48, A: 6, every: 3, v: 0.055, vib: [5, 14], lp: 2200, formant: true },
+  // たもつ (02 #66, 40 10): 70代、閉店した つりえさ屋。低くて ぶっきらぼう、少し しゃがれ。
+  // しんご（G3・三角波・大きいビブラート）、トマじい（E3）、ツガオ（のこぎり波）と分ける
+  tamotsu: { label: 'たもつ（元つりえさ屋）', wave: 'triangle', wave2: ['square', 0.18], base: 'F3', scale: [0, 3, 5], len: 52, A: 3, every: 3, v: 0.06, lp: 1500, vib: [4, 8], formant: true, noise: { bp: 1600, q: 1, level: 0.1 } },
+  // よねと とよぞう (02 #67, 40 10): 円筒分水の 2人、70代。よねは 口が 早い 中音
+  // （おばあ E4・かすれ、マル G4・ゆっくり と、速さと 声の 立ちあがりで 分ける）、
+  // とよぞうは 低くて 言葉少な（たもつ F3・しゃがれ、トマじい E3 より 低く、まるい）
+  yone: { label: 'よね（分水）', wave: 'triangle', wave2: ['square', 0.1], base: 'D4', scale: [0, 2, 4, 7, 9], len: 30, A: 2, every: 2, v: 0.055, vib: [6, 10], formant: true, scoop: [60, 15] },
+  toyozou: { label: 'とよぞう（分水）', wave: 'triangle', wave2: ['sine', 0.5], base: 'A2', scale: [0, 2, 5, 7], len: 62, A: 6, every: 3, v: 0.07, vib: [4, 10], lp: 1500, formant: true },
   mizumaki: { label: 'ちず', wave: 'pulse25', base: 'F4', scale: [0, 4, 7, 12], len: 30, every: 2, v: 0.05, scoop: [100, 20] },
   shadow: { label: 'ぶーさん', wave: 'square', base: 'A3', scale: [0, 2, 3, 7], len: 40, every: 2, v: 0.05, lp: 500, lpQ: 2, rev: 0.3 },
   hato: { label: 'ハト／ハト係長', wave: 'pulse12', base: 'E6', scale: [0, 2, 4], len: 14, every: 2, v: 0.035 },
