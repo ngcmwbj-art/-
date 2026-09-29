@@ -421,6 +421,8 @@ canvas { display: block; width: 100%; height: 100%; }
   const ACCEL = 170;             // 減速から立ち直る加速（px/s²）
   const BUMP_LIMIT = 3;          // ボコボコ道に何回乗るとパンクするか
   const GOAL_M = 1000;           // タイムアタックの距離
+  const STEP_LO = 56;            // 1回のジャンプで登れる段（土手）
+  const STEP_HI = 150;           // 2段ジャンプでないと登れない段（石垣）。1回のジャンプの頂点は約132
   const TA_SEED = 20260929;      // タイムアタックは毎回同じコース
   const GHOST_DT = 1 / 30;       // ゴーストを記録する間隔（秒）
 
@@ -438,13 +440,13 @@ canvas { display: block; width: 100%; height: 100%; }
     set(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} },
   };
   let best = Number(store.get('keitora-best', 0)) || 0;               // エンドレスの最長距離（m）
-  let bestTime = Number(store.get('keitora-best-time-3', 0)) || 0;      // タイムアタックの最速（秒）
+  let bestTime = Number(store.get('keitora-best-time-4', 0)) || 0;      // タイムアタックの最速（秒）
   let soundOn = store.get('keitora-sound', '1') === '1';
   let mode = store.get('keitora-mode', 'endless') === 'ta' ? 'ta' : 'endless';
   let bestScore = Number(store.get('keitora-best-score', 0)) || 0;    // エンドレスの配達スコア
   function loadGhost() {
     try {
-      const g = JSON.parse(store.get('keitora-ghost-3', 'null'));
+      const g = JSON.parse(store.get('keitora-ghost-4', 'null'));
       return g && g.seed === TA_SEED && Array.isArray(g.f) && g.f.length >= 6 ? g : null;
     } catch (e) { return null; }
   }
@@ -575,6 +577,9 @@ canvas { display: block; width: 100%; height: 100%; }
   let cam, speed, vel, runTime, truck, obs, parts, nextX, slip, shake, flash, jumpBuf, holding, dieT, wheelA;
   let stats, banner, lastMile, passedBest, popups, bumpHits, tireFlash, goalTime;
   let tomatoes, ghostRec, recT, seasonIdx, score, scoreM, lastRefill;
+  let steps = [];                // 段差：{ x: 壁の位置, h: そこから先の高さ（px） }
+  let camY = 0;                  // 段の上に登ったとき、画面を少し上へずらす量
+  let clock = 0;                 // 飾りのアニメーション用（一時停止中も進む）
   const REFILL_M = 500;          // エンドレスでトマト畑に寄る間隔
   let truckX = 560;              // 描画上の軽トラの位置（タイトルでは右寄せ）
   const seenTypes = new Set();   // このセッションで説明済みの障害物
@@ -598,7 +603,7 @@ canvas { display: block; width: 100%; height: 100%; }
     cam = 0; speed = 250; vel = 250; runTime = 0;
     truck = { y: GROUND, vy: 0, grounded: true, falling: false, dead: false, coyote: 0, bumpT: 0, jumped: false,
       angle: 0, fallV: 0, fallT: 0, squash: 0, dent: 0, flat: false, spilled: false, pit: null, airJumps: 0 };
-    obs = []; parts = []; popups = [];
+    obs = []; parts = []; popups = []; steps = []; camY = 0;
     nextX = 900;
     slip = 0; shake = 0; flash = 0; jumpBuf = 0; holding = false; dieT = 0; wheelA = 0;
     stats = { jumps: 0, boars: 0, maxKmh: 0, slows: 0, lost: 0 };
@@ -639,7 +644,7 @@ canvas { display: block; width: 100%; height: 100%; }
       const sp = cruise(m);
       const type = m < 80
         ? pick([['gap', 70], ['puddle', 30]])
-        : pick([['gap', 40], ['puddle', 20], ['bump', m > 150 ? 16 : 8], ['boar', m > 200 ? 18 : 0]]);
+        : pick([['gap', 40], ['puddle', 20], ['bump', m > 150 ? 16 : 8], ['boar', m > 200 ? 18 : 0], ['terrace', m > 120 ? 14 : 0]]);
       if (type === 'gap') {
         // 減速していても跳べるよう、少し控えめの速度で幅を決める
         // 500 m を過ぎると、ときどき2段ジャンプ前提の広い穴が混ざる（距離が伸びるほど増える）
@@ -657,6 +662,25 @@ canvas { display: block; width: 100%; height: 100%; }
         const w = Math.max(56, sp * 0.85 * (AIR - bumpWindow(m)) * rr(0.6, 1));
         obs.push({ t: 'bump', x: nextX, w, seed: rng() * 100, hit: false });
         nextX += w + spacing() * 0.8 + sp * 0.8;
+      } else if (type === 'terrace') {
+        // 棚田：段を登って、上の田んぼのあぜ道を走り、また下りる。
+        // 350 m を過ぎると、2段ジャンプでないと登れない石垣が混ざる
+        const hiOk = m > 350;
+        const first = hiOk && rng() < Math.min(0.5, 0.2 + (m - 350) / 2000) ? STEP_HI : STEP_LO;
+        // 段の手前は踏み切りのための助走区間を空ける（石垣は壁の0.3秒ほど手前で跳ぶ必要がある）
+        let x = nextX + sp * (first === STEP_HI ? 0.55 : 0.3) + 60, h = first;
+        const plan = [[x, h]];
+        x += rr(0.9, 1.5) * sp;
+        if (first === STEP_LO && m > 250 && rng() < 0.45) {
+          // 土手をもう一段（両方とも1回のジャンプで登れる）。奥で2段目が石垣になることも
+          h += hiOk && rng() < 0.3 ? STEP_HI - STEP_LO : STEP_LO;
+          plan.push([x, h]);
+          x += rr(0.9, 1.4) * sp;
+        }
+        plan.push([x, 0]);
+        if (x + spacing() > limit) break;
+        for (const [px, ph] of plan) steps.push({ x: px, h: ph, seen: false });
+        nextX = x + spacing() + sp * 0.35;
       } else {
         // イノシシは画面の右端から出てくるので、その手前を空けておく
         const bx = nextX + 650;
@@ -667,8 +691,30 @@ canvas { display: block; width: 100%; height: 100%; }
       }
     }
     obs = obs.filter(o => (o.t === 'boar' ? (o.state !== 'gone') : (o.x + o.w > cam - 200)));
+    while (steps.length > 1 && steps[1].x < cam - 600) steps.shift();
   }
 
+  function levelAt(wx) {
+    let h = 0;
+    for (const st of steps) { if (st.x <= wx) h = st.h; else break; }
+    return h;
+  }
+  const groundAt = wx => GROUND - levelAt(wx);
+  // 軽トラを支える地面：前輪と後輪の下のうち高いほう
+  // （壁にぶつかったあとは、段の上に吸い上げられないよう後輪の下だけを見る）
+  const supportY = () => truck.deathKind === 'wall' ? groundAt(cam + TRUCK_X + 18)
+    : Math.min(groundAt(cam + TRUCK_X + 18), groundAt(cam + TRUCK_X + 80));
+  function levelSegments(x0, x1) {
+    const out = [];
+    let h = levelAt(x0), a = x0;
+    for (const st of steps) {
+      if (st.x <= x0) continue;
+      if (st.x >= x1) break;
+      out.push({ a, b: st.x, h }); a = st.x; h = st.h;
+    }
+    out.push({ a, b: x1, h });
+    return out;
+  }
   function find(t, wx) {
     for (const o of obs) if (o.t === t && wx > o.x && wx < o.x + o.w) return o;
     return null;
@@ -813,6 +859,7 @@ canvas { display: block; width: 100%; height: 100%; }
     fall: ['泥の斜面を転げ落ちた!', 'トマトが泥だらけ…'],
     boar: ['イノシシに激突!', '軽トラがボコボコ…'],
     flat: ['タイヤがパンクした!', 'ボコボコ道に 3 回乗り上げた'],
+    wall: ['あぜに激突!', '段差を登りきれなかった…'],
   };
   function die(kind) {
     if (state !== 'play') return;
@@ -825,6 +872,12 @@ canvas { display: block; width: 100%; height: 100%; }
       shake = 0.5; flash = 0.25; truck.dent = 1; truck.spilled = true;
       sfx('crash');
       spillTomatoes(14, cam + TRUCK_X + 28, GROUND - 50, [-60, 260]);
+    } else if (kind === 'wall') {
+      shake = 0.45; flash = 0.2; truck.dent = 1; truck.spilled = true;
+      truck.vy = -220;
+      sfx('crash');
+      spillTomatoes(12, cam + TRUCK_X + 28, truck.y - 50, [-40, 220]);
+      emit(16, cam + TRUCK_FRONT, truck.y - 20, { vx: [-220, 60], vy: [-300, -60], life: [0.4, 0.8], r: [2, 5], col: '#8a6440' });
     } else if (kind === 'flat') {
       truck.flat = true; shake = 0.2;
       sfx('pop');
@@ -857,9 +910,9 @@ canvas { display: block; width: 100%; height: 100%; }
       rec = prev === 0 || goalTime < prev;
       if (rec) {
         bestTime = goalTime;
-        store.set('keitora-best-time-3', bestTime.toFixed(3));
+        store.set('keitora-best-time-4', bestTime.toFixed(3));
         ghost = { seed: TA_SEED, dt: GHOST_DT, t: goalTime, f: ghostRec };
-        store.set('keitora-ghost-3', JSON.stringify(ghost));
+        store.set('keitora-ghost-4', JSON.stringify(ghost));
       }
       reasonEl.textContent = 'ゴール!';
       reasonEl.classList.add('win');
@@ -977,6 +1030,8 @@ canvas { display: block; width: 100%; height: 100%; }
     truck.coyote -= dt;
     slip -= dt;
     tireFlash = Math.max(0, tireFlash - dt);
+    const lift = GROUND - supportY();
+    camY += (lift * 0.7 - camY) * Math.min(1, dt * 3);
     if (state === 'play' && jumpBuf > 0 && truck.coyote > 0 && slip <= 0) {
       truck.vy = -JUMP_V * (find('bump', cx) ? 0.8 : 1);
       truck.grounded = false;
@@ -985,7 +1040,7 @@ canvas { display: block; width: 100%; height: 100%; }
       jumpBuf = 0;
       stats.jumps++;
       sfx('jump');
-      emit(6, cam + TRUCK_X + 16, GROUND, { vx: [-160, -40], vy: [-160, -40], life: [0.3, 0.6], r: [3, 6], col: '#b89468' });
+      emit(6, cam + TRUCK_X + 16, truck.y, { vx: [-160, -40], vy: [-160, -40], life: [0.3, 0.6], r: [3, 6], col: '#b89468' });
     } else if (state === 'play' && jumpBuf > 0 && !truck.grounded && truck.airJumps < 1 && slip <= 0) {
       // 2段ジャンプ：空中でもう一度だけ跳べる（1回目より少し弱い）
       truck.vy = -JUMP_V * 0.82;
@@ -1019,15 +1074,19 @@ canvas { display: block; width: 100%; height: 100%; }
           truck.vy = Math.max(truck.vy, 100);
           die('fall');
         }
-      } else if (truck.y >= GROUND) {
+      } else if (state === 'play' && groundAt(cam + TRUCK_FRONT - 6) < groundAt(cam + TRUCK_X + 18) - 1
+        && truck.y > groundAt(cam + TRUCK_FRONT - 6) + 6) {
+        // 前に登りの段があって、その壁に正面からぶつかった
+        die('wall');
+      } else if (truck.y >= supportY()) {
         if (!truck.grounded && truck.vy > 500) {
           // 目いっぱい跳んでドスンと着地すると、ときどきトマトが落ちる
           if (truck.vy > 740 && Math.random() < 0.2) loseTomato(1, 'ドスン! トマトが落ちた');
           sfx('land');
           truck.squash = 1;
-          emit(8, cam + TRUCK_X + 20, GROUND, { vx: [-200, 40], vy: [-120, -20], life: [0.3, 0.6], r: [3, 6], col: '#b89468' });
+          emit(8, cam + TRUCK_X + 20, supportY(), { vx: [-200, 40], vy: [-120, -20], life: [0.3, 0.6], r: [3, 6], col: '#b89468' });
         }
-        truck.y = GROUND; truck.vy = 0;
+        truck.y = supportY(); truck.vy = 0;
         truck.grounded = true; truck.jumped = false; truck.airJumps = 0;
         truck.coyote = 0.09;
       } else {
@@ -1069,14 +1128,14 @@ canvas { display: block; width: 100%; height: 100%; }
         }
       }
       if (truck.grounded && vel > 60 && Math.random() < dt * 18) {
-        emit(1, cam + TRUCK_X + 8, GROUND - 2, { vx: [-90, -30], vy: [-60, -10], life: [0.3, 0.6], r: [3, 6], col: slip > 0 ? '#7c9bb0' : '#c7a77c', g: 60 });
+        emit(1, cam + TRUCK_X + 8, truck.y - 2, { vx: [-90, -30], vy: [-60, -10], life: [0.3, 0.6], r: [3, 6], col: slip > 0 ? '#7c9bb0' : '#c7a77c', g: 60 });
       }
     }
 
     // 角度
     if (!truck.falling) {
       let target = 0;
-      if (truck.deathKind === 'boar') target = -0.12;
+      if (truck.deathKind === 'boar' || truck.deathKind === 'wall') target = -0.12;
       else if (truck.flat) target = 0.07;
       else if (!truck.grounded) target = clamp(truck.vy / 2500, -0.2, 0.3);
       truck.angle += (target - truck.angle) * Math.min(1, dt * 10);
@@ -1086,6 +1145,7 @@ canvas { display: block; width: 100%; height: 100%; }
     updateBoars(dt);
 
     // 初めて見る障害物は、軽トラを通り過ぎたら説明済みにする
+    for (const st of steps) if (st.x < cam + TRUCK_X) seenTypes.add(stepKind(st));
     for (const o of obs) {
       if (o.t !== 'boar' && o.x + o.w < cam + TRUCK_X) seenTypes.add(o.t);
       if (o.t === 'boar' && o.counted) seenTypes.add('boar');
@@ -1105,6 +1165,13 @@ canvas { display: block; width: 100%; height: 100%; }
     }
   }
 
+  // 段の種類：登る段は高さで土手か石垣か、下りる段は 'down'
+  function stepKind(st) {
+    const i = steps.indexOf(st);
+    const prev = i > 0 ? steps[i - 1].h : 0;
+    const dh = st.h - prev;
+    return dh <= 0 ? 'down' : dh > 100 ? 'stepHi' : 'stepLo';
+  }
   // 泥の斜面を滑り落ち、車体の前後の軸でごろごろ横転する
   const MUD_COLS = ['#3e2814', '#4f341b', '#5f4124', '#6e4c2b'];
   function mudSplash(n, wx, y, spread, up) {
@@ -1207,7 +1274,7 @@ canvas { display: block; width: 100%; height: 100%; }
       // トマトは道で止まる
       if (p.tomato || p.stick) {
         const pit = find('gap', p.x);
-        const floor = (pit ? Math.min(pitSurface(pit, p.x), WATER_Y + 2) : GROUND) - (p.tomato ? 4 : 1);
+        const floor = (pit ? Math.min(pitSurface(pit, p.x), WATER_Y + 2) : groundAt(p.x)) - (p.tomato ? 4 : 1);
         if (p.y > floor) { p.y = floor; p.vy = 0; p.vx *= p.stick ? 0.2 : 0.8; if (p.stick) p.flat = true; }
       }
     }
@@ -1219,22 +1286,22 @@ canvas { display: block; width: 100%; height: 100%; }
   const SEASONS = [
     { m: 0, name: '田植え', sub: '水を張った田んぼ', skyTop: '#6ec3ea', skyBot: '#f4f1dc', sun: '#fff3c8', sunY: 120, sunR: 32,
       mtnFar: '#a9c1bb', mtnNear: '#7fa37e', field: '#9cc3b0', stripeA: '#8db8a3', stripeB: '#b3d5c5',
-      water1: '#86b5ab', water2: '#4d7d71', rice: '#86c45a', riceH: 0.55, grain: 0, night: 0, cloud: 0.85 },
+      water1: '#86b5ab', water2: '#4d7d71', rice: '#86c45a', riceH: 0.55, grain: 0, night: 0, cloud: 0.85, duck: 1 },
     { m: 350, name: '青田', sub: '稲がぐんぐん伸びる', skyTop: '#5fb3dd', skyBot: '#fbe8b8', sun: '#fff0be', sunY: 120, sunR: 32,
       mtnFar: '#9fb8b2', mtnNear: '#6f9870', field: '#86b94c', stripeA: '#78ab41', stripeB: '#93c457',
-      water1: '#6f9e8a', water2: '#3e6a5c', rice: '#5fa032', riceH: 1, grain: 0, night: 0, cloud: 0.85 },
+      water1: '#6f9e8a', water2: '#3e6a5c', rice: '#5fa032', riceH: 1, grain: 0, night: 0, cloud: 0.85, duck: 1 },
     { m: 750, name: '黄金の稲穂', sub: '稲刈りの季節', skyTop: '#6fb0da', skyBot: '#fde2a4', sun: '#fff0be', sunY: 120, sunR: 32,
       mtnFar: '#b0b597', mtnNear: '#8c9352', field: '#d8b449', stripeA: '#c7a03a', stripeB: '#e7c75c',
-      water1: '#9a9a62', water2: '#5d5f3b', rice: '#d1a534', riceH: 1.25, grain: 1, night: 0, cloud: 0.85 },
+      water1: '#9a9a62', water2: '#5d5f3b', rice: '#d1a534', riceH: 1.25, grain: 1, night: 0, cloud: 0.85, duck: 0 },
     { m: 1150, name: '夕焼け', sub: '日が傾いてきた', skyTop: '#3c5b92', skyBot: '#f7a25c', sun: '#ff8a4a', sunY: 210, sunR: 40,
       mtnFar: '#8a7890', mtnNear: '#5f5a5c', field: '#b98a3c', stripeA: '#a77a32', stripeB: '#c99a48',
-      water1: '#8a6f55', water2: '#4a3d35', rice: '#b0832e', riceH: 1.25, grain: 1, night: 0.15, cloud: 0.6 },
+      water1: '#8a6f55', water2: '#4a3d35', rice: '#b0832e', riceH: 1.25, grain: 1, night: 0.15, cloud: 0.6, duck: 0 },
     { m: 1550, name: '夜', sub: 'ライトを点けて走れ', skyTop: '#0b1430', skyBot: '#2a3a68', sun: '#f4f1d8', sunY: 90, sunR: 20,
       mtnFar: '#26324d', mtnNear: '#1c2630', field: '#2f4030', stripeA: '#283828', stripeB: '#36483a',
-      water1: '#2a3d48', water2: '#122029', rice: '#3c5a33', riceH: 1.1, grain: 0, night: 1, cloud: 0.12 },
+      water1: '#2a3d48', water2: '#122029', rice: '#3c5a33', riceH: 1.1, grain: 0, night: 1, cloud: 0.12, duck: 0 },
   ];
   const COLOR_KEYS = ['skyTop', 'skyBot', 'sun', 'mtnFar', 'mtnNear', 'field', 'stripeA', 'stripeB', 'water1', 'water2', 'rice'];
-  const NUM_KEYS = ['sunY', 'sunR', 'riceH', 'grain', 'night', 'cloud'];
+  const NUM_KEYS = ['sunY', 'sunR', 'riceH', 'grain', 'night', 'cloud', 'duck'];
   const toRGB = c => { const n = parseInt(c.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
   for (const se of SEASONS) for (const k of COLOR_KEYS) se['_' + k] = toRGB(se[k]);
   // 次の季節の 120 m 手前から少しずつ色が移る
@@ -1263,7 +1330,7 @@ canvas { display: block; width: 100%; height: 100%; }
   const bold = s => `900 ${s}px "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif`;
 
   function drawSky() {
-    const top = -(VH - H);
+    const top = -(VH - H) - camY - 10;
     const g = ctx.createLinearGradient(0, top, 0, 250);
     g.addColorStop(0, env.skyTop);
     g.addColorStop(1, env.skyBot);
@@ -1371,18 +1438,115 @@ canvas { display: block; width: 100%; height: 100%; }
       ctx.fillStyle = `rgba(240,207,90,${env.grain})`;
       for (let i = 0; i < tips.length; i += 2) ctx.fillRect(tips[i] - 1.5, tips[i + 1] - 1.5, 3, 3);
     }
+    if (env.duck > 0.02) drawDucks();
   }
 
-  function roadStrip(a, b) {
+  // アイガモ農法：田植え〜青田の間、親子で列になって田んぼを泳ぐ
+  const DUCK_GAP = 620;
+  function drawDucks() {
+    ctx.save();
+    ctx.globalAlpha = env.duck;
+    const k0 = Math.floor((cam - 200) / DUCK_GAP);
+    for (let k = k0; k <= k0 + 2; k++) {
+      const n = 3 + Math.floor(hash(k * 3.7) * 3);            // 親1羽＋ひな
+      const dir = hash(k * 5.3) > 0.5 ? 1 : -1;               // 泳ぐ向き（1 = 右）
+      const y = WATER_Y + 30 + Math.floor(hash(k * 7.1) * 3) * 22;
+      const baseX = k * DUCK_GAP + hash(k * 2.9) * 260 + Math.sin(clock * 0.25 + k) * 60;
+      for (let i = 0; i < n; i++) {
+        const x = baseX - dir * i * 26 - cam;
+        if (x < -30 || x > W + 30) continue;
+        drawDuck(x, y + Math.sin(clock * 2.6 + i + k) * 1.2, i === 0 ? 1.25 : 0.78, dir, clock + i * 0.7);
+      }
+    }
+    ctx.restore();
+  }
+  function drawDuck(x, y, sc, dir, t) {
+    ctx.save();
+    ctx.translate(x, y);
+    // 水の輪
+    ctx.strokeStyle = 'rgba(235,245,240,.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(-dir * 3 * sc, 2, 15 * sc, 2.6 * sc, 0, 0, Math.PI * 2); ctx.stroke();
+    // 後ろにできる航跡
+    ctx.beginPath(); ctx.moveTo(-dir * 12 * sc, 1); ctx.lineTo(-dir * 26 * sc, 3.5); ctx.stroke();
+    ctx.scale(dir * sc, sc);
+    // 体（水面から上だけ）
+    ctx.fillStyle = '#7b5a3c';
+    ctx.beginPath(); ctx.ellipse(-1, 0, 11, 6, 0, Math.PI, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-10, -1); ctx.lineTo(-15, -5 + Math.sin(t * 5) * 0.8); ctx.lineTo(-8, -3); ctx.fill();   // しっぽ
+    ctx.fillStyle = '#5e422a';
+    ctx.beginPath(); ctx.ellipse(-2, -2.5, 6.5, 3, -0.1, 0, Math.PI * 2); ctx.fill();   // 羽
+    // 首と頭（緑がかった頭に白い首輪）
+    ctx.fillStyle = '#7b5a3c';
+    ctx.fillRect(5, -9, 4, 8);
+    ctx.fillStyle = '#e9e6da';
+    ctx.fillRect(5, -5, 4, 1.6);
+    ctx.fillStyle = '#2f4a38';
+    ctx.beginPath(); ctx.arc(8, -10, 3.8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#d9a23a';
+    ctx.beginPath(); ctx.ellipse(12.4, -9.4, 2.8, 1.3, 0.15, 0, Math.PI * 2); ctx.fill();   // くちばし
+    ctx.fillStyle = '#111';
+    ctx.fillRect(8.6, -11.2, 1.4, 1.4);
+    ctx.restore();
+  }
+
+  function roadStrip(a, b, top = GROUND) {
     ctx.fillStyle = '#b08a5a';
-    ctx.fillRect(a, GROUND, b - a, ROAD_H);
+    ctx.fillRect(a, top, b - a, ROAD_H);
     ctx.fillStyle = '#c9a473';
-    ctx.fillRect(a, GROUND, b - a, 4);
+    ctx.fillRect(a, top, b - a, 4);
     ctx.fillStyle = '#7a5a36';
-    ctx.fillRect(a, GROUND + ROAD_H - 4, b - a, 4);
+    ctx.fillRect(a, top + ROAD_H - 4, b - a, 4);
     ctx.fillStyle = 'rgba(90,64,38,.35)';
-    ctx.fillRect(a, GROUND + 8, b - a, 2);
-    ctx.fillRect(a, GROUND + 14, b - a, 2);
+    ctx.fillRect(a, top + 8, b - a, 2);
+    ctx.fillRect(a, top + 14, b - a, 2);
+  }
+  // 上の段の田んぼ：あぜ道の下は、低い段なら草の土手、高い段なら石垣
+  function drawTerrace(a, b, h, stone) {
+    const top = GROUND - h + ROAD_H - 4, bot = WATER_Y + 2;
+    if (stone) {
+      ctx.fillStyle = '#6d6252';
+      ctx.fillRect(a, top, b - a, bot - top);
+      // 石を積んだ目地
+      const rowH = 14;
+      for (let r = 0, y = top; y < bot; r++, y += rowH) {
+        let x = a - (r % 2) * 11 - ((cam * 0) % 22);
+        for (let i = 0; x < b; i++) {
+          const wS = 18 + hash((a + cam) * 0.01 + r * 7 + i) * 10;
+          const x0 = Math.max(a, x + 1), x1 = Math.min(b, x + wS - 1);
+          if (x1 > x0) {
+            const tone = 0.85 + hash(r * 3.3 + i * 1.7 + (a + cam) * 0.001) * 0.3;
+            ctx.fillStyle = `rgb(${Math.round(150 * tone)},${Math.round(140 * tone)},${Math.round(122 * tone)})`;
+            ctx.beginPath(); ctx.roundRect(x0, y + 1, x1 - x0, Math.min(rowH - 2, bot - y - 1), 3); ctx.fill();
+          }
+          x += wS;
+        }
+      }
+      ctx.fillStyle = 'rgba(40,30,20,.25)';
+      ctx.fillRect(a, top, b - a, 4);
+    } else {
+      const g = ctx.createLinearGradient(0, top, 0, bot);
+      g.addColorStop(0, '#6f9a3e');
+      g.addColorStop(1, '#4f7430');
+      ctx.fillStyle = g;
+      ctx.fillRect(a, top, b - a, bot - top);
+      ctx.strokeStyle = 'rgba(40,70,25,.5)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      const off = cam % 9;
+      for (let x = a - off; x < b; x += 9) {
+        const hh = hash(Math.floor((x + cam) / 9) * 1.3);
+        ctx.moveTo(x, top + 6 + hh * 10); ctx.lineTo(x + 2, top + 14 + hh * 14);
+      }
+      ctx.stroke();
+      // すそは土がのぞく
+      ctx.fillStyle = 'rgba(110,80,45,.55)';
+      ctx.fillRect(a, bot - 6, b - a, 6);
+    }
+    // 段の両脇に影をつけて、壁の面を見せる
+    const sg = ctx.createLinearGradient(a, 0, a + 10, 0);
+    sg.addColorStop(0, 'rgba(0,0,0,.28)'); sg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = sg; ctx.fillRect(a, GROUND - h, 10, bot - GROUND + h);
   }
   // あぜが崩れた所：切れ目の両端がぬかるんだ泥の斜面になり、その先は田んぼの水。
   // 崩れた土で田んぼが濁り、苗が倒れている。水の色は季節に合わせる
@@ -1525,21 +1689,39 @@ canvas { display: block; width: 100%; height: 100%; }
   function drawRoad() {
     const holes = obs.filter(o => o.t === 'gap' && o.x + o.w > cam && o.x < cam + W)
       .map(o => [o.x - cam, o.x + o.w - cam, o.x]).sort((a, b) => a[0] - b[0]);
-    const segs = [];
-    let s = -10;
-    for (const [a, b] of holes) { if (a > s) segs.push([s, a]); s = Math.max(s, b); }
-    if (s < W + 10) segs.push([s, W + 10]);
-    for (const [a, b] of segs) {
-      roadStrip(a, b);
-      ctx.strokeStyle = '#6e9e3a';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      const off = cam % 14;
-      for (let x = Math.ceil((a + off) / 14) * 14 - off; x < b; x += 14) {
-        const h = 4 + hash(Math.floor((x + cam) / 14)) * 6;
-        ctx.moveTo(x, GROUND + ROAD_H - 2); ctx.lineTo(x - 2, GROUND + ROAD_H - 2 - h);
+    // 段ごとに道を描く。高い段の下は土手か石垣
+    const lvls = levelSegments(cam - 20, cam + W + 20);
+    for (let li = 0; li < lvls.length; li++) {
+      const sg = lvls[li];
+      const a0 = sg.a - cam, b0 = sg.b - cam, top = GROUND - sg.h;
+      if (sg.h > 0) {
+        // 手前の段から 100px より高く積んだところは石垣、それ以外は草の土手
+        const prevH = li > 0 ? lvls[li - 1].h : levelAt(sg.a - 1);
+        drawTerrace(a0, b0, sg.h, sg.h - prevH > 100);
       }
-      ctx.stroke();
+      let pieces = [[a0, b0]];
+      if (sg.h === 0) {
+        pieces = [];
+        let s0 = a0;
+        for (const [a, b] of holes) {
+          if (b <= a0 || a >= b0) continue;
+          if (a > s0) pieces.push([s0, Math.min(a, b0)]);
+          s0 = Math.max(s0, b);
+        }
+        if (s0 < b0) pieces.push([s0, b0]);
+      }
+      for (const [a, b] of pieces) {
+        roadStrip(a, b, top);
+        ctx.strokeStyle = '#6e9e3a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        const off = cam % 14;
+        for (let x = Math.ceil((a + off) / 14) * 14 - off; x < b; x += 14) {
+          const hh = 4 + hash(Math.floor((x + cam) / 14)) * 6;
+          ctx.moveTo(x, top + ROAD_H - 2); ctx.lineTo(x - 2, top + ROAD_H - 2 - hh);
+        }
+        ctx.stroke();
+      }
     }
     for (const [a, b, wx] of holes) mudPit(a, b, wx);
   }
@@ -1551,6 +1733,8 @@ canvas { display: block; width: 100%; height: 100%; }
       if (mode === 'ta' && k * 100 >= GOAL_M) continue;
       const sx = k * 100 * PX_PER_M + TRUCK_FRONT - cam;
       if (sx < -40 || sx > W + 40 || find('gap', sx + cam)) continue;
+      ctx.save();
+      ctx.translate(0, -levelAt(sx + cam));
       ctx.fillStyle = '#e8e2d0';
       ctx.fillRect(sx - 7, GROUND - 26, 14, 26);
       ctx.fillStyle = '#b9b19a';
@@ -1559,21 +1743,24 @@ canvas { display: block; width: 100%; height: 100%; }
       ctx.font = '10px ' + FONT;
       ctx.textAlign = 'center';
       ctx.fillText(String(k * 100), sx, GROUND - 9, 12);
+      ctx.restore();
     }
     if (state === 'title') return;
     if (mode === 'endless') {
       const k0 = Math.max(1, Math.floor((cam - 200) / (REFILL_M * PX_PER_M)));
       for (let k = k0; k <= k0 + 1; k++) {
         const sx = k * REFILL_M * PX_PER_M + TRUCK_FRONT - cam;
-        if (sx > -120 && sx < W + 120) drawStand(sx);
+        if (sx > -120 && sx < W + 120) { ctx.save(); ctx.translate(0, -levelAt(sx + cam)); drawStand(sx); ctx.restore(); }
       }
     }
     if (mode === 'ta') {
       const sx = goalX() - cam;
-      if (sx > -80 && sx < W + 80) drawGoal(sx);
+      if (sx > -80 && sx < W + 80) { ctx.save(); ctx.translate(0, -levelAt(sx + cam)); drawGoal(sx); ctx.restore(); }
     } else if (best > 0) {
       const sx = best * PX_PER_M + TRUCK_FRONT - cam;
       if (sx > -40 && sx < W + 60) {
+        ctx.save();
+        ctx.translate(0, -levelAt(sx + cam));
         ctx.fillStyle = '#5b4a3a';
         ctx.fillRect(sx - 1.5, GROUND - 70, 3, 70);
         const wave = Math.sin(runTime * 8) * 3;
@@ -1588,6 +1775,7 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.font = '11px ' + FONT;
         ctx.textAlign = 'left';
         ctx.fillText('BEST', sx + 7, GROUND - 56);
+        ctx.restore();
       }
     }
   }
@@ -1682,9 +1870,20 @@ canvas { display: block; width: 100%; height: 100%; }
   }
 
   // 初めて出てきた障害物に吹き出しで説明を出す
-  const CALLOUTS = { gap: 'タップでジャンプ!', puddle: '水たまり 滑って減速', bump: 'ボコボコ道 3回でパンク', boar: 'イノシシ! 跳び越えろ' };
+  const CALLOUTS = { gap: 'タップでジャンプ!', puddle: '水たまり 滑って減速', bump: 'ボコボコ道 3回でパンク', boar: 'イノシシ! 跳び越えろ',
+    stepLo: '段差! ジャンプで登れ', stepHi: '石垣! 2段ジャンプで登れ' };
   function drawCallouts() {
     if (state !== 'play') return;
+    for (const st of steps) {
+      const kind = stepKind(st);
+      if (kind === 'down' || seenTypes.has(kind)) continue;
+      const sx = st.x - cam;
+      if (sx - TRUCK_FRONT < 40 || sx > W - 20) continue;
+      ctx.font = '15px ' + FONT;
+      const half = ctx.measureText(CALLOUTS[kind]).width / 2 + 10;
+      bubble(CALLOUTS[kind], Math.min(W - half - 8, Math.max(TRUCK_FRONT + half + 8, sx)), GROUND - st.h - 12, sx);
+      return;
+    }
     for (const o of obs) {
       if (seenTypes.has(o.t)) continue;
       let sx, y;
@@ -1819,16 +2018,17 @@ canvas { display: block; width: 100%; height: 100%; }
     return {
       x: truckX, y: truck.y, angle: truck.angle, pivot: 0, roll: truck.falling ? (truck.roll || 0) : undefined, mud: truck.mud || 0,
       wob: slip > 0 ? Math.sin(runTime * 32) : 0, squash: truck.squash, dent: truck.dent, flat: truck.flat,
-      load: truck.spilled ? Math.min(tomatoes, 5) : tomatoes, shadow: !truck.falling,
+      load: truck.spilled ? Math.min(tomatoes, 5) : tomatoes, shadow: !truck.falling, gy: state === 'title' ? GROUND : supportY(),
     };
   }
   function drawTruck(sp) {
     const { x, y, angle, pivot, wob, squash: sq } = sp;
     if (sp.shadow) {
-      const lift = Math.max(0, GROUND - y);
+      const gy = sp.gy ?? GROUND;
+      const lift = Math.max(0, gy - y);
       ctx.fillStyle = `rgba(40,30,15,${0.25 * Math.max(0.2, 1 - lift / 160)})`;
       ctx.beginPath();
-      ctx.ellipse(x + TRUCK_W / 2, GROUND + 1, 46 * Math.max(0.5, 1 - lift / 260), 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(x + TRUCK_W / 2, gy + 1, 46 * Math.max(0.5, 1 - lift / 260), 4, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.save();
@@ -2029,7 +2229,7 @@ canvas { display: block; width: 100%; height: 100%; }
     const n = env.night;
     if (n <= 0.01) return;
     ctx.fillStyle = `rgba(8,12,35,${n * 0.42})`;
-    ctx.fillRect(-20, -(VH - H) - 20, W + 40, VH + 40);
+    ctx.fillRect(-20, -(VH - H) - camY - 20, W + 40, VH + 40);
     if (n < 0.3 || truck.falling) return;
     const hx = truckX + TRUCK_W - 2, hy = truck.y - 22;
     ctx.save();
@@ -2104,7 +2304,7 @@ canvas { display: block; width: 100%; height: 100%; }
     const m = meters();
     const t = state === 'goal' ? goalTime : runTime;
     // 2段ジャンプで軽トラが左上の表示に重なるときは、表示を薄くして軽トラを見せる
-    const truckTop = truck.y + (VH - H) - 70;
+    const truckTop = truck.y + (VH - H) + camY - 70;
     ctx.globalAlpha = clamp((truckTop - 55) / 70, 0.25, 1);
     if (mode === 'ta') {
       label(fmtTime(t), 22, 56, '44px ' + FONT, '#fffbea', 'left', 'rgba(27,34,22,.85)', 7);
@@ -2147,7 +2347,7 @@ canvas { display: block; width: 100%; height: 100%; }
       ctx.restore();
     }
     const top = VH - H;
-    let py = truck.y + top - 76;
+    let py = truck.y + top + camY - 76;
     if (slip > 0 && state === 'play') { label('スリップ! 減速', TRUCK_X + TRUCK_W / 2, py, '20px ' + FONT, '#ffb49f', 'center'); py -= 24; }
     for (const p of popups) {
       ctx.globalAlpha = Math.min(1, p.t / 0.3);
@@ -2257,12 +2457,13 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx = mainCtx;
     env = envAt(state === 'title' ? 350 : cam / PX_PER_M);
     ctx.save();
-    ctx.translate(0, VH - H);
+    ctx.translate(0, VH - H + camY * 0.35);
     if (shake > 0 && !reduceMotion) ctx.translate(rand(-6, 6) * shake * 2, rand(-6, 6) * shake * 2);
     drawSky();
     drawMountains(0.08, 205, 50, env.mtnFar, 0);
     drawMountains(0.18, 228, 34, env.mtnNear, 3);
     drawFarField();
+    ctx.translate(0, camY * 0.65);
     drawForeField();
     drawRoad();
     drawMarkers();
@@ -2310,6 +2511,7 @@ canvas { display: block; width: 100%; height: 100%; }
     const dt = Math.min(0.033, (now - last) / 1000);
     last = now;
     if (!simMode && !paused) update(dt);
+    clock += dt;
     draw();
     requestAnimationFrame(frame);
   }
@@ -2321,7 +2523,7 @@ canvas { display: block; width: 100%; height: 100%; }
       get cam() { return cam; }, get speed() { return speed; }, get vel() { return vel; }, get slip() { return slip; },
       get stats() { return stats; }, get paused() { return paused; }, get bumpHits() { return bumpHits; },
       get runTime() { return runTime; }, get goalTime() { return goalTime; }, get mode() { return mode; },
-      get tomatoes() { return tomatoes; }, get score() { return score; },
+      get tomatoes() { return tomatoes; }, get score() { return score; }, get steps() { return steps; },
       TRUCK_X, TRUCK_W, W, JUMP_V, GRAV, meters, press, release, start, update, draw, setPaused,
       set sim(v) { simMode = v; }, set best(v) { best = v; },
     };
