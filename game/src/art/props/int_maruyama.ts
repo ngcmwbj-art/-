@@ -590,14 +590,15 @@ registerProp('in_mr_showcase', () => {
     printLines(p, 87, 3, 4, 2, P.ink, 7);
     p.hline(87, 90, 6, P.steel);
     p.line(92, 7, 94, 10, P.verm);
-    // stainless lip, white enamel front with a red stripe, the peach marks and たかし
+    // stainless lip, white enamel front with a red stripe, the peach marks and the
+    // logo 百瀬 (★2026-09-29 依頼主の指示：お店のロゴは 百瀬)
     p.rect(0, 16, 96, 2, P.concrete);
     p.hline(0, 95, 16, P.white);
     p.rect(0, 18, 96, 8, P.white);
     p.hline(0, 95, 25, P.red);
     for (const mx of [20, 68]) peachMark(p, mx, 18);
-    const tw = fontSmallWidth('たかし');
-    fontTextSmall(p, 'たかし', 48 - Math.floor(tw / 2), 18, P.verm, 1);
+    const tw = fontSmallWidth('百瀬');
+    fontTextSmall(p, '百瀬', 48 - Math.floor(tw / 2), 18, P.verm, 1);
     p.rect(0, 26, 96, 2, P.charcoal);
     finish(p, { soft: true });
     return p.toCanvas();

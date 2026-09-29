@@ -133,14 +133,14 @@ registerBuilding({
     fillWall(p, 0, fY, 96, 48, wallMortar(P.concreteLt, 3));
     eaveShadow(p, 0, fY, 96, 2);
     signBoard(p, 3, fY + 2, 90, 16, P.white, P.steel, 3);
-    // the peach mark in a red ring + たかし
+    // the peach mark in a red ring + 百瀬 (the shop's logo is the family name:
+    // ★2026-09-29 依頼主の指示「お店のロゴは百瀬でいいや」。店の名前は 焼きそばのたかし)
     p.ellipse(13, fY + 10, 8, 7, P.verm);
     p.ellipse(13, fY + 10, 7, 6, P.white);
     peach(p, 13, fY + 11, 4.6, P.skin2, P.crimson, P.sunShade, P.leaf);
-    // (the hiragana stand 14px tall, 1px taller than モモセ did: set 1px higher so
-    // the letters stay inside the board's frame, fY+3..fY+16, the shadow on the frame)
-    const mw = fontWidth('たかし');
-    fontText(p, 'たかし', 24 + Math.floor((66 - mw) / 2), fY + 3, P.red, { shadow: P.vermShade });
+    // (set so the letters stay inside the board's frame, fY+3..fY+16, the shadow on the frame)
+    const mw = fontWidth('百瀬');
+    fontText(p, '百瀬', 24 + Math.floor((66 - mw) / 2), fY + 3, P.red, { shadow: P.vermShade });
     // red tent
     awning(p, 0, fY + 19, 96, 5, P.red, P.white, true);
     // the storefront teppan (tiles 24–25 → x 0..31): a warm lit window over
