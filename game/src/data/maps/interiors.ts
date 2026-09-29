@@ -1,5 +1,5 @@
 // Shop interiors (30_level_art.md 4.3–4.6; texts 10_narrative 6.2–6.6, 7.3–7.6):
-// map_maruyama（焼きそばのモモセ）, map_hinoya（駄菓子 ひのや）,
+// map_maruyama（焼きそばのたかし）, map_hinoya（駄菓子 ひのや）,
 // map_laundry（コインランドリー ふわり）, map_koban（交番）.
 //
 // The ASCII is the level-design grid verbatim. Examine hit areas are placed
@@ -20,7 +20,7 @@ const WALLS: Record<string, TileSpec> = {
   S: { ground: 'auto', solid: true, counter: true, tag: 'counter' },
   D: { ground: 'void', solid: true, door: true, tag: 'door' },
 };
-/** モモセ・ひのや: wooden floors (se_step_wood). */
+/** たかし・ひのや: wooden floors (se_step_wood). */
 const WOOD_LEGEND: Record<string, TileSpec> = { ...WALLS, '.': { ground: 'shopwood' } };
 /** ランドリー・交番: tiled floors (se_step_tile). */
 const TILE_LEGEND: Record<string, TileSpec> = { ...WALLS, '.': { ground: 'tile_floor' } };
@@ -30,7 +30,7 @@ const O = (id: string, x: number, y: number, extra: Record<string, unknown> = {}
 const PR = (prop: string, x: number, y: number, opts?: Record<string, unknown>): MapObj =>
   ({ t: 'prop', prop, x, y, ...(opts ? { opts } : {}) }) as MapObj;
 
-// ================================================================ 4.3 map_maruyama（焼きそばのモモセ、10×8）
+// ================================================================ 4.3 map_maruyama（焼きそばのたかし、10×8）
 
 // 4.3's grid with one more row of floor in front of the counter (review
 // round 1: the customers' side was a single row, y5): the stacked delivery
@@ -48,7 +48,7 @@ export const ROWS_MARUYAMA = [
 
 registerMap({
   id: 'map_maruyama',
-  name: '焼きそばのモモセ',
+  name: '焼きそばのたかし',
   kind: 'indoor',
   rows: ROWS_MARUYAMA,
   legend: WOOD_LEGEND,
@@ -75,7 +75,7 @@ registerMap({
     PR('in_mr_noren', 4, 7),
     PR('in_mr_bulb', 3, 3, { v: 0 }),
     PR('in_mr_bulb', 6, 3, { v: 1 }),
-    // examine (from row 5 facing north: x2 how-to poster, x3 sauce pot, x4 百瀬, x5 teppan counter, x6 ledger, x7 cat, x8 scale)
+    // examine (from row 5 facing north: x2 how-to poster, x3 sauce pot, x4 たかし, x5 teppan counter, x6 ledger, x7 cat, x8 scale)
     O('obj_meat_chart', 2, 3),
     O('obj_fryer', 3, 3),
     O('obj_showcase', 5, 4),

@@ -557,7 +557,7 @@ const AMB: Record<string, AmbFactory> = {
   },
 
   amb_oil(c) {
-    // 焼きそばのモモセ: the teppan heating, waiting for five o'clock. The gas
+    // 焼きそばのたかし: the teppan heating, waiting for five o'clock. The gas
     // under the plate is a low soft roar (felt more than heard) with the
     // burner's hum; the thin film of oil on the iron sizzles faintly and
     // flickers (ジー…), and every 3–7 s a short "ジュッ" where a drop lands —

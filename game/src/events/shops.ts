@@ -1,4 +1,4 @@
-// 焼きそばのモモセ (5.4, 6.2) and 駄菓子 ひのや (5.5, 6.3, 12.1).
+// 焼きそばのたかし (5.4, 6.2) and 駄菓子 ひのや (5.5, 6.3, 12.1).
 
 import type { Co } from '../engine/co';
 import { flag, setFlag, state } from '../game/state';

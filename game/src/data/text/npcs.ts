@@ -22,11 +22,11 @@ export const NPC: Record<string, TalkTable> = {
 別！
 [-]`,
     s0_2: `@npc_mother
-モモセは 坂を 上って 右。
+たかしさんは 坂を 上って 右。
 チャイムが 鳴るまでに 帰ること。`,
     s0_meat: `@npc_mother
 焼くのは 5時から？{w=300}
-百瀬さん らしいわね。{w=300}
+たかしさん らしいわね。{w=300}
 待って、焼きたてを もらってらっしゃい。`,
     s1_1: `@npc_mother
 チャイム、途中で 止まったわね。{w=300}
@@ -59,7 +59,7 @@ export const NPC: Record<string, TalkTable> = {
 麦茶 飲んでいきなさい。`,
   },
 
-  // ------------------------------------------------------------ 6.2 百瀬（s0 の1回目は evt_maruyama_first）
+  // ------------------------------------------------------------ 6.2 たかし（s0 の1回目は evt_maruyama_first）
   npc_maruyama: {
     s0_1: `@npc_maruyama
 鉄板は 急かすと すねる。{w=300}
@@ -76,7 +76,7 @@ export const NPC: Record<string, TalkTable> = {
 チャイムが 途中で 止まった。{w=300}
 鉄板が……迷ってる。
 @narr
-百瀬は さっきと 同じ 深さで、
+たかしは さっきと 同じ 深さで、
 眉を 寄せた。`,
     s2_1: `@npc_maruyama
 鉄板がな、『まだですか』って
@@ -128,7 +128,7 @@ export const NPC: Record<string, TalkTable> = {
 今日は 豆腐じゃ ないの？{w=300}
 まいど！
 /
-焼きそばなら モモセだい！
+焼きそばなら たかしだい！
 2軒 西！{w=300} まいど！`,
     s0_2: `@npc_mamekichi
 まいど！{w=300}
@@ -469,7 +469,7 @@ export const NPC: Record<string, TalkTable> = {
 今日の 地面は、よく 飲むのよ。`,
     s0_2: `@npc_mizumaki
 しゅんくん、おつかい？{w=300}
-モモセさんなら、
+たかしさんなら、
 坂を 上って 右よ。`,
     s1_1: `@npc_mizumaki
 ホースの 水がね、

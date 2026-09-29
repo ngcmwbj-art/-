@@ -4,7 +4,7 @@
 //  - dinnerSet(): what is on the chabudai in the ending (three plates of
 //    yakisoba, the mother's extra cabbage, the 青のり on the side)
 //  - meishi(): ハト係長's business card, held out and lying on the ground
-//  - shopBag(): 焼きそばのモモセ's bag with the four packs (ending cut 2)
+//  - shopBag(): 焼きそばのたかし's bag with the four packs (ending cut 2)
 
 import { PixelCanvas, mix, rgba32 } from '../engine/pixel';
 import { hash2 } from '../engine/rng';

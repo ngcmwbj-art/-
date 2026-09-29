@@ -1,7 +1,7 @@
 // All map definitions of the world team. Importing this module registers them.
 import './home';
 import './town';
-// Interiors and the mall (levels team): 焼きそばのモモセ, ひのや, ランドリー, 交番, M1–M5.
+// Interiors and the mall (levels team): 焼きそばのたかし, ひのや, ランドリー, 交番, M1–M5.
 import './interiors';
 import './mall';
 // 屋上 ゆうやけひろば (the side quest up from M4, 30 5.6 ★2026-09-28)

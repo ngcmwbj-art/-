@@ -34,12 +34,12 @@ export const GUIDE_MENU: GuideRow[] = [
 
 export const ERRAND_A = `@npc_mother
 あ、起きた。{w=300}おつかい 行ってきて。
-モモセで 焼きそば 4つ。
+たかしさんの お店で 焼きそば 4つ。
 青のりは 別。{w=300}別よ？
 /
 1つは おまけ。だれかに あげなさい。
 チャイムが 鳴るまでに 帰ること。{w=300}
-モモセは 坂を 上って 右。はい、がま口。`;
+お店は 坂を 上って 右。はい、がま口。`;
 
 export const ERRAND_GET = `@sys
 がま口を 受けとった！（500円）
@@ -70,10 +70,10 @@ export const OBAA_FIRST = `@npc_obaa
 ……白紙の 顔だね。先生を 40年 やると、
 白紙は 顔で わかるのさ。`;
 
-/** (ひのや before 焼きそばのモモセ: she guesses the errand.) */
+/** (ひのや before 焼きそばのたかし: she guesses the errand.) */
 export const OBAA_FIRST_NOMEAT = `@npc_obaa
 焼きそばかい？{w=300}
-モモセは 5時から 焼きはじめるよ。
+たかしは 5時から 焼きはじめるよ。
 好きなの 選びな。`;
 
 // ---------------------------------------------------------------- 5.6 evt_chime_stop

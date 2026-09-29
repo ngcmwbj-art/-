@@ -11,7 +11,7 @@
 //    still turns, so nothing restarts after its stop event; turn / flicker
 //    events synced with the art.
 //  - fushigi_11's 「アリガトウゴザイマシタ」 balloons on the stopped escalator.
-//  - idle routines of the shopkeepers (百瀬 peeks at the griddle every 4 s, おばあ
+//  - idle routines of the shopkeepers (たかし peeks at the griddle every 4 s, おばあ
 //    breathes on her stamp then reads the ledger, 巡査 flips his notebook).
 //  - onEnter wrappers that start the first-visit events only once.
 //  - the robot vacuums keep to their beat (2F x2–14, never into the exits).
@@ -131,7 +131,7 @@ function onEnterMap(f: FieldScene): void {
  * the griddle), not in a queue: arriving at the counter row (y5) with カネナリくん
  * put right behind Minato on the waiting row, he steps in beside him instead
  * (x2–8 is floor on y5). Also keeps the 2× room view from sliding down for
- * his feet and cutting 百瀬 off at the top in a cutscene.
+ * his feet and cutting たかし off at the top in a cutscene.
  */
 function counterSideBySide(f: FieldScene): void {
   const p = f.player;

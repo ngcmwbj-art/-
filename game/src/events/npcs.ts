@@ -1,5 +1,5 @@
 // Every NPC's talk (10_narrative 6章) with its stage / second-time / flag
-// branches. 母 is in home.ts, 百瀬 and おばあ in shops.ts, カネナリくん's
+// branches. 母 is in home.ts, たかし and おばあ in shops.ts, カネナリくん's
 // flips while following are the world's (6.17 key by place).
 
 import type { Co } from '../engine/co';

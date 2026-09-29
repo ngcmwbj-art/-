@@ -15,7 +15,7 @@
 //
 // 待機（立ち）：手押し車に手をかけて息をする → 行き先の方を見る。
 // 'sit'（持続のポーズ、4方向）：かごに腰かけて息をする → 腕時計を見る
-// （'sit_watch'）。extras：'give'（白い袋〈モモセの焼きそば〉をさし出す、
+// （'sit_watch'）。extras：'give'（白い袋〈たかしの焼きそば〉をさし出す、
 // 下と横）、'bow'（小さく会釈、下と横）、look_up。
 
 import { flat, mat, type Fig, type Mats, type RowMap } from '../fig';
@@ -197,7 +197,7 @@ function cartSitSide(f: Fig): void {
   wheels(f, [3, 11], 21);
 }
 
-// ---- the white bag of モモセ's yakisoba (give) ----------------------------------------------
+// ---- the white bag of たかし's yakisoba (give) ----------------------------------------------
 
 function sack(f: Fig, x: number, y: number): void {
   f.part('sack', { shade: 'rb', light: 't' });

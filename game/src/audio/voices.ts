@@ -53,7 +53,7 @@ export const VOICES: Record<string, VoiceDef> = {
   narr: { label: '地の文', wave: 'noise', base: 0, scale: [0], len: 12, A: 0, D: 10, S: 0, R: 4, every: 3, v: 0.012, bp: [3000, 1.5] },
   sys: { label: 'システム', wave: 'none', base: 0, scale: [0], len: 0, every: 99, v: 0 },
   mother: { label: '母', wave: 'triangle', base: 'A4', scale: [0, 2, 4, 7, 9], len: 40, A: 2, D: 30, S: 0.5, R: 15, every: 2, v: 0.07, formant: true },
-  maruyama: { label: '百瀬（焼きそば屋）', wave: 'sine', base: 'D3', scale: [0, 3, 5, 7, 10], len: 45, every: 2, v: 0.09, lp: 1400 },
+  maruyama: { label: 'たかし（焼きそば屋）', wave: 'sine', base: 'D3', scale: [0, 3, 5, 7, 10], len: 45, every: 2, v: 0.09, lp: 1400 },
   obaa: { label: 'おばあ', wave: 'triangle', base: 'E4', scale: [0, 2, 5, 7], len: 50, every: 3, v: 0.06, formant: true, vib: [6, 25], noise: { bp: 2000, q: 1, level: 0.4 } },
   mamekichi: { label: 'くま吉', wave: 'square', base: 'C5', scale: [0, 2, 4, 7, 9, 12], len: 22, every: 2, v: 0.05, formant: true },
   inui: { label: 'えすけ', wave: 'triangle', base: 'G4', scale: [0, 2, 4], len: 55, A: 8, every: 3, v: 0.05, lp: 2000 },

@@ -245,7 +245,7 @@ export function drawClockPlate(g: Gfx, x: number, y: number, v: ClockView, alpha
 const MAP_PLACE: Record<string, string> = {
   map_home_2f: '小林家',
   map_home_1f: '小林家',
-  map_maruyama: '焼きそばのモモセ',
+  map_maruyama: '焼きそばのたかし',
   map_hinoya: '駄菓子 ひのや',
   map_laundry: 'コインランドリー ふわり',
   map_koban: '夕鳴銀座 交番',

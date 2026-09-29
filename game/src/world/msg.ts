@@ -26,7 +26,8 @@ export const SPEAKERS: Record<string, Speaker> = {
   sys: { voice: 'sys' },
   flip: { name: 'カネナリくん', voice: 'flip' },
   npc_mother: { name: '母', voice: 'mother' },
-  npc_maruyama: { name: '百瀬', voice: 'maruyama' },
+  // たかし（★2026-09-29 依頼主の指示で 百瀬→たかし。本名 百瀬たかし（ももせ たかし）、名札・店の名前は たかし。IDは据え置き）
+  npc_maruyama: { name: 'たかし', voice: 'maruyama' },
   npc_obaa: { name: 'おばあ', voice: 'obaa' },
   npc_mamekichi: { name: 'くま吉', voice: 'mamekichi' },
   npc_inui: { name: 'えすけ', voice: 'inui' },

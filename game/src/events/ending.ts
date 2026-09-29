@@ -1,5 +1,5 @@
 // ★ evt_ending (10_narrative 5.20, 00_concept 13, 40_audio 13.5): about a
-// minute. The chime rings all eight notes → 焼きそばのモモセ → the family photo →
+// minute. The chime rings all eight notes → 焼きそばのたかし → the family photo →
 // home → the weather on TV → the crossing at night, 「……おいしい。」 → the
 // night sky → the notebook → the title.
 
@@ -298,11 +298,11 @@ function spawnDinner(): void {
 // ---------------------------------------------------------------- cut 2: the griddle, the bag
 
 /**
- * 焼きそばのモモセ at 17:01: 百瀬 behind the teppan counter, a spatula in
+ * 焼きそばのたかし at 17:01: たかし behind the teppan counter, a spatula in
  * each hand, turning the noodles over on the hot griddle — sizzling specks
  * on the iron, bits of noodle hopping, steam — then the sauce goes on all at
  * once (a stream from the bottle, a hiss, a burst of steam, the noodles
- * browning, a warm bloom), 百瀬 rim-lit by the bulb, and the bag lifted from
+ * browning, a warm bloom), たかし rim-lit by the bulb, and the bag lifted from
  * behind the counter onto its front ledge.
  */
 interface Speck {
@@ -333,7 +333,7 @@ const teppan = {
   heat: 1,
   /** How far the sauce has browned the noodles (0 → 1). */
   sauce: 0,
-  /** 百瀬 is turning the noodles over (the spatulas move, bits hop). */
+  /** たかし is turning the noodles over (the spatulas move, bits hop). */
   toss: true,
   /** The spatulas are in his hands (false: laid down on the plate). */
   hands: true,
@@ -362,7 +362,7 @@ function griddle(f: FieldScene): [number, number, number, number] {
   return [x0 + 3, y0 + 2, x0 + 68, y0 + 11];
 }
 
-/** The heap's centre (world px): on the plate in front of 百瀬. */
+/** The heap's centre (world px): on the plate in front of たかし. */
 function heapAt(f: FieldScene): [number, number] {
   const [, t] = griddle(f);
   const m = actor('npc_maruyama');
@@ -553,7 +553,7 @@ registerWorldFx({
         const k = s.t / s.life;
         g.alpha(k < 0.5 ? 0.9 : 0.5, () => g.rect(s.x - cx, s.y - cy - (k > 0.5 ? 1 : 0), 1, 1, k < 0.5 ? '#FFF6D8' : '#F6D98A'));
       }
-      // the spatulas: 百瀬's hands at the back of the plate, the wooden
+      // the spatulas: たかし's hands at the back of the plate, the wooden
       // handles, the steel blades in the noodles (laid down once he's done)
       const m = actor('npc_maruyama');
       for (const side of [-1, 1] as const) {
@@ -615,7 +615,7 @@ registerWorldFx({
         }
         ctx.restore();
       }
-      // 百瀬 in the bulb's light: a warm rim along his top edges
+      // たかし in the bulb's light: a warm rim along his top edges
       if (m && m.visible) {
         const img = m.frame();
         const [ix, iy] = m.drawPos(img);
@@ -808,7 +808,7 @@ function* cut2Meat(): Co {
     k.y = 5 * 16 + 16;
     k.dir = 'up';
   }
-  // 百瀬 behind the griddle, facing us, a spatula in each hand, the noodles on the iron
+  // たかし behind the griddle, facing us, a spatula in each hand, the noodles on the iron
   const m = actor('npc_maruyama');
   if (m) {
     m.data.scripted = true;
@@ -824,7 +824,7 @@ function* cut2Meat(): Co {
   teppan.hands = true;
   teppan.pour = 0;
   teppan.turn = 0;
-  // 2× on the counter: the griddle, 百瀬 behind it, the two of them in front
+  // 2× on the counter: the griddle, たかし behind it, the two of them in front
   const [hx, hy] = heapAt(f);
   const z = yield* zoomIn(hx + 3, hy + 4, 0);
   forceBoxPos('bottom');
@@ -840,7 +840,7 @@ function* cut2Meat(): Co {
   teppan.bloom = 600;
   for (let i = 0; i < 9; i++) teppan.puffs.push({ x: hx - 8 + ((i * 5) % 17), y: hy - 3, t: i * 30, life: 1300 + i * 60, drift: (i % 3) - 1, big: true });
   if (m) m.hop(1, 160);
-  // and the camera pushes in (3×) on the griddle and 百瀬
+  // and the camera pushes in (3×) on the griddle and たかし
   game.scripts.run(zoomScale(z, 3, 480));
   game.scripts.run(zoomPan(z, hx + 2, hy - 4, 480));
   yield* animate(420, (e) => (teppan.sauce = e));

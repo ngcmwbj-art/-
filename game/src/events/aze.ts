@@ -487,7 +487,7 @@ function aburaReady(): boolean {
       else yield* ctx.runDefault();
       return;
     }
-    // stage 0 before his first line (the way to モモセ): that line first
+    // stage 0 before his first line (the way to たかし): that line first
     if (stage() === 0 && !flag('flag_seen_npc_mamekichi_s0_1') && orig) yield* orig(ctx);
     const m = actor('npc_mamekichi');
     if (m) m.pose = null;

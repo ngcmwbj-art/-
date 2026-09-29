@@ -1,8 +1,8 @@
-// 焼きそばのモモセ interior (30_level_art 4.3, 10×8: a second row of floor for
+// 焼きそばのたかし interior (30_level_art 4.3, 10×8: a second row of floor for
 // the customers, review round 1). A narrow yakisoba shop: white tiled walls
 // under cream plaster, the 『焼きそばの 焼き方』 poster, a stainless back bench
 // with the pot of house sauce (its surface quietly glows and pulses) and a
-// can of sauce, the long teppan counter in front of 百瀬 — a black iron
+// can of sauce, the long teppan counter in front of たかし — a black iron
 // griddle, the spatulas laid on it, the sauce bottle, the 青のり shaker and
 // the 「5時から」 card — the old register with a beckoning cat, the noodle
 // scale, a kamidana shelf, wooden menu plaques, two bare bulbs; by the door
@@ -590,14 +590,14 @@ registerProp('in_mr_showcase', () => {
     printLines(p, 87, 3, 4, 2, P.ink, 7);
     p.hline(87, 90, 6, P.steel);
     p.line(92, 7, 94, 10, P.verm);
-    // stainless lip, white enamel front with a red stripe, the peach marks and モモセ
+    // stainless lip, white enamel front with a red stripe, the peach marks and たかし
     p.rect(0, 16, 96, 2, P.concrete);
     p.hline(0, 95, 16, P.white);
     p.rect(0, 18, 96, 8, P.white);
     p.hline(0, 95, 25, P.red);
     for (const mx of [20, 68]) peachMark(p, mx, 18);
-    const tw = fontSmallWidth('モモセ');
-    fontTextSmall(p, 'モモセ', 48 - Math.floor(tw / 2), 18, P.verm, 1);
+    const tw = fontSmallWidth('たかし');
+    fontTextSmall(p, 'たかし', 48 - Math.floor(tw / 2), 18, P.verm, 1);
     p.rect(0, 26, 96, 2, P.charcoal);
     finish(p, { soft: true });
     return p.toCanvas();
@@ -605,7 +605,7 @@ registerProp('in_mr_showcase', () => {
   const a = stand(build(true), { cx: 48, base: 16, shadow: 0, contact: 0 });
   const bare = build(false);
   const withTools = a.img;
-  // the ending: the spatulas are in 百瀬's hands (events/ending.ts)
+  // the ending: the spatulas are in たかし's hands (events/ending.ts)
   a.img = (env: PropEnv) => (env.stage >= 3 ? bare : withTools(env));
   a.over = (g: Gfx, x: number, y: number, env: PropEnv) => {
     const ox = x + a.ox;
@@ -750,7 +750,7 @@ registerProp('in_mr_board', () =>
 
 registerProp('in_mr_crates', () =>
   prop(16, 26, (p) => {
-    // two blue plastic crates (通い箱) stacked, 『モモセ』 in marker on the
+    // two blue plastic crates (通い箱) stacked, 『たかし』 in marker on the
     // front, the top one holding folded paper bags and a roll of twine
     const crate = (y: number, h: number) => {
       p.rect(1, y, 14, h, P.blue);

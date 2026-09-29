@@ -60,9 +60,9 @@ const CHAIN: { beat: string; steps: Step[]; at: [string, number, number, Dir]; r
       },
     ],
     at: ['map_town', 4, 31, 'down'],
-    desc: '家の前。モモセへ',
+    desc: '家の前。焼きそばのたかしへ',
   },
-  { beat: 'maruyama', steps: [], at: ['map_town', 27, 23, 'up'], desc: 'モモセの前（初入店で evt_maruyama_first）' },
+  { beat: 'maruyama', steps: [], at: ['map_town', 27, 23, 'up'], desc: '焼きそばのたかしの前（初入店で evt_maruyama_first）' },
   { beat: 'hinoya', steps: [set('flag_met_maruyama'), () => setFlag('flag_clock', 2)], at: ['map_town', 32, 23, 'up'], desc: 'ひのやの前（evt_obaa_first）' },
   { beat: 'chime', steps: [set('flag_met_obaa')], at: ['map_town', 32, 22, 'down'], run: 'evt_chime_stop', desc: '★17:00 の瞬間 → ハト係長' },
   {

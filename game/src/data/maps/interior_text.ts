@@ -5,7 +5,7 @@
 import type { StageText, TalkTable } from '../../world/types';
 
 export const IOBJ: Record<string, StageText> = {
-  // ---------------------------------------------------------------- 7.3 焼きそばのモモセ
+  // ---------------------------------------------------------------- 7.3 焼きそばのたかし
   obj_showcase: `@narr
 大きな 鉄板の カウンター。{w=300}
 値札は 手書き。{w=300}『焼きそば
@@ -42,8 +42,8 @@ export const IOBJ: Record<string, StageText> = {
 『明日の おすすめ：焼きそば』`,
   obj_mr_crates: `@narr
 配達用の 青い 箱が 2つ。{w=300}
-『モモセ』と 油性ペンで。
-字が 百瀬に 似ている。`,
+『たかし』と 油性ペンで。
+字が たかしに 似ている。`,
   obj_mr_stool: {
     s0: `@narr
 待つ 人の ための まるいす。{w=300}
@@ -439,7 +439,7 @@ export const ITALK: Record<string, TalkTable> = {
 チャイムが 途中で 止まった。{w=300}
 鉄板が……迷ってる。
 @narr
-百瀬は さっきと 同じ 深さで、
+たかしは さっきと 同じ 深さで、
 眉を 寄せた。`,
     s2_1: `@npc_maruyama
 鉄板がな、『まだですか』って
@@ -605,7 +605,7 @@ export const EVT_OBAA_FIRST = `@npc_obaa
 白紙は 顔で わかるのさ。`;
 export const EVT_OBAA_FIRST_NOMEAT = `@npc_obaa
 焼きそばかい？{w=300}
-モモセは 5時から 焼きはじめるよ。
+たかしは 5時から 焼きはじめるよ。
 まあ、見ておいき。`;
 export const EVT_OBAA_FIRST_MEAT = `@npc_obaa
 チャイムまで あと ちょっと。

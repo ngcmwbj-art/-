@@ -1,4 +1,4 @@
-// 夕鳴銀座・北の列（看板建築, 30_level_art 6.2）: 焼きそばのモモセ, 駄菓子ひのや,
+// 夕鳴銀座・北の列（看板建築, 30_level_art 6.2）: 焼きそばのたかし, 駄菓子ひのや,
 // 豆腐くま吉, 時計店チクタク堂, 喫茶 夕顔, 山吹酒店. Each facade faces the
 // arcade; signs are drawn facing the screen (3.10).
 
@@ -86,9 +86,11 @@ const FURIN = frames(3, 7, 14, 700, (p, k) => {
   p.set(2 + sx, 12, P.crimson);
 });
 
-// ---------------------------------------------------------------- 焼きそばのモモセ
+// ---------------------------------------------------------------- 焼きそばのたかし
+// （★2026-09-29 依頼主の指示で 百瀬→たかし。本名 百瀬たかし（ももせ たかし）、名札・店の名前は たかし。IDは据え置き。
+// 桃のしるしは 名字の「百（もも）」なので そのまま）
 
-/** The shop mark: a peach (モモ) — a round fruit, its crease, a leaf. */
+/** The shop mark: a peach (モモ, from the owner's family name 百瀬) — a round fruit, its crease, a leaf. */
 function peach(p: PixelCanvas, x: number, y: number, r: number, body: string, blush: string, crease: string, leaf: string): void {
   p.ellipse(x, y, r, r - 0.4, body);
   p.ellipse(x + r * 0.35, y + r * 0.2, r * 0.55, r * 0.55, blush);
@@ -131,12 +133,12 @@ registerBuilding({
     fillWall(p, 0, fY, 96, 48, wallMortar(P.concreteLt, 3));
     eaveShadow(p, 0, fY, 96, 2);
     signBoard(p, 3, fY + 2, 90, 16, P.white, P.steel, 3);
-    // the peach mark in a red ring + モモセ
+    // the peach mark in a red ring + たかし
     p.ellipse(13, fY + 10, 8, 7, P.verm);
     p.ellipse(13, fY + 10, 7, 6, P.white);
     peach(p, 13, fY + 11, 4.6, P.skin2, P.crimson, P.sunShade, P.leaf);
-    const mw = fontWidth('モモセ');
-    fontText(p, 'モモセ', 24 + Math.floor((66 - mw) / 2), fY + 4, P.red, { shadow: P.vermShade });
+    const mw = fontWidth('たかし');
+    fontText(p, 'たかし', 24 + Math.floor((66 - mw) / 2), fY + 4, P.red, { shadow: P.vermShade });
     // red tent
     awning(p, 0, fY + 19, 96, 5, P.red, P.white, true);
     // the storefront teppan (tiles 24–25 → x 0..31): a warm lit window over

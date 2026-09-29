@@ -74,11 +74,11 @@ const SAMPLES: Record<string, () => Generator> = {
     yield* say('{wave}ふしぎな 音が する……{/wave}{w=300}\n{shake}鐘が 鳴らない。{/shake}\n{c=#E23B2E}みました{/c}を 押しますか？', { name: 'おばあ', voice: 'obaa' });
   },
   chain: function* () {
-    yield* say('焼くのは 五時の チャイムが\n鳴り終わってから だ。', { name: '百瀬', voice: 'maruyama' });
-    yield* say('オレの 信念じゃない。{w=300}\n鉄板の 信念だ。', { name: '百瀬', voice: 'maruyama' });
-    yield* say('ひのやで 時間でも つぶしてきな。', { name: '百瀬', voice: 'maruyama' });
+    yield* say('焼くのは 五時の チャイムが\n鳴り終わってから だ。', { name: 'たかし', voice: 'maruyama' });
+    yield* say('オレの 信念じゃない。{w=300}\n鉄板の 信念だ。', { name: 'たかし', voice: 'maruyama' });
+    yield* say('ひのやで 時間でも つぶしてきな。', { name: 'たかし', voice: 'maruyama' });
     const i = yield* choose(['うなずく', '首を かしげる']);
-    yield* say(i === 0 ? 'よし。' : '……わかんねえか。', { name: '百瀬', voice: 'maruyama' });
+    yield* say(i === 0 ? 'よし。' : '……わかんねえか。', { name: 'たかし', voice: 'maruyama' });
   },
   ask: function* () {
     const i = yield* ask(['おかえり。{w=300}\n青のりは？', 'ちゃんと 別に してもらった？'], ['べつ', 'いっしょ'], { name: '母', voice: 'mother' });

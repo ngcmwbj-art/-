@@ -1,4 +1,5 @@
-// 百瀬 (npc_maruyama; the id is the first cast's butcher): 焼きそばのモモセ.
+// たかし (npc_maruyama; the id is the first cast's butcher): 焼きそばのたかし.
+// （★2026-09-29 依頼主の指示で 百瀬→たかし。本名 百瀬たかし（ももせ たかし）、名札・店の名前は たかし。IDは据え置き）
 // Big man in his 50s. White cook hat, thick brows, tanned skin, white coat
 // with rolled sleeves, red apron, white towel round the neck.
 // Idle: arms folded → every 4s peeks at the griddle (to his right).

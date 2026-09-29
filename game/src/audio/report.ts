@@ -575,7 +575,7 @@ export const AMB_CONTEXT: {
 }[] = [
   { amb: 'amb_clock_tick', song: 'bgm_shop', stage: 0, role: 'character', where: 'ひのや' },
   { amb: 'amb_dryer', song: 'bgm_shop', stage: 0, role: 'character', where: 'コインランドリー' },
-  { amb: 'amb_oil', song: 'bgm_shop', stage: 0, role: 'character', where: '焼きそばのモモセ' },
+  { amb: 'amb_oil', song: 'bgm_shop', stage: 0, role: 'character', where: '焼きそばのたかし' },
   { amb: 'amb_koban', song: 'bgm_shop', stage: 0, role: 'character', where: '交番' },
   { amb: 'amb_fan', song: 'bgm_home', stage: 0, role: 'character', where: '家2F' },
   { amb: 'amb_higurashi', song: 'bgm_home', stage: 0, role: 'bed', vol: 0.4, lp: 2500, where: '家2F（窓ごし）' },

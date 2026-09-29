@@ -791,7 +791,7 @@ export const TALK: Record<string, TalkTable> = {
 今日の 地面は、よく 飲むのよ。`,
     s0_2: `@npc_mizumaki
 しゅんくん、おつかい？{w=300}
-モモセさんなら、
+たかしさんなら、
 坂を 上って、右よ。`,
     s1_1: `@npc_mizumaki
 ホースの 水がね、
@@ -904,7 +904,7 @@ export const TALK: Record<string, TalkTable> = {
 今日は 豆腐じゃ ないの？{w=300}
 まいど！
 /
-焼きそばなら モモセだい！
+焼きそばなら たかしだい！
 2軒 西！{w=300} まいど！`,
     s0_2: `@npc_mamekichi
 まいど！{w=300}

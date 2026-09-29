@@ -1,6 +1,6 @@
 // Animals & the shop statue: npc_hato (+ generic pigeons), npc_sparrow,
 // npc_crow, npc_cat_sauce / npc_cat_mike (+ extra coats), npc_cow_statue
-// (now 焼きそばのモモセ's ヤキソバン; the id is the first cast's cow).
+// (now 焼きそばのたかし's ヤキソバン; the id is the first cast's cow).
 // Every one of them has 'look_up' for the 17:00 moment.
 
 import { flat, mat, type Fig, type Mats } from './fig';
@@ -728,7 +728,7 @@ registerChar('npc_cat_hachi', () => catSprite('npc_cat_hachi', HACHI, 'curl'));
 registerChar('npc_cat_shiro', () => catSprite('npc_cat_shiro', SHIRO, 'sit'));
 
 // =============================================================================
-// ヤキソバン (npc_cow_statue; the id is the first cast's cow): 焼きそばのモモセ's
+// ヤキソバン (npc_cow_statue; the id is the first cast's cow): 焼きそばのたかし's
 // FRP statue out front, an original design — a jolly round-faced man with a
 // big black moustache and rosy cheeks, a heap of sauced noodles piled on his
 // head for hair (青のり specks, one bit of 紅しょうが on top, strands hanging
