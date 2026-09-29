@@ -100,6 +100,14 @@ export const VOICES: Record<string, VoiceDef> = {
   omukaemachi: { label: 'オムカエマチ', wave: 'triangle', base: 'A5', scale: [0, 2, 3, 7], len: 40, every: 3, v: 0.035, formant: true, child: true, rev: 0.5 },
   flip: { label: 'カネナリくんのフリップ', wave: 'sawtooth', base: 2000, scale: [0, 1], len: 35, every: 3, v: 0.02, bp: [2400, 4], vib: [28, 60] },
   kanenari_voice: { label: 'カネナリくんの声', wave: 'triangle', wave2: ['sawtooth', 0.2], base: 'D3', scale: [0], len: 140, A: 20, R: 100, every: 1, v: 0.07, formant: true, rev: 0.35 },
+  // グソっ君 (★2026-09-29 依頼主の指示で カネナリくん→グソっ君、04_gusokkun_plan 7):
+  // はずむ 関西弁。明るい 中音の C4、矩形波25%に 三角波を 重ねて、短く 速い ブリップ。
+  // 各ブリップの 頭が +70セントから はねて 落ちつき、音の 高さは 低い 組（0 2 4）と
+  // 高い 組（5 7 9）を 交互に とって 上下に はずむ。語尾は はっきり 曲がる：「、」「！」で
+  // 上がり（〜やで↑、美味いやんけ↑）、「？」で 大きく 上がり、「。」で 下がる（〜や↓）。
+  // くま吉（C5・矩形波）、ワイスタ巡査（A4・矩形波）、区長（G3・25%・ゆっくり）、
+  // ちず（F4・25%）、ヒロスケ（B3・三角波）、ポコシャ（D4・サイン）と 分ける
+  gusokkun: { label: 'グソっ君', wave: 'pulse25', wave2: ['triangle', 0.35], base: 'C4', scale: [0, 2, 4, 5, 7, 9], len: 24, A: 1, D: 16, S: 0.45, R: 8, every: 2, v: 0.055, lp: 2600, scoop: [70, 16], formant: true },
   default: { label: '（指定なし）', wave: 'triangle', base: 'A4', scale: [0, 2, 4, 7, 9], len: 30, every: 2, v: 0.045, formant: true },
   // ---- chapter 2 (53_ch2_audio 9.1). The ids keep the first cast's names (50 3.2);
   // the five men of the village and さんかど never share base, wave, set and pace
@@ -230,6 +238,8 @@ interface State {
   quietUntil?: number;
   /** ぴーちゃん's one call of the page, decided by its letters (53 9.1). */
   hen?: Hen;
+  /** グソっ君: blips since his phrase began (low / high sets in turn). */
+  bounce?: number;
 }
 
 interface Hen {
@@ -472,6 +482,16 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
       s.sasuga = 0;
     }
   }
+  // グソっ君 (関西弁): every phrase ends with a clear bend — up at 「、」 and
+  // 「！」, right up at 「？」, down at 「。」; the next phrase bounces afresh
+  if (id === 'gusokkun' && '、。！？!?'.includes(ch)) {
+    if (now - s.lastT < 0.5) {
+      const bend = ch === '。' ? -4 : ch === '、' ? 3 : ch === '？' || ch === '?' ? 7 : 5;
+      play(def, id, s.lastMidi, now + 0.01, bend, ch === '。' ? 0.9 : 1.15, 'a', true);
+    }
+    s.bounce = 0;
+    return;
+  }
   // sentence endings: a little rise for "？", a push for "！"
   if (ch === '？' || ch === '?' || ch === '！' || ch === '!') {
     if (now - s.lastT < 0.5 && def.wave !== 'none' && id !== 'narr') {
@@ -663,8 +683,14 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
     if (longMs) glide = -2;
     kanenariSeq = ch === 'お' ? 1 : kanenariSeq + 1;
   } else {
-    // マサルさん's tsukkomi uses only the top two notes of his set (5 7)
-    const scale = s.tsukkomi ? def.scale.slice(-2) : def.scale;
+    // マサルさん's tsukkomi uses only the top two notes of his set (5 7);
+    // グソっ君 bounces: the low half of his set, then the high half, in turn
+    let scale = s.tsukkomi ? def.scale.slice(-2) : def.scale;
+    if (id === 'gusokkun') {
+      if (pageHead) s.bounce = 0;
+      const b = (s.bounce = (s.bounce ?? 0) + 1);
+      scale = b % 2 === 1 ? def.scale.slice(0, 3) : def.scale.slice(3);
+    }
     semi = scale[hashCh(ch) % scale.length];
     if (semi === s.lastSemi) {
       s.repeat++;

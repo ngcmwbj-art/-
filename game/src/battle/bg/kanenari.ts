@@ -8,13 +8,13 @@ import type { Gfx } from '../../engine/gfx';
 import { Rng, hash2 } from '../../engine/rng';
 import { Background, BG_H, gradientTexture } from './common';
 
-// 10×3 red dragonfly seen from above: head on the left, the long body, two
-// pairs of wings (up / down beat)
+// 12×5 red dragonfly seen from above: the dark head on the left, the long
+// red body, two pairs of pale wings (spread / swept back on the beat)
 const TOMBO = [
-  ['...ww.ww..', 'hbbbbbbbbb', '..........'],
-  ['..........', 'hbbbbbbbbb', '...ww.ww..'],
+  ['..ww...ww...', '...ww.ww....', 'hhbbbbbbbbbb', '...ww.ww....', '..ww...ww...'],
+  ['....ww..ww..', '...wwwwww...', 'hhbbbbbbbbbb', '...wwwwww...', '....ww..ww..'],
 ];
-const TOMBO_COL: Record<string, string> = { h: '#8A2E3A', b: '#E84E3C', w: '#FBF3DC' };
+const TOMBO_COL: Record<string, string> = { h: '#8A2E3A', b: '#B8241E', w: '#FFF6D8' };
 const LEAVES = ['#E8603C', '#F7C27A', '#C8A06A', '#9BCB6B', '#F4F1E8'];
 
 export class KanenariBg extends Background {
@@ -57,18 +57,18 @@ export class KanenariBg extends Background {
       }
     }
     ctx.globalAlpha = 1;
-    // rows of red dragonflies at y54 and y120, flying in opposite directions;
+    // rows of red dragonflies at y52 and y118, flying in opposite directions;
     // their wings beat and each one bobs a pixel, neighbours out of phase
-    for (const [y, dir] of [[54, 1], [120, -1]] as [number, number][]) {
-      const off = ((t * 14 * dir) % 40 + 40) % 40;
-      for (let k = -1; k < 11; k++) {
-        const bx = Math.round(k * 40 + off);
+    for (const [y, dir] of [[52, 1], [118, -1]] as [number, number][]) {
+      const off = ((t * 14 * dir) % 48 + 48) % 48;
+      for (let k = -1; k < 9; k++) {
+        const bx = Math.round(k * 48 + off);
         const beat = (Math.floor(t * 8) + k) & 1;
         const bob = [0, -1, 0, 1][(Math.floor(t * 2.5) + k * 3) & 3];
         const rows = TOMBO[beat];
         for (let r = 0; r < rows.length; r++)
-          for (let c = 0; c < 10; c++) {
-            const col = TOMBO_COL[rows[r][dir > 0 ? 9 - c : c]];
+          for (let c = 0; c < 12; c++) {
+            const col = TOMBO_COL[rows[r][dir > 0 ? 11 - c : c]];
             if (!col) continue;
             ctx.fillStyle = col;
             ctx.fillRect(bx + c, y + r + bob, 1, 1);

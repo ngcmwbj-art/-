@@ -49,6 +49,11 @@ const P: Record<string, string> = {
   D: '#E8D8B0',
   i: '#F4D2B0',
   I: '#D8A888',
+  // グソっ君's shell (light / base / shade) and his compound eyes
+  L: '#C6BEDA',
+  Q: '#9A92AE',
+  T: '#6E6890',
+  J: '#1B1733',
 };
 
 const cache = new Map<string, HTMLCanvasElement>();
@@ -154,22 +159,24 @@ export const CMD_ICONS: Record<string, string[]> = {
     '................',
     '................',
   ],
+  // グソっ君's head (★2026-09-29 カネナリくん→グソっ君): the dome, the big
+  // compound eyes like sunglasses, the feelers
   tackle: [
-    '.......kk.......',
-    '......khhk......',
-    '.....kkkkkk.....',
-    '....kOOooooh....',
-    '...kOOOooooohk..',
-    '...kOHOoooooohk.',
-    '..kOOOooooooohk.',
-    '..kOOokooookohk.',
-    '..kOOooooooooohk',
-    '..kOoqqoooooqqhk',
-    '..kooooooooooohk',
-    '.khhhhhhhhhhhhhk',
-    '.kkhhkkkkkkhhkk.',
-    '....kxxk........',
-    '.....kk.........',
+    '..k..........k..',
+    '...k........k...',
+    '....k.k..k.k....',
+    '....kkkkkkkk....',
+    '...kLLLQQQQTk...',
+    '..kLLQQQQQQQTk..',
+    '.kLQQQQQQQQQQTk.',
+    '.kQJJJQQQQJJJTk.',
+    'kQJHJJJQQJHJJJTk',
+    'kQJJJJJQQJJJJJTk',
+    'kQQJJJQQQQJJJQTk',
+    'kQqqQQQQQQQQqqTk',
+    '.kQQQQQQQQQQQTk.',
+    '..kTTTTTTTTTTk..',
+    '...kkkkkkkkkk...',
     '................',
   ],
   pr: [
