@@ -469,6 +469,26 @@ registerProp('prop_h_mujin', () => {
       p.rect(21, 15, 3, 1, P.ink);
       p.vline(25, 15, 19, P.wood);
     }
+    // ★2026-09-30 (02 #74, 52 7.3): ヒロスケ's 焼き芋 at the front of the stand — one potato
+    // on a sheet of newspaper (grey, a few dots of print), the skin #8A2E3A lit on
+    // the upper left, the broken end yellow; beside it his hand-lettered tag
+    // 『ひろすけの焼き芋』 (a scrap of white card standing up, two strokes of ink).
+    // In front of the money box's foot while the box is there (h0).
+    p.hline(17, 25, 20, P.concreteLt);
+    p.hline(17, 25, 21, P.concrete);
+    for (const x of [19, 22, 24]) p.set(x, 20, P.concrete);
+    p.hline(21, 23, 17, P.maroon);
+    p.hline(20, 24, 18, P.maroon);
+    p.hline(20, 23, 19, P.maroon);
+    p.set(21, 17, P.sunShade);
+    p.set(20, 18, P.sunShade);
+    p.set(21, 18, P.sunShade);
+    p.set(24, 19, P.gold);
+    p.set(24, 18, P.goldPale);
+    p.set(25, 18, P.maroon);
+    p.rect(17, 16, 2, 4, P.white);
+    p.set(17, 17, P.ink);
+    p.set(18, 18, P.ink);
     outline(p, { bottom: true, soft: true });
     return p.toCanvas();
   };

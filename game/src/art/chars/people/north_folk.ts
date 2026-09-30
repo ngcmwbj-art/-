@@ -16,7 +16,8 @@
 //               エプロン、灰の スカート。懐中時計を めがねの 前へ（ルーペ）
 //   npc_master  かずゆき（喫茶 夕顔のマスター）40代の男性（★2026-09-30 依頼主の
 //               指示で 60代の灰色の髪・口ひげ・ベストと蝶ネクタイの マスター→かずゆき。
-//               IDは据え置き、02 #71）。黒髪を 後ろへ なでつけ、あごに 短い ひげ、
+//               IDは据え置き、02 #71）。つるっとした スキンヘッド（★2026-09-30
+//               依頼主の指示。前は 黒髪を 後ろへ なでつけ。02 #74）、あごに 短い ひげ、
 //               白い シャツの 腕まくり、こげ茶の エプロン。カップをみがく
 //   npc_okami   おかみ（酒店）60代。黒髪のおだんごに藍の手ぬぐい、
 //               からし色のシャツに酒蔵の紺の前かけ。腕まくり、腰に手
@@ -119,20 +120,28 @@ const HEAD_KNOT: HeadT = {
 };
 
 /**
- * Black hair combed straight back, the brow bare (かずゆき, ★2026-09-30): the
- * eyes a row higher than the old master's so the short beard fits on the chin
- * under the mouth (drawn by `beard`).
+ * A smooth shaven head (かずゆき, ★2026-09-30 依頼主の指示で スキンヘッド。前は
+ * 黒髪を後ろへなでつけ): the skull in the face's own skin ('scalp' = SKIN_MID's
+ * tones plus a #FFF6D8 shine), no hair anywhere. The dome is the shape of the
+ * game's other shaven heads (ヒロスケ, マサル: 8px wide, a pixel narrower each
+ * side than a head of hair): the top edge lit, a 1px shine on the upper left of
+ * the crown in the base tone, the shade down the right side and round the back
+ * of the head (the nape darker). The eyes stay where the old head had them
+ * (2px) so the short beard fits on the chin under the mouth (drawn by `beard`);
+ * the dark brows keep his face.
  */
 const HEAD_KAZU: HeadT = {
+  hairMat: 'scalp',
   faceD: [4, 3, ['.######.', '########', '########', '########', '.######.', '..####..']],
-  hairD: [3, 0, ['..hHhhhh..', '.HKHhhhhd.', 'HHhhhhhhdd', 'Hh......dd', 'h........d']],
+  hairD: [4, 0, ['..HHhh..', '.hKhhhhd', 'HHhhhhdd']],
+  hairDUp: [4, 0, ['..HHhh..', '.hKhhhhd']],
+  upD: { fringe: 'none' },
   eyesD: { x: 6, d: 3, y: 5, h: 2, brow: { dy: -1, mat: 'brow', w: 2 } },
   mouthD: [7, 7, 2],
   neckD: [7, 9, 2],
-  hairU: [3, 0, ['..hHhhhh..', '.HKHhhhhd.', 'HHhhhhhhdd', 'Hhhhhhhhdd', 'hhhhhhhhhd', '.hhhhhhd..']],
-  napeU: [5, 6, ['######', '.####.']],
+  hairU: [4, 0, ['..HHhh..', '.hKhhhhd', 'HHhhhhhd', 'hhhhhhhd', 'hhhhhhdd', 'hhhhhhdd', '.dhhhdd.', '..dddd..']],
   faceL: [3, 3, ['.####...', '#####...', '######..', '#####...', '.####...', '..##....']],
-  hairL: [3, 0, ['..######..', '.#######dd', '##########', '###..#####', '......####', '.......##d']],
+  hairL: [4, 0, ['..HHhh..', '.hKhhhhd', 'HHhhhhdd', '....hhdd', '....hhdd', '....hdd.', '.....d..']],
   eyeL: { x: 4, y: 5, h: 2, brow: { dy: -1, mat: 'brow', w: 2 } },
   earL: [8, 5],
   mouthL: [3, 7],
@@ -666,7 +675,8 @@ folk({
   mats: {
     ...base,
     skin: SKIN_MID,
-    hair: mat('#2B1E1A', { shade: '#1B1733', light: '#5A3A2A', dark: '#0B0B14', rim: '#A86A4A' }),
+    // the shaven head: the face's own four tones, and a #FFF6D8 shine on the crown
+    scalp: mat('#F2B894', { shade: '#E0A882', light: '#FFD9B8', dark: '#C98A6A', spec: '#FFF6D8' }),
     brow: flat('#2B1E1A'),
     top: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFFFFF', dark: '#9AA0A8', rim: '#FFE0B8' }),
     rolled: mat('#E8E4D8', { shade: '#C8C2B4', light: '#F4F1E8', dark: '#9AA0A8' }),

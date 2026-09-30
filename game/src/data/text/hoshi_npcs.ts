@@ -660,8 +660,18 @@ export function callLine(name: string): string {
 export const MUJIN_SHOP = {
   title: '星見台 無人販売所',
   /** 1回の買い物の上限（店を出て入りなおせば、また買える）。 */
-  limits: { item_kyuri_zuke: 3, item_toumorokoshi: 1, item_umeboshi: 2 } as Record<string, number>,
-  goods: ['item_kyuri_zuke', 'item_toumorokoshi', 'item_umeboshi'],
+  limits: { item_kyuri_zuke: 3, item_toumorokoshi: 1, item_umeboshi: 2, item_yakiimo: 2 } as Record<string, number>,
+  /**
+   * ★2026-09-30（依頼主の指示、02 #74）：ツガオ便の ヒロスケが 置いていく 焼き芋も 並ぶ。
+   * 中身は ヒロスケの おだちんと 同じ item_yakiimo（HP 60 回復）。
+   */
+  goods: ['item_kyuri_zuke', 'item_toumorokoshi', 'item_umeboshi', 'item_yakiimo'],
+  /**
+   * 一覧の 札の 名前（もちものでは『焼き芋』のまま）。ヒロスケの 手書き、ひらがな。
+   * `hand` の 札は 手書き（マジックの 太い 字、新聞紙の 色の 紙）。
+   */
+  labels: { item_yakiimo: 'ひろすけの焼き芋' } as Record<string, string>,
+  hand: ['item_yakiimo'],
   price: 100,
   confirm: (item: string) => `${item}を 買う？（100円）`,
   /** 〔購入・1回目〕 */
@@ -670,6 +680,15 @@ export const MUJIN_SHOP = {
   again: [['箱に 入れてね。'], ['ありがとうねえ。']],
   /** The first ゆでとうもろこし (instead of the line above). */
   corn: ['ぼくは 1列ずつ 派？\nぐるっと 派？{w=300}\n……どっちも、絵に なるのよ。'],
+  /** The first ひろすけの焼き芋 (instead of the line above; 02 #74). */
+  imo: ['その 焼き芋はね、ヒロスケさんが\n配達の たびに 置いていくの。{w=300}\n札も、あの人の 字よ。', '皮の 色、見て。{w=300}\n夕焼けの、少し 手前の 紫。\n……絵に なるのよねえ。'],
+  /**
+   * グソっ君（仲間のとき）: the first 焼き芋 eaten after one was bought here, once
+   * (flag_ch2_mujin_imo_gk; data/battle/field.ts yakiimoFirst). His own line
+   * replaces the usual 「あっつ！ ……うっま！」; when しゅん eats it, `imoShare` first.
+   */
+  imoGk: ['あっま！！\n芋って、こんな 甘いんか！'],
+  imoShare: ['グソっ君も、はしっこを\nひと口 もらった。'],
   noMoney: ['100円玉、ない？{w=300}\n朝に なったら、また 来てね。'],
   bagFull: ['ポケット、いっぱいねえ。{w=300}\n野菜が つぶれちゃうわよ。'],
   bye: ['夜道、気を つけてね。'],

@@ -12,7 +12,7 @@ import type { Co } from '../../engine/co';
 import type { Gfx } from '../../engine/gfx';
 import type { Input } from '../../engine/input';
 import { flag, state } from '../../game/state';
-import { getItem, isKeyItem, ITEM_TEXT, useItemInField, canUseItemInField } from '../../data/battle';
+import { getItem, isKeyItem, ITEM_TEXT, useItemInField, canUseItemInField, yakiimoFirst } from '../../data/battle';
 import { sfx } from '../../audio';
 import { say } from '../dialog';
 import { drawDigits, drawNumerals } from '../digits';
@@ -356,8 +356,12 @@ export class ItemsPage implements MenuPage {
     const healed = pages.some((p) => p.includes('回復') || p.includes('すっきり'));
     if (healed) sfx('se_heal');
     yield* say(pages, { voice: 'sys' });
-    // グソっ君 says what he thinks of it (★2026-09-29: no zipper, he eats it)
-    const says = target === 'kanenari' ? ITEM_TEXT[id]?.kanenariSays : undefined;
+    // グソっ君 says what he thinks of it (★2026-09-29: no zipper, he eats it);
+    // the first 焼き芋 after one was bought at the 無人販売所: his own word, once
+    // (and a bite of it when しゅん ate it, 02 #74)
+    const first = yakiimoFirst(id);
+    if (first && target !== 'kanenari') yield* say(first.share, { voice: 'sys' });
+    const says = first ? first.pages : target === 'kanenari' ? ITEM_TEXT[id]?.kanenariSays : undefined;
     if (says?.length) yield* say(says, { name: 'グソっ君', voice: 'gusokkun' });
     this.fix(this.slots());
   }

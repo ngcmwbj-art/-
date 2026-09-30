@@ -15,35 +15,54 @@ const base = {
 };
 
 // =============================================================================
-// なんばるわん (npc_madam): 60s. White lace parasol (twirls, 3 frames), lilac
-// blouse, white trousers, short grey hair, a red leash to コタロウ.
-// Canvas 20×28 so the parasol can overhang; feet at the bottom centre.
+// なんばるわん (npc_madam): 50代のマダム (★2026-09-30 依頼主の指示。前は 60代、
+// グレーのショートヘアに 薄紫のブラウスと 白いパンツ). The white lace parasol
+// (twirls, 3 frames) and the red leash to コタロウ stay; now: chestnut hair set
+// in a soft updo (volume on top, a side-swept wave over the brow, the sides
+// tucked behind the ears, a French twist at the back), a pearl earring (seen
+// from the side) and a short strand of pearls at the neckline, a violet
+// dress (a thin belt with a gold buckle, an A-line skirt to below the knee),
+// sheer stockings and wine pumps, and a small wine handbag hanging in the
+// crook of the arm that holds the parasol; a small 1px mouth. Canvas 20×28 so
+// the parasol can overhang; feet at the bottom centre. Same poses as before
+// (walk, idle, look_up, surprised), so the café and park scenes
+// (events/cape_coffee.ts) move her as they did.
 
 const MADAM: Mats = {
   ...base,
   skin: SKIN_LIGHT,
-  hair: mat('#9AA0A8', { shade: '#747A88', light: '#BCC2C8', dark: '#4E5262', spec: '#DCE0E4', rim: '#E0B8A0' }),
-  blouse: mat('#B8A0D0', { shade: '#8E78AE', light: '#D4C2E4', dark: '#5E4E7A', rim: '#F0B8B0' }),
-  pants: mat('#F4F1E8', { shade: '#CFC8BC', light: '#FFFFFF', dark: '#9E978C', rim: '#FFDCB4' }),
-  shoe: mat('#C8A07A', { shade: '#9A7A5A', light: '#E0C09A' }),
+  hair: mat('#8A5A3A', { shade: '#5A3A2A', light: '#A8742A', dark: '#3A2B2A', rim: '#E0B8A0' }),
+  dress: mat('#7A5AA0', { shade: '#5B4A7A', light: '#B8A0D0', dark: '#3A2B5C', rim: '#F0B8B0' }),
+  belt: flat('#3A2B5C'),
+  buckle: flat('#D9A441'),
+  pearl: flat('#F4F1E8'),
+  pearlHi: flat('#FFF6D8'),
+  stocking: mat('#E0A882', { shade: '#C98A6A', light: '#F2B894', dark: '#8A5A3A' }),
+  shoe: mat('#8A2E3A', { shade: '#5A2A3A', light: '#B04A7A', dark: '#2A2440' }),
+  bag: mat('#8A2E3A', { shade: '#5A2A3A', light: '#B04A7A', dark: '#2A2440', rim: '#D9728A' }),
   lace: mat('#F4F1E8', { shade: '#D8CCB8', light: '#FFFFFF', dark: '#A89C88', rim: '#FFE0B8', ol: '#6A5E6A' }),
   rib: flat('#C8BCA8'),
   shaft: flat('#C0C6CC'),
   handle: flat('#A8742A'),
   leash: flat('#E84E3C'),
-  brow: flat('#747A88'),
+  brow: flat('#5A3A2A'),
 };
 
 const MADAM_HEAD: HeadT = {
   faceD: [4, 3, ['.######.', '########', '########', '########', '.######.', '..####..']],
-  hairD: [3, 0, ['..HHhhhh..', '.HKHhhhhd.', 'HHhhhhhhdd', 'Hhhd..dhdd', 'hd......dd', 'hd......d.']],
+  // set hair: volume on top, the wave swept over her right brow, the sides up over the ears
+  hairD: [3, 0, ['..HHhhhh..', '.HHHhhhhd.', 'HHhhhHhhdd', 'HhHhd..hdd', 'hd......dd']],
   eyesD: { x: 6, d: 3, y: 5, h: 1, brow: { dy: -1, mat: 'brow', w: 1 } },
-  mouthD: [7, 7, 2],
+  // a small, composed mouth (1px)
+  mouthD: [8, 7, 1],
   blushD: [5, 10, 6],
   neckD: [7, 9, 2],
-  hairU: [3, 0, ['..HHhhhh..', '.HKHhhhhd.', 'HHhhhhhhdd', 'Hhhhhhhhdd', 'hhhhhhhhdd', 'hhhhhhhhdd', '.hdhhdhhd.']],
+  // from behind: the French twist up the middle (the seam in shade), the nape bare
+  hairU: [3, 0, ['..HHhhhh..', '.HHHhhhhd.', 'HHhhhHdhdd', 'HhhhHHdhdd', 'hhhhHhdhdd', '.hhhHhdhd.', '..hhhddd..']],
+  napeU: [5, 7, ['######', '.####.']],
   faceL: [3, 3, ['.####...', '#####...', '######..', '#####...', '.####...', '..##....']],
-  hairL: [3, 0, ['..######..', '.########d', '##########', '#dd.######', '.....#####', '.....####d', '......##d.']],
+  // profile: the wave at the brow, the ear bare, the twist bulging at the back of the head
+  hairL: [3, 0, ['..HHhhhh...', '.HHhhhhhd..', 'HHhhhhhhhd.', 'Hhh..hhhHhd', '.....hhHHdd', '......hhhdd', '.......hdd.']],
   eyeL: { x: 4, y: 5, h: 1, brow: { dy: -1, mat: 'brow', w: 1 } },
   earL: [8, 5],
   mouthL: [3, 7],
@@ -51,7 +70,7 @@ const MADAM_HEAD: HeadT = {
   neckL: [5, 9, 2],
 };
 
-const MADAM_LEGS: LegSpec = { cx: 8, hip: 17, foot: 22, w: 2, gap: 2, mat: 'pants', shoe: 'shoe', shoeLen: 3 };
+const MADAM_LEGS: LegSpec = { cx: 8, hip: 17, foot: 22, w: 2, gap: 2, mat: 'stocking', shoe: 'shoe', shoeLen: 3 };
 
 /** Lace parasol canopy. ph = twirl phase (0..2). */
 function parasol(f: Fig, view: string, ph: number, cx: number, y: number) {
@@ -79,6 +98,50 @@ function parasol(f: Fig, view: string, ph: number, cx: number, y: number) {
   f.px(cx - 1, y - 1).px(cx, y - 1);
 }
 
+/** The skirt's hem row: below the knee, the stockings and pumps showing under it. */
+const HEM = 19;
+
+/** The violet dress below the waist: a thin belt, then an A-line skirt to below the knee (row HEM). */
+function madamSkirt(f: Fig, p: Pose, side: boolean) {
+  const b = p.bob;
+  const top = 17 + b;
+  const x0 = side ? 5 : 4;
+  const x1 = side ? 10 : 11;
+  // the hem sways a pixel with the stride
+  const sway = p.mode === 'walk' ? [0, -1, 0, 1][p.step % 4] : 0;
+  f.part('dress', { shade: 'r', light: 't' });
+  for (let y = top; y <= HEM; y++) {
+    const w = y >= HEM - 1 ? 1 : 0;
+    const s = y === HEM ? sway : 0;
+    f.hl(x0 - w + s, x1 + w + s + (side && y >= HEM - 1 ? 1 : 0), y);
+  }
+  // the folds
+  f.t(-1);
+  if (side) f.vl(8, top + 1, HEM);
+  else f.vl(6, top + 1, HEM).vl(9, top + 1, HEM);
+  f.t(null);
+  // the belt and its buckle
+  f.part('belt', { flat: true, rim: false });
+  f.hl(side ? 5 : 4, side ? 10 : 11, 16 + b);
+  if (p.view === 'down') {
+    f.part('buckle', { flat: true, rim: false });
+    f.px(7, 16 + b).px(8, 16 + b);
+  } else if (side) {
+    f.part('buckle', { flat: true, rim: false });
+    f.px(5, 16 + b);
+  }
+}
+
+/** The handbag: a little wine box (3×3) with a gold clasp; (x, y) = the row of its handle over the arm. */
+function handbag(f: Fig, x: number, y: number) {
+  f.part('bag', { flat: true, rim: false });
+  f.px(x, y).px(x + 2, y);
+  f.part('bag', { shade: 'rb', light: 't' });
+  f.rect(x, y + 1, 3, 3);
+  f.part('buckle', { flat: true, rim: false });
+  f.px(x + 1, y + 1);
+}
+
 function madamDraw(f: Fig, p: Pose) {
   const u = upper(p);
   const b = p.bob;
@@ -87,18 +150,25 @@ function madamDraw(f: Fig, p: Pose) {
   f.offset(2, 4);
   if (p.view === 'down' || p.view === 'up') {
     legs(f, p, MADAM_LEGS);
-    f.part('blouse', { shade: 'rb', light: 't' });
+    madamSkirt(f, p, false);
+    f.part('dress', { shade: 'rb', light: 't' });
     f.hl(4, 11, 11 + u);
-    f.rect(3, 12 + u, 10, 17 + b - (12 + u));
-    f.part('blouse', { flat: true });
-    if (p.view === 'down') f.t(1).px(7, 11 + u).px(8, 11 + u).t(-1).px(7, 12 + u).px(8, 12 + u).t(null);
-    const seg: Seg[] = [{ mat: 'blouse', n: 3 }, { mat: 'skin' }];
+    f.rect(3, 12 + u, 10, 16 + b - (12 + u));
+    const seg: Seg[] = [{ mat: 'dress', n: 3 }, { mat: 'skin' }];
     if (p.view === 'down') {
-      // her right hand (viewer-left) holds the parasol at the chest; left holds the leash
-      f.part('blouse', { shade: 'rb', light: 't' });
+      // the neckline, and the strand of pearls lying in it
+      f.part('skin', { shade: '', light: '' });
+      f.px(7, 11 + u).px(8, 11 + u);
+      f.part('pearl', { flat: true, rim: false, ol: false });
+      f.px(6, 11 + u).px(9, 11 + u).px(8, 12 + u);
+      f.part('pearlHi', { flat: true, rim: false, ol: false });
+      f.px(7, 12 + u);
+      // her right hand (viewer-left) holds the parasol at the chest, the bag in the crook of that arm; the left holds the leash
+      f.part('dress', { shade: 'rb', light: 't' });
       f.rect(2, 12 + u, 2, 3);
       f.part('skin', { shade: '', light: '' });
       f.px(4, 15 + u).px(5, 15 + u);
+      handbag(f, 1, 15 + u);
       hangArms(f, p, { lx: 3, rx: 12, sy: 12, hy: 16, segs: seg }, u, 'R');
       f.part('leash', { flat: true, rim: false, ol: false });
       f.px(13, 17 + u).px(14, 18 + u).px(15, 19 + u).px(16, 20 + u).px(17, 21 + u);
@@ -108,6 +178,8 @@ function madamDraw(f: Fig, p: Pose) {
       f.px(5, 16 + u).px(6, 17 + u);
     } else {
       hangArms(f, p, { lx: 3, rx: 12, sy: 12, hy: 16, segs: seg }, u);
+      // from behind: the bag on her right arm (the viewer's right), the leash on her left
+      handbag(f, 12, 16 + u);
       f.part('leash', { flat: true, rim: false, ol: false });
       f.px(2, 17 + u).px(1, 18 + u).px(0, 19 + u);
     }
@@ -116,15 +188,19 @@ function madamDraw(f: Fig, p: Pose) {
     return;
   }
   const sw = sideSwing(p);
-  sideArm(f, 9, 12 + u, 4, -sw, [{ mat: 'blouse', n: 3 }, { mat: 'skin' }], -1);
+  sideArm(f, 9, 12 + u, 4, -sw, [{ mat: 'dress', n: 3 }, { mat: 'skin' }], -1);
   legs(f, p, MADAM_LEGS);
-  f.part('blouse', { shade: 'rb', light: 't' });
+  madamSkirt(f, p, true);
+  f.part('dress', { shade: 'rb', light: 't' });
   f.hl(6, 10, 11 + u);
-  f.rect(5, 12 + u, 6, 17 + b - (12 + u));
-  f.part('blouse', { shade: 'rb', light: 'tl' });
+  f.rect(5, 12 + u, 6, 16 + b - (12 + u));
+  f.part('pearl', { flat: true, rim: false, ol: false });
+  f.px(5, 11 + u).px(6, 12 + u);
+  f.part('dress', { shade: 'rb', light: 'tl' });
   f.rect(7, 12 + u, 3, 2);
   f.part('skin', { shade: '', light: '' });
   f.t(0).line(7, 14 + u, 5, 15 + u).t(null);
+  handbag(f, 7, 14 + u);
   f.part('shaft', { flat: true, rim: false });
   f.line(5, 14 + u, 9, 5 + u);
   f.part('handle', { flat: true, rim: false });
@@ -132,6 +208,10 @@ function madamDraw(f: Fig, p: Pose) {
   f.part('leash', { flat: true, rim: false, ol: false });
   f.px(4, 15 + u).px(4, 16 + u).px(3, 17 + u).px(3, 18 + u).px(2, 19 + u).px(2, 20 + u).px(1, 21 + u);
   head(f, p, MADAM_HEAD, hy);
+  if (!p.lookUp) {
+    f.part('pearl', { flat: true, rim: false });
+    f.px(8, hy + 6);
+  }
   parasol(f, 'left', ph, 12, u + (p.lookUp ? 0 : 0));
 }
 

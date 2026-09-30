@@ -8,7 +8,7 @@ import { rng } from '../engine/rng';
 import { ease } from '../engine/tween';
 import { Gfx } from '../engine/gfx';
 import { BAYER4, makeCanvas } from '../engine/pixel';
-import { CAPSULE_TABLE, fillAll, getItem, getSkill, ITEM_TEXT, LABEL, NORI, NORI_COMMON, NORI_HOSHI, SYS, SYS2 } from '../data/battle';
+import { CAPSULE_TABLE, fillAll, getItem, getSkill, ITEM_TEXT, LABEL, NORI, NORI_COMMON, NORI_HOSHI, SYS, SYS2, yakiimoFirst } from '../data/battle';
 import type { BattleScene } from './scene';
 import { FRAME, STAGE_TOP } from './scene';
 import {
@@ -1507,7 +1507,10 @@ export function* doItem(s: BattleScene, u: PartyUnit, itemId: string, target0: P
       ? text.kanenari
       : fillAll(selfPages ?? SYS.itemSelf, v);
   s.post(first);
-  if (toKanenari && text?.kanenariSays) s.msg.post(text.kanenariSays, knOpts());
+  // (the first 焼き芋 after one was bought at the 無人販売所: his own word, once, 02 #74)
+  const imo = toKanenari ? yakiimoFirst(itemId) : null;
+  const says = imo ? imo.pages : text?.kanenariSays;
+  if (toKanenari && says) s.msg.post(says, knOpts());
   // item icon arcs up from the bottom of the screen into the panel (250ms)
   const icon = itemIcon(itemId);
   const dests = target ? [target] : s.party.filter((p) => !p.has('status_rusu'));

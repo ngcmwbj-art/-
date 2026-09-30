@@ -486,7 +486,7 @@ export const SREWARD: Record<string, string> = {
   // なんばるわんの家：トロフィー棚の 参加賞 → ラムネ
   obj_md_trophy: `@narr
 トロフィーが ずらり。{w=300}
-ゲートボール、社交ダンス、
+テニス、社交ダンス、
 カラオケ。ぜんぶ 1位。
 /
 おくに ラムネが 1本。{w=300}

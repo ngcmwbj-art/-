@@ -1,10 +1,11 @@
 // Field (menu) use of items and hanko (20_systems_battle.md 7, 19.2; 10_narrative.md 10.1, 11).
 
-import { addItem, removeItem, state, type Member } from '../../game/state';
+import { addItem, flag, removeItem, setFlag, state, type Member } from '../../game/state';
 import { rng } from '../../engine/rng';
 import { CAPSULE_TABLE, getItem } from './items';
 import { getSkill } from './skills';
 import { FIELD_TEXT, ITEM_TEXT, fillAll } from './text';
+import { MUJIN_SHOP } from '../text/hoshi_npcs';
 
 function mem(id: string): Member | undefined {
   return state.party.find((m) => m.id === id);
@@ -52,6 +53,22 @@ function applyItemEffect(itemId: string, m: Member, out: string[]): void {
     for (const s of it.cure) if (m.status[s]) (delete m.status[s], (any = true));
     if (any) out.push(...fillAll(FIELD_TEXT.cured, { target: who }));
   }
+}
+
+/**
+ * 無人販売所の『ひろすけの焼き芋』（★2026-09-30、02 #74, 50 7.3）: the first
+ * 焼き芋 eaten after one was bought at the stall — グソっ君 (in the party)
+ * says his word once (flag_ch2_mujin_imo_gk). `pages`: his line (in place of
+ * his usual 「あっつ！ ……うっま！」 when he eats it); `share`: the narration
+ * before it when someone else ate it (he gets a bite). Null: nothing to add.
+ * The menu (ui/menu/items.ts) and the battle (only when he eats it himself)
+ * call it right after the item's own pages.
+ */
+export function yakiimoFirst(itemId: string): { pages: string[]; share: string[] } | null {
+  if (itemId !== 'item_yakiimo' || !flag('flag_ch2_mujin_imo') || flag('flag_ch2_mujin_imo_gk')) return null;
+  if (!state.party.some((m) => m.id === 'kanenari')) return null;
+  setFlag('flag_ch2_mujin_imo_gk', 1);
+  return { pages: [...MUJIN_SHOP.imoGk], share: [...MUJIN_SHOP.imoShare] };
 }
 
 /**

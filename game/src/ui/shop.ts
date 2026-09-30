@@ -77,6 +77,17 @@ export interface ShopDef {
    * shop's purse would be.
    */
   stall?: { board: string };
+  /**
+   * The name on a card when the stall's own sign says it otherwise (the
+   * 無人販売所's 『ひろすけの焼き芋』, 02 #74): the list, the right column and
+   * 「…を 買う？」 use it; in the bag it is still the item's own name.
+   */
+  label?: (id: string) => string | undefined;
+  /**
+   * A card written by hand (ヒロスケ's own tag): newspaper-grey paper, the
+   * words in a fat marker (the stroke doubled a pixel right), like the sign.
+   */
+  hand?: (id: string) => boolean;
 }
 
 const shops = new Map<string, ShopDef>();
@@ -137,7 +148,9 @@ registerShop({
 // ---- 星見台 無人販売所 (50_ch2_story 7.3, 51 6.3) ------------------------------------------------
 //
 // The stall by the road: きゅうりの一本漬け, ゆでとうもろこし and 梅干し, 100円
-// each, at most 3 / 1 / 2 in one visit (walk up again and it's full). The
+// each, at most 3 / 1 / 2 in one visit (walk up again and it's full); and
+// (★2026-09-30, 02 #74) ヒロスケ's 焼き芋 on his own hand-lettered tag
+// 『ひろすけの焼き芋』, 100円 too, 2 a visit (item_yakiimo, the one he gives). The
 // money goes into the wooden box (se_h_coin_box). ソワカさん (the artist) minds it — also
 // while ムジン販売員 is out and about. The words are the scenario's
 // (data/text/hoshi_npcs MUJIN_SHOP), so a rename there reaches the shop.
@@ -154,13 +167,21 @@ registerShop({
   perVisit: true,
   signColor: '#D8B888',
   stall: { board: `どれでも ${MUJIN_SHOP.price}円` },
+  label: (id) => MUJIN_SHOP.labels[id],
+  hand: (id) => MUJIN_SHOP.hand.includes(id),
   buySfx: () => sfx('se_h_coin_box'),
   onBuy: (id) => {
-    // the first ゆでとうもろこし has its own line; the first purchase ever
-    // is the 「まいど」 she didn't mean to say; after that two lines in turn
+    // the first ゆでとうもろこし and the first ひろすけの焼き芋 have their own
+    // lines; the first purchase ever is the 「まいど」 she didn't mean to say;
+    // after that two lines in turn
     if (id === 'item_toumorokoshi' && !flag('flag_ch2_mujin_corn')) {
       setFlag('flag_ch2_mujin_corn', 1);
       return MUJIN_SHOP.corn;
+    }
+    if (id === 'item_yakiimo' && !flag('flag_ch2_mujin_imo')) {
+      // (グソっ君's word comes when the first one is eaten: data/battle/field.ts)
+      setFlag('flag_ch2_mujin_imo', 1);
+      return MUJIN_SHOP.imo;
     }
     if (!flag('flag_ch2_mujin_first')) {
       setFlag('flag_ch2_mujin_first', 1);
@@ -251,6 +272,11 @@ class ShopScene implements Scene {
 
   private price(id: string): number {
     return this.def.price?.(id) ?? getItem(id)?.price ?? 0;
+  }
+
+  /** The name on the card: the shop's own label (a stall's hand-lettered tag) or the item's. */
+  private nameOf(id: string): string {
+    return this.def.label?.(id) ?? getItem(id)?.name ?? id;
   }
 
   /** How many more of `id` can be bought today (Infinity = no limit). */
@@ -458,7 +484,8 @@ class ShopScene implements Scene {
     const w = tw + 14;
     const h = 22;
     const x = P.x + 10;
-    const y = P.y + P.h - h - 10;
+    // (four cards: the sign sits 4px lower, under the last one)
+    const y = P.y + P.h - h - (this.tight() ? 6 : 10);
     rectA(g, x + 2, y + 2, w, h, UI.night, 0.25);
     g.img(cardboardImg(w, h), x, y);
     g.text(text, x + 7, y + 2, { color: UI.text });
@@ -476,6 +503,11 @@ class ShopScene implements Scene {
     goods.forEach((id, i) => g.img(itemIcon12(id), bx + 4 + i * 13, by + 5));
     g.px(bx + 2, by + 3, '#6B7186');
     g.px(bx + bw - 3, by + 3, '#6B7186');
+  }
+
+  /** A stall with four cards or more: the cards 1px closer and 2px higher, the sign lower (02 #74). */
+  private tight(): boolean {
+    return !!this.def.stall && this.goods.length > 3;
   }
 
   private drawPanel(g: Gfx): void {
@@ -500,27 +532,34 @@ class ShopScene implements Scene {
     // price cards
     const n = this.goods.length;
     if (!n) g.text('きょうは 売りきれ。', CARD_X + 6, CARD_Y + 8, { color: UI.textDim });
+    const tight = this.tight();
     this.goods.forEach((id, i) => {
       const it = getItem(id);
       if (!it) return;
+      const name = this.nameOf(id);
+      const hand = !!this.def.hand?.(id);
       const [jx, jy] = JITTER[i % JITTER.length];
       const sel = i === this.sel;
       const out = this.left(id) <= 0;
       const wob = sel && this.refuseT < 240 ? Math.round(Math.sin(this.refuseT / 24) * 2 * (1 - this.refuseT / 240)) : 0;
       const x = CARD_X + jx + (sel ? 4 : 0) + wob;
-      const y = CARD_Y + i * (CARD_H + 2) + jy - (sel ? 1 : 0);
+      const y = CARD_Y - (tight ? 2 : 0) + i * (CARD_H + (tight ? 1 : 2)) + jy - (sel ? 1 : 0);
       rectA(g, x + 2, y + 2, CARD_W, CARD_H, UI.night, 0.25);
       g.rect(x, y, CARD_W, CARD_H, UI.border);
-      g.rect(x + 1, y + 1, CARD_W - 2, CARD_H - 2, out ? '#E9E4D6' : UI.flipPaper);
+      g.rect(x + 1, y + 1, CARD_W - 2, CARD_H - 2, hand ? (out ? '#D8D4C8' : '#E8E4D8') : out ? '#E9E4D6' : UI.flipPaper);
+      // a hand-made tag on a scrap of newspaper: faint lines of print along its foot
+      if (hand) for (let k = x + 4; k < x + CARD_W - 4; k += 2) if (hash2(k, i, 5) > 0.35) g.px(k, y + CARD_H - 3, '#C8C2B4');
       // a pin of masking tape on the left end
       g.img(tapeImgSmall(i), x - 3, y + 5);
       const focus = !this.confirm || this.confirm.id === id;
-      if (sel) drawMarker(g, x + 8, y + 3, Math.min(textW(it.name), CARD_W - 24 - digitsWidth(`${this.price(id)}円`)) + 4, 14, Math.min(1, this.moveT / 70), focus ? UI.marker : '#EFE4C6');
+      if (sel) drawMarker(g, x + 8, y + 3, Math.min(textW(name) + (hand ? 1 : 0), CARD_W - 24 - digitsWidth(`${this.price(id)}円`)) + 4, 14, Math.min(1, this.moveT / 70), focus ? UI.marker : '#EFE4C6');
       // a long name is set tighter so it clears the price
-      const room = CARD_W - 16 - digitsWidth(`${this.price(id)}円`) - 8;
-      const nw = textW(it.name);
-      const sp = nw <= room ? 0 : nw - [...it.name].length <= room ? -1 : -2;
-      g.text(it.name, x + 10, y + 2, { color: out ? UI.textDim : UI.text, spacing: sp });
+      const room = CARD_W - 16 - digitsWidth(`${this.price(id)}円`) - 8 - (hand ? 1 : 0);
+      const nw = textW(name);
+      const sp = nw <= room ? 0 : nw - [...name].length <= room ? -1 : -2;
+      g.text(name, x + 10, y + 2, { color: out ? UI.textDim : UI.text, spacing: sp });
+      // the marker's fat stroke (the stall's sign is lettered the same way)
+      if (hand) g.text(name, x + 11, y + 2, { color: out ? UI.textDim : UI.text, spacing: sp });
       if (out) {
         // sold out for the day: the price is struck through and the shop's
         // 「売切」 seal is pressed beside it — the same on every card
@@ -546,9 +585,10 @@ class ShopScene implements Scene {
     const x = RX;
     let y = PANEL.y + 29;
     // name in 朱 with a pencil underline; squeezed a pixel a letter if it would pass the frame
-    const nw = textW(it.name);
-    const sp = nw <= RW ? 0 : nw - [...it.name].length <= RW ? -1 : -2;
-    const drawnW = g.text(it.name, x, y, { color: UI.accent, spacing: sp });
+    const name = this.nameOf(id);
+    const nw = textW(name);
+    const sp = nw <= RW ? 0 : nw - [...name].length <= RW ? -1 : -2;
+    const drawnW = g.text(name, x, y, { color: UI.accent, spacing: sp });
     pencilLine(g, x, y + 17, Math.min(RW, drawnW + 2), 1, UI.accentDark, 4);
     y += 24;
     // the icon on a sticky card, the kind and the count beside it
@@ -619,7 +659,7 @@ class ShopScene implements Scene {
       // 「ラムネを 買う？」 (the item name in 朱, 10.4 @sys)
       let x = D.textX;
       const y1 = D.y + 8;
-      x += g.text(it.name, x, y1, { color: UI.accent });
+      x += g.text(this.nameOf(c.id), x, y1, { color: UI.accent });
       g.text('を 買う？', x, y1, { color: UI.sys });
       // quantity: ◀ 2こ ▶  and the total
       const y2 = D.y + 32;
