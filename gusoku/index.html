@@ -227,7 +227,7 @@ const V3=THREE.Vector3, TAU=Math.PI*2;
 const lerp=(a,b,t)=>a+(b-a)*t, clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t)};
 const damp=(a,b,l,dt)=>lerp(a,b,1-Math.exp(-l*dt));
-const IS_MOBILE=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||Math.min(innerWidth,innerHeight)<560;
+const IS_MOBILE=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1)||matchMedia('(pointer:coarse)').matches||Math.min(innerWidth,innerHeight)<560;
 
 /* =====================================================================
    NOISE
@@ -333,8 +333,12 @@ const canvas=document.getElementById('gl');
 let renderer;
 try{renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:'high-performance',stencil:false});}
 catch(e){document.getElementById('loadmsg').textContent='この端末ではWebGLが使えません。';return;}
-const QUALITY={high:{pr:Math.min(devicePixelRatio,2),bokeh:true,shadow:2048,msaa:4,snow:4200},std:{pr:Math.min(devicePixelRatio,1.25),bokeh:false,shadow:1024,msaa:2,snow:2200}};
-let qName=(()=>{try{return localStorage.getItem('gusoku.q')||(IS_MOBILE?'std':'high')}catch(e){return IS_MOBILE?'std':'high'}})();
+const QUALITY={
+  high:{pr:Math.min(devicePixelRatio,1.75),bokeh:true,bloom:true,shadow:2048,shadowEvery:1,msaa:4,snow:4200,causRGB:1,fps:60,label:'高'},
+  std:{pr:Math.min(devicePixelRatio,1),bokeh:false,bloom:true,shadow:1024,shadowEvery:3,msaa:0,snow:1600,causRGB:0,fps:30,label:'標準'},
+  eco:{pr:Math.min(devicePixelRatio,.75),bokeh:false,bloom:false,shadow:0,shadowEvery:0,msaa:0,snow:700,causRGB:0,fps:30,label:'省電力'}};
+const Q_ORDER=['high','std','eco'];
+let qName=(()=>{try{const v=localStorage.getItem('gusoku.q2');return QUALITY[v]?v:(IS_MOBILE?'std':'high')}catch(e){return IS_MOBILE?'std':'high'}})();
 let Q=QUALITY[qName];
 renderer.setPixelRatio(Q.pr);
 renderer.setSize(innerWidth,innerHeight,false);
@@ -363,9 +367,9 @@ function makeEnv(){
 }
 
 /* ---- caustics / lamp shading injected into standard materials */
-const U={time:{value:0},lamp:{value:1},lampCol:{value:new THREE.Color('#bfe4ff')},caus:{value:1},lampPos:{value:new V3(0,13,1.2)}};
+const U={causQ:{value:1},time:{value:0},lamp:{value:1},lampCol:{value:new THREE.Color('#bfe4ff')},caus:{value:1},lampPos:{value:new V3(0,13,1.2)}};
 const CAUSTIC_GLSL=`
-uniform float uTime;uniform float uLamp;uniform float uCaus;uniform vec3 uLampCol;uniform vec3 uLampPos;
+uniform float uTime;uniform float uLamp;uniform float uCaus;uniform vec3 uLampCol;uniform vec3 uLampPos;uniform float uCausQ;
 varying vec3 vWPos;varying vec3 vWN;
 float causticF(vec2 uv,float t){
   vec2 p=mod(uv*6.28318,6.28318)-250.;vec2 i=p;float c=1.;float inten=.005;
@@ -375,14 +379,15 @@ float causticF(vec2 uv,float t){
 }
 vec3 causticRGB(vec3 wp){
   vec2 uv=wp.xz*.19+wp.y*.03;float t=uTime*.42+23.;
-  vec3 c=vec3(causticF(uv+vec2(.004,0.),t),causticF(uv,t),causticF(uv-vec2(.004,0.),t));
+  if(uCaus<.01)return vec3(0.);
+  vec3 c;if(uCausQ>.5)c=vec3(causticF(uv+vec2(.004,0.),t),causticF(uv,t),causticF(uv-vec2(.004,0.),t));else c=vec3(causticF(uv,t));
   float d=length(wp.xz-uLampPos.xz);float cone=smoothstep(8.5,1.5,d);
   float up=clamp(vWN.y*.8+.35,0.,1.);
   return c*cone*up*uCaus;
 }`;
 function addCaustics(mat,strength){
   mat.onBeforeCompile=(sh)=>{
-    sh.uniforms.uTime=U.time;sh.uniforms.uLamp=U.lamp;sh.uniforms.uCaus=U.caus;sh.uniforms.uLampCol=U.lampCol;sh.uniforms.uLampPos=U.lampPos;
+    sh.uniforms.uTime=U.time;sh.uniforms.uCausQ=U.causQ;sh.uniforms.uLamp=U.lamp;sh.uniforms.uCaus=U.caus;sh.uniforms.uLampCol=U.lampCol;sh.uniforms.uLampPos=U.lampPos;
     sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWPos;varying vec3 vWN;')
       .replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nvWPos=(modelMatrix*vec4(transformed,1.)).xyz;\nvWN=normalize(mat3(modelMatrix)*objectNormal);');
     sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\n'+CAUSTIC_GLSL)
@@ -993,16 +998,28 @@ function buildPost(){
   if(Q.bokeh&&THREE.BokehPass){bokeh=new THREE.BokehPass(scene,camera,{focus:7,aperture:.00055,maxblur:.0065});
     const orig=bokeh.render.bind(bokeh);bokeh.render=function(r,wb,rb,dt,m){const v=fx.visible;fx.visible=false;const cv=CONTACTS.map(c=>c.visible);CONTACTS.forEach(c=>c.visible=false);orig(r,wb,rb,dt,m);fx.visible=v;CONTACTS.forEach((c,i)=>c.visible=cv[i])};composer.addPass(bokeh)}
   else bokeh=null;
-  bloom=new THREE.UnrealBloomPass(new THREE.Vector2(w,h),.42,.55,.72);composer.addPass(bloom);
+  if(Q.bloom){bloom=new THREE.UnrealBloomPass(new THREE.Vector2(w,h),.42,.55,.72);composer.addPass(bloom)}else bloom=null;
   grade=new THREE.ShaderPass(GradeShader);grade.uniforms.uRes.value.set(w*pr,h*pr);composer.addPass(grade);
 }
 function applyQuality(){
-  Q=QUALITY[qName];renderer.setPixelRatio(Q.pr);renderer.setSize(innerWidth,innerHeight,false);
-  lamp.shadow.mapSize.set(Q.shadow,Q.shadow);if(lamp.shadow.map){lamp.shadow.map.dispose();lamp.shadow.map=null}
+  Q=QUALITY[qName];curPR=Q.pr;renderer.setPixelRatio(Q.pr);renderer.setSize(innerWidth,innerHeight,false);
+  U.causQ.value=Q.causRGB;
+  lamp.castShadow=Q.shadow>0;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
+  if(Q.shadow){lamp.shadow.mapSize.set(Q.shadow,Q.shadow)}if(lamp.shadow.map){lamp.shadow.map.dispose();lamp.shadow.map=null}
   if(composer){composer.passes.forEach(p=>p.dispose&&p.dispose());rt.dispose()}
   buildPost();buildSnow(Q.snow);
   sed.material.uniforms.uPR.value=renderer.getPixelRatio();
-  document.getElementById('set-quality').textContent='画質：'+(qName==='high'?'高':'標準');
+  document.getElementById('set-quality').textContent='画質：'+Q.label;perf.slow=0;perf.fast=0;
+}
+/* adaptive resolution: step the render scale down when frames run long, back up when there is headroom */
+let curPR=1;const perf={ema:16,slow:0,fast:0,frame:0};
+function setPR(pr){curPR=pr;renderer.setPixelRatio(pr);renderer.setSize(innerWidth,innerHeight,false);composer.setPixelRatio(pr);composer.setSize(innerWidth,innerHeight);
+  grade.uniforms.uRes.value.set(innerWidth*pr,innerHeight*pr);if(snow)snow.material.uniforms.uPR.value=pr;sed.material.uniforms.uPR.value=pr}
+function adaptRes(ms){
+  perf.ema=perf.ema*.9+ms*.1;const budget=1000/Q.fps;
+  if(perf.ema>budget*1.35){perf.slow++;perf.fast=0}else if(perf.ema<budget*1.08){perf.fast++;perf.slow=0}else{perf.slow=0;perf.fast=0}
+  if(perf.slow>45&&curPR>.55){setPR(Math.max(.55,curPR-.15));perf.slow=0}
+  if(perf.fast>240&&curPR<Q.pr-.01){setPR(Math.min(Q.pr,curPR+.1));perf.fast=0}
 }
 
 /* =====================================================================
@@ -1589,9 +1606,14 @@ function boot(){
   requestAnimationFrame(loop);
 }
 let last=performance.now(),acc=0,hudT=0,idleT=0,nextIdle=45;
+let lastDraw=0;
 function loop(now){
   requestAnimationFrame(loop);
+  if(Q.fps<60&&now-lastDraw<1000/Q.fps-3)return;
+  const frameMs=now-lastDraw;lastDraw=now;
   const dt=Math.min(.05,(now-last)/1000);last=now;const time=now/1000;
+  if(frameMs<250)adaptRes(frameMs);
+  perf.frame++;if(Q.shadowEvery&&perf.frame%Q.shadowEvery===0)renderer.shadowMap.needsUpdate=true;
   U.time.value=time;grade.uniforms.uTime.value=time;grade.uniforms.uShock.value=Math.max(0,grade.uniforms.uShock.value-dt*3);
   updateLights(dt);
   if(Molt.phase)Molt.update(dt,time);
@@ -1668,7 +1690,7 @@ $('btn-light').addEventListener('click',()=>started&&Game.light());
 $('btn-water').addEventListener('click',()=>started&&Game.water());
 $('btn-cool').addEventListener('click',()=>started&&Game.temp(-.5));
 $('btn-warm').addEventListener('click',()=>started&&Game.temp(.5));
-$('set-quality').addEventListener('click',()=>{qName=qName==='high'?'std':'high';try{localStorage.setItem('gusoku.q',qName)}catch(e){}applyQuality()});
+$('set-quality').addEventListener('click',()=>{qName=Q_ORDER[(Q_ORDER.indexOf(qName)+1)%3];try{localStorage.setItem('gusoku.q2',qName)}catch(e){}applyQuality();toast('画質：'+Q.label+(qName==='eco'?'（発熱・電池消費を抑えます）':''))});
 $('set-voice').addEventListener('click',()=>{voiceOn=!voiceOn;try{localStorage.setItem('gusoku.voice',voiceOn?'on':'off')}catch(e){}$('set-voice').textContent='声（グソグソ）：'+(voiceOn?'オン':'オフ');if(!voiceOn)Voice.stop()});
 $('set-tts').addEventListener('click',()=>{ttsOn=!ttsOn;try{localStorage.setItem('gusoku.tts',ttsOn?'on':'off')}catch(e){}$('set-tts').textContent='日本語読み上げ：'+(ttsOn?'オン':'オフ');if(!ttsOn)try{speechSynthesis.cancel()}catch(e){}});
 $('set-ai').addEventListener('click',()=>{aiOn=!aiOn;aiBroken=false;try{localStorage.setItem('gusoku.ai',aiOn?'on':'off')}catch(e){}aiLabel()});
