@@ -170,7 +170,8 @@ body.cine .console{padding-bottom:calc(9vh + 12px)}
       <button type="button" id="btn-set" aria-haspopup="true">設定</button>
       <div class="pop" id="pop-set" hidden style="left:auto;right:0">
         <button type="button" id="set-quality">画質：高</button>
-        <button type="button" id="set-voice">声：オン</button>
+        <button type="button" id="set-voice">声（グソグソ）：オン</button>
+        <button type="button" id="set-tts">日本語読み上げ：オフ</button>
         <button type="button" id="set-ai">AI会話：オン</button>
         <button type="button" id="set-reset">最初からやり直す</button>
         <div class="confirm" id="reset-confirm" hidden>
@@ -1072,6 +1073,7 @@ const Audio2={ctx:null,master:null,
     const g=c.createGain();g.gain.value=.16;const lfo=c.createOscillator();lfo.frequency.value=.07;const lg=c.createGain();lg.gain.value=90;lfo.connect(lg);lg.connect(lp.frequency);lfo.start();
     src.connect(lp);lp.connect(g);g.connect(this.master);src.start();
     this.noiseBuf=b;
+    Voice.init();
     setInterval(()=>{if(document.hidden||!this.ctx)return;if(Math.random()<.7)this.bubble(.02+Math.random()*.03)},180);
   },
   tone(f0,f1,dur,type,vol){if(!this.ctx)return;const c=this.ctx,t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.type=type||'sine';o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+dur);
@@ -1091,6 +1093,78 @@ const Audio2={ctx:null,master:null,
 };
 
 /* =====================================================================
+   GUSO-GUSO VOICE — a synthesized creature voice: "グ" (voiced velar + u) and "ソ" (sibilant + o)
+   through formant filters tuned for a large vocal tract, with sub-harmonic, gravel and underwater reverb
+   ===================================================================== */
+const Voice={
+  bus:null,live:[],
+  init(){
+    const c=Audio2.ctx;if(!c||this.bus)return;
+    const n=c.sampleRate,wb=c.createBuffer(1,n,n),wd=wb.getChannelData(0);for(let i=0;i<n;i++)wd[i]=Math.random()*2-1;this.white=wb;
+    this.bus=c.createGain();this.bus.gain.value=.7;
+    const sh=c.createWaveShaper(),k=2.2,cv=new Float32Array(1024);for(let i=0;i<1024;i++){const x=i/511.5-1;cv[i]=Math.tanh(k*x)/Math.tanh(k)}sh.curve=cv;
+    const lp=c.createBiquadFilter();lp.type='lowpass';lp.frequency.value=3400;lp.Q.value=.5;
+    const lowS=c.createBiquadFilter();lowS.type='lowshelf';lowS.frequency.value=180;lowS.gain.value=6;
+    const dry=c.createGain();dry.gain.value=.95;
+    const ir=c.createBuffer(2,n*.7|0,n);for(let ch=0;ch<2;ch++){const d=ir.getChannelData(ch);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,3.2)*.6}
+    const cvl=c.createConvolver();cvl.buffer=ir;const wet=c.createGain();wet.gain.value=.26;const wlp=c.createBiquadFilter();wlp.type='lowpass';wlp.frequency.value=1500;
+    this.bus.connect(sh);sh.connect(lowS);lowS.connect(lp);lp.connect(dry);dry.connect(Audio2.master);lp.connect(cvl);cvl.connect(wlp);wlp.connect(wet);wet.connect(Audio2.master);
+  },
+  stop(){const t=Audio2.ctx?Audio2.ctx.currentTime:0;this.live.forEach(n=>{try{n.stop(t)}catch(e){}});this.live=[]},
+  /* returns the spoken duration in seconds */
+  speak(text,emo,stage){
+    if(!this.bus)return 0;this.stop();
+    const c=Audio2.ctx;let t=c.currentTime+.04;const t0=t;
+    const clean=text.replace(/（[^）]*）/g,'').trim();
+    const f0base=[128,104,84,72][stage]||84;
+    const E={annoyed:{f:.86,d:.84,g:1.4},happy:{f:1.14,d:.95,g:.9},sad:{f:.9,d:1.3,g:.8},curious:{f:1.05,d:1,g:1},sleepy:{f:.88,d:1.4,g:.7},proud:{f:.94,d:1.12,g:1.1},scared:{f:1.2,d:.8,g:.9}}[emo]||{f:1,d:1,g:1};
+    const q=/[?？]\s*$|か[。…]*$|だな[?？]?$/.test(clean);
+    let phrases=clean.split(/([、。…！!？?\s]+)/).filter(x=>x!=='');
+    if(!phrases.some(p=>/[^、。…！!？?\s]/.test(p)))phrases=['ぐ'];
+    const words=phrases.filter(p=>/[^、。…！!？?\s]/.test(p));let wi=0,syl=0;
+    phrases.forEach(p=>{
+      if(!/[^、。…！!？?\s]/.test(p)){t+=/…/.test(p)?.34:/[。！!？?]/.test(p)?.26:.16;return}
+      wi++;const last=wi===words.length;
+      const n=clamp(Math.round(p.length/2.1),1,stage<=1?4:8);
+      for(let i=0;i<n;i++){
+        const cons=(syl++%2===0)?'g':'s';const u=n>1?i/(n-1):0;
+        let f=f0base*E.f*(1.06-.16*u)*(1+(Math.random()-.5)*.05);
+        let f2=f*.96;
+        if(emo==='happy')f*=(i%2?1.07:.95);
+        if(last&&i===n-1){if(q){f2=f*1.38}else{f2=f*.8}}
+        const d=(.155+Math.random()*.03)*E.d*(stage<=1?.85:1)*(last&&i===n-1?1.5:1);
+        this.syllable(t,cons,cons==='g'?'u':'o',f,f2,d,E.g);t+=d+.012;
+      }
+    });
+    return t-t0+.2;
+  },
+  syllable(t,cons,vowel,f0a,f0b,dur,grit){
+    const c=Audio2.ctx,live=this.live;
+    const F=vowel==='u'?[330,1180,2250]:[470,820,2400],scale=.8,Qs=[5,9,12],G=[1,.55,.22];
+    const vStart=t+(cons==='s'?.065:.018);
+    // glottal source + sub-harmonic + vibrato
+    const src=c.createGain();
+    const o=c.createOscillator();o.type='sawtooth';o.frequency.setValueAtTime(f0a,vStart);o.frequency.linearRampToValueAtTime(f0b,vStart+dur);
+    const sub=c.createOscillator();sub.type='square';sub.frequency.setValueAtTime(f0a/2,vStart);sub.frequency.linearRampToValueAtTime(f0b/2,vStart+dur);
+    const sg=c.createGain();sg.gain.value=.22*grit;
+    const lfo=c.createOscillator();lfo.frequency.value=5.5+Math.random()*2;const lg=c.createGain();lg.gain.value=f0a*.018;lfo.connect(lg);lg.connect(o.frequency);lg.connect(sub.frequency);
+    o.connect(src);sub.connect(sg);sg.connect(src);
+    const env=c.createGain();env.gain.setValueAtTime(0,vStart);env.gain.linearRampToValueAtTime(.34,vStart+.025);env.gain.setValueAtTime(.34,vStart+dur-.05);env.gain.exponentialRampToValueAtTime(.0008,vStart+dur);
+    src.connect(env);
+    F.forEach((fr,i)=>{const bp=c.createBiquadFilter();bp.type='bandpass';bp.Q.value=Qs[i];
+      const target=fr*scale;if(cons==='g'&&i===1){bp.frequency.setValueAtTime(1650*scale,vStart);bp.frequency.linearRampToValueAtTime(target,vStart+.05)}else bp.frequency.setValueAtTime(target,vStart);
+      const g=c.createGain();g.gain.value=G[i]*(i===0?3.2:2.4);env.connect(bp);bp.connect(g);g.connect(this.bus)});
+    // consonant noise
+    const nz=c.createBufferSource();nz.buffer=this.white;const nf=c.createBiquadFilter(),ng=c.createGain();
+    if(cons==='s'){nf.type='highpass';nf.frequency.value=3600;ng.gain.setValueAtTime(0,t);ng.gain.linearRampToValueAtTime(.09,t+.02);ng.gain.linearRampToValueAtTime(0,vStart+.01)}
+    else{nf.type='bandpass';nf.frequency.value=1300;nf.Q.value=1.3;ng.gain.setValueAtTime(.16,t);ng.gain.exponentialRampToValueAtTime(.001,t+.03)}
+    nz.connect(nf);nf.connect(ng);ng.connect(this.bus);
+    const end=vStart+dur+.05;
+    [o,sub,lfo].forEach(x=>{x.start(vStart);x.stop(end);live.push(x)});nz.start(t,Math.random()*.5);nz.stop(vStart+.02);live.push(nz);
+    if(live.length>400)live.splice(0,live.length-400);
+  }
+};
+/* =====================================================================
    VOICE + DIALOGUE UI
    ===================================================================== */
 const $=id=>document.getElementById(id);
@@ -1099,10 +1173,13 @@ const EMO={neutral:'',happy:'（機嫌がいい）',annoyed:'（むっとして�
 let voiceOn=true,jpVoice=null;
 function pickVoice(){try{const vs=speechSynthesis.getVoices().filter(v=>/ja/i.test(v.lang));jpVoice=vs.find(v=>/otoya|hattori|ichiro|keita|daichi|naoki|男性|\bmale\b/i.test(v.name)&&!/female|女性/i.test(v.name))||vs[0]||null}catch(e){}}
 try{speechSynthesis.onvoiceschanged=pickVoice;pickVoice()}catch(e){}
-function speak(text){
-  if(!voiceOn||!window.speechSynthesis)return;
+let ttsOn=false;
+function speak(text,emo){
+  let d=0;if(voiceOn)d=Voice.speak(text,emo,S.stage);
+  if(!ttsOn||!window.speechSynthesis)return d;
   const t=text.replace(/（[^）]*）/g,'').replace(/[…‥]+/g,'、').trim();if(!t||/^[、。…\s]*$/.test(t))return;
   try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='ja-JP';if(jpVoice)u.voice=jpVoice;u.pitch=0;u.rate=S.stage<=1?.7:.82;u.volume=1;speechSynthesis.speak(u)}catch(e){}
+  return d;
 }
 const queue=[];let typing=null;
 function say(text,opt){opt=opt||{};queue.push({text,emo:opt.emo||'neutral',narr:!!opt.narr,who:opt.who});if(!typing)nextLine()}
@@ -1111,10 +1188,9 @@ function nextLine(){
   whoEl.textContent=q.narr?'':(q.who||'グソク');emoEl.textContent=q.narr?'':(EMO[q.emo]||'');
   lineEl.className='line'+(q.narr?' narr':'');
   let i=0;const txt=q.text;typing={q};
-  if(!q.narr){C.talk=Math.max(C.talk,1.2+txt.length*.09);C.face=Math.max(C.face,4);speak(txt)}
+  if(!q.narr){const vd=speak(txt,q.emo);C.talk=Math.max(C.talk,vd||1.2+txt.length*.09);C.face=Math.max(C.face,4)}
   const step=()=>{
     i++;lineEl.textContent=txt.slice(0,i);const c=document.createElement('span');c.className='caret';lineEl.appendChild(c);
-    if(!q.narr&&i%2===0&&!/[（）…、。]/.test(txt[i-1]))Audio2.grunt((q.emo==='annoyed'?62:q.emo==='happy'?92:75)*(S.stage===0?1.6:S.stage===1?1.25:1),voiceOn?.05:.09);
     if(i<txt.length)typing.to=setTimeout(step,/[。、…]/.test(txt[i-1])?140:48);
     else typing.to=setTimeout(()=>{lineEl.textContent=txt;nextLine()},Math.min(4200,1400+txt.length*60));
   };step();
@@ -1411,7 +1487,8 @@ function boot(){
   C.pos.set(.4,0,.2);C.size=C.sizeT=SIZES[S.stage];shellTint();
   applyQuality();
   syncLampUI();
-  voiceOn=(()=>{try{return localStorage.getItem('gusoku.voice')!=='off'}catch(e){return true}})();$('set-voice').textContent='声：'+(voiceOn?'オン':'オフ');
+  voiceOn=(()=>{try{return localStorage.getItem('gusoku.voice')!=='off'}catch(e){return true}})();$('set-voice').textContent='声（グソグソ）：'+(voiceOn?'オン':'オフ');
+  ttsOn=(()=>{try{return localStorage.getItem('gusoku.tts')==='on'}catch(e){return false}})();$('set-tts').textContent='日本語読み上げ：'+(ttsOn?'オン':'オフ');
   aiLabel();refreshHUD();
   addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();composer.setSize(innerWidth,innerHeight);
     grade.uniforms.uRes.value.set(innerWidth*renderer.getPixelRatio(),innerHeight*renderer.getPixelRatio());if(bokeh)bokeh.uniforms.aspect.value=camera.aspect});
@@ -1501,7 +1578,8 @@ $('btn-water').addEventListener('click',()=>started&&Game.water());
 $('btn-cool').addEventListener('click',()=>started&&Game.temp(-.5));
 $('btn-warm').addEventListener('click',()=>started&&Game.temp(.5));
 $('set-quality').addEventListener('click',()=>{qName=qName==='high'?'std':'high';try{localStorage.setItem('gusoku.q',qName)}catch(e){}applyQuality()});
-$('set-voice').addEventListener('click',()=>{voiceOn=!voiceOn;try{localStorage.setItem('gusoku.voice',voiceOn?'on':'off')}catch(e){}$('set-voice').textContent='声：'+(voiceOn?'オン':'オフ');if(!voiceOn)try{speechSynthesis.cancel()}catch(e){}});
+$('set-voice').addEventListener('click',()=>{voiceOn=!voiceOn;try{localStorage.setItem('gusoku.voice',voiceOn?'on':'off')}catch(e){}$('set-voice').textContent='声（グソグソ）：'+(voiceOn?'オン':'オフ');if(!voiceOn)Voice.stop()});
+$('set-tts').addEventListener('click',()=>{ttsOn=!ttsOn;try{localStorage.setItem('gusoku.tts',ttsOn?'on':'off')}catch(e){}$('set-tts').textContent='日本語読み上げ：'+(ttsOn?'オン':'オフ');if(!ttsOn)try{speechSynthesis.cancel()}catch(e){}});
 $('set-ai').addEventListener('click',()=>{aiOn=!aiOn;aiBroken=false;try{localStorage.setItem('gusoku.ai',aiOn?'on':'off')}catch(e){}aiLabel()});
 $('set-reset').addEventListener('click',e=>{e.stopPropagation();$('reset-confirm').hidden=false});
 $('reset-no').addEventListener('click',e=>{e.stopPropagation();$('reset-confirm').hidden=true});
