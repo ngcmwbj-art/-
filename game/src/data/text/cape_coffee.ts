@@ -25,9 +25,9 @@
 /** 1 ふろしきの マント。 */
 export const CAPE = {
   /** The class photo's second page at stage 2 (the first page is IOBJ.obj_class_photo's). */
-  photo: `前の 列の はしの 男の子は、
-緑の ふろしきを マントに している。
-{w=300}名札は『ももせ たかし』。`,
+  photo: `前の 列の はしの 男の子。{w=300}
+緑の ふろしきを、マントに している。
+名札は『ももせ たかし』。`,
   /** おばあ, from behind the counter, right after the photo (once). */
   obaa: `@npc_obaa
 写真の マントの 子かい。{w=300}
@@ -73,7 +73,10 @@ export const BU = {
 ネクタイを ゆるめて、
 新聞を 読んでいる。
 /
-……足もとに、影が ない。`,
+……足もとに、影が ない。
+/
+テーブルの 飲みかけの コーヒーが、
+少しずつ 増えていく。`,
   /** The window seat after he left with なんばるわん. */
   booth_after: `@narr
 窓ぎわの 席に、からの カップ。
@@ -133,7 +136,8 @@ export const BU = {
 負けない！`,
   master_bye: `@npc_master
 ……いってらっしゃい。{w=300}
-カップは、さげて おくよ。`,
+なんばるわんさんの いつもの、
+いれて 待ってるよ。`,
   /** Without グソっ君 (he is always there at stage 2; a fallback): the second talk again. */
   again: `@npc_bu_body
 飲むと、そのぶん 増える。{w=300}
@@ -150,19 +154,27 @@ export const MASTER_BU = {
 ……影を 忘れて 来たのは、
 今日が はじめてだ。`,
   after: `@npc_master
+グソっ君には、にがすぎたか。{w=300}
+豆は、星見台の タケじいが
+焙煎して 送って くれるんだ。
+/
+生の 豆を 取り寄せて、
+手回しで 煎るんだそうだ。{w=300}
+山の じいさんの、いい 腕さ。
+/
 なんばるわんさんも、常連でね。
 {w=300}散歩の とちゅうに、1杯。
-コタロウは、店の 外で 待つ。
-/
-グソっ君には、にがすぎたな。{w=300}
-星見台の タケじいの 豆は、
-大人の 味でね。`,
+コタロウは、店の 外で 待つ。`,
 };
 
-/** 5, the park: the body beside his shadow on the wisteria's bench (stage 2). */
+/**
+ * 5, the park: the body beside his shadow on the wisteria's bench (stage 2). With the
+ * two of them there, the shadow's pages go under the tag 『ぶーさんの影』 (@npc_bu_shadow,
+ * the same voice `shadow`); the body keeps 『ぶーさん』.
+ */
 export const BU_PARK = {
   /** The first talk to either of them after the café (once). */
-  meet: `@npc_shadow_man
+  meet: `@npc_bu_shadow
 ……本体。{w=300}
 迎えに 来て くれたのかい。
 @npc_bu_body
@@ -171,14 +183,14 @@ export const BU_PARK = {
   meet_gk: `@npc_kanenari
 にっがかったで。{w=300}
 陸の 飲みもん、なめたら あかん。`,
-  meet_end: `@npc_shadow_man
+  meet_end: `@npc_bu_shadow
 ……それは、たいへん だったね。
 /
 チャイムが 鳴ったら、
 いっしょに 帰ろう。{w=300}
 定時 だからね。`,
-  /** The shadow's first line from then on (in place of s2_1). */
-  shadow_after: `@npc_shadow_man
+  /** The shadow from then on: its 〔s2_2〕〔s2_3〕 not heard yet first (their tag changed), then this one again and again (its 〔s2_1〕 no longer fits). */
+  shadow_after: `@npc_bu_shadow
 本体が、迎えに 来たよ。{w=300}
 ……チャイムが 鳴るまで、
 ここで いっしょに 待つんだ。`,
@@ -199,6 +211,32 @@ export const MADAM_BU = `@npc_madam
 {w=300}影と ならんで、チャイムを
 待つんですって。`;
 
+/**
+ * なんばるわん on the slope, her 〔s2_2〕 once she has said her 「負けない！」 of stage 2
+ * in the café (the catchphrase stays once a stage, 10 6.11): the last page without it.
+ */
+export const MADAM_S2_2_AFTER = `@npc_madam
+あら、コタロウが しっぽ
+振ってる。{w=300}
+よろいの ある 子、好きなのよ。
+@npc_kanenari
+おおきに。{w=300}わいも、
+ふわふわの 子は 好きやで。
+@npc_madam
+……わたしの 髪だって、
+ふわふわよ。`;
+
+/**
+ * 第2章 タケじいの家（map_hoshi_minka3）の 焙煎器（obj_hr_mk3_baisen, the text in
+ * data/text/hoshi_rooms2.ts）: グソっ君, once, when he had the sip in chapter 1
+ * (flag_bu_gk_sip).
+ */
+export const BAISEN_GK = `@npc_kanenari
+この におい……{w=300}
+夕顔の、にっがい やつや！
+/
+……においは、ええのにな。`;
+
 /** Every page of this file (textcheck2 walks it as 'cape_coffee'). */
 export const CAPE_COFFEE_TEXTS = {
   cape: { ...CAPE, photo: `@narr\n${CAPE.photo}` },
@@ -207,4 +245,6 @@ export const CAPE_COFFEE_TEXTS = {
   master: MASTER_BU,
   park: BU_PARK,
   madam: MADAM_BU,
+  madam_s2_2: MADAM_S2_2_AFTER,
+  baisen_gk: BAISEN_GK,
 };

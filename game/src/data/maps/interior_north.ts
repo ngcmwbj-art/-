@@ -32,7 +32,7 @@ Object.assign(SPEAKERS, {
   npc_fudeno: { name: 'ふでの先生', voice: 'h_fumi' },
   npc_kinu: { name: 'きぬ', voice: 'h_yoshie' },
   npc_tokio: { name: 'ゆう', voice: 'tokio' }, // ★2026-09-29 ときお→ゆう（40代の女性）。IDは据え置き
-  npc_master: { name: 'マスター', voice: 'h_mitsu' },
+  npc_master: { name: 'かずゆき', voice: 'kazuyuki' }, // ★2026-09-30 マスター→かずゆき（40代の男性）。IDは据え置き（02 #71）
   npc_okami: { name: 'おかみ', voice: 'mizumaki' },
 });
 
@@ -333,6 +333,8 @@ registerMap({
     O('obj_cf_booth', 8, 4, { w: 2 }),
     FIND('obj_cf_game', 2, 6, { money: 20 }, { w: 2 }),
     NPC('npc_master', 3, 2),
+    // ぶーさんの本体（02 #71）: stage 2, on the window seat's right chair, until なんばるわん takes him to the park
+    NPC('npc_bu_body', 9, 4, { dir: 'left', pose: 'sit', ghost: true, shadow: 0, script: 'npc_bu_body', cond: { stage: 2, notFlag: 'flag_bu_left' } }),
     { t: 'door', id: 'door_town_cafe', x: 6, y: 7, to: 'map_town', tx: 48, ty: 22, dir: 'down', se: ['se_door', 'se_shop_bell'] },
   ],
 });

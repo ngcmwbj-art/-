@@ -55,6 +55,8 @@ const items: ItemDef[] = [
   { id: 'item_tamotsu_uki', name: 'おぴぃの浮き', key: true, target: 'none', desc: ['つりえさ屋の、最後の 浮き。', '針は ついていない。'], battleText: ['浮きを 見せた。\n$enemyは、浮きを 見ている だけだ。'] },
   // 10 6.4〔abura〕（02 #67）：祠の からっぽの小皿を 見たあと、くま吉から ただで。祠で のせると 外れる
   { id: 'item_abura_age', name: '油揚げ', key: true, target: 'none', desc: ['豆腐くま吉の 油揚げ。1枚。', 'お代は、祠の きつねの ツケ。'], battleText: ['油揚げを 見せた。\n……これは、きつねの 分だ。'] },
+  // 10 6.7〔toban〕（02 #72）：学校の 水やり当番を 終えて、公園の さやから お礼に
+  { id: 'item_toban_yuhi', name: 'さやの夕日の絵', key: true, target: 'none', desc: ['夕日の 観察の 1枚。どれも 同じ。', '右下に『8月31日 夕方』。'], battleText: ['夕日の 絵を 見せた。\n$enemyは 少し まぶしそうだ。'] },
   // 大事なもの（第2章、50 7.1）
   {
     id: 'item_hanamaru_tomato', name: 'はなまるトマト', key: true, target: 'none', special: 'tomato', usableInBattleWith: ['boss_yobimodoshi'], priority: 2,

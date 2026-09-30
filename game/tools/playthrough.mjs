@@ -1627,6 +1627,56 @@ const SIDE2 = [
       await shot('done');
     },
   },
+  {
+    // 02 #73: 脇芽は 朝に かく — ペロ's request, 1号ハウス's plants (the minigame plays itself:
+    // __game.cmd.wakimeAuto), ペロ's thanks and 朱肉 +2, the new line in the diary of 3号ハウス
+    name: 'wakime',
+    async run() {
+      // ペロ (3,32) from (4,32): 〔wakime〕
+      await examineHere('left', 'ask');
+      await need(['flag_ch2_wakime_ask'], 'wakime: the request');
+      // into 1号ハウス (10,30), beside the second row, the plant (3,5)
+      await enterDoor(10, 30, 'up', 'map_hoshi_house1');
+      await advance({ label: 'in' });
+      await travel(2, 5);
+      await page.evaluate(() => window.__game.cmd.wakimeAuto(true));
+      try {
+        await examineHere('right', 'play');
+      } finally {
+        await page.evaluate(() => window.__game.cmd.wakimeAuto(false));
+      }
+      await need(['flag_ch2_wakime_done'], 'wakime: the nine');
+      const v = await flags(['flag_ch2_wakime_hana', 'flag_ch2_wakime_poki', 'flag_ch2_wakime_hana_shun']);
+      const ok = v.flag_ch2_wakime_hana === 1 && v.flag_ch2_wakime_poki === 6 && !v.flag_ch2_wakime_hana_shun;
+      checks.push({ check: 'wakime: six ぽきっ by しゅん, three shoots and a flower by グソっ君', ok, ...v });
+      if (!ok) throw new Error(`wakime: ${JSON.stringify(v)}`);
+      // back to ペロ: 〔wakime_done〕 and 朱肉 +2
+      await leaveRoom('map_hoshimidai');
+      await travel(4, 32);
+      await examineHere('left', 'report');
+      await need(['flag_ch2_wakime_report'], 'wakime: ペロ told');
+      // the diary on the shelf of 3号ハウス (7,16) from (6,16)
+      await enterDoor(2, 30, 'up', 'map_hoshi_house');
+      await advance({ label: 'house' });
+      await travel(6, 16);
+      await examineHere('right', 'nisshi');
+      await shot('done');
+    },
+  },
+  {
+    // 02 #73: ソワカの 色見本 — the sketch's second look (the coloured one in the corner, グソっ君 once),
+    // then ソワカ (23,37): 〔yk〕 once, the shop as always
+    name: 'sawako',
+    async run() {
+      await examineHere('up', 'kabe');
+      await need(['flag_ch2_sawako_kabe_yk', 'flag_kanenari_flip_sawako_yk'], 'sawako: the sketch');
+      await leaveRoom('map_hoshimidai');
+      await travel(23, 38);
+      await examineHere('up', 'yk');
+      await need(['flag_ch2_sawako_yk'], 'sawako: 〔yk〕');
+      await shot('done');
+    },
+  },
 ];
 
 const BEATS2 = [

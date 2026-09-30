@@ -1494,6 +1494,42 @@ se_h_seki_undo   せきがほどける（石が4つころころ → 水が流れ
 - セキトメの声は `h_train`（名札「セキトメ」の直接指定 `@セキトメ:h_train`。車内放送の小さなスピーカーの声が、プールの場内放送に聞こえる）。
 - 実装：`src/audio/sfx_ch2.ts`（グループ `G_ENEMY`）。
 
+### 8.16 脇芽かきの音 ★2026-09-30 追加（依頼主の採用、02_ch2_index #73。台本は50 10.23）
+
+1号ハウスの株の大写しの中の、小さく短い音。夜のハウスの中なので、どれも v .01〜.09。タイミングの輪は戦闘の `se_ring`（ちぢむあいだ上がっていく音が、はなす目安。長さは輪のちぢむ時間）をそのまま使う。BGM と環境音（`amb_h_insects`）はそのまま。`src/audio/sfx_wakime.ts`、グループ「第2章：脇芽かき（1号ハウス）」。
+
+```
+se_wakime_open     株の大写しが開く／次の株へ（葉ずれのさらさら）                        0.4s
+  L1 noise env=60/260/0/120 dur=300 v=.03 flt=BP2400→3800q0.9 am=9/.5
+  L2 noise env=20/120/0/60 dur=120 v=.012 flt=HP5200 at=140
+  rand .05–.1
+se_wakime_bend     指でつまむ（長押しのはじめ。茎がきゅっとしなる）                      0.3s
+  L1 tri   f=240→300/220 env=8/220/0/60 dur=200 v=.02
+  L2 noise env=4/90/0/40 dur=70 v=.01 flt=BP1500q1.5
+se_wakime_poki     ぽきっ（いいところではなした。若い茎が横に折れる乾いた音）            0.1s
+  L1 noise env=0/22/0/10 dur=8 v=.09 flt=BP2800q2
+  L2 tri   f=1700→900/25 env=0/30/0/10 dur=12 v=.05
+  L3 sine  f=560→320/45 env=0/45/0/20 dur=24 v=.045
+  L4 noise env=0/10/0/6 dur=4 v=.03 flt=HP6000 at=18
+  rev .08  rand .06–.08  max 4（グソっ君の3つは pitch 1.15〜1.25）
+se_wakime_shinari  しなっただけ（早い。芽がびよんともどる）                              0.2s
+  L1 tri   f=420→360/140 env=2/150/0/60 dur=110 v=.028 vib=16/18
+  L2 noise env=10/140/0/80 dur=120 v=.01 flt=BP3000q1 am=11/.5
+se_wakime_giza     切り口がぎざぎざ（遅い。皮ごとちぎれる、すじの切れるぶちぶち）        0.4s
+  L1 noise env=1/35/0/20 dur=20 v=.05 flt=BP1600q1.2 rep=4x55
+  L2 noise env=30/220/0/100 dur=220 v=.018 flt=BP1100q0.8
+  L3 tri   f=300→180/200 env=5/200/0/60 dur=160 v=.018
+se_wakime_hana     花房をかいてしまった（小さな「ぷちっ」と、花びらの落ちるかすかな音）  0.4s
+  L1 sine  f=1400→980/30 env=0/30/0/12 dur=12 v=.035
+  L2 noise env=0/14/0/6 dur=6 v=.03 flt=BP3600q2
+  L3 noise env=30/320/0/160 dur=260 v=.01 flt=BP4600q1 am=12/.6 at=60
+se_wakime_legs     グソっ君の小さい足がいっせいに動く（わしゃわしゃ。軽い殻のこすれ）    0.8s
+  L1 noise env=0/14/0/6 dur=6 v=.03 flt=BP3400q3 rep=16x45 rnd=30
+  L2 noise env=0/10/0/5 dur=4 v=.02 flt=BP5200q3 rep=14x52 rnd=30 at=20
+```
+
+- 流用：株を調べる `se_examine`、輪 `se_ring`、ペロの〔wakime_done〕の朱肉 `se_item`。「ぽきっ」を大きく・派手にしない（夜明け前のハウス、となりの株も眠っている）。こわい音にしない。
+
 ## 9. ボイス（第2章）
 
 ### 9.1 村の人の声
@@ -1984,6 +2020,20 @@ se_h_seki_undo   せきがほどける（石が4つころころ → 水が流れ
 | わき水〔すくう〕 | `se_h_watercup` → `se_heal` |
 | 沢から戻る 〔back〕→〔ishi〕（名前の石を見せる・わたす） | voice `h_tome`。石をわたすとき `se_page` |
 
+### 12.19 脇芽は 朝に かく（ペロの頼み・任意のミニゲーム）★2026-09-30 追加（依頼主の採用、02_ch2_index #73。台本は50 10.23）
+
+| きっかけ | 音 |
+|---|---|
+| ペロの〔wakime〕 | voice `h_mitsu` |
+| 1号ハウスの株を調べる → 1ページ → 暗転して大写し | `se_examine` → `se_wakime_open`（BGM と環境音はそのまま） |
+| 決定を押す（つまむ）→ 輪がちぢむ | `se_wakime_bend` → 輪が出たとき `se_ring`（長さ＝輪がちぢむ時間） |
+| いいところではなす／早い／遅い | `se_wakime_poki`／`se_wakime_shinari`／`se_wakime_giza` |
+| 花房をかいた 〔hana〕 | `se_wakime_hana` → 地の文 |
+| 次の株へ | `se_wakime_open` |
+| グソっ君の手伝い（2株目） | voice `gusokkun` → `se_wakime_legs`、通りすぎた芽ごとに `se_wakime_poki`（pitch 1.15〜1.25）、花で `se_wakime_hana` |
+| ペロの〔wakime_done〕 | voice `h_mitsu` → `se_item`（朱肉+2） |
+| 作業日誌の新しい1行 | `se_examine`（いつもの日誌と同じ） |
+
 ## 13. API（足すもの）
 
 40 14章の関数はそのまま。他チームは次の関数だけを足して呼ぶ。
@@ -2227,6 +2277,9 @@ export function playMorningChime(opts?: {
 
 **SE：野菜の配達**（8.13）
 `se_h_deli_put`
+
+**SE：脇芽かき**（章の `h` なし。8.16。★2026-09-30 02 #73）
+`se_wakime_open` `se_wakime_bend` `se_wakime_poki` `se_wakime_shinari` `se_wakime_giza` `se_wakime_hana` `se_wakime_legs`（流用：`se_ring` `se_examine` `se_item`）
 
 **SE：はなまるの描き写し**（章の `h` なし。8.11。第3章からも使う）
 `se_hanamaru_draw`

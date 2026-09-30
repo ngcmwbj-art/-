@@ -251,8 +251,10 @@ export function drawCommand(g: Gfx, v: CmdView, t: number, alpha: number): void 
         } else g.text(cur.sub, 10, 193, { color: C.ink });
       }
       if (n > 1) {
-        g.img(arrowIcon(false), 80, 181);
-        g.img(arrowIcon(true), 88, 181);
+        // (★2026-09-29: a little further right than before (80 / 88), so the
+        // last kana of おてつだい (1px tighter, its ink to x≈81) doesn't touch ◂)
+        g.img(arrowIcon(false), 85, 181);
+        g.img(arrowIcon(true), 92, 181);
       }
     }
   });

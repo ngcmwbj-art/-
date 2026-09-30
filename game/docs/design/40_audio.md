@@ -2062,6 +2062,8 @@ se_tsuri_nushi    ぬしの気配（土管の奥から 大きな泡、ゴボッ�
 | `yone` **（★2026-09-29、02 #67）** | よね（畦道の先の 分水、70代） | tri＋sq（0.1） | D4 | 0 2 4 7 9 | 30、A2 | 2 | .055 | vib 6Hz ±10セント、各ブリップの頭で +60セント→0（15ms）。フォルマント。口が 早い。おばあ（E4・かすれ・間隔3）、マル（G4・ゆっくり）と 分ける |
 | `toyozou` **（★2026-09-29、02 #67）** | とよぞう（畦道の先の 分水、70代） | tri＋sine（0.5） | A2 | 0 2 5 7 | 62、A6 | 3 | .07 | LP1.5kHz、vib 4Hz ±10セント。フォルマント。低く まるく、言葉少な。トマじい（E3）、しんご（G3）より 低い |
 | `shadow` | ぶーさん | sq | A3 | 0 2 3 7 | 40 | 2 | .05 | LP500Hz Q2（こもる）、rev .3 |
+| `bu` **（新規 ★2026-09-30、02 #71）** | ぶーさんの本体（段階2の喫茶 夕顔と公園。10 6.16） | sq | A3 | 0 2 3 7 | 40 | 2 | .05 | **影の `shadow` と同じ 波形・基準音・音列で、こもりを 取った 音**（LP1.3kHz、Q・rev なし、フォルマント）。同じ人の声だと わかり、影の ほうが こもって 聞こえる。表示速度は ふつう（影は 28文字/秒）。トリム 16.5 dB（audioMixSuggest） |
+| `kazuyuki` **（新規 ★2026-09-30 依頼主の指示で 喫茶 夕顔の マスター→かずゆき〈40代の男性〉。02 #71）** | かずゆき（喫茶 夕顔のマスター。10 6.22） | sine＋tri（0.45）、LP1.7kHz | A#3 | 0 2 5 7 9 | 42、A4 D28 S.5 R14 | 2 | .06 | 各ブリップを −20セントへ 少し 落として 終える（静かに 言い切る）、ビブラートなし、フォルマント。落ち着いた 中低音。前の声 `h_mitsu`（ペロ：A3・3文字に1音・ビブラートと 息）は 使わない。ヒロスケ（`hirosuke` B3・三角波・ビブラート）、中学生（`chugaku` A3・矩形波）、グソっ君（`gusokkun` C4・はずむ）、しんご（`ojii` G3）、たかし（`maruyama` D3）と、高さ・波形・語尾で 分ける。見本「いらっしゃい。豆は、星見台の じいさんが 焙煎して くれるんだ。」。トリム 12.5 dB（audioMixSuggest。ものさし：tokio 13.5・h_mitsu 16・mother 15 は 表の値と 同じ） |
 | `hato` | ハト／ハト係長 | p12 | E6 | 0 2 4 | 14 | 2 | .035 | |
 | `dog` | コタロウ | sq | A3 | 0 0 3 | 30 | 3 | .05 | LP900Hz。段階1以降は −100セント |
 | `cat` | ネコ | tri | B5 | 0 2 | 12 | 3 | .03 | |
@@ -2502,7 +2504,7 @@ export function unlockAudio(): void;                                     // 既�
 `se_tsuri_open` `se_tsuri_cast` `se_tsuri_pochan` `se_tsuri_line` `se_tsuri_tsun` `se_tsuri_gui` `se_tsuri_snag` `se_tsuri_reel` `se_tsuri_slip` `se_tsuri_thrash` `se_tsuri_poton` `se_tsuri_hayai` `se_tsuri_net` `se_tsuri_agari` `se_tsuri_card` `se_tsuri_release` `se_tsuri_nushi`
 
 **ボイス**
-`narr` `sys` `mother` `maruyama` `obaa` `mamekichi` `inui` `tsurumi` `sae` `jk` `chugaku` `postman` `madam` `girl` `kid` `ojii` `mizumaki` `shadow` `hato` `dog` `cat` `crow` `tv` `broadcast` `broadcast_child` `vending` `omukaemachi` `flip` `kanenari_voice` `tamotsu` `yone` `toyozou`（★2026-09-29、02 #67） `tokio`（★2026-09-29、02 #69） `gusokkun`（★2026-09-29 カネナリくん→グソっ君）
+`narr` `sys` `mother` `maruyama` `obaa` `mamekichi` `inui` `tsurumi` `sae` `jk` `chugaku` `postman` `madam` `girl` `kid` `ojii` `mizumaki` `shadow` `hato` `dog` `cat` `crow` `tv` `broadcast` `broadcast_child` `vending` `omukaemachi` `flip` `kanenari_voice` `tamotsu` `yone` `toyozou`（★2026-09-29、02 #67） `tokio`（★2026-09-29、02 #69） `gusokkun`（★2026-09-29 カネナリくん→グソっ君） `kazuyuki` `bu`（★2026-09-30、02 #71）
 
 **音楽パラメータ・空間**
 `stage` `kire` `boss_phase` `muffle`／`outdoor` `room` `hall` `maigo` `battle` `night`

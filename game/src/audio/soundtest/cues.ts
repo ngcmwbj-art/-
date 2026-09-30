@@ -186,7 +186,8 @@ export const CUES: Cue[] = [
           A.playAmbient('amb_s2_town', { fade: 1.5 });
         }),
         S(t + 2.2, 'SE_CHAIN (FAR)', at('se_chain', { vol: 0.7, pan: 0.4 })),
-        S(t + 3.4, 'SE_FLIP', at('se_flip')),
+        // (★2026-09-29 カネナリくん→グソっ君: no flip — he says it, 「モールは 北東や。」)
+        S(t + 3.4, 'VOICE GUSOKKUN', () => void say('gusokkun', 'モールは 北東や。')),
         S(t + 4.6, 'BGM_TOWN_S2 (FADE 2.0)', () => A.playBgm('bgm_town_s2', { fade: 2.0 })),
       );
       return s;
@@ -446,8 +447,11 @@ export const CUES: Cue[] = [
   },
   {
     id: 'night',
-    label: '踏切とノート（夜）',
+    label: '夜空と踏切（夜）',
     ref: '13.5 / 5.11',
+    // ★2026-09-29 カネナリくん→グソっ君: the star over 星見台 stops first, then
+    // the crossing — the fresh one, munched, and 「めっちゃ美味いやんけ！」 —
+    // and 「つづく」 over it (no zipper, no bell, no notebook)
     build: (say) => {
       const s: CueStep[] = [
         S(0, 'BGM_NIGHT (FADE 1.5), SPACE NIGHT', () => {
@@ -456,20 +460,18 @@ export const CUES: Cue[] = [
           A.playAmbient('amb_night_insects', { fade: 1 });
           A.playBgm('bgm_night', { fade: 1.5 });
         }),
-        S(0.8, 'SE_CROSSING_UP', at('se_crossing_up')),
-        S(2.2, 'SE_TRAIN_PASS', at('se_train_pass')),
-        S(6.4, 'SE_PAPER_BAG', at('se_paper_bag')),
-        S(7.4, 'SE_ZIPPER', at('se_zipper')),
-        S(10.4, 'KANENARI_VOICE (-4DB)', () => void say('kanenari_voice', '……おいしい。')),
-        S(12.8, 'SE_BELL_KANENARI_SHORT', at('se_bell_kanenari_short')),
-        S(14.4, 'SE_STAR', at('se_star')),
+        S(0.8, 'SE_STAR', at('se_star')),
+        S(2.6, 'SE_CROSSING_UP', at('se_crossing_up')),
+        S(3.4, 'SE_TRAIN_PASS', at('se_train_pass')),
+        S(7.6, 'SE_PAPER_BAG', at('se_paper_bag')),
       ];
-      const pen = 16;
-      for (let i = 0; i < 5; i++) s.push(S(pen + i * 0.12, i ? '' : 'SE_PEN_WRITE x5', at('se_pen_write')));
+      const eat = 9.4;
+      for (let i = 0; i < 4; i++) s.push(S(eat + i * 0.42, i ? '' : 'SE_PAPER_BAG x4 (EAT)', at('se_paper_bag', { vol: 0.2, pitch: 1.5 + i * 0.05 })));
       s.push(
-        S(pen + 1.2, 'SE_PAPER_OPEN 0.7', at('se_paper_open', { pitch: 0.7 })),
-        S(pen + 2.2, 'TSUZUKU: SE_STAMP_HEAVY', at('se_stamp_heavy')),
-        S(pen + 4.2, 'STOPBGM(1.5), INSECTS STAY', () => A.stopBgm(1.5)),
+        S(eat + 2.3, 'SE_EMOTE (SHOCK)', at('se_emote')),
+        S(eat + 2.8, 'VOICE GUSOKKUN', () => void say('gusokkun', 'めっちゃ美味いやんけ！')),
+        S(eat + 5.4, 'TSUZUKU: SE_STAMP_HEAVY', at('se_stamp_heavy')),
+        S(eat + 7.4, 'STOPBGM(1.5), INSECTS STAY', () => A.stopBgm(1.5)),
       );
       return s;
     },

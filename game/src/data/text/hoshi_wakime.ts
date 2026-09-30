@@ -25,6 +25,17 @@ export const WAKIME_ASK = `@npc_hoshi_mitsu
 ……朝が 来ないなら、
 今が 朝さ。`;
 
+/** 〔wakime〕の あと、1号ハウスの 株を 調べたとき（ミニゲームの 前の 1ページ）。 */
+export const WAKIME_START = `@narr
+1号の 株。{w=300}葉の つけ根から、
+脇芽が のびている。`;
+
+/** 9つ かき終えた あと、1号ハウスの 株を 調べたとき。 */
+export const WAKIME_AFTER = `@narr
+葉の つけ根が、すっきり している。
+{w=300}……指に、まだ 青い においが
+残っている。`;
+
 /** 花房を かいたとき（しゅん）。 */
 export const WAKIME_HANA = `@narr
 あっ。{w=300}……花だった。`;
@@ -64,6 +75,19 @@ export const WAKIME_NISSHI_HANA = `@narr
 {w=300}『8/31 1号 脇芽 9 しゅん
 花 1 グソっ君』。`;
 
+/**
+ * 日誌の 1ページ：グソっ君が かいた 花（kane）と、しゅんが かいた 花（shun）の 数で。
+ * しゅんも 花を かいたときは、同じ 行に 正直に 足してある（ペロの 字）。
+ */
+export function wakimeNisshi(kane: number, shun: number): string {
+  if (!shun) return kane ? WAKIME_NISSHI_HANA : WAKIME_NISSHI;
+  const hana = kane ? `花 ${kane} グソっ君、${shun} しゅん` : `花 ${shun} しゅん`;
+  return `@narr
+……いちばん 下に、新しい 1行。
+{w=300}『8/31 1号 脇芽 9 しゅん
+${hana}』。`;
+}
+
 /** 画面の 小さな 言葉（キャプションと 札。wakimeText が 幅を 見る）。 */
 export const WAKIME_WORD = {
   /** うまく かけた（輪が 重なった ところで はなした）。 */
@@ -84,6 +108,8 @@ export const WAKIME_WORD = {
 /** textcheck2 が 見る ページ。 */
 export const WAKIME_PAGES: Record<string, string> = {
   ask: WAKIME_ASK,
+  start: WAKIME_START,
+  after: WAKIME_AFTER,
   hana: WAKIME_HANA,
   kanenariA: WAKIME_KANENARI_A,
   kanenariNarr: WAKIME_KANENARI_NARR,
@@ -93,4 +119,7 @@ export const WAKIME_PAGES: Record<string, string> = {
   reward: WAKIME_REWARD,
   nisshi: WAKIME_NISSHI,
   nisshiHana: WAKIME_NISSHI_HANA,
+  // the widest the diary's line gets (both cut flowers; five is the most there are)
+  nisshiBoth: wakimeNisshi(1, 5),
+  nisshiShun: wakimeNisshi(0, 5),
 };

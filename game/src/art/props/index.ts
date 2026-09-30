@@ -30,3 +30,5 @@ import './hoshi_tsugaobin';
 import './hoshi_mushi';
 // 沢の上「水の 元」と電気柵の戸（02_ch2_index #65）
 import './hoshi_sawa';
+// タケじいの家の 手回しの 焙煎器と 麻袋（げむきか9/30の5、02_ch2_index #71）
+import './cape_coffee';

@@ -193,11 +193,11 @@ const CH2_BGM: { id: string; label: string }[] = [
 const CH2_SONG_IDS = new Set(['bgm_hoshi_night', 'bgm_boss_yobimodoshi', 'bgm_hoshi_morning', 'bgm_tsugao']);
 /** 第2章's voices (53 9.1) and the old ones it speaks with. */
 const CH2_VOICE_RE = /^(h_|yobimodoshi$|tsugao$|dakoku$|broadcast_room$|hirosuke$|pokosha$|piichan$)/;
-const CH2_VOICE_REUSED = ['broadcast', 'kanenari_voice'];
-/** Sample lines for the reused voices when heard on the 第2章 page. */
+const CH2_VOICE_REUSED = ['broadcast', 'gusokkun'];
+/** Sample lines for the reused voices when heard on the 第2章 page (★2026-09-29 カネナリくん→グソっ君). */
 const CH2_SAMPLES: Record<string, string> = {
   broadcast: '……くりこちゃん。',
-  kanenari_voice: '……おはよう。',
+  gusokkun: 'トマトも 美味いやんけ！',
 };
 const isCh2Se = (group: string) => CH2_SE_GROUPS.includes(group);
 

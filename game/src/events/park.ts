@@ -68,10 +68,11 @@ function* stepBack(k: Actor): Co {
   let tx = p.tileX + dx;
   let ty = p.tileY + dy;
   if (!free(tx, ty)) {
-    // from above the tower's base is right behind: a step aside instead
-    // (he lies across the tile, head to the right — his feet would hide
-    // しゅん's), toward his head first
-    if (dy !== -1) return;
+    // from above the tower's base is right behind, from below the bench: a
+    // step aside instead (from above he lies across the tile, head to the
+    // right — his feet would hide しゅん's; from below, once he is up on his
+    // feet, しゅん's head would hide him eating), toward his head first
+    if (dy === 0) return;
     const side = [1, -1].find((sx) => free(p.tileX + sx, p.tileY));
     if (side === undefined) return;
     tx = p.tileX + side;

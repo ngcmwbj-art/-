@@ -5,9 +5,10 @@ import { flag } from '../../game/state';
 import { registerMap } from '../../world/maps';
 import type { MapObj, TileSpec } from '../../world/types';
 import { OBJ, OBJ2, REWARD_TEXT, TALK } from './town_text';
+import { SCHOOL_OBJ } from '../text/school';
 
 const ROWS = [
-  'HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH^^^^^^^^^^^^^^^^^^^^^^^^FbRbF,', // 0
+  'HHHHHHHHHHHHHHHHHHUHHHHHHHHHHHHHHH^^^^^^^^^^^^^^^^^^^^^^^^FbRbF,', // 0 U: 夕鳴小学校の 裏門 (map_school, 02 #72)
   'H^^^^,T,,,,T,,,,,,,,,,,,T,,,,T,HHHWWWWWWWWWWWWWWWWWWWWWWWWFbRbF,', // 1
   'HWWWW,,,,,,,,,,,,,,,,,,,,,,,,,,HHHWWWWWWWWWWWWWWWWWWWWWWWWFbRbF,', // 2
   'HWWWW,:oooo:--------:ooo:,,o,,,HHHWWWWWWWWWWWWWWWWWWWWWWWWFbRbF,', // 3
@@ -92,6 +93,8 @@ export const TOWN_LEGEND: Record<string, TileSpec> = {
   X: { ground: 'crossing', solid: true, tag: 'crossing' },
   // the paddy path's south end: it goes on to the diversion (door_town_aze → map_aze, 02 #67)
   E: { ground: 'dirt', solid: true, door: true },
+  // the gap in the park's north hedge: 夕鳴小学校の 裏門 (door_town_school → map_school, 02 #72)
+  U: { ground: 'grass', solid: true, door: true },
 };
 
 const s0 = { stage: 0 };
@@ -373,6 +376,14 @@ const OBJECTS: MapObj[] = [
   O('obj_shrubs', 0, 8, { face: 'left' }),
   { ...O('obj_clocktower_base', 15, 7, { w: 2, face: 'up' }), prop: 'prop_clocktower', fushigi: 'fushigi_08' } as MapObj,
   O('obj_tetsubo', 21, 3, { w: 3 }),
+  // 夕鳴小学校の 裏門 (10 7.23, 02 #72): the iron gate in the north hedge, half open in stage 1–2;
+  // pushed north from (18,1) (the lawn north-east of the clock tower) into the school's back yard
+  { t: 'prop', prop: 'prop_sch_uramon', x: 18, y: 0 },
+  { t: 'obj', id: 'obj_sch_uramon', x: 18, y: 0, face: 'up', text: SCHOOL_OBJ.obj_sch_uramon } as MapObj,
+  {
+    t: 'door', id: 'door_town_school', x: 18, y: 0, to: 'map_school', tx: 14, ty: 12, dir: 'up', se: 'se_door_heavy',
+    cond: { stage: '1-2' },
+  },
   O('obj_speaker_pole', 27, 3),
   { ...O('obj_sandbox', 24, 9), flat: true } as MapObj,
   O('obj_kids_bike', 25, 10),
@@ -451,6 +462,8 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_ojii', x: 10, y: 21, dir: 'down', cond: s02, talk: TALK.npc_ojii, pose: 'sit', off: [0, -2] },
   { t: 'npc', id: 'npc_mizumaki', x: 11, y: 32, dir: 'down', cond: s02, talk: TALK.npc_mizumaki },
   { t: 'npc', id: 'npc_shadow_man', x: 8, y: 6, dir: 'down', cond: { stage: 2 }, talk: TALK.npc_shadow_man, ghost: true, noTurn: true, shadow: 0 },
+  // ぶーさんの本体 (10 6.16, 02 #71): after なんばるわん brought him from 喫茶 夕顔, beside his shadow on the bench
+  { t: 'npc', id: 'npc_bu_body', x: 7, y: 6, dir: 'down', cond: { stage: 2, flag: 'flag_bu_left' }, script: 'npc_bu_body', pose: 'sit', ghost: true, noTurn: true, shadow: 0 },
   // マル (10 6.24, 02 #65): beside the bus stop 「ユウナリ前」, seated on her walker, facing the lane
   { t: 'npc', id: 'npc_maru', x: 34, y: 12, dir: 'right', cond: { stage: 2 }, script: 'npc_maru', pose: 'sit' },
   // おぴぃ (10 6.25, 02 #66): the east end of the paddy path, on her upturned bucket, watching the inlet
@@ -539,10 +552,14 @@ const OBJECTS: MapObj[] = [
     move: { kind: 'route', points: [[13, 5], [13, 9], [18, 9], [18, 5]], speed: 2.6, wait: 1500 },
   },
   {
-    // stage 1: グソっ君 lies across (16,9) — the loop's lower leg runs a row
-    // further down, in front of him, not over him (★2026-09-29)
-    t: 'npc', id: 'walk_kid', sprite: 'npc_walker_kid', passerby: true, x: 13, y: 5, dir: 'down', cond: { stage: 1 },
-    move: { kind: 'route', points: [[13, 5], [13, 10], [18, 10], [18, 5]], speed: 2.6, wait: 1500 },
+    // stage 1: グソっ君 lies across (16,9) — the kid runs round the top of the
+    // tower only (the stage-0 loop without its lower leg, there and back),
+    // never across in front of him: しゅん talks to him from (16,10) or beside
+    // it, and a lower leg there had the kid stuck at his side, balloon over
+    // グソっ君 (★2026-09-29). The east leg stops at row 7: talked to from the
+    // east, しゅん steps back to (18,9)
+    t: 'npc', id: 'walk_kid', sprite: 'npc_walker_kid', passerby: true, x: 13, y: 9, dir: 'up', cond: { stage: 1 },
+    move: { kind: 'route', points: [[13, 9], [13, 5], [18, 5], [18, 7]], speed: 2.6, wait: 1500 },
   },
 
   // ======================================================== enemy symbols (20_systems 14)

@@ -16,6 +16,7 @@
 // asleep on top is a field character) and the crates of empties.
 
 import type { Gfx } from '../../engine/gfx';
+import { flag } from '../../game/state';
 import { ihash, valueNoise } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { framed, pc, prop } from './ifurn';
@@ -239,7 +240,10 @@ registerProp('in_cf_plant', () => {
 
 // the regular's window seat (8–9,4): paper and a coffee (in stage 2 it creeps back up)
 registerProp('in_cf_booth', () => {
-  const frames = mkFrames(2, 32, 24, (p, k) => {
+  // frames: 0 the regular's paper and half-drunk cup (stages 0–1); 1 stage 2 with ぶーさん's
+  // body at the seat (★2026-09-30, 02 #71: he holds the paper up himself, the cup brimming);
+  // 2 stage 2 after なんばるわん took him to the park (the cup drained, the paper folded)
+  const frames = mkFrames(3, 32, 24, (p, k) => {
     // two chairs (backs) and the table
     for (const cx of [3, 26]) {
       p.rect(cx, 4, 4, 14, '#8A2E3A');
@@ -251,14 +255,26 @@ registerProp('in_cf_booth', () => {
     p.rect(15, 14, 2, 8, P.woodDark);
     p.hline(11, 21, 22, P.woodDark);
     // the paper and the cup
-    p.rect(9, 9, 8, 4, P.paper);
-    printLines(p, 10, 10, 6, 2, P.steel, 891);
-    p.ellipse(20, 10, 2, 1.2, P.white);
-    p.rect(19, 10 - k, 3, 1 + k, '#5A3A2A');
-    p.set(22, 10, P.white);
+    if (k === 0) {
+      p.rect(9, 9, 8, 4, P.paper);
+      printLines(p, 10, 10, 6, 2, P.steel, 891);
+    } else if (k === 2) {
+      // folded neatly in four where he sat
+      p.rect(18, 9, 5, 3, P.paper);
+      p.hline(18, 22, 9, P.white);
+      p.set(20, 10, P.steel);
+      p.set(21, 11, P.steel);
+    }
+    // the cup: by the paper (0); moved to the middle of the table, clear of the paper he
+    // holds up (1: brimming; 2: drained)
+    const cx = k === 0 ? 20 : 13;
+    p.ellipse(cx, 10, 2, 1.2, P.white);
+    if (k < 2) p.rect(cx - 1, 10 - k, 3, 1 + k, '#5A3A2A');
+    else p.hline(cx - 1, cx + 1, 10, P.concrete);
+    p.set(cx + 2, 10, P.white);
   }, (p) => finish(p, { soft: true }));
   const a = stand(frames[0], { cx: 16, base: 16, contact: 26, shadow: 0 });
-  a.img = (env: PropEnv) => frames[env.stage >= 2 ? 1 : 0];
+  a.img = (env: PropEnv) => frames[env.stage >= 2 ? (flag('flag_bu_left') ? 2 : 1) : 0];
   return a;
 });
 

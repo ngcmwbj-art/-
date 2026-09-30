@@ -21,5 +21,7 @@ import './sfx_ch2';
 import './sfx_mushi';
 // ザリガニ釣り（02_ch2_index #66）
 import './sfx_tsuri';
+// 脇芽は 朝に かく（02_ch2_index #73）
+import './sfx_wakime';
 import './ambience_ch2';
 import './voices';

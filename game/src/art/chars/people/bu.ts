@@ -188,8 +188,8 @@ function side(f: Fig, p: Pose): void {
     f.part('eye', { flat: true, rim: false });
     f.px(3, hy + 6).px(4, hy + 7);
   }
-  if (seated && (act === 'paper' || act === 'page')) {
-    // the newspaper held up before him, a little below the eyes
+  if (seated && (act === 'paper' || act === 'page' || act === 'sigh')) {
+    // the newspaper held up before him, a little below the eyes (it stays up through a sigh)
     const turn = act === 'page' ? 1 : 0;
     f.part('paper', { shade: 'rb', light: 't' });
     f.rect(0, 10 + u, 4, 7);

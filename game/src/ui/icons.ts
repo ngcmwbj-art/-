@@ -445,6 +445,24 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// さやの夕日の絵 (8月31日の 水やり当番, 10_narrative 6.7〔toban〕, 02_ch2_index #72): a sheet of
+// drawing paper, the evening sky in crayon, the sun half down on a red horizon, the town dark
+// under it, a pencil date in the bottom right corner
+Object.assign(ITEM_ROWS, {
+  item_toban_yuhi: [
+    '.aaaaaaaa.',
+    'aqqttttqqe',
+    'atttOOttte',
+    'atssOOOsse',
+    'assOOOOsse',
+    'arrrrrrrre',
+    'aGnGGnGnGe',
+    'aaaaaaagge',
+    '.eeeeeeee.',
+    '..........',
+  ],
+});
+
 // 名前の石 (沢の上, 50 10.22, 02_ch2_index #65): a flat grey stone from the stream, two
 // names scratched in it — a long one (とまたろう) and, under it, a short one (マル) — moss
 Object.assign(ITEM_ROWS, {

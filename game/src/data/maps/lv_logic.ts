@@ -588,7 +588,7 @@ registerDebug('lvGate', (on?: boolean) => {
  * step-door (no bounce), and a way back. __game.cmd.lvDoors()
  */
 registerDebug('lvDoors', () => {
-  const MAPS = ['map_town', 'map_maruyama', 'map_hinoya', 'map_laundry', 'map_koban', 'map_mall_hall', 'map_mall_food', 'map_mall_health', 'map_mall_2f', 'map_mall_maigo', 'map_mall_roof', 'map_aze'];
+  const MAPS = ['map_town', 'map_maruyama', 'map_hinoya', 'map_laundry', 'map_koban', 'map_mall_hall', 'map_mall_food', 'map_mall_health', 'map_mall_2f', 'map_mall_maigo', 'map_mall_roof', 'map_aze', 'map_school'];
   const out: string[] = [];
   let ok = 0;
   for (const id of MAPS) {

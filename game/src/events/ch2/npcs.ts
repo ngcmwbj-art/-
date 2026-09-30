@@ -21,6 +21,8 @@ import { hStage, isHoshi, npc, pickH, say } from './common';
 import { deliveryAtYoshie } from './tsugao';
 import { mushiAtYoshie } from './mushi';
 import { fumiSawa, sawaFlip, tomeSawa } from './sawa';
+import { wakimeAtMitsu } from './wakime';
+import { sawakoYk } from './sawako_yk';
 
 const T = HOSHI_NPC;
 
@@ -209,6 +211,8 @@ registerScript('npc_hoshi_mitsu', function* (): Co {
     yield* houseExitLine();
     return;
   }
+  // 脇芽は 朝に かく (02 #73, wakime.ts): 〔wakime〕 the request, later 〔wakime_done〕 and 朱肉 +2
+  if (yield* wakimeAtMitsu()) return;
   yield* talk('npc_hoshi_mitsu', only(t, ['h1_1', 'h1_2', 'h1_3', 'h2_1', 'h2_2']));
 });
 
@@ -301,6 +305,8 @@ registerScript('npc_hoshi_sawako', function* (): Co {
     // 〔h1_2〕 of 3.11: ムジン販売員 beaten (at any stage, once)
     setFlag('flag_seen_npc_hoshi_sawako_mujin_done', 1);
     yield* say(t.mujin_done);
+  } else if (yield* sawakoYk()) {
+    // 〔yk〕 the statue's colour sample (02 #73, sawako_yk.ts): once, after the sketch's second look
   } else if (s >= 2) yield* talk('npc_hoshi_sawako', only(t, ['h2_1']));
   else if (s === 1 && !mujinGone) yield* talk('npc_hoshi_sawako', only(t, ['h1_1']));
   else {

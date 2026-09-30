@@ -40,6 +40,10 @@ import { ROOMS2_TEXTS } from './rooms2';
 import { MUSHI_PAGES } from '../../data/text/hoshi_mushi';
 import { MARU_CH1, MARU_END, MARU_TOME, SAWA_EVT, SAWA_FLIP, SAWA_FUMI, SAWA_OBJ, SAWA_WAKIMIZU } from '../../data/text/maru';
 import { AZE_TEXTS } from '../../data/text/aze';
+import { SCHOOL_TEXTS } from '../../data/text/school';
+import { CAPE_COFFEE_TEXTS } from '../../data/text/cape_coffee';
+import { WAKIME_PAGES } from '../../data/text/hoshi_wakime';
+import { SAWAKO_YK_PAGES } from '../../data/text/hoshi_sawako_yk';
 
 type Step = () => void;
 
@@ -163,6 +167,22 @@ export const CHAIN2: Beat2[] = [
     at: ['map_hoshimidai', 26, 34, 'up'],
     desc: '（QA）寄り合いのあとの村（全員に話す）',
     side: 'mitsu',
+  },
+  // optional (02 #73, wakime.ts): ペロ's request (his 〔h1_1〕 heard) → 1号ハウス (10,30) → the minigame → back to him → the diary
+  {
+    beat: 'wakime',
+    steps: [set('flag_seen_npc_hoshi_mitsu_h1_1', 'flag_seen_npc_hoshi_mitsu_h1')],
+    at: ['map_hoshimidai', 4, 32, 'left'],
+    desc: '（任意）脇芽は 朝に かく（ペロ (3,32) に話す → 1号ハウスの株）',
+    side: 'gen',
+  },
+  // optional (02 #73, sawako_yk.ts): the sketch in ソワカの家 looked at once — the next look is the second
+  {
+    beat: 'sawako',
+    steps: [set('flag_seen_obj_hr_sawako_kabe')],
+    at: ['map_hoshi_sawako', 5, 2, 'up'],
+    desc: '（任意）ソワカの 色見本（壁のスケッチの2回目 → ソワカ (23,37) に話す）',
+    side: 'gen',
   },
 ];
 
@@ -361,6 +381,13 @@ function collectTexts(): [string, string][] {
   walk('sawa', { obj: SAWA_OBJ, evt: SAWA_EVT, wakimizu: SAWA_WAKIMIZU });
   // 第1章の 畦道の先の 分水・きつねの 常連 (10_narrative 6.26・7.22, 02_ch2_index #67)
   walk('aze', AZE_TEXTS);
+  // げむきか9/30の3：8月31日の 水やり当番（夕鳴小学校の 裏庭、第2章の トマじいの〔bucket〕も。10 6.7・7.23, 50 3.10, 02_ch2_index #72）
+  walk('school', SCHOOL_TEXTS);
+  // げむきか9/30の1・2・5（ふろしきの マント、置物の ヘラ、減らない コーヒー。10 6.2・6.3・6.16・6.19・6.22, 02_ch2_index #71）
+  walk('cape_coffee', CAPE_COFFEE_TEXTS);
+  // げむきか9/30の2・4（ソワカの 色見本・脇芽は 朝に かく。50 3.8・3.11・9.9・10.23, 02_ch2_index #73）
+  walk('sawako_yk', SAWAKO_YK_PAGES);
+  walk('wakime', WAKIME_PAGES);
   // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line
   // lines shown without a speaker (HOUKI_LINE's float note: the same 336 px)
   for (const [k, v] of Object.entries(EV)) if (typeof v === 'string' && (v.startsWith('@') || v.startsWith('!cue') || v.includes('\n'))) out.push([`ev.${k}`, v]);

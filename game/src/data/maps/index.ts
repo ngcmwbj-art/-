@@ -12,6 +12,8 @@ import './interior_north';
 import './interior_south';
 // 畦道の先の 分水（円筒分水・よねと とよぞう、02 #67）
 import './aze';
+// 夕鳴小学校の 裏庭と 学級園（8月31日の 水やり当番、02 #72）
+import './school';
 // Chapter 2 『星見台のトマト』 (levels team, 52_ch2_level_art): the village and its rooms.
 import './hoshi_village';
 import './hoshi_qa';

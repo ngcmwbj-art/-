@@ -21,4 +21,7 @@ import './rooms2';
 import './mushi';
 // マルととまたろう・沢の上「水の 元」（02_ch2_index #65）
 import './sawa';
+// ソワカの 色見本・脇芽は 朝に かく（げむきか 9/30 の2・4、02_ch2_index #73）
+import './sawako_yk';
+import './wakime';
 import './debug';

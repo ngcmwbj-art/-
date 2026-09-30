@@ -95,6 +95,16 @@ registerProp('in_hi_shell', () => {
       p.set(kx, iy + 7, P.skin3);
       p.set(kx, iy + 8, P.white);
     }
+    // ★2026-09-30 (げむきか9/30の1、10 7.4): the boy at the end of the front row wears a
+    // green furoshiki for a cape, spread out past his shoulders on both sides, one
+    // darker speck on it (the arabesque); 『ももせ たかし』
+    {
+      const kx = ix + 2;
+      p.set(kx - 1, iy + 8, P.leaf);
+      p.set(kx + 1, iy + 8, P.leaf);
+      p.set(kx - 1, iy + 9, P.leafShade);
+      p.set(kx + 1, iy + 9, P.leaf);
+    }
     // the caption strip, handwritten
     p.hline(ix + 2, ix + 5, iy + ih - 1, P.woodLt);
     p.hline(ix + 7, ix + 11, iy + ih - 1, P.woodLt);

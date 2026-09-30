@@ -364,15 +364,31 @@ function paintDeco(p: PixelCanvas, d: WallDeco, fy: number): void {
       return;
     }
     case 'sketches': {
-      const cols = [P.leaf, P.red, P.blue, P.gold, P.peach, P.navy, P.leafDeep];
-      for (let k = 0; k < (d.w ?? 1) * 3; k++) {
+      // pencil sketches (牛、トマト、かかし、軽トラ、村の人の顔); in the corner, the one
+      // coloured sketch (02 #73: the colour sample of 夕鳴町's statue — noodles on
+      // its head, the green cape, the red sash, the spatula held up)
+      const n = (d.w ?? 1) * 3;
+      for (let k = 0; k < n; k++) {
         const sx = px + 2 + (k % ((d.w ?? 1) * 2)) * 8 + (k % 2);
         const sy = fy + 9 + Math.floor(k / ((d.w ?? 1) * 2)) * 9;
         p.rect(sx, sy, 7, 7, P.paper);
         p.set(sx + 3, sy, P.steel);
-        const c = cols[k % cols.length];
-        p.ellipse(sx + 3.5, sy + 4, 2, 1.5, c);
-        p.set(sx + 2, sy + 2, dk(c));
+        if (k < n - 1) {
+          const c = mix(P.steel, P.paper, 0.35);
+          p.ellipse(sx + 3.5, sy + 4, 2, 1.5, c);
+          p.set(sx + 2, sy + 2, P.steel);
+          p.set(sx + 5, sy + 5, P.steel);
+        } else {
+          p.hline(sx + 2, sx + 4, sy + 1, P.brass); // the noodles
+          p.set(sx + 3, sy + 2, P.peach); // the face
+          p.set(sx + 3, sy + 3, P.ink); // the moustache
+          p.rect(sx + 2, sy + 4, 3, 2, P.white);
+          p.set(sx + 3, sy + 4, P.red); // the sash
+          p.set(sx + 1, sy + 4, P.leaf); // the cape
+          p.set(sx + 1, sy + 5, P.leaf);
+          p.set(sx + 5, sy + 1, P.steel); // the spatula, up
+          p.set(sx + 5, sy + 2, P.woodDark);
+        }
       }
       return;
     }

@@ -406,8 +406,8 @@ export const CH2_CUES: Cue[] = [
         A.setAmbientVol('amb_h_wind', 0.4, 3);
       }),
       S(15.5, 'NARR', () => void say('narr', '夕焼けを ためこんだ トマトが、朝焼けに なった。')),
-      S(20.5, 'KANENARI: ……おはよう。 (-4DB)', () => void say('kanenari_voice', '……おはよう。')),
-      S(23.5, 'SE_BELL_KANENARI_SHORT', at('se_bell_kanenari_short')),
+      // (★2026-09-29 カネナリくん→グソっ君: no 「……おはよう。」 and no bell — the sun in his eyes)
+      S(20.5, 'GUSOKKUN: ……まぶしいな。', () => void say('gusokkun', '……まぶしいな。陸の 朝って、こんな 色 なんや。')),
       S(24.5, 'H_STAGE 3: NEXT BAR MI1', () => A.setMusicParam('h_stage', 3)),
     ],
   },

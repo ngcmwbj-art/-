@@ -3,7 +3,8 @@
 // Big man in his 50s. White cook hat, thick brows, tanned skin, white coat
 // with rolled sleeves, red apron, white towel round the neck.
 // Idle: arms folded → every 4s peeks at the griddle (to his right).
-// Extras: look_up, fry (the ending: a spatula in each hand over the griddle), peek.
+// Extras: look_up, fry (the ending: a spatula in each hand over the griddle), peek,
+// towel / pat (★2026-09-30: the hand to the neck towel, then slapped flat on it; 10 6.2).
 
 import { flat, mat, type Fig, type Mats } from '../fig';
 import { HAIR_BLACK, SKIN_LIGHT, SKIN_MID, SKIN_TAN } from '../mats';
@@ -121,8 +122,27 @@ function front(f: Fig, p: Pose) {
     f.line(5, 17 + u, 6, 20).line(10, 17 + u, 9, 20);
     f.part('blade', { flat: true, rim: false });
     f.hl(5, 7, 21).hl(8, 10, 21);
+  } else if (act === 'towel' || act === 'pat') {
+    // (the other arm hangs; the near one is drawn over the towel below)
+    hangArms(f, p, { lx: 0, rx: 15, sy: 13, hy: 18, segs: ARM }, u, 'R');
+    f.part('coat', { shade: 'rb', light: 't' });
+    f.rect(0, 13 + u, 2, 3);
   } else hangArms(f, p, { lx: 0, rx: 15, sy: 13, hy: 18, segs: ARM }, u);
   towel(f, u, 'down');
+  if (act === 'towel' || act === 'pat') {
+    // ★2026-09-30 (げむきか9/30の1、10 6.2): 「いまの オレの マントは、これよ。」 — his
+    // right hand (viewer-left) up to the towel at his neck ('towel'), then slapped
+    // flat on its end ('pat': 「たかしは、首の タオルを ぱんと はたいた。」)
+    const up = act === 'towel';
+    f.part('skin', { shade: 'rb', light: 't' });
+    f.line(1, 16 + u, 3, (up ? 13 : 15) + u);
+    f.rect(3, (up ? 12 : 14) + u, 3, 2);
+    if (!up) {
+      // the towel's end flicks out from under the hand
+      f.part('towel', { flat: true });
+      f.px(2, 15 + u).px(6, 15 + u);
+    }
+  }
   const hy = 4 + u;
   head(f, p, HEAD, hy);
   // nose shadow
@@ -204,7 +224,7 @@ registerChar('npc_maruyama', () =>
     mats: M,
     draw: (f, p) => (p.view === 'down' ? front(f, p) : p.view === 'up' ? back(f, p) : side(f, p)),
     idle: { down: IDLE, left: IDLE, right: IDLE, up: breathingIdle() },
-    extras: { fry: { dirs: ['down', 'left', 'right'] }, peek: { dirs: ['down'] }, surprised: { dirs: ['down'] } },
+    extras: { fry: { dirs: ['down', 'left', 'right'] }, peek: { dirs: ['down'] }, surprised: { dirs: ['down'] }, towel: { dirs: ['down'] }, pat: { dirs: ['down'] } },
     shadow: 12,
   }),
 );

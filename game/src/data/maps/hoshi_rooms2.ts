@@ -334,6 +334,9 @@ export const ROOMS2: Room2[] = [
       X('obj_hr_mk3_senpuki', 9, 5),
       X('obj_hr_mk3_chabudai', 7, 7, { w: 2 }),
       FIND('obj_hr_mk3_bucket', 1, 5, { item: 'item_ramune' }),
+      // 喫茶 夕顔へ 送る 豆の 焙煎器と 麻袋（げむきか9/30の5、02 #71。art/props/cape_coffee.ts）
+      PR('prop_hr_baisen', 1, 7),
+      X('obj_hr_mk3_baisen', 1, 7, { solid: [0, 0, 1, 1] }),
     ],
     out: { x: 44, y: 36, stand: [44, 37], dir: 'up', se: 'se_door' },
     lit: true,

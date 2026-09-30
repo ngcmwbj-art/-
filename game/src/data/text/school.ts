@@ -27,8 +27,8 @@ export const BUCKET_NAMES = [
 /** しゅんの バケツ（BUCKET_NAMES の 番号）と、さやの バケツ。 */
 export const SHUN_BUCKET = 7;
 export const SAYA_BUCKET = 9;
-/** アマガエルが ふちに いる バケツ。 */
-export const FROG_BUCKET = 23;
+/** アマガエルが ふちに いる バケツ（桜の 枝の 下に ならない 所）。 */
+export const FROG_BUCKET = 26;
 
 /** 公園の さや（段階1〜2、1回。ふだんの 台詞の あとに）。 */
 export const TOBAN_SAYA = {
@@ -217,6 +217,15 @@ export const SCHOOL_OBJ = {
 桜の 木。{w=300}
 枝の 影が、北東へ のびている。`,
   },
+  /** 半分 うまった 古タイヤ（タイヤとび。校庭の 南）。 */
+  obj_sch_taiya: {
+    s1: `@narr
+半分 うまった 古タイヤが 3つ。{w=300}
+中に、雨水が たまっている。`,
+    s2: `@narr
+半分 うまった 古タイヤが 3つ。{w=300}
+中の 雨水が、北東へ かたむいている。`,
+  },
   /** 段階2の コーン・ボーカルを 直したあと（体育倉庫の 前）。 */
   restored_cone: `@narr
 コーンが まっすぐ 立っている。{w=300}
@@ -333,5 +342,30 @@ export const TOBAN_KANENARI = {
 ……わいの 親戚か？`,
 };
 
+/**
+ * 第2章（任意）：シールを 貼った 人だけ、棚田の トマじいに 1回〔bucket〕（50 3.10。events/school.ts が
+ * トマじいの 台本を 包む。はじめの「水の 見回りじゃ。」の あとの 1回）。種もみは トマじいの 棚田の。
+ */
+export const TOBAN_TOME = {
+  intro: `@narr
+しゅんは、学校の バケツの 稲の
+話を した。`,
+  bucket: `@npc_hoshi_tome
+町の 小学校の バケツの 稲？{w=300}
+……ありゃ、うちの 種もみじゃ。
+/
+春に、マルが バスで 届けとる。{w=300}
+8月の 終わりは、実が つまる ときじゃ。
+水は、切らしとらんか。`,
+  /** グソっ君が いるとき。 */
+  kanenari: `@npc_kanenari
+しゅんが ちゃんと やったで。`,
+  /** グソっ君が いないとき。 */
+  alone: `@narr
+しゅんは、うなずいた。`,
+  end: `@npc_hoshi_tome
+……そうか。{w=300}ええ 当番じゃ。`,
+};
+
 /** Every page (textcheck2 and schoolText walk these). */
-export const SCHOOL_TEXTS = { saya: TOBAN_SAYA, obj: SCHOOL_OBJ, hyo: TOBAN_HYO, jouro: TOBAN_JOURO, bucket: TOBAN_BUCKET, kanenari: TOBAN_KANENARI };
+export const SCHOOL_TEXTS = { saya: TOBAN_SAYA, obj: SCHOOL_OBJ, hyo: TOBAN_HYO, jouro: TOBAN_JOURO, bucket: TOBAN_BUCKET, kanenari: TOBAN_KANENARI, tome: TOBAN_TOME };
