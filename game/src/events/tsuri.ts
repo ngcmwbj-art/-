@@ -17,7 +17,8 @@
 //     落ちる 水も、泡も、ゴミも 止まっている。
 //   段階2：糸も 水も 北東（右）へ 寄る。土管の ぬしが 出やすい。
 //   操作：決定（長押し）と、場所えらびだけ 方向キー。タッチは 絵を 押しても けってい。
-//   iPad の全画面：小窓は markText（操作ボタンが よける）、言葉と ゲージは brief。
+//   iPad の全画面（★2026-09-30）：操作ボタンは 下の角に 固定。小窓は その上、ゲージと
+//   言葉は 左下の 十字キーの 右（engine/safezones.ts）。言葉と ゲージは brief。
 //
 // 軽さ：背景は段階ごとに1枚（焼いて とっておく）。毎フレーム 描くのは 小さい物だけ。
 
@@ -26,6 +27,7 @@ import { game, type Widget } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import type { Input } from '../engine/input';
 import { markText } from '../engine/textzones';
+import { buttonZones, freeSpan } from '../engine/safezones';
 import { PixelCanvas } from '../engine/pixel';
 import { touchControlsOn } from '../engine/touch';
 import { animate, ease } from '../engine/tween';
@@ -74,6 +76,13 @@ const GX = 40;
 const STAND_Y = FLOOR_Y + 1;
 const GY = 176;
 const GR = 26;
+/**
+ * The gauge's centre x: the bottom-left corner, or (iPad held sideways, the
+ * D-pad fixed in that corner: engine/safezones.ts) just right of the D-pad.
+ */
+function gaugeX(): number {
+  return buttonZones() ? Math.max(GX, freeSpan(GY - GR - 6, GY + GR + 8).x0 + GR + 6) : GX;
+}
 
 // ---------------------------------------------------------------- 釣れる物
 
@@ -665,7 +674,7 @@ export class TsuriPanel implements Widget {
 
   private drawGauge(g: Gfx): void {
     const a = Math.min(1, this.gauge);
-    const cx = GX;
+    const cx = gaugeX();
     const cy = GY + Math.round((1 - a) * 30);
     const R = GR;
     const ctx = g.ctx;
@@ -808,7 +817,7 @@ const HOLD_CUE = (p: TsuriPanel, phase: 'wait' | 'hold' | 'zone') => {
   const text = phase === 'zone' ? TSURI_UI.release : TSURI_UI.hold;
   const { h } = cueSize(text);
   p.cues.set('hold', text, {
-    x: GX + GR + 8,
+    x: gaugeX() + GR + 8,
     y: GY - Math.round(h / 2),
     align: 'left',
     tone: phase === 'zone' ? 'go' : 'hold',

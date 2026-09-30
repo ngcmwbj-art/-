@@ -420,6 +420,19 @@ export const END_MEAT_KN = `@npc_kanenari
 export const END_VOICE = `@npc_kanenari
 {shake}めっちゃ美味いやんけ！{/shake}`;
 
+/**
+ * After 「つづく」 (★2026-09-30 依頼主「第1章のエンディング終わった後に
+ * ボタンだけ残ってずっと暗い画面だった」): the end card on the dark screen —
+ * the seal, 「第1章 おわり」, the next chapter's name — and where to go now
+ * (the save slot already holds the chapter 1 clear data: 「第2章へ」 is its
+ * 「つづきから」).
+ */
+export const END_CARD = {
+  end: '第1章　おわり',
+  next: 'つぎは　第2章『星見台の トマト』',
+  options: ['第2章へ すすむ', 'タイトルへ もどる'],
+};
+
 // ---------------------------------------------------------------- 5.22 セーブ（ベンチ・お地蔵さんは UI の saveMenu を使う）
 
 export const MOM_REST_SYS = `@sys

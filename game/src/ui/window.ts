@@ -368,6 +368,12 @@ export interface WrapOpts {
    * the plain rule, so their pages stay as written.
    */
   glue?: boolean;
+  /**
+   * Break at a full-width space (　) too, not only at the half-width spaces
+   * between phrases (the dialog window made narrow for the touch buttons of
+   * an iPad held sideways re-wraps its pages with this).
+   */
+  zenkaku?: boolean;
 }
 
 /** phraseWrap plus how many breaks had to fall between characters (rule 4; QA). */
@@ -377,14 +383,21 @@ export function phraseWrapInfo(text: string, maxW: number, o: WrapOpts = {}): { 
   for (const para of text.split('\n')) {
     // segments: split at spaces (joined back with a space) and after
     // punctuation inside a word (joined back with nothing)
-    const segs: { s: string; sp: boolean }[] = [];
-    para.split(' ').forEach((word, wi) => {
-      if (!word) return;
-      splitAfterPunct(word).forEach((s, si) => segs.push({ s, sp: wi > 0 && si === 0 && segs.length > 0 }));
-    });
+    // (`sp`: the space it is joined back with, '' for none)
+    const segs: { s: string; sp: string }[] = [];
+    let pend = '';
+    for (const word of para.split(o.zenkaku ? /([ \u3000])/ : /( )/)) {
+      if (word === ' ' || word === '\u3000') {
+        pend = word;
+        continue;
+      }
+      if (!word) continue;
+      splitAfterPunct(word).forEach((s, si) => segs.push({ s, sp: si === 0 && segs.length > 0 ? pend : '' }));
+      pend = '';
+    }
     let line = '';
     for (const seg of segs) {
-      const cand = line ? line + (seg.sp ? ' ' : '') + seg.s : seg.s;
+      const cand = line ? line + seg.sp + seg.s : seg.s;
       if (fitW(cand) <= maxW) {
         line = cand;
         continue;
@@ -415,7 +428,7 @@ export function phraseWrapInfo(text: string, maxW: number, o: WrapOpts = {}): { 
       let rest = [...seg.s];
       let sp = seg.sp;
       while (rest.length) {
-        const joint = line ? line + (sp ? ' ' : '') : '';
+        const joint = line ? line + sp : '';
         if (fitW(joint + rest.join('')) <= maxW) {
           line = joint + rest.join('');
           rest = [];
@@ -435,7 +448,7 @@ export function phraseWrapInfo(text: string, maxW: number, o: WrapOpts = {}): { 
           rest = rest.slice(c);
         }
         line = '';
-        sp = false;
+        sp = '';
       }
     }
     out.push(line);

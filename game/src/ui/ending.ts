@@ -25,12 +25,16 @@ import { Particles } from '../engine/particles';
 import { hash2 } from '../engine/rng';
 import { H, W } from '../engine/screen';
 import { ease } from '../engine/tween';
-import { charWidth } from '../engine/font';
+import { charWidth, LINE_H } from '../engine/font';
+import { buttonZones } from '../engine/safezones';
+import { markText } from '../engine/textzones';
 import { flag, setFlag, state } from '../game/state';
 import { sfx, stopAllAmbient, stopBgm } from '../audio';
 import { petalSprites } from '../battle/art/stamps';
 import { caseBody, caseLid, CASE_H, CASE_SLOTS, CASE_W, drawCase, imprintFor, outlineShown, slotXY } from './hankocase';
-import { clearRecordCh2, markClear, markClearCh2, toTitle } from './flow';
+import { clearRecordCh2, continueGame, markClear, markClearCh2, toTitle } from './flow';
+import { choose } from './dialog';
+import { END_CARD } from '../data/text/events';
 import { playTsugaoRoom } from './cut_tsugao';
 import { hasEarTag, stickerEarTag, stickerStar, stickerTomato } from './menu/book';
 import {
@@ -46,7 +50,7 @@ import {
   skyCanvas,
 } from './title_art';
 import { ctxText, rectA, textW, UI } from './window';
-import { ditherIn, ditherOut } from './transition';
+import { coverToFade, ditherIn, ditherOut } from './transition';
 
 // ---- cut_night_sky -------------------------------------------------------------------------
 
@@ -427,6 +431,8 @@ export function* playEndingNotebook(o: { toTitle?: boolean } = {}): Co {
   markClear();
   if (o.toTitle !== false) {
     yield* ditherOut(1, '#0B0B14');
+    // (the dither covers now: no engine fade may stay over the title)
+    game.fadeAlpha = 0;
     const { TitleScene } = (yield import('./title')) as typeof import('./title');
     game.replaceAll(new TitleScene(true));
     yield* ditherIn(900);
@@ -449,6 +455,8 @@ class TsuzukuOverlay implements Widget {
   private parts = new Particles();
   private petals = petalSprites();
   private seal = tsuzukuSeal(SEAL.size);
+  /** Where it lands: SEAL, or (iPad full screen) left of the buttons in the corner. */
+  private readonly x = sealX();
   update(dt: number): void {
     this.stampT += dt;
     this.parts.update(dt);
@@ -459,25 +467,40 @@ class TsuzukuOverlay implements Widget {
       game.shake(3, 160);
       game.flash('#E23B2E', 90, 0.12);
       for (let i = 0; i < 12; i++)
-        this.parts.burst(SEAL.x, SEAL.y, { count: 1, speed: [40, 120], life: [700, 1200], colors: ['#E23B2E'], gravity: 60, drag: 1.5, shape: 'img', img: this.petals[i % this.petals.length] });
+        this.parts.burst(this.x, SEAL.y, { count: 1, speed: [40, 120], life: [700, 1200], colors: ['#E23B2E'], gravity: 60, drag: 1.5, shape: 'img', img: this.petals[i % this.petals.length] });
     }
     if (this.landed && game.fadeAlpha >= 0.98) this.done = true;
   }
   draw(g: Gfx): void {
     const t = this.stampT;
+    const sx = this.x;
     if (t < PRESS_MS) {
       const k = ease.quadIn(t / PRESS_MS);
       const r = Math.round((SEAL.size * (0.95 - 0.4 * k)) / 2);
-      g.alpha(0.12 + 0.3 * k, () => g.circle(SEAL.x + 3 - Math.round(3 * k), SEAL.y + 4 - Math.round(4 * k), r, '#1B1420'));
+      g.alpha(0.12 + 0.3 * k, () => g.circle(sx + 3 - Math.round(3 * k), SEAL.y + 4 - Math.round(4 * k), r, '#1B1420'));
     } else {
       const lt = t - PRESS_MS;
       const sc = lt < 85 ? 1.25 - 0.25 * ease.quadOut(lt / 85) : 1;
       const w = Math.round(this.seal.width * sc);
-      if (lt < 500) g.alpha(0.3 * (1 - lt / 500), () => g.circle(SEAL.x, SEAL.y, Math.round(SEAL.size / 2 + 2 + lt / 60), '#E8A49C'));
-      g.ctx.drawImage(this.seal, Math.round(SEAL.x - w / 2), Math.round(SEAL.y - w / 2), w, w);
+      if (lt < 500) g.alpha(0.3 * (1 - lt / 500), () => g.circle(sx, SEAL.y, Math.round(SEAL.size / 2 + 2 + lt / 60), '#E8A49C'));
+      g.ctx.drawImage(this.seal, Math.round(sx - w / 2), Math.round(SEAL.y - w / 2), w, w);
     }
     this.parts.draw(g);
   }
+}
+
+/**
+ * The seal's centre x: SEAL.x, or on an iPad held sideways (full screen,
+ * the buttons fixed in the bottom corners) far enough left that the seal and
+ * the ring round it clear the けってい / もどる cluster.
+ */
+function sealX(): number {
+  const z = buttonZones();
+  if (!z) return SEAL.x;
+  const r = SEAL.size / 2 + 6;
+  let x: number = SEAL.x;
+  for (const p of z.parts) if (p.x > W / 2 && p.y < SEAL.y + r && p.y + p.h > SEAL.y - r && p.x < x + r) x = Math.min(x, Math.floor(p.x - r));
+  return x;
 }
 
 /** Press 「つづく」 over the last picture of chapter 1, and mark the clear. */
@@ -490,6 +513,76 @@ export function* stampTsuzuku(): Co {
   setFlag('flag_hud_hidden', hud);
   yield 1800;
   void w;
+}
+
+// ---- after 「つづく」: the end card (★2026-09-30) -----------------------------------------------
+
+/**
+ * The end card of chapter 1, on the dark screen the ending faded to
+ * (★2026-09-30 依頼主「第1章のエンディング終わった後にボタンだけ残って
+ * ずっと暗い画面だったから直して」: the engine fade was left at 1 over the
+ * title). The 「つづく」 seal, 「第1章 おわり」 in paper white, the next
+ * chapter's name in a quieter lilac, and a choice: 「第2章へ すすむ」 (the
+ * slot's chapter 1 clear data, as its 「つづきから」) or 「タイトルへ
+ * もどる」 (もどる picks it too). Everything sits in the middle of the
+ * screen, clear of the buttons of an iPad held sideways.
+ */
+class ChapterEndScene implements Scene {
+  transparent = false;
+  done = false;
+  t = 0;
+  private seal = tsuzukuSeal(SEAL.size);
+  update(dt: number): void {
+    this.t += dt;
+  }
+  draw(g: Gfx): void {
+    g.clear(UI.darkest);
+    const cx = W / 2;
+    // the seal, and a faint vermilion halo that breathes
+    const br = 0.5 + 0.5 * Math.sin((this.t / 1800) * Math.PI * 2);
+    g.alpha(0.08 + 0.05 * br, () => g.circle(cx, END_Y.seal, SEAL.size / 2 + 6, UI.accent));
+    g.img(this.seal, Math.round(cx - this.seal.width / 2), Math.round(END_Y.seal - this.seal.height / 2));
+    // 「第1章 おわり」: bold (each letter doubled a pixel right)
+    const ew = textW(END_CARD.end) + 1;
+    const ex = Math.round(cx - ew / 2);
+    g.text(END_CARD.end, ex + 1, END_Y.end, { color: UI.bg });
+    g.text(END_CARD.end, ex, END_Y.end, { color: UI.bg });
+    const nw = textW(END_CARD.next);
+    g.text(END_CARD.next, Math.round(cx - nw / 2), END_Y.next, { color: '#B8AED8' });
+    markText(Math.min(ex, cx - nw / 2) - 2, END_Y.end - 2, Math.max(ew, nw) + 4, END_Y.next + LINE_H - END_Y.end + 4);
+  }
+}
+
+const END_Y = { seal: 44, end: 88, next: 110 };
+
+/**
+ * After 「つづく」 has faded out (the screen black, game.fadeAlpha = 1):
+ * the end card fades in, then the choice. 「第2章へ」 starts chapter 2 from
+ * the clear data just written (the title's つづきから); 「タイトルへ」 goes
+ * to the title (with the clear card). Either way the fade is handed back.
+ */
+export function* playChapter1End(): Co {
+  game.fadeColor = UI.darkest;
+  game.fadeAlpha = Math.max(game.fadeAlpha, 1);
+  game.replaceAll(new ChapterEndScene());
+  yield 200;
+  yield* game.fadeIn(700);
+  yield 300;
+  const opts = END_CARD.options;
+  const w = Math.max(...opts.map((o) => textW(o))) + 36;
+  const i = yield* choose(opts, { x: Math.round(W / 2 - w / 2), y: END_Y.next + 30, cancel: 1 });
+  if (i === 0) {
+    // as the title's 「つづきから」 on the chapter 1 clear data
+    stopBgm(1.0);
+    stopAllAmbient(1.0);
+    yield 160;
+    yield* ditherOut(700, UI.darkest);
+    coverToFade();
+    yield 250;
+    const ok = yield* continueGame();
+    if (ok) return;
+  }
+  yield* toTitle(700);
 }
 
 // ---- chapter 2: the notebook turns to ② (50_ch2_story 10.16 カット6) ---------------------------
@@ -824,6 +917,8 @@ export function* playEndingNotebookCh2(o: { toTitle?: boolean; tsugao?: boolean 
   if (o.tsugao ?? o.toTitle !== false) yield* playTsugaoRoom({ skippable: seenBefore });
   if (o.toTitle !== false) {
     yield* ditherOut(1, '#0B0B14');
+    // (the dither covers now: no engine fade may stay over the title)
+    game.fadeAlpha = 0;
     const { TitleScene } = (yield import('./title')) as typeof import('./title');
     game.replaceAll(new TitleScene(true));
     yield* ditherIn(900);

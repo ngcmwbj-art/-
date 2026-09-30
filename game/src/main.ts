@@ -7,6 +7,7 @@ import { unlockAudio } from './audio';
 import { installDebug, registerDebug } from './debug';
 import { installTouch, setBackShown, touchLayoutInfo } from './engine/touch';
 import { commitTextZones, uiBands } from './engine/textzones';
+import { buttonZones } from './engine/safezones';
 import { field } from './world/field';
 import { firstScene } from './boot';
 import './modules';
@@ -29,7 +30,7 @@ async function boot(): Promise<void> {
   });
   canvas.focus();
   installDebug();
-  registerDebug('textZones', () => ({ ...uiBands(), touch: touchLayoutInfo() }));
+  registerDebug('textZones', () => ({ ...uiBands(), touch: touchLayoutInfo(), buttons: buttonZones() }));
   document.getElementById('boot')?.remove();
   game.push(await firstScene());
   game.start();

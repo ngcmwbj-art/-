@@ -6,6 +6,7 @@ import type { Co } from '../engine/co';
 import { flag, setFlag, state, addItem, removeItem } from '../game/state';
 import { rng } from '../engine/rng';
 import { ease } from '../engine/tween';
+import { markText } from '../engine/textzones';
 import { Gfx } from '../engine/gfx';
 import { BAYER4, makeCanvas } from '../engine/pixel';
 import { CAPSULE_TABLE, fillAll, getItem, getSkill, ITEM_TEXT, LABEL, NORI, NORI_COMMON, NORI_HOSHI, SYS, SYS2, yakiimoFirst } from '../data/battle';
@@ -25,7 +26,7 @@ import { duckMusic, muteMusic, musicFlee, sfx, sfxLoop } from '../audio';
 import { beachSandal, hankoCloseup } from './art/fxart';
 import { hanamaruFrame, kakimoji, kakimojiSmall, ovalStamp, pekeMark, roundSeal, scoreSeal } from './art/stamps';
 import { itemIcon, kireIcon } from './art/icons';
-import { infoCardWidth, kireIconXY, PANEL_POS, panelOffset, type CardData } from './ui/panels';
+import { infoCardWidth, kireIconXY, PANEL_POS, panelOffset, ROW, type CardData } from './ui/panels';
 import { C, STICKY_PAD, tapeCanvas } from './ui/note';
 import { cueSize } from './ui/cue';
 import { FLAG_PAD, kanenariBack, kanenariFront, MIC_AT } from '../art/enemies/kanenari';
@@ -717,11 +718,14 @@ export function* holdStamp(s: BattleScene, u: PartyUnit, forceKasure = false): C
 function drawHankoCloseup(g: Gfx, st: { rise: number; amount: number; charging: boolean; lift: number; drop: number; inZone: boolean }, kLo: number, rt: number): void {
   // the close-up rises over the (idle) command window, on Minato's side, so
   // neither the target nor the status panels are covered (15.9 moved)
-  const baseY = 122 + Math.round((1 - st.rise) * 80) + Math.round(st.drop * 110);
-  const cx = HANKO_CX;
-  const cy = 146 + (baseY - 122);
+  const at = hankoAt();
+  const baseY = at.y - 24 + Math.round((1 - st.rise) * 80) + Math.round(st.drop * 110);
+  const cx = at.x;
+  const cy = at.y + (baseY - (at.y - 24));
   // ring track + zone
   const R = 34;
+  // brief (the hold): a touch button in its way (the D-pad of an iPad held sideways) fades out meanwhile
+  markText(cx - R - 6, at.y - 30, 2 * R + 12, R + 36 + 30, true);
   const ctx = g.ctx;
   const steps = 220;
   for (let i = 0; i < steps; i++) {
@@ -754,11 +758,21 @@ function drawHankoCloseup(g: Gfx, st: { rise: number; amount: number; charging: 
   const squash = st.charging ? Math.min(3, Math.floor(st.amount / 0.25)) : 0;
   const img = hankoCloseup(squash);
   const sh = st.inZone && st.charging ? (Math.floor(rt / 33) % 2 ? 1 : -1) : 0;
-  g.img(img, HANKO_CX - 24 + sh, baseY - Math.round(st.lift));
+  g.img(img, cx - 24 + sh, baseY - Math.round(st.lift));
 }
 
 /** Centre x of the hanko close-up and its ink ring. */
 const HANKO_CX = 52;
+
+/**
+ * Centre of the hanko close-up's ink ring: (52,146) over the idle command
+ * notebook; on an iPad held sideways (the notebook stands over the D-pad,
+ * ROW) a little higher and further left, (44,122) — over the notebook and the
+ * faded D-pad, clear of しゅん's face — with the word over it still under the band.
+ */
+function hankoAt(): { x: number; y: number } {
+  return ROW.fixed ? { x: 44, y: 122 } : { x: HANKO_CX, y: 146 };
+}
 
 /**
  * The word over the ink gauge (2026-09-28, the client): 「長押し！」 before the
@@ -771,7 +785,7 @@ function holdCue(s: BattleScene, phase: 'wait' | 'hold' | 'zone'): void {
   // just above the ring (centre y146, r36), from the left edge of the screen
   s.cues.set('hold', text, {
     x: 4,
-    y: 146 - 38 - h,
+    y: hankoAt().y - (ROW.fixed ? 36 : 38) - h,
     align: 'left',
     tone: phase === 'zone' ? 'go' : 'hold',
     mode: phase === 'wait' ? 'beat' : phase === 'zone' ? 'flash' : 'still',

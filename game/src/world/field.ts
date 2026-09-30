@@ -47,7 +47,7 @@ import { strSeed } from '../art/tiles/noise';
 import { checkOcclusion } from './occlusion';
 import { vehicleFrame, type VehicleView } from '../art/props/vehicles';
 import { P } from '../art/tiles/palette';
-import { BOX, dialogVisible } from '../ui/dialog';
+import { BOX, dialogTop, dialogVisible } from '../ui/dialog';
 import { lastMsgPos, lastSpeaker } from './msg';
 import { ROOM_SLIDE } from './roomview';
 
@@ -1519,7 +1519,8 @@ export class FieldScene implements Scene {
       y = Math.min(y, heads - (8 + BOX.h + 14) / s);
       if (key) y = Math.max(y, foot(key) + 4 - H / s);
     } else {
-      y = Math.max(y, feet - (BOX.y - 4) / s);
+      // (a window made taller for a 4th line on an iPad held sideways: its real top)
+      y = Math.max(y, feet - ((dialogTop() ?? BOX.y) - 4) / s);
       if (key) y = Math.min(y, head(key) - 8 / s);
     }
     return y;

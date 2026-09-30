@@ -20,7 +20,7 @@ import { DamageNumber, type NumOpts, type NumRect } from './fx/numbers';
 import { MessageBand, type BandPageOpts } from './ui/message';
 import { emptySlotCanvas } from './ui/panels';
 import {
-  CARD_H, CARD_Y, drawActing, drawChimeSticky, drawCommand, drawInfoCard, drawKire, drawList, drawPanel, KIRE_TAB, PANEL_POS, panelOffset, TAG, type CardData, type CmdView, type ListRow,
+  CARD_H, CARD_Y, drawActing, drawChimeSticky, drawCommand, drawInfoCard, drawKire, drawList, drawPanel, KIRE_TAB, PANEL_POS, panelOffset, ROW, syncBattleRow, TAG, type CardData, type CmdView, type ListRow,
 } from './ui/panels';
 import { C, cursorStamp, cursorStampSide, drawBar, slantTape, STICKY_PAD, stickyCanvas, tapeCanvas } from './ui/note';
 import { Cues } from './ui/cue';
@@ -29,6 +29,7 @@ import { hitCrack, hitSplash, sweatDrop } from './art/fxart';
 import { boarIcon, moyamoya } from './art/fxart_ch2';
 import { syncCh2Bg } from './ch2rules';
 import { markText } from '../engine/textzones';
+import { buttonZones } from '../engine/safezones';
 
 export const FRAME = 1000 / 60;
 
@@ -77,10 +78,15 @@ export interface BossHooks {
 
 /** Enemy x positions by count (15.4). */
 export const SLOTS: Record<number, number[]> = { 1: [192], 2: [140, 244], 3: [96, 192, 288] };
+/** Three enemies on an iPad held sideways: clear of the command notebook standing over the D-pad. */
+const SLOTS_FIXED3 = [148, 230, 312];
 /** Top of the stage: numbers and labels stay under the 2-line band (y4–48). */
 export const STAGE_TOP = 51;
 /** Where drawList() puts the hanko / item list. */
-const LIST_RECT = { x0: 4, y0: 58, x1: 204, y1: 146 };
+/** Where the hanko / item list opens (it moves right of the notebook on an iPad held sideways: ROW). */
+function listRect(): { x0: number; y0: number; x1: number; y1: number } {
+  return { x0: ROW.listX, y0: ROW.listY, x1: ROW.listX + 200, y1: ROW.listY + 88 };
+}
 /** Heights of the damage number sprites (normal / big, incl. the 1px bounce). */
 const NUM_H = 16;
 const NUM_H_BIG = 19;
@@ -198,7 +204,8 @@ export class BattleScene implements Scene {
     this.kanenariJoined = !!flag('flag_kanenari_joined') && state.party.some((m) => m.id === 'kanenari');
     this.party = state.party.filter((m) => m.id === 'minato' || (m.id === 'kanenari' && this.kanenariJoined)).map((m) => new PartyUnit(m));
     const ids = opts.enemies.slice(0, 3);
-    const xs = SLOTS[ids.length] ?? SLOTS[3];
+    syncBattleRow();
+    const xs = ids.length >= 3 && ROW.fixed ? SLOTS_FIXED3 : (SLOTS[ids.length] ?? SLOTS[3]);
     ids.forEach((id, i) => {
       const def = getEnemy(id);
       if (def) this.enemies.push(new EnemyUnit(def, xs[i]));
@@ -268,6 +275,7 @@ export class BattleScene implements Scene {
   }
 
   update(dt: number): void {
+    syncBattleRow();
     this.rt += dt;
     this.frame++;
     const inp = game.input;
@@ -1577,10 +1585,17 @@ export class BattleScene implements Scene {
 
   private drawUi(g: Gfx): void {
     const a = this.uiAlpha;
-    // the touch controls keep off the text: the command notebook, the panels
-    // and their name tags (y144, the kire tab between them) at rest (the
-    // band, the list and the みました card mark themselves)
-    if (this.party.length) markText(4, 144, 376, 68);
+    syncBattleRow();
+    // the text boxes (QA's check against the touch buttons): the command
+    // notebook, the panels and their name tags (y144, the kire tab between
+    // them) at rest (the band, the list and the みました card mark themselves)
+    if (this.party.length) {
+      if (!ROW.fixed) markText(4, 144, 376, 68);
+      else {
+        markText(PANEL_POS.minato[0], 135, 276, 77);
+        markText(4 + ROW.cmdDx, 144 + ROW.cmdDy, 96, 68);
+      }
+    }
     // enemy HP bars (みました済み) during command input & target selection
     for (const e of this.enemies) {
       const by = this.enemyBarY(e);
@@ -1592,9 +1607,11 @@ export class BattleScene implements Scene {
     this.msg.draw(g);
     if (this.boss?.drawUi) this.boss.drawUi(g);
     else if (this.isBoss) drawChimeSticky(g, this.msg.bottom + 2, this.bossChime.lit, this.bossChime.pops, this.t, this.bossChime.gold);
-    // command window area
-    if (this.cmd) drawCommand(g, { ...this.cmd, pressed: this.cursorPressed > 0 }, this.rt, a);
-    else if (this.party.length) this.drawIdleCommandBox(g, a);
+    // command window area (over the D-pad on an iPad held sideways: ROW)
+    g.translated(ROW.cmdDx, ROW.cmdDy, () => {
+      if (this.cmd) drawCommand(g, { ...this.cmd, pressed: this.cursorPressed > 0 }, this.rt, a);
+      else if (this.party.length) this.drawIdleCommandBox(g, a);
+    });
     for (const u of this.party) drawPanel(g, u, { t: this.t, kanenariJoined: this.kanenariJoined, alpha: a });
     // whose turn it is: while a member chooses, a small vermilion arrow bobs
     // over their name tag (the lifted, vermilion-edged panel alone was easy to miss)
@@ -1620,7 +1637,7 @@ export class BattleScene implements Scene {
         g.ctx.drawImage(img, Math.round(cx - iw / 2), Math.round(cy - ih / 2), iw, ih);
       });
     }
-    if (this.party.length === 1) this.drawEmptySlot(g, a);
+    if (this.party.length === 1) g.translated(ROW.slotDx, 0, () => this.drawEmptySlot(g, a));
     if (this.kanenariJoined) drawKire(g, this.kire, this.kirePops, this.rt, a);
     if (this.list) drawList(g, this.list.rows, this.list.index, this.list.scroll, this.rt, this.cursorPressed > 0);
     if (this.target?.kind === 'enemy') {
@@ -1702,6 +1719,11 @@ export class BattleScene implements Scene {
     }
     // the top of the hanko close-up's ink ring (its くっきり zone) rises there
     boxes.push({ x0: 14, y0: 108, x1: 92, y1: 150 });
+    // (iPad held sideways) the command notebook standing over the D-pad, and the touch buttons
+    if (ROW.fixed) {
+      boxes.push({ x0: 2 + ROW.cmdDx, y0: 130 + ROW.cmdDy, x1: 102 + ROW.cmdDx, y1: 214 + ROW.cmdDy });
+      for (const p of buttonZones()?.parts ?? []) boxes.push({ x0: p.x, y0: p.y, x1: p.x + p.w, y1: p.y + p.h });
+    }
     // and off the words that say what to press (ツッコめ！ over the "!")
     for (const r of this.cues.rects()) boxes.push({ x0: r.x0 - 2, y0: r.y0 - 2, x1: r.x1 + 2, y1: r.y1 + 2 });
     const variants = [text];
@@ -1753,7 +1775,7 @@ export class BattleScene implements Scene {
     if (sp && this.list) {
       const w = sp.img.width - STICKY_PAD - 3;
       const h = sp.img.height - STICKY_PAD - 3;
-      if (BattleScene.overlap({ x0: sp.x, y0: sp.y, x1: sp.x + w, y1: sp.y + h }, LIST_RECT, 0)) return;
+      if (BattleScene.overlap({ x0: sp.x, y0: sp.y, x1: sp.x + w, y1: sp.y + h }, listRect(), 0)) return;
     }
     if (this.sticky && sp && this.sticky.t >= 0) {
       const img = sp.img;

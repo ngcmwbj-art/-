@@ -32,6 +32,7 @@ import { blend, drawTape, rectA, textW, UI } from './window';
 import { hash2 } from '../engine/rng';
 import { ROOM2_PLACE } from '../data/maps/hoshi_rooms2_names';
 import { markText } from '../engine/textzones';
+import { buttonZones, freeSpan } from '../engine/safezones';
 
 // ---- clock -------------------------------------------------------------------------
 
@@ -70,6 +71,14 @@ function plateImg(): HTMLCanvasElement {
 
 /** The HUD's hanko plate: 26×28, 4px from the bottom-left corner. */
 const HANKO_PLATE = { x: 4, y: 216 - 4 - 28, w: 26, h: 28 };
+/**
+ * The plate's x: the bottom-left corner, or (iPad full screen, the D-pad
+ * fixed in that corner) just right of the D-pad, so it isn't under it.
+ */
+function hankoPlateX(): number {
+  const z = buttonZones();
+  return z ? Math.max(HANKO_PLATE.x, Math.ceil(freeSpan(HANKO_PLATE.y, HANKO_PLATE.y + HANKO_PLATE.h).x0) + 2) : HANKO_PLATE.x;
+}
 
 let hankoPlateC: HTMLCanvasElement | null = null;
 /** Enamel plate for the hanko icon, the same make as the clock plate. */
@@ -793,9 +802,11 @@ class UiHud implements FieldHud {
     const h = 18;
     const withHanko = flag('flag_got_hanko') && !flag('flag_hud_hidden');
     const by = HANKO_PLATE.y + Math.round((HANKO_PLATE.h - h) / 2);
+    // (iPad full screen: between the touch buttons fixed in the bottom corners)
+    const free = freeSpan(by - 3, by + h + 3);
     const spots: [number, number][] = [
-      [withHanko ? HANKO_PLATE.x + HANKO_PLATE.w + 5 : 8, by],
-      [W - 8 - w, by],
+      [withHanko ? hankoPlateX() + HANKO_PLATE.w + 5 : Math.max(8, free.x0 + 2), by],
+      [Math.min(W - 8, free.x1 - 4) - w, by],
       [8, 8],
     ];
     const f = this.field;
@@ -871,7 +882,7 @@ class UiHud implements FieldHud {
     const bright = near && Math.floor(this.t / 166) % 2 === 1;
     // a small enamel plate like the clock's, 4px in from the corner, so the
     // icon reads as part of the screen and not as a post on the ground
-    const px = HANKO_PLATE.x;
+    const px = hankoPlateX();
     const py = HANKO_PLATE.y;
     g.alpha(0.4, () => g.rect(px + 2, py + 2, HANKO_PLATE.w, HANKO_PLATE.h, UI.night));
     g.img(hankoPlateImg(), px, py, { alpha: 0.94 });

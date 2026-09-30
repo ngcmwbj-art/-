@@ -20,6 +20,7 @@ import { MessageBand } from './ui/message';
 import { PANEL_POS } from './ui/panels';
 import { drawNumerals, numeralsWidth } from '../ui/digits';
 import { markText } from '../engine/textzones';
+import { buttonZones } from '../engine/safezones';
 
 // ---- victory --------------------------------------------------------------------------
 
@@ -602,11 +603,18 @@ class ReportCard {
 
   draw(g: Gfx): void {
     // the open report card (x48–336, y44–212; the closed one rises to its
-    // right half): the touch controls keep off it
-    if (this.closing < 1) markText(48, 44, 288, 168);
+    // right half). An iPad held sideways (the touch buttons fixed in the
+    // bottom corners, a free run of x48–328 between them): 2px further
+    // left, and the teacher's hanamaru higher up its right edge
+    const dx = buttonZones() ? -2 : 0;
+    if (this.closing < 1) markText(48 + dx, 44, 288, 168);
     g.rect(0, 0, 384, 216, '#1B1733', 0.55 * this.dim * (1 - this.closing));
     // せんせいより: the band sits above the dimming (full contrast), under the card
     if (this.msg && this.msg.tag) this.msg.draw(g);
+    g.translated(dx, 0, () => this.drawCard(g, dx !== 0));
+  }
+
+  private drawCard(g: Gfx, fixed: boolean): void {
     const drop = Math.round(this.closing * 200);
     if (!this.opened) {
       // closed card rising from below to (120,44); then the cover turns over
@@ -688,7 +696,7 @@ class ReportCard {
       // right page — right of the grade column (QA round 3: it sat on
       // 「うん 4→5○」), half on the paper, half off
       const img = hanamaruFrame(42, Math.min(1, this.bigHana / 200), false, 2.4);
-      g.alpha(0.92, () => g.img(img, x + 280, y + 128));
+      g.alpha(0.92, () => g.img(img, x + 280, y + (fixed ? 60 : 128)));
     }
   }
 

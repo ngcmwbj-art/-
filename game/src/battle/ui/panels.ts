@@ -12,6 +12,7 @@ import {
 import type { PartyUnit } from '../model';
 import { C, cursorStamp, drawBar, drawNote, tapeCanvas, tapeCorner } from './note';
 import { markText } from '../../engine/textzones';
+import { buttonsTop, buttonZones, buttonZonesVersion, freeSpan } from '../../engine/safezones';
 
 export const PANEL_POS: Record<string, [number, number]> = { minato: [104, 150], kanenari: [244, 150] };
 /**
@@ -22,6 +23,49 @@ export const PANEL_POS: Record<string, [number, number]> = { minato: [104, 150],
 export const TAG: Record<string, [number, number, number]> = { minato: [140, 144, 56], kanenari: [280, 144, 100] };
 /** Kire tab (15.8, moved into the tape row between the two name tags). */
 export const KIRE_TAB: [number, number] = [203, 144];
+/**
+ * Where the bottom row stands (syncBattleRow): the command notebook's shift
+ * (`cmdDx/Dy`), the right-hand slot's (`slotDx`: グソっ君's panel or the empty
+ * page) and the hanko / item list's corner. All 0 / (4,58) as designed —
+ * except on an iPad held sideways, where the touch buttons are fixed in the
+ * bottom corners (engine/safezones.ts, ★2026-09-30 依頼主「戦闘中も画面が
+ * 縮んだりボタンが上に行ったりしないで下に固定して」): there the two panels
+ * stand side by side between the buttons, the command notebook sits on the
+ * left above the D-pad (the pad that works it), and the list opens right of
+ * the notebook.
+ */
+export const ROW = { cmdDx: 0, cmdDy: 0, slotDx: 0, listX: 4, listY: 58, fixed: false };
+let rowVer = -1;
+
+/** Lay the bottom row out for the touch buttons on screen now (cheap when nothing changed). */
+export function syncBattleRow(): void {
+  const v = buttonZonesVersion();
+  if (v === rowVer) return;
+  rowVer = v;
+  let px = 104;
+  ROW.cmdDx = 0;
+  ROW.cmdDy = 0;
+  ROW.listX = 4;
+  ROW.listY = 58;
+  ROW.fixed = !!buttonZones();
+  if (ROW.fixed) {
+    // the two panels (136 + 4 + 136), centred in the free run of their rows
+    // (the turn arrow over the tags from y135)
+    const sp = freeSpan(135, 216);
+    px = Math.round(Math.max(sp.x0 + 1, Math.min((sp.x0 + sp.x1 - 276) / 2, sp.x1 - 1 - 276)));
+    // the notebook (y150–212, the stamp and the ノリツッコミ tab over it from
+    // y132) rests on the D-pad's cluster
+    ROW.cmdDy = Math.min(0, buttonsTop(4, 100) - 2 - 212);
+    ROW.listX = 104;
+  }
+  PANEL_POS.minato = [px, 150];
+  PANEL_POS.kanenari = [px + 140, 150];
+  TAG.minato = [px + 36, 144, 56];
+  TAG.kanenari = [px + 176, 144, 100];
+  KIRE_TAB[0] = px + 99;
+  ROW.slotDx = px + 140 - 244;
+}
+
 /** A different (pale blue) washi tape, so the kire tab never reads as part of a name tag. */
 const KIRE_TAPE = '#AFD6E6';
 /** Panel rows (relative to the panel's top). */
@@ -411,27 +455,32 @@ export function drawList(g: Gfx, rows: ListRow[], index: number, scroll: number,
   let W = 200;
   for (const r of rows) if (r.right) W = Math.max(W, 22 + g.measure(r.name) + 12 + g.measure(r.right) + (r.rightIcon ? 12 : 0) + 8 - 4);
   W = Math.min(260, W);
-  const R = 4 + W - 8;
-  markText(4, 58, W, 88);
-  drawNote(g, 4, 58, W, 88);
-  for (let i = 0; i < 4; i++) {
-    const r = rows[scroll + i];
-    if (!r) break;
-    const y = 64 + i * 18;
-    if (r.divider) g.rect(12, y - 2, W - 16, 1, C.gray);
-    g.text(r.name, 22, y, { color: r.dim ? C.gray : C.ink });
-    if (r.right) {
-      const w = g.measure(r.right);
-      g.text(r.right, R, y, { color: r.dim ? C.gray : C.ink, align: 'right' });
-      if (r.rightIcon === 'ink') g.img(inkPot(), R - w - 12, y + 3);
+  // (iPad held sideways: right of the command notebook, over the touch buttons' tops)
+  const X = ROW.listX;
+  const Y = ROW.fixed ? Math.max(50, Math.min(ROW.listY, buttonsTop(X, X + W) - 90)) : ROW.listY;
+  g.translated(X - 4, Y - 58, () => {
+    const R = 4 + W - 8;
+    markText(4 + X - 4, Y, W, 88);
+    drawNote(g, 4, 58, W, 88);
+    for (let i = 0; i < 4; i++) {
+      const r = rows[scroll + i];
+      if (!r) break;
+      const y = 64 + i * 18;
+      if (r.divider) g.rect(12, y - 2, W - 16, 1, C.gray);
+      g.text(r.name, 22, y, { color: r.dim ? C.gray : C.ink });
+      if (r.right) {
+        const w = g.measure(r.right);
+        g.text(r.right, R, y, { color: r.dim ? C.gray : C.ink, align: 'right' });
+        if (r.rightIcon === 'ink') g.img(inkPot(), R - w - 12, y + 3);
+      }
+      if (scroll + i === index) {
+        const bob = Math.round(Math.sin(t / 130)) + (pressed ? 1 : 0);
+        g.img(cursorStamp(pressed), 10, y + 3 + bob);
+      }
     }
-    if (scroll + i === index) {
-      const bob = Math.round(Math.sin(t / 130)) + (pressed ? 1 : 0);
-      g.img(cursorStamp(pressed), 10, y + 3 + bob);
-    }
-  }
-  if (scroll > 0) g.img(scrollArrow(true), R - 3, 60);
-  if (scroll + 4 < rows.length) g.img(scrollArrow(false), R - 3, 140);
+    if (scroll > 0) g.img(scrollArrow(true), R - 3, 60);
+    if (scroll + 4 < rows.length) g.img(scrollArrow(false), R - 3, 140);
+  });
 }
 
 /** Boss chime counter sticky: 4 bells. `lit` count, `pop` per-bell ms. */

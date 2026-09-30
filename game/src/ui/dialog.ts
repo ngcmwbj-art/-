@@ -19,6 +19,14 @@
 // One dialog box persists across consecutive say()/choose() calls of a
 // script, so a conversation doesn't blink closed between speakers, and a
 // question stays on screen while its choices are open.
+//
+// iPad held sideways (full screen, the touch buttons fixed in the bottom
+// corners: engine/safezones.ts, ★2026-09-30 依頼主「コメントの幅を縮めて
+// ボタンは移動させない」): the window, its name tag and the choice window
+// keep between the buttons. The pages stay the pages of the 336px column;
+// each is wrapped again for the narrower one (at the spaces between phrases,
+// half- or full-width; the hand-made line breaks stay), and a page that
+// needs a 4th line gets a window one line taller (more lines: taller still).
 
 import type { Co } from '../engine/co';
 import { charWidth, drawGlyph, LINE_H } from '../engine/font';
@@ -29,6 +37,7 @@ import { H, W } from '../engine/screen';
 import { makeCanvas } from '../engine/pixel';
 import { hash2 } from '../engine/rng';
 import { markText } from '../engine/textzones';
+import { buttonZones, freeSpan } from '../engine/safezones';
 import { ease } from '../engine/tween';
 import { sfx, textBlip, textFastForward } from '../audio';
 import { allItems, getSkill } from '../data/battle';
@@ -103,12 +112,18 @@ function parse(text: string): { plain: string; marks: { at: number; tag: string 
   return { plain, marks };
 }
 
-/** Lay out one message into pages of positioned glyphs. */
-export function layoutPages(text: string, maxW = TEXT_W, baseColor: string = UI.text): Glyph[][] {
+/**
+ * Lay out one message into pages of positioned glyphs. `narrowW`: the pages
+ * are the ones of the `maxW` column (3 lines each), each wrapped again at
+ * `narrowW` — a page may then have more than 3 lines.
+ */
+export function layoutPages(text: string, maxW = TEXT_W, baseColor: string = UI.text, narrowW = 0): Glyph[][] {
   const { plain, marks } = parse(text);
   // 分かち書き text breaks between phrases; lines already short enough stay as written
-  const lines = phraseWrap(plain, maxW);
+  let lines = phraseWrap(plain, maxW);
   const chars = [...plain];
+  let sizes: number[] | null = null;
+  if (narrowW > 0 && narrowW < maxW) ({ lines, sizes } = rewrapPages(chars, lines, narrowW));
   const pages: Glyph[][] = [];
   let color = baseColor;
   let fx: Glyph['fx'] = '';
@@ -136,7 +151,7 @@ export function layoutPages(text: string, maxW = TEXT_W, baseColor: string = UI.
   let page: Glyph[] = [];
   let lineInPage = 0;
   for (const line of lines) {
-    if (lineInPage === LINES_PER_PAGE) {
+    if (lineInPage === (sizes ? sizes[pages.length] : LINES_PER_PAGE)) {
       pages.push(page);
       page = [];
       lineInPage = 0;
@@ -166,6 +181,39 @@ export function layoutPages(text: string, maxW = TEXT_W, baseColor: string = UI.
   applyMarks(page);
   pages.push(page);
   return pages.filter((p, i) => p.length > 0 || i === 0);
+}
+
+/**
+ * The pages of the wide column (every 3 of its lines), each wrapped again at
+ * `w`: the text of a page from its first letter to its last — the spaces
+ * and hand-made line breaks inside it as written — so a phrase the wide
+ * column had broken at its end joins the next one again. Returns the new
+ * lines and how many of them each page has.
+ */
+function rewrapPages(chars: string[], wide: string[], w: number): { lines: string[]; sizes: number[] } {
+  // where each wide line starts and ends in the text (the skipped letters are
+  // the spaces / line breaks dropped at the wrap points)
+  const spans: [number, number][] = [];
+  let ci = 0;
+  for (const line of wide) {
+    let start = -1;
+    for (const ch of line) {
+      while (ci < chars.length && chars[ci] !== ch) ci++;
+      if (start < 0) start = ci;
+      ci++;
+    }
+    spans.push([start < 0 ? ci : start, ci]);
+  }
+  const lines: string[] = [];
+  const sizes: number[] = [];
+  for (let p = 0; p < spans.length; p += LINES_PER_PAGE) {
+    const a = spans[p][0];
+    const b = spans[Math.min(spans.length, p + LINES_PER_PAGE) - 1][1];
+    const nl = phraseWrap(chars.slice(a, b).join(''), w, { zenkaku: true });
+    lines.push(...nl);
+    sizes.push(nl.length);
+  }
+  return { lines, sizes };
 }
 
 // ---- styles -------------------------------------------------------------------------
@@ -241,7 +289,13 @@ function getSkillByName(n: string): boolean {
 type Page = Glyph[] & { lead?: number };
 
 interface Request {
+  /** The pages of the 336px column. */
   pages: Page[];
+  /** The texts (system lines already marked) and their colour, to lay them out again narrower. */
+  src: string[];
+  col: string;
+  /** The same pages wrapped for a narrower window (iPad full screen), and their most lines. */
+  narrow: { w: number; pages: Page[]; lines: number } | null;
   o: SayOpts;
   style: DialogStyle;
   done: boolean;
@@ -252,13 +306,38 @@ interface Request {
 function buildRequest(text: string | string[], o: SayOpts): Request {
   const style = styleFor(o);
   const col = textColor(style);
-  const src = Array.isArray(text) ? text : [text];
+  const src = (Array.isArray(text) ? text : [text]).map((t) => (style === 'sys' ? markSys(t) : t));
   const pages: Page[] = [];
-  for (const t of src) {
-    const tt = style === 'sys' ? markSys(t) : t;
-    pages.push(...(layoutPages(tt, TEXT_W, col) as Page[]));
+  for (const t of src) pages.push(...(layoutPages(t, TEXT_W, col) as Page[]));
+  return { pages, src, col, narrow: null, o, style, done: false };
+}
+
+/** A request's pages for a text column `tw` wide, and the most lines one of them has. */
+function pagesAt(r: Request, tw: number): { pages: Page[]; lines: number } {
+  if (tw >= TEXT_W) return { pages: r.pages, lines: LINES_PER_PAGE };
+  if (r.narrow?.w !== tw) {
+    const pages: Page[] = [];
+    for (const t of r.src) pages.push(...(layoutPages(t, TEXT_W, r.col, tw) as Page[]));
+    let lines = LINES_PER_PAGE;
+    for (const pg of pages) for (const gl of pg) lines = Math.max(lines, gl.y / LINE_H + 1);
+    r.narrow = { w: tw, pages, lines };
   }
-  return { pages, o, style, done: false };
+  return r.narrow;
+}
+
+/**
+ * The window's left edge, width and text column for a window at the bottom
+ * or the top: the 368px window, or (iPad full screen) the free run between
+ * the touch buttons it would meet (a window at the top meets none).
+ */
+function frameFor(pos: 'bottom' | 'top'): { x: number; w: number; tw: number } {
+  if (!buttonZones()) return { x: BOX.x, w: BOX.w, tw: TEXT_W };
+  // (the rows of the tallest window, 6 lines, and its tag)
+  const sp = pos === 'top' ? freeSpan(4, 8 + BOX.h + 3 * LINE_H + 8) : freeSpan(H - 4 - BOX.h - 3 * LINE_H - 18, H);
+  const x0 = Math.max(BOX.x, sp.x0 + 1);
+  const x1 = Math.min(BOX.x + BOX.w, sp.x1 - 1);
+  if (x0 <= BOX.x && x1 >= BOX.x + BOX.w) return { x: BOX.x, w: BOX.w, tw: TEXT_W };
+  return { x: x0, w: x1 - x0, tw: x1 - x0 - (BOX.w - TEXT_W) };
 }
 
 // ---- the dialog box ----------------------------------------------------------------------
@@ -336,9 +415,35 @@ class DialogBox implements Widget {
     return !this.done && this.openK > 0;
   }
 
+  /** The request on screen (kept while the window lingers and closes). */
+  private lastReq: Request | null = null;
+
+  /**
+   * The window as it stands now: its frame (368px, or between the touch
+   * buttons of an iPad held sideways), its height (one line taller for each
+   * line a page needs over 3) and top edge, and the pages laid out for it.
+   */
+  private view(): { x: number; w: number; tw: number; h: number; top: number; pages: Page[] } {
+    const fr = frameFor(this.viewPos);
+    const r = this.cur ?? this.lastReq;
+    const pl = r ? pagesAt(r, fr.tw) : { pages: [] as Page[], lines: LINES_PER_PAGE };
+    const h = BOX.h + (pl.lines - LINES_PER_PAGE) * LINE_H;
+    return { ...fr, h, top: this.viewPos === 'top' ? 8 : H - 4 - h, pages: pl.pages };
+  }
+
   /** Top of the window on screen. */
   get top(): number {
-    return this.viewPos === 'top' ? 8 : BOX.y;
+    return this.view().top;
+  }
+
+  /** The window's height on screen (64, or more for a page of 4+ lines on an iPad held sideways). */
+  get height(): number {
+    return this.view().h;
+  }
+
+  /** The window's left edge and width on screen. */
+  get frame(): { x: number; w: number } {
+    return frameFor(this.viewPos);
   }
 
   enqueue(r: Request): void {
@@ -349,6 +454,7 @@ class DialogBox implements Widget {
 
   private start(r: Request): void {
     this.cur = r;
+    this.lastReq = r;
     this.page = 0;
     this.resetPage();
     const card = r.style === 'flip' && r.o.voice === CARD_VOICE;
@@ -379,7 +485,7 @@ class DialogBox implements Widget {
   }
 
   private get glyphs(): Glyph[] {
-    return this.cur?.pages[this.page] ?? [];
+    return this.cur ? (this.view().pages[this.page] ?? []) : [];
   }
 
   private get pageDone(): boolean {
@@ -512,8 +618,9 @@ class DialogBox implements Widget {
     if (this.openK <= 0) return;
     const k = this.openK;
     const e = ease.cubicOut(k);
+    const v = this.view();
     const rise = Math.round((1 - e) * 6) * (this.viewPos === 'top' ? -1 : 1);
-    const by = this.top + rise;
+    const by = v.top + rise;
     const alpha = Math.min(1, k * 1.4);
     const st = this.viewStyle;
     const flip = st === 'flip';
@@ -522,15 +629,14 @@ class DialogBox implements Widget {
     if (flip && this.styleT < 200) fdy = Math.round((1 - ease.backOut(this.styleT / 200)) * 10);
     const wy = by + fdy;
     const card = flip && this.viewCard;
-    // the window at rest (the flip's mini board pokes 5px over its top edge),
-    // so the touch controls keep off it
-    markText(BOX.x, this.top - (flip ? 5 : 0), BOX.w, BOX.h + (flip ? 5 : 0));
-    drawWindow(g, BOX.x, wy, BOX.w, BOX.h, UI, alpha, flip ? { grid: false, paper: card ? CARD_PAPER : UI.flipPaper, curl: false } : { margin: 14, curl: false });
-    if (card) drawCardboard(g, BOX.x, wy, BOX.w, BOX.h, alpha);
-    if (st === 'inner') this.drawThought(g, wy, alpha);
-    this.drawTag(g, by, alpha);
+    // the window at rest (the flip's mini board pokes 5px over its top edge)
+    markText(v.x, v.top - (flip ? 5 : 0), v.w, v.h + (flip ? 5 : 0));
+    drawWindow(g, v.x, wy, v.w, v.h, UI, alpha, flip ? { grid: false, paper: card ? CARD_PAPER : UI.flipPaper, curl: false } : { margin: 14, curl: false });
+    if (card) drawCardboard(g, v.x, wy, v.w, v.h, alpha);
+    if (st === 'inner') this.drawThought(g, v.x, wy, alpha);
+    this.drawTag(g, v.x, by, v.h, alpha);
     if (k < 0.5) return;
-    const ox = BOX.textX;
+    const ox = v.x + BOX.textX - BOX.x;
     const oy = wy + BOX.padY;
     const ctx = g.ctx;
     const glyphs = this.glyphs.length || !this.lastShown ? this.glyphs : this.lastShown;
@@ -557,8 +663,8 @@ class DialogBox implements Widget {
     ctx.restore();
     // "next" mark: the little hanko bobbing at 2 Hz (not before a choice)
     const waitingKey = this.cur && this.pageDone && this.autoLeft < 0 && !(this.cur.ask && this.lastPage);
-    const mx = BOX.x + BOX.w - 14;
-    const my = wy + BOX.h - 14;
+    const mx = v.x + v.w - 14;
+    const my = wy + v.h - 14;
     if (waitingKey && !this.ffwd) {
       const bob = Math.floor(this.t / 250) % 2;
       g.img(cursorImg(false), mx, my + bob, alpha < 1 ? { alpha } : {});
@@ -579,36 +685,38 @@ class DialogBox implements Widget {
 
   private lastShown: Glyph[] | null = null;
 
-  private drawTag(g: Gfx, by: number, alpha: number): void {
+  /** The name tag, 8px in from the window's left edge (`bx`), over its top (under it for a top window). */
+  private drawTag(g: Gfx, bx: number, by: number, bh: number, alpha: number): void {
     const name = this.viewName;
     const flip = this.viewStyle === 'flip';
     const k = Math.min(1, this.tagT / 110);
-    const tagY = this.viewPos === 'top' ? by + BOX.h - 5 : by - 13;
+    const tagY = this.viewPos === 'top' ? by + bh - 5 : by - 13;
+    const tx = bx + 8;
     if (this.prevName && k < 1) {
       const pw = textW(this.prevName) + 12;
-      markText(16, tagY - 4, pw, 22);
+      markText(tx, tagY - 4, pw, 22);
       const img = this.prevTape === 'black' ? blackTapeImg(pw, 18, this.prevName.length) : tapeImg(pw, 18, UI.tape, this.prevName.length);
-      g.img(img, 16, tagY - Math.round(k * 4), { alpha: alpha * (1 - k) });
+      g.img(img, tx, tagY - Math.round(k * 4), { alpha: alpha * (1 - k) });
     }
     if (!name) return;
     const icon = flip && this.viewCard ? 18 : 0;
     const w = textW(name) + 12 + icon;
-    // the tag with the 4px it drops in from (the touch controls keep off it)
-    markText(16, tagY - 4, w, 22);
+    // the tag with the 4px it drops in from
+    markText(tx, tagY - 4, w, 22);
     const dy = Math.round((1 - ease.backOut(k)) * -4);
     const a = alpha * k;
     const black = this.viewTape === 'black';
-    g.img(black ? blackTapeImg(w, 18, name.length) : tapeImg(w, 18, UI.tape, name.length + (flip ? 3 : 0)), 16, tagY + dy, a < 1 ? { alpha: a } : {});
-    g.text(name, 22, tagY + dy + 1, { color: black ? '#F4F1E8' : UI.text, alpha: a });
-    if (flip && this.viewCard) g.img(cardSignIcon(), 22 + textW(name) + 2, tagY + dy + 3, a < 1 ? { alpha: a } : {});
+    g.img(black ? blackTapeImg(w, 18, name.length) : tapeImg(w, 18, UI.tape, name.length + (flip ? 3 : 0)), tx, tagY + dy, a < 1 ? { alpha: a } : {});
+    g.text(name, tx + 6, tagY + dy + 1, { color: black ? '#F4F1E8' : UI.text, alpha: a });
+    if (flip && this.viewCard) g.img(cardSignIcon(), tx + 6 + textW(name) + 2, tagY + dy + 3, a < 1 ? { alpha: a } : {});
   }
 
-  private drawThought(g: Gfx, wy: number, alpha: number): void {
+  private drawThought(g: Gfx, bx: number, wy: number, alpha: number): void {
     // three little pencil circles: a thought, not a line
     g.alpha(alpha, () => {
-      g.ring(16, wy + 12, 3, UI.pencil);
-      g.ring(13, wy + 21, 2, UI.pencil);
-      g.rect(12, wy + 27, 2, 2, UI.pencil);
+      g.ring(bx + 8, wy + 12, 3, UI.pencil);
+      g.ring(bx + 5, wy + 21, 2, UI.pencil);
+      g.rect(bx + 4, wy + 27, 2, 2, UI.pencil);
     });
   }
 }
@@ -836,11 +944,19 @@ export class ChoiceBox implements Widget {
   }
 
   private get pos(): [number, number] {
-    let x = this.o.x ?? 376 - this.w;
+    const open = this.owner?.visible || dialogVisible() ? box : null;
+    // right-aligned with the dialog window (between the touch buttons on an iPad held sideways)
+    const fr = open ? open.frame : frameFor('bottom');
+    let x = this.o.x ?? fr.x + fr.w - this.w;
     let y = this.o.y;
     if (y === undefined) {
-      const top = this.owner?.visible || dialogVisible() ? (box?.top ?? BOX.y) : BOX.y;
-      y = top === 8 ? 8 + BOX.h + 6 : top - 4 - this.h;
+      const top = open ? open.top : BOX.y;
+      y = top === 8 && open ? 8 + open.height + 6 : top - 4 - this.h;
+    }
+    if (buttonZones()) {
+      // clear of the touch buttons in its rows
+      const sp = freeSpan(y, y + this.h + 2);
+      x = Math.max(sp.x0 + 1, Math.min(sp.x1 - 1 - this.w, x));
     }
     x = Math.max(4, Math.min(W - this.w - 4, x));
     return [Math.round(x), Math.round(y)];

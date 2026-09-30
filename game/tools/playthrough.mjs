@@ -1238,6 +1238,7 @@ const BEATS = [
       let lastTop = '';
       let lastMap = '';
       let lastShot = 0;
+      let endCard = false;
       const t0 = Date.now();
       for (;;) {
         const s = await st();
@@ -1249,12 +1250,33 @@ const BEATS = [
           lastShot = Date.now();
           await shot(s.top === 'FieldScene' ? (s.map ?? '').replace('map_', '') : s.top.replace('Scene', '').toLowerCase());
         }
+        // after 「つづく」: the end card (★2026-09-30) — it must be showing (no
+        // fade left over it), then 「タイトルへ もどる」 (the 2nd choice)
+        if (s.top === 'ChapterEndScene') {
+          const c = await page.evaluate(() => ({ fade: window.__game.game.fadeAlpha, choice: window.__game.game.ui.widgets.some((w) => w.constructor.name === 'ChoiceBox' && !w.done) }));
+          if (c.choice && !endCard) {
+            endCard = true;
+            checks.push({ check: 'ending: the end card shows (no fade over it)', ok: c.fade < 0.02, fade: c.fade });
+            if (c.fade >= 0.02) throw new Error(`the end card is under a fade (${c.fade})`);
+            await shot('endcard');
+            await tap('ArrowDown');
+            await sleep(250);
+            await tap('KeyZ');
+          }
+          await sleep(300);
+          continue;
+        }
         if (s.top === 'NightSkyScene' || s.top === 'NotebookScene') await sleep(300);
         else if (s.modal) await tap('KeyZ');
         else await sleep(200);
         await sleep(220);
       }
+      if (!endCard) throw new Error('the ending reached the title without the end card');
       await sleep(4500);
+      // the title after the ending must not stay dark (★2026-09-30: the fade was left at 1)
+      const fade = await page.evaluate(() => window.__game.game.fadeAlpha);
+      checks.push({ check: 'ending: the title after it is not under a fade', ok: fade < 0.02, fade });
+      if (fade >= 0.02) throw new Error(`the title after the ending is under a fade (${fade})`);
       await shot('title_clear');
       const rec = await page.evaluate(() => Object.keys(localStorage).filter((k) => /clear/i.test(k)).map((k) => [k, localStorage.getItem(k)]));
       log('  clear record:', JSON.stringify(rec));

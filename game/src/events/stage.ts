@@ -31,6 +31,7 @@ import { BOX, dialogVisible } from '../ui/dialog';
 import { uiHud } from '../ui/hud';
 import { drawWindow, textW, UI } from '../ui/window';
 import { markText } from '../engine/textzones';
+import { freeSpan } from '../engine/safezones';
 
 // ---------------------------------------------------------------- 2× close-ups
 
@@ -517,9 +518,10 @@ class KeyGuide implements Widget {
     const w = kw + 8 + Math.max(...this.rows.map(([, l]) => textW(l))) + 20;
     const rh = 22;
     const h = this.rows.length * rh + 9;
-    const x = this.x0;
+    // (iPad held sideways: right of the D-pad fixed in the corner)
+    const x = Math.max(this.x0, freeSpan(H - h - 8, H - 2).x0 + 2);
     const y = H - h - 8 + Math.round((1 - ease.cubicOut(inK)) * 6);
-    // brief (4.5s): a touch control in its way (the D-pad) fades out while it shows
+    // brief (4.5s): a touch control in its way fades out while it shows
     markText(x, H - h - 8, w, h + 6, true);
     drawWindow(g, x, y, w, h, UI, a, { curl: false });
     this.rows.forEach(([keys, label], i) => {

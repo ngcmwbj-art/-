@@ -10,14 +10,17 @@
 // landscape) or below it (portrait; an upright tablet). A tablet held
 // sideways plays full screen: the picture fills the window and translucent
 // controls float over its bottom corners (also any window too cramped for
-// either layout). There they keep off the text (engine/textzones.ts): over a
-// dialog window they rise to just above it, in a battle they sit between the
-// band and the panels (a little smaller when the gap is low), and on a text
-// screen (the menu, a shop) — or when no gap is left — the picture shrinks a
-// little and they stand beside it.
+// either layout). There they stay fixed in the corners whatever text comes
+// (2026-09-30, the client: 「ボタンは移動させない」): the text keeps off
+// them instead — they are published in game px (engine/safezones.ts) and
+// the dialog window narrows, the battle lays out its panels between them,
+// and so on. Brief words fade out the controls in their way (textzones.ts);
+// only a text screen (the menu, a shop) shrinks the picture a little and
+// stands them beside it.
 
 import type { Action, Input } from './input';
 import { H, W, type Screen } from './screen';
+import { setButtonZones, type Zone } from './safezones';
 import { onTextZones, uiBands } from './textzones';
 
 const INK = '#2A2440';
@@ -191,9 +194,6 @@ export function installTouch(input: Input, screen?: Screen): void {
 
   // ---- D-pad --------------------------------------------------------------
   let padId: number | null = null;
-  /** The pad kept its place under a thumb when the text moved: lay out again once it lets go. */
-  let padStay = false;
-  let layoutSoon = () => {};
   const dirs: Action[] = ['up', 'down', 'left', 'right'];
   const held = new Set<Action>();
   const setDirs = (want: Set<Action>) => {
@@ -236,15 +236,10 @@ export function installTouch(input: Input, screen?: Screen): void {
     padId = null;
     pad.classList.remove('held');
     setDirs(new Set());
-    // text came or went while the thumb was on the pad: now it may move
-    if (padStay) {
-      padStay = false;
-      layoutSoon();
-    }
   };
   pad.addEventListener('pointerup', endPad);
   pad.addEventListener('pointercancel', endPad);
-  /** The pad moved away under the thumb (it made room for text): let go, don't read a new direction. */
+  /** The pad moved away under the thumb (the picture changed size): let go, don't read a new direction. */
   const releasePad = () => {
     if (padId === null) return;
     padId = null;
@@ -331,13 +326,13 @@ export function installTouch(input: Input, screen?: Screen): void {
   const btnFit = (b: Box, M: number, pillH: number, withPill: boolean) =>
     Math.min((b.w - 2 * M) / 1.95, (b.h - 2 * M - (withPill ? pillH + M : 0)) / 1.26);
 
-  // A tablet held sideways (full screen; the controls keep off the text) and
-  // whether its picture is shrunk with the controls beside it right now.
+  // A tablet held sideways (full screen; the text keeps off the controls) and
+  // whether its picture is shrunk with the controls beside it right now (a
+  // text screen).
   let sideways = false;
   let sideCols = false;
   let zoomT = 0;
-  /** The last spots placed (sideways), and how the clusters fitted (QA). */
-  let lastPlan: Record<string, Box> | null = null;
+  /** How the controls stand (QA): 'fixed' or 'beside the picture'. */
   let lastFit = '';
 
   const fitW = (w: number, h: number) => Math.max(0, Math.min(w, (h * W) / H));
@@ -354,62 +349,41 @@ export function installTouch(input: Input, screen?: Screen): void {
   type Spot = Box & { font?: number; ghost?: boolean; sh?: number; ring?: number };
   type Cluster = Record<string, Spot>;
   const SHADOW = 5; // the ink shadow under a button, outside its box
-  const AIR = 4; // between a control (and its shadow) and a text box, CSS px
+  const AIR = 4; // kept clear round each control (its shadow too) for the text, CSS px
   /**
-   * Sizes (× the corner size) and pill placement (false: above, true: beside)
-   * tried in order when a gap is low — only a little smaller: below 0.8 the
-   * picture shrinks and the controls stand beside it instead.
+   * The fixed spots leave the middle of the picture to the text: the left
+   * cluster ends by x48 and the right one starts at x328 (game px), so a
+   * dialog window between them keeps a line of 15–16 letters and the
+   * battle's two status panels fit side by side. The controls are sized to
+   * that (never below a phone's size, never above the old corner size).
    */
-  const TRIES: [number, boolean][] = [
-    [1, false],
-    [0.9, false],
-    [1, true],
-    [0.9, true],
-    [0.8, false],
-    [0.8, true],
-  ];
+  const FREE_L = 48;
+  const FREE_R = 328;
+  const S_MIN = 112;
+  const BW_MIN = 64;
   const meets = (a: Box, rs: Box[]) => rs.some((r) => a.x < r.x + r.w && a.x + a.w > r.x && a.y < r.y + r.h && a.y + a.h > r.y);
-  /** What a spot must keep clear (its box, the shadow under it, the gold ring of a hint, and air), moved down by dy. */
-  const keepClear = (p: Spot, dy: number): Box => {
+  /** What a spot must keep clear: its box, the shadow under it, the gold ring of a hint, and air. */
+  const keepClear = (p: Spot): Box => {
     const e = AIR + (p.ring ?? 0);
-    return { x: p.x - e, y: dy + p.y - e, w: p.w + 2 * e, h: p.h + (p.sh ?? SHADOW) + 2 * e };
-  };
-  /**
-   * The lowest bottom edge (≤ yMax) for a cluster of controls (parts' y are
-   * relative to that edge) where no part meets a text box nor rises above
-   * yMin; null when there is none.
-   */
-  const drop = (parts: Spot[], rs: Box[], yMin: number, yMax: number): number | null => {
-    const cands = [yMax];
-    // (whole px, rounded up the screen: a float hair must not make a spot that just fits fail)
-    for (const r of rs) for (const p of parts) cands.push(Math.floor(r.y - AIR - (p.ring ?? 0) - (p.y + p.h + (p.sh ?? SHADOW)) - 1e-6));
-    cands.sort((a, b) => b - a);
-    for (const yb of cands) {
-      if (yb > yMax) continue;
-      if (parts.some((p) => yb + p.y - (p.ring ?? 0) < yMin)) return null;
-      if (!parts.some((p) => meets(keepClear(p, yb), rs))) return yb;
-    }
-    return null;
+    return { x: p.x - e, y: p.y - e, w: p.w + 2 * e, h: p.h + (p.sh ?? SHADOW) + 2 * e };
   };
 
   /**
-   * Full screen on a tablet held sideways. With no text on screen the
-   * controls sit in the bottom corners as always. Text boxes (a dialog
-   * window and its name tag, a choice, a battle's band and panels) push each
-   * cluster up to just above them — the lowest spot that is clear, a little
-   * smaller or with メニュー/ダッシュ beside rather than above when the gap is
-   * low. A text screen (the menu, a shop), or text that leaves no gap, shrinks
-   * the picture a little and stands the controls beside it. Brief words (the
-   * battle's 「長押し！」…) move nothing: the controls in their way fade out
-   * while they are up.
+   * Full screen on a tablet held sideways. The controls are fixed in the
+   * bottom corners — the D-pad with メニュー above it, けってい / もどる in a
+   * thumb arc with ダッシュ above — and stay there whatever text comes (the
+   * text keeps off them: engine/safezones.ts, published here). Brief words
+   * (the battle's 「長押し！」…) fade out the controls in their way while
+   * they are up. Only a text screen (the menu, a shop) shrinks the picture a
+   * little and stands the controls beside it, as before.
    */
   const layoutSideways = (vw: number, vh: number, dpr: number, S0: number, M: number, pill: { w: number; h: number }, bw0: number, safeB: number, glide: boolean) => {
     const body = document.body;
     const zones = uiBands();
     const yMax = vh - safeB - M;
-    const yMin = 6;
     const y0 = vh * 0.42;
     const half: Box = { x: 0, y: y0, w: vw / 2, h: vh - y0 - safeB };
+    // the old corner sizes: the most the fixed controls get
     const S1 = Math.max(96, Math.min(S0 * 0.85, padFit(half, M, pill.h, true)));
     const bw1 = Math.max(58, Math.min(bw0 * 0.85, btnFit(half, M, pill.h, true)));
     const font = clamp(S0 * 0.85 * 0.11, 13, 20);
@@ -418,42 +392,12 @@ export function installTouch(input: Input, screen?: Screen): void {
       return { w, h: Math.max(30, pill.h * s), font: fitFont(font * 0.9 * Math.max(0.8, s), w - 12, 5) };
     };
     // the word tag of けってい (setButtonHint: 「長押し」「はなす！」) at font
-    // .82em of the button's, beating up to 1.1×: above the button, or left of it
-    const hintAt = (A: Spot, left: boolean): Spot => {
+    // .82em of the button's, beating up to 1.1×: above the button
+    const hintAt = (A: Spot): Spot => {
       const hf = (A.font ?? font) * 0.82;
       const w = (hf * 5.3 + 6) * 1.1;
       const h = (hf * 1.55 + 9) * 1.1;
-      return left
-        ? { x: A.x - hf * 0.45 - w, y: A.y + A.h / 2 - h / 2, w, h, ghost: true, sh: 0 }
-        : { x: A.x + A.w / 2 - w / 2, y: A.y - hf * 0.5 - h, w, h, ghost: true, sh: 0 };
-    };
-    // D-pad with メニュー above (or beside) it, anchored at its bottom-left
-    const leftAt = (s: number, beside: boolean, x: number): Cluster => {
-      const S = S1 * s;
-      const p = pillAt(s);
-      const gap = M * s;
-      return {
-        pad: { x, y: -S, w: S, h: S, sh: Math.max(SHADOW, S * 0.04) },
-        M: beside ? { x: x + S + gap, y: -S / 2 - p.h / 2, ...p } : { x: x + (S - p.w) / 2, y: -S - gap - p.h, ...p },
-      };
-    };
-    // けってい / もどる in a thumb arc with ダッシュ above (or beside), anchored at its bottom-right
-    const rightAt = (s: number, beside: boolean, xr: number): Cluster => {
-      const bw = bw1 * s;
-      const bs = bw * 0.84;
-      const p = pillAt(s);
-      const gap = M * s;
-      const left = xr - bw * 1.95;
-      const aX = left + bw * 0.95;
-      const aY = -bw * 1.26;
-      const f = font * Math.max(0.8, s);
-      const A: Spot = { x: aX, y: aY, w: bw, h: bw, font: fitFont(f, bw, 4), ring: 6 };
-      return {
-        A,
-        B: { x: left, y: aY + bw * 0.42, w: bs, h: bs, font: fitFont(f * 0.92, bs, 3) },
-        D: beside ? { x: left - gap - p.w, y: aY / 2 - p.h / 2, ...p } : { x: aX + bw - p.w, y: aY - gap - p.h, ...p },
-        H: hintAt(A, beside),
-      };
+      return { x: A.x + A.w / 2 - w / 2, y: A.y - hf * 0.5 - h, w, h, ghost: true, sh: 0 };
     };
     const frame = (sc: number) => {
       const w = (W * sc) / dpr;
@@ -464,48 +408,36 @@ export function installTouch(input: Input, screen?: Screen): void {
       rs.map((r) => ({ x: f.x + r.x * f.k, y: f.y + r.y * f.k, w: r.w * f.k, h: r.h * f.k }));
 
     let sc = scaleFor(fitW(vw, vh), dpr);
-    let plan: Cluster | null = null;
-    const fit: string[] = [];
-    let hintLeft = false;
-    if (!zones.full) {
-      const rs = onScreen(zones.rects, frame(sc));
-      const settle = (build: (s: number, beside: boolean) => Cluster): [Cluster, boolean] | null => {
-        for (const [s, beside] of TRIES) {
-          const c = build(s, beside);
-          const parts = Object.values(c);
-          const yb = drop(parts, rs, yMin, yMax);
-          if (yb === null) continue;
-          for (const p of parts) p.y += yb;
-          fit.push(`${s}${beside ? ' beside' : ''}`);
-          return [c, beside];
-        }
-        fit.push('-');
-        return null;
+    const cols = zones.full;
+    let plan: Cluster;
+    if (!cols) {
+      // the fixed spots
+      const f = frame(sc);
+      const m = clamp(M * 0.65, 12, 16); // from the window's edges
+      const yb = vh - safeB - m; // the clusters' bottom edge
+      const gap = clamp(M * 0.45, 8, 12);
+      const S = clamp(FREE_L * f.k - AIR + f.x - m, S_MIN, S1);
+      const bw = clamp((vw - m - f.x - FREE_R * f.k - AIR) / 1.95, BW_MIN, bw1);
+      const bs = bw * 0.84;
+      const p = pillAt(1);
+      const pw = Math.min(p.w, S - 4);
+      const xr = vw - m;
+      const left = xr - bw * 1.95;
+      const aX = left + bw * 0.95;
+      const aY = yb - bw * 1.26;
+      const A: Spot = { x: aX, y: aY, w: bw, h: bw, font: fitFont(font, bw, 4), ring: 6 };
+      plan = {
+        pad: { x: m, y: yb - S, w: S, h: S, sh: Math.max(SHADOW, S * 0.04) },
+        M: { x: m + (S - pw) / 2, y: yb - S - gap - p.h, w: pw, h: p.h, font: fitFont(p.font, pw - 12, 5) },
+        A,
+        B: { x: left, y: aY + bw * 0.42, w: bs, h: bs, font: fitFont(font * 0.92, bs, 3) },
+        D: { x: xr - p.w, y: aY - gap - p.h, ...p },
+        H: hintAt(A),
       };
-      const l = settle((s, beside) => leftAt(s, beside, M * 1.4));
-      const r = settle((s, beside) => rightAt(s, beside, vw - M * 1.4));
-      if (l && r) {
-        const lRight = Math.max(...Object.values(l[0]).map((p) => p.x + p.w));
-        const rLeft = Math.min(...Object.values(r[0]).map((p) => p.x));
-        if (lRight + M < rLeft) {
-          plan = { ...l[0], ...r[0] };
-          hintLeft = r[1];
-        }
-      }
-    }
-    const cols = !plan;
-    // the pad doesn't slide out from under a thumb walking on it (a place
-    // name, a dialog starting mid-step: the thumb hides that spot anyway);
-    // it moves when the thumb lets go
-    if (plan && glide && padId !== null && !sideCols && lastPlan?.pad && lastPlan.M) {
-      plan.pad = { ...lastPlan.pad, sh: plan.pad.sh };
-      plan.M = { ...lastPlan.M, font: plan.M.font };
-      padStay = true;
-    }
-    if (!plan) {
-      // the picture a little smaller, the controls in the columns beside it:
-      // the D-pad with メニュー above it on the left; けってい at the bottom
-      // right, もどる above it and ダッシュ above that
+    } else {
+      // a text screen: the picture a little smaller, the controls in the
+      // columns beside it: the D-pad with メニュー above it on the left;
+      // けってい at the bottom right, もどる above it and ダッシュ above that
       sc = scaleFor(fitW(vw - 2 * clamp(vw * 0.13, 118, 160), vh), dpr);
       const col = frame(sc).x;
       const m = clamp(col * 0.07, 8, 12);
@@ -529,7 +461,7 @@ export function installTouch(input: Input, screen?: Screen): void {
 
     root.classList.toggle('glide', glide);
     root.classList.toggle('overlay', !cols);
-    root.classList.toggle('hl', hintLeft);
+    root.classList.remove('hl');
     if (sc !== screen!.fixedScale) {
       // switching to / from a text screen: the picture eases to its new size
       const cv = screen!.display;
@@ -547,22 +479,40 @@ export function installTouch(input: Input, screen?: Screen): void {
     const was = pad.style.cssText;
     const els: Record<string, HTMLElement> = { pad, M: btnM, A: btnA, B: btnB, D: btnD };
     // brief words: whatever is in their way fades out while they are up
-    const brief = onScreen(zones.brief, frame(sc));
+    const f = frame(sc);
+    const brief = onScreen(zones.brief, f);
     for (const [k, p] of Object.entries(plan)) {
       const el = els[k];
       if (!el) continue;
       place(el, p.x, p.y, p.w, p.h, p.font);
-      el.classList.toggle('veil', meets(keepClear(p, 0), brief));
+      el.classList.toggle('veil', !cols && meets(keepClear(p), brief));
     }
     if (pad.style.cssText !== was) releasePad();
-    lastPlan = plan;
-    lastFit = cols ? 'beside the picture' : `left ${fit[0]}, right ${fit[1]}`;
+    // where they are, for the text to keep off (game px)
+    if (cols) setButtonZones(null);
+    else {
+      const g = (b: Box): Zone => ({ x: (b.x - f.x) / f.k, y: (b.y - f.y) / f.k, w: b.w / f.k, h: b.h / f.k });
+      const round = (z: Zone): Zone => {
+        const x = Math.floor(z.x * 10) / 10;
+        const y = Math.floor(z.y * 10) / 10;
+        return { x, y, w: Math.ceil((z.x + z.w - x) * 10) / 10, h: Math.ceil((z.y + z.h - y) * 10) / 10 };
+      };
+      const box = (ks: string[]) => {
+        const bs = ks.map((k) => round(g(keepClear(plan[k]))));
+        const x = Math.min(...bs.map((b) => b.x));
+        const y = Math.min(...bs.map((b) => b.y));
+        return { x, y, w: Math.max(...bs.map((b) => b.x + b.w)) - x, h: Math.max(...bs.map((b) => b.y + b.h)) - y };
+      };
+      setButtonZones({ parts: Object.values(plan).map((p) => round(g(keepClear(p)))), left: box(['pad', 'M']), right: box(['A', 'B', 'D', 'H']) });
+    }
+    lastFit = cols ? 'beside the picture' : 'fixed';
   };
 
   const layout = (glide = false) => {
     if (!screen) return;
     const body = document.body;
     if (!active) {
+      setButtonZones(null);
       screen.fixedScale = null;
       screen.resize();
       body.style.alignItems = '';
@@ -594,6 +544,7 @@ export function installTouch(input: Input, screen?: Screen): void {
       return;
     }
     sideCols = false;
+    setButtonZones(null);
     root.classList.remove('glide', 'hl');
     for (const el of [pad, btnA, btnB, btnD, btnM]) el.classList.remove('veil');
     const minS = Math.max(104, S0 * 0.66);
@@ -712,18 +663,20 @@ export function installTouch(input: Input, screen?: Screen): void {
     cancelAnimationFrame(queued);
     queued = requestAnimationFrame(() => layout());
   };
-  // Text came, moved or went (told at the end of the frame that drew it,
-  // before it is shown): the controls glide out of its way at once, and back
-  // only once it has stayed gone a moment (between two lines, a page turn).
-  layoutSoon = () => {
-    if (active && sideways) layout(true);
-  };
+  // A text screen opened or closed, brief words came or went (told at the
+  // end of the frame that drew them, before it is shown): the picture and the
+  // veils follow at once when they come, and a moment after they have gone
+  // (between two lines, a page turn). Other text moves nothing.
   let calmT = 0;
+  let lastKey = '';
   onTextZones(() => {
     if (!active || !sideways) return;
-    window.clearTimeout(calmT);
     const z = uiBands();
-    if (z.full || z.rects.length || z.brief.length) layout(true);
+    const key = (z.full ? 'F' : '') + z.brief.map((r) => `${r.x},${r.y},${r.w},${r.h}`).join(' ');
+    if (key === lastKey) return;
+    lastKey = key;
+    window.clearTimeout(calmT);
+    if (z.full || z.brief.length) layout(true);
     else calmT = window.setTimeout(() => layout(true), 220);
   });
   layoutInfo = () => ({ active, sideways, sideCols, scale: screen?.fixedScale ?? null, fit: sideways ? lastFit : '' });

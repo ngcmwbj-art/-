@@ -19,8 +19,7 @@ import { playBgm, playChimeMotif, setSpace, sfx, stopAllAmbient, stopAmbient, st
 import { actor, face, msg, place, registerScript, setClock, setClockText, setFollowerVisible, spawn, trainPass } from '../world/api';
 import type { Actor } from '../world/actor';
 import type { FieldScene } from '../world/field';
-import { hideNightSky, playNightSkyCut, stampTsuzuku } from '../ui/api';
-import { ditherIn, ditherOut } from '../ui/transition';
+import { hideNightSky, playChapter1End, playNightSkyCut, stampTsuzuku } from '../ui/api';
 import { uiHud } from '../ui/hud';
 import { registerWorldFx } from '../world/fx';
 import { CHUNK } from '../world/ground_cache';
@@ -1195,9 +1194,15 @@ export function* evtEnding(): Co {
   // before the crossing now (★2026-09-29: chapter 1 ends on グソっ君's line)
   yield* nightSky();
   yield* cut6Crossing();
-  // 「つづく」 over the last picture (flag_clear, the clear record); the
-  // ending's song and night bed are let go here, before the title — the title
-  // is the last to start an ambience (its evening)
+  yield* afterCrossing();
+}
+
+/**
+ * 「つづく」 over the last picture (flag_clear, the clear record), the
+ * ending's song and night bed let go (the title is the last to start an
+ * ambience — its evening), and the end card.
+ */
+function* afterCrossing(): Co {
   yield* stampTsuzuku();
   stopBgm(1.5);
   stopAllAmbient(1.0);
@@ -1208,15 +1213,14 @@ export function* evtEnding(): Co {
   stopAllAmbient(0.4);
   holdBgm(false);
   setFlag('flag_hud_hidden', 0);
-  // → the title (as the notebook would have done), after our sounds are gone
-  yield* ditherOut(1, '#0B0B14');
   yield* beat(300);
-  const { TitleScene } = (yield import('../ui/title')) as typeof import('../ui/title');
-  game.replaceAll(new TitleScene(true));
-  yield* ditherIn(900);
+  // → the end card (「第1章 おわり」, then 第2章へ／タイトルへ). ★2026-09-30:
+  // this used to go straight to the title under the fade left at 1 above —
+  // a black screen with only the touch buttons on it
+  yield* playChapter1End();
 }
 
-/** QA: play one cut of the ending from a prepared state (1–6). */
+/** QA: play one cut of the ending from a prepared state (1–6; 7 the night sky; 8 the crossing to the end card). */
 export const ENDING_CUTS: Record<number, () => Co> = {
   1: cut1Chime,
   2: cut2Meat,
@@ -1230,6 +1234,11 @@ export const ENDING_CUTS: Record<number, () => Co> = {
   },
   /** The night sky alone (it now comes before the crossing). */
   7: nightSky,
+  /** The crossing, 「つづく」 and the end card (→ 第2章 or the title). */
+  8: function* (): Co {
+    yield* cut6Crossing();
+    yield* afterCrossing();
+  },
 };
 
 registerScript('evt_ending', function* (): Co {

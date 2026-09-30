@@ -12,7 +12,8 @@
 // the screen black (game.fadeAlpha = 1).
 
 import type { Co } from '../../engine/co';
-import { game } from '../../engine/game';
+import { game, type Scene } from '../../engine/game';
+import type { Gfx } from '../../engine/gfx';
 import { animate, ease } from '../../engine/tween';
 import { flag, setFlag } from '../../game/state';
 import { playAmbient, playBgm, stopAllAmbient, stopBgm } from '../../audio';
@@ -102,7 +103,17 @@ export function* evtPrologue(): Co {
   const ups = chapter2LevelUps();
   if (ups.length) {
     yield 300;
+    // the card is a scene, drawn under the screen fade: on the prologue's
+    // black it stands on a black page of its own, the fade lifted meanwhile
+    // (★2026-09-30: it waited for けってい under the fade — a black screen
+    // with only the touch buttons, found on the way 第1章の おわり → 第2章へ)
+    const page = new BlackPage();
+    game.push(page);
+    const fade = game.fadeAlpha;
+    game.fadeAlpha = 0;
     yield* reportCard(ups, T.PROLOGUE_REPORT_TITLE);
+    game.fadeAlpha = fade;
+    if (game.top === page) game.pop();
   }
 
   // ---- the crossing, the frame of chapter 1's last cut
@@ -254,3 +265,12 @@ registerScript('evt_ch2_prologue', function* (): Co {
   if (flag('flag_ch2_prologue_done')) return;
   yield* evtPrologue();
 });
+
+/** A black page under the prologue's report card (see above). */
+class BlackPage implements Scene {
+  transparent = false;
+  update(): void {}
+  draw(g: Gfx): void {
+    g.clear('#0B0B14');
+  }
+}

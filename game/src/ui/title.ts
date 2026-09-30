@@ -65,6 +65,7 @@ import {
 import { dottedLine, drawCursor, drawTape, drawWindow, rectA, textW, UI } from './window';
 import { coverToFade, ditherOut } from './transition';
 import { markText } from '../engine/textzones';
+import { buttonZones, freeSpan } from '../engine/safezones';
 
 type MenuId = 'new' | 'continue' | 'ch2' | 'settings';
 /** The chapter-2 release page: 「第2章から」 without a chapter-1 clear (see menu). */
@@ -448,15 +449,16 @@ export class TitleScene implements Scene {
     if (shown <= 0) return;
     const n = this.menu.length;
     const top = MENU_BOTTOM - 18 - (n - 1) * MENU_STEP;
-    // the tapes, the cursor left of them (and the 「第2章」 note): the touch controls keep off them
-    const x0 = MENU_X - (this.kind === 'ch2' && this.menu.includes('continue') ? NOTE_W - 5 : 0) - 14;
-    markText(x0, top - 2, MENU_X + 90 - x0, MENU_BOTTOM - top + 3);
+    const MX = menuX(top);
+    // the tapes, the cursor left of them (and the 「第2章」 note)
+    const x0 = MX - (this.kind === 'ch2' && this.menu.includes('continue') ? NOTE_W - 5 : 0) - 14;
+    markText(x0, top - 2, MX + 90 - x0, MENU_BOTTOM - top + 3);
     this.menu.forEach((id, i) => {
       const k = Math.min(1, Math.max(0, (this.t - MENU_AT - i * 80) / 220)) * shown;
       if (k <= 0) return;
       const sel = i === this.index;
       const dim = id === 'continue' && !this.canLoad;
-      const x = MENU_X;
+      const x = MX;
       const y0 = top + i * MENU_STEP;
       const y = y0 + Math.round((1 - ease.backOut(k)) * 24) - (sel ? 1 : 0);
       const a = k * (dim ? 0.5 : 1);
@@ -485,9 +487,9 @@ export class TitleScene implements Scene {
     const pages: (1 | 2 | 0)[] = c2 ? [1, 2, 0] : [1, 0];
     const lt = this.t - MENU_AT;
     const k = Math.min(1, lt / 300);
-    const { x, w, h } = CLEAR_CARD;
-    const y = CLEAR_CARD.y + Math.round((1 - ease.cubicOut(k)) * 10);
-    markText(x, CLEAR_CARD.y - 6, w + 2, h + 8);
+    const { x, y: cy, w, h } = clearCardAt();
+    const y = cy + Math.round((1 - ease.cubicOut(k)) * 10);
+    markText(x, cy - 6, w + 2, h + 8);
     // which page, and how far through the turn
     const cyc = Math.max(0, lt - 300);
     const pi = Math.floor(cyc / CLEAR_PAGE_MS) % pages.length;
@@ -585,6 +587,20 @@ function drawChapterNote(g: Gfx, x: number, y: number, a: number, sel: boolean):
 
 /** The post-ending card: bottom-left, left of the silhouettes on the bridge (x ≥ 118). */
 const CLEAR_CARD = { x: 4, y: 146, w: 112, h: 62 };
+
+/**
+ * On an iPad held sideways the touch buttons are fixed in the bottom corners
+ * (engine/safezones.ts): the tapes move left, clear of けってい / もどる, and
+ * the card stands right of the D-pad, up over the town — clear of the two
+ * on the bridge (x138–172 from y184).
+ */
+function menuX(top: number): number {
+  return buttonZones() ? Math.min(MENU_X, freeSpan(top - 3, MENU_BOTTOM + 2).x1 - 2 - 88) : MENU_X;
+}
+function clearCardAt(): { x: number; y: number; w: number; h: number } {
+  if (!buttonZones()) return CLEAR_CARD;
+  return { ...CLEAR_CARD, x: Math.max(CLEAR_CARD.x, freeSpan(114, 184).x0 + 2), y: 184 - 2 - CLEAR_CARD.h };
+}
 const CLEAR_PAGE_MS = 4500;
 
 registerScene('title', (p) => new TitleScene(p.get('skip') === '1'));
