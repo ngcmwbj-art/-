@@ -108,8 +108,8 @@ export const VOICES: Record<string, VoiceDef> = {
   broadcast_child: { label: '放送の最後の1行', wave: 'triangle', base: 'A5', scale: [0, 2, 3, 7], len: 40, every: 3, v: 0.035, pa: true, formant: true, child: true },
   vending: { label: 'おじぎ自販機', wave: 'pulse12', base: 'A4', scale: [0], len: 60, every: 2, v: 0.04, formant: true, fixedSeq: [0, 0, -2, 0, 3, 0, -2, -2, -5, -5, -7] },
   omukaemachi: { label: 'オムカエマチ', wave: 'triangle', base: 'A5', scale: [0, 2, 3, 7], len: 40, every: 3, v: 0.035, formant: true, child: true, rev: 0.5 },
-  flip: { label: 'カネナリくんのフリップ', wave: 'sawtooth', base: 2000, scale: [0, 1], len: 35, every: 3, v: 0.02, bp: [2400, 4], vib: [28, 60] },
-  kanenari_voice: { label: 'カネナリくんの声', wave: 'triangle', wave2: ['sawtooth', 0.2], base: 'D3', scale: [0], len: 140, A: 20, R: 100, every: 1, v: 0.07, formant: true, rev: 0.35 },
+  flip: { label: 'フリップ（いまは未使用）', wave: 'sawtooth', base: 2000, scale: [0, 1], len: 35, every: 3, v: 0.02, bp: [2400, 4], vib: [28, 60] },
+  kanenari_voice: { label: '初めての声（いまは未使用）', wave: 'triangle', wave2: ['sawtooth', 0.2], base: 'D3', scale: [0], len: 140, A: 20, R: 100, every: 1, v: 0.07, formant: true, rev: 0.35 },
   // グソっ君 (★2026-09-29 依頼主の指示で カネナリくん→グソっ君、04_gusokkun_plan 7):
   // はずむ 関西弁。明るい 中音の C4、矩形波25%に 三角波を 重ねて、短く 速い ブリップ。
   // 各ブリップの 頭が +70セントから はねて 落ちつき、音の 高さは 低い 組（0 2 4）と
