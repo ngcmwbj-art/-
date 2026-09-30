@@ -45,8 +45,8 @@ const items: ItemDef[] = [
   { id: 'item_urenokori', name: '売れ残りの焼きそば', key: true, target: 'none', desc: ['ゆうべの 売れ残り。冷たい。青のりは 別。', ''], battleText: ['これは 腹 へってる だれかの 分だ。'] },
   // 屋上 ゆうやけひろば (10_narrative 7.18 ★2026-09-28): the handshake (★2026-09-29 グソっ君の はじめての 握手会。04 2章 8 案A)
   { id: 'item_akushuken', name: '握手券', key: true, target: 'none', desc: ['グソっ君の はじめての 握手会。', '番号は 1。有効期限は なし。'], battleText: ['握手券を 見せた。\n$enemyは 手を 出しかけて やめた。'] },
-  // しんごのたんかん（02 #58）：喫茶 夕顔の冷凍庫から → しんごへ（渡すと外れる）
-  { id: 'item_tankan', name: '冷凍たんかん', key: true, target: 'none', desc: ['喫茶 夕顔の 冷凍庫から。', '冬の みかん。いまは 8月。'], battleText: ['たんかんを 見せた。\n$enemyは 季節に ついて 考えている。'] },
+  // しんごのたんかん（02 #58）：喫茶 初日の出の冷凍庫から → しんごへ（渡すと外れる）
+  { id: 'item_tankan', name: '冷凍たんかん', key: true, target: 'none', desc: ['喫茶 初日の出の 冷凍庫から。', '冬の みかん。いまは 8月。'], battleText: ['たんかんを 見せた。\n$enemyは 季節に ついて 考えている。'] },
   // 10 6.10 (02_ch2_index #56): 段階2の郵便屋さんから。第2章でさんかどに あずける
   { id: 'item_ashita_tegami', name: '『あした』宛ての手紙', key: true, target: 'none', desc: ['差出人『ユウナリ 迷子センター』。すみに 黒い しみ。', '切手は、はなまる。'], battleText: ['手紙を 見せた。\n……宛先は、ここでは ない。'] },
   // 10 6.6〔懸垂〕（02 #64）：公園の鉄棒で懸垂に挑戦したあと、交番のワイスタ巡査から

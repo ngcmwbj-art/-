@@ -468,7 +468,7 @@ export const VOICE_TRIM: Record<string, number> = {
   tokio: 13.5,
   // グソっ君（★2026-09-29 カネナリくん→グソっ君。audioMixSuggest、samples.ts の見本の台詞で）
   gusokkun: 13.5,
-  // かずゆき（喫茶 夕顔。★2026-09-30 マスター→かずゆき）・ぶーさんの本体（02 #71。audioMixSuggest、
+  // かずゆき（喫茶 初日の出。★2026-09-30 マスター→かずゆき）・ぶーさんの本体（02 #71。audioMixSuggest、
   // samples.ts の見本の台詞で。ものさし：tokio 13.5・h_mitsu 16・mother 15 は 表の値と 同じ）
   kazuyuki: 12.5, bu: 16.5,
   // マル（02 #65）・おぴぃ（02 #66）・よね・とよぞう（02 #67）：足したときに trim が

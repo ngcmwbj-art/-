@@ -1,10 +1,10 @@
-// 喫茶 夕顔 (map_cafe) and 山吹酒店 (map_sake) — 30_level_art 4.11 / 4.12.
+// 喫茶 初日の出 (map_cafe) and 山吹酒店 (map_sake) — 30_level_art 4.11 / 4.12.
 //
-// 喫茶 夕顔: dark boards, cream stucco over dark wood panels, amber lamps;
+// 喫茶 初日の出: dark boards, cream stucco over dark wood panels, amber lamps;
 // the counter (the siphon bubbling — held at the top in stage 1, running
 // down in stage 2 — and the menu stand), the chest freezer and the cup
 // shelf behind it, the record player (turning; backwards in stage 2), the
-// painting of 夕顔 (its clock at 5), the pink phone, the 夕顔 in its pot
+// painting of 初日の出 (its clock at 5), the pink phone, the 夕顔 in its pot
 // (buds swelling / held / closing), the regular's window seat with the
 // paper, the table game, a table for two with a cream soda, and the
 // ceiling fan turning over it all.
@@ -28,7 +28,7 @@ import { fontTextSmall, printLines } from './text';
 import type { PropArt, PropEnv } from './types';
 import { plasterWall, roomShell, shopTiles, spin, stageTime, woodFloor } from './int_north_kit';
 
-// ================================================================ 喫茶 夕顔
+// ================================================================ 喫茶 初日の出
 
 function cafeWall(seed: number): (x: number, y: number) => string {
   return (x, y) => {
@@ -66,13 +66,21 @@ registerProp('in_cf_shell', () =>
       [136, 72, 34, 18, P.sky],
     ],
     deco(p) {
-      // the painting of 夕顔 (7–8, 0–1): white flowers on a dusk sky, a clock at 5
+      // the painting of 初日の出 (7–8, 0–1; ★2026-09-30 喫茶 夕顔→喫茶 初日の出): the first sun of
+      // the year coming up behind a mountain ridge, rays on a dawn sky, a clock at 5
       const [ix, iy, iw, ih] = framed(p, 114, 3, 28, 17, P.brass);
-      for (let y = iy; y < iy + ih; y++) for (let x = ix; x < ix + iw; x++) p.set(x, y, y < iy + 6 ? P.sky : y < iy + 11 ? P.sun : P.shade);
-      for (const [fx, fy] of [[118, 11], [124, 9], [131, 12], [137, 10]] as [number, number][]) {
-        p.ellipse(fx, fy, 2, 2, P.white);
-        p.set(fx, fy, P.goldPale);
-        p.line(fx, fy + 2, fx - 1, iy + ih - 1, P.leafShade);
+      for (let y = iy; y < iy + ih; y++) for (let x = ix; x < ix + iw; x++) p.set(x, y, y < iy + 5 ? P.sky : y < iy + 10 ? P.sun : P.shade);
+      const sx = ix + 12;
+      const sy = iy + 10;
+      for (const [dx, dy] of [[-7, -3], [-4, -6], [0, -7], [4, -6], [7, -3]] as [number, number][]) p.line(sx + Math.round(dx / 2), sy + Math.round(dy / 2), sx + dx, sy + dy, P.goldPale);
+      p.ellipse(sx, sy, 3, 3, P.goldPale);
+      p.ellipse(sx, sy, 2, 2, P.white);
+      // the mountain ridge in front of the sun (dark), a lower one behind it
+      for (let x = ix; x < ix + iw; x++) {
+        const h1 = 3 + Math.round(2 * Math.sin((x - ix) / 3.1)) + ((x - ix) % 7 === 3 ? 1 : 0);
+        const h2 = 5 + Math.round(3 * Math.cos((x - ix) / 4.3));
+        for (let y = iy + ih - h2; y < iy + ih; y++) p.set(x, y, P.leafShade);
+        for (let y = iy + ih - h1; y < iy + ih; y++) p.set(x, y, P.ink);
       }
       p.ellipse(137, 6, 2, 2, P.paper);
       p.set(137, 6, P.ink);

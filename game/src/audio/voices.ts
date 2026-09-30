@@ -92,13 +92,13 @@ export const VOICES: Record<string, VoiceDef> = {
   // ぶーさんの本体 (02 #71): the shadow's own voice without the muffle — the same
   // square A3 and set, the low-pass opened up (1.3 kHz, no Q, no reverb), the vowels on
   bu: { label: 'ぶーさんの本体（影と同じ声の、こもりを取った音）', wave: 'square', base: 'A3', scale: [0, 2, 3, 7], len: 40, every: 2, v: 0.05, lp: 1300, formant: true },
-  // かずゆき (02 #71。★2026-09-30 依頼主の指示で 喫茶 夕顔の マスター→かずゆき、40代の男性。
+  // かずゆき (02 #71。★2026-09-30 依頼主の指示で 喫茶 初日の出の マスター→かずゆき、40代の男性。
   // 前の声は ペロ `h_mitsu`)：落ち着いた 中低音。サインに 三角波を 重ねた まるい A#3、
   // 2文字に1音、各ブリップを −20セントへ 少し 落として 終える（静かに 言い切る）。
   // ビブラートなし。ペロ（A3・3文字に1音・ビブラートと息）、ヒロスケ（B3・三角波・
   // ビブラート）、中学生（A3・矩形波）、グソっ君（C4・はずむ）、しんご（G3）、
   // たかし（D3・FM）と、高さ・波形・語尾で 分ける
-  kazuyuki: { label: 'かずゆき（喫茶 夕顔）', wave: 'sine', wave2: ['triangle', 0.45], base: 'A#3', scale: [0, 2, 5, 7, 9], len: 42, A: 4, D: 28, S: 0.5, R: 14, every: 2, v: 0.06, lp: 1700, fall: -20, formant: true },
+  kazuyuki: { label: 'かずゆき（喫茶 初日の出）', wave: 'sine', wave2: ['triangle', 0.45], base: 'A#3', scale: [0, 2, 5, 7, 9], len: 42, A: 4, D: 28, S: 0.5, R: 14, every: 2, v: 0.06, lp: 1700, fall: -20, formant: true },
   hato: { label: 'ハト／ハト係長', wave: 'pulse12', base: 'E6', scale: [0, 2, 4], len: 14, every: 2, v: 0.035 },
   dog: { label: 'コタロウ', wave: 'square', base: 'A3', scale: [0, 0, 3], len: 30, every: 3, v: 0.05, lp: 900 },
   cat: { label: 'ネコ', wave: 'triangle', base: 'B5', scale: [0, 2], len: 12, every: 3, v: 0.03 },

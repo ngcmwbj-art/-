@@ -1,6 +1,6 @@
 // Texts of the north row's rooms (2026-09-28, 02_ch2_index #58; 10_narrative
 // 6.14 / 6.22 / 7.19): しんごの家, ふでの書道教室 (坂の上の家), 豆腐 くま吉の
-// 奥, 時計店 チクタク堂, 喫茶 夕顔, 山吹酒店 — and しんご's たんかん.
+// 奥, 時計店 チクタク堂, 喫茶 初日の出, 山吹酒店 — and しんご's たんかん.
 // Default texts of the map objects; the scripts in interior_north_logic.ts
 // handle the rewards that talk, the たんかん and the shopkeepers' extras.
 
@@ -282,7 +282,7 @@ export const NOBJ: Record<string, StageText> = {
 ……鳴りそうで、鳴らない。`,
   },
 
-  // ---------------------------------------------------------------- 喫茶 夕顔
+  // ---------------------------------------------------------------- 喫茶 初日の出
   obj_cf_freezer: `@narr
 業務用の 冷凍庫。{w=300}
 アイスクリームと、冷凍みかん。`,
@@ -356,7 +356,7 @@ export const NOBJ: Record<string, StageText> = {
 少しずつ 閉じていく。`,
   },
   obj_cf_painting: `@narr
-夕顔の 花の 絵。{w=300}
+山から のぼる 初日の出の 絵。{w=300}
 すみに『開店 記念』。
 /
 絵の 中の 時計は、
@@ -647,7 +647,7 @@ export const NTALK: Record<string, TalkTable> = {
 ……町の 時計の 理由は、
 わたしには、聞けそうに ありません。`,
   },
-  // 喫茶 夕顔のマスター かずゆき（40代の男性。★2026-09-30 依頼主の指示で マスター→かずゆき。IDは据え置き、02 #71）
+  // 喫茶 初日の出のマスター かずゆき（40代の男性。★2026-09-30 依頼主の指示で マスター→かずゆき。IDは据え置き、02 #71）
   npc_master: {
     s0_1: `@npc_master
 いらっしゃい。{w=300}
@@ -657,9 +657,12 @@ export const NTALK: Record<string, TalkTable> = {
 5時までは 仕込みの 時間でね。{w=300}
 見て いくだけなら、どうぞ。`,
     s0_2: `@npc_master
-夕顔はね、夕方に 咲いて、
-朝には しぼむ 花だ。{w=300}
-この店も、夕方が いちばん いい。`,
+店の 名前かい？{w=300}
+豆を 焼いてる じいさんの 村は、
+初日の出が きれいなんだと。
+/
+夕方の 町に、朝の 名前。{w=300}
+……悪くないだろ。`,
     s1_1: `@npc_master
 サイフォンの コーヒーが、
 上がりきった ところで 止まった。{w=300}
@@ -838,7 +841,7 @@ export const SHINGO_AFTER = `@npc_ojii
 ながめる だけで うまい。{w=300}
 ……いや、食べるけどな。`;
 
-// ================================================================ the frozen たんかん at 喫茶 夕顔
+// ================================================================ the frozen たんかん at 喫茶 初日の出
 
 /** Freezer, never heard of the たんかん yet: the label (a hint). */
 export const FREEZER_LABEL = `@narr

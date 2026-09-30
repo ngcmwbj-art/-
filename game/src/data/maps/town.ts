@@ -462,7 +462,7 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_ojii', x: 10, y: 21, dir: 'down', cond: s02, talk: TALK.npc_ojii, pose: 'sit', off: [0, -2] },
   { t: 'npc', id: 'npc_mizumaki', x: 11, y: 32, dir: 'down', cond: s02, talk: TALK.npc_mizumaki },
   { t: 'npc', id: 'npc_shadow_man', x: 8, y: 6, dir: 'down', cond: { stage: 2 }, talk: TALK.npc_shadow_man, ghost: true, noTurn: true, shadow: 0 },
-  // ぶーさんの本体 (10 6.16, 02 #71): after なんばるわん brought him from 喫茶 夕顔, beside his shadow on the bench
+  // ぶーさんの本体 (10 6.16, 02 #71): after なんばるわん brought him from 喫茶 初日の出, beside his shadow on the bench
   { t: 'npc', id: 'npc_bu_body', x: 7, y: 6, dir: 'down', cond: { stage: 2, flag: 'flag_bu_left' }, script: 'npc_bu_body', pose: 'sit', ghost: true, noTurn: true, shadow: 0 },
   // マル (10 6.24, 02 #65): beside the bus stop 「ユウナリ前」, seated on her walker, facing the lane
   { t: 'npc', id: 'npc_maru', x: 34, y: 12, dir: 'right', cond: { stage: 2 }, script: 'npc_maru', pose: 'sit' },

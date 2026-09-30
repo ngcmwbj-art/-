@@ -6,7 +6,7 @@
 //   map_shodo   ふでの書道教室（坂の上の家）          11×8  door (17,20) — the gate of bld_slopetop
 //   map_tofu    豆腐 くま吉の奥と作業場              12×8  door (38,21) — the counter's flap of bld_tofu
 //   map_clock   時計店 チクタク堂                    10×7  door (42,21) of bld_clock
-//   map_cafe    喫茶 夕顔                            12×8  door (48–49,21) of bld_cafe
+//   map_cafe    喫茶 初日の出                            12×8  door (48–49,21) of bld_cafe
 //   map_sake    山吹酒店                             12×8  door (52–54,21) of bld_sake
 //
 // People already in the town stay there (しんご on his bench, くま吉 at his
@@ -281,7 +281,7 @@ registerMap({
   ],
 });
 
-// ================================================================ 4.11 map_cafe（喫茶 夕顔、12×8）
+// ================================================================ 4.11 map_cafe（喫茶 初日の出、12×8）
 
 // The counter along the west (the master behind it, the siphon and the
 // menu on it, the chest freezer and the cups behind), the record player,
@@ -301,7 +301,7 @@ export const ROWS_CAFE = [
 
 registerMap({
   id: 'map_cafe',
-  name: '喫茶 夕顔',
+  name: '喫茶 初日の出',
   kind: 'indoor',
   rows: ROWS_CAFE,
   legend: legend('shopwood'),

@@ -1,6 +1,6 @@
 // げむきか 2026-09-30 の 5「減らない コーヒー」（02_ch2_index #71、52_ch2_level_art 4.5、
 // 50_ch2_story 9.9）: タケじいの家（map_hoshi_minka3）の土間のすみ (1,7) に、
-// 手回しの コーヒーの 焙煎器と、ふもとへ 送る 麻袋。喫茶 夕顔の かずゆきの 豆は、
+// 手回しの コーヒーの 焙煎器と、ふもとへ 送る 麻袋。喫茶 初日の出の かずゆきの 豆は、
 // 86歳の タケじいが ここで 焙煎して、ツガオ便の 軽トラで 送っている。
 //
 //   prop_hr_baisen  18×20: 左に 口を しばった 麻袋（紙の 札つき）、右に 七輪の 上の
@@ -35,7 +35,7 @@ registerProp('prop_hr_baisen', () =>
       for (const [x, y] of [[2, 10], [4, 12], [6, 9], [3, 14], [6, 13]] as const) p.set(x, y, BURLAP_DK);
       p.vline(1, 9, 13, lt(BURLAP));
       p.vline(7, 9, 14, BURLAP_DK);
-      // the paper tag on the string (『喫茶 夕顔 かずゆき 様』: two lines of ink)
+      // the paper tag on the string (『喫茶 初日の出 かずゆき 様』: two lines of ink)
       p.rect(4, 7, 4, 3, P.white);
       p.hline(5, 6, 8, P.ink);
       p.set(5, 9, mix(P.ink, P.white, 0.5));

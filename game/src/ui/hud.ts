@@ -260,7 +260,7 @@ const MAP_PLACE: Record<string, string> = {
   map_shodo: 'ふでの書道教室',
   map_tofu: '豆腐 くま吉',
   map_clock: '時計店 チクタク堂',
-  map_cafe: '喫茶 夕顔',
+  map_cafe: '喫茶 初日の出',
   map_sake: '山吹酒店',
   // 南の列の部屋と公園のトイレ（02 #59）
   map_chizu: 'ちずの家',

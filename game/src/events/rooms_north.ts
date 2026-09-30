@@ -1,5 +1,5 @@
 // The north row's rooms (02_ch2_index #58, 10_narrative 6.14 / 6.22 / 7.19):
-// しんご and his たんかん, the 喫茶 夕顔 master and his freezer, the うちわ at
+// しんご and his たんかん, the 喫茶 初日の出 master and his freezer, the うちわ at
 // the sake shop, グソっ君's word once in each room, and the QA commands
 //   __game.cmd.lvN('cafe')   jump into one of the rooms (lvN() lists them)
 //   __game.cmd.lvDoorsN()    every door of the rooms and their town doors
@@ -86,7 +86,7 @@ ${itemName('item_reitou_mikan')}を ${got === 1 ? '1つ' : `${got}つ`} 手に�
 また 取りに 来い。とっておく。`);
 }
 
-// ---------------------------------------------------------------- 喫茶 夕顔: the master and the freezer
+// ---------------------------------------------------------------- 喫茶 初日の出: the master and the freezer
 
 function* handTankan(): Co {
   yield* msg(N.MASTER_TANKAN);

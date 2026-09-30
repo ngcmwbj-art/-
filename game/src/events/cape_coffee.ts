@@ -14,7 +14,7 @@
 // 2 (chapter 1): ヤキソバン's statue, from the second look on, any stage: the
 //   page of the unpainted spatula (flag_hera_look counts the looks).
 // 5 減らない コーヒー (10 6.11・6.16・6.22・7.19): at stage 2 ぶーさん's body
-//   (npc_bu_body) sits at 喫茶 夕顔's window seat reading the paper, no shadow
+//   (npc_bu_body) sits at 喫茶 初日の出's window seat reading the paper, no shadow
 //   at his feet. 1st talk 〔s2_1〕; 2nd 〔s2_2〕 (「……お腹が 限界です……」), and
 //   with グソっ君 there the scene: なんばるわん comes in for her usual, グソっ君
 //   offers to drink half and takes a sip (「……にっが！！」), the coffee goes
@@ -24,7 +24,7 @@
 //   かずゆき (npc_master; ★2026-09-30 マスター→かずゆき) has a word before and
 //   after (the beans: 星見台's タケじい roasts them), なんばるわん a word on
 //   the slope after, and her 〔s2_2〕 there drops its 「負けない！」 (once a stage).
-//   Chapter 2: タケじい's roaster and the sack for 『喫茶 夕顔 かずゆき 様』
+//   Chapter 2: タケじい's roaster and the sack for 『喫茶 初日の出 かずゆき 様』
 //   (obj_hr_mk3_baisen; グソっ君 remembers the smell once if he had the sip).
 //
 //   __game.cmd.cape(step)   QA: 'reset' | 'photo' | 'takashi' | 'statue' | 'cafe' | 'park' | 'baisen'
@@ -194,7 +194,7 @@ registerScript('npc_cow_statue', function* (): Co {
   yield* msg(n >= 1 ? `${t[key]}\n/\n${C.HERA}` : t[key]);
 });
 
-// ================================================================ 5 減らない コーヒー — 喫茶 夕顔
+// ================================================================ 5 減らない コーヒー — 喫茶 初日の出
 
 registerScript('npc_bu_body', function* (): Co {
   if (onMap('map_cafe')) yield* buCafe();

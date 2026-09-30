@@ -1,5 +1,5 @@
 // 夕鳴銀座・北の列（看板建築, 30_level_art 6.2）: 焼きそばのたかし, 駄菓子ひのや,
-// 豆腐くま吉, 時計店チクタク堂, 喫茶 夕顔, 山吹酒店. Each facade faces the
+// 豆腐くま吉, 時計店チクタク堂, 喫茶 初日の出, 山吹酒店. Each facade faces the
 // arcade; signs are drawn facing the screen (3.10).
 
 import type { Gfx } from '../../engine/gfx';
@@ -454,7 +454,7 @@ registerBuilding({
   },
 });
 
-// ---------------------------------------------------------------- 喫茶 夕顔
+// ---------------------------------------------------------------- 喫茶 初日の出
 
 registerBuilding({
   id: 'bld_cafe',
@@ -487,10 +487,12 @@ registerBuilding({
     // dark wood exterior
     fillWall(p, 0, fY, 80, 48, wallBoards(P.woodDark, 9, 6));
     eaveShadow(p, 0, fY, 80, 2);
-    // sign: 喫茶 夕顔
-    signBoard(p, 6, fY + 2, 68, 14, P.paper, P.woodDark, 3);
-    const tw = fontWidth('喫茶夕顔', 1);
-    fontText(p, '喫茶夕顔', 6 + Math.floor((68 - tw) / 2), fY + 2, P.woodDark, { spacing: 1 });
+    // sign: 初日の出 (★2026-09-30 依頼主の指示で 喫茶 夕顔→喫茶 初日の出。6字は看板に入らないので、
+    // 看板は店の名前の「初日の出」だけ。場所の名前の帯は「喫茶 初日の出」)
+    // (the board is 18 tall so the kanji's top and bottom strokes stay on it: 「日」 read as 「二」 at 14)
+    signBoard(p, 6, fY + 1, 68, 18, P.paper, P.woodDark, 3);
+    const tw = fontWidth('初日の出', 1);
+    fontText(p, '初日の出', 6 + Math.floor((68 - tw) / 2), fY + 2, P.woodDark, { spacing: 1 });
     // arched windows
     windowAt(b, 20, fY + 22, 14, 16, 'arch', { curtain: P.crimson, side: 'both', frame: P.wood });
     windowAt(b, 60, fY + 22, 14, 16, 'arch', { curtain: P.crimson, side: 'both', frame: P.wood });
