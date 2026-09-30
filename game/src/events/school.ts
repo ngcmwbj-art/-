@@ -82,32 +82,38 @@ registerWorldFx({
     const holding = flag('flag_toban_took') > 0 && !flag('flag_toban_seal');
     const pouring = pour.t0 >= 0 && f.t - pour.t0 < POUR_MS;
     if (holding && !pouring) {
-      // the green can in his hand, at his side (the right one, facing left the left one)
+      // the green can in his hand, down at his side, clear of his body (the right hand;
+      // facing left, the left one); facing north it hangs in front of him, hidden
       const [r, l] = carriedCan();
       const left = p.dir === 'left';
       const img = left ? l : r;
-      const X = Math.round(p.x - cx + (left ? -13 : 3));
-      const Y = Math.round(p.y - cy - 11 + (p.moving ? Math.floor(f.t / 130) % 2 : 0));
-      if (p.dir !== 'up') g.img(img, X, Y);
-      // water in it: a glint at the rose now and then
-      if (flag('flag_toban_can') > 0 && Math.floor(f.t / 400) % 5 === 0 && p.dir !== 'up') g.px(X + (left ? 0 : 9), Y + 2, P.glint);
+      const X = Math.round(p.x - cx + (left ? -17 : 6));
+      const Y = Math.round(p.y - cy - 10 + (p.moving ? Math.floor(f.t / 130) % 2 : 0));
+      if (p.dir !== 'up') {
+        g.img(img, X, Y);
+        // water in it: a glint at the rose now and then
+        if (flag('flag_toban_can') > 0 && Math.floor(f.t / 400) % 5 === 0) g.px(X + (left ? 0 : 9), Y + 2, P.glint);
+      }
     }
     if (pouring) {
-      // the can tipped over the bucket, the water falling from its rose in a short arc
+      // the can held out over the bucket's mouth, its rose tipped down; the water falls in
       const k = (f.t - pour.t0) / POUR_MS;
-      const [r, l] = carriedCan();
-      const left = pour.bx < pour.sx;
-      g.img(left ? l : r, Math.round(pour.sx - cx - (left ? 8 : 1)), Math.round(pour.sy - cy - 4));
-      if (k > 0.1 && k < 0.92) {
-        for (let i = 0; i < 9; i++) {
-          const ph = ((f.t - pour.t0) / 160 + i / 9) % 1;
-          const x = pour.sx + (pour.bx - pour.sx) * ph + Math.sin(i * 2.1) * 1.2;
-          const y = pour.sy + (pour.by - pour.sy) * ph - Math.sin(ph * Math.PI) * 5;
-          g.px(Math.round(x - cx), Math.round(y - cy), i % 3 ? P.aqua : P.glint);
+      const [, l] = carriedCan();
+      const tip = k < 0.12 ? 1 : 0;
+      g.img(l, Math.round(pour.bx - cx + 3), Math.round(pour.by - cy - 13 + tip));
+      if (k > 0.12 && k < 0.9) {
+        // a thin stream from the rose down and left into the mouth (1×2 drops)
+        for (let i = 0; i < 8; i++) {
+          const ph = ((f.t - pour.t0) / 130 + i / 8) % 1;
+          const x = pour.bx + 3 - ph * 3 + Math.sin(ph * Math.PI) * 0.8;
+          const y = pour.by - 10 + ph * 10;
+          const c = i % 3 ? P.aqua : P.glint;
+          g.px(Math.round(x - cx), Math.round(y - cy), c);
+          g.px(Math.round(x - cx), Math.round(y - cy) + 1, c);
         }
         // the splash on the surface
-        if (Math.floor(f.t / 90) % 2) g.px(Math.round(pour.bx - cx - 2), Math.round(pour.by - cy - 1), P.glint);
-        else g.px(Math.round(pour.bx - cx + 2), Math.round(pour.by - cy - 1), P.aqua);
+        if (Math.floor(f.t / 90) % 2) g.px(Math.round(pour.bx - cx - 2), Math.round(pour.by - cy), P.glint);
+        else g.px(Math.round(pour.bx - cx + 2), Math.round(pour.by - cy), P.aqua);
       }
     }
   },
@@ -253,9 +259,10 @@ function* pourInto(idx: number): Co {
   const p = f.player;
   const [tx, ty] = bucketTile(idx);
   const bx = tx * 16 + 8;
-  const by = ty * 16 + 16 - 11;
-  pour.sx = p.x + (bx < p.x ? -6 : bx > p.x ? 6 : 5);
-  pour.sy = p.y - 16 + (by > p.y - 16 ? 2 : -2);
+  // the bucket's mouth (its rim is 9px above the tile's foot, 2px in)
+  const by = ty * 16 + 16 - 12;
+  pour.sx = p.x;
+  pour.sy = p.y;
   pour.bx = bx;
   pour.by = by;
   pour.t0 = f.t;
