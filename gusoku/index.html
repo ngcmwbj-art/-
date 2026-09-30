@@ -1078,6 +1078,9 @@ const Audio2={ctx:null,master:null,
     g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.005);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g);g.connect(this.master);o.start(t);o.stop(t+dur+.02)},
   bubble(v){this.tone(300+Math.random()*500,1200+Math.random()*900,.05,'sine',v)},
   blip(p){this.tone(p,p*.8,.05,'triangle',.03)},
+  grunt(f,v){if(!this.ctx)return;const c=this.ctx,t=c.currentTime,lp=c.createBiquadFilter(),g=c.createGain();lp.type='lowpass';lp.frequency.value=320;lp.Q.value=4;
+    [1,1.5,.5].forEach((m,i)=>{const o=c.createOscillator();o.type=i===1?'square':'sawtooth';o.frequency.setValueAtTime(f*m*(1+Math.random()*.04),t);o.frequency.exponentialRampToValueAtTime(f*m*.82,t+.16);o.connect(lp);o.start(t);o.stop(t+.2)});
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+.18);lp.connect(g);g.connect(this.master)},
   noise(dur,freq,vol,q){if(!this.ctx)return;const c=this.ctx,t=c.currentTime,s=c.createBufferSource();s.buffer=this.noiseBuf;const f=c.createBiquadFilter();f.type='bandpass';f.frequency.value=freq;f.Q.value=q||1;
     const g=c.createGain();g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);s.connect(f);f.connect(g);g.connect(this.master);s.start(t,Math.random()*2);s.stop(t+dur)},
   knock(){this.tone(180,90,.12,'sine',.35);this.noise(.08,1400,.5,3);setTimeout(()=>{this.tone(170,85,.12,'sine',.3);this.noise(.08,1300,.4,3)},170)},
@@ -1094,12 +1097,12 @@ const $=id=>document.getElementById(id);
 const lineEl=$('line'),emoEl=$('emo'),whoEl=$('who');
 const EMO={neutral:'',happy:'（機嫌がいい）',annoyed:'（むっとしている）',sad:'（しょんぼり）',curious:'（触角をこちらへ向けた）',sleepy:'（うとうと）',proud:'（胸を張った…たぶん）',scared:'（身を縮めた）'};
 let voiceOn=true,jpVoice=null;
-function pickVoice(){try{const vs=speechSynthesis.getVoices();jpVoice=vs.find(v=>/ja/i.test(v.lang)&&/male|otoya|ichiro|keita|daichi/i.test(v.name))||vs.find(v=>/ja/i.test(v.lang))||null}catch(e){}}
+function pickVoice(){try{const vs=speechSynthesis.getVoices().filter(v=>/ja/i.test(v.lang));jpVoice=vs.find(v=>/otoya|hattori|ichiro|keita|daichi|naoki|男性|\bmale\b/i.test(v.name)&&!/female|女性/i.test(v.name))||vs[0]||null}catch(e){}}
 try{speechSynthesis.onvoiceschanged=pickVoice;pickVoice()}catch(e){}
 function speak(text){
   if(!voiceOn||!window.speechSynthesis)return;
   const t=text.replace(/（[^）]*）/g,'').replace(/[…‥]+/g,'、').trim();if(!t||/^[、。…\s]*$/.test(t))return;
-  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='ja-JP';if(jpVoice)u.voice=jpVoice;u.pitch=S.stage>=3?.2:.05;u.rate=S.stage<=1?.75:.92;u.volume=.9;speechSynthesis.speak(u)}catch(e){}
+  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='ja-JP';if(jpVoice)u.voice=jpVoice;u.pitch=0;u.rate=S.stage<=1?.7:.82;u.volume=1;speechSynthesis.speak(u)}catch(e){}
 }
 const queue=[];let typing=null;
 function say(text,opt){opt=opt||{};queue.push({text,emo:opt.emo||'neutral',narr:!!opt.narr,who:opt.who});if(!typing)nextLine()}
@@ -1111,7 +1114,7 @@ function nextLine(){
   if(!q.narr){C.talk=Math.max(C.talk,1.2+txt.length*.09);C.face=Math.max(C.face,4);speak(txt)}
   const step=()=>{
     i++;lineEl.textContent=txt.slice(0,i);const c=document.createElement('span');c.className='caret';lineEl.appendChild(c);
-    if(!q.narr&&i%2===0&&!/[（）…]/.test(txt[i-1]))Audio2.blip(q.emo==='annoyed'?120:q.emo==='happy'?240:170);
+    if(!q.narr&&i%2===0&&!/[（）…、。]/.test(txt[i-1]))Audio2.grunt((q.emo==='annoyed'?62:q.emo==='happy'?92:75)*(S.stage===0?1.6:S.stage===1?1.25:1),voiceOn?.05:.09);
     if(i<txt.length)typing.to=setTimeout(step,/[。、…]/.test(txt[i-1])?140:48);
     else typing.to=setTimeout(()=>{lineEl.textContent=txt;nextLine()},Math.min(4200,1400+txt.length*60));
   };step();
