@@ -287,11 +287,11 @@ export class CharGallery implements Scene {
       { w: b.width * z * 2, h: 4 * z * 2 + 8, label: 'edge', draw: (g, x, y) => g.img(flipBoardEdge(), x, y, { scale: z * 2 }) },
       { w: 16 * z * 2, h: 12 * z * 2 + 8, label: 'mini', draw: (g, x, y) => g.img(flipBoardMini(), x, y, { scale: z * 2 }) },
       ((): Tile => {
-        const c = flipBoardText('夕鳴町へ ようこそ！\n（引退しました）');
+        const c = flipBoardText('いらっしゃいませ\n（無人です）');
         return { w: c.width * z, h: c.height * z + 8, label: 'text', draw: (g, x, y) => g.img(c, x, y, { scale: z }) };
       })(),
       // wrapping checks: breaks only at spaces, "3人" stays together, Latin spacing
-      ...([['なかのひとなど いません', 160], ['きょうは 3人来ました', 100], ['PR大使 カネナリ', 100]] as const).map(([txt, maxW]): Tile => {
+      ...([['だれも いません ご自由に', 160], ['きょうは 3人来ました', 100], ['ムジン 販売員 No.1', 100]] as const).map(([txt, maxW]): Tile => {
         const c = flipBoardText(txt, { maxW });
         return { w: c.width * z, h: c.height * z + 8, label: 'wrap', draw: (g, x, y) => g.img(c, x, y, { scale: z }) };
       }),

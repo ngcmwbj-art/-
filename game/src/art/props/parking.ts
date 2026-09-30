@@ -329,9 +329,11 @@ registerProp('obj_balloon_husk', () => {
   const p = pc(12, 12);
   p.ellipse(6, 6, 4, 3.5, P.gold);
   p.set(4, 4, P.goldPale);
-  p.set(5, 6, P.ink); // the bell face
-  p.set(7, 6, P.ink);
-  p.hline(5, 7, 8, P.brassOld);
+  // the mall's bell mark (★2026-09-29: no face)
+  p.set(6, 4, P.brassOld);
+  p.hline(5, 7, 5, P.brassOld);
+  p.hline(5, 7, 6, P.brassOld);
+  p.hline(4, 8, 7, P.brassOld);
   p.vline(6, 10, 11, P.white);
   outline(p, { soft: true });
   const img = p.toCanvas();

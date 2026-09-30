@@ -8,7 +8,7 @@
 // 『ようこそ ゆうやけひろば』 (its よ has fallen onto the deck); the
 // little stage of the mall's old handshake event (red carpet, 紅白幕, the
 // backdrop with the mall's bell mark and 『YUNARI 握手会』, a mic stand with
-// no mic, bunting, two drooping balloons with the smiling bell mark) — where
+// no mic, bunting, two drooping balloons with the bell mark) — where
 // グソっ君 holds his first handshake event (04_gusokkun_plan 2章 8, 案A);
 // the name book on a table beside it; three pipe chairs (one turned away);
 // the queue line taped all the way down to a 『最後尾』 placard; two panda
@@ -65,7 +65,7 @@ function dith(x: number, y: number, t: number, a: string, b: string): string {
   return t > m ? b : a;
 }
 
-/** A deflated balloon with the mall's smiling bell mark (the one in the parking lot's hedge, 30 3.5), turned to `look` (−1 left, 1 right). */
+/** A deflated balloon with the mall's bell mark (the one in the parking lot's hedge, 30 3.5), turned to `look` (−1 left, 1 right). */
 function balloonHusk(look: -1 | 1): HTMLCanvasElement {
   const p = new PixelCanvas(12, 12);
   // a wrinkled, sagging bag hanging from its string
@@ -76,11 +76,12 @@ function balloonHusk(look: -1 | 1): HTMLCanvasElement {
   p.set(5, 4, P.goldPale);
   // the crease where it has gone soft
   p.line(7, 5, 9, 8, P.brass);
-  // the bell face, looking toward the stage
+  // the mall's bell mark (★2026-09-29: no face), the bag turned toward the stage
   const fx = 6 + look;
-  p.set(fx - 1, 7, P.ink);
-  p.set(fx + 1, 7, P.ink);
-  p.hline(fx - 1, fx, 9, P.brassOld);
+  p.set(fx, 5, P.brassOld);
+  p.hline(fx - 1, fx + 1, 6, P.brassOld);
+  p.hline(fx - 1, fx + 1, 7, P.brassOld);
+  p.hline(fx - 2, fx + 2, 8, P.brassOld);
   // knot and string
   p.set(6, 3, P.brassOld);
   p.vline(6, 0, 2, P.white);

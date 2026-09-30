@@ -232,7 +232,11 @@ export function drawCommand(g: Gfx, v: CmdView, t: number, alpha: number): void 
       const bob = Math.round(Math.sin(t / 130) * 1) + (v.pressed ? 1 : 0);
       g.img(cursorStamp(v.pressed), x + 4, 144 + bob);
       const col = cur.dim ? C.gray : C.ink;
-      if (g.measure(cur.name) > 78) {
+      // a name just over the line (おてつだい, 80px) is set 1px tighter and
+      // stays on one line, with its sub line under it
+      const tight = g.measure(cur.name) > 78 && measure(cur.name, -1) <= 78;
+      if (tight) g.text(cur.name, 10, 176, { color: col, spacing: -1 });
+      else if (g.measure(cur.name) > 78) {
         // long names (おかえりなさい) get their own two-line layout, centred
         // under the icon and split between words (おかえり／なさい)
         const ch = [...cur.name];
@@ -240,7 +244,7 @@ export function drawCommand(g: Gfx, v: CmdView, t: number, alpha: number): void 
         g.text(ch.slice(0, cut).join(''), 52, 175, { color: col, align: 'center' });
         g.text(ch.slice(cut).join(''), 52, 192, { color: col, align: 'center' });
       } else g.text(cur.name, 10, 176, { color: col });
-      if (cur.sub && g.measure(cur.name) <= 78) {
+      if (cur.sub && (tight || g.measure(cur.name) <= 78)) {
         if (cur.sub.startsWith('ink:')) {
           g.img(inkPot(), 10, 195);
           g.text(cur.sub.slice(4), 23, 193, { color: C.ink });
@@ -338,6 +342,7 @@ const ACTING_BREAKS: Record<string, string> = {
   なにもしない: 'なにも\nしない',
   へのへのもへじ: 'へのへの\nもへじ',
   ふうせんくばり: 'ふうせん\nくばり',
+  こうらタックル: 'こうら\nタックル',
   ゆでとうもろこし: 'ゆで\nとうもろこし',
 };
 

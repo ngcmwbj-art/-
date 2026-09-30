@@ -1093,14 +1093,17 @@ registerProp('mall_exit_sign', (opts) => {
 
 registerProp('mall_balloon', () => {
   const frames = mkFrames(3, 16, 34, (p, k) => {
-    // a balloon with the mall's smiling bell mark, string swaying 1px
+    // a balloon with the mall's bell mark, string swaying 1px (★2026-09-29:
+    // no face — the bell is ユウナリ's logo, not a character)
     p.ellipse(8, 7, 6.5, 6, P.sun);
     p.ellipse(7, 6, 5, 4.5, P.sky);
     p.rect(4, 3, 2, 2, P.goldPale);
-    // bell-head face: eyes and a small mouth, the bell rim
-    p.set(6, 7, P.ink);
-    p.set(10, 7, P.ink);
-    p.hline(7, 9, 9, P.sunShade);
+    // the bell mark: a knob, the dome and its flared rim
+    p.set(8, 4, P.sunShade);
+    p.hline(7, 9, 5, P.sunShade);
+    p.hline(6, 10, 6, P.sunShade);
+    p.hline(6, 10, 7, P.sunShade);
+    p.hline(5, 11, 8, P.sunShade);
     p.hline(2, 14, 11, P.brassOld);
     p.set(8, 13, P.sunDeep);
     const sx = [0, 1, -1][k];

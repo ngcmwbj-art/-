@@ -68,8 +68,8 @@ registerProp('mall_m5_shell', () => {
   p.hline(bx + 1, bx + bw - 2, 20, P.sunShade);
   fontText(p, 'まいごセンター', bx + 6, 5, P.white, { shadow: P.sunShade });
   castRight(p, bx, 3, bw, 18, 3);
-  // ---- the faded poster 『まいごに なったら、ここで まってて ね』 (the bell mark waving) on the left
-  mascotPoster(p, 18, 5);
+  // ---- the faded poster 『まいごに なったら、ここで まってて ね』 (the mall's bell mark waving) on the left
+  maigoPoster(p, 18, 5);
   // ---- a board of 『迷子のお知らせ』 sheets
   p.rect(52, 24, 30, 18, P.woodLt);
   p.strokeRect(51, 23, 32, 20, P.wood);
@@ -80,7 +80,7 @@ registerProp('mall_m5_shell', () => {
     p.set(x + 3, 25 + (k % 2), P.verm);
   }
   castRight(p, 51, 23, 32, 20, 2);
-  // ---- children's drawings (right) — one of them draws the mascot
+  // ---- children's drawings (right): a house, two holding hands, a cat
   kidDrawing(p, 176, 6, 13, 11, 1);
   kidDrawing(p, 191, 8, 13, 10, 2);
   kidDrawing(p, 180, 22, 12, 10, 3);
@@ -153,8 +153,12 @@ function foamMat(x: number, y: number): string {
   return c;
 }
 
-/** The maigo center's poster, bleached: the mall's bell mark with arms, waving — 『まいごに なったら、ここで まってて ね』. */
-function mascotPoster(p: PixelCanvas, x: number, y: number): void {
+/**
+ * The maigo center's poster, bleached: the mall's bell mark waving a little
+ * hand over a bench — 『まいごに なったら、ここで まってて ね』 (★2026-09-29:
+ * no face and no body; the bell is ユウナリ's logo, not a character).
+ */
+function maigoPoster(p: PixelCanvas, x: number, y: number): void {
   const w = 28;
   const h = 40;
   p.rect(x, y, w, h, P.paper);
@@ -162,22 +166,28 @@ function mascotPoster(p: PixelCanvas, x: number, y: number): void {
   p.vline(x + w - 1, y, y + h - 1, P.paperGrid);
   // sky gone pale
   p.rect(x + 1, y + 1, w - 2, 14, P.skin1);
-  // the bell head (faded brass): a knob, the dome, the flared rim; the face; the body (faded orange), a waving arm
-  const cx = x + 14;
+  // the bell mark (faded brass): a knob, the dome, the flared rim, a shine;
+  // one little hand waving from the rim
+  const cx = x + 13;
   p.rect(cx - 1, y + 3, 3, 2, P.brass);
   p.ellipse(cx + 0.5, y + 10, 6, 6, P.goldPale);
   p.rect(cx - 6, y + 10, 13, 5, P.goldPale);
   p.hline(cx - 8, cx + 9, y + 15, P.goldPale);
   p.hline(cx - 8, cx + 9, y + 16, P.brass);
   p.vline(cx - 4, y + 7, y + 13, P.paper);
-  p.set(cx - 2, y + 11, P.woodDark);
-  p.set(cx + 3, y + 11, P.woodDark);
-  p.hline(cx, cx + 1, y + 13, P.skin4);
-  p.rect(cx - 5, y + 18, 11, 9, P.skin2);
-  p.hline(cx - 5, cx + 5, y + 18, P.skin1);
-  p.line(cx + 5, y + 20, cx + 9, y + 16, P.skin2);
-  p.rect(cx - 4, y + 27, 3, 3, P.skin3);
-  p.rect(cx + 2, y + 27, 3, 3, P.skin3);
+  p.line(cx + 9, y + 15, cx + 11, y + 11, P.brass);
+  p.rect(cx + 11, y + 9, 2, 2, P.brass);
+  p.set(cx + 13, y + 8, P.skin3);
+  p.set(cx + 14, y + 10, P.skin3);
+  // a little bench under it: ここで まってて ね
+  p.hline(cx - 7, cx + 7, y + 22, P.aqua);
+  p.hline(cx - 7, cx + 7, y + 23, P.skin3);
+  p.hline(cx - 7, cx + 7, y + 19, P.aqua);
+  p.vline(cx - 6, y + 20, y + 21, P.skin3);
+  p.vline(cx + 6, y + 20, y + 21, P.skin3);
+  p.vline(cx - 6, y + 24, y + 27, P.skin3);
+  p.vline(cx + 6, y + 24, y + 27, P.skin3);
+  p.hline(x + 2, x + 25, y + 28, P.paperGrid);
   // text strokes 『まいごに なったら、ここで まってて ね』
   printLines(p, x + 3, y + 31, 22, 2, P.peach, 91, 2);
   printLines(p, x + 6, y + 36, 16, 1, P.skin3, 93);
@@ -595,7 +605,7 @@ registerProp('mall_mobile', () => {
       p.vline(ex, ey + 1, ey + len, P.concreteLt);
       const sy = ey + len + 1;
       if (i === 1) {
-        // the bell (the mascot's)
+        // a little bell
         p.rect(ex - 2, sy, 5, 3, P.brass);
         p.set(ex, sy - 1, P.brass);
         p.hline(ex - 3, ex + 3, sy + 3, P.brassOld);

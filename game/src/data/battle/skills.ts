@@ -123,9 +123,9 @@ const enemies: SkillDef[] = [
   enemy({ id: 'skill_momi_kyou', name: '強モード', target: 'enemy', power: 1.2, hits: [0], windupMs: 400, tsukkomi: [2] }),
   enemy({ id: 'skill_momi_otameshi', name: 'お試し10分', target: 'self', windupMs: 500, noDamage: true }),
   // グソっ君（加入戦）
-  enemy({ id: 'skill_kn_fuusen', name: 'ふうせんを配る', target: 'enemy', windupMs: 500, noDamage: true }),
+  enemy({ id: 'skill_kn_fuusen', name: 'おすそわけ', target: 'enemy', windupMs: 500, noDamage: true }),
   enemy({ id: 'skill_kn_goaisatsu', name: 'ごあいさつ', target: 'enemy', windupMs: 500, noDamage: true }),
-  enemy({ id: 'skill_kn_pose', name: 'PRポーズ', target: 'self', windupMs: 400, noDamage: true }),
+  enemy({ id: 'skill_kn_pose', name: 'ポーズ', target: 'self', windupMs: 400, noDamage: true }),
   // オムカエマチ
   enemy({ id: 'skill_omu_tebukuro', name: '片手袋のて', target: 'enemy', power: 0.55, hits: [0, 18], windupMs: 450, tsukkomi: [1] }),
   enemy({ id: 'skill_omu_madakonai', name: 'まだ来ない', target: 'self', windupMs: 500, noDamage: true }),
@@ -224,5 +224,5 @@ export const HANKO_CASE_ORDER = [
   'skill_itadakimasu',
 ];
 
-/** PR活動 order in the list. */
+/** おてつだい (was PR活動) order in the list. */
 export const PR_ORDER = ['skill_fuusen', 'skill_goaisatsu', 'skill_kane'];

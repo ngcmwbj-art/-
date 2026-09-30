@@ -209,7 +209,7 @@ export const IOBJ: Record<string, StageText> = {
 来れますように』。`,
   obj_ceiling_balloon: `@narr
 天井に 風船が 1つ。{w=300}
-ユウナリの、笑った 鐘の マーク。
+ユウナリの 鐘の マーク。
 1年、天井で 待っている。`,
   obj_info_counter: `@narr
 呼び鈴を 押すと、

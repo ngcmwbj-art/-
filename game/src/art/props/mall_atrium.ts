@@ -9,7 +9,7 @@
 // shop fronts under the gallery, the corridor mouths to the food court and
 // the health corner. A skylight shaft falls all the way down to the basin
 // with dust in it; the glass of the railing reflects the skylights; a
-// bell-faced balloon that escaped a year ago floats at railing height.
+// balloon with the mall's bell mark that escaped a year ago floats at railing height.
 //
 // Parallax: M4's camera never moves (the corridor fits the screen), so the
 // depth is sold by the viewer instead — as Minato walks along the gallery
@@ -548,14 +548,17 @@ function build(): Atrium {
   R(78, 126, P.charcoal);
 
   const balloon = mkFrames(3, 14, 40, (p, k) => {
-    // the mascot's bell face on a sun-orange balloon; a long string down into the well
+    // the mall's bell mark on a sun-orange balloon (★2026-09-29: no face);
+    // a long string down into the well
     p.ellipse(7, 6, 6, 5.5, P.sunDeep);
     p.ellipse(7, 6, 5.5, 5, P.sun);
     p.ellipse(6, 5, 4, 3.5, P.sky);
     p.rect(3, 2, 2, 2, P.horizon);
-    p.set(5, 6, P.ink);
-    p.set(9, 6, P.ink);
-    p.hline(6, 8, 8, P.sunShade);
+    p.set(7, 3, P.sunShade);
+    p.hline(6, 8, 4, P.sunShade);
+    p.hline(5, 9, 5, P.sunShade);
+    p.hline(5, 9, 6, P.sunShade);
+    p.hline(4, 10, 7, P.sunShade);
     p.hline(1, 13, 10, P.brassOld);
     p.set(7, 12, P.sunShade);
     const sw = [0, 1, -1][k];

@@ -373,14 +373,15 @@ registerProp('in_yb_shell', () =>
     tube: 1,
     lamps: [[96, 64, 64, 24, P.white]],
     deco(p) {
-      // the うちわ (6, 0–1): a round fan, faded, a bell's face
+      // the うちわ (6, 0–1): a round fan, faded, ユウナリ's bell mark
+      // (★2026-09-29: no face)
       p.ellipse(103.5, 11.5, 6, 6, '#F6D98A');
       p.ring(103.5, 11.5, 6, 6, P.brassOld);
-      p.ellipse(103.5, 12, 3.5, 3.5, P.gold);
-      p.hline(101, 106, 8, P.brassOld);
-      p.set(102, 12, P.ink);
-      p.set(105, 12, P.ink);
-      p.hline(102, 105, 14, P.verm);
+      p.hline(103, 104, 7, P.brassOld);
+      p.ellipse(103.5, 11, 3, 3, P.gold);
+      p.rect(100, 11, 8, 3, P.gold);
+      p.hline(99, 108, 14, P.brassOld);
+      p.vline(101, 10, 12, '#F6D98A');
       p.vline(103, 18, 26, P.woodLt);
       p.vline(104, 18, 26, P.wood);
       // the brewery calendar (7, 0–1)
