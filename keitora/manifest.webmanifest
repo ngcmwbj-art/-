@@ -1,0 +1,16 @@
+{
+  "name": "爆走！つがおのビバベジ便！",
+  "short_name": "ビバベジ便",
+  "description": "トマトを山積みにした軽トラで田んぼ道を爆走するランゲーム",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#1b2216",
+  "theme_color": "#1b2216",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

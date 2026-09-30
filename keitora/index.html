@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>爆走！つがおのビバベジ便！</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#1b2216">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ビバベジ便">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@500;900&display=swap">
@@ -456,6 +464,9 @@ canvas { display: block; width: 100%; height: 100%; }
   'use strict';
 
   // ---- 定数 ----
+  // みんなのランキングの保存先（Googleスプレッドシートの Apps Script を「ウェブアプリ」として公開した URL）。
+  // 空のままなら claude.ai の共有 db を使う。作り方は keitora/ranking/README.md
+  const RANK_URL = '';
   const W = 800, H = 450;        // 論理座標。縦に長い画面では空を上に足す
   const GROUND = 330;            // 道の表面
   const ROAD_H = 24;             // あぜ道の厚み
@@ -1103,7 +1114,7 @@ canvas { display: block; width: 100%; height: 100%; }
     $('newrec').hidden = !rec;
     rk.lastRun = score;
     renderOverRank();
-    if (rec) submitBest();
+    if (rec) submitBest(); else refreshRanking();
     overEl.hidden = false;
     renderPad();
     focusIfKeyboard($('retryBtn'));
@@ -2895,9 +2906,11 @@ canvas { display: block; width: 100%; height: 100%; }
     };
   }
 
-  // ---- みんなのランキング（共有の db に自己ベストを載せる。使えない場所ではボタンごと隠れる） ----
+  // ---- みんなのランキング ----
+  // 保存先は2通り。RANK_URL（Googleスプレッドシートの Apps Script）があればそこへ、
+  // なければ claude.ai の共有 db へ。どちらも使えない場所ではボタンごと隠れる
   const RK_TOP = 10, RK_WINDOW = 50;
-  const rk = { db: null, id: null, write: false, rows: [], mine: null, name: store.get('keitora-name', ''), busy: false, lastRun: 0, from: null };
+  const rk = { on: false, via: '', db: null, id: null, key: null, write: false, rows: [], mine: null, name: store.get('keitora-name', ''), busy: false, lastRun: 0, from: null, fail: false };
   // 他の人が書いた行はそのまま信じない（数値と長さを整える）
   const cleanRow = d => ({
     name: String((d && d.name) || '').slice(0, 12),
@@ -2906,12 +2919,71 @@ canvas { display: block; width: 100%; height: 100%; }
     at: Number(d && d.at) || 0,
   });
   const myRank = () => rk.id ? rk.rows.findIndex(r => r.id === rk.id) + 1 : 0;
+  const bestScoreM = () => Number(store.get('keitora-best-score-m', 0)) || best;
+  function setRows(list) {
+    rk.rows = (Array.isArray(list) ? list : [])
+      .map(r => ({ id: String((r && r.id) || ''), ...cleanRow(r) }))
+      .filter(r => r.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, RK_WINDOW);
+    const me = rk.rows.find(r => r.id === rk.id);
+    if (me) rk.mine = me;
+    renderBoard();
+    renderOverRank();
+  }
+  function showRankButtons() {
+    rk.on = true;
+    $('rankBtn').hidden = false;
+    $('rankBtn2').hidden = false;
+  }
+  // この端末のプレイヤー番号と合言葉（他の人の記録を上書きできないようにする）
+  function hexId(k) {
+    let v = store.get(k, '');
+    if (!/^[0-9a-f]{32}$/.test(v)) {
+      const a = new Uint8Array(16);
+      (window.crypto || {}).getRandomValues ? crypto.getRandomValues(a) : a.forEach((_, i) => { a[i] = Math.random() * 256; });
+      v = [...a].map(x => x.toString(16).padStart(2, '0')).join('');
+      store.set(k, v);
+    }
+    return v;
+  }
+  async function gasCall(body) {
+    const res = await fetch(RANK_URL + (body ? '' : '?t=' + Date.now()), body
+      ? { method: 'POST', body: JSON.stringify(body) }   // text/plain で送る（Apps Script は事前確認に答えられないため）
+      : { cache: 'no-store' });
+    if (!res.ok) throw new Error('http ' + res.status);
+    const j = await res.json();
+    if (!j || !j.ok) throw Object.assign(new Error((j && j.error) || 'bad'), { code: j && j.error });
+    return j;
+  }
+  async function refreshRanking() {
+    if (rk.via !== 'gas') return;
+    try { setRows((await gasCall()).rows); rk.fail = false; }
+    catch (e) { rk.fail = true; renderBoard(); }
+  }
   async function initRanking() {
+    if (RANK_URL) {
+      rk.id = hexId('keitora-pid');
+      rk.key = hexId('keitora-key');
+      try {
+        const j = await gasCall();
+        rk.via = 'gas';
+        rk.write = true;
+        const mine = store.get('keitora-rk-mine', '');
+        if (mine) { try { rk.mine = { id: rk.id, ...cleanRow(JSON.parse(mine)) }; } catch (e) {} }
+        showRankButtons();
+        setRows(j.rows);
+        submitBest();   // ランキングができる前の自己ベストも載せる
+        setInterval(() => { if (!boardEl.hidden) refreshRanking(); }, 30000);
+        return;
+      } catch (e) { /* つながらなければ下の db を試す */ }
+    }
     const c = window.claude;
     if (!c || typeof c.use !== 'function') return;
     let db = null, user = null;
     try { [db, user] = await Promise.all([c.use('db'), c.use('user')]); } catch (e) { return; }
     if (!db) return;
+    rk.via = 'db';
     rk.db = db;
     if (user) {
       try {
@@ -2920,15 +2992,10 @@ canvas { display: block; width: 100%; height: 100%; }
         rk.write = !!rk.id && can !== false;   // null（不明）は書いてみて断られたら閲覧のみにする
       } catch (e) {}
     }
-    $('rankBtn').hidden = false;
-    $('rankBtn2').hidden = false;
+    showRankButtons();
     db.collection('scores').orderBy('score', 'desc').limit(RK_WINDOW).onSnapshot(snap => {
-      rk.rows = snap.docs.map(d => ({ id: d.id, ...cleanRow(d.data()) })).filter(r => r.score > 0);
-      const me = rk.rows.find(r => r.id === rk.id);
-      if (me) rk.mine = me;
-      renderBoard();
-      renderOverRank();
-    }, () => { rk.rows = []; renderBoard(); });
+      setRows(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, () => setRows([]));
     if (rk.id) {
       try {
         const s = await db.doc('scores/' + rk.id).get();
@@ -2937,24 +3004,35 @@ canvas { display: block; width: 100%; height: 100%; }
     }
     renderBoard();
     renderOverRank();
-    submitBest();   // ランキングができる前の自己ベストも載せる
+    submitBest();
   }
   // 自己ベストが載っている記録より良ければ（または名前を変えたら）書き込む
   async function submitBest() {
-    if (!rk.db || !rk.write || !rk.name || rk.busy || bestScore <= 0) return;
+    if (!rk.on || !rk.write || !rk.name || rk.busy || bestScore <= 0) return;
     const mine = rk.mine;
     const better = !mine || bestScore > mine.score;
     if (!better && mine.name === rk.name) return;
     const body = better
-      ? { name: rk.name, score: bestScore, m: Number(store.get('keitora-best-score-m', 0)) || 0, at: Date.now() }
+      ? { name: rk.name, score: bestScore, m: bestScoreM(), at: Date.now() }
       : { name: rk.name, score: mine.score, m: mine.m, at: mine.at };
     rk.busy = true;
     try {
-      await rk.db.doc('scores/' + rk.id).set(body);
-      rk.mine = { id: rk.id, ...body };
+      if (rk.via === 'gas') {
+        const j = await gasCall({ id: rk.id, key: rk.key, ...body });
+        store.set('keitora-rk-mine', JSON.stringify(body));
+        rk.mine = { id: rk.id, ...body };
+        setRows(j.rows);
+      } else {
+        await rk.db.doc('scores/' + rk.id).set(body);
+        rk.mine = { id: rk.id, ...body };
+      }
+      rk.fail = false;
     } catch (e) {
       const code = e && e.code;
-      if (code === 'unavailable') setTimeout(() => submitBest(), 1500 + Math.random() * 1500);
+      if (rk.via === 'gas') {
+        if (code === 'not_yours' || code === 'bad_id') rk.write = false;
+        else rk.fail = true;   // 通信の失敗：次の記録更新か名前の登録でまた送る
+      } else if (code === 'unavailable') setTimeout(() => submitBest(), 1500 + Math.random() * 1500);
       else if (code !== 'resource_exhausted') rk.write = false;   // 登録できない人：見るだけにする
       rk.err = code || 'unknown';
     }
@@ -2964,7 +3042,7 @@ canvas { display: block; width: 100%; height: 100%; }
   }
   function renderOverRank() {
     const el = $('rkOver');
-    if (!rk.db) { el.hidden = true; return; }
+    if (!rk.on) { el.hidden = true; return; }
     const i = myRank();
     let t = '';
     if (rk.mine && i > 0) t = `みんなのランキング ${i} 位` + (rk.lastRun >= rk.mine.score && rk.lastRun > 0 ? '　この記録で登録!' : '');
@@ -3004,11 +3082,13 @@ canvas { display: block; width: 100%; height: 100%; }
     $('rkForm').hidden = !rk.write;
     const input = $('rkName');
     if (document.activeElement !== input) input.value = rk.name;
-    $('rkNote').textContent = rk.write ? '名前はみんなに見えます。本名は入れないでね'
+    $('rkNote').textContent = rk.fail ? 'ランキングにつながりませんでした。電波のよいところでもう一度開いてね'
+      : rk.write ? '名前はみんなに見えます。本名は入れないでね'
       : '見ることはできますが、登録できるのは招待されたメンバーだけです';
   }
   function openBoard() {
-    if (!rk.db) return;
+    if (!rk.on) return;
+    refreshRanking();
     rk.from = document.activeElement;
     renderBoard();
     boardEl.hidden = false;
@@ -3078,6 +3158,11 @@ canvas { display: block; width: 100%; height: 100%; }
   resize();
   renderTitleBest();
   initRanking();
+  // ホーム画面に追加したときに、電波がなくても開けるようにする（公開サイトのときだけ）
+  if ('serviceWorker' in navigator && window.top === window && !window.claude &&
+      (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
   drawIcons();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(drawIcons);
   requestAnimationFrame(frame);
