@@ -26,6 +26,8 @@ import './people/maru';
 import './people/tamotsu';
 // よねと とよぞう（畦道の先の 分水、02 #67）
 import './people/aze';
+// ぶーさんの本体（喫茶 夕顔の窓ぎわの席と公園のベンチ、02 #71）
+import './people/bu';
 import './hoshi_dog';
 import './hoshi_cattle';
 import './hoshi_nappers';

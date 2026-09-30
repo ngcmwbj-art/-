@@ -64,9 +64,19 @@ function* stepBack(k: Actor): Co {
   const dx = p.tileX - k.tileX;
   const dy = p.tileY - k.tileY;
   if (Math.abs(dx) + Math.abs(dy) !== 1) return;
-  const tx = p.tileX + dx;
-  const ty = p.tileY + dy;
-  if (!f.free(p, tx * 16 + 8, ty * 16 + 16, true)) return;
+  const free = (x: number, y: number) => f.free(p, x * 16 + 8, y * 16 + 16, true);
+  let tx = p.tileX + dx;
+  let ty = p.tileY + dy;
+  if (!free(tx, ty)) {
+    // from above the tower's base is right behind: a step aside instead
+    // (he lies across the tile, head to the right — his feet would hide
+    // しゅん's), toward his head first
+    if (dy !== -1) return;
+    const side = [1, -1].find((sx) => free(p.tileX + sx, p.tileY));
+    if (side === undefined) return;
+    tx = p.tileX + side;
+    ty = p.tileY;
+  }
   yield* walk('player', [[tx, ty]], { speed: 2, lockFace: true });
   face('player', 'npc_kanenari');
 }

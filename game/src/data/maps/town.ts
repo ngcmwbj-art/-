@@ -535,8 +535,14 @@ const OBJECTS: MapObj[] = [
   {
     // tag round the clock tower's plaza, inside the four lamps (QA round 3:
     // on the lamps' own column he ran behind a pole and onto the fountain)
-    t: 'npc', id: 'walk_kid', sprite: 'npc_walker_kid', passerby: true, x: 13, y: 5, dir: 'down', cond: s01,
+    t: 'npc', id: 'walk_kid', sprite: 'npc_walker_kid', passerby: true, x: 13, y: 5, dir: 'down', cond: s0,
     move: { kind: 'route', points: [[13, 5], [13, 9], [18, 9], [18, 5]], speed: 2.6, wait: 1500 },
+  },
+  {
+    // stage 1: グソっ君 lies across (16,9) — the loop's lower leg runs a row
+    // further down, in front of him, not over him (★2026-09-29)
+    t: 'npc', id: 'walk_kid', sprite: 'npc_walker_kid', passerby: true, x: 13, y: 5, dir: 'down', cond: { stage: 1 },
+    move: { kind: 'route', points: [[13, 5], [13, 10], [18, 10], [18, 5]], speed: 2.6, wait: 1500 },
   },
 
   // ======================================================== enemy symbols (20_systems 14)

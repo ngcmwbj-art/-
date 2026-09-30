@@ -14,8 +14,10 @@
 //               IDは据え置き）。こげ茶の髪を 低い おだんごに まとめて 真ちゅうの
 //               ピン、細い めがね、白い ブラウスに 紺の 腕カバー、えんじの 店の
 //               エプロン、灰の スカート。懐中時計を めがねの 前へ（ルーペ）
-//   npc_master  マスター（喫茶）60代。なでつけた灰色の髪と口ひげ、白い
-//               シャツに黒いベストと蝶ネクタイ。カップをみがく
+//   npc_master  かずゆき（喫茶 夕顔のマスター）40代の男性（★2026-09-30 依頼主の
+//               指示で 60代の灰色の髪・口ひげ・ベストと蝶ネクタイの マスター→かずゆき。
+//               IDは据え置き、02 #71）。黒髪を 後ろへ なでつけ、あごに 短い ひげ、
+//               白い シャツの 腕まくり、こげ茶の エプロン。カップをみがく
 //   npc_okami   おかみ（酒店）60代。黒髪のおだんごに藍の手ぬぐい、
 //               からし色のシャツに酒蔵の紺の前かけ。腕まくり、腰に手
 //
@@ -116,20 +118,24 @@ const HEAD_KNOT: HeadT = {
   neckL: [5, 9, 2],
 };
 
-/** Hair combed straight back (マスター). */
-const HEAD_BACK: HeadT = {
+/**
+ * Black hair combed straight back, the brow bare (かずゆき, ★2026-09-30): the
+ * eyes a row higher than the old master's so the short beard fits on the chin
+ * under the mouth (drawn by `beard`).
+ */
+const HEAD_KAZU: HeadT = {
   faceD: [4, 3, ['.######.', '########', '########', '########', '.######.', '..####..']],
   hairD: [3, 0, ['..hHhhhh..', '.HKHhhhhd.', 'HHhhhhhhdd', 'Hh......dd', 'h........d']],
-  eyesD: { x: 6, d: 3, y: 6, h: 1, brow: { dy: -1, mat: 'brow', w: 2 } },
-  mouthD: [7, 8, 2],
+  eyesD: { x: 6, d: 3, y: 5, h: 2, brow: { dy: -1, mat: 'brow', w: 2 } },
+  mouthD: [7, 7, 2],
   neckD: [7, 9, 2],
   hairU: [3, 0, ['..hHhhhh..', '.HKHhhhhd.', 'HHhhhhhhdd', 'Hhhhhhhhdd', 'hhhhhhhhhd', '.hhhhhhd..']],
   napeU: [5, 6, ['######', '.####.']],
   faceL: [3, 3, ['.####...', '#####...', '######..', '#####...', '.####...', '..##....']],
   hairL: [3, 0, ['..######..', '.#######dd', '##########', '###..#####', '......####', '.......##d']],
-  eyeL: { x: 4, y: 6, h: 1, brow: { dy: -1, mat: 'brow', w: 2 } },
+  eyeL: { x: 4, y: 5, h: 2, brow: { dy: -1, mat: 'brow', w: 2 } },
   earL: [8, 5],
-  mouthL: [3, 8],
+  mouthL: [3, 7],
   neckL: [5, 9, 2],
 };
 
@@ -148,6 +154,8 @@ interface Look {
   sleeve: number;
   /** Arm covers (ゆう): the forearm in this material. */
   cuff?: string;
+  /** Rolled-up sleeves (かずゆき): one row of the fold in this material, then the bare forearm. */
+  roll?: string;
   apron?: 'bib' | 'waist';
   /** The bib apron's straps run from the shoulders to the waist tie on the back (ゆう). */
   apronBack?: boolean;
@@ -160,6 +168,8 @@ interface Look {
   /** 'slim': thin rims beside and under the eyes (ゆう), the eyes stay clear. */
   glasses?: 'round' | 'thin' | 'slim';
   moustache?: boolean;
+  /** A short beard on the chin under the mouth (かずゆき): 'beard' dark, 'stubble' at its sides. */
+  beard?: boolean;
   scarf?: boolean;
   headband?: boolean;
   hairpin?: boolean;
@@ -179,7 +189,11 @@ function drawFolk(L: Look, f: Fig, p: Pose): void {
   const u = upper(p) + drop;
   const b = p.bob + drop;
   const hy = L.hy + u;
-  const seg: Seg[] = L.cuff ? [{ mat: 'top', n: L.sleeve }, { mat: L.cuff, n: 2 }, { mat: 'skin' }] : [{ mat: 'top', n: L.sleeve }, { mat: 'skin' }];
+  const seg: Seg[] = L.cuff
+    ? [{ mat: 'top', n: L.sleeve }, { mat: L.cuff, n: 2 }, { mat: 'skin' }]
+    : L.roll
+      ? [{ mat: 'top', n: L.sleeve }, { mat: L.roll, n: 1 }, { mat: 'skin' }]
+      : [{ mat: 'top', n: L.sleeve }, { mat: 'skin' }];
   if (p.view === 'down' || p.view === 'up') {
     if (seated) {
       // the knees folded under: a low, wide mound of the lower clothes
@@ -325,6 +339,14 @@ function extrasFront(L: Look, f: Fig, p: Pose, hy: number): void {
       f.px(5, hy + (L.head.mouthD?.[1] ?? 8));
       f.px(10, hy + (L.head.mouthD?.[1] ?? 8));
     }
+    if (L.beard && !up) {
+      // the chin under the mouth: dark in the middle, stubble at the corners
+      const by = hy + (L.head.mouthD?.[1] ?? 7) + 1;
+      f.part('beard', { flat: true, rim: false });
+      f.px(7, by).px(8, by);
+      f.part('stubble', { flat: true, rim: false, ol: false });
+      f.px(6, by).px(9, by);
+    }
   }
   if (L.scarf) {
     // white triangle scarf over the crown, the knot at the nape
@@ -386,6 +408,13 @@ function extrasSide(L: Look, f: Fig, p: Pose, hy: number): void {
   if (L.moustache && !up) {
     f.part('stache', { flat: true, rim: false });
     f.hl(2, 4, hy + (L.head.mouthL?.[1] ?? 8) - 1);
+  }
+  if (L.beard && !up) {
+    const by = hy + (L.head.mouthL?.[1] ?? 7) + 1;
+    f.part('beard', { flat: true, rim: false });
+    f.px(5, by).px(6, by);
+    f.part('stubble', { flat: true, rim: false, ol: false });
+    f.px(4, by - 1);
   }
   if (L.scarf) {
     f.part('scarf', { shade: 'rb', light: 't' });
@@ -630,37 +659,42 @@ folk({
   idle: [...breathe(2), { act: 'loupe', ph: 0 }, { act: 'loupe', ph: 0 }, { act: 'loupe', ph: 1 }, { act: 'loupe', ph: 1 }, { act: 'loupe', ph: 1, blink: true }, { act: 'loupe', ph: 0 }, ...breathe(1)],
 });
 
-// ---------------------------------------------------------------- マスター（喫茶 夕顔）
+// ---------------------------------------------------------------- かずゆき（喫茶 夕顔のマスター。★2026-09-30、IDは npc_master）
 
 folk({
   id: 'npc_master',
   mats: {
     ...base,
     skin: SKIN_MID,
-    hair: mat('#6B7186', { shade: '#4E5262', light: '#9AA0A8', dark: '#2A2440', rim: '#C8B8B0' }),
-    brow: flat('#3A3F48'),
+    hair: mat('#2B1E1A', { shade: '#1B1733', light: '#5A3A2A', dark: '#0B0B14', rim: '#A86A4A' }),
+    brow: flat('#2B1E1A'),
     top: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFFFFF', dark: '#9AA0A8', rim: '#FFE0B8' }),
-    vest: mat('#2A2440', { shade: '#1B1733', light: '#4A3A6E', dark: '#0B0B14', rim: '#7A5AA0' }),
-    tie: flat('#8A2E3A'),
-    tieK: flat('#5E1E2A'),
+    rolled: mat('#E8E4D8', { shade: '#C8C2B4', light: '#F4F1E8', dark: '#9AA0A8' }),
+    apron: mat('#5A3A2A', { shade: '#3A2B2A', light: '#8A5A3A', dark: '#2B1E1A', rim: '#C8845A' }),
+    strap: flat('#3A2B2A'),
     slacks: mat('#3A3F48', { shade: '#2A2440', light: '#6B7186' }),
     shoe: mat('#2A2440', { shade: '#1B1733', light: '#3A3F48', spec: '#9AA0A8' }),
-    stache: flat('#4E5262'),
+    beard: flat('#2B1E1A'),
+    stubble: flat('#B88A6A'),
     cup: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFFFFF' }),
     cloth: flat('#E8D9B5'),
   },
-  head: HEAD_BACK,
+  head: HEAD_KAZU,
   hy: 2,
   legs: { cx: 8, hip: 17, foot: 22, w: 2, gap: 2, mat: 'slacks', shoe: 'shoe', shoeLen: 3 },
-  sleeve: 3,
-  vest: true,
-  bowtie: true,
-  moustache: true,
+  // the sleeves rolled up to the elbow
+  sleeve: 1,
+  roll: 'rolled',
+  apron: 'bib',
+  apronLen: 5,
+  beard: true,
   // polishing a cup (the cloth goes round)
   act(f, p, u) {
     if (p.act !== 'polish') return false;
     f.part('top', { shade: 'b', light: '' });
-    f.line(3, 13 + u, 6, 16 + u).line(12, 13 + u, 9, 16 + u);
+    f.px(3, 13 + u).px(12, 13 + u);
+    f.part('skin', { shade: 'b', light: '' });
+    f.line(4, 14 + u, 6, 16 + u).line(11, 14 + u, 9, 16 + u);
     f.part('cup', { shade: 'rb', light: 't' });
     f.rect(7, 14 + u, 3, 3);
     f.part('cloth', { flat: true, rim: false });

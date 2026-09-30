@@ -326,7 +326,7 @@ registerProp('mall_rest_bench', () => {
  * frame height): everything down to `lap` rests on the seat (head, body,
  * the shorts as the lap seen end-on), then the `legs` rows hang below the
  * seat's front edge, feet off the floor. Minato's shins get one row more
- * (his knee), カネナリくん's stubby feet just dangle.
+ * (his knee), グソっ君's short hind legs just dangle (id 'kanenari').
  */
 const SEAT: Record<string, { lap: number; legs: number[] }> = {
   minato: { lap: 5, legs: [4, 4, 3, 2, 1] },

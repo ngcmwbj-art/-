@@ -642,7 +642,8 @@ function kanenariBell(c: SeCtx, decayK: number, volK: number): void {
   if (!g.offline) setTimeout(() => out.disconnect(), (end - ctx.currentTime) * 1000 + 500);
 }
 se('se_bell_kanenari', {
-  label: 'カネナリくんの鐘（ゴーン）',
+  // ★2026-09-29: now the clock tower's chime, its stopped 4th note (the boss's end, 04_gusokkun_plan 3章)
+  label: 'チャイムの4音目（ゴーン）',
   group: CHIME,
   bus: 'bell',
   fn(c) {
