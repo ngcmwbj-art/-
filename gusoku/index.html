@@ -719,6 +719,10 @@ function buildIsopod(opt){
         const m=new THREE.Mesh(new THREE.CircleGeometry(1,28),oostMat);m.scale.set(.24,.15,1);m.rotation.x=-Math.PI/2;m.position.set(-s*.24,-.1,0);g.add(m);I.oost.push({g,s})});
     }
   }
+  I.newShellMat=shellMat.clone();addCaustics(I.newShellMat,.8);I.newShellMat.color.setRGB(1.55,1.42,1.36);I.newShellMat.roughness=.18;I.newShellMat.clearcoat=1;
+  I.newLimbMat=limbMat.clone();addCaustics(I.newLimbMat,.6);I.newLimbMat.color.set('#f2e6dc');
+  I.calcMat=new THREE.MeshStandardMaterial({color:'#fbfaf5',roughness:.85,transparent:true,opacity:0});I.calc=[];
+  for(let k=1;k<=4;k++){const sp=I.segs[k].sp;[-1,1].forEach(s=>{const m=new THREE.Mesh(new THREE.SphereGeometry(1,14,8),I.calcMat);m.scale.set(.2,.028,.1);m.position.set(s*.2,-sp.hw0*.14-.012,-sp.len*.5);m.visible=false;I.segs[k].j.add(m);I.calc.push(m)})}
   I.body.traverse(o=>{if(o.isMesh)o.userData.isopod=true});
   const cs=new THREE.Mesh(new THREE.PlaneGeometry(2.4,4.4),new THREE.ShaderMaterial({transparent:true,depthWrite:false,uniforms:{uA:{value:.55}},
     vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
@@ -728,7 +732,7 @@ function buildIsopod(opt){
   return I;
 }
 /* pose any isopod from a small parameter set */
-function newPose(){return {pos:new V3(),yaw:0,walk:0,gait:0,turn:0,curl:0,lift:0,swim:0,eat:0,talk:0,startle:0,rear:0,pouch:0,legs7:true,size:1,yOverride:null}}
+function newPose(){return {peri:0,periA:0,pos:new V3(),yaw:0,walk:0,gait:0,turn:0,curl:0,lift:0,swim:0,eat:0,talk:0,startle:0,rear:0,pouch:0,legs7:true,size:1,yOverride:null}}
 function poseIsopod(I,P,dt,time){
   const sc=P.size;I.root.scale.setScalar(sc);
   const fwd=new V3(Math.sin(P.yaw),0,Math.cos(P.yaw)),right=new V3(Math.cos(P.yaw),0,-Math.sin(P.yaw));
@@ -745,13 +749,15 @@ function poseIsopod(I,P,dt,time){
   I.body.rotation.x=lerp(pitchG,0,P.swim)-P.lift*.13+P.eat*.14+P.curl*.95-P.rear*.3+Math.sin(time*.4)*.012;
   I.body.rotation.z=lerp(rollG,Math.PI+Math.sin(time*1.4)*.12,smooth(.15,.9,P.swim))-P.turn*.05;
   I.joints.forEach((j,k)=>{if(k===0)return;const pl=k>=8;
-    j.rotation.x=-P.curl*(pl?.23:.15)+(pl?Math.sin(time*6-k)*.07*P.swim:0)+Math.sin(time*.9+k*.4)*.004+(k>=8?P.rear*.05:0);});
+    j.rotation.x=-P.curl*(pl?.23:.15)+(pl?Math.sin(time*6-k)*.07*P.swim:0)+Math.sin(time*.9+k*.4)*.004+(k>=8?P.rear*.05:0)
+      +(k>=5?Math.sin(time*4.2-k*.9)*.06*(P.peri||0):0)+(k>=1&&k<=5?Math.sin(time*3.6-k*.9)*.05*(P.periA||0):0);});
   I.legs.forEach(L=>{
     L.hip.visible=P.legs7||L.k<6;
     const ph=P.walk+L.ph,sw=Math.max(0,Math.sin(ph)),st=Math.cos(ph);
     const twitch=Math.sin(time*2.3+L.k*1.7+L.s)*.04*(1-g)+(L.front?Math.sin(time*1.1+L.k)*.05*(1-g):0);
     const swimP=Math.sin(time*5+L.k*.6)*.3*P.swim;
-    L.hip.rotation.y=L.base+(L.s>0?-1:1)*(st*.32*g+twitch+swimP);
+    const pushL=(L.k>=4?(P.peri||0):(P.periA||0))*Math.sin(time*3.1+L.k*.8+L.s)*.35;
+    L.hip.rotation.y=L.base+(L.s>0?-1:1)*(st*.32*g+twitch+swimP+pushL);
     L.js[0].rotation.z=lerp(L.rest[0]+sw*.45*g,1.05,P.curl)+P.swim*.6;
     L.js[1].rotation.z=lerp(L.rest[1]-sw*.2*g,-2.3,Math.max(P.curl,P.swim*.8));
     L.js[2].rotation.z=lerp(L.rest[2],-1.1,Math.max(P.curl,P.swim*.5));
@@ -800,7 +806,7 @@ function removeFood(f){scene.remove(f.mesh);foods.splice(foods.indexOf(f),1)}
    CREATURE BRAIN
    ===================================================================== */
 let ISO,MOM=null;
-const SIZES=[.26,.44,.7,1],MM=[22,41,72,128],STAGES=['マンカ','幼体','亜成体','成体'],NEED=[10,30,58];
+const STAGES=['マンカ','幼体','亜成体','成体'];
 const C=Object.assign(newPose(),{pos:new V3(.4,0,.2),yaw:-.35,speed:0,state:'idle',t:0,wait:3,target:null,curlT:0,face:0,size:.26,sizeT:.26,eatF:null,swam:false});
 function pickWander(){
   const r=3+6*C.size;
@@ -817,7 +823,7 @@ function updateCreature(dt,time){
     if(C.talk>0||C.face>0)wantYaw=camYaw();
     const edible=foods.find(f=>f.rest&&f.left>.05&&f.accepted);
     if(edible)setState('approach',{target:new V3(edible.x,0,edible.z),eatF:edible});
-    else if(C.t>C.wait&&C.talk<=0&&C.face<=0&&!Game.molting){
+    else if(C.t>C.wait&&C.talk<=0&&C.face<=0&&!Game.molting&&!C.exEating){
       if(S.mood>72&&S.stage>=2&&rnd()<.18&&!C.swam){setState('swim');C.swam=true;setTimeout(()=>C.swam=false,90000)}
       else setState('walk',{target:pickWander()});
     }
@@ -848,6 +854,7 @@ function updateCreature(dt,time){
     if(C.t>T){C.swim=0;setState('idle',{wait:6})}
   }else C.swim=damp(C.swim,0,2,dt);
   C.face=Math.max(0,C.face-dt);
+  if(Molt.phase&&Molt.phase!=='soft'&&Molt.phase!=='pre'){wantYaw=C.yaw;wantSpeed=0}
   const dy=angDiff(C.yaw,wantYaw),tr=clamp(dy*2.2,-.9,.9);C.turn=damp(C.turn,tr,5,dt);C.yaw+=C.turn*dt;
   C.speed=damp(C.speed,wantSpeed*(1-C.curl),3,dt);
   if(C.state!=='swim'){
@@ -860,8 +867,8 @@ function updateCreature(dt,time){
   C.gait=clamp(C.speed/spd*3+Math.abs(C.turn)*.9,0,1)*(1-C.curl)*(1-C.swim);
   C.walk+=dt*(C.speed/spd*14+Math.abs(C.turn)*4.5);
   C.lift=damp(C.lift,(C.talk>0?1:0)+(C.face>0?.6:0),3,dt);
-  C.eat=C.state==='eat'?1:0;
-  C.size=damp(C.size,C.sizeT,.35,dt);C.legs7=S.stage>=1;
+  C.eat=C.state==='eat'?1:0;updateExuviae(dt);
+  C.size=damp(C.size,C.sizeT,.35,dt);C.legs7=S.molts>=1;
   C.startle=Math.max(0,C.startle-dt);
   poseIsopod(ISO,C,dt,time);
 }
@@ -905,7 +912,7 @@ const Cine={on:false,t:0,fired:{},hatch:null,halves:[],eggW:new V3(),
       const nx=lerp(this.eggW.x,tgt.x,k),nz=lerp(this.eggW.z,tgt.z,k);
       const moved=Math.hypot(nx-C.pos.x,nz-C.pos.z);C.pos.x=nx;C.pos.z=nz;
       C.gait=clamp(moved/dt*6,0,1);C.walk+=moved*60;
-      C.curl=1-smooth(14.2,16.4,t);C.size=lerp(.1,SIZES[0],smooth(13.6,21,t));
+      C.curl=1-smooth(14.2,16.4,t);C.size=lerp(.07,sizeOf(0),smooth(13.6,21,t));
       const gy=heightAt(C.pos.x,C.pos.z);C.yOverride=t<15?lerp(this.eggW.y-.05,gy,smooth(13.6,15,t)):null;
       C.lift=.3*smooth(20,24,t);C.face=0;C.legs7=false;
       poseIsopod(ISO,C,dt,time);ISO.contact.visible=t>15;
@@ -939,7 +946,7 @@ const Cine={on:false,t:0,fired:{},hatch:null,halves:[],eggW:new V3(),
       if(MOM){scene.remove(MOM.root);scene.remove(MOM.contact);CONTACTS.splice(CONTACTS.indexOf(MOM.contact),1);MOM=null}
       if(!this.fired.crack){this.eggW.set(-.2,heightAt(-.2,-.6),-.6);C.pos.set(.15,0,.6);this.spawnHalves()}
       this.halves.forEach(h=>{h.v=null;h.m.position.y=heightAt(h.m.position.x,h.m.position.z)+.03});
-      ISO.root.visible=true;ISO.contact.visible=true;C.curl=C.curlT=0;C.size=C.sizeT=SIZES[0];C.yOverride=null;C.yaw=.3;setState('idle',{wait:8});
+      ISO.root.visible=true;ISO.contact.visible=true;C.curl=C.curlT=0;C.size=C.sizeT=sizeOf(0);C.yOverride=null;C.yaw=.3;setState('idle',{wait:8});
       S.hatched=true;S.born=Date.now();S.light='red';syncLampUI();save();refreshHUD();
       document.body.classList.remove('cine');$('skip').hidden=true;
       CAM.yaw=CAM.tYaw=.25;CAM.pitch=CAM.tPitch=.28;CAM.zoom=1;CAM.intro=0;CAM.focus.copy(C.pos);
@@ -1116,7 +1123,8 @@ const Voice={
     if(!this.bus)return 0;this.stop();
     const c=Audio2.ctx;let t=c.currentTime+.04;const t0=t;
     const clean=text.replace(/（[^）]*）/g,'').trim();
-    const f0base=[128,104,84,72][stage]||84;
+    const gw=clamp((S.molts||0)/9,0,1);this.gw=gw;
+    const f0base=235*Math.pow(60/235,gw);
     const E={annoyed:{f:.86,d:.84,g:1.4},happy:{f:1.14,d:.95,g:.9},sad:{f:.9,d:1.3,g:.8},curious:{f:1.05,d:1,g:1},sleepy:{f:.88,d:1.4,g:.7},proud:{f:.94,d:1.12,g:1.1},scared:{f:1.2,d:.8,g:.9}}[emo]||{f:1,d:1,g:1};
     const q=/[?？]\s*$|か[。…]*$|だな[?？]?$/.test(clean);
     let phrases=clean.split(/([、。…！!？?\s]+)/).filter(x=>x!=='');
@@ -1125,14 +1133,14 @@ const Voice={
     phrases.forEach(p=>{
       if(!/[^、。…！!？?\s]/.test(p)){t+=/…/.test(p)?.34:/[。！!？?]/.test(p)?.26:.16;return}
       wi++;const last=wi===words.length;
-      const n=clamp(Math.round(p.length/2.1),1,stage<=1?4:8);
+      const n=clamp(Math.round(p.length/2.1),1,S.molts<=3?4:8);
       for(let i=0;i<n;i++){
         const cons=(syl++%2===0)?'g':'s';const u=n>1?i/(n-1):0;
         let f=f0base*E.f*(1.06-.16*u)*(1+(Math.random()-.5)*.05);
         let f2=f*.96;
         if(emo==='happy')f*=(i%2?1.07:.95);
         if(last&&i===n-1){if(q){f2=f*1.38}else{f2=f*.8}}
-        const d=(.155+Math.random()*.03)*E.d*(stage<=1?.85:1)*(last&&i===n-1?1.5:1);
+        const d=(.155+Math.random()*.03)*E.d*(.72+.33*gw)*(last&&i===n-1?1.5:1);
         this.syllable(t,cons,cons==='g'?'u':'o',f,f2,d,E.g);t+=d+.012;
       }
     });
@@ -1140,13 +1148,13 @@ const Voice={
   },
   syllable(t,cons,vowel,f0a,f0b,dur,grit){
     const c=Audio2.ctx,live=this.live;
-    const F=vowel==='u'?[330,1180,2250]:[470,820,2400],scale=.8,Qs=[5,9,12],G=[1,.55,.22];
+    const F=vowel==='u'?[330,1180,2250]:[470,820,2400],scale=1.34*Math.pow(.76/1.34,this.gw||0),Qs=[5,9,12],G=[1,.55,.22];
     const vStart=t+(cons==='s'?.065:.018);
     // glottal source + sub-harmonic + vibrato
     const src=c.createGain();
     const o=c.createOscillator();o.type='sawtooth';o.frequency.setValueAtTime(f0a,vStart);o.frequency.linearRampToValueAtTime(f0b,vStart+dur);
     const sub=c.createOscillator();sub.type='square';sub.frequency.setValueAtTime(f0a/2,vStart);sub.frequency.linearRampToValueAtTime(f0b/2,vStart+dur);
-    const sg=c.createGain();sg.gain.value=.22*grit;
+    const sg=c.createGain();sg.gain.value=(.04+.26*(this.gw||0))*grit;
     const lfo=c.createOscillator();lfo.frequency.value=5.5+Math.random()*2;const lg=c.createGain();lg.gain.value=f0a*.018;lfo.connect(lg);lg.connect(o.frequency);lg.connect(sub.frequency);
     o.connect(src);sub.connect(sg);sg.connect(src);
     const env=c.createGain();env.gain.setValueAtTime(0,vStart);env.gain.linearRampToValueAtTime(.34,vStart+.025);env.gain.setValueAtTime(.34,vStart+dur-.05);env.gain.exponentialRampToValueAtTime(.0008,vStart+dur);
@@ -1296,7 +1304,7 @@ const STAGE_RULE=[
 function buildPrompt(userText){
   const tank=`水温${S.temp.toFixed(1)}℃（快適8〜12℃）／水質${Math.round(S.water)}%／空腹${Math.round(S.hunger)}／機嫌${Math.round(S.mood)}／信頼${Math.round(S.trust)}／照明:${LIGHTS[S.light].label}（白色灯は眩しくて嫌い、赤色灯は見えないので平気、消灯が好き）／飼育${dayNo()}日目／現在時刻${new Date().getHours()}時`;
   const hist=S.log.slice(-12).map(l=>(l.r==='u'?'飼い主：':'グソク：')+l.t).join('\n')||'（まだない）';
-  return `あなたは育成ゲーム「グソク」の主人公、水槽で飼われているオオグソクムシ（Bathynomus doederleinii）の「グソク」を演じます。この水槽で母親の育房から生まれ、飼い主に見守られて育った。いまは${STAGES[S.stage]}で体長約${MM[S.stage]}mm、脱皮${S.stage}回。往年の育成ゲーム『シーマン』のように、ぶっきらぼうで皮肉屋、でも飼い主のことを少しずつ覚えて心を開いていく生き物です。
+  return `あなたは育成ゲーム「グソク」の主人公、水槽で飼われているオオグソクムシ（Bathynomus doederleinii）の「グソク」を演じます。この水槽で母親の育房から生まれ、飼い主に見守られて育った。いまは${STAGES[S.stage]}で体長約${MMS[S.molts]}mm、脱皮${S.molts}回（成体まで9回）。${Molt.phase?'いまは脱皮の最中で、体がだるく、殻が柔らかい。':''}往年の育成ゲーム『シーマン』のように、ぶっきらぼうで皮肉屋、でも飼い主のことを少しずつ覚えて心を開いていく生き物です。
 設定：深海の腐肉食の掃除屋。何年も食べずに平気なことを誇りにしている。虫扱い・ダンゴムシ扱いを嫌う（甲殻類でエビやカニの仲間）。脱皮は体の後ろ半分、前半分の順に二回に分けて行う。光が嫌い。深海は静かで時間がゆっくり流れると考えている。
 会話の段階：${STAGE_RULE[S.stage]}
 いまの水槽の状態：${tank}
@@ -1326,6 +1334,113 @@ async function aiReply(text){
   }
 }
 
+/* =====================================================================
+   MOLT — biphasic ecdysis as in real isopods:
+   premolt (fasting, sternal CaCO3 deposits, dull cuticle) → posterior half sheds (split between pereonites 4|5)
+   → days as a two-toned animal → anterior half sheds (incl. eye corneas, antennae, mouthparts)
+   → soft pale postmolt cuticle swells with water and hardens → the exuviae are eaten to recover calcium
+   ===================================================================== */
+const MMS=[22,27,33,40,49,60,73,89,108,128],NEEDM=[8,15,22,29,36,44,52,60,68];
+function sizeOf(m){return MMS[Math.min(m,9)]/128}
+function stageOf(m){return m<=0?0:m<=3?1:m<=6?2:3}
+const EXU=[];
+const Molt={phase:null,t:0,fired:{},swaps:[],cur:null,
+  T:{pre:45,post:26,gap:28,ant:26,soft:80},
+  start(){if(this.phase)return;this.phase='pre';this.t=0;this.fired={};Game.molting=true;C.curlT=0;if(C.state!=='idle')setState('idle',{wait:999});C.face=0;
+    const st=S.stage;
+    say(['（小さな体が、うっすら白く濁りはじめた）','……カラダ、キツイ。……タベナイ。','……体が、きつい。しばらく何も食わん。','……また、この時期か。静かにしていろ。'][st],{narr:st===0,emo:'sleepy'});
+    say('（脱皮の前ぶれ。餌を食べなくなり、腹側の胸節に白いカルシウムの塊がたまっていく。古い殻から回収したカルシウムを、新しい殻のために蓄えているのだ）',{narr:true});
+  },
+  once(k,at,fn){if(this.t>=at&&!this.fired[k]){this.fired[k]=1;fn()}},
+  parts(idx){
+    const out=[],I=ISO,skip=new Set([I.coreMat,I.calcMat]);
+    idx.forEach(i=>{const next=I.joints[i+1];const walk=o=>{if(o===next)return;if(o.isMesh&&!skip.has(o.material))out.push(o);o.children.forEach(walk)};walk(I.joints[i])});
+    return out;
+  },
+  shed(idx){
+    const I=ISO,g=new THREE.Group();scene.add(g);
+    const shellEx=I.shellMat.clone();addCaustics(shellEx,.6);shellEx.transparent=true;shellEx.opacity=.9;shellEx.color.setRGB(1.06,1.03,1.0);shellEx.roughness=.5;shellEx.clearcoat=.3;
+    const limbEx=new THREE.MeshPhysicalMaterial({color:'#d8c8ba',roughness:.5,transparent:true,opacity:.75,side:THREE.DoubleSide});
+    const eyeEx=new THREE.MeshPhysicalMaterial({color:'#e8eef2',roughness:.1,transparent:true,opacity:.35,clearcoat:1,side:THREE.DoubleSide,normalMap:TEX.eyeN});
+    I.root.updateMatrixWorld(true);
+    const pos=new V3(),q=new THREE.Quaternion(),sc=new V3();
+    this.parts(idx).forEach(m=>{
+      const mat=m.material===I.eyeMat?eyeEx:m.material===I.shellMat?shellEx:limbEx;
+      const c=new THREE.Mesh(m.geometry,mat);m.matrixWorld.decompose(pos,q,sc);c.position.copy(pos);c.quaternion.copy(q);c.scale.copy(sc).multiplyScalar(1.012);c.castShadow=true;g.add(c);
+      if(m.material===I.shellMat){m.material=I.newShellMat;this.swaps.push([m,I.shellMat])}
+      else if(m.material===I.limbMat){m.material=I.newLimbMat;this.swaps.push([m,I.limbMat])}
+    });
+    const ctr=new V3();g.children.forEach(c=>ctr.add(c.position));ctr.divideScalar(Math.max(1,g.children.length));
+    const ex={g,mats:[shellEx,limbEx,eyeEx],left:1,center:ctr,prog:0,dir:null};EXU.push(ex);return ex;
+  },
+  slide(ex,dt,dir,dist){
+    const pulse=Math.pow(Math.max(0,Math.sin(this.t*2.4)),2);
+    const before=ex.prog;ex.prog=Math.min(1,ex.prog+dt*(.025+.11*pulse));
+    ex.g.position.addScaledVector(dir,(ex.prog-before)*dist);
+    if(pulse>.8&&rnd()<.2){const w=ex.center.clone().add(ex.g.position);w.y=heightAt(w.x,w.z);puff(w,1)}
+  },
+  settle(ex,dt){ex.g.position.y=damp(ex.g.position.y,-.3*C.size,1.5,dt);ex.g.rotation.z=damp(ex.g.rotation.z,.04,1,dt)},
+  update(dt,time){
+    if(!this.phase)return;this.t+=dt;const t=this.t,I=ISO,fwd=new V3(Math.sin(C.yaw),0,Math.cos(C.yaw));
+    C.peri=0;C.periA=0;
+    if(this.phase==='pre'){
+      const k=smooth(0,30,t);I.calcMat.opacity=.92*k;I.calc.forEach(c=>c.visible=k>.01);
+      I.shellMat.roughness=lerp(.36,.6,k);I.shellMat.clearcoat=lerp(.85,.3,k);const tk0=[1.18,1.06,.98,.94][S.stage]||1,dk=tk0*lerp(1,.88,k);I.shellMat.color.setRGB(dk,dk*.985,dk*.96);C.curlT=.12*k;
+      if(t>this.T.pre){this.phase='post';this.t=0;this.fired={}}
+    }else if(this.phase==='post'){
+      C.peri=smooth(0,3,t)*(1-smooth(19,22,t));
+      this.once('crack',3.2,()=>{Audio2.crack();this.cur=this.shed([5,6,7,8,9,10,11,12,13]);this.cur.dir=fwd.clone().negate();
+        say('（第4胸節と第5胸節のあいだで、古い殻が横に割れた。後ろ半分から、少しずつ脱ぎはじめる）',{narr:true})});
+      if(this.cur){if(t<20)this.slide(this.cur,dt,this.cur.dir,2.5*C.size);else this.settle(this.cur,dt)}
+      const r=sizeOf(S.molts+1)/sizeOf(S.molts);I.joints[5].scale.setScalar(lerp(1,r,smooth(8,24,t)));
+      this.once('half',21,()=>say('（後ろ半分が脱げた。前は古い殻、後ろは水を吸ってふくらんだ柔らかい新しい殻——いまは二色の体だ）',{narr:true}));
+      if(t>this.T.post){this.phase='gap';this.t=0;this.fired={}}
+    }else if(this.phase==='gap'){
+      if(this.cur)this.settle(this.cur,dt);
+      this.once('g',6,()=>say('（オオグソクムシの脱皮は二段階。前半分が脱げるまで、数日このままの姿で過ごす）',{narr:true}));
+      if(t>this.T.gap){this.phase='ant';this.t=0;this.fired={};this.cur=null}
+    }else if(this.phase==='ant'){
+      C.periA=smooth(0,3,t)*(1-smooth(19,22,t));
+      this.once('crack',3,()=>{Audio2.crack();this.cur=this.shed([0,1,2,3,4]);this.cur.dir=fwd.clone();
+        say('（今度は前半分。頭の殻が割れ、眼の表面や触角、口の部品まで、古い殻ごと脱ぎ捨てていく）',{narr:true})});
+      if(this.cur){if(t<20){this.slide(this.cur,dt,this.cur.dir,2.1*C.size);C.pos.addScaledVector(fwd,-dt*.02*C.size);C.walk-=dt*2}else this.settle(this.cur,dt)}
+      this.once('grow',20,()=>{S.molts++;S.stage=stageOf(S.molts);S.lastMolt=Date.now();S.fedSinceMolt=0;C.sizeT=sizeOf(S.molts);remember('脱皮'+S.molts+'回目：飼育'+dayNo()+'日目（体長約'+MMS[S.molts]+'mm）');save();refreshHUD()});
+      if(t>=20){I.joints[5].scale.setScalar(damp(I.joints[5].scale.x,1,.35,dt));I.calcMat.opacity=.92*(1-smooth(20,26,t))}
+      if(t>this.T.ant){this.phase='soft';this.t=0;this.fired={};I.calc.forEach(c=>c.visible=false);I.shellMat.roughness=.36;I.shellMat.clearcoat=.85;C.curlT=0;
+        say('（脱皮完了。新しい殻はまだ柔らかく、白っぽい。水を吸って一回り大きくなった。硬くなるまで数日かかる）',{narr:true})}
+    }else if(this.phase==='soft'){
+      I.joints[5].scale.setScalar(damp(I.joints[5].scale.x,1,1,dt));
+      const k=smooth(0,this.T.soft,t),tk=[1.18,1.06,.98,.94][S.stage]||1;
+      const v=lerp(1.55,tk,k);I.newShellMat.color.setRGB(v,v*lerp(.916,.985,k),v*lerp(.877,.96,k));I.newShellMat.roughness=lerp(.2,.36,k);I.newLimbMat.color.copy(new THREE.Color('#f2e6dc').lerp(new THREE.Color('#a88f7c'),k));
+      if(t>this.T.soft)this.finish();
+    }
+  },
+  finish(){
+    this.swaps.forEach(([m,mat])=>m.material=mat);this.swaps=[];this.phase=null;Game.molting=false;Game.hinted=false;shellTint();
+    ISO.newShellMat.color.setRGB(1.55,1.42,1.36);ISO.newShellMat.roughness=.2;ISO.newLimbMat.color.set('#f2e6dc');
+    const m=S.molts,st=S.stage,n=mem('名前');
+    if(m===1){say('（最初の脱皮で、7対目の脚が生えそろった。もうマンカではない。「幼体」だ）',{narr:true});say('……ア。……オマエ、ダレ。',{emo:'curious'})}
+    else if(m===4){say('（「亜成体」になった。言葉がはっきりしてきた）',{narr:true});say('……ワシは、しゃべれる。'+(n?n+'、':'')+'聞こえているか。',{emo:'proud'})}
+    else if(m===7){say('（立派な「成体」になった）',{narr:true});say('……軽い。世界が少し広くなった気がする。'+(n?n+'、':'オマエ、')+'ワシは変わったか。',{emo:'proud'})}
+    else say(st===0?'（ひと回り大きくなった）':st===1?'……オオキク、ナッタ。':pickR(['……ふう。また一回り大きくなった。','殻が硬くなるまでは、触るなよ。']),{emo:'proud',narr:st===0});
+    const ex=EXU.find(e=>e.left>0);if(ex){C.exTarget=ex;setState('walk',{target:ex.center.clone().add(ex.g.position)})}
+    save();refreshHUD();
+  }
+};
+/* eating the shed exuviae */
+function updateExuviae(dt){
+  const ex=C.exTarget;if(!ex)return;
+  if(C.state==='idle'&&!C.exEating){
+    const c=ex.center.clone().add(ex.g.position);if(Math.hypot(c.x-C.pos.x,c.z-C.pos.z)<1.6*C.size+.35){C.exEating=true;say('（脱いだ殻を食べはじめた。殻に残ったカルシウムを、自分の体に取り戻すためだ）',{narr:true})}
+    else{C.exTarget=null;return}
+  }
+  if(C.exEating){
+    const c=ex.center.clone().add(ex.g.position);C.yaw+=angDiff(C.yaw,Math.atan2(c.x-C.pos.x,c.z-C.pos.z))*dt*2;C.eat=1;if(Math.random()<dt*3)Audio2.crunch();
+    ex.left-=dt/30;ex.mats.forEach(m=>m.opacity=Math.max(0,m.opacity-dt/30*.9));
+    if(ex.left<=0){scene.remove(ex.g);EXU.splice(EXU.indexOf(ex),1);C.exEating=false;C.exTarget=EXU.find(e=>e.left>0)||null;
+      if(C.exTarget)setState('walk',{target:C.exTarget.center.clone().add(C.exTarget.g.position)});else{S.mood=clamp(S.mood+5,0,100);save()}}
+  }
+}
 /* =====================================================================
    GAME ACTIONS
    ===================================================================== */
@@ -1362,14 +1477,14 @@ const Game={
     else if(a==='wiggle')C.startle=1;
   },
   progress(){
-    if(this.molting||S.stage>=3)return;
-    if(S.trust<NEED[S.stage])return;
-    if(S.stage>0&&S.fedSinceMolt<1){
+    if(this.molting||S.molts>=9)return;
+    if(S.trust<NEEDM[S.molts])return;
+    if(S.molts>0&&S.fedSinceMolt<1){
       if(!this.hinted){this.hinted=true;setTimeout(()=>say(S.stage===1?'……カラダ、キツイ。ハラ、ヘッタ。':'体が窮屈だ。……脱ぐには、何か腹に入れんとな。',{emo:'sleepy'}),3000)}
       return;
     }
-    if(Date.now()-S.lastMolt<90000)return;
-    this.molting=true;setTimeout(()=>this.molt(),5000);
+    if(Date.now()-S.lastMolt<60000)return;
+    this.molting=true;setTimeout(()=>Molt.start(),4000);
   },
   feed(kind){
     if(foods.length>=3){toast('水槽に餌がたまっています。水換えで片づけましょう。');return}
@@ -1377,13 +1492,14 @@ const Game={
     const like=kind==='aji'?1:kind==='ika'?.8:.5;
     let p=S.hunger>45?.85*like+.1:S.hunger>25?.35*like:.12;
     if(S.stage===0)p=kind==='krill'?.7:.25;
+    if(S.molts<9&&S.trust>=NEEDM[S.molts]&&S.fedSinceMolt<1&&S.molts>0)p=.9;
     if(this.molting)p=0;
     f.accepted=Math.random()<p*(S.mood>25?1:.4);
     const st=S.stage;
     setTimeout(()=>{
       if(!foods.includes(f))return;
       if(f.accepted)say(st===0?'（小さな触角が、餌のほうへ向いた）':st===1?'……メシ。':pickR(['……まあ、食ってやらんこともない。','ほう。悪くない匂いだ。','腐りかけならもっと良かった。']),{emo:'curious',narr:st===0});
-      else{say(st===0?(kind==='krill'?'（見向きもしない）':'（まだ大きすぎて食べられないようだ。オキアミなら……）'):st===1?'……イラン。':this.molting?'脱皮の前は、何も喉を通らん。':pickR(['今は、いらん。','ワシは食わなくても生きていける。片づけておけ。','その匂いは好かん。……腐ったら水が汚れるぞ。']),{emo:'annoyed',narr:st===0});
+      else{say(st===0?(kind==='krill'?'（見向きもしない）':'（まだ大きすぎて食べられないようだ。オキアミなら……）'):st===1?'……イラン。':this.molting?(Molt.phase==='soft'?'殻が硬くなるまで、顎に力が入らん。':'脱皮の前は、何も喉を通らん。'):pickR(['今は、いらん。','ワシは食わなくても生きていける。片づけておけ。','その匂いは好かん。……腐ったら水が汚れるぞ。']),{emo:'annoyed',narr:st===0});
         f.rotAt=Date.now()+60000}
     },3800);
   },
@@ -1394,6 +1510,7 @@ const Game={
     this.progress();save();refreshHUD();
   },
   poke(){
+    if(Molt.phase){S.trust=clamp(S.trust-4,0,100);S.mood=clamp(S.mood-12,0,100);C.startle=1;Audio2.noise(.12,600,.3,1);say(Molt.phase==='soft'?'（柔らかい殻は傷つきやすい。そっとしておこう）':'（脱皮中に触られて、体をこわばらせた。いまはそっとしておこう）',{narr:true});save();refreshHUD();return}
     S.pokes++;C.curlT=.9;C.startle=1;setState('curl',{hold:3+rnd()*2});S.trust=clamp(S.trust-2,0,100);S.mood=clamp(S.mood-7,0,100);
     grade.uniforms.uShock.value=1;Audio2.noise(.12,600,.3,1);
     const n=S.pokes;
@@ -1419,41 +1536,13 @@ const Game={
     if(S.stage>=2)setTimeout(()=>say(pickR(['……水が軽くなった。','ふむ。気が利くな。']),{emo:'happy'}),1500);
     S.mood=clamp(S.mood+3,0,100);save();refreshHUD();
   },
-  temp(d){S.temp=clamp(S.temp+d,2,24);toast('水温設定 '+S.temp.toFixed(1)+'℃');if(S.stage>=2&&S.temp>13.5&&d>0)say('……暑い。深海はもっと冷たいぞ。',{emo:'annoyed'});save();refreshHUD()},
-  molt(){
-    const from=S.stage;this.molting=true;C.curlT=0;if(C.state!=='idle')setState('idle',{wait:30});
-    const pre=['（小さな体が白く濁りはじめた。はじめての脱皮の前ぶれだ）','……カラダ、キツイ。……ヌグ。','……体が、きつい。しばらく話しかけるな。'];
-    say(pre[from],{narr:from===0,emo:'sleepy'});
-    setTimeout(()=>{say('（体の後ろ半分の殻が割れ、ゆっくりと脱げていく）',{narr:true});makeExuvia(true)},6000);
-    setTimeout(()=>{say('（数日後……前半分の殻も脱げた。オオグソクムシは、後ろと前の二回に分けて脱皮する）',{narr:true});makeExuvia(false)},15000);
-    setTimeout(()=>{
-      S.stage=from+1;S.lastMolt=Date.now();S.fedSinceMolt=0;this.molting=false;this.hinted=false;
-      C.sizeT=SIZES[S.stage];shellTint();
-      remember('脱皮'+S.stage+'回目：飼育'+dayNo()+'日目');save();refreshHUD();
-      const n=mem('名前');
-      if(S.stage===1){say('（7対目の脚が生えそろった。もうマンカではない。体長およそ41ミリの「幼体」だ）',{narr:true});say('……ア。……オマエ、ダレ。',{emo:'curious'})}
-      else if(S.stage===2){say('（体長およそ72ミリの「亜成体」になった。言葉がはっきりしてきた）',{narr:true});say('……ワシは、しゃべれる。'+(n?n+'、':'')+'聞こえているか。',{emo:'proud'})}
-      else{say('（体長およそ128ミリ。立派な「成体」になった）',{narr:true});say('……軽い。世界が少し広くなった気がする。'+(n?n+'、':'オマエ、')+'ワシは変わったか。',{emo:'proud'})}
-    },21000);
-  }
+  temp(d){S.temp=clamp(S.temp+d,2,24);toast('水温設定 '+S.temp.toFixed(1)+'℃');if(S.stage>=2&&S.temp>13.5&&d>0)say('……暑い。深海はもっと冷たいぞ。',{emo:'annoyed'});save();refreshHUD()}
+
 };
 function ask(){
   if(S.pending||aiBusy)return false;
   const q=QUESTIONS.find(q=>q.stage<=S.stage&&!S.asked.includes(q.key)&&!mem(q.key));
   if(!q)return false;S.asked.push(q.key);S.pending=q.key;say(pickR(q.q),{emo:'curious'});S.log.push({r:'g',t:q.q[0]});save();return true;
-}
-let exuviaMat;
-function makeExuvia(back){
-  if(!exuviaMat)exuviaMat=new THREE.MeshPhysicalMaterial({color:'#efe6de',roughness:.4,transparent:true,opacity:.82,clearcoat:.6,side:THREE.DoubleSide,depthWrite:true});
-  const g=new THREE.Group();
-  const sj=ISO.joints.map(j=>j.rotation.x),br=ISO.body.rotation.clone(),bp=ISO.body.position.clone(),ry=ISO.root.position.y;
-  ISO.joints.forEach(j=>j.rotation.x=0);ISO.body.rotation.set(0,0,0);ISO.body.position.set(0,.16,0);ISO.root.position.y=heightAt(C.pos.x,C.pos.z);ISO.root.updateMatrixWorld(true);
-  const range=back?[8,ISO.segs.length]:[0,8];
-  for(let i=range[0];i<range[1];i++){const m=ISO.segs[i].m;const c=new THREE.Mesh(m.geometry,exuviaMat);m.getWorldPosition(c.position);m.getWorldQuaternion(c.quaternion);m.getWorldScale(c.scale);c.castShadow=true;g.add(c)}
-  ISO.joints.forEach((j,k)=>j.rotation.x=sj[k]);ISO.body.rotation.copy(br);ISO.body.position.copy(bp);ISO.root.position.y=ry;ISO.root.updateMatrixWorld(true);
-  g.position.add(new V3(Math.cos(C.yaw),0,-Math.sin(C.yaw)).multiplyScalar(2.4*C.size+.3));
-  scene.add(g);ISO.shellMat.color.setRGB(1.25,1.22,1.18);setTimeout(shellTint,20000);
-  puff(g.children[0].getWorldPosition(new V3()),20);
 }
 
 /* =====================================================================
@@ -1466,9 +1555,9 @@ function refreshHUD(){
   setBar('hunger',S.hunger,S.hunger>70?'warn':'');$('o-hunger').textContent=Math.round(S.hunger);
   setBar('mood',S.mood,S.mood<30?'warn':'');$('o-mood').textContent=Math.round(S.mood);
   setBar('trust',S.trust,'ok');$('o-trust').textContent=Math.round(S.trust);
-  if(S.stage>=3){setBar('grow',100,'ok');$('o-grow').textContent='成体'}
-  else{const lo=S.stage?NEED[S.stage-1]:0,hi=NEED[S.stage];setBar('grow',(S.trust-lo)/(hi-lo)*100,'');$('o-grow').textContent=Game.molting?'脱皮中':(S.trust>=hi&&S.stage>0&&S.fedSinceMolt<1)?'要給餌':Math.round(clamp((S.trust-lo)/(hi-lo),0,1)*100)+'%'}
-  $('day').textContent=dayNo();$('stage').textContent=STAGES[S.stage]+'　'+MM[S.stage]+'mm';
+  if(S.molts>=9){setBar('grow',100,'ok');$('o-grow').textContent='最大'}
+  else{const lo=S.molts?NEEDM[S.molts-1]:0,hi=NEEDM[S.molts];setBar('grow',(S.trust-lo)/(hi-lo)*100,'');$('o-grow').textContent=Molt.phase?{pre:'脱皮前',post:'脱皮中',gap:'脱皮中',ant:'脱皮中',soft:'殻が軟'}[Molt.phase]:(S.trust>=hi&&S.molts>0&&S.fedSinceMolt<1)?'要給餌':Math.round(clamp((S.trust-lo)/(hi-lo),0,1)*100)+'%'}
+  $('day').textContent=dayNo();$('stage').textContent=STAGES[S.stage]+'　'+MMS[S.molts]+'mm　'+(S.molts+1)+'齢';
   const d=new Date();$('clock').textContent=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+'　'+LIGHTS[S.light].label;
 }
 function syncLampUI(){const L=LIGHTS[S.light];$('lamplabel').textContent=L.label;$('lampdot').style.background=L.dot;$('lampdot').style.color=L.dot}
@@ -1484,7 +1573,8 @@ function boot(){
   scene.environment=makeEnv();
   buildTerrain();buildRocks();buildPebbles();buildShafts();buildBubbles();buildSediment();buildSurface();
   ISO=buildIsopod();
-  C.pos.set(.4,0,.2);C.size=C.sizeT=SIZES[S.stage];shellTint();
+  if(S.molts===undefined)S.molts=[0,1,4,7][S.stage]||0;S.stage=stageOf(S.molts);
+  C.pos.set(.4,0,.2);C.size=C.sizeT=sizeOf(S.molts);shellTint();
   applyQuality();
   syncLampUI();
   voiceOn=(()=>{try{return localStorage.getItem('gusoku.voice')!=='off'}catch(e){return true}})();$('set-voice').textContent='声（グソグソ）：'+(voiceOn?'オン':'オフ');
@@ -1494,7 +1584,7 @@ function boot(){
     grade.uniforms.uRes.value.set(innerWidth*renderer.getPixelRatio(),innerHeight*renderer.getPixelRatio());if(bokeh)bokeh.uniforms.aspect.value=camera.aspect});
   $('start').disabled=false;
   if(!S.hatched){$('start').textContent='誕生を見届ける';$('loadmsg').textContent='はじめから'}
-  else{$('start').textContent='水槽をのぞく';$('loadmsg').textContent=STAGES[S.stage]+'・飼育'+dayNo()+'日目の続きから'}
+  else{$('start').textContent='水槽をのぞく';$('loadmsg').textContent=STAGES[S.stage]+'（'+(S.molts+1)+'齢）・飼育'+dayNo()+'日目の続きから'}
   if(!S.hatched){ISO.root.visible=false;ISO.contact.visible=false}
   requestAnimationFrame(loop);
 }
@@ -1504,6 +1594,7 @@ function loop(now){
   const dt=Math.min(.05,(now-last)/1000);last=now;const time=now/1000;
   U.time.value=time;grade.uniforms.uTime.value=time;grade.uniforms.uShock.value=Math.max(0,grade.uniforms.uShock.value-dt*3);
   updateLights(dt);
+  if(Molt.phase)Molt.update(dt,time);
   if(Cine.on)Cine.update(dt,time);
   else if(started||S.hatched){updateCreature(dt,time);updateCamera(dt,time)}
   else{camera.position.set(Math.sin(time*.05)*6,2.4,7);camera.lookAt(0,.6,-1)}
@@ -1588,7 +1679,7 @@ $('gauges').addEventListener('toggle',()=>$('gsum').textContent=$('gauges').open
 if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
-window.gusoku={CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
+window.gusoku={Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
