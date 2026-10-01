@@ -1450,7 +1450,13 @@ const Audio2={ctx:null,master:null,
     this.noiseBuf=b;
     Voice.init();
     setInterval(()=>{if(document.hidden||!this.ctx)return;if(Math.random()<.7)this.bubble(.02+Math.random()*.03)},180);
+    // iPad/iPhone dictation takes over the audio and leaves this context "interrupted": bring it back as soon as it is allowed
+    c.onstatechange=()=>{if(c.state!=='running')setTimeout(()=>this.wake(),300)};
+    const w=()=>this.wake();['pointerdown','touchend','keydown','input','focusin','focusout'].forEach(ev=>document.addEventListener(ev,w,true));
+    addEventListener('focus',w);document.addEventListener('visibilitychange',()=>{if(!document.hidden)w()});
+    setInterval(()=>{if(!document.hidden&&c.state!=='running')w()},1000);
   },
+  wake(){const c=this.ctx;if(!c||c.state==='running'||c.state==='closed')return;try{const p=c.resume();if(p&&p.catch)p.catch(()=>{})}catch(e){}},
   tone(f0,f1,dur,type,vol){if(!this.ctx)return;const c=this.ctx,t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.type=type||'sine';o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+dur);
     g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.005);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g);g.connect(this.master);o.start(t);o.stop(t+dur+.02)},
   bubble(v){this.tone(300+Math.random()*500,1200+Math.random()*900,.05,'sine',v)},
