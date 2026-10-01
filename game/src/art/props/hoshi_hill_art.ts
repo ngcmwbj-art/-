@@ -19,7 +19,7 @@ import type { PropArt, PropEnv } from './types';
 
 // ---------------------------------------------------------------- 村営天文台 (1,1) 7×(3+2)
 
-registerBuilding({
+registerBuilding((opts) => ({
   id: 'prop_h_dome',
   W: 7,
   R: 3,
@@ -65,10 +65,21 @@ registerBuilding({
         if (p.get(x, y) >>> 24 && p.get(x, y) !== 0) p.set(x, y, k < 0 ? P.concrete : P.steel);
       }
     // the slit (#3A3F48), its shutters closed, running over the top to the south
+    // — or open (02 #77: opened from inside, turned to the south-east): the night
+    // between its rails, the telescope's white tube peeking out
     for (let y = rimY - DH + 1; y <= rimY + 3; y++) {
       p.set(cx - 4, y, P.steel);
-      for (let x = cx - 3; x <= cx + 3; x++) p.set(x, y, y % 4 === 0 ? P.asphalt : P.charcoal);
+      for (let x = cx - 3; x <= cx + 3; x++) p.set(x, y, opts.open ? (y < rimY - DH + 4 ? P.ink : P.night) : y % 4 === 0 ? P.asphalt : P.charcoal);
       p.set(cx + 4, y, P.asphalt);
+    }
+    if (opts.open) {
+      // the shutter slid back over the top, the tube's end and a star or two inside the dark
+      p.rect(cx - 5, rimY - DH - 3, 11, 4, P.steel);
+      p.hline(cx - 5, cx + 5, rimY - DH - 3, P.concreteLt);
+      p.rect(cx - 1, rimY - DH + 14, 3, 6, P.white);
+      p.set(cx, rimY - DH + 14, P.concreteLt);
+      p.set(cx - 2, rimY - DH + 7, P.glint);
+      p.set(cx + 2, rimY - DH + 24, P.lilac);
     }
     // ---- the drum's front: a cylinder (lit left, dark right), the door (4,5) with its paper
     for (let x = 2; x < W - 2; x++) {
@@ -97,7 +108,7 @@ registerBuilding({
     for (let x = 85; x < 94; x += 2) p.set(x, fY + 15, P.charcoal);
     castRight(p, dx, dTop, 13, b.botY - dTop, 2);
   },
-});
+}));
 
 // ---------------------------------------------------------------- 防災無線の柱 (15–16,2–3)
 

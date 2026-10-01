@@ -67,6 +67,10 @@ const items: ItemDef[] = [
   { id: 'item_tomato_omiyage', name: 'トマト（4つ）', key: true, target: 'none', desc: ['ペロの トマト。4つ。', '……1つは おまけ。'], battleText: ['これは おみやげだ。'] },
   // 沢の上（02 #65）：セキトメがほどけたあと、岸に残った平たい石。トマじいに見せると、あずかる
   { id: 'item_namae_ishi', name: '名前の石', key: true, target: 'none', desc: ['沢の 岸の、平たい 石。', '『とまたろう』と、小さく『マル』。'], battleText: ['石を 見せた。\n$enemyは 字の 大きさを 見くらべた。'] },
+  // 朝の ほうだけ 光る 星（02 #77）：まつ先生から 天文台の 鍵、望遠鏡の カバーから タクミの カード
+  { id: 'item_dome_key', name: '天文台の鍵', key: true, target: 'none', desc: ['村営 天文台の 鍵。白い 札つき。', 'まつ先生から、朝まで あずかった。'], battleText: ['鍵を 見せた。\n……開ける 扉は、ここには ない。'] },
+  { id: 'item_kanbo_card', name: 'タクミの観望会カード', key: true, target: 'none', desc: ['10年前の『観望会 カード』。', '答えの 欄は 白い。『くもり』。'], battleText: ['カードを 見せた。\n$enemyは 空の ほうを 見た。'] },
+  { id: 'item_kanbo_card_done', name: 'タクミの観望会カード', key: true, target: 'none', desc: ['3つの 欄に、しゅんの 字。', '1つめは、半分の 丸。'], battleText: ['カードを 見せた。\n$enemyは 空の ほうを 見た。'] },
 ];
 
 const table = new Map<string, ItemDef>();

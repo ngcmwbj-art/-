@@ -23,5 +23,6 @@ import './sfx_mushi';
 import './sfx_tsuri';
 // 脇芽は 朝に かく（02_ch2_index #73）
 import './sfx_wakime';
+import './sfx_dome';
 import './ambience_ch2';
 import './voices';

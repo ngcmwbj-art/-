@@ -39,7 +39,9 @@ setDownhillOpen((x, y) => {
 });
 
 const OBJECTS: MapObj[] = [
-  PR('prop_h_dome', 1, 1),
+  // the observatory: shut, or (02 #77, 朝の ほうだけ 光る 星) its slit open once it was opened inside
+  PR('prop_h_dome', 1, 1, undefined, { cond: { notFlag: 'flag_dome_slit' } }),
+  PR('prop_h_dome', 1, 1, { open: 1 }, { cond: { flag: 'flag_dome_slit' } }),
   PR('prop_h_speaker_pole', 15, 2),
   PR('prop_h_pier', 11, 3),
   PR('prop_h_hill_bench', 19, 6),
@@ -64,6 +66,8 @@ const OBJECTS: MapObj[] = [
   // triggers (52 1.6)
   { t: 'trig', id: 'trig_ch2_hill_top', x: 1, y: 1, w: 22, h: 7, cond: { notFlag: 'flag_ch2_hill_top' } },
   { t: 'trig', id: 'trig_ch2_boss_intro', x: 13, y: 4, w: 6, h: 2, script: 'evt_ch2_boss_intro', cond: { notFlag: 'flag_ch2_boss_beaten' } },
+  // the observatory's door (4,5): only with 天文台の鍵 from まつ先生 (02 #77, map_hoshi_dome)
+  { t: 'door', id: 'door_hoshi_dome', x: 4, y: 5, to: 'map_hoshi_dome', tx: 6, ty: 8, dir: 'up', se: ['se_dome_unlock', 'se_dome_door'], cond: { flag: 'flag_dome_key', notFlag: 'flag_ch2_boss_beaten' } },
   { t: 'door', id: 'door_hoshi_hill_out', x: 11, y: 19, to: 'map_hoshimidai', tx: 48, ty: 1, dir: 'down', se: 'se_step_dirt' },
   { t: 'door', id: 'door_hoshi_hill_out_e', x: 12, y: 19, to: 'map_hoshimidai', tx: 49, ty: 1, dir: 'down', se: 'se_step_dirt' },
 ];

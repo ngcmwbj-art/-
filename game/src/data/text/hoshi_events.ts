@@ -654,6 +654,7 @@ export const END_3_B = `@npc_hoshi_mitsu
 トマトも 美味いやんけ！
 @npc_hoshi_fumi
 はっち先生に、よろしく。
+!cue kanbo
 @npc_hoshi_kucho
 えー、夕鳴町の 小林しゅん様、
 {w=300}具足様。

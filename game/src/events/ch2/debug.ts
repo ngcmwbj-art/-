@@ -44,6 +44,9 @@ import { SCHOOL_TEXTS } from '../../data/text/school';
 import { CAPE_COFFEE_TEXTS } from '../../data/text/cape_coffee';
 import { WAKIME_PAGES } from '../../data/text/hoshi_wakime';
 import { SAWAKO_YK_PAGES } from '../../data/text/hoshi_sawako_yk';
+import { EKINOTE_TEXTS } from '../../data/text/hoshi_ekinote';
+import { NIHYAKU_TEXTS } from '../../data/text/hoshi_nihyaku';
+import { DOME_PAGES } from '../../data/text/hoshi_dome';
 
 type Step = () => void;
 
@@ -183,6 +186,30 @@ export const CHAIN2: Beat2[] = [
     at: ['map_hoshi_sawako', 5, 2, 'up'],
     desc: '（任意）ソワカの 色見本（壁のスケッチの2回目 → ソワカ (23,37) に話す）',
     side: 'gen',
+  },
+  // optional (02 #78, ekinote.ts): ふしぎ① stamped — the notebook's old pages (前の ページを めくる)
+  {
+    beat: 'ekinote',
+    steps: [set('flag_fushigi_ch2_01')],
+    at: ['map_hoshimidai', 18, 42, 'up'],
+    desc: '（任意）駅ノートの 前の ページ（駅ノート (18,41) を調べる → めくる ×5）',
+    side: 'gen',
+  },
+  // optional (02 #78, nihyaku.ts): stage 1 past the gate — the chart in とまたろうの小屋, then the four
+  {
+    beat: 'nihyaku',
+    steps: [],
+    at: ['map_hoshi_koya', 3, 2, 'up'],
+    desc: '（任意）二百十日の 前の 晩（農具小屋の表 → トマじい・ペロ・マサル・ハモ区長）',
+    side: 'houki',
+  },
+  // optional (02 #77, dome.ts): stage 2 — まつ先生 at the path's mouth gives the observatory's key (〔dome〕)
+  {
+    beat: 'dome',
+    steps: [],
+    at: ['map_hoshimidai', 47, 3, 'up'],
+    desc: '（任意）朝の ほうだけ 光る 星（まつ先生 (47,2) → 丘の天文台 (4,5) → 望遠鏡で 3つ → まつ先生）',
+    side: 'hill',
   },
 ];
 
@@ -388,6 +415,11 @@ function collectTexts(): [string, string][] {
   // げむきか9/30の2・4（ソワカの 色見本・脇芽は 朝に かく。50 3.8・3.11・9.9・10.23, 02_ch2_index #73）
   walk('sawako_yk', SAWAKO_YK_PAGES);
   walk('wakime', WAKIME_PAGES);
+  // げむきか10/1の4・5（駅ノートの 前の ページ・二百十日の 前の 晩。50 8.1・9.9・10.24, 02_ch2_index #78）
+  walk('ekinote', EKINOTE_TEXTS);
+  walk('nihyaku', NIHYAKU_TEXTS);
+  // げむきか10/1の3（朝の ほうだけ 光る 星。50 3.7・9.8・10.24, 02_ch2_index #77）
+  walk('dome', DOME_PAGES);
   // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line
   // lines shown without a speaker (HOUKI_LINE's float note: the same 336 px)
   for (const [k, v] of Object.entries(EV)) if (typeof v === 'string' && (v.startsWith('@') || v.startsWith('!cue') || v.includes('\n'))) out.push([`ev.${k}`, v]);

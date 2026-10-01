@@ -21,4 +21,6 @@ import './hoshi_rooms';
 import './hoshi_hill';
 // 沢の上「水の 元」（02_ch2_index #65）
 import './hoshi_sawa';
+// 村営天文台の中（朝の ほうだけ 光る 星、02_ch2_index #77）
+import './hoshi_dome';
 import './hoshi_fx';

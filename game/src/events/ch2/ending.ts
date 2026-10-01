@@ -45,6 +45,7 @@ import { puff, sparkle } from '../fx';
 import { morningChime, musicParam, paDistance, paMode, se, seLoop, space } from './compat';
 import { poseIf, runCue, unpose } from './common';
 import { forceBoxPos } from '../stage';
+import { kanboAtBus, kanboEndSetup } from './dome';
 
 // ---------------------------------------------------------------- staging helpers
 
@@ -387,6 +388,8 @@ function* cut3Bus(): Co {
   f.camOverride = { x: 35 * 16 + 8, y: 42 * 16 + 8 };
   f.snapCamera();
   const people = SEE_OFF.map(([id, x, y, d]) => put(id, x, y, d));
+  // 朝の ほうだけ 光る 星 (02 #77): the observatory's key goes back; with the card shown, まつ先生 by the bus door
+  kanboEndSetup(people[0]);
   const sankado = put('npc_hoshi_busdriver', 37, 43, 'left', 'bag');
   // east of the circle, ツガオ便 in the morning: ヒロスケさん loads ペロ's boxes
   // (two trips), ポコシャさん with a yellow crate on each shoulder; ツガオさん in
@@ -444,6 +447,10 @@ function* cut3Bus(): Co {
   p.dir = 'down';
   // ペロ hands グソっ君 a split one: 「トマトも 美味いやんけ！」 (the yakisoba's line once more)
   yield* runCue(T.END_3_B, {
+    // 朝の ほうだけ 光る 星 (02 #77): the envelope for タクミ to さんかど (only with the card shown)
+    *kanbo() {
+      yield* kanboAtBus();
+    },
     *eat() {
       poseIf(mitsu, 'give');
       yield 300;

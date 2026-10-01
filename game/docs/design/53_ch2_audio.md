@@ -1530,6 +1530,72 @@ se_wakime_legs     グソっ君の小さい足がいっせいに動く（わし�
 
 - 流用：株を調べる `se_examine`、輪 `se_ring`、ペロの〔wakime_done〕の朱肉 `se_item`。「ぽきっ」を大きく・派手にしない（夜明け前のハウス、となりの株も眠っている）。こわい音にしない。
 
+### 8.17 天文台の音 ★2026-10-01 追加（依頼主の採用、02_ch2_index #77。台本は50 10.25）
+
+10年閉めきりの村営天文台の中の、金物・布・紙の小さな音。夜明け前の暗い部屋なので、どれも小さく（v .01〜.09）、ドームが回る音だけ低く長い「ゴロゴロ」。こわい音にしない。BGM と環境音はそのまま（12.20）。`src/audio/sfx_dome.ts`、グループ「第2章：天文台（朝の ほうだけ 光る 星）」。
+
+```
+se_dome_door       天文台の鉄の扉（ギィ…と重く開いて、こつん）                             0.5s
+  L1 saw   f=180→120/420 env=30/380/0/120 dur=420 v=.012 flt=BP900q4 vib=7/9
+  L2 noise env=0/40/0/20 dur=30 v=.03 flt=BP700q1.2 at=380
+  L3 sine  f=90→70/120 env=2/140/0/60 dur=120 v=.05 at=390
+se_dome_unlock     天文台の鍵を回す（さびた錠の かちゃ、こっ）                               0.2s
+  L1 noise env=0/18/0/8 dur=10 v=.05 flt=BP3200q3
+  L2 noise env=0/14/0/8 dur=8 v=.05 flt=BP2400q3 at=120
+  L3 tri   f=820→600/30 env=0/40/0/20 dur=20 v=.03 at=126
+se_dome_cover      望遠鏡の布のカバーをとる（ばさっ、ほこり）                               0.5s
+  L1 noise env=10/220/0/140 dur=200 v=.06 flt=BP1400→600q0.8
+  L2 noise env=60/420/0/300 dur=400 v=.012 flt=HP5000 am=13/.5 at=80
+  rand .05–.08
+se_dome_card       カードが落ちる／カードを見せる・封筒（紙のひらり）                       0.2s
+  L1 noise env=20/160/0/80 dur=140 v=.025 flt=BP3600q1.2 am=17/.6
+  L2 noise env=0/20/0/10 dur=10 v=.02 flt=BP2200q2 at=170
+se_dome_crank      ハンドルを1回まわす（歯車のかりかり）                                    0.2s
+  L1 noise env=0/10/0/6 dur=5 v=.04 flt=BP2600q3 rep=4x38
+  L2 tri   f=320→260/80 env=2/90/0/40 dur=60 v=.015
+  rand .06–.06  max 3
+se_dome_rust       10年ぶんのさび（ギ……。スリットのはじめの3回）                           0.3s
+  L1 saw   f=520→460/260 env=20/260/0/80 dur=260 v=.01 flt=BP1400q6 vib=24/30
+  L2 noise env=10/200/0/60 dur=200 v=.008 flt=BP2600q3
+se_dome_shutter    スリットの鉄板がずれる（ゴロゴロ。押すたびに少し）                       0.4s
+  L1 noise env=30/300/0/160 dur=320 v=.05 flt=LP420q0.8 am=22/.7
+  L2 sine  f=62→58/300 env=20/300/0/120 dur=300 v=.04 am=11/.5
+  rand .05–.08  max 3
+se_dome_rotate     ドームが回る（低いゴロゴロ。回しているあいだ 0.28秒ごと）               0.4s
+  L1 noise env=60/280/0/120 dur=300 v=.06 flt=LP260q0.7 am=9/.6
+  L2 sine  f=48→52/300 env=40/300/0/100 dur=300 v=.05
+  L3 noise env=0/12/0/6 dur=6 v=.012 flt=BP3000q3 rep=3x90 at=40
+  max 2
+se_dome_stop       星の前でドームが止まる（カチッ）                                         0.1s
+  L1 noise env=0/16/0/8 dur=8 v=.06 flt=BP2000q2
+  L2 sine  f=140→90/60 env=0/80/0/30 dur=50 v=.06
+  L3 tri   f=1400 env=0/30/0/10 dur=8 v=.02 at=8
+se_dome_cap        望遠鏡のふたをとる（かぽっ）                                             0.1s
+  L1 sine  f=420→760/40 env=0/50/0/20 dur=40 v=.06
+  L2 noise env=0/14/0/6 dur=8 v=.03 flt=BP1800q2
+  L3 sine  f=300 env=0/60/0/30 dur=30 v=.025 at=30
+se_dome_handle     微動ハンドル（こつこつ。動かしているあいだ 0.09秒ごと）                   0.03s
+  L1 noise env=0/8/0/4 dur=4 v=.02 flt=BP4200q3
+  L2 tri   f=1100 env=0/16/0/6 dur=6 v=.008
+  rand .08–.06  max 2
+se_dome_focus      ピントのつまみ（かちかち。0.11秒ごと）                                   0.02s
+  L1 noise env=0/6/0/3 dur=3 v=.025 flt=BP5200q4
+  L2 tri   f=1800 env=0/10/0/4 dur=4 v=.008
+  rand .06–.05  max 2
+se_dome_sharp      ピントが合った（星がしまる、ひそやかなきらり。合った瞬間に1回）          0.4s
+  L1 sine  f=E6 env=2/260/0/200 dur=200 v=.02
+  L2 sine  f=B6 env=2/320/0/240 dur=240 v=.015 at=60
+  L3 sine  f=E7 env=2/200/0/160 dur=140 v=.008 at=120
+  rev .25
+se_dome_eye        グソっ君の目（星がいっぱい。ぽわわん）                                   0.5s
+  L1 sine  f=C6→C7/400 env=10/420/0/200 dur=400 v=.02 vib=14/20
+  L2 sine  f=G6 env=4/90/0/40 dur=60 v=.012 rep=6x60 rnd=20
+  rev .3
+```
+
+- 流用：調べる `se_examine`、カードの鉛筆 `se_pen_write`（2文字に1回、vol .6）、まつ先生のはなまる `se_pen_write` → 描き終わりに `se_stamp_light`（vol .5）、グソっ君の『もっと』 `se_wakime_legs`（vol .5、1字ごと）、朱肉 `se_item`、鍵とカードの入手 `bgm_jingle_item`。
+- ドームの「ゴロゴロ」は大きくしない（夜明け前の村に響かせない）。ピントの「きらり」は小さく、星の名前にあわせて音を変えない。
+
 ## 9. ボイス（第2章）
 
 ### 9.1 村の人の声
@@ -2034,6 +2100,22 @@ se_wakime_legs     グソっ君の小さい足がいっせいに動く（わし�
 | ペロの〔wakime_done〕 | voice `h_mitsu` → `se_item`（朱肉+2） |
 | 作業日誌の新しい1行 | `se_examine`（いつもの日誌と同じ） |
 
+### 12.20 朝の ほうだけ 光る 星（まつ先生の鍵・村営天文台・任意）★2026-10-01 追加（依頼主の採用、02_ch2_index #77。台本は50 10.25）
+
+| きっかけ | 音 |
+|---|---|
+| まつ先生の〔dome〕・鍵 | voice `h_fumi` → `bgm_jingle_item` → voice `gusokkun` |
+| 丘の扉 (4,5) を押す／調べる（鍵あり） | `se_dome_unlock` → `se_dome_door`（暗転） |
+| 天文台の中 | bgm_hoshi_night（variant 'house'、そのまま）、`amb_h_insects`（vol .3、lp 1800）、段階2は `amb_h_pa_hum`（vol .35、lp 900）。呼び声は屋内の決まり（−12dB・LP。吹き出しなし） |
+| 望遠鏡のカバー | `se_examine` → `se_dome_cover`（ほこり）→ カードの大写し `se_dome_card` → `bgm_jingle_item` |
+| スリットのハンドル | `se_examine` →（見上げる画面）押すたびに `se_dome_crank`、はじめの3回は `se_dome_rust`（pitch 1.05〜1.15）、そのあと `se_dome_shutter` |
+| ドームのハンドル | 回しているあいだ 0.28秒ごとに `se_dome_rotate`、星で止まると `se_dome_stop` |
+| ふた | `se_dome_cap` |
+| 接眼レンズ | 導入のあいだ 0.09秒ごとに `se_dome_handle`、ピントのあいだ 0.11秒ごとに `se_dome_focus`、合った瞬間 `se_dome_sharp`。すばるでグソっ君がのぞくと `se_dome_eye` |
+| カードの欄を書く | `se_dome_card` → `se_pen_write`（2文字に1回、vol .6）。『もっと』は `se_wakime_legs`（vol .5） |
+| まつ先生の〔kanbo〕 | voice `h_fumi` → カード `se_dome_card` → はなまる `se_pen_write` → `se_stamp_light`（vol .5）→ 朱肉 `se_item` |
+| エンディングのカット3の封筒（`flag_kanbo_report`） | `se_dome_card`（ほかの音はカット3のまま） |
+
 ## 13. API（足すもの）
 
 40 14章の関数はそのまま。他チームは次の関数だけを足して呼ぶ。
@@ -2280,6 +2362,9 @@ export function playMorningChime(opts?: {
 
 **SE：脇芽かき**（章の `h` なし。8.16。★2026-09-30 02 #73）
 `se_wakime_open` `se_wakime_bend` `se_wakime_poki` `se_wakime_shinari` `se_wakime_giza` `se_wakime_hana` `se_wakime_legs`（流用：`se_ring` `se_examine` `se_item`）
+
+**SE：天文台**（章の `h` なし。8.17。★2026-10-01 02 #77）
+`se_dome_door` `se_dome_unlock` `se_dome_cover` `se_dome_card` `se_dome_crank` `se_dome_rust` `se_dome_shutter` `se_dome_rotate` `se_dome_stop` `se_dome_cap` `se_dome_handle` `se_dome_focus` `se_dome_sharp` `se_dome_eye`（流用：`se_examine` `se_pen_write` `se_stamp_light` `se_wakime_legs` `se_item` `bgm_jingle_item`）
 
 **SE：はなまるの描き写し**（章の `h` なし。8.11。第3章からも使う）
 `se_hanamaru_draw`

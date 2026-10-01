@@ -34,6 +34,8 @@ import { drawHeader, drawScroll, FOLD, LP, RP, SP } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
 import { MUSHI_BOOK, MUSHI_PAGE_TITLE } from '../../data/text/hoshi_mushi';
 import { MUSHI5, mushiSketch, type MushiKind } from '../../art/props/hoshi_mushi';
+// ② の すみの 1ページ『二百十日の 前の 晩』（02_ch2_index #78）：ふしぎの 一覧の いちばん下、番号なし・数に 入れない
+import { drawNihyakuPage, hasNihyakuPage, NIHYAKU_ROW_LABEL } from './book_nihyaku';
 
 // ---- ② 『むし』: 捕まえない自由研究 (50_ch2_story 10.21, 52_ch2_level_art 13.2, 02_ch2_index #64) ----
 
@@ -591,7 +593,8 @@ export class BookPage implements MenuPage {
   private count(): number {
     const v = this.v;
     if (this.sec === MUSHI_SEC) return mushiRows().length;
-    return this.sec === 0 ? v.fushigi.length : this.sec === 1 ? v.enemies.length : totalIn(v, v.n === 1 ? 19 : 17);
+    if (this.sec === 0) return v.fushigi.length + (v.n === 2 && hasNihyakuPage() ? 1 : 0);
+    return this.sec === 1 ? v.enemies.length : totalIn(v, v.n === 1 ? 19 : 17);
   }
 
   update(_m: MenuCtx, dt: number, input: Input): boolean {
@@ -659,7 +662,7 @@ export class BookPage implements MenuPage {
     const c = v.n === 1 ? bookCounts() : bookCountsCh2();
     const have = this.sec === MUSHI_SEC ? mushiSeenCount() : this.sec === 0 ? c.fushigi : this.sec === 1 ? c.aite : c.tsukkomi;
     // (『むし』 counts the five: the beetle is a bonus)
-    const total = this.sec === MUSHI_SEC ? 5 : this.count();
+    const total = this.sec === MUSHI_SEC ? 5 : this.sec === 0 ? v.fushigi.length : this.count();
     drawDigits(g, `${have}/${total}`, FOLD - (two ? 6 : 12), SP.y + 12, { color: UI.pencil, align: 'right' });
     const k = Math.min(1, this.secT / 120);
     g.alpha(k, () => {
@@ -765,7 +768,10 @@ export class BookPage implements MenuPage {
     const num = (i: number) => String(i + 1).padStart(2, '0');
     // 『むし』: the five by name (the beetle, a bonus, after them without a number)
     if (this.sec === MUSHI_SEC) return mushiRows().map((b, i) => wrapRow(b.name, mushiSeenKind(b.kind), b.kind === 'kabuto' ? '' : num(i), UI.text));
-    if (this.sec === 0) return v.fushigi.map((f, i) => wrapRow(f[0], v.done(i), num(i), UI.text));
+    if (this.sec === 0) {
+      const r = v.fushigi.map((f, i) => wrapRow(f[0], v.done(i), num(i), UI.text));
+      return v.n === 2 && hasNihyakuPage() ? [...r, wrapRow(NIHYAKU_ROW_LABEL, true, '', UI.pencil)] : r;
+    }
     if (this.sec === 1) return v.enemies.map((id, i) => wrapRow(nameOf(id, v), !!flag('flag_book_' + id), num(i), UI.text));
     const seen = seenIn(v);
     const out: Row[] = [];
@@ -843,6 +849,7 @@ export class BookPage implements MenuPage {
       return;
     }
     if (s === 0) {
+      if (v.n === 2 && i === v.fushigi.length) return drawNihyakuPage(g, x, y, w);
       if (!v.done(i)) return empty();
       const [title, place] = v.fushigi[i];
       const tl = wrap(title, w);

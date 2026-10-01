@@ -270,9 +270,10 @@ registerDebug('wrapCheck', () => {
   // the pages of the rooms added later (3 lines × 336 px, 10 1.1): each room set
   // registers its own page check — 南の列（02 #59）southText、公園の鉄棒と交番の懸垂（02 #64）kensuiText、
   // みました帳 ②『むし』の列（02 #64）mushiBookText、対岸の おぴぃと ザリガニ釣り（02 #66）tamotsuText、
-  // 1号ハウスの 脇芽かきの 画面の 言葉（02 #73）wakimeText
+  // 1号ハウスの 脇芽かきの 画面の 言葉（02 #73）wakimeText、みました帳②の すみの『二百十日の 前の 晩』（02 #78）nihyakuBookText
   const cmds = (window as unknown as { __game?: { cmd?: Record<string, () => { pages?: number; total?: number; bad: string[] }> } }).__game?.cmd ?? {};
-  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText']) {
+  // 天文台の 中の 画面の 言葉と カード（02 #77）domeText
+  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText', 'nihyakuBookText', 'domeText']) {
     const r = cmds[name]?.();
     if (!r) continue;
     n += r.pages ?? r.total ?? 0;

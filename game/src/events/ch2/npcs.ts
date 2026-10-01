@@ -23,6 +23,7 @@ import { mushiAtYoshie } from './mushi';
 import { fumiSawa, sawaFlip, tomeSawa } from './sawa';
 import { wakimeAtMitsu } from './wakime';
 import { sawakoYk } from './sawako_yk';
+import { domeAtFumi } from './dome';
 
 const T = HOSHI_NPC;
 
@@ -181,6 +182,8 @@ registerScript('npc_hoshi_fumi', function* (): Co {
     return;
   }
   if (hStage() >= 2) {
+    // 朝の ほうだけ 光る 星 (02 #77): 〔dome〕 the key, 〔kanbo〕 the card, the after line
+    if (yield* domeAtFumi()) return;
     if (yield* extraLine('npc_hoshi_fumi', { h2: t.h2 }, 2)) return;
     setFlag('flag_seen_npc_hoshi_fumi_h2', flag('flag_seen_npc_hoshi_fumi_h2') + 1);
     yield* say(t.h2);

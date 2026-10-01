@@ -480,6 +480,48 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// 天文台の鍵・タクミの観望会カード（朝の ほうだけ 光る 星、50 10.25、02_ch2_index #77）：
+// 古い 真ちゅうの 鍵と、ひもで つないだ 白い 札（赤い 字）／クリーム色の カード、
+// 印刷の 行と 白い 欄（くもりの 落書き）。書いたあとは、1つめの 欄に 半分の 丸
+Object.assign(ITEM_ROWS, {
+  item_dome_key: [
+    '.......WW.',
+    '......WwwW',
+    '......Wwrd',
+    '.ooo...dd.',
+    'oOjho..h..',
+    'oj.oohhhhh',
+    'oh.ohhhhhh',
+    '.ohh...h.h',
+    '.......h.h',
+    '..........',
+  ],
+  item_kanbo_card: [
+    '..........',
+    'aaaaaaaaae',
+    'aGGGaaggae',
+    'aaaaaaaaae',
+    'agggaawdae',
+    'aaaaaddwae',
+    'agggaaaaae',
+    'aaaaaaaaae',
+    'aggaarrrae',
+    'eeeeeeeeee',
+  ],
+  item_kanbo_card_done: [
+    '..........',
+    'aaaaaaaaae',
+    'aGGGaaggae',
+    'aaaaaaaaae',
+    'agggaaHgae',
+    'aaaaaHHgae',
+    'agggaaGGae',
+    'aaaaaaaaae',
+    'aggaarrrae',
+    'eeeeeeeeee',
+  ],
+});
+
 // 握手券 (屋上 ゆうやけひろば, 10_narrative 7.18, 02_ch2_index #55): a small ticket, the red
 // band of the event, the mall's gold bell mark, a line of print, the torn perforation
 Object.assign(ITEM_ROWS, {

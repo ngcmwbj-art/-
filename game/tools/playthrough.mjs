@@ -1699,6 +1699,121 @@ const SIDE2 = [
       await shot('done');
     },
   },
+  {
+    // 02 #78: 駅ノートの 前の ページ — ふしぎ① stamped; the notebook (18,41) from (18,42): its 〔押したあと〕,
+    // then 前の ページを めくる (Z = the first choice) through the five old pages and back to the newest
+    name: 'ekinote',
+    async run() {
+      const before = await page.evaluate(() => window.__game.cmd.flag('flag_fushigi_ch2_01'));
+      // the stream visited: 7月's page has グソっ君's line
+      await page.evaluate(() => window.__game.cmd.ekinote('sawa'));
+      await waitFor((s) => s.top === 'FieldScene' && s.ctrl, 10000, 'ekinote jump');
+      await sleep(600);
+      await examineHere('up', 'note');
+      const v = await flags(['flag_ekinote_read', 'flag_kanenari_flip_ekinote_jul', 'flag_kanenari_flip_ekinote_jan', 'flag_fushigi_ch2_01']);
+      const ok = v.flag_ekinote_read === 5 && v.flag_kanenari_flip_ekinote_jul === 1 && v.flag_kanenari_flip_ekinote_jan === 1 && v.flag_fushigi_ch2_01 === before;
+      checks.push({ check: 'ekinote: the five old pages, グソっ君 twice, ふしぎ① as it was', ok, ...v });
+      if (!ok) throw new Error(`ekinote: ${JSON.stringify(v)}`);
+      await shot('done');
+    },
+  },
+  {
+    // 02 #78: 二百十日の 前の 晩 — stage 1 past the gate; the chart in とまたろうの小屋 (3,1) from (3,2)
+    // (its page, グソっ君 names the four), then トマじい, ペロ, マサル (barn) and ハモ区長 (gathering room):
+    // 〔210〕 once each; after the fourth the corner page of みました帳② and 朱肉 +2
+    name: 'nihyaku',
+    async run() {
+      await examineHere('up', 'hyou');
+      await need(['flag_nihyaku_hyou', 'flag_kanenari_flip_nihyaku'], 'nihyaku: the chart');
+      // out of the shed on foot, to トマじい (21,11) at the paddies
+      await leaveRoom('map_hoshimidai');
+      await travel(20, 11);
+      await examineHere('right', 'tome');
+      await need(['flag_nihyaku_tome'], 'nihyaku: トマじい');
+      // ペロ (3,32), マサル in the barn (20,6), ハモ区長 in the gathering room (6,3)
+      await warp('map_hoshimidai', 4, 32, 'left');
+      await sleep(900);
+      await advance({ label: 'warp' });
+      await examineHere('left', 'mitsu');
+      await need(['flag_nihyaku_mitsu'], 'nihyaku: ペロ');
+      await warp('map_hoshi_barn', 19, 6, 'right');
+      await sleep(900);
+      await advance({ label: 'warp' });
+      await examineHere('right', 'gen');
+      await need(['flag_nihyaku_gen'], 'nihyaku: マサル');
+      const mp0 = await page.evaluate(async () => (await import('/src/game/state.ts')).state.party.find((m) => m.id === 'minato').mp);
+      await page.evaluate(async () => {
+        const m = (await import('/src/game/state.ts')).state.party.find((x) => x.id === 'minato');
+        m.mp = Math.max(0, m.maxMp - 4);
+      });
+      await warp('map_hoshi_school', 6, 4, 'up');
+      await sleep(900);
+      await advance({ label: 'warp' });
+      await examineHere('up', 'kucho');
+      await need(['flag_nihyaku_kucho', 'flag_nihyaku_done'], 'nihyaku: ハモ区長 and the notebook');
+      const mp = await page.evaluate(async () => {
+        const m = (await import('/src/game/state.ts')).state.party.find((x) => x.id === 'minato');
+        return [m.mp, m.maxMp];
+      });
+      const ok = mp[0] === mp[1] - 2;
+      checks.push({ check: 'nihyaku: the four, the notebook page, 朱肉 +2', ok, mp, mp0 });
+      if (!ok) throw new Error(`nihyaku: 朱肉 ${JSON.stringify(mp)}`);
+      // talked to again: their own lines (〔210〕 only once)
+      await examineHere('up', 'kucho2');
+      const n = await page.evaluate(() => window.__game.cmd.nihyakuState());
+      checks.push({ check: 'nihyaku: state', ok: n.count === 4 && n.done === 1, ...n });
+      await shot('done');
+    },
+  },
+  {
+    // 02 #77: 朝の ほうだけ 光る 星 — stage 2, まつ先生 (47,2) gives the observatory's key 〔dome〕; up the
+    // hill, in at (4,5); the cover (タクミ's card), the slit's crank, then for each of the three stars the
+    // dome's crank and the eyepiece (the screens play themselves: __game.cmd.domeAuto); back down to
+    // まつ先生: 〔kanbo〕 (the hanamaru, 朱肉 +2, the card kept for タクミ)
+    name: 'dome',
+    async run() {
+      await examineHere('up', 'key');
+      await need(['flag_dome_key'], 'dome: the key');
+      await enterDoor(48, 0, 'up', 'map_hoshi_hill');
+      await advance({ label: 'hill' });
+      // along the plaza's south side (the loudspeaker's pole is not crossed), then into the door
+      await travel(12, 7);
+      await advance({ label: 'plaza' });
+      await enterDoor(4, 6, 'up', 'map_hoshi_dome');
+      await advance({ label: 'in' });
+      await need(['flag_dome_enter'], 'dome: inside');
+      await page.evaluate(() => window.__game.cmd.domeAuto(true));
+      try {
+        await travel(5, 6);
+        await examineHere('up', 'cover');
+        await need(['flag_dome_cover'], 'dome: the cover and the card');
+        await travel(1, 3);
+        await examineHere('left', 'slit');
+        await need(['flag_dome_slit'], 'dome: the slit');
+        for (const n of [1, 2, 3]) {
+          await travel(1, 5);
+          await examineHere('left', `rot${n}`);
+          await travel(5, 6);
+          await examineHere('up', `eye${n}`);
+          const got = await page.evaluate(() => window.__game.cmd.flag('flag_kanbo_n'));
+          if (got !== n) throw new Error(`dome: star ${n} not written (flag_kanbo_n ${got})`);
+        }
+      } finally {
+        await page.evaluate(() => window.__game.cmd.domeAuto(false));
+      }
+      await shot('done');
+      await leaveRoom('map_hoshi_hill');
+      await leaveRoom('map_hoshimidai');
+      await travel(47, 3);
+      await examineHere('up', 'report');
+      await need(['flag_kanbo_report'], 'dome: 〔kanbo〕');
+      const v = await page.evaluate(() => window.__game.cmd.domeState());
+      const ok = v.flags.n === 3 && v.flags.report === 1 && !v.items.includes('item_kanbo_card_done') && v.items.includes('item_dome_key');
+      checks.push({ check: 'dome: three stars written, the card kept for タクミ, the key kept till morning', ok, ...v.flags, items: v.items });
+      if (!ok) throw new Error(`dome: ${JSON.stringify(v)}`);
+      await shot('report');
+    },
+  },
 ];
 
 const BEATS2 = [

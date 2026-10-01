@@ -24,4 +24,10 @@ import './sawa';
 // ソワカの 色見本・脇芽は 朝に かく（げむきか 9/30 の2・4、02_ch2_index #73）
 import './sawako_yk';
 import './wakime';
+// 朝の ほうだけ 光る 星（村営天文台、げむきか 10/1 の3、02_ch2_index #77）
+import './dome';
+// 駅ノートの 前の ページ・二百十日の 前の 晩（げむきか 10/1 の4・5、02_ch2_index #78）。
+// ふしぎ①と 4人の 台本を 包むので、fushigi・npcs の あとに import する
+import './ekinote';
+import './nihyaku';
 import './debug';
