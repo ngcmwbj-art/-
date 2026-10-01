@@ -967,9 +967,17 @@ function buildIsopod(opt){
   });
   const mc=new THREE.CatmullRomCurve3([new V3(-.11,-.19,.5),new V3(-.05,-.22,.522),new V3(0,-.195,.53),new V3(.05,-.22,.522),new V3(.11,-.19,.5)]);
   mk(new THREE.TubeGeometry(mc,24,.012,6),lineMat,head,null,null,0,{keep:true,noShadow:true});
-  const mo=mk(new THREE.SphereGeometry(1,20,12).scale(.07,.045,.02),coreMat,head,[0,-.215,.515],null,0,{keep:true,noShadow:true});mo.scale.y=.01;I.mouthOpen=mo;
+  // mouth: opens between the two tusks, below the wavy upper lip — dark red cavity with a pink tongue
+  const mo=new THREE.Group();mo.position.set(0,-.25,.46);head.add(mo);mo.scale.set(1,.02,1);I.mouthOpen=mo;
+  const cav=mk(new THREE.SphereGeometry(1,28,18).scale(.13,.135,.04),new THREE.MeshBasicMaterial({color:'#6e1712'}),mo,[0,-.11,0],null,.014,{keep:true,noShadow:true});
+  mk(new THREE.SphereGeometry(1,24,14).scale(.09,.05,.022),new THREE.MeshBasicMaterial({color:'#e86d74'}),mo,[0,-.19,.02],null,0,{keep:true,noShadow:true});
+  mk(new THREE.SphereGeometry(1,20,10,0,TAU,0,Math.PI/2).scale(.125,.03,.035),new THREE.MeshBasicMaterial({color:'#4a0f0b'}),mo,[0,-.015,.008],[Math.PI,0,0],0,{keep:true,noShadow:true});
+  // cold-sweat drops for the shocked face
+  const dropMat=new THREE.MeshBasicMaterial({color:'#cdeeff',transparent:true,opacity:.95});
+  I.sweat=[[.05,.3,.46,.2],[.47,.12,.33,-.5],[-.42,.2,.38,.6]].map(([x,y,z,r])=>{const g=new THREE.Group();g.position.set(x,y,z);g.rotation.z=r;head.add(g);
+    mk(new THREE.SphereGeometry(.03,14,10),dropMat,g,[0,0,0],null,.006,{keep:true,noShadow:true});const cn=new THREE.ConeGeometry(.026,.06,14);cn.translate(0,.035,0);mk(cn,dropMat,g,null,null,.006,{keep:true,noShadow:true});g.visible=false;return g});
   // tusk-like antennae hanging from under the face
-  [-1,1].forEach(s=>{const root=new THREE.Group();root.position.set(s*.1,-.24,.44);root.rotation.set(-.55,0,s*.12);head.add(root);
+  [-1,1].forEach(s=>{const root=new THREE.Group();root.position.set(s*.135,-.235,.425);root.rotation.set(-.55,0,s*.16);head.add(root);
     const chain=[root];let par=root;const L=[.13,.12,.11,.09],R=[.07,.06,.048,.034];
     L.forEach((l,i)=>{const g=new THREE.CylinderGeometry(R[i]*.9,R[i],l,14);g.translate(0,-l/2,0);mk(g,shellMat===null?limbMat:limbMat,par,null,null,.012);
       const nx=new THREE.Group();nx.position.y=-l;nx.rotation.x=.2;par.add(nx);chain.push(nx);par=nx});
@@ -1036,26 +1044,30 @@ function poseIsopod(I,P,dt,time){
   I.joints[6].rotation.y=Math.sin(time*1.3)*.12+st*.15*g;I.joints[6].rotation.x=-sw*.6+Math.sin(time*8)*.15*sw;
   // arms: swing, wave, cover face when curled, bring food to mouth, paddle when swimming
   P.wave=Math.max(0,(P.wave||0)-dt);
-  const wdur=P.waveDur||2.6;
+  const wdur=P.waveDur||2.6,shk=smooth(.15,.6,Math.min(1,P.startle));
   I.arms.forEach(A=>{const s=A.s,k=s>0?-st:st,wv=s<0?smooth(0,.35,P.wave)*smooth(0,.35,wdur-P.wave):0;
     const pad=Math.sin(time*6+s*1.8);
     A.sh.rotation.x=k*.5*g-cu*1.9-P.eat*1.25-P.rear*.6-sw*(1.4+pad*.8)+fl*Math.sin(time*2+s)*.5+Math.sin(time*1.4+s)*.04-wv*.3;
     A.sh.rotation.z=s*(.32+sl*.15+P.rear*.5+wv*2.3)+(P.talk>0?Math.sin(time*4+s)*.06:0);
-    A.el.rotation.x=-.18-cu*1.3-P.eat*1.6-wv*.2-sw*.3;
+    A.sh.rotation.x-=shk*2.35;A.sh.rotation.z+=s*shk*.55;
+    A.el.rotation.x=-.18-cu*1.3-P.eat*1.6-wv*.2-sw*.3-shk*1.75;
     A.el.rotation.z=s*wv*-.6;
     A.wr.rotation.z=wv*Math.sin(time*10)*.55;
-    const open=.18+(P.talk>0?Math.abs(Math.sin(time*7+s))*.35:0)+(P.eat?Math.abs(Math.sin(time*9))*.4:0)+P.startle*.4;
+    const open=.18+(P.talk>0?Math.abs(Math.sin(time*7+s))*.35:0)+(P.eat?Math.abs(Math.sin(time*9))*.4:0)+Math.min(1,P.startle)*.4;
     A.fingers.forEach(F=>F.g.rotation.z=F.f*open);
   });
   // head
-  const H=I.head;H.rotation.x=-P.lift*.16+P.eat*.25+cu*.6+sl*.4+P.rear*.45+Math.sin(time*1.1)*.03;
+  const H=I.head;H.rotation.x=-smooth(.15,.6,Math.min(1,P.startle))*.22-P.lift*.16+P.eat*.25+cu*.6+sl*.4+P.rear*.45+Math.sin(time*1.1)*.03;
   H.rotation.z=Math.sin(time*.7)*.05+(P.talk>0?Math.sin(time*5.5)*.06:0)+sl*.18;
   H.position.y=1.27+Math.sin(time*1.7+.5)*.008;
   // eyes: blink, close when asleep or curled, widen when startled
   I.nextBlink-=dt;if(I.nextBlink<0){I.blink=.14;I.nextBlink=2.2+rnd()*4}I.blink=Math.max(0,I.blink-dt);
-  const close=Math.max(I.blink>0?1:0,sl,smooth(.5,.9,cu));const ey=lerp(1.05,.08,close)*(1+P.startle*.25);
-  I.eyes.forEach(e=>{e.scale.y=ey;e.scale.x=1+P.startle*.2});
-  I.mouthOpen.scale.y=P.talk>0?.2+Math.abs(Math.sin(time*13))*1.1:P.eat?Math.abs(Math.sin(time*9))*.9:.01;
+  const close=Math.max(I.blink>0?1:0,sl,smooth(.5,.9,cu));const ey=lerp(1.05,.08,close)*(1+Math.min(1,P.startle)*.15);
+  I.eyes.forEach(e=>{e.scale.y=ey;e.scale.x=1+Math.min(1,P.startle)*.12});
+  const shock=smooth(.15,.6,Math.min(1,P.startle));
+  const mOpen=Math.max(P.talk>0?.25+Math.abs(Math.sin(time*13))*.75:0,P.eat?Math.abs(Math.sin(time*9))*.7:0,shock*1.15,.02);
+  I.mouthOpen.scale.set(1+shock*.15,mOpen,1);
+  I.sweat.forEach((d,i)=>{d.visible=shock>.05;d.position.y+=0;d.scale.setScalar(.6+shock*.5+Math.sin(time*8+i)*.04)});
   I.ant.forEach((a,ai)=>{a.root.rotation.x=-.55+Math.sin(time*1.3+ai)*.07+(P.talk>0?Math.sin(time*6+ai)*.1:0)-P.eat*.3+sl*.25;
     a.chain.forEach((c,i)=>{if(i)c.rotation.x=.2+Math.sin(time*1.6-i*.5+ai)*.05})});
   if(I.band){I.band.visible=P.legs7!==false;I.ribbons.forEach((r,i)=>{r.rotation.x=.2+Math.sin(time*2.4+i)*.18+sw*.6+g*.25;r.rotation.y=Math.sin(time*1.7+i*2)*.15})}
@@ -2144,7 +2156,7 @@ const Game={
   poke(){
     if(Molt.phase){S.trust=clamp(S.trust-4,0,100);S.mood=clamp(S.mood-12,0,100);C.startle=1;Audio2.noise(.12,600,.3,1);say(Molt.phase==='soft'?'（柔らかい殻は傷つきやすい。そっとしておこう）':'（脱皮中に触られて、体をこわばらせた。いまはそっとしておこう）',{narr:true});save();refreshHUD();return}
     if(Life.asleep)Life.wake();shape(-3,-2);ev('poke');
-    S.pokes++;C.curlT=.9;C.startle=1;setState('curl',{hold:(persLabel()==='臆病'?7:3)+rnd()*2});S.trust=clamp(S.trust-2,0,100);S.mood=clamp(S.mood-7,0,100);
+    S.pokes++;C.curlT=0;C.startle=2.4;setState('curl',{hold:(persLabel()==='臆病'?7:3)+rnd()*2});S.trust=clamp(S.trust-2,0,100);S.mood=clamp(S.mood-7,0,100);
     grade.uniforms.uShock.value=1;Audio2.noise(.12,600,.3,1);
     const n=S.pokes;
     say(S.stage===0?'（ぎゅっと体を丸めた）':S.stage===1?pickR(['……ヤメロ。','イタイ。']):n%5===0?'何度も何度も……。オマエ、ワシを怒らせたいのか。':pickR(['つつくな。','触るな。甲羅に指紋がつく。','……今のは、見なかったことにしてやる。']),{emo:'annoyed',narr:S.stage===0});
