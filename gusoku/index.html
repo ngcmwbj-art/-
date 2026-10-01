@@ -97,6 +97,50 @@ body.cine .console{padding-bottom:calc(9vh + 12px)}
 #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .8s;z-index:25}
 #fade.on{opacity:1}
 #skip{position:fixed;right:16px;top:calc(env(safe-area-inset-top,0px) + 9vh + 12px);z-index:26;font-size:12px}
+/* alert, diary, photo, memorial */
+#alert{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 70px);transform:translateX(-50%);z-index:12;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;
+  background:rgba(40,10,8,.88);border:1px solid rgba(255,111,85,.55);border-radius:4px;padding:10px 14px;max-width:calc(100% - 32px);box-shadow:0 0 0 0 rgba(255,111,85,.5);animation:alertPulse 2s infinite}
+#alert .a-tag{font-family:var(--f-data);font-size:10.5px;letter-spacing:.18em;color:var(--lamp)}
+#alert-msg{font-size:13.5px}
+#alert button{background:#5a1c14;border-color:rgba(255,111,85,.6)}
+@keyframes alertPulse{0%{box-shadow:0 0 0 0 rgba(255,111,85,.45)}70%{box-shadow:0 0 0 12px rgba(255,111,85,0)}100%{box-shadow:0 0 0 0 rgba(255,111,85,0)}}
+.modal{position:fixed;inset:0;z-index:22;display:grid;place-items:center;background:rgba(1,6,10,.72);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);padding:16px}
+.sheet{width:min(560px,100%);max-height:calc(100% - 32px);overflow:auto;background:#081620;border:1px solid var(--line);border-radius:4px;padding:18px 20px;box-sizing:border-box}
+.sheet header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.sheet h3{font-family:var(--f-display);font-weight:800;font-size:20px;letter-spacing:.12em;margin:0}
+.tabs{display:flex;gap:6px}
+.tabs button{font-size:12px;padding:5px 10px}
+.tabs button[aria-pressed="true"]{background:#16445e;border-color:rgba(143,211,255,.45)}
+.d-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:var(--f-data);font-size:12px;color:var(--dim);margin-bottom:10px}
+.d-page{background:#0d1e29;border:1px solid var(--line);border-radius:3px;padding:18px 18px 14px;min-height:150px;background-image:repeating-linear-gradient(transparent 0 33px,rgba(143,211,255,.07) 33px 34px)}
+#d-text{font-family:var(--f-display);font-size:17px;line-height:34px;white-space:pre-wrap;margin:0}
+#d-text.empty{color:var(--dim);font-size:14px}
+.d-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+#d-by,#d-ev{font-size:11px;color:var(--dim)}
+#d-ev{margin-top:8px;line-height:1.6}
+.grave{border-bottom:1px solid var(--line);padding:10px 2px}
+.g-name{font-family:var(--f-display);font-size:16px}
+.g-meta{font-family:var(--f-data);font-size:11px;color:var(--dim);margin-top:2px;line-height:1.6}
+.g-empty{color:var(--dim);font-size:13px}
+body.photo .hud-top,body.photo .console,body.photo #alert{visibility:hidden}
+#photo{position:fixed;left:0;right:0;bottom:0;z-index:15;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:0 16px calc(env(safe-area-inset-bottom,0px) + 16px)}
+#ph-shoot{width:64px;height:64px;border-radius:50%;background:#e9f1f4;border:4px solid #16445e;padding:0}
+#ph-shoot:hover{background:#fff}
+#photo .ph-side{display:flex;gap:8px;align-items:center}
+#ph-flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:30}
+#ph-flash.go{animation:flash .5s ease-out}
+@keyframes flash{0%{opacity:.85}100%{opacity:0}}
+#ph-prev .sheet{text-align:center}
+#ph-img{width:100%;border-radius:3px;border:1px solid var(--line);-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto}
+#ph-prev p{font-size:12px;color:var(--dim);margin:8px 0}
+#memorial .sheet{text-align:center;padding-block:28px}
+#memorial h3{font-size:26px;letter-spacing:.3em}
+#mem-date{font-family:var(--f-data);font-size:12px;color:var(--dim);margin:6px 0 16px}
+#mem-text{display:grid;grid-template-columns:auto auto;justify-content:center;gap:4px 16px;font-size:13px;margin:0 0 20px}
+#mem-text dt{color:var(--dim)}
+#mem-text dd{margin:0;text-align:left}
+@media (max-width:1180px){.actions small{display:none}}
+@media (prefers-reduced-motion:reduce){#alert{animation:none}#ph-flash.go{animation:none}}
 /* toast */
 #toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 16px);transform:translateX(-50%);background:rgba(3,14,22,.9);border:1px solid var(--line);padding:8px 14px;border-radius:4px;font-size:13px;z-index:30;opacity:0;transition:opacity .4s;pointer-events:none}
 #toast.on{opacity:1}
@@ -125,6 +169,7 @@ body.cine .console{padding-bottom:calc(9vh + 12px)}
     <div class="log" id="log">
       <div>飼育 <b id="day">1</b> 日目</div>
       <div>状態 <span class="stage" id="stage">警戒</span></div>
+      <div>絶食 <b id="fast">0</b> 日　<span id="pers"></span></div>
       <div id="clock">--:--</div>
     </div>
   </div>
@@ -135,6 +180,7 @@ body.cine .console{padding-bottom:calc(9vh + 12px)}
     <div class="g-row"><span>空腹</span><div class="bar" id="b-hunger"><i></i></div><output id="o-hunger">20</output></div>
     <div class="g-row"><span>機嫌</span><div class="bar" id="b-mood"><i></i></div><output id="o-mood">60</output></div>
     <div class="g-row"><span>成長</span><div class="bar" id="b-grow"><i></i></div><output id="o-grow">0%</output></div>
+    <div class="g-row"><span>体力</span><div class="bar" id="b-health"><i></i></div><output id="o-health">100</output></div>
     <div class="g-row"><span>信頼</span><div class="bar" id="b-trust"><i></i></div><output id="o-trust">0</output></div>
     <div class="ai-state"><span>会話エンジン</span><em id="aistate">簡易</em></div>
   </details>
@@ -164,6 +210,17 @@ body.cine .console{padding-bottom:calc(9vh + 12px)}
     <button type="button" id="btn-water">水換え</button>
     <button type="button" id="btn-cool">水温 −</button>
     <button type="button" id="btn-warm">水温 ＋</button>
+    <div class="menu">
+      <button type="button" id="btn-more" aria-haspopup="true">その他</button>
+      <div class="pop" id="pop-more" hidden>
+        <button type="button" id="m-diary">日記・思い出</button>
+        <button type="button" id="m-photo">写真モード</button>
+        <div class="note">同居生物</div>
+        <button type="button" data-mate="hag">ヌタウナギと暮らす</button>
+        <button type="button" data-mate="eel">ゲンゲと暮らす</button>
+        <button type="button" data-mate="">同居をやめる</button>
+      </div>
+    </div>
     <span class="sep"></span>
     <small>本体をタップ：つつく ／ 水槽をタップ：ガラスを叩く</small>
     <div class="menu">
@@ -206,6 +263,23 @@ body.cine .console{padding-bottom:calc(9vh + 12px)}
     </div>
   </div>
 </div>
+<div id="alert" hidden role="alert"><span class="a-tag">TROUBLE</span><span id="alert-msg"></span><button type="button" id="alert-btn">対処する</button></div>
+<div class="modal" id="diary" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="d-title">
+    <header><h3 id="d-title">グソク日記</h3><div class="tabs"><button type="button" id="d-tab-diary" aria-pressed="true">日記</button><button type="button" id="d-tab-graves" aria-pressed="false">思い出</button><button type="button" id="d-close">閉じる</button></div></header>
+    <div id="d-book">
+      <div class="d-nav"><button type="button" id="d-prev">‹ 前の日</button><span id="d-date"></span><button type="button" id="d-next">次の日 ›</button></div>
+      <div class="d-page"><p id="d-text"></p></div>
+      <div class="d-foot"><span id="d-by"></span><button type="button" class="primary" id="d-write">グソクに書かせる</button></div>
+      <div id="d-ev"></div>
+    </div>
+    <div id="d-graves" hidden></div>
+  </div>
+</div>
+<div id="photo" hidden><div class="ph-side"><button type="button" id="ph-pause">動きを止める</button></div><button type="button" id="ph-shoot" aria-label="撮影"></button><div class="ph-side"><button type="button" id="ph-close">写真モードを終える</button></div></div>
+<div id="ph-flash"></div>
+<div class="modal" id="ph-prev" hidden><div class="sheet"><img id="ph-img" alt="撮影した写真"><p>保存できない場合は、画像を長押し（パソコンは右クリック）して保存してください。</p><div class="d-foot" style="justify-content:center"><button type="button" class="primary" id="ph-save">保存する</button><button type="button" id="ph-again">もう一枚撮る</button></div></div></div>
+<div class="modal" id="memorial" hidden><div class="sheet"><h3>グソク</h3><div id="mem-date"></div><dl id="mem-text"></dl><p style="font-size:13px;color:var(--dim);line-height:1.8;margin:0 0 18px">この子の記録は「日記 → 思い出」に残ります。</p><button type="button" class="primary" id="mem-new">新しい命を迎える</button></div></div>
 <div id="toast"></div>
 <div id="fade"></div>
 <button type="button" id="skip" hidden>スキップ</button>
@@ -752,7 +826,8 @@ function poseIsopod(I,P,dt,time){
   I.body.position.y=lerp(.4+bob-P.curl*.12,.4,P.swim)+P.curl*.35+P.rear*.12;
   I.body.position.z=-P.curl*.3;
   I.body.rotation.x=lerp(pitchG,0,P.swim)-P.lift*.13+P.eat*.14+P.curl*.95-P.rear*.3+Math.sin(time*.4)*.012;
-  I.body.rotation.z=lerp(rollG,Math.PI+Math.sin(time*1.4)*.12,smooth(.15,.9,P.swim))-P.turn*.05;
+  I.body.rotation.z=lerp(rollG,Math.PI+Math.sin(time*1.4)*.12,smooth(.15,.9,P.swim))-P.turn*.05+(P.flip||0)*Math.PI;
+  I.body.position.y+=(P.flip||0)*.18;
   I.joints.forEach((j,k)=>{if(k===0)return;const pl=k>=8;
     j.rotation.x=-P.curl*(pl?.23:.15)+(pl?Math.sin(time*6-k)*.07*P.swim:0)+Math.sin(time*.9+k*.4)*.004+(k>=8?P.rear*.05:0)
       +(k>=5?Math.sin(time*4.2-k*.9)*.06*(P.peri||0):0)+(k>=1&&k<=5?Math.sin(time*3.6-k*.9)*.05*(P.periA||0):0);});
@@ -763,7 +838,7 @@ function poseIsopod(I,P,dt,time){
     const swimP=Math.sin(time*5+L.k*.6)*.3*P.swim;
     const pushL=(L.k>=4?(P.peri||0):(P.periA||0))*Math.sin(time*3.1+L.k*.8+L.s)*.35;
     L.hip.rotation.y=L.base+(L.s>0?-1:1)*(st*.32*g+twitch+swimP+pushL);
-    L.js[0].rotation.z=lerp(L.rest[0]+sw*.45*g,1.05,P.curl)+P.swim*.6;
+    L.js[0].rotation.z=lerp(L.rest[0]+sw*.45*g,1.05,P.curl)+P.swim*.6+(P.flip||0)*Math.sin(time*1.1+L.k*.9+L.s)*.35;
     L.js[1].rotation.z=lerp(L.rest[1]-sw*.2*g,-2.3,Math.max(P.curl,P.swim*.8));
     L.js[2].rotation.z=lerp(L.rest[2],-1.1,Math.max(P.curl,P.swim*.5));
     const down=sw<.05&&g>.2;if(down&&!L.down&&rnd()<.3*sc){const w=new V3();L.tip.getWorldPosition(w);w.y=heightAt(w.x,w.z);puff(w,1)}L.down=down;
@@ -771,14 +846,14 @@ function poseIsopod(I,P,dt,time){
   I.pleopods.forEach(p=>{p.g.rotation.x=.18+Math.sin(time*(1.6+P.swim*7)+p.k*.7)*(.05+.3*P.swim)});
   I.oost.forEach(o=>{o.g.rotation.z=o.s*P.pouch*.9});
   I.ant.forEach((a,ai)=>{const main=ai<2,tw=P.talk>0?1:0;
-    a.root.rotation.x=-a.pitch+Math.sin(time*(main?1.1:2.2)+ai)*(main?.08:.15)-P.lift*.25+P.curl*.6;
+    a.root.rotation.x=-a.pitch+Math.sin(time*(main?1.1:2.2)+ai)*(main?.08:.15)*(1-.8*(P.sleep||0))-P.lift*.25+P.curl*.6+(P.sleep||0)*.45;
     a.root.rotation.y=a.s*a.yaw+Math.sin(time*.8+ai*2)*.1+(tw?Math.sin(time*5+ai)*.12:0)-P.curl*a.s*.4;
     a.chain.forEach((c,i)=>{if(i<=a.ped)return;c.rotation.y=a.s*a.curl+Math.sin(time*1.7-i*.35+ai)*.035*(main?1:.5)+P.curl*a.s*.12;
       c.rotation.x=Math.sin(time*1.3-i*.3+ai*3)*.03+(main?.012:0)+P.swim*.03;});
   });
   const chew=P.talk>0?Math.abs(Math.sin(time*16))*.5:P.eat?Math.abs(Math.sin(time*9))*.6:0;
   I.mouth.forEach(m=>{m.m.rotation.y=m.s*chew*.6;m.m.rotation.x=chew*.3});
-  I.eyeMat.emissiveIntensity=.08+(1-U.lamp.value)*.55+P.startle*.3;
+  I.eyeMat.emissiveIntensity=(.08+(1-U.lamp.value)*.55+P.startle*.3)*(1-.75*(P.sleep||0));
   I.contact.position.set(P.pos.x,gy+.02,P.pos.z);I.contact.rotation.z=P.yaw;I.contact.scale.setScalar(sc);
   I.contact.material.uniforms.uA.value=.6*(1-smooth(0,.7,P.swim))*(.5+.5*U.lamp.value)*(P.yOverride!==null?.3:1);
 }
@@ -828,7 +903,7 @@ function updateCreature(dt,time){
     if(C.talk>0||C.face>0)wantYaw=camYaw();
     const edible=foods.find(f=>f.rest&&f.left>.05&&f.accepted);
     if(edible)setState('approach',{target:new V3(edible.x,0,edible.z),eatF:edible});
-    else if(C.t>C.wait&&C.talk<=0&&C.face<=0&&!Game.molting&&!C.exEating){
+    else if(C.t>C.wait&&C.talk<=0&&C.face<=0&&!Game.molting&&!C.exEating&&!Life.asleep&&!Life.dead&&!(S.health<40&&Math.random()<.7)){
       if(S.mood>72&&S.stage>=2&&rnd()<.18&&!C.swam){setState('swim');C.swam=true;setTimeout(()=>C.swam=false,90000)}
       else setState('walk',{target:pickWander()});
     }
@@ -952,12 +1027,12 @@ const Cine={on:false,t:0,fired:{},hatch:null,halves:[],eggW:new V3(),
       if(!this.fired.crack){this.eggW.set(-.2,heightAt(-.2,-.6),-.6);C.pos.set(.15,0,.6);this.spawnHalves()}
       this.halves.forEach(h=>{h.v=null;h.m.position.y=heightAt(h.m.position.x,h.m.position.z)+.03});
       ISO.root.visible=true;ISO.contact.visible=true;C.curl=C.curlT=0;C.size=C.sizeT=sizeOf(0);C.yOverride=null;C.yaw=.3;setState('idle',{wait:8});
-      S.hatched=true;S.born=Date.now();S.light='red';syncLampUI();save();refreshHUD();
+      S.hatched=true;S.born=Date.now();S.lastAteAt=S.born;S.health=100;S.kind=50;S.bold=50;S.light='red';syncLampUI();save();refreshHUD();
       document.body.classList.remove('cine');$('skip').hidden=true;
       CAM.yaw=CAM.tYaw=.25;CAM.pitch=CAM.tPitch=.28;CAM.zoom=1;CAM.intro=0;CAM.focus.copy(C.pos);
       queue.length=0;if(typing){clearTimeout(typing.to);typing=null}
       f.classList.remove('on');
-      say('（誕生。体長およそ22ミリ。脚はまだ6対しかない。これを「マンカ」と呼ぶ）',{narr:true});
+      ev('hatch');say('（誕生。体長およそ22ミリ。脚はまだ6対しかない。これを「マンカ」と呼ぶ）',{narr:true});
       say('（しばらくは卵黄の栄養で生きられる。話しかけて、見守ってやろう）',{narr:true});
       started=true;
     },900);
@@ -1041,7 +1116,7 @@ const LIGHTS={
 let envK=1;
 const lightNow={lamp:2.6,hemi:.25,rim:.6,dens:.058,caus:1,uLamp:1,red:0,dark:0,col:new THREE.Color('#cfe8ff'),fog:new THREE.Color('#041824')};
 function updateLights(dt){
-  const L=LIGHTS[Cine.on?'cine':(S?S.light:'white')],k=1-Math.exp(-dt*1.8);
+  const L=LIGHTS[Cine.on||Dream.on?'cine':(Trouble.cur&&Trouble.cur.type==='blackout')?'off':(S?S.light:'white')],k=1-Math.exp(-dt*1.8);
   ['lamp','hemi','rim','dens','caus','uLamp','red','dark'].forEach(n=>lightNow[n]+= (L[n]-lightNow[n])*k);
   lightNow.col.lerp(new THREE.Color(L.col),k);lightNow.fog.lerp(new THREE.Color(L.fog),k);
   lamp.intensity=lightNow.lamp*(1+Math.sin(U.time.value*.6)*.02);lamp.color.copy(lightNow.col);hemi.intensity=lightNow.hemi;rim.intensity=lightNow.rim;
@@ -1079,10 +1154,11 @@ function updateCamera(dt,time){
 }
 const ray=new THREE.Raycaster();
 function onTap(e){
-  if(!started)return;
+  if(!started||Photo.on||Life.dead||Dream.on)return;
   const r=canvas.getBoundingClientRect();const m=new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);
   ray.setFromCamera(m,camera);
   const hit=ray.intersectObject(ISO.root,true).find(h=>h.object.userData.isopod);
+  if(Mate.obj&&S.mate){const mh=ray.intersectObject(Mate.obj,false)[0];if(mh&&(!hit||mh.distance<hit.distance)){Life.tapMate();return}}
   if(hit)Game.poke();else Game.knock();
 }
 
@@ -1225,10 +1301,10 @@ function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clear
 /* =====================================================================
    GAME STATE
    ===================================================================== */
-const DEF={v:2,born:Date.now(),last:Date.now(),hatched:false,stage:0,trust:0,mood:60,hunger:10,water:100,temp:10,light:'red',talks:0,fed:0,pokes:0,fedSinceMolt:0,lastMolt:0,
+const DEF={lastAteAt:null,fastBest:0,fastMiles:[],kind:50,bold:50,health:100,maxHealth:100,events:{},diary:{},mate:null,nextTrouble:0,wokeUntil:0,lastDream:'',morningSaid:'',v:2,born:Date.now(),last:Date.now(),hatched:false,stage:0,trust:0,mood:60,hunger:10,water:100,temp:10,light:'red',talks:0,fed:0,pokes:0,fedSinceMolt:0,lastMolt:0,
   memory:[],asked:[],pending:null,log:[],whiteMin:0,lastFood:0};
 let S;
-function load(){try{const r=JSON.parse(localStorage.getItem('gusoku.save2')||'null');S=Object.assign({},DEF,r||{})}catch(e){S=Object.assign({},DEF)}if(!Array.isArray(S.memory))S.memory=[];if(!Array.isArray(S.log))S.log=[]}
+function load(){try{const r=JSON.parse(localStorage.getItem('gusoku.save2')||'null');S=Object.assign({},DEF,r||{})}catch(e){S=Object.assign({},DEF)}if(!Array.isArray(S.memory))S.memory=[];if(!Array.isArray(S.log))S.log=[];if(!S.lastAteAt)S.lastAteAt=S.born}
 function save(){S.last=Date.now();try{localStorage.setItem('gusoku.save2',JSON.stringify(S))}catch(e){}}
 function mem(key){const m=S.memory.find(x=>x.startsWith(key+'：'));return m?m.slice(key.length+1):null}
 function remember(fact){if(!fact)return;fact=String(fact).slice(0,60);const key=fact.split('：')[0];if(fact.includes('：'))S.memory=S.memory.filter(x=>!x.startsWith(key+'：'));if(!S.memory.includes(fact))S.memory.push(fact);if(S.memory.length>40)S.memory.shift();save()}
@@ -1243,6 +1319,7 @@ function tick(mins){
   if(S.hunger>75)dm-=.08*mins;
   dm+=(55-S.mood)*.004*mins;
   S.mood=clamp(S.mood+dm,0,100);
+  if(S.hatched)Life.tick(mins);
 }
 function dayNo(){return Math.floor((Date.now()-S.born)/86400000)+1}
 
@@ -1319,11 +1396,13 @@ const STAGE_RULE=[
   '段階3「成体」：何度もの脱皮を経て達観した。深海の時間感覚で、静かで哲学的。ときどき皮肉。80文字以内。'
 ];
 function buildPrompt(userText){
-  const tank=`水温${S.temp.toFixed(1)}℃（快適8〜12℃）／水質${Math.round(S.water)}%／空腹${Math.round(S.hunger)}／機嫌${Math.round(S.mood)}／信頼${Math.round(S.trust)}／照明:${LIGHTS[S.light].label}（白色灯は眩しくて嫌い、赤色灯は見えないので平気、消灯が好き）／飼育${dayNo()}日目／現在時刻${new Date().getHours()}時`;
+  const tank=`水温${S.temp.toFixed(1)}℃（快適8〜12℃）／水質${Math.round(S.water)}%／空腹${Math.round(S.hunger)}／機嫌${Math.round(S.mood)}／信頼${Math.round(S.trust)}／照明:${LIGHTS[S.light].label}（白色灯は眩しくて嫌い、赤色灯は見えないので平気、消灯が好き）／飼育${dayNo()}日目／現在時刻${new Date().getHours()}時／絶食${fastDays()}日目（最長${S.fastBest||0}日、絶食を誇りにしている）／体力${Math.round(S.health)}${S.health<40?'（弱っている）':''}${S.mate?`／同居：${Mate.KINDS[S.mate.kind].label}の「${S.mate.name}」（仲良し度${Math.round(S.mate.bond)}）`:''}${Trouble.cur?'／いま水槽でトラブル発生中：'+Trouble.T[Trouble.cur.type].msg:''}`;
+  const persona=`性格：${persLabel()}（${persHint()}）。この性格は飼い主の接し方で育ったもの。口調に反映させる。`;
   const hist=S.log.slice(-12).map(l=>(l.r==='u'?'飼い主：':'グソク：')+l.t).join('\n')||'（まだない）';
   return `あなたは育成ゲーム「グソク」の主人公、水槽で飼われているオオグソクムシ（Bathynomus doederleinii）の「グソク」を演じます。この水槽で母親の育房から生まれ、飼い主に見守られて育った。いまは${STAGES[S.stage]}で体長約${MMS[S.molts]}mm、脱皮${S.molts}回（成体まで9回）。${Molt.phase?'いまは脱皮の最中で、体がだるく、殻が柔らかい。':''}往年の育成ゲーム『シーマン』のように、ぶっきらぼうで皮肉屋、でも飼い主のことを少しずつ覚えて心を開いていく生き物です。
 設定：深海の腐肉食の掃除屋。何年も食べずに平気なことを誇りにしている。虫扱い・ダンゴムシ扱いを嫌う（甲殻類でエビやカニの仲間）。脱皮は体の後ろ半分、前半分の順に二回に分けて行う。光が嫌い。深海は静かで時間がゆっくり流れると考えている。
 会話の段階：${STAGE_RULE[S.stage]}
+${persona}
 いまの水槽の状態：${tank}
 覚えている飼い主のこと：${S.memory.length?S.memory.join('／'):'まだ何も知らない'}
 ${S.pending?`直前にグソクは飼い主に「${S.pending}」を尋ねた。今回の発言はその答えの可能性が高い。`:''}
@@ -1421,7 +1500,7 @@ const Molt={phase:null,t:0,fired:{},swaps:[],cur:null,
       this.once('crack',3,()=>{Audio2.crack();this.cur=this.shed([0,1,2,3,4]);this.cur.dir=fwd.clone();
         say('（今度は前半分。頭の殻が割れ、眼の表面や触角、口の部品まで、古い殻ごと脱ぎ捨てていく）',{narr:true})});
       if(this.cur){if(t<20){this.slide(this.cur,dt,this.cur.dir,2.1*C.size);C.pos.addScaledVector(fwd,-dt*.02*C.size);C.walk-=dt*2}else this.settle(this.cur,dt)}
-      this.once('grow',20,()=>{S.molts++;S.stage=stageOf(S.molts);S.lastMolt=Date.now();S.fedSinceMolt=0;C.sizeT=sizeOf(S.molts);remember('脱皮'+S.molts+'回目：飼育'+dayNo()+'日目（体長約'+MMS[S.molts]+'mm）');save();refreshHUD()});
+      this.once('grow',20,()=>{S.molts++;ev('molt',S.molts);S.stage=stageOf(S.molts);S.lastMolt=Date.now();S.fedSinceMolt=0;C.sizeT=sizeOf(S.molts);remember('脱皮'+S.molts+'回目：飼育'+dayNo()+'日目（体長約'+MMS[S.molts]+'mm）');save();refreshHUD()});
       if(t>=20){I.joints[5].scale.setScalar(damp(I.joints[5].scale.x,1,.35,dt));I.calcMat.opacity=.92*(1-smooth(20,26,t))}
       if(t>this.T.ant){this.phase='soft';this.t=0;this.fired={};I.calc.forEach(c=>c.visible=false);I.shellMat.roughness=.36;I.shellMat.clearcoat=.85;C.curlT=0;
         say('（脱皮完了。新しい殻はまだ柔らかく、白っぽい。水を吸って一回り大きくなった。硬くなるまで数日かかる）',{narr:true})}
@@ -1459,12 +1538,335 @@ function updateExuviae(dt){
   }
 }
 /* =====================================================================
+   LIFE — fasting record, sleep, personality, health & lifespan,
+   tankmate, troubles, dreams, diary, photo mode
+   ===================================================================== */
+const DAY=86400000;
+function dkey(t){const d=new Date(t||Date.now());return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function fastDays(){return Math.max(0,Math.floor((Date.now()-(S.lastAteAt||S.born))/DAY))}
+const FAST_MILES=[3,7,14,30,60,100,200,365,500,1000,1825];
+function ev(code,v){if(!S||!S.hatched)return;const k=dkey();S.events=S.events||{};const a=S.events[k]=S.events[k]||[];
+  if(code==='talk'||code==='poke'){const e=a.find(x=>x.c===code);if(e){e.n=(e.n||1)+1;return}a.push({c:code,n:1});return}
+  if(!a.some(x=>x.c===code&&x.v===v))a.push({c:code,v});
+  const keys=Object.keys(S.events).sort();while(keys.length>40)delete S.events[keys.shift()];}
+function persLabel(){const k=S.kind,b=S.bold;
+  if(k>=65&&b>=58)return'陽気';if(k>=65)return'穏やか';if(k<35&&b>=55)return'皮肉屋';if(k<35)return'疑い深い';if(b<35)return'臆病';if(b>=65)return'豪胆';return'気まぐれ'}
+function persHint(){return{陽気:'人懐っこく、冗談が多い',穏やか:'落ち着いていて、飼い主を気づかう',皮肉屋:'口が悪く、何でも斜めに見る',疑い深い:'警戒心が強く、素直に喜ばない',臆病:'びくびくしていて、声が小さい',豪胆:'動じず、偉そう',気まぐれ:'機嫌がころころ変わる'}[persLabel()]}
+function shape(dk,db){S.kind=clamp((S.kind??50)+dk,0,100);S.bold=clamp((S.bold??50)+db,0,100)}
+function isNight(){const h=new Date().getHours();return h>=22||h<6}
+
+/* ---------- tankmate: a CPU-skinned tube body that follows its own trail ---------- */
+const Mate={obj:null,trail:[],pos:new V3(),yaw:0,target:null,t:0,food:null,
+  KINDS:{hag:{label:'ヌタウナギ',name:'ヌタ',len:4.6,r:.17,col:'#b48e86',y:.12,speed:.5,wave:.5},
+         eel:{label:'ゲンゲ',name:'ゲン',len:4.2,r:.26,col:'#5f4c46',y:.35,speed:.4,wave:.35}},
+  N:36,R:12,
+  build(kind){
+    this.remove();const K=this.KINDS[kind];this.K=K;
+    const g=new THREE.BufferGeometry(),n=this.N*(this.R+1);
+    g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(n*3),3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('normal',new THREE.BufferAttribute(new Float32Array(n*3),3).setUsage(THREE.DynamicDrawUsage));
+    const idx=[];for(let i=0;i<this.N-1;i++)for(let j=0;j<this.R;j++){const a=i*(this.R+1)+j,b=a+1,c=a+this.R+1,d=c+1;idx.push(a,c,b,b,c,d)}g.setIndex(idx);
+    const m=addCaustics(new THREE.MeshPhysicalMaterial({color:K.col,roughness:.28,clearcoat:kind==='hag'?1:.5,clearcoatRoughness:.15,sheen:.4,sheenColor:new THREE.Color('#ffd9d0'),side:THREE.DoubleSide}),.8);
+    this.obj=new THREE.Mesh(g,m);this.obj.castShadow=true;this.obj.frustumCulled=false;this.obj.userData.mate=true;scene.add(this.obj);
+    // eyes / barbels
+    this.head=new THREE.Group();scene.add(this.head);
+    if(kind==='hag'){for(let i=0;i<6;i++){const b=new THREE.Mesh(new THREE.CylinderGeometry(.012,.02,.22,6),m);b.rotation.set(Math.PI/2+(i%3-1)*.4,(i<3?-1:1)*.35,0);b.position.set((i<3?-1:1)*.07,-.03,.06+.04*(i%3));this.head.add(b)}}
+    else{[-1,1].forEach(s=>{const e=new THREE.Mesh(new THREE.SphereGeometry(.05,12,8),new THREE.MeshPhysicalMaterial({color:'#101014',clearcoat:1,roughness:.1}));e.position.set(s*.16,.08,.12);this.head.add(e)})}
+    this.pos.set(-4,0,1.5);this.yaw=.8;this.trail=[];for(let i=0;i<120;i++)this.trail.push(this.pos.clone().addScaledVector(new V3(Math.sin(this.yaw),0,Math.cos(this.yaw)),-i*.05));
+  },
+  remove(){if(this.obj){scene.remove(this.obj);scene.remove(this.head);this.obj.geometry.dispose();this.obj=null}},
+  update(dt,time){
+    if(!this.obj)return;const K=this.K;this.t+=dt;
+    // decide
+    const free=foods.find(f=>f.rest&&f.left>.05&&(!f.accepted||Math.random()<.002));
+    if(free&&!this.food&&Math.random()<dt*.15)this.food=free;
+    if(this.food&&!foods.includes(this.food))this.food=null;
+    if(this.food)this.target=new V3(this.food.x,0,this.food.z);
+    else if(!this.target||this.pos.distanceTo(this.target)<.5||this.t>25){this.t=0;this.target=new V3((rnd()-.5)*12,0,rnd()*6-3.8)}
+    const d=new V3(this.target.x-this.pos.x,0,this.target.z-this.pos.z),want=Math.atan2(d.x,d.z);
+    this.yaw+=clamp(angDiff(this.yaw,want),-1,1)*dt*1.2;
+    const sp=K.speed*(this.food?1.4:1)*(.6+.4*Math.sin(time*.3));
+    const wig=Math.sin(time*3.2)*K.wave;
+    this.pos.x+=Math.sin(this.yaw+wig*.5)*sp*dt;this.pos.z+=Math.cos(this.yaw+wig*.5)*sp*dt;
+    this.pos.x=clamp(this.pos.x,-8,8);this.pos.z=clamp(this.pos.z,-4.4,3.8);
+    rocks.forEach(r=>{const dx=this.pos.x-r.x,dz=this.pos.z-r.z,dd=Math.hypot(dx,dz),m=r.r+.4;if(dd<m){this.pos.x=r.x+dx/dd*m;this.pos.z=r.z+dz/dd*m}});
+    if(this.food&&this.pos.distanceTo(new V3(this.food.x,0,this.food.z))<.45){this.food.left-=dt/6;if(this.food.left<=0){const f=this.food;removeFood(f);this.food=null;Life.mateAte(f)}}
+    // trail → body
+    const head=this.pos.clone();head.y=heightAt(head.x,head.z)+K.y+(K.y>.2?Math.sin(time*.8)*.12:0);
+    if(this.trail[0].distanceTo(head)>.02){this.trail.unshift(head);if(this.trail.length>600)this.trail.pop()}else this.trail[0].copy(head);
+    const step=K.len/(this.N-1),pts=[this.trail[0].clone()];let need=step,ti=0,cur=this.trail[0].clone();
+    while(pts.length<this.N&&ti<this.trail.length-1){const nxt=this.trail[ti+1],seg=cur.distanceTo(nxt);
+      if(seg>=need&&seg>1e-6){cur=cur.clone().lerp(nxt,need/seg);pts.push(cur.clone());need=step}else{need-=seg;cur=nxt.clone();ti++}}
+    while(pts.length<this.N){const a=pts[pts.length-1],b=pts[pts.length-2]||a.clone().add(new V3(0,0,-step));pts.push(a.clone().add(a.clone().sub(b).setLength(step)))}
+    const P=this.obj.geometry.attributes.position,Nn=this.obj.geometry.attributes.normal,up=new V3(0,1,0);let lastTan=new V3(0,0,-1);
+    for(let i=0;i<this.N;i++){
+      const u=i/(this.N-1);const p=pts[i].clone();p.y=Math.max(p.y,heightAt(p.x,p.z)+K.r*.6);
+      let tan=(i<this.N-1?pts[i+1].clone().sub(pts[i]):pts[i].clone().sub(pts[i-1]));if(tan.lengthSq()<1e-10)tan=lastTan.clone();tan.normalize();lastTan=tan;
+      const side=new V3().crossVectors(up,tan).normalize(),nrm=new V3().crossVectors(tan,side).normalize();
+      const sway=Math.sin(time*3.2-u*9)*.08*u;p.addScaledVector(side,sway);
+      let r=K.r*(u<.08?Math.sqrt(u/.08)*.85+.15:1)*(1-Math.pow(u,2.2)*.85);if(this.K===this.KINDS.eel)r*=1+.35*Math.exp(-Math.pow((u-.12)/.1,2));
+      for(let j=0;j<=this.R;j++){const a=j/this.R*TAU,c=Math.cos(a),s=Math.sin(a);const dir=side.clone().multiplyScalar(c).addScaledVector(nrm,s*.85);
+        const k=i*(this.R+1)+j;P.setXYZ(k,p.x+dir.x*r,p.y+dir.y*r,p.z+dir.z*r);Nn.setXYZ(k,dir.x,dir.y,dir.z)}
+    }
+    P.needsUpdate=Nn.needsUpdate=true;this.obj.geometry.computeBoundingSphere();
+    this.head.position.copy(pts[0]);this.head.lookAt(pts[0].clone().add(pts[0].clone().sub(pts[1])));
+  }
+};
+
+/* ---------- white slime cloud (hagfish defence) ---------- */
+let slime,slimeData=[];
+function buildSlime(){
+  const N=180,pos=new Float32Array(N*3),a=new Float32Array(N),s=new Float32Array(N);
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3).setUsage(THREE.DynamicDrawUsage));
+  g.setAttribute('aA',new THREE.BufferAttribute(a,1).setUsage(THREE.DynamicDrawUsage));g.setAttribute('aS',new THREE.BufferAttribute(s,1).setUsage(THREE.DynamicDrawUsage));
+  const m=new THREE.ShaderMaterial({transparent:true,depthWrite:false,uniforms:{uPR:{value:renderer.getPixelRatio()},uLamp:U.lamp},
+    vertexShader:'attribute float aA;attribute float aS;uniform float uPR;varying float vA;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mv;vA=aA;gl_PointSize=aS*uPR*120./-mv.z;}',
+    fragmentShader:'varying float vA;uniform float uLamp;void main(){float d=length(gl_PointCoord-.5);float a=smoothstep(.5,.1,d);gl_FragColor=vec4(vec3(.92,.94,.95)*(.35+.65*uLamp),a*vA*.5);}'});
+  slime=new THREE.Points(g,m);slime.frustumCulled=false;fx.add(slime);
+  for(let i=0;i<N;i++)slimeData.push({p:new V3(0,-9,0),v:new V3(),life:9,max:1,s:1});
+}
+function slimeBurst(p){slimeData.forEach(d=>{d.p.copy(p).add(new V3((rnd()-.5)*.4,rnd()*.2,(rnd()-.5)*.4));d.v.set((rnd()-.5)*.5,.05+rnd()*.25,(rnd()-.5)*.5);d.life=0;d.max=8+rnd()*8;d.s=.25+rnd()*.5})}
+function updateSlime(dt){if(!slime)return;const pa=slime.geometry.attributes.position,aa=slime.geometry.attributes.aA,sa=slime.geometry.attributes.aS;
+  slimeData.forEach((d,i)=>{if(d.life<d.max){d.life+=dt;d.v.multiplyScalar(1-dt*.6);d.p.addScaledVector(d.v,dt);const k=d.life/d.max;aa.setX(i,Math.sin(Math.min(1,k)*Math.PI));sa.setX(i,d.s*(1+k*3))}else aa.setX(i,0);pa.setXYZ(i,d.p.x,d.p.y,d.p.z)});
+  pa.needsUpdate=aa.needsUpdate=sa.needsUpdate=true}
+
+/* ---------- troubles ---------- */
+const Trouble={cur:null,
+  T:{cooler:{msg:'冷却機が故障しました。水温が上がっています',btn:'修理する',work:'修理中…',time:8},
+     blackout:{msg:'停電しました。エアポンプと照明が止まっています',btn:'予備電源に切り替える',work:'切り替え中…',time:5},
+     parasite:{msg:'殻に小さな寄生虫がついています',btn:'ピンセットで取る',work:'',time:0}},
+  start(type){
+    if(this.cur||!started||Molt.phase||Dream.on||Life.dead)return;
+    this.cur={type,at:Date.now(),left:type==='parasite'?6:1,busy:false};S.troubles=(S.troubles||0)+1;
+    if(type==='parasite')this.addSpecks();
+    if(type==='blackout'){bubbles.visible=false;Audio2.noise(.3,120,.4,1)}
+    const T=this.T[type];$('alert-msg').textContent=T.msg;$('alert-btn').textContent=T.btn;$('alert-btn').disabled=false;$('alert').hidden=false;
+    ev('trouble',{cooler:'冷却機の故障',blackout:'停電',parasite:'寄生虫'}[type]);
+    const st=S.stage;
+    setTimeout(()=>{if(!this.cur)return;
+      if(type==='cooler')say(st<=1?'……アツク、ナッテキタ。':'……水がぬるくなってきた。何かおかしいぞ。',{emo:'annoyed',narr:st===0});
+      if(type==='blackout')say(st<=1?'……クライ。……イキ、クルシイ。':'……泡が止まった。息が詰まる。',{emo:'scared',narr:st===0});
+      if(type==='parasite')say(st<=1?'……カユイ。':'……背中がむずむずする。何かいる。',{emo:'annoyed',narr:st===0});
+    },2500);
+  },
+  act(){
+    if(!this.cur||this.cur.busy)return;const c=this.cur,T=this.T[c.type];
+    if(c.type==='parasite'){c.left-=2;Audio2.noise(.05,3000,.2,3);this.removeSpecks(2);if(c.left<=0)this.resolve(true);else $('alert-msg').textContent='寄生虫　残り '+c.left+' 匹';return}
+    c.busy=true;$('alert-btn').disabled=true;$('alert-btn').textContent=T.work;setTimeout(()=>this.resolve(true),T.time*1000);
+  },
+  resolve(byPlayer){
+    const c=this.cur;if(!c)return;this.cur=null;$('alert').hidden=true;
+    if(c.type==='blackout'){bubbles.visible=true;Audio2.tone(200,600,.3,'sine',.1)}
+    if(c.type==='parasite')this.removeSpecks(99);
+    const quick=(Date.now()-c.at)<120000;
+    if(byPlayer){shape(quick?2:.5,0);S.trust=clamp(S.trust+(quick?3:1),0,100);
+      const st=S.stage;setTimeout(()=>say(st===0?'（落ち着きを取り戻した）':st===1?'……タスカッタ。':quick?pickR(['……ふう。気が利くじゃないか。','助かった。……礼は言わんぞ。']):'……遅い。死ぬかと思ったぞ。',{emo:quick?'happy':'annoyed',narr:st===0}),1200)}
+    ev('fixed',{cooler:'冷却機',blackout:'停電',parasite:'寄生虫'}[c.type]);save();refreshHUD();
+  },
+  tick(mins){
+    if(!this.cur)return;const c=this.cur;
+    if(c.type==='cooler')S.temp=clamp(S.temp+mins*.25,2,24);
+    if(c.type==='blackout'){S.water=clamp(S.water-mins*.6,0,100);if(Date.now()-c.at>240000){this.resolve(false);toast('停電から復旧しました')}}
+    if(c.type==='parasite')S.health=clamp(S.health-mins*.05,0,100);
+    if(Date.now()-c.at>300000&&!c.penal){c.penal=true;shape(-3,0)}
+  },
+  specks:[],
+  addSpecks(){const mat=new THREE.MeshStandardMaterial({color:'#f4f1ea',roughness:.6});
+    for(let i=0;i<6;i++){const seg=ISO.segs[1+Math.floor(rnd()*12)];const m=new THREE.Mesh(new THREE.SphereGeometry(.035,8,6),mat);m.scale.set(1,.6,1.4);
+      m.position.set((rnd()-.5)*seg.sp.hw0*1.2,seg.sp.hw0*seg.sp.hf*.85+.02,-seg.sp.len*(.2+rnd()*.6));seg.j.add(m);this.specks.push(m)}},
+  removeSpecks(n){for(let i=0;i<n&&this.specks.length;i++){const m=this.specks.pop();m.parent&&m.parent.remove(m)}}
+};
+
+/* ---------- dream of a whale fall ---------- */
+const Dream={on:false,t:0,built:null,DX:34,
+  build(){
+    const g=new THREE.Group(),bone=addCaustics(new THREE.MeshStandardMaterial({color:'#d8cdbb',roughness:.75}),.8),mat2=new THREE.MeshStandardMaterial({color:'#e6e2d6',roughness:1,transparent:true,opacity:.42,depthWrite:false});
+    const base=new V3(this.DX,0,0);const gy=heightAt(base.x,base.z);
+    for(let i=0;i<16;i++){const v=new THREE.Mesh(new THREE.CylinderGeometry(.32-i*.012,.34-i*.012,.42,14),bone);v.rotation.z=Math.PI/2;v.position.set(base.x-4+i*.5,gy+.32,base.z+Math.sin(i*.3)*.2);v.castShadow=true;g.add(v);
+      if(i%3===0){const p=new THREE.Mesh(new THREE.ConeGeometry(.1,.6,8),bone);p.position.set(v.position.x,gy+.75,v.position.z);g.add(p)}}
+    for(let i=0;i<9;i++)[-1,1].forEach(s=>{const x=base.x-3.4+i*.55;const c=new THREE.CatmullRomCurve3([new V3(x,gy+.4,base.z),new V3(x+.1,gy+1.3,base.z+s*1.1),new V3(x+.25,gy+.9,base.z+s*2.1),new V3(x+.35,gy+.05,base.z+s*2.5)]);
+      const r=new THREE.Mesh(new THREE.TubeGeometry(c,24,.075-i*.003,8),bone);r.castShadow=true;g.add(r)});
+    const sk=new THREE.Mesh(new THREE.SphereGeometry(1,32,20),bone);sk.scale.set(1.9,.7,1.3);sk.position.set(base.x+5,gy+.45,base.z);sk.castShadow=true;g.add(sk);
+    [-1,1].forEach(s=>{const c=new THREE.CatmullRomCurve3([new V3(base.x+5.5,gy+.2,base.z+s*.8),new V3(base.x+7.5,gy+.15,base.z+s*1.2),new V3(base.x+9.4,gy+.1,base.z+s*.7)]);g.add(new THREE.Mesh(new THREE.TubeGeometry(c,24,.14,10),bone))});
+    for(let i=0;i<30;i++){const m=new THREE.Mesh(new THREE.SphereGeometry(.2+rnd()*.3,24,12),mat2);m.scale.set(1+rnd()*.6,.08,1+rnd()*.6);m.position.set(base.x-4+rnd()*10,gy+.05,base.z+(rnd()-.5)*4);g.add(m)}
+    scene.add(g);
+    const kids=[0,1,2].map(i=>{const I=buildIsopod();const P=Object.assign(newPose(),{size:.85,yaw:rnd()*TAU});P.pos.set(base.x-3+i*3,0,base.z+(i-1)*2.4);return{I,P,a:rnd()*TAU}});
+    this.built={g,kids,base};
+  },
+  start(){if(this.on)return;if(!this.built)this.build();this.on=true;this.t=0;this.fired={};this.built.g.visible=true;this.built.kids.forEach(k=>{k.I.root.visible=true;k.I.contact.visible=true});
+    $('fade').classList.add('on');setTimeout(()=>$('fade').classList.remove('on'),900);document.body.classList.add('cine');
+    S.lastDream=dkey();S.dreams=(S.dreams||0)+1;ev('dream','鯨');remember('夢：沈んできた鯨と、集まる仲間の夢を見た');save()},
+  update(dt,time){
+    const t=(this.t+=dt),B=this.built;
+    const once=(k,at,txt)=>{if(t>=at&&!this.fired[k]){this.fired[k]=1;queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(txt,{narr:true})}};
+    once('a',1,'（グソクは夢を見ている）');
+    once('b',6,'（遠い昔の記憶か、それとも祖先の記憶か。光の届かない海の底に、巨大な鯨が沈んできた）');
+    once('c',14,'（何百もの仲間が集まり、何か月もかけて、骨だけになるまで食べ尽くした。深海の、何十年に一度の宴）');
+    B.kids.forEach((k,i)=>{k.a+=dt*(.18+i*.05);const R=2+i*.9;k.P.pos.set(B.base.x+Math.cos(k.a)*R*1.6,0,B.base.z+Math.sin(k.a)*R*.7);k.P.yaw=Math.atan2(-Math.sin(k.a)*R*1.6,Math.cos(k.a)*R*.7);k.P.gait=.7;k.P.walk+=dt*7;poseIsopod(k.I,k.P,dt,time)});
+    const a=t*.06+.3,cp=new V3(B.base.x+Math.cos(a)*10,heightAt(B.base.x,B.base.z)+3.2-t*.03,B.base.z+Math.sin(a)*8);
+    camera.position.lerp(cp,1-Math.exp(-dt*2));camera.lookAt(B.base.x+1,1,B.base.z);if(bokeh)bokeh.uniforms.focus.value=camera.position.distanceTo(B.base);
+    if(t>24&&!this.fired.end){this.fired.end=1;$('fade').classList.add('on');setTimeout(()=>{this.on=false;B.g.visible=false;B.kids.forEach(k=>{k.I.root.visible=false;k.I.contact.visible=false});document.body.classList.remove('cine');$('fade').classList.remove('on');CAM.intro=.3;say('（グソクは眠ったまま、脚をかすかに動かした）',{narr:true})},900)}
+  }
+};
+
+/* ---------- life loop ---------- */
+const Life={asleep:false,sleepT:0,dead:false,weakSaid:0,
+  tick(mins){
+    // health: damage from bad conditions, slow recovery when all is well; age caps it
+    let dmg=0;
+    if(S.water<25)dmg+=(25-S.water)*.004*mins;
+    if(S.temp>15)dmg+=(S.temp-15)*.012*mins;if(S.temp<5)dmg+=(5-S.temp)*.012*mins;
+    dmg+=foods.filter(f=>f.rotten).length*.01*mins;
+    if(S.light==='white'&&isNight())dmg+=.002*mins;
+    const good=S.water>60&&S.temp>=7&&S.temp<=13&&!Trouble.cur;
+    if(S.molts>=9&&!S.adultAt)S.adultAt=Date.now();
+    const ageAdult=S.adultAt?(Date.now()-S.adultAt)/DAY:0;S.maxHealth=clamp(100-Math.max(0,ageAdult-60)*2,0,100);
+    S.health=clamp((S.health??100)-dmg+(good?.03*mins:0),0,S.maxHealth);
+    if(S.light==='white')shape(-.02*mins,0);
+    Trouble.tick(mins);
+    if(S.health<=0&&!this.dead)this.die(S.maxHealth<=0?'老衰':'衰弱');
+  },
+  update(dt,time){
+    if(this.dead||!started)return;
+    // sleep by the player's own clock
+    const want=isNight()&&!Molt.phase&&Date.now()>(S.wokeUntil||0)&&!Trouble.cur&&!Cine.on;
+    if(want&&!this.asleep&&C.state==='idle'&&C.talk<=0){this.asleep=true;this.sleepT=0;if(!Dream.on)say(S.stage===0?'（小さな体を伏せて、眠りについた）':'（グソクは眠りについた。夜のあいだは、そっとしておこう）',{narr:true});ev('sleep')}
+    if(!want&&this.asleep){this.asleep=false;const h=new Date().getHours();if(h>=6&&h<10&&S.morningSaid!==dkey()){S.morningSaid=dkey();this.morning()}}
+    C.sleep=damp(C.sleep||0,this.asleep?1:0,1.2,dt);
+    if(this.asleep){this.sleepT+=dt;C.curlT=Math.max(C.curlT,.16);
+      if(!Dream.on&&S.light!=='white'&&this.sleepT>25&&S.lastDream!==dkey(Date.now()-6*3600000)&&S.stage>=1)Dream.start()}
+    // weakness
+    C.flip=damp(C.flip||0,S.health<20?1:0,.6,dt);
+    if(S.health<40&&!Dream.on&&Date.now()-this.weakSaid>300000){this.weakSaid=Date.now();say(S.health<20?'（ひっくり返って、脚をゆっくり動かしている……とても危ない状態だ。水質と水温を見直そう）':'（動きが鈍い。体調が悪いようだ）',{narr:true})}
+    // fasting milestones
+    const fd=fastDays();S.fastBest=Math.max(S.fastBest||0,fd);S.fastMiles=S.fastMiles||[];
+    const m=FAST_MILES.filter(x=>x<=fd&&!S.fastMiles.includes(x)).pop();
+    if(m&&!typing&&!Dream.on){S.fastMiles.push(m);ev('fast',m);const st=S.stage;
+      say(st===0?`（${m}日、何も食べていない。まだ平気そうだ）`:st===1?`……${m}ニチ、クッテナイ。ヘイキ。`:m>=365?`……${m}日だ。陸の生き物には、真似できまい。`:pickR([`${m}日、何も食っておらん。……まだまだいける。`,`絶食${m}日目。ワシの仲間には、五年食わなかったやつもいるぞ。`]),{emo:'proud',narr:st===0});save()}
+    // tankmate & slime & troubles
+    Mate.update(dt,time);updateSlime(dt);
+    if(S.mate&&Mate.obj){const near=Mate.pos.distanceTo(C.pos)<2.5;S.mate.bond=clamp(S.mate.bond+dt*(near?.02:.006),0,100);
+      [[20,'……あいつ、悪くない。'],[50,'%sは、ワシの話をよく聞く。……しゃべらんがな。'],[80,'%sがいると、水槽が広く感じる。']].forEach(([b,l])=>{if(S.mate.bond>=b&&!(S.mate.said||[]).includes(b)){S.mate.said=(S.mate.said||[]).concat(b);if(S.stage>=2)say(l.replace('%s',S.mate.name),{emo:'happy'})}})}
+    if(!Trouble.cur&&!Molt.phase&&!this.asleep&&S.stage>=1&&Date.now()>(S.nextTrouble||0)){
+      if(!S.nextTrouble){S.nextTrouble=Date.now()+(15+rnd()*20)*60000}else{S.nextTrouble=Date.now()+(25+rnd()*35)*60000;Trouble.start(pickR(['cooler','blackout','parasite']))}}
+  },
+  morning(){const st=S.stage,n=mem('名前');
+    const dreamt=S.lastDream===dkey(Date.now()-6*3600000);
+    say(st===0?'（朝。小さなグソクが、もぞもぞと動きだした）':st===1?'……オハヨ。':dreamt?'……鯨の夢を見た。仲間が、たくさんいた。':pickR(['……早いな。','朝か。深海に朝はないが、オマエにはあるらしいな。',(n||'オマエ')+'、今日も陸は明るいか。']),{emo:'sleepy',narr:st===0})},
+  wake(){this.asleep=false;S.wokeUntil=Date.now()+4*60000;shape(-2,-1);S.mood=clamp(S.mood-6,0,100);ev('woke');
+    const st=S.stage;say(st===0?'（眠っていたところを起こされ、触角をばたつかせた）':st===1?'……ネテタ。……ナニ。':pickR(['……なんだ。夜中だぞ。','寝ていたんだがな。……用件を手短に言え。','……オマエは眠らんのか。']),{emo:'annoyed',narr:st===0})},
+  mateAte(f){const nm=S.mate.name;ev('mateAte',nm);
+    if(f.accepted){S.mate.bond=clamp(S.mate.bond-3,0,100);say(S.stage<=1?'……ワシノ、メシ……。':pickR([`おい、${nm}。それはワシのだ。`,`……${nm}に取られた。オマエ、もっとよく見て落とせ。`]),{emo:'annoyed',narr:S.stage===0})}
+    else{S.mate.bond=clamp(S.mate.bond+2,0,100);S.water=clamp(S.water+4,0,100);if(S.stage>=2&&Math.random()<.5)say(`${nm}が片づけてくれた。……掃除屋の仕事を取られたな。`,{emo:'neutral'})}},
+  tapMate(){const k=S.mate.kind,head=Mate.trail[0]||Mate.pos;
+    if(k==='hag'){slimeBurst(head.clone());S.water=clamp(S.water-12,0,100);S.mate.bond=clamp(S.mate.bond-5,0,100);ev('slime');Audio2.swish();
+      say(S.stage<=1?'……ネバネバ。':'……やりおった。水がネバネバだ。ヌタウナギを驚かすな。',{emo:'annoyed',narr:S.stage===0});toast('ヌタウナギが粘液を出しました（水質 −12）')}
+    else{Mate.target=new V3((rnd()-.5)*12,0,rnd()*6-3.8);Mate.t=0;toast('ゲンゲが驚いて逃げていった')}
+    save();refreshHUD()},
+  setMate(kind){
+    if(!kind){if(S.mate){ev('mateBye',S.mate.name);say(S.stage>=2?`……${S.mate.name}がいなくなると、少し静かだな。`:'（同居生物がいなくなった）',{narr:S.stage<2})}S.mate=null;Mate.remove();save();return}
+    const K=Mate.KINDS[kind];S.mate={kind,name:K.name,bond:0,since:Date.now()};Mate.build(kind);ev('mate',K.label);
+    say(S.stage<=1?'……ダレ。':kind==='hag'?'……ヌタウナギか。深海の同業者だ。粘液だけは勘弁してくれ。':'ゲンゲか。ぬるっとしたやつだな。……まあ、場所は空いている。',{emo:'curious',narr:S.stage===0});save()},
+  die(cause){
+    this.dead=true;Game.molting=true;$('alert').hidden=true;
+    const rec={name:mem('名前')?'（'+mem('名前')+'のグソク）':'グソク',born:S.born,died:Date.now(),days:dayNo(),molts:S.molts,mm:MMS[S.molts],fast:S.fastBest||0,pers:persLabel(),cause};
+    let gr=[];try{gr=JSON.parse(localStorage.getItem('gusoku.graves')||'[]')}catch(e){}gr.push(rec);try{localStorage.setItem('gusoku.graves',JSON.stringify(gr))}catch(e){}
+    C.flip=1;S.health=0;save();
+    say(cause==='老衰'?'（長い時間を生きたグソクは、静かに動かなくなった）':'（グソクは、動かなくなった）',{narr:true});
+    setTimeout(()=>showMemorial(rec),6000);
+  }
+};
+function lifeDiaryLocal(k){
+  const evs=(S.events&&S.events[k])||[],st=S.stage,n=mem('名前')||'オマエ';
+  const fd=(c)=>evs.find(e=>e.c===c);const lines=[];
+  const V={
+    fed:e=>[`（${e.v}を少し食べた）`,`${e.v}、クッタ。ウマイ。`,`${n}が${e.v}を持ってきた。……悪くなかった。`,`${e.v}を食った。久しぶりの味だった。`],
+    molt:e=>['（はじめての脱皮をした）','カラ、ヌイダ。オオキク、ナッタ。','脱皮した。体がまだ柔らかい。','脱皮した。捨てた殻の分だけ、軽くなった。'],
+    talk:e=>['（たくさん話しかけられた）',`${n}、ヨクシャベル。`,`${n}がよくしゃべる日だった。うるさいが、嫌いではない。`,`${n}と、いくらか話をした。`],
+    poke:e=>['（何度かつつかれた）','ツツカレタ。イタイ。',`${e.n}回もつつかれた。覚えておくぞ。`,`${e.n}回、つつかれた。……許してやる。`],
+    trouble:e=>[`（${e.v}があった）`,`${e.v}。コワカッタ。`,`${e.v}があった。肝が冷えた。`,`${e.v}があった。陸の機械は信用ならん。`],
+    dream:e=>['（夢を見た）','クジラノ、ユメ。','鯨の夢を見た。仲間がたくさんいた。','鯨の夢を見た。あれは、ワシの祖先の記憶かもしれん。'],
+    woke:e=>['（夜中に起こされた）','ヨル、オコサレタ。','夜中に起こされた。眠い。','夜中に起こされた。……オマエは夜行性か。'],
+    fast:e=>[`（${e.v}日、何も食べていない）`,`${e.v}ニチ、クッテナイ。`,`絶食${e.v}日。まだいける。`,`絶食${e.v}日。記録は、まだ伸びる。`],
+    mate:e=>[`（${e.v}がやってきた）`,`${e.v}、キタ。`,`${e.v}が来た。同居人ができた。`,`${e.v}が来た。静かなやつなら歓迎だ。`],
+    mateAte:e=>[`（${e.v}に餌を取られた）`,`${e.v}、メシ、トッタ。`,`${e.v}に餌を取られた。`,`${e.v}に餌を取られた。……まあいい。`],
+    slime:e=>['（水がネバネバになった）','ネバネバ。','ヌタウナギが粘液を出した。最悪だ。','水がネバネバになった。あいつを驚かすな。'],
+    fixed:e=>[`（${e.v}がなおった）`,`${e.v}、ナオッタ。`,`${n}が${e.v}をなんとかした。`,`${e.v}は${n}が片づけた。手際は悪くない。`],
+    hatch:e=>['（生まれた）','','',''],
+  };
+  evs.forEach(e=>{const f=V[e.c];if(f){const t=f(e)[st];if(t)lines.push(t)}});
+  if(!lines.length)lines.push(['（静かな一日だった）','……シズカ。','何もない一日だった。それでいい。','何も起きなかった。深海の一日も、こんなものだ。'][st]);
+  return lines.slice(0,4).join(st===0?'':'\n');
+}
+
+/* ---------- diary ---------- */
+function evText(e){return({fed:`${e.v}を食べた`,molt:`${e.v}回目の脱皮をした`,talk:`飼い主に${e.n||1}回話しかけられた`,poke:`${e.n||1}回つつかれた`,trouble:`${e.v}が起きた`,fixed:`${e.v}を飼い主が直した`,
+  dream:'鯨の夢を見た',woke:'夜中に起こされた',fast:`絶食${e.v}日に達した`,mate:`${e.v}が同居することになった`,mateAte:`${e.v}に餌を取られた`,mateBye:`${e.v}がいなくなった`,slime:'ヌタウナギが粘液を出して水がネバネバになった',hatch:'母の育房から生まれた',sleep:'夜は眠った'})[e.c]||''}
+const Diary={keys:[],page:0,
+  ensure(){S.diary=S.diary||{};const today=dkey();Object.keys(S.events||{}).forEach(k=>{if(k<today&&!S.diary[k])S.diary[k]={t:lifeDiaryLocal(k),by:'local'}})},
+  open(){this.ensure();const today=dkey();this.keys=[...new Set(Object.keys(S.diary).concat(today))].sort();this.page=this.keys.length-1;this.tab('diary');$('diary').hidden=false;this.render();save()},
+  close(){$('diary').hidden=true},
+  tab(t){$('d-book').hidden=t!=='diary';$('d-graves').hidden=t!=='graves';$('d-tab-diary').setAttribute('aria-pressed',t==='diary');$('d-tab-graves').setAttribute('aria-pressed',t==='graves');if(t==='graves')this.graves()},
+  render(){const k=this.keys[this.page],today=dkey(),d=new Date(k+'T12:00:00');
+    $('d-date').textContent=`${d.getMonth()+1}月${d.getDate()}日（${'日月火水木金土'[d.getDay()]}）`+(k===today?'　今日':'');
+    const e=S.diary[k];$('d-text').textContent=e?e.t:'（今日はまだ書いていない）';$('d-text').classList.toggle('empty',!e);
+    $('d-by').textContent=e?(e.by==='ai'?'グソクが書いた':'グソクの記録より'):'';
+    $('d-write').hidden=k!==today;$('d-write').textContent=e?'書き直させる':'グソクに書かせる';
+    $('d-prev').disabled=this.page<=0;$('d-next').disabled=this.page>=this.keys.length-1;
+    $('d-ev').textContent=((S.events&&S.events[k])||[]).map(evText).filter(Boolean).join('／')||'記録なし';},
+  async write(){
+    const k=dkey(),b=$('d-write');b.disabled=true;b.textContent='グソクが書いています…';
+    let t=null;
+    if(aiOn&&!aiBroken){const sample=await getSample();if(sample){
+      const evs=((S.events&&S.events[k])||[]).map(evText).filter(Boolean).join('、')||'特に何もなかった';
+      const prompt=`あなたはオオグソクムシ「グソク」です。いまは${STAGES[S.stage]}（体長約${MMS[S.molts]}mm）。性格は${persLabel()}（${persHint()}）。
+今日の日記を書いてください。今日の出来事：${evs}。絶食${fastDays()}日目。覚えている飼い主のこと：${S.memory.slice(-8).join('／')||'まだ少ない'}。
+${STAGE_RULE[S.stage]}
+日記のルール：本文だけを書く。日付や見出しは書かない。${S.stage===0?'言葉は書けないので、（　）で囲んだ短い観察文1〜2行だけ。':S.stage===1?'カタコトのカタカナで2〜3行。':'一人称ワシで、3〜5行、合計140字以内。最後の一行は少し心情がにじむように。'}`;
+      try{const r=await sample(prompt,{modelTier:'quick',cache:false});t=String(r.text||'').trim().slice(0,260)}
+      catch(e){if(['not_granted','sampling_disabled','not_declared','capability_disabled','capability_removed'].includes(e&&e.code)){aiBroken=true;aiLabel()}}}}
+    const by=t?'ai':'local';if(!t)t=lifeDiaryLocal(k);S.diary=S.diary||{};S.diary[k]={t,by};save();b.disabled=false;this.render();
+  },
+  graves(){let gr=[];try{gr=JSON.parse(localStorage.getItem('gusoku.graves')||'[]')}catch(e){}
+    const box=$('d-graves');box.innerHTML='';
+    if(!gr.length){const p=document.createElement('p');p.className='g-empty';p.textContent='まだ誰も眠っていない。';box.append(p);return}
+    gr.slice().reverse().forEach(r=>{const el=document.createElement('div');el.className='grave';
+      const h=document.createElement('div');h.className='g-name';h.textContent=r.name;const s=document.createElement('div');s.className='g-meta';
+      s.textContent=`${dkey(r.born).replace(/-/g,'.')}―${dkey(r.died).replace(/-/g,'.')}　${r.days}日　${r.molts+1}齢 ${r.mm}mm　最長絶食${r.fast}日　${r.pers}　${r.cause}`;el.append(h,s);box.append(el)});}
+};
+/* ---------- photo mode ---------- */
+const Photo={on:false,paused:false,blob:null,url:null,
+  open(){if(!started)return;this.on=true;this.paused=false;document.body.classList.add('photo');$('photo').hidden=false;$('ph-pause').textContent='動きを止める';closePops()},
+  close(){this.on=false;this.paused=false;document.body.classList.remove('photo');$('photo').hidden=true;$('ph-prev').hidden=true},
+  shoot(){
+    composer.render(0);const src=renderer.domElement,c=document.createElement('canvas');c.width=src.width;c.height=src.height;const g=c.getContext('2d');g.drawImage(src,0,0);
+    const s=c.width/1280,h=74*s;const grd=g.createLinearGradient(0,c.height-h*1.6,0,c.height);grd.addColorStop(0,'rgba(0,0,0,0)');grd.addColorStop(1,'rgba(0,0,0,.55)');g.fillStyle=grd;g.fillRect(0,c.height-h*1.6,c.width,h*1.6);
+    g.fillStyle='#e9f1f4';g.font=`800 ${30*s}px "Shippori Mincho B1",serif`;g.fillText('グソク',28*s,c.height-28*s);
+    g.font=`${15*s}px "IBM Plex Mono",monospace`;g.fillStyle='#b9cbd3';
+    g.fillText(`${STAGES[S.stage]}  ${MMS[S.molts]}mm  ${S.molts+1}齢  絶食${fastDays()}日  性格:${persLabel()}  ${dkey().replace(/-/g,'.')}`,150*s,c.height-32*s);
+    const f=$('ph-flash');f.classList.remove('go');void f.offsetWidth;f.classList.add('go');Audio2.noise(.06,4000,.25,1);
+    c.toBlob(b=>{if(!b)return;this.blob=b;if(this.url)URL.revokeObjectURL(this.url);this.url=URL.createObjectURL(b);$('ph-img').src=this.url;$('ph-prev').hidden=false;ev('photo')},'image/jpeg',.92);
+  },
+  async save(){
+    if(!this.blob)return;let dl=null;try{dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null}catch(e){}
+    if(!dl){toast('画像を長押し（パソコンは右クリック）して保存してください');return}
+    try{await dl.save({filename:'gusoku-'+dkey()+'-'+Date.now()%100000+'.jpg',data:this.blob});toast('保存しました')}
+    catch(e){if(e&&e.code==='declined')return;toast('保存できませんでした。画像を長押しして保存してください')}
+  }
+};
+function showMemorial(rec){$('mem-text').innerHTML='';
+  [['飼育',rec.days+'日'],['齢',(rec.molts+1)+'齢・'+rec.mm+'mm'],['最長絶食',rec.fast+'日'],['性格',rec.pers],['死因',rec.cause]].forEach(([a,b])=>{const dt=document.createElement('dt');dt.textContent=a;const dd=document.createElement('dd');dd.textContent=b;$('mem-text').append(dt,dd)});
+  $('mem-date').textContent=dkey(rec.born).replace(/-/g,'.')+' ― '+dkey(rec.died).replace(/-/g,'.');$('memorial').hidden=false}
+
+/* =====================================================================
    GAME ACTIONS
    ===================================================================== */
 const Game={
   molting:false,hinted:false,
   async talk(text){
-    if(aiBusy)return;
+    if(aiBusy||Life.dead)return;
+    if(Life.asleep){S.log.push({r:'u',t:text});Life.wake();save();refreshHUD();return}
+    ev('talk');shape(.2,.6);
     S.talks++;S.log.push({r:'u',t:text});if(S.log.length>30)S.log.splice(0,S.log.length-30);
     C.face=6;
     const wasPending=S.pending;
@@ -1510,7 +1912,8 @@ const Game={
     let p=S.hunger>45?.85*like+.1:S.hunger>25?.35*like:.12;
     if(S.stage===0)p=kind==='krill'?.7:.25;
     if(S.molts<9&&S.trust>=NEEDM[S.molts]&&S.fedSinceMolt<1&&S.molts>0)p=.9;
-    if(this.molting)p=0;
+    const pl=persLabel();if(pl==='疑い深い')p*=.75;if(pl==='穏やか'||pl==='陽気')p=Math.min(1,p*1.1);
+    if(this.molting||Life.asleep)p=0;
     f.accepted=Math.random()<p*(S.mood>25?1:.4);
     const st=S.stage;
     setTimeout(()=>{
@@ -1521,21 +1924,22 @@ const Game={
     },3800);
   },
   ate(kind){
-    S.hunger=clamp(S.hunger-(kind==='krill'?25:45),0,100);S.mood=clamp(S.mood+8,0,100);S.trust=clamp(S.trust+4,0,100);S.fed++;S.fedSinceMolt++;this.hinted=false;
+    S.hunger=clamp(S.hunger-(kind==='krill'?25:45),0,100);S.mood=clamp(S.mood+8,0,100);S.trust=clamp(S.trust+4,0,100);S.fed++;S.fedSinceMolt++;this.hinted=false;S.lastAteAt=Date.now();S.fastMiles=[];shape(1.5,0);ev('fed',{aji:'アジ',ika:'スルメイカ',krill:'オキアミ'}[kind]);
     remember('最後の食事：'+({aji:'アジ',ika:'スルメイカ',krill:'オキアミ'}[kind])+'（飼育'+dayNo()+'日目）');
     say(S.stage===0?'（小さな顎を懸命に動かしている）':S.stage===1?'……ウマイ。':pickR(['……ふう。これでまた一年は食わなくていい。','礼は言わんぞ。……うまかった。','悪くない。次は三日寝かせてから持ってこい。']),{emo:'happy',narr:S.stage===0});
     this.progress();save();refreshHUD();
   },
   poke(){
     if(Molt.phase){S.trust=clamp(S.trust-4,0,100);S.mood=clamp(S.mood-12,0,100);C.startle=1;Audio2.noise(.12,600,.3,1);say(Molt.phase==='soft'?'（柔らかい殻は傷つきやすい。そっとしておこう）':'（脱皮中に触られて、体をこわばらせた。いまはそっとしておこう）',{narr:true});save();refreshHUD();return}
-    S.pokes++;C.curlT=.9;C.startle=1;setState('curl',{hold:3+rnd()*2});S.trust=clamp(S.trust-2,0,100);S.mood=clamp(S.mood-7,0,100);
+    if(Life.asleep)Life.wake();shape(-3,-2);ev('poke');
+    S.pokes++;C.curlT=.9;C.startle=1;setState('curl',{hold:(persLabel()==='臆病'?7:3)+rnd()*2});S.trust=clamp(S.trust-2,0,100);S.mood=clamp(S.mood-7,0,100);
     grade.uniforms.uShock.value=1;Audio2.noise(.12,600,.3,1);
     const n=S.pokes;
     say(S.stage===0?'（ぎゅっと体を丸めた）':S.stage===1?pickR(['……ヤメロ。','イタイ。']):n%5===0?'何度も何度も……。オマエ、ワシを怒らせたいのか。':pickR(['つつくな。','触るな。甲羅に指紋がつく。','……今のは、見なかったことにしてやる。']),{emo:'annoyed',narr:S.stage===0});
     save();refreshHUD();
   },
   knock(){
-    Audio2.knock();C.face=5;C.startle=.6;
+    Audio2.knock();shape(0,-.6);if(Life.asleep){if(Math.random()<.5)Life.wake();return}C.face=5;C.startle=.6;
     if(C.state==='walk')setState('idle',{wait:5});
     if(Math.random()<.5)say(S.stage===0?'（音のした方を向いた）':S.stage===1?'……ナンダ。':pickR(['ガラスを叩くな。響く。','なんだ。用があるなら言え。','聞こえている。']),{emo:'curious',narr:S.stage===0});
   },
@@ -1547,7 +1951,7 @@ const Game={
     save();refreshHUD();
   },
   water(){
-    S.water=100;foods.slice().forEach(removeFood);Audio2.swish();
+    S.water=100;foods.slice().forEach(removeFood);Audio2.swish();shape(1,0);
     for(let i=0;i<60;i++){const p=new V3((rnd()-.5)*10,0,(rnd()-.5)*6);p.y=heightAt(p.x,p.z);puff(p,1)}
     toast('水を三分の一入れ替えました');
     if(S.stage>=2)setTimeout(()=>say(pickR(['……水が軽くなった。','ふむ。気が利くな。']),{emo:'happy'}),1500);
@@ -1574,6 +1978,8 @@ function refreshHUD(){
   setBar('trust',S.trust,'ok');$('o-trust').textContent=Math.round(S.trust);
   if(S.molts>=9){setBar('grow',100,'ok');$('o-grow').textContent='最大'}
   else{const lo=S.molts?NEEDM[S.molts-1]:0,hi=NEEDM[S.molts];setBar('grow',(S.trust-lo)/(hi-lo)*100,'');$('o-grow').textContent=Molt.phase?{pre:'脱皮前',post:'脱皮中',gap:'脱皮中',ant:'脱皮中',soft:'殻が軟'}[Molt.phase]:(S.trust>=hi&&S.molts>0&&S.fedSinceMolt<1)?'要給餌':Math.round(clamp((S.trust-lo)/(hi-lo),0,1)*100)+'%'}
+  setBar('health',S.health/(S.maxHealth||100)*100,S.health<40?'warn':'ok');$('o-health').textContent=Math.round(S.health);
+  $('fast').textContent=fastDays();$('pers').textContent='性格 '+persLabel()+(Life.asleep?'　睡眠中':'');
   $('day').textContent=dayNo();$('stage').textContent=STAGES[S.stage]+'　'+MMS[S.molts]+'mm　'+(S.molts+1)+'齢';
   const d=new Date();$('clock').textContent=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+'　'+LIGHTS[S.light].label;
 }
@@ -1589,13 +1995,14 @@ function boot(){
   buildTextures();
   scene.environment=makeEnv();
   buildTerrain();buildRocks();buildPebbles();buildShafts();buildBubbles();buildSediment();buildSurface();
-  ISO=buildIsopod();
+  ISO=buildIsopod();buildSlime();
   if(S.molts===undefined)S.molts=[0,1,4,7][S.stage]||0;S.stage=stageOf(S.molts);
   C.pos.set(.4,0,.2);C.size=C.sizeT=sizeOf(S.molts);shellTint();
   applyQuality();
   syncLampUI();
   voiceOn=(()=>{try{return localStorage.getItem('gusoku.voice')!=='off'}catch(e){return true}})();$('set-voice').textContent='声（グソグソ）：'+(voiceOn?'オン':'オフ');
   ttsOn=(()=>{try{return localStorage.getItem('gusoku.tts')==='on'}catch(e){return false}})();$('set-tts').textContent='日本語読み上げ：'+(ttsOn?'オン':'オフ');
+  if(S.mate)Mate.build(S.mate.kind);
   aiLabel();refreshHUD();
   addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();composer.setSize(innerWidth,innerHeight);
     grade.uniforms.uRes.value.set(innerWidth*renderer.getPixelRatio(),innerHeight*renderer.getPixelRatio());if(bokeh)bokeh.uniforms.aspect.value=camera.aspect});
@@ -1617,8 +2024,9 @@ function loop(now){
   U.time.value=time;grade.uniforms.uTime.value=time;grade.uniforms.uShock.value=Math.max(0,grade.uniforms.uShock.value-dt*3);
   updateLights(dt);
   if(Molt.phase)Molt.update(dt,time);
+  if(Dream.on)Dream.update(dt,time);
   if(Cine.on)Cine.update(dt,time);
-  else if(started||S.hatched){updateCreature(dt,time);updateCamera(dt,time)}
+  else if(started||S.hatched){if(!(Photo.on&&Photo.paused))updateCreature(dt,time);if(!Dream.on)updateCamera(dt,time)}
   else{camera.position.set(Math.sin(time*.05)*6,2.4,7);camera.lookAt(0,.6,-1)}
   foods.slice().forEach(f=>{
     if(!f.rest){f.vy=damp(f.vy,-1.1,1.5,dt);f.mesh.position.y+=f.vy*dt;f.mesh.position.x+=Math.sin(time*2+f.x)*.15*dt;f.mesh.rotation.x+=f.spin.x*dt*2;f.mesh.rotation.z+=f.spin.z*dt*2;
@@ -1627,7 +2035,7 @@ function loop(now){
     if(f.rotAt&&Date.now()>f.rotAt&&!f.rotten){f.rotten=true;if(S.stage>=2)say('……腐ってきたぞ。水が汚れる。',{emo:'annoyed'})}
   });
   const dm=new THREE.Matrix4();
-  bubbleData.forEach((b,i)=>{b.y+=dt*b.sp*(1+b.y*.05);if(b.y>10.4){b.y=0;b.r=.025+Math.random()*.07}
+  if(bubbles.visible)bubbleData.forEach((b,i)=>{b.y+=dt*b.sp*(1+b.y*.05);if(b.y>10.4){b.y=0;b.r=.025+Math.random()*.07}
     const x=AIR.x+Math.sin(time*3+b.ph)*.06*b.y*.5,z=AIR.z+Math.cos(time*2.3+b.ph)*.06*b.y*.5;
     const s=b.r*(1+Math.sin(time*18+b.ph)*.08);dm.makeScale(s,s*.85,s).setPosition(x,AIR.y+.1+b.y,z);bubbles.setMatrixAt(i,dm)});
   bubbles.instanceMatrix.needsUpdate=true;
@@ -1636,14 +2044,17 @@ function loop(now){
   pa.needsUpdate=aa.needsUpdate=sa.needsUpdate=true;
   if(started){
     acc+=dt;if(acc>5){tick(acc/60);acc=0;save()}
+    Life.update(dt,time);
     hudT+=dt;if(hudT>1){hudT=0;refreshHUD()}
     idleT+=dt;
-    if(idleT>nextIdle&&!typing&&!aiBusy){idleT=0;nextIdle=50+Math.random()*70;idleChatter()}
+    if(idleT>nextIdle&&!typing&&!aiBusy&&!Life.asleep&&!Life.dead&&!Dream.on&&!Photo.on){idleT=0;nextIdle=50+Math.random()*70;idleChatter()}
   }
   composer.render(dt);
 }
 function idleChatter(){
-  if(Game.molting)return;
+  if(Game.molting||Life.asleep||Life.dead)return;
+  if(S.stage>=2&&Math.random()<.18){const fd=fastDays();const pl=persLabel();
+    say(pickR([fd>=3?`絶食${fd}日目だ。……まだまだ。`:'最後に食ったのは、いつだったかな。',{陽気:'今日は泡の音がいい。オマエも聞け。',穏やか:'……オマエも、無理はするなよ。',皮肉屋:'陸の生き物は、忙しそうで気の毒だ。',疑い深い:'……その手に、何を持っている。',臆病:'……さっきの影、なんだった。',豪胆:'ワシに怖いものはない。光以外はな。',気まぐれ:'……なんでもない。呼んでみただけだ。'}[pl]].concat(S.mate?[`${S.mate.name}は今日も静かだ。`]:[])),{emo:'neutral'});return}
   if(S.stage>=1&&Math.random()<.45&&ask())return;
   const st=S.stage;
   if(st===0){say(pickR(['（小さな脚で、砂をかいている）','（まだ卵黄の栄養で生きているらしい。腹のあたりがうっすら黄色い）','（触角だけが、ゆっくり動いている）','（こちらの様子をうかがっているようだ）','（ときどき、何もない水をかじるしぐさをする）']),{narr:true});return}
@@ -1670,6 +2081,8 @@ function start(){
   if(!S.hatched){$('title').classList.add('gone');setTimeout(()=>{$('title').hidden=true;Cine.start()},900);return}
   started=true;
   $('title').classList.add('gone');setTimeout(()=>$('title').hidden=true,1300);
+  if(S.health<=0){Life.dead=true;C.flip=1;let gr=[];try{gr=JSON.parse(localStorage.getItem('gusoku.graves')||'[]')}catch(e){}if(gr.length)showMemorial(gr[gr.length-1]);return}
+  if(isNight()){Life.asleep=true;Life.sleepT=0;say('（夜。グソクは眠っている。起こさないように、そっと見守ろう）',{narr:true});return}
   const h=Math.round((Date.now()-S.last)/3600000);
   if(S.stage>=2)say(h>=1?`……戻ったか。${h}時間ぶりだな。`:'……まだいたのか。',{emo:'curious'});
   else if(S.stage===1)say('……キタ。',{emo:'curious'});
@@ -1681,13 +2094,29 @@ function start(){
 $('start').addEventListener('click',start);
 $('skip').addEventListener('click',()=>Cine.finish());
 $('talk').addEventListener('submit',e=>{e.preventDefault();if(!started)return;const v=$('say').value.trim();if(!v)return;$('say').value='';Game.talk(v)});
-const pops=[['btn-feed','pop-feed'],['btn-set','pop-set']];
+const pops=[['btn-feed','pop-feed'],['btn-set','pop-set'],['btn-more','pop-more']];
 function closePops(){pops.forEach(([,p])=>$(p).hidden=true);$('reset-confirm').hidden=true}
 pops.forEach(([b,p])=>$(b).addEventListener('click',e=>{e.stopPropagation();const h=$(p).hidden;closePops();$(p).hidden=!h}));
 document.addEventListener('click',e=>{if(!e.target.closest('.menu'))closePops()});
-document.querySelectorAll('[data-food]').forEach(b=>b.addEventListener('click',()=>{closePops();if(started)Game.feed(b.dataset.food)}));
-$('btn-light').addEventListener('click',()=>started&&Game.light());
-$('btn-water').addEventListener('click',()=>started&&Game.water());
+document.querySelectorAll('[data-food]').forEach(b=>b.addEventListener('click',()=>{closePops();if(started&&!Life.dead)Game.feed(b.dataset.food)}));
+$('btn-light').addEventListener('click',()=>started&&!Life.dead&&Game.light());
+$('m-diary').addEventListener('click',()=>{closePops();if(S&&S.hatched)Diary.open()});
+$('m-photo').addEventListener('click',()=>Photo.open());
+document.querySelectorAll('[data-mate]').forEach(b=>b.addEventListener('click',()=>{closePops();if(!started||Life.dead)return;if(b.dataset.mate&&S.stage<1){toast('同居生物は、幼体になってから迎えられます');return}Life.setMate(b.dataset.mate||null)}));
+$('alert-btn').addEventListener('click',()=>Trouble.act());
+$('d-close').addEventListener('click',()=>Diary.close());
+$('d-prev').addEventListener('click',()=>{Diary.page--;Diary.render()});
+$('d-next').addEventListener('click',()=>{Diary.page++;Diary.render()});
+$('d-write').addEventListener('click',()=>Diary.write());
+$('d-tab-diary').addEventListener('click',()=>{Diary.tab('diary');Diary.render()});
+$('d-tab-graves').addEventListener('click',()=>Diary.tab('graves'));
+$('ph-shoot').addEventListener('click',()=>Photo.shoot());
+$('ph-close').addEventListener('click',()=>Photo.close());
+$('ph-pause').addEventListener('click',()=>{Photo.paused=!Photo.paused;$('ph-pause').textContent=Photo.paused?'動きを戻す':'動きを止める'});
+$('ph-save').addEventListener('click',()=>Photo.save());
+$('ph-again').addEventListener('click',()=>{$('ph-prev').hidden=true});
+$('mem-new').addEventListener('click',()=>{try{localStorage.removeItem('gusoku.save2')}catch(e){}location.reload()});
+$('btn-water').addEventListener('click',()=>started&&!Life.dead&&Game.water());
 $('btn-cool').addEventListener('click',()=>started&&Game.temp(-.5));
 $('btn-warm').addEventListener('click',()=>started&&Game.temp(.5));
 $('set-quality').addEventListener('click',()=>{qName=Q_ORDER[(Q_ORDER.indexOf(qName)+1)%3];try{localStorage.setItem('gusoku.q2',qName)}catch(e){}applyQuality();toast('画質：'+Q.label+(qName==='eco'?'（発熱・電池消費を抑えます）':''))});
@@ -1701,7 +2130,7 @@ $('gauges').addEventListener('toggle',()=>$('gsum').textContent=$('gauges').open
 if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
-window.gusoku={Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
+window.gusoku={Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
