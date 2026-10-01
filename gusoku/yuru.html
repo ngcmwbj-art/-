@@ -2632,18 +2632,20 @@ $('talk').addEventListener('submit',e=>{e.preventDefault();sendSay()});
 const Mic={rec:null,on:false,fallback:false,auto:false,timer:0,watch:0,heard:false,composing:false,
   toggle(){if(!started)return;if(this.on){this.stop();return}if(this.auto){this.endDictation('音声入力をやめました');return}
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!SR||this.fallback){this.dictation();return}
+    // inside the Claude viewer the page may not use the microphone: go straight to keyboard dictation
+    const inFrame=(()=>{try{return window.top!==window}catch(e){return true}})();
+    if(!SR||this.fallback||inFrame){this.dictation();return}
     try{const r=new SR();r.lang='ja-JP';r.interimResults=true;r.continuous=false;r.maxAlternatives=1;this.heard=false;
-      r.onstart=()=>{this.heard=true};r.onaudiostart=()=>{this.heard=true};
+      r.onspeechstart=()=>{this.heard=true};
       r.onresult=e=>{this.heard=true;let txt='',fin=false;for(const res of e.results){txt+=res[0].transcript;if(res.isFinal)fin=true}$('say').value=txt;if(fin){this.stop();sendSay()}};
       r.onerror=e=>{const er=e.error||'';this.stop();if(/not-allowed|service-not-allowed|audio-capture|network/.test(er)){this.fallback=true;this.dictation()}else if(er!=='aborted'&&er!=='no-speech')toast('うまく聞き取れませんでした')};
       r.onend=()=>{this.on=false;$('mic').classList.remove('on')};
       r.start();this.rec=r;this.on=true;$('mic').classList.add('on');toast('聞いています…話しかけてください');
       // inside the Claude viewer the recogniser can stay silent forever: fall back after a short wait
-      clearTimeout(this.watch);this.watch=setTimeout(()=>{if(this.on&&!this.heard){try{r.abort()}catch(e){}this.stop();this.fallback=true;this.dictation()}},2500)}
+      clearTimeout(this.watch);this.watch=setTimeout(()=>{if(this.on&&!this.heard&&!$('say').value){try{r.abort()}catch(e){}this.stop();this.fallback=true;this.dictation()}},6000)}
     catch(e){this.fallback=true;this.dictation()}},
   stop(){clearTimeout(this.watch);try{this.rec&&this.rec.stop()}catch(e){}this.on=false;$('mic').classList.remove('on')},
-  dictation(){this.auto=true;$('mic').classList.add('dict');$('vhint').hidden=false;const el=$('say');el.focus();try{el.click()}catch(e){}},
+  dictation(){this.auto=true;$('mic').classList.add('dict');$('vhint').hidden=false;const el=$('say');el.focus({preventScroll:true});try{el.setSelectionRange(el.value.length,el.value.length)}catch(e){}},
   endDictation(msg){this.auto=false;clearTimeout(this.timer);$('mic').classList.remove('dict');$('vhint').hidden=true;if(msg)toast(msg)},
   // keyboard dictation types text in bursts while you talk: send only after a longer pause, never mid-composition
   onInput(){if(!this.auto||this.composing)return;clearTimeout(this.timer);this.timer=setTimeout(()=>{if(this.auto&&!this.composing&&$('say').value.trim()){sendSay()}},2600)}
@@ -2655,7 +2657,10 @@ $('say').addEventListener('compositionend',()=>{Mic.composing=false;Mic.onInput(
 $('vhint-close').addEventListener('click',()=>Mic.endDictation());
 const pops=[['btn-feed','pop-feed'],['btn-set','pop-set'],['btn-more','pop-more']];
 function closePops(){pops.forEach(([,p])=>$(p).hidden=true);$('reset-confirm').hidden=true}
-pops.forEach(([b,p])=>$(b).addEventListener('click',e=>{e.stopPropagation();const h=$(p).hidden;closePops();$(p).hidden=!h}));
+function placePop(b,p){const el=$(p);el.style.cssText=el.dataset.css0===undefined?(el.dataset.css0=el.getAttribute('style')||''):el.dataset.css0;
+  if(innerWidth<760){const r=$(b).getBoundingClientRect();Object.assign(el.style,{position:'fixed',left:'16px',right:'16px',bottom:(innerHeight-r.top+6)+'px',top:'auto',maxHeight:(r.top-24)+'px',overflowY:'auto'})}
+  else{const r=el.getBoundingClientRect();if(r.left<8){el.style.left='0';el.style.right='auto'}else if(r.right>innerWidth-8){el.style.left='auto';el.style.right='0'}}}
+pops.forEach(([b,p])=>$(b).addEventListener('click',e=>{e.stopPropagation();const h=$(p).hidden;closePops();$(p).hidden=!h;if(h)placePop(b,p)}));
 document.addEventListener('click',e=>{if(!e.target.closest('.menu'))closePops()});
 document.querySelectorAll('[data-food]').forEach(b=>b.addEventListener('click',()=>{closePops();if(started&&!Life.dead)Game.feed(b.dataset.food)}));
 $('btn-light').addEventListener('click',()=>started&&!Life.dead&&Game.light());
