@@ -38,6 +38,7 @@ import { sfx } from '../../audio';
 import { flag, hasItem, removeItem, setFlag, state } from '../../game/state';
 import { registerDebug } from '../../debug';
 import { registerScript } from '../../world/api';
+import { getScript } from '../../world/scripts';
 import { field } from '../../world/field';
 import { registerWorldFx } from '../../world/fx';
 import { runMsg } from '../../world/msg';
@@ -1046,6 +1047,26 @@ registerScript('obj_dome_isu', function* (): Co {
 registerScript('obj_dome_photo', function* (): Co {
   sfx('se_examine');
   yield* runMsg(T.PHOTO);
+});
+
+/**
+ * グソっ君 in the small round room often stands right beside Minato, and a
+ * press meant for what is in front (the telescope, a crank) reaches him
+ * first (the field asks the actors before the objects). In this room the
+ * thing in front wins: its script runs; facing nothing, his ordinary line.
+ */
+registerScript('kanenari_map_hoshi_dome', function* (ctx): Co {
+  const f = field();
+  if (f) {
+    const [tx, ty] = f.facingTile();
+    const o = f.objectAt(tx, ty, f.player.dir);
+    const fn = o ? getScript(o.script ?? o.id) : undefined;
+    if (o && fn) {
+      yield* fn({ ...ctx, source: o.id, runDefault: function* () {} });
+      return;
+    }
+  }
+  yield* ctx.runDefault();
 });
 
 // ---------------------------------------------------------------- the ending (カット3, ending.ts)

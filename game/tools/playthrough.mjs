@@ -1259,6 +1259,9 @@ const BEATS = [
             checks.push({ check: 'ending: the end card shows (no fade over it)', ok: c.fade < 0.02, fade: c.fade });
             if (c.fade >= 0.02) throw new Error(`the end card is under a fade (${c.fade})`);
             await shot('endcard');
+            // (let the choice box finish opening first: a ↓ during its slide-in is
+            // dropped and Z then picks 「第2章へ すすむ」 — a flaky ending beat, 2026-10-01)
+            await sleep(600);
             await tap('ArrowDown');
             await sleep(250);
             await tap('KeyZ');
@@ -1772,6 +1775,20 @@ const SIDE2 = [
     // まつ先生: 〔kanbo〕 (the hanamaru, 朱肉 +2, the card kept for タクミ)
     name: 'dome',
     async run() {
+      // to a tile, checked (グソっ君 following close in the small round room can leave Minato a tile short)
+      const at = async (x, y) => {
+        for (let i = 0; i < 4; i++) {
+          await travel(x, y);
+          await sleep(200);
+          const t = await page.evaluate(() => {
+            const p = window.__game.cmd.fieldRef().player;
+            return [p.tileX, p.tileY];
+          });
+          if (t[0] === x && t[1] === y) return;
+          await advance({ label: 'at' });
+        }
+        throw new Error(`dome: could not stand on (${x},${y})`);
+      };
       await examineHere('up', 'key');
       await need(['flag_dome_key'], 'dome: the key');
       await enterDoor(48, 0, 'up', 'map_hoshi_hill');
@@ -1784,16 +1801,16 @@ const SIDE2 = [
       await need(['flag_dome_enter'], 'dome: inside');
       await page.evaluate(() => window.__game.cmd.domeAuto(true));
       try {
-        await travel(5, 6);
+        await at(5, 6);
         await examineHere('up', 'cover');
         await need(['flag_dome_cover'], 'dome: the cover and the card');
-        await travel(1, 3);
+        await at(1, 3);
         await examineHere('left', 'slit');
         await need(['flag_dome_slit'], 'dome: the slit');
         for (const n of [1, 2, 3]) {
-          await travel(1, 5);
+          await at(1, 5);
           await examineHere('left', `rot${n}`);
-          await travel(5, 6);
+          await at(5, 6);
           await examineHere('up', `eye${n}`);
           const got = await page.evaluate(() => window.__game.cmd.flag('flag_kanbo_n'));
           if (got !== n) throw new Error(`dome: star ${n} not written (flag_kanbo_n ${got})`);

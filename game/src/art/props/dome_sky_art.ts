@@ -558,11 +558,41 @@ export function compoundEye(): HTMLCanvasElement {
   ctx.fillRect(0, 0, 384, 216);
   const src = eyePatch(3)[0];
   const r = 21;
-  const [cell, cctx] = makeCanvas(r * 2 + 1, r * 2 + 1);
-  cctx.imageSmoothingEnabled = false;
-  cctx.drawImage(src, PATCH / 2 - 52, PATCH / 2 - 52, 104, 104, 0, 0, r * 2 + 1, r * 2 + 1);
-  const m = new PixelCanvas(r * 2 + 1, r * 2 + 1);
-  for (let y = 0; y <= r * 2; y++) for (let x = 0; x <= r * 2; x++) if (Math.hypot(x - r, y - r) <= r - 1) m.set(x, y, '#FFFFFF');
+  const S = r * 2 + 1;
+  const [cell, cctx] = makeCanvas(S, S, { willReadFrequently: true });
+  // shrink the middle of the field (112 px) into the cell keeping every star: the brightest pixel of each block
+  const SRC = 112;
+  const sctx = (() => {
+    const [c2, x2] = makeCanvas(SRC, SRC, { willReadFrequently: true });
+    x2.drawImage(src, PATCH / 2 - SRC / 2, PATCH / 2 - SRC / 2, SRC, SRC, 0, 0, SRC, SRC);
+    void c2;
+    return x2;
+  })();
+  const sd = sctx.getImageData(0, 0, SRC, SRC).data;
+  const out = cctx.createImageData(S, S);
+  const k = SRC / S;
+  for (let y = 0; y < S; y++)
+    for (let x = 0; x < S; x++) {
+      let best = 0;
+      let bi = 0;
+      for (let j = Math.floor(y * k); j < Math.min(SRC, Math.floor((y + 1) * k)); j++)
+        for (let i = Math.floor(x * k); i < Math.min(SRC, Math.floor((x + 1) * k)); i++) {
+          const o = (j * SRC + i) * 4;
+          const v = sd[o] + sd[o + 1] + sd[o + 2];
+          if (v > best) {
+            best = v;
+            bi = o;
+          }
+        }
+      const q = (y * S + x) * 4;
+      out.data[q] = sd[bi];
+      out.data[q + 1] = sd[bi + 1];
+      out.data[q + 2] = sd[bi + 2];
+      out.data[q + 3] = 255;
+    }
+  cctx.putImageData(out, 0, 0);
+  const m = new PixelCanvas(S, S);
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) if (Math.hypot(x - r, y - r) <= r - 1) m.set(x, y, '#FFFFFF');
   cctx.globalCompositeOperation = 'destination-in';
   cctx.drawImage(m.toCanvas(), 0, 0);
   ctx.imageSmoothingEnabled = false;
