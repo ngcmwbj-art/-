@@ -953,6 +953,14 @@ function buildIsopod(opt){
     legs.push({s,hp,kn,an,tip,down:false});
   });
   I.legs2=legs;
+  I.minis=[];
+  [.32,.56,.8].forEach((y,k)=>[-1,1].forEach(s=>{
+    const g=new THREE.Group();g.position.set(s*.44,y,.3-.06*k);torso.add(g);
+    const up=new THREE.CapsuleGeometry(.045,.1,5,10);up.translate(0,-.1,0);mk(up,limbMat,g,null,null,.01);
+    const kn=new THREE.Group();kn.position.y=-.2;g.add(kn);
+    const lo=new THREE.CapsuleGeometry(.04,.08,5,10);lo.translate(0,-.09,0);mk(lo,limbMat,kn,null,null,.01);
+    const cl=new THREE.ConeGeometry(.03,.08,10);cl.translate(0,-.04,0);mk(cl,clawMat,kn,[0,-.17,0],null,.008);
+    g.traverse(o=>o.userData.keep=true);g.scale.setScalar(.001);I.minis.push({g,kn,s,k})}));
   // head
   const head=new THREE.Group();head.position.set(0,1.27,.04);torso.add(head);I.head=head;
   mk(vc(new THREE.SphereGeometry(1,48,36).scale(.64,.5,.54)),shellMat,head,null,null,.022);
@@ -1018,7 +1026,7 @@ function buildIsopod(opt){
   scene.add(I.root);
   return I;
 }
-function newPose(){return {peri:0,periA:0,pos:new V3(),yaw:0,walk:0,gait:0,turn:0,curl:0,lift:0,swim:0,eat:0,talk:0,startle:0,rear:0,pouch:0,legs7:true,size:1,yOverride:null,wave:0}}
+function newPose(){return {crawl:0,peri:0,periA:0,pos:new V3(),yaw:0,walk:0,gait:0,turn:0,curl:0,lift:0,swim:0,eat:0,talk:0,startle:0,rear:0,pouch:0,legs7:true,size:1,yOverride:null,wave:0}}
 function poseIsopod(I,P,dt,time){
   const sc=P.size;I.root.scale.setScalar(sc);
   const gy=heightAt(P.pos.x,P.pos.z);
@@ -1073,7 +1081,25 @@ function poseIsopod(I,P,dt,time){
   if(I.band){I.band.visible=P.legs7!==false;I.ribbons.forEach((r,i)=>{r.rotation.x=.2+Math.sin(time*2.4+i)*.18+sw*.6+g*.25;r.rotation.y=Math.sin(time*1.7+i*2)*.15})}
   I.oost.forEach(o=>{o.g.rotation.x=P.pouch*1.25});
   I.eyeMat.emissiveIntensity=(1-U.lamp.value)*.06*(1-close);
-  I.contact.position.set(P.pos.x,gy+.02,P.pos.z);I.contact.rotation.z=P.yaw;I.contact.scale.setScalar(sc);
+  const cr=P.crawl||0;
+  if(cr>.001){
+    const cph=P.walk*.9,cst=Math.sin(cph);
+    I.torso.rotation.x=lerp(I.torso.rotation.x,1.42+cu*.5+P.eat*.08+Math.sin(time*1.7)*.01,cr);I.torso.rotation.y=lerp(I.torso.rotation.y,-cst*.06*g,cr);
+    H.rotation.x=lerp(H.rotation.x,-1.33+P.eat*.4+cu*.6+sl*.3-P.lift*.25+Math.sin(time*1.1)*.04,cr);
+    I.body.position.y=lerp(I.body.position.y,Math.abs(Math.cos(cph))*.02*g+Math.sin(time*1.7)*.005-cu*.12,cr);
+    I.body.rotation.z=lerp(I.body.rotation.z,cst*.03*g-P.turn*.04,cr);
+    I.arms.forEach(A=>{const s=A.s,k=s>0?-cst:cst,lift=Math.max(0,k);
+      A.sh.rotation.x=lerp(A.sh.rotation.x,-1.45+k*.42*g-cu*.6,cr);A.sh.rotation.z=lerp(A.sh.rotation.z,s*(.42+cu*.3),cr);
+      A.el.rotation.x=lerp(A.el.rotation.x,.25+lift*.5*g+cu*1.2,cr);A.el.rotation.z=lerp(A.el.rotation.z,0,cr);A.wr.rotation.z=lerp(A.wr.rotation.z,0,cr)});
+    I.legs2.forEach(L=>{const s=L.s,k=s>0?cst:-cst;
+      L.hp.rotation.x=lerp(L.hp.rotation.x,-k*.45*g-.15-cu*.9,cr);L.kn.rotation.x=lerp(L.kn.rotation.x,.3+Math.max(0,k)*.5*g+cu*1.4,cr);L.an.rotation.x=lerp(L.an.rotation.x,-.1,cr)});
+    I.joints[6].rotation.x=lerp(I.joints[6].rotation.x,-.75,cr);
+  }
+  I.minis.forEach(m=>{const v=Math.max(.001,smooth(.15,.85,cr));m.g.scale.setScalar(v);m.g.visible=v>.01;
+    const p2=P.walk*.9*2+m.k*1.1+(m.s>0?Math.PI:0),sw2=Math.sin(p2);
+    m.g.rotation.x=-1.45+sw2*.42*P.gait-cu*.5;m.g.rotation.z=m.s*.5;m.kn.rotation.x=.45+Math.max(0,-sw2)*.5*P.gait+cu*1.2});
+  I.focusH=lerp(1.25,.62,cr);
+  I.contact.position.set(P.pos.x,gy+.02,P.pos.z);I.contact.rotation.z=P.yaw;I.contact.scale.set(sc,sc*(1+cr*.7),sc);
   I.contact.material.uniforms.uA.value=.55*(1-smooth(0,.7,P.swim))*(.5+.5*U.lamp.value)*(P.yOverride!==null&&P.yOverride!==undefined?.3:1);
 }
 function yuru(t){
@@ -1173,7 +1199,7 @@ function updateCreature(dt,time){
   C.walk+=dt*(C.speed/spd*14+Math.abs(C.turn)*4.5);
   C.lift=damp(C.lift,(C.talk>0?1:0)+(C.face>0?.6:0),3,dt);
   C.eat=C.state==='eat'?1:0;updateExuviae(dt);
-  C.size=damp(C.size,C.sizeT,.35,dt);C.legs7=S.molts>=1;
+  C.crawlT=S.molts<4?1:0;C.crawl=damp(C.crawl===undefined?C.crawlT:C.crawl,C.crawlT,.7,dt);C.size=damp(C.size,C.sizeT,.35,dt);C.legs7=S.molts>=1;
   C.startle=Math.max(0,C.startle-dt);
   poseIsopod(ISO,C,dt,time);
 }
@@ -1188,7 +1214,7 @@ const Cine={on:false,t:0,fired:{},hatch:null,halves:[],eggW:new V3(),
     MOM=buildIsopod({female:true});this.MP=Object.assign(newPose(),{pos:new V3(-.2,0,-1.0),yaw:0,size:1.1});this.yaw0=0;
     shellTintFor(MOM,1);
     this.hatch=MOM.eggs.filter(e=>e.seg===3).sort((a,b)=>a.x-b.x)[0]||MOM.eggs[0];
-    ISO.root.visible=false;ISO.contact.visible=false;C.size=C.sizeT=.1;C.curl=C.curlT=1;
+    ISO.root.visible=false;ISO.contact.visible=false;C.crawl=1;C.size=C.sizeT=.1;C.curl=C.curlT=1;
     poseIsopod(MOM,this.MP,0,0);
   },
   narr(key,at,text){if(this.t>=at&&!this.fired[key]){this.fired[key]=1;queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(text,{narr:true})}},
@@ -1741,7 +1767,7 @@ const Molt={phase:null,t:0,fired:{},swaps:[],cur:null,
     ISO.newShellMat.color.set('#e0a573');ISO.newLimbMat.color.set('#dba077');
     const m=S.molts,st=S.stage,n=mem('名前');
     if(m===1){say('（はじめての脱皮をおえて、ハチマキをきゅっと締めた！ もうマンカではない。「幼体」だ）',{narr:true});say('……ア。……オマエ、ダレ。',{emo:'curious'})}
-    else if(m===4){say('（「亜成体」になった。言葉がはっきりしてきた）',{narr:true});say('……ワシは、しゃべれる。'+(n?n+'、':'')+'聞こえているか。',{emo:'proud'})}
+    else if(m===4){say('（「亜成体」になった！ そして——ゆっくり体を起こして、はじめて二本の足で立ち上がった！）',{narr:true});C.wave=3;C.waveDur=3;say('……ワシは、しゃべれる。'+(n?n+'、':'')+'聞こえているか。',{emo:'proud'})}
     else if(m===7){say('（立派な「成体」になった）',{narr:true});say('……軽い。世界が少し広くなった気がする。'+(n?n+'、':'オマエ、')+'ワシは変わったか。',{emo:'proud'})}
     else say(st===0?'（ひと回り大きくなった）':st===1?'……オオキク、ナッタ。':pickR(['……ふう。また一回り大きくなった。','殻が硬くなるまでは、触るなよ。']),{emo:'proud',narr:st===0});
     const ex=EXU.find(e=>e.left>0);if(ex){C.exTarget=ex;setState('walk',{target:ex.center.clone().add(ex.g.position)})}
@@ -2156,7 +2182,7 @@ const Game={
   poke(){
     if(Molt.phase){S.trust=clamp(S.trust-4,0,100);S.mood=clamp(S.mood-12,0,100);C.startle=1;Audio2.noise(.12,600,.3,1);say(Molt.phase==='soft'?'（柔らかい殻は傷つきやすい。そっとしておこう）':'（脱皮中に触られて、体をこわばらせた。いまはそっとしておこう）',{narr:true});save();refreshHUD();return}
     if(Life.asleep)Life.wake();shape(-3,-2);ev('poke');
-    S.pokes++;C.curlT=0;C.startle=2.4;setState('curl',{hold:(persLabel()==='臆病'?7:3)+rnd()*2});S.trust=clamp(S.trust-2,0,100);S.mood=clamp(S.mood-7,0,100);
+    S.pokes++;C.curlT=S.molts<4?.9:0;C.startle=S.molts<4?1:2.4;setState('curl',{hold:(persLabel()==='臆病'?7:3)+rnd()*2});S.trust=clamp(S.trust-2,0,100);S.mood=clamp(S.mood-7,0,100);
     grade.uniforms.uShock.value=1;Audio2.noise(.12,600,.3,1);
     const n=S.pokes;
     say(S.stage===0?'（ぎゅっと体を丸めた）':S.stage===1?pickR(['……ヤメロ。','イタイ。']):n%5===0?'何度も何度も……。オマエ、ワシを怒らせたいのか。':pickR(['つつくな。','触るな。甲羅に指紋がつく。','……今のは、見なかったことにしてやる。']),{emo:'annoyed',narr:S.stage===0});
@@ -2221,7 +2247,7 @@ function boot(){
   buildTerrain();buildRocks();buildPebbles();buildShafts();buildBubbles();buildSediment();buildSurface();
   ISO=buildIsopod();buildSlime();
   if(S.molts===undefined)S.molts=[0,1,4,7][S.stage]||0;S.stage=stageOf(S.molts);
-  C.pos.set(.4,0,.2);C.size=C.sizeT=sizeOf(S.molts);shellTint();
+  C.pos.set(.4,0,.2);C.size=C.sizeT=sizeOf(S.molts);C.crawl=S.molts<4?1:0;shellTint();
   applyQuality();
   syncLampUI();
   voiceOn=(()=>{try{return localStorage.getItem('gusoku.voice')!=='off'}catch(e){return true}})();$('set-voice').textContent='声（グソグソ）：'+(voiceOn?'オン':'オフ');
