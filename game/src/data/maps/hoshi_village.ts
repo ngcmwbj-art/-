@@ -190,6 +190,8 @@ const OBJECTS: MapObj[] = [
   O('obj_hoshi_ekimeihyo', 22, 44, { prop: 'prop_h_ekimeihyo' }),
   O('obj_hoshi_kurumadome', 34, 46, { prop: 'prop_h_kurumadome' }),
   O('obj_hoshi_ekinote', 18, 41, { face: 'up', fushigi: 'fushigi_ch2_01', prop: 'prop_h_ekinote' }),
+  // 『駅ノート あります』 on the hut's front wall beside its opening (★2026-10-01, 02 #80: the notebook found from the platform)
+  O('obj_hoshi_ekinote_hari', 17, 43, { face: 'up' }),
   O('obj_hoshi_machiai_bench', 16, 41, { w: 2, face: 'up' }),
   PR('prop_h_machiai_bench', 16, 41),
   O('obj_hoshi_jikokuhyo_eki', 20, 40, { face: 'up' }),
@@ -351,17 +353,23 @@ const OBJECTS: MapObj[] = [
   // ======================================================== 捕まえない自由研究 (50 10.21, 52 7.5, 02 #64)
   // the host plants are always there; the insects only in the lantern's light
   // (litOnly), once グソっ君 has talked しゅん into it (flag_ch2_mushi).
-  // ぴょん夫人's スズムシ is in her house (hoshi_rooms2.ts).
-  PR('prop_h_yomogi', 21, 8),
-  PR('prop_h_shitakusa', 23, 30),
+  // ★2026-10-01 依頼主「虫が2つしか見つからなかった」(02 #80): all five where
+  // the walk of the night passes, in the lantern's reach — 3号ハウス's door (the
+  // first, as he is talked into it), the road (ほうき家's eaves), the slope up
+  // to the barn, the farm lane past the gate, the school's lit gate.
+  PR('prop_h_yomogi', 4, 30),
+  PR('prop_h_shitakusa', 27, 30),
+  // ぴょん夫人's スズムシ: their case out on the stand under ほうき家's eaves (it was in her room till 02 #80)
+  PR('prop_hr_mushi_case', 34, 37, { dai: 1 }, { solid: [0, 0, 1, 1] }),
+  O('obj_hr_kucho_mushi', 34, 37, { priority: 1 }),
   // (the クヌギ grows out of the thicket's edge by the hill path: seen from (44,1))
   PR('prop_h_kunugi', 43, 1),
   ...(
     [
-      ['kantan', 21, 8, { flat: true }],
+      ['kantan', 4, 30, { flat: true }],
       ['enma', 46, 37, { priority: 1 }],
-      ['kutsuwa', 42, 14, { priority: 1 }],
-      ['umaoi', 23, 30, { flat: true }],
+      ['kutsuwa', 50, 15, { priority: 1 }],
+      ['umaoi', 27, 30, { flat: true }],
       ['kabuto', 43, 1, { face: 'left', priority: 1 }],
     ] as [string, number, number, Record<string, unknown>][]
   ).flatMap(([k, x, y, extra]) => [
@@ -437,6 +445,8 @@ const OBJECTS: MapObj[] = [
   { t: 'trig', id: 'trig_ch2_gen_stop', x: 46, y: 36, w: 4, h: 4, script: 'evt_ch2_gen_stop', cond: { flag: 'flag_ch2_got_tomato', notFlag: 'flag_ch2_met_gen' } },
   { t: 'trig', id: 'trig_ch2_houki', x: 37, y: 3, w: 23, h: 15, script: 'evt_ch2_houki', cond: { notFlag: 'flag_ch2_houki_enter' } },
   { t: 'trig', id: 'trig_ch2_tetsuya', x: 38, y: 6, w: 20, h: 2, script: 'evt_ch2_tetsuya', cond: { flag: 'flag_ch2_gate_open', notFlag: 'flag_ch2_tetsuya_beaten' } },
+  // 朝の ほうだけ 光る 星 (02 #77, #80): at stage 2 まつ先生 (47,2) calls しゅん over for the observatory's key as he comes up to the path's mouth
+  { t: 'trig', id: 'trig_dome_call', x: 46, y: 1, w: 6, h: 3, script: 'evt_dome_call', cond: { stage: 2, notFlag: 'flag_dome_key' } },
   // the delivery (50 10.20): back at the truck with all five done; the edges of the round (asks to stop)
   { t: 'trig', id: 'trig_ch2_deli_return', x: 39, y: 40, w: 7, h: 6, script: 'trig_ch2_deli_return', cond: { flag: 'flag_ch2_delivery_on' } },
   { t: 'trig', id: 'trig_ch2_deli_edge', x: 13, y: 38, w: 1, h: 2, script: 'trig_ch2_deli_edge', cond: { flag: 'flag_ch2_delivery_on' } },

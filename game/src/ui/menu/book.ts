@@ -30,7 +30,7 @@ import { getFushigi } from '../../world/fushigi';
 import { digitsWidth, drawDigits } from '../digits';
 import { tomatoIcon } from '../icons';
 import { ctxText, drawCursor, drawMarker, dottedLine, drawTape, fitWrap, pencilLine, phraseWrap as wrap, rectA, textW, UI } from '../window';
-import { drawHeader, drawScroll, FOLD, LP, RP, SP } from './notebook';
+import { clearLeft, clearRight, drawHeader, drawScroll, FOLD, listCursorX, listDx, LP, pageText, RP, SP } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
 import { MUSHI_BOOK, MUSHI_PAGE_TITLE } from '../../data/text/hoshi_mushi';
 import { MUSHI5, mushiSketch, type MushiKind } from '../../art/props/hoshi_mushi';
@@ -72,8 +72,8 @@ function drawMushiPage(g: Gfx, b: (typeof MUSHI_BOOK)[number] | undefined, x: nu
     dottedLine(g, x, y + 14, x + w - 8, UI.textDim, 3);
     g.text('まだ 見ていない。', x, y + 22, { color: UI.textDim });
     g.text('声だけ 聞いた：', x, y + 50, { color: UI.pencil });
-    fitWrap(call, w - 4).forEach((l, j) => g.text(l.text, x + 4, y + 68 + j * 17, { color: UI.pencil, spacing: l.spacing }));
-    if (b.hint) fitWrap(`（${b.hint}）`, w).slice(0, 2).forEach((l, j) => g.text(l.text, x, y + 90 + j * 17, { color: UI.pencil, spacing: l.spacing }));
+    fitWrap(call, w - 4).forEach((l, j) => pageText(g, l.text, x + 4, y + 68 + j * 17, { color: UI.pencil, spacing: l.spacing }));
+    if (b.hint) fitWrap(`（${b.hint}）`, w).slice(0, 2).forEach((l, j) => pageText(g, l.text, x, y + 90 + j * 17, { color: UI.pencil, spacing: l.spacing }));
     return;
   }
   const img = mushiSketch(b.kind);
@@ -81,16 +81,16 @@ function drawMushiPage(g: Gfx, b: (typeof MUSHI_BOOK)[number] | undefined, x: nu
   let ty = y + 52;
   g.text(b.name, x, ty, { color: UI.text });
   ty += 17;
-  fitWrap(call, w - 4).slice(0, 1).forEach((l) => g.text(l.text, x + 4, ty, { color: UI.pencil, spacing: l.spacing }));
+  fitWrap(call, w - 4).slice(0, 1).forEach((l) => pageText(g, l.text, x + 4, ty, { color: UI.pencil, spacing: l.spacing }));
   ty += 18;
   // the place, with a map pin
   g.rect(x + 1, ty + 5, 3, 3, UI.accent);
   g.px(x + 2, ty + 8, UI.accentDark);
   const pl = fitWrap(b.place, w - 8).slice(0, 2);
-  pl.forEach((l, j) => g.text(l.text, x + 7, ty + j * 16, { color: UI.pencil, spacing: l.spacing }));
+  pl.forEach((l, j) => pageText(g, l.text, x + 7, ty + j * 16, { color: UI.pencil, spacing: l.spacing }));
   ty += pl.length * 16 + 2;
   const note = b.noteGenjiro && flag('flag_seen_obj_mushikago') ? b.noteGenjiro : b.note;
-  fitWrap(note, w).slice(0, 2).forEach((l, j) => g.text(l.text, x, ty + j * 16, { color: UI.text, spacing: l.spacing }));
+  fitWrap(note, w).slice(0, 2).forEach((l, j) => pageText(g, l.text, x, ty + j * 16, { color: UI.text, spacing: l.spacing }));
 }
 
 // ---- data: ① 夕鳴町 ----------------------------------------------------------------------------
@@ -515,6 +515,16 @@ const SECTIONS = ['ふしぎ', 'あいて', 'ツッコミ'];
 const VISIBLE = 8;
 /** Width of an index label (to just short of the fold). */
 const LABEL_W = FOLD - 4 - (LP.x + 14);
+/**
+ * …the index moved in clear of an iPad's touch buttons (listDx) is that much
+ * narrower: a label keeps its lines and is set up to 2px a letter tighter
+ * (wrapCheck checks it fits).
+ */
+export function bookLabelW(): number {
+  return LABEL_W - listDx(NUM_X);
+}
+/** Where an index row's number starts (the list's left edge). */
+const NUM_X = LP.x - 1;
 /** The notebook flags on the left edge (16×12). */
 const FLAG_Y = [SP.y + 34, SP.y + 50];
 /** Changing notebooks: the cover lies there, then opens. */
@@ -799,34 +809,41 @@ export class BookPage implements MenuPage {
     const selIdx = this.sel[this.vol - 1][s];
     let line = 0;
     let k = scroll[s];
+    // (an iPad held sideways: the index moves in, clear of the touch buttons)
+    const dx = listDx(NUM_X);
     for (; k < rows.length; k++) {
       const r = rows[k];
       if (line + r.lines.length > VISIBLE) break;
       const y = LIST_Y + line * ROW_H;
       const sel = k === selIdx;
-      drawDigits(g, r.num, LP.x - 1, y + 5, { color: r.done ? UI.accent : UI.textDim });
-      const lx = LP.x + 14;
+      // (moved in, listDx: the hanko cursor stands where the chosen row's number is)
+      if (!(sel && m.focus && dx)) drawDigits(g, r.num, NUM_X + dx, y + 5, { color: r.done ? UI.accent : UI.textDim });
+      const lx = LP.x + 14 + dx;
       const mk = m.focus ? Math.min(1, this.moveT / 70) : 1;
       const mc = m.focus ? UI.marker : '#EFE4C6';
       if (r.done) {
         r.lines.forEach((l, j) => {
           // the second line is tucked in a little, like a note that ran on
           const x = lx + (j ? 8 : 0);
-          if (sel) drawMarker(g, x - 2, y + j * ROW_H + 1, textW(l) + 4, 15, mk, mc);
-          g.text(l, x, y + j * ROW_H, { color: r.color });
+          // (moved in: set a little tighter to keep its line)
+          let sp = 0;
+          while (dx && sp > -2 && measure(l, sp) > LABEL_W - dx) sp--;
+          if (sel) drawMarker(g, x - 2, y + j * ROW_H + 1, measure(l, sp) + 4, 15, mk, mc);
+          g.text(l, x, y + j * ROW_H, { color: r.color, spacing: sp });
         });
       } else {
         if (sel) drawMarker(g, lx - 2, y + 1, 70, 15, mk, mc);
         dottedLine(g, lx, y + 12, lx + 64, UI.textDim, 3);
       }
-      if (sel && m.focus) drawCursor(g, SP.x + 1, y, m.t);
+      if (sel && m.focus) drawCursor(g, listCursorX(NUM_X), y, m.t);
       line += r.lines.length;
     }
     // 『むし』: the title しゅん gave the page once the five were seen (〔開花〕), in pencil, underlined
     if (s === MUSHI_SEC && flag('flag_ch2_mushi_done')) {
       const ty = LIST_Y + 7 * ROW_H - 4;
-      g.text(MUSHI_PAGE_TITLE, LP.x + 6, ty, { color: UI.pencil });
-      pencilLine(g, LP.x + 4, ty + 17, textW(MUSHI_PAGE_TITLE) + 6, 1, UI.pencil, 7);
+      const tx = LP.x + 6 + clearLeft(LP.x + 4, ty, ty + 18);
+      g.text(MUSHI_PAGE_TITLE, tx, ty, { color: UI.pencil });
+      pencilLine(g, tx - 2, ty + 17, textW(MUSHI_PAGE_TITLE) + 6, 1, UI.pencil, 7);
     }
     if (scroll[s] > 0) drawScroll(g, FOLD - 18, LIST_Y - 7, true, m.t);
     if (k < rows.length) drawScroll(g, FOLD - 18, LIST_Y + VISIBLE * ROW_H + 2, false, m.t);
@@ -852,8 +869,9 @@ export class BookPage implements MenuPage {
       if (v.n === 2 && i === v.fushigi.length) return drawNihyakuPage(g, x, y, w);
       if (!v.done(i)) return empty();
       const [title, place] = v.fushigi[i];
+      // (lines beside an iPad's touch buttons are set a little tighter: pageText)
       const tl = wrap(title, w);
-      tl.forEach((l, j) => g.text(l, x, y + j * 17, { color: UI.text }));
+      tl.forEach((l, j) => pageText(g, l, x, y + j * 17, { color: UI.text }));
       y += tl.length * 17 + 1;
       pencilLine(g, x, y, w - 6, 1, UI.pencil, i);
       y += 4;
@@ -862,7 +880,7 @@ export class BookPage implements MenuPage {
       g.px(x + 2, y + 8, UI.accentDark);
       // long place names wrap (with tightened spacing) instead of running off the page
       const pl = fitWrap(place, w - 8).slice(0, 2);
-      pl.forEach((l, j) => g.text(l.text, x + 7, y + j * 16, { color: UI.pencil, spacing: l.spacing }));
+      pl.forEach((l, j) => pageText(g, l.text, x + 7, y + j * 16, { color: UI.pencil, spacing: l.spacing }));
       const placeY = y;
       y += 6 + pl.length * 16;
       // the whole stamped text; the 「みました」 seal goes under its last line,
@@ -875,9 +893,10 @@ export class BookPage implements MenuPage {
       const below = body.length * 17 + 2 + seal.height <= bottom - y;
       const placeRight = x + 7 + Math.max(...pl.map((l) => textW(l.text)));
       const lineH = below ? 17 : Math.max(15, Math.min(17, Math.floor((bottom - y) / Math.max(1, body.length))));
-      body.slice(0, Math.floor((bottom - y) / lineH)).forEach((l, j) => g.text(l.text, x, y + j * lineH, { color: UI.text, spacing: l.spacing }));
-      if (below) g.img(seal, sealX, y + body.length * 17 + 2);
-      else g.img(seal, sealX, placeRight + 6 <= sealX ? placeY - 4 : SP.y + 6);
+      body.slice(0, Math.floor((bottom - y) / lineH)).forEach((l, j) => pageText(g, l.text, x, y + j * lineH, { color: UI.text, spacing: l.spacing }));
+      // (the seal low on the page keeps clear of an iPad's touch buttons)
+      const sealY = below ? y + body.length * 17 + 2 : placeRight + 6 <= sealX ? placeY - 4 : SP.y + 6;
+      g.img(seal, Math.min(sealX, clearRight(999, sealY, sealY + seal.height) + 1 - seal.width), sealY);
       return;
     }
     if (s === 1) {
@@ -913,9 +932,9 @@ export class BookPage implements MenuPage {
         body = packLines(bt.shotai, w + 2, 6 - Math.min(2, hk.length));
         hk = packLines(bt.hitokoto, w - 4, 6 - body.length);
       }
-      body.forEach((l, j) => g.text(l.text, x, y + j * 17, { color: UI.text, spacing: l.spacing }));
+      body.forEach((l, j) => pageText(g, l.text, x, y + j * 17, { color: UI.text, spacing: l.spacing }));
       y += body.length * 17 + 3;
-      hk.slice(0, Math.max(0, 6 - body.length)).forEach((l, j) => g.text(l.text, x + 4, y + j * 17, { color: UI.pencil, spacing: l.spacing }));
+      hk.slice(0, Math.max(0, 6 - body.length)).forEach((l, j) => pageText(g, l.text, x + 4, y + j * 17, { color: UI.pencil, spacing: l.spacing }));
       // tsukkomi seen for this one
       let seen = 0;
       const tl = linesOf(id, v);
@@ -954,7 +973,11 @@ export class BookPage implements MenuPage {
     const dw = Math.min(24, nx - 6 - (x + 8));
     if (dw >= 8) g.rect(nx - 6 - dw, y + 8, dw, 1, UI.pencil);
     const sp = sprite(ent.enemy, m.t);
-    if (sp) g.img(sp, x + w - 24 - Math.round(sp.width / 2), SP.y + SP.h - 30 - sp.height);
+    if (sp) {
+      // (its feet low on the page: clear of an iPad's touch buttons)
+      const sy = SP.y + SP.h - 30 - sp.height;
+      g.img(sp, Math.min(x + w - 24 - Math.round(sp.width / 2), clearRight(999, sy, sy + sp.height) + 1 - sp.width), sy);
+    }
   }
 }
 

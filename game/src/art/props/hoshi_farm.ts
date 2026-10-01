@@ -1048,7 +1048,7 @@ regStand(
   14,
   30,
   (p) => {
-    // a post with an arrow board 「星見の丘 天文台 →」
+    // a post with an arrow board 「星見の丘 →」 (the observatory is behind the school since 02 #80)
     p.vline(6, 4, 29, P.wood);
     p.vline(7, 4, 29, P.woodDark);
     p.rect(1, 6, 12, 6, P.woodLt);

@@ -338,6 +338,8 @@ const BARN_OBJ: MapObj[] = [
   ...troughObjs(),
   // マサルさん after the gate (h1): at the east end of the feed aisle, his elbow on 北5's rail (52 4.3)
   { t: 'npc', id: 'npc_hoshi_gen', x: 20, y: 6, dir: 'left', pose: 'lean', talk: htalk('npc_hoshi_gen'), cond: { stage: 1, flag: 'flag_ch2_gate_open' } },
+  // 〔まだ 村を 回る〕 at the gate (02 #80): back with his cows, the gate still shut — talk to him to have it opened
+  { t: 'npc', id: 'npc_hoshi_gen', x: 20, y: 6, dir: 'left', pose: 'lean', talk: htalk('npc_hoshi_gen'), cond: { stage: 1, flag: 'flag_ch2_gate_wait', notFlag: 'flag_ch2_gate_open' } },
   // leaving in the middle of the chores asks first (50 10.19): the door waits, the step before it asks
   { t: 'trig', id: 'trig_ch2_barn_work_quit', x: 2, y: 10, w: 1, h: 1, cond: { flag: 'flag_ch2_barn_work_on' } },
   { t: 'door', id: 'door_hoshi_barn_out', x: 2, y: 11, to: 'map_hoshimidai', tx: 51, ty: 32, dir: 'down', se: 'se_door_heavy', cond: { notFlag: 'flag_ch2_barn_work_on' } },
@@ -383,11 +385,11 @@ registerMap({
 const SCHOOL_ROWS = [
   '##########################', // 0
   '#WWWWWWWWWW#WWWWW#WWW#WWW#', // 1
-  '#WWWWWWWWWW#WWWWW#WWW#WWW#', // 2
-  '#....o.....#...o.#o.o#ooo#', // 3
+  '#WWWWWWWWWW#WWWWW#WWW#WWD#', // 2  (24,2) 放送室の 裏口 → 分校の 裏の 丘 (★2026-10-01, 02 #80)
+  '#....o.....#...o.#o.o#oo.#', // 3
   '#o.........#.....#o..#...#', // 4
   '#o..zzzzz..#.....#...#...#', // 5
-  '#...z...z..#.oooo#...#...#', // 6
+  '#...z...z..#.oooo#...#..o#', // 6  (24,6) 図鑑の 本棚（東の 壁ぎわ）
   '#...zzzzz..#.oooo#...#...#', // 7
   '####.....###.#####.###.###', // 8
   '#........................#', // 9
@@ -415,6 +417,9 @@ const SCHOOL_OBJ: MapObj[] = [
   PR('prop_h_kyotaku2', 15, 3),
   PR('prop_h_shokuin_desk', 18, 3),
   PR('prop_h_housou', 22, 3),
+  // the bookshelf of star atlases, moved to the east wall for the back door (24,2) (02 #80)
+  PR('prop_h_housou_shelf', 24, 6),
+  PR('prop_h_school_uraguchi', 24, 1),
   PR('prop_h_school_lamps', 0, 0),
   // examine (52 4.4)
   O('obj_hoshi_kairan', 5, 3, { face: 'up' }),
@@ -440,7 +445,9 @@ const SCHOOL_OBJ: MapObj[] = [
   O('obj_hoshi_kagi', 19, 2, { face: 'up' }),
   O('obj_hoshi_housou_kiki', 23, 3, { face: 'up' }),
   O('obj_hoshi_mic', 22, 3, { face: 'up', fushigi: 'fushigi_ch2_10', cond: s1p }),
-  O('obj_hoshi_zukan', 24, 3, { face: 'up' }),
+  O('obj_hoshi_zukan', 24, 6, { face: 'right' }),
+  // the back door of the 放送室 (the rightmost room): out to the little hill and its observatory (★2026-10-01 依頼主の指示, 02 #80)
+  O('obj_hoshi_uraguchi', 24, 2, { face: 'up' }),
   // the people of the meeting (52 4.4)
   { t: 'npc', id: 'npc_hoshi_kucho', x: 6, y: 3, dir: 'down', talk: htalk('npc_hoshi_kucho') },
   { t: 'npc', id: 'npc_hoshi_fumi', x: 9, y: 3, dir: 'up', talk: htalk('npc_hoshi_fumi'), cond: { stage: '0-1' } },
@@ -450,6 +457,7 @@ const SCHOOL_OBJ: MapObj[] = [
   O('obj_hoshi_rouka_dark', 10, 9, { h: 2, face: 'right', script: 'evt_ch2_dark_block', cond: { notFlag: 'flag_ch2_got_tomato' } }),
   { t: 'trig', id: 'trig_ch2_dark_school', x: 10, y: 9, w: 1, h: 2, script: 'evt_ch2_dark_block', cond: { notFlag: 'flag_ch2_got_tomato' } },
   { t: 'door', id: 'door_hoshi_school_out', x: 5, y: 11, to: 'map_hoshimidai', tx: 26, ty: 28, dir: 'down', se: 'se_door' },
+  { t: 'door', id: 'door_hoshi_school_ura', x: 24, y: 2, to: 'map_hoshi_urayama', tx: 11, ty: 12, dir: 'up', se: 'se_door' },
 ];
 
 const SCHOOL_HALL_SPILL = [{ x: 1, y: 9, w: 9, h: 2, color: '#8A7E90' }];
@@ -470,7 +478,8 @@ registerMap({
   },
   objects: SCHOOL_OBJ,
   camera: 'follow',
-  onEnter: ['evt_ch2_yoriai'],
+  // (evt_dome_call: with the lantern, まつ先生 calls しゅん over for the observatory's key, 02 #80)
+  onEnter: ['evt_ch2_yoriai', 'evt_dome_call'],
   variant: 'school',
   space: 'room',
   outside: '#0B0B14',

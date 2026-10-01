@@ -25,7 +25,7 @@ import { ease } from '../engine/tween';
 import { addItem, countItem, flag, setFlag, state } from '../game/state';
 import { getItem, isKeyItem, shopLimit } from '../data/battle';
 import { sfx } from '../audio';
-import { dialogVisible, say } from './dialog';
+import { dialogFrame, dialogVisible, say } from './dialog';
 import { digitsWidth, drawDigits, drawNumerals, numeralsWidth } from './digits';
 import { coinBoxIcon, itemIcon12, itemIcon24, purseIcon } from './icons';
 import { HOSHI_SPEAKERS, MUJIN_SHOP } from '../data/text/hoshi_npcs';
@@ -33,6 +33,7 @@ import { bagCount, BAG_MAX } from './menu/items';
 import { uiHud } from './hud';
 import { ctxText, rgb, drawCursor, drawMarker, drawTape, drawWindow, dottedVLine, pencilLine, phraseWrap, rectA, tapeImg, textW, UI } from './window';
 import { markTextScreen } from '../engine/textzones';
+import { buttonsTop } from '../engine/safezones';
 
 export interface ShopKeeper {
   name: string;
@@ -206,12 +207,30 @@ function* kinakoAtari(): Co {
 // ---- the shop screen -----------------------------------------------------------------------
 
 const PANEL = { x: 8, y: 6, w: W - 16, h: 138 };
-/** The 説明欄: exactly where the dialog window opens (10.4), so the keeper's lines replace it. */
-const DESC = { x: 8, y: H - 68, w: W - 16, h: 64, textX: 26 };
+/**
+ * The 説明欄: exactly where the dialog window opens (10.4), so the keeper's
+ * lines replace it — on an iPad held sideways that is between the touch
+ * buttons at the bottom corners (dialog.ts), and so is this.
+ */
+function desc(): { x: number; y: number; w: number; h: number; textX: number } {
+  const f = dialogFrame();
+  return { x: f.x, y: H - 68, w: f.w, h: 64, textX: f.x + 18 };
+}
+/** The 説明欄's text column (wrapCheck checks the goods' texts at it). */
+export function shopDescW(): number {
+  const D = desc();
+  return D.w - (D.textX - D.x) - 12;
+}
+/** The 説明欄 is the narrow one between the buttons (its purchase confirmation takes 3 rows). */
+function narrowDesc(): boolean {
+  return desc().w < W - 16;
+}
 const CARD_X = PANEL.x + 12;
 const CARD_Y = PANEL.y + 30;
 const CARD_W = 172;
 const CARD_H = 19;
+/** The stall's cardboard sign. */
+const SIGN_H = 22;
 /** Right column. */
 const RX = PANEL.x + 200;
 const RW = PANEL.x + PANEL.w - 12 - RX;
@@ -459,7 +478,7 @@ class ShopScene implements Scene {
   }
 
   draw(g: Gfx): void {
-    // a text screen: the touch controls stand beside the picture
+    // a text screen (an iPad held sideways: laid out round the touch buttons, cardLayout / desc)
     markTextScreen();
     const openK = Math.min(1, this.openT / 160);
     const k = this.closeT >= 0 ? 1 - Math.min(1, this.closeT / 140) : openK;
@@ -482,10 +501,10 @@ class ShopScene implements Scene {
     const P = PANEL;
     const tw = textW(text);
     const w = tw + 14;
-    const h = 22;
+    const h = SIGN_H;
     const x = P.x + 10;
-    // (four cards: the sign sits 4px lower, under the last one)
-    const y = P.y + P.h - h - (this.tight() ? 6 : 10);
+    // (four cards: the sign sits 4px lower, under the last one; cardLayout)
+    const y = this.cardLayout().signY;
     rectA(g, x + 2, y + 2, w, h, UI.night, 0.25);
     g.img(cardboardImg(w, h), x, y);
     g.text(text, x + 7, y + 2, { color: UI.text });
@@ -510,6 +529,32 @@ class ShopScene implements Scene {
     return !!this.def.stall && this.goods.length > 3;
   }
 
+  /**
+   * The price cards' first top and pitch, and the stall's sign's top. On an
+   * iPad held sideways the left touch buttons sit under the panel's bottom
+   * left corner: then the cards start a little higher and close up (and the
+   * sign with them) so nothing written is under メニュー.
+   */
+  private cardLayout(): { y0: number; pitch: number; signY: number } {
+    const P = PANEL;
+    const tight = this.tight();
+    const n = Math.max(1, this.goods.length);
+    const stall = !!this.def.stall;
+    let y0 = CARD_Y - (tight ? 2 : 0);
+    let pitch = CARD_H + (tight ? 1 : 2);
+    let signY = P.y + P.h - SIGN_H - (tight ? 6 : 10);
+    // the cursor's column to the cards' shadows; a raised or jittered card may sit 1px lower
+    const top = buttonsTop(CARD_X - 16, CARD_X + CARD_W + 6, 999) - 1;
+    const bottom = stall ? signY + SIGN_H + 2 : y0 + (n - 1) * pitch + CARD_H + 3;
+    if (bottom <= top) return { y0, pitch, signY };
+    y0 = P.y + 26;
+    if (stall) {
+      signY = Math.min(signY, top - SIGN_H - 2);
+      pitch = Math.max(CARD_H, Math.min(pitch, Math.floor((signY + 1 - y0 - CARD_H - 1) / Math.max(1, n - 1))));
+    } else pitch = Math.max(CARD_H, Math.min(CARD_H + 2, Math.floor((top - 3 - y0 - CARD_H) / Math.max(1, n - 1))));
+    return { y0, pitch, signY };
+  }
+
   private drawPanel(g: Gfx): void {
     const P = PANEL;
     drawWindow(g, P.x, P.y, P.w, P.h, UI, 1, { curl: true });
@@ -532,7 +577,7 @@ class ShopScene implements Scene {
     // price cards
     const n = this.goods.length;
     if (!n) g.text('きょうは 売りきれ。', CARD_X + 6, CARD_Y + 8, { color: UI.textDim });
-    const tight = this.tight();
+    const { y0, pitch } = this.cardLayout();
     this.goods.forEach((id, i) => {
       const it = getItem(id);
       if (!it) return;
@@ -543,7 +588,7 @@ class ShopScene implements Scene {
       const out = this.left(id) <= 0;
       const wob = sel && this.refuseT < 240 ? Math.round(Math.sin(this.refuseT / 24) * 2 * (1 - this.refuseT / 240)) : 0;
       const x = CARD_X + jx + (sel ? 4 : 0) + wob;
-      const y = CARD_Y - (tight ? 2 : 0) + i * (CARD_H + (tight ? 1 : 2)) + jy - (sel ? 1 : 0);
+      const y = y0 + i * pitch + jy - (sel ? 1 : 0);
       rectA(g, x + 2, y + 2, CARD_W, CARD_H, UI.night, 0.25);
       g.rect(x, y, CARD_W, CARD_H, UI.border);
       g.rect(x + 1, y + 1, CARD_W - 2, CARD_H - 2, hand ? (out ? '#D8D4C8' : '#E8E4D8') : out ? '#E9E4D6' : UI.flipPaper);
@@ -623,7 +668,7 @@ class ShopScene implements Scene {
 
   /** The 説明欄 (or the purchase confirmation) in the dialog window's place. */
   private drawDesc(g: Gfx): void {
-    const D = DESC;
+    const D = desc();
     drawWindow(g, D.x, D.y, D.w, D.h, UI, 1, { margin: 14, curl: false });
     if (dialogVisible()) return;
     const c = this.confirm;
@@ -634,7 +679,7 @@ class ShopScene implements Scene {
     const id = this.goods[this.sel];
     const it = id ? getItem(id) : null;
     if (!it) return;
-    const w = D.w - (D.textX - D.x) - 12;
+    const w = shopDescW();
     const flavor = phraseWrap(it.desc[0], w, { glue: true });
     const eff = it.desc[1] ? phraseWrap(it.desc[1], w, { glue: true }) : [];
     // 1 line of flavour + 1 of effect normally; longer texts get 2 + 1
@@ -651,10 +696,14 @@ class ShopScene implements Scene {
   }
 
   private drawConfirm(g: Gfx, c: Confirm): void {
-    const D = DESC;
+    const D = desc();
     const it = getItem(c.id)!;
     const price = this.price(c.id);
     const k = Math.min(1, c.t / 120);
+    // between an iPad's touch buttons the window is narrower: the question
+    // gets the whole first row, the quantity and the total a row each under
+    // it, and 買う／やめる stand beside those two
+    const narrow = narrowDesc();
     g.alpha(k, () => {
       // 「ラムネを 買う？」 (the item name in 朱, 10.4 @sys)
       let x = D.textX;
@@ -662,7 +711,7 @@ class ShopScene implements Scene {
       x += g.text(this.nameOf(c.id), x, y1, { color: UI.accent });
       g.text('を 買う？', x, y1, { color: UI.sys });
       // quantity: ◀ 2こ ▶  and the total
-      const y2 = D.y + 32;
+      const y2 = D.y + (narrow ? 27 : 32);
       const max = this.maxQty(c.id);
       g.text('かず', D.textX, y2, { color: UI.pencil });
       const ax = D.textX + textW('かず') + 8;
@@ -675,18 +724,19 @@ class ShopScene implements Scene {
       g.text('こ', qx + numeralsWidth(qs) + 2, y2, { color: UI.text });
       pencilLine(g, qx - 1, y2 + 17, qw + 2, 1, UI.pencil, 11);
       arrow(g, qx + qw + 6 + (c.qtyDir > 0 ? nudge : 0), y2 + 3, 1, c.qty < max);
-      const tx = D.textX + 116;
-      g.text('ごうけい', tx, y2, { color: UI.pencil });
+      const tx = narrow ? D.textX : D.textX + 116;
+      const ty = narrow ? D.y + 45 : y2;
+      g.text('ごうけい', tx, ty, { color: UI.pencil });
       const total = String(price * c.qty);
       const vx = tx + textW('ごうけい') + 6;
       const short = state.money < price * c.qty;
-      drawNumerals(g, total, vx, y2, { color: short ? UI.textDim : UI.accent });
-      g.text('円', vx + numeralsWidth(total) + 2, y2, { color: short ? UI.textDim : UI.accent });
+      drawNumerals(g, total, vx, ty, { color: short ? UI.textDim : UI.accent });
+      g.text('円', vx + numeralsWidth(total) + 2, ty, { color: short ? UI.textDim : UI.accent });
       // 買う／やめる, right of a dotted rule
-      const ox = D.x + D.w - 84;
-      dottedVLine(g, ox - 10, D.y + 8, D.y + D.h - 9, UI.bg2, 2);
+      const ox = D.x + D.w - (narrow ? 72 : 84);
+      dottedVLine(g, ox - 10, D.y + (narrow ? 27 : 8), D.y + D.h - 9, UI.bg2, 2);
       ['買う', 'やめる'].forEach((s, i) => {
-        const ry = D.y + 11 + i * 20;
+        const ry = D.y + (narrow ? 27 : 11) + i * (narrow ? 18 : 20);
         const sel = i === c.index;
         if (sel) drawMarker(g, ox + 12, ry + 1, textW(s) + 5, 15, Math.min(1, c.moveT / 70));
         g.text(s, ox + 14, ry, { color: UI.text });

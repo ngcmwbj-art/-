@@ -22,7 +22,7 @@ import {
 } from './hud';
 import { openMenu } from './menu';
 import { showTitle } from './title';
-import { openShop } from './shop';
+import { openShop, shopDescW } from './shop';
 import { saveMenu } from './save';
 import { runGameOver } from './gameover';
 import { playEndingNotebook, playEndingNotebookCh2, playNightSkyCut } from './ending';
@@ -34,9 +34,12 @@ import { field } from '../world/field';
 import { allItems, getEnemy, getSkill, HANKO_CASE_ORDER, PR_ORDER } from '../data/battle';
 import { fitWrap, phraseWrapInfo, textW } from './window';
 import { lessonTextIssues } from '../data/battle/text_lesson';
-import { FOLD, LP, RP, SP } from './menu/notebook';
-import { BOOK2_ENEMIES, BOOK_ENEMIES, FUSHIGI2_BOOK, FUSHIGI_BOOK, fushigiPageFit, pressedText, pressedText2, TSUKKOMI2_ENEMIES, TSUKKOMI_ENEMIES } from './menu/book';
-import { W } from '../engine/screen';
+import { FOLD, LP, RP, rightW, SP, squeezable } from './menu/notebook';
+import { BOOK2_ENEMIES, BOOK_ENEMIES, bookLabelW, FUSHIGI2_BOOK, FUSHIGI_BOOK, fushigiPageFit, pressedText, pressedText2, TSUKKOMI2_ENEMIES, TSUKKOMI_ENEMIES } from './menu/book';
+import { itemNameLines, itemNameRoom } from './menu/items';
+import { hankoInfo } from './menu/hanko';
+import { statsNoteW } from './menu/stats';
+import { REPORT } from '../data/battle';
 import type { Scene } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { drawVillageLit } from './cut_village_lit';
@@ -193,6 +196,10 @@ registerDebug('bubble', (id = 'player', text = 'まいど！') => showBubble(id,
  * あいて, ツッコミ, ハンコ) through phraseWrap at the width and line budget of
  * the place it is shown. Reports texts that need more lines than there are,
  * lines wider than the column, and breaks that fell between characters.
+ * Run on an iPad held sideways (the touch buttons fixed over the picture) it
+ * also checks what the menu does there: the shop's narrower 説明欄, the lists
+ * moved in, and the lines beside a button set up to 2px a letter tighter
+ * (notebook.ts pageText) — they must still fit.
  */
 registerDebug('wrap', (text: string, w = 144, glue = false) => phraseWrapInfo(text, w, { glue: !!glue }));
 registerDebug('wrapCheck', () => {
@@ -205,11 +212,25 @@ registerDebug('wrapCheck', () => {
     const wide = lines.filter((l) => textW(l) > w + (/[、。]$/.test(l) ? 8 : /[！？」』）]$/.test(l) ? 16 : 0));
     if (lines.length > maxLines || forced || wide.length) issues.push(`${where}: ${lines.join('／')} (${lines.length}/${maxLines} lines${forced ? `, ${forced} forced` : ''}${wide.length ? ', too wide' : ''})`);
   };
-  const shopW = W - 16 - 18 - 12;
+  // (an iPad held sideways: each line as wrapped at `w` squeezed into `room`)
+  const squeeze = (where: string, text: string, w: number, room: number, glue = false) => {
+    if (!text || room >= w) return;
+    for (const l of phraseWrapInfo(text, w, { glue }).lines) if (!squeezable(l, room)) issues.push(`${where}（iPad）: ${l} > ${room}px`);
+  };
+  const shopW = shopDescW();
+  const rw = rightW();
   for (const it of allItems()) {
     const flavor = it.key ? it.desc[0] + (it.desc[1] ? '\n' + it.desc[1] : '') : it.desc[0];
     check(`もちもの ${it.name}`, flavor, RP.w - 2, 4, true);
+    squeeze(`もちもの ${it.name}`, flavor, RP.w - 2, rw - 2, true);
     if (!it.key) check(`もちもの ${it.name} 効果`, it.desc[1], RP.w - 6, 3, true);
+    if (!it.key) squeeze(`もちもの ${it.name} 効果`, it.desc[1], RP.w - 6, rw - 6, true);
+    // the list: one line (set up to 2px tighter) or two, each within its column
+    n++;
+    const room = itemNameRoom();
+    const nl = itemNameLines(it.name, room);
+    const over = nl.some((l, j) => textW(l.text) + l.spacing * [...l.text].length > room - (j ? 8 : 0));
+    if (over) issues.push(`もちもの 一覧 ${it.name}: ${nl.map((l) => l.text).join('／')} (too wide)`);
     if (!it.key) {
       const f = phraseWrapInfo(it.desc[0], shopW, { glue: true }).lines.length;
       const e = phraseWrapInfo(it.desc[1], shopW, { glue: true }).lines.length;
@@ -261,7 +282,14 @@ registerDebug('wrapCheck', () => {
   for (const id of [...HANKO_CASE_ORDER, ...PR_ORDER]) {
     const s = getSkill(id);
     for (const l of s?.desc ?? []) check(`ハンコ ${s?.name}`, l, infoW, 1);
+    for (const l of s?.desc ?? []) squeeze(`ハンコ ${s?.name}`, l, infoW, hankoInfo().w);
   }
+  // the index labels moved in, the teacher's note beside the buttons (iPad)
+  const lw = bookLabelW();
+  for (const [title] of [...FUSHIGI_BOOK, ...FUSHIGI2_BOOK]) squeeze('ふしぎ 一覧', title, labelW, lw);
+  for (const id of [...BOOK_ENEMIES, ...BOOK2_ENEMIES]) squeeze('あいて 一覧', getEnemy(id)?.name ?? '', labelW, lw);
+  for (const id of [...TSUKKOMI_ENEMIES, ...TSUKKOMI2_ENEMIES]) for (const l of getEnemy(id)?.tsukkomi ?? []) squeeze('ツッコミ 一覧', l, labelW, lw);
+  for (const [who, list] of Object.entries(REPORT.teacher)) list.forEach((t, lv) => squeeze(`せんせいより ${who} Lv${lv}`, t, RP.w - 4, statsNoteW()));
   // 公園の練習の戦闘（グソっ君の台詞・帯・選択肢。20 10.6）
   const lesson = lessonTextIssues(textW);
   n += lesson.checked;

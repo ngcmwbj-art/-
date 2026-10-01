@@ -4,11 +4,13 @@
 // every page uses (headers, list rows, sticky-note popups, bars).
 
 import type { Gfx } from '../../engine/gfx';
+import { measure, type TextOpts } from '../../engine/font';
 import type { Input } from '../../engine/input';
 import { makeCanvas } from '../../engine/pixel';
 import { hash2 } from '../../engine/rng';
 import { ease } from '../../engine/tween';
 import { sfx } from '../../audio';
+import { buttonsTop, freeSpan } from '../../engine/safezones';
 import { drawDigits, digitsWidth } from '../digits';
 import { purseIcon, tabIcon } from '../icons';
 import { blend, drawCursor, drawMarker, drawTape, rectA, textW, UI } from '../window';
@@ -206,19 +208,110 @@ function tabCanvas(t: TabDef, sel: boolean): HTMLCanvasElement {
   return c;
 }
 
-/** Index tabs on the right edge. The chosen one sticks out 4px further. */
+// ---- an iPad held sideways ------------------------------------------------------------
+//
+// There the menu plays full screen with the touch buttons fixed over the
+// bottom corners (engine/touch.ts, safezones.ts; 2026-10-01, the client:
+// 「メニューと無人販売所を開くと画面が小さくなるのを直して」). The notebook
+// lies where it always does — its paper may run under a button — but what
+// is written on it keeps off them: the left page's lists and lines move in
+// (clearLeft, listDx), a line of text beside a button is set up to 2px a
+// letter tighter — the same words on the same lines as everywhere else
+// (pageText) — and the index tabs sit closer together above the right
+// buttons (tabSpots). Everywhere else these give the usual numbers.
+
+/** How far content starting at `x` on the rows y0..y1 must move right to clear the left buttons (0 when none). */
+export function clearLeft(x: number, y0: number, y1: number): number {
+  return Math.max(0, Math.ceil(freeSpan(y0, y1).x0) + 1 - x);
+}
+
+/** The furthest right content on the rows y0..y1 may reach: `x1`, or less where a right button is. */
+export function clearRight(x1: number, y0: number, y1: number): number {
+  return Math.min(x1, Math.floor(freeSpan(y0, y1).x1) - 1);
+}
+
+/**
+ * How far a left page's list moves in — its icons or numbers (from `x0`,
+ * LP.x-3 for もちもの's icons) and the labels, all together — so its lower
+ * rows clear the left buttons (0 elsewhere). The hanko cursor has no margin
+ * left of them then: it stands in place of the chosen row's icon or number
+ * (listCursorX).
+ */
+export function listDx(x0 = LP.x - 3): number {
+  return clearLeft(x0, SP.y + 28, SP.y + SP.h);
+}
+
+/** Where a left page list's hanko cursor stands: in the margin, or (moved in) on the chosen row's icon / number at `x0`. */
+export function listCursorX(x0 = LP.x - 3): number {
+  const dx = listDx(x0);
+  return dx ? x0 + dx + 2 : SP.x + 1;
+}
+
+/** The right page's text column (`w` wide as usual): narrower when it would run past a right button anywhere down the page. */
+export function rightW(w: number = RP.w): number {
+  return clearRight(RP.x + w, SP.y, SP.y + SP.h) - RP.x;
+}
+
+/**
+ * The letter spacing (from `sp` down to −2) that lets a line starting at x
+ * on the row at y end clear of the touch buttons (and of `right`).
+ */
+export function clearSpacing(s: string, x: number, y: number, sp = 0, right = 999): number {
+  const x1 = clearRight(right, y, y + 16);
+  let k = sp;
+  while (k > -2 && x + measure(s, k) - 1 > x1) k--;
+  return k;
+}
+
+/**
+ * Draw one line of a page's text — where a touch button is beside it (an
+ * iPad held sideways) set up to 2px a letter tighter to end clear of it.
+ * Returns its width.
+ */
+export function pageText(g: Gfx, s: string, x: number, y: number, o: TextOpts = {}): number {
+  return g.text(s, x, y, { ...o, spacing: clearSpacing(s, x, y, o.spacing ?? 0) });
+}
+
+/** Can a line `w` px wide (as wrapped everywhere) be set into a column `room` px wide, at most 2px a letter tighter? (wrapCheck) */
+export function squeezable(line: string, room: number): boolean {
+  return measure(line, -2) <= room + 1;
+}
+
+const TAB_H = 30;
+/**
+ * Where the index tabs sit: the first one's top and the step between them
+ * — 33px apart from SP.y+12, or (a button below) started a little higher
+ * and overlapping like stacked stickies so the last one ends above it
+ * (each one's icon still showing).
+ */
+export function tabSpots(): { y0: number; step: number } {
+  const y0 = SP.y + 12;
+  const step = 33;
+  const x0 = SP.x + SP.w - 3;
+  // the tabs' columns: the chosen one sticks out 4px, the shadow 2px more
+  const top = buttonsTop(x0, x0 + 4 + 22 + 2, 999) - 1;
+  const n = TABS.length;
+  if (y0 + (n - 1) * step + TAB_H + 2 <= top) return { y0, step };
+  const y1 = SP.y + 6;
+  return { y0: y1, step: Math.max(21, Math.min(step, Math.floor((top - y1 - TAB_H - 2) / (n - 1)))) };
+}
+
+/** Index tabs on the right edge. The chosen one sticks out 4px further (and lies on top where they overlap). */
 export function drawTabs(g: Gfx, sel: number, dx: number, alpha: number, t: number, focus: boolean, only?: string): void {
   const x0 = SP.x + SP.w - 3 + dx;
-  TABS.forEach((tab, i) => {
+  const { y0, step } = tabSpots();
+  const one = (tab: TabDef, i: number) => {
     if (only && tab.id !== only) return;
-    const y = SP.y + 12 + i * 33;
+    const y = y0 + i * step;
     const s = i === sel;
     const x = x0 + (s ? 4 : 0);
     // sticky notes sit under the right page edge: shadow first
-    g.alpha(alpha * 0.4, () => g.rect(x + 2, y + 2, 20, 30, UI.night));
+    g.alpha(alpha * 0.4, () => g.rect(x + 2, y + 2, 20, TAB_H, UI.night));
     g.img(tabCanvas(tab, s), x, y, alpha < 1 ? { alpha } : {});
     if (s && focus) drawCursor(g, x + 22, y + 7, t);
-  });
+  };
+  TABS.forEach((tab, i) => i !== sel && one(tab, i));
+  if (TABS[sel]) one(TABS[sel], sel);
 }
 
 /** がま口 + money in the top-left corner (500円, 5×7 numerals). */

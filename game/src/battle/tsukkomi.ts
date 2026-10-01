@@ -221,6 +221,30 @@ export function popBang(s: BattleScene, targets: PartyUnit[], just: boolean): vo
   }
 }
 
+/** How long inner-voice lettering of `n` letters is up to be read: 1.4 s, +80ms a letter past six (showKakimoji's T2). */
+export function kakimojiReadMs(n: number): number {
+  return 1400 + Math.max(0, n - 6) * 80;
+}
+
+/**
+ * The ノリツッコミ's pace (2026-10-01, the client: 「戦闘中のノリツッコミがテンポ
+ * 早すぎて何が書いてあるか分からない」, party.ts doNori): グソっ君's boke stays in
+ * the band until it has been typed out and NORI_READ_MS more (longer at
+ * 文字の はやさ：おそい), and しゅん's big lettering at least NORI_LETTER_MS — or
+ * as long as the ordinary tsukkomi's lettering of that many letters is read
+ * (kakimojiReadMs), slowed like the timing games (timingSlow), if longer.
+ * けってい goes on, but neither goes before NORI_MIN_MS.
+ */
+export const NORI_READ_MS = 1500;
+export const NORI_LETTER_MS = 2500;
+export const NORI_MIN_MS = 800;
+
+/** How long the ノリツッコミ's lettering stays (ms): its line, and what its upper tier says past 「……って、」. */
+export function noriLetterMs(line: string, upper?: string): number {
+  const n = [...line].length + (upper ? Math.max(0, [...upper].length - [...'……って、'].length) : 0);
+  return Math.max(NORI_LETTER_MS, Math.round(kakimojiReadMs(n) * timingSlow()));
+}
+
 /**
  * Inner-voice lettering: slides in from the right edge (200ms, easeOutBack),
  * drifts left 12px while it is read (1.2 s; longer than 6 chars → +80ms per
@@ -229,10 +253,8 @@ export function popBang(s: BattleScene, targets: PartyUnit[], just: boolean): vo
  */
 export function showKakimoji(s: BattleScene, text: string, just: boolean): number {
   const img = kakimoji(text, just, s.seed);
-  const n = [...text].length;
-  const extra = Math.max(0, n - 6) * 80;
   const T1 = 200;
-  const T2 = 1400 + extra;
+  const T2 = kakimojiReadMs([...text].length);
   const T3 = T2 + 220;
   const cx = 192 - img.width / 2;
   // over the enemies' upper half (baseline ≈ y90), clear of the band (y4–48)

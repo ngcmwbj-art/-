@@ -32,7 +32,8 @@ import { cueSize } from './ui/cue';
 import { FLAG_PAD, kanenariBack, kanenariFront, MIC_AT } from '../art/enemies/kanenari';
 import { knOpts, knSay, riceBall } from './gusokkun';
 import { portrait } from '../art/chars';
-import { bokemakeLabel, timingSlow, tsukkomiWindows } from './tsukkomi';
+import { bokemakeLabel, NORI_MIN_MS, NORI_READ_MS, noriLetterMs, timingSlow, tsukkomiWindows } from './tsukkomi';
+import { textSpeedMul } from '../ui/settings';
 import { onBossPartBreak, onBossBodyMimashita, bossUndo, doOkaerinasai, doOyasuminasai } from './boss';
 import { raiseTomato, yobiLit } from './boss_yobimodoshi';
 import { hankoOtsukaresama, hatoMeishiKacho, kaneKon, konRing, otsukareBlock, pekeHamidashi, shockBack, shockLine } from './party_ch2';
@@ -1807,10 +1808,11 @@ export function* doNori(s: BattleScene): Co {
   });
   duckMusic(0.25, first ? 2.6 : 1.5);
   yield 200;
-  // 350–1350 (or a 400ms cut): the boke. グソっ君 slides in from the
-  // right into a warm spotlight (placed in the widest gap between the dimmed
-  // enemies; in front and a little smaller when the stage is full), hops once,
-  // hits his landing pose for 2 frames, then performs.
+  // 350–: the boke. グソっ君 slides in from the right into a warm spotlight
+  // (placed in the widest gap between the dimmed enemies; in front and a
+  // little smaller when the stage is full), hops once, hits his landing pose
+  // for 2 frames, then performs — until his line in the band has been read
+  // (★2026-10-01: it used to go after 1 s, or 0.4 s the second time).
   const spot = noriSpot(s);
   const kf = { x: 440, hop: 0, sq: 0, pose: 'kime', t0: 0, board: 0, boardT: -1, leave: 0 };
   const notes: { x: number; y: number; vx: number; t: number; i: number }[] = [];
@@ -1893,16 +1895,31 @@ export function* doNori(s: BattleScene): Co {
       ctx.restore();
     }),
   });
-  const bokeMs = first ? 1000 : 400;
   s.msgInteractive = false;
   s.msg.replace(first ? nori.boke : nori.boke.slice(-1));
+  // (QA: bstate().memo.noriPhase — 1 the boke, 2 the lettering, 0 done)
+  s.memo.noriPhase = 1;
   const slideMs = first ? 150 : 100;
   const hopMs = first ? 120 : 0;
   let singLoop: ReturnType<typeof sfxLoop> | null = null;
   let noteN = 0;
   let lastNote = -999;
   let lastFlag = -1;
-  for (let t = 0; t < bokeMs; t += FRAME) {
+  // the boke stays until the band has typed it out and NORI_READ_MS more
+  // (more at 文字の はやさ：おそい); けってい goes on, after NORI_MIN_MS at least
+  // (real time, tsukkomi.ts). The music stays ducked under him meanwhile.
+  const readMs = Math.max(NORI_READ_MS, NORI_READ_MS / textSpeedMul());
+  const r0 = s.rt;
+  let typedAt = -1;
+  let duckAt = first ? 2000 : 1000;
+  for (let t = 0; ; t += FRAME) {
+    const up = s.rt - r0;
+    if (typedAt < 0 && !s.msg.typing) typedAt = up;
+    if (kf.pose !== 'kime' && ((typedAt >= 0 && up >= typedAt + readMs) || (up >= NORI_MIN_MS && s.takeConfirm()))) break;
+    if (up >= duckAt) {
+      duckMusic(0.25, 0.9);
+      duckAt = up + 500;
+    }
     if (t < slideMs) {
       const p = ease.quadOut(t / slideMs);
       kf.x = 440 + (spot.x - 440) * p;
@@ -1986,6 +2003,7 @@ export function* doNori(s: BattleScene): Co {
   // the ノリツッコミ line in the band as the cut-in lands (QA round 2: the
   // enemy's last flavour line was still up there)
   s.msg.replace(NORI_COMMON[0]);
+  s.memo.noriPhase = 2;
   const letterRect = { x0: Math.round(lowCx - lower.width / 2), y0: LOW_Y - 18, x1: Math.round(lowCx + lower.width / 2) + 2, y1: LOW_Y + lower.height };
   const tsFx = s.addFx({
     layer: 'top',
@@ -2017,8 +2035,12 @@ export function* doNori(s: BattleScene): Co {
     }),
   });
   s.sfx('se_bishi', { vol: 1.3 });
+  // the lettering stays up noriLetterMs (≥ 2.5 s, real time: the hitstop
+  // counts); けってい goes on after NORI_MIN_MS
+  const l0 = s.rt;
+  const letterMs = noriLetterMs(nori.line, nori.upper);
   yield first ? 200 : 100;
-  // 1700 / 900: impact on every enemy
+  // impact on every enemy
   const targets = s.aliveEnemies;
   s.hitstop(16);
   // white 2f (the second one lighter, so the struck silhouettes already show)
@@ -2056,6 +2078,7 @@ export function* doNori(s: BattleScene): Co {
     s.number(nx, ny, dmg, { big: true, delay: 3 * FRAME + i * 60, backing: true }, 'enemy', e);
   });
   yield first ? 260 : 160;
+  while (s.rt - l0 < letterMs && !(s.rt - l0 >= NORI_MIN_MS && s.takeConfirm())) yield null;
   // the panel dissolves (6 frames) back to the battle
   for (let i = 1; i <= 6; i++) {
     dis.k = i / 6;
@@ -2065,6 +2088,7 @@ export function* doNori(s: BattleScene): Co {
   bokeFx.done = true;
   bgFx.done = true;
   darkFx.done = true;
+  s.memo.noriPhase = 0;
   yield () => !s.msg.busy;
   if (killed.length) {
     // everyone who fell shrinks together, dropping 100ms apart

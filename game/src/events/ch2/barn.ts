@@ -2,7 +2,8 @@
 //   evt_ch2_gen_stop  — マサルさん on the slope: the light, 「誰が らっきょやねん！」
 //   evt_ch2_barn      — the round of the last pen by the lantern's light
 //   evt_ch2_otsukare  — the one who watched the cows all night: おつかれさま
-//   evt_ch2_gate      — the electric fence's gate, opened by its handle
+//   evt_ch2_gate      — the electric fence's gate, opened by its handle (★2026-10-01, 02 #80: before
+//                       the handle, what is still undone in the village and 「開けてもらう｜まだ 村を 回る」)
 //   evt_ch2_barn_work — (optional) エサ寄せ and the water cups with マサルさん
 //
 // The cows are never staged: no moo, no snort added, no faces (53 12.7).
@@ -225,8 +226,59 @@ export function* evtOtsukare(): Co {
 }
 registerScript('evt_ch2_otsukare', evtOtsukare);
 
-/** Out in front of the barn: along the farm lane to the gate, and the handle. */
-export function* evtGate(): Co {
+// ---------------------------------------------------------------- 02 #80: before the handle comes off
+
+/**
+ * What is still undone in the village (GATE_HINTS, in this order: the two that
+ * end with the tiller — the delivery, the chores — then ペロ's 脇芽, トマじい's
+ * stream, まつ先生's observatory, the insects), at most three lines.
+ * `inBarn`: asked in the barn, where he has just offered the chores himself.
+ */
+export function gateHints(inBarn = false): string[] {
+  const H = T.GATE_HINTS;
+  const out: string[] = [];
+  if (!flag('flag_ch2_delivery')) out.push(H.delivery);
+  if (!flag('flag_ch2_barn_work') && !inBarn) out.push(H.barnwork);
+  if (!flag('flag_ch2_wakime_done')) out.push(flag('flag_ch2_wakime_ask') ? H.wakime : H.wakimeVisit);
+  if (!flag('flag_ch2_sawa_seki')) out.push(flag('flag_ch2_sawa_wait') ? H.sawaWait : H.sawa);
+  if (!flag('flag_kanbo_report')) out.push(flag('flag_dome_key') ? H.dome : H.domeKey);
+  if (flag('flag_ch2_mushi') && !flag('flag_ch2_mushi_done')) out.push(H.mushi);
+  return out.slice(0, 3);
+}
+
+/**
+ * The question before the handle: the undone things and 「開けてもらう｜まだ 村を
+ * 回る」 — or, all done, a short word of praise. True: open it now.
+ */
+function* gateAsk(head: string, inBarn = false): Co<boolean> {
+  const hints = gateHints(inBarn);
+  if (!hints.length) {
+    yield* runMsg(T.GATE_ALL_DONE);
+    return true;
+  }
+  const i = yield* runMsg(`${head}\n/\n${hints.join('\n')}\n${T.GATE_ASK_CHOICE}`);
+  return i === 0;
+}
+
+/** マサルさん in the barn while the gate waits (flag_ch2_gate_wait): the chores (still to do), then the gate's question. */
+export function* genTalkWait(): Co {
+  if (choresOn()) {
+    yield* runMsg(T.WORK_TALK);
+    return;
+  }
+  if (!flag('flag_ch2_barn_work') && flag('flag_ch2_stage') === 1 && !flag('flag_ch2_tetsuya_beaten')) {
+    const i = yield* runMsg(T.GATE_WAIT_WORK);
+    if (i === 0) {
+      yield* workStart();
+      return;
+    }
+  }
+  if (yield* gateAsk(T.GATE_WAIT_ASK, true)) yield* evtGate({ asked: true });
+  else yield* runMsg(T.GATE_WAIT_LATER);
+}
+
+/** Out in front of the barn: along the farm lane to the gate, and the handle. `asked`: he said 「開けてもらう」 in the barn already. */
+export function* evtGate(o: { asked?: boolean } = {}): Co {
   if (flag('flag_ch2_gate_open')) return;
   yield* game.fadeOut(400, '#0B0B14');
   se('se_door_heavy');
@@ -255,7 +307,21 @@ export function* evtGate(): Co {
   g.dir = 'left';
   F().player.dir = 'up';
   yield 300;
-  yield* runCue(T.GATE_A, {
+  // GATE_A up to the handle; then (the first time) what is still undone and the choice (02 #80)
+  const cut = T.GATE_A.indexOf('!cue hook');
+  const before = T.GATE_A.slice(0, cut).trimEnd();
+  const after = T.GATE_A.slice(cut);
+  if (!o.asked) {
+    yield* runMsg(before);
+    if (!(yield* gateAsk(T.GATE_ASK_HEAD))) {
+      // 〔まだ 村を 回る〕: the gate stays shut, he goes back to his cows (talk to him there)
+      yield* runMsg(T.GATE_LATER);
+      setFlag('flag_ch2_gate_wait', 1);
+      sendAway(g, [[49, 33], [51, 33], [51, 32]], 2.5, 200, true);
+      return;
+    }
+  } else yield* runMsg(T.GATE_AGAIN);
+  yield* runCue(after, {
     *hook() {
       // the yellow grip off, onto the post: the gate `G` lets them through
       g.dir = 'up';
@@ -269,10 +335,13 @@ export function* evtGate(): Co {
     },
   });
   setFlag('flag_ch2_gate_open', 1);
+  setFlag('flag_ch2_gate_wait', 0);
   // he goes back to the barn (from now on at the east end of its feed aisle)
   sendAway(g, [[49, 33], [51, 33], [51, 32]], 2.5, 200, true);
 }
-registerScript('evt_ch2_gate', evtGate);
+registerScript('evt_ch2_gate', function* (): Co {
+  yield* evtGate();
+});
 
 // ---------------------------------------------------------------- マサルさん's talk (50 3.9)
 

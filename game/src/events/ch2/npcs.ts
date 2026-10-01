@@ -175,6 +175,9 @@ registerScript('npc_hoshi_fumi', function* (): Co {
   const t = T.npc_hoshi_fumi;
   // 〔sawa〕 沢の上のプールの2人の自由研究 (02 #65): once, after セキトメ
   if (yield* fumiSawa()) return;
+  // 朝の ほうだけ 光る 星 (02 #77; ★2026-10-01 from the lantern on, the observatory behind the school, 02 #80):
+  // 〔dome〕 the key, 〔kanbo〕 the card, the after line, the reminder of the place
+  if (yield* domeAtFumi()) return;
   // マリンスノー (★2026-09-29, 04 6章): once, the talk after her first line of the night (stages 0–1)
   if (hStage() <= 1 && !flag('flag_ch2_marine_snow') && (flag('flag_seen_npc_hoshi_fumi_h0_2') || flag('flag_seen_npc_hoshi_fumi_h1_1'))) {
     setFlag('flag_ch2_marine_snow', 1);
@@ -182,8 +185,6 @@ registerScript('npc_hoshi_fumi', function* (): Co {
     return;
   }
   if (hStage() >= 2) {
-    // 朝の ほうだけ 光る 星 (02 #77): 〔dome〕 the key, 〔kanbo〕 the card, the after line
-    if (yield* domeAtFumi()) return;
     if (yield* extraLine('npc_hoshi_fumi', { h2: t.h2 }, 2)) return;
     setFlag('flag_seen_npc_hoshi_fumi_h2', flag('flag_seen_npc_hoshi_fumi_h2') + 1);
     yield* say(t.h2);
@@ -255,8 +256,8 @@ registerScript('npc_hoshi_gen', function* (): Co {
     return;
   }
   if (!flag('flag_ch2_gate_open')) {
-    // (in the barn, before the round is done)
-    if (field()?.map.id === 'map_hoshi_barn') yield* barn.evtBarn();
+    // (in the barn, before the round is done; or after 〔まだ 村を 回る〕 at the gate, 02 #80)
+    if (field()?.map.id === 'map_hoshi_barn') yield* (flag('flag_ch2_gate_wait') ? barn.genTalkWait() : barn.evtBarn());
     return;
   }
   if (hStage() >= 2) {

@@ -1062,8 +1062,9 @@ function schoolShell(): PixelCanvas {
       p.set(kx, 29, P.brassOld);
     }
   }
-  // the windows of the dark rooms (starlight #3A2B5C squares)
-  for (const wx of [252, 320, 380]) {
+  // the windows of the dark rooms (starlight #3A2B5C squares); the 放送室's sits
+  // west of its back door (24,1–2: prop_h_school_uraguchi, ★2026-10-01 02 #80)
+  for (const wx of [252, 320, 362]) {
     if (wx === 252) continue;
     p.rect(wx - 2, 20, 16, 12, P.woodDark);
     p.rect(wx, 22, 12, 8, P.nightShade);
@@ -1098,7 +1099,7 @@ registerProp('prop_h_school_shell', () => {
         g.rect(x + 160, y + 26, 1, 1, P.white);
         g.rect(x + 159, y + 27, 3, 1, P.white);
         g.rect(x + 160, y + 21, 1, 16, P.woodDark);
-        for (const wx of [320, 380]) {
+        for (const wx of [320, 362]) {
           g.rect(x + wx, y + 22, 12, 4, sky[1]);
           g.rect(x + wx, y + 26, 12, 4, sky[2]);
           g.rect(x + wx + 6, y + 22, 1, 8, P.woodDark);
@@ -1390,7 +1391,8 @@ registerProp('prop_h_housou', () =>
     48,
     26,
     (p) => {
-      // (22,3) the stand mic, (23,3) the old broadcast desk (knobs and a meter), (24,3) the bookshelf
+      // (22,3) the stand mic, (23,3) the old broadcast desk (knobs and a meter); the bookshelf
+      // that stood at (24,3) is against the east wall now (prop_h_housou_shelf, 02 #80)
       p.vline(8, 4, 20, P.steel);
       p.ellipse(8, 3, 2, 2.5, P.charcoal);
       p.set(8, 2, P.steel);
@@ -1400,16 +1402,89 @@ registerProp('prop_h_housou', () =>
       for (let k = 0; k < 5; k++) p.set(19 + k * 2, 14, P.charcoal);
       p.rect(20, 10, 8, 3, P.paper); // the meter
       p.line(24, 12, 26, 10, P.red);
-      p.rect(34, 0, 12, 22, P.wood);
-      for (let s = 0; s < 3; s++) {
-        p.hline(34, 45, 7 + s * 7, P.woodDark);
-        for (let b = 0; b < 5; b++) p.rect(35 + b * 2, 2 + s * 7, 2, 5, [P.navy, P.maroon, P.leafShade, P.brass, P.steel][(b + s) % 5]);
-      }
-      p.rect(39, 9, 3, 5, P.gold); // the star atlas
     },
     { cx: 24, base: 16, shadow: 0 },
   ),
 );
+
+/**
+ * (24,6) the bookshelf of star atlases against the 放送室's east wall, seen
+ * from its open side: three shelves, the spines facing west (the gold one is
+ * the star atlas). Moved off the north wall for the back door (02 #80).
+ */
+registerProp('prop_h_housou_shelf', () =>
+  standProp(
+    12,
+    30,
+    (p) => {
+      // the side board against the wall, the shelf boards' ends, the top
+      p.rect(9, 0, 3, 30, P.woodDark);
+      p.vline(9, 0, 29, P.wood);
+      p.rect(1, 0, 9, 2, P.wood);
+      p.hline(1, 9, 0, P.woodLt);
+      for (let s = 0; s < 3; s++) {
+        const y = 9 + s * 9;
+        p.hline(1, 9, y, P.woodLt);
+        p.hline(1, 9, y + 1, P.woodDark);
+        // the books, their spines to the room, a little uneven
+        for (let b = 0; b < 4; b++) {
+          const top = y - 6 - ((b + s) % 2);
+          p.rect(1 + b * 2, top, 2, y - top, [P.navy, P.maroon, P.leafShade, P.steel][(b + s) % 4]);
+          p.set(1 + b * 2, top, P.concreteLt);
+        }
+      }
+      p.rect(3, 11, 2, 7, P.gold); // the star atlas, opened so often its spine is pale
+      p.set(3, 11, P.goldPale);
+    },
+    { cx: 10, base: 16, shadow: 0 },
+  ),
+);
+
+/**
+ * (24,1–2) the 放送室's back door (the rightmost room of the school): a plain
+ * wooden door with a pane of night sky, a paper 『裏口』 and its knob; out to
+ * the little hill behind the school and the village observatory on it
+ * (★2026-10-01 依頼主の指示、02 #80). The pane is a little lighter than the
+ * dark room — a square of starlight to find it by (the glow layer).
+ */
+registerProp('prop_h_school_uraguchi', () => {
+  const p = new PixelCanvas(16, 32);
+  // the frame and the door
+  p.rect(1, 3, 14, 29, P.woodDark);
+  p.rect(2, 4, 12, 28, P.wood);
+  p.vline(2, 4, 31, mix(P.wood, P.woodLt, 0.5));
+  // the pane: the night over the hill, the dome's white edge, a star
+  p.rect(4, 6, 8, 7, P.nightShade);
+  p.hline(4, 11, 6, P.night);
+  p.rect(6, 11, 4, 2, P.concrete);
+  p.hline(6, 9, 11, P.concreteLt);
+  p.set(5, 8, P.glint);
+  p.set(10, 7, P.lilac);
+  p.vline(8, 6, 12, P.woodDark);
+  // the panel below, the paper 『裏口』, the knob
+  p.strokeRect(4, 17, 8, 11, mix(P.wood, P.woodDark, 0.5));
+  p.rect(5, 15, 6, 4, P.paper);
+  p.hline(6, 9, 16, P.ink);
+  p.hline(6, 8, 17, P.ink);
+  p.set(12, 21, P.brass);
+  p.set(12, 22, P.brassOld);
+  // the threshold
+  p.hline(1, 14, 31, P.woodDark);
+  const img = p.toCanvas();
+  return {
+    ox: 0,
+    oy: 0,
+    w: 16,
+    h: 32,
+    foot: 0,
+    flat: true,
+    img: () => img,
+    glow(g: Gfx, x: number, y: number) {
+      g.rect(x + 4, y + 7, 8, 5, '#B4AEDA', 0.18);
+      g.rect(x + 5, y + 8, 1, 1, '#FFF6D8', 0.8);
+    },
+  } as PropArt;
+});
 
 void glowDot;
 void nightK;

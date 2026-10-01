@@ -204,6 +204,9 @@ export const HOSHI_MAP_NAMES: Record<string, string> = {
   map_hoshi_hill: '星見の丘',
   // 沢の上「水の 元」（02_ch2_index #65）
   map_hoshi_sawa: '沢の上',
+  // 分校の 裏の 丘と 村営天文台（★2026-10-01 天文台を 星見の丘から 移した、02_ch2_index #80）
+  map_hoshi_urayama: '分校の 裏の 丘',
+  map_hoshi_dome: '村営天文台',
   // 星見台の家々の中（02_ch2_index #61）
   ...ROOM2_PLACE,
 };

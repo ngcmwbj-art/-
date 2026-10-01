@@ -1,5 +1,6 @@
-// 星見の丘 (52_ch2_level_art 5章, 11.3): the village observatory's white dome
-// (its slit closed, a paper on the door), the disaster loudspeaker's pole
+// 星見の丘 (52_ch2_level_art 5章, 11.3) and the little hill behind the school
+// (map_hoshi_urayama, ★2026-10-01 02 #80): the village observatory's white dome
+// (its slit closed, a paper on the door — it stands behind the school now), the disaster loudspeaker's pole
 // (ヨビモドシ in the field: grey concrete, the control box, the red lamp
 // breathing every 2 s, four horn speakers, the antenna's point of light),
 // the empty telescope pier, the bench of the star parties, the fallen sign
@@ -317,7 +318,7 @@ registerProp('prop_h_hill_bench', () =>
 
 registerProp('prop_h_kanbou_board', () => {
   const fallen = new PixelCanvas(24, 14);
-  // 『観望会 会場まで あと 300m』 on its back in the weeds
+  // 『観望会 会場まで あと 50m』 on its back in the weeds (by the path up the hill behind the school, map_hoshi_urayama, 02 #80)
   fallen.poly([[1, 6], [20, 3], [22, 10], [3, 13]], P.woodLt);
   fallen.line(1, 6, 20, 3, P.goldPale);
   for (let k = 0; k < 3; k++) fallen.line(5, 8 + k, 15, 6 + k, k === 1 ? P.navy : P.wood);

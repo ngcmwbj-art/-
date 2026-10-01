@@ -23,4 +23,6 @@ import './hoshi_hill';
 import './hoshi_sawa';
 // 村営天文台の中（朝の ほうだけ 光る 星、02_ch2_index #77）
 import './hoshi_dome';
+// 分校の 裏の 丘（天文台を 星見の丘から 移した。★2026-10-01 依頼主の指示、02_ch2_index #80）
+import './hoshi_urayama';
 import './hoshi_fx';

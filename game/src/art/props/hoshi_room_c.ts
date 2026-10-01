@@ -804,20 +804,25 @@ furn('tv', {
     if (!o.on) return {};
     return {
       glow(g: Gfx, x: number, y: number, env: PropEnv) {
-        // the set left on: the snow of a station off the air, the corner clock at 4:59; from h2 a line runs across
+        // the set left on: the snow of a station off the air, the corner clock at 4:59; from h2 a line runs across.
+        // All of it on the glass: the 12×9 screen painted at (4,3) of the 22×24 set, which stands at
+        // (x−3, y−8) (cx 8, base 16) — so the glass is (x+1, y−5)…(x+12, y+3) (★2026-10-01 依頼主
+        // 「テレビの砂嵐がズレている」: it was drawn 2px left and 6px up, over the cabinet's top)
+        const sx = x + 1;
+        const sy = y - 5;
         const t = Math.floor(env.t / 70);
         for (let j = 0; j < 9; j++)
           for (let i = 0; i < 12; i++) {
             const n = ihash(i + t * 13, j + t * 7, 7301) % 7;
-            g.rect(x - 1 + i, y - 11 + j, 1, 1, n < 2 ? '#DDE6F0' : n < 4 ? '#8E95A6' : '#3A3F48', 0.85);
+            g.rect(sx + i, sy + j, 1, 1, n < 2 ? '#DDE6F0' : n < 4 ? '#8E95A6' : '#3A3F48', 0.85);
           }
-        g.rect(x + 5, y - 11, 6, 3, '#1B1733', 0.9);
-        g.rect(x + 6, y - 10, 1, 1, '#DDE6F0');
-        g.rect(x + 8, y - 10, 2, 1, '#DDE6F0');
+        g.rect(sx + 6, sy, 6, 3, '#1B1733', 0.9);
+        g.rect(sx + 7, sy + 1, 1, 1, '#DDE6F0');
+        g.rect(sx + 9, sy + 1, 2, 1, '#DDE6F0');
         if (hs(env) === 2) {
           const off = Math.floor(env.t / 60) % 16;
-          g.rect(x - 1, y - 5, 12, 2, '#1B1733', 0.85);
-          for (let i = 0; i < 12; i++) if ((i + off) % 4 < 2) g.rect(x - 1 + i, y - 5, 1, 1, '#FFE7A3', 0.9);
+          g.rect(sx, sy + 6, 12, 2, '#1B1733', 0.85);
+          for (let i = 0; i < 12; i++) if ((i + off) % 4 < 2) g.rect(sx + i, sy + 6, 1, 1, '#FFE7A3', 0.9);
         }
       },
       light(g: Gfx, x: number, y: number, env: PropEnv) {

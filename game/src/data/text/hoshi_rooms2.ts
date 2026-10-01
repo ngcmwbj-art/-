@@ -22,14 +22,15 @@ export const R2_OBJ: Record<string, R2Text> = {
 {w=300}『星座の 見つけ方』だけ、
 背表紙が すりきれている。`,
   obj_hr_fumi_kagi: {
-    'h0-1': `@narr
+    h0: `@narr
 鍵かけに、鍵が 3本。{w=300}
 1本に 白い 札『天文台』。
 /
 ……分校の 鍵かけに
 なかった 鍵だ。`,
-    // 朝の ほうだけ 光る 星（02 #77）：段階2の まつ先生は 天文台の 鍵を 持って 山道の 入口に いる
-    h2: `@narr
+    // 朝の ほうだけ 光る 星（02 #77）：トマトの 灯りが 見えた 夜（段階1から）、まつ先生は 天文台の
+    // 鍵を 持って 出ている（分校で、段階2は 山道の 入口で しゅんに わたす。★2026-10-01、02 #80）
+    'h1+': `@narr
 鍵かけに、鍵が 2本。{w=300}
 『天文台』の 札の ところだけ、
 鍵が ない。`,
@@ -62,8 +63,8 @@ export const R2_OBJ: Record<string, R2Text> = {
   },
   obj_hr_fumi_mado: {
     'h0-1': `@narr
-窓の 外に、山の 黒い 線。
-{w=300}てっぺんに、白い 点が 1つ。
+窓の 外に、分校の 屋根。
+{w=300}その 裏の 丘に、白い 点が 1つ。
 ……天文台の ドームだ。`,
     h2: `@narr
 窓の 外の 山の 上で、
@@ -1122,7 +1123,7 @@ export const R2_MISC = {
   house2_shime: `@narr
 ……戸を しめた。{w=300}
 『あけたら しめて』。`,
-  /** 星見の丘: the observatory's little window (the door stays shut: 観望会 休止中, the key is まつ先生's). */
+  /** 分校の 裏の 丘 (map_hoshi_urayama, 02 #80): the observatory's little window (the door stays shut: 観望会 休止中, the key is まつ先生's). */
   obj_hr_dome_mado: `@narr
 天文台の 小窓から、
 中を のぞいた。

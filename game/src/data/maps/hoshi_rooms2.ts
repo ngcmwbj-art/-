@@ -389,9 +389,7 @@ export const ROOMS2: Room2[] = [
       X('obj_hr_kucho_bonsai', 10, 2, { w: 2 }),
       X('obj_hr_kucho_tsukemono', 1, 5),
       X('obj_hr_kucho_kingyo', 11, 7),
-      // ぴょん夫人's スズムシ in their case beside the goldfish (捕まえない自由研究, 02_ch2_index #64)
-      PR('prop_hr_mushi_case', 12, 7, {}, { solid: [0, 0, 1, 1] }),
-      X('obj_hr_kucho_mushi', 12, 7),
+      // (ぴょん夫人's スズムシ case is out under the eaves by the road since 02 #80: hoshi_village.ts)
     ],
     out: { x: 35, y: 36, stand: [35, 37], dir: 'up', se: 'se_door_glass' },
     lit: true,

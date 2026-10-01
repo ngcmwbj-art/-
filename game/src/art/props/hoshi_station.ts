@@ -108,43 +108,76 @@ registerProp('prop_h_machiai_bench', () =>
   ),
 );
 
-/** The station notebook (ふしぎ01): a page turns every 6 s, its edge lit white. */
-const NOTE = paintFrames(4, 12, 8, (p, k) => {
-  // open notebook: blue cover edges, two pages
-  p.rect(0, 2, 12, 6, P.blue);
-  p.rect(1, 2, 5, 5, P.paper);
-  p.rect(6, 2, 5, 5, P.paper);
-  p.vline(6, 2, 6, P.paperGrid);
-  for (let j = 3; j < 7; j += 1) {
-    if (j % 2) continue;
-    p.hline(2, 4, j, P.steel);
-    p.hline(7, 9, j, P.steel);
+/**
+ * The station notebook (ふしぎ01): a page turns every 4 s, its edge lit white.
+ * ★2026-10-01 依頼主「駅ノートが見つからなかった」(02 #80): bigger and plainly
+ * a notebook among the cushions — a sunflower-yellow cover (a 大学ノート), a
+ * title label, ruled pages, and the pencil on its red string hanging over the
+ * bench's edge (it swings a little). Not stamped yet: a soft light on the
+ * open pages (the glow layer), as if they were waiting.
+ */
+const NOTE = paintFrames(4, 16, 12, (p, k) => {
+  // the yellow cover (its edges and the spine show round the open pages)
+  p.rect(0, 2, 16, 8, P.gold);
+  p.hline(0, 15, 9, P.brass);
+  p.vline(0, 2, 9, P.brass);
+  p.vline(15, 2, 9, P.brass);
+  // two pages, ruled; the spine down the middle
+  p.rect(1, 2, 6, 7, P.paper);
+  p.rect(9, 2, 6, 7, P.paper);
+  p.vline(7, 2, 8, P.brassOld);
+  p.vline(8, 2, 8, P.brass);
+  for (let j = 4; j < 9; j += 2) {
+    p.hline(2, 5, j, P.paperGrid);
+    p.hline(10, 13, j, P.paperGrid);
   }
+  // a few words on the left page (the older ones), the right one white
+  p.hline(2, 4, 3, P.steel);
+  p.hline(2, 5, 5, P.steel);
+  // the title label on the cover's corner
+  p.rect(11, 0, 4, 2, P.white);
+  p.hline(11, 14, 1, P.ink);
+  // the pencil on its red string, hanging off the bench (the string swings: frames 1–2)
+  const sx = k === 1 ? 14 : k === 2 ? 12 : 13;
+  p.line(15, 6, sx, 10, P.verm);
+  p.rect(sx - 1, 10, 3, 2, P.gold);
+  p.set(sx, 11, P.peach);
   // the turning page (frames 1–2), its lit edge
   if (k === 1) {
-    p.rect(6, 1, 4, 5, P.white);
-    p.vline(9, 1, 5, P.glint);
+    p.rect(9, 1, 4, 6, P.white);
+    p.vline(12, 1, 6, P.glint);
   } else if (k === 2) {
-    p.rect(4, 0, 3, 6, P.white);
-    p.vline(4, 0, 5, P.glint);
+    p.rect(6, 0, 3, 7, P.white);
+    p.vline(6, 0, 6, P.glint);
   }
   if (k === 3) {
-    // after the stamp: a little bell doodled in the margin (2px)
-    p.set(9, 5, P.brass);
-    p.set(9, 4, P.brass);
-    p.set(8, 5, P.brass);
+    // after the stamp: しゅんの 字 on the right page, a little bell doodled in its margin
+    p.hline(10, 13, 3, P.ink);
+    p.hline(10, 12, 5, P.ink);
+    p.set(13, 7, P.brass);
+    p.set(13, 6, P.brass);
+    p.set(12, 7, P.brass);
   }
 });
+
 registerProp('prop_h_ekinote', () => ({
-  ox: 2,
-  oy: -1,
-  w: 12,
-  h: 8,
+  ox: 0,
+  oy: -3,
+  w: 16,
+  h: 12,
   foot: 16,
   img: (env) => {
     if (done(env, 'fushigi_ch2_01')) return NOTE[3];
-    const ph = env.t % 6000;
-    return ph < 120 ? NOTE[1] : ph < 240 ? NOTE[2] : NOTE[0];
+    const ph = env.t % 4000;
+    return ph < 140 ? NOTE[1] : ph < 280 ? NOTE[2] : NOTE[0];
+  },
+  glow: (g: Gfx, x: number, y: number, env: PropEnv) => {
+    if (done(env, 'fushigi_ch2_01')) return;
+    // the white page waits: a soft breath of light over it
+    const a = 0.24 + 0.12 * Math.sin(env.t / 600);
+    g.rect(x + 8, y + 1, 8, 9, '#FFF6D8', a * 0.5);
+    g.rect(x + 9, y + 2, 6, 7, '#FFF6D8', a);
+    g.rect(x + 11, y + 4, 2, 2, '#FFF6D8', a + 0.2);
   },
 }));
 

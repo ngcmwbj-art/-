@@ -1525,6 +1525,48 @@ const SIDE2 = [
     },
   },
   {
+    // 02 #80: before the gate's handle comes off, マサル says what is still undone in the village; 「まだ 村を
+    // 回る」 keeps it shut (he goes back to his cows); talked to in the barn: the chores' question (またこんど),
+    // then the gate's question again → 開けてもらう → the gate opens
+    name: 'gate',
+    async run() {
+      const choiceUp = () => page.evaluate(() => window.__game.game.ui.widgets.some((w) => w.constructor.name === 'ChoiceBox' && !w.done));
+      const choose = async (n, label) => {
+        await advance({ label, stopAt: choiceUp });
+        if (!(await choiceUp())) throw new Error(`gate: no choice (${label})`);
+        await sleep(600);
+        await shot(label);
+        for (let i = 0; i < n; i++) {
+          await tap('ArrowDown');
+          await sleep(200);
+        }
+        await tap('KeyZ');
+        await sleep(300);
+      };
+      await enterDoor(51, 32, 'up', 'map_hoshi_barn');
+      // the round, おつかれさま, out to the gate: 「開けてもらう｜まだ 村を 回る」 → まだ
+      await choose(1, 'ask');
+      await advance({ label: 'later' });
+      const v1 = await flags(['flag_ch2_gate_open', 'flag_ch2_gate_wait']);
+      const ok1 = !v1.flag_ch2_gate_open && v1.flag_ch2_gate_wait === 1;
+      checks.push({ check: 'gate: 「まだ 村を 回る」 keeps the gate shut (マサル back in the barn)', ok: ok1, ...v1 });
+      if (!ok1) throw new Error(`gate: ${JSON.stringify(v1)}`);
+      // into the barn, beside him: the chores (またこんど), then the gate's question (開けてもらう)
+      await travel(51, 33);
+      await enterDoor(51, 32, 'up', 'map_hoshi_barn');
+      await advance({ label: 'barn' });
+      await travel(19, 6);
+      await page.evaluate(() => (window.__game.cmd.fieldRef().player.dir = 'right'));
+      await sleep(150);
+      await tap('KeyZ');
+      await choose(1, 'chores');
+      await choose(0, 'again');
+      await advance({ label: 'open' });
+      await need(['flag_ch2_gate_open'], 'gate: opened from the barn');
+      await shot('open');
+    },
+  },
+  {
     name: 'barnwork',
     async run() {
       const s0 = await stateOf();
@@ -1751,7 +1793,12 @@ const SIDE2 = [
       });
       await warp('map_hoshi_school', 6, 4, 'up');
       await sleep(900);
+      // (with the lantern, coming in, まつ先生 calls しゅん over for the observatory's key first — 02 #80 — and
+      // walks him to her place: back in front of ハモ区長 after it)
       await advance({ label: 'warp' });
+      await warp('map_hoshi_school', 6, 4, 'up');
+      await sleep(600);
+      await advance({ label: 'warp2' });
       await examineHere('up', 'kucho');
       await need(['flag_nihyaku_kucho', 'flag_nihyaku_done'], 'nihyaku: ハモ区長 and the notebook');
       const mp = await page.evaluate(async () => {
@@ -1769,10 +1816,12 @@ const SIDE2 = [
     },
   },
   {
-    // 02 #77: 朝の ほうだけ 光る 星 — stage 2, まつ先生 (47,2) gives the observatory's key 〔dome〕; up the
-    // hill, in at (4,5); the cover (タクミ's card), the slit's crank, then for each of the three stars the
-    // dome's crank and the eyepiece (the screens play themselves: __game.cmd.domeAuto); back down to
-    // まつ先生: 〔kanbo〕 (the hanamaru, 朱肉 +2, the card kept for タクミ)
+    // 02 #77: 朝の ほうだけ 光る 星 — ★2026-10-01 (02 #80) the observatory is on the little hill behind the
+    // school and opens from the lantern on: stage 1, into the school — まつ先生 calls しゅん over and gives the
+    // key 〔dome〕; through the 放送室's back door (24,2) up the little hill, in at (11,5); the cover (タクミ's
+    // card), the slit's crank, then for each of the three stars the dome's crank and the eyepiece (the screens
+    // play themselves: __game.cmd.domeAuto); back down through the school to まつ先生: 〔kanbo〕 (the hanamaru,
+    // 朱肉 +2, the card kept for タクミ)
     name: 'dome',
     async run() {
       // to a tile, checked (グソっ君 following close in the small round room can leave Minato a tile short)
@@ -1789,14 +1838,14 @@ const SIDE2 = [
         }
         throw new Error(`dome: could not stand on (${x},${y})`);
       };
-      await examineHere('up', 'key');
-      await need(['flag_dome_key'], 'dome: the key');
-      await enterDoor(48, 0, 'up', 'map_hoshi_hill');
-      await advance({ label: 'hill' });
-      // along the plaza's south side (the loudspeaker's pole is not crossed), then into the door
-      await travel(12, 7);
-      await advance({ label: 'plaza' });
-      await enterDoor(4, 6, 'up', 'map_hoshi_dome');
+      await enterDoor(26, 28, 'up', 'map_hoshi_school');
+      await advance({ label: 'call' });
+      await need(['flag_dome_key'], 'dome: the key (まつ先生 calls)');
+      // the dark hallway with the lantern, the 放送室 (the rightmost room), its back door (24,2)
+      await enterDoor(24, 3, 'up', 'map_hoshi_urayama');
+      await advance({ label: 'urayama' });
+      await shot('urayama');
+      await enterDoor(11, 6, 'up', 'map_hoshi_dome');
       await advance({ label: 'in' });
       await need(['flag_dome_enter'], 'dome: inside');
       await page.evaluate(() => window.__game.cmd.domeAuto(true));
@@ -1819,9 +1868,9 @@ const SIDE2 = [
         await page.evaluate(() => window.__game.cmd.domeAuto(false));
       }
       await shot('done');
-      await leaveRoom('map_hoshi_hill');
-      await leaveRoom('map_hoshimidai');
-      await travel(47, 3);
+      await leaveRoom('map_hoshi_urayama');
+      await leaveRoom('map_hoshi_school');
+      await travel(9, 4);
       await examineHere('up', 'report');
       await need(['flag_kanbo_report'], 'dome: 〔kanbo〕');
       const v = await page.evaluate(() => window.__game.cmd.domeState());

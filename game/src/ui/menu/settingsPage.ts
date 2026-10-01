@@ -12,12 +12,27 @@ import { sfx, setVolume } from '../../audio';
 import { saveSettings, settings, SPEED_LABELS, syncSettingFlags, textSpeedMul, WIDE_LABELS } from '../settings';
 import { drawDigits } from '../digits';
 import { cursorImg, dottedLine, drawCursor, drawMarker, drawTape, textW, UI } from '../window';
-import { drawHeader, LP, SP } from './notebook';
+import { buttonsTop } from '../../engine/safezones';
+import { clearLeft, clearRight, drawHeader, LP, SP } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
 
 const LABELS = ['おんがく', 'こうかおん', '文字の はやさ', 'ツッコミ判定'];
 const ROW_Y = SP.y + 32;
 const ROW_H = 28;
+
+/**
+ * The rows' first top and pitch: 28px apart, or (an iPad held sideways, the
+ * left touch buttons under the page's bottom corner) started a little higher
+ * and closer together so the last row — its label, its cursor and its
+ * tapes — ends above them.
+ */
+function rowSpots(): { y0: number; step: number } {
+  const n = LABELS.length - 1;
+  const top = buttonsTop(SP.x + 1, LP.x + 120, 999) - 1;
+  if (ROW_Y + n * ROW_H + 18 <= top) return { y0: ROW_Y, step: ROW_H };
+  const y0 = SP.y + 28;
+  return { y0, step: Math.max(20, Math.min(ROW_H, Math.floor((top - 18 - y0) / n))) };
+}
 const CX = SP.x + 124;
 const RULER_W = 176;
 
@@ -125,8 +140,9 @@ export class SettingsPage implements MenuPage {
 
   draw(g: Gfx, m: MenuCtx): void {
     drawHeader(g, 'せってい', LP.x, SP.y + 6, '#C8C2B4', 1, 13);
+    const { y0, step } = rowSpots();
     LABELS.forEach((label, i) => {
-      const y = ROW_Y + i * ROW_H;
+      const y = y0 + i * step;
       const sel = m.focus && i === this.row;
       if (sel) drawMarker(g, LP.x - 2, y + 1, textW(label) + 4, 15, Math.min(1, this.moveT / 70));
       g.text(label, LP.x, y, { color: UI.text });
@@ -137,14 +153,15 @@ export class SettingsPage implements MenuPage {
     });
     // the note at the bottom of the spread
     const ny = SP.y + 150;
-    dottedLine(g, LP.x, ny - 5, SP.x + SP.w - 16, UI.pencil, 3);
+    const nx = LP.x + clearLeft(LP.x, ny - 6, ny + 34);
+    dottedLine(g, nx, ny - 5, clearRight(SP.x + SP.w - 16, ny - 6, ny - 4), UI.pencil, 3);
     const row = m.focus ? this.row : -1;
-    if (row === 2) this.drawSample(g, ny);
+    if (row === 2) this.drawSample(g, nx, ny);
     else if (row === 3) {
-      g.text('ふつう：いつもの 間。', LP.x, ny, { color: settings.wide ? UI.textDim : UI.pencil });
-      g.text('ひろい：受付が 2倍。', LP.x, ny + 17, { color: settings.wide ? UI.pencil : UI.textDim });
-    } else if (row === 0 || row === 1) g.text('0 に すると、音が 消える。', LP.x, ny, { color: UI.pencil });
-    else g.text('せっていは すぐに 保存される。', LP.x, ny, { color: UI.pencil });
+      g.text('ふつう：いつもの 間。', nx, ny, { color: settings.wide ? UI.textDim : UI.pencil });
+      g.text('ひろい：受付が 2倍。', nx, ny + 17, { color: settings.wide ? UI.pencil : UI.textDim });
+    } else if (row === 0 || row === 1) g.text('0 に すると、音が 消える。', nx, ny, { color: UI.pencil });
+    else g.text('せっていは すぐに 保存される。', nx, ny, { color: UI.pencil });
   }
 
   private drawRuler(g: Gfx, y: number, v: number, sel: boolean, t: number): void {
@@ -175,12 +192,12 @@ export class SettingsPage implements MenuPage {
     });
   }
 
-  private drawSample(g: Gfx, y: number): void {
+  private drawSample(g: Gfx, x0: number, y: number): void {
     const text = 'こんな 速さで 文字が 出る。';
     const cps = 40 * textSpeedMul();
     const n = Math.min([...text].length, Math.floor((this.sampleT / 1000) * cps));
     if (this.sampleT > 1000 * ([...text].length / cps) + 1400) this.sampleT = 0;
-    let x = LP.x;
+    let x = x0;
     [...text].slice(0, n).forEach((ch) => {
       g.text(ch, x, y, { color: UI.pencil });
       x += charWidth(ch);

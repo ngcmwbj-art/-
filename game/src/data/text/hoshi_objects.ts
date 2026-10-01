@@ -104,12 +104,20 @@ export const HOSHI_OBJ: Record<string, HText> = {
 なすが 3本、袋に 入っている。
 {w=300}つやつやで、
 夜空が 映っている。`,
+  /** 待合室の 前の 壁の 貼り紙（駅ノートの 案内。★2026-10-01 依頼主「駅ノートが 見つからなかった」、02 #80）。 */
+  obj_hoshi_ekinote_hari: `@narr
+待合室の 壁に、貼り紙。{w=300}
+『駅ノート あります。
+どなたでも、ひとこと どうぞ』`,
   obj_hoshi_michishirube: `@narr
 木の 道標。『↑ 集会所（旧分校）』
 『← ハウス』『→ 牛舎』。
 /
-『↑↑ 星見の丘 天文台』の 字だけ、
-新しく 書きなおしてある。`,
+『↑↑ 星見の丘』の 字だけ、
+新しく 書きなおしてある。
+/
+集会所の 板の すみに、小さく
+『裏の 丘に 天文台』。`,
   /** Also trig_ch2_edge_road (pushing west at the road's end). */
   obj_hoshi_edge_road: `@narr
 ふもとの 町まで、歩くと 2時間。
@@ -373,6 +381,11 @@ export const HOSHI_OBJ: Record<string, HText> = {
 ゲートの 取っ手は、支柱に
 かけてある。{w=300}
 マサルが 開けて くれた。`,
+    /** 「まだ 村を 回る」の あと（02 #80）。 */
+    wait: `@narr
+取っ手は、かかった まま。{w=300}
+……山へ 行く ときは、
+牛舎の マサルに 声を かけよう。`,
   },
   obj_hoshi_fence_sign: `@narr
 黄色い 表示板『危険 電気さく』。
@@ -507,7 +520,7 @@ export const HOSHI_OBJ: Record<string, HText> = {
 『星を 見上げて 手を つなぎ』。
 ……3番まで ある。`,
   obj_hoshi_school_window: `@narr
-窓の 外に、山の 黒い 影。
+窓の 外に、裏の 丘の 黒い 影。
 {w=300}てっぺんに、天文台の
 白い ドーム。`,
   // obj_hoshi_rouka_dark: trig_ch2_dark_school → evt_ch2_dark_block (hoshi_events.ts)
@@ -553,6 +566,12 @@ export const HOSHI_OBJ: Record<string, HText> = {
 『星座の 図鑑』が 3冊。{w=300}
 どれも、同じ ページで
 ひらき ぐせ。……夏の 大三角。`,
+  /** 放送室の 裏口 (24,2)：分校の 裏の 丘と 天文台へ（★2026-10-01 依頼主の指示、02 #80）。押すと 出る。 */
+  obj_hoshi_uraguchi: `@narr
+裏口の 戸。{w=300}紙に『裏口』。
+/
+ガラスの 向こうに、小さな 丘。
+{w=300}てっぺんに、白い まるい 屋根。`,
 
   // ================================================================ 9.7 棚田・耕作放棄地・山道の入口
   obj_hoshi_kakashi: {
@@ -597,17 +616,17 @@ export const HOSHI_OBJ: Record<string, HText> = {
 ほうへ 続いている。{w=300}
 子どもの 運動ぐつの 形。
 /
-……むかし、観望会へ
+……むかし、丘へ 星を 見に
 走っていった 足あと らしい。`,
   obj_hoshi_yamaguchi_sign: `@narr
-道標『星見の丘 天文台 →』。
+道標『星見の丘 →』。
 {w=300}矢印の 先は、暗い 杉の 森だ。`,
 
   // ================================================================ 9.8 map_hoshi_hill（星見の丘）
   obj_hoshi_kanbou_board: {
     text: `@narr
 倒れた 案内板『観望会 会場まで
-あと 300m』。{w=300}
+あと 50m』。{w=300}
 ……立てて おいた。`,
     again: `@narr
 案内板は、ちゃんと 立っている。`,

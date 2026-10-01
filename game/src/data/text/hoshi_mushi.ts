@@ -8,6 +8,11 @@
 // (「……ええ 耳ね。」, 朱肉 +2). The beetle at the クヌギ is a bonus, not counted.
 // ★2026-09-29 カネナリくん→グソっ君 (@npc_kanenari, no flips): at the fifth,
 // 「わいは 数に 入れんといてや。エビや カニの なかまやからな」.
+// ★2026-10-01 依頼主「虫が2つしか見つからなかった」(02 #80): the five moved to
+// where the night's walk goes (3号ハウスの 前、分校の 門灯の 下、ほうき家の 軒先、
+// 牛舎へ 上がる 坂の 石垣、ゲートの 先の クズ); グソっ君 tells how to look in the
+// invitation, notices each one close by once (MUSHI_NEAR, a bubble), and after
+// each find says how many are left and where one of them was heard (MUSHI_NEXT).
 
 import type { MushiKind } from '../../art/props/hoshi_mushi';
 
@@ -20,6 +25,10 @@ export const MUSHI_INVITE = `@npc_kanenari
 アミは トマトで いっぱいやから、
 捕まえへんで。{w=300}
 見るだけの 自由研究や。
+/
+虫は、灯りが 当たると
+きらっと 光るはずや。{w=300}
+道ばたを よう 見とき。
 @sys
 みました帳 ②に、
 『むし』の らんが できた。`;
@@ -95,12 +104,12 @@ export const MUSHI_TEXT: Record<Exclude<MushiKind, 'kabuto'>, MushiText> = {
   },
   umaoi: {
     first: `@narr
-桜の 根もとの 草に、
+門灯の 下の 草に、
 細い 緑の 虫。{w=300}
 スイーッ……チョン。
 /
 ウマオイ。{w=300}
-分校の 桜の 下の、
+分校の 門の、
 夜の 当番 らしい。`,
     again: `@narr
 スイーッ……{w=600}チョン。{w=300}
@@ -121,10 +130,10 @@ export const MUSHI_TEXT: Record<Exclude<MushiKind, 'kabuto'>, MushiText> = {
 /
 スズムシ。{w=300}
 この 村で ただ 1つ、
-家の 中で 鳴く 声。`,
+人に 飼われて いる 声。`,
     again: `@narr
 リーン……。{w=300}
-金魚も、聞いている 顔を している。`,
+となりの 防犯灯まで、よく 届く。`,
     more: `@narr
 スズムシ。{w=300}
 羽を 立てて 鳴くのは、
@@ -137,7 +146,7 @@ export const MUSHI_TEXT: Record<Exclude<MushiKind, 'kabuto'>, MushiText> = {
 
 /** The rearing case before the research has begun (an ordinary thing in her room). */
 export const MUSHI_CASE_PLAIN = `@narr
-金魚鉢の となりに、飼育ケース。
+軒先の 台に、飼育ケース。
 {w=300}ふたに、ぴょん夫人の 字で
 『リーン』。`;
 
@@ -198,13 +207,49 @@ export const MUSHI_YOSHIE_FLIP = `@npc_kanenari
 
 /** みました帳 ②『むし』: the index name, the call, the place, しゅん's note (the beetle's: ゲンジロウ's, if he looked at his own in chapter 1), and — not seen yet — where the voice comes from. */
 export const MUSHI_BOOK: { kind: MushiKind; name: string; call: string; place: string; note: string; hint: string; noteGenjiro?: string }[] = [
-  { kind: 'kantan', name: 'カンタン', call: 'ルルルル……', place: '棚田の 石段の ヨモギ', note: '声は 大きいのに、草と 同じ 色。', hint: '棚田の 石段の ほうから' },
-  { kind: 'enma', name: 'エンマコオロギ', call: 'コロコロリー', place: '東の 台地の 石垣', note: 'まゆげが こわい だけ。', hint: '牛舎の 下の 石垣から' },
-  { kind: 'kutsuwa', name: 'クツワムシ', call: 'ガチャガチャ', place: '耕作放棄地の クズ', note: '100円は 入れない。', hint: '耕作放棄地の やぶから' },
-  { kind: 'umaoi', name: 'ウマオイ', call: 'スイーッチョン', place: '分校の 桜の 下', note: '分校の 桜の、夜の 当番。', hint: '分校の 桜の ほうから' },
-  { kind: 'suzu', name: 'スズムシ', call: 'リーン', place: 'ほうき家の 飼育ケース', note: 'ふたに『リーン』。', hint: 'だれかの 家の 中から' },
+  { kind: 'kantan', name: 'カンタン', call: 'ルルルル……', place: '3号ハウスの 前の ヨモギ', note: '声は 大きいのに、草と 同じ 色。', hint: 'ペロの ハウスの 前から' },
+  { kind: 'enma', name: 'エンマコオロギ', call: 'コロコロリー', place: '牛舎の 坂の 石垣', note: 'まゆげが こわい だけ。', hint: '牛舎の 坂の 石垣から' },
+  { kind: 'kutsuwa', name: 'クツワムシ', call: 'ガチャガチャ', place: 'ゲートの 先の クズ', note: '100円は 入れない。', hint: 'ゲートの 先の クズから' },
+  { kind: 'umaoi', name: 'ウマオイ', call: 'スイーッチョン', place: '分校の 門灯の 下', note: '分校の 門の、夜の 当番。', hint: '分校の 門灯の ほうから' },
+  { kind: 'suzu', name: 'スズムシ', call: 'リーン', place: 'ほうき家の 軒先', note: 'ふたに『リーン』。', hint: 'ほうき家の 軒先から' },
   { kind: 'kabuto', name: 'カブトムシ', call: '（鳴かない）', place: '山道の 入口の クヌギ', note: '灯りに 気づいても、食事中。', hint: '', noteGenjiro: 'ゲンジロウより、ひとまわり 大きい。' },
 ];
+
+/**
+ * グソっ君 notices one close by, once each (a bubble over him while しゅん walks;
+ * MUSHI_NEAR_FX in events/ch2/mushi.ts): the first look of where it is.
+ */
+export const MUSHI_NEAR: Record<Exclude<MushiKind, 'kabuto'>, string> = {
+  kantan: 'しゅん、ヨモギが 光っとる！',
+  enma: '石垣から、顔 出しとるで！',
+  kutsuwa: 'クズが ガチャガチャ いうとる！',
+  umaoi: '門の 灯りの とこ、何か おる！',
+  suzu: 'リーンて……あの 箱からや！',
+};
+
+/**
+ * After each find (the 「（むし n/5）」 page), while some are left: グソっ君 says
+ * how many, and where one of them was heard — the hardest to come across first
+ * (MUSHI_NEXT_ORDER). The voice and the place, the same as the notebook's hint.
+ */
+export const MUSHI_NEXT_ORDER: Exclude<MushiKind, 'kabuto'>[] = ['umaoi', 'kutsuwa', 'suzu', 'enma', 'kantan'];
+const MUSHI_NEXT_WHERE: Record<Exclude<MushiKind, 'kabuto'>, string> = {
+  kantan: `ペロの ハウスの 前で、
+ルルルル……て 鳴いとったで。`,
+  enma: `牛舎へ 上がる 坂の 石垣で、
+コロコロリーて 鳴いとったで。`,
+  kutsuwa: `電気柵の 向こうの クズから、
+ガチャガチャ 聞こえとったで。`,
+  umaoi: `分校の 門の 灯りの とこで、
+スイーッチョンて 聞こえたで。`,
+  suzu: `区長さんの 家の 軒先から、
+リーンて 聞こえたで。`,
+};
+export function mushiNextText(left: number, kind: Exclude<MushiKind, 'kabuto'>): string {
+  return `@npc_kanenari
+あと ${left}つや。{w=300}
+${MUSHI_NEXT_WHERE[kind]}`;
+}
 
 /** The page's title once the five are seen. */
 export const MUSHI_PAGE_TITLE = '星見台の 夜の 虫';
@@ -216,6 +261,7 @@ export const MUSHI_PAGES: Record<string, unknown> = {
   case_plain: MUSHI_CASE_PLAIN,
   kabuto: { genjiro: KABUTO_FIRST_GENJIRO, first: KABUTO_FIRST, again: KABUTO_AGAIN },
   count: mushiCountText(5),
+  next: Object.fromEntries(MUSHI_NEXT_ORDER.map((k) => [k, mushiNextText(4, k)])),
   blossom: MUSHI_BLOSSOM,
   yoshie: { talk: MUSHI_YOSHIE, get: MUSHI_YOSHIE_GET, flip: MUSHI_YOSHIE_FLIP },
 };

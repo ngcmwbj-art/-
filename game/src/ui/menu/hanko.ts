@@ -17,11 +17,28 @@ import { drawDigits } from '../digits';
 import { CASE_SLOTS, CASE_W, drawCase, outlineShown, slotXY } from '../hankocase';
 import { inkPotIcon } from '../icons';
 import { drawCursor, pencilLine, phraseWrap as wrap, textW, UI } from '../window';
-import { drawBar, drawHeader, hpColor, LP, Popup, RP, SP } from './notebook';
+import { clearLeft, clearRight, drawBar, drawHeader, hpColor, LP, pageText, Popup, RP, SP } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
 
 const CX = SP.x + Math.round((SP.w - CASE_W) / 2);
 const CY = SP.y + 28;
+/** The caption under the case: its first row (name, cost) and its three rows' reach. */
+const INFO_Y = CY + 107;
+const INFO_Y1 = INFO_Y + 18 + 2 * 17;
+
+/** The caption's lines: wrapped across both pages from LP.x. */
+const INFO_W = SP.x + SP.w - 14 - LP.x;
+
+/**
+ * Where the caption starts and how wide it may run: from LP.x across both
+ * pages, or (an iPad held sideways) in from the touch buttons at the bottom
+ * corners — its lines stay as they are, set a little tighter to fit
+ * (pageText; wrapCheck checks they can).
+ */
+export function hankoInfo(): { x: number; w: number } {
+  const x = LP.x + clearLeft(LP.x, INFO_Y, INFO_Y1);
+  return { x, w: clearRight(SP.x + SP.w - 14, INFO_Y, INFO_Y1) - x };
+}
 
 function minato() {
   return state.party.find((p) => p.id === 'minato');
@@ -167,12 +184,13 @@ export class HankoPage implements MenuPage {
     }
     // info under the case: name and cost on one row, the two lines of the
     // description below it, written across both pages like a caption
-    const y0 = CY + 107;
-    const infoW = SP.x + SP.w - 14 - LP.x;
+    const y0 = INFO_Y;
+    const ix = hankoInfo().x;
+    const infoW = INFO_W;
     const id = m.focus ? CASE_SLOTS[this.sel] : null;
     if (!m.focus) {
       const lines = wrap('おばあの 採点ハンコ。押した モノを、認める 力が ある。', SP.w - 36);
-      lines.forEach((l, i) => g.text(l, SP.x + 18, y0 + 6 + i * 17, { color: UI.pencil }));
+      lines.forEach((l, i) => pageText(g, l, SP.x + 18 + Math.max(0, ix - LP.x), y0 + 6 + i * 17, { color: UI.pencil }));
     } else if (id && (ownsHanko(id) || outlineShown(id, false))) {
       const s = getSkill(id);
       const ch2 = !!flag('flag_ch2_started');
@@ -180,9 +198,9 @@ export class HankoPage implements MenuPage {
       const outline = !ownsHanko(id);
       const name = outline ? '？？？' : s?.name ?? id;
       const nw = textW(name);
-      g.text(name, LP.x, y0, { color: UI.accent });
-      pencilLine(g, LP.x, y0 + 16, nw + 2, 1, UI.accentDark, 5);
-      const cx = LP.x + nw + 12;
+      g.text(name, ix, y0, { color: UI.accent });
+      pencilLine(g, ix, y0 + 16, nw + 2, 1, UI.accentDark, 5);
+      const cx = ix + nw + 12;
       if (s?.cost && !outline) {
         g.img(inkPotIcon(), cx, y0 + 2);
         g.text('朱肉', cx + 12, y0, { color: UI.text });
@@ -192,10 +210,10 @@ export class HankoPage implements MenuPage {
       }
       const desc = outline ? ['（輪郭だけが、うっすら 見える）'] : id === 'skill_okaerinasai' && ch2 ? SYS2.okaeriDescCh2 : s?.desc ?? [];
       const lines = desc.filter((l) => l).flatMap((l) => wrap(l, infoW));
-      lines.slice(0, 2).forEach((l, i) => g.text(l, LP.x, y0 + 18 + i * 17, { color: UI.text }));
+      lines.slice(0, 2).forEach((l, i) => pageText(g, l, ix, y0 + 18 + i * 17, { color: UI.text }));
     } else {
-      g.text('（空き）', LP.x, y0, { color: UI.textDim });
-      g.text('まだ なにも 入っていない。', LP.x, y0 + 18, { color: UI.textDim });
+      g.text('（空き）', ix, y0, { color: UI.textDim });
+      g.text('まだ なにも 入っていない。', ix, y0 + 18, { color: UI.textDim });
     }
     this.popup?.draw(g);
   }

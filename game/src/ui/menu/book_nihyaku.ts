@@ -11,7 +11,8 @@ import { flag } from '../../game/state';
 import { registerDebug } from '../../debug';
 import { NIHYAKU_BOOK } from '../../data/text/hoshi_nihyaku';
 import { pencilLine, phraseWrapInfo, textW, UI } from '../window';
-import { FOLD, LP, RP, SP } from './notebook';
+import { clearRight, clearSpacing, FOLD, LP, pageText, RP, SP, squeezable } from './notebook';
+import { measure } from '../../engine/font';
 
 /** The four have answered: ② has its corner page. */
 export function hasNihyakuPage(): boolean {
@@ -69,13 +70,14 @@ export function drawNihyakuPage(g: Gfx, x: number, y: number, w: number): void {
   for (const l of lines) {
     if (l.name) g.text(l.name, x, ly, { color: UI.pencil });
     const nx = x + (l.name ? textW(l.name) : l.dx);
-    if (l.note) g.text(l.note, nx, ly, { color: UI.text });
-    lastRight = l.note ? nx + textW(l.note) : x + textW(l.name);
+    // (beside an iPad's touch button: a little tighter, pageText)
+    if (l.note) lastRight = nx + pageText(g, l.note, nx, ly, { color: UI.text });
+    else lastRight = x + textW(l.name);
     ly += LINE_H;
   }
-  // the corner: 『風』 in 朱, in a pencil box, as on the chart in the shed (clear of the last line)
-  const bx = x + w - 26;
+  // the corner: 『風』 in 朱, in a pencil box, as on the chart in the shed (clear of the last line, and of a touch button)
   const by = SP.y + SP.h - 30;
+  const bx = Math.min(x + w - 26, clearRight(999, by, by + 20) + 1 - 20);
   if (by >= ly - 2 || lastRight + 6 <= bx) {
     g.rect(bx, by, 20, 1, UI.pencil);
     g.rect(bx, by + 19, 20, 1, UI.pencil);
@@ -85,7 +87,10 @@ export function drawNihyakuPage(g: Gfx, x: number, y: number, w: number): void {
   }
 }
 
-/** QA: the index row and the page fit (the row: 2 lines at the label width; the page: its room under the title). */
+/**
+ * QA: the index row and the page fit (the row: 2 lines at the label width; the page: its room under the title).
+ * Run on an iPad held sideways it also checks each line beside a touch button can be set tight enough (pageText).
+ */
 export function nihyakuBookCheck(): { pages: number; bad: string[] } {
   const bad: string[] = [];
   const labelW = FOLD - 4 - (LP.x + 14);
@@ -93,6 +98,11 @@ export function nihyakuBookCheck(): { pages: number; bad: string[] } {
   if (row.lines.length > 2 || row.forced) bad.push(`一覧: ${row.lines.join('／')}`);
   if (textW(NIHYAKU_BOOK.title) > RP.w - 6) bad.push(`題: ${textW(NIHYAKU_BOOK.title)}px > ${RP.w - 6}`);
   const p = pageLines(RP.w);
+  p.lines.forEach((l, i) => {
+    const ly = SP.y + 28 + ROWS_DY + i * LINE_H;
+    const nx = RP.x + (l.name ? textW(l.name) : l.dx);
+    if (l.note && !squeezable(l.note, clearRight(999, ly, ly + 16) + 1 - nx)) bad.push(`本文 ${i + 1}: ${l.note} (beside a touch button, ${measure(l.note, clearSpacing(l.note, nx, ly))}px)`);
+  });
   const r = room(SP.y + 28);
   if (p.lines.length > r) bad.push(`本文: ${p.lines.length} lines > ${r}`);
   if (p.forced || p.wide) bad.push(`本文: forced ${p.forced}, wide ${p.wide}`);

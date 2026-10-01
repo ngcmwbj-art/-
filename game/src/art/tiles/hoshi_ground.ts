@@ -49,6 +49,8 @@ export const H_GROUNDS = [
   'h_sawdust',
   'h_yamamichi',
   'h_hilltop',
+  // 分校の 裏の 丘 (map_hoshi_urayama, ★2026-10-01 02 #80): the hilltop's grass without the plaza's footpaths
+  'h_urayama',
   'h_schoolwood',
   'h_genkan',
   // 沢の上 (map_hoshi_sawa, 02 #65): a mountain stream of any width, and the still pool / the spring
@@ -798,12 +800,14 @@ const texYamamichi: HTex = (x, y, v) => {
   return col;
 };
 
-/** The worn gravel footpaths across the hill's plaza (tile coords): from the path's head to the pole, the dome's door and the bench. */
+/**
+ * The worn gravel footpaths across the hill's plaza (tile coords): from the path's head to the pole, the empty
+ * pier and the bench (the one to the dome's door went with the observatory behind the school, 02 #80).
+ */
 const HILL_PATHS: [number, number, number, number][] = [
   [17.9, 8.6, 17.4, 6.6],
   [17.4, 6.6, 15.9, 4.7],
-  [17.4, 6.6, 10.5, 6.5],
-  [10.5, 6.5, 4.5, 6.2],
+  [17.4, 6.6, 11.5, 5.0],
   [17.4, 6.6, 19.8, 7.2],
 ];
 function hillPathD(x: number, y: number): number {
@@ -823,7 +827,7 @@ function hillPathD(x: number, y: number): number {
  * 星見の丘の広場: grass cut short with a brush cutter — fine upright blades,
  * lit tips, the cut stems lying in faint swaths the cutter swung, a clover
  * here and there — and the worn footpaths of gravel and bare earth from the
- * path's head to the pole, the dome and the bench (their edges broken by
+ * path's head to the pole, the pier and the bench (their edges broken by
  * tufts). No big blotches: the variation is fine and has a cause.
  */
 const texHilltop: HTex = (x, y, v) => {
@@ -842,6 +846,11 @@ const texHilltop: HTex = (x, y, v) => {
     if (d > 0.32 && h01(x, y, 1171) < (d - 0.32) * 7) return (x + y) & 1 ? K.leaf : K.leafDeep;
     return h01(x, y, 1167) < 0.3 ? K.soilDk : K.soil;
   }
+  return hillGrass(x, y, v);
+};
+
+/** The hilltop's grass cut short (星見の丘's plaza, and the little hill behind the school). */
+function hillGrass(x: number, y: number, v: number): number {
   // the cut grass: blades in 2px lanes, each lane's height and tip varying
   const lane = x >> 1;
   const hh = ihash(lane, y >> 2, 1165 + v);
@@ -865,7 +874,10 @@ const texHilltop: HTex = (x, y, v) => {
     if (x === fx && y === fy + 1) return K.leafShade;
   }
   return col;
-};
+}
+
+/** 分校の 裏の 丘 (02 #80): the same short grass, no footpaths (its path is the h_yamamichi tiles). */
+const texUrayama: HTex = (x, y, v) => hillGrass(x, y, v);
 
 // ---------------------------------------------------------------- indoor
 
@@ -976,6 +988,7 @@ export const H_TEX: Record<HGround, HTex> = {
   h_sawdust: texSawdust,
   h_yamamichi: texYamamichi,
   h_hilltop: texHilltop,
+  h_urayama: texUrayama,
   h_schoolwood: texSchoolWood,
   h_genkan: texGenkan,
   h_sawa: texSawa,
@@ -1000,6 +1013,7 @@ export const H_NVAR: Partial<Record<HGround, number>> = {
   h_sawdust: 3,
   h_yamamichi: 3,
   h_hilltop: 2,
+  h_urayama: 2,
   h_schoolwood: 3,
 };
 
@@ -1022,11 +1036,12 @@ export const H_PRIO: Partial<Record<HGround, number>> = {
   h_houki: 8,
   h_yamamichi: 6,
   h_hilltop: 7,
+  h_urayama: 7,
 };
 /** Soft materials: their borders wander both ways. */
-export const H_SOFT: HGround[] = ['h_aze', 'h_kotei', 'h_houki', 'h_tilled', 'h_nuta', 'h_yamamichi', 'h_hilltop'];
+export const H_SOFT: HGround[] = ['h_aze', 'h_kotei', 'h_houki', 'h_tilled', 'h_nuta', 'h_yamamichi', 'h_hilltop', 'h_urayama'];
 /** Green materials (get the grass lip). */
-export const H_GREEN: HGround[] = ['h_houki', 'h_hilltop'];
+export const H_GREEN: HGround[] = ['h_houki', 'h_hilltop', 'h_urayama'];
 /** Materials that keep a straight edge (never wander, never get wandered into). */
 export const H_HARD: HGround[] = ['h_canal', 'h_stream', 'h_sawa', 'h_sawaike', 'h_tanada', 'h_rail', 'h_platform', 'h_ishidan', 'h_trainfloor', 'h_sheet', 'h_mulch', 'h_barnfloor', 'h_sawdust', 'h_schoolwood', 'h_genkan'];
 

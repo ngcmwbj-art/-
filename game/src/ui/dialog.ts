@@ -340,6 +340,12 @@ function frameFor(pos: 'bottom' | 'top'): { x: number; w: number; tw: number } {
   return { x: x0, w: x1 - x0, tw: x1 - x0 - (BOX.w - TEXT_W) };
 }
 
+/** Where the bottom window stands (its left edge and width): the shop's 説明欄 takes the same place. */
+export function dialogFrame(): { x: number; w: number } {
+  const f = frameFor('bottom');
+  return { x: f.x, w: f.w };
+}
+
 // ---- the dialog box ----------------------------------------------------------------------
 
 class DialogBox implements Widget {

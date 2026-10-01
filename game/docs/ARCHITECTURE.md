@@ -69,9 +69,11 @@ npm run build        # subsets the font, typechecks, builds dist/
   window, the battle's bottom row (`battle/ui/panels.ts` `ROW`), the fishing gauge, the key guides, the HUD's
   hanko plate and place name, the title read them. Text windows still call `markText(x, y, w, h)` (game px,
   the box at rest; `brief = true` for words up only for a moment: the controls in their way fade out) or
-  `markTextScreen()` (a whole text screen: the picture shrinks and the controls stand beside it) from
-  `engine/textzones.ts`; `uiBands()` / `__game.cmd.textZones()` read the last frame's (30 10.11). A new text
-  window near the bottom corners must keep off `buttonZones()`.
+  `markTextScreen()` (a whole text screen — the menu, a shop; since 2026-10-01 it too stays full screen with the
+  controls fixed: `ui/menu/notebook.ts` `clearLeft`/`listDx`/`pageText`/`tabSpots`, the shop's `desc()` =
+  `dialogFrame()`, the dome card lay their contents out round them) from `engine/textzones.ts`; `uiBands()` /
+  `__game.cmd.textZones()` read the last frame's (30 10.11). A new text window near the bottom corners must keep
+  off `buttonZones()`.
 - `ui/autosave.ts`: autosave into the one save slot when Minato stands free on the field after a map change or a
   battle that gave EXP (note 「オートセーブ」 top right), and silently when the page is hidden. Touch 「もどる」
   hides while he can walk (`setBackShown` in engine/touch.ts); `Input` latches presses shorter than a frame.

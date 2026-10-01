@@ -103,6 +103,12 @@ export const EKINOTE_BACK = `@narr
 『夕鳴町から 来ました』の
 ページに もどった。`;
 
+/**
+ * 駅に 着いて はじめて 動けたとき、グソっ君の 吹き出し（★2026-10-01 依頼主「駅ノートが 見つからなかった」、
+ * 02 #80。1回。1行）：待合室の ベンチの ノートに 気づく。
+ */
+export const EKINOTE_FLIP = '待合室に、ノートが 置いてあるで！';
+
 /** textcheck2 が 見る ページ。 */
 export const EKINOTE_TEXTS: Record<string, string> = {
   ...Object.fromEntries(EKINOTE_PAGES.map((p) => [p.key, p.text])),

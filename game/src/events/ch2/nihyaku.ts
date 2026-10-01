@@ -104,8 +104,8 @@ function storyFirst(who: NihyakuWho): boolean {
       // ハウスを 出る 前の 台詞、脇芽の 報告（〔wakime_done〕と 朱肉 +2）
       return !flag('flag_ch2_house_exit') || (flag('flag_ch2_wakime_done') > 0 && !flag('flag_ch2_wakime_report'));
     case 'gen':
-      // 見回り（ゲートを 開ける）の 前、牛舎の おてつだいの 最中
-      return !flag('flag_ch2_gate_open') || flag('flag_ch2_barn_work_on') > 0;
+      // 見回り（ゲートを 開ける）の 前、牛舎の おてつだいの 最中（ゲートの 前で「まだ 村を 回る」の あとは 聞ける、02 #80）
+      return (!flag('flag_ch2_gate_open') && !flag('flag_ch2_gate_wait')) || flag('flag_ch2_barn_work_on') > 0;
     case 'kucho':
       return !flag('flag_ch2_yoriai');
   }

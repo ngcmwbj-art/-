@@ -1,8 +1,12 @@
 // 朝の ほうだけ 光る 星（第2章・段階2の 寄り道。げむきか 10/1 の 3、02_ch2_index #77、
 // 50 3.7・9.8・10.25、52 4.7・7.7、53 8.17・12.20）。
 //
-//   〔dome〕   まつ先生 (47,2)：段階2で はじめて 話すと 天文台の 鍵（npcs.ts が 先に 聞く）
-//   丘の 扉 (4,5) → map_hoshi_dome（はじめて 入ったとき evt_dome_enter）
+//   〔dome〕   まつ先生：トマトの 灯りが ついたら（段階1〜2）天文台の 鍵。分校に 入ると まつ先生の
+//              ほうから 呼び止める（evt_dome_call。段階2は 山道の 入口 (47,2) の 前で）。話しても
+//              同じ（npcs.ts が 先に 聞く）
+//   ★2026-10-01 依頼主の指示（02 #80）：天文台は 星見の丘から 分校の 裏の 小さな 丘へ。
+//   分校の 放送室（いちばん 右の 部屋）の 裏口 (24,2) → 分校の 裏の 丘 map_hoshi_urayama →
+//   ドームの 扉 (11,5) → map_hoshi_dome（はじめて 入ったとき evt_dome_enter）
 //   望遠鏡     カバーを とる → タクミの 観望会カードが 落ちる（大写し）→ 星ごとに：
 //              スリットが 閉じている／ドームが 向いていない／ふた → 接眼レンズ
 //   ハンドル   『スリット』決定の 連打で 開ける（見上げる 画面）。
@@ -47,7 +51,8 @@ import { drawTape, UI } from '../../ui/window';
 import { keyGuide } from '../stage';
 import { addMp, F, getKeyItem, giveKey } from '../lib';
 import { puff } from '../fx';
-import { hStage, poseIf, unpose } from './common';
+import { face, walk } from '../../world/api';
+import { hStage, lanternOn, npc, poseIf, routeTiles, unpose } from './common';
 import { scopeSheet } from '../../art/props/dome_art';
 import {
   barrel,
@@ -667,6 +672,18 @@ function* eyeSession(n: 1 | 2 | 3): Co {
 // ---------------------------------------------------------------- the card (観望会 カード)
 
 const CARD = { x: 16, y: 2, w: 352, h: 212 };
+
+/** The last free x on the card for the rows y0..y1: its right margin, or short of a touch button (an iPad held sideways). */
+function cardRight(y0: number, y1: number): number {
+  return Math.min(CARD.x + CARD.w - 12, Math.floor(freeSpan(y0, y1).x1) - 1);
+}
+
+/** The letter spacing (0 … −2) that lets a line at x on the row at y end by `end` (default: cardRight). */
+function cardFit(s: string, x: number, y: number, end = cardRight(y, y + 16)): number {
+  let k = 0;
+  while (k > -2 && x + measure(s, k) - 1 > end) k--;
+  return k;
+}
 const INK = '#2A2440';
 const OLD_PENCIL = '#8A8498';
 const PENCIL = '#4A4460';
@@ -731,35 +748,52 @@ export class KanboCardPanel implements Widget {
       g.rect(x + CARD.w - 1, y, 1, CARD.h, '#E8D9B5');
       g.rect(x, y + CARD.h - 1, CARD.w, 1, '#D8C8A0');
       g.rect(x + 1, y + 1, 1, CARD.h - 2, '#FFFFFF');
+      // an iPad held sideways (the touch buttons fixed over the bottom
+      // corners): the print moves in clear of the left ones (the answers
+      // keep their indent), and a line on a row beside a right one is set up
+      // to 2px a letter tighter to end clear of it (cardFit)
+      const dx = Math.max(0, Math.ceil(freeSpan(y + 126, y + 208).x0) + 1 - (x + 12));
+      const px = x + 12 + dx;
       // the print
       const L = (i: number) => y + 6 + i * 20;
-      g.text(T.CARD.title, x + 12, L(0), { color: INK });
+      g.text(T.CARD.title, px, L(0), { color: INK });
       g.text(T.CARD.nameLabel, x + 214, L(0), { color: INK });
       g.text(T.CARD.name, x + 270, L(0), { color: OLD_PENCIL });
       g.rect(x + 266, L(0) + 16, 64, 1, '#C8BCA0');
       // タクミ's little cloud by his name (the cloudy morning)
       this.cloud(g, x + 334, L(0) + 4);
-      g.text(T.CARD.sub, x + 12, L(1), { color: INK });
+      g.text(T.CARD.sub, px, L(1), { color: INK, spacing: cardFit(T.CARD.sub, px, L(1)) });
       for (let i = 0; i < 3; i++) {
         const qy = y + 46 + i * 40;
-        g.text(T.CARD.q[i], x + 12, qy, { color: INK });
+        g.text(T.CARD.q[i], px, qy, { color: INK, spacing: cardFit(T.CARD.q[i], px, qy) });
         // the answer's box: a dotted line to write on
-        for (let k = x + 28; k < x + CARD.w - 16; k += 3) g.rect(k, qy + 35, 1, 1, '#C8BCA0');
-        this.answer(g, (i + 1) as 1 | 2 | 3, x + 28, qy + 18);
+        const end = Math.min(x + CARD.w - 16, cardRight(qy + 35, qy + 36) + 1);
+        for (let k = x + 28 + dx; k < end; k += 3) g.rect(k, qy + 35, 1, 1, '#C8BCA0');
+        this.answer(g, (i + 1) as 1 | 2 | 3, x + 28 + dx, qy + 18);
       }
-      g.text(T.CARD.foot, x + 12, y + 166, { color: INK });
-      g.text(T.CARD.teacher, x + 12, y + 188, { color: RED });
-      // まつ先生's hanamaru, beside his note
+      // まつ先生's hanamaru, beside his note (clear of a touch button; his note and the line above it end short of it)
+      const hy = y + 182;
+      const [h0, h1, v0, v1] = this.strokeBox();
+      const hx = Math.min(x + 296, cardRight(hy + v0, hy + v1) - h1);
+      // (where it is as always, the two lines are too)
+      const footEnd = (yy: number) => (hx < x + 296 ? Math.min(cardRight(yy, yy + 16), hx + h0 - 4) : cardRight(yy, yy + 16));
+      g.text(T.CARD.foot, px, y + 166, { color: INK, spacing: cardFit(T.CARD.foot, px, y + 166, footEnd(y + 166)) });
+      g.text(T.CARD.teacher, px, y + 188, { color: RED, spacing: cardFit(T.CARD.teacher, px, y + 188, footEnd(y + 188)) });
       if (this.hana > 0) {
         const n = Math.floor(this.stroke.length * this.hana);
-        const hx = x + 296;
-        const hy = y + 182;
         for (let i = 0; i < n; i++) {
-          const [px, py] = this.stroke[i];
-          g.rect(hx + px, hy + py, 2, 2, RED);
+          const [sx, sy] = this.stroke[i];
+          g.rect(hx + sx, hy + sy, 2, 2, RED);
         }
       }
     });
+  }
+
+  /** The hanamaru's reach round its centre: x from, x to, y from, y to (its 2px dots included). */
+  private strokeBox(): [number, number, number, number] {
+    const xs = this.stroke.map((p) => p[0]);
+    const ys = this.stroke.map((p) => p[1]);
+    return [Math.min(...xs), Math.max(...xs) + 1, Math.min(...ys), Math.max(...ys) + 1];
   }
 
   private cloud(g: Gfx, x: number, y: number): void {
@@ -780,12 +814,23 @@ export class KanboCardPanel implements Widget {
     }
     const s = T.CARD.a[n - 1];
     const shown = written ? s : [...s].slice(0, Math.max(0, this.chars - (n === 1 ? 1 : 0))).join('');
-    g.text(shown, tx, y, { color: PENCIL });
+    // (beside an iPad's touch button: the answer a little tighter, 『もっと』 a little closer — cardFit)
+    const m = [...T.CARD.motto];
+    const mw = m.reduce((a, c) => a + measure(c) + 1, -1);
+    let gap = 10;
+    let sp = 0;
+    if (n === 3) {
+      const end = cardRight(y - 1, y + 18);
+      while (tx + measure(s, sp) + gap + mw - 1 > end && (gap > 4 || sp > -2)) {
+        if (gap > 4) gap -= 2;
+        else sp--;
+      }
+    } else sp = cardFit(s, tx, y);
+    g.text(shown, tx, y, { color: PENCIL, spacing: sp });
     if (n === 3 && this.motto > 0) {
       // グソっ君's 『もっと』: wobbly, a lighter lead, a char at a time
-      const m = [...T.CARD.motto];
       const k = Math.ceil(m.length * this.motto);
-      let mx = tx + measure(s) + 10;
+      let mx = tx + measure(s, sp) + gap;
       for (let i = 0; i < k; i++) {
         const wob = [1, -1, 2][i % 3];
         g.text(m[i], mx, y + wob, { color: '#6A6484' });
@@ -842,15 +887,26 @@ function* showCard(o: CardOpts): Co {
 
 // ---------------------------------------------------------------- the scripts
 
-/** まつ先生 (npcs.ts asks here first at stage 2): 〔dome〕, 〔kanbo〕, the after line, the reminder. True when one was said. */
+/** The lantern's nights (stages 1–2, the tomato in the net): the observatory can be opened (02 #80). */
+function domeOpenNight(): boolean {
+  const s = hStage();
+  return lanternOn() && s >= 1 && s <= 2;
+}
+
+/** 〔dome〕 the key handed over (the place said with it: behind the school, by the 放送室's back door). */
+function* giveDomeKey(): Co {
+  setFlag(DF.key, 1);
+  if (!flag(DF.az)) setFlag(DF.az, 180);
+  yield* runMsg(T.DOME_KEY);
+  yield* getKeyItem(ITEM_KEY, T.DOME_KEY_GET);
+  yield* runMsg(T.DOME_KEY_KANE);
+}
+
+/** まつ先生 (npcs.ts asks here first, stages 1–2): 〔dome〕, 〔kanbo〕, the after line, the reminder. True when one was said. */
 export function* domeAtFumi(): Co<boolean> {
-  if (hStage() !== 2 || flag('flag_ch2_boss_beaten')) return false;
+  if (!domeOpenNight() || flag('flag_ch2_boss_beaten')) return false;
   if (!flag(DF.key)) {
-    setFlag(DF.key, 1);
-    if (!flag(DF.az)) setFlag(DF.az, 180);
-    yield* runMsg(T.DOME_KEY);
-    yield* getKeyItem(ITEM_KEY, T.DOME_KEY_GET);
-    yield* runMsg(T.DOME_KEY_KANE);
+    yield* giveDomeKey();
     return true;
   }
   if (flag(DF.n) >= 3 && !flag(DF.report)) {
@@ -862,7 +918,9 @@ export function* domeAtFumi(): Co<boolean> {
     yield* runMsg(T.KANBO_AFTER);
     return true;
   }
-  if (!flag(DF.report) && !flag(DF.wait)) {
+  // the place once more (once), after her own line of the stage has been heard (the way to the barn / the hill first)
+  const heard = hStage() >= 2 ? flag('flag_seen_npc_hoshi_fumi_h2') : flag('flag_seen_npc_hoshi_fumi_h1_1');
+  if (!flag(DF.report) && !flag(DF.wait) && heard) {
     setFlag(DF.wait, 1);
     yield* runMsg(T.DOME_FUMI_WAIT);
     return true;
@@ -892,7 +950,38 @@ function* kanboReport(): Co {
   yield* runMsg(flag('flag_ch2_find_fumi_konpeito') ? T.KANBO_KONPEITO_FOUND : T.KANBO_KONPEITO_TELL);
 }
 
-// ---- 星見の丘：扉と 小窓
+/**
+ * evt_dome_call (02 #80): まつ先生 calls しゅん over herself for the key — in
+ * the school as he comes in with the lantern (map_hoshi_school's onEnter,
+ * stage 1: she walks him to her place), or at the mouth of the hill path as
+ * he comes up to her (stage 2, trig_dome_call). Once: the key.
+ */
+export function* evtDomeCall(): Co {
+  const f = field();
+  // (not in the middle of the delivery: the cucumbers for ぴょん夫人 come first; she calls the next time)
+  if (!f || flag(DF.key) || !domeOpenNight() || flag('flag_ch2_boss_beaten') || flag('flag_ch2_delivery_on')) return;
+  const fumi = npc('npc_hoshi_fumi');
+  if (!fumi || !fumi.visible) return;
+  const p = f.player;
+  const school = f.map.id === 'map_hoshi_school';
+  yield 250;
+  face('npc_hoshi_fumi', 'player');
+  fumi.lift = 70;
+  yield* runMsg(school ? T.DOME_CALL_SCHOOL : T.DOME_CALL_HILL);
+  if (school) {
+    // up to her, one tile below her place (round the three asleep on the cushions, never over them)
+    const sleepers: [number, number][] = [[5, 5], [6, 5], [8, 6], [9, 6], [6, 7], [7, 7]];
+    const route = routeTiles(p.tileX, p.tileY, fumi.tileX, fumi.tileY + 1, sleepers);
+    if (route && route.length) yield* walk('player', route, { speed: 3.2 });
+  }
+  p.dir = Math.abs(fumi.x - p.x) > Math.abs(fumi.y - p.y) ? (fumi.x > p.x ? 'right' : 'left') : fumi.y < p.y ? 'up' : 'down';
+  face('npc_hoshi_fumi', 'player');
+  yield 200;
+  yield* giveDomeKey();
+}
+registerScript('evt_dome_call', evtDomeCall);
+
+// ---- 分校の 裏の 丘（map_hoshi_urayama、02 #80）：扉と 小窓
 
 registerScript('obj_hoshi_dome', function* (ctx): Co {
   if (flag(DF.key) && !flag('flag_ch2_boss_beaten')) {
@@ -900,11 +989,11 @@ registerScript('obj_hoshi_dome', function* (ctx): Co {
     sfx('se_examine');
     yield* runMsg(T.DOME_DOOR_OPEN);
     // (warpCo runs the room's enter scripts itself: evt_dome_enter)
-    yield* F().warpCo('map_hoshi_dome', 6, 8, 'up', ['se_dome_unlock', 'se_dome_door'], 'map_hoshi_hill');
+    yield* F().warpCo('map_hoshi_dome', 6, 8, 'up', ['se_dome_unlock', 'se_dome_door'], 'map_hoshi_urayama');
     return;
   }
   yield* ctx.runDefault();
-  if (hStage() === 2 && !flag('flag_ch2_boss_beaten') && !flag(DF.hint)) {
+  if (domeOpenNight() && !flag('flag_ch2_boss_beaten') && !flag(DF.hint)) {
     setFlag(DF.hint, 1);
     yield* runMsg(T.DOME_DOOR_HINT);
   }
@@ -1170,8 +1259,9 @@ function setUpTo(n: 1 | 2 | 3, onTarget = true): void {
 
 /**
  * QA: __game.cmd.dome(step = 'in', o)
- *   'key'     stage 2, in front of まつ先生 (47,3): the next talk is 〔dome〕
- *   'door'    the key: on the hill in front of the door (4,6)
+ *   'key'     stage 1 (the lantern), outside the school's door (26,28): going in, まつ先生 calls (〔dome〕)
+ *   'key2'    stage 2, in front of まつ先生 at the mouth of the hill path (47,3): the next talk is 〔dome〕
+ *   'door'    the key: on the little hill behind the school, in front of the door (11,6) (02 #80)
  *   'in'      the key: inside at the door (6,8) (o.enter: the first-entry lines too)
  *   'cover'   inside below the telescope (5,6), the cover still on
  *   'slit'    the card found: at the slit's crank (1,3); o.play opens the screen
@@ -1179,12 +1269,12 @@ function setUpTo(n: 1 | 2 | 3, onTarget = true): void {
  *   'eye'     everything ready for star o.n (1–3): below the telescope; o.play starts the eyepiece (o.fresh: as the first time)
  *   'sky'     the look-up screen alone (o.mode 'slit' | 'rot', o.n)
  *   'card'    the card alone (o.n answers written, o.hana, o.motto)
- *   'report'  all three seen: in front of まつ先生 (the next talk is 〔kanbo〕)
+ *   'report'  all three seen: in front of まつ先生 (the next talk is 〔kanbo〕; o.h2: at stage 2, at the hill path)
  *   'end'     reported: the ending's cut 3 (the envelope for タクミ); o.cut 1: the hill at dawn (the slit open)
  *   'reset'   the flags back to nothing
  * o.auto: the minigames play themselves.
  */
-registerDebug('dome', (step = 'in', o: { n?: number; play?: boolean; auto?: boolean; mode?: SkyMode; hana?: boolean; motto?: boolean; enter?: boolean; fresh?: boolean; cut?: number } = {}) => {
+registerDebug('dome', (step = 'in', o: { n?: number; play?: boolean; auto?: boolean; mode?: SkyMode; hana?: boolean; motto?: boolean; enter?: boolean; fresh?: boolean; cut?: number; h2?: boolean } = {}) => {
   const all = Object.values(DF);
   if (step === 'reset') {
     for (const f of all) setFlag(f, 0);
@@ -1205,12 +1295,15 @@ registerDebug('dome', (step = 'in', o: { n?: number; play?: boolean; auto?: bool
     );
     return `dome: ${step}`;
   }
-  // stage 2 in front of まつ先生 (CHAIN2 'dome'); the hill's own first lines are not what is looked at here
-  cmd().jump?.('ch2:dome', true);
+  // stage 1 with the lantern, outside the school (CHAIN2 'dome', 02 #80); 'key2' and the reports at stage 2: in
+  // front of まつ先生 at the mouth of the hill path (the hill's own first lines are not what is looked at here)
+  const h2 = step === 'key2' || !!o.h2;
+  cmd().jump?.(h2 ? 'ch2:hill' : 'ch2:dome', true);
   for (const f of all) setFlag(f, 0);
   setFlag('flag_ch2_hill_enter', 1);
   setFlag('flag_ch2_hill_top', 1);
-  if (step === 'key') {
+  if (step === 'key') return 'dome: go into the school (まつ先生 calls)';
+  if (step === 'key2') {
     cmd().warp?.('map_hoshimidai', 47, 3, 'up');
     return 'dome: talk to まつ先生 (Z)';
   }
@@ -1218,7 +1311,7 @@ registerDebug('dome', (step = 'in', o: { n?: number; play?: boolean; auto?: bool
   setFlag(DF.az, 180);
   giveKey(ITEM_KEY);
   if (step === 'door') {
-    cmd().warp?.('map_hoshi_hill', 4, 6, 'up');
+    cmd().warp?.('map_hoshi_urayama', 11, 6, 'up');
     return 'dome: push up into the door';
   }
   if (step === 'in' || step === 'cover') {
@@ -1264,14 +1357,16 @@ registerDebug('dome', (step = 'in', o: { n?: number; play?: boolean; auto?: bool
   setFlag(DF.aim, 3);
   removeItem(ITEM_CARD);
   giveKey(ITEM_CARD_DONE);
+  // まつ先生: in the gathering room at stage 1 (below her, (9,4)), at the mouth of the hill path at stage 2 (o.h2)
+  const atFumi = () => (h2 ? cmd().warp?.('map_hoshimidai', 47, 3, 'up') : cmd().warp?.('map_hoshi_school', 9, 4, 'up'));
   if (step === 'report') {
-    cmd().warp?.('map_hoshimidai', 47, 3, 'up');
+    atFumi();
     return 'dome: talk to まつ先生 (Z) — 〔kanbo〕';
   }
   setFlag(DF.report, 1);
   removeItem(ITEM_CARD_DONE);
   if (step === 'after') {
-    cmd().warp?.('map_hoshimidai', 47, 3, 'up');
+    atFumi();
     return 'dome: reported';
   }
   if (step === 'end') {

@@ -1,7 +1,7 @@
 // map_hoshi_dome — 村営天文台の中（げむきか 10/1 の 3「朝の ほうだけ 光る 星」、
 // 02_ch2_index #77、52 4.7、台本は 50 10.25）。12×10、1画面（カメラ固定）。
-// 星見の丘の 扉 (4,5) から 北へ 入り（天文台の鍵が あるときだけ）、南の 戸 (6,9) から
-// 丘の (4,6) に 出る。10年 閉めきりで 部屋じゅう 暗がり（トマトの 灯りで 見る）。
+// 分校の 裏の 丘（map_hoshi_urayama。★2026-10-01 依頼主の指示で 星見の丘から 移した、02 #80）の
+// 扉 (11,5) から 北へ 入り（天文台の鍵が あるときだけ）、南の 戸 (6,9) から 丘の (11,6) に 出る。10年 閉めきりで 部屋じゅう 暗がり（トマトの 灯りで 見る）。
 // スリットを 開けると、ドームの 向きに 合わせて 床に 星あかりの 帯。
 //
 //      012345678901
@@ -55,7 +55,7 @@ const OBJECTS: MapObj[] = [
   X('obj_dome_light', 2, 7),
   X('obj_dome_isu', 9, 7, { w: 2 }),
   X('obj_dome_photo', 3, 1, { face: 'up' }),
-  { t: 'door', id: 'door_hoshi_dome_out', x: 6, y: 9, to: 'map_hoshi_hill', tx: 4, ty: 6, dir: 'down', se: 'se_dome_door' },
+  { t: 'door', id: 'door_hoshi_dome_out', x: 6, y: 9, to: 'map_hoshi_urayama', tx: 11, ty: 6, dir: 'down', se: 'se_dome_door' },
 ];
 
 /** The starlight through the open slit (readable without the lantern): along the band on the floor, by the dome's direction. */
@@ -109,7 +109,7 @@ registerMap({
   starlight: STAR,
   onEnter: ['evt_dome_enter'],
   bgm: { 0: 'bgm_hoshi_night', 1: 'bgm_hoshi_night', 2: 'bgm_hoshi_night' },
-  // the night outside through the drum's walls; the loudspeaker next door is heard muffled (indoor)
+  // the night outside through the drum's walls; the loudspeaker up on 星見の丘 is heard far and muffled (indoor)
   amb: { 0: ['amb_h_insects'], 1: ['amb_h_insects'], 2: ['amb_h_insects', 'amb_h_pa_hum'] },
-  ambVol: { amb_h_insects: { vol: 0.3, lp: 1800 }, amb_h_pa_hum: { vol: 0.35, lp: 900 } },
+  ambVol: { amb_h_insects: { vol: 0.3, lp: 1800 }, amb_h_pa_hum: { vol: 0.2, lp: 900 } },
 });

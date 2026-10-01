@@ -151,7 +151,7 @@ export class MenuScene implements Scene, MenuCtx {
   }
 
   draw(g: Gfx): void {
-    // a text screen: the touch controls stand beside the picture
+    // a text screen (an iPad held sideways: its pages keep off the touch buttons, notebook.ts)
     markTextScreen();
     // dim the world (#1B1733 α40%)
     const dim = this.closeT >= 0 ? 1 - Math.min(1, this.closeT / CLOSE_MS) : Math.min(1, this.openT / OPEN_MS);

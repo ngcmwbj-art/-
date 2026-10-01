@@ -30,7 +30,7 @@ export interface UIBands {
   bottom: number | null;
   /** Where the highest text band ends (game px, the bottom of a box in the upper half), or null. */
   top: number | null;
-  /** The whole screen is a text screen (the menu, a shop, the save book). */
+  /** The whole screen is a text screen (the menu, a shop, the save book): QA only. */
   full: boolean;
   /** Every text box of the frame (game px). */
   rects: readonly TextRect[];
@@ -52,7 +52,11 @@ export function markText(x: number, y: number, w: number, h: number, brief = fal
   acc.push(Math.round(x), Math.round(y), Math.round(w), Math.round(h), brief ? 1 : 0);
 }
 
-/** This frame the whole screen is text (the menu, a shop): nothing may float over it. */
+/**
+ * This frame the whole screen is text (the menu, a shop). (Since 2026-10-01
+ * the touch controls stay fixed over it as everywhere; its pages lay their
+ * text out round them, safezones.ts.)
+ */
 export function markTextScreen(): void {
   accFull = true;
 }

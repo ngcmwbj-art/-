@@ -18,8 +18,8 @@ import { say } from '../dialog';
 import { drawDigits, drawNumerals } from '../digits';
 import { itemIcon12, itemIcon24, setOmakeCheck } from '../icons';
 import { KAIRAN_MAP_LINE1, KAIRAN_MAP_LINES } from '../../data/text/hoshi_events';
-import { dottedLine, drawCursor, drawMarker, pencilLine, phraseWrap as wrap, rectA, textW, UI } from '../window';
-import { drawHeader, drawScroll, FOLD, hpColor, LP, Popup, RP, SP, type PopupOpt } from './notebook';
+import { dottedLine, drawCursor, drawMarker, fitWrap, pencilLine, phraseWrap as wrap, rectA, textW, UI } from '../window';
+import { clearSpacing, drawHeader, drawScroll, FOLD, hpColor, listCursorX, listDx, LP, pageText, Popup, RP, SP, type PopupOpt } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
 
 export const BAG_MAX = 14;
@@ -120,9 +120,58 @@ export function drawGlowRing(g: Gfx, id: string, cx: number, cy: number, r: numb
 
 type Slot = { kind: 'row'; row: Row } | { kind: 'sep' };
 
+/** Lines of the list on the left page (a long name may take two). */
 const VISIBLE = 8;
 const ROW_H = 18;
 const LIST_Y = SP.y + 28;
+
+/** How wide a list row's name may be: from where it starts (an iPad held sideways: moved in, listDx) to the fold. */
+export function itemNameRoom(): number {
+  return FOLD - 4 - (LP.x + listDx() + 14);
+}
+
+/** A line of a name set up to 2px a letter tighter to fit `room` (null: it doesn't). */
+function squeeze(text: string, room: number): { text: string; spacing: number } | null {
+  const w = textW(text);
+  const n = [...text].length;
+  if (w <= room) return { text, spacing: 0 };
+  if (w - n <= room) return { text, spacing: -1 };
+  if (w - 2 * n <= room) return { text, spacing: -2 };
+  return null;
+}
+
+/**
+ * A row's name as the list writes it: one line — a long one (きゅうりの一本漬け)
+ * set a pixel or two tighter so it stays on its page — or, when even that is
+ * too wide (the narrower list of an iPad held sideways, a 10-letter name),
+ * two lines: broken after 「の」 or a closing bracket where it can be
+ * (きゅうりの／一本漬け), else by phrase.
+ */
+export function itemNameLines(name: string, room = itemNameRoom()): { text: string; spacing: number }[] {
+  const one = squeeze(name, room);
+  if (one) return [one];
+  const ch = [...name];
+  let best: { text: string; spacing: number }[] | null = null;
+  let bestD = Infinity;
+  for (let i = 1; i < ch.length; i++) {
+    if (!/[の』」）]/.test(ch[i - 1]) && !/[『「（]/.test(ch[i])) continue;
+    const a = squeeze(ch.slice(0, i).join(''), room);
+    const b = squeeze(ch.slice(i).join(''), room - 8);
+    const d = Math.abs(ch.length / 2 - i);
+    if (a && b && d < bestD) {
+      best = [a, b];
+      bestD = d;
+    }
+  }
+  if (best) return best;
+  return fitWrap(name, room)
+    .slice(0, 2)
+    .map((l, j) => squeeze(l.text, room - (j ? 8 : 0)) ?? l);
+}
+
+function slotLines(sl: Slot): number {
+  return sl.kind === 'sep' ? 1 : itemNameLines(itemName(sl.row.id)).length;
+}
 
 export class ItemsPage implements MenuPage {
   private sel = 0;
@@ -165,9 +214,21 @@ export class ItemsPage implements MenuPage {
     }
     this.sel = Math.max(0, Math.min(s.length - 1, this.sel));
     if (s[this.sel]?.kind === 'sep') this.sel = Math.min(s.length - 1, this.sel + 1);
+    // keep the chosen row (all its lines) inside the VISIBLE lines, and the window full at the end
+    const n = s.map(slotLines);
+    const lines = (a: number, b: number) => n.slice(a, b + 1).reduce((t, v) => t + v, 0);
+    this.scroll = Math.max(0, Math.min(this.scroll, s.length - 1));
     if (this.sel < this.scroll) this.scroll = this.sel;
-    if (this.sel >= this.scroll + VISIBLE) this.scroll = this.sel - VISIBLE + 1;
-    this.scroll = Math.max(0, Math.min(Math.max(0, s.length - VISIBLE), this.scroll));
+    while (this.scroll < this.sel && lines(this.scroll, this.sel) > VISIBLE) this.scroll++;
+    while (this.scroll > 0 && lines(this.scroll - 1, s.length - 1) <= VISIBLE) this.scroll--;
+  }
+
+  /** The chosen row's top (on the page) and height. */
+  private rowAt(): { y: number; h: number } {
+    const s = this.slots();
+    let line = 0;
+    for (let k = this.scroll; k < this.sel && k < s.length; k++) line += slotLines(s[k]);
+    return { y: LIST_Y + line * ROW_H, h: (s[this.sel] ? slotLines(s[this.sel]) : 1) * ROW_H };
   }
 
   private current(): Row | null {
@@ -261,8 +322,8 @@ export class ItemsPage implements MenuPage {
    * near the bottom): the description on the right page stays readable.
    */
   private popupAtRow(opts: PopupOpt[], title: string, o: { minW?: number; index?: number }): Popup {
-    const rowY = LIST_Y + (this.sel - this.scroll) * ROW_H;
-    const p = new Popup(opts, LP.x + 26, rowY + ROW_H, title, o);
+    const { y: rowY, h: rowH } = this.rowAt();
+    const p = new Popup(opts, LP.x + 26 + listDx(), rowY + rowH, title, o);
     const bottom = SP.y + SP.h - 4;
     if (p.y + p.h > bottom) p.y = rowY - p.h - 2;
     p.y = Math.max(SP.y + 4, p.y);
@@ -373,41 +434,52 @@ export class ItemsPage implements MenuPage {
     drawHeader(g, 'もちもの', LP.x, SP.y + 6, '#F7C27A', 1, 2);
     // capacity, like a tally in the corner: 5/14
     drawDigits(g, `${bagCount()}/${BAG_MAX}`, FOLD - 12, SP.y + 12, { color: UI.pencil, align: 'right' });
+    // (an iPad held sideways: the whole list a little further in)
+    const lx = LP.x + listDx();
     if (!s.length) {
-      g.text('なにも ない。', LP.x + 8, LIST_Y + 20, { color: UI.textDim });
+      g.text('なにも ない。', lx + 8, LIST_Y + 20, { color: UI.textDim });
     }
-    for (let i = 0; i < VISIBLE; i++) {
-      const k = this.scroll + i;
+    let line = 0;
+    let k = this.scroll;
+    for (; k < s.length; k++) {
       const sl = s[k];
-      if (!sl) break;
-      const y = LIST_Y + i * ROW_H;
+      const n = slotLines(sl);
+      if (line + n > VISIBLE) break;
+      const y = LIST_Y + line * ROW_H;
+      line += n;
       if (sl.kind === 'sep') {
-        dottedLine(g, LP.x - 4, y + 9, FOLD - 12, UI.pencil, 3);
+        dottedLine(g, lx - 4, y + 9, FOLD - 12, UI.pencil, 3);
         const lw = textW('だいじなもの') + 8;
-        g.rect(LP.x + 18, y + 1, lw, 16, UI.bg);
-        g.text('だいじなもの', LP.x + 22, y + 1, { color: UI.pencil });
+        g.rect(lx + 18, y + 1, lw, 16, UI.bg);
+        g.text('だいじなもの', lx + 22, y + 1, { color: UI.pencil });
         continue;
       }
       const row = sl.row;
       const it = getItem(row.id);
       const sel = k === this.sel;
       const name = it ? itemName(row.id) : row.id;
-      if (sel) drawMarker(g, LP.x + 12, y + 1, Math.min(textW(name), FOLD - 4 - (LP.x + 14)) + 4, 15, m.focus && !this.popup ? Math.min(1, this.moveT / 70) : 1, m.focus ? UI.marker : '#EFE4C6');
-      drawGlowRing(g, row.id, LP.x + 3, y + 8, 8, m.t);
-      g.img(itemIcon12(row.id), LP.x - 3, y + 2);
-      if (row.n > 1) {
-        // how many, pencilled on the icon's corner
-        drawDigits(g, String(Math.min(99, row.n)), LP.x + 11, y + 9, { color: UI.accent, outline: UI.bg, align: 'right' });
+      const nl = itemNameLines(name);
+      if (sel)
+        nl.forEach((l, j) =>
+          drawMarker(g, lx + 12 + (j ? 8 : 0), y + j * ROW_H + 1, Math.min(textW(l.text), FOLD - 4 - (lx + 14 + (j ? 8 : 0))) + 4, 15, m.focus && !this.popup ? Math.min(1, this.moveT / 70) : 1, m.focus ? UI.marker : '#EFE4C6'),
+        );
+      // (moved in, listDx: the hanko cursor stands where the chosen row's icon is)
+      const onIcon = sel && m.focus && lx > LP.x;
+      if (!onIcon) {
+        drawGlowRing(g, row.id, lx + 3, y + 8, 8, m.t);
+        g.img(itemIcon12(row.id), lx - 3, y + 2);
+        if (row.n > 1) {
+          // how many, pencilled on the icon's corner
+          drawDigits(g, String(Math.min(99, row.n)), lx + 11, y + 9, { color: UI.accent, outline: UI.bg, align: 'right' });
+        }
       }
       // a long name (きゅうりの一本漬け) is set a pixel or two tighter so it stays on its page
-      const room = FOLD - 4 - (LP.x + 14);
-      const nw = textW(name);
-      const sp = nw <= room ? 0 : nw - [...name].length <= room ? -1 : -2;
-      g.text(name, LP.x + 14, y, { color: UI.text, spacing: sp });
-      if (sel && m.focus) drawCursor(g, SP.x + 1, y, m.t);
+      // (or runs on to a 2nd line, tucked in a little like the みました帳's index)
+      nl.forEach((l, j) => g.text(l.text, lx + 14 + (j ? 8 : 0), y + j * ROW_H, { color: UI.text, spacing: l.spacing }));
+      if (sel && m.focus) drawCursor(g, listCursorX(), y, m.t);
     }
     if (this.scroll > 0) drawScroll(g, FOLD - 18, LIST_Y - 5, true, m.t);
-    if (this.scroll + VISIBLE < s.length) drawScroll(g, FOLD - 18, LIST_Y + VISIBLE * ROW_H + 2, false, m.t);
+    if (k < s.length) drawScroll(g, FOLD - 18, LIST_Y + VISIBLE * ROW_H + 2, false, m.t);
     this.drawDetail(g, m);
     this.popup?.draw(g);
   }
@@ -452,7 +524,8 @@ export class ItemsPage implements MenuPage {
     const flavor = progressHead(row.id) ?? desc[0] + (row.key && desc[1] ? '\n' + desc[1] : '');
     const lines = wrap(flavor, RP.w - 2, { glue: true });
     for (const l of lines.slice(0, 4)) {
-      g.text(l, x, y, { color: UI.text });
+      // (beside an iPad's touch button: a little tighter, pageText)
+      pageText(g, l, x, y, { color: UI.text });
       y += 17;
     }
     // effect / progress in pencil
@@ -465,10 +538,11 @@ export class ItemsPage implements MenuPage {
         // Minato's own hand: every other letter bobs a pixel (10.3 少し斜めの字)
         if (prog !== null) {
           let cx = x + 2;
+          const sp = clearSpacing(l, cx, y + i * 17);
           [...l].forEach((ch, j) => {
-            cx += g.text(ch, cx, y + i * 17 - (j % 3 === 1 ? 1 : 0), { color: UI.pencil });
+            cx += g.text(ch, cx, y + i * 17 - (j % 3 === 1 ? 1 : 0), { color: UI.pencil }) + sp;
           });
-        } else g.text(l, x + 2, y + i * 17, { color: UI.pencil });
+        } else pageText(g, l, x + 2, y + i * 17, { color: UI.pencil });
       });
     }
   }

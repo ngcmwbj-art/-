@@ -164,6 +164,11 @@ export class MessageBand {
     return this.cur !== null || this.queue.length > 0;
   }
 
+  /** A page is still being typed out (or waits in the queue). */
+  get typing(): boolean {
+    return this.queue.length > 0 || (this.cur !== null && this.shown < this.cur.glyphs.length);
+  }
+
   /**
    * The page on screen can only be closed with confirm (manual). Whoever
    * drives the band must route confirm presses to it, or it would never close.

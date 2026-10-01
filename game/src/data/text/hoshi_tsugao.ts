@@ -189,8 +189,8 @@ export const TS_LINES: Record<string, Record<string, string>> = {
 観望会の 日は、いつも 軽トラで
 望遠鏡を 運んで くれました。
 /
-山の 上の、防災無線の
-柱の 下まで。{w=300}
+分校の 裏の、丘の
+てっぺんまで。{w=300}
 ……ありがたい ことです。`,
   },
   npc_hoshi_tome: {

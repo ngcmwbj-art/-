@@ -14,8 +14,13 @@ import { portrait } from '../../art/chars';
 import { drawDigits, drawNumerals, numeralsWidth } from '../digits';
 import { inkPotIcon } from '../icons';
 import { drawTape, pencilLine, phraseWrap as wrap, tapeImg, textW, UI } from '../window';
-import { drawBar, drawHeader, FOLD, hpColor, LP, RP, SP } from './notebook';
+import { clearLeft, drawBar, drawHeader, FOLD, hpColor, LP, pageText, RP, rightW, SP } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
+
+/** The room 「せんせいより」 has beside an iPad's touch buttons (wrapCheck: its lines, wrapped at RP.w − 4, must squeeze in). */
+export function statsNoteW(): number {
+  return rightW() - 4;
+}
 
 /** Line pitch of the 通知表's ruled table. */
 const ROW = 16;
@@ -84,7 +89,8 @@ export class StatsPage implements MenuPage {
   }
 
   private drawLeft(g: Gfx, mem: Member): void {
-    const x = LP.x;
+    // (an iPad held sideways: the whole card a little further in, clear of the touch buttons)
+    const x = LP.x + clearLeft(LP.x, SP.y + 26, SP.y + SP.h);
     const right = FOLD - 12;
     let y = SP.y + 28;
     // the photo, taped in with two corners of masking tape
@@ -165,7 +171,8 @@ export class StatsPage implements MenuPage {
     drawTape(g, x, y, textW(REPORT.fromTeacher) + 12, 16, REPORT.fromTeacher, { color: '#E8D9B5', seed: 12 });
     if (comment) {
       const lines = wrap(comment, w - 4);
-      lines.slice(0, 2).forEach((l, i) => g.text(l, x + 2, y + 17 + i * 16, { color: UI.accent }));
+      // (beside an iPad's touch button: a little tighter, pageText)
+      lines.slice(0, 2).forEach((l, i) => pageText(g, l, x + 2, y + 17 + i * 16, { color: UI.accent }));
     } else g.text('（まだ 空らん）', x + 2, y + 18, { color: UI.textDim });
   }
 }

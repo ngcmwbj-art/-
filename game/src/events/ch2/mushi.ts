@@ -4,14 +4,21 @@
 // Once the tomato is in the net, the net can't catch anything: グソっ君
 // talks しゅん into a 自由研究 of looking (mushiInvite(), at the end of
 // 〔ハウスを出たとき〕, once: flag_ch2_mushi). Five insects of an August night,
-// each where it really lives — drawn only in the lantern's light (litOnly):
+// each where it really lives — drawn only in the lantern's light (litOnly).
+// ★2026-10-01 依頼主「虫が2つしか見つからなかった」(02 #80): all five where
+// the night's walk passes, in the lantern's reach:
 //
-//   obj_hoshi_mushi_kantan   (21,8)  the ヨモギ by the paddies' stone steps
-//   obj_hoshi_mushi_enma     (46,37) the foot of the dry-stone wall under the barn
-//   obj_hoshi_mushi_kutsuwa  (42,14) the クズ thicket's edge in the abandoned field
-//   obj_hoshi_mushi_umaoi    (23,30) the grass at the school cherry's foot
-//   obj_hr_kucho_mushi       map_hoshi_kucho (12,7): ぴょん夫人's rearing case (a lit room)
-//   obj_hoshi_mushi_kabuto   (45,0)  the クヌギ at the hill path (a bonus, not counted)
+//   obj_hoshi_mushi_kantan   (4,30)  the ヨモギ at 3号ハウス's door (the first, right as he is talked into it)
+//   obj_hoshi_mushi_umaoi    (27,30) the grass under the school gate's lamp
+//   obj_hr_kucho_mushi       (34,37) ぴょん夫人's rearing case on a stand under ほうき家's eaves, by the road
+//   obj_hoshi_mushi_enma     (46,37) the foot of the dry-stone wall on the slope up to the barn
+//   obj_hoshi_mushi_kutsuwa  (50,15) the クズ's edge by the farm lane past the gate
+//   obj_hoshi_mushi_kabuto   (43,1)  the クヌギ at the hill path (a bonus, not counted)
+//
+// To find them: one not seen yet twinkles in the light (the glow layer); the
+// first time しゅん comes near one it sings once, quietly, from its place, and
+// グソっ君 notices it in a bubble (MUSHI_NEAR, flag_ch2_mushi_near_<kind>).
+// After each find he says how many are left and where one was heard (MUSHI_NEXT).
 //
 // Examined: the loupe comes up (the insect close, in warm light), it sings
 // once (se_h_mushi_*), the page; the first time also 「（むし n/5）」
@@ -32,7 +39,9 @@ import { animate, ease } from '../../engine/tween';
 import { flag, setFlag, state } from '../../game/state';
 import { registerDebug } from '../../debug';
 import { registerScript } from '../../world/api';
-import { field } from '../../world/field';
+import { field, type FieldScene } from '../../world/field';
+import { registerWorldFx } from '../../world/fx';
+import { showBubble } from '../../ui/bubble';
 import { LOUPE, MUSHI5, mushiLoupe, mushiSketch, type MushiKind } from '../../art/props/hoshi_mushi';
 import {
   KABUTO_AGAIN,
@@ -46,13 +55,16 @@ import {
   MUSHI_YOSHIE_FLIP,
   MUSHI_YOSHIE_GET,
   MUSHI_BOOK,
+  MUSHI_NEAR,
+  MUSHI_NEXT_ORDER,
   MUSHI_PAGE_TITLE,
   mushiCountText,
+  mushiNextText,
 } from '../../data/text/hoshi_mushi';
 import { fitWrap, phraseWrapInfo, textW } from '../../ui/window';
 import { FOLD, LP, RP } from '../../ui/menu/notebook';
-import { se } from './compat';
-import { say } from './common';
+import { se, seAt } from './compat';
+import { lanternOn, say } from './common';
 
 export const MUSHI_FLAG = 'flag_ch2_mushi';
 export const MUSHI_DONE = 'flag_ch2_mushi_done';
@@ -134,6 +146,9 @@ function* examine(kind: Exclude<MushiKind, 'kabuto'>): Co {
   const n = mushiCount();
   se('se_pen_write');
   yield* say(mushiCountText(n));
+  // some left: グソっ君 says how many, and where one of them was heard (02 #80)
+  const next = MUSHI_NEXT_ORDER.find((k) => !mushiSeen(k));
+  if (n < 5 && next && kanenariHere()) yield* say(mushiNextText(5 - n, next));
   if (n >= 5 && !flag(MUSHI_DONE)) {
     // 〔開花〕 the page gets its title
     setFlag(MUSHI_DONE, 1);
@@ -149,6 +164,76 @@ for (const kind of ['kantan', 'enma', 'kutsuwa', 'umaoi'] as const)
   registerScript(`obj_hoshi_mushi_${kind}`, function* (): Co {
     yield* examine(kind);
   });
+
+// ---------------------------------------------------------------- finding them (02 #80)
+
+function kanenariHere(): boolean {
+  const f = field();
+  return !!f?.follower?.visible && state.party.some((m) => m.id === 'kanenari');
+}
+
+/** Where each of the five is on map_hoshimidai (its tile) — for the twinkle, the first song and グソっ君's bubble. */
+export const MUSHI_SPOT: Record<Exclude<MushiKind, 'kabuto'>, [number, number]> = {
+  kantan: [4, 30],
+  umaoi: [27, 30],
+  suzu: [34, 37],
+  enma: [46, 37],
+  kutsuwa: [50, 15],
+};
+/** How near (tiles, from しゅん's tile) he must come for the first song and the bubble. */
+const NEAR_TILES = 3.2;
+
+/** The insect's drawn self on the field (the case's for the スズムシ) and how lit it is now (0–1). */
+function bugOnField(f: FieldScene, kind: Exclude<MushiKind, 'kabuto'>): { x: number; y: number; a: number } | null {
+  const pr = f.props.find((p) =>
+    kind === 'suzu' ? p.obj.t === 'prop' && p.obj.prop === 'prop_hr_mushi_case' : p.obj.t === 'prop' && p.obj.prop === 'prop_h_mushi' && (p.obj as { opts?: { k?: string } }).opts?.k === kind,
+  );
+  if (!pr || !pr.present) return null;
+  const a = pr.art;
+  // the case: its lid's corner (the crickets inside); a bug: the middle of its 16px frame
+  const x = pr.x + a.ox + (kind === 'suzu' ? 9 : 8);
+  const y = pr.y + a.oy + (kind === 'suzu' ? 4 : 10);
+  return { x, y, a: kind === 'suzu' ? 1 : f.light.alphaOf(pr) };
+}
+
+registerWorldFx({
+  map: 'map_hoshimidai',
+  update(f) {
+    if (!flag(MUSHI_FLAG) || !lanternOn() || !f.controllable) return;
+    const p = f.player;
+    for (const kind of MUSHI_NEXT_ORDER) {
+      const near = `flag_ch2_mushi_near_${kind}`;
+      if (mushiSeen(kind) || flag(near)) continue;
+      const [tx, ty] = MUSHI_SPOT[kind];
+      if (Math.hypot(p.x / 16 - (tx + 0.5), (p.y - 8) / 16 - (ty + 0.5)) > NEAR_TILES) continue;
+      const bug = bugOnField(f, kind);
+      if (!bug || bug.a < 0.5) continue;
+      setFlag(near, 1);
+      // it sings once, quietly, from where it is; グソっ君 notices
+      seAt(`se_h_mushi_${kind}`, bug.x, bug.y, { vol: 0.55 });
+      if (kanenariHere()) showBubble('kanenari', MUSHI_NEAR[kind], 2400);
+      return;
+    }
+  },
+  draw(f, g, cx, cy, layer) {
+    if (layer !== 'glow' || !flag(MUSHI_FLAG) || !lanternOn()) return;
+    // one not seen yet twinkles in the light: a small four-point star over it, every 1.6 s
+    for (const kind of MUSHI_NEXT_ORDER) {
+      if (mushiSeen(kind)) continue;
+      const bug = bugOnField(f, kind);
+      if (!bug || bug.a <= 0.05) continue;
+      const ph = (f.t + kind.length * 290) % 1600;
+      if (ph > 520) continue;
+      const k = Math.sin((ph / 520) * Math.PI) * bug.a;
+      const X = Math.round(bug.x - cx);
+      const Y = Math.round(bug.y - cy - 7);
+      const r = k > 0.6 ? 2 : 1;
+      g.rect(X - r, Y, r * 2 + 1, 1, '#FFF6D8', 0.85 * k);
+      g.rect(X, Y - r, 1, r * 2 + 1, '#FFF6D8', 0.85 * k);
+      g.rect(X - 1, Y - 1, 3, 3, '#FFE7A3', 0.25 * k);
+    }
+  },
+});
 
 /** ぴょん夫人's rearing case: an ordinary thing until the research has begun. */
 registerScript('obj_hr_kucho_mushi', function* (): Co {
@@ -217,6 +302,8 @@ registerDebug('mushi', (n = 5) => {
   if (n <= 0) {
     setFlag(MUSHI_FLAG, 0);
     setFlag('flag_ch2_mushi_yoshie', 0);
+    // グソっ君's bubbles near each one (02 #80) come again
+    MUSHI5.forEach((k) => setFlag(`flag_ch2_mushi_near_${k}`, 0));
   }
   return { seen: mushiCount(), done: flag(MUSHI_DONE) };
 });

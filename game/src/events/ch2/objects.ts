@@ -82,7 +82,7 @@ registerScript('obj_hoshi_kucho_house', function* (): Co {
 /** 9.5 電気柵のゲート: before / after マサルさん opened it. */
 registerScript('obj_hoshi_gate', function* (): Co {
   se('se_examine');
-  yield* runMsg(flag('flag_ch2_gate_open') ? part('obj_hoshi_gate', 'open') : part('obj_hoshi_gate', 'text'));
+  yield* runMsg(flag('flag_ch2_gate_open') ? part('obj_hoshi_gate', 'open') : flag('flag_ch2_gate_wait') ? part('obj_hoshi_gate', 'wait') : part('obj_hoshi_gate', 'text'));
 });
 
 /** 9.5 牛: the same pen the second time on (each placement counts for itself). */

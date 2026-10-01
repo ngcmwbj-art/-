@@ -10,6 +10,7 @@ import { game, type Widget } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { drawText } from '../engine/font';
 import { makeCanvas } from '../engine/pixel';
+import { W } from '../engine/screen';
 import { ease } from '../engine/tween';
 import { field } from '../world/field';
 import { textW, UI } from './window';
@@ -58,7 +59,9 @@ export function drawBubble(g: Gfx, text: string, x: number, y: number, age: numb
   const s = 1.2 - 0.2 * ease.cubicOut(k);
   const w = Math.round(img.width * s);
   const h = Math.round(img.height * s);
-  g.alpha(alpha * Math.min(1, k * 2), () => g.ctx.drawImage(img, Math.round(x - w / 2), Math.round(y - h), w, h));
+  // kept on the screen (a speaker at the map's edge: the bubble slides in, its tail a little off centre)
+  const left = Math.max(2, Math.min(W - w - 2, Math.round(x - w / 2)));
+  g.alpha(alpha * Math.min(1, k * 2), () => g.ctx.drawImage(img, left, Math.round(y - h), w, h));
 }
 
 class Bubble implements Widget {

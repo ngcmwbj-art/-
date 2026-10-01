@@ -6,6 +6,11 @@
 //   ノートは ひとりでに しゅんの ページへ もどる（調べるたびに、また いちばん 新しい
 //   ページから）。グソっ君は 7月（沢の上に 行った 人だけ）と 1月1日に 1回ずつ。
 //
+//   ★2026-10-01 依頼主「駅ノートが 見つからなかった」（02 #80）：待合室の 屋根の 下で 見えなかった。
+//   ノートは 黄色い 表紙と ひもの 鉛筆で 大きく（hoshi_station.ts）、待合室の 入口から 表紙が 見え、
+//   入口の 横の 壁に 貼り紙『駅ノート あります』（obj_hoshi_ekinote_hari (17,43)）。駅に 着いて
+//   はじめて 動けるように なったとき、グソっ君が 吹き出しで ひとこと（EKINOTE_FLIP、1回）。
+//
 // ふしぎ①の 押すまでの 流れ・数・報酬は fushigi.ts の まま（その スクリプトを 包む）。
 //
 // QA：__game.cmd.ekinote('note' | 'sawa' | 'reset')、jump('ch2:ekinote')。
@@ -20,7 +25,8 @@ import { field } from '../../world/field';
 import { runMsg } from '../../world/msg';
 import { sfx } from '../../audio';
 import { HOSHI_FUSHIGI } from '../../data/text/hoshi_objects';
-import { EKINOTE_BACK, EKINOTE_CHOICE, EKINOTE_PAGES } from '../../data/text/hoshi_ekinote';
+import { EKINOTE_BACK, EKINOTE_CHOICE, EKINOTE_FLIP, EKINOTE_PAGES } from '../../data/text/hoshi_ekinote';
+import { showBubble } from '../../ui/bubble';
 import { fushigiCh2Done, runFushigiCh2 } from './fushigi';
 
 const ID = 'fushigi_ch2_01';
@@ -33,7 +39,21 @@ export const EKI = {
   /** グソっ君の ひとこと（それぞれ 1回）。 */
   flipJul: 'flag_kanenari_flip_ekinote_jul',
   flipJan: 'flag_kanenari_flip_ekinote_jan',
+  /** 駅で はじめて 動けたとき、グソっ君の 吹き出し（02 #80、1回）。 */
+  flipArrive: 'flag_kanenari_flip_ekinote',
 };
+
+/** At the station, once he can move (just after evt_ch2_arrive): グソっ君 has seen the notebook in the waiting hut (a bubble). */
+registerWorldFx({
+  map: 'map_hoshimidai',
+  update(f) {
+    if (flag(EKI.flipArrive) || !flag('flag_ch2_arrived') || fushigiCh2Done(ID) || !f.controllable) return;
+    const p = f.player;
+    if (p.tileX < 14 || p.tileX > 33 || p.tileY < 40 || p.tileY > 45 || !kanenariHere()) return;
+    setFlag(EKI.flipArrive, 1);
+    showBubble('kanenari', EKINOTE_FLIP, 2600);
+  },
+});
 
 function kanenariHere(): boolean {
   const f = field();

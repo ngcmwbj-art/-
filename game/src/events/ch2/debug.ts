@@ -139,6 +139,14 @@ export const CHAIN2: Beat2[] = [
     run: 'evt_ch2_ending',
     desc: '★エンディング（日の出 → 19:31 → ツガオの部屋）',
   },
+  // QA (02 #80): the barn's door before the round — at the gate マサル says what is still undone, 「まだ 村を 回る」
+  {
+    beat: 'gate',
+    steps: [],
+    at: ['map_hoshimidai', 51, 33, 'up'],
+    desc: '（QA）牛舎の前（見回り → ゲートの前で 匂わせ → 「まだ 村を 回る」→ 牛舎の マサルに 話す → 開けてもらう）',
+    side: 'barn',
+  },
   // optional (not on the main line): the chores in the barn
   {
     beat: 'barnwork',
@@ -203,13 +211,14 @@ export const CHAIN2: Beat2[] = [
     desc: '（任意）二百十日の 前の 晩（農具小屋の表 → トマじい・ペロ・マサル・ハモ区長）',
     side: 'houki',
   },
-  // optional (02 #77, dome.ts): stage 2 — まつ先生 at the path's mouth gives the observatory's key (〔dome〕)
+  // optional (02 #77, dome.ts; ★2026-10-01 02 #80: the observatory behind the school, from the lantern on):
+  // stage 1 outside the school — going in, まつ先生 calls しゅん over and gives the key (〔dome〕)
   {
     beat: 'dome',
     steps: [],
-    at: ['map_hoshimidai', 47, 3, 'up'],
-    desc: '（任意）朝の ほうだけ 光る 星（まつ先生 (47,2) → 丘の天文台 (4,5) → 望遠鏡で 3つ → まつ先生）',
-    side: 'hill',
+    at: ['map_hoshimidai', 26, 28, 'up'],
+    desc: '（任意）朝の ほうだけ 光る 星（分校に入る → まつ先生が呼び止めて鍵 → 放送室の裏口 (24,2) → 裏の丘の天文台 (11,5) → 望遠鏡で 3つ → まつ先生）',
+    side: 'gen',
   },
 ];
 

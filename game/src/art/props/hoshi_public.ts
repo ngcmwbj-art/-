@@ -869,6 +869,12 @@ registerProp('prop_h_machiai_front', () => {
   p.hline(56, 60, 9, mix(P.navy, P.steel, 0.55));
   p.rect(59, 6, 3, 2, P.concreteLt); // the timetable, far back
   p.set(59, 6, P.white);
+  // the station notebook's yellow cover on the bench between the cushions (ふしぎ01, 02 #80: seen from the platform)
+  p.rect(54, 8, 3, 2, P.gold);
+  p.set(55, 8, P.paper);
+  // 『駅ノート あります』 on the wall beside the opening: a paper, its red heading (obj_hoshi_ekinote_hari)
+  paperNote(p, 33, 10, 10, 8, P.ink, 41);
+  p.hline(34, 40, 11, P.verm);
   // the door posts (old timber, grey-brown)
   for (const px of [46, 64]) {
     p.vline(px, 2, 19, HP.oldWoodDk);

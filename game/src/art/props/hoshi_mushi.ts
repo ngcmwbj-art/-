@@ -697,11 +697,26 @@ registerProp('prop_h_kunugi', () =>
 );
 
 /** ぴょん夫人's rearing case beside the goldfish bowl: clear plastic, a green lid, soil, an eggplant slice. */
-registerProp('prop_hr_mushi_case', () =>
-  standProp(
+/**
+ * ぴょん夫人's rearing case of bell crickets. opts.dai: out under ほうき家's
+ * eaves by the road on a little wooden stand (★2026-10-01, 02 #80 — it stood
+ * beside her goldfish bowl before), the case 4px up on its legs.
+ */
+registerProp('prop_hr_mushi_case', (opts) => {
+  const dai = !!opts.dai;
+  const lift = dai ? 4 : 0;
+  return standProp(
     14,
-    12,
+    12 + lift,
     (p) => {
+      if (dai) {
+        // the stand: a plank and two legs
+        p.rect(0, 12, 14, 2, P.woodLt);
+        p.hline(0, 13, 12, P.goldPale);
+        p.hline(0, 13, 13, P.wood);
+        p.vline(1, 14, 15, P.woodDark);
+        p.vline(12, 14, 15, P.woodDark);
+      }
       // the case (clear: the room's light shows through it), soil in the bottom
       p.rect(0, 2, 14, 10, '#DDE8E6');
       p.rect(1, 8, 12, 4, C.soil);
@@ -721,9 +736,10 @@ registerProp('prop_hr_mushi_case', () =>
       p.hline(0, 13, 0, '#8FD07A');
       for (let x = 2; x < 12; x += 3) p.set(x, 1, '#2E6B4A');
     },
-    { cx: 8, base: 16, shadow: 0 },
-  ),
-);
+    // (out on the stand: 1px lower, so the lid stays clear of the house's footing behind it)
+    { cx: 8, base: dai ? 17 : 16, shadow: 0 },
+  );
+});
 
 /**
  * The insect itself on its host (litOnly on the map: only the lantern shows
@@ -738,7 +754,8 @@ registerProp('prop_h_mushi', (opts): PropArt => {
   const at: Record<MushiKind, [number, number]> = {
     kantan: [0, -6],
     enma: [-4, -1],
-    kutsuwa: [4, -4],
+    // (02 #80: on the クズ's west edge by the farm lane past the gate, (50,15) — seen and examined from the lane)
+    kutsuwa: [7, -4],
     umaoi: [1, -3],
     suzu: [0, 0],
     kabuto: [-1, -12],
