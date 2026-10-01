@@ -1638,7 +1638,7 @@ function localReply(text){
    ===================================================================== */
 let aiOn=false; // conversation runs on the built-in グソク talk engine; no external AI
 let samplePromise=null,aiBroken=false,aiBusy=false;
-function getSample(){if(!samplePromise)samplePromise=(window.claude&&window.claude.use)?window.claude.use('sample').catch(()=>null):Promise.resolve(null);return samplePromise}
+function getSample(){return Promise.resolve(null)} // no external AI: the built-in talk engine answers
 function aiLabel(){$('aistate').textContent='グソク語エンジン'}
 const STAGE_RULE=[
   '段階0「マンカ」（生まれたて）：まだ言葉を話さない。replyは「……」や「カチ、カチ。」などの音、または（触角をぴくりと動かした）のような括弧つきの動作描写だけ。',
