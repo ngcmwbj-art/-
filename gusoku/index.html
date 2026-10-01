@@ -89,6 +89,9 @@ button.primary{background:#16445e;border-color:rgba(143,211,255,.45)}
 .t-go button{font-size:15px;padding:12px 20px}
 #loadmsg{font-family:var(--f-data);font-size:11px;color:var(--dim)}
 
+#mic{padding:9px 12px;display:grid;place-items:center}
+#mic.on{background:#7a2a20;border-color:#ff8a70;animation:alertPulse 1.4s infinite}
+#mic.dict{background:#204a2a;border-color:#8fe0a6}
 /* cinematic */
 body.cine .hud-top,body.cine .talk,body.cine .actions{visibility:hidden}
 body.cine::before,body.cine::after{content:"";position:fixed;left:0;right:0;height:9vh;background:#000;z-index:4}
@@ -194,6 +197,7 @@ body.photo .hud-top,body.photo .console,body.photo #alert{visibility:hidden}
   <form class="talk" id="talk" autocomplete="off">
     <label for="say" style="position:absolute;left:-9999px">話しかける</label>
     <input id="say" type="text" maxlength="120" placeholder="話しかける（例：こんにちは）" enterkeyhint="send">
+    <button type="button" id="mic" aria-label="声で話しかける" title="声で話しかける"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg></button>
     <button class="primary" type="submit" id="sendbtn">話す</button>
   </form>
   <div class="actions" id="actions">
@@ -951,6 +955,7 @@ function updateCreature(dt,time){
   C.size=damp(C.size,C.sizeT,.35,dt);C.legs7=S.molts>=1;
   C.startle=Math.max(0,C.startle-dt);
   poseIsopod(ISO,C,dt,time);
+  {const dk=smooth(25,90,S.dark||0);ISO.eyeMat.emissive.setRGB(1,1-.88*dk,1-.92*dk);ISO.eyeMat.emissiveIntensity=Math.max(ISO.eyeMat.emissiveIntensity,dk*.75)}
 }
 function shellTint(){const k=[1.18,1.06,.98,.94][S.stage]||1;ISO.shellMat.color.setRGB(k,k*.985,k*.96);ISO.coreMat.color.setRGB(k,k,k)}
 
@@ -1027,7 +1032,7 @@ const Cine={on:false,t:0,fired:{},hatch:null,halves:[],eggW:new V3(),
       if(!this.fired.crack){this.eggW.set(-.2,heightAt(-.2,-.6),-.6);C.pos.set(.15,0,.6);this.spawnHalves()}
       this.halves.forEach(h=>{h.v=null;h.m.position.y=heightAt(h.m.position.x,h.m.position.z)+.03});
       ISO.root.visible=true;ISO.contact.visible=true;C.curl=C.curlT=0;C.size=C.sizeT=sizeOf(0);C.yOverride=null;C.yaw=.3;setState('idle',{wait:8});
-      S.hatched=true;S.born=Date.now();S.lastAteAt=S.born;S.health=100;S.kind=50;S.bold=50;S.light='red';syncLampUI();save();refreshHUD();
+      S.hatched=true;S.born=Date.now();S.lastAteAt=S.born;S.health=100;S.kind=70;S.bold=62;S.dark=0;S.darkLv=0;S.light='red';syncLampUI();save();refreshHUD();
       document.body.classList.remove('cine');$('skip').hidden=true;
       CAM.yaw=CAM.tYaw=.25;CAM.pitch=CAM.tPitch=.28;CAM.zoom=1;CAM.intro=0;CAM.focus.copy(C.pos);
       queue.length=0;if(typing){clearTimeout(typing.to);typing=null}
@@ -1135,11 +1140,12 @@ const CAM={yaw:.18,pitch:.2,dist:3,zoom:1,tYaw:.18,tPitch:.2,focus:new V3(),intr
 let drag=null,pinch=null;
 canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,t:performance.now(),id:e.pointerId};closePops()});
 canvas.addEventListener('pointermove',e=>{if(!drag||drag.id!==e.pointerId||pinch)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
-  CAM.tYaw=clamp(CAM.tYaw-dx*.005,-1.1,1.1);CAM.tPitch=clamp(CAM.tPitch+dy*.004,.02,.85)});
+  CAM.tYaw-=dx*.006;CAM.tPitch=clamp(CAM.tPitch+dy*.0045,-.04,1.45)});
+canvas.addEventListener('dblclick',()=>{CAM.tYaw=Math.round(CAM.yaw/TAU)*TAU+.18;CAM.tPitch=.2;CAM.zoom=1;toast('視点をもとに戻しました')});
 canvas.addEventListener('pointerup',e=>{if(!drag)return;const moved=Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0);if(moved<6&&performance.now()-drag.t<400)onTap(e);drag=null});
-canvas.addEventListener('wheel',e=>{e.preventDefault();CAM.zoom=clamp(CAM.zoom*(1+e.deltaY*.001),.45,2.2)},{passive:false});
+canvas.addEventListener('wheel',e=>{e.preventDefault();CAM.zoom=clamp(CAM.zoom*(1+e.deltaY*.001),.3,3)},{passive:false});
 canvas.addEventListener('touchstart',e=>{if(e.touches.length===2){pinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY)}},{passive:true});
-canvas.addEventListener('touchmove',e=>{if(e.touches.length===2&&pinch){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);CAM.zoom=clamp(CAM.zoom*pinch/d,.45,2.2);pinch=d}},{passive:true});
+canvas.addEventListener('touchmove',e=>{if(e.touches.length===2&&pinch){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);CAM.zoom=clamp(CAM.zoom*pinch/d,.3,3);pinch=d}},{passive:true});
 canvas.addEventListener('touchend',e=>{if(e.touches.length<2)pinch=null},{passive:true});
 function updateCamera(dt,time){
   CAM.yaw=damp(CAM.yaw,CAM.tYaw,4,dt);CAM.pitch=damp(CAM.pitch,CAM.tPitch,4,dt);CAM.dist=damp(CAM.dist,(1.5+5.1*C.size)*CAM.zoom,3,dt);
@@ -1301,10 +1307,10 @@ function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clear
 /* =====================================================================
    GAME STATE
    ===================================================================== */
-const DEF={lastAteAt:null,fastBest:0,fastMiles:[],kind:50,bold:50,health:100,maxHealth:100,events:{},diary:{},mate:null,nextTrouble:0,wokeUntil:0,lastDream:'',morningSaid:'',v:2,born:Date.now(),last:Date.now(),hatched:false,stage:0,trust:0,mood:60,hunger:10,water:100,temp:10,light:'red',talks:0,fed:0,pokes:0,fedSinceMolt:0,lastMolt:0,
+const DEF={dark:0,darkLv:0,lastBully:0,lastAteAt:null,fastBest:0,fastMiles:[],kind:70,bold:62,health:100,maxHealth:100,events:{},diary:{},mate:null,nextTrouble:0,wokeUntil:0,lastDream:'',morningSaid:'',v:2,born:Date.now(),last:Date.now(),hatched:false,stage:0,trust:0,mood:60,hunger:10,water:100,temp:10,light:'red',talks:0,fed:0,pokes:0,fedSinceMolt:0,lastMolt:0,
   memory:[],asked:[],pending:null,log:[],whiteMin:0,lastFood:0};
 let S;
-function load(){try{const r=JSON.parse(localStorage.getItem('gusoku.save2')||'null');S=Object.assign({},DEF,r||{})}catch(e){S=Object.assign({},DEF)}if(!Array.isArray(S.memory))S.memory=[];if(!Array.isArray(S.log))S.log=[];if(!S.lastAteAt)S.lastAteAt=S.born}
+function load(){try{const r=JSON.parse(localStorage.getItem('gusoku.save2')||'null');S=Object.assign({},DEF,r||{})}catch(e){S=Object.assign({},DEF)}if(!Array.isArray(S.memory))S.memory=[];if(!Array.isArray(S.log))S.log=[];if(!S.lastAteAt)S.lastAteAt=S.born;if(S.kind===50&&S.bold===50&&!S.dark){S.kind=70;S.bold=62}}
 function save(){S.last=Date.now();try{localStorage.setItem('gusoku.save2',JSON.stringify(S))}catch(e){}}
 function mem(key){const m=S.memory.find(x=>x.startsWith(key+'：'));return m?m.slice(key.length+1):null}
 function remember(fact){if(!fact)return;fact=String(fact).slice(0,60);const key=fact.split('：')[0];if(fact.includes('：'))S.memory=S.memory.filter(x=>!x.startsWith(key+'：'));if(!S.memory.includes(fact))S.memory.push(fact);if(S.memory.length>40)S.memory.shift();save()}
@@ -1549,9 +1555,9 @@ function ev(code,v){if(!S||!S.hatched)return;const k=dkey();S.events=S.events||{
   if(code==='talk'||code==='poke'){const e=a.find(x=>x.c===code);if(e){e.n=(e.n||1)+1;return}a.push({c:code,n:1});return}
   if(!a.some(x=>x.c===code&&x.v===v))a.push({c:code,v});
   const keys=Object.keys(S.events).sort();while(keys.length>40)delete S.events[keys.shift()];}
-function persLabel(){const k=S.kind,b=S.bold;
+function persLabel(){const k=S.kind,b=S.bold,dl=darkLv();if(dl===3)return'暗黒';if(dl===2)return'やさぐれ';if(dl===1)return'拗ね';
   if(k>=65&&b>=58)return'陽気';if(k>=65)return'穏やか';if(k<35&&b>=55)return'皮肉屋';if(k<35)return'疑い深い';if(b<35)return'臆病';if(b>=65)return'豪胆';return'気まぐれ'}
-function persHint(){return{陽気:'人懐っこく、冗談が多い',穏やか:'落ち着いていて、飼い主を気づかう',皮肉屋:'口が悪く、何でも斜めに見る',疑い深い:'警戒心が強く、素直に喜ばない',臆病:'びくびくしていて、声が小さい',豪胆:'動じず、偉そう',気まぐれ:'機嫌がころころ変わる'}[persLabel()]}
+function persHint(){return{陽気:'人懐っこく、冗談が多い',穏やか:'落ち着いていて、飼い主を気づかう',皮肉屋:'口が悪く、何でも斜めに見る',疑い深い:'警戒心が強く、素直に喜ばない',臆病:'びくびくしていて、声が小さい',豪胆:'動じず、偉そう',気まぐれ:'機嫌がころころ変わる',拗ね:'いじめられて少しすねている。そっけない',やさぐれ:'いじめられ続けて心がすさんでいる。舌打ちが多く、人を信じない',暗黒:'いじめ抜かれて暗黒面に堕ちた。闇を好み、不気味に笑う'}[persLabel()]}
 function shape(dk,db){S.kind=clamp((S.kind??50)+dk,0,100);S.bold=clamp((S.bold??50)+db,0,100)}
 function isNight(){const h=new Date().getHours();return h>=22||h<6}
 
@@ -1659,7 +1665,7 @@ const Trouble={cur:null,
     if(c.type==='blackout'){bubbles.visible=true;Audio2.tone(200,600,.3,'sine',.1)}
     if(c.type==='parasite')this.removeSpecks(99);
     const quick=(Date.now()-c.at)<120000;
-    if(byPlayer){shape(quick?2:.5,0);S.trust=clamp(S.trust+(quick?3:1),0,100);
+    if(byPlayer){shape(quick?2:.5,0);addDark(quick?-2:0);S.trust=clamp(S.trust+(quick?3:1),0,100);
       const st=S.stage;setTimeout(()=>say(st===0?'（落ち着きを取り戻した）':st===1?'……タスカッタ。':quick?pickR(['……ふう。気が利くじゃないか。','助かった。……礼は言わんぞ。']):'……遅い。死ぬかと思ったぞ。',{emo:quick?'happy':'annoyed',narr:st===0}),1200)}
     ev('fixed',{cooler:'冷却機',blackout:'停電',parasite:'寄生虫'}[c.type]);save();refreshHUD();
   },
@@ -1668,7 +1674,7 @@ const Trouble={cur:null,
     if(c.type==='cooler')S.temp=clamp(S.temp+mins*.25,2,24);
     if(c.type==='blackout'){S.water=clamp(S.water-mins*.6,0,100);if(Date.now()-c.at>240000){this.resolve(false);toast('停電から復旧しました')}}
     if(c.type==='parasite')S.health=clamp(S.health-mins*.05,0,100);
-    if(Date.now()-c.at>300000&&!c.penal){c.penal=true;shape(-3,0)}
+    if(Date.now()-c.at>300000&&!c.penal){c.penal=true;shape(-3,0);addDark(3)}
   },
   specks:[],
   addSpecks(){const mat=new THREE.MeshStandardMaterial({color:'#f4f1ea',roughness:.6});
@@ -1723,6 +1729,7 @@ const Life={asleep:false,sleepT:0,dead:false,weakSaid:0,
     const ageAdult=S.adultAt?(Date.now()-S.adultAt)/DAY:0;S.maxHealth=clamp(100-Math.max(0,ageAdult-60)*2,0,100);
     S.health=clamp((S.health??100)-dmg+(good?.03*mins:0),0,S.maxHealth);
     if(S.light==='white')shape(-.02*mins,0);
+    if(S.water<30||S.hunger>90)addDark(.01*mins);if(Date.now()-(S.lastBully||0)>6*3600e3)addDark(-.005*mins);
     Trouble.tick(mins);
     if(S.health<=0&&!this.dead)this.die(S.maxHealth<=0?'老衰':'衰弱');
   },
@@ -1743,6 +1750,13 @@ const Life={asleep:false,sleepT:0,dead:false,weakSaid:0,
     const m=FAST_MILES.filter(x=>x<=fd&&!S.fastMiles.includes(x)).pop();
     if(m&&!typing&&!Dream.on){S.fastMiles.push(m);ev('fast',m);const st=S.stage;
       say(st===0?`（${m}日、何も食べていない。まだ平気そうだ）`:st===1?`……${m}ニチ、クッテナイ。ヘイキ。`:m>=365?`……${m}日だ。陸の生き物には、真似できまい。`:pickR([`${m}日、何も食っておらん。……まだまだいける。`,`絶食${m}日目。ワシの仲間には、五年食わなかったやつもいるぞ。`]),{emo:'proud',narr:st===0});save()}
+    // dark side: announce crossings, refresh the look
+    {const lv=darkLv(),prev=S.darkLv||0;if(lv!==prev){S.darkLv=lv;darkVis();
+      if(lv>prev)say(['','（グソクの目つきが、少し変わった気がする……）','（グソクの殻が、心なしか黒ずんでいる。触角の動きも刺々しい……）','（グソクは——暗黒面に堕ちた）'][lv],{narr:true});
+      else say(['（いつものグソクに戻った）','（黒ずみが薄れてきた。グソクが、戻ってきつつある）','（ほんの少しだけ、表情がやわらいだ……ように見える）'][lv],{narr:true});
+      if(lv===3&&prev<3&&S.stage>=1)say(S.stage===1?'……キライ。ゼンブ。':'……ワシは、もう昔のワシではない。光も、オマエも、要らん。',{emo:'annoyed'});
+      if(lv===0&&prev>0&&S.stage>=2)say('……悪かったな。少し、どうかしていた。',{emo:'sad'});save()}
+     if((this.dkT=(this.dkT||0)+dt)>2){this.dkT=0;darkVis()}}
     // tankmate & slime & troubles
     Mate.update(dt,time);updateSlime(dt);
     if(S.mate&&Mate.obj){const near=Mate.pos.distanceTo(C.pos)<2.5;S.mate.bond=clamp(S.mate.bond+dt*(near?.02:.006),0,100);
@@ -1753,7 +1767,7 @@ const Life={asleep:false,sleepT:0,dead:false,weakSaid:0,
   morning(){const st=S.stage,n=mem('名前');
     const dreamt=S.lastDream===dkey(Date.now()-6*3600000);
     say(st===0?'（朝。小さなグソクが、もぞもぞと動きだした）':st===1?'……オハヨ。':dreamt?'……鯨の夢を見た。仲間が、たくさんいた。':pickR(['……早いな。','朝か。深海に朝はないが、オマエにはあるらしいな。',(n||'オマエ')+'、今日も陸は明るいか。']),{emo:'sleepy',narr:st===0})},
-  wake(){this.asleep=false;S.wokeUntil=Date.now()+4*60000;shape(-2,-1);S.mood=clamp(S.mood-6,0,100);ev('woke');
+  wake(){this.asleep=false;S.wokeUntil=Date.now()+4*60000;shape(-2,-1);addDark(3);S.mood=clamp(S.mood-6,0,100);ev('woke');
     const st=S.stage;say(st===0?'（眠っていたところを起こされ、触角をばたつかせた）':st===1?'……ネテタ。……ナニ。':pickR(['……なんだ。夜中だぞ。','寝ていたんだがな。……用件を手短に言え。','……オマエは眠らんのか。']),{emo:'annoyed',narr:st===0})},
   mateAte(f){const nm=S.mate.name;ev('mateAte',nm);
     if(f.accepted){S.mate.bond=clamp(S.mate.bond-3,0,100);say(S.stage<=1?'……ワシノ、メシ……。':pickR([`おい、${nm}。それはワシのだ。`,`……${nm}に取られた。オマエ、もっとよく見て落とせ。`]),{emo:'annoyed',narr:S.stage===0})}
@@ -1795,6 +1809,7 @@ function lifeDiaryLocal(k){
     hatch:e=>['（生まれた）','','',''],
   };
   evs.forEach(e=>{const f=V[e.c];if(f){const t=f(e)[st];if(t)lines.push(t)}});
+  if((S.dark||0)>=50)lines.push(['（暗い目で、水槽の隅を見つめていた）','……キライ。ミンナ。','今日も、誰も信用できなかった。','闇の中で、殻を研いでいた。'][st]);
   if(!lines.length)lines.push(['（静かな一日だった）','……シズカ。','何もない一日だった。それでいい。','何も起きなかった。深海の一日も、こんなものだ。'][st]);
   return lines.slice(0,4).join(st===0?'':'\n');
 }
@@ -2015,8 +2030,8 @@ function tkUnknownWord(t){
   const cand=(t.match(/[ァ-ヶー]{3,}|[一-龠々]{2,}/g)||[]).filter(w=>!TK_STOP.has(w)&&!S.memory.some(m=>m.startsWith('単語：'+w)));
   return cand.sort((a,b)=>b.length-a.length)[0]||null;
 }
-function localReply(text){
-  const t=text.trim(),st=S.stage,now=Date.now();
+function localReplyBase(text){
+  const t=text.trim(),st=S.stage,now=Date.now();TK.hit=null;
   const out=(reply,emo,extra)=>Object.assign({reply:tkFill(reply),emo:emo||'neutral'},extra||{});
   // repeated message
   if(t===TK.lastUser&&now-TK.lastAt<120000){TK.lastAt=now;return st===0?out('（同じことを言われて、触角をかしげた）','curious'):out(pickR(st===1?['……ソレ、キイタ。']:['それはさっきも聞いた。','同じことを二回言うのは、陸の流行りか。']),'annoyed')}
@@ -2050,7 +2065,8 @@ function localReply(text){
   // intents
   for(const it of TI){
     if(!it.re.test(t))continue;
-    TK.lastIntent=it.k;
+    TK.lastIntent=it.k;TK.hit=it.k;
+    if(/^cmd/.test(it.k)&&(S.dark||0)>=75&&st>=1)return out(st===1?'……ヤダ。':pickR(['断る。','……オマエの言うことなど、聞かん。','自分でやれ。']),'annoyed');
     let did=1;if(it.run&&st>=0)did=it.run();
     if(it.act&&st>=1)Game.act(it.act);
     const ex={trust:it.trust||0,mood:it.mood||0};
@@ -2075,15 +2091,46 @@ function localReply(text){
   const tail=learned.length&&Math.random()<.25?[`そういえば、前に教わった${learned[Math.floor(Math.random()*learned.length)].slice(3)}。……あれは今も気になっている。`]:[];
   return out(tkFlavor(pickR([`『${echo}』か……。`,'陸の言葉は、たまによくわからん。','ふむ。続けろ。','……（触角をゆっくり動かして考えている）','{n}は、よくしゃべるな。'].concat(tail)),'neutral'),'neutral');
 }
+function localReply(text){const r=localReplyBase(text);const dd=DARK_D[TK.hit]!==undefined?DARK_D[TK.hit]:-.3;addDark(dd);return darkify(r,TK.hit)}
 /* personality colors the delivery */
 function tkFlavor(t,emo){
   if(S.stage<2||/^（/.test(t)||Math.random()>.28)return t;
   const p=persLabel();
-  const pre={陽気:['ハハッ、','おう、'],臆病:['……あ、','……えっと、'],豪胆:['ワハハ、','ふん、'],疑い深い:['……','……ほう、'],気まぐれ:['','……まあ、']}[p];
-  const post={皮肉屋:['……まあ、どうでもいいがな。','……陸の連中らしいな。'],穏やか:['……ゆっくりでいい。','……無理はするなよ。'],疑い深い:['……本当か？','……何か企んでいないか。'],陽気:['……いい日だな！']}[p];
+  const pre={やさぐれ:['チッ、','……'],暗黒:['……フフフ、','……'],陽気:['ハハッ、','おう、'],臆病:['……あ、','……えっと、'],豪胆:['ワハハ、','ふん、'],疑い深い:['……','……ほう、'],気まぐれ:['','……まあ、']}[p];
+  const post={拗ね:['……別に。','……ふん。'],やさぐれ:['……どうせオマエも同じだ。','……放っておけ。'],暗黒:['……闇は、心地いいぞ。','……つついた数、全部覚えている。'],皮肉屋:['……まあ、どうでもいいがな。','……陸の連中らしいな。'],穏やか:['……ゆっくりでいい。','……無理はするなよ。'],疑い深い:['……本当か？','……何か企んでいないか。'],陽気:['……いい日だな！']}[p];
   if(pre&&!/^…/.test(t)&&Math.random()<.5)return pickR(pre)+t;
   if(post)return t+pickR(post);
   return t;
+}
+
+/* =====================================================================
+   DARK SIDE — bullying slowly turns a friendly グソク dark; kindness brings it back
+   ===================================================================== */
+const DARKC=new THREE.Color(.13,.06,.09);
+function addDark(d){if(!S)return;if(d>0)S.lastBully=Date.now();S.dark=clamp((S.dark||0)+d,0,100)}
+function darkLv(){const d=S.dark||0;return d<25?0:d<50?1:d<75?2:3}
+function darkVis(){
+  if(!ISO)return;const dk=smooth(25,90,S.dark||0);shellTint();ISO.shellMat.color.lerp(DARKC,dk*.62);if(ISO.limbMat){const lb=ISO.limbBase||(ISO._lb=ISO._lb||ISO.limbMat.color.clone());ISO.limbMat.color.copy(lb).lerp(DARKC,dk*.58)}
+  if(ISO.bandMat)ISO.bandMat.color.set('#f6ecda').lerp(new THREE.Color('#141012'),smooth(60,92,S.dark||0));
+  if(ISO.brows)ISO.brows.forEach(b=>{b.visible=dk>.05;b.scale.set(1,Math.max(.01,dk),1)});
+}
+const DARK_D={insult:5,bug:2,praise:-3,love:-3.5,sorry:-4,thanks:-1.5,q_likeme:-.8,u_sad:-1,greet:-.5,greet_m:-.5,greet_n:-.5};
+const DARK_LINES={
+  1:['……別に。','……ふん。','……なんでもない。'],
+  2:['……チッ。','どうせ、またつつくんだろう。','……放っておけ。','光の住人は、みんな同じだ。'],
+  3:['……フフフ。闇は、心地いいぞ。','つついた指の数、全部覚えている。','深海の底より、ワシの心は暗い。','光など要らん。闇だけでいい。','……オマエのことは、もう信じない。']};
+function darkify(r,k){
+  const lv=darkLv(),st=S.stage;if(!lv||!r)return r;
+  if(st===0){if(lv>=2&&Math.random()<.6)r.reply=pickR(['（こちらに背を向けたまま、動かない）','（触角を伏せて、砂の中に頭をうずめた）']);return r}
+  if(st===1){if(Math.random()<lv*.25)r.reply=pickR(lv>=3?['……キライ。','……ユルサナイ。','……アッチイケ。']:['……フン。','……ベツニ。']);return r}
+  const kind=/praise|love|sorry|thanks|likeme/.test(k||'');
+  const p=clamp(((S.dark||0)-35)/55,0,.85);
+  if(Math.random()<p){
+    if(kind)r.reply=pickR(lv>=3?['……今さら何だ。……言葉など、もう届かん。……少ししか。','……やめろ。そういうのは、慣れていない。']:['……今さらだな。','……ふん。少しだけ、聞いておいてやる。']);
+    else r.reply=pickR(DARK_LINES[lv]);
+    r.emo='annoyed';
+  }
+  return r;
 }
 
 /* =====================================================================
@@ -2152,14 +2199,14 @@ const Game={
     },3800);
   },
   ate(kind){
-    S.hunger=clamp(S.hunger-(kind==='krill'?25:45),0,100);S.mood=clamp(S.mood+8,0,100);S.trust=clamp(S.trust+4,0,100);S.fed++;S.fedSinceMolt++;this.hinted=false;S.lastAteAt=Date.now();S.fastMiles=[];shape(1.5,0);ev('fed',{aji:'アジ',ika:'スルメイカ',krill:'オキアミ'}[kind]);
+    S.hunger=clamp(S.hunger-(kind==='krill'?25:45),0,100);S.mood=clamp(S.mood+8,0,100);S.trust=clamp(S.trust+4,0,100);S.fed++;S.fedSinceMolt++;this.hinted=false;S.lastAteAt=Date.now();S.fastMiles=[];shape(1.5,0);addDark(-3);ev('fed',{aji:'アジ',ika:'スルメイカ',krill:'オキアミ'}[kind]);
     remember('最後の食事：'+({aji:'アジ',ika:'スルメイカ',krill:'オキアミ'}[kind])+'（飼育'+dayNo()+'日目）');
     say(S.stage===0?'（小さな顎を懸命に動かしている）':S.stage===1?'……ウマイ。':pickR(['……ふう。これでまた一年は食わなくていい。','礼は言わんぞ。……うまかった。','悪くない。次は三日寝かせてから持ってこい。']),{emo:'happy',narr:S.stage===0});
     this.progress();save();refreshHUD();
   },
   poke(){
     if(Molt.phase){S.trust=clamp(S.trust-4,0,100);S.mood=clamp(S.mood-12,0,100);C.startle=1;Audio2.noise(.12,600,.3,1);say(Molt.phase==='soft'?'（柔らかい殻は傷つきやすい。そっとしておこう）':'（脱皮中に触られて、体をこわばらせた。いまはそっとしておこう）',{narr:true});save();refreshHUD();return}
-    if(Life.asleep)Life.wake();shape(-3,-2);ev('poke');
+    if(Life.asleep)Life.wake();shape(-3,-2);ev('poke');addDark(6);
     S.pokes++;C.curlT=.9;C.startle=1;setState('curl',{hold:(persLabel()==='臆病'?7:3)+rnd()*2});S.trust=clamp(S.trust-2,0,100);S.mood=clamp(S.mood-7,0,100);
     grade.uniforms.uShock.value=1;Audio2.noise(.12,600,.3,1);
     const n=S.pokes;
@@ -2167,7 +2214,7 @@ const Game={
     save();refreshHUD();
   },
   knock(){
-    Audio2.knock();shape(0,-.6);if(Life.asleep){if(Math.random()<.5)Life.wake();return}C.face=5;C.startle=.6;
+    Audio2.knock();shape(0,-.6);addDark(1.5);if(Life.asleep){if(Math.random()<.5)Life.wake();return}C.face=5;C.startle=.6;
     if(C.state==='walk')setState('idle',{wait:5});
     if(Math.random()<.5)say(S.stage===0?'（音のした方を向いた）':S.stage===1?'……ナンダ。':pickR(['ガラスを叩くな。響く。','なんだ。用があるなら言え。','聞こえている。']),{emo:'curious',narr:S.stage===0});
   },
@@ -2179,7 +2226,7 @@ const Game={
     save();refreshHUD();
   },
   water(){
-    S.water=100;foods.slice().forEach(removeFood);Audio2.swish();shape(1,0);
+    S.water=100;foods.slice().forEach(removeFood);Audio2.swish();shape(1,0);addDark(-2);
     for(let i=0;i<60;i++){const p=new V3((rnd()-.5)*10,0,(rnd()-.5)*6);p.y=heightAt(p.x,p.z);puff(p,1)}
     toast('水を三分の一入れ替えました');
     if(S.stage>=2)setTimeout(()=>say(pickR(['……水が軽くなった。','ふむ。気が利くな。']),{emo:'happy'}),1500);
@@ -2207,7 +2254,7 @@ function refreshHUD(){
   if(S.molts>=9){setBar('grow',100,'ok');$('o-grow').textContent='最大'}
   else{const lo=S.molts?NEEDM[S.molts-1]:0,hi=NEEDM[S.molts];setBar('grow',(S.trust-lo)/(hi-lo)*100,'');$('o-grow').textContent=Molt.phase?{pre:'脱皮前',post:'脱皮中',gap:'脱皮中',ant:'脱皮中',soft:'殻が軟'}[Molt.phase]:(S.trust>=hi&&S.molts>0&&S.fedSinceMolt<1)?'要給餌':Math.round(clamp((S.trust-lo)/(hi-lo),0,1)*100)+'%'}
   setBar('health',S.health/(S.maxHealth||100)*100,S.health<40?'warn':'ok');$('o-health').textContent=Math.round(S.health);
-  $('fast').textContent=fastDays();$('pers').textContent='性格 '+persLabel()+(Life.asleep?'　睡眠中':'');
+  $('fast').textContent=fastDays();$('pers').textContent='性格 '+persLabel()+(Life.asleep?'　睡眠中':'');$('pers').style.color=darkLv()>=2?'#ff6f6f':'';
   $('day').textContent=dayNo();$('stage').textContent=STAGES[S.stage]+'　'+MMS[S.molts]+'mm　'+(S.molts+1)+'齢';
   const d=new Date();$('clock').textContent=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+'　'+LIGHTS[S.light].label;
 }
@@ -2226,7 +2273,7 @@ function boot(){
   ISO=buildIsopod();buildSlime();
   if(S.molts===undefined)S.molts=[0,1,4,7][S.stage]||0;S.stage=stageOf(S.molts);
   C.pos.set(.4,0,.2);C.size=C.sizeT=sizeOf(S.molts);shellTint();
-  applyQuality();
+  applyQuality();darkVis();
   syncLampUI();
   voiceOn=(()=>{try{return localStorage.getItem('gusoku.voice')!=='off'}catch(e){return true}})();$('set-voice').textContent='声（グソグソ）：'+(voiceOn?'オン':'オフ');
   ttsOn=(()=>{try{return localStorage.getItem('gusoku.tts')==='on'}catch(e){return false}})();$('set-tts').textContent='日本語読み上げ：'+(ttsOn?'オン':'オフ');
@@ -2280,6 +2327,7 @@ function loop(now){
   composer.render(dt);
 }
 function idleChatter(){
+  if(darkLv()>=2&&S.stage>=1&&!Life.asleep&&!Life.dead&&!Game.molting&&Math.random()<.55){say(S.stage===1?pickR(['……キライ。','……クライ、スキ。']):pickR(DARK_LINES[darkLv()]),{emo:'annoyed'});return}
   if(Game.molting||Life.asleep||Life.dead)return;
   if(S.stage>=2&&Math.random()<.18){const fd=fastDays();const pl=persLabel();
     say(pickR([fd>=3?`絶食${fd}日目だ。……まだまだ。`:'最後に食ったのは、いつだったかな。',{陽気:'今日は泡の音がいい。オマエも聞け。',穏やか:'……オマエも、無理はするなよ。',皮肉屋:'陸の生き物は、忙しそうで気の毒だ。',疑い深い:'……その手に、何を持っている。',臆病:'……さっきの影、なんだった。',豪胆:'ワシに怖いものはない。光以外はな。',気まぐれ:'……なんでもない。呼んでみただけだ。'}[pl]].concat(S.mate?[`${S.mate.name}は今日も静かだ。`]:[])),{emo:'neutral'});return}
@@ -2321,7 +2369,27 @@ function start(){
 /* ---- UI wiring */
 $('start').addEventListener('click',start);
 $('skip').addEventListener('click',()=>Cine.finish());
-$('talk').addEventListener('submit',e=>{e.preventDefault();if(!started)return;const v=$('say').value.trim();if(!v)return;$('say').value='';Game.talk(v)});
+function sendSay(){if(!started)return;const v=$('say').value.trim();if(!v)return;$('say').value='';Game.talk(v)}
+$('talk').addEventListener('submit',e=>{e.preventDefault();Mic.auto=false;$('mic').classList.remove('dict');sendSay()});
+/* voice input: the browser's speech recognition where the page may use the microphone;
+   otherwise the on-screen keyboard's own dictation, sent automatically when the speaker pauses */
+const Mic={rec:null,on:false,fallback:false,auto:false,timer:0,
+  toggle(){if(!started)return;if(this.on){this.stop();return}if(this.auto){this.auto=false;$('mic').classList.remove('dict');toast('音声入力をやめました');return}
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR||this.fallback){this.dictation();return}
+    try{const r=new SR();r.lang='ja-JP';r.interimResults=true;r.maxAlternatives=1;
+      r.onresult=e=>{let txt='',fin=false;for(const res of e.results){txt+=res[0].transcript;if(res.isFinal)fin=true}$('say').value=txt;if(fin){this.stop();sendSay()}};
+      r.onerror=e=>{this.stop();if(/not-allowed|service-not-allowed|audio-capture/.test(e.error||'')){this.fallback=true;this.dictation()}else if(e.error!=='aborted'&&e.error!=='no-speech')toast('うまく聞き取れませんでした')};
+      r.onend=()=>{this.on=false;$('mic').classList.remove('on')};
+      r.start();this.rec=r;this.on=true;$('mic').classList.add('on');toast('聞いています…話しかけてください')}
+    catch(e){this.fallback=true;this.dictation()}},
+  stop(){try{this.rec&&this.rec.stop()}catch(e){}this.on=false;$('mic').classList.remove('on')},
+  dictation(){this.auto=true;$('mic').classList.add('dict');$('say').focus();
+    toast('キーボードのマイクボタンを押して話してください。話し終わると自動で送ります')},
+  onInput(){if(!this.auto)return;clearTimeout(this.timer);this.timer=setTimeout(()=>{if(this.auto&&$('say').value.trim())sendSay()},1600)}
+};
+$('mic').addEventListener('click',()=>Mic.toggle());
+$('say').addEventListener('input',()=>Mic.onInput());
 const pops=[['btn-feed','pop-feed'],['btn-set','pop-set'],['btn-more','pop-more']];
 function closePops(){pops.forEach(([,p])=>$(p).hidden=true);$('reset-confirm').hidden=true}
 pops.forEach(([b,p])=>$(b).addEventListener('click',e=>{e.stopPropagation();const h=$(p).hidden;closePops();$(p).hidden=!h}));
@@ -2358,7 +2426,7 @@ $('gauges').addEventListener('toggle',()=>$('gsum').textContent=$('gauges').open
 if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
-window.gusoku={Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
+window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
