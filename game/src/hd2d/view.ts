@@ -15,7 +15,7 @@ import type { Actor } from '../world/actor';
 import type { FieldScene } from '../world/field';
 import { ActorViews } from './actors';
 import { Post, type Quality } from './post';
-import { SV, TownWorld } from './town';
+import { PITCH, SV, TownWorld } from './town';
 
 export interface CamParams {
   /** Degrees down from the horizon. */
@@ -24,9 +24,11 @@ export interface CamParams {
   fov: number;
   /** Distance from the target (tiles). */
   dist: number;
+  /** How far north of the field's centre the camera looks (tiles): more of the street ahead, less of the roofs in front. */
+  lookN: number;
 }
 
-export const CAM: CamParams = { pitch: 50, fov: 26, dist: 25 };
+export const CAM: CamParams = { pitch: PITCH, fov: 26, dist: 20, lookN: 1.5 };
 
 /** The evening's light (stage 0); the stage grade (post.ts) tints the rest. */
 const SUN_COLOUR = new THREE.Color('#ffc890');
@@ -159,7 +161,7 @@ export class Hd2dView {
 
   /** Where the camera looks (world units on the ground). */
   target(f: FieldScene): THREE.Vector3 {
-    return new THREE.Vector3((f.camX + W / 2) / 16, 0, (f.camY + H / 2) / 16);
+    return new THREE.Vector3((f.camX + W / 2) / 16, 0, (f.camY + H / 2) / 16 - CAM.lookN);
   }
 
   private placeCamera(f: FieldScene): THREE.Vector3 {

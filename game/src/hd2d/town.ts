@@ -27,8 +27,10 @@ import type { FieldScene, PropInst } from '../world/field';
 import { POLE, poleFoot, type WireLine } from '../art/props/wires';
 import { TUNE, type Piece } from './tune';
 
-/** Vertical stretch of standing things (≈ 1 / tan(camera pitch)). */
-export const SV = 1.2;
+/** The camera's pitch (degrees down from the horizon). 50 at first; 2026-10-05 依頼主「上すぎる」→ lower. */
+export const PITCH = 40;
+/** Vertical stretch of standing things: tan(pitch), so a standing picture keeps its 2D proportions on screen. */
+export const SV = Math.tan((PITCH * Math.PI) / 180);
 const PX = 1 / 16;
 /** How often animated pictures (over(), glows) are redrawn (ms). */
 const REDRAW_MS = 100;
