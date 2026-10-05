@@ -22,8 +22,10 @@ export function statsNoteW(): number {
   return rightW() - 4;
 }
 
-/** Line pitch of the 通知表's ruled table. */
-const ROW = 16;
+/** Line pitch of the 通知表's ruled table (15, not 16: room for a 3-line せんせいより, 2026-10-05). */
+const ROW = 15;
+/** Line pitch of せんせいより (up to 3 lines under the table). */
+const NOTE_ROW = 15;
 
 const ROWS: [string, keyof Member][] = [
   ['HP', 'maxHp'],
@@ -165,14 +167,14 @@ export class StatsPage implements MenuPage {
       else drawNumerals(g, v, x + w - 8, ry, { color: UI.pencil, align: 'right' });
       g.rect(x, ry + ROW - 1, w, 1, i === ROWS.length - 1 ? UI.border : '#E3D3A8');
     });
-    y += 3 + ROWS.length * ROW + 4;
-    // せんせいより
+    y += 3 + ROWS.length * ROW + 1;
+    // せんせいより (up to 3 lines: 「はなまる。もう／言うことは／ありません。」)
     const comment = REPORT.teacher[mem.id]?.[mem.level] ?? '';
     drawTape(g, x, y, textW(REPORT.fromTeacher) + 12, 16, REPORT.fromTeacher, { color: '#E8D9B5', seed: 12 });
     if (comment) {
       const lines = wrap(comment, w - 4);
       // (beside an iPad's touch button: a little tighter, pageText)
-      lines.slice(0, 2).forEach((l, i) => pageText(g, l, x + 2, y + 17 + i * 16, { color: UI.accent }));
-    } else g.text('（まだ 空らん）', x + 2, y + 18, { color: UI.textDim });
+      lines.slice(0, 3).forEach((l, i) => pageText(g, l, x + 2, y + 16 + i * NOTE_ROW, { color: UI.accent }));
+    } else g.text('（まだ 空らん）', x + 2, y + 17, { color: UI.textDim });
   }
 }

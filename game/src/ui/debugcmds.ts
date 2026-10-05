@@ -290,6 +290,7 @@ registerDebug('wrapCheck', () => {
   for (const id of [...BOOK_ENEMIES, ...BOOK2_ENEMIES]) squeeze('あいて 一覧', getEnemy(id)?.name ?? '', labelW, lw);
   for (const id of [...TSUKKOMI_ENEMIES, ...TSUKKOMI2_ENEMIES]) for (const l of getEnemy(id)?.tsukkomi ?? []) squeeze('ツッコミ 一覧', l, labelW, lw);
   for (const [who, list] of Object.entries(REPORT.teacher)) list.forEach((t, lv) => squeeze(`せんせいより ${who} Lv${lv}`, t, RP.w - 4, statsNoteW()));
+  for (const [who, list] of Object.entries(REPORT.teacher)) list.forEach((t, lv) => check(`せんせいより ${who} Lv${lv}`, t, RP.w - 4, 3));
   // 公園の練習の戦闘（グソっ君の台詞・帯・選択肢。20 10.6）
   const lesson = lessonTextIssues(textW);
   n += lesson.checked;
