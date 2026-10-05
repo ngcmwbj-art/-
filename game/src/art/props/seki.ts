@@ -113,8 +113,8 @@ function buildRiver(stage: number): HTMLCanvasElement {
         const k = y / CREST;
         c = mix(W_DEEP, W_MID, Math.min(1, k * 1.4));
         const band = valueNoise(x / 40, y / 3.2, 8101) + k * 0.35;
-        if (band > 0.82) c = mix(c, sky, 0.5);
-        else if (band > 0.7) c = mix(c, sky, 0.28);
+        if (band > 0.84) c = mix(c, sky, 0.32);
+        else if (band > 0.72) c = mix(c, mix(sky, P.aqua, 0.4), 0.16);
         if (y < 6) c = mix(c, P.night, 0.55 - y * 0.08);
       } else if (y < FOAM1) {
         c = W_TOP;

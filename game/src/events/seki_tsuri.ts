@@ -53,6 +53,7 @@ import {
   type ShrimpImg,
 } from '../art/props/seki_tsuri_art';
 import { SEKI_SPOT_NAME, SEKI_UI } from '../data/text/mizube';
+import { registerDebug } from '../debug';
 
 export type { SekiKind, SekiSpot };
 
@@ -1142,7 +1143,6 @@ export function sekiGuideRows(): [string[], string][] {
 
 // ---------------------------------------------------------------- QA
 
-import { registerDebug } from '../debug';
 
 registerDebug('sekiSheet', (scale = 4) => {
   const kinds: ['mesu' | 'osu' | 'tamago' | 'taisho', number][] = [['mesu', 5], ['mesu', 7], ['osu', 7], ['osu', 9], ['tamago', 6], ['taisho', 9]];

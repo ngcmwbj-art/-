@@ -21,6 +21,7 @@ import { KAIRAN_MAP_LINE1, KAIRAN_MAP_LINES } from '../../data/text/hoshi_events
 import { dottedLine, drawCursor, drawMarker, fitWrap, pencilLine, phraseWrap as wrap, rectA, textW, UI } from '../window';
 import { clearSpacing, drawHeader, drawScroll, FOLD, hpColor, listCursorX, listDx, LP, pageText, Popup, RP, SP, type PopupOpt } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
+import { UKI_DESC_LINE } from '../../data/text/mizube';
 
 export const BAG_MAX = 14;
 
@@ -104,6 +105,8 @@ export function itemName(id: string): string {
 export function itemDesc(id: string): [string, string] {
   if (omake(id)) return ['あした、ひのやの おばあちゃんに', '持っていく 分。'];
   const it = getItem(id);
+  // おぴぃの浮き：堰の 片手の 大将に 会ったら 2行目が かわる（水辺の 図鑑、02 #81）
+  if (id === 'item_tamotsu_uki' && flag('flag_mizube_uki_line')) return [it?.desc[0] ?? '', UKI_DESC_LINE];
   return [it?.desc[0] ?? '', it?.desc[1] ?? ''];
 }
 

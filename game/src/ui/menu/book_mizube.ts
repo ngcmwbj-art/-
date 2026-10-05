@@ -13,13 +13,15 @@
 
 import type { Gfx } from '../../engine/gfx';
 import { flag } from '../../game/state';
-import { dottedLine, fitWrap, pencilLine, UI } from '../window';
-import { pageText, SP } from './notebook';
+import { dottedLine, fitWrap, pencilLine, phraseWrap, UI } from '../window';
+import { pageText, RP, SP } from './notebook';
 import { OPI_NOTE, STILL_LABEL, TOME_LABEL, ZUKAN, zukanBook, zukanCm, zukanCount, zukanSeen, zukanStill, type ZukanEntry } from '../../data/text/mizube_book';
 import { bootImg, canImg, crayfish } from '../../art/props/tsuri_art';
 import { goby, pencilOf, shrimp } from '../../art/props/seki_tsuri_art';
 import { creature } from '../../art/props/yoburi_art';
 import { PixelCanvas } from '../../engine/pixel';
+import { registerDebug } from '../../debug';
+import { bookLabelW } from './book';
 
 export const MIZUBE_TAB = 'みずべ';
 
@@ -295,10 +297,6 @@ export function stickerZari(): HTMLCanvasElement {
 
 // ---------------------------------------------------------------- QA
 
-import { registerDebug } from '../../debug';
-import { phraseWrap } from '../window';
-import { bookLabelW } from './book';
-import { RP } from './notebook';
 
 /** Every row and page of 『みずべ』 fits: the index in 2 lines, the place in 2, the hint and the word in 2 (wrapCheck). */
 registerDebug('mizubeBookText', () => {

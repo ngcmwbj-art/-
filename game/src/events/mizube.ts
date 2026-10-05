@@ -51,7 +51,6 @@ import { forceBoxPos, keyGuide, talkZoom, zoomOut } from './stage';
 import { kanenariHere, MZ } from './mizube_zari';
 import { YF, yuraiAtOpi } from './mizube_yurai';
 import {
-  closeSeki,
   openSeki,
   playSeki,
   sekiArm,

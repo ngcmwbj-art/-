@@ -48,12 +48,14 @@ import {
   yoburiBg,
   type YoburiKind,
 } from '../../art/props/yoburi_art';
-import { SAWAGANI, YOBURI, YOBURI_EKINOTE, YOBURI_SPOT, YOBURI_SPOT_NAME, YOBURI_TAMO, YOBURI_TOME, YOBURI_UI } from '../../data/text/mizube_ch2';
+import { floatImg } from '../../art/props/seki_tsuri_art';
+import { MIZUBE_CH2_TEXTS, SAWAGANI, YOBURI, YOBURI_EKINOTE, YOBURI_SPOT, YOBURI_SPOT_NAME, YOBURI_TAMO, YOBURI_TOME, YOBURI_UI } from '../../data/text/mizube_ch2';
 import { zukanComplete, zukanCount, zukanRecord, zukanSee, ZUKAN } from '../../data/text/mizube_book';
 import { F, panBack, panTo, walkTo } from '../lib';
 import { forceBoxPos, keyGuide } from '../stage';
 import { hStage, lanternOn, say } from './common';
 import { ekinoteHooks } from './ekinote';
+import { mizubeTextCheck } from '../mizube_check';
 
 export const YB = {
   /** トマじいの〔yoburi〕を 聞いた。 */
@@ -201,6 +203,8 @@ export class YoburiPanel implements Widget {
   callT = 7000;
   callOn = 0;
   auto = false;
+  /** 第1章の おぴぃの 浮きを 持っている（用水路の ぬしの 上に 浮かべる）。 */
+  uki = hasItem('item_tamotsu_uki');
   /** はじめて 泡を 見た（グソっ君の ひとことを 待つ）。 */
   sawBubble = false;
   dived = false;
@@ -430,6 +434,14 @@ export class YoburiPanel implements Widget {
     });
     // ---- the creatures (in the light: whole; out of it: nothing but their bubbles)
     for (const c of this.crs) this.drawCr(g, ox, oy, c);
+    // chapter 1's おぴぃの浮き (with Shun): floating over the ぬし's gap, shaken by its bubbles
+    if (this.uki)
+      for (const c of this.crs) {
+        if (c.kind !== 'dojou_nushi' || c.state === 'caught') continue;
+        const fl = floatImg(true);
+        const shake = c.state === 'dive' ? 0 : Math.round(Math.sin(t / 90) * (c.state === 'out' ? 1.5 : 0.8));
+        g.img(fl, ox + c.x - 2 + shake, oy + WY - 5 + (Math.floor(t / 400) % 2));
+      }
     for (const b of this.bubbles) g.px(ox + Math.round(b.x), oy + Math.round(b.y), Math.abs(b.x - rx) < rr * 1.25 ? '#FFF6D8' : '#8E9AB8');
     for (const p of this.puffs) {
       const k = p.t / 500;
@@ -786,10 +798,27 @@ export function yoburiGuideRows(): [string[], string][] {
 
 // ================================================================ トマじい（npc_hoshi_tome を 包む）
 
+/**
+ * Is one of his other lines due first? The story's (課長の 話、沢の 頼みと 待ち、名前の 石、マルの 伝言 —
+ * sawa.ts の 順) and the other errands' (バケツの 稲・二百十日・70年の 色紙): the night fishing waits
+ * for the next talk.
+ */
+function tomeStoryFirst(): boolean {
+  if (state.taken['sym_hoshi_03'] && state.taken['sym_hoshi_06'] && !flag('flag_seen_npc_hoshi_tome_kacho_done')) return true;
+  if (flag('flag_ch2_sawa_wait')) return true;
+  if (hasItem('item_namae_ishi') && !flag('flag_ch2_sawa_ishi')) return true;
+  if (!flag('flag_ch2_maru_told') && (flag('flag_maru_dengon') || flag('flag_met_maru')) && (flag('flag_seen_npc_hoshi_tome_h0_2') || hStage() >= 1)) return true;
+  if (hStage() >= 1 && hStage() <= 2 && flag('flag_ch2_got_otsukare') && !flag('flag_ch2_sawa_open')) return true;
+  if (flag('flag_toban_seal') && !flag('flag_ch2_toban_tome')) return true;
+  if (flag('flag_nihyaku_hyou') && !flag('flag_nihyaku_tome') && !flag('flag_nihyaku_done')) return true;
+  if (hasItem('item_shikishi') && !flag('flag_shikishi_tome')) return true;
+  return false;
+}
+
 /** His side of it, before his usual lines: 〔yoburi〕, then the reports (each once). True when one was said. */
 function* tomeYoburi(): Co<boolean> {
   const s = hStage();
-  if (s < 1 || s > 2 || !lanternOn()) return false;
+  if (s < 1 || s > 2 || !lanternOn() || tomeStoryFirst()) return false;
   if (!flag(YB.ask)) {
     setFlag(YB.ask, 1);
     yield* say(YOBURI_TOME.ask);
@@ -819,8 +848,8 @@ function* tomeYoburi(): Co<boolean> {
 {
   const orig = getScript('npc_hoshi_tome');
   registerScript('npc_hoshi_tome', function* (ctx): Co {
-    // (the gathering's, the stream's and マル's lines come first: they are the story's)
-    if (!flag('flag_ch2_sawa_wait') && (yield* tomeYoburi())) return;
+    // (the story's lines and the other errands' come first: tomeStoryFirst)
+    if (yield* tomeYoburi()) return;
     if (orig) yield* orig(ctx);
     else yield* ctx.runDefault();
   });
@@ -937,21 +966,32 @@ registerWorldFx({
     if (layer !== 'fg' || !yoburiEndingOn()) return;
     const tome = f.actorById('end_npc_hoshi_tome');
     if (!tome || !tome.visible) return;
+    // (only at the turning circle: カット4b. The other cuts put him elsewhere)
+    if (tome.tileX < 30 || tome.tileX > 36 || tome.tileY < 37 || tome.tileY > 45) return;
     const x = Math.round(tome.x) - cx;
     const y = Math.round(tome.y) - cy;
-    // the net on his right shoulder: the short handle slanting up behind his head, the hoop and its bag
-    const back = tome.dir === 'up';
+    // the net on his shoulder: the short handle from the shoulder slanting up and back over his
+    // head (clear of the straw hat), the bamboo hoop and the white bag hanging from it
     const d = tome.dir === 'left' ? -1 : 1;
-    const hx = x + (back ? 4 : 5 * d);
-    const hy = y - 15;
-    for (let i = 0; i < 12; i++) g.px(hx - d * Math.round(i * 0.5), hy - i, i % 4 === 0 ? '#8A5A3A' : '#C8A06A');
-    const tx = hx - d * 6;
-    const ty = hy - 14;
-    for (let a = 0; a < 16; a++) {
-      const th = (a / 16) * Math.PI * 2;
-      g.px(tx + Math.round(Math.cos(th) * 4), ty + Math.round(Math.sin(th) * 2), '#6B7186');
+    const back = -d;
+    const sx = x + 3 * d;
+    const sy = y - 13;
+    for (let i = 0; i < 22; i++) {
+      const hx = sx + Math.round(back * i * 0.45);
+      const hy = sy - i;
+      g.px(hx, hy, '#5A3A2A');
+      g.px(hx + 1, hy, i % 5 === 0 ? '#5A3A2A' : '#C8A06A');
     }
-    for (let yy = 1; yy < 5; yy++) for (let xx = -3; xx <= 3; xx += 2) g.px(tx + xx + (yy % 2), ty + yy, '#E8E4D8');
+    const tx = sx + Math.round(back * 22 * 0.45) + back * 3;
+    const ty = sy - 24;
+    for (let a = 0; a < 24; a++) {
+      const th = (a / 24) * Math.PI * 2;
+      g.px(tx + Math.round(Math.cos(th) * 6), ty + Math.round(Math.sin(th) * 2.5), a % 3 ? '#C8A06A' : '#8A5A3A');
+    }
+    for (let yy = 2; yy < 9; yy++) {
+      const half = Math.round(5 * Math.sqrt(1 - yy / 9));
+      for (let xx = -half; xx <= half; xx += 2) g.px(tx + xx + (yy % 2) + back, ty + yy, '#F4F1E8');
+    }
     // マル, walking behind him, looks at the handle: a small smile mark over her head, once
     const maru = f.actorById('end_npc_maru');
     if (maru && maru.visible && maru.moving && tome.moving && maru.y > tome.y) {
@@ -984,7 +1024,7 @@ registerDebug('yoburi', (step = 'go', st = 1, auto = false) => {
   if (st >= 2) setFlag('flag_ch2_stage', 2);
   if (step === 'tome') return cmd().warp?.('map_hoshimidai', 21, 12, 'up');
   setFlag(YB.ask, 1);
-  if (step === 'tamo') return cmd().warp?.('map_hoshi_koya', 5, 3, 'right');
+  if (step === 'tamo') return cmd().warp?.('map_hoshi_koya', 2, 3, 'left');
   setFlag(YB.tamo, 1);
   const r = cmd().warp?.('map_hoshimidai', 15, 22, 'up');
   if (step === 'play') {
@@ -1036,10 +1076,15 @@ registerDebug('yoburiSheet', (scale = 4) => {
   return cv.toDataURL();
 });
 
-import { mizubeTextCheck } from '../mizube_check';
-import { MIZUBE_CH2_TEXTS } from '../../data/text/mizube_ch2';
 registerDebug('yoburiText', () => {
   const notes: Record<string, string> = {};
   for (const e of ZUKAN.filter((z) => z.vol === 2)) notes[e.id] = `@sys\n『みずべ』②に 書きこんだ。\n（${e.name}　7/7）`;
   return mizubeTextCheck({ ...MIZUBE_CH2_TEXTS, notes }, false);
+});
+
+/** QA: is the ending's net on (both notebooks full), and is とまたろう there now (カット4b)? */
+registerDebug('yoburiEnd', () => {
+  const f = field();
+  const tome = f?.actorById('end_npc_hoshi_tome');
+  return { on: yoburiEndingOn(), z1: zukanCount(1), z2: zukanCount(2), tome: tome ? [tome.tileX, tome.tileY, tome.visible, tome.dir] : null };
 });

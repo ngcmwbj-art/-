@@ -17,6 +17,9 @@ import { PixelCanvas, mix } from '../../engine/pixel';
 import { P } from '../tiles/palette';
 import { h01, ihash, valueNoise } from '../tiles/noise';
 import { SCN_H, SCN_W } from './tsuri_art';
+import { registerProp } from './registry';
+import { stand } from './pkit';
+import { finish } from './kit';
 
 export { SCN_W, SCN_H };
 export const YB_WATER_Y = 30;
@@ -374,9 +377,6 @@ export function stickerDojou(): HTMLCanvasElement {
 
 // ---------------------------------------------------------------- 小屋の たも網・沢ガニ（フィールドの 小物）
 
-import { registerProp } from './registry';
-import { stand } from './pkit';
-import { finish } from './kit';
 
 /** マルの たも網：農具小屋の 西の 壁に 立てかけてある（柄の 短い、竹の 輪の 網。柄に 小さく 刻み）。 */
 registerProp('prop_yoburi_tamo', () => {
