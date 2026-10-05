@@ -40,6 +40,7 @@ import { registerDebug } from '../debug';
 import type { Actor } from '../world/actor';
 import { dirFromVec } from '../world/actor';
 import { actor, fadeIn, fadeOut, msg, registerScript, registerWorldFx, stage } from '../world/api';
+import { fxAt } from '../world/fx';
 import { field } from '../world/field';
 import { pickStage } from '../world/maps';
 import { getScript, type ScriptCtx } from '../world/scripts';
@@ -661,16 +662,20 @@ class KoteiPanel implements Widget {
 
 registerWorldFx({
   map: MAP,
+  // (placed with fxAt: in the HD-2D view at the two feet, 02 #85)
+  anchored: true,
   draw(f, g, cx, cy, layer) {
     if (layer !== 'sorted' || !race.tied) return;
     const p = f.player;
     const k = f.follower;
     if (!k || !k.visible) return;
     // the red-and-white hachimaki between しゅん's right foot and グソっ君's lowest right leg
-    const x0 = Math.round(p.x - cx);
-    const y0 = Math.round(p.y - cy - 2);
-    const x1 = Math.round(k.x - cx);
-    const y1 = Math.round(k.y - cy - 2);
+    const [a0, b0] = fxAt(f, p.x, p.y - 2, cx, cy, p.y);
+    const [a1, b1] = fxAt(f, k.x, k.y - 2, cx, cy, k.y);
+    const x0 = Math.round(a0);
+    const y0 = Math.round(b0);
+    const x1 = Math.round(a1);
+    const y1 = Math.round(b1);
     const n = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0)));
     for (let i = 0; i <= n; i++) {
       const X = Math.round(x0 + ((x1 - x0) * i) / n);
@@ -691,6 +696,7 @@ const DUST: { x: number; y: number; ph: number }[] = Array.from({ length: 14 }, 
 
 registerWorldFx({
   map: MAP,
+  anchored: true,
   draw(f, g, cx, cy, layer) {
     if (layer !== 'ground') return;
     const s = stage();
@@ -698,8 +704,10 @@ registerWorldFx({
       const k = s === 1 ? 0.4 : ((f.mt / 2600 + d.ph) % 1);
       const dx = s === 2 ? k * 7 : k * 9;
       const dy = s === 2 ? -k * 6 : -k * 3 + Math.sin(k * 6 + d.ph) * 0.8;
-      const X = Math.round(d.x + dx - cx);
-      const Y = Math.round(d.y + dy - cy);
+      // (lifting off the line: over the ground at the line's own y)
+      const [sx, sy] = fxAt(f, d.x + dx, d.y + dy, cx, cy, d.y);
+      const X = Math.round(sx);
+      const Y = Math.round(sy);
       if (X < 0 || X >= W || Y < 0 || Y > 224) continue;
       g.px(X, Y, k < 0.7 ? '#F4F1E8' : '#E8E4D8');
     }
@@ -713,8 +721,12 @@ const TONBO: { cx: number; cy: number; rx: number; ry: number; w: number; ph: nu
   { cx: 200, cy: 290, rx: 46, ry: 12, w: 0.0005, ph: 5.0 },
 ];
 
+/** How high the dragonflies fly (px over the ground below them; HD-2D: where they are in 3D). */
+const TONBO_UP = 24;
+
 registerWorldFx({
   map: MAP,
+  anchored: true,
   draw(f, g, cx, cy, layer) {
     if (layer !== 'fg') return;
     const s = stage();
@@ -732,8 +744,10 @@ registerWorldFx({
         dx = 1;
         dy = -1;
       }
-      const X = Math.round(x) - cx;
-      const Y = Math.round(y) - cy;
+      // (in the air, over the ground TONBO_UP px below: fxAt)
+      const [sx, sy] = fxAt(f, Math.round(x), Math.round(y), cx, cy, Math.round(y) + TONBO_UP);
+      const X = Math.round(sx);
+      const Y = Math.round(sy);
       if (X < -8 || X > 392 || Y < -8 || Y > 224) continue;
       const right = dx >= 0;
       const up = Math.abs(dy) > Math.abs(dx) * 1.2;

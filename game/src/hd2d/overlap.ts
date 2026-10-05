@@ -40,8 +40,18 @@ export interface Solid {
   slabs: Slab[];
 }
 
-/** Where on the map (the areas the QA reports by; tiles of map_town). */
-export function areaOf(tx: number, ty: number): string {
+/** The outdoor places other than the town: one area each (QA). */
+const PLACE_AREA: Record<string, string> = {
+  map_school: '裏庭',
+  map_school_kotei: '校庭',
+  map_aze: '分水',
+  map_seki: '堰',
+  map_mall_roof: '屋上',
+};
+
+/** Where on the map (the areas the QA reports by; tiles of map_town, else the place). */
+export function areaOf(tx: number, ty: number, map = 'map_town'): string {
+  if (map !== 'map_town') return PLACE_AREA[map] ?? map;
   if (tx < 4) return '西のはし';
   if (ty >= 32) return '川べり';
   if (ty < 16) return tx < 32 ? '夕鳴公園' : 'モール前';
@@ -148,7 +158,7 @@ function flush(a: Solid, b: Solid, eps: number): { n: number; sx: number; sz: nu
  * more), the worst first. `all`: also the pairs where only the back one's
  * picture is buried (the 2D hides it anyway).
  */
-export function overlaps(solids: Solid[], o: { min?: number; all?: boolean; eps?: number } = {}): Overlap[] {
+export function overlaps(solids: Solid[], o: { min?: number; all?: boolean; eps?: number; map?: string } = {}): Overlap[] {
   const min = o.min ?? 4;
   const eps = o.eps ?? 0.3;
   const bx = solids.map(bounds);
@@ -175,7 +185,7 @@ export function overlaps(solids: Solid[], o: { min?: number; all?: boolean; eps?
       const r = fr.n >= min ? fr : fl.n >= min ? fl : br;
       const tx = Math.floor(r.sx / r.n / 16);
       const ty = Math.floor(r.sz / r.n / 16);
-      out.push({ front: fs.name, back: bs.name, px: fr.n, backPx: br.n, flush: fl.n, at: [tx, ty], area: areaOf(tx, ty), depth: Math.round(Math.max(fr.depth, 0) * 10) / 10 });
+      out.push({ front: fs.name, back: bs.name, px: fr.n, backPx: br.n, flush: fl.n, at: [tx, ty], area: areaOf(tx, ty, o.map), depth: Math.round(Math.max(fr.depth, 0) * 10) / 10 });
     }
   return out.sort((u, v) => v.px + v.flush - (u.px + u.flush) || v.backPx - u.backPx);
 }

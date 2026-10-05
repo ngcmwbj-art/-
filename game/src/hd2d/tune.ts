@@ -28,6 +28,8 @@ export interface BldTune {
   rise?: number;
   /** A building drawn without roof rows (R = 0): its box this many tiles deep, a flat roof on it. */
   depth?: number;
+  /** A building whose roof rows show only its front edge: the box goes on this many tiles behind them, flat roofed (`roof`). */
+  deep?: number;
   /** R = 0: the strip above the facade (`top` rows) is its roof seen from above: it lies on the box. */
   lid?: boolean;
   /** The flat roof's colour (default: the side walls'). */
@@ -68,6 +70,10 @@ export const TUNE: Record<string, BldTune> = {
   bld_kotei_kousha: { depth: 10, upper: { r0: 0, r1: 22, c0: 4, c1: 110, n: 1 }, roof: '#a49c92' },
   // the back yard's sports shed: its steel lid seen from above lies on it
   bld_sch_souko: { depth: 1.6, lid: true },
+  // ユウナリ (the mall, 24 tiles): the 2D draws one tile of its roof (the
+  // parapet, the units); in 3D it goes on 9 tiles back past the map's north
+  // edge instead of standing as a stage flat (依頼主「書き割りっぽい」)
+  bld_mall: { deep: 9, roof: '#b9b2a6' },
 };
 
 // ---------------------------------------------------------------- props in 3D (round 2)
@@ -251,4 +257,9 @@ export const NUDGE: Record<string, PropNudge> = {
   // 川べり: the willow's hanging crown in front of the guardrail (the 2D
   // draws the branches over the rail)
   'tree_yanagi@52,35': { fgView: 3 },
+  // 夕鳴川の 堰: the guide board stood in the plane of the pipe rail on both
+  // its sides (the 2D draws the rail over the board's edges): just behind it
+  'prop_seki_annai@14,3': { z: -5 },
+  // 屋上: the name book's table at the stage's east end, in front of it
+  'mall_roof_table@16,3': { z: 2 },
 };

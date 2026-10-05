@@ -46,8 +46,23 @@ export interface Margin {
  * hedge or fence that crosses the edge (it runs along the edge's normal and
  * does not turn there) goes on `margin` tiles into the land outside.
  */
+/**
+ * Runs that stand only past a place's edges (2026-10-05, the outdoor places):
+ * tiles x..x+w × y..y+h of a character with its kind and material — south of
+ * the school's back yard the park's north hedge (map_town row 0, the back
+ * gate's gap at x 14).
+ */
+const EXTRA: Record<string, { x: number; y: number; w: number; h: number; ch: string; kind: string; mat: string }[]> = {
+  map_school: [
+    { x: -16, y: 14, w: 30, h: 1, ch: '\u0001', kind: 'hedge', mat: 'tsuge' },
+    { x: 15, y: 14, w: 29, h: 1, ch: '\u0001', kind: 'hedge', mat: 'tsuge' },
+  ],
+};
+
 function grid(m: LoadedMap, mg: Margin) {
   const { w, h } = m;
+  const extra = EXTRA[m.id] ?? [];
+  const extraAt = (x: number, y: number) => (x < 0 || y < 0 || x >= w || y >= h ? extra.find((e) => x >= e.x && y >= e.y && x < e.x + e.w && y < e.y + e.h) : undefined);
   const same = (x: number, y: number, ch: string) => charAt(m, x, y) === ch;
   const structural = (x: number, y: number) => !!DEFAULT_MAT[cellAt(m, x, y).tag ?? ''];
   const edgeOf = (x: number, y: number): [number, number] | null => {
@@ -68,10 +83,14 @@ function grid(m: LoadedMap, mg: Margin) {
     return structural(x, ey) && same(x, inn, ch) && !same(x - 1, ey, ch) && !same(x + 1, ey, ch) ? [x, ey] : null;
   };
   const ch = (x: number, y: number): string => {
+    const ex = extraAt(x, y);
+    if (ex) return ex.ch;
     const e = edgeOf(x, y);
     return e ? charAt(m, e[0], e[1]) : ' ';
   };
   const kindMat = (x: number, y: number): [string, string] | null => {
+    const ex = extraAt(x, y);
+    if (ex) return [ex.kind, ex.mat];
     const e = edgeOf(x, y);
     if (!e) return null;
     const dm = DEFAULT_MAT[cellAt(m, e[0], e[1]).tag ?? ''];

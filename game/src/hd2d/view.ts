@@ -17,8 +17,9 @@ import { ActorViews } from './actors';
 import { Post, type Quality } from './post';
 import { recording, type Solid } from './overlap';
 import { markShadowPass } from './solid';
+import { placeOf } from './places';
 import { PITCH, SV, TownWorld } from './town';
-import { ROOM_BG, RoomWorld, roomMap } from './room';
+import { ROOM_BG, RoomWorld, roomMap, roomPan } from './room';
 
 export interface CamParams {
   /** Degrees down from the horizon. */
@@ -180,8 +181,10 @@ export class Hd2dView {
 
   /** Where the camera looks (world units on the ground). */
   target(f: FieldScene): THREE.Vector3 {
-    // (a room: where the 2D camera centres it or stops, no look ahead)
-    return new THREE.Vector3((f.camX + W / 2) / 16, 0, (f.camY + H / 2) / 16 - (roomMap(f.map.id) ? 0 : CAM.lookN));
+    // (a room: where the 2D camera centres it or stops, no look ahead; a
+    // hall wider than the 3D frame follows Minato across, room.ts roomPan)
+    const room = roomMap(f.map.id);
+    return new THREE.Vector3((f.camX + W / 2) / 16 + (room ? roomPan(f) : 0), 0, (f.camY + H / 2) / 16 - (room ? 0 : CAM.lookN));
   }
 
   /**
@@ -209,10 +212,23 @@ export class Hd2dView {
   private placeSun(f: FieldScene, t: THREE.Vector3): number {
     const g = f.grade;
     const len = Math.max(0.4, g.shadowLen || 1.3);
-    const el = Math.atan(1 / (len * 1.55));
+    let el = Math.atan(1 / (len * 1.55));
     // towards the sun: west (2D shadows point +x) and a little south, so the
     // shop fronts (facing the camera) catch the low light
-    const az = Math.atan2(0.42, -(g.sunX || 1));
+    let az = Math.atan2(0.42, -(g.sunX || 1));
+    // a place that fixes where its shadows point (MapDef.shadowVec): the sun
+    // opposite them, as high as their 2D length says — the roof straight
+    // down the screen; the school in stage 2 swung from the evening's
+    // direction as far as the 2D swings it (east → north-east), so the turn
+    // shows in 3D too (places.ts shadowSwing)
+    const fixed = f.map.def.shadowVec;
+    if (fixed) {
+      const l = Math.hypot(fixed[0], fixed[1]) || 1;
+      let th = Math.atan2(fixed[1], fixed[0]);
+      if (placeOf(f.map.id).shadowSwing) th = Math.atan2(-0.42, g.sunX || 1) + (th - Math.atan2(0.25, g.sunX || 1));
+      az = th + Math.PI;
+      el = Math.atan(SV / (len * l * 1.27));
+    }
     const d = this.sunDir.set(Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el)).normalize();
     // keep the shadow map steady while walking: snap the box to its texels
     const step = 36 / this.sun.shadow.mapSize.x;
@@ -244,7 +260,8 @@ export class Hd2dView {
         continue;
       }
       l.position.set(s.x, s.y, s.z);
-      l.intensity = 2.2 * lit;
+      // (a room: faint by day, as the 2D's lamps throw no light then; strong at night)
+      l.intensity = 2.2 * lit * (world instanceof RoomWorld ? world.lampK() : 1);
     }
   }
 

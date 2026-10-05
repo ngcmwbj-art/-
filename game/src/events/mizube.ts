@@ -30,6 +30,7 @@ import { game } from '../engine/game';
 import { addItem, flag, hasItem, setFlag, state } from '../game/state';
 import { registerDebug } from '../debug';
 import { actor, msg, registerScript, registerWorldFx, stage } from '../world/api';
+import { fxAt } from '../world/fx';
 import { field } from '../world/field';
 import { getScript } from '../world/scripts';
 import { pickStage } from '../world/maps';
@@ -145,6 +146,8 @@ const BIRDS = Array.from({ length: 18 }, (_, i) => ({
 
 registerWorldFx({
   map: MAP,
+  // (placed with fxAt: in the HD-2D view in the air over the reeds, 02 #85)
+  anchored: true,
   draw(f, g, cx, cy, layer) {
     if (layer !== 'fg') return;
     const s = stage();
@@ -162,8 +165,10 @@ registerWorldFx({
         y -= k * b.r * 0.6;
         x += Math.sin(a) * 4;
       }
-      const X = Math.round(x) - cx;
-      const Y = Math.round(y) - cy;
+      // (over the ground 28px below the swirl's middle row)
+      const [sx, sy] = fxAt(f, Math.round(x), Math.round(y), cx, cy, oy + 28);
+      const X = Math.round(sx);
+      const Y = Math.round(sy);
       if (X < -6 || X > 390 || Y < -6 || Y > 222) continue;
       // a swallow: a dark forked shape, the wings a shallow V that beats (held still in stage 1)
       const right = -Math.sin(a) >= 0;

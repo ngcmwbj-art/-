@@ -25,7 +25,7 @@ import { flag, setFlag, state } from '../game/state';
 import { registerDebug } from '../debug';
 import { sfx } from '../audio';
 import { msg, registerScript } from '../world/api';
-import { registerWorldFx } from '../world/fx';
+import { fxAt, registerWorldFx } from '../world/fx';
 import type { Actor } from '../world/actor';
 import { animate, ease } from '../engine/tween';
 import { W, H } from '../engine/screen';
@@ -286,13 +286,17 @@ function* showStage(): Co {
 
 registerWorldFx({
   map: ROOF,
+  // (placed with fxAt: in the HD-2D view between the two, at hand height, 02 #85)
+  anchored: true,
   draw(f, g, cx, cy, layer) {
     const c = roofRt.clasp;
     if (layer !== 'sorted' || !c) return;
     const u = f.t - c.t0;
     const bob = u < 1300 ? [0, -1, 0, 1][Math.floor(u / 110) % 4] : 0;
-    const x = Math.round(c.x - cx);
-    const y = Math.round(c.y - cy) + bob;
+    // (over the ground line between the stage's edge and しゅん's feet)
+    const [sx, sy] = fxAt(f, c.x, c.y, cx, cy, Math.round((STAGE_SPOT[1] + SHAKE_SPOT[1]) / 2));
+    const x = Math.round(sx);
+    const y = Math.round(sy) + bob;
     // しゅん's arm reaching up and in from his shoulder (the tee's sleeve, then the hand)
     g.rect(x + 4, y + 6, 2, 2, '#5FA85A');
     g.px(x + 3, y + 5, '#FFD9B8');

@@ -235,7 +235,7 @@ registerDebug('hd2dStats', () => view?.stats ?? null);
 if (import.meta.env.DEV) {
   registerDebug('hd2dOverlaps', (o: { min?: number; all?: boolean; area?: string } = {}) => {
     const f = field();
-    const list = overlaps(view && f && MAPS.has(f.map.id) ? view.solids(f) : [], o);
+    const list = overlaps(view && f && MAPS.has(f.map.id) ? view.solids(f) : [], { ...o, map: f?.map.id });
     return o.area ? list.filter((r) => r.area === o.area) : list;
   });
 }

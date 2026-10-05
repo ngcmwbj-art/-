@@ -17,7 +17,10 @@ import { shadowOnly } from './solid';
 import { casterMaterial, pixelTexture, SHADE, SV, type TownWorld } from './town';
 
 /** What the characters ask of the 3D map they stand in (the town, or a room: room.ts RoomWorld). */
-type Ground3D = Pick<TownWorld, 'heightAt' | 'boxAt' | 'inShadow'>;
+type Ground3D = Pick<TownWorld, 'heightAt' | 'boxAt' | 'inShadow'> & {
+  /** How lit someone standing at (x, z) is (a room at night: dark but for the lamps' pools, as the 2D's light map). */
+  lightAt?(x: number, z: number): number;
+};
 
 const PX = 1 / 16;
 const texCache = new WeakMap<HTMLCanvasElement, THREE.CanvasTexture>();
@@ -161,7 +164,9 @@ class ActorView {
     this.mat.opacity = alpha;
     // in a building's shadow: darker
     const shaded = world.inShadow([x, 0.5, z - 0.05], sunDir);
-    this.mat.color.copy(tint).multiplyScalar(shaded ? SHADE : 1);
+    // (a room at night: by the light where the feet are, room.ts)
+    const lit = world.lightAt ? world.lightAt(x, (a.y + Math.max(0, a.oy)) * PX) : 1;
+    this.mat.color.copy(tint).multiplyScalar((shaded ? SHADE : 1) * lit);
     const sw = Math.max(0.55, Math.min(1.4, (a.drawFn ? (a.data.vehicle ? 3 : 1) : w) * 0.8));
     const ground = world.heightAt(x, z - 0.05);
     this.shadow.position.set(x, ground + 0.02, z - 0.06);

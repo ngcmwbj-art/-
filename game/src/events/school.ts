@@ -34,6 +34,7 @@ import type { Co } from '../engine/co';
 import { flag, removeItem, setFlag, state } from '../game/state';
 import { registerDebug } from '../debug';
 import { actor, fadeIn, fadeOut, msg, registerScript, registerWorldFx, stage, walk } from '../world/api';
+import { fxAt } from '../world/fx';
 import { field, type FieldScene } from '../world/field';
 import { getScript } from '../world/scripts';
 import { pickStage } from '../world/maps';
@@ -76,6 +77,8 @@ const POUR_MS = 900;
 
 registerWorldFx({
   map: MAP,
+  // (placed with fxAt: in the HD-2D view at his hand, at the bucket, 02 #85)
+  anchored: true,
   draw(f: FieldScene, g, cx, cy, layer) {
     if (layer !== 'sorted') return;
     const p = f.player;
@@ -87,8 +90,9 @@ registerWorldFx({
       const [r, l] = carriedCan();
       const left = p.dir === 'left';
       const img = left ? l : r;
-      const X = Math.round(p.x - cx + (left ? -17 : 6));
-      const Y = Math.round(p.y - cy - 10 + (p.moving ? Math.floor(f.t / 130) % 2 : 0));
+      const [hx, hy] = fxAt(f, p.x + (left ? -17 : 6), p.y - 10 + (p.moving ? Math.floor(f.t / 130) % 2 : 0), cx, cy, p.y);
+      const X = Math.round(hx);
+      const Y = Math.round(hy);
       if (p.dir !== 'up') {
         g.img(img, X, Y);
         // water in it: a glint at the rose now and then
@@ -100,7 +104,14 @@ registerWorldFx({
       const k = (f.t - pour.t0) / POUR_MS;
       const [, l] = carriedCan();
       const tip = k < 0.12 ? 1 : 0;
-      g.img(l, Math.round(pour.bx - cx + 3), Math.round(pour.by - cy - 13 + tip));
+      // (over the bucket's foot line, 10px below its mouth: fxAt)
+      const foot = pour.by + 10;
+      const at = (x: number, y: number): [number, number] => {
+        const [sx, sy] = fxAt(f, x, y, cx, cy, foot);
+        return [Math.round(sx), Math.round(sy)];
+      };
+      const [cxx, cyy] = at(pour.bx + 3, pour.by - 13 + tip);
+      g.img(l, cxx, cyy);
       if (k > 0.12 && k < 0.9) {
         // a thin stream from the rose down and left into the mouth (1×2 drops)
         for (let i = 0; i < 8; i++) {
@@ -108,12 +119,13 @@ registerWorldFx({
           const x = pour.bx + 3 - ph * 3 + Math.sin(ph * Math.PI) * 0.8;
           const y = pour.by - 10 + ph * 10;
           const c = i % 3 ? P.aqua : P.glint;
-          g.px(Math.round(x - cx), Math.round(y - cy), c);
-          g.px(Math.round(x - cx), Math.round(y - cy) + 1, c);
+          const [X, Y] = at(x, y);
+          g.px(X, Y, c);
+          g.px(X, Y + 1, c);
         }
         // the splash on the surface
-        if (Math.floor(f.t / 90) % 2) g.px(Math.round(pour.bx - cx - 2), Math.round(pour.by - cy), P.glint);
-        else g.px(Math.round(pour.bx - cx + 2), Math.round(pour.by - cy), P.aqua);
+        if (Math.floor(f.t / 90) % 2) g.px(...at(pour.bx - 2, pour.by), P.glint);
+        else g.px(...at(pour.bx + 2, pour.by), P.aqua);
       }
     }
   },
@@ -129,8 +141,12 @@ const TONBO: { cx: number; cy: number; rx: number; ry: number; w: number; ph: nu
   { cx: 392, cy: 90, rx: 36, ry: 22, w: 0.0005, ph: 5.0 },
 ];
 
+/** How high the dragonflies fly (px over the ground below them; HD-2D: where they are in 3D). */
+const TONBO_UP = 24;
+
 registerWorldFx({
   map: MAP,
+  anchored: true,
   draw(f, g, cx, cy, layer) {
     if (layer !== 'fg') return;
     const s = stage();
@@ -148,8 +164,10 @@ registerWorldFx({
         dx = 1;
         dy = -1;
       }
-      const X = Math.round(x) - cx;
-      const Y = Math.round(y) - cy;
+      // (in the air, over the ground TONBO_UP px below: fxAt)
+      const [sx, sy] = fxAt(f, Math.round(x), Math.round(y), cx, cy, Math.round(y) + TONBO_UP);
+      const X = Math.round(sx);
+      const Y = Math.round(sy);
       if (X < -8 || X > 392 || Y < -8 || Y > 224) continue;
       const right = dx >= 0;
       const up = Math.abs(dy) > Math.abs(dx) * 1.2;

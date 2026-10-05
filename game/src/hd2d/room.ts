@@ -22,27 +22,36 @@
 //  - Light: no evening sun inside. The field's sun (view.ts) becomes the
 //    ceiling light — from above, a little from the front, so the furniture
 //    throws short soft shadows back onto the floor and the wall — the sky
-//    light a soft fill, the lamps (glowing props, the pendant lights) the
-//    small warm point lights, and where the back wall has windows the
-//    evening comes in as a beam and a bright patch on the floor
-//    (windowBeams). The colour is the 2D's indoor grade (indoorGrade: the
-//    same numbers as render.ts), so 17:00 and the stages tween as in 2D.
+//    light a soft fill, the glowing props small warm point lights (faint by
+//    day), and where the back wall has windows the evening comes in as a
+//    beam and a bright patch on the floor (buildBeams). The 2D's light map
+//    (every prop's light(): the lamp pools, the TV, the kitchen's tube) is
+//    added onto the floor and the walls (paintLight); at night the room is
+//    the 2D's dark indoor base but for those pools, the characters too
+//    (lightAt). The colour is the 2D's indoor grade (indoorGrade: the same
+//    numbers as render.ts), so 17:00 and the stages tween as in 2D.
+//  - Someone just behind a counter is brought along the line of sight to
+//    just behind its front (boxAt: the counter's picture over them as in 2D);
+//    a bed lies (room_tune.ts LIE); what stands in the back wall's rows
+//    comes forward to just in front of it (nudgeOffWall).
 //  - The camera keeps the town's angle and distance; it looks at the 2D
 //    camera's centre (the rooms are centred, the mall's halls stop at their
-//    edges as in 2D) — lookN 0 in a room.
+//    edges as in 2D) — lookN 0 in a room; the halls wider than the 3D frame
+//    follow Minato across (roomPan).
 
 import * as THREE from 'three';
 import { Gfx } from '../engine/gfx';
+import { W } from '../engine/screen';
 import { P } from '../art/tiles/palette';
 import { cellKind, type CellKind } from '../art/props/ishell';
 import type { FieldScene, PropInst } from '../world/field';
 import { INDOOR_MUL, type Grade } from '../world/lighting';
 import { registerDebug } from '../debug';
 import { CasterSet, CutoutView, PropBatch, ShadowSet, SV, type Box, type CasterSpec, type LightSpot } from './town';
-import { NUDGE } from './tune';
+import { NUDGE, solidOf } from './tune';
 import { box, canvas, litMaterial, pixelTexture, PX, Quads, solidFace, type Face, type V3 } from './solid';
 import { recording, type Solid } from './overlap';
-import { ROOM_TUNE } from './room_tune';
+import { LIE, ROOM_TUNE } from './room_tune';
 
 /** The rooms drawn in HD-2D: chapter 1's houses, shops and the mall (chapter 2's rooms stay 2D). */
 export const ROOM_MAPS = new Set([
@@ -80,6 +89,24 @@ export function roomMap(id: string): boolean {
   return rooms3d.on && ROOM_MAPS.has(id);
 }
 
+/**
+ * The halls of the mall wider than the 3D frame near its bottom edge (the
+ * 2D centres a hall narrower than the screen; the 3D frame is narrower at
+ * its foot): the camera follows Minato (or a scripted pan) across, as far
+ * as the hall's corners need (world units, added to the 2D centre).
+ */
+export function roomPan(f: FieldScene): number {
+  const mw = f.map.w * 16;
+  const slack = Math.max(0, mw / 2 - PAN_HALF);
+  if (!slack) return 0;
+  const cx = f.camX + W / 2;
+  const at = f.camOverride?.x ?? f.player.x + f.player.ox;
+  return Math.max(-slack, Math.min(slack, at - cx)) / 16;
+}
+
+/** Half the width (px) the 3D frame shows near its foot, less a margin (roomPan). */
+const PAN_HALF = 124;
+
 /** Round the room, as in 2D (render.ts clears with the map's outside, else the night). */
 export const ROOM_BG = P.night;
 
@@ -88,6 +115,14 @@ const WALL_T = 4;
 const RIM_H = 4;
 /** How often the room's picture is redrawn (ms; light quality: half as often). */
 const REDRAW_MS = 100;
+/** How much of the 2D light map's value the floor and walls take (× their colour). */
+const LIGHT_MAP = 1;
+/** render.ts INDOOR_NIGHT_UNLIT: a room with no light() of its own at night. */
+const INDOOR_NIGHT_UNLIT: [number, number, number] = [176, 154, 146];
+/** How lit the room is at night outside the lamps' pools (render.ts INDOOR_MUL[3] against the evening's). */
+const NIGHT_BASE = 0.4;
+/** How far behind a piece of furniture's body someone still counts as standing at it (px; addBehind). */
+const BEHIND = 18;
 /** The picture's own margin round the town outside, faded into the dark (px). */
 const FADE = 28;
 /** Width of the spare columns at the picture's right (the side walls' bands, the cross-section's colours). */
@@ -104,9 +139,9 @@ export interface RoomWindow {
 /**
  * The 2D's indoor grade (render.ts grade(): the light map's base is the
  * indoor colour of the stage, the warm bleed from the left is 0.12, the dark
- * from the top 0.1, the colour drained as outdoors). At night the 3D lamps
- * light the room instead of the light map's pools: the base stays the
- * evening's and the room's own lights are turned down (RoomWorld.light).
+ * from the top 0.1, the colour drained as outdoors). At night the base stays
+ * the evening's here: the room's own light goes down to the 2D's night base
+ * instead (RoomWorld.light) and the light map's pools are added on the floor.
  */
 export function indoorGrade(f: FieldScene, stage: number): Grade {
   const g = f.grade;
@@ -125,7 +160,7 @@ export function indoorGrade(f: FieldScene, stage: number): Grade {
 /** The ceiling light's direction (towards the light): from above, a little from the front and the west. */
 const KEY = { el: 62, az: -18 };
 
-/** Per-room touches (room_tune.ts): windows the 2D glass map doesn't mark, the beam's slant. */
+/** Per-room touches (room_tune.ts): windows the 2D glass map doesn't mark. */
 export interface RoomTune {
   windows?: RoomWindow[];
   /** No beams through the windows found in the glass map (they are a door's glass, a picture...). */
@@ -140,6 +175,14 @@ export class RoomWorld {
   readonly solids: Solid[] = [];
   readonly buildParts: Record<string, number> = {};
   readonly windows: RoomWindow[] = [];
+  /** The pendant lights' spots (in `spots` only at night: by day they are off, as in 2D). */
+  private readonly pendants: LightSpot[] = [];
+  private pendantsOn = false;
+  private readonly nightSky = new THREE.Color();
+  private roomMat: THREE.MeshLambertMaterial | null = null;
+  /** Furniture fronts with the floor just behind them (addBehind). */
+  private readonly behind: (Box & { p: PropInst })[] = [];
+  private readonly lying: LyingView[] = [];
   /** The picture: world px (X0, Y0) at its top-left, EW × EH of it, then the spare columns. */
   private readonly X0: number;
   private readonly Y0: number;
@@ -153,6 +196,15 @@ export class RoomWorld {
   private readonly gctx: CanvasRenderingContext2D;
   private readonly gg: Gfx;
   private readonly glowTex: THREE.CanvasTexture;
+  /** The 2D's light map's lights (every prop's light(): lamp pools, the TV, the tube), added onto the floor and the walls. */
+  private readonly lightPic: HTMLCanvasElement;
+  private readonly lctx: CanvasRenderingContext2D;
+  private readonly lg: Gfx;
+  private readonly lightTex: THREE.CanvasTexture;
+  /** The room's cells (the indoor light stays inside them, as render.ts clips it). */
+  private roomMask: HTMLCanvasElement | null = null;
+  /** The light map read back at night (lightAt). */
+  private lightData: Uint8ClampedArray | null = null;
   private readonly kinds: CellKind[][];
   /** Per column: the back wall's first row and its foot row (the first floor row), or −1. */
   private readonly wallTop: number[];
@@ -236,6 +288,14 @@ export class RoomWorld {
     this.gg = new Gfx(this.gctx, this.glowPic.width, this.glowPic.height);
     this.tex = pixelTexture(this.pic);
     this.glowTex = pixelTexture(this.glowPic);
+    [this.lightPic, this.lctx] = canvas(this.pic.width, this.pic.height);
+    this.lg = new Gfx(this.lctx, this.lightPic.width, this.lightPic.height);
+    this.lightTex = pixelTexture(this.lightPic);
+    // (the 2D adds its lights to the light map in its own colour space: the
+    // values go in as they are, not decoded, so a faint pool stays as faint)
+    this.lightTex.colorSpace = THREE.NoColorSpace;
+    this.lightTex.magFilter = THREE.LinearFilter;
+    this.lightTex.minFilter = THREE.LinearFilter;
     // the side walls' bands from the back wall's face (before the light goes on it)
     this.paint(0, false);
     this.strip = this.wallBands();
@@ -263,16 +323,25 @@ export class RoomWorld {
       // flat pictures are in the room's picture; a flat one with parts that
       // hang in the air (the pendant lights: no picture of their own) stands those
       if (a.flat && !(a.fg?.length && !a.img(env))) continue;
+      // a thing that lies (a bed): its top flat, its front standing (room_tune.ts LIE)
+      const pid = p.obj.t === 'prop' ? p.obj.prop : (p.obj.prop ?? p.obj.id);
+      if (LIE[pid] !== undefined && !a.flat) {
+        const l = new LyingView(p, env, LIE[pid]);
+        this.lying.push(l);
+        this.group.add(l.mesh);
+        continue;
+      }
       this.nudgeOffWall(p);
       const c = new CutoutView(p, env, this.casterSpecs, this.batches, this.shadows, 0, solids);
       this.cutouts.push(c);
       this.group.add(c.group);
       if (c.spot) this.spots.push(c.spot);
       else if (a.light && a.flat && a.fg?.length) {
-        // a pendant: its light where its shade hangs (the lowest part's top)
+        // a pendant (lit at night only, as in 2D): its light just under its shade
         const low = Math.max(...a.fg.map((pt) => pt.oy));
-        this.spots.push({ x: (p.x + 8) * PX, y: Math.max(0.4, -low * PX * SV), z: p.y * PX + 0.3, p });
+        this.pendants.push({ x: (p.x + 8) * PX, y: Math.max(0.3, -low * PX * SV - 0.35), z: p.y * PX, p });
       }
+      this.addBehind(p, env);
     }
     lap('props');
     for (const b of [this.batches.real, this.batches.thin, this.shadows]) {
@@ -284,6 +353,53 @@ export class RoomWorld {
       this.group.add(this.casters.mesh);
     }
     lap('batches');
+    shown = this;
+  }
+
+  /** QA (hd2dRoom). */
+  qa(pic?: 'room' | 'glow' | 'light'): unknown {
+    // (dev server only: the published page carries none of it)
+    if (!import.meta.env.DEV) return null;
+    if (pic) return (pic === 'room' ? this.pic : pic === 'glow' ? this.glowPic : this.lightPic).toDataURL();
+    return {
+      map: this.f.map.id,
+      picture: [this.X0, this.Y0, this.EW, this.EH],
+      windows: this.windows,
+      behind: this.behind.map((b) => [b.p.obj.t === 'prop' ? b.p.obj.prop : b.p.obj.id, +b.x0.toFixed(2), +b.x1.toFixed(2), +b.z0.toFixed(2), +b.z1.toFixed(2)]),
+      spots: this.spots.length,
+      pendants: this.pendants.length,
+      night: this.f.grade.night,
+      lightData: !!this.lightData,
+      lightMap: [!!this.roomMat?.lightMap, this.roomMat?.lightMapIntensity, this.roomMat?.lightMap === this.lightTex],
+    };
+  }
+
+  /**
+   * Where someone standing just behind a piece of furniture (the shopkeeper
+   * behind the counter, a customer at a table) is drawn under its picture in
+   * 2D: its front, and the strip of floor behind it (its body and a step
+   * more). boxAt() hands it to actors.ts, which brings the one standing
+   * there along the line of sight to just behind the front — the same place
+   * on screen, the counter's picture over them as the 2D draws it, its
+   * pushed-back top not over their head (2026-10-05: おばあ was hidden
+   * behind ひのや's counter).
+   */
+  private addBehind(p: PropInst, env: ReturnType<FieldScene['propEnv']>): void {
+    const a = p.art;
+    // (a pendant's parts hang over everyone, as the 2D's fg layer)
+    if (a.flat) return;
+    const img = a.img(env);
+    const w = img?.width ?? a.w;
+    const top = p.y + a.oy;
+    const foot = p.y + a.foot;
+    const standH = Math.max(0, Math.min(img?.height ?? a.h, foot - top));
+    if (standH < 8) return;
+    const id = p.obj.t === 'prop' ? p.obj.prop : (p.obj.prop ?? p.obj.id);
+    const spec = solidOf(id, w, standH);
+    if (spec.kind === 'flat') return;
+    const nz = NUDGE[`${id}@${p.x / 16},${p.y / 16}`]?.z ?? 0;
+    const z1 = (foot + nz) * PX;
+    this.behind.push({ x0: (p.x + a.ox) * PX, x1: (p.x + a.ox + w) * PX, y1: standH * PX * SV, z0: z1 - (spec.depth + BEHIND) * PX, z1, p });
   }
 
   /** Cell kind (outside the map: the dark). */
@@ -379,6 +495,7 @@ export class RoomWorld {
       }
     }
     if (!lit) return;
+    this.paintLight();
     this.fadeEdges();
     if (this.strip) {
       // the spare columns: the side walls' bands, the cross-section's colours
@@ -395,6 +512,70 @@ export class RoomWorld {
     this.tex.needsUpdate = true;
     this.glowTex.needsUpdate = true;
     this.lastPaint = t;
+  }
+
+  /**
+   * The lights of the 2D's light map (render.ts grade(): every prop's
+   * light(), added up, kept inside the room's cells): the lamps' pools on
+   * the floor and the walls at night, the faint ones by day.
+   */
+  private paintLight(): void {
+    const f = this.f;
+    const ctx = this.lctx;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, this.lightPic.width, this.lightPic.height);
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of f.props) {
+      const a = p.art;
+      if (!p.present || !a.light) continue;
+      ctx.save();
+      a.light(this.lg, p.x - this.X0, p.y - this.Y0, f.propEnv(p));
+      ctx.restore();
+    }
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.drawImage(this.mask(), 0, 0);
+    ctx.globalCompositeOperation = 'destination-over';
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, this.lightPic.width, this.lightPic.height);
+    ctx.restore();
+    this.lightTex.needsUpdate = true;
+    this.lightData = f.grade.night > 0.05 ? ctx.getImageData(0, 0, this.EW, this.EH).data : null;
+  }
+
+  /** The room's cells, opaque (floor, wall, the doorway). */
+  private mask(): HTMLCanvasElement {
+    if (this.roomMask) return this.roomMask;
+    const [c, ctx] = canvas(this.pic.width, this.pic.height);
+    ctx.fillStyle = '#fff';
+    for (let ty = 0; ty < this.kinds.length; ty++)
+      for (let tx = 0; tx < this.kinds[0].length; tx++) if (this.kind(tx, ty) !== 'void') ctx.fillRect(tx * 16 - this.X0, ty * 16 - this.Y0, 16, 16);
+    this.roomMask = c;
+    return c;
+  }
+
+  /**
+   * How lit someone standing at (x, z) (units) is: by day as painted; at
+   * night the room's dark base and the light map's pools where they stand
+   * (the 2D multiplies the characters by its light map too).
+   */
+  lightAt(x: number, z: number): number {
+    const n = this.f.grade.night;
+    const d = this.lightData;
+    if (n < 0.05 || !d) return 1;
+    const px = Math.floor(x * 16 - this.X0);
+    const py = Math.floor(z * 16 - 6 - this.Y0);
+    let pool = 0;
+    if (px >= 0 && py >= 0 && px < this.EW && py < this.EH) {
+      const i = (py * this.EW + px) * 4;
+      pool = (d[i] * 0.3 + d[i + 1] * 0.5 + d[i + 2] * 0.2) / 255;
+    }
+    // (the characters' colour is multiplied after decoding: the 2D's base, decoded, and the pool as the floor takes it)
+    const base = toLinear(NIGHT_BASE * n + (1 - n));
+    return Math.min(1, base + pool * LIGHT_MAP);
   }
 
   /** The 2D's glass (render.ts drawGlass): the evening sky in the window panes, at 0.7. */
@@ -604,9 +785,12 @@ export class RoomWorld {
         tx = t1;
       }
     }
-    const outside = new THREE.Mesh(ex.geometry(), new THREE.MeshBasicMaterial({ map: this.tex }));
+    // (a step darker than painted: the bloom's haze lifts it, and the room is what is lit)
+    const outside = new THREE.Mesh(ex.geometry(), new THREE.MeshBasicMaterial({ map: this.tex, color: new THREE.Color(0.86, 0.86, 0.88) }));
     outside.renderOrder = -1;
-    const mat = litMaterial(this.tex, { alphaTest: 0 });
+    // (the 2D's light map's pools added: lightMapIntensity π adds the map's value times the colour)
+    const mat = litMaterial(this.tex, { alphaTest: 0, lightMap: this.lightTex, lightMapIntensity: Math.PI * LIGHT_MAP });
+    this.roomMat = mat;
     const roomMesh = new THREE.Mesh(room.geometry(), mat);
     roomMesh.receiveShadow = true;
     roomMesh.castShadow = true;
@@ -774,10 +958,30 @@ export class RoomWorld {
     sun.position.set(t.x + d.x * 30, d.y * 30, t.z - 1 + d.z * 30);
     sun.target.updateMatrixWorld();
     sun.color.set('#fff1dc');
-    sun.intensity = 1.25 * (1 - night * 0.55);
-    hemi.color.set('#fff6ec');
-    hemi.groundColor.set('#a898b8');
-    hemi.intensity = 2.15 * (1 - night * 0.55);
+    sun.intensity = 1.15 * (1 - night);
+    // the sky light: the evening's; at night the 2D's indoor night base
+    // against the evening's (the finish keeps the evening's colour), the
+    // lamps' pools come from the light map (paintLight)
+    const st = Math.max(0, Math.min(2, Math.floor(this.f.propEnv(null).stage)));
+    const day = INDOOR_MUL[st] ?? INDOOR_MUL[0];
+    const nb = this.mapLit ? INDOOR_MUL[3] : INDOOR_NIGHT_UNLIT;
+    // (the 2D multiplies in its colour space: the light here is that, decoded)
+    const rel = [0, 1, 2].map((i) => toLinear(nb[i] / Math.max(1, day[i])));
+    const top = Math.max(...rel);
+    this.nightSky.setRGB(rel[0] / top, rel[1] / top, rel[2] / top, THREE.LinearSRGBColorSpace);
+    hemi.color.set('#fff6ec').lerp(this.nightSky, night);
+    hemi.groundColor.set('#a898b8').lerp(this.nightSky, night * 0.6);
+    hemi.intensity = 2.3 + (top * Math.PI - 2.3) * night;
+    // the pendant lights come on at night (as their glow and light in 2D)
+    const lamps = night > 0.05;
+    if (lamps !== this.pendantsOn) {
+      this.pendantsOn = lamps;
+      for (const s of this.pendants) {
+        const i = this.spots.indexOf(s);
+        if (lamps && i < 0) this.spots.unshift(s);
+        else if (!lamps && i >= 0) this.spots.splice(i, 1);
+      }
+    }
     // the windows: the evening's colour, gone at night, faint in the stopped stage
     if (this.beamMat && this.patchMat) {
       const k = (1 - night) * (this.f.grade.motion < 0.5 && g.toMall < 0.5 ? 0.65 : 1);
@@ -789,9 +993,14 @@ export class RoomWorld {
     return Math.atan2(d.x, d.z);
   }
 
+  /** The lamps' strength (view.ts placeLamps): faint by day (the 2D's lamps light nothing then), full at night. */
+  lampK(): number {
+    return 0.22 + 0.6 * this.f.grade.night;
+  }
+
   /** The 2D's indoor grade for the finish (post.ts). */
   grade(): Grade {
-    return indoorGrade(this.f, this.f.grade.motion >= 0 ? stageOf(this.f) : 0);
+    return indoorGrade(this.f, this.f.propEnv(null).stage);
   }
 
   update(t: number, sunYaw: number, _sunDir: THREE.Vector3, lit: number, _tx: number, _tz: number, hides: (r: [number, number, number, number, number]) => boolean): void {
@@ -799,6 +1008,7 @@ export class RoomWorld {
     if (t - this.lastPaint >= this.every || t < this.lastPaint) this.paint(t, true);
     const seers = [f.player, ...(f.follower ? [f.follower] : [])].map((a) => ({ x: a.x + a.ox, y: a.y }));
     for (const c of this.cutouts) c.update(f, t, sunYaw, lit, seers, true, hides);
+    for (const l of this.lying) l.update(f);
     this.casters?.turn(sunYaw);
   }
 
@@ -807,9 +1017,18 @@ export class RoomWorld {
     return 0;
   }
 
-  /** No building boxes indoors. */
-  boxAt(_x: number, _z: number): Box | null {
-    return null;
+  /**
+   * The furniture someone standing at (x, z) is just behind (addBehind):
+   * the one whose front is nearest north of them (the 2D draws the ones
+   * further south over that one too, and they stay in front in 3D).
+   */
+  boxAt(x: number, z: number): Box | null {
+    let best: Box | null = null;
+    for (const b of this.behind) {
+      if (!b.p.present || x <= b.x0 || x >= b.x1 || z <= b.z0 || z >= b.z1 - 0.04) continue;
+      if (!best || b.z1 < best.z1) best = b;
+    }
+    return best;
   }
 
   inShadow(_p: V3, _dir: THREE.Vector3): boolean {
@@ -817,6 +1036,7 @@ export class RoomWorld {
   }
 
   dispose(): void {
+    if (shown === this) shown = null;
     // the town's sun and sky light as they were
     if (this.saved && this.sunRef && this.hemiRef) {
       this.sunRef.color.copy(this.saved.sun);
@@ -824,12 +1044,14 @@ export class RoomWorld {
       this.hemiRef.groundColor.copy(this.saved.ground);
     }
     for (const c of this.cutouts) c.dispose();
+    for (const l of this.lying) l.dispose();
     this.casters?.dispose();
     this.batches.real.dispose();
     this.batches.thin.dispose();
     this.shadows.dispose();
     this.tex.dispose();
     this.glowTex.dispose();
+    this.lightTex.dispose();
     this.group.traverse((o) => {
       if (o instanceof THREE.Mesh && !this.cutouts.some((c) => c.group === o.parent)) {
         o.geometry.dispose();
@@ -841,10 +1063,88 @@ export class RoomWorld {
   }
 }
 
-/** The stage the room shows (the field's stage flag through its grade's source). */
-function stageOf(f: FieldScene): number {
-  const env = f.propEnv(null);
-  return env.stage;
+/**
+ * A thing that lies on the floor more than it stands (a bed): the ¾
+ * picture's rows above its front lie flat on top of it, the front's `h` rows
+ * stand at the foot line, the rows below lie on the floor — on screen the
+ * same picture, in 3D a low box instead of a board standing up.
+ */
+class LyingView {
+  readonly mesh: THREE.Mesh;
+  private readonly tex: THREE.CanvasTexture;
+  private last: HTMLCanvasElement | null;
+
+  constructor(
+    readonly p: PropInst,
+    env: ReturnType<FieldScene['propEnv']>,
+    front: number,
+  ) {
+    const a = p.art;
+    const img = a.img(env);
+    this.last = img;
+    const [c] = img ? [img] : canvas(a.w, a.h);
+    this.tex = pixelTexture(c);
+    const iw = c.width;
+    const ih = c.height;
+    const left = p.x + a.ox;
+    const top = p.y + a.oy;
+    const foot = p.y + a.foot;
+    const rf = Math.max(0, Math.min(ih, foot - top));
+    const h = Math.max(0, Math.min(front, rf));
+    const uv = (cc: number, r: number): [number, number] => [cc / iw, 1 - r / ih];
+    const q = new Quads();
+    const x0 = left * PX;
+    const x1 = (left + iw) * PX;
+    const Y = h * PX * SV;
+    const zN = (top + h) * PX;
+    const zF = foot * PX;
+    // the top: the rows above the front, lying at the front's height (row r over z = r + h)
+    if (rf - h > 0) {
+      const A = uv(0, rf - h);
+      const B = uv(iw, 0);
+      q.add([x0, Y, zF], [x1, Y, zF], [x1, Y, zN], [x0, Y, zN], [0, 1, 0], A[0], A[1], B[0], B[1]);
+    }
+    if (h > 0) {
+      // the front, standing at the foot line, and the two ends in its edge columns' colours
+      const A = uv(0, rf);
+      const B = uv(iw, rf - h);
+      q.add([x0, 0, zF], [x1, 0, zF], [x1, Y, zF], [x0, Y, zF], [0, 0, 1], A[0], A[1], B[0], B[1]);
+      const vm = uv(0, rf - h / 2)[1];
+      const ul = 0.5 / iw;
+      const ur = (iw - 0.5) / iw;
+      q.add([x0, 0, zN], [x0, 0, zF], [x0, Y, zF], [x0, Y, zN], [-1, 0, 0], ul, vm, ul, vm);
+      q.add([x1, 0, zF], [x1, 0, zN], [x1, Y, zN], [x1, Y, zF], [1, 0, 0], ur, vm, ur, vm);
+    }
+    if (rf < ih) {
+      // the rows below the foot line lie on the floor in front
+      const A = uv(0, ih);
+      const B = uv(iw, rf);
+      q.add([x0, 0.012, (top + ih) * PX], [x1, 0.012, (top + ih) * PX], [x1, 0.012, zF], [x0, 0.012, zF], [0, 1, 0], A[0], A[1], B[0], B[1]);
+    }
+    this.mesh = new THREE.Mesh(q.geometry(), litMaterial(this.tex));
+    this.mesh.castShadow = true;
+    this.mesh.receiveShadow = true;
+  }
+
+  update(f: FieldScene): void {
+    this.mesh.visible = this.p.present;
+    if (!this.p.present) return;
+    const img = this.p.art.img(f.propEnv(this.p));
+    if (img && img !== this.last && img.width === (this.tex.image as HTMLCanvasElement).width) {
+      this.tex.image = img;
+      this.tex.needsUpdate = true;
+      this.last = img;
+    }
+  }
+
+  dispose(): void {
+    this.tex.dispose();
+  }
+}
+
+/** An sRGB value (0..1) decoded to linear. */
+function toLinear(v: number): number {
+  return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
 }
 
 /** A colour a step darker (css). */
@@ -881,7 +1181,16 @@ function softTexture(patch: boolean): THREE.CanvasTexture {
   return t;
 }
 
-registerDebug('hd2dRooms', (v?: boolean) => {
-  if (v !== undefined) rooms3d.on = !!v;
-  return { on: rooms3d.on, rooms: [...ROOM_MAPS] };
-});
+/** The room standing now (QA). */
+let shown: RoomWorld | null = null;
+
+// (QA only: the published page leaves these out)
+if (import.meta.env.DEV) {
+  /** QA: the room's windows, the furniture fronts, and its pictures (`pic`: 'room' | 'glow' | 'light' as a data URL). */
+  registerDebug('hd2dRoom', (pic?: 'room' | 'glow' | 'light') => (shown ? shown.qa(pic) : null));
+  /** QA: false leaves the rooms 2D (compare), true stands them again (the next build: a door, a warp). */
+  registerDebug('hd2dRooms', (v?: boolean) => {
+    if (v !== undefined) rooms3d.on = !!v;
+    return { on: rooms3d.on, rooms: [...ROOM_MAPS] };
+  });
+}

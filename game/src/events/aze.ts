@@ -29,6 +29,7 @@ import type { Co } from '../engine/co';
 import { addItem, flag, hasItem, removeItem, setFlag, state } from '../game/state';
 import { registerDebug } from '../debug';
 import { actor, msg, registerScript, registerWorldFx, stage, walk } from '../world/api';
+import { fxAt } from '../world/fx';
 import { field, type FieldScene } from '../world/field';
 import { getScript } from '../world/scripts';
 import { SPEAKERS } from '../world/msg';
@@ -136,8 +137,12 @@ const TONBO: { cx: number; cy: number; rx: number; ry: number; w: number; ph: nu
   { cx: 300, cy: 190, rx: 40, ry: 12, w: 0.00047, ph: 4.4 },
 ];
 
+/** How high the dragonflies fly (px over the ground below them; HD-2D: where they are in 3D). */
+const TONBO_UP = 24;
+
 registerWorldFx({
   map: MAP,
+  anchored: true,
   draw(f, g, cx, cy, layer) {
     if (layer !== 'fg') return;
     const s = stage();
@@ -155,8 +160,10 @@ registerWorldFx({
         dx = 1;
         dy = -1;
       }
-      const X = Math.round(x) - cx;
-      const Y = Math.round(y) - cy;
+      // (in the air, over the paddy TONBO_UP px below: fxAt)
+      const [sx, sy] = fxAt(f, Math.round(x), Math.round(y), cx, cy, Math.round(y) + TONBO_UP);
+      const X = Math.round(sx);
+      const Y = Math.round(sy);
       if (X < -8 || X > 392 || Y < -8 || Y > 224) continue;
       // body along the heading (4px: the head darker), the two pairs of wings a pale
       // cross over the thorax, flickering (held still in stage 1)

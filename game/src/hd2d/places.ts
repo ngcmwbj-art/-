@@ -25,20 +25,33 @@ export interface PlaceDef {
   water?: boolean;
   drop?: number;
   sky?: boolean;
+  /** Its MapDef.shadowVec (stage 2) turns the 3D shadows by as much as it turns the 2D ones from the evening's (view.ts placeSun). */
+  shadowSwing?: boolean;
 }
 
-/** The roof's drop to the ground (units): two storeys of the mall and a parapet. */
-export const ROOF_DROP = 7.5;
+/**
+ * The roof's drop to the ground (units): the mall's ground floor as the town
+ * stands it up (bld_mall, F = 5 tiles × SV), its blank upper wall and the
+ * parapet — high enough that the town below reads small.
+ */
+export const ROOF_DROP = 10;
 
 export const PLACES: Record<string, PlaceDef> = {
   map_town: { water: true },
   map_school: {
+    shadowSwing: true,
     // the pool's water lies lower than its deck
     steps: { w: -6 },
-    // past the east edge the pool ends two tiles on (its deck, then the mesh)
-    outside: (tx, ty, edge) => (tx >= 28 && edge === 'w' ? (tx < 30 ? 'w' : 'P') : edge),
+    // past the east edge the pool ends two tiles on (its deck, then the
+    // mesh), then the grass of the school's east garden
+    outside: (tx, ty, edge) => {
+      if (tx < 28 || ty < 3 || ty > 9) return edge;
+      if (tx < 30) return edge;
+      return tx === 30 && ty >= 4 ? 'P' : ',';
+    },
   },
   map_school_kotei: {
+    shadowSwing: true,
     // the sand pit a step below the ground, inside its wooden frame
     steps: { s: -2 },
   },
@@ -47,12 +60,12 @@ export const PLACES: Record<string, PlaceDef> = {
     water: true,
     // the river (and the fish pass) well below its banks; the bridge's deck a step up
     steps: { v: -8, f: -8, b: 2, r: 2 },
-    // north of the bridge and west of the map the river goes on (the bridge
-    // itself goes on west, rows 0–3, to となり町)
+    // the river goes on north and south, 13 tiles wide (x −4..8); past it
+    // the west bank; the bridge (rows 0–3) goes on west over it to となり町
     outside: (tx, ty, edge) => {
-      if (tx <= 8 && ty < 0) return 'v';
-      if (tx < 0 && ty >= 4) return 'v';
-      if (ty >= 16 && tx <= 8) return 'v';
+      if (ty >= 0 && ty <= 3) return edge;
+      if (tx < -4) return ',';
+      if (tx <= 8 && (ty < 0 || ty >= 16 || tx < 0)) return 'v';
       return edge;
     },
   },

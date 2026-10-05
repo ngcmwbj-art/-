@@ -39,9 +39,10 @@ import { Atlas, canvas, casterMaterial, litMaterial, Mask, ownUv, pixelTexture, 
 import { crownBoards, standUp, type Stood } from './props3d';
 import { flatShapeOf, shapeOf } from './shapes';
 import { placeOf } from './places';
+import { liveFlat, waterSheet, type LiveSheet } from './water3d';
 import { charAt } from '../world/maps';
 import { buildWalls, type Walls } from './walls';
-import { Outskirts, outskirtsGround } from './outskirts';
+import { BelowTown, Outskirts, outskirtsGround, skyBackdrop } from './outskirts';
 import { recording, type Slab, type Solid } from './overlap';
 
 export { casterMaterial, pixelTexture } from './solid';
@@ -239,13 +240,15 @@ class BuildingView {
     const flatTop = !b.R && !!tune.depth;
     const D = b.R || tune.depth || 0;
     const zb = zf - D;
+    // (tune.deep: the box goes on behind the roof rows, zb → zd)
+    const zd = zb - (b.R ? (tune.deep ?? 0) : 0);
     const hF = b.F * SV;
     const rise = tune.rise ?? 0;
     // storeys over the ones the 2D draws (tune.ts upper)
     const up = tune.upper;
     const hUp = up ? up.n * (up.r1 - up.r0) * PX * SV : 0;
     const hTop = hF + hUp;
-    this.box = { x0, x1, y1: hTop + rise, z0: zb, z1: zf };
+    this.box = { x0, x1, y1: hTop + rise, z0: zd, z1: zf };
     const q = new Quads();
     // the front wall: the facade rows
     vquad(q, x0, x1, 0, hF, zf, uvOf(iw, ih, 0, faceY, iw, ih));
@@ -307,13 +310,24 @@ class BuildingView {
     // the side walls (and a back wall for the shadow), in the facade's own colour
     const sq = new Quads();
     const yTop = hTop;
-    sq.add([x0, 0, zb], [x0, 0, zf], [x0, yTop, zf], [x0, yTop, zb], [-1, 0, 0], 0, 0, 1, 1);
-    sq.add([x1, 0, zf], [x1, 0, zb], [x1, yTop, zb], [x1, yTop, zf], [1, 0, 0], 0, 0, 1, 1);
-    sq.add([x1, 0, zb], [x0, 0, zb], [x0, yTop + rise, zb], [x1, yTop + rise, zb], [0, 0, -1], 0, 0, 1, 1);
+    sq.add([x0, 0, zd], [x0, 0, zf], [x0, yTop, zf], [x0, yTop, zd], [-1, 0, 0], 0, 0, 1, 1);
+    sq.add([x1, 0, zf], [x1, 0, zd], [x1, yTop, zd], [x1, yTop, zf], [1, 0, 0], 0, 0, 1, 1);
+    sq.add([x1, 0, zd], [x0, 0, zd], [x0, yTop + rise, zd], [x1, yTop + rise, zd], [0, 0, -1], 0, 0, 1, 1);
     if (rise > 0) {
       // the gable ends under a sloped roof (triangles: the 4th corner repeats the 3rd)
       sq.add([x0, yTop, zb], [x0, yTop, zf], [x0, yTop + rise, zb], [x0, yTop + rise, zb], [-1, 0, 0], 0, 0, 1, 1);
       sq.add([x1, yTop, zf], [x1, yTop, zb], [x1, yTop + rise, zb], [x1, yTop + rise, zb], [1, 0, 0], 0, 0, 1, 1);
+    }
+    if (zd < zb) {
+      // the flat roof behind the roof rows
+      const rq = new Quads();
+      const y = hTop + rise;
+      rq.add([x0, y, zb], [x1, y, zb], [x1, y, zd], [x0, y, zd], [0, 1, 0], 0, 0, 1, 1);
+      sh?.add(rq, null);
+      const roof = new THREE.Mesh(rq.geometry(), new THREE.MeshLambertMaterial({ color: new THREE.Color(tune.roof ?? sideColour(this.skin.c, faceY)) }));
+      roof.castShadow = !sh;
+      roof.receiveShadow = true;
+      this.group.add(roof);
     }
     if (flatTop && !tune.lid) {
       // the flat roof (with a parapet's lip round it)
@@ -835,6 +849,11 @@ export class TownWorld {
   private readonly batches = { real: new PropBatch(true), thin: new PropBatch(false) };
   private readonly shadows = new ShadowSet();
   private readonly flatBodies: THREE.Mesh[] = [];
+  /** Live sheets: the water layer, the flat props that move (water3d.ts). */
+  private readonly live: LiveSheet[] = [];
+  private below: BelowTown | null = null;
+  /** The sky's backdrop (the roof): it keeps its distance north of the camera's target, as a far sky does. */
+  private sky: THREE.Mesh | null = null;
   /** How long each part took to stand up (ms; QA, hd2dStats). */
   readonly buildParts: Record<string, number> = {};
 
@@ -868,6 +887,31 @@ export class TownWorld {
     this.outskirts = new Outskirts(f, SV, solids);
     if (this.outskirts.mesh) this.group.add(this.outskirts.mesh);
     lap('outskirts');
+    // the water as the 2D draws it (the sky in the canal, the rice in the paddies), and the flat props that move (water3d.ts)
+    const place = placeOf(m.id);
+    const hAt = (x: number, z: number) => this.heightAt(x, z);
+    const water = place.water ? waterSheet(f, MARGIN, hAt, light) : null;
+    if (water) this.live.push(water);
+    const outsideChar = (tx: number, ty: number) => {
+      const edge = charAt(m, Math.max(0, Math.min(m.w - 1, tx)), Math.max(0, Math.min(m.h - 1, ty)));
+      return place.outside ? place.outside(tx, ty, edge) : edge;
+    };
+    for (const p of f.props) {
+      const id = p.obj.t === 'prop' ? p.obj.prop : (p.obj.prop ?? p.obj.id);
+      const chars = LIVE_FLAT[id];
+      const sheet = chars ? liveFlat(f, p, chars, MARGIN, outsideChar, hAt, light) : null;
+      if (sheet) this.live.push(sheet);
+    }
+    for (const l of this.live) this.group.add(l.mesh);
+    lap('water');
+    // a high place (the roof): the town below, the sky beyond (outskirts.ts)
+    if (place.drop) {
+      this.below = new BelowTown(f, SV, place.drop);
+      this.group.add(this.below.group);
+      this.sky = place.sky ? skyBackdrop(f) : null;
+      if (this.sky) this.group.add(this.sky);
+      lap('below');
+    }
     this.buildWires();
     for (const p of f.props) {
       const a = p.art;
@@ -1122,6 +1166,11 @@ export class TownWorld {
   update(t: number, sunYaw: number, sunDir: THREE.Vector3, lit: number, tx: number, tz: number, hides: (r: [number, number, number, number, number]) => boolean): void {
     const f = this.f;
     if (this.frame++ % 30 === 0) this.buildGround();
+    for (const [i, l] of this.live.entries()) {
+      l.update(t, tx, tz);
+      this.buildParts[`liveDraw${i}`] = Math.round(l.drawMs * 10) / 10;
+    }
+    this.sky?.position.set(tx, SKY_AT.y, tz - SKY_AT.d);
     const near = (x: number, z: number) => Math.abs(x - tx) < NEAR_X && Math.abs(z - tz) < NEAR_Z;
     for (const b of this.buildings) b.update(f, t, lit, near(b.cx, b.cz));
     const seers = [f.player, ...(f.follower ? [f.follower] : [])].map((a) => ({ x: a.x + a.ox, y: a.y }));
@@ -1140,6 +1189,14 @@ export class TownWorld {
     for (const b of this.buildings) b.dispose();
     for (const c of this.cutouts) c.dispose();
     for (const b of this.flatBodies) ((b.material as THREE.MeshLambertMaterial).map as THREE.Texture | null)?.dispose();
+    for (const l of this.live) {
+      this.group.remove(l.mesh);
+      l.dispose();
+    }
+    if (this.below) {
+      this.group.remove(this.below.group);
+      this.below.dispose();
+    }
     this.casters?.dispose();
     this.groundTex?.dispose();
     this.walls?.dispose();
@@ -1239,6 +1296,15 @@ export class CasterSet {
     (this.mesh.material as THREE.Material).dispose();
   }
 }
+
+/** The sky's backdrop: its middle's height and how far north of the camera's target (the camera at 40°, 25 away: it fills the top of the picture above the drop). */
+const SKY_AT = { y: -7.6, d: 20 };
+
+/** Flat props that move, laid live over the tiles of these map characters (water3d.ts liveFlat). */
+const LIVE_FLAT: Record<string, string> = {
+  // 夕鳴川 under the weir: its current, the spray (the river tiles and the fish pass)
+  prop_seki_river: 'vf',
+};
 
 /** The box round the camera's target (units) inside which pictures stay live. */
 const NEAR_X = 22;

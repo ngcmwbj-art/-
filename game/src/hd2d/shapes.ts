@@ -501,6 +501,57 @@ const fenceS: Shape = (k) => {
   return { stand: [k.lift, H(k, rf)], cx: (k.x + k.w / 2) * PX, cz: k.foot * PX, solid: false, noXray: false };
 };
 
+// ---------------------------------------------------------------- 夕鳴公園 (map_town): the clock tower
+
+/**
+ * 時計塔 (prop_clocktower, 34 × 92; foot at its bottom row): the stone
+ * pedestal, the fluted shaft and the clock box as boxes — the box's face on
+ * all four sides, as a tower clock has it — under its green hipped cap, a
+ * pyramid of the cap's rows. (2026-10-05, 依頼主の「書き割りっぽい所」.)
+ */
+const clocktower: Shape = (k) => {
+  const B = k.h - 1;
+  const h = (r: number) => B - r;
+  const zf = k.foot;
+  const X = (c: number) => (k.x + c) * PX;
+  const block = (c0: number, c1: number, r0: number, r1: number, d: number, top?: Face) => {
+    const zc = zf - 8;
+    const face = rect(k, c0, r0, c1, r1);
+    box(k.q, X(c0), X(c1), H(k, h(r1)), H(k, h(r0)), (zc - d / 2) * PX, (zc + d / 2) * PX, { front: face, left: face, right: face, back: face, top });
+    k.rec?.push({ x0: k.x + c0, x1: k.x + c1, h0: hRow(k, h(r1)), h1: hRow(k, h(r0)), z0: zc - d / 2, z1: zc + d / 2, face: true });
+  };
+  // pedestal, shaft, clock box
+  block(1, 33, 72, B, 16, px1(k, 16, 72));
+  block(10, 24, 26, 72, 12, px1(k, 16, 30));
+  block(6, 28, 10, 32, 20, px1(k, 16, 11));
+  // the cap: a pyramid from the box's top edge to the finial's foot (its front rows on each side)
+  const uv = puv(k);
+  const zc = (zf - 8) * PX;
+  const r = 13 * PX;
+  const d = 12 * PX;
+  const y0 = H(k, h(11));
+  const y1 = H(k, h(-1));
+  const apex: V3 = [X(17), y1, zc];
+  const base = uv(4, 11);
+  const tip = uv(17, 0);
+  const right = uv(30, 11);
+  const corners: [number, number][] = [
+    [X(17) - r, zc + d],
+    [X(17) + r, zc + d],
+    [X(17) + r, zc - d],
+    [X(17) - r, zc - d],
+  ];
+  for (let i = 0; i < 4; i++) {
+    const [ax, az] = corners[i];
+    const [bx, bz] = corners[(i + 1) % 4];
+    const n = norm([bz - az, 0.6, -(bx - ax)]);
+    k.q.add4([ax, y0, az], [bx, y0, bz], apex, apex, n, [base[0], base[1], right[0], right[1], tip[0], tip[1], tip[0], tip[1]]);
+  }
+  // the finial
+  box(k.q, X(16.5), X(17.5), y1, H(k, h(-6)), zc - 0.5 * PX, zc + 0.5 * PX, { front: px1(k, 17, 0), left: px1(k, 17, 0), right: px1(k, 17, 0) });
+  return { stand: [k.lift, H(k, k.h)], cx: X(17), cz: zc, solid: true };
+};
+
 // ---------------------------------------------------------------- the table
 
 /** Shapes by prop id (a function of the opts where one picture serves several). */
@@ -530,6 +581,8 @@ export function shapeOf(id: string, opts: Record<string, unknown>): Shape | null
       return boxy(0, 20, 0, 52, 20);
     case 'mall_roof_fence_s':
       return fenceS;
+    case 'prop_clocktower':
+      return clocktower;
     default:
       return null;
   }

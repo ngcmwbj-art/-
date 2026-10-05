@@ -1474,9 +1474,12 @@ export class FieldScene implements Scene {
     const fixed = this.map.def.camera === 'fixed';
     // (the HD-2D town: no stop at the edges, the 3D picture goes on past them)
     const free = !fixed && altFreeCam?.(this) === true;
-    if (mw <= W || fixed) x = (mw - W) / 2;
+    // (a map no wider than the screen is held centred in 2D; the 3D view is
+    // narrower than the 2D frame, so there the camera follows too: the roof,
+    // the diversion, 2026-10-05)
+    if ((mw <= W && !free) || fixed) x = (mw - W) / 2;
     else if (!free) x = clamp(x, 0, mw - W);
-    if (mh <= H || fixed) y = (mh - H) / 2;
+    if ((mh <= H && !free) || fixed) y = (mh - H) / 2;
     else if (!free) y = clamp(y, 0, mh - H);
     return [x, y];
   }
