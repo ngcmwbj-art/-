@@ -32,8 +32,12 @@ import { overlaps } from './overlap';
 import { nudging } from './tune';
 
 const DEMO = import.meta.env.VITE_HD2D_DEMO === '1';
-/** Maps drawn in HD-2D (the prototype: the town with 夕鳴銀座). */
-const MAPS = new Set(['map_town']);
+/**
+ * Maps drawn in HD-2D: the town with 夕鳴銀座, and (2026-10-05 依頼主「街全体に
+ * 広げる」) chapter 1's other outdoor places — the school's back yard and its
+ * ground, the diversion past the paddy path, the weir, the mall's roof.
+ */
+const MAPS = new Set(['map_town', 'map_school', 'map_school_kotei', 'map_aze', 'map_seki', 'map_mall_roof']);
 
 const params = new URLSearchParams(location.search);
 let on = DEMO || params.get('hd2d') === '1';
