@@ -28,7 +28,7 @@ export interface CamParams {
   lookN: number;
 }
 
-export const CAM: CamParams = { pitch: PITCH, fov: 26, dist: 20, lookN: 1.5 };
+export const CAM: CamParams = { pitch: PITCH, fov: 26, dist: 25, lookN: 1.5 };
 
 /** The evening's light (stage 0); the stage grade (post.ts) tints the rest. */
 const SUN_COLOUR = new THREE.Color('#ffc890');
