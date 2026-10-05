@@ -5,7 +5,7 @@
 // spot never repeats the same way (8章).
 
 import { addTask } from './clock';
-import { cur, dbToGain, hasGraph, midiHz, noiseSource, onSample, PaChain, makeIRMono, monoSum, spread, voice, type Graph, type VoiceOpts } from './engine';
+import { cur, dbToGain, hasGraph, liveGraph, midiHz, noiseSource, onSample, PaChain, makeIRMono, monoSum, spread, voice, type Graph, type VoiceOpts } from './engine';
 import { chimeNote, DRM } from './instruments';
 import { ambTrim, trimOr1 } from './mix';
 import { hStageListeners, musicParams, stageListeners } from './music';
@@ -966,6 +966,8 @@ interface Inst {
   parked?: boolean;
   /** Level 0 was asked for (the park timer is running or has run). */
   silent?: boolean;
+  /** The level last asked for (playAmbient / setAmbientVol): a new AudioContext brings the bed back at it. */
+  level: number;
   parkTimer?: ReturnType<typeof setTimeout>;
 }
 
@@ -1037,7 +1039,7 @@ export function createAmbient(g: Graph, id: string, opts: AmbOpts, dest: AudioNo
   // live: a new take every time; offline QA renders: the same take for the same id
   const seed = g.offline ? [...id].reduce((h, ch) => (Math.imul(h, 31) + ch.charCodeAt(0)) | 0, 7) >>> 0 : (Math.random() * 1e9) | 0;
   const impl = f({ g, t0, dest: out, rng: new Rng(seed), stage: stage ?? musicParams().stage, hStage: hStage ?? musicParams().h_stage, seed });
-  return { id, out, lp, trim, trimGain, lpBase: opts.lp ?? 20000, impl, stopping: false };
+  return { id, out, lp, trim, trimGain, lpBase: opts.lp ?? 20000, impl, stopping: false, level: vol };
 }
 
 // ---------------------------------------------------------------------------
@@ -1124,6 +1126,7 @@ function unpark(i: Inst, vol: number, ramp: number): void {
 
 /** Keep track of a bed's asked-for level: park it after PARK_AFTER s at 0, and cancel that when it rises. */
 function noteLevel(i: Inst, vol: number, ramp: number): void {
+  i.level = vol;
   if (vol > 0) {
     i.silent = false;
     if (i.parkTimer !== undefined) clearTimeout(i.parkTimer);
@@ -1256,6 +1259,40 @@ export function ambientEvent(id: string, name: string, pan?: number | string): v
   if (!i || i.stopping || i.parked) return;
   // (a named argument — amb_tsugao_room's town — travels in the pan slot)
   i.impl.event?.(name, pan as number | undefined, cur().ctx.currentTime + 0.01);
+}
+
+// ---- a new AudioContext (keepalive.ts, 2026-10-05) ------------------------------
+
+export interface AmbSnapshot {
+  id: string;
+  level: number;
+  lp: number;
+}
+
+/** Let go of every bed in the old context (keepalive.ts replaces it); returns what played and at which level. */
+export function detachForRebuild(): AmbSnapshot[] {
+  const out: AmbSnapshot[] = [];
+  const t = liveGraph()?.ctx.currentTime ?? 0;
+  for (const i of active.values()) {
+    if (i.parkTimer !== undefined) clearTimeout(i.parkTimer);
+    i.parkTimer = undefined;
+    if (!i.stopping) out.push({ id: i.id, level: i.level, lp: i.lpBase });
+    i.stopping = true;
+    try {
+      if (!i.parked) i.impl.stop(t);
+      i.out.disconnect();
+      i.lp.disconnect();
+    } catch {
+      /* old context */
+    }
+  }
+  active.clear();
+  return out;
+}
+
+/** The beds again in the new context: a new take of each, fading in to its level over 0.6 s (a bed at 0 parks again). */
+export function restoreAfterRebuild(list: AmbSnapshot[]): void {
+  for (const s of list) playAmbient(s.id, { vol: s.level, lp: s.lp, fade: 0.6 });
 }
 
 export function flushPendingAmbient(): void {

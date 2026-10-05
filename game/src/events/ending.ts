@@ -21,7 +21,7 @@ import type { Actor } from '../world/actor';
 import type { FieldScene } from '../world/field';
 import { hideNightSky, playChapter1End, playNightSkyCut, stampTsuzuku } from '../ui/api';
 import { uiHud } from '../ui/hud';
-import { registerWorldFx } from '../world/fx';
+import { fxElsewhere, registerWorldFx } from '../world/fx';
 import { CHUNK } from '../world/ground_cache';
 import * as T from '../data/text/events';
 import { F, holdBgm, holdCamera, releaseCamera, tileRoute, walkTo } from './lib';
@@ -1011,11 +1011,13 @@ const CROSS_VIEW: [number, number] = [59 * 16, 22 * 16 + 8];
 const eastEdge = { on: false };
 registerWorldFx({
   map: 'map_town',
+  anchored: true,
   update() {
     if (eastEdge.on && !game.scripts.busy) eastEdge.on = false;
   },
   draw(f, g, cx, cy, layer) {
-    if (layer !== 'ground' || !eastEdge.on) return;
+    // (the HD-2D view has the land past the edges of its own)
+    if (layer !== 'ground' || !eastEdge.on || fxElsewhere(f)) return;
     const mw = f.map.w * 16;
     if (cx + W <= mw) return;
     const srcX = mw - 16;

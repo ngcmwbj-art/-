@@ -6,6 +6,7 @@ import { registerDebug } from '../debug';
 import { activeAmbients, ambientLevels, walledAmbients, AMBIENCE_IDS } from './ambience';
 import { hasGraph, lateStats, liveGraph } from './engine';
 import { clockStats } from './clock';
+import { forceRebuild, keepAliveStats } from './keepalive';
 import * as api from './index';
 import { currentPlayer, musicDebugState } from './music';
 import { sfxInfo, sfxTable, songTable, unknownIds } from './registry';
@@ -44,6 +45,8 @@ export function registerAudioCommands(): void {
     // the clock's worst gap between ticks
     late: JSON.parse(JSON.stringify(lateStats)),
     clock: { ...clockStats },
+    // the keep-alive watchdog (2026-10-05): contexts replaced and why, the measured clock speed
+    keep: JSON.parse(JSON.stringify(keepAliveStats)),
     music: musicDebugState(),
     position: api.musicPosition(),
     ambience: activeAmbients(),
@@ -53,6 +56,13 @@ export function registerAudioCommands(): void {
     walled: walledAmbients(),
     counts: { bgm: songTable.size, sfx: sfxTable.size, amb: AMBIENCE_IDS.length, voices: Object.keys(VOICES).length },
   })) as never);
+  // QA of the keep-alive (2026-10-05): replace the AudioContext now, as the
+  // watchdog would; the live context itself (a test can freeze its clock)
+  registerDebug('audioRebuild', (() => {
+    forceRebuild();
+    return liveGraph()?.ctx.state ?? null;
+  }) as never);
+  registerDebug('audioCtxRef', (() => liveGraph()?.ctx ?? null) as never);
   // every id asked for that nothing registered, since the page loaded (53 16.1)
   registerDebug('audioUnknown', (() => [...unknownIds]) as never);
   registerDebug('audioIds', (() => ({

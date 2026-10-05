@@ -721,6 +721,38 @@ export function initAudio(): AudioContext {
   return ctx;
 }
 
+/**
+ * Throw the live AudioContext away and start over with a new one and a new
+ * graph (2026-10-05, keepalive.ts): iOS can leave a context that says
+ * 'running' but no longer plays, or one that never leaves 'interrupted', or
+ * one whose clock runs at the wrong speed after the output changed. Only a
+ * new context brings the sound back then. The old one is closed (iOS allows
+ * only a few at once). Callers re-apply volumes and restart music and beds.
+ */
+export function replaceLive(): Graph | null {
+  const old = live;
+  if (!old) return null;
+  let ctx: AudioContext;
+  try {
+    ctx = new AudioContext({ latencyHint: 'interactive' });
+  } catch {
+    // (too many contexts, or none allowed now): keep the old one
+    return null;
+  }
+  try {
+    old.pa.dispose();
+  } catch {
+    /* gone */
+  }
+  try {
+    void (old.ctx as AudioContext).close().catch(() => {});
+  } catch {
+    /* already closed */
+  }
+  live = buildGraph(ctx);
+  return live;
+}
+
 export function noiseBuffer(): AudioBuffer {
   return cur().noise;
 }
@@ -1116,6 +1148,10 @@ export function voice(o: VoiceOpts): VoiceHandle {
   if (!hasGraph()) return DUMMY;
   const g = cur();
   const c = g.ctx;
+  // a note for a node of an AudioContext that was replaced (replaceLive: a
+  // song, bed or loop that was still winding down) is dropped: nodes of two
+  // contexts cannot be connected
+  if ((o.dest && o.dest.context !== c) || (o.detuneSrc && o.detuneSrc.context !== c) || (o.revDest && o.revDest.context !== c)) return DUMMY;
   const dur = Math.max(0.001, o.dur ?? 0.1);
   const wave = waveOf(o.wave ?? 'square');
   const tStart = startTimeFor(c, o.at, dur, !!o.drum || wave === 'noise');

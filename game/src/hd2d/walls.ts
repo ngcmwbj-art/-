@@ -20,6 +20,7 @@ import { P } from '../art/tiles/palette';
 import { structureCell, type CellArt, type CellMask } from '../art/tiles/structures';
 import { cellAt, charAt, type LoadedMap } from '../world/maps';
 import { Atlas, box, extrude, litMaterial, Mask, PX, Quads, solidFace, type Face } from './solid';
+import type { Slab, Solid } from './overlap';
 
 /** world/structures.ts's kinds and default materials (by the cell's tag). */
 const DEFAULT_MAT: Record<string, [string, string]> = {
@@ -96,8 +97,14 @@ export interface Walls {
   dispose(): void;
 }
 
-/** Every wall, hedge, fence and rail of the map (and their runs past the edges) as one mesh. */
-export function buildWalls(m: LoadedMap, sv: number, mg: Margin): Walls | null {
+/** Where the cells being built note the room they take (QA, overlap.ts): world px, heights in picture rows. */
+let noted: Slab[] | null = null;
+function note(x0: number, x1: number, h0: number, h1: number, z0: number, z1: number, at?: Slab['at']): void {
+  noted?.push({ x0, x1, h0, h1, z0, z1, at, face: true });
+}
+
+/** Every wall, hedge, fence and rail of the map (and their runs past the edges) as one mesh. `solids`: where the room each cell takes goes (QA). */
+export function buildWalls(m: LoadedMap, sv: number, mg: Margin, solids: Solid[] | null = null): Walls | null {
   const g = grid(m, mg);
   const atlas = new Atlas();
   const q = new Quads();
@@ -121,6 +128,7 @@ export function buildWalls(m: LoadedMap, sv: number, mg: Margin): Walls | null {
       const ox = tx * 16;
       const foot = ty * 16 + 16;
       n++;
+      noted = solids ? [] : null;
       if (kind === 'wall' && !mat.startsWith('h_')) {
         let d = dims.get(mat);
         if (!d) dims.set(mat, (d = wallDims(mat)));
@@ -141,12 +149,19 @@ export function buildWalls(m: LoadedMap, sv: number, mg: Margin): Walls | null {
         if (r0 < rf) box(q, ox * PX, (ox + 16) * PX, 0, Y(foot - top - r0), (foot - 5) * PX, (foot - 2) * PX, { top: solidFace(uv, 8, r0) });
         if (!mk.w) box(q, (ox + 2) * PX, (ox + 4) * PX, 0, Y(foot - top - r0 + 1), (foot - 5) * PX, (foot - 2) * PX, { left: { uv, c0: 2.5, r0: r0, c1: 2.5, r1: rf }, top: solidFace(uv, 2, r0) });
         if (!mk.e) box(q, (ox + 14) * PX, (ox + 16) * PX, 0, Y(foot - top - r0 + 1), (foot - 5) * PX, (foot - 2) * PX, { right: { uv, c0: 15.5, r0: r0, c1: 15.5, r1: rf }, top: solidFace(uv, 14, r0) });
+        const fat = (x: number, h: number) => k.at(Math.floor(x - ox - art.ox), foot - top - 1 - Math.floor(h));
+        note(ox, ox + 16, 0, foot - top, foot - 2, foot - 2, fat);
+        note(ox, ox + 16, 0, foot - top, foot - 5, foot - 5, fat);
       } else if (kind === 'fence' || kind === 'guardrail') {
         // rails, ropes and posts: pushed back 3px
         const uv = atlas.add(art.img);
         const top = ty * 16 + art.oy;
-        extrude(q, maskOf(art.img), 0, 0, art.img.width, art.img.height, { x0: (ox + art.ox) * PX, yTop: Y(foot - top), sy: PX * sv, zf: (foot - 1) * PX }, 3 * PX, uv);
+        const k = maskOf(art.img);
+        extrude(q, k, 0, 0, art.img.width, art.img.height, { x0: (ox + art.ox) * PX, yTop: Y(foot - top), sy: PX * sv, zf: (foot - 1) * PX }, 3 * PX, uv);
+        note(ox + art.ox, ox + art.ox + art.img.width, foot - top - art.img.height, foot - top, foot - 4, foot - 1, (x, h) => k.at(Math.floor(x - ox - art.ox), foot - top - 1 - Math.floor(h)));
       } else standing(q, atlas, art, tx, ty, Y);
+      if (noted?.length) solids!.push({ name: `${kind}:${mat}@${tx},${ty}`, kind: 'wall', foot, slabs: noted });
+      noted = null;
     }
   if (!n) return null;
   const tex = atlas.texture();
@@ -177,6 +192,8 @@ function standing(q: Quads, atlas: Atlas, art: CellArt, tx: number, ty: number, 
   const b = uv(art.img.width, 0);
   const x0 = left * PX;
   const x1 = (left + art.img.width) * PX;
+  const k = new Mask(art.img);
+  if (rf > 0) note(left, left + art.img.width, 0, rf, foot, foot, (x, h) => k.at(Math.floor(x - left), rf - 1 - Math.floor(h)));
   if (rf > 0) q.add([x0, Y(foot - top - rf), foot * PX], [x1, Y(foot - top - rf), foot * PX], [x1, Y(foot - top), foot * PX], [x0, Y(foot - top), foot * PX], [0, 0, 1], a[0], a[1], b[0], b[1]);
 }
 
@@ -199,6 +216,7 @@ function wallCell(q: Quads, atlas: Atlas, art: CellArt, kind: string, mat: strin
     const plain = mk.s ? structureCell(kind, mat, tx, ty, { n: false, s: false, e: mk.e, w: mk.w }) : art;
     const puv = plain === art ? uv : atlas.add(plain.img);
     const ph = plain.img.height;
+    note(ox + x0, ox + x1, 0, d.H, foot - T, foot);
     box(q, (ox + x0) * PX, (ox + x1) * PX, 0, H, (foot - T) * PX, foot * PX, {
       front: { uv: puv, c0: x0, r0: ph - d.H, c1: x1, r1: ph },
       top: { uv, c0: x0, r0: 16, c1: x1, r1: fT },
@@ -212,6 +230,7 @@ function wallCell(q: Quads, atlas: Atlas, art: CellArt, kind: string, mat: strin
     const z0 = ty * 16;
     const z1 = horiz ? foot - T : foot;
     const side: Face = { uv: ruv, c0: 0, r0: run.img.height - d.H, c1: z1 - z0, r1: run.img.height };
+    note(ox + VX0, ox + VX0 + 4, 0, d.H, z0, z1);
     box(q, (ox + VX0) * PX, (ox + VX0 + 4) * PX, 0, H, z0 * PX, z1 * PX, {
       top: { uv, c0: VX0, r0: d.cap + (z0 - ty * 16), c1: VX0 + 4, r1: d.cap + (z1 - ty * 16) },
       left: side,
@@ -242,6 +261,7 @@ function hedgeCell(q: Quads, atlas: Atlas, art: CellArt, mat: string, tx: number
     const plain = structureCell('hedge', mat, tx, ty, { n: false, s: false, e: mk.e, w: mk.w });
     front = { uv: atlas.add(plain.img), c0: xl, r0: FT, c1: xr, r1: plain.img.height };
   }
+  note(ox + xl, ox + xr, 0, hh - FT, zN, foot);
   box(q, (ox + xl) * PX, (ox + xr) * PX, 0, Y(hh - FT), zN * PX, foot * PX, {
     front,
     top: { uv, c0: xl, r0: Math.max(0, zN - ty * 16 - 2), c1: xr, r1: FT },

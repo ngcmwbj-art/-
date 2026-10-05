@@ -34,11 +34,12 @@ import { P } from '../art/tiles/palette';
 import type { PropArt, PropEnv, PropPart } from '../art/props/types';
 import type { FieldScene, PropInst } from '../world/field';
 import { POLE, poleFoot, type WireLine } from '../art/props/wires';
-import { TUNE, solidOf, type Piece } from './tune';
+import { NUDGE, nudging, TUNE, solidOf, type Piece } from './tune';
 import { Atlas, canvas, casterMaterial, litMaterial, Mask, ownUv, pixelTexture, PX, Quads, shadowOnly, type V3 } from './solid';
 import { crownBoards, standUp } from './props3d';
 import { buildWalls, type Walls } from './walls';
 import { Outskirts, outskirtsGround } from './outskirts';
+import type { Slab, Solid } from './overlap';
 
 export { casterMaterial, pixelTexture } from './solid';
 
@@ -209,11 +210,12 @@ class BuildingView {
   private readonly masked: { piece: Piece; c: HTMLCanvasElement; ctx: CanvasRenderingContext2D; tex: THREE.CanvasTexture; mat: THREE.MeshLambertMaterial }[] = [];
   readonly spot: LightSpot | null;
 
-  /** `shadows`: where its shadow goes (a building that is always there); null: its own meshes cast. */
+  /** `shadows`: where its shadow goes (a building that is always there); null: its own meshes cast. `solids`: where the room it takes goes (QA). */
   constructor(
     readonly p: PropInst,
     env: PropEnv,
     shadows: ShadowSet | null = null,
+    solids: Solid[] | null = null,
   ) {
     const a = p.art;
     const b = a.box!;
@@ -291,6 +293,31 @@ class BuildingView {
     side.receiveShadow = true;
     this.group.add(side);
     this.refreshMasked();
+    if (solids) {
+      // the room it takes (overlap.ts; world px, heights in picture rows)
+      const X0 = p.x + a.ox;
+      const ZF = p.y + a.foot;
+      const ZB = ZF - D * 16;
+      const rows = (u: number) => u / (PX * SV);
+      const m = new Mask(this.skin.c);
+      const slabs: Slab[] = [
+        { x0: X0, x1: X0 + iw, h0: 0, h1: b.F * 16, z0: ZB, z1: ZF },
+        // the facade (its painted pixels)
+        { x0: X0, x1: X0 + iw, h0: 0, h1: b.F * 16, z0: ZF, z1: ZF, at: (x, h) => m.at(Math.floor(x - X0), ih - 1 - Math.floor(h)), face: true },
+      ];
+      if (roofY > 0 && tune.top !== false) {
+        const h0 = rows(hF + rise);
+        slabs.push({ x0: X0, x1: X0 + iw, h0, h1: h0 + roofY, z0: ZB, z1: ZB, at: (x, h) => m.at(Math.floor(x - X0), roofY - 1 - Math.floor(h - h0)), face: true });
+      }
+      for (const pc of tune.pieces ?? []) {
+        const base = pc.base ?? faceY;
+        const k = Math.max(0, Math.min(1, (faceY - base) / (b.R * 16)));
+        const z = ZF - k * D * 16 + 0.16;
+        const ht = rows(hF + k * rise) + (base - pc.y);
+        slabs.push({ x0: X0 + pc.x, x1: X0 + pc.x + pc.w, h0: ht - pc.h, h1: ht, z0: z, z1: z, at: (x, h) => m.at(Math.floor(x - X0), pc.y + Math.floor(ht - h)), face: true });
+      }
+      solids.push({ name: `${id}@${p.x / 16},${p.y / 16}`, kind: 'building', foot: ZF, slabs });
+    }
     // every building has a glow() (its windows at night): no point light of its own
     this.spot = null;
     this.cx = (x0 + x1) / 2;
@@ -510,6 +537,8 @@ class CutoutView {
     shadows: ShadowSet | null = null,
     /** The ground's height where it stands (a step of paving). */
     lift = 0,
+    /** Where the room it takes goes (QA, overlap.ts). */
+    solids: Solid[] | null = null,
   ) {
     const a = p.art;
     const first = a.img(env);
@@ -526,21 +555,28 @@ class CutoutView {
     const q = new Quads();
     // its body (tune.ts SOLID): pushed back, a column, a tree's trunk
     const id = p.obj.t === 'prop' ? p.obj.prop : (p.obj.prop ?? p.obj.id);
+    const name = `${id}@${p.x / 16},${p.y / 16}`;
+    // (moved a few px where it went into another solid: tune.ts NUDGE)
+    const nudge = (nudging.on && NUDGE[name]) || {};
+    const dz = nudge.z ?? 0;
+    const fv = nudge.fgView ?? 0;
     const spec = solidOf(id, first?.width ?? a.w, Math.max(0, Math.min(first?.height ?? a.h, foot - (p.y + a.oy))));
     if (lightProps && spec.kind === 'slab' && spec.depth < 5) spec.depth = 0;
     // a still picture, there in every stage, low (or a trunk): into a shared batch
     const rf0 = Math.max(0, Math.min(ih, foot - top));
     const still = !!first && !!batches && !p.obj.cond && !a.over && !a.glow && a.xray === undefined && (rf0 <= 48 || spec.kind === 'tree') && stillPicture(a, env);
     let stood: ReturnType<typeof standUp> | null = null;
+    const rec: Slab[] | undefined = solids ? [] : undefined;
     if (still && batches) {
       // (which batch: whether it comes out thick enough, from a dry run)
-      const solid = standUp(new Quads(), new Mask(this.skin.c), ownUv(iw, ih), { iw, ih, left, top, foot }, spec, SV, lift).solid;
+      const solid = standUp(new Quads(), new Mask(this.skin.c), ownUv(iw, ih), { iw, ih, left, top, foot, dz }, spec, SV, lift).solid;
       const b = solid ? batches.real : batches.thin;
       const v0 = b.q.count * 4;
-      stood = standUp(b.q, new Mask(this.skin.c), b.atlas.add(this.skin.c), { iw, ih, left, top, foot }, spec, SV, lift);
+      stood = standUp(b.q, new Mask(this.skin.c), b.atlas.add(this.skin.c), { iw, ih, left, top, foot, dz }, spec, SV, lift, rec);
       this.batch = b;
       this.verts = [v0, b.q.count * 4];
-    } else if (first) stood = standUp(q, new Mask(this.skin.c), ownUv(iw, ih), { iw, ih, left, top, foot }, spec, SV, lift);
+    } else if (first) stood = standUp(q, new Mask(this.skin.c), ownUv(iw, ih), { iw, ih, left, top, foot, dz }, spec, SV, lift, rec);
+    if (solids && rec?.length) solids.push({ name, kind: 'prop', foot, slabs: rec });
     const stand = stood?.stand ?? null;
     this.mat = litMaterial(this.skin.tex, this.skin.glowTex ? { emissive: 0xffffff, emissiveMap: this.skin.glowTex, emissiveIntensity: 0 } : {});
     // thick enough: it casts (and takes) real shadows; thin ones keep the sun-facing plane
@@ -555,24 +591,27 @@ class CutoutView {
       this.group.add(mesh);
     }
     const cx = (left + iw / 2) * PX;
-    this.at = [cx, stand ? (stand[0] + stand[1]) / 2 : 0.1, foot * PX];
+    this.at = [cx, stand ? (stand[0] + stand[1]) / 2 : 0.1, (foot + dz) * PX];
     // (what is painted of it, banners on the margin included)
     const box = stand ? paintedBox(this.skin.c, Math.max(0, Math.min(ih, foot - top))) : null;
-    this.rect = stand && box && !this.batch ? [(left + box[0]) * PX, (left + box[1]) * PX, Math.max(0, stand[0]), (foot - top - box[2]) * PX * SV, foot * PX] : null;
+    this.rect = stand && box && !this.batch ? [(left + box[0]) * PX, (left + box[1]) * PX, Math.max(0, stand[0]), (foot - top - box[2]) * PX * SV, (foot + dz) * PX] : null;
     // the long shadow: the standing part turned to face the sun
     if (!this.real && stand && stand[1] - stand[0] >= 10 * PX * SV) {
       const rf = Math.max(0, Math.min(ih, foot - top));
-      if (merge) merge.push({ src: this.skin.c, sw: iw, sh: rf, cx, z: foot * PX, yb: stand[0], yt: stand[1], w: iw * PX });
+      if (merge) merge.push({ src: this.skin.c, sw: iw, sh: rf, cx, z: (foot + dz) * PX, yb: stand[0], yt: stand[1], w: iw * PX });
       else {
         const cq = new Quads();
         vquad(cq, -iw * PX * 0.5, iw * PX * 0.5, stand[0], stand[1], 0, uvOf(iw, ih, 0, 0, iw, rf));
         this.caster = shadowOnly(new THREE.Mesh(cq.geometry(), casterMaterial(this.skin.tex)));
-        this.caster.position.set(cx, 0, foot * PX);
+        this.caster.position.set(cx, 0, (foot + dz) * PX);
         this.caster.castShadow = true;
         this.group.add(this.caster);
       }
     }
-    let crownFront = foot * PX;
+    let crownFront = (foot + dz) * PX;
+    // (fg parts brought towards the camera along its line of sight: as many px south as up)
+    const fvz = fv * PX;
+    const fvy = fv * PX * SV;
     (a.fg ?? []).forEach((part, i) => {
       const img = part.img(env);
       // (a tree's twinkling 2px specks: left out, a draw call each for a speck the crown boards would float)
@@ -583,9 +622,16 @@ class CutoutView {
       const prf0 = Math.max(0, Math.min(img.height, foot - ptop));
       if (i === 0 && spec.kind === 'tree' && stood && prf0 > 0) {
         // a tree's crown: crossed boards round the trunk
-        const yt = (foot - ptop) * PX * SV + lift;
-        crownFront = crownBoards(pq, ownUv(img.width, img.height), img.width, prf0, p.x + part.ox, yt, PX * SV, stood.cx, stood.cz, img.width * 0.55 * PX).front;
-      } else cutout(pq, img.width, img.height, p.x + part.ox, ptop, foot, lift, spec.kind === 'tree' ? crownFront + 0.02 : foot * PX);
+        const yt = (foot - ptop) * PX * SV + lift + fvy;
+        const D = img.width * 0.55 * PX;
+        crownFront = crownBoards(pq, ownUv(img.width, img.height), img.width, prf0, p.x + part.ox, yt, PX * SV, stood.cx, stood.cz + fvz, D).front;
+        if (solids) solids.push({ name: `${name}:crown`, kind: 'prop', foot: Infinity, slabs: crownSlabs(img, p.x + part.ox, foot - ptop + fv, prf0, lift, (stood.cz + fvz) / PX, D / PX) });
+      } else {
+        const z = spec.kind === 'tree' ? crownFront + 0.02 : (foot + dz) * PX + fvz;
+        cutout(pq, img.width, img.height, p.x + part.ox, ptop, foot, lift + fvy, z);
+        // (the 2D draws these parts over everything: canopies, awnings)
+        if (solids && prf0 > 0) solids.push({ name: `${name}:fg${i}`, kind: 'prop', foot: Infinity, slabs: [standingSlab(img, p.x + part.ox, foot - ptop + fv, prf0, lift, z / PX)] });
+      }
       const mat = litMaterial(tex);
       const mesh = new THREE.Mesh(pq.geometry(), mat);
       this.group.add(mesh);
@@ -677,6 +723,23 @@ class CutoutView {
   }
 }
 
+/** A picture's rows 0..rf standing as a plane at z (world px), its top row `top` px over the ground (overlap.ts). */
+function standingSlab(img: HTMLCanvasElement, left: number, top: number, rf: number, lift: number, z: number, k = 1): Slab {
+  const m = new Mask(img);
+  const h1 = lift / (PX * SV) + top;
+  const mx = left + img.width / 2;
+  const my = h1 - rf / 2;
+  const hw = (img.width / 2) * k;
+  const hh = (rf / 2) * k;
+  // (k: a board scaled round its middle)
+  return { x0: mx - hw, x1: mx + hw, h0: my - hh, h1: my + hh, z0: z, z1: z, face: true, at: (x, h) => m.at(Math.floor((x - mx) / k + img.width / 2), rf - 1 - Math.floor((h - my) / k + rf / 2)) };
+}
+
+/** A tree crown's boards (props3d.ts crownBoards) as planes (overlap.ts). */
+function crownSlabs(img: HTMLCanvasElement, left: number, top: number, rf: number, lift: number, cz: number, D: number): Slab[] {
+  return [standingSlab(img, left, top, rf, lift, cz - D / 3, 0.82), standingSlab(img, left, top, rf, lift, cz), standingSlab(img, left, top, rf, lift, cz + D / 3, 0.82)];
+}
+
 // ---------------------------------------------------------------- the whole map
 
 export class TownWorld {
@@ -685,6 +748,8 @@ export class TownWorld {
   readonly cutouts: CutoutView[] = [];
   readonly spots: LightSpot[] = [];
   readonly boxes: Box[] = [];
+  /** The room every solid takes (QA: overlap.ts, __game.cmd.hd2dOverlaps()). */
+  readonly solids: Solid[] = [];
   private groundTex: THREE.CanvasTexture | null = null;
   private groundKey = '';
   private groundCanvas: HTMLCanvasElement | null = null;
@@ -723,10 +788,10 @@ export class TownWorld {
     };
     this.buildGround();
     lap('ground');
-    this.walls = buildWalls(m, SV, MARGIN);
+    this.walls = buildWalls(m, SV, MARGIN, this.solids);
     if (this.walls) this.group.add(this.walls.mesh);
     lap('walls');
-    this.outskirts = new Outskirts(f, SV);
+    this.outskirts = new Outskirts(f, SV, this.solids);
     if (this.outskirts.mesh) this.group.add(this.outskirts.mesh);
     lap('outskirts');
     this.buildWires();
@@ -735,13 +800,13 @@ export class TownWorld {
       if (a.flat) continue;
       const env = f.propEnv(p);
       if (a.box) {
-        const b = new BuildingView(p, env, this.shadows);
+        const b = new BuildingView(p, env, this.shadows, this.solids);
         this.buildings.push(b);
         this.boxes.push(b.box);
         this.group.add(b.group);
         if (b.spot) this.spots.push(b.spot);
       } else {
-        const c = new CutoutView(p, env, this.casterSpecs, this.batches, this.shadows, this.heightAt(p.x / 16 + 0.5, (p.y + a.foot - 1) / 16));
+        const c = new CutoutView(p, env, this.casterSpecs, this.batches, this.shadows, this.heightAt(p.x / 16 + 0.5, (p.y + a.foot - 1) / 16), this.solids);
         this.cutouts.push(c);
         this.group.add(c.group);
         if (c.spot) this.spots.push(c.spot);
@@ -840,7 +905,8 @@ export class TownWorld {
         const b = foot(l.pts[i + 1]);
         const sag = Math.min(10, 5 + (Math.hypot(b[0] - a[0], b[1] - a[1]) * 16) / 40) * PX * SV;
         if (l.staff) {
-          for (let k = 0; k < 5; k++) span(a, b, H_LOW + k * 3 * PX * SV, H_LOW + k * 3 * PX * SV, 4 * PX * SV);
+          // (the five lines 3 px apart round the low cable's height, line 0 on top, as wires.ts staffEnd: the sparrows sit on them)
+          for (let k = 0; k < 5; k++) span(a, b, H_LOW + (2 - k) * 3 * PX * SV, H_LOW + (2 - k) * 3 * PX * SV, 4 * PX * SV);
           continue;
         }
         if (!l.thin) span(a, b, H_ARM, H_ARM, sag);

@@ -44,6 +44,15 @@ export function atTime(t: number, fn: () => void): void {
   timed.sort((a, b) => a.t - b.t);
 }
 
+/**
+ * The live AudioContext was replaced (keepalive.ts): the new clock starts
+ * near 0, so every waiting callback keeps the time it had left (a jingle's
+ * end, the field song coming back after a battle, a chime's promise).
+ */
+export function shiftTimed(delta: number): void {
+  for (const e of timed) e.t += delta;
+}
+
 export function tick(): void {
   const g = liveGraph();
   if (!g) return;

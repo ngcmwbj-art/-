@@ -10,7 +10,7 @@ import type { Gfx } from '../engine/gfx';
 import { PixelCanvas } from '../engine/pixel';
 import { W, H } from '../engine/screen';
 import { animate, ease } from '../engine/tween';
-import { registerWorldFx } from '../world/fx';
+import { fxAt, registerWorldFx } from '../world/fx';
 import { caseLid, drawCase, CASE_H, CASE_W } from '../ui/hankocase';
 import { runMsg } from '../world/msg';
 import { sfx, textBlip } from '../audio';
@@ -24,6 +24,8 @@ import { charWidth, drawGlyph } from '../engine/font';
 interface Spark {
   x: number;
   y: number;
+  /** The ground line it happens over (world y; omitted: on the ground at y). */
+  foot?: number;
   t: number;
   kind: 'glint' | 'puff' | 'ring' | 'glow' | 'burst';
   color: string;
@@ -53,16 +55,18 @@ function glintFrames(): HTMLCanvasElement[] {
 
 registerWorldFx({
   map: '',
+  anchored: true,
   update(_f, dt) {
     for (const s of sparks) s.t += dt;
     for (let i = sparks.length - 1; i >= 0; i--) if (sparks[i].t > sparks[i].dur) sparks.splice(i, 1);
   },
-  draw(_f, g, cx, cy, layer) {
+  draw(f, g, cx, cy, layer) {
     if (layer !== 'glow' || !sparks.length) return;
     for (const s of sparks) {
       const k = s.t / s.dur;
-      const x = Math.round(s.x - cx);
-      const y = Math.round(s.y - cy);
+      const at = fxAt(f, s.x, s.y, cx, cy, s.foot);
+      const x = Math.round(at[0]);
+      const y = Math.round(at[1]);
       if (s.kind === 'glint') {
         const fr = glintFrames();
         const img = fr[Math.min(fr.length - 1, Math.floor(k * fr.length))];
@@ -110,9 +114,9 @@ registerWorldFx({
   },
 });
 
-/** A white 4-point glint at world pixel (x, y). */
-export function sparkle(x: number, y: number, dur = 420): void {
-  sparks.push({ x, y, t: 0, kind: 'glint', color: '#FFFFFF', dur });
+/** A white 4-point glint at world pixel (x, y) (`foot`: the ground line under it, when it is up on someone or something). */
+export function sparkle(x: number, y: number, dur = 420, foot?: number): void {
+  sparks.push({ x, y, foot, t: 0, kind: 'glint', color: '#FFFFFF', dur });
 }
 
 /** A ring of dust at the feet (world px). */
@@ -126,8 +130,8 @@ export function ring(x: number, y: number, color = '#FFE7A3', dur = 500): void {
 }
 
 /** Rays and a ring bursting out (a transformation, a pop). */
-export function burst(x: number, y: number, color = '#FFE7A3', dur = 420): void {
-  sparks.push({ x, y, t: 0, kind: 'burst', color, dur });
+export function burst(x: number, y: number, color = '#FFE7A3', dur = 420, foot?: number): void {
+  sparks.push({ x, y, foot, t: 0, kind: 'burst', color, dur });
 }
 
 // ---------------------------------------------------------------- a small far-off voice
@@ -171,6 +175,7 @@ const voices: Voice[] = [];
 
 registerWorldFx({
   map: '',
+  anchored: true,
   update(_f, dt) {
     for (const v of voices) v.t += dt;
     for (let i = voices.length - 1; i >= 0; i--) if (voices[i].t > voices[i].ms) voices.splice(i, 1);
@@ -183,7 +188,9 @@ registerWorldFx({
       const img = smallBalloon(v.text);
       const pop = v.t < 80 ? 1 : 0;
       const k = Math.min(1, v.t / 60) * (v.t > v.ms - 120 ? (v.ms - v.t) / 120 : 1);
-      g.alpha(k, () => g.img(img, Math.round(a.x + a.ox - img.width / 2 - cx), Math.round(a.y + a.oy - 24 - img.height - 2 - cy - pop)));
+      // over the head (the HD-2D view: at the head's height over the feet)
+      const [hx, hy] = fxAt(f, a.x + a.ox, a.y + a.oy - 24, cx, cy, a.y);
+      g.alpha(k, () => g.img(img, Math.round(hx - img.width / 2), Math.round(hy - img.height - 2 - pop)));
     }
   },
 });

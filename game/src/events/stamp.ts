@@ -17,7 +17,7 @@ import type { Gfx } from '../engine/gfx';
 import { animate, ease } from '../engine/tween';
 import { sfx } from '../audio';
 import { field, type FieldScene } from '../world/field';
-import { registerWorldFx } from '../world/fx';
+import { fxAt, registerWorldFx } from '../world/fx';
 import { fushigiCount, setStampFx } from '../world/fushigi';
 import { ovalStamp } from '../battle/art/stamps';
 import { hankoCloseup } from '../battle/art/fxart';
@@ -68,6 +68,7 @@ function bigInk(): HTMLCanvasElement {
 
 registerWorldFx({
   map: '',
+  anchored: true,
   update(_f, dt) {
     for (const s of seals) s.t += dt;
     for (let i = seals.length - 1; i >= 0; i--) if (seals[i].t > seals[i].hold + 450) seals.splice(i, 1);
@@ -82,7 +83,7 @@ registerWorldFx({
     }
     for (let i = drops.length - 1; i >= 0; i--) if (drops[i].t > drops[i].life) drops.splice(i, 1);
   },
-  draw(_f, g, cx, cy, layer) {
+  draw(f, g, cx, cy, layer) {
     // 'glow': after the night grading (the ink stays vermilion) and before
     // the close-up blows the frame up (so the ink is magnified with it)
     if (layer !== 'glow') return;
@@ -90,11 +91,14 @@ registerWorldFx({
     for (const s of seals) {
       const a = s.a * (s.t > s.hold ? Math.max(0, 1 - (s.t - s.hold) / 450) : 1);
       if (a <= 0.01) continue;
-      g.img(img, Math.round(s.x - img.width / 2 - cx), Math.round(s.y - img.height / 2 - cy), a < 1 ? { alpha: a } : {});
+      const [x, y] = fxAt(f, s.x, s.y, cx, cy);
+      g.img(img, Math.round(x - img.width / 2), Math.round(y - img.height / 2), a < 1 ? { alpha: a } : {});
     }
     for (const d of drops) {
       const a = d.t > d.life - 200 ? Math.max(0, (d.life - d.t) / 200) : 1;
-      g.rect(Math.round(d.x - cx), Math.round(d.y - cy), d.s, d.s, d.c, a);
+      // (in the air over where it lands)
+      const [x, y] = fxAt(f, d.x, d.y, cx, cy, d.floor);
+      g.rect(Math.round(x), Math.round(y), d.s, d.s, d.c, a);
     }
   },
 });
@@ -196,8 +200,7 @@ export function* stampAt(x: number, y: number, full: boolean): Co {
   // a close-up only magnifies the frame on screen: bring what is stamped
   // into the middle first when it sits near an edge (the clock tower at
   // the top of the park, a sign behind Minato)
-  const sx = x - f.camX;
-  const sy = y - f.camY;
+  const [sx, sy] = fxAt(f, x, y, f.camX, f.camY);
   const pan = !f.camOverride && (sx < 72 || sx > W - 72 || sy < 64 || sy > 136);
   if (pan) yield* panTo(Math.floor(x / 16), Math.floor((y + 10) / 16), 320);
   // push in on it: what is stamped a little above the middle, clear of the window

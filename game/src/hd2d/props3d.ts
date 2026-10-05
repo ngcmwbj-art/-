@@ -5,6 +5,7 @@
 // boards; the rows below the foot still lie on the ground in front.
 
 import { extrude, Mask, prism, PX, type Quads, type UvFn } from './solid';
+import type { Slab } from './overlap';
 import type { PropSolid } from './tune';
 
 /** A picture iw × ih drawn at world px (left, top), its foot line at world y `foot`. */
@@ -14,6 +15,8 @@ export interface Placed {
   left: number;
   top: number;
   foot: number;
+  /** It stands this many px further south in 3D (tune.ts NUDGE). */
+  dz?: number;
 }
 
 export interface Stood {
@@ -61,14 +64,21 @@ export function findShaft(m: Mask, rf: number, w: number, maxW: number): { c0: n
 /**
  * Stand a prop's picture up with its solid into q (its own texture, `uv`).
  * The mask is the picture's (it is changed: the shaft's pixels go to the column).
+ * `rec`: where the room it takes goes (overlap.ts, world px).
  */
-export function standUp(q: Quads, m: Mask, uv: UvFn, pl: Placed, spec: Required<PropSolid>, sv: number, lift = 0): Stood {
-  const { iw, ih, left, top, foot } = pl;
-  const rf = Math.max(0, Math.min(ih, foot - top));
+export function standUp(q: Quads, m: Mask, uv: UvFn, pl: Placed, spec: Required<PropSolid>, sv: number, lift = 0, rec?: Slab[]): Stood {
+  const { iw, ih, left, top } = pl;
+  const rf = Math.max(0, Math.min(ih, pl.foot - top));
+  // (where it stands in 3D: its foot line, or a few px south of it)
+  const foot = pl.foot + (pl.dz ?? 0);
   const out: Stood = { stand: null, cx: (left + iw / 2) * PX, cz: foot * PX, solid: false };
+  // (the overlap record: the picture's painted pixels, rows above the foot line)
+  const h0 = lift / (PX * sv);
+  const painted = (x: number, h: number) => m.at(Math.floor(x - left), rf - 1 - Math.floor(h - h0));
+  const slab = (z0: number, z1: number): Slab => ({ x0: left, x1: left + iw, h0, h1: h0 + rf, z0, z1, at: painted, face: true });
   if (rf > 0) {
-    const yt = (foot - top) * PX * sv + lift;
-    const yb = (foot - top - rf) * PX * sv + lift;
+    const yt = (pl.foot - top) * PX * sv + lift;
+    const yb = (pl.foot - top - rf) * PX * sv + lift;
     out.stand = [yb, yt];
     const sy = PX * sv;
     const st = { x0: left * PX, yTop: yt, sy, zf: foot * PX };
@@ -84,16 +94,26 @@ export function standUp(q: Quads, m: Mask, uv: UvFn, pl: Placed, spec: Required<
         for (let rr = sh.r0; rr < rf; rr++) for (let c = sh.c0; c < sh.c1; c++) m.clear(c, rr);
         // arms, signs, lamps, roots: round the column's middle (the flat
         // picture stays inside the column)
-        extrude(q, m, 0, 0, iw, rf, { ...st, zf: out.cz + Math.min(d / 2, 0.4 * r) }, d, uv);
+        const zf = out.cz + Math.min(d / 2, 0.4 * r);
+        extrude(q, m, 0, 0, iw, rf, { ...st, zf }, d, uv);
         out.solid = true;
+        rec?.push(
+          { x0: left + sh.c0, x1: left + sh.c1, h0, h1: h0 + rf - sh.r0, z0: (out.cz - r) / PX, z1: (out.cz + r) / PX, face: true },
+          slab((zf - d) / PX, zf / PX),
+        );
       } else {
         extrude(q, m, 0, 0, iw, rf, st, Math.max(2 * PX, d), uv);
         out.solid = spec.depth >= 5;
+        rec?.push(slab(foot - Math.max(2, spec.depth), foot));
       }
     } else if (spec.kind === 'slab') {
       extrude(q, m, 0, 0, iw, rf, st, d, uv);
       out.solid = spec.depth >= 5;
-    } else extrude(q, m, 0, 0, iw, rf, st, 0, uv);
+      rec?.push(slab(foot - spec.depth, foot));
+    } else {
+      extrude(q, m, 0, 0, iw, rf, st, 0, uv);
+      rec?.push(slab(foot, foot));
+    }
   }
   if (rf < ih) {
     // the rows below the foot line lie on the ground in front
@@ -102,7 +122,7 @@ export function standUp(q: Quads, m: Mask, uv: UvFn, pl: Placed, spec: Required<
     const x0 = left * PX;
     const x1 = (left + iw) * PX;
     const zN = foot * PX;
-    const zS = (top + ih) * PX;
+    const zS = (top + ih + (pl.dz ?? 0)) * PX;
     const y = 0.012 + lift;
     q.add([x0, y, zS], [x1, y, zS], [x1, y, zN], [x0, y, zN], [0, 1, 0], a[0], a[1], b[0], b[1]);
   }

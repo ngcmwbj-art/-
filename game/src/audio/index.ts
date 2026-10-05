@@ -4,7 +4,7 @@
 // registers itself from audio/content.ts.
 
 import { startClock } from './clock';
-import { installKeepAlive, soundLive } from './keepalive';
+import { installKeepAlive, onRebuild, soundLive } from './keepalive';
 import { audioCtx, hasGraph, initAudio, liveGraph, setSpaceOn, volCurve, type PaMode, type SpaceId } from './engine';
 import * as amb from './ambience';
 import * as music from './music';
@@ -43,6 +43,14 @@ export function unlockAudio(): void {
     unlocked = true;
     setVolume('bgm', volumes.bgm);
     setVolume('se', volumes.se);
+    // a new AudioContext (keepalive.ts): the settings, the PA and the space as they were
+    onRebuild(() => {
+      setVolume('bgm', volumes.bgm);
+      setVolume('se', volumes.se);
+      applyPa(0);
+      const g = liveGraph();
+      if (g) setSpaceOn(g, space, 0.05);
+    });
   }
   applyPa(0);
   music.flushPending();

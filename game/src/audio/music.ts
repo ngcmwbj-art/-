@@ -75,12 +75,14 @@ function resolveId(id: string, opts: PlayOpts): string {
   return id;
 }
 
-function startPlayer(def: SongDef, opts: { fadeIn?: number; fromLoopBar?: number; at?: number; room?: number }): SongPlayer {
+function startPlayer(def: SongDef, opts: { fadeIn?: number; fromLoopBar?: number; at?: number; room?: number; haltIn?: number }): SongPlayer {
   const gr = g();
   const { muffle: _m, detune: _d, ...song } = params;
   void _m;
   void _d;
-  const p = new SongPlayer(gr, def, gr.musicBus, { ...opts, params: { ...song, h_room: opts.room ?? 0 } });
+  const { haltIn, ...po } = opts;
+  const p = new SongPlayer(gr, def, gr.musicBus, { ...po, params: { ...song, h_room: opts.room ?? 0 } });
+  if (haltIn !== undefined) p.haltAt = p.startTime + haltIn;
   if (params.detune) p.setUserDetune(params.detune, 0, p.startTime);
   // Batching: the clock ticks every 25 ms, but every batch of new nodes makes
   // the audio thread re-plan its graph. The song is topped up in 0.15 s
@@ -90,6 +92,12 @@ function startPlayer(def: SongDef, opts: { fadeIn?: number; fromLoopBar?: number
   const task = {
     lookahead: MUSIC_LOOKAHEAD,
     pump: (until: number) => {
+      // the AudioContext was replaced under this song (detachForRebuild)
+      if (p.g !== liveGraph() && !p.g.offline) {
+        removeTask(task);
+        p.dispose();
+        return;
+      }
       if (until > horizon || p.stopped) {
         horizon = until + BATCH;
         p.pump(horizon);
@@ -424,13 +432,7 @@ export function musicEncounter(): void {
     p.stop(0.15);
     current = null;
   } else stopActive(a, 0.15);
-  if (hasGraph()) {
-    const gr = g();
-    const t = gr.ctx.currentTime;
-    gr.ambDuck.gain.cancelScheduledValues(t);
-    gr.ambDuck.gain.setValueAtTime(gr.ambDuck.gain.value, t);
-    gr.ambDuck.gain.linearRampToValueAtTime(dbToGain(-12), t + 0.2);
-  }
+  holdAmbience(dbToGain(-12), 0.2);
   params.kire = 0;
 }
 
@@ -464,10 +466,108 @@ export function musicReturnToField(fadeIn = 0.8): void {
   const gr = liveGraph();
   if (!gr) return;
   const t = gr.ctx.currentTime;
-  gr.ambDuck.gain.cancelScheduledValues(t);
-  gr.ambDuck.gain.setValueAtTime(gr.ambDuck.gain.value, t);
-  gr.ambDuck.gain.linearRampToValueAtTime(1, t + 0.6);
+  holdAmbience(1, 0.6);
   if (id) atTime(t + 0.3, () => playBgm(id, { resume: true, fade: fadeIn }));
+}
+
+// ---- a new AudioContext (keepalive.ts, 2026-10-05) ------------------------------
+
+/** What the music was doing when the AudioContext was replaced. */
+export interface MusicSnapshot {
+  song: { id: string; fromLoopBar?: number; muffled: boolean; haltIn: number | null; battle: boolean } | null;
+  legacy: string | null;
+  /** The ambience duck (a battle holds it at −12 dB). */
+  ambDuck: number;
+}
+
+/**
+ * Let go of everything that plays in the old context (keepalive.ts replaces
+ * it): the song is remembered by the bar heard now. A jingle is dropped (the
+ * song under a pausing jingle comes back unpaused). Params, the field song
+ * remembered for after a battle and the resume table are kept as they are.
+ */
+export function detachForRebuild(): MusicSnapshot {
+  const gr = liveGraph();
+  const now = gr?.ctx.currentTime ?? 0;
+  const snap: MusicSnapshot = { song: null, legacy: null, ambDuck: ambHold };
+  if (jingle) {
+    jingle.player.dispose();
+    jingle = null;
+    jingleQueue.length = 0;
+  }
+  const a = current;
+  if (a?.player) {
+    const p = a.player;
+    if (!p.def.jingle && !p.stopped && !p.ended) {
+      const au = p.audibleAt(now);
+      snap.song = {
+        id: a.id,
+        // in the intro (or before the first bar): from the top again
+        fromLoopBar: au && !au.intro ? au.loopIndex : undefined,
+        muffled: !!p.state.muffledVariant,
+        // a song that has stopped scheduling (the boss falling asleep) stays silent
+        haltIn: Number.isFinite(p.haltAt) ? Math.max(0, p.haltAt - now) : null,
+        battle: !!p.def.battle,
+      };
+    }
+    p.dispose();
+  } else if (a?.legacyStop) {
+    try {
+      a.legacyStop(0);
+    } catch {
+      /* old context */
+    }
+    snap.legacy = a.id;
+  }
+  current = null;
+  // the duck times belong to the old clock
+  duckLevel = 1;
+  duckUntil = 0;
+  return snap;
+}
+
+/** Bring the music back in the new context: the same song from the bar it was in, with today's params, room and pitch. */
+export function restoreAfterRebuild(s: MusicSnapshot): void {
+  const gr = liveGraph();
+  if (!gr) return;
+  const t = gr.ctx.currentTime;
+  // the menu's muffle lives on the graph
+  if (params.muffle > 0) {
+    gr.musicFilter.frequency.setValueAtTime(20000 * Math.pow(1800 / 20000, params.muffle), t);
+    gr.musicMuffle.gain.setValueAtTime(dbToGain(-3 * params.muffle), t);
+  }
+  gr.ambDuck.gain.setValueAtTime(Math.max(0, Math.min(1, s.ambDuck)), t);
+  if (s.legacy) {
+    const legacy = legacyBgm.get(s.legacy);
+    if (legacy) current = { id: s.legacy, player: null, legacyStop: legacy.start() };
+    return;
+  }
+  const so = s.song;
+  if (!so) return;
+  const def = songTable.get(so.id);
+  if (!def) return;
+  if (so.battle) gr.pa.overrideDistance(0);
+  const room = def.variants ? songRoom.get(so.id) ?? 0 : 0;
+  const p = startPlayer(def, { fadeIn: 0.6, fromLoopBar: so.fromLoopBar, room, haltIn: so.haltIn ?? undefined });
+  if (so.muffled) applyVariant(p, 'muffled');
+  current = { id: so.id, player: p };
+}
+
+/**
+ * The level a battle holds the ambience beds at (12.1: −12 dB from the
+ * encounter until the field comes back; the boss of 星見台 lets it go as he
+ * falls asleep). Kept here so a new AudioContext starts the beds at it.
+ */
+let ambHold = 1;
+export function holdAmbience(level: number, ramp: number): void {
+  ambHold = level;
+  if (!hasGraph()) return;
+  const gr = g();
+  const t = gr.ctx.currentTime;
+  const p = gr.ambDuck.gain;
+  p.cancelScheduledValues(t);
+  p.setValueAtTime(p.value, t);
+  p.linearRampToValueAtTime(level, t + ramp);
 }
 
 /** Notify the playing song of an SFX (the boss pad listens for the bell). */

@@ -185,3 +185,36 @@ export function solidOf(id: string, w: number, standH: number): Required<PropSol
   if (standH < 6) return { kind: 'flat', depth: 0 };
   return { kind: 'slab', depth: Math.max(2, Math.min(8, Math.round(Math.min(w, standH) * 0.3))) };
 }
+
+// ---------------------------------------------------------------- solids in each other's way (round 3)
+
+/**
+ * A prop moved a few px in 3D where it went into another solid (found by
+ * overlap.ts, __game.cmd.hd2dOverlaps()), keyed by `id@x,y` (its tile):
+ *  - z: its body stands this many px further south (+) or north (−), on
+ *    the ground (on screen ¾ of that lower / higher);
+ *  - fgView: its fg parts (a tree's crown, a board hung on a post) come
+ *    this many px towards the camera along its line of sight — as many px
+ *    south and up — so they show in the same place as before, in front of
+ *    what they were buried in (as the 2D draws them over it).
+ */
+export interface PropNudge {
+  z?: number;
+  fgView?: number;
+}
+
+/** QA: false stands everything where its picture says (before/after, __game.cmd.hd2dNudge(false)). */
+export const nudging = { on: true };
+
+export const NUDGE: Record<string, PropNudge> = {
+  // 2026-10-05 依頼主「ようこその看板も建物に入り込んでる」: its board (an fg
+  // part, at the post's foot line) stood 1 px behind 百瀬's facade
+  'obj_arch_sign@23,21': { fgView: 3 },
+  // the keyaki beside 百瀬: the lower right of its crown was inside the
+  // building (the 2D draws the crown over the facade's corner)
+  'tree_keyaki@22,20': { fgView: 9 },
+  // 2026-10-05 依頼主「とうふの旗と看板がぶつかって見づらい」: the poster board
+  // stood on the same line as the tofu pillar, whose banner is pushed back
+  // 8 px with it: the board in front of the banner, as the 2D draws it
+  'obj_poster_board@40,25': { z: 2 },
+};

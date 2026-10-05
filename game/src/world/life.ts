@@ -16,7 +16,8 @@ import { paddyStars } from '../art/tiles/water';
 import { P } from '../art/tiles/palette';
 import * as snd from './audio';
 import type { FieldScene } from './field';
-import { registerWorldFx } from './fx';
+import { fxAt, registerWorldFx } from './fx';
+import { H, W } from '../engine/screen';
 
 const T = 16;
 /** The lot's open asphalt (world px): where birds land and the bag blows. */
@@ -285,29 +286,39 @@ function updateDust(f: FieldScene, dt: number): void {
 }
 
 function drawLot(f: FieldScene, g: Gfx, cx: number, cy: number): void {
-  const inView = (x: number, y: number) => x > cx - 24 && x < cx + 384 + 24 && y > cy - 24 && y < cy + 216 + 48;
+  // (on screen: the frame px of the point, in the 2D view (x − cx, y − cy))
+  const inView = (s: [number, number]) => s[0] > -24 && s[0] < W + 24 && s[1] > -24 && s[1] < H + 48;
   for (const d of dust) {
-    if (!inView(d.x, d.y)) continue;
+    // (up in the air over where it blows)
+    const s = fxAt(f, d.x, d.y - d.z, cx, cy, d.y);
+    if (!inView(s)) continue;
     const a = 0.45 * (1 - d.t / d.life);
-    g.rect(Math.round(d.x - cx), Math.round(d.y - d.z - cy), 2, 1, P.woodLt, a);
-    g.rect(Math.round(d.x - cx) + 1, Math.round(d.y - d.z - cy) - 1, 1, 1, P.paperGrid, a * 0.8);
+    g.rect(Math.round(s[0]), Math.round(s[1]), 2, 1, P.woodLt, a);
+    g.rect(Math.round(s[0]) + 1, Math.round(s[1]) - 1, 1, 1, P.paperGrid, a * 0.8);
   }
-  if (bag.on && inView(bag.x, bag.y)) {
-    const fr = bagFrames();
-    const img = fr[bag.z > 0.5 ? Math.floor(bag.x / 9) % 3 : 2];
-    const x = Math.round(bag.x - cx - 6);
-    const y = Math.round(bag.y - cy);
-    g.rect(x + 3, y - 1, 7, 2, P.ink, 0.22 * bag.fade);
-    g.img(img, x, Math.round(y - 10 - bag.z), { alpha: bag.fade });
+  if (bag.on) {
+    const s = fxAt(f, bag.x, bag.y, cx, cy);
+    const up = fxAt(f, bag.x, bag.y - bag.z, cx, cy, bag.y);
+    if (inView(s)) {
+      const fr = bagFrames();
+      const img = fr[bag.z > 0.5 ? Math.floor(bag.x / 9) % 3 : 2];
+      const x = Math.round(s[0] - 6);
+      const y = Math.round(s[1]);
+      g.rect(x + 3, y - 1, 7, 2, P.ink, 0.22 * bag.fade);
+      // (how high it is on screen: bag.z in the 2D view)
+      g.img(img, Math.round(up[0] - 6), Math.round(y - 10 - (s[1] - up[1])), { alpha: bag.fade });
+    }
   }
   for (const b of flock.birds) {
-    if (!inView(b.x, b.y)) continue;
-    const x = Math.round(b.x - cx);
-    const y = Math.round(b.y - cy);
+    const s = fxAt(f, b.x, b.y, cx, cy);
+    if (!inView(s)) continue;
+    const x = Math.round(s[0]);
+    const y = Math.round(s[1]);
     // the shadow stays on the ground, smaller the higher the bird
     const sw = b.z > 20 ? 2 : b.z > 6 ? 3 : 4;
     g.rect(x - Math.floor(sw / 2), y, sw, 1, P.ink, b.z > 40 ? 0.12 : 0.28);
-    g.img(sparrowFrame(b.pose, b.left), x - 5, Math.round(y - 7 - b.z));
+    const up = fxAt(f, b.x, b.y - b.z, cx, cy, b.y);
+    g.img(sparrowFrame(b.pose, b.left), Math.round(up[0]) - 5, Math.round(y - 7 - (s[1] - up[1])));
   }
 }
 
@@ -315,22 +326,24 @@ function drawStars(f: FieldScene, g: Gfx, cx: number, cy: number): void {
   const n = f.grade.night;
   if (n < 0.5 || f.map.id !== 'map_town') return;
   const t = f.t;
-  for (const [x, y, seed] of paddyStars(f.map)) {
-    if (x < cx || x >= cx + 384 || y < cy || y >= cy + 216) continue;
+  for (const [wx, wy, seed] of paddyStars(f.map)) {
+    const [x, y] = fxAt(f, wx, wy, cx, cy).map(Math.round);
+    if (x < 0 || x >= W || y < 0 || y >= H) continue;
     const tw = 0.6 + 0.4 * Math.sin(t / (520 + (seed % 400)) + seed);
     const a = Math.min(1, (n - 0.5) * 2) * tw;
     const col = seed % 3 ? P.glint : P.horizon;
-    g.rect(x - cx, y - cy, 1, 1, col, a);
+    g.rect(x, y, 1, 1, col, a);
     // the brightest ones sparkle into a little cross at the top of their twinkle
     if (seed % 5 === 0 && tw > 0.9) {
-      g.rect(x - cx - 1, y - cy, 1, 1, col, a * 0.4);
-      g.rect(x - cx + 1, y - cy, 1, 1, col, a * 0.4);
+      g.rect(x - 1, y, 1, 1, col, a * 0.4);
+      g.rect(x + 1, y, 1, 1, col, a * 0.4);
     }
   }
 }
 
 registerWorldFx({
   map: '',
+  anchored: true,
   update(f, dt) {
     if (lastMap !== f.map.id) {
       lastMap = f.map.id;

@@ -20,7 +20,7 @@ import { flag, setFlag } from '../game/state';
 import { actor, msg, registerScript, stage } from '../world/api';
 import type { Actor } from '../world/actor';
 import { seAt } from '../world/audio';
-import { registerWorldFx } from '../world/fx';
+import { fxAt, registerWorldFx } from '../world/fx';
 import { pickTalk } from '../world/interact';
 import { pickStage } from '../world/maps';
 import { SPEAKERS } from '../world/msg';
@@ -148,6 +148,7 @@ registerScript('obj_hoshimi_yasai', function* (): Co {
 const nap = { t: 0, snore: 2500 };
 registerWorldFx({
   map: 'map_town',
+  anchored: true,
   update(f, dt) {
     const a = f.actorById(NAP);
     if (!a || !a.visible) return;
@@ -167,12 +168,14 @@ registerWorldFx({
     // the window of a truck facing east: its top right, the Z's rising off it
     const wx = a.x + WINDOW_DX - 2;
     const wy = a.y - 24;
+    // (the window's height over the truck's wheels)
+    const [sx, sy] = fxAt(f, wx, wy, cx, cy, a.y);
     for (let i = 0; i < 2; i++) {
       const ph = (nap.t / 2600 + i / 2) % 1;
       const img = zs[Math.min(1, Math.floor(ph * 2))];
-      const x = wx + 2 + ph * 8 + Math.sin(ph * 6.3) * 1.5;
-      const y = wy - ph * 14;
-      g.alpha(Math.sin(Math.PI * ph) * 0.9, () => g.img(img, Math.round(x - img.width / 2 - cx), Math.round(y - img.height - cy)));
+      const x = sx + 2 + ph * 8 + Math.sin(ph * 6.3) * 1.5;
+      const y = sy - ph * 14;
+      g.alpha(Math.sin(Math.PI * ph) * 0.9, () => g.img(img, Math.round(x - img.width / 2), Math.round(y - img.height)));
     }
   },
 });

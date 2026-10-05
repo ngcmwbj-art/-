@@ -15,6 +15,7 @@ import type { Actor } from '../world/actor';
 import type { FieldScene } from '../world/field';
 import { ActorViews } from './actors';
 import { Post, type Quality } from './post';
+import type { Solid } from './overlap';
 import { markShadowPass } from './solid';
 import { PITCH, SV, TownWorld } from './town';
 
@@ -37,6 +38,9 @@ const SKY = new THREE.Color('#b8b0e8');
 const GROUND = new THREE.Color('#d89060');
 const MAX_LAMPS = 4;
 
+/** A rect of the 384×216 frame: x, y, w, h (px). */
+export type Crop = [number, number, number, number];
+
 export interface FrameStats {
   /** CPU time of the whole 3D frame / of the scene update before rendering (ms). */
   ms: number;
@@ -58,6 +62,12 @@ export class Hd2dView {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
   readonly camera: THREE.PerspectiveCamera;
+  /**
+   * The same camera without a close-up's crop: what the 2D layer's frame
+   * px mean (the world fx, the emotes and the close-up itself are laid out
+   * in it; a close-up then blows up a rect of both pictures alike).
+   */
+  private readonly eye: THREE.PerspectiveCamera;
   private readonly sun: THREE.DirectionalLight;
   private readonly hemi: THREE.HemisphereLight;
   private readonly lamps: THREE.PointLight[] = [];
@@ -88,6 +98,7 @@ export class Hd2dView {
     markShadowPass(this.renderer.shadowMap);
     this.renderer.info.autoReset = false;
     this.camera = new THREE.PerspectiveCamera(CAM.fov, W / H, 1, 160);
+    this.eye = this.camera.clone();
     this.sun = new THREE.DirectionalLight(SUN_COLOUR, 2.6);
     this.sun.castShadow = true;
     this.hemi = new THREE.HemisphereLight(SKY, GROUND, 1.7);
@@ -169,15 +180,24 @@ export class Hd2dView {
     return new THREE.Vector3((f.camX + W / 2) / 16, 0, (f.camY + H / 2) / 16 - CAM.lookN);
   }
 
-  private placeCamera(f: FieldScene): THREE.Vector3 {
+  /**
+   * `crop`: a story close-up (events/stage.ts ZoomView) — the rect of the
+   * frame (W × H px, fractional while it pushes in) that fills the picture:
+   * the camera stays where it is and narrows to it, as the 2D blow-up does.
+   */
+  private placeCamera(f: FieldScene, crop: Crop | null): THREE.Vector3 {
     const t = this.target(f);
     const p = (CAM.pitch * Math.PI) / 180;
-    this.camera.fov = CAM.fov;
-    this.camera.aspect = W / H;
-    this.camera.updateProjectionMatrix();
-    this.camera.position.set(t.x, t.y + Math.sin(p) * CAM.dist, t.z + Math.cos(p) * CAM.dist);
-    this.camera.lookAt(t);
-    this.camera.updateMatrixWorld();
+    for (const c of [this.eye, this.camera]) {
+      c.fov = CAM.fov;
+      c.aspect = W / H;
+      c.position.set(t.x, t.y + Math.sin(p) * CAM.dist, t.z + Math.cos(p) * CAM.dist);
+      c.lookAt(t);
+      c.updateMatrixWorld();
+    }
+    this.eye.clearViewOffset();
+    if (crop) this.camera.setViewOffset(W, H, crop[0], crop[1], crop[2], crop[3]);
+    else this.camera.clearViewOffset();
     return t;
   }
 
@@ -224,7 +244,8 @@ export class Hd2dView {
     }
   }
 
-  render(f: FieldScene, dw: number, dh: number): void {
+  /** `crop`: a close-up's rect of the frame and the frame px it looks at (placeCamera). */
+  render(f: FieldScene, dw: number, dh: number, crop: Crop | null = null, subject: [number, number] | null = null): void {
     const t0 = performance.now();
     const [w, h] = this.renderSize(dw, dh);
     if (!this.post || this.size[0] !== w || this.size[1] !== h) {
@@ -234,7 +255,7 @@ export class Hd2dView {
       this.size = [w, h];
     }
     const world = this.ensureWorld(f);
-    const tgt = this.placeCamera(f);
+    const tgt = this.placeCamera(f, crop);
     const sunYaw = this.placeSun(f, tgt);
     const lit = f.map.def.kind === 'indoor' ? 1 : Math.max(0, Math.min(1, f.grade.lit));
     world.update(f.t, sunYaw, this.sunDir, lit, tgt.x, tgt.z, this.hidesParty(f));
@@ -242,9 +263,11 @@ export class Hd2dView {
     // characters: drawn as painted, under the grade like everything else
     this.tint.setRGB(1.04, 1.0, 0.97);
     this.actors.update(f, sunYaw, this.tint, world, this.sunDir);
-    // the tilt-shift's sharp row: where Minato stands on screen
-    const foot = this.project(new THREE.Vector3((f.player.x + f.player.ox) / 16, 0.6, f.player.y / 16));
-    const focus = foot ? Math.max(0.25, Math.min(0.75, 1 - foot[1] / H)) : 0.5;
+    // the tilt-shift's sharp row: where Minato stands on screen (in a
+    // close-up, what it looks at)
+    const foot = subject ?? this.project(new THREE.Vector3((f.player.x + f.player.ox) / 16, 0.6, f.player.y / 16));
+    const fy = foot && crop ? ((foot[1] - crop[1]) / crop[3]) * H : foot?.[1];
+    const focus = fy !== undefined ? Math.max(0.25, Math.min(0.75, 1 - fy / H)) : 0.5;
     this.post!.setGrade(f.grade, f.wave.amp, f.wave.t / 1000, focus);
     const t1 = performance.now();
     this.renderer.info.reset();
@@ -303,6 +326,16 @@ export class Hd2dView {
     };
   }
 
+  /** QA: stand the town up again (a tuning changed). */
+  rebuild(): void {
+    this.worldF = null;
+  }
+
+  /** QA: the room every solid of the town takes (overlap.ts). */
+  solids(): Solid[] {
+    return this.world?.solids ?? [];
+  }
+
   /** QA: meshes in the scene / in the camera's frustum / casting shadows / shadow-only planes. */
   census(): Record<string, number> {
     const fr = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse));
@@ -321,11 +354,24 @@ export class Hd2dView {
     return c;
   }
 
-  /** A world point (units) → buffer px of the 384×216 frame, or null behind the camera. */
+  /** A world point (units) → buffer px of the 384×216 frame (no close-up's crop), or null behind the camera. */
   project(v: THREE.Vector3): [number, number] | null {
-    const p = v.clone().project(this.camera);
+    const p = v.clone().project(this.eye);
     if (p.z > 1) return null;
     return [((p.x + 1) / 2) * W, ((1 - p.y) / 2) * H];
+  }
+
+  /**
+   * World px (x, y) of a 2D picture, a point standing over the ground line
+   * `foot` (world y) → frame px: the 3D point it stands for is at the foot
+   * line, (foot − y) px up (stretched by SV as everything that stands), on
+   * the ground's step there.
+   */
+  projectPx(x: number, y: number, foot = y): [number, number] | null {
+    // (a point south of the foot line lies on the ground in front of it)
+    const z = Math.max(y, foot);
+    const ground = this.world ? this.world.heightAt(x / 16, (z - 1) / 16) : 0;
+    return this.project(new THREE.Vector3(x / 16, ground + (z - y) * (SV / 16), z / 16));
   }
 
   /** The head of an actor on screen (buffer px), for the emotes. */

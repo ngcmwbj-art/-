@@ -33,7 +33,7 @@ import { besideToward, dirTo, eventBattle, F, floatLine, giveKey, holdBgm, holdC
 import { burst, playCaseGift, puff, smallVoice, sparkle } from './fx';
 import { meishi } from './art';
 import { cinema, clearBelow, guideNearHanko, keyGuide, zoomIn, zoomIntoBattle } from './stage';
-import { registerWorldFx } from '../world/fx';
+import { fxAt, registerWorldFx } from '../world/fx';
 import { animate, ease } from '../engine/tween';
 
 const HINOYA_DOOR: [number, number] = [32, 21];
@@ -187,13 +187,16 @@ registerScript('evt_chime_stop', function* (): Co {
 // ---------------------------------------------------------------- 5.7 evt_hato_block
 
 /** The business card in the hato's wing (world px), or lying at its feet. */
-const card = { on: false, x: 0, y: 0, lift: 0, flat: false };
+const card = { on: false, x: 0, y: 0, lift: 0, flat: false, foot: 0 };
 registerWorldFx({
   map: 'map_town',
-  draw(_f, g, cx, cy, layer) {
+  anchored: true,
+  draw(f, g, cx, cy, layer) {
     if (layer !== 'fg' || !card.on) return;
     const img = meishi()[card.flat ? 1 : 0];
-    g.img(img, Math.round(card.x - img.width / 2 - cx), Math.round(card.y - img.height - card.lift - cy));
+    // (held up in the wing: at that height over the hato's feet)
+    const [x, y] = fxAt(f, card.x, card.y - card.lift, cx, cy, card.flat ? card.y : card.foot);
+    g.img(img, Math.round(x - img.width / 2), Math.round(y - img.height));
   },
 });
 
@@ -205,12 +208,13 @@ function* offerCard(hato: Actor): Co {
   card.flat = false;
   card.x = hato.x + sx * 7;
   card.y = hato.y - 3 + (sy < 0 ? -2 : 0);
+  card.foot = hato.y;
   card.lift = 0;
   card.on = true;
   hato.hop(3, 200);
   sfx('se_meishi');
   yield* animate(220, (k) => (card.lift = Math.round(k * 4)), ease.backOut);
-  sparkle(card.x + 2, card.y - card.lift - 5, 380);
+  sparkle(card.x + 2, card.y - card.lift - 5, 380, hato.y);
 }
 
 /** ハト → ハト係長: a jump, a white flash of the silhouette, a pop of rays and dust. */
@@ -228,12 +232,12 @@ function* transform(hato: Actor): Co {
   hato.setSprite('enemy_hato_kakaricho');
   yield 50;
   hato.drawFn = null;
-  burst(hato.x, hato.y - 10, '#FFE7A3', 460);
+  burst(hato.x, hato.y - 10, '#FFE7A3', 460, hato.y);
   puff(hato.x, hato.y - 1);
   sfx('se_emote');
   yield 130;
   // the tie: pon
-  sparkle(hato.x + 1, hato.y - 8, 420);
+  sparkle(hato.x + 1, hato.y - 8, 420, hato.y);
   sfx('se_balloon_pop', { vol: 0.5, pitch: 1.3 });
   yield 250;
 }

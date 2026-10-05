@@ -17,7 +17,7 @@ import * as T from '../data/text/events';
 import { besideToward, F, followerSpot, holdBgm, panBack, panTo, settle, tileRoute } from './lib';
 import { sparkle, voiceLine } from './fx';
 import { zoomIn, zoomOut } from './stage';
-import { registerWorldFx } from '../world/fx';
+import { fxAt, registerWorldFx } from '../world/fx';
 
 // ---------------------------------------------------------------- 5.11 evt_kanenari_meet
 
@@ -145,7 +145,7 @@ function* kanenariJoin(): Co {
     k.anim = null;
     // he is glad: his eyes flash twice
     k.playAnim('glow');
-    sparkle(k.x + 3, k.y - 30);
+    sparkle(k.x + 3, k.y - 30, 420, k.y);
     sfx('se_glint', { vol: 0.45, pitch: 1.1 });
   }
   playBgm('bgm_jingle_join');
@@ -224,34 +224,42 @@ registerScript('evt_kn_lesson', function* (): Co {
 
 // ---------------------------------------------------------------- 5.13 evt_maigo_broadcast ★
 
-/** The loudspeaker pole's horns (world px), read from the prop so the framing follows the map. */
-function speakerHorns(): [number, number] {
+/**
+ * The loudspeaker pole's horns (world px), read from the prop so the framing
+ * follows the map, and the pole's foot line (world y): the horns stand that
+ * high over it (the HD-2D view puts the sound there).
+ */
+function speakerHorns(): [number, number, number] {
   const f = F();
   const pole = f.props.find((p) => (p.obj as { id?: string }).id === 'obj_speaker_pole' || (p.obj as { prop?: string }).prop === 'obj_speaker_pole');
   // obj_speaker_pole: 30×60, the pole at x 15, the horns at y 16–28
-  if (!pole) return [27 * 16 + 8, 3 * 16 - 20];
-  return [pole.x + pole.art.ox + 15, pole.y + pole.art.oy + 22];
+  if (!pole) return [27 * 16 + 8, 3 * 16 - 20, 4 * 16];
+  return [pole.x + pole.art.ox + 15, pole.y + pole.art.oy + 22, pole.y + pole.art.foot];
 }
 
 /** Sound going out of the horns while the broadcast is on: arcs travelling outwards. */
 const waves = { on: false, t: 0 };
 registerWorldFx({
   map: 'map_town',
+  anchored: true,
   update(_f, dt) {
     if (waves.on && !game.scripts.busy) waves.on = false;
     if (waves.on) waves.t += dt;
   },
-  draw(_f, g, cx, cy, layer) {
+  draw(f, g, cx, cy, layer) {
     if (layer !== 'glow' || !waves.on) return;
-    const [hx, hy] = speakerHorns();
+    const [wx, wy, foot] = speakerHorns();
+    const [hx, hy] = fxAt(f, wx, wy, cx, cy, foot);
+    // (out from the horns' ends, 12 px each side of the pole: as wide as they stand on screen)
+    const ends = fxAt(f, wx + 12, wy, cx, cy, foot)[0] - hx;
     for (let i = 0; i < 3; i++) {
       const k = (waves.t / 900 + i / 3) % 1;
       const r = 3 + Math.round(k * 18);
       const a = Math.sin(Math.PI * Math.min(1, k * 1.2)) * 0.9;
       const hh = 2 + Math.round(k * 4);
       for (const side of [-1, 1]) {
-        const x0 = Math.round(hx - cx + side * 12);
-        const y0 = Math.round(hy - cy);
+        const x0 = Math.round(hx + side * ends);
+        const y0 = Math.round(hy);
         g.alpha(a, () => {
           for (let dy = -hh; dy <= hh; dy++) {
             const dx = Math.round(r - (dy * dy) / Math.max(2, r * 0.45));
@@ -272,10 +280,10 @@ function* maigoBroadcast(): Co {
   holdBgm(true);
   // the camera goes to the loudspeaker pole; the song dips (−9 dB)
   duckMusic(0.35, 30);
-  const [hx, hy] = speakerHorns();
+  const [hx, hy, foot] = speakerHorns();
   yield* panTo(Math.floor(hx / 16), Math.floor(hy / 16) + 3, 800);
   // then close in on the horns (2×): this is where the voice comes from
-  const z = yield* zoomIn(hx, hy + 18, 380);
+  const z = yield* zoomIn(hx, hy + 18, 380, 2, foot);
   setFlag('flag_broadcast_on', 1);
   waves.on = true;
   waves.t = 0;

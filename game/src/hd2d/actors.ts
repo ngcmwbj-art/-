@@ -4,9 +4,13 @@
 // soft round shadow at its feet and a long evening shadow: a second plane
 // with the same picture, turned to face the sun, that only casts shadow.
 // Characters are not lit by the 3D lights (their pixel colours stay as
-// drawn); one standing in a building's shadow is tinted darker.
+// drawn); one standing in a building's shadow is tinted darker. An actor
+// that draws itself (drawFn: the traffic, the stray carts) is drawn into a
+// picture of its own each frame; a shadow that lags (the cat, fushigi_02:
+// data.shadowFrame) is cast from that frame.
 
 import * as THREE from 'three';
+import { Gfx } from '../engine/gfx';
 import type { Actor } from '../world/actor';
 import type { FieldScene } from '../world/field';
 import { shadowOnly } from './solid';
@@ -43,6 +47,11 @@ function blob(): THREE.CanvasTexture {
   return blobTex;
 }
 
+/** The picture of an actor that draws itself: DRAWN_W × DRAWN_H, its feet at (DRAWN_W / 2, DRAWN_FOOT). */
+const DRAWN_W = 128;
+const DRAWN_H = 96;
+const DRAWN_FOOT = 88;
+
 /** A unit quad standing on its bottom edge (x −0.5..0.5, y 0..1), facing +Z. */
 const STAND = new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0);
 /** A unit quad lying on the ground. */
@@ -56,6 +65,8 @@ class ActorView {
   readonly cmat: THREE.MeshBasicMaterial;
   readonly shadow: THREE.Mesh;
   seen = 0;
+  /** The picture of an actor with a drawFn (made when first needed). */
+  private drawn: { c: HTMLCanvasElement; g: Gfx; tex: THREE.CanvasTexture } | null = null;
 
   constructor() {
     this.mat = new THREE.MeshBasicMaterial({ alphaTest: 0.5 });
@@ -68,35 +79,62 @@ class ActorView {
     this.group.add(this.body, this.caster, this.shadow);
   }
 
+  /** An actor that draws itself (drawFn): this frame's picture of it, its feet at (DRAWN_W / 2, DRAWN_FOOT). */
+  private drawSelf(a: Actor): THREE.CanvasTexture {
+    if (!this.drawn) {
+      const c = document.createElement('canvas');
+      c.width = DRAWN_W;
+      c.height = DRAWN_H;
+      const ctx = c.getContext('2d')!;
+      ctx.imageSmoothingEnabled = false;
+      this.drawn = { c, g: new Gfx(ctx, DRAWN_W, DRAWN_H), tex: pixelTexture(c) };
+    }
+    const d = this.drawn;
+    const ctx = d.g.ctx;
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, DRAWN_W, DRAWN_H);
+    a.drawFn!(d.g, DRAWN_W / 2, DRAWN_FOOT);
+    ctx.restore();
+    d.tex.needsUpdate = true;
+    return d.tex;
+  }
+
   update(a: Actor, f: FieldScene, sunYaw: number, tint: THREE.Color, world: TownWorld, sunDir: THREE.Vector3): void {
     const blink = a.blinkUntil > f.t && Math.floor(f.t / 80) % 2 === 0;
     const la = f.light.actorAlpha(a);
-    const show = a.visible && !a.drawFn && !blink && (la > 0.01 || !!a.data.selfLit);
+    const show = a.visible && !blink && (la > 0.01 || !!a.data.selfLit);
     this.group.visible = show;
     if (!show) return;
-    const img = a.frame();
-    const tex = texOf(img);
-    if (this.mat.map !== tex) {
+    const tex = a.drawFn ? this.drawSelf(a) : texOf(a.frame());
+    const pic = tex.image as HTMLCanvasElement;
+    // the long shadow: the frame it is cast from (a lagging one, fushigi_02)
+    const lag = !a.drawFn ? (a.data.shadowFrame as HTMLCanvasElement | undefined) : undefined;
+    const ctex = lag && lag.width === pic.width && lag.height === pic.height ? texOf(lag) : tex;
+    if (this.mat.map !== tex || this.cmat.map !== ctex) {
       // (a new program only when the material first gets a map; swapping maps needs none)
       const first = !this.mat.map;
       this.mat.map = tex;
-      this.cmat.map = tex;
+      this.cmat.map = ctex;
       if (first) {
         this.mat.needsUpdate = true;
         this.cmat.needsUpdate = true;
       }
     }
-    const w = img.width * PX;
-    const h = img.height * PX * SV;
+    const w = pic.width * PX;
+    const h = pic.height * PX * SV;
+    // (a drawn picture reaches below the feet: it stands that much lower)
+    const below = a.drawFn ? (DRAWN_H - DRAWN_FOOT) * PX * SV : 0;
     // feet: the actor's (x, y); a pose drawn higher (perched, hopping) lifts it,
     // one drawn lower (oy > 0) stands that much further south
     const x = (a.x + a.ox) * PX;
     const z = (a.y + Math.max(0, a.oy)) * PX;
     // (on the ground's step where it stands: paving, the bridge)
     const up = -(Math.min(0, a.oy) + a.hopOffset() - (a.lift > 0 ? 1 : 0)) * PX * SV + world.heightAt(x, z - 0.05);
-    this.body.position.set(x, up, z);
+    this.body.position.set(x, up - below, z);
     this.body.scale.set(w, h, 1);
-    this.caster.position.set(x, up, z);
+    this.caster.position.set(x, up - below, z);
     this.caster.scale.set(w, h, 1);
     this.caster.rotation.y = sunYaw;
     const alpha = a.alpha * Math.min(1, la);
@@ -110,13 +148,20 @@ class ActorView {
     // in a building's shadow: darker
     const shaded = world.inShadow([x, 0.5, z - 0.05], sunDir);
     this.mat.color.copy(tint).multiplyScalar(shaded ? SHADE : 1);
-    const sw = Math.max(0.55, Math.min(1.4, w * 0.8));
+    const sw = Math.max(0.55, Math.min(1.4, (a.drawFn ? (a.data.vehicle ? 3 : 1) : w) * 0.8));
     const ground = world.heightAt(x, z - 0.05);
     this.shadow.position.set(x, ground + 0.02, z - 0.06);
     this.shadow.scale.set(sw, 1, sw * 0.42);
     const air = up - ground;
     this.shadow.visible = air < 1.5;
     (this.shadow.material as THREE.MeshBasicMaterial).opacity = 0.6 * alpha * (1 - Math.min(1, air / 1.5) * 0.6);
+  }
+
+  dispose(): void {
+    this.mat.dispose();
+    this.cmat.dispose();
+    (this.shadow.material as THREE.Material).dispose();
+    this.drawn?.tex.dispose();
   }
 }
 
@@ -142,9 +187,7 @@ export class ActorViews {
     for (const [a, v] of this.views) {
       if (v.seen === this.tick) continue;
       this.group.remove(v.group);
-      v.mat.dispose();
-      v.cmat.dispose();
-      (v.shadow.material as THREE.Material).dispose();
+      v.dispose();
       this.views.delete(a);
     }
   }
@@ -157,11 +200,7 @@ export class ActorViews {
   }
 
   clear(): void {
-    for (const v of this.views.values()) {
-      v.mat.dispose();
-      v.cmat.dispose();
-      (v.shadow.material as THREE.Material).dispose();
-    }
+    for (const v of this.views.values()) v.dispose();
     this.views.clear();
     this.group.clear();
   }

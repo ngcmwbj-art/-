@@ -97,19 +97,20 @@ export function field(): FieldScene | null {
   return current;
 }
 let altDrawer: ((g: Gfx, f: FieldScene) => boolean) | null = null;
-let altProject: ((f: FieldScene, x: number, y: number) => [number, number, number] | null) | null = null;
+let altProject: ((f: FieldScene, x: number, y: number, foot?: number) => [number, number, number] | null) | null = null;
 let altFreeCam: ((f: FieldScene) => boolean) | null = null;
 /**
  * Another way to draw the field (the HD-2D prototype, src/hd2d): `draw` is
  * called first in draw(); when it returns true it drew this frame, and the 2D
  * renderer is skipped. `project` then answers worldToScreen() (bubbles, HUD
- * marks). `freeCam`: while it answers true the camera keeps the player in the
+ * marks) and projected() (the world fx, the close-ups): `foot` is the ground
+ * line the point stands over, so its height goes along. `freeCam`: while it answers true the camera keeps the player in the
  * middle at the map's edges too (the 3D town draws what lies beyond them).
  * Walking, talking, events and collisions don't change.
  */
 export function setFieldDrawer(
   draw: ((g: Gfx, f: FieldScene) => boolean) | null,
-  project: ((f: FieldScene, x: number, y: number) => [number, number, number] | null) | null = null,
+  project: ((f: FieldScene, x: number, y: number, foot?: number) => [number, number, number] | null) | null = null,
   freeCam: ((f: FieldScene) => boolean) | null = null,
 ): void {
   altDrawer = draw;
@@ -1594,6 +1595,18 @@ export class FieldScene implements Scene {
     if (alt) return alt;
     if (this.viewScale > 1) return [Math.round((x - Math.round(this.viewX)) * this.viewScale), Math.round((y - Math.round(this.viewY)) * this.viewScale), this.viewScale];
     return [Math.round(x - Math.round(this.camX)), Math.round(y - Math.round(this.camY)), 1];
+  }
+
+  /**
+   * Where another field drawer (the HD-2D view) shows world point (x, y) in
+   * the frame (before any close-up), or null when the frame is the 2D
+   * view's own (x − camX, y − camY). `foot`: the world y of the ground line
+   * the point stands over (a person's or a prop's feet), so its height above
+   * the ground goes along; by default the point lies on the ground.
+   */
+  projected(x: number, y: number, foot = y): [number, number] | null {
+    const p = altProject?.(this, x, y, foot);
+    return p ? [p[0], p[1]] : null;
   }
 
   /** Camera target position for the current follow target (used by pans). */

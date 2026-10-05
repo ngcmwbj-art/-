@@ -7,7 +7,7 @@ import { game } from '../engine/game';
 import { PixelCanvas } from '../engine/pixel';
 import { P } from '../art/tiles/palette';
 import { field } from './field';
-import { registerWorldFx } from './fx';
+import { fxAt, registerWorldFx } from './fx';
 import { ihash } from '../art/tiles/noise';
 
 // tiny hand-drawn kana (4×6): み ま し た
@@ -43,11 +43,12 @@ const active: Active[] = [];
 
 registerWorldFx({
   map: '',
+  anchored: true,
   update(_f, dt) {
     for (const a of active) a.t += dt;
     while (active.length && active[0].t > 1800) active.shift();
   },
-  draw(_f, g, cx, cy, layer) {
+  draw(f, g, cx, cy, layer) {
     if (layer !== 'top') return;
     const img = sealImg();
     for (const a of active) {
@@ -60,7 +61,8 @@ registerWorldFx({
       const h = Math.round(16 * scale);
       g.ctx.save();
       g.ctx.globalAlpha = alpha;
-      g.ctx.drawImage(img, Math.round(a.x - cx - w / 2 + shake), Math.round(a.y - cy - h / 2), w, h);
+      const [x, y] = fxAt(f, a.x, a.y, cx, cy);
+      g.ctx.drawImage(img, Math.round(x - w / 2 + shake), Math.round(y - h / 2), w, h);
       g.ctx.restore();
     }
   },

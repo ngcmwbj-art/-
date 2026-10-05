@@ -15,12 +15,12 @@ import { fontSmallWidth, fontTextSmall, handGlyph, handText } from '../art/props
 import { registerDebug } from '../debug';
 import { PixelCanvas } from '../engine/pixel';
 import { CART_FRAMES } from '../art/props/parking';
-import { lowPoint, staffPoint } from '../art/props/wires';
+import { lowPoint, poleFoot, staffPoint } from '../art/props/wires';
 import { P } from '../art/tiles/palette';
 import { ihash } from '../art/tiles/noise';
 import { Actor } from './actor';
 import { addFushigiSpots, field, type FieldScene } from './field';
-import { registerWorldFx } from './fx';
+import { fxAt, fxElsewhere, registerWorldFx } from './fx';
 import { fushigiDone, onFushigiPressed } from './fushigi';
 import { initNpc, stepToward, type NpcWorld } from './npc';
 import * as snd from './audio';
@@ -141,7 +141,21 @@ function updateMirror(f: FieldScene, dt: number): void {
   insetA = Math.max(0, Math.min(1, insetA + (show ? 1 : -1) * (dt / 200)));
 }
 
-function drawMirrorInset(f: FieldScene, g: Gfx): void {
+/**
+ * Where the mirror is on screen in another field drawer's frame (the HD-2D
+ * view stands the mirror's picture up: its hook draws on that picture, not
+ * on the frame). prop_curve_mirror (art/props/street.ts): the glass's centre
+ * at (12.5, 10) of its picture.
+ */
+function mirrorOnFrame(f: FieldScene, cx: number, cy: number): [number, number] | null {
+  const pm = f.props.find((p) => p.obj.t === 'prop' && p.obj.prop === 'prop_curve_mirror');
+  if (!pm || !pm.present) return null;
+  const [x, y] = fxAt(f, pm.x + pm.art.ox + 12.5, pm.y + pm.art.oy + 10, cx, cy, pm.y + pm.art.foot);
+  return [Math.round(x), Math.round(y)];
+}
+
+function drawMirrorInset(f: FieldScene, g: Gfx, cx: number, cy: number): void {
+  if (insetA > 0 && fxElsewhere(f)) mirrorScreen = mirrorOnFrame(f, cx, cy);
   if (insetA <= 0 || !mirrorScreen) return;
   const e = 1 - (1 - insetA) * (1 - insetA);
   const R = Math.round(22 * (0.6 + 0.4 * e));
@@ -330,6 +344,7 @@ function updateCarts(f: FieldScene, dt: number): void {
 
 registerWorldFx({
   map: '',
+  anchored: true,
   update(f, dt) {
     if (f.map.id !== lastMap) resetMap(f);
     const stage = flag('flag_stage');
@@ -395,16 +410,16 @@ registerWorldFx({
   draw(f, g, cx, cy, layer) {
     if (f.map.id !== 'map_town') return;
     const stage = flag('flag_stage');
-    if (layer === 'top') drawMirrorInset(f, g);
+    if (layer === 'top') drawMirrorInset(f, g, cx, cy);
     if (layer === 'ground') mirrorScreen = null;
     if (layer === 'fg') {
       drawSparrows(f, g, cx, cy, stage);
-      drawFlies(g, cx, cy, f.t, stage);
+      drawFlies(f, g, cx, cy, f.t, stage);
     }
-    if (layer === 'fg' && stage < 3) drawDust(g, cx, cy, f.mt, stage);
+    if (layer === 'fg' && stage < 3) drawDust(f, g, cx, cy, f.mt, stage);
     // flag_maido_hold (scenario, evt_chime_stop): くま吉 is frozen mid-bow; no balloon
     if (layer === 'fg' && stage >= 1 && stage < 3 && !fushigiDone('fushigi_04') && !flag('flag_maido_hold')) drawMaido(f, g, cx, cy);
-    if (layer === 'fg' && train.active) drawTrain(g, cx, cy);
+    if (layer === 'fg' && train.active) drawTrain(f, g, cx, cy);
   },
 });
 
@@ -412,14 +427,18 @@ function drawSparrows(f: FieldScene, g: Gfx, cx: number, cy: number, stage: numb
   const spr = charSprite('prop_sparrow');
   if (stage >= 1 && stage < 3) {
     const notes = fushigiDone('fushigi_03') ? NOTES_B : NOTES;
+    // (the ground line under the span: the poles' feet)
+    const fa = poleFoot(...STAFF_A)[1];
+    const fb = poleFoot(...STAFF_B)[1];
     for (let i = 0; i < notes.length; i++) {
       const [k, t] = notes[i];
-      const [x, y] = staffPoint(STAFF_A, STAFF_B, k, t);
+      const [wx, wy] = staffPoint(STAFF_A, STAFF_B, k, t);
+      const [x, y] = fxAt(f, wx, Math.round(wy), cx, cy, fa + (fb - fa) * t);
       const hop = hopIdx === i ? 1 : 0;
       const singing = hopIdx === i;
       const img = singing && spr.extra?.sing ? poseFrame(spr, 'sing', 'left') : idleFrame(spr, i % 2 ? 'left' : 'right', f.t + i * 330);
-      const sx = Math.round(x - cx - img.width / 2);
-      const sy = Math.round(y) - cy - img.height + 1 - hop;
+      const sx = Math.round(x - img.width / 2);
+      const sy = Math.round(y) - img.height + 1 - hop;
       g.img(img, sx, sy);
       if (singing) {
         // the singing bird hops with a white 1px twinkle (so the eye finds the staff)
@@ -435,20 +454,25 @@ function drawSparrows(f: FieldScene, g: Gfx, cx: number, cy: number, stage: numb
     [6, 35],
     [22, 35],
   ];
+  const fa = poleFoot(...line[0])[1];
+  const fb = poleFoot(...line[1])[1];
   for (let i = 0; i < 3; i++) {
     const t = 0.3 + i * 0.13;
-    const [x, y] = lowPoint(line[0], line[1], t);
+    const [wx, wy] = lowPoint(line[0], line[1], t);
+    const [x, y] = fxAt(f, wx, wy, cx, cy, fa + (fb - fa) * t);
     const hopping = Math.floor((f.t + i * 900) / 2600) % 3 === 0;
     const img = idleFrame(spr, i % 2 ? 'left' : 'right', f.t + i * 470);
-    g.img(img, Math.round(x - cx - img.width / 2 + (hopping ? 1 : 0)), Math.round(y - cy - img.height + 1 - (hopping ? 1 : 0)));
+    g.img(img, Math.round(x - img.width / 2 + (hopping ? 1 : 0)), Math.round(y - img.height + 1 - (hopping ? 1 : 0)));
   }
 }
 
-function drawFlies(g: Gfx, cx: number, cy: number, t: number, stage: number): void {
+function drawFlies(f: FieldScene, g: Gfx, cx: number, cy: number, t: number, stage: number): void {
   if (stage === 3) return;
   for (const fl of flies) {
-    const x = Math.round(fl.x - cx);
-    const y = Math.round(fl.y - cy - 20);
+    // (20 px up over the ground at fl.y)
+    const [fx, fy] = fxAt(f, fl.x, fl.y - 20, cx, cy, fl.y);
+    const x = Math.round(fx);
+    const y = Math.round(fy);
     if (x < -4 || y < -4 || x > W + 4 || y > H + 4) continue;
     const flap = stage === 1 ? 0 : Math.floor(t / 60) % 2;
     g.rect(x, y, 3, 1, P.sunDeep);
@@ -458,12 +482,13 @@ function drawFlies(g: Gfx, cx: number, cy: number, t: number, stage: number): vo
 }
 
 /** fx_dust: motes in the arcade's light stripes (frozen in stage 1). */
-function drawDust(g: Gfx, cx: number, cy: number, mt: number, stage: number): void {
+function drawDust(f: FieldScene, g: Gfx, cx: number, cy: number, mt: number, stage: number): void {
   const x0 = 23 * 16;
   const y0 = 20 * 16;
   const w = 33 * 16;
   const h = 6 * 16;
-  if (x0 - cx > W || y0 - cy > H || x0 + w - cx < 0 || y0 + h - cy < 0) return;
+  const away = fxElsewhere(f);
+  if (!away && (x0 - cx > W || y0 - cy > H || x0 + w - cx < 0 || y0 + h - cy < 0)) return;
   const tt = mt / 1000;
   for (let i = 0; i < 40; i++) {
     const hh = ihash(i, 7, 3201);
@@ -471,8 +496,9 @@ function drawDust(g: Gfx, cx: number, cy: number, mt: number, stage: number): vo
     let y = y0 + ((hh >>> 10) % h) + ((tt * 3 + i * 7) % h);
     if (y > y0 + h) y -= h;
     if (stage === 2) x += (tt * 4) % 16;
-    const sx = Math.round(x - cx);
-    const sy = Math.round(y - cy);
+    const [px, py] = fxAt(f, x, y, cx, cy);
+    const sx = Math.round(px);
+    const sy = Math.round(py);
     if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
     // only inside the light bands (＼ stripes, period 24)
     const u = (((stage === 2 ? sx + sy * 2 : sx - sy * 2) % 24) + 24) % 24;
@@ -516,7 +542,9 @@ function drawMaido(f: FieldScene, g: Gfx, cx: number, cy: number): void {
   if (t > 1700) return;
   const img = maidoBalloon();
   const pop = t < 80 ? 1 : 0;
-  g.img(img, Math.round(a.x + a.ox - img.width / 2 - cx), Math.round(a.y + a.oy - 24 - img.height - 2 - cy - pop));
+  // over his head (the HD-2D view: at the head's height over his feet)
+  const [hx, hy] = fxAt(f, a.x + a.ox, a.y + a.oy - 24, cx, cy, a.y);
+  g.img(img, Math.round(hx - img.width / 2), Math.round(hy - img.height - 2 - pop));
 }
 
 // ---------------------------------------------------------------- the night train (8.6)
@@ -637,12 +665,22 @@ function trainImages(): HTMLCanvasElement[] {
   return TRAIN_IMG;
 }
 
-function drawTrain(g: Gfx, cx: number, cy: number): void {
+function drawTrain(f: FieldScene, g: Gfx, cx: number, cy: number): void {
   const imgs = trainImages();
   const img = imgs[Math.floor(train.t / 90) % 2];
   // head at y0 + v·t, travelling south along x = 60 (the ballast bed x 59–61)
   const headY = train.y0 + train.v * train.t;
-  const x = 60 * 16 + 8 - Math.ceil(img.width / 2) - cx;
+  const left = 60 * 16 + 8 - Math.ceil(img.width / 2);
+  if (fxElsewhere(f)) {
+    // the HD-2D view: the picture (seen from above) laid on the rails, from
+    // where its tail is to where its head is on that ground
+    const [x0, y0] = fxAt(f, left, headY - img.height, cx, cy);
+    const [x1, y1] = fxAt(f, left + img.width, headY, cx, cy);
+    g.rect(Math.round(x1), Math.round(y0 + 4), 4, Math.round(y1 - y0 - 8), P.night, 0.35);
+    g.ctx.drawImage(img, Math.round(x0), Math.round(y0), Math.round(x1 - x0), Math.round(y1 - y0));
+    return;
+  }
+  const x = left - cx;
   const y = Math.round(headY - img.height - cy);
   // a soft shadow on the ballast (east side) and the train
   g.rect(x + img.width, y + 4, 4, img.height - 8, P.night, 0.35);

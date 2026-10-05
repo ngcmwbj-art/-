@@ -25,8 +25,11 @@ import { FieldScene, setFieldDrawer } from '../world/field';
 import { fxDraw } from '../world/fx';
 import { hud } from '../world/hud';
 import { resetForNewGame, setNewGameStart } from '../ui/flow';
+import { closeUp } from '../events/stage';
 import type { Quality } from './post';
 import { CAM, Hd2dView } from './view';
+import { overlaps } from './overlap';
+import { nudging } from './tune';
 
 const DEMO = import.meta.env.VITE_HD2D_DEMO === '1';
 /** Maps drawn in HD-2D (the prototype: the town with 夕鳴銀座). */
@@ -83,8 +86,10 @@ function drawField(g: Gfx, f: FieldScene): boolean {
   const v = getView();
   if (!v) return false;
   const d = game.screen.display;
+  // a story close-up (events/stage.ts): the camera narrows to its rect of the frame
+  const cu = closeUp(f);
   try {
-    v.render(f, d.width, d.height);
+    v.render(f, d.width, d.height, cu?.rect ?? null, cu?.at ?? null);
   } catch (e) {
     console.error('[hd2d] render failed, back to 2D', e);
     failed = true;
@@ -100,6 +105,9 @@ function drawField(g: Gfx, f: FieldScene): boolean {
   ctx.globalCompositeOperation = 'source-over';
   ctx.clearRect(0, 0, W, H);
   ctx.restore();
+  // the world effects (the stamp, the sound from the loudspeaker, the
+  // frozen 「まいど！」, sparrows...) at the 3D points they belong to
+  drawWorldFx(g, f, v);
   // emotes over the heads, where the heads are on screen now
   const actors = [...f.actors, f.player];
   if (f.follower) actors.push(f.follower);
@@ -110,11 +118,8 @@ function drawField(g: Gfx, f: FieldScene): boolean {
     if (!s) continue;
     a.drawEmote(g, a.x + a.ox - s[0], a.y + a.oy - a.sprite.h + a.hopOffset() - s[1]);
   }
-  // the world effects (the stamp, the frozen 「まいど！」, sparrows...) are 2D
-  // drawings of the 2D view: drawn as they are, then laid where that view
-  // sits in the 3D picture (scaled round the screen's centre)
-  drawWorldFx(g, f, v);
-  // story overlays drawn in screen space (close-ups, captions)
+  // the top layer: the close-up (blowing up this layer as the camera crops
+  // the picture), the letterbox, the mirror's inset, seals and captions
   fxDraw(f, g, Math.round(f.camX), Math.round(f.camY), 'top');
   hud.draw(g, f);
   return true;
@@ -123,7 +128,25 @@ function drawField(g: Gfx, f: FieldScene): boolean {
 let fxCanvas: HTMLCanvasElement | null = null;
 let fxGfx: Gfx | null = null;
 
+/**
+ * The world fx below the top layer. The anchored ones place what they draw
+ * themselves (world/fx.ts fxAt → project(): the 3D point, its height
+ * included) and draw straight onto the layer at the 2D size; any other one
+ * is a 2D drawing of the 2D view: drawn as it is, then laid where that view
+ * sits in the 3D picture (scaled round the screen's centre).
+ */
 function drawWorldFx(g: Gfx, f: FieldScene, v: Hd2dView): void {
+  const cx = Math.round(f.camX);
+  const cy = Math.round(f.camY);
+  drawPlainFx(g, f, v);
+  for (const layer of ['ground', 'sorted', 'fg', 'glow'] as const) {
+    g.ctx.save();
+    fxDraw(f, g, cx, cy, layer, 'anchored');
+    g.ctx.restore();
+  }
+}
+
+function drawPlainFx(g: Gfx, f: FieldScene, v: Hd2dView): void {
   if (!fxCanvas) {
     fxCanvas = document.createElement('canvas');
     fxCanvas.width = W;
@@ -138,7 +161,7 @@ function drawWorldFx(g: Gfx, f: FieldScene, v: Hd2dView): void {
   const cy = Math.round(f.camY);
   for (const layer of ['ground', 'sorted', 'fg', 'glow'] as const) {
     ctx.save();
-    fxDraw(f, fxGfx!, cx, cy, layer);
+    fxDraw(f, fxGfx!, cx, cy, layer, 'plain');
     ctx.restore();
   }
   // the 2D view's centre is the 3D camera's target: map round it
@@ -156,10 +179,14 @@ function drawWorldFx(g: Gfx, f: FieldScene, v: Hd2dView): void {
   g.ctx.restore();
 }
 
-/** World px → buffer px through the 3D camera (bubbles and HUD marks follow the 3D town). */
-function project(f: FieldScene, x: number, y: number): [number, number, number] | null {
-  if (!on || !view || !MAPS.has(f.map.id) || f.viewScale !== 1) return null;
-  const p = view.project(new Vector3(x / 16, 0, y / 16));
+/**
+ * World px → buffer px through the 3D camera (bubbles, HUD marks, the world
+ * fx and the close-ups follow the 3D town): a point standing over the ground
+ * line `foot` is lifted to its height there (view.ts projectPx).
+ */
+function project(f: FieldScene, x: number, y: number, foot?: number): [number, number, number] | null {
+  if (!on || !view || failed || !MAPS.has(f.map.id) || f.viewScale !== 1) return null;
+  const p = view.projectPx(x, y, foot ?? y);
   return p ? [Math.round(p[0]), Math.round(p[1]), 1] : null;
 }
 
@@ -192,6 +219,29 @@ registerDebug('hd2dQuality', (q?: Quality) => {
 });
 /** The last frame's numbers: WebGL render time (ms, CPU side), draw calls, triangles, render size. */
 registerDebug('hd2dStats', () => view?.stats ?? null);
+/**
+ * Where two solids of the 3D town go into each other: the pictures the 2D
+ * draws on top that end up buried in another solid (overlap.ts), the worst
+ * first. { min: px (4), all: also the ones the 2D hides anyway, area: '銀座通り' … }.
+ */
+registerDebug('hd2dOverlaps', (o: { min?: number; all?: boolean; area?: string } = {}) => {
+  const list = overlaps(view?.solids() ?? [], o);
+  return o.area ? list.filter((r) => r.area === o.area) : list;
+});
+/** QA: false stands every prop where its picture says (tune.ts NUDGE off), true as tuned; the town is stood up again. */
+registerDebug('hd2dNudge', (v?: boolean) => {
+  if (v !== undefined) {
+    nudging.on = !!v;
+    view?.rebuild();
+  }
+  return nudging.on;
+});
+/** The room the solids whose name holds `name` take (QA: their slabs, world px; heights in picture rows). */
+registerDebug('hd2dSolids', (name = '') =>
+  (view?.solids() ?? [])
+    .filter((s) => name.split(',').some((n) => s.name.includes(n)))
+    .map((s) => ({ name: s.name, foot: s.foot, slabs: s.slabs.map((b) => [b.x0, b.x1, b.h0, b.h1, b.z0, b.z1, b.face ? 'face' : '', b.at ? 'mask' : ''].map((v) => (typeof v === 'number' ? Math.round(v * 10) / 10 : v))) })),
+);
 /** What the 3D scene holds (meshes in the camera's view, shadow casters, shadow-only planes). */
 registerDebug('hd2dScene', () => view?.census() ?? null);
 registerDebug('hd2dCam', (p?: Partial<typeof CAM>) => {

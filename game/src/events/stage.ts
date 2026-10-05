@@ -26,7 +26,7 @@ import { addItem } from '../game/state';
 import { field, type FieldScene } from '../world/field';
 import type { Actor } from '../world/actor';
 import { setMsgPosHook } from '../world/msg';
-import { registerWorldFx } from '../world/fx';
+import { fxElsewhere, registerWorldFx } from '../world/fx';
 import { BOX, dialogVisible } from '../ui/dialog';
 import { uiHud } from '../ui/hud';
 import { drawWindow, textW, UI } from '../ui/window';
@@ -56,16 +56,24 @@ export class ZoomView {
     public cx: number,
     public cy: number,
     public scale = 2,
+    /** The ground line (world y) the point (cx, cy) stands over, when it is up on something (the HD-2D view lifts it there). */
+    public foot?: number,
   ) {
     [this.buf, this.bctx] = makeCanvas(W, H);
+  }
+
+  /** Where the frame shows the close-up's point (the HD-2D view: through its camera). */
+  centre(f: FieldScene): [number, number] {
+    return f.projected(this.cx, this.cy, this.foot ?? this.cy) ?? [this.cx - Math.round(f.camX), this.cy - Math.round(f.camY)];
   }
 
   /** The close-up's source rectangle in frame pixels (integer). */
   source(f: FieldScene): [number, number, number, number] {
     const sw = Math.round(W / this.scale);
     const sh = Math.round(H / this.scale);
-    const sx = Math.max(0, Math.min(W - sw, Math.round(this.cx - Math.round(f.camX) - sw / 2)));
-    const sy = Math.max(0, Math.min(H - sh, Math.round(this.cy - Math.round(f.camY) - sh / 2)));
+    const [px, py] = this.centre(f);
+    const sx = Math.max(0, Math.min(W - sw, Math.round(px - sw / 2)));
+    const sy = Math.max(0, Math.min(H - sh, Math.round(py - sh / 2)));
     return [sx, sy, sw, sh];
   }
 
@@ -86,11 +94,12 @@ export class ZoomView {
     return W / this.view(f)[2];
   }
 
-  /** Where world point (x, y) lands on the screen through this close-up. */
-  toScreen(f: FieldScene, x: number, y: number): [number, number] {
+  /** Where world point (x, y) (standing over the ground line `foot`) lands on the screen through this close-up. */
+  toScreen(f: FieldScene, x: number, y: number, foot = y): [number, number] {
     const [sx, sy, sw] = this.view(f);
     const s = W / sw;
-    return [(x - Math.round(f.camX) - sx) * s, (y - Math.round(f.camY) - sy) * s];
+    const [px, py] = f.projected(x, y, foot) ?? [x - Math.round(f.camX), y - Math.round(f.camY)];
+    return [(px - sx) * s, (py - sy) * s];
   }
 
   /** Blow the frame being drawn (`g`, the world canvas) up around the centre. */
@@ -103,6 +112,9 @@ export class ZoomView {
     const ctx = g.ctx;
     ctx.save();
     ctx.imageSmoothingEnabled = false;
+    // (the HD-2D view: this frame is the clear layer over its picture, which
+    // its camera crops to the same rect — the 1× layer must not stay under it)
+    if (fxElsewhere(f)) ctx.clearRect(0, 0, W, H);
     ctx.drawImage(this.buf, sx, sy, sw, sh, 0, 0, W, H);
     ctx.restore();
   }
@@ -112,6 +124,7 @@ const zooms: { f: FieldScene; z: ZoomView }[] = [];
 
 registerWorldFx({
   map: '',
+  anchored: true,
   draw(f, g, _cx, _cy, layer) {
     if (layer !== 'top' || !zooms.length) return;
     for (let i = zooms.length - 1; i >= 0; i--) if (zooms[i].z.done || zooms[i].f !== f) zooms.splice(i, 1);
@@ -119,9 +132,13 @@ registerWorldFx({
   },
 });
 
-/** Start a close-up of the running field: the camera pushes in over `ms`. */
-export function* zoomIn(cx: number, cy: number, ms = 350, scale = 2): Co<ZoomView> {
-  const z = new ZoomView(cx, cy, scale);
+/**
+ * Start a close-up of the running field: the camera pushes in over `ms`.
+ * `foot`: the ground line under (cx, cy) when that point is up on something
+ * (the HD-2D view frames it at its height).
+ */
+export function* zoomIn(cx: number, cy: number, ms = 350, scale = 2, foot?: number): Co<ZoomView> {
+  const z = new ZoomView(cx, cy, scale, foot);
   const f = field();
   if (f) zooms.push({ f, z });
   if (ms <= 0) z.k = 1;
@@ -216,6 +233,33 @@ export function* zoomPan(z: ZoomView, cx: number, cy: number, ms: number): Co {
   );
 }
 
+/**
+ * The close-ups blowing up field `f`'s frame right now, as one rect of the
+ * frame (they are composed in order, each over the last one's picture), and
+ * the frame px the last one looks at — for the HD-2D view, whose camera
+ * narrows to the same rect (hd2d/view.ts).
+ */
+export function closeUp(f: FieldScene): { rect: [number, number, number, number]; at: [number, number] } | null {
+  let r: [number, number, number, number] | null = null;
+  let at: [number, number] = [W / 2, H / 2];
+  for (const e of zooms) {
+    if (e.f !== f || e.z.done || e.z.k <= 0) continue;
+    const v = e.z.view(f);
+    if (v[2] >= W - 0.01) continue;
+    const c = e.z.centre(f);
+    if (!r) {
+      r = v;
+      at = c;
+      continue;
+    }
+    const k: number = r[2] / W;
+    const r0: [number, number, number, number] = r;
+    r = [r0[0] + v[0] * k, r0[1] + v[1] * k, v[2] * k, v[3] * k];
+    at = [r0[0] + c[0] * k, r0[1] + c[1] * k];
+  }
+  return r ? { rect: r, at } : null;
+}
+
 /** The close-up on screen right now (fully dissolved in), if any. */
 function activeZoom(f: FieldScene): ZoomView | null {
   for (const e of zooms) if (e.f === f && !e.z.done && e.z.k >= 0.5) return e.z;
@@ -226,7 +270,8 @@ function activeZoom(f: FieldScene): ZoomView | null {
 function screenOf(f: FieldScene, x: number, y: number): [number, number, number] {
   const z = activeZoom(f);
   if (z) return [...z.toScreen(f, x, y), z.mag(f)];
-  return [x - Math.round(f.camX), y - Math.round(f.camY), 1];
+  const p = f.projected(x, y);
+  return p ? [p[0], p[1], 1] : [x - Math.round(f.camX), y - Math.round(f.camY), 1];
 }
 
 // ---------------------------------------------------------------- the dialog lift (fixed rooms)
@@ -366,6 +411,8 @@ function vignette(): HTMLCanvasElement {
 
 registerWorldFx({
   map: '',
+  // (screen space)
+  anchored: true,
   draw(_f, g, _cx, _cy, layer) {
     if (layer !== 'top' || cine.k <= 0) return;
     const k = cine.k;

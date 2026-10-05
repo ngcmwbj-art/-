@@ -8,7 +8,8 @@
 // G minor; the final phase lets the music fall asleep under the insects.
 
 import { DRM, INS } from '../instruments';
-import { dbToGain, liveGraph } from '../engine';
+import { liveGraph } from '../engine';
+import { holdAmbience } from '../music';
 import { bass, drums, hits, melody, pads, type BarCtx, type PartDef, type PartRt, type SongDef, type SongPlayer } from '../sequencer';
 import { kireLayers } from './battle';
 import { bar, registerSong, score } from './common';
@@ -402,12 +403,7 @@ function sleep(sp: SongPlayer): void {
   for (const rt of sp.parts) sp.partGain(rt.id, 0, 1.0, t);
   sp.haltAt = t + 1.1;
   const g = liveGraph();
-  if (g && g === sp.g) {
-    const p = g.ambDuck.gain;
-    p.cancelScheduledValues(t);
-    p.setValueAtTime(p.value, t);
-    p.linearRampToValueAtTime(dbToGain(0), t + 1.0);
-  }
+  if (g && g === sp.g) holdAmbience(1, 1.0);
 }
 
 export const BOSS2_DEF = registerSong(boss2Def());
