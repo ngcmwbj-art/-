@@ -58,6 +58,6 @@
 6. `/` を打って、project-work などの5つの Skill が出るか。
 
 ## 6. 今回だけの復元手順
-- まとめて戻す：`git revert <このセットアップのコミット>`（履歴は書きかえない）。
+- まとめて戻す：`git revert d566e0c`（履歴は書きかえない）。
 - .gitignore だけ戻す：`cp game/.ai-backup/2026-10-05/.gitignore game/.gitignore`（.ai-backup は Git の管理外）。
 - 新規ファイルは上の2の一覧のとおり。ほかの既存ファイルは変えていない。
