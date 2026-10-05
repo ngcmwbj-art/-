@@ -910,10 +910,10 @@ export class RoomWorld {
       // the beam's sides: u across, v along (1 at the window, 0 on the floor)
       const side = (p: V3, q: V3, q2: V3, p2: V3) => {
         beam.add4(p2, q2, q, p, [0, 0, 1], [0, 0, 1, 0, 1, 1, 0, 1]);
-        cols.push(0.35, 0.35, 1, 1);
+        cols.push(0.12, 0.12, 1, 1);
       };
+      // (the top and the sides: the underside would lie over the top as the camera sees it, twice as bright)
       side(A, B, B2, A2);
-      side(D, C, C2, D2);
       side(D, A, A2, D2);
       side(C, B, B2, C2);
       // the patch: from where the window's foot lands to where its head lands
@@ -987,8 +987,8 @@ export class RoomWorld {
       const k = (1 - night) * (this.f.grade.motion < 0.5 && g.toMall < 0.5 ? 0.65 : 1);
       const sky = new THREE.Color().setRGB(g.skyBot[0] / 255, g.skyBot[1] / 255, g.skyBot[2] / 255, THREE.SRGBColorSpace);
       const c = new THREE.Color(1, 0.93, 0.8).lerp(sky, 0.45);
-      this.beamMat.color.copy(c).multiplyScalar(0.16 * k);
-      this.patchMat.color.copy(c).multiplyScalar(0.34 * k);
+      this.beamMat.color.copy(c).multiplyScalar(0.12 * k);
+      this.patchMat.color.copy(c).multiplyScalar(0.28 * k);
     }
     return Math.atan2(d.x, d.z);
   }
