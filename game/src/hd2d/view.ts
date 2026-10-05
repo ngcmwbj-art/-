@@ -15,6 +15,7 @@ import type { Actor } from '../world/actor';
 import type { FieldScene } from '../world/field';
 import { ActorViews } from './actors';
 import { Post, type Quality } from './post';
+import { markShadowPass } from './solid';
 import { PITCH, SV, TownWorld } from './town';
 
 export interface CamParams {
@@ -48,6 +49,8 @@ export interface FrameStats {
   h: number;
   quality: Quality;
   buildMs: number;
+  /** The last build's parts (ms). */
+  build: Record<string, number>;
 }
 
 export class Hd2dView {
@@ -81,6 +84,8 @@ export class Hd2dView {
     this.renderer.toneMapping = THREE.NoToneMapping;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    // (shadow planes are drawn into the shadow map only: solid.ts shadowOnly)
+    markShadowPass(this.renderer.shadowMap);
     this.renderer.info.autoReset = false;
     this.camera = new THREE.PerspectiveCamera(CAM.fov, W / H, 1, 160);
     this.sun = new THREE.DirectionalLight(SUN_COLOUR, 2.6);
@@ -147,7 +152,7 @@ export class Hd2dView {
     }
     this.actors.clear();
     const t0 = performance.now();
-    this.world = new TownWorld(f);
+    this.world = new TownWorld(f, this.quality === 'light');
     this.buildMs = performance.now() - t0;
     this.worldF = f;
     this.worldMap = f.map.id;
@@ -256,6 +261,7 @@ export class Hd2dView {
       h,
       quality: this.quality,
       buildMs: Math.round(this.buildMs),
+      build: world.buildParts,
     };
   }
 

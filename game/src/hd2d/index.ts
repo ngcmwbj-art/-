@@ -163,7 +163,12 @@ function project(f: FieldScene, x: number, y: number): [number, number, number] 
   return p ? [Math.round(p[0]), Math.round(p[1]), 1] : null;
 }
 
-setFieldDrawer(drawField, project);
+/** In the 3D town the camera follows Minato past the map's edges too: the town goes on there (town.ts MARGIN). */
+function freeCam(f: FieldScene): boolean {
+  return on && !failed && MAPS.has(f.map.id) && f.viewScale === 1;
+}
+
+setFieldDrawer(drawField, project, freeCam);
 
 export function hd2dOn(): boolean {
   return on;

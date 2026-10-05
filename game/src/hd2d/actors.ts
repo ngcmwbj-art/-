@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import type { Actor } from '../world/actor';
 import type { FieldScene } from '../world/field';
+import { shadowOnly } from './solid';
 import { casterMaterial, pixelTexture, SHADE, SV, type TownWorld } from './town';
 
 const PX = 1 / 16;
@@ -60,7 +61,7 @@ class ActorView {
     this.mat = new THREE.MeshBasicMaterial({ alphaTest: 0.5 });
     this.body = new THREE.Mesh(STAND, this.mat);
     this.cmat = casterMaterial(null);
-    this.caster = new THREE.Mesh(STAND, this.cmat);
+    this.caster = shadowOnly(new THREE.Mesh(STAND, this.cmat));
     this.caster.castShadow = true;
     this.shadow = new THREE.Mesh(FLAT, new THREE.MeshBasicMaterial({ map: blob(), transparent: true, depthWrite: false, opacity: 0.6, polygonOffset: true, polygonOffsetFactor: -2 }));
     this.shadow.renderOrder = 1;
@@ -89,9 +90,10 @@ class ActorView {
     const h = img.height * PX * SV;
     // feet: the actor's (x, y); a pose drawn higher (perched, hopping) lifts it,
     // one drawn lower (oy > 0) stands that much further south
-    const up = -(Math.min(0, a.oy) + a.hopOffset() - (a.lift > 0 ? 1 : 0)) * PX * SV;
     const x = (a.x + a.ox) * PX;
     const z = (a.y + Math.max(0, a.oy)) * PX;
+    // (on the ground's step where it stands: paving, the bridge)
+    const up = -(Math.min(0, a.oy) + a.hopOffset() - (a.lift > 0 ? 1 : 0)) * PX * SV + world.heightAt(x, z - 0.05);
     this.body.position.set(x, up, z);
     this.body.scale.set(w, h, 1);
     this.caster.position.set(x, up, z);
@@ -109,10 +111,12 @@ class ActorView {
     const shaded = world.inShadow([x, 0.5, z - 0.05], sunDir);
     this.mat.color.copy(tint).multiplyScalar(shaded ? SHADE : 1);
     const sw = Math.max(0.55, Math.min(1.4, w * 0.8));
-    this.shadow.position.set(x, 0.02, z - 0.06);
+    const ground = world.heightAt(x, z - 0.05);
+    this.shadow.position.set(x, ground + 0.02, z - 0.06);
     this.shadow.scale.set(sw, 1, sw * 0.42);
-    this.shadow.visible = up < 1.5;
-    (this.shadow.material as THREE.MeshBasicMaterial).opacity = 0.6 * alpha * (1 - Math.min(1, up / 1.5) * 0.6);
+    const air = up - ground;
+    this.shadow.visible = air < 1.5;
+    (this.shadow.material as THREE.MeshBasicMaterial).opacity = 0.6 * alpha * (1 - Math.min(1, air / 1.5) * 0.6);
   }
 }
 

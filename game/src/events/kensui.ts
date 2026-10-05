@@ -48,6 +48,9 @@ import { puff } from './fx';
 /** The high bar of obj_tetsubo (21–23, 3): its middle and its top line, in world px (30 3.5). */
 const BAR_X = 375;
 const BAR_Y = 37;
+/** In front of the bar: the feet in the row under it (4), and the free tiles at its ends (20 and 24, row 3). */
+const FRONT_Y = 5 * 16;
+const END_X: [number, number] = [20 * 16 + 8, 24 * 16 + 8];
 
 /** Is グソっ君 with him and in sight (stage 2)? */
 function kanenariWatching(): boolean {
@@ -60,6 +63,15 @@ function* pullUp(talk: string | null): Co {
   const f = field();
   if (!f) return;
   const p = f.player;
+  // asked from the bar's end or from behind it (2026-10-05, 依頼主「懸垂のあと
+  // 動けなくなった」): he went straight along his row to the bar's middle and
+  // was left standing in the bar's solid tile. He steps round its end to the
+  // front first, and hangs from there as from below.
+  if (p.y < FRONT_Y) {
+    const ex = p.x < BAR_X ? END_X[0] : END_X[1];
+    if (Math.abs(p.x - ex) > 1) yield* walkPx('player', ex, p.y, 2.5);
+    yield* walkPx('player', ex, FRONT_Y, 2.5);
+  }
   const y0 = p.y;
   if (Math.abs(p.x - BAR_X) > 1) yield* walkPx('player', BAR_X, y0, 2.5);
   // round to face the camera, and a little jump up to the bar

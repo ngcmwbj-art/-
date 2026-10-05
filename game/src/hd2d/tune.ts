@@ -49,3 +49,139 @@ export const TUNE: Record<string, BldTune> = {
   bld_photo: { rise: 0.6 },
   bld_sake: { rise: 0.4 },
 };
+
+// ---------------------------------------------------------------- props in 3D (round 2)
+
+/**
+ * How a prop that is not a building stands up (props3d.ts):
+ *  - slab: its painted pixels pushed back `depth` px (the voxel look; a box
+ *    for a rectangle picture: vending machines, mailboxes, crates);
+ *  - pole: the shaft an 8-sided column, the rest (arms, signs, lamps)
+ *    pushed back `depth` px;
+ *  - tree: the trunk a column, the crown crossed boards (tree_* ids);
+ *  - flat: a standing picture as before (creatures, things lying flat).
+ */
+export interface PropSolid {
+  kind: 'slab' | 'pole' | 'tree' | 'flat';
+  /** px */
+  depth?: number;
+}
+
+const slab = (depth: number): PropSolid => ({ kind: 'slab', depth });
+const pole = (depth = 3): PropSolid => ({ kind: 'pole', depth });
+const FLAT: PropSolid = { kind: 'flat' };
+
+export const SOLID: Record<string, PropSolid> = {
+  // creatures stay billboards (HD-2D: people and animals are pictures)
+  prop_cat_kuro: FLAT,
+  prop_heron: FLAT,
+  obj_pigeons: FLAT,
+  // things lying on the ground or on a wall
+  prop_cat_hole_moss: FLAT,
+  obj_early_leaf: FLAT,
+  obj_semi_shell: FLAT,
+  obj_shrubs: FLAT,
+  prop_kitsune_sara: FLAT,
+  obj_akikan: FLAT,
+  obj_balloon_husk: FLAT,
+  obj_block_hole: FLAT,
+  obj_minato_nameplate: FLAT,
+  obj_foxtail: FLAT,
+  // the parking lot's west chain runs north–south (drawn lying)
+  prop_chain: FLAT,
+  // poles, lamp posts, sign posts
+  prop_utility_pole: pole(3),
+  prop_park_lamp: pole(3),
+  prop_lot_lamp: pole(3),
+  obj_speaker_pole: pole(3),
+  prop_arch_post: pole(3),
+  obj_arch_sign: pole(3),
+  prop_lot_nobori: pole(2),
+  prop_curve_mirror: pole(2),
+  obj_bus_stop: pole(3),
+  obj_tomare_sign: pole(2),
+  obj_scarecrow: pole(3),
+  prop_propane: pole(6),
+  // boxes
+  obj_vending_ginza: slab(12),
+  obj_vending_normal: slab(12),
+  prop_garbage_station: slab(12),
+  obj_doghouse: slab(12),
+  obj_wagon: slab(12),
+  obj_hokora: slab(12),
+  obj_kaba: slab(12),
+  obj_gacha_ginza: slab(10),
+  obj_outdoor_unit: slab(10),
+  obj_danball: slab(10),
+  obj_beer_crate: slab(10),
+  obj_hoshimi_yasai: slab(10),
+  prop_planter: slab(10),
+  obj_tires: slab(10),
+  obj_postbox: slab(8),
+  obj_jizo: slab(8),
+  obj_pay_machine: slab(8),
+  obj_drinking_fountain: slab(8),
+  obj_fire_bucket: slab(8),
+  obj_backyard_cooler: slab(8),
+  obj_catalley_bucket: slab(8),
+  obj_tofu_tank: slab(8),
+  obj_ojigi_restored: slab(8),
+  prop_water_gate: slab(6),
+  obj_covered_car: slab(18),
+  prop_clocktower: slab(14),
+  prop_arcade_pillar: slab(8),
+  prop_rail_bridge: slab(8),
+  // benches, pots, plants
+  obj_ginza_bench: slab(8),
+  obj_park_bench: slab(8),
+  prop_park_bench: slab(8),
+  prop_engawa_bench: slab(8),
+  obj_pots_1: slab(8),
+  obj_pots_2: slab(8),
+  obj_pots_3: slab(8),
+  prop_pots_row: slab(8),
+  prop_bonsai: slab(8),
+  obj_asagao: slab(6),
+  prop_veg_patch: slab(8),
+  obj_clock_shop: slab(6),
+  obj_cafe_board: slab(6),
+  obj_car_stop: slab(6),
+  obj_minato_mailbox: slab(6),
+  obj_neighbor_mailbox: slab(5),
+  // thin things: bikes, signs, frames, fences, shop windows
+  prop_mama_bike: slab(3),
+  prop_postman_bike: slab(3),
+  obj_rusty_bike: slab(3),
+  obj_kids_bike: slab(3),
+  obj_koban_bicycle: slab(3),
+  obj_signpost: slab(3),
+  obj_akichi_sign: slab(3),
+  obj_akichi_hoshimono: slab(3),
+  prop_laundry_pole: slab(3),
+  obj_rules_sign: slab(3),
+  obj_park_board: slab(4),
+  obj_poster_board: slab(4),
+  obj_swing: slab(3),
+  obj_tetsubo: slab(3),
+  prop_wisteria: slab(3),
+  obj_bike_rack: slab(3),
+  obj_cart_corral: slab(4),
+  prop_torii: slab(4),
+  prop_crossing_gate: slab(3),
+  obj_photo_window: slab(2),
+  obj_laundry_window: slab(2),
+  obj_koban_lamp: slab(3),
+  obj_barricade: slab(4),
+  obj_broken_guide: slab(4),
+  prop_sch_uramon: slab(3),
+  obj_bridge: slab(3),
+};
+
+/** The solid of a prop: the table, else trees by id, else a slab as deep as a third of its smaller side. */
+export function solidOf(id: string, w: number, standH: number): Required<PropSolid> {
+  const s = SOLID[id];
+  if (s) return { kind: s.kind, depth: s.depth ?? 0 };
+  if (id.startsWith('tree_') || id === 'prop_cherry_tree' || id === 'prop_persimmon' || id === 'prop_tree_zelkova_s') return { kind: 'tree', depth: 3 };
+  if (standH < 6) return { kind: 'flat', depth: 0 };
+  return { kind: 'slab', depth: Math.max(2, Math.min(8, Math.round(Math.min(w, standH) * 0.3))) };
+}

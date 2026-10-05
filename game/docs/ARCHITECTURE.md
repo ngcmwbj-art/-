@@ -102,21 +102,50 @@ the picture changes: walking, collisions, talking, events, menus and battles are
   R roof rows, F facade rows) = the facade rows standing at the foot line, the roof rows on a box R tiles deep,
   the strip above the roof at its back edge; `hd2d/tune.ts` adds hand-cut pieces for 夕鳴銀座 (the ひのや and
   豆くま吉 boards, the chimney, the clock on its pole) and roof slopes. Other props, their fg parts and the ASCII
-  walls are cut-outs: the rows above the foot line stand, the rows below lie on the ground. Standing things are
-  stretched ×1.2 (`SV`) so they keep their 2D proportions under the tilted camera. Glows are emissive maps (bloom),
+  walls stand from their foot line: the rows above it stand, the rows below lie on the ground (with bodies since
+  round 2, below). Standing things are stretched by `SV` = tan(pitch) (×0.84 at 40°) so they keep their 2D
+  proportions under the tilted camera. Glows are emissive maps (bloom),
   the nearest 4 also get a point light (normal quality). A cut-out in front of Minato turns see-through (the 2D
-  x-ray); canopies fade as in 2D. Long shadows come from shadow-only planes turned to the sun; those of the props
-  that are always there share one mesh over one atlas (`CasterSet`), so the town is ~150 draw calls a frame.
+  x-ray); canopies fade as in 2D. Thin pictures and tree crowns cast long shadows from shadow-only planes turned
+  to the sun; those of the props that are always there share one mesh over one atlas (`CasterSet`).
+- **Bodies** (round 2, 2026-10-05): props are no longer flat. `hd2d/props3d.ts` stands a prop's picture up with
+  the body its id gets in `tune.ts` `SOLID` (default: a slab a third of its smaller side deep): `slab` = the
+  painted pixels pushed back N px (`solid.ts` `extrude`: one front quad, only the silhouette's edge faces, merged
+  along runs, each in the colour of its edge pixel — the voxel look; vending machines, mailboxes, crates come out
+  as boxes), `pole` = the tallest run of columns from the foot an 8-sided column (`prism`) wrapped in those
+  columns, the rest (arms, signs, lamps) pushed back, `tree` = the trunk a column, the crown crossed boards
+  (three facing the camera, one across), `flat` = as before (creatures, things lying flat). The ASCII layer
+  (`hd2d/walls.ts`): block walls 4px boxes (face rows in front, cap rows on top, a north–south run a box down the
+  cells with the material's face on its sides), hedges boxes (face rows, top rows), mesh fences two panels with
+  the top rail, guardrails / pipe rails / ropes pushed back 3px, the railway fence rails and posts; one atlas,
+  one mesh. The ground's tiles have heights (`STEP`: paving 2px up, the canal 6px and the paddies 2px down) with
+  the step faces the camera sees; characters and props stand on them. Light quality leaves thin slabs flat.
+- **Past the edges**: in the 3D town the camera does not stop at the map's edges (`setFieldDrawer`'s third hook
+  `freeCam`, read by `FieldScene.cameraTarget()`; 2D is unchanged), so the land outside is drawn
+  (`hd2d/outskirts.ts`, `town.ts` `MARGIN` 16 / 14 / 8 tiles): the ground of the edge tiles goes on (`bakeGround`
+  clamps to the edge, so the road, the river and the paddies run on without a seam; baked once per map), the walls,
+  hedges and fences that cross an edge go on, and further out houses (the town's house pictures, some mirrored),
+  trees, poles and, north of the park, the school (`LAYOUT`, one atlas, one mesh, a step darker). Nobody walks
+  there (collisions are the 2D map's).
+- **Draw calls**: props whose picture never changes (no animation or glow, no `cond`, no x-ray) share one atlas and
+  one mesh (`PropBatch`: one for those that take the shadow map, one for thin ones, tinted by vertex colour);
+  the shadows of everything always there with a body go through one more mesh drawn into the shadow map only
+  (`ShadowSet`; `solid.ts` `shadowOnly` culls a mesh from the picture while `markShadowPass` lets the shadow pass
+  draw it — the sun-facing planes of `CasterSet` and the characters too). At 17:00, normal (PC / iPad): 夕鳴銀座
+  163 → 116 draw calls, 川べり 190 → 127, the west edge 169 → 87, the park 96 → 83; light (iPhone): 149 → 102,
+  176 → 113, 155 → 72; ~30–32k triangles (was ~2.6k). A rebuild (a door back, a warp) ~0.2–0.5 s (was 0.4–0.65);
+  the first one also bakes the land outside (once per map; 4 tiles past each edge, repeated further out).
 - **Characters** (`hd2d/actors.ts`): the current 2D frame on an upright plane, unlit, a round contact shadow, and
   the long shadow from a second, shadow-only plane turned to the sun; darker inside a building's shadow.
-- **Camera and light** (`hd2d/view.ts`): a perspective camera 50° down, fov 26°, 25 tiles back, aimed at the 2D
-  camera's centre (`camX/camY`: look-ahead, the dialog slide, pans and locks carry over). A low sun from the
+- **Camera and light** (`hd2d/view.ts`): a perspective camera 40° down (`town.ts` `PITCH`), fov 26°, 25 tiles back,
+  aimed 1.5 tiles north of the 2D camera's centre (`camX/camY`: look-ahead, the dialog slide, pans and locks carry
+  over). A low sun from the
   west-south-west (length from `Grade.shadowLen`), sky/ground hemisphere light, a soft fog.
 - **Finish** (`hd2d/post.ts`): bloom, a tilt-shift blur away from Minato's row, the field's `Grade` (mul, desat,
   glare, topDark — the same numbers as the 2D grade, so 17:00 tweens the same), the chime's wave, a vignette.
   `normal` = 2048 shadow map, bloom, two-pass tilt-shift, full display size (≤1920 wide); `light` = 1024 shadows,
   no bloom or lamps, one-pass blur, half size (≤960). Phones start light; tablets and computers start normal and
-  step down once when more than a third of 2 s of frames are slower than ~38 fps. QA: `__game.cmd.hd2dStats()` (render ms, draw calls, triangles, size), `hd2dQuality()`,
+  step down once when more than a third of 2 s of frames are slower than ~38 fps. QA: `__game.cmd.hd2dStats()` (render ms, draw calls, triangles, size, `build`: ms per part of the last build), `hd2dQuality()`,
   `hd2dCam({pitch, fov, dist})`.
 
 ## Directory ownership (parallel teams: only edit what you own)

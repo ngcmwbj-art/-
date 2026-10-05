@@ -98,18 +98,23 @@ export function field(): FieldScene | null {
 }
 let altDrawer: ((g: Gfx, f: FieldScene) => boolean) | null = null;
 let altProject: ((f: FieldScene, x: number, y: number) => [number, number, number] | null) | null = null;
+let altFreeCam: ((f: FieldScene) => boolean) | null = null;
 /**
  * Another way to draw the field (the HD-2D prototype, src/hd2d): `draw` is
  * called first in draw(); when it returns true it drew this frame, and the 2D
  * renderer is skipped. `project` then answers worldToScreen() (bubbles, HUD
- * marks). Walking, talking, events and collisions don't change.
+ * marks). `freeCam`: while it answers true the camera keeps the player in the
+ * middle at the map's edges too (the 3D town draws what lies beyond them).
+ * Walking, talking, events and collisions don't change.
  */
 export function setFieldDrawer(
   draw: ((g: Gfx, f: FieldScene) => boolean) | null,
   project: ((f: FieldScene, x: number, y: number) => [number, number, number] | null) | null = null,
+  freeCam: ((f: FieldScene) => boolean) | null = null,
 ): void {
   altDrawer = draw;
   altProject = project;
+  altFreeCam = freeCam;
 }
 // field sounds are placed by where they happen on screen (world/audio seAt)
 snd.setListener(() => {
@@ -1466,10 +1471,12 @@ export class FieldScene implements Scene {
     let x = fx - W / 2;
     let y = fy - H / 2;
     const fixed = this.map.def.camera === 'fixed';
+    // (the HD-2D town: no stop at the edges, the 3D picture goes on past them)
+    const free = !fixed && altFreeCam?.(this) === true;
     if (mw <= W || fixed) x = (mw - W) / 2;
-    else x = clamp(x, 0, mw - W);
+    else if (!free) x = clamp(x, 0, mw - W);
     if (mh <= H || fixed) y = (mh - H) / 2;
-    else y = clamp(y, 0, mh - H);
+    else if (!free) y = clamp(y, 0, mh - H);
     return [x, y];
   }
 
