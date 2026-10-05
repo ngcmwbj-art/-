@@ -85,6 +85,12 @@ export interface PropArt {
   contact?: number;
   /** Contact shadow centre x relative to anchor (px). */
   contactX?: number;
+  /**
+   * A building's layout (bkit registerBuilding): `top` px above the roof,
+   * R roof rows, then F facade rows down to the foot line. The HD-2D
+   * prototype (src/hd2d) stands the facade up and lays the roof on a box.
+   */
+  box?: { W: number; R: number; F: number; top: number };
 }
 
 export type PropBuilder = (opts: Record<string, unknown>) => PropArt;

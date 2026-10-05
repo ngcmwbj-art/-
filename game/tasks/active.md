@@ -4,7 +4,7 @@
 - 作業環境のセットアップ（2026-10-05）：AGENTS.md・CLAUDE.md・.claude/（rules・skills・agents・settings・hooks）・docs/ai・docs/game・docs/video・docs/note・video/・note/ を作った。報告は docs/ai/setup-report.md。
 
 ## 依頼主の返事待ち
-- HD-2D（three.js、ハートゴールド風のカメラ＋HD-2D の光）への作り変え：まず銀座通り1画面の試作をするかどうか（2026-10-05 に見積もりを出した）。
+- HD-2D（three.js、ハートゴールド風のカメラ＋HD-2D の光）：銀座通りの試作を作った（2026-10-05、02 #85。`src/hd2d/`、`?hd2d=1`、`npm run artifact:hd2d` → dist-artifact/shun-hd2d.html。公開・コミットはリード）。実機（iPad・iPhone）での見え方と速さ、全部の場所に広げるかどうかの返事待ち。
 
 ## 作業状態
 - 公開ページ（第2章まで遊べる版）は Version 20（2026-10-05：二人十五脚・ハンチングの値札・水辺の図鑑・70年の色紙と小さな夏祭り。02 の #81〜#84）。

@@ -31,6 +31,8 @@ async function boot(): Promise<void> {
   canvas.focus();
   installDebug();
   registerDebug('textZones', () => ({ ...uiBands(), touch: touchLayoutInfo(), buttons: buttonZones() }));
+  // the HD-2D prototype (src/hd2d): the dev server and the HD-2D demo build only
+  if (import.meta.env.DEV || import.meta.env.VITE_HD2D_DEMO === '1') await import('./hd2d');
   document.getElementById('boot')?.remove();
   game.push(await firstScene());
   game.start();

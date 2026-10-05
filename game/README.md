@@ -32,10 +32,13 @@ npm install
 npm run dev        # http://127.0.0.1:5173/
 npm run build      # フォントのサブセット化 → 型チェック → dist/
 npm run artifact   # dist を1枚のHTML（dist-artifact/hanamaru-sunset.html）にまとめる
+npm run artifact:hd2d  # HD-2D の試作ページ（dist-artifact/shun-hd2d.html。起動で HD-2D、「はじめる」で 夕鳴銀座へ）
 ```
 
+- HD-2D の試作（three.js。夕鳴町だけ）：開発サーバーで `?hd2d=1`（`&hd2dq=light` で軽い）、または `__game.cmd.hd2d(true)`。くわしくは `docs/ARCHITECTURE.md` の「HD-2D layer」。
+
 - エンジン：TypeScript + Vite + 自作の Canvas2D エンジン（384×216 を整数倍拡大）。
-- 画像ファイル・音声ファイルは使っていません。ドット絵はすべてコードで描き、音楽と効果音は WebAudio のシンセで生成しています。
+- 画像ファイル・音声ファイルは使っていません。ドット絵はすべてコードで描き、音楽と効果音は WebAudio のシンセで生成しています。HD-2D の試作だけ three.js（MIT）を使います（開発サーバーと試作ページのみ。ほかのビルドには入りません）。
 - フォント：DotGothic16（SIL Open Font License 1.1）。`tools/font/` を参照。
 - 設計書：`docs/design/`（コンセプト、シナリオ、戦闘、レベルとアート、サウンド）。
 - 構成とチームの分担：`docs/ARCHITECTURE.md`、各チームの指示書は `docs/briefs/`。

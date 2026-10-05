@@ -8,6 +8,7 @@
 ## 最近変えたファイル
 - 2026-10-05：作業環境のセットアップ一式（docs/ai/setup-report.md の一覧を参照）
 - 2026-10-05：採用案4つ（#81 水辺の図鑑、#82 二人十五脚〔かずお→ピー・コック〕、#83 ハンチングの値札、#84 70年の色紙と小さな夏祭り）
+- 2026-10-05：HD-2D の試作（#85）：src/hd2d/（新規）、engine/screen.ts、world/field.ts、art/props/types.ts・bkit.ts、ui/flow.ts、main.ts、tools/make-artifact.mjs、package.json（three・@types/three）、docs/ARCHITECTURE.md の「HD-2D layer」
 
 ## 失敗したこと・注意
 - 通しテストを2本同時に走らせると、出力フォルダの取り合いで落ちる。
@@ -15,6 +16,6 @@
 - Artifact を公開するときは、更新先の URL を必ず指定する（指定しないと別のページができる）。
 
 ## 次の一手
-- HD-2D の試作をするかどうかの返事を待つ。
+- HD-2D の試作の感想と実機の速さ（`__game.cmd.hd2dStats()`）を依頼主に聞く。広げるなら：ほかの場所、部屋、物語の寄り（zoomIn）の 3D 版、建物のうしろの人の影絵、せっていの「表示」切りかえ。
 - 通しテストの mall2f は、フードコートを歩き回る敵がテストの「上へ歩く」に入ると時間切れになることがある（ゲームの不具合ではない。テストを強くする余地あり）。
 - docs/game/bugs.md の未修正の不具合。

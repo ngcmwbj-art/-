@@ -586,6 +586,7 @@ function buildingArt(def: BuildingDef): PropArt {
     w: b.w,
     h: H,
     foot: (def.R + def.F) * 16,
+    box: { W: def.W, R: def.R, F: def.F, top: b.top },
     img: (env) => imgFor(Math.floor(env.stage)),
     glass,
     over: def.over ? (g, x, y, env) => def.over!(g, x, y - b.top, env, b) : undefined,

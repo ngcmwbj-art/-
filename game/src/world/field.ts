@@ -96,6 +96,21 @@ export function addFushigiSpots(fn: (f: FieldScene) => { id: string; x: number; 
 export function field(): FieldScene | null {
   return current;
 }
+let altDrawer: ((g: Gfx, f: FieldScene) => boolean) | null = null;
+let altProject: ((f: FieldScene, x: number, y: number) => [number, number, number] | null) | null = null;
+/**
+ * Another way to draw the field (the HD-2D prototype, src/hd2d): `draw` is
+ * called first in draw(); when it returns true it drew this frame, and the 2D
+ * renderer is skipped. `project` then answers worldToScreen() (bubbles, HUD
+ * marks). Walking, talking, events and collisions don't change.
+ */
+export function setFieldDrawer(
+  draw: ((g: Gfx, f: FieldScene) => boolean) | null,
+  project: ((f: FieldScene, x: number, y: number) => [number, number, number] | null) | null = null,
+): void {
+  altDrawer = draw;
+  altProject = project;
+}
 // field sounds are placed by where they happen on screen (world/audio seAt)
 snd.setListener(() => {
   const f = current;
@@ -1568,6 +1583,8 @@ export class FieldScene implements Scene {
 
   /** World px → screen px and the scale there (the room view included). */
   worldToScreen(x: number, y: number): [number, number, number] {
+    const alt = altProject?.(this, x, y);
+    if (alt) return alt;
     if (this.viewScale > 1) return [Math.round((x - Math.round(this.viewX)) * this.viewScale), Math.round((y - Math.round(this.viewY)) * this.viewScale), this.viewScale];
     return [Math.round(x - Math.round(this.camX)), Math.round(y - Math.round(this.camY)), 1];
   }
@@ -1628,6 +1645,7 @@ export class FieldScene implements Scene {
   }
 
   draw(g: Gfx): void {
+    if (altDrawer?.(g, this)) return;
     this.renderer.draw(g);
   }
 

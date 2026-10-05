@@ -10,14 +10,17 @@
     "preview": "vite preview --host 127.0.0.1 --port 4173",
     "font": "python3 tools/subset-font.py",
     "artifact": "npm run build && node tools/make-artifact.mjs",
-    "artifact:ch2": "VITE_CH2_OPEN=1 npm run build && node tools/make-artifact.mjs --ch2"
+    "artifact:ch2": "VITE_CH2_OPEN=1 npm run build && node tools/make-artifact.mjs --ch2",
+    "artifact:hd2d": "VITE_HD2D_DEMO=1 npm run build && node tools/make-artifact.mjs --hd2d"
   },
   "devDependencies": {
+    "@types/three": "^0.186.0",
+    "playwright": "1.56.1",
     "typescript": "~5.9.3",
-    "vite": "^8.3.0",
-    "playwright": "1.56.1"
+    "vite": "^8.3.0"
   },
   "dependencies": {
-    "@fontsource/dotgothic16": "^5.3.0"
+    "@fontsource/dotgothic16": "^5.3.0",
+    "three": "^0.186.1"
   }
 }

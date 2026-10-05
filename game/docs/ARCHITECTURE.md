@@ -80,6 +80,45 @@ npm run build        # subsets the font, typechecks, builds dist/
 - `audio/keepalive.ts`: brings the AudioContext back after the system stops it (alarm, call, app switch):
   resume on page show / focus / any gesture, plus a 1 s retry; SFX and blips are skipped while it is stopped.
 
+## HD-2D layer (prototype, 2026-10-05, 02 #85)
+
+An optional 3D picture of the field, made with three.js (the one library added, with the client's approval). Only
+the picture changes: walking, collisions, talking, events, menus and battles are the 2D game's own.
+
+- **Where it runs**: `src/hd2d/` is imported (dynamically, from `main.ts`) only by the dev server and the demo build
+  (`VITE_HD2D_DEMO=1`, `npm run artifact:hd2d` → `dist-artifact/shun-hd2d.html`); the other builds have no three.js.
+  Off by default. On with `?hd2d=1` (`&hd2dq=light|normal`), `__game.cmd.hd2d(true|false)`, or the demo build
+  (there 「はじめる」 opens in 夕鳴銀座: `ui/flow.ts` `setNewGameStart`). Maps: `map_town` only; every other map,
+  room, battle and cut stays 2D.
+- **Layers**: the WebGL canvas is offscreen. `FieldScene.draw()` asks `setFieldDrawer()`'s hook first; in HD-2D it
+  renders the town, hands the canvas to `Screen.underlay`, and clears the 2D buffer to transparent before the
+  emotes, the world fx (drawn as 2D and mapped round the screen centre), the HUD, the windows and the fade go on
+  top. `Screen.present()` lays the underlay over the display canvas, then the buffer (the buffer has alpha since
+  then; the display canvas is still opaque). The touch controls (DOM) and the safe zones are untouched, and
+  `#screen.toDataURL()` holds both layers. `FieldScene.worldToScreen()` projects through the 3D camera
+  (`setFieldDrawer`'s second hook), so bubbles and HUD marks follow the 3D town.
+- **The town** (`hd2d/town.ts`): every surface is a 2D picture already in the game (NearestFilter, alphaTest).
+  The ground = the ground chunks + flat decals. A building (`PropArt.box` from `bkit.registerBuilding`: top px,
+  R roof rows, F facade rows) = the facade rows standing at the foot line, the roof rows on a box R tiles deep,
+  the strip above the roof at its back edge; `hd2d/tune.ts` adds hand-cut pieces for 夕鳴銀座 (the ひのや and
+  豆くま吉 boards, the chimney, the clock on its pole) and roof slopes. Other props, their fg parts and the ASCII
+  walls are cut-outs: the rows above the foot line stand, the rows below lie on the ground. Standing things are
+  stretched ×1.2 (`SV`) so they keep their 2D proportions under the tilted camera. Glows are emissive maps (bloom),
+  the nearest 4 also get a point light (normal quality). A cut-out in front of Minato turns see-through (the 2D
+  x-ray); canopies fade as in 2D. Long shadows come from shadow-only planes turned to the sun; those of the props
+  that are always there share one mesh over one atlas (`CasterSet`), so the town is ~150 draw calls a frame.
+- **Characters** (`hd2d/actors.ts`): the current 2D frame on an upright plane, unlit, a round contact shadow, and
+  the long shadow from a second, shadow-only plane turned to the sun; darker inside a building's shadow.
+- **Camera and light** (`hd2d/view.ts`): a perspective camera 50° down, fov 26°, 25 tiles back, aimed at the 2D
+  camera's centre (`camX/camY`: look-ahead, the dialog slide, pans and locks carry over). A low sun from the
+  west-south-west (length from `Grade.shadowLen`), sky/ground hemisphere light, a soft fog.
+- **Finish** (`hd2d/post.ts`): bloom, a tilt-shift blur away from Minato's row, the field's `Grade` (mul, desat,
+  glare, topDark — the same numbers as the 2D grade, so 17:00 tweens the same), the chime's wave, a vignette.
+  `normal` = 2048 shadow map, bloom, two-pass tilt-shift, full display size (≤1920 wide); `light` = 1024 shadows,
+  no bloom or lamps, one-pass blur, half size (≤960). Phones start light; tablets and computers start normal and
+  step down once when more than a third of 2 s of frames are slower than ~38 fps. QA: `__game.cmd.hd2dStats()` (render ms, draw calls, triangles, size), `hd2dQuality()`,
+  `hd2dCam({pitch, fov, dist})`.
+
 ## Directory ownership (parallel teams: only edit what you own)
 
 | path | owner |

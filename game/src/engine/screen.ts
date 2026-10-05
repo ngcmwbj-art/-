@@ -21,6 +21,13 @@ export class Screen {
    * still reads as an even square.
    */
   fixedScale: number | null = null;
+  /**
+   * A picture drawn under the low-res buffer for this one frame (the HD-2D
+   * prototype's WebGL town, src/hd2d): present() lays it over the whole
+   * display canvas first, then the buffer — which the field then leaves
+   * transparent where the town shows — on top. Cleared after each present.
+   */
+  underlay: HTMLCanvasElement | null = null;
 
   constructor(display: HTMLCanvasElement) {
     this.display = display;
@@ -28,7 +35,9 @@ export class Screen {
     this.buffer = document.createElement('canvas');
     this.buffer.width = W;
     this.buffer.height = H;
-    this.ctx = this.buffer.getContext('2d', { alpha: false })!;
+    // alpha: the HD-2D field leaves the town's part of the buffer transparent
+    // (every 2D screen still paints the whole buffer opaque each frame)
+    this.ctx = this.buffer.getContext('2d')!;
     this.ctx.imageSmoothingEnabled = false;
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -68,10 +77,17 @@ export class Screen {
     const s = this.scale;
     const x = Math.round(offX) * s;
     const y = Math.round(offY) * s;
+    const u = this.underlay;
     // the picture covers the whole canvas; only a shake leaves an edge to clear
     if (x || y) {
       d.fillStyle = '#000';
       d.fillRect(0, 0, this.display.width, this.display.height);
+    }
+    if (u) {
+      // the WebGL picture may be rendered smaller than the canvas (light quality)
+      d.imageSmoothingEnabled = u.width < this.display.width;
+      d.drawImage(u, 0, 0, u.width, u.height, x, y, W * s, H * s);
+      this.underlay = null;
     }
     d.imageSmoothingEnabled = false;
     d.drawImage(this.buffer, x, y, W * s, H * s);

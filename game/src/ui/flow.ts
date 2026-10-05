@@ -78,8 +78,21 @@ export function resetForNewGame(): void {
   syncSettingFlags();
 }
 
+let newGameStart: (() => Co) | null = null;
+/**
+ * 「はじめる」 opens somewhere else: the HD-2D demo page (src/hd2d,
+ * VITE_HD2D_DEMO=1) starts in 夕鳴銀座. null: the game's own start.
+ */
+export function setNewGameStart(fn: (() => Co) | null): void {
+  newGameStart = fn;
+}
+
 /** 「はじめる」: reset, run the hooks, start the field in Minato's room. */
 export function* startNewGame(): Co {
+  if (newGameStart) {
+    yield* newGameStart();
+    return;
+  }
   resetForNewGame();
   game.fadeColor = '#0B0B14';
   game.fadeAlpha = 1;
