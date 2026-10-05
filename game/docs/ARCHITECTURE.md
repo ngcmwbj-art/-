@@ -150,7 +150,7 @@ the picture changes: walking, collisions, talking, events, menus and battles are
   close-up blows up the 2D layer as before, and the tilt-shift focuses on what it looks at.
 - **Solids in each other's way** (round 3): while the town is stood up, every building, prop (its fg parts too),
   wall cell and outskirts thing notes the room it takes (`hd2d/overlap.ts` `Solid`: boxes in world px, heights in
-  picture rows, the painted pixels). `__game.cmd.hd2dOverlaps({min, all, area})` lists where a picture the 2D draws
+  picture rows, the painted pixels). `__game.cmd.hd2dOverlaps({min, all, area})` (dev server only; the published page leaves it out) lists where a picture the 2D draws
   on top (the foot line further south; on one line the one further east) is buried in another solid, or two
   pictures stand on one plane; `hd2dSolids(name)`, `hd2dNudge(false)` (stand everything as before). The ones found
   are moved in `tune.ts` `NUDGE` (`id@x,y`): `z` = a few px south on the ground, `fgView` = its fg parts (a crown,

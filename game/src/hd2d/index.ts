@@ -224,11 +224,15 @@ registerDebug('hd2dStats', () => view?.stats ?? null);
  * draws on top that end up buried in another solid (overlap.ts), the worst
  * first. { min: px (4), all: also the ones the 2D hides anyway, area: '銀座通り' … }.
  */
-registerDebug('hd2dOverlaps', (o: { min?: number; all?: boolean; area?: string } = {}) => {
-  const f = field();
-  const list = overlaps(view && f && MAPS.has(f.map.id) ? view.solids(f) : [], o);
-  return o.area ? list.filter((r) => r.area === o.area) : list;
-});
+// Only on the dev server: the published page leaves the checker out (2026-10-05, the artifact
+// publish refused the page while it carried it).
+if (import.meta.env.DEV) {
+  registerDebug('hd2dOverlaps', (o: { min?: number; all?: boolean; area?: string } = {}) => {
+    const f = field();
+    const list = overlaps(view && f && MAPS.has(f.map.id) ? view.solids(f) : [], o);
+    return o.area ? list.filter((r) => r.area === o.area) : list;
+  });
+}
 /** QA: false stands every prop where its picture says (tune.ts NUDGE off), true as tuned; the town is stood up again. */
 registerDebug('hd2dNudge', (v?: boolean) => {
   if (v !== undefined) {
