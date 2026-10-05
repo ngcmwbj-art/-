@@ -219,6 +219,10 @@ const OBJECTS: MapObj[] = [
   O('obj_hoshi_hyakuyobako', 33, 28, { prop: 'prop_h_hyakuyobako' }),
   O('obj_hoshi_tetsubou', 30, 30, { w: 3, face: 'down', prop: 'prop_h_tetsubou' }),
   O('obj_hoshi_sakura', 24, 30, { prop: 'prop_h_sakura' }),
+  // 70年の 色紙と 小さな 夏祭り（02 #84）：桜の 東の 低い 枝の 提灯（かけた あと、段階1〜2。
+  // トマトの 灯りが 近いと ともる）と、祭りの あいだだけ 校庭に 置く 太鼓
+  PR('prop_h_matsuri_chochin', 24, 30, {}, { cond: { stage: '1-2', flag: 'flag_matsuri_kake' } }),
+  PR('prop_h_matsuri_taiko', 27, 29, {}, { cond: { flag: 'flag_matsuri_on' } }),
   // the school gate in the azalea hedge, its lamp lit for the meeting (the warm light north of the crossing, 52 3.10)
   PR('prop_h_school_gate', 24, 31),
   O('obj_hoshi_monohoshi', 21, 28, { w: 3, face: 'up', prop: 'prop_h_monohoshi' }),
@@ -241,6 +245,9 @@ const OBJECTS: MapObj[] = [
   O('obj_hoshi_hinomi', 41, 30, { w: 2, h: 2, prop: 'prop_h_hinomi' }),
   O('obj_hoshi_yousui', 40, 21, { face: 'up' }),
   O('obj_hoshi_nagareboshi', 16, 21, { face: 'up', fushigi: 'fushigi_ch2_03' }),
+  // 夜振り（水辺の 図鑑、02 #81）：南の 岸 (14–18,22) から 北向きに。流れ星の ふしぎ (16,21) の 両どなり
+  { t: 'obj', id: 'obj_hoshi_yoburi', x: 14, y: 21, w: 2, face: 'up', script: 'obj_hoshi_yoburi' } as MapObj,
+  { t: 'obj', id: 'obj_hoshi_yoburi2', x: 17, y: 21, w: 2, face: 'up', script: 'obj_hoshi_yoburi' } as MapObj,
   PR('prop_h_pole', 12, 37, { ad: 'fumoto' }),
   PR('prop_h_pole', 19, 37, { ad: 'inoshishi_s' }),
   PR('prop_h_pole', 47, 36, { trans: true }),
@@ -268,6 +275,7 @@ const OBJECTS: MapObj[] = [
   O('obj_hoshi_engawa', 6, 43, { face: 'up', reward: { item: 'item_umeboshi', flag: 'flag_ch2_hidden_engawa' } }),
   O('obj_hoshi_kamado', 2, 43, { face: 'up', litOnly: true }),
   PR('prop_h_container_seat', 3, 32),
+  PR('prop_hunting_straw', 3, 32, undefined, { cond: { stage: '0-2', flag: 'flag_hunting_straw' } }),
   PR('prop_h_shichu_taba', 7, 35),
   PR('prop_h_bunsui', 13, 20),
   PR('prop_h_hatake', 9, 42),
@@ -378,8 +386,11 @@ const OBJECTS: MapObj[] = [
   ]),
 
   // ======================================================== NPCs (52 3.4)
-  { t: 'npc', id: 'npc_hoshi_mitsu', x: 3, y: 32, dir: 'right', pose: 'sit', off: [0, -2], talk: htalk('npc_hoshi_mitsu'), cond: s01 },
-  { t: 'npc', id: 'npc_hoshi_mitsu', x: 3, y: 32, dir: 'right', pose: 'look_hill', off: [0, -2], talk: htalk('npc_hoshi_mitsu'), cond: s2 },
+  { t: 'npc', id: 'npc_hoshi_mitsu', x: 3, y: 32, dir: 'right', pose: 'sit', off: [0, -2], talk: htalk('npc_hoshi_mitsu'), cond: { ...s01, notFlag: 'flag_hunting_on' } },
+  { t: 'npc', id: 'npc_hoshi_mitsu', x: 3, y: 32, dir: 'right', pose: 'look_hill', off: [0, -2], talk: htalk('npc_hoshi_mitsu'), cond: { ...s2, notFlag: 'flag_hunting_on' } },
+  // ハンチングの 値札（02 #83）：〔kaburu〕の あとは くりこの ハンチング（絵の 差分）、麦わらの 中折れは コンテナの わき
+  { t: 'npc', id: 'npc_hoshi_mitsu', sprite: 'npc_hoshi_mitsu_hunting', x: 3, y: 32, dir: 'right', pose: 'sit', off: [0, -2], talk: htalk('npc_hoshi_mitsu'), cond: { ...s01, flag: 'flag_hunting_on' } },
+  { t: 'npc', id: 'npc_hoshi_mitsu', sprite: 'npc_hoshi_mitsu_hunting', x: 3, y: 32, dir: 'right', pose: 'look_hill', off: [0, -2], talk: htalk('npc_hoshi_mitsu'), cond: { ...s2, flag: 'flag_hunting_on' } },
   {
     t: 'npc', id: 'npc_hoshi_gen', x: 51, y: 32, dir: 'down', talk: htalk('npc_hoshi_gen'),
     cond: { stage: '0-1', notFlag: 'flag_ch2_gate_open' },

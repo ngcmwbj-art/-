@@ -57,6 +57,7 @@ import {
   RECORD,
   RECORD_1,
   RECORD_1B,
+  RECORD_SPOT,
   RELEASE,
   RELEASE_1,
   RELEASE_NARR_1,
@@ -66,8 +67,12 @@ import {
   releaseNarr,
   tamotsuMeasure,
   tamotsuTextSamples,
+  zariTaku3Text,
   zariTakuText,
 } from '../data/text/tamotsu';
+// 水辺の 図鑑（02 #81）：『みずべ』の 欄・記録・場所ごとの ザリ拓・堰への 誘い
+import { mizubeAfterFirstZari, mizubeBookLater, sekiInvite, sekiInviteDue, takuBest, takuFlag, TAKU_SPOTS, zariNushiZukan, zariStillNote, zariZukan } from './mizube_zari';
+import { yuraiAtOpi } from './mizube_yurai';
 import { F, getKeyItem, panBack, panTo, walkTo } from './lib';
 import { forceBoxPos, keyGuide, talkZoom, zoomOut } from './stage';
 import {
@@ -170,6 +175,12 @@ registerScript('npc_tamotsu', function* (): Co {
   const f = field();
   const a = actor('npc_tamotsu');
   yield* giveOwedRamune();
+  // 水辺の 図鑑（02 #81）：おぴぃの 由来（母に 聞いた あと、1回）、『みずべ』の 欄（あとで 帳面を 持った 人）
+  if (flag(TF.met) && ((yield* yuraiAtOpi()) || (yield* mizubeBookLater()))) {
+    const i = yield* msg(TAMOTSU.ask);
+    if (i === 0) yield* tsuriSession();
+    return;
+  }
   if (!flag(TF.met)) {
     // the first talk: close on the two of them (2×), as with the town's first meetings
     const z = f && a ? yield* talkZoom(f.player, a) : null;
@@ -211,7 +222,11 @@ registerScript('obj_tamotsu_mizuguchi', function* (): Co {
 registerScript('obj_sb_gyotaku', function* (ctx): Co {
   yield* ctx.runDefault();
   const best = flag(TF.best);
-  if (best > 0) yield* msg(zariTakuText(best, stage()));
+  // 場所ごとの ザリ拓（02 #81）：2枚 以上なら まとめて 1ページ
+  const list = TAKU_SPOTS.filter((sp) => takuBest(sp) > 0).map((sp) => [sp, takuBest(sp)] as [Spot, number]);
+  if (list.length >= 2) yield* msg(zariTaku3Text(list, stage()));
+  else if (list.length === 1) yield* msg(zariTakuText(list[0][1], stage()));
+  else if (best > 0) yield* msg(zariTakuText(best, stage()));
 });
 
 // ---------------------------------------------------------------- the fishing
@@ -267,7 +282,8 @@ function* tsuriSession(): Co {
       game.ui.remove(panel);
     }
   }
-  yield* msg(TAMOTSU.bye);
+  if (sekiInviteDue()) yield* sekiInvite();
+  else yield* msg(TAMOTSU.bye);
   yield* panBack(500);
   forceBoxPos(null);
   if (a) {
@@ -311,6 +327,7 @@ function* afterRound(panel: TsuriPanel, r: RoundResult, s: number): Co {
   }
   if (r.kind === 'nushi') {
     yield* cardShow(panel, 'nushi', r.cm, { noRuler: true });
+    zariNushiZukan();
     if (!flag(TF.nushi)) {
       yield* msg(NUSHI);
       setFlag(TF.nushi, 1);
@@ -331,13 +348,17 @@ function* afterRound(panel: TsuriPanel, r: RoundResult, s: number): Co {
   }
   // on the ruler: the pencil number, then her bump
   yield* cardShow(panel, r.kind, r.cm);
-  if (s === 1) yield* msg(STILL_HOLD);
+  if (s === 1) {
+    yield* msg(STILL_HOLD);
+    yield* zariStillNote(r.kind);
+  }
   yield* cardMeasure(panel);
   const k = flag(TF.mori);
   setFlag(TF.mori, k + 1);
   const [line, cert] = tamotsuMeasure(r.kind as 'kozari' | 'zari' | 'makka' | 'can', r.cm, k, s);
   yield* msg(line);
   yield* cardMori(panel, cert);
+  zariZukan(r.kind, r.cm, cert);
   if (cert > r.cm && kanenariWatching() && !flag(TF.flipMori)) {
     setFlag(TF.flipMori, 1);
     yield* msg(FLIP_MORI);
@@ -356,13 +377,17 @@ function* afterRound(panel: TsuriPanel, r: RoundResult, s: number): Co {
       setFlag(TF.ramuneOwed, 1);
       yield* msg(FIRST_FULL);
     }
+    yield* mizubeAfterFirstZari();
   }
   const best = flag(TF.best);
-  if (cert > best) {
-    yield* msg(best ? RECORD : RECORD_1);
+  // ザリ拓は 場所ごとに 3枚（02 #81）：その 場所の 記録を こえると なぞる（古い セーブの 1枚は そのまま）
+  const spotBest = takuBest(r.spot);
+  if (cert > spotBest) {
+    yield* msg(!best ? RECORD_1 : spotBest ? RECORD : RECORD_SPOT);
     yield* cardTrace(panel, cert);
-    setFlag(TF.best, cert);
-    panel.record = cert;
+    setFlag(takuFlag(r.spot), cert);
+    if (cert > best) setFlag(TF.best, cert);
+    panel.record = Math.max(best, cert);
     yield 400;
     if (!best) yield* msg(RECORD_1B);
   }

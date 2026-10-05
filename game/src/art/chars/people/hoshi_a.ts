@@ -78,6 +78,8 @@ const MITSU: Mats = {
   tomato: mat('#5FA85A', { shade: '#3FA66B', light: '#9BCB6B', dark: '#2E6B4A' }),
   bag: mat('#E8D9B5', { shade: '#C8A06A', light: '#FBF3DC', dark: '#A8742A' }),
   crank: flat('#6B7186'),
+  // ハンチング (02 #83): grey-brown tweed
+  cap: mat('#8C8068', { shade: '#6E6450', light: '#AAA088', dark: '#4E4638' }),
 };
 const MITSU_KEEP = ['#3A4A7A', '#2A3458', '#5A6A9A', '#D9A07A', '#B87A5A', '#7A8AB4'];
 
@@ -123,6 +125,49 @@ function fedora(f: Fig, view: 'down' | 'up' | 'left', y: number, tip = false) {
   f.rows(1, y + 2 - (tip && front ? 1 : 0), [front ? 'HHhhhhhhhhhhhd' : 'hhhhhhhhhhhhhd'], M);
   // weave stitches on the brim
   f.t(-1).px(3, y + 2).px(12, y + 2).px(6, y - 1).t(null);
+}
+
+/**
+ * ハンチングの 値札 (50 3.8〔boushi〕, 02_ch2_index #83): from 〔kaburu〕 on he wears the
+ * tweed flat cap くりこ gave him (sprite npc_hoshi_mitsu_hunting, h1–h2). It sits low and
+ * flat on the head — the crown from the head-template top `y` to y+2, the short visor in
+ * front on y+3 (its shadow on the row below). The straw fedora rests beside his crates.
+ */
+let MITSU_CAP = false;
+
+function flatCap(f: Fig, view: 'down' | 'up' | 'left', y: number) {
+  const M: RowMap = { h: [null, 0], H: [null, 1], d: [null, -1], D: [null, -2] };
+  f.part('cap', { flat: true });
+  if (view === 'left') {
+    // the crown slopes down to the visor, which sticks out in front (screen left)
+    f.rows(5, y, ['.hHHhd.']);
+    f.rows(4, y + 1, ['hHhhhhhd']);
+    f.rows(3, y + 2, ['hhhhhhhhhd']);
+    f.rows(1, y + 3, ['DdhhhhhhhhdD']);
+    // tweed flecks
+    f.t(-1).px(7, y + 1).px(5, y + 2).px(9, y + 2).t(null);
+    return;
+  }
+  if (view === 'up') {
+    f.rows(3, y, ['..hhhhhd..']);
+    f.rows(3, y + 1, ['.hhhhhhhd.']);
+    f.rows(3, y + 2, ['hhhhhhhhdd']);
+    f.rows(3, y + 3, ['dhhhhhhhdd']);
+    f.t(-1).px(6, y + 1).px(9, y + 2).px(5, y + 3).t(null);
+    return;
+  }
+  f.rows(3, y, ['...hHHh...']);
+  f.rows(3, y + 1, ['.hHHhhhhd.']);
+  f.rows(3, y + 2, ['hHhhhhhhhd']);
+  // the visor: its lit top edge across the forehead
+  f.rows(3, y + 3, ['dHhhhhhhdd'], M);
+  f.t(-1).px(6, y + 1).px(9, y + 2).px(5, y + 2).t(null);
+}
+
+/** His hat of the moment: the straw fedora, or (npc_hoshi_mitsu_hunting) the flat cap. */
+function mitsuHat(f: Fig, view: 'down' | 'up' | 'left', y: number, tip = false) {
+  if (MITSU_CAP) flatCap(f, view, y);
+  else fedora(f, view, y, tip);
 }
 
 /** White rubber boots: a grey cuff line where the trousers tuck in. */
@@ -250,7 +295,7 @@ function mitsuFront(f: Fig, p: Pose) {
     hangArms(f, p, { lx: 3, rx: 12, sy: 12, hy: 17, segs: MITSU_ARM }, u);
   }
   head(f, p, MITSU_HEAD, hy);
-  if (!p.lookUp) f.retone(4, hy + 3, -1, 8, 1);
+  if (!p.lookUp) f.retone(4, hy + 3 + (MITSU_CAP ? 1 : 0), -1, 8, 1);
   // the trimmed moustache (3px, tapered)
   if (!p.lookUp) {
     f.part('stache', { flat: true, rim: false });
@@ -259,7 +304,7 @@ function mitsuFront(f: Fig, p: Pose) {
     f.part('stache', { flat: true, rim: false });
     f.t(0).hl(7, 8, hy + 5).t(null);
   }
-  fedora(f, 'down', hy + hatLift(p), act === 'sit_hat');
+  mitsuHat(f, 'down', hy + hatLift(p), act === 'sit_hat');
 }
 
 function mitsuBack(f: Fig, p: Pose) {
@@ -285,7 +330,7 @@ function mitsuBack(f: Fig, p: Pose) {
   mitsuHolster(f, 11, 16 + b);
   hangArms(f, { ...p, mode: seated ? 'extra' : p.mode }, { lx: 3, rx: 12, sy: 12, hy: seated ? 16 : 17, segs: MITSU_ARM }, u);
   head(f, p, MITSU_HEAD, hy);
-  fedora(f, 'up', hy + hatLift(p));
+  mitsuHat(f, 'up', hy + hatLift(p));
 }
 
 function mitsuSide(f: Fig, p: Pose) {
@@ -360,7 +405,7 @@ function mitsuSide(f: Fig, p: Pose) {
     sideArm(f, 8, 14 + u, 2, sw, [{ mat: 'cuff', n: 1 }, { mat: 'skin' }]);
   }
   head(f, lp, MITSU_HEAD, hy);
-  if (!lp.lookUp) f.retone(3, hy + 3, -1, 5, 1);
+  if (!lp.lookUp) f.retone(3, hy + 3 + (MITSU_CAP ? 1 : 0), -1, 5, 1);
   if (!lp.lookUp) {
     f.part('stache', { flat: true, rim: false });
     f.t(0).px(3, hy + 7).t(-1).px(4, hy + 7).t(null);
@@ -368,7 +413,7 @@ function mitsuSide(f: Fig, p: Pose) {
     f.part('stache', { flat: true, rim: false });
     f.t(0).px(2, hy + 5).t(null);
   }
-  fedora(f, 'left', hy + (lp.lookUp ? -1 : 0), act === 'sit_hat');
+  mitsuHat(f, 'left', hy + (lp.lookUp ? -1 : 0), act === 'sit_hat');
 }
 
 function mitsuDraw(f: Fig, p: Pose) {
@@ -388,9 +433,20 @@ const MITSU_SIT: IdleKey[] = [
 ];
 const MITSU_SIT_BACK: IdleKey[] = rep([{ act: 'sit', breath: 0 }, { act: 'sit', breath: 0 }, { act: 'sit', breath: 1 }, { act: 'sit', breath: 1 }], 4);
 
-registerChar('npc_hoshi_mitsu', () =>
-  buildSprite({
-    id: 'npc_hoshi_mitsu',
+registerChar('npc_hoshi_mitsu', () => mitsuSprite('npc_hoshi_mitsu'));
+// ハンチングの 値札 (02 #83): the same man in くりこ's flat cap (h1–h2 after 〔kaburu〕)
+registerChar('npc_hoshi_mitsu_hunting', () => {
+  MITSU_CAP = true;
+  try {
+    return mitsuSprite('npc_hoshi_mitsu_hunting');
+  } finally {
+    MITSU_CAP = false;
+  }
+});
+
+function mitsuSprite(id: string) {
+  return buildSprite({
+    id,
     mats: MITSU,
     draw: waving(mitsuDraw, 'shirt', 'cuff'),
     walkFrameMs: 150,
@@ -412,8 +468,8 @@ registerChar('npc_hoshi_mitsu', () =>
     },
     shadow: 10,
     keep: MITSU_KEEP,
-  }),
-);
+  });
+}
 
 // =============================================================================
 // マサルさん (npc_hoshi_gen): 64, broad (shoulders 12), a shaven head with one

@@ -71,6 +71,17 @@ registerWorldFx({
   },
 });
 
+/**
+ * 水辺の 図鑑（02 #81、events/ch2/yoburi.ts が 入れる）：7月の ページの あとに しゅんの 1行。
+ * `choice` が 文を 返すとき（②の『みずべ』を ぜんぶ うめた あと）は、いつもの「めくる」の かわりに
+ * その 選択（0 で `write`、どちらでも めくるのは そこまで）。`extra` は 書いた あとの 1ページ。
+ */
+export const ekinoteHooks: { choice: (() => string | null) | null; write: (() => Co) | null; extra: (() => string | null) | null } = {
+  choice: null,
+  write: null,
+  extra: null,
+};
+
 /** The old pages, from the newest of them back to the first; at the end the notebook turns itself back. */
 function* oldPages(): Co {
   for (let i = 0; i < EKINOTE_PAGES.length; i++) {
@@ -84,6 +95,16 @@ function* oldPages(): Co {
       text += '\n' + p.flip;
     }
     if (flag(EKI.read) < i + 1) setFlag(EKI.read, i + 1);
+    if (p.key === 'jul') {
+      const extra = ekinoteHooks.extra?.();
+      if (extra) text += '\n' + extra;
+      const alt = ekinoteHooks.choice?.();
+      if (alt && ekinoteHooks.write) {
+        const w = yield* runMsg(text + '\n' + alt);
+        if (w === 0) yield* ekinoteHooks.write();
+        return;
+      }
+    }
     const r = yield* runMsg(last ? text : text + '\n' + EKINOTE_CHOICE);
     if (!last && r !== 0) return;
   }

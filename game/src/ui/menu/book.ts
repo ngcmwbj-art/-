@@ -36,11 +36,15 @@ import { MUSHI_BOOK, MUSHI_PAGE_TITLE } from '../../data/text/hoshi_mushi';
 import { MUSHI5, mushiSketch, type MushiKind } from '../../art/props/hoshi_mushi';
 // ② の すみの 1ページ『二百十日の 前の 晩』（02_ch2_index #78）：ふしぎの 一覧の いちばん下、番号なし・数に 入れない
 import { drawNihyakuPage, hasNihyakuPage, NIHYAKU_ROW_LABEL } from './book_nihyaku';
+// ① ② の『みずべ』（水辺の 図鑑、02_ch2_index #81）：いちばん うしろの 欄
+import { drawMizubePage, hasMizube, MIZUBE_TAB, mizubeHave, mizubeRows, stickerZari } from './book_mizube';
+import { zukanSticker } from '../../data/text/mizube_book';
+import { stickerDojou } from '../../art/props/yoburi_art';
+import { drawShikishiPage, hasShikishiPage, SHIKISHI_ROW_LABEL } from './book_shikishi';
 
 // ---- ② 『むし』: 捕まえない自由研究 (50_ch2_story 10.21, 52_ch2_level_art 13.2, 02_ch2_index #64) ----
 
-/** The fourth section of ②, once グソっ君 has talked しゅん into it (flag_ch2_mushi). */
-const MUSHI_SEC = 3;
+/** The fourth section of ②, once グソっ君 has talked しゅん into it (flag_ch2_mushi). Found by its name (isMushi): ① has 『みずべ』 there. */
 const MUSHI_TAB = 'むし';
 
 function hasMushi(): boolean {
@@ -326,8 +330,8 @@ const coverCache = new Map<string, HTMLCanvasElement>();
  * (`tag`), the vegetable delivery ぴーちゃん's white feather (`feather`),
  * tucked in at the top right and sticking out 3px over the edge (52 13.2).
  */
-export function bookCover(vol: 1 | 2, done: boolean, tag = false, feather = false): HTMLCanvasElement {
-  const key = `${vol}:${done}:${tag}:${feather}`;
+export function bookCover(vol: 1 | 2, done: boolean, tag = false, feather = false, mizube = false): HTMLCanvasElement {
+  const key = `${vol}:${done}:${tag}:${feather}:${mizube}`;
   let c = coverCache.get(key);
   if (c) return c;
   const { w, h } = COVER;
@@ -406,7 +410,11 @@ export function bookCover(vol: 1 | 2, done: boolean, tag = false, feather = fals
       ctx.globalAlpha = 1;
     }
     if (feather) ctx.drawImage(featherImg(), w - 14, 0);
+    // 『みずべ』② を ぜんぶ うめて 駅ノートに 書いた：トマトの となりに ドジョウの シール（02 #81）
+    if (mizube) ctx.drawImage(stickerDojou(), lx + lw - 27, ly - 6 + T);
   } else {
+    // おぴぃが『みずべ』① に 書きこんだ：表紙の すみに ザリガニの シール（02 #81）
+    if (mizube) ctx.drawImage(stickerZari(), 22, h - 32 + T);
     // ① has seen a summer: a scuffed corner and a faded strip where the hand holds it
     r(w - 10, h - 10, 8, 8, light, 0.35);
     for (let y = 100; y < 150; y++) if (hash2(0, y, 12) < 0.4) r(w - 6, y, 4, 1, light, 0.3);
@@ -544,18 +552,28 @@ const LIST_Y = SP.y + 30;
 export class BookPage implements MenuPage {
   private vol: 1 | 2 = 1;
   private sec = 0;
+  // (one per section: ② has five with 『むし』 and 『みずべ』, 02 #81)
   private sel = [
-    [0, 0, 0, 0],
-    [0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
   ];
   private scroll = [
-    [0, 0, 0, 0],
-    [0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
   ];
 
   /** The sections of the open notebook (② gets 『むし』 once 捕まえない自由研究 has begun, 02_ch2_index #64). */
   private sections(vol: 1 | 2 = this.vol): string[] {
-    return vol === 2 && hasMushi() ? [...SECTIONS, MUSHI_TAB] : SECTIONS;
+    const base = vol === 2 && hasMushi() ? [...SECTIONS, MUSHI_TAB] : SECTIONS;
+    // 『みずべ』（02 #81）：① ② の いちばん うしろ
+    return hasMizube(vol) ? [...base, MIZUBE_TAB] : base;
+  }
+  /** The open section by its name (① has 『みずべ』 where ② has 『むし』). */
+  private get isMushi(): boolean {
+    return this.sections()[this.sec] === MUSHI_TAB;
+  }
+  private get isMizube(): boolean {
+    return this.sections()[this.sec] === MIZUBE_TAB;
   }
   private moveT = 999;
   private secT = 999;
@@ -602,8 +620,9 @@ export class BookPage implements MenuPage {
 
   private count(): number {
     const v = this.v;
-    if (this.sec === MUSHI_SEC) return mushiRows().length;
-    if (this.sec === 0) return v.fushigi.length + (v.n === 2 && hasNihyakuPage() ? 1 : 0);
+    if (this.isMizube) return mizubeRows(this.vol).length;
+    if (this.isMushi) return mushiRows().length;
+    if (this.sec === 0) return v.fushigi.length + (v.n === 2 && hasNihyakuPage() ? 1 : 0) + (v.n === 2 && hasShikishiPage() ? 1 : 0);
     return this.sec === 1 ? v.enemies.length : totalIn(v, v.n === 1 ? 19 : 17);
   }
 
@@ -670,9 +689,9 @@ export class BookPage implements MenuPage {
       drawCircledNum(g, v.n, LP.x + 8 + textW('みました帳') + 2, SP.y + 11, UI.text);
     } else drawHeader(g, 'みました帳', LP.x, SP.y + 6, v.tape, 1, 9 + v.n);
     const c = v.n === 1 ? bookCounts() : bookCountsCh2();
-    const have = this.sec === MUSHI_SEC ? mushiSeenCount() : this.sec === 0 ? c.fushigi : this.sec === 1 ? c.aite : c.tsukkomi;
+    const have = this.isMizube ? mizubeHave(this.vol)[0] : this.isMushi ? mushiSeenCount() : this.sec === 0 ? c.fushigi : this.sec === 1 ? c.aite : c.tsukkomi;
     // (『むし』 counts the five: the beetle is a bonus)
-    const total = this.sec === MUSHI_SEC ? 5 : this.sec === 0 ? v.fushigi.length : this.count();
+    const total = this.isMizube ? mizubeHave(this.vol)[1] : this.isMushi ? 5 : this.sec === 0 ? v.fushigi.length : this.count();
     drawDigits(g, `${have}/${total}`, FOLD - (two ? 6 : 12), SP.y + 12, { color: UI.pencil, align: 'right' });
     const k = Math.min(1, this.secT / 120);
     g.alpha(k, () => {
@@ -686,8 +705,10 @@ export class BookPage implements MenuPage {
     // section tabs sticking out of the notebook's top edge (four — with 『むし』 —
     // sit a little tighter and further left, clear of the clock)
     const secs = this.sections();
-    const pad = secs.length > 3 ? 8 : 14;
-    let tx = SP.x + (secs.length > 3 ? 56 : 80);
+    const pad = secs.length > 4 ? 4 : secs.length > 3 ? 8 : 14;
+    // (with 『みずべ』 the row is longer: it moves left so it ends before the clock, 02 #81)
+    const rowW = secs.reduce((a, n) => a + textW(n) + pad + 2, 0);
+    let tx = Math.min(SP.x + (secs.length > 3 ? 56 : 80), 318 - rowW);
     const v = this.v;
     if (m.focus) {
       // ←→ turns the section: little pencil chevrons either side of the tabs
@@ -735,7 +756,7 @@ export class BookPage implements MenuPage {
    * a moment and is opened like a page (0.23 s) onto the new index.
    */
   private drawCoverSwap(g: Gfx, m: MenuCtx): void {
-    const img = bookCover(this.vol, !!flag('flag_ch2_clear'), this.vol === 2 && hasEarTag(), this.vol === 2 && hasFeather());
+    const img = bookCover(this.vol, !!flag('flag_ch2_clear'), this.vol === 2 && hasEarTag(), this.vol === 2 && hasFeather(), zukanSticker(this.vol));
     const x0 = SP.x + 5;
     const y0 = SP.y + 6 - COVER_TOP;
     if (this.closed && !m.focus) {
@@ -777,10 +798,14 @@ export class BookPage implements MenuPage {
     };
     const num = (i: number) => String(i + 1).padStart(2, '0');
     // 『むし』: the five by name (the beetle, a bonus, after them without a number)
-    if (this.sec === MUSHI_SEC) return mushiRows().map((b, i) => wrapRow(b.name, mushiSeenKind(b.kind), b.kind === 'kabuto' ? '' : num(i), UI.text));
+    if (this.isMizube) return mizubeRows(this.vol).map((r) => wrapRow(r.name, r.done, r.num, r.pencil ? UI.pencil : UI.text));
+    if (this.isMushi) return mushiRows().map((b, i) => wrapRow(b.name, mushiSeenKind(b.kind), b.kind === 'kabuto' ? '' : num(i), UI.text));
     if (this.sec === 0) {
       const r = v.fushigi.map((f, i) => wrapRow(f[0], v.done(i), num(i), UI.text));
-      return v.n === 2 && hasNihyakuPage() ? [...r, wrapRow(NIHYAKU_ROW_LABEL, true, '', UI.pencil)] : r;
+      if (v.n === 2 && hasNihyakuPage()) r.push(wrapRow(NIHYAKU_ROW_LABEL, true, '', UI.pencil));
+      // 『70年の 色紙』（02 #84）：二百十日の 下に
+      if (v.n === 2 && hasShikishiPage()) r.push(wrapRow(SHIKISHI_ROW_LABEL, true, '', UI.pencil));
+      return r;
     }
     if (this.sec === 1) return v.enemies.map((id, i) => wrapRow(nameOf(id, v), !!flag('flag_book_' + id), num(i), UI.text));
     const seen = seenIn(v);
@@ -839,7 +864,7 @@ export class BookPage implements MenuPage {
       line += r.lines.length;
     }
     // 『むし』: the title しゅん gave the page once the five were seen (〔開花〕), in pencil, underlined
-    if (s === MUSHI_SEC && flag('flag_ch2_mushi_done')) {
+    if (this.isMushi && flag('flag_ch2_mushi_done')) {
       const ty = LIST_Y + 7 * ROW_H - 4;
       const tx = LP.x + 6 + clearLeft(LP.x + 4, ty, ty + 18);
       g.text(MUSHI_PAGE_TITLE, tx, ty, { color: UI.pencil });
@@ -861,12 +886,14 @@ export class BookPage implements MenuPage {
       dottedLine(g, x, y + 32, x + w - 40, UI.textDim, 3);
       g.text('まだ 書いていない。', x, y + 44, { color: UI.textDim });
     };
-    if (s === MUSHI_SEC) {
+    if (this.isMizube) return drawMizubePage(g, mizubeRows(this.vol)[i], x, y, w, this.vol);
+    if (this.isMushi) {
       drawMushiPage(g, mushiRows()[i], x, y, w);
       return;
     }
     if (s === 0) {
-      if (v.n === 2 && i === v.fushigi.length) return drawNihyakuPage(g, x, y, w);
+      if (v.n === 2 && i === v.fushigi.length && hasNihyakuPage()) return drawNihyakuPage(g, x, y, w);
+      if (v.n === 2 && i >= v.fushigi.length) return drawShikishiPage(g, x, y, w);
       if (!v.done(i)) return empty();
       const [title, place] = v.fushigi[i];
       // (lines beside an iPad's touch buttons are set a little tighter: pageText)

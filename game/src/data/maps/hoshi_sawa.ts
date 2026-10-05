@@ -124,6 +124,11 @@ const OBJECTS: MapObj[] = [
     t: 'npc', id: 'npc_sawagani', x: 11, y: 22, dir: 'down', animal: true, ghost: true, script: 'obj_sawa_kani', shadow: 0,
     move: { kind: 'patrol', points: [[11, 21], [11, 24]], speed: 0.5, wait: 2600 },
   } as MapObj,
+  // 灯りの 中だけの 沢ガニ 2ひき（水辺の 図鑑、02 #81）：いちばん下の 飛び石の 下と、わき水の そば
+  { t: 'prop', prop: 'prop_yoburi_kani', x: 11, y: 20, litOnly: true } as MapObj,
+  { t: 'obj', id: 'obj_sawa_kani_a', x: 11, y: 20, script: 'obj_sawa_kani_a', litOnly: true } as MapObj,
+  { t: 'prop', prop: 'prop_yoburi_kani', x: 19, y: 1, opts: { red: true }, litOnly: true } as MapObj,
+  { t: 'obj', id: 'obj_sawa_kani_b', x: 19, y: 1, script: 'obj_sawa_kani_b', solid: [0, 0, 1, 1], litOnly: true } as MapObj,
 
   // ======================================================== symbols (51 11.1)
   // the boar at the wallow (optional, as sym_hoshi_05 at the village's wallow)

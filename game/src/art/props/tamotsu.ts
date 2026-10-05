@@ -107,8 +107,47 @@ registerProp('prop_tamotsu_mizuguchi', (): PropArt => ({
 
 // ---------------------------------------------------------------- ザリ拓（つりえさ屋の壁）
 
+// ★2026-10-05（02 #81 水辺の 図鑑）：ザリ拓は 場所ごとに 3枚（草の下・石の陰・土管の口）。
+// 壁の あき（魚拓と 水そうの あいだ）が せまいので、記録の ある 場所の 紙を 少しずつ
+// ずらして 重ねて 貼る（1枚目は 前と 同じ 所。調べると 3枚の cm を 読む）。場所ごとの 記録が ない
+// 古い セーブは 前の 1枚の まま。
+const TAKU_AT: [string, number, number][] = [
+  ['kusa', 3, 2],
+  ['ishi', 5, 4],
+  ['dokan', 3, 7],
+];
+const takuCache = new Map<string, HTMLCanvasElement>();
+function takuImg(ne: boolean, on: string[]): HTMLCanvasElement {
+  const key = `${ne ? 1 : 0}:${on.join(',')}`;
+  let c = takuCache.get(key);
+  if (c) return c;
+  const sheet = zariTakuWall(ne);
+  c = document.createElement('canvas');
+  c.width = 18 + sheet.width - 13;
+  c.height = 30 + sheet.height - 14;
+  const ctx = c.getContext('2d')!;
+  // the back one first (土管), then 草の下, then 石の陰 in front (the order they were pinned does not matter)
+  for (const sp of ['kusa', 'ishi', 'dokan']) {
+    if (!on.includes(sp)) continue;
+    const at = TAKU_AT.find((t) => t[0] === sp)!;
+    ctx.drawImage(sheet, at[1], at[2]);
+  }
+  takuCache.set(key, c);
+  return c;
+}
+
 registerProp('prop_zari_taku', (): PropArt => {
-  const a = zariTakuWall(false);
-  const b = zariTakuWall(true);
-  return { ox: 3, oy: 4, w: a.width, h: a.height, foot: 0, flat: true, img: (env: PropEnv) => (env.stage === 2 ? b : a) };
+  return {
+    ox: 0,
+    oy: 2,
+    w: 18,
+    h: 30,
+    foot: 0,
+    flat: true,
+    img: (env: PropEnv) => {
+      const on = TAKU_AT.map((t) => t[0]).filter((sp) => env.flag(`flag_zari_taku_${sp}`) > 0);
+      // (an old save: the one sheet, where it always was)
+      return takuImg(env.stage === 2, on.length ? on : ['kusa']);
+    },
+  };
 });

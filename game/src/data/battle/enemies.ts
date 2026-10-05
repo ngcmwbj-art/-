@@ -2,6 +2,8 @@
 
 import type { AiCtx, BossPartDef, EnemyDef } from './types';
 import { CH2_ENEMIES, YOBI_PARTS } from './enemies_ch2';
+// 校庭の ヒキヅナ（二人十五脚、02 #82。任意の 敵で、みました帳の『あいて』には 数えない）
+import { HIKIZUNA } from './enemy_hikizuna';
 
 const NO_WEAK = { da: 1, han: 1, wara: 1 };
 
@@ -450,7 +452,7 @@ const boss: EnemyDef = {
   book: { short: '忘れ物', shotai: '迎えに 来て もらえなかった、忘れ物たちの 待ちくたびれた 気持ち。', weak: '光った 部位。名前を、見て あげること。', hitokoto: 'ずっと、名前を 呼ばれるのを 待っていた。' },
 };
 
-const list = [hato, semi, cone, kasa, ojigi, souji, momi, kanenari, renshu, boss, ...CH2_ENEMIES];
+const list = [hato, semi, cone, kasa, ojigi, souji, momi, kanenari, renshu, boss, HIKIZUNA, ...CH2_ENEMIES];
 const table = new Map<string, EnemyDef>();
 for (const e of list) table.set(e.id, e);
 

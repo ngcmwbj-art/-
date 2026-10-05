@@ -71,6 +71,11 @@ const items: ItemDef[] = [
   { id: 'item_dome_key', name: '天文台の鍵', key: true, target: 'none', desc: ['村営 天文台の 鍵。白い 札つき。', 'まつ先生から、朝まで あずかった。'], battleText: ['鍵を 見せた。\n……開ける 扉は、ここには ない。'] },
   { id: 'item_kanbo_card', name: 'タクミの観望会カード', key: true, target: 'none', desc: ['10年前の『観望会 カード』。', '答えの 欄は 白い。『くもり』。'], battleText: ['カードを 見せた。\n$enemyは 空の ほうを 見た。'] },
   { id: 'item_kanbo_card_done', name: 'タクミの観望会カード', key: true, target: 'none', desc: ['3つの 欄に、しゅんの 字。', '1つめは、半分の 丸。'], battleText: ['カードを 見せた。\n$enemyは 空の ほうを 見た。'] },
+  // 70年の 色紙と 小さな 夏祭り（02 #84）：ぴょん夫人から あずかる 色紙（そろうと 返す）、区の 倉庫の 提灯（校庭の 桜に かける）
+  { id: 'item_shikishi', name: '70年の色紙', key: true, target: 'none', desc: ['ぴょん夫人から あずかった。', 'ひとことは 7つ。10年に 1つずつ。'], battleText: ['色紙を 見せた。\n$enemyは 少し 背すじを のばした。'] },
+  { id: 'item_matsuri_chochin', name: '夏祭りの提灯', key: true, target: 'none', desc: ['『星見台 夏祭り』の 箱の 1つ。', 'トマトの 灯りで、紙が 橙に すける。'], battleText: ['提灯を 見せた。\n$enemyは 祭りの 音に 耳を すませた。'] },
+  // ハンチングの 値札（02 #83）：ペロの家の 壁から 3号ハウスの ペロへ（渡すと 外れる）
+  { id: 'item_hunting', name: 'ペロのハンチング', key: true, target: 'none', desc: ['値札の 糸が、ついたまま。', ''], battleText: ['ハンチングを 見せた。\n……これは、ペロの 帽子だ。'] },
 ];
 
 const table = new Map<string, ItemDef>();

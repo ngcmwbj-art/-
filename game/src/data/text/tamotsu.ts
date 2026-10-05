@@ -235,6 +235,10 @@ export const RECORD_1B = `@narr
 export const RECORD = `@npc_tamotsu
 ……記録、更新。{w=300}
 ザリ拓、なぞりなおす。`;
+/** はじめての 場所の 記録（ザリ拓は 場所ごとに 3枚。02 #81 水辺の 図鑑）。 */
+export const RECORD_SPOT = `@npc_tamotsu
+……この 場所の 記録。{w=300}
+ザリ拓、もう 1枚。`;
 
 /** グソっ君が いっしょのとき、はじめて盛ったあと（1回。IDは 据え置き）。 */
 export const FLIP_MORI = `@npc_kanenari
@@ -395,6 +399,22 @@ export function zariTakuText(cm: number, stage: number): string {
 『しゅん ${cm}cm（おぴぃ 認定）』。`;
 }
 
+/** ザリ拓が 場所ごとに 2枚 以上（02 #81）：魚拓の 文の あとに 1ページ。 */
+const TAKU_NAME: Record<TsuriSpot, string> = { kusa: '草の下', ishi: '石の陰', dokan: '土管' };
+export function zariTaku3Text(list: [TsuriSpot, number][], stage: number): string {
+  const tags = list.map(([s, cm]) => `『${TAKU_NAME[s]} ${cm}cm』`);
+  const l1 = tags.slice(0, 2).join('');
+  const l2 = tags.length > 2 ? tags[2] : '';
+  if (stage >= 2)
+    return `@narr
+となりの ザリ拓も ${list.length}枚、北東向き。
+${l1}${l2 ? `\n${l2}` : ''}`;
+  return `@narr
+となりに、えんぴつの ザリ拓が ${list.length}枚。
+${l1}
+${l2 ? `${l2}（おぴぃ 認定）` : '（おぴぃ 認定）'}`;
+}
+
 // ---------------------------------------------------------------- 釣りの画面の言葉（UI）
 
 /** 画面に出る 小さい言葉（地の文ではない。UI の書き文字）。 */
@@ -425,5 +445,7 @@ export function tamotsuTextSamples(): Record<string, string> {
   for (const s of ['kusa', 'ishi', 'dokan'] as TsuriSpot[]) for (const n of [0, 1]) out[`releaseNarr.${s}.${n}`] = releaseNarr(s, n);
   for (const kind of ['kozari', 'zari', 'makka', 'can'] as const) for (let k = 0; k < 4; k++) for (const st of [0, 1]) out[`measure.${kind}.${k}.s${st}`] = tamotsuMeasure(kind, 12, k, st)[0];
   for (const st of [0, 2]) out[`zariTaku.s${st}`] = zariTakuText(13, st);
+  for (const st of [0, 2]) out[`zariTaku3.s${st}`] = zariTaku3Text([['kusa', 12], ['ishi', 12], ['dokan', 13]], st);
+  out.RECORD_SPOT = RECORD_SPOT;
   return out;
 }

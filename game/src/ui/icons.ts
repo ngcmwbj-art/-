@@ -522,6 +522,53 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// ペロのハンチング (ハンチングの 値札, 50_ch2_story 3.8〔boushi〕, 02_ch2_index #83): a tweed flat cap
+// seen from the front left — the round crown flecked light and dark, the short visor in front,
+// and on a thread from its back the white price tag with its red mark
+Object.assign(ITEM_ROWS, {
+  item_hunting: [
+    '..........',
+    '...ybyy...',
+    '..ybbybb..',
+    '.ybyybbbB.',
+    '.bbbbbbbBk',
+    'Yybbbbbbbk',
+    'YYyyyyBBk.',
+    '.......k..',
+    '......wwr.',
+    '......www.',
+  ],
+});
+
+// 70年の色紙・夏祭りの提灯（70年の 色紙と 小さな 夏祭り、50 10.26、02_ch2_index #84）：
+// 金の ふちの 色紙（墨の ひとこと、藍の 点 2つ、朱の 字）／白い 提灯（赤い 帯、木の 口と 底）
+Object.assign(ITEM_ROWS, {
+  item_shikishi: [
+    'ooooooooh.',
+    'oaaaaaaaoh',
+    'oakaGaaaoh',
+    'oaaakaGaoh',
+    'oaUaaUaaoh',
+    'oaaaaaaaoh',
+    'oaGaakaaoh',
+    'oaaarraaoh',
+    'oooooooooh',
+    '.hhhhhhhhh',
+  ],
+  item_matsuri_chochin: [
+    '....k.....',
+    '...BBBB...',
+    '..awwwwa..',
+    '.awdwwwwd.',
+    '.rrrrrrrr.',
+    '.rRrrrrRr.',
+    '.awwwwwwd.',
+    '..awwwwd..',
+    '...BBBB...',
+    '....k.....',
+  ],
+});
+
 // 握手券 (屋上 ゆうやけひろば, 10_narrative 7.18, 02_ch2_index #55): a small ticket, the red
 // band of the event, the mall's gold bell mark, a line of print, the torn perforation
 Object.assign(ITEM_ROWS, {

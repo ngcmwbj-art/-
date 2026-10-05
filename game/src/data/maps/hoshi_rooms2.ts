@@ -518,7 +518,8 @@ export const ROOMS2: Room2[] = [
       { k: 'window', x: 6, w: 2, v: 'shoji' },
       { k: 'frame', x: 8, v: 'photo' },
       { k: 'post', x: 9 },
-      { k: 'hooks', x: 10, w: 2, v: 'hats3' },
+      // ハンチングの 値札（02 #83）：ハンチングは 値札つきの prop_hunting_wall（取ると くぎだけ）
+      { k: 'hooks', x: 10, w: 2, v: 'hats2' },
       { k: 'scroll', x: 12 },
       { k: 'kamidana', x: 14 },
     ],
@@ -531,6 +532,7 @@ export const ROOMS2: Room2[] = [
       PR('prop_hr_chabudai', 11, 5, { items: 'letters' }),
       PR('prop_hr_katori', 9, 7),
       PR('prop_hr_lamp', 8, 8, { kind: 'bulb', r: 80, dx: 8 }),
+      PR('prop_hunting_wall', 10, 1, undefined, { cond: { notFlag: 'flag_hunting_got' } }),
       X('obj_hr_kominka_kamado', 1, 2, { w: 2 }),
       X('obj_hr_kominka_calendar', 3, 1, U),
       X('obj_hr_kominka_mizugame', 4, 2),
@@ -808,6 +810,9 @@ export const ROOMS2: Room2[] = [
       X('obj_hr_koya_mado', 6, 1, U),
       X('obj_hr_koya_kigae', 6, 4),
       FIND('obj_hr_koya_suito', 1, 4, { item: 'item_umeboshi' }),
+      // マルの たも網（夜振り、02 #81）：西の 壁に 立てかけてある。借りると 釘と えんぴつの『マル』だけ
+      { t: 'prop', prop: 'prop_yoburi_tamo', x: 1, y: 3, solid: [0, 0, 1, 1], cond: { notFlag: 'flag_yoburi_tamo' } } as unknown as MapObj,
+      { t: 'obj', id: 'obj_hr_koya_tamo', x: 1, y: 3, script: 'obj_hr_koya_tamo' } as unknown as MapObj,
     ],
     out: { x: 34, y: 13, w: 2, stand: [34, 14], dir: 'up', se: 'se_door_small' },
     lit: false,

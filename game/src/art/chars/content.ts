@@ -9,7 +9,7 @@ import './people/town1';
 import './people/town2';
 import './people/town3';
 import './people/walkers';
-// 南の列の部屋の人：写真館の主人・かずお・ちずの母（02 #59）
+// 南の列の部屋の人：写真館の主人、ピー・コック（★2026-10-05 かずお→ピー・コック）、ちずの母（02 #59）
 import './people/south_rooms';
 import './animals';
 import './enemies';
@@ -35,3 +35,5 @@ import './hoshi_foes';
 // 沢の上：セキトメのシンボル、沢ガニ（02 #65）
 import './hoshi_sawa_chars';
 import './hoshi_restored';
+// 夕鳴小学校の 校庭の ヒキヅナの シンボルと、直したあとの とぐろ（二人十五脚、02 #82）
+import './hikizuna';

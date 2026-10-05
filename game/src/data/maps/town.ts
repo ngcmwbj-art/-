@@ -352,7 +352,8 @@ const OBJECTS: MapObj[] = [
   // 「畦道の 先は、となり町。」 moved to that map's south end. 02 #67)
   { t: 'door', id: 'door_town_aze', x: 12, y: 43, to: 'map_aze', tx: 12, ty: 1, dir: 'down', se: 'se_step_dirt' },
   { t: 'trig', id: 'trig_edge_west', x: 0, y: 21, w: 1, h: 2, on: 'bump', text: OBJ.obj_edge_west as string },
-  { t: 'trig', id: 'trig_edge_west2', x: 0, y: 33, w: 1, h: 2, on: 'bump', text: OBJ.obj_edge_west as string },
+  // 川べり通りの 西の はしは 夕鳴川の 堰へ（★2026-10-05、02 #81。もとは「この先は、となり町。」の trig_edge_west2）
+  { t: 'door', id: 'door_town_seki', x: 0, y: 33, h: 2, to: 'map_seki', tx: 22, ty: 1, dir: 'left', se: 'se_step_asphalt' },
   { t: 'prop', prop: 'tree_cherry', x: 16, y: 35, opts: { v: 0 } },
   { t: 'prop', prop: 'tree_cherry', x: 28, y: 35, opts: { v: 1 } },
   { t: 'prop', prop: 'tree_cherry', x: 40, y: 35, opts: { v: 2 } },
@@ -454,9 +455,10 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_chugaku', x: 3, y: 18, dir: 'down', cond: s02, talk: TALK.npc_chugaku },
   // beside the postbox, not behind it (QA round 2: only his head showed); talkable from the south
   { t: 'npc', id: 'npc_postman', x: 46, y: 24, dir: 'down', cond: s12, talk: TALK.npc_postman },
-  { t: 'npc', id: 'npc_madam', x: 17, y: 22, dir: 'down', cond: s01, talk: TALK.npc_madam, move: { kind: 'patrol', points: [[17, 22], [17, 24]], speed: 1.0, wait: 2000 } },
-  { t: 'npc', id: 'npc_madam', x: 17, y: 24, dir: 'down', cond: { stage: 2 }, talk: TALK.npc_madam },
-  { t: 'npc', id: 'npc_kotaro', x: 16, y: 22, dir: 'down', cond: s02, animal: true, talk: TALK.npc_kotaro, move: { kind: 'follow', target: 'npc_madam', dx: -1, dy: 0 } },
+  // (二人十五脚 02 #82: from her 〔ramune〕 till the race is run she and コタロウ are at the school ground, flag_kotei_away)
+  { t: 'npc', id: 'npc_madam', x: 17, y: 22, dir: 'down', cond: { ...s01, notFlag: 'flag_kotei_away' }, talk: TALK.npc_madam, move: { kind: 'patrol', points: [[17, 22], [17, 24]], speed: 1.0, wait: 2000 } },
+  { t: 'npc', id: 'npc_madam', x: 17, y: 24, dir: 'down', cond: { stage: 2, notFlag: 'flag_kotei_away' }, talk: TALK.npc_madam },
+  { t: 'npc', id: 'npc_kotaro', x: 16, y: 22, dir: 'down', cond: { ...s02, notFlag: 'flag_kotei_away' }, animal: true, talk: TALK.npc_kotaro, move: { kind: 'follow', target: 'npc_madam', dx: -1, dy: 0 } },
   { t: 'npc', id: 'npc_sand_girl', x: 22, y: 9, dir: 'left', cond: s12, talk: TALK.npc_sand_girl, pose: 'crouch', fushigi: 'fushigi_07' },
   { t: 'npc', id: 'npc_gacha_boy', x: 31, y: 23, dir: 'up', cond: s02, talk: TALK.npc_gacha_boy },
   { t: 'npc', id: 'npc_ojii', x: 10, y: 21, dir: 'down', cond: s02, talk: TALK.npc_ojii, pose: 'sit', off: [0, -2] },

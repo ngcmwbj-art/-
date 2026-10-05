@@ -1596,6 +1596,38 @@ se_dome_eye        グソっ君の目（星がいっぱい。ぽわわん）    
 - 流用：調べる `se_examine`、カードの鉛筆 `se_pen_write`（2文字に1回、vol .6）、まつ先生のはなまる `se_pen_write` → 描き終わりに `se_stamp_light`（vol .5）、グソっ君の『もっと』 `se_wakime_legs`（vol .5、1字ごと）、朱肉 `se_item`、鍵とカードの入手 `bgm_jingle_item`。
 - ドームの「ゴロゴロ」は大きくしない（夜明け前の村に響かせない）。ピントの「きらり」は小さく、星の名前にあわせて音を変えない。
 
+### 8.18 夏祭りの音 ★2026-10-05 追加（依頼主の採用、02_ch2_index #84。台本は50 10.26）
+
+校庭の 桜の 提灯 ひとつの 小さな 祭り。夜の 校庭なので、どれも 少し 小さめ（太鼓の 胴だけ 低く 鳴る）。BGM と 環境音は そのまま。`src/audio/sfx_matsuri.ts`（グループ「第2章：夏祭り（70年の 色紙）」）。色紙に 書く 音は 第1章の `se_pen_write`、寝言の 前の いびきは `se_h_ibiki` を 使う。
+
+```
+se_matsuri_don     太鼓（ドン）：胴の低い鳴り＋皮を打つ音                                  0.4s
+  L1 sine  f=128→62/180 env=1/420/0/220 dur=380 v=.16
+  L2 sine  f=196→110/60 env=0/90/0/40 dur=60 v=.05
+  L3 noise env=0/30/0/20 dur=20 v=.05 flt=LP900q0.9
+  L4 noise env=0/12/0/6 dur=6 v=.025 flt=BP2200q1.5
+  rev .3  rand .03–.06  max 3
+se_matsuri_ka      太鼓のふち（カッ）：乾いた木の音                                          0.1s
+  L1 tri   f=1480→1150/18 env=0/36/0/14 dur=16 v=.06
+  L2 noise env=0/16/0/8 dur=8 v=.05 flt=BP2600q2.4
+  L3 sine  f=820→700/30 env=0/50/0/20 dur=28 v=.03
+  rev .22  rand .04–.06
+se_matsuri_clap    拍手（パン）。グソっ君の拍手は 0・300・300・90×5 ms で重ねる              0.05s
+  L1 noise env=0/26/0/16 dur=14 v=.07 flt=BP1250q1.1
+  L2 noise env=0/12/0/8 dur=6 v=.03 flt=HP3200
+  rev .18  rand .08–.12  max 8
+se_matsuri_geta    下駄（カラン）：ぴょん夫人が集会所から出てくる（290ms ごと、音程を交互に） 0.1s
+  L1 tri   f=900→760/30 env=0/50/0/24 dur=30 v=.035
+  L2 noise env=0/14/0/8 dur=8 v=.025 flt=BP1800q2
+  L3 tri   f=640→560/30 env=0/44/0/20 dur=26 v=.025 at=46
+  rev .12  rand .06–.1  max 4
+se_matsuri_tomoru  提灯がともる（紙が橙にすける、ほわっ）                                    0.4s
+  L1 sine  f=660→880/260 env=60/320/0/260 dur=360 v=.03
+  L2 sine  f=990→1320/260 env=80/300/0/240 dur=320 v=.014
+  L3 noise env=40/220/0/160 dur=200 v=.006 flt=BP3200q1
+  rev .35
+```
+
 ## 9. ボイス（第2章）
 
 ### 9.1 村の人の声

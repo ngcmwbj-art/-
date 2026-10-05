@@ -2011,6 +2011,26 @@ se_tsuri_nushi    ぬしの気配（土管の奥から 大きな泡、ゴボッ�
 - 場所えらびの カーソルは `se_cursor`、計る 数字と 盛りは `se_pen_write`（盛りは pitch 1.15、なぞりは 0.9）、ラムネは `se_item`、おぴぃの浮きは `bgm_jingle_item`、カネナリくんは `se_flip`。BGM は 町の曲のまま（段階の曲）。「長押し！」の間も ダックしない（音が小さいので）。
 
 
+### 9.12 校庭の 二人十五脚と ハンチングの 値札（★2026-10-05、02 #82・#83。10 7.25、50 3.8）
+
+実装 `src/audio/sfx_kotei.ts`（担当B の 小さな 音。外の 校庭なので 少し 響く rev）。BGM と 環境音は 町と 同じ。
+
+```
+se_kotei_clap       スタートの 手を 1回 たたく（ピストルは 使わない）：乾いた 破裂と 校舎に 返る 響き   0.2s
+se_kotei_ichi       二人三脚の 拍「いち」：木の 音（高め）
+se_kotei_ni         二人三脚の 拍「に」：同じ 木の 音（低め）
+se_kotei_step       そろった 1歩（しゅんの 足と グソっ君の いちばん下の 足）
+se_kotei_tangle     足が からまる（殻の 足が いっせいに もつれる）
+se_kotei_hachimaki  はちまきで 足を しばる（布の こすれ 2回、きゅっ）
+se_kotei_trip       グソっ君が あおむけに ひっくり返る（どさっ、殻が からん）
+se_kotei_okosu      日傘の 柄で 起こす
+se_kotei_zuru       ヒキヅナが 這う（綱が 土を こする。戦闘の 技にも）
+se_kotei_maru       ヒキヅナが まるまる（とぐろ）
+se_kotei_snip       剪定ばさみで 値札の 糸を ぷつり（第2章 3号ハウスの 前、小さく）
+```
+
+コタロウの「ワン。」（10 7.25〔wake〕）は 段階に 関係なく 半音 低くない 1回：`se_dog_bark` を pitch 1 で 鳴らし、名札だけの 話者 `npc_kotaro_wan`（声 none）で 出す。グソっ君の 足の「わしゃわしゃ」は `se_wakime_legs`（53 8.16）を 使う。
+
 ## 10. ボイス（文字送りの音）
 
 `textBlip(voiceId, ch)`。会話ウィンドウが1文字出すたびにUIが呼ぶ。鳴らすかどうか、どの高さで鳴らすかはオーディオ側が決める。
@@ -2502,6 +2522,9 @@ export function unlockAudio(): void;                                     // 既�
 
 **SE：ザリガニ釣り（02 #66）**
 `se_tsuri_open` `se_tsuri_cast` `se_tsuri_pochan` `se_tsuri_line` `se_tsuri_tsun` `se_tsuri_gui` `se_tsuri_snag` `se_tsuri_reel` `se_tsuri_slip` `se_tsuri_thrash` `se_tsuri_poton` `se_tsuri_hayai` `se_tsuri_net` `se_tsuri_agari` `se_tsuri_card` `se_tsuri_release` `se_tsuri_nushi`
+
+**SE：二人十五脚・ハンチングの 値札（02 #82・#83）**
+`se_kotei_clap` `se_kotei_ichi` `se_kotei_ni` `se_kotei_step` `se_kotei_tangle` `se_kotei_hachimaki` `se_kotei_trip` `se_kotei_okosu` `se_kotei_zuru` `se_kotei_maru` `se_kotei_snip`
 
 **ボイス**
 `narr` `sys` `mother` `maruyama` `obaa` `mamekichi` `inui` `tsurumi` `sae` `jk` `chugaku` `postman` `madam` `girl` `kid` `ojii` `mizumaki` `shadow` `hato` `dog` `cat` `crow` `tv` `broadcast` `broadcast_child` `vending` `omukaemachi` `flip` `kanenari_voice` `tamotsu` `yone` `toyozou`（★2026-09-29、02 #67） `tokio`（★2026-09-29、02 #69） `gusokkun`（★2026-09-29 カネナリくん→グソっ君） `kazuyuki` `bu`（★2026-09-30、02 #71）

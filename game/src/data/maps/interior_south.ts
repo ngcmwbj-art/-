@@ -146,6 +146,8 @@ registerMap({
   objects: [
     PR('in_md_shell', 0, 0),
     PR('in_md_trophy', 1, 2),
+    // 二人十五脚（02 #82）：レースの あと、参加賞の あとの ほこりの 丸の 上に 紅白の はちまき『同着』
+    { t: 'prop', prop: 'prop_kotei_dochaku', x: 1, y: 2, cond: { flag: 'flag_kotei_done' } } as MapObj,
     PR('in_md_tv', 4, 2),
     PR('in_md_runner', 7, 2),
     PR('in_md_chair', 6, 3),
@@ -163,6 +165,8 @@ registerMap({
     {
       t: 'npc', id: 'npc_kazuo', x: 6, y: 3, dir: 'down', talk: STALK.npc_kazuo, pose: 'sit',
       move: { kind: 'stand' }, off: [0, -2],
+      // 二人十五脚 (02 #82): the chair stands empty while he is the judge at the school ground
+      cond: { notFlag: 'flag_kotei_away' },
     },
     BACK('door_town_madam', 6, 6, 22, 31, 'se_door'),
   ],
@@ -501,7 +505,7 @@ export function southTextCheck(): { pages: number; bad: string[] } {
     flush();
   }
   // name tags: 6 characters at most (10 1.5)
-  for (const n of ['ちずの母', 'かずお', '写真館の主人']) if ([...n].length > 6) bad.push(`name tag ${n}`);
+  for (const n of ['ちずの母', 'ピー・コック', '写真館の主人']) if ([...n].length > 6) bad.push(`name tag ${n}`);
   return { pages, bad };
 }
 registerDebug('southText', () => southTextCheck());

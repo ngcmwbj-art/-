@@ -1,7 +1,7 @@
 // 南の列の部屋の人（02 #59、10_narrative 6.23・7.20、30_level_art 4.13〜4.19）:
 //   npc_photo_master  写真館の主人 — 70代。紺のベレー帽、白い横の髪と白い口ひげ、
 //                     丸めがね、白いシャツに茶色のベスト、首から古いカメラ。立ち姿。
-//   npc_kazuo         かずお（なんばるわんの夫）— 60代。グレーの七三の短髪、めがね、
+//   npc_kazuo         ピー・コック（なんばるわんの夫）— 60代。グレーの七三の短髪、めがね、
 //                     うすい緑のポロシャツ、ベージュのズボン。ひじかけいすで新聞。
 //   npc_chizu_haha    ちずの母 — 80代。白髪のおだんご、えんじ色のカーディガン、
 //                     紺のスカート。座布団に正座して、さやいんげんの すじを とる。
@@ -153,7 +153,7 @@ registerChar('npc_photo_master', () =>
 );
 
 // =============================================================================
-// かずお (npc_kazuo): seated in the armchair with the newspaper on his knees
+// ピー・コック (npc_kazuo): seated in the armchair with the newspaper on his knees
 
 const KZ: Mats = {
   ...base,
@@ -186,8 +186,16 @@ const KZ_HEAD: HeadT = {
 
 const KZ_LEGS: LegSpec = { cx: 8, hip: 17, foot: 22, w: 2, gap: 2, mat: 'pants', shoe: 'shoe', shoeLen: 3 };
 
+/**
+ * 二人十五脚 (02 #82): outdoors on the school ground (sprite npc_kazuo_out) he stands, walks and
+ * sits (on the morning platform's steps, with his paper) only when asked; 'clap' = the one clap
+ * that starts the race (hands apart → together).
+ */
+let KZ_OUT = false;
+
 function kzDraw(f: Fig, p: Pose) {
-  const seated = p.mode !== 'walk' || p.act === 'sit' || p.act === 'read';
+  const seated = KZ_OUT ? p.act === 'sit' || p.act === 'read' : p.mode !== 'walk' || p.act === 'sit' || p.act === 'read';
+  const clap = p.act === 'clap';
   const drop = seated ? 3 : 0;
   const u = upper(p) + drop;
   const b = p.bob + drop;
@@ -214,6 +222,13 @@ function kzDraw(f: Fig, p: Pose) {
       if (flip) f.rect(8, 13 + u, 5, 2);
       f.part('ink', { flat: true, rim: false, ol: false });
       f.hl(4, 7, 16 + u).hl(9, 11, 16 + u).hl(4, 6, 17 + u).hl(9, 12, 17 + u);
+    } else if (clap && p.view === 'down') {
+      // both forearms up in front of the chest; the hands apart (ph 0) or met (ph 1)
+      f.part('shirt', { shade: 'rb', light: 't' });
+      f.rect(2, 12 + u, 2, 3).rect(12, 12 + u, 2, 3);
+      f.part('skin', { shade: 'rb', light: 't' });
+      if (p.ph % 2) f.rect(4, 14 + u, 3, 1).rect(9, 14 + u, 3, 1).rect(7, 13 + u, 2, 2);
+      else f.rect(4, 14 + u, 2, 1).rect(10, 14 + u, 2, 1).rect(5, 12 + u, 1, 2).rect(10, 12 + u, 1, 2);
     } else hangArms(f, p, { lx: 3, rx: 12, sy: 12, hy: 16, segs: seg }, u);
     head(f, p, KZ_HEAD, hy);
     glasses(f, p, hy, 6, 3, 5, 4);
@@ -231,6 +246,12 @@ function kzDraw(f: Fig, p: Pose) {
     f.rect(2, 14 + u, 5, 4);
     f.part('skin', { shade: '', light: '' });
     f.px(6, 15 + u);
+  } else if (clap) {
+    // the near arm out in front at chest height, the hand meeting the far one (ph 1)
+    f.part('shirt', { shade: 'rb', light: 't' });
+    f.rect(6, 12 + u, 3, 2);
+    f.part('skin', { shade: 'rb', light: 't' });
+    f.rect(p.ph % 2 ? 3 : 4, 13 + u, 3, 1);
   } else sideArm(f, 8, 12 + u, 4, sw, [{ mat: 'shirt', n: 2 }, { mat: 'skin' }]);
   head(f, p, KZ_HEAD, hy);
   glasses(f, p, hy, 6, 3, 5, 4);
@@ -250,6 +271,27 @@ registerChar('npc_kazuo', () =>
     poses: { sit: 'idle' },
   }),
 );
+
+// 二人十五脚 (02 #82): the same man out on the school ground — standing, walking, sitting on the
+// morning platform's steps with his paper ('sit'), and the start's clap ('clap')
+registerChar('npc_kazuo_out', () => {
+  KZ_OUT = true;
+  try {
+    return buildSprite({
+      id: 'npc_kazuo_out',
+      mats: KZ,
+      draw: kzDraw,
+      walkFrameMs: 180,
+      idle: breathingIdle(),
+      idleFrameMs: 260,
+      extras: { look_up: { dirs: 'all', p: { lookUp: true } }, clap: { dirs: ['down', 'left', 'right'], p: { act: 'clap', ph: 1 } } },
+      anims: { clap: { frames: [{ act: 'clap', ph: 0 }, { act: 'clap', ph: 1 }, { act: 'clap', ph: 1 }, { act: 'clap', ph: 0 }], ms: 110, dirs: ['down', 'left', 'right'] } },
+      poses: { sit: { down: KZ_IDLE, left: KZ_IDLE, right: KZ_IDLE, up: rep([{ act: 'sit', breath: 0 }, { act: 'sit', breath: 1 }], 4) } },
+    });
+  } finally {
+    KZ_OUT = false;
+  }
+});
 
 // =============================================================================
 // ちずの母 (npc_chizu_haha): kneeling (正座) on the cushion, stringing green beans

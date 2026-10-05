@@ -3,7 +3,7 @@
 // 「第1章の町の建物すべてに入れるように」）。
 //
 //   map_chizu        ちずの家（bld_mizumaki）      ちずの母
-//   map_madam        なんばるわんの家（bld_madam）  かずお（なんばるわんの夫）
+//   map_madam        なんばるわんの家（bld_madam）  ピー・コック（なんばるわんの夫）
 //   map_photo        夕鳴写真館（bld_photo）       写真館の主人
 //   map_sk_storage   商店会の倉庫（元 クリーニング、シャッター1）
 //   map_sk_rest      ひと休み処（元 たばこ屋、シャッター2）
@@ -19,7 +19,8 @@ import { SPEAKERS } from '../../world/msg';
 
 // 新しい話者の名札とボイス（10 1.5 に追記）
 SPEAKERS.npc_chizu_haha = { name: 'ちずの母', voice: 'obaa' };
-SPEAKERS.npc_kazuo = { name: 'かずお', voice: 'inui' };
+// ★2026-10-05 依頼主の指示で かずお→ピー・コック（表示だけ。ID npc_kazuo は据え置き。02 #82）
+SPEAKERS.npc_kazuo = { name: 'ピー・コック', voice: 'inui' };
 SPEAKERS.npc_photo_master = { name: '写真館の主人', voice: 'ojii' };
 
 /** 調べる物（段階つき）。 */
@@ -178,7 +179,7 @@ export const SOBJ: Record<string, StageText> = {
 1着の なんばるわん。
 /
 となりで 転んでいるのが、
-若い ころの かずお らしい。`,
+若い ころの ピー・コック らしい。`,
 
   // ================================================================ 夕鳴写真館
   obj_ph_backdrop: `@narr
@@ -655,7 +656,7 @@ export const STALK: Record<string, TalkTable> = {
 ……あの子、まだ 表に いるわね。{w=300}
 帰る 時間が、来ないから。`,
   },
-  // かずお（なんばるわんの夫。60代。ひじかけいすで 新聞）
+  // ピー・コック（なんばるわんの夫。60代。ひじかけいすで 新聞）
   npc_kazuo: {
     s0_1: `@npc_kazuo
 やあ、しゅんくん。{w=300}
@@ -681,7 +682,7 @@ export const STALK: Record<string, TalkTable> = {
 同じ ところを 読んでいる
 気が するんだ。
 @narr
-かずおは、同じ ページを
+ピー・コックは、同じ ページを
 もう一度 めくった。`,
     s2_1: `@npc_kazuo
 妻がね、散歩から

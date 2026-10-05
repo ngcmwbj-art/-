@@ -14,6 +14,10 @@ import './interior_south';
 import './aze';
 // 夕鳴小学校の 裏庭と 学級園（8月31日の 水やり当番、02 #72）
 import './school';
+// 夕鳴小学校の 校庭（裏庭の 西の 生け垣の 先。二人十五脚、02 #82）
+import './kotei';
+// 夕鳴川の 堰（川べり通りの 西の はしの 先。水辺の 図鑑、02 #81）
+import './seki';
 // Chapter 2 『星見台のトマト』 (levels team, 52_ch2_level_art): the village and its rooms.
 import './hoshi_village';
 import './hoshi_qa';

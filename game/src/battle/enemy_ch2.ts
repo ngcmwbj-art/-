@@ -17,6 +17,8 @@ import { PANEL_POS } from './ui/panels';
 import { clodGrass, clodL, clodS, crossGlint, cucumber, mudDrop, silverCoin } from './art/fxart_ch2';
 import { thickLine } from './art/fxart';
 import { SEKI_MOVES, sekiMove } from './enemy_sekitome';
+// 校庭の ヒキヅナ（第1章 段階2、二人十五脚 02 #82）：技の 振り分けだけ ここを 通す
+import { HIKI_MOVES, hikiMove } from './enemy_hikizuna';
 
 const MOVES = new Set([
   'skill_sune_suneru',
@@ -42,6 +44,8 @@ const MOVES = new Set([
   'skill_tetsuya_fullthrottle',
   // セキトメ (02 #65): battle/enemy_sekitome.ts
   ...SEKI_MOVES,
+  // ヒキヅナ (02 #82): battle/enemy_hikizuna.ts
+  ...HIKI_MOVES,
 ]);
 
 export function isCh2Move(id: string): boolean {
@@ -456,6 +460,13 @@ export function* ch2Move(c: BossMoveCtx): Co {
     case 'skill_seki_shibuki':
     case 'skill_seki_mansui':
       yield* sekiMove(c);
+      break;
+    // ---- ヒキヅナ（二人十五脚 02 #82）---------------------------------------------------------
+    case 'skill_hiki_tsuna':
+    case 'skill_hiki_oesu':
+    case 'skill_hiki_zuru':
+    case 'skill_hiki_toguro':
+      yield* hikiMove(c);
       break;
     default:
       yield 300;

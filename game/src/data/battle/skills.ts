@@ -195,6 +195,11 @@ const enemies: SkillDef[] = [
   enemy({ id: 'skill_yobi_amado', name: '雨戸', target: 'enemy', power: 1.6, hits: [0], windupMs: 600, tsukkomi: [3], big: true }),
   enemy({ id: 'skill_yobi_yamabiko', name: '山びこ', target: 'self', windupMs: 500, tsukkomi: [3], noDamage: true }),
   enemy({ id: 'skill_yobi_onamae', name: 'おなまえ よびだし', target: 'enemy', power: 0.8, hits: [0], windupMs: 700, tsukkomi: [2] }),
+  // ヒキヅナ（夕鳴小学校の 校庭、段階2。二人十五脚 02 #82）
+  enemy({ id: 'skill_hiki_tsuna', name: '綱引き', target: 'enemy', power: 1.0, hits: [0], windupMs: 450, tsukkomi: [1] }),
+  enemy({ id: 'skill_hiki_oesu', name: 'オーエス', target: 'allies', power: 0.45, hits: [0, 18], windupMs: 450, tsukkomi: [1] }),
+  enemy({ id: 'skill_hiki_zuru', name: 'ずるずる', target: 'enemy', power: 0.8, hits: [0], windupMs: 500, tsukkomi: [2] }),
+  enemy({ id: 'skill_hiki_toguro', name: 'とぐろ', target: 'self', windupMs: 500, tsukkomi: [2], noDamage: true }),
 ];
 
 const table = new Map<string, SkillDef>();

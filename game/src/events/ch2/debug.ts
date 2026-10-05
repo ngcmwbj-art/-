@@ -46,7 +46,11 @@ import { WAKIME_PAGES } from '../../data/text/hoshi_wakime';
 import { SAWAKO_YK_PAGES } from '../../data/text/hoshi_sawako_yk';
 import { EKINOTE_TEXTS } from '../../data/text/hoshi_ekinote';
 import { NIHYAKU_TEXTS } from '../../data/text/hoshi_nihyaku';
+import { MIZUBE_CH2_TEXTS } from '../../data/text/mizube_ch2';
 import { DOME_PAGES } from '../../data/text/hoshi_dome';
+import { SHIKISHI_TEXTS } from '../../data/text/hoshi_shikishi';
+import { HUNTING_TEXTS } from '../../data/text/hunting';
+import { KOTEI_TEXTS } from '../../data/text/kotei';
 
 type Step = () => void;
 
@@ -219,6 +223,14 @@ export const CHAIN2: Beat2[] = [
     at: ['map_hoshimidai', 26, 28, 'up'],
     desc: '（任意）朝の ほうだけ 光る 星（分校に入る → まつ先生が呼び止めて鍵 → 放送室の裏口 (24,2) → 裏の丘の天文台 (11,5) → 望遠鏡で 3つ → まつ先生）',
     side: 'gen',
+  },
+  // optional (02 #84, shikishi.ts): stage 1 past the gate — the calendar in シゲじいとスギばあの家, ぴょん夫人, the seven, the festival
+  {
+    beat: 'shikishi',
+    steps: [],
+    at: ['map_hoshi_minka2', 9, 2, 'up'],
+    desc: '（任意）70年の 色紙と 小さな 夏祭り（カレンダー → ぴょん夫人 → 7人 → ぴょん夫人 → 区の倉庫の提灯 → ハモ区長 → 校庭の桜）',
+    side: 'houki',
   },
 ];
 
@@ -429,6 +441,14 @@ function collectTexts(): [string, string][] {
   walk('nihyaku', NIHYAKU_TEXTS);
   // げむきか10/1の3（朝の ほうだけ 光る 星。50 3.7・9.8・10.24, 02_ch2_index #77）
   walk('dome', DOME_PAGES);
+  // げむきか10/5の改5（70年の 色紙と 小さな 夏祭り。50 9.9・10.26, 02_ch2_index #84）
+  walk('shikishi', SHIKISHI_TEXTS);
+  // げむきか10/5の新5（ハンチングの 値札。第1章の くりこ〔chichi〕も。10 6.8, 50 3.8・9.9, 02_ch2_index #83）
+  walk('hunting', HUNTING_TEXTS);
+  // げむきか10/5の新1（二人十五脚。第1章の ピー・コック・なんばるわん・校庭。10 6.12・6.23・7.24, 02_ch2_index #82）
+  walk('kotei', KOTEI_TEXTS);
+  // げむきか10/5の改1（水辺の 図鑑：夜振り・たも網・沢ガニ・駅ノート。50 3.10・10.25, 02_ch2_index #81）
+  walk('mizube_ch2', MIZUBE_CH2_TEXTS);
   // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line
   // lines shown without a speaker (HOUKI_LINE's float note: the same 336 px)
   for (const [k, v] of Object.entries(EV)) if (typeof v === 'string' && (v.startsWith('@') || v.startsWith('!cue') || v.includes('\n'))) out.push([`ev.${k}`, v]);

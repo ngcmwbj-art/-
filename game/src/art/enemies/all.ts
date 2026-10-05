@@ -19,4 +19,6 @@ import './mujin';
 import './tetsuya';
 // 沢の上のセキトメ（02 #65）
 import './sekitome';
+// 夕鳴小学校の 校庭の ヒキヅナ（第1章 段階2、02 #82）
+import './hikizuna';
 import './yobimodoshi';

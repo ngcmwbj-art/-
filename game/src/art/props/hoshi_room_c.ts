@@ -294,15 +294,21 @@ function paintDeco(p: PixelCanvas, d: WallDeco, fy: number): void {
       p.hline(px + 1, px + w - 2, y, P.woodLt);
       p.hline(px + 1, px + w - 2, y + 1, P.woodDark);
       const v = d.v ?? 'hat';
-      if (v === 'hats3') {
-        // straw, a felt hat, a flat cap
+      if (v === 'hats3' || v === 'hats2') {
+        // straw, a felt hat, a flat cap. 'hats2' (ペロの家, ハンチングの 値札 02 #83): the flat cap
+        // is a prop of its own (prop_hunting_wall, with its price tag) — here only its nail
         p.ellipse(px + 5, y + 5, 4, 2, P.goldPale);
         p.rect(px + 3, y + 3, 5, 2, P.brass);
         p.ellipse(px + 16, y + 5, 4, 2, P.charcoal);
         p.rect(px + 14, y + 2, 5, 3, P.asphalt);
         p.hline(px + 14, px + 18, y + 4, P.maroon);
-        p.ellipse(px + 27, y + 4, 4, 2, mix(P.wood, P.steel, 0.4));
-        p.hline(px + 24, px + 30, y + 5, P.woodDark);
+        if (v === 'hats3') {
+          p.ellipse(px + 27, y + 4, 4, 2, mix(P.wood, P.steel, 0.4));
+          p.hline(px + 24, px + 30, y + 5, P.woodDark);
+        } else {
+          p.set(px + 27, y + 2, P.steel);
+          p.set(px + 27, y + 3, P.charcoal);
+        }
       } else if (v === 'hat') {
         p.ellipse(px + 6, y + 5, 5, 2, P.goldPale);
         p.rect(px + 4, y + 3, 5, 2, P.brass);

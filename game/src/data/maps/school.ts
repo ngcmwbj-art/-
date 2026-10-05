@@ -32,6 +32,7 @@ import { flag } from '../../game/state';
 import { registerMap } from '../../world/maps';
 import type { MapDef, MapObj, TileSpec } from '../../world/types';
 import { BUCKET_NAMES, SCHOOL_OBJ } from '../text/school';
+import { KOTEI_OBJ } from '../text/kotei';
 
 export const ROWS_SCHOOL = [
   'WWWWWWWWWWWWWWWWWWWWWWWWWWWW', // 0
@@ -46,7 +47,7 @@ export const ROWS_SCHOOL = [
   'Hkbbbbbbbbbbk:::::::PPPPPPPP', // 9
   'Hkkkkkkkkkkkk::::::::::KKKKH', // 10
   'H::T:::::::::::ooo::::cKKKKH', // 11
-  'H::::::::::::::::::::::::::H', // 12
+  'V::::::::::::::::::::::::::H', // 12  V (0,12): the gravel way round the building's west end → 校庭 map_school_kotei (02 #82)
   'FFFFFFFFFFFFFFDFFFFFFFFFFFFF', // 13
 ];
 
@@ -76,6 +77,8 @@ const SCHOOL_LEGEND: Record<string, TileSpec> = {
   T: { ground: 'dirt', solid: true, tag: 'trunk' },
   // the back gate out to the park
   D: { ground: 'dirt', solid: true, door: true },
+  // the gap in the west hedge: the gravel way round to the school ground (二人十五脚, 02 #82)
+  V: { ground: 'gravel', solid: true, door: true },
 };
 
 type Text = string | Record<string, string>;
@@ -170,6 +173,11 @@ const OBJECTS: MapObj[] = [
 
   // ======================================================== the way out
   { t: 'door', id: 'door_sch_town', x: 14, y: 13, to: 'map_town', tx: 18, ty: 1, dir: 'down', se: 'se_door_heavy' },
+  // 二人十五脚 (02 #82, 30 3.17): the gap in the west hedge past the cherry, the gravel way round the
+  // building's west end to the school ground (pushed west from (1,12))
+  { t: 'prop', prop: 'prop_kotei_nishi', x: 0, y: 12 },
+  { t: 'obj', id: 'obj_kotei_michi', x: 0, y: 12, face: 'left', text: KOTEI_OBJ.obj_kotei_michi } as MapObj,
+  { t: 'door', id: 'door_sch_kotei', x: 0, y: 12, to: 'map_school_kotei', tx: 34, ty: 20, dir: 'left' },
 ];
 
 const DEF: MapDef = {
@@ -187,7 +195,7 @@ const DEF: MapDef = {
     { id: 'park', x: 0, y: 0, w: 28, h: 14 },
   ],
   structMats: [
-    { x: 0, y: 3, w: 1, h: 10, mat: 'kaname' },
+    { x: 0, y: 3, w: 1, h: 9, mat: 'kaname' },
     { x: 27, y: 3, w: 1, h: 10, mat: 'kaname' },
   ],
   onEnter: ['lv_in_school'],

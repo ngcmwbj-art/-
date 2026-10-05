@@ -21,8 +21,14 @@ import './sfx_ch2';
 import './sfx_mushi';
 // ザリガニ釣り（02_ch2_index #66）
 import './sfx_tsuri';
+// 水辺の 図鑑：夜振り（02_ch2_index #81）
+import './sfx_mizube';
 // 脇芽は 朝に かく（02_ch2_index #73）
 import './sfx_wakime';
 import './sfx_dome';
+// 70年の 色紙と 小さな 夏祭り（02_ch2_index #84）
+import './sfx_matsuri';
+// 二人十五脚・ハンチングの 値札（02_ch2_index #82・#83）
+import './sfx_kotei';
 import './ambience_ch2';
 import './voices';

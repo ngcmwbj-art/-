@@ -437,6 +437,9 @@ const SCHOOL_OBJ: MapObj[] = [
   O('obj_hoshi_nappers', 5, 5, { flat: true }),
   O2('obj_hoshi_nappers', 1, 8, 6, { flat: true }),
   O2('obj_hoshi_nappers', 2, 6, 7, { flat: true }),
+  // 70年の 色紙（02 #84）：ぴょん夫人が 2人の 座布団の あいだに 立てた 色紙（エンディングの カット2dにも 立っている）
+  PR('prop_hr_shikishi_tate', 7, 6, {}, { cond: { flag: 'flag_shikishi_tate' }, solid: [0, 0, 1, 1] }),
+  O('obj_hoshi_shikishi', 7, 6, { cond: { flag: 'flag_shikishi_tate' } }),
   O('obj_hoshi_desks', 13, 6, { w: 4, face: 'down' }),
   O('obj_hoshi_kokuban2', 13, 2, { face: 'up', fushigi: 'fushigi_ch2_09', cond: s1p }),
   O('obj_hoshi_gakkyu_nisshi', 15, 3, { face: 'up' }),

@@ -509,7 +509,7 @@ registerProp('in_md_runner', () =>
   }, noFoot),
 );
 
-// (6,3) the armchair (かずお sits in it, drawn over)
+// (6,3) the armchair (ピー・コック sits in it, drawn over)
 registerProp('in_md_chair', () =>
   prop(20, 24, (p) => {
     // back rest, arms, seat: lilac velvet with buttons

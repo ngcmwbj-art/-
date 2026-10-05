@@ -32,3 +32,5 @@ import './hoshi_mushi';
 import './hoshi_sawa';
 // タケじいの家の 手回しの 焙煎器と 麻袋（げむきか9/30の5、02_ch2_index #71）
 import './cape_coffee';
+// 校庭の 桜の 提灯・太鼓・集会所の 色紙（70年の 色紙と 小さな 夏祭り、02_ch2_index #84）
+import './matsuri_art';
