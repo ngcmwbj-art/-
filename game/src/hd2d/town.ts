@@ -35,8 +35,11 @@ import type { PropArt, PropEnv, PropPart } from '../art/props/types';
 import type { FieldScene, PropInst } from '../world/field';
 import { POLE, poleFoot, type WireLine } from '../art/props/wires';
 import { NUDGE, nudging, TUNE, solidOf, type Piece } from './tune';
-import { Atlas, canvas, casterMaterial, litMaterial, Mask, ownUv, pixelTexture, PX, Quads, shadowOnly, type V3 } from './solid';
-import { crownBoards, standUp } from './props3d';
+import { Atlas, canvas, casterMaterial, litMaterial, Mask, ownUv, pixelTexture, PX, Quads, shadowOnly, type UvFn, type V3 } from './solid';
+import { crownBoards, standUp, type Stood } from './props3d';
+import { flatShapeOf, shapeOf } from './shapes';
+import { placeOf } from './places';
+import { charAt } from '../world/maps';
 import { buildWalls, type Walls } from './walls';
 import { Outskirts, outskirtsGround } from './outskirts';
 import { recording, type Slab, type Solid } from './overlap';
@@ -232,19 +235,44 @@ class BuildingView {
     const x0 = (p.x + a.ox) * PX;
     const x1 = x0 + iw * PX;
     const zf = (p.y + a.foot) * PX;
-    const D = b.R;
+    // (a building drawn without roof rows gets a box of tune.depth tiles and a flat roof)
+    const flatTop = !b.R && !!tune.depth;
+    const D = b.R || tune.depth || 0;
     const zb = zf - D;
     const hF = b.F * SV;
     const rise = tune.rise ?? 0;
-    this.box = { x0, x1, y1: hF + rise, z0: zb, z1: zf };
+    // storeys over the ones the 2D draws (tune.ts upper)
+    const up = tune.upper;
+    const hUp = up ? up.n * (up.r1 - up.r0) * PX * SV : 0;
+    const hTop = hF + hUp;
+    this.box = { x0, x1, y1: hTop + rise, z0: zb, z1: zf };
     const q = new Quads();
     // the front wall: the facade rows
     vquad(q, x0, x1, 0, hF, zf, uvOf(iw, ih, 0, faceY, iw, ih));
-    // the roof: front edge on the wall's top, back edge `rise` higher
-    const ruv = uvOf(iw, ih, 0, roofY, iw, faceY);
-    q.add([x0, hF, zf], [x1, hF, zf], [x1, hF + rise, zb], [x0, hF + rise, zb], norm([0, D, rise]), ruv[0], ruv[1], ruv[2], ruv[3]);
+    if (!flatTop) {
+      // the roof: front edge on the wall's top, back edge `rise` higher
+      const ruv = uvOf(iw, ih, 0, roofY, iw, faceY);
+      q.add([x0, hF, zf], [x1, hF, zf], [x1, hF + rise, zb], [x0, hF + rise, zb], norm([0, D, rise]), ruv[0], ruv[1], ruv[2], ruv[3]);
+    } else if (tune.lid && roofY > 0) {
+      // the strip above the facade is the roof seen from above: it lies on the box
+      fquad(q, x0, x1, zb, zf, hTop, uvOf(iw, ih, 0, 0, iw, roofY));
+    }
     // the strip above the roof stands at the back edge
-    if (roofY > 0 && tune.top !== false) vquad(q, x0, x1, hF + rise, hF + rise + roofY * PX * SV, zb, uvOf(iw, ih, 0, 0, iw, roofY));
+    if (roofY > 0 && tune.top !== false && !tune.lid) vquad(q, x0, x1, hTop + rise, hTop + rise + roofY * PX * SV, zb, uvOf(iw, ih, 0, 0, iw, roofY));
+    if (up) {
+      // the storeys above: the rows of one bay of the facade, along it, n times
+      const rh = up.r1 - up.r0;
+      const cw = up.c1 - up.c0;
+      const [uc, uctx] = canvas(iw, rh * up.n);
+      for (let k = 0; k < up.n; k++) for (let x = 0; x < iw; x += cw) uctx.drawImage(this.skin.c, up.c0, faceY + up.r0, cw, rh, x, k * rh, cw, rh);
+      const uq = new Quads();
+      vquad(uq, x0, x1, hF, hTop, zf, [0, 0, 1, 1]);
+      sh?.add(uq, uc);
+      const um = new THREE.Mesh(uq.geometry(), litMaterial(pixelTexture(uc)));
+      um.castShadow = !sh;
+      um.receiveShadow = true;
+      this.group.add(um);
+    }
     // hand-cut pieces standing up from the roof (unmasked ones share the texture)
     for (const pc of tune.pieces ?? []) {
       const base = pc.base ?? faceY;
@@ -278,7 +306,7 @@ class BuildingView {
     this.group.add(mesh);
     // the side walls (and a back wall for the shadow), in the facade's own colour
     const sq = new Quads();
-    const yTop = hF;
+    const yTop = hTop;
     sq.add([x0, 0, zb], [x0, 0, zf], [x0, yTop, zf], [x0, yTop, zb], [-1, 0, 0], 0, 0, 1, 1);
     sq.add([x1, 0, zf], [x1, 0, zb], [x1, yTop, zb], [x1, yTop, zf], [1, 0, 0], 0, 0, 1, 1);
     sq.add([x1, 0, zb], [x0, 0, zb], [x0, yTop + rise, zb], [x1, yTop + rise, zb], [0, 0, -1], 0, 0, 1, 1);
@@ -286,6 +314,19 @@ class BuildingView {
       // the gable ends under a sloped roof (triangles: the 4th corner repeats the 3rd)
       sq.add([x0, yTop, zb], [x0, yTop, zf], [x0, yTop + rise, zb], [x0, yTop + rise, zb], [-1, 0, 0], 0, 0, 1, 1);
       sq.add([x1, yTop, zf], [x1, yTop, zb], [x1, yTop + rise, zb], [x1, yTop + rise, zb], [1, 0, 0], 0, 0, 1, 1);
+    }
+    if (flatTop && !tune.lid) {
+      // the flat roof (with a parapet's lip round it)
+      const rq = new Quads();
+      rq.add([x0, hTop, zf], [x1, hTop, zf], [x1, hTop, zb], [x0, hTop, zb], [0, 1, 0], 0, 0, 1, 1);
+      sh?.add(rq, null);
+      const roof = new THREE.Mesh(rq.geometry(), new THREE.MeshLambertMaterial({ color: new THREE.Color(tune.roof ?? sideColour(this.skin.c, faceY)) }));
+      roof.castShadow = !sh;
+      roof.receiveShadow = true;
+      this.group.add(roof);
+      const lip = 0.12;
+      sq.add([x0, hTop, zf], [x1, hTop, zf], [x1, hTop + lip, zf], [x0, hTop + lip, zf], [0, 0, 1], 0, 0, 1, 1);
+      sq.add([x0, hTop + lip, zf], [x1, hTop + lip, zf], [x1, hTop + lip, zf - 0.15], [x0, hTop + lip, zf - 0.15], [0, 1, 0], 0, 0, 1, 1);
     }
     sh?.add(sq, null);
     const side = new THREE.Mesh(sq.geometry(), new THREE.MeshLambertMaterial({ color: sideColour(this.skin.c, faceY), shadowSide: THREE.DoubleSide }));
@@ -423,7 +464,7 @@ let lightProps = false;
  * keep their sun-facing shadow plane and are tinted in a building's
  * shadow, here by their vertex colours).
  */
-class PropBatch {
+export class PropBatch {
   readonly atlas = new Atlas();
   readonly q = new Quads();
   mesh: THREE.Mesh | null = null;
@@ -467,7 +508,7 @@ class PropBatch {
  * one mesh over an atlas of their first pictures, drawn into the shadow map
  * only — one draw call in the shadow pass instead of one or three each.
  */
-class ShadowSet {
+export class ShadowSet {
   readonly atlas = new Atlas();
   readonly q = new Quads();
   mesh: THREE.Mesh | null = null;
@@ -504,7 +545,8 @@ function stillPicture(a: PropArt, env: PropEnv): boolean {
   return true;
 }
 
-class CutoutView {
+// (exported for the rooms, room.ts: their furniture stands up the same way)
+export class CutoutView {
   readonly group = new THREE.Group();
   readonly skin: Skin;
   readonly mat: THREE.MeshLambertMaterial;
@@ -562,6 +604,13 @@ class CutoutView {
     const fv = nudge.fgView ?? 0;
     const spec = solidOf(id, first?.width ?? a.w, Math.max(0, Math.min(first?.height ?? a.h, foot - (p.y + a.oy))));
     if (lightProps && spec.kind === 'slab' && spec.depth < 5) spec.depth = 0;
+    // (a body built by hand for a picture that is not one standing thing: shapes.ts)
+    const opts = (p.obj as { opts?: Record<string, unknown> }).opts ?? {};
+    const shape = shapeOf(id, opts);
+    const build = (bq: Quads, uv: UvFn, r?: Slab[]): Stood =>
+      shape
+        ? shape({ q: bq, m: new Mask(this.skin.c), uv, sv: SV, lift, rec: r, x: p.x + a.ox, y: p.y + a.oy, foot, w: first?.width ?? a.w, h: first?.height ?? a.h, pad, opts })
+        : standUp(bq, new Mask(this.skin.c), uv, { iw, ih, left, top, foot, dz }, spec, SV, lift, r);
     // a still picture, there in every stage, low (or a trunk): into a shared batch
     const rf0 = Math.max(0, Math.min(ih, foot - top));
     const still = !!first && !!batches && !p.obj.cond && !a.over && !a.glow && a.xray === undefined && (rf0 <= 48 || spec.kind === 'tree') && stillPicture(a, env);
@@ -569,13 +618,13 @@ class CutoutView {
     const rec: Slab[] | undefined = solids ? [] : undefined;
     if (still && batches) {
       // (which batch: whether it comes out thick enough, from a dry run)
-      const solid = standUp(new Quads(), new Mask(this.skin.c), ownUv(iw, ih), { iw, ih, left, top, foot, dz }, spec, SV, lift).solid;
+      const solid = build(new Quads(), ownUv(iw, ih)).solid;
       const b = solid ? batches.real : batches.thin;
       const v0 = b.q.count * 4;
-      stood = standUp(b.q, new Mask(this.skin.c), b.atlas.add(this.skin.c), { iw, ih, left, top, foot, dz }, spec, SV, lift, rec);
+      stood = build(b.q, b.atlas.add(this.skin.c), rec);
       this.batch = b;
       this.verts = [v0, b.q.count * 4];
-    } else if (first) stood = standUp(q, new Mask(this.skin.c), ownUv(iw, ih), { iw, ih, left, top, foot, dz }, spec, SV, lift, rec);
+    } else if (first) stood = build(q, ownUv(iw, ih), rec);
     if (solids && rec?.length) solids.push({ name, kind: 'prop', foot, x: p.x, slabs: rec });
     const stand = stood?.stand ?? null;
     this.mat = litMaterial(this.skin.tex, this.skin.glowTex ? { emissive: 0xffffff, emissiveMap: this.skin.glowTex, emissiveIntensity: 0 } : {});
@@ -594,7 +643,7 @@ class CutoutView {
     this.at = [cx, stand ? (stand[0] + stand[1]) / 2 : 0.1, (foot + dz) * PX];
     // (what is painted of it, banners on the margin included)
     const box = stand ? paintedBox(this.skin.c, Math.max(0, Math.min(ih, foot - top))) : null;
-    this.rect = stand && box && !this.batch ? [(left + box[0]) * PX, (left + box[1]) * PX, Math.max(0, stand[0]), (foot - top - box[2]) * PX * SV, (foot + dz) * PX] : null;
+    this.rect = stand && box && !this.batch && !stood?.noXray ? [(left + box[0]) * PX, (left + box[1]) * PX, Math.max(0, stand[0]), (foot - top - box[2]) * PX * SV, (foot + dz) * PX] : null;
     // the long shadow: the standing part turned to face the sun
     if (!this.real && stand && stand[1] - stand[0] >= 10 * PX * SV) {
       const rf = Math.max(0, Math.min(ih, foot - top));
@@ -740,6 +789,29 @@ function crownSlabs(img: HTMLCanvasElement, left: number, top: number, rf: numbe
   return [standingSlab(img, left, top, rf, lift, cz - D / 3, 0.82), standingSlab(img, left, top, rf, lift, cz), standingSlab(img, left, top, rf, lift, cz + D / 3, 0.82)];
 }
 
+/**
+ * The body of a flat prop that has one in 3D (shapes.ts flatShapeOf): built
+ * once from its first picture (the ground keeps the picture itself).
+ */
+function flatBody(p: PropInst, env: PropEnv, lift: number, shadows: ShadowSet | null, solids: Solid[] | null): THREE.Mesh | null {
+  const id = p.obj.t === 'prop' ? p.obj.prop : (p.obj.prop ?? p.obj.id);
+  const fs = flatShapeOf(id);
+  const img = fs ? p.art.img(env) : null;
+  if (!fs || !img) return null;
+  const c = fs.prep ? fs.prep(img) : img;
+  const q = new Quads();
+  const rec: Slab[] | undefined = solids ? [] : undefined;
+  const a = p.art;
+  fs.shape({ q, m: new Mask(c), uv: ownUv(c.width, c.height), sv: SV, lift, rec, x: p.x + a.ox, y: p.y + a.oy, foot: p.y + a.foot, w: c.width, h: c.height, pad: 0, opts: (p.obj as { opts?: Record<string, unknown> }).opts ?? {} });
+  if (q.empty) return null;
+  if (solids && rec?.length) solids.push({ name: `${id}@${p.x / 16},${p.y / 16}`, kind: 'prop', foot: p.y + a.foot, x: p.x, slabs: rec });
+  shadows?.add(q, c);
+  const mesh = new THREE.Mesh(q.geometry(), litMaterial(pixelTexture(c)));
+  mesh.castShadow = !shadows;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
 // ---------------------------------------------------------------- the whole map
 
 export class TownWorld {
@@ -762,6 +834,7 @@ export class TownWorld {
   private casters: CasterSet | null = null;
   private readonly batches = { real: new PropBatch(true), thin: new PropBatch(false) };
   private readonly shadows = new ShadowSet();
+  private readonly flatBodies: THREE.Mesh[] = [];
   /** How long each part took to stand up (ms; QA, hd2dStats). */
   readonly buildParts: Record<string, number> = {};
 
@@ -777,7 +850,7 @@ export class TownWorld {
       new THREE.PlaneGeometry(m.w + 120, m.h + 120).rotateX(-Math.PI / 2),
       new THREE.MeshLambertMaterial({ color: new THREE.Color('#4a5a3a') }),
     );
-    outside.position.set(m.w / 2, -1, m.h / 2);
+    outside.position.set(m.w / 2, -1 - (placeOf(m.id).drop ?? 0), m.h / 2);
     outside.receiveShadow = true;
     this.group.add(outside);
     let t0 = performance.now();
@@ -798,7 +871,15 @@ export class TownWorld {
     this.buildWires();
     for (const p of f.props) {
       const a = p.art;
-      if (a.flat) continue;
+      if (a.flat) {
+        // (a flat prop with a body in 3D too: the sand pit's frame, the roof's parapets; shapes.ts)
+        const body = flatBody(p, f.propEnv(p), this.heightAt(p.x / 16 + 0.5, p.y / 16 + 0.5), p.obj.cond ? null : this.shadows, solids);
+        if (body) {
+          this.flatBodies.push(body);
+          this.group.add(body);
+        }
+        continue;
+      }
       const env = f.propEnv(p);
       if (a.box) {
         const b = new BuildingView(p, env, this.shadows, solids);
@@ -930,11 +1011,18 @@ export class TownWorld {
     const w = m.w + MARGIN.x * 2;
     const h = m.h + MARGIN.n + MARGIN.s;
     const a = new Float32Array(w * h);
+    // (a place's own steps by map character, and what lies past its edges: places.ts)
+    const place = placeOf(m.id);
     for (let j = 0; j < h; j++)
       for (let i = 0; i < w; i++) {
-        const tx = Math.max(0, Math.min(m.w - 1, i - MARGIN.x));
-        const ty = Math.max(0, Math.min(m.h - 1, j - MARGIN.n));
-        a[j * w + i] = (STEP[src.ground(tx, ty)] ?? 0) * PX * SV;
+        const x = i - MARGIN.x;
+        const y = j - MARGIN.n;
+        const tx = Math.max(0, Math.min(m.w - 1, x));
+        const ty = Math.max(0, Math.min(m.h - 1, y));
+        const edge = charAt(m, tx, ty);
+        const ch = (x !== tx || y !== ty) && place.outside ? place.outside(x, y, edge) : edge;
+        const step = place.steps?.[ch] ?? (ch === edge ? STEP[src.ground(tx, ty)] : STEP[m.def.legend[ch]?.ground ?? '']);
+        a[j * w + i] = (step ?? 0) * PX * SV;
       }
     this.heights = a;
     return a;
@@ -968,13 +1056,16 @@ export class TownWorld {
     const U = (px: number) => px / W;
     const V = (px: number) => 1 - px / H;
     const q = new Quads();
+    // (the roof: past its parapets nothing at its height, the town lies below: outskirts.ts)
+    const drop = placeOf(m.id).drop;
+    const low = drop ? -drop + 0.01 : -Infinity;
     for (let j = 0; j < h; j++) {
       // the tops: runs of one height
       let i0 = 0;
       for (let i = 1; i <= w; i++) {
         if (i < w && at(i, j) === at(i0, j)) continue;
         const y = at(i0, j);
-        q.add([X(i0), y, Z(j + 1)], [X(i), y, Z(j + 1)], [X(i), y, Z(j)], [X(i0), y, Z(j)], [0, 1, 0], U(i0 * 16), V((j + 1) * 16), U(i * 16), V(j * 16));
+        if (y > low) q.add([X(i0), y, Z(j + 1)], [X(i), y, Z(j + 1)], [X(i), y, Z(j)], [X(i0), y, Z(j)], [0, 1, 0], U(i0 * 16), V((j + 1) * 16), U(i * 16), V(j * 16));
         i0 = i;
       }
       // south faces: this row higher than the next
@@ -1048,6 +1139,7 @@ export class TownWorld {
   dispose(): void {
     for (const b of this.buildings) b.dispose();
     for (const c of this.cutouts) c.dispose();
+    for (const b of this.flatBodies) ((b.material as THREE.MeshLambertMaterial).map as THREE.Texture | null)?.dispose();
     this.casters?.dispose();
     this.groundTex?.dispose();
     this.walls?.dispose();
@@ -1084,7 +1176,7 @@ export interface CasterSpec {
  * banner's shadow stays still). Two draw calls in all instead of two per
  * prop. Turned to the sun again only when the sun moves (a stage change).
  */
-class CasterSet {
+export class CasterSet {
   readonly mesh: THREE.Mesh;
   private readonly tex: THREE.CanvasTexture;
   private yaw = NaN;

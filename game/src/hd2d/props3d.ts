@@ -27,6 +27,8 @@ export interface Stood {
   cz: number;
   /** Thick enough to cast its own shadow (no sun-facing shadow plane). */
   solid: boolean;
+  /** Never see-through (a shape whose parts stand all round, shapes.ts: the x-ray would thin all of it). */
+  noXray?: boolean;
 }
 
 /** The shaft of a pole or a trunk: the run of columns that stand tallest from the foot. */

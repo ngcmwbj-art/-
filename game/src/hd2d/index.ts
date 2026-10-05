@@ -30,6 +30,7 @@ import type { Quality } from './post';
 import { CAM, Hd2dView } from './view';
 import { overlaps } from './overlap';
 import { nudging } from './tune';
+import { roomMap } from './room';
 
 const DEMO = import.meta.env.VITE_HD2D_DEMO === '1';
 /**
@@ -86,7 +87,8 @@ function watchPace(): void {
 }
 
 function drawField(g: Gfx, f: FieldScene): boolean {
-  if (!on || !MAPS.has(f.map.id) || f.viewScale !== 1) return false;
+  // (and chapter 1's rooms: room.ts)
+  if (!on || !(MAPS.has(f.map.id) || roomMap(f.map.id)) || f.viewScale !== 1) return false;
   const v = getView();
   if (!v) return false;
   const d = game.screen.display;
@@ -189,7 +191,7 @@ function drawPlainFx(g: Gfx, f: FieldScene, v: Hd2dView): void {
  * line `foot` is lifted to its height there (view.ts projectPx).
  */
 function project(f: FieldScene, x: number, y: number, foot?: number): [number, number, number] | null {
-  if (!on || !view || failed || !MAPS.has(f.map.id) || f.viewScale !== 1) return null;
+  if (!on || !view || failed || !(MAPS.has(f.map.id) || roomMap(f.map.id)) || f.viewScale !== 1) return null;
   const p = view.projectPx(x, y, foot ?? y);
   return p ? [Math.round(p[0]), Math.round(p[1]), 1] : null;
 }

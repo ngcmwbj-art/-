@@ -26,6 +26,18 @@ export interface BldTune {
   top?: boolean;
   /** Roof slope (tiles): the back edge this much higher than the front. */
   rise?: number;
+  /** A building drawn without roof rows (R = 0): its box this many tiles deep, a flat roof on it. */
+  depth?: number;
+  /** R = 0: the strip above the facade (`top` rows) is its roof seen from above: it lies on the box. */
+  lid?: boolean;
+  /** The flat roof's colour (default: the side walls'). */
+  roof?: string;
+  /**
+   * Storeys the 2D never shows (the camera sees over the facade in 3D):
+   * rows r0..r1 of columns c0..c1 of the facade, repeated along it, `n`
+   * times on top of it.
+   */
+  upper?: { r0: number; r1: number; c0: number; c1: number; n: number };
 }
 
 export const TUNE: Record<string, BldTune> = {
@@ -48,6 +60,14 @@ export const TUNE: Record<string, BldTune> = {
   // 夕鳴写真館 (south row, seen from behind): its tiled roof
   bld_photo: { rise: 0.6 },
   bld_sake: { rise: 0.4 },
+  // 夕鳴小学校 (2026-10-05, the outdoor places): the back of the school —
+  // the 2D draws its ground floor and the second floor's sills; in 3D two
+  // more storeys of classroom windows, the building 9 tiles deep, flat roofed
+  bld_sch_kousha: { depth: 9, upper: { r0: 2, r1: 41, c0: 4, c1: 168, n: 2 }, roof: '#a49c92' },
+  // its front on the school ground: the third floor over the second, 10 deep
+  bld_kotei_kousha: { depth: 10, upper: { r0: 0, r1: 22, c0: 4, c1: 110, n: 1 }, roof: '#a49c92' },
+  // the back yard's sports shed: its steel lid seen from above lies on it
+  bld_sch_souko: { depth: 1.6, lid: true },
 };
 
 // ---------------------------------------------------------------- props in 3D (round 2)

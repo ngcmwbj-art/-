@@ -16,6 +16,9 @@ import type { FieldScene } from '../world/field';
 import { shadowOnly } from './solid';
 import { casterMaterial, pixelTexture, SHADE, SV, type TownWorld } from './town';
 
+/** What the characters ask of the 3D map they stand in (the town, or a room: room.ts RoomWorld). */
+type Ground3D = Pick<TownWorld, 'heightAt' | 'boxAt' | 'inShadow'>;
+
 const PX = 1 / 16;
 const texCache = new WeakMap<HTMLCanvasElement, THREE.CanvasTexture>();
 
@@ -101,7 +104,7 @@ class ActorView {
     return d.tex;
   }
 
-  update(a: Actor, f: FieldScene, sunYaw: number, tint: THREE.Color, world: TownWorld, sunDir: THREE.Vector3): void {
+  update(a: Actor, f: FieldScene, sunYaw: number, tint: THREE.Color, world: Ground3D, sunDir: THREE.Vector3): void {
     const blink = a.blinkUntil > f.t && Math.floor(f.t / 80) % 2 === 0;
     const la = f.light.actorAlpha(a);
     const show = a.visible && !blink && (la > 0.01 || !!a.data.selfLit);
@@ -181,7 +184,7 @@ export class ActorViews {
   private readonly views = new Map<Actor, ActorView>();
   private tick = 0;
 
-  update(f: FieldScene, sunYaw: number, tint: THREE.Color, world: TownWorld, sunDir: THREE.Vector3): void {
+  update(f: FieldScene, sunYaw: number, tint: THREE.Color, world: Ground3D, sunDir: THREE.Vector3): void {
     this.tick++;
     const list: Actor[] = [...f.actors, f.player];
     if (f.follower) list.push(f.follower);

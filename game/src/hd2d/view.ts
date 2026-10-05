@@ -18,6 +18,7 @@ import { Post, type Quality } from './post';
 import { recording, type Solid } from './overlap';
 import { markShadowPass } from './solid';
 import { PITCH, SV, TownWorld } from './town';
+import { ROOM_BG, RoomWorld, roomMap } from './room';
 
 export interface CamParams {
   /** Degrees down from the horizon. */
@@ -72,7 +73,7 @@ export class Hd2dView {
   private readonly hemi: THREE.HemisphereLight;
   private readonly lamps: THREE.PointLight[] = [];
   private post: Post | null = null;
-  private world: TownWorld | null = null;
+  private world: TownWorld | RoomWorld | null = null;
   private worldMap = '';
   private worldF: FieldScene | null = null;
   private worldProps: unknown = null;
@@ -154,7 +155,7 @@ export class Hd2dView {
     return [w, Math.round((w * H) / W)];
   }
 
-  private ensureWorld(f: FieldScene): TownWorld {
+  private ensureWorld(f: FieldScene): TownWorld | RoomWorld {
     // (a map loaded again — a warp, a door back — gives the field new props: build again)
     if (this.world && this.worldF === f && this.worldMap === f.map.id && this.worldProps === f.props) return this.world;
     if (this.world) {
@@ -163,21 +164,24 @@ export class Hd2dView {
     }
     this.actors.clear();
     const t0 = performance.now();
-    this.world = new TownWorld(f, this.quality === 'light');
+    // (a room of chapter 1: room.ts)
+    const room = roomMap(f.map.id);
+    this.world = room ? new RoomWorld(f, this.quality === 'light') : new TownWorld(f, this.quality === 'light');
     this.buildMs = performance.now() - t0;
     this.worldF = f;
     this.worldMap = f.map.id;
     this.worldProps = f.props;
     this.scene.add(this.world.group);
-    const bg = new THREE.Color(f.map.def.outside ?? '#1b1733');
+    const bg = new THREE.Color(f.map.def.outside ?? (room ? ROOM_BG : '#1b1733'));
     this.scene.background = bg;
-    this.scene.fog = new THREE.Fog(new THREE.Color('#e0a080'), 38, 130);
+    this.scene.fog = room ? null : new THREE.Fog(new THREE.Color('#e0a080'), 38, 130);
     return this.world;
   }
 
   /** Where the camera looks (world units on the ground). */
   target(f: FieldScene): THREE.Vector3 {
-    return new THREE.Vector3((f.camX + W / 2) / 16, 0, (f.camY + H / 2) / 16 - CAM.lookN);
+    // (a room: where the 2D camera centres it or stops, no look ahead)
+    return new THREE.Vector3((f.camX + W / 2) / 16, 0, (f.camY + H / 2) / 16 - (roomMap(f.map.id) ? 0 : CAM.lookN));
   }
 
   /**
@@ -224,7 +228,7 @@ export class Hd2dView {
   }
 
   /** The few lamps nearest the target get a small warm point light. */
-  private placeLamps(world: TownWorld, t: THREE.Vector3, lit: number): void {
+  private placeLamps(world: TownWorld | RoomWorld, t: THREE.Vector3, lit: number): void {
     const spots = world.spots
       .filter((s) => s.p.present && Math.abs(s.x - t.x) < 14 && Math.abs(s.z - t.z) < 10)
       .sort((a, b) => Math.hypot(a.x - t.x, a.z - t.z) - Math.hypot(b.x - t.x, b.z - t.z));
@@ -256,7 +260,8 @@ export class Hd2dView {
     }
     const world = this.ensureWorld(f);
     const tgt = this.placeCamera(f, crop);
-    const sunYaw = this.placeSun(f, tgt);
+    // (a room: its ceiling light instead of the evening sun, room.ts)
+    const sunYaw = world instanceof RoomWorld ? world.light(this.sun, this.hemi, tgt, this.sunDir) : this.placeSun(f, tgt);
     const lit = f.map.def.kind === 'indoor' ? 1 : Math.max(0, Math.min(1, f.grade.lit));
     world.update(f.t, sunYaw, this.sunDir, lit, tgt.x, tgt.z, this.hidesParty(f));
     this.placeLamps(world, tgt, lit);
@@ -268,7 +273,7 @@ export class Hd2dView {
     const foot = subject ?? this.project(new THREE.Vector3((f.player.x + f.player.ox) / 16, 0.6, f.player.y / 16));
     const fy = foot && crop ? ((foot[1] - crop[1]) / crop[3]) * H : foot?.[1];
     const focus = fy !== undefined ? Math.max(0.25, Math.min(0.75, 1 - fy / H)) : 0.5;
-    this.post!.setGrade(f.grade, f.wave.amp, f.wave.t / 1000, focus);
+    this.post!.setGrade(world instanceof RoomWorld ? world.grade() : f.grade, f.wave.amp, f.wave.t / 1000, focus);
     const t1 = performance.now();
     this.renderer.info.reset();
     this.post!.render();
