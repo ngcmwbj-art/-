@@ -37,6 +37,7 @@ import { uiHud } from '../ui/hud';
 import * as snd from '../world/audio';
 import {
   MIZUBE_ZARI,
+  SEKI_HINT,
   SEKI_OBJ,
   SEKI_OPI,
   TENAGA,
@@ -103,7 +104,15 @@ export const MF = {
   lost: 'flag_mizube_lost',
   drop: 'flag_mizube_drop',
   release: 'flag_mizube_release',
+  /** 誘いの 前の 手がかり（来たとき・淵）。 */
+  hintArrive: 'flag_mizube_hint_arrive',
+  hintFuchi: 'flag_mizube_hint_fuchi',
 } as const;
+
+/** まだ 誘われていない（堰の 場面は これから。段階0〜2）：手がかりを 出す。 */
+function hintDue(): boolean {
+  return !flag(MZ.seki) && stage() <= 2;
+}
 
 /** おぴぃが 堰に 来ている（誘われた あと、段階0〜2）。 */
 function opiAtSeki(): boolean {
@@ -181,6 +190,11 @@ registerScript('lv_in_seki', function* (): Co {
     yield 350;
     yield* msg(SEKI_OPI.kane_arrive);
   }
+  if (hintDue() && !flag(MF.hintArrive)) {
+    setFlag(MF.hintArrive, 1);
+    yield 350;
+    yield* msg(pickStage(SEKI_HINT.arrive as Obj) ?? '');
+  }
 });
 
 // ================================================================ examine
@@ -229,7 +243,13 @@ registerScript('obj_seki_yoshi', function* (): Co {
 
 registerScript('obj_seki_fuchi', function* (): Co {
   yield* stageText('obj_seki_fuchi');
-  if (!opiAtSeki()) return;
+  if (!opiAtSeki()) {
+    if (hintDue() && !flag(MF.hintFuchi)) {
+      setFlag(MF.hintFuchi, 1);
+      yield* msg(flag('flag_tamotsu_met') ? SEKI_HINT.fuchi_met : SEKI_HINT.fuchi);
+    }
+    return;
+  }
   const i = yield* msg(SEKI_OPI.fuchi_ask);
   if (i === 0) yield* sekiSession();
 });
@@ -495,7 +515,7 @@ export function mizubeTexts(): Record<string, unknown> {
     for (let k = 0; k < 3; k++) for (const st of [0, 1]) for (const n of [5, 6, 9]) measures[`${kind}.${k}.s${st}.${n}`] = tenagaMeasure(kind, n, kind === 'osu' ? 12 : 4, k, st)[0];
   const notes: Record<string, string> = {};
   for (const e of ZUKAN.filter((z) => z.vol === 1)) notes[e.id] = `@sys\n『みずべ』に 書きこんだ。\n（${e.name}　12/12）`;
-  return { MIZUBE_ZARI, SEKI_OBJ, SEKI_OPI, TENAGA, TSUBAME, YURAI, measures, notes };
+  return { MIZUBE_ZARI, SEKI_HINT, SEKI_OBJ, SEKI_OPI, TENAGA, TSUBAME, YURAI, measures, notes };
 }
 registerDebug('mizubeText', () => mizubeTextCheck(mizubeTexts()));
 
