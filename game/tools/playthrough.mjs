@@ -1738,7 +1738,10 @@ const SIDE2 = [
       await examineHere('up', 'kabe');
       await need(['flag_ch2_sawako_kabe_yk', 'flag_kanenari_flip_sawako_yk'], 'sawako: the sketch');
       await leaveRoom('map_hoshimidai');
-      await travel(23, 38);
+      // the box (sym_hoshi_02) stands right beside the door (21,37): a walk past it can
+      // brush it into a battle, after which 〔mujin_done〕 rightly comes first — this beat
+      // is about 〔yk〕, so step over to her stand instead of walking past the box
+      await place(23, 38, 'up');
       await examineHere('up', 'yk');
       await need(['flag_ch2_sawako_yk'], 'sawako: 〔yk〕');
       await shot('done');
