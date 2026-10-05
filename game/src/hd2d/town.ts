@@ -39,7 +39,7 @@ import { Atlas, canvas, casterMaterial, litMaterial, Mask, ownUv, pixelTexture, 
 import { crownBoards, standUp } from './props3d';
 import { buildWalls, type Walls } from './walls';
 import { Outskirts, outskirtsGround } from './outskirts';
-import type { Slab, Solid } from './overlap';
+import { recording, type Slab, type Solid } from './overlap';
 
 export { casterMaterial, pixelTexture } from './solid';
 
@@ -316,7 +316,7 @@ class BuildingView {
         const ht = rows(hF + k * rise) + (base - pc.y);
         slabs.push({ x0: X0 + pc.x, x1: X0 + pc.x + pc.w, h0: ht - pc.h, h1: ht, z0: z, z1: z, at: (x, h) => m.at(Math.floor(x - X0), pc.y + Math.floor(ht - h)), face: true });
       }
-      solids.push({ name: `${id}@${p.x / 16},${p.y / 16}`, kind: 'building', foot: ZF, slabs });
+      solids.push({ name: `${id}@${p.x / 16},${p.y / 16}`, kind: 'building', foot: ZF, x: p.x, slabs });
     }
     // every building has a glow() (its windows at night): no point light of its own
     this.spot = null;
@@ -576,7 +576,7 @@ class CutoutView {
       this.batch = b;
       this.verts = [v0, b.q.count * 4];
     } else if (first) stood = standUp(q, new Mask(this.skin.c), ownUv(iw, ih), { iw, ih, left, top, foot, dz }, spec, SV, lift, rec);
-    if (solids && rec?.length) solids.push({ name, kind: 'prop', foot, slabs: rec });
+    if (solids && rec?.length) solids.push({ name, kind: 'prop', foot, x: p.x, slabs: rec });
     const stand = stood?.stand ?? null;
     this.mat = litMaterial(this.skin.tex, this.skin.glowTex ? { emissive: 0xffffff, emissiveMap: this.skin.glowTex, emissiveIntensity: 0 } : {});
     // thick enough: it casts (and takes) real shadows; thin ones keep the sun-facing plane
@@ -748,7 +748,7 @@ export class TownWorld {
   readonly cutouts: CutoutView[] = [];
   readonly spots: LightSpot[] = [];
   readonly boxes: Box[] = [];
-  /** The room every solid takes (QA: overlap.ts, __game.cmd.hd2dOverlaps()). */
+  /** The room every solid takes (QA: overlap.ts, __game.cmd.hd2dOverlaps(); noted only while `recording.on`). */
   readonly solids: Solid[] = [];
   private groundTex: THREE.CanvasTexture | null = null;
   private groundKey = '';
@@ -788,10 +788,11 @@ export class TownWorld {
     };
     this.buildGround();
     lap('ground');
-    this.walls = buildWalls(m, SV, MARGIN, this.solids);
+    const solids = recording.on ? this.solids : null;
+    this.walls = buildWalls(m, SV, MARGIN, solids);
     if (this.walls) this.group.add(this.walls.mesh);
     lap('walls');
-    this.outskirts = new Outskirts(f, SV, this.solids);
+    this.outskirts = new Outskirts(f, SV, solids);
     if (this.outskirts.mesh) this.group.add(this.outskirts.mesh);
     lap('outskirts');
     this.buildWires();
@@ -800,13 +801,13 @@ export class TownWorld {
       if (a.flat) continue;
       const env = f.propEnv(p);
       if (a.box) {
-        const b = new BuildingView(p, env, this.shadows, this.solids);
+        const b = new BuildingView(p, env, this.shadows, solids);
         this.buildings.push(b);
         this.boxes.push(b.box);
         this.group.add(b.group);
         if (b.spot) this.spots.push(b.spot);
       } else {
-        const c = new CutoutView(p, env, this.casterSpecs, this.batches, this.shadows, this.heightAt(p.x / 16 + 0.5, (p.y + a.foot - 1) / 16), this.solids);
+        const c = new CutoutView(p, env, this.casterSpecs, this.batches, this.shadows, this.heightAt(p.x / 16 + 0.5, (p.y + a.foot - 1) / 16), solids);
         this.cutouts.push(c);
         this.group.add(c.group);
         if (c.spot) this.spots.push(c.spot);
@@ -1010,6 +1011,12 @@ export class TownWorld {
         j = j1 - 1;
       }
     return q.geometry();
+  }
+
+  /** The building whose box (x0..x1 × z0..z1) the ground point (x, z) (units) is inside, if any. */
+  boxAt(x: number, z: number): Box | null {
+    for (const b of this.boxes) if (x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1) return b;
+    return null;
   }
 
   /** Is the point (world units) in the shadow of a building, for a sun from `dir` (towards the sun)? */

@@ -48,6 +48,9 @@ function storefront(): [number, number] {
 
 function onScreen(a: Actor): boolean {
   const f = F();
+  // (the HD-2D view: on its picture)
+  const s = f.projected(a.x, a.y);
+  if (s) return s[0] > -8 && s[0] < 384 + 8 && s[1] > 0 && s[1] < 216 + 24;
   return a.x > f.camX - 8 && a.x < f.camX + 384 + 8 && a.y > f.camY && a.y < f.camY + 216 + 24;
 }
 

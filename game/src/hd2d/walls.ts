@@ -160,7 +160,7 @@ export function buildWalls(m: LoadedMap, sv: number, mg: Margin, solids: Solid[]
         extrude(q, k, 0, 0, art.img.width, art.img.height, { x0: (ox + art.ox) * PX, yTop: Y(foot - top), sy: PX * sv, zf: (foot - 1) * PX }, 3 * PX, uv);
         note(ox + art.ox, ox + art.ox + art.img.width, foot - top - art.img.height, foot - top, foot - 4, foot - 1, (x, h) => k.at(Math.floor(x - ox - art.ox), foot - top - 1 - Math.floor(h)));
       } else standing(q, atlas, art, tx, ty, Y);
-      if (noted?.length) solids!.push({ name: `${kind}:${mat}@${tx},${ty}`, kind: 'wall', foot, slabs: noted });
+      if (noted?.length) solids!.push({ name: `${kind}:${mat}@${tx},${ty}`, kind: 'wall', foot, x: ox, slabs: noted });
       noted = null;
     }
   if (!n) return null;
@@ -192,8 +192,10 @@ function standing(q: Quads, atlas: Atlas, art: CellArt, tx: number, ty: number, 
   const b = uv(art.img.width, 0);
   const x0 = left * PX;
   const x1 = (left + art.img.width) * PX;
-  const k = new Mask(art.img);
-  if (rf > 0) note(left, left + art.img.width, 0, rf, foot, foot, (x, h) => k.at(Math.floor(x - left), rf - 1 - Math.floor(h)));
+  if (rf > 0 && noted) {
+    const k = new Mask(art.img);
+    note(left, left + art.img.width, 0, rf, foot, foot, (x, h) => k.at(Math.floor(x - left), rf - 1 - Math.floor(h)));
+  }
   if (rf > 0) q.add([x0, Y(foot - top - rf), foot * PX], [x1, Y(foot - top - rf), foot * PX], [x1, Y(foot - top), foot * PX], [x0, Y(foot - top), foot * PX], [0, 0, 1], a[0], a[1], b[0], b[1]);
 }
 

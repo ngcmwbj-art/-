@@ -78,8 +78,10 @@ class Bubble implements Widget {
     if (!f || game.top !== f) return;
     const a = f.actorById(this.actorId);
     if (!a || !a.visible) return;
-    const x = Math.round(a.x + a.ox - f.camX);
-    const y = Math.round(a.y + Math.min(0, a.oy) - f.camY - 26);
+    // (the HD-2D view: over the head where it stands in 3D)
+    const at = f.projected(a.x + a.ox, a.y + Math.min(0, a.oy) - 26, a.y);
+    const x = at ? at[0] : Math.round(a.x + a.ox - f.camX);
+    const y = at ? at[1] : Math.round(a.y + Math.min(0, a.oy) - f.camY - 26);
     const out = this.t > this.ms ? 1 - (this.t - this.ms) / 150 : 1;
     drawBubble(g, this.text, x, y, this.t, out);
   }

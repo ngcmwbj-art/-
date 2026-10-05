@@ -188,10 +188,10 @@ export class Outskirts {
     for (const o of list) {
       const art = getProp(o.id, o.opts ?? {});
       if (!art) continue;
-      const rec: Slab[] = [];
+      const rec: Slab[] | null = solids ? [] : null;
       if (art.box) this.building(q, art, o, env, sv, rec);
       else this.thing(q, art, o, env, sv, rec);
-      if (solids && rec.length) solids.push({ name: `outskirts:${o.id}@${o.x},${o.y}`, kind: art.box ? 'building' : 'prop', foot: o.y * 16 + art.foot, slabs: rec });
+      if (solids && rec?.length) solids.push({ name: `outskirts:${o.id}@${o.x},${o.y}`, kind: art.box ? 'building' : 'prop', foot: o.y * 16 + art.foot, x: o.x * 16, slabs: rec });
     }
     if (q.empty) return;
     const tex = this.atlas.texture();
@@ -204,7 +204,7 @@ export class Outskirts {
   }
 
   /** A house as the town stands its buildings up (town.ts BuildingView): facade, roof on a box, the strip above it, side walls. */
-  private building(q: Quads, art: PropArt, o: Far, env: PropEnv, sv: number, rec: Slab[]): void {
+  private building(q: Quads, art: PropArt, o: Far, env: PropEnv, sv: number, rec: Slab[] | null): void {
     const b = art.box!;
     let img = art.img(env);
     if (!img) return;
@@ -222,7 +222,7 @@ export class Outskirts {
     const rise = TUNE[o.id]?.rise ?? 0;
     const side = solidFace(this.atlas.swatch(sideColour(img, faceY)));
     box(q, x0, x1, 0, hF, zb, zf, { front: { uv, c0: 0, r0: faceY, c1: iw, r1: ih }, left: side, right: side, back: side });
-    rec.push({ x0: x0 / PX, x1: x1 / PX, h0: 0, h1: b.F * 16, z0: zb / PX, z1: zf / PX, face: true });
+    rec?.push({ x0: x0 / PX, x1: x1 / PX, h0: 0, h1: b.F * 16, z0: zb / PX, z1: zf / PX, face: true });
     if (b.R) {
       const a = uv(0, faceY);
       const c = uv(iw, b.top);
@@ -238,7 +238,7 @@ export class Outskirts {
   }
 
   /** A tree (trunk column, crown boards) or a pole (column, arms pushed back). */
-  private thing(q: Quads, art: PropArt, o: Far, env: PropEnv, sv: number, rec: Slab[]): void {
+  private thing(q: Quads, art: PropArt, o: Far, env: PropEnv, sv: number, rec: Slab[] | null): void {
     const img = art.img(env);
     if (!img) return;
     const uv: UvFn = this.atlas.add(img);
@@ -246,7 +246,7 @@ export class Outskirts {
     const top = o.y * 16 + art.oy;
     const foot = o.y * 16 + art.foot;
     const tree = o.id.startsWith('tree_');
-    const st = standUp(q, new Mask(img), uv, { iw: img.width, ih: img.height, left, top, foot }, { kind: tree ? 'tree' : 'pole', depth: 3 }, sv, 0, rec);
+    const st = standUp(q, new Mask(img), uv, { iw: img.width, ih: img.height, left, top, foot }, { kind: tree ? 'tree' : 'pole', depth: 3 }, sv, 0, rec ?? undefined);
     const crown = tree ? art.fg?.[0]?.img(env) : null;
     if (crown && art.fg) {
       const part = art.fg[0];
@@ -256,10 +256,10 @@ export class Outskirts {
         const D = crown.width * 0.55 * PX;
         crownBoards(q, this.atlas.add(crown), crown.width, rf, o.x * 16 + part.ox, (foot - ptop) * PX * sv, PX * sv, st.cx, st.cz, D);
         // (the crown's middle board, for the overlap check)
-        const m = new Mask(crown);
+        const m = rec ? new Mask(crown) : null;
         const cl = o.x * 16 + part.ox;
         const ht = foot - ptop;
-        rec.push({ x0: cl, x1: cl + crown.width, h0: ht - rf, h1: ht, z0: st.cz / PX, z1: st.cz / PX, face: true, at: (x, h) => m.at(Math.floor(x - cl), Math.floor(ht - h)) });
+        if (m) rec!.push({ x0: cl, x1: cl + crown.width, h0: ht - rf, h1: ht, z0: st.cz / PX, z1: st.cz / PX, face: true, at: (x, h) => m.at(Math.floor(x - cl), Math.floor(ht - h)) });
       }
     }
   }

@@ -217,4 +217,18 @@ export const NUDGE: Record<string, PropNudge> = {
   // stood on the same line as the tofu pillar, whose banner is pushed back
   // 8 px with it: the board in front of the banner, as the 2D draws it
   'obj_poster_board@40,25': { z: 2 },
+  // the same at the 夏祭 pillar: the bucket in front of its banner (and
+  // still behind the black cat sitting in front of it)
+  'obj_catalley_bucket@28,25': { z: 1 },
+  // ひぐらし坂: the doghouse's roof over the end of the pots (one plane before)
+  'obj_doghouse@21,31': { z: 2 },
+  // the bike leaning on the wall, in front of the mailbox's corner
+  'prop_mama_bike@6,31': { z: 1 },
+  // the lot's chain in front of the mesh fence it hangs from
+  'prop_chain@43,15': { z: 1 },
+  // the wisteria's trellis over the bench under it
+  'prop_wisteria@6,6': { fgView: 1 },
+  // 川べり: the willow's hanging crown in front of the guardrail (the 2D
+  // draws the branches over the rail)
+  'tree_yanagi@52,35': { fgView: 3 },
 };

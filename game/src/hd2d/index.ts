@@ -21,7 +21,7 @@ import { H, W } from '../engine/screen';
 import { isTouchDevice } from '../engine/touch';
 import { registerDebug } from '../debug';
 import { setFlag, state } from '../game/state';
-import { FieldScene, setFieldDrawer } from '../world/field';
+import { field, FieldScene, setFieldDrawer } from '../world/field';
 import { fxDraw } from '../world/fx';
 import { hud } from '../world/hud';
 import { resetForNewGame, setNewGameStart } from '../ui/flow';
@@ -225,7 +225,8 @@ registerDebug('hd2dStats', () => view?.stats ?? null);
  * first. { min: px (4), all: also the ones the 2D hides anyway, area: '銀座通り' … }.
  */
 registerDebug('hd2dOverlaps', (o: { min?: number; all?: boolean; area?: string } = {}) => {
-  const list = overlaps(view?.solids() ?? [], o);
+  const f = field();
+  const list = overlaps(view && f && MAPS.has(f.map.id) ? view.solids(f) : [], o);
   return o.area ? list.filter((r) => r.area === o.area) : list;
 });
 /** QA: false stands every prop where its picture says (tune.ts NUDGE off), true as tuned; the town is stood up again. */
@@ -238,7 +239,7 @@ registerDebug('hd2dNudge', (v?: boolean) => {
 });
 /** The room the solids whose name holds `name` take (QA: their slabs, world px; heights in picture rows). */
 registerDebug('hd2dSolids', (name = '') =>
-  (view?.solids() ?? [])
+  (view && field() && MAPS.has(field()!.map.id) ? view.solids(field()!) : [])
     .filter((s) => name.split(',').some((n) => s.name.includes(n)))
     .map((s) => ({ name: s.name, foot: s.foot, slabs: s.slabs.map((b) => [b.x0, b.x1, b.h0, b.h1, b.z0, b.z1, b.face ? 'face' : '', b.at ? 'mask' : ''].map((v) => (typeof v === 'number' ? Math.round(v * 10) / 10 : v))) })),
 );

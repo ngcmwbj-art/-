@@ -129,9 +129,20 @@ class ActorView {
     // feet: the actor's (x, y); a pose drawn higher (perched, hopping) lifts it,
     // one drawn lower (oy > 0) stands that much further south
     const x = (a.x + a.ox) * PX;
-    const z = (a.y + Math.max(0, a.oy)) * PX;
+    let z = (a.y + Math.max(0, a.oy)) * PX;
     // (on the ground's step where it stands: paving, the bridge)
-    const up = -(Math.min(0, a.oy) + a.hopOffset() - (a.lift > 0 ? 1 : 0)) * PX * SV + world.heightAt(x, z - 0.05);
+    let up = -(Math.min(0, a.oy) + a.hopOffset() - (a.lift > 0 ? 1 : 0)) * PX * SV + world.heightAt(x, z - 0.05);
+    // one standing inside a building's box (くま吉 behind his open shop
+    // front): brought along the line of sight to just behind the facade —
+    // the same place on screen, and the counter and the noren in front of
+    // him cover him as the 2D draws them, not more
+    const inside = world.boxAt(x, z);
+    if (inside) {
+      const d = inside.z1 - 0.03 - z;
+      z += d;
+      // (on the building's own floor: its walls stand on the ground, not on the paving's step)
+      up += d * SV - world.heightAt(x, (a.y + Math.max(0, a.oy)) * PX - 0.05);
+    }
     this.body.position.set(x, up - below, z);
     this.body.scale.set(w, h, 1);
     this.caster.position.set(x, up - below, z);

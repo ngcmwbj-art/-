@@ -439,14 +439,18 @@ class FloatLine implements Widget {
     const a = kIn * kOut;
     if (a <= 0) return;
     const p = f.player;
-    const px = Math.round(p.x - f.camX);
-    const head = Math.round(p.y - f.camY) - 26;
+    // (the HD-2D view: his head and feet where he stands in 3D)
+    const hp = f.projected(p.x, p.y - 26, p.y);
+    const fp = f.projected(p.x, p.y);
+    const px = hp ? hp[0] : Math.round(p.x - f.camX);
+    const head = hp ? hp[1] : Math.round(p.y - f.camY) - 26;
+    const feet = fp ? fp[1] : Math.round(p.y - f.camY);
     const w = this.w;
     const h = this.h;
     // above the head; below the feet when there is no room above
     const above = head - 16 - h >= 30;
     const x = Math.max(8, Math.min(W - 8 - w, px - Math.round(w / 2)));
-    let y = above ? head - 16 - h : Math.round(p.y - f.camY) + 14;
+    let y = above ? head - 16 - h : feet + 14;
     y = Math.max(30, Math.min(BOX.y - 6 - h, y)) + Math.round((1 - kIn) * 3);
     drawWindow(g, x, y, w, h, UI, a, { curl: false, grid: false });
     // the thought tail: two little rings and a dot stepping down to his head
@@ -525,7 +529,11 @@ registerWorldFx({
         w.a.pathSpeed = w.speed * 16;
         w.a.path = w.pts.map(([x, y]) => [x * 16 + 8, y * 16 + 16] as [number, number]);
       }
-      const off = w.a.x < f.camX - 24 || w.a.x > f.camX + W + 24 || w.a.y < f.camY - 8 || w.a.y > f.camY + H + 40;
+      // (off the screen: in the HD-2D view, off its picture)
+      const s = f.projected(w.a.x, w.a.y);
+      const off = s
+        ? s[0] < -24 || s[0] > W + 24 || s[1] < -8 || s[1] > H + 40
+        : w.a.x < f.camX - 24 || w.a.x > f.camX + W + 24 || w.a.y < f.camY - 8 || w.a.y > f.camY + H + 40;
       if (!w.a.path.length || (off && w.remove)) {
         if (w.remove) f.removeActor(w.a);
         else delete w.a.data.scripted;

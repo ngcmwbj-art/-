@@ -12,6 +12,9 @@
 // heights in px of the 2D picture above the ground (h; × PX × SV in 3D), so
 // what the 2D draws one pixel apart is one apart here too.
 
+/** QA: whether the town notes the room its solids take while it is stood up (off for the players: no cost). */
+export const recording = { on: false };
+
 /** A box of a solid. */
 export interface Slab {
   x0: number;
@@ -31,8 +34,9 @@ export interface Solid {
   /** prop id @ tile (QA). */
   name: string;
   kind: 'building' | 'prop' | 'wall';
-  /** Its foot line (world y): the 2D draws the one further south over the other. */
+  /** Its foot line (world y): the 2D draws the one further south over the other (on one line, the one further east). */
   foot: number;
+  x?: number;
   slabs: Slab[];
 }
 
@@ -165,7 +169,7 @@ export function overlaps(solids: Solid[], o: { min?: number; all?: boolean; eps?
       const fl = flush(a, b, eps);
       if (ab.n < min && ba.n < min && fl.n < min) continue;
       // the one the 2D draws on top (a tie: either)
-      const aFront = a.foot > b.foot || (a.foot === b.foot && ab.n >= ba.n);
+      const aFront = a.foot > b.foot || (a.foot === b.foot && (a.x ?? 0) >= (b.x ?? 0));
       const [fs, bs, fr, br] = aFront ? [a, b, ab, ba] : [b, a, ba, ab];
       if (fr.n < min && fl.n < min && !o.all) continue;
       const r = fr.n >= min ? fr : fl.n >= min ? fl : br;

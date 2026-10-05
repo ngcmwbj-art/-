@@ -92,8 +92,7 @@ the picture changes: walking, collisions, talking, events, menus and battles are
   room, battle and cut stays 2D.
 - **Layers**: the WebGL canvas is offscreen. `FieldScene.draw()` asks `setFieldDrawer()`'s hook first; in HD-2D it
   renders the town, hands the canvas to `Screen.underlay`, and clears the 2D buffer to transparent before the
-  emotes, the world fx (drawn as 2D and mapped round the screen centre), the HUD, the windows and the fade go on
-  top. `Screen.present()` lays the underlay over the display canvas, then the buffer (the buffer has alpha since
+  world fx, the emotes, the HUD, the windows and the fade go on top. `Screen.present()` lays the underlay over the display canvas, then the buffer (the buffer has alpha since
   then; the display canvas is still opaque). The touch controls (DOM) and the safe zones are untouched, and
   `#screen.toDataURL()` holds both layers. `FieldScene.worldToScreen()` projects through the 3D camera
   (`setFieldDrawer`'s second hook), so bubbles and HUD marks follow the 3D town.
@@ -136,7 +135,26 @@ the picture changes: walking, collisions, talking, events, menus and battles are
   176 → 113, 155 → 72; ~30–32k triangles (was ~2.6k). A rebuild (a door back, a warp) ~0.2–0.5 s (was 0.4–0.65);
   the first one also bakes the land outside (once per map; 4 tiles past each edge, repeated further out).
 - **Characters** (`hd2d/actors.ts`): the current 2D frame on an upright plane, unlit, a round contact shadow, and
-  the long shadow from a second, shadow-only plane turned to the sun; darker inside a building's shadow.
+  the long shadow from a second, shadow-only plane turned to the sun (from `data.shadowFrame` when it lags: the
+  cat, fushigi_02); darker inside a building's shadow. An actor with a `drawFn` (the traffic, the stray carts) is
+  drawn into a picture of its own each frame. One standing inside a building's box (くま吉 behind his open shop
+  front) is brought along the line of sight to just behind the facade (same place on screen).
+- **World fx and close-ups** (round 3, 2026-10-05): `FieldScene.projected(x, y, foot)` (the project hook, now
+  with a foot line) maps a 2D world point to the frame through the 3D camera, lifted to its height over `foot`.
+  An effect registered `anchored` places what it draws with `world/fx.ts` `fxAt()` (2D: `x − cx, y − cy`) and is
+  drawn straight onto the HD-2D layer at 1×: the loudspeaker's sound at its horns, bubbles over heads, the stamp's
+  seal and ink, sparrows, dragonflies, the mirror's inset, the Z's over the napping driver… (the town's ones all
+  are; any other is still laid on as a 2D drawing round the screen centre). A story close-up (`events/stage.ts`
+  `ZoomView`, `zoomIn(…, foot)`) centres on the projected point; in HD-2D the camera narrows to the same rect of
+  the frame (`setViewOffset`; `closeUp(f)`, `view.ts` keeps an uncropped `eye` for the 2D layer's px) while the
+  close-up blows up the 2D layer as before, and the tilt-shift focuses on what it looks at.
+- **Solids in each other's way** (round 3): while the town is stood up, every building, prop (its fg parts too),
+  wall cell and outskirts thing notes the room it takes (`hd2d/overlap.ts` `Solid`: boxes in world px, heights in
+  picture rows, the painted pixels). `__game.cmd.hd2dOverlaps({min, all, area})` lists where a picture the 2D draws
+  on top (the foot line further south; on one line the one further east) is buried in another solid, or two
+  pictures stand on one plane; `hd2dSolids(name)`, `hd2dNudge(false)` (stand everything as before). The ones found
+  are moved in `tune.ts` `NUDGE` (`id@x,y`): `z` = a few px south on the ground, `fgView` = its fg parts (a crown,
+  a hung board) along the line of sight towards the camera (as many px south as up: the same place on screen).
 - **Camera and light** (`hd2d/view.ts`): a perspective camera 40° down (`town.ts` `PITCH`), fov 26°, 25 tiles back,
   aimed 1.5 tiles north of the 2D camera's centre (`camX/camY`: look-ahead, the dialog slide, pans and locks carry
   over). A low sun from the

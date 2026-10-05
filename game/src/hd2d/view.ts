@@ -15,7 +15,7 @@ import type { Actor } from '../world/actor';
 import type { FieldScene } from '../world/field';
 import { ActorViews } from './actors';
 import { Post, type Quality } from './post';
-import type { Solid } from './overlap';
+import { recording, type Solid } from './overlap';
 import { markShadowPass } from './solid';
 import { PITCH, SV, TownWorld } from './town';
 
@@ -331,9 +331,13 @@ export class Hd2dView {
     this.worldF = null;
   }
 
-  /** QA: the room every solid of the town takes (overlap.ts). */
-  solids(): Solid[] {
-    return this.world?.solids ?? [];
+  /** QA: the room every solid of field f's town takes (overlap.ts): the town is stood up again, noting it, the first time. */
+  solids(f: FieldScene): Solid[] {
+    if (!recording.on) {
+      recording.on = true;
+      this.worldF = null;
+    }
+    return this.ensureWorld(f).solids;
   }
 
   /** QA: meshes in the scene / in the camera's frustum / casting shadows / shadow-only planes. */
