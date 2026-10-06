@@ -149,6 +149,10 @@ export class Post {
   private readonly vtilt: ShaderPass | null;
   private readonly finish: ShaderPass;
   readonly quality: Quality;
+  private w = 1;
+  private h = 1;
+  /** The tilt-shift blur on (the street) or off (inside: 2026-10-06 依頼主「建物の中でぼかしをしなくても良いと思う」). */
+  private tilt = true;
 
   constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, quality: Quality, w: number, h: number) {
     this.quality = quality;
@@ -172,13 +176,29 @@ export class Post {
   }
 
   setSize(w: number, h: number): void {
+    this.w = w;
+    this.h = h;
     this.composer.setSize(w, h);
     this.bloom?.setSize(w, h);
-    const blur = 2.2; // px of blur step at the very top / bottom (normal)
-    if (this.vtilt) this.vtilt.uniforms.vstep.value = blur / h;
+    this.applyTilt();
+  }
+
+  /** The tilt-shift blur on or off (inside the rooms it is off; the street and a battle's backdrop keep it). */
+  setTilt(on: boolean): void {
+    if (on === this.tilt) return;
+    this.tilt = on;
+    this.applyTilt();
+  }
+
+  private applyTilt(): void {
+    const blur = this.tilt ? 2.2 : 0; // px of blur step at the very top / bottom (normal)
+    if (this.vtilt) {
+      this.vtilt.uniforms.vstep.value = blur / this.h;
+      this.vtilt.enabled = this.tilt;
+    }
     const u = this.finish.uniforms;
-    u.hstep.value = this.quality === 'normal' ? blur / w : 0;
-    u.vstep.value = this.quality === 'light' ? (blur * 1.2) / h : 0;
+    u.hstep.value = this.quality === 'normal' ? blur / this.w : 0;
+    u.vstep.value = this.quality === 'light' ? (blur * 1.2) / this.h : 0;
   }
 
   /** The field's grade (and the chime's wave, in buffer px of the 384-wide frame). */

@@ -361,6 +361,8 @@ export class Hd2dView {
     const fy = foot && crop ? ((foot[1] - crop[1]) / crop[3]) * H : foot?.[1];
     const focus = fy !== undefined ? Math.max(0.25, Math.min(0.75, 1 - fy / H)) : 0.5;
     this.post!.setGrade(world instanceof RoomWorld ? world.grade() : f.grade, f.wave.amp, f.wave.t / 1000, focus);
+    // (inside, no tilt-shift blur: the whole room sharp)
+    this.post!.setTilt(!(world instanceof RoomWorld));
     const t1 = performance.now();
     this.renderer.info.reset();
     this.post!.render();
@@ -424,6 +426,8 @@ export class Hd2dView {
     this.actors.group.visible = false;
     const g = world instanceof RoomWorld ? world.grade() : f.grade;
     this.post!.setGrade({ ...g, desat: g.desat + pose.desat }, 0, 0, 1 - pose.focusRow / H);
+    // (a battle's backdrop keeps its blur, inside too)
+    this.post!.setTilt(true);
     const t1 = performance.now();
     this.renderer.info.reset();
     try {
