@@ -18,8 +18,9 @@ import { Post, type Quality } from './post';
 import { recording, type Solid } from './overlap';
 import { markShadowPass } from './solid';
 import { placeOf } from './places';
-import { PITCH, SV, TownWorld } from './town';
+import { PITCH, SKY_AT, SV, TownWorld } from './town';
 import { ROOM_BG, RoomWorld, roomMap, roomPan } from './room';
+import { bindView, shotLens } from './cut';
 
 export interface CamParams {
   /** Degrees down from the horizon. */
@@ -39,9 +40,30 @@ const SUN_COLOUR = new THREE.Color('#ffc890');
 const SKY = new THREE.Color('#b8b0e8');
 const GROUND = new THREE.Color('#d89060');
 const MAX_LAMPS = 4;
+/** The sky light's strength at night (the ending's town): 1.7 by day. */
+const NIGHT_SKY = 2.6;
 
 /** A rect of the 384×216 frame: x, y, w, h (px). */
 export type Crop = [number, number, number, number];
+
+/** A battle's backdrop camera (Hd2dView.still, src/hd2d/battle.ts). */
+export interface StillPose {
+  /** The ground point the enemies stand on (units; at the ground's height there). */
+  x: number;
+  z: number;
+  /** The frame row (px of 216) that point sits at. */
+  row: number;
+  /** Degrees down from the horizon, the lens (degrees), the distance to the point (units). */
+  pitch: number;
+  fov: number;
+  dist: number;
+  /** The frame row (px) where the ground is cut away (the diorama's front edge): all nearer is left out. */
+  cutRow: number;
+  /** The tilt-shift's sharp row (px). */
+  focusRow: number;
+  /** Added to the grade's colour drain (−0.2: kire 2's 20% more colour). */
+  desat: number;
+}
 
 export interface FrameStats {
   /** CPU time of the whole 3D frame / of the scene update before rendering (ms). */
@@ -111,6 +133,8 @@ export class Hd2dView {
       this.scene.add(l);
     }
     this.applyQuality();
+    // (the ending's shots and its night town: cut.ts)
+    bindView(this, CAM);
   }
 
   private applyQuality(): void {
@@ -180,11 +204,11 @@ export class Hd2dView {
   }
 
   /** Where the camera looks (world units on the ground). */
-  target(f: FieldScene): THREE.Vector3 {
+  target(f: FieldScene, lookN = CAM.lookN): THREE.Vector3 {
     // (a room: where the 2D camera centres it or stops, no look ahead; a
     // hall wider than the 3D frame follows Minato across, room.ts roomPan)
     const room = roomMap(f.map.id);
-    return new THREE.Vector3((f.camX + W / 2) / 16 + (room ? roomPan(f) : 0), 0, (f.camY + H / 2) / 16 - (room ? 0 : CAM.lookN));
+    return new THREE.Vector3((f.camX + W / 2) / 16 + (room ? roomPan(f) : 0), 0, (f.camY + H / 2) / 16 - (room ? 0 : lookN));
   }
 
   /**
@@ -193,13 +217,17 @@ export class Hd2dView {
    * the camera stays where it is and narrows to it, as the 2D blow-up does.
    */
   private placeCamera(f: FieldScene, crop: Crop | null): THREE.Vector3 {
-    const t = this.target(f);
-    const p = (CAM.pitch * Math.PI) / 180;
+    // (a shot of the ending: its own lens, aimed `lift` over the ground — cut.ts)
+    const shot = shotLens(f);
+    const cam = shot ?? CAM;
+    const lift = shot?.lift ?? 0;
+    const t = this.target(f, cam.lookN);
+    const p = (cam.pitch * Math.PI) / 180;
     for (const c of [this.eye, this.camera]) {
-      c.fov = CAM.fov;
+      c.fov = cam.fov;
       c.aspect = W / H;
-      c.position.set(t.x, t.y + Math.sin(p) * CAM.dist, t.z + Math.cos(p) * CAM.dist);
-      c.lookAt(t);
+      c.position.set(t.x, t.y + lift + Math.sin(p) * cam.dist, t.z + Math.cos(p) * cam.dist);
+      c.lookAt(t.x, t.y + lift, t.z);
       c.updateMatrixWorld();
     }
     this.eye.clearViewOffset();
@@ -239,7 +267,10 @@ export class Hd2dView {
     this.sun.target.updateMatrixWorld();
     const night = g.night;
     this.sun.intensity = 2.6 * (1 - night);
-    this.hemi.intensity = 1.7 * (1 - night * 0.6);
+    // (at night — chapter 1's is the ending's — the grade darkens the picture as
+    // in 2D, and the 2D's lamp pools light the ground: cut_night.ts; the sky's
+    // light no longer drops on top of that)
+    this.hemi.intensity = 1.7 * (1 - night) + NIGHT_SKY * night;
     return Math.atan2(d.x, d.z);
   }
 
@@ -308,6 +339,97 @@ export class Hd2dView {
       buildMs: Math.round(this.buildMs),
       build: world.buildParts,
     };
+  }
+
+  /**
+   * A battle's backdrop (src/hd2d/battle.ts): field f's place from a lower
+   * camera (pose), without its people, nothing see-through, the part nearer
+   * than the cut row left out — rendered once; the caller copies `canvas`
+   * at once. The field's next frame puts its own camera and people back.
+   */
+  still(f: FieldScene, dw: number, dh: number, pose: StillPose): HTMLCanvasElement {
+    const t0 = performance.now();
+    const [w, h] = this.renderSize(dw, dh);
+    if (!this.post || this.size[0] !== w || this.size[1] !== h) {
+      this.renderer.setSize(w, h, false);
+      if (!this.post) this.post = new Post(this.renderer, this.scene, this.camera, this.quality, w, h);
+      else this.post.setSize(w, h);
+      this.size = [w, h];
+    }
+    const world = this.ensureWorld(f);
+    const at = new THREE.Vector3(pose.x, world.heightAt(pose.x, pose.z), pose.z);
+    // `dist` from the point at `pitch`, the view turned up so the point sits at `row`
+    const c = this.camera;
+    const tanHalf = Math.tan((pose.fov * Math.PI) / 360);
+    const below = (row: number) => Math.atan(((row - H / 2) / (H / 2)) * tanHalf);
+    const p = (pose.pitch * Math.PI) / 180;
+    const axis = p - below(pose.row);
+    c.fov = pose.fov;
+    c.aspect = W / H;
+    c.position.set(at.x, at.y + Math.sin(p) * pose.dist, at.z + Math.cos(p) * pose.dist);
+    c.lookAt(c.position.x, c.position.y - Math.sin(axis), c.position.z - Math.cos(axis));
+    // the diorama's front edge: the ground seen at cutRow and all that stands nearer are left out
+    const a = axis + below(pose.cutRow);
+    c.near = a > 0.02 ? Math.max(1, ((c.position.y - at.y) / Math.sin(a)) * Math.cos(a - axis)) : 1;
+    c.clearViewOffset();
+    c.updateMatrixWorld();
+    const sunYaw = world instanceof RoomWorld ? world.light(this.sun, this.hemi, at, this.sunDir) : this.placeSun(f, at);
+    const lit = f.map.def.kind === 'indoor' ? 1 : Math.max(0, Math.min(1, f.grade.lit));
+    // (the roof's far sky: hung where this lower camera looks past the fence, its middle at row 64)
+    if (world instanceof TownWorld) world.skyY = c.position.y - Math.tan(axis + below(64)) * (c.position.z - (at.z - SKY_AT.d));
+    world.update(f.t, sunYaw, this.sunDir, lit, at.x, at.z, () => false);
+    if (world instanceof TownWorld) world.skyY = null;
+    for (const cu of world.cutouts) cu.opaque();
+    this.placeLamps(world, at, lit);
+    this.actors.group.visible = false;
+    const g = world instanceof RoomWorld ? world.grade() : f.grade;
+    this.post!.setGrade({ ...g, desat: g.desat + pose.desat }, 0, 0, 1 - pose.focusRow / H);
+    const t1 = performance.now();
+    this.renderer.info.reset();
+    try {
+      this.post!.render();
+    } finally {
+      this.actors.group.visible = true;
+      c.near = 1;
+      c.updateProjectionMatrix();
+    }
+    const info = this.renderer.info;
+    this.stats = {
+      ms: performance.now() - t0,
+      updateMs: t1 - t0,
+      calls: info.render.calls,
+      triangles: info.render.triangles,
+      textures: info.memory.textures,
+      programs: info.programs?.length ?? 0,
+      w,
+      h,
+      quality: this.quality,
+      buildMs: Math.round(this.buildMs),
+      build: world.buildParts,
+    };
+    return this.canvas;
+  }
+
+  /**
+   * Right after still(): the same view as a silhouette — no people, no fog,
+   * no finish, `key` where it sees no town (the ending's night town cuts its
+   * sky away with it, cut.ts). The caller copies `canvas` at once.
+   */
+  silhouette(key: THREE.Color): HTMLCanvasElement {
+    const bg = this.scene.background;
+    const fog = this.scene.fog;
+    this.scene.background = key;
+    this.scene.fog = null;
+    this.actors.group.visible = false;
+    try {
+      this.renderer.setRenderTarget(null);
+      this.renderer.render(this.scene, this.camera);
+    } finally {
+      this.scene.background = bg;
+      this.scene.fog = fog;
+      this.actors.group.visible = true;
+    }
+    return this.canvas;
   }
 
   /**

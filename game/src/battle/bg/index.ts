@@ -7,6 +7,7 @@ import { OjigiBg } from './ojigi';
 import { MallBg } from './mall';
 import { BossBg } from './boss';
 import { HOSHI_BG_IDS, makeHoshiBackground } from './hoshi';
+import { placeFor } from './place';
 
 export type { Background } from './common';
 
@@ -21,6 +22,13 @@ export function makeBackground(id: string, enemyId: string): Background {
   const bid = ALIASES[id] ?? id;
   const h = makeHoshiBackground(bid);
   if (h) return h;
+  const bg = chapter1Background(bid, enemyId);
+  // HD-2D: the place the battle started in, in 3D, under it (place.ts)
+  bg.place = placeFor(bg.id, enemyId);
+  return bg;
+}
+
+function chapter1Background(bid: string, enemyId: string): Background {
   switch (bid) {
     case 'bg_reverse_rain':
       return new RainBg(enemyId);

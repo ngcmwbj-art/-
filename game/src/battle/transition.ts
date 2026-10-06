@@ -113,10 +113,14 @@ export function* transitionIn(s: BattleScene, boss: boolean): Co {
 /** Screen position of the player on the field below the battle (duck-typed). */
 function fieldFocus(s: BattleScene): [number, number] {
   const i = game.scenes.indexOf(s);
-  const below = game.scenes[i - 1] as unknown as { player?: { x: number; y: number }; camX?: number; camY?: number } | undefined;
+  const below = game.scenes[i - 1] as unknown as
+    | { player?: { x: number; y: number }; camX?: number; camY?: number; projected?: (x: number, y: number, foot?: number) => [number, number] | null }
+    | undefined;
   if (below?.player && typeof below.camX === 'number' && typeof below.camY === 'number') {
-    const x = Math.round(below.player.x - below.camX);
-    const y = Math.round(below.player.y - 12 - below.camY);
+    // (HD-2D: where the 3D field shows Minato)
+    const p = below.projected?.(below.player.x, below.player.y - 12, below.player.y);
+    const x = Math.round(p ? p[0] : below.player.x - below.camX);
+    const y = Math.round(p ? p[1] : below.player.y - 12 - below.camY);
     if (x >= 0 && x < 384 && y >= 0 && y < 216) return [x, y];
   }
   return [192, 108];

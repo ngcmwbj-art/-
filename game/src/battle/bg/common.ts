@@ -4,10 +4,13 @@
 // offscreen, optionally saturated (kire ≥ 2), then drawn one scanline at a
 // time with a sine offset dx(y,t) = A·sin(2π(y/λ + f·t)) + A2·sin(2π(y/λ2 − f2·t)).
 // L2 (particles) is drawn undistorted on top, then the kire focus lines.
+// HD-2D (place.ts, 2026-10-06): chapter 1's battle place in 3D stands in for
+// L0/L1; drawOnPlace lays the rest over it.
 
 import type { Gfx } from '../../engine/gfx';
 import { makeCanvas } from '../../engine/pixel';
 import { BAYER4 } from '../../engine/pixel';
+import type { PlaceView } from './place';
 
 export const BG_H = 150;
 
@@ -60,6 +63,14 @@ export abstract class Background {
   private frameN = 0;
   /** Waves smoothly approach targets (boss phase 2 changes A/f). */
   waveTarget: Partial<Wave> | null = null;
+  /**
+   * HD-2D (place.ts): the battle's place in 3D, under the 2D buffer, stands
+   * in for L0/L1; what this backdrop lays over it is drawOnPlace's. null:
+   * the 2D picture.
+   */
+  place: PlaceView | null = null;
+  /** The offscreen the veil (placeVeil) is painted in. */
+  private veil: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
 
   constructor(readonly id: string) {
     [this.l0, this.l0ctx] = makeCanvas(384, BG_H);
@@ -96,6 +107,29 @@ export abstract class Background {
 
   draw(g: Gfx): void {
     this.frameN++;
+    if (this.place) {
+      if (this.place.lay(g, this)) {
+        this.drawOnPlace(g);
+        return;
+      }
+      // (2D was chosen, or WebGL is gone: the patterned backdrop from now on)
+      this.place.dispose();
+      this.place = null;
+    }
+    this.paintStage(g.ctx, true);
+    const ctx = g.ctx;
+    // under the windows
+    ctx.fillStyle = this.bottom;
+    ctx.fillRect(0, BG_H, 384, 216 - BG_H);
+    this.drawL2(g, this.mt);
+    if (this.kire >= 3) this.drawFocus(g);
+  }
+
+  /**
+   * L0 and L1 into rows 0–149 of ctx, distorted by the wave, with kire 2's
+   * colour (and the charge's dim when `dim`).
+   */
+  private paintStage(ctx: CanvasRenderingContext2D, dim: boolean): void {
     const t = this.mt;
     const c0 = this.l0ctx;
     c0.clearRect(0, 0, 384, BG_H);
@@ -112,9 +146,8 @@ export abstract class Background {
       if (w.interlace && y & 1) d = -d;
       return Math.round(d);
     };
-    const ctx = g.ctx;
     const saturate = this.kire >= 2;
-    const filt = [saturate ? 'saturate(1.2)' : '', this.dim ? `brightness(${1 - this.dim})` : ''].join(' ').trim();
+    const filt = [saturate ? 'saturate(1.2)' : '', dim && this.dim ? `brightness(${1 - this.dim})` : ''].join(' ').trim();
     const filtered = (src: HTMLCanvasElement): HTMLCanvasElement => {
       if (!filt) return src;
       const s = this.satCtx;
@@ -148,11 +181,67 @@ export abstract class Background {
       c0.drawImage(this.l1, 0, 0);
       rows(filtered(this.l0), true);
     }
-    // under the windows
+  }
+
+  /**
+   * HD-2D: over the place (laid under the buffer by place.lay) — this
+   * backdrop's own picture as a thin veil (the two bosses: placeVeil), the
+   * charge's dim, the stage's floor under the windows as in 2D, then what
+   * carries its meaning (drawOverPlace: its particles, its motifs) and
+   * kire 3's focus lines. (Kire 1's waver and kire 2's colour are the
+   * place's own: hd2d/battle.ts.)
+   */
+  private drawOnPlace(g: Gfx): void {
+    const ctx = g.ctx;
+    const veil = this.placeVeil();
+    if (veil > 0) {
+      this.veil ??= makeCanvas(384, BG_H);
+      const [vc, vctx] = this.veil;
+      vctx.clearRect(0, 0, 384, BG_H);
+      this.paintStage(vctx, false);
+      ctx.globalAlpha = veil;
+      ctx.drawImage(vc, 0, 0);
+      ctx.globalAlpha = 1;
+    }
+    if (this.dim) {
+      ctx.globalAlpha = this.dim;
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, 384, BG_H);
+      ctx.globalAlpha = 1;
+    }
+    // the stage's floor under the windows, as in 2D; the place sinks into it over its last rows
+    ctx.drawImage(floorEdge(this.bottom), 0, BG_H - FLOOR_FADE);
     ctx.fillStyle = this.bottom;
     ctx.fillRect(0, BG_H, 384, 216 - BG_H);
-    this.drawL2(g, t);
+    this.drawOverPlace(g);
     if (this.kire >= 3) this.drawFocus(g);
+  }
+
+  /** HD-2D: how strongly this backdrop's own picture veils the place (0: not at all). */
+  protected placeVeil(): number {
+    return 0;
+  }
+
+  /** HD-2D: what this backdrop lays over the place — by default its particles (L2). */
+  protected drawOverPlace(g: Gfx): void {
+    this.drawL2(g, this.mt);
+  }
+
+  /**
+   * The 0.3 s standstill (scene.ts drawFreeze): with a place, the place and
+   * the pictures on the buffer are drained grey here (the buffer's clear
+   * part stays clear) and true is returned; false: the 2D way.
+   */
+  greyOut(g: Gfx): boolean {
+    if (!this.place) return false;
+    this.place.grey(g);
+    return true;
+  }
+
+  /** The battle is over: let the place's pictures go. */
+  dispose(): void {
+    this.place?.dispose();
+    this.place = null;
   }
 
   private drawFocus(g: Gfx): void {
@@ -194,6 +283,25 @@ function hashN(i: number, s: number): number {
 }
 
 // ---- painting helpers ---------------------------------------------------------------
+
+/** Rows over which the place sinks into the stage's floor (HD-2D). */
+const FLOOR_FADE = 8;
+const edgeCache = new Map<string, HTMLCanvasElement>();
+
+/** The floor's colour dithered in from clear to solid over FLOOR_FADE rows (HD-2D). */
+function floorEdge(color: string): HTMLCanvasElement {
+  let c = edgeCache.get(color);
+  if (c) return c;
+  const [cv, ctx] = makeCanvas(384, FLOOR_FADE);
+  ctx.fillStyle = color;
+  for (let y = 0; y < FLOOR_FADE; y++) {
+    const th = ((y + 1) / (FLOOR_FADE + 1)) * 16;
+    for (let x = 0; x < 384; x++) if (BAYER4[y & 3][x & 3] < th) ctx.fillRect(x, y, 1, 1);
+  }
+  edgeCache.set(color, cv);
+  c = cv;
+  return c;
+}
 
 function rgbOf(c: string): [number, number, number] {
   const v = parseInt(c.slice(1), 16);

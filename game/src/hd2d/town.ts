@@ -44,6 +44,7 @@ import { charAt } from '../world/maps';
 import { buildWalls, type Walls } from './walls';
 import { BelowTown, Outskirts, outskirtsGround, skyBackdrop } from './outskirts';
 import { recording, type Slab, type Solid } from './overlap';
+import { nightGround, nightGroundMap } from './cut_night';
 
 export { casterMaterial, pixelTexture } from './solid';
 
@@ -764,6 +765,20 @@ export class CutoutView {
     }
   }
 
+  /** A battle's backdrop (view.ts still): nothing see-through for the party now (the field's frames fade it again). */
+  opaque(): void {
+    this.xray = 1;
+    for (const fp of this.fg) fp.fade = 1;
+    for (const m of [this.mat, ...this.fg.map((fp) => fp.mat)]) {
+      m.opacity = 1;
+      if (!m.transparent) continue;
+      m.transparent = false;
+      m.depthWrite = true;
+      m.alphaTest = 0.5;
+      m.needsUpdate = true;
+    }
+  }
+
   setShade(k: number): void {
     if (this.batch) {
       if (!this.real) this.batch.shade(this.verts[0], this.verts[1], k);
@@ -854,6 +869,8 @@ export class TownWorld {
   private below: BelowTown | null = null;
   /** The sky's backdrop (the roof): it keeps its distance north of the camera's target, as a far sky does. */
   private sky: THREE.Mesh | null = null;
+  /** A battle's lower camera (view.ts still): the sky's height for that one picture (null: SKY_AT's). */
+  skyY: number | null = null;
   /** How long each part took to stand up (ms; QA, hd2dStats). */
   readonly buildParts: Record<string, number> = {};
 
@@ -988,7 +1005,9 @@ export class TownWorld {
     ctx.restore();
     if (!this.groundTex) {
       this.groundTex = pixelTexture(c);
-      const mesh = new THREE.Mesh(this.groundGeometry(W, H), new THREE.MeshLambertMaterial({ map: this.groundTex }));
+      // (the ending's night: the 2D's light map's pools on the ground, cut_night.ts)
+      const night = nightGroundMap(f, W, H, ox, oy);
+      const mesh = new THREE.Mesh(this.groundGeometry(W, H), new THREE.MeshLambertMaterial({ map: this.groundTex, ...(night ? { lightMap: night, lightMapIntensity: 0 } : {}) }));
       mesh.receiveShadow = true;
       this.groundMesh = mesh;
       this.group.add(mesh);
@@ -1166,11 +1185,12 @@ export class TownWorld {
   update(t: number, sunYaw: number, sunDir: THREE.Vector3, lit: number, tx: number, tz: number, hides: (r: [number, number, number, number, number]) => boolean): void {
     const f = this.f;
     if (this.frame++ % 30 === 0) this.buildGround();
+    if (this.groundMesh) nightGround(this.groundMesh.material as THREE.MeshLambertMaterial, f, lit);
     for (const [i, l] of this.live.entries()) {
       l.update(t, tx, tz);
       this.buildParts[`liveDraw${i}`] = Math.round(l.drawMs * 10) / 10;
     }
-    this.sky?.position.set(tx, SKY_AT.y, tz - SKY_AT.d);
+    this.sky?.position.set(tx, this.skyY ?? SKY_AT.y, tz - SKY_AT.d);
     const near = (x: number, z: number) => Math.abs(x - tx) < NEAR_X && Math.abs(z - tz) < NEAR_Z;
     for (const b of this.buildings) b.update(f, t, lit, near(b.cx, b.cz));
     const seers = [f.player, ...(f.follower ? [f.follower] : [])].map((a) => ({ x: a.x + a.ox, y: a.y }));
@@ -1199,6 +1219,7 @@ export class TownWorld {
     }
     this.casters?.dispose();
     this.groundTex?.dispose();
+    (this.groundMesh?.material as THREE.MeshLambertMaterial | undefined)?.lightMap?.dispose();
     this.walls?.dispose();
     this.outskirts?.dispose();
     this.batches.real.dispose();
@@ -1298,7 +1319,7 @@ export class CasterSet {
 }
 
 /** The sky's backdrop: its middle's height and how far north of the camera's target (the camera at 40°, 25 away: it fills the top of the picture above the drop). */
-const SKY_AT = { y: -7.6, d: 20 };
+export const SKY_AT = { y: -7.6, d: 20 };
 
 /** Flat props that move, laid live over the tiles of these map characters (water3d.ts liveFlat). */
 const LIVE_FLAT: Record<string, string> = {

@@ -57,8 +57,28 @@ export class KanenariBg extends Background {
       }
     }
     ctx.globalAlpha = 1;
-    // rows of red dragonflies at y52 and y118, flying in opposite directions;
-    // their wings beat and each one bobs a pixel, neighbours out of phase
+    this.paintTombo(ctx, t);
+  }
+
+  /**
+   * HD-2D (place.ts): over the park in 3D, the evening stays the practice
+   * battle's — a warm wash of its sunset, the rows of red dragonflies, the
+   * fluff and the leaves (the practice sheet's grid is left out).
+   */
+  protected drawOverPlace(g: Gfx): void {
+    const ctx = g.ctx;
+    ctx.globalAlpha = 0.38;
+    ctx.drawImage(gradientTexture(['#F7C27A', '#F4A860', '#F2894B'], BG_H), 0, 0);
+    ctx.globalAlpha = 1;
+    this.paintTombo(ctx, this.mt);
+    this.drawL2(g);
+  }
+
+  /**
+   * Rows of red dragonflies at y52 and y118, flying in opposite directions;
+   * their wings beat and each one bobs a pixel, neighbours out of phase.
+   */
+  private paintTombo(ctx: CanvasRenderingContext2D, t: number): void {
     for (const [y, dir] of [[52, 1], [118, -1]] as [number, number][]) {
       const off = ((t * 14 * dir) % 48 + 48) % 48;
       for (let k = -1; k < 9; k++) {

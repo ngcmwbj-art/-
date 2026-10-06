@@ -151,6 +151,24 @@ export class OjigiBg extends Background {
       }
   }
 
+  /**
+   * HD-2D (place.ts): the mid-boss keeps its look over the street in 3D —
+   * the wall's dark red and the turning coins laid thinly over it, the
+   * ribbons, the LEDs (the one through the stage lets the street show).
+   */
+  protected placeVeil(): number {
+    return 0.4;
+  }
+
+  protected drawOverPlace(g: Gfx): void {
+    this.lowAlpha = 0.6;
+    this.drawL2(g);
+    this.lowAlpha = 1;
+  }
+
+  /** How solid the ribbon through the stage is (HD-2D: the street shows through it). */
+  private lowAlpha = 1;
+
   protected drawL2(g: Gfx): void {
     const strip = ribbonStrip();
     const low = ribbonStrip(true);
@@ -161,7 +179,9 @@ export class OjigiBg extends Background {
     const o1 = (this.t * 30) % uw;
     ctx.drawImage(strip, Math.round(o1), 0, 384, 18, 0, 48, 384, 18);
     const o2 = uw - ((this.t * 30) % uw);
+    ctx.globalAlpha = this.lowAlpha;
     ctx.drawImage(low, Math.round(o2), 0, 384, 18, 0, 126, 384, 18);
+    ctx.globalAlpha = 1;
     for (const l of this.leds) {
       if (Math.sin(this.t * 4 + l.ph) > 0.3) {
         ctx.fillStyle = '#7CFF9A';

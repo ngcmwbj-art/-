@@ -17,6 +17,15 @@
 //                                                     heals someone under 45% (はなまる / ふうせん / the bag)
 //   node tools/playthrough.mjs --fushigi-all          also stamp all 12 ふしぎ in the same run
 //   node tools/playthrough.mjs --headed               watch it
+//   node tools/playthrough.mjs --hd2d                 in HD-2D (02 #85: chapter 1's places in 3D, src/hd2d; the page
+//                                                     opens with ?hd2d=1&hd2dq=light — --hd2dq normal for the full
+//                                                     quality, much slower under swiftshader). Without it the run is
+//                                                     2D as before (?hd2d=0: the setting's HD-2D default is overridden,
+//                                                     for speed and steadiness). Checks with --hd2d: each beat's field
+//                                                     is drawn in 3D where it should be (chapter 1's places), and
+//                                                     never once chapter 2 has begun (--chapter 2 --hd2d)
+//   node tools/playthrough.mjs --hd2d --slow 6        the waits and timeouts stretched 6× (default 4 with --hd2d:
+//                                                     the game's time runs as slow as the 3D frames come)
 //   node tools/playthrough.mjs --chapter 2            chapter 2『星見台のトマト』 (02_ch2_index 4.5): the title's
 //                                                     「第2章から」 → the prologue → … → the ending → ツガオの部屋 →
 //                                                     the title. --real sune,tetsuya,boss fights those with keys
@@ -67,6 +76,20 @@ const FUSHIGI_ALL = args.includes('--fushigi-all');
 /** Chapter 2's optional beats to run instead of the story (each from its own jump): barnwork, delivery. */
 const SIDE = opt('--side', '').split(',').filter(Boolean);
 const CHAPTER = Number(opt('--chapter', '1'));
+/** HD-2D (--hd2d; --hd2dq light|normal) or 2D (default). */
+const HD2D = args.includes('--hd2d');
+const HD2DQ = opt('--hd2dq', 'light');
+const URL_ = BASE + (BASE.includes('?') ? '&' : '?') + (HD2D ? `hd2d=1&hd2dq=${HD2DQ}` : 'hd2d=0');
+/**
+ * Wall-clock waits stretched this many times (--slow n): the 3D town under swiftshader draws a
+ * few frames a second, and the game's time runs that much slower than the clock (default 4 with
+ * --hd2d, else 1). The timeouts and the "nobody moved for a while" checks go by it.
+ */
+const SLOW = Number(opt('--slow', HD2D ? '4' : '1'));
+/** Has more than `ms` (stretched by SLOW) gone by since t0? */
+const late = (t0, ms) => Date.now() - t0 > ms * SLOW;
+/** --hd2d: per beat, was the field drawn in 3D (chapter 1's places) or 2D. */
+const hd2dLog = [];
 const checks = [];
 const travelLog = { walked: 0, skipped: 0, battles: 0 };
 
@@ -134,6 +157,27 @@ function st() {
 }
 
 const flag = (id) => page.evaluate((i) => window.__game.cmd.flag(i), id);
+
+/**
+ * --hd2d: is the field drawn in 3D now? (__game.cmd.hd2d(): `field` = this field should be,
+ * `frames` = 3D frames drawn so far — they must go up over a short wait where it should.)
+ */
+async function noteHd2d(when) {
+  const probe = () =>
+    page.evaluate(() => {
+      const G = window.__game;
+      const h = G.cmd.hd2d?.() ?? null;
+      return { top: G.game.top?.constructor?.name ?? '', map: G.cmd.fieldRef?.()?.map?.id ?? null, on: h?.on ?? null, field: h?.field ?? null, frames: h?.frames ?? 0, ch2: G.cmd.flag('flag_ch2_started') };
+    });
+  const a = await probe().catch(() => null);
+  await sleep(400);
+  const b = await probe().catch(() => null);
+  if (!a || !b) return;
+  const drew = b.frames > a.frames;
+  const row = { beat: beatName, when, map: b.map, top: b.top, on: b.on, field: b.field, drew, ch2: !!b.ch2 };
+  hd2dLog.push(row);
+  log(`  hd2d ${when}: ${b.map ?? b.top} ${drew ? '3D' : '2D'}${b.field && !drew && b.top === 'FieldScene' ? ' (expected 3D!)' : ''}`);
+}
 const flags = (ids) => page.evaluate((l) => Object.fromEntries(l.map((i) => [i, window.__game.cmd.flag(i)])), ids);
 
 async function waitFor(pred, timeout = 15000, label = 'condition') {
@@ -141,7 +185,7 @@ async function waitFor(pred, timeout = 15000, label = 'condition') {
   for (;;) {
     const s = await st();
     if (await pred(s)) return s;
-    if (Date.now() - t0 > timeout) throw new Error(`timeout waiting for ${label} (${JSON.stringify(s)})`);
+    if (late(t0, timeout)) throw new Error(`timeout waiting for ${label} (${JSON.stringify(s)})`);
     await sleep(120);
   }
 }
@@ -178,7 +222,7 @@ async function walk(dir, until, timeout = 6000) {
       await sleep(60);
       const s = await st();
       if (await until(s)) return s;
-      if (Date.now() - t0 > timeout) throw new Error(`walk ${dir}: timeout (${JSON.stringify(s)})`);
+      if (late(t0, timeout)) throw new Error(`walk ${dir}: timeout (${JSON.stringify(s)})`);
     }
   } finally {
     await page.keyboard.up(KEY[dir]);
@@ -196,7 +240,7 @@ async function walkUpAround(timeout = 10000) {
   let side = 1;
   let s = await st();
   while (s.ctrl) {
-    if (Date.now() - t0 > timeout) throw new Error(`walkUpAround: timeout (${JSON.stringify(s)})`);
+    if (late(t0, timeout)) throw new Error(`walkUpAround: timeout (${JSON.stringify(s)})`);
     await page.keyboard.down(KEY.up);
     let lastY = s.y;
     let moved = Date.now();
@@ -208,8 +252,8 @@ async function walkUpAround(timeout = 10000) {
         if (s.y !== lastY) {
           lastY = s.y;
           moved = Date.now();
-        } else if (Date.now() - moved > 700) break;
-        if (Date.now() - t0 > timeout) break;
+        } else if (late(moved, 700)) break;
+        if (late(t0, timeout)) break;
       }
     } finally {
       await page.keyboard.up(KEY.up);
@@ -237,7 +281,7 @@ async function walkTo(tx, ty, { vertFirst = true, timeout = 12000 } = {}) {
   let stuck = 0;
   while (s.x !== tx || s.y !== ty) {
     if (!s.ctrl) return s;
-    if (Date.now() - t0 > timeout) throw new Error(`walkTo(${tx},${ty}) timeout at (${s.x},${s.y})`);
+    if (late(t0, timeout)) throw new Error(`walkTo(${tx},${ty}) timeout at (${s.x},${s.y})`);
     const dv = ty - s.y;
     const dh = tx - s.x;
     const useV = dv !== 0 && (prefV || dh === 0);
@@ -333,7 +377,7 @@ async function holdRun(dir, until) {
       if (t !== tile) {
         tile = t;
         since = Date.now();
-      } else if (Date.now() - since > 600) return s;
+      } else if (late(since, 600)) return s;
     }
   } finally {
     await page.keyboard.up(KEY[dir]);
@@ -376,7 +420,7 @@ async function travel(tx, ty, { timeout = 90000, into = null } = {}) {
   await page.keyboard.down('ShiftLeft');
   try {
     for (;;) {
-      if (Date.now() - t0 > timeout) throw new Error(`travel(${tx},${ty}): timeout`);
+      if (late(t0, timeout)) throw new Error(`travel(${tx},${ty}): timeout`);
       let s = await st();
       if (s.battle || s.top === 'BattleScene') {
         await page.keyboard.up('ShiftLeft');
@@ -588,13 +632,17 @@ async function dinnerCheck() {
         return !!f && !!f.actorById('ending_dinner') && window.__game.game.fadeAlpha < 0.02 && !window.__game.game.ui.widgets.some((w) => w.constructor.name === 'TvCloseup');
       });
     }
-    const r = await page.evaluate(() => {
+    const r = await page.evaluate((hd) => {
       const g = window.__game.game;
       const f = window.__game.cmd.fieldRef();
       const a = f.actorById('ending_dinner');
       const tbl = f.props.find((p) => p.obj.id === 'obj_chabudai' || p.obj.prop === 'obj_chabudai');
       if (!a || !tbl) return { error: 'no dinner / no chabudai' };
-      const grab = () => g.screen.ctx.getImageData(0, 0, 384, 216).data;
+      // (HD-2D: the room and the people are the 3D picture under the 2D layer — read the
+      // display it is put together on, and count in 2D px)
+      const d = g.screen.display;
+      const k = hd ? (d.width * d.height) / (384 * 216) : 1;
+      const grab = () => (hd ? g.screen.dctx.getImageData(0, 0, d.width, d.height) : g.screen.ctx.getImageData(0, 0, 384, 216)).data;
       a.visible = true;
       g.draw();
       const on = grab();
@@ -605,8 +653,8 @@ async function dinnerCheck() {
       g.draw();
       let changed = 0;
       for (let i = 0; i < on.length; i += 4) if (on[i] !== off[i] || on[i + 1] !== off[i + 1] || on[i + 2] !== off[i + 2]) changed++;
-      return { changed, foot: a.y + Math.max(0, a.oy), tableFoot: tbl.y + tbl.art.foot };
-    });
+      return { changed: Math.round(changed / k), foot: a.y + Math.max(0, a.oy), tableFoot: tbl.y + tbl.art.foot };
+    }, HD2D);
     await shot('dinner_check');
     const ok = !r.error && r.changed >= 200 && r.foot > r.tableFoot;
     checks.push({ check: 'ending cut 5: dinner visible on the chabudai', ok, ...r });
@@ -631,7 +679,7 @@ async function battleByKeys(maxMs = 180000) {
   for (;;) {
     const s = await st();
     if (s.top === 'FieldScene' && !s.battle) break;
-    if (Date.now() - t0 > maxMs) {
+    if (late(t0, maxMs)) {
       log('  real battle took too long: finishing with __game.cmd.win()');
       await battleWin();
       return { real: false, presses, rounds };
@@ -701,7 +749,7 @@ async function battleLesson(maxMs = 150000) {
   for (;;) {
     const s = await st();
     if (s.top === 'FieldScene' && !s.battle) break;
-    if (Date.now() - t0 > maxMs) {
+    if (late(t0, maxMs)) {
       log('  lesson took too long: finishing with __game.cmd.win()');
       await battleWin();
       return { real: false, lesson: true, seen };
@@ -754,7 +802,7 @@ async function battleWin(maxMs = 60000) {
       won = true;
     }
     if (won && !b && s.top === 'FieldScene') break;
-    if (Date.now() - t0 > maxMs) throw new Error('battleWin: timeout');
+    if (late(t0, maxMs)) throw new Error('battleWin: timeout');
     await tap('KeyZ', 40);
     await sleep(260);
   }
@@ -856,7 +904,7 @@ async function advance({ max = 60000, gap = 260, shotEvery = 0, label = 'ev', ba
       continue;
     }
     calm = 0;
-    if (Date.now() - t0 > max) throw new Error(`advance: still busy after ${max} ms (${JSON.stringify(s)})`);
+    if (late(t0, max)) throw new Error(`advance: still busy after ${max * SLOW} ms (${JSON.stringify(s)})`);
     if (shotEvery && k % shotEvery === 0) await shot(`${label}${String(k).padStart(3, '0')}`);
     k++;
     if (s.top === 'ShopScene') await tap('KeyX');
@@ -1243,7 +1291,7 @@ const BEATS = [
       for (;;) {
         const s = await st();
         if (s.top === 'TitleScene') break;
-        if (Date.now() - t0 > 360000) throw new Error('the ending did not reach the title');
+        if (late(t0, 360000)) throw new Error('the ending did not reach the title');
         if (s.top !== lastTop || s.map !== lastMap || Date.now() - lastShot > 1600) {
           lastTop = s.top;
           lastMap = s.map;
@@ -2070,7 +2118,7 @@ const BEATS2 = [
       for (;;) {
         const s = await st();
         if (s.top === 'TitleScene') break;
-        if (Date.now() - t0 > 420000) throw new Error('the ending did not reach the title');
+        if (late(t0, 420000)) throw new Error('the ending did not reach the title');
         if (s.top !== lastTop || s.map !== lastMap || Date.now() - lastShot > 2000) {
           lastTop = s.top;
           lastMap = s.map;
@@ -2118,7 +2166,7 @@ if (CHAPTER === 2) {
 }
 
 try {
-  await page.goto(BASE, { waitUntil: 'load' });
+  await page.goto(URL_, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__game?.cmd?.jump, null, { timeout: 30000 });
   page.on('framenavigated', (f) => {
     if (f === page.mainFrame()) reloaded = true;
@@ -2131,9 +2179,15 @@ try {
     await tap('KeyZ');
     // test beats that are not story beats of jump(): the town's ふしぎ round starts in stage 2
     const JUMP_AS = CHAPTER === 2 ? { ch2: 'ch2:ch2', train: 'ch2:train', yoriai: 'ch2:arrive', mitsu: 'ch2:mitsu', house: 'ch2:house', tomato: 'ch2:tomato', gen: 'ch2:gen', barn: 'ch2:barn', tetsuya: 'ch2:houki', hill: 'ch2:hill', boss: 'ch2:boss', ending: 'ch2:ch2ending' } : { fushigi: 'stage2' };
-    await page.evaluate(([b, run]) => window.__game.cmd.jump(b, !run), [JUMP_AS[FROM] ?? FROM, CHAPTER === 2 && (FROM === 'ch2' || FROM === 'ending')]);
-    await waitFor((s) => s.top === 'FieldScene', 8000, 'jump');
-    await sleep(600);
+    // (a slow page — HD-2D under swiftshader — may still be turning the title over the 決定 when
+    // the jump lands: once settled, the field must be on top, else jump again)
+    for (let k = 0; ; k++) {
+      await page.evaluate(([b, run]) => window.__game.cmd.jump(b, !run), [JUMP_AS[FROM] ?? FROM, CHAPTER === 2 && (FROM === 'ch2' || FROM === 'ending')]);
+      await waitFor((s) => s.top === 'FieldScene', 8000, 'jump');
+      await sleep(600 * SLOW);
+      if ((await st()).top === 'FieldScene' || k >= 2) break;
+      log(`  (--from: the title came back over the jump; again)`);
+    }
   }
   for (let i = start; i < LIST.length; i++) {
     const b = LIST[i];
@@ -2152,7 +2206,9 @@ try {
         await sleep(600);
         await shot('start');
       }
+      if (HD2D) await noteHd2d('start');
       await b.run();
+      if (HD2D) await noteHd2d('end');
       results.push({ beat: b.name, ok: true, ms: Date.now() - t });
     } catch (e) {
       failed = true;
@@ -2180,6 +2236,20 @@ if (CHAPTER === 2) {
   }
 }
 
+if (HD2D) {
+  // the field was drawn in 3D wherever it should be (chapter 1's places, the top scene a field), and
+  // chapter 2 — once begun — stays 2D (02 #85)
+  const missed = hd2dLog.filter((r) => r.top === 'FieldScene' && r.field && !r.drew);
+  checks.push({ check: 'HD-2D: chapter 1 fields drawn in 3D', ok: !missed.length, sampled: hd2dLog.filter((r) => r.drew).length, missed });
+  const ch2in3d = hd2dLog.filter((r) => r.ch2 && (r.drew || r.on));
+  checks.push({ check: 'HD-2D: chapter 2 stays 2D', ok: !ch2in3d.length, sampled: hd2dLog.filter((r) => r.ch2).length, bad: ch2in3d });
+  if (CHAPTER === 1 && !FROM) {
+    const first = hd2dLog.find((r) => r.top === 'FieldScene');
+    checks.push({ check: 'HD-2D: a new game opens in 3D', ok: !!first?.drew, first });
+  }
+  log(`  hd2d: ${hd2dLog.filter((r) => r.drew).length}/${hd2dLog.length} samples in 3D, missed ${missed.length}, chapter 2 in 3D ${ch2in3d.length}`);
+}
+
 const counts = await readCounts();
 {
   let tp = 0;
@@ -2198,8 +2268,9 @@ const counts = await readCounts();
 const summary = {
   base: BASE,
   chapter: CHAPTER,
+  hd2d: HD2D ? HD2DQ : false,
   counts,
-  ok: !failed && !errors.some((e) => e.startsWith('[pageerror]')),
+  ok: !failed && !errors.some((e) => e.startsWith('[pageerror]')) && checks.filter((c) => c.check.startsWith('HD-2D')).every((c) => c.ok),
   seconds: Math.round((Date.now() - T0) / 1000),
   realBattles: [...REAL],
   fushigiAll: FUSHIGI_ALL,
@@ -2211,7 +2282,7 @@ const summary = {
   shots: shots.length,
   out: OUT,
 };
-fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify({ ...summary, files: shots }, null, 2));
+fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify({ ...summary, files: shots, ...(HD2D ? { hd2dLog } : {}) }, null, 2));
 console.log(JSON.stringify(summary, null, 2));
 await browser.close();
 process.exit(summary.ok ? 0 : 1);

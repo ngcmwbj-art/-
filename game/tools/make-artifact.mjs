@@ -12,12 +12,21 @@
 //   VITE_HD2D_DEMO=1 npm run build && node tools/make-artifact.mjs --hd2d
 //                                                   → dist-artifact/shun-hd2d.html (the HD-2D prototype:
 //                                                     HD-2D on, 「はじめる」 opens in 夕鳴銀座; src/hd2d)
+//   --dist <dir> --out <dir>                        another build folder / output folder (a trial build
+//                                                     beside the shared dist/, e.g. vite build --outDir)
+//
+// Every page carries the HD-2D layer (src/hd2d with three.js, 02 #85 2026-10-06: chapter 1 in
+// HD-2D from the start, せってい「表示」 to go back to 2D); main.ts runs it only once the title is up.
 
 import fs from 'node:fs';
 import path from 'node:path';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
-const dist = path.join(root, 'dist');
+const argOf = (name, def) => {
+  const i = process.argv.indexOf(name);
+  return i >= 0 && process.argv[i + 1] ? path.resolve(process.argv[i + 1]) : def;
+};
+const dist = argOf('--dist', path.join(root, 'dist'));
 const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
 const src = /<script type="module"[^>]*src="\.\/([^"]+)"/.exec(html)?.[1];
 if (!src) throw new Error('bundle script not found in dist/index.html');
@@ -32,7 +41,7 @@ js = js.replace(/<\/script/gi, '<\\/script');
 
 const ch2 = process.argv.includes('--ch2');
 const hd2d = process.argv.includes('--hd2d');
-if (hd2d && !js.includes('WebGLRenderer')) throw new Error('--hd2d: the bundle has no three.js (build with VITE_HD2D_DEMO=1)');
+if (!js.includes('WebGLRenderer')) throw new Error('the bundle has no three.js: the HD-2D layer (src/hd2d) is missing');
 const title = hd2d ? 'しゅんの夕暮れあぜ道戦記 HD-2D 試作' : ch2 ? 'しゅんの夕暮れあぜ道戦記 第2章' : 'しゅんの夕暮れあぜ道戦記';
 const page = `<title>${title}</title>
 <style>
@@ -49,7 +58,7 @@ ${js}
 </script>
 `;
 
-const outDir = path.join(root, 'dist-artifact');
+const outDir = argOf('--out', path.join(root, 'dist-artifact'));
 fs.mkdirSync(outDir, { recursive: true });
 const out = path.join(outDir, hd2d ? 'shun-hd2d.html' : ch2 ? 'shun-ch2.html' : 'hanamaru-sunset.html');
 fs.writeFileSync(out, page);

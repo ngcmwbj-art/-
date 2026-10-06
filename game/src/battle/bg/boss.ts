@@ -89,6 +89,17 @@ export class BossBg extends Background {
     }
   }
 
+  /**
+   * HD-2D (place.ts): the boss keeps its sky over the 迷子センター in 3D —
+   * the radiating dusk, the sun and the backward clocks laid thinly over
+   * the room; phase 2's flashes of night and the bell all but cover it.
+   */
+  protected placeVeil(): number {
+    if (this.night > 0) return 0.9;
+    if (this.bellFlash > 0) return 0.7;
+    return 0.42;
+  }
+
   protected paintL0(ctx: CanvasRenderingContext2D, t: number): void {
     if (this.night > 0) {
       ctx.fillStyle = '#1B1733';

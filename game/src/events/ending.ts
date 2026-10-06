@@ -18,10 +18,10 @@ import { flag, setFlag, state } from '../game/state';
 import { playBgm, playChimeMotif, setSpace, sfx, stopAllAmbient, stopAmbient, stopBgm, playAmbient } from '../audio';
 import { actor, face, msg, place, registerScript, setClock, setClockText, setFollowerVisible, spawn, trainPass } from '../world/api';
 import type { Actor } from '../world/actor';
-import type { FieldScene } from '../world/field';
+import { field, type FieldScene } from '../world/field';
 import { hideNightSky, playChapter1End, playNightSkyCut, stampTsuzuku } from '../ui/api';
 import { uiHud } from '../ui/hud';
-import { fxElsewhere, registerWorldFx } from '../world/fx';
+import { fxAt, fxElsewhere, registerWorldFx } from '../world/fx';
 import { CHUNK } from '../world/ground_cache';
 import * as T from '../data/text/events';
 import { F, holdBgm, holdCamera, releaseCamera, tileRoute, walkTo } from './lib';
@@ -30,6 +30,22 @@ import { DINNER_STEAM, dinnerSet, photoClose, shopBag } from './art';
 import { cinema, cinemaOff, forceBoxPos, quietItem, zoomIn, zoomOut, zoomPan, zoomScale, type ZoomView } from './stage';
 
 // ---------------------------------------------------------------- helpers
+
+/**
+ * The HD-2D view's side of the ending (2026-10-06 依頼主「第1章全部HD-2Dに
+ * して」): src/hd2d/cut.ts fills these in when the 3D layer is loaded; in
+ * 2D they do nothing. Nothing here waits or plays a sound — every cut keeps
+ * its time and its cues.
+ *  - shot: the camera of a shot in the 3D town or room (its own height and
+ *    lens, cut.ts SHOTS), eased in over `ms` (0: at once); null: back to the
+ *    field's camera. A close-up (zoomIn) still crops it as in 2D.
+ *  - keepNight: while the town at night is still loaded (cut 3, in the black
+ *    before cut 4), draw it once for cut_night_sky (ui/ending.ts nightTown).
+ */
+export const endingView = {
+  shot: (_f: FieldScene, _name: string | null, _ms = 0): void => {},
+  keepNight: (_f: FieldScene): void => {},
+};
 
 /** Load a map for a cut (no door, no enter scripts), the player at (x, y). */
 function cutTo(map: string, x: number, y: number, dir: 'up' | 'down' | 'left' | 'right'): void {
@@ -376,6 +392,36 @@ function caseTop(f: FieldScene): number {
   return pr ? pr.y + pr.art.oy : 52;
 }
 
+/** The counter's foot line (world y): in the HD-2D view its picture stands up there. */
+function caseFoot(f: FieldScene): number {
+  const pr = f.props.find((p) => (p.obj as { prop?: string }).prop === 'in_mr_showcase');
+  return pr ? pr.y + pr.art.foot : 80;
+}
+
+/**
+ * Draw what lies in world px on a picture standing over the ground line
+ * `foot`, round the world point (ax, ay): in 2D as it is (x − cx, y − cy);
+ * in the HD-2D view at that point through its camera, scaled as the 3D
+ * shows a picture standing there (fxAt) — the noodles, steam and spatulas
+ * on the counter's face, the bag on its ledge, the rim light on たかし.
+ */
+function standingAt(f: FieldScene, g: Gfx, ax: number, ay: number, foot: number, cx: number, cy: number, draw: () => void): void {
+  if (!fxElsewhere(f)) {
+    draw();
+    return;
+  }
+  const [sx, sy] = fxAt(f, ax, ay, cx, cy, foot);
+  const [ex] = fxAt(f, ax + 32, ay, cx, cy, foot);
+  const [, uy] = fxAt(f, ax, ay - 32, cx, cy, foot);
+  const ctx = g.ctx;
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.scale((ex - sx) / 32, (sy - uy) / 32);
+  ctx.translate(cx - ax, cy - ay);
+  draw();
+  ctx.restore();
+}
+
 /** The ledge between the counter's top and its front panel: where the bag is put down. */
 function counterLedge(f: FieldScene): number {
   return caseTop(f) + 15;
@@ -453,6 +499,8 @@ function heapPixels(seed: number, sauce: number): [number, number, string][] {
 
 registerWorldFx({
   map: 'map_maruyama',
+  // (the HD-2D view: placed on the counter's face and on たかし, standingAt)
+  anchored: true,
   update(f, dt) {
     if (teppan.on && !game.scripts.busy) teppanReset();
     if (!teppan.on) return;
@@ -503,6 +551,7 @@ registerWorldFx({
       // the bag, lifted from behind the counter and put on its front ledge
       const bag = teppan.bag;
       if (bag) {
+        const [hx, hy] = heapAt(f);
         const img = shopBag();
         const T_RISE = 260;
         const T_ARC = 380;
@@ -532,8 +581,10 @@ registerWorldFx({
           if (land > 0) g.alpha(0.45, () => g.rect(ix + 1, iy + img.height - 1 - sq, img.width - 1, 2, '#1B1733'));
           g.img(img, ix, iy);
         };
-        if (behind) g.clip(0, 0, W, caseTop(f) - cy, draw);
-        else draw();
+        standingAt(f, g, hx, hy, caseFoot(f), cx, cy, () => {
+          if (behind) g.clip(0, 0, W, caseTop(f) - cy, draw);
+          else draw();
+        });
       }
     } else if (layer === 'glow') {
       // (the glow layer comes after the room's night grading: what the bulb
@@ -541,89 +592,93 @@ registerWorldFx({
       // its warmth instead of sinking into the dark)
       const [, gt] = griddle(f);
       const [hx, hy] = heapAt(f);
-      // the heap's shadow on the iron, then the heap itself (packed into
-      // the four packs once the bag comes up)
-      if (!teppan.bag) {
-        g.alpha(0.5, () => g.rect(hx - 9 - cx, hy + 3 - cy, 19, 1, '#1B1733'));
-        for (const [dx, dy, col] of heapPixels(teppan.seed, teppan.sauce)) g.rect(hx + dx - cx, hy + dy - cy, 1, 1, col);
-      }
-      // bits of noodle hopping off the spatulas
-      for (const bt of teppan.bits) g.rect(Math.round(bt.x - cx), Math.round(bt.y - cy), 2, 1, teppan.sauce > 0.5 ? '#C07A38' : '#F6D98A');
-      // the iron sizzling
-      for (const s of teppan.specks) {
-        const k = s.t / s.life;
-        g.alpha(k < 0.5 ? 0.9 : 0.5, () => g.rect(s.x - cx, s.y - cy - (k > 0.5 ? 1 : 0), 1, 1, k < 0.5 ? '#FFF6D8' : '#F6D98A'));
-      }
-      // the spatulas: たかし's hands at the back of the plate, the wooden
-      // handles, the steel blades in the noodles (laid down once he's done)
       const m = actor('npc_maruyama');
-      for (const side of [-1, 1] as const) {
-        const [bx, by] = bladeAt(f, side);
-        if (teppan.hands && m) {
-          const hx2 = m.x + side * 5 - (side > 0 ? 1 : 0);
-          const hy2 = gt - 1;
-          if (!(side > 0 && teppan.pour > 0)) {
-            g.line(hx2 - cx, hy2 - cy, bx + 1 - cx, by - 1 - cy, '#8A5A3A');
-            g.rect(hx2 - 1 - cx, hy2 - 1 - cy, 2, 2, '#E0A882');
-            g.rect(hx2 - 1 - cx, hy2 - 2 - cy, 2, 1, '#EDEAE0');
+      standingAt(f, g, hx, hy, caseFoot(f), cx, cy, () => {
+        // the heap's shadow on the iron, then the heap itself (packed into
+        // the four packs once the bag comes up)
+        if (!teppan.bag) {
+          g.alpha(0.5, () => g.rect(hx - 9 - cx, hy + 3 - cy, 19, 1, '#1B1733'));
+          for (const [dx, dy, col] of heapPixels(teppan.seed, teppan.sauce)) g.rect(hx + dx - cx, hy + dy - cy, 1, 1, col);
+        }
+        // bits of noodle hopping off the spatulas
+        for (const bt of teppan.bits) g.rect(Math.round(bt.x - cx), Math.round(bt.y - cy), 2, 1, teppan.sauce > 0.5 ? '#C07A38' : '#F6D98A');
+        // the iron sizzling
+        for (const s of teppan.specks) {
+          const k = s.t / s.life;
+          g.alpha(k < 0.5 ? 0.9 : 0.5, () => g.rect(s.x - cx, s.y - cy - (k > 0.5 ? 1 : 0), 1, 1, k < 0.5 ? '#FFF6D8' : '#F6D98A'));
+        }
+        // the spatulas: たかし's hands at the back of the plate, the wooden
+        // handles, the steel blades in the noodles (laid down once he's done)
+        for (const side of [-1, 1] as const) {
+          const [bx, by] = bladeAt(f, side);
+          if (teppan.hands && m) {
+            const hx2 = m.x + side * 5 - (side > 0 ? 1 : 0);
+            const hy2 = gt - 1;
+            if (!(side > 0 && teppan.pour > 0)) {
+              g.line(hx2 - cx, hy2 - cy, bx + 1 - cx, by - 1 - cy, '#8A5A3A');
+              g.rect(hx2 - 1 - cx, hy2 - 1 - cy, 2, 2, '#E0A882');
+              g.rect(hx2 - 1 - cx, hy2 - 2 - cy, 2, 1, '#EDEAE0');
+            }
+          } else if (!teppan.hands) g.line(bx + 4 - cx, by + 1 - cy, bx + 8 - cx, by - 2 - cy, '#8A5A3A');
+          if (!(side > 0 && teppan.pour > 0 && teppan.hands)) {
+            g.rect(bx - cx, by - cy, 4, 1, '#E8ECF0');
+            g.rect(bx - cx, by + 1 - cy, 4, 1, '#9AA0A8');
           }
-        } else if (!teppan.hands) g.line(bx + 4 - cx, by + 1 - cy, bx + 8 - cx, by - 2 - cy, '#8A5A3A');
-        if (!(side > 0 && teppan.pour > 0 && teppan.hands)) {
-          g.rect(bx - cx, by - cy, 4, 1, '#E8ECF0');
-          g.rect(bx - cx, by + 1 - cy, 4, 1, '#9AA0A8');
         }
-      }
-      // the sauce: the bottle tipped up in his right hand, a brown stream onto the heap
-      if (teppan.pour > 0 && m) {
-        const bx = m.x + 7;
-        const by = gt - 12;
-        g.rect(bx - cx, by - cy, 3, 6, '#5A3A2A');
-        g.rect(bx - cx, by + 2 - cy, 3, 2, '#F2894B');
-        g.rect(bx + 1 - cx, by + 6 - cy, 1, 1, '#E23B2E');
-        g.rect(bx - 1 - cx, by + 6 - cy, 2, 2, '#E0A882');
-        const sx = bx + 1;
-        const sy = by + 7;
-        const ex = hx + 2;
-        const ey = hy - 3;
-        for (let i = 0; i <= 8; i++) {
-          const k = i / 8;
-          const px = Math.round(sx + (ex - sx) * k);
-          const py = Math.round(sy + (ey - sy) * k * k);
-          g.rect(px - cx, py - cy, 1, 1, i % 3 === 1 ? '#8A5220' : '#5A3A22');
+        // the sauce: the bottle tipped up in his right hand, a brown stream onto the heap
+        if (teppan.pour > 0 && m) {
+          const bx = m.x + 7;
+          const by = gt - 12;
+          g.rect(bx - cx, by - cy, 3, 6, '#5A3A2A');
+          g.rect(bx - cx, by + 2 - cy, 3, 2, '#F2894B');
+          g.rect(bx + 1 - cx, by + 6 - cy, 1, 1, '#E23B2E');
+          g.rect(bx - 1 - cx, by + 6 - cy, 2, 2, '#E0A882');
+          const sx = bx + 1;
+          const sy = by + 7;
+          const ex = hx + 2;
+          const ey = hy - 3;
+          for (let i = 0; i <= 8; i++) {
+            const k = i / 8;
+            const px = Math.round(sx + (ex - sx) * k);
+            const py = Math.round(sy + (ey - sy) * k * k);
+            g.rect(px - cx, py - cy, 1, 1, i % 3 === 1 ? '#8A5220' : '#5A3A22');
+          }
         }
-      }
-      // steam, lit by the bulb: soft puffs rising, swelling and curling
-      for (const pf of teppan.puffs) {
-        const k = pf.t / pf.life;
-        const x = Math.round(pf.x + pf.drift * k * 6 + Math.sin(pf.t / 380 + pf.x) * (1 + k * 2) - cx);
-        const y = Math.round(pf.y - 2 - k * (pf.big ? 32 : 26) - cy);
-        const a = Math.sin(Math.PI * Math.min(1, k * 1.3)) * (pf.big ? 0.6 : 0.35);
-        const s = k < 0.25 ? 1 : k < 0.6 ? 2 : 3;
-        g.alpha(a, () => {
-          g.rect(x, y, s, s, '#FFF6D8');
-          if (s > 1) g.rect(x - 1, y + 1, 1, s - 1, '#E8D9B5');
-        });
-      }
-      // the bloom off the noodles as the sauce hits the iron
-      if (teppan.bloom > 0) {
-        const a = Math.sin((Math.PI * teppan.bloom) / 600);
-        const ctx = g.ctx;
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        for (const [rr, al, col] of [[12, 0.1, '#D9A441'], [8, 0.14, '#FFD23F'], [5, 0.2, '#FFE7A3']] as const) {
-          ctx.globalAlpha = al * a;
-          g.circle(Math.round(hx - cx), Math.round(hy - 1 - cy), rr, col);
+        // steam, lit by the bulb: soft puffs rising, swelling and curling
+        for (const pf of teppan.puffs) {
+          const k = pf.t / pf.life;
+          const x = Math.round(pf.x + pf.drift * k * 6 + Math.sin(pf.t / 380 + pf.x) * (1 + k * 2) - cx);
+          const y = Math.round(pf.y - 2 - k * (pf.big ? 32 : 26) - cy);
+          const a = Math.sin(Math.PI * Math.min(1, k * 1.3)) * (pf.big ? 0.6 : 0.35);
+          const s = k < 0.25 ? 1 : k < 0.6 ? 2 : 3;
+          g.alpha(a, () => {
+            g.rect(x, y, s, s, '#FFF6D8');
+            if (s > 1) g.rect(x - 1, y + 1, 1, s - 1, '#E8D9B5');
+          });
         }
-        ctx.restore();
-      }
-      // たかし in the bulb's light: a warm rim along his top edges
+        // the bloom off the noodles as the sauce hits the iron
+        if (teppan.bloom > 0) {
+          const a = Math.sin((Math.PI * teppan.bloom) / 600);
+          const ctx = g.ctx;
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          for (const [rr, al, col] of [[12, 0.1, '#D9A441'], [8, 0.14, '#FFD23F'], [5, 0.2, '#FFE7A3']] as const) {
+            ctx.globalAlpha = al * a;
+            g.circle(Math.round(hx - cx), Math.round(hy - 1 - cy), rr, col);
+          }
+          ctx.restore();
+        }
+      });
+      // たかし in the bulb's light: a warm rim along his top edges (on him;
+      // cut off at the counter's top line, where the counter is in front)
       if (m && m.visible) {
         const img = m.frame();
         const [ix, iy] = m.drawPos(img);
         const bulb = bulbPos(f);
         const side = bulb ? Math.sign(Math.round(bulb[0] - m.x) / 6) : 0;
         const rim = rimOf(img, side);
-        g.clip(0, 0, W, caseTop(f) - cy, () => g.alpha(0.7, () => g.img(rim, ix - cx, iy - cy)));
+        const top = fxElsewhere(f) ? fxAt(f, m.x, caseTop(f), cx, cy, caseFoot(f))[1] : caseTop(f) - cy;
+        g.clip(0, 0, W, top, () => standingAt(f, g, m.x, m.y, m.y, cx, cy, () => g.alpha(0.7, () => g.img(rim, ix - cx, iy - cy))));
       }
     }
   },
@@ -711,6 +766,7 @@ function* cut1Chime(): Co {
   f.camX = Math.max(0, Math.min(f.map.w * 16 - W, 50 * 16 + 8 - W / 2));
   f.camY = Math.max(0, Math.min(f.map.h * 16 - H, 8 * 16 - H / 2));
   f.camOverride = { x: f.camX + W / 2, y: f.camY + H / 2 };
+  endingView.shot(f, 'c1_door');
   // close on the two of them (2×): the doors behind, the lot's first lamp
   // at the edge; the whole lot opens up when they look at the sky
   const z = yield* zoomIn(50 * 16, 7 * 16 - 2, 0);
@@ -780,6 +836,7 @@ function* cut1Chime(): Co {
     k.tempPose = 'look_up';
   }
   yield* beat(200);
+  endingView.shot(f, 'c1_lot', 1000);
   yield* zoomOut(z, 1000);
   yield* beat(150);
   p.tempPose = null;
@@ -799,6 +856,7 @@ function* cut2Meat(): Co {
   hudHankoHidden(false);
   cutTo('map_maruyama', 4, 5, 'up');
   setSpace('room');
+  endingView.shot(f, 'c2_counter');
   // グソっ君 at the counter beside Minato (the bag goes down on his other side)
   const k = f.follower;
   if (k) {
@@ -826,8 +884,9 @@ function* cut2Meat(): Co {
   teppan.pour = 0;
   teppan.turn = 0;
   // 2× on the counter: the griddle, たかし behind it, the two of them in front
+  // (the griddle is up on the counter: the HD-2D view frames it at its height)
   const [hx, hy] = heapAt(f);
-  const z = yield* zoomIn(hx + 3, hy + 4, 0);
+  const z = yield* zoomIn(hx + 3, hy + 4, 0, 2, caseFoot(f));
   forceBoxPos('bottom');
   yield* game.fadeIn(300);
   sfx('se_fry', { vol: 0.6 });
@@ -842,6 +901,7 @@ function* cut2Meat(): Co {
   for (let i = 0; i < 9; i++) teppan.puffs.push({ x: hx - 8 + ((i * 5) % 17), y: hy - 3, t: i * 30, life: 1300 + i * 60, drift: (i % 3) - 1, big: true });
   if (m) m.hop(1, 160);
   // and the camera pushes in (3×) on the griddle and たかし
+  endingView.shot(f, 'c2_push', 480);
   game.scripts.run(zoomScale(z, 3, 480));
   game.scripts.run(zoomPan(z, hx + 2, hy - 4, 480));
   yield* animate(420, (e) => (teppan.sauce = e));
@@ -862,6 +922,7 @@ function* cut2Meat(): Co {
   yield* msg(T.END_MEAT_A);
   // back to 2× for the counter; the bag is lifted from behind the counter
   // in front of him, over onto its ledge in front of Minato
+  endingView.shot(f, 'c2_counter', 380);
   yield* all(zoomScale(z, 2, 380), zoomPan(z, hx + 3, hy + 10, 380));
   const p = f.player;
   const mx = m ? m.x : 4 * 16 + 8;
@@ -895,6 +956,7 @@ function* cut2Meat(): Co {
   forceBoxPos(null);
   if (k) k.anim = null;
   teppan.bag = null;
+  endingView.shot(f, 'c2_out', 400);
   yield* zoomOut(z, 400);
   if (k) delete k.data.scripted;
   yield* beat(200);
@@ -910,6 +972,7 @@ function* cut3Photo(): Co {
   f.camX = Math.max(0, Math.min(f.map.w * 16 - W, 30 * 16 + 16 - W / 2));
   f.camY = Math.max(0, Math.min(f.map.h * 16 - H, 29 * 16 + 8 - H / 2));
   f.camOverride = { x: f.camX + W / 2, y: f.camY + H / 2 };
+  endingView.shot(f, 'c3_window');
   // the three-coloured cat, asleep under the window
   const cat = spawn('ending_cat', 30, 32, { sprite: 'npc_cat_mike', dir: 'up', ghost: true });
   cat.data.scripted = true;
@@ -936,10 +999,13 @@ function* cut3Photo(): Co {
 function* cut4Home(): Co {
   const f = F();
   yield* fadeTo(300);
+  // (HD-2D: the night town for the star cut, drawn while it is still here)
+  endingView.keepNight(f);
   // グソっ君 waits at the gate; he doesn't come in
   setFollowerVisible(false);
   cutTo('map_home_1f', 2, 7, 'up');
   setSpace('room');
+  endingView.shot(f, 'c4_home');
   sfx('se_door');
   const mom = actor('npc_mother');
   if (mom) {
@@ -978,6 +1044,7 @@ function* cut5Tv(): Co {
     mom.data.scripted = true;
   }
   spawnDinner();
+  endingView.shot(F(), 'c5_table');
   // a 2× shot of the table, the TV at the top of the frame: centred on the
   // TV so the frame stays inside the house (the room ends two tiles right of
   // the table)
@@ -1052,6 +1119,7 @@ function* cut6Crossing(): Co {
   f.camX = vx - W / 2;
   f.camY = Math.max(0, Math.min(f.map.h * 16 - H, vy - H / 2));
   f.camOverride = { x: f.camX + W / 2, y: f.camY + H / 2 };
+  endingView.shot(f, 'c6_crossing');
   crossingZoom = yield* zoomIn(vx, vy, 0);
   const p = f.player;
   p.visible = false;
@@ -1091,6 +1159,7 @@ function* cut6Crossing(): Co {
   yield* beat(650);
   // the camera closes in on the two of them (2× → 3×), the frame narrowing
   game.scripts.run(cinema(true, 1200));
+  endingView.shot(f, 'c6_close', 1300);
   if (crossingZoom) {
     const cz = crossingZoom;
     yield* all(zoomScale(cz, 3, 1300), zoomPan(cz, Math.round((p.x + k.x) / 2), p.y - 14, 1300));
@@ -1129,6 +1198,8 @@ function endCrossingZoom(): void {
   crossingZoom = null;
   eastEdge.on = false;
   cinemaOff();
+  const f = field();
+  if (f) endingView.shot(f, null);
 }
 
 /**
@@ -1159,6 +1230,9 @@ export function crossingCloseUpOff(): void {
  * 星見台 stops twinkling — and back to black for the crossing.
  */
 function* nightSky(): Co {
+  // (HD-2D, a QA cut from the town: the night town drawn now; in the
+  // ending it was drawn before cut 4 and the home is loaded here)
+  endingView.keepNight(F());
   game.fadeColor = '#0B0B14';
   if (game.fadeAlpha < 1) yield* fadeTo(300);
   yield* all(

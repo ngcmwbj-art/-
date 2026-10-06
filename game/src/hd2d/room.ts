@@ -29,11 +29,16 @@
 //    added onto the floor and the walls (paintLight); at night the room is
 //    the 2D's dark indoor base but for those pools, the characters too
 //    (lightAt). The colour is the 2D's indoor grade (indoorGrade: the same
-//    numbers as render.ts), so 17:00 and the stages tween as in 2D.
+//    numbers as render.ts), so 17:00 and the stages tween as in 2D. The
+//    mall's skylight shafts are bands of light in the air from the ceiling
+//    (the back wall's top) down to their floor patch, with their dust
+//    (buildShafts, 2026-10-06).
 //  - Someone just behind a counter is brought along the line of sight to
 //    just behind its front (boxAt: the counter's picture over them as in 2D);
-//    a bed lies (room_tune.ts LIE); what stands in the back wall's rows
-//    comes forward to just in front of it (nudgeOffWall).
+//    a bed and the tables lie (room_tune.ts LIE); what stands in the back
+//    wall's rows comes forward to just in front of it (nudgeOffWall); what
+//    hangs from the ceiling (the 迷子センター's mobile) ends there, not
+//    above the walls (underCeiling).
 //  - The camera keeps the town's angle and distance; it looks at the 2D
 //    camera's centre (the rooms are centred, the mall's halls stop at their
 //    edges as in 2D) — lookN 0 in a room; the halls wider than the 3D frame
@@ -182,7 +187,8 @@ export class RoomWorld {
   private roomMat: THREE.MeshLambertMaterial | null = null;
   /** Furniture fronts with the floor just behind them (addBehind). */
   private readonly behind: (Box & { p: PropInst })[] = [];
-  private readonly lying: LyingView[] = [];
+  /** The lying things (room_tune.ts LIE): one batch for those always there, one each for the others. */
+  private readonly lying: LyingBatch[] = [new LyingBatch()];
   /** The picture: world px (X0, Y0) at its top-left, EW × EH of it, then the spare columns. */
   private readonly X0: number;
   private readonly Y0: number;
@@ -219,6 +225,10 @@ export class RoomWorld {
   private readonly shadows = new ShadowSet();
   private readonly beamMat: THREE.MeshBasicMaterial | null = null;
   private readonly patchMat: THREE.MeshBasicMaterial | null = null;
+  /** The skylight shafts (buildShafts): the bands' material, their dust. */
+  private shaftMat: THREE.MeshBasicMaterial | null = null;
+  private dust: { pts: THREE.Points; at: Float32Array; motes: { s: number; w: number; t: number; v: number; sh: number }[]; ends: [V3, V3, V3, V3, V3, V3, V3, V3][] } | null = null;
+  private readonly cropped = new Map<HTMLCanvasElement, HTMLCanvasElement>();
   private readonly fades: { side: 'l' | 'r' | 't' | 'b' }[] = [];
   private readonly glassCache = new Map<PropInst, { key: string; c: HTMLCanvasElement }>();
   private saved: { sun: THREE.Color; sky: THREE.Color; ground: THREE.Color } | null = null;
@@ -314,6 +324,7 @@ export class RoomWorld {
       this.patchMat = patch.material as THREE.MeshBasicMaterial;
       this.group.add(beam, patch);
     }
+    this.buildShafts();
     lap('windows');
     // ---- the furniture
     const solids = recording.on ? this.solids : null;
@@ -326,13 +337,15 @@ export class RoomWorld {
       // a thing that lies (a bed): its top flat, its front standing (room_tune.ts LIE)
       const pid = p.obj.t === 'prop' ? p.obj.prop : (p.obj.prop ?? p.obj.id);
       if (LIE[pid] !== undefined && !a.flat) {
-        const l = new LyingView(p, env, LIE[pid]);
-        this.lying.push(l);
-        this.group.add(l.mesh);
+        if (p.obj.cond) {
+          const one = new LyingBatch();
+          one.add(p, env, LIE[pid]);
+          this.lying.push(one);
+        } else this.lying[0].add(p, env, LIE[pid]);
         continue;
       }
       this.nudgeOffWall(p);
-      const c = new CutoutView(p, env, this.casterSpecs, this.batches, this.shadows, 0, solids);
+      const c = new CutoutView(this.underCeiling(p, env), env, this.casterSpecs, this.batches, this.shadows, 0, solids);
       this.cutouts.push(c);
       this.group.add(c.group);
       if (c.spot) this.spots.push(c.spot);
@@ -342,6 +355,10 @@ export class RoomWorld {
         this.pendants.push({ x: (p.x + 8) * PX, y: Math.max(0.3, -low * PX * SV - 0.35), z: p.y * PX, p });
       }
       this.addBehind(p, env);
+    }
+    for (const l of this.lying) {
+      const mesh = l.finish();
+      if (mesh) this.group.add(mesh);
     }
     lap('props');
     for (const b of [this.batches.real, this.batches.thin, this.shadows]) {
@@ -400,6 +417,139 @@ export class RoomWorld {
     const nz = NUDGE[`${id}@${p.x / 16},${p.y / 16}`]?.z ?? 0;
     const z1 = (foot + nz) * PX;
     this.behind.push({ x0: (p.x + a.ox) * PX, x1: (p.x + a.ox + w) * PX, y1: standH * PX * SV, z0: z1 - (spec.depth + BEHIND) * PX, z1, p });
+  }
+
+  /** The ceiling over column tx: the back wall's height there (px of the picture; the nearest wall column's, or 32). */
+  private ceilingAt(tx: number): number {
+    const n = this.wallTop.length;
+    for (let d = 0; d < n; d++)
+      for (const c of [tx - d, tx + d]) if (c >= 0 && c < n && this.wallTop[c] >= 0) return (this.wallFoot[c] - this.wallTop[c]) * 16;
+    return 32;
+  }
+
+  /**
+   * A thing hung from the ceiling whose parts reach above it (the
+   * 迷子センター's mobile, 2026-10-06: its thread runs to the top of the
+   * room in 2D — off the top of the picture — and stood up it rose above the
+   * walls): the same thing with those parts cut at the ceiling, the back
+   * wall's top. Anything else as it is.
+   */
+  private underCeiling(p: PropInst, env: ReturnType<FieldScene['propEnv']>): PropInst {
+    const a = p.art;
+    const ceil = this.ceilingAt(Math.floor((p.x + 8) / 16));
+    if (!a.fg?.some((pt) => a.foot - pt.oy > ceil && pt.img(env))) return p;
+    const crop = (img: HTMLCanvasElement | null, cut: number): HTMLCanvasElement | null => {
+      if (!img || cut <= 0) return img;
+      if (cut >= img.height) return null;
+      let c = this.cropped.get(img);
+      if (!c) {
+        const [cc, ctx] = canvas(img.width, img.height - cut);
+        ctx.drawImage(img, 0, -cut);
+        this.cropped.set(img, (c = cc));
+      }
+      return c;
+    };
+    const fg = a.fg.map((pt) => {
+      const cut = Math.round(a.foot - pt.oy - ceil);
+      return cut > 0 ? { ...pt, oy: pt.oy + cut, img: (e: typeof env) => crop(pt.img(e), cut) } : pt;
+    });
+    // (the instance itself underneath: present, seed and the rest read through)
+    const q = Object.create(p) as PropInst;
+    q.art = { ...a, fg };
+    return q;
+  }
+
+  /**
+   * The mall's skylight shafts (mall_shaft, art/props/mall_kit.ts
+   * shaftProp): in 2D a sheared band of evening light painted over
+   * everything, from `rise` px above its floor patch down onto it, with dust
+   * in it. Here a band of light in the air from the ceiling (the back wall's
+   * top) down onto the same patch: its top lies where the 2D's top is on
+   * screen — leaning north as far as the 2D band is taller than the room,
+   * and west by its shear — so it reads as the 2D's, now with a body; the
+   * dust drifts down in it (still while time stands still, as in 2D). The
+   * patch on the floor is the 2D's light() (paintLight). Two draw calls for
+   * all of a room's shafts.
+   */
+  private buildShafts(): void {
+    const q = new Quads();
+    const cols: number[] = [];
+    const motes: { s: number; w: number; t: number; v: number; sh: number }[] = [];
+    const ends: [V3, V3, V3, V3, V3, V3, V3, V3][] = [];
+    for (const p of this.f.props) {
+      const id = p.obj.t === 'prop' ? p.obj.prop : (p.obj.prop ?? p.obj.id);
+      if (id !== 'mall_shaft') continue;
+      const o = (p.obj as { opts?: Record<string, unknown> }).opts ?? {};
+      const num = (k: string, d: number) => (o[k] === undefined ? d : Number(o[k]));
+      const fx = p.x + num('fx', 0);
+      const fy = p.y + num('fy', 0);
+      const fw = num('fw', 48);
+      const fh = num('fh', 32);
+      const rise = num('rise', 96);
+      const shear = num('shear', 0.55);
+      const dx = -rise * shear;
+      const col = Math.max(0, Math.min(this.wallFoot.length - 1, Math.floor((fx + fw / 2 + dx) / 16)));
+      const ceil = this.ceilingAt(col);
+      // (its strength as the 2D's `a`; a band leaning far — a tall 2D band, its top up in the
+      // tilt-shift's blur — a little stronger, a short upright one over a bright floor not burnt white)
+      const k = (num('a', 0.24) / 0.24) * (1 + 0.6 * Math.max(0, Math.min(1, (rise - ceil) / ceil)));
+      const back = (this.wallFoot[col] >= 0 ? this.wallFoot[col] * 16 : 0) + 1;
+      // the top: at the ceiling, where the 2D's top is on screen (a point h px up stands h rows higher)
+      const up = (x: number, z: number): V3 => [(x + dx) * PX, ceil * PX * SV, Math.max(back, Math.min(z, z - rise + ceil)) * PX];
+      const down = (x: number, z: number): V3 => [x * PX, 0.02, z * PX];
+      const B: V3[] = [down(fx, fy), down(fx + fw, fy), down(fx + fw, fy + fh), down(fx, fy + fh)];
+      const T: V3[] = [up(fx, fy), up(fx + fw, fy), up(fx + fw, fy + fh), up(fx, fy + fh)];
+      // the near face — the 2D's band — and, fainter, the two sides that give it a body where it
+      // leans (u across, v along; brighter towards the floor, as the 2D's bands). (A short upright
+      // shaft has them all over each other: faint sides keep it from burning white.)
+      const face = (b0: V3, b1: V3, t1: V3, t0: V3, n: V3, w: number) => {
+        q.add4(b0, b1, t1, t0, n, [0, 0, 1, 0, 1, 1, 0, 1]);
+        cols.push(k * w, k * w, k * w * 0.55, k * w * 0.55);
+      };
+      face(B[3], B[2], T[2], T[3], [0, 0, 1], 1);
+      face(B[0], B[3], T[3], T[0], [-1, 0, 0], 0.25);
+      face(B[2], B[1], T[1], T[2], [1, 0, 0], 0.25);
+      ends.push([B[0], B[1], B[2], B[3], T[0], T[1], T[2], T[3]]);
+      let seed = num('seed', 77);
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      for (let i = 0, n = num('motes', 10); i < n; i++) motes.push({ s: rnd(), w: rnd(), t: rnd(), v: 0.02 + rnd() * 0.03, sh: ends.length - 1 });
+    }
+    if (!ends.length) return;
+    const geo = q.geometry();
+    const rgb = new Float32Array(cols.length * 3);
+    cols.forEach((v, i) => rgb.set([v, v, v], i * 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(rgb, 3));
+    // (over everything, as the 2D's glowFg: the statue it lands on is lit by it, not in front of it)
+    this.shaftMat = new THREE.MeshBasicMaterial({ map: softTexture(false), vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, side: THREE.DoubleSide, toneMapped: false });
+    const band = new THREE.Mesh(geo, this.shaftMat);
+    band.renderOrder = 4;
+    this.group.add(band);
+    // the dust: a point each, drifting down the band (placed in update())
+    const at = new Float32Array(motes.length * 3);
+    const pg = new THREE.BufferGeometry();
+    pg.setAttribute('position', new THREE.BufferAttribute(at, 3));
+    // (a speck about one 2D px across at the camera's distance)
+    const pm = new THREE.PointsMaterial({ color: new THREE.Color(P.horizon), size: 0.24, sizeAttenuation: true, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, toneMapped: false });
+    const pts = new THREE.Points(pg, pm);
+    pts.renderOrder = 4;
+    pts.frustumCulled = false;
+    this.group.add(pts);
+    this.dust = { pts, at, motes, ends };
+  }
+
+  /** The shafts' dust at time t (ms): each speck down its band, round again at the floor. */
+  private placeDust(t: number): void {
+    const d = this.dust;
+    if (!d) return;
+    const lerp3 = (a: V3, b: V3, k: number): V3 => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+    d.motes.forEach((m, i) => {
+      const [b0, b1, b2, b3, t0, t1, t2, t3] = d.ends[m.sh];
+      const along = (((m.t - (t / 1000) * m.v) % 1) + 1) % 1;
+      const bot = lerp3(lerp3(b0, b1, m.s), lerp3(b3, b2, m.s), m.w);
+      const top = lerp3(lerp3(t0, t1, m.s), lerp3(t3, t2, m.s), m.w);
+      d.at.set(lerp3(bot, top, 0.08 + along * 0.84), i * 3);
+    });
+    (d.pts.geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
   }
 
   /** Cell kind (outside the map: the dark). */
@@ -990,6 +1140,11 @@ export class RoomWorld {
       this.beamMat.color.copy(c).multiplyScalar(0.12 * k);
       this.patchMat.color.copy(c).multiplyScalar(0.28 * k);
     }
+    // the skylight shafts: the evening's orange, gone at night (as their 2D glow)
+    if (this.shaftMat && this.dust) {
+      this.shaftMat.color.set(P.sun).lerp(SHAFT_RIM, 0.35).multiplyScalar(SHAFT.k * (1 - night));
+      (this.dust.pts.material as THREE.PointsMaterial).opacity = 0.8 * (1 - night);
+    }
     return Math.atan2(d.x, d.z);
   }
 
@@ -1009,6 +1164,8 @@ export class RoomWorld {
     const seers = [f.player, ...(f.follower ? [f.follower] : [])].map((a) => ({ x: a.x + a.ox, y: a.y }));
     for (const c of this.cutouts) c.update(f, t, sunYaw, lit, seers, true, hides);
     for (const l of this.lying) l.update(f);
+    // (the dust stands still with time, as the 2D's: drawn at t = 0 then)
+    if (this.dust) this.placeDust(f.propEnv(null).stage === 1 ? 0 : t);
     this.casters?.turn(sunYaw);
   }
 
@@ -1045,6 +1202,10 @@ export class RoomWorld {
     }
     for (const c of this.cutouts) c.dispose();
     for (const l of this.lying) l.dispose();
+    if (this.dust) {
+      this.dust.pts.geometry.dispose();
+      (this.dust.pts.material as THREE.Material).dispose();
+    }
     this.casters?.dispose();
     this.batches.real.dispose();
     this.batches.thin.dispose();
@@ -1064,81 +1225,104 @@ export class RoomWorld {
 }
 
 /**
- * A thing that lies on the floor more than it stands (a bed): the ¾
- * picture's rows above its front lie flat on top of it, the front's `h` rows
- * stand at the foot line, the rows below lie on the floor — on screen the
- * same picture, in 3D a low box instead of a board standing up.
+ * The things that lie on the floor more than they stand (a bed, the
+ * tables: room_tune.ts LIE): the ¾ picture's rows above its front lie flat
+ * on top of it, the front's `h` rows stand at the foot line, the rows below
+ * lie on the floor — on screen the same picture, in 3D a low box instead of
+ * a board standing up. A room's lying things are one mesh on one atlas of
+ * their pictures (2026-10-06: the food court's six tables were twelve draw
+ * calls with their shadows); one shown only at times (a `cond`) gets a
+ * batch of its own, so it can hide.
  */
-class LyingView {
-  readonly mesh: THREE.Mesh;
-  private readonly tex: THREE.CanvasTexture;
-  private last: HTMLCanvasElement | null;
+class LyingBatch {
+  private readonly items: { p: PropInst; front: number; img: HTMLCanvasElement | null; w: number; h: number; x: number }[] = [];
+  private tex: THREE.CanvasTexture | null = null;
+  private ctx: CanvasRenderingContext2D | null = null;
+  mesh: THREE.Mesh | null = null;
 
-  constructor(
-    readonly p: PropInst,
-    env: ReturnType<FieldScene['propEnv']>,
-    front: number,
-  ) {
-    const a = p.art;
-    const img = a.img(env);
-    this.last = img;
-    const [c] = img ? [img] : canvas(a.w, a.h);
-    this.tex = pixelTexture(c);
-    const iw = c.width;
-    const ih = c.height;
-    const left = p.x + a.ox;
-    const top = p.y + a.oy;
-    const foot = p.y + a.foot;
-    const rf = Math.max(0, Math.min(ih, foot - top));
-    const h = Math.max(0, Math.min(front, rf));
-    const uv = (cc: number, r: number): [number, number] => [cc / iw, 1 - r / ih];
+  add(p: PropInst, env: ReturnType<FieldScene['propEnv']>, front: number): void {
+    const img = p.art.img(env);
+    this.items.push({ p, front, img, w: img?.width ?? p.art.w, h: img?.height ?? p.art.h, x: 0 });
+  }
+
+  /** The atlas (the pictures side by side, a column apart) and the mesh; null when nothing lies. */
+  finish(): THREE.Mesh | null {
+    if (!this.items.length) return null;
+    let aw = 0;
+    let ah = 1;
+    for (const it of this.items) {
+      it.x = aw;
+      aw += it.w + 2;
+      ah = Math.max(ah, it.h);
+    }
+    const [atlas, ctx] = canvas(aw, ah);
+    for (const it of this.items) if (it.img) ctx.drawImage(it.img, it.x, 0);
+    this.ctx = ctx;
+    this.tex = pixelTexture(atlas);
     const q = new Quads();
-    const x0 = left * PX;
-    const x1 = (left + iw) * PX;
-    const Y = h * PX * SV;
-    const zN = (top + h) * PX;
-    const zF = foot * PX;
-    // the top: the rows above the front, lying at the front's height (row r over z = r + h)
-    if (rf - h > 0) {
-      const A = uv(0, rf - h);
-      const B = uv(iw, 0);
-      q.add([x0, Y, zF], [x1, Y, zF], [x1, Y, zN], [x0, Y, zN], [0, 1, 0], A[0], A[1], B[0], B[1]);
-    }
-    if (h > 0) {
-      // the front, standing at the foot line, and the two ends in its edge columns' colours
-      const A = uv(0, rf);
-      const B = uv(iw, rf - h);
-      q.add([x0, 0, zF], [x1, 0, zF], [x1, Y, zF], [x0, Y, zF], [0, 0, 1], A[0], A[1], B[0], B[1]);
-      const vm = uv(0, rf - h / 2)[1];
-      const ul = 0.5 / iw;
-      const ur = (iw - 0.5) / iw;
-      q.add([x0, 0, zN], [x0, 0, zF], [x0, Y, zF], [x0, Y, zN], [-1, 0, 0], ul, vm, ul, vm);
-      q.add([x1, 0, zF], [x1, 0, zN], [x1, Y, zN], [x1, Y, zF], [1, 0, 0], ur, vm, ur, vm);
-    }
-    if (rf < ih) {
-      // the rows below the foot line lie on the floor in front
-      const A = uv(0, ih);
-      const B = uv(iw, rf);
-      q.add([x0, 0.012, (top + ih) * PX], [x1, 0.012, (top + ih) * PX], [x1, 0.012, zF], [x0, 0.012, zF], [0, 1, 0], A[0], A[1], B[0], B[1]);
-    }
+    for (const it of this.items) lieQuads(q, it.p, it.w, it.h, it.front, (cc, r) => [(it.x + cc) / atlas.width, 1 - r / atlas.height]);
     this.mesh = new THREE.Mesh(q.geometry(), litMaterial(this.tex));
     this.mesh.castShadow = true;
     this.mesh.receiveShadow = true;
+    return this.mesh;
   }
 
   update(f: FieldScene): void {
-    this.mesh.visible = this.p.present;
-    if (!this.p.present) return;
-    const img = this.p.art.img(f.propEnv(this.p));
-    if (img && img !== this.last && img.width === (this.tex.image as HTMLCanvasElement).width) {
-      this.tex.image = img;
-      this.tex.needsUpdate = true;
-      this.last = img;
+    if (!this.mesh || !this.ctx || !this.tex) return;
+    // (a batch of one may come and go; the others are always there)
+    if (this.items.length === 1) this.mesh.visible = this.items[0].p.present;
+    for (const it of this.items) {
+      if (!it.p.present) continue;
+      const img = it.p.art.img(f.propEnv(it.p));
+      if (img && img !== it.img && img.width === it.w && img.height === it.h) {
+        this.ctx.clearRect(it.x, 0, it.w, it.h);
+        this.ctx.drawImage(img, it.x, 0);
+        this.tex.needsUpdate = true;
+        it.img = img;
+      }
     }
   }
 
   dispose(): void {
-    this.tex.dispose();
+    this.tex?.dispose();
+  }
+}
+
+/** One lying thing's quads (LyingBatch): its picture iw × ih, `front` rows standing; uv(column, row) into the atlas. */
+function lieQuads(q: Quads, p: PropInst, iw: number, ih: number, front: number, uv: (cc: number, r: number) => [number, number]): void {
+  const a = p.art;
+  const left = p.x + a.ox;
+  const top = p.y + a.oy;
+  const foot = p.y + a.foot;
+  const rf = Math.max(0, Math.min(ih, foot - top));
+  const h = Math.max(0, Math.min(front, rf));
+  const x0 = left * PX;
+  const x1 = (left + iw) * PX;
+  const Y = h * PX * SV;
+  const zN = (top + h) * PX;
+  const zF = foot * PX;
+  // the top: the rows above the front, lying at the front's height (row r over z = r + h)
+  if (rf - h > 0) {
+    const A = uv(0, rf - h);
+    const B = uv(iw, 0);
+    q.add([x0, Y, zF], [x1, Y, zF], [x1, Y, zN], [x0, Y, zN], [0, 1, 0], A[0], A[1], B[0], B[1]);
+  }
+  if (h > 0) {
+    // the front, standing at the foot line, and the two ends in its edge columns' colours
+    const A = uv(0, rf);
+    const B = uv(iw, rf - h);
+    q.add([x0, 0, zF], [x1, 0, zF], [x1, Y, zF], [x0, Y, zF], [0, 0, 1], A[0], A[1], B[0], B[1]);
+    const vm = uv(0, rf - h / 2)[1];
+    const ul = uv(0.5, 0)[0];
+    const ur = uv(iw - 0.5, 0)[0];
+    q.add([x0, 0, zN], [x0, 0, zF], [x0, Y, zF], [x0, Y, zN], [-1, 0, 0], ul, vm, ul, vm);
+    q.add([x1, 0, zF], [x1, 0, zN], [x1, Y, zN], [x1, Y, zF], [1, 0, 0], ur, vm, ur, vm);
+  }
+  if (rf < ih) {
+    // the rows below the foot line lie on the floor in front
+    const A = uv(0, ih);
+    const B = uv(iw, rf);
+    q.add([x0, 0.012, (top + ih) * PX], [x1, 0.012, (top + ih) * PX], [x1, 0.012, zF], [x0, 0.012, zF], [0, 1, 0], A[0], A[1], B[0], B[1]);
   }
 }
 
@@ -1154,6 +1338,10 @@ function darker(css: string, k: number): string {
 }
 
 const softTex: Partial<Record<'beam' | 'patch', THREE.CanvasTexture>> = {};
+
+/** The skylight shafts' colour: the 2D's sun orange towards its pale rim, this strong (additive). */
+const SHAFT_RIM = new THREE.Color(P.horizon);
+const SHAFT = { k: 0.25 };
 
 /** Grey ramps for the beams (soft at the sides) and the patches (soft all round). */
 function softTexture(patch: boolean): THREE.CanvasTexture {
@@ -1189,6 +1377,11 @@ if (import.meta.env.DEV) {
   /** QA: the room's windows, the furniture fronts, and its pictures (`pic`: 'room' | 'glow' | 'light' as a data URL). */
   registerDebug('hd2dRoom', (pic?: 'room' | 'glow' | 'light') => (shown ? shown.qa(pic) : null));
   /** QA: false leaves the rooms 2D (compare), true stands them again (the next build: a door, a warp). */
+  /** QA: the skylight shafts' strength (buildShafts). */
+  registerDebug('hd2dShaft', (k?: number) => {
+    if (k !== undefined) SHAFT.k = k;
+    return SHAFT.k;
+  });
   registerDebug('hd2dRooms', (v?: boolean) => {
     if (v !== undefined) rooms3d.on = !!v;
     return { on: rooms3d.on, rooms: [...ROOM_MAPS] };

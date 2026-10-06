@@ -19,7 +19,7 @@
 
 import type { Co } from '../engine/co';
 import { game, type Scene, type Widget } from '../engine/game';
-import type { Gfx } from '../engine/gfx';
+import { Gfx } from '../engine/gfx';
 import { BAYER4, makeCanvas } from '../engine/pixel';
 import { Particles } from '../engine/particles';
 import { hash2 } from '../engine/rng';
@@ -54,12 +54,33 @@ import { coverToFade, ditherIn, ditherOut } from './transition';
 
 // ---- cut_night_sky -------------------------------------------------------------------------
 
+/**
+ * HD-2D (2026-10-06 依頼主「第1章全部HD-2Dにして」, src/hd2d/cut.ts): the
+ * night town for cut_night_sky, drawn once in 3D while the town was still
+ * loaded (cut 3, in the black before cut 4) from low in the street, looking
+ * up — the people left out, its sky cut away. It takes the place of the
+ * painted town (mid, lamps, wires, water, near) under the same sky, stars,
+ * clouds, far hills and 星見台's star, at the 3D picture's own size. Null
+ * (2D, or no 3D town to draw): the 2D panorama, as before.
+ */
+export const nightTown: { img: HTMLCanvasElement | null } = { img: null };
+
+/** HD-2D: how far the town slides down over the cut (px of 216) — a slow tilt up to the sky; the sky moves a third as far. */
+const TILT_PX = 5;
+const TILT_MS = 3400;
+
 class NightSkyScene implements Scene {
-  transparent = true;
+  /** (HD-2D: the night town fills the frame, so the field under it — the home — isn't drawn) */
+  get transparent(): boolean {
+    return !nightTown.img;
+  }
   done = false;
   t = 0;
   alpha = 0;
   frozenAt = -1;
+  /** HD-2D: the sky at the 2D's size, and the picture handed under the 2D layer. */
+  private sky: Gfx | null = null;
+  private under: HTMLCanvasElement | null = null;
 
   update(dt: number): void {
     this.t += dt;
@@ -67,64 +88,108 @@ class NightSkyScene implements Scene {
 
   draw(g: Gfx): void {
     const t = this.t;
+    const town = nightTown.img;
+    if (town) {
+      this.drawHd(g, town);
+      return;
+    }
     g.alpha(this.alpha, () => {
-      g.img(skyCanvas('night'), 0, 0);
-      // twinkling stars
-      for (let i = 0; i < 26; i++) {
-        const x = Math.floor(hash2(i, 5, 31) * 384);
-        const y = Math.floor(hash2(i, 6, 31) * 110);
-        const ph = (t / (600 + (i % 5) * 170) + hash2(i, 7, 31) * 6) % 3;
-        const col = ph < 1 ? '#FFF6D8' : ph < 2 ? '#C8B8E0' : '#6A5A8E';
-        g.px(x, y, col);
-        if (ph < 0.4 && i % 4 === 0) {
-          g.px(x - 1, y, '#8A7AB0');
-          g.px(x + 1, y, '#8A7AB0');
-        }
-      }
-      CLOUDS.forEach((c, i) => g.img(cloudCanvas(i, 'night'), c.x + Math.round(t / 900), c.y));
-      g.img(farCanvas('night'), 0, 104);
-      // the one star over 星見台: twinkles like the others, then stops, lit
-      const sx = 361;
-      const sy = 90;
-      if (this.frozenAt < 0) g.px(sx, sy, Math.floor(t / 420) % 3 === 0 ? '#6A5A8E' : '#FFF6D8');
-      else {
-        g.px(sx, sy, '#FFF6D8');
-        g.px(sx - 1, sy, '#FFE7A3');
-        g.px(sx + 1, sy, '#FFE7A3');
-        g.px(sx, sy - 1, '#FFE7A3');
-        g.px(sx, sy + 1, '#FFE7A3');
-        if (t - this.frozenAt < 500) {
-          const k = 1 - (t - this.frozenAt) / 500;
-          g.alpha(k, () => g.ring(sx, sy, 2 + Math.round((1 - k) * 5), '#FFF6D8'));
-        }
-      }
-      g.img(midCanvas('night'), 0, 110);
-      // windows lit here and there (1–2 px, #F6D98A), and the street lamps
-      for (let i = 0; i < 40; i++) {
-        const x = Math.floor(hash2(i, 1, 44) * 384);
-        const y = 150 + Math.floor(hash2(i, 2, 44) * 22);
-        if (hash2(i, 3, 44) < 0.25) continue;
-        g.rect(x, y, hash2(i, 4, 44) < 0.4 ? 2 : 1, 1, '#F6D98A');
-      }
-      // street lamps: a warm dithered pool round each lamp head
-      for (const lx of [22, 118, 214, 298]) {
-        for (let y = -9; y <= 9; y++)
-          for (let x = -9; x <= 9; x++) {
-            const d = Math.hypot(x, y * 1.2) / 9;
-            if (d > 1) continue;
-            const v = (1 - d) * 0.9;
-            if (BAYER4[(y + 16) & 3][(x + 16) & 3] >= v * 16) continue;
-            g.px(lx + x, 166 + y, d < 0.35 ? '#F6D98A' : d < 0.7 ? '#8A6A7A' : '#4A3A5E');
-          }
-        g.rect(lx, 167, 1, 12, '#221C3A');
-        g.rect(lx - 1, 165, 3, 2, '#FFF6D8');
-      }
-      drawMallSign(g, false, 'night');
-      drawWires(g, 0, 'night');
-      drawWater(g, t, 'night', null);
-      g.img(nearCanvas('night'), 0, 0);
-      drawGrass(g, t, 0.6);
+      this.drawSky(g, t);
+      this.drawTown(g, t);
     });
+  }
+
+  /** The sky, its stars and clouds, the far hills, and the one star over 星見台. */
+  private drawSky(g: Gfx, t: number): void {
+    g.img(skyCanvas('night'), 0, 0);
+    // twinkling stars
+    for (let i = 0; i < 26; i++) {
+      const x = Math.floor(hash2(i, 5, 31) * 384);
+      const y = Math.floor(hash2(i, 6, 31) * 110);
+      const ph = (t / (600 + (i % 5) * 170) + hash2(i, 7, 31) * 6) % 3;
+      const col = ph < 1 ? '#FFF6D8' : ph < 2 ? '#C8B8E0' : '#6A5A8E';
+      g.px(x, y, col);
+      if (ph < 0.4 && i % 4 === 0) {
+        g.px(x - 1, y, '#8A7AB0');
+        g.px(x + 1, y, '#8A7AB0');
+      }
+    }
+    CLOUDS.forEach((c, i) => g.img(cloudCanvas(i, 'night'), c.x + Math.round(t / 900), c.y));
+    g.img(farCanvas('night'), 0, 104);
+    // the one star over 星見台: twinkles like the others, then stops, lit
+    const sx = 361;
+    const sy = 90;
+    if (this.frozenAt < 0) g.px(sx, sy, Math.floor(t / 420) % 3 === 0 ? '#6A5A8E' : '#FFF6D8');
+    else {
+      g.px(sx, sy, '#FFF6D8');
+      g.px(sx - 1, sy, '#FFE7A3');
+      g.px(sx + 1, sy, '#FFE7A3');
+      g.px(sx, sy - 1, '#FFE7A3');
+      g.px(sx, sy + 1, '#FFE7A3');
+      if (t - this.frozenAt < 500) {
+        const k = 1 - (t - this.frozenAt) / 500;
+        g.alpha(k, () => g.ring(sx, sy, 2 + Math.round((1 - k) * 5), '#FFF6D8'));
+      }
+    }
+  }
+
+  /** The painted town: its silhouettes, lit windows, street lamps, the mall's sign, wires, water and grass. */
+  private drawTown(g: Gfx, t: number): void {
+    g.img(midCanvas('night'), 0, 110);
+    // windows lit here and there (1–2 px, #F6D98A), and the street lamps
+    for (let i = 0; i < 40; i++) {
+      const x = Math.floor(hash2(i, 1, 44) * 384);
+      const y = 150 + Math.floor(hash2(i, 2, 44) * 22);
+      if (hash2(i, 3, 44) < 0.25) continue;
+      g.rect(x, y, hash2(i, 4, 44) < 0.4 ? 2 : 1, 1, '#F6D98A');
+    }
+    // street lamps: a warm dithered pool round each lamp head
+    for (const lx of [22, 118, 214, 298]) {
+      for (let y = -9; y <= 9; y++)
+        for (let x = -9; x <= 9; x++) {
+          const d = Math.hypot(x, y * 1.2) / 9;
+          if (d > 1) continue;
+          const v = (1 - d) * 0.9;
+          if (BAYER4[(y + 16) & 3][(x + 16) & 3] >= v * 16) continue;
+          g.px(lx + x, 166 + y, d < 0.35 ? '#F6D98A' : d < 0.7 ? '#8A6A7A' : '#4A3A5E');
+        }
+      g.rect(lx, 167, 1, 12, '#221C3A');
+      g.rect(lx - 1, 165, 3, 2, '#FFF6D8');
+    }
+    drawMallSign(g, false, 'night');
+    drawWires(g, 0, 'night');
+    drawWater(g, t, 'night', null);
+    g.img(nearCanvas('night'), 0, 0);
+    drawGrass(g, t, 0.6);
+  }
+
+  /**
+   * HD-2D: the sky (as in 2D, at 384×216) blown up under the 3D night town
+   * at the 3D picture's size, handed to the screen under the 2D layer (left
+   * clear). The two slide down slowly, the town more than the sky: the
+   * camera tilting up. (The cut opens under the black, so the crossfade's
+   * alpha isn't needed here.)
+   */
+  private drawHd(g: Gfx, town: HTMLCanvasElement): void {
+    const t = this.t;
+    if (!this.sky) this.sky = new Gfx(makeCanvas(W, H)[1], W, H);
+    const tilt = TILT_PX * ease.sineOut(Math.min(1, t / TILT_MS));
+    const sg = this.sky;
+    sg.ctx.fillStyle = '#1B1733';
+    sg.ctx.fillRect(0, 0, W, H);
+    this.drawSky(sg, t);
+    const uw = town.width;
+    const uh = town.height;
+    if (!this.under || this.under.width !== uw || this.under.height !== uh) [this.under] = makeCanvas(uw, uh);
+    const u = this.under.getContext('2d')!;
+    const k = uh / H;
+    u.imageSmoothingEnabled = false;
+    u.fillStyle = '#1B1733';
+    u.fillRect(0, 0, uw, uh);
+    u.drawImage(sg.ctx.canvas, 0, Math.round(tilt * 0.35 * k), uw, uh);
+    u.drawImage(town, 0, Math.round(tilt * k));
+    game.screen.underlay = this.under;
+    g.ctx.clearRect(0, 0, W, H);
   }
 }
 
@@ -151,6 +216,8 @@ export function* playNightSkyCut(o: { hold?: number } = {}): Co {
 }
 
 export function hideNightSky(): void {
+  // (the HD-2D night town is drawn again for the next ending)
+  nightTown.img = null;
   if (!night) return;
   const i = game.scenes.indexOf(night);
   if (i >= 0) game.scenes.splice(i, 1);

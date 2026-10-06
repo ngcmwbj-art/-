@@ -1,7 +1,8 @@
 // せってい (30_level_art 10.7, 10_narrative 12.4, 40_audio 11.6): おんがく and
 // こうかおん are wooden rulers with a little hanko for a knob (0–10); 文字の
-// はやさ and ツッコミ判定 are rows of masking tape. The controls lie across
-// the open notebook, over the fold, like things put down on it.
+// はやさ, ツッコミ判定 and 表示 (HD-2D・2D, 02 #85) are rows of masking tape.
+// The controls lie across the open notebook, over the fold, like things put
+// down on it.
 
 import type { Gfx } from '../../engine/gfx';
 import type { Input } from '../../engine/input';
@@ -9,29 +10,39 @@ import { makeCanvas } from '../../engine/pixel';
 import { hash2 } from '../../engine/rng';
 import { charWidth } from '../../engine/font';
 import { sfx, setVolume } from '../../audio';
-import { saveSettings, settings, SPEED_LABELS, syncSettingFlags, textSpeedMul, WIDE_LABELS } from '../settings';
+import { saveSettings, settings, setView, SPEED_LABELS, syncSettingFlags, textSpeedMul, view, VIEW_LABELS, WIDE_LABELS } from '../settings';
 import { drawDigits } from '../digits';
 import { cursorImg, dottedLine, drawCursor, drawMarker, drawTape, textW, UI } from '../window';
 import { buttonsTop } from '../../engine/safezones';
 import { clearLeft, clearRight, drawHeader, LP, SP } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
 
-const LABELS = ['おんがく', 'こうかおん', '文字の はやさ', 'ツッコミ判定'];
+const LABELS = ['おんがく', 'こうかおん', '文字の はやさ', 'ツッコミ判定', '表示'];
 const ROW_Y = SP.y + 32;
 const ROW_H = 28;
+/** The note at the bottom of the spread (its first line; a dotted line 5px above it). */
+const NOTE_Y = SP.y + 150;
 
 /**
- * The rows' first top and pitch: 28px apart, or (an iPad held sideways, the
- * left touch buttons under the page's bottom corner) started a little higher
- * and closer together so the last row — its label, its cursor and its
- * tapes — ends above them.
+ * The rows' first top and pitch: as far apart as five rows go above the
+ * note (23px; four rows were 28px apart before 表示 came, 2026-10-06), or
+ * (an iPad held sideways, the left touch buttons under the page's bottom
+ * corner) started a little higher and closer together so the first four
+ * rows — their labels, cursors and tapes — end above them, as before; the
+ * last row, 表示, has a short label and steps right past them (rowDx).
  */
 function rowSpots(): { y0: number; step: number } {
   const n = LABELS.length - 1;
+  const fit = Math.min(ROW_H, Math.floor((NOTE_Y - 8 - 18 - ROW_Y) / n));
   const top = buttonsTop(SP.x + 1, LP.x + 120, 999) - 1;
-  if (ROW_Y + n * ROW_H + 18 <= top) return { y0: ROW_Y, step: ROW_H };
+  if (ROW_Y + n * fit + 18 <= top) return { y0: ROW_Y, step: fit };
   const y0 = SP.y + 28;
-  return { y0, step: Math.max(20, Math.min(ROW_H, Math.floor((top - 18 - y0) / n))) };
+  return { y0, step: Math.max(20, Math.min(fit, Math.floor((top - 18 - y0) / (n - 1)))) };
+}
+
+/** How far a row's cursor, marker and label move right to clear the left buttons (iPad sideways; 0 elsewhere). */
+function rowDx(y: number): number {
+  return clearLeft(SP.x + 1, y - 5, y + 18);
 }
 const CX = SP.x + 124;
 const RULER_W = 176;
@@ -127,13 +138,21 @@ export class SettingsPage implements MenuPage {
       this.sampleT = 0;
       this.knobT = 0;
       sfx('se_stamp_light');
-    } else {
+    } else if (this.row === 3) {
       const v = wrap ? !settings.wide : d > 0;
       if (v === settings.wide && !wrap) return;
       settings.wide = v;
       syncSettingFlags();
       this.knobT = 0;
       sfx('se_stamp_light');
+    } else {
+      // 表示: the tapes read HD-2D, 2D (left → right); the picture changes at once
+      const v = wrap ? !settings.hd2d : d < 0;
+      if (v === settings.hd2d && !wrap) return;
+      setView(v);
+      this.knobT = 0;
+      sfx('se_stamp_light');
+      return;
     }
     saveSettings();
   }
@@ -143,16 +162,18 @@ export class SettingsPage implements MenuPage {
     const { y0, step } = rowSpots();
     LABELS.forEach((label, i) => {
       const y = y0 + i * step;
+      const dx = rowDx(y);
       const sel = m.focus && i === this.row;
-      if (sel) drawMarker(g, LP.x - 2, y + 1, textW(label) + 4, 15, Math.min(1, this.moveT / 70));
-      g.text(label, LP.x, y, { color: UI.text });
-      if (sel) drawCursor(g, SP.x + 1, y, m.t);
+      if (sel) drawMarker(g, LP.x - 2 + dx, y + 1, textW(label) + 4, 15, Math.min(1, this.moveT / 70));
+      g.text(label, LP.x + dx, y, { color: UI.text });
+      if (sel) drawCursor(g, SP.x + 1 + dx, y, m.t);
       if (i <= 1) this.drawRuler(g, y, i === 0 ? settings.bgm : settings.se, sel, m.t);
       else if (i === 2) this.drawTapes(g, y, SPEED_LABELS, settings.speed, sel);
-      else this.drawTapes(g, y, WIDE_LABELS, settings.wide ? 1 : 0, sel);
+      else if (i === 3) this.drawTapes(g, y, WIDE_LABELS, settings.wide ? 1 : 0, sel);
+      else this.drawTapes(g, y, VIEW_LABELS, settings.hd2d ? 0 : 1, sel);
     });
     // the note at the bottom of the spread
-    const ny = SP.y + 150;
+    const ny = NOTE_Y;
     const nx = LP.x + clearLeft(LP.x, ny - 6, ny + 34);
     dottedLine(g, nx, ny - 5, clearRight(SP.x + SP.w - 16, ny - 6, ny - 4), UI.pencil, 3);
     const row = m.focus ? this.row : -1;
@@ -160,6 +181,12 @@ export class SettingsPage implements MenuPage {
     else if (row === 3) {
       g.text('ふつう：いつもの 間。', nx, ny, { color: settings.wide ? UI.textDim : UI.pencil });
       g.text('ひろい：受付が 2倍。', nx, ny + 17, { color: settings.wide ? UI.pencil : UI.textDim });
+    } else if (row === 4) {
+      if (!view.webgl) g.text('この 機械では 2D で 見える。', nx, ny, { color: UI.pencil });
+      else {
+        g.text('HD-2D：第1章の 町が 立体に なる。', nx, ny, { color: settings.hd2d ? UI.pencil : UI.textDim });
+        g.text('2D：ドット絵の まま。 軽い。', nx, ny + 17, { color: settings.hd2d ? UI.textDim : UI.pencil });
+      }
     } else if (row === 0 || row === 1) g.text('0 に すると、音が 消える。', nx, ny, { color: UI.pencil });
     else g.text('せっていは すぐに 保存される。', nx, ny, { color: UI.pencil });
   }

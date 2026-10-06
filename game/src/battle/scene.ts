@@ -252,6 +252,11 @@ export class BattleScene implements Scene {
 
   enter(): void {}
 
+  /** (HD-2D: the place's pictures behind the backdrop are let go, bg/place.ts) */
+  exit(): void {
+    this.bg.dispose();
+  }
+
   run(co: Co): void {
     this.runner.run(co);
   }
@@ -1292,12 +1297,15 @@ export class BattleScene implements Scene {
    */
   private drawFreeze(g: Gfx): void {
     const ctx = g.ctx;
-    ctx.save();
-    ctx.globalCompositeOperation = 'saturation';
-    ctx.globalAlpha = 0.85;
-    ctx.fillStyle = '#808080';
-    ctx.fillRect(0, 0, 384, 216);
-    ctx.restore();
+    // (HD-2D: the place under the buffer is drained by the backdrop, bg/common.ts greyOut)
+    if (!this.bg.greyOut(g)) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'saturation';
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = '#808080';
+      ctx.fillRect(0, 0, 384, 216);
+      ctx.restore();
+    }
     g.rect(0, 0, 384, 216, '#1B1733', 0.22);
     const f = this.freezeLook!;
     const img = shiinLettering();

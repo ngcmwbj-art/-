@@ -228,6 +228,15 @@ export class ResidentialBg extends Background {
     }
   }
 
+  /** HD-2D (place.ts): the dust and the business cards, and the semi's leaves hanging in the upper corners. */
+  protected drawOverPlace(g: Gfx): void {
+    if (this.variant === 'semi') {
+      leaves(g.ctx, 18, 58, this.mt, false);
+      leaves(g.ctx, 366, 60, this.mt, true);
+    }
+    this.drawL2(g, this.mt);
+  }
+
   protected updateL2(dt: number): void {
     const s = dt / 1000;
     for (const m of this.motes) {

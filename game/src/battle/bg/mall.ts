@@ -106,6 +106,16 @@ export class MallBg extends Background {
   }
 
   protected paintL1(ctx: CanvasRenderingContext2D, t: number): void {
+    this.rings(ctx, t);
+  }
+
+  /** HD-2D (place.ts): over the room in 3D, momisugi's rings and soujirou's dust. */
+  protected drawOverPlace(g: Gfx): void {
+    this.rings(g.ctx, this.mt);
+    this.drawL2(g);
+  }
+
+  private rings(ctx: CanvasRenderingContext2D, t: number): void {
     if (this.variant === 'momi') {
       // concentric massage-ball rings pulsing
       ctx.globalAlpha = 0.2;

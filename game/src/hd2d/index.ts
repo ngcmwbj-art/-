@@ -5,12 +5,18 @@
 // top. Walking, collisions, talking and events are the 2D game's own; only
 // the picture of the field changes. Other maps, rooms and battles stay 2D.
 //
-// Loaded only by the dev server and the HD-2D demo build (main.ts imports
-// it when import.meta.env.DEV or VITE_HD2D_DEMO=1), so three.js never ends up
-// in the other builds. Off by default; turned on by
-//   ?hd2d=1                     in the URL (?hd2dq=light|normal picks the quality)
-//   __game.cmd.hd2d(true|false)  in the console (QA)
+// In every build since 2026-10-06 (依頼主「第1章全部HD-2Dにして」): chapter 1
+// is HD-2D from the start, chapter 2 stays 2D. main.ts loads this layer
+// (three.js with it) once the title is up, when HD-2D is wanted — the
+// first frames don't wait for it. Whether it draws:
+//   せってい「表示」 HD-2D／2D   (ui/settings.ts settings.hd2d, saved; default HD-2D)
+//   ?hd2d=1 / ?hd2d=0           in the URL: this visit only (QA; ?hd2dq=light|normal picks the quality)
+//   __game.cmd.hd2d(true|false)  in the console: the same, this visit only (QA)
 //   the demo build              (VITE_HD2D_DEMO=1: on, and 「はじめる」 opens in 夕鳴銀座)
+// and never once chapter 2 has begun (flag_ch2_started: its prologue and
+// ending come back to map_town and the home, in 2D) nor where WebGL fails
+// (the 2D pictures, as before). hd2dOn() / hd2dField(f) answer it for the
+// other parts (the battles, the ending's cuts).
 // Debug: __game.cmd.hd2dQuality('light'|'normal'), hd2dStats(), hd2dCam({pitch, fov, dist}).
 
 import { Vector3 } from 'three';
@@ -20,17 +26,20 @@ import { Gfx } from '../engine/gfx';
 import { H, W } from '../engine/screen';
 import { isTouchDevice } from '../engine/touch';
 import { registerDebug } from '../debug';
-import { setFlag, state } from '../game/state';
+import { flag, setFlag, state } from '../game/state';
 import { field, FieldScene, setFieldDrawer } from '../world/field';
 import { fxDraw } from '../world/fx';
 import { hud } from '../world/hud';
 import { resetForNewGame, setNewGameStart } from '../ui/flow';
+import { settings, view as viewSetting } from '../ui/settings';
+import { isCh2Map } from '../world/maps';
 import { closeUp } from '../events/stage';
 import type { Quality } from './post';
 import { CAM, Hd2dView } from './view';
 import { overlaps } from './overlap';
 import { nudging } from './tune';
 import { roomMap } from './room';
+import { installBattlePlaces } from './battle';
 
 const DEMO = import.meta.env.VITE_HD2D_DEMO === '1';
 /**
@@ -41,7 +50,8 @@ const DEMO = import.meta.env.VITE_HD2D_DEMO === '1';
 const MAPS = new Set(['map_town', 'map_school', 'map_school_kotei', 'map_aze', 'map_seki', 'map_mall_roof']);
 
 const params = new URLSearchParams(location.search);
-let on = DEMO || params.get('hd2d') === '1';
+/** This visit's override of せってい「表示」 (the demo page, ?hd2d=0|1, __game.cmd.hd2d): null → the setting. */
+let override: boolean | null = DEMO ? true : params.has('hd2d') ? params.get('hd2d') === '1' : null;
 const qParam = params.get('hd2dq');
 /** Phones start light; tablets and computers start normal and step down once if frames drop. */
 const phone = isTouchDevice() && Math.min(screen.width, screen.height) < 600;
@@ -57,11 +67,34 @@ function getView(): Hd2dView | null {
     view = new Hd2dView(quality);
   } catch (e) {
     console.warn('[hd2d] WebGL unavailable, staying 2D', e);
-    failed = true;
+    fail();
   }
   return view;
 }
 
+/** WebGL can't draw here (or a frame failed): 2D from now on, and せってい says so. */
+function fail(): void {
+  failed = true;
+  view = null;
+  viewSetting.webgl = false;
+}
+
+/**
+ * HD-2D is on: せってい「表示」 (or this visit's override), WebGL works, and
+ * chapter 2 hasn't begun (02 #85: chapter 2 stays 2D, also where it comes
+ * back to chapter 1's town). Read every frame, so a change shows at once.
+ */
+export function hd2dOn(): boolean {
+  return (override ?? settings.hd2d) && !failed && !flag('flag_ch2_started');
+}
+
+/** Is field f drawn in HD-2D now: hd2dOn(), one of chapter 1's places (MAPS, room.ts rooms), not blown up. */
+export function hd2dField(f: FieldScene): boolean {
+  return hd2dOn() && f.viewScale === 1 && !isCh2Map(f.map.def) && (MAPS.has(f.map.id) || roomMap(f.map.id));
+}
+
+/** Fields drawn in 3D so far (QA: tools/playthrough.mjs --hd2d sees them go up). */
+let frames = 0;
 // frame pacing for the automatic step down (real time between drawn frames)
 let lastDraw = 0;
 let slowFrames = 0;
@@ -88,7 +121,7 @@ function watchPace(): void {
 
 function drawField(g: Gfx, f: FieldScene): boolean {
   // (and chapter 1's rooms: room.ts)
-  if (!on || !(MAPS.has(f.map.id) || roomMap(f.map.id)) || f.viewScale !== 1) return false;
+  if (!hd2dField(f)) return false;
   const v = getView();
   if (!v) return false;
   const d = game.screen.display;
@@ -98,11 +131,11 @@ function drawField(g: Gfx, f: FieldScene): boolean {
     v.render(f, d.width, d.height, cu?.rect ?? null, cu?.at ?? null);
   } catch (e) {
     console.error('[hd2d] render failed, back to 2D', e);
-    failed = true;
-    view = null;
+    fail();
     return false;
   }
   watchPace();
+  frames++;
   game.screen.underlay = v.canvas;
   // the 2D layer: transparent where the town is, then what sits on top of it
   const ctx = g.ctx;
@@ -191,29 +224,27 @@ function drawPlainFx(g: Gfx, f: FieldScene, v: Hd2dView): void {
  * line `foot` is lifted to its height there (view.ts projectPx).
  */
 function project(f: FieldScene, x: number, y: number, foot?: number): [number, number, number] | null {
-  if (!on || !view || failed || !(MAPS.has(f.map.id) || roomMap(f.map.id)) || f.viewScale !== 1) return null;
+  if (!view || !hd2dField(f)) return null;
   const p = view.projectPx(x, y, foot ?? y);
   return p ? [Math.round(p[0]), Math.round(p[1]), 1] : null;
 }
 
 /** In the 3D town the camera follows Minato past the map's edges too: the town goes on there (town.ts MARGIN). */
 function freeCam(f: FieldScene): boolean {
-  return on && !failed && MAPS.has(f.map.id) && f.viewScale === 1;
+  return hd2dField(f) && MAPS.has(f.map.id);
 }
 
 setFieldDrawer(drawField, project, freeCam);
+// chapter 1's battles: the place they started in, in 3D, behind them (battle.ts)
+installBattlePlaces(() => (hd2dOn() ? getView() : null), hd2dField);
+// the WebGL side is made while the title is up (main.ts loads this then), not on the first field's frame
+if (hd2dOn()) setTimeout(() => hd2dOn() && getView(), 0);
 
-export function hd2dOn(): boolean {
-  return on;
-}
-
-export function setHd2d(v: boolean): void {
-  on = v;
-}
-
-registerDebug('hd2d', (v?: boolean) => {
-  if (v !== undefined) on = !!v;
-  return { on, quality, webgl: !failed, maps: [...MAPS] };
+/** QA: HD-2D on or off for this visit (null: back to せってい「表示」). */
+registerDebug('hd2d', (v?: boolean | null) => {
+  if (v !== undefined) override = v === null ? null : !!v;
+  const f = field();
+  return { on: hd2dOn(), field: !!f && hd2dField(f), frames, setting: settings.hd2d, override, quality, webgl: !failed, maps: [...MAPS] };
 });
 registerDebug('hd2dQuality', (q?: Quality) => {
   if (q === 'light' || q === 'normal') {
