@@ -15,7 +15,8 @@
 //                     段階1 で 5の 線の 上、段階2 は 北東）。
 //   bld_kotei_souko   体育倉庫（トタン屋根、スチールの 引き戸、札『運動会 用具』。戸の すきまから 綱の
 //                     はし。段階2 は 戸が 少し 開いて、中は 綱の ぶんだけ 空いている）。
-//   prop_kotei_nishi  裏庭 map_school (0,12) の 西の 生け垣の 口：砂利の 通路が 校舎の 西を 回る。
+//   prop_kotei_nishi  裏庭 map_school (0,11)–(0,12) の 西の 生け垣の 口（2マス）：砂利の 通路が 校舎の 西を 回る。
+//   prop_kotei_fuda   裏庭 (6,11) の 立て札『← 校庭』（2026-10-06）。
 // 赤とんぼ・白線の 粉・はちまき・ヒキヅナの 綱は world の fx（events/kotei.ts）。絵は 段階ごとに 1回 焼く。
 
 import type { Gfx } from '../../engine/gfx';
@@ -520,22 +521,40 @@ registerBuilding({
   },
 });
 
-// ================================================================ 裏庭の 西の 生け垣の 口 prop_kotei_nishi (map_school (0,12)) — flat
+// ================================================================ 裏庭の 西の 生け垣の 口 prop_kotei_nishi (map_school (0,11)–(0,12)) — flat
 
+// (2026-10-06: the gap 2 tiles wide, 依頼主「校庭に 入る 所が 分かりづらい」)
 const NISHI = (() => {
-  const p = new PixelCanvas(24, 18);
+  const p = new PixelCanvas(24, 34);
   // gravel running off to the west, its edge stones
-  for (let y = 2; y < 16; y++)
+  for (let y = 2; y < 32; y++)
     for (let x = 0; x < 22; x++) {
       const h = ihash(x, y, 9161) % 9;
       p.set(x, y, h === 0 ? P.steel : h < 3 ? P.concrete : h < 5 ? P.concreteLt : mix(P.concrete, P.woodLt, 0.3));
     }
   p.hline(0, 21, 1, P.asphalt);
-  p.hline(0, 21, 16, P.asphalt);
+  p.hline(0, 21, 32, P.asphalt);
   return p.toCanvas();
 })();
 
-registerProp('prop_kotei_nishi', () => flat(NISHI, -8, -1));
+registerProp('prop_kotei_nishi', () => flat(NISHI, -8, -17));
+
+// ================================================================ 立て札『← 校庭』 prop_kotei_fuda (map_school (6,11))
+
+/** A wooden post and a white board: a red arrow pointing west, a line of hand lettering under it. */
+registerProp('prop_kotei_fuda', () => {
+  const p = new PixelCanvas(18, 24);
+  p.rect(8, 12, 2, 12, P.wood);
+  p.vline(8, 12, 23, P.woodLt);
+  p.rect(1, 1, 16, 12, P.white);
+  p.strokeRect(1, 1, 16, 12, P.wood);
+  // ← (the tip at x 3, a 2 px shaft to x 14)
+  for (let i = 0; i < 3; i++) p.vline(3 + i, 6 - i, 7 + i, P.verm);
+  p.rect(6, 6, 9, 2, P.verm);
+  printLines(p, 4, 10, 10, 1, P.asphalt, 5);
+  finish(p, { soft: true });
+  return stand(p.toCanvas(), { cx: 8, base: 16, shadow: 14, contact: 6 });
+});
 
 export type { Gfx };
 

@@ -1,7 +1,7 @@
 // map_school_kotei — 夕鳴小学校の 校庭（30_level_art 3.17、10_narrative 7.25、02_ch2_index #82。
 // 2026-10-05 依頼主の採用：げむきかの新しい案1「二人十五脚」）。36×22、約2画面（カメラは 上下左右に 動く）。
 //
-// 裏庭 map_school の 西の 生け垣の 口 (0,12)（(1,12) から 西へ 押す）から、校舎の 西を 回る 砂利の
+// 裏庭 map_school の 西の 生け垣の 口 (0,11)–(0,12)（2マス。(1,11)・(1,12) から 西へ 押す。2026-10-06 に 広げた）から、校舎の 西を 回る 砂利の
 // 通路で 南東の すみ (35,20) に 出る。北に 校舎の 正面と 大時計（段階1 から 5時で 止まる）、まん中に
 // 消えかけた 白線の 小さな トラック（左回り。ゴールは 北の 直線、朝礼台の 側）、西に 朝礼台、北西に
 // 体育倉庫、東に のぼり棒 5本、南西に 走り幅とびの 砂場、南東に 卒業記念の 日時計、南の 金網ぞいに 桜 2本。
@@ -51,7 +51,7 @@ export const ROWS_KOTEI = [
   'H,:::::::::::::::::::::::::::::::::H', // 16
   'Hsssss:::::::::::::::::::::::::Q:::H', // 17
   'Hsssss:::::::::::::::::::::::::::::H', // 18
-  'Hsssss:::::::::::::::::::::::::::::H', // 19
+  'Hsssss::::::::::::::::::::::::gggggD', // 19  g D (35,19)–(35,20): the way to the back yard, 2 tiles (2026-10-06)
   'H,,,,,,,T,,,,,,,,,,,,,,,,,,,TggggggD', // 20
   'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF', // 21
 ];
@@ -128,6 +128,7 @@ const OBJECTS: MapObj[] = [
 
   // ======================================================== the way back
   { t: 'door', id: 'door_kotei_school', x: 35, y: 20, to: 'map_school', tx: 1, ty: 12, dir: 'right' },
+  { t: 'door', id: 'door_kotei_school2', x: 35, y: 19, to: 'map_school', tx: 1, ty: 11, dir: 'right' },
 ];
 
 const DEF: MapDef = {
@@ -146,7 +147,7 @@ const DEF: MapDef = {
   ],
   structMats: [
     { x: 0, y: 4, w: 1, h: 17, mat: 'kaname' },
-    { x: 35, y: 4, w: 1, h: 16, mat: 'kaname' },
+    { x: 35, y: 4, w: 1, h: 15, mat: 'kaname' },
   ],
   onEnter: ['lv_in_kotei'],
   outside: '#1B1733',

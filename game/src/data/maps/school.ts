@@ -46,8 +46,8 @@ export const ROWS_SCHOOL = [
   'Hk::::::::::::::,,,:Pwwwwwww', // 8
   'Hkbbbbbbbbbbk:::::::PPPPPPPP', // 9
   'Hkkkkkkkkkkkk::::::::::KKKKH', // 10
-  'H::T:::::::::::ooo::::cKKKKH', // 11
-  'V::::::::::::::::::::::::::H', // 12  V (0,12): the gravel way round the building's west end → 校庭 map_school_kotei (02 #82)
+  'VggT::f::::::::ooo::::cKKKKH', // 11  V (0,11)–(0,12): the gap in the west hedge, 2 tiles; f (6,11) the 立て札『← 校庭』
+  'Vggggggggggggg:::::::::::::H', // 12  g: the gravel way from the back gate to the gap, round the building's west end → 校庭 map_school_kotei (02 #82)
   'FFFFFFFFFFFFFFDFFFFFFFFFFFFF', // 13
 ];
 
@@ -77,8 +77,12 @@ const SCHOOL_LEGEND: Record<string, TileSpec> = {
   T: { ground: 'dirt', solid: true, tag: 'trunk' },
   // the back gate out to the park
   D: { ground: 'dirt', solid: true, door: true },
-  // the gap in the west hedge: the gravel way round to the school ground (二人十五脚, 02 #82)
+  // the gap in the west hedge: the gravel way round to the school ground (二人十五脚, 02 #82).
+  // 2026-10-06 依頼主「校庭に 入る 所が 分かりづらい」: the gap 2 tiles wide, a gravel way to it
+  // from the back gate, and a 立て札 on the way
   V: { ground: 'gravel', solid: true, door: true },
+  g: { ground: 'gravel' },
+  f: { ground: 'dirt', solid: true, tag: 'prop' },
 };
 
 type Text = string | Record<string, string>;
@@ -178,6 +182,9 @@ const OBJECTS: MapObj[] = [
   { t: 'prop', prop: 'prop_kotei_nishi', x: 0, y: 12 },
   { t: 'obj', id: 'obj_kotei_michi', x: 0, y: 12, face: 'left', text: KOTEI_OBJ.obj_kotei_michi } as MapObj,
   { t: 'door', id: 'door_sch_kotei', x: 0, y: 12, to: 'map_school_kotei', tx: 34, ty: 20, dir: 'left' },
+  { t: 'door', id: 'door_sch_kotei2', x: 0, y: 11, to: 'map_school_kotei', tx: 34, ty: 19, dir: 'left' },
+  PR('prop_kotei_fuda', 6, 11),
+  { t: 'obj', id: 'obj_kotei_fuda', x: 6, y: 11, text: KOTEI_OBJ.obj_kotei_fuda } as MapObj,
 ];
 
 const DEF: MapDef = {
@@ -195,7 +202,7 @@ const DEF: MapDef = {
     { id: 'park', x: 0, y: 0, w: 28, h: 14 },
   ],
   structMats: [
-    { x: 0, y: 3, w: 1, h: 9, mat: 'kaname' },
+    { x: 0, y: 3, w: 1, h: 8, mat: 'kaname' },
     { x: 27, y: 3, w: 1, h: 10, mat: 'kaname' },
   ],
   onEnter: ['lv_in_school'],

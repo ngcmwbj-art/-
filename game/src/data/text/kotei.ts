@@ -275,6 +275,13 @@ export const KOTEI_OBJ: Record<string, string | Record<string, string>> = {
   obj_kotei_michi: `@narr
 生け垣の すきまに、砂利の 通路。{w=300}
 校舎の 西を 回って、校庭へ。`,
+  /** 裏庭の 立て札（2026-10-06 依頼主「校庭に 入る 所が 分かりづらい」）。 */
+  obj_kotei_fuda: `@narr
+木の 立て札。{w=300}
+白い ペンキで『← 校庭』。
+/
+砂利の 道が、西の 生け垣の
+すきまへ 続いている。`,
 };
 
 /** 直した ヒキヅナ（段階2、倉庫の 前で まるまっている）。 */
