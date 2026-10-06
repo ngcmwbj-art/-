@@ -363,7 +363,7 @@ export class Hd2dView {
     // The map is drawn once all the same: a shadow sampler with nothing bound stops the draws)
     this.renderer.shadowMap.autoUpdate = this.sun.intensity > 0.001 || !this.sun.shadow.map;
     // (星見台's night outdoors: the 2D's light map multiplies every surface, cut_night.ts)
-    if (nightMul(f, tgt.x, tgt.z, SV * this.stretch, this.scene.fog)) patchNight(this.scene);
+    if (nightMul(f, tgt.x, tgt.z, SV * this.stretch, this.scene.fog, this.quality === 'light')) patchNight(this.scene);
     // characters: drawn as painted, under the grade like everything else
     this.tint.setRGB(1.04, 1.0, 0.97);
     this.actors.update(f, sunYaw, this.tint, world, this.sunDir);

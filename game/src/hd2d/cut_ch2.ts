@@ -45,12 +45,13 @@ export const CH2_SHOTS: Record<string, ShotDef> = {
   h2_school: { lens: { pitch: 38, fov: 26, dist: 23, lift: 0.5 }, to: { dist: 22 }, drift: 4000 },
   // 2e the path's mouth: まつ先生 looking up at the morning sun
   h2_path: { lens: { pitch: 28, fov: 26, dist: 23, lookN: 0.6, lift: 0.6 }, to: { pitch: 26, dist: 22 }, drift: 4000 },
-  // cut 3 the turning circle: the send-off, the bus
-  h3_bus: { lens: { pitch: 32, fov: 26, dist: 25, lookN: 0, lift: 0.5 }, to: { pitch: 31, dist: 24 }, drift: 12000 },
+  // cut 3 the turning circle: the send-off, the bus (not much lower than the field's: the hedge along
+  // the rails south of the circle would stand up blurred across the bottom)
+  h3_bus: { lens: { pitch: 37, fov: 26, dist: 25, lookN: 0.6, lift: 0.5 }, to: { pitch: 36, dist: 24 }, drift: 12000 },
   // cut 4 夕鳴町's stop at night
   h4_stop: { lens: { pitch: 32, fov: 26, dist: 25, lookN: 0, lift: 0.5 }, to: { pitch: 31, dist: 24 }, drift: 12000 },
   // cut 4b the turning circle again: マル and とまたろう
-  h4b_bus: { lens: { pitch: 30, fov: 24, dist: 24, lookN: 0, lift: 0.5 }, to: { dist: 23 }, drift: 8000 },
+  h4b_bus: { lens: { pitch: 36, fov: 24, dist: 24, lookN: 0.6, lift: 0.5 }, to: { dist: 23 }, drift: 8000 },
   // cut 5 home: the mother at the sink, the bag of tomatoes, the TV (chapter 1's cut 4 lens)
   h5_home: { lens: { pitch: 32, fov: 24, dist: 21, lift: 0.6 }, to: { dist: 20 }, drift: 6000 },
 };

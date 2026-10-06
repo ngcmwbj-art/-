@@ -121,6 +121,28 @@ function vehicleGeometry(id: string, view: VehicleView): THREE.BufferGeometry {
   return g;
 }
 
+let lampImg: HTMLCanvasElement | null = null;
+/**
+ * テツヤ's headlight itself (render.ts headlampGlow: the 2D's emissive dot on
+ * the machine's nose, turned with the beam — the beam on the ground is the
+ * night's map, cut_night.ts) as a glow over his picture.
+ */
+function headlamp(a: Actor, pic: HTMLCanvasElement): CharGlow {
+  if (!lampImg) {
+    lampImg = document.createElement('canvas');
+    lampImg.width = 9;
+    lampImg.height = 9;
+    const g = new Gfx(lampImg.getContext('2d')!, 9, 9);
+    g.rect(1, 2, 7, 5, '#F2894B', 0.25);
+    g.rect(2, 1, 5, 7, '#F2894B', 0.25);
+    g.rect(3, 3, 3, 3, '#FFE7A3');
+    g.px(4, 4, '#FFFFFF');
+  }
+  const ang = (a.data.lampAngle as number | undefined) ?? (a.dir === 'left' ? Math.PI : 0);
+  const [ix, iy] = a.drawPos(pic);
+  return { img: lampImg, dx: Math.round(a.x + Math.cos(ang) * 11) - ix - 4, dy: Math.round(a.y - 8 + Math.sin(ang) * 3) - iy - 4 };
+}
+
 /** A unit quad standing on its bottom edge (x −0.5..0.5, y 0..1), facing +Z. */
 const STAND = new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0);
 /** A unit quad lying on the ground. */
@@ -243,7 +265,7 @@ class ActorView {
     const lit = world.lightAt ? world.lightAt(x, (a.y + Math.max(0, a.oy)) * PX) : 1;
     this.mat.color.copy(tint).multiplyScalar((shaded ? SHADE : 1) * lit);
     world.tintAt?.(x, (a.y + Math.max(0, a.oy)) * PX, this.mat.color);
-    this.placeGlow(a.drawFn || vpic ? null : charGlow(pic), x - w / 2, up - below + h, z, alpha);
+    this.placeGlow(a.drawFn || vpic ? null : a.data.selfLit ? headlamp(a, pic) : charGlow(pic), x - w / 2, up - below + h, z, alpha);
     const sw = Math.max(0.55, Math.min(1.4, (a.drawFn ? (a.data.vehicle ? 3 : 1) : w) * 0.8));
     const ground = world.heightAt(x, z - 0.05);
     this.shadow.position.set(x, ground + 0.02, z - 0.06);

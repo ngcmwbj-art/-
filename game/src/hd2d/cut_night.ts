@@ -205,6 +205,9 @@ let nmCanvas: HTMLCanvasElement | null = null;
 let nmCtx: CanvasRenderingContext2D | null = null;
 let nmTex: THREE.CanvasTexture | null = null;
 let nmGfx: Gfx | null = null;
+/** The field the map was last painted for, and a frame count (light quality: every other frame). */
+let nmField: FieldScene | null = null;
+let nmFrame = 0;
 /** QA: the last painting's time (ms) and rect. */
 const nmQa = { ms: 0, rect: [0, 0, 0, 0] };
 
@@ -278,11 +281,14 @@ export function patchNight(root: THREE.Object3D): void {
  * switched off (the patched materials then draw as they did). `sv`: a
  * standing thing's height per px of its picture. Returns whether it is on.
  */
-export function nightMul(f: FieldScene, tx: number, tz: number, sv: number, fog: THREE.Fog | THREE.FogExp2 | null = null): boolean {
+export function nightMul(f: FieldScene, tx: number, tz: number, sv: number, fog: THREE.Fog | THREE.FogExp2 | null = null, half = false): boolean {
   if (!nightMulWanted(f)) {
     nm.hdNightOn.value = 0;
     return false;
   }
+  // (light quality — the phones — paints it every other frame; the last one, with its own rect, stands between)
+  if (half && nm.hdNightOn.value && nmField === f && nmFrame++ % 2) return true;
+  nmField = f;
   // the haze far off: the night's, not the evening's orange (towards it again as the morning comes)
   if (fog) fog.color.set(FOG_DAY).lerp(fogNight, Math.max(0, Math.min(1, f.grade.night)));
   const t0 = performance.now();
