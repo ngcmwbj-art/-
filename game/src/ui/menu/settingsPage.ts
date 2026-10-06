@@ -184,7 +184,7 @@ export class SettingsPage implements MenuPage {
     } else if (row === 4) {
       if (!view.webgl) g.text('この 機械では 2D で 見える。', nx, ny, { color: UI.pencil });
       else {
-        g.text('HD-2D：第1章の 町が 立体に なる。', nx, ny, { color: settings.hd2d ? UI.pencil : UI.textDim });
+        g.text('HD-2D：町や 村が 立体に なる。', nx, ny, { color: settings.hd2d ? UI.pencil : UI.textDim });
         g.text('2D：ドット絵の まま。 軽い。', nx, ny + 17, { color: settings.hd2d ? UI.textDim : UI.pencil });
       }
     } else if (row === 0 || row === 1) g.text('0 に すると、音が 消える。', nx, ny, { color: UI.pencil });

@@ -13,7 +13,18 @@
 // shifted. Kire 2's colour is a second still (20% more saturated, rendered
 // with the first); the 0.3 s standstill's grey is made from the still on
 // the 2D side the first time it's needed.
+//
+// Chapter 2 (2026-10-06, 依頼主「第２章もHD-2Dにしてみよう」): its battles
+// (bg_h_*) stand on the 3D village or room at night too. Outdoors, where
+// the low camera sees past the land, the backdrop's own painted night sky
+// (its bands, Milky Way, far ridges and lights: Background.paintPlaceSky)
+// shows behind the place: the still is drawn once more as a silhouette
+// against a key colour (Hd2dView.silhouette, its front edge cut as the
+// still's), the sky's px made clear, and the sky laid under it again every
+// SKY_STEP ms (the far lights, the dawn's edge; the stars twinkle on the 2D
+// side, in that sky only: isSky). The far land fades into the sky's haze.
 
+import * as THREE from 'three';
 import { game } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { makeCanvas } from '../engine/pixel';
@@ -22,11 +33,16 @@ import { registerDebug } from '../debug';
 import { field, type FieldScene } from '../world/field';
 import { setPlaceMaker, type PlaceView } from '../battle/bg/place';
 import { BG_H, type Background } from '../battle/bg/common';
+import { BG_IDS } from '../battle/bg';
 import type { Hd2dView, StillPose } from './view';
 import { roomMap } from './room';
 
-/** The backdrops that become the place (chapter 1's); chapter 2's keep their pictures. */
-const PLACE_BGS = new Set(['bg_residential', 'bg_reverse_rain', 'bg_kanenari', 'bg_ojigi', 'bg_mall_floor', 'bg_boss']);
+/** The backdrops that become the place: chapter 1's, and since 2026-10-06 chapter 2's (bg_h_*): all of them. */
+const PLACE_BGS = new Set(BG_IDS);
+/** How often (ms of the backdrop's time) the painted sky is laid under the place again. */
+const SKY_STEP = 125;
+/** Where the silhouette pass sees no land: a key no picture has. */
+export const KEY = new THREE.Color(0, 1, 0);
 
 /**
  * The battle camera, outdoors and in a room: degrees down, lens, distance
@@ -82,6 +98,16 @@ class Place implements PlaceView {
   private out: HTMLCanvasElement | null = null;
   private scratch: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
   private size = [0, 0];
+  /** Chapter 2 outdoors: the painted sky (2D px) and the still over it (sky clear), laid again every SKY_STEP. */
+  private sky: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
+  private flat: HTMLCanvasElement | null = null;
+  private flatKey = '';
+  /** The last picture laid unshifted (the standstill drains it). */
+  private laid: HTMLCanvasElement | null = null;
+  /** Where the place shows sky, per 2D px (1). */
+  private skyMask: Uint8Array | null = null;
+  /** The still's camera (what the backdrop pins to the place is projected with it). */
+  private cam: THREE.PerspectiveCamera | null = null;
   /** QA: how long the stills took (ms). */
   renderMs = 0;
 
@@ -89,6 +115,9 @@ class Place implements PlaceView {
     private readonly v: Hd2dView,
     private readonly f: FieldScene,
     private readonly alive: () => boolean,
+    /** The backdrop paints a night sky behind the place (chapter 2 outdoors). */
+    private readonly bg: Background,
+    private readonly painted: boolean,
   ) {
     this.render();
   }
@@ -96,11 +125,44 @@ class Place implements PlaceView {
   private render(): void {
     const d = game.screen.display;
     const t0 = performance.now();
-    this.still = copyOf(this.v.still(this.f, d.width, d.height, poseFor(this.v, this.f)), this.still);
-    this.vivid = copyOf(this.v.still(this.f, d.width, d.height, poseFor(this.v, this.f, -0.2)), this.vivid);
+    const v = this.v;
+    const haze = this.painted ? this.bg.placeHaze() : null;
+    const fog = v.scene.fog;
+    if (haze) v.scene.fog = new THREE.Fog(new THREE.Color(haze), 24, 110);
+    let key: ImageData | null = null;
+    const draw = () => {
+      this.still = copyOf(v.still(this.f, d.width, d.height, poseFor(v, this.f)), this.still);
+      this.cam = v.camera.clone();
+      if (this.painted) {
+        const k = v.silhouette(KEY, true);
+        const [kc, kx] = makeCanvas(k.width, k.height, { willReadFrequently: true });
+        kx.drawImage(k, 0, 0);
+        key = kx.getImageData(0, 0, k.width, k.height);
+        release(kc);
+      }
+      this.vivid = copyOf(v.still(this.f, d.width, d.height, poseFor(v, this.f, -0.2)), this.vivid);
+    };
+    // (a prop that is the enemy itself is left out: the loudspeaker on the hill)
+    const leave = this.bg.placeLeaves();
+    const left = leave.length ? this.f.props.filter((p) => p.present && p.obj.t === 'prop' && leave.includes((p.obj as { prop?: string }).prop ?? '')) : [];
+    for (const p of left) p.present = false;
+    try {
+      // (the backdrop's own sky goes where the 3D's sky planes would hang)
+      if (this.painted) withoutSkyBackdrops(v.scene, draw);
+      else draw();
+    } finally {
+      v.scene.fog = fog;
+      for (const p of left) p.present = true;
+    }
+    if (key) {
+      clearSky(this.still, key);
+      clearSky(this.vivid, key);
+      this.skyMask = maskOf(key);
+    } else this.skyMask = null;
     this.renderMs = Math.round(performance.now() - t0);
     release(this.greyed);
     this.greyed = null;
+    this.flatKey = '';
     this.size = [d.width, d.height];
   }
 
@@ -125,10 +187,41 @@ class Place implements PlaceView {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, W, H);
     ctx.restore();
-    const src = bg.kire >= 2 ? this.vivid! : this.still;
+    const src = this.flatFor(bg);
+    this.laid = src;
     const waver = bg.kire >= 1 ? waverOf(bg) : null;
     game.screen.underlay = ox || oy || waver ? this.shifted(src, ox, oy, waver) : src;
     return true;
+  }
+
+  /** The still (kire 2's colour: the vivid one), with the backdrop's painted sky under it when it has one. */
+  private flatFor(bg: Background): HTMLCanvasElement {
+    const vivid = bg.kire >= 2;
+    const src = vivid ? this.vivid! : this.still!;
+    if (!this.skyMask) return src;
+    const step = Math.floor((bg.mt * 1000) / SKY_STEP);
+    const key = `${step}|${vivid ? 1 : 0}`;
+    if (this.flat && this.flatKey === key && this.flat.width === src.width && this.flat.height === src.height) return this.flat;
+    this.flatKey = key;
+    this.sky ??= makeCanvas(W, H);
+    const [sc, s] = this.sky;
+    s.fillStyle = bg.bottom;
+    s.fillRect(0, 0, W, H);
+    if (!bg.paintPlaceSky(s, step * (SKY_STEP / 1000))) return src;
+    if (vivid) {
+      // (kire 2: the sky 20% more coloured too, as the 2D's)
+      s.filter = 'saturate(1.2)';
+      s.drawImage(sc, 0, 0);
+      s.filter = 'none';
+    }
+    if (!this.flat || this.flat.width !== src.width || this.flat.height !== src.height) [this.flat] = makeCanvas(src.width, src.height);
+    const c = this.flat.getContext('2d')!;
+    c.imageSmoothingEnabled = false;
+    c.globalCompositeOperation = 'copy';
+    c.drawImage(sc, 0, 0, src.width, src.height);
+    c.globalCompositeOperation = 'source-over';
+    c.drawImage(src, 0, 0);
+    return this.flat;
   }
 
   /** The still laid again, `ox`, `oy` (2D px) off, its rows shifted by `waver`. */
@@ -156,7 +249,7 @@ class Place implements PlaceView {
     if (!this.still) return;
     if (!this.greyed) {
       // as the 2D drains its frame (scene.ts drawFreeze)
-      this.greyed = copyOf(this.still, null);
+      this.greyed = copyOf(this.laid ?? this.still, null);
       const c = this.greyed.getContext('2d')!;
       c.globalCompositeOperation = 'saturation';
       c.globalAlpha = 0.85;
@@ -190,12 +283,76 @@ class Place implements PlaceView {
     ctx.restore();
   }
 
+  isSky(x: number, y: number): boolean {
+    const m = this.skyMask;
+    if (!m) return false;
+    const xi = Math.round(x);
+    const yi = Math.round(y);
+    return xi >= 0 && yi >= 0 && xi < W && yi < H && m[yi * W + xi] === 1;
+  }
+
+  project(x: number, y: number, foot = y): [number, number] | null {
+    return this.cam ? this.v.projectWith(this.cam, x, y, foot) : null;
+  }
+
   dispose(): void {
     if (active === this) active = null;
-    for (const c of [this.still, this.vivid, this.greyed, this.out, this.scratch?.[0] ?? null]) release(c);
-    this.still = this.vivid = this.greyed = this.out = null;
-    this.scratch = null;
+    for (const c of [this.still, this.vivid, this.greyed, this.out, this.flat, this.scratch?.[0] ?? null, this.sky?.[0] ?? null]) release(c);
+    this.still = this.vivid = this.greyed = this.out = this.flat = this.laid = null;
+    this.scratch = this.sky = null;
+    this.skyMask = null;
   }
+}
+
+/**
+ * Run `fn` with the 3D sky's backdrops hidden — the far sky planes hung
+ * behind a place (the roof's evening sky, 星見台's night sky over the
+ * hilltops: outskirts.ts, drawn first and without fog) — so a painted sky
+ * goes there instead (a chapter-2 battle's own sky, the sunrise's dawn).
+ */
+export function withoutSkyBackdrops<T>(scene: THREE.Scene, fn: () => T): T {
+  const hidden: THREE.Object3D[] = [];
+  scene.traverse((o) => {
+    if (!(o instanceof THREE.Mesh) || !o.visible || o.renderOrder !== -1) return;
+    const m = o.material as THREE.Material & { fog?: boolean };
+    if (m.fog !== false) return;
+    o.visible = false;
+    hidden.push(o);
+  });
+  try {
+    return fn();
+  } finally {
+    for (const o of hidden) o.visible = true;
+  }
+}
+
+/** The key's px (the silhouette pass: where the place sees no land). */
+const isKey = (d: Uint8ClampedArray, i: number) => d[i] < 24 && d[i + 1] > 230 && d[i + 2] < 24;
+
+/** The still's sky made clear (the painted sky goes under it; chapter 2's sunrise too, cut_ch2.ts). */
+export function clearSky(c: HTMLCanvasElement | null, key: ImageData): void {
+  if (!c || c.width !== key.width || c.height !== key.height) return;
+  const ctx = c.getContext('2d', { willReadFrequently: true })!;
+  const img = ctx.getImageData(0, 0, c.width, c.height);
+  const px = img.data;
+  const k = key.data;
+  for (let i = 0; i < px.length; i += 4) if (isKey(k, i)) px[i + 3] = 0;
+  ctx.putImageData(img, 0, 0);
+}
+
+/** Where the place shows sky, sampled at each 2D px's centre (1: sky). */
+export function maskOf(key: ImageData): Uint8Array {
+  const m = new Uint8Array(W * H);
+  const kx = key.width / W;
+  const ky = key.height / H;
+  for (let y = 0; y < H; y++) {
+    const sy = Math.min(key.height - 1, Math.floor((y + 0.5) * ky));
+    for (let x = 0; x < W; x++) {
+      const sx = Math.min(key.width - 1, Math.floor((x + 0.5) * kx));
+      if (isKey(key.data, (sy * key.width + sx) * 4)) m[y * W + x] = 1;
+    }
+  }
+  return m;
 }
 
 /** Kire 1's waver of the place's rows (2D px), after the backdrop's own wave. */
@@ -212,19 +369,28 @@ function waverOf(bg: Background): (y: number) => number {
 
 let active: Place | null = null;
 
+let skyProbe: CanvasRenderingContext2D | null = null;
+/** A 2D canvas to ask a backdrop whether it paints a sky (paintPlaceSky's answer). */
+function scratchSky(): CanvasRenderingContext2D {
+  skyProbe ??= makeCanvas(W, H)[1];
+  return skyProbe;
+}
+
 /**
  * index.ts: battles get their place while `drawn(f)` says the field below is
  * in HD-2D (hd2dField) and `view()` gives the WebGL view.
  */
 export function installBattlePlaces(view: () => Hd2dView | null, drawn: (f: FieldScene) => boolean): void {
-  setPlaceMaker((bgId) => {
+  setPlaceMaker((bgId, _enemyId, bg) => {
     if (!PLACE_BGS.has(bgId)) return null;
     const f = field();
     if (!f || !game.scenes.includes(f) || !drawn(f)) return null;
     const v = view();
     if (!v) return null;
     active?.dispose();
-    const p = new Place(v, f, () => drawn(f) && view() === v);
+    // (a painted sky outdoors only: a room's walls stand all round)
+    const sky = !roomMap(f.map.id) && bg.paintPlaceSky(scratchSky(), 0);
+    const p = new Place(v, f, () => drawn(f) && view() === v, bg, sky);
     active = p;
     return p;
   });

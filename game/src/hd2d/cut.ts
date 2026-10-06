@@ -32,13 +32,15 @@ import { fxElsewhere } from '../world/fx';
 import { endingView } from '../events/ending';
 import { nightTown } from '../ui/ending';
 import type { CamParams, Hd2dView, StillPose } from './view';
+// (chapter 2's shots and pictures)
+import { CH2_SHOTS } from './cut_ch2';
 
 /** A shot's camera: the field's (view.ts CAM), and `lift` — how high over the ground it aims (units). */
 export interface Lens extends CamParams {
   lift: number;
 }
 
-interface ShotDef {
+export interface ShotDef {
   /** The lens the shot opens on (what it leaves out: the field's). */
   lens: Partial<Lens>;
   /** Where it drifts to once it is in, over `drift` ms: a slow push in, a crane down. */
@@ -75,6 +77,8 @@ const SHOTS: Record<string, ShotDef> = {
   // …and once it has gone, closing in on the two, a little lower (with the 2× → 3× crop and the letterbox)
   c6_close: { lens: { pitch: 31, fov: 24, dist: 21, lookN: 0, lift: 0.8 } },
 };
+// chapter 2's ending and prologue (cut_ch2.ts)
+Object.assign(SHOTS, CH2_SHOTS);
 
 /**
  * cut_night_sky's town (Hd2dView.still): from the paddies' path south of the
@@ -109,6 +113,11 @@ let fieldCam: CamParams | null = null;
 export function bindView(v: Hd2dView, cam: CamParams): void {
   view = v;
   fieldCam = cam;
+}
+
+/** The view bound above (chapter 2's cuts, cut_ch2.ts), or null before the 3D layer is up. */
+export function boundView(): Hd2dView | null {
+  return view;
 }
 
 function fieldLens(): Lens {

@@ -53,13 +53,47 @@ import type { FieldScene, PropInst } from '../world/field';
 import { INDOOR_MUL, type Grade } from '../world/lighting';
 import { registerDebug } from '../debug';
 import { CasterSet, CutoutView, PropBatch, ShadowSet, SV, type Box, type CasterSpec, type LightSpot } from './town';
-import { NUDGE, solidOf } from './tune';
+import { NUDGE, SOLID, solidOf } from './tune';
 import { box, canvas, litMaterial, pixelTexture, PX, Quads, solidFace, type Face, type V3 } from './solid';
 import { recording, type Solid } from './overlap';
-import { LIE, ROOM_TUNE } from './room_tune';
+import { ALOFT, HANG, LIE, ROOM_SOLID, ROOM_TUNE, type HangBand } from './room_tune';
+import { HoshiLight } from './room_hoshi';
 
-/** The rooms drawn in HD-2D: chapter 1's houses, shops and the mall (chapter 2's rooms stay 2D). */
+/**
+ * The rooms of chapter 2 (2026-10-06 依頼主「第２章もHD-2Dにしてみよう」):
+ * 星見台's night train, ペロ's greenhouse No.3, the Ishiguro barn, the old
+ * branch school, the observatory and the village's houses, sheds and
+ * greenhouses (data/maps/hoshi_rooms2.ts). Their light is the 2D's own
+ * light map, all of it (room_hoshi.ts).
+ */
+export const CH2_ROOMS = new Set([
+  'map_hoshi_train',
+  'map_hoshi_house',
+  'map_hoshi_barn',
+  'map_hoshi_school',
+  'map_hoshi_dome',
+  'map_hoshi_fumi',
+  'map_hoshi_minka1',
+  'map_hoshi_minka2',
+  'map_hoshi_minka3',
+  'map_hoshi_kucho',
+  'map_hoshi_sawako',
+  'map_hoshi_gen',
+  'map_hoshi_kominka',
+  'map_hoshi_akiya',
+  'map_hoshi_shoten',
+  'map_hoshi_soko',
+  'map_hoshi_gym',
+  'map_hoshi_taihisha',
+  'map_hoshi_koya',
+  'map_hoshi_shouboya',
+  'map_hoshi_house1',
+  'map_hoshi_house2',
+]);
+
+/** The rooms drawn in HD-2D: chapter 1's houses, shops and the mall, and chapter 2's (CH2_ROOMS). */
 export const ROOM_MAPS = new Set([
+  ...CH2_ROOMS,
   'map_home_1f',
   'map_home_2f',
   'map_shingo',
@@ -85,6 +119,9 @@ export const ROOM_MAPS = new Set([
   'map_mall_2f',
   'map_mall_maigo',
 ]);
+
+// the rooms' own entries of the town's table of bodies (room_tune.ts ROOM_SOLID; the town's win)
+for (const [id, spec] of Object.entries(ROOM_SOLID)) SOLID[id] ??= spec;
 
 /** QA: __game.cmd.hd2dRooms(false) leaves the rooms 2D (the town stays 3D). */
 export const rooms3d = { on: true };
@@ -170,6 +207,21 @@ export interface RoomTune {
   windows?: RoomWindow[];
   /** No beams through the windows found in the glass map (they are a door's glass, a picture...). */
   noGlass?: boolean;
+  /** The side walls' height (px; else the back wall's): low where what the 2D paints on a side must show over them. */
+  sideH?: number;
+  /**
+   * Void cells (tiles x0..x1 × y0..y1) that are a low wall `h` px tall: a
+   * block with the 2D's picture of them on top, in place of the side walls
+   * along them (the barn's block wall between the anteroom and the pens).
+   */
+  low?: { x0: number; y0: number; x1: number; y1: number; h: number }[];
+  /**
+   * Pieces of the room's picture (world px x0..x1 × y0..y1) that stand up
+   * at their foot line y1, `dx` px further east: what the 2D paints beyond
+   * the floor and has to show (the observatory's hand cranks on its west
+   * wall); `keep(x, y)` (world px) the pixels of it that are the thing.
+   */
+  stand?: { x0: number; y0: number; x1: number; y1: number; dx?: number; keep?: (x: number, y: number) => boolean }[];
 }
 
 /** The room as a diorama (see the top of this file). Same face to view.ts and actors.ts as TownWorld. */
@@ -229,12 +281,16 @@ export class RoomWorld {
   private shaftMat: THREE.MeshBasicMaterial | null = null;
   private dust: { pts: THREE.Points; at: Float32Array; motes: { s: number; w: number; t: number; v: number; sh: number }[]; ends: [V3, V3, V3, V3, V3, V3, V3, V3][] } | null = null;
   private readonly cropped = new Map<HTMLCanvasElement, HTMLCanvasElement>();
+  /** The bands cut of hung things' pictures (hung()). */
+  private readonly bands = new Map<HTMLCanvasElement, Map<string, HTMLCanvasElement>>();
   private readonly fades: { side: 'l' | 'r' | 't' | 'b' }[] = [];
   private readonly glassCache = new Map<PropInst, { key: string; c: HTMLCanvasElement }>();
   private saved: { sun: THREE.Color; sky: THREE.Color; ground: THREE.Color } | null = null;
   private sunRef: THREE.DirectionalLight | null = null;
   private hemiRef: THREE.HemisphereLight | null = null;
   readonly mapLit: boolean;
+  /** A room of chapter 2: its light is the 2D's light map, all of it (room_hoshi.ts). */
+  private readonly hoshi: HoshiLight | null = null;
 
   constructor(
     readonly f: FieldScene,
@@ -306,6 +362,8 @@ export class RoomWorld {
     this.lightTex.colorSpace = THREE.NoColorSpace;
     this.lightTex.magFilter = THREE.LinearFilter;
     this.lightTex.minFilter = THREE.LinearFilter;
+    // (星見台's rooms: lit by the 2D's whole light map instead, room_hoshi.ts)
+    if (CH2_ROOMS.has(m.id)) this.hoshi = new HoshiLight(f, this.X0, this.Y0, this.EW, this.EH, (tx, ty) => this.kind(tx, ty) !== 'void' || this.partition(tx, ty) || this.lowAt(tx, ty));
     // the side walls' bands from the back wall's face (before the light goes on it)
     this.paint(0, false);
     this.strip = this.wallBands();
@@ -313,6 +371,7 @@ export class RoomWorld {
     lap('picture');
     // ---- the surfaces
     this.buildSurfaces();
+    this.buildPieces();
     lap('walls');
     // ---- the windows and their beams
     this.findWindows();
@@ -344,12 +403,28 @@ export class RoomWorld {
         } else this.lying[0].add(p, env, LIE[pid]);
         continue;
       }
+      // what runs in the air along the room (room_tune.ts ALOFT: the greenhouse's overhead wires)
+      if (ALOFT[pid] !== undefined && a.flat) {
+        this.aloft(p, env, ALOFT[pid]);
+        continue;
+      }
+      // what hangs over another place than its anchor (room_tune.ts HANG: the barn's tubes over the aisle)
+      if (HANG[pid] && a.flat) {
+        for (const band of HANG[pid]) {
+          const c = new CutoutView(this.underCeiling(this.hung(p, band), env), env, this.casterSpecs, this.batches, this.shadows, 0, solids);
+          this.cutouts.push(c);
+          this.group.add(c.group);
+        }
+        continue;
+      }
       this.nudgeOffWall(p);
       const c = new CutoutView(this.underCeiling(p, env), env, this.casterSpecs, this.batches, this.shadows, 0, solids);
       this.cutouts.push(c);
       this.group.add(c.group);
-      if (c.spot) this.spots.push(c.spot);
-      else if (a.light && a.flat && a.fg?.length) {
+      if (c.spot) {
+        // (a glowing thing's small point light; chapter 2's only where it throws light — a cow's eyes glint, they light nothing)
+        if (!this.hoshi || a.light) this.spots.push(c.spot);
+      } else if (a.light && a.flat && a.fg?.length) {
         // a pendant (lit at night only, as in 2D): its light just under its shade
         const low = Math.max(...a.fg.map((pt) => pt.oy));
         this.pendants.push({ x: (p.x + 8) * PX, y: Math.max(0.3, -low * PX * SV - 0.35), z: p.y * PX, p });
@@ -370,6 +445,11 @@ export class RoomWorld {
       this.group.add(this.casters.mesh);
     }
     lap('batches');
+    if (this.hoshi) {
+      // every surface multiplied by the light map; then the halos and the lantern's ring on top
+      this.hoshi.dressAll(this.group);
+      this.group.add(this.hoshi.group);
+    }
     shown = this;
   }
 
@@ -386,6 +466,7 @@ export class RoomWorld {
       spots: this.spots.length,
       pendants: this.pendants.length,
       night: this.f.grade.night,
+      frame: this.frameParts,
       lightData: !!this.lightData,
       lightMap: [!!this.roomMat?.lightMap, this.roomMat?.lightMapIntensity, this.roomMat?.lightMap === this.lightTex],
     };
@@ -456,6 +537,62 @@ export class RoomWorld {
     // (the instance itself underneath: present, seed and the rest read through)
     const q = Object.create(p) as PropInst;
     q.art = { ...a, fg };
+    return q;
+  }
+
+  /**
+   * A thing in the air running along the room (room_tune.ts ALOFT): its fg
+   * pictures lying flat `h` px up, `h` px further south — each pixel where
+   * the 2D shows it, its lines running north–south in the air.
+   */
+  private aloft(p: PropInst, env: ReturnType<FieldScene['propEnv']>, h: number): void {
+    for (const pt of p.art.fg ?? []) {
+      const img = pt.img(env);
+      if (!img) continue;
+      const x0 = (p.x + pt.ox) * PX;
+      const x1 = x0 + img.width * PX;
+      const zN = (p.y + pt.oy + h) * PX;
+      const zS = zN + img.height * PX;
+      const y = h * PX * SV;
+      const q = new Quads();
+      q.add([x0, y, zS], [x1, y, zS], [x1, y, zN], [x0, y, zN], [0, 1, 0], 0, 0, 1, 1);
+      const mesh = new THREE.Mesh(q.geometry(), litMaterial(pixelTexture(img), { side: THREE.DoubleSide }));
+      mesh.castShadow = true;
+      this.group.add(mesh);
+    }
+  }
+
+  /**
+   * One band of a hung thing's fg picture (room_tune.ts HANG: rows y0..y1
+   * of it, prop px) standing at the foot line `foot` (prop px): the same
+   * thing with that band only, hanging as high over that line as the 2D
+   * draws it over it.
+   */
+  private hung(p: PropInst, band: HangBand): PropInst {
+    const a = p.art;
+    const fg = (a.fg ?? []).map((pt) => ({
+      ...pt,
+      oy: Math.max(pt.oy, band.y0),
+      img: (e: ReturnType<FieldScene['propEnv']>) => {
+        const img = pt.img(e);
+        if (!img) return null;
+        const top = Math.max(0, band.y0 - pt.oy);
+        const h = Math.min(img.height, band.y1 - pt.oy) - top;
+        if (h <= 0) return null;
+        const key = `${top}:${h}`;
+        let m = this.bands.get(img);
+        if (!m) this.bands.set(img, (m = new Map()));
+        let c = m.get(key);
+        if (!c) {
+          const [cc, ctx] = canvas(img.width, h);
+          ctx.drawImage(img, 0, -top);
+          m.set(key, (c = cc));
+        }
+        return c;
+      },
+    }));
+    const q = Object.create(p) as PropInst;
+    q.art = { ...a, foot: band.foot, fg };
     return q;
   }
 
@@ -645,7 +782,8 @@ export class RoomWorld {
       }
     }
     if (!lit) return;
-    this.paintLight();
+    if (this.hoshi) this.hoshi.glowFx(this.gctx);
+    else this.paintLight();
     this.fadeEdges();
     if (this.strip) {
       // the spare columns: the side walls' bands, the cross-section's colours
@@ -715,7 +853,8 @@ export class RoomWorld {
   lightAt(x: number, z: number): number {
     const n = this.f.grade.night;
     const d = this.lightData;
-    if (n < 0.05 || !d) return 1;
+    // (星見台's rooms: by the colour where they stand, tintAt)
+    if (n < 0.05 || !d || this.hoshi) return 1;
     const px = Math.floor(x * 16 - this.X0);
     const py = Math.floor(z * 16 - 6 - this.Y0);
     let pool = 0;
@@ -886,6 +1025,33 @@ export class RoomWorld {
       box(room, xa, xb, h, h, z - WALL_T * PX, z, { top: sec });
       tx = t1;
     }
+    // 星見台: a wall between two parts of a room (the school's classrooms and
+    // its hallway) stands its 2D picture at its foot line as the back wall
+    // does — the 2D paints its face there (partition())
+    for (let ty = 0; ty < m.h; ty++)
+      for (let tx = 0; tx < m.w; ) {
+        if (!this.partition(tx, ty)) {
+          tx++;
+          continue;
+        }
+        let t1 = tx;
+        while (t1 < m.w && this.partition(t1, ty)) t1++;
+        const h = 16 * PX * SV;
+        const z = ty + 1;
+        for (const q of [room, glow]) q.add([tx, 0, z], [t1, 0, z], [t1, h, z], [tx, h, z], [0, 0, 1], u(tx * 16), v(z * 16), u(t1 * 16), v(ty * 16));
+        box(room, tx, t1, h, h, z - WALL_T * PX, z, { top: sec });
+        tx = t1;
+      }
+    // the low walls (room_tune.ts): a block, the 2D's picture of them on top, their last rows on the front
+    for (const lw of ROOM_TUNE[m.id]?.low ?? []) {
+      const h = lw.h * PX * SV;
+      const c0 = lw.x0 * 16 - this.X0;
+      const c1 = (lw.x1 + 1) * 16 - this.X0;
+      const r0 = lw.y0 * 16 - this.Y0;
+      const r1 = (lw.y1 + 1) * 16 - this.Y0;
+      const side = solidFace(this.uvPx, c0 + 1, Math.round((r0 + r1) / 2));
+      box(room, lw.x0, lw.x1 + 1, 0, h, lw.y0, lw.y1 + 1, { top: { uv: this.uvPx, c0, r0, c1, r1 }, front: { uv: this.uvPx, c0, r0: r1 - lw.h, c1, r1 }, left: side, right: side });
+    }
     // the side walls: 4 px boxes beside the floor where the dark is (inside the map:
     // the mall's open ends, E, have none), in the back wall's bands
     const bands: Face = { uv: this.uvPx, c0: this.EW + 1.5, r0: 0, c1: this.EW + 1.5, r1: this.stripH };
@@ -895,16 +1061,18 @@ export class RoomWorld {
         let ty = 0;
         while (ty < m.h) {
           const nx = tx + side;
-          const wall = (y: number) => this.floorish(tx, y) && this.kind(tx, y) === 'floor' && nx >= 0 && nx < m.w && this.kind(nx, y) === 'void';
+          // (none along a low wall; beside a partition as tall as it: 1 tile)
+          const wall = (y: number) => this.floorish(tx, y) && this.kind(tx, y) === 'floor' && nx >= 0 && nx < m.w && this.kind(nx, y) === 'void' && !this.lowAt(nx, y);
           if (!wall(ty)) {
             ty++;
             continue;
           }
+          const part = this.partition(nx, ty);
           let t1 = ty;
-          while (t1 < m.h && wall(t1)) t1++;
+          while (t1 < m.h && wall(t1) && this.partition(nx, t1) === part) t1++;
           // as tall as the back wall over that side
           const col = this.wallTop[tx] >= 0 ? tx : this.wallTop.findIndex((w) => w >= 0);
-          const fh = col >= 0 ? (this.wallFoot[col] - this.wallTop[col]) * 16 : 32;
+          const fh = part ? 16 : (ROOM_TUNE[m.id]?.sideH ?? (col >= 0 ? (this.wallFoot[col] - this.wallTop[col]) * 16 : 32));
           const h = fh * PX * SV;
           // (it starts at the back wall's foot when the floor reaches it)
           const zN = col >= 0 && this.wallFoot[col] === ty ? ty : ty;
@@ -939,7 +1107,8 @@ export class RoomWorld {
     const outside = new THREE.Mesh(ex.geometry(), new THREE.MeshBasicMaterial({ map: this.tex, color: new THREE.Color(0.86, 0.86, 0.88) }));
     outside.renderOrder = -1;
     // (the 2D's light map's pools added: lightMapIntensity π adds the map's value times the colour)
-    const mat = litMaterial(this.tex, { alphaTest: 0, lightMap: this.lightTex, lightMapIntensity: Math.PI * LIGHT_MAP });
+    // (a room of chapter 2 is lit by its whole light map in the material instead: room_hoshi.ts)
+    const mat = litMaterial(this.tex, this.hoshi ? { alphaTest: 0 } : { alphaTest: 0, lightMap: this.lightTex, lightMapIntensity: Math.PI * LIGHT_MAP });
     this.roomMat = mat;
     const roomMesh = new THREE.Mesh(room.geometry(), mat);
     roomMesh.receiveShadow = true;
@@ -950,6 +1119,45 @@ export class RoomWorld {
     );
     glowMesh.renderOrder = 2;
     this.group.add(outside, roomMesh, glowMesh);
+  }
+
+  /**
+   * 星見台's rooms: a void cell that is a wall between two parts of the
+   * room — the floor just south of it, the room (wall or floor) north of it
+   * in its column, not a low wall: it stands its picture (buildSurfaces).
+   */
+  private partition(tx: number, ty: number): boolean {
+    if (!CH2_ROOMS.has(this.f.map.id) || this.kind(tx, ty) !== 'void' || !this.floorish(tx, ty + 1) || this.lowAt(tx, ty)) return false;
+    for (let y = 0; y < ty; y++) if (this.kind(tx, y) !== 'void') return true;
+    return false;
+  }
+
+  /** Is (tx, ty) one of the room's low walls (room_tune.ts)? */
+  private lowAt(tx: number, ty: number): boolean {
+    return !!ROOM_TUNE[this.f.map.id]?.low?.some((l) => tx >= l.x0 && tx <= l.x1 && ty >= l.y0 && ty <= l.y1);
+  }
+
+  /** The pieces of the picture that stand (room_tune.ts stand): a board each, lit as the furniture. */
+  private buildPieces(): void {
+    for (const s of ROOM_TUNE[this.f.map.id]?.stand ?? []) {
+      const w = s.x1 - s.x0;
+      const h = s.y1 - s.y0;
+      const [c, ctx] = canvas(w, h);
+      ctx.drawImage(this.pic, s.x0 - this.X0, s.y0 - this.Y0, w, h, 0, 0, w, h);
+      if (s.keep) {
+        const img = ctx.getImageData(0, 0, w, h);
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!s.keep(s.x0 + x, s.y0 + y)) img.data[(y * w + x) * 4 + 3] = 0;
+        ctx.putImageData(img, 0, 0);
+      }
+      const q = new Quads();
+      const x0 = (s.x0 + (s.dx ?? 0)) * PX;
+      const x1 = x0 + w * PX;
+      const z = s.y1 * PX;
+      q.add([x0, 0, z], [x1, 0, z], [x1, h * PX * SV, z], [x0, h * PX * SV, z], [0, 0, 1], 0, 0, 1, 1);
+      const mesh = new THREE.Mesh(q.geometry(), litMaterial(pixelTexture(c)));
+      mesh.castShadow = true;
+      this.group.add(mesh);
+    }
   }
 
   /** One colour of the spare columns: the cross-section (or its darker end face). */
@@ -1107,6 +1315,12 @@ export class RoomWorld {
     sun.target.position.set(t.x, 0, t.z - 1);
     sun.position.set(t.x + d.x * 30, d.y * 30, t.z - 1 + d.z * 30);
     sun.target.updateMatrixWorld();
+    if (this.hoshi) {
+      // 星見台: the ceiling light and the fill only shade; the colour is the light map's (room_hoshi.ts)
+      this.hoshi.light(sun, hemi);
+      this.lampsOn(true);
+      return Math.atan2(d.x, d.z);
+    }
     sun.color.set('#fff1dc');
     sun.intensity = 1.15 * (1 - night);
     // the sky light: the evening's; at night the 2D's indoor night base
@@ -1123,15 +1337,7 @@ export class RoomWorld {
     hemi.groundColor.set('#a898b8').lerp(this.nightSky, night * 0.6);
     hemi.intensity = 2.3 + (top * Math.PI - 2.3) * night;
     // the pendant lights come on at night (as their glow and light in 2D)
-    const lamps = night > 0.05;
-    if (lamps !== this.pendantsOn) {
-      this.pendantsOn = lamps;
-      for (const s of this.pendants) {
-        const i = this.spots.indexOf(s);
-        if (lamps && i < 0) this.spots.unshift(s);
-        else if (!lamps && i >= 0) this.spots.splice(i, 1);
-      }
-    }
+    this.lampsOn(night > 0.05);
     // the windows: the evening's colour, gone at night, faint in the stopped stage
     if (this.beamMat && this.patchMat) {
       const k = (1 - night) * (this.f.grade.motion < 0.5 && g.toMall < 0.5 ? 0.65 : 1);
@@ -1148,26 +1354,63 @@ export class RoomWorld {
     return Math.atan2(d.x, d.z);
   }
 
+  /** The pendant lights' spots on or off. */
+  private lampsOn(lamps: boolean): void {
+    if (lamps === this.pendantsOn) return;
+    this.pendantsOn = lamps;
+    for (const s of this.pendants) {
+      const i = this.spots.indexOf(s);
+      if (lamps && i < 0) this.spots.unshift(s);
+      else if (!lamps && i >= 0) this.spots.splice(i, 1);
+    }
+  }
+
   /** The lamps' strength (view.ts placeLamps): faint by day (the 2D's lamps light nothing then), full at night. */
   lampK(): number {
+    if (this.hoshi) return this.hoshi.lampK();
     return 0.22 + 0.6 * this.f.grade.night;
   }
 
-  /** The 2D's indoor grade for the finish (post.ts). */
+  /** The 2D's indoor grade for the finish (post.ts); 星見台's rooms: none (their light map is all of it). */
   grade(): Grade {
+    if (this.hoshi) return this.hoshi.grade(this.f.grade);
     return indoorGrade(this.f, this.f.propEnv(null).stage);
+  }
+
+  /** 星見台: the halos and the lantern's ring laid over the frame shown or not (view.ts still(): a battle's backdrop is without them). */
+  overlays(on: boolean): void {
+    if (this.hoshi) this.hoshi.group.visible = on;
+  }
+
+  /** 星見台: the light map's colour where a character stands, multiplied into `out` (actors.ts). */
+  tintAt(x: number, z: number, out: THREE.Color): void {
+    this.hoshi?.tintAt(x, z, out);
   }
 
   update(t: number, sunYaw: number, _sunDir: THREE.Vector3, lit: number, _tx: number, _tz: number, hides: (r: [number, number, number, number, number]) => boolean): void {
     const f = this.f;
+    let t0 = performance.now();
+    const lap = (k: string) => {
+      const t1 = performance.now();
+      this.frameParts[k] = Math.round((t1 - t0) * 100) / 100;
+      t0 = t1;
+    };
     if (t - this.lastPaint >= this.every || t < this.lastPaint) this.paint(t, true);
+    lap('picture');
     const seers = [f.player, ...(f.follower ? [f.follower] : [])].map((a) => ({ x: a.x + a.ox, y: a.y }));
     for (const c of this.cutouts) c.update(f, t, sunYaw, lit, seers, true, hides);
     for (const l of this.lying) l.update(f);
+    lap('props');
     // (the dust stands still with time, as the 2D's: drawn at t = 0 then)
     if (this.dust) this.placeDust(f.propEnv(null).stage === 1 ? 0 : t);
+    // 星見台: the light map again (the rings go with Minato), the halos, the ring
+    this.hoshi?.update(this.group.scale.y);
+    lap('light');
     this.casters?.turn(sunYaw);
   }
+
+  /** The last frame's update in parts (ms; QA hd2dRoom()). */
+  readonly frameParts: Record<string, number> = {};
 
   /** No steps indoors. */
   heightAt(_x: number, _z: number): number {
@@ -1194,6 +1437,7 @@ export class RoomWorld {
 
   dispose(): void {
     if (shown === this) shown = null;
+    this.hoshi?.dispose();
     // the town's sun and sky light as they were
     if (this.saved && this.sunRef && this.hemiRef) {
       this.sunRef.color.copy(this.saved.sun);

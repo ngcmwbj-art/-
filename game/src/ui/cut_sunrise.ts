@@ -16,11 +16,20 @@
 // The cut plays the picture's own two sounds (se_h_tomato_rise when the
 // tomato floats up, se_h_sunrise when it reaches the ridge); the music and
 // the ambience are the caller's (53 12.14).
+//
+// HD-2D (2026-10-06, 依頼主「第２章もHD-2Dにしてみよう」): the hill is the 3D
+// place. As the cut opens, src/hd2d/cut_ch2.ts draws the plaza and what lies
+// east of it from behind the two, over the east fence, before the dawn and
+// in the morning's light (sunriseView.land); the painted sky, the sun, the
+// clouds, the stars and the far mountains are laid behind it (raised to show
+// over the land if it stands higher than the valley's line), the two from
+// behind with the ground they stand on and the tomato in front — the 3D land
+// turning to morning with the dawn. Its times and sounds are the 2D's.
 
 import type { Co } from '../engine/co';
 import { game, type Scene } from '../engine/game';
-import type { Gfx } from '../engine/gfx';
-import { BAYER4, PixelCanvas } from '../engine/pixel';
+import { Gfx } from '../engine/gfx';
+import { BAYER4, makeCanvas, PixelCanvas } from '../engine/pixel';
 import { hash2 } from '../engine/rng';
 import { ease } from '../engine/tween';
 import { sfx } from '../audio';
@@ -203,6 +212,35 @@ interface Layers {
   mid: HTMLCanvasElement;
   near: HTMLCanvasElement;
   rim: HTMLCanvasElement;
+  /** HD-2D: the two from behind and the ground they stand on, without the painted fence (the 3D's). */
+  front: HTMLCanvasElement;
+}
+
+/**
+ * HD-2D: the hill in 3D under the dawn (src/hd2d/cut_ch2.ts fills
+ * sunriseView.land in; null keeps the painted picture — 2D, no WebGL,
+ * another map).
+ */
+export interface SunriseLand {
+  /** The 3D plaza and what lies east of it before the dawn and in the morning's light (the sky clear). */
+  pre: HTMLCanvasElement;
+  morning: HTMLCanvasElement;
+  /** How far (px of 216) the painted sky and mountains are raised to show over the land. */
+  lift: number;
+}
+
+export const sunriseView = {
+  land: (): SunriseLand | null => null,
+};
+
+/** The 3D hill for the cut now, or null (the painted picture). */
+function hdLand(): SunriseLand | null {
+  try {
+    return sunriseView.land();
+  } catch (e) {
+    console.warn('[sunrise] no 3D hill, the painted picture', e);
+    return null;
+  }
 }
 
 let layers: Layers | null = null;
@@ -287,6 +325,15 @@ function buildLayers(): Layers {
   // グソっ君 (★2026-09-29 カネナリくん→グソっ君): the armour's saw-tooth sides,
   // the feelers, the fan tail hanging like a cape
   gusokkunSilhouette(who, 168, fy, col);
+  // (HD-2D: the ground and the two without the fence)
+  const front = new PixelCanvas(W, H);
+  for (let x = 0; x < W; x++) {
+    const top = 203 + Math.round(Math.sin(x / 30) * 1.5 + hash2(x >> 1, 0, 37) * 2);
+    for (let y = top; y < H; y++) front.set(x, y, col);
+    if (hash2(x, 1, 37) < 0.4) front.set(x, top - 1, col);
+    if (hash2(x, 2, 37) < 0.15) front.set(x, top - 2, col);
+  }
+  front.blit(who, 0, 0);
   // the morning rim: 1 px of #F7C27A on the right edges of the two (the sun is on their right)
   near.blit(who, 0, 0);
   const rim = new PixelCanvas(W, H);
@@ -295,7 +342,7 @@ function buildLayers(): Layers {
       if (!who.alpha(x, y) || who.alpha(x + 1, y)) continue;
       rim.set(x, y, '#F7C27A');
     }
-  return { far: far.toCanvas(), farLit: farLit.toCanvas(), mid: mid.toCanvas(), near: near.toCanvas(), rim: rim.toCanvas() };
+  return { far: far.toCanvas(), farLit: farLit.toCanvas(), mid: mid.toCanvas(), near: near.toCanvas(), rim: rim.toCanvas(), front: front.toCanvas() };
 }
 
 class SunriseScene implements Scene {
@@ -310,16 +357,23 @@ class SunriseScene implements Scene {
   sunT = -1;
   private trail: { x: number; y: number; t: number }[] = [];
   private swirl = 0;
+  /** HD-2D: the 3D hill (sunriseView.land), and the canvases the picture is put together in. */
+  land: SunriseLand | null = null;
+  private skyG: Gfx | null = null;
+  private frontG: Gfx | null = null;
+  private under: HTMLCanvasElement | null = null;
 
   update(dt: number): void {
     this.t += dt;
+    // (HD-2D: while the picture covers it all, the 3D field under it isn't drawn)
+    if (this.land) this.transparent = this.alpha < 1;
     if (this.riseT >= 0) this.riseT += dt;
     if (this.sunT >= 0) this.sunT += dt;
     this.swirl += (dt / 20000) * Math.PI * 2;
   }
 
-  /** Where the tomato is, and how big (px), at the rise's time. */
-  tomatoAt(rt: number): { x: number; y: number; s: number } {
+  /** Where the tomato is, and how big (px), at the rise's time (`lift`: the sun's notch raised, HD-2D). */
+  tomatoAt(rt: number, lift = 0): { x: number; y: number; s: number } {
     if (rt < 0) return { x: NET.x, y: NET.y, s: 11 };
     if (rt < 800) return { x: NET.x, y: NET.y - Math.round(ease.quadOut(rt / 800) * 4), s: 11 };
     // out of the net and up a gentle arc to the notch in the ridge (3.0 s), smaller as it goes
@@ -328,17 +382,118 @@ class SunriseScene implements Scene {
     const x0 = NET.x;
     const y0 = NET.y - 4;
     const x = x0 + (SUN.x - x0) * e;
-    const y = y0 + (SUN.y - 4 - y0) * e - Math.sin(e * Math.PI) * 58;
+    const y = y0 + (SUN.y - 4 - lift - y0) * e - Math.sin(e * Math.PI) * 58;
     return { x, y, s: 11 - 8 * e };
   }
 
   draw(g: Gfx): void {
     if (this.alpha <= 0) return;
+    if (this.land) {
+      this.drawHd(g, this.land);
+      return;
+    }
     const L = (layers ??= buildLayers());
     g.alpha(this.alpha, () => {
       const dawn = this.sunT < 0 ? 0 : Math.min(1, this.sunT / 3000);
-      const sunUp = this.sunT < 0 ? 0 : Math.min(1, this.sunT / 2000);
       g.img(skyAt(dawn), 0, 0);
+      this.drawHeavens(g, dawn);
+      g.img(L.far, 0, 0);
+      if (dawn > 0) g.alpha(dawn, () => g.img(L.farLit, 0, 0));
+      g.img(L.mid, 0, 0);
+      // a morning mist over the valley once the light is up
+      if (dawn > 0) g.alpha(0.22 * dawn, () => this.drawMist(g));
+      g.img(L.near, 0, 0);
+      if (dawn > 0) g.alpha(dawn, () => g.img(L.rim, 0, 0));
+      this.drawTomato(g);
+    });
+  }
+
+  /**
+   * HD-2D: the painted sky and far mountains (raised by land.lift), the 3D
+   * hill before the dawn turning to its morning picture with it, the two
+   * from behind and the tomato in front — put together at the display's size
+   * and handed to the screen under the buffer; the field under the cut (its
+   * 3D picture, and its curtain and HUD from the buffer) shows through while
+   * it cross-fades, as the 2D lays the cut over them.
+   */
+  private drawHd(g: Gfx, land: SunriseLand): void {
+    const L = (layers ??= buildLayers());
+    const dawn = this.sunT < 0 ? 0 : Math.min(1, this.sunT / 3000);
+    const lift = land.lift;
+    this.skyG ??= new Gfx(makeCanvas(W, H)[1], W, H);
+    const sg = this.skyG;
+    const sky = skyAt(dawn);
+    // (the sky raised by `lift`: the mountains' colour below it)
+    sg.ctx.fillStyle = '#3A2B5C';
+    sg.ctx.fillRect(0, 0, W, H);
+    sg.ctx.save();
+    sg.ctx.translate(0, -lift);
+    sg.img(sky, 0, 0);
+    this.drawHeavens(sg, dawn);
+    sg.img(L.far, 0, 0);
+    if (dawn > 0) sg.alpha(dawn, () => sg.img(L.farLit, 0, 0));
+    // the valley below the hill (where the 3D land falls away past the fence) and its morning mist
+    sg.img(L.mid, 0, 0);
+    if (dawn > 0) sg.alpha(0.22 * dawn, () => this.drawMist(sg));
+    sg.ctx.restore();
+    this.frontG ??= new Gfx(makeCanvas(W, H)[1], W, H);
+    const fg = this.frontG;
+    fg.ctx.clearRect(0, 0, W, H);
+    fg.img(L.front, 0, 0);
+    if (dawn > 0) fg.alpha(dawn, () => fg.img(L.rim, 0, 0));
+    this.drawTomato(fg, lift);
+    const d = game.screen.display;
+    if (!this.under || this.under.width !== d.width || this.under.height !== d.height) [this.under] = makeCanvas(d.width, d.height);
+    const u = this.under.getContext('2d')!;
+    const uw = this.under.width;
+    const uh = this.under.height;
+    // what the field drew under the cut while it cross-fades: its 3D picture
+    // and over it the buffer (the curtain, the clock), as the screen would lay them
+    const below = game.screen.underlay;
+    u.globalAlpha = 1;
+    u.fillStyle = '#0B0B14';
+    u.fillRect(0, 0, uw, uh);
+    if (this.alpha < 1) {
+      if (below) u.drawImage(below, 0, 0, uw, uh);
+      u.imageSmoothingEnabled = false;
+      u.drawImage(g.ctx.canvas, 0, 0, uw, uh);
+    }
+    u.globalAlpha = this.alpha;
+    u.imageSmoothingEnabled = false;
+    u.drawImage(sg.ctx.canvas, 0, 0, uw, uh);
+    u.imageSmoothingEnabled = true;
+    u.drawImage(land.pre, 0, 0, uw, uh);
+    if (dawn > 0) {
+      u.globalAlpha = this.alpha * dawn;
+      u.drawImage(land.morning, 0, 0, uw, uh);
+      u.globalAlpha = this.alpha;
+    }
+    u.imageSmoothingEnabled = false;
+    u.drawImage(fg.ctx.canvas, 0, 0, uw, uh);
+    u.globalAlpha = 1;
+    game.screen.underlay = this.under;
+    // (the buffer's own is in the picture now: clear for what goes on top)
+    const ctx = g.ctx;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.restore();
+  }
+
+  /** The morning mist over the valley (drawn at the mist's alpha). */
+  private drawMist(g: Gfx): void {
+    for (const [wx, wy, ww] of MIST) {
+      const dx = wx + Math.round(Math.sin(this.t / 3000 + wx) * 2);
+      g.rect(dx, wy, ww, 1, '#F2C8B8');
+      g.rect(dx + Math.round(ww * 0.2), wy + 1, Math.round(ww * 0.55), 1, '#F2C8B8');
+      g.rect(dx - 6, wy + 1, 4, 1, '#F2C8B8');
+    }
+  }
+
+  /** The sun's halo and the sun coming up, the clouds, the last stars and the morning star (over the sky, under the mountains). */
+  private drawHeavens(g: Gfx, dawn: number): void {
+    {
+      const sunUp = this.sunT < 0 ? 0 : Math.min(1, this.sunT / 2000);
       // the sun's halo, then the sun itself coming up out of the notch (behind the ridge)
       if (sunUp > 0) {
         const cy = Math.round(SUN.y + 30 - ease.cubicOut(sunUp) * 30);
@@ -363,30 +518,14 @@ class SunriseScene implements Scene {
       // the morning star melts into the light, not twinkling (2 s)
       const starA = this.sunT < 0 ? 1 : Math.max(0, 1 - this.sunT / 2000);
       if (starA > 0) g.alpha(starA, () => g.rect(STAR.x, STAR.y, 2, 2, '#FFF6D8'));
-      g.img(L.far, 0, 0);
-      if (dawn > 0) g.alpha(dawn, () => g.img(L.farLit, 0, 0));
-      g.img(L.mid, 0, 0);
-      // a morning mist over the valley once the light is up
-      if (dawn > 0)
-        g.alpha(0.22 * dawn, () => {
-          for (const [wx, wy, ww] of MIST) {
-            const dx = wx + Math.round(Math.sin(this.t / 3000 + wx) * 2);
-            g.rect(dx, wy, ww, 1, '#F2C8B8');
-            g.rect(dx + Math.round(ww * 0.2), wy + 1, Math.round(ww * 0.55), 1, '#F2C8B8');
-            g.rect(dx - 6, wy + 1, 4, 1, '#F2C8B8');
-          }
-        });
-      g.img(L.near, 0, 0);
-      if (dawn > 0) g.alpha(dawn, () => g.img(L.rim, 0, 0));
-      this.drawTomato(g);
-    });
+    }
   }
 
-  private drawTomato(g: Gfx): void {
+  private drawTomato(g: Gfx, lift = 0): void {
     const rt = this.riseT;
     // gone into the sun
     if (rt >= 3800) return;
-    const p = this.tomatoAt(rt);
+    const p = this.tomatoAt(rt, lift);
     // the trail of #FFE7A3 points behind it
     if (rt >= 800) {
       this.trail.push({ x: Math.round(p.x), y: Math.round(p.y), t: this.t });
@@ -437,6 +576,7 @@ export function* openSunriseCut(o: { fadeMs?: number } = {}): Co<SunriseCut> {
   layers ??= buildLayers();
   skyAt(0);
   const sc = new SunriseScene();
+  sc.land = hdLand();
   game.push(sc);
   const ms = o.fadeMs ?? 2000;
   for (let t = 0; t < ms; t += 16.7) {
@@ -481,6 +621,7 @@ export function* playSunriseCut(o: { between?: () => Co; hold?: number } = {}): 
 export function sunriseStill(phase: 0 | 1 | 2): Scene {
   layers ??= buildLayers();
   const sc = new SunriseScene();
+  sc.land = hdLand();
   sc.alpha = 1;
   sc.transparent = false;
   if (phase >= 1) sc.riseT = phase === 1 ? 2300 : 3800;

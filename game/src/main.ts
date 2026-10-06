@@ -24,7 +24,7 @@ function loadHd2d(): void {
 }
 
 /**
- * Chapter 1 in HD-2D (02 #85, 2026-10-06): every build carries the layer,
+ * HD-2D (02 #85, 2026-10-06: chapter 1, then chapter 2 too): every build carries the layer,
  * but its code (three.js) only runs once the title is on screen — the first
  * frames don't wait for it — and only when せってい「表示」 (or ?hd2d=1)
  * wants it; otherwise the first time HD-2D is chosen. ?hd2d=0 (a QA run in

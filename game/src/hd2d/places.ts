@@ -16,7 +16,14 @@
 //  - drop: the roof is high up: everything past its parapets lies this far
 //    down (units), the town (outskirts.ts below());
 //  - sky: a backdrop of the evening sky far beyond the north edge (seen over
-//    the roof's north fence).
+//    the roof's north fence);
+//  - nightSky / fall / floor (chapter 2, 2026-10-06): 星見台's two hilltops
+//    (星見の丘, the little hill behind the school) — past their fences and
+//    north of their cedars the land falls away (`fall` units: the woods there
+//    stand on the slope, only their tops show), the floor under everything
+//    that far down, and far off the night sky over the mountains, the town's
+//    lights west of them (「西の 山の 向こうに、町の 明かり」), the morning
+//    star low in the east (outskirts.ts nightSkyBackdrop).
 
 /** One place's settings (all optional). */
 export interface PlaceDef {
@@ -27,7 +34,27 @@ export interface PlaceDef {
   sky?: boolean;
   /** Its MapDef.shadowVec (stage 2) turns the 3D shadows by as much as it turns the 2D ones from the evening's (view.ts placeSun). */
   shadowSwing?: boolean;
+  /** The night sky far beyond the north edge (outskirts.ts nightSkyBackdrop). */
+  nightSky?: boolean;
+  /** How far down the floor under everything lies (units; default 1, or `drop`). */
+  floor?: number;
 }
+
+/** The ground's step (px of a picture's rows) for a fall of `u` units. */
+const fallPx = (u: number): number => -u / (Math.tan((40 * Math.PI) / 180) / 16);
+/** 星見台's hilltops: how far the land falls away past their fences (units). */
+const HILL_FALL = 4.5;
+/**
+ * A hilltop of w tiles (fences at x 0 and w − 1 from row 1 to `plateau`,
+ * cedars along row 0): past the fences and two rows north of the cedars the
+ * slope (map char '\u0002', HILL_FALL down).
+ */
+const hilltop = (w: number, plateau: number): PlaceDef => ({
+  steps: { '\u0002': fallPx(HILL_FALL) },
+  outside: (tx, ty, edge) => (ty < -2 || ((tx < 0 || tx >= w) && ty <= plateau) ? '\u0002' : edge),
+  floor: HILL_FALL + 1,
+  nightSky: true,
+});
 
 /**
  * The roof's drop to the ground (units): the mall's ground floor as the town
@@ -76,6 +103,9 @@ export const PLACES: Record<string, PlaceDef> = {
     drop: ROOF_DROP,
     sky: true,
   },
+  // 星見台 (chapter 2): the village's canal and paddies keep the 2D's own water (water3d.ts skyWater)
+  map_hoshi_hill: hilltop(24, 8),
+  map_hoshi_urayama: hilltop(24, 7),
 };
 
 export function placeOf(mapId: string): PlaceDef {

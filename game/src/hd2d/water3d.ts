@@ -18,7 +18,10 @@ import { drawWater, type Reflector, type WaterCtx } from '../art/tiles/water';
 import { P } from '../art/tiles/palette';
 import { flag } from '../game/state';
 import type { FieldScene, PropInst } from '../world/field';
-import { charAt, groundAt } from '../world/maps';
+import { charAt, groundAt, isCh2Map } from '../world/maps';
+import { fushigiDone } from '../world/fushigi';
+import { eraseDark } from '../world/lantern';
+import { hash2, Rng, valueNoise } from '../engine/rng';
 import { canvas, litMaterial, pixelTexture, PX, Quads } from './solid';
 import type { Margin } from './walls';
 
@@ -67,6 +70,8 @@ class LiveSheet {
     private readonly every: number,
     /** Redraw the picture's rect `vis` (canvas px: x, y, w, h). */
     private readonly draw: (ctx: CanvasRenderingContext2D, t: number, vis: [number, number, number, number]) => void,
+    /** Its material (default: lit like the ground, alpha-tested). */
+    material?: (tex: THREE.CanvasTexture) => THREE.Material,
   ) {
     [this.c, this.ctx] = canvas(w, h);
     this.tex = pixelTexture(this.c);
@@ -86,7 +91,7 @@ class LiveSheet {
       q.add([a.tx, y, a.ty + 1], [a.tx + n, y, a.ty + 1], [a.tx + n, y, a.ty], [a.tx, y, a.ty], [0, 1, 0], U(sx), V(sy + 16), U(sx + n * 16), V(sy));
       i = j;
     }
-    this.mesh = new THREE.Mesh(q.geometry(), litMaterial(this.tex));
+    this.mesh = new THREE.Mesh(q.geometry(), material ? material(this.tex) : litMaterial(this.tex));
     this.mesh.receiveShadow = true;
     for (const a of tiles) {
       this.box[0] = Math.min(this.box[0], a.tx);
@@ -294,6 +299,345 @@ export function liveFlat(f: FieldScene, p: PropInst, chars: string, mg: Margin, 
     ctx.restore();
   };
   return new LiveSheet(x0, y0, W, H, tiles, heightAt, 0.012, light ? 200 : 100, draw);
+}
+
+/**
+ * 星見台's finds on the ground that only the tomato light shows (litOnly
+ * flat props: the child's footprints on the old lane, 52 7.2): drawn as the
+ * 2D draws them — inside the inner two rings of the lantern (r × 0.6) only,
+ * nothing without it — on a sheet over their tiles, redrawn as the light
+ * moves (null: no such finds here).
+ */
+export function litDecals(f: FieldScene, heightAt: (x: number, z: number) => number): LiveSheet | null {
+  const finds = f.props.filter((p) => p.art.flat && p.obj.litOnly);
+  if (!finds.length) return null;
+  let x0 = 1e9;
+  let y0 = 1e9;
+  let x1 = -1e9;
+  let y1 = -1e9;
+  for (const p of finds) {
+    const a = p.art;
+    x0 = Math.min(x0, Math.floor((p.x + a.ox) / 16));
+    y0 = Math.min(y0, Math.floor((p.y + a.oy) / 16));
+    x1 = Math.max(x1, Math.ceil((p.x + a.ox + a.w) / 16));
+    y1 = Math.max(y1, Math.ceil((p.y + a.oy + a.h) / 16));
+  }
+  const tiles: Tile[] = [];
+  for (let ty = y0; ty < y1; ty++) for (let tx = x0; tx < x1; tx++) tiles.push({ tx, ty, sx: tx, sy: ty });
+  const X0 = x0 * 16;
+  const Y0 = y0 * 16;
+  const W = (x1 - x0) * 16;
+  const H = (y1 - y0) * 16;
+  let key = '';
+  let gfx: Gfx | null = null;
+  const draw = (ctx: CanvasRenderingContext2D) => {
+    const l = f.light.lantern;
+    const k = l ? `${l.x},${l.y},${l.r},${finds.map((p) => +p.present).join('')}` : '';
+    if (k === key) return;
+    key = k;
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, W, H);
+    if (l) {
+      ctx.beginPath();
+      ctx.arc(l.x - X0, l.y - Y0, l.r * 0.6, 0, Math.PI * 2);
+      ctx.clip();
+      gfx ??= new Gfx(ctx, W, H);
+      for (const p of finds) {
+        if (!p.present) continue;
+        const e = f.propEnv(p);
+        const img = p.art.img(e);
+        if (img) ctx.drawImage(img, Math.round(p.x + p.art.ox - X0), Math.round(p.y + p.art.oy - Y0));
+        p.art.over?.(gfx, p.x - X0, p.y - Y0, e);
+      }
+    }
+    ctx.restore();
+  };
+  return new LiveSheet(X0, Y0, W, H, tiles, heightAt, 0.014, 0, draw);
+}
+
+// ---------------------------------------------------------------- 星見台: the night sky in the water (52 8.7)
+
+/** 星見台's open water (render.ts WATERY): the canal, the stream, the terraced paddies, the wallow. */
+const WATERY = new Set(['h_canal', 'h_stream', 'h_tanada', 'h_nuta', 'water', 'paddy']);
+/** The 2D's frame (its sky is screen space; here it is laid on the ground, tile after tile of it). */
+const FW = 384;
+const FH = 216;
+
+let skyTile: { c: HTMLCanvasElement; twinkles: [number, number, number][] } | null = null;
+
+/**
+ * render.ts buildSky(): the milky way (a soft dithered band from the top
+ * left to the bottom right) and 30 steady stars over a 384 × 216 frame, ten
+ * more that twinkle (drawn per redraw) — the same seed, the same sky.
+ */
+function skyFrame(): { c: HTMLCanvasElement; twinkles: [number, number, number][] } {
+  if (skyTile) return skyTile;
+  const [c, x] = canvas(FW, FH);
+  const rng = new Rng(20260925);
+  const len = Math.hypot(FW, FH);
+  const nx = -FH / len;
+  const ny = FW / len;
+  const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  for (let y = 0; y < FH; y++)
+    for (let xx = 0; xx < FW; xx++) {
+      const along = (xx * ny - y * nx) / len;
+      const off = (valueNoise(along * 6, 0.5, 44) - 0.5) * 18;
+      const d = Math.abs(xx * nx + y * ny - off);
+      if (d > 34) continue;
+      const k = 1 - d / 34;
+      const soft = k * k * (0.55 + 0.45 * valueNoise(xx / 23, y / 23, 45));
+      if (soft * 16 > BAYER[(y & 3) * 4 + (xx & 3)] + 0.5) {
+        const cloud = valueNoise(xx / 9, y / 9, 31) * (0.6 + 0.4 * valueNoise(xx / 31, y / 31, 32));
+        x.fillStyle = cloud > 0.5 && k > 0.45 ? '#3A2B5C' : '#2A2440';
+        x.fillRect(xx, y, 1, 1);
+      }
+      if (k > 0.3 && hash2(xx, y, 9) < 0.012 * k) {
+        x.fillStyle = 'rgba(122,90,160,0.5)';
+        x.fillRect(xx, y, 1, 1);
+      }
+    }
+  const twinkles: [number, number, number][] = [];
+  for (let i = 0; i < 40; i++) {
+    const sx = rng.int(2, FW - 3);
+    const sy = rng.int(2, FH - 3);
+    if (i < 10) {
+      twinkles.push([sx, sy, rng.range(500, 2000)]);
+      continue;
+    }
+    x.fillStyle = '#FFF6D8';
+    x.fillRect(sx, sy, 1, 1);
+    if (i % 7 === 0) {
+      x.fillStyle = 'rgba(255,246,216,0.35)';
+      x.fillRect(sx - 1, sy, 1, 1);
+      x.fillRect(sx + 1, sy, 1, 1);
+      x.fillRect(sx, sy - 1, 1, 1);
+      x.fillRect(sx, sy + 1, 1, 1);
+    }
+  }
+  skyTile = { c, twinkles };
+  return skyTile;
+}
+
+/**
+ * 星見台's water at night (render.ts drawSkyInWater, 52 8.7): the stars and
+ * the milky way mirrored in the canal, the stream and the terraced paddies,
+ * the ripples running with the water, the canal and the stream a step off
+ * black; fushigi_ch2_03 — the canal's stars drifting east, slipping away
+ * from the rest — and fushigi_ch2_05 — the 5th terrace's western paddy
+ * holding an evening sky. The 2D lays this over its graded frame (screen);
+ * here it is a sheet over the water tiles added onto the picture, not
+ * darkened by the night's map (cut_night.ts), and nothing of it shows out of
+ * the dark. The 2D's sky is screen space; here its frame lies on the
+ * ground, tile after tile (the reflection stays with the water).
+ */
+export function skyWater(f: FieldScene, mg: Margin, heightAt: (x: number, z: number) => number, light: boolean): LiveSheet | null {
+  const m = f.map;
+  if (!isCh2Map(m.def) || m.def.kind === 'indoor') return null;
+  const wetH = (tx: number, ty: number) => WATERY.has(String(groundAt(m, tx, ty)));
+  let x0 = 1e9;
+  let y0 = 1e9;
+  let x1 = -1;
+  let y1 = -1;
+  for (let ty = 0; ty < m.h; ty++)
+    for (let tx = 0; tx < m.w; tx++)
+      if (wetH(tx, ty)) {
+        x0 = Math.min(x0, tx);
+        y0 = Math.min(y0, ty);
+        x1 = Math.max(x1, tx);
+        y1 = Math.max(y1, ty);
+      }
+  if (x1 < 0) return null;
+  const tiles: Tile[] = [];
+  for (let ty = -mg.n; ty < m.h + mg.s; ty++)
+    for (let tx = -mg.x; tx < m.w + mg.x; tx++) {
+      const cx = Math.max(0, Math.min(m.w - 1, tx));
+      const cy = Math.max(0, Math.min(m.h - 1, ty));
+      if (!wetH(cx, cy)) continue;
+      // (past the edges the edge tile's water runs on: the stream north, the canal east)
+      tiles.push({ tx, ty, sx: cx, sy: cy });
+    }
+  const W = (x1 - x0 + 1) * 16;
+  const H = (y1 - y0 + 1) * 16;
+  const X0 = x0 * 16;
+  const Y0 = y0 * 16;
+  // the water pixels of the ground (the bake's navy)
+  const [mask, mctx] = canvas(W, H);
+  const navy = rgba32(P.navy);
+  for (let cy = Math.floor(Y0 / 256); cy * 256 < Y0 + H; cy++)
+    for (let cx = Math.floor(X0 / 256); cx * 256 < X0 + W; cx++) mctx.drawImage(f.ground.chunk(cx, cy), cx * 256 - X0, cy * 256 - Y0);
+  const md = mctx.getImageData(0, 0, W, H);
+  const u32 = new Uint32Array(md.data.buffer);
+  for (let i = 0; i < u32.length; i++) u32[i] = u32[i] === navy ? 0xffffffff : 0;
+  mctx.putImageData(md, 0, 0);
+  const sky = skyFrame();
+  const village = m.id === 'map_hoshimidai';
+  const rect = (x: number, y: number, w: number, h: number): [number, number, number, number] => [x * 16 - X0, y * 16 - Y0, w * 16, h * 16];
+  let pat: CanvasPattern | null = null;
+  const draw = (ctx: CanvasRenderingContext2D, t: number, vis: [number, number, number, number]) => {
+    const gd = f.grade;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(vis[0], vis[1], vis[2], vis[3]);
+    ctx.clip();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.clearRect(vis[0], vis[1], vis[2], vis[3]);
+    // the sky's frame, tile after tile from the world's origin
+    const frame = (dx: number, rx: number, ry: number, rw: number, rh: number) => {
+      pat ??= ctx.createPattern(sky.c, 'repeat');
+      if (!pat) return;
+      ctx.save();
+      ctx.translate(-X0 + dx, -Y0);
+      ctx.fillStyle = pat;
+      ctx.fillRect(rx + X0 - dx, ry + Y0, rw, rh);
+      ctx.restore();
+    };
+    const starK = Math.max(gd.milky, gd.stars);
+    if (starK > 0.01) {
+      ctx.globalAlpha = starK;
+      frame(0, vis[0], vis[1], vis[2], vis[3]);
+      ctx.globalAlpha = 1;
+      // the ten that twinkle (in h2 three in ten are gone), in each frame tile in sight
+      for (let ky = Math.floor((Y0 + vis[1]) / FH); ky * FH < Y0 + vis[1] + vis[3]; ky++)
+        for (let kx = Math.floor((X0 + vis[0]) / FW); kx * FW < X0 + vis[0] + vis[2]; kx++)
+          sky.twinkles.forEach(([sx, sy, per], i) => {
+            if (hash2(i, 3, 17) > gd.stars) return;
+            const on = Math.floor((t + i * 311) / per) % 3 !== 0;
+            ctx.fillStyle = on ? '#FFF6D8' : '#9AA0A8';
+            ctx.fillRect(kx * FW + sx - X0, ky * FH + sy - Y0, 1, 1);
+          });
+    }
+    // fushigi_ch2_03: in the canal only, the mirrored stars drift east (6px/s)
+    if (village && !fushigiDone('fushigi_ch2_03')) {
+      const c = rect(13, 20, 47, 2);
+      ctx.clearRect(c[0], c[1], c[2], c[3]);
+      if (starK > 0.01) {
+        ctx.globalAlpha = starK;
+        frame(Math.floor((t / 1000) * 6) % FW, c[0], c[1], c[2], c[3]);
+        ctx.globalAlpha = 1;
+      }
+    }
+    ctx.globalCompositeOperation = 'lighter';
+    // the canal and the stream hold a little of the dawn's light, a step off black
+    if (village && gd.night > 0.3) {
+      ctx.globalAlpha = Math.min(1, gd.night) * 0.6;
+      ctx.fillStyle = '#34416A';
+      for (const c of [rect(13, 20, 47, 2), rect(13, 0, 1, 38)]) ctx.fillRect(c[0], c[1], c[2], c[3]);
+      ctx.globalAlpha = 1;
+    }
+    // ripples: short 1px glints flowing with the water (the canal east 6px/s,
+    // the stream south 10px/s; still water shivers between two places)
+    {
+      const s = t / 1000;
+      const shiver = Math.floor(t / 67) % 2;
+      ctx.globalAlpha = gd.night > 0.5 ? 0.8 : 0.35;
+      ctx.fillStyle = gd.night > 0.5 ? '#3A2B5C' : '#FFF6D8';
+      const tx0 = Math.floor((X0 + vis[0]) / 16);
+      const ty0 = Math.floor((Y0 + vis[1]) / 16);
+      const tx1 = Math.floor((X0 + vis[0] + vis[2]) / 16);
+      const ty1 = Math.floor((Y0 + vis[1] + vis[3]) / 16);
+      for (let ty = Math.max(0, ty0); ty <= Math.min(m.h - 1, ty1); ty++)
+        for (let tx = Math.max(0, tx0); tx <= Math.min(m.w - 1, tx1); tx++) {
+          const g = String(groundAt(m, tx, ty));
+          if (!WATERY.has(g)) continue;
+          const flowX = g === 'h_canal' || g === 'water' ? 6 : 0;
+          const flowY = g === 'h_stream' ? 10 : 0;
+          for (let k = 0; k < 3; k++) {
+            const h = hash2(tx * 3 + k, ty, 91);
+            const len = 2 + Math.floor(h * 3);
+            const lx = (((Math.floor(h * 97) + s * flowX + (flowX || flowY ? 0 : shiver * (k % 2 ? 1 : -1))) % 16) + 16) % 16;
+            const ly = (((Math.floor(hash2(tx, ty * 3 + k, 92) * 16) + s * flowY) % 16) + 16) % 16;
+            ctx.fillRect(Math.floor(tx * 16 + lx - X0), Math.floor(ty * 16 + ly - Y0), len, 1);
+          }
+        }
+      ctx.globalAlpha = 1;
+    }
+    // fushigi_ch2_05: the 5th terrace's western paddy holds an evening sky (after: the night, its bottom warmer)
+    if (village) {
+      const r = rect(14, 15, 5, 2);
+      const done = fushigiDone('fushigi_ch2_05');
+      const gr = ctx.createLinearGradient(0, r[1], 0, r[1] + r[3]);
+      if (!done) {
+        gr.addColorStop(0, '#F2894B');
+        gr.addColorStop(1, '#D9728A');
+      } else {
+        gr.addColorStop(0, 'rgba(58,43,92,0)');
+        gr.addColorStop(1, 'rgba(58,43,92,1)');
+      }
+      ctx.globalCompositeOperation = done ? 'lighter' : 'source-over';
+      ctx.globalAlpha = done ? 0.6 : 0.85;
+      ctx.fillStyle = gr;
+      ctx.fillRect(r[0], r[1], r[2], r[3]);
+      if (!done) {
+        ctx.fillStyle = '#FFE7A3';
+        ctx.fillRect(r[0], r[1] + Math.floor(r[3] / 2), r[2], 1);
+      }
+      ctx.globalAlpha = 1;
+    }
+    // on the water pixels only, and nothing of it out of the dark (a little more than half gone there)
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.drawImage(mask, vis[0], vis[1], vis[2], vis[3], vis[0], vis[1], vis[2], vis[3]);
+    eraseDark(ctx, f, X0, Y0, W, H);
+    ctx.restore();
+  };
+  // added onto the picture, as the 2D screens it over its graded frame (cut_night.ts leaves it alone)
+  const material = (tex: THREE.CanvasTexture) => {
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+    mat.userData.noNight = true;
+    return mat;
+  };
+  return new LiveSheet(X0, Y0, W, H, tiles, heightAt, 0.016, light ? 200 : 100, draw, material);
+}
+
+/**
+ * 星見台's flat lights (a flat prop with a glow(): the stars born at the
+ * spring that drift down the stream, prop_h_sawa_stars — 「光の層なので暗が
+ * りでも見える」): the 2D screens them over its graded frame; here each is a
+ * sheet over its tiles, redrawn a few times a second and added onto the
+ * picture (not darkened by the night's map). Chapter 2's maps only (chapter
+ * 1 keeps its look).
+ */
+export function flatGlows(f: FieldScene, heightAt: (x: number, z: number) => number, light: boolean): LiveSheet[] {
+  if (!isCh2Map(f.map.def)) return [];
+  const out: LiveSheet[] = [];
+  for (const p of f.props) {
+    const a = p.art;
+    if (!a.flat || !a.glow) continue;
+    const x0 = Math.floor((p.x + a.ox) / 16);
+    const y0 = Math.floor((p.y + a.oy) / 16);
+    const x1 = Math.ceil((p.x + a.ox + a.w) / 16);
+    const y1 = Math.ceil((p.y + a.oy + a.h) / 16);
+    const tiles: Tile[] = [];
+    for (let ty = y0; ty < y1; ty++) for (let tx = x0; tx < x1; tx++) tiles.push({ tx, ty, sx: tx, sy: ty });
+    if (!tiles.length) continue;
+    const X0 = x0 * 16;
+    const Y0 = y0 * 16;
+    const W = (x1 - x0) * 16;
+    const H = (y1 - y0) * 16;
+    let gfx: Gfx | null = null;
+    const draw = (ctx: CanvasRenderingContext2D, _t: number, vis: [number, number, number, number]) => {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(vis[0], vis[1], vis[2], vis[3]);
+      ctx.clip();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+      ctx.clearRect(vis[0], vis[1], vis[2], vis[3]);
+      if (p.present) {
+        gfx ??= new Gfx(ctx, W, H);
+        a.glow!(gfx, p.x - X0, p.y - Y0, f.propEnv(p));
+      }
+      ctx.restore();
+    };
+    const material = (tex: THREE.CanvasTexture) => {
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+      mat.userData.noNight = true;
+      return mat;
+    };
+    out.push(new LiveSheet(X0, Y0, W, H, tiles, heightAt, 0.018, light ? 100 : 50, draw, material));
+  }
+  return out;
 }
 
 export type { LiveSheet };

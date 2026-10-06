@@ -17,13 +17,14 @@
 //                                                     heals someone under 45% (はなまる / ふうせん / the bag)
 //   node tools/playthrough.mjs --fushigi-all          also stamp all 12 ふしぎ in the same run
 //   node tools/playthrough.mjs --headed               watch it
-//   node tools/playthrough.mjs --hd2d                 in HD-2D (02 #85: chapter 1's places in 3D, src/hd2d; the page
-//                                                     opens with ?hd2d=1&hd2dq=light — --hd2dq normal for the full
-//                                                     quality, much slower under swiftshader). Without it the run is
-//                                                     2D as before (?hd2d=0: the setting's HD-2D default is overridden,
-//                                                     for speed and steadiness). Checks with --hd2d: each beat's field
-//                                                     is drawn in 3D where it should be (chapter 1's places), and
-//                                                     never once chapter 2 has begun (--chapter 2 --hd2d)
+//   node tools/playthrough.mjs --hd2d                 in HD-2D (02 #85: the places of chapters 1 and 2 in 3D, src/hd2d;
+//                                                     the page opens with ?hd2d=1&hd2dq=light — --hd2dq normal for the
+//                                                     full quality, much slower under swiftshader). Without it the run
+//                                                     is 2D as before (?hd2d=0: the setting's HD-2D default is
+//                                                     overridden, for speed and steadiness). Checks with --hd2d: each
+//                                                     beat's field is drawn in 3D where it should be, and (since
+//                                                     2026-10-06) chapter 2's outdoor places — 星見台, the hill, the
+//                                                     stream, the hill behind the school — are among them (--chapter 2)
 //   node tools/playthrough.mjs --hd2d --slow 6        the waits and timeouts stretched 6× (default 4 with --hd2d:
 //                                                     the game's time runs as slow as the 3D frames come)
 //   node tools/playthrough.mjs --chapter 2            chapter 2『星見台のトマト』 (02_ch2_index 4.5): the title's
@@ -88,7 +89,7 @@ const URL_ = BASE + (BASE.includes('?') ? '&' : '?') + (HD2D ? `hd2d=1&hd2dq=${H
 const SLOW = Number(opt('--slow', HD2D ? '4' : '1'));
 /** Has more than `ms` (stretched by SLOW) gone by since t0? */
 const late = (t0, ms) => Date.now() - t0 > ms * SLOW;
-/** --hd2d: per beat, was the field drawn in 3D (chapter 1's places) or 2D. */
+/** --hd2d: per beat, was the field drawn in 3D (the places stood up in 3D) or 2D. */
 const hd2dLog = [];
 const checks = [];
 const travelLog = { walked: 0, skipped: 0, battles: 0 };
@@ -2237,17 +2238,21 @@ if (CHAPTER === 2) {
 }
 
 if (HD2D) {
-  // the field was drawn in 3D wherever it should be (chapter 1's places, the top scene a field), and
-  // chapter 2 — once begun — stays 2D (02 #85)
+  // the field was drawn in 3D wherever it should be (the places stood up in 3D, the top scene a
+  // field), and in chapter 2 (2026-10-06 依頼主「第２章もHD-2Dにしてみよう」) its outdoor places are
+  // among them: every sample on one of them is 3D (02 #85; before, chapter 2 stayed 2D)
   const missed = hd2dLog.filter((r) => r.top === 'FieldScene' && r.field && !r.drew);
-  checks.push({ check: 'HD-2D: chapter 1 fields drawn in 3D', ok: !missed.length, sampled: hd2dLog.filter((r) => r.drew).length, missed });
-  const ch2in3d = hd2dLog.filter((r) => r.ch2 && (r.drew || r.on));
-  checks.push({ check: 'HD-2D: chapter 2 stays 2D', ok: !ch2in3d.length, sampled: hd2dLog.filter((r) => r.ch2).length, bad: ch2in3d });
+  checks.push({ check: 'HD-2D: fields drawn in 3D', ok: !missed.length, sampled: hd2dLog.filter((r) => r.drew).length, missed });
+  const CH2_OUT = new Set(['map_hoshimidai', 'map_hoshi_hill', 'map_hoshi_sawa', 'map_hoshi_urayama']);
+  const ch2out = hd2dLog.filter((r) => r.ch2 && r.top === 'FieldScene' && CH2_OUT.has(r.map));
+  const ch2in3d = hd2dLog.filter((r) => r.ch2 && r.drew);
+  if (CHAPTER === 2 || ch2out.length)
+    checks.push({ check: "HD-2D: chapter 2's outdoor places in 3D", ok: ch2out.length > 0 && ch2out.every((r) => r.drew), sampled: ch2out.length, bad: ch2out.filter((r) => !r.drew) });
   if (CHAPTER === 1 && !FROM) {
     const first = hd2dLog.find((r) => r.top === 'FieldScene');
     checks.push({ check: 'HD-2D: a new game opens in 3D', ok: !!first?.drew, first });
   }
-  log(`  hd2d: ${hd2dLog.filter((r) => r.drew).length}/${hd2dLog.length} samples in 3D, missed ${missed.length}, chapter 2 in 3D ${ch2in3d.length}`);
+  log(`  hd2d: ${hd2dLog.filter((r) => r.drew).length}/${hd2dLog.length} samples in 3D, missed ${missed.length}, chapter 2 in 3D ${ch2in3d.length}/${hd2dLog.filter((r) => r.ch2).length} (outdoors ${ch2out.filter((r) => r.drew).length}/${ch2out.length})`);
 }
 
 const counts = await readCounts();

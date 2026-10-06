@@ -21,6 +21,7 @@ import * as THREE from 'three';
 import { Gfx } from '../engine/gfx';
 import { vehicleFrame, type VehicleView } from '../art/props/vehicles';
 import type { Actor } from '../world/actor';
+import { charGlow, type CharGlow } from '../art/chars/nightlight';
 import type { FieldScene } from '../world/field';
 import { extrude, litMaterial, Mask, ownUv, Quads, shadowOnly } from './solid';
 import { casterMaterial, pixelTexture, SHADE, SV, type TownWorld } from './town';
@@ -29,6 +30,8 @@ import { casterMaterial, pixelTexture, SHADE, SV, type TownWorld } from './town'
 type Ground3D = Pick<TownWorld, 'heightAt' | 'boxAt' | 'inShadow'> & {
   /** How lit someone standing at (x, z) is (a room at night: dark but for the lamps' pools, as the 2D's light map). */
   lightAt?(x: number, z: number): number;
+  /** The light's colour where someone stands, multiplied into `out` (a room of chapter 2: its light map, room_hoshi.ts). */
+  tintAt?(x: number, z: number, out: THREE.Color): void;
 };
 
 const PX = 1 / 16;
@@ -135,6 +138,12 @@ class ActorView {
   private drawn: { c: HTMLCanvasElement; g: Gfx; tex: THREE.CanvasTexture } | null = null;
   /** A vehicle's body (made when first needed; its geometry is shared: vehicleGeometry). */
   private veh: { mesh: THREE.Mesh; mat: THREE.MeshLambertMaterial } | null = null;
+  /**
+   * What the character carries that gives light (星見台: the はなまるトマト in
+   * the net, a flashlight — chars' nightlight charGlow): its glow over the
+   * picture, added as the 2D screens it after grading (made when first needed).
+   */
+  private glow: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial } | null = null;
 
   constructor() {
     this.mat = new THREE.MeshBasicMaterial({ alphaTest: 0.5 });
@@ -233,6 +242,8 @@ class ActorView {
     // (a room at night: by the light where the feet are, room.ts)
     const lit = world.lightAt ? world.lightAt(x, (a.y + Math.max(0, a.oy)) * PX) : 1;
     this.mat.color.copy(tint).multiplyScalar((shaded ? SHADE : 1) * lit);
+    world.tintAt?.(x, (a.y + Math.max(0, a.oy)) * PX, this.mat.color);
+    this.placeGlow(a.drawFn || vpic ? null : charGlow(pic), x - w / 2, up - below + h, z, alpha);
     const sw = Math.max(0.55, Math.min(1.4, (a.drawFn ? (a.data.vehicle ? 3 : 1) : w) * 0.8));
     const ground = world.heightAt(x, z - 0.05);
     this.shadow.position.set(x, ground + 0.02, z - 0.06);
@@ -269,7 +280,37 @@ class ActorView {
     (this.shadow.material as THREE.MeshBasicMaterial).opacity = 0.6 * alpha * (1 - Math.min(1, air / 1.5) * 0.6);
   }
 
+  /** The carried light's glow (frame px dx, dy from the picture's top-left) over the picture whose top-left is (x0, top, z). */
+  private placeGlow(g: CharGlow | null, x0: number, top: number, z: number, alpha: number): void {
+    if (!g) {
+      if (this.glow) this.glow.mesh.visible = false;
+      return;
+    }
+    if (!this.glow) {
+      const mat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+      mat.userData.noNight = true;
+      const mesh = new THREE.Mesh(STAND, mat);
+      mesh.renderOrder = 2;
+      this.group.add(mesh);
+      this.glow = { mesh, mat };
+    }
+    const { mesh, mat } = this.glow;
+    const tex = texOf(g.img);
+    if (mat.map !== tex) {
+      const first = !mat.map;
+      mat.map = tex;
+      if (first) mat.needsUpdate = true;
+    }
+    mat.opacity = alpha;
+    const gw = g.img.width * PX;
+    const gh = g.img.height * PX * SV;
+    mesh.visible = true;
+    mesh.position.set(x0 + g.dx * PX + gw / 2, top - (g.dy + g.img.height) * PX * SV, z + 0.02);
+    mesh.scale.set(gw, gh, 1);
+  }
+
   dispose(): void {
+    this.glow?.mat.dispose();
     this.mat.dispose();
     this.cmat.dispose();
     (this.shadow.material as THREE.Material).dispose();

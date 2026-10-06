@@ -8,6 +8,17 @@
 // coins, the ploughed ridges under a headlight, the wires and the name tags.
 // The battle hands state in through `flags` (charge, stiff, charged, nefuda,
 // rest, tetsuya, burst, light, dark, phase2, final, finale, tenkoAt, sunsetAt).
+//
+// HD-2D (2026-10-06, 依頼主「第２章もHD-2Dにしてみよう」, place.ts): the battle
+// stands on the 3D village (or room) at night. Outdoors each backdrop's L0
+// — its bands, the Milky Way, the far ridges and windows — is the sky behind
+// the place (paintPlaceSky, without the stars: they twinkle over the place,
+// in its sky only), and over the place it lays what carries its meaning
+// (drawOverPlace): the lift behind the enemy, the tomato's light, and its
+// motifs that tell the state — the CDs, the fence's pulse, the hoof prints
+// and the mud, the cardboard bands, the headlight's fan, the stars on the
+// pool, the wires and their name tags. The silhouettes of the place itself
+// (the strings, the terraces, the ridges, the furrows) are the 3D's.
 
 import type { Gfx } from '../../engine/gfx';
 import { BAYER4, makeCanvas } from '../../engine/pixel';
@@ -18,6 +29,7 @@ import { Background, BG_H, fillCircle, gradientTexture, pxLine, strokeCircle } f
 import { tomatoIcon } from '../art/fxart_ch2';
 import { drawFarLights, drawLoop, loopHeight, milkyWayTile, ridgeTile, tuftTile } from './hoshi_scenery';
 import { HoshiSawaBg } from './hoshi_sawa';
+import type { PlaceView } from './place';
 
 const TOMATO = '#F2894B';
 
@@ -109,7 +121,11 @@ function makeStars(seed: number, n: number, yMax: number, yMin = 2): Star[] {
   return out;
 }
 
+/** HD-2D: L0 painted as the sky behind the place — its stars left out (skyStars lays them). */
+let starsOff = false;
+
 function drawStars(ctx: CanvasRenderingContext2D, stars: Star[], t: number): void {
+  if (starsOff) return;
   ctx.fillStyle = '#FFF6D8';
   for (const s of stars) {
     const tw = 0.55 + 0.45 * Math.sin(t * 0.9 + s.ph);
@@ -117,6 +133,47 @@ function drawStars(ctx: CanvasRenderingContext2D, stars: Star[], t: number): voi
     ctx.fillRect(s.x, s.y, 1, 1);
   }
   ctx.globalAlpha = 1;
+}
+
+/** HD-2D: the backdrop's L0 as the sky behind the place (paintPlaceSky), without its stars. */
+function skyOfL0(paint: () => void): boolean {
+  starsOff = true;
+  try {
+    paint();
+  } finally {
+    starsOff = false;
+  }
+  return true;
+}
+
+/** HD-2D: the stars twinkling as in 2D, over the place where it shows sky only. */
+function skyStars(ctx: CanvasRenderingContext2D, place: PlaceView | null, stars: Star[], t: number): void {
+  if (!place) return;
+  ctx.fillStyle = '#FFF6D8';
+  for (const s of stars) {
+    if (!place.isSky(s.x, s.y)) continue;
+    const tw = 0.55 + 0.45 * Math.sin(t * 0.9 + s.ph);
+    ctx.globalAlpha = s.a * tw;
+    ctx.fillRect(s.x, s.y, 1, 1);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/** The haze the far village fades into under the painted sky (the night's low band). */
+const NIGHT_HAZE = '#2A2440';
+
+/**
+ * HD-2D: the tomato's one band (51 15.1) over the place — the lantern behind
+ * us lighting the ground in front of the party: a warm glow rising from the
+ * stage's floor, breathing at 0.8Hz like the lantern (±10%).
+ */
+function lanternGround(ctx: CanvasRenderingContext2D, t: number, a = 0.2, h = 34): void {
+  const k = a * (1 + 0.1 * Math.sin(t * Math.PI * 2 * 0.8));
+  const gr = ctx.createLinearGradient(0, BG_H, 0, BG_H - h);
+  gr.addColorStop(0, `rgba(242,137,75,${k})`);
+  gr.addColorStop(1, 'rgba(242,137,75,0)');
+  ctx.fillStyle = gr;
+  ctx.fillRect(0, BG_H - h, 384, h);
 }
 
 /** A cached text strip in a hand-written marker look (the bold is a 1px double). */
@@ -244,6 +301,55 @@ export class HoshiHouseBg extends Background {
     const off = Math.floor(t * 6) % BG_H;
     ctx.drawImage(this.stringsC, 0, -off);
     ctx.drawImage(this.stringsC, 0, BG_H - off);
+  }
+
+  /**
+   * HD-2D: the house's hoops, strings and work lamps are the 3D room's. Over
+   * it the はなまるトマト's light, where the fruit hangs in the 3D house (the
+   * fruit itself is the room's picture): its breathing glow, the ring it
+   * beats out and the motes round it; once it is picked, the warm bounce
+   * from below. And the lantern's light on the aisle in front of us.
+   */
+  protected drawOverPlace(g: Gfx): void {
+    const t = this.mt;
+    const ctx = g.ctx;
+    lanternGround(ctx, t, 0.16);
+    if (!this.glowing()) {
+      const gr = ctx.createLinearGradient(0, BG_H, 0, 60);
+      gr.addColorStop(0, 'rgba(242,137,75,0.12)');
+      gr.addColorStop(1, 'rgba(242,137,75,0)');
+      ctx.fillStyle = gr;
+      ctx.fillRect(0, 60, 384, BG_H - 60);
+      return;
+    }
+    // the fruit's centre in the room (85,36), 12px over its tile's foot (events/ch2/house.ts TOMATO_PX)
+    const at = this.place?.project(85, 36, 48);
+    if (!at || at[1] < -30 || at[1] > BG_H) return;
+    const cx = Math.round(at[0]);
+    const cy = Math.round(at[1]);
+    const pulse = Math.sin(t * Math.PI * 2 * 0.8);
+    const R = 30 + 2 * pulse;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const gl = ctx.createRadialGradient(cx, cy + 1, 1, cx, cy + 1, R);
+    gl.addColorStop(0, 'rgba(255,231,163,0.6)');
+    gl.addColorStop(0.3, 'rgba(242,137,75,0.4)');
+    gl.addColorStop(1, 'rgba(242,137,75,0)');
+    ctx.fillStyle = gl;
+    ctx.fillRect(cx - 34, cy - 33, 68, 68);
+    ctx.restore();
+    const ph = (t * 0.8) % 1;
+    ctx.save();
+    ctx.globalAlpha = 0.55 * (1 - ph) * (1 - ph);
+    strokeCircle(ctx, cx, cy, Math.round(8 + ph * 22), '#FFE7A3');
+    ctx.restore();
+    ctx.fillStyle = '#F7C27A';
+    for (const p of this.pollen) {
+      const a = p.a + t * p.s;
+      ctx.globalAlpha = 0.5;
+      ctx.fillRect(Math.round(cx + Math.cos(a) * p.r * 1.3), Math.round(cy + 2 + Math.sin(a * 1.3) * p.r * 0.7), 1, 1);
+    }
+    ctx.globalAlpha = 1;
   }
 
   protected drawL2(g: Gfx, t: number): void {
@@ -529,6 +635,24 @@ export class HoshiTanadaBg extends Background {
     enemyLift(ctx, 0.55);
   }
 
+  /** HD-2D: the sky over the 3D terraces is this backdrop's L0 (its hill and the farmhouses' windows with it). */
+  paintPlaceSky(ctx: CanvasRenderingContext2D, t: number): boolean {
+    return skyOfL0(() => this.paintL0(ctx, t));
+  }
+
+  placeHaze(): string {
+    return NIGHT_HAZE;
+  }
+
+  /** HD-2D: the stars, the mist behind the scarecrow, the lantern's light on the lowest paddies, the CDs turning. */
+  protected drawOverPlace(g: Gfx): void {
+    const t = this.mt;
+    skyStars(g.ctx, this.place, this.stars, t);
+    enemyLift(g.ctx, 0.55);
+    lanternGround(g.ctx, t);
+    this.drawL2(g, t);
+  }
+
   protected drawL2(g: Gfx, t: number): void {
     const ctx = g.ctx;
     this.cds.forEach((c, i) => {
@@ -700,9 +824,14 @@ export class HoshiFenceBg extends Background {
   }
 
   protected paintL1(ctx: CanvasRenderingContext2D, _t: number): void {
+    this.fenceRows(ctx, true);
+  }
+
+  /** The three rows: their posts and grass (`posts`), the two wires and the pulse running along them. */
+  private fenceRows(ctx: CanvasRenderingContext2D, posts: boolean): void {
     const charged = (this.flags.charged ?? 0) > 0;
     for (const r of this.rows) {
-      ctx.drawImage(r.tile, 0, r.y);
+      if (posts) ctx.drawImage(r.tile, 0, r.y);
       const base = r.y + r.h + 2;
       for (const wy of [base - Math.round(r.h * 0.35), base - Math.round(r.h * 0.35) - r.gap]) {
         ctx.fillStyle = r.wire;
@@ -730,6 +859,30 @@ export class HoshiFenceBg extends Background {
         }
       }
     }
+  }
+
+  /** HD-2D: the sky over the 3D field is this backdrop's L0 (the mountain, the brush, the far fence's blink). */
+  paintPlaceSky(ctx: CanvasRenderingContext2D, t: number): boolean {
+    return skyOfL0(() => this.paintL0(ctx, t));
+  }
+
+  placeHaze(): string {
+    return NIGHT_HAZE;
+  }
+
+  /**
+   * HD-2D: the stars, the lift behind the enemy, the lantern's light; and
+   * the fence's wires with the pulse running along them every second (twice
+   * as often, and glowing, while it is charged) and the warning plates —
+   * the place's own posts stand in the 3D.
+   */
+  protected drawOverPlace(g: Gfx): void {
+    const t = this.mt;
+    skyStars(g.ctx, this.place, this.stars, t);
+    enemyLift(g.ctx, 1);
+    lanternGround(g.ctx, t);
+    this.fenceRows(g.ctx, false);
+    this.drawL2(g, t);
   }
 
   protected drawL2(g: Gfx, t: number): void {
@@ -886,6 +1039,35 @@ export class HoshiYamaBg extends Background {
     enemyLift(ctx, 0.5);
   }
 
+  /** HD-2D: the sky is this backdrop's L0 with its farthest ridge (drifting as in 2D); the nearer ridges are the 3D's. */
+  paintPlaceSky(ctx: CanvasRenderingContext2D, t: number): boolean {
+    skyOfL0(() => this.paintL0(ctx, t));
+    this.ridge(ctx, 70, 8, this.px[0], '#3A2B5C', 1, false, false);
+    return true;
+  }
+
+  placeHaze(): string {
+    return NIGHT_HAZE;
+  }
+
+  /** HD-2D: the stars, the dark boar's lifted sky, the lantern's light, the hoof prints and the mud. */
+  protected drawOverPlace(g: Gfx): void {
+    const t = this.mt;
+    skyStars(g.ctx, this.place, this.stars, t);
+    enemyLift(g.ctx, 1);
+    enemyLift(g.ctx, 0.5);
+    lanternGround(g.ctx, t);
+    this.drawL2(g, t);
+  }
+
+  draw(g: Gfx): void {
+    // HD-2D: while it charges the place trembles (in 2D its ridges do: ridge())
+    const shake = this.place && (this.flags.charge ?? 0) > 0 && Math.floor(this.t * 15) % 2 ? 1 : 0;
+    if (shake) g.ctx.translate(0, 1);
+    super.draw(g);
+    if (shake) g.ctx.translate(0, -1);
+  }
+
   protected drawL2(g: Gfx, t: number): void {
     const ctx = g.ctx;
     // hoof prints drifting right along the bottom
@@ -1016,6 +1198,21 @@ export class HoshiMujinBg extends Background {
     super.update(dt);
     const to = (this.flags.acting ?? 0) > 0 ? 1 : 0;
     this.quiet += Math.sign(to - this.quiet) * Math.min(Math.abs(to - this.quiet), dt / 250);
+  }
+
+  /** HD-2D: the sky is this backdrop's L0 (its bands). */
+  paintPlaceSky(ctx: CanvasRenderingContext2D, t: number): boolean {
+    return skyOfL0(() => this.paintL0(ctx, t));
+  }
+
+  placeHaze(): string {
+    return NIGHT_HAZE;
+  }
+
+  /** HD-2D: the lift behind the stand, and the cardboard bands (「どれでも 100円」→「全品 200円」) with the tomato's line under them. */
+  protected drawOverPlace(g: Gfx): void {
+    enemyLift(g.ctx, 0.6);
+    this.drawL2(g, this.mt);
   }
 
   protected drawL2(g: Gfx, t: number): void {
@@ -1179,6 +1376,24 @@ export class HoshiTetsuyaBg extends Background {
     // the horizon: the lantern's orange along the far edge of the field
     tomatoBand(ctx, 96, t, 8, 0.55);
     enemyLift(ctx, 0.5);
+  }
+
+  /** HD-2D: the sky is this backdrop's L0 (the mountain, the old field's bank and its susuki); the furrows are the 3D's. */
+  paintPlaceSky(ctx: CanvasRenderingContext2D, t: number): boolean {
+    return skyOfL0(() => this.paintL0(ctx, t));
+  }
+
+  placeHaze(): string {
+    return NIGHT_HAZE;
+  }
+
+  /** HD-2D: the stars, the lift, the lantern's light, the headlight's fan (bright, dim, dying with the engine) and the clods. */
+  protected drawOverPlace(g: Gfx): void {
+    const t = this.mt;
+    skyStars(g.ctx, this.place, this.stars, t);
+    enemyLift(g.ctx, 0.5);
+    lanternGround(g.ctx, t);
+    this.drawL2(g, t);
   }
 
   protected drawL2(g: Gfx, _t: number): void {
@@ -1384,6 +1599,58 @@ export class HoshiBossBg extends Background {
       ctx.globalAlpha = 1;
     }
     enemyLift(ctx, 0.5);
+  }
+
+  /** HD-2D: the sky sliding down is this backdrop's L0 (the far ranges, the tomato's band while lit, the hilltop with it). */
+  paintPlaceSky(ctx: CanvasRenderingContext2D, t: number): boolean {
+    return skyOfL0(() => this.paintL0(ctx, t));
+  }
+
+  placeHaze(): string {
+    return '#1B1733';
+  }
+
+  /** HD-2D: the loudspeaker's pole is the enemy itself: not twice. */
+  placeLeaves(): readonly string[] {
+    return ['prop_h_speaker_pole'];
+  }
+
+  /**
+   * HD-2D: the stars and the morning star (never twinkling; over the
+   * place's horizon where it shows sky), the lift, the lantern's light, the
+   * two poles with the five wires and their name tags flowing (点呼, the
+   * second phase, stopped while lit or at the end), and over all of it the
+   * night's steps, the light, the sunset's flash and the finale's gold.
+   */
+  protected drawOverPlace(g: Gfx): void {
+    const t = this.mt;
+    const ctx = g.ctx;
+    skyStars(ctx, this.place, this.stars, t);
+    this.morningStar(ctx);
+    lanternGround(ctx, t);
+    this.paintL1(ctx, t);
+    this.drawL2(g, t);
+  }
+
+  /** The morning star over the place: at its 2D px, or a little over the horizon below it there. */
+  private morningStar(ctx: CanvasRenderingContext2D): void {
+    const pl = this.place;
+    if (!pl) return;
+    const big = (this.flags.phase2 ?? 0) > 0;
+    let y = 118;
+    if (!pl.isSky(345, y)) {
+      let top = y;
+      while (top > 8 && !pl.isSky(345, top)) top--;
+      if (top <= 8) return;
+      y = top - 4;
+    }
+    ctx.fillStyle = '#FFF6D8';
+    if (big) ctx.fillRect(343, y - 1, 3, 3);
+    else ctx.fillRect(344, y, 2, 2);
+    ctx.globalAlpha = 0.25;
+    ctx.fillRect(342, y, 1, 2);
+    ctx.fillRect(347, y, 1, 2);
+    ctx.globalAlpha = 1;
   }
 
   protected drawL2(g: Gfx, _t: number): void {

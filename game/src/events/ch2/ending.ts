@@ -15,6 +15,15 @@
 //   カット7 ツガオの部屋 (the UI's cut_tsugao_room; X skips it from the second time)
 //   カット8 the title, a morning over 星見台
 // Starts on black right after the boss's quiet results.
+//
+// HD-2D (2026-10-06, 依頼主「第２章もHD-2Dにしてみよう」): the cuts run on the
+// field, so in HD-2D they are the 3D hill, barn, house, terraces, gathering
+// room, turning circle, bus stop and home; each shot gets its lens through
+// events/ending.ts's endingView.shot (src/hd2d/cut_ch2.ts CH2_SHOTS) — 2D:
+// nothing. What lies on the ground (the bus's light on the pavement) is
+// laid there (busPool), the rounds book's close-up opens over マサル's head
+// where it is in the 3D barn, the sunrise is drawn over the 3D hill
+// (ui/cut_sunrise.ts). The times, the lines and the sounds are the 2D's.
 
 import type { Co } from '../../engine/co';
 import { all } from '../../engine/co';
@@ -25,7 +34,10 @@ import { ambientEvent, playAmbient, playBgm, setAmbientVol, stopAllAmbient, stop
 import { despawn, face, registerScript, roomMorning, setFollowerVisible, setGradeH, spawn, takeItem, walk } from '../../world/api';
 import type { Actor } from '../../world/actor';
 import { field } from '../../world/field';
-import { registerWorldFx } from '../../world/fx';
+import { fxElsewhere, registerWorldFx } from '../../world/fx';
+import { makeCanvas } from '../../engine/pixel';
+import type { FieldScene } from '../../world/field';
+import { endingView } from '../ending';
 import { runMsg } from '../../world/msg';
 import { clearRecordCh2 } from '../../ui/flow';
 import { setClockText, setFieldCurtain, showClock } from '../../ui/hud';
@@ -50,9 +62,11 @@ import { kanboAtBus, kanboEndSetup } from './dome';
 // ---------------------------------------------------------------- staging helpers
 
 /** Load a map for a cut: Minato and グソっ君 out of the frame (or placed), the camera on (cx, cy). */
-function cutTo(map: string, cx: number, cy: number, o: { show?: boolean; dir?: Dir } = {}): void {
+function cutTo(map: string, cx: number, cy: number, o: { show?: boolean; dir?: Dir; shot?: string } = {}): void {
   const f = F();
   f.loadMap(map, cx, cy, o.dir ?? 'down');
+  // (HD-2D: the shot's lens, src/hd2d/cut_ch2.ts; 2D: nothing)
+  endingView.shot(f, o.shot ?? null);
   setFollowerVisible(!!o.show);
   f.player.visible = !!o.show;
   f.player.alpha = 1;
@@ -145,6 +159,117 @@ registerWorldFx({
   },
 });
 
+/**
+ * HD-2D: the bus's light on the pavement at 夕鳴町's stop is a picture lying
+ * on the ground — the 3D view would stand it up like a person — so there the
+ * actor is left out and the same trapezoid is laid on the ground, row by row
+ * where each lies on screen, under the grade's colour as the 2D world layer
+ * takes it. 2D: the actor as it is.
+ */
+const busPool: { a: Actor | null } = { a: null };
+registerWorldFx({
+  map: 'map_town',
+  anchored: true,
+  update(f: FieldScene) {
+    const a = busPool.a;
+    if (!a) return;
+    if (!f.actors.includes(a)) {
+      busPool.a = null;
+      return;
+    }
+    a.visible = !fxElsewhere(f);
+  },
+  draw(f: FieldScene, g, _cx, _cy, layer) {
+    const a = busPool.a;
+    if (!a || layer !== 'ground' || !fxElsewhere(f) || a.alpha <= 0) return;
+    const m = f.grade.mul;
+    const col = `rgb(${Math.round((0xf6 * m[0]) / 255)},${Math.round((0xd9 * m[1]) / 255)},${Math.round((0x8a * m[2]) / 255)})`;
+    for (let r = 0; r < 18; r++) {
+      const wy = a.y - 30 + r * 2;
+      const p0 = f.projected(a.x - 6 - r / 3, wy, wy);
+      const p1 = f.projected(a.x + 6 + r / 3, wy + 2, wy + 2);
+      if (!p0 || !p1) continue;
+      g.rect(Math.round(p0[0]), Math.round(p0[1]), Math.max(1, Math.round(p1[0] - p0[0])), Math.max(1, Math.round(p1[1] - p0[1])), col, 0.25 * a.alpha);
+    }
+  },
+});
+
+/**
+ * HD-2D: the bus at 夕鳴町's stop seen from behind (art/props/hoshi_vehicles.ts
+ * busBack: the long roof seen from above, rows 0–44, over its back face,
+ * rows 45–71). Stood up whole like a person it would be a tower, so there the
+ * actor is left out and the picture is laid as the town lays a building: the
+ * back face standing on the bus's feet line, the roof lying on top of it,
+ * reaching north — row by row where each lies on screen, under the grade's
+ * colour as the 2D world layer takes it. Side on (as it drives off) it is
+ * the actor's picture again. 2D: the actor as it is.
+ */
+const busBack3d: { a: Actor | null; img: HTMLCanvasElement | null } = { a: null, img: null };
+/** busBack's rows: the roof's (0 … FACE_ROW − 1, seen from above) and the back face's (FACE_ROW …). */
+const BUS_FACE_ROW = 45;
+const busGraded = new Map<string, HTMLCanvasElement>();
+
+function busUnderGrade(img: HTMLCanvasElement, mul: readonly [number, number, number]): HTMLCanvasElement {
+  const key = mul.join(',');
+  let c = busGraded.get(key);
+  if (c) return c;
+  if (busGraded.size > 8) busGraded.clear();
+  const [o, ctx] = makeCanvas(img.width, img.height);
+  ctx.drawImage(img, 0, 0);
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = `rgb(${mul[0]},${mul[1]},${mul[2]})`;
+  ctx.fillRect(0, 0, img.width, img.height);
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.drawImage(img, 0, 0);
+  busGraded.set(key, o);
+  c = o;
+  return c;
+}
+
+registerWorldFx({
+  map: 'map_town',
+  anchored: true,
+  update(f: FieldScene) {
+    const a = busBack3d.a;
+    if (!a) return;
+    if (!f.actors.includes(a)) {
+      busBack3d.a = null;
+      return;
+    }
+    if (busBack3d.img) a.visible = !fxElsewhere(f);
+  },
+  draw(f: FieldScene, g, _cx, _cy, layer) {
+    const a = busBack3d.a;
+    const src = busBack3d.img;
+    if (!a || !src || layer !== 'sorted' || !fxElsewhere(f)) return;
+    const img = busUnderGrade(src, f.grade.mul);
+    const x0 = a.x - img.width / 2;
+    const x1 = x0 + img.width;
+    const foot = a.y;
+    const faceH = img.height - BUS_FACE_ROW;
+    const ctx = g.ctx;
+    const slice = (r: number, h: number, p0: [number, number] | null, p1: [number, number] | null) => {
+      if (!p0 || !p1) return;
+      const w = p1[0] - p0[0];
+      const hh = p1[1] - p0[1];
+      if (w <= 0 || hh <= 0 || hh > h * 8) return;
+      ctx.drawImage(img, 0, r, img.width, h, Math.round(p0[0]), Math.round(p0[1]), Math.round(w), Math.ceil(hh));
+    };
+    // the roof lying on top, from its far (north) end to the back edge
+    for (let r = 0; r < BUS_FACE_ROW; r += 3) {
+      const h = Math.min(3, BUS_FACE_ROW - r);
+      const gy0 = foot - (BUS_FACE_ROW - r);
+      const gy1 = foot - (BUS_FACE_ROW - r - h);
+      slice(r, h, f.projected(x0, gy0 - faceH, gy0), f.projected(x1, gy1 - faceH, gy1));
+    }
+    // the back face standing on the feet line
+    for (let r = BUS_FACE_ROW; r < img.height; r += 3) {
+      const h = Math.min(3, img.height - r);
+      slice(r, h, f.projected(x0, foot - (img.height - r), foot), f.projected(x1, foot - (img.height - r - h), foot));
+    }
+  },
+});
+
 // ---------------------------------------------------------------- カット1 丘
 
 function* cut1Hill(): Co {
@@ -220,6 +345,8 @@ function* cut1Hill(): Co {
   );
   yield* runMsg(T.END_SUNRISE);
   yield* cut.close(300);
+  // (HD-2D: the plaza from a little lower)
+  endingView.shot(f, 'h1_plaza');
   // back on the plaza in the morning's colours: they look east (1.5 s)
   poseIf(p, 'look_up');
   if (k) poseIf(k, 'look_up');
@@ -258,7 +385,7 @@ function* cut2Morning(): Co {
   // morning, the dim pen fills) and the cows get up and put their heads in
   // the troughs; マサルさん pushes the feed cart east
   yield* fadeCut(300);
-  cutTo('map_hoshi_barn', 11, 6);
+  cutTo('map_hoshi_barn', 11, 6, { shot: 'h2_barn' });
   setGradeH('h3c', 0);
   roomMorning(false);
   const gen = put('npc_hoshi_gen', 4, 6, 'right', 'feed');
@@ -290,7 +417,9 @@ function* cut2Morning(): Co {
   poseIf(gen, 'write');
   yield 250;
   const fc = F();
-  yield* playMimawariHanamaru(Math.round(gen.x - fc.camX), Math.round(gen.y - fc.camY - 30));
+  // (HD-2D: over his head where it is in the 3D barn)
+  const head = fc.projected(gen.x, gen.y - 30, gen.y);
+  yield* playMimawariHanamaru(...(head ? [Math.round(head[0]), Math.round(head[1])] : [Math.round(gen.x - fc.camX), Math.round(gen.y - fc.camY - 30)]) as [number, number]);
   unpose(gen);
   yield* beat(400);
 
@@ -299,7 +428,7 @@ function* cut2Morning(): Co {
   cartHidden.on = false;
   despawn('end_feed_cart');
   stopAmbient('amb_h_barn', 0.3);
-  cutTo('map_hoshi_house', 4, 12);
+  cutTo('map_hoshi_house', 4, 12, { shot: 'h2_house' });
   setGradeH('h3c', 0);
   put('npc_hoshi_mitsu', 7, 15, 'right', 'crank');
   yield* game.fadeIn(300);
@@ -318,7 +447,7 @@ function* cut2Morning(): Co {
 
   // 2c the terraces: morning dew; トマじい looks into the water gate; the scarecrows face the fields again
   yield* fadeCut(300);
-  cutTo('map_hoshimidai', 24, 10);
+  cutTo('map_hoshimidai', 24, 10, { shot: 'h2_tanada' });
   setGradeH('h3c', 0);
   put('npc_hoshi_tome', 21, 11, 'down');
   playAmbient('amb_h_tanada', { vol: 0.8, fade: 0.3 });
@@ -330,7 +459,7 @@ function* cut2Morning(): Co {
 
   // 2d the gathering room: the last snore; ハモ区長 opens the window; the three wake up
   yield* fadeCut(300);
-  cutTo('map_hoshi_school', 6, 7);
+  cutTo('map_hoshi_school', 6, 7, { shot: 'h2_school' });
   setGradeH('h3c', 0);
   const kucho = put('npc_hoshi_kucho', 10, 3, 'up', 'open_window');
   yield* game.fadeIn(300);
@@ -345,7 +474,7 @@ function* cut2Morning(): Co {
 
   // 2e the path's mouth: まつ先生 looks up at the morning sun; the truck has gone
   yield* fadeCut(300);
-  cutTo('map_hoshimidai', 48, 4);
+  cutTo('map_hoshimidai', 48, 4, { shot: 'h2_path' });
   setGradeH('h3c', 0);
   put('npc_hoshi_fumi', 47, 2, 'right', 'look_up');
   yield* game.fadeIn(300);
@@ -370,7 +499,7 @@ const SEE_OFF: [string, number, number, Dir][] = [
 
 function* cut3Bus(): Co {
   yield* fadeCut(300);
-  cutTo('map_hoshimidai', 33, 43, { show: true, dir: 'right' });
+  cutTo('map_hoshimidai', 33, 43, { show: true, dir: 'right', shot: 'h3_bus' });
   setGradeH('h3c', 0);
   const f = F();
   const p = f.player;
@@ -537,7 +666,7 @@ function* cut4BusStop(): Co {
   stopAllAmbient(0.8);
   // 夕鳴町 at night again: no music, only the night's insects
   setFlag('flag_bgm_hold', 1);
-  cutTo('map_town', 34, 12, { dir: 'down' });
+  cutTo('map_town', 34, 12, { dir: 'down', shot: 'h4_stop' });
   musicParam('h_stage', -1);
   paMode('town');
   space('night');
@@ -548,6 +677,8 @@ function* cut4BusStop(): Co {
   // the bus stands in the lane east of the stop (35–36, 9–13), facing north; its door opens on the stop's side
   const back = hoshiBusImage('back', true);
   const bus = vehicle('end_bus_town', 35 * 16 + 16, 13 * 16 + 14, () => back);
+  busBack3d.a = bus;
+  busBack3d.img = back;
   const pool = spawn('end_bus_pool', 34, 11, { sprite: 'kanenari', ghost: true });
   pool.data.scripted = true;
   pool.solid = false;
@@ -556,6 +687,7 @@ function* cut4BusStop(): Co {
     // the bus's warm light on the pavement (#F6D98A α25%, a trapezoid)
     for (let r = 0; r < 18; r++) g.rect(Math.round(x - 6 - r / 3), Math.round(y - 30 + r * 2), Math.round(12 + (r * 2) / 3), 2, '#F6D98A', 0.25 * pool.alpha);
   };
+  busPool.a = pool;
   setClockText('6:12', { cut: true });
   // マル (02 #65) on her walker by the stop, where she has waited since five: in
   // every run, 「第2章から」 too — the picture and her one page
@@ -647,10 +779,15 @@ function* cut4BusStop(): Co {
   fctx.scale(-1, 1);
   fctx.drawImage(side, 0, 0);
   bus.drawFn = (g, x, y) => g.img(flipped, Math.round(x - flipped.width / 2), Math.round(y - flipped.height));
+  // (HD-2D: side on, it stands as the 2D's picture again)
+  busBack3d.img = null;
+  bus.visible = true;
   const x0 = bus.x;
   yield* animate(1600, (q) => (bus.x = x0 + 240 * ease.quadIn(q)), ease.linear);
   despawn('end_bus_town');
   despawn('end_bus_pool');
+  busPool.a = null;
+  busBack3d.a = null;
   despawn('end_npc_maru');
   // 「ほな、帰ろか。しゅんの 家。」: the two go home together, west along the
   // road (グソっ君 has been at Shun's side since chapter 1; ★2026-09-29)
@@ -691,7 +828,7 @@ function* cut4BusStop(): Co {
 function* cut4bReunion(): Co {
   yield* fadeCut(300);
   stopAllAmbient(0.3);
-  cutTo('map_hoshimidai', 35, 42);
+  cutTo('map_hoshimidai', 35, 42, { shot: 'h4b_bus' });
   setGradeH('h3c', 0);
   // no clock plate here (whose time would it tell?): the HUD is off for this cut
   setClockText(null, { cut: true });
@@ -762,7 +899,7 @@ function* cut4bReunion(): Co {
 function* cut5Home(): Co {
   yield* fadeCut(300);
   stopAllAmbient(0.3);
-  cutTo('map_home_1f', 2, 7, { show: true, dir: 'up' });
+  cutTo('map_home_1f', 2, 7, { show: true, dir: 'up', shot: 'h5_home' });
   // グソっ君 comes home with him (his corner by the door)
   setFollowerVisible(true);
   const f = F();

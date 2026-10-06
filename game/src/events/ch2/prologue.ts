@@ -10,6 +10,12 @@
 //
 // ui/flow.startChapter2 starts it as a field script on map_town (56,22) E with
 // the screen black (game.fadeAlpha = 1).
+//
+// HD-2D (2026-10-06, 依頼主「第２章もHD-2Dにしてみよう」): the crossing is the
+// 3D town at night through chapter 1's last cut's lens (endingView.shot
+// 'c6_crossing', src/hd2d/cut.ts), and the car — a picture seen from above —
+// lies on the rails as chapter 1's night train does (trainOnRails); the
+// times, the lines and the sounds are the 2D's.
 
 import type { Co } from '../../engine/co';
 import { game, type Scene } from '../../engine/game';
@@ -29,7 +35,11 @@ import { hoshiTrainImage } from '../../art/props/hoshi_vehicles';
 import * as T from '../../data/text/hoshi_events';
 import { F } from '../lib';
 import { ring } from '../fx';
-import { crossingCloseUp, crossingCloseUpOff } from '../ending';
+import { crossingCloseUp, crossingCloseUpOff, endingView } from '../ending';
+import { makeCanvas } from '../../engine/pixel';
+import { H } from '../../engine/screen';
+import { fxElsewhere, registerWorldFx } from '../../world/fx';
+import type { FieldScene } from '../../world/field';
 import { musicParam, paMode, reportCard, se, seLoop, space } from './compat';
 import { runCue } from './common';
 
@@ -48,6 +58,9 @@ interface Train {
   door: number;
 }
 
+/** The train on the crossing now (trainOnRails draws it in the HD-2D view). */
+let liveTrain: Train | null = null;
+
 /** The unlit one-car train as a scripted actor: its feet are the front of the car. */
 function spawnTrain(front: number): Train {
   const a = spawn('ch2_prologue_train', 60, 22, { sprite: 'kanenari', ghost: true });
@@ -60,8 +73,68 @@ function spawnTrain(front: number): Train {
     const img = hoshiTrainImage(tr.door, Math.floor(game.time / 90) % 2);
     g.img(img, Math.round(x - CAR_W / 2), Math.round(y - CAR_H));
   };
+  liveTrain = tr;
   return tr;
 }
+
+/** Rows of the car's picture laid at once in the HD-2D view (as world/places.ts TRAIN_SLICE). */
+const SLICE = 8;
+/** The car's pictures under the grade's multiply colour (the HD-2D layer lies over the graded 3D). */
+const graded = new Map<string, HTMLCanvasElement>();
+
+function gradedCar(door: number, sign: number, mul: readonly [number, number, number]): HTMLCanvasElement {
+  const key = `${door}|${sign}|${mul.join(',')}`;
+  let c = graded.get(key);
+  if (c) return c;
+  if (graded.size > 12) graded.clear();
+  const img = hoshiTrainImage(door, sign);
+  const [o, ctx] = makeCanvas(img.width, img.height);
+  ctx.drawImage(img, 0, 0);
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = `rgb(${mul[0]},${mul[1]},${mul[2]})`;
+  ctx.fillRect(0, 0, img.width, img.height);
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.drawImage(img, 0, 0);
+  graded.set(key, o);
+  c = o;
+  return c;
+}
+
+/**
+ * HD-2D: the car is a picture seen from above. Standing it up as a person
+ * would make a wall of it, so in the 3D view the actor is left out and the
+ * picture lies on the rails instead, in slices of SLICE rows, each where its
+ * own stretch of the track is on screen (a slice the camera can't see is
+ * left out) — chapter 1's night train (world/places.ts drawTrain). 2D: the
+ * actor as it is.
+ */
+registerWorldFx({
+  map: 'map_town',
+  anchored: true,
+  update(f: FieldScene) {
+    const tr = liveTrain;
+    if (!tr) return;
+    if (!f.actors.includes(tr.a)) {
+      liveTrain = null;
+      return;
+    }
+    tr.a.visible = !fxElsewhere(f);
+  },
+  draw(f: FieldScene, g, _cx, _cy, layer) {
+    const tr = liveTrain;
+    if (!tr || layer !== 'ground' || !fxElsewhere(f)) return;
+    const pic = gradedCar(tr.door, Math.floor(game.time / 90) % 2, f.grade.mul);
+    const left = tr.a.x - CAR_W / 2;
+    const top = tr.a.y - CAR_H;
+    for (let r = 0; r < pic.height; r += SLICE) {
+      const h = Math.min(SLICE, pic.height - r);
+      const a = f.projected(left, top + r, top + r);
+      const b = f.projected(left + pic.width, top + r + h, top + r + h);
+      if (!a || !b || b[1] <= a[1] || b[1] < -16 || a[1] > H + 16 || b[1] - a[1] > SLICE * 6) continue;
+      g.ctx.drawImage(pic, 0, r, pic.width, h, Math.round(a[0]), Math.round(a[1]), Math.round(b[0] - a[0]), Math.ceil(b[1] - a[1]));
+    }
+  },
+});
 
 /** The little wooden step rising out of the crossing's boards (3 frames). */
 function spawnStep(): { a: Actor; k: number } {
@@ -127,6 +200,8 @@ export function* evtPrologue(): Co {
   const k = spawn('ch2_prologue_kanenari', 57, 22, { sprite: 'kanenari', dir: 'left', ghost: true });
   k.data.scripted = true;
   const zoom = yield* crossingCloseUp();
+  // (HD-2D: the lens of chapter 1's last cut at the crossing, src/hd2d/cut.ts; 2D: nothing)
+  endingView.shot(f, 'c6_crossing');
   yield 400;
   playBgm('bgm_night', { fade: 2.0 });
   yield* game.fadeIn(1000);
@@ -252,6 +327,7 @@ export function* evtPrologue(): Co {
   crossingCloseUpOff();
   despawn('ch2_prologue_kanenari');
   despawn('ch2_prologue_train');
+  liveTrain = null;
   despawn('ch2_prologue_step');
   p.alpha = 1;
   p.visible = true;

@@ -67,6 +67,8 @@ const FinishShader = {
     glare: { value: new THREE.Color(1, 0.6, 0.3) },
     glareA: { value: 0 },
     glareW: { value: 0.45 },
+    // 1: the bleed comes from the right (星見台's dawn in the east, 52 8.3)
+    glareRight: { value: 0 },
     topDark: { value: new THREE.Color(0.2, 0.15, 0.35) },
     topA: { value: 0 },
     vignette: { value: 0.32 },
@@ -83,7 +85,7 @@ const FinishShader = {
     }`,
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
-    uniform float hstep, vstep, focus, desat, glareA, glareW, topA, vignette, waveAmp, waveT;
+    uniform float hstep, vstep, focus, desat, glareA, glareW, glareRight, topA, vignette, waveAmp, waveT;
     uniform vec3 mul, glare, topDark, lift;
     varying vec2 vUv;
 
@@ -128,8 +130,8 @@ const FinishShader = {
       s *= mul;
       float l = dot(s, vec3(0.299, 0.587, 0.114));
       s = mix(s, vec3(l), desat);
-      // warm bleed from the left (screen blend), dark from the top
-      float gx = clamp(1.0 - uv.x / max(0.01, glareW), 0.0, 1.0);
+      // warm bleed from the left (screen blend; 星見台: from the right), dark from the top
+      float gx = clamp(1.0 - mix(uv.x, 1.0 - uv.x, glareRight) / max(0.01, glareW), 0.0, 1.0);
       float ga = glareA * gx * gx;
       s = 1.0 - (1.0 - s) * (1.0 - glare * ga);
       float ty = clamp((uv.y - 0.55) / 0.45, 0.0, 1.0);
@@ -209,6 +211,7 @@ export class Post {
     (u.glare.value as THREE.Color).setRGB(g.glare[0] / 255, g.glare[1] / 255, g.glare[2] / 255);
     u.glareA.value = g.glareA;
     u.glareW.value = g.glareW;
+    u.glareRight.value = g.glareRight > 0.5 ? 1 : 0;
     (u.topDark.value as THREE.Color).setRGB(g.topDark[0] / 255, g.topDark[1] / 255, g.topDark[2] / 255);
     u.topA.value = g.topA;
     u.waveAmp.value = waveAmpPx / 384;

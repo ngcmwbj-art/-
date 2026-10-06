@@ -22,8 +22,21 @@
 // village from the front to the back.
 //
 // The battle draws it through registerBattleCut('cut_h_village_lit').
+//
+// HD-2D (2026-10-06, 依頼主「第２章もHD-2Dにしてみよう」): the village is the
+// 3D one. Walking up to the hill path, src/hd2d/cut_ch2.ts draws the whole
+// village once from the south — at night and lit by the tomato — and where
+// its sky is (villageLitView.picture). Seen from the village's side the hill
+// stands at the back, so there the tomato's light comes down from it, over
+// the terraces to the station: the painted sky behind, the 3D village at
+// night, its lit picture coming in from the back to the front (0.8 s) and
+// breathing, the buildings named in the lines brightening where they stand
+// in 3D, the light's source glowing over the hill. The lines, the times and
+// the cues are the 2D's; without the 3D picture (2D, the hill reached
+// another way), the painted one.
 
-import type { Gfx } from '../engine/gfx';
+import { Gfx } from '../engine/gfx';
+import { game } from '../engine/game';
 import { BAYER4, makeCanvas, PixelCanvas, toRgb } from '../engine/pixel';
 import { hash2 } from '../engine/rng';
 import { ease } from '../engine/tween';
@@ -777,6 +790,26 @@ function paintPlaza(p: Painter): void {
 
 type ZoneId = 'barn' | 'house' | 'school' | 'tanada';
 
+/** HD-2D: the village in 3D for this cut (src/hd2d/cut_ch2.ts). */
+export interface VillageLit3D {
+  /** The village at night and lit by the tomato (render size, the sky clear). */
+  night: HTMLCanvasElement;
+  lit: HTMLCanvasElement;
+  /** Where the named buildings stand in the picture (px of 384×216). */
+  zones: Record<ZoneId, Zone>;
+  /** Where the light comes from: the hill's top beyond the village (px of 384×216). */
+  src: { x: number; y: number };
+  /** The village's far edge (px of 216): the painted mountains stand on it. */
+  horizon: number;
+}
+
+/** The painted mountains' foot (paintMountains: the nearest ridge solid down to y112). */
+const MOUNT_FOOT = 110;
+
+export const villageLitView = {
+  picture: (): VillageLit3D | null => null,
+};
+
 interface Built {
   night: HTMLCanvasElement;
   base: HTMLCanvasElement;
@@ -927,6 +960,11 @@ export function drawVillageLit(g: Gfx, t: number, cue = 0): void {
     lastCue = cue;
     cueAt = t;
   }
+  const hd = villageLitView.picture();
+  if (hd) {
+    drawHd(g, t, cue, b, hd);
+    return;
+  }
   const ctx = g.ctx;
   // at first the light reaches the village from the front to the back
   const reveal = Math.min(1, t / 800);
@@ -977,6 +1015,141 @@ export function drawVillageLit(g: Gfx, t: number, cue = 0): void {
   g.alpha(Math.min(1, reveal * 1.4) * breath, () => g.img(b.fan, 0, 0));
   g.img(b.fg, 0, 0);
   drawNet(g, t, breath);
+}
+
+let hdUnder: HTMLCanvasElement | null = null;
+let hdSky: Gfx | null = null;
+/** The lit picture under its falloff (stronger toward the hill), made once per picture. */
+let hdLit: { src: HTMLCanvasElement; c: HTMLCanvasElement } | null = null;
+
+/** The lit picture, fading from the hill (the back) toward the front. */
+function litFalloff(pic: VillageLit3D): HTMLCanvasElement {
+  if (hdLit && hdLit.src === pic.lit) return hdLit.c;
+  const [c, ctx] = makeCanvas(pic.lit.width, pic.lit.height);
+  ctx.drawImage(pic.lit, 0, 0);
+  ctx.globalCompositeOperation = 'destination-in';
+  const k = c.height / H;
+  const v = ctx.createLinearGradient(0, 0, 0, c.height);
+  v.addColorStop(0, 'rgba(0,0,0,0.95)');
+  v.addColorStop(0.45, 'rgba(0,0,0,0.8)');
+  v.addColorStop(1, 'rgba(0,0,0,0.45)');
+  ctx.fillStyle = v;
+  ctx.fillRect(0, 0, c.width, c.height);
+  // and a little more round the light's source
+  ctx.globalCompositeOperation = 'lighter';
+  const r = ctx.createRadialGradient(pic.src.x * k, pic.src.y * k, 0, pic.src.x * k, pic.src.y * k, 170 * k);
+  r.addColorStop(0, 'rgba(0,0,0,0.3)');
+  r.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = r;
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.globalCompositeOperation = 'source-over';
+  hdLit = { src: pic.lit, c };
+  return c;
+}
+
+/**
+ * HD-2D: the cut over the 3D village (see the head of this file), put
+ * together at the display's size and handed to the screen under the buffer;
+ * `g`'s alpha is the cut's cross-fade over what is under it — the battle's
+ * place laid under the buffer this frame and the buffer itself (the stage,
+ * the panels), taken into the picture; the buffer is cleared for the band,
+ * drawn again after.
+ */
+function drawHd(g: Gfx, t: number, cue: number, b: Built, pic: VillageLit3D): void {
+  const alpha = g.ctx.globalAlpha;
+  const d = game.screen.display;
+  if (!hdUnder || hdUnder.width !== d.width || hdUnder.height !== d.height) [hdUnder] = makeCanvas(d.width, d.height);
+  const u = hdUnder.getContext('2d')!;
+  const uw = hdUnder.width;
+  const uh = hdUnder.height;
+  const k = uh / H;
+  const below = game.screen.underlay;
+  u.globalAlpha = 1;
+  u.globalCompositeOperation = 'source-over';
+  u.fillStyle = '#0B0B14';
+  u.fillRect(0, 0, uw, uh);
+  if (alpha < 1) {
+    // what is under the cut while it cross-fades: the battle's place and over it the buffer (the stage, the panels)
+    if (below && below !== hdUnder) u.drawImage(below, 0, 0, uw, uh);
+    u.imageSmoothingEnabled = false;
+    u.drawImage(g.ctx.canvas, 0, 0, uw, uh);
+  }
+  u.globalAlpha = alpha;
+  // the painted sky and far mountains (the stars twinkling, the morning star
+  // still), behind the 3D: the mountains' foot on the village's far edge
+  hdSky ??= new Gfx(makeCanvas(W, H)[1], W, H);
+  const sg = hdSky;
+  const dy = Math.round(pic.horizon + 2 - MOUNT_FOOT);
+  sg.ctx.fillStyle = '#1B1733';
+  sg.ctx.fillRect(0, 0, W, H);
+  if (dy > 0) sg.ctx.drawImage(b.base, 0, 0, W, 1, 0, 0, W, dy);
+  sg.ctx.drawImage(b.base, 0, 0, W, MOUNT_FOOT, 0, dy, W, MOUNT_FOOT);
+  for (const [i, s] of b.stars.entries()) {
+    if (!s.tw || s.y >= MOUNT_FOOT) continue;
+    const ph = (t / (700 + (i % 5) * 190) + hash2(i, 7, 55) * 7) % 3;
+    sg.px(s.x, s.y + dy, ph < 1.6 ? s.c : ph < 2.3 ? '#8A7AB0' : '#3A3060');
+  }
+  sg.rect(28, 64 + dy, 2, 2, '#FFF6D8');
+  u.imageSmoothingEnabled = false;
+  u.drawImage(sg.ctx.canvas, 0, 0, uw, uh);
+  u.imageSmoothingEnabled = true;
+  u.drawImage(pic.night, 0, 0, uw, uh);
+  // the light comes down from the hill: the lit picture from the back to the front (0.8 s), then breathing
+  const reveal = Math.min(1, t / 800);
+  const s = Math.sin((t / 1000) * Math.PI * 2 * 0.8);
+  const breath = 1 + 0.04 * s;
+  const lit = litFalloff(pic);
+  const edge = Math.round(ease.cubicOut(reveal) * uh);
+  if (edge > 0) {
+    u.save();
+    u.beginPath();
+    u.rect(0, 0, uw, edge);
+    u.clip();
+    u.globalAlpha = alpha * Math.min(1, 0.9 + 0.1 * s);
+    u.drawImage(lit, 0, 0, uw, uh);
+    u.restore();
+  }
+  // the buildings named in the lines brighten a step for 0.3 s, one after another
+  for (const [zone, delay] of CUE_FLASH[cue] ?? []) {
+    const ft = t - cueAt - delay;
+    if (ft < 0 || ft > 300) continue;
+    const kk = ft < 60 ? ft / 60 : 1 - (ft - 60) / 240;
+    const z = pic.zones[zone];
+    u.save();
+    u.beginPath();
+    u.rect(z.x * k, z.y * k, z.w * k, z.h * k);
+    u.clip();
+    u.globalAlpha = alpha * 0.7 * kk;
+    u.drawImage(pic.lit, 0, 0, uw, uh);
+    u.restore();
+  }
+  // the warm light pouring from the hill, and the tomato held up there
+  const sx = pic.src.x * k;
+  const sy = pic.src.y * k;
+  u.globalCompositeOperation = 'lighter';
+  u.globalAlpha = alpha * Math.min(1, reveal * 1.4) * breath;
+  const fan = u.createRadialGradient(sx, sy, 0, sx, sy, 260 * k);
+  fan.addColorStop(0, 'rgba(242,137,75,0.32)');
+  fan.addColorStop(0.35, 'rgba(242,137,75,0.12)');
+  fan.addColorStop(1, 'rgba(242,137,75,0)');
+  u.fillStyle = fan;
+  u.fillRect(0, 0, uw, uh);
+  u.globalAlpha = alpha * breath;
+  const core = u.createRadialGradient(sx, sy, 0, sx, sy, 16 * k);
+  core.addColorStop(0, 'rgba(255,246,216,0.95)');
+  core.addColorStop(0.35, 'rgba(255,178,122,0.6)');
+  core.addColorStop(1, 'rgba(242,137,75,0)');
+  u.fillStyle = core;
+  u.fillRect(sx - 16 * k, sy - 16 * k, 32 * k, 32 * k);
+  u.globalCompositeOperation = 'source-over';
+  u.globalAlpha = 1;
+  game.screen.underlay = hdUnder;
+  // (the buffer's own is in the picture now: clear for the band, drawn again on top)
+  const ctx = g.ctx;
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.restore();
 }
 
 /** The top of the pole and the net at the bottom middle, the tomato glowing in it. */

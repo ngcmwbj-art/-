@@ -21,6 +21,7 @@ import type { FieldScene } from '../world/field';
 import { crownBoards, standUp } from './props3d';
 import { Atlas, box, canvas, litMaterial, Mask, pixelTexture, PX, Quads, solidFace, type UvFn } from './solid';
 import { P } from '../art/tiles/palette';
+import { hash2, valueNoise } from '../engine/rng';
 import { loadMap } from '../world/maps';
 import { GroundCache } from '../world/ground_cache';
 import { buildWalls } from './walls';
@@ -139,6 +140,8 @@ interface Far {
   depth?: number;
   /** Only columns c0..c1 of its picture (a building going on past the edge: its end bay). */
   crop?: [number, number];
+  /** A tree (trunk and crown boards) though its id is not tree_* (星見台's own trees). */
+  tree?: boolean;
 }
 
 /**
@@ -270,6 +273,28 @@ const LAYOUT: Record<string, Far[]> = {
     { id: 'tree_kusu', x: 30, y: 10, opts: { v: 1 } },
     { id: 'tree_matsu', x: 14, y: 19, opts: { v: 0 } },
     { id: 'tree_kusu', x: 21, y: 18, opts: { v: 0 } },
+  ],
+  // 星見台 (60×48, chapter 2, 2026-10-06): the woods go on round it (walls.ts:
+  // the cedar mountain north, the bamboo and cedar west, the kuzu east, the
+  // scrub of the slope south, and the groves of its EXTRA). West, on the
+  // slope, more greenhouses, a straw shed and a field by the road down to
+  // the town at the foot (obj_hoshi_edge_road), a farmhouse past the old
+  // one; east of the barn its straw shed, a field and a house by the yard
+  map_hoshimidai: [
+    { id: 'prop_h_vinyl', x: -4, y: 21, opts: { n: 2 } },
+    { id: 'prop_h_vinyl', x: -8, y: 21, opts: { n: 1 } },
+    { id: 'prop_h_vinyl', x: -12, y: 21, opts: { n: 3 } },
+    { id: 'prop_h_hatake', x: -6, y: 33 },
+    { id: 'prop_h_wara_shed', x: -15, y: 34 },
+    { id: 'prop_h_pole', x: -5, y: 37 },
+    { id: 'prop_h_pole', x: -13, y: 37 },
+    { id: 'prop_h_bld_minka1', x: -9, y: 40, flip: true },
+    { id: 'tree_persimmon', x: -2, y: 43 },
+    { id: 'prop_h_wara_shed', x: 61, y: 27 },
+    { id: 'prop_h_pole', x: 61, y: 33 },
+    { id: 'prop_h_hatake', x: 63, y: 34 },
+    { id: 'prop_h_bld_akiya', x: 66, y: 39, flip: true },
+    { id: 'tree_persimmon', x: 62, y: 44 },
   ],
 };
 
@@ -408,7 +433,7 @@ export class Outskirts {
     const left = o.x * 16 + art.ox;
     const top = o.y * 16 + art.oy;
     const foot = o.y * 16 + art.foot;
-    const tree = o.id.startsWith('tree_');
+    const tree = o.tree ?? o.id.startsWith('tree_');
     const st = standUp(q, new Mask(img), uv, { iw: img.width, ih: img.height, left, top, foot }, { kind: tree ? 'tree' : 'pole', depth: 3 }, sv, 0, rec ?? undefined);
     const crown = tree ? art.fg?.[0]?.img(env) : null;
     if (crown && art.fg) {
@@ -609,4 +634,183 @@ export function skyBackdrop(f: FieldScene): THREE.Mesh | null {
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(64, 9.5), new THREE.MeshBasicMaterial({ map: tex, fog: false }));
   mesh.renderOrder = -1;
   return mesh;
+}
+
+// ---------------------------------------------------------------- 星見台's night sky (chapter 2, 2026-10-06)
+
+/** The night sky's picture (px per unit: it lies far off, drawn smooth). */
+const NS_K = 16;
+const NS_W = 64;
+const NS_H = 9.5;
+/** Where its ridge line lies, down from its top edge (a fraction): just over the hill's cedars as the camera sees them (town.ts SKY_AT). */
+const NS_RIDGE = 0.2;
+
+/**
+ * Far beyond 星見台's hilltops (places.ts nightSky): the sky before dawn as
+ * the grade has it (pal_h*: skyTop → skyBot; in the ending's morning the
+ * dawn), the 2D's stars and milky way, the mountains' ridges against it —
+ * west, over them, the glow and the lights of 夕鳴町 (obj_hoshi_view_west
+ * 「西の 山の 向こうに、町の 明かり」), east the paling sky and the morning
+ * star low (obj_hoshi_view_east 「またたかない 星が 1つ、低い ところに」).
+ * Painted again when the grade moves; never darkened by the night's map
+ * (cut_night.ts) nor the fog: it is the sky.
+ */
+export class NightSky {
+  readonly mesh: THREE.Mesh;
+  private readonly c: HTMLCanvasElement;
+  private readonly ctx: CanvasRenderingContext2D;
+  private readonly tex: THREE.CanvasTexture;
+  private key = '';
+  private last = -1e9;
+
+  constructor() {
+    [this.c, this.ctx] = canvas(NS_W * NS_K, NS_H * NS_K);
+    this.ctx.imageSmoothingEnabled = true;
+    this.tex = new THREE.CanvasTexture(this.c);
+    this.tex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.MeshBasicMaterial({ map: this.tex, fog: false });
+    mat.userData.noNight = true;
+    this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(NS_W, NS_H), mat);
+    this.mesh.renderOrder = -1;
+  }
+
+  /** Per frame: painted again when the grade has moved (at most 5 times a second). */
+  update(f: FieldScene): void {
+    const g = f.grade;
+    const key = [g.skyTop, g.skyBot, g.glare, [g.glareA, g.night, g.stars, g.milky, g.venus]].map((v) => v.map((n) => Math.round(n * 20)).join(',')).join('|');
+    if (key === this.key || f.t - this.last < 200) return;
+    this.key = key;
+    this.last = f.t;
+    this.paint(f);
+    this.tex.needsUpdate = true;
+  }
+
+  private paint(f: FieldScene): void {
+    const g = f.grade;
+    const ctx = this.ctx;
+    const w = this.c.width;
+    const h = this.c.height;
+    const ridge = Math.round(h * NS_RIDGE);
+    const rgb = (c: number[], a = 1) => `rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${a})`;
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    // the sky: the grade's colours, lighter towards the ridge
+    const sky = ctx.createLinearGradient(0, -ridge * 1.6, 0, ridge + 6);
+    sky.addColorStop(0, rgb(g.skyTop));
+    sky.addColorStop(0.75, rgb(g.skyBot));
+    sky.addColorStop(1, rgb(g.horizon.map((v, i) => g.skyBot[i] + (v - g.skyBot[i]) * 0.25)));
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, ridge + 8);
+    // east: the sky paling where the dawn will come (the grade's bleed from the right)
+    if (g.glareA > 0.001) {
+      const e = ctx.createRadialGradient(w * 0.86, ridge, 4, w * 0.86, ridge, w * 0.3);
+      e.addColorStop(0, rgb(g.glare, Math.min(1, g.glareA * 2.2)));
+      e.addColorStop(1, rgb(g.glare, 0));
+      ctx.fillStyle = e;
+      ctx.fillRect(0, 0, w, ridge + 8);
+    }
+    // the stars and the milky way (the 2D's own frame, tile after tile)
+    const k = Math.max(g.stars, g.milky);
+    if (k > 0.01) {
+      const frame = starFrame();
+      ctx.globalAlpha = k;
+      ctx.imageSmoothingEnabled = false;
+      for (let x = 0; x < w; x += frame.width) ctx.drawImage(frame, x, -frame.height + ridge, frame.width, frame.height);
+      ctx.imageSmoothingEnabled = true;
+      ctx.globalAlpha = 1;
+    }
+    // west, behind the far ridge: 夕鳴町's glow and lights, with the night
+    const night = Math.max(0, Math.min(1, g.night));
+    if (night > 0.01) {
+      const tx = w * 0.16;
+      const glow = ctx.createRadialGradient(tx, ridge + 4, 2, tx, ridge + 4, w * 0.14);
+      glow.addColorStop(0, `rgba(242,137,75,${0.3 * night})`);
+      glow.addColorStop(0.5, `rgba(217,114,138,${0.12 * night})`);
+      glow.addColorStop(1, 'rgba(217,114,138,0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, w, h);
+    }
+    // the ridges: the far one a step lighter, the near one dark, cedar-ragged
+    const ridgeAt = (x: number, base: number, amp: number, seed: number) =>
+      base - amp * (0.55 * valueNoise(x / 140, 0.5, seed) + 0.3 * valueNoise(x / 47, 1.5, seed + 1) + 0.15 * valueNoise(x / 9, 2.5, seed + 2));
+    const far = rgb([0x2a, 0x24, 0x40].map((v, i) => v + (g.skyBot[i] - v) * 0.35));
+    ctx.fillStyle = far;
+    for (let x = 0; x < w; x += 2) {
+      const y = Math.round(ridgeAt(x, ridge + 4, 14, 71));
+      ctx.fillRect(x, y, 2, h - y);
+    }
+    // the town's lights in the far ridge's dip (west)
+    if (night > 0.01) {
+      for (let i = 0; i < 26; i++) {
+        const lx = w * 0.07 + hash2(i, 1, 33) * w * 0.2;
+        const ly = ridgeAt(lx, ridge + 4, 14, 71) + 1 + hash2(i, 2, 33) * 5;
+        ctx.fillStyle = i % 3 ? `rgba(255,231,163,${0.75 * night})` : `rgba(246,217,138,${0.55 * night})`;
+        ctx.fillRect(Math.round(lx), Math.round(ly), i % 5 ? 1 : 2, 1);
+      }
+    }
+    ctx.fillStyle = '#100e1c';
+    for (let x = 0; x < w; x += 2) {
+      // (the near ridge stands lower west, where the town is seen over it)
+      const dip = Math.max(0, 1 - Math.abs(x - w * 0.16) / (w * 0.14));
+      const y = Math.round(ridgeAt(x, ridge + 12 + dip * 6, 9, 91));
+      const tip = hash2(x >> 1, 0, 93) < 0.35 ? 2 : 0;
+      ctx.fillRect(x, y - tip, 2, h - y + tip);
+    }
+    // the morning star, low in the east: it doesn't twinkle (52 8.7: 3×3 with its cross in h2)
+    const v = Math.round(g.venus);
+    if (v >= 2) {
+      const vx = Math.round(w * 0.82);
+      const vy = ridge - 7;
+      ctx.fillStyle = '#FFE7A3';
+      if (v >= 3) {
+        ctx.fillRect(vx - 2, vy, 5, 1);
+        ctx.fillRect(vx, vy - 2, 1, 5);
+      }
+      ctx.fillStyle = '#FFF6D8';
+      ctx.fillRect(vx - (v >= 3 ? 0 : 1), vy - (v >= 3 ? 0 : 1), 2, 2);
+    }
+    ctx.restore();
+  }
+
+  dispose(): void {
+    this.tex.dispose();
+    this.mesh.geometry.dispose();
+    (this.mesh.material as THREE.Material).dispose();
+  }
+}
+
+let stars: HTMLCanvasElement | null = null;
+/** The 2D's night sky frame (render.ts buildSky: the milky way and the steady stars), once. */
+function starFrame(): HTMLCanvasElement {
+  if (stars) return stars;
+  const W = 384;
+  const H = 216;
+  const [c, x] = canvas(W, H);
+  const len = Math.hypot(W, H);
+  const nx = -H / len;
+  const ny = W / len;
+  const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  for (let y = 0; y < H; y++)
+    for (let xx = 0; xx < W; xx++) {
+      const along = (xx * ny - y * nx) / len;
+      const off = (valueNoise(along * 6, 0.5, 44) - 0.5) * 18;
+      const d = Math.abs(xx * nx + y * ny - off);
+      if (d > 34) continue;
+      const k = 1 - d / 34;
+      const soft = k * k * (0.55 + 0.45 * valueNoise(xx / 23, y / 23, 45));
+      if (soft * 16 > BAYER[(y & 3) * 4 + (xx & 3)] + 0.5) {
+        const cloud = valueNoise(xx / 9, y / 9, 31) * (0.6 + 0.4 * valueNoise(xx / 31, y / 31, 32));
+        x.fillStyle = cloud > 0.5 && k > 0.45 ? '#3A2B5C' : '#2A2440';
+        x.fillRect(xx, y, 1, 1);
+      }
+    }
+  for (let i = 0; i < 70; i++) {
+    const sx = Math.floor(hash2(i, 7, 21) * W);
+    const sy = Math.floor(hash2(i, 8, 21) * H);
+    x.fillStyle = i % 9 === 0 ? '#FFE7A3' : '#FFF6D8';
+    x.fillRect(sx, sy, 1, 1);
+  }
+  stars = c;
+  return c;
 }

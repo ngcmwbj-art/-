@@ -39,10 +39,10 @@ import { Atlas, canvas, casterMaterial, litMaterial, Mask, ownUv, pixelTexture, 
 import { crownBoards, standUp, type Stood } from './props3d';
 import { flatShapeOf, shapeOf } from './shapes';
 import { placeOf } from './places';
-import { liveFlat, waterSheet, type LiveSheet } from './water3d';
+import { flatGlows, litDecals, liveFlat, skyWater, waterSheet, type LiveSheet } from './water3d';
 import { charAt } from '../world/maps';
 import { buildWalls, type Walls } from './walls';
-import { BelowTown, Outskirts, outskirtsGround, skyBackdrop } from './outskirts';
+import { BelowTown, NightSky, Outskirts, outskirtsGround, skyBackdrop } from './outskirts';
 import { recording, type Slab, type Solid } from './overlap';
 import { nightGlowK, nightGround, nightGroundMap } from './cut_night';
 
@@ -561,6 +561,14 @@ function stillPicture(a: PropArt, env: PropEnv): boolean {
   return true;
 }
 
+/** How much of a litOnly find shows (the 2D's: faded by lantern.ts; a big one cut to the lights there: shown while its foot is in one). */
+function litAlpha(f: FieldScene, p: PropInst): number {
+  const L = f.light;
+  if (!L.isClipped(p)) return L.alphaOf(p);
+  const a = p.art;
+  return L.inLight(p.x + (a.contactX ?? a.ox + a.w / 2), p.y + a.foot - 4, -6) ? 1 : 0;
+}
+
 // (exported for the rooms, room.ts: their furniture stands up the same way)
 export class CutoutView {
   readonly group = new THREE.Group();
@@ -629,7 +637,8 @@ export class CutoutView {
         : standUp(bq, new Mask(this.skin.c), uv, { iw, ih, left, top, foot, dz }, spec, SV, lift, r);
     // a still picture, there in every stage, low (or a trunk): into a shared batch
     const rf0 = Math.max(0, Math.min(ih, foot - top));
-    const still = !!first && !!batches && !p.obj.cond && !a.over && !a.glow && a.xray === undefined && (rf0 <= 48 || spec.kind === 'tree') && stillPicture(a, env);
+    // (a find only the tomato light shows, litOnly: its own, faded with the light)
+    const still = !!first && !!batches && !p.obj.cond && !p.obj.litOnly && !a.over && !a.glow && a.xray === undefined && (rf0 <= 48 || spec.kind === 'tree') && stillPicture(a, env);
     let stood: ReturnType<typeof standUp> | null = null;
     const rec: Slab[] | undefined = solids ? [] : undefined;
     if (still && batches) {
@@ -722,24 +731,26 @@ export class CutoutView {
   }
 
   update(f: FieldScene, t: number, sunYaw: number, lit: number, seers: { x: number; y: number }[], near: boolean, hides: (r: [number, number, number, number, number]) => boolean): void {
-    this.group.visible = this.p.present;
+    // (星見台: a find only the tomato light shows — the insects, the crabs, the hearth — fades in and out with it, lantern.ts)
+    const la = this.p.obj.litOnly ? litAlpha(f, this.p) : 1;
+    this.group.visible = this.p.present && la > 0.01;
     if (this.caster) this.caster.rotation.y = sunYaw;
     for (const c of this.fgCasters) c.rotation.y = sunYaw;
-    if (!this.p.present || !near) return;
+    if (!this.group.visible || !near) return;
     const env = f.propEnv(this.p);
     if (!this.batch) this.skin.refresh(env, t);
-    if (this.skin.glowTex) this.mat.emissiveIntensity = 1.8 * lit * nightGlowK(f);
+    if (this.skin.glowTex) this.mat.emissiveIntensity = 1.8 * lit * nightGlowK(f) * la;
     // standing in front of Minato (or the follower): see-through, as the 2D x-ray
     const tgt = this.rect && hides(this.rect) ? 0.25 : 1;
     this.xray += Math.sign(tgt - this.xray) * Math.min(Math.abs(tgt - this.xray), 16.7 / 150);
-    const tr = this.xray < 0.999;
+    const tr = this.xray * la < 0.999;
     if (this.mat.transparent !== tr) {
       this.mat.transparent = tr;
       this.mat.depthWrite = !tr;
       this.mat.alphaTest = tr ? 0.02 : 0.5;
       this.mat.needsUpdate = true;
     }
-    this.mat.opacity = this.xray;
+    this.mat.opacity = this.xray * la;
     for (const fp of this.fg) {
       const img = fp.part.img(env);
       if (img && img !== fp.last) {
@@ -870,6 +881,8 @@ export class TownWorld {
   private below: BelowTown | null = null;
   /** The sky's backdrop (the roof): it keeps its distance north of the camera's target, as a far sky does. */
   private sky: THREE.Mesh | null = null;
+  /** 星見台's night sky (the sky's backdrop on the hilltops), painted as the grade moves. */
+  private nightSky: NightSky | null = null;
   /** A battle's lower camera (view.ts still): the sky's height for that one picture (null: SKY_AT's). */
   skyY: number | null = null;
   /** How long each part took to stand up (ms; QA, hd2dStats). */
@@ -887,7 +900,7 @@ export class TownWorld {
       new THREE.PlaneGeometry(m.w + 120, m.h + 120).rotateX(-Math.PI / 2),
       new THREE.MeshLambertMaterial({ color: new THREE.Color('#4a5a3a') }),
     );
-    outside.position.set(m.w / 2, -1 - (placeOf(m.id).drop ?? 0), m.h / 2);
+    outside.position.set(m.w / 2, -(placeOf(m.id).floor ?? 1 + (placeOf(m.id).drop ?? 0)), m.h / 2);
     outside.receiveShadow = true;
     this.group.add(outside);
     let t0 = performance.now();
@@ -899,7 +912,8 @@ export class TownWorld {
     this.buildGround();
     lap('ground');
     const solids = recording.on ? this.solids : null;
-    this.walls = buildWalls(m, SV, MARGIN, solids);
+    // (星見台's woods stand on the ground where it falls away past a hilltop: places.ts)
+    this.walls = buildWalls(m, SV, MARGIN, solids, (tx, ty) => this.heightAt(tx + 0.5, ty + 0.5));
     if (this.walls) this.group.add(this.walls.mesh);
     lap('walls');
     this.outskirts = new Outskirts(f, SV, solids);
@@ -920,8 +934,15 @@ export class TownWorld {
       const sheet = chars ? liveFlat(f, p, chars, MARGIN, outsideChar, hAt, light) : null;
       if (sheet) this.live.push(sheet);
     }
-    for (const l of this.live) this.group.add(l.mesh);
     lap('water');
+    // (星見台: the footprints only the tomato light shows, the sky in the water, the stars down the stream)
+    const finds = litDecals(f, hAt);
+    if (finds) this.live.push(finds);
+    const stars = skyWater(f, MARGIN, hAt, light);
+    if (stars) this.live.push(stars);
+    this.live.push(...flatGlows(f, hAt, light));
+    for (const l of this.live) this.group.add(l.mesh);
+    lap('night');
     // a high place (the roof): the town below, the sky beyond (outskirts.ts)
     if (place.drop) {
       this.below = new BelowTown(f, SV, place.drop);
@@ -929,6 +950,11 @@ export class TownWorld {
       this.sky = place.sky ? skyBackdrop(f) : null;
       if (this.sky) this.group.add(this.sky);
       lap('below');
+    } else if (place.nightSky) {
+      // (星見台's hilltops: the night sky over the mountains, outskirts.ts)
+      this.nightSky = new NightSky();
+      this.sky = this.nightSky.mesh;
+      this.group.add(this.sky);
     }
     this.buildWires();
     for (const p of f.props) {
@@ -993,7 +1019,8 @@ export class TownWorld {
     ctx.translate(ox, oy);
     const g = new Gfx(ctx, W, H);
     for (const p of f.props) {
-      if (!p.art.flat || !p.present) continue;
+      // (a find only the tomato light shows lies on a sheet of its own: water3d.ts litDecals)
+      if (!p.art.flat || !p.present || p.obj.litOnly) continue;
       const env = f.propEnv(p);
       const img = p.art.img(env);
       if (img) ctx.drawImage(img, Math.round(p.x + p.art.ox), Math.round(p.y + p.art.oy));
@@ -1192,6 +1219,7 @@ export class TownWorld {
       this.buildParts[`liveDraw${i}`] = Math.round(l.drawMs * 10) / 10;
     }
     this.sky?.position.set(tx, this.skyY ?? SKY_AT.y, tz - SKY_AT.d);
+    this.nightSky?.update(f);
     const near = (x: number, z: number) => Math.abs(x - tx) < NEAR_X && Math.abs(z - tz) < NEAR_Z;
     for (const b of this.buildings) b.update(f, t, lit, near(b.cx, b.cz));
     const seers = [f.player, ...(f.follower ? [f.follower] : [])].map((a) => ({ x: a.x + a.ox, y: a.y }));
@@ -1219,6 +1247,7 @@ export class TownWorld {
       this.below.dispose();
     }
     this.casters?.dispose();
+    this.nightSky?.dispose();
     this.groundTex?.dispose();
     (this.groundMesh?.material as THREE.MeshLambertMaterial | undefined)?.lightMap?.dispose();
     this.walls?.dispose();

@@ -1,7 +1,7 @@
 // せってい (10_narrative 12.4, 40_audio 11.6, 20_systems_battle 19.5):
 // おんがく / こうかおん (0..10), 文字の はやさ (おそい・ふつう・はやい),
-// ツッコミ判定 (ふつう・ひろい) and 表示 (HD-2D・2D, 02 #85: chapter 1 in
-// 3D from the start, src/hd2d). Kept in localStorage apart from the save
+// ツッコミ判定 (ふつう・ひろい) and 表示 (HD-2D・2D, 02 #85: chapter 1 and,
+// since 2026-10-06, chapter 2 in 3D from the start, src/hd2d). Kept in localStorage apart from the save
 // file, so they survive a new game; ツッコミ判定 is mirrored into
 // flag_opt_tsukkomi_wide for the battle system.
 
@@ -18,7 +18,7 @@ export interface Settings {
   speed: TextSpeed;
   /** ツッコミ判定 ひろい */
   wide: boolean;
-  /** 表示 HD-2D (chapter 1's places drawn in 3D; false: the 2D pictures) */
+  /** 表示 HD-2D (the places of chapters 1 and 2 drawn in 3D; false: the 2D pictures) */
   hd2d: boolean;
 }
 

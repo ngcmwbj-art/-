@@ -21,6 +21,7 @@ import { placeOf } from './places';
 import { PITCH, SKY_AT, SV, TownWorld } from './town';
 import { ROOM_BG, RoomWorld, roomMap, roomPan } from './room';
 import { bindView, shotLens } from './cut';
+import { nightGrade, nightMul, patchNight } from './cut_night';
 
 export interface CamParams {
   /** Degrees down from the horizon. */
@@ -80,6 +81,12 @@ export interface StillPose {
   focusRow: number;
   /** Added to the grade's colour drain (−0.2: kire 2's 20% more colour). */
   desat: number;
+  /**
+   * Degrees the camera swings round to the west, looking that much east of
+   * north (chapter 2's sunrise over the hill's east fence, cut_ch2.ts); the
+   * pictures still face south, so a few tens of degrees at most. 0: north.
+   */
+  yaw?: number;
 }
 
 export interface FrameStats {
@@ -352,6 +359,11 @@ export class Hd2dView {
     const lit = f.map.def.kind === 'indoor' ? 1 : Math.max(0, Math.min(1, f.grade.lit));
     world.update(f.t, sunYaw, this.sunDir, lit, tgt.x, tgt.z, this.hidesParty(f));
     this.placeLamps(world, tgt, lit);
+    // (no sun — the night — no shadow pass: its shadows would darken nothing; 星見台 is all night.
+    // The map is drawn once all the same: a shadow sampler with nothing bound stops the draws)
+    this.renderer.shadowMap.autoUpdate = this.sun.intensity > 0.001 || !this.sun.shadow.map;
+    // (星見台's night outdoors: the 2D's light map multiplies every surface, cut_night.ts)
+    if (nightMul(f, tgt.x, tgt.z, SV * this.stretch, this.scene.fog)) patchNight(this.scene);
     // characters: drawn as painted, under the grade like everything else
     this.tint.setRGB(1.04, 1.0, 0.97);
     this.actors.update(f, sunYaw, this.tint, world, this.sunDir);
@@ -360,7 +372,7 @@ export class Hd2dView {
     const foot = subject ?? this.project(new THREE.Vector3((f.player.x + f.player.ox) / 16, 0.6, f.player.y / 16));
     const fy = foot && crop ? ((foot[1] - crop[1]) / crop[3]) * H : foot?.[1];
     const focus = fy !== undefined ? Math.max(0.25, Math.min(0.75, 1 - fy / H)) : 0.5;
-    this.post!.setGrade(world instanceof RoomWorld ? world.grade() : f.grade, f.wave.amp, f.wave.t / 1000, focus);
+    this.post!.setGrade(world instanceof RoomWorld ? world.grade() : nightGrade(f.grade), f.wave.amp, f.wave.t / 1000, focus);
     // (inside, no tilt-shift blur: the whole room sharp)
     this.post!.setTilt(!(world instanceof RoomWorld));
     const t1 = performance.now();
@@ -408,11 +420,13 @@ export class Hd2dView {
     const axis = p - below(pose.row);
     c.fov = pose.fov;
     c.aspect = W / H;
-    c.position.set(at.x, at.y + Math.sin(p) * pose.dist, at.z + Math.cos(p) * pose.dist);
-    c.lookAt(c.position.x, c.position.y - Math.sin(axis), c.position.z - Math.cos(axis));
+    const yaw = ((pose.yaw ?? 0) * Math.PI) / 180;
+    c.position.set(at.x - Math.sin(yaw) * Math.cos(p) * pose.dist, at.y + Math.sin(p) * pose.dist, at.z + Math.cos(yaw) * Math.cos(p) * pose.dist);
+    c.lookAt(c.position.x + Math.sin(yaw) * Math.cos(axis), c.position.y - Math.sin(axis), c.position.z - Math.cos(yaw) * Math.cos(axis));
     // the diorama's front edge: the ground seen at cutRow and all that stands nearer are left out
     const a = axis + below(pose.cutRow);
     c.near = a > 0.02 ? Math.max(1, ((c.position.y - at.y) / Math.sin(a)) * Math.cos(a - axis)) : 1;
+    this.stillNear = c.near;
     c.clearViewOffset();
     c.updateMatrixWorld();
     const sunYaw = world instanceof RoomWorld ? world.light(this.sun, this.hemi, at, this.sunDir) : this.placeSun(f, at);
@@ -423,8 +437,12 @@ export class Hd2dView {
     if (world instanceof TownWorld) world.skyY = null;
     for (const cu of world.cutouts) cu.opaque();
     this.placeLamps(world, at, lit);
+    this.renderer.shadowMap.autoUpdate = this.sun.intensity > 0.001 || !this.sun.shadow.map;
+    if (nightMul(f, at.x, at.z, SV, this.scene.fog)) patchNight(this.scene);
     this.actors.group.visible = false;
-    const g = world instanceof RoomWorld ? world.grade() : f.grade;
+    // (a room's light laid over the field's frame — the はなまるトマト's halo — is not the backdrop's: room_hoshi.ts)
+    if (world instanceof RoomWorld) world.overlays(false);
+    const g = world instanceof RoomWorld ? world.grade() : nightGrade(f.grade);
     this.post!.setGrade({ ...g, desat: g.desat + pose.desat }, 0, 0, 1 - pose.focusRow / H);
     // (a battle's backdrop keeps its blur, inside too)
     this.post!.setTilt(true);
@@ -434,6 +452,7 @@ export class Hd2dView {
       this.post!.render();
     } finally {
       this.actors.group.visible = true;
+      if (world instanceof RoomWorld) world.overlays(true);
       c.near = 1;
       c.updateProjectionMatrix();
     }
@@ -454,17 +473,27 @@ export class Hd2dView {
     return this.canvas;
   }
 
+  /** The near plane the last still() cut the diorama's front edge with (silhouette's `cut`). */
+  private stillNear = 1;
+
   /**
    * Right after still(): the same view as a silhouette — no people, no fog,
    * no finish, `key` where it sees no town (the ending's night town cuts its
-   * sky away with it, cut.ts). The caller copies `canvas` at once.
+   * sky away with it, cut.ts; a chapter-2 battle lays its painted night sky
+   * there, battle.ts). `cut`: the still's front edge left out as it was.
+   * The caller copies `canvas` at once.
    */
-  silhouette(key: THREE.Color): HTMLCanvasElement {
+  silhouette(key: THREE.Color, cut = false): HTMLCanvasElement {
     const bg = this.scene.background;
     const fog = this.scene.fog;
     this.scene.background = key;
     this.scene.fog = null;
     this.actors.group.visible = false;
+    const c = this.camera;
+    if (cut) {
+      c.near = this.stillNear;
+      c.updateProjectionMatrix();
+    }
     try {
       this.renderer.setRenderTarget(null);
       this.renderer.render(this.scene, this.camera);
@@ -472,8 +501,24 @@ export class Hd2dView {
       this.scene.background = bg;
       this.scene.fog = fog;
       this.actors.group.visible = true;
+      c.near = 1;
+      c.updateProjectionMatrix();
     }
     return this.canvas;
+  }
+
+  /**
+   * World px of a 2D picture (a point standing over the ground line `foot`)
+   * → frame px through `cam`: a battle's still camera kept by battle.ts (the
+   * place drawn once; what a backdrop pins to the 3D place — the house's
+   * はなまるトマト — is placed with it). No room stretch (still() has none).
+   */
+  projectWith(cam: THREE.Camera, x: number, y: number, foot = y): [number, number] | null {
+    const z = Math.max(y, foot);
+    const ground = this.world ? this.world.heightAt(x / 16, (z - 1) / 16) : 0;
+    const p = new THREE.Vector3(x / 16, ground + (z - y) * (SV / 16), z / 16).project(cam);
+    if (p.z > 1) return null;
+    return [((p.x + 1) / 2) * W, ((1 - p.y) / 2) * H];
   }
 
   /**

@@ -10,7 +10,12 @@
 //  - mesh fences: two panels 3px apart with the top rail across; guard
 //    rails, pipe rails and ropes: pushed back 3px (the voxel look);
 //    the railway fence (north–south): rails and posts;
-//  - reeds stay standing pictures.
+//  - reeds stay standing pictures;
+//  - 星見台's woods and thickets (chapter 2: cedar, bamboo, the mixed woods,
+//    the scrub, the kuzu — art/tiles/hoshi_struct.ts): a crowd of trees
+//    whose feet are scattered over the cell, so each cell is a card as the
+//    2D y-sorts it (card()); a wood that meets a map edge goes on past it
+//    as a wood (WOOD_MARGIN), not only as a run.
 //
 // The runs that meet a map edge (a wall along the road, the guardrail, the
 // reeds, the railway's fences) go on past it into the land outside (MARGIN).
@@ -57,7 +62,30 @@ const EXTRA: Record<string, { x: number; y: number; w: number; h: number; ch: st
     { x: -16, y: 14, w: 30, h: 1, ch: '\u0001', kind: 'hedge', mat: 'tsuge' },
     { x: 15, y: 14, w: 29, h: 1, ch: '\u0001', kind: 'hedge', mat: 'tsuge' },
   ],
+  // 星見台 (chapter 2): groves of round-crowned trees round the village's yards past its edges (outskirts.ts LAYOUT)
+  map_hoshimidai: [
+    { x: -16, y: 40, w: 6, h: 5, ch: '\u0003', kind: 'hedge', mat: 'zoki_grove' },
+    { x: -16, y: 26, w: 3, h: 6, ch: '\u0003', kind: 'hedge', mat: 'zoki_grove' },
+    { x: 62, y: 21, w: 8, h: 3, ch: '\u0003', kind: 'hedge', mat: 'zoki_grove' },
+    { x: 70, y: 27, w: 6, h: 9, ch: '\u0003', kind: 'hedge', mat: 'zoki_grove' },
+    { x: 60, y: 38, w: 4, h: 4, ch: '\u0003', kind: 'hedge', mat: 'zoki_grove' },
+  ],
 };
+
+/** 星見台's woods and thickets: a card a cell (card()), and an area that goes on past the map's edges. */
+const WOODS = new Set(['sugi', 'sugi_down', 'sugi_sawa', 'take', 'zoki', 'zoki_grove', 'yabu', 'kuzu', 'kuzu_low']);
+/** How far a wood at a map's edge goes on past it (tiles: west and east, north, south); the land beyond is outskirts.ts's. */
+const WOOD_MARGIN = { x: 16, n: 11, s: 5 };
+
+/** The material a structure cell of map m takes (by its tag, then MapDef.structMats). */
+function matAt(m: LoadedMap, x: number, y: number): string | null {
+  const dm = DEFAULT_MAT[cellAt(m, x, y).tag ?? ''];
+  if (!dm) return null;
+  let mat = dm[1];
+  const c = charAt(m, x, y);
+  for (const z of m.def.structMats ?? []) if (x >= z.x && y >= z.y && x < z.x + z.w && y < z.y + z.h && (!z.ch || z.ch === c)) mat = z.mat;
+  return mat;
+}
 
 function grid(m: LoadedMap, mg: Margin) {
   const { w, h } = m;
@@ -68,6 +96,10 @@ function grid(m: LoadedMap, mg: Margin) {
   const edgeOf = (x: number, y: number): [number, number] | null => {
     const out = (x < 0 ? 1 : 0) + (x >= w ? 1 : 0) + (y < 0 ? 1 : 0) + (y >= h ? 1 : 0);
     if (!out) return [x, y];
+    // (a wood: the edge cell nearest goes on, corners too, WOOD_MARGIN deep)
+    const cx = Math.max(0, Math.min(w - 1, x));
+    const cy = Math.max(0, Math.min(h - 1, y));
+    if (WOODS.has(matAt(m, cx, cy) ?? '')) return cx - x <= WOOD_MARGIN.x && x - cx <= WOOD_MARGIN.x && cy - y <= WOOD_MARGIN.n && y - cy <= WOOD_MARGIN.s ? [cx, cy] : null;
     if (out > 1) return null;
     if (x < 0 || x >= w) {
       if (Math.abs(x < 0 ? x : x - w + 1) > mg.x) return null;
@@ -95,10 +127,7 @@ function grid(m: LoadedMap, mg: Margin) {
     if (!e) return null;
     const dm = DEFAULT_MAT[cellAt(m, e[0], e[1]).tag ?? ''];
     if (!dm) return null;
-    let [kind, mat] = dm;
-    const c = charAt(m, e[0], e[1]);
-    for (const z of m.def.structMats ?? []) if (e[0] >= z.x && e[1] >= z.y && e[0] < z.x + z.w && e[1] < z.y + z.h && (!z.ch || z.ch === c)) mat = z.mat;
-    return [kind, mat];
+    return [dm[0], matAt(m, e[0], e[1]) ?? dm[1]];
   };
   return { ch, kindMat };
 }
@@ -123,7 +152,7 @@ function note(x0: number, x1: number, h0: number, h1: number, z0: number, z1: nu
 }
 
 /** Every wall, hedge, fence and rail of the map (and their runs past the edges) as one mesh. `solids`: where the room each cell takes goes (QA). */
-export function buildWalls(m: LoadedMap, sv: number, mg: Margin, solids: Solid[] | null = null): Walls | null {
+export function buildWalls(m: LoadedMap, sv: number, mg: Margin, solids: Solid[] | null = null, groundAt: ((tx: number, ty: number) => number) | null = null): Walls | null {
   const g = grid(m, mg);
   const atlas = new Atlas();
   const q = new Quads();
@@ -148,7 +177,8 @@ export function buildWalls(m: LoadedMap, sv: number, mg: Margin, solids: Solid[]
       const foot = ty * 16 + 16;
       n++;
       noted = solids ? [] : null;
-      if (kind === 'wall' && !mat.startsWith('h_')) {
+      if (WOODS.has(mat)) card(q, atlas, art, tx, ty, Y, groundAt?.(tx, ty) ?? 0);
+      else if (kind === 'wall' && !mat.startsWith('h_')) {
         let d = dims.get(mat);
         if (!d) dims.set(mat, (d = wallDims(mat)));
         wallCell(q, atlas, art, kind, mat, tx, ty, mk, d, Y);
@@ -216,6 +246,38 @@ function standing(q: Quads, atlas: Atlas, art: CellArt, tx: number, ty: number, 
     note(left, left + art.img.width, 0, rf, foot, foot, (x, h) => k.at(Math.floor(x - left), rf - 1 - Math.floor(h)));
   }
   if (rf > 0) q.add([x0, Y(foot - top - rf), foot * PX], [x1, Y(foot - top - rf), foot * PX], [x1, Y(foot - top), foot * PX], [x0, Y(foot - top), foot * PX], [0, 0, 1], a[0], a[1], b[0], b[1]);
+}
+
+/**
+ * A cell of 星見台's woods: its rows above the cell's foot stand there, the
+ * rows below (the kuzu's curtain and the shade it throws) lie on the ground
+ * in front — as the 2D y-sorts the cell; a row of cells is a row of cards.
+ */
+function card(q: Quads, atlas: Atlas, art: CellArt, tx: number, ty: number, Y: (px: number) => number, lift: number): void {
+  const uv = atlas.add(art.img);
+  const left = tx * 16 + art.ox;
+  const top = ty * 16 + art.oy;
+  const foot = ty * 16 + 16;
+  const iw = art.img.width;
+  const ih = art.img.height;
+  const rf = Math.max(0, Math.min(ih, foot - top));
+  const x0 = left * PX;
+  const x1 = (left + iw) * PX;
+  if (rf > 0) {
+    const a = uv(0, rf);
+    const b = uv(iw, 0);
+    q.add([x0, Y(foot - top - rf) + lift, foot * PX], [x1, Y(foot - top - rf) + lift, foot * PX], [x1, Y(foot - top) + lift, foot * PX], [x0, Y(foot - top) + lift, foot * PX], [0, 0, 1], a[0], a[1], b[0], b[1]);
+    if (noted) {
+      const k = new Mask(art.img);
+      note(left, left + iw, 0, rf, foot, foot, (x, h) => k.at(Math.floor(x - left), rf - 1 - Math.floor(h)));
+    }
+  }
+  if (rf < ih) {
+    const a = uv(0, ih);
+    const b = uv(iw, rf);
+    const y = 0.012 + lift;
+    q.add([x0, y, (top + ih) * PX], [x1, y, (top + ih) * PX], [x1, y, foot * PX], [x0, y, foot * PX], [0, 1, 0], a[0], a[1], b[0], b[1]);
+  }
 }
 
 function wallCell(q: Quads, atlas: Atlas, art: CellArt, kind: string, mat: string, tx: number, ty: number, mk: CellMask, d: { H: number; cap: number }, Y: (px: number) => number): void {

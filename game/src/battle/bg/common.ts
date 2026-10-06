@@ -4,8 +4,9 @@
 // offscreen, optionally saturated (kire ≥ 2), then drawn one scanline at a
 // time with a sine offset dx(y,t) = A·sin(2π(y/λ + f·t)) + A2·sin(2π(y/λ2 − f2·t)).
 // L2 (particles) is drawn undistorted on top, then the kire focus lines.
-// HD-2D (place.ts, 2026-10-06): chapter 1's battle place in 3D stands in for
-// L0/L1; drawOnPlace lays the rest over it.
+// HD-2D (place.ts, 2026-10-06): the battle's place in 3D (chapter 1's, and
+// chapter 2's with its painted night sky) stands in for L0/L1; drawOnPlace
+// lays the rest over it.
 
 import type { Gfx } from '../../engine/gfx';
 import { makeCanvas } from '../../engine/pixel';
@@ -220,6 +221,27 @@ export abstract class Background {
   /** HD-2D: how strongly this backdrop's own picture veils the place (0: not at all). */
   protected placeVeil(): number {
     return 0;
+  }
+
+  /**
+   * HD-2D, chapter 2 (place.ts): paint the night sky this backdrop shows
+   * behind the place where the 3D sees no land — 384×BG_H, opaque, at motif
+   * time `t` (its bands, Milky Way, far ridges and lights as in 2D; the
+   * twinkling stars are laid over the place, in that sky only). false: no
+   * sky of its own (chapter 1, a room: the 3D's background).
+   */
+  paintPlaceSky(_ctx: CanvasRenderingContext2D, _t: number): boolean {
+    return false;
+  }
+
+  /** HD-2D: the colour the far 3D land fades into under the painted sky (its haze), or null: the 3D's own fog. */
+  placeHaze(): string | null {
+    return null;
+  }
+
+  /** HD-2D: the place's props (ids) left out of its picture — the enemy is one of them (ヨビモドシ is the hill's loudspeaker). */
+  placeLeaves(): readonly string[] {
+    return [];
   }
 
   /** HD-2D: what this backdrop lays over the place — by default its particles (L2). */

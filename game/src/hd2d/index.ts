@@ -5,22 +5,24 @@
 // top. Walking, collisions, talking and events are the 2D game's own; only
 // the picture of the field changes. Since then: chapter 1's other outdoor
 // places and its rooms (places.ts, room.ts), its battles' backgrounds
-// (battle.ts) and its ending's cuts (cut.ts, cut_night.ts); chapter 2 stays 2D.
+// (battle.ts) and its ending's cuts (cut.ts, cut_night.ts); and since
+// 2026-10-06 (依頼主「第２章もHD-2Dにしてみよう」) chapter 2 too: 星見台's
+// outdoor places in its night (cut_night.ts nightMul), its rooms (room.ts).
 //
-// In every build since 2026-10-06 (依頼主「第1章全部HD-2Dにして」): chapter 1
-// is HD-2D from the start, chapter 2 stays 2D. main.ts loads this layer
+// In every build since 2026-10-06 (依頼主「第1章全部HD-2Dにして」): the game
+// is HD-2D from the start (chapter 1, and chapter 2 with it, where it comes
+// back to chapter 1's town too). main.ts loads this layer
 // (three.js with it) once the title is up, when HD-2D is wanted — the
 // first frames don't wait for it. Whether it draws:
 //   せってい「表示」 HD-2D／2D   (ui/settings.ts settings.hd2d, saved; default HD-2D)
 //   ?hd2d=1 / ?hd2d=0           in the URL: this visit only (QA; ?hd2dq=light|normal picks the quality)
 //   __game.cmd.hd2d(true|false)  in the console: the same, this visit only (QA)
 //   the demo build              (VITE_HD2D_DEMO=1: on, and 「はじめる」 opens in 夕鳴銀座)
-// and never once chapter 2 has begun (flag_ch2_started: its prologue and
-// ending come back to map_town and the home, in 2D) nor where WebGL fails
-// (the 2D pictures, as before). hd2dOn() / hd2dField(f) answer it for the
-// other parts (the battles, the ending's cuts).
+// and never where WebGL fails (the 2D pictures, as before). hd2dOn() /
+// hd2dField(f) answer it for the other parts (the battles, the ending's cuts).
 // Debug: __game.cmd.hd2dQuality('light'|'normal'), hd2dStats(), hd2dCam({pitch, fov, dist}).
 
+import * as THREE from 'three';
 import { Vector3 } from 'three';
 import type { Co } from '../engine/co';
 import { game } from '../engine/game';
@@ -28,13 +30,12 @@ import { Gfx } from '../engine/gfx';
 import { H, W } from '../engine/screen';
 import { isTouchDevice } from '../engine/touch';
 import { registerDebug } from '../debug';
-import { flag, setFlag, state } from '../game/state';
+import { setFlag, state } from '../game/state';
 import { field, FieldScene, setFieldDrawer } from '../world/field';
 import { fxDraw } from '../world/fx';
 import { hud } from '../world/hud';
 import { resetForNewGame, setNewGameStart } from '../ui/flow';
 import { settings, view as viewSetting } from '../ui/settings';
-import { isCh2Map } from '../world/maps';
 import { closeUp } from '../events/stage';
 import type { Quality } from './post';
 import { CAM, Hd2dView, ROOM_CAM } from './view';
@@ -47,9 +48,14 @@ const DEMO = import.meta.env.VITE_HD2D_DEMO === '1';
 /**
  * Maps drawn in HD-2D: the town with 夕鳴銀座, and (2026-10-05 依頼主「街全体に
  * 広げる」) chapter 1's other outdoor places — the school's back yard and its
- * ground, the diversion past the paddy path, the weir, the mall's roof.
+ * ground, the diversion past the paddy path, the weir, the mall's roof — and
+ * (2026-10-06) chapter 2's: 星見台 village, the star-viewing hill, the
+ * stream above the village, the hill behind the old branch school.
  */
-const MAPS = new Set(['map_town', 'map_school', 'map_school_kotei', 'map_aze', 'map_seki', 'map_mall_roof']);
+const MAPS = new Set([
+  'map_town', 'map_school', 'map_school_kotei', 'map_aze', 'map_seki', 'map_mall_roof',
+  'map_hoshimidai', 'map_hoshi_hill', 'map_hoshi_sawa', 'map_hoshi_urayama',
+]);
 
 const params = new URLSearchParams(location.search);
 /** This visit's override of せってい「表示」 (the demo page, ?hd2d=0|1, __game.cmd.hd2d): null → the setting. */
@@ -82,17 +88,17 @@ function fail(): void {
 }
 
 /**
- * HD-2D is on: せってい「表示」 (or this visit's override), WebGL works, and
- * chapter 2 hasn't begun (02 #85: chapter 2 stays 2D, also where it comes
- * back to chapter 1's town). Read every frame, so a change shows at once.
+ * HD-2D is on: せってい「表示」 (or this visit's override) and WebGL works —
+ * in chapter 2 too since 2026-10-06 (its prologue and ending back in
+ * chapter 1's town and home with it). Read every frame, so a change shows at once.
  */
 export function hd2dOn(): boolean {
-  return (override ?? settings.hd2d) && !failed && !flag('flag_ch2_started');
+  return (override ?? settings.hd2d) && !failed;
 }
 
-/** Is field f drawn in HD-2D now: hd2dOn(), one of chapter 1's places (MAPS, room.ts rooms), not blown up. */
+/** Is field f drawn in HD-2D now: hd2dOn(), one of the places stood up in 3D (MAPS, room.ts rooms), not blown up. */
 export function hd2dField(f: FieldScene): boolean {
-  return hd2dOn() && f.viewScale === 1 && !isCh2Map(f.map.def) && (MAPS.has(f.map.id) || roomMap(f.map.id));
+  return hd2dOn() && f.viewScale === 1 && (MAPS.has(f.map.id) || roomMap(f.map.id));
 }
 
 /** Fields drawn in 3D so far (QA: tools/playthrough.mjs --hd2d sees them go up). */
@@ -270,6 +276,24 @@ if (import.meta.env.DEV) {
   registerDebug('hd2dRoomPitch', (p?: number) => {
     if (p !== undefined) ROOM_CAM.pitch = p;
     return ROOM_CAM.pitch;
+  });
+}
+if (import.meta.env.DEV) {
+  /** QA: the meshes the camera sees (≈ draw calls), counted by kind (material, its map's size, what it belongs to). */
+  registerDebug('hd2dMeshes', () => {
+    if (!view) return null;
+    const v = view;
+    const fr = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(v.camera.projectionMatrix, v.camera.matrixWorldInverse));
+    const out: Record<string, number> = {};
+    v.scene.traverseVisible((o) => {
+      if (!(o instanceof THREE.Mesh) || !fr.intersectsObject(o)) return;
+      const m = o.material as THREE.MeshBasicMaterial;
+      if (m.colorWrite === false) return;
+      const img = m.map?.image as { width?: number; height?: number } | undefined;
+      const k = `${m.type}${m.blending === THREE.AdditiveBlending ? '+add' : ''} ${img ? `${img.width}x${img.height}` : 'nomap'} ${o.parent?.type ?? ''}`;
+      out[k] = (out[k] ?? 0) + 1;
+    });
+    return Object.fromEntries(Object.entries(out).sort((a, b) => b[1] - a[1]));
   });
 }
 if (import.meta.env.DEV) {

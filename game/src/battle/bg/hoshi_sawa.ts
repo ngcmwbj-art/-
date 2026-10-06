@@ -2,6 +2,8 @@
 // 杉の梢がせまる谷。まん中に子どものプール（せきでたまった水）が光り、星が1つずつ
 // 流れてきては、せきの手前でたまって回る。手前はぬれた石の岸。提灯の橙の帯は1本
 // （51 15.1 の決まり）。セキトメが休むと（flags.rest）、水面の星が下へ流れはじめる。
+// HD-2D（2026-10-06、place.ts）：立体の沢の上の夜に立つ。空（夜の帯・天の川・遠い稜線）は
+// 立体の向こうに、星は空の所だけで瞬き、敵のうしろのゆるみ・提灯の光・水面の星を重ねる。
 
 import type { Gfx } from '../../engine/gfx';
 import { BAYER4, makeCanvas } from '../../engine/pixel';
@@ -141,6 +143,46 @@ export class HoshiSawaBg extends Background {
     g.addColorStop(1, 'rgba(58,43,92,0)');
     ctx.fillStyle = g;
     ctx.fillRect(100, 40, 184, 104);
+  }
+
+  /** HD-2D: the sky behind the 3D valley — the bands, the Milky Way and the far ridge (its stars twinkle over the place). */
+  paintPlaceSky(ctx: CanvasRenderingContext2D, t: number): boolean {
+    ctx.drawImage(gradientTexture(['#0B0B14', '#141028', '#1B1733', '#2A2440'], BG_H), 0, 0);
+    ctx.drawImage(this.milky, 0, 6);
+    drawLoop(ctx, this.far, t * 2, 22);
+    return true;
+  }
+
+  placeHaze(): string {
+    return '#2A2440';
+  }
+
+  /** HD-2D: the stars (in the sky only), the dark eased behind the enemy, the lantern's light, the stars on the pool. */
+  protected drawOverPlace(g: Gfx): void {
+    const t = this.mt;
+    const ctx = g.ctx;
+    const pl = this.place;
+    if (pl) {
+      ctx.fillStyle = '#FFF6D8';
+      for (const s of this.stars) {
+        if (!pl.isSky(s.x, s.y)) continue;
+        ctx.globalAlpha = s.a * (0.55 + 0.45 * Math.sin(t * 0.9 + s.ph));
+        ctx.fillRect(s.x, s.y, 1, 1);
+      }
+      ctx.globalAlpha = 1;
+    }
+    const gl = ctx.createRadialGradient(192, 92, 8, 192, 92, 90);
+    gl.addColorStop(0, 'rgba(91,74,122,0.55)');
+    gl.addColorStop(1, 'rgba(58,43,92,0)');
+    ctx.fillStyle = gl;
+    ctx.fillRect(100, 40, 184, 104);
+    const k = 0.2 * (1 + 0.1 * Math.sin(t * Math.PI * 2 * 0.8));
+    const gr = ctx.createLinearGradient(0, BG_H, 0, BG_H - 34);
+    gr.addColorStop(0, `rgba(242,137,75,${k})`);
+    gr.addColorStop(1, 'rgba(242,137,75,0)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(0, BG_H - 34, 384, 34);
+    this.drawL2(g, t);
   }
 
   protected drawL2(g: Gfx, t: number): void {

@@ -20,11 +20,9 @@ export const BG_IDS = ['bg_residential', 'bg_reverse_rain', 'bg_kanenari', 'bg_o
 
 export function makeBackground(id: string, enemyId: string): Background {
   const bid = ALIASES[id] ?? id;
-  const h = makeHoshiBackground(bid);
-  if (h) return h;
-  const bg = chapter1Background(bid, enemyId);
-  // HD-2D: the place the battle started in, in 3D, under it (place.ts)
-  bg.place = placeFor(bg.id, enemyId);
+  const bg = makeHoshiBackground(bid) ?? chapter1Background(bid, enemyId);
+  // HD-2D: the place the battle started in, in 3D, under it (place.ts) — chapter 2's too since 2026-10-06
+  bg.place = placeFor(bg, enemyId);
   return bg;
 }
 
