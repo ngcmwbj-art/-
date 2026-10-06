@@ -1440,15 +1440,19 @@ const doorOpen = (to) =>
  * カネナリくん (inside the light, the control).
  */
 async function darkCheck2(label) {
-  const res = await page.evaluate(() => {
+  const res = await page.evaluate((hd) => {
     const G = window.__game;
     const g = G.game;
     const f = G.cmd.fieldRef();
     G.pause();
     try {
-      const ctx = g.screen.ctx;
+      // (HD-2D: the symbols are the 3D picture under the 2D layer — read the display it is put
+      // together on, round the point the 3D camera shows them at, and count in 2D px)
+      const d = g.screen.display;
+      const k = hd ? d.width / 384 : 1;
+      const ctx = hd ? g.screen.dctx : g.screen.ctx;
       const L = f.light.lantern;
-      const grab = (x, y) => ctx.getImageData(Math.max(0, x - 14), Math.max(0, y - 30), 28, 34).data;
+      const grab = (x, y) => ctx.getImageData(Math.max(0, Math.round((x - 14) * k)), Math.max(0, Math.round((y - 30) * k)), Math.round(28 * k), Math.round(34 * k)).data;
       const diff = (a, b) => {
         let n = 0;
         for (let i = 0; i < a.length; i += 4) if (a[i] !== b[i] || a[i + 1] !== b[i + 1] || a[i + 2] !== b[i + 2]) n++;
@@ -1459,7 +1463,7 @@ async function darkCheck2(label) {
       if (f.follower) targets.push(['kanenari', f.follower]);
       const out = [];
       for (const [id, a] of targets) {
-        const [x, y] = f.worldToScreen(a.x, a.y);
+        const [x, y] = (hd && f.projected(a.x, a.y)) || f.worldToScreen(a.x, a.y);
         if (x < 16 || y < 30 || x > 384 - 16 || y > 216 - 4) continue;
         const d = L ? Math.hypot(a.x - L.x, a.y - 4 - L.y) : 1e9;
         if (id !== 'kanenari' && L && d <= L.r + 24) continue;
@@ -1481,15 +1485,15 @@ async function darkCheck2(label) {
         g.advance(16);
         if (held === undefined) delete a.data.scripted;
         else a.data.scripted = held;
-        const noise = diff(A, A2);
-        const change = diff(A2, B);
+        const noise = Math.round(diff(A, A2) / (k * k));
+        const change = Math.round(diff(A2, B) / (k * k));
         out.push({ id, changed: change > noise + 6, change, noise });
       }
       return out;
     } finally {
       G.resume();
     }
-  });
+  }, HD2D);
   const control = res.find((r) => r.id === 'kanenari');
   const dark = res.filter((r) => r.id !== 'kanenari');
   const ok = !!control?.changed && dark.length > 0 && dark.every((r) => r.changed);

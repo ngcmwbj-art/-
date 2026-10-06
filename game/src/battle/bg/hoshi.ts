@@ -167,7 +167,7 @@ const NIGHT_HAZE = '#2A2440';
  * us lighting the ground in front of the party: a warm glow rising from the
  * stage's floor, breathing at 0.8Hz like the lantern (±10%).
  */
-function lanternGround(ctx: CanvasRenderingContext2D, t: number, a = 0.2, h = 34): void {
+function lanternGround(ctx: CanvasRenderingContext2D, t: number, a = 0.3, h = 40): void {
   const k = a * (1 + 0.1 * Math.sin(t * Math.PI * 2 * 0.8));
   const gr = ctx.createLinearGradient(0, BG_H, 0, BG_H - h);
   gr.addColorStop(0, `rgba(242,137,75,${k})`);
@@ -313,7 +313,7 @@ export class HoshiHouseBg extends Background {
   protected drawOverPlace(g: Gfx): void {
     const t = this.mt;
     const ctx = g.ctx;
-    lanternGround(ctx, t, 0.16);
+    lanternGround(ctx, t, 0.22);
     if (!this.glowing()) {
       const gr = ctx.createLinearGradient(0, BG_H, 0, 60);
       gr.addColorStop(0, 'rgba(242,137,75,0.12)');

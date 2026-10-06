@@ -242,7 +242,7 @@ function shootVillage(v: Hd2dView, f: FieldScene): VillageLit3D {
 }
 
 /**
- * Walking up to the hill path (星見台, the mouth of the path (48–49,0)), the
+ * Stepping up to the hill path (星見台, the mouth of the path (48–49,0)), the
  * night before the boss: the village is drawn for the cut while it is the
  * place stood up in 3D (the hill is another map). Again when the stage or
  * the quality has changed. The fight on the hill then shows it.
@@ -251,8 +251,10 @@ registerWorldFx({
   map: 'map_hoshimidai',
   update(f: FieldScene) {
     if (!flag('flag_ch2_tetsuya_beaten') || flag('flag_ch2_boss_beaten')) return;
+    // (on the last row before the path's mouth (48–49,0): the step up into it fades out next, the
+    // drawing's moment goes under that)
     const p = f.player;
-    if (p.y > 4 * 16 || p.x < 44 * 16 || p.x > 54 * 16 || !fxElsewhere(f)) return;
+    if (p.y > 2 * 16 + 2 || p.x < 46 * 16 || p.x > 52 * 16 || !fxElsewhere(f)) return;
     const v = boundView();
     if (!v) return;
     const stage = flag('flag_ch2_stage');

@@ -176,12 +176,12 @@ export class HoshiSawaBg extends Background {
     gl.addColorStop(1, 'rgba(58,43,92,0)');
     ctx.fillStyle = gl;
     ctx.fillRect(100, 40, 184, 104);
-    const k = 0.2 * (1 + 0.1 * Math.sin(t * Math.PI * 2 * 0.8));
-    const gr = ctx.createLinearGradient(0, BG_H, 0, BG_H - 34);
+    const k = 0.3 * (1 + 0.1 * Math.sin(t * Math.PI * 2 * 0.8));
+    const gr = ctx.createLinearGradient(0, BG_H, 0, BG_H - 40);
     gr.addColorStop(0, `rgba(242,137,75,${k})`);
     gr.addColorStop(1, 'rgba(242,137,75,0)');
     ctx.fillStyle = gr;
-    ctx.fillRect(0, BG_H - 34, 384, 34);
+    ctx.fillRect(0, BG_H - 40, 384, 40);
     this.drawL2(g, t);
   }
 

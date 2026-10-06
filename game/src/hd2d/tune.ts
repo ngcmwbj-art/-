@@ -262,4 +262,31 @@ export const NUDGE: Record<string, PropNudge> = {
   'prop_seki_annai@14,3': { z: -5 },
   // 屋上: the name book's table at the stage's east end, in front of it
   'mall_roof_table@16,3': { z: 2 },
+  // 星見台 (chapter 2, 2026-10-06; hd2dOverlaps: pictures on one plane that
+  // would flicker through each other): what the 2D draws on top a px or two
+  // in front — the クヌギ out of the kuzu's edge by the hill path and the
+  // beetle on it, the host plants and their insects before the thicket, the
+  // stone wall and the hedge, the delivery's vegetables on their stand,
+  // the festival's lanterns in the cherry
+  'prop_h_kunugi@43,1': { z: 2 },
+  'prop_h_mushi@43,1': { z: 3 },
+  // (the school gate's post stands a px in front of the plant: the plant just behind it, the insect in front)
+  'prop_h_shitakusa@27,30': { z: 0.4 },
+  'prop_h_mushi@27,30': { z: 1.6 },
+  'prop_h_mushi@50,15': { z: 1 },
+  'prop_h_mushi@46,37': { z: 1 },
+  'prop_h_deli_bag@43,36': { z: 1 },
+  'prop_h_deli_bag@37,36': { z: 1 },
+  'prop_h_deli_bag@42,26': { z: 1 },
+  'prop_h_deli_bag@17,31': { z: 1 },
+  'prop_h_matsuri_chochin@24,30': { fgView: 1 },
+  // 沢の上: the rocks side by side on one line — the eastern one over the western, as the 2D sorts them
+  'prop_h_sawa_iwa@14,1': { z: 1 },
+  'prop_h_sawa_iwa@15,1': { z: 2 },
+  'prop_h_sawa_iwa@15,2': { z: 1 },
+  'prop_h_sawa_iwa@16,6': { z: 1 },
+  'prop_h_sawa_iwa@15,7': { z: 1 },
+  'prop_h_sawa_iwa@13,10': { z: 1 },
+  'prop_h_sawa_iwa@17,12': { z: 1 },
+  'prop_h_sawa_iwa@16,13': { z: -1 },
 };
