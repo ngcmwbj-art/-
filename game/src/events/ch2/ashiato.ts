@@ -18,14 +18,15 @@
 //     flag_ashiato_tries（通った 回数）、flag_ashiato_meijin（1回目で ぴったり）、flag_ashiato_uribo（朱肉 +2・
 //     表紙の うり坊の シール）。
 //   ・そのあと：電柱の 張り紙 obj_hoshi_denchu『絵 ソワカ』（⑤を 聞いた 人は グソっ君）、見回り帳の『よし』『グ 1』。
-//   ・エンディング カット3（ぜんぶ した 人）：転回場の 南の 林の きわを、親子の イノシシの 影が 小さく 横切る
-//     （絵だけ。秒数・台詞・ページは かえない）。
+//   ・エンディング カット3（ぜんぶ した 人）：バスが 出る あいだ、転回場の 南の 林の きわを、親子の イノシシの
+//     影が 小さく 横切る（絵だけ。秒数・台詞・ページは かえない）。
+//   ・QA だけの コマンドは import.meta.env.DEV の 中。
 //
 // 人の 台本は ほかの 寄り道（色紙・二百十日・脇芽・色見本・沢の上）の 用が すんでから（othersFirst）。
 // この ファイルは ch2/index.ts で shikishi の あとに import する（school・hunting・yoburi は その あとに 包むので、
 // その人たちの 用が 先に 出る）。
 //
-// QA：__game.cmd.ashiato(step, stage, auto)、ashiatoState()、ashiatoText()、jump('ch2:ashiato')
+// QA：__game.cmd.ashiato(step, stage, auto)、ashiatoState()、ashiatoText()、ashiatoEnd()、jump('ch2:ashiato')
 
 import type { Co } from '../../engine/co';
 import { game } from '../../engine/game';
@@ -457,19 +458,22 @@ function* uriboScene(): Co {
     se('se_door_heavy');
     f.loadMap('map_hoshimidai', 49, 19, 'up');
     f = F();
+    f.syncFollower(true);
     gen = spawn('ashiato_gen', 50, 19, { sprite: 'npc_hoshi_gen', dir: 'up', ghost: true });
     gen.data.scripted = true;
     temp = true;
   } else {
+    // 段階2：ゲートの 横の マサルの となり（こちら側の）へ
     gen = f.actorById('npc_hoshi_gen') ?? null;
     const p = f.player;
-    if (p.tileX !== 49 || p.tileY !== 19) yield* walkTo('player', 49, 19, { face: 'up' });
+    const tx = p.tileX > 50 ? 51 : 49;
+    if (p.tileX !== tx || p.tileY !== 19) yield* walkTo('player', tx, 19, { face: 'up' });
   }
   const p = f.player;
   p.dir = 'up';
   const kf = f.follower;
   if (kf && kf.visible) {
-    kf.x = 48 * 16 + 8;
+    kf.x = (p.tileX > 50 ? 52 : 48) * 16 + 8;
     kf.y = 19 * 16 + 16;
     kf.dir = 'up';
   }
@@ -493,7 +497,11 @@ function* uriboScene(): Co {
     if (kanenariHere()) yield* say(T.URIBO_KANE);
     yield* say(T.URIBO_NATSU);
     yield* say(T.URIBO_COUNT);
-    if (!qaAuto) keyGuide(uriboGuideRows(), 4200, 8);
+    // the guide first, then they set off (on an iPad held sideways the guide hides the けってい button while it is up)
+    if (!qaAuto) {
+      keyGuide(uriboGuideRows(), 2400, 8);
+      yield 2600;
+    }
     let first = true;
     for (;;) {
       setFlag(AF.tries, flag(AF.tries) + 1);
@@ -622,8 +630,15 @@ if (import.meta.env.DEV) {
     if (step === 'uribo') {
       qaAuto = !!auto;
       const r = s2 ? cmd().warp?.('map_hoshimidai', 49, 19, 'up') : cmd().warp?.('map_hoshi_barn', 19, 6, 'right');
-      setTimeout(() => {
-        field()?.startScript(
+      // (after the warp has landed and he can walk)
+      const want = s2 ? 'map_hoshimidai' : 'map_hoshi_barn';
+      const t0 = Date.now();
+      const go = setInterval(() => {
+        const f = field();
+        if (Date.now() - t0 > 8000) clearInterval(go);
+        if (!f || f.map.id !== want || !f.controllable || game.top !== f) return;
+        clearInterval(go);
+        f.startScript(
           (function* (): Co {
             try {
               yield* uriboScene();
@@ -632,7 +647,7 @@ if (import.meta.env.DEV) {
             }
           })(),
         );
-      }, 500);
+      }, 200);
       return r;
     }
     if (step === 'done') {
