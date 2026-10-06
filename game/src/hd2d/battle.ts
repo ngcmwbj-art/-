@@ -18,11 +18,12 @@
 // (bg_h_*) stand on the 3D village or room at night too. Outdoors, where
 // the low camera sees past the land, the backdrop's own painted night sky
 // (its bands, Milky Way, far ridges and lights: Background.paintPlaceSky)
-// shows behind the place: the still is drawn once more as a silhouette
-// against a key colour (Hd2dView.silhouette, its front edge cut as the
-// still's), the sky's px made clear, and the sky laid under it again every
-// SKY_STEP ms (the far lights, the dawn's edge; the stars twinkle on the 2D
-// side, in that sky only: isSky). The far land fades into the sky's haze.
+// shows where the place has no land: the still is drawn once more as a
+// silhouette against a key colour (Hd2dView.silhouette, its front edge cut as
+// the still's), read back at half size into an alpha mask, and the sky, cut
+// to it, is laid over the still again every SKY_STEP ms (the far lights, the
+// dawn's edge; the stars twinkle on the 2D side, in that sky only: isSky).
+// The far land fades into the sky's haze.
 
 import * as THREE from 'three';
 import { game } from '../engine/game';
@@ -98,8 +99,11 @@ class Place implements PlaceView {
   private out: HTMLCanvasElement | null = null;
   private scratch: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
   private size = [0, 0];
-  /** Chapter 2 outdoors: the painted sky (2D px) and the still over it (sky clear), laid again every SKY_STEP. */
+  /** Chapter 2 outdoors: the painted sky (2D px), laid over the still where it shows sky every SKY_STEP. */
   private sky: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
+  /** Where the still shows sky (alpha, at half the still's size) and the painted sky cut to it. */
+  private skyAlpha: HTMLCanvasElement | null = null;
+  private skyCut: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
   private flat: HTMLCanvasElement | null = null;
   private flatKey = '';
   /** The last picture laid unshifted (the standstill drains it). */
@@ -134,10 +138,12 @@ class Place implements PlaceView {
       this.still = copyOf(v.still(this.f, d.width, d.height, poseFor(v, this.f)), this.still);
       this.cam = v.camera.clone();
       if (this.painted) {
+        // (read back at half the size: light on the GPU's sync and the loop; the sky's edge is the still's far, blurred line)
         const k = v.silhouette(KEY, true);
-        const [kc, kx] = makeCanvas(k.width, k.height, { willReadFrequently: true });
-        kx.drawImage(k, 0, 0);
-        key = kx.getImageData(0, 0, k.width, k.height);
+        const [kc, kx] = makeCanvas(Math.ceil(k.width / 2), Math.ceil(k.height / 2), { willReadFrequently: true });
+        kx.imageSmoothingEnabled = false;
+        kx.drawImage(k, 0, 0, kc.width, kc.height);
+        key = kx.getImageData(0, 0, kc.width, kc.height);
         release(kc);
       }
       this.vivid = copyOf(v.still(this.f, d.width, d.height, poseFor(v, this.f, -0.2)), this.vivid);
@@ -154,9 +160,10 @@ class Place implements PlaceView {
       v.scene.fog = fog;
       for (const p of left) p.present = true;
     }
+    release(this.skyAlpha);
+    this.skyAlpha = null;
     if (key) {
-      clearSky(this.still, key);
-      clearSky(this.vivid, key);
+      this.skyAlpha = alphaOfKey(key);
       this.skyMask = maskOf(key);
     } else this.skyMask = null;
     this.renderMs = Math.round(performance.now() - t0);
@@ -194,11 +201,12 @@ class Place implements PlaceView {
     return true;
   }
 
-  /** The still (kire 2's colour: the vivid one), with the backdrop's painted sky under it when it has one. */
+  /** The still (kire 2's colour: the vivid one), with the backdrop's painted sky where it shows sky. */
   private flatFor(bg: Background): HTMLCanvasElement {
     const vivid = bg.kire >= 2;
     const src = vivid ? this.vivid! : this.still!;
-    if (!this.skyMask) return src;
+    const alpha = this.skyAlpha;
+    if (!this.skyMask || !alpha) return src;
     const step = Math.floor((bg.mt * 1000) / SKY_STEP);
     const key = `${step}|${vivid ? 1 : 0}`;
     if (this.flat && this.flatKey === key && this.flat.width === src.width && this.flat.height === src.height) return this.flat;
@@ -214,13 +222,22 @@ class Place implements PlaceView {
       s.drawImage(sc, 0, 0);
       s.filter = 'none';
     }
+    // the sky cut to where the still sees no land (at the mask's size), then laid over the still
+    if (!this.skyCut || this.skyCut[0].width !== alpha.width || this.skyCut[0].height !== alpha.height) this.skyCut = makeCanvas(alpha.width, alpha.height);
+    const [kc, k] = this.skyCut;
+    k.imageSmoothingEnabled = false;
+    k.globalCompositeOperation = 'copy';
+    k.drawImage(sc, 0, 0, kc.width, kc.height);
+    k.globalCompositeOperation = 'destination-in';
+    k.drawImage(alpha, 0, 0);
+    k.globalCompositeOperation = 'source-over';
     if (!this.flat || this.flat.width !== src.width || this.flat.height !== src.height) [this.flat] = makeCanvas(src.width, src.height);
     const c = this.flat.getContext('2d')!;
     c.imageSmoothingEnabled = false;
     c.globalCompositeOperation = 'copy';
-    c.drawImage(sc, 0, 0, src.width, src.height);
-    c.globalCompositeOperation = 'source-over';
     c.drawImage(src, 0, 0);
+    c.globalCompositeOperation = 'source-over';
+    c.drawImage(kc, 0, 0, src.width, src.height);
     return this.flat;
   }
 
@@ -297,9 +314,9 @@ class Place implements PlaceView {
 
   dispose(): void {
     if (active === this) active = null;
-    for (const c of [this.still, this.vivid, this.greyed, this.out, this.flat, this.scratch?.[0] ?? null, this.sky?.[0] ?? null]) release(c);
-    this.still = this.vivid = this.greyed = this.out = this.flat = this.laid = null;
-    this.scratch = this.sky = null;
+    for (const c of [this.still, this.vivid, this.greyed, this.out, this.flat, this.scratch?.[0] ?? null, this.sky?.[0] ?? null, this.skyAlpha, this.skyCut?.[0] ?? null]) release(c);
+    this.still = this.vivid = this.greyed = this.out = this.flat = this.laid = this.skyAlpha = null;
+    this.scratch = this.sky = this.skyCut = null;
     this.skyMask = null;
   }
 }
@@ -338,6 +355,17 @@ export function clearSky(c: HTMLCanvasElement | null, key: ImageData): void {
   const k = key.data;
   for (let i = 0; i < px.length; i += 4) if (isKey(k, i)) px[i + 3] = 0;
   ctx.putImageData(img, 0, 0);
+}
+
+/** The key's sky as an alpha mask the size of the key (opaque where the place sees no land). */
+function alphaOfKey(key: ImageData): HTMLCanvasElement {
+  const [c, ctx] = makeCanvas(key.width, key.height);
+  const img = ctx.createImageData(key.width, key.height);
+  const k = key.data;
+  const o = img.data;
+  for (let i = 0; i < k.length; i += 4) if (isKey(k, i)) o[i + 3] = 255;
+  ctx.putImageData(img, 0, 0);
+  return c;
 }
 
 /** Where the place shows sky, sampled at each 2D px's centre (1: sky). */

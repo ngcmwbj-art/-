@@ -65,7 +65,7 @@ export const CH2_SHOTS: Record<string, ShotDef> = {
  * plaza's edge, the log fence, the cedars of the hill's north side at the
  * left; past the fence the land falls away, and there the painted valley,
  * the far mountains, the sun and the sky (ui/cut_sunrise.ts), the two from
- * behind in front. (Chosen from trials: hd2d_work/ch2C/sun3.)
+ * behind in front.
  */
 const SUNRISE_POSE: StillPose = { x: 22.6, z: 4.6, row: 206, pitch: 4, fov: 30, dist: 11, cutRow: 216, focusRow: 192, desat: 0, yaw: 58 };
 /** The far land's haze before the dawn and in the morning (the painted sky's low bands). */
@@ -135,8 +135,7 @@ sunriseView.land = (): SunriseLand | null => {
  * The whole village from the south, high, looking north to the hill: the
  * station in front, the houses and the old school, the canal, the terraces
  * and the abandoned field at the back, the hill beyond them (where the light
- * comes from) — the greenhouses at the left, the barn at the right. (Chosen
- * from trials: hd2d_work/ch2C/vl1, vl_hd3.)
+ * comes from) — the greenhouses at the left, the barn at the right.
  */
 const VILLAGE_POSE: StillPose = { x: 30.5, z: 24, row: 140, pitch: 24, fov: 34, dist: 60, cutRow: 216, focusRow: 110, desat: 0 };
 /** The far land's haze for this one picture (the whole village in sight: far off, not near). */
