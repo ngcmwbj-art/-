@@ -14,7 +14,8 @@
 // black before cut 4 — the night sky comes over the home, and loading the
 // town there would change the sound), its sky cut away (ui/ending.ts
 // nightTown). The stars, the clouds, the far hills and the one star over
-// 星見台 that stops twinkling are the 2D's own, unchanged.
+// 星見台 that stops twinkling are the 2D's own, unchanged, and so are the
+// bridge in front and the two of them on it, seen from behind.
 //
 // The close pictures of things — the photograph, the weather on TV — and
 // 「つづく」 and the end card stay the 2D pictures, laid over the 3D.
@@ -51,8 +52,9 @@ interface ShotDef {
  * dist as view.ts CAM (40°, 26°, 25 tiles), lookN only outdoors.
  */
 const SHOTS: Record<string, ShotDef> = {
-  // cut 1: the two out of the mall's door at 17:00, the chime — low, close, pushing in a little
-  c1_door: { lens: { pitch: 27, fov: 24, dist: 22, lookN: 0.3, lift: 0.7 }, to: { pitch: 24, dist: 20.5 }, drift: 6000 },
+  // cut 1: the two out of the mall's door at 17:00, the chime — close, a little lower than the field,
+  // pushing in (lower than 35°, the lot's tree in front — a still picture, never see-through — hides Minato)
+  c1_door: { lens: { pitch: 37, fov: 24, dist: 22, lookN: 0.3, lift: 0.7 }, to: { pitch: 35, dist: 20.5 }, drift: 6000 },
   // …and as they look up, back to the field's camera over the lit lot
   c1_lot: { lens: {} },
   // cut 2: a little lower than the room's camera, たかし over his griddle (the counter's top is
@@ -78,9 +80,11 @@ const SHOTS: Record<string, ShotDef> = {
  * cut_night_sky's town (Hd2dView.still): from the paddies' path south of the
  * river, low, looking up to the north — the river, the street's shop fronts,
  * the roofs behind, and above them the sky the 2D paints (星見台 and its
- * star at the right: the title's composition, 30 8.6 / 11).
+ * star at the right: the title's composition, 30 8.6 / 11). The two of them
+ * stand on the 2D's bridge in front (ui/ending.ts), against the lit shop
+ * fronts west of the big tree, the photo studio's sign to their right.
  */
-const NIGHT_POSE: StillPose = { x: 30, z: 38, row: 216, pitch: 5, fov: 30, dist: 16, cutRow: 0, focusRow: 150, desat: 0 };
+const NIGHT_POSE: StillPose = { x: 27, z: 38, row: 216, pitch: 5, fov: 30, dist: 16, cutRow: 0, focusRow: 150, desat: 0 };
 /** The night town's far haze: the night sky's low band (ui/title_art skyCanvas('night')). */
 const NIGHT_HAZE = new THREE.Color('#2a2248');
 /** Where the still sees no town (its silhouette pass): a key no picture has. */
@@ -199,8 +203,9 @@ function nightStill(v: Hd2dView, f: FieldScene, pose: StillPose): HTMLCanvasElem
 
 // QA (dev server only)
 if (import.meta.env.DEV) {
-  /** The shot up now: its name's lens and where it is. */
-  registerDebug('hd2dShot', () => {
+  /** The shot up now: its name's lens and where it is. `set`: change a shot's lens first ({c1_door: {lens: {pitch: 30}}}). */
+  registerDebug('hd2dShot', (set: Record<string, Partial<ShotDef>> = {}) => {
+    for (const [name, d] of Object.entries(set)) SHOTS[name] = { ...SHOTS[name], ...d, lens: { ...SHOTS[name]?.lens, ...d.lens } };
     const f = live?.f;
     return live && f ? { map: live.map, lens: shotLens(f), t: f.t - live.t0 } : null;
   });

@@ -48,6 +48,7 @@ import {
   midCanvas,
   nearCanvas,
   skyCanvas,
+  theTwoCanvas,
 } from './title_art';
 import { ctxText, rectA, textW, UI } from './window';
 import { coverToFade, ditherIn, ditherOut } from './transition';
@@ -59,13 +60,14 @@ import { coverToFade, ditherIn, ditherOut } from './transition';
  * night town for cut_night_sky, drawn once in 3D while the town was still
  * loaded (cut 3, in the black before cut 4) from low in the street, looking
  * up — the people left out, its sky cut away. It takes the place of the
- * painted town (mid, lamps, wires, water, near) under the same sky, stars,
- * clouds, far hills and 星見台's star, at the 3D picture's own size. Null
- * (2D, or no 3D town to draw): the 2D panorama, as before.
+ * painted town (mid, lamps, wires, water, the far bank) under the same sky,
+ * stars, clouds, far hills and 星見台's star, at the 3D picture's own size;
+ * the 2D's bridge in front, with the two of them on it from behind, and the
+ * grass stay. Null (2D, or no 3D town to draw): the 2D panorama, as before.
  */
 export const nightTown: { img: HTMLCanvasElement | null } = { img: null };
 
-/** HD-2D: how far the town slides down over the cut (px of 216) — a slow tilt up to the sky; the sky moves a third as far. */
+/** HD-2D: how far the town slides down over the cut (px of 216) — a slow crane up to the sky; the sky moves a third as far, the bridge half as far again. */
 const TILT_PX = 5;
 const TILT_MS = 3400;
 
@@ -80,6 +82,8 @@ class NightSkyScene implements Scene {
   frozenAt = -1;
   /** HD-2D: the sky at the 2D's size, and the picture handed under the 2D layer. */
   private sky: Gfx | null = null;
+  /** HD-2D: the bridge, the two of them and the grass in front of the town (384×216). */
+  private near: Gfx | null = null;
   private under: HTMLCanvasElement | null = null;
 
   update(dt: number): void {
@@ -165,10 +169,12 @@ class NightSkyScene implements Scene {
 
   /**
    * HD-2D: the sky (as in 2D, at 384×216) blown up under the 3D night town
-   * at the 3D picture's size, handed to the screen under the 2D layer (left
-   * clear). The two slide down slowly, the town more than the sky: the
-   * camera tilting up. (The cut opens under the black, so the crossfade's
-   * alpha isn't needed here.)
+   * at the 3D picture's size, and in front of the town the 2D's bridge with
+   * the two of them on it from behind, and the grass (title_art
+   * theTwoCanvas, drawGrass: the title's composition, 30 11.1) — handed to
+   * the screen under the 2D layer (left clear). They slide down slowly, the
+   * bridge most, the town less, the sky least: the camera craning up. (The
+   * cut opens under the black, so the crossfade's alpha isn't needed here.)
    */
   private drawHd(g: Gfx, town: HTMLCanvasElement): void {
     const t = this.t;
@@ -188,6 +194,12 @@ class NightSkyScene implements Scene {
     u.fillRect(0, 0, uw, uh);
     u.drawImage(sg.ctx.canvas, 0, Math.round(tilt * 0.35 * k), uw, uh);
     u.drawImage(town, 0, Math.round(tilt * k));
+    if (!this.near) this.near = new Gfx(makeCanvas(W, H)[1], W, H);
+    const ng = this.near;
+    ng.ctx.clearRect(0, 0, W, H);
+    ng.img(theTwoCanvas('night'), 0, 0);
+    drawGrass(ng, t, 0.6);
+    u.drawImage(ng.ctx.canvas, 0, Math.round(tilt * 1.5 * k), uw, uh);
     game.screen.underlay = this.under;
     g.ctx.clearRect(0, 0, W, H);
   }

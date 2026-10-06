@@ -44,7 +44,7 @@ import { charAt } from '../world/maps';
 import { buildWalls, type Walls } from './walls';
 import { BelowTown, Outskirts, outskirtsGround, skyBackdrop } from './outskirts';
 import { recording, type Slab, type Solid } from './overlap';
-import { nightGround, nightGroundMap } from './cut_night';
+import { nightGlowK, nightGround, nightGroundMap } from './cut_night';
 
 export { casterMaterial, pixelTexture } from './solid';
 
@@ -407,7 +407,8 @@ class BuildingView {
     this.group.visible = this.p.present;
     if (!this.p.present || !near) return;
     if (this.skin.refresh(f.propEnv(this.p), t) && this.masked.length) this.refreshMasked();
-    if (this.skin.glowTex) this.mat.emissiveIntensity = 1.6 * lit;
+    // (the ending's night: raised as the 2D's glow over its grading, cut_night.ts)
+    if (this.skin.glowTex) this.mat.emissiveIntensity = 1.6 * lit * nightGlowK(f);
   }
 
   dispose(): void {
@@ -727,7 +728,7 @@ export class CutoutView {
     if (!this.p.present || !near) return;
     const env = f.propEnv(this.p);
     if (!this.batch) this.skin.refresh(env, t);
-    if (this.skin.glowTex) this.mat.emissiveIntensity = 1.8 * lit;
+    if (this.skin.glowTex) this.mat.emissiveIntensity = 1.8 * lit * nightGlowK(f);
     // standing in front of Minato (or the follower): see-through, as the 2D x-ray
     const tgt = this.rect && hides(this.rect) ? 0.25 : 1;
     this.xray += Math.sign(tgt - this.xray) * Math.min(Math.abs(tgt - this.xray), 16.7 / 150);

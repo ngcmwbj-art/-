@@ -11,10 +11,17 @@
 import * as THREE from 'three';
 import { Gfx } from '../engine/gfx';
 import { flag } from '../game/state';
+import { registerDebug } from '../debug';
 import type { FieldScene } from '../world/field';
 import { canvas } from './solid';
 
-/** How strongly the 2D's pools light the ground (× π: the map's value times the ground's colour, as room.ts LIGHT_MAP). */
+/**
+ * How strongly the 2D's pools light the ground (× π: the map's value times
+ * the ground's colour, as room.ts LIGHT_MAP), before the grade's multiply.
+ * The 2D adds its lights to the grade's multiply colour; here the finish
+ * multiplies them by it after they light the ground, so they are raised by
+ * 1 / that colour (its red and green: the lamps are warm) to come out as in 2D.
+ */
 const NIGHT_LIGHT = 1.0;
 /** The light map's px per world px (the pools are soft; the ground's own texture is 1:1). */
 const SCALE = 0.5;
@@ -58,8 +65,30 @@ export function nightGround(mat: THREE.MeshLambertMaterial, f: FieldScene, lit: 
     paint(n, f);
     tex.needsUpdate = true;
   }
-  mat.lightMapIntensity = Math.PI * NIGHT_LIGHT * k;
+  mat.lightMapIntensity = (Math.PI * NIGHT_LIGHT * k) / under(f);
+  qa.last = n;
+  qa.intensity = mat.lightMapIntensity;
 }
+
+/** The grade's multiply colour (its red and green: the lamps are warm) that the finish lays over the lights. */
+function under(f: FieldScene): number {
+  const mul = f.grade.mul;
+  return Math.max(0.3, (mul[0] + mul[1]) / 510);
+}
+
+/**
+ * The lit windows' and signs' glow (emissive: town.ts BuildingView,
+ * CutoutView) in the town at night, raised as the pools are: the 2D draws its
+ * glow over the grading, the finish multiplies it here. 1 anywhere else.
+ */
+export function nightGlowK(f: FieldScene): number {
+  if (f.map.id !== 'map_town' || flag('flag_stage') !== 3) return 1;
+  const n = Math.max(0, Math.min(1, f.grade.night));
+  return 1 + n * (1 / under(f) - 1);
+}
+
+/** QA (hd2dNightGround): the last night light map and its strength. */
+const qa: { last: NightMap | null; intensity: number } = { last: null, intensity: 0 };
 
 /**
  * The 2D's lights, added up as render.ts adds them (its light map less the
@@ -82,4 +111,22 @@ function paint(n: NightMap, f: FieldScene): void {
     ctx.restore();
   }
   ctx.restore();
+}
+
+// QA (dev server only)
+if (import.meta.env.DEV) {
+  /** The town's night light map: painted?, its strength, its size, and its brightest and mean px (0–255, red); `png`: the map itself. */
+  registerDebug('hd2dNightGround', (png = false) => {
+    const n = qa.last;
+    if (!n) return null;
+    if (png) return n.c.toDataURL('image/png');
+    const d = n.ctx.getImageData(0, 0, n.c.width, n.c.height).data;
+    let max = 0;
+    let sum = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      max = Math.max(max, d[i]);
+      sum += d[i];
+    }
+    return { painted: n.painted, intensity: qa.intensity, w: n.c.width, h: n.c.height, max, mean: sum / (d.length / 4) };
+  });
 }

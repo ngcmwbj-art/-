@@ -40,8 +40,13 @@ const SUN_COLOUR = new THREE.Color('#ffc890');
 const SKY = new THREE.Color('#b8b0e8');
 const GROUND = new THREE.Color('#d89060');
 const MAX_LAMPS = 4;
-/** The sky light's strength at night (the ending's town): 1.7 by day. */
-const NIGHT_SKY = 2.6;
+/**
+ * The sky light at night (the ending's town; 1.7 by day): white at π, so a
+ * surface gives back its own colour, as the 2D's world is before its
+ * grading — the grade's multiply then darkens it as in 2D.
+ */
+const NIGHT_SKY = Math.PI;
+const WHITE = new THREE.Color('#ffffff');
 
 /** A rect of the 384×216 frame: x, y, w, h (px). */
 export type Crop = [number, number, number, number];
@@ -104,6 +109,8 @@ export class Hd2dView {
   private quality: Quality;
   private size = [0, 0];
   private readonly sunDir = new THREE.Vector3();
+  /** The town's sky light colours before the night (placeSun turns them white as it comes). */
+  private readonly dayHemi = [SKY.clone(), GROUND.clone()];
   private readonly tint = new THREE.Color();
   stats: FrameStats | null = null;
   /** How long the last map took to stand up in 3D (ms). */
@@ -269,7 +276,15 @@ export class Hd2dView {
     this.sun.intensity = 2.6 * (1 - night);
     // (at night — chapter 1's is the ending's — the grade darkens the picture as
     // in 2D, and the 2D's lamp pools light the ground: cut_night.ts; the sky's
-    // light no longer drops on top of that)
+    // light no longer drops on top of that: it turns white, NIGHT_SKY. Its
+    // colours by day are kept as they were, whatever set them)
+    if (night <= 0) {
+      this.dayHemi[0].copy(this.hemi.color);
+      this.dayHemi[1].copy(this.hemi.groundColor);
+    } else {
+      this.hemi.color.copy(this.dayHemi[0]).lerp(WHITE, night);
+      this.hemi.groundColor.copy(this.dayHemi[1]).lerp(WHITE, night);
+    }
     this.hemi.intensity = 1.7 * (1 - night) + NIGHT_SKY * night;
     return Math.atan2(d.x, d.z);
   }

@@ -448,6 +448,20 @@ export function nearCanvas(sky: Sky): HTMLCanvasElement {
   rect(cx - 3, 170, 7, 4);
   for (let x = 294; x < cx; x++) if (x % 7 !== 0) rect(x, 176, 1, 2);
   rect(cx + 1, 174, 5, 6);
+  bridgeAndTheTwo(p, sky, col, rim);
+  c = p.toCanvas();
+  nearCache.set(sky, c);
+  return c;
+}
+
+/**
+ * The near layer's bridge in front (deck and railing) and the two of them on
+ * it from behind, rim-lit on their left edges (the rim where they stand
+ * against what is already on p). Also drawn alone over the HD-2D night town
+ * of cut_night_sky (theTwoCanvas, ui/ending.ts).
+ */
+function bridgeAndTheTwo(p: PixelCanvas, sky: Sky, col: string, rim: string): void {
+  const rect = (x: number, y: number, w: number, h: number, cc = col) => p.rect(x, y, w, h, cc);
   // the bridge in front: deck and railing
   rect(0, 202, 384, 14);
   rect(0, 199, 384, 2);
@@ -490,8 +504,18 @@ export function nearCanvas(sky: Sky): HTMLCanvasElement {
       if (src[i] !== colV || src[i - 1] === colV) continue;
       p.set(x, y, rim);
     }
+}
+
+const twoCache = new Map<Sky, HTMLCanvasElement>();
+
+/** Only the bridge in front and the two of them (bridgeAndTheTwo) on a clear 384×216: the HD-2D night town's foreground. */
+export function theTwoCanvas(sky: Sky): HTMLCanvasElement {
+  let c = twoCache.get(sky);
+  if (c) return c;
+  const p = new PixelCanvas(384, 216);
+  bridgeAndTheTwo(p, sky, sky === 'sunset' ? '#2A2440' : '#141026', sky === 'sunset' ? '#F2894B' : '#6A5A8E');
   c = p.toCanvas();
-  nearCache.set(sky, c);
+  twoCache.set(sky, c);
   return c;
 }
 

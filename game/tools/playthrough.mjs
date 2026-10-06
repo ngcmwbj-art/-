@@ -610,7 +610,7 @@ async function exitRoom(to = 'map_town') {
     return o ? [o.x, o.y] : null;
   }, to);
   if (!d) throw new Error(`exitRoom: no door to ${to}`);
-  await travel(d[0], d[1] - 1);
+  await travel(d[0], d[1] - 1, { into: to });
   await walk('down', (s) => s.map === to, 5000);
   await waitFor((s) => s.ctrl, 5000, to);
 }
@@ -1049,7 +1049,7 @@ const BEATS = [
     name: 'maruyama',
     async run() {
       // on foot from the house down ひぐらし坂 into the ginza
-      await travel(27, 23);
+      await travel(27, 23, { into: 'map_maruyama' });
       await sleep(300);
       await shot('ginza');
       await walk('up', (s) => s.map === 'map_maruyama', 5000);
@@ -1065,7 +1065,7 @@ const BEATS = [
   {
     name: 'hinoya',
     async run() {
-      await travel(32, 23);
+      await travel(32, 23, { into: 'map_hinoya' });
       await walk('up', (s) => s.map === 'map_hinoya', 5000);
       await sleep(900);
       await shot('in');
@@ -1149,12 +1149,12 @@ const BEATS = [
       await travel(6, 22);
       await stampObject('fushigi_03');
       // the laundry and the police box
-      await travel(26, 33);
+      await travel(26, 33, { into: 'map_laundry' });
       await walk('up', (s) => s.map === 'map_laundry', 5000);
       await waitFor((s) => s.ctrl, 5000, 'laundry');
       await stampObject('fushigi_05');
       await exitRoom('map_town');
-      await travel(51, 33);
+      await travel(51, 33, { into: 'map_koban' });
       await walk('up', (s) => s.map === 'map_koban', 5000);
       await waitFor((s) => s.ctrl, 5000, 'koban');
       await stampObject('fushigi_06');
@@ -1190,7 +1190,7 @@ const BEATS = [
   {
     name: 'mall',
     async run() {
-      await travel(50, 8);
+      await travel(50, 8, { into: 'map_mall_hall' });
       await walk('up', (s) => s.map === 'map_mall_hall', 5000);
       await sleep(700);
       await shot('hall');
@@ -1394,7 +1394,7 @@ async function leaveRoom(to) {
     return o ? [o.x, o.y] : null;
   }, to);
   if (!d) throw new Error(`leaveRoom: no door to ${to}`);
-  await travel(d[0], d[1] - 1);
+  await travel(d[0], d[1] - 1, { into: to });
   await walk('down', (s) => s.map === to, 5000);
   await sleep(400);
   await advance({ label: 'out' });

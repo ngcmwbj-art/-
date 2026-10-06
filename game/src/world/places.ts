@@ -13,7 +13,7 @@ import { charSprite, idleFrame, poseFrame, walkFrame } from '../art/chars';
 import { setPropHook } from '../art/props/pkit';
 import { fontSmallWidth, fontTextSmall, handGlyph, handText } from '../art/props/text';
 import { registerDebug } from '../debug';
-import { PixelCanvas } from '../engine/pixel';
+import { makeCanvas, PixelCanvas } from '../engine/pixel';
 import { CART_FRAMES } from '../art/props/parking';
 import { lowPoint, poleFoot, staffPoint } from '../art/props/wires';
 import { P } from '../art/tiles/palette';
@@ -665,6 +665,30 @@ function trainImages(): HTMLCanvasElement[] {
   return TRAIN_IMG;
 }
 
+/** The train's pictures under a grade's multiply colour (the HD-2D view, drawTrain). */
+const graded = new Map<string, HTMLCanvasElement>();
+
+/**
+ * The HD-2D view lays the train over the 3D, after the night's grading: it
+ * takes the grade's multiply colour here, as the 2D's world layer does
+ * (render.ts), so the unlit train is as dark as in 2D.
+ */
+function nightTrain(img: HTMLCanvasElement, mul: readonly [number, number, number]): HTMLCanvasElement {
+  const key = `${TRAIN_IMG?.indexOf(img)}:${mul.join(',')}`;
+  let c = graded.get(key);
+  if (c) return c;
+  if (graded.size > 8) graded.clear();
+  const [o, ctx] = makeCanvas(img.width, img.height);
+  ctx.drawImage(img, 0, 0);
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = `rgb(${mul[0]},${mul[1]},${mul[2]})`;
+  ctx.fillRect(0, 0, img.width, img.height);
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.drawImage(img, 0, 0);
+  graded.set(key, o);
+  return o;
+}
+
 function drawTrain(f: FieldScene, g: Gfx, cx: number, cy: number): void {
   const imgs = trainImages();
   const img = imgs[Math.floor(train.t / 90) % 2];
@@ -677,7 +701,7 @@ function drawTrain(f: FieldScene, g: Gfx, cx: number, cy: number): void {
     const [x0, y0] = fxAt(f, left, headY - img.height, cx, cy);
     const [x1, y1] = fxAt(f, left + img.width, headY, cx, cy);
     g.rect(Math.round(x1), Math.round(y0 + 4), 4, Math.round(y1 - y0 - 8), P.night, 0.35);
-    g.ctx.drawImage(img, Math.round(x0), Math.round(y0), Math.round(x1 - x0), Math.round(y1 - y0));
+    g.ctx.drawImage(nightTrain(img, f.grade.mul), Math.round(x0), Math.round(y0), Math.round(x1 - x0), Math.round(y1 - y0));
     return;
   }
   const x = left - cx;
