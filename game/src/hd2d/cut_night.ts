@@ -20,11 +20,20 @@ import { canvas } from './solid';
  * the ground's colour, as room.ts LIGHT_MAP), before the grade's multiply.
  * The 2D adds its lights to the grade's multiply colour; here the finish
  * multiplies them by it after they light the ground, so they are raised by
- * 1 / that colour (its red and green: the lamps are warm) to come out as in 2D.
+ * 1 / that colour (its red and green: the lamps are warm), and lit in linear
+ * light where the 2D adds in the picture's colours: 1.6 by eye against the
+ * 2D's pools (the mall's lot, the crossing; __game.cmd.hd2dNightGround(false, k)).
  */
-const NIGHT_LIGHT = 1.0;
+const NIGHT_LIGHT = 1.6;
 /** The light map's px per world px (the pools are soft; the ground's own texture is 1:1). */
 const SCALE = 0.5;
+/**
+ * The street lamps come on one after another as the night comes, nearest
+ * first (art/props/street.ts lampState: 0.15 s a tile): the map is painted
+ * again every RELIGHT_STEP ms for RELIGHT_MS after the night first shows.
+ */
+const RELIGHT_MS = 8000;
+const RELIGHT_STEP = 150;
 
 interface NightMap {
   c: HTMLCanvasElement;
@@ -33,6 +42,9 @@ interface NightMap {
   ox: number;
   oy: number;
   painted: boolean;
+  /** Field time of the first painting and of the last (ms). */
+  t0: number;
+  last: number;
 }
 
 const maps = new WeakMap<THREE.Texture, NightMap>();
@@ -48,24 +60,25 @@ export function nightGroundMap(f: FieldScene, w: number, h: number, ox: number, 
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, c.width, c.height);
   const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
+  // (the 2D light map's values as they are, not decoded as colours: as room.ts's)
+  tex.colorSpace = THREE.NoColorSpace;
   tex.generateMipmaps = false;
   tex.minFilter = THREE.LinearFilter;
-  maps.set(tex, { c, ctx, ox, oy, painted: false });
+  maps.set(tex, { c, ctx, ox, oy, painted: false, t0: 0, last: 0 });
   return tex;
 }
 
-/** Per frame (TownWorld.update): the pools come up with the night; painted once, when it first comes. */
+/** Per frame (TownWorld.update): the pools come up with the night; painted when it first comes, and again while the lamps come on. */
 export function nightGround(mat: THREE.MeshLambertMaterial, f: FieldScene, lit: number): void {
   const tex = mat.lightMap;
   const n = tex ? maps.get(tex) : undefined;
   if (!tex || !n) return;
   const k = Math.max(0, Math.min(1, f.grade.night)) * lit;
-  if (k > 0.01 && !n.painted) {
+  if (k > 0.01 && (!n.painted || (f.t - n.t0 < RELIGHT_MS && f.t - n.last >= RELIGHT_STEP))) {
     paint(n, f);
     tex.needsUpdate = true;
   }
-  mat.lightMapIntensity = (Math.PI * NIGHT_LIGHT * k) / under(f);
+  mat.lightMapIntensity = (Math.PI * NIGHT_LIGHT * k * qa.boost) / under(f);
   qa.last = n;
   qa.intensity = mat.lightMapIntensity;
 }
@@ -88,7 +101,7 @@ export function nightGlowK(f: FieldScene): number {
 }
 
 /** QA (hd2dNightGround): the last night light map and its strength. */
-const qa: { last: NightMap | null; intensity: number } = { last: null, intensity: 0 };
+const qa: { last: NightMap | null; intensity: number; boost: number } = { last: null, intensity: 0, boost: 1 };
 
 /**
  * The 2D's lights, added up as render.ts adds them (its light map less the
@@ -96,8 +109,12 @@ const qa: { last: NightMap | null; intensity: number } = { last: null, intensity
  * while Grade.night is low: the pools come up through lightMapIntensity).
  */
 function paint(n: NightMap, f: FieldScene): void {
+  if (!n.painted) n.t0 = f.t;
   n.painted = true;
+  n.last = f.t;
   const ctx = n.ctx;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, n.c.width, n.c.height);
   const g = new Gfx(ctx, n.c.width / SCALE, n.c.height / SCALE);
   const grade = { ...f.grade, night: 1, lit: 1 };
   ctx.save();
@@ -116,7 +133,8 @@ function paint(n: NightMap, f: FieldScene): void {
 // QA (dev server only)
 if (import.meta.env.DEV) {
   /** The town's night light map: painted?, its strength, its size, and its brightest and mean px (0–255, red); `png`: the map itself. */
-  registerDebug('hd2dNightGround', (png = false) => {
+  registerDebug('hd2dNightGround', (png = false, boost?: number) => {
+    if (boost !== undefined) qa.boost = boost;
     const n = qa.last;
     if (!n) return null;
     if (png) return n.c.toDataURL('image/png');

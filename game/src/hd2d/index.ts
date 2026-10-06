@@ -3,7 +3,9 @@
 // shadows, bloom, a tilt-shift blur and the stage's grade — while every
 // text, window, menu, the HUD and the touch controls stay the 2D canvas on
 // top. Walking, collisions, talking and events are the 2D game's own; only
-// the picture of the field changes. Other maps, rooms and battles stay 2D.
+// the picture of the field changes. Since then: chapter 1's other outdoor
+// places and its rooms (places.ts, room.ts), its battles' backgrounds
+// (battle.ts) and its ending's cuts (cut.ts, cut_night.ts); chapter 2 stays 2D.
 //
 // In every build since 2026-10-06 (依頼主「第1章全部HD-2Dにして」): chapter 1
 // is HD-2D from the start, chapter 2 stays 2D. main.ts loads this layer

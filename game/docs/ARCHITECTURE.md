@@ -80,16 +80,21 @@ npm run build        # subsets the font, typechecks, builds dist/
 - `audio/keepalive.ts`: brings the AudioContext back after the system stops it (alarm, call, app switch):
   resume on page show / focus / any gesture, plus a 1 s retry; SFX and blips are skipped while it is stopped.
 
-## HD-2D layer (prototype, 2026-10-05, 02 #85)
+## HD-2D layer (2026-10-05 prototype → 2026-10-06 chapter 1 in every build, 02 #85)
 
-An optional 3D picture of the field, made with three.js (the one library added, with the client's approval). Only
+A 3D picture of the field, made with three.js (the one library added, with the client's approval). Only
 the picture changes: walking, collisions, talking, events, menus and battles are the 2D game's own.
 
-- **Where it runs**: `src/hd2d/` is imported (dynamically, from `main.ts`) only by the dev server and the demo build
-  (`VITE_HD2D_DEMO=1`, `npm run artifact:hd2d` → `dist-artifact/shun-hd2d.html`); the other builds have no three.js.
-  Off by default. On with `?hd2d=1` (`&hd2dq=light|normal`), `__game.cmd.hd2d(true|false)`, or the demo build
-  (there 「はじめる」 opens in 夕鳴銀座: `ui/flow.ts` `setNewGameStart`). Maps: `map_town` only; every other map,
-  room, battle and cut stays 2D.
+- **Where it runs**: since 2026-10-06 (依頼主「第1章全部HD-2Dにして」) every build has it. `main.ts` imports
+  `src/hd2d/` once the title is up, when HD-2D is wanted (せってい「表示 HD-2D／2D」, `ui/settings.ts`
+  `settings.hd2d`, saved, default HD-2D; someone who chose 2D never loads three.js). It draws chapter 1's places
+  (`map_town`, the 5 outdoor places of `places.ts`, the 24 rooms of `room.ts`), chapter 1's battle backgrounds
+  (`battle.ts`, `src/battle/bg/place.ts`) and the ending's cuts (`cut.ts`, `cut_night.ts`); once
+  `flag_ch2_started` is up everything is 2D. No WebGL → 2D, and the settings page says so. `?hd2d=0|1`
+  (`&hd2dq=light|normal`) and `__game.cmd.hd2d(true|false|null)` override it for the session. The demo build
+  (`VITE_HD2D_DEMO=1`, `npm run artifact:hd2d`) starts 「はじめる」 in 夕鳴銀座 (`ui/flow.ts` `setNewGameStart`).
+  The playthrough runs 2D (`?hd2d=0`) unless `--hd2d` (`--slow n` for its waits). (The paragraphs below were
+  written for the prototype; where they say "map_town only" read "chapter 1".)
 - **Layers**: the WebGL canvas is offscreen. `FieldScene.draw()` asks `setFieldDrawer()`'s hook first; in HD-2D it
   renders the town, hands the canvas to `Screen.underlay`, and clears the 2D buffer to transparent before the
   world fx, the emotes, the HUD, the windows and the fade go on top. `Screen.present()` lays the underlay over the display canvas, then the buffer (the buffer has alpha since
