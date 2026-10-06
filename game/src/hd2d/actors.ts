@@ -8,12 +8,21 @@
 // that draws itself (drawFn: the traffic, the stray carts) is drawn into a
 // picture of its own each frame; a shadow that lags (the cat, fushigi_02:
 // data.shadowFrame) is cast from that frame.
+//
+// A vehicle (data.vehicle: ツガオ便 and the town's traffic) is not a standing
+// picture but a body (2026-10-06 依頼主「ツガオの軽トラも立体にして」): its
+// current frame (side, front or back view) pushed back as far as the truck is
+// wide (side) or long (front, back) — solid.ts extrude(), the voxel look of
+// the props — lit and casting its own shadow. The picture stays on the south
+// face where the 2D draws it, so the window's Z's and the voices (fxAt at the
+// feet) are where they were; the body reaches north behind it.
 
 import * as THREE from 'three';
 import { Gfx } from '../engine/gfx';
+import { vehicleFrame, type VehicleView } from '../art/props/vehicles';
 import type { Actor } from '../world/actor';
 import type { FieldScene } from '../world/field';
-import { shadowOnly } from './solid';
+import { extrude, litMaterial, Mask, ownUv, Quads, shadowOnly } from './solid';
 import { casterMaterial, pixelTexture, SHADE, SV, type TownWorld } from './town';
 
 /** What the characters ask of the 3D map they stand in (the town, or a room: room.ts RoomWorld). */
@@ -58,6 +67,50 @@ const DRAWN_W = 128;
 const DRAWN_H = 96;
 const DRAWN_FOOT = 88;
 
+/** How far a vehicle's body reaches behind its picture (units): a kei truck's width (26 px) behind its side, its length behind its front or back. */
+function vehicleDepth(view: VehicleView): number {
+  return view === 'left' || view === 'right' ? 26 * PX : 60 * PX;
+}
+
+const vehicleGeo = new Map<string, THREE.BufferGeometry>();
+/**
+ * A vehicle's body for one view, made once from the frame standing still:
+ * the picture's middle at x 0, its bottom row on the ground (one px below, as
+ * the 2D draws it), the picture on the front at z 0 and pushed back north.
+ * (Its frames share the silhouette; the moving wheels, the breathing sleeper
+ * are the texture's.)
+ */
+function vehicleGeometry(id: string, view: VehicleView): THREE.BufferGeometry {
+  const key = `${id}:${view}`;
+  let g = vehicleGeo.get(key);
+  if (!g) {
+    const pic = vehicleFrame(id, view, 0, false);
+    const q = new Quads();
+    const m = new Mask(pic);
+    const uv = ownUv(pic.width, pic.height);
+    const D = vehicleDepth(view);
+    const at = (c0: number, r0: number, zf: number) => ({ x0: (c0 - pic.width / 2) * PX, yTop: (pic.height - 1 - r0) * PX * SV, sy: PX * SV, zf });
+    const side = view === 'left' || view === 'right';
+    if (side && id.startsWith('tsugao_truck')) {
+      // ツガオ便 (art/props/vehicles.ts tsugaoSide, facing right): the load of
+      // crates (columns 0–36, rows 0–12) in three rows across the bed with a
+      // px between them, so its top reads as crates, not as long bars; the
+      // cab, the headboard guard and the bed's gate and chassis are one body
+      const right = view === 'right';
+      const W = pic.width;
+      const [l0, l1] = right ? [0, 37] : [W - 37, W];
+      const [c0, c1] = right ? [37, W] : [0, W - 37];
+      extrude(q, m, 0, 13, W, pic.height, at(0, 13, 0), D, uv);
+      extrude(q, m, c0, 0, c1, 13, at(c0, 0, 0), D, uv);
+      const seg = 8 * PX;
+      for (let i = 0; i < 3; i++) extrude(q, m, l0, 0, l1, 13, at(l0, 0, -i * (seg + PX)), seg, uv);
+    } else extrude(q, m, 0, 0, pic.width, pic.height, at(0, 0, 0), D, uv);
+    g = q.geometry();
+    vehicleGeo.set(key, g);
+  }
+  return g;
+}
+
 /** A unit quad standing on its bottom edge (x −0.5..0.5, y 0..1), facing +Z. */
 const STAND = new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0);
 /** A unit quad lying on the ground. */
@@ -73,6 +126,8 @@ class ActorView {
   seen = 0;
   /** The picture of an actor with a drawFn (made when first needed). */
   private drawn: { c: HTMLCanvasElement; g: Gfx; tex: THREE.CanvasTexture } | null = null;
+  /** A vehicle's body (made when first needed; its geometry is shared: vehicleGeometry). */
+  private veh: { mesh: THREE.Mesh; mat: THREE.MeshLambertMaterial } | null = null;
 
   constructor() {
     this.mat = new THREE.MeshBasicMaterial({ alphaTest: 0.5 });
@@ -113,7 +168,11 @@ class ActorView {
     const show = a.visible && !blink && (la > 0.01 || !!a.data.selfLit);
     this.group.visible = show;
     if (!show) return;
-    const tex = a.drawFn ? this.drawSelf(a) : texOf(a.frame());
+    // (a vehicle: its frame as it is, the body is made of it below)
+    const vid = a.data.vehicle as string | undefined;
+    const view = a.dir as VehicleView;
+    const vpic = vid ? vehicleFrame(vid, view, f.t, a.moving) : null;
+    const tex = vpic ? texOf(vpic) : a.drawFn ? this.drawSelf(a) : texOf(a.frame());
     const pic = tex.image as HTMLCanvasElement;
     // the long shadow: the frame it is cast from (a lagging one, fushigi_02)
     const lag = !a.drawFn ? (a.data.shadowFrame as HTMLCanvasElement | undefined) : undefined;
@@ -131,7 +190,7 @@ class ActorView {
     const w = pic.width * PX;
     const h = pic.height * PX * SV;
     // (a drawn picture reaches below the feet: it stands that much lower)
-    const below = a.drawFn ? (DRAWN_H - DRAWN_FOOT) * PX * SV : 0;
+    const below = a.drawFn && !vpic ? (DRAWN_H - DRAWN_FOOT) * PX * SV : 0;
     // feet: the actor's (x, y); a pose drawn higher (perched, hopping) lifts it,
     // one drawn lower (oy > 0) stands that much further south
     const x = (a.x + a.ox) * PX;
@@ -171,6 +230,33 @@ class ActorView {
     const ground = world.heightAt(x, z - 0.05);
     this.shadow.position.set(x, ground + 0.02, z - 0.06);
     this.shadow.scale.set(sw, 1, sw * 0.42);
+    // a vehicle: the body instead of the standing picture and its shadow plane
+    this.body.visible = !vpic;
+    this.caster.visible = !vpic;
+    if (vpic && vid) {
+      if (!this.veh) {
+        const mat = litMaterial(tex);
+        const mesh = new THREE.Mesh(vehicleGeometry(vid, view), mat);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        this.group.add(mesh);
+        this.veh = { mesh, mat };
+      }
+      const v = this.veh;
+      v.mesh.geometry = vehicleGeometry(vid, view);
+      if (v.mat.map !== tex) v.mat.map = tex;
+      if (v.mat.transparent !== tr) {
+        v.mat.transparent = tr;
+        v.mat.alphaTest = tr ? 0.02 : 0.5;
+        v.mat.needsUpdate = true;
+      }
+      v.mat.opacity = alpha;
+      v.mesh.position.set(x, up, z);
+      // the contact shadow under the whole body
+      const d = vehicleDepth(view);
+      this.shadow.position.set(x, ground + 0.02, z - d / 2);
+      this.shadow.scale.set(w * 0.95, 1, d * 1.25);
+    }
     const air = up - ground;
     this.shadow.visible = air < 1.5;
     (this.shadow.material as THREE.MeshBasicMaterial).opacity = 0.6 * alpha * (1 - Math.min(1, air / 1.5) * 0.6);
@@ -181,6 +267,7 @@ class ActorView {
     this.cmat.dispose();
     (this.shadow.material as THREE.Material).dispose();
     this.drawn?.tex.dispose();
+    this.veh?.mat.dispose();
   }
 }
 
