@@ -67,9 +67,16 @@ const DRAWN_W = 128;
 const DRAWN_H = 96;
 const DRAWN_FOOT = 88;
 
-/** How far a vehicle's body reaches behind its picture (units): a kei truck's width (26 px) behind its side, its length behind its front or back. */
+/**
+ * How far a vehicle's body reaches behind its picture (units): a kei truck's
+ * width behind its side, its length behind its front or back. The width is a
+ * tile (16 px): the river road is two tiles wide (rows 33–34) and the truck
+ * keeps to its left lane going east, the body from its feet line (row 34's
+ * top) to row 33's — 26 px first, and it stood out over the pavement
+ * (2026-10-06 依頼主「軽トラ幅ありすぎて車道はみ出してるよ」).
+ */
 function vehicleDepth(view: VehicleView): number {
-  return view === 'left' || view === 'right' ? 26 * PX : 60 * PX;
+  return view === 'left' || view === 'right' ? 16 * PX : 60 * PX;
 }
 
 const vehicleGeo = new Map<string, THREE.BufferGeometry>();
@@ -102,7 +109,7 @@ function vehicleGeometry(id: string, view: VehicleView): THREE.BufferGeometry {
       const [c0, c1] = right ? [37, W] : [0, W - 37];
       extrude(q, m, 0, 13, W, pic.height, at(0, 13, 0), D, uv);
       extrude(q, m, c0, 0, c1, 13, at(c0, 0, 0), D, uv);
-      const seg = 8 * PX;
+      const seg = (D - 2 * PX) / 3;
       for (let i = 0; i < 3; i++) extrude(q, m, l0, 0, l1, 13, at(l0, 0, -i * (seg + PX)), seg, uv);
     } else extrude(q, m, 0, 0, pic.width, pic.height, at(0, 0, 0), D, uv);
     g = q.geometry();
