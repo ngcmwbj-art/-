@@ -561,6 +561,8 @@ const GAP = 5;
 const NOSE = 10;
 const TRAIN_L = NOSE + 4 * CAR_L + 3 * GAP;
 const TRAIN_MS = 2800;
+/** Rows of the train's picture drawn at once in the HD-2D view (drawTrain). */
+const TRAIN_SLICE = 8;
 
 let TRAIN_IMG: HTMLCanvasElement[] | null = null;
 /** The whole train seen from above, lead car (southbound) at the bottom; 2 frames of the sign's backlight. */
@@ -696,12 +698,24 @@ function drawTrain(f: FieldScene, g: Gfx, cx: number, cy: number): void {
   const headY = train.y0 + train.v * train.t;
   const left = 60 * 16 + 8 - Math.ceil(img.width / 2);
   if (fxElsewhere(f)) {
-    // the HD-2D view: the picture (seen from above) laid on the rails, from
-    // where its tail is to where its head is on that ground
-    const [x0, y0] = fxAt(f, left, headY - img.height, cx, cy);
-    const [x1, y1] = fxAt(f, left + img.width, headY, cx, cy);
-    g.rect(Math.round(x1), Math.round(y0 + 4), 4, Math.round(y1 - y0 - 8), P.night, 0.35);
-    g.ctx.drawImage(nightTrain(img, f.grade.mul), Math.round(x0), Math.round(y0), Math.round(x1 - x0), Math.round(y1 - y0));
+    // the HD-2D view: the picture (seen from above) laid on the rails, in
+    // slices of TRAIN_SLICE rows, each drawn where its own stretch of ground
+    // lies on screen; a slice the camera does not see (behind it, or past
+    // the frame) is left out. (One picture from where the tail is to where
+    // the head is broke once the head ran past the camera: that corner fell
+    // back to its 2D place and the train shot off the screen — 2026-10-06
+    // 依頼主「エンディングの焼きそば食べる前の電車が異常な挙動…飛んでいく勢い」.)
+    const pic = nightTrain(img, f.grade.mul);
+    const tail = headY - img.height;
+    for (let r = 0; r < img.height; r += TRAIN_SLICE) {
+      const h = Math.min(TRAIN_SLICE, img.height - r);
+      const a = f.projected(left, tail + r, tail + r);
+      const b = f.projected(left + img.width, tail + r + h, tail + r + h);
+      if (!a || !b || b[1] <= a[1] || b[1] < -16 || a[1] > H + 16 || b[1] - a[1] > TRAIN_SLICE * 4) continue;
+      const dy = Math.ceil(b[1] - a[1]);
+      g.rect(Math.round(b[0]), Math.round(a[1]), 4, dy, P.night, 0.35);
+      g.ctx.drawImage(pic, 0, r, img.width, h, Math.round(a[0]), Math.round(a[1]), Math.round(b[0] - a[0]), dy);
+    }
     return;
   }
   const x = left - cx;
