@@ -49,8 +49,10 @@ import { NIHYAKU_TEXTS } from '../../data/text/hoshi_nihyaku';
 import { MIZUBE_CH2_TEXTS } from '../../data/text/mizube_ch2';
 import { DOME_PAGES } from '../../data/text/hoshi_dome';
 import { SHIKISHI_TEXTS } from '../../data/text/hoshi_shikishi';
+import { ASHIATO_TEXTS } from '../../data/text/hoshi_ashiato';
 import { HUNTING_TEXTS } from '../../data/text/hunting';
 import { KOTEI_TEXTS } from '../../data/text/kotei';
+import { TOKEI_TEXTS } from '../../data/text/tokei7';
 
 type Step = () => void;
 
@@ -230,6 +232,14 @@ export const CHAIN2: Beat2[] = [
     steps: [],
     at: ['map_hoshi_minka2', 9, 2, 'up'],
     desc: '（任意）70年の 色紙と 小さな 夏祭り（カレンダー → ぴょん夫人 → 7人 → ぴょん夫人 → 区の倉庫の提灯 → ハモ区長 → 校庭の桜）',
+    side: 'houki',
+  },
+  // optional (02 #87, ashiato.ts): stage 1 past the gate, the barn chores done and his shipping talk heard — マサル in the barn
+  {
+    beat: 'ashiato',
+    steps: [set('flag_ch2_barn_work', 'flag_seen_npc_hoshi_gen_h1_1', 'flag_seen_npc_hoshi_gen_h1_2'), val('flag_seen_npc_hoshi_gen_h1', 2)],
+    at: ['map_hoshi_barn', 19, 6, 'right'],
+    desc: '（任意）夜の 足あと帳（マサル〔ashiato〕→ 足あと 6つ → 知らせる → マサル → ゲートの 内側で うり坊を 数える）',
     side: 'houki',
   },
 ];
@@ -443,10 +453,14 @@ function collectTexts(): [string, string][] {
   walk('dome', DOME_PAGES);
   // げむきか10/5の改5（70年の 色紙と 小さな 夏祭り。50 9.9・10.26, 02_ch2_index #84）
   walk('shikishi', SHIKISHI_TEXTS);
+  // げむきか10/6の案3（夜の 足あと帳。50 9.9・10.28, 02_ch2_index #87）
+  walk('ashiato', ASHIATO_TEXTS);
   // げむきか10/5の新5（ハンチングの 値札。第1章の くりこ〔chichi〕も。10 6.8, 50 3.8・9.9, 02_ch2_index #83）
   walk('hunting', HUNTING_TEXTS);
   // げむきか10/5の新1（二人十五脚。第1章の ピー・コック・なんばるわん・校庭。10 6.12・6.23・7.24, 02_ch2_index #82）
   walk('kotei', KOTEI_TEXTS);
+  // げむきか10/6の案4（チクタク堂の ばらばら時計。第1章の 時計店・6人、第2章の 駅ノートの 1行。10 6.22・7.19, 50 8.1, 02_ch2_index #88）
+  walk('tokei7', TOKEI_TEXTS);
   // げむきか10/5の改1（水辺の 図鑑：夜振り・たも網・沢ガニ・駅ノート。50 3.10・10.25, 02_ch2_index #81）
   walk('mizube_ch2', MIZUBE_CH2_TEXTS);
   // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line

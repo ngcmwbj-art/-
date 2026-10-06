@@ -936,8 +936,7 @@ export class TownWorld {
     }
     lap('water');
     // (星見台: the footprints only the tomato light shows, the sky in the water, the stars down the stream)
-    const finds = litDecals(f, hAt);
-    if (finds) this.live.push(finds);
+    this.live.push(...litDecals(f, hAt));
     const stars = skyWater(f, MARGIN, hAt, light);
     if (stars) this.live.push(stars);
     this.live.push(...flatGlows(f, hAt, light));

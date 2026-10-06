@@ -76,6 +76,8 @@ const items: ItemDef[] = [
   { id: 'item_matsuri_chochin', name: '夏祭りの提灯', key: true, target: 'none', desc: ['『星見台 夏祭り』の 箱の 1つ。', 'トマトの 灯りで、紙が 橙に すける。'], battleText: ['提灯を 見せた。\n$enemyは 祭りの 音に 耳を すませた。'] },
   // ハンチングの 値札（02 #83）：ペロの家の 壁から 3号ハウスの ペロへ（渡すと 外れる）
   { id: 'item_hunting', name: 'ペロのハンチング', key: true, target: 'none', desc: ['値札の 糸が、ついたまま。', ''], battleText: ['ハンチングを 見せた。\n……これは、ペロの 帽子だ。'] },
+  // チクタク堂の ばらばら時計（02 #88）：7つ目の あと、時計店の ゆうから（第2章にも 持っていく）
+  { id: 'item_tokei7_utsushi', name: '7つの時刻の写し', key: true, target: 'none', desc: ['ゆうの 字。', '1秒も くるって いない 字。'], battleText: ['写しを 見せた。\n$enemyは いつもの 時刻を 考えている。'] },
 ];
 
 const table = new Map<string, ItemDef>();

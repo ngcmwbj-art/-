@@ -34,3 +34,5 @@ import './hoshi_sawa';
 import './cape_coffee';
 // 校庭の 桜の 提灯・太鼓・集会所の 色紙（70年の 色紙と 小さな 夏祭り、02_ch2_index #84）
 import './matsuri_art';
+// 夜の 足あと帳の 足あと・畦豆（02_ch2_index #87）
+import './ashiato_art';

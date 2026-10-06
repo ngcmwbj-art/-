@@ -92,6 +92,8 @@ export const ROOM_SOLID: Record<string, PropSolid> = {
   // the greenhouses' tomatoes: vines tied up their strings, as slender as the
   // 2D paints them (pushed back they swelled into hedges)
   prop_h_tomato: { kind: 'flat' },
+  // チクタク堂の 額の 写真（02 #88）：カウンターに 立てた 薄い 額（厚い 箱に しない）
+  prop_tokei7_photo: { kind: 'slab', depth: 2 },
 };
 
 /**

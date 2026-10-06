@@ -303,25 +303,40 @@ export function liveFlat(f: FieldScene, p: PropInst, chars: string, mg: Margin, 
 
 /**
  * 星見台's finds on the ground that only the tomato light shows (litOnly
- * flat props: the child's footprints on the old lane, 52 7.2): drawn as the
- * 2D draws them — inside the inner two rings of the lantern (r × 0.6) only,
- * nothing without it — on a sheet over their tiles, redrawn as the light
- * moves (null: no such finds here).
+ * flat props: the child's footprints on the old lane, 52 7.2; the night's
+ * animal tracks round the village, 02 #87): drawn as the 2D draws them —
+ * inside the inner two rings of the lantern (r × 0.6) only, nothing without
+ * it — on a sheet over their tiles, redrawn as the light moves. The finds
+ * lie in a few places far apart: one small sheet for each group of them
+ * (finds within 2 tiles of each other), left alone while the light is away.
  */
-export function litDecals(f: FieldScene, heightAt: (x: number, z: number) => number): LiveSheet | null {
-  const finds = f.props.filter((p) => p.art.flat && p.obj.litOnly);
-  if (!finds.length) return null;
-  let x0 = 1e9;
-  let y0 = 1e9;
-  let x1 = -1e9;
-  let y1 = -1e9;
-  for (const p of finds) {
+export function litDecals(f: FieldScene, heightAt: (x: number, z: number) => number): LiveSheet[] {
+  const all = f.props.filter((p) => p.art.flat && p.obj.litOnly);
+  const groups: { box: [number, number, number, number]; finds: typeof all }[] = [];
+  for (const p of all) {
     const a = p.art;
-    x0 = Math.min(x0, Math.floor((p.x + a.ox) / 16));
-    y0 = Math.min(y0, Math.floor((p.y + a.oy) / 16));
-    x1 = Math.max(x1, Math.ceil((p.x + a.ox + a.w) / 16));
-    y1 = Math.max(y1, Math.ceil((p.y + a.oy + a.h) / 16));
+    const box: [number, number, number, number] = [Math.floor((p.x + a.ox) / 16), Math.floor((p.y + a.oy) / 16), Math.ceil((p.x + a.ox + a.w) / 16), Math.ceil((p.y + a.oy + a.h) / 16)];
+    groups.push({ box, finds: [p] });
   }
+  // merge the groups that lie within 2 tiles of each other until none do
+  const near = (a: number[], b: number[]) => a[0] - 2 < b[2] && b[0] - 2 < a[2] && a[1] - 2 < b[3] && b[1] - 2 < a[3];
+  for (let merged = true; merged; ) {
+    merged = false;
+    for (let i = 0; i < groups.length && !merged; i++)
+      for (let j = i + 1; j < groups.length && !merged; j++) {
+        const A = groups[i];
+        const B = groups[j];
+        if (!near(A.box, B.box)) continue;
+        A.box = [Math.min(A.box[0], B.box[0]), Math.min(A.box[1], B.box[1]), Math.max(A.box[2], B.box[2]), Math.max(A.box[3], B.box[3])];
+        A.finds.push(...B.finds);
+        groups.splice(j, 1);
+        merged = true;
+      }
+  }
+  return groups.map((gr) => litSheet(f, gr.finds, gr.box, heightAt));
+}
+
+function litSheet(f: FieldScene, finds: FieldScene['props'], [x0, y0, x1, y1]: [number, number, number, number], heightAt: (x: number, z: number) => number): LiveSheet {
   const tiles: Tile[] = [];
   for (let ty = y0; ty < y1; ty++) for (let tx = x0; tx < x1; tx++) tiles.push({ tx, ty, sx: tx, sy: ty });
   const X0 = x0 * 16;
@@ -332,13 +347,16 @@ export function litDecals(f: FieldScene, heightAt: (x: number, z: number) => num
   let gfx: Gfx | null = null;
   const draw = (ctx: CanvasRenderingContext2D) => {
     const l = f.light.lantern;
-    const k = l ? `${l.x},${l.y},${l.r},${finds.map((p) => +p.present).join('')}` : '';
+    // (the light away from this sheet: clear once, then nothing to redraw)
+    const reach = l ? l.r * 0.6 : 0;
+    const away = !l || l.x + reach < X0 || l.x - reach > X0 + W || l.y + reach < Y0 || l.y - reach > Y0 + H;
+    const k = away ? 'away' : `${l.x},${l.y},${l.r},${finds.map((p) => +p.present).join('')},${f.propEnv(finds[0]).hstage}`;
     if (k === key) return;
     key = k;
     ctx.save();
     ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, W, H);
-    if (l) {
+    if (!away && l) {
       ctx.beginPath();
       ctx.arc(l.x - X0, l.y - Y0, l.r * 0.6, 0, Math.PI * 2);
       ctx.clip();

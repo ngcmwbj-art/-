@@ -76,10 +76,17 @@ registerWorldFx({
  * `choice` が 文を 返すとき（②の『みずべ』を ぜんぶ うめた あと）は、いつもの「めくる」の かわりに
  * その 選択（0 で `write`、どちらでも めくるのは そこまで）。`extra` は 書いた あとの 1ページ。
  */
-export const ekinoteHooks: { choice: (() => string | null) | null; write: (() => Co) | null; extra: (() => string | null) | null } = {
+export const ekinoteHooks: {
+  choice: (() => string | null) | null;
+  write: (() => Co) | null;
+  extra: (() => string | null) | null;
+  /** チクタク堂の ばらばら時計（02 #88、events/tokei7.ts が 入れる）：1月1日の ページの あとの グソっ君の 1行（第1章で 7つ目まで 終えた 人だけ）。 */
+  jan: (() => string | null) | null;
+} = {
   choice: null,
   write: null,
   extra: null,
+  jan: null,
 };
 
 /** The old pages, from the newest of them back to the first; at the end the notebook turns itself back. */
@@ -95,6 +102,10 @@ function* oldPages(): Co {
       text += '\n' + p.flip;
     }
     if (flag(EKI.read) < i + 1) setFlag(EKI.read, i + 1);
+    if (p.key === 'jan') {
+      const jan = ekinoteHooks.jan?.();
+      if (jan) text += '\n' + jan;
+    }
     if (p.key === 'jul') {
       const extra = ekinoteHooks.extra?.();
       if (extra) text += '\n' + extra;

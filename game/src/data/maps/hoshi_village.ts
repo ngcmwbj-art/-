@@ -385,6 +385,31 @@ const OBJECTS: MapObj[] = [
     O(`obj_hoshi_mushi_${k}`, x, y, { litOnly: true, cond: { flag: 'flag_ch2_mushi' }, ...extra }),
   ]),
 
+  // ======================================================== 夜の 足あと帳 (02 #87, 50 10.28, 52 7.10)
+  // 棚田の 4段目の 畦に 植えた 豆（いつも。シカに 葉の 先を かじられた 株が 2つ）と、マサル〔ashiato〕の
+  // あとに 灯りの 中だけ 出る 足あと 6つ（段階1〜2。段階2は 山の ほうへ 帰る 向き）。ふくじんづけの 足あとは
+  // 長いので、調べる ところを 3つに 分ける（どれも obj_ashiato_inu）
+  PR('prop_ashiato_azemame', 14, 11),
+  ...(
+    [
+      ['ino', 8, 24, [[8, 25, 1, 2]]],
+      ['haku', 1, 31, [[1, 31, 3, 1]]],
+      ['tanu', 39, 22, [[39, 22, 2, 2]]],
+      ['shika', 15, 11, [[15, 11, 3, 1]]],
+      ['usagi', 21, 38, [[21, 38, 2, 1]]],
+      ['inu', 49, 44, [[49, 44, 3, 1], [52, 44, 3, 1], [55, 44, 3, 1]]],
+    ] as [string, number, number, [number, number, number, number][]][]
+  ).flatMap(([k, x, y, spots]) => [
+    PR('decal_ashiato', x, y, { k }, { litOnly: true, cond: { stage: '1-2', flag: 'flag_ashiato_start' } }),
+    ...spots.map(
+      ([ox, oy, w, h], i) =>
+        ({
+          t: 'obj', id: i ? `obj_ashiato_${k}_${i}` : `obj_ashiato_${k}`, x: ox, y: oy, w, h, flat: true, litOnly: true, priority: 1,
+          script: `obj_ashiato_${k}`, cond: { stage: '1-2', flag: 'flag_ashiato_start' },
+        }) as MapObj,
+    ),
+  ]),
+
   // ======================================================== NPCs (52 3.4)
   { t: 'npc', id: 'npc_hoshi_mitsu', x: 3, y: 32, dir: 'right', pose: 'sit', off: [0, -2], talk: htalk('npc_hoshi_mitsu'), cond: { ...s01, notFlag: 'flag_hunting_on' } },
   { t: 'npc', id: 'npc_hoshi_mitsu', x: 3, y: 32, dir: 'right', pose: 'look_hill', off: [0, -2], talk: htalk('npc_hoshi_mitsu'), cond: { ...s2, notFlag: 'flag_hunting_on' } },

@@ -276,6 +276,10 @@ registerMap({
     O('obj_ck_repair', 7, 2, { w: 2 }),
     FIND('obj_ck_candy', 1, 5, { item: 'item_hakka_ame' }),
     O('obj_ck_table', 4, 5, { w: 2 }),
+    // チクタク堂の ばらばら時計（02 #88）：7つ目の あと、作業台の よこ（カウンターの 東の はし）に 額の 写真。
+    // (7,3) から 西を 向いて 調べる（(6,4) から 北は 鳩時計の まま）。絵と 文は art/props/tokei7.ts・events/tokei7.ts
+    { t: 'prop', prop: 'prop_tokei7_photo', x: 6, y: 3, cond: { flag: 'flag_tokei7_done' } } as MapObj,
+    O('obj_tokei7_photo', 6, 3, { face: 'left', cond: { flag: 'flag_tokei7_done' } }),
     NPC('npc_tokio', 4, 2),
     { t: 'door', id: 'door_town_clock', x: 7, y: 6, to: 'map_town', tx: 42, ty: 22, dir: 'down', se: ['se_door_glass', 'se_shop_bell'] },
   ],

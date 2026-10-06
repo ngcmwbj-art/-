@@ -40,4 +40,7 @@ import './kotei';
 // げむきか10/5の改1：水辺の 図鑑（夕鳴川の 堰の テナガエビ・『みずべ』・おぴぃの 由来、02 #81）。
 // tamotsu の おぴぃと 対岸の 水口、home の 母、つりえさ屋の 呼びりんを 包むので、それらの あとに import する
 import './mizube';
+// げむきか10/6の案4：チクタク堂の ばらばら時計（時計店の ウィンドウと ゆう、6人、第2章の 駅ノートの 1行。02 #88）。
+// kensui・cape_coffee・rooms_north・kotei・aze・npcs の 6人と くま吉・しんご・なんばるわん、ch2 の 駅ノートを 包むので、それらの あとに import する
+import './tokei7';
 import './debug';

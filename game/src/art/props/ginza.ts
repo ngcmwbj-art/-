@@ -439,8 +439,15 @@ function clockAngles(h: number, m: number): [number, number] {
   return [((h % 12) + m / 60) * (Math.PI / 6), m * (Math.PI / 30)];
 }
 
-/** Paint the 7 clocks for a stage variant (v: 0/1/2/3 night, sub: animation phase). */
-function clockWindow(stage: number, sub: number): PixelCanvas {
+/**
+ * Paint the 7 clocks for a stage variant (v: 0/1/2/3 night, sub: animation phase).
+ * ★2026-10-06（チクタク堂の ばらばら時計、02 #88）：7つは 先代が 町の 人の『いつもの 時刻』で 止めた
+ * 『人の 時計』。段階0 は 止まった まま（秒も 振り子も 動かない）、それぞれの 時刻：丸い 掛け時計 10:00
+ * （じょうろ）、鳩時計 5:00（7つ目）、デジタル 06:52（コーヒーカップ）、振り子 5:30（鉄棒）、目覚まし 4:00
+ * （豆腐）、懐中時計 3:00（みかん）、猫の 時計 6:00（犬）。下に 真ちゅうの 札（TOKEI_TAGS）、7つ目の 札は
+ * 『鳩』と 彫った あと（hato）に 小さな 彫り。
+ */
+function clockWindow(stage: number, sub: number, hato = false): PixelCanvas {
   const p = pc(48, 24);
   // dark velvet backdrop with a shelf
   p.rect(0, 0, 48, 24, P.nightShade);
@@ -449,7 +456,7 @@ function clockWindow(stage: number, sub: number): PixelCanvas {
   const t = stage === 0 ? null : stage === 3 ? [17, 1] : [17, 0];
   // 1: round wall clock (12px)
   {
-    const [h, m] = t ?? [16, 44];
+    const [h, m] = t ?? [10, 0];
     p.ellipse(6, 6, 5.5, 5.5, P.brassOld);
     p.ellipse(6, 6, 4.5, 4.5, P.white);
     const [ah, am] = clockAngles(h, m);
@@ -480,7 +487,7 @@ function clockWindow(stage: number, sub: number): PixelCanvas {
   {
     p.rect(21, 3, 19, 8, P.ink);
     p.hline(21, 39, 3, P.charcoal);
-    const txt = stage === 0 ? '1655' : stage === 2 && sub === 1 ? '1659' : stage === 3 ? '1701' : '1700';
+    const txt = stage === 0 ? '0652' : stage === 2 && sub === 1 ? '1659' : stage === 3 ? '1701' : '1700';
     const xs = [22, 26, 32, 36];
     for (let i = 0; i < 4; i++) tiny(p, txt[i], xs[i], 5, P.glow);
     const colonOn = stage === 0 ? sub === 0 : true;
@@ -493,10 +500,18 @@ function clockWindow(stage: number, sub: number): PixelCanvas {
   {
     p.rect(41, 1, 7, 22, P.woodDark);
     p.rect(42, 2, 5, 5, P.paper);
-    p.set(44, 3, P.ink);
-    p.set(45, 4, P.ink);
+    if (stage === 0) {
+      // 5:30, stopped: both hands down, the hour hand a little to the right
+      p.set(44, 5, P.ink);
+      p.set(44, 6, P.ink);
+      p.set(45, 5, P.ink);
+    } else {
+      p.set(44, 3, P.ink);
+      p.set(45, 4, P.ink);
+    }
     p.rect(42, 9, 5, 12, P.night);
-    const sw = stage === 0 || stage === 3 ? (sub ? 1 : -1) : stage === 2 ? 2 : 1;
+    // (stage 0: stopped, the pendulum hangs straight)
+    const sw = stage === 0 ? 0 : stage === 3 ? (sub ? 1 : -1) : stage === 2 ? 2 : 1;
     p.line(44, 9, 44 + sw, 17, P.brass);
     p.ellipse(44 + sw, 18, 1.5, 1.5, P.gold);
   }
@@ -507,7 +522,7 @@ function clockWindow(stage: number, sub: number): PixelCanvas {
     p.ellipse(5 + buzz, 20, 2.5, 2.5, P.white);
     p.set(3 + buzz, 16, P.brass);
     p.set(7 + buzz, 16, P.brass);
-    const [ah, am] = clockAngles(...(t ?? [16, 58]) as [number, number]);
+    const [ah, am] = clockAngles(...(t ?? [4, 0]) as [number, number]);
     hand(p, 5 + buzz, 20, 1.5, ah, P.ink);
     hand(p, 5 + buzz, 20, 2.2, am, P.ink);
   }
@@ -517,7 +532,7 @@ function clockWindow(stage: number, sub: number): PixelCanvas {
     p.hline(12, 16, 23, P.brassOld);
     p.ellipse(14, 19, 3, 3, P.brass);
     p.ellipse(14, 19, 2.2, 2.2, P.paper);
-    const [ah, am] = clockAngles(...(t ?? [16, 31]) as [number, number]);
+    const [ah, am] = clockAngles(...(t ?? [3, 0]) as [number, number]);
     hand(p, 14, 19, 1.4, ah, P.ink);
     hand(p, 14, 19, 2, am, P.ink);
   }
@@ -535,6 +550,17 @@ function clockWindow(stage: number, sub: number): PixelCanvas {
     p.set(26 + Math.max(0, ex), 19 + ey, P.ink);
     const tail = stage === 1 ? 1 : stage === 2 ? 2 : sub ? 1 : -1;
     p.vline(25 + (tail === 2 ? 1 : tail), 22, 23, P.charcoal);
+  }
+  // the brass tags under the clocks (TOKEI_TAGS); the 7th's (the cuckoo clock's) engraved 『鳩』 at the end
+  for (const [tx, ty, tw] of TOKEI_TAGS) {
+    p.hline(tx, tx + tw - 1, ty, P.brass);
+    p.hline(tx, tx + tw - 1, ty + 1, P.brassOld);
+    p.set(tx, ty, P.goldPale);
+  }
+  if (hato) {
+    const [hx, hy] = TOKEI_TAGS[1];
+    p.set(hx + 1, hy, P.woodDark);
+    p.set(hx + 2, hy + 1, P.woodDark);
   }
   // price tags & glass frame
   p.rect(31, 18, 5, 3, P.paper);
@@ -555,17 +581,40 @@ function tinyDigit(p: PixelCanvas, d: string, x: number, y: number, c: string): 
   for (let j = 0; j < 5; j++) for (let i = 0; i < 2; i++) if (g[j * 2 + i] === '1') p.set(x + i, y + j, c);
 }
 
+/**
+ * The window's brass tags [x, y, w] (2 px tall), in the order of the clocks above: the round wall
+ * clock (じょうろ), the cuckoo clock (the 7th), the digital clock (コーヒーカップ), the pendulum
+ * clock (鉄棒, on its case), the alarm clock (豆腐), the pocket watch (みかん), the cat clock (犬).
+ * Exported for the close-up card of the window (events/tokei7.ts).
+ */
+export const TOKEI_TAGS: [number, number, number][] = [
+  [4, 13, 3],
+  [16, 14, 3],
+  [29, 12, 3],
+  [43, 21, 3],
+  [9, 21, 2],
+  [17, 22, 2],
+  [29, 22, 2],
+];
+
+const windowCache = new Map<string, HTMLCanvasElement>();
+function windowCanvas(stage: number, sub: number, hato: boolean): HTMLCanvasElement {
+  const k = stage + ':' + sub + ':' + (hato ? 1 : 0);
+  let c = windowCache.get(k);
+  if (!c) {
+    c = clockWindow(stage, sub, hato).toCanvas();
+    windowCache.set(k, c);
+  }
+  return c;
+}
+
+/** The window's 48×24 picture at rest for a stage (the close-up card of チクタク堂の ばらばら時計, 02 #88). */
+export function clockShopWindow(stage: number, hato: boolean): HTMLCanvasElement {
+  return windowCanvas(Math.max(0, Math.min(3, Math.floor(stage))), 0, hato);
+}
+
 registerProp('obj_clock_shop', () => {
-  const cache = new Map<string, HTMLCanvasElement>();
-  const get = (stage: number, sub: number) => {
-    const k = stage + ':' + sub;
-    let c = cache.get(k);
-    if (!c) {
-      c = clockWindow(stage, sub).toCanvas();
-      cache.set(k, c);
-    }
-    return c;
-  };
+  const get = (stage: number, sub: number, hato: boolean) => windowCanvas(stage, sub, hato);
   const glass = maskOf(48, 24, (x, y) => (x + y * 2) % 23 < 3);
   return {
     ox: -12,
@@ -575,8 +624,9 @@ registerProp('obj_clock_shop', () => {
     foot: 17,
     img: (env: PropEnv) => {
       const s = Math.min(3, Math.floor(env.stage));
-      const sub = s === 1 ? 0 : s === 2 ? (Math.floor(env.t / 1300) % 5 === 0 ? 1 : 0) : Math.floor(env.t / 500) % 2;
-      return get(s, sub);
+      // (stage 0: the 7 stand still at their own times, 02 #88)
+      const sub = s <= 1 ? 0 : s === 2 ? (Math.floor(env.t / 1300) % 5 === 0 ? 1 : 0) : Math.floor(env.t / 500) % 2;
+      return get(s, sub, env.flag('flag_tokei7_done') > 0);
     },
     glass,
   };

@@ -686,6 +686,24 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// 7つの時刻の写し（チクタク堂の ばらばら時計、02_ch2_index #88）: ゆう's neat memo — a white
+// slip with its lines of small, even writing (a dot for each time), and at its foot the
+// little brass tag of the 7th, 『鳩』
+Object.assign(ITEM_ROWS, {
+  item_tokei7_utsushi: [
+    '.WWWWWWWd.',
+    '.WkwGGGwd.',
+    '.WwwwwwwdG',
+    '.WkwGGwwdG',
+    '.WwwwwwwdG',
+    '.WkwGGGwdG',
+    '.WwwwwwwdG',
+    '.WkwGwhhoG',
+    '.WwwwwhOoG',
+    '.ddddddddG',
+  ],
+});
+
 /** トマト（おまけ）: after chapter 2, one tomato left in the bag (13.3). */
 const OMAKE_ROWS = ['.dW...Wd..', '.W.d.W.d..', '.WwwwwwwdG', 'Wwwwwwwwwd', 'WwwwwwwwWd', 'wwwwXXwwwd', 'wwwXELXwwd', 'wwwXLLXwwd', '.wwwXXwwd.', '..dddddd..'];
 

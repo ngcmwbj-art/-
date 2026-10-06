@@ -41,6 +41,11 @@ import { drawMizubePage, hasMizube, MIZUBE_TAB, mizubeHave, mizubeRows, stickerZ
 import { zukanSticker } from '../../data/text/mizube_book';
 import { stickerDojou } from '../../art/props/yoburi_art';
 import { drawShikishiPage, hasShikishiPage, SHIKISHI_ROW_LABEL } from './book_shikishi';
+// ② の すみの 1ページ『よるの 足あと』と 表紙の うり坊の シール（夜の 足あと帳、02_ch2_index #87）
+import { ASHIATO_ROW_LABEL, drawAshiatoPage, hasAshiatoPage } from './book_ashiato';
+import { stickerUribo } from '../../art/props/ashiato_art';
+// ① の すみの 1ページ『チクタク堂の 7つの 時計』（02_ch2_index #88）：ふしぎの 一覧の いちばん下、番号なし・数に 入れない。決定で めくる
+import { drawTokeiPage, hasTokeiPage, TOKEI_ROW_LABEL, tokeiTurn } from './book_tokei7';
 
 // ---- ② 『むし』: 捕まえない自由研究 (50_ch2_story 10.21, 52_ch2_level_art 13.2, 02_ch2_index #64) ----
 
@@ -330,8 +335,8 @@ const coverCache = new Map<string, HTMLCanvasElement>();
  * (`tag`), the vegetable delivery ぴーちゃん's white feather (`feather`),
  * tucked in at the top right and sticking out 3px over the edge (52 13.2).
  */
-export function bookCover(vol: 1 | 2, done: boolean, tag = false, feather = false, mizube = false): HTMLCanvasElement {
-  const key = `${vol}:${done}:${tag}:${feather}:${mizube}`;
+export function bookCover(vol: 1 | 2, done: boolean, tag = false, feather = false, mizube = false, uribo = false): HTMLCanvasElement {
+  const key = `${vol}:${done}:${tag}:${feather}:${mizube}:${uribo}`;
   let c = coverCache.get(key);
   if (c) return c;
   const { w, h } = COVER;
@@ -412,6 +417,8 @@ export function bookCover(vol: 1 | 2, done: boolean, tag = false, feather = fals
     if (feather) ctx.drawImage(featherImg(), w - 14, 0);
     // 『みずべ』② を ぜんぶ うめて 駅ノートに 書いた：トマトの となりに ドジョウの シール（02 #81）
     if (mizube) ctx.drawImage(stickerDojou(), lx + lw - 27, ly - 6 + T);
+    // うり坊を 数えた：ドジョウの シールの となりに うり坊の シール（02 #87）
+    if (uribo) ctx.drawImage(stickerUribo(), lx + lw - 44, ly - 7 + T);
   } else {
     // おぴぃが『みずべ』① に 書きこんだ：表紙の すみに ザリガニの シール（02 #81）
     if (mizube) ctx.drawImage(stickerZari(), 22, h - 32 + T);
@@ -622,7 +629,7 @@ export class BookPage implements MenuPage {
     const v = this.v;
     if (this.isMizube) return mizubeRows(this.vol).length;
     if (this.isMushi) return mushiRows().length;
-    if (this.sec === 0) return v.fushigi.length + (v.n === 2 && hasNihyakuPage() ? 1 : 0) + (v.n === 2 && hasShikishiPage() ? 1 : 0);
+    if (this.sec === 0) return v.fushigi.length + (v.n === 2 && hasNihyakuPage() ? 1 : 0) + (v.n === 2 && hasShikishiPage() ? 1 : 0) + (v.n === 2 && hasAshiatoPage() ? 1 : 0) + (v.n === 1 && hasTokeiPage() ? 1 : 0);
     return this.sec === 1 ? v.enemies.length : totalIn(v, v.n === 1 ? 19 : 17);
   }
 
@@ -632,6 +639,11 @@ export class BookPage implements MenuPage {
     this.volT += dt;
     // a key while the cover still lies there opens it at once
     if (this.volT < COVER_IN + COVER_HOLD && (input.pressed('confirm') || input.pressed('up') || input.pressed('down'))) this.volT = COVER_IN + COVER_HOLD;
+    // 『チクタク堂の 7つの 時計』（02 #88）：決定で ページを めくる
+    else if (input.pressed('confirm') && this.vol === 1 && this.sec === 0 && !this.isMizube && !this.isMushi && hasTokeiPage() && this.sel[0][0] === this.v.fushigi.length) {
+      tokeiTurn();
+      sfx('se_page', { pitch: 1.08 });
+    }
     if (input.repeat('right')) this.turn(1);
     else if (input.repeat('left')) this.turn(-1);
     else if (input.pressed('dash') && hasBook2()) this.swap(this.vol === 1 ? 2 : 1, 0);
@@ -756,7 +768,7 @@ export class BookPage implements MenuPage {
    * a moment and is opened like a page (0.23 s) onto the new index.
    */
   private drawCoverSwap(g: Gfx, m: MenuCtx): void {
-    const img = bookCover(this.vol, !!flag('flag_ch2_clear'), this.vol === 2 && hasEarTag(), this.vol === 2 && hasFeather(), zukanSticker(this.vol));
+    const img = bookCover(this.vol, !!flag('flag_ch2_clear'), this.vol === 2 && hasEarTag(), this.vol === 2 && hasFeather(), zukanSticker(this.vol), this.vol === 2 && flag('flag_ashiato_uribo') > 0);
     const x0 = SP.x + 5;
     const y0 = SP.y + 6 - COVER_TOP;
     if (this.closed && !m.focus) {
@@ -805,6 +817,10 @@ export class BookPage implements MenuPage {
       if (v.n === 2 && hasNihyakuPage()) r.push(wrapRow(NIHYAKU_ROW_LABEL, true, '', UI.pencil));
       // 『70年の 色紙』（02 #84）：二百十日の 下に
       if (v.n === 2 && hasShikishiPage()) r.push(wrapRow(SHIKISHI_ROW_LABEL, true, '', UI.pencil));
+      // 『よるの 足あと』（02 #87）：② の いちばん下
+      if (v.n === 2 && hasAshiatoPage()) r.push(wrapRow(ASHIATO_ROW_LABEL, true, '', UI.pencil));
+      // 『チクタク堂の 7つの 時計』（02 #88）：① の いちばん下
+      if (v.n === 1 && hasTokeiPage()) r.push(wrapRow(TOKEI_ROW_LABEL, true, '', UI.pencil));
       return r;
     }
     if (this.sec === 1) return v.enemies.map((id, i) => wrapRow(nameOf(id, v), !!flag('flag_book_' + id), num(i), UI.text));
@@ -893,6 +909,9 @@ export class BookPage implements MenuPage {
     }
     if (s === 0) {
       if (v.n === 2 && i === v.fushigi.length && hasNihyakuPage()) return drawNihyakuPage(g, x, y, w);
+      if (v.n === 1 && i >= v.fushigi.length && hasTokeiPage()) return drawTokeiPage(g, x, y, w);
+      // 『よるの 足あと』（02 #87）：いつも ② の いちばん下の 行
+      if (v.n === 2 && i >= v.fushigi.length && hasAshiatoPage() && i === this.count() - 1) return drawAshiatoPage(g, x, y, w);
       if (v.n === 2 && i >= v.fushigi.length) return drawShikishiPage(g, x, y, w);
       if (!v.done(i)) return empty();
       const [title, place] = v.fushigi[i];

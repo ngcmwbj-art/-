@@ -103,7 +103,8 @@ the picture changes: walking, collisions, talking, events, menus and battles are
   (`cut_night.ts` `nightMul`; rooms `room_hoshi.ts`, at half the room's px) and every face and character is
   multiplied by its value where the 2D picture shows that point (x, z − height/SV); the sky light and the
   grade's mul are white (the dark is in the map), glow layers are added on top unmultiplied. litOnly finds show
-  only inside the light as in 2D. Light quality paints the map every other frame. Outdoor battles key out the
+  only inside the light as in 2D (the flat ones on one small sheet per group of them, `water3d.ts` `litDecals`, left
+  alone while the light is away: the night's animal tracks lie all round the village, 02 #87). Light quality paints the map every other frame. Outdoor battles key out the
   still's sky (a second silhouette pass) and lay the background's own 2D sky under it.
 - **Layers**: the WebGL canvas is offscreen. `FieldScene.draw()` asks `setFieldDrawer()`'s hook first; in HD-2D it
   renders the town, hands the canvas to `Screen.underlay`, and clears the 2D buffer to transparent before the
