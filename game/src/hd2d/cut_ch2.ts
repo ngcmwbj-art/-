@@ -59,15 +59,19 @@ export const CH2_SHOTS: Record<string, ShotDef> = {
 // ---------------------------------------------------------------- the sunrise (cut_h_sunrise)
 
 /**
- * The hill under the dawn: from behind the two at the east fence, at eye
- * height, the camera swung round to look east-north-east over the fence
- * (the pictures face south: not much more than half a right angle) — the
- * plaza's edge, the log fence, the cedars of the hill's north side at the
- * left; past the fence the land falls away, and there the painted valley,
- * the far mountains, the sun and the sky (ui/cut_sunrise.ts), the two from
- * behind in front.
+ * The hill under the dawn: from far behind the two, low, looking due east
+ * over the east fence (its north–south run seen side on: the rails across
+ * the picture, the posts low and thin, as the 2D's fence) — past it the land
+ * falls away, and there the painted valley, the far mountains, the sun and
+ * the sky (ui/cut_sunrise.ts); the two from behind in front. Against the
+ * light (BACKLIT) the land is the 2D's near layer's dark.
  */
-const SUNRISE_POSE: StillPose = { x: 22.6, z: 4.6, row: 206, pitch: 4, fov: 30, dist: 11, cutRow: 216, focusRow: 192, desat: 0, yaw: 58 };
+const SUNRISE_POSE: StillPose = { x: 23, z: 5, row: 204, pitch: 3, fov: 24, dist: 18, cutRow: 216, focusRow: 200, desat: 0, yaw: 90 };
+/**
+ * What of the hill the sunrise's land keeps (units): the plaza's rows 1–7 between the woods, from
+ * x0 east — the last tiles before the east fence and the fence (nearer, the 2D's ground is in front).
+ */
+const SUNRISE_BOX = { x0: 21.5, z0: 1.06, z1: 7.98 };
 /** The far land's haze before the dawn and in the morning (the painted sky's low bands). */
 const PRE_HAZE = '#2A2248';
 const MORNING_HAZE = '#B88AA0';
@@ -75,6 +79,46 @@ const MORNING_HAZE = '#B88AA0';
 const VALLEY_LINE = 146;
 /** QA: how long the last sunrise land took (ms). */
 let sunriseMs = 0;
+/**
+ * The land against the light (the sun comes up beyond the fence, 2D's near
+ * layer #141026 / the fence #231D3A): its pictures sunk to `color` by `k`,
+ * a little of their colour left; in the morning a thin warm rim on its
+ * upper edges (`rim`, px of 216 thick), as the 2D lights the two's edges.
+ */
+const BACKLIT = {
+  pre: { color: '#141026', k: 0.9, rim: null as string | null, rimA: 0, rimPx: 0 },
+  morning: { color: '#1E1428', k: 0.84, rim: '#F7C27A' as string | null, rimA: 0.55, rimPx: 0.6 },
+};
+
+/** Sink the land (its clear sky kept clear) into the dark against the light, with its rim (BACKLIT). */
+function backlit(c: HTMLCanvasElement, b: (typeof BACKLIT)['pre']): void {
+  const ctx = c.getContext('2d')!;
+  let rim: HTMLCanvasElement | null = null;
+  if (b.rim && b.rimA > 0) {
+    // the upper edges: the land where the land shifted down by a hair is not
+    const [r, rctx] = makeCanvas(c.width, c.height);
+    rctx.drawImage(c, 0, 0);
+    rctx.globalCompositeOperation = 'source-in';
+    rctx.fillStyle = b.rim;
+    rctx.fillRect(0, 0, r.width, r.height);
+    rctx.globalCompositeOperation = 'destination-out';
+    rctx.drawImage(c, 0, Math.max(1, Math.round((b.rimPx * c.height) / H)));
+    rim = r;
+  }
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.globalAlpha = b.k;
+  ctx.fillStyle = b.color;
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.restore();
+  if (rim) {
+    ctx.save();
+    ctx.globalAlpha = b.rimA;
+    ctx.drawImage(rim, 0, 0);
+    ctx.restore();
+    rim.width = 0;
+  }
+}
 
 function copyOf(c: HTMLCanvasElement): HTMLCanvasElement {
   const [o, ctx] = makeCanvas(c.width, c.height, { willReadFrequently: true });
@@ -103,18 +147,38 @@ sunriseView.land = (): SunriseLand | null => {
   // (the hill drawn in 3D now: the ending's cut 1, or QA's dawn there)
   if (!v || !f || f.map.id !== 'map_hoshi_hill' || !fxElsewhere(f)) return null;
   const t0 = performance.now();
-  // (the painted dawn goes where the 3D's night sky hangs over the hilltop)
-  const [pre, key, morning] = withoutSkyBackdrops(v.scene, () => {
-    const p = landStill(v, f, SUNRISE_POSE, PRE_HAZE, null);
-    const k = v.silhouette(KEY, true);
-    const [kc, kx] = makeCanvas(k.width, k.height, { willReadFrequently: true });
-    kx.drawImage(k, 0, 0);
-    const kd = kx.getImageData(0, 0, k.width, k.height);
-    kc.width = 0;
-    return [p, kd, landStill(v, f, SUNRISE_POSE, MORNING_HAZE, cloneGrade(GRADES_H.h3c))] as const;
-  });
+  // only the plaza's ground by its east fence and the fence, as the 2D's near layer has them: the
+  // woods north and south of the plaza's rows (cards facing south: seen from the side they would stand
+  // as long boards) and the plaza's props (the pole, the pier, the bench, the view board) are left out
+  // (clipped away, and the props not batched with the rest taken off)
+  const r = v.renderer;
+  const clip = r.clippingPlanes;
+  const b = SUNRISE_BOX;
+  r.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0, 0, 1), -b.z0), new THREE.Plane(new THREE.Vector3(0, 0, -1), b.z1), new THREE.Plane(new THREE.Vector3(1, 0, 0), -b.x0)];
+  const left = f.props.filter((p) => p.present);
+  for (const p of left) p.present = false;
+  let shot: readonly [HTMLCanvasElement, ImageData, HTMLCanvasElement];
+  try {
+    // (the painted dawn goes where the 3D's night sky hangs over the hilltop)
+    shot = withoutSkyBackdrops(v.scene, () => {
+      const p = landStill(v, f, SUNRISE_POSE, PRE_HAZE, null);
+      const k = v.silhouette(KEY, true);
+      const [kc, kx] = makeCanvas(k.width, k.height, { willReadFrequently: true });
+      kx.drawImage(k, 0, 0);
+      const kd = kx.getImageData(0, 0, k.width, k.height);
+      kc.width = 0;
+      return [p, kd, landStill(v, f, SUNRISE_POSE, MORNING_HAZE, cloneGrade(GRADES_H.h3c))] as const;
+    });
+  } finally {
+    r.clippingPlanes = clip;
+    for (const p of left) p.present = true;
+  }
+  const [pre, key, morning] = shot;
   clearSky(pre, key);
   clearSky(morning, key);
+  // the sun is beyond the fence: what stands in front of the sky is against the light
+  backlit(pre, BACKLIT.pre);
+  backlit(morning, BACKLIT.morning);
   // the land's top round where the sun comes up: the painted sky goes up so the ridge shows over it
   const mask = maskOf(key);
   const tops: number[] = [];
@@ -301,8 +365,10 @@ if (import.meta.env.DEV) {
     return { pose: { ...VILLAGE_POSE }, lastMs: Math.round(villageMs), zones: village?.pic.zones ?? null, src: village?.pic.src ?? null };
   });
   /** QA: the sunrise's pose (changed by `p`), and how long its 3D land took last time (ms). */
-  registerDebug('hd2dSunrise', (p: Partial<StillPose> = {}) => {
+  registerDebug('hd2dSunrise', (p: Partial<StillPose> = {}, lit: Partial<typeof BACKLIT> = {}) => {
     Object.assign(SUNRISE_POSE, p);
-    return { pose: { ...SUNRISE_POSE }, lastMs: Math.round(sunriseMs) };
+    if (lit.pre) Object.assign(BACKLIT.pre, lit.pre);
+    if (lit.morning) Object.assign(BACKLIT.morning, lit.morning);
+    return { pose: { ...SUNRISE_POSE }, lit: BACKLIT, lastMs: Math.round(sunriseMs) };
   });
 }
