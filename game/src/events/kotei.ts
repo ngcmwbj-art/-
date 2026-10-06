@@ -512,20 +512,37 @@ function* meibamen(): Co {
   yield 300;
   yield* msg(KOTEI_MEIBAMEN.okosu);
   yield* msg(KOTEI_MEIBAMEN.hottoku);
-  // the two pairs side by side to the line, over it together
+  // the two pairs side by side to the line, over it together: each walks to its place on the
+  // straight first (なんばるわん and コタロウ are round グソっ君), then all four at one pace over
+  // about 3 s. (2026-10-06 依頼主「ゴールする時が 4人とも カクカク 動き過ぎて 見づらい」: they
+  // were put down every 50 ms with put()'s 6 px lead, so each hopped 6 px on and 4 px back.)
   const x0 = Math.min(p.x, k.x);
-  const steps = 60;
   const xEnd = T.goalX - 10;
+  // (the pairs a little further apart than in the race, still inside their lanes' lines: on the
+  // straight the four stand in one column, and しゅん was lost behind the parasol)
+  const yP = T.cy - (T.r2 + 4);
+  const yM = T.cy - (T.r1 - 6);
+  const lanes: [Actor, number, number][] = [
+    [p, 0, yP + OFF],
+    [k, 0, yP - OFF],
+    [m, -2, yM - OFF],
+    [kt, -2, yM + OFF],
+  ];
+  const walkLane = function* (a: Actor, x: number, y: number, speed: number, lock: boolean): Co {
+    a.faceLock = lock;
+    if (lock) a.dir = 'left';
+    a.pathSpeed = speed;
+    a.path = [[x, y]];
+    yield () => a.path.length === 0;
+    a.moving = false;
+    a.faceLock = true;
+    a.dir = 'left';
+  };
   yield 200;
-  for (let i = 1; i <= steps; i++) {
-    const x = x0 + ((xEnd - x0) * i) / steps;
-    const moving = i < steps;
-    put(p, x, T.cy - T.r2 + OFF, -1, 0, moving);
-    put(k, x, T.cy - T.r2 - OFF, -1, 0, moving);
-    put(m, x - 2, T.cy - T.r1 - OFF, -1, 0, moving);
-    put(kt, x - 2, T.cy - T.r1 + OFF, -1, 0, moving);
-    yield 50;
-  }
+  yield* all(...lanes.map(([a, dx, y]) => walkLane(a, x0 + dx, y, 48, false)));
+  yield 150;
+  const pace = Math.max(24, Math.abs(x0 - xEnd) / 3);
+  yield* all(...lanes.map(([a, dx, y]) => walkLane(a, xEnd + dx, y, pace, true)));
   for (const a of [p, k, m, kt]) releaseRunner(a);
   race.tied = false;
   kz.dir = 'down';
