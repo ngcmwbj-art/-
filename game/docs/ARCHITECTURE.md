@@ -80,7 +80,7 @@ npm run build        # subsets the font, typechecks, builds dist/
 - `audio/keepalive.ts`: brings the AudioContext back after the system stops it (alarm, call, app switch):
   resume on page show / focus / any gesture, plus a 1 s retry; SFX and blips are skipped while it is stopped.
 
-## HD-2D layer (2026-10-05 prototype → 2026-10-06 chapter 1 in every build, 02 #85)
+## HD-2D layer (2026-10-05 prototype → 2026-10-06 chapters 1 and 2 in every build, 02 #85)
 
 A 3D picture of the field, made with three.js (the one library added, with the client's approval). Only
 the picture changes: walking, collisions, talking, events, menus and battles are the 2D game's own.
@@ -89,12 +89,22 @@ the picture changes: walking, collisions, talking, events, menus and battles are
   `src/hd2d/` once the title is up, when HD-2D is wanted (せってい「表示 HD-2D／2D」, `ui/settings.ts`
   `settings.hd2d`, saved, default HD-2D; someone who chose 2D never loads three.js). It draws chapter 1's places
   (`map_town`, the 5 outdoor places of `places.ts`, the 24 rooms of `room.ts`), chapter 1's battle backgrounds
-  (`battle.ts`, `src/battle/bg/place.ts`) and the ending's cuts (`cut.ts`, `cut_night.ts`); once
-  `flag_ch2_started` is up everything is 2D. No WebGL → 2D, and the settings page says so. `?hd2d=0|1`
+  (`battle.ts`, `src/battle/bg/place.ts`) and the ending's cuts (`cut.ts`, `cut_night.ts`), and since the same
+  day (依頼主「第２章もHD-2Dにしてみよう」, 02 #85 直し6) chapter 2's too: the 4 outdoor places (`map_hoshimidai`,
+  `map_hoshi_hill`, `map_hoshi_sawa`, `map_hoshi_urayama`), the 22 rooms of `room.ts` `CH2_ROOMS`, the battle
+  backgrounds of `src/battle/bg/hoshi*.ts` and the cuts (`cut_ch2.ts`: the prologue's crossing, the ending's
+  `CH2_SHOTS`, the sunrise and the village lit up). No WebGL → 2D, and the settings page says so. `?hd2d=0|1`
   (`&hd2dq=light|normal`) and `__game.cmd.hd2d(true|false|null)` override it for the session. The demo build
   (`VITE_HD2D_DEMO=1`, `npm run artifact:hd2d`) starts 「はじめる」 in 夕鳴銀座 (`ui/flow.ts` `setNewGameStart`).
   The playthrough runs 2D (`?hd2d=0`) unless `--hd2d` (`--slow n` for its waits). (The paragraphs below were
   written for the prototype; where they say "map_town only" read "chapter 1".)
+- **Chapter 2's night** (直し6): the 2D's light map (night colour, dark, the starlight at the feet, the tomato
+  light's three rings, Tetsuya's beam, street lamps and windows) is painted each frame round the camera
+  (`cut_night.ts` `nightMul`; rooms `room_hoshi.ts`, at half the room's px) and every face and character is
+  multiplied by its value where the 2D picture shows that point (x, z − height/SV); the sky light and the
+  grade's mul are white (the dark is in the map), glow layers are added on top unmultiplied. litOnly finds show
+  only inside the light as in 2D. Light quality paints the map every other frame. Outdoor battles key out the
+  still's sky (a second silhouette pass) and lay the background's own 2D sky under it.
 - **Layers**: the WebGL canvas is offscreen. `FieldScene.draw()` asks `setFieldDrawer()`'s hook first; in HD-2D it
   renders the town, hands the canvas to `Screen.underlay`, and clears the 2D buffer to transparent before the
   world fx, the emotes, the HUD, the windows and the fade go on top. `Screen.present()` lays the underlay over the display canvas, then the buffer (the buffer has alpha since

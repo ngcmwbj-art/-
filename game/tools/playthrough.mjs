@@ -2014,7 +2014,9 @@ const BEATS2 = [
     name: 'mitsu',
     async run() {
       await travel(4, 34);
-      await walk('up', (s) => !s.ctrl, 4000);
+      // the way there can cross the trigger (x0–5, y31–33; a slow HD-2D run takes other
+      // paths): then ペロ has been met on the way and there is nothing to walk into
+      if (!(await flags(['flag_ch2_met_mitsu'])).flag_ch2_met_mitsu) await walk('up', (s) => !s.ctrl, 4000);
       await advance({ shotEvery: 3, label: 'mitsu' });
       await need(['flag_ch2_met_mitsu'], 'mitsu');
     },
