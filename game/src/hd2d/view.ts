@@ -41,6 +41,18 @@ const SKY = new THREE.Color('#b8b0e8');
 const GROUND = new THREE.Color('#d89060');
 const MAX_LAMPS = 4;
 /**
+ * Inside (the rooms, room.ts) the camera looks down a little more than in
+ * the street (2026-10-06 依頼主「建物の中のカメラワークは少し上から目線で良い」):
+ * ROOM_CAM.pitch instead of PITCH. Everything standing was made SV = tan(PITCH)
+ * tall to keep its 2D proportions from PITCH; seen from ROOM_PITCH it is
+ * stretched up by roomStretch() (the room's group and the people's, their
+ * lamps and the points projected for the 2D's bubbles and fx with them), so
+ * a room keeps its 2D proportions too. A battle's backdrop (still()) and the
+ * ending's shots (cut.ts) have their own lenses and no stretch.
+ */
+export const ROOM_CAM = { pitch: 54 };
+const roomStretch = (): number => Math.tan((ROOM_CAM.pitch * Math.PI) / 180) / Math.tan((PITCH * Math.PI) / 180);
+/**
  * The sky light at night (the ending's town; 1.7 by day): white at π, so a
  * surface gives back its own colour, as the 2D's world is before its
  * grading — the grade's multiply then darkens it as in 2D.
@@ -113,6 +125,8 @@ export class Hd2dView {
   private readonly dayHemi = [SKY.clone(), GROUND.clone()];
   private readonly tint = new THREE.Color();
   stats: FrameStats | null = null;
+  /** The up-stretch of this frame's world and people (roomStretch() inside, else 1). */
+  private stretch = 1;
   /** How long the last map took to stand up in 3D (ms). */
   buildMs = 0;
 
@@ -229,7 +243,10 @@ export class Hd2dView {
     const cam = shot ?? CAM;
     const lift = shot?.lift ?? 0;
     const t = this.target(f, cam.lookN);
-    const p = (cam.pitch * Math.PI) / 180;
+    // (inside: from a little higher, the room stretched up to match — ROOM_CAM)
+    const inside = !shot && !!roomMap(f.map.id);
+    this.setStretch(inside ? roomStretch() : 1);
+    const p = ((inside ? ROOM_CAM.pitch : cam.pitch) * Math.PI) / 180;
     for (const c of [this.eye, this.camera]) {
       c.fov = cam.fov;
       c.aspect = W / H;
@@ -289,6 +306,13 @@ export class Hd2dView {
     return Math.atan2(d.x, d.z);
   }
 
+  /** Stretch the world and the people up by k (ROOM_CAM). */
+  private setStretch(k: number): void {
+    this.stretch = k;
+    if (this.world) this.world.group.scale.y = k;
+    this.actors.group.scale.y = k;
+  }
+
   /** The few lamps nearest the target get a small warm point light. */
   private placeLamps(world: TownWorld | RoomWorld, t: THREE.Vector3, lit: number): void {
     const spots = world.spots
@@ -305,7 +329,7 @@ export class Hd2dView {
         l.intensity = 0;
         continue;
       }
-      l.position.set(s.x, s.y, s.z);
+      l.position.set(s.x, s.y * this.stretch, s.z);
       // (a room: faint by day, as the 2D's lamps throw no light then; strong at night)
       l.intensity = 2.2 * lit * (world instanceof RoomWorld ? world.lampK() : 1);
     }
@@ -372,6 +396,7 @@ export class Hd2dView {
       this.size = [w, h];
     }
     const world = this.ensureWorld(f);
+    this.setStretch(1);
     const at = new THREE.Vector3(pose.x, world.heightAt(pose.x, pose.z), pose.z);
     // `dist` from the point at `pitch`, the view turned up so the point sits at `row`
     const c = this.camera;
@@ -534,12 +559,13 @@ export class Hd2dView {
     // (a point south of the foot line lies on the ground in front of it)
     const z = Math.max(y, foot);
     const ground = this.world ? this.world.heightAt(x / 16, (z - 1) / 16) : 0;
-    return this.project(new THREE.Vector3(x / 16, ground + (z - y) * (SV / 16), z / 16));
+    return this.project(new THREE.Vector3(x / 16, (ground + (z - y) * (SV / 16)) * this.stretch, z / 16));
   }
 
   /** The head of an actor on screen (buffer px), for the emotes. */
   headOnScreen(a: Actor): [number, number] | null {
     const h = this.actors.head(a);
+    if (h) h.y *= this.stretch;
     return h ? this.project(h) : null;
   }
 

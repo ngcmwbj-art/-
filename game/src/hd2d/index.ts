@@ -37,7 +37,7 @@ import { settings, view as viewSetting } from '../ui/settings';
 import { isCh2Map } from '../world/maps';
 import { closeUp } from '../events/stage';
 import type { Quality } from './post';
-import { CAM, Hd2dView } from './view';
+import { CAM, Hd2dView, ROOM_CAM } from './view';
 import { overlaps } from './overlap';
 import { nudging } from './tune';
 import { roomMap } from './room';
@@ -265,6 +265,13 @@ registerDebug('hd2dStats', () => view?.stats ?? null);
  */
 // Only on the dev server: the published page leaves the checker out (2026-10-05, the artifact
 // publish refused the page while it carried it).
+// QA: the rooms' camera pitch (view.ts ROOM_CAM; the street's is hd2dCam's)
+if (import.meta.env.DEV) {
+  registerDebug('hd2dRoomPitch', (p?: number) => {
+    if (p !== undefined) ROOM_CAM.pitch = p;
+    return ROOM_CAM.pitch;
+  });
+}
 if (import.meta.env.DEV) {
   registerDebug('hd2dOverlaps', (o: { min?: number; all?: boolean; area?: string } = {}) => {
     const f = field();
