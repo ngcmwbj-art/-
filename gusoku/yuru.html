@@ -362,7 +362,7 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
 </div>
 <div id="photo" hidden><div class="ph-side"><button type="button" id="ph-pause">動きを止める</button></div><button type="button" id="ph-shoot" aria-label="撮影"></button><div class="ph-side"><button type="button" id="ph-close">写真モードを終える</button></div></div>
 <div id="ph-flash"></div>
-<div class="modal" id="ph-prev" hidden><div class="sheet"><header><h3>撮った写真</h3><button type="button" id="ph-x" aria-label="閉じる">✕ 閉じる</button></header><img id="ph-img" alt="撮影した写真"><p id="ph-tip"></p><div class="d-foot ph-btns"><button type="button" class="primary" id="ph-save">写真に保存</button><button type="button" id="ph-again">もう一枚撮る</button><button type="button" id="ph-done">写真モードを終える</button></div></div></div>
+<div class="modal" id="ph-prev" hidden><div class="sheet"><header><h3>撮った写真</h3><button type="button" id="ph-x" aria-label="閉じる">✕ 閉じる</button></header><img id="ph-img" alt="撮影した写真"><p id="ph-tip"></p><div class="d-foot ph-btns"><button type="button" class="primary" id="ph-save">写真に保存</button><button type="button" id="ph-file" hidden>ファイルとして保存</button><button type="button" id="ph-again">もう一枚撮る</button><button type="button" id="ph-done">写真モードを終える</button></div></div></div>
 <div class="modal" id="away" hidden><div class="sheet" role="dialog" aria-labelledby="aw-title"><header><h3 id="aw-title">留守中のできごと</h3></header><div class="aw-time" id="aw-time"></div><ul id="aw-list"></ul><div class="aw-next" id="aw-next" hidden></div><button type="button" class="primary" id="aw-ok">水槽をのぞく</button></div></div>
 <div class="modal" id="bk" hidden><div class="sheet" role="dialog" aria-labelledby="bk-title">
   <header><h3 id="bk-title">データの引き継ぎ</h3><button type="button" id="bk-close">閉じる</button></header>
@@ -2239,13 +2239,20 @@ const Photo={on:false,paused:false,blob:null,url:null,
     // iPhone/iPad: the share sheet's "画像を保存" puts the picture straight into the Photos app
     if(this.ios()||this.canShare()&&!/Windows|Macintosh/.test(navigator.userAgent)){
       if(this.canShare()){try{await navigator.share({files:[this.file()]});return}catch(e){if(e&&e.name==='AbortError')return}}
-      if(this.ios()){$('ph-tip').textContent='この画面からは直接保存できませんでした。上の写真を長押しして「"写真"に追加」を選んでください。';$('ph-tip').style.color='#ffc46b';return}
+      if(this.ios()){
+        const inFrame=(()=>{try{return window.top!==window}catch(e){return true}})();
+        $('ph-tip').textContent=(inFrame?'Claudeアプリの中からは、写真アプリへ直接保存できません。':'このブラウザからは、写真アプリへ直接保存できませんでした。')+'上の写真を長押しして「"写真"に追加」を選んでください。'+(inFrame?'Safariで ngcmwbj-art.github.io/gusoku を開けば、ボタンひとつで写真アプリに保存できます。':'');
+        $('ph-tip').style.color='#ffc46b';$('ph-file').hidden=!inFrame&&!!navigator.standalone;return}
     }
+    return this.saveFile();
+  },
+  async saveFile(){
+    if(!this.blob)return;
     let dl=null;try{dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null}catch(e){}
     try{
       if(dl)await dl.save({filename:this.file().name,data:this.blob});
       else{const u=URL.createObjectURL(this.blob),a=document.createElement('a');a.href=u;a.download=this.file().name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
-      toast('保存しました');
+      toast(this.ios()?'「ファイル」アプリに保存しました':'保存しました');
     }catch(e){if(e&&e.code==='declined')return;toast('保存できませんでした。写真を長押しして保存してください')}
   }
 };
@@ -3313,8 +3320,9 @@ $('ph-shoot').addEventListener('click',()=>Photo.shoot());
 $('ph-close').addEventListener('click',()=>Photo.close());
 $('ph-pause').addEventListener('click',()=>{Photo.paused=!Photo.paused;$('ph-pause').textContent=Photo.paused?'動きを戻す':'動きを止める'});
 $('ph-save').addEventListener('click',()=>Photo.save());
-$('ph-again').addEventListener('click',()=>{$('ph-prev').hidden=true;$('ph-tip').style.color=''});
-$('ph-x').addEventListener('click',()=>{$('ph-prev').hidden=true;$('ph-tip').style.color=''});
+$('ph-again').addEventListener('click',()=>{$('ph-prev').hidden=true;$('ph-tip').style.color='';$('ph-file').hidden=true});
+$('ph-file').addEventListener('click',()=>Photo.saveFile());
+$('ph-x').addEventListener('click',()=>{$('ph-prev').hidden=true;$('ph-tip').style.color='';$('ph-file').hidden=true});
 $('ph-done').addEventListener('click',()=>Photo.close());
 $('btn-water').addEventListener('click',()=>started&&!Life.dead&&Game.water());
 $('btn-cool').addEventListener('click',()=>started&&Game.temp(-.5));
