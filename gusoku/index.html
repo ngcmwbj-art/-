@@ -149,7 +149,10 @@ body.photo .hud-top,body.photo .console,body.photo #alert{visibility:hidden}
 @keyframes flash{0%{opacity:.85}100%{opacity:0}}
 #ph-prev .sheet{text-align:center}
 #ph-img{width:100%;border-radius:3px;border:1px solid var(--line);-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto}
-#ph-prev p{font-size:12px;color:var(--dim);margin:8px 0}
+#ph-prev p{font-size:12.5px;line-height:1.7;color:var(--dim);margin:8px 0}
+#ph-prev header h3{font-size:17px}
+#ph-prev .ph-btns{justify-content:center;flex-wrap:wrap;gap:8px}
+#ph-img{max-height:56vh;object-fit:contain;background:#000}
 #memorial .sheet{text-align:center;padding-block:28px}
 #memorial h3{font-size:26px;letter-spacing:.3em}
 #mem-date{font-family:var(--f-data);font-size:12px;color:var(--dim);margin:6px 0 16px}
@@ -353,7 +356,7 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
 </div>
 <div id="photo" hidden><div class="ph-side"><button type="button" id="ph-pause">動きを止める</button></div><button type="button" id="ph-shoot" aria-label="撮影"></button><div class="ph-side"><button type="button" id="ph-close">写真モードを終える</button></div></div>
 <div id="ph-flash"></div>
-<div class="modal" id="ph-prev" hidden><div class="sheet"><img id="ph-img" alt="撮影した写真"><p>保存できない場合は、画像を長押し（パソコンは右クリック）して保存してください。</p><div class="d-foot" style="justify-content:center"><button type="button" class="primary" id="ph-save">保存する</button><button type="button" id="ph-again">もう一枚撮る</button></div></div></div>
+<div class="modal" id="ph-prev" hidden><div class="sheet"><header><h3>撮った写真</h3><button type="button" id="ph-x" aria-label="閉じる">✕ 閉じる</button></header><img id="ph-img" alt="撮影した写真"><p id="ph-tip"></p><div class="d-foot ph-btns"><button type="button" class="primary" id="ph-save">写真に保存</button><button type="button" id="ph-again">もう一枚撮る</button><button type="button" id="ph-done">写真モードを終える</button></div></div></div>
 <div class="modal" id="away" hidden><div class="sheet" role="dialog" aria-labelledby="aw-title"><header><h3 id="aw-title">留守中のできごと</h3></header><div class="aw-time" id="aw-time"></div><ul id="aw-list"></ul><div class="aw-next" id="aw-next" hidden></div><button type="button" class="primary" id="aw-ok">水槽をのぞく</button></div></div>
 <div class="modal" id="bk" hidden><div class="sheet" role="dialog" aria-labelledby="bk-title">
   <header><h3 id="bk-title">データの引き継ぎ</h3><button type="button" id="bk-close">閉じる</button></header>
@@ -1965,18 +1968,30 @@ const Photo={on:false,paused:false,blob:null,url:null,
   close(){this.on=false;this.paused=false;document.body.classList.remove('photo');$('photo').hidden=true;$('ph-prev').hidden=true},
   shoot(){
     composer.render(0);const src=renderer.domElement,c=document.createElement('canvas');c.width=src.width;c.height=src.height;const g=c.getContext('2d');g.drawImage(src,0,0);
-    const s=c.width/1280,h=74*s;const grd=g.createLinearGradient(0,c.height-h*1.6,0,c.height);grd.addColorStop(0,'rgba(0,0,0,0)');grd.addColorStop(1,'rgba(0,0,0,.55)');g.fillStyle=grd;g.fillRect(0,c.height-h*1.6,c.width,h*1.6);
-    g.fillStyle='#e9f1f4';g.font=`800 ${30*s}px "Shippori Mincho B1",serif`;g.fillText('グソク',28*s,c.height-28*s);
-    g.font=`${15*s}px "IBM Plex Mono",monospace`;g.fillStyle='#b9cbd3';
-    g.fillText(`${STAGES[S.stage]}  ${MMS[S.molts]}mm  ${S.molts+1}齢  絶食${fastDays()}日  性格:${persLabel()}  ${dkey().replace(/-/g,'.')}`,150*s,c.height-32*s);
+    const port=c.height>c.width,s=Math.max(c.width,c.height*.75)/1280,h=(port?96:74)*s;const grd=g.createLinearGradient(0,c.height-h*1.6,0,c.height);grd.addColorStop(0,'rgba(0,0,0,0)');grd.addColorStop(1,'rgba(0,0,0,.55)');g.fillStyle=grd;g.fillRect(0,c.height-h*1.6,c.width,h*1.6);
+    g.fillStyle='#e9f1f4';g.font=`800 ${30*s}px "Shippori Mincho B1",serif`;g.fillText('グソク',28*s,c.height-(port?62:28)*s);
+    g.font=`${(port?13:15)*s}px "IBM Plex Mono",monospace`;g.fillStyle='#b9cbd3';
+    g.fillText(`${STAGES[S.stage]}  ${MMS[S.molts]}mm  ${S.molts+1}齢  絶食${fastDays()}日  性格:${persLabel()}  ${dkey().replace(/-/g,'.')}`,(port?28:150)*s,c.height-(port?26:32)*s);
     const f=$('ph-flash');f.classList.remove('go');void f.offsetWidth;f.classList.add('go');Audio2.noise(.06,4000,.25,1);
-    c.toBlob(b=>{if(!b)return;this.blob=b;if(this.url)URL.revokeObjectURL(this.url);this.url=URL.createObjectURL(b);$('ph-img').src=this.url;$('ph-prev').hidden=false;ev('photo')},'image/jpeg',.92);
+    c.toBlob(b=>{if(!b)return;this.blob=b;const fr=new FileReader();fr.onload=()=>{$('ph-img').src=fr.result};fr.readAsDataURL(b);$('ph-tip').textContent=this.tip();$('ph-prev').hidden=false;ev('photo')},'image/jpeg',.92);
   },
+  ios(){return /iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)},
+  file(){return new File([this.blob],'gusoku-'+dkey()+'-'+Date.now()%100000+'.jpg',{type:'image/jpeg'})},
+  canShare(){try{return !!(navigator.share&&navigator.canShare&&navigator.canShare({files:[this.file()]}))}catch(e){return false}},
+  tip(){return this.ios()?'「写真に保存」を押して、出てきたメニューの「画像を保存」を選ぶと、写真アプリに入ります。うまくいかない時は、上の写真を長押しして「"写真"に追加」を選んでください。':'「写真に保存」で端末に保存します。うまくいかない時は、上の写真を長押し（パソコンは右クリック）して保存してください。'},
   async save(){
-    if(!this.blob)return;let dl=null;try{dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null}catch(e){}
-    if(!dl){try{const u=URL.createObjectURL(this.blob),a=document.createElement('a');a.href=u;a.download='gusoku-'+dkey()+'-'+Date.now()%100000+'.jpg';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);toast('保存しました（できない時は画像を長押し）')}catch(e){toast('画像を長押し（パソコンは右クリック）して保存してください')}return}
-    try{await dl.save({filename:'gusoku-'+dkey()+'-'+Date.now()%100000+'.jpg',data:this.blob});toast('保存しました')}
-    catch(e){if(e&&e.code==='declined')return;toast('保存できませんでした。画像を長押しして保存してください')}
+    if(!this.blob)return;
+    // iPhone/iPad: the share sheet's "画像を保存" puts the picture straight into the Photos app
+    if(this.ios()||this.canShare()&&!/Windows|Macintosh/.test(navigator.userAgent)){
+      if(this.canShare()){try{await navigator.share({files:[this.file()]});return}catch(e){if(e&&e.name==='AbortError')return}}
+      if(this.ios()){$('ph-tip').textContent='この画面からは直接保存できませんでした。上の写真を長押しして「"写真"に追加」を選んでください。';$('ph-tip').style.color='#ffc46b';return}
+    }
+    let dl=null;try{dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null}catch(e){}
+    try{
+      if(dl)await dl.save({filename:this.file().name,data:this.blob});
+      else{const u=URL.createObjectURL(this.blob),a=document.createElement('a');a.href=u;a.download=this.file().name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
+      toast('保存しました');
+    }catch(e){if(e&&e.code==='declined')return;toast('保存できませんでした。写真を長押しして保存してください')}
   }
 };
 function showMemorial(rec){$('mem-text').innerHTML='';
@@ -3043,7 +3058,9 @@ $('ph-shoot').addEventListener('click',()=>Photo.shoot());
 $('ph-close').addEventListener('click',()=>Photo.close());
 $('ph-pause').addEventListener('click',()=>{Photo.paused=!Photo.paused;$('ph-pause').textContent=Photo.paused?'動きを戻す':'動きを止める'});
 $('ph-save').addEventListener('click',()=>Photo.save());
-$('ph-again').addEventListener('click',()=>{$('ph-prev').hidden=true});
+$('ph-again').addEventListener('click',()=>{$('ph-prev').hidden=true;$('ph-tip').style.color=''});
+$('ph-x').addEventListener('click',()=>{$('ph-prev').hidden=true;$('ph-tip').style.color=''});
+$('ph-done').addEventListener('click',()=>Photo.close());
 $('btn-water').addEventListener('click',()=>started&&!Life.dead&&Game.water());
 $('btn-cool').addEventListener('click',()=>started&&Game.temp(-.5));
 $('btn-warm').addEventListener('click',()=>started&&Game.temp(.5));
