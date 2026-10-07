@@ -2928,10 +2928,13 @@ function frameView(dt){
     else{const vv=window.visualViewport,top=vv?vv.offsetTop:0,H=innerHeight;let ct=H;
       for(const el of document.querySelectorAll('.console>*')){if(el.offsetParent===null||el.hidden)continue;const r=el.getBoundingClientRect();if(r.height>0)ct=Math.min(ct,r.top);break}
       const hud=document.body.classList.contains('kbd')?0:Math.min(60,$('log').getBoundingClientRect().bottom*.25);
-      viewGoal=Math.max(0,Math.min(H*.36,H/2-(top+hud+ct)/2))}}
+      // with the keyboard up the page may be pushed up out of sight (iPhone/iPad, and always inside the Claude viewer):
+      // keep the creature just above the input row, where it stays visible either way
+      const kbd=document.body.classList.contains('kbd'),cy=kbd?ct-Math.min(H*.2,(ct-top)*.45):(top+hud+ct)/2;
+      viewGoal=Math.max(-H*.32,Math.min(H*.36,H/2-cy))}}
   const nd=damp(viewDy,viewGoal,4,dt);
-  if(Math.abs(nd-viewDy)>.05||(viewDy>0&&camera.view&&camera.view.fullWidth!==innerWidth)){viewDy=nd;
-    if(viewDy<.5){viewDy=0;camera.clearViewOffset()}else camera.setViewOffset(innerWidth,innerHeight,0,viewDy,innerWidth,innerHeight)}
+  if(Math.abs(nd-viewDy)>.05||(viewDy!==0&&camera.view&&camera.view.fullWidth!==innerWidth)){viewDy=nd;
+    if(Math.abs(viewDy)<.5){viewDy=0;camera.clearViewOffset()}else camera.setViewOffset(innerWidth,innerHeight,0,viewDy,innerWidth,innerHeight)}
 }
 function idleChatter(){
   if(darkLv()>=2&&S.stage>=1&&!Life.asleep&&!Life.dead&&!Game.molting&&Math.random()<.55){say(S.stage===1?pickR(['……キライ、デス。','……クライ、スキ、デス。']):pickR(DARK_LINES[darkLv()]),{emo:'annoyed'});return}
@@ -2999,7 +3002,9 @@ const Mic={rec:null,on:false,fallback:false,auto:false,timer:0,watch:0,heard:fal
       clearTimeout(this.watch);this.watch=setTimeout(()=>{if(this.on&&!this.heard&&!$('say').value){try{r.abort()}catch(e){}this.stop();this.fallback=true;this.dictation()}},6000)}
     catch(e){this.fallback=true;this.dictation()}},
   stop(){clearTimeout(this.watch);try{this.rec&&this.rec.stop()}catch(e){}this.on=false;$('mic').classList.remove('on')},
-  dictation(){this.auto=true;$('mic').classList.add('dict');$('vhint').hidden=false;const el=$('say');el.focus({preventScroll:true});try{el.setSelectionRange(el.value.length,el.value.length)}catch(e){}},
+  dictation(){if(!this.told){this.told=true;const SR=window.SpeechRecognition||window.webkitSpeechRecognition,inFrame=(()=>{try{return window.top!==window}catch(e){return true}})();
+    say(inFrame?'（ここではキーボードの音声入力を使います。iPhone・iPadのSafariで ngcmwbj-art.github.io/gusoku を開くと、キーボードを出さずにマイクボタンだけで話しかけられます）':!SR?'（このブラウザは音声認識に対応していないため、キーボードの音声入力を使います。iPhone・iPadはSafariで開くと、キーボードなしで話しかけられます）':'（うまく聞き取れなかったので、キーボードの音声入力に切り替えました）',{narr:true})}
+    this.auto=true;$('mic').classList.add('dict');$('vhint').hidden=false;const el=$('say');el.focus({preventScroll:true});try{el.setSelectionRange(el.value.length,el.value.length)}catch(e){}},
   endDictation(msg){this.auto=false;clearTimeout(this.timer);$('mic').classList.remove('dict');$('vhint').hidden=true;if(msg)toast(msg)},
   // keyboard dictation types text in bursts while you talk: send only after a longer pause, never mid-composition
   onInput(){if(!this.auto||this.composing)return;clearTimeout(this.timer);this.timer=setTimeout(()=>{if(this.auto&&!this.composing&&$('say').value.trim()){sendSay()}},2600)}
