@@ -3085,7 +3085,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
