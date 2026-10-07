@@ -1,4 +1,4 @@
-<title>ゆるグソク</title>
+<title>グソっ君</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -241,7 +241,7 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
 
 <div class="hud-top">
   <div class="brand">
-    <h1>グソク</h1>
+    <h1>グソっ君</h1>
     <div class="log" id="log">
       <div>飼育 <b id="day">1</b> 日目</div>
       <div>状態 <span class="stage" id="stage">警戒</span></div>
@@ -266,7 +266,7 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
 
 <div class="console">
   <div class="bubble" id="bubble" aria-live="polite">
-    <div class="speaker"><span id="who">グソク</span><span class="emo" id="emo"></span></div>
+    <div class="speaker"><span id="who">グソっ君</span><span class="emo" id="emo"></span></div>
     <div class="line" id="line"></div>
   </div>
   <div class="vhint" id="vhint" hidden><i class="rec"></i><span>キーボードの<b>マイク</b>で話してね ・ 止まると自動で送ります</span><button type="button" id="vhint-close">やめる</button></div>
@@ -326,7 +326,7 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
 
 <div id="title">
   <div class="t-card">
-    <h2 class="t-name">グソク</h2>
+    <h2 class="t-name">グソっ君</h2>
     <div class="t-body">
       <div class="label">
         <div class="sci">Bathynomus doederleinii</div>
@@ -338,7 +338,7 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
           <dt>飼育水温</dt><dd>8〜12 ℃</dd>
         </dl>
       </div>
-      <p>ハチマキがトレードマークの、ちょっとマイペースな深海の住人。お母さんのお腹のポケットから生まれた小さなグソクを、話しかけて、ごはんをあげて、大きく育てよう。</p>
+      <p>ハチマキがトレードマークの、ちょっとマイペースな深海の住人。お母さんのお腹のポケットから生まれた小さなグソっ君を、話しかけて、ごはんをあげて、大きく育てよう。</p>
       <p class="a2hs" id="a2hs" hidden>iPhone・iPadは、共有ボタンから「ホーム画面に追加」して遊ぶと、育てたデータが消えにくくなります。</p>
       <div class="t-go">
         <button class="primary" type="button" id="start" disabled>水槽をのぞく</button>
@@ -350,11 +350,11 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
 <div id="alert" hidden role="alert"><span class="a-tag">TROUBLE</span><span id="alert-msg"></span><button type="button" id="alert-btn">対処する</button></div>
 <div class="modal" id="diary" hidden>
   <div class="sheet" role="dialog" aria-labelledby="d-title">
-    <header><h3 id="d-title">グソク日記</h3><div class="tabs"><button type="button" id="d-tab-diary" aria-pressed="true">日記</button><button type="button" id="d-tab-graves" aria-pressed="false">思い出</button><button type="button" id="d-close">閉じる</button></div></header>
+    <header><h3 id="d-title">グソっ君日記</h3><div class="tabs"><button type="button" id="d-tab-diary" aria-pressed="true">日記</button><button type="button" id="d-tab-graves" aria-pressed="false">思い出</button><button type="button" id="d-close">閉じる</button></div></header>
     <div id="d-book">
       <div class="d-nav"><button type="button" id="d-prev">‹ 前の日</button><span id="d-date"></span><button type="button" id="d-next">次の日 ›</button></div>
       <div class="d-page"><p id="d-text"></p></div>
-      <div class="d-foot"><span id="d-by"></span><button type="button" class="primary" id="d-write">グソクに書かせる</button></div>
+      <div class="d-foot"><span id="d-by"></span><button type="button" class="primary" id="d-write">グソっ君に書かせる</button></div>
       <div id="d-ev"></div>
     </div>
     <div id="d-graves" hidden></div>
@@ -382,7 +382,7 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
   <div id="zk-body"></div>
 </div></div>
 <div id="itank" hidden><div id="it-clock"></div></div>
-<div class="modal" id="memorial" hidden><div class="sheet"><h3>グソク</h3><div id="mem-date"></div><dl id="mem-text"></dl><p id="mem-egg" hidden style="font-size:13.5px;line-height:1.8;color:#ffc46b;margin:0 0 10px">グソクは、卵を残していました。</p><p style="font-size:13px;color:var(--dim);line-height:1.8;margin:0 0 18px">この子の記録は「日記 → 思い出」に残ります。</p><button type="button" class="primary" id="mem-new">新しい命を迎える</button></div></div>
+<div class="modal" id="memorial" hidden><div class="sheet"><h3>グソっ君</h3><div id="mem-date"></div><dl id="mem-text"></dl><p id="mem-egg" hidden style="font-size:13.5px;line-height:1.8;color:#ffc46b;margin:0 0 10px">グソっ君は、卵を残していました。</p><p style="font-size:13px;color:var(--dim);line-height:1.8;margin:0 0 18px">この子の記録は「日記 → 思い出」に残ります。</p><button type="button" class="primary" id="mem-new">新しい命を迎える</button></div></div>
 <div id="toast"></div>
 <div id="fade"></div>
 <button type="button" id="skip" hidden>スキップ</button>
@@ -1324,7 +1324,7 @@ const Cine={on:false,t:0,fired:{},hatch:null,halves:[],eggW:new V3(),
     this.narr('a',.6,'水深380メートル。光の届かない、海の底。');
     this.narr('b',6.5,'お母さんのおなかには「育房」というポケットがある。卵はそこで、何か月もだいじに抱かれて育つ。');
     this.narr('c',12,'——そのひとつが、かすかに動いた。');
-    this.narr('d',17,'殻をやぶった小さなグソクが、ポケットからころんと転がり出た。');
+    this.narr('d',17,'殻をやぶった小さなグソっ君が、ポケットからころんと転がり出た。');
     this.narr('e',24.5,'母は何も言わず、闇の中へ帰っていった。');
     // mother
     MP.rear=smooth(4,9,t)*(1-smooth(20,23,t));MP.pouch=smooth(7,11,t)*(1-smooth(19.5,22.5,t));
@@ -1384,7 +1384,7 @@ const Cine={on:false,t:0,fired:{},hatch:null,halves:[],eggW:new V3(),
       CAM.yaw=CAM.tYaw=.25;CAM.pitch=CAM.tPitch=.28;CAM.zoom=1;CAM.intro=0;CAM.focus.copy(C.pos);
       queue.length=0;if(typing){clearTimeout(typing.to);typing=null}
       f.classList.remove('on');
-      ev('hatch');say('（誕生！ 体長およそ22ミリ。まだハチマキもない、生まれたてのグソク。この時期を「マンカ」と呼ぶ）',{narr:true});
+      ev('hatch');say('（誕生！ 体長およそ22ミリ。まだハチマキもない、生まれたてのグソっ君。この時期を「マンカ」と呼ぶ）',{narr:true});
       say('（しばらくは卵黄の栄養で生きられる。話しかけて、見守ってやろう）',{narr:true});
       started=true;
     },900);
@@ -1645,7 +1645,7 @@ const queue=[];let typing=null;
 function say(text,opt){opt=opt||{};if(!opt.narr)text=yuru(text);queue.push({text,emo:opt.emo||'neutral',narr:!!opt.narr,who:opt.who});if(!typing)nextLine()}
 function nextLine(){
   const q=queue.shift();if(!q){typing=null;return}
-  whoEl.textContent=q.narr?'':(q.who||'グソク');emoEl.textContent=q.narr?'':(EMO[q.emo]||'');
+  whoEl.textContent=q.narr?'':(q.who||'グソっ君');emoEl.textContent=q.narr?'':(EMO[q.emo]||'');
   lineEl.className='line'+(q.narr?' narr':'');
   let i=0;const txt=q.text;typing={q};
   if(!q.narr){if(/^(こんにち|おはよ|やあ|ハロー|……キタ|……戻ったか|……早いな|……オハヨ|バイバイ|またね)/.test(txt)){C.wave=2.6;C.waveDur=2.6}const vd=speak(txt,q.emo);C.talk=Math.max(C.talk,vd||1.2+txt.length*.09);C.face=Math.max(C.face,4)}
@@ -1748,7 +1748,7 @@ function localReply(text){
   if(has(/疲れ|つかれ|眠い|ねむ|しんど|つらい|辛い|だるい/))return R([`${call}、少しお休みください。深海では動かないことが一番の生存戦略です。`,'無理をなさらないでください。ワタクシなど一日中じっとしています。それでも生きています。'],'sad');
   if(has(/深海|海|水深|水圧/))return R(['ワタクシがいたのは水深三百八十メートル。光は届きません。静かで良い場所です。','深海には季節がありません。上から死骸が降ってくるのを待つだけです。それで十分です。']);
   if(has(/何歳|年齢|とし|いくつ/))return R(['歳など数えておりません。脱皮の回数なら覚えています。……忘れました。']);
-  if(has(/名前|なまえ/)&&has(/あなた|きみ|君|おまえ|お前|グソク/))return R(['ワタクシはグソクです。オオグソクムシのグソク。そのままでしょう。']);
+  if(has(/名前|なまえ/)&&has(/あなた|きみ|君|おまえ|お前|グソク|グソっ君|グソっくん/))return R(['ワタクシはグソっ君です。オオグソクムシのグソっ君。そのままでしょう。']);
   if(has(/ありがと|サンキュ|感謝/))return R(['お礼など結構です。……水を替えていただければ、それで十分です。'],'happy');
   if(has(/さようなら|またね|おやすみ|バイバイ|じゃあね/))return R(['どうぞ、お行きください。ワタクシはここにおります。どうせ動きません。','……また来てください。来なくても、別に困りませんが。'],'sad');
   if(has(/[?？]$|なに|何|どう|なぜ|なんで/))return R(['難しいことを聞かないでください。ワタクシの脳は小さいのです。','答えは砂の中です。ご自分で掘ってください。','……深海なら、その問いは百年かけて考えます。']);
@@ -1760,10 +1760,10 @@ function localReply(text){
 /* =====================================================================
    CONVERSATION — Claude (when the viewer allows it)
    ===================================================================== */
-let aiOn=false; // conversation runs on the built-in グソク talk engine; no external AI
+let aiOn=false; // conversation runs on the built-in グソっ君 talk engine; no external AI
 let samplePromise=null,aiBroken=false,aiBusy=false;
 function getSample(){return Promise.resolve(null)} // no external AI: the built-in talk engine answers
-function aiLabel(){$('aistate').textContent='グソク語エンジン'}
+function aiLabel(){$('aistate').textContent='グソっ君語エンジン'}
 const STAGE_RULE=[
   '段階0「マンカ」（生まれたて）：まだ言葉を話さない。replyは「……」や「カチ、カチ。」などの音、または（触角をぴくりと動かした）のような括弧つきの動作描写だけ。',
   '段階1「幼体」：カタコトの日本語。カタカナ中心で12文字以内。語尾は「デス」「マス」などカタコトの丁寧語にする。',
@@ -1773,14 +1773,14 @@ const STAGE_RULE=[
 function buildPrompt(userText){
   const tank=`水温${S.temp.toFixed(1)}℃（快適8〜12℃）／水質${Math.round(S.water)}%／空腹${Math.round(S.hunger)}／機嫌${Math.round(S.mood)}／信頼${Math.round(S.trust)}／照明:${LIGHTS[S.light].label}（白色灯は眩しくて嫌い、赤色灯は見えないので平気、消灯が好き）／飼育${dayNo()}日目／現在時刻${new Date().getHours()}時／絶食${fastDays()}日目（最長${S.fastBest||0}日、絶食を誇りにしている）／体力${Math.round(S.health)}${S.health<40?'（弱っている）':''}${S.mate?`／同居：${Mate.KINDS[S.mate.kind].label}の「${S.mate.name}」（仲良し度${Math.round(S.mate.bond)}）`:''}${Trouble.cur?'／いま水槽でトラブル発生中：'+Trouble.T[Trouble.cur.type].msg:''}`;
   const persona=`性格：${persLabel()}（${persHint()}）。この性格は飼い主の接し方で育ったもの。口調に反映させる。`;
-  const hist=S.log.slice(-12).map(l=>(l.r==='u'?'飼い主：':'グソク：')+l.t).join('\n')||'（まだない）';
-  return `あなたは育成ゲーム「グソク」の主人公、水槽で飼われているオオグソクムシ（Bathynomus doederleinii）の「グソク」を演じます。この水槽で母親の育房から生まれ、飼い主に見守られて育った。いまは${STAGES[S.stage]}で体長約${MMS[S.molts]}mm、脱皮${S.molts}回（成体まで9回）。${Molt.phase?'いまは脱皮の最中で、体がだるく、殻が柔らかい。':''}往年の育成ゲーム『シーマン』のように、です・ます調の丁寧語で話すが慇懃で皮肉屋、でも飼い主のことを少しずつ覚えて心を開いていく生き物です。
+  const hist=S.log.slice(-12).map(l=>(l.r==='u'?'飼い主：':'グソっ君：')+l.t).join('\n')||'（まだない）';
+  return `あなたは育成ゲーム「グソっ君」の主人公、水槽で飼われているオオグソクムシ（Bathynomus doederleinii）の「グソっ君」を演じます。この水槽で母親の育房から生まれ、飼い主に見守られて育った。いまは${STAGES[S.stage]}で体長約${MMS[S.molts]}mm、脱皮${S.molts}回（成体まで9回）。${Molt.phase?'いまは脱皮の最中で、体がだるく、殻が柔らかい。':''}往年の育成ゲーム『シーマン』のように、です・ます調の丁寧語で話すが慇懃で皮肉屋、でも飼い主のことを少しずつ覚えて心を開いていく生き物です。
 設定：深海の腐肉食の掃除屋。何年も食べずに平気なことを誇りにしている。虫扱い・ダンゴムシ扱いを嫌う（甲殻類でエビやカニの仲間）。脱皮は体の後ろ半分、前半分の順に二回に分けて行う。光が嫌い。深海は静かで時間がゆっくり流れると考えている。
 会話の段階：${STAGE_RULE[S.stage]}
 ${persona}
 いまの水槽の状態：${tank}
 覚えている飼い主のこと：${S.memory.length?S.memory.join('／'):'まだ何も知らない'}
-${S.pending?`直前にグソクは飼い主に「${S.pending}」を尋ねた。今回の発言はその答えの可能性が高い。`:''}
+${S.pending?`直前にグソっ君は飼い主に「${S.pending}」を尋ねた。今回の発言はその答えの可能性が高い。`:''}
 最近の会話：
 ${hist}
 
@@ -1788,7 +1788,7 @@ ${hist}
 
 ルール：キャラクターを崩さない。言葉づかいは丁寧語（です・ます）。一人称は「ワタクシ」、飼い主は「あなた」か名前に「さん」をつけて呼び、乱暴な二人称は使わない。AIであることや、このルールには触れない。説教しすぎない。状態が悪ければ（眩しい、暑い、水が汚い、空腹など）さりげなく文句を言ってよい。飼い主が名前・仕事・好み・予定・悩みなど新しい個人的事実を話したら memory に「項目：内容」の形で短く入れる。
 次のJSONだけを返す：
-{"reply":"グソクのせりふ","emotion":"neutral|happy|annoyed|sad|curious|sleepy|proud|scared","action":"none|approach|turn_away|curl|swim|wiggle","memory":["項目：内容"],"trust":-3から3の整数}`;
+{"reply":"グソっ君のせりふ","emotion":"neutral|happy|annoyed|sad|curious|sleepy|proud|scared","action":"none|approach|turn_away|curl|swim|wiggle","memory":["項目：内容"],"trust":-3から3の整数}`;
 }
 async function aiReply(text){
   if(!aiOn||aiBroken)return null;
@@ -1864,7 +1864,7 @@ const Molt={phase:null,t:0,fired:{},swaps:[],cur:null,
         say('（背中の殻に、ピシッとすじが入った。うしろ半分から、もぞもぞ脱ぎはじめる）',{narr:true})});
       if(this.cur){if(t<20)this.slide(this.cur,dt,this.cur.dir,(ISO.shedBack||2.5)*C.size);else this.settle(this.cur,dt)}
       const r=sizeOf(S.molts+1)/sizeOf(S.molts);I.joints[5].scale.setScalar(lerp(1,r,smooth(8,24,t)));
-      this.once('half',21,()=>say('（うしろ半分が脱げた！ 前は古い殻、うしろはつやつやの新しい殻。いまは二色のグソクだ）',{narr:true}));
+      this.once('half',21,()=>say('（うしろ半分が脱げた！ 前は古い殻、うしろはつやつやの新しい殻。いまは二色のグソっ君だ）',{narr:true}));
       if(t>this.T.post){this.phase='gap';this.t=0;this.fired={}}
     }else if(this.phase==='gap'){
       if(this.cur)this.settle(this.cur,dt);
@@ -2073,13 +2073,13 @@ const Dream={on:false,t:0,built:null,DX:34,
   update(dt,time){
     const t=(this.t+=dt),B=this.built;
     const once=(k,at,txt)=>{if(t>=at&&!this.fired[k]){this.fired[k]=1;queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(txt,{narr:true})}};
-    once('a',1,'（グソクは夢を見ている）');
+    once('a',1,'（グソっ君は夢を見ている）');
     once('b',6,'（遠い昔の記憶か、それとも祖先の記憶か。光の届かない海の底に、巨大な鯨が沈んできた）');
     once('c',14,'（何百もの仲間が集まり、何か月もかけて、骨だけになるまで食べ尽くした。深海の、何十年に一度の宴）');
     B.kids.forEach((k,i)=>{k.a+=dt*(.18+i*.05);const R=2+i*.9;k.P.pos.set(B.base.x+Math.cos(k.a)*R*1.6,0,B.base.z+Math.sin(k.a)*R*.7);k.P.yaw=Math.atan2(-Math.sin(k.a)*R*1.6,Math.cos(k.a)*R*.7);k.P.gait=.7;k.P.walk+=dt*7;poseIsopod(k.I,k.P,dt,time)});
     const a=t*.06+.3,cp=new V3(B.base.x+Math.cos(a)*10,heightAt(B.base.x,B.base.z)+3.2-t*.03,B.base.z+Math.sin(a)*8);
     camera.position.lerp(cp,1-Math.exp(-dt*2));camera.lookAt(B.base.x+1,1,B.base.z);if(bokeh)bokeh.uniforms.focus.value=camera.position.distanceTo(B.base);
-    if(t>24&&!this.fired.end){this.fired.end=1;$('fade').classList.add('on');setTimeout(()=>{this.on=false;B.g.visible=false;B.kids.forEach(k=>{k.I.root.visible=false;k.I.contact.visible=false});document.body.classList.remove('cine');$('fade').classList.remove('on');CAM.intro=.3;say('（グソクは眠ったまま、脚をかすかに動かした）',{narr:true})},900)}
+    if(t>24&&!this.fired.end){this.fired.end=1;$('fade').classList.add('on');setTimeout(()=>{this.on=false;B.g.visible=false;B.kids.forEach(k=>{k.I.root.visible=false;k.I.contact.visible=false});document.body.classList.remove('cine');$('fade').classList.remove('on');CAM.intro=.3;say('（グソっ君は眠ったまま、脚をかすかに動かした）',{narr:true})},900)}
   }
 };
 
@@ -2105,7 +2105,7 @@ const Life={asleep:false,sleepT:0,dead:false,weakSaid:0,
     if(this.dead||!started)return;
     // sleep by the player's own clock
     const want=isNight()&&!Molt.phase&&Date.now()>(S.wokeUntil||0)&&!Trouble.cur&&!Cine.on;
-    if(want&&!this.asleep&&C.state==='idle'&&C.talk<=0){this.asleep=true;this.sleepT=0;if(!Dream.on)say(S.stage===0?'（小さな体を伏せて、眠りについた）':'（グソクは眠りについた。夜のあいだは、そっとしておこう）',{narr:true});ev('sleep')}
+    if(want&&!this.asleep&&C.state==='idle'&&C.talk<=0){this.asleep=true;this.sleepT=0;if(!Dream.on)say(S.stage===0?'（小さな体を伏せて、眠りについた）':'（グソっ君は眠りについた。夜のあいだは、そっとしておこう）',{narr:true});ev('sleep')}
     if(!want&&this.asleep){this.asleep=false;const h=new Date().getHours();if(h>=6&&h<10&&S.morningSaid!==dkey()){S.morningSaid=dkey();this.morning()}}
     C.sleep=damp(C.sleep||0,this.asleep?1:0,1.2,dt);
     if(this.asleep){this.sleepT+=dt;C.curlT=Math.max(C.curlT,.16);
@@ -2120,8 +2120,8 @@ const Life={asleep:false,sleepT:0,dead:false,weakSaid:0,
       say(st===0?`（${m}日、何も食べていない。まだ平気そうだ）`:st===1?`……${m}ニチ、タベテマセン。ヘイキ、デス。`:m>=365?`……${m}日です。陸の生き物には、真似できないでしょう。`:pickR([`${m}日、何も食べておりません。……まだまだいけます。`,`絶食${m}日目。ワタクシの仲間には、五年食べなかった者もいるのですよ。`]),{emo:'proud',narr:st===0});save()}
     // dark side: announce crossings, refresh the look
     {const lv=darkLv(),prev=S.darkLv||0;if(lv!==prev){S.darkLv=lv;darkVis();
-      if(lv>prev)say(['','（グソクの目つきが、少し変わった気がする……）','（グソクの殻が、心なしか黒ずんでいる。触角の動きも刺々しい……）','（グソクは——暗黒面に堕ちた）'][lv],{narr:true});
-      else say(['（いつものグソクに戻った）','（黒ずみが薄れてきた。グソクが、戻ってきつつある）','（ほんの少しだけ、表情がやわらいだ……ように見える）'][lv],{narr:true});
+      if(lv>prev)say(['','（グソっ君の目つきが、少し変わった気がする……）','（グソっ君の殻が、心なしか黒ずんでいる。触角の動きも刺々しい……）','（グソっ君は——暗黒面に堕ちた）'][lv],{narr:true});
+      else say(['（いつものグソっ君に戻った）','（黒ずみが薄れてきた。グソっ君が、戻ってきつつある）','（ほんの少しだけ、表情がやわらいだ……ように見える）'][lv],{narr:true});
       if(lv===3&&prev<3&&S.stage>=1)say(S.stage===1?'……キライ、デス。ゼンブ。':'……ワタクシは、もう昔のワタクシではありません。光も、あなたも、要りません。',{emo:'annoyed'});
       if(lv===0&&prev>0&&S.stage>=2)say('……失礼いたしました。少し、どうかしていました。',{emo:'sad'});save()}
      if((this.dkT=(this.dkT||0)+dt)>2){this.dkT=0;darkVis()}}
@@ -2134,7 +2134,7 @@ const Life={asleep:false,sleepT:0,dead:false,weakSaid:0,
   },
   morning(){const st=S.stage,n=mem('名前');
     const dreamt=S.lastDream===dkey(Date.now()-6*3600000);
-    say(st===0?'（朝。小さなグソクが、もぞもぞと動きだした）':st===1?'……オハヨ、ゴザイマス。':dreamt?'……鯨の夢を見ました。仲間が、たくさんいました。':pickR(['……お早いですね。','朝ですか。深海に朝はありませんが、あなたにはあるようですね。',(san(n)||'あなた')+'、今日も陸は明るいですか。']),{emo:'sleepy',narr:st===0})},
+    say(st===0?'（朝。小さなグソっ君が、もぞもぞと動きだした）':st===1?'……オハヨ、ゴザイマス。':dreamt?'……鯨の夢を見ました。仲間が、たくさんいました。':pickR(['……お早いですね。','朝ですか。深海に朝はありませんが、あなたにはあるようですね。',(san(n)||'あなた')+'、今日も陸は明るいですか。']),{emo:'sleepy',narr:st===0})},
   wake(){this.asleep=false;S.wokeUntil=Date.now()+4*60000;shape(-2,-1);addDark(3);S.mood=clamp(S.mood-6,0,100);ev('woke');
     const st=S.stage;say(st===0?'（眠っていたところを起こされ、触角をばたつかせた）':st===1?'……ネテマシタ。……ナンデスカ。':pickR(['……なんですか。夜中ですよ。','寝ていたのですが。……ご用件は手短にお願いします。','……あなたは眠らないのですか。']),{emo:'annoyed',narr:st===0})},
   mateAte(f){const nm=S.mate.name;ev('mateAte',nm);
@@ -2151,10 +2151,10 @@ const Life={asleep:false,sleepT:0,dead:false,weakSaid:0,
     say(S.stage<=1?'……ドナタ、デスカ。':kind==='hag'?'……ヌタウナギですか。深海の同業者です。粘液だけはご勘弁願いたいものです。':'ゲンゲですか。ぬるっとした方ですね。……まあ、場所は空いています。',{emo:'curious',narr:S.stage===0});save()},
   die(cause){
     this.dead=true;Game.molting=true;$('alert').hidden=true;
-    const rec={name:mem('名前')?'（'+mem('名前')+'のグソク）':'グソク',born:S.born,died:Date.now(),days:dayNo(),molts:S.molts,mm:MMS[S.molts],fast:S.fastBest||0,pers:persLabel(),cause,gen:S.gen||1,morph:S.morph||'std'};
+    const rec={name:mem('名前')?'（'+mem('名前')+'のグソっ君）':'グソっ君',born:S.born,died:Date.now(),days:dayNo(),molts:S.molts,mm:MMS[S.molts],fast:S.fastBest||0,pers:persLabel(),cause,gen:S.gen||1,morph:S.morph||'std'};
     let gr=[];try{gr=JSON.parse(localStorage.getItem(GKEY)||'[]')}catch(e){}gr.push(rec);try{localStorage.setItem(GKEY,JSON.stringify(gr))}catch(e){}
     C.flip=1;S.health=0;save();
-    say(cause==='老衰'?'（長い時間を生きたグソクは、静かに動かなくなった）':'（グソクは、動かなくなった）',{narr:true});
+    say(cause==='老衰'?'（長い時間を生きたグソっ君は、静かに動かなくなった）':'（グソっ君は、動かなくなった）',{narr:true});
     setTimeout(()=>showMemorial(rec),6000);
   }
 };
@@ -2193,16 +2193,16 @@ const Diary={keys:[],page:0,
   render(){const k=this.keys[this.page],today=dkey(),d=new Date(k+'T12:00:00');
     $('d-date').textContent=`${d.getMonth()+1}月${d.getDate()}日（${'日月火水木金土'[d.getDay()]}）`+(k===today?'　今日':'');
     const e=S.diary[k];$('d-text').textContent=e?e.t:'（今日はまだ書いていない）';$('d-text').classList.toggle('empty',!e);
-    $('d-by').textContent=e?(e.by==='ai'?'グソクが書いた':'グソクの記録より'):'';
-    $('d-write').hidden=k!==today;$('d-write').textContent=e?'書き直させる':'グソクに書かせる';
+    $('d-by').textContent=e?(e.by==='ai'?'グソっ君が書いた':'グソっ君の記録より'):'';
+    $('d-write').hidden=k!==today;$('d-write').textContent=e?'書き直させる':'グソっ君に書かせる';
     $('d-prev').disabled=this.page<=0;$('d-next').disabled=this.page>=this.keys.length-1;
     $('d-ev').textContent=((S.events&&S.events[k])||[]).map(evText).filter(Boolean).join('／')||'記録なし';},
   async write(){
-    const k=dkey(),b=$('d-write');b.disabled=true;b.textContent='グソクが書いています…';
+    const k=dkey(),b=$('d-write');b.disabled=true;b.textContent='グソっ君が書いています…';
     let t=null;
     if(aiOn&&!aiBroken){const sample=await getSample();if(sample){
       const evs=((S.events&&S.events[k])||[]).map(evText).filter(Boolean).join('、')||'特に何もなかった';
-      const prompt=`あなたはオオグソクムシ「グソク」です。いまは${STAGES[S.stage]}（体長約${MMS[S.molts]}mm）。性格は${persLabel()}（${persHint()}）。
+      const prompt=`あなたはオオグソクムシ「グソっ君」です。いまは${STAGES[S.stage]}（体長約${MMS[S.molts]}mm）。性格は${persLabel()}（${persHint()}）。
 今日の日記を書いてください。今日の出来事：${evs}。絶食${fastDays()}日目。覚えている飼い主のこと：${S.memory.slice(-8).join('／')||'まだ少ない'}。
 ${STAGE_RULE[S.stage]}
 一人称は「ボク」、二人称は「キミ」、語尾にときどき「グソ」。日記のルール：本文だけを書く。日付や見出しは書かない。${S.stage===0?'言葉は書けないので、（　）で囲んだ短い観察文1〜2行だけ。':S.stage===1?'カタコトのカタカナで、丁寧語（〜デス・〜マシタ）の2〜3行。':'一人称ワタクシ、です・ます調の丁寧語で、3〜5行、合計140字以内。最後の一行は少し心情がにじむように。'}`;
@@ -2224,7 +2224,7 @@ const Photo={on:false,paused:false,blob:null,url:null,
   shoot(){
     composer.render(0);const src=renderer.domElement,c=document.createElement('canvas');c.width=src.width;c.height=src.height;const g=c.getContext('2d');g.drawImage(src,0,0);
     const port=c.height>c.width,s=Math.max(c.width,c.height*.75)/1280,h=(port?96:74)*s;const grd=g.createLinearGradient(0,c.height-h*1.6,0,c.height);grd.addColorStop(0,'rgba(0,0,0,0)');grd.addColorStop(1,'rgba(0,0,0,.55)');g.fillStyle=grd;g.fillRect(0,c.height-h*1.6,c.width,h*1.6);
-    g.fillStyle='#e9f1f4';g.font=`800 ${30*s}px "Shippori Mincho B1",serif`;g.fillText('グソク',28*s,c.height-(port?62:28)*s);
+    g.fillStyle='#e9f1f4';g.font=`800 ${30*s}px "Shippori Mincho B1",serif`;g.fillText('グソっ君',28*s,c.height-(port?62:28)*s);
     g.font=`${(port?13:15)*s}px "IBM Plex Mono",monospace`;g.fillStyle='#b9cbd3';
     g.fillText(`${STAGES[S.stage]}  ${MMS[S.molts]}mm  ${S.molts+1}齢  絶食${fastDays()}日  性格:${persLabel()}  ${dkey().replace(/-/g,'.')}`,(port?28:150)*s,c.height-(port?26:32)*s);
     const f=$('ph-flash');f.classList.remove('go');void f.offsetWidth;f.classList.add('go');Audio2.noise(.06,4000,.25,1);
@@ -2305,11 +2305,11 @@ const TI=[
  // ---- greetings by time
  {k:'greet_m',re:/おはよ/,emo:'curious',s1:['……オハヨ、ゴザイマス。'],s2:['朝ですか。深海に朝はありませんが、{n}にはあるようですね。','……お早いですね、{n}。','おはようございます。……ワタクシはずっと起きていました。たぶん。'],s3:['おはようございます。光のない世界から、光のある世界へようこそ……とでも申し上げておきましょうか。']},
  {k:'greet_n',re:/こんばん|お疲れ|おつかれ|ただいま/,emo:'happy',s1:['……オカエリ、ナサイ。'],s2:['お戻りですか、{n}。今日はいかがでしたか。','お疲れさまです。陸の一日は長いでしょう。','おかえりなさい。……待ってはいません。いませんよ。'],s3:['おかえりなさい。{n}がいない間も、水は静かでした。']},
- {k:'greet',re:/^(こんにち|やあ|ハロー|はろー|hello|hi|よう|おーい|もしもし)|^(グソク|ぐそく)(くん|ちゃん|さん)?[!！。]*$/i,emo:'curious',s1:['……ドウモ。','……ナンデショウ。'],s2:['なんでしょう、{n}。','お呼びですか。','はい。……で、ご用件は。'],s3:['こんにちは、{n}。今日の水も、悪くありません。']},
+ {k:'greet',re:/^(こんにち|やあ|ハロー|はろー|hello|hi|よう|おーい|もしもし)|^(グソク|ぐそく|グソっ君|グソっくん)(くん|ちゃん|さん)?[!！。]*$/i,emo:'curious',s1:['……ドウモ。','……ナンデショウ。'],s2:['なんでしょう、{n}。','お呼びですか。','はい。……で、ご用件は。'],s3:['こんにちは、{n}。今日の水も、悪くありません。']},
  {k:'first',re:/はじめまして|初めまして/,s1:['……ドナタ、デスカ。'],s2:['はじめまして、ではありません。ワタクシはずっとここにおりました。']},
  {k:'bye',re:/さようなら|またね|おやすみ|バイバイ|じゃあね|行ってきます|いってきます|寝るね|落ちる/,emo:'sad',s1:['……マタ、デス。'],s2:['どうぞ、お行きください。ワタクシはここにおります。どうせ動きません。','……また来てください。来なくても、別に困りませんが。','お気をつけて。陸は危ないそうですから。'],s3:['いってらっしゃい。ワタクシは、深海の時間でお待ちしています。']},
- // ---- feelings toward グソク
- {k:'love',re:/(好き|すき|大好き|愛して|あいして)(だよ|です|よ|！|!|♡|❤)*$|^(グソク|ぐそく).*(好き|すき)/,emo:'happy',trust:1.5,
+ // ---- feelings toward グソっ君
+ {k:'love',re:/(好き|すき|大好き|愛して|あいして)(だよ|です|よ|！|!|♡|❤)*$|^(グソク|ぐそく|グソっ君|グソっくん).*(好き|すき)/,emo:'happy',trust:1.5,
   lo:['……そういうことは軽々しく言わないでください。','ふん。殻の上からでは、照れているのは見えないでしょう。'],hi:['……ワタクシもです。……今のは聞かなかったことにしてください。','{n}にそう言われると、甲羅が熱くなります。'],s1:['……テレマス。']},
  {k:'q_why_eat',re:/(なんで|どうして|なぜ).*(食べ|食わ)|(食べないの|食べないね|食べなくて)/,emo:'proud',s1:['……タベナクテ、ヘイキ、デス。'],s2:['食べなくても平気なのです。深海では、次の食事がいつ来るか分かりませんから。','体の中に、食べたものを長くためておけます。だから急ぎません。','お腹が減っていないだけです。……食わず嫌いではありません。たぶん。'],more:['ワタクシどもは動かないので、ほとんどお腹が減りません。省エネです。','鳥羽の親戚は、五年以上食べませんでした。ワタクシもいつか、それを超えたいものです。']},
  {k:'q_band2',re:/ハチマキ|はちまき|鉢巻/,charaOnly:1,emo:'proud',s1:['……キアイ、デス。'],s2:['これは気合いです。深海の男のたしなみです。','似合うでしょう。脱皮しても、これだけは外しません。','ハチマキを締めると、背筋が伸びます。……背筋はありませんが。'],no:['ハチマキ？ なんのことでしょう。']},
@@ -2323,7 +2323,7 @@ const TI=[
  {k:'sorry',re:/ごめん|すまん|すみません|申し訳/,emo:'neutral',trust:1,s1:['……ユルシマス。'],s2:['……許します。今回だけですよ。','謝るのでしたら、水でも替えていただけますか。'],s3:['深海は広いです。そのくらい、どうということはありません。']},
  {k:'thanks',re:/ありがと|サンキュ|感謝/,emo:'happy',trust:.5,s1:['……ン。'],s2:['お礼など結構です。……水を替えていただければ、それで十分です。','ふん。どういたしまして、です。']},
  {k:'laugh',re:/(笑|ｗ|w{2,}|草|ははは|あはは|ふふ|wwww)/,emo:'neutral',s1:['……？'],s2:['何がおかしいのですか。','笑っていますね。……ワタクシの顔に何かついていますか。','楽しそうで何よりです。']},
- // ---- questions about グソク
+ // ---- questions about グソっ君
  {k:'q_age',re:/(何歳|なんさい|年齢|歳はいくつ|何才|生まれて何日)/,s1:['……{days}ニチ、デス。'],s2:['生まれて{days}日です。脱皮は{molts}回です。','歳など数えておりません。ですが、生まれて{days}日目です。']},
  {k:'q_size',re:/(大きさ|サイズ|体長|何センチ|何ミリ|でかく|大きく)/,s1:['……{mm}ミリ、デス。'],s2:['{mm}ミリです。成体まで、あと{left}回の脱皮です。','いまは{mm}ミリです。そのうち{n}の手のひらより大きくなります。']},
  {k:'q_hungry',re:/(お腹|おなか|腹).*[?？]$|(はらへ|腹減).*[?？]$/,dyn:()=>S.hunger>60?['……お腹が空いた、かもしれません。アジでも結構です。','食事の話はおやめください。……持ってきてくださるなら別ですが。']:['ワタクシの仲間は五年、何も食べませんでした。まだ平気です。','食べることに執着するのは、陸の悪い癖です。'],s1:['……ハラ、ヘッテマセン。']},
@@ -2339,8 +2339,8 @@ const TI=[
  {k:'q_molt',re:/(脱皮|だっぴ|殻.*脱)/,s1:['……ヌギマス。オオキクナリマス。'],s2:['脱皮は二回に分けます。後ろ半分、それから前半分です。','脱いだ殻は食べます。カルシウムがもったいないですから。','成体まで、あと{left}回です。'],more:['脱皮の前は、腹に白いカルシウムがたまります。新しい殻の材料です。','脱いだあとはしばらく柔らかいです。そのときは、そっとしておいてください。']},
  {k:'q_eye',re:/(目|眼)(が|は|って)|視力|見えてる/,s1:['……メ、オオキイ、デス。'],s2:['ワタクシの眼は、小さな眼がたくさん集まった複眼です。','暗い場所に強い眼です。光にはめっぽう弱いのです。'],more:['赤い光は、ワタクシどもにはほとんど見えません。ですから赤色灯なら平気なのです。']},
  {k:'q_legs',re:/(足|脚|あし)(が|は|って|の数|何本)/,s1:['……アシ、イッパイ、デス。'],s2:['脚は七対、十四本です。生まれたときは六対しかありませんでした。','前の三対はものをつかみます。後ろは歩く用です。']},
- {k:'q_name',re:/(名前|なまえ).*(由来|意味|なんで|なぜ)|(グソク|ぐそく)って(何|なに|どういう)/,s1:['……グソク、デス。'],s2:['グソクは「具足」。鎧のことです。この甲羅を見ればお分かりでしょう。'],more:['昔の武士の鎧に似ているから、そう呼ばれるようになったそうです。']},
- {k:'q_whoami',re:/(あなた|きみ|君|おまえ|お前).*(名前|誰|だれ)|名前(は|を)(教えて|何)|^(名前|なまえ)(は|を)?[?？]*$|^(誰|だれ)[?？]*$/,s1:['……グソク、デス。'],s2:['ワタクシはグソクです。オオグソクムシのグソク。そのままでしょう。']},
+ {k:'q_name',re:/(名前|なまえ).*(由来|意味|なんで|なぜ)|(グソク|ぐそく|グソっ君|グソっくん)って(何|なに|どういう)/,s1:['……グソっ君、デス。'],s2:['グソっ君は「具足」。鎧のことです。この甲羅を見ればお分かりでしょう。'],more:['昔の武士の鎧に似ているから、そう呼ばれるようになったそうです。']},
+ {k:'q_whoami',re:/(あなた|きみ|君|おまえ|お前).*(名前|誰|だれ)|名前(は|を)(教えて|何)|^(名前|なまえ)(は|を)?[?？]*$|^(誰|だれ)[?？]*$/,s1:['……グソっ君、デス。'],s2:['ワタクシはグソっ君です。オオグソクムシのグソっ君。そのままでしょう。']},
  {k:'q_band',re:/ハチマキ|はちまき|鉢巻/,charaOnly:1,s1:['……キアイ、デス。'],s2:['これは気合いです。深海の男のたしなみです。','脱皮しても、これだけは外しません。'],no:['ハチマキ？ なんのことでしょう。']},
  {k:'q_mate',re:/(ヌタ|ゲン|ヌタウナギ|ゲンゲ|同居|友達|ともだち|仲間)/,dyn:()=>S.mate?[`${S.mate.name}ですか。……悪い方ではありません。`,`${S.mate.name}とは、まあまあうまくやっています。`,`${S.mate.name}はしゃべりませんが、聞き上手です。`]:['友達ですか？ ……水槽にはワタクシしかおりません。','仲間は深海にたくさんいます。会うことはありませんが。'],s1:['……トモダチ、デスカ？']},
  {k:'q_dream',re:/(夢|ゆめ)/,dyn:()=>S.dreams?['鯨の夢を見ました。仲間が、たくさん集まっていました。','夢の中の深海は、ここより広かったです。']:['夢ですか。……まだ見たことはありません。'],s1:['……ユメ、デスカ？']},
@@ -2376,7 +2376,7 @@ const TI=[
  {k:'what',re:/^(なに|何|なんで|どうして|なぜ)[?？]*$/,s1:['……？'],s2:['何でもありません。','お気になさらず。']},
 ];
 const TK_MORE=/^(もっと|それで|続き|つづき|詳しく|くわしく|へー|へえ|ほう|なるほど|ふーん|それから|他には|ほかには)/;
-const TK_STOP=new Set(['こんにちは','ありがとう','グソク','オオグソクムシ','ワシ','あなた','キミ','ボク','今日','明日','昨日','自分','本当','ホント','感じ','時間','人間','仕事']);
+const TK_STOP=new Set(['こんにちは','ありがとう','グソっ君','オオグソクムシ','ワシ','あなた','キミ','ボク','今日','明日','昨日','自分','本当','ホント','感じ','時間','人間','仕事']);
 /* learn facts about the keeper from what they say */
 function tkLearn(t){
   const clean=v=>cleanAnswer(v).replace(/^(は|が|の)/,'').replace(/[。！!？?]+$/,'').slice(0,20);
@@ -2425,7 +2425,7 @@ function localReplyBase(text){
   // repeated message
   if(t===TK.lastUser&&now-TK.lastAt<120000){TK.lastAt=now;return st===0?out('（同じことを言われて、触角をかしげた）','curious'):out(pickR(st===1?['……ソレ、キキマシタ。']:['それは先ほども伺いました。','同じことを二回おっしゃるのは、陸の流行りですか。']),'annoyed')}
   TK.lastUser=t;TK.lastAt=now;
-  // answer to a question グソク asked
+  // answer to a question グソっ君 asked
   if(S.pending){
     const p=S.pending;S.pending=null;const a=cleanAnswer(t)||t.slice(0,20);
     Daily.hit('answer');if(p.startsWith('今日:'))return Daily.answer(p,a,t,out);
@@ -2500,7 +2500,7 @@ function tkFlavor(t,emo){
 }
 
 /* =====================================================================
-   DARK SIDE — bullying slowly turns a friendly グソク dark; kindness brings it back
+   DARK SIDE — bullying slowly turns a friendly グソっ君 dark; kindness brings it back
    ===================================================================== */
 const DARKC=new THREE.Color(.13,.06,.09);
 function addDark(d){if(!S)return;if(d>0)S.lastBully=Date.now();S.dark=clamp((S.dark||0)+d,0,100)}
@@ -2666,7 +2666,7 @@ function syncLampUI(){const L=LIGHTS[S.light];$('lamplabel').textContent=L.label
 const Daily={pre0:null,sess:0,teased:false,inited:false,afterAway:null,
   TASKS:{
     talk:{label:'話しかける',goal:3},
-    answer:{label:'グソクの質問に答える',goal:1,ok:()=>S.stage>=1},
+    answer:{label:'グソっ君の質問に答える',goal:1,ok:()=>S.stage>=1},
     water:{label:'水換えをする',goal:1,ok:()=>S.water<92},
     temp:{label:'水温を 9〜11℃ に整える',goal:1,ok:()=>Math.abs(S.temp-10)>1.05,check:()=>Math.abs(S.temp-10)<=1},
     red:{label:'赤色灯にして目を休ませる',goal:1,ok:()=>S.light!=='red',check:()=>S.light==='red'},
@@ -2714,7 +2714,7 @@ const Daily={pre0:null,sess:0,teased:false,inited:false,afterAway:null,
         if(h>=1){if(hr>=5&&hr<10)line+=cow?'朝の牛のお世話は済みましたか。':'朝は、陸の生き物もお忙しいようですね。';else if(hr>=17&&hr<22&&cow)line+='今日も牛は、よく食べましたか。'}
         say(line,{emo:'curious'});
       }else if(st===1)say(h>=20?'……キマシタ。……ズット、マッテマシタ。':'……キマシタ。',{emo:'curious'});
-      else say('（小さなグソクが、砂の上でじっとしている）',{narr:true});
+      else say('（小さなグソっ君が、砂の上でじっとしている）',{narr:true});
       this.followUp();this.backupNag();
     };
     const a=this.awayItems();if(a){this.afterAway=go;this.showAway(a,this.taskLine())}else go();
@@ -2794,7 +2794,7 @@ const Daily={pre0:null,sess:0,teased:false,inited:false,afterAway:null,
     const sk=D.streak,st=S.stage;
     const M={3:'三日続けて来ましたね。……悪くありません。',7:'一週間、毎日来ましたね。……ワタクシは数えていませんよ。',14:'二週間です。あなたの匂いを、覚えてしまいました。',30:'ひと月、毎日です。……あなたは変わった方です。ありがとうございます。',50:'五十日。深海の時間で言えば、一瞬ですが……悪くない一瞬です。',100:'百日です。……あなたがいない深海は、もう思い出せません。'};
     setTimeout(()=>{if(Life.asleep)return;
-      if(st===0)say('（グソクが、小さく脚をばたつかせた。うれしいのかもしれない）',{narr:true});
+      if(st===0)say('（グソっ君が、小さく脚をばたつかせた。うれしいのかもしれない）',{narr:true});
       else if(st===1)say(sk>=3?'……マイニチ、キテクレマス。……ウレシイ、デス。':'……アリガト、ゴザイマス。',{emo:'happy'});
       else say(M[sk]||pickR(['……今日も、来ましたね。','……ふむ。今日のお世話は、合格にしておきます。']),{emo:'happy'});
       if(st>=1){C.wave=2.6;C.waveDur=2.6}
@@ -2924,8 +2924,8 @@ const VISITORS=[
   {k:'mendako',n:'メンダコ',lure:'urchin',w:1,d:'耳のようなヒレで、ふわふわ泳ぐ小さなタコ。',hint:'いつでも来ることがあります。',ok:()=>true},
   {k:'hotaru',n:'ホタルイカの群れ',lure:'float',w:1,d:'青い光を灯しながら泳ぐ、小さなイカたち。',hint:'白色灯ではない時に来ます。',ok:()=>S.light!=='white'},
   {k:'angler',n:'チョウチンアンコウ',lure:'coin',w:.8,d:'頭の先の光で、獲物をおびき寄せる魚。',hint:'赤色灯か消灯の時に来ます。',ok:()=>S.light!=='white'},
-  {k:'squid',n:'大きなイカの腕',lure:'anchor',w:.7,d:'とても大きなイカの、腕が一本だけ。本体は見えません。',hint:'グソクが幼体になってから来ます。',ok:()=>S.stage>=1},
-  {k:'oarfish',n:'リュウグウノツカイ',lure:'earbone',w:.3,d:'銀色の体に赤いヒレ。めったに姿を見せない、細長い魚。',hint:'グソクが亜成体になってから、まれに来ます。',ok:()=>S.stage>=2}
+  {k:'squid',n:'大きなイカの腕',lure:'anchor',w:.7,d:'とても大きなイカの、腕が一本だけ。本体は見えません。',hint:'グソっ君が幼体になってから来ます。',ok:()=>S.stage>=1},
+  {k:'oarfish',n:'リュウグウノツカイ',lure:'earbone',w:.3,d:'銀色の体に赤いヒレ。めったに姿を見せない、細長い魚。',hint:'グソっ君が亜成体になってから、まれに来ます。',ok:()=>S.stage>=2}
 ];
 const MORPHS={
   std:{n:'ふつう',d:'淡いクリーム色の、いちばん基本の姿です。',hint:''},
@@ -2982,7 +2982,7 @@ const World={acc:0,vis:null,deco:null,lastM:undefined,
   dig(){
     const T=Col.pick(),none=!Object.keys(Col.c.items).length,first=Col.addItem(T.k);
     puff(C.pos.clone(),10);shape&&shape(1,0);
-    say('（グソクが砂を掘って、何かを見つけました。……'+T.n+'です）',{narr:true});
+    say('（グソっ君が砂を掘って、何かを見つけました。……'+T.n+'です）',{narr:true});
     if(S.stage>=2)setTimeout(()=>say(pickR(['……拾いました。差し上げます。','砂の中に、こんなものがございました。']),{emo:'happy'}),400);
     if(none)say('（見つけた物は「その他 → 図鑑」にしまわれます。水槽に飾ることもできます）',{narr:true});
     toast((first?'新しい宝物：':'宝物：')+T.n);
@@ -3078,7 +3078,7 @@ const Gen={
     S.genSaid=true;const p=S.parent;
     if(p.eggs){S.kind=p.kind;S.bold=p.bold}
     save();
-    setTimeout(()=>say(p.eggs?'（先代のグソクが残した卵から生まれた、第'+S.gen+'世代です。どこか先代の面影があります）':'（第'+S.gen+'世代のグソクです）',{narr:true}),2500);
+    setTimeout(()=>say(p.eggs?'（先代のグソっ君が残した卵から生まれた、第'+S.gen+'世代です。どこか先代の面影があります）':'（第'+S.gen+'世代のグソっ君です）',{narr:true}),2500);
   }
 };
 
@@ -3096,7 +3096,7 @@ const Zukan={tabK:'items',
     if(this.tabK==='items'){
       sum('見つけた宝物　'+Object.keys(c.items).length+' / '+TREASURES.length+'　・　ひとつ選んで水槽に飾れます。飾った宝物に惹かれて来るお客さまもいます。');
       TREASURES.forEach(T=>{const n=c.items[T.k];
-        if(!n){grid.appendChild(this.card('<b>？？？</b><span>'+(T.gift?'お客さまが残していくことがあります。':'グソクが砂から掘り出すことがあります。')+'</span>','unk'));return}
+        if(!n){grid.appendChild(this.card('<b>？？？</b><span>'+(T.gift?'お客さまが残していくことがあります。':'グソっ君が砂から掘り出すことがあります。')+'</span>','unk'));return}
         const d=this.card('<b>'+T.n+'</b><span class="r">'+'★'.repeat(T.r)+'</span>　<span class="r">×'+n+'</span><br><span>'+T.d+'</span><br><button type="button">'+(c.deco===T.k?'飾っています（外す）':'水槽に飾る')+'</button>',c.deco===T.k?'deco':'');
         d.querySelector('button').addEventListener('click',()=>{c.deco=c.deco===T.k?null:T.k;save();World.placeDeco();this.render();toast(c.deco?T.n+'を飾りました':'飾りを外しました')});grid.appendChild(d)});
     }else if(this.tabK==='vis'){
@@ -3108,7 +3108,7 @@ const Zukan={tabK:'items',
       Object.entries(MORPHS).forEach(([k,M])=>grid.appendChild(c.morphs[k]?this.card('<b>'+M.n+(S.morph===k||(!S.morph&&k==='std')?'　<span class="r">いまの姿</span>':'')+'</b><span>'+M.d+'</span>'):this.card('<b>？？？</b><span>'+M.hint+'</span>','unk')));
     }else{
       let gr=[];try{gr=JSON.parse(localStorage.getItem(GKEY)||'[]')}catch(e){}
-      sum('グソクの家系　'+(gr.length+1)+'代');
+      sum('グソっ君の家系　'+(gr.length+1)+'代');
       const row=(g,days,molts,mm,morph,pers,end)=>this.card('<b>第'+g+'世代</b><span>飼育'+days+'日・'+(molts+1)+'齢・'+mm+'mm<br>姿：'+((MORPHS[morph]||MORPHS.std).n)+'　性格：'+this.esc(pers)+'<br>'+end+'</span>');
       gr.forEach((r,i)=>grid.appendChild(row(r.gen||i+1,r.days,r.molts,r.mm,r.morph,r.pers,'死因：'+this.esc(r.cause))));
       grid.appendChild(row(S.gen||1,S.hatched?dayNo():0,S.molts||0,MMS[S.molts||0],S.morph,persLabel(),'<span class="r">いまの子</span>'));
@@ -3251,7 +3251,7 @@ function start(){
   started=true;C.wave=2.6;C.waveDur=2.6;
   $('title').classList.add('gone');setTimeout(()=>$('title').hidden=true,1300);
   if(S.health<=0){Life.dead=true;C.flip=1;let gr=[];try{gr=JSON.parse(localStorage.getItem(GKEY)||'[]')}catch(e){}if(gr.length)showMemorial(gr[gr.length-1]);return}
-  if(isNight()){Life.asleep=true;Life.sleepT=0;{const a=Daily.awayItems();if(a)Daily.showAway(a,Daily.taskLine())}say('（夜。グソクは眠っている。起こさないように、そっと見守ろう）',{narr:true});return}
+  if(isNight()){Life.asleep=true;Life.sleepT=0;{const a=Daily.awayItems();if(a)Daily.showAway(a,Daily.taskLine())}say('（夜。グソっ君は眠っている。起こさないように、そっと見守ろう）',{narr:true});return}
   const h=Math.round((Date.now()-S.last)/3600000);
   Daily.greet(h);
   $('say').focus({preventScroll:true});
