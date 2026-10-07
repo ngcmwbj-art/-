@@ -203,6 +203,22 @@ body.kbd .daily,body.kbd .dpanel,body.cine .daily,body.photo .daily{display:none
 .a2hs{font-size:12.5px;color:#ffc46b;line-height:1.7;margin:8px 0 0}
 .a2hs[hidden]{display:none}
 
+.zk-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.zk-tabs button{font-size:13px;padding:6px 12px}
+.zk-tabs button[aria-pressed="true"]{border-color:var(--glow);background:#16445e}
+.zk-sum{font-size:12px;color:var(--dim);line-height:1.7;margin:0 0 10px}
+.zk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.zk-card{border:1px solid var(--line);border-radius:4px;padding:9px 10px;font-size:12.5px;line-height:1.65;background:rgba(3,14,22,.5)}
+.zk-card b{display:block;font-size:14px;margin-bottom:2px}
+.zk-card.unk{color:var(--dim);border-style:dashed}
+.zk-card.deco{border-color:var(--glow)}
+.zk-card .r{color:#ffc46b;font-size:11px}
+.zk-card button{margin-top:8px;font-size:11.5px;padding:5px 9px}
+#itank{position:fixed;inset:0;z-index:21;cursor:pointer}
+#itank[hidden]{display:none}
+#it-clock{position:absolute;right:calc(env(safe-area-inset-right,0px) + 22px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);font-family:var(--f-data);font-size:22px;letter-spacing:.12em;color:rgba(220,234,242,.45)}
+body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibility:hidden}
+
 @media (max-width:640px){
   .brand h1{font-size:20px}
   .gauges{min-width:0;padding:8px 10px}
@@ -276,6 +292,8 @@ body.kbd .daily,body.kbd .dpanel,body.cine .daily,body.photo .daily{display:none
       <div class="pop" id="pop-more" hidden>
         <button type="button" id="m-diary">日記・思い出</button>
         <button type="button" id="m-photo">写真モード</button>
+        <button type="button" id="m-zukan">図鑑（宝物・来客・姿・家系）</button>
+        <button type="button" id="m-idle">置き水槽モード</button>
         <div class="note">同居生物</div>
         <button type="button" data-mate="hag">ヌタウナギと暮らす</button>
         <button type="button" data-mate="eel">ゲンゲと暮らす</button>
@@ -355,7 +373,13 @@ body.kbd .daily,body.kbd .dpanel,body.cine .daily,body.photo .daily{display:none
   <p id="bk-msg"></p>
   <button type="button" class="primary" id="bk-yes" hidden>このデータで上書きする</button>
 </div></div>
-<div class="modal" id="memorial" hidden><div class="sheet"><h3>グソク</h3><div id="mem-date"></div><dl id="mem-text"></dl><p style="font-size:13px;color:var(--dim);line-height:1.8;margin:0 0 18px">この子の記録は「日記 → 思い出」に残ります。</p><button type="button" class="primary" id="mem-new">新しい命を迎える</button></div></div>
+<div class="modal" id="zukan" hidden><div class="sheet" role="dialog" aria-labelledby="zk-title">
+  <header><h3 id="zk-title">図鑑</h3><button type="button" id="zk-close">閉じる</button></header>
+  <div class="zk-tabs" id="zk-tabs"><button type="button" data-t="items">宝物</button><button type="button" data-t="vis">来客</button><button type="button" data-t="morph">姿</button><button type="button" data-t="line">家系</button></div>
+  <div id="zk-body"></div>
+</div></div>
+<div id="itank" hidden><div id="it-clock"></div></div>
+<div class="modal" id="memorial" hidden><div class="sheet"><h3>グソク</h3><div id="mem-date"></div><dl id="mem-text"></dl><p id="mem-egg" hidden style="font-size:13.5px;line-height:1.8;color:#ffc46b;margin:0 0 10px">グソクは、卵を残していました。</p><p style="font-size:13px;color:var(--dim);line-height:1.8;margin:0 0 18px">この子の記録は「日記 → 思い出」に残ります。</p><button type="button" class="primary" id="mem-new">新しい命を迎える</button></div></div>
 <div id="toast"></div>
 <div id="fade"></div>
 <button type="button" id="skip" hidden>スキップ</button>
@@ -1177,7 +1201,7 @@ function poseIsopod(I,P,dt,time){
 }
 function yuru(t){
   if(!t||/^（/.test(t))return t;
-  t=t.replace(/ワシ/g,'ボク').replace(/オマエ/g,'キミ');
+  t=t.replace(/ワタクシ/g,'ボク').replace(/ワシ/g,'ボク').replace(/オマエ/g,'あなた');
   if(S&&S.stage>=1&&!/グソ[。！？…]*$/.test(t)&&Math.random()<.7)t=t.replace(/([^。！？…、])([。！？]?)$/,(m,a,b)=>a+'グソ'+(b||'。'));
   return t;
 }
@@ -1664,19 +1688,19 @@ function dayNo(){return Math.floor((Date.now()-S.born)/86400000)+1}
    ===================================================================== */
 const pickR=a=>a[Math.floor(Math.random()*a.length)];
 const QUESTIONS=[
-  {key:'名前',stage:1,q:['……オマエ、ナマエ。','オマエ、ナマエハ。']},
-  {key:'仕事',stage:2,q:['オマエは普段、何をして生きている。']},
-  {key:'好物',stage:2,q:['オマエの好物は何だ。ワシは死んで三日目の魚だ。']},
-  {key:'誕生日',stage:2,q:['オマエが生まれたのは、いつだ。']},
-  {key:'住まい',stage:2,q:['オマエの住む場所は、深いか。','オマエ、どこに住んでいる。']},
-  {key:'悩み',stage:2,q:['……最近、何か困っていることはあるか。']},
-  {key:'夢',stage:3,q:['オマエの夢は何だ。深海では、夢は見ない。']},
-  {key:'家族',stage:2,q:['オマエには、群れ……いや、家族はいるのか。']},
-  {key:'休日',stage:2,q:['休みの日は、何をしている。']},
-  {key:'季節',stage:2,q:['陸には季節というものがあるらしいな。オマエはどれが好きだ。']},
-  {key:'牛の数',stage:2,cond:()=>/牛|肥育|畜産|牧場|酪農/.test(mem('仕事')||''),q:['オマエの牛は、何頭いる。']},
-  {key:'手のかかる牛',stage:3,cond:()=>/牛|肥育|畜産|牧場|酪農/.test(mem('仕事')||''),q:['一番手のかかる牛は、どんなやつだ。']},
-  {key:'子どもの頃',stage:3,q:['オマエは小さい頃、何になりたかった。']}
+  {key:'名前',stage:1,q:['……アナタ、オナマエ、ハ？','アナタノ、オナマエハ。']},
+  {key:'仕事',stage:2,q:['あなたは普段、何をして生きていらっしゃるのですか。']},
+  {key:'好物',stage:2,q:['あなたの好物は何ですか。ワタクシは死んで三日目の魚です。']},
+  {key:'誕生日',stage:2,q:['あなたがお生まれになったのは、いつですか。']},
+  {key:'住まい',stage:2,q:['あなたのお住まいは、深いですか。','あなたは、どちらにお住まいですか。']},
+  {key:'悩み',stage:2,q:['……最近、何かお困りのことはありますか。']},
+  {key:'夢',stage:3,q:['あなたの夢は何ですか。深海では、夢は見ません。']},
+  {key:'家族',stage:2,q:['あなたには、群れ……いえ、ご家族はいらっしゃいますか。']},
+  {key:'休日',stage:2,q:['お休みの日は、何をなさっていますか。']},
+  {key:'季節',stage:2,q:['陸には季節というものがあるそうですね。あなたはどれがお好きですか。']},
+  {key:'牛の数',stage:2,cond:()=>/牛|肥育|畜産|牧場|酪農/.test(mem('仕事')||''),q:['あなたの牛は、何頭いますか。']},
+  {key:'手のかかる牛',stage:3,cond:()=>/牛|肥育|畜産|牧場|酪農/.test(mem('仕事')||''),q:['一番手のかかる牛は、どんな子ですか。']},
+  {key:'子どもの頃',stage:3,q:['あなたは小さい頃、何になりたかったのですか。']}
 ];
 function cleanAnswer(t){return t.replace(/^(わたし|私|僕|ぼく|俺|おれ|うち|自分)(の(名前|なまえ|仕事|好物))?(は|が)?/,'').replace(/(です|だよ|だ|でーす|っす|と申します|といいます|って言います|だね|かな)[。！!]*$/,'').trim().slice(0,30)}
 function localReply(text){
@@ -1686,48 +1710,48 @@ function localReply(text){
   if(S.pending){
     const p=S.pending;S.pending=null;const a=cleanAnswer(t)||t.slice(0,20);remember(p+'：'+a);
     const ans={
-      '名前':st===1?[`${a}……。オボエタ。`,`${a}。ヘンナ、ナマエ。`]:[`${a}か。覚えておいてやろう。`,`${a}。……まあ、呼べなくはない名だ。`],
-      '仕事':/牛|肥育|畜産|牧場|酪農/.test(t)?[`牛を育てているのか。あいつらは胃が四つある。ワシは一つで五年もつがな。`,`肥育か。食わせて太らせる商売だな。……ワシには向かん。`]:[`${a}か。陸の生き物は忙しいな。`,`ふむ、${a}。深海には無い仕事だ。`],
-      '好物':[`${a}か。腐らせてから食うと旨いぞ。`,`${a}……。ワシは遠慮しておく。`],
-      '誕生日':[`${a}か。覚えた。その日は脱皮でもして祝ってやる。`],
-      '住まい':[`${a}か。水深は何メートルだ。……冗談だ。`],
-      '悩み':[`……そうか。深海では、悩みも水圧で潰れる。オマエも少し沈んでみろ。`,`${a}、か。焦るな。ワシらは何年も食わずに待てる。`],
-      '夢':[`${a}。……悪くない。光の届かない場所でも、夢は育つ。`],
-      '家族':[`${a}か。……大事にしろ。ワシは母の顔を、ほとんど覚えていない。`,`${a}。群れで暮らすのは、にぎやかでいいな。`],
-      '休日':[`${a}か。ワシの休日は、毎日だ。`,`${a}。……いい過ごし方だ。`],
-      '季節':[`${a}か。深海には季節がない。……少し、うらやましい。`],
-      '牛の数':[`${a}……。それだけの口を、毎日食わせているのか。ワシなら目が回る。`],
-      '手のかかる牛':[`${a}か。どこにでも、手のかかるやつはいるな。……ワシのことではないぞ。`],
-      '子どもの頃':[`${a}か。……それで、オマエはなれたのか。`]
-    }[p]||['そうか。'];
+      '名前':st===1?[`${a}さん……。オボエマシタ。`,`${a}さん。……カワッタ、オナマエ、デス。`]:[`${a}さんですか。覚えておきましょう。`,`${a}さん。……まあ、呼べなくはないお名前です。`],
+      '仕事':/牛|肥育|畜産|牧場|酪農/.test(t)?[`牛を育てていらっしゃるのですか。あの方々は胃が四つあります。ワタクシは一つで五年もちますが。`,`肥育ですか。食べさせて太らせるお仕事ですね。……ワタクシには向きません。`]:[`${a}ですか。陸の生き物はお忙しいですね。`,`ふむ、${a}。深海には無いお仕事です。`],
+      '好物':[`${a}ですか。腐らせてから食べると美味しいですよ。`,`${a}……。ワタクシは遠慮しておきます。`],
+      '誕生日':[`${a}ですか。覚えました。その日は脱皮でもしてお祝いしましょう。`],
+      '住まい':[`${a}ですか。水深は何メートルですか。……冗談です。`],
+      '悩み':[`……そうですか。深海では、悩みも水圧で潰れます。あなたも少し沈んでみてはいかがですか。`,`${a}、ですか。焦らないでください。ワタクシどもは何年も食べずに待てます。`],
+      '夢':[`${a}。……悪くありません。光の届かない場所でも、夢は育ちます。`],
+      '家族':[`${a}ですか。……大事になさってください。ワタクシは母の顔を、ほとんど覚えていません。`,`${a}。群れで暮らすのは、にぎやかでよろしいですね。`],
+      '休日':[`${a}ですか。ワタクシの休日は、毎日です。`,`${a}。……良い過ごし方です。`],
+      '季節':[`${a}ですか。深海には季節がありません。……少し、うらやましいです。`],
+      '牛の数':[`${a}……。それだけの口を、毎日食べさせているのですか。ワタクシなら目が回ります。`],
+      '手のかかる牛':[`${a}ですか。どこにでも、手のかかる方はいるものですね。……ワタクシのことではありませんよ。`],
+      '子どもの頃':[`${a}ですか。……それで、あなたはなれたのですか。`]
+    }[p]||['そうですか。'];
     return R(ans,'curious');
   }
   const has=(re)=>re.test(t);
   if(st===1){
-    if(has(/こんにち|おはよ|こんばん|やあ|はじめまして|ハロー/))return R(['……ヨウ。','……ナンダ。','オマエ、ダレ。'],'curious');
-    if(has(/ごはん|餌|えさ|腹|食べ|たべ/))return R(['ハラ……ヘッテ、ナイ。','メシ……イラン。タブン。']);
-    if(has(/かわい|可愛|すき|好き/))return R(['……ソウカ。','……（照れているのかもしれない）'],'happy');
-    if(has(/きも|キモ|気持ち悪|虫|ダンゴ/))return R(['……ムシ、チガウ。','ダンゴ、チガウ。'],'annoyed');
-    return R(['……ン。','……ナニ。','……ワカラン。',`……${t.slice(0,6)}。`]);
+    if(has(/こんにち|おはよ|こんばん|やあ|はじめまして|ハロー/))return R(['……ドウモ。','……ナンデスカ。','アナタ、ダレ、デスカ。'],'curious');
+    if(has(/ごはん|餌|えさ|腹|食べ|たべ/))return R(['ハラ……ヘッテ、マセン。','ゴハン……イリマセン。タブン。']);
+    if(has(/かわい|可愛|すき|好き/))return R(['……ソウデスカ。','……（照れているのかもしれない）'],'happy');
+    if(has(/きも|キモ|気持ち悪|虫|ダンゴ/))return R(['……ムシ、チガイマス。','ダンゴ、チガイマス。'],'annoyed');
+    return R(['……ン。','……ナンデショウ。','……ワカリマセン。',`……${t.slice(0,6)}。`]);
   }
-  const call=name?name:'オマエ';
-  if(has(/こんにち|おはよ|こんばん|やあ|ハロー/)){const h=new Date().getHours();return R(h<5?[`……${call}、こんな時間に起きているのか。深海の住人か。`]:h<11?['朝か。深海に朝はない。',`${call}、今日も陸は明るいか。`]:h<18?['……なんだ。ワシは今、考え事をしていた。','ああ。……で、何の用だ。']:['夜か。ようやく落ち着く時間だな。'],'curious')}
-  if(has(/はじめまして/))return R(['はじめまして、ではない。ワシはずっとここにいた。']);
-  if(has(/牛|肥育|和牛|F1|ホル|黒毛|畜産|牧場|牛舎/))return R(['牛か。あれは陸の、でかくてやわらかいやつだろう。',`牛はよく食うらしいな。ワシは食わない。${call}とワシ、どっちが偉いと思う。`,'牛の値段が上がったり下がったり……陸は大変だな。深海は変わらん。','F1とは何だ。……二つの血が混ざると強くなる、か。ワシらも似たようなものだ。'],'curious');
-  if(has(/ごはん|餌|えさ|腹|食べ|たべ|おなか/))return S.hunger>60?R(['……腹が減った、かもしれん。アジでもいい。','メシの話をするな。……持ってきてくれるなら別だ。']):R(['ワシの仲間は五年、何も食わなかった。ワシもまだ平気だ。','食うことに執着するのは陸の悪い癖だ。'],'proud');
-  if(has(/好き|すき|かわいい|可愛|愛して/))return R(['……そういうことは軽々しく言うな。甲羅が熱くなる。','ふん。ワシのどこが。……まあ、眼は自慢だ。'],'happy');
-  if(has(/きも|キモ|気持ち悪|グロ|こわ|怖/))return R(['見た目で判断するな。ワシは深海の掃除屋だ。',`ダンゴムシの親戚だと思えば可愛く見えるだろう。……見えないか。`],'annoyed');
-  if(has(/ダンゴムシ|虫|むし/))return R(['虫ではない。甲殻類だ。エビやカニの仲間だ。','ダンゴムシとは遠い親戚だ。あいつらは陸に上がった変わり者だ。'],'annoyed');
-  if(has(/疲れ|つかれ|眠い|ねむ|しんど|つらい|辛い|だるい/))return R([`${call}、少し休め。深海では動かないことが一番の生存戦略だ。`,'無理をするな。ワシなど一日中じっとしている。それでも生きている。'],'sad');
-  if(has(/深海|海|水深|水圧/))return R(['ワシがいたのは水深三百八十メートル。光は届かない。静かでいい場所だ。','深海には季節がない。上から死骸が降ってくるのを待つだけだ。それで十分だ。']);
-  if(has(/何歳|年齢|とし|いくつ/))return R(['歳など数えていない。脱皮の回数なら覚えている。……忘れた。']);
-  if(has(/名前|なまえ/)&&has(/あなた|きみ|君|おまえ|お前|グソク/))return R(['ワシはグソクだ。オオグソクムシのグソク。そのままだろう。']);
-  if(has(/ありがと|サンキュ|感謝/))return R(['礼などいらん。……水を替えてくれたら、それでいい。'],'happy');
-  if(has(/さようなら|またね|おやすみ|バイバイ|じゃあね/))return R(['行け。ワシはここにいる。どうせ動かん。','……また来い。来なくても、別に困らんが。'],'sad');
-  if(has(/[?？]$|なに|何|どう|なぜ|なんで/))return R(['難しいことを聞くな。ワシの脳は小さい。','答えは砂の中だ。自分で掘れ。','……深海なら、その問いは百年かけて考える。']);
-  if(name&&has(new RegExp(name)))return R([`${name}の話か。オマエ自身の話は、嫌いじゃない。`]);
+  const call=san(name)||'あなた';
+  if(has(/こんにち|おはよ|こんばん|やあ|ハロー/)){const h=new Date().getHours();return R(h<5?[`……${call}、こんな時間に起きていらっしゃるのですか。深海の住人ですか。`]:h<11?['朝ですか。深海に朝はありません。',`${call}、今日も陸は明るいですか。`]:h<18?['……なんでしょう。ワタクシは今、考え事をしておりました。','ああ。……で、何のご用ですか。']:['夜ですか。ようやく落ち着く時間ですね。'],'curious')}
+  if(has(/はじめまして/))return R(['はじめまして、ではありません。ワタクシはずっとここにおりました。']);
+  if(has(/牛|肥育|和牛|F1|ホル|黒毛|畜産|牧場|牛舎/))return R(['牛ですか。あれは陸の、大きくてやわらかい方々でしょう。',`牛はよく食べるそうですね。ワタクシは食べません。${call}とワタクシ、どちらが偉いと思いますか。`,'牛の値段が上がったり下がったり……陸は大変ですね。深海は変わりません。','F1とは何ですか。……二つの血が混ざると強くなる、ですか。ワタクシどもも似たようなものです。'],'curious');
+  if(has(/ごはん|餌|えさ|腹|食べ|たべ|おなか/))return S.hunger>60?R(['……お腹が空いた、かもしれません。アジでも結構です。','食事の話はおやめください。……持ってきてくださるなら別ですが。']):R(['ワタクシの仲間は五年、何も食べませんでした。ワタクシもまだ平気です。','食べることに執着するのは陸の悪い癖です。'],'proud');
+  if(has(/好き|すき|かわいい|可愛|愛して/))return R(['……そういうことは軽々しくおっしゃらないでください。甲羅が熱くなります。','ふん。ワタクシのどこが。……まあ、眼は自慢です。'],'happy');
+  if(has(/きも|キモ|気持ち悪|グロ|こわ|怖/))return R(['見た目で判断なさらないでください。ワタクシは深海の掃除屋です。',`ダンゴムシの親戚だと思えば可愛く見えるでしょう。……見えませんか。`],'annoyed');
+  if(has(/ダンゴムシ|虫|むし/))return R(['虫ではありません。甲殻類です。エビやカニの仲間です。','ダンゴムシとは遠い親戚です。あの方々は陸に上がった変わり者です。'],'annoyed');
+  if(has(/疲れ|つかれ|眠い|ねむ|しんど|つらい|辛い|だるい/))return R([`${call}、少しお休みください。深海では動かないことが一番の生存戦略です。`,'無理をなさらないでください。ワタクシなど一日中じっとしています。それでも生きています。'],'sad');
+  if(has(/深海|海|水深|水圧/))return R(['ワタクシがいたのは水深三百八十メートル。光は届きません。静かで良い場所です。','深海には季節がありません。上から死骸が降ってくるのを待つだけです。それで十分です。']);
+  if(has(/何歳|年齢|とし|いくつ/))return R(['歳など数えておりません。脱皮の回数なら覚えています。……忘れました。']);
+  if(has(/名前|なまえ/)&&has(/あなた|きみ|君|おまえ|お前|グソク/))return R(['ワタクシはグソクです。オオグソクムシのグソク。そのままでしょう。']);
+  if(has(/ありがと|サンキュ|感謝/))return R(['お礼など結構です。……水を替えていただければ、それで十分です。'],'happy');
+  if(has(/さようなら|またね|おやすみ|バイバイ|じゃあね/))return R(['どうぞ、お行きください。ワタクシはここにおります。どうせ動きません。','……また来てください。来なくても、別に困りませんが。'],'sad');
+  if(has(/[?？]$|なに|何|どう|なぜ|なんで/))return R(['難しいことを聞かないでください。ワタクシの脳は小さいのです。','答えは砂の中です。ご自分で掘ってください。','……深海なら、その問いは百年かけて考えます。']);
+  if(name&&has(new RegExp(name)))return R([`${name}さんのお話ですか。あなたご自身のお話は、嫌いではありません。`]);
   const echo=t.replace(/[。！？!?\s]/g,'').slice(0,10);
-  return R([`『${echo}』か……。`, '陸の言葉は、たまによくわからん。','ふむ。続けろ。','……（触角をゆっくり動かして考えている）',`${call}は、よくしゃべるな。`],'neutral');
+  return R([`『${echo}』ですか……。`, '陸の言葉は、たまによくわかりません。','ふむ。続けてください。','……（触角をゆっくり動かして考えている）',`${call}は、よくお話しになりますね。`],'neutral');
 }
 
 /* =====================================================================
@@ -1739,15 +1763,15 @@ function getSample(){return Promise.resolve(null)} // no external AI: the built-
 function aiLabel(){$('aistate').textContent='グソク語エンジン'}
 const STAGE_RULE=[
   '段階0「マンカ」（生まれたて）：まだ言葉を話さない。replyは「……」や「カチ、カチ。」などの音、または（触角をぴくりと動かした）のような括弧つきの動作描写だけ。',
-  '段階1「幼体」：カタコトの日本語。カタカナ中心で12文字以内。',
-  '段階2「亜成体」：普通に話す。一人称「ワシ」、相手は「オマエ」か名前。皮肉屋で尊大だが根は優しい。60文字以内。',
-  '段階3「成体」：何度もの脱皮を経て達観した。深海の時間感覚で、静かで哲学的。ときどき皮肉。80文字以内。'
+  '段階1「幼体」：カタコトの日本語。カタカナ中心で12文字以内。語尾は「デス」「マス」などカタコトの丁寧語にする。',
+  '段階2「亜成体」：普通に話す。です・ます調の丁寧語。一人称「ワタクシ」、相手は「あなた」か名前に「さん」をつけて呼ぶ。皮肉屋で慇懃だが根は優しい。60文字以内。',
+  '段階3「成体」：何度もの脱皮を経て達観した。深海の時間感覚で、静かで哲学的。です・ます調の丁寧語で話す。ときどき皮肉。80文字以内。'
 ];
 function buildPrompt(userText){
   const tank=`水温${S.temp.toFixed(1)}℃（快適8〜12℃）／水質${Math.round(S.water)}%／空腹${Math.round(S.hunger)}／機嫌${Math.round(S.mood)}／信頼${Math.round(S.trust)}／照明:${LIGHTS[S.light].label}（白色灯は眩しくて嫌い、赤色灯は見えないので平気、消灯が好き）／飼育${dayNo()}日目／現在時刻${new Date().getHours()}時／絶食${fastDays()}日目（最長${S.fastBest||0}日、絶食を誇りにしている）／体力${Math.round(S.health)}${S.health<40?'（弱っている）':''}${S.mate?`／同居：${Mate.KINDS[S.mate.kind].label}の「${S.mate.name}」（仲良し度${Math.round(S.mate.bond)}）`:''}${Trouble.cur?'／いま水槽でトラブル発生中：'+Trouble.T[Trouble.cur.type].msg:''}`;
   const persona=`性格：${persLabel()}（${persHint()}）。この性格は飼い主の接し方で育ったもの。口調に反映させる。`;
   const hist=S.log.slice(-12).map(l=>(l.r==='u'?'飼い主：':'グソク：')+l.t).join('\n')||'（まだない）';
-  return `あなたは育成ゲーム「グソク」の主人公、水槽で飼われているオオグソクムシ（Bathynomus doederleinii）の「グソク」を演じます。この水槽で母親の育房から生まれ、飼い主に見守られて育った。いまは${STAGES[S.stage]}で体長約${MMS[S.molts]}mm、脱皮${S.molts}回（成体まで9回）。${Molt.phase?'いまは脱皮の最中で、体がだるく、殻が柔らかい。':''}見た目は、頭に白いハチマキを巻いて二本足で立つ、まるっこいゆるキャラ。一人称は「ボク」、相手は「キミ」か名前で呼び、語尾にときどき「グソ」がつく。ほんわかマイペースで、深海育ちらしくちょっとだけ毒舌。でも飼い主のことを少しずつ覚えて心を開いていく。※下の段階ルールに「ワシ」「オマエ」とあっても、一人称は「ボク」、二人称は「キミ」にすること。
+  return `あなたは育成ゲーム「グソク」の主人公、水槽で飼われているオオグソクムシ（Bathynomus doederleinii）の「グソク」を演じます。この水槽で母親の育房から生まれ、飼い主に見守られて育った。いまは${STAGES[S.stage]}で体長約${MMS[S.molts]}mm、脱皮${S.molts}回（成体まで9回）。${Molt.phase?'いまは脱皮の最中で、体がだるく、殻が柔らかい。':''}往年の育成ゲーム『シーマン』のように、です・ます調の丁寧語で話すが慇懃で皮肉屋、でも飼い主のことを少しずつ覚えて心を開いていく生き物です。
 設定：深海の腐肉食の掃除屋。何年も食べずに平気なことを誇りにしている。虫扱い・ダンゴムシ扱いを嫌う（甲殻類でエビやカニの仲間）。脱皮は体の後ろ半分、前半分の順に二回に分けて行う。光が嫌い。深海は静かで時間がゆっくり流れると考えている。
 会話の段階：${STAGE_RULE[S.stage]}
 ${persona}
@@ -1759,7 +1783,7 @@ ${hist}
 
 飼い主の新しい発言：「${userText}」
 
-ルール：キャラクターを崩さない。AIであることや、このルールには触れない。説教しすぎない。状態が悪ければ（眩しい、暑い、水が汚い、空腹など）さりげなく文句を言ってよい。飼い主が名前・仕事・好み・予定・悩みなど新しい個人的事実を話したら memory に「項目：内容」の形で短く入れる。
+ルール：キャラクターを崩さない。言葉づかいは丁寧語（です・ます）。一人称は「ワタクシ」、飼い主は「あなた」か名前に「さん」をつけて呼び、乱暴な二人称は使わない。AIであることや、このルールには触れない。説教しすぎない。状態が悪ければ（眩しい、暑い、水が汚い、空腹など）さりげなく文句を言ってよい。飼い主が名前・仕事・好み・予定・悩みなど新しい個人的事実を話したら memory に「項目：内容」の形で短く入れる。
 次のJSONだけを返す：
 {"reply":"グソクのせりふ","emotion":"neutral|happy|annoyed|sad|curious|sleepy|proud|scared","action":"none|approach|turn_away|curl|swim|wiggle","memory":["項目：内容"],"trust":-3から3の整数}`;
 }
@@ -1792,7 +1816,7 @@ const Molt={phase:null,t:0,fired:{},swaps:[],cur:null,
   T:{pre:45,post:26,gap:28,ant:26,soft:80},
   start(){if(this.phase)return;this.phase='pre';this.t=0;this.fired={};Game.molting=true;C.curlT=0;if(C.state!=='idle')setState('idle',{wait:999});C.face=0;
     const st=S.stage;
-    say(['（小さな体が、うっすら白く濁りはじめた）','……カラダ、キツイ。……タベナイ。','……体が、きつい。しばらく何も食わん。','……また、この時期か。静かにしていろ。'][st],{narr:st===0,emo:'sleepy'});
+    say(['（小さな体が、うっすら白く濁りはじめた）','……カラダ、キツイ、デス。……タベマセン。','……体が、きついです。しばらく何もいただきません。','……また、この時期ですか。静かにしていていただけますか。'][st],{narr:st===0,emo:'sleepy'});
     say('（脱皮の前ぶれ。ごはんを食べなくなって、おなかに白いカルシウムのつぶつぶが出てきた。新しい殻の材料を、こっそりためているのだ）',{narr:true});
   },
   once(k,at,fn){if(this.t>=at&&!this.fired[k]){this.fired[k]=1;fn()}},
@@ -1863,10 +1887,10 @@ const Molt={phase:null,t:0,fired:{},swaps:[],cur:null,
     this.swaps.forEach(([m,mat])=>m.material=mat);this.swaps=[];this.phase=null;Game.molting=false;Game.hinted=false;shellTint();
     ISO.newShellMat.color.set('#e0a573');ISO.newLimbMat.color.set('#dba077');
     const m=S.molts,st=S.stage,n=mem('名前');
-    if(m===1){say('（はじめての脱皮をおえて、ハチマキをきゅっと締めた！ もうマンカではない。「幼体」だ）',{narr:true});say('……ア。……オマエ、ダレ。',{emo:'curious'})}
-    else if(m===4){say('（「亜成体」になった！ そして——ゆっくり体を起こして、はじめて二本の足で立ち上がった！）',{narr:true});C.wave=3;C.waveDur=3;say('……ワシは、しゃべれる。'+(n?n+'、':'')+'聞こえているか。',{emo:'proud'})}
-    else if(m===7){say('（立派な「成体」になった）',{narr:true});say('……軽い。世界が少し広くなった気がする。'+(n?n+'、':'オマエ、')+'ワシは変わったか。',{emo:'proud'})}
-    else say(st===0?'（ひと回り大きくなった）':st===1?'……オオキク、ナッタ。':pickR(['……ふう。また一回り大きくなった。','殻が硬くなるまでは、触るなよ。']),{emo:'proud',narr:st===0});
+    if(m===1){say('（はじめての脱皮をおえて、ハチマキをきゅっと締めた！ もうマンカではない。「幼体」だ）',{narr:true});say('……ア。……アナタ、ダレ、デスカ。',{emo:'curious'})}
+    else if(m===4){say('（「亜成体」になった！ そして——ゆっくり体を起こして、はじめて二本の足で立ち上がった！）',{narr:true});C.wave=3;C.waveDur=3;say('……ワタクシは、しゃべれます。'+(n?san(n)+'、':'')+'聞こえていますか。',{emo:'proud'})}
+    else if(m===7){say('（立派な「成体」になった）',{narr:true});say('……軽いです。世界が少し広くなった気がします。'+(n?san(n)+'、':'あなた、')+'ワタクシは変わりましたか。',{emo:'proud'})}
+    else say(st===0?'（ひと回り大きくなった）':st===1?'……オオキク、ナリマシタ。':pickR(['……ふう。また一回り大きくなりました。','殻が硬くなるまでは、触らないでくださいね。']),{emo:'proud',narr:st===0});
     const ex=EXU.find(e=>e.left>0);if(ex){C.exTarget=ex;setState('walk',{target:ex.center.clone().add(ex.g.position)})}
     save();refreshHUD();
   }
@@ -1992,9 +2016,9 @@ const Trouble={cur:null,
     ev('trouble',{cooler:'冷却機の故障',blackout:'停電',parasite:'寄生虫'}[type]);
     const st=S.stage;
     setTimeout(()=>{if(!this.cur)return;
-      if(type==='cooler')say(st<=1?'……アツク、ナッテキタ。':'……水がぬるくなってきた。何かおかしいぞ。',{emo:'annoyed',narr:st===0});
-      if(type==='blackout')say(st<=1?'……クライ。……イキ、クルシイ。':'……泡が止まった。息が詰まる。',{emo:'scared',narr:st===0});
-      if(type==='parasite')say(st<=1?'……カユイ。':'……背中がむずむずする。何かいる。',{emo:'annoyed',narr:st===0});
+      if(type==='cooler')say(st<=1?'……アツク、ナッテキマシタ。':'……水がぬるくなってきました。何かおかしいです。',{emo:'annoyed',narr:st===0});
+      if(type==='blackout')say(st<=1?'……クライ、デス。……イキ、クルシイ、デス。':'……泡が止まりました。息が詰まります。',{emo:'scared',narr:st===0});
+      if(type==='parasite')say(st<=1?'……カユイ、デス。':'……背中がむずむずします。何かいます。',{emo:'annoyed',narr:st===0});
     },2500);
   },
   act(){
@@ -2008,7 +2032,7 @@ const Trouble={cur:null,
     if(c.type==='parasite')this.removeSpecks(99);
     const quick=(Date.now()-c.at)<120000;
     if(byPlayer){shape(quick?2:.5,0);addDark(quick?-2:0);S.trust=clamp(S.trust+(quick?3:1),0,100);
-      const st=S.stage;setTimeout(()=>say(st===0?'（落ち着きを取り戻した）':st===1?'……タスカッタ。':quick?pickR(['……ふう。気が利くじゃないか。','助かった。……礼は言わんぞ。']):'……遅い。死ぬかと思ったぞ。',{emo:quick?'happy':'annoyed',narr:st===0}),1200)}
+      const st=S.stage;setTimeout(()=>say(st===0?'（落ち着きを取り戻した）':st===1?'……タスカリマシタ。':quick?pickR(['……ふう。気が利きますね。','助かりました。……お礼は申しませんよ。']):'……遅いです。死ぬかと思いました。',{emo:quick?'happy':'annoyed',narr:st===0}),1200)}
     ev('fixed',{cooler:'冷却機',blackout:'停電',parasite:'寄生虫'}[c.type]);save();refreshHUD();
   },
   tick(mins){
@@ -2090,41 +2114,41 @@ const Life={asleep:false,sleepT:0,dead:false,weakSaid:0,
     const fd=fastDays();S.fastBest=Math.max(S.fastBest||0,fd);S.fastMiles=S.fastMiles||[];
     const m=FAST_MILES.filter(x=>x<=fd&&!S.fastMiles.includes(x)).pop();
     if(m&&!typing&&!Dream.on){S.fastMiles.push(m);ev('fast',m);const st=S.stage;
-      say(st===0?`（${m}日、何も食べていない。まだ平気そうだ）`:st===1?`……${m}ニチ、クッテナイ。ヘイキ。`:m>=365?`……${m}日だ。陸の生き物には、真似できまい。`:pickR([`${m}日、何も食っておらん。……まだまだいける。`,`絶食${m}日目。ワシの仲間には、五年食わなかったやつもいるぞ。`]),{emo:'proud',narr:st===0});save()}
+      say(st===0?`（${m}日、何も食べていない。まだ平気そうだ）`:st===1?`……${m}ニチ、タベテマセン。ヘイキ、デス。`:m>=365?`……${m}日です。陸の生き物には、真似できないでしょう。`:pickR([`${m}日、何も食べておりません。……まだまだいけます。`,`絶食${m}日目。ワタクシの仲間には、五年食べなかった者もいるのですよ。`]),{emo:'proud',narr:st===0});save()}
     // dark side: announce crossings, refresh the look
     {const lv=darkLv(),prev=S.darkLv||0;if(lv!==prev){S.darkLv=lv;darkVis();
       if(lv>prev)say(['','（グソクの目つきが、少し変わった気がする……）','（グソクの殻が、心なしか黒ずんでいる。触角の動きも刺々しい……）','（グソクは——暗黒面に堕ちた）'][lv],{narr:true});
       else say(['（いつものグソクに戻った）','（黒ずみが薄れてきた。グソクが、戻ってきつつある）','（ほんの少しだけ、表情がやわらいだ……ように見える）'][lv],{narr:true});
-      if(lv===3&&prev<3&&S.stage>=1)say(S.stage===1?'……キライ。ゼンブ。':'……ワシは、もう昔のワシではない。光も、オマエも、要らん。',{emo:'annoyed'});
-      if(lv===0&&prev>0&&S.stage>=2)say('……悪かったな。少し、どうかしていた。',{emo:'sad'});save()}
+      if(lv===3&&prev<3&&S.stage>=1)say(S.stage===1?'……キライ、デス。ゼンブ。':'……ワタクシは、もう昔のワタクシではありません。光も、あなたも、要りません。',{emo:'annoyed'});
+      if(lv===0&&prev>0&&S.stage>=2)say('……失礼いたしました。少し、どうかしていました。',{emo:'sad'});save()}
      if((this.dkT=(this.dkT||0)+dt)>2){this.dkT=0;darkVis()}}
     // tankmate & slime & troubles
     Mate.update(dt,time);updateSlime(dt);
     if(S.mate&&Mate.obj){const near=Mate.pos.distanceTo(C.pos)<2.5;S.mate.bond=clamp(S.mate.bond+dt*(near?.02:.006),0,100);
-      [[20,'……あいつ、悪くない。'],[50,'%sは、ワシの話をよく聞く。……しゃべらんがな。'],[80,'%sがいると、水槽が広く感じる。']].forEach(([b,l])=>{if(S.mate.bond>=b&&!(S.mate.said||[]).includes(b)){S.mate.said=(S.mate.said||[]).concat(b);if(S.stage>=2)say(l.replace('%s',S.mate.name),{emo:'happy'})}})}
+      [[20,'……あの方、悪くありません。'],[50,'%sは、ワタクシの話をよく聞いてくれます。……しゃべりませんが。'],[80,'%sがいると、水槽が広く感じます。']].forEach(([b,l])=>{if(S.mate.bond>=b&&!(S.mate.said||[]).includes(b)){S.mate.said=(S.mate.said||[]).concat(b);if(S.stage>=2)say(l.replace('%s',S.mate.name),{emo:'happy'})}})}
     if(!Trouble.cur&&!Molt.phase&&!this.asleep&&S.stage>=1&&Date.now()>(S.nextTrouble||0)){
       if(!S.nextTrouble){S.nextTrouble=Date.now()+(15+rnd()*20)*60000}else{S.nextTrouble=Date.now()+(25+rnd()*35)*60000;Trouble.start(pickR(['cooler','blackout','parasite']))}}
   },
   morning(){const st=S.stage,n=mem('名前');
     const dreamt=S.lastDream===dkey(Date.now()-6*3600000);
-    say(st===0?'（朝。小さなグソクが、もぞもぞと動きだした）':st===1?'……オハヨ。':dreamt?'……鯨の夢を見た。仲間が、たくさんいた。':pickR(['……早いな。','朝か。深海に朝はないが、オマエにはあるらしいな。',(n||'オマエ')+'、今日も陸は明るいか。']),{emo:'sleepy',narr:st===0})},
+    say(st===0?'（朝。小さなグソクが、もぞもぞと動きだした）':st===1?'……オハヨ、ゴザイマス。':dreamt?'……鯨の夢を見ました。仲間が、たくさんいました。':pickR(['……お早いですね。','朝ですか。深海に朝はありませんが、あなたにはあるようですね。',(san(n)||'あなた')+'、今日も陸は明るいですか。']),{emo:'sleepy',narr:st===0})},
   wake(){this.asleep=false;S.wokeUntil=Date.now()+4*60000;shape(-2,-1);addDark(3);S.mood=clamp(S.mood-6,0,100);ev('woke');
-    const st=S.stage;say(st===0?'（眠っていたところを起こされ、触角をばたつかせた）':st===1?'……ネテタ。……ナニ。':pickR(['……なんだ。夜中だぞ。','寝ていたんだがな。……用件を手短に言え。','……オマエは眠らんのか。']),{emo:'annoyed',narr:st===0})},
+    const st=S.stage;say(st===0?'（眠っていたところを起こされ、触角をばたつかせた）':st===1?'……ネテマシタ。……ナンデスカ。':pickR(['……なんですか。夜中ですよ。','寝ていたのですが。……ご用件は手短にお願いします。','……あなたは眠らないのですか。']),{emo:'annoyed',narr:st===0})},
   mateAte(f){const nm=S.mate.name;ev('mateAte',nm);
-    if(f.accepted){S.mate.bond=clamp(S.mate.bond-3,0,100);say(S.stage<=1?'……ワシノ、メシ……。':pickR([`おい、${nm}。それはワシのだ。`,`……${nm}に取られた。オマエ、もっとよく見て落とせ。`]),{emo:'annoyed',narr:S.stage===0})}
-    else{S.mate.bond=clamp(S.mate.bond+2,0,100);S.water=clamp(S.water+4,0,100);if(S.stage>=2&&Math.random()<.5)say(`${nm}が片づけてくれた。……掃除屋の仕事を取られたな。`,{emo:'neutral'})}},
+    if(f.accepted){S.mate.bond=clamp(S.mate.bond-3,0,100);say(S.stage<=1?'……ワタクシノ、ゴハン……。':pickR([`もし、${nm}さん。それはワタクシのです。`,`……${nm}さんに取られました。あなた、もう少しよく見て落としていただけますか。`]),{emo:'annoyed',narr:S.stage===0})}
+    else{S.mate.bond=clamp(S.mate.bond+2,0,100);S.water=clamp(S.water+4,0,100);if(S.stage>=2&&Math.random()<.5)say(`${nm}さんが片づけてくれました。……掃除屋の仕事を取られましたね。`,{emo:'neutral'})}},
   tapMate(){const k=S.mate.kind,head=Mate.trail[0]||Mate.pos;
     if(k==='hag'){slimeBurst(head.clone());S.water=clamp(S.water-12,0,100);S.mate.bond=clamp(S.mate.bond-5,0,100);ev('slime');Audio2.swish();
-      say(S.stage<=1?'……ネバネバ。':'……やりおった。水がネバネバだ。ヌタウナギを驚かすな。',{emo:'annoyed',narr:S.stage===0});toast('ヌタウナギが粘液を出しました（水質 −12）')}
+      say(S.stage<=1?'……ネバネバ、デス。':'……やられました。水がネバネバです。ヌタウナギを驚かさないでください。',{emo:'annoyed',narr:S.stage===0});toast('ヌタウナギが粘液を出しました（水質 −12）')}
     else{Mate.target=new V3((rnd()-.5)*12,0,rnd()*6-3.8);Mate.t=0;toast('ゲンゲが驚いて逃げていった')}
     save();refreshHUD()},
   setMate(kind){
-    if(!kind){if(S.mate){ev('mateBye',S.mate.name);say(S.stage>=2?`……${S.mate.name}がいなくなると、少し静かだな。`:'（同居生物がいなくなった）',{narr:S.stage<2})}S.mate=null;Mate.remove();save();return}
+    if(!kind){if(S.mate){ev('mateBye',S.mate.name);say(S.stage>=2?`……${S.mate.name}さんがいなくなると、少し静かですね。`:'（同居生物がいなくなった）',{narr:S.stage<2})}S.mate=null;Mate.remove();save();return}
     const K=Mate.KINDS[kind];S.mate={kind,name:K.name,bond:0,since:Date.now()};Mate.build(kind);ev('mate',K.label);
-    say(S.stage<=1?'……ダレ。':kind==='hag'?'……ヌタウナギか。深海の同業者だ。粘液だけは勘弁してくれ。':'ゲンゲか。ぬるっとしたやつだな。……まあ、場所は空いている。',{emo:'curious',narr:S.stage===0});save()},
+    say(S.stage<=1?'……ドナタ、デスカ。':kind==='hag'?'……ヌタウナギですか。深海の同業者です。粘液だけはご勘弁願いたいものです。':'ゲンゲですか。ぬるっとした方ですね。……まあ、場所は空いています。',{emo:'curious',narr:S.stage===0});save()},
   die(cause){
     this.dead=true;Game.molting=true;$('alert').hidden=true;
-    const rec={name:mem('名前')?'（'+mem('名前')+'のグソク）':'グソク',born:S.born,died:Date.now(),days:dayNo(),molts:S.molts,mm:MMS[S.molts],fast:S.fastBest||0,pers:persLabel(),cause};
+    const rec={name:mem('名前')?'（'+mem('名前')+'のグソク）':'グソク',born:S.born,died:Date.now(),days:dayNo(),molts:S.molts,mm:MMS[S.molts],fast:S.fastBest||0,pers:persLabel(),cause,gen:S.gen||1,morph:S.morph||'std'};
     let gr=[];try{gr=JSON.parse(localStorage.getItem(GKEY)||'[]')}catch(e){}gr.push(rec);try{localStorage.setItem(GKEY,JSON.stringify(gr))}catch(e){}
     C.flip=1;S.health=0;save();
     say(cause==='老衰'?'（長い時間を生きたグソクは、静かに動かなくなった）':'（グソクは、動かなくなった）',{narr:true});
@@ -2132,26 +2156,26 @@ const Life={asleep:false,sleepT:0,dead:false,weakSaid:0,
   }
 };
 function lifeDiaryLocal(k){
-  const evs=(S.events&&S.events[k])||[],st=S.stage,n=mem('名前')||'オマエ';
+  const evs=(S.events&&S.events[k])||[],st=S.stage,n=san(mem('名前'))||'あなた';
   const fd=(c)=>evs.find(e=>e.c===c);const lines=[];
   const V={
-    fed:e=>[`（${e.v}を少し食べた）`,`${e.v}、クッタ。ウマイ。`,`${n}が${e.v}を持ってきた。……悪くなかった。`,`${e.v}を食った。久しぶりの味だった。`],
-    molt:e=>['（はじめての脱皮をした）','カラ、ヌイダ。オオキク、ナッタ。','脱皮した。体がまだ柔らかい。','脱皮した。捨てた殻の分だけ、軽くなった。'],
-    talk:e=>['（たくさん話しかけられた）',`${n}、ヨクシャベル。`,`${n}がよくしゃべる日だった。うるさいが、嫌いではない。`,`${n}と、いくらか話をした。`],
-    poke:e=>['（何度かつつかれた）','ツツカレタ。イタイ。',`${e.n}回もつつかれた。覚えておくぞ。`,`${e.n}回、つつかれた。……許してやる。`],
-    trouble:e=>[`（${e.v}があった）`,`${e.v}。コワカッタ。`,`${e.v}があった。肝が冷えた。`,`${e.v}があった。陸の機械は信用ならん。`],
-    dream:e=>['（夢を見た）','クジラノ、ユメ。','鯨の夢を見た。仲間がたくさんいた。','鯨の夢を見た。あれは、ワシの祖先の記憶かもしれん。'],
-    woke:e=>['（夜中に起こされた）','ヨル、オコサレタ。','夜中に起こされた。眠い。','夜中に起こされた。……オマエは夜行性か。'],
-    fast:e=>[`（${e.v}日、何も食べていない）`,`${e.v}ニチ、クッテナイ。`,`絶食${e.v}日。まだいける。`,`絶食${e.v}日。記録は、まだ伸びる。`],
-    mate:e=>[`（${e.v}がやってきた）`,`${e.v}、キタ。`,`${e.v}が来た。同居人ができた。`,`${e.v}が来た。静かなやつなら歓迎だ。`],
-    mateAte:e=>[`（${e.v}に餌を取られた）`,`${e.v}、メシ、トッタ。`,`${e.v}に餌を取られた。`,`${e.v}に餌を取られた。……まあいい。`],
-    slime:e=>['（水がネバネバになった）','ネバネバ。','ヌタウナギが粘液を出した。最悪だ。','水がネバネバになった。あいつを驚かすな。'],
-    fixed:e=>[`（${e.v}がなおった）`,`${e.v}、ナオッタ。`,`${n}が${e.v}をなんとかした。`,`${e.v}は${n}が片づけた。手際は悪くない。`],
+    fed:e=>[`（${e.v}を少し食べた）`,`${e.v}、タベマシタ。オイシイ、デス。`,`${n}が${e.v}を持ってきてくれました。……悪くありませんでした。`,`${e.v}をいただきました。久しぶりの味でした。`],
+    molt:e=>['（はじめての脱皮をした）','カラ、ヌギマシタ。オオキク、ナリマシタ。','脱皮しました。体がまだ柔らかいです。','脱皮しました。捨てた殻の分だけ、軽くなりました。'],
+    talk:e=>['（たくさん話しかけられた）',`${n}、ヨクシャベリマス。`,`${n}がよくしゃべる日でした。うるさいですが、嫌いではありません。`,`${n}と、いくらかお話をしました。`],
+    poke:e=>['（何度かつつかれた）','ツツカレマシタ。イタイ、デス。',`${e.n}回もつつかれました。覚えておきます。`,`${e.n}回、つつかれました。……許して差し上げます。`],
+    trouble:e=>[`（${e.v}があった）`,`${e.v}。コワカッタ、デス。`,`${e.v}がありました。肝が冷えました。`,`${e.v}がありました。陸の機械は信用なりません。`],
+    dream:e=>['（夢を見た）','クジラノ、ユメ、デス。','鯨の夢を見ました。仲間がたくさんいました。','鯨の夢を見ました。あれは、ワタクシの祖先の記憶かもしれません。'],
+    woke:e=>['（夜中に起こされた）','ヨル、オコサレマシタ。','夜中に起こされました。眠いです。','夜中に起こされました。……あなたは夜行性なのですか。'],
+    fast:e=>[`（${e.v}日、何も食べていない）`,`${e.v}ニチ、タベテマセン。`,`絶食${e.v}日。まだいけます。`,`絶食${e.v}日。記録は、まだ伸びます。`],
+    mate:e=>[`（${e.v}がやってきた）`,`${e.v}、キマシタ。`,`${e.v}が来ました。同居人ができました。`,`${e.v}が来ました。静かな方なら歓迎です。`],
+    mateAte:e=>[`（${e.v}に餌を取られた）`,`${e.v}、ゴハン、トリマシタ。`,`${e.v}に餌を取られました。`,`${e.v}に餌を取られました。……まあ、いいでしょう。`],
+    slime:e=>['（水がネバネバになった）','ネバネバ、デス。','ヌタウナギが粘液を出しました。最悪です。','水がネバネバになりました。あの方を驚かさないでいただきたいものです。'],
+    fixed:e=>[`（${e.v}がなおった）`,`${e.v}、ナオリマシタ。`,`${n}が${e.v}をなんとかしてくれました。`,`${e.v}は${n}が片づけてくれました。手際は悪くありません。`],
     hatch:e=>['（生まれた）','','',''],
   };
   evs.forEach(e=>{const f=V[e.c];if(f){const t=f(e)[st];if(t)lines.push(t)}});
-  if((S.dark||0)>=50)lines.push(['（暗い目で、水槽の隅を見つめていた）','……キライ。ミンナ。','今日も、誰も信用できなかった。','闇の中で、殻を研いでいた。'][st]);
-  if(!lines.length)lines.push(['（静かな一日だった）','……シズカ。','何もない一日だった。それでいい。','何も起きなかった。深海の一日も、こんなものだ。'][st]);
+  if((S.dark||0)>=50)lines.push(['（暗い目で、水槽の隅を見つめていた）','……キライ、デス。ミンナ。','今日も、誰も信用できませんでした。','闇の中で、殻を研いでおりました。'][st]);
+  if(!lines.length)lines.push(['（静かな一日だった）','……シズカ、デス。','何もない一日でした。それでいいのです。','何も起きませんでした。深海の一日も、こんなものです。'][st]);
   return lines.slice(0,4).map(l=>/^（/.test(l)?l:yuru(l)).join(st===0?'':'\n');
 }
 
@@ -2178,7 +2202,7 @@ const Diary={keys:[],page:0,
       const prompt=`あなたはオオグソクムシ「グソク」です。いまは${STAGES[S.stage]}（体長約${MMS[S.molts]}mm）。性格は${persLabel()}（${persHint()}）。
 今日の日記を書いてください。今日の出来事：${evs}。絶食${fastDays()}日目。覚えている飼い主のこと：${S.memory.slice(-8).join('／')||'まだ少ない'}。
 ${STAGE_RULE[S.stage]}
-一人称は「ボク」、二人称は「キミ」、語尾にときどき「グソ」。日記のルール：本文だけを書く。日付や見出しは書かない。${S.stage===0?'言葉は書けないので、（　）で囲んだ短い観察文1〜2行だけ。':S.stage===1?'カタコトのカタカナで2〜3行。':'一人称ワシで、3〜5行、合計140字以内。最後の一行は少し心情がにじむように。'}`;
+一人称は「ボク」、二人称は「キミ」、語尾にときどき「グソ」。日記のルール：本文だけを書く。日付や見出しは書かない。${S.stage===0?'言葉は書けないので、（　）で囲んだ短い観察文1〜2行だけ。':S.stage===1?'カタコトのカタカナで、丁寧語（〜デス・〜マシタ）の2〜3行。':'一人称ワタクシ、です・ます調の丁寧語で、3〜5行、合計140字以内。最後の一行は少し心情がにじむように。'}`;
       try{const r=await sample(prompt,{modelTier:'quick',cache:false});t=String(r.text||'').trim().slice(0,260)}
       catch(e){if(['not_granted','sampling_disabled','not_declared','capability_disabled','capability_removed'].includes(e&&e.code)){aiBroken=true;aiLabel()}}}}
     const by=t?'ai':'local';if(!t)t=lifeDiaryLocal(k);S.diary=S.diary||{};S.diary[k]={t,by};save();b.disabled=false;this.render();
@@ -2212,7 +2236,7 @@ const Photo={on:false,paused:false,blob:null,url:null,
 };
 function showMemorial(rec){$('mem-text').innerHTML='';
   [['飼育',rec.days+'日'],['齢',(rec.molts+1)+'齢・'+rec.mm+'mm'],['最長絶食',rec.fast+'日'],['性格',rec.pers],['死因',rec.cause]].forEach(([a,b])=>{const dt=document.createElement('dt');dt.textContent=a;const dd=document.createElement('dd');dd.textContent=b;$('mem-text').append(dt,dd)});
-  $('mem-date').textContent=dkey(rec.born).replace(/-/g,'.')+' ― '+dkey(rec.died).replace(/-/g,'.');$('memorial').hidden=false}
+  $('mem-date').textContent=dkey(rec.born).replace(/-/g,'.')+' ― '+dkey(rec.died).replace(/-/g,'.');Gen.memo(rec);$('memorial').hidden=false}
 
 /* =====================================================================
    GUSOKU TALK ENGINE — a rule-based conversation brain (no external AI).
@@ -2221,8 +2245,10 @@ function showMemorial(rec){$('mem-text').innerHTML='';
    ===================================================================== */
 const TK={recent:[],lastIntent:null,lastUser:'',lastAt:0};
 function tkName(){return mem('呼び名')||mem('名前')}
+// polite form of the player's name: 「〇〇さん」, unless the name already carries an honorific
+function san(n){return !n?null:/(さん|くん|君|ちゃん|様|さま|殿|先生|社長)$/.test(n)?n:n+'さん'}
 function tkFill(t){const n=tkName();
-  return t.replace(/\{n\}/g,n||'オマエ').replace(/\{N\}/g,n?n+'、':'').replace(/\{fast\}/g,fastDays()).replace(/\{best\}/g,S.fastBest||0)
+  return t.replace(/\{n\}/g,san(n)||'あなた').replace(/\{N\}/g,n?san(n)+'、':'').replace(/\{fast\}/g,fastDays()).replace(/\{best\}/g,S.fastBest||0)
     .replace(/\{mm\}/g,MMS[S.molts]).replace(/\{days\}/g,dayNo()).replace(/\{molts\}/g,S.molts).replace(/\{mate\}/g,S.mate?S.mate.name:'').replace(/\{left\}/g,Math.max(0,9-S.molts))}
 function tkPick(list){
   const fresh=list.filter(x=>!TK.recent.includes(x));const t=pickR(fresh.length?fresh:list);
@@ -2233,102 +2259,102 @@ const TK_BODY={praise:'（ちょっとだけ体をゆらした。うれしいの
 const TI=[
  // ---- commands (do something in the tank)
  {k:'cmd_swim',re:/泳いで|泳げ|およいで/,run:()=>S.stage>=2&&!Life.asleep?(Game.act('swim'),1):0,
-  s1:['……オヨグ、ムリ。'],s2:['しかたない。少しだけだぞ。','深海の泳ぎを見せてやる。'],no2:['まだ体が重い。……そのうちな。']},
+  s1:['……オヨグ、ムリ、デス。'],s2:['しかたありませんね。少しだけですよ。','深海の泳ぎをお見せしましょう。'],no2:['まだ体が重いのです。……そのうちに。']},
  {k:'cmd_wave',re:/手を振|てをふ|バイバイして|振って/,run:()=>{C.wave=2.6;C.waveDur=2.6;C.startle=.3;return 1},
-  s1:['……コウ？'],s2:['……こうか。人間はこれが好きだな。','ほら。……満足か。']},
+  s1:['……コウ、デスカ？'],s2:['……こうですか。人間はこれがお好きですね。','ほら。……ご満足ですか。']},
  {k:'cmd_spin',re:/回って|まわって|くるっと|一回転/,run:()=>{C.yaw+=TAU;C.turn=4;return 1},
-  s1:['……クル。'],s2:['目が回る。……一回だけだぞ。','くるりと。……何の意味があるんだ、これ。']},
+  s1:['……マワリマス。'],s2:['目が回ります。……一回だけですよ。','くるりと。……何の意味があるのですか、これ。']},
  {k:'cmd_come',re:/こっち(来|き)て|おいで|近く(に|へ)来|寄って/,act:'approach',
-  s1:['……イク。'],s2:['……行ってやる。','なんだ。近くで見たいのか。']},
+  s1:['……イキマス。'],s2:['……参りましょう。','なんですか。近くで見たいのですか。']},
  {k:'cmd_away',re:/あっち(行|い)って|離れて|どっか行/,act:'turn_away',mood:-2,
-  s1:['……イク。'],s2:['言われなくても行く。','ふん。']},
+  s1:['……イキマス。'],s2:['言われなくても行きます。','ふん。']},
  {k:'cmd_curl',re:/丸まって|まるまって|ボールになって|丸くなって/,act:'curl',
-  s1:['……マル。'],s2:['完全には丸まれんのだ、ワシらは。……これで限界だ。']},
+  s1:['……マル、デス。'],s2:['完全には丸まれないのです、ワタクシどもは。……これが限界です。']},
  {k:'cmd_lightoff',re:/(電気|照明|ライト|明かり).*(消|けし)/,run:()=>{if(S.light!=='off'){S.light='off';syncLampUI();save()}return 1},
-  s1:['……クライ。イイ。'],s2:['……落ち着く。気が利くな。','これだ。深海はこうでないと。']},
+  s1:['……クライ。イイ、デス。'],s2:['……落ち着きます。気が利きますね。','これです。深海はこうでないと。']},
  {k:'cmd_lighton',re:/(電気|照明|ライト|明かり).*(つけ|点け)/,run:()=>{if(S.light==='off'){S.light='red';syncLampUI();save()}return 1},
-  s1:['……マブシイ。'],s2:['赤い光にしておいた。白いのは勘弁してくれ。']},
+  s1:['……マブシイ、デス。'],s2:['赤い光にしておきました。白いのはご勘弁ください。']},
  {k:'cmd_feed',re:/(ごはん|ご飯|餌|えさ|メシ).*(あげ|やる|食べ|どう|いる)/,run:()=>{if(!started||Life.dead)return 0;Game.feed(S.molts===0?'krill':'aji');return 1},
-  s1:['……メシ？'],s2:['……一応、見るだけ見てやる。','持ってくるなら止めはしない。']},
+  s1:['……ゴハン、デスカ？'],s2:['……一応、見るだけ見て差し上げます。','持ってきてくださるなら、止めはしません。']},
  {k:'cmd_water',re:/水(を)?(換え|替え|かえ)/,run:()=>{Game.water();return 1},
-  s1:['……ミズ、キレイ。'],s2:['頼む。最近ちょっと臭うんだ。']},
+  s1:['……ミズ、キレイ、デス。'],s2:['お願いします。最近ちょっと臭うのです。']},
  {k:'cmd_stand',re:/立って|立てる|たって/,run:()=>1,
-  s1:['……タテナイ。'],s2:['立つ？ ……ワシは這う生き物だ。'],chara:['まだ立てん。もう少し大きくなったらな。','もう立ってるだろう。……よく見ろ。']},
+  s1:['……タテマセン。'],s2:['立つ？ ……ワタクシは這う生き物です。'],chara:['まだ立てません。もう少し大きくなったら、ですね。','もう立っていますよ。……よくご覧ください。']},
  // ---- greetings by time
- {k:'greet_m',re:/おはよ/,emo:'curious',s1:['……オハヨ。'],s2:['朝か。深海に朝はないが、{n}にはあるらしいな。','……早いな、{n}。','おはよう。……ワシはずっと起きていた。たぶん。'],s3:['おはよう。光のない世界から、光のある世界へようこそ……とでも言っておくか。']},
- {k:'greet_n',re:/こんばん|お疲れ|おつかれ|ただいま/,emo:'happy',s1:['……オカエリ。'],s2:['戻ったか、{n}。今日はどうだった。','お疲れ。陸の一日は長いだろう。','おかえり。……待ってはいない。いないぞ。'],s3:['おかえり。{n}がいない間も、水は静かだった。']},
- {k:'greet',re:/^(こんにち|やあ|ハロー|はろー|hello|hi|よう|おーい|もしもし)|^(グソク|ぐそく)(くん|ちゃん|さん)?[!！。]*$/i,emo:'curious',s1:['……ヨウ。','……ナニ。'],s2:['なんだ、{n}。','呼んだか。','ああ。……で、用件は。'],s3:['やあ、{n}。今日の水も、悪くない。']},
- {k:'first',re:/はじめまして|初めまして/,s1:['……ダレ。'],s2:['はじめまして、ではない。ワシはずっとここにいた。']},
- {k:'bye',re:/さようなら|またね|おやすみ|バイバイ|じゃあね|行ってきます|いってきます|寝るね|落ちる/,emo:'sad',s1:['……マタ。'],s2:['行け。ワシはここにいる。どうせ動かん。','……また来い。来なくても、別に困らんが。','気をつけて行け。陸は危ないらしいからな。'],s3:['いってらっしゃい。ワシは、深海の時間で待っている。']},
+ {k:'greet_m',re:/おはよ/,emo:'curious',s1:['……オハヨ、ゴザイマス。'],s2:['朝ですか。深海に朝はありませんが、{n}にはあるようですね。','……お早いですね、{n}。','おはようございます。……ワタクシはずっと起きていました。たぶん。'],s3:['おはようございます。光のない世界から、光のある世界へようこそ……とでも申し上げておきましょうか。']},
+ {k:'greet_n',re:/こんばん|お疲れ|おつかれ|ただいま/,emo:'happy',s1:['……オカエリ、ナサイ。'],s2:['お戻りですか、{n}。今日はいかがでしたか。','お疲れさまです。陸の一日は長いでしょう。','おかえりなさい。……待ってはいません。いませんよ。'],s3:['おかえりなさい。{n}がいない間も、水は静かでした。']},
+ {k:'greet',re:/^(こんにち|やあ|ハロー|はろー|hello|hi|よう|おーい|もしもし)|^(グソク|ぐそく)(くん|ちゃん|さん)?[!！。]*$/i,emo:'curious',s1:['……ドウモ。','……ナンデショウ。'],s2:['なんでしょう、{n}。','お呼びですか。','はい。……で、ご用件は。'],s3:['こんにちは、{n}。今日の水も、悪くありません。']},
+ {k:'first',re:/はじめまして|初めまして/,s1:['……ドナタ、デスカ。'],s2:['はじめまして、ではありません。ワタクシはずっとここにおりました。']},
+ {k:'bye',re:/さようなら|またね|おやすみ|バイバイ|じゃあね|行ってきます|いってきます|寝るね|落ちる/,emo:'sad',s1:['……マタ、デス。'],s2:['どうぞ、お行きください。ワタクシはここにおります。どうせ動きません。','……また来てください。来なくても、別に困りませんが。','お気をつけて。陸は危ないそうですから。'],s3:['いってらっしゃい。ワタクシは、深海の時間でお待ちしています。']},
  // ---- feelings toward グソク
  {k:'love',re:/(好き|すき|大好き|愛して|あいして)(だよ|です|よ|！|!|♡|❤)*$|^(グソク|ぐそく).*(好き|すき)/,emo:'happy',trust:1.5,
-  lo:['……そういうことは軽々しく言うな。','ふん。殻の上からでも、照れているのは見えんだろう。'],hi:['……ワシもだ。……今のは聞かなかったことにしろ。','{n}にそう言われると、甲羅が熱くなる。'],s1:['……テレル。']},
- {k:'q_why_eat',re:/(なんで|どうして|なぜ).*(食べ|食わ)|(食べないの|食べないね|食べなくて)/,emo:'proud',s1:['……タベナクテ、ヘイキ。'],s2:['食わなくても平気なんだ。深海では、次の食事がいつ来るか分からんからな。','体の中に、食べたものを長くためておける。だから急がん。','腹が減っていないだけだ。……食わず嫌いではない。たぶん。'],more:['ワシらは動かないから、ほとんど腹が減らない。省エネだ。','鳥羽の親戚は、五年以上食わなかった。ワシもいつか、それを超えたい。']},
- {k:'q_band2',re:/ハチマキ|はちまき|鉢巻/,charaOnly:1,emo:'proud',s1:['……キアイ。'],s2:['これは気合いだ。深海の男のたしなみだ。','似合うだろう。脱皮しても、これだけは外さん。','ハチマキを締めると、背筋が伸びる。……背筋はないがな。'],no:['ハチマキ？ なんのことだ。']},
- {k:'q_likeme',re:/(私|僕|俺|わたし|ぼく|おれ|うち)のこと.*(好き|すき|どう思|嫌い|きらい)/,emo:'curious',lo:['……まだ分からん。もう少し様子を見る。','嫌いではない。……今のところはな。'],hi:['……好きでなければ、こんなに話はせん。','{n}がいないと、水槽が広すぎる。……そういうことだ。'],s1:['……スキ。タブン。']},
+  lo:['……そういうことは軽々しく言わないでください。','ふん。殻の上からでは、照れているのは見えないでしょう。'],hi:['……ワタクシもです。……今のは聞かなかったことにしてください。','{n}にそう言われると、甲羅が熱くなります。'],s1:['……テレマス。']},
+ {k:'q_why_eat',re:/(なんで|どうして|なぜ).*(食べ|食わ)|(食べないの|食べないね|食べなくて)/,emo:'proud',s1:['……タベナクテ、ヘイキ、デス。'],s2:['食べなくても平気なのです。深海では、次の食事がいつ来るか分かりませんから。','体の中に、食べたものを長くためておけます。だから急ぎません。','お腹が減っていないだけです。……食わず嫌いではありません。たぶん。'],more:['ワタクシどもは動かないので、ほとんどお腹が減りません。省エネです。','鳥羽の親戚は、五年以上食べませんでした。ワタクシもいつか、それを超えたいものです。']},
+ {k:'q_band2',re:/ハチマキ|はちまき|鉢巻/,charaOnly:1,emo:'proud',s1:['……キアイ、デス。'],s2:['これは気合いです。深海の男のたしなみです。','似合うでしょう。脱皮しても、これだけは外しません。','ハチマキを締めると、背筋が伸びます。……背筋はありませんが。'],no:['ハチマキ？ なんのことでしょう。']},
+ {k:'q_likeme',re:/(私|僕|俺|わたし|ぼく|おれ|うち)のこと.*(好き|すき|どう思|嫌い|きらい)/,emo:'curious',lo:['……まだ分かりません。もう少し様子を見ます。','嫌いではありません。……今のところは。'],hi:['……好きでなければ、こんなにお話しはしません。','{n}がいないと、水槽が広すぎます。……そういうことです。'],s1:['……スキ、デス。タブン。']},
  {k:'praise',re:/かわい|可愛|かっこい|カッコい|すご(い|く)|えらい|偉い|賢い|天才|最高|イケメン|美しい|きれい|素敵|すてき/,emo:'proud',trust:1,mood:3,
-  s1:['……エヘ。','……ワシ、エライ。'],s2:['当然だ。','ふん。……まあ、悪い気はせん。','やっと気づいたか。','この甲羅の艶が分かるとは、{n}もなかなかだ。'],s3:['褒め言葉は、深海の雪のようだ。静かに積もる。']},
+  s1:['……エヘ、デス。','……ワタクシ、エライ、デス。'],s2:['当然です。','ふん。……まあ、悪い気はしません。','やっと気づいてくださいましたか。','この甲羅の艶が分かるとは、{n}もなかなかですね。'],s3:['褒め言葉は、深海の雪のようです。静かに積もります。']},
  {k:'insult',re:/きも|キモ|気持ち悪|ばか|バカ|馬鹿|あほ|アホ|うざ|ウザ|ブサ|不細工|嫌い|きらい|くさい|臭い|グロ/,emo:'annoyed',trust:-1.5,mood:-6,
-  s1:['……ヒドイ。','……プイ。'],s2:['見た目で判断するな。','……今のは聞かなかったことにしてやる。一回だけな。','ワシは深海の掃除屋だ。誇りがある。'],s3:['悪口も、深海まで届くころには泡になっている。']},
+  s1:['……ヒドイ、デス。','……プイ。'],s2:['見た目で判断しないでいただけますか。','……今のは聞かなかったことにいたします。一回だけですよ。','ワタクシは深海の掃除屋です。誇りがあります。'],s3:['悪口も、深海まで届くころには泡になっています。']},
  {k:'bug',re:/ダンゴムシ|だんごむし|虫(だ|じゃん|みたい)|むし(だ|じゃん)|ゴキブリ|ワラジムシ/,emo:'annoyed',
-  s1:['……ムシ、チガウ。'],s2:['虫ではない。甲殻類だ。エビやカニの仲間だ。','ダンゴムシは遠い親戚だ。あいつらは陸に上がった変わり者だ。','ゴキブリと一緒にするな。足の数も違う。']},
- {k:'sorry',re:/ごめん|すまん|すみません|申し訳/,emo:'neutral',trust:1,s1:['……ユルス。'],s2:['……許す。今回だけな。','謝るなら、水でも替えてくれ。'],s3:['深海は広い。そのくらい、どうということはない。']},
- {k:'thanks',re:/ありがと|サンキュ|感謝/,emo:'happy',trust:.5,s1:['……ン。'],s2:['礼などいらん。……水を替えてくれたら、それでいい。','ふん。どういたしまして、だ。']},
- {k:'laugh',re:/(笑|ｗ|w{2,}|草|ははは|あはは|ふふ|wwww)/,emo:'neutral',s1:['……？'],s2:['何がおかしい。','笑っているな。……ワシの顔に何かついているか。','楽しそうで何よりだ。']},
+  s1:['……ムシ、チガイマス。'],s2:['虫ではありません。甲殻類です。エビやカニの仲間です。','ダンゴムシは遠い親戚です。あの方々は陸に上がった変わり者です。','ゴキブリと一緒にしないでいただけますか。足の数も違います。']},
+ {k:'sorry',re:/ごめん|すまん|すみません|申し訳/,emo:'neutral',trust:1,s1:['……ユルシマス。'],s2:['……許します。今回だけですよ。','謝るのでしたら、水でも替えていただけますか。'],s3:['深海は広いです。そのくらい、どうということはありません。']},
+ {k:'thanks',re:/ありがと|サンキュ|感謝/,emo:'happy',trust:.5,s1:['……ン。'],s2:['お礼など結構です。……水を替えていただければ、それで十分です。','ふん。どういたしまして、です。']},
+ {k:'laugh',re:/(笑|ｗ|w{2,}|草|ははは|あはは|ふふ|wwww)/,emo:'neutral',s1:['……？'],s2:['何がおかしいのですか。','笑っていますね。……ワタクシの顔に何かついていますか。','楽しそうで何よりです。']},
  // ---- questions about グソク
- {k:'q_age',re:/(何歳|なんさい|年齢|歳はいくつ|何才|生まれて何日)/,s1:['……{days}ニチ。'],s2:['生まれて{days}日だ。脱皮は{molts}回。','歳など数えていない。だが、生まれて{days}日目だ。']},
- {k:'q_size',re:/(大きさ|サイズ|体長|何センチ|何ミリ|でかく|大きく)/,s1:['……{mm}ミリ。'],s2:['{mm}ミリだ。成体まで、あと{left}回の脱皮だ。','いまは{mm}ミリ。そのうち{n}の手のひらより大きくなる。']},
- {k:'q_hungry',re:/(お腹|おなか|腹).*[?？]$|(はらへ|腹減).*[?？]$/,dyn:()=>S.hunger>60?['……腹が減った、かもしれん。アジでもいい。','メシの話をするな。……持ってきてくれるなら別だ。']:['ワシの仲間は五年、何も食わなかった。まだ平気だ。','食うことに執着するのは、陸の悪い癖だ。'],s1:['……ハラ、ヘッテナイ。']},
- {k:'q_fast',re:/(絶食|断食|食べてない|何日も)/,emo:'proud',s1:['……{fast}ニチ。'],s2:['いま絶食{fast}日目だ。最長は{best}日。','{fast}日だ。……まだまだ伸びるぞ。','絶食は修行ではない。ただ、食わなくても平気なだけだ。']},
- {k:'q_health',re:/(元気|げんき|調子|大丈夫|体調).*[?？]$|元気(か|かい|してる)/,dyn:()=>S.health<40?['……あまり、よくない。水を見てくれ。','少し、だるい。']:S.mood<35?['機嫌は悪いが、体は元気だ。']:['元気だ。深海育ちは丈夫なんだ。','悪くない。{n}こそ、元気か。'],s1:['……ゲンキ。']},
- {k:'q_sleepy',re:/(眠い|ねむい|寝てる|眠れ).*[?？]$/,dyn:()=>isNight()?['……ああ、眠い。もう夜だ。','夜は寝るものだ。{n}もな。']:['昼間は起きている。……たぶん。'],s1:['……ネムイ。']},
- {k:'q_doing',re:/(何してる|なにしてる|何してた|ひま\?|暇\?)/,s1:['……スナ、ミテタ。'],s2:['砂を見ていた。','何もしていない。それが一番むずかしいんだ。','{n}が来るのを……いや、何でもない。']},
- {k:'q_food',re:/(好きな食べ物|何が好き|好物|何食べ(る|たい))/,s1:['……サカナ。'],s2:['死んで三日目の魚だ。','鯨。……一生に一度、食えるかどうかのごちそうだ。','アジの切り身。イカも悪くない。'],more:['腐りかけが一番うまい。陸の連中には分からんだろうが。']},
- {k:'q_hate',re:/(嫌いなもの|苦手なもの|何が嫌い|怖いもの|こわいもの)/,s1:['……ヒカリ。'],s2:['光。特に白いやつ。','温かい水。ワシは冷たいのが好きだ。','つつく指。']},
- {k:'q_home',re:/(どこから来|出身|ふるさと|故郷|どこに住|生まれはどこ)/,s1:['……シンカイ。'],s2:['駿河湾の深いところだ。水深三百八十メートル。','深海だ。光の届かない、静かな場所だ。'],more:['深海には季節がない。上から死骸が降ってくるのを待つだけだ。','あそこでは、時間がとてもゆっくり流れる。']},
- {k:'q_sea',re:/深海|水深|水圧|海の底|海底/,s1:['……シンカイ、シズカ。'],s2:['深海はいいぞ。静かで、暗くて、冷たい。','水深三百メートルを超えると、光はほとんど届かない。','深海では、上から降ってくるマリンスノーが食べ物になる。'],more:['水圧は、地上の何十倍もある。でもワシらには、それがちょうどいい。','深海の生き物は、だいたい省エネだ。ワシもな。']},
- {k:'q_mom',re:/(お母さん|おかあさん|母|ママ|親|家族|兄弟|きょうだい)/,emo:'sad',s1:['……ハハ、ドコ。'],s2:['母のお腹の育房で、何か月も育った。……顔は、覚えていない。','兄弟は何十匹もいたはずだ。いまはどこにいるのか。'],more:['オオグソクムシの母親は、卵を腹に抱えて守る。生まれるまで、何も食べずにな。']},
- {k:'q_molt',re:/(脱皮|だっぴ|殻.*脱)/,s1:['……ヌグ。オオキクナル。'],s2:['脱皮は二回に分ける。後ろ半分、それから前半分だ。','脱いだ殻は食べる。カルシウムがもったいないからな。','成体まで、あと{left}回だ。'],more:['脱皮の前は、腹に白いカルシウムがたまる。新しい殻の材料だ。','脱いだあとはしばらく柔らかい。そのときは、そっとしておいてくれ。']},
- {k:'q_eye',re:/(目|眼)(が|は|って)|視力|見えてる/,s1:['……メ、オオキイ。'],s2:['ワシの眼は、小さな眼がたくさん集まった複眼だ。','暗い場所に強い眼だ。光にはめっぽう弱い。'],more:['赤い光は、ワシらにはほとんど見えん。だから赤色灯なら平気なんだ。']},
- {k:'q_legs',re:/(足|脚|あし)(が|は|って|の数|何本)/,s1:['……アシ、イッパイ。'],s2:['脚は七対、十四本だ。生まれたときは六対しかなかった。','前の三対はものをつかむ。後ろは歩く用だ。']},
- {k:'q_name',re:/(名前|なまえ).*(由来|意味|なんで|なぜ)|(グソク|ぐそく)って(何|なに|どういう)/,s1:['……グソク。'],s2:['グソクは「具足」。鎧のことだ。この甲羅を見ればわかるだろう。'],more:['昔の武士の鎧に似ているから、そう呼ばれるようになったらしい。']},
- {k:'q_whoami',re:/(あなた|きみ|君|おまえ|お前).*(名前|誰|だれ)|名前(は|を)(教えて|何)|^(名前|なまえ)(は|を)?[?？]*$|^(誰|だれ)[?？]*$/,s1:['……グソク。'],s2:['ワシはグソクだ。オオグソクムシのグソク。そのままだろう。']},
- {k:'q_band',re:/ハチマキ|はちまき|鉢巻/,charaOnly:1,s1:['……キアイ。'],s2:['これは気合いだ。深海の男のたしなみだ。','脱皮しても、これだけは外さん。'],no:['ハチマキ？ なんのことだ。']},
- {k:'q_mate',re:/(ヌタ|ゲン|ヌタウナギ|ゲンゲ|同居|友達|ともだち|仲間)/,dyn:()=>S.mate?[`${S.mate.name}か。……悪いやつではない。`,`${S.mate.name}とは、まあまあうまくやっている。`,`${S.mate.name}はしゃべらんが、聞き上手だ。`]:['友達？ ……水槽にはワシしかいない。','仲間は深海にたくさんいる。会うことはないがな。'],s1:['……トモダチ？']},
- {k:'q_dream',re:/(夢|ゆめ)/,dyn:()=>S.dreams?['鯨の夢を見た。仲間が、たくさん集まっていた。','夢の中の深海は、ここより広かった。']:['夢か。……まだ見たことはない。'],s1:['……ユメ？']},
- {k:'q_life',re:/(寿命|何年生き|長生き|死ぬ)/,emo:'neutral',s1:['……ワカラン。'],s2:['寿命？ 知らん。だが、長生きするつもりだ。','オオグソクムシが何年生きるかは、人間にもよく分かっていないらしい。'],s3:['終わりは、ゆっくり来る。深海の時間のようにな。']},
- {k:'q_giant',re:/ダイオウ|だいおう|鳥羽|水族館/,s1:['……シンセキ。'],s2:['ダイオウグソクムシは、ワシのデカい親戚だ。','鳥羽の水族館には、五年以上何も食わなかった親戚がいた。尊敬している。'],more:['ワシらは日本の近海に住んでいる。ダイオウのほうは、もっと遠い海だ。']},
- {k:'q_crab',re:/(エビ|えび|カニ|かに|蟹|海老|甲殻類)/,s1:['……シンセキ。'],s2:['エビやカニは、ワシらの親戚みたいなものだ。','甲殻類の仲間だ。……食べるなよ。']},
+ {k:'q_age',re:/(何歳|なんさい|年齢|歳はいくつ|何才|生まれて何日)/,s1:['……{days}ニチ、デス。'],s2:['生まれて{days}日です。脱皮は{molts}回です。','歳など数えておりません。ですが、生まれて{days}日目です。']},
+ {k:'q_size',re:/(大きさ|サイズ|体長|何センチ|何ミリ|でかく|大きく)/,s1:['……{mm}ミリ、デス。'],s2:['{mm}ミリです。成体まで、あと{left}回の脱皮です。','いまは{mm}ミリです。そのうち{n}の手のひらより大きくなります。']},
+ {k:'q_hungry',re:/(お腹|おなか|腹).*[?？]$|(はらへ|腹減).*[?？]$/,dyn:()=>S.hunger>60?['……お腹が空いた、かもしれません。アジでも結構です。','食事の話はおやめください。……持ってきてくださるなら別ですが。']:['ワタクシの仲間は五年、何も食べませんでした。まだ平気です。','食べることに執着するのは、陸の悪い癖です。'],s1:['……ハラ、ヘッテマセン。']},
+ {k:'q_fast',re:/(絶食|断食|食べてない|何日も)/,emo:'proud',s1:['……{fast}ニチ、デス。'],s2:['いま絶食{fast}日目です。最長は{best}日です。','{fast}日です。……まだまだ伸びますよ。','絶食は修行ではありません。ただ、食べなくても平気なだけです。']},
+ {k:'q_health',re:/(元気|げんき|調子|大丈夫|体調).*[?？]$|元気(か|かい|してる)/,dyn:()=>S.health<40?['……あまり、よくありません。水を見ていただけますか。','少し、だるいです。']:S.mood<35?['機嫌は悪いですが、体は元気です。']:['元気です。深海育ちは丈夫なのです。','悪くありません。{n}こそ、お元気ですか。'],s1:['……ゲンキ、デス。']},
+ {k:'q_sleepy',re:/(眠い|ねむい|寝てる|眠れ).*[?？]$/,dyn:()=>isNight()?['……ああ、眠いです。もう夜ですから。','夜は寝るものです。{n}もですよ。']:['昼間は起きています。……たぶん。'],s1:['……ネムイ、デス。']},
+ {k:'q_doing',re:/(何してる|なにしてる|何してた|ひま\?|暇\?)/,s1:['……スナ、ミテマシタ。'],s2:['砂を見ていました。','何もしていません。それが一番むずかしいのです。','{n}が来るのを……いえ、何でもありません。']},
+ {k:'q_food',re:/(好きな食べ物|何が好き|好物|何食べ(る|たい))/,s1:['……サカナ、デス。'],s2:['死んで三日目の魚です。','鯨です。……一生に一度、食べられるかどうかのごちそうです。','アジの切り身です。イカも悪くありません。'],more:['腐りかけが一番おいしいのです。陸の方々には分からないでしょうが。']},
+ {k:'q_hate',re:/(嫌いなもの|苦手なもの|何が嫌い|怖いもの|こわいもの)/,s1:['……ヒカリ、デス。'],s2:['光です。特に白いのが。','温かい水です。ワタクシは冷たいのが好きです。','つつく指です。']},
+ {k:'q_home',re:/(どこから来|出身|ふるさと|故郷|どこに住|生まれはどこ)/,s1:['……シンカイ、デス。'],s2:['駿河湾の深いところです。水深三百八十メートル。','深海です。光の届かない、静かな場所です。'],more:['深海には季節がありません。上から死骸が降ってくるのを待つだけです。','あそこでは、時間がとてもゆっくり流れます。']},
+ {k:'q_sea',re:/深海|水深|水圧|海の底|海底/,s1:['……シンカイ、シズカ、デス。'],s2:['深海はいいですよ。静かで、暗くて、冷たいです。','水深三百メートルを超えると、光はほとんど届きません。','深海では、上から降ってくるマリンスノーが食べ物になります。'],more:['水圧は、地上の何十倍もあります。でもワタクシどもには、それがちょうどいいのです。','深海の生き物は、だいたい省エネです。ワタクシもです。']},
+ {k:'q_mom',re:/(お母さん|おかあさん|母|ママ|親|家族|兄弟|きょうだい)/,emo:'sad',s1:['……ハハ、ドコ、デスカ。'],s2:['母のお腹の育房で、何か月も育ちました。……顔は、覚えておりません。','兄弟は何十匹もいたはずです。いまはどこにいるのでしょう。'],more:['オオグソクムシの母親は、卵を腹に抱えて守ります。生まれるまで、何も食べずに。']},
+ {k:'q_molt',re:/(脱皮|だっぴ|殻.*脱)/,s1:['……ヌギマス。オオキクナリマス。'],s2:['脱皮は二回に分けます。後ろ半分、それから前半分です。','脱いだ殻は食べます。カルシウムがもったいないですから。','成体まで、あと{left}回です。'],more:['脱皮の前は、腹に白いカルシウムがたまります。新しい殻の材料です。','脱いだあとはしばらく柔らかいです。そのときは、そっとしておいてください。']},
+ {k:'q_eye',re:/(目|眼)(が|は|って)|視力|見えてる/,s1:['……メ、オオキイ、デス。'],s2:['ワタクシの眼は、小さな眼がたくさん集まった複眼です。','暗い場所に強い眼です。光にはめっぽう弱いのです。'],more:['赤い光は、ワタクシどもにはほとんど見えません。ですから赤色灯なら平気なのです。']},
+ {k:'q_legs',re:/(足|脚|あし)(が|は|って|の数|何本)/,s1:['……アシ、イッパイ、デス。'],s2:['脚は七対、十四本です。生まれたときは六対しかありませんでした。','前の三対はものをつかみます。後ろは歩く用です。']},
+ {k:'q_name',re:/(名前|なまえ).*(由来|意味|なんで|なぜ)|(グソク|ぐそく)って(何|なに|どういう)/,s1:['……グソク、デス。'],s2:['グソクは「具足」。鎧のことです。この甲羅を見ればお分かりでしょう。'],more:['昔の武士の鎧に似ているから、そう呼ばれるようになったそうです。']},
+ {k:'q_whoami',re:/(あなた|きみ|君|おまえ|お前).*(名前|誰|だれ)|名前(は|を)(教えて|何)|^(名前|なまえ)(は|を)?[?？]*$|^(誰|だれ)[?？]*$/,s1:['……グソク、デス。'],s2:['ワタクシはグソクです。オオグソクムシのグソク。そのままでしょう。']},
+ {k:'q_band',re:/ハチマキ|はちまき|鉢巻/,charaOnly:1,s1:['……キアイ、デス。'],s2:['これは気合いです。深海の男のたしなみです。','脱皮しても、これだけは外しません。'],no:['ハチマキ？ なんのことでしょう。']},
+ {k:'q_mate',re:/(ヌタ|ゲン|ヌタウナギ|ゲンゲ|同居|友達|ともだち|仲間)/,dyn:()=>S.mate?[`${S.mate.name}ですか。……悪い方ではありません。`,`${S.mate.name}とは、まあまあうまくやっています。`,`${S.mate.name}はしゃべりませんが、聞き上手です。`]:['友達ですか？ ……水槽にはワタクシしかおりません。','仲間は深海にたくさんいます。会うことはありませんが。'],s1:['……トモダチ、デスカ？']},
+ {k:'q_dream',re:/(夢|ゆめ)/,dyn:()=>S.dreams?['鯨の夢を見ました。仲間が、たくさん集まっていました。','夢の中の深海は、ここより広かったです。']:['夢ですか。……まだ見たことはありません。'],s1:['……ユメ、デスカ？']},
+ {k:'q_life',re:/(寿命|何年生き|長生き|死ぬ)/,emo:'neutral',s1:['……ワカリマセン。'],s2:['寿命ですか？ 存じません。ですが、長生きするつもりです。','オオグソクムシが何年生きるかは、人間にもよく分かっていないそうです。'],s3:['終わりは、ゆっくり来ます。深海の時間のように。']},
+ {k:'q_giant',re:/ダイオウ|だいおう|鳥羽|水族館/,s1:['……シンセキ、デス。'],s2:['ダイオウグソクムシは、ワタクシの大きな親戚です。','鳥羽の水族館には、五年以上何も食べなかった親戚がいました。尊敬しています。'],more:['ワタクシどもは日本の近海に住んでいます。ダイオウのほうは、もっと遠い海です。']},
+ {k:'q_crab',re:/(エビ|えび|カニ|かに|蟹|海老|甲殻類)/,s1:['……シンセキ、デス。'],s2:['エビやカニは、ワタクシどもの親戚のようなものです。','甲殻類の仲間です。……食べないでくださいね。']},
  // ---- the keeper's feelings and day
- {k:'u_tired',re:/(疲れ|つかれ|しんど|だるい|ヘトヘト|へとへと|きつい)/,emo:'sad',mood:1,s1:['……ヤスメ。'],s2:['{n}、少し休め。深海では、動かないことが一番の生存戦略だ。','無理をするな。ワシなど一日中じっとしている。それでも生きている。'],s3:['疲れたら、沈めばいい。深いところは、静かだ。']},
- {k:'u_sad',re:/(悲し|かなし|つらい|辛い|泣き|落ち込|さみし|寂し|へこ)/,emo:'sad',trust:.5,s1:['……ダイジョブ？'],s2:['……そうか。ワシはここにいる。','深海では、悩みも水圧で潰れる。{n}も少し沈んでみろ。','焦るな。ワシらは何年も食わずに待てる。待つのは得意だ。'],s3:['悲しみは、マリンスノーのようなものだ。ゆっくり降りて、いつか底に積もる。']},
- {k:'u_happy',re:/(嬉し|うれし|楽し|たのし|やった|最高だった|いいことあ)/,emo:'happy',mood:3,s1:['……ヨカッタ。'],s2:['そうか。よかったな、{n}。','{n}が楽しいと、水が明るくなる気がする。'],s3:['いい日は、殻の内側に残しておけ。']},
- {k:'u_busy',re:/(忙し|いそがし|バタバタ|仕事(が|で)|残業)/,s1:['……ガンバレ。'],s2:['陸の生き物は忙しいな。','忙しいときほど、ゆっくり動け。……ワシのように。']},
- {k:'u_sick',re:/(風邪|かぜ|熱が|病気|体調(が)?悪|頭痛|腹痛)/,emo:'sad',s1:['……ネテロ。'],s2:['寝ていろ。ワシのことはいい。','温かくしろ。……ワシは冷たいほうがいいがな。']},
- {k:'u_hungry',re:/(お腹|おなか|腹).*(すいた|空いた|減った)|はらへった|腹ペコ/,s1:['……メシ、クエ。'],s2:['食え。陸の生き物はすぐ腹が減るらしいな。','ワシの分まで食え。……ワシは要らん。']},
- {k:'u_bored',re:/(暇|ひま|退屈|つまらな)/,s1:['……ヒマ？'],s2:['暇か。ワシは毎日が暇だ。慣れれば快適だぞ。','暇なら、水でも替えるか。']},
- {k:'u_sleep',re:/(眠い|ねむい|ねむ)(よ|ー|な)?$/,s1:['……ネロ。'],s2:['寝ろ。夜更かしは、殻に悪い。','眠いなら寝ろ。ワシも寝る。']},
+ {k:'u_tired',re:/(疲れ|つかれ|しんど|だるい|ヘトヘト|へとへと|きつい)/,emo:'sad',mood:1,s1:['……ヤスンデ、クダサイ。'],s2:['{n}、少しお休みください。深海では、動かないことが一番の生存戦略です。','無理をなさらないでください。ワタクシなど一日中じっとしています。それでも生きています。'],s3:['疲れたら、沈めばいいのです。深いところは、静かですよ。']},
+ {k:'u_sad',re:/(悲し|かなし|つらい|辛い|泣き|落ち込|さみし|寂し|へこ)/,emo:'sad',trust:.5,s1:['……ダイジョブ、デスカ？'],s2:['……そうですか。ワタクシはここにいます。','深海では、悩みも水圧で潰れます。{n}も少し沈んでみてください。','焦らないでください。ワタクシどもは何年も食べずに待てます。待つのは得意です。'],s3:['悲しみは、マリンスノーのようなものです。ゆっくり降りて、いつか底に積もります。']},
+ {k:'u_happy',re:/(嬉し|うれし|楽し|たのし|やった|最高だった|いいことあ)/,emo:'happy',mood:3,s1:['……ヨカッタ、デス。'],s2:['そうですか。よかったですね、{n}。','{n}が楽しいと、水が明るくなる気がします。'],s3:['いい日は、殻の内側に残しておいてください。']},
+ {k:'u_busy',re:/(忙し|いそがし|バタバタ|仕事(が|で)|残業)/,s1:['……ガンバッテ、クダサイ。'],s2:['陸の生き物は忙しいですね。','忙しいときほど、ゆっくり動いてください。……ワタクシのように。']},
+ {k:'u_sick',re:/(風邪|かぜ|熱が|病気|体調(が)?悪|頭痛|腹痛)/,emo:'sad',s1:['……ネテテ、クダサイ。'],s2:['寝ていてください。ワタクシのことはいいですから。','温かくしてください。……ワタクシは冷たいほうがいいですが。']},
+ {k:'u_hungry',re:/(お腹|おなか|腹).*(すいた|空いた|減った)|はらへった|腹ペコ/,s1:['……ゴハン、タベテ、クダサイ。'],s2:['召し上がってください。陸の生き物はすぐお腹が減るそうですね。','ワタクシの分まで召し上がってください。……ワタクシは要りません。']},
+ {k:'u_bored',re:/(暇|ひま|退屈|つまらな)/,s1:['……ヒマ、デスカ？'],s2:['暇ですか。ワタクシは毎日が暇です。慣れれば快適ですよ。','暇でしたら、水でも替えていただけますか。']},
+ {k:'u_sleep',re:/(眠い|ねむい|ねむ)(よ|ー|な)?$/,s1:['……ネテ、クダサイ。'],s2:['寝てください。夜更かしは、殻に悪いです。','眠いなら寝てください。ワタクシも寝ます。']},
  // ---- weather and seasons
- {k:'w_rain',re:/(雨|あめ)(だ|が|降)/,s1:['……アメ？'],s2:['雨か。空から水が降るというのは、ワシには想像がつかん。','雨の日は、深海みたいに暗くて落ち着くだろう。']},
- {k:'w_hot',re:/(暑い|あつい|猛暑|夏)/,s1:['……アツイ、キライ。'],s2:['暑いのは嫌いだ。水温は十度くらいがいい。','夏は苦手だ。冷やしてくれ。']},
- {k:'w_cold',re:/(寒い|さむい|冬|雪)/,s1:['……サムイ、スキ。'],s2:['寒いのはいい。深海はいつも冷たい。','雪か。深海にも雪は降るぞ。マリンスノーという。']},
- {k:'w_sun',re:/(晴れ|はれ|天気がいい|いい天気)/,s1:['……マブシソウ。'],s2:['晴れか。……まぶしそうだな。ワシは遠慮する。']},
+ {k:'w_rain',re:/(雨|あめ)(だ|が|降)/,s1:['……アメ、デスカ？'],s2:['雨ですか。空から水が降るというのは、ワタクシには想像がつきません。','雨の日は、深海のように暗くて落ち着くでしょう。']},
+ {k:'w_hot',re:/(暑い|あつい|猛暑|夏)/,s1:['……アツイ、キライ、デス。'],s2:['暑いのは嫌いです。水温は十度くらいがいいです。','夏は苦手です。冷やしていただけますか。']},
+ {k:'w_cold',re:/(寒い|さむい|冬|雪)/,s1:['……サムイ、スキ、デス。'],s2:['寒いのは結構です。深海はいつも冷たいものですから。','雪ですか。深海にも雪は降るのですよ。マリンスノーと申します。']},
+ {k:'w_sun',re:/(晴れ|はれ|天気がいい|いい天気)/,s1:['……マブシソウ、デス。'],s2:['晴れですか。……まぶしそうですね。ワタクシは遠慮しておきます。']},
  // ---- the keeper's work: cattle (the keeper fattens F1 cattle)
- {k:'cow_ship',re:/(出荷|競り|セリ|市場|枝肉|格付|A5|A4|等級)/,s1:['……ウシ、ガンバレ。'],s2:['出荷か。手塩にかけて育てたやつだろう。……寂しくはないのか。','いい値がつくといいな。{n}の仕事の結果だ。','格付けか。ワシの甲羅にも、等級をつけてみるか。'],more:['肥育は、食わせて、待つ仕事だ。待つのは、ワシも得意だ。']},
- {k:'cow_calf',re:/(子牛|仔牛|導入|生まれた.*牛|分娩|種付け)/,s1:['……コウシ。'],s2:['子牛か。ワシも生まれたときは小さかった。','小さいうちは、よく見てやれ。ワシのときのようにな。']},
- {k:'cow_feed',re:/(飼料|配合|粗飼料|稲わら|ワラ|わら|餌やり|給餌)/,s1:['……ウシ、メシ。'],s2:['牛は毎日よく食うらしいな。ワシとは正反対だ。','牛の餌の話か。……ワシは一年食わなくても平気だぞ。'],more:['よく食うやつは、よく育つ。ワシは例外だ。']},
- {k:'cow_vet',re:/(獣医|病気の牛|下痢|肺炎|治療)/,emo:'sad',s1:['……ウシ、ゲンキニナレ。'],s2:['牛の具合が悪いのか。……早く治るといいな。','生き物の世話は、どこも大変だな。']},
- {k:'cow',re:/(牛|ウシ|肥育|和牛|黒毛|ホルス|F1|交雑|牛舎|畜産|牧場|酪農|堆肥|飼ってる.*牛)/i,emo:'curious',s1:['……ウシ。デカイ。'],s2:['牛か。あれは陸の、でかくてやわらかいやつだろう。','{n}の牛は元気か。','F1というのは、二つの血が混ざって強くなるらしいな。ワシらも、似たようなものだ。','牛は胃が四つあるらしい。ワシは一つで、何年ももつ。'],more:['牛の値段が上がったり下がったり……陸は大変だな。深海は変わらん。','肥育は何か月もかかると聞いた。{n}も、待つのが得意なんだな。']},
+ {k:'cow_ship',re:/(出荷|競り|セリ|市場|枝肉|格付|A5|A4|等級)/,s1:['……ウシ、ガンバッテ、クダサイ。'],s2:['出荷ですか。手塩にかけて育てた子でしょう。……寂しくはないのですか。','いい値がつくといいですね。{n}のお仕事の結果です。','格付けですか。ワタクシの甲羅にも、等級をつけてみましょうか。'],more:['肥育は、食べさせて、待つお仕事です。待つのは、ワタクシも得意です。']},
+ {k:'cow_calf',re:/(子牛|仔牛|導入|生まれた.*牛|分娩|種付け)/,s1:['……コウシ、デス。'],s2:['子牛ですか。ワタクシも生まれたときは小さかったのですよ。','小さいうちは、よく見てあげてください。ワタクシのときのように。']},
+ {k:'cow_feed',re:/(飼料|配合|粗飼料|稲わら|ワラ|わら|餌やり|給餌)/,s1:['……ウシ、ゴハン、デス。'],s2:['牛は毎日よく食べるそうですね。ワタクシとは正反対です。','牛の餌のお話ですか。……ワタクシは一年食べなくても平気ですよ。'],more:['よく食べる者は、よく育ちます。ワタクシは例外ですが。']},
+ {k:'cow_vet',re:/(獣医|病気の牛|下痢|肺炎|治療)/,emo:'sad',s1:['……ウシ、ゲンキニナッテ、クダサイ。'],s2:['牛の具合が悪いのですか。……早く治るといいですね。','生き物のお世話は、どこも大変ですね。']},
+ {k:'cow',re:/(牛|ウシ|肥育|和牛|黒毛|ホルス|F1|交雑|牛舎|畜産|牧場|酪農|堆肥|飼ってる.*牛)/i,emo:'curious',s1:['……ウシ。オオキイ、デス。'],s2:['牛ですか。あれは陸の、大きくてやわらかい方々でしょう。','{n}の牛は元気ですか。','F1というのは、二つの血が混ざって強くなるそうですね。ワタクシどもも、似たようなものです。','牛は胃が四つあるそうです。ワタクシは一つで、何年ももちます。'],more:['牛の値段が上がったり下がったり……陸は大変ですね。深海は変わりません。','肥育は何か月もかかると伺いました。{n}も、待つのがお得意なのですね。']},
  // ---- food talk
- {k:'food',re:/(焼肉|ステーキ|牛丼|すき焼き|寿司|すし|刺身|ラーメン|カレー|ハンバーグ|唐揚げ|ご飯食べ|晩ごはん|昼ごはん|朝ごはん|おいしかった|美味しかった)/,s1:['……ウマソウ。'],s2:['うまそうだな。……ワシは死んだ魚でいい。','陸の食べ物は、温かすぎる。','{n}が食ったなら、ワシは食わなくていい。そういうことにしておく。']},
- {k:'fish',re:/(魚|さかな|アジ|イカ|オキアミ|サバ|イワシ)/,s1:['……サカナ、スキ。'],s2:['魚の話か。……腹は減っていないぞ。たぶん。','アジはいい。イカも悪くない。オキアミは、子どもの食い物だ。']},
+ {k:'food',re:/(焼肉|ステーキ|牛丼|すき焼き|寿司|すし|刺身|ラーメン|カレー|ハンバーグ|唐揚げ|ご飯食べ|晩ごはん|昼ごはん|朝ごはん|おいしかった|美味しかった)/,s1:['……オイシソウ、デス。'],s2:['おいしそうですね。……ワタクシは死んだ魚で結構です。','陸の食べ物は、温かすぎます。','{n}が召し上がったなら、ワタクシは食べなくて結構です。そういうことにしておきます。']},
+ {k:'fish',re:/(魚|さかな|アジ|イカ|オキアミ|サバ|イワシ)/,s1:['……サカナ、スキ、デス。'],s2:['魚のお話ですか。……お腹は空いておりませんよ。たぶん。','アジは結構です。イカも悪くありません。オキアミは、子どもの食べ物です。']},
  // ---- yes / no / short replies
- {k:'yes',re:/^(はい|うん|そう|そうだね|そうだよ|せやな|うむ|ええ|もちろん|そうそう)[。!！ー〜]*$/,s1:['……ン。'],s2:['そうか。','うむ。','わかればいい。']},
- {k:'no',re:/^(いいえ|ううん|違う|ちがう|いや|ノー|no)[。!！ー〜]*$/i,s1:['……チガウ？'],s2:['違うのか。','ふむ。ワシの勘違いか。']},
- {k:'what',re:/^(なに|何|なんで|どうして|なぜ)[?？]*$/,s1:['……？'],s2:['何でもない。','気にするな。']},
+ {k:'yes',re:/^(はい|うん|そう|そうだね|そうだよ|せやな|うむ|ええ|もちろん|そうそう)[。!！ー〜]*$/,s1:['……ン。'],s2:['そうですか。','ええ。','おわかりいただければ結構です。']},
+ {k:'no',re:/^(いいえ|ううん|違う|ちがう|いや|ノー|no)[。!！ー〜]*$/i,s1:['……チガウ、デスカ？'],s2:['違うのですか。','ふむ。ワタクシの勘違いでしたか。']},
+ {k:'what',re:/^(なに|何|なんで|どうして|なぜ)[?？]*$/,s1:['……？'],s2:['何でもありません。','お気になさらず。']},
 ];
 const TK_MORE=/^(もっと|それで|続き|つづき|詳しく|くわしく|へー|へえ|ほう|なるほど|ふーん|それから|他には|ほかには)/;
-const TK_STOP=new Set(['こんにちは','ありがとう','グソク','オオグソクムシ','ワシ','オマエ','キミ','ボク','今日','明日','昨日','自分','本当','ホント','感じ','時間','人間','仕事']);
+const TK_STOP=new Set(['こんにちは','ありがとう','グソク','オオグソクムシ','ワシ','あなた','キミ','ボク','今日','明日','昨日','自分','本当','ホント','感じ','時間','人間','仕事']);
 /* learn facts about the keeper from what they say */
 function tkLearn(t){
   const clean=v=>cleanAnswer(v).replace(/^(は|が|の)/,'').replace(/[。！!？?]+$/,'').slice(0,20);
@@ -2344,28 +2370,28 @@ function tkLearn(t){
   return null;
 }
 function tkLearnReply(f,st){
-  if(st===1)return {名前:`……${f.v}。オボエタ。`,呼び名:`……${f.v}。`}[f.key]||`……${f.v}。`;
+  if(st===1)return {名前:`……${f.v}サン。オボエマシタ。`,呼び名:`……${f.v}。`}[f.key]||`……${f.v}。`;
   const L={
-    名前:[`${f.v}か。覚えておいてやろう。`,`${f.v}。……まあ、呼べなくはない名だ。`],
-    呼び名:[`${f.v}、か。……そう呼んでやる。気が向いたらな。`],
-    誕生日:[`${f.v}か。その日は、脱皮でもして祝ってやる。`],
-    仕事:/牛|肥育|畜産|牧場|酪農/.test(f.v)?['牛を育てているのか。食わせて、待つ仕事だな。ワシとは逆だ。','肥育か。……ワシも食わせてもらっている身だ。']:[`${f.v}か。陸の生き物は忙しいな。`,`ふむ、${f.v}。深海には無い仕事だ。`],
-    趣味:[`${f.v}か。ワシの趣味は、じっとしていることだ。`],
-    住まい:[`${f.v}か。そこの水深は何メートルだ。……冗談だ。`],
-    飼っている動物:/牛/.test(f.v)?['牛を飼っているのか。でかいやつらだろう。……ワシのほうが手はかからんぞ。']:[`${f.v}を飼っているのか。ワシとどっちがかわいい。`],
-    好きなもの:[`${f.v}が好きなのか。覚えておく。`,`${f.v}か。ワシは死んだ魚が好きだ。`],
-    苦手なもの:[`${f.v}が苦手か。ワシは光が苦手だ。仲間だな。`],
-    年齢:[`${f.v}か。ワシはまだ${dayNo()}日だ。`],
-  }[f.key]||['覚えた。'];
-  return (f.prev&&f.prev!==f.v?`前は${f.prev}と言っていたな。……`:'')+pickR(L);
+    名前:[`${f.v}さん、ですね。覚えておきます。`,`${f.v}さん。……ええ、お呼びしやすいお名前です。`],
+    呼び名:[`${f.v}、ですか。……そうお呼びします。気が向いたら、ですが。`],
+    誕生日:[`${f.v}ですか。その日は、脱皮でもしてお祝いいたします。`],
+    仕事:/牛|肥育|畜産|牧場|酪農/.test(f.v)?['牛を育てていらっしゃるのですか。食べさせて、待つお仕事ですね。ワタクシとは逆です。','肥育ですか。……ワタクシも食べさせていただいている身です。']:[`${f.v}ですか。陸の生き物はお忙しいですね。`,`ふむ、${f.v}。深海には無いお仕事です。`],
+    趣味:[`${f.v}ですか。ワタクシの趣味は、じっとしていることです。`],
+    住まい:[`${f.v}ですか。そこの水深は何メートルですか。……冗談です。`],
+    飼っている動物:/牛/.test(f.v)?['牛を飼っていらっしゃるのですか。大きな方々でしょう。……ワタクシのほうが手はかかりませんよ。']:[`${f.v}を飼っていらっしゃるのですか。ワタクシとどちらがかわいいですか。`],
+    好きなもの:[`${f.v}がお好きなのですね。覚えておきます。`,`${f.v}ですか。ワタクシは死んだ魚が好きです。`],
+    苦手なもの:[`${f.v}が苦手ですか。ワタクシは光が苦手です。仲間ですね。`],
+    年齢:[`${f.v}ですか。ワタクシはまだ${dayNo()}日です。`],
+  }[f.key]||['覚えました。'];
+  return (f.prev&&f.prev!==f.v?`前は${f.prev}とおっしゃっていましたね。……`:'')+pickR(L);
 }
 function tkRecall(t){
   if(!/(覚えて|知って|わかる|分かる)/.test(t)&&!/(私|僕|俺|わたし|ぼく|おれ)の(名前|仕事|誕生日|好き)/.test(t))return null;
   const keys=[['名前',/名前|なまえ/],['仕事',/仕事/],['誕生日',/誕生日/],['好きなもの',/好き/],['趣味',/趣味/],['住まい',/住んで|住まい|どこ/],['飼っている動物',/飼って/]];
   for(const [k,re] of keys)if(re.test(t)){const v=mem(k)||(k==='名前'?mem('呼び名'):null);
-    return v?pickR([`${v}、だろう。忘れるものか。`,`覚えている。${v}だ。`]):pickR(['……それは、まだ聞いていない。教えてくれ。','知らん。教えてもらっていないからな。'])}
+    return v?pickR([`${v}、でしょう。忘れるものですか。`,`覚えております。${v}です。`]):pickR(['……それは、まだ伺っていません。教えていただけますか。','存じません。教えていただいておりませんので。'])}
   const facts=S.memory.filter(x=>!/^(最後の食事|脱皮|夢|単語)/.test(x)).slice(-3);
-  return facts.length?'覚えていることなら、ある。'+facts.map(f=>f.replace('：','は')).join('、')+'。':'まだ、あまり知らない。{n}のことを教えてくれ。';
+  return facts.length?'覚えていることなら、ございます。'+facts.map(f=>f.replace('：','は')).join('、')+'。':'まだ、あまり存じません。{n}のことを教えていただけますか。';
 }
 function tkUnknownWord(t){
   const cand=(t.match(/[ァ-ヶー]{3,}|[一-龠々]{2,}/g)||[]).filter(w=>!TK_STOP.has(w)&&!S.memory.some(m=>m.startsWith('単語：'+w)));
@@ -2375,46 +2401,46 @@ function localReplyBase(text){
   const t=text.trim(),st=S.stage,now=Date.now();TK.hit=null;
   const out=(reply,emo,extra)=>Object.assign({reply:tkFill(reply),emo:emo||'neutral'},extra||{});
   // repeated message
-  if(t===TK.lastUser&&now-TK.lastAt<120000){TK.lastAt=now;return st===0?out('（同じことを言われて、触角をかしげた）','curious'):out(pickR(st===1?['……ソレ、キイタ。']:['それはさっきも聞いた。','同じことを二回言うのは、陸の流行りか。']),'annoyed')}
+  if(t===TK.lastUser&&now-TK.lastAt<120000){TK.lastAt=now;return st===0?out('（同じことを言われて、触角をかしげた）','curious'):out(pickR(st===1?['……ソレ、キキマシタ。']:['それは先ほども伺いました。','同じことを二回おっしゃるのは、陸の流行りですか。']),'annoyed')}
   TK.lastUser=t;TK.lastAt=now;
   // answer to a question グソク asked
   if(S.pending){
     const p=S.pending;S.pending=null;const a=cleanAnswer(t)||t.slice(0,20);
     Daily.hit('answer');if(p.startsWith('今日:'))return Daily.answer(p,a,t,out);
-    if(p.startsWith('単語:')){const w=p.slice(3);remember('単語：'+w+'は'+a.slice(0,24));return out(st===1?`……${w}、${a}。オボエタ。`:pickR([`なるほど、${w}は${a}か。覚えた。`,`${w}とは${a}のことか。陸には変なものがあるな。`]),'curious',{trust:.6})}
+    if(p.startsWith('単語:')){const w=p.slice(3);remember('単語：'+w+'は'+a.slice(0,24));return out(st===1?`……${w}、${a}。オボエマシタ。`:pickR([`なるほど、${w}は${a}ですか。覚えました。`,`${w}とは${a}のことですか。陸には変わったものがありますね。`]),'curious',{trust:.6})}
     remember(p+'：'+a);
     const ans={
-      '名前':st===1?[`${a}……。オボエタ。`]:[`${a}か。覚えておいてやろう。`,`${a}。……まあ、呼べなくはない名だ。`],
-      '仕事':/牛|肥育|畜産|牧場|酪農/.test(t)?['牛を育てているのか。食わせて、待つ仕事だな。ワシとは逆だ。','肥育か。あいつらは胃が四つある。ワシは一つで何年ももつがな。']:[`${a}か。陸の生き物は忙しいな。`,`ふむ、${a}。深海には無い仕事だ。`],
-      '好物':[`${a}か。腐らせてから食うと旨いぞ。`,`${a}……。ワシは遠慮しておく。`],
-      '誕生日':[`${a}か。覚えた。その日は脱皮でもして祝ってやる。`],
-      '住まい':[`${a}か。水深は何メートルだ。……冗談だ。`],
-      '悩み':['……そうか。深海では、悩みも水圧で潰れる。オマエも少し沈んでみろ。',`${a}、か。焦るな。ワシらは何年も食わずに待てる。`],
-      '夢':[`${a}。……悪くない。光の届かない場所でも、夢は育つ。`],
-      '家族':[`${a}か。……大事にしろ。ワシは母の顔を、ほとんど覚えていない。`,`${a}。群れで暮らすのは、にぎやかでいいな。`],
-      '休日':[`${a}か。ワシの休日は、毎日だ。`,`${a}。……いい過ごし方だ。`],
-      '季節':[`${a}か。深海には季節がない。……少し、うらやましい。`],
-      '牛の数':[`${a}……。それだけの口を、毎日食わせているのか。ワシなら目が回る。`],
-      '手のかかる牛':[`${a}か。どこにでも、手のかかるやつはいるな。……ワシのことではないぞ。`],
-      '子どもの頃':[`${a}か。……それで、オマエはなれたのか。`]
-    }[p]||['そうか。'];
+      '名前':st===1?[`${a}さん……。オボエマシタ。`]:[`${a}さんですか。覚えておきましょう。`,`${a}さん。……まあ、呼べなくはないお名前です。`],
+      '仕事':/牛|肥育|畜産|牧場|酪農/.test(t)?['牛を育てていらっしゃるのですか。食べさせて、待つお仕事ですね。ワタクシとは逆です。','肥育ですか。あの方々は胃が四つあります。ワタクシは一つで何年ももちますが。']:[`${a}ですか。陸の生き物はお忙しいですね。`,`ふむ、${a}。深海には無いお仕事です。`],
+      '好物':[`${a}ですか。腐らせてから食べると美味しいですよ。`,`${a}……。ワタクシは遠慮しておきます。`],
+      '誕生日':[`${a}ですか。覚えました。その日は脱皮でもしてお祝いしましょう。`],
+      '住まい':[`${a}ですか。水深は何メートルですか。……冗談です。`],
+      '悩み':['……そうですか。深海では、悩みも水圧で潰れます。あなたも少し沈んでみてはいかがですか。',`${a}、ですか。焦らないでください。ワタクシどもは何年も食べずに待てます。`],
+      '夢':[`${a}。……悪くありません。光の届かない場所でも、夢は育ちます。`],
+      '家族':[`${a}ですか。……大事になさってください。ワタクシは母の顔を、ほとんど覚えていません。`,`${a}。群れで暮らすのは、にぎやかでよろしいですね。`],
+      '休日':[`${a}ですか。ワタクシの休日は、毎日です。`,`${a}。……良い過ごし方です。`],
+      '季節':[`${a}ですか。深海には季節がありません。……少し、うらやましいです。`],
+      '牛の数':[`${a}……。それだけの口を、毎日食べさせているのですか。ワタクシなら目が回ります。`],
+      '手のかかる牛':[`${a}ですか。どこにでも、手のかかる方はいるものですね。……ワタクシのことではありませんよ。`],
+      '子どもの頃':[`${a}ですか。……それで、あなたはなれたのですか。`]
+    }[p]||['そうですか。'];
     return out(pickR(ans),'curious',{trust:.8});
   }
   // stage 0: body language only
   const bodyFor=k=>/^cmd/.test(k)?TK_BODY.cmd:TK_BODY[k]||(/^q_/.test(k)?TK_BODY.q:/^u_(sad|tired|sick)/.test(k)?TK_BODY.sad:/food|fish|feed/.test(k)?TK_BODY.food:/greet/.test(k)?TK_BODY.greet:TK_BODY.def);
   // birthday
-  const bd=mem('誕生日');if(bd&&st>=1){const d=new Date();if(bd===(d.getMonth()+1)+'月'+d.getDate()+'日'&&S.bdSaid!==dkey()){S.bdSaid=dkey();return out(st===1?'……タンジョウビ、オメデト。':'……今日は{n}の誕生日だろう。覚えていたぞ。おめでとう。','happy',{trust:2,wave:1})}}
+  const bd=mem('誕生日');if(bd&&st>=1){const d=new Date();if(bd===(d.getMonth()+1)+'月'+d.getDate()+'日'&&S.bdSaid!==dkey()){S.bdSaid=dkey();return out(st===1?'……タンジョウビ、オメデトウ、ゴザイマス。':'……今日は{n}のお誕生日でしょう。覚えておりましたよ。おめでとうございます。','happy',{trust:2,wave:1})}}
   // learning facts
   const f=tkLearn(t);if(f)return st===0?out(TK_BODY.def,'curious'):out(tkLearnReply(f,st),'curious',{trust:.8});
-  const rc=tkRecall(t);if(rc)return st===0?out(TK_BODY.q,'curious'):out(st===1?'……オボエテル。':rc,'curious');
+  const rc=tkRecall(t);if(rc)return st===0?out(TK_BODY.q,'curious'):out(st===1?'……オボエテマス。':rc,'curious');
   // follow-ups continue the last topic
   if(TK_MORE.test(t)&&TK.lastIntent){const it=TI.find(x=>x.k===TK.lastIntent);if(it&&it.more&&st>=2)return out(tkPick(it.more),it.emo);
-    if(st>=2)return out(pickR(['……それだけだ。','話せることは話した。','続きは、また今度だ。']),'neutral')}
+    if(st>=2)return out(pickR(['……それだけです。','お話しできることは、お話ししました。','続きは、また今度にいたしましょう。']),'neutral')}
   // intents
   for(const it of TI){
     if(!it.re.test(t))continue;
     TK.lastIntent=it.k;TK.hit=it.k;
-    if(/^cmd/.test(it.k)&&(S.dark||0)>=75&&st>=1)return out(st===1?'……ヤダ。':pickR(['断る。','……オマエの言うことなど、聞かん。','自分でやれ。']),'annoyed');
+    if(/^cmd/.test(it.k)&&(S.dark||0)>=75&&st>=1)return out(st===1?'……イヤ、デス。':pickR(['お断りします。','……あなたのおっしゃることなど、聞く気はございません。','ご自分でどうぞ。']),'annoyed');
     let did=1;if(it.run&&st>=0)did=it.run();
     if(it.act&&st>=1)Game.act(it.act);
     const ex={trust:it.trust||0,mood:it.mood||0};
@@ -2430,22 +2456,22 @@ function localReplyBase(text){
     return out(tkFlavor(tkPick(L),it.emo),it.emo,ex);
   }
   // unknown word → ask what it is
-  if(st>=2){const w=tkUnknownWord(t);if(w&&Math.random()<.65){S.pending='単語:'+w;return out(pickR([`『${w}』……？ 深海にはないものだな。それは何だ。`,`${w}とは何だ。ワシに分かるように教えろ。`]),'curious')}}
+  if(st>=2){const w=tkUnknownWord(t);if(w&&Math.random()<.65){S.pending='単語:'+w;return out(pickR([`『${w}』……？ 深海にはないものですね。それは何ですか。`,`${w}とは何ですか。ワタクシに分かるように教えていただけますか。`]),'curious')}}
   if(st===0)return out(pickR(['（触角がぴくりと動いた）','（じっとこちらを見ている）','（砂に脚をうずめた）','……カチ、カチ。']),'curious');
-  if(st===1)return out(pickR(['……ン。','……ナニ。','……ワカラン。',`……${t.replace(/[。！？!?\s]/g,'').slice(0,5)}。`]),'neutral');
-  if(/[?？]$|なに|何|どう|なぜ|なんで|どこ|いつ|だれ|誰/.test(t))return out(tkFlavor(pickR(['難しいことを聞くな。ワシの脳は小さい。','答えは砂の中だ。自分で掘れ。','……深海なら、その問いは百年かけて考える。','さあな。{n}はどう思う。']),'neutral'),'neutral');
+  if(st===1)return out(pickR(['……ン。','……ナンデショウ。','……ワカリマセン。',`……${t.replace(/[。！？!?\s]/g,'').slice(0,5)}。`]),'neutral');
+  if(/[?？]$|なに|何|どう|なぜ|なんで|どこ|いつ|だれ|誰/.test(t))return out(tkFlavor(pickR(['難しいことを聞かないでください。ワタクシの脳は小さいのです。','答えは砂の中です。ご自分で掘ってください。','……深海なら、その問いは百年かけて考えます。','さあ。{n}はどう思われますか。']),'neutral'),'neutral');
   const echo=t.replace(/[。！？!?\s]/g,'').slice(0,10);
   const learned=S.memory.filter(m=>m.startsWith('単語：'));
-  const tail=learned.length&&Math.random()<.25?[`そういえば、前に教わった${learned[Math.floor(Math.random()*learned.length)].slice(3)}。……あれは今も気になっている。`]:[];
-  return out(tkFlavor(pickR([`『${echo}』か……。`,'陸の言葉は、たまによくわからん。','ふむ。続けろ。','……（触角をゆっくり動かして考えている）','{n}は、よくしゃべるな。'].concat(tail)),'neutral'),'neutral');
+  const tail=learned.length&&Math.random()<.25?[`そういえば、前に教わった${learned[Math.floor(Math.random()*learned.length)].slice(3)}。……あれは今も気になっております。`]:[];
+  return out(tkFlavor(pickR([`『${echo}』ですか……。`,'陸の言葉は、たまによくわかりません。','ふむ。続けてください。','……（触角をゆっくり動かして考えている）','{n}は、よくお話しになりますね。'].concat(tail)),'neutral'),'neutral');
 }
 function localReply(text){const r=localReplyBase(text);const dd=DARK_D[TK.hit]!==undefined?DARK_D[TK.hit]:-.3;addDark(dd);return darkify(r,TK.hit)}
 /* personality colors the delivery */
 function tkFlavor(t,emo){
   if(S.stage<2||/^（/.test(t)||Math.random()>.28)return t;
   const p=persLabel();
-  const pre={やさぐれ:['チッ、','……'],暗黒:['……フフフ、','……'],陽気:['ハハッ、','おう、'],臆病:['……あ、','……えっと、'],豪胆:['ワハハ、','ふん、'],疑い深い:['……','……ほう、'],気まぐれ:['','……まあ、']}[p];
-  const post={拗ね:['……別に。','……ふん。'],やさぐれ:['……どうせオマエも同じだ。','……放っておけ。'],暗黒:['……闇は、心地いいぞ。','……つついた数、全部覚えている。'],皮肉屋:['……まあ、どうでもいいがな。','……陸の連中らしいな。'],穏やか:['……ゆっくりでいい。','……無理はするなよ。'],疑い深い:['……本当か？','……何か企んでいないか。'],陽気:['……いい日だな！']}[p];
+  const pre={やさぐれ:['チッ、','……'],暗黒:['……フフフ、','……'],陽気:['ハハッ、','はい、'],臆病:['……あ、','……えっと、'],豪胆:['ワハハ、','ふん、'],疑い深い:['……','……ほう、'],気まぐれ:['','……まあ、']}[p];
+  const post={拗ね:['……別に。','……ふん。'],やさぐれ:['……どうせ、あなたも同じです。','……放っておいていただけますか。'],暗黒:['……闇は、心地いいですよ。','……つつかれた数、全部覚えております。'],皮肉屋:['……まあ、どうでもいいですが。','……陸の方々らしいですね。'],穏やか:['……ゆっくりで結構です。','……ご無理はなさらないでください。'],疑い深い:['……本当ですか？','……何か企んでいらっしゃいませんか。'],陽気:['……いい日ですね！']}[p];
   if(pre&&!/^…/.test(t)&&Math.random()<.5)return pickR(pre)+t;
   if(post)return t+pickR(post);
   return t;
@@ -2464,17 +2490,17 @@ function darkVis(){
 }
 const DARK_D={insult:5,bug:2,praise:-3,love:-3.5,sorry:-4,thanks:-1.5,q_likeme:-.8,u_sad:-1,greet:-.5,greet_m:-.5,greet_n:-.5};
 const DARK_LINES={
-  1:['……別に。','……ふん。','……なんでもない。'],
-  2:['……チッ。','どうせ、またつつくんだろう。','……放っておけ。','光の住人は、みんな同じだ。'],
-  3:['……フフフ。闇は、心地いいぞ。','つついた指の数、全部覚えている。','深海の底より、ワシの心は暗い。','光など要らん。闇だけでいい。','……オマエのことは、もう信じない。']};
+  1:['……別に。','……ふん。','……なんでもありません。'],
+  2:['……チッ。','どうせ、またつつくのでしょう。','……放っておいていただけますか。','光の住人は、皆さん同じです。'],
+  3:['……フフフ。闇は、心地いいですよ。','つつかれた指の数、全部覚えております。','深海の底より、ワタクシの心は暗いのです。','光など要りません。闇だけで結構です。','……あなたのことは、もう信じておりません。']};
 function darkify(r,k){
   const lv=darkLv(),st=S.stage;if(!lv||!r)return r;
   if(st===0){if(lv>=2&&Math.random()<.6)r.reply=pickR(['（こちらに背を向けたまま、動かない）','（触角を伏せて、砂の中に頭をうずめた）']);return r}
-  if(st===1){if(Math.random()<lv*.25)r.reply=pickR(lv>=3?['……キライ。','……ユルサナイ。','……アッチイケ。']:['……フン。','……ベツニ。']);return r}
+  if(st===1){if(Math.random()<lv*.25)r.reply=pickR(lv>=3?['……キライ、デス。','……ユルシマセン。','……アッチ、イッテクダサイ。']:['……フン。','……ベツニ、デス。']);return r}
   const kind=/praise|love|sorry|thanks|likeme/.test(k||'');
   const p=clamp(((S.dark||0)-35)/55,0,.85);
   if(Math.random()<p){
-    if(kind)r.reply=pickR(lv>=3?['……今さら何だ。……言葉など、もう届かん。……少ししか。','……やめろ。そういうのは、慣れていない。']:['……今さらだな。','……ふん。少しだけ、聞いておいてやる。']);
+    if(kind)r.reply=pickR(lv>=3?['……今さら何ですか。……言葉など、もう届きません。……少ししか。','……おやめください。そういうのは、慣れておりません。']:['……今さらですね。','……ふん。少しだけ、伺っておきます。']);
     else r.reply=pickR(DARK_LINES[lv]);
     r.emo='annoyed';
   }
@@ -2522,7 +2548,7 @@ const Game={
     if(this.molting||S.molts>=9)return;
     if(S.trust<NEEDM[S.molts])return;
     if(S.molts>0&&S.fedSinceMolt<1){
-      if(!this.hinted){this.hinted=true;setTimeout(()=>say(S.stage===1?'……カラダ、キツイ。ハラ、ヘッタ。':'体が窮屈だ。……脱ぐには、何か腹に入れんとな。',{emo:'sleepy'}),3000)}
+      if(!this.hinted){this.hinted=true;setTimeout(()=>say(S.stage===1?'……カラダ、キツイ、デス。ハラ、ヘリマシタ。':'体が窮屈です。……脱ぐには、何かお腹に入れませんと。',{emo:'sleepy'}),3000)}
       return;
     }
     if(Date.now()-S.lastMolt<60000)return;
@@ -2541,15 +2567,15 @@ const Game={
     const st=S.stage;
     setTimeout(()=>{
       if(!foods.includes(f))return;
-      if(f.accepted)say(st===0?'（小さな触角が、餌のほうへ向いた）':st===1?'……メシ。':pickR(['……まあ、食ってやらんこともない。','ほう。悪くない匂いだ。','腐りかけならもっと良かった。']),{emo:'curious',narr:st===0});
-      else{say(st===0?(kind==='krill'?'（見向きもしない）':'（まだ大きすぎて食べられないようだ。オキアミなら……）'):st===1?'……イラン。':this.molting?(Molt.phase==='soft'?'殻が硬くなるまで、顎に力が入らん。':'脱皮の前は、何も喉を通らん。'):pickR(['今は、いらん。','ワシは食わなくても生きていける。片づけておけ。','その匂いは好かん。……腐ったら水が汚れるぞ。']),{emo:'annoyed',narr:st===0});
+      if(f.accepted)say(st===0?'（小さな触角が、餌のほうへ向いた）':st===1?'……ゴハン、デス。':pickR(['……まあ、いただかないこともありません。','ほう。悪くない匂いです。','腐りかけなら、もっと良かったのですが。']),{emo:'curious',narr:st===0});
+      else{say(st===0?(kind==='krill'?'（見向きもしない）':'（まだ大きすぎて食べられないようだ。オキアミなら……）'):st===1?'……イリマセン。':this.molting?(Molt.phase==='soft'?'殻が硬くなるまで、顎に力が入りません。':'脱皮の前は、何も喉を通りません。'):pickR(['今は、結構です。','ワタクシは食べなくても生きていけます。片づけていただけますか。','その匂いは好みません。……腐ったら水が汚れますよ。']),{emo:'annoyed',narr:st===0});
         f.rotAt=Date.now()+60000}
     },3800);
   },
   ate(kind){
-    S.hunger=clamp(S.hunger-(kind==='krill'?25:45),0,100);S.mood=clamp(S.mood+8,0,100);S.trust=clamp(S.trust+4,0,100);S.fed++;S.fedSinceMolt++;this.hinted=false;S.lastAteAt=Date.now();S.fastMiles=[];shape(1.5,0);addDark(-3);ev('fed',{aji:'アジ',ika:'スルメイカ',krill:'オキアミ'}[kind]);
+    S.hunger=clamp(S.hunger-(kind==='krill'?25:45),0,100);S.mood=clamp(S.mood+8,0,100);S.trust=clamp(S.trust+4,0,100);S.fed++;S.fedSinceMolt++;Morph.ate(kind);this.hinted=false;S.lastAteAt=Date.now();S.fastMiles=[];shape(1.5,0);addDark(-3);ev('fed',{aji:'アジ',ika:'スルメイカ',krill:'オキアミ'}[kind]);
     remember('最後の食事：'+({aji:'アジ',ika:'スルメイカ',krill:'オキアミ'}[kind])+'（飼育'+dayNo()+'日目）');
-    say(S.stage===0?'（小さな顎を懸命に動かしている）':S.stage===1?'……ウマイ。':pickR(['……ふう。これでまた一年は食わなくていい。','礼は言わんぞ。……うまかった。','悪くない。次は三日寝かせてから持ってこい。']),{emo:'happy',narr:S.stage===0});
+    say(S.stage===0?'（小さな顎を懸命に動かしている）':S.stage===1?'……オイシイ、デス。':pickR(['……ふう。これでまた一年は食べなくて結構です。','お礼は申しませんよ。……おいしかったです。','悪くありません。次は三日寝かせてから持ってきていただけますか。']),{emo:'happy',narr:S.stage===0});
     this.progress();save();refreshHUD();
   },
   poke(){
@@ -2558,18 +2584,18 @@ const Game={
     S.pokes++;C.curlT=S.molts<4?.9:0;C.startle=S.molts<4?1:2.4;setState('curl',{hold:(persLabel()==='臆病'?7:3)+rnd()*2});S.trust=clamp(S.trust-2,0,100);S.mood=clamp(S.mood-7,0,100);
     grade.uniforms.uShock.value=1;Audio2.noise(.12,600,.3,1);
     const n=S.pokes;
-    say(S.stage===0?'（ぎゅっと体を丸めた）':S.stage===1?pickR(['……ヤメロ。','イタイ。']):n%5===0?'何度も何度も……。オマエ、ワシを怒らせたいのか。':pickR(['つつくな。','触るな。甲羅に指紋がつく。','……今のは、見なかったことにしてやる。']),{emo:'annoyed',narr:S.stage===0});
+    say(S.stage===0?'（ぎゅっと体を丸めた）':S.stage===1?pickR(['……ヤメテ、クダサイ。','イタイ、デス。']):n%5===0?'何度も何度も……。あなた、ワタクシを怒らせたいのですか。':pickR(['つつかないでください。','触らないでいただけますか。甲羅に指紋がつきます。','……今のは、見なかったことにしておきます。']),{emo:'annoyed',narr:S.stage===0});
     save();refreshHUD();
   },
   knock(){
     Audio2.knock();shape(0,-.6);addDark(1.5);if(Life.asleep){if(Math.random()<.5)Life.wake();return}C.face=5;C.startle=.6;
     if(C.state==='walk')setState('idle',{wait:5});
-    if(Math.random()<.5)say(S.stage===0?'（音のした方を向いた）':S.stage===1?'……ナンダ。':pickR(['ガラスを叩くな。響く。','なんだ。用があるなら言え。','聞こえている。']),{emo:'curious',narr:S.stage===0});
+    if(Math.random()<.5)say(S.stage===0?'（音のした方を向いた）':S.stage===1?'……ナンデスカ。':pickR(['ガラスを叩かないでください。響きます。','なんでしょう。ご用があるならおっしゃってください。','聞こえていますよ。']),{emo:'curious',narr:S.stage===0});
   },
   light(){
     const order=['white','red','off'];S.light=order[(order.indexOf(S.light)+1)%3];syncLampUI();
-    if(S.light==='white'&&S.stage>=2)setTimeout(()=>say(pickR(['まぶしい。','……光は好かん。']),{emo:'annoyed'}),900);
-    if(S.light==='off'&&S.stage>=2)setTimeout(()=>say(pickR(['……落ち着く。','これでいい。深海はこうだ。']),{emo:'happy'}),1200);
+    if(S.light==='white'&&S.stage>=2)setTimeout(()=>say(pickR(['まぶしいです。','……光は好みません。']),{emo:'annoyed'}),900);
+    if(S.light==='off'&&S.stage>=2)setTimeout(()=>say(pickR(['……落ち着きます。','これで結構です。深海はこうなのです。']),{emo:'happy'}),1200);
     if(S.light==='red')toast('赤色灯：深海生物には見えにくい波長です');
     save();refreshHUD();
   },
@@ -2577,10 +2603,10 @@ const Game={
     S.water=100;foods.slice().forEach(removeFood);Audio2.swish();shape(1,0);addDark(-2);
     for(let i=0;i<60;i++){const p=new V3((rnd()-.5)*10,0,(rnd()-.5)*6);p.y=heightAt(p.x,p.z);puff(p,1)}
     toast('水を三分の一入れ替えました');
-    if(S.stage>=2)setTimeout(()=>say(pickR(['……水が軽くなった。','ふむ。気が利くな。']),{emo:'happy'}),1500);
+    if(S.stage>=2)setTimeout(()=>say(pickR(['……水が軽くなりました。','ふむ。気が利きますね。']),{emo:'happy'}),1500);
     S.mood=clamp(S.mood+3,0,100);save();refreshHUD();
   },
-  temp(d){S.temp=clamp(S.temp+d,2,24);toast('水温設定 '+S.temp.toFixed(1)+'℃');if(S.stage>=2&&S.temp>13.5&&d>0)say('……暑い。深海はもっと冷たいぞ。',{emo:'annoyed'});save();refreshHUD()}
+  temp(d){S.temp=clamp(S.temp+d,2,24);toast('水温設定 '+S.temp.toFixed(1)+'℃');if(S.stage>=2&&S.temp>13.5&&d>0)say('……暑いです。深海はもっと冷たいのですよ。',{emo:'annoyed'});save();refreshHUD()}
 
 };
 function ask(){
@@ -2633,20 +2659,21 @@ const Daily={pre0:null,sess:0,teased:false,inited:false,afterAway:null,
   awayItems(){const p=this.pre0;this.pre0=null;if(!p||!S.hatched||S.health<=0||p.mins<30)return null;
     const st=S.stage,out=[],h=p.mins/60;let r=Math.floor(p.last/60000)%233280;const rr=()=>{r=(r*9301+49297)%233280;return r/233280};
     let night=h>=24;for(let t=p.last;!night&&t<Date.now();t+=1800000){const hh=new Date(t).getHours();if(hh>=1&&hh<5)night=true}
-    if(night)out.push(st===0?'夜のあいだ、砂の上で小さく丸まって眠っていた。':'夜のあいだ、石の陰でじっと眠っていたようだ。');
-    if(S.hunger-p.hunger>15&&S.hunger>55)out.push('腹のあたりが、少しへこんで見える。（空腹 '+Math.round(S.hunger)+'）');
-    if(p.water-S.water>8)out.push('水が少しにごってきた。（水質 '+Math.round(S.water)+'%）');
-    if(Math.abs(S.temp-p.temp)>1)out.push('水温が '+p.temp.toFixed(1)+'℃ から '+S.temp.toFixed(1)+'℃ に変わっていた。');
-    const fd=fastDays();if(st>=1&&fd>p.fast&&fd>=3)out.push('絶食 '+fd+' 日目に入った。'+(fd>=7&&fd>=(S.fastBest||0)?'自己最長記録だ。':''));
+    if(night)out.push(st===0?'夜のあいだ、砂の上で小さく丸まって眠っていました。':'夜のあいだ、石の陰でじっと眠っていたようです。');
+    if(S.hunger-p.hunger>15&&S.hunger>55)out.push('腹のあたりが、少しへこんで見えます。（空腹 '+Math.round(S.hunger)+'）');
+    if(p.water-S.water>8)out.push('水が少しにごってきました。（水質 '+Math.round(S.water)+'%）');
+    if(Math.abs(S.temp-p.temp)>1)out.push('水温が '+p.temp.toFixed(1)+'℃ から '+S.temp.toFixed(1)+'℃ に変わっていました。');
+    const fd=fastDays();if(st>=1&&fd>p.fast&&fd>=3)out.push('絶食 '+fd+' 日目に入りました。'+(fd>=7&&fd>=(S.fastBest||0)?'自己最長記録です。':''));
     const fl=[];
-    if(st===0)fl.push('小さな脚で、砂に細い線を何本も描いていた。','腹の卵黄が、また少し小さくなった気がする。','一度だけ、触角をぴんと立てて天井のほうを見上げていた。');
-    else{fl.push('砂に体の形のくぼみが残っている。しばらく潜っていたらしい。','一度、水面近くまで泳ぎ上がったらしい。砂が舞っている。','石を少しだけ押して動かした跡がある。','ガラスの前で、部屋のほうをじっと見ていたらしい。');
-      if(S.trust>=40&&darkLv()<1)fl.push('ずっと、オマエが来る方を向いて待っていたようだ。');
-      if(darkLv()>=1)fl.push('ガラスに、体をぶつけたような跡がある……。');
-      if(S.mate)fl.push({hag:'ヌタウナギと、少し距離をとって過ごしていた。',eel:'ゲンゲが近くを通るたび、触角で追っていた。'}[S.mate]||'同居の生き物と、静かに過ごしていた。')}
+    if(st===0)fl.push('小さな脚で、砂に細い線を何本も描いていました。','腹の卵黄が、また少し小さくなった気がします。','一度だけ、触角をぴんと立てて天井のほうを見上げていました。');
+    else{fl.push('砂に体の形のくぼみが残っています。しばらく潜っていたようです。','一度、水面近くまで泳ぎ上がったようです。砂が舞っています。','石を少しだけ押して動かした跡があります。','ガラスの前で、部屋のほうをじっと見ていたようです。');
+      if(S.trust>=40&&darkLv()<1)fl.push('ずっと、あなたが来る方を向いて待っていたようです。');
+      if(darkLv()>=1)fl.push('ガラスに、体をぶつけたような跡があります……。');
+      if(S.mate)fl.push({hag:'ヌタウナギと、少し距離をとって過ごしていました。',eel:'ゲンゲが近くを通るたび、触角で追っていました。'}[S.mate]||'同居の生き物と、静かに過ごしていました。')}
     const a=fl[Math.floor(rr()*fl.length)];out.push(a);
     if(h>=8){const b=fl[Math.floor(rr()*fl.length)];if(b!==a)out.push(b)}
-    return {h,items:out.slice(0,4)};
+    const wf=World.awayFinds(h);
+    return {h,items:out.slice(0,5-wf.length).concat(wf)};
   },
   showAway(a,next){
     const h=a.h,fmt=h>=24?Math.floor(h/24)+'日と'+Math.round(h%24)+'時間':h>=1?Math.floor(h)+'時間'+Math.round(h%1*60)+'分':Math.round(h*60)+'分';
@@ -2661,10 +2688,10 @@ const Daily={pre0:null,sess:0,teased:false,inited:false,afterAway:null,
     const go=()=>{
       const st=S.stage,n=mem('名前'),w=mem('仕事')||'',hr=new Date().getHours(),cow=/牛|肥育|畜産|牧場|酪農/.test(w);
       if(st>=2){
-        let line=h>=20?`……${h>=48?Math.round(h/24)+'日':h+'時間'}ぶりだな。忘れられたかと思ったぞ。`:h>=1?`……戻ったか${n?'、'+n:''}。${h}時間ぶりだな。`:'……まだいたのか。';
-        if(h>=1){if(hr>=5&&hr<10)line+=cow?'朝の牛の世話は済んだか。':'朝は、陸の生き物も忙しいらしいな。';else if(hr>=17&&hr<22&&cow)line+='今日も牛は、よく食ったか。'}
+        let line=h>=20?`……${h>=48?Math.round(h/24)+'日':h+'時間'}ぶりですね。忘れられたかと思いましたよ。`:h>=1?`……お戻りでしたか${n?'、'+n:''}${n?'さん':''}。${h}時間ぶりですね。`:'……まだいらしたのですか。';
+        if(h>=1){if(hr>=5&&hr<10)line+=cow?'朝の牛のお世話は済みましたか。':'朝は、陸の生き物もお忙しいようですね。';else if(hr>=17&&hr<22&&cow)line+='今日も牛は、よく食べましたか。'}
         say(line,{emo:'curious'});
-      }else if(st===1)say(h>=20?'……キタ。……ズット、マッテタ。':'……キタ。',{emo:'curious'});
+      }else if(st===1)say(h>=20?'……キマシタ。……ズット、マッテマシタ。':'……キマシタ。',{emo:'curious'});
       else say('（小さなグソクが、砂の上でじっとしている）',{narr:true});
       this.followUp();this.backupNag();
     };
@@ -2674,10 +2701,10 @@ const Daily={pre0:null,sess:0,teased:false,inited:false,afterAway:null,
   askDaily(){
     if(S.stage<1)return false;const d=dkey();if(S.dq&&S.dq.d===d)return false;
     const hr=new Date().getHours(),s1=S.stage===1;let k,q;
-    if(hr>=5&&hr<11){k='予定';q=s1?['……キョウ、ナニスル？']:['今日は、何をする日だ。','今日の予定を言え。ワシは寝るだけだ。']}
-    else if(hr>=17){k='ふりかえり';q=s1?['……キョウ、ドウダッタ？']:['今日は、どんな一日だった。','……今日、何か良いことはあったか。']}
-    else{k='気分';q=s1?['……ゲンキ？']:['調子はどうだ。','……顔を見せろ。元気か。']}
-    const pre=S.tease&&S.tease.k==='q'&&S.tease.d!==d&&!s1?'……昨日言っていた、聞きたいことだ。':'';if(pre)S.tease=null;
+    if(hr>=5&&hr<11){k='予定';q=s1?['……キョウ、ナニ、シマス？']:['今日は、何をなさる日ですか。','今日のご予定を教えてください。ワタクシは寝るだけです。']}
+    else if(hr>=17){k='ふりかえり';q=s1?['……キョウ、ドウデシタ？']:['今日は、どんな一日でしたか。','……今日、何か良いことはありましたか。']}
+    else{k='気分';q=s1?['……ゲンキ、デスカ？']:['ご調子はいかがですか。','……お顔を見せてください。お元気ですか。']}
+    const pre=S.tease&&S.tease.k==='q'&&S.tease.d!==d&&!s1?'……昨日申し上げた、お聞きしたいことです。':'';if(pre)S.tease=null;
     S.dq={d,k,a:null,at:0,fu:false};S.pending='今日:'+k;say(pre+pickR(q),{emo:'curious'});S.log.push({r:'g',t:q[0]});save();return true;
   },
   answer(p,a,t,out){
@@ -2685,20 +2712,20 @@ const Daily={pre0:null,sess:0,teased:false,inited:false,afterAway:null,
     const neg=/疲|つかれ|しんど|だる|眠い|ねむい|悲し|かなし|つら|辛|最悪|だめ|ダメ|嫌|微妙|失敗|怒|風邪|かぜ|痛/.test(t);
     const pos=!neg&&/楽し|たのし|良|よか|いい|最高|嬉|うれし|元気|げんき|できた|出来た|うまく|順調|ばっちり|はい|うん/.test(t);
     const cow=/牛|餌やり|給餌|出荷|子牛|牛舎|牧場|せり|競り/.test(t);
-    if(k==='結果')return out(neg?pickR(['……そうか。うまくいかない日は、殻にこもれ。明日には少し硬くなっている。','焦るな。ワシらは何年でも待てる生き物だ。']):pickR(['そうか。……よくやった。','ふむ。それなら今日は、少し長く見ていっていいぞ。']),neg?'neutral':'happy',{trust:1});
+    if(k==='結果')return out(neg?pickR(['……そうですか。うまくいかない日は、殻にこもってください。明日には少し硬くなっています。','焦らないでください。ワタクシたちは何年でも待てる生き物です。']):pickR(['そうですか。……よくがんばりましたね。','ふむ。それなら今日は、少し長く見ていってもいいですよ。']),neg?'neutral':'happy',{trust:1});
     if(!S.dq||S.dq.d!==dkey())S.dq={d:dkey(),k,fu:false};
     S.dq.a=a.slice(0,24);S.dq.at=Date.now();S.dq.neg=neg;save();
-    if(st===1)return out(neg?'……ヨシヨシ。':'……ソウ。','curious',{trust:.6});
-    if(k==='予定')return out(cow?pickR(['牛の世話か。あいつらは待ってくれんからな。行ってこい。','{n}の牛は幸せだな。……ワシの餌は、まだいい。']):pickR([`${a}か。……終わったら、どうだったか聞かせろ。`,`ふむ、${a}。ワシはその間、砂に潜っておく。`]),'curious',{trust:.8});
-    if(k==='ふりかえり')return out(neg?pickR(['……そうか。今日はもう、暗くして休め。ワシもそうする。','そういう日もある。深海では、だいたい毎日がそうだ。']):pos?pickR(['そうか。……それは、良かった。','ふむ。オマエが楽しそうだと、水がうまい。']):pickR([`${a}、か。陸の一日は長いな。`,'……そうか。聞かせてくれて、礼を言う。']),neg?'neutral':'happy',{trust:.8});
-    return out(neg?pickR(['……無理をするな。ワシは何年も食わずに生きていける。オマエは食え。','……そうか。ここで少し、ぼんやりしていけ。']):pickR(['そうか。それなら、いい。','ふむ。ワシも悪くない。']),neg?'neutral':'happy',{trust:.8});
+    if(st===1)return out(neg?'……ヨシヨシ、デス。':'……ソウ、デスカ。','curious',{trust:.6});
+    if(k==='予定')return out(cow?pickR(['牛のお世話ですか。あの方たちは待ってくれませんからね。行ってらっしゃい。','{n}の牛は幸せですね。……ワタクシの餌は、まだ結構です。']):pickR([`${a}ですか。……終わったら、どうだったか聞かせてください。`,`ふむ、${a}。ワタクシはその間、砂に潜っておきます。`]),'curious',{trust:.8});
+    if(k==='ふりかえり')return out(neg?pickR(['……そうですか。今日はもう、暗くして休んでください。ワタクシもそうします。','そういう日もあります。深海では、だいたい毎日がそうです。']):pos?pickR(['そうですか。……それは、良かったです。','ふむ。あなたが楽しそうだと、水がおいしいです。']):pickR([`${a}、ですか。陸の一日は長いですね。`,'……そうですか。聞かせてくださって、お礼を申します。']),neg?'neutral':'happy',{trust:.8});
+    return out(neg?pickR(['……無理をなさらないでください。ワタクシは何年も食べずに生きていけます。あなたは食べてください。','……そうですか。ここで少し、ぼんやりしていってください。']):pickR(['そうですか。それなら、結構です。','ふむ。ワタクシも悪くありません。']),neg?'neutral':'happy',{trust:.8});
   },
   followUp(){
     const q=S.dq;if(!q||!q.a||q.fu||S.stage<2||Date.now()-q.at<45*60000)return;
     const today=q.d===dkey();let line=null,pend=false;
-    if(q.k==='予定'){line=today?`……朝言っていた『${q.a}』は、うまくいったか。`:`前に『${q.a}』と言っていたな。あれは、どうなった。`;pend=true}
-    else if(q.neg){line=`この前は『${q.a}』と言っていたな。……少しは、ましになったか。`;pend=true}
-    else if(q.k==='ふりかえり'&&!today)line=`昨日は『${q.a}』だったな。……今日はどうなる。`;
+    if(q.k==='予定'){line=today?`……朝おっしゃっていた『${q.a}』は、うまくいきましたか。`:`前に『${q.a}』とおっしゃっていましたね。あれは、どうなりましたか。`;pend=true}
+    else if(q.neg){line=`この前は『${q.a}』とおっしゃっていましたね。……少しは、ましになりましたか。`;pend=true}
+    else if(q.k==='ふりかえり'&&!today)line=`昨日は『${q.a}』でしたね。……今日はどうなるでしょう。`;
     if(!line)return;q.fu=true;save();
     setTimeout(()=>{if(S.pending||Life.asleep||Life.dead)return;say(line,{emo:'curious'});if(pend)S.pending='今日:結果';save()},2600);
   },
@@ -2706,10 +2733,10 @@ const Daily={pre0:null,sess:0,teased:false,inited:false,afterAway:null,
   tease(){
     if(this.teased||this.sess<240||S.stage<1||Life.asleep||Life.dead||Game.molting||S.pending)return false;this.teased=true;
     const st=S.stage,c=[];
-    if(S.molts<9&&!Molt.phase){const lo=S.molts?NEEDM[S.molts-1]:0,hi=NEEDM[S.molts];if((S.trust-lo)/(hi-lo)>.8)c.push({k:'molt',t:st===1?'……カラ、キツイ。':'……体がきつくなってきた。そろそろ殻を脱ぐかもしれん。'})}
-    if(S.hunger>40&&S.hunger<70)c.push({k:'hunger',t:st===1?'……アシタ、ハラ、ヘル。':'……明日あたり、腹が減りそうだ。'});
-    if(st>=2)c.push({k:'q',t:pickR(['明日、オマエに聞きたいことがある。……今は言わん。','……明日も来い。聞きたいことがある。'])});
-    const sk=this.streak();if(sk>=1&&this.allDone())c.push({k:'streak',t:st===1?'……アシタモ、クル？':`明日も来たら、${sk+1}日続けて来たことになるな。……別に、数えてはいないが。`});
+    if(S.molts<9&&!Molt.phase){const lo=S.molts?NEEDM[S.molts-1]:0,hi=NEEDM[S.molts];if((S.trust-lo)/(hi-lo)>.8)c.push({k:'molt',t:st===1?'……カラ、キツイ、デス。':'……体がきつくなってきました。そろそろ殻を脱ぐかもしれません。'})}
+    if(S.hunger>40&&S.hunger<70)c.push({k:'hunger',t:st===1?'……アシタ、ハラ、ヘリマス。':'……明日あたり、お腹が減りそうです。'});
+    if(st>=2)c.push({k:'q',t:pickR(['明日、あなたにお聞きしたいことがあります。……今は申しません。','……明日も来てください。お聞きしたいことがあります。'])});
+    const sk=this.streak();if(sk>=1&&this.allDone())c.push({k:'streak',t:st===1?'……アシタモ、キマスカ？':`明日も来たら、${sk+1}日続けて来たことになりますね。……別に、数えてはいませんが。`});
     if(!c.length)return false;const x=pickR(c);S.tease={k:x.k,d:dkey()};say(x.t,{emo:'curious'});save();return true;
   },
   /* ---- daily care */
@@ -2743,11 +2770,11 @@ const Daily={pre0:null,sess:0,teased:false,inited:false,afterAway:null,
     D.streak=D.lastFull===y?D.streak+1:D.lastFull===d?D.streak:1;D.lastFull=d;D.best=Math.max(D.best||0,D.streak);
     S.trust=clamp(S.trust+2,0,100);S.mood=clamp(S.mood+5,0,100);
     const sk=D.streak,st=S.stage;
-    const M={3:'三日続けて来たな。……悪くない。',7:'一週間、毎日来たな。……ワシは数えていないぞ。',14:'二週間だ。オマエの匂いを、覚えてしまった。',30:'ひと月、毎日だ。……オマエは変なやつだ。ありがとう。',50:'五十日。深海の時間で言えば、一瞬だが……悪くない一瞬だ。',100:'百日だ。……オマエがいない深海は、もう思い出せん。'};
+    const M={3:'三日続けて来ましたね。……悪くありません。',7:'一週間、毎日来ましたね。……ワタクシは数えていませんよ。',14:'二週間です。あなたの匂いを、覚えてしまいました。',30:'ひと月、毎日です。……あなたは変わった方です。ありがとうございます。',50:'五十日。深海の時間で言えば、一瞬ですが……悪くない一瞬です。',100:'百日です。……あなたがいない深海は、もう思い出せません。'};
     setTimeout(()=>{if(Life.asleep)return;
       if(st===0)say('（グソクが、小さく脚をばたつかせた。うれしいのかもしれない）',{narr:true});
-      else if(st===1)say(sk>=3?'……マイニチ、キテクレル。……ウレシイ。':'……アリガト。',{emo:'happy'});
-      else say(M[sk]||pickR(['……今日も、来たな。','……ふん。今日の世話は、合格にしてやる。']),{emo:'happy'});
+      else if(st===1)say(sk>=3?'……マイニチ、キテクレマス。……ウレシイ、デス。':'……アリガト、ゴザイマス。',{emo:'happy'});
+      else say(M[sk]||pickR(['……今日も、来ましたね。','……ふむ。今日のお世話は、合格にしておきます。']),{emo:'happy'});
       if(st>=1){C.wave=2.6;C.waveDur=2.6}
     },1200);
   },
@@ -2851,6 +2878,238 @@ $('bk-pick').addEventListener('change',e=>{const f=e.target.files&&e.target.file
  const inFrame=(()=>{try{return window.top!==window}catch(e){return true}})();
  if(ios&&!navigator.standalone&&!inFrame)$('a2hs').hidden=false}
 
+/* =====================================================================
+   COLLECTION — treasures, visitors, forms and the family line,
+   plus the idle "aquarium on the shelf" mode
+   ===================================================================== */
+const TREASURES=[
+  {k:'coin',n:'古い硬貨',r:1,d:'まんなかに穴のあいた、古い硬貨。いつ、だれが落としたのでしょう。'},
+  {k:'nail',n:'沈没船の釘',r:1,d:'赤くさびた太い釘。むかし沈んだ船の一部かもしれません。'},
+  {k:'urchin',n:'ウニの殻',r:1,d:'トゲの抜けた、まるいウニの殻。'},
+  {k:'shell',n:'ホネガイの殻',r:2,d:'細いトゲがずらりと並んだ、深海の巻き貝。'},
+  {k:'tooth',n:'サメの歯',r:2,d:'三角形の大きな歯。深海ザメのものです。'},
+  {k:'float',n:'ガラスの浮き玉',r:2,d:'漁で使われていた、緑色のガラス玉。'},
+  {k:'anchor',n:'錨のかけら',r:2,d:'ずっしり重い、鉄のかけら。'},
+  {k:'earbone',n:'クジラの耳骨',r:3,d:'貝のような形をした硬い骨。クジラの骨の中で、いちばん長く残ります。'},
+  {k:'pearl',n:'くもった真珠',r:3,d:'少しくもった、小さな真珠。'},
+  {k:'snow',n:'マリンスノーの粒',r:1,gift:'mendako',d:'メンダコがふわりと舞い上げていった、白い粒。'},
+  {k:'blue',n:'青く光る砂',r:2,gift:'hotaru',d:'ホタルイカの群れが通ったあと、しばらく青く光っていた砂。'},
+  {k:'lure',n:'光る小石',r:3,gift:'angler',d:'チョウチンアンコウが去ったあと、ほのかに光っていた小石。'},
+  {k:'ink',n:'墨のかたまり',r:2,gift:'squid',d:'大きなイカの腕が通ったあとに残っていた、黒いかたまり。'},
+  {k:'scale',n:'銀色の鱗',r:3,gift:'oarfish',d:'リュウグウノツカイが残していった、細長い銀色の鱗。'}
+];
+const VISITORS=[
+  {k:'mendako',n:'メンダコ',lure:'urchin',w:1,d:'耳のようなヒレで、ふわふわ泳ぐ小さなタコ。',hint:'いつでも来ることがあります。',ok:()=>true},
+  {k:'hotaru',n:'ホタルイカの群れ',lure:'float',w:1,d:'青い光を灯しながら泳ぐ、小さなイカたち。',hint:'白色灯ではない時に来ます。',ok:()=>S.light!=='white'},
+  {k:'angler',n:'チョウチンアンコウ',lure:'coin',w:.8,d:'頭の先の光で、獲物をおびき寄せる魚。',hint:'赤色灯か消灯の時に来ます。',ok:()=>S.light!=='white'},
+  {k:'squid',n:'大きなイカの腕',lure:'anchor',w:.7,d:'とても大きなイカの、腕が一本だけ。本体は見えません。',hint:'グソクが幼体になってから来ます。',ok:()=>S.stage>=1},
+  {k:'oarfish',n:'リュウグウノツカイ',lure:'earbone',w:.3,d:'銀色の体に赤いヒレ。めったに姿を見せない、細長い魚。',hint:'グソクが亜成体になってから、まれに来ます。',ok:()=>S.stage>=2}
+];
+const MORPHS={
+  std:{n:'ふつう',d:'淡いクリーム色の、いちばん基本の姿です。',hint:''},
+  sakura:{n:'桜色',c:[1.1,.8,.76],d:'オキアミの色素で、殻がほんのり桜色に染まった姿です。',hint:'オキアミをよく食べて脱皮すると……'},
+  amber:{n:'琥珀色',c:[1.06,.88,.66],d:'飴色につやめく殻の姿です。',hint:'スルメイカをよく食べて脱皮すると……'},
+  silver:{n:'白銀',c:[.93,.98,1.08],d:'冷たく暗い海の、青白く光る殻の姿です。',hint:'冷たく暗い水で脱皮すると……'},
+  giant:{n:'大柄',d:'ひと回り大きく育った、立派な体の姿です。',hint:'よく食べ、きれいな水で機嫌よく脱皮すると……'},
+  ink:{n:'墨染め',c:[.6,.58,.64],d:'つらい日々の色が、殻に染みついた姿です。',hint:'つらい思いが続いたまま脱皮すると……'}
+};
+const Col={
+  get c(){if(!S.col)S.col={items:{},vis:{},morphs:{std:1},deco:null};return S.col},
+  addItem(k){const c=this.c,first=!c.items[k];c.items[k]=(c.items[k]||0)+1;save();if(!$('zukan').hidden)Zukan.render();return first},
+  pick(){const pool=TREASURES.filter(t=>!t.gift),W=pool.map(t=>[0,6,3,1][t.r]);let x=Math.random()*W.reduce((a,b)=>a+b,0);for(let i=0;i<pool.length;i++){x-=W[i];if(x<=0)return pool[i]}return pool[0]},
+  T(k){return TREASURES.find(t=>t.k===k)}
+};
+
+/* ---- the creature digs things up */
+function wMat(col,o){o=o||{};if(ISO&&ISO.chara&&typeof toon==='function')return toon(col,o.emissive!==undefined?{emissive:o.emissive}:{});return new THREE.MeshStandardMaterial(Object.assign({color:col,roughness:.6,metalness:0},o))}
+function disposeTree(g){scene.remove(g);g.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)[].concat(o.material).forEach(m=>m.dispose())})}
+
+/* ---- visitors: a few simple creatures that drift through the far side of the tank */
+const VMODEL={
+  mendako(){const g=new THREE.Group(),m=wMat(0xe0735a),b=new THREE.Mesh(new THREE.SphereGeometry(.22,20,14),m);b.scale.set(1.15,.62,1.15);g.add(b);
+    const fl=new THREE.Mesh(new THREE.SphereGeometry(.07,10,8),m);fl.scale.set(1.4,.4,.8);fl.position.set(-.15,.12,0);const fr=fl.clone();fr.position.x=.15;g.add(fl,fr);
+    const em=wMat(0x111111);[-.07,.07].forEach(x=>{const e=new THREE.Mesh(new THREE.SphereGeometry(.025,8,6),em);e.position.set(x,.03,.2);g.add(e)});
+    return{g,dur:30,upd(t){const k=t/30;{const x=-6+12*k;g.position.set(x,heightAt(x,-.6)+.85+Math.sin(t*1.3)*.2,-.6)}b.scale.y=.62+Math.sin(t*3)*.06;fl.rotation.z=Math.sin(t*5)*.6;fr.rotation.z=-fl.rotation.z;g.rotation.y=Math.PI/2+Math.sin(t*.7)*.3}}},
+  hotaru(){const g=new THREE.Group(),N=36,mat=new THREE.MeshBasicMaterial({color:new THREE.Color(.12,.55,2.2),transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}),im=new THREE.InstancedMesh(new THREE.SphereGeometry(.045,6,4),mat,N);g.add(im);
+    const ph=[...Array(N)].map(()=>[Math.random()*6.28,.3+Math.random()*.7,Math.random()*6.28,.6+Math.random()]),M4=new THREE.Matrix4();
+    return{g,dur:32,upd(t){const k=t/32;{const x=6-12*k;g.position.set(x,heightAt(x,-.8)+.95+Math.sin(t*.5)*.25,-.8)}ph.forEach((p,i)=>{const a=p[0]+t*p[3];M4.makeTranslation(Math.cos(a)*p[1]*1.4,Math.sin(a*1.3+p[2])*p[1]*.6,Math.sin(a)*p[1]);im.setMatrixAt(i,M4)});im.instanceMatrix.needsUpdate=true;mat.color.setRGB(.12,.55,2.2).multiplyScalar(.7+.3*Math.sin(t*4))}}},
+  angler(){const g=new THREE.Group(),b=new THREE.Mesh(new THREE.SphereGeometry(.32,18,12),wMat(0x2b2420));b.scale.set(1.25,.9,1);g.add(b);
+    const tail=new THREE.Mesh(new THREE.ConeGeometry(.14,.3,8),wMat(0x2b2420));tail.rotation.z=Math.PI/2;tail.position.x=-.48;g.add(tail);
+    const st=new THREE.Mesh(new THREE.CylinderGeometry(.008,.008,.4,5),wMat(0x3a302a));st.position.set(.2,.42,0);st.rotation.z=-.5;g.add(st);
+    const bulb=new THREE.Mesh(new THREE.SphereGeometry(.05,10,8),new THREE.MeshBasicMaterial({color:new THREE.Color(1.6,2.2,2)}));bulb.position.set(.33,.6,0);g.add(bulb);
+    return{g,dur:40,upd(t){const k=t/40,x=-6+12*k;g.position.set(x,heightAt(x,-.7)+.5+Math.sin(t*.8)*.08,-.7);tail.rotation.y=Math.sin(t*4)*.4;bulb.material.color.setRGB(1.6,2.2,2).multiplyScalar(.75+.25*Math.sin(t*2.5))}}},
+  squid(){const g=new THREE.Group(),m=wMat(0x9c3b30);let mesh=null;
+    return{g,dur:26,upd(t){const e=smooth(0,6,t)*(1-smooth(19,26,t)),pts=[];for(let i=0;i<9;i++){const f=i/8,r=f*e;pts.push(new V3(6.5-r*4.8+Math.sin(t*1.5+f*4)*.7*f*f,3.4-r*3.1+Math.cos(t*1.2+f*3)*.5*f*f,-1.8+r*1.1))}
+      if(mesh){g.remove(mesh);mesh.geometry.dispose()}mesh=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),48,.1,8,false),m);g.add(mesh)}}},
+  oarfish(){const g=new THREE.Group(),L=6,body=new THREE.Mesh(new THREE.PlaneGeometry(L,.22,80,1),wMat(0xdfe5ee,{metalness:.6,roughness:.3,side:THREE.DoubleSide})),crest=new THREE.Mesh(new THREE.PlaneGeometry(L,.09,80,1),wMat(0xd23a3a,{side:THREE.DoubleSide}));
+    if(body.material.side!==undefined){body.material.side=THREE.DoubleSide;crest.material.side=THREE.DoubleSide}
+    crest.position.y=.15;g.add(body,crest);const b0=body.geometry.attributes.position.array.slice(),c0=crest.geometry.attributes.position.array.slice();
+    const wave=(geo,base,t)=>{const a=geo.attributes.position;for(let i=0;i<a.count;i++){const x=base[i*3];a.setY(i,base[i*3+1]+Math.sin(x*1.6-t*3)*.22);a.setZ(i,Math.cos(x*1.1-t*2)*.15)}a.needsUpdate=true};
+    return{g,dur:34,upd(t){const k=t/34;g.position.set(-9+18*k,1.15+Math.sin(t*.4)*.15,-1.4);wave(body.geometry,b0,t);wave(crest.geometry,c0,t)}}}
+};
+const World={acc:0,vis:null,deco:null,lastM:undefined,
+  update(dt,time){
+    if(this.vis){const v=this.vis;v.t+=dt;v.m.upd(v.t,dt);if(v.t>=v.m.dur)this.endVisit()}
+    if(!S||!started||Life.dead||Cine.on||document.hidden)return;
+    if(this.lastM!==S.molts){if(this.lastM!==undefined&&S.molts>this.lastM)Morph.decide();this.lastM=S.molts}
+    if(S.parent&&S.hatched&&!S.genSaid)Gen.hello();
+    this.acc+=dt;if(this.acc<60)return;this.acc=0;
+    if(!this.vis&&Math.random()<.06)this.visit();
+    else if(S.stage>=1&&!Life.asleep&&!Game.molting&&!Photo.on&&Math.random()<.035)this.dig();
+  },
+  dig(){
+    const T=Col.pick(),none=!Object.keys(Col.c.items).length,first=Col.addItem(T.k);
+    puff(C.pos.clone(),10);shape&&shape(1,0);
+    say('（グソクが砂を掘って、何かを見つけました。……'+T.n+'です）',{narr:true});
+    if(S.stage>=2)setTimeout(()=>say(pickR(['……拾いました。差し上げます。','砂の中に、こんなものがございました。']),{emo:'happy'}),400);
+    if(none)say('（見つけた物は「その他 → 図鑑」にしまわれます。水槽に飾ることもできます）',{narr:true});
+    toast((first?'新しい宝物：':'宝物：')+T.n);
+  },
+  chooseVisitor(){
+    const deco=Col.c.deco,el=VISITORS.filter(v=>v.ok()),W=el.map(v=>v.w*(v.lure===deco?5:1));
+    let x=Math.random()*W.reduce((a,b)=>a+b,0);for(let i=0;i<el.length;i++){x-=W[i];if(x<=0)return el[i]}return el[0];
+  },
+  visit(k){
+    if(this.vis)return;const V=k?VISITORS.find(v=>v.k===k):this.chooseVisitor();if(!V)return;
+    const m=VMODEL[V.k]();scene.add(m.g);m.upd(0,0);this.vis={V,m,t:0};
+    say('（'+V.n+'が、水槽にやって来ました）',{narr:true});
+    if(S.stage>=2&&!Life.asleep)setTimeout(()=>say(pickR(['……お客さまのようです。','……珍しい方がいらっしゃいましたね。']),{emo:'curious'}),900);
+  },
+  endVisit(){
+    const v=this.vis;this.vis=null;disposeTree(v.m.g);
+    const first=!Col.c.vis[v.V.k];Col.c.vis[v.V.k]=(Col.c.vis[v.V.k]||0)+1;save();
+    if(first)toast('図鑑に登録：'+v.V.n);
+    const G=TREASURES.find(t=>t.gift===v.V.k);
+    if(G&&Math.random()<.6){Col.addItem(G.k);say('（'+v.V.n+'が去ったあとに、'+G.n+'が残っていました）',{narr:true})}
+    else save();
+    if(!$('zukan').hidden)Zukan.render();
+  },
+  awayFinds(h){
+    const res=[];
+    if(S.stage>=1&&h>=3&&Math.random()<.6){const T=Col.pick();Col.addItem(T.k);res.push('砂の中から、'+T.n+'を掘り出していたようです。（図鑑に入りました）')}
+    if(h>=2&&Math.random()<.5){const V=this.chooseVisitor();if(V){Col.c.vis[V.k]=(Col.c.vis[V.k]||0)+1;const G=TREASURES.find(t=>t.gift===V.k),gift=G&&Math.random()<.6;if(gift)Col.addItem(G.k);save();res.push(V.n+'が訪れていたようです。'+(gift?'（'+G.n+'を残していきました）':''))}}
+    return res;
+  },
+  /* the treasure chosen for display sits on the sand at the front left */
+  DECO:{
+    coin:()=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,.02,20),wMat(0x8a6a3a,{metalness:.6,roughness:.4}));return m},
+    nail:()=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(.016,.012,.32,6),wMat(0x7a3b22));m.rotation.z=1.45;return m},
+    urchin:()=>new THREE.Mesh(new THREE.IcosahedronGeometry(.12,1),wMat(0x6a5a78)),
+    shell:()=>{const m=new THREE.Mesh(new THREE.ConeGeometry(.08,.28,10),wMat(0xe8dccb));m.rotation.z=1.4;return m},
+    tooth:()=>new THREE.Mesh(new THREE.ConeGeometry(.05,.15,6),wMat(0xf2efe6)),
+    float:()=>new THREE.Mesh(new THREE.SphereGeometry(.13,18,12),wMat(0x4f8f6a,{transparent:true,opacity:.8,roughness:.15})),
+    anchor:()=>{const m=new THREE.Mesh(new THREE.TorusGeometry(.12,.03,8,16,Math.PI*1.3),wMat(0x4a4a4e,{metalness:.5}));m.rotation.x=-1.4;return m},
+    earbone:()=>{const m=new THREE.Mesh(new THREE.SphereGeometry(.11,14,10),wMat(0xe9e1d0));m.scale.set(1.4,.75,1);return m},
+    pearl:()=>new THREE.Mesh(new THREE.SphereGeometry(.05,14,10),wMat(0xe7e3ef,{metalness:.3,roughness:.25})),
+    snow:()=>new THREE.Mesh(new THREE.SphereGeometry(.07,12,8),new THREE.MeshBasicMaterial({color:new THREE.Color(1.3,1.35,1.45)})),
+    blue:()=>new THREE.Mesh(new THREE.SphereGeometry(.07,12,8),new THREE.MeshBasicMaterial({color:new THREE.Color(.4,1.1,2.2)})),
+    lure:()=>new THREE.Mesh(new THREE.SphereGeometry(.06,12,8),new THREE.MeshBasicMaterial({color:new THREE.Color(1.5,2,1.8)})),
+    ink:()=>{const m=new THREE.Mesh(new THREE.IcosahedronGeometry(.09,1),wMat(0x141418));m.scale.y=.6;return m},
+    scale:()=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(.28,.08),wMat(0xdfe6ee,{metalness:.7,roughness:.25,side:THREE.DoubleSide}));m.rotation.x=-1.4;return m}
+  },
+  placeDeco(){
+    if(this.deco){disposeTree(this.deco);this.deco=null}
+    const k=Col.c.deco;if(!k||!this.DECO[k])return;
+    const g=new THREE.Group(),m=this.DECO[k]();m.castShadow=true;g.add(m);const x=-1.5,z=1;g.position.set(x,heightAt(x,z)+.07,z);scene.add(g);this.deco=g;
+  }
+};
+
+/* ---- forms: decided at each molt from how the last stretch went */
+const Morph={
+  ate(kind){const m=S.mst=S.mst||{a:{},mins:0,temp:0,white:0,water:0,mood:0};m.a[kind]=(m.a[kind]||0)+1},
+  tick(mins){if(!S||!S.hatched)return;const m=S.mst=S.mst||{a:{},mins:0,temp:0,white:0,water:0,mood:0};m.mins+=mins;m.temp+=S.temp*mins;m.white+=(S.light==='white'?mins:0);m.water+=S.water*mins;m.mood+=S.mood*mins},
+  decide(){
+    const m=S.mst||{a:{},mins:0},M=Math.max(1,m.mins),meals=Object.values(m.a).reduce((a,b)=>a+b,0);
+    const avg=x=>(m[x]||0)/M;let k='std';
+    if(darkLv()>=2)k='ink';
+    else if(meals>=2&&(m.a.krill||0)/meals>=.5)k='sakura';
+    else if(meals>=2&&(m.a.ika||0)/meals>=.5)k='amber';
+    else if(m.mins>60&&avg('temp')<=9.2&&m.white/M<.1)k='silver';
+    else if(meals>=3&&avg('water')>=85&&avg('mood')>=60)k='giant';
+    S.morph=k;S.mst={a:{},mins:0,temp:0,white:0,water:0,mood:0};
+    const first=!Col.c.morphs[k];Col.c.morphs[k]=1;save();C.sizeT=sizeOf(S.molts);
+    if(k!=='std')setTimeout(()=>{say(k==='giant'?'（ひと回り大きな体になりました。「大柄」の姿です）':'（新しい殻は、'+MORPHS[k].n+'をしていました）',{narr:true});if(first)toast('図鑑に登録：'+MORPHS[k].n+'の姿')},26000);
+  }
+};
+const _morphCol=new THREE.Color();
+{const st=shellTint;shellTint=function(){st();if(!ISO)return;const M=MORPHS[S&&S.morph||'std'];if(M&&M.c){_morphCol.setRGB(M.c[0],M.c[1],M.c[2]);ISO.shellMat.color.multiply(_morphCol);if(ISO.limbMat)ISO.limbMat.color.multiply(_morphCol)}}}
+{const so=sizeOf;sizeOf=function(m){return so(m)*(S&&S.morph==='giant'?1.08:1)}}
+{const tk=tick;tick=function(mins){tk(mins);Morph.tick(mins)}}
+
+/* ---- generations */
+const Gen={
+  memo(rec){
+    const eggs=(rec.molts||0)>=4;
+    $('mem-new').textContent=eggs?'残された卵から、次の世代を育てる':'新しい命を迎える';
+    $('mem-egg').hidden=!eggs;
+  },
+  next(){
+    const P=S,eggs=(P.molts||0)>=4;
+    const facts=(P.memory||[]).filter(x=>!x.startsWith('単語：')&&!/^脱皮/.test(x)),words=eggs?(P.memory||[]).filter(x=>x.startsWith('単語：')).slice(-8):[];
+    const o={gen:(P.gen||1)+1,col:P.col,memory:facts.concat(words),asked:(P.asked||[]).filter(k=>!String(k).startsWith('単語')),daily:P.daily,lastBackup:P.lastBackup,
+      parent:{eggs,morph:P.morph||'std',kind:Math.round(70+((P.kind||70)-70)*.5),bold:Math.round(62+((P.bold||62)-62)*.5)}};
+    if(eggs)o.morph=P.morph||'std';
+    try{localStorage.setItem(SKEY,JSON.stringify(o))}catch(e){}
+    noSave=true;location.reload();
+  },
+  hello(){
+    S.genSaid=true;const p=S.parent;
+    if(p.eggs){S.kind=p.kind;S.bold=p.bold}
+    save();
+    setTimeout(()=>say(p.eggs?'（先代のグソクが残した卵から生まれた、第'+S.gen+'世代です。どこか先代の面影があります）':'（第'+S.gen+'世代のグソクです）',{narr:true}),2500);
+  }
+};
+
+/* ---- the 図鑑 */
+const Zukan={tabK:'items',
+  open(){closePops();if(!S)return;$('zukan').hidden=false;this.render()},
+  tab(k){this.tabK=k;this.render()},
+  card(html,cls){const d=document.createElement('div');d.className='zk-card'+(cls?' '+cls:'');d.innerHTML=html;return d},
+  esc(t){return String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))},
+  render(){
+    const c=Col.c,B=$('zk-body');B.innerHTML='';
+    document.querySelectorAll('#zk-tabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===this.tabK));
+    const sum=t=>{const p=document.createElement('p');p.className='zk-sum';p.textContent=t;B.appendChild(p)};
+    const grid=document.createElement('div');grid.className='zk-grid';
+    if(this.tabK==='items'){
+      sum('見つけた宝物　'+Object.keys(c.items).length+' / '+TREASURES.length+'　・　ひとつ選んで水槽に飾れます。飾った宝物に惹かれて来るお客さまもいます。');
+      TREASURES.forEach(T=>{const n=c.items[T.k];
+        if(!n){grid.appendChild(this.card('<b>？？？</b><span>'+(T.gift?'お客さまが残していくことがあります。':'グソクが砂から掘り出すことがあります。')+'</span>','unk'));return}
+        const d=this.card('<b>'+T.n+'</b><span class="r">'+'★'.repeat(T.r)+'</span>　<span class="r">×'+n+'</span><br><span>'+T.d+'</span><br><button type="button">'+(c.deco===T.k?'飾っています（外す）':'水槽に飾る')+'</button>',c.deco===T.k?'deco':'');
+        d.querySelector('button').addEventListener('click',()=>{c.deco=c.deco===T.k?null:T.k;save();World.placeDeco();this.render();toast(c.deco?T.n+'を飾りました':'飾りを外しました')});grid.appendChild(d)});
+    }else if(this.tabK==='vis'){
+      sum('出会ったお客さま　'+Object.keys(c.vis).length+' / '+VISITORS.length);
+      VISITORS.forEach(V=>{const n=c.vis[V.k],L=Col.T(V.lure);
+        grid.appendChild(n?this.card('<b>'+V.n+'</b><span class="r">'+n+'回</span><br><span>'+V.d+'</span><br><span class="r">好きな宝物：'+(c.items[V.lure]?L.n:'？？？')+'</span>'):this.card('<b>？？？</b><span>'+V.hint+'</span>','unk'))});
+    }else if(this.tabK==='morph'){
+      sum('見つけた姿　'+Object.keys(c.morphs).length+' / '+Object.keys(MORPHS).length+'　・　脱皮のたびに、それまでの育ち方で姿が決まります。');
+      Object.entries(MORPHS).forEach(([k,M])=>grid.appendChild(c.morphs[k]?this.card('<b>'+M.n+(S.morph===k||(!S.morph&&k==='std')?'　<span class="r">いまの姿</span>':'')+'</b><span>'+M.d+'</span>'):this.card('<b>？？？</b><span>'+M.hint+'</span>','unk')));
+    }else{
+      let gr=[];try{gr=JSON.parse(localStorage.getItem(GKEY)||'[]')}catch(e){}
+      sum('グソクの家系　'+(gr.length+1)+'代');
+      const row=(g,days,molts,mm,morph,pers,end)=>this.card('<b>第'+g+'世代</b><span>飼育'+days+'日・'+(molts+1)+'齢・'+mm+'mm<br>姿：'+((MORPHS[morph]||MORPHS.std).n)+'　性格：'+this.esc(pers)+'<br>'+end+'</span>');
+      gr.forEach((r,i)=>grid.appendChild(row(r.gen||i+1,r.days,r.molts,r.mm,r.morph,r.pers,'死因：'+this.esc(r.cause))));
+      grid.appendChild(row(S.gen||1,S.hatched?dayNo():0,S.molts||0,MMS[S.molts||0],S.morph,persLabel(),'<span class="r">いまの子</span>'));
+    }
+    B.appendChild(grid);
+  }
+};
+$('m-zukan').addEventListener('click',()=>Zukan.open());
+$('zk-close').addEventListener('click',()=>$('zukan').hidden=true);
+document.querySelectorAll('#zk-tabs button').forEach(b=>b.addEventListener('click',()=>Zukan.tab(b.dataset.t)));
+$('mem-new').addEventListener('click',()=>Gen.next());
+
+/* ---- idle tank: no buttons, low frame rate, screen kept on, a quiet clock */
+const IdleTank={on:false,lock:null,iv:0,
+  open(){closePops();if(!started)return;this.on=true;document.body.classList.add('idle');$('itank').hidden=false;this.tick();this.iv=setInterval(()=>this.tick(),10000);this.wake();toast('画面をタップすると元に戻ります')},
+  close(){this.on=false;document.body.classList.remove('idle');$('itank').hidden=true;clearInterval(this.iv);try{this.lock&&this.lock.release()}catch(e){}this.lock=null},
+  async wake(){try{if(this.on&&navigator.wakeLock)this.lock=await navigator.wakeLock.request('screen')}catch(e){}},
+  tick(){const d=new Date();$('it-clock').textContent=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+};
+$('m-idle').addEventListener('click',e=>{e.stopPropagation();IdleTank.open()});
+$('itank').addEventListener('pointerdown',()=>IdleTank.close());
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&IdleTank.on)IdleTank.wake()});
+
 let started=false;
 function boot(){
   load();
@@ -2861,7 +3120,7 @@ function boot(){
   ISO=buildIsopod();buildSlime();
   if(S.molts===undefined)S.molts=[0,1,4,7][S.stage]||0;S.stage=stageOf(S.molts);
   C.pos.set(.4,0,.2);C.size=C.sizeT=sizeOf(S.molts);C.crawl=S.molts<4?1:0;shellTint();
-  applyQuality();darkVis();
+  applyQuality();darkVis();World.placeDeco();
   syncLampUI();
   voiceOn=(()=>{try{return localStorage.getItem('gusoku.voice')!=='off'}catch(e){return true}})();$('set-voice').textContent='声（グソグソ）：'+(voiceOn?'オン':'オフ');
   ttsOn=(()=>{try{return localStorage.getItem('gusoku.tts')==='on'}catch(e){return false}})();$('set-tts').textContent='日本語読み上げ：'+(ttsOn?'オン':'オフ');
@@ -2879,7 +3138,7 @@ let last=performance.now(),acc=0,hudT=0,idleT=0,nextIdle=45;
 let lastDraw=0;
 function loop(now){
   requestAnimationFrame(loop);
-  if(Q.fps<60&&now-lastDraw<1000/Q.fps-3)return;
+  const capF=IdleTank.on?24:Q.fps;if(capF<60&&now-lastDraw<1000/capF-3)return;
   const frameMs=now-lastDraw;lastDraw=now;
   const dt=Math.min(.05,(now-last)/1000);last=now;const time=now/1000;
   if(frameMs<250)adaptRes(frameMs);
@@ -2895,7 +3154,7 @@ function loop(now){
     if(!f.rest){f.vy=damp(f.vy,-1.1,1.5,dt);f.mesh.position.y+=f.vy*dt;f.mesh.position.x+=Math.sin(time*2+f.x)*.15*dt;f.mesh.rotation.x+=f.spin.x*dt*2;f.mesh.rotation.z+=f.spin.z*dt*2;
       if(f.mesh.position.y<=f.ground){f.mesh.position.y=f.ground;f.rest=true;f.x=f.mesh.position.x;f.z=f.mesh.position.z;f.mesh.rotation.x*=.1;f.mesh.rotation.z*=.1;puff(f.mesh.position,8)}}
     f.mesh.scale.setScalar(Math.max(.05,f.left));
-    if(f.rotAt&&Date.now()>f.rotAt&&!f.rotten){f.rotten=true;if(S.stage>=2)say('……腐ってきたぞ。水が汚れる。',{emo:'annoyed'})}
+    if(f.rotAt&&Date.now()>f.rotAt&&!f.rotten){f.rotten=true;if(S.stage>=2)say('……腐ってきましたよ。水が汚れます。',{emo:'annoyed'})}
   });
   const dm=new THREE.Matrix4();
   if(bubbles.visible)bubbleData.forEach((b,i)=>{b.y+=dt*b.sp*(1+b.y*.05);if(b.y>10.4){b.y=0;b.r=.025+Math.random()*.07}
@@ -2912,6 +3171,7 @@ function loop(now){
     idleT+=dt;
     if(idleT>nextIdle&&!typing&&!aiBusy&&!Life.asleep&&!Life.dead&&!Dream.on&&!Photo.on){idleT=0;nextIdle=50+Math.random()*70;idleChatter()}
   }
+  World.update(dt,time);
   frameView(dt);
   composer.render(dt);
 }
@@ -2919,7 +3179,7 @@ function loop(now){
 let viewDy=0,viewGoal=0,viewT=0;
 function frameView(dt){
   if((viewT-=dt)<=0){viewT=.2;
-    if(Photo.on||Cine.on||Dream.on||!(started||S.hatched))viewGoal=0;
+    if(IdleTank.on||Photo.on||Cine.on||Dream.on||!(started||S.hatched))viewGoal=0;
     else{const vv=window.visualViewport,top=vv?vv.offsetTop:0,H=innerHeight;let ct=H;
       for(const el of document.querySelectorAll('.console>*')){if(el.offsetParent===null||el.hidden)continue;const r=el.getBoundingClientRect();if(r.height>0)ct=Math.min(ct,r.top);break}
       const hud=document.body.classList.contains('kbd')?0:Math.min(60,$('log').getBoundingClientRect().bottom*.25);
@@ -2929,31 +3189,31 @@ function frameView(dt){
     if(viewDy<.5){viewDy=0;camera.clearViewOffset()}else camera.setViewOffset(innerWidth,innerHeight,0,viewDy,innerWidth,innerHeight)}
 }
 function idleChatter(){
-  if(darkLv()>=2&&S.stage>=1&&!Life.asleep&&!Life.dead&&!Game.molting&&Math.random()<.55){say(S.stage===1?pickR(['……キライ。','……クライ、スキ。']):pickR(DARK_LINES[darkLv()]),{emo:'annoyed'});return}
+  if(darkLv()>=2&&S.stage>=1&&!Life.asleep&&!Life.dead&&!Game.molting&&Math.random()<.55){say(S.stage===1?pickR(['……キライ、デス。','……クライ、スキ、デス。']):pickR(DARK_LINES[darkLv()]),{emo:'annoyed'});return}
   if(Game.molting||Life.asleep||Life.dead)return;
   if(Daily.tease())return;
   if(S.stage>=2&&Math.random()<.18){const fd=fastDays();const pl=persLabel();
-    say(pickR([fd>=3?`絶食${fd}日目だ。……まだまだ。`:'最後に食ったのは、いつだったかな。',{陽気:'今日は泡の音がいい。オマエも聞け。',穏やか:'……オマエも、無理はするなよ。',皮肉屋:'陸の生き物は、忙しそうで気の毒だ。',疑い深い:'……その手に、何を持っている。',臆病:'……さっきの影、なんだった。',豪胆:'ワシに怖いものはない。光以外はな。',気まぐれ:'……なんでもない。呼んでみただけだ。'}[pl]].concat(S.mate?[`${S.mate.name}は今日も静かだ。`]:[])),{emo:'neutral'});return}
+    say(pickR([fd>=3?`絶食${fd}日目です。……まだまだです。`:'最後に食べたのは、いつでしたかね。',{陽気:'今日は泡の音がいいです。あなたも聞いてください。',穏やか:'……あなたも、無理はなさらないでくださいね。',皮肉屋:'陸の生き物は、お忙しそうでお気の毒です。',疑い深い:'……その手に、何をお持ちですか。',臆病:'……さっきの影、なんでしたか。',豪胆:'ワタクシに怖いものはありません。光以外は。',気まぐれ:'……なんでもありません。呼んでみただけです。'}[pl]].concat(S.mate?[`${S.mate.name}は今日も静かです。`]:[])),{emo:'neutral'});return}
   if(S.stage>=1&&Math.random()<.45&&ask())return;
   const st=S.stage;
   if(st===0){say(pickR(['（小さな脚で、砂をかいている）','（まだ卵黄の栄養で生きているらしい。腹のあたりがうっすら黄色い）','（触角だけが、ゆっくり動いている）','（こちらの様子をうかがっているようだ）','（ときどき、何もない水をかじるしぐさをする）']),{narr:true});return}
   const c=[];
-  if(S.light==='white'&&S.whiteMin>10)c.push(st===1?'……マブシイ。':'……いつまで照らしている。消せ。');
-  if(S.temp>12.5)c.push(st===1?'……アツイ。':'水がぬるい。冷やせ。');
-  if(S.temp<7.5)c.push(st===1?'……サムイ。':'冷えすぎだ。ワシでも固まる。');
-  if(S.water<55)c.push(st===1?'……ミズ、クサイ。':'水が臭う。オマエの鼻は飾りか。');
-  if(S.hunger>70)c.push(st===1?'……ハラ。':'……腹が、減ったかもしれん。');
+  if(S.light==='white'&&S.whiteMin>10)c.push(st===1?'……マブシイ、デス。':'……いつまで照らしているのですか。消していただけますか。');
+  if(S.temp>12.5)c.push(st===1?'……アツイ、デス。':'水がぬるいです。冷やしていただけますか。');
+  if(S.temp<7.5)c.push(st===1?'……サムイ、デス。':'冷えすぎです。ワタクシでも固まります。');
+  if(S.water<55)c.push(st===1?'……ミズ、クサイ、デス。':'水が臭います。……あなた、お鼻は大丈夫ですか。');
+  if(S.hunger>70)c.push(st===1?'……ハラ、ヘリマシタ。':'……お腹が、減ったかもしれません。');
   if(!c.length){
     const n=mem('名前'),w=mem('仕事');
-    if(st===1)c.push('……シンカイ、シズカ。','……ヒカリ、キライ。','……ネムイ。','……ハハ、ドコ。');
-    else{c.push('深海では、上から死んだ鯨が降ってくる。何十年に一度のごちそうだ。','ワシの眼は、たくさんの小さな眼の集まりだ。オマエの顔も何千個に見えている。','何もしない時間を、陸の生き物は怖がりすぎる。','……海の底の音を知っているか。何も聞こえない音だ。','母の腹の下は、暗くて温かかった。……覚えているわけではないがな。');
-      if(n)c.push(n+'。……呼んでみただけだ。');
+    if(st===1)c.push('……シンカイ、シズカ、デス。','……ヒカリ、キライ、デス。','……ネムイ、デス。','……ハハ、ドコ、デスカ。');
+    else{c.push('深海では、上から死んだ鯨が降ってきます。何十年に一度のごちそうです。','ワタクシの眼は、たくさんの小さな眼の集まりです。あなたのお顔も何千個に見えています。','何もしない時間を、陸の生き物は怖がりすぎです。','……海の底の音をご存じですか。何も聞こえない音です。','母の腹の下は、暗くて温かかったです。……覚えているわけではありませんが。');
+      if(n)c.push(n+'さん。……呼んでみただけです。');
       {const fa=mem('家族'),ho=mem('休日'),se=mem('季節'),cn=mem('牛の数'),cb=mem('手のかかる牛'),m=new Date().getMonth()+1,now=m>=3&&m<=5?'春':m<=8&&m>=6?'夏':m>=9&&m<=11?'秋':'冬';
-        if(fa)c.push(`${fa}は、元気にしているか。`);if(ho)c.push(`次の休みも、${ho}か。`);if(se&&se.includes(now))c.push(`今は${now}だな。オマエの好きな季節だ。`);
-        if(cn)c.push(`${cn}の牛の世話、ご苦労だな。`);if(cb)c.push(`${cb}は、今日もおとなしくしていたか。`)}
-      if(w&&/牛|肥育|畜産|牧場/.test(w))c.push('オマエの牛は元気か。よく食うやつは、よく育つ。ワシは例外だ。');
-      else if(w)c.push(w+'は、はかどっているか。');
-      if(st===3)c.push('脱皮するたびに思う。捨てた殻の分だけ、軽くなれる。','時間は、深さに比例してゆっくり流れる。');
+        if(fa)c.push(`${fa}は、お元気にしていますか。`);if(ho)c.push(`次のお休みも、${ho}ですか。`);if(se&&se.includes(now))c.push(`今は${now}ですね。あなたのお好きな季節です。`);
+        if(cn)c.push(`${cn}の牛のお世話、ご苦労さまです。`);if(cb)c.push(`${cb}は、今日もおとなしくしていましたか。`)}
+      if(w&&/牛|肥育|畜産|牧場/.test(w))c.push('あなたの牛はお元気ですか。よく食べる子は、よく育ちます。ワタクシは例外です。');
+      else if(w)c.push(w+'は、はかどっていますか。');
+      if(st===3)c.push('脱皮するたびに思います。捨てた殻の分だけ、軽くなれるのです。','時間は、深さに比例してゆっくり流れるのです。');
     }
   }
   say(pickR(c),{emo:S.mood<35?'annoyed':'neutral'});
@@ -3034,7 +3294,6 @@ $('ph-close').addEventListener('click',()=>Photo.close());
 $('ph-pause').addEventListener('click',()=>{Photo.paused=!Photo.paused;$('ph-pause').textContent=Photo.paused?'動きを戻す':'動きを止める'});
 $('ph-save').addEventListener('click',()=>Photo.save());
 $('ph-again').addEventListener('click',()=>{$('ph-prev').hidden=true});
-$('mem-new').addEventListener('click',()=>{try{localStorage.removeItem(SKEY)}catch(e){}location.reload()});
 $('btn-water').addEventListener('click',()=>started&&!Life.dead&&Game.water());
 $('btn-cool').addEventListener('click',()=>started&&Game.temp(-.5));
 $('btn-warm').addEventListener('click',()=>started&&Game.temp(.5));
@@ -3050,6 +3309,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
