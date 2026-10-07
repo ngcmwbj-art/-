@@ -169,6 +169,40 @@ body.photo .hud-top,body.photo .console,body.photo #alert{visibility:hidden}
 #toast.on{opacity:1}
 .confirm{display:flex;gap:6px;flex-wrap:wrap}
 
+.daily{pointer-events:auto;margin-top:8px;font-family:var(--f-data);font-size:11px;padding:5px 9px;display:flex;gap:8px;align-items:center;background:rgba(4,16,24,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.daily[hidden]{display:none}
+.daily .dots{display:flex;gap:3px}
+.daily .dots i{width:7px;height:7px;border-radius:50%;border:1px solid var(--glow);opacity:.85}
+.daily .dots i.on{background:var(--glow)}
+.daily .stk{color:#ffc46b}
+.daily.bump{animation:dPop .7s}
+@keyframes dPop{30%{transform:scale(1.12);border-color:var(--glow)}}
+.dpanel{pointer-events:auto;margin-top:6px;background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:4px;padding:8px 10px;font-size:12px;width:min(250px,calc(100vw - 120px));font-family:var(--f-body)}
+.dpanel ul{margin:0;padding:0}
+.dpanel li{list-style:none;display:flex;gap:6px;align-items:baseline;padding:3px 0;line-height:1.5}
+.dpanel .ck{width:12px;flex:none;color:var(--glow)}
+.dpanel li.done{color:var(--dim)}
+.dpanel li.done span:nth-child(2){text-decoration:line-through}
+.dpanel .n{margin-left:auto;font-family:var(--f-data);color:var(--dim);font-size:10.5px;flex:none}
+.dpanel .foot{margin-top:6px;color:var(--dim);font-size:11px;line-height:1.6}
+body.kbd .daily,body.kbd .dpanel,body.cine .daily,body.photo .daily{display:none}
+#away .aw-time{font-family:var(--f-data);color:var(--dim);font-size:12px;margin:-4px 0 6px}
+#away ul{margin:0 0 14px;padding:0;list-style:none}
+#away li{padding:9px 0;border-bottom:1px solid var(--line);line-height:1.7;font-size:14px}
+#away li:last-child{border-bottom:0}
+#away .aw-next{background:rgba(143,211,255,.06);border:1px solid var(--line);border-radius:4px;padding:8px 10px;font-size:13px;margin-bottom:14px;line-height:1.7}
+#away .aw-next[hidden]{display:none}
+#bk p{font-size:13px;line-height:1.8;color:var(--dim);margin:0 0 10px}
+#bk h4{margin:14px 0 6px;font-size:14px}
+#bk .code{max-height:84px;overflow:auto;background:rgba(3,14,22,.8);border:1px solid var(--line);border-radius:4px;padding:8px;font-family:var(--f-data);font-size:11px;word-break:break-all;-webkit-user-select:text;user-select:text;color:var(--dim)}
+#bk textarea{width:100%;box-sizing:border-box;min-height:70px;background:rgba(3,14,22,.8);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:8px;font-family:var(--f-data);font-size:16px;word-break:break-all;-webkit-user-select:text;user-select:text;resize:vertical}
+#bk .row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px;align-items:center}
+#bk .row label{display:inline-flex;align-items:center}
+#bk #bk-msg{min-height:1em;color:#ffc46b}
+#bk-pick{position:absolute;width:1px;height:1px;opacity:0}
+.a2hs{font-size:12.5px;color:#ffc46b;line-height:1.7;margin:8px 0 0}
+.a2hs[hidden]{display:none}
+
 @media (max-width:640px){
   .brand h1{font-size:20px}
   .gauges{min-width:0;padding:8px 10px}
@@ -194,6 +228,8 @@ body.photo .hud-top,body.photo .console,body.photo #alert{visibility:hidden}
       <div>状態 <span class="stage" id="stage">警戒</span></div>
       <div>絶食 <b id="fast">0</b> 日　<span id="pers"></span></div>
       <div id="clock">--:--</div>
+      <button type="button" class="daily" id="daily" hidden aria-label="今日のお世話"></button>
+      <div class="dpanel" id="dpanel" hidden></div>
     </div>
   </div>
   <details class="gauges" id="gauges" open>
@@ -255,6 +291,7 @@ body.photo .hud-top,body.photo .console,body.photo #alert{visibility:hidden}
         <button type="button" id="set-voice">声（グソグソ）：オン</button>
         <button type="button" id="set-tts">日本語読み上げ：オフ</button>
         <button type="button" id="set-ai" hidden>AI会話</button>
+        <button type="button" id="set-backup">データの引き継ぎ</button>
         <button type="button" id="set-reset">最初からやり直す</button>
         <div class="confirm" id="reset-confirm" hidden>
           <div class="note">記憶も消えます。</div>
@@ -281,6 +318,7 @@ body.photo .hud-top,body.photo .console,body.photo #alert{visibility:hidden}
         </dl>
       </div>
       <p>ハチマキがトレードマークの、ちょっとマイペースな深海の住人。お母さんのお腹のポケットから生まれた小さなグソクを、話しかけて、ごはんをあげて、大きく育てよう。</p>
+      <p class="a2hs" id="a2hs" hidden>iPhone・iPadは、共有ボタンから「ホーム画面に追加」して遊ぶと、育てたデータが消えにくくなります。</p>
       <div class="t-go">
         <button class="primary" type="button" id="start" disabled>水槽をのぞく</button>
         <span id="loadmsg">水槽を準備しています…</span>
@@ -304,6 +342,19 @@ body.photo .hud-top,body.photo .console,body.photo #alert{visibility:hidden}
 <div id="photo" hidden><div class="ph-side"><button type="button" id="ph-pause">動きを止める</button></div><button type="button" id="ph-shoot" aria-label="撮影"></button><div class="ph-side"><button type="button" id="ph-close">写真モードを終える</button></div></div>
 <div id="ph-flash"></div>
 <div class="modal" id="ph-prev" hidden><div class="sheet"><img id="ph-img" alt="撮影した写真"><p>保存できない場合は、画像を長押し（パソコンは右クリック）して保存してください。</p><div class="d-foot" style="justify-content:center"><button type="button" class="primary" id="ph-save">保存する</button><button type="button" id="ph-again">もう一枚撮る</button></div></div></div>
+<div class="modal" id="away" hidden><div class="sheet" role="dialog" aria-labelledby="aw-title"><header><h3 id="aw-title">留守中のできごと</h3></header><div class="aw-time" id="aw-time"></div><ul id="aw-list"></ul><div class="aw-next" id="aw-next" hidden></div><button type="button" class="primary" id="aw-ok">水槽をのぞく</button></div></div>
+<div class="modal" id="bk" hidden><div class="sheet" role="dialog" aria-labelledby="bk-title">
+  <header><h3 id="bk-title">データの引き継ぎ</h3><button type="button" id="bk-close">閉じる</button></header>
+  <p>育てたデータは、この端末のブラウザの中にだけ保存されています。ブラウザのデータ削除や機種変更に備えて、引き継ぎコードを控えておいてください。</p>
+  <h4>控える</h4>
+  <div class="code" id="bk-code"></div>
+  <div class="row"><button type="button" class="primary" id="bk-copy">コードをコピー</button><button type="button" id="bk-file">ファイルで保存</button></div>
+  <h4>読み込む</h4>
+  <textarea id="bk-in" rows="3" placeholder="控えておいたコードを貼り付け" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+  <div class="row"><button type="button" id="bk-read">確認する</button><label><button type="button" onclick="document.getElementById('bk-pick').click()">ファイルから</button><input type="file" id="bk-pick" accept=".txt,text/plain"></label></div>
+  <p id="bk-msg"></p>
+  <button type="button" class="primary" id="bk-yes" hidden>このデータで上書きする</button>
+</div></div>
 <div class="modal" id="memorial" hidden><div class="sheet"><h3>グソク</h3><div id="mem-date"></div><dl id="mem-text"></dl><p style="font-size:13px;color:var(--dim);line-height:1.8;margin:0 0 18px">この子の記録は「日記 → 思い出」に残ります。</p><button type="button" class="primary" id="mem-new">新しい命を迎える</button></div></div>
 <div id="toast"></div>
 <div id="fade"></div>
@@ -1582,11 +1633,15 @@ function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clear
 /* =====================================================================
    GAME STATE
    ===================================================================== */
+const VARIANT='yuru',SKEY='gusoku.yuru.save2',GKEY='gusoku.yuru.graves';
+// the Claude-hosted yuru page used the shared keys: carry them over (not on the shared GitHub Pages origin)
+try{if(!localStorage.getItem(SKEY)&&localStorage.getItem('gusoku.save2')&&!/github\.io$/.test(location.hostname)){localStorage.setItem(SKEY,localStorage.getItem('gusoku.save2'));const g=localStorage.getItem('gusoku.graves');if(g)localStorage.setItem(GKEY,g)}}catch(e){}
+let noSave=false;
 const DEF={dark:0,darkLv:0,lastBully:0,lastAteAt:null,fastBest:0,fastMiles:[],kind:70,bold:62,health:100,maxHealth:100,events:{},diary:{},mate:null,nextTrouble:0,wokeUntil:0,lastDream:'',morningSaid:'',v:2,born:Date.now(),last:Date.now(),hatched:false,stage:0,trust:0,mood:60,hunger:10,water:100,temp:10,light:'red',talks:0,fed:0,pokes:0,fedSinceMolt:0,lastMolt:0,
   memory:[],asked:[],pending:null,log:[],whiteMin:0,lastFood:0};
 let S;
-function load(){try{const r=JSON.parse(localStorage.getItem('gusoku.save2')||'null');S=Object.assign({},DEF,r||{})}catch(e){S=Object.assign({},DEF)}if(!Array.isArray(S.memory))S.memory=[];if(!Array.isArray(S.log))S.log=[];if(!S.lastAteAt)S.lastAteAt=S.born;if(S.kind===50&&S.bold===50&&!S.dark){S.kind=70;S.bold=62}}
-function save(){S.last=Date.now();try{localStorage.setItem('gusoku.save2',JSON.stringify(S))}catch(e){}}
+function load(){try{const r=JSON.parse(localStorage.getItem(SKEY)||'null');S=Object.assign({},DEF,r||{})}catch(e){S=Object.assign({},DEF)}if(!Array.isArray(S.memory))S.memory=[];if(!Array.isArray(S.log))S.log=[];if(!S.lastAteAt)S.lastAteAt=S.born;if(S.kind===50&&S.bold===50&&!S.dark){S.kind=70;S.bold=62}}
+function save(){if(noSave)return;S.last=Date.now();try{localStorage.setItem(SKEY,JSON.stringify(S))}catch(e){}}
 function mem(key){const m=S.memory.find(x=>x.startsWith(key+'：'));return m?m.slice(key.length+1):null}
 function remember(fact){if(!fact)return;fact=String(fact).slice(0,60);const key=fact.split('：')[0];if(fact.includes('：'))S.memory=S.memory.filter(x=>!x.startsWith(key+'：'));if(!S.memory.includes(fact))S.memory.push(fact);if(S.memory.length>40)S.memory.shift();save()}
 function tick(mins){
@@ -1615,7 +1670,13 @@ const QUESTIONS=[
   {key:'誕生日',stage:2,q:['オマエが生まれたのは、いつだ。']},
   {key:'住まい',stage:2,q:['オマエの住む場所は、深いか。','オマエ、どこに住んでいる。']},
   {key:'悩み',stage:2,q:['……最近、何か困っていることはあるか。']},
-  {key:'夢',stage:3,q:['オマエの夢は何だ。深海では、夢は見ない。']}
+  {key:'夢',stage:3,q:['オマエの夢は何だ。深海では、夢は見ない。']},
+  {key:'家族',stage:2,q:['オマエには、群れ……いや、家族はいるのか。']},
+  {key:'休日',stage:2,q:['休みの日は、何をしている。']},
+  {key:'季節',stage:2,q:['陸には季節というものがあるらしいな。オマエはどれが好きだ。']},
+  {key:'牛の数',stage:2,cond:()=>/牛|肥育|畜産|牧場|酪農/.test(mem('仕事')||''),q:['オマエの牛は、何頭いる。']},
+  {key:'手のかかる牛',stage:3,cond:()=>/牛|肥育|畜産|牧場|酪農/.test(mem('仕事')||''),q:['一番手のかかる牛は、どんなやつだ。']},
+  {key:'子どもの頃',stage:3,q:['オマエは小さい頃、何になりたかった。']}
 ];
 function cleanAnswer(t){return t.replace(/^(わたし|私|僕|ぼく|俺|おれ|うち|自分)(の(名前|なまえ|仕事|好物))?(は|が)?/,'').replace(/(です|だよ|だ|でーす|っす|と申します|といいます|って言います|だね|かな)[。！!]*$/,'').trim().slice(0,30)}
 function localReply(text){
@@ -1631,7 +1692,13 @@ function localReply(text){
       '誕生日':[`${a}か。覚えた。その日は脱皮でもして祝ってやる。`],
       '住まい':[`${a}か。水深は何メートルだ。……冗談だ。`],
       '悩み':[`……そうか。深海では、悩みも水圧で潰れる。オマエも少し沈んでみろ。`,`${a}、か。焦るな。ワシらは何年も食わずに待てる。`],
-      '夢':[`${a}。……悪くない。光の届かない場所でも、夢は育つ。`]
+      '夢':[`${a}。……悪くない。光の届かない場所でも、夢は育つ。`],
+      '家族':[`${a}か。……大事にしろ。ワシは母の顔を、ほとんど覚えていない。`,`${a}。群れで暮らすのは、にぎやかでいいな。`],
+      '休日':[`${a}か。ワシの休日は、毎日だ。`,`${a}。……いい過ごし方だ。`],
+      '季節':[`${a}か。深海には季節がない。……少し、うらやましい。`],
+      '牛の数':[`${a}……。それだけの口を、毎日食わせているのか。ワシなら目が回る。`],
+      '手のかかる牛':[`${a}か。どこにでも、手のかかるやつはいるな。……ワシのことではないぞ。`],
+      '子どもの頃':[`${a}か。……それで、オマエはなれたのか。`]
     }[p]||['そうか。'];
     return R(ans,'curious');
   }
@@ -2058,7 +2125,7 @@ const Life={asleep:false,sleepT:0,dead:false,weakSaid:0,
   die(cause){
     this.dead=true;Game.molting=true;$('alert').hidden=true;
     const rec={name:mem('名前')?'（'+mem('名前')+'のグソク）':'グソク',born:S.born,died:Date.now(),days:dayNo(),molts:S.molts,mm:MMS[S.molts],fast:S.fastBest||0,pers:persLabel(),cause};
-    let gr=[];try{gr=JSON.parse(localStorage.getItem('gusoku.graves')||'[]')}catch(e){}gr.push(rec);try{localStorage.setItem('gusoku.graves',JSON.stringify(gr))}catch(e){}
+    let gr=[];try{gr=JSON.parse(localStorage.getItem(GKEY)||'[]')}catch(e){}gr.push(rec);try{localStorage.setItem(GKEY,JSON.stringify(gr))}catch(e){}
     C.flip=1;S.health=0;save();
     say(cause==='老衰'?'（長い時間を生きたグソクは、静かに動かなくなった）':'（グソクは、動かなくなった）',{narr:true});
     setTimeout(()=>showMemorial(rec),6000);
@@ -2116,7 +2183,7 @@ ${STAGE_RULE[S.stage]}
       catch(e){if(['not_granted','sampling_disabled','not_declared','capability_disabled','capability_removed'].includes(e&&e.code)){aiBroken=true;aiLabel()}}}}
     const by=t?'ai':'local';if(!t)t=lifeDiaryLocal(k);S.diary=S.diary||{};S.diary[k]={t,by};save();b.disabled=false;this.render();
   },
-  graves(){let gr=[];try{gr=JSON.parse(localStorage.getItem('gusoku.graves')||'[]')}catch(e){}
+  graves(){let gr=[];try{gr=JSON.parse(localStorage.getItem(GKEY)||'[]')}catch(e){}
     const box=$('d-graves');box.innerHTML='';
     if(!gr.length){const p=document.createElement('p');p.className='g-empty';p.textContent='まだ誰も眠っていない。';box.append(p);return}
     gr.slice().reverse().forEach(r=>{const el=document.createElement('div');el.className='grave';
@@ -2313,6 +2380,7 @@ function localReplyBase(text){
   // answer to a question グソク asked
   if(S.pending){
     const p=S.pending;S.pending=null;const a=cleanAnswer(t)||t.slice(0,20);
+    Daily.hit('answer');if(p.startsWith('今日:'))return Daily.answer(p,a,t,out);
     if(p.startsWith('単語:')){const w=p.slice(3);remember('単語：'+w+'は'+a.slice(0,24));return out(st===1?`……${w}、${a}。オボエタ。`:pickR([`なるほど、${w}は${a}か。覚えた。`,`${w}とは${a}のことか。陸には変なものがあるな。`]),'curious',{trust:.6})}
     remember(p+'：'+a);
     const ans={
@@ -2322,7 +2390,13 @@ function localReplyBase(text){
       '誕生日':[`${a}か。覚えた。その日は脱皮でもして祝ってやる。`],
       '住まい':[`${a}か。水深は何メートルだ。……冗談だ。`],
       '悩み':['……そうか。深海では、悩みも水圧で潰れる。オマエも少し沈んでみろ。',`${a}、か。焦るな。ワシらは何年も食わずに待てる。`],
-      '夢':[`${a}。……悪くない。光の届かない場所でも、夢は育つ。`]
+      '夢':[`${a}。……悪くない。光の届かない場所でも、夢は育つ。`],
+      '家族':[`${a}か。……大事にしろ。ワシは母の顔を、ほとんど覚えていない。`,`${a}。群れで暮らすのは、にぎやかでいいな。`],
+      '休日':[`${a}か。ワシの休日は、毎日だ。`,`${a}。……いい過ごし方だ。`],
+      '季節':[`${a}か。深海には季節がない。……少し、うらやましい。`],
+      '牛の数':[`${a}……。それだけの口を、毎日食わせているのか。ワシなら目が回る。`],
+      '手のかかる牛':[`${a}か。どこにでも、手のかかるやつはいるな。……ワシのことではないぞ。`],
+      '子どもの頃':[`${a}か。……それで、オマエはなれたのか。`]
     }[p]||['そうか。'];
     return out(pickR(ans),'curious',{trust:.8});
   }
@@ -2511,7 +2585,8 @@ const Game={
 };
 function ask(){
   if(S.pending||aiBusy)return false;
-  const q=QUESTIONS.find(q=>q.stage<=S.stage&&!S.asked.includes(q.key)&&!mem(q.key));
+  if(Daily.askDaily())return true;
+  const q=QUESTIONS.find(q=>q.stage<=S.stage&&(!q.cond||q.cond())&&!S.asked.includes(q.key)&&!mem(q.key));
   if(!q)return false;S.asked.push(q.key);S.pending=q.key;say(pickR(q.q),{emo:'curious'});S.log.push({r:'g',t:q.q[0]});save();return true;
 }
 
@@ -2537,10 +2612,249 @@ function syncLampUI(){const L=LIGHTS[S.light];$('lamplabel').textContent=L.label
 /* =====================================================================
    BOOT
    ===================================================================== */
+/* =====================================================================
+   DAILY LIFE — while you were away, daily care, the creature's questions
+   ===================================================================== */
+const Daily={pre0:null,sess:0,teased:false,inited:false,afterAway:null,
+  TASKS:{
+    talk:{label:'話しかける',goal:3},
+    answer:{label:'グソクの質問に答える',goal:1,ok:()=>S.stage>=1},
+    water:{label:'水換えをする',goal:1,ok:()=>S.water<92},
+    temp:{label:'水温を 9〜11℃ に整える',goal:1,ok:()=>Math.abs(S.temp-10)>1.05,check:()=>Math.abs(S.temp-10)<=1},
+    red:{label:'赤色灯にして目を休ませる',goal:1,ok:()=>S.light!=='red',check:()=>S.light==='red'},
+    photo:{label:'写真を1枚撮る',goal:1},
+    diary:{label:'日記を読む',goal:1,ok:()=>Object.keys(S.diary||{}).length>0},
+    watch:{label:'5分間、そばで見守る',goal:300},
+    feed:{label:'餌を差し出してみる',goal:1,ok:()=>S.stage>=1&&S.hunger>=45}
+  },
+  Y(t){return VARIANT==='yuru'?t.replace(/オマエ/g,'キミ'):t},
+  /* ---- while you were away */
+  pre(mins){this.pre0={mins,hunger:S.hunger,water:S.water,temp:S.temp,fast:S.lastAteAt?Math.max(0,Math.floor((S.last-S.lastAteAt)/DAY)):0,last:S.last}},
+  awayItems(){const p=this.pre0;this.pre0=null;if(!p||!S.hatched||S.health<=0||p.mins<30)return null;
+    const st=S.stage,out=[],h=p.mins/60;let r=Math.floor(p.last/60000)%233280;const rr=()=>{r=(r*9301+49297)%233280;return r/233280};
+    let night=h>=24;for(let t=p.last;!night&&t<Date.now();t+=1800000){const hh=new Date(t).getHours();if(hh>=1&&hh<5)night=true}
+    if(night)out.push(st===0?'夜のあいだ、砂の上で小さく丸まって眠っていた。':'夜のあいだ、石の陰でじっと眠っていたようだ。');
+    if(S.hunger-p.hunger>15&&S.hunger>55)out.push('腹のあたりが、少しへこんで見える。（空腹 '+Math.round(S.hunger)+'）');
+    if(p.water-S.water>8)out.push('水が少しにごってきた。（水質 '+Math.round(S.water)+'%）');
+    if(Math.abs(S.temp-p.temp)>1)out.push('水温が '+p.temp.toFixed(1)+'℃ から '+S.temp.toFixed(1)+'℃ に変わっていた。');
+    const fd=fastDays();if(st>=1&&fd>p.fast&&fd>=3)out.push('絶食 '+fd+' 日目に入った。'+(fd>=7&&fd>=(S.fastBest||0)?'自己最長記録だ。':''));
+    const fl=[];
+    if(st===0)fl.push('小さな脚で、砂に細い線を何本も描いていた。','腹の卵黄が、また少し小さくなった気がする。','一度だけ、触角をぴんと立てて天井のほうを見上げていた。');
+    else{fl.push('砂に体の形のくぼみが残っている。しばらく潜っていたらしい。','一度、水面近くまで泳ぎ上がったらしい。砂が舞っている。','石を少しだけ押して動かした跡がある。','ガラスの前で、部屋のほうをじっと見ていたらしい。');
+      if(S.trust>=40&&darkLv()<1)fl.push('ずっと、オマエが来る方を向いて待っていたようだ。');
+      if(darkLv()>=1)fl.push('ガラスに、体をぶつけたような跡がある……。');
+      if(S.mate)fl.push({hag:'ヌタウナギと、少し距離をとって過ごしていた。',eel:'ゲンゲが近くを通るたび、触角で追っていた。'}[S.mate]||'同居の生き物と、静かに過ごしていた。')}
+    const a=fl[Math.floor(rr()*fl.length)];out.push(a);
+    if(h>=8){const b=fl[Math.floor(rr()*fl.length)];if(b!==a)out.push(b)}
+    return {h,items:out.slice(0,4)};
+  },
+  showAway(a,next){
+    const h=a.h,fmt=h>=24?Math.floor(h/24)+'日と'+Math.round(h%24)+'時間':h>=1?Math.floor(h)+'時間'+Math.round(h%1*60)+'分':Math.round(h*60)+'分';
+    $('aw-time').textContent='留守にしていた時間　'+fmt;const ul=$('aw-list');ul.innerHTML='';
+    a.items.forEach(t=>{const li=document.createElement('li');li.textContent=this.Y(t);ul.appendChild(li)});
+    $('aw-next').hidden=!next;if(next)$('aw-next').textContent=next;$('away').hidden=false;
+  },
+  closeAway(){$('away').hidden=true;const f=this.afterAway;this.afterAway=null;if(f)setTimeout(f,300)},
+  taskLine(){this.ensure();return '今日のお世話：'+S.daily.list.map(x=>this.TASKS[x.k].label).join('・')},
+  /* ---- greeting on return */
+  greet(h){
+    const go=()=>{
+      const st=S.stage,n=mem('名前'),w=mem('仕事')||'',hr=new Date().getHours(),cow=/牛|肥育|畜産|牧場|酪農/.test(w);
+      if(st>=2){
+        let line=h>=20?`……${h>=48?Math.round(h/24)+'日':h+'時間'}ぶりだな。忘れられたかと思ったぞ。`:h>=1?`……戻ったか${n?'、'+n:''}。${h}時間ぶりだな。`:'……まだいたのか。';
+        if(h>=1){if(hr>=5&&hr<10)line+=cow?'朝の牛の世話は済んだか。':'朝は、陸の生き物も忙しいらしいな。';else if(hr>=17&&hr<22&&cow)line+='今日も牛は、よく食ったか。'}
+        say(line,{emo:'curious'});
+      }else if(st===1)say(h>=20?'……キタ。……ズット、マッテタ。':'……キタ。',{emo:'curious'});
+      else say('（小さなグソクが、砂の上でじっとしている）',{narr:true});
+      this.followUp();this.backupNag();
+    };
+    const a=this.awayItems();if(a){this.afterAway=go;this.showAway(a,this.taskLine())}else go();
+  },
+  /* ---- the daily question and its follow-up */
+  askDaily(){
+    if(S.stage<1)return false;const d=dkey();if(S.dq&&S.dq.d===d)return false;
+    const hr=new Date().getHours(),s1=S.stage===1;let k,q;
+    if(hr>=5&&hr<11){k='予定';q=s1?['……キョウ、ナニスル？']:['今日は、何をする日だ。','今日の予定を言え。ワシは寝るだけだ。']}
+    else if(hr>=17){k='ふりかえり';q=s1?['……キョウ、ドウダッタ？']:['今日は、どんな一日だった。','……今日、何か良いことはあったか。']}
+    else{k='気分';q=s1?['……ゲンキ？']:['調子はどうだ。','……顔を見せろ。元気か。']}
+    const pre=S.tease&&S.tease.k==='q'&&S.tease.d!==d&&!s1?'……昨日言っていた、聞きたいことだ。':'';if(pre)S.tease=null;
+    S.dq={d,k,a:null,at:0,fu:false};S.pending='今日:'+k;say(pre+pickR(q),{emo:'curious'});S.log.push({r:'g',t:q[0]});save();return true;
+  },
+  answer(p,a,t,out){
+    const k=p.slice(3),st=S.stage;
+    const neg=/疲|つかれ|しんど|だる|眠い|ねむい|悲し|かなし|つら|辛|最悪|だめ|ダメ|嫌|微妙|失敗|怒|風邪|かぜ|痛/.test(t);
+    const pos=!neg&&/楽し|たのし|良|よか|いい|最高|嬉|うれし|元気|げんき|できた|出来た|うまく|順調|ばっちり|はい|うん/.test(t);
+    const cow=/牛|餌やり|給餌|出荷|子牛|牛舎|牧場|せり|競り/.test(t);
+    if(k==='結果')return out(neg?pickR(['……そうか。うまくいかない日は、殻にこもれ。明日には少し硬くなっている。','焦るな。ワシらは何年でも待てる生き物だ。']):pickR(['そうか。……よくやった。','ふむ。それなら今日は、少し長く見ていっていいぞ。']),neg?'neutral':'happy',{trust:1});
+    if(!S.dq||S.dq.d!==dkey())S.dq={d:dkey(),k,fu:false};
+    S.dq.a=a.slice(0,24);S.dq.at=Date.now();S.dq.neg=neg;save();
+    if(st===1)return out(neg?'……ヨシヨシ。':'……ソウ。','curious',{trust:.6});
+    if(k==='予定')return out(cow?pickR(['牛の世話か。あいつらは待ってくれんからな。行ってこい。','{n}の牛は幸せだな。……ワシの餌は、まだいい。']):pickR([`${a}か。……終わったら、どうだったか聞かせろ。`,`ふむ、${a}。ワシはその間、砂に潜っておく。`]),'curious',{trust:.8});
+    if(k==='ふりかえり')return out(neg?pickR(['……そうか。今日はもう、暗くして休め。ワシもそうする。','そういう日もある。深海では、だいたい毎日がそうだ。']):pos?pickR(['そうか。……それは、良かった。','ふむ。オマエが楽しそうだと、水がうまい。']):pickR([`${a}、か。陸の一日は長いな。`,'……そうか。聞かせてくれて、礼を言う。']),neg?'neutral':'happy',{trust:.8});
+    return out(neg?pickR(['……無理をするな。ワシは何年も食わずに生きていける。オマエは食え。','……そうか。ここで少し、ぼんやりしていけ。']):pickR(['そうか。それなら、いい。','ふむ。ワシも悪くない。']),neg?'neutral':'happy',{trust:.8});
+  },
+  followUp(){
+    const q=S.dq;if(!q||!q.a||q.fu||S.stage<2||Date.now()-q.at<45*60000)return;
+    const today=q.d===dkey();let line=null,pend=false;
+    if(q.k==='予定'){line=today?`……朝言っていた『${q.a}』は、うまくいったか。`:`前に『${q.a}』と言っていたな。あれは、どうなった。`;pend=true}
+    else if(q.neg){line=`この前は『${q.a}』と言っていたな。……少しは、ましになったか。`;pend=true}
+    else if(q.k==='ふりかえり'&&!today)line=`昨日は『${q.a}』だったな。……今日はどうなる。`;
+    if(!line)return;q.fu=true;save();
+    setTimeout(()=>{if(S.pending||Life.asleep||Life.dead)return;say(line,{emo:'curious'});if(pend)S.pending='今日:結果';save()},2600);
+  },
+  /* ---- a hint about next time, once per visit */
+  tease(){
+    if(this.teased||this.sess<240||S.stage<1||Life.asleep||Life.dead||Game.molting||S.pending)return false;this.teased=true;
+    const st=S.stage,c=[];
+    if(S.molts<9&&!Molt.phase){const lo=S.molts?NEEDM[S.molts-1]:0,hi=NEEDM[S.molts];if((S.trust-lo)/(hi-lo)>.8)c.push({k:'molt',t:st===1?'……カラ、キツイ。':'……体がきつくなってきた。そろそろ殻を脱ぐかもしれん。'})}
+    if(S.hunger>40&&S.hunger<70)c.push({k:'hunger',t:st===1?'……アシタ、ハラ、ヘル。':'……明日あたり、腹が減りそうだ。'});
+    if(st>=2)c.push({k:'q',t:pickR(['明日、オマエに聞きたいことがある。……今は言わん。','……明日も来い。聞きたいことがある。'])});
+    const sk=this.streak();if(sk>=1&&this.allDone())c.push({k:'streak',t:st===1?'……アシタモ、クル？':`明日も来たら、${sk+1}日続けて来たことになるな。……別に、数えてはいないが。`});
+    if(!c.length)return false;const x=pickR(c);S.tease={k:x.k,d:dkey()};say(x.t,{emo:'curious'});save();return true;
+  },
+  /* ---- daily care */
+  ensure(){if(!S.daily||S.daily.d!==dkey())this.gen()},
+  gen(){
+    const d=dkey();let r=0;for(const ch of d)r=(r*31+ch.charCodeAt(0))%233280;const rr=()=>{r=(r*9301+49297)%233280;return r/233280};
+    const pool=Object.keys(this.TASKS).filter(k=>k!=='talk'&&(!this.TASKS[k].ok||this.TASKS[k].ok()));
+    for(let i=pool.length-1;i>0;i--){const j=Math.floor(rr()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]]}
+    const prev=S.daily||{};
+    S.daily={d,list:['talk'].concat(pool.slice(0,2)).map(k=>({k,n:0})),streak:prev.streak||0,lastFull:prev.lastFull||'',best:prev.best||0};save();
+  },
+  isDone(x){return x.n>=this.TASKS[x.k].goal},
+  allDone(){return !!S.daily&&S.daily.list.every(x=>this.isDone(x))},
+  streak(){const D=S.daily;if(!D||!D.streak)return 0;return D.lastFull===dkey()||D.lastFull===dkey(Date.now()-DAY)?D.streak:0},
+  hit(k,amt){
+    if(!started||Life.dead||!S.hatched)return;this.ensure();
+    const t=S.daily.list.find(x=>x.k===k);if(!t||this.isDone(t))return;
+    t.n=Math.min(this.TASKS[k].goal,t.n+(amt||1));
+    if(this.isDone(t))this.done(t);else if(k!=='watch'){this.render();save()}
+  },
+  done(t){
+    const L=S.daily.list,n=L.filter(x=>this.isDone(x)).length;
+    S.mood=clamp(S.mood+3,0,100);Audio2.tone(880,1320,.16,'sine',.05);setTimeout(()=>Audio2.tone(1320,1760,.2,'sine',.04),120);
+    toast('お世話 ✓ '+this.TASKS[t.k].label+'（'+n+'/'+L.length+'）');
+    const b=$('daily');b.classList.remove('bump');void b.offsetWidth;b.classList.add('bump');
+    if(n===L.length)this.full();
+    this.render();save();
+  },
+  full(){
+    const D=S.daily,d=dkey(),y=dkey(Date.now()-DAY);
+    D.streak=D.lastFull===y?D.streak+1:D.lastFull===d?D.streak:1;D.lastFull=d;D.best=Math.max(D.best||0,D.streak);
+    S.trust=clamp(S.trust+2,0,100);S.mood=clamp(S.mood+5,0,100);
+    const sk=D.streak,st=S.stage;
+    const M={3:'三日続けて来たな。……悪くない。',7:'一週間、毎日来たな。……ワシは数えていないぞ。',14:'二週間だ。オマエの匂いを、覚えてしまった。',30:'ひと月、毎日だ。……オマエは変なやつだ。ありがとう。',50:'五十日。深海の時間で言えば、一瞬だが……悪くない一瞬だ。',100:'百日だ。……オマエがいない深海は、もう思い出せん。'};
+    setTimeout(()=>{if(Life.asleep)return;
+      if(st===0)say('（グソクが、小さく脚をばたつかせた。うれしいのかもしれない）',{narr:true});
+      else if(st===1)say(sk>=3?'……マイニチ、キテクレル。……ウレシイ。':'……アリガト。',{emo:'happy'});
+      else say(M[sk]||pickR(['……今日も、来たな。','……ふん。今日の世話は、合格にしてやる。']),{emo:'happy'});
+      if(st>=1){C.wave=2.6;C.waveDur=2.6}
+    },1200);
+  },
+  render(){
+    if(!S||!S.daily||!started){$('daily').hidden=true;return}
+    const L=S.daily.list,sk=this.streak();$('daily').hidden=false;
+    $('daily').innerHTML='<span>今日のお世話</span><span class="dots">'+L.map(x=>'<i class="'+(this.isDone(x)?'on':'')+'"></i>').join('')+'</span>'+(sk?'<span class="stk">連続'+sk+'日</span>':'');
+    const P=$('dpanel');P.innerHTML='';const ul=document.createElement('ul');
+    L.forEach(x=>{const T=this.TASKS[x.k],li=document.createElement('li'),dn=this.isDone(x);if(dn)li.className='done';
+      const prog=x.k==='watch'?Math.floor(x.n/60)+'/5分':T.goal>1?x.n+'/'+T.goal:'';
+      li.innerHTML='<span class="ck">'+(dn?'✓':'・')+'</span><span></span><span class="n">'+prog+'</span>';li.children[1].textContent=T.label;ul.appendChild(li)});
+    P.appendChild(ul);const f=document.createElement('div');f.className='foot';
+    f.textContent=this.allDone()?'今日のお世話は完了。また明日。':'3つ終えると、連続記録が伸びます。'+(S.daily.best?'（最長 '+S.daily.best+'日）':'');P.appendChild(f);
+  },
+  update(){
+    if(!S||!started)return;
+    if(!this.inited){this.inited=true;this.ensure();this.render()}
+    if(S.daily.d!==dkey()){this.gen();this.render()}
+    if(document.hidden||Life.dead)return;
+    this.sess++;
+    for(const x of S.daily.list){const T=this.TASKS[x.k];if(T.check&&!this.isDone(x)&&T.check())this.hit(x.k)}
+    if(!Life.asleep){this.hit('watch');if(this.sess%15===0)this.render()}
+  },
+  backupNag(){
+    if(!S.hatched||dayNo()<3||Date.now()-(S.lastBackup||0)<7*DAY||S.bkNag===dkey())return;S.bkNag=dkey();save();
+    setTimeout(()=>say('（育てたデータは、この端末のブラウザの中にだけ保存されています。設定の「データの引き継ぎ」でコードを控えておくと、消えても元に戻せます）',{narr:true}),7000);
+  }
+};
+setInterval(()=>Daily.update(),1000);
+$('daily').addEventListener('click',e=>{e.stopPropagation();$('dpanel').hidden=!$('dpanel').hidden});
+document.addEventListener('click',e=>{if(!e.target.closest('#dpanel,#daily'))$('dpanel').hidden=true});
+$('aw-ok').addEventListener('click',()=>Daily.closeAway());
+// count the care the player gives
+for(const [o,m,k] of [[Game,'water','water'],[Game,'feed','feed'],[Photo,'shoot','photo'],[Diary,'open','diary']]){const f=o[m];o[m]=function(){const r=f.apply(this,arguments);Daily.hit(k);return r}}
+{const f=Game.talk;Game.talk=function(){if(!Life.dead)Daily.hit('talk');return f.apply(this,arguments)}}
+
+/* =====================================================================
+   BACKUP — a code (or file) that carries the save to another browser
+   ===================================================================== */
+const Backup={code:null,pend:null,
+  async enc(obj){
+    let bytes=new TextEncoder().encode(JSON.stringify(obj)),tag='GSK0';
+    if(window.CompressionStream){try{bytes=new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());tag='GSK1'}catch(e){}}
+    let s='';for(let i=0;i<bytes.length;i+=8192)s+=String.fromCharCode.apply(null,bytes.subarray(i,i+8192));
+    return tag+'-'+btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  },
+  async dec(code){
+    const m=code.replace(/\s+/g,'').match(/^(GSK[01])-([A-Za-z0-9_-]+)$/);if(!m)throw new Error('format');
+    let b=m[2].replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';
+    let bytes=Uint8Array.from(atob(b),c=>c.charCodeAt(0));
+    if(m[1]==='GSK1')bytes=new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+    return JSON.parse(new TextDecoder().decode(bytes));
+  },
+  open(){
+    closePops();$('bk').hidden=false;this.code=null;this.pend=null;$('bk-code').textContent='作成中…';$('bk-in').value='';$('bk-msg').textContent='';$('bk-yes').hidden=true;
+    let g=[];try{g=JSON.parse(localStorage.getItem(GKEY)||'[]')}catch(e){}
+    this.enc({v:1,kind:VARIANT,at:Date.now(),s:S,g}).then(c=>{this.code=c;$('bk-code').textContent=c}).catch(()=>{$('bk-code').textContent='作成できませんでした'});
+  },
+  mark(){S.lastBackup=Date.now();save()},
+  async copy(){
+    if(!this.code)return;let ok=false;
+    try{await navigator.clipboard.writeText(this.code);ok=true}catch(e){}
+    if(!ok){const ta=document.createElement('textarea');ta.value=this.code;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;left:-9999px;top:0;font-size:16px';document.body.appendChild(ta);ta.select();ta.setSelectionRange(0,ta.value.length);try{ok=document.execCommand('copy')}catch(e){}ta.remove()}
+    if(ok){this.mark();toast('コピーしました。メモやLINEの自分宛てなどに貼って残してください')}
+    else{const r=document.createRange();r.selectNodeContents($('bk-code'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('コードを選択しました。長押ししてコピーしてください')}
+  },
+  async file(){
+    if(!this.code)return;const name='gusoku-'+VARIANT+'-'+dkey()+'.txt',blob=new Blob([this.code],{type:'text/plain'});
+    let dl=null;try{dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null}catch(e){}
+    try{
+      if(dl)await dl.save({filename:name,data:blob});
+      else{const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
+      this.mark();toast('保存しました');
+    }catch(e){if(e&&e.code==='declined')return;toast('保存できませんでした。コピーを使ってください')}
+  },
+  async check(){
+    const v=$('bk-in').value.trim();$('bk-yes').hidden=true;this.pend=null;
+    if(!v){$('bk-msg').textContent='コードを貼り付けてください';return}
+    try{
+      const p=await this.dec(v);if(!p||!p.s||typeof p.s.born!=='number')throw new Error('data');
+      this.pend=p;const days=Math.floor((p.at-p.s.born)/DAY)+1;
+      $('bk-msg').textContent=(p.kind==='yuru'?'ゆるキャラ版':'リアル版')+'のデータです（飼育'+days+'日目・脱皮'+(p.s.molts||0)+'回・'+new Date(p.at).toLocaleDateString('ja-JP')+'に作成）。読み込むと、今のデータは上書きされます。'+(p.kind!==VARIANT?'※もう一方のバージョンのデータです。':'');
+      $('bk-yes').hidden=false;
+    }catch(e){$('bk-msg').textContent='コードを読み取れませんでした。途中で切れていないか確かめてください'}
+  },
+  apply(){
+    const p=this.pend;if(!p)return;p.s.last=Date.now();
+    try{localStorage.setItem(SKEY,JSON.stringify(p.s));localStorage.setItem(GKEY,JSON.stringify(p.g||[]))}catch(e){toast('読み込めませんでした');return}
+    noSave=true;location.reload();
+  }
+};
+$('set-backup').addEventListener('click',()=>Backup.open());
+$('bk-close').addEventListener('click',()=>$('bk').hidden=true);
+$('bk-copy').addEventListener('click',()=>Backup.copy());
+$('bk-file').addEventListener('click',()=>Backup.file());
+$('bk-read').addEventListener('click',()=>Backup.check());
+$('bk-yes').addEventListener('click',()=>Backup.apply());
+$('bk-pick').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(!f)return;f.text().then(t=>{$('bk-in').value=t.trim();Backup.check()});e.target.value=''});
+// iPhone/iPad Safari may clear a site's storage after a week away; the home-screen app keeps it
+{const ios=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+ const inFrame=(()=>{try{return window.top!==window}catch(e){return true}})();
+ if(ios&&!navigator.standalone&&!inFrame)$('a2hs').hidden=false}
+
 let started=false;
 function boot(){
   load();
-  const away=(Date.now()-S.last)/60000;if(S.hatched)tick(Math.min(away,60*24*3));
+  const away=(Date.now()-S.last)/60000;Daily.pre(away);if(S.hatched)tick(Math.min(away,60*24*3));
   buildTextures();
   scene.environment=makeEnv();
   buildTerrain();buildRocks();buildPebbles();buildShafts();buildBubbles();buildSediment();buildSurface();
@@ -2617,6 +2931,7 @@ function frameView(dt){
 function idleChatter(){
   if(darkLv()>=2&&S.stage>=1&&!Life.asleep&&!Life.dead&&!Game.molting&&Math.random()<.55){say(S.stage===1?pickR(['……キライ。','……クライ、スキ。']):pickR(DARK_LINES[darkLv()]),{emo:'annoyed'});return}
   if(Game.molting||Life.asleep||Life.dead)return;
+  if(Daily.tease())return;
   if(S.stage>=2&&Math.random()<.18){const fd=fastDays();const pl=persLabel();
     say(pickR([fd>=3?`絶食${fd}日目だ。……まだまだ。`:'最後に食ったのは、いつだったかな。',{陽気:'今日は泡の音がいい。オマエも聞け。',穏やか:'……オマエも、無理はするなよ。',皮肉屋:'陸の生き物は、忙しそうで気の毒だ。',疑い深い:'……その手に、何を持っている。',臆病:'……さっきの影、なんだった。',豪胆:'ワシに怖いものはない。光以外はな。',気まぐれ:'……なんでもない。呼んでみただけだ。'}[pl]].concat(S.mate?[`${S.mate.name}は今日も静かだ。`]:[])),{emo:'neutral'});return}
   if(S.stage>=1&&Math.random()<.45&&ask())return;
@@ -2633,6 +2948,9 @@ function idleChatter(){
     if(st===1)c.push('……シンカイ、シズカ。','……ヒカリ、キライ。','……ネムイ。','……ハハ、ドコ。');
     else{c.push('深海では、上から死んだ鯨が降ってくる。何十年に一度のごちそうだ。','ワシの眼は、たくさんの小さな眼の集まりだ。オマエの顔も何千個に見えている。','何もしない時間を、陸の生き物は怖がりすぎる。','……海の底の音を知っているか。何も聞こえない音だ。','母の腹の下は、暗くて温かかった。……覚えているわけではないがな。');
       if(n)c.push(n+'。……呼んでみただけだ。');
+      {const fa=mem('家族'),ho=mem('休日'),se=mem('季節'),cn=mem('牛の数'),cb=mem('手のかかる牛'),m=new Date().getMonth()+1,now=m>=3&&m<=5?'春':m<=8&&m>=6?'夏':m>=9&&m<=11?'秋':'冬';
+        if(fa)c.push(`${fa}は、元気にしているか。`);if(ho)c.push(`次の休みも、${ho}か。`);if(se&&se.includes(now))c.push(`今は${now}だな。オマエの好きな季節だ。`);
+        if(cn)c.push(`${cn}の牛の世話、ご苦労だな。`);if(cb)c.push(`${cb}は、今日もおとなしくしていたか。`)}
       if(w&&/牛|肥育|畜産|牧場/.test(w))c.push('オマエの牛は元気か。よく食うやつは、よく育つ。ワシは例外だ。');
       else if(w)c.push(w+'は、はかどっているか。');
       if(st===3)c.push('脱皮するたびに思う。捨てた殻の分だけ、軽くなれる。','時間は、深さに比例してゆっくり流れる。');
@@ -2642,15 +2960,14 @@ function idleChatter(){
 }
 function start(){
   if(started||Cine.on)return;Audio2.init();
+  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
   if(!S.hatched){$('title').classList.add('gone');setTimeout(()=>{$('title').hidden=true;Cine.start()},900);return}
   started=true;C.wave=2.6;C.waveDur=2.6;
   $('title').classList.add('gone');setTimeout(()=>$('title').hidden=true,1300);
-  if(S.health<=0){Life.dead=true;C.flip=1;let gr=[];try{gr=JSON.parse(localStorage.getItem('gusoku.graves')||'[]')}catch(e){}if(gr.length)showMemorial(gr[gr.length-1]);return}
-  if(isNight()){Life.asleep=true;Life.sleepT=0;say('（夜。グソクは眠っている。起こさないように、そっと見守ろう）',{narr:true});return}
+  if(S.health<=0){Life.dead=true;C.flip=1;let gr=[];try{gr=JSON.parse(localStorage.getItem(GKEY)||'[]')}catch(e){}if(gr.length)showMemorial(gr[gr.length-1]);return}
+  if(isNight()){Life.asleep=true;Life.sleepT=0;{const a=Daily.awayItems();if(a)Daily.showAway(a,Daily.taskLine())}say('（夜。グソクは眠っている。起こさないように、そっと見守ろう）',{narr:true});return}
   const h=Math.round((Date.now()-S.last)/3600000);
-  if(S.stage>=2)say(h>=1?`……戻ったか。${h}時間ぶりだな。`:'……まだいたのか。',{emo:'curious'});
-  else if(S.stage===1)say('……キタ。',{emo:'curious'});
-  else say('（小さなグソクが、砂の上でじっとしている）',{narr:true});
+  Daily.greet(h);
   $('say').focus({preventScroll:true});
 }
 
@@ -2717,7 +3034,7 @@ $('ph-close').addEventListener('click',()=>Photo.close());
 $('ph-pause').addEventListener('click',()=>{Photo.paused=!Photo.paused;$('ph-pause').textContent=Photo.paused?'動きを戻す':'動きを止める'});
 $('ph-save').addEventListener('click',()=>Photo.save());
 $('ph-again').addEventListener('click',()=>{$('ph-prev').hidden=true});
-$('mem-new').addEventListener('click',()=>{try{localStorage.removeItem('gusoku.save2')}catch(e){}location.reload()});
+$('mem-new').addEventListener('click',()=>{try{localStorage.removeItem(SKEY)}catch(e){}location.reload()});
 $('btn-water').addEventListener('click',()=>started&&!Life.dead&&Game.water());
 $('btn-cool').addEventListener('click',()=>started&&Game.temp(-.5));
 $('btn-warm').addEventListener('click',()=>started&&Game.temp(.5));
@@ -2727,7 +3044,7 @@ $('set-tts').addEventListener('click',()=>{ttsOn=!ttsOn;try{localStorage.setItem
 $('set-ai').addEventListener('click',()=>{aiOn=!aiOn;aiBroken=false;try{localStorage.setItem('gusoku.ai',aiOn?'on':'off')}catch(e){}aiLabel()});
 $('set-reset').addEventListener('click',e=>{e.stopPropagation();$('reset-confirm').hidden=false});
 $('reset-no').addEventListener('click',e=>{e.stopPropagation();$('reset-confirm').hidden=true});
-$('reset-yes').addEventListener('click',()=>{try{localStorage.removeItem('gusoku.save2')}catch(e){}location.reload()});
+$('reset-yes').addEventListener('click',()=>{try{localStorage.removeItem(SKEY)}catch(e){}location.reload()});
 $('gauges').addEventListener('toggle',()=>$('gsum').textContent=$('gauges').open?'▾':'▸');
 if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
