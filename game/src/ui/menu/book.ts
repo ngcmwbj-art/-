@@ -726,22 +726,25 @@ export class BookPage implements MenuPage {
     // sit a little tighter and further left, clear of the clock)
     const secs = this.sections();
     const pad = secs.length > 4 ? 4 : secs.length > 3 ? 8 : 14;
+    // (six — ② with 『むし』『みずべ』『はじめて』 — are set 2px a letter tighter to stay on the screen, 02 #89)
+    const sp = secs.length > 5 ? -2 : 0;
+    const tw = (n: string) => measure(n, sp);
     // (with 『みずべ』 the row is longer: it moves left so it ends before the clock, 02 #81)
-    const rowW = secs.reduce((a, n) => a + textW(n) + pad + 2, 0);
+    const rowW = secs.reduce((a, n) => a + tw(n) + pad + 2, 0);
     let tx = Math.min(SP.x + (secs.length > 3 ? 56 : 80), 318 - rowW);
     const v = this.v;
     if (m.focus) {
       // ←→ turns the section: little pencil chevrons either side of the tabs
       const b = Math.floor(m.t / 300) % 2;
       chevron(g, tx - 8 - b, SP.y - 10, -1);
-      chevron(g, tx + secs.reduce((a, n) => a + textW(n) + pad + 2, 0) + 4 + b, SP.y - 10, 1);
+      chevron(g, tx + rowW + 4 + b, SP.y - 10, 1);
     }
     secs.forEach((name, i) => {
-      const w = textW(name) + pad;
+      const w = tw(name) + pad;
       const sel = i === this.sec;
       const y = SP.y - 18 - (sel ? 2 : 0);
       drawTape(g, tx, y, w, 20, '', { color: sel ? v.tabOn : '#D8CBA8', seed: 20 + i });
-      g.text(name, tx + pad / 2, y + 1, { color: sel ? UI.text : UI.pencil });
+      g.text(name, tx + pad / 2, y + 1, { color: sel ? UI.text : UI.pencil, spacing: sp });
       if (sel && m.focus) {
         g.rect(tx + 2, y + 17, w - 4, 1, UI.accent);
       }

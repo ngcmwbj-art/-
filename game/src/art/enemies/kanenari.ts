@@ -1,21 +1,30 @@
 // グソっ君 (id 'kanenari' / 'enemy_kanenari', ★2026-09-29 依頼主の指示で
-// カネナリくん→グソっ君。IDは据え置き): a round giant isopod standing on his hind
-// legs. Front battle sprite 56×68 (ノリツッコミ cut-ins, the join battle's
-// poses) and the 44×52 back view for the cut-ins where we see him from
-// behind (こうらタックル, おてつだい, the bosses): seven thick chest plates,
-// the fan tail hanging behind him like a cape.
+// カネナリくん→グソっ君。IDは据え置き。★2026-10-08 依頼主の手本の絵に合わせて
+// 描き直し): a round, cuddly giant isopod standing on two legs, all warm
+// ochre with dark-brown lines. A white headband round his brow, big round
+// black eyes with one white glint, pink cheeks, two long tusk-like
+// mouthparts hanging from under his nose, little ear plates at the sides of
+// his head, a striped (segmented) tummy, armour plates overlapping like
+// scales at both sides of his body, segmented arms with two-fingered
+// pincers, stout legs with three toes and a ribbed fan tail.
+// Front battle sprite 56×68 (ノリツッコミ cut-ins, the join battle's poses)
+// and the 44×52 back view for the cut-ins where we see him from behind
+// (こうらタックル, おてつだい, the bosses).
 
 import { BAYER4, PixelCanvas } from '../../engine/pixel';
 import { registerEnemyArt, loop, type EnemyArt, type EnemyView } from './index';
 import { K, Mask, rimLeft, shade } from './lib';
 
-// dark → light
-const SHELL = ['#2A2440', '#3A2B5C', '#4A3A6E', '#6E6890', '#857E9E', '#9A92AE', '#B0A8C4', '#C6BEDA'];
-const BELLY = ['#6E6890', '#8A83A2', '#9A92AE', '#B0A8C4', '#C6BEDA', '#D8D2E6', '#E8E4F0'];
-const LEG = ['#6E6890', '#9A92AE', '#B0A8C4', '#C6BEDA', '#E8E4F0'];
+// dark → light (30_level_art 9.2: ochre #D49A5C, shade #A8693A, line #5A3A2A)
+const SHELL = ['#5A3A2A', '#6B4226', '#8A5A3A', '#A8693A', '#BF8048', '#D49A5C', '#E0AC6E', '#EBBF86'];
+const BELLY = ['#A8693A', '#BF8048', '#D49A5C', '#E0AC6E', '#EBBF86', '#F0CB98', '#F6DCB0'];
+const LEG = ['#8A5A3A', '#BF8048', '#D49A5C', '#E0AC6E', '#EBBF86', '#F0CB98'];
+const TUSK = ['#A8693A', '#D49A5C', '#E0AC6E', '#EBBF86', '#F0CB98', '#F6DCB0'];
+const BAND = ['#C8B494', '#E8D9B5', '#FBF3DC', '#FFF6D8'];
+const LINE = '#6B4226';
 const EYE = '#1B1733';
 const EYE2 = '#2A2440';
-const EYE_S = '#4A3A6E';
+const EYE_S = '#3A2B24';
 const GLINT = '#FFF6D8';
 const CHEEK = '#F08A7A';
 const CHEEK_L = '#F7B0A0';
@@ -26,6 +35,7 @@ const OY = 4;
 
 type ArmPos = 'down' | 'up' | 'out' | 'wave1' | 'wave2' | 'mic' | 'point' | 'hold' | 'cross' | 'present' | 'clap';
 type Eyes = 'open' | 'happy' | 'wide' | 'flash' | 'hurt' | 'soft';
+/** The ear plates (they carry his mood): out, perked up, drooping; 'mic' = out (the sing pose). */
 type Ant = 'normal' | 'up' | 'mic' | 'droop' | 'swayL' | 'swayR';
 
 interface FrontPose {
@@ -42,7 +52,7 @@ interface FrontPose {
   glow?: number;
   eyes?: Eyes;
   ant?: Ant;
-  /** The small legs on his tummy: folded, or out clapping (0/1). */
+  /** The side plates: lying flat, or flared out (the clap: 0/1). */
   clap?: number;
   /** Seen from behind (a spin). */
   turned?: boolean;
@@ -50,7 +60,7 @@ interface FrontPose {
 
 // ---- pieces -------------------------------------------------------------------------------
 
-/** Horizontal half-width of an ellipse mask row (for plate lines that follow the curve). */
+/** Horizontal span of a mask row. */
 function rowSpan(m: Mask, y: number): [number, number] | null {
   let a = -1;
   let b = -1;
@@ -63,121 +73,207 @@ function rowSpan(m: Mask, y: number): [number, number] | null {
 }
 
 /**
- * Plate edges on an armour mask: at each row in `edges` a dark line that
- * dips `dip` px in the middle (the round back), a shadow under it, a lit row
- * over it on the lit (left) side; the ends of every edge poke out as small
- * points (the saw-tooth sides). `only` keeps the lines to the sides (front
- * view: the plates wrap round beside the pale tummy).
+ * Segment lines on a mask: at each row in `edges` a dark line that dips
+ * `dip` px in the middle (the round body), a lit row under it on the left.
+ * `only` keeps the lines inside that mask.
  */
-function plates(p: PixelCanvas, m: Mask, edges: number[], dip: number, only?: Mask, points = true): void {
+function segLines(p: PixelCanvas, m: Mask, edges: number[], dip: number, dark: string, lit: string, inset = 1): void {
   const bb = m.bbox();
   const cx = bb.x + bb.w / 2;
   const rx = bb.w / 2;
   for (const e of edges) {
     const span = rowSpan(m, e);
     if (!span) continue;
-    for (let x = span[0]; x <= span[1]; x++) {
+    for (let x = span[0] + inset; x <= span[1] - inset; x++) {
       const k = (x + 0.5 - cx) / rx;
-      const d = Math.round(dip * (1 - k * k));
-      const y = e + d;
-      if (!m.in(x, y) || (only && only.in(x, y))) continue;
-      p.set(x, y, k > 0.55 ? SHELL[1] : SHELL[2]);
-      if (m.in(x, y + 1) && !(only && only.in(x, y + 1))) p.set(x, y + 1, k > 0.3 ? SHELL[3] : SHELL[4]);
-      if (m.in(x, y - 1) && !(only && only.in(x, y - 1)) && k < 0.1) p.set(x, y - 1, k < -0.5 ? SHELL[7] : SHELL[6]);
-    }
-    if (points) {
-      // the plate's side points
-      p.set(span[0] - 1, e, SHELL[3]);
-      p.set(span[0] - 1, e - 1, SHELL[5]);
-      p.set(span[1] + 1, e, SHELL[1]);
-      p.set(span[1] + 1, e - 1, SHELL[2]);
+      const y = e + Math.round(dip * (1 - k * k));
+      if (!m.in(x, y)) continue;
+      p.set(x, y, dark);
+      if (k < 0.2 && m.in(x, y + 1)) p.set(x, y + 1, lit);
     }
   }
 }
 
-/** One compound eye: a big dark oval, the glassy sheen low, the glint high on the left. */
+/**
+ * The armour plates at one side of his body, overlapping like scales and
+ * poking out past its edge (drawn before the body, which covers their
+ * roots). `side` −1 = left; `flare` spreads them out (the clap).
+ */
+function sideScales(p: PixelCanvas, edgeX: (y: number) => number, ys: number[], side: -1 | 1, flare = 0): void {
+  for (let i = 0; i < ys.length; i++) {
+    const y = ys[i];
+    const ex = edgeX(y + 1);
+    const out = 4 + (i === 0 || i === ys.length - 1 ? -1 : 0) + flare;
+    const m = new Mask(p.w, p.h).poly([
+      [ex - side * 4, y - 1],
+      [ex + side * (out - 1), y],
+      [ex + side * out, y + 3],
+      [ex + side * (out - 2), y + 5],
+      [ex - side * 4, y + 4],
+    ]);
+    shade(p, m, side < 0 ? SHELL.slice(2, 8) : SHELL.slice(1, 6), { base: 0.55, k: 0.5, dither: 0.3 });
+    // its lower edge: a dark line (the next plate tucks under)
+    m.each((x, yy) => {
+      if (!m.in(x, yy + 1)) p.set(x, yy, SHELL[2]);
+    });
+  }
+}
+
+/** One big round eye: black, the sheen low, one white glint high on the right. */
 function eye(p: PixelCanvas, cx: number, cy: number, e: Eyes, right: boolean): void {
   if (e === 'happy') {
-    // ^ : the eye bends into a smiling arc
     const m = new Mask(p.w, p.h);
-    m.curve(cx - 6, cy + 2, cx, cy - 6, cx + 6, cy + 2, 1.3);
+    m.curve(cx - 5, cy + 2, cx, cy - 5, cx + 5, cy + 2, 1.2);
     m.each((x, y) => p.set(x, y, EYE));
     return;
   }
   if (e === 'hurt') {
-    // > <
     const m = new Mask(p.w, p.h);
     const s = right ? -1 : 1;
-    m.line(cx - 5 * s, cy - 4, cx + 3 * s, cy, 1.1).line(cx + 3 * s, cy, cx - 5 * s, cy + 4, 1.1);
+    m.line(cx - 4 * s, cy - 4, cx + 3 * s, cy, 1.1).line(cx + 3 * s, cy, cx - 4 * s, cy + 4, 1.1);
     m.each((x, y) => p.set(x, y, EYE));
     return;
   }
   const soft = e === 'soft';
-  const m = new Mask(p.w, p.h).ellipse(cx, cy, 6, soft ? 4.2 : 5.6);
+  const m = new Mask(p.w, p.h).ellipse(cx, cy, 4.8, soft ? 3.8 : 5.2);
   if (soft) m.sub(new Mask(p.w, p.h).rect(cx - 8, cy - 8, 16, 5));
+  // a thin brown rim round the eye (the ring in the picture)
+  m.clone().shifted(0, 1).or(m.shifted(1, 0)).or(m.shifted(-1, 0)).sub(m).each((x, y) => p.set(x, y, SHELL[2]));
   m.each((x, y) => {
-    const v = (y + 0.5 - cy) / 5.6;
+    const v = (y + 0.5 - cy) / 5.2;
     let c = EYE;
-    if (v > 0.35) c = (x + y) % 2 === 0 ? EYE_S : EYE2;
-    if (v > 0.65) c = EYE_S;
+    if (v > 0.4) c = (x + y) % 2 === 0 ? EYE_S : EYE2;
+    if (v > 0.7) c = EYE_S;
     p.set(x, y, c);
   });
   if (e === 'flash' || e === 'wide') {
     const gc = e === 'flash' ? '#FFE7A3' : GLINT;
-    p.rect(cx - 4, cy - 4, 4, 3, gc);
-    p.rect(cx - 3, cy - 5, 2, 1, gc);
-    p.rect(cx + 2, cy + 1, 2, 2, gc);
-    if (e === 'flash') p.rect(cx - 3, cy - 3, 2, 1, '#FFFFFF');
+    p.rect(cx, cy - 4, 3, 3, gc);
+    p.rect(cx - 3, cy + 1, 2, 2, gc);
+    if (e === 'flash') p.set(cx + 1, cy - 3, '#FFFFFF');
   } else if (soft) {
-    p.rect(cx - 3, cy - 2, 2, 2, GLINT);
+    p.rect(cx, cy - 1, 2, 2, GLINT);
   } else {
-    p.rect(cx - 4, cy - 3, 3, 2, GLINT);
-    p.set(cx - 3, cy - 4, GLINT);
-    p.set(cx + 2, cy + 2, GLINT);
+    p.rect(cx, cy - 3, 2, 2, GLINT);
+    p.set(cx + 1, cy - 4, GLINT);
+    p.set(cx - 2, cy + 2, '#6B7186');
   }
 }
 
-/** A long feeler: a two-pixel stroke along a curve (antenna segments as lighter dots). */
-function feeler(p: PixelCanvas, x0: number, y0: number, cx: number, cy: number, x1: number, y1: number, far = false): void {
-  const m = new Mask(p.w, p.h).curve(x0, y0, cx, cy, x1, y1, 0.9);
-  m.each((x, y) => p.set(x, y, far ? SHELL[3] : SHELL[2]));
-  // the lit upper-left edge of the stroke and a joint every few px
-  const n = 14;
-  for (let i = 1; i < n; i += 3) {
+/** An ear plate at the side of the head (side −1 = left), its root at (x, y). */
+function earPlate(p: PixelCanvas, x: number, y: number, side: -1 | 1, mood: Ant): void {
+  const s = side;
+  const pts: [number, number][] =
+    mood === 'up'
+      ? [[x, y - 1], [x + s * 5, y - 6], [x + s * 7, y - 4], [x + s * 4, y + 2], [x, y + 3]]
+      : mood === 'droop'
+        ? [[x, y - 1], [x + s * 4, y + 2], [x + s * 4, y + 9], [x + s * 1, y + 8], [x, y + 3]]
+        : [[x, y - 2], [x + s * 5, y], [x + s * 6, y + 4], [x + s * 3, y + 6], [x, y + 4]];
+  const m = new Mask(p.w, p.h).poly(pts);
+  shade(p, m, s < 0 ? SHELL.slice(3, 8) : SHELL.slice(2, 7), { base: 0.55, k: 0.5 });
+  // the plate's inner line
+  new Mask(p.w, p.h).line(x + s, y + 1, (pts[2][0] + x) / 2, (pts[2][1] + y + 1) / 2, 0.5).and(m).each((xx, yy) => p.set(xx, yy, SHELL[3]));
+}
+
+/**
+ * The headband over a head mask: a band ~5px deep across the brow, lower at
+ * the left (`tilt` px per 10 px), lit cream with a shade at the right and
+ * under its lower edge.
+ */
+function headband(p: PixelCanvas, head: Mask, cx: number, y0: number, tilt: number, depth = 5): void {
+  const span = head.bbox();
+  for (let x = span.x; x < span.x + span.w; x++) {
+    const top = Math.round(y0 - ((x - cx) * tilt) / 10);
+    const k = (x - cx) / (span.w / 2);
+    for (let j = 0; j < depth; j++) {
+      const y = top + j;
+      if (!head.in(x, y)) continue;
+      let c = j === 0 ? BAND[3] : j < depth - 1 ? BAND[2] : BAND[1];
+      if (k > 0.55) c = j === 0 ? BAND[2] : BAND[1];
+      if (k > 0.85) c = BAND[0];
+      if (j === 2 && k < 0.6 && (x + 1) % 7 === 0) c = BAND[1];
+      p.set(x, y, c);
+    }
+    if (head.in(x, top + depth)) p.set(x, top + depth, SHELL[3]);
+  }
+}
+
+/** A long tusk from under his nose: a pale tapered stroke with a dark edge and segment rings. */
+function tuskStroke(p: PixelCanvas, x0: number, y0: number, cx: number, cy: number, x1: number, y1: number): void {
+  const m = new Mask(p.w, p.h);
+  const n = 16;
+  for (let i = 0; i <= n; i++) {
     const t = i / n;
     const x = (1 - t) * (1 - t) * x0 + 2 * (1 - t) * t * cx + t * t * x1;
     const y = (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * cy + t * t * y1;
-    p.set(Math.floor(x), Math.floor(y), far ? SHELL[4] : SHELL[4]);
+    const r = 1.7 * (1 - t) + 0.45;
+    m.ellipse(x, y, r, r);
+  }
+  m.clone().shifted(1, 0).or(m.shifted(-1, 0)).or(m.shifted(0, 1)).sub(m).each((x, y) => p.set(x, y, SHELL[1]));
+  shade(p, m, TUSK, { mode: 'bevel', base: 0.58, k: 0.6, dither: 0.3 });
+  // segment rings
+  for (const t of [0.3, 0.55, 0.78]) {
+    const x = (1 - t) * (1 - t) * x0 + 2 * (1 - t) * t * cx + t * t * x1;
+    const y = Math.round((1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * cy + t * t * y1);
+    for (let dx = -2; dx <= 2; dx++) if (m.in(Math.round(x) + dx, y)) p.set(Math.round(x) + dx, y, TUSK[0]);
   }
 }
 
-function hand(p: PixelCanvas, x: number, y: number): void {
-  const m = new Mask(p.w, p.h).ellipse(x, y, 3, 3);
-  shade(p, m, LEG, { mode: 'sphere', base: 0.62 });
-  p.set(Math.round(x - 1), Math.round(y - 2), LEG[4]);
+/**
+ * A pincer hand at (x, y): a round palm and two fingers pointing along
+ * (dx, dy), with a gap between them.
+ */
+function hand(p: PixelCanvas, x: number, y: number, dx = 0, dy = 1): void {
+  const l = Math.hypot(dx, dy) || 1;
+  const ux = dx / l;
+  const uy = dy / l;
+  const palm = new Mask(p.w, p.h).ellipse(x, y, 2.6, 2.6);
+  const fingers = new Mask(p.w, p.h);
+  for (const a of [-0.5, 0.5]) {
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    const fx = ux * c - uy * s;
+    const fy = ux * s + uy * c;
+    fingers.curve(x + fx * 1.5, y + fy * 1.5, x + fx * 4.5, y + fy * 4.5, x + ux * 5.6 + fx * 0.8, y + uy * 5.6 + fy * 0.8, 0.85);
+  }
+  const all = palm.or(fingers);
+  // the gap between the fingers
+  new Mask(p.w, p.h).line(x + ux * 3, y + uy * 3, x + ux * 6, y + uy * 6, 0.5).each((xx, yy) => all.set(xx, yy, 0));
+  shade(p, all, LEG, { mode: 'bevel', base: 0.6, k: 0.6 });
+  p.set(Math.round(x - 1), Math.round(y - 1), LEG[5]);
 }
 
-/** The small legs folded on the tummy (three pairs showing), or out and clapping. */
-function smallLegs(p: PixelCanvas, cx: number, top: number, clap: number | undefined): void {
-  for (let i = 0; i < 4; i++) {
-    const y = top + i * 4;
-    for (const s of [-1, 1]) {
-      const m = new Mask(p.w, p.h);
-      if (clap === undefined) {
-        // folded: a short leg lying across the edge of the tummy, tip inward
-        m.line(cx + s * 8, y, cx + s * 4, y + 1.5, 1);
-      } else if (clap) {
-        // clapping, apart: the legs swing out past the tummy
-        m.line(cx + s * 7, y + 1, cx + s * 13, y - 2, 1);
-      } else {
-        // clapping, together: the tips meet in the middle
-        m.line(cx + s * 8, y + 1, cx + s * 1, y, 1);
-      }
-      // a dark line under each leg, then the leg
-      m.shifted(0, 1).sub(m).each((x, yy) => p.set(x, yy, clap === undefined ? BELLY[1] : SHELL[2]));
-      shade(p, m, LEG, { base: 0.66, k: 0.4 });
+/** A segmented arm from the shoulder to the hand (elbow bent outward), with its pincer. */
+function armStroke(p: PixelCanvas, sx: number, sy: number, ax: number, ay: number, side: -1 | 1, shadeBase = 0.6): void {
+  const ex = (sx + ax) / 2 + side * 2.5;
+  const ey = (sy + ay) / 2 + 1;
+  const m = new Mask(p.w, p.h).line(sx, sy, ex, ey, 2.0).line(ex, ey, ax, ay, 1.7);
+  m.clone().shifted(1, 0).or(m.shifted(-1, 0)).or(m.shifted(0, 1)).or(m.shifted(0, -1)).sub(m).each((x, y) => {
+    if (p.get(x, y) >>> 24) p.set(x, y, SHELL[1]);
+  });
+  shade(p, m, LEG, { base: shadeBase });
+  // the segment joints
+  for (const [jx, jy] of [[ex, ey], [(sx + ex) / 2, (sy + ey) / 2], [(ex + ax) / 2, (ey + ay) / 2]] as [number, number][]) {
+    for (let d = -2; d <= 2; d++) {
+      const x = Math.round(jx + d * (ay - sy > 0 ? 1 : 0.3));
+      const y = Math.round(jy + d * (ay - sy > 0 ? 0 : 0.9));
+      if (m.in(x, y)) p.set(x, y, LEG[1]);
     }
   }
+  hand(p, ax, ay, ax - ex, ay - ey);
+}
+
+/** A stout leg and a three-toed foot. `lift` raises the foot (one leg). */
+function legFoot(p: PixelCanvas, x0: number, y0: number, x1: number, y1: number, toward: -1 | 1, base = 0.55): void {
+  const leg = new Mask(p.w, p.h).line(x0, y0, x1, y1 - 1, 2.8);
+  shade(p, leg, LEG, { base });
+  const ky = Math.round((y0 + y1) / 2);
+  for (let d = -3; d <= 3; d++) if (leg.in(Math.round((x0 + x1) / 2) + d, ky)) p.set(Math.round((x0 + x1) / 2) + d, ky, LEG[0]);
+  const foot = new Mask(p.w, p.h).ellipse(x1 + toward, y1 + 0.5, 4.6, 2.4);
+  // three toes
+  for (const t of [-3.5, 0, 3.5]) foot.ellipse(x1 + toward + t, y1 + 2.2, 1.3, 1.3);
+  shade(p, foot, LEG, { mode: 'sphere', base: base - 0.05 });
+  for (const t of [-1.7, 1.7]) p.set(Math.round(x1 + toward + t), Math.round(y1 + 2.5), SHELL[1]);
 }
 
 // ---- front ---------------------------------------------------------------------------------
@@ -197,144 +293,126 @@ function buildFrontRaw(o: FrontPose): PixelCanvas {
   const sway = o.sway ?? 0;
   const sq = o.squash ?? 0;
   const bx = 24 + sway * 0.5;
-  // the fan tail behind him, flaring out beside his legs
+  // the ribbed fan tail behind him, flaring out beside his legs
   {
     const m = new Mask(W, H);
-    m.poly([[X(12), Y(44)], [X(2), Y(58)], [X(4), Y(61)], [X(14), Y(59)]]);
-    m.poly([[X(36), Y(44)], [X(46), Y(58)], [X(44), Y(61)], [X(34), Y(59)]]);
-    m.poly([[X(20), Y(50)], [X(28), Y(50)], [X(26), Y(61)], [X(22), Y(61)]]);
-    shade(p, m, SHELL.slice(1, 6), { base: 0.45, k: 0.5 });
-    // the fringe of the paddles
-    for (const x of [3, 5, 43, 45]) p.set(X(x), Y(60), SHELL[2]);
+    m.poly([[X(13), Y(46)], [X(4), Y(57)], [X(6), Y(61)], [X(15), Y(59)]]);
+    m.poly([[X(35), Y(46)], [X(44), Y(57)], [X(42), Y(61)], [X(33), Y(59)]]);
+    m.poly([[X(20), Y(51)], [X(28), Y(51)], [X(26.5), Y(61)], [X(21.5), Y(61)]]);
+    shade(p, m, SHELL.slice(2, 7), { base: 0.45, k: 0.5 });
+    // the ribs
+    for (const [ax, ay, bx2, by2] of [[11, 49, 6, 58], [13, 51, 10, 59], [37, 49, 42, 58], [35, 51, 38, 59], [24, 53, 24, 60]] as [number, number, number, number][])
+      new Mask(W, H).line(X(ax), Y(ay), X(bx2), Y(by2), 0.4).and(m).each((x, y) => p.set(x, y, SHELL[2]));
   }
-  // hind legs and feet (on one leg, the left one is tucked up)
-  for (const fx of [17, 31]) {
-    const lift = o.oneLeg && fx === 17 ? 5 + o.oneLeg : 0;
-    const leg = new Mask(W, H).line(X(fx), Y(50 + sq), X(fx + (lift ? 3 : 0)), Y(58 - lift), 2.4);
-    shade(p, leg, LEG, { base: 0.55 });
-    const f = new Mask(W, H).ellipse(X(fx + (lift ? 3 : fx < 24 ? -1 : 1)), Y(59.5 - lift), 5, 2.6);
-    shade(p, f, LEG, { mode: 'sphere', base: 0.5 });
+  // legs and three-toed feet (on one leg, the left one is tucked up)
+  for (const fx of [18, 30]) {
+    const lift = o.oneLeg && fx === 18 ? 5 + o.oneLeg : 0;
+    legFoot(p, X(fx), Y(49 + sq), X(fx + (lift ? 3 : 0)), Y(58 - lift), fx < 24 ? -1 : 1, fx < 24 ? 0.58 : 0.5);
   }
-  // body: the armour round the pale tummy
-  const body = new Mask(W, H).ellipse(X(bx), Y(41 + sq), 16.5, 12.5 - sq);
-  shade(p, body, SHELL, { mode: 'sphere', base: 0.58, k: 0.62, dither: 0.5 });
-  const belly = new Mask(W, H).ellipse(X(bx - 0.5), Y(42.5 + sq), 9.5, 10.5 - sq).and(body);
-  if (o.turned) {
-    plates(p, body, [31, 35, 39, 43, 47, 51].map((v) => Y(v + sq)), 2);
+  // body: the egg, the side plates poking out behind it
+  const body = new Mask(W, H).ellipse(X(bx), Y(41 + sq), 15.5, 12.5 - sq);
+  const edge = (side: -1 | 1) => (y: number) => {
+    const s = rowSpan(body, y);
+    return s ? (side < 0 ? s[0] : s[1]) : X(bx) + side * 12;
+  };
+  const scaleYs = [31, 35.5, 40, 44.5, 49].map((v) => Math.round(Y(v + sq * (v > 40 ? 1 : 0.5))));
+  if (!o.turned) {
+    sideScales(p, edge(-1), scaleYs, -1, o.clap ?? 0);
+    sideScales(p, edge(1), scaleYs, 1, o.clap ?? 0);
   } else {
-    plates(p, body, [32, 36, 40, 44, 48].map((v) => Y(v + sq)), 1, belly);
-    shade(p, belly, BELLY, { mode: 'sphere', base: 0.6, k: 0.55, dither: 0.4 });
-    // the underside's segment lines
-    for (const v of [37, 41, 45, 49]) {
-      const y = Y(v + sq);
-      const span = rowSpan(belly, y);
-      if (span) for (let x = span[0] + 2; x <= span[1] - 2; x++) p.set(x, y, x < X(bx) - 2 ? BELLY[2] : BELLY[1]);
-    }
-    smallLegs(p, X(bx - 0.5), Y(35 + sq), o.clap);
+    sideScales(p, edge(-1), scaleYs, -1);
+    sideScales(p, edge(1), scaleYs, 1);
+  }
+  shade(p, body, SHELL, { mode: 'sphere', base: 0.6, k: 0.6, dither: 0.5 });
+  if (o.turned) {
+    segLines(p, body, [31, 35, 39, 43, 47, 51].map((v) => Y(v + sq)), 2, SHELL[2], SHELL[6], 0);
+  } else {
+    const belly = new Mask(W, H).ellipse(X(bx - 0.5), Y(42 + sq), 11, 11 - sq).and(body);
+    shade(p, belly, BELLY, { mode: 'sphere', base: 0.62, k: 0.55, dither: 0.4 });
+    // the segments across the tummy
+    segLines(p, belly, [34, 38, 42, 46, 50].map((v) => Y(v + sq)), 1, BELLY[0], BELLY[5], 1);
   }
   // arms
   const armPos = (side: -1 | 1, a: ArmPos | undefined): [number, number] => {
-    const sx = bx + side * 15;
+    const sx = bx + side * 14;
     switch (a) {
       case 'up':
-        return [sx + side * 4, 10];
+        return [sx + side * 4, 8];
       case 'out':
-        return [sx + side * 7, 34];
+        return [sx + side * 8, 33];
       case 'wave1':
-        return [sx + side * 5, 20];
+        return [sx + side * 5, 16];
       case 'wave2':
-        return [sx + side * 8, 23];
+        return [sx + side * 8, 20];
       case 'mic':
-        return [bx - 6, 34];
+        return [bx - 7, 33];
       case 'point':
-        return [sx + side * 7, 24];
+        return [sx + side * 8, 22];
       case 'hold':
         return [bx - side * 4, 37];
       case 'present':
-        return [sx + side * 8, 30];
+        return [sx + side * 8, 29];
       case 'clap':
-        return [bx + side * 3, 29];
+        return [bx + side * 3, 2];
       case 'cross':
         // straight out to the side at the shoulder, like a scarecrow's crossbar
         return [sx + side * 10, 33];
       default:
-        return [sx + side * 3, 45];
+        return [sx + side * 3, 46];
     }
   };
-  const arms: [number, number][] = [];
+  const armsLate: (() => void)[] = [];
   for (const side of [-1, 1] as const) {
-    const [ax, ay] = armPos(side, side < 0 ? o.armL : o.armR);
-    const arm = new Mask(W, H).line(X(bx + side * 13), Y(36 + sq), X(ax), Y(ay), 1.6);
-    shade(p, arm, LEG, { base: 0.6 });
-    arms.push([X(ax), Y(ay)]);
+    const a = side < 0 ? o.armL : o.armR;
+    const [ax, ay] = armPos(side, a);
+    const raised = Y(ay) < Y(30);
+    const draw = () => armStroke(p, X(bx + side * 12), Y(35 + sq), X(ax), Y(ay), side, side < 0 ? 0.62 : 0.52);
+    // raised hands go over the head: draw those after it
+    if (raised || a === 'mic') armsLate.push(draw);
+    else draw();
   }
-  // head: a wide dome, the big eyes low in it like a pair of sunglasses
+  // head: a big round bun, the band over the brow, the eyes under it
   const bow = o.bow ?? 0;
   const hx = X(24 + sway);
   const hy = Y(18 + sq + bow * 2);
   const ant = o.ant ?? 'normal';
-  const top = hy - 12;
-  // long feelers from the top of the head
-  if (!o.straw) {
-    const l: Record<Ant, [number, number, number, number]> = {
-      normal: [hx - 14, top - 10, hx - 22, top - 2],
-      up: [hx - 8, top - 16, hx - 11, top - 20],
-      mic: [hx - 7, top + 12, hx - 2, hy + 9],
-      droop: [hx - 16, top - 3, hx - 23, top + 10],
-      swayL: [hx - 16, top - 8, hx - 24, top - 5],
-      swayR: [hx - 12, top - 11, hx - 19, top - 3],
-    };
-    const [c1x, c1y, e1x, e1y] = l[ant];
-    if (ant !== 'mic') feeler(p, hx - 5, top + 2, c1x, c1y, e1x, e1y);
-    const r = ant === 'mic' ? l.normal : l[ant === 'swayL' ? 'swayR' : ant === 'swayR' ? 'swayL' : ant];
-    feeler(p, hx + 5, top + 2, 2 * hx - r[0], r[1], 2 * hx - r[2], r[3]);
-  }
-  const head = new Mask(W, H).ellipse(hx, hy, 18.5, 12.8);
-  shade(p, head, SHELL, { mode: 'sphere', base: 0.6, k: 0.62, dither: 0.5 });
-  // the head plate's rim: a soft line over the brow
-  for (let x = hx - 13; x <= hx + 13; x++) {
-    const y = hy - 5 - Math.round(3 * (1 - ((x - hx) / 14) ** 2));
-    if (head.in(x, y) && !o.turned && bow < 2) p.set(x, y, x < hx - 4 ? SHELL[5] : SHELL[4]);
-  }
+  const mood: Ant = ant === 'swayL' || ant === 'swayR' || ant === 'mic' ? 'normal' : ant;
+  const head = new Mask(W, H).ellipse(hx, hy, 17, 13);
+  earPlate(p, hx - 15, hy + 2 + (ant === 'swayL' ? -1 : 0), -1, mood);
+  earPlate(p, hx + 15, hy + 2 + (ant === 'swayR' ? -1 : 0), 1, mood);
+  shade(p, head, SHELL, { mode: 'sphere', base: 0.62, k: 0.6, dither: 0.5 });
+  if (!o.straw) headband(p, head, hx, hy - 9 + (o.turned ? 1 : 0) + bow, o.turned ? 0 : 2.2);
   if (!o.turned) {
     const e = o.eyes ?? 'open';
-    const ey = hy + 2 + bow;
-    eye(p, hx - 9, ey, e, false);
-    eye(p, hx + 9, ey, e, true);
+    const ey = hy + 1 + bow;
+    eye(p, hx - 8, ey, e, false);
+    eye(p, hx + 8, ey, e, true);
     // cheeks
     for (const s of [-1, 1]) {
-      p.rect(hx + s * 12 - 2, ey + 6, 4, 2, CHEEK);
-      p.set(hx + s * 12 - 2, ey + 6, CHEEK_L);
+      p.rect(hx + s * 12 - 2, ey + 5, 4, 2, CHEEK);
+      p.set(hx + s * 12 - 2, ey + 5, CHEEK_L);
     }
-    // short feelers: a little V on the brow
-    if (!o.straw) {
-      const up = ant === 'up' ? 2 : 0;
-      for (const s of [-1, 1]) {
-        const m = new Mask(W, H).line(hx + s * 2, top + 3, hx + s * 5, top - 3 - up, 0.8);
-        m.each((x, y) => p.set(x, y, SHELL[2]));
-      }
-    }
+    // the little nose (a soft bump line between the eyes)
+    for (let x = hx - 4; x <= hx + 4; x++) p.set(x, ey + 5 - (Math.abs(x - hx) <= 1 ? 1 : 0), LINE);
     if (o.glow) {
       // the eyes light up: a pale bloom round each glint
       for (const s of [-1, 1]) {
-        const g = new Mask(W, H).ellipse(hx + s * 9 - 2, ey - 2, 4, 3);
+        const g = new Mask(W, H).ellipse(hx + s * 8 + 1, ey - 2, 4, 3);
         g.each((x, y) => {
           if (BAYER4[y & 3][x & 3] < 6 * (o.glow ?? 1)) p.set(x, y, '#FFE7A3');
         });
       }
     }
+    // the tusks hang over his chest (the left one curls up to his hand when he sings)
+    if (ant === 'mic') {
+      tuskStroke(p, hx - 3, ey + 7, hx - 6, ey + 14, MIC_AT[0] + (sway > 0 ? 1 : -1) + 1, MIC_AT[1] + 3);
+    } else tuskStroke(p, hx - 3, ey + 7, hx - 7, ey + 14, hx - 6, ey + 22);
+    tuskStroke(p, hx + 3, ey + 7, hx + 6, ey + 15, hx + 5, ey + 22);
   } else {
     // from behind: the head plate's lit crown
-    for (let x = hx - 10; x <= hx - 2; x++) p.set(x, hy - 9, SHELL[7]);
+    for (let x = hx - 10; x <= hx - 2; x++) p.set(x, hy - 10, SHELL[7]);
   }
-  if (ant === 'mic' && !o.straw) {
-    // the left feeler bent forward and down in front of his face: its tip
-    // hangs at his mouth like a microphone (the tip itself: singFrame)
-    const m = new Mask(W, H).curve(hx - 5, top + 2, hx - 10, top + 12, hx - 5, hy + 8, 0.5);
-    m.each((x, y) => p.set(x, y, SHELL[1]));
-  }
-  // hands last (they go over the head when raised)
-  for (const [ax, ay] of arms) hand(p, ax, ay);
+  for (const f of armsLate) f();
   if (o.straw) strawHeap(p, hx, hy - 17);
   return p;
 }
@@ -342,7 +420,8 @@ function buildFrontRaw(o: FrontPose): PixelCanvas {
 /**
  * ボケD's straw (51 14.13): a 24×16 heap of rice straw flopped over the top
  * of his head — gold stalks (#E8C878) in a dither, darker bundles (#B89848)
- * inside, stray stalks hanging over the brim on both sides.
+ * inside, stray stalks hanging over the brim on both sides; the ends of his
+ * headband peek out under it.
  */
 function strawHeap(p: PixelCanvas, cx: number, top: number): void {
   const m = new Mask(p.w, p.h);
@@ -358,10 +437,11 @@ function strawHeap(p: PixelCanvas, cx: number, top: number): void {
   for (const [dx, len, lean] of [[-13, 7, -1], [-11, 9, 0], [-7, 5, 0], [10, 8, 1], [12, 6, 1], [4, 4, 0]] as [number, number, number][]) {
     for (let i = 0; i < len; i++) p.set(cx + dx + Math.round((i / len) * lean * 2), top + 9 + i, i % 3 === 2 ? '#B89848' : '#E8C878');
   }
-  // his two feelers poke out through the straw
-  for (const s of [-1, 1]) for (let i = 1; i <= 5; i++) p.set(cx + s * (3 + Math.floor(i / 2)), top - i, SHELL[2]);
   for (const [dx, h] of [[-5, 3], [0, 4], [2, 3], [7, 2]] as [number, number][]) for (let i = 1; i <= h; i++) p.set(cx + dx + (i > 2 ? 1 : 0), top - i, '#E8C878');
   p.hline(cx - 4, cx + 1, top + 1, '#FFF6D8');
+  // the headband under the brim
+  for (let x = cx - 15; x <= cx - 13; x++) for (let y = top + 11; y <= top + 13; y++) p.set(x, y, y === top + 11 ? BAND[3] : BAND[2]);
+  for (let x = cx + 13; x <= cx + 15; x++) for (let y = top + 9; y <= top + 11; y++) p.set(x, y, BAND[1]);
 }
 
 // ---- back view (44×52: the cut-ins from behind) ----------------------------------------------
@@ -428,52 +508,51 @@ function buildBack(frame: string): PixelCanvas {
   }
   const X = (v: number) => v + ox;
   const Y = (v: number) => v + oy;
-  // feet (soles and heels from behind), under the fan
+  // feet (heels from behind), under the fan
   const fo = step === 1 ? 1 : step === 2 ? -1 : 0;
-  for (const [fx, d] of [[13, fo], [27, -fo]] as [number, number][]) {
-    const f = new Mask(BW, BH).ellipse(X(fx), Y(46 - Math.max(0, d)), 4.2, 2.4);
-    shade(p, f, LEG, { base: 0.45 });
+  for (const [fx, d] of [[14, fo], [26, -fo]] as [number, number][]) {
+    const lift = Math.max(0, d);
+    legFoot(p, X(fx), Y(39), X(fx), Y(45 - lift), fx < 20 ? -1 : 1, 0.45);
   }
   const cx = X(20 + lean * 0.5);
-  // arms at his sides (behind the armour's edge)
+  // the body and its plates
+  const body = new Mask(BW, BH).ellipse(cx, Y(29 + squash * 0.5), 15, 14 - squash * 0.5);
+  const edge = (side: -1 | 1) => (y: number) => {
+    const s = rowSpan(body, y);
+    return s ? (side < 0 ? s[0] : s[1]) : cx + side * 12;
+  };
+  const ys = [19, 23, 27, 31, 35].map((v) => Math.round(Y(v + squash * 0.5)));
+  sideScales(p, edge(-1), ys, -1);
+  sideScales(p, edge(1), ys, 1);
+  // arms at his sides
   if (!hold && !banzai) {
-    const armL = new Mask(BW, BH).line(X(6 + lean), Y(28 + squash), X(2 + lean), Y(36), 1.5);
-    shade(p, armL, LEG, { base: 0.5 });
-    hand(p, X(2 + lean), Y(37));
-    if (armR === 'down') {
-      const a = new Mask(BW, BH).line(X(34 + lean), Y(28 + squash), X(38 + lean), Y(36), 1.5);
-      shade(p, a, LEG, { base: 0.4 });
-      hand(p, X(38 + lean), Y(37));
-    }
+    armStroke(p, X(7 + lean), Y(26 + squash), X(3 + lean), Y(36), -1, 0.5);
+    if (armR === 'down') armStroke(p, X(33 + lean), Y(26 + squash), X(37 + lean), Y(36), 1, 0.42);
   }
-  // the head: its crown over the first plate, feelers up and out
+  // the head: the crown over the first plate, the band all the way round, the ear plates
   const htop = Y(2 + bow * 3 + squash);
-  const head = new Mask(BW, BH).ellipse(X(20 + lean), htop + 9, 13.5, 9.5);
-  const aL = bow >= 2 ? [cx - 8, htop + 4, cx - 12, htop + 10] : [cx - 12, htop - 7, cx - 19, htop - 1];
-  feeler(p, cx - 4 + lean * 0.5, htop + 3, aL[0], aL[1], aL[2], aL[3]);
-  feeler(p, cx + 4 + lean * 0.5, htop + 3, 2 * cx - aL[0] + lean, aL[1], 2 * cx - aL[2] + lean, aL[3]);
+  const hcx = X(20 + lean);
+  const head = new Mask(BW, BH).ellipse(hcx, htop + 10, 13, 10);
+  if (bow < 2) {
+    earPlate(p, hcx - 12, htop + 11, -1, 'normal');
+    earPlate(p, hcx + 12, htop + 11, 1, 'normal');
+  }
   shade(p, head, SHELL, { mode: 'sphere', base: 0.6, k: 0.6, dither: 0.5 });
-  // the armour: seven chest plates
-  const body = new Mask(BW, BH).ellipse(cx, Y(29 + squash * 0.5), 16, 14 - squash * 0.5);
+  headband(p, head, hcx, htop + 5 + bow, 0, 4);
   shade(p, body, SHELL, { mode: 'sphere', base: 0.6, k: 0.6, dither: 0.5 });
-  plates(p, body, [18, 21.5, 25, 28.5, 32, 35.5, 39].map((v) => Math.round(Y(v + squash * 0.6))), 2);
-  // the fan tail: the tail plate between two paddles, hanging like a cape
+  segLines(p, body, [18, 21.5, 25, 28.5, 32, 35.5, 39].map((v) => Math.round(Y(v + squash * 0.6))), 2, SHELL[2], SHELL[6], 0);
+  // the ribbed fan tail between two paddles
   {
     const pad = new Mask(BW, BH);
-    pad.poly([[cx - 7, Y(38)], [cx - 17 - fo, Y(46)], [cx - 13 - fo, Y(49)], [cx - 4, Y(44)]]);
-    pad.poly([[cx + 7, Y(38)], [cx + 17 - fo, Y(46)], [cx + 13 - fo, Y(49)], [cx + 4, Y(44)]]);
-    shade(p, pad, SHELL.slice(1, 7), { base: 0.5, k: 0.5 });
-    // the fringe along the paddles' hems
-    for (let i = 0; i < 4; i++) {
-      p.set(cx - 16 - fo + i, Y(47 + (i % 2)), SHELL[2]);
-      p.set(cx + 13 - fo + i, Y(47 + (i % 2)), SHELL[1]);
-    }
+    pad.poly([[cx - 7, Y(38)], [cx - 16 - fo, Y(45)], [cx - 13 - fo, Y(49)], [cx - 4, Y(44)]]);
+    pad.poly([[cx + 7, Y(38)], [cx + 16 - fo, Y(45)], [cx + 13 - fo, Y(49)], [cx + 4, Y(44)]]);
+    shade(p, pad, SHELL.slice(2, 7), { base: 0.5, k: 0.5 });
     const tail = new Mask(BW, BH).poly([[cx - 8, Y(37)], [cx + 8, Y(37)], [cx + 6, Y(44)], [cx, Y(49)], [cx - 6, Y(44)]]);
     shade(p, tail, SHELL, { base: 0.62, k: 0.6 });
+    const ribs = pad.clone().or(tail);
+    for (const dx of [-12, -8, -3, 3, 8, 12])
+      new Mask(BW, BH).line(cx + dx * 0.4, Y(39), cx + dx - fo * (Math.abs(dx) > 6 ? 1 : 0), Y(48), 0.4).and(ribs).each((x, y) => p.set(x, y, SHELL[2]));
     for (let y = Y(39); y < Y(48); y++) if (tail.in(cx, y)) p.set(cx, y, SHELL[3]);
-    for (let y = Y(39); y < Y(45); y++) if (tail.in(cx - 3, y)) p.set(cx - 3, y, SHELL[6]);
-    // its spiny rim
-    for (const [dx, dy] of [[-5, 45], [5, 45], [-3, 47], [3, 47]] as [number, number][]) p.set(cx + dx, Y(dy), SHELL[2]);
   }
   if (frame === 'ring') {
     p.set(cx + 18, Y(10), '#FFF6D8');
@@ -481,25 +560,17 @@ function buildBack(frame: string): PixelCanvas {
   }
   if (armR === 'hit' || armR === 'up') {
     const hy = armR === 'hit' ? 6 : 10;
-    const a = new Mask(BW, BH).line(X(33 + lean), Y(26), X(36), Y(hy + 4), 1.5);
-    shade(p, a, LEG, { base: 0.5 });
-    hand(p, X(36), Y(hy + 3));
+    armStroke(p, X(33 + lean), Y(25), X(36), Y(hy + 3), 1, 0.5);
   }
   if (banzai) {
-    for (const s of [-1, 1]) {
-      const a = new Mask(BW, BH).line(cx + s * 13, Y(26), cx + s * 17, Y(9), 1.5);
-      shade(p, a, LEG, { base: 0.5 });
-      hand(p, cx + s * 17, Y(8));
-    }
+    for (const s of [-1, 1] as const) armStroke(p, cx + s * 12, Y(25), cx + s * 16, Y(8), s, 0.5);
   }
   if (hold) {
     // both arms up at the right of his head to the pole (x≈35): the left one
     // reaches round in front of him (only its hand shows), the right one is
     // up beside his head; the hands go over the pole the battle draws behind him
-    const aR = new Mask(BW, BH).line(X(33), Y(28), X(33), Y(17), 1.5);
-    shade(p, aR, LEG, { base: 0.5 });
-    hand(p, X(32), Y(8));
-    hand(p, X(33), Y(16));
+    armStroke(p, X(32), Y(27), X(33), Y(16), 1, 0.5);
+    hand(p, X(32), Y(8), 0, -1);
   }
   p.outline(K.outline);
   rimLeft(p, K.rim, 0.5);
@@ -531,10 +602,10 @@ function front(key: string, o: FrontPose): HTMLCanvasElement {
  * Front sprite for the ノリツッコミ boke (16.10), 56 wide; the 'flag' frames
  * are padded (FLAG_PAD) and share the same foot line, so callers anchor on
  * the bottom centre.
- * - 'sing': one long feeler bent down in front of his face for a microphone,
- *   held in his hand, the other arm out / up, swaying (2 frames);
- * - 'flag': (ボケB) clapping with all his little legs — they swing out and in,
- *   パチパチ marks round him (4 frames);
+ * - 'sing': the tip of his left tusk curled up into his pincer for a
+ *   microphone, the other arm out / up, swaying (2 frames);
+ * - 'flag': (ボケB) clapping over his head while the plates at his sides
+ *   flare out and in, パチパチ marks round him (4 frames);
  * - 'flip': (ボケC) the boke gesture — one hand out, presenting himself, head
  *   tilted (2 frames of bob; the battle may still hold a board over his tummy);
  * - 'kime': the landing pose (arms up, happy) held for 2 frames on arrival;
@@ -558,7 +629,7 @@ export function kanenariFront(pose: string, t: number): HTMLCanvasElement {
 /** Extra pixels the flag (clap) frames add on the left / top / right of the 56×68 body canvas. */
 export const FLAG_PAD = { x: 8, y: 8, w: 8 };
 
-/** Where the microphone (the tip of his feeler) is on the 'sing' frames, from the canvas' top-left. */
+/** Where the microphone (the tip of his tusk) is on the 'sing' frames, from the canvas' top-left. */
 export const MIC_AT: [number, number] = [OX + 19, OY + 28];
 
 function singFrame(f: number): HTMLCanvasElement {
@@ -566,10 +637,10 @@ function singFrame(f: number): HTMLCanvasElement {
   let c = frontCache.get(key);
   if (c) return c;
   const p = buildFrontRaw({ armL: 'mic', armR: f ? 'up' : 'out', sway: f ? 1 : -1, eyes: 'happy', ant: 'mic' });
-  // the feeler's tip, curled into a little ball in his hand: the "microphone"
+  // the tusk's tip, curled into a little ball in his hand: the "microphone"
   const mx = MIC_AT[0] + (f ? 1 : -1);
   const my = MIC_AT[1];
-  p.art(['.kkkk.', 'kWWssk', 'kWsssk', 'ksssgk', 'kssggk', '.kkkk.'], { k: K.outline, W: '#E8E4F0', s: SHELL[6], g: SHELL[4] }, mx - 3, my - 3);
+  p.art(['.kkkk.', 'kWWssk', 'kWsssk', 'ksssgk', 'kssggk', '.kkkk.'], { k: K.outline, W: TUSK[5], s: TUSK[3], g: TUSK[1] }, mx - 3, my - 3);
   c = (() => {
     p.outline(K.outline);
     rimLeft(p, K.rim, 0.5);
@@ -580,8 +651,8 @@ function singFrame(f: number): HTMLCanvasElement {
 }
 
 /**
- * ボケB: clapping with all his legs. The little legs swing out (1, 3) and in
- * (0, 2) while the arms clap over his head; short white パチパチ marks pop
+ * ボケB: clapping. The side plates flare out (1, 3) and in (0, 2) while
+ * the arms clap over his head; short white パチパチ marks pop
  * beside him on every "in".
  */
 function clapFrame(f: number): HTMLCanvasElement {

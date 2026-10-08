@@ -8242,6 +8242,14 @@ HPと 朱肉が 回復した。
 - **フラグ**：`flag_ashiato_start` `flag_ashiato_f_<ino|haku|tanu|shika|usagi|inu>` `flag_ashiato_t_<…>` `flag_ashiato_six` `flag_ashiato_h2` `flag_ashiato_gen_net` `flag_ashiato_kodomo` `flag_ashiato_kodomo_told` `flag_ashiato_nedoko` `flag_ashiato_gunte` `flag_ashiato_kaikin` `flag_ashiato_gu` `flag_ashiato_gu_told` `flag_ashiato_uribo` `flag_ashiato_tries` `flag_ashiato_meijin` `flag_ashiato_harigami`。
 - **QA**：`jump('ch2:ashiato')`、`__game.cmd.ashiato('gen'|'ino'|…|'tell'|'six'|'gu'|'uribo'|'done', stage, auto)`、`ashiatoState()`、`ashiatoText()`、`ashiatoBookText()`、`uriboState()`、`ashiatoEnd()`。
 
+### 10.29 グソっ君の はじめて帳（村の 6人と 裏表紙・任意）★2026-10-08 追加（依頼主の採用：げむきかの 案5、02 #89）
+
+> 第1章の 町の 8人と はじまりは 10_narrative 6.27。文は `src/data/text/hajimete.ts`、動きは `src/events/hajimete.ts`、ページは 52 13.2。
+> **② の 欄**：h0〜h2、グソっ君が いっしょ。①の 欄が ある 人は、第2章の ふしぎに はじめて 押したとき、または 村の 6人の だれかに はじめて 話したとき グソっ君「しゅん、『はじめて帳』、こっちでも 書けるで！」→「みました帳 ②の うしろにも、『はじめて帳』の 欄が できた。」。**第2章から 始めた 人**（①の 欄が ない）は、6人の はじめの 1人の ときに ①の はじまりと 同じ ことを 言って ② に 作る（①の 欄と 裏表紙は 出ない）。
+> **村の 6人**（その人の いつもの 話の あとに 続けて 1回、どの 順でも）：ぴょん夫人〔漬物、寄り合いの あとの お茶と 漬物の あと〕・ペロ〔トマトの 葉の におい〕・トマじい〔稲の 穂〕・ソワカ〔色を まぜる〕・ハモ区長〔式辞〕・さんかど〔手紙〕。6つで グソっ君「村の 人も、みんな 先生や。……おおきに。」と 朱肉 +2。
+> **かくし：裏表紙**（① 13 と ② 6 ぜんぶ。らん外は いらない）：さいごの 1ページの あと（または ぜんぶ うまって いて 6人に 話したとき・ふしぎの あと）。地の文「はじめて帳の 裏表紙に、グソっ君の 絵。」「えんぴつの、しゅんの 顔。『はじめての ともだち』。★の 欄は、からっぽ。」、グソっ君「……★は、つけられへん。数えきれんから。」。その あいだ 画面の 上に 裏表紙の カード。
+> 第2章の 台詞に 時刻の 数字・「12人」「1日2本」「おまけの1つ」「具足様」「まだ」「いただきます」を 入れない（「朝の バス」は 時刻の 数字では ない）。
+
 ## 11. ID一覧
 
 第1章のIDと衝突しないことを照合済み（第1章の全ID：01 2章）。第2章で新しく作るIDは、**マップ・区域・NPC・調べる物は `hoshi`、フラグ・イベント・トリガー・シンボルは `ch2` または `hoshi`、ふしぎは `fushigi_ch2_`、音は `_h_` または `hoshi`** を名前に入れて区別する。敵は第1章に同じ名前がないことを確かめた固有名。

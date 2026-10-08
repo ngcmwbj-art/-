@@ -23,9 +23,10 @@
 //  - Flip boards for UI / battle: flipBoard(variant), flipBoardText(text),
 //    flipBoardPanel(w, h), flipBoardMini() (16×12), flipIcon() (10×8),
 //    flipBoardEdge() (mid-turn).
-//  - グソっ君's frames are 20px wide (his arms reach past the body), his
-//    feelers rise into the headroom; like every frame they are centred on the
-//    feet. His 'glow' anim is his compound eyes flashing twice (20px frames);
+//  - グソっ君's frames are 20px wide (his arms, ear plates and side plates
+//    reach past the body; ★2026-10-08 the ochre design with the headband);
+//    like every frame they are centred on the feet. His 'glow' anim is his
+//    round eyes flashing twice (20px frames);
 //    glowRing(i) (32×32, 8 frames: two pulses r8→14) is a ring overlay for
 //    battle / UI, centred at (feetX, feetY + GLOW_CENTER_DY). 'fallen'
 //    (あおむけ) frames are laid on their side: 26×20-ish, head to the right.

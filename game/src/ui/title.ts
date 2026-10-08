@@ -374,8 +374,8 @@ export class TitleScene implements Scene {
     g.translated(0, slide(5), () => drawWires(g, sway, this.sky));
     g.translated(0, slide(6), () => drawWater(g, t, this.sky, this.frozen ? this.cutT : null));
     g.img(nearCanvas(this.sky), 0, slide(6));
-    // the top of グソっ君's shell catches the light every 4 s
-    if (t % 4000 < 160) g.px(163, 166 + slide(6), '#FFF6D8');
+    // the top of グソっ君's head catches the light every 4 s
+    if (t % 4000 < 160) g.px(163, 163 + slide(6), '#FFF6D8');
     // crows crossing the sky
     const ct = t - this.crowAt;
     if (ct > 0 && ct < 9000) {

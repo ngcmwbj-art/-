@@ -251,7 +251,7 @@ class UraCard implements Widget {
     const dy = Math.round((1 - ease.backOut(k)) * 10);
     const f = uraFace();
     const w = Math.max(f.width * 2, g.measure('『はじめての ともだち』')) + 28;
-    const h = f.height * 2 + 50;
+    const h = f.height * 2 + 60;
     const x = Math.round(W / 2 - w / 2);
     const y = Math.max(6, Math.round((H - 78) / 2 - h / 2)) + dy;
     g.alpha(a, () => drawUraCard(g, x, y, w, h));
@@ -402,6 +402,7 @@ if (import.meta.env.DEV) {
   };
   const fill = (vol: 1 | 2, but?: string) => {
     for (const e of HAJIMETE) if (e.vol === vol && e.npc && e.id !== but) setFlag(pageFlag(e.id), 1);
+    setFlag(vol === 1 ? HF.reward1 : HF.reward2, but ? 0 : 1);
     if (vol === 1) {
       setFlag('flag_kn_says_item_ramune', 1);
       setFlag('flag_kanenari_flip_map_shingo', 1);

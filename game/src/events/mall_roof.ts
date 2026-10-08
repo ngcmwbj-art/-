@@ -303,12 +303,12 @@ registerWorldFx({
     g.px(x + 4, y + 5, '#FFD9B8');
     g.px(x + 2, y + 4, '#FFD9B8');
     g.px(x + 3, y + 4, '#E0A882');
-    // グソっ君's armoured arm down to it, his hand round しゅん's
-    g.px(x - 3, y - 3, '#9A92AE');
-    g.px(x - 2, y - 2, '#9A92AE');
-    g.px(x - 3, y - 2, '#6E6890');
-    g.rect(x - 2, y - 1, 4, 3, '#9A92AE');
-    g.rect(x - 1, y - 1, 2, 1, '#C6BEDA');
+    // グソっ君's ochre arm down to it, his pincer round しゅん's hand (★2026-10-08 の 色)
+    g.px(x - 3, y - 3, '#D49A5C');
+    g.px(x - 2, y - 2, '#D49A5C');
+    g.px(x - 3, y - 2, '#A8693A');
+    g.rect(x - 2, y - 1, 4, 3, '#D49A5C');
+    g.rect(x - 1, y - 1, 2, 1, '#EBBF86');
     g.px(x + 2, y, '#FFD9B8');
     g.rect(x - 2, y + 2, 4, 1, '#2A2440');
     g.px(x - 3, y, '#2A2440');

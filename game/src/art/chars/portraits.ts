@@ -330,26 +330,32 @@ function face(f: Fig, mood: string, tilt: number) {
 
 registerPortrait('minato', (mood) => minato(MOODS.includes(mood) ? mood : 'normal'));
 
-// ---- グソっ君 (id 'kanenari', ★2026-09-29 依頼主の指示で カネナリくん→グソっ君。IDは据え置き) --------
-// A close-up of the round isopod: the wide head plate, the two big compound
-// eyes like sunglasses, the feelers, the pale underside at the bottom. He
-// shows how he feels with the glint, the feelers, the tilt of his head and
-// the pink of his cheeks. Besides MOODS he has 'shock' (衝撃: the eyes flash,
-// the feelers stand straight up), 'gentle' (やさしい) and 'sad' (しんみり);
+// ---- グソっ君 (id 'kanenari', ★2026-09-29 依頼主の指示で カネナリくん→グソっ君。IDは据え置き。
+// ★2026-10-08 依頼主の手本の絵に合わせて 描き直し) --------
+// A close-up of the round ochre isopod: the white headband over his brow,
+// two big round black eyes with a white glint, pink cheeks, the little ear
+// plates at the sides of his head, the two long tusks hanging from under his
+// nose over the striped tummy, the side plates at his shoulders. He shows
+// how he feels with his eyes, the ear plates, the tilt of his head and the
+// pink of his cheeks. Besides MOODS he has 'shock' (衝撃: the eyes flash,
+// the ear plates fly up), 'gentle' (やさしい) and 'sad' (しんみり);
 // 'yasashii' / 'shinmiri' are accepted as their names too.
 
 export const KAN_MOODS = [...MOODS, 'shock', 'gentle', 'sad'];
 const KAN_ALIAS: Record<string, string> = { yasashii: 'gentle', shinmiri: 'sad', shogeki: 'shock' };
 
 const KAN: Mats = {
-  shell: mat('#9A92AE', { shade: '#6E6890', light: '#C6BEDA', dark: '#4A3A6E', rim: '#C6BEDA' }),
-  shellK: mat('#8E8A9A', { shade: '#6E6A7E', light: '#B0ACBA', dark: '#4A465A', rim: '#B0ACBA' }),
-  belly: mat('#C6BEDA', { shade: '#9A92AE', light: '#E8E4D8', dark: '#6E6890' }),
-  bellyK: mat('#B0ACBA', { shade: '#8E8A9A', light: '#C8C4CE', dark: '#6E6A7E' }),
-  leg: mat('#C6BEDA', { shade: '#9A92AE', light: '#E8E4D8', dark: '#6E6890' }),
-  ant: flat('#4A3A6E'),
+  shell: mat('#D49A5C', { shade: '#A8693A', light: '#EBBF86', dark: '#5A3A2A', rim: '#EBBF86' }),
+  shellK: mat('#B49A86', { shade: '#8E7A6E', light: '#CDB8A6', dark: '#5A4A44', rim: '#CDB8A6' }),
+  plate: mat('#A8693A', { shade: '#8A5A3A', light: '#D49A5C', dark: '#5A3A2A' }),
+  plateK: mat('#8E7A6E', { shade: '#6E5E58', light: '#B49A86', dark: '#4A3E3A' }),
+  belly: mat('#EBBF86', { shade: '#D49A5C', light: '#F0CB98', dark: '#8A5A3A' }),
+  bellyK: mat('#CDB8A6', { shade: '#B49A86', light: '#DCCBBC', dark: '#6E5E58' }),
+  leg: mat('#EBBF86', { shade: '#D49A5C', light: '#F0CB98', dark: '#5A3A2A' }),
+  tusk: mat('#F0CB98', { shade: '#D49A5C', light: '#FBF3DC', dark: '#5A3A2A' }),
+  band: mat('#FBF3DC', { shade: '#E8D9B5', light: '#FFF6D8', dark: '#C8B494' }),
   eye: flat('#1B1733'),
-  eyeS: flat('#4A3A6E'),
+  eyeS: flat('#3A2B24'),
   white: flat('#FFF6D8'),
   flash: flat('#FFE7A3'),
   cheek: flat('#F08A7A'),
@@ -365,10 +371,19 @@ const SKY_KAN: Record<string, Sky> = {
   sad: { top: '#7A6A9E', bot: '#C88A96' },
 };
 
-/** A long feeler as a 1px line through the points. */
-function kanFeeler(f: Fig, pts: [number, number][]) {
-  f.part('ant', { flat: true, rim: false, ol: false });
-  for (let i = 0; i + 1 < pts.length; i++) f.line(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]);
+/** A pincer hand (two fingers up) with its arm from (x0, y0). */
+function kanHand(f: Fig, x0: number, y0: number, hx: number, hy: number) {
+  f.part('leg', { shade: 'rb', light: 't' });
+  f.line(x0, y0, hx, hy + 2).line(x0 + 1, y0, hx + 1, hy + 2);
+  f.rows(hx - 1, hy - 1, ['#.#', '#.#', '###', '.##']);
+}
+
+/** A tusk from under the nose: a pale 1–2px stroke, a shadow on its right, a pointed tip. */
+function kanTusk(f: Fig, pts: [number, number][]) {
+  for (const [x, y] of pts) if (f.filled(x + 1, y) && !pts.some(([a, b]) => a === x + 1 && b === y)) f.retone(x + 1, y, -2);
+  f.part('tusk', { flat: true, rim: false, ol: false });
+  pts.forEach(([x, y], i) => f.t(i === pts.length - 1 ? -1 : i < 3 ? 1 : 0).px(x, y));
+  f.t(null);
 }
 
 function kanenari(mood: string): HTMLCanvasElement {
@@ -379,62 +394,57 @@ function kanenari(mood: string): HTMLCanvasElement {
   const tilt = ko ? 2 : mood === 'hurt' ? 1 : mood === 'gentle' ? -1 : 0;
   const drop = ko ? 2 : mood === 'sad' ? 1 : mood === 'shock' || mood === 'surprised' ? -1 : 0;
   const hx = 16 + tilt;
-  const hy = 13 + drop;
-  // shoulders: the armour round the pale underside, the folded little legs
+  const hy = 12 + drop;
+  // shoulders: the side plates poking out, the body, the striped tummy
+  f.part(ko ? 'plateK' : 'plate', { flat: true, inner: false });
+  for (const y of [24, 27, 30]) f.t(0).hl(1, 5, y).hl(26, 30, y).t(-1).hl(0, 5, y + 1).hl(26, 31, y + 1);
+  f.t(null);
   f.part(shell, { shade: 'rb', light: 't', inner: false });
-  f.ell(16, 33, 14, 9);
-  f.t(-1).hl(3, 7, 27).hl(25, 29, 27).hl(2, 6, 30).hl(26, 30, 30).t(null);
+  f.ell(16, 33, 13, 10);
   f.part(ko ? 'bellyK' : 'belly', { shade: 'rb', light: 'tl', inner: false });
-  f.ell(16, 33, 7.5, 8);
-  f.part('leg', { flat: true, rim: false, ol: false });
-  f.t(-1).hl(10, 12, 28).hl(20, 22, 28).hl(10, 12, 31).hl(20, 22, 31).t(1).px(13, 28).px(19, 28).px(13, 31).px(19, 31).t(null);
-  // long feelers behind the head, out of the frame's top
+  f.ell(16, 34, 8.5, 9);
+  for (const y of [27, 30]) for (let x = 6; x <= 26; x++) if (f.filled(x, y)) f.retone(x, y, -1);
+  // the ear plates (up in shock and surprise, drooping when he is down)
   const up = mood === 'shock' || mood === 'surprised';
   const droop = ko || mood === 'hurt' || mood === 'sad';
-  if (up) {
-    kanFeeler(f, [[hx - 5, hy - 7], [hx - 6, hy - 11], [hx - 6, hy - 16]]);
-    kanFeeler(f, [[hx + 4, hy - 7], [hx + 5, hy - 11], [hx + 5, hy - 16]]);
-  } else if (droop) {
-    kanFeeler(f, [[hx - 5, hy - 7], [hx - 10, hy - 10], [hx - 15, hy - 8], [hx - 17, hy - 3]]);
-    kanFeeler(f, [[hx + 4, hy - 7], [hx + 9, hy - 10], [hx + 14, hy - 8], [hx + 16, hy - 3]]);
-  } else if (mood === 'happy') {
-    kanFeeler(f, [[hx - 5, hy - 7], [hx - 9, hy - 12], [hx - 14, hy - 14], [hx - 16, hy - 12]]);
-    kanFeeler(f, [[hx + 4, hy - 7], [hx + 8, hy - 12], [hx + 13, hy - 14], [hx + 15, hy - 12]]);
-  } else {
-    kanFeeler(f, [[hx - 5, hy - 7], [hx - 9, hy - 12], [hx - 15, hy - 14], [hx - 19, hy - 13]]);
-    kanFeeler(f, [[hx + 4, hy - 7], [hx + 8, hy - 12], [hx + 14, hy - 14], [hx + 18, hy - 13]]);
+  f.part(ko ? 'plateK' : 'plate', { shade: 'rb', light: 't' });
+  for (const s of [-1, 1]) {
+    const x = hx + s * 11;
+    const rows = up ? ['.##', '###', '##.', '#..'] : droop ? ['##.', '###', '.##', '.##', '..#'] : ['.##.', '####', '.###', '..##'];
+    const flip = (r: string) => (s < 0 ? [...r].reverse().join('') : r);
+    f.rows(s < 0 ? x - rows[0].length + 1 : x, hy + (up ? -2 : 0), rows.map(flip));
   }
-  // the head: a wide dome
+  // the head: a big round bun
   f.part(shell, { shade: 'rb', light: 't' });
-  f.ell(hx, hy, 12.5, 9.2);
+  f.ell(hx, hy, 11.5, 9.8);
   f.retone(hx - 7, hy - 6, 1).retone(hx - 8, hy - 5, 1).retone(hx - 6, hy - 7, 1).retone(hx - 5, hy - 7, 1);
-  // the head plate's rim over the brow
-  f.part(shell, { flat: true });
-  f.t(-1);
-  for (let x = hx - 8; x <= hx + 8; x++) f.px(x, hy - 4 - Math.round(2 * (1 - ((x - hx) / 9) ** 2)));
+  // the headband over the brow, lower at the left
+  f.part('band', { flat: true, rim: false });
+  for (let x = hx - 13; x <= hx + 13; x++) {
+    const top = hy - 7 + Math.round((hx - x) * 0.07);
+    for (let j = 0; j < 4; j++)
+      if (f.filled(x, top + j)) f.t(x > hx + 7 ? (j ? -1 : 0) : j === 0 ? 1 : j < 3 ? 0 : -1).px(x, top + j);
+    if (f.filled(x, top + 4)) f.retone(x, top + 4, -1);
+  }
   f.t(null);
-  // short feelers: a little V on the brow
-  f.part('ant', { flat: true, rim: false, ol: false });
-  if (up) f.px(hx - 1, hy - 7).px(hx - 2, hy - 8).px(hx - 2, hy - 9).px(hx + 1, hy - 7).px(hx + 2, hy - 8).px(hx + 2, hy - 9);
-  else f.px(hx - 1, hy - 7).px(hx - 2, hy - 8).px(hx - 3, hy - 9).px(hx + 1, hy - 7).px(hx + 2, hy - 8).px(hx + 3, hy - 9);
-  // eyes: two big dark ovals low on the head
-  const ey = hy + 2;
-  const ex = [hx - 6, hx + 6];
-  const OVAL = ['..####..', '.######.', '########', '########', '########', '.######.', '..####..'];
-  const oval = (cx: number, cut = 0, rows = OVAL) => {
+  // eyes: two big round black eyes
+  const ey = hy + 1;
+  const ex = [hx - 6, hx + 5];
+  const ROUND = ['.###.', '#####', '#####', '#####', '.###.'];
+  const round = (cx: number, cut = 0, rows = ROUND) => {
     f.part('eye', { flat: true, rim: false });
-    f.rows(cx - 4, ey - 3, rows.map((r, j) => (j < cut ? '........' : r)));
-    if (rows !== OVAL) return;
+    f.rows(cx - 2, ey - 2, rows.map((r, j) => (j < cut ? '.....' : r)));
+    if (rows !== ROUND) return;
     f.part('eyeS', { flat: true, rim: false });
-    f.hl(cx - 1, cx + 1, ey + 3).hl(cx - 2, cx + 2, ey + 2).px(cx - 3, ey + 1);
+    f.hl(cx - 1, cx + 1, ey + 2).px(cx - 2, ey + 1);
   };
   switch (mood) {
     case 'hurt':
       f.part('eye', { flat: true, rim: false });
-      f.rows(ex[0] - 3, ey - 2, ['##.....', '.###...', '...####', '.###...', '##.....']);
-      f.rows(ex[1] - 3, ey - 2, ['.....##', '...###.', '####...', '...###.', '.....##']);
+      f.rows(ex[0] - 2, ey - 2, ['#....', '.##..', '...##', '.##..', '#....']);
+      f.rows(ex[1] - 2, ey - 2, ['....#', '..##.', '##...', '..##.', '....#']);
       f.part('sweat', { shade: 'r', light: 't' });
-      f.rows(hx + 9, hy - 7, ['.#.', '###', '###', '.#.']);
+      f.rows(hx + 9, hy - 9, ['.#.', '###', '###', '.#.']);
       break;
     case 'ko':
       f.part('eye', { flat: true, rim: false });
@@ -442,40 +452,40 @@ function kanenari(mood: string): HTMLCanvasElement {
       break;
     case 'happy':
       f.part('eye', { flat: true, rim: false });
-      for (const cx of ex) f.rows(cx - 4, ey - 1, ['..####..', '.##..##.', '##....##']);
+      for (const cx of ex) f.rows(cx - 2, ey - 1, ['.###.', '#...#', '#...#']);
       break;
     case 'tsukkomi':
       // sharp: the top of each eye cut on a slant, a bright glint, the mouth open wide
       for (const [i, cx] of ex.entries()) {
-        oval(cx);
+        round(cx);
         f.part(shell, { flat: true });
         f.t(0);
-        if (i === 0) f.hl(cx - 4, cx, ey - 3).hl(cx - 4, cx - 2, ey - 2).px(cx - 4, ey - 1);
-        else f.hl(cx - 1, cx + 3, ey - 3).hl(cx + 1, cx + 3, ey - 2).px(cx + 3, ey - 1);
+        if (i === 0) f.hl(cx - 2, cx, ey - 2).px(cx - 2, ey - 1);
+        else f.hl(cx, cx + 2, ey - 2).px(cx + 2, ey - 1);
         f.t(null);
         f.part('white', { flat: true, rim: false });
-        f.rect(cx - 1, ey - 1, 2, 2);
+        f.px(cx, ey - 1).px(cx + 1, ey - 1);
       }
       f.part('mouth', { flat: true, rim: false });
       f.rows(hx - 2, hy + 6, ['####', '####', '.##.']);
       break;
     case 'surprised':
       for (const cx of ex) {
-        oval(cx);
+        round(cx);
         f.part('white', { flat: true, rim: false });
-        f.rect(cx - 3, ey - 2, 3, 3).px(cx + 2, ey + 2);
+        f.rect(cx, ey - 2, 2, 2).px(cx - 1, ey + 1);
       }
       f.part('mouth', { flat: true, rim: false });
-      f.rect(hx - 1, hy + 7, 2, 2);
+      f.rect(hx - 1, hy + 6, 2, 2);
       break;
     case 'shock':
       // な、なんやこれ……！: the eyes flash, rays off them
       for (const cx of ex) {
-        oval(cx);
+        round(cx);
         f.part('flash', { flat: true, rim: false });
-        f.rect(cx - 3, ey - 2, 5, 4).px(cx + 3, ey + 2);
+        f.rect(cx - 1, ey - 1, 3, 3);
         f.part('white', { flat: true, rim: false });
-        f.rect(cx - 3, ey - 2, 2, 2);
+        f.rect(cx, ey - 2, 2, 2);
       }
       f.part('mouth', { flat: true, rim: false });
       f.rows(hx - 1, hy + 6, ['##', '##', '##']);
@@ -483,52 +493,51 @@ function kanenari(mood: string): HTMLCanvasElement {
     case 'gentle':
       // a soft smile: the eyes curve up underneath (にこっ), a small warm glint
       for (const cx of ex) {
-        oval(cx, 1, ['........', '..####..', '.######.', '########', '###..###', '##....##']);
+        round(cx, 1, ['.....', '.###.', '#####', '##.##', '#...#']);
         f.part('white', { flat: true, rim: false });
-        f.px(cx - 2, ey - 1);
+        f.px(cx + 1, ey - 1);
       }
       break;
     case 'sad':
-      // しんみり: the upper edge of each eye droops toward the outside, the glint sinks
+      // しんみり: a lid of shell over the top of each eye, drooping outward; the glint sinks
       for (const [i, cx] of ex.entries()) {
-        oval(cx, 2);
+        round(cx, 2);
         f.part(shell, { flat: true });
         f.t(-1);
-        if (i === 0) f.hl(cx - 4, cx - 2, ey - 1).px(cx - 4, ey);
-        else f.hl(cx + 1, cx + 3, ey - 1).px(cx + 3, ey);
+        if (i === 0) f.hl(cx - 2, cx - 1, ey).px(cx - 2, ey + 1);
+        else f.hl(cx + 1, cx + 2, ey).px(cx + 2, ey + 1);
         f.t(null);
         f.part('white', { flat: true, rim: false });
-        f.px(cx - 1, ey + 2);
+        f.px(cx, ey + 1);
       }
       break;
     default:
       for (const cx of ex) {
-        oval(cx);
+        round(cx);
         f.part('white', { flat: true, rim: false });
-        f.rect(cx - 3, ey - 2, 2, 2).px(cx + 2, ey + 1);
+        f.rect(cx, ey - 2, 2, 2);
       }
   }
+  // the little nose line between the eyes
+  f.retone(hx - 2, hy + 4, -1).retone(hx - 1, hy + 3, -1).retone(hx, hy + 3, -1).retone(hx + 1, hy + 4, -1);
+  // the tusks, hanging over the tummy
+  const ty = hy + 5;
+  kanTusk(f, [[hx - 2, ty], [hx - 2, ty + 1], [hx - 3, ty + 2], [hx - 3, ty + 3], [hx - 3, ty + 4], [hx - 3, ty + 5], [hx - 4, ty + 6], [hx - 4, ty + 7], [hx - 4, ty + 8], [hx - 4, ty + 9]]);
+  kanTusk(f, [[hx + 2, ty], [hx + 2, ty + 1], [hx + 3, ty + 2], [hx + 3, ty + 3], [hx + 3, ty + 4], [hx + 3, ty + 5], [hx + 3, ty + 6], [hx + 4, ty + 7], [hx + 4, ty + 8], [hx + 4, ty + 9]]);
   // cheeks
   if (!ko && mood !== 'sad') {
     f.part('cheek', { flat: true, rim: false });
-    const cy = ey + 5;
-    f.hl(ex[0] - 4, ex[0] - 2, cy).hl(ex[1] + 2, ex[1] + 4, cy);
+    const cy = ey + 4;
+    f.hl(ex[0] - 3, ex[0] - 1, cy).hl(ex[1] + 1, ex[1] + 3, cy);
     if (mood === 'happy' || mood === 'gentle' || mood === 'shock') {
       f.part('cheekL', { flat: true, rim: false });
-      f.px(ex[0] - 5, cy).px(ex[1] + 5, cy);
+      f.px(ex[0] - 4, cy).px(ex[1] + 4, cy);
     }
   }
-  // a hand: raised for the tsukkomi (なんでやねん), at his cheek in shock
-  if (mood === 'tsukkomi') {
-    f.part('leg', { shade: 'rb', light: 't' });
-    f.line(27, 30, 29, 23).rect(28, 20, 3, 3);
-  } else if (mood === 'shock') {
-    f.part('leg', { shade: 'rb', light: 't' });
-    f.line(4, 31, 3, 26).rect(2, 23, 3, 3);
-  } else if (mood === 'gentle') {
-    f.part('leg', { shade: 'rb', light: 't' });
-    f.line(26, 31, 25, 28).rect(24, 26, 3, 3);
-  }
+  // a pincer hand: raised for the tsukkomi (なんでやねん), at his cheek in shock
+  if (mood === 'tsukkomi') kanHand(f, 27, 31, 28, 21);
+  else if (mood === 'shock') kanHand(f, 3, 31, 3, 22);
+  else if (mood === 'gentle') kanHand(f, 25, 31, 24, 26);
   if (mood === 'happy') {
     f.part('glow', { flat: true, rim: false, ol: false });
     f.px(4, 4).px(27, 3).px(28, 4).px(27, 5).px(26, 4);

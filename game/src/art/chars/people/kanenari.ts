@@ -551,7 +551,7 @@ interface Look {
   tip: number;
 }
 
-/** Face and feelers for an act (front / side views). */
+/** Face and ear plates for an act (front / side views). */
 function lookOf(p: Pose, walking: boolean): Look {
   const st = p.step % 4;
   const act = p.act;
@@ -905,7 +905,7 @@ function bowPose(f: Fig, p: Pose) {
   platesBack(f, 10 + d);
   arm(f, 3, 12, 2, 16);
   arm(f, 12, 12, 13, 16, -1);
-  // the head, low and tipped: crown, the tops of the eyes, feelers pointing down
+  // the head, low and tipped: crown and headband, the tops of the eyes
   const hy = 7 + d * 2;
   headFront(f, hy, { eyes: 'down', ant: 'fwd' }, 2);
 }
@@ -921,7 +921,7 @@ function draw(f: Fig, p: Pose) {
   else side(f, p);
 }
 
-// idle: breathing, the feelers bob; now and then the little legs wiggle
+// idle: breathing, the ear plates bob; now and then the side plates flutter
 // (わしゃっ) and he waves at nobody in particular
 const IDLE: IdleKey[] = [
   ...rep([{ breath: 0 }, { breath: 0 }, { breath: 1 }, { breath: 1 }], 2),
@@ -979,7 +979,7 @@ export const KANENARI_SPEC: SpriteSpec = {
       loop: false,
     },
     wave: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 2 }, { ph: 1 }], ms: 150, dirs: ['down', 'left', 'right'] },
-    // 複眼がきらっと光る: two flashes of the glint (the flash frames add rays)
+    // 目がきらっと光る: two flashes of the glint (the flash frames add rays)
     glow: {
       frames: [{ act: 'glow' }, { act: 'glow', ph: 1 }, { act: 'glow' }, { act: 'glow', ph: 1 }, { act: 'glow' }, { act: '' }],
       ms: [120, 180, 260, 180, 300, 300],
@@ -1009,7 +1009,7 @@ export const FLIP_ANCHOR = { dx: -12, dy: -39 };
 
 /**
  * hold_net (52 10.2): the pole of Minato's net run up through his hands at
- * his right, the net 16px above his feelers. The frame grows 18px taller
+ * his right, the net 16px above his head. The frame grows 18px taller
  * (feet still at the bottom centre). `x` = the pole's column, `lowY` = the
  * lower hand's row and `hiY` the upper hand's (frame coordinates).
  */

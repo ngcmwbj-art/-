@@ -49,10 +49,10 @@ const P: Record<string, string> = {
   D: '#E8D8B0',
   i: '#F4D2B0',
   I: '#D8A888',
-  // グソっ君's shell (light / base / shade) and his compound eyes
-  L: '#C6BEDA',
-  Q: '#9A92AE',
-  T: '#6E6890',
+  // グソっ君's ochre shell (light / base / shade) and his round eyes
+  L: '#EBBF86',
+  Q: '#D49A5C',
+  T: '#A8693A',
   J: '#1B1733',
 };
 
@@ -159,24 +159,24 @@ export const CMD_ICONS: Record<string, string[]> = {
     '................',
     '................',
   ],
-  // グソっ君's head (★2026-09-29 カネナリくん→グソっ君): the dome, the big
-  // compound eyes like sunglasses, the feelers
+  // グソっ君's head (★2026-09-29 カネナリくん→グソっ君, ★2026-10-08 手本の絵):
+  // the round bun with the white headband, the big round eyes, the two tusks
   tackle: [
-    '..k..........k..',
-    '...k........k...',
-    '....k.k..k.k....',
-    '....kkkkkkkk....',
-    '...kLLLQQQQTk...',
-    '..kLLQQQQQQQTk..',
-    '.kLQQQQQQQQQQTk.',
-    '.kQJJJQQQQJJJTk.',
-    'kQJHJJJQQJHJJJTk',
-    'kQJJJJJQQJJJJJTk',
-    'kQQJJJQQQQJJJQTk',
-    'kQqqQQQQQQQQqqTk',
+    '.....kkkkkk.....',
+    '...kkLLQQQQkk...',
+    '..kHHaaaaaaaDk..',
+    '.kaaaaaaaaaDDDk.',
     '.kQQQQQQQQQQQTk.',
-    '..kTTTTTTTTTTk..',
-    '...kkkkkkkkkk...',
+    'kQkJJkQQQQkJJkTk',
+    'kQJHJJQQQQJHJJTk',
+    'kQJJJJQQQQJJJJTk',
+    'kqkJJkTTTTkJJkqk',
+    '.kQQQLkQQkLQQTk.',
+    '..kQQLkQQkLQTk..',
+    '...kkLkkkkLkk...',
+    '.....Lk..kL.....',
+    '.....Tk..kT.....',
+    '......k..k......',
     '................',
   ],
   // おてつだい (was PR活動, ★2026-09-29 グソっ君): a rice ball to share (おすそわけ), a glint

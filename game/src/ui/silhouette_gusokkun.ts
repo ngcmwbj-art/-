@@ -1,15 +1,18 @@
-// グソっ君 from behind as a one-colour silhouette (★2026-09-29 カネナリくん→グソっ君):
-// the title screen's bridge (title_art.ts) and chapter 2's sunrise over the
-// east fence (cut_sunrise.ts) show him the same way, beside Minato. The
-// armour's saw-tooth sides tell the seven plates even without detail, the
-// feelers rise off the head, and the fan tail hangs behind him like a cape.
+// グソっ君 from behind as a one-colour silhouette (★2026-09-29 カネナリくん→グソっ君,
+// ★2026-10-08 依頼主の手本の絵に合わせて 描き直し): the title screen's bridge
+// (title_art.ts) and chapter 2's sunrise over the east fence (cut_sunrise.ts)
+// show him the same way, beside Minato. A big round head turned a little
+// toward Minato (on his left), the headband standing out round it as a ridge
+// with its ends, the little ear plates, one long tusk hanging under his face,
+// the plates poking out at his sides like scales, the pincers at his sides
+// and the ribbed fan tail behind.
 //
 //   gusokkunSilhouette(p, kx, fy, col)   // kx = his centre, fy = the row under his feet
 
 import type { PixelCanvas } from '../engine/pixel';
 
-/** Where the top of his shell catches the light (the title's glint every 4 s), relative to (kx, fy). */
-export const GUSOKKUN_GLINT = { dx: -5, dy: -36 };
+/** Where the top of his head catches the light (the title's glint every 4 s), relative to (kx, fy). */
+export const GUSOKKUN_GLINT = { dx: -5, dy: -39 };
 
 export function gusokkunSilhouette(p: PixelCanvas, kx: number, fy: number, col: string): void {
   const set = (x: number, y: number) => p.set(Math.round(x), Math.round(y), col);
@@ -21,46 +24,53 @@ export function gusokkunSilhouette(p: PixelCanvas, kx: number, fy: number, col: 
         if (dx * dx + dy * dy <= 1) set(x, y);
       }
   };
-  // feet under the fan
-  for (let x = kx - 8; x < kx - 2; x++) for (let y = fy - 4; y < fy; y++) set(x, y);
-  for (let x = kx + 3; x < kx + 9; x++) for (let y = fy - 4; y < fy; y++) set(x, y);
-  // the fan tail: a cape widening to its fringed hem
+  // three-toed feet under the fan
+  for (const fx of [kx - 6, kx + 5]) {
+    for (let x = fx - 3; x <= fx + 3; x++) for (let y = fy - 4; y < fy - 1; y++) set(x, y);
+    for (const t of [-3, 0, 3]) set(fx + t, fy - 1);
+  }
+  // the fan tail: widening to its hem, the ribs' ends notching it
   for (let y = fy - 14; y <= fy - 4; y++) {
     const k = (y - (fy - 14)) / 10;
-    const hw = Math.round(7 + k * 6);
+    const hw = Math.round(7 + k * 5);
     for (let x = kx - hw; x <= kx + hw; x++) {
-      // the hem's fringe: every third pixel of the last row missing
       if (y === fy - 4 && (x - kx + 30) % 3 === 0) continue;
       set(x, y);
     }
   }
-  // the armour: seven plates stacked like trapezoids, each one a pixel wider
-  // at its lower edge than the next one's top (the saw-tooth sides), and
-  // over it the top of his head
-  for (let k = 0; k < 7; k++) {
-    const y0 = fy - 31 + k * 3;
-    for (let j = 0; j < 3; j++) {
-      const y = y0 + j;
-      const u = (y + 0.5 - (fy - 20)) / 11.5;
-      const hw = Math.round(12 * Math.sqrt(Math.max(0, 1 - u * u))) - 1 + j;
-      for (let x = kx - hw; x <= kx + hw; x++) set(x, y);
+  // the body: a round egg, and at both sides the plates poking out like scales
+  ell(kx, fy - 21, 11.5, 11);
+  for (let k = 1; k < 5; k++) {
+    const y = fy - 29 + k * 4;
+    for (const s of [-1, 1]) {
+      for (let i = 0; i < 2; i++) set(kx + s * (11 + i), y + i);
+      set(kx + s * 11, y + 2);
     }
   }
-  ell(kx, fy - 32, 8.5, 6.5);
-  // arms at his sides
-  for (let y = fy - 23; y <= fy - 15; y++) {
-    set(kx - 13, y);
-    set(kx + 13, y);
+  // arms down his sides (inside the outline), only the open pincers poke out
+  for (const s of [-1, 1]) {
+    set(kx + s * 12, fy - 13);
+    set(kx + s * 13, fy - 14);
+    set(kx + s * 14, fy - 15);
+    set(kx + s * 14, fy - 13);
+    set(kx + s * 15, fy - 12);
   }
-  for (const s of [-1, 1]) for (let y = fy - 16; y <= fy - 14; y++) for (let i = 0; i < 2; i++) set(kx + s * (13 + i), y);
-  // the long feelers, rising and curling out; the short ones between them
-  const feel: [number, number][] = [[-3, -38], [-4, -40], [-5, -42], [-7, -44], [-9, -45], [-11, -45], [-13, -44], [-14, -43]];
-  for (const [dx, dy] of feel) {
-    set(kx + dx, fy + dy);
-    set(kx - dx, fy + dy);
+  // the head, turned a little toward Minato: the ear plates, then the bun
+  const hx = kx - 2;
+  const hy = fy - 33;
+  for (const s of [-1, 1]) {
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) set(hx + s * (10 + i), hy + i + j);
   }
-  set(kx - 1, fy - 39);
-  set(kx - 2, fy - 40);
-  set(kx + 1, fy - 39);
-  set(kx + 2, fy - 40);
+  // the bun, a pixel narrower just above and below the headband, so the
+  // band stands proud of it all round like a ridge
+  for (let y = Math.floor(hy - 8); y <= Math.ceil(hy + 8); y++) {
+    const u = (y + 0.5 - hy) / 8;
+    if (Math.abs(u) > 1) continue;
+    const band = y >= hy - 5 && y <= hy - 3;
+    const next = y === hy - 6 || y === hy - 2;
+    const hw = Math.round(10 * Math.sqrt(1 - u * u)) + (band ? 1 : next ? -2 : 0);
+    for (let x = hx - hw; x <= hx + hw; x++) set(x, y);
+  }
+  // one long tusk hanging under his face (turned to the left), splaying out past his side
+  for (const [dx, dy] of [[-8, 6], [-9, 7], [-10, 8], [-11, 9], [-12, 10], [-12, 11], [-13, 12], [-13, 13], [-13, 14]] as [number, number][]) set(hx + dx, hy + dy);
 }

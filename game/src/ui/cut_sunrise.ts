@@ -322,8 +322,8 @@ function buildLayers(): Layers {
   who.ring(mx - 20, fy - 41, 6, 4.5, col);
   who.ring(mx - 20, fy - 41, 5, 3.5, col);
   for (let y = -3; y <= 5; y++) for (let x = -4; x <= 3; x++) if ((x + y) % 2 === 0 && x * x + (y - 1) * (y - 1) < 20) who.set(mx - 21 + x, fy - 36 + y, col);
-  // グソっ君 (★2026-09-29 カネナリくん→グソっ君): the armour's saw-tooth sides,
-  // the feelers, the fan tail hanging like a cape
+  // グソっ君 (★2026-10-08 手本の絵に合わせて): the round head with its headband
+  // ridge, ear plates and a tusk, the plates poking out like scales, the fan tail
   gusokkunSilhouette(who, 168, fy, col);
   // (HD-2D: the ground and the two without the fence)
   const front = new PixelCanvas(W, H);

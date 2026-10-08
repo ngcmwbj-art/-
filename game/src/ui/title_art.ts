@@ -491,8 +491,8 @@ function bridgeAndTheTwo(p: PixelCanvas, sky: Sky, col: string, rim: string): vo
   // the bag of netting hanging off the hoop (every other pixel: it's see-through)
   for (let y = -3; y <= 5; y++)
     for (let x = -4; x <= 3; x++) if ((x + y) % 2 === 0 && x * x + (y - 1) * (y - 1) < 20) p.set(mx - 21 + x, fy - 36 + y, col);
-  // グソっ君 (★2026-09-29 カネナリくん→グソっ君): the armour's saw-tooth sides,
-  // the feelers, the fan tail hanging like a cape
+  // グソっ君 (★2026-10-08 手本の絵に合わせて): the round head with its headband
+  // ridge, ear plates and a tusk, the plates poking out like scales, the fan tail
   const kx = 168;
   gusokkunSilhouette(p, kx, fy - 2, col);
   // 1px rim light on their left edges (the sun is on the left)

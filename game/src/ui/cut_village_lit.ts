@@ -1186,28 +1186,41 @@ function drawNet(g: Gfx, t: number, breath: number): void {
 }
 
 /**
- * グソっ君 (★2026-09-29 カネナリくん→グソっ君) holds the pole up from below the
- * frame: the tips of his two long feelers rise on either side of it, their
- * inner edges lit by the tomato, and his hand grips the pole at the bottom.
+ * グソっ君 (★2026-09-29 カネナリくん→グソっ君, ★2026-10-08 手本の絵に合わせて)
+ * holds the pole up from below the frame: the crown of his round ochre head
+ * with the white headband peeks up at the bottom edge, lit by the tomato
+ * from above, and his two-fingered pincer grips the pole over it.
  */
 function drawHolder(g: Gfx, x: number, sway: number): void {
-  const feel: [number, number][] = [[11, 216], [11, 215], [11, 214], [12, 213], [12, 212], [12, 211], [13, 210], [13, 209], [14, 208], [15, 207], [16, 206], [17, 206], [18, 207]];
-  for (const [dx, yy] of feel) {
-    g.px(x - dx, yy, '#4A3A6E');
-    g.px(x + dx, yy, '#4A3A6E');
+  // the crown of his head: an arc 2–4px high, the headband across it
+  for (let dx = -11; dx <= 11; dx++) {
+    const top = 212 + Math.round((dx * dx) / 40);
+    for (let yy = top; yy < H; yy++) {
+      const band = yy >= 214 && yy <= 215;
+      const edge = yy === top;
+      g.px(x + dx, yy, band ? (dx > 6 ? '#E8D9B5' : '#FBF3DC') : edge ? (dx < 3 ? '#EBBF86' : '#D49A5C') : dx > 5 ? '#A8693A' : '#D49A5C');
+    }
+    g.px(x + dx, top - 1, '#5A3A2A');
   }
-  // the light from the net catches their inner edge
-  for (const [dx, yy] of feel.slice(3, 11)) {
-    g.px(x - dx + 1, yy, '#C98A6A');
-    g.px(x + dx - 1, yy, '#C98A6A');
+  // the ear plates at the sides
+  for (const s of [-1, 1]) {
+    g.px(x + s * 12, 214, '#A8693A');
+    g.px(x + s * 13, 215, '#A8693A');
+    g.px(x + s * 12, 213, '#5A3A2A');
+    g.px(x + s * 13, 214, '#5A3A2A');
   }
-  // his hand round the pole (grey-violet, lit from above)
-  const hx = Math.round(x + sway * ((H - 213) / (H - SRC.y)));
-  g.rect(hx - 2, 212, 4, 3, '#6E6890');
-  g.rect(hx - 2, 212, 4, 1, '#C6BEDA');
-  g.px(hx - 3, 213, '#4A3A6E');
-  g.px(hx + 2, 213, '#4A3A6E');
-  g.px(hx - 1, 213, '#9A92AE');
+  // his pincer round the pole (ochre, lit from above): the two fingers wrap it
+  const hx = Math.round(x + sway * ((H - 209) / (H - SRC.y)));
+  g.rect(hx - 2, 209, 5, 3, '#D49A5C');
+  g.rect(hx - 2, 209, 5, 1, '#EBBF86');
+  g.px(hx - 3, 208, '#D49A5C');
+  g.px(hx - 3, 207, '#EBBF86');
+  g.px(hx + 3, 208, '#D49A5C');
+  g.px(hx + 3, 207, '#EBBF86');
+  g.px(hx - 4, 209, '#5A3A2A');
+  g.px(hx + 4, 209, '#5A3A2A');
+  g.px(hx, 210, '#A8693A');
+  g.rect(hx - 1, 212, 3, 2, '#D49A5C');
 }
 
 registerBattleCut('cut_h_village_lit', drawVillageLit);

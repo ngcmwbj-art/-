@@ -1,9 +1,9 @@
 // 練習台 (48×56): the park lesson's target (evt_kn_lesson, 2026-09-28). Two
 // cardboard boxes stacked up by グソっ君 (★2026-09-29 カネナリくん→グソっ君):
-// the upper one has his own face drawn on in marker — the round head, two
-// big blacked-in eyes with the cardboard left bare for the glints, the
-// feelers, pink cheeks — and the lower one his armour plates, four curved
-// lines; two paper tubes stick out for arms. Nobody is in it and nothing
+// the upper one has his own face drawn on in marker — the round head with
+// its white headband (★2026-10-08), two big blacked-in eyes with the
+// cardboard left bare for the glints, pink cheeks, the two long tusks — and
+// the lower one his tummy's segments, four curved lines; two paper tubes stick out for arms. Nobody is in it and nothing
 // about it gets hurt — a たたく only dents the cardboard.
 
 import { PixelCanvas } from '../../engine/pixel';
@@ -20,8 +20,10 @@ const TAPE = '#E8D8A8';
 const TAPE_D = '#C8B488';
 const TUBE = ['#8E8474', '#A89E8C', '#C2B8A4', '#D8D0BC'];
 const MARKER = '#2A2440';
-/** グソっ君's grey-violet marker (his head and plates). */
-const GREY = '#6E6890';
+/** グソっ君's brown marker (his head and segments, ★2026-10-08 the ochre グソっ君). */
+const GREY = '#8A5A3A';
+/** White paint marker (the headband). */
+const PAINT = '#F4F1E8';
 
 interface RPose {
   /** Lean of the whole stack: + leans back (away), − leans toward the party. */
@@ -89,13 +91,19 @@ function build(o: RPose): PixelCanvas {
     if (Math.abs(u) > 0.8) p.set(X(x), Y(yy + 1), GREY);
   }
   p.hline(X(bx - 11), X(bx + 11), Y(by + 17), GREY);
-  // the feelers: two long ones curling out, two little ones between
+  // the headband: a white strip across his brow, edged in brown
+  for (let x = bx - 10; x <= bx + 10; x++) {
+    const u = (x - bx) / 11.5;
+    const top = by + 16 - Math.round(15 * Math.sqrt(Math.max(0, 1 - u * u)));
+    for (let y = Math.max(by + 4, top + 1); y <= by + 5; y++) p.set(X(x), Y(y), PAINT);
+    if (top < by + 3) p.set(X(x), Y(by + 3), GREY);
+    p.set(X(x), Y(by + 6), GREY);
+  }
+  // the little ear plates at the sides of the head
   for (const s of [-1, 1]) {
-    p.line(X(bx + s * 4), Y(by + 1), X(bx + s * 8), Y(by - 3), GREY);
-    p.set(X(bx + s * 9), Y(by - 3), GREY);
-    p.set(X(bx + s * 10), Y(by - 2), GREY);
-    p.set(X(bx + s * 1), Y(by + 1), GREY);
-    p.set(X(bx + s * 2), Y(by), GREY);
+    p.set(X(bx + s * 12), Y(by + 9), GREY);
+    p.set(X(bx + s * 13), Y(by + 10), GREY);
+    p.set(X(bx + s * 12), Y(by + 11), GREY);
   }
   // the face, in black marker
   const face = o.face ?? 'smile';
@@ -137,6 +145,11 @@ function build(o: RPose): PixelCanvas {
     p.set(X(bx - 1), Y(ey + 4), MARKER);
     p.set(X(bx), Y(ey + 5), MARKER);
     p.set(X(bx + 1), Y(ey + 4), MARKER);
+  }
+  // the two long tusks hanging under his nose (brown marker)
+  for (const s of [-1, 1]) {
+    for (let j = 0; j <= 7; j++) p.set(X(bx + s * (3 + (j > 3 ? 1 : 0))), Y(ey + 5 + j), GREY);
+    p.set(X(bx + s * 2), Y(ey + 5), GREY);
   }
   if (o.dent) ditherMask(p, head, '#F4E0B0', 0.1);
   // the head box sits on the body: a dark seam and its shadow on the body's lid
