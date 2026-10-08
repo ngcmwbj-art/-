@@ -13,6 +13,7 @@
 - 2026-10-05：HD-2D の試作（#85）：src/hd2d/（新規）、engine/screen.ts、world/field.ts、art/props/types.ts・bkit.ts、ui/flow.ts、main.ts、tools/make-artifact.mjs、package.json（three・@types/three）、docs/ARCHITECTURE.md の「HD-2D layer」
 
 ## 失敗したこと・注意
+- 2026-10-08：`--from mall2f` は 2D でも HD-2D でも最初の walk で止まる（jump の着地が 2F。道具の問題）。第1章 HD-2D の通しが mall2f で止まるのは、フードコートの敵が歩く道に入る前からの問題。
 - 2026-10-06：HD-2D の通しテストは遅いので、`travel` が目的地を1マス行き過ぎてイベントを道の途中で済ませることがある（第2章のペロ。tools/playthrough.mjs を直した）。同じ形の時間切れは、まずこれを疑う。
 - 通しテストを2本同時に走らせると、出力フォルダの取り合いで落ちる。
 - コンテナが再起動すると、裏で動いているエージェントやサーバーが止まる。途中経過はファイルに残す。
