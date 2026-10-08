@@ -444,7 +444,7 @@ registerDebug('chore', (n: number | 'done' | 'hide' = 0) => {
 });
 
 /** QA: the おとどけ strip — `n` parcels delivered (5: 軽トラへ and 「済」), 'close' as 〔しめ〕 closes it, 'hide'. */
-const DELI_STOPS = ['タケじい', 'ハモ区長', 'スギばあ', '集会所', 'トマじい'];
+const DELI_STOPS = ['タケじい', 'ハモ区長', 'スギばあ', 'ぴょん夫人', 'トマじい'];
 registerDebug('deli', (n: number | 'close' | 'hide' = 0) => {
   if (n === 'hide') {
     hideDeliveryCard();

@@ -23,8 +23,8 @@ import { vehicleFrame, type VehicleView } from '../art/props/vehicles';
 import type { Actor } from '../world/actor';
 import { charGlow, type CharGlow } from '../art/chars/nightlight';
 import type { FieldScene } from '../world/field';
-import { extrude, litMaterial, Mask, ownUv, Quads, shadowOnly } from './solid';
-import { casterMaterial, pixelTexture, SHADE, SV, type TownWorld } from './town';
+import { extrude, litMaterial, Mask, ownUv, pixelTexture, Quads, shadowOnly } from './solid';
+import { casterMaterial, SHADE, SV, type TownWorld } from './town';
 
 /** What the characters ask of the 3D map they stand in (the town, or a room: room.ts RoomWorld). */
 type Ground3D = Pick<TownWorld, 'heightAt' | 'boxAt' | 'inShadow'> & {
@@ -121,6 +121,95 @@ function vehicleGeometry(id: string, view: VehicleView): THREE.BufferGeometry {
   return g;
 }
 
+// ---------------------------------------------------------------- a carried box in 3D (02 #91)
+
+/**
+ * What a character carries that is a box (2026-10-08 依頼主「箱をりったいてきに」):
+ * the yellow crates of ツガオ便 on ポコシャ's shoulder (the delivery's
+ * follower, his idle with three crates, carry / carry2) and in ヒロスケ's
+ * arms (carry_box), the bag of vegetables Shun sets on a stand or hands to
+ * ぴょん夫人 (put_down, give). Found in the frame by its colours (the
+ * crate's / the kraft's four tones, a patch of at least MIN px), it gets a
+ * body `depth` px deep standing just behind the picture: the picture still
+ * draws its front (his head and the hen stay in front of it, as the 2D draws
+ * them), the box's top and sides show round it.
+ */
+const CARRIED: { ids: (a: Actor) => boolean; colors: string[]; depth: number }[] = [
+  {
+    ids: (a) => a.spriteId === 'npc_pokosha_carry' || a.spriteId === 'npc_pokosha' || a.spriteId === 'npc_hirosuke',
+    colors: ['#FFD23F', '#D9A441', '#FFE7A3', '#A8742A'],
+    depth: 5,
+  },
+  {
+    ids: (a) => a.spriteId.startsWith('minato') && ['put_down', 'give'].includes(a.anim ?? a.tempPose ?? a.pose ?? ''),
+    colors: ['#E8D9B5', '#C8A06A', '#FBF3DC', '#8A5A3A'],
+    depth: 4,
+  },
+];
+const CARRY_MIN = 10;
+
+interface CarryBody {
+  geo: THREE.BufferGeometry;
+  tex: THREE.CanvasTexture;
+}
+const carryCache = new Map<number, WeakMap<HTMLCanvasElement, CarryBody | null>>();
+
+/** The box's body for this frame of the picture (null: no box in it), made once per frame. */
+function carriedBody(rule: number, pic: HTMLCanvasElement): CarryBody | null {
+  let m = carryCache.get(rule);
+  if (!m) carryCache.set(rule, (m = new WeakMap()));
+  if (m.has(pic)) return m.get(pic)!;
+  const { colors, depth } = CARRIED[rule];
+  const w = pic.width;
+  const h = pic.height;
+  const d = pic.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, w, h).data;
+  const want = new Set(colors.map((c) => parseInt(c.slice(1), 16)));
+  const hit = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) if (d[i * 4 + 3] >= 128 && want.has((d[i * 4] << 16) | (d[i * 4 + 1] << 8) | d[i * 4 + 2])) hit[i] = 1;
+  // the patches big enough to be the box (a beak, a button: left out)
+  const keep = new Uint8Array(w * h);
+  const seen = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    if (!hit[i] || seen[i]) continue;
+    const run: number[] = [];
+    const stack = [i];
+    seen[i] = 1;
+    while (stack.length) {
+      const j = stack.pop()!;
+      run.push(j);
+      const x = j % w;
+      for (const k of [x > 0 ? j - 1 : -1, x < w - 1 ? j + 1 : -1, j - w, j + w])
+        if (k >= 0 && k < w * h && hit[k] && !seen[k]) {
+          seen[k] = 1;
+          stack.push(k);
+        }
+    }
+    if (run.length >= CARRY_MIN) for (const j of run) keep[j] = 1;
+  }
+  let any = false;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d')!;
+  const out = ctx.createImageData(w, h);
+  for (let i = 0; i < w * h; i++)
+    if (keep[i]) {
+      any = true;
+      for (let k = 0; k < 4; k++) out.data[i * 4 + k] = d[i * 4 + k];
+    }
+  if (!any) {
+    m.set(pic, null);
+    return null;
+  }
+  ctx.putImageData(out, 0, 0);
+  const q = new Quads();
+  // picture px → the standing picture's units (its feet at the bottom row's lower edge, its middle at x 0), just behind it
+  extrude(q, new Mask(c), 0, 0, w, h, { x0: (-w / 2) * PX, yTop: h * PX * SV, sy: PX * SV, zf: -0.01 }, depth * PX, ownUv(w, h), false);
+  const body = { geo: q.geometry(), tex: pixelTexture(c) };
+  m.set(pic, body);
+  return body;
+}
+
 let lampImg: HTMLCanvasElement | null = null;
 /**
  * テツヤ's headlight itself (render.ts headlampGlow: the 2D's emissive dot on
@@ -166,6 +255,8 @@ class ActorView {
    * picture, added as the 2D screens it after grading (made when first needed).
    */
   private glow: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial } | null = null;
+  /** A box it carries (CARRIED), standing just behind its picture (made when first needed). */
+  private carry: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial } | null = null;
 
   constructor() {
     this.mat = new THREE.MeshBasicMaterial({ alphaTest: 0.5 });
@@ -266,6 +357,7 @@ class ActorView {
     this.mat.color.copy(tint).multiplyScalar((shaded ? SHADE : 1) * lit);
     world.tintAt?.(x, (a.y + Math.max(0, a.oy)) * PX, this.mat.color);
     this.placeGlow(a.drawFn || vpic ? null : a.data.selfLit ? headlamp(a, pic) : charGlow(pic), x - w / 2, up - below + h, z, alpha);
+    this.placeCarry(a.drawFn || vpic ? null : a, pic, x, up - below, z, alpha);
     const sw = Math.max(0.55, Math.min(1.4, (a.drawFn ? (a.data.vehicle ? 3 : 1) : w) * 0.8));
     const ground = world.heightAt(x, z - 0.05);
     this.shadow.position.set(x, ground + 0.02, z - 0.06);
@@ -302,6 +394,41 @@ class ActorView {
     (this.shadow.material as THREE.MeshBasicMaterial).opacity = 0.6 * alpha * (1 - Math.min(1, air / 1.5) * 0.6);
   }
 
+  /** The box it carries (CARRIED) in 3D, behind the picture whose feet are at (x, y, z). */
+  private placeCarry(a: Actor | null, pic: HTMLCanvasElement, x: number, y: number, z: number, alpha: number): void {
+    const rule = a ? CARRIED.findIndex((r) => r.ids(a)) : -1;
+    const body = rule >= 0 ? carriedBody(rule, pic) : null;
+    if (!body) {
+      if (this.carry) this.carry.mesh.visible = false;
+      return;
+    }
+    if (!this.carry) {
+      const mat = new THREE.MeshBasicMaterial({ alphaTest: 0.5 });
+      const mesh = new THREE.Mesh(body.geo, mat);
+      mesh.castShadow = true;
+      this.group.add(mesh);
+      this.carry = { mesh, mat };
+    }
+    const { mesh, mat } = this.carry;
+    mesh.geometry = body.geo;
+    if (mat.map !== body.tex) {
+      const first = !mat.map;
+      mat.map = body.tex;
+      if (first) mat.needsUpdate = true;
+    }
+    // (lit as the picture is: its tint, the shade it stands in)
+    mat.color.copy(this.mat.color);
+    const tr = alpha < 0.999;
+    if (mat.transparent !== tr) {
+      mat.transparent = tr;
+      mat.alphaTest = tr ? 0.02 : 0.5;
+      mat.needsUpdate = true;
+    }
+    mat.opacity = alpha;
+    mesh.visible = true;
+    mesh.position.set(x, y, z);
+  }
+
   /** The carried light's glow (frame px dx, dy from the picture's top-left) over the picture whose top-left is (x0, top, z). */
   private placeGlow(g: CharGlow | null, x0: number, top: number, z: number, alpha: number): void {
     if (!g) {
@@ -333,6 +460,7 @@ class ActorView {
 
   dispose(): void {
     this.glow?.mat.dispose();
+    this.carry?.mat.dispose();
     this.mat.dispose();
     this.cmat.dispose();
     (this.shadow.material as THREE.Material).dispose();

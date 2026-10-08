@@ -29,6 +29,7 @@ import { DELI_TEXT, TSUGAO_NPC, TSUGAO_OBJ } from '../../data/text/hoshi_tsugao'
 import { F, sendAway, stepBack } from '../lib';
 import { quietItem } from '../stage';
 import { sparkle } from '../fx';
+import { setDeliGuide } from './deli_guide';
 import { hasUi, musicParam, se, seAt, ui, uiCo } from './compat';
 import { hStage, npc, pickHText, poseAny, poseIf, routeTiles, runCue, unpose, type Cues } from './common';
 
@@ -50,7 +51,8 @@ const STOPS: { spot: string; next: string; at: [number, number] | null }[] = [
   { spot: 'spot_h_deli_01', next: 'タケじい', at: [43, 36] },
   { spot: 'spot_h_deli_02', next: 'ハモ区長', at: [37, 36] },
   { spot: 'spot_h_deli_03', next: 'スギばあ', at: [42, 26] },
-  { spot: 'spot_h_deli_04', next: '集会所', at: null },
+  // (4つ目: no stand — ぴょん夫人 takes them from his hands in the 集会所; 2026-10-08 依頼主「届け先 集会所でなく、ピョンで良いかも」)
+  { spot: 'spot_h_deli_04', next: 'ぴょん夫人', at: null },
   { spot: 'spot_h_deli_05', next: 'トマじい', at: [17, 31] },
 ];
 /** Where ポコシャさん stands at the truck (52 3.4). */
@@ -97,6 +99,24 @@ function cardHide(ms = 300): void {
   if (hasUi('hideDeliveryCard')) ui('hideDeliveryCard', ms);
   else hideChoreCard(ms);
 }
+
+// ---------------------------------------------------------------- the way to the next stop (02 #91)
+
+/** ぴょん夫人 (map_hoshi_school (2,5)): she takes the fourth parcel herself. */
+const YOSHIE_MAP = 'map_hoshi_school';
+/** The truck's bed (prop_tsugao_truck at (42,41), 48×32, its foot line 30 px down). */
+const TRUCK_AT = { x: 42 * 16 + 24, foot: 41 * 16 + 30, h: 34 };
+
+setDeliGuide((f) => {
+  if (!deliveryOn() || state.flags !== runFlags) return null;
+  const n = doneStops();
+  if (n >= STOPS.length) return { map: 'map_hoshimidai', ...TRUCK_AT, name: '軽トラ' };
+  const s = STOPS[n];
+  if (s.at) return { map: 'map_hoshimidai', x: s.at[0] * 16 + 8, foot: s.at[1] * 16 + 18, h: 16, name: s.next };
+  // over her head where she stands (in another room: over its door)
+  const y = f.map.id === YOSHIE_MAP ? f.actorById('npc_hoshi_yoshie') : null;
+  return { map: YOSHIE_MAP, x: y ? y.x : 2 * 16 + 8, foot: y ? y.y : 6 * 16, h: 30, name: s.next };
+});
 
 // ---------------------------------------------------------------- ポコシャさん in the line (third, behind グソっ君)
 
@@ -445,6 +465,25 @@ function* putDown(): Co {
   unpose(p);
 }
 
+/** ぴょん夫人 (4つ目): ポコシャさん hands him the bag, he hands it on to her (give, the bag's 「カサ」). */
+function* handOver(): Co {
+  const f = F();
+  const p = f.player;
+  const a = pokoActor(f);
+  if (a) {
+    a.dir = a.x < p.x ? 'right' : a.x > p.x ? 'left' : a.y < p.y ? 'down' : 'up';
+    poseIf(a, 'give');
+  }
+  yield 300;
+  if (a) unpose(a);
+  poseAny(p, 'give', 'put_down');
+  const y = f.actorById('npc_hoshi_yoshie');
+  if (y) seAt('se_h_deli_put', y.x, y.y - 8);
+  else se('se_h_deli_put');
+  yield 600;
+  unpose(p);
+}
+
 /** The parcel is down: its flag and the strip's number (with the fifth, 「済」). */
 function* counted(n: number): Co {
   if (flag('flag_' + STOPS[n].spot)) return;
@@ -462,6 +501,9 @@ function* deliver(n: number): Co {
   yield* runCue(
     text,
     cuesWith({
+      *hand() {
+        yield* handOver();
+      },
       *hide() {
         // ぴょん夫人 has taken the cucumbers: the strip counts them as he bows
         if (n === 3 && !countedYet) {

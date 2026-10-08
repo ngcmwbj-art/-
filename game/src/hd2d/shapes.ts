@@ -552,6 +552,76 @@ const clocktower: Shape = (k) => {
   return { stand: [k.lift, H(k, k.h)], cx: X(17), cz: zc, solid: true };
 };
 
+// ---------------------------------------------------------------- ツガオ便 at 星見台's turning circle
+
+/**
+ * The olive kei truck parked side-on, facing west (prop_tsugao_truck, 48×32,
+ * art/props/hoshi_tsugaobin.ts; 2026-10-08 依頼主「箱をりったいてきに」, 02 #91):
+ * the cab and the bed a truck's width (16 px) deep, as the moving one
+ * (actors.ts vehicleGeometry), and the yellow crates of the delivery real
+ * boxes — each tier (the lower one on the bed, rows 9–13; the upper one on
+ * top of it, rows 4–8 with their outline) in three rows across the bed with
+ * a px between them, so the load reads as crates from above, not as long bars.
+ */
+const tsugaoTruck: Shape = (k) => {
+  const rf = k.foot - k.y;
+  const D = 16;
+  stand(k, 0, 0, 17, rf, k.foot, 0, D);
+  stand(k, 17, 14, k.w, rf, k.foot, 0, D);
+  const seg = (D - 2) / 3;
+  for (const [r0, r1] of [
+    [9, 14],
+    [0, 9],
+  ] as const)
+    for (let i = 0; i < 3; i++) stand(k, 17, r0, k.w, r1, k.foot - i * (seg + 1), rf - r1, seg);
+  if (rf < k.h) lie(k, 0, rf, k.w, k.h, k.x, k.foot, 0);
+  return stood(k, rf);
+};
+
+// ---------------------------------------------------------------- 星見台: 地図の はしの 柵 (02 #92)
+
+/**
+ * A fence down the west or east edge of the village (prop_h_edge_saku,
+ * side 'w' / 'e'; art/props/hoshi_public.ts): the picture is the run seen
+ * from above; in 3D a fence along z — the log fence two rails 2px thick
+ * (4 and 9 px up) and a post every tile, the electric fence two thin wires
+ * (3 and 6 px up) and its white posts — in the picture's own colours.
+ * (side 's', an east–west run, stands as any picture does.)
+ */
+const edgeFence: Shape = (k) => {
+  const len = Math.max(1, Number(k.opts.len ?? 1));
+  const ex = k.h - len * 16;
+  const z0 = k.y + ex;
+  const z1 = z0 + len * 16;
+  const q = k.q;
+  const efence = k.opts.mat === 'efence';
+  const mid = Math.floor(k.h / 2);
+  const x = k.x + 7;
+  let top: number;
+  if (efence) {
+    const pr = (len - 1) * 16 + 17;
+    const white = px1(k, 7, pr);
+    const steel = px1(k, 8, pr);
+    const wire = px1(k, 7, mid);
+    top = 9;
+    for (const h of [3, 6]) box(q, (x + 0.5) * PX, (x + 1) * PX, H(k, h), H(k, h + 0.5), z0 * PX, z1 * PX, { top: wire, left: wire, right: wire, front: wire });
+    const posts = [z0 + 4, z1 - 3];
+    for (let z = Math.ceil((z0 + 1) / 32) * 32 + 20; z < z1 - 8; z += 32) if (z > z0 + 8) posts.push(z);
+    for (const z of posts) box(q, x * PX, (x + 2) * PX, H(k, 0), H(k, top), (z - 1) * PX, (z + 1) * PX, { top: white, left: white, right: steel, front: white, back: steel });
+  } else {
+    const lt = px1(k, 5, mid);
+    const wd = px1(k, 6, mid);
+    const dkf = px1(k, 7, mid);
+    top = 12;
+    for (const h of [4, 9]) box(q, x * PX, (x + 2) * PX, H(k, h), H(k, h + 2), z0 * PX, z1 * PX, { top: lt, left: wd, right: dkf, front: wd });
+    const posts = [z0 + 3, z1 - 2];
+    for (let z = z0 + 16; z < z1 - 6; z += 16) posts.push(z);
+    for (const z of posts) box(q, (x - 0.5) * PX, (x + 2.5) * PX, H(k, 0), H(k, top), (z - 1.5) * PX, (z + 1.5) * PX, { top: lt, left: wd, right: dkf, front: wd, back: dkf });
+  }
+  k.rec?.push({ x0: x - 1, x1: x + 3, h0: hRow(k, 0), h1: hRow(k, top), z0, z1 });
+  return { ...stood(k, top, x + 1, z1), noXray: true };
+};
+
 // ---------------------------------------------------------------- the table
 
 /** Shapes by prop id (a function of the opts where one picture serves several). */
@@ -583,6 +653,10 @@ export function shapeOf(id: string, opts: Record<string, unknown>): Shape | null
       return fenceS;
     case 'prop_clocktower':
       return clocktower;
+    case 'prop_tsugao_truck':
+      return tsugaoTruck;
+    case 'prop_h_edge_saku':
+      return opts.side === 'w' || opts.side === 'e' ? edgeFence : null;
     default:
       return null;
   }
