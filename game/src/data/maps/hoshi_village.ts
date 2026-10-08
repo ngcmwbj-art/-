@@ -475,6 +475,20 @@ const OBJECTS: MapObj[] = [
     cond: { stage: 1, notFlag: 'flag_ch2_tetsuya_beaten' }, script: 'evt_ch2_tetsuya', restoreAt: [45, 2], music: 'bgm_midboss',
   },
 
+  // ======================================================== 地図の はしの 柵 (★2026-10-08 依頼主「見えない壁があるところには柵つけて」, 02 #92)
+  // where the ground goes on past the map's edge (HD-2D draws the land outside)
+  // but nobody may walk: a fence on the edge (no collision of its own; the
+  // road west (0,38–39) stays open, its bump says where it goes)
+  PR('prop_h_edge_saku', 0, 20, { side: 'w', mat: 'maruta', len: 12 }), // the lane beside the greenhouses
+  PR('prop_h_edge_saku', 0, 33, { side: 'w', mat: 'maruta', len: 5 }), // ペロ's yard
+  PR('prop_h_edge_saku', 0, 40, { side: 'w', mat: 'maruta', len: 6 }), // the 古民家's garden
+  PR('prop_h_edge_saku', 0, 45, { side: 's', mat: 'maruta', len: 15, dx: 6 }), // the lane above the siding
+  PR('prop_h_edge_saku', 59, 6, { side: 'e', mat: 'efence', len: 7 }), // the houki field's east side
+  PR('prop_h_edge_saku', 59, 19, { side: 'e', mat: 'maruta', len: 1 }), // the path along the canal
+  PR('prop_h_edge_saku', 59, 22, { side: 'e', mat: 'maruta', len: 2 }), // past the straw shed
+  PR('prop_h_edge_saku', 59, 33, { side: 'e', mat: 'maruta', len: 7 }), // the barn's yard
+  PR('prop_h_edge_saku', 59, 44, { side: 'e', mat: 'maruta', len: 2 }), // behind the 源's house
+
   // ======================================================== event triggers (52 1.6)
   { t: 'trig', id: 'trig_ch2_mitsu', x: 0, y: 31, w: 6, h: 3, script: 'evt_ch2_mitsu', cond: { flag: 'flag_ch2_yoriai', notFlag: 'flag_ch2_met_mitsu' } },
   { t: 'trig', id: 'trig_ch2_house_exit', x: 2, y: 31, w: 1, h: 1, cond: { flag: 'flag_ch2_got_tomato', notFlag: 'flag_ch2_house_exit' } },

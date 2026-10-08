@@ -741,7 +741,11 @@ export class CutoutView {
     if (!this.batch) this.skin.refresh(env, t);
     if (this.skin.glowTex) this.mat.emissiveIntensity = 1.8 * lit * nightGlowK(f) * la;
     // standing in front of Minato (or the follower): see-through, as the 2D x-ray
-    const tgt = this.rect && hides(this.rect) ? 0.25 : 1;
+    // (a hut someone walks into — its roof a part that fades over them, the
+    // picture itself an x-ray one: the waiting room — goes see-through while
+    // they are inside, its front wall standing in front of the bench, 02 #92)
+    const inside = this.p.art.xray !== undefined && this.fg.some((fp) => !!fp.part.fade && this.under(fp.part.fade, seers));
+    const tgt = inside || (this.rect && hides(this.rect)) ? 0.25 : 1;
     this.xray += Math.sign(tgt - this.xray) * Math.min(Math.abs(tgt - this.xray), 16.7 / 150);
     const tr = this.xray * la < 0.999;
     if (this.mat.transparent !== tr) {
@@ -761,9 +765,8 @@ export class CutoutView {
       // canopies thin out over the party (as in 2D)
       const fr = fp.part.fade;
       if (fr) {
-        const p = this.p;
-        const under = seers.some((s) => s.x >= p.x + fr.x && s.x < p.x + fr.x + fr.w && s.y - 8 >= p.y + fr.y && s.y - 8 < p.y + fr.y + fr.h);
-        const tgt = under ? Math.max(fr.alpha, 0.35) : 1;
+        const under = this.under(fr, seers);
+        const tgt = under ? (fr.alpha3d ?? Math.max(fr.alpha, 0.35)) : 1;
         fp.fade += Math.sign(tgt - fp.fade) * Math.min(Math.abs(tgt - fp.fade), 16.7 / 200);
         const tr = fp.fade < 0.999;
         if (fp.mat.transparent !== tr) {
@@ -775,6 +778,12 @@ export class CutoutView {
         fp.mat.opacity = fp.fade;
       }
     }
+  }
+
+  /** Does Minato (or the follower) stand under a part's fade rect (a canopy, a hut's roof)? */
+  private under(fr: { x: number; y: number; w: number; h: number }, seers: { x: number; y: number }[]): boolean {
+    const p = this.p;
+    return seers.some((s) => s.x >= p.x + fr.x && s.x < p.x + fr.x + fr.w && s.y - 8 >= p.y + fr.y && s.y - 8 < p.y + fr.y + fr.h);
   }
 
   /** A battle's backdrop (view.ts still): nothing see-through for the party now (the field's frames fade it again). */

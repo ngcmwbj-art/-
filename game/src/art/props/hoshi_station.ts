@@ -440,7 +440,9 @@ regStand(
     p.set(36, 13, P.navy);
     p.set(34, 25, P.charcoal);
   },
-  { cx: 17, base: 16, shadow: 24 },
+  // (someone between the bus and the shelter (36–37,43) is behind its roof:
+  // see-through there, in HD-2D too, 02 #92)
+  { cx: 17, base: 16, shadow: 24, extra: { xray: 0.3 } },
 );
 
 // ---------------------------------------------------------------- 無人販売所 (21,37)

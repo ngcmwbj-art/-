@@ -8,9 +8,10 @@
 // end until the はなまるトマト is picked).
 
 import type { Gfx } from '../../engine/gfx';
-import { mix, PixelCanvas } from '../../engine/pixel';
+import { makeCanvas, mix, PixelCanvas } from '../../engine/pixel';
 import { h01, ihash } from '../tiles/noise';
 import { P } from '../tiles/palette';
+import { structureCell } from '../tiles/structures';
 import { glassPane, KAWARA_IBUSHI, registerBuilding, roofKawara, type Bld, type RoofPal } from './bkit';
 import { castRight, dk, lt, shadeRect } from './kit';
 import {
@@ -945,9 +946,55 @@ registerProp('prop_h_machiai_front', () => {
     // one px before the row's foot: someone standing in the doorway (18,43) is drawn in front
     foot: 15,
     img: () => img,
-    fg: [{ ox: -4, oy: -62, img: () => roof, fade: { x: 4, y: -40, w: W - 8, h: 44, alpha: 0.2 } }],
+    // HD-2D: the roof goes nearly clear over someone inside (the doorway (18,43)
+    // too: its rect reaches the row's feet), and the front wall (it stands up
+    // in front of the bench) turns see-through in front of them
+    // (★2026-10-08 依頼主「待合室入ったら見辛いから透過して」, 02 #92)
+    fg: [{ ox: -4, oy: -62, img: () => roof, fade: { x: 4, y: -40, w: W - 8, h: 52, alpha: 0.2, alpha3d: 0.12 } }],
+    xray: 0.25,
   };
   return a;
+});
+
+// ---------------------------------------------------------------- 地図の はしの 柵 (02 #92)
+
+/**
+ * A fence along a stretch of the map's edge where the ground goes on but
+ * nobody may walk (★2026-10-08 依頼主「見えない壁があるところには柵つけて
+ * 物理的にいけないようにした方がいい」): the village's log fence (`maruta`, the
+ * hill's) or the electric fence (`efence`, the houki field's), the same cells
+ * the ASCII layer draws (art/tiles/hoshi_struct.ts). No collision of its own:
+ * the edge already stops everyone, this only shows where.
+ *
+ * opts: `side` 'w' | 'e' (a north–south run down the west / east edge, the
+ * anchor its north tile, `len` tiles; the fence line on the edge itself,
+ * half of it past it) or 's' (an east–west run along the anchor row's south
+ * edge, the anchor its west tile, `len` tiles, `dx` px left off its west
+ * end); `mat` 'maruta' | 'efence'.
+ * HD-2D: a north–south run is built along z (hd2d/shapes.ts edgeFence).
+ */
+registerProp('prop_h_edge_saku', (opts) => {
+  const side = String(opts.side ?? 'w');
+  const mat = String(opts.mat ?? 'maruta');
+  const len = Math.max(1, Number(opts.len ?? 1));
+  const cells = Array.from({ length: len }, (_, i) =>
+    side === 's'
+      ? structureCell('fence', mat, i, 45, { n: false, s: false, w: i > 0, e: i < len - 1 })
+      : structureCell('fence', mat, side === 'w' ? 0 : 59, i, { n: i > 0, s: i < len - 1, e: false, w: false }),
+  );
+  const ex = Math.max(...cells.map((c) => c.img.height)) - 16;
+  if (side === 's') {
+    // (the cell's foot line is 3px up from its tile's bottom: 3px down, onto the edge)
+    // (`dx`: its west end starts that many px in, past a north–south run's posts at the corner)
+    const dx = Number(opts.dx ?? 0);
+    const [img, g] = makeCanvas(len * 16 - dx, 16 + ex);
+    cells.forEach((c, i) => g.drawImage(c.img, i * 16 - dx, 16 + ex - c.img.height));
+    return { ox: dx, oy: 3 - ex, w: len * 16 - dx, h: 16 + ex, foot: 15, img: () => img, contact: 0 } as PropArt;
+  }
+  const [img, g] = makeCanvas(16, len * 16 + ex);
+  cells.forEach((c, i) => g.drawImage(c.img, 0, i * 16 + 16 + ex - c.img.height));
+  // the cells draw the fence down their middle (x 5–11): moved out to the edge (its posts on the edge tile's outer 4px)
+  return { ox: side === 'w' ? -5 : 5, oy: -ex, w: 16, h: len * 16 + ex, foot: len * 16 - 2, img: () => img, contact: 0 } as PropArt;
 });
 
 void TIN_RUST;

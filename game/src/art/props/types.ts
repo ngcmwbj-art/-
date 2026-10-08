@@ -26,8 +26,12 @@ export interface PropPart {
   ox: number;
   oy: number;
   img(env: PropEnv): HTMLCanvasElement | null;
-  /** Fade to this alpha when the player is under it (tree canopies). */
-  fade?: { x: number; y: number; w: number; h: number; alpha: number };
+  /**
+   * Fade to this alpha when the player is under it (tree canopies). `alpha3d`:
+   * the HD-2D's alpha there (default max(alpha, 0.35)); a roof over a room
+   * someone walks into (the station's waiting hut) goes lower.
+   */
+  fade?: { x: number; y: number; w: number; h: number; alpha: number; alpha3d?: number };
 }
 
 export interface PropArt {
