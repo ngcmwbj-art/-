@@ -1526,6 +1526,8 @@ export function* doItem(s: BattleScene, u: PartyUnit, itemId: string, target0: P
   const imo = toKanenari ? yakiimoFirst(itemId) : null;
   const says = imo ? imo.pages : text?.kanenariSays;
   if (toKanenari && says) s.msg.post(says, knOpts());
+  // (グソっ君の はじめて帳: the page of what he said it was, 02 #89)
+  if (toKanenari && says && !imo) setFlag(`flag_kn_says_${itemId}`, 1);
   // item icon arcs up from the bottom of the screen into the panel (250ms)
   const icon = itemIcon(itemId);
   const dests = target ? [target] : s.party.filter((p) => !p.has('status_rusu'));

@@ -53,6 +53,7 @@ import { ASHIATO_TEXTS } from '../../data/text/hoshi_ashiato';
 import { HUNTING_TEXTS } from '../../data/text/hunting';
 import { KOTEI_TEXTS } from '../../data/text/kotei';
 import { TOKEI_TEXTS } from '../../data/text/tokei7';
+import { HAJIMETE_TEXTS } from '../../data/text/hajimete';
 
 type Step = () => void;
 
@@ -461,6 +462,8 @@ function collectTexts(): [string, string][] {
   walk('kotei', KOTEI_TEXTS);
   // げむきか10/6の案4（チクタク堂の ばらばら時計。第1章の 時計店・6人、第2章の 駅ノートの 1行。10 6.22・7.19, 50 8.1, 02_ch2_index #88）
   walk('tokei7', TOKEI_TEXTS);
+  // げむきか10/7の案5（グソっ君の はじめて帳。第1章の 町の 8人、第2章の 村の 6人と 裏表紙。10 6.27, 50 10.29, 02_ch2_index #89）
+  walk('hajimete', HAJIMETE_TEXTS);
   // げむきか10/5の改1（水辺の 図鑑：夜振り・たも網・沢ガニ・駅ノート。50 3.10・10.25, 02_ch2_index #81）
   walk('mizube_ch2', MIZUBE_CH2_TEXTS);
   // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line

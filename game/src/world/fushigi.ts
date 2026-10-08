@@ -60,6 +60,11 @@ const pressListeners: ((id: string) => void)[] = [];
 export function onFushigiPressed(fn: (id: string) => void): void {
   pressListeners.push(fn);
 }
+/** Scenes that may follow a stamp, after its 朱肉 line (グソっ君の はじめて帳 starts here, 02_ch2_index #89). */
+const afterPress: ((id: string) => Co | null)[] = [];
+export function onFushigiAfter(fn: (id: string) => Co | null): void {
+  afterPress.push(fn);
+}
 
 /** A ふしぎ of 星見台 (みました帳 ②, fushigi_ch2_01〜10)? */
 export function isCh2Fushigi(id: string): boolean {
@@ -136,6 +141,10 @@ export function* runFushigi(id: string, seenOverride?: string): Co {
 朱肉が 2 たまった。
 みました帳に 書きこんだ。（ふしぎ ${fushigiCount()}/12）`,
   );
+  for (const fn of afterPress) {
+    const co = fn(id);
+    if (co) yield* co;
+  }
   // the tutorial fushigi leads to evt_obaa_park_hint
   if (id === 'fushigi_04' && !flag('flag_park_hint') && flag('flag_stage') === 1 && hasScript('evt_obaa_park_hint')) {
     const fn = getScript('evt_obaa_park_hint')!;

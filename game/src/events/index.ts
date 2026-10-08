@@ -43,4 +43,6 @@ import './mizube';
 // げむきか10/6の案4：チクタク堂の ばらばら時計（時計店の ウィンドウと ゆう、6人、第2章の 駅ノートの 1行。02 #88）。
 // kensui・cape_coffee・rooms_north・kotei・aze・npcs の 6人と くま吉・しんご・なんばるわん、ch2 の 駅ノートを 包むので、それらの あとに import する
 import './tokei7';
+// グソっ君の はじめて帳（02 #89）：町と 村の 14人の 台本を 包むので、tokei7 と ./ch2 の あとに import する
+import './hajimete';
 import './debug';

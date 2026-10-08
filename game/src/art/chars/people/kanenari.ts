@@ -1,32 +1,36 @@
-// グソっ君 (id 'kanenari', ★2026-09-29 依頼主の指示で カネナリくん→グソっ君。IDは据え置き):
-// a round giant isopod (オオグソクムシ) who walks on his hind legs. Grey-violet
-// armour of seven thick chest plates (the steps read best from behind), a
-// fan tail (uropods) that hangs behind him like a little cape, big black
-// compound eyes like sunglasses with one white glint each, two long feelers
-// that bob when he walks and two short ones between them. The front pair of
-// legs are his arms (no claws); the small legs sit folded in front of his
-// tummy and now and then wiggle (わしゃっ). He shows how he feels with the
-// glint, the feelers, the tilt of his body and a touch of pink on his cheeks.
-// Canvas 20×26 (art in the 16px box at +2); the feelers rise into the headroom.
+// グソっ君 (id 'kanenari', ★2026-09-29 依頼主の指示で カネナリくん→グソっ君。IDは据え置き。
+// ★2026-10-08 依頼主の手本の絵に合わせて 描き直し):
+// a round, cuddly giant isopod (オオグソクムシ) who stands on two legs. All of
+// him is a warm ochre with dark-brown lines: a white headband (はちまき) round
+// his brow, big round black eyes with one white glint each, pink cheeks, and
+// two long tusk-like mouthparts hanging from under his nose with pointed
+// tips. Little ear-like plates stick out at the sides of his head (they show
+// how he feels: out, perked up, or drooping). His chest and tummy are
+// striped with segments; at both sides of his body the armour plates overlap
+// like scales and poke out past his outline (they flutter: わしゃっ). Two
+// segmented arms end in two-fingered pincers, two stout legs in three toes,
+// and a striped fan tail hangs behind.
+// Canvas 20×26 (art in the 16px box at +2).
 
 import { flat, mat, type Fig, type Mats } from '../fig';
 import { buildSprite, rep, type IdleKey, type Pose, type SpriteSpec } from '../rig';
 import { charSprite, registerChar, type CharSprite } from '../registry';
 import { PixelCanvas } from '../../../engine/pixel';
 
-// 30_level_art 9.2 (グソっ君): shell #9A92AE, blue-violet shade, lavender light
-export const KANENARI_KEEP = ['#9A92AE', '#6E6890', '#C6BEDA'];
+// 30_level_art 9.2 (グソっ君): ochre shell, burnt shade, dark-brown line
+export const KANENARI_KEEP = ['#D49A5C', '#A8693A', '#EBBF86', '#F0CB98'];
 export const KANENARI_MATS: Mats = {
-  shell: mat('#9A92AE', { shade: '#6E6890', light: '#C6BEDA', dark: '#4A3A6E' }),
-  // the fan tail and far limbs, one step back
-  shellD: mat('#6E6890', { shade: '#4A3A6E', light: '#9A92AE', dark: '#3A2B5C' }),
-  belly: mat('#C6BEDA', { shade: '#9A92AE', light: '#E8E4D8', dark: '#6E6890' }),
-  leg: mat('#C6BEDA', { shade: '#9A92AE', light: '#E8E4D8', dark: '#6E6890' }),
-  // feelers: one mid tone, so they read on the sunset ground and on the night's too
-  ant: flat('#6E6890'),
-  antL: flat('#9A92AE'),
+  shell: mat('#D49A5C', { shade: '#A8693A', light: '#EBBF86', dark: '#5A3A2A', orim: 'hi' }),
+  // the side plates, the fan tail and the far limbs, one step back
+  shellD: mat('#A8693A', { shade: '#8A5A3A', light: '#D49A5C', dark: '#5A3A2A', orim: 'hi' }),
+  belly: mat('#EBBF86', { shade: '#D49A5C', light: '#F0CB98', dark: '#8A5A3A' }),
+  leg: mat('#D49A5C', { shade: '#A8693A', light: '#EBBF86', dark: '#5A3A2A', orim: 'hi' }),
+  // the arms, a step paler than the shell so they read over it and the plates
+  arm: mat('#EBBF86', { shade: '#D49A5C', light: '#F0CB98', dark: '#5A3A2A', orim: 'hi' }),
+  tusk: mat('#F0CB98', { shade: '#D49A5C', light: '#FBF3DC', dark: '#5A3A2A' }),
+  band: mat('#FBF3DC', { shade: '#E8D9B5', light: '#FFF6D8', dark: '#8A5A3A' }),
   eye: flat('#2A2440'),
-  eyeS: flat('#4A3A6E'),
+  eyeS: flat('#5A3A2A'),
   glint: flat('#FFF6D8'),
   flash: flat('#FFE7A3'),
   cheek: flat('#F08A7A'),
@@ -34,7 +38,7 @@ export const KANENARI_MATS: Mats = {
   // the yakisoba pack: clear lid over a white tray, sauced noodles, a red band
   lid: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFF6D8', dark: '#9AA0A8' }),
   noodle: mat('#C8A06A', { shade: '#8A5A3A', light: '#F6D98A', dark: '#5A3A2A' }),
-  band: flat('#E84E3C'),
+  band2: flat('#E84E3C'),
   nori: flat('#5FA85A'),
 };
 
@@ -42,37 +46,26 @@ const H = 26;
 /** Frames are 20px wide; art is authored in the 16px box at +2. */
 const OX = 2;
 
-// ---- feelers ---------------------------------------------------------------------------
+// ---- ear plates (they carry his mood, as the feelers did) ------------------------------
 
 type Ant = 'normal' | 'up' | 'droop' | 'back' | 'happy' | 'fwd' | 'perk' | 'lean';
 
-/** Left feeler, relative to its root (x → right, y → down); the right one is mirrored. */
-const ANT: Record<Ant, [number, number][]> = {
-  normal: [[0, -1], [-1, -2], [-2, -3], [-3, -4], [-4, -4], [-5, -3]],
-  // ピーン: straight up
-  up: [[0, -1], [0, -2], [0, -3], [-1, -4], [-1, -5], [-1, -6]],
-  perk: [[0, -1], [-1, -2], [-1, -3], [-2, -4], [-3, -4]],
-  droop: [[0, -1], [-1, -2], [-2, -2], [-3, -2], [-4, -1], [-5, 0], [-6, 1]],
-  // the head tipped back: swept back over the crown
-  back: [[0, -1], [-1, -2], [-1, -3], [-2, -3]],
-  happy: [[0, -1], [-1, -2], [-2, -3], [-3, -4], [-4, -4], [-5, -3]],
-  // bowing: pointing down past the face
-  fwd: [[0, -1], [-1, -1], [-2, -1]],
-  lean: [[1, -1], [1, -2], [2, -3], [3, -3], [4, -2]],
+/** Left ear plate, relative to its root at the head's edge (x → right, y → down). */
+const EAR: Record<'out' | 'up' | 'down', [number, number][]> = {
+  out: [[-1, 0], [-1, 1], [-2, 1], [-2, 2]],
+  up: [[-1, 0], [-1, -1], [-2, -1], [-2, -2]],
+  down: [[-1, 0], [-1, 1], [-1, 2], [-2, 2]],
 };
+function earOf(a: Ant): 'out' | 'up' | 'down' {
+  if (a === 'up' || a === 'perk' || a === 'happy') return 'up';
+  if (a === 'droop' || a === 'fwd') return 'down';
+  return 'out';
+}
 
-/**
- * One long feeler from its root (x, y). `dir` −1 = the left one (bends out
- * to the left), +1 = the right one (mirrored). `sway` moves its outer half
- * up (−) or down (+); `far` = the feeler on the far side (a step lighter).
- */
-function feelerAt(f: Fig, x: number, y: number, mode: Ant, dir: -1 | 1, sway = 0, far = false) {
-  const pts = ANT[mode];
-  f.part(far ? 'antL' : 'ant', { flat: true, rim: false, ol: false });
-  pts.forEach(([dx, dy], i) => {
-    const s = i >= pts.length - 2 ? sway : 0;
-    f.px(x + (dir < 0 ? dx : -dx), y + dy + s);
-  });
+/** One ear plate from its root (x, y); `dir` −1 = sticks out to the left. */
+function earAt(f: Fig, x: number, y: number, mode: Ant, dir: -1 | 1, sway = 0) {
+  f.part('shellD', { shade: 'rb', light: 't' });
+  EAR[earOf(mode)].forEach(([dx, dy], i) => f.px(x + (dir < 0 ? dx : -dx), y + dy + (i >= 3 ? sway : 0)));
 }
 
 // ---- the head --------------------------------------------------------------------------
@@ -85,215 +78,254 @@ interface HeadO {
   sway?: number;
   cheek?: number;
   mouth?: 'smile' | 'o' | 'munch' | '';
-  /** Short feelers perked (+1) or flat (0). */
+  /** (kept for the callers: the headband's ends perk up a pixel) */
   shortUp?: boolean;
 }
 
-/** One compound eye, 4×4, its top-left at (x, y). */
-function eyeFront(f: Fig, x: number, y: number, e: Eyes, glintLeft: boolean) {
+/** One big round eye, 3×3, its top-left at (x, y); the glint at the upper right. */
+function eyeFront(f: Fig, x: number, y: number, e: Eyes, glintRight: boolean) {
   f.part('eye', { flat: true, rim: false });
   if (e === 'hurt') {
-    // squeezed: > < (the left eye is the '>')
-    const rows = glintLeft ? ['##..', '..##', '##..'] : ['..##', '##..', '..##'];
-    f.rows(x, y + 1, rows);
+    const rows = glintRight ? ['#..', '.##', '#..'] : ['..#', '##.', '..#'];
+    f.rows(x, y, rows);
     return;
   }
   if (e === 'happy') {
-    // smiling: ^ ^
-    f.rows(x, y + 1, ['.##.', '#..#']);
+    f.rows(x, y + 1, ['.#.', '#.#']);
+    return;
+  }
+  if (e === 'blink' || e === 'none') {
+    f.hl(x, x + 2, y + 2);
+    if (e === 'blink') f.px(x + 1, y + 1);
     return;
   }
   if (e === 'sad' || e === 'soft') {
-    // the upper edge droops (a lid of shell), the eye rests low
-    f.hl(x, x + 3, y + 2).hl(x + 1, x + 2, y + 3).px(x + (glintLeft ? 3 : 0), y + 1).px(x + (glintLeft ? 2 : 1), y + 1);
+    // a lid of shell over the top: the eye rests low
+    f.hl(x, x + 2, y + 1).hl(x, x + 2, y + 2);
     f.part('eyeS', { flat: true, rim: false });
-    f.px(x + 1, y + 3).px(x + 2, y + 3);
+    f.px(x, y + 2).px(x + 2, y + 2);
     f.part('glint', { flat: true, rim: false });
-    if (e === 'soft') f.px(x + 1, y + 2);
-    else f.px(x + (glintLeft ? 1 : 2), y + 3);
+    f.px(x + (e === 'soft' ? 1 : glintRight ? 2 : 0), y + (e === 'soft' ? 1 : 2));
     return;
   }
-  f.px(x + 1, y).px(x + 2, y);
-  f.hl(x, x + 3, y + 1).hl(x, x + 3, y + 2);
+  f.rect(x, y, 3, 3);
   f.part('eyeS', { flat: true, rim: false });
-  f.px(x + 1, y + 3).px(x + 2, y + 3);
-  if (e === 'blink' || e === 'none') return;
+  f.px(x, y + 2).px(x + 2, y + 2);
   f.part(e === 'flash' ? 'flash' : 'glint', { flat: true, rim: false });
-  const gx = x + 1;
-  if (e === 'flash' || e === 'wide') f.rect(gx, y + (e === 'wide' ? 0 : 1), 2, 2).px(x + 3, y + 2);
+  const gx = glintRight ? x + 1 : x + 1;
+  if (e === 'flash' || e === 'wide') f.rect(x, y, 2, 2);
   else if (e === 'up') f.px(gx, y);
-  else if (e === 'down') f.px(gx, y + 2);
-  else f.px(gx, y + 1);
+  else if (e === 'down') f.px(gx, y + 1);
+  else f.px(gx, y);
+}
+
+/** The headband over the rows the head already covers (a stripe lower at the left). */
+function bandOver(f: Fig, rowsAt: (x: number) => number, x0 = -2, x1 = 17) {
+  f.part('band', { flat: true, rim: false });
+  for (let x = x0; x <= x1; x++) {
+    const r = rowsAt(x);
+    if (r === -999) continue;
+    for (const [dy, t] of [[0, 1], [1, 0]] as const)
+      if (f.filled(x, r + dy)) f.t(x >= 12 ? (dy ? -1 : 0) : t).px(x, r + dy);
+  }
+  f.t(null);
 }
 
 /**
- * Head from the front, top row at y: an 12×8 dome (x2..13), eyes in its
- * lower half like a pair of sunglasses, the short feelers between the long
- * ones. `tip`: the head tipped forward (+, we see more crown) or back (−).
+ * Head from the front, top row at y: a 13×10 bun of a head (x2..14) with the
+ * headband over the brow, the big eyes under it, the cheeks and a little
+ * nose line. The tusks are drawn by tusksFront (they hang over the chest).
+ * `tip`: the head tipped forward (+, we see more crown) or back (−).
  */
 function headFront(f: Fig, y: number, o: HeadO, tip = 0) {
-  // long feelers behind the dome
-  const ay = y + (tip > 0 ? 1 : 0);
-  feelerAt(f, 5, ay, o.ant, -1, o.sway ?? 0);
-  // (leaning: both feelers point the same way, to the right)
-  feelerAt(f, 10, ay, o.ant === 'lean' ? 'normal' : o.ant, 1, o.sway ?? 0);
+  const ery = y + 5 + (tip > 0 ? 1 : 0);
+  earAt(f, 2, ery, o.ant, -1, o.sway ?? 0);
+  earAt(f, 13, ery, o.ant, 1, o.sway ?? 0);
   f.part('shell', { shade: 'rb', light: 't' });
-  f.ell(8, y + 4, 6, 4.2);
-  // the crown's lit band and the dark far side
-  f.retone(5, y + 1, 1).retone(4, y + 2, 1).retone(6, y + 1, 1);
-  // the head plate's rim over the eyes (a brow line of the shell)
-  const ey = y + 3 + tip;
-  if (tip < 0) {
-    // looking up: the eyes ride up, the chin shows
-    eyeFront(f, 3, ey - 1, o.eyes, true);
-    eyeFront(f, 9, ey - 1, o.eyes, true);
-  } else if (tip >= 2) {
-    // a deep bow: only the tops of the eyes show under the crown
+  f.ell(7.5, y + 4.6, 6.4, 4.7);
+  f.retone(4, y + 1, 1).retone(3, y + 2, 1);
+  if (tip >= 2) {
+    // a deep bow: the crown and the band; only the tops of the eyes show
+    bandOver(f, (x) => y + 3 + (x <= 5 ? 1 : 0));
     f.part('eye', { flat: true, rim: false });
-    f.hl(4, 5, y + 6).hl(10, 11, y + 6).hl(3, 6, y + 7).hl(9, 12, y + 7);
-  } else {
-    eyeFront(f, 3, ey, o.eyes, true);
-    eyeFront(f, 9, ey, o.eyes, o.eyes !== 'hurt');
+    f.hl(3, 5, y + 7).hl(10, 12, y + 7);
+    return;
   }
-  // short feelers: a little V on the brow
-  f.part('ant', { flat: true, rim: false, ol: false });
-  if (tip < 2) {
-    const sy = y + (tip > 0 ? 1 : 0);
-    if (o.shortUp) f.px(7, sy - 1).px(7, sy - 2).px(6, sy - 3).px(8, sy - 1).px(8, sy - 2).px(9, sy - 3);
-    else f.px(7, sy - 1).px(6, sy - 2).px(8, sy - 1).px(9, sy - 2);
-  }
-  if (o.cheek && tip < 2) {
+  const lift = tip < 0 ? -1 : 0;
+  bandOver(f, (x) => y + 1 + lift + (x <= 5 ? 1 : 0) + (tip > 0 ? 1 : 0));
+  const ey = y + 4 + tip + lift;
+  eyeFront(f, 3, ey, o.eyes, true);
+  eyeFront(f, 10, ey, o.eyes, false);
+  // the little nose line between the eyes
+  f.retone(6, ey + 3, -1).retone(7, ey + 2, -1).retone(8, ey + 2, -1).retone(9, ey + 3, -1);
+  if (o.cheek) {
     f.part('cheek', { flat: true, rim: false });
-    const cy = ey + (tip < 0 ? 2 : 3);
-    f.px(3, cy).px(12, cy);
-    if (o.cheek > 1) f.px(2, cy).px(13, cy);
+    f.px(2, ey + 3).px(13, ey + 3);
+    if (o.cheek > 1) f.px(3, ey + 3).px(12, ey + 3);
   }
-  if (o.mouth && tip < 2) {
+  if (o.mouth) {
     f.part('mouth', { flat: true, rim: false });
-    const my = y + 7 + (tip < 0 ? 0 : 0);
-    if (o.mouth === 'smile') {
-      // (no line for a smile: the eyes and cheeks carry it)
-    } else if (o.mouth === 'o') f.px(7, my).px(8, my).px(7, my - 1).px(8, my - 1);
-    else if (o.mouth === 'munch') f.px(7, my).px(8, my - 1);
+    const my = ey + 4;
+    if (o.mouth === 'o') f.px(7, my).px(8, my).px(7, my + 1).px(8, my + 1);
+    else if (o.mouth === 'munch') f.px(7, my).px(8, my);
   }
+}
+
+/** A tusk (the long mouthparts): a pale line with its shadow on the right. */
+function tusk(f: Fig, pts: [number, number][], shift = 0) {
+  const mine = new Set(pts.map(([x, y]) => x * 100 + y));
+  for (const [x, y] of pts) if (!mine.has((x + 1) * 100 + y) && f.filled(x + 1, y)) f.retone(x + 1, y, -2);
+  const [lx, ly] = pts[pts.length - 1];
+  if (f.filled(lx, ly + 1)) f.retone(lx, ly + 1, -1);
+  f.part('tusk', { flat: true, shift, rim: false, ol: false });
+  pts.forEach(([x, y], i) => f.t(i === pts.length - 1 ? -1 : i === 0 ? 0 : 1).px(x, y));
+  f.t(null);
+}
+
+/** Both tusks from under the nose, front view; `y` = the head's top row. */
+function tusksFront(f: Fig, y: number, tip = 0, spread = 0) {
+  const r = y + 8 + tip;
+  const s = spread;
+  tusk(f, [[6, r], [6, r + 1], [5 - s, r + 2], [5 - s, r + 3], [5 - s, r + 4], [5 - s, r + 5]]);
+  tusk(f, [[9, r], [9, r + 1], [10 + s, r + 2], [10 + s, r + 3], [10 + s, r + 4], [10 + s, r + 5]]);
 }
 
 /** Head from the side (facing left), top row at y: the eye near the front. */
 function headSide(f: Fig, y: number, o: HeadO, tip = 0) {
-  // the far long feeler first, a step lighter, then the near one
-  const fy = y + (tip > 0 ? 1 : 0);
-  feelerAt(f, 6, fy, sideAnt(o.ant), -1, o.sway ?? 0, true);
+  earAt(f, 11, y + 5 + (tip > 0 ? 1 : 0), o.ant, 1, o.sway ?? 0);
   f.part('shell', { shade: 'rb', light: 't' });
-  f.ell(7.5, y + 4, 5.5, 4.2);
+  f.ell(7.5, y + 4.6, 5.9, 4.7);
   f.retone(5, y + 1, 1).retone(4, y + 2, 1);
-  const ey = y + 3 + tip;
-  const e = o.eyes;
-  const ex = 2;
+  const lift = tip < 0 ? -1 : 0;
+  bandOver(f, (x) => y + 1 + lift + (x <= 4 ? 1 : 0) + (tip > 0 ? 1 : 0));
   if (tip >= 2) {
     f.part('eye', { flat: true, rim: false });
-    f.hl(ex, ex + 2, y + 7);
-  } else if (e === 'hurt') {
+    f.hl(2, 4, y + 7);
+    return;
+  }
+  const ey = y + 4 + tip + lift;
+  const e = o.eyes;
+  const ex = 2;
+  if (e === 'hurt') {
     f.part('eye', { flat: true, rim: false });
-    f.hl(ex, ex + 2, ey + 2).px(ex + 1, ey + 3);
+    f.rows(ex, ey, ['#..', '.##', '#..']);
   } else if (e === 'happy') {
     f.part('eye', { flat: true, rim: false });
-    f.px(ex, ey + 2).px(ex + 1, ey + 1).px(ex + 2, ey + 2);
-    f.part('glint', { flat: true, rim: false });
-    f.px(ex + 1, ey + 1);
+    f.rows(ex, ey + 1, ['.#.', '#.#']);
+  } else if (e === 'blink' || e === 'none') {
+    f.part('eye', { flat: true, rim: false });
+    f.hl(ex, ex + 2, ey + 2);
   } else if (e === 'sad' || e === 'soft') {
     f.part('eye', { flat: true, rim: false });
-    f.hl(ex, ex + 2, ey + 2).px(ex + 2, ey + 1);
-    f.part('eyeS', { flat: true, rim: false });
-    f.px(ex + 1, ey + 3);
+    f.hl(ex, ex + 2, ey + 1).hl(ex, ex + 2, ey + 2);
     f.part('glint', { flat: true, rim: false });
-    f.px(ex + (e === 'soft' ? 1 : 0), e === 'soft' ? ey + 2 : ey + 3);
+    f.px(ex + 1, ey + (e === 'soft' ? 1 : 2));
   } else {
-    const dy = tip < 0 ? -1 : 0;
     f.part('eye', { flat: true, rim: false });
-    f.px(ex + 1, ey + dy).px(ex + 2, ey + dy).hl(ex, ex + 2, ey + 1 + dy).hl(ex, ex + 2, ey + 2 + dy);
+    f.rect(ex, ey, 3, 3);
     f.part('eyeS', { flat: true, rim: false });
-    f.px(ex + 1, ey + 3 + dy);
-    if (e !== 'blink' && e !== 'none') {
-      f.part(e === 'flash' ? 'flash' : 'glint', { flat: true, rim: false });
-      if (e === 'flash' || e === 'wide') f.rect(ex, ey + dy, 2, 2);
-      else f.px(ex, ey + 1 + dy + (e === 'down' ? 1 : e === 'up' ? -1 : 0));
-    }
+    f.px(ex + 2, ey + 2);
+    f.part(e === 'flash' ? 'flash' : 'glint', { flat: true, rim: false });
+    if (e === 'flash' || e === 'wide') f.rect(ex, ey, 2, 2);
+    else f.px(ex + 1, ey + (e === 'down' ? 1 : 0));
   }
-  // the near long feeler and the short one, from the front of the head
-  feelerAt(f, 4, fy, sideAnt(o.ant), -1, o.sway ?? 0);
-  if (tip < 2) {
-    f.part('ant', { flat: true, rim: false, ol: false });
-    if (o.shortUp) f.px(2, fy).px(1, fy - 1);
-    else f.px(2, fy + 1).px(1, fy + 1);
-  }
-  if (o.cheek && tip < 2) {
+  if (o.cheek) {
     f.part('cheek', { flat: true, rim: false });
-    f.px(ex + 1, ey + 4 + (tip < 0 ? -1 : 0));
-    if (o.cheek > 1) f.px(ex + 2, ey + 4 + (tip < 0 ? -1 : 0));
+    f.px(ex + 2, ey + 3);
+    if (o.cheek > 1) f.px(ex + 3, ey + 3);
   }
-  if (o.mouth && tip < 2) {
+  if (o.mouth === 'o' || o.mouth === 'munch') {
     f.part('mouth', { flat: true, rim: false });
-    const my = y + 7;
-    if (o.mouth === 'o') f.px(2, my).px(2, my - 1);
-    else f.px(2, my);
+    f.px(1, ey + 4);
+    if (o.mouth === 'o') f.px(1, ey + 5);
   }
 }
 
-/** Side feelers lean forward (the face is on the left). */
-function sideAnt(a: Ant): Ant {
-  return a;
+/** Tusks from the side: the far one a step back, the near one in front. */
+function tusksSide(f: Fig, y: number, tip = 0, dx = 0) {
+  const r = y + 8 + tip;
+  tusk(f, [[4 + dx, r], [4 + dx, r + 1], [3 + dx, r + 2], [3 + dx, r + 3], [3 + dx, r + 4]], -1);
+  tusk(f, [[2 + dx, r], [2 + dx, r + 1], [1 + dx, r + 2], [1 + dx, r + 3], [1 + dx, r + 4], [1 + dx, r + 5]]);
 }
 
-/** Head from behind: the smooth head plate, the eyes just showing at its sides. */
+/** Head from behind: the round head plate, the headband all the way round, the ear plates. */
 function headBack(f: Fig, y: number, o: HeadO, tip = 0) {
+  earAt(f, 2, y + 5, o.ant, -1, o.sway ?? 0);
+  earAt(f, 13, y + 5, o.ant, 1, o.sway ?? 0);
   f.part('shell', { shade: 'rb', light: 't' });
-  f.ell(8, y + 4, 6, 4.2);
-  f.retone(5, y + 1, 1).retone(4, y + 2, 1).retone(4, y + 3, 1).retone(6, y + 1, 1);
-  // feelers in front of the head (they come out of its face)
-  const a = o.ant === 'back' ? 'normal' : o.ant;
-  feelerAt(f, 5, y + (tip > 0 ? 1 : 0), a, -1, o.sway ?? 0);
-  feelerAt(f, 10, y + (tip > 0 ? 1 : 0), a, 1, o.sway ?? 0);
+  f.ell(7.5, y + 4.6, 6.4, 4.7);
+  f.retone(4, y + 1, 1).retone(3, y + 2, 1).retone(3, y + 3, 1);
+  bandOver(f, (x) => y + 2 + (tip < 0 ? -1 : 0) + (x >= 10 ? 1 : 0));
 }
 
 // ---- body -------------------------------------------------------------------------------
 
 /**
- * Front: the pale underside with the small legs folded over it in three
- * pairs, framed by the edges of the armour (every plate a step on the side).
- * `washa` wiggles the folded legs (0/1/2).
+ * The armour plates at his sides, overlapping like scales and poking out
+ * past the body (drawn behind it). `side`: which sides show. `washa` makes
+ * every other plate flick out a pixel (わしゃっ).
  */
-function bodyFront(f: Fig, y: number, washa = 0, squash = 0) {
-  f.part('shell', { shade: 'rb', light: 't', inner: false });
-  f.ell(8, y + 5.5 + squash * 0.5, 6 + squash * 0.3, 5.8 - squash * 0.5);
-  // the armour's edges wrap round both sides: a step at every plate
-  for (const r of [2, 4, 6, 8]) {
-    const yy = y + r + (r > 4 ? squash : 0);
-    for (const x of [2, 3, 4]) if (f.filled(x, yy)) f.retone(x, yy, -1);
-    for (const x of [11, 12, 13]) if (f.filled(x, yy)) f.retone(x, yy, x === 13 ? -2 : -1);
-  }
-  // the pale underside
-  f.part('belly', { shade: 'rb', light: 'tl', inner: false });
-  f.ell(8, y + 6 + squash * 0.5, 2.9, 4.4 - squash * 0.5);
-  // the small legs, folded in three pairs along its edges (わしゃっ: they wiggle)
-  f.part('leg', { flat: true, rim: false, ol: false });
-  for (const [i, r] of [[0, 3], [1, 5], [2, 7]] as const) {
-    const yy = y + r + (i > 0 ? squash : 0);
-    const w = washa && (i + washa) % 2 === 0 ? -1 : 0;
-    f.t(-1).px(5, yy + w).px(6, yy + 1 + w).px(10, yy - w).px(9, yy + 1 - w);
+function scales(f: Fig, y: number, side: 'both' | 'left' | 'right', washa = 0, squash = 0, n = 5) {
+  f.part('shellD', { flat: true, inner: false });
+  for (let k = 0; k < n; k++) {
+    const py = y + k * 2 + (k > 1 ? squash : 0);
+    const w = washa && (k + washa) % 2 === 0 ? 1 : 0;
+    if (side !== 'right') f.t(0).hl(0, 1, py).t(-1).hl(-1 - w, 1, py + 1);
+    if (side !== 'left') f.t(-1).hl(14, 15, py).t(-2).hl(14, 16 + w, py + 1);
   }
   f.t(null);
 }
 
-/** Back: seven chest plates stepping down, lit from the left, each end a small point. */
+/** Letters of the body pictures → material and tone. */
+const BODY_MAP = {
+  s: ['shell', 0], L: ['shell', 1], d: ['shell', -1], D: ['shell', -2],
+  b: ['belly', 0], H: ['belly', 1], h: ['belly', -1],
+} as const;
+
+/** The body from the front (x 1..14): the egg with the paler striped tummy. */
+const BODY_FRONT = [
+  '....ssssss....',
+  '..Lssssssssd..',
+  '.LsHbbbbbbbsd.',
+  '.Lshhhhhhhhsd.',
+  'LsHbbbbbbbbbsd',
+  'Lshhhhhhhhhhsd',
+  'Lsbbbbbbbbbbsd',
+  'Lshhhhhhhhhhdd',
+  '.sbbbbbbbbbbd.',
+  '.dshhhhhhhhdd.',
+  '..ddsssssddd..',
+];
+
+function stamp(f: Fig, x: number, y: number, rows: readonly string[], squash = 0, at = 4) {
+  // squash: the rows from `at` down drop by that many (the top half stays)
+  rows.forEach((row, j) => {
+    const yy = y + j + (j >= at ? squash : 0);
+    f.rows(x, yy, [row], BODY_MAP as unknown as Record<string, [string, number]>);
+    if (squash && j === at - 1) for (let k = 1; k <= squash; k++) f.rows(x, y + j + k, [row], BODY_MAP as unknown as Record<string, [string, number]>);
+  });
+}
+
+/**
+ * Front: an egg of a body with the paler striped tummy (the segments), the
+ * side plates poking out behind it. `washa` flutters the plates (0/1/2).
+ */
+function bodyFront(f: Fig, y: number, washa = 0, squash = 0) {
+  scales(f, y + 2, 'both', washa, squash, 4);
+  f.part('shell', { flat: true, inner: false });
+  stamp(f, 1, y, BODY_FRONT, squash);
+}
+
+/** Back: the plates stepping down. */
 function bodyBack(f: Fig, y: number, squash = 0) {
+  scales(f, y - 1, 'both', 0, squash, 6);
   platesBack(f, y, squash);
 }
 
 /**
  * The armour from behind (rows y−2 … y+10, over the lower half of the head):
- * seven chest plates, each one a lit band and a dark lower edge that dips
- * in the middle (the back is round), the ends of every edge poking out 1px
- * (the saw-tooth sides of the real thing).
+ * plates each a lit band and a dark lower edge that dips in the middle (the
+ * back is round).
  */
 function platesBack(f: Fig, y: number, squash = 0) {
   const top = y - 2;
@@ -313,119 +345,156 @@ function platesBack(f: Fig, y: number, squash = 0) {
       else t = 0;
       f.t(t).px(x, yy);
     }
-    // the saw-tooth: every plate's edge pokes out at both sides
-    const rr = r + 1;
-    if (x0 === 2 && rr % 2 === 0) f.t(-1).px(1, yy).t(-2).px(14, yy);
   }
   f.t(null);
 }
 
-/** Side (facing left): the pale front on the left, the plates along the curved back on the right. */
+/** The body from the side (x 1..15): the striped tummy in front, the plates down his side and back. */
+const BODY_SIDE = [
+  '....ssssss.....',
+  '..Lssssssssd...',
+  '.HbbLssssssdd..',
+  '.hhhsdddddddd..',
+  'HbbbLsssssssdd.',
+  'hhhhsdddddddd..',
+  'HbbbLsssssssdd.',
+  'hhhhsdddddddd..',
+  '.bbbssssssssd..',
+  '.hhhsddddddd...',
+  '..ddsssssdd....',
+];
+
+/** Side (facing left): the striped tummy on the left, the plates poking out down the back. */
 function bodySide(f: Fig, y: number, washa = 0, squash = 0) {
-  f.part('shell', { shade: 'rb', light: 't', inner: false });
-  f.ell(8, y + 5.5 + squash * 0.5, 5.6, 5.8 - squash * 0.5);
-  // plate steps along the back
-  const tops = [0, 1.5, 3, 4.5, 6, 7.5, 9].map((v) => Math.round(v + (v > 4 ? squash : 0)));
-  for (let k = 0; k < tops.length - 1; k++) {
-    const low = y + tops[k + 1] - 1;
-    for (let x = 9; x <= 14; x++) if (f.filled(x, low)) f.retone(x, low, -1);
-    // each plate's rear point
-    if (k > 0 && k < 6) {
-      const ex = [...Array(16).keys()].reverse().find((x) => f.filled(x, low));
-      if (ex !== undefined && ex < 15) f.t(-1).px(ex + 1, low).t(null);
-    }
-  }
-  f.part('belly', { shade: 'rb', light: 'tl', inner: false });
-  f.ell(5.2, y + 6 + squash * 0.5, 2.8, 4.6 - squash * 0.5);
-  f.part('leg', { flat: true, rim: false, ol: false });
-  for (const [i, r] of [[0, 3], [1, 5], [2, 7]] as const) {
-    const yy = y + r + (i > 0 ? squash : 0);
-    const w = washa && (i + washa) % 2 === 0 ? -1 : 0;
-    f.t(-1).px(5, yy + w).px(4, yy + w).t(-2).px(3, yy + w);
+  f.part('shellD', { flat: true, inner: false });
+  for (let k = 0; k < 4; k++) {
+    const py = y + 2 + k * 2 + (k > 1 ? squash : 0);
+    const w = washa && (k + washa) % 2 === 0 ? 1 : 0;
+    f.t(0).hl(12, 14, py).t(-1).hl(12, 15 + w, py + 1);
   }
   f.t(null);
+  f.part('shell', { flat: true, inner: false });
+  stamp(f, 1, y, BODY_SIDE, squash);
 }
 
 // ---- tail fan, legs, arms --------------------------------------------------------------
 
-/** The fan tail behind him, seen from the front: two flaps flaring out under the body. */
+/** The striped fan tail behind him, seen from the front: flaps flaring out under the body. */
 function fanFront(f: Fig, y: number, sw = 0) {
   f.part('shellD', { shade: 'rb', light: 't' });
-  f.poly([[4, y + 6], [1 + sw, 23.2], [2 + sw, 24.6], [5.5, 23.6]]);
-  f.poly([[12, y + 6], [15 + sw, 23.2], [14 + sw, 24.6], [10.5, 23.6]]);
-  // the middle plate reaches the ground between the legs
-  f.poly([[6.5, y + 9], [9.5, y + 9], [8.6, 24.6], [7.4, 24.6]]);
+  f.poly([[4, y + 7], [1 + sw, 23.2], [2 + sw, 24.6], [5.5, 23.6]]);
+  f.poly([[11, y + 7], [14 + sw, 23.2], [13 + sw, 24.6], [9.5, 23.6]]);
+  f.poly([[6, y + 9], [9, y + 9], [8.6, 24.6], [6.4, 24.6]]);
+  // the ribs of the fan
+  f.retone(2 + sw, 23, -1).retone(3 + sw, 22, -1).retone(13 + sw, 23, -2).retone(12 + sw, 22, -2);
 }
 
 /**
- * Fan tail from behind, under the last plate: the tail plate (a rounded
- * point with a ridge) between the two paddles, which flare out like the
- * hem of a cape. `sw` sways the hem.
+ * Fan tail from behind, under the last plate: the tail plate between the
+ * two paddles, every one ribbed (the stripes of the fan). `sw` sways the hem.
  */
 const FAN_BACK = [
   '....hHhooood....',
-  '..pphHhooood=pp.',
-  '.ppppHhoood=pppp',
-  'pppp.hhoo=d.pppp',
+  '..pphHdoodod=pp.',
+  '.pPpPHhdoodo=pPp',
+  'pPpp.hdodo=d.pPp',
   'p.p...hd=....p.p',
 ];
 function fanBack(f: Fig, y: number, sw = 0) {
   f.part('shellD', { shade: '', light: '', inner: false });
   FAN_BACK.forEach((row, j) => {
-    f.rows(j >= 2 ? sw : 0, y + 10 + j, [row.replace(/[hHod=]/g, '.')], { p: [null, 0] });
+    f.rows(j >= 2 ? sw : 0, y + 10 + j, [row.replace(/[hHod=]/g, '.')], { p: [null, 0], P: [null, -1] });
   });
   f.part('shell', { shade: '', light: '', inner: false, sepAll: true });
   FAN_BACK.forEach((row, j) => {
-    f.rows(0, y + 10 + j, [row.replace(/p/g, '.')], { h: [null, 0], H: [null, 1], o: [null, 0], d: [null, -1], '=': [null, -2] });
+    f.rows(0, y + 10 + j, [row.replace(/[pP]/g, '.')], { h: [null, 0], H: [null, 1], o: [null, 0], d: [null, -1], '=': [null, -2] });
   });
 }
 
-/** Fan tail from the side: a cape hanging behind (right), flaring at the hem. */
+/** Fan tail from the side: hanging behind (right), flaring at the hem, ribbed. */
 function fanSide(f: Fig, y: number, sw = 0) {
   f.part('shellD', { shade: 'rb', light: 't' });
   f.poly([[10, y + 5], [14.5, y + 9], [15.6 + sw, 23.6], [12.5 + sw, 24.6], [9.5, 22]]);
+  f.retone(13 + sw, 22, -1).retone(13 + sw, 21, -1).retone(14 + sw, 23, -2).retone(12, 19, -1);
 }
 
-/** Feet and the hind legs that carry him. Front/back: both; side: near and far. */
+/** Stout segmented legs with three-toed feet. Front/back: both; side: near and far. */
 function legs(f: Fig, p: Pose, by: number, view: 'front' | 'side', crouch = 0) {
   const st = p.mode === 'walk' ? p.step % 4 : 0;
   const y = H - 2;
-  const hip = by + 10;
+  const hip = by + 9;
+  // one leg: a 2px column (lit | shade) with a knee line, the foot 2 rows
+  const leg = (x: number, foot: number, bot: number, shift: number, toesLeft: boolean) => {
+    f.part('leg', { flat: true, shift });
+    for (let yy = hip; yy < bot; yy++) {
+      const knee = yy === Math.round((hip + bot) / 2);
+      f.t(knee ? -1 : 1).px(x, yy).t(knee ? -2 : 0).px(x + 1, yy);
+    }
+    // the foot: a pad and three toes (the gaps fill with the outline)
+    f.t(0).hl(x - (toesLeft ? 1 : 0), x + 1 + (toesLeft ? 0 : 1), bot);
+    for (const k of [0, 2, 4]) f.t(-1).px(foot + k, bot + 1);
+    f.t(null);
+  };
   if (view === 'front') {
     const l = st === 1 ? 1 : 0;
     const r = st === 3 ? 1 : 0;
     const spread = crouch ? 1 : 0;
-    f.part('leg', { shade: 'rb', light: 't' });
-    if (y - l > hip) f.rect(5 - spread, hip, 2, y - l - hip);
-    f.rows(4 - spread * 2, y - l, ['.##', '###']);
-    f.part('leg', { shade: 'rb', light: 't', shift: -1 });
-    if (y - r > hip) f.rect(9 + spread, hip, 2, y - r - hip);
-    f.rows(9 + spread * 2, y - r, ['##.', '###']);
+    leg(5 - spread, 2 - spread * 2, y - l, 0, true);
+    leg(9 + spread, 9 + spread * 2, y - r, -1, false);
   } else {
     const a = st === 1 ? -1 : st === 3 ? 1 : 0;
-    f.part('leg', { shade: 'rb', light: 't', shift: -1 });
-    if (y > hip) f.rect(8 - a, hip, 2, y - hip);
-    f.rows(7 - a, y, ['.##', '###']);
-    f.part('leg', { shade: 'rb', light: 't' });
-    if (y > hip) f.rect(6 + a, hip, 2, y - hip);
-    f.rows(5 + a, y, ['.##', '###']);
+    leg(8 - a, 6 - a, y, -1, true);
+    leg(6 + a, 4 + a, y, 0, true);
   }
 }
 
+const ARM_MAP = { a: ['arm', 1], A: ['arm', 0], c: ['arm', -1], C: ['arm', -2], D: ['shell', -2] } as const;
+/** The left arm hanging at his side (x −1..2 from the shoulder row): two segments and a pincer. */
+const ARM_HANG = ['..aA', '.aAD', '.aAD', '.ccD', '.aAD', '.aA.', 'aAA.', 'a.A.'];
+/** The near arm from the side (x 4..7). */
+const ARM_SIDE = ['.aAD', '.aAD', '.ccD', '.aAD', '.aA.', 'aAA.', 'a.A.'];
+
+/** A hanging arm: 'L'/'R' from the front or back, 'S' the near one from the side. */
+function hangArm(f: Fig, which: 'L' | 'R' | 'S', y: number, swing = 0, shift = 0) {
+  f.part('arm', { flat: true, shift });
+  const map = ARM_MAP as unknown as Record<string, [string, number]>;
+  if (which === 'S') {
+    f.rows(4 + swing, y, ARM_SIDE.slice(0, 4), map);
+    f.rows(4 + swing * 2, y + 4, ARM_SIDE.slice(4), map);
+    return;
+  }
+  const rows = which === 'L' ? ARM_HANG : ARM_HANG.map((r) => [...r].reverse().join('').replace(/a/g, 'A').replace(/A(?=.)/, 'A'));
+  const x = which === 'L' ? -1 : 13;
+  f.rows(x, y, rows.slice(0, 5), map);
+  f.rows(x + (which === 'L' ? -swing : swing) * 0, y + 5, rows.slice(5), map);
+  void swing;
+}
+
+/** The two-fingered pincer at the end of an arm, pointing `d`, around (hx, hy). */
+function clawPts(hx: number, hy: number, d: 'u' | 'd' | 'l' | 'r'): [number, number][] {
+  const rows: Record<typeof d, [string[], number, number]> = {
+    u: [['#.#', '###'], -1, -1],
+    d: [['###', '#.#'], -1, 0],
+    l: [['##', '.#', '##'], -1, -1],
+    r: [['##', '#.', '##'], 0, -1],
+  };
+  const [rs, ox, oy] = rows[d];
+  const out: [number, number][] = [];
+  rs.forEach((row, j) => [...row].forEach((c, i) => c === '#' && out.push([hx + ox + i, hy + oy + j])));
+  return out;
+}
+
 /**
- * A thin arm (the first pair of legs) from the shoulder (x0, y0) to a small
- * round hand whose top-left is (hx, hy). Where it lies over his body, the
- * body round it takes a dark line (an outline inside the silhouette), so a
- * pale arm reads over the pale tummy too.
+ * A segmented arm from the shoulder (x0, y0) to a two-fingered pincer at
+ * (hx, hy). The upper arm is 2px thick; the elbow is a darker segment line.
+ * Where it lies over his body, the body round it takes a dark line, so the
+ * arm reads over the tummy too.
  */
 function arm(f: Fig, x0: number, y0: number, hx: number, hy: number, shift = 0) {
-  const ex = hx + (hx < x0 ? 1 : 0);
-  const ey = hy + (hy < y0 ? 1 : 0);
-  // the pixels the arm will cover (drawing offset applied by px/filled)
   const pts: [number, number][] = [];
   {
     let xa = Math.round(x0), ya = Math.round(y0);
-    const xb = Math.round(ex), yb = Math.round(ey);
+    const xb = Math.round(hx), yb = Math.round(hy);
     const dx = Math.abs(xb - xa), dy = -Math.abs(yb - ya);
     const sx = xa < xb ? 1 : -1, sy = ya < yb ? 1 : -1;
     let err = dx + dy;
@@ -437,13 +506,28 @@ function arm(f: Fig, x0: number, y0: number, hx: number, hy: number, shift = 0) 
       if (e2 <= dx) { err += dx; ya += sy; }
     }
   }
-  for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) pts.push([hx + i, hy + j]);
-  const mine = new Set(pts.map(([x, y]) => x * 100 + y));
-  for (const [x, y] of pts)
+  const line = pts.length;
+  // the upper arm a pixel thicker (toward his middle)
+  const inward = x0 < 8 ? 1 : -1;
+  const half = Math.max(1, Math.floor(line / 2));
+  for (let i = 0; i < half; i++) pts.push([pts[i][0] + inward, pts[i][1]]);
+  const ddx = hx - x0, ddy = hy - y0;
+  const d: 'u' | 'd' | 'l' | 'r' = ddy < -2 && Math.abs(ddy) >= Math.abs(ddx) * 0.6 ? 'u' : Math.abs(ddx) > Math.abs(ddy) ? (ddx < 0 ? 'l' : 'r') : 'd';
+  const claw = clawPts(hx, hy, d);
+  const mine = new Set([...pts, ...claw].map(([x, y]) => x * 100 + y));
+  for (const [x, y] of [...pts, ...claw])
     for (const [nx, ny] of [[x + 1, y], [x, y + 1], [x - 1, y], [x, y - 1]] as [number, number][])
-      if (!mine.has(nx * 100 + ny) && f.filled(nx, ny) && !(nx === x0 && ny === y0)) f.retone(nx, ny, -2);
-  f.part('leg', { shade: 'rb', light: 't', shift });
-  for (const [x, y] of pts) f.px(x, y);
+      if (!mine.has(nx * 100 + ny) && f.filled(nx, ny) && !(Math.abs(nx - x0) <= 1 && ny === y0)) f.retone(nx, ny, -2);
+  f.part('arm', { flat: true, shift });
+  pts.forEach(([x, y], i) => f.t(i < line ? 1 : 0).px(x, y));
+  f.t(0);
+  for (const [x, y] of claw) f.px(x, y);
+  f.t(null);
+  // the elbow
+  if (line >= 4) {
+    const [ex, ey] = pts[half];
+    f.retone(ex, ey, -1);
+  }
 }
 
 /** The yakisoba pack held in both hands (8×4), top-left at (x, y). */
@@ -452,7 +536,7 @@ function pack(f: Fig, x: number, y: number, open = false) {
   f.rect(x, y + 1, 8, 3);
   f.part('nori', { flat: true, rim: false });
   f.px(x + 2, y + 1).px(x + 5, y + 2);
-  f.part('band', { flat: true, rim: false });
+  f.part('band2', { flat: true, rim: false });
   if (open) f.px(x + 6, y + 1);
   else f.vl(x + 4, y + 1, y + 3);
   f.part('lid', { flat: true, rim: false });
@@ -527,7 +611,7 @@ function front(f: Fig, p: Pose) {
   const crouch = act === 'crouch_hand' ? 3 : 0;
   const low = act === 'hurt' ? 1 : 0;
   const by = 10 + u + crouch + low;
-  const hy = 3 + u + crouch + low + (act === 'bow_small' || act === 'bow30' ? 1 : 0);
+  const hy = 2 + u + crouch + low + (act === 'bow_small' || act === 'bow30' ? 1 : 0);
   const fsw = walking ? (st === 1 ? -1 : st === 3 ? 1 : 0) : 0;
   fanFront(f, by, fsw);
   legs(f, p, by - crouch, 'front', crouch);
@@ -539,23 +623,24 @@ function front(f: Fig, p: Pose) {
   const washa = act === 'washa' ? 1 + (p.ph % 2) : 0;
   bodyFront(f, by, washa, low);
   headFront(f, hy, lk.head, lk.tip);
+  if (lk.tip < 2) tusksFront(f, hy, Math.max(0, lk.tip), act === 'surprised' || act === 'shock' || act === 'shock_pack' ? 1 : 0);
   // arms (after the head: raised hands pass in front of it)
   const sy = by + 3;
   const L = (hx: number, hy2: number) => arm(f, 2, sy, hx, hy2);
   const R = (hx: number, hy2: number) => arm(f, 13, sy, hx, hy2, -1);
   const swing = walking ? (st === 1 ? 1 : st === 3 ? -1 : 0) : 0;
-  const hangL = () => L(-1, sy + 3 + swing);
-  const hangR = () => R(15, sy + 3 - swing);
+  const hangL = () => hangArm(f, 'L', by + 2 + (swing > 0 ? 1 : 0));
+  const hangR = () => hangArm(f, 'R', by + 2 + (swing < 0 ? 1 : 0), 0, -1);
   switch (act) {
     case 'pose': {
       const up = p.ph === 1 ? 1 : 0;
-      L(-2, sy - 5 - up);
-      R(16, sy - 5 - up);
+      L(-1, sy - 8 - up);
+      R(16, sy - 8 - up);
       break;
     }
     case 'wave': {
       hangL();
-      const hand: [number, number][] = [[15, sy - 5], [16, sy - 7], [16, sy - 3]];
+      const hand: [number, number][] = [[16, sy - 6], [16, sy - 8], [16, sy - 4]];
       R(hand[p.ph % 3][0], hand[p.ph % 3][1]);
       break;
     }
@@ -598,12 +683,12 @@ function front(f: Fig, p: Pose) {
       break;
     case 'surprised':
     case 'shock':
-      L(-2, sy - 3);
-      R(16, sy - 3);
+      L(-1, sy - 5);
+      R(16, sy - 5);
       break;
     case 'happy':
-      L(-2, sy - 1);
-      R(16, sy - 1);
+      L(-1, sy - 3);
+      R(16, sy - 3);
       break;
     case 'hold_net':
       // both hands up on the pole at his right (the pole is composited: withNet)
@@ -645,7 +730,7 @@ function back(f: Fig, p: Pose) {
   const act = p.act;
   const crouch = act === 'crouch_hand' ? 3 : 0;
   const by = 10 + u + crouch;
-  const hy = 3 + u + crouch + (p.lookUp ? 1 : 0);
+  const hy = 2 + u + crouch + (p.lookUp ? 1 : 0);
   const fsw = walking ? (st === 1 ? 1 : st === 3 ? -1 : 0) : 0;
   const swing = walking ? (st === 1 ? -1 : st === 3 ? 1 : 0) : 0;
   legs(f, p, by - crouch, 'front', crouch);
@@ -656,15 +741,16 @@ function back(f: Fig, p: Pose) {
     if (act === 'crouch_hand') {
       arm(f, 2, sy + 1, 0, sy + 4, -1);
       arm(f, 13, sy + 1, 14, sy + 5, -1);
-    } else {
-      arm(f, 2, sy + 1, -1, sy + 4 + swing, -1);
-      arm(f, 13, sy + 1, 15, sy + 4 - swing, -1);
     }
   }
   const sway = walking ? (st === 1 || st === 3 ? 1 : 0) : p.breath ? 1 : 0;
   headBack(f, hy, { eyes: 'open', ant: banzai ? 'up' : p.lookUp ? 'back' : 'normal', sway }, p.lookUp ? -1 : 0);
   bodyBack(f, by);
   fanBack(f, by, fsw);
+  if (!banzai && act !== 'crouch_hand') {
+    hangArm(f, 'L', by + 2 + (swing > 0 ? 1 : 0), 0, -1);
+    hangArm(f, 'R', by + 2 + (swing < 0 ? 1 : 0), 0, -1);
+  }
   if (banzai) {
     // ばんざい: both arms straight up
     arm(f, 2, sy, -1, sy - 8);
@@ -681,7 +767,7 @@ function side(f: Fig, p: Pose) {
   const crouch = act === 'crouch_hand' ? 3 : 0;
   const low = act === 'hurt' ? 1 : 0;
   const by = 10 + u + crouch + low;
-  const hy = 3 + u + crouch + low + (act === 'bow_small' ? 1 : 0);
+  const hy = 2 + u + crouch + low + (act === 'bow_small' ? 1 : 0);
   const hx = act === 'bow_small' || act === 'crouch_hand' ? -1 : 0;
   const fsw = walking ? (st === 1 ? 1 : st === 3 ? -1 : 0) : 0;
   const swing = walking ? (st === 1 ? 1 : st === 3 ? -1 : 0) : 0;
@@ -694,6 +780,7 @@ function side(f: Fig, p: Pose) {
   bodySide(f, by, washa, low);
   f.offset(OX + hx, f.oy);
   headSide(f, hy, lk.head, lk.tip);
+  if (lk.tip < 2) tusksSide(f, hy, Math.max(0, lk.tip));
   f.offset(OX, f.oy);
   // the near arm
   const A = (x: number, y: number) => arm(f, 4, sy, x, y);
@@ -750,7 +837,7 @@ function side(f: Fig, p: Pose) {
       A(0, sy - 7);
       break;
     default:
-      A(2 - swing, sy + 3);
+      hangArm(f, 'S', by + 2, -swing);
   }
   if (act === 'shock' || act === 'shock_pack') flashLines(f, hy, false);
 }
@@ -773,7 +860,8 @@ function fallen(f: Fig, p: Pose) {
     const up = (i + ph) % 2 === 0;
     f.hl(up ? 1 : 2, 3, by + r).hl(12, up ? 14 : 13, by + r);
   }
-  headFront(f, 3, { eyes: ph ? 'open' : 'down', ant: 'droop', sway: ph }, 0);
+  headFront(f, 2, { eyes: ph ? 'open' : 'down', ant: 'droop', sway: ph }, 0);
+  tusksFront(f, 2, 0, ph);
   const sy = by + 3;
   arm(f, 2, sy, -1, sy - 3 + ph);
   arm(f, 13, sy, 15, sy - 2 - ph, -1);

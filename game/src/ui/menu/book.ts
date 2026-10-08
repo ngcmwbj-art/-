@@ -46,6 +46,8 @@ import { ASHIATO_ROW_LABEL, drawAshiatoPage, hasAshiatoPage } from './book_ashia
 import { stickerUribo } from '../../art/props/ashiato_art';
 // ① の すみの 1ページ『チクタク堂の 7つの 時計』（02_ch2_index #88）：ふしぎの 一覧の いちばん下、番号なし・数に 入れない。決定で めくる
 import { drawTokeiPage, hasTokeiPage, TOKEI_ROW_LABEL, tokeiTurn } from './book_tokei7';
+// ① ② の『はじめて』（グソっ君の はじめて帳、02_ch2_index #89）：『みずべ』の うしろの 欄
+import { drawHajimetePage, HAJIMETE_TAB_NAME, hajimeteHave, hajimeteRows, hasHajimete } from './book_hajimete';
 
 // ---- ② 『むし』: 捕まえない自由研究 (50_ch2_story 10.21, 52_ch2_level_art 13.2, 02_ch2_index #64) ----
 
@@ -559,21 +561,26 @@ const LIST_Y = SP.y + 30;
 export class BookPage implements MenuPage {
   private vol: 1 | 2 = 1;
   private sec = 0;
-  // (one per section: ② has five with 『むし』 and 『みずべ』, 02 #81)
+  // (one per section: ② has six with 『むし』, 『みずべ』 and 『はじめて』, 02 #81・#89)
   private sel = [
-    [0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0],
   ];
   private scroll = [
-    [0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0],
   ];
 
   /** The sections of the open notebook (② gets 『むし』 once 捕まえない自由研究 has begun, 02_ch2_index #64). */
   private sections(vol: 1 | 2 = this.vol): string[] {
     const base = vol === 2 && hasMushi() ? [...SECTIONS, MUSHI_TAB] : SECTIONS;
     // 『みずべ』（02 #81）：① ② の いちばん うしろ
-    return hasMizube(vol) ? [...base, MIZUBE_TAB] : base;
+    const mz = hasMizube(vol) ? [...base, MIZUBE_TAB] : base;
+    // 『はじめて』（02 #89）：その うしろ
+    return hasHajimete(vol) ? [...mz, HAJIMETE_TAB_NAME] : mz;
+  }
+  private get isHajimete(): boolean {
+    return this.sections()[this.sec] === HAJIMETE_TAB_NAME;
   }
   /** The open section by its name (① has 『みずべ』 where ② has 『むし』). */
   private get isMushi(): boolean {
@@ -628,6 +635,7 @@ export class BookPage implements MenuPage {
   private count(): number {
     const v = this.v;
     if (this.isMizube) return mizubeRows(this.vol).length;
+    if (this.isHajimete) return hajimeteRows(this.vol).length;
     if (this.isMushi) return mushiRows().length;
     if (this.sec === 0) return v.fushigi.length + (v.n === 2 && hasNihyakuPage() ? 1 : 0) + (v.n === 2 && hasShikishiPage() ? 1 : 0) + (v.n === 2 && hasAshiatoPage() ? 1 : 0) + (v.n === 1 && hasTokeiPage() ? 1 : 0);
     return this.sec === 1 ? v.enemies.length : totalIn(v, v.n === 1 ? 19 : 17);
@@ -640,7 +648,7 @@ export class BookPage implements MenuPage {
     // a key while the cover still lies there opens it at once
     if (this.volT < COVER_IN + COVER_HOLD && (input.pressed('confirm') || input.pressed('up') || input.pressed('down'))) this.volT = COVER_IN + COVER_HOLD;
     // 『チクタク堂の 7つの 時計』（02 #88）：決定で ページを めくる
-    else if (input.pressed('confirm') && this.vol === 1 && this.sec === 0 && !this.isMizube && !this.isMushi && hasTokeiPage() && this.sel[0][0] === this.v.fushigi.length) {
+    else if (input.pressed('confirm') && this.vol === 1 && this.sec === 0 && !this.isMizube && !this.isHajimete && !this.isMushi && hasTokeiPage() && this.sel[0][0] === this.v.fushigi.length) {
       tokeiTurn();
       sfx('se_page', { pitch: 1.08 });
     }
@@ -701,9 +709,9 @@ export class BookPage implements MenuPage {
       drawCircledNum(g, v.n, LP.x + 8 + textW('みました帳') + 2, SP.y + 11, UI.text);
     } else drawHeader(g, 'みました帳', LP.x, SP.y + 6, v.tape, 1, 9 + v.n);
     const c = v.n === 1 ? bookCounts() : bookCountsCh2();
-    const have = this.isMizube ? mizubeHave(this.vol)[0] : this.isMushi ? mushiSeenCount() : this.sec === 0 ? c.fushigi : this.sec === 1 ? c.aite : c.tsukkomi;
+    const have = this.isHajimete ? hajimeteHave(this.vol)[0] : this.isMizube ? mizubeHave(this.vol)[0] : this.isMushi ? mushiSeenCount() : this.sec === 0 ? c.fushigi : this.sec === 1 ? c.aite : c.tsukkomi;
     // (『むし』 counts the five: the beetle is a bonus)
-    const total = this.isMizube ? mizubeHave(this.vol)[1] : this.isMushi ? 5 : this.sec === 0 ? v.fushigi.length : this.count();
+    const total = this.isHajimete ? hajimeteHave(this.vol)[1] : this.isMizube ? mizubeHave(this.vol)[1] : this.isMushi ? 5 : this.sec === 0 ? v.fushigi.length : this.count();
     drawDigits(g, `${have}/${total}`, FOLD - (two ? 6 : 12), SP.y + 12, { color: UI.pencil, align: 'right' });
     const k = Math.min(1, this.secT / 120);
     g.alpha(k, () => {
@@ -811,6 +819,7 @@ export class BookPage implements MenuPage {
     const num = (i: number) => String(i + 1).padStart(2, '0');
     // 『むし』: the five by name (the beetle, a bonus, after them without a number)
     if (this.isMizube) return mizubeRows(this.vol).map((r) => wrapRow(r.name, r.done, r.num, r.pencil ? UI.pencil : UI.text));
+    if (this.isHajimete) return hajimeteRows(this.vol).map((r) => wrapRow(r.name, r.done, r.num, r.pencil ? UI.pencil : UI.text));
     if (this.isMushi) return mushiRows().map((b, i) => wrapRow(b.name, mushiSeenKind(b.kind), b.kind === 'kabuto' ? '' : num(i), UI.text));
     if (this.sec === 0) {
       const r = v.fushigi.map((f, i) => wrapRow(f[0], v.done(i), num(i), UI.text));
@@ -903,6 +912,7 @@ export class BookPage implements MenuPage {
       g.text('まだ 書いていない。', x, y + 44, { color: UI.textDim });
     };
     if (this.isMizube) return drawMizubePage(g, mizubeRows(this.vol)[i], x, y, w, this.vol);
+    if (this.isHajimete) return drawHajimetePage(g, hajimeteRows(this.vol)[i], x, y, w, this.vol);
     if (this.isMushi) {
       drawMushiPage(g, mushiRows()[i], x, y, w);
       return;

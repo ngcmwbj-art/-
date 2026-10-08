@@ -307,7 +307,8 @@ registerDebug('wrapCheck', () => {
   // 水辺の 図鑑（02 #81）mizubeText（第1章：堰・テナガエビ・由来）、yoburiText（第2章：夜振り）、mizubeBookText（『みずべ』の ページ）
   // チクタク堂の ばらばら時計（02 #88）tokei7Text（台詞の 決まりも）、みました帳①の すみの『チクタク堂の 7つの 時計』tokei7BookText（開発サーバーだけ）
   // 夜の 足あと帳（02 #87）ashiatoText（台詞の 決まりも）、みました帳②の すみの『よるの 足あと』ashiatoBookText
-  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText', 'nihyakuBookText', 'domeText', 'huntingText', 'koteiText', 'shikishiText', 'shikishiBookText', 'mizubeText', 'yoburiText', 'mizubeBookText', 'tokei7Text', 'tokei7BookText', 'ashiatoText', 'ashiatoBookText']) {
+  // グソっ君の はじめて帳（02 #89）hajimeteText（台詞の 決まりも）、みました帳①②の『はじめて』hajimeteBookText（開発サーバーだけ）
+  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText', 'nihyakuBookText', 'domeText', 'huntingText', 'koteiText', 'shikishiText', 'shikishiBookText', 'mizubeText', 'yoburiText', 'mizubeBookText', 'tokei7Text', 'tokei7BookText', 'ashiatoText', 'ashiatoBookText', 'hajimeteText', 'hajimeteBookText']) {
     const r = cmds[name]?.();
     if (!r) continue;
     n += r.pages ?? r.total ?? 0;

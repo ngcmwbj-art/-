@@ -11,7 +11,7 @@
 import type { Co } from '../../engine/co';
 import type { Gfx } from '../../engine/gfx';
 import type { Input } from '../../engine/input';
-import { flag, state } from '../../game/state';
+import { flag, setFlag, state } from '../../game/state';
 import { getItem, isKeyItem, ITEM_TEXT, useItemInField, canUseItemInField, yakiimoFirst } from '../../data/battle';
 import { sfx } from '../../audio';
 import { say } from '../dialog';
@@ -427,6 +427,8 @@ export class ItemsPage implements MenuPage {
     if (first && target !== 'kanenari') yield* say(first.share, { voice: 'sys' });
     const says = first ? first.pages : target === 'kanenari' ? ITEM_TEXT[id]?.kanenariSays : undefined;
     if (says?.length) yield* say(says, { name: 'グソっ君', voice: 'gusokkun' });
+    // (his word on it was heard: グソっ君の はじめて帳 has its page, 02 #89)
+    if (says?.length && target === 'kanenari') setFlag(`flag_kn_says_${id}`, 1);
     this.fix(this.slots());
   }
 
