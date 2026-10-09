@@ -68,12 +68,15 @@ export class Player {
       if (input.b) move.z += 1;
       if (input.l) move.x -= 1;
       if (input.r) move.x += 1;
+      // スマホのバーチャルスティック（-1..1）
+      if (input.ax || input.az) { move.x += input.ax; move.z += input.az; }
     }
     this.stun -= dt;
     const sprint = input.sprint;
     const maxSpeed = sprint ? 14 : 8;
     if (move.lengthSq() > 0) {
-      move.normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), this.camYaw);
+      const mag = Math.min(1, move.length());
+      move.normalize().multiplyScalar(mag).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.camYaw);
       const targetFacing = Math.atan2(move.x, move.z);
       let d = targetFacing - this.facing;
       d = Math.atan2(Math.sin(d), Math.cos(d));

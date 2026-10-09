@@ -135,3 +135,59 @@ button { font: inherit; cursor: pointer; }
   .slot { width: 76px; font-size: 10px; }
   #help dl { grid-template-columns: 1fr; }
 }
+
+/* ---------- スマホ（タッチ操作） ---------- */
+.portrait-hint { display: none; }
+@media (orientation: portrait) and (pointer: coarse) { .portrait-hint { display: block; color: var(--gold); } }
+#touch { position: fixed; inset: 0; z-index: 12; touch-action: none; user-select: none; -webkit-user-select: none; }
+#touch[hidden] { display: none; }
+#touch-zone { position: absolute; inset: 0; }
+#stick { position: absolute; width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); background: rgba(0,0,0,.18); opacity: 0; pointer-events: none; transition: opacity .15s; }
+#stick.on { opacity: 1; }
+#stick i { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px; border-radius: 50%; background: rgba(255,255,255,.55); box-shadow: 0 2px 10px rgba(0,0,0,.4); }
+#touch button { position: absolute; font: 700 13px 'Zen Kaku Gothic New', system-ui, sans-serif; color: var(--ink); background: rgba(12,14,18,.55); border: 1.5px solid rgba(255,255,255,.35); border-radius: 50%; backdrop-filter: blur(4px); -webkit-tap-highlight-color: transparent; overflow: hidden; }
+#touch button.down { transform: scale(.92); background: rgba(255,255,255,.25); }
+.tbtns { position: absolute; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: 200px; height: 190px; }
+.tbtns button { width: 60px; height: 60px; }
+#tb-guitar.big { right: 0; bottom: 0; width: 92px; height: 92px; font-size: 16px; border-color: #ffd36a; }
+#tb-guitar.beat { background: rgba(255,211,106,.55); color: #1a1306; box-shadow: 0 0 22px #ffd36a; }
+#tb-jump { right: 104px; bottom: 0; }
+#tb-observe { right: 100px; bottom: 70px; border-color: var(--q) !important; }
+#tb-teleport { right: 30px; bottom: 104px; border-color: var(--cyan) !important; }
+#tb-solo { right: 140px; bottom: 132px; width: 52px !important; height: 52px !important; opacity: .5; }
+#tb-solo.ready { opacity: 1; border-color: #ffd36a; animation: blink .5s infinite alternate; }
+#touch button.cd::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--p, 0) * 100%); background: rgba(0,0,0,.6); }
+#tb-build, #tb-go { border-radius: 24px !important; padding: 10px 18px; left: 50%; transform: translateX(-50%); }
+#tb-build { bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: rgba(40,120,80,.75) !important; border-color: #7dffb0 !important; }
+#tb-go { top: calc(12px + env(safe-area-inset-top, 0px)); background: rgba(224,169,74,.85) !important; color: #1a1306 !important; }
+#tb-go.down, #tb-build.down { transform: translateX(-50%) scale(.95); }
+#tb-help { left: calc(16px + env(safe-area-inset-left, 0px)); top: calc(12px + env(safe-area-inset-top, 0px)); width: 36px; height: 36px; display: none; }
+
+body.touch #crosshair, body.touch #hud-hint, body.touch .bottom .skills, body.touch #hud-beat { display: none; }
+body.touch .pc-only { display: none; }
+body.touch #hud { z-index: 13; }
+body.touch #hotbar { pointer-events: auto; }
+body.touch .bottom { left: 50%; bottom: auto; top: calc(56px + env(safe-area-inset-top, 0px)); }
+body.touch .slot { width: 84px; padding: 6px 4px 8px; font-size: 10px; }
+body.touch .slot b { font-size: 11px; }
+body.touch .tl { top: calc(8px + env(safe-area-inset-top, 0px)); left: calc(8px + env(safe-area-inset-left, 0px)); min-width: 0; max-width: 34vw; padding: 6px 10px; font-size: 11px; }
+body.touch #hud-wave { font-size: 12px; }
+body.touch #hud-timer, body.touch .wind { display: none; }
+body.touch #minimap { width: 96px; height: 96px; top: calc(8px + env(safe-area-inset-top, 0px)); right: calc(8px + env(safe-area-inset-right, 0px)); }
+body.touch .bl { left: calc(8px + env(safe-area-inset-left, 0px)); bottom: auto; top: calc(78px + env(safe-area-inset-top, 0px)); width: 172px; white-space: nowrap; padding: 6px 10px; font-size: 11px; }
+body.touch .row b { font-size: 14px; }
+body.touch .ico { width: 14px; height: 14px; font-size: 9px; }
+body.touch #toasts { top: auto; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); width: min(46vw, 420px); }
+body.touch .toast { font-size: 11px; padding: 5px 10px; }
+body.touch #judge { top: 40%; }
+body.touch #help { z-index: 40; }
+body.touch #tb-help { display: block; }
+body.touch #pause { display: none !important; }
+#tb-jump { font-size: 11px !important; }
+body.touch #hud-solo-label { font-size: 0; }
+body.touch #hud-solo-label::after { content: 'ソロゲージ'; font-size: 11px; }
+body.touch #toasts { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+#rotate { display: none; }
+@media (orientation: portrait) {
+  body.touch #rotate { display: grid; place-items: center; position: fixed; inset: 0; z-index: 50; background: rgba(5,6,7,.92); color: var(--ink); font-weight: 900; font-size: 18px; text-align: center; padding: 16px; }
+}

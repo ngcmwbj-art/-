@@ -2,7 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <title>がんばれマサトくん！</title>
   <meta name="description" content="迫り来る台風から、量子力学とギターでキャベツを守り抜け！オープンワールド・タワーディフェンス。">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -38,7 +39,8 @@
           </select>
         </label>
       </div>
-      <p class="note">PC＋マウス推奨 ／ 音が出ます ／ 操作は［H］でいつでも確認</p>
+      <p class="note pc-only">PC はマウス操作 ／ スマホは横向きでタッチ操作 ／ 音が出ます</p>
+      <p class="note portrait-hint">スマホは<b>横向き</b>にすると遊びやすくなります</p>
     </div>
     <div id="loading">銚子の台地を生成中…</div>
   </section>
@@ -75,6 +77,24 @@
     <div id="hud-hint">［H］操作説明</div>
   </section>
 
+
+  <!-- スマホ用タッチ操作 -->
+  <section id="touch" hidden>
+    <div id="touch-zone"></div>
+    <div id="stick"><i></i></div>
+    <div class="tbtns">
+      <button id="tb-guitar" class="big">ギター</button>
+      <button id="tb-jump">ジャンプ</button>
+      <button id="tb-observe" class="cd">観測</button>
+      <button id="tb-teleport" class="cd">テレポ</button>
+      <button id="tb-solo">ソロ</button>
+    </div>
+    <button id="tb-build" hidden>ここに建てる</button>
+    <button id="tb-go" hidden>台風を迎え撃つ ▶</button>
+    <button id="tb-help">？</button>
+  </section>
+  <div id="rotate">スマホを横向きにしてください</div>
+
   <!-- 操作説明 -->
   <section id="help">
     <h3>操作</h3>
@@ -88,6 +108,13 @@
       <dt>1 / 2 / 3 → E</dt><dd>観測塔 / 量子アンプ / トンネル避雷塔 を選んで建設（X で解除）</dd>
       <dt>Enter</dt><dd>準備を切り上げて台風を迎え撃つ</dd>
       <dt>M / H / Esc</dt><dd>BGM 切替 / この画面 / 一時停止</dd>
+    </dl>
+    <h3>スマホ</h3>
+    <dl>
+      <dt>画面の左半分</dt><dd>触れた所にスティックが出て移動（端まで倒すとダッシュ）</dd>
+      <dt>画面の右半分</dt><dd>スワイプで視点</dd>
+      <dt>右下のボタン</dt><dd>ギター（光った瞬間に押すと JUST）・観測・テレポ・ソロ・ジャンプ</dd>
+      <dt>上のタワー欄</dt><dd>タップで選び、「ここに建てる」で建設</dd>
     </dl>
     <h3>量子のルール</h3>
     <ul>

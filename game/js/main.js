@@ -15,9 +15,10 @@ import { FX } from './fx.js';
 import { GameAudio } from './audio.js';
 import { HUD } from './hud.js';
 import { clamp, rand } from './util.js';
+import { IS_TOUCH, setupTouch, updateTouch } from './touch.js';
 
 const QUALITY = {
-  low: { pr: 0.75, shadow: 0, grass: 0, trees: 0.5, rain: 3000, bloom: false, msaa: 0 },
+  low: { pr: Math.min(devicePixelRatio, 1.25), shadow: 0, grass: 0, trees: 0.5, rain: 3000, bloom: false, msaa: 0 },
   mid: { pr: 1, shadow: 1024, grass: 18000, trees: 0.8, rain: 6000, bloom: true, msaa: 0 },
   high: { pr: Math.min(devicePixelRatio, 1.5), shadow: 2048, grass: 45000, trees: 1, rain: 10000, bloom: true, msaa: 4 },
   ultra: { pr: Math.min(devicePixelRatio, 2), shadow: 4096, grass: 90000, trees: 1.3, rain: 16000, bloom: true, msaa: 4 },
@@ -112,7 +113,7 @@ class Game {
     this.lastBeat = -1;
     this.score = { just: 0, chords: 0 };
     this.spawn = { groups: 0, debris: 0, strike: 0, nextGroup: 0 };
-    this.input = { f: false, b: false, l: false, r: false, sprint: false, jump: false };
+    this.input = { f: false, b: false, l: false, r: false, sprint: false, jump: false, ax: 0, az: 0 };
     this.time = 0;
     this.tutorialStep = 0;
     this.paused = true;
@@ -173,6 +174,7 @@ class Game {
   }
 
   lockPointer() {
+    if (IS_TOUCH) { this.setPaused(false); return; }
     const c = this.renderer.domElement;
     const p = c.requestPointerLock && c.requestPointerLock();
     if (p && p.catch) p.catch(() => {});
@@ -192,6 +194,11 @@ class Game {
     this.phase = 'prep';
     this.phaseT = 0;
     this.paused = false;
+    if (IS_TOUCH) {
+      setupTouch(this);
+      // 全画面にできる端末では全画面に（できなくても続行）
+      try { const p = document.documentElement.requestFullscreen?.(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* 非対応 */ }
+    }
     this.lockPointer();
     this.hud.toast('台風が来る前に、量子デバイスを畑のまわりに建てよう', 'q');
   }
@@ -385,7 +392,14 @@ class Game {
   }
 
   tutorial() {
-    const steps = [
+    const steps = IS_TOUCH ? [
+      [1, '画面の左側をなぞって移動、右側をスワイプで視点'],
+      [7, '上のタワー欄をタップして選び、「ここに建てる」で建設'],
+      [15, 'ギターボタンが光った瞬間に押すと JUST で威力2倍'],
+      [23, '「観測」で重ね合わせの竜巻を収束させる'],
+      [31, '「テレポ」で瞬間移動、ゲージが溜まったら「ソロ」'],
+      [39, '準備ができたら上の「台風を迎え撃つ」をタップ'],
+    ] : [
       [1, '［WASD］移動 ［Shift］ダッシュ ［Space］ジャンプ ［マウス］視点'],
       [7, '［1］観測塔 ［2］量子アンプ ［3］トンネル避雷塔 を選んで［E］で建設'],
       [15, '［左クリック］ギター！ 画面下の拍に合わせると JUST で威力2倍'],
@@ -457,7 +471,7 @@ class Game {
     gu.uSolo.value = this.player.soloOn ? 1 : Math.max(0, gu.uSolo.value - rawDt * 2);
     if (this.bloom) this.bloom.strength = 0.4 + w.flash * 0.8 + (this.player.soloOn ? 0.25 : 0);
 
-    if (this.phase !== 'title') this.hud.update(this);
+    if (this.phase !== 'title') { this.hud.update(this); if (IS_TOUCH) updateTouch(this); }
     this.composer.render();
   }
 
@@ -474,7 +488,7 @@ class Game {
 // ---------- 起動 ----------
 let game = null;
 const qualitySel = document.getElementById('quality');
-const guess = /Mobi|Android/i.test(navigator.userAgent) ? 'low' : 'high';
+const guess = IS_TOUCH || /Mobi|Android/i.test(navigator.userAgent) ? 'low' : 'high';
 qualitySel.value = guess;
 
 function boot(q) {
