@@ -1,6 +1,7 @@
 // 天災：重ね合わせ竜巻・飛来物（トタン板）・落雷
 import * as THREE from 'three';
 import { heightAt, groundAt, landRadius } from './world.js';
+import { toToon } from './toon.js';
 import { rand, GLSL_NOISE } from './util.js';
 
 const tornadoVS = /* glsl */`
@@ -308,7 +309,7 @@ export class Threats {
     const p = this.debrisGeo.attributes.position;
     for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) + Math.sin(p.getX(i) * 14) * 0.04);
     this.debrisGeo.computeVertexNormals();
-    this.debrisMat = new THREE.MeshStandardMaterial({ color: '#8d8a84', metalness: 0.7, roughness: 0.55, side: THREE.DoubleSide });
+    this.debrisMat = toToon(new THREE.MeshStandardMaterial({ color: '#9a968e', metalness: 0.7, roughness: 0.55, side: THREE.DoubleSide }));
   }
 
   get activeReal() { return this.tornados.filter((t) => t.real && t.alive).length; }

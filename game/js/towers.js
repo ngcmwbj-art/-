@@ -1,5 +1,6 @@
 // 量子デバイス（タワー）：観測塔・量子アンプ・トンネル避雷塔
 import * as THREE from 'three';
+import { toonify } from './toon.js';
 import { heightAt, groundAt, isWalkable, FIELDS, fieldRectDist } from './world.js';
 
 export const TOWER_TYPES = [
@@ -142,6 +143,7 @@ export class Towers {
     const def = this.def(id);
     const mesh = BUILDERS[id](def);
     mesh.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    toonify(mesh);
     const ring = rangeRing(def.radius, def.color);
     ring.material.opacity = 0.18;
     mesh.add(ring);

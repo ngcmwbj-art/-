@@ -1,6 +1,5 @@
 // 天候：空・雲・雨・霧・光源・雷
 import * as THREE from 'three';
-import { Sky } from 'three/addons/objects/Sky.js';
 import { lerp, damp, rand, GLSL_NOISE } from './util.js';
 
 class PolyCurve extends THREE.Curve {
@@ -28,15 +27,16 @@ function jagged(a, b, depth, spread) {
   return pts;
 }
 
+// BotW 風：遠景は空の地平線色へ青くかすむ（空気遠近法）
 const CALM = {
-  turbidity: 5.5, rayleigh: 1.5, mie: 0.006, mieG: 0.86,
-  fog: new THREE.Color('#c7b8a0'), fogDensity: 0.0021,
-  sunInt: 3.4, hemiInt: 1.0, exposure: 0.62,
+  zenith: new THREE.Color('#2f78c9'), horizon: new THREE.Color('#bfe0f2'),
+  fog: new THREE.Color('#a9cde4'), fogDensity: 0.0034,
+  sunInt: 3.2, hemiInt: 1.25, exposure: 1.0,
 };
 const STORM = {
-  turbidity: 18, rayleigh: 0.25, mie: 0.03, mieG: 0.7,
-  fog: new THREE.Color('#3b4247'), fogDensity: 0.0078,
-  sunInt: 0.3, hemiInt: 0.32, exposure: 0.78,
+  zenith: new THREE.Color('#262c33'), horizon: new THREE.Color('#5a646c'),
+  fog: new THREE.Color('#47525a'), fogDensity: 0.0078,
+  sunInt: 0.35, hemiInt: 0.55, exposure: 1.0,
 };
 
 export class Weather {
@@ -47,27 +47,36 @@ export class Weather {
     this.windSpeed = 4;
     this.flash = 0;
     this.typhoonCenter = new THREE.Vector2(1600, 900);
-    this.sunDir = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(72), THREE.MathUtils.degToRad(115));
+    this.sunDir = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(55), THREE.MathUtils.degToRad(125));
     this.skyColor = new THREE.Color('#b8c6d4');
     this.fogColor = CALM.fog.clone();
     this.fogDensity = CALM.fogDensity;
 
-    // 空
-    this.sky = new Sky();
-    this.sky.scale.setScalar(10000);
+    // 空：手描き風のグラデーション＋太陽のにじみ
+    this.skyMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide, depthWrite: false, fog: false,
+      uniforms: {
+        uZenith: { value: CALM.zenith.clone() }, uHorizon: { value: CALM.horizon.clone() },
+        uSunDir: { value: this.sunDir }, uSun: { value: new THREE.Color('#fff4d6') }, uStorm: { value: 0 },
+      },
+      vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); vec4 p = projectionMatrix*modelViewMatrix*vec4(position,1.); gl_Position = p.xyww; }',
+      fragmentShader: /* glsl */`
+        uniform vec3 uZenith, uHorizon, uSunDir, uSun; uniform float uStorm; varying vec3 vD;
+        void main(){
+          float h = vD.y;
+          vec3 col = mix(uHorizon, uZenith, pow(smoothstep(-.02, .75, h), .7));
+          col = mix(col, uHorizon*.85, smoothstep(.02, -.25, h));
+          float sd = max(dot(vD, normalize(uSunDir)), 0.);
+          col += uSun * (pow(sd, 900.)*6. + pow(sd, 18.)*.35 + pow(sd, 4.)*.12) * (1. - uStorm);
+          gl_FragColor = vec4(col, 1.);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`,
+    });
+    this.sky = new THREE.Mesh(new THREE.SphereGeometry(4500, 32, 16), this.skyMat);
+    this.sky.renderOrder = -3;
+    this.sky.frustumCulled = false;
     scene.add(this.sky);
-    this.sky.material.uniforms.sunPosition.value.copy(this.sunDir);
-
-    // 環境マップ用シーン（空＋嵐の暗幕）
-    this.envScene = new THREE.Scene();
-    this.envSky = new Sky();
-    this.envSky.scale.setScalar(1000);
-    this.envScene.add(this.envSky);
-    this.envShade = new THREE.Mesh(new THREE.SphereGeometry(40, 16, 8),
-      new THREE.MeshBasicMaterial({ color: '#232a30', side: THREE.BackSide, transparent: true, opacity: 0 }));
-    this.envScene.add(this.envShade);
-    this.pmrem = new THREE.PMREMGenerator(renderer);
-    this.envRT = null; this.lastEnvStorm = -1; this.envTimer = 0;
 
     // 光源
     this.sun = new THREE.DirectionalLight('#ffd6a0', CALM.sunInt);
@@ -120,7 +129,7 @@ export class Weather {
       transparent: true, depthWrite: false, side: THREE.DoubleSide,
       uniforms: {
         uTime: { value: 0 }, uCover: { value: 0.35 }, uStorm: { value: 0 },
-        uSunDir: { value: this.sunDir }, uSunCol: { value: new THREE.Color('#ffcf94') },
+        uSunDir: { value: this.sunDir }, uSunCol: { value: new THREE.Color('#fff1c8') },
         uFogCol: { value: this.fogColor }, uWind: { value: this.windDir }, uTy: { value: this.typhoonCenter },
         uFlash: { value: 0 },
       },
@@ -139,14 +148,16 @@ export class Weather {
           float warp = fbm(q*1.7 + uTime*.01);
           float n = fbm(q + warp*.7);
           float th = 1. - uCover;
-          float cov = smoothstep(th - .12, th + .2, n);
+          // 輪郭のはっきりした積雲（セル調の2トーン陰影）
+          float cov = smoothstep(th - .03, th + .05, n);
           float dens = smoothstep(th, th + .45, n);
-          float lightSide = fbm(q + uSunDir.xz*.03 + warp*.7);
-          float shade = clamp((n - lightSide)*6. + .5, 0., 1.);
-          vec3 lit = vec3(1., .96, .9);
-          vec3 dark = mix(vec3(.5,.53,.6), vec3(.1,.11,.13), uStorm);
-          vec3 col = mix(lit, dark, clamp(dens*.8 + shade*.35 + uStorm*.55, 0., 1.));
-          col += uSunCol * (1.-dens) * cov * .55 * (1.-uStorm);
+          float lightSide = fbm(q - uSunDir.xz*.05 + warp*.7);
+          float shade = smoothstep(.0, .08, n - lightSide + .03);
+          vec3 lit = vec3(1., .99, .96);
+          vec3 shadow = mix(vec3(.72,.8,.92), vec3(.3,.33,.38), uStorm);
+          vec3 col = mix(lit, shadow, max(shade*.85, uStorm*.7));
+          col = mix(col, vec3(.1,.11,.13), uStorm*dens*.75);
+          col += uSunCol * (1.-shade) * (1. - smoothstep(0., .12, n - th)) * .6 * (1.-uStorm);
           col += vec3(.7,.75,1.) * uFlash * 2.5 * dens;
           float dist = length(vW.xz - cameraPosition.xz);
           col = mix(col, uFogCol, smoothstep(500., 3200., dist)*.75);
@@ -234,22 +245,23 @@ export class Weather {
     const s = this.storm;
     this.windSpeed = lerp(4, 38 + this.target * 34, s);
 
-    const su = this.sky.material.uniforms;
-    su.turbidity.value = lerp(CALM.turbidity, STORM.turbidity, s);
-    su.rayleigh.value = lerp(CALM.rayleigh, STORM.rayleigh, s);
-    su.mieCoefficient.value = lerp(CALM.mie, STORM.mie, s);
-    su.mieDirectionalG.value = lerp(CALM.mieG, STORM.mieG, s);
+    const su = this.skyMat.uniforms;
+    su.uZenith.value.copy(CALM.zenith).lerp(STORM.zenith, s);
+    su.uHorizon.value.copy(CALM.horizon).lerp(STORM.horizon, s);
+    su.uStorm.value = s;
+    this.sky.position.copy(camera.position);
 
     this.fogColor.copy(CALM.fog).lerp(STORM.fog, s);
     this.fogDensity = lerp(CALM.fogDensity, STORM.fogDensity, s);
     this.scene.fog.color.copy(this.fogColor).lerp(new THREE.Color('#9aa8c0'), this.flash * 0.5);
     this.scene.fog.density = this.fogDensity;
-    this.skyColor.set('#b8c6d4').lerp(new THREE.Color('#4a5258'), s);
+    this.skyColor.copy(su.uHorizon.value);
 
     this.sun.intensity = lerp(CALM.sunInt, STORM.sunInt, s);
-    this.sun.color.set('#ffd2a0').lerp(new THREE.Color('#a0a8b4'), s);
+    this.sun.color.set('#fff0d2').lerp(new THREE.Color('#a0a8b4'), s);
     this.hemi.intensity = lerp(CALM.hemiInt, STORM.hemiInt, s) + this.flash * 2.5;
-    this.hemi.color.set('#bcd0ff').lerp(new THREE.Color('#6d7884'), s);
+    this.hemi.color.set('#9fc4ff').lerp(new THREE.Color('#6d7884'), s);
+    this.hemi.groundColor.set('#6b5a3a').lerp(new THREE.Color('#2e2a24'), s);
     this.renderer.toneMappingExposure = lerp(CALM.exposure, STORM.exposure, s);
 
     // 影カメラをプレイヤーに追従
@@ -264,7 +276,7 @@ export class Weather {
     // 雲
     const cu = this.cloudMat.uniforms;
     cu.uTime.value = t;
-    cu.uCover.value = lerp(0.42, 0.97, s);
+    cu.uCover.value = lerp(0.36, 0.97, s);
     cu.uStorm.value = s;
     cu.uFlash.value = this.flash;
     this.clouds.position.x = camera.position.x;
@@ -294,18 +306,5 @@ export class Weather {
       }
     }
 
-    // 環境マップを嵐の進み具合に応じて更新
-    this.envTimer -= dt;
-    if (Math.abs(s - this.lastEnvStorm) > 0.06 && this.envTimer <= 0) {
-      const eu = this.envSky.material.uniforms;
-      for (const k of ['turbidity', 'rayleigh', 'mieCoefficient', 'mieDirectionalG']) eu[k].value = su[k].value;
-      eu.sunPosition.value.copy(this.sunDir);
-      this.envShade.material.opacity = Math.min(0.97, s * 1.15);
-      const rt = this.pmrem.fromScene(this.envScene, 0, 0.1, 100);
-      if (this.envRT) this.envRT.dispose();
-      this.envRT = rt;
-      this.scene.environment = rt.texture;
-      this.lastEnvStorm = s; this.envTimer = 1.2;
-    }
   }
 }

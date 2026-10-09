@@ -108,7 +108,7 @@ function makeDetailTexture() {
       const P = 8 << o;
       n += pnoise(x / S * P, y / S * P, P) * 0.6 / (o + 1);
     }
-    const v = clamp(212 + n * 75 + (Math.random() - 0.5) * 24, 0, 255);
+    const v = clamp(232 + n * 40 + (Math.random() - 0.5) * 10, 0, 255);
     const i = (y * S + x) * 4;
     img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255;
   }
@@ -155,9 +155,9 @@ function buildTerrain() {
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
   const colors = new Float32Array(pos.count * 3);
-  const cGrass1 = new THREE.Color('#4d7330'), cGrass2 = new THREE.Color('#7a8f3c'), cDry = new THREE.Color('#9a9152');
-  const cSoil = new THREE.Color('#4a3322'), cSand = new THREE.Color('#c8b48a'), cWetSand = new THREE.Color('#7d6d55');
-  const cRock1 = new THREE.Color('#7b6248'), cRock2 = new THREE.Color('#a48a68'), cSea = new THREE.Color('#3b4a44');
+  const cGrassDark = new THREE.Color('#3d6e2a'), cGrass1 = new THREE.Color('#5f9a34'), cGrass2 = new THREE.Color('#9cbf45'), cDry = new THREE.Color('#c2bb62');
+  const cSoil = new THREE.Color('#6a4a30'), cSand = new THREE.Color('#e3d3a4'), cWetSand = new THREE.Color('#a8956e');
+  const cRock1 = new THREE.Color('#9a7b5a'), cRock2 = new THREE.Color('#c9ad85'), cSea = new THREE.Color('#3f6f78');
   const col = new THREE.Color(), tmp = new THREE.Color();
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i);
@@ -169,6 +169,9 @@ function buildTerrain() {
     const n = fbm(x * 0.02, z * 0.02, 3);
     col.copy(cGrass1).lerp(cGrass2, clamp(n * 0.9 + 0.5, 0, 1));
     col.lerp(cDry, smoothstep(0.25, 0.6, fbm(x * 0.006 + 9, z * 0.006, 3)) * 0.6);
+    // 草原の濃淡（BotW のような大きな色ムラ）と斜面の陰り
+    col.lerp(cGrassDark, smoothstep(-0.05, 0.35, fbm(x * 0.012 - 4, z * 0.012 + 7, 3)) * 0.55);
+    col.multiplyScalar(1 - smoothstep(0.15, 0.6, slope) * 0.25);
     // 屏風ヶ浦の地層
     const strata = 0.5 + 0.5 * Math.sin(h * 2.2 + vnoise(x * 0.05, z * 0.05) * 1.5);
     tmp.copy(cRock1).lerp(cRock2, strata);
@@ -229,7 +232,7 @@ function buildGrass(count, windU) {
   }
   const geo = mergeGeometries(blades);
   const p = geo.attributes.position, cols = new Float32Array(p.count * 3), nor = geo.attributes.normal;
-  const base = new THREE.Color('#2e4a1c'), tip = new THREE.Color('#a7b85a'), c = new THREE.Color();
+  const base = new THREE.Color('#3f7a26'), tip = new THREE.Color('#cfe07a'), c = new THREE.Color();
   for (let i = 0; i < p.count; i++) {
     const y = clamp(p.getY(i) / 0.9, 0, 1);
     c.copy(base).lerp(tip, y);
@@ -317,7 +320,7 @@ function buildTrees(scale) {
   const fol = mergeGeometries(pads);
   fol.computeVertexNormals();
   const fp = fol.attributes.position, fn = fol.attributes.normal, fc = new Float32Array(fp.count * 3);
-  const cTop = new THREE.Color('#4f7a3a'), cUnder = new THREE.Color('#16261a'), cc = new THREE.Color();
+  const cTop = new THREE.Color('#6fa44a'), cUnder = new THREE.Color('#2a4a2e'), cc = new THREE.Color();
   for (let i = 0; i < fp.count; i++) {
     cc.copy(cUnder).lerp(cTop, THREE.MathUtils.clamp(fn.getY(i) * 0.6 + 0.45 + prng() * 0.1, 0, 1));
     fc.set([cc.r, cc.g, cc.b], i * 3);
@@ -558,8 +561,8 @@ export function buildWorld(scene, Q, windU) {
       u.uSunDir.value.copy(w.sunDir);
       u.uFogColor.value.copy(w.fogColor);
       u.uFogDensity.value = w.fogDensity;
-      u.uDeep.value.set('#0b2f3a').lerp(new THREE.Color('#1c2a2c'), w.storm);
-      u.uShallow.value.set('#2e7f7a').lerp(new THREE.Color('#4a5f58'), w.storm);
+      u.uDeep.value.set('#1d6f9c').lerp(new THREE.Color('#1c2a2c'), w.storm);
+      u.uShallow.value.set('#4fd0c8').lerp(new THREE.Color('#4a5f58'), w.storm);
       lighthouse.userData.beam.rotation.y = t * 0.8;
       lighthouse.userData.beamMat.uniforms.uStrength.value = lerp(0.12, 0.65, w.storm);
       house.userData.windowMat.emissiveIntensity = lerp(0.2, 2.2, w.storm);

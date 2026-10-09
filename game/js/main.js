@@ -16,9 +16,10 @@ import { GameAudio } from './audio.js';
 import { HUD } from './hud.js';
 import { clamp, rand } from './util.js';
 import { IS_TOUCH, setupTouch, updateTouch } from './touch.js';
+import { toonify, addOutline } from './toon.js';
 
 const QUALITY = {
-  low: { pr: Math.min(devicePixelRatio, 1.25), shadow: 0, grass: 0, trees: 0.5, rain: 3000, bloom: false, msaa: 0 },
+  low: { pr: Math.min(devicePixelRatio, 1.25), shadow: 0, grass: 9000, trees: 0.5, rain: 3000, bloom: false, msaa: 0 },
   mid: { pr: 1, shadow: 1024, grass: 18000, trees: 0.8, rain: 6000, bloom: true, msaa: 0 },
   high: { pr: Math.min(devicePixelRatio, 1.5), shadow: 2048, grass: 45000, trees: 1, rain: 10000, bloom: true, msaa: 4 },
   ultra: { pr: Math.min(devicePixelRatio, 2), shadow: 4096, grass: 90000, trees: 1.3, rain: 16000, bloom: true, msaa: 4 },
@@ -49,13 +50,16 @@ const GradeShader = {
       col.b = texture2D(tDiffuse, vUv - d*ca).b;
       float l = dot(col, vec3(.299,.587,.114));
       col = mix(col, mix(vec3(l), col, .72)*vec3(.93,1.,1.07), uStorm*.65);
-      col = mix(col, col*vec3(1.06,1.,.9), (1.-uStorm)*.55);
+      col = mix(col, col*vec3(1.04,1.,.94), (1.-uStorm)*.5);
+      // 晴れの日は彩度を少し上げて絵本のような色に
+      float l2 = dot(col, vec3(.299,.587,.114));
+      col = mix(vec3(l2), col, 1. + (1.-uStorm)*.22);
       col = (col - .5)*(1.04 + uStorm*.12) + .5;
       col += uFlash*vec3(.75,.8,1.)*.6;
       col = mix(col, col*vec3(1.12,.9,1.25) + vec3(.03,0.,.07), uSolo*.55);
       col *= 1. - r*uVig*(1. + uStorm*.5);
       float g = fract(sin(dot(vUv*(uTime+1.), vec2(12.9898,78.233)))*43758.5453);
-      col += (g - .5)*.03;
+      col += (g - .5)*.012;
       gl_FragColor = vec4(clamp(col,0.,1.), 1.);
     }`,
 };
@@ -87,6 +91,9 @@ class Game {
     this.threats = new Threats(this);
     this.threats.towers = this.towers;
     this.cabbages.onLost = () => this.audio.lost();
+    // BotW 風のトゥーン表現に置き換え、マサトに輪郭線
+    addOutline(this.player.model.root);
+    toonify(this.scene);
 
     // ポストプロセス
     const rt = new THREE.WebGLRenderTarget(innerWidth * Q.pr, innerHeight * Q.pr, { type: THREE.HalfFloatType, samples: Q.msaa });
@@ -94,7 +101,7 @@ class Game {
     this.composer.setPixelRatio(Q.pr);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     if (Q.bloom) {
-      this.bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), 0.45, 0.55, 0.92);
+      this.bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), 0.35, 0.7, 0.82);
       this.composer.addPass(this.bloom);
     }
     this.composer.addPass(new OutputPass());
@@ -469,7 +476,7 @@ class Game {
     gu.uStorm.value = w.storm;
     gu.uFlash.value = w.flash;
     gu.uSolo.value = this.player.soloOn ? 1 : Math.max(0, gu.uSolo.value - rawDt * 2);
-    if (this.bloom) this.bloom.strength = 0.4 + w.flash * 0.8 + (this.player.soloOn ? 0.25 : 0);
+    if (this.bloom) this.bloom.strength = 0.3 + w.flash * 0.8 + (this.player.soloOn ? 0.25 : 0);
 
     if (this.phase !== 'title') { this.hud.update(this); if (IS_TOUCH) updateTouch(this); }
     this.composer.render();
