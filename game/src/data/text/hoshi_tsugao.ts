@@ -9,7 +9,8 @@
 // 2026-09-28 (依頼主の指示): ツガオ's surface face is everyone's old man — a warm,
 // rough 「おう！」, the children by name — and he knows Shun from 夕鳴町 (the
 // truck of chapter 1, 10_narrative 6.21), so 〔h0_1〕 is a meeting again. Only
-// the room of cut 7 (ui/cut_tsugao.ts) keeps the calm, polite voice.
+// the room of cut 7 (ui/cut_tsugao.ts) has the other voice: since 2026-10-09 a
+// boss's, low and heavy (「わし」「〜じゃ」「〜のう」; 02 #96).
 // ★2026-09-29 (カネナリくん→グソっ君): the first time ツガオ sees グソっ君 — 〔h0_1〕,
 // or the delivery's 〔ツガオさんに まだ 会っていない〕 — there is one short beat
 // before 「……でっけえ エビ 連れてんな」 and he looks away; グソっ君 doesn't

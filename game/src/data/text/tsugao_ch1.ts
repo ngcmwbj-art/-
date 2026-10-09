@@ -1,8 +1,8 @@
 // 第1章のツガオ便 (2026-09-28 依頼主の指示; 10_narrative 6.21). The olive kei
 // truck of chapter 2 in 夕鳴町: ツガオ has brought 星見台's vegetables to the
 // town for years and knows Shun by name. On the surface he is everyone's old
-// man — a warm, rough 「おう！」 (the calm, polite voice belongs to the room of
-// cut 7 only). Nothing of まだまだ団 is said here; what links the two is his
+// man — a warm, rough 「おう！」 (the low, heavy boss's voice — 「わし」「〜じゃ」,
+// 2026-10-09 — belongs to the room of cut 7 only). Nothing of まだまだ団 is said here; what links the two is his
 // catchphrase, the olive cap, the yellow crates and his way with 「まだ」.
 // Every page: at most 3 lines of 336 px (__game.cmd.textcheck2 checks these too).
 

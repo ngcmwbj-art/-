@@ -496,29 +496,29 @@ export const CH2_CUES: Cue[] = [
         A.sfx('se_clock_restart');
         A.ambientEvent('amb_tsugao_room', 'tick', 'yunari');
       }),
-      S(14, 'VOICE TSUGAO (ROOM REVERB .25)', () => void say('tsugao', '……ふむ。ご苦労。')),
-      S(17, 'TSUGAO: つがおちゃん 寝る〜♪', () => void say('tsugao', 'では、つがおちゃん 寝る〜♪')),
+      S(14, 'VOICE TSUGAO (ROOM REVERB .25)', () => void say('tsugao', '……ほうか。ご苦労じゃった。')),
+      S(17, 'TSUGAO: つがおちゃん 寝る〜♪', () => void say('tsugao', 'ほいじゃ、つがおちゃん 寝る〜♪')),
       S(20, 'DAKOKU: マダ ホウコクガ アリマス', () => void say('dakoku', 'マダ ホウコクガ アリマス。')),
       S(23, 'HOSHIMI: CLOCK RESTART, CLOCK 2', () => {
         A.sfx('se_clock_restart', { note: 'hoshimi' });
         A.ambientEvent('amb_tsugao_room', 'tick', 'hoshimi');
       }),
-      S(28, 'VOICE TSUGAO', () => void say('tsugao', '……ほう。わたしが 寝て いる あいだに。')),
+      S(28, 'VOICE TSUGAO', () => void say('tsugao', '……ほう。わしが 寝とる あいだにか。')),
       S(32, 'THE NAME TAG: SE_PEN_WRITE x2', () => {
         const t = liveGraph()?.ctx.currentTime ?? 0;
         [0, 0.3].forEach((d) => A.sfx('se_pen_write', { at: t + d, pitch: 0.8, vol: 0.5 }));
       }),
       S(34, 'BEHIND THE DOOR: SE_YAKIIMO .25', at('se_yakiimo', { vol: 0.25 })),
-      S(35, 'POKOSHA WHISPERS (V.5 LP1.2K REV.3)', () => void say('pokosha', '……さすが 師匠。')),
+      S(35, 'POKOSHA WHISPERS (V.5 LP1.2K REV.3)', () => void say('pokosha', '……さすが 親分。')),
       S(36.6, 'PIICHAN (V.6 REV.3)', () => void say('piichan', 'コケッ。')),
-      S(38, 'TSUGAO: まだ、夜ですよ', () => void say('tsugao', '……静かに。まだ、夜ですよ。')),
+      S(38, 'TSUGAO: まだ、夜じゃ', () => void say('tsugao', '……静かにせえ。まだ、夜じゃ。')),
       S(42, 'SE_PAGE, STOP BGM (0), UMI', () => {
         A.sfx('se_page');
         A.stopBgm(0);
         A.ambientEvent('amb_tsugao_room', 'umi');
       }),
       S(46, 'SE_MADA_STAMP (DRY INK)', at('se_mada_stamp')),
-      S(48, 'TSUGAO: つがおちゃん 寝る〜♪', () => void say('tsugao', 'まあ、よろしい。つがおちゃん 寝る〜♪')),
+      S(48, 'TSUGAO: つがおちゃん 寝る〜♪', () => void say('tsugao', 'まあ、ええじゃろう。つがおちゃん 寝る〜♪')),
       S(52, 'SE_LAMP_CLICK, ALL OUT (0.5S)', () => {
         A.sfx('se_lamp_click');
         A.stopAllAmbient(0.5);
