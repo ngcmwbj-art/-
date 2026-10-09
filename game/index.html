@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>がんばれマサトくん！</title>
+  <meta name="description" content="迫り来る台風から、量子力学とギターでキャベツを守り抜け！オープンワールド・タワーディフェンス。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/game.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <!-- タイトル -->
+  <section id="title">
+    <div class="title-inner">
+      <p class="tag">銚子の大地で育てる、命と誇り。</p>
+      <h1><span class="small">がんばれ</span>マサトくん！</h1>
+      <p class="sub">迫り来る台風から、<em>量子力学</em>と<em>ギター</em>でキャベツを守り抜け！</p>
+      <div class="menu">
+        <button id="start" disabled>ゲームスタート</button>
+        <label>画質
+          <select id="quality">
+            <option value="low">低（軽量）</option>
+            <option value="mid">中</option>
+            <option value="high">高</option>
+            <option value="ultra">ウルトラ</option>
+          </select>
+        </label>
+      </div>
+      <p class="note">PC＋マウス推奨 ／ 音が出ます ／ 操作は［H］でいつでも確認</p>
+    </div>
+    <div id="loading">銚子の台地を生成中…</div>
+  </section>
+
+  <!-- HUD -->
+  <section id="hud">
+    <div class="panel tl">
+      <div id="hud-wave"></div>
+      <div id="hud-phase"></div>
+      <div id="hud-timer"></div>
+      <div class="wind"><span>風速</span><div class="bar"><i id="hud-windbar"></i></div><b id="hud-wind"></b></div>
+    </div>
+    <canvas id="minimap" width="200" height="200"></canvas>
+    <div class="panel bl">
+      <div class="row"><span class="ico cab"></span><span>キャベツ</span><b id="hud-cab"></b></div>
+      <div class="bar big"><i id="hud-cabbar"></i></div>
+      <div class="row"><span class="ico q">Q</span><span>Qビット</span><b id="hud-q"></b></div>
+      <div class="row solo"><span id="hud-solo-label">量子ギターソロ［Q］</span></div>
+      <div class="bar"><i id="hud-solo" class="solo"></i></div>
+    </div>
+    <div class="bottom">
+      <div id="hud-beat"><i></i><span>♪</span></div>
+      <div id="hotbar"></div>
+      <div class="skills">
+        <div class="skill" id="cd-f"><b>F</b><span>観測</span></div>
+        <div class="skill" id="cd-r"><b>R</b><span>テレポ</span></div>
+      </div>
+    </div>
+    <div id="crosshair"></div>
+    <div id="judge"></div>
+    <div id="toasts"></div>
+    <div id="bars"></div>
+    <div id="floaters"></div>
+    <div id="hud-hint">［H］操作説明</div>
+  </section>
+
+  <!-- 操作説明 -->
+  <section id="help">
+    <h3>操作</h3>
+    <dl>
+      <dt>WASD / Shift / Space</dt><dd>移動 / ダッシュ / ジャンプ</dd>
+      <dt>マウス</dt><dd>視点</dd>
+      <dt>左クリック</dt><dd>ギター（パワーコード衝撃波）。拍に合わせると JUST で威力2倍・キャベツ回復・雷を弾き返す</dd>
+      <dt>F / 右クリック</dt><dd>観測パルス（8Q）：48m 以内の重ね合わせ竜巻を測定</dd>
+      <dt>R</dt><dd>量子テレポート（前方 24m）</dd>
+      <dt>Q</dt><dd>量子ギターソロ（ゲージ満タン）：時間減速＋広範囲観測＋連続攻撃</dd>
+      <dt>1 / 2 / 3 → E</dt><dd>観測塔 / 量子アンプ / トンネル避雷塔 を選んで建設（X で解除）</dd>
+      <dt>Enter</dt><dd>準備を切り上げて台風を迎え撃つ</dd>
+      <dt>M / H / Esc</dt><dd>BGM 切替 / この画面 / 一時停止</dd>
+    </dl>
+    <h3>量子のルール</h3>
+    <ul>
+      <li>竜巻は<b>重ね合わせ状態</b>（紫に揺らぐ）で現れる。複数の分岐のうち<b>実体はひとつだけ</b>。</li>
+      <li><b>観測</b>した範囲に実体があれば収束して攻撃可能に。いなければ、その分岐だけが消える。</li>
+      <li>放っておくと、実体がキャベツに触れた瞬間に<b>デコヒーレンス</b>で実体化して畑を荒らす。</li>
+      <li>未観測の竜巻にはギターもアンプも効かない。トンネル効果だけは分岐ごと飛ばせる。</li>
+    </ul>
+  </section>
+
+  <section id="pause">
+    <h2>一時停止中</h2>
+    <button id="resume">クリックで再開</button>
+  </section>
+
+  <section id="result">
+    <h2></h2>
+    <div class="rank"></div>
+    <ul class="stats"></ul>
+    <button id="retry">もう一度</button>
+  </section>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
