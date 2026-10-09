@@ -459,6 +459,7 @@ class Game {
     const windVec = new THREE.Vector2(w.windDir.x, w.windDir.y).multiplyScalar(Math.max(0, w.windSpeed - 20) * 0.12);
     if (this.phase !== 'title') this.player.update(dt, t, this.paused ? {} : this.input, windVec);
     else this.titleCamera(t);
+    if (this.camOverride) this.camOverride(this.camera); // 撮影・デバッグ用
 
     w.update(rawDt, t, this.camera, this.player.pos);
     this.windU.uTime.value = t;

@@ -66,12 +66,12 @@ export function toonify(root) {
 // 背面法線押し出しによる輪郭線（キャラクター用）
 const outlineMat = new THREE.MeshBasicMaterial({ color: '#2a1d14', side: THREE.BackSide, fog: true });
 outlineMat.onBeforeCompile = (s) => {
-  s.vertexShader = s.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = vec3( position ) + normal * 0.011;');
+  s.vertexShader = s.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = vec3( position ) + normal * 0.008;');
 };
 export function addOutline(root, minSize = 0.05) {
   const list = [];
   root.traverse((o) => {
-    if (!o.isMesh || o.userData.isOutline) return;
+    if (!o.isMesh || o.userData.isOutline || o.userData.noOutline) return;
     o.geometry.computeBoundingSphere();
     if (o.geometry.boundingSphere.radius * Math.max(o.scale.x, o.scale.y, o.scale.z) < minSize) return;
     list.push(o);

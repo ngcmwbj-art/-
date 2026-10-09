@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { clamp, lerp, smoothstep, fbm, vnoise, mulberry32, GLSL_NOISE } from './util.js';
+import { buildHouse, buildKeiTruck, buildBarn, buildGreenhouse, buildLighthouse } from './buildings.js';
 
 // キャベツ畑（u: 列方向, v: 畝方向）
 export const FIELDS = [
@@ -49,12 +50,14 @@ const lhTh = -0.55, lhR = landRadius(lhTh) - 17;
 export const LIGHTHOUSE = { x: Math.cos(lhTh) * lhR, z: Math.sin(lhTh) * lhR };
 export const HOUSE = { x: -18, z: -42 };
 export const GREENHOUSE = { x: 32, z: -40 };
+export const BARN = { x: -40, z: -34 };
 export const SPAWN = { x: 6, z: -22 };
 
 const FLATS = [
   { ...LIGHTHOUSE, r: 9 },
-  { ...HOUSE, r: 9 },
-  { ...GREENHOUSE, r: 11 },
+  { ...HOUSE, r: 14 },
+  { ...GREENHOUSE, r: 12 },
+  { ...BARN, r: 8 },
 ];
 for (const f of FLATS) f.h = rawHeight(f.x, f.z) + 0.1;
 
@@ -375,86 +378,6 @@ function buildTrees(scale) {
 }
 
 // ---------- 建物 ----------
-function buildHouse() {
-  const g = new THREE.Group();
-  const wall = new THREE.MeshStandardMaterial({ color: '#cfc6b4', roughness: 0.85 });
-  const roof = new THREE.MeshStandardMaterial({ color: '#34404f', roughness: 0.55, metalness: 0.2 });
-  const wood = new THREE.MeshStandardMaterial({ color: '#5a3f2b', roughness: 0.8 });
-  const win = new THREE.MeshStandardMaterial({ color: '#2a3138', emissive: '#ffb75e', emissiveIntensity: 0.0, roughness: 0.2 });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(11, 4.2, 7.5), wall);
-  body.position.y = 2.1; g.add(body);
-  const r = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.2, 12.4, 3, 1), roof);
-  r.rotation.z = Math.PI / 2; r.scale.set(1, 1, 0.8); r.position.y = 4.2 + 2.0; g.add(r);
-  const door = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.6, 0.1), wood);
-  door.position.set(-2.5, 1.3, 3.8); g.add(door);
-  for (const x of [0.5, 3.2]) {
-    const w = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.3, 0.1), win);
-    w.position.set(x, 2.3, 3.78); g.add(w);
-  }
-  const eng = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.3, 1.3), wood);
-  eng.position.set(-2.5, 0.15, 4.5); g.add(eng);
-  g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-  g.position.set(HOUSE.x, heightAt(HOUSE.x, HOUSE.z), HOUSE.z);
-  g.userData.windowMat = win;
-  return g;
-}
-
-function buildGreenhouse() {
-  const g = new THREE.Group();
-  const film = new THREE.MeshPhysicalMaterial({
-    color: '#f2f5f2', roughness: 0.35, transmission: 0.0, transparent: true, opacity: 0.55, side: THREE.DoubleSide,
-  });
-  const frame = new THREE.MeshStandardMaterial({ color: '#b9bcc0', metalness: 0.8, roughness: 0.35 });
-  const shell = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.4, 16, 24, 1, true, 0, Math.PI), film);
-  shell.rotation.z = Math.PI / 2; shell.rotation.y = Math.PI / 2; g.add(shell);
-  for (let i = -8; i <= 8; i += 2) {
-    const arc = new THREE.Mesh(new THREE.TorusGeometry(3.42, 0.04, 6, 24, Math.PI), frame);
-    arc.position.z = i; g.add(arc);
-  }
-  g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-  g.position.set(GREENHOUSE.x, heightAt(GREENHOUSE.x, GREENHOUSE.z), GREENHOUSE.z);
-  g.rotation.y = 0.2;
-  return g;
-}
-
-function buildLighthouse() {
-  const g = new THREE.Group();
-  const white = new THREE.MeshStandardMaterial({ color: '#cfcac0', roughness: 0.6 });
-  const dark = new THREE.MeshStandardMaterial({ color: '#202428', roughness: 0.4, metalness: 0.6 });
-  const glass = new THREE.MeshStandardMaterial({ color: '#fff3c4', emissive: '#ffd27a', emissiveIntensity: 2.5, roughness: 0.1 });
-  const tower = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 3.3, 26, 24), white);
-  tower.position.y = 13; g.add(tower);
-  const gallery = new THREE.Mesh(new THREE.CylinderGeometry(3.1, 3.1, 0.4, 24), dark);
-  gallery.position.y = 26.2; g.add(gallery);
-  const lamp = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 2.4, 16), glass);
-  lamp.position.y = 27.6; g.add(lamp);
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(1.8, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), dark);
-  dome.position.y = 28.8; g.add(dome);
-  const annex = new THREE.Mesh(new THREE.BoxGeometry(7, 3.2, 5), white);
-  annex.position.set(4.5, 1.6, 0); g.add(annex);
-  g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-
-  // 回転する光のビーム
-  const beamGeo = new THREE.ConeGeometry(7, 140, 24, 1, true);
-  beamGeo.translate(0, -70, 0);
-  beamGeo.rotateZ(Math.PI / 2);
-  const beamMat = new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-    uniforms: { uStrength: { value: 0.4 } },
-    vertexShader: 'varying float vL; void main(){ vL = clamp(position.x/140.,0.,1.); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }',
-    fragmentShader: 'uniform float uStrength; varying float vL; void main(){ float a=pow(1.-vL,2.2)*uStrength; gl_FragColor=vec4(vec3(1.,.9,.65)*a,a); }',
-  });
-  const beam = new THREE.Group();
-  const b1 = new THREE.Mesh(beamGeo, beamMat), b2 = new THREE.Mesh(beamGeo, beamMat);
-  b2.rotation.y = Math.PI;
-  beam.add(b1, b2);
-  beam.position.y = 27.6;
-  g.add(beam);
-  g.position.set(LIGHTHOUSE.x, heightAt(LIGHTHOUSE.x, LIGHTHOUSE.z), LIGHTHOUSE.z);
-  g.userData.beam = beam; g.userData.beamMat = beamMat;
-  return g;
-}
-
 // ---------- 海（ゲルストナー波） ----------
 function buildOcean() {
   const geo = new THREE.PlaneGeometry(2600, 2600, 360, 360);
@@ -542,11 +465,12 @@ export function buildWorld(scene, Q, windU) {
   const grass = buildGrass(Q.grass, windU);
   if (grass) group.add(grass);
   for (const t of buildTrees(Q.trees)) group.add(t);
-  const house = buildHouse();
-  group.add(house);
-  group.add(buildGreenhouse());
-  const lighthouse = buildLighthouse();
-  group.add(lighthouse);
+  const place = (obj, p, rotY = 0) => { obj.position.set(p.x, heightAt(p.x, p.z), p.z); obj.rotation.y = rotY; group.add(obj); return obj; };
+  const house = place(buildHouse(), HOUSE);
+  place(buildKeiTruck(), { x: HOUSE.x + 10, z: HOUSE.z + 9 }, 0.5);
+  place(buildBarn(), BARN, 0.35);
+  place(buildGreenhouse(), GREENHOUSE, 0.2);
+  const lighthouse = place(buildLighthouse(), LIGHTHOUSE, Math.atan2(LIGHTHOUSE.x, LIGHTHOUSE.z) + Math.PI);
   const ocean = buildOcean();
   group.add(ocean);
 
@@ -566,6 +490,7 @@ export function buildWorld(scene, Q, windU) {
       lighthouse.userData.beam.rotation.y = t * 0.8;
       lighthouse.userData.beamMat.uniforms.uStrength.value = lerp(0.12, 0.65, w.storm);
       house.userData.windowMat.emissiveIntensity = lerp(0.2, 2.2, w.storm);
+      house.userData.shojiMat.emissiveIntensity = lerp(0, 0.9, w.storm);
     },
   };
 }
