@@ -1,7 +1,7 @@
 // 1枚絵 cut_tsugao_room — ツガオの部屋 (52_ch2_level_art 12.5, 50_ch2_story
 // 10.16 カット7, 53_ch2_audio 12.14). After chapter 2's 「つづく」: the back of
 // an old office, one green-shaded lamp; ツガオ, the boss of まだまだ団, hears
-// ダコク's report on 夕鳴町 and 星見台. One picture; only its layers move
+// エゴ's report on 夕鳴町 and 星見台. One picture; only its layers move
 // (the hands, the key, the cards, the clocks, the two shadows in the doorway,
 // the lamp). The pictures are in cut_tsugao_art.ts. No id prefix `h`:
 // chapter 3 uses the room too.
@@ -9,17 +9,17 @@
 //   const room = yield* openTsugaoRoom();   // black; the room is pushed over the scenes
 //   yield* room.fadeIn();                   // 1.5 s out of the black
 //   yield* room.placeKey();                 // ⓪ the truck key out of his pocket, beside the work cap
-//   room.armCard(1);                        // ダコク's next 「ガチャン」 spits out card 1
-//   yield* say('…ガチャン。', { name: 'ダコク', voice: 'dakoku', tape: 'black' })
+//   room.armCard(1);                        // エゴ's next 「ガチャン」 spits out card 1
+//   yield* say('…ガチャン。', { name: 'エゴ', voice: 'dakoku', tape: 'black' })
 //   room.clockRun('yunari');                // 夕鳴町's second hand starts (the caller plays the sound)
 //   yield* room.tapCard(); yield* room.leanBack(); yield* room.reachCap(); room.stopAt('マダ');
 //   yield* room.putCapBack(); room.clockRun('hoshimi'); yield* room.arrangeCards();
-//   room.spitCard(3); yield* room.cardsLanded();   // ダコク, unasked: the village's hand-drawn hanamaru
+//   room.spitCard(3); yield* room.cardsLanded();   // エゴ, unasked: the village's hand-drawn hanamaru
 //   yield* room.shadowsIn(); room.henTilt(); yield* room.shadowsOut();
 //   yield* room.turnPage(); yield* room.stamp(); yield* room.capOn(); yield* room.lampOff();
 //   room.close();
 //
-// ダコク moves by itself with what it says: while its line types, the box
+// エゴ moves by itself with what it says: while its line types, the box
 // bobs a pixel; at each 「ガチャン」 it sinks 2px (and spits the armed card,
 // which drops to the desk and slides into the lamplight). Every name tag in
 // this room is black paper tape (tape: 'black' on each line — the voice never
@@ -177,7 +177,7 @@ interface Card {
   n: CardN;
   x: number;
   y: number;
-  /** 'slot': coming out of ダコク's slot; 'slide': on its way to (tx,ty); 'desk': lying there. */
+  /** 'slot': coming out of エゴ's slot; 'slide': on its way to (tx,ty); 'desk': lying there. */
   state: 'slot' | 'slide' | 'desk';
   fx: number;
   fy: number;
@@ -256,7 +256,7 @@ class TsugaoRoomScene implements Scene {
   henTiltT = -1;
   steamT = -1;
   steamA = 0;
-  // ダコク
+  // エゴ
   private sinkT = -1;
   private talking = false;
   private speechKey = '';
@@ -340,7 +340,7 @@ class TsugaoRoomScene implements Scene {
     this.watchSpeech();
   }
 
-  /** ダコク moves with its words; lines can trigger moves (「マダ」 stops ツガオ's hand). */
+  /** エゴ moves with its words; lines can trigger moves (「マダ」 stops ツガオ's hand). */
   private watchSpeech(): void {
     const sp = dialogSpeech();
     this.talking = !!sp && sp.voice === 'dakoku' && sp.typing;
@@ -751,9 +751,9 @@ export interface TsugaoRoom {
   fadeIn(ms?: number): Co;
   /** ⓪ The truck key out of his jacket's inside pocket (2 frames), put down beside the work cap (2 frames). */
   placeKey(): Co;
-  /** ダコク's next 「ガチャン」 spits out this report card (it slides into the lamplight). */
+  /** エゴ's next 「ガチャン」 spits out this report card (it slides into the lamplight). */
   armCard(n: CardN): void;
-  /** ダコク spits out this card by itself (no line): the box sinks, the card slides into the lamplight. */
+  /** エゴ spits out this card by itself (no line): the box sinks, the card slides into the lamplight. */
   spitCard(n: CardN): void;
   /** Wait until the last card that came out lies on the desk. */
   cardsLanded(): Co;
@@ -1083,7 +1083,7 @@ function speaker(name: string, voice: string): SayOpts {
     },
   };
 }
-const DAKOKU_SPK = speaker('ダコク', 'dakoku');
+const DAKOKU_SPK = speaker('エゴ', 'dakoku');
 const ANON = speaker('？？？', 'tsugao');
 const TSUGAO = speaker('ツガオ', 'tsugao');
 /** The two in the doorway: no names, no faces (chapter 3 gives them). */
@@ -1107,9 +1107,9 @@ export const TSUGAO_LINES = {
     '……わしの 軽トラにまでか。',
     'ハンコは、押したら それきりじゃ。{w=300}\nじゃが、人が 自分の 手で 描いた\nしるしは、また だれかが 描き写す。',
     'ああいう しるしが、町から 町へ\nふえて いきゃあ……{w=300}\nいずれ『平和の 象徴』なんぞに なるけえ。',
-    '……ダコク。{w=300}\nあの 赤い ハンコの 子は、どこの 子じゃ。',
+    '……エゴ。{w=300}\nあの 赤い ハンコの 子は、どこの 子じゃ。',
   ],
-  // ダコク speaks in katakana: only here is his name シュン
+  // エゴ speaks in katakana: only here is his name シュン
   namae: ['コバヤシ シュン。{w=300}\nユウナリチョウ。ガチャン。'],
   // he knows the boy: the errand boy of 夕鳴町 he called to from his truck
   // (10_narrative 6.21) — only now does he see who undid his 『まだ』
@@ -1165,7 +1165,7 @@ function* director(room: TsugaoRoom): Co {
   yield* room.arrangeCards();
   yield 2000;
   yield* say(TSUGAO_LINES.guuzen, ANON);
-  // ダコク, unasked, spits a third card into the lamplight: the two hanamaru
+  // エゴ, unasked, spits a third card into the lamplight: the two hanamaru
   // the village drew by hand (a sketchbook's, the truck's chalk one)
   yield 400;
   room.spitCard(3);

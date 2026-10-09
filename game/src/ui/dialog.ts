@@ -838,7 +838,7 @@ export interface DialogSpeech {
   typing: boolean;
 }
 
-/** The line being said right now, or null (a cut can move with the words: ダコク's 「ガチャン」). */
+/** The line being said right now, or null (a cut can move with the words: エゴ's 「ガチャン」). */
 export function dialogSpeech(): DialogSpeech | null {
   return box ? box.speech() : null;
 }

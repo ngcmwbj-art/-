@@ -8,7 +8,7 @@
 //   HANAMARU_9 / HANAMARU_7 / HANAMARU_CHALK   the hand-drawn hanamaru (a
 //                     spiral inside eight petals) at 9 and 7 px, and the chalk
 //                     one (9×8, petals and spiral) on ツガオ便's tailgate and
-//                     ダコク's third card
+//                     エゴ's third card
 
 import { PixelCanvas } from '../../engine/pixel';
 import { P } from '../tiles/palette';
@@ -29,7 +29,7 @@ export const HANAMARU_9 = [
 export const HANAMARU_7 = ['.#.#.#.', '#.###.#', '.#...#.', '.#.#.#.', '.#..##.', '#.###.#', '.#.#.#.'];
 /**
  * The chalk one (9×8): ヒロスケさん's copy of Shun's stamp on ツガオ便's
- * tailgate, and the same mark on ダコク's third card. The scalloped ring of
+ * tailgate, and the same mark on エゴ's third card. The scalloped ring of
  * petals (two over the top, two under, two each side) with the spiral inside
  * it (the stamp's hanamaruPath, its spiral cut to a turn and a quarter). At
  * 7×6 it was the spiral alone and read as a clump of white specks (QA

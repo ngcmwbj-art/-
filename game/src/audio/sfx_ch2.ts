@@ -943,9 +943,9 @@ se('se_hanamaru_draw', {
 // ============================================================================
 // 8.12 ツガオの部屋 (after 「つづく」; chapter 3 hears them again)
 
-/** ダコク's punch (a time recorder's "ガチャン", the card sliding out "シュッ"); vol .6 plays the card alone. */
+/** エゴ's punch (a time recorder's "ガチャン", the card sliding out "シュッ"); vol .6 plays the card alone. */
 se('se_dakoku', {
-  label: 'ダコクの打刻（ガチャン、シュッ）',
+  label: 'エゴの打刻（ガチャン、シュッ）',
   group: G_TSUGAO,
   rand: [0.02, 0.05],
   layers: [

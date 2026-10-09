@@ -40,12 +40,12 @@
 //   yield* playTsugaoRoom({ skippable })       カット7 ツガオの部屋 whole: lines, moves, sounds
 //   const room = yield* openTsugaoRoom()       …or step it yourself: room.fadeIn(), placeKey()
 //                                              (the truck key by the work cap), armCard(n)
-//                                              (ダコク's next 「ガチャン」 spits it), clockRun(id),
+//                                              (エゴ's next 「ガチャン」 spits it), clockRun(id),
 //                                              tapCard, leanBack, reachCap, stopAt('マダ'), onWord,
 //                                              putCapBack, arrangeCards, shadowsIn / henTilt /
 //                                              shadowsOut (the two in the doorway, the steam),
 //                                              turnPage (with the page's close-up), stamp (on our
-//                                              page), capOn, lampOff, close — ダコク bobs and sinks
+//                                              page), capOn, lampOff, close — エゴ bobs and sinks
 //                                              with its own lines. Name tapes: pass tape: 'black'
 //                                              on each line in the room (the voice never picks it)
 //   markClearCh2() / clearRecordCh2()          the chapter 2 clear data and record

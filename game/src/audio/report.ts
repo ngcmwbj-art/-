@@ -1009,7 +1009,7 @@ export async function audioReport(o: { maxSeconds?: number; songs?: string[]; sf
   const amb = o.amb !== false ? await ambContext() : {};
   // (flip: its first character plays the whole se_flip squeak, which sits on the SE fader)
   // (and the sign of ムジン販売員, whose page opens with the same squeak, 53 9.1)
-  // (ダコク's 「ガチャン」 is se_dakoku, and ぴーちゃん's calls are se_piichan_*: SE faders too)
+  // (エゴ's 「ガチャン」 is se_dakoku, and ぴーちゃん's calls are se_piichan_*: SE faders too)
   const SE_VOICED = new Set(['flip', 'h_mujin', 'dakoku', 'piichan']);
   const voiceOff = Object.entries(voices).filter(([id, r]) => !SE_VOICED.has(id) && Math.abs(r.dev) > 3).map(([id, r]) => `${id} (${r.dev})`);
   const ambOff = Object.entries(amb)

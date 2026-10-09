@@ -2,10 +2,10 @@
 // office at night, lit by one green-shaded desk lamp. Built once and cached;
 // cut_tsugao.ts puts the moving layers on top (the clocks' hands, ツガオ's
 // arms and hands, the nightcap, the truck key, the cards, the circular's
-// page, the stamp, ダコク, the two shadows in the doorway).
+// page, the stamp, エゴ, the two shadows in the doorway).
 //
 // Eighteen colours (12.5 「光と色」: the olive of the work cap and the
-// yellow of the crate and the key's tag are ツガオ便's own), plus ダコク's
+// yellow of the crate and the key's tag are ツガオ便's own), plus エゴ's
 // rust. The room is dark; the only light is the lamp's cone and its pool on
 // the desk. 朱 appears on the report cards only.
 //
@@ -16,7 +16,7 @@
 //   hat stand x145 (beside the chair, where ツガオ can reach), the nightcap on its right hook
 //   chair    x150–234 y50–126 · ツガオ x160–224 · desk top y122–146
 //   work cap x116–131 y119–127 and the truck key beside it (x132–143), in the cone's light
-//   circular x162–222 y124–146 · stamp pad x226–244 · teacup x264–276 · ダコク x292–312 y106–136
+//   circular x162–222 y124–146 · stamp pad x226–244 · teacup x264–276 · エゴ x292–312 y106–136
 //   shelf    x298–338 y64–118 · the frosted glass door x344–384 y40–121, half open (the two shadows)
 //   crate    under the desk on the left (the knee space, x112–146), seen when no line is up
 
@@ -1042,11 +1042,11 @@ export function handImg(kind: 'rest' | 'point' | 'open' | 'grip', flip = false):
 
 // ---- things on the desk ---------------------------------------------------------------------
 
-/** ダコク's box: its size, and where the card slot is (the legs are drawn live). */
+/** エゴ's box: its size, and where the card slot is (the legs are drawn live). */
 export const DAKOKU_BOX = { w: 20, h: 24, slotX: 5, slotY: 18, slotW: 10 };
 
 /**
- * ダコク's box (20×24): an old upright time recorder in cream — a carrying
+ * エゴ's box (20×24): an old upright time recorder in cream — a carrying
  * handle joined to its top, a round clock face (stopped; no eyes, no mouth),
  * under it the card slot in a grey plate with IN／OUT marks scored beside
  * it; rust at the corners, the right side in shade. The thin legs are drawn

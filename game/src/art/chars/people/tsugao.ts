@@ -1280,7 +1280,7 @@ registerChar('npc_tsugao_suit', () =>
 );
 
 // =============================================================================
-// ダコク (npc_dakoku, 52 12.5): まだまだ団's errand machine, an old time
+// エゴ (npc_dakoku, 52 12.5): まだまだ団's errand machine, an old time
 // recorder on two thin legs (24×28). Cream box, rust at the corners, a round
 // clock face whose hands never move (no eyes, no mouth), the black card
 // slot under it, a little handle on top. 'talk' bobs it 1px; 'gachan' sinks

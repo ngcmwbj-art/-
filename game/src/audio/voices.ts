@@ -138,7 +138,7 @@ export const VOICES: Record<string, VoiceDef> = {
   // ツガオ (53 9.1; chapter 3 hears them again): the calm, heavy boss of まだまだ団 — and, the
   // same voice, the village's ツガオさん of ツガオ便 (the room adds its reverb .25: roomRev)
   tsugao: { label: 'ツガオ（ツガオ便／まだまだ団の団長）', wave: 'sawtooth', base: 'D3', scale: [0, 1, 5, 7], len: 50, A: 6, every: 3, v: 0.05, lp: 900, vib: [3, 5], formant: true },
-  dakoku: { label: 'ダコク（タイムレコーダー）', wave: 'pulse12', base: 'C5', scale: [0], len: 25, every: 2, v: 0.035, fixedSeq: [0, 0, 7, 0] },
+  dakoku: { label: 'エゴ（タイムレコーダー）', wave: 'pulse12', base: 'C5', scale: [0], len: 25, every: 2, v: 0.035, fixedSeq: [0, 0, 7, 0] },
   // ツガオ便's two (53 9.1, 9.2): ヒロスケさん, 44, sociable, talks a lot and laughs (a beard in the way);
   // ポコシャさん, 40, a big man with a small shy voice; ぴーちゃん, a hen (no blips: one call a page)
   hirosuke: { label: 'ヒロスケ（ツガオ便）', wave: 'triangle', base: 'B3', scale: [0, 2, 4, 7], len: 30, A: 2, every: 2, v: 0.06, lp: 2000, vib: [5, 8], formant: true, noise: { bp: 900, q: 1, level: 0.03 } },
@@ -220,7 +220,7 @@ interface State {
   asleep?: boolean;
   /** ツガオ's 「つがおちゃん 寝る〜♪」 page: an octave up, bright and bouncing. */
   chan?: boolean;
-  /** ダコクの「ガチャン」: the rest of the word is the machine, not a blip. */
+  /** エゴの「ガチャン」: the rest of the word is the machine, not a blip. */
   gachan?: number;
   /** The last character of any kind (voiced or not): a page starts after 0.8 s of none. */
   lastAny?: number;
@@ -440,7 +440,7 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
     if (id === 'tsugao') s.wake = (s.lastT === 0 || now - s.lastT > 20) && !inTsugaoRoom();
   }
   if (mode === 'chan') s.chan = true;
-  // ダコクの「ガチャン」: the machine punches the card where the word stands (53 9.2)
+  // エゴの「ガチャン」: the machine punches the card where the word stands (53 9.2)
   if (mode === 'gachan') {
     s.gachan = 2;
     s.lastT = now;
@@ -566,7 +566,7 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
   const minGap = every * 0.025 * 0.9;
   const allowed = now - s.last >= minGap;
   // ハモ区長's 「えー」 and ペロ's 「なぁ」: the next character decides
-  // (and ツガオ's 「つがおちゃん」, ダコク's 「ガチャン」, ヒロスケさん's laugh and
+  // (and ツガオ's 「つがおちゃん」, エゴ's 「ガチャン」, ヒロスケさん's laugh and
   // 「……か？」, ポコシャさん's first letters: a stammer or 「さすが」)
   const holdKind: HoldKind | null =
     id === 'h_kucho' && pageHead && ch === 'え'
