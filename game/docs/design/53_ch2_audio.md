@@ -1628,6 +1628,12 @@ se_matsuri_tomoru  提灯がともる（紙が橙にすける、ほわっ）    
   rev .35
 ```
 
+### 8.19 店番と 耳あわせの 音 ★2026-10-09 追加（依頼主の採用、02_ch2_index #94・#95。台本は50 10.30・10.31）
+
+新しい 音は 作らず、今の 音を 使う（`src/events/ch2/tenban.ts`・`mimi.ts`）。声（blip）を 新しく 使う 人は いない（ソワカ・ぴょん夫人・トマじい・ハモ区長・さんかど・マサル・まつ先生・グソっ君は 今の 声。VOICE_TRIM は そのまま）。
+- 店番：大写しが 開く `se_tsuri_open`、お代 `se_h_coin_box`（100円 1つずつ）、ソワカの 筆 `se_pen_write`（低め 3回）と 下絵の 段 `se_page`、「ぶふっ」 `se_cursor`（pitch 1.6）。段階2 の 区長の とちゅうの 呼び声は いつもの `playCall`。
+- 耳あわせ：大写し `se_tsuri_open`、犬が 耳を 動かす `se_cursor`（1.4）、そろう `se_pen_write`（1.5）、まちがい `se_cursor`（0.7）、ぱたぱたの 1つずつ `se_cursor`（上がっていく）。くしゅん は `se_dog_bark`（pitch 1.8、小さく）。コツを 書く `se_pen_write`。
+
 ## 9. ボイス（第2章）
 
 ### 9.1 村の人の声

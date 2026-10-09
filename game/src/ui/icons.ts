@@ -689,6 +689,23 @@ Object.assign(ITEM_ROWS, {
 // 7つの時刻の写し（チクタク堂の ばらばら時計、02_ch2_index #88）: ゆう's neat memo — a white
 // slip with its lines of small, even writing (a dot for each time), and at its foot the
 // little brass tag of the 7th, 『鳩』
+// 報告書の写し（02 #93）：書類の 紙、左上に 似顔絵の まど（黄土色の まる）、右に 欄の 線、
+// 右下に 朱の「確」の 印
+Object.assign(ITEM_ROWS, {
+  item_hokokusho: [
+    'WWWWWWWWWd',
+    'WkkkwGGGwd',
+    'Wkokwwwwwd',
+    'Wkhkwggggd',
+    'WkkkwwwwwG',
+    'WwwwwGGGwG',
+    'WGGGwwwwwG',
+    'Wwwwwwwrrd',
+    'WGGGwwrwRG',
+    'ddddddGRRG',
+  ],
+});
+
 Object.assign(ITEM_ROWS, {
   item_tokei7_utsushi: [
     '.WWWWWWWd.',

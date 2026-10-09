@@ -18,6 +18,8 @@ import { drawLight, poolEllipse } from './light';
 import { registerProp } from './registry';
 import { fontTextSmall, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
+import { kanbanTiny } from './tenban_art';
+import { tenbanRank } from '../../data/text/hoshi_tenban';
 
 const done = (env: PropEnv, f: string) => env.flag('flag_' + f) > 0;
 
@@ -450,7 +452,8 @@ regStand(
 registerProp('prop_h_mujin', () => {
   const W = 36;
   const H = 30;
-  const make = (box: boolean) => {
+  // kanban: 店番の 看板（02 #94）の 絵 0〜2、-1 は いつもの 野菜の 絵
+  const make = (box: boolean, kanban = -1) => {
     const p = new PixelCanvas(W, H);
     // the posts and the little tin roof
     for (const px of [2, 32]) {
@@ -482,6 +485,13 @@ registerProp('prop_h_mujin', () => {
     p.set(33, 16, '#7A5AA0');
     p.vline(31, 16, 17, P.gold);
     p.set(30, 16, P.leaf);
+    // ★2026-10-09 (02 #94, 52 7.11): after the 店番 sitting, the board on the post is
+    // ソワカさん's picture of グソっ君 (stage 1–2): the 7×8 picture over the board, a wood edge
+    if (kanban >= 0) {
+      p.blit(kanbanTiny(kanban as 0 | 1 | 2), 29, 12);
+      p.vline(28, 12, 19, P.wood);
+      p.hline(28, 35, 11, P.wood);
+    }
     // the stand
     p.rect(1, 20, 34, 3, P.woodLt);
     p.hline(1, 34, 20, P.goldPale);
@@ -529,13 +539,18 @@ registerProp('prop_h_mujin', () => {
   };
   const withBox = make(true);
   const noBox = make(false);
+  const kanbans = [0, 1, 2].map((k) => make(false, k));
   return {
     ox: -2,
     oy: 16 - H + 2,
     w: W,
     h: H,
     foot: 15,
-    img: (env) => (hs(env) >= 1 && hs(env) < 3 ? noBox : withBox),
+    img: (env) => {
+      if (hs(env) < 1 || hs(env) >= 3) return withBox;
+      if (env.flag('flag_tenban_done') > 0) return kanbans[tenbanRank(env.flag('flag_tenban_moves'))];
+      return noBox;
+    },
     contact: 30,
     contactX: 16,
     shadow: 22,

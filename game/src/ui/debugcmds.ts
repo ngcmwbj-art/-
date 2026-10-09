@@ -308,7 +308,9 @@ registerDebug('wrapCheck', () => {
   // チクタク堂の ばらばら時計（02 #88）tokei7Text（台詞の 決まりも）、みました帳①の すみの『チクタク堂の 7つの 時計』tokei7BookText（開発サーバーだけ）
   // 夜の 足あと帳（02 #87）ashiatoText（台詞の 決まりも）、みました帳②の すみの『よるの 足あと』ashiatoBookText
   // グソっ君の はじめて帳（02 #89）hajimeteText（台詞の 決まりも）、みました帳①②の『はじめて』hajimeteBookText（開発サーバーだけ）
-  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText', 'nihyakuBookText', 'domeText', 'huntingText', 'koteiText', 'shikishiText', 'shikishiBookText', 'mizubeText', 'yoburiText', 'mizubeBookText', 'tokei7Text', 'tokei7BookText', 'ashiatoText', 'ashiatoBookText', 'hajimeteText', 'hajimeteBookText']) {
+  // 「ダンゴムシ ちゃうで」の 報告書（02 #93）hokokushoText（台詞の 決まりも。開発サーバーだけ）
+  // 無人販売所の 店番（02 #94）tenbanText・tenbanBookText、ふくじんづけと 耳の あいさつ（02 #95）mimiText・mimiBookText（開発サーバーだけ）
+  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText', 'nihyakuBookText', 'domeText', 'huntingText', 'koteiText', 'shikishiText', 'shikishiBookText', 'mizubeText', 'yoburiText', 'mizubeBookText', 'tokei7Text', 'tokei7BookText', 'ashiatoText', 'ashiatoBookText', 'hajimeteText', 'hajimeteBookText', 'tenbanText', 'tenbanBookText', 'mimiText', 'mimiBookText', 'hokokushoText']) {
     const r = cmds[name]?.();
     if (!r) continue;
     n += r.pages ?? r.total ?? 0;

@@ -43,6 +43,22 @@ import { stickerDojou } from '../../art/props/yoburi_art';
 import { drawShikishiPage, hasShikishiPage, SHIKISHI_ROW_LABEL } from './book_shikishi';
 // ② の すみの 1ページ『よるの 足あと』と 表紙の うり坊の シール（夜の 足あと帳、02_ch2_index #87）
 import { ASHIATO_ROW_LABEL, drawAshiatoPage, hasAshiatoPage } from './book_ashiato';
+import { drawTenbanPage, hasTenbanPage, TENBAN_ROW_LABEL } from './book_tenban';
+import { drawMimiPage, hasMimiPage, MIMI_ROW_LABEL } from './book_mimi';
+
+/**
+ * ② の すみの ページ、一覧の いちばん下に この 順：『二百十日の 前の 晩』（02 #78）、『70年の 色紙』（#84）、
+ * 『よるの 足あと』（#87）、『店番の 下絵』（#94）、『耳の あいさつ』（#95）。番号なし・鉛筆の 字。
+ */
+function corner2(): { label: string; draw: (g: Gfx, x: number, y: number, w: number) => void }[] {
+  const r: { label: string; draw: (g: Gfx, x: number, y: number, w: number) => void }[] = [];
+  if (hasNihyakuPage()) r.push({ label: NIHYAKU_ROW_LABEL, draw: drawNihyakuPage });
+  if (hasShikishiPage()) r.push({ label: SHIKISHI_ROW_LABEL, draw: drawShikishiPage });
+  if (hasAshiatoPage()) r.push({ label: ASHIATO_ROW_LABEL, draw: drawAshiatoPage });
+  if (hasTenbanPage()) r.push({ label: TENBAN_ROW_LABEL, draw: drawTenbanPage });
+  if (hasMimiPage()) r.push({ label: MIMI_ROW_LABEL, draw: drawMimiPage });
+  return r;
+}
 import { stickerUribo } from '../../art/props/ashiato_art';
 // ① の すみの 1ページ『チクタク堂の 7つの 時計』（02_ch2_index #88）：ふしぎの 一覧の いちばん下、番号なし・数に 入れない。決定で めくる
 import { drawTokeiPage, hasTokeiPage, TOKEI_ROW_LABEL, tokeiTurn } from './book_tokei7';
@@ -637,7 +653,7 @@ export class BookPage implements MenuPage {
     if (this.isMizube) return mizubeRows(this.vol).length;
     if (this.isHajimete) return hajimeteRows(this.vol).length;
     if (this.isMushi) return mushiRows().length;
-    if (this.sec === 0) return v.fushigi.length + (v.n === 2 && hasNihyakuPage() ? 1 : 0) + (v.n === 2 && hasShikishiPage() ? 1 : 0) + (v.n === 2 && hasAshiatoPage() ? 1 : 0) + (v.n === 1 && hasTokeiPage() ? 1 : 0);
+    if (this.sec === 0) return v.fushigi.length + (v.n === 2 ? corner2().length : 0) + (v.n === 1 && hasTokeiPage() ? 1 : 0);
     return this.sec === 1 ? v.enemies.length : totalIn(v, v.n === 1 ? 19 : 17);
   }
 
@@ -826,11 +842,8 @@ export class BookPage implements MenuPage {
     if (this.isMushi) return mushiRows().map((b, i) => wrapRow(b.name, mushiSeenKind(b.kind), b.kind === 'kabuto' ? '' : num(i), UI.text));
     if (this.sec === 0) {
       const r = v.fushigi.map((f, i) => wrapRow(f[0], v.done(i), num(i), UI.text));
-      if (v.n === 2 && hasNihyakuPage()) r.push(wrapRow(NIHYAKU_ROW_LABEL, true, '', UI.pencil));
-      // 『70年の 色紙』（02 #84）：二百十日の 下に
-      if (v.n === 2 && hasShikishiPage()) r.push(wrapRow(SHIKISHI_ROW_LABEL, true, '', UI.pencil));
-      // 『よるの 足あと』（02 #87）：② の いちばん下
-      if (v.n === 2 && hasAshiatoPage()) r.push(wrapRow(ASHIATO_ROW_LABEL, true, '', UI.pencil));
+      // ② の すみの ページ（二百十日・色紙・足あと・店番・耳の あいさつ）：corner2()
+      if (v.n === 2) for (const c of corner2()) r.push(wrapRow(c.label, true, '', UI.pencil));
       // 『チクタク堂の 7つの 時計』（02 #88）：① の いちばん下
       if (v.n === 1 && hasTokeiPage()) r.push(wrapRow(TOKEI_ROW_LABEL, true, '', UI.pencil));
       return r;
@@ -921,11 +934,8 @@ export class BookPage implements MenuPage {
       return;
     }
     if (s === 0) {
-      if (v.n === 2 && i === v.fushigi.length && hasNihyakuPage()) return drawNihyakuPage(g, x, y, w);
       if (v.n === 1 && i >= v.fushigi.length && hasTokeiPage()) return drawTokeiPage(g, x, y, w);
-      // 『よるの 足あと』（02 #87）：いつも ② の いちばん下の 行
-      if (v.n === 2 && i >= v.fushigi.length && hasAshiatoPage() && i === this.count() - 1) return drawAshiatoPage(g, x, y, w);
-      if (v.n === 2 && i >= v.fushigi.length) return drawShikishiPage(g, x, y, w);
+      if (v.n === 2 && i >= v.fushigi.length) return corner2()[i - v.fushigi.length]?.draw(g, x, y, w);
       if (!v.done(i)) return empty();
       const [title, place] = v.fushigi[i];
       // (lines beside an iPad's touch buttons are set a little tighter: pageText)

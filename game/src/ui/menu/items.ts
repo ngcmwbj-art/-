@@ -22,6 +22,9 @@ import { dottedLine, drawCursor, drawMarker, fitWrap, pencilLine, phraseWrap as 
 import { clearSpacing, drawHeader, drawScroll, FOLD, hpColor, listCursorX, listDx, LP, pageText, Popup, RP, SP, type PopupOpt } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
 import { UKI_DESC_LINE } from '../../data/text/mizube';
+// 「ダンゴムシ ちゃうで」の 報告書（02 #93）：写しの 2行目と、つかうと カード
+import { hkItemDesc } from '../../data/text/hokokusho';
+import { viewCard } from '../hokokusho_card';
 
 export const BAG_MAX = 14;
 
@@ -107,6 +110,7 @@ export function itemDesc(id: string): [string, string] {
   const it = getItem(id);
   // おぴぃの浮き：堰の 片手の 大将に 会ったら 2行目が かわる（水辺の 図鑑、02 #81）
   if (id === 'item_tamotsu_uki' && flag('flag_mizube_uki_line')) return [it?.desc[0] ?? '', UKI_DESC_LINE];
+  if (id === 'item_hokokusho') return hkItemDesc();
   return [it?.desc[0] ?? '', it?.desc[1] ?? ''];
 }
 
@@ -381,6 +385,7 @@ export class ItemsPage implements MenuPage {
   private useKey(m: MenuCtx, id: string): void {
     if (id === 'item_hanko_case') m.goTab('hanko');
     else if (id === 'item_mimashita_cho') m.goTab('book');
+    else if (id === 'item_hokokusho') m.run(viewCard());
     else if (progressHead(id)) {
       const p = progressOf(id);
       m.run(say([progressHead(id) + (p ? '\n' + p : '')], { voice: 'narr' }));

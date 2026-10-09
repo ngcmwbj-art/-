@@ -254,6 +254,8 @@ registerMap({
     PR('in_kb_fan', 6, 2),
     PR('in_kb_umbrella', 1, 5),
     PR('in_kb_chair', 7, 5),
+    // 報告書の 似顔絵（町の 地図の 左に 貼る。02 #93、art/props/hokokusho.ts。しらべるのは obj_koban_map）
+    PR('in_kb_tehai', 2, 0),
     // examine
     O('obj_koban_poster', 1, 1, { face: 'up' }),
     O('obj_koban_map', 2, 1, { w: 3, face: 'up' }),

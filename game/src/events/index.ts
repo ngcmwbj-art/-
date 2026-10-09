@@ -45,4 +45,6 @@ import './mizube';
 import './tokei7';
 // グソっ君の はじめて帳（02 #89）：町と 村の 14人の 台本を 包むので、tokei7 と ./ch2 の あとに import する
 import './hajimete';
+// 「ダンゴムシ ちゃうで」の 報告書（02 #93）：巡査・聞き込みの 8人・さや・母・コタロウを 包むので、hajimete の あとに import する
+import './hokokusho';
 import './debug';

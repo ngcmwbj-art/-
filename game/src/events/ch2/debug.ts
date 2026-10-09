@@ -50,10 +50,13 @@ import { MIZUBE_CH2_TEXTS } from '../../data/text/mizube_ch2';
 import { DOME_PAGES } from '../../data/text/hoshi_dome';
 import { SHIKISHI_TEXTS } from '../../data/text/hoshi_shikishi';
 import { ASHIATO_TEXTS } from '../../data/text/hoshi_ashiato';
+import { TENBAN_TEXTS } from '../../data/text/hoshi_tenban';
+import { MIMI_TEXTS } from '../../data/text/hoshi_mimi';
 import { HUNTING_TEXTS } from '../../data/text/hunting';
 import { KOTEI_TEXTS } from '../../data/text/kotei';
 import { TOKEI_TEXTS } from '../../data/text/tokei7';
 import { HAJIMETE_TEXTS } from '../../data/text/hajimete';
+import { HOKOKUSHO_TEXTS } from '../../data/text/hokokusho';
 
 type Step = () => void;
 
@@ -456,6 +459,9 @@ function collectTexts(): [string, string][] {
   walk('shikishi', SHIKISHI_TEXTS);
   // げむきか10/6の案3（夜の 足あと帳。50 9.9・10.28, 02_ch2_index #87）
   walk('ashiato', ASHIATO_TEXTS);
+  // げむきか10/9の案3・5（無人販売所の 店番・ふくじんづけと 耳の あいさつ。50 10.30・10.31, 02_ch2_index #94・#95）
+  walk('tenban', TENBAN_TEXTS);
+  walk('mimi', MIMI_TEXTS);
   // げむきか10/5の新5（ハンチングの 値札。第1章の くりこ〔chichi〕も。10 6.8, 50 3.8・9.9, 02_ch2_index #83）
   walk('hunting', HUNTING_TEXTS);
   // げむきか10/5の新1（二人十五脚。第1章の ピー・コック・なんばるわん・校庭。10 6.12・6.23・7.24, 02_ch2_index #82）
@@ -464,6 +470,8 @@ function collectTexts(): [string, string][] {
   walk('tokei7', TOKEI_TEXTS);
   // げむきか10/7の案5（グソっ君の はじめて帳。第1章の 町の 8人、第2章の 村の 6人と 裏表紙。10 6.27, 50 10.29, 02_ch2_index #89）
   walk('hajimete', HAJIMETE_TEXTS);
+  // げむきか10/9の案2（「ダンゴムシ ちゃうで」の 報告書。第1章の 交番・8人・さや・母。10 6.28, 02_ch2_index #93）
+  walk('hokokusho', HOKOKUSHO_TEXTS);
   // げむきか10/5の改1（水辺の 図鑑：夜振り・たも網・沢ガニ・駅ノート。50 3.10・10.25, 02_ch2_index #81）
   walk('mizube_ch2', MIZUBE_CH2_TEXTS);
   // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line

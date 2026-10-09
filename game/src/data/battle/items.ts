@@ -78,6 +78,8 @@ const items: ItemDef[] = [
   { id: 'item_hunting', name: 'ペロのハンチング', key: true, target: 'none', desc: ['値札の 糸が、ついたまま。', ''], battleText: ['ハンチングを 見せた。\n……これは、ペロの 帽子だ。'] },
   // チクタク堂の ばらばら時計（02 #88）：7つ目の あと、時計店の ゆうから（第2章にも 持っていく）
   { id: 'item_tokei7_utsushi', name: '7つの時刻の写し', key: true, target: 'none', desc: ['ゆうの 字。', '1秒も くるって いない 字。'], battleText: ['写しを 見せた。\n$enemyは いつもの 時刻を 考えている。'] },
+  // 「ダンゴムシ ちゃうで」の 報告書（02 #93）：ワイスタ巡査の 報告書の 写し（もちもので カードが 開く。2行目は ui/menu/items.ts）
+  { id: 'item_hokokusho', name: '報告書の写し', key: true, target: 'none', desc: ['ワイスタ巡査の 報告書の 写し。', ''], battleText: ['報告書の 写しを 見せた。\n$enemyは 自分の 欄を さがしている。'] },
 ];
 
 const table = new Map<string, ItemDef>();
