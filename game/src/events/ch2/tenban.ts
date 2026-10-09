@@ -279,7 +279,7 @@ function* pay(panel: TenbanPanel, g: TenbanGuest): Co {
   for (let i = 0; i < n; i++) {
     se('se_h_coin_box', { vol: 0.8 });
     panel.coins++;
-    panel.word('+100', RX - SX + 60, 36, 800, '#FFE7A3');
+    panel.word('+100', RX - SX + 100, 50, 800, '#FFE7A3');
     yield 260;
   }
   yield* say(T.TENBAN_PAY[g]);
@@ -385,7 +385,7 @@ export function* tenbanScene(): Co {
   // the stand and the road between the close-up (top) and the window (bottom). The HD-2D's tilted
   // camera (f.projected() answers only there) shows them a little lower down for the same centre.
   const hd = !!f.projected(p.x, p.y);
-  yield* panTo(21, hd ? 36.25 : 36.6, 20);
+  yield* panTo(21, hd ? 38 : 36.6, 20);
   yield* game.fadeIn(300);
   const panel = new TenbanPanel();
   try {
