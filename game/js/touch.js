@@ -82,9 +82,7 @@ export function setupTouch(game) {
   for (const slot of document.querySelectorAll('#hotbar .slot')) {
     slot.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      const id = slot.dataset.id;
-      game.buildSel = game.buildSel === id ? null : id;
-      if (!game.buildSel) game.towers.hidePreview();
+      game.selectTower(slot.dataset.id);
     }, { passive: false });
   }
   document.getElementById('help').addEventListener('click', (e) => e.currentTarget.classList.remove('show'));

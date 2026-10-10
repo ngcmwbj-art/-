@@ -4,12 +4,12 @@ import { toonify } from './toon.js';
 import { heightAt, groundAt, isWalkable, FIELDS, fieldRectDist } from './world.js';
 
 export const TOWER_TYPES = [
-  { id: 'observer', key: '1', name: '観測塔', cost: 40, radius: 34, color: '#b48cff',
-    desc: '範囲内の竜巻を常時観測。実体なら収束、幻なら消滅させる' },
-  { id: 'amp', key: '2', name: '量子アンプ', cost: 60, radius: 22, color: '#ff8a3d',
-    desc: '2拍ごとにパワーコードの衝撃波。収束済みの竜巻と飛来物を攻撃' },
-  { id: 'rod', key: '3', name: 'トンネル避雷塔', cost: 50, radius: 30, color: '#6fe3ff',
-    desc: '範囲の落雷を吸収してQビットに変換。接近した竜巻をトンネル効果で沖へ飛ばす' },
+  { id: 'amp', key: '1', name: 'スピーカー', short: '近くの敵を自動で撃つ', cost: 50, radius: 24, color: '#ff8a3d',
+    desc: '音楽に合わせて、範囲に入った雑魚や竜巻へ自動で音波を撃つ。畑の守りの基本' },
+  { id: 'observer', key: '2', name: '観測ライト', short: '紫の竜巻の正体を暴く', cost: 40, radius: 34, color: '#b48cff',
+    desc: '範囲に入った紫の竜巻（重ね合わせ）を照らして観測。本物なら攻撃が効くようになり、幻なら消える' },
+  { id: 'rod', key: '3', name: '避雷針', short: '雷を防いで Q に変える', cost: 50, radius: 30, color: '#6fe3ff',
+    desc: '範囲に落ちる雷を吸い取って Qビットに変える。近づいた竜巻は東の沖へ飛ばす' },
 ];
 
 const MAT = {
@@ -170,12 +170,19 @@ export class Towers {
   onBeat(beat) {
     const th = this.game.threats;
     for (const t of this.list) {
-      if (t.id === 'amp' && beat % 2 === 0 && t.age > 1) {
-        const res = th.blast(t.pos, t.def.radius, 16, {});
-        this.game.fx.ring(t.pos, t.def.color, t.def.radius, 0.45, 0.7);
-        t.pulse = 1;
-        if (res.hits) this.game.audio.ampHit();
-      }
+      if (t.id !== 'amp' || t.age < 1) continue;
+      // いちばん近い敵へ音波を撃つ（拍ごと）
+      const e = th.nearestTarget(t.pos, t.def.radius);
+      if (!e) continue;
+      const from = t.pos.clone().add(new THREE.Vector3(0, 2.5, 0));
+      const dir = e.pos.clone().sub(t.pos).setY(0);
+      const dist = dir.length();
+      dir.normalize();
+      this.game.fx.soundWave(t.pos.clone().add(new THREE.Vector3(0, 1.2, 0)), dir, t.def.color, dist, 2);
+      this.game.fx.notes(from, 2, ['#ff8a3d', '#ffd36a'], 0.6, dir);
+      th.hitEnemy(e, 14 + this.game.wave * 3);
+      t.pulse = 1;
+      this.game.audio.ampHit();
     }
   }
 

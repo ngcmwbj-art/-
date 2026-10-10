@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { FIELDS, coastX, BOUNDS, LIGHTHOUSE, HOUSE } from './world.js';
 import { TOWER_TYPES } from './towers.js';
 import { BEAT } from './audio.js';
+const WAVES_NAME = (game) => game.waveName();
 
 const $ = (id) => document.getElementById(id);
 
@@ -20,13 +21,13 @@ export class HUD {
     TOWER_TYPES.forEach((t) => {
       const d = document.createElement('div');
       d.className = 'slot'; d.dataset.id = t.id;
-      d.innerHTML = `<span class="k">${t.key}</span><b>${t.name}</b><span class="c">${t.cost}Q</span><i style="background:${t.color}"></i>`;
+      d.innerHTML = `<span class="k">${t.key}</span><b>${t.name}</b><small>${t.short}</small><span class="c">${t.cost}Q</span><i style="background:${t.color}"></i>`;
       d.title = t.desc;
       this.el.hotbar.appendChild(d);
     });
     this.lastToast = '';
     this.el.banner = $('banner'); this.el.obj = $('objective'); this.el.comboEl = $('combo');
-    this.el.lane = $('lane'); this.el.arrows = $('arrows');
+    this.el.lane = $('lane'); this.el.arrows = $('arrows'); this.el.bossbar = $('bossbar');
     // 拍のレーン：右から流れてくる音符
     this.laneNotes = [];
     for (let i = 0; i < 6; i++) { const n = document.createElement('i'); n.className = 'lnote'; n.textContent = '♪'; this.el.lane.appendChild(n); this.laneNotes.push(n); }
@@ -202,6 +203,18 @@ export class HUD {
     }
     for (let i = ai; i < this.arrowEls.length; i++) this.arrowEls[i].style.display = 'none';
 
+    // 大ボスの体力ゲージ（画面上部）
+    const bb = this.el.bossbar, boss = game.threats.boss;
+    if (boss && boss.members.some((m) => m.alive)) {
+      const real = boss.members.find((m) => m.real);
+      const known = boss.collapsed;
+      bb.hidden = false;
+      bb.querySelector('b').textContent = `${WAVES_NAME(game)}の目`;
+      bb.querySelector('i').style.width = (known && real ? Math.max(0, real.hp / real.maxHp * 100) : 100) + '%';
+      bb.classList.toggle('unknown', !known);
+      bb.querySelector('em').textContent = known ? '' : '正体不明 ― 紫の分身を観測して本物を見つけよう';
+    } else bb.hidden = true;
+
     // 竜巻の体力バー
     const seen = new Set();
     for (const t of game.threats.tornados) {
@@ -212,7 +225,7 @@ export class HUD {
       seen.add(t);
       let bar = this.barEls.get(t);
       if (!bar) {
-        bar = document.createElement('div'); bar.className = 'hpbar'; bar.innerHTML = '<i></i><span>竜巻</span>';
+        bar = document.createElement('div'); bar.className = 'hpbar'; bar.innerHTML = `<i></i><span>${t.group.mini ? 'つむじ風' : t.group.boss ? '台風の目' : '竜巻'}</span>`;
         el.bars.appendChild(bar); this.barEls.set(t, bar);
       }
       bar.style.left = ((p.x + 1) / 2 * innerWidth) + 'px';
@@ -249,6 +262,8 @@ export class HUD {
     for (const t of game.towers.list) dot(t.pos.x, t.pos.z, t.def.color, 3);
     // 落雷予告
     for (const st of game.threats.strikes) dot(st.pos.x, st.pos.z, '#ffd24a', 3);
+    // 雑魚
+    for (const m of game.threats.minions) dot(m.pos.x, m.pos.z, m.type === 'mushi' ? '#9fe05a' : '#222', 2);
     // 飛来物
     for (const d of game.threats.debris) dot(d.pos.x, d.pos.z, '#ccc', 1.6);
     // 竜巻

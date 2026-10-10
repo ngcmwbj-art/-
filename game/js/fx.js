@@ -123,12 +123,14 @@ export class FX {
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
     return (this._notes[ch] = t);
   }
-  notes(pos, count = 8, colors = ['#ffd36a', '#ff7ac8', '#7fe8ff', '#b4ff7a'], power = 1) {
+  notes(pos, count = 8, colors = ['#ffd36a', '#ff7ac8', '#7fe8ff', '#b4ff7a'], power = 1, dir = null) {
     for (let i = 0; i < count; i++) {
       const mat = new THREE.SpriteMaterial({ map: this.noteTexture(['♪', '♫', '♬'][i % 3]), color: colors[i % colors.length], transparent: true, depthWrite: false });
       const s = new THREE.Sprite(mat);
       const a = Math.random() * Math.PI * 2;
       const v = new THREE.Vector3(Math.cos(a) * (2 + Math.random() * 3) * power, (4 + Math.random() * 4) * power, Math.sin(a) * (2 + Math.random() * 3) * power);
+      // 向きが指定されたら、音符も音波と一緒に前へ飛ばす
+      if (dir) { v.multiplyScalar(0.35); v.addScaledVector(dir, (10 + Math.random() * 6) * power); v.y = 1.5 + Math.random() * 2; }
       s.position.copy(pos);
       const size = (0.3 + Math.random() * 0.3) * (0.8 + power * 0.3);
       s.scale.setScalar(size);

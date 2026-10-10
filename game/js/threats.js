@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { heightAt, groundAt, coastX } from './world.js';
 import { toToon } from './toon.js';
+import { Minion } from './minions.js';
 import { rand, GLSL_NOISE } from './util.js';
 
 const tornadoVS = /* glsl */`
@@ -87,6 +88,8 @@ class Tornado {
     this.debrisPts.frustumCulled = false;
     this.obj.add(this.debrisPts);
     this.obj.position.copy(this.pos);
+    this.baseScale = group.scale || 1;
+    this.obj.scale.setScalar(this.baseScale);
     sys.scene.add(this.obj);
   }
 
@@ -100,7 +103,7 @@ class Tornado {
     if (this.dying > 0) {
       this.dying += dt;
       alphaMul *= Math.max(0, 1 - this.dying / 1.2);
-      this.obj.scale.setScalar(1 + this.dying * 0.5);
+      this.obj.scale.setScalar(this.baseScale * (1 + this.dying * 0.5));
       if (this.dying > 1.2) { this.dispose(); return; }
     } else {
       // 目標キャベツへ移動
@@ -126,19 +129,19 @@ class Tornado {
 
       // 実体のみがキャベツを破壊。未観測なら接触でデコヒーレンス（自動収束）
       if (this.real && !this.group.practice) {
-        const near = cab.nearestAlive(this.pos.x, this.pos.z, 6);
+        const near = cab.nearestAlive(this.pos.x, this.pos.z, 6 * Math.max(0.5, this.baseScale));
         if (near >= 0 && !this.group.collapsed) sys.collapse(this.group, 'decoherence');
         if (this.group.collapsed) {
-          const k = cab.damageRadius(this.pos.x, this.pos.z, 6.5, 48 * dt * sys.dmgMul, 'tornado');
+          const k = cab.damageRadius(this.pos.x, this.pos.z, 6.5 * Math.max(0.45, this.baseScale), 48 * dt * sys.dmgMul * (this.group.mini ? 0.5 : 1), 'tornado');
           if (k) sys.stats.lost += k;
         }
       }
       // プレイヤーとの接触＝位置の測定
       const pd = Math.hypot(sys.player.pos.x - this.pos.x, sys.player.pos.z - this.pos.z);
-      if (pd < 6.5) {
+      if (pd < 6.5 * Math.max(0.4, this.baseScale)) {
         if (this.real) {
           if (!this.group.collapsed) sys.collapse(this.group, 'touch');
-          sys.player.knock(this.pos, 16);
+          sys.player.knock(this.pos, this.group.mini ? 7 : 16);
           sys.audio.whoosh();
         } else if (!this.group.collapsed) {
           sys.eliminateGhost(this, 'touch');
@@ -301,7 +304,8 @@ export class Threats {
     this.scene = game.scene; this.weather = game.weather; this.cabbages = game.cabbages;
     this.player = game.player; this.fx = game.fx; this.audio = game.audio; this.hud = game.hud;
     this.towers = null;
-    this.groups = []; this.tornados = []; this.debris = []; this.strikes = [];
+    this.groups = []; this.tornados = []; this.debris = []; this.strikes = []; this.minions = [];
+    this.minionKills = 0; this.boss = null;
     this.slow = false;
     this.dmgMul = 1;
     this.stats = { lost: 0, tornados: 0, debris: 0, reflected: 0, absorbed: 0, collapsed: 0 };
@@ -312,7 +316,7 @@ export class Threats {
     this.debrisMat = toToon(new THREE.MeshStandardMaterial({ color: '#9a968e', metalness: 0.7, roughness: 0.55, side: THREE.DoubleSide }));
   }
 
-  get activeReal() { return this.tornados.filter((t) => t.real && t.alive).length; }
+  get activeReal() { return this.tornados.filter((t) => t.real && t.alive && !t.group.mini && !t.group.practice).length; }
 
   // 重ね合わせ状態の竜巻グループを生成
   spawnGroup(wave, baseAngle) {
@@ -330,6 +334,76 @@ export class Threats {
     }
     this.groups.push(group);
     return group;
+  }
+
+  // 前ぶれの雑魚：青虫・カラス・つむじ風（小さな竜巻。重ね合わせなし）
+  spawnMinion(type, wave) {
+    if (type === 'tsumuji') {
+      const z = rand(-120, 120);
+      const group = { members: [], collapsed: true, hp: 40 + wave * 12, speed: 4.5 + wave * 0.3, scale: 0.3, mini: true };
+      const tor = new Tornado(this, new THREE.Vector3(coastX(z) + rand(10, 25), 0, z), true, group);
+      tor.setGhost(0);
+      group.members.push(tor);
+      this.tornados.push(tor);
+      this.groups.push(group);
+      return;
+    }
+    this.minions.push(new Minion(this, type, wave));
+  }
+
+  // 大ボス：台風の目（巨大な重ね合わせ竜巻）
+  spawnBoss(wave, baseAngle) {
+    const g = this.spawnGroup(wave, baseAngle);
+    g.boss = true;
+    g.scale = 1.7;
+    for (const m of g.members) {
+      m.hp = m.maxHp = 380 + wave * 190;
+      m.baseScale = 1.7;
+      m.obj.scale.setScalar(1.7);
+    }
+    g.speed = 2.8 + wave * 0.3;
+    this.boss = g;
+    return g;
+  }
+
+  get bossAlive() { return !!(this.boss && this.boss.members.some((m) => m.alive)); }
+  get minionsAlive() { return this.minions.filter((m) => m.alive).length + this.tornados.filter((t) => t.alive && t.group.mini).length; }
+
+  // タワーが狙う、いちばん近い攻撃できる敵
+  nearestTarget(pos, r) {
+    let best = null, bd = r * r;
+    for (const m of this.minions) {
+      if (!m.alive) continue;
+      const d = (m.pos.x - pos.x) ** 2 + (m.pos.z - pos.z) ** 2;
+      if (d < bd) { bd = d; best = m; }
+    }
+    for (const t of this.tornados) {
+      if (!t.alive || !t.group.collapsed || t.group.practice) continue;
+      const d = (t.pos.x - pos.x) ** 2 + (t.pos.z - pos.z) ** 2;
+      if (d < bd) { bd = d; best = t; }
+    }
+    return best;
+  }
+
+  // 敵にダメージを与え、倒したら報酬
+  hitEnemy(e, dmg) {
+    const p = e.pos.clone().add(new THREE.Vector3(0, e.type ? 1.5 : 8 * (e.baseScale || 1), 0));
+    this.hud.floater(`-${Math.round(dmg)}`, p, this.game.camera, '#ffb84a');
+    if (!e.damage(dmg)) return false;
+    if (e.type || e.group.mini) {
+      this.minionKills++;
+      this.fx.burst(e.pos.clone().add(new THREE.Vector3(0, 1, 0)), e.type === 'mushi' ? '#9fe05a' : '#9aa0b0', 30, 8, 0.8, 0.35, 4);
+      this.game.addQ(4, p);
+      this.audio.clank(0.4);
+    } else {
+      this.stats.tornados++;
+      const big = e.group.boss;
+      this.game.addQ(big ? 80 : 25, p);
+      this.fx.burst(e.pos.clone().add(new THREE.Vector3(0, 6, 0)), '#cfe8ff', big ? 200 : 90, big ? 26 : 18, 1.6, 0.6, 3);
+      this.audio.dissipate();
+      this.hud.toast(big ? '大ボスを倒した！ 台風の目が消えていく… +80Q' : '竜巻を消滅させた！ +25Q', 'good');
+    }
+    return true;
   }
 
   // チュートリアル用の練習竜巻（キャベツを荒らさず、その場で揺れるだけ）
@@ -419,13 +493,22 @@ export class Threats {
         t.pos.x += dx / l * opts.push; t.pos.z += dz / l * opts.push;
       }
       this.fx.burst(t.pos.clone().add(new THREE.Vector3(0, 4, 0)), '#ffd36a', 20, 10, 0.6, 0.4, 2);
-      if (t.damage(dmg)) {
-        this.stats.tornados++;
-        this.game.addQ(25, t.pos.clone().add(new THREE.Vector3(0, 8, 0)));
-        this.fx.burst(t.pos.clone().add(new THREE.Vector3(0, 6, 0)), '#cfe8ff', 90, 18, 1.4, 0.5, 3);
-        this.audio.dissipate();
-        this.hud.toast('竜巻を消滅させた！ +25Q', 'good');
+      this.hitEnemy(t, dmg);
+    }
+    for (const m of this.minions) {
+      if (!m.alive) continue;
+      const d = Math.hypot(m.pos.x - center.x, m.pos.z - center.z);
+      if (d > radius + 1) continue;
+      if (opts.cone && d > opts.inner) {
+        const dir = new THREE.Vector2(m.pos.x - center.x, m.pos.z - center.z).normalize();
+        if (dir.dot(opts.cone) < 0.6) continue;
       }
+      hits++;
+      if (opts.push && opts.from && m.type === 'mushi') {
+        const dx = m.pos.x - opts.from.x, dz = m.pos.z - opts.from.z, l = Math.hypot(dx, dz) || 1;
+        m.pos.x += dx / l * opts.push * 0.6; m.pos.z += dz / l * opts.push * 0.6;
+      }
+      this.hitEnemy(m, dmg);
     }
     for (const d of this.debris) {
       if (!d.alive) continue;
@@ -476,6 +559,8 @@ export class Threats {
   // 嵐の終わりに残った天災を消す
   clearAll() {
     for (const t of this.tornados) t.vanish();
+    for (const m of this.minions) if (m.alive) m.remove();
+    this.minions = [];
     for (const d of this.debris) if (d.alive) d.remove();
     for (const s of this.strikes) if (s.alive) { s.alive = false; this.scene.remove(s.mesh); }
   }
@@ -486,6 +571,9 @@ export class Threats {
     this.groups = this.groups.filter((g) => g.members.some((m) => m.alive));
     for (const d of this.debris) if (d.alive) d.update(dt);
     this.debris = this.debris.filter((d) => d.alive);
+    for (const m of this.minions) if (m.alive) m.update(dt);
+    this.minions = this.minions.filter((m) => m.alive);
+    if (this.boss && !this.bossAlive) this.boss = null;
     for (const s of this.strikes) if (s.alive) s.update(dt, t);
     this.strikes = this.strikes.filter((s) => s.alive);
   }

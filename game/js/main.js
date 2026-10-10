@@ -155,9 +155,7 @@ class Game {
         case 'KeyE': this.doBuild(); break;
         case 'KeyX': this.buildSel = null; this.towers.hidePreview(); break;
         case 'Digit1': case 'Digit2': case 'Digit3': {
-          const t = TOWER_TYPES[+e.code.slice(-1) - 1];
-          this.buildSel = this.buildSel === t.id ? null : t.id;
-          if (!this.buildSel) this.towers.hidePreview();
+          this.selectTower(TOWER_TYPES[+e.code.slice(-1) - 1].id);
           break;
         }
         case 'Enter': this.skipPrep(); break;
@@ -252,7 +250,7 @@ class Game {
     const gpos = p.clone().add(new THREE.Vector3(0, 1.3, 0));
     this.fx.ring(p, just ? '#ffd36a' : '#ff8a3d', reach, 0.45, 0.7);
     this.fx.soundWave(p, f, just ? '#ffd36a' : '#ff9a5a', reach, just ? 3 : 1);
-    this.fx.notes(gpos, just ? 4 + Math.min(Math.floor(this.combo / 3), 4) : 2, undefined, just ? 1.2 : 0.7);
+    this.fx.notes(gpos, just ? 4 + Math.min(Math.floor(this.combo / 3), 4) : 2, undefined, just ? 1.2 : 0.7, f);
     if (just) {
       this.score.just++;
       this.maxCombo = Math.max(this.maxCombo, this.combo);
@@ -312,6 +310,15 @@ class Game {
     this.threats.measure(p, 90, 'solo');
   }
 
+  // タワーを選ぶと、何をするものか・どう置くかを表示
+  selectTower(id) {
+    this.buildSel = this.buildSel === id ? null : id;
+    if (!this.buildSel) { this.towers.hidePreview(); return; }
+    const def = this.towers.def(id);
+    this.hud.toast(`${def.name}：${def.desc}`, 'tip');
+    this.hud.toast(IS_TOUCH ? '目の前に出る緑の輪が守備範囲。「ここに建てる」で設置' : '目の前に出る緑の輪が守備範囲。［E］で設置／［X］でやめる', 'tip');
+  }
+
   doBuild() {
     if (!this.buildSel) return;
     const def = this.towers.def(this.buildSel);
@@ -333,6 +340,8 @@ class Game {
   }
 
   prepLength() { return this.wave === 0 ? 50 : 30; }
+  waveName() { return WAVES[Math.min(this.wave, WAVES.length - 1)].name.replace(/「.*」/, ''); }
+
   waveLabel() {
     const w = WAVES[Math.min(this.wave, WAVES.length - 1)];
     return `${w.name}（${w.cls}）  ${Math.min(this.wave + 1, WAVES.length)} / ${WAVES.length}`;
@@ -340,12 +349,11 @@ class Game {
   phaseLabel() {
     return { prep: this.mission ? '練習中：操作を覚えよう' : '準備：量子デバイスを建てよう', storm: '台風接近中 ― キャベツを守り抜け！', clear: '台風一過', result: '収穫', gameover: '全滅', title: '' }[this.phase];
   }
+  minionsLeft() { return this.spawn.pool.length + this.threats.minionsAlive; }
+
   timerLabel() {
     if (this.phase === 'prep') return `上陸まで ${Math.ceil(this.prepLength() - this.phaseT)} 秒  ［Enter］で迎え撃つ`;
-    if (this.phase === 'storm') {
-      const real = this.threats.activeReal + (WAVES[this.wave].groups - this.spawn.groups);
-      return `残りの竜巻（実体） ${real}`;
-    }
+    if (this.phase === 'storm') return this.spawn.boss ? '大ボス戦' : `前ぶれの雑魚 残り ${this.minionsLeft()}`;
     return '';
   }
 
@@ -353,15 +361,32 @@ class Game {
     const w = WAVES[this.wave];
     this.phase = 'storm';
     this.phaseT = 0;
-    this.spawn = { groups: 0, debris: 3, strike: 6, nextGroup: 2 };
+    // 前ぶれの雑魚（青虫・カラス・つむじ風）を倒すと、大ボス（台風の目）が現れる
+    const pool = [];
+    for (let i = 0; i < 6 + this.wave * 3; i++) pool.push('mushi');
+    for (let i = 0; i < 3 + this.wave * 2; i++) pool.push('karasu');
+    for (let i = 0; i < 2 + this.wave; i++) pool.push('tsumuji');
+    pool.sort(() => Math.random() - 0.5);
+    this.spawn = { pool, total: pool.length, next: 1.5, boss: false, debris: 6, strike: 14 };
+    this.threats.minionKills = 0;
     const a = rand(-0.6, 0.6); // 東の海から
     this.stormAngle = a;
     this.weather.typhoonCenter.set(Math.cos(a) * 1500, Math.sin(a) * 1500);
     this.weather.windDir.set(-Math.cos(a), -Math.sin(a)).normalize();
-    this.weather.setStorm(w.peak);
+    this.weather.setStorm(w.peak * 0.7);
     this.threats.dmgMul = 1 + this.wave * 0.08;
-    this.hud.banner(`${w.name} 接近！`, `竜巻 ${w.groups} 本を全部吹き飛ばせ！ キャベツが3割を切ったら負け`);
+    this.hud.banner(`${w.name} 接近！`, `まずは前ぶれの雑魚 ${pool.length} 匹が畑を狙ってくる！`);
     this.audio.thunder(0.5);
+  }
+
+  spawnBoss() {
+    const w = WAVES[this.wave];
+    this.spawn.boss = true;
+    this.threats.spawnBoss(this.wave, this.stormAngle);
+    this.weather.setStorm(w.peak);
+    this.hud.banner(`大ボス出現！`, `「${w.name}の目」が上陸！ 紫に揺れる分身から本物を観測して倒せ`);
+    this.audio.thunder(0.2);
+    this.player.shake = 0.8;
   }
 
   endStorm() {
@@ -410,18 +435,24 @@ class Game {
       const sp = this.spawn;
       this.q += dt * 0.6;
       if (this.phaseT > 6 && Math.random() < dt * 0.12 * w.peak) { this.weather.distantFlash(); this.audio.thunder(rand(0.8, 2), 0.35); }
-      if (sp.groups < w.groups && this.phaseT >= sp.nextGroup) {
-        this.threats.spawnGroup(this.wave, this.stormAngle);
-        sp.groups++;
-        sp.nextGroup = this.phaseT + rand(12, 20) - this.wave * 1.5;
-        if (sp.groups === 1) this.hud.toast('竜巻が発生！ 紫に揺らぐのは「重ね合わせ状態」― どれが本物かは観測するまでわからない', 'q');
+      // 雑魚を少しずつ送り込む
+      sp.next -= dt;
+      if (sp.pool.length && sp.next <= 0) {
+        const type = sp.pool.pop();
+        this.threats.spawnMinion(type, this.wave);
+        sp.next = Math.max(0.5, 2.2 - this.wave * 0.3) * rand(0.6, 1.3);
+        if (sp.pool.length === sp.total - 1) this.hud.toast('雑魚がやってきた！ 近づいてギターで倒そう（スピーカーも自動で撃つ）', 'q');
       }
-      sp.debris -= dt;
-      if (sp.debris <= 0 && this.phaseT > 8) { this.threats.spawnDebris(); sp.debris = w.debris * rand(0.7, 1.3); }
+      // 雑魚を全部倒すか 80 秒たったら大ボス
+      if (!sp.boss && ((!sp.pool.length && this.threats.minionsAlive === 0) || this.phaseT > 80)) this.spawnBoss();
+      if (sp.boss) {
+        sp.debris -= dt;
+        if (sp.debris <= 0) { this.threats.spawnDebris(); sp.debris = w.debris * rand(0.7, 1.3); }
+      }
       sp.strike -= dt;
-      if (sp.strike <= 0 && this.phaseT > 10) { this.threats.spawnStrike(); sp.strike = w.strike * rand(0.7, 1.3); }
-      if (sp.groups >= w.groups && this.threats.activeReal === 0 && this.phaseT > 40) this.endStorm();
-      if (this.phaseT > 200) this.endStorm();
+      if (sp.strike <= 0 && this.phaseT > 15) { this.threats.spawnStrike(); sp.strike = w.strike * rand(0.8, 1.5); }
+      if (sp.boss && !this.threats.bossAlive) this.endStorm();
+      if (this.phaseT > 260) this.endStorm();
     } else if (this.phase === 'clear') {
       if (this.phaseT > 8) {
         this.wave++;
@@ -462,7 +493,7 @@ class Game {
         done: () => this.practice && !this.practice.members.some((t) => t.alive),
       },
       {
-        text: T ? '最後に、上のタワー欄から「観測塔」を選んで建てよう' : '最後に［1］で観測塔を選び、［E］で建てよう（竜巻を自動で観測してくれる）',
+        text: T ? '最後に、左のタワー欄から「スピーカー」を選んで建てよう（近づく敵を自動で撃つ）' : '最後に［1］で「スピーカー」を選び、［E］で建てよう（近づく敵を自動で撃つ）',
         start: () => { this.q = Math.max(this.q, 120); this.mTowers = this.towers.list.length; },
         done: () => this.towers.list.length > this.mTowers,
       },
@@ -580,8 +611,9 @@ class Game {
     const fov = 62 - this.fovKick * 9 + (this.player.soloOn ? -6 : 0);
     if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
     if (this.phase === 'storm') {
-      const left = this.threats.activeReal + (WAVES[this.wave].groups - this.spawn.groups);
-      this.hud.objective(`竜巻をあと <b>${left}</b> 本 吹き飛ばせ！`, `キャベツ ${this.cabbages.alive} 玉（${Math.ceil(this.cabbages.total * 0.3)} 玉を切ると負け）`);
+      const sub = `キャベツ ${this.cabbages.alive} 玉（${Math.ceil(this.cabbages.total * 0.3)} 玉を切ると負け）`;
+      if (this.spawn.boss) this.hud.objective(`大ボス「${WAVES[this.wave].name}の目」を倒せ！`, sub);
+      else this.hud.objective(`前ぶれの雑魚を倒せ！ 残り <b>${this.minionsLeft()}</b> 匹`, sub);
     } else if (this.phase === 'prep' && !this.mission) {
       this.hud.objective(`台風まで <b>${Math.max(0, Math.ceil(this.prepLength() - this.phaseT))}</b> 秒`, IS_TOUCH ? 'タワーを建てて備えよう／上のボタンですぐ始める' : 'タワーを建てて備えよう／［Enter］ですぐ始める');
     }
