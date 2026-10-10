@@ -4,12 +4,9 @@ import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometr
 import { clamp, lerp, smoothstep, fbm, vnoise, mulberry32, GLSL_NOISE } from './util.js';
 import { buildHouse, buildKeiTruck, buildBarn, buildGreenhouse, buildLighthouse } from './buildings.js';
 
-// キャベツ畑（u: 列方向, v: 畝方向）
-export const FIELDS = [
-  { id: 'A', name: '母屋の畑', x: 0, z: 0, w: 46, d: 30, rot: 0, cols: 10, rows: 7 },
-  { id: 'B', name: '西の台地畑', x: -118, z: 52, w: 42, d: 28, rot: 0.45, cols: 10, rows: 7 },
-  { id: 'C', name: '灯台下の畑', x: 72, z: -104, w: 42, d: 28, rot: -0.35, cols: 10, rows: 7 },
-];
+// キャベツ畑（u: 列方向, v: 畝方向）。台地いっぱいにパッチワーク状に並べる（下で生成）
+export const FIELDS = [];
+const FIELD_W = 40, FIELD_D = 26, FIELD_COLS = 14, FIELD_ROWS = 10, FIELD_COUNT = 30;
 
 // 海岸線（中心からの陸地半径）
 export function landRadius(th) {
@@ -28,10 +25,6 @@ export function rawHeight(x, z) {
   return lerp(seabed, plateau, t * t * (3 - 2 * t));
 }
 
-for (const f of FIELDS) {
-  f.h = rawHeight(f.x, f.z) + 0.2;
-  f.cos = Math.cos(f.rot); f.sin = Math.sin(f.rot);
-}
 
 export function fieldLocal(f, x, z) {
   const dx = x - f.x, dz = z - f.z;
@@ -61,12 +54,46 @@ const FLATS = [
 ];
 for (const f of FLATS) f.h = rawHeight(f.x, f.z) + 0.1;
 
+// 畑の配置：52m × 40m の区画に 1 枚ずつ。海岸・母屋まわりを避け、中心に近い順に 30 枚
+(() => {
+  const rng = mulberry32(2024);
+  const cands = [];
+  for (let gx = -5; gx <= 5; gx++) for (let gz = -6; gz <= 6; gz++) {
+    const x = gx * 52 + (gx || gz ? (rng() - 0.5) * 4 : 0), z = gz * 40 + (gx || gz ? (rng() - 0.5) * 4 : 0);
+    const rot = gx || gz ? (rng() - 0.5) * 0.16 : 0;
+    const f = { x, z, w: FIELD_W, d: FIELD_D, rot, cols: FIELD_COLS, rows: FIELD_ROWS, cos: Math.cos(rot), sin: Math.sin(rot) };
+    // 四隅がすべて海岸線から 30m 以上内側
+    let ok = true;
+    for (const [su, sv] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+      const p = fieldWorld(f, su * FIELD_W / 2, sv * FIELD_D / 2);
+      if (landRadius(Math.atan2(p.z, p.x)) - Math.hypot(p.x, p.z) < 30) ok = false;
+    }
+    if (!ok) continue;
+    if (FLATS.some((fl) => fieldRectDist(f, fl.x, fl.z) < fl.r + 6)) continue;
+    if (fieldRectDist(f, SPAWN.x, SPAWN.z) < 4) continue;
+    cands.push(f);
+  }
+  cands.sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z));
+  cands.slice(0, FIELD_COUNT).forEach((f, i) => {
+    f.id = String(i + 1);
+    f.name = i === 0 ? '母屋の畑' : `第${i + 1}畑`;
+    f.h = rawHeight(f.x, f.z) + 0.2;
+    f.reach = Math.hypot(FIELD_W, FIELD_D) / 2 + 17;
+    FIELDS.push(f);
+  });
+})();
+
 export function heightAt(x, z) {
   let h = rawHeight(x, z);
+  // いちばん近い畑だけで平らにする（隣の畑どうしで段差が崩れないように）
+  let best = null, bd = 14;
   for (const f of FIELDS) {
+    const dx = x - f.x, dz = z - f.z;
+    if (dx * dx + dz * dz > f.reach * f.reach) continue;
     const d = Math.max(0, fieldRectDist(f, x, z) - 3);
-    if (d < 14) h = lerp(f.h, h, smoothstep(0, 14, d));
+    if (d < bd) { bd = d; best = f; }
   }
+  if (best) h = lerp(best.h, h, smoothstep(0, 14, bd));
   for (const f of FLATS) {
     const d = Math.hypot(x - f.x, z - f.z);
     if (d < f.r + 10) h = lerp(f.h, h, smoothstep(f.r, f.r + 10, d));
@@ -200,12 +227,11 @@ function buildTerrain() {
 }
 
 function buildFieldPlanes(group) {
+  const furrow = makeFurrowTexture(FIELDS[0]);
+  const geo = new THREE.PlaneGeometry(FIELD_W + 4, FIELD_D + 4);
+  geo.rotateX(-Math.PI / 2);
+  const mat = new THREE.MeshStandardMaterial({ map: furrow, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   for (const f of FIELDS) {
-    const geo = new THREE.PlaneGeometry(f.w + 4, f.d + 4);
-    geo.rotateX(-Math.PI / 2);
-    const mat = new THREE.MeshStandardMaterial({
-      map: makeFurrowTexture(f), roughness: 1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
-    });
     const m = new THREE.Mesh(geo, mat);
     m.position.set(f.x, f.h + 0.02, f.z);
     m.rotation.y = -f.rot;
@@ -342,12 +368,13 @@ function buildTrees(scale) {
   const trunkGeo = mergeGeometries(branches.map((g) => (g.index ? g.toNonIndexed() : g)));
   const spots = [];
   // 畑の北側に防風林
-  for (const f of FIELDS) {
-    for (let u = -f.w / 2 - 6; u <= f.w / 2 + 6; u += 3.6 + rng() * 1.5) {
-      const w = fieldWorld(f, u, f.d / 2 + 10 + rng() * 3);
-      spots.push([w.x, w.z, 0.9 + rng() * 0.4]);
+  FIELDS.forEach((f, fi) => {
+    if (fi % 3 !== 0) return; // 防風林は一部の畑だけ（区画のすき間に一列）
+    for (let u = -f.w / 2 - 4; u <= f.w / 2 + 4; u += 3.6 + rng() * 1.5) {
+      const w = fieldWorld(f, u, f.d / 2 + 6.5 + rng() * 1);
+      spots.push([w.x, w.z, 0.75 + rng() * 0.3]);
     }
-  }
+  });
   let guard = 0;
   while (spots.length < 320 * scale && guard++ < 6000) {
     const x = (rng() - 0.5) * 460, z = (rng() - 0.5) * 460;

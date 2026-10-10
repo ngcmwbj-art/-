@@ -6,7 +6,7 @@ import { vnoise, mulberry32, clamp } from './util.js';
 
 function buildCabbageGeometry() {
   // 結球部
-  let head = new THREE.IcosahedronGeometry(0.4, 4);
+  let head = new THREE.IcosahedronGeometry(0.4, 2);
   head.deleteAttribute('normal'); head.deleteAttribute('uv');
   head = mergeVertices(head);
   const p = head.attributes.position;
@@ -31,10 +31,10 @@ function buildCabbageGeometry() {
   // 外葉：根元から立ち上がり、先端が外へ反り返る葉をパラメトリックに生成
   const leaves = [];
   const rng = mulberry32(3);
-  const S = 10, T = 8;
+  const S = 6, T = 4;
   const LEAVES = [];
-  for (let k = 0; k < 5; k++) LEAVES.push({ a: k * 1.2566 + 0.3, len: 0.36, rise: 0.5, out: 0.06, wid: 0.4 });
-  for (let k = 0; k < 7; k++) LEAVES.push({ a: k * 0.8976, len: 0.55, rise: 0.36, out: 0.16, wid: 0.46 });
+  for (let k = 0; k < 4; k++) LEAVES.push({ a: k * 1.5708 + 0.3, len: 0.36, rise: 0.5, out: 0.06, wid: 0.45 });
+  for (let k = 0; k < 6; k++) LEAVES.push({ a: k * 1.0472, len: 0.55, rise: 0.36, out: 0.16, wid: 0.52 });
   for (let k = 0; k < LEAVES.length; k++) {
     const L = LEAVES[k];
     const a = L.a + rng() * 0.35;
@@ -97,7 +97,7 @@ export class Cabbages {
     const geo = buildCabbageGeometry();
     const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, side: THREE.DoubleSide });
     this.mesh = new THREE.InstancedMesh(geo, mat, this.total);
-    this.mesh.castShadow = true;
+    this.mesh.castShadow = false; // 数千玉あるので影は受けるだけ
     this.mesh.receiveShadow = true;
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     const white = new THREE.Color(1, 1, 1);
@@ -173,10 +173,15 @@ export class Cabbages {
 
   update(dt, t, wind) {
     const m = this._m, q = this._q, e = this._e, s = this._s, v = this._v;
+    // 風がなく変化もない間は、揺れの計算を省く（数千玉ぶんの負荷対策）
+    const calm = wind < 0.03 && !this.colorDirty && this.settled;
+    let flying = 0;
     for (let i = 0; i < this.total; i++) {
       const c = this.list[i];
       const st = this.state[i];
       if (st === 2) continue;
+      if (st === 0 && calm) continue;
+      if (st === 1) flying++;
       if (st === 0) {
         const sway = wind * 0.12 * Math.sin(t * 3.1 + c.x * 0.3 + c.z * 0.2);
         e.set(sway, c.rot, sway * 0.6);
@@ -207,7 +212,8 @@ export class Cabbages {
       }
       this.mesh.setMatrixAt(i, m);
     }
-    this.mesh.instanceMatrix.needsUpdate = true;
+    if (!calm || flying) this.mesh.instanceMatrix.needsUpdate = true;
+    this.settled = wind < 0.03;
     if (this.colorDirty) {
       const col = this._c;
       for (let i = 0; i < this.total; i++) {
