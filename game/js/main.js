@@ -19,10 +19,10 @@ import { IS_TOUCH, setupTouch, updateTouch } from './touch.js';
 import { toonify, addOutline } from './toon.js';
 
 const QUALITY = {
-  low: { pr: Math.min(devicePixelRatio, 1.25), shadow: 0, grass: 9000, trees: 0.5, rain: 3000, bloom: false, msaa: 0 },
-  mid: { pr: 1, shadow: 1024, grass: 18000, trees: 0.8, rain: 6000, bloom: true, msaa: 0 },
-  high: { pr: Math.min(devicePixelRatio, 1.5), shadow: 2048, grass: 45000, trees: 1, rain: 10000, bloom: true, msaa: 4 },
-  ultra: { pr: Math.min(devicePixelRatio, 2), shadow: 4096, grass: 90000, trees: 1.3, rain: 16000, bloom: true, msaa: 4 },
+  low: { cabNear: 22, cabMid: 80, pr: Math.min(devicePixelRatio, 1.25), shadow: 0, grass: 9000, trees: 0.5, rain: 3000, bloom: false, msaa: 0 },
+  mid: { cabNear: 35, cabMid: 110, pr: 1, shadow: 1024, grass: 18000, trees: 0.8, rain: 6000, bloom: true, msaa: 0 },
+  high: { cabNear: 45, cabMid: 140, pr: Math.min(devicePixelRatio, 1.5), shadow: 2048, grass: 45000, trees: 1, rain: 10000, bloom: true, msaa: 4 },
+  ultra: { cabNear: 70, cabMid: 180, pr: Math.min(devicePixelRatio, 2), shadow: 4096, grass: 90000, trees: 1.3, rain: 16000, bloom: true, msaa: 4 },
 };
 
 const WAVES = [
@@ -84,7 +84,7 @@ class Game {
     this.weather = new Weather(this.scene, renderer, Q);
     this.windU.uWindDir.value = this.weather.windDir;
     this.world = buildWorld(this.scene, Q, this.windU);
-    this.cabbages = new Cabbages(this.scene);
+    this.cabbages = new Cabbages(this.scene, Q);
     this.fx = new FX(this.scene);
     this.player = new Player(this.scene, this.camera);
     this.towers = new Towers(this);
@@ -557,7 +557,7 @@ class Game {
     this.windU.uTime.value = t;
     this.windU.uWind.value = w.storm * 1.4;
     this.world.update(rawDt, t, w);
-    this.cabbages.update(dt, t, w.storm);
+    this.cabbages.update(dt, t, w.storm, this.camera);
     this.threats.update(dt, t);
     this.towers.update(dt, t);
     this.fx.update(dt);

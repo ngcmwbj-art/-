@@ -6,7 +6,7 @@ import { buildHouse, buildKeiTruck, buildBarn, buildGreenhouse, buildLighthouse 
 
 // キャベツ畑（u: 列方向, v: 畝方向）。台地いっぱいにパッチワーク状に並べる（下で生成）
 export const FIELDS = [];
-const FIELD_W = 40, FIELD_D = 26, FIELD_COLS = 14, FIELD_ROWS = 10, FIELD_COUNT = 30;
+const FIELD_W = 40, FIELD_D = 26, FIELD_COLS = 20, FIELD_ROWS = 14, FIELD_COUNT = 30;
 
 // 海岸線（中心からの陸地半径）
 export function landRadius(th) {
@@ -54,38 +54,48 @@ const FLATS = [
 ];
 for (const f of FLATS) f.h = rawHeight(f.x, f.z) + 0.1;
 
-// 畑の配置：52m × 40m の区画に 1 枚ずつ。海岸・母屋まわりを避け、中心に近い順に 30 枚
+// 畑の配置：40m × 26m の畑をすき間なく敷き詰め、ひと続きの大きな畑地にする。
+// 中心の区画から隣り合う区画へ広げていくので、30 枚すべてがつながる
 (() => {
-  const rng = mulberry32(2024);
-  const cands = [];
-  for (let gx = -5; gx <= 5; gx++) for (let gz = -6; gz <= 6; gz++) {
-    const x = gx * 52 + (gx || gz ? (rng() - 0.5) * 4 : 0), z = gz * 40 + (gx || gz ? (rng() - 0.5) * 4 : 0);
-    const rot = gx || gz ? (rng() - 0.5) * 0.16 : 0;
-    const f = { x, z, w: FIELD_W, d: FIELD_D, rot, cols: FIELD_COLS, rows: FIELD_ROWS, cos: Math.cos(rot), sin: Math.sin(rot) };
-    // 四隅がすべて海岸線から 30m 以上内側
-    let ok = true;
+  const ok = (gx, gz) => {
+    const f = { x: gx * FIELD_W, z: gz * FIELD_D, w: FIELD_W, d: FIELD_D, rot: 0, cos: 1, sin: 0 };
     for (const [su, sv] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
-      const p = fieldWorld(f, su * FIELD_W / 2, sv * FIELD_D / 2);
-      if (landRadius(Math.atan2(p.z, p.x)) - Math.hypot(p.x, p.z) < 30) ok = false;
+      const px = f.x + su * FIELD_W / 2, pz = f.z + sv * FIELD_D / 2;
+      if (landRadius(Math.atan2(pz, px)) - Math.hypot(px, pz) < 32) return null;
     }
-    if (!ok) continue;
-    if (FLATS.some((fl) => fieldRectDist(f, fl.x, fl.z) < fl.r + 6)) continue;
-    if (fieldRectDist(f, SPAWN.x, SPAWN.z) < 4) continue;
-    cands.push(f);
+    if (FLATS.some((fl) => fieldRectDist(f, fl.x, fl.z) < fl.r + 4)) return null;
+    return f;
+  };
+  const seen = new Set(['0,0']);
+  const queue = [[0, 0]];
+  const picked = [];
+  while (queue.length && picked.length < FIELD_COUNT) {
+    // 中心に近い候補から順に取り出す
+    queue.sort((a, b) => Math.hypot(a[0] * FIELD_W, a[1] * FIELD_D) - Math.hypot(b[0] * FIELD_W, b[1] * FIELD_D));
+    const [gx, gz] = queue.shift();
+    const f = ok(gx, gz);
+    if (!f) continue;
+    picked.push(f);
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const k = `${gx + dx},${gz + dz}`;
+      if (!seen.has(k)) { seen.add(k); queue.push([gx + dx, gz + dz]); }
+    }
   }
-  cands.sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z));
-  cands.slice(0, FIELD_COUNT).forEach((f, i) => {
-    f.id = String(i + 1);
-    f.name = i === 0 ? '母屋の畑' : `第${i + 1}畑`;
-    f.h = rawHeight(f.x, f.z) + 0.2;
+  picked.forEach((f, i) => {
+    Object.assign(f, { id: String(i + 1), name: i === 0 ? '母屋の畑' : `第${i + 1}畑`, cols: FIELD_COLS, rows: FIELD_ROWS });
     f.reach = Math.hypot(FIELD_W, FIELD_D) / 2 + 17;
     FIELDS.push(f);
   });
 })();
 
+// 畑地の地面：起伏の細かいでこぼこだけを取り除いた、なだらかな面
+function farmHeight(x, z) {
+  return 17 + fbm(x * 0.007 + 3.1, z * 0.007 - 1.7, 3) * 12;
+}
+
 export function heightAt(x, z) {
   let h = rawHeight(x, z);
-  // いちばん近い畑だけで平らにする（隣の畑どうしで段差が崩れないように）
+  // 畑地の中と周り 14m は、なだらかな面に寄せる（畑どうしの段差をなくす）
   let best = null, bd = 14;
   for (const f of FIELDS) {
     const dx = x - f.x, dz = z - f.z;
@@ -93,7 +103,7 @@ export function heightAt(x, z) {
     const d = Math.max(0, fieldRectDist(f, x, z) - 3);
     if (d < bd) { bd = d; best = f; }
   }
-  if (best) h = lerp(best.h, h, smoothstep(0, 14, bd));
+  if (best) h = lerp(farmHeight(x, z) + 0.1, h, smoothstep(0, 14, bd));
   for (const f of FLATS) {
     const d = Math.hypot(x - f.x, z - f.z);
     if (d < f.r + 10) h = lerp(f.h, h, smoothstep(f.r, f.r + 10, d));
@@ -155,7 +165,7 @@ function makeFurrowTexture(f) {
   c.width = W; c.height = H;
   const g = c.getContext('2d');
   g.fillStyle = '#3f2a1c'; g.fillRect(0, 0, W, H);
-  const totalD = f.d + 4;
+  const totalD = f.d;
   for (let r = 0; r < f.rows; r++) {
     const v = -f.d / 2 + f.d * (r + 0.5) / f.rows;
     const cy = (v + totalD / 2) / totalD * H;
@@ -228,13 +238,16 @@ function buildTerrain() {
 
 function buildFieldPlanes(group) {
   const furrow = makeFurrowTexture(FIELDS[0]);
-  const geo = new THREE.PlaneGeometry(FIELD_W + 4, FIELD_D + 4);
-  geo.rotateX(-Math.PI / 2);
   const mat = new THREE.MeshStandardMaterial({ map: furrow, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   for (const f of FIELDS) {
+    // 地面のなだらかな起伏に沿わせる
+    const geo = new THREE.PlaneGeometry(FIELD_W, FIELD_D, 20, 13);
+    geo.rotateX(-Math.PI / 2);
+    const p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) p.setY(i, groundAt(p.getX(i) + f.x, p.getZ(i) + f.z) + 0.04);
+    geo.computeVertexNormals();
     const m = new THREE.Mesh(geo, mat);
-    m.position.set(f.x, f.h + 0.02, f.z);
-    m.rotation.y = -f.rot;
+    m.position.set(f.x, 0, f.z);
     m.receiveShadow = true;
     group.add(m);
   }
@@ -368,13 +381,7 @@ function buildTrees(scale) {
   const trunkGeo = mergeGeometries(branches.map((g) => (g.index ? g.toNonIndexed() : g)));
   const spots = [];
   // 畑の北側に防風林
-  FIELDS.forEach((f, fi) => {
-    if (fi % 3 !== 0) return; // 防風林は一部の畑だけ（区画のすき間に一列）
-    for (let u = -f.w / 2 - 4; u <= f.w / 2 + 4; u += 3.6 + rng() * 1.5) {
-      const w = fieldWorld(f, u, f.d / 2 + 6.5 + rng() * 1);
-      spots.push([w.x, w.z, 0.75 + rng() * 0.3]);
-    }
-  });
+  // 木は畑地にかからない所（畑から 14m 以上離れた所）にだけ生やす
   let guard = 0;
   while (spots.length < 320 * scale && guard++ < 6000) {
     const x = (rng() - 0.5) * 460, z = (rng() - 0.5) * 460;

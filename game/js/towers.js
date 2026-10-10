@@ -111,7 +111,7 @@ export class Towers {
 
   canPlace(pos) {
     if (!isWalkable(pos.x, pos.z)) return false;
-    if (FIELDS.some((f) => fieldRectDist(f, pos.x, pos.z) < 0.5)) return false;
+    // 畑の上にも建てられる（畑地がひと続きなので）
     return !this.list.some((t) => t.pos.distanceTo(pos) < 5);
   }
 
