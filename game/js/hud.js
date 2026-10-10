@@ -108,6 +108,15 @@ export class HUD {
     o.hidden = false;
   }
 
+  // 準備タイムのやることリスト
+  prep(title, forecast, items) {
+    const o = this.el.obj;
+    const s = `<span class="tag">準備タイム</span><b>${title}</b><em>${forecast}</em><ul class="todo">${items.map(([done, text]) => `<li class="${done ? 'done' : ''}">${text}</li>`).join('')}</ul>`;
+    if (o._last !== s) { o.innerHTML = s; o._last = s; }
+    o.className = 'prep';
+    o.hidden = false;
+  }
+
   combo(n, mult) {
     const c = this.el.comboEl;
     if (n < 2) { c.className = ''; return; }
@@ -262,6 +271,8 @@ export class HUD {
     for (const t of game.towers.list) dot(t.pos.x, t.pos.z, t.def.color, 3);
     // 落雷予告
     for (const st of game.threats.strikes) dot(st.pos.x, st.pos.z, '#ffd24a', 3);
+    // 上陸予想地点
+    if (game.phase === 'prep' && game.plan) { const [lx, ly] = this.toMap(game.plan.landing.x, game.plan.landing.z); g.strokeStyle = '#ff5a4a'; g.lineWidth = 2; g.beginPath(); g.arc(lx, ly, 6 + Math.sin(performance.now() / 150) * 1.5, 0, 7); g.stroke(); }
     // 雑魚
     for (const m of game.threats.minions) dot(m.pos.x, m.pos.z, m.type === 'mushi' ? '#9fe05a' : '#222', 2);
     // 飛来物

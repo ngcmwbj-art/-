@@ -324,7 +324,7 @@ export class Threats {
     const realIdx = Math.floor(Math.random() * members);
     const group = { members: [], collapsed: false, hp: 110 + wave * 45, speed: 3.6 + wave * 0.45 };
     // 竜巻は東の海から上陸してくる
-    const z0 = Math.max(-120, Math.min(120, Math.sin(baseAngle) * 160 + rand(-50, 50)));
+    const z0 = this.landZ ?? Math.max(-120, Math.min(120, Math.sin(baseAngle) * 160 + rand(-50, 50)));
     for (let i = 0; i < members; i++) {
       const z = Math.max(-140, Math.min(140, z0 + (i - (members - 1) / 2) * rand(35, 55)));
       const pos = new THREE.Vector3(coastX(z) + rand(25, 45), 0, z);
@@ -339,7 +339,7 @@ export class Threats {
   // 前ぶれの雑魚：青虫・カラス・つむじ風（小さな竜巻。重ね合わせなし）
   spawnMinion(type, wave) {
     if (type === 'tsumuji') {
-      const z = rand(-120, 120);
+      const z = Math.max(-130, Math.min(130, (this.landZ ?? 0) + rand(-45, 45)));
       const group = { members: [], collapsed: true, hp: 40 + wave * 12, speed: 4.5 + wave * 0.3, scale: 0.3, mini: true };
       const tor = new Tornado(this, new THREE.Vector3(coastX(z) + rand(10, 25), 0, z), true, group);
       tor.setGhost(0);

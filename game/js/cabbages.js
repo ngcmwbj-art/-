@@ -277,6 +277,23 @@ export class Cabbages {
     });
   }
 
+  lostCount() { return this.total - this.alive; }
+
+  // 跡地にキャベツを植え直す（最大 max 玉）
+  replantNear(x, z, r, max) {
+    let n = 0;
+    for (let i = 0; i < this.total && n < max; i++) {
+      if (this.state[i] !== 2) continue;
+      const c = this.list[i];
+      if ((c.x - x) ** 2 + (c.z - z) ** 2 > r * r) continue;
+      this.state[i] = 0; this.hp[i] = 100;
+      this.alive++; this.fieldAlive[c.field]++;
+      n++;
+    }
+    if (n) { this.colorDirty = true; this.settled = false; }
+    return n;
+  }
+
   heal(x, z, r, amount) {
     for (let i = 0; i < this.total; i++) {
       if (this.state[i]) continue;

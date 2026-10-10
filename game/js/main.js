@@ -5,7 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { buildWorld, heightAt } from './world.js';
+import { buildWorld, heightAt, coastX } from './world.js';
 import { Weather } from './weather.js';
 import { Cabbages } from './cabbages.js';
 import { Player } from './player.js';
@@ -201,6 +201,7 @@ class Game {
     this.phase = 'prep';
     this.phaseT = 0;
     this.paused = false;
+    this.makePlan();
     if (IS_TOUCH) {
       setupTouch(this);
       // 全画面にできる端末では全画面に（できなくても続行）
@@ -332,14 +333,60 @@ class Game {
   }
 
   // ---------- 進行 ----------
+  // 次の台風の予報（上陸地点と敵の内訳）を準備タイムの最初に決めておく
+  makePlan() {
+    const wv = this.wave;
+    const a = rand(-0.6, 0.6);
+    const z0 = Math.max(-110, Math.min(110, Math.sin(a) * 150 + rand(-30, 30)));
+    const counts = { mushi: 6 + wv * 3, karasu: 3 + wv * 2, tsumuji: 2 + wv };
+    this.plan = { angle: a, z0, counts, ghosts: 2 + Math.floor(wv / 2) };
+    // 上陸予想地点の赤い柱
+    if (this.landMarker) this.scene.remove(this.landMarker);
+    const g = new THREE.Group();
+    const x = coastX(z0) - 6;
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 70, 24, 1, true),
+      new THREE.MeshBasicMaterial({ color: '#ff5a4a', transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+    beam.position.y = 35; g.add(beam);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(8, 9.5, 48).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: '#ff5a4a', transparent: true, opacity: 0.7, depthWrite: false, fog: false }));
+    ring.position.y = 0.4; g.add(ring);
+    g.position.set(x, heightAt(x, z0), z0);
+    this.scene.add(g);
+    this.landMarker = g;
+    this.plan.landing = g.position.clone();
+  }
+
+  clearLandMarker() { if (this.landMarker) { this.scene.remove(this.landMarker); this.landMarker = null; } }
+
+  // 準備タイムのやることリスト
+  prepChecklist() {
+    const p = this.plan;
+    if (!p) return;
+    const left = Math.max(0, Math.ceil(this.prepLength() - this.phaseT));
+    const amp = this.towers.list.some((t) => t.id === 'amp' && t.pos.distanceTo(p.landing) < 60);
+    const lost = this.cabbages.lostCount();
+    const T = IS_TOUCH;
+    const items = [
+      [amp, '赤い柱（上陸予想地点）の近くにスピーカーを建てる'],
+      [lost === 0, lost ? `やられたキャベツを植え直す（跡地を歩くだけ・1玉 1Q）残り ${lost} 玉` : 'キャベツ畑は無傷'],
+      [false, T ? `準備ができたら上のボタンで迎え撃つ（今なら +${left * 2}Q）` : `準備ができたら［Enter］で迎え撃つ（今なら +${left * 2}Q）`],
+    ];
+    const c = p.counts;
+    this.hud.prep(`準備タイム ― ${this.waveName()}まで <b>${left}</b> 秒`,
+      `予報：雑魚 ${c.mushi + c.karasu + c.tsumuji} 匹（青虫 ${c.mushi}・カラス ${c.karasu}・つむじ風 ${c.tsumuji}）→ 大ボス（分身 ${p.ghosts} 体）`, items);
+  }
+
   skipPrep() {
     if (this.phase !== 'prep') return;
     clearTimeout(this.tutorialTimer);
-    if (this.mission) { this.clearMarker(); this.threats.clearAll(); this.mission = null; this.hud.objective(null); }
+    if (this.mission) { this.clearMarker(); this.threats.clearAll(); this.mission = null; this.hud.objective(null); this.phaseT = this.prepLength() - 20; return; }
+    // 早く迎え撃つほどボーナス
+    const left = Math.floor(this.prepLength() - this.phaseT);
+    if (left > 1) { this.addQ(left * 2); this.hud.toast(`早めに迎え撃つ！ ボーナス +${left * 2}Q`, 'good'); }
     this.phaseT = Math.max(this.phaseT, this.prepLength() - 0.5);
   }
 
-  prepLength() { return this.wave === 0 ? 50 : 30; }
+  prepLength() { return this.wave === 0 ? 60 : 40; }
   waveName() { return WAVES[Math.min(this.wave, WAVES.length - 1)].name.replace(/「.*」/, ''); }
 
   waveLabel() {
@@ -347,7 +394,7 @@ class Game {
     return `${w.name}（${w.cls}）  ${Math.min(this.wave + 1, WAVES.length)} / ${WAVES.length}`;
   }
   phaseLabel() {
-    return { prep: this.mission ? '練習中：操作を覚えよう' : '準備：量子デバイスを建てよう', storm: '台風接近中 ― キャベツを守り抜け！', clear: '台風一過', result: '収穫', gameover: '全滅', title: '' }[this.phase];
+    return { prep: this.mission ? '練習中：操作を覚えよう' : '準備タイム：次の台風に備えよう', storm: '台風接近中 ― キャベツを守り抜け！', clear: '台風一過', result: '収穫', gameover: '全滅', title: '' }[this.phase];
   }
   minionsLeft() { return this.spawn.pool.length + this.threats.minionsAlive; }
 
@@ -362,15 +409,19 @@ class Game {
     this.phase = 'storm';
     this.phaseT = 0;
     // 前ぶれの雑魚（青虫・カラス・つむじ風）を倒すと、大ボス（台風の目）が現れる
+    if (!this.plan) this.makePlan();
+    const c = this.plan.counts;
     const pool = [];
-    for (let i = 0; i < 6 + this.wave * 3; i++) pool.push('mushi');
-    for (let i = 0; i < 3 + this.wave * 2; i++) pool.push('karasu');
-    for (let i = 0; i < 2 + this.wave; i++) pool.push('tsumuji');
+    for (let i = 0; i < c.mushi; i++) pool.push('mushi');
+    for (let i = 0; i < c.karasu; i++) pool.push('karasu');
+    for (let i = 0; i < c.tsumuji; i++) pool.push('tsumuji');
     pool.sort(() => Math.random() - 0.5);
     this.spawn = { pool, total: pool.length, next: 1.5, boss: false, debris: 6, strike: 14 };
     this.threats.minionKills = 0;
-    const a = rand(-0.6, 0.6); // 東の海から
+    const a = this.plan.angle; // 予報どおり東の海から
     this.stormAngle = a;
+    this.threats.landZ = this.plan.z0;
+    this.clearLandMarker();
     this.weather.typhoonCenter.set(Math.cos(a) * 1500, Math.sin(a) * 1500);
     this.weather.windDir.set(-Math.cos(a), -Math.sin(a)).normalize();
     this.weather.setStorm(w.peak * 0.7);
@@ -459,7 +510,8 @@ class Game {
         if (this.wave >= WAVES.length) { this.wave = WAVES.length - 1; this.finish(true); return; }
         this.phase = 'prep';
         this.phaseT = 0;
-        this.hud.toast(`次は ${WAVES[this.wave].name}（${WAVES[this.wave].cls}）。備えよう`, 'q');
+        this.makePlan();
+        this.hud.banner('準備タイム', `${this.waveName()}が来る前に、畑を立て直してタワーで備えよう`);
       }
     }
     if ((this.phase === 'storm' || this.phase === 'clear') && this.cabbages.alive < this.cabbages.total * 0.3) this.finish(false);
@@ -507,7 +559,7 @@ class Game {
     if (!this.mission) {
       this.hud.objective(null);
       this.hud.banner('準備完了！', '台風がやってくる。竜巻を全部吹き飛ばして、キャベツを守り抜け！');
-      this.phaseT = this.prepLength() - 4;
+      this.phaseT = this.prepLength() - 25;
       return;
     }
     this.mission.start?.();
@@ -615,7 +667,13 @@ class Game {
       if (this.spawn.boss) this.hud.objective(`大ボス「${WAVES[this.wave].name}の目」を倒せ！`, sub);
       else this.hud.objective(`前ぶれの雑魚を倒せ！ 残り <b>${this.minionsLeft()}</b> 匹`, sub);
     } else if (this.phase === 'prep' && !this.mission) {
-      this.hud.objective(`台風まで <b>${Math.max(0, Math.ceil(this.prepLength() - this.phaseT))}</b> 秒`, IS_TOUCH ? 'タワーを建てて備えよう／上のボタンですぐ始める' : 'タワーを建てて備えよう／［Enter］ですぐ始める');
+      this.prepChecklist();
+      // やられたキャベツの跡地を歩くと植え直す（1玉 1Q）
+      if (!this.paused && this.q >= 1) {
+        const n = this.cabbages.replantNear(this.player.pos.x, this.player.pos.z, 3.2, Math.floor(this.q));
+        if (n) { this.q -= n; this.replantFx = (this.replantFx || 0) + n; }
+        if (this.replantFx >= 5) { this.hud.floater(`植え直し ×${this.replantFx}`, this.player.pos.clone().add(new THREE.Vector3(0, 2.5, 0)), this.camera, '#9fe05a'); this.replantFx = 0; }
+      }
     }
     if (this.bloom) this.bloom.strength = 0.3 + w.flash * 0.8 + (this.player.soloOn ? 0.25 : 0);
 

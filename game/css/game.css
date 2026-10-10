@@ -275,3 +275,16 @@ body.touch #bossbar { top: calc(110px + env(safe-area-inset-top, 0px)); width: 4
 body.touch #bossbar b { font-size: 14px; }
 body.touch #bossbar em { font-size: 10px; }
 body.touch .slot small { font-size: 9px; }
+
+/* 準備タイムのやることリスト */
+#objective.prep { border-color: #ffd36a; text-align: left; }
+#objective.prep .tag { background: #ffd36a; }
+#objective.prep > b, #objective.prep > em { text-align: center; }
+.todo { list-style: none; margin: 6px 0 0; padding: 0; font-size: 13px; }
+.todo li { position: relative; padding: 2px 0 2px 24px; }
+.todo li::before { content: ''; position: absolute; left: 2px; top: 5px; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.75); border-radius: 3px; }
+.todo li.done { opacity: .6; text-decoration: line-through; }
+.todo li.done::before { background: #7dffb0; border-color: #7dffb0; }
+body.touch .todo { font-size: 10px; }
+body.touch .todo li { padding-left: 18px; }
+body.touch .todo li::before { width: 9px; height: 9px; top: 4px; }
