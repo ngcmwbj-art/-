@@ -5,7 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { buildWorld, landRadius } from './world.js';
+import { buildWorld, landRadius, heightAt } from './world.js';
 import { Weather } from './weather.js';
 import { Cabbages } from './cabbages.js';
 import { Player } from './player.js';
@@ -119,6 +119,8 @@ class Game {
     this.cd = { teleport: 0, observe: 0, chord: 0 };
     this.lastBeat = -1;
     this.score = { just: 0, chords: 0 };
+    this.combo = 0; this.maxCombo = 0; this.lastJustBeat = -99; this.fovKick = 0;
+    this.mission = null; this.missionIdx = -1;
     this.spawn = { groups: 0, debris: 0, strike: 0, nextGroup: 0 };
     this.input = { f: false, b: false, l: false, r: false, sprint: false, jump: false, ax: 0, az: 0 };
     this.time = 0;
@@ -158,7 +160,7 @@ class Game {
           if (!this.buildSel) this.towers.hidePreview();
           break;
         }
-        case 'Enter': if (this.phase === 'prep') this.phaseT = Math.max(this.phaseT, this.prepLength() - 0.5); break;
+        case 'Enter': this.skipPrep(); break;
         case 'KeyH': document.getElementById('help').classList.toggle('show'); break;
         case 'KeyM': this.audio.musicOn = !this.audio.musicOn; this.hud.toast(this.audio.musicOn ? 'BGM オン' : 'BGM オフ'); break;
       }
@@ -207,7 +209,8 @@ class Game {
       try { const p = document.documentElement.requestFullscreen?.(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* 非対応 */ }
     }
     this.lockPointer();
-    this.hud.toast('台風が来る前に、量子デバイスを畑のまわりに建てよう', 'q');
+    this.hud.banner('がんばれマサトくん！', '台風から畑のキャベツを守れ！ まずは操作を覚えよう');
+    this.tutorialTimer = setTimeout(() => { if (this.phase === 'prep' && this.wave === 0) this.setMission(0); }, 2600);
   }
 
   // ---------- アクション ----------
@@ -228,23 +231,49 @@ class Game {
     const b = this.audio.beatInfo();
     const just = b.offset < 0.11;
     this.audio.chord(just);
-    this.player.model.strum();
     this.score.chords++;
+    // コンボ：拍に合わせて続けて弾くほど伸びる（2拍以上あくか外すと途切れる）
+    if (just) {
+      this.combo = b.idx - this.lastJustBeat <= 2 ? this.combo + 1 : 1;
+      this.lastJustBeat = b.idx;
+    } else {
+      this.combo = 0;
+    }
+    const mult = 1 + Math.min(this.combo, 20) * 0.1;
+    // 演奏アクション：外すと小さく、JUST で大きく、10コンボごとにギターを掲げる
+    let kind = 'small';
+    if (just) kind = this.combo % 10 === 0 ? 'raise' : this.combo >= 3 && this.combo % 2 ? 'jump' : 'windmill';
+    this.player.model.strum(kind);
     const p = this.player.pos.clone();
     const f = this.player.forward();
-    const dmg = just ? 46 : 22;
-    const res = this.threats.blast(p, just ? 17 : 13, dmg, { cone: new THREE.Vector2(f.x, f.z), inner: 9 });
-    this.fx.ring(p, just ? '#ffd36a' : '#ff8a3d', just ? 17 : 13, 0.45, 0.7);
+    const dmg = (just ? 46 : 22) * mult;
+    const reach = just ? 17 + Math.min(this.combo, 20) * 0.3 : 13;
+    const res = this.threats.blast(p, reach, dmg, { cone: new THREE.Vector2(f.x, f.z), inner: 9, push: just ? 5 : 2, from: p });
+    const gpos = p.clone().add(new THREE.Vector3(0, 1.3, 0));
+    this.fx.ring(p, just ? '#ffd36a' : '#ff8a3d', reach, 0.45, 0.7);
+    this.fx.soundWave(p, f, just ? '#ffd36a' : '#ff9a5a', reach, just ? 3 : 1);
+    this.fx.notes(gpos, just ? 4 + Math.min(Math.floor(this.combo / 3), 4) : 2, undefined, just ? 1.2 : 0.7);
     if (just) {
       this.score.just++;
-      this.hud.judge('JUST!', 'just');
+      this.maxCombo = Math.max(this.maxCombo, this.combo);
+      this.hud.judge(this.combo >= 2 ? `JUST! ×${this.combo}` : 'JUST!', 'just');
+      this.hud.combo(this.combo, mult);
+      this.fovKick = kind === 'raise' ? 1 : 0.55;
+      this.player.shake = Math.max(this.player.shake, kind === 'raise' ? 0.5 : 0.28);
       this.addSolo(res.hits ? 9 : 4);
       this.cabbages.heal(p.x, p.z, 10, 6);
-      if (this.threats.tryReflect(p)) { /* 反射成功 */ }
+      this.threats.tryReflect(p);
+      if (kind === 'raise') {
+        this.fx.beam(p, '#ffd36a', 30, 1.6, 0.8, 0.6);
+        this.fx.notes(gpos.clone().add(new THREE.Vector3(0, 1, 0)), 10, undefined, 1.8);
+        this.hud.toast(`${this.combo} コンボ！ 会場（畑）が沸いている！`, 'good');
+      }
+      this.mission?.onJust?.();
     } else {
-      this.hud.judge(b.frac < 0.5 ? 'LATE' : 'EARLY', 'miss');
+      this.hud.judge(b.frac < 0.5 ? 'おそい…' : 'はやい…', 'miss');
+      this.hud.combo(0, 1);
     }
-    if (res.unobserved && !res.hits) this.hud.toast('未観測の竜巻には干渉できない！［F］で観測しよう', 'bad');
+    if (res.unobserved && !res.hits) this.hud.toast('紫の竜巻（幻かも）には効かない！［F］観測で正体を暴こう', 'bad');
   }
 
   doObserve() {
@@ -296,13 +325,20 @@ class Game {
   }
 
   // ---------- 進行 ----------
+  skipPrep() {
+    if (this.phase !== 'prep') return;
+    clearTimeout(this.tutorialTimer);
+    if (this.mission) { this.clearMarker(); this.threats.clearAll(); this.mission = null; this.hud.objective(null); }
+    this.phaseT = Math.max(this.phaseT, this.prepLength() - 0.5);
+  }
+
   prepLength() { return this.wave === 0 ? 50 : 30; }
   waveLabel() {
     const w = WAVES[Math.min(this.wave, WAVES.length - 1)];
     return `${w.name}（${w.cls}）  ${Math.min(this.wave + 1, WAVES.length)} / ${WAVES.length}`;
   }
   phaseLabel() {
-    return { prep: '準備：量子デバイスを建てよう', storm: '台風接近中 ― キャベツを守り抜け！', clear: '台風一過', result: '収穫', gameover: '全滅', title: '' }[this.phase];
+    return { prep: this.mission ? '練習中：操作を覚えよう' : '準備：量子デバイスを建てよう', storm: '台風接近中 ― キャベツを守り抜け！', clear: '台風一過', result: '収穫', gameover: '全滅', title: '' }[this.phase];
   }
   timerLabel() {
     if (this.phase === 'prep') return `上陸まで ${Math.ceil(this.prepLength() - this.phaseT)} 秒  ［Enter］で迎え撃つ`;
@@ -324,7 +360,7 @@ class Game {
     this.weather.windDir.set(-Math.cos(a), -Math.sin(a)).normalize();
     this.weather.setStorm(w.peak);
     this.threats.dmgMul = 1 + this.wave * 0.08;
-    this.hud.toast(`${w.name}が銚子に接近！ 最大風速 ${w.wind} m/s`, 'bad');
+    this.hud.banner(`${w.name} 接近！`, `竜巻 ${w.groups} 本を全部吹き飛ばせ！ キャベツが3割を切ったら負け`);
     this.audio.thunder(0.5);
   }
 
@@ -335,7 +371,7 @@ class Game {
     this.threats.clearAll();
     const bonus = 30 + Math.floor(this.cabbages.alive / this.cabbages.total * 50);
     this.addQ(bonus);
-    this.hud.toast(`${WAVES[this.wave].name}が通過した！ 生き残ったキャベツ ${this.cabbages.alive} 玉  +${bonus}Q`, 'good');
+    this.hud.banner('台風一過！', `キャベツ ${this.cabbages.alive} 玉を守り抜いた  +${bonus}Q`);
     this.audio.fanfare();
   }
 
@@ -367,7 +403,7 @@ class Game {
     this.phaseT += dt;
     if (this.phase === 'prep') {
       this.q += dt * 1.5;
-      if (this.wave === 0) this.tutorial();
+      if (this.mission) { this.updateMission(); this.phaseT = Math.min(this.phaseT, this.prepLength() - 5); }
       if (this.phaseT >= this.prepLength()) this.startStorm();
     } else if (this.phase === 'storm') {
       const w = WAVES[this.wave];
@@ -398,25 +434,81 @@ class Game {
     if ((this.phase === 'storm' || this.phase === 'clear') && this.cabbages.alive < this.cabbages.total * 0.3) this.finish(false);
   }
 
-  tutorial() {
-    const steps = IS_TOUCH ? [
-      [1, '画面の左側をなぞって移動、右側をスワイプで視点'],
-      [7, '上のタワー欄をタップして選び、「ここに建てる」で建設'],
-      [15, 'ギターボタンが光った瞬間に押すと JUST で威力2倍'],
-      [23, '「観測」で重ね合わせの竜巻を収束させる'],
-      [31, '「テレポ」で瞬間移動、ゲージが溜まったら「ソロ」'],
-      [39, '準備ができたら上の「台風を迎え撃つ」をタップ'],
-    ] : [
-      [1, '［WASD］移動 ［Shift］ダッシュ ［Space］ジャンプ ［マウス］視点'],
-      [7, '［1］観測塔 ［2］量子アンプ ［3］トンネル避雷塔 を選んで［E］で建設'],
-      [15, '［左クリック］ギター！ 画面下の拍に合わせると JUST で威力2倍'],
-      [23, '［F / 右クリック］観測パルス：重ね合わせの竜巻を収束させる'],
-      [31, '［R］量子テレポート ［Q］ソロゲージ満タンで量子ギターソロ'],
-      [39, '準備ができたら［Enter］で台風を迎え撃とう。［H］で操作一覧'],
+  // ---------- 体験しながら覚えるチュートリアル ----------
+  missions() {
+    const T = IS_TOUCH;
+    const p0 = () => this.player.pos.clone();
+    return [
+      {
+        text: T ? '光る柱まで走ろう（左側をなぞって移動）' : '光る柱まで走ろう（WASD で移動、マウスで向き）',
+        start: () => { const f = this.player.forward(); const p = p0().addScaledVector(f, 18); this.setMarker(p); },
+        done: () => this.marker && this.player.pos.distanceTo(this.marker.position) < 4,
+      },
+      {
+        text: T ? 'ギターボタンが光った瞬間に押そう！ JUST を3回' : '下のレーンの音符が輪に重なる瞬間にクリック！ JUST を3回',
+        start: () => { this.clearMarker(); this.mJust = 0; },
+        onJust: () => { this.mJust++; },
+        done: () => this.mJust >= 3,
+        progress: () => `${Math.min(3, this.mJust)} / 3`,
+      },
+      {
+        text: '練習用の竜巻が出た！ 近づいてギターで吹き飛ばそう',
+        start: () => { this.practice = this.threats.spawnPractice(this.player.pos, this.player.forward(), false); },
+        done: () => this.practice && !this.practice.members.some((t) => t.alive),
+      },
+      {
+        text: T ? '紫に揺れる竜巻は「重ね合わせ」。本物はひとつだけ！ 近くで「観測」して本物を倒そう' : '紫に揺れる竜巻は「重ね合わせ」。本物はひとつだけ！ 近くで［F］観測して本物を倒そう',
+        start: () => { this.q = Math.max(this.q, 60); this.practice = this.threats.spawnPractice(this.player.pos, this.player.forward(), true); },
+        done: () => this.practice && !this.practice.members.some((t) => t.alive),
+      },
+      {
+        text: T ? '最後に、上のタワー欄から「観測塔」を選んで建てよう' : '最後に［1］で観測塔を選び、［E］で建てよう（竜巻を自動で観測してくれる）',
+        start: () => { this.q = Math.max(this.q, 120); this.mTowers = this.towers.list.length; },
+        done: () => this.towers.list.length > this.mTowers,
+      },
     ];
-    while (this.tutorialStep < steps.length && this.phaseT >= steps[this.tutorialStep][0]) {
-      this.hud.toast(steps[this.tutorialStep][1], 'tip');
-      this.tutorialStep++;
+  }
+
+  setMission(i) {
+    const list = this.missions();
+    this.missionIdx = i;
+    this.mission = list[i] || null;
+    if (!this.mission) {
+      this.hud.objective(null);
+      this.hud.banner('準備完了！', '台風がやってくる。竜巻を全部吹き飛ばして、キャベツを守り抜け！');
+      this.phaseT = this.prepLength() - 4;
+      return;
+    }
+    this.mission.start?.();
+    this.hud.mission(i + 1, list.length, this.mission.text);
+    this.audio.build();
+  }
+
+  setMarker(p) {
+    this.clearMarker();
+    const g = new THREE.Group();
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 40, 24, 1, true),
+      new THREE.MeshBasicMaterial({ color: '#7dffb0', transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+    beam.position.y = 20; g.add(beam);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(2.6, 3.2, 40).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: '#7dffb0', transparent: true, opacity: 0.8, depthWrite: false, fog: false }));
+    ring.position.y = 0.3; g.add(ring);
+    p.y = this.player.pos.y;
+    g.position.copy(p);
+    g.position.y = heightAt(p.x, p.z);
+    this.scene.add(g);
+    this.marker = g;
+  }
+  clearMarker() { if (this.marker) { this.scene.remove(this.marker); this.marker = null; } }
+
+  updateMission() {
+    if (!this.mission) return;
+    if (this.marker) this.marker.rotation.y += 0.02;
+    if (this.mission.progress) this.hud.missionProgress(this.mission.progress());
+    if (this.mission.done()) {
+      this.hud.toast('ミッションクリア！', 'good');
+      this.fx.notes(this.player.pos.clone().add(new THREE.Vector3(0, 2, 0)), 12, undefined, 1.2);
+      this.setMission(this.missionIdx + 1);
     }
   }
 
@@ -477,6 +569,16 @@ class Game {
     gu.uStorm.value = w.storm;
     gu.uFlash.value = w.flash;
     gu.uSolo.value = this.player.soloOn ? 1 : Math.max(0, gu.uSolo.value - rawDt * 2);
+    // JUST の瞬間にカメラをぐっと寄せる
+    this.fovKick = Math.max(0, this.fovKick - rawDt * 3.5);
+    const fov = 62 - this.fovKick * 9 + (this.player.soloOn ? -6 : 0);
+    if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
+    if (this.phase === 'storm') {
+      const left = this.threats.activeReal + (WAVES[this.wave].groups - this.spawn.groups);
+      this.hud.objective(`竜巻をあと <b>${left}</b> 本 吹き飛ばせ！`, `キャベツ ${this.cabbages.alive} 玉（${Math.ceil(this.cabbages.total * 0.3)} 玉を切ると負け）`);
+    } else if (this.phase === 'prep' && !this.mission) {
+      this.hud.objective(`台風まで <b>${Math.max(0, Math.ceil(this.prepLength() - this.phaseT))}</b> 秒`, IS_TOUCH ? 'タワーを建てて備えよう／上のボタンですぐ始める' : 'タワーを建てて備えよう／［Enter］ですぐ始める');
+    }
     if (this.bloom) this.bloom.strength = 0.3 + w.flash * 0.8 + (this.player.soloOn ? 0.25 : 0);
 
     if (this.phase !== 'title') { this.hud.update(this); if (IS_TOUCH) updateTouch(this); }

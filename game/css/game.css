@@ -161,7 +161,7 @@ button { font: inherit; cursor: pointer; }
 #tb-build { bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: rgba(40,120,80,.75) !important; border-color: #7dffb0 !important; }
 #tb-go { top: calc(12px + env(safe-area-inset-top, 0px)); background: rgba(224,169,74,.85) !important; color: #1a1306 !important; }
 #tb-go.down, #tb-build.down { transform: translateX(-50%) scale(.95); }
-#tb-help { left: calc(16px + env(safe-area-inset-left, 0px)); top: calc(12px + env(safe-area-inset-top, 0px)); width: 36px; height: 36px; display: none; }
+#tb-help { right: calc(116px + env(safe-area-inset-right, 0px)); top: calc(12px + env(safe-area-inset-top, 0px)); width: 36px; height: 36px; display: none; }
 
 body.touch #crosshair, body.touch #hud-hint, body.touch .bottom .skills, body.touch #hud-beat { display: none; }
 body.touch .pc-only { display: none; }
@@ -191,3 +191,69 @@ body.touch #toasts { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 @media (orientation: portrait) {
   body.touch #rotate { display: grid; place-items: center; position: fixed; inset: 0; z-index: 50; background: rgba(5,6,7,.92); color: var(--ink); font-weight: 900; font-size: 18px; text-align: center; padding: 16px; }
 }
+
+/* ---------- わかりやすさのための UI ---------- */
+.howto { list-style: none; counter-reset: step; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; padding: 0; margin: 0 auto 26px; max-width: 900px; }
+.howto li { counter-increment: step; flex: 1 1 240px; max-width: 290px; text-align: left; background: rgba(10,12,16,.55); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,.18); border-radius: 8px; padding: 12px 14px 12px 50px; position: relative; }
+.howto li::before { content: counter(step); position: absolute; left: 12px; top: 12px; width: 28px; height: 28px; border-radius: 50%; background: var(--gold); color: #1a1306; font-weight: 900; display: grid; place-items: center; }
+.howto b { display: block; font-size: 15px; margin-bottom: 4px; }
+.howto span { font-size: 12.5px; opacity: .85; line-height: 1.55; }
+
+#objective { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); min-width: 340px; max-width: min(640px, 70vw); text-align: center; background: rgba(10,12,16,.62); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,.2); border-radius: 10px; padding: 8px 18px 10px; }
+#objective[hidden] { display: none; }
+#objective .tag { display: inline-block; font-size: 11px; font-weight: 900; letter-spacing: .12em; color: #1a1306; background: var(--gold); border-radius: 3px; padding: 1px 8px; margin-bottom: 4px; }
+#objective.mission { border-color: #7dffb0; box-shadow: 0 0 22px rgba(125,255,176,.25); }
+#objective.mission .tag { background: #7dffb0; }
+#objective b { display: block; font-size: 17px; line-height: 1.45; }
+#objective b b { display: inline; color: var(--gold); font-size: 22px; }
+#objective em { display: block; font-style: normal; font-size: 12.5px; opacity: .8; margin-top: 2px; }
+#objective em:empty { display: none; }
+#toasts { top: 104px; }
+
+#banner { position: absolute; left: 0; right: 0; top: 30%; text-align: center; opacity: 0; pointer-events: none; }
+#banner.show { animation: banner 3.6s ease-out forwards; }
+#banner h2 { margin: 0; font-family: 'Yuji Syuku', serif; font-weight: 400; font-size: clamp(40px, 7vw, 86px); color: #fff; text-shadow: 0 4px 24px rgba(0,0,0,.8), 0 0 40px rgba(255,200,120,.5); }
+#banner p { margin: 8px auto 0; font-weight: 900; font-size: clamp(14px, 2vw, 20px); text-shadow: 0 2px 8px #000; background: rgba(0,0,0,.35); display: inline-block; padding: 6px 16px; border-radius: 4px; }
+@keyframes banner { 0% { opacity: 0; transform: scale(1.4); } 10% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-20px); } }
+
+#combo { position: absolute; right: 8%; top: 40%; text-align: center; opacity: 0; pointer-events: none; }
+#combo.show { animation: combo 1.4s ease-out forwards; }
+#combo b { display: block; font-size: 64px; line-height: 1; font-weight: 900; color: #ffd36a; text-shadow: 0 0 18px #ff9a2a, 0 3px 6px #000; }
+#combo.hot b { color: #ff7ac8; text-shadow: 0 0 22px #ff3a9a, 0 3px 6px #000; }
+#combo span { font-weight: 900; letter-spacing: .2em; text-shadow: 0 2px 4px #000; }
+#combo em { display: block; font-style: normal; font-size: 12px; opacity: .85; }
+@keyframes combo { 0% { opacity: 0; transform: scale(1.6) rotate(-6deg); } 12% { opacity: 1; transform: scale(1) rotate(-6deg); } 75% { opacity: 1; } 100% { opacity: 0; transform: rotate(-6deg) translateY(-10px); } }
+
+#judge { font-size: 46px; top: 54%; }
+#judge.miss { font-size: 24px; }
+
+#lane { position: absolute; left: 50%; bottom: 112px; transform: translateX(-50%); width: 300px; height: 44px; border-radius: 22px; background: rgba(10,12,16,.55); border: 1px solid rgba(255,255,255,.2); overflow: hidden; }
+#lane .target { position: absolute; left: 10px; top: 4px; width: 36px; height: 36px; border-radius: 50%; border: 3px solid rgba(255,255,255,.7); box-sizing: border-box; }
+#lane.on .target { border-color: #ffd36a; background: rgba(255,211,106,.35); box-shadow: 0 0 18px #ffd36a; }
+#lane .lnote { position: absolute; left: 0; top: 7px; font-style: normal; font-size: 24px; line-height: 30px; width: 30px; text-align: center; color: #ffd36a; text-shadow: 0 0 8px rgba(255,180,60,.8); will-change: transform; }
+.bottom #hud-beat { display: none; }
+
+#arrows .arrow { position: absolute; width: 0; height: 0; }
+#arrows .arrow i { position: absolute; left: -16px; top: -16px; width: 32px; height: 32px; }
+#arrows .arrow i::before { content: ''; position: absolute; left: 6px; top: 6px; border-left: 22px solid currentColor; border-top: 10px solid transparent; border-bottom: 10px solid transparent; filter: drop-shadow(0 0 6px currentColor); }
+#arrows .arrow span { position: absolute; left: -24px; top: 16px; width: 48px; text-align: center; font-size: 11px; font-weight: 900; text-shadow: 0 1px 3px #000; }
+#arrows .arrow.real { color: #ff5a4a; }
+#arrows .arrow.ghost { color: #b48cff; }
+
+body.touch #objective { top: calc(54px + env(safe-area-inset-top, 0px)); min-width: 0; max-width: 46vw; padding: 5px 10px 6px; }
+body.touch #objective b { font-size: 12px; }
+body.touch #objective b b { font-size: 15px; }
+body.touch #objective em { font-size: 10px; }
+body.touch #lane { bottom: calc(14px + env(safe-area-inset-bottom, 0px)); width: 220px; height: 36px; }
+body.touch #lane .target { width: 28px; height: 28px; }
+body.touch #lane .lnote { top: 3px; font-size: 20px; }
+body.touch #toasts { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+body.touch .bottom { top: calc(178px + env(safe-area-inset-top, 0px)); left: calc(8px + env(safe-area-inset-left, 0px)); right: auto; transform: none; }
+body.touch .bottom #hotbar { flex-direction: column; }
+body.touch #combo { right: 30%; top: 30%; }
+body.touch #combo b { font-size: 40px; }
+body.touch #judge { font-size: 30px; }
+body.touch .howto li { padding: 8px 10px 8px 42px; }
+body.touch .howto span { display: none; }
+@media (max-height: 500px) { .howto span { display: none; } .howto { margin-bottom: 12px; } .sub { margin: 10px 0 12px; } }
+#objective small { display: block; font-size: 10.5px; opacity: .6; margin-top: 2px; }

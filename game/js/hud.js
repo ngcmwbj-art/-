@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { FIELDS, landRadius, LIGHTHOUSE, HOUSE } from './world.js';
 import { TOWER_TYPES } from './towers.js';
+import { BEAT } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -24,6 +25,12 @@ export class HUD {
       this.el.hotbar.appendChild(d);
     });
     this.lastToast = '';
+    this.el.banner = $('banner'); this.el.obj = $('objective'); this.el.comboEl = $('combo');
+    this.el.lane = $('lane'); this.el.arrows = $('arrows');
+    // 拍のレーン：右から流れてくる音符
+    this.laneNotes = [];
+    for (let i = 0; i < 6; i++) { const n = document.createElement('i'); n.className = 'lnote'; n.textContent = '♪'; this.el.lane.appendChild(n); this.laneNotes.push(n); }
+    this.arrowEls = [];
     this.mapBg = this.renderMapBg();
   }
 
@@ -64,6 +71,44 @@ export class HUD {
     while (this.el.toasts.children.length > 4) this.el.toasts.lastChild.remove();
     setTimeout(() => d.classList.add('out'), 2600);
     setTimeout(() => d.remove(), 3200);
+  }
+
+  // 画面中央の大きな見出し（台風接近・台風一過など）
+  banner(title, sub) {
+    const b = this.el.banner;
+    b.innerHTML = `<h2>${title}</h2><p>${sub || ''}</p>`;
+    b.className = '';
+    void b.offsetWidth;
+    b.className = 'show';
+    clearTimeout(this._bt);
+    this._bt = setTimeout(() => { b.className = ''; }, 3600);
+  }
+
+  // チュートリアルのミッション表示
+  mission(i, n, text) {
+    this.el.obj.className = 'mission';
+    this.el.obj.innerHTML = `<span class="tag">練習ミッション ${i} / ${n}</span><b>${text}</b><em id="obj-progress"></em><small class="pc-only">［Enter］で練習を飛ばす</small>`;
+    this.el.obj.hidden = false;
+  }
+  missionProgress(t) { const e = document.getElementById('obj-progress'); if (e) e.textContent = t; }
+
+  // 通常時の目的表示
+  objective(html, sub) {
+    const o = this.el.obj;
+    if (!html) { o.hidden = true; return; }
+    const s = `<span class="tag">目的</span><b>${html}</b><em>${sub || ''}</em>`;
+    if (o._last !== s) { o.innerHTML = s; o._last = s; }
+    o.className = '';
+    o.hidden = false;
+  }
+
+  combo(n, mult) {
+    const c = this.el.comboEl;
+    if (n < 2) { c.className = ''; return; }
+    c.innerHTML = `<b>${n}</b><span>COMBO</span><em>ダメージ ×${mult.toFixed(1)}</em>`;
+    c.className = '';
+    void c.offsetWidth;
+    c.className = 'show' + (n >= 10 ? ' hot' : '');
   }
 
   judge(text, kind) {
@@ -112,6 +157,45 @@ export class HUD {
     const k = 1 - b.frac;
     el.beat.style.setProperty('--k', k.toFixed(3));
     el.beat.classList.toggle('on', b.offset < 0.11);
+
+    // 拍のレーン（音符が輪に重なった瞬間が JUST）
+    const laneW = this.el.lane.clientWidth || 260;
+    const now = b.idx + b.frac;
+    this.laneNotes.forEach((n, i) => {
+      const beatNo = Math.floor(now) + i;
+      const dt = beatNo - now;
+      const x = 28 + dt * (laneW - 40) / 4;
+      n.style.transform = `translateX(${x}px) scale(${beatNo % 4 === 0 ? 1.25 : 1})`;
+      n.style.opacity = dt < -0.15 ? 0 : 1;
+    });
+    this.el.lane.classList.toggle('on', b.offset < 0.11);
+
+    // 画面外の竜巻の方向を示す矢印
+    let ai = 0;
+    const W = innerWidth, H = innerHeight;
+    for (const t of game.threats.tornados) {
+      if (!t.alive) continue;
+      const p = t.pos.clone().add(new THREE.Vector3(0, 12, 0)).project(game.camera);
+      const behind = p.z > 1;
+      let x = (p.x + 1) / 2 * W, y = (1 - p.y) / 2 * H;
+      if (behind) { x = W - x; y = H - y; }
+      const onScreen = !behind && x > 40 && x < W - 40 && y > 40 && y < H - 40;
+      if (onScreen) continue;
+      const cx = W / 2, cy = H / 2;
+      let dx = x - cx, dy = y - cy;
+      if (behind && Math.abs(dy) < 1) dy = 1;
+      const s = Math.min((W / 2 - 48) / Math.abs(dx || 1e-3), (H / 2 - 64) / Math.abs(dy || 1e-3));
+      let el = this.arrowEls[ai];
+      if (!el) { el = document.createElement('div'); el.className = 'arrow'; el.innerHTML = '<i></i><span></span>'; this.el.arrows.appendChild(el); this.arrowEls.push(el); }
+      el.style.display = '';
+      el.style.left = (cx + dx * s) + 'px';
+      el.style.top = (cy + dy * s) + 'px';
+      el.firstChild.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+      el.className = 'arrow ' + (t.group.collapsed ? 'real' : 'ghost');
+      el.lastChild.textContent = `${Math.round(t.pos.distanceTo(game.player.pos))}m`;
+      ai++;
+    }
+    for (let i = ai; i < this.arrowEls.length; i++) this.arrowEls[i].style.display = 'none';
 
     // 竜巻の体力バー
     const seen = new Set();

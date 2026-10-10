@@ -125,7 +125,7 @@ class Tornado {
       this.obj.position.copy(this.pos);
 
       // 実体のみがキャベツを破壊。未観測なら接触でデコヒーレンス（自動収束）
-      if (this.real) {
+      if (this.real && !this.group.practice) {
         const near = cab.nearestAlive(this.pos.x, this.pos.z, 6);
         if (near >= 0 && !this.group.collapsed) sys.collapse(this.group, 'decoherence');
         if (this.group.collapsed) {
@@ -332,6 +332,25 @@ export class Threats {
     return group;
   }
 
+  // チュートリアル用の練習竜巻（キャベツを荒らさず、その場で揺れるだけ）
+  spawnPractice(playerPos, forward, superposed) {
+    const away = new THREE.Vector3(playerPos.x, 0, playerPos.z).normalize();
+    const base = playerPos.clone().addScaledVector(away, 24);
+    const n = superposed ? 3 : 1;
+    const realIdx = Math.floor(Math.random() * n);
+    const group = { members: [], collapsed: !superposed, hp: 80, speed: 0, practice: true };
+    const side = new THREE.Vector3(-away.z, 0, away.x);
+    for (let i = 0; i < n; i++) {
+      const pos = base.clone().addScaledVector(side, (i - (n - 1) / 2) * 16);
+      const tor = new Tornado(this, pos, i === realIdx, group);
+      if (!superposed) tor.setGhost(0);
+      group.members.push(tor);
+      this.tornados.push(tor);
+    }
+    this.groups.push(group);
+    return group;
+  }
+
   collapse(group, reason) {
     if (group.collapsed) return;
     group.collapsed = true;
@@ -394,6 +413,12 @@ export class Threats {
       }
       if (!t.group.collapsed) { unobserved++; continue; }
       hits++;
+      // 衝撃波で竜巻を押し返す
+      if (opts.push && opts.from) {
+        const dx = t.pos.x - opts.from.x, dz = t.pos.z - opts.from.z, l = Math.hypot(dx, dz) || 1;
+        t.pos.x += dx / l * opts.push; t.pos.z += dz / l * opts.push;
+      }
+      this.fx.burst(t.pos.clone().add(new THREE.Vector3(0, 4, 0)), '#ffd36a', 20, 10, 0.6, 0.4, 2);
       if (t.damage(dmg)) {
         this.stats.tornados++;
         this.game.addQ(25, t.pos.clone().add(new THREE.Vector3(0, 8, 0)));

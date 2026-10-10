@@ -75,7 +75,7 @@ export function setupTouch(game) {
   bind('tb-solo', () => game.doSolo());
   bind('tb-jump', () => { game.input.jump = true; });
   bind('tb-build', () => game.doBuild());
-  bind('tb-go', () => { if (game.phase === 'prep') game.phaseT = Math.max(game.phaseT, game.prepLength() - 0.5); });
+  bind('tb-go', () => game.skipPrep());
   bind('tb-help', () => document.getElementById('help').classList.toggle('show'));
 
   // ホットバーをタップでタワー選択（もう一度タップで解除）
@@ -94,7 +94,10 @@ export function setupTouch(game) {
 export function updateTouch(game) {
   const b = document.getElementById('tb-build');
   b.hidden = !game.buildSel;
-  document.getElementById('tb-go').hidden = game.phase !== 'prep';
+  const go = document.getElementById('tb-go');
+  go.hidden = game.phase !== 'prep';
+  const label = game.mission ? '練習を飛ばす ▶' : '台風を迎え撃つ ▶';
+  if (go.textContent !== label) go.textContent = label;
   document.getElementById('tb-solo').classList.toggle('ready', game.solo >= 100);
   document.getElementById('tb-observe').style.setProperty('--p', Math.max(0, game.cd.observe / 4));
   document.getElementById('tb-teleport').style.setProperty('--p', Math.max(0, game.cd.teleport / 3));

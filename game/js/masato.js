@@ -512,10 +512,17 @@ export function createMasato() {
 
   root.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
 
+  // ギター用のピボット（ギターを頭上に掲げる・背中で回す演出用）
   let walk = 0, strum = 0, strumSide = 1, solo = 0;
+  // 派手な演奏アクション：small / windmill（腕を一回転）/ jump（跳び弾き）/ raise（ギターを掲げる）
+  const act = { type: null, t: 0, dur: 0.4 };
+  const DUR = { small: 0.3, windmill: 0.42, jump: 0.55, raise: 0.9 };
+  const base = { gpos: guitar.position.clone(), grot: guitar.rotation.clone() };
+  const ease = (x) => 1 - Math.pow(1 - x, 3);
   return {
     root, guitar, head,
-    strum() { strum = 1; strumSide *= -1; },
+    get acting() { return act.type; },
+    strum(kind = 'small') { strum = 1; strumSide *= -1; act.type = kind; act.t = 0; act.dur = DUR[kind] || 0.3; },
     // speedN: 0..1（歩き→走り）, air: 空中か
     update(dt, t, speedN, air, soloOn, stunned) {
       walk += dt * (4 + speedN * 7) * (speedN > 0.02 ? 1 : 0);
@@ -525,26 +532,90 @@ export function createMasato() {
       const breathe = Math.sin(t * 2.2) * 0.008;
 
       body.position.y = Math.abs(Math.cos(walk)) * 0.05 * Math.min(1, speedN * 3) + breathe;
+      body.rotation.set(0, 0, 0);
       torso.rotation.x = speedN * 0.16 + (stunned ? Math.sin(t * 20) * 0.1 : 0);
       torso.rotation.y = Math.sin(walk) * 0.08 * speedN;
+      torso.rotation.z = 0;
       head.rotation.y = -torso.rotation.y + Math.sin(t * 0.7) * 0.06 * (1 - speedN);
-      head.rotation.x = -torso.rotation.x * 0.5 + (soloOn ? -0.35 : 0) + strum * 0.1;
+      head.rotation.x = -torso.rotation.x * 0.5 + strum * 0.1;
 
-      legL.hp.rotation.x = air ? -0.7 : sw;
-      legR.hp.rotation.x = air ? -0.3 : -sw;
+      legL.hp.rotation.set(air ? -0.7 : sw, 0, 0);
+      legR.hp.rotation.set(air ? -0.3 : -sw, 0, 0);
       legL.kn.rotation.x = air ? 1.1 : Math.max(0, -Math.sin(walk + 1.2)) * (0.3 + speedN * 0.8);
       legR.kn.rotation.x = air ? 0.6 : Math.max(0, Math.sin(walk + 1.2)) * (0.3 + speedN * 0.8);
 
-      // 左手はネック、右手はストローク
+      // 基本の構え：左手はネック、右手はストローク
       const play = Math.max(strum, solo, 0.35);
       armL.sh.rotation.set(lerp(-sw, -1.0, play), 0, lerp(0.1, 0.5, play));
       armL.el.rotation.set(lerp(-0.3, -1.3, play), 0, 0);
-      const stroke = strum * Math.sin(strum * Math.PI) * strumSide + (soloOn ? Math.sin(t * 40) * 0.25 : 0);
-      armR.sh.rotation.set(lerp(sw, -0.5, play) + stroke * 0.5, 0, lerp(-0.1, -0.25, play));
-      armR.el.rotation.set(lerp(-0.3, -1.2, play) + stroke * 0.4, 0, 0);
+      const stroke = strum * Math.sin(strum * Math.PI) * strumSide;
+      armR.sh.rotation.set(lerp(sw, -0.5, play) + stroke * 0.7, 0, lerp(-0.1, -0.25, play));
+      armR.el.rotation.set(lerp(-0.3, -1.2, play) + stroke * 0.5, 0, 0);
+      guitar.position.copy(base.gpos);
+      guitar.rotation.copy(base.grot);
+      guitar.rotation.z += strum * 0.08;
 
-      guitar.rotation.z = -1.05 + strum * 0.06;
-      guitar.userData.q.material.emissiveIntensity = 2 + strum * 10 + solo * 12;
+      // ---- 派手なアクション ----
+      if (act.type) {
+        act.t += dt;
+        const k = Math.min(1, act.t / act.dur);
+        const arc = Math.sin(k * Math.PI);
+        if (act.type === 'windmill') {
+          // 右腕を大きく一回転させて振り下ろす（ピート・タウンゼント風）
+          armR.sh.rotation.set(-0.5 - ease(k) * Math.PI * 2, 0, -0.35 - arc * 0.5);
+          armR.el.rotation.set(-0.15, 0, 0);
+          torso.rotation.x -= arc * 0.25;
+          torso.rotation.z = arc * 0.18;
+          head.rotation.x -= arc * 0.35;
+          body.position.y += arc * 0.06;
+          legL.hp.rotation.z = arc * 0.35; legR.hp.rotation.z = -arc * 0.35;
+        } else if (act.type === 'jump') {
+          // 跳び上がって脚を開き、着地で深く沈む
+          const up = Math.sin(Math.min(1, k / 0.8) * Math.PI);
+          body.position.y += up * 0.75 - (k > 0.85 ? (1 - k) * 0.6 : 0);
+          legL.hp.rotation.set(-0.9 * up, 0, 0.55 * up);
+          legR.hp.rotation.set(0.5 * up, 0, -0.55 * up);
+          legL.kn.rotation.x = 1.5 * up; legR.kn.rotation.x = 1.2 * up;
+          torso.rotation.x -= up * 0.45;
+          head.rotation.x -= up * 0.55;
+          armR.sh.rotation.set(-0.5 - up * 2.6, 0, -0.3 - up * 0.6);
+          armR.el.rotation.set(-0.2, 0, 0);
+          guitar.rotation.z += up * 0.5;
+          guitar.position.y += up * 0.08;
+        } else if (act.type === 'raise') {
+          // ギターを頭上に高々と掲げ、体を反らせる
+          const h = ease(Math.min(1, k * 2.2)) * (k < 0.8 ? 1 : (1 - k) / 0.2);
+          guitar.position.set(base.gpos.x, base.gpos.y + h * 0.75, base.gpos.z + h * 0.05);
+          guitar.rotation.set(base.grot.x - h * 0.3, base.grot.y, base.grot.z + h * 1.0);
+          armL.sh.rotation.set(-1.0 - h * 1.9, 0, 0.5 - h * 0.2);
+          armL.el.rotation.set(-1.3 + h * 1.0, 0, 0);
+          armR.sh.rotation.set(-0.5 - h * 2.2, 0, -0.25 - h * 0.3);
+          armR.el.rotation.set(-1.2 + h * 0.9, 0, 0);
+          torso.rotation.x -= h * 0.4;
+          head.rotation.x -= h * 0.7;
+          legL.hp.rotation.z = h * 0.3; legR.hp.rotation.z = -h * 0.3;
+        } else {
+          // 小さなストローク＋ヘッドバン
+          head.rotation.x += arc * 0.45;
+          torso.rotation.x += arc * 0.12;
+        }
+        if (k >= 1) act.type = null;
+      }
+
+      // ソロ：のけぞって高速で弾きまくる
+      if (solo > 0.01) {
+        torso.rotation.x -= solo * 0.5;
+        head.rotation.x -= solo * 0.6 - Math.sin(t * 16) * 0.25 * solo;
+        armR.sh.rotation.x += Math.sin(t * 40) * 0.3 * solo;
+        armR.el.rotation.x += Math.sin(t * 40 + 1) * 0.3 * solo;
+        legL.hp.rotation.z = Math.max(legL.hp.rotation.z, solo * 0.4);
+        legR.hp.rotation.z = Math.min(legR.hp.rotation.z, -solo * 0.4);
+        legL.kn.rotation.x = Math.max(legL.kn.rotation.x, solo * 0.5);
+        legR.kn.rotation.x = Math.max(legR.kn.rotation.x, solo * 0.5);
+        body.position.y -= solo * 0.12;
+      }
+
+      guitar.userData.q.material.emissiveIntensity = 2 + strum * 10 + solo * 12 + (act.type ? 6 : 0);
     },
   };
 }
