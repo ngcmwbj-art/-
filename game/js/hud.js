@@ -1,6 +1,6 @@
 // HUD：ステータス・ミニマップ・拍インジケーター・トースト・体力バー
 import * as THREE from 'three';
-import { FIELDS, landRadius, LIGHTHOUSE, HOUSE } from './world.js';
+import { FIELDS, coastX, BOUNDS, LIGHTHOUSE, HOUSE } from './world.js';
 import { TOWER_TYPES } from './towers.js';
 import { BEAT } from './audio.js';
 
@@ -38,18 +38,23 @@ export class HUD {
     const S = 200, c = document.createElement('canvas');
     c.width = c.height = S;
     const g = c.getContext('2d');
-    g.fillStyle = '#0d2630'; g.fillRect(0, 0, S, S);
+    // 山（外側）→ 台地 → 東の海
+    g.fillStyle = '#2c4a26'; g.fillRect(0, 0, S, S);
+    const [x0, z0] = this.toMap(BOUNDS.xMin, BOUNDS.zMin), [, z1] = this.toMap(0, BOUNDS.zMax);
+    g.fillStyle = '#4c7a36';
+    g.fillRect(x0, z0, S, z1 - z0);
     g.beginPath();
-    for (let i = 0; i <= 128; i++) {
-      const th = i / 128 * Math.PI * 2, r = landRadius(th);
-      const x = S / 2 + Math.cos(th) * r * this.mapScale(), y = S / 2 + Math.sin(th) * r * this.mapScale();
-      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    for (let i = 0; i <= 64; i++) {
+      const z = -230 + i / 64 * 460;
+      const [mx, my] = this.toMap(coastX(z), z);
+      i ? g.lineTo(mx, my) : g.moveTo(mx, my);
     }
-    g.fillStyle = '#3a5a2c'; g.fill();
+    g.lineTo(S, S); g.lineTo(S, 0); g.closePath();
+    g.fillStyle = '#0d2630'; g.fill();
     g.strokeStyle = '#c8b48a'; g.lineWidth = 1.5; g.stroke();
     return c;
   }
-  mapScale() { return 100 / 290; }
+  mapScale() { return 100 / 210; }
   toMap(x, z) { const s = this.mapScale(); return [100 + x * s, 100 + z * s]; }
 
   setHotbar(selected, q) {
@@ -216,7 +221,9 @@ export class HUD {
     }
     for (const [t, bar] of this.barEls) if (!seen.has(t)) { bar.remove(); this.barEls.delete(t); }
 
-    this.drawMap(game);
+    // ミニマップは 1 秒に 8 回だけ描き直す
+    const nowMs = performance.now();
+    if (nowMs - (this._mapAt || 0) > 125) { this._mapAt = nowMs; this.drawMap(game); }
   }
 
   drawMap(game) {

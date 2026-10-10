@@ -126,6 +126,7 @@ export class Weather {
     const geo = new THREE.PlaneGeometry(7000, 7000, 1, 1);
     geo.rotateX(Math.PI / 2);
     this.cloudMat = new THREE.ShaderMaterial({
+      defines: this.Q.low ? { LOW: 1 } : {},
       transparent: true, depthWrite: false, side: THREE.DoubleSide,
       uniforms: {
         uTime: { value: 0 }, uCover: { value: 0.35 }, uStorm: { value: 0 },
@@ -145,13 +146,21 @@ export class Weather {
           float s = sin(ang), c = cos(ang);
           p = uTy + mat2(c,-s,s,c)*d;
           vec2 q = p*.0011 + uWind*uTime*.006;
-          float warp = fbm(q*1.7 + uTime*.01);
+          #ifdef LOW
+            float warp = vnoise(q*1.7 + uTime*.01);
+          #else
+            float warp = fbm(q*1.7 + uTime*.01);
+          #endif
           float n = fbm(q + warp*.7);
           float th = 1. - uCover;
           // 輪郭のはっきりした積雲（セル調の2トーン陰影）
           float cov = smoothstep(th - .03, th + .05, n);
           float dens = smoothstep(th, th + .45, n);
-          float lightSide = fbm(q - uSunDir.xz*.05 + warp*.7);
+          #ifdef LOW
+            float lightSide = n + (vnoise((q - uSunDir.xz*.05)*4.) - .5)*.1;
+          #else
+            float lightSide = fbm(q - uSunDir.xz*.05 + warp*.7);
+          #endif
           float shade = smoothstep(.0, .08, n - lightSide + .03);
           vec3 lit = vec3(1., .99, .96);
           vec3 shadow = mix(vec3(.72,.8,.92), vec3(.3,.33,.38), uStorm);

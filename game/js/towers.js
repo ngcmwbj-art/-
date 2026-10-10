@@ -205,7 +205,7 @@ export class Towers {
             if (!tor.alive) continue;
             if (Math.hypot(tor.pos.x - tw.pos.x, tor.pos.z - tw.pos.z) < 13 && tor.tunnelCd <= 0) {
               const from = tor.pos.clone();
-              const dir = new THREE.Vector2(tor.pos.x, tor.pos.z).normalize();
+              const dir = new THREE.Vector2(1, 0); // 東の海へ飛ばす
               tor.pos.x += dir.x * 85; tor.pos.z += dir.y * 85;
               tor.pos.y = Math.max(heightAt(tor.pos.x, tor.pos.z), 0);
               tor.obj.position.copy(tor.pos);

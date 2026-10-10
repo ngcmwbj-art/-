@@ -5,7 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { buildWorld, landRadius, heightAt } from './world.js';
+import { buildWorld, heightAt } from './world.js';
 import { Weather } from './weather.js';
 import { Cabbages } from './cabbages.js';
 import { Player } from './player.js';
@@ -19,9 +19,9 @@ import { IS_TOUCH, setupTouch, updateTouch } from './touch.js';
 import { toonify, addOutline } from './toon.js';
 
 const QUALITY = {
-  low: { cabNear: 22, cabMid: 80, pr: Math.min(devicePixelRatio, 1.25), shadow: 0, grass: 9000, trees: 0.5, rain: 3000, bloom: false, msaa: 0 },
-  mid: { cabNear: 35, cabMid: 110, pr: 1, shadow: 1024, grass: 18000, trees: 0.8, rain: 6000, bloom: true, msaa: 0 },
-  high: { cabNear: 45, cabMid: 140, pr: Math.min(devicePixelRatio, 1.5), shadow: 2048, grass: 45000, trees: 1, rain: 10000, bloom: true, msaa: 4 },
+  low: { low: true, fps: 30, cabNear: 12, cabMid: 35, pr: 1, shadow: 0, grass: 6000, trees: 0.5, rain: 3000, bloom: false, msaa: 0 },
+  mid: { fps: 60, cabNear: 35, cabMid: 110, pr: 1, shadow: 1024, grass: 18000, trees: 0.8, rain: 6000, bloom: true, msaa: 0 },
+  high: { fps: 60, cabNear: 45, cabMid: 140, pr: Math.min(devicePixelRatio, 1.5), shadow: 2048, grass: 45000, trees: 1, rain: 10000, bloom: true, msaa: 4 },
   ultra: { cabNear: 70, cabMid: 180, pr: Math.min(devicePixelRatio, 2), shadow: 4096, grass: 90000, trees: 1.3, rain: 16000, bloom: true, msaa: 4 },
 };
 
@@ -354,7 +354,7 @@ class Game {
     this.phase = 'storm';
     this.phaseT = 0;
     this.spawn = { groups: 0, debris: 3, strike: 6, nextGroup: 2 };
-    const a = rand(-1.2, 0.6); // 海側（東〜南）から
+    const a = rand(-0.6, 0.6); // 東の海から
     this.stormAngle = a;
     this.weather.typhoonCenter.set(Math.cos(a) * 1500, Math.sin(a) * 1500);
     this.weather.windDir.set(-Math.cos(a), -Math.sin(a)).normalize();
@@ -514,6 +514,12 @@ class Game {
 
   // ---------- フレーム ----------
   frame() {
+    // フレームレートの上限（iPad などの 120Hz 画面で無駄に描きすぎて熱くならないように）
+    if (this.Q.fps) {
+      const now = performance.now();
+      if (now - (this.lastFrameAt || 0) < 1000 / this.Q.fps - 3) return;
+      this.lastFrameAt = now;
+    }
     const rawDt = Math.min(this.clock.getDelta(), 0.05);
     const dt = this.paused ? 0 : rawDt;
     this.time += rawDt;
@@ -582,7 +588,9 @@ class Game {
     if (this.bloom) this.bloom.strength = 0.3 + w.flash * 0.8 + (this.player.soloOn ? 0.25 : 0);
 
     if (this.phase !== 'title') { this.hud.update(this); if (IS_TOUCH) updateTouch(this); }
-    this.composer.render();
+    // 低画質は仕上げ処理（ブルーム・色調補正）を省いて直接描く
+    if (this.Q.low) this.renderer.render(this.scene, this.camera);
+    else this.composer.render();
   }
 
   titleCamera(t) {

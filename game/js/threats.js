@@ -1,6 +1,6 @@
 // 天災：重ね合わせ竜巻・飛来物（トタン板）・落雷
 import * as THREE from 'three';
-import { heightAt, groundAt, landRadius } from './world.js';
+import { heightAt, groundAt, coastX } from './world.js';
 import { toToon } from './toon.js';
 import { rand, GLSL_NOISE } from './util.js';
 
@@ -319,11 +319,11 @@ export class Threats {
     const members = 2 + Math.floor(wave / 2);
     const realIdx = Math.floor(Math.random() * members);
     const group = { members: [], collapsed: false, hp: 110 + wave * 45, speed: 3.6 + wave * 0.45 };
-    const a0 = baseAngle + rand(-0.5, 0.5);
+    // 竜巻は東の海から上陸してくる
+    const z0 = Math.max(-120, Math.min(120, Math.sin(baseAngle) * 160 + rand(-50, 50)));
     for (let i = 0; i < members; i++) {
-      const a = a0 + (i - (members - 1) / 2) * rand(0.25, 0.4);
-      const r = landRadius(a) + rand(25, 45);
-      const pos = new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r);
+      const z = Math.max(-140, Math.min(140, z0 + (i - (members - 1) / 2) * rand(35, 55)));
+      const pos = new THREE.Vector3(coastX(z) + rand(25, 45), 0, z);
       const tor = new Tornado(this, pos, i === realIdx, group);
       group.members.push(tor);
       this.tornados.push(tor);

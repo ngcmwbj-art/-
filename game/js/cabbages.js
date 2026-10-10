@@ -9,6 +9,7 @@ const LOD_SPEC = [
   { ico: 4, S: 10, T: 8, inner: 5, outer: 7 },
   { ico: 2, S: 6, T: 4, inner: 4, outer: 6 },
   { ico: 1, S: 3, T: 2, inner: 3, outer: 5 },
+  { ico: 0, S: 1, T: 1, inner: 0, outer: 5 },
 ];
 function buildCabbageGeometry(level = 0) {
   const spec = LOD_SPEC[level];
@@ -84,6 +85,7 @@ export class Cabbages {
     // 距離による描き分けの半径（画質設定で変える）
     this.lodNear = Q.cabNear || 45;
     this.lodMid = Q.cabMid || 130;
+    this.lodFar = this.lodMid * 2;
     const list = [];
     const rng = mulberry32(11);
     FIELDS.forEach((f, fi) => {
@@ -109,7 +111,7 @@ export class Cabbages {
     this.cols = new Float32Array(this.total * 3).fill(1);
 
     const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, side: THREE.DoubleSide });
-    this.lods = [0, 1, 2].map((lv) => {
+    this.lods = [0, 1, 2, 3].map((lv) => {
       const m = new THREE.InstancedMesh(buildCabbageGeometry(lv), mat, this.total);
       m.castShadow = false;
       m.receiveShadow = true;
@@ -250,17 +252,20 @@ export class Cabbages {
     if (!changed && !moved && !flying) return;
     this._camLast.copy(cp);
     this._lastDir = (this._lastDir || new THREE.Vector3()).copy(this._camDir);
-    const n2 = this.lodNear * this.lodNear, m2 = this.lodMid * this.lodMid;
+    const n2 = this.lodNear * this.lodNear, m2 = this.lodMid * this.lodMid, f2 = this.lodFar * this.lodFar;
     const fx = this._camDir.x, fz = this._camDir.z, fl = Math.hypot(fx, fz) || 1;
-    const counts = [0, 0, 0];
+    // 画面の横の視野（少し余裕を持たせる）の外にある玉は描かない
+    const hfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * camera.aspect);
+    const cosLim = Math.cos(Math.min(Math.PI, hfov / 2 + 0.3));
+    const counts = [0, 0, 0, 0];
     const arrs = this.lods.map((l) => l.instanceMatrix.array), carrs = this.lods.map((l) => l.instanceColor.array);
     for (let i = 0; i < this.total; i++) {
       if (this.state[i] === 2) continue;
       const k = i * 16;
       const x = this.mats[k + 12] - cp.x, z = this.mats[k + 14] - cp.z;
       const d2 = x * x + z * z;
-      if (d2 > 64 && (x * fx + z * fz) / fl < -Math.sqrt(d2) * 0.35) continue;
-      const lv = d2 < n2 ? 0 : d2 < m2 ? 1 : 2;
+      if (d2 > 64 && (x * fx + z * fz) / fl < Math.sqrt(d2) * cosLim) continue;
+      const lv = d2 < n2 ? 0 : d2 < m2 ? 1 : d2 < f2 ? 2 : 3;
       const slot = counts[lv]++;
       arrs[lv].set(this.mats.subarray(k, k + 16), slot * 16);
       carrs[lv].set(this.cols.subarray(i * 3, i * 3 + 3), slot * 3);

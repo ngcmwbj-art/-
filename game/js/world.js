@@ -8,23 +8,36 @@ import { buildHouse, buildKeiTruck, buildBarn, buildGreenhouse, buildLighthouse 
 export const FIELDS = [];
 const FIELD_W = 40, FIELD_D = 26, FIELD_COLS = 20, FIELD_ROWS = 14, FIELD_COUNT = 30;
 
-// 海岸線（中心からの陸地半径）
-export function landRadius(th) {
-  return 228 + 34 * Math.sin(th * 3 + 1.3) + 18 * Math.sin(th * 5 + 0.4) + 10 * Math.sin(th * 9 + 2.0);
+// ワールドの形：東側だけが海。北・西・南は森の山に囲まれた盆地のような台地
+// （銚子の台地のイメージ：東に太平洋、内陸側は丘陵が続く）
+export const BOUNDS = { xMin: -175, zMin: -165, zMax: 165 };
+export function coastX(z) {
+  return 150 + 12 * Math.sin(z * 0.03 + 1) + 6 * Math.sin(z * 0.071 + 0.4);
 }
-const GLSL_LAND = /* glsl */ `
-float landRadius(float th){ return 228. + 34.*sin(th*3.+1.3) + 18.*sin(th*5.+.4) + 10.*sin(th*9.+2.); }
+const GLSL_COAST = /* glsl */ `
+float coastX(float z){ return 150. + 12.*sin(z*.03+1.) + 6.*sin(z*.071+.4); }
 `;
+// 海までの距離（陸側が正）
+export function seaDist(x, z) { return coastX(z) - x; }
+// 山の内側の縁までの距離（内側が正）
+export function hillDist(x, z) { return Math.min(x - BOUNDS.xMin, z - BOUNDS.zMin, BOUNDS.zMax - z); }
+// 遊べる陸地の内側にどれだけ入っているか（海と山の両方を考える）
+export function inland(x, z) { return Math.min(seaDist(x, z), hillDist(x, z)); }
 
 export function rawHeight(x, z) {
-  const r = Math.hypot(x, z), th = Math.atan2(z, x);
-  const inside = landRadius(th) - r;
+  const inside = seaDist(x, z);
   const plateau = 17 + fbm(x * 0.007 + 3.1, z * 0.007 - 1.7, 5) * 12 + fbm(x * 0.04, z * 0.04, 3) * 1.2;
   const seabed = -14 + Math.max(inside, -300) * 0.05;
   const t = smoothstep(-3, 9, inside) * 0.85 + smoothstep(-3, 24, inside) * 0.15;
-  return lerp(seabed, plateau, t * t * (3 - 2 * t));
+  let h = lerp(seabed, plateau, t * t * (3 - 2 * t));
+  // 周りを囲む山並み（内側の縁から外へせり上がる）
+  const hd = hillDist(x, z);
+  if (hd < 40) {
+    const k = smoothstep(40, -60, hd);
+    h += k * k * 85 + k * fbm(x * 0.03 + 7, z * 0.03 - 2, 4) * 18;
+  }
+  return h;
 }
-
 
 export function fieldLocal(f, x, z) {
   const dx = x - f.x, dz = z - f.z;
@@ -39,8 +52,7 @@ export function fieldRectDist(f, x, z) {
   return Math.hypot(ox, oz);
 }
 
-const lhTh = -0.55, lhR = landRadius(lhTh) - 17;
-export const LIGHTHOUSE = { x: Math.cos(lhTh) * lhR, z: Math.sin(lhTh) * lhR };
+export const LIGHTHOUSE = { x: coastX(-95) - 17, z: -95 };
 export const HOUSE = { x: -18, z: -42 };
 export const GREENHOUSE = { x: 32, z: -40 };
 export const BARN = { x: -40, z: -34 };
@@ -61,7 +73,7 @@ for (const f of FLATS) f.h = rawHeight(f.x, f.z) + 0.1;
     const f = { x: gx * FIELD_W, z: gz * FIELD_D, w: FIELD_W, d: FIELD_D, rot: 0, cos: 1, sin: 0 };
     for (const [su, sv] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
       const px = f.x + su * FIELD_W / 2, pz = f.z + sv * FIELD_D / 2;
-      if (landRadius(Math.atan2(pz, px)) - Math.hypot(px, pz) < 32) return null;
+      if (seaDist(px, pz) < 32 || hillDist(px, pz) < 38) return null;
     }
     if (FLATS.some((fl) => fieldRectDist(f, fl.x, fl.z) < fl.r + 4)) return null;
     return f;
@@ -112,7 +124,7 @@ export function heightAt(x, z) {
 }
 
 // 地形メッシュの三角形と完全に一致する高さ（接地・カメラ用）
-const TER = { SIZE: 720, SEG: 300, grid: null };
+const TER = { SIZE: 600, SEG: 240, grid: null };
 export function groundAt(x, z) {
   const g = TER.grid;
   if (!g) return heightAt(x, z);
@@ -127,7 +139,8 @@ export function groundAt(x, z) {
 }
 
 export function isWalkable(x, z) {
-  return heightAt(x, z) > 1.2;
+  // 海に落ちず、まわりの山の森には分け入らない
+  return hillDist(x, z) > 6 && heightAt(x, z) > 1.2;
 }
 
 // ---------- テクスチャ生成 ----------
@@ -195,7 +208,7 @@ function buildTerrain() {
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
   const colors = new Float32Array(pos.count * 3);
-  const cGrassDark = new THREE.Color('#3d6e2a'), cGrass1 = new THREE.Color('#5f9a34'), cGrass2 = new THREE.Color('#9cbf45'), cDry = new THREE.Color('#c2bb62');
+  const cForest = new THREE.Color('#3a6230'), cGrassDark = new THREE.Color('#3d6e2a'), cGrass1 = new THREE.Color('#5f9a34'), cGrass2 = new THREE.Color('#9cbf45'), cDry = new THREE.Color('#c2bb62');
   const cSoil = new THREE.Color('#6a4a30'), cSand = new THREE.Color('#e3d3a4'), cWetSand = new THREE.Color('#a8956e');
   const cRock1 = new THREE.Color('#9a7b5a'), cRock2 = new THREE.Color('#c9ad85'), cSea = new THREE.Color('#3f6f78');
   const col = new THREE.Color(), tmp = new THREE.Color();
@@ -215,7 +228,11 @@ function buildTerrain() {
     // 屏風ヶ浦の地層
     const strata = 0.5 + 0.5 * Math.sin(h * 2.2 + vnoise(x * 0.05, z * 0.05) * 1.5);
     tmp.copy(cRock1).lerp(cRock2, strata);
-    col.lerp(tmp, smoothstep(0.55, 0.95, slope));
+    // まわりの山は岩肌を減らし、濃い森の緑に
+    const hd = hillDist(x, z);
+    const hill = smoothstep(30, -10, hd);
+    col.lerp(tmp, smoothstep(0.55, 0.95, slope) * (1 - hill * 0.75));
+    col.lerp(cForest, hill * (0.55 + 0.25 * (fbm(x * 0.05, z * 0.05, 2) + 0.5)));
     if (h < 3.5) col.lerp(cSand, smoothstep(3.5, 1.5, h));
     if (h < 0.8) col.lerp(cWetSand, smoothstep(0.8, -0.5, h));
     if (h < -3) col.lerp(cSea, smoothstep(-3, -10, h));
@@ -317,10 +334,9 @@ function buildGrass(count, windU) {
       const a = rng() * Math.PI * 2, r = 20 + Math.sqrt(rng()) * 50;
       x = f.x + Math.cos(a) * r; z = f.z + Math.sin(a) * r;
     } else {
-      x = (rng() - 0.5) * 420; z = (rng() - 0.5) * 420;
+      x = (rng() - 0.5) * 360; z = (rng() - 0.5) * 340;
     }
-    const inside = landRadius(Math.atan2(z, x)) - Math.hypot(x, z);
-    if (inside < 24) continue;
+    if (seaDist(x, z) < 24 || hillDist(x, z) < 6) continue;
     if (FIELDS.some((f) => fieldRectDist(f, x, z) < 2.5)) continue;
     if (FLATS.some((f) => Math.hypot(x - f.x, z - f.z) < f.r - 2)) continue;
     const y = heightAt(x, z);
@@ -348,7 +364,7 @@ function buildTrees(scale) {
   const prng = mulberry32(9);
   const padDefs = [[0, 8.6, 0, 1.5], [1.6, 7.2, 0.4, 1.7], [-1.5, 6.6, -0.6, 1.6], [0.4, 5.6, 1.6, 1.5], [-0.6, 5.0, -1.4, 1.4], [2.2, 5.3, -1.0, 1.3], [-2.0, 7.6, 0.9, 1.3]];
   for (const [px, py, pz, pr] of padDefs) {
-    let g = new THREE.IcosahedronGeometry(pr, 2);
+    let g = new THREE.IcosahedronGeometry(pr, scale < 0.8 ? 1 : 2);
     g.deleteAttribute('normal'); g.deleteAttribute('uv');
     g = mergeVertices(g);
     const p = g.attributes.position;
@@ -383,10 +399,17 @@ function buildTrees(scale) {
   // 畑の北側に防風林
   // 木は畑地にかからない所（畑から 14m 以上離れた所）にだけ生やす
   let guard = 0;
-  while (spots.length < 320 * scale && guard++ < 6000) {
-    const x = (rng() - 0.5) * 460, z = (rng() - 0.5) * 460;
-    const inside = landRadius(Math.atan2(z, x)) - Math.hypot(x, z);
-    if (inside < 26) continue;
+  // 周りの山は森で覆う（ワールドの自然な壁）
+  let g2 = 0;
+  while (spots.length < 380 * scale && g2++ < 8000) {
+    const x = -280 + rng() * (coastX(0) + 200), z = (rng() - 0.5) * 520;
+    const hd = hillDist(x, z);
+    if (hd > 22 || hd < -90 || seaDist(x, z) < 20) continue;
+    spots.push([x, z, 1.0 + rng() * 0.8]);
+  }
+  while (spots.length < 520 * scale && guard++ < 6000) {
+    const x = (rng() - 0.5) * 360, z = (rng() - 0.5) * 340;
+    if (seaDist(x, z) < 26 || hillDist(x, z) < 22) continue;
     if (FIELDS.some((f) => fieldRectDist(f, x, z) < 14)) continue;
     if (FLATS.some((f) => Math.hypot(x - f.x, z - f.z) < f.r + 6)) continue;
     if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 12) continue;
@@ -453,13 +476,10 @@ function buildRocks(scale) {
     lists[Math.floor(rng() * variants.length)].push(tmp.m.clone());
   };
   // 崖の下と波打ち際に転がる岩
-  const N = Math.floor(520 * scale);
+  const N = Math.floor(260 * scale);
   for (let i = 0; i < N; i++) {
-    const th = rng() * Math.PI * 2;
-    const R = landRadius(th);
-    const off = 3 + rng() * 30; // 崖の下〜沖の浅瀬（海側）
-    const r = R + off;
-    const x = Math.cos(th) * r, z = Math.sin(th) * r;
+    const z = (rng() - 0.5) * 360;
+    const x = coastX(z) + 3 + rng() * 30; // 崖の下〜沖の浅瀬（海側）
     const h = heightAt(x, z);
     if (h > 0.3) continue; // 崖の斜面には置かない
     const sc = 1.2 + Math.pow(rng(), 2) * 4.5;
@@ -467,19 +487,17 @@ function buildRocks(scale) {
     add(x, y, z, sc * (0.8 + rng() * 0.6), sc * (0.6 + rng() * 0.6), sc * (0.8 + rng() * 0.6), rng() * 6.28);
   }
   // 沖に立つ海食柱（屏風ヶ浦・犬吠埼の岩礁のイメージ）
-  for (let i = 0; i < 18; i++) {
-    const th = rng() * Math.PI * 2;
-    const r = landRadius(th) + 25 + rng() * 70;
-    const x = Math.cos(th) * r, z = Math.sin(th) * r;
+  for (let i = 0; i < 12; i++) {
+    const z = (rng() - 0.5) * 380;
+    const x = coastX(z) + 25 + rng() * 80;
     const hgt = 8 + rng() * 18, w = 4 + rng() * 6;
     add(x, 0, z, w, hgt, w * (0.7 + rng() * 0.5), rng() * 6.28);
     for (let k = 0; k < 3; k++) add(x + (rng() - 0.5) * w * 3, -0.3, z + (rng() - 0.5) * w * 3, w * 0.5, 2 + rng() * 3, w * 0.5, rng() * 6.28);
   }
   // 台地の上にも点々と大岩
   for (let i = 0; i < 40 * scale; i++) {
-    const x = (rng() - 0.5) * 400, z = (rng() - 0.5) * 400;
-    const inside = landRadius(Math.atan2(z, x)) - Math.hypot(x, z);
-    if (inside < 30) continue;
+    const x = (rng() - 0.5) * 360, z = (rng() - 0.5) * 340;
+    if (seaDist(x, z) < 30 || hillDist(x, z) < -30) continue;
     if (FIELDS.some((f) => fieldRectDist(f, x, z) < 12)) continue;
     if (FLATS.some((f) => Math.hypot(x - f.x, z - f.z) < f.r + 6)) continue;
     if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 15) continue;
@@ -496,10 +514,13 @@ function buildRocks(scale) {
 }
 
 // ---------- 海（ゲルストナー波） ----------
-function buildOcean() {
-  const geo = new THREE.PlaneGeometry(2600, 2600, 360, 360);
+function buildOcean(Q) {
+  // 海は東側だけなので、東にずらした範囲だけを覆う
+  const seg = Q.low ? 120 : 260;
+  const geo = new THREE.PlaneGeometry(1400, 1400, seg, seg);
   geo.rotateX(-Math.PI / 2);
   const mat = new THREE.ShaderMaterial({
+    defines: Q.low ? { LOW: 1 } : {},
     uniforms: {
       uTime: { value: 0 }, uAmp: { value: 0.4 }, uStorm: { value: 0 },
       uDeep: { value: new THREE.Color('#0b2f3a') }, uShallow: { value: new THREE.Color('#2e7f7a') },
@@ -535,18 +556,24 @@ function buildOcean() {
       uniform vec3 uDeep, uShallow, uSky, uSunDir, uSunColor, uFogColor;
       varying vec3 vWorld; varying vec3 vN; varying float vCrest;
       ${GLSL_NOISE}
-      ${GLSL_LAND}
+      ${GLSL_COAST}
       void main(){
         vec2 p = vWorld.xz;
         float e = .6;
         vec2 q1 = p*.09 + vec2(uTime*.35, uTime*.2), q2 = p*.21 - vec2(uTime*.25, -uTime*.31);
-        float n0 = fbm(q1) + .5*fbm(q2);
-        float nx = fbm(q1+vec2(e*.09,0.)) + .5*fbm(q2+vec2(e*.21,0.));
-        float nz = fbm(q1+vec2(0.,e*.09)) + .5*fbm(q2+vec2(0.,e*.21));
-        vec3 N = normalize(vN + vec3(n0-nx, 0., n0-nz)*(1.6+uStorm*1.4));
+        #ifdef LOW
+          // 軽量版：細かい波の凹凸は 1 回のノイズで近似
+          float n0 = vnoise(q1*2.) , nx = vnoise(q1*2.+vec2(.3,0.)), nz = vnoise(q1*2.+vec2(0.,.3));
+          vec3 N = normalize(vN + vec3(n0-nx, 0., n0-nz)*(1.2+uStorm));
+        #else
+          float n0 = fbm(q1) + .5*fbm(q2);
+          float nx = fbm(q1+vec2(e*.09,0.)) + .5*fbm(q2+vec2(e*.21,0.));
+          float nz = fbm(q1+vec2(0.,e*.09)) + .5*fbm(q2+vec2(0.,e*.21));
+          vec3 N = normalize(vN + vec3(n0-nx, 0., n0-nz)*(1.6+uStorm*1.4));
+        #endif
         vec3 V = normalize(cameraPosition - vWorld);
         float fres = .03 + .97*pow(1.-max(dot(N,V),0.), 5.);
-        float r = length(p); float inside = landRadius(atan(p.y, p.x)) - r;
+        float inside = coastX(p.y) - p.x;
         float shore = smoothstep(-70., 0., inside);
         vec3 water = mix(uDeep, uShallow, clamp(vCrest*.35 + .25 + shore*.45, 0., 1.));
         vec3 R = reflect(-V, N);
@@ -555,7 +582,11 @@ function buildOcean() {
         vec3 H = normalize(uSunDir + V);
         col += uSunColor * pow(max(dot(N,H),0.), 260.) * 6. * (1.-uStorm*.9);
         col += uSunColor * pow(max(dot(N,H),0.), 24.) * .12 * (1.-uStorm);
-        float fn = fbm(p*.35 + uTime*.4);
+        #ifdef LOW
+          float fn = vnoise(p*.7 + uTime*.4);
+        #else
+          float fn = fbm(p*.35 + uTime*.4);
+        #endif
         float crest = smoothstep(.45, .9, vCrest + (fn-.5)*.4) * (.15 + .85*uStorm) * .8;
         float shoreFoam = smoothstep(-16., -4., inside) * (1. - smoothstep(-1., 4., inside)) * smoothstep(.55, .8, fn + .3*sin(inside*.7 - uTime*2.2)) * (.5 + .5*uStorm);
         col = mix(col, vec3(.92,.94,.95), clamp(crest + shoreFoam, 0., .9));
@@ -589,7 +620,8 @@ export function buildWorld(scene, Q, windU) {
   place(buildGreenhouse(), GREENHOUSE, 0.2);
   const lighthouse = place(buildLighthouse(), LIGHTHOUSE, Math.atan2(LIGHTHOUSE.x, LIGHTHOUSE.z) + Math.PI);
   group.add(buildRocks(Q.trees));
-  const ocean = buildOcean();
+  const ocean = buildOcean(Q);
+  ocean.position.x = coastX(0) + 560;
   group.add(ocean);
 
   return {
