@@ -52,6 +52,7 @@ import { SHIKISHI_TEXTS } from '../../data/text/hoshi_shikishi';
 import { ASHIATO_TEXTS } from '../../data/text/hoshi_ashiato';
 import { TENBAN_TEXTS } from '../../data/text/hoshi_tenban';
 import { MIMI_TEXTS } from '../../data/text/hoshi_mimi';
+import { TAIHI_TEXTS } from '../../data/text/hoshi_taihi';
 import { HUNTING_TEXTS } from '../../data/text/hunting';
 import { KOTEI_TEXTS } from '../../data/text/kotei';
 import { TOKEI_TEXTS } from '../../data/text/tokei7';
@@ -462,6 +463,8 @@ function collectTexts(): [string, string][] {
   // げむきか10/9の案3・5（無人販売所の 店番・ふくじんづけと 耳の あいさつ。50 10.30・10.31, 02_ch2_index #94・#95）
   walk('tenban', TENBAN_TEXTS);
   walk('mimi', MIMI_TEXTS);
+  // げむきか10/10の案2（堆肥の 中の 親戚 → カブトムシの 幼虫。50 10.32, 02_ch2_index #97）
+  walk('taihi', TAIHI_TEXTS);
   // げむきか10/5の新5（ハンチングの 値札。第1章の くりこ〔chichi〕も。10 6.8, 50 3.8・9.9, 02_ch2_index #83）
   walk('hunting', HUNTING_TEXTS);
   // げむきか10/5の新1（二人十五脚。第1章の ピー・コック・なんばるわん・校庭。10 6.12・6.23・7.24, 02_ch2_index #82）

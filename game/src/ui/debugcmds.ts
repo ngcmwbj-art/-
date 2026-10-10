@@ -310,7 +310,8 @@ registerDebug('wrapCheck', () => {
   // グソっ君の はじめて帳（02 #89）hajimeteText（台詞の 決まりも）、みました帳①②の『はじめて』hajimeteBookText（開発サーバーだけ）
   // 「ダンゴムシ ちゃうで」の 報告書（02 #93）hokokushoText（台詞の 決まりも。開発サーバーだけ）
   // 無人販売所の 店番（02 #94）tenbanText・tenbanBookText、ふくじんづけと 耳の あいさつ（02 #95）mimiText・mimiBookText（開発サーバーだけ）
-  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText', 'nihyakuBookText', 'domeText', 'huntingText', 'koteiText', 'shikishiText', 'shikishiBookText', 'mizubeText', 'yoburiText', 'mizubeBookText', 'tokei7Text', 'tokei7BookText', 'ashiatoText', 'ashiatoBookText', 'hajimeteText', 'hajimeteBookText', 'tenbanText', 'tenbanBookText', 'mimiText', 'mimiBookText', 'hokokushoText']) {
+  // 堆肥の 中の 親戚（02 #97）taihiText・taihiBookText（開発サーバーだけ）
+  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText', 'nihyakuBookText', 'domeText', 'huntingText', 'koteiText', 'shikishiText', 'shikishiBookText', 'mizubeText', 'yoburiText', 'mizubeBookText', 'tokei7Text', 'tokei7BookText', 'ashiatoText', 'ashiatoBookText', 'hajimeteText', 'hajimeteBookText', 'tenbanText', 'tenbanBookText', 'mimiText', 'mimiBookText', 'taihiText', 'taihiBookText', 'hokokushoText']) {
     const r = cmds[name]?.();
     if (!r) continue;
     n += r.pages ?? r.total ?? 0;

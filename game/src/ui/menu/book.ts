@@ -45,10 +45,12 @@ import { drawShikishiPage, hasShikishiPage, SHIKISHI_ROW_LABEL } from './book_sh
 import { ASHIATO_ROW_LABEL, drawAshiatoPage, hasAshiatoPage } from './book_ashiato';
 import { drawTenbanPage, hasTenbanPage, TENBAN_ROW_LABEL } from './book_tenban';
 import { drawMimiPage, hasMimiPage, MIMI_ROW_LABEL } from './book_mimi';
+// ② の すみの 1ページ『堆肥の 山の 住人』（堆肥の 中の 親戚、02_ch2_index #97）
+import { drawTaihiPage, hasTaihiPage, TAIHI_ROW_LABEL } from './book_taihi';
 
 /**
  * ② の すみの ページ、一覧の いちばん下に この 順：『二百十日の 前の 晩』（02 #78）、『70年の 色紙』（#84）、
- * 『よるの 足あと』（#87）、『店番の 下絵』（#94）、『耳の あいさつ』（#95）。番号なし・鉛筆の 字。
+ * 『よるの 足あと』（#87）、『店番の 下絵』（#94）、『耳の あいさつ』（#95）、『堆肥の 山の 住人』（#97）。番号なし・鉛筆の 字。
  */
 function corner2(): { label: string; draw: (g: Gfx, x: number, y: number, w: number) => void }[] {
   const r: { label: string; draw: (g: Gfx, x: number, y: number, w: number) => void }[] = [];
@@ -57,6 +59,7 @@ function corner2(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasAshiatoPage()) r.push({ label: ASHIATO_ROW_LABEL, draw: drawAshiatoPage });
   if (hasTenbanPage()) r.push({ label: TENBAN_ROW_LABEL, draw: drawTenbanPage });
   if (hasMimiPage()) r.push({ label: MIMI_ROW_LABEL, draw: drawMimiPage });
+  if (hasTaihiPage()) r.push({ label: TAIHI_ROW_LABEL, draw: drawTaihiPage });
   return r;
 }
 import { stickerUribo } from '../../art/props/ashiato_art';

@@ -8293,6 +8293,23 @@ HPと 朱肉が 回復した。
 - **フラグ**：`flag_mimi_start` `flag_mimi_tip_<gen|tome|sawako|fumi|yoshie>` `flag_mimi_kagu` `flag_mimi_namae` `flag_mimi_three` `flag_mimi_h0` `flag_mimi_awase` `flag_mimi_meijin` `flag_mimi_five` `flag_mimi_gen` `flag_mimi_h2`。
 - **QA**：`__game.cmd.mimi('dog'|'gen'|'tome'|'sawako'|'fumi'|'yoshie'|'kagu'|'awase'|'five'|'genSee'|'done', stage, auto)`、`mimiState()`、`mimiText()`、`mimiBookText()`。
 
+### 10.32 堆肥の 中の 親戚（カブトムシの 幼虫を 見つける・切り返し・任意）★2026-10-10 追加（依頼主の採用と 変更：げむきかの 案2、02 #97）
+
+台詞の 正は `src/data/text/hoshi_taihi.ts`、実装は `src/events/ch2/taihi.ts`（大写しの `TaihiPanel`、'dig' と 'kaeshi'）、絵は 52 7.13、ページは `src/ui/menu/book_taihi.ts`。段階1〜2、トマトの 灯り、グソっ君が いっしょ。**依頼主の 変更**：「カブトムシの幼虫ならいるね。他はいないかも、だからカブトムシの幼虫を見つけるミニゲームで良いかも」→ 住人は カブトムシの 幼虫だけ（ダンゴムシ・ワラジムシ・ミミズ・ハサミムシ・等脚目の 話は 出さない）。
+
+- **張り紙**（堆肥舎 map_hoshi_taihisha の『切り返し 月・木』。いつもの 文の あと 1回）：グソっ君「切り返し、わいら 手伝えへんかな。……マサルに 聞いてみよ。」
+- **マサル〔taihi〕**（牛舎 (20,6)／段階2 は ゲートの 横。その 人の 物語が 先）：グソっ君「張り紙の 切り返し、わいら やったろか？」→「……山を まぜて、空気を 入れる。そうすると、また 熱が 出る。」「その 前に、古い ほうの 山の 住人を 数えて こい。……住人の いる 山は、まぜん。」→「住人？」→「掘るのは、手で。フォークは 使うな。」「見つけたら、数えて、もとの 所へ 返せ。……そっとな。」
+- **古い 山の 断面**（温度計の ない ほうの 山 obj_hr_taihi_yama を 調べる。大写し）：山を 横から 切った 絵（11×5 の マス、上は かわいた 皮、下の まん中は 湯気の 芯）。十字で 灯りを 動かすと、灯りの 3×3 だけ 表面の つぶつぶ（幼虫の ふん）が 見え、近くに いる 数ほど 多い。けってい で 手で 掘る：いない（「いない」）／皮（「さらさら」）／芯（「あつっ」、1回目は「ここは、熱すぎる。……だれも いない。」）／幼虫（「1ぴき！」→ 手の 上で 足を 動かし、けってい で そっと もどす）。右に グソっ君の 顔・『みつけた n/6』・6ぴきの 枠・『あと n ひき』・押す キー。もどる で やめられる（その 回は 数えない。次は 置き場所が かわる）。
+  - 1ぴき目：「小さな、白い 幼虫。まるまったまま、ゆっくり 足を 動かした。」→ グソっ君「……白くて、まるまって、ふしが いっぱい……」「……親戚や。わいの、親戚や！」→（第1章で ゲンジロウ〈`flag_seen_obj_mushikago`〉を 見た 人は 地の文「……ゲンジロウの、親戚かも しれない。」）→「……どうも。遠い 親戚の、わいです。」→ もどすと「もとの 所に 置いて、上から そっと 土を かけた。」「……ほな、また。親戚の 集まりで。」。2ひき目「……親戚、多いな。」、4ひき目「みんな、まるまり方が うまいなあ。わいは、うまく でけへん。」
+  - 6ぴき：「みんな、もとの 所で 土の 中に もどった。」「親戚、6ぴき。……マサルに 言うたろ。」。芯を いちども 掘らなければ「湯気の 所には、いちども 手を 入れなかった。」（『ていねい』）。
+- **マサル〔kodomo〕**：「マサル！ 古い 山に、わいの 親戚 6ぴき おったで！」→「……カブトムシの 子だ。」→「…………カブトムシ。」「……あの、角の？ 夏の 夜に、木に おる？」→「来年の 夏、あの 山から 出てくる。……毎年 そうだ。」→「……親戚 ちゃうかった。」「でも、まるまり方は、わいより うまかったで。」→「……6ぴきか。去年より 多い。」「住人の いる 山は、まぜん。切り返すのは、温度計の 山だけだ。」
+- **切り返し**（フォーク obj_hr_taihi_fork → 大写し『温度計の 山』。案の まま 短く、住人の いない 山だけ）：湯気が 波のように ふくらみ、「ふわっ」の 所で けってい（4回。そろうと「そろった」）。→「山から、白い 湯気が いっぺんに 立った。……夜明け前の 空へ。」（段階2 は「……山の ほうへ、なびいていく。」）→ グソっ君「……あったかいな。住人の おらん 山で、思いっきり まぜられたわ。」→ 4回 そろえば『湯気 名人』→ 朱肉 +2、みました帳②の すみ『堆肥の 山の 住人』。
+- **そのあと**：『ていねい』と『湯気 名人』の 2つで マサル「……堆肥舎の 湯気の においが、ここまで 来た。」「熱い 所には 手を 入れずに、住人も ぜんぶ 数えた。……おれより うまい。」朱肉 +1。ペロ「……カブトムシの 子が、いたかい。あの 山は、いい 山だ。」「あの 子らが 食べて、土が もっと 細かく なる。……うちの ハウスの 土もね。」、トマじい「わしの 田んぼの わらは、マサルの 牛の えさに なる。」「牛の ふんが、堆肥に なって、また 田んぼへ 来る。……ぐるっと じゃ。」（1回ずつ。ページに まわる 線）。古い 山を 調べると「この 山の 中で、6ぴきが 来年の 夏を 待っている。」と グソっ君（1回）「カブトムシの 子の 家や。……親戚 ちゃうけど、あったかいとこに 住んどるなあ。」。段階0 は 古い 山で グソっ君「……山の 中で、ごそっと 音が したで。」「暗いの 得意やけど、しゅんが 見えへんやろ。」（1回）。
+- **案から 合わせた 所**：①住人は カブトムシの 幼虫だけ（依頼主）。等脚目の「親戚の 話」は、グソっ君の 思いこみと マサルの「……カブトムシの 子だ。」に。②幼虫は「となりの 山へ 運ぶ」でなく「見つけて、数えて、もとの 所へ そっと 返す」。住人の いる 古い 山は まぜず、切り返しは 温度計の 山だけ（幼虫を 先に 確かめてから）。③切り返しは 8回 → 4回（短く）。温度計の 針は 上げない（切り返しの 直後は 下がり、あとで また 上がるため）。④掘るのは 手で（フォークは 幼虫を 刺す）。⑤案の 6「半分だけ（戦闘）」は ダンゴムシの まね なので 入れない。⑥かくし（ワラジムシの 順）は ゲンジロウの 1行に。⑦ペロの「ほどよい」は 使わない。
+- **確かめたい 点**（依頼主に）：8月の おわりの 牛ふん・おがくずの 古い 堆肥に カブトムシの 小さな 幼虫（1〜2令）が いる こと、表面の ふんの 粒が 手がかりに なる こと、芯の 熱い 所には いない こと。マサルが 毎年 数えて いる（「去年より 多い」）・堆肥舎の 山 2つの 役わり（古い 山／温度計の 山）は 新しい 設定。ペロ「あの 子らが 食べて、土が 細かく なる」。
+- **フラグ**：`flag_taihi_hari` `flag_taihi_ask` `flag_taihi_found` `flag_taihi_teinei` `flag_taihi_gen` `flag_taihi_done` `flag_taihi_yuge` `flag_taihi_meijin` `flag_taihi_pero` `flag_taihi_tome` `flag_taihi_after_kane` `flag_taihi_h0` `flag_taihi_hot_said`。
+- **QA**：`__game.cmd.taihi('hari'|'ask'|'dig'|'gen'|'kaeshi'|'meijin'|'pero'|'tome'|'after'|'h0', stage, auto)`、`taihiState()`、`taihiAim(c, r, abs)`、`taihiText()`、`taihiBookText()`。
+
 ## 11. ID一覧
 
 第1章のIDと衝突しないことを照合済み（第1章の全ID：01 2章）。第2章で新しく作るIDは、**マップ・区域・NPC・調べる物は `hoshi`、フラグ・イベント・トリガー・シンボルは `ch2` または `hoshi`、ふしぎは `fushigi_ch2_`、音は `_h_` または `hoshi`** を名前に入れて区別する。敵は第1章に同じ名前がないことを確かめた固有名。
@@ -8417,6 +8434,7 @@ IDは旧名のまま据え置き（2026-09-25 に名札と人物を変えた。3
 | 70年の 色紙と 小さな 夏祭り（★2026-10-05、02 #84。10.26） | `flag_shikishi_cal`（カレンダー）、`flag_shikishi_calflip`、`flag_shikishi_start`（〔70〕・`item_shikishi`）、`flag_shikishi_flip`、`flag_shikishi_<tome｜gen｜mitsu｜kucho｜fumi｜sawako｜sankado>`（もらった 順番 1〜7）、`flag_shikishi_remind`（のこりの 人を 言った ときの 数 +1）、`flag_shikishi_haha`（マサルの 母の 寝言）、`flag_shikishi_ai`（ソワカの 藍）、`flag_shikishi_last`（1 しゅん／2 グソっ君）、`flag_shikishi_done`（朱肉 +2）、`flag_shikishi_read`（読み上げ）、`flag_shikishi_tate`（集会所に 立てた。カット2d）、`flag_shikishi_ura`（10円玉の 紙の 裏）、`flag_shikishi_sankaku`（勝敗表の △）。祭り：`flag_matsuri_banner`（第1章の 垂れ幕の グソっ君の ひとことを 聞いた）、`flag_matsuri_ask`、`flag_matsuri_kucho`、`flag_matsuri_chochin`（箱から 出した・`item_matsuri_chochin`）、`flag_matsuri_taiko`（グソっ君の 背中）、`flag_matsuri_kake`（桜に かけた）、`flag_matsuri_on`（祭りの とちゅう）、`flag_matsuri_take`（タケじいの 太鼓の 寝言）、`flag_matsuri_done`（朱肉 +2・カット3） |
 | 無人販売所の 店番（★2026-10-09、02 #94。10.30） | `flag_tenban_done`（できあがり・看板が かわる）、`flag_tenban_moves`（動いた 回数）、`flag_tenban_sign`（0回の はさみの サイン）、`flag_tenban_kanban_kane`、`flag_tenban_satoshi`。第1章から：`flag_kanenari_flip_jizo`（お地蔵さんの ひとこと） |
 | ふくじんづけと 耳の あいさつ（★2026-10-09、02 #95。10.31） | `flag_mimi_start`、`flag_mimi_tip_<gen\|tome\|sawako\|fumi\|yoshie>`、`flag_mimi_kagu`、`flag_mimi_namae`、`flag_mimi_three`、`flag_mimi_h0`、`flag_mimi_awase`、`flag_mimi_meijin`、`flag_mimi_five`、`flag_mimi_gen`、`flag_mimi_h2`。第1章から：`flag_seen_npc_madam_s2_2`（コタロウの しっぽ） |
+| 堆肥の 中の 親戚（★2026-10-10、02 #97。10.32） | `flag_taihi_hari`、`flag_taihi_ask`、`flag_taihi_found`、`flag_taihi_teinei`、`flag_taihi_gen`、`flag_taihi_done`、`flag_taihi_yuge`、`flag_taihi_meijin`、`flag_taihi_pero`、`flag_taihi_tome`、`flag_taihi_after_kane`、`flag_taihi_h0`、`flag_taihi_hot_said`。第1章から：`flag_seen_obj_mushikago`（ゲンジロウ） |
 
 ### 11.9 イベント（`evt_*`）とトリガー（`trig_*`）
 
