@@ -4,14 +4,18 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { lerp, vnoise } from './util.js';
 
 const M = {
-  skin: new THREE.MeshStandardMaterial({ color: '#d9a07a', roughness: 0.6 }),
+  skin: new THREE.MeshStandardMaterial({ color: '#d29a74', roughness: 0.6 }),
   skinShade: new THREE.MeshStandardMaterial({ color: '#c98a68', roughness: 0.7 }),
   lip: new THREE.MeshStandardMaterial({ color: '#b86a5e', roughness: 0.5 }),
   mouth: new THREE.MeshStandardMaterial({ color: '#3d1714', roughness: 0.8 }),
   teeth: new THREE.MeshStandardMaterial({ color: '#f4efe4', roughness: 0.3 }),
+  toothLine: new THREE.MeshStandardMaterial({ color: '#d9cfc0', roughness: 0.5 }),
   eyeWhite: new THREE.MeshStandardMaterial({ color: '#f3efe9', roughness: 0.2 }),
-  iris: new THREE.MeshStandardMaterial({ color: '#3b2416', roughness: 0.2 }),
-  brow: new THREE.MeshStandardMaterial({ color: '#8a6638', roughness: 0.8 }),
+  iris: new THREE.MeshStandardMaterial({ color: '#4a2e1a', roughness: 0.2 }),
+  pupil: new THREE.MeshStandardMaterial({ color: '#0d0907', roughness: 0.2 }),
+  catch: new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 1 }),
+  lash: new THREE.MeshStandardMaterial({ color: '#2a1a12', roughness: 0.6 }),
+  brow: new THREE.MeshStandardMaterial({ color: '#4a3220', roughness: 0.8 }),
   hair: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5 }),
   hairCap: new THREE.MeshStandardMaterial({ color: '#b98d4c', roughness: 0.6 }),
   shirt: new THREE.MeshStandardMaterial({ color: '#1d1d21', roughness: 0.95 }),
@@ -33,6 +37,9 @@ const M = {
   qglow: new THREE.MeshStandardMaterial({ color: '#8ff6ff', emissive: '#40e8ff', emissiveIntensity: 3 }),
 };
 
+M.skin.userData.soft = true;
+M.skinShade.userData.soft = true;
+
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 function mesh(geo, mat, parent, x = 0, y = 0, z = 0) {
   const m = new THREE.Mesh(geo, mat);
@@ -46,26 +53,29 @@ function cap(r, len, mat, parent, x, y, z, seg = 12) {
 }
 
 // ---------- 頭部：単位球を人の頭の形に彫る ----------
-const HEAD_S = V(0.102, 0.124, 0.114);
+const HEAD_S = V(0.106, 0.124, 0.114);
 function sculpt(n) {
   const b = (c, s, a) => a * Math.exp(-n.distanceToSquared(c) / (s * s));
   let r = 1;
   for (const sx of [-1, 1]) {
-    r += b(V(sx * 0.55, -0.28, 0.74), 0.32, 0.085);   // 笑って持ち上がった頬
-    r -= b(V(sx * 0.34, 0.1, 0.92), 0.2, 0.055);      // 眼窩のくぼみ
-    r += b(V(sx * 0.36, 0.3, 0.88), 0.2, 0.03);       // 眉弓
-    r += b(V(sx * 0.62, -0.62, 0.42), 0.3, 0.05);     // えら
-    r -= b(V(sx * 0.92, 0.25, 0.05), 0.3, 0.03);      // こめかみ
+    r += b(V(sx * 0.6, -0.08, 0.76), 0.26, 0.07);    // 頬骨
+    r += b(V(sx * 0.48, -0.36, 0.78), 0.26, 0.05);   // 笑って持ち上がった頬
+    r -= b(V(sx * 0.33, 0.1, 0.93), 0.17, 0.05);     // 眼窩のくぼみ
+    r += b(V(sx * 0.35, 0.3, 0.9), 0.18, 0.04);      // 眉弓
+    r += b(V(sx * 0.66, -0.6, 0.4), 0.3, 0.06);      // しっかりしたえら
+    r -= b(V(sx * 0.93, 0.22, 0.1), 0.25, 0.03);     // こめかみ
   }
-  r += b(V(0, -0.86, 0.48), 0.3, 0.06);  // あご先
-  r += b(V(0, 0.55, -0.6), 0.6, 0.05);   // 後頭部のふくらみ
+  r += b(V(0, -0.12, 0.99), 0.2, 0.045);  // 鼻の付け根の高まり
+  r += b(V(0, -0.82, 0.55), 0.28, 0.06);  // あご先
+  r -= b(V(0, -0.55, 0.85), 0.14, 0.015); // 下唇の下のくぼみ
+  r += b(V(0, 0.55, -0.6), 0.6, 0.05);    // 後頭部のふくらみ
   const p = n.clone().multiplyScalar(r);
-  if (n.y < 0) { const k = Math.pow(-n.y, 1.4); p.x *= 1 - 0.24 * k; p.z *= 1 - 0.08 * k; }
+  if (n.y < 0) { const k = Math.pow(-n.y, 1.5); p.x *= 1 - 0.15 * k; p.z *= 1 - 0.06 * k; }
   if (n.z > 0) p.z *= 1 - 0.1 * n.z * n.z;
   return p.multiply(HEAD_S);
 }
 function buildHeadGeo() {
-  const g = new THREE.SphereGeometry(1, 72, 54);
+  const g = new THREE.SphereGeometry(1, 80, 60);
   const p = g.attributes.position, n = new THREE.Vector3();
   for (let i = 0; i < p.count; i++) {
     n.fromBufferAttribute(p, i).normalize();
@@ -76,8 +86,61 @@ function buildHeadGeo() {
   return g;
 }
 
+// 顔の陰影を手描きしたテクスチャ（球の UV に合わせて描く）
+function faceTexture() {
+  const W = 1024, H = 512;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  // 単位方向ベクトル → キャンバス座標
+  const at = (x, y, z) => {
+    const l = Math.hypot(x, y, z); x /= l; y /= l; z /= l;
+    let phi = Math.atan2(z, -x); if (phi < 0) phi += Math.PI * 2;
+    return [phi / (Math.PI * 2) * W, Math.acos(y) / Math.PI * H];
+  };
+  const blob = (x, y, z, rx, ry, color) => {
+    const [cx, cy] = at(x, y, z);
+    const gr = g.createRadialGradient(cx, cy, 0, cx, cy, 1);
+    gr.addColorStop(0, color); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.save(); g.translate(cx, cy); g.scale(rx * W / 6.283, ry * H / 3.1416);
+    g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, Math.PI * 2); g.fill(); g.restore();
+  };
+  const stroke = (pts, w, color) => {
+    g.strokeStyle = color; g.lineWidth = w; g.lineCap = 'round';
+    g.beginPath();
+    pts.forEach((p, i) => { const [x, y] = at(...p); i ? g.lineTo(x, y) : g.moveTo(x, y); });
+    g.stroke();
+  };
+  g.fillStyle = '#d29a74'; g.fillRect(0, 0, W, H);
+  // 日焼けした肌のムラ
+  for (let i = 0; i < 2500; i++) { g.fillStyle = `rgba(${150 + Math.random() * 60},${90 + Math.random() * 40},60,0.05)`; g.fillRect(Math.random() * W, Math.random() * H, 3, 3); }
+  blob(0, 0.35, 0.94, 0.5, 0.25, 'rgba(240,195,160,.55)');      // 額のハイライト
+  blob(0, -0.05, 1, 0.12, 0.3, 'rgba(245,200,165,.55)');        // 鼻筋のハイライト
+  for (const sx of [-1, 1]) {
+    blob(sx * 0.5, -0.3, 0.8, 0.32, 0.22, 'rgba(214,120,96,.45)'); // 頬の赤み
+    blob(sx * 0.33, 0.12, 0.93, 0.2, 0.13, 'rgba(120,70,50,.45)'); // 目のまわりの影
+    blob(sx * 0.85, -0.3, 0.4, 0.35, 0.5, 'rgba(150,95,70,.35)');  // 横顔の陰
+    // ほうれい線（笑顔で深くなる）
+    stroke([[sx * 0.2, -0.2, 0.97], [sx * 0.29, -0.33, 0.92], [sx * 0.33, -0.46, 0.87], [sx * 0.31, -0.55, 0.83]], 3, 'rgba(110,70,55,.28)');
+    // 目尻の笑いじわ
+    for (const k of [0, 1]) stroke([[sx * 0.52, 0.08 - k * 0.07, 0.83], [sx * 0.6, 0.06 - k * 0.1, 0.78]], 2, 'rgba(130,75,55,.4)');
+  }
+  // あごと口まわりのうっすらした髭
+  for (let i = 0; i < 1600; i++) {
+    const t = Math.random(), a = (Math.random() - 0.5) * 1.3;
+    const y = -0.42 - t * 0.5, x = Math.sin(a) * (0.55 - t * 0.2), z = Math.cos(a);
+    const [px, py] = at(x, y, z);
+    g.fillStyle = 'rgba(70,55,45,.13)'; g.fillRect(px, py, 1.6, 1.6);
+  }
+  blob(0, -0.85, 0.5, 0.45, 0.25, 'rgba(140,90,68,.4)'); // あご下の陰
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
 // 生え際（前は眉の上、横は耳の上、後ろは襟足）
-const hairline = (nz) => (nz > 0 ? lerp(-0.08, 0.47, Math.pow(nz, 1.6)) : lerp(-0.08, -0.62, -nz));
+const hairline = (nz) => (nz > 0 ? lerp(-0.08, 0.52, Math.pow(nz, 1.6)) : lerp(-0.08, -0.62, -nz));
 
 function buildHair() {
   // 地肌を隠す土台
@@ -157,7 +220,9 @@ function bendOnFace(geo, k) {
 }
 
 function buildHead(head) {
-  const skull = mesh(buildHeadGeo(), M.skin, head);
+  const faceMat = new THREE.MeshStandardMaterial({ map: faceTexture(), roughness: 0.6 });
+  faceMat.userData.soft = true;
+  const skull = mesh(buildHeadGeo(), faceMat, head);
   // 顔の表面に貼り付けるためのレイキャスト
   skull.updateMatrixWorld(true);
   const ray = new THREE.Raycaster();
@@ -169,72 +234,88 @@ function buildHead(head) {
   const stick = (obj, x, y, off = 0) => { obj.position.set(x, y, surf(x, y) + off); head.add(obj); return obj; };
 
   // 首
-  cap(0.052, 0.07, M.skin, head, 0, -0.13, -0.012);
+  cap(0.056, 0.07, M.skin, head, 0, -0.13, -0.014);
 
-  // 目：白目＋黒目＋笑って細めた上まぶた・押し上げられた下まぶた
+  // 目：開いた笑い目。黒目・瞳孔・キャッチライト・まつ毛のライン・二重の線
   for (const sx of [-1, 1]) {
-    const ex = sx * 0.036, ey = 0.012;
+    const ex = sx * 0.037, ey = 0.011;
     const eye = new THREE.Group();
-    stick(eye, ex, ey, -0.012);
-    mesh(new THREE.SphereGeometry(0.0155, 20, 14), M.eyeWhite, eye);
-    const iris = mesh(new THREE.SphereGeometry(0.0085, 16, 12), M.iris, eye, -sx * 0.001, 0, 0.0125);
-    iris.scale.set(1, 1, 0.45);
-    // まぶた：上は目の上半分、下は笑顔で持ち上がる（細めた目のすき間に黒目がのぞく）
-    const upper = mesh(new THREE.SphereGeometry(0.0172, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.42), M.skin, eye);
-    upper.rotation.x = 0.25; upper.rotation.z = sx * -0.12;
-    mesh(new THREE.TorusGeometry(0.0155, 0.0012, 4, 16, Math.PI), M.iris, eye, 0, 0.0005, 0.004).rotation.set(-0.35, 0, 0);
-    const lower = mesh(new THREE.SphereGeometry(0.0168, 20, 10, 0, Math.PI * 2, Math.PI * 0.7, Math.PI * 0.3), M.skin, eye);
-    lower.rotation.x = -0.15;
-    // 目尻の笑いじわ
-    const crease = mesh(new THREE.TorusGeometry(0.008, 0.0014, 4, 10, Math.PI * 0.6), M.skinShade, eye, sx * 0.02, -0.004, 0.006);
-    crease.rotation.z = sx > 0 ? -0.6 : Math.PI - 0.6 + Math.PI * 0.4;
-    // 眉：少し太めで眉尻が下がる
-    const brow = new THREE.Mesh(bendOnFace(new THREE.BoxGeometry(0.042, 0.0075, 0.006, 8, 1, 1), 2), M.brow);
-    brow.rotation.z = sx * -0.14;
-    stick(brow, sx * 0.04, 0.042, 0.002);
+    stick(eye, ex, ey, -0.0115);
+    eye.rotation.y = sx * 0.12;
+    mesh(new THREE.SphereGeometry(0.0155, 24, 16), M.eyeWhite, eye);
+    const iris = mesh(new THREE.SphereGeometry(0.0078, 18, 12), M.iris, eye, -sx * 0.0012, -0.0005, 0.0128);
+    iris.scale.set(1, 1, 0.42);
+    mesh(new THREE.SphereGeometry(0.0038, 12, 8), M.pupil, eye, -sx * 0.0012, -0.0005, 0.0152).scale.set(1, 1, 0.3);
+    mesh(new THREE.SphereGeometry(0.0016, 8, 6), M.catch, eye, -sx * 0.0012 + 0.0025, 0.0028, 0.0158);
+    const LID = 0.0172, UA = Math.PI * 0.36, UR = 0.1;
+    const upper = mesh(new THREE.SphereGeometry(LID, 24, 12, 0, Math.PI * 2, 0, UA), M.skin, eye);
+    upper.rotation.x = UR;
+    // まつ毛のライン（上まぶたの縁）
+    const lash = mesh(new THREE.TorusGeometry(LID * Math.sin(UA), 0.0011, 5, 32), M.lash, eye);
+    lash.rotation.x = Math.PI / 2 + UR;
+    lash.position.set(0, LID * Math.cos(UA) * Math.cos(UR), LID * Math.cos(UA) * Math.sin(UR));
+    // 二重の線
+    const crease = mesh(new THREE.TorusGeometry(LID * Math.sin(UA * 0.8) * 1.04, 0.0006, 4, 32, Math.PI), M.skinShade, eye);
+    crease.rotation.x = Math.PI / 2 + UR + 0.2 - Math.PI / 2 + Math.PI / 2;
+    crease.position.set(0, LID * Math.cos(UA * 0.8) * 1.02, 0.002);
+    const lower = mesh(new THREE.SphereGeometry(0.0168, 24, 10, 0, Math.PI * 2, Math.PI * 0.68, Math.PI * 0.32), M.skin, eye);
+    lower.rotation.x = -0.12;
+    // 眉：くっきりした濃いめの直線眉
+    const brow = new THREE.Mesh(bendOnFace(new THREE.BoxGeometry(0.046, 0.0085, 0.006, 10, 1, 1), 2.5), M.brow);
+    const bp = brow.geometry.attributes.position;
+    for (let i = 0; i < bp.count; i++) { const x = bp.getX(i) * sx; bp.setY(i, bp.getY(i) * (1.1 - (x + 0.023) / 0.046 * 0.45) + (x > 0.01 ? -(x - 0.01) * 0.25 : 0)); }
+    brow.rotation.z = sx * -0.05;
+    stick(brow, sx * 0.041, 0.04, 0.0025);
   }
 
-  // 鼻：鼻筋・鼻先・小鼻・鼻の穴
+  // 鼻：通った鼻筋・丸い鼻先・小鼻・鼻の穴
   const nose = new THREE.Group();
-  stick(nose, 0, -0.018, -0.006);
-  mesh(new THREE.SphereGeometry(0.017, 18, 14), M.skin, nose, 0, -0.008, 0.014).scale.set(1.05, 0.9, 1);
-  const bridge = cap(0.0085, 0.03, M.skin, nose, 0, 0.014, 0.006);
-  bridge.rotation.x = -0.35;
+  stick(nose, 0, -0.02, -0.007);
+  mesh(new THREE.SphereGeometry(0.0145, 18, 14), M.skin, nose, 0, -0.006, 0.0135).scale.set(1.05, 0.9, 1);
+  const bridge = cap(0.0078, 0.034, M.skin, nose, 0, 0.018, 0.006);
+  bridge.rotation.x = -0.32;
   for (const sx of [-1, 1]) {
-    mesh(new THREE.SphereGeometry(0.0105, 14, 10), M.skin, nose, sx * 0.0145, -0.014, 0.006);
-    const hole = mesh(new THREE.SphereGeometry(0.0042, 10, 8), M.mouth, nose, sx * 0.0075, -0.022, 0.012);
-    hole.scale.set(1.3, 0.6, 1);
+    mesh(new THREE.SphereGeometry(0.0095, 14, 10), M.skin, nose, sx * 0.0145, -0.012, 0.0055);
+    const hole = mesh(new THREE.SphereGeometry(0.0038, 10, 8), M.mouth, nose, sx * 0.0072, -0.0195, 0.0115);
+    hole.scale.set(1.35, 0.55, 1);
   }
 
-  // 口：歯が見える大きな笑顔（唇の縁取り→口の中→上の歯）
-  const lens = (w, top, bottom) => {
+  // 口：口角を上げ、上の歯を見せる自信のある笑顔
+  // 各頂点を顔の表面に沿わせる（唇まわりの凹凸に埋もれないように）
+  const conform = (geo, cx, cy, off) => {
+    const p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i) + cx, y = p.getY(i) + cy;
+      p.setXYZ(i, x, y, surf(x, y) + off);
+    }
+    geo.computeVertexNormals();
+    return geo;
+  };
+  const smileShape = (w, cornerY, top, bottom) => {
     const s = new THREE.Shape();
-    s.moveTo(-w, 0);
-    s.quadraticCurveTo(0, top, w, 0);
-    s.quadraticCurveTo(0, -bottom, -w, 0);
+    s.moveTo(-w, cornerY);
+    s.bezierCurveTo(-w * 0.5, top, w * 0.5, top, w, cornerY);
+    s.bezierCurveTo(w * 0.55, -bottom, -w * 0.55, -bottom, -w, cornerY);
     return s;
   };
-  const mouth = new THREE.Group();
-  stick(mouth, 0, -0.06, 0.001);
-  mouth.rotation.x = -0.25;
-  mesh(bendOnFace(new THREE.ShapeGeometry(lens(0.043, 0.016, 0.06), 20), 7), M.lip, mouth, 0, 0, -0.001);
-  mesh(bendOnFace(new THREE.ShapeGeometry(lens(0.038, 0.01, 0.048), 20), 7), M.mouth, mouth, 0, 0, 0.0005);
+  const MY = -0.058;
+  mesh(conform(new THREE.ShapeGeometry(smileShape(0.051, 0.012, 0.009, 0.03), 28), 0, MY, 0.0012), M.lip, head);
+  mesh(conform(new THREE.ShapeGeometry(smileShape(0.046, 0.011, 0.005, 0.024), 28), 0, MY, 0.0021), M.mouth, head);
   const teeth = new THREE.Shape();
-  teeth.moveTo(-0.032, 0.002); teeth.quadraticCurveTo(0, 0.009, 0.032, 0.002);
-  teeth.lineTo(0.028, -0.008); teeth.quadraticCurveTo(0, -0.004, -0.028, -0.008); teeth.lineTo(-0.032, 0.002);
-  mesh(bendOnFace(new THREE.ShapeGeometry(teeth, 16), 7), M.teeth, mouth, 0, -0.001, 0.0012);
-  for (let i = -3; i <= 3; i++) mesh(new THREE.BoxGeometry(0.0007, 0.009, 0.001), M.mouth, mouth, i * 0.0085, -0.002, 0.0016 - i * i * 0.0003);
-  // ほうれい線
-  for (const sx of [-1, 1]) {
-    const fold = mesh(new THREE.TorusGeometry(0.03, 0.0018, 4, 12, 0.9), M.skinShade, null);
-    fold.rotation.z = sx > 0 ? -0.2 : Math.PI + 0.2 - 0.9;
-    stick(fold, sx * 0.03, -0.045, -0.004);
+  teeth.moveTo(-0.04, 0.0105);
+  teeth.bezierCurveTo(-0.02, 0.0062, 0.02, 0.0062, 0.04, 0.0105);
+  teeth.bezierCurveTo(0.026, -0.0075, -0.026, -0.0075, -0.04, 0.0105);
+  mesh(conform(new THREE.ShapeGeometry(teeth, 24), 0, MY, 0.0029), M.teeth, head);
+  // 歯の境目をうっすら
+  for (let i = -2; i <= 2; i++) {
+    const x = i * 0.0115;
+    mesh(conform(new THREE.PlaneGeometry(0.0006, 0.007), x, MY + 0.002, 0.0031), M.toothLine, head);
   }
 
   // 耳
   for (const sx of [-1, 1]) {
     const ear = new THREE.Group();
-    ear.position.set(sx * 0.1, -0.005, -0.008);
+    ear.position.set(sx * 0.104, -0.005, -0.008);
     ear.rotation.y = sx * 0.35;
     mesh(new THREE.SphereGeometry(0.026, 16, 12), M.skin, ear).scale.set(0.35, 1.25, 0.85);
     mesh(new THREE.SphereGeometry(0.016, 12, 10), M.skinShade, ear, sx * 0.004, 0.002, 0.002).scale.set(0.3, 1.2, 0.7);

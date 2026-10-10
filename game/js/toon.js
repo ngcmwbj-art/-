@@ -13,6 +13,15 @@ function makeGradient() {
   return t;
 }
 const GRADIENT = makeGradient();
+// 肌用：段差を細かくして柔らかく
+const GRADIENT_SOFT = (() => {
+  const v = [150, 170, 192, 214, 234, 248, 255, 255];
+  const data = new Uint8Array(v.length * 4);
+  v.forEach((x, i) => data.set([x, x, x, 255], i * 4));
+  const tex = new THREE.DataTexture(data, v.length, 1, THREE.RGBAFormat);
+  tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.generateMipmaps = false; tex.needsUpdate = true;
+  return tex;
+})();
 
 // 全トゥーン材質で共有するリムライト（逆光の縁取り）
 export const RIM = { uRimColor: { value: new THREE.Color('#fff3d9') }, uRim: { value: 0.55 } };
@@ -27,7 +36,7 @@ export function toToon(m) {
     transparent: m.transparent, opacity: m.opacity, depthWrite: m.depthWrite,
     emissive: m.emissive, emissiveIntensity: m.emissiveIntensity,
     polygonOffset: m.polygonOffset, polygonOffsetFactor: m.polygonOffsetFactor, polygonOffsetUnits: m.polygonOffsetUnits,
-    gradientMap: GRADIENT,
+    gradientMap: m.userData.soft ? GRADIENT_SOFT : GRADIENT,
   });
   // 光沢のある素材（ギター・金属）は縁を強めに
   const rimMul = m.metalness > 0.5 || m.clearcoat > 0 ? 1.4 : 1;

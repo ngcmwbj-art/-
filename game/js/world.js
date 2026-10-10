@@ -24,7 +24,7 @@ export function rawHeight(x, z) {
   const inside = landRadius(th) - r;
   const plateau = 17 + fbm(x * 0.007 + 3.1, z * 0.007 - 1.7, 5) * 12 + fbm(x * 0.04, z * 0.04, 3) * 1.2;
   const seabed = -14 + Math.max(inside, -300) * 0.05;
-  const t = smoothstep(-4, 18, inside);
+  const t = smoothstep(-3, 9, inside) * 0.85 + smoothstep(-3, 24, inside) * 0.15;
   return lerp(seabed, plateau, t * t * (3 - 2 * t));
 }
 
@@ -378,6 +378,89 @@ function buildTrees(scale) {
 }
 
 // ---------- 建物 ----------
+// ---------- 岩場・海食柱（銚子の荒々しい海岸） ----------
+function rockGeo(seed, detail = 2) {
+  let g = new THREE.IcosahedronGeometry(1, detail);
+  g.deleteAttribute('normal'); g.deleteAttribute('uv');
+  g = mergeVertices(g);
+  const p = g.attributes.position, cols = new Float32Array(p.count * 3);
+  const c = new THREE.Color(), dark = new THREE.Color('#5e5146'), light = new THREE.Color('#a8937a'), moss = new THREE.Color('#6d7d45');
+  for (let i = 0; i < p.count; i++) {
+    let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const n = vnoise(x * 1.6 + seed, z * 1.6 - seed + y) * 0.28 + vnoise(x * 4 + seed * 2, y * 4 + z * 3) * 0.08;
+    const k = 1 + n;
+    x *= k; z *= k; y *= k;
+    // 上面は平たく、角ばった岩に
+    if (y > 0.45) y = 0.45 + (y - 0.45) * 0.35;
+    p.setXYZ(i, x, y, z);
+    // 地層の縞と、上面のコケ
+    c.copy(dark).lerp(light, 0.5 + 0.5 * Math.sin(y * 7 + seed));
+    if (y > 0.4) c.lerp(moss, 0.45);
+    cols.set([c.r, c.g, c.b], i * 3);
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+  // 面ごとの法線にして、切り立った岩肌らしく角ばらせる
+  g = g.toNonIndexed();
+  g.computeVertexNormals();
+  return g;
+}
+
+function buildRocks(scale) {
+  const group = new THREE.Group();
+  const rng = mulberry32(77);
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 });
+  const variants = [rockGeo(1.3, 1), rockGeo(4.7, 2), rockGeo(9.1, 1)];
+  const lists = variants.map(() => []);
+  const tmp = { m: new THREE.Matrix4(), q: new THREE.Quaternion(), e: new THREE.Euler(), s: new THREE.Vector3(), v: new THREE.Vector3() };
+  const add = (x, y, z, sx, sy, sz, rot) => {
+    tmp.e.set((rng() - 0.5) * 0.3, rot, (rng() - 0.5) * 0.3);
+    tmp.q.setFromEuler(tmp.e);
+    tmp.m.compose(tmp.v.set(x, y, z), tmp.q, tmp.s.set(sx, sy, sz));
+    lists[Math.floor(rng() * variants.length)].push(tmp.m.clone());
+  };
+  // 崖の下と波打ち際に転がる岩
+  const N = Math.floor(520 * scale);
+  for (let i = 0; i < N; i++) {
+    const th = rng() * Math.PI * 2;
+    const R = landRadius(th);
+    const off = 3 + rng() * 30; // 崖の下〜沖の浅瀬（海側）
+    const r = R + off;
+    const x = Math.cos(th) * r, z = Math.sin(th) * r;
+    const h = heightAt(x, z);
+    if (h > 0.3) continue; // 崖の斜面には置かない
+    const sc = 1.2 + Math.pow(rng(), 2) * 4.5;
+    const y = h > -1.5 ? h + sc * 0.15 : -0.6 + rng() * 0.9; // 浅瀬から顔を出す
+    add(x, y, z, sc * (0.8 + rng() * 0.6), sc * (0.6 + rng() * 0.6), sc * (0.8 + rng() * 0.6), rng() * 6.28);
+  }
+  // 沖に立つ海食柱（屏風ヶ浦・犬吠埼の岩礁のイメージ）
+  for (let i = 0; i < 18; i++) {
+    const th = rng() * Math.PI * 2;
+    const r = landRadius(th) + 25 + rng() * 70;
+    const x = Math.cos(th) * r, z = Math.sin(th) * r;
+    const hgt = 8 + rng() * 18, w = 4 + rng() * 6;
+    add(x, 0, z, w, hgt, w * (0.7 + rng() * 0.5), rng() * 6.28);
+    for (let k = 0; k < 3; k++) add(x + (rng() - 0.5) * w * 3, -0.3, z + (rng() - 0.5) * w * 3, w * 0.5, 2 + rng() * 3, w * 0.5, rng() * 6.28);
+  }
+  // 台地の上にも点々と大岩
+  for (let i = 0; i < 40 * scale; i++) {
+    const x = (rng() - 0.5) * 400, z = (rng() - 0.5) * 400;
+    const inside = landRadius(Math.atan2(z, x)) - Math.hypot(x, z);
+    if (inside < 30) continue;
+    if (FIELDS.some((f) => fieldRectDist(f, x, z) < 12)) continue;
+    if (FLATS.some((f) => Math.hypot(x - f.x, z - f.z) < f.r + 6)) continue;
+    if (Math.hypot(x - SPAWN.x, z - SPAWN.z) < 15) continue;
+    const sc = 1 + rng() * 2.5;
+    add(x, heightAt(x, z) + sc * 0.1, z, sc, sc * 0.7, sc, rng() * 6.28);
+  }
+  variants.forEach((geo, k) => {
+    const im = new THREE.InstancedMesh(geo, mat, lists[k].length);
+    lists[k].forEach((m, i) => im.setMatrixAt(i, m));
+    im.castShadow = true; im.receiveShadow = true;
+    group.add(im);
+  });
+  return group;
+}
+
 // ---------- 海（ゲルストナー波） ----------
 function buildOcean() {
   const geo = new THREE.PlaneGeometry(2600, 2600, 360, 360);
@@ -471,6 +554,7 @@ export function buildWorld(scene, Q, windU) {
   place(buildBarn(), BARN, 0.35);
   place(buildGreenhouse(), GREENHOUSE, 0.2);
   const lighthouse = place(buildLighthouse(), LIGHTHOUSE, Math.atan2(LIGHTHOUSE.x, LIGHTHOUSE.z) + Math.PI);
+  group.add(buildRocks(Q.trees));
   const ocean = buildOcean();
   group.add(ocean);
 
