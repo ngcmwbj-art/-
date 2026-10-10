@@ -1,0 +1,292 @@
+// HD-2D prototype: hand touches for the buildings of 夕鳴銀座 (map_town). Every
+// building is stood up automatically from its 2D art (town.ts): the facade
+// rows become the front wall, the roof rows lie on the box, the strip above
+// the roof stands at its back edge. What the 2D art draws *on* the roof but
+// that really stands up from it (a signboard on the eave, a chimney, the
+// clock on its pole) is listed here as pieces cut out of the same picture.
+//
+// Coordinates are the building image's pixels (registerBuilding: `top` px,
+// then R roof rows, then F facade rows; faceY = top + R·16).
+
+export interface Piece {
+  /** The rectangle of the building image to stand up. */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** The image row it stands on (default: the facade's top = the roof's front edge). */
+  base?: number;
+  /** Only these shapes of the rectangle are kept: [x, y, w, h] or [cx, cy, r] (image px). */
+  keep?: ([number, number, number, number] | [number, number, number])[];
+}
+
+export interface BldTune {
+  pieces?: Piece[];
+  /** The strip above the roof: false = not stood up (its things are pieces). */
+  top?: boolean;
+  /** Roof slope (tiles): the back edge this much higher than the front. */
+  rise?: number;
+  /** A building drawn without roof rows (R = 0): its box this many tiles deep, a flat roof on it. */
+  depth?: number;
+  /** A building whose roof rows show only its front edge: the box goes on this many tiles behind them, flat roofed (`roof`). */
+  deep?: number;
+  /** R = 0: the strip above the facade (`top` rows) is its roof seen from above: it lies on the box. */
+  lid?: boolean;
+  /** The flat roof's colour (default: the side walls'). */
+  roof?: string;
+  /**
+   * Storeys the 2D never shows (the camera sees over the facade in 3D):
+   * rows r0..r1 of columns c0..c1 of the facade, repeated along it, `n`
+   * times on top of it.
+   */
+  upper?: { r0: number; r1: number; c0: number; c1: number; n: number };
+}
+
+export const TUNE: Record<string, BldTune> = {
+  // 駄菓子 ひのや: the wooden ひのや board stands on the tiled eave; an old tiled roof slopes
+  bld_hinoya: { pieces: [{ x: 11, y: 33, w: 59, h: 17 }], rise: 0.9 },
+  // 豆腐 くま吉: the blue 豆くま吉 board over the shop front, the tin chimney behind it
+  bld_tofu: {
+    pieces: [
+      { x: 0, y: 40, w: 64, h: 16, base: 62 },
+      { x: 44, y: 2, w: 7, h: 27, base: 29 },
+    ],
+    top: false,
+    rise: 0.5,
+  },
+  // 時計店: the round clock on its pole, standing on the flat roof near the front
+  bld_clock: {
+    pieces: [{ x: 11, y: 0, w: 22, h: 46, base: 46, keep: [[21.5, 11, 9.8], [20, 18, 3, 28]] }],
+    top: false,
+  },
+  // 夕鳴写真館 (south row, seen from behind): its tiled roof
+  bld_photo: { rise: 0.6 },
+  bld_sake: { rise: 0.4 },
+  // 夕鳴小学校 (2026-10-05, the outdoor places): the back of the school —
+  // the 2D draws its ground floor and the second floor's sills; in 3D two
+  // more storeys of classroom windows, the building 9 tiles deep, flat roofed
+  bld_sch_kousha: { depth: 9, upper: { r0: 2, r1: 41, c0: 4, c1: 168, n: 2 }, roof: '#a49c92' },
+  // its front on the school ground: the third floor over the second, 10 deep
+  bld_kotei_kousha: { depth: 10, upper: { r0: 0, r1: 22, c0: 4, c1: 110, n: 1 }, roof: '#a49c92' },
+  // the back yard's sports shed: its steel lid seen from above lies on it
+  bld_sch_souko: { depth: 1.6, lid: true },
+  // ユウナリ (the mall, 24 tiles): the 2D draws one tile of its roof (the
+  // parapet, the units); in 3D it goes on 9 tiles back past the map's north
+  // edge instead of standing as a stage flat (依頼主「書き割りっぽい」)
+  bld_mall: { deep: 9, roof: '#b9b2a6' },
+};
+
+// ---------------------------------------------------------------- props in 3D (round 2)
+
+/**
+ * How a prop that is not a building stands up (props3d.ts):
+ *  - slab: its painted pixels pushed back `depth` px (the voxel look; a box
+ *    for a rectangle picture: vending machines, mailboxes, crates);
+ *  - pole: the shaft an 8-sided column, the rest (arms, signs, lamps)
+ *    pushed back `depth` px;
+ *  - tree: the trunk a column, the crown crossed boards (tree_* ids);
+ *  - flat: a standing picture as before (creatures, things lying flat).
+ */
+export interface PropSolid {
+  kind: 'slab' | 'pole' | 'tree' | 'flat';
+  /** px */
+  depth?: number;
+}
+
+const slab = (depth: number): PropSolid => ({ kind: 'slab', depth });
+const pole = (depth = 3): PropSolid => ({ kind: 'pole', depth });
+const FLAT: PropSolid = { kind: 'flat' };
+
+export const SOLID: Record<string, PropSolid> = {
+  // creatures stay billboards (HD-2D: people and animals are pictures)
+  prop_cat_kuro: FLAT,
+  prop_heron: FLAT,
+  obj_pigeons: FLAT,
+  // things lying on the ground or on a wall
+  prop_cat_hole_moss: FLAT,
+  obj_early_leaf: FLAT,
+  obj_semi_shell: FLAT,
+  obj_shrubs: FLAT,
+  prop_kitsune_sara: FLAT,
+  obj_akikan: FLAT,
+  obj_balloon_husk: FLAT,
+  obj_block_hole: FLAT,
+  obj_minato_nameplate: FLAT,
+  obj_foxtail: FLAT,
+  // the parking lot's west chain runs north–south (drawn lying)
+  prop_chain: FLAT,
+  // poles, lamp posts, sign posts
+  prop_utility_pole: pole(3),
+  prop_park_lamp: pole(3),
+  prop_lot_lamp: pole(3),
+  obj_speaker_pole: pole(3),
+  prop_arch_post: pole(3),
+  obj_arch_sign: pole(3),
+  prop_lot_nobori: pole(2),
+  prop_curve_mirror: pole(2),
+  obj_bus_stop: pole(3),
+  obj_tomare_sign: pole(2),
+  obj_scarecrow: pole(3),
+  prop_propane: pole(6),
+  // boxes
+  obj_vending_ginza: slab(12),
+  obj_vending_normal: slab(12),
+  prop_garbage_station: slab(12),
+  obj_doghouse: slab(12),
+  obj_wagon: slab(12),
+  obj_hokora: slab(12),
+  obj_kaba: slab(12),
+  obj_gacha_ginza: slab(10),
+  obj_outdoor_unit: slab(10),
+  obj_danball: slab(10),
+  obj_beer_crate: slab(10),
+  obj_hoshimi_yasai: slab(10),
+  prop_planter: slab(10),
+  obj_tires: slab(10),
+  obj_postbox: slab(8),
+  obj_jizo: slab(8),
+  obj_pay_machine: slab(8),
+  obj_drinking_fountain: slab(8),
+  obj_fire_bucket: slab(8),
+  obj_backyard_cooler: slab(8),
+  obj_catalley_bucket: slab(8),
+  obj_tofu_tank: slab(8),
+  obj_ojigi_restored: slab(8),
+  prop_water_gate: slab(6),
+  obj_covered_car: slab(18),
+  prop_clocktower: slab(14),
+  prop_arcade_pillar: slab(8),
+  prop_rail_bridge: slab(8),
+  // benches, pots, plants
+  obj_ginza_bench: slab(8),
+  obj_park_bench: slab(8),
+  prop_park_bench: slab(8),
+  prop_engawa_bench: slab(8),
+  obj_pots_1: slab(8),
+  obj_pots_2: slab(8),
+  obj_pots_3: slab(8),
+  prop_pots_row: slab(8),
+  prop_bonsai: slab(8),
+  obj_asagao: slab(6),
+  prop_veg_patch: slab(8),
+  obj_clock_shop: slab(6),
+  obj_cafe_board: slab(6),
+  obj_car_stop: slab(6),
+  obj_minato_mailbox: slab(6),
+  obj_neighbor_mailbox: slab(5),
+  // thin things: bikes, signs, frames, fences, shop windows
+  prop_mama_bike: slab(3),
+  prop_postman_bike: slab(3),
+  obj_rusty_bike: slab(3),
+  obj_kids_bike: slab(3),
+  obj_koban_bicycle: slab(3),
+  obj_signpost: slab(3),
+  obj_akichi_sign: slab(3),
+  obj_akichi_hoshimono: slab(3),
+  prop_laundry_pole: slab(3),
+  obj_rules_sign: slab(3),
+  obj_park_board: slab(4),
+  obj_poster_board: slab(4),
+  obj_swing: slab(3),
+  obj_tetsubo: slab(3),
+  prop_wisteria: slab(3),
+  obj_bike_rack: slab(3),
+  obj_cart_corral: slab(4),
+  prop_torii: slab(4),
+  prop_crossing_gate: slab(3),
+  obj_photo_window: slab(2),
+  obj_laundry_window: slab(2),
+  obj_koban_lamp: slab(3),
+  obj_barricade: slab(4),
+  obj_broken_guide: slab(4),
+  prop_sch_uramon: slab(3),
+  obj_bridge: slab(3),
+};
+
+/** The solid of a prop: the table, else trees by id, else a slab as deep as a third of its smaller side. */
+export function solidOf(id: string, w: number, standH: number): Required<PropSolid> {
+  const s = SOLID[id];
+  if (s) return { kind: s.kind, depth: s.depth ?? 0 };
+  if (id.startsWith('tree_') || id === 'prop_cherry_tree' || id === 'prop_persimmon' || id === 'prop_tree_zelkova_s') return { kind: 'tree', depth: 3 };
+  if (standH < 6) return { kind: 'flat', depth: 0 };
+  return { kind: 'slab', depth: Math.max(2, Math.min(8, Math.round(Math.min(w, standH) * 0.3))) };
+}
+
+// ---------------------------------------------------------------- solids in each other's way (round 3)
+
+/**
+ * A prop moved a few px in 3D where it went into another solid (found by
+ * overlap.ts, __game.cmd.hd2dOverlaps()), keyed by `id@x,y` (its tile):
+ *  - z: its body stands this many px further south (+) or north (−), on
+ *    the ground (on screen ¾ of that lower / higher);
+ *  - fgView: its fg parts (a tree's crown, a board hung on a post) come
+ *    this many px towards the camera along its line of sight — as many px
+ *    south and up — so they show in the same place as before, in front of
+ *    what they were buried in (as the 2D draws them over it).
+ */
+export interface PropNudge {
+  z?: number;
+  fgView?: number;
+}
+
+/** QA: false stands everything where its picture says (before/after, __game.cmd.hd2dNudge(false)). */
+export const nudging = { on: true };
+
+export const NUDGE: Record<string, PropNudge> = {
+  // 2026-10-05 依頼主「ようこその看板も建物に入り込んでる」: its board (an fg
+  // part, at the post's foot line) stood 1 px behind 百瀬's facade
+  'obj_arch_sign@23,21': { fgView: 3 },
+  // the keyaki beside 百瀬: the lower right of its crown was inside the
+  // building (the 2D draws the crown over the facade's corner)
+  'tree_keyaki@22,20': { fgView: 9 },
+  // 2026-10-05 依頼主「とうふの旗と看板がぶつかって見づらい」: the poster board
+  // stood on the same line as the tofu pillar, whose banner is pushed back
+  // 8 px with it: the board in front of the banner, as the 2D draws it
+  'obj_poster_board@40,25': { z: 2 },
+  // the same at the 夏祭 pillar: the bucket in front of its banner (and
+  // still behind the black cat sitting in front of it)
+  'obj_catalley_bucket@28,25': { z: 1 },
+  // ひぐらし坂: the doghouse's roof over the end of the pots (one plane before)
+  'obj_doghouse@21,31': { z: 2 },
+  // the bike leaning on the wall, in front of the mailbox's corner
+  'prop_mama_bike@6,31': { z: 1 },
+  // the lot's chain in front of the mesh fence it hangs from
+  'prop_chain@43,15': { z: 1 },
+  // the wisteria's trellis over the bench under it
+  'prop_wisteria@6,6': { fgView: 1 },
+  // 川べり: the willow's hanging crown in front of the guardrail (the 2D
+  // draws the branches over the rail)
+  'tree_yanagi@52,35': { fgView: 3 },
+  // 夕鳴川の 堰: the guide board stood in the plane of the pipe rail on both
+  // its sides (the 2D draws the rail over the board's edges): just behind it
+  'prop_seki_annai@14,3': { z: -5 },
+  // 屋上: the name book's table at the stage's east end, in front of it
+  'mall_roof_table@16,3': { z: 2 },
+  // 星見台 (chapter 2, 2026-10-06; hd2dOverlaps: pictures on one plane that
+  // would flicker through each other): what the 2D draws on top a px or two
+  // in front — the クヌギ out of the kuzu's edge by the hill path and the
+  // beetle on it, the host plants and their insects before the thicket, the
+  // stone wall and the hedge, the delivery's vegetables on their stand,
+  // the festival's lanterns in the cherry
+  'prop_h_kunugi@43,1': { z: 2 },
+  'prop_h_mushi@43,1': { z: 3 },
+  // (the school gate's post stands a px in front of the plant: the plant just behind it, the insect in front)
+  'prop_h_shitakusa@27,30': { z: 0.4 },
+  'prop_h_mushi@27,30': { z: 1.6 },
+  'prop_h_mushi@50,15': { z: 1 },
+  'prop_h_mushi@46,37': { z: 1 },
+  'prop_h_deli_bag@43,36': { z: 1 },
+  'prop_h_deli_bag@37,36': { z: 1 },
+  'prop_h_deli_bag@42,26': { z: 1 },
+  'prop_h_deli_bag@17,31': { z: 1 },
+  'prop_h_matsuri_chochin@24,30': { fgView: 1 },
+  // 沢の上: the rocks side by side on one line — the eastern one over the western, as the 2D sorts them
+  'prop_h_sawa_iwa@14,1': { z: 1 },
+  'prop_h_sawa_iwa@15,1': { z: 2 },
+  'prop_h_sawa_iwa@15,2': { z: 1 },
+  'prop_h_sawa_iwa@16,6': { z: 1 },
+  'prop_h_sawa_iwa@15,7': { z: 1 },
+  'prop_h_sawa_iwa@13,10': { z: 1 },
+  'prop_h_sawa_iwa@17,12': { z: 1 },
+  'prop_h_sawa_iwa@16,13': { z: -1 },
+};

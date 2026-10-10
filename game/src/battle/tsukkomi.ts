@@ -1,0 +1,329 @@
+// Tsukkomi (the defensive input, 10.3 / 16.6): frame windows, line choice,
+// the inner-voice lettering sweeping across the screen. (グソっ君's own
+// tsukkomi, when しゅん can't, is a balloon: battle/gusokkun.ts.)
+
+import { flag, setFlag } from '../game/state';
+import { rng } from '../engine/rng';
+import { ease } from '../engine/tween';
+import type { BattleScene } from './scene';
+import { STAGE_TOP } from './scene';
+import type { EnemyUnit, PartyUnit } from './model';
+import { kakimoji, roundSeal } from './art/stamps';
+import { bangBubble } from './art/fxart';
+import { PANEL_POS } from './ui/panels';
+import { LABEL, TUT } from '../data/battle';
+import { C } from './ui/note';
+import { cueSize } from './ui/cue';
+
+/** Top of the inner-voice lettering canvas (text ≈ y59–91). */
+export const KAKI_TOP = 54;
+
+export interface Windows {
+  show: number;
+  from: number;
+  to: number;
+  justFrom: number;
+  justTo: number;
+}
+
+/**
+ * 10.3 frame windows (hit = 0f). The window opens on the frame the "!" pops,
+ * not two frames later: the tutorial says 「敵の！に合わせて決定」, so a press
+ * answering the "!" is never a かぶせ — only a press before it is. The just
+ * window is unchanged.
+ */
+export function tsukkomiWindows(): Windows {
+  const wide = !!flag('flag_opt_tsukkomi_wide');
+  return wide ? { show: -22, from: -22, to: 4, justFrom: -6, justTo: 0 } : { show: -12, from: -12, to: 2, justFrom: -3, justTo: 0 };
+}
+
+/**
+ * How much slower than the animation's own frames the timing games run (the
+ * enemy wind-up with its "!" and closing ring, the たたく ring, the hanko ink
+ * ring). Playtest: on a phone everything came too fast, so every window gets
+ * this much longer in real time; ツッコミ判定：ひろい slows it a little more.
+ */
+export function timingSlow(): number {
+  // 2026-09-28, the client: still too fast to follow → 1.3/1.5 became 1.5/1.8
+  return flag('flag_opt_tsukkomi_wide') ? 1.8 : 1.5;
+}
+
+/** Who performs the tsukkomi right now (Minato; グソっ君 — 「なんでやねん！」 — when Minato can't). */
+export function tsukkomiUnit(s: BattleScene): PartyUnit | null {
+  const m = s.minato;
+  const ok = (u: PartyUnit | undefined) => !!u && u.alive && !u.has('status_nemuri') && !u.has('status_rusu');
+  if (ok(m)) return m!;
+  const k = s.kanenari;
+  if (ok(k)) return k!;
+  return null;
+}
+
+/** Choose the tsukkomi line number (1-based) per 10.3. */
+export function pickLine(s: BattleScene, e: EnemyUnit, skillId: string, linked: number[] | undefined): number {
+  const total = e.def.tsukkomi.length;
+  if (!total) return 0;
+  const seen = (n: number) => !!flag(`flag_tsukkomi_${e.id}_${n}`);
+  // first tsukkomi in the first battle against this enemy is always line 1 —
+  // except in chapter 2, where the line tied to the move comes first even
+  // then (51 2章 #3: 「曲がれるんかい！」 must never come before the bend)
+  const firstEver = ![...Array(total)].some((_, i) => seen(i + 1)) && !s.memo['tsuk_' + e.id];
+  if (firstEver && !(e.def.chapter === 2 && linked && linked.length)) return 1;
+  let n = 0;
+  if (linked && linked.length) {
+    // semi 3-hit: line 1 the first time, line 3 afterwards; ojigi press: 1 then 2
+    if (linked.length > 1) n = s.memo['used_' + skillId] ? linked[1] : linked[0];
+    else n = linked[0];
+  }
+  if (!n) {
+    const unseen = [...Array(total)].map((_, i) => i + 1).filter((k) => !seen(k));
+    n = unseen.length ? rng.pick(unseen) : rng.int(1, total);
+  }
+  return n;
+}
+
+export function markLineSeen(s: BattleScene, e: EnemyUnit, n: number): void {
+  if (!n) return;
+  setFlag(`flag_tsukkomi_${e.id}_${n}`, 1);
+  s.memo['tsuk_' + e.id] = 1;
+}
+
+/** "!" bubble above a panel (16×20 at panel x+24, y−24). */
+export function bangPos(u: PartyUnit): [number, number] {
+  const [px, py] = PANEL_POS[u.id] ?? [104, 150];
+  return [px + 24, py - 24];
+}
+
+export function showBang(s: BattleScene, targets: PartyUnit[], until: () => boolean, pulse = false): void {
+  for (const u of targets) {
+    const [x, y] = bangPos(u);
+    s.addFx({
+      layer: 'top',
+      dur: 0,
+      ui: true,
+      block: () => (until() ? null : { x0: x - 5, y0: y - 4, x1: x + 21, y1: y + 20 }),
+      update() {
+        if (until()) this.done = true;
+      },
+      draw: (g, t) => {
+        const pop = t < 60 ? 1.6 - 0.6 * (t / 60) : 1;
+        const pl = pulse && Math.floor(t / 120) % 2 === 0;
+        const img = bangBubble(pl);
+        const w = img.width * pop;
+        const h = img.height * pop;
+        g.ctx.drawImage(img, Math.round(x + 8 - w / 2), Math.round(y + 20 - h), Math.round(w), Math.round(h));
+      },
+    });
+  }
+}
+
+/**
+ * 「ツッコめ！」 over the "!" (2026-09-28, the client: the same words as the
+ * hanko gauge's 長押し！). One word, centred over the bubble — over both
+ * bubbles' middle for a move on the whole party. hitLoop drops it on the
+ * answer (gold), on a かぶせ or a miss (grey).
+ */
+export function tsukCue(s: BattleScene, targets: PartyUnit[]): void {
+  if (!targets.length) return;
+  const text = 'ツッコめ！';
+  const scale = TSUK_CUE_SCALE;
+  const { w, h } = cueSize(text, scale);
+  const xs = targets.map((u) => bangPos(u)[0] + 8);
+  const cx = xs.reduce((a, b) => a + b, 0) / xs.length;
+  const by = Math.min(...targets.map((u) => bangPos(u)[1]));
+  s.cues.set('tsuk', text, {
+    x: Math.round(Math.max(4 + w / 2, Math.min(380 - w / 2, cx))),
+    y: by - 3 - h,
+    align: 'center',
+    tone: 'go',
+    mode: 'flash',
+    scale,
+  });
+}
+const TSUK_CUE_SCALE = 2;
+
+/** Frames before the hit at which the closing ring appears around the "!" spot. */
+export const RING_LEAD = 30;
+
+export interface TsukRing {
+  /** Frames relative to the hit (negative before it). */
+  rel: number;
+  /** live: closing; gray: jumped the gun (かぶせ); ok: answered (pops); done: gone. */
+  state: 'live' | 'gray' | 'ok' | 'done';
+  /** ms since it answered (the pop). */
+  okT: number;
+}
+
+/**
+ * The closing ring (QA round 2): the "!" comes 12 frames before the hit
+ * (★ 6.3) — too short for a player who only reacts to it (≈ 220–280ms), and
+ * the tutorial could not say why they failed. So from 30 frames out a thin
+ * ring closes on the "!" spot at a constant speed and meets the bubble's rim
+ * exactly on the hit frame, turning gold in the just window: the wind-up now
+ * has a visible rhythm to press along with. The frame windows are unchanged.
+ */
+export function showTsukRing(s: BattleScene, targets: PartyUnit[], st: TsukRing): void {
+  const justFrom = tsukkomiWindows().justFrom;
+  for (const u of targets) {
+    const [bx, by] = bangPos(u);
+    const cx = bx + 8;
+    const cy = by + 10;
+    s.addFx({
+      layer: 'top',
+      dur: 0,
+      ui: true,
+      update(dt) {
+        if (st.state === 'ok') st.okT += dt / targets.length;
+        if (st.state === 'done' || (st.state === 'ok' && st.okT > 120)) this.done = true;
+      },
+      draw: (g) => {
+        if (st.state === 'done') return;
+        const k = Math.max(0, Math.min(1, -st.rel / RING_LEAD));
+        let r = 12 + 20 * k;
+        let a = 0.35 + 0.65 * (1 - k);
+        let col = '#F4F1E8';
+        if (st.state === 'gray') col = '#9AA0A8';
+        else if (st.state === 'ok') {
+          const p = Math.min(1, st.okT / 120);
+          r = 12 + 8 * p;
+          a = 1 - p;
+          col = '#FFD23F';
+        } else if (st.rel >= justFrom) col = '#FFD23F';
+        const rr = Math.round(r);
+        g.alpha(a, () => {
+          g.ring(cx, cy, rr + 1, C.ink);
+          g.ring(cx, cy, rr, col);
+          if (st.rel >= justFrom && st.state === 'live') g.ring(cx, cy, rr - 1, '#FFF6D8');
+        });
+      },
+    });
+  }
+}
+
+/**
+ * A press that came just after the window closed: the player is reacting to
+ * the "!" too late. Once per battle (and three times in all) the sticky
+ * points at the ring and at ツッコミ判定：ひろい.
+ */
+export function lateTip(s: BattleScene): void {
+  s.memo.lateTsuk = (s.memo.lateTsuk ?? 0) + 1;
+  if (s.memo.stk_rhythm || flag('flag_tut_tsuk_late') >= 3 || flag('flag_opt_tsukkomi_wide')) return;
+  setFlag('flag_tut_tsuk_late', flag('flag_tut_tsuk_late') + 1);
+  s.memo.stk_rhythm = 1;
+  s.sticky = { text: TUT.rhythm, t: -300, ttl: 3400 };
+}
+
+/** The "!" pops into sweat drops (and stars on a just). */
+export function popBang(s: BattleScene, targets: PartyUnit[], just: boolean): void {
+  for (const u of targets) {
+    const [x, y] = bangPos(u);
+    s.sweat(x + 8, y + 8, 6);
+    if (just) s.burst(x + 8, y + 8, { count: 6, speed: [60, 140], life: [250, 400], colors: ['#FFD23F', '#FFF6D8'], shape: 'star', size: [2, 2], sizeEnd: 1, drag: 2 }, true);
+  }
+}
+
+/** How long inner-voice lettering of `n` letters is up to be read: 1.4 s, +80ms a letter past six (showKakimoji's T2). */
+export function kakimojiReadMs(n: number): number {
+  return 1400 + Math.max(0, n - 6) * 80;
+}
+
+/**
+ * The ノリツッコミ's pace (2026-10-01, the client: 「戦闘中のノリツッコミがテンポ
+ * 早すぎて何が書いてあるか分からない」, party.ts doNori): グソっ君's boke stays in
+ * the band until it has been typed out and NORI_READ_MS more (longer at
+ * 文字の はやさ：おそい), and しゅん's big lettering at least NORI_LETTER_MS — or
+ * as long as the ordinary tsukkomi's lettering of that many letters is read
+ * (kakimojiReadMs), slowed like the timing games (timingSlow), if longer.
+ * けってい goes on, but neither goes before NORI_MIN_MS.
+ */
+export const NORI_READ_MS = 1500;
+export const NORI_LETTER_MS = 2500;
+export const NORI_MIN_MS = 800;
+
+/** How long the ノリツッコミ's lettering stays (ms): its line, and what its upper tier says past 「……って、」. */
+export function noriLetterMs(line: string, upper?: string): number {
+  const n = [...line].length + (upper ? Math.max(0, [...upper].length - [...'……って、'].length) : 0);
+  return Math.max(NORI_LETTER_MS, Math.round(kakimojiReadMs(n) * timingSlow()));
+}
+
+/**
+ * Inner-voice lettering: slides in from the right edge (200ms, easeOutBack),
+ * drifts left 12px while it is read (1.2 s; longer than 6 chars → +80ms per
+ * char), then accelerates out while fading (220ms). Baseline y62.
+ * (2026-09-28, the client: at 0.5 s the lines went by too fast to read.)
+ */
+export function showKakimoji(s: BattleScene, text: string, just: boolean): number {
+  const img = kakimoji(text, just, s.seed);
+  const T1 = 200;
+  const T2 = kakimojiReadMs([...text].length);
+  const T3 = T2 + 220;
+  const cx = 192 - img.width / 2;
+  // over the enemies' upper half (baseline ≈ y90), clear of the band (y4–48)
+  const y = KAKI_TOP;
+  const seal = just ? roundSeal('キマ\nった', 36) : null;
+  s.addFx({
+    layer: 'top',
+    dur: T3,
+    ui: true,
+    draw: (g, t) => {
+      let x: number;
+      let a = 1;
+      if (t < T1) x = 384 + (cx - 384) * ease.backOut(t / T1);
+      else if (t < T2) x = cx - 12 * ((t - T1) / (T2 - T1));
+      else {
+        const p = (t - T2) / (T3 - T2);
+        x = cx - 12 - 220 * ease.quadIn(p);
+        a = 1 - p;
+      }
+      g.alpha(a, () => g.img(img, Math.round(x), y));
+      if (seal && t > 60) {
+        const st = t - 60;
+        const pop = st < 67 ? 1.6 - 0.6 * (st / 67) : 1;
+        const w = seal.width * pop;
+        g.alpha(a, () => g.ctx.drawImage(seal, Math.round(x + img.width - 8 - w / 2 + 18), Math.round(y + 16 - w / 2), Math.round(w), Math.round(w)));
+      }
+    },
+  });
+  if (just) {
+    // focus lines from the lettering centre (12, #F4F1E8 α70%, 6f)
+    s.addFx({
+      layer: 'top',
+      dur: 100,
+      ui: true,
+      draw: (g) => {
+        const ctx = g.ctx;
+        ctx.save();
+        ctx.globalAlpha = 0.7;
+        ctx.fillStyle = '#F4F1E8';
+        for (let i = 0; i < 12; i++) {
+          const a0 = (i / 12) * Math.PI * 2 + 0.2;
+          ctx.beginPath();
+          const fy = KAKI_TOP + 22;
+          ctx.moveTo(192 + Math.cos(a0) * 60, fy + Math.sin(a0) * 40);
+          ctx.lineTo(192 + Math.cos(a0 - 0.05) * 300, fy + Math.sin(a0 - 0.05) * 300);
+          ctx.lineTo(192 + Math.cos(a0 + 0.05) * 300, fy + Math.sin(a0 + 0.05) * 300);
+          ctx.fill();
+        }
+        ctx.restore();
+      },
+    });
+  }
+  return T3;
+}
+
+/**
+ * Label "ボケ負け" over an enemy — after the lettering has crossed (`delay`),
+ * so the two never sit on top of each other; kept under the band.
+ */
+export function bokemakeLabel(s: BattleScene, e: EnemyUnit, long = false, delay = 0): void {
+  if (e.def.boss) {
+    // the boss: beside its school cap (else under its brim), never over the
+    // name-tag eyes — those are what the label is about
+    const cap = { x0: e.left + 50, y0: e.top + 8, x1: e.left + 110, y1: e.top + 28 };
+    s.labelNear(LABEL.bokemake, () => cap, ['right', 'left', 'below'], 'shu', long ? 1200 : 600, false, delay);
+    return;
+  }
+  // on the head (tall enemies: just under the band), sliding off a sticky,
+  // the card or a number that is still up
+  const hy = Math.max(STAGE_TOP + 10, e.headY - 8);
+  s.labelNear(LABEL.bokemake, () => ({ x0: e.x - 10, y0: hy - 8, x1: e.x + 10, y1: hy + 8 }), ['center', 'below', 'right', 'left'], 'shu', long ? 1200 : 600, false, delay);
+}
