@@ -7,6 +7,7 @@
 // 町の敵は 真上からの 正午の 日ざしと、下からの 海の 照り返しで 描く（61 9.0）。
 
 import type { AiCtx, EnemyDef } from './types';
+import { AQ_ENEMIES, AQ_PEOPLE } from './enemies_aq';
 
 const NO_WEAK = { da: 1, han: 1, wara: 1 };
 
@@ -276,7 +277,7 @@ const yokodori: EnemyDef = {
   book: { short: 'トンビ', shotai: '防波堤の トンビ。お昼の 時間が 終わらないので、ずっと お昼。', weak: '見られると、照れる。', hitokoto: 'おにぎり、ひとくち だけ。' },
 };
 
-export const CH3_ENEMIES: EnemyDef[] = [nefuda, okawari, nariosame, hoshisugi, asobitarin, yokodori];
+export const CH3_ENEMIES: EnemyDef[] = [nefuda, okawari, nariosame, hoshisugi, asobitarin, yokodori, ...AQ_ENEMIES];
 
 /** 第3章の 中ボス（ナリオサメ・オカワリナベ）：ラスボスの しくみ（白い フェードで エンディング）は 通さない。 */
-export const CH3_MIDBOSS = new Set(['enemy_okawarinabe', 'enemy_nariosame']);
+export const CH3_MIDBOSS = new Set(['enemy_okawarinabe', 'enemy_nariosame', ...AQ_PEOPLE]);

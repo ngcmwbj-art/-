@@ -24,6 +24,8 @@ import { holdStamp } from './party';
 import { speechBalloon } from './gusokkun';
 import { C, tapeCanvas } from './ui/note';
 import { itadakiSeal, madaMark } from './art/fxart_ch3';
+import { aqAfterAction, aqOpening, aqRoundEnd, aqRoundStart, aqStart } from './boss_c3aq';
+import { partyCh3Start, teppanRoundEnd } from './party_ch3';
 
 // ---- who is here ------------------------------------------------------------------------
 
@@ -48,7 +50,11 @@ export function ch3Won(s: BattleScene): boolean {
 
 /** 61 9.1・10.2・11.2: the statuses the chapter-3 enemies start with, the stickies and the speakers. */
 export function ch3Start(s: BattleScene): void {
+  // ヤキソバン's griddle strip (61 5.5), whoever the enemy is
+  partyCh3Start(s);
   if (!isCh3Battle(s)) return;
+  // 旧水族館の 人が 相手 (61 12・13)
+  aqStart(s);
   for (const e of s.enemies) {
     for (const st of e.def.startStatus ?? []) {
       if (st === 'status_c3_mayoi') e.status.c3_mayoi = true;
@@ -98,6 +104,7 @@ export function decideNefuda(s: BattleScene, e: EnemyUnit): void {
 
 /** After a みました on a chapter-3 enemy (61 9.1: seen, the price is read off the tag). */
 export function* ch3AfterMimashita(s: BattleScene, e: EnemyUnit): Co {
+  if (e.id === 'boss_hirosuke') yield* s.say(e.def.texts.extra.mimashita ?? []);
   // ヨコドリ (61 9.4): seen, it is too shy to go on aiming (the charge goes too)
   if (e.id === 'enemy_yokodori' && !e.mem.shy) {
     e.mem.shy = 1;
@@ -265,11 +272,15 @@ export function* ch3RoundStart(s: BattleScene): Co {
     s.memo.potTut = 1;
     showSticky(s, 'potHanamaru');
   }
+  yield* aqRoundStart(s);
   yield null;
 }
 
 /** The end of a round, before the usual countdowns (61 11.3: the noon sound first). */
 export function* ch3RoundEnd(s: BattleScene): Co {
+  yield* aqRoundEnd(s);
+  if (s.memo.aqLose) return;
+  yield* teppanRoundEnd(s);
   const n = nari(s);
   if (n && n.status.c3_maki && shougoRound(s.round)) yield* rewind(s, n);
   const e = nabe(s);
@@ -304,6 +315,7 @@ export function* ch3RoundEnd(s: BattleScene): Co {
  * finale; the pot's moment for the はなまる.
  */
 export function* ch3AfterAction(s: BattleScene): Co {
+  yield* aqAfterAction(s);
   const e = nari(s);
   if (!e || s.memo.ch3Won) return;
   if (e.mem.lock && e.hp <= 260 && !s.memo.lockSaid) {
@@ -787,6 +799,9 @@ export function ch3Yousu(s: BattleScene, e: EnemyUnit, r: number): string {
     case 'enemy_yokodori':
       if (e.status.tame && e.status.stareAt && sp2.tame) return sp2.tame.replace('$target', s.party.find((u) => u.id === e.status.stareAt)?.name ?? 'こっち');
       return rot(t.yousu);
+    case 'boss_hirosuke':
+      if (e.mem.madaSeen && sp2.seen && r % 2 === 0) return sp2.seen;
+      return rot(t.yousu);
     case 'enemy_nariosame':
       if (shougoNext(s) && sp2.shougo) return sp2.shougo;
       if (!e.status.c3_maki && sp2.after && r % 2 === 0) return sp2.after;
@@ -797,6 +812,7 @@ export function ch3Yousu(s: BattleScene, e: EnemyUnit, r: number): string {
 
 /** The opening (after the appearance pages): ナリオサメ's first words in its balloon. */
 export function* ch3Opening(s: BattleScene): Co {
+  yield* aqOpening(s);
   const e = nari(s);
   if (e) yield* sirenSay(s, e, e.def.texts.extra.voiceOpen?.[0] ?? '');
 }

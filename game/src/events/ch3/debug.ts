@@ -8,7 +8,9 @@
 //   __game.cmd.jump('ch3:umizoi')  海ぞいの町 at noon, after the children (S06)
 //   第2期: 'bin' (S10 the first run), 'ichiba' 'seri' (S07), 'shokudo' 'teishoku' (S08),
 //   'kaisui' 'moguri' 'lens' 'umi_last' (S09), 'itadaki' (S11), 'siren' 'nari_end' (S12・S13),
-//   'trap' (S14), 'aqmae' (the end of the second part). __game.cmd.kita(n) / kitaNext()
+//   'trap' (S14), 'aqmae' (S14 → S15). 第3期: 'kairo' 'kairo_end' (S16), 'diorama' (S17),
+//   'shinkai' (S18), 'esa' (S19), 'hall' (S20), 'souko' (S21・S22), 'yakisoban' (S23), 'hp' (S24),
+//   'aq_end' (the end of the third part). __game.cmd.kita(n) / kitaNext()
 //   for the people who came; flag('flag_qa_c3_nobattle', 1) skips the story battles (DEV)
 //   __game.cmd.beat3()             the furthest chapter-3 beat the flags have reached
 //   __game.cmd.ch3sounds()         cue-sheet sounds the scripts asked for that aren't registered
@@ -25,7 +27,8 @@ import { setFieldCurtain, uiHud } from '../../ui/hud';
 import { stopAllAmbient, stopBgm } from '../../audio';
 import { resetStaging } from '../stage';
 import { resetStamp } from '../stamp';
-import { missingSounds } from '../ch2/compat';
+import { fnOf, missingSounds } from '../ch2/compat';
+import * as battleData from '../../data/battle';
 import { MUST_TALK, deriveTalked } from './talked';
 import { runBin, waiting } from './azemichi';
 
@@ -182,9 +185,91 @@ export const CHAIN3: Beat3[] = [
     beat: 'aqmae',
     steps: [set('flag_ch3_truck_trap'), val('flag_c3_nidai_view', 2)],
     at: ['map_umizoi', 73, 30, 'up'],
-    desc: '旧水族館の前（第2期の終わり。ガラス戸は〔休館〕）',
+    run: 'evt_ch3_aq_enter',
+    desc: '★旧水族館の前（S14 のあと → S15 ポコシャがガラス戸を開ける・入館券）',
+  },
+  // ---- 第3期（S15〜S24。旧水族館）
+  {
+    beat: 'kairo',
+    // (the five of 海ぞいの町 the main line always talks to: 60 7.4 ③)
+    steps: [val('flag_ch3_stage', 3), set('flag_ch3_aq_enter', 'flag_talked_npc_c3_shokudo', 'flag_talked_npc_c3_jouren', 'flag_talked_npc_c3_seri_deshi', 'flag_talked_npc_c3_mago', 'flag_talked_npc_c3_sirenban'), keys('item_c3_nyukanken')],
+    at: ['map_c3_aq_kairo', 1, 5, 'up'],
+    alt: ['map_umizoi', 73, 30, 'up'],
+    desc: '★回廊（S16：伝票を4枚 → 東のはしのヒロスケ）',
+  },
+  {
+    beat: 'kairo_end',
+    steps: [set('flag_ch3_denpyo_01', 'flag_ch3_denpyo_04', 'flag_ch3_denpyo_07', 'flag_ch3_denpyo_12'), val('flag_ch3_denpyo_n', 4), keys('item_c3_denpyo')],
+    at: ['map_c3_aq_kairo', 32, 4, 'right'],
+    alt: ['map_umizoi', 73, 30, 'up'],
+    desc: '伝票4枚（★）を読んだ回廊（東へ歩くとヒロスケ・白紙の日）',
+  },
+  {
+    beat: 'diorama',
+    steps: [set('flag_ch3_kairo_done')],
+    at: ['map_c3_aq_diorama', 1, 14, 'right'],
+    alt: ['map_umizoi', 73, 30, 'up'],
+    run: 'evt_ch3_diorama',
+    desc: '★ジオラマの部屋（S17：人形 → マフィ屋）',
+  },
+  {
+    beat: 'shinkai',
+    steps: [set('flag_c3_diorama_in', 'flag_ch3_mafiya', 'flag_ch3_diorama_done')],
+    at: ['map_c3_aq_shinkai', 21, 16, 'up'],
+    alt: ['map_umizoi', 73, 30, 'up'],
+    run: 'evt_ch3_shinkai',
+    desc: '★深海の展示室（S18：グソっ君が先を歩く → 空の水槽）',
+  },
+  {
+    beat: 'esa',
+    steps: [set('flag_c3_shinkai_in', 'flag_ch3_shinkai_done')],
+    at: ['map_c3_aq_esa', 11, 5, 'left'],
+    alt: ['map_umizoi', 73, 30, 'up'],
+    run: 'evt_ch3_esa',
+    desc: '★えさの部屋（S19：ポコシャの話 → 話すと鍵。えさの札は任意）',
+  },
+  {
+    beat: 'hall',
+    steps: [set('flag_c3_esa_talk', 'flag_ch3_esa_done'), keys('item_c3_hall_key')],
+    at: ['map_c3_aq_hall', 12, 12, 'up'],
+    alt: ['map_umizoi', 73, 30, 'up'],
+    desc: '★大水槽のホール（S20：長いすの前へ → 初戦 → 捕らわれる）',
+  },
+  {
+    beat: 'souko',
+    steps: [set('flag_ch3_tsugao1')],
+    at: ['map_c3_aq_souko', 4, 6, 'up'],
+    alt: ['map_umizoi', 73, 30, 'up'],
+    run: 'evt_ch3_souko',
+    desc: '★えさの倉庫（S21 焼き芋・S22 エゴの夜）',
+  },
+  {
+    beat: 'yakisoban',
+    steps: [set('flag_ch3_souko', 'flag_ch3_ego_night')],
+    at: ['map_c3_aq_souko', 5, 7, 'down'],
+    alt: ['map_umizoi', 73, 30, 'up'],
+    desc: '★倉庫の扉の前（S23：扉を調べると ヤキソバン）',
+  },
+  {
+    beat: 'hp',
+    steps: [set('flag_ch3_souko_open', 'flag_ch3_yakisoban_scene', 'flag_ch3_yakisoban'), addYaki],
+    at: ['map_c3_aq_rouka', 4, 4, 'right'],
+    alt: ['map_umizoi', 73, 30, 'up'],
+    desc: '★廊下（S24：東へ歩くと ヒロスケ・ポコシャ戦。3人）',
+  },
+  {
+    beat: 'aq_end',
+    steps: [set('flag_ch3_hp_beaten')],
+    at: ['map_c3_aq_rouka', 3, 3, 'left'],
+    alt: ['map_umizoi', 73, 30, 'up'],
+    desc: '第3期の終わり（廊下。西の戸は S25 から）',
   },
 ];
+
+/** ヤキソバン joins (61 5.1; B's addYakisoban when it is there). */
+function addYaki(): void {
+  fnOf(battleData, 'addYakisoban')?.();
+}
 
 /** The runs of ツガオ便 that are due (1 + ①〜③ done) have come, with the six of the main line (QA). */
 function bins(): void {
@@ -265,6 +350,15 @@ export function listCh3(): string[] {
 /** The furthest chapter-3 beat the flags have reached. */
 export function beatCh3(): { beat: string; stage: number; map?: string } {
   const order: [string, string][] = [
+    ['flag_ch3_hp_beaten', 'aq_end'],
+    ['flag_ch3_yakisoban', 'hp'],
+    ['flag_ch3_ego_night', 'yakisoban'],
+    ['flag_ch3_tsugao1', 'souko'],
+    ['flag_ch3_esa_done', 'hall'],
+    ['flag_ch3_shinkai_done', 'esa'],
+    ['flag_ch3_diorama_done', 'shinkai'],
+    ['flag_ch3_kairo_done', 'diorama'],
+    ['flag_ch3_aq_enter', 'kairo'],
     ['flag_ch3_truck_trap', 'aqmae'],
     ['flag_ch3_got_gochisou', 'trap'],
     ['flag_ch3_nariosame_beaten', 'nari_end'],

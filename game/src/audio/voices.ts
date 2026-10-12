@@ -168,6 +168,10 @@ export const VOICES: Record<string, VoiceDef> = {
   // the big pot whose lid never closes bubbles after every blip
   nariosame: { label: 'ナリオサメ（引退するサイレン）', wave: 'sawtooth', wave2: ['square', 0.6], base: 'E4', scale: [0, 3, 7], len: 55, every: 3, v: 0.04, bp: [659, 0.8], pa: true, scoopAll: [-400, 50] },
   okawarinabe: { label: 'オカワリナベ（ふたの閉まらない大鍋）', wave: 'square', base: 'C3', scale: [0, 0, 5], len: 45, every: 3, v: 0.04, lp: 800 },
+  // 係長の声 (63 9.1): the black balloons only ポコシャ hears — never words (two
+  // notes a semitone apart), hard and muddy, ringing inside his head; never
+  // louder than ポコシャ's own big voice (v .04 at most)
+  kakaricho: { label: '係長の声（黒い吹き出し）', wave: 'square', wave2: ['sawtooth', 0.6], base: 'G2', scale: [0, 1], len: 45, A: 0, D: 30, S: 0.6, R: 10, every: 2, v: 0.04, lp: 700, rev: 0.4 },
 };
 // the three children of the breakwater: the same voice at +0 / +2 / −2 (63 9.1)
 VOICES.c3_kid_a = { ...VOICES.c3_kid, label: '防波堤の子ども（1）' };
@@ -175,6 +179,14 @@ VOICES.c3_kid_b = { ...VOICES.c3_kid, label: '防波堤の子ども（2）', bas
 VOICES.c3_kid_c = { ...VOICES.c3_kid, label: '防波堤の子ども（3）', base: 'G5' };
 // 星見台 calls the names on the same speaker as the town's broadcast (53 9.2)
 VOICES.broadcast.calls = true;
+// 旧水族館 (63 9.2): ポコシャ on the ceiling speakers (bus_pa 'kannai', ×1.4 — the
+// one place he can be heard best); ツガオ's 表の声 for the one page
+// 「……でっけえ エビ、だな。」 (S20); グソっ君 low on himself in the store room
+// (S21: no bounce, the low set, slower, ×0.7) and coming back (half the bounce)
+VOICES.pokosha_pa = { ...VOICES.pokosha, label: 'ポコシャ（館内放送）', v: VOICES.pokosha.v * 1.4, pa: true };
+VOICES.tsugao_omote = { ...VOICES.tsugao, label: 'ツガオ（表の声。S20 の「でっけえ エビ」）' };
+VOICES.gusokkun_yowai = { ...VOICES.gusokkun, label: 'グソっ君（弱る。S21）', scale: [0, 2, 4], every: 3, v: VOICES.gusokkun.v * 0.7, scoop: undefined };
+VOICES.gusokkun_nurui = { ...VOICES.gusokkun, label: 'グソっ君（はずみが半分もどる。S21）', scoop: [35, 16] };
 
 const ALIAS: Record<string, string> = {
   // (kanenari / npc_kanenari: グソっ君 talks now, ★2026-09-29 — no more flip board)
@@ -185,6 +197,8 @@ const ALIAS: Record<string, string> = {
   hoshi_tome: 'h_tome', hoshi_sawako: 'h_sawako', hoshi_busdriver: 'h_driver', hoshi_driver: 'h_driver',
   hoshi_traindriver: 'h_train', hoshi_gon: 'h_gon', hoshi_speaker: 'broadcast', hoshi_mujin: 'h_mujin',
   tetsuya: 'h_tetsuya', boss_yobimodoshi: 'yobimodoshi', mujin: 'h_mujin', gon: 'h_gon',
+  // chapter 3: ヤキソバン is たかし (63 9.1)
+  yakisoban: 'maruyama',
 };
 
 // ---------------------------------------------------------------------------
@@ -292,6 +306,12 @@ interface State {
   fue?: boolean;
   /** ゴロウ's 「……もう」 page (a breath before it, a sigh at the end). */
   mou?: boolean;
+  /** ヤキソバン's 「ヤキソバン、出前に 参上。」 page (1; its M10 blips counted in ykI), and the page after it (2: shy). */
+  yk?: number;
+  ykI?: number;
+  /** ポコシャ's 「……自分は、悪く ない！」: how far into 悪く ない (1–4), 5 done; and the small page after it. */
+  ookii?: number;
+  ookiiAfter?: boolean;
 }
 
 interface Hen {
@@ -472,6 +492,10 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
     s.utta = s.utta === 1 ? 2 : 0;
     s.fue = false;
     s.mou = false;
+    // 旧水族館 (63 9.2)
+    s.yk = s.yk === 1 ? 2 : 0;
+    s.ookiiAfter = !!s.ookii && s.ookii >= 2;
+    s.ookii = 0;
   }
   if (id === 'piichan') {
     henChar(s, ch, now, pageStart);
@@ -489,6 +513,8 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
     if (id === 'tsugao') s.wake = (s.lastT === 0 || now - s.lastT > 20) && !inTsugaoRoom();
   }
   if (mode === 'chan') s.chan = true;
+  // 旧水族館 (63 9.2: S15〜S24): ツガオ and ヒロスケ speak with their 裏の顔
+  const ura = (id === 'tsugao' || id === 'hirosuke') && musicParams().c3_phase === 2;
   // エゴの「ガチャン」: the machine punches the card where the word stands (53 9.2)
   if (mode === 'gachan') {
     s.gachan = 2;
@@ -579,7 +605,8 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
   if (ch === '？' || ch === '?' || ch === '！' || ch === '!') {
     if (now - s.lastT < 0.5 && def.wave !== 'none' && id !== 'narr') {
       const q = ch === '？' || ch === '?';
-      play(def, id, s.lastMidi, now + 0.01, q ? 5 : 2, q ? 1 : 1.2 * (s.tsukkomi ? 1.25 : 1) * (blurted ? 1.8 : 1), 'a', true, roomRev(id));
+      // (ツガオの裏の顔 never shouts: ×1.05)
+      play(def, id, s.lastMidi, now + 0.01, q ? 5 : 2, q ? 1 : (ura && id === 'tsugao' ? 1.05 : 1.2) * (s.tsukkomi ? 1.25 : 1) * (blurted ? 1.8 : 1), 'a', true, roomRev(id));
     }
     return;
   }
@@ -614,7 +641,7 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
   let forced = false;
   let domo = -1;
   if (id === 'hirosuke') {
-    if (pageHead && mode === undefined && ch === 'ど') domo = 0;
+    if (pageHead && mode === undefined && ch === 'ど' && !ura) domo = 0;
     else if (s.domo === 1 && ch === 'も') domo = 1;
     s.domo = domo === 0 ? 1 : 0;
     if (s.lineHead && mode === undefined) s.imo = ch === '焼';
@@ -682,13 +709,40 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
       s.quietUntil = now + 0.33;
     } else if (id === 'c3_jouren' && s.quietUntil !== undefined && now < s.quietUntil) return;
   }
+  // ヤキソバン's name (63 9.2): a page that opens 「ヤキソバン」 — M10 (0 0 +5 +7)
+  // on the first four blips, ×1.3, wetter, fast; the page after it ×0.8, slow (照れる)
+  if (id === 'maruyama' && mode === undefined) {
+    if (pageHead && ch === 'ヤ') {
+      s.yk = 1;
+      s.ykI = 0;
+    }
+    if (s.yk === 1) {
+      const i = s.ykI ?? 0;
+      if (i < 4) {
+        c3Semi = [0, 0, 5, 7][i];
+        s.ykI = i + 1;
+      }
+      c3Vol = 1.3;
+    } else if (s.yk === 2) c3Vol = 0.8;
+  }
+  // ポコシャ's 「……自分は、悪く ない！」 (63 9.2, S24): 0 +5 +7 +12 at ×2.2, fast —
+  // his own voice, wider than his admiring 0 +4 +7 +9; the next page small again
+  if (id === 'pokosha' && (mode === undefined || mode === 'plain')) {
+    if (ch === '悪' && !s.ookii) s.ookii = 1;
+    if (s.ookii && s.ookii <= 4) {
+      c3Semi = [0, 5, 7, 12][s.ookii - 1];
+      c3Vol = 2.2;
+      s.ookii++;
+    }
+    if (s.ookiiAfter) c3Vol *= 0.6;
+  }
   if (c3Semi !== null) forced = true;
   const loud = id === 'pokosha' && !!s.sasuga && s.sasugaForm === 'loud';
   if (loud || domo >= 0 || mode === 'laugh' || mode === 'imo' || mode === 'stam' || (id === 'hirosuke' && s.laugh)) forced = true;
   const lineHead = !!s.lineHead;
   s.lineHead = false;
   // spacing: the voice's interval in characters at 40 chars/s (ツガオさん waking: 4)
-  const every = s.tsukkomi || s.chan || loud ? 1 : s.wake ? 4 : def.every;
+  const every = s.tsukkomi || s.chan || loud || s.yk === 1 || (!!s.ookii && s.ookii <= 5) ? 1 : s.yk === 2 ? 3 : s.wake || (ura && id === 'tsugao') ? 4 : ura ? 3 : def.every;
   const minGap = every * 0.025 * 0.9;
   const allowed = now - s.last >= minGap;
   // ハモ区長's 「えー」 and ペロ's 「なぁ」: the next character decides
@@ -703,9 +757,9 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
           ? 'tsu'
           : id === 'dakoku' && ch === 'ガ'
             ? 'ga'
-            : id === 'hirosuke' && !s.laugh && ch === 'わ'
+            : id === 'hirosuke' && !ura && !s.laugh && ch === 'わ'
               ? 'wa'
-              : id === 'hirosuke' && !s.laugh && ch === 'は'
+              : id === 'hirosuke' && !ura && !s.laugh && ch === 'は'
                 ? 'ha'
                 : id === 'hirosuke' && s.imo && ch === 'か'
                   ? 'ka'
@@ -748,6 +802,9 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
   let glide = 0;
   let lpOverride: number | undefined;
   if (s.wake && id === 'tsugao' && !s.chan) volK *= 0.85;
+  // 裏の顔 (63 9.2): ツガオ takes 250 ms before each page (筋を通す間); ヒロスケ ×0.9, no bounce
+  if (ura && id === 'tsugao' && !s.chan && headOfPage) delay += 0.25;
+  if (ura && id === 'hirosuke') volK *= 0.9;
   volK *= c3Vol;
   delay += c3Delay;
   if (id === 'pokosha') {
@@ -867,7 +924,8 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
   } else {
     let d = def;
     // ヒロスケさん's pages open with a bounce (+60 cents → 0 in 15 ms)
-    if (id === 'hirosuke' && headOfPage) d = { ...d, scoop: [60, 15] };
+    if (id === 'hirosuke' && headOfPage && !ura) d = { ...d, scoop: [60, 15] };
+    if (id === 'pokosha' && s.ookiiAfter) lpOverride = 1000;
     if (lpOverride) d = { ...d, lp: lpOverride };
     let at = now + 0.005 + delay;
     if (id === 'pokosha') {
@@ -875,7 +933,7 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
       if (!delay && s.quietUntil !== undefined && at < s.quietUntil) at = s.quietUntil;
       s.quietUntil = delay || at === s.quietUntil ? at + 0.05 : s.quietUntil;
     }
-    play(d, id, midi, at, 0, volK, mode === 'ee' ? 'e' : vowelOf(ch), false, roomRev(id), longMs, glide);
+    play(d, id, midi, at, 0, volK, mode === 'ee' ? 'e' : vowelOf(ch), false, id === 'maruyama' && s.yk === 1 ? 0.3 : roomRev(id), longMs, glide);
   }
   if (id === 'yobimodoshi') openLineHum(now);
   // オカワリナベ: a little bubble after each blip (sine 300 → 520 Hz, 20 ms)
@@ -896,6 +954,10 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
       duck(dbToGain(-4), 0.2, 0.5, 0.6);
       duckAmbience(dbToGain(-2), 0.2, 0.5, 0.6);
     }
+  } else if (id === 'pokosha_pa') {
+    // 館内放送 (63 10.3): BGM −6 dB, ambience −3 dB
+    duck(dbToGain(-6), 0.3, 0.5, 0.8);
+    duckAmbience(dbToGain(-3), 0.3, 0.5, 0.8);
   } else if (def.pa && id !== 'nariosame') {
     duck(dbToGain(-9), 0.3, 0.5, 0.8);
     duckAmbience(dbToGain(-6), 0.3, 0.5, 0.8);
@@ -1038,6 +1100,8 @@ function play(def: VoiceDef, id: string, midi: number, t: number, bend: number, 
   if (def.bp) base.filter = { type: 'bandpass', freq: def.bp[0], q: def.bp[1] };
   if (def.formant && !isTail) base.formant = { f1: f1 * k, f2: f2 * k, q1: 5, q2: 7, mix: 0.4, lp: vowel === 'n' ? 450 : undefined };
   if (id === 'maruyama') base.fm = { ratio: 1, index: 2.5, indexEnd: 0.8, indexTime: 40 };
+  // グソっ君's directions in the dark (63 9.2): his voice from the way he means
+  if (voicePan !== null && id.startsWith('gusokkun')) base.pan = voicePan;
 
   if (id === 'omukaemachi' || id === 'broadcast_child') {
     // two layers at once: a low breath pad + a child's high note 15 ms later
@@ -1063,6 +1127,17 @@ function play(def: VoiceDef, id: string, midi: number, t: number, bend: number, 
 }
 
 setTextBlip(blip);
+
+let voicePan: number | null = null;
+/**
+ * 63 9.2 (S18 深海の展示室): グソっ君's directions are heard from where he points
+ * — 「……右や」 +.6, left −.6, straight on 0 — not from where he stands. Set it
+ * before the line, null after. The ambience steps back −4 dB while it is set (10.3).
+ */
+export function setVoicePan(pan: number | null): void {
+  voicePan = pan === null || !Number.isFinite(pan) ? null : Math.max(-1, Math.min(1, pan));
+  if (voicePan !== null && hasGraph()) duckAmbience(dbToGain(-4), 0.1, 2.5, 0.4);
+}
 
 // ---------------------------------------------------------------------------
 // 63_ch3_audio 9.2: the whole town at once — 「いただきます」 (S12's clasped

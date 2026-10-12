@@ -12,7 +12,7 @@ import {
 } from '../data/battle';
 import { setBattleImpl, startBattle, type BattleOpts, type BattleResult } from './api';
 import { measure } from '../engine/font';
-import { SYS3, TUT } from '../data/battle';
+import { addYakisoban, SYS3, TUT } from '../data/battle';
 import { BattleScene } from './scene';
 import { battleFlow, getGameOverHook, setGameOverHook, type GameOverHook } from './flow';
 import { lessonFlow } from './lesson';
@@ -552,6 +552,11 @@ const CH3_BATTLES: Record<string, { opts: Partial<BattleOpts> & { enemies: strin
   hoshi2: { opts: { enemies: ['enemy_hoshisugi', 'enemy_hoshisugi'], background: 'bg_c3_himono' }, map: 'map_umizoi' },
   ukiwa: { opts: { enemies: ['enemy_asobitarin'], background: 'bg_c3_kaisui' }, map: 'map_umizoi' },
   tonbi: { opts: { enemies: ['enemy_yokodori'], background: 'bg_c3_bouhatei' }, map: 'map_umizoi' },
+  // 旧水族館（第3期。61 9.5・12・13）。yaki: ヤキソバンが 仲間（3人の 画面）
+  junro: { opts: { enemies: ['enemy_junro'], background: 'bg_c3_aq_kairo' }, map: 'map_c3_aq_kairo', flags: ['flag_ch3_got_itadakimasu', 'flag_ch3_got_gochisou'] },
+  junro3: { opts: { enemies: ['enemy_junro'], background: 'bg_c3_aq_kairo' }, map: 'map_c3_aq_kairo', flags: ['flag_ch3_got_itadakimasu', 'flag_ch3_got_gochisou', 'flag_ch3_yakisoban'] },
+  tsugao1: { opts: { enemies: ['boss_tsugao_1'], music: 'keep', background: 'bg_c3_aq_hall', canLose: true }, map: 'map_c3_aq_hall', flags: ['flag_ch3_got_itadakimasu', 'flag_ch3_got_gochisou'] },
+  hp: { opts: { enemies: ['boss_hirosuke', 'boss_pokosha'], music: 'bgm_boss_madamada', background: 'bg_c3_aq_rouka', canLose: true }, map: 'map_c3_aq_rouka', flags: ['flag_ch3_got_itadakimasu', 'flag_ch3_got_gochisou', 'flag_ch3_yakisoban'] },
 };
 
 /** A fresh chapter-3 QA party (newChapter3Party + chapter3Adjust) at Lv n (8–10). */
@@ -585,6 +590,8 @@ registerDebug('ch3battle', (name = 'nefuda', lv = 8, o: Partial<BattleOpts> & { 
     for (const f of flags) setFlag(f, 1);
     syncProgressSkills();
   }
+  // (S23 の あと: ヤキソバン)
+  if (flags.includes('flag_ch3_yakisoban')) addYakisoban();
   state.map = b.map;
   const { gochisou: _g, itadaki: _i, ...rest } = o;
   game.scripts.run(
@@ -608,7 +615,7 @@ registerDebug('c3textcheck', () => {
     if (ls.length > lines) bad.push(`${where}: ${ls.length} lines`);
     for (const l of ls) if (measure(l) > w) bad.push(`${where}: ${measure(l)}px ${l}`);
   };
-  for (const id of ['enemy_nefuda', 'enemy_okawarinabe', 'enemy_nariosame', 'enemy_hoshisugi', 'enemy_asobitarin', 'enemy_yokodori']) {
+  for (const id of ['enemy_nefuda', 'enemy_okawarinabe', 'enemy_nariosame', 'enemy_hoshisugi', 'enemy_asobitarin', 'enemy_yokodori', 'enemy_junro', 'boss_tsugao_1', 'boss_hirosuke', 'boss_pokosha']) {
     const e = getEnemy(id);
     if (!e) continue;
     const t = e.texts;
@@ -621,8 +628,37 @@ registerDebug('c3textcheck', () => {
     for (const l of e.tsukkomi) page(`${id}.tsukkomi`, l, 1, 300);
   }
   for (const [k, v] of Object.entries(SYS3)) v.forEach((x, i) => page(`SYS3.${k}[${i}]`, x));
-  for (const k of ['nefuda', 'okawari', 'potHanamaru', 'itadaki'] as const) page(`TUT.${k}`, TUT[k], 3, 300);
+  for (const k of ['nefuda', 'okawari', 'potHanamaru', 'itadaki', 'yakisoban', 'teppan', 'gochisou', 'koe'] as const) page(`TUT.${k}`, TUT[k], 3, 300);
   return { total, bad };
+});
+/** `addYaki()`: ヤキソバンを 仲間に（61 21.5）。`teppan(n)`: 戦闘中の 鉄板の 熱を n に。 */
+registerDebug('addYaki', () => {
+  setFlag('flag_ch3_yakisoban', 1);
+  return addYakisoban().name;
+});
+registerDebug('teppan', (n = 3) => {
+  const s = current;
+  if (!s) return null;
+  s.shared.teppan = Math.max(0, Math.min(3, n));
+  s.setMusicParam('teppan', s.shared.teppan);
+  return s.shared.teppan;
+});
+/** `c3aq()`: 旧水族館の 人が 相手の 戦闘の 状態（QA）。 */
+registerDebug('c3aq', () => {
+  const s = current;
+  if (!s) return null;
+  return {
+    round: s.round,
+    teppan: s.shared.teppan ?? 0,
+    hpPhase: s.shared.hpPhase ?? 0,
+    koeN: s.memo.koeN ?? 0,
+    koeActive: s.memo.koeActive ?? 0,
+    nafuda: s.memo.nafudaTurn ?? 0,
+    won: s.memo.ch3Won ?? 0,
+    lose: s.memo.aqLose ?? 0,
+    party: s.party.map((u) => ({ id: u.id, hp: u.m.hp, max: u.m.maxHp, st: u.m.status, ct: u.ct })),
+    enemies: s.enemies.map((e) => ({ id: e.id, hp: e.hp, x: e.x, pose: e.pose, mem: e.mem, params: e.params })),
+  };
 });
 /** `c3state()`: the chapter-3 enemies' own state (QA). */
 registerDebug('c3state', () => {

@@ -54,7 +54,11 @@ export function tsukkomiUnit(s: BattleScene): PartyUnit | null {
   const ok = (u: PartyUnit | undefined) => !!u && u.alive && !u.has('status_nemuri') && !u.has('status_rusu');
   if (ok(m)) return m!;
   const k = s.kanenari;
+  // 第3章 (60 7.3): with ヤキソバン the two answer in turn (グソっ君, then ヤキソバン)
+  const y = s.yakisoban;
+  if (ok(k) && ok(y)) return (s.memo.subTsukN ?? 0) % 2 === 0 ? k! : y!;
   if (ok(k)) return k!;
+  if (ok(y)) return y!;
   return null;
 }
 

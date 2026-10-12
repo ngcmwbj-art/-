@@ -533,7 +533,8 @@ export function leanBack(s: BattleScene, e: EnemyUnit, dir: number, frames: numb
 
 export function damageTo(s: BattleScene, e: EnemyUnit, t: PartyUnit, power: number, r: Guarded | null, stack = 0, scatter = false): number {
   const dmg = calcDamage({
-    atk: e.def.atk,
+    // 61 4.1: 鉄板の 熱で 敵の 手が ゆるむ（×(1 − 0.08 × 熱)）
+    atk: e.def.atk * (1 - 0.08 * (s.shared.teppan ?? 0)),
     atkStage: e.stages.atk.lv,
     def: t.m.def,
     defStage: t.stages.def.lv,
@@ -594,7 +595,10 @@ function letter(s: BattleScene, e: EnemyUnit, sk: SkillDef, st: ActState): numbe
   st.lastLine = n;
   if (!text) return 0;
   s.memo['used_' + sk.id] = 1;
-  if (tu?.id === 'kanenari') return showKnTsukkomi(s);
+  if (tu?.id === 'kanenari' || tu?.id === 'yakisoban') {
+    s.memo.subTsukN = (s.memo.subTsukN ?? 0) + 1;
+    return tu.id === 'kanenari' ? showKnTsukkomi(s) : showYakiTsukkomi(s);
+  }
   markLineSeen(s, e, n);
   return showKakimoji(s, text, st.lastJust);
 }
@@ -605,6 +609,8 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
   if (!e.alive) return;
   const sk = getSkill(skillId);
   if (!sk) return;
+  // 第3章 (61 12・13): the people's moves that are not attacks (no "!")
+  if (yield* aqMove(s, e, skillId)) return;
   // the command notebook notes the boke being played (a ボケ seal + its name)
   s.noteActing(skillId === 'skill_idle' || !sk.name ? e.name : sk.name, undefined, true);
   // 51 9.3: 「行動」 counts the turns it really took (a rest does not count)
@@ -1268,6 +1274,8 @@ function* callCone(s: BattleScene): Co<boolean> {
 import { bossMoveImpl } from './boss';
 import { ch2Move, isCh2Move } from './enemy_ch2';
 import { ch3Move, isCh3Move } from './enemy_ch3';
+import { showYakiTsukkomi } from './party_ch3';
+import { aqMove } from './boss_c3aq';
 
 /** Everything a move implementation outside this file needs (bosses, chapter 2). */
 export type BossMoveCtx = {

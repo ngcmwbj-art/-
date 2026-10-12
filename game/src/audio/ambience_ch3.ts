@@ -908,9 +908,189 @@ registerAmbience('amb_c3_suichu', (c) => {
   };
 });
 
+// ============================================================================
+// 旧水族館 (63 7.5; S15〜S25). Inside, it is still 12:00: the pumps, the
+// aeration and the air conditioning are all stopped, and so are the clocks.
+// Very small beds (v .001–.005): the footsteps, the voices and the paper are
+// what is heard (10.2). Nothing frightening (1.7).
+
+/** The exit signs' faint hum (square 100 Hz under 500 Hz, and its fizz). */
+function exitSign(c: AmbCtx, k: number, dest: AudioNode = c.dest): { stop(t: number): void } {
+  const a = toneBed(c, 'square', 100, 0.0015 * k, dest, 500);
+  const b = noiseBed(c, 'highpass', 6000, 0.5, 0.0004 * k, dest);
+  return {
+    stop(t) {
+      a.stop(t);
+      b.stop(t);
+    },
+  };
+}
+
+/**
+ * amb_c3_aq_kan — the closed building (entrance, corridors): ① the exit
+ * signs' hum ② the air of a big space ③ a drop of water somewhere, every
+ * 8–20 s (se_drip ×.25, wet). No pumps, no aeration, no air conditioning; no
+ * clocks (the corridor's old wall clock is bgm_suizokukan's 'kairo').
+ * 'denpyo' (a slip read, S16) is heard by the song, not here.
+ */
+registerAmbience('amb_c3_aq_kan', (c) => {
+  const sign = exitSign(c, 1);
+  const air = noiseBed(c, 'lowpass', 150, 0.5, 0.004);
+  const drip = new Every(c, 8, 20, (t) => {
+    seIn(c, 'se_drip', t, 0.25, c.dest, c.rng.range(-0.7, 0.7));
+  }, 3, 10);
+  return {
+    pump: (u) => drip.pump(u),
+    stop(t) {
+      sign.stop(t);
+      air.stop(t);
+    },
+  };
+});
+
+/**
+ * amb_c3_aq_diorama — the diorama room: the three towns' clocks. ① 夕鳴町's
+ * 「チッ・タッ」 (drm_tick / drm_tock, pan −.45) and ② 星見台's 「コツ」
+ * (drm_mic_tap, pan +.4) once a second each, drifting in and out of step
+ * (1.000 s and 1.004 s); ③ 海ぞいの町's tower clock (drm_tower) does not
+ * sound — it is stopped at 12:00. Never a chime (1.2).
+ * ambientEvent(…, 'hikari', pan | voiceId): a doll lights up (se_c3_aq_ningyo,
+ * a voice id gives its pitch). 'fushigi' (fushigi_ch3_08): the clocks ×1.5.
+ */
+registerAmbience('amb_c3_aq_diorama', (c) => {
+  const clocks = sub(c, 1);
+  let n = 0;
+  const yunari = new Every(c, 1, 1, (t) => (n++ % 2 ? DRM.drm_tock : DRM.drm_tick)({ t, vel: 1, vol: 0.4 * 0.03, pan: -0.45, dest: clocks }), 0.4, 0.4);
+  const hoshimi = new Every(c, 1.004, 1.004, (t) => DRM.drm_mic_tap({ t, vel: 1, vol: 0.35 * 0.05, pan: 0.4, dest: clocks }), 0.9, 0.9);
+  const air = noiseBed(c, 'lowpass', 150, 0.5, 0.003);
+  return {
+    pump(u) {
+      yunari.pump(u);
+      hoshimi.pump(u);
+    },
+    event(name, arg, at) {
+      if (name === 'hikari') {
+        const pan = typeof arg === 'number' ? arg : 0;
+        sfxTable.get('se_c3_aq_ningyo')?.({ at, pan, note: typeof arg === 'string' ? arg : undefined });
+      } else if (name === 'fushigi') setLevel(clocks.gain, 1.5, at, 0.3);
+      else if (name === 'fushigi_off') setLevel(clocks.gain, 1, at, 0.6);
+    },
+    stop(t) {
+      air.stop(t);
+    },
+  };
+});
+
+/**
+ * amb_c3_aq_shinkai — the deep-sea room, pitch dark: ① almost nothing, the
+ * building's low floor ② the empty tanks' glass 「ゴー」 ③ the marine snow
+ * exhibit's tiny high 「さらさら」 (fushigi_ch3_09; 'fushigi' ×3). グソっ君's
+ * fourteen feet are his own steps (the world's). Nothing frightening.
+ */
+registerAmbience('amb_c3_aq_shinkai', (c) => {
+  const floor = noiseBed(c, 'lowpass', 90, 0.5, 0.003);
+  const glass = noiseBed(c, 'bandpass', 220, 4, 0.002, c.dest, -0.3);
+  const snowLvl = sub(c, 1);
+  const snow = noiseBed(c, 'highpass', 7000, 0.5, 0.0008, snowLvl, 0.35);
+  const sway = modulate(c.g, c.t0, modBuffer(c.g, 8, (t) => Math.sin(t * Math.PI * 2 * 0.5)), snow.gain.gain, 0.0005);
+  return {
+    event(name, _p, at) {
+      if (name === 'fushigi') setLevel(snowLvl.gain, 3, at, 0.5);
+      else if (name === 'fushigi_off') setLevel(snowLvl.gain, 1, at, 2);
+    },
+    stop(t) {
+      floor.stop(t);
+      glass.stop(t);
+      snow.stop(t);
+      sway.stop(t);
+    },
+  };
+});
+
+/**
+ * amb_c3_aq_esa — the old keeper's room (feeding times): the quietest room
+ * (ポコシャ's small voice is heard best): the stopped clock and the stopped
+ * fridge make no sound; only the air before the whiteboard. The sea outside
+ * (12:01 out there) is the map's second bed (amb_c3_umi { vol .2, lp 800 }).
+ */
+registerAmbience('amb_c3_aq_esa', (c) => {
+  const air = noiseBed(c, 'lowpass', 300, 0.5, 0.002);
+  return {
+    stop(t) {
+      air.stop(t);
+    },
+  };
+});
+
+/**
+ * amb_c3_aq_souko — the feed store (an old walk-in freezer, stopped): ① the
+ * metal lining's small 「キン」 now and then (20–40 s) ② the corridor outside:
+ * the exit signs, through the door (×.3, LP 300). 'yoru' (S22: night in the
+ * store room only): ① ×.5, ② gone; 'asa' brings them back. エゴ's trolley is
+ * its own loop (se_c3_aq_cart).
+ */
+registerAmbience('amb_c3_aq_souko', (c) => {
+  const creakLvl = sub(c, 1);
+  const kin = new Every(c, 20, 40, (t) => {
+    const p = c.rng.range(-0.6, 0.6);
+    v(c, { at: t, wave: 'sine', freq: 1800, dur: 0.01, attack: 0.002, decay: 0.6, sustain: 0, release: 0.1, vol: 0.0015, pan: p, reverb: 0.2 }, creakLvl);
+    v(c, { at: t, wave: 'sine', freq: 2900, dur: 0.01, attack: 0.002, decay: 0.45, sustain: 0, release: 0.1, vol: 0.0008, pan: p }, creakLvl);
+  }, 4, 15);
+  const outLvl = sub(c, 1);
+  const out = exitSign(c, 0.3, lowpass(c, 300, outLvl));
+  return {
+    pump: (u) => kin.pump(u),
+    event(name, _p, at) {
+      if (name === 'yoru') {
+        setLevel(creakLvl.gain, 0.5, at, 2);
+        setLevel(outLvl.gain, 0, at, 2);
+      } else if (name === 'asa') {
+        setLevel(creakLvl.gain, 1, at, 2);
+        setLevel(outLvl.gain, 1, at, 2);
+      }
+    },
+    stop(t) {
+      out.stop(t);
+    },
+  };
+});
+
+/**
+ * amb_c3_aq_hall — the great tank's hall: ① the empty tank's air humming in a
+ * huge glass box ② a faint wind high under the roof ③ while ツガオ sits, the
+ * bench's wood creaks now and then (40–80 s; 'tsugao_off' / 'tsugao_on').
+ * 'hiru' (S28 on: daylight comes into the tank): ① sinks to ×.5 over 20 s.
+ */
+registerAmbience('amb_c3_aq_hall', (c) => {
+  const tankLvl = sub(c, 1);
+  const lo = noiseBed(c, 'bandpass', 110, 2, 0.005, tankLvl);
+  const hi = noiseBed(c, 'bandpass', 330, 4, 0.002, tankLvl);
+  const breathe = modulate(c.g, c.t0, modBuffer(c.g, 30, smoothRandom(c.rng, 0.05, 0.15)), lo.gain.gain, 0.0015);
+  const roof = noiseBed(c, 'highpass', 2000, 0.5, 0.001);
+  let bench = true;
+  const creak = new Every(c, 40, 80, (t) => {
+    if (bench) v(c, { at: t, wave: 'sine', freq: 400, freqEnd: 380, glide: 0.2, dur: 0.2, attack: 0.03, decay: 0.1, sustain: 0.6, release: 0.06, vol: 0.002, pan: 0.15, filter: { type: 'bandpass', freq: 400, q: 3 } });
+  }, 6, 20);
+  return {
+    pump: (u) => creak.pump(u),
+    event(name, _p, at) {
+      if (name === 'tsugao_off') bench = false;
+      else if (name === 'tsugao_on') bench = true;
+      else if (name === 'hiru') setLevel(tankLvl.gain, 0.5, at, 20);
+    },
+    stop(t) {
+      lo.stop(t);
+      hi.stop(t);
+      breathe.stop(t);
+      roof.stop(t);
+    },
+  };
+});
+
 export const CH3_AMBIENCE_IDS = [
   'amb_c3_umi', 'amb_c3_semi', 'amb_c3_tori', 'amb_c3_mikan', 'amb_c3_minato', 'amb_c3_ichiba', 'amb_c3_ichiba_out',
   'amb_c3_shokudo', 'amb_c3_shokudo_out', 'amb_c3_himono', 'amb_c3_bouhatei', 'amb_c3_kaisui', 'amb_c3_siren_hum',
   'amb_c3_siren_hold', 'amb_c3_keitora', 'amb_c3_hirumae', 'amb_c3_siren_room', 'amb_c3_toudai', 'amb_c3_uminoie', 'amb_c3_suichu',
+  'amb_c3_aq_kan', 'amb_c3_aq_diorama', 'amb_c3_aq_shinkai', 'amb_c3_aq_esa', 'amb_c3_aq_souko', 'amb_c3_aq_hall',
 ];
 

@@ -17,6 +17,7 @@ import type { FieldScene, PropInst } from './field';
 import { css, HOSHI_INDOOR_BASE, HOSHI_INDOOR_MORNING, INDOOR_MUL, INDOOR_MUL_C0, shadowDir, type RGB } from './lighting';
 import { cellAt, groundAt, isCh2Map, isCh3Map } from './maps';
 import { c3Positional, c3PositionalBeds } from './c3audio';
+import { c3DarkHere, paintC3Lights } from './c3dark';
 import { ch3Hirumae } from './umizoi';
 import type { Actor } from './actor';
 import { hud } from './hud';
@@ -1793,9 +1794,21 @@ export class Renderer {
     lx.globalCompositeOperation = 'source-over';
     // (夕鳴町's rooms at 11:10 in chapter 3, 62 5.2: the day through the windows)
     const dayRoom = indoor && !ch2 && ch3Hirumae();
-    const base = ch2 ? hoshiBase(f) : dayRoom ? css(INDOOR_MUL_C0) : indoor ? css(indoorMul(st, gd.night, this.mapLit)) : css(gd.mul);
+    // (the old aquarium's rooms, chapter 3 stage 3: each room's own dimness, 62 1.1)
+    const c3Base = indoor && !ch2 && isCh3Map(f.map.def) ? f.map.def.lightBase : undefined;
+    const base = ch2 ? hoshiBase(f) : c3Base ?? (dayRoom ? css(INDOOR_MUL_C0) : indoor ? css(indoorMul(st, gd.night, this.mapLit)) : css(gd.mul));
     lx.fillStyle = base;
     lx.fillRect(0, 0, W, H);
+    if (!ch2 && c3DarkHere(f)) {
+      // the deep-sea room / the store's night (62 1.7・8.5): chapter 2's dark, the stamp case's 朱 and グソっ君's eyes
+      lx.save();
+      lx.translate(-cx, -cy);
+      lx.clip(this.roomClip());
+      lx.setTransform(1, 0, 0, 1, 0, 0);
+      f.light.paint(lx, cx, cy, base, W, H);
+      lx.restore();
+      paintC3Lights(f, lx, cx, cy);
+    }
     if (ch2) {
       // regions of another base (the hallway by the meeting room, 52 4.0)
       for (const r of f.map.def.lightRegions ?? []) {

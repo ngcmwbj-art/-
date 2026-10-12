@@ -12,12 +12,14 @@
 
 import { playSirenFull } from './chime';
 import { DRM, INS, sirenNote } from './instruments';
-import { cur, dbToGain } from './engine';
-import { c3Noon1201, registerSfx } from './index';
+import { cur, dbToGain, midiHz, noteMidi } from './engine';
+import { c3Noon1201, registerSfx, registerSfxLoop } from './index';
 import { seTrim, trimOr1 } from './mix';
-import { duck } from './music';
-import { layer, se, sub, type SeCtx } from './recipe';
-import { sfxInfo, sfxTable } from './registry';
+import { duck, duckAmbience } from './music';
+import { layer, parseLayer, se, sub, type SeCtx } from './recipe';
+import { sfxInfo, sfxTable, type LoopHandle, type SfxOpts } from './registry';
+import { atTime } from './clock';
+import { VOICES } from './voices';
 
 const G_OPEN = '第3章：序・夕鳴町の昼前・荷台';
 const G_MINATO = '第3章：港と町';
@@ -636,3 +638,376 @@ se('se_c3_wana_m7', {
     [38, 39, 38, 33].forEach((m, i) => INS.ins_sub({ t: c.t + i * half, midi: m, dur: half * 0.95, vel: 1, dest: c.dest, o: { vol: 0.08 * c.vol } }));
   },
 });
+
+// ============================================================================
+// 第3期 (S15〜S24): 旧水族館, ツガオの初戦, ヤキソバン, ヒロスケ・ポコシャ戦
+
+const G_AQ = '第3章：旧水族館';
+const G_YK = '第3章：ヤキソバンとまだまだ団';
+CH3_SE_GROUPS.push(G_AQ, G_YK);
+
+/**
+ * The old aquarium's ceiling speakers (bus_pa 'kannai', 63 3.3): like viaUmi,
+ * the layers go into the PA. Offline renders (QA) hear the 館内 voicing.
+ */
+function viaKannai(c: SeCtx, id: string): SeCtx {
+  const g = cur();
+  if (g.offline && g.pa.mode !== 'kannai') g.pa.setMode('kannai', 0);
+  g.pa.open(c.t);
+  g.pa.wake(c.t + 4);
+  return { ...c, dest: g.pa.input, vol: c.vol * trimOr1(seTrim(id)), rev: 0 };
+}
+
+/** A voice's base note as midi (63 8.9: a doll lights up in its person's voice). */
+function voiceBaseMidi(voiceId: string | undefined): number | null {
+  if (!voiceId) return null;
+  const n = noteMidi(voiceId);
+  if (!Number.isNaN(n)) return n;
+  const v = VOICES[voiceId.startsWith('npc_') ? voiceId.slice(4) : voiceId];
+  if (!v) return null;
+  return typeof v.base === 'number' ? 69 + 12 * Math.log2(Math.max(1, v.base) / 440) : noteMidi(v.base);
+}
+// ---- 8.6 戦闘：ツガオ（初戦の「はじく」、決戦の技）・係長の声
+
+se('se_c3_hajiku', {
+  label: '朱のインクが黒い「まだ」にはじかれる（ツガオ初戦）',
+  group: G_BATTLE,
+  fn(c) {
+    // the head of the stamp only (no grade)
+    layer(c, 'sine f=150→90/40 env=0/40/0/15 dur=12 v=.02');
+    layer(c, 'noise env=0/25/0/10 dur=8 v=.012 flt=LP1200');
+    // 「ぱちっ」: oil throwing off a drop of water
+    layer(c, 'noise env=0/40/0/15 dur=15 v=.012 flt=BP3200q2 at=60');
+    layer(c, 'sine f=900→1400/40 env=0/50/0/20 dur=20 v=.006 at=60');
+  },
+});
+se('se_c3_chokin', {
+  label: 'ツガオの「休みの 貯金」（缶の貯金箱）',
+  group: G_BATTLE,
+  layers: ['tri f=2200 env=0/40/0/15 dur=8 v=.010 rep=3x90 rnd=15', 'sine f=300→220/80 env=0/100/0/30 dur=30 v=.012 at=380'],
+});
+se('se_c3_fubuki', {
+  label: 'ツガオの「伝票」（40年ぶんの伝票がふぶく）',
+  group: G_BATTLE,
+  fn(c) {
+    layer(c, 'noise env=100/800/.3/400 dur=900 v=.016 flt=BP2600q0.7 am=30/.6');
+    // paper hitting, one sheet at a time (40–90 ms apart, 1.2 s)
+    let at = 0;
+    let k = 0;
+    while (at < 1200) {
+      layer(c, 'noise env=0/10/0/5 dur=4 v=.006 flt=HP4000', { at });
+      k++;
+      at += cur().offline ? 65 : 40 + Math.random() * 50;
+      if (k > 40) break;
+    }
+  },
+});
+/** 係長の声の黒い吹き出しが降ってくる（61 16.7: 300 ms, a 2 px bounce）: soft, never a blow. */
+se('se_c3_koe', {
+  label: '係長の声の黒い吹き出しが降る（ぼすっ）',
+  group: G_BATTLE,
+  max: 3,
+  layers: [
+    // falling air
+    'noise env=200/80/0/40 dur=220 v=.004 flt=BP700q1.2',
+    // lands: a dull, cushioned thump, and the little bounce
+    'sine f=180→110/60 env=0/90/0/30 dur=30 v=.018 at=300',
+    'noise env=0/40/0/20 dur=15 v=.006 flt=LP600 at=300',
+    'sine f=150→120/30 env=0/40/0/15 dur=10 v=.006 at=380',
+  ],
+});
+/** A tsukkomi breaks a balloon: it comes apart like a paper bag, and the air clears. */
+se('se_c3_koe_break', {
+  label: '吹き出しがツッコミでほどける（ぱりっ、すっ）',
+  group: G_BATTLE,
+  max: 3,
+  layers: [
+    'noise env=0/60/0/25 dur=30 v=.016 flt=BP2400q0.9 am=60/.7',
+    'tri f=1500→2400/60 env=0/80/0/30 dur=30 v=.006 at=20',
+    // the air clears (a light sparkle, not a win)
+    'sine f=A5 env=5/250/0/120 dur=50 v=.004 at=120',
+    'sine f=E6 env=5/220/0/120 dur=40 v=.003 at=180',
+  ],
+});
+
+// ---- 8.7 戦闘：ヤキソバンのわざ（61 5章）
+
+se('se_c3_spatula', {
+  label: 'ヘラ返し（シャッ、カン）',
+  group: G_YK,
+  fn(c) {
+    layer(c, 'noise env=5/120/0/40 dur=80 v=.014 flt=BP4200q1.5');
+    DRM.drm_hera({ t: c.t + 0.12 / c.pitch, vel: 0.8 * c.vol, dest: c.dest });
+  },
+});
+/** 鉄板. pitch 1.0 / 1.12 / 1.25 with the heat (61 5.5). */
+se('se_c3_teppan', {
+  label: '鉄板（カン、カン、ジュワッ。pitch で熱の段）',
+  group: G_YK,
+  fn(c) {
+    DRM.drm_hera({ t: c.t, vel: 0.9 * c.vol, dest: c.dest });
+    DRM.drm_hera({ t: c.t + 0.18, vel: 0.9 * c.vol, dest: c.dest });
+    layer(c, 'noise env=10/700/.2/300 dur=600 v=.020 flt=BP4200q0.9 am=25/.5 at=300');
+    layer(c, 'noise env=0/500/0/200 dur=300 v=.006 flt=LP500 at=300');
+  },
+});
+se('se_c3_kosogeru', {
+  label: 'こそげる（ガリッ、ガリッ、ちん）',
+  group: G_YK,
+  layers: [
+    'noise env=0/90/0/30 dur=60 v=.016 flt=BP2600q1 am=70/.8 rep=2x260',
+    'saw f=320→260/60 env=0/80/0/30 dur=40 v=.004 flt=BP900q2 rep=2x260',
+    'sine f=D6 env=5/300/0/150 dur=60 v=.006 at=560',
+  ],
+});
+se('se_c3_oomori', {
+  label: '大盛り（ドサッと湯気。回復）',
+  group: G_YK,
+  fn(c) {
+    layer(c, 'noise env=5/150/0/80 dur=100 v=.014 flt=LP1200');
+    layer(c, 'sine f=150→110/100 env=0/150/0/60 dur=60 v=.020');
+    layer(c, 'noise env=200/400/0/300 dur=300 v=.004 flt=BP1800q0.5 at=250');
+    sub(c, 'se_heal', { at: 400, vol: 0.6 });
+  },
+});
+
+// ---- 8.10 まだまだ団：ぴーちゃんの大きな声（S24 の決着。めんどりの「コケッ、コケッ、コケーーッ」）
+
+/** A hen's big call (never a rooster's コケコッコー: ぴーちゃん is a hen, 53 1.6). */
+se('se_piichan_big', {
+  label: 'ぴーちゃんの大きな声（コケッ、コケッ、コケーーッ）',
+  group: G_YK,
+  max: 1,
+  fn(c) {
+    for (const at of [0, 380]) {
+      layer(c, 'sq f=900→1500/50 env=2/60/0/20 dur=50 v=.022 flt=BP2000q3', { at });
+      layer(c, 'sq f=1200→800/60 env=2/60/0/20 dur=60 v=.018 flt=BP2000q3', { at: at + 60 });
+    }
+    // 「コケーーッ」: up, and settling as it stretches
+    layer(c, 'sq f=1000→1700/300 env=10/0/1/40 dur=300 v=.024 flt=BP2200q2.5 vib=7/15 at=760');
+    layer(c, 'sq f=1700→1300/600 env=0/0/1/200 dur=600 v=.024 flt=BP2200q2.5 vib=7/15 at=1060');
+    sub(c, 'se_piichan_flap', { at: 700 });
+  },
+});
+// the aliases (63 0.2): ぴーちゃんの見回り = her 「ココッ」; the hall's key
+for (const [id, to, label] of [
+  ['se_c3_pii', 'se_piichan_koko', '（別名）ぴーちゃんの見回り ＝ se_piichan_koko'],
+  ['se_c3_key', 'se_c3_aq_key', '（別名）ホールの鍵 ＝ se_c3_aq_key'],
+  ['se_c3_aq_pa_open', 'se_h_pa_open', '（別名）館内放送のマイク ＝ se_h_pa_open（kannai）'],
+] as const) {
+  registerSfx(id, (o) => sfxTable.get(to)?.(o));
+  sfxInfo.set(id, { label, group: id === 'se_c3_pii' ? G_YK : G_AQ });
+}
+
+// ---- 8.9 旧水族館（S15〜S24）
+
+se('se_c3_aq_door', {
+  label: '旧水族館のガラス戸（手で押す、ゴゴ…）',
+  group: G_AQ,
+  layers: ['noise env=50/600/0/200 dur=600 v=.010 flt=LP700 am=15/.3', 'sine f=1200→1100/500 env=50/400/0/100 dur=400 v=.002 flt=BP1200q4'],
+});
+se('se_c3_aq_ticket', {
+  label: '入館券を切る（ビリッ）',
+  group: G_AQ,
+  layers: ['noise env=0/250/0/40 dur=200 v=.012 flt=BP3200q1.2 am=90/.8'],
+});
+/** The aquarium's PA chime: E5 C5 G5 on the vibes, through the ceiling speakers (not like a real one). */
+se('se_c3_aq_pa_chime', {
+  label: '館内放送のチャイム（ポーン・ポーン・ポーン）',
+  group: G_AQ,
+  max: 1,
+  fn(c) {
+    const p = viaKannai(c, 'se_c3_aq_pa_chime');
+    notes(p, 'ins_fm_vibes', [76, 72, 79], { gap: 450, len: 420, last: 900, vol: 0.06 });
+    // the music and the beds step back (10.3: −6 / −3 dB)
+    if (!cur().offline) {
+      duck(dbToGain(-6), 0.3, 1.6, 0.8, c.t);
+      duckAmbience(dbToGain(-3), 0.3, 1.6, 0.8);
+    }
+  },
+});
+se('se_c3_aq_denpyo', {
+  label: '伝票をめくる（ぱらっ、日付印）',
+  group: G_AQ,
+  rand: [0.04, 0.1],
+  layers: ['noise env=2/90/0/40 dur=50 v=.010 flt=BP2600q0.8', 'sine f=240→200/40 env=0/60/0/20 dur=15 v=.010 at=150'],
+});
+/** The blank slip (8月30日): the turn, then only the small 「しん」 of white paper; the music dips one beat. */
+se('se_c3_aq_hakushi', {
+  label: '白紙の伝票（めくって、しん）',
+  group: G_AQ,
+  fn(c) {
+    layer(c, 'noise env=2/90/0/40 dur=50 v=.008 flt=BP2600q0.8');
+    layer(c, 'noise env=200/400/0/200 dur=300 v=.002 flt=HP5000 at=200');
+    if (!cur().offline) duck(dbToGain(-6), 0.05, 0.75, 0.3, c.t + 0.1);
+  },
+});
+/**
+ * A doll of the diorama lights up: a tiny 「ちん」 two octaves over its
+ * person's voice (opts.note: a voice id such as 'mamekichi', or a note).
+ */
+se('se_c3_aq_ningyo', {
+  label: 'ジオラマの人形が光る（その人の声の高さで「ちん」）',
+  group: G_AQ,
+  max: 3,
+  fn(c) {
+    const m = (voiceBaseMidi(c.opts.note) ?? 69) + 24;
+    const f = midiHz(Math.min(100, m));
+    layer(c, { ...parseLayer('sine env=2/350/0/120 dur=40 v=.006'), f });
+    layer(c, { ...parseLayer('sine env=2/250/0/100 dur=30 v=.003 at=40'), f: f * 1.5 });
+  },
+});
+se('se_c3_aq_glass', {
+  label: 'グソっ君が空の水槽のガラスに、はさみを当てる（こつ）',
+  group: G_AQ,
+  max: 1,
+  layers: ['sine f=1900 env=0/40/0/20 dur=10 v=.006', 'sine f=2600 env=0/900/0/400 dur=300 v=.0015 at=10 rev=.6'],
+});
+se('se_c3_aq_nisshi', {
+  label: '飼育日誌の切れはしを拾う',
+  group: G_AQ,
+  layers: ['noise env=5/120/0/60 dur=70 v=.008 flt=BP1800q0.7'],
+});
+se('se_c3_aq_esa_fuda', {
+  label: 'えさの時間の札を並べる（ぱちっ）',
+  group: G_AQ,
+  rand: [0.03, 0.08],
+  layers: ['tri f=1500 env=0/30/0/10 dur=6 v=.012', 'noise env=0/15/0/5 dur=5 v=.006 flt=HP3000'],
+});
+/** M11 えさの鐘: a hand bell, three strokes 0.4 s apart. Only S19 and S30 (1.3). */
+se('se_c3_aq_esa_bell', {
+  label: 'えさの鐘（M11。手鈴を3打）',
+  group: G_AQ,
+  max: 1,
+  layers: ['sine f=E6 env=1/500/0/150 dur=40 v=.012 rep=3x400', 'sine f=4120 env=1/300/0/100 dur=30 v=.006 rep=3x400', 'noise env=0/15/0/5 dur=5 v=.004 flt=BP4000q2 rep=3x400'],
+});
+se('se_c3_aq_key', {
+  label: 'ホールの鍵（チャリ、カチャン）',
+  group: G_AQ,
+  fn(c) {
+    sub(c, 'se_truck_key', { vol: 0.8 });
+    layer(c, 'tri f=1200→900/30 env=0/50/0/20 dur=15 v=.012 at=250');
+  },
+});
+/** ツガオ's yawn: one long low 「あ」 of his voice, D3 sinking to C3 — never a word. */
+se('se_c3_aq_akubi', {
+  label: 'ツガオのあくび（低い「あ」が下がる）',
+  group: G_AQ,
+  max: 1,
+  fn(c) {
+    layer(c, 'saw f=D3→C3/900 env=80/0/1/200 dur=900 v=.030 flt=LP900');
+    // the 「あ」: two formants
+    layer(c, 'saw f=D3→C3/900 env=80/0/1/200 dur=900 v=.012 flt=BP800q5');
+    layer(c, 'saw f=D3→C3/900 env=80/0/1/200 dur=900 v=.006 flt=BP1250q7');
+  },
+});
+se('se_c3_aq_reizo', {
+  label: '古い冷凍庫の扉（ボフッ、ガチャン）',
+  group: G_AQ,
+  max: 1,
+  layers: ['noise env=0/120/0/80 dur=80 v=.014 flt=LP500', 'sine f=110→80/80 env=0/150/0/60 dur=60 v=.020 at=200', 'tri f=900 env=0/40/0/15 dur=10 v=.012 at=600'],
+});
+se('se_c3_aq_hasso', {
+  label: '発泡スチロールの空き箱（きゅっ）',
+  group: G_AQ,
+  rand: [0.08, 0.15],
+  layers: ['saw f=900→700/80 env=0/100/0/30 dur=60 v=.003 flt=BP1600q3'],
+});
+se('se_c3_aq_imo_waru', {
+  label: '冷めた焼き芋を半分に割る（新聞紙、ほくっ）',
+  group: G_AQ,
+  max: 1,
+  layers: ['noise env=5/100/0/40 dur=60 v=.008 flt=BP1800q0.7', 'noise env=0/80/0/40 dur=40 v=.008 flt=LP600 at=250'],
+});
+/** エゴ's card comes half out of the slot and stops (se_dakoku's 「シュッ」, cut). */
+se('se_c3_aq_card', {
+  label: '白紙のカードが半分だけ出る（シュッ…）',
+  group: G_AQ,
+  max: 1,
+  layers: ['noise env=20/80/1/0 dur=80 v=.010 flt=HP3000'],
+});
+se('se_c3_aq_kachi', {
+  label: '倉庫の錠が外れる（カチ）',
+  group: G_AQ,
+  max: 1,
+  layers: ['tri f=2400 env=0/25/0/8 dur=6 v=.014', 'noise env=0/10/0/5 dur=4 v=.006 flt=HP4000'],
+});
+/** The deep-sea room's black curtain: a thick cloth 「ばさ」, and for 0.4 s everything sounds farther (LP 1200 Hz). */
+se('se_c3_curtain', {
+  label: '深海の展示室の黒いカーテンをくぐる（ばさ）',
+  group: G_AQ,
+  max: 1,
+  fn(c) {
+    layer(c, 'noise env=10/300/0/100 dur=150 v=.010 flt=BP900q0.6');
+    const g = cur();
+    if (g.offline) return;
+    const f = g.musicFilter.frequency;
+    const t = c.t;
+    f.cancelScheduledValues(t);
+    f.setValueAtTime(f.value, t);
+    f.setTargetAtTime(1200, t, 0.04);
+    f.setTargetAtTime(20000, t + 0.4, 0.12);
+    duckAmbience(dbToGain(-6), 0.05, 0.3, 0.3);
+  },
+});
+
+/**
+ * エゴの台車 (8.9): a loop — small casters rolling, a 「ことん」 at every seam
+ * of the floor. sfxLoop('se_c3_aq_cart'); move it with setPan / setVol (near
+ * and far), stop it with stop(fade).
+ */
+registerSfxLoop('se_c3_aq_cart', (o) => cartLoop(o));
+sfxInfo.set('se_c3_aq_cart', { label: 'エゴの台車（ゴロゴロ、ことん。ループ）', group: G_AQ });
+
+function cartLoop(opts?: SfxOpts): LoopHandle {
+  const g = cur();
+  const out = g.ctx.createGain();
+  const base = (opts?.vol ?? 1) * trimOr1(seTrim('se_c3_aq_cart'));
+  out.gain.value = base;
+  const lp = g.ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 3000;
+  const pan = g.ctx.createStereoPanner();
+  pan.pan.value = opts?.pan ?? 0;
+  out.connect(lp);
+  lp.connect(pan);
+  pan.connect(g.sfxBus);
+  const send = g.ctx.createGain();
+  send.gain.value = 0.3;
+  pan.connect(send);
+  send.connect(g.fxSend);
+  const c: SeCtx = { t: g.ctx.currentTime + 0.02, pitch: opts?.pitch ?? 1, vol: 1, dest: out, rev: 0, opts: opts ?? {} };
+  // the casters rolling (held until stop)
+  const rolling = layer(c, 'noise env=100/0/1/200 dur=600000 v=.006 flt=LP800 am=14/.4');
+  let next = c.t + 0.3;
+  let stopped = false;
+  const pump = () => {
+    if (stopped) return;
+    const until = g.ctx.currentTime + 0.2;
+    while (next < until) {
+      layer({ ...c, t: next }, 'tri f=300 env=0/40/0/20 dur=10 v=.006');
+      next += 0.6 + (g.offline ? 0.15 : Math.random() * 0.3);
+    }
+    atTime(g.ctx.currentTime + 0.08, pump);
+  };
+  pump();
+  return {
+    set(param, value) {
+      const t = g.ctx.currentTime;
+      // 'vol' 0..1 (near / far), 'pan' −1..1, 'lp' Hz (behind the door)
+      if (param === 'vol') out.gain.setTargetAtTime(base * Math.max(0, value), t, 0.15);
+      if (param === 'pan') pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, value)), t, 0.15);
+      if (param === 'lp') lp.frequency.setTargetAtTime(Math.max(200, value), t, 0.15);
+    },
+    stop(fade = 0.4) {
+      if (stopped) return;
+      stopped = true;
+      const t = g.ctx.currentTime;
+      out.gain.cancelScheduledValues(t);
+      out.gain.setValueAtTime(out.gain.value, t);
+      out.gain.linearRampToValueAtTime(0, t + Math.max(0.02, fade));
+      for (const h of rolling) h.stop(0.02, t + Math.max(0.02, fade));
+      setTimeout(() => out.disconnect(), (fade + 1.5) * 1000);
+    },
+  };
+}

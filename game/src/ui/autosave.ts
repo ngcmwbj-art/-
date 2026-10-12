@@ -70,6 +70,14 @@ export function setAutosaveClock(fn: () => number): void {
   clockBottom = fn;
 }
 
+/**
+ * Save at the next free moment even without a map change (the story's own
+ * オートセーブ: 60_ch3_story 10.32, after S19 and S23 inside one room).
+ */
+export function autosaveSoon(): void {
+  savedExp = -2;
+}
+
 /** Forget the baseline (a new game or a load starts a new one). */
 export function resetAutosave(): void {
   savedMap = null;

@@ -118,7 +118,9 @@ export class PartyUnit {
       !this.has('status_tsukamare') &&
       !this.has('status_toosenbo') &&
       !this.has('status_henji') &&
-      !this.has('status_rusu')
+      !this.has('status_rusu') &&
+      !this.has('status_c3_ashi') &&
+      !this.has('status_c3_mada')
     );
   }
   /** Can be targeted by enemies. */
@@ -165,6 +167,8 @@ export interface EnemyStatus {
   c3_maki?: boolean;
   /** ごちそうさま: its repeating (healing) move is over for this battle (61 6.2). */
   c3_gochisou?: boolean;
+  /** status_c3_chijimu ちぢこまり (ポコシャ: 係長の 声が あるあいだ。61 13.5). */
+  c3_chijimu?: boolean;
 }
 
 /**
@@ -277,6 +281,7 @@ export class EnemyUnit {
     f.futa = this.status.c3_futa ? 1 : 0;
     f.maki = this.status.c3_maki ? 1 : 0;
     f.gochisou = this.status.c3_gochisou ? 1 : 0;
+    f.chijimu = this.status.c3_chijimu ? 1 : 0;
     f.settled = this.mem.settled ? 1 : 0;
     return { pose: this.pose, t: this.poseT, gt, skill: this.skill, hpRate: this.hpRate, flags: f, params: this.params };
   }
@@ -428,4 +433,7 @@ export type PartyCmd =
   | { kind: 'guard'; u: PartyUnit }
   | { kind: 'flee'; u: PartyUnit }
   | { kind: 'nori'; u: PartyUnit }
-  | { kind: 'skip'; u: PartyUnit; reason: string };
+  | { kind: 'skip'; u: PartyUnit; reason: string }
+  // 第3章 (61 5.4〜5.6・13.5): ヤキソバンの わざ, and ツッコむ on the 係長の 声
+  | { kind: 'yaki'; u: PartyUnit; skill: string; target: PartyUnit | EnemyUnit | null }
+  | { kind: 'koe'; u: PartyUnit };

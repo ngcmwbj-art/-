@@ -646,6 +646,14 @@ export const AMB_CONTEXT: {
   { amb: 'amb_c3_toudai', song: 'bgm_umi_noon', stage: 0, room: 3, role: 'character', underMin: 2, where: '灯台の中' },
   { amb: 'amb_c3_uminoie', song: 'bgm_umi_noon', stage: 0, room: 4, role: 'bed', underMin: 2, where: '海の家' },
   { amb: 'amb_c3_suichu', song: 'bgm_umi_noon', stage: 0, room: 5, role: 'bed', underMin: 1, where: '海の中' },
+  // the third period: 旧水族館 — very small beds (63 10.2: the steps, the voices and the paper carry it)
+  { amb: 'amb_c3_aq_kan', song: 'bgm_suizokukan', stage: 0, room: 0, role: 'bed', underMin: 4, where: '旧水族館の入口・回廊' },
+  { amb: 'amb_c3_aq_diorama', song: 'bgm_suizokukan', stage: 0, room: 2, role: 'character', underMin: 2, where: 'ジオラマの部屋' },
+  { amb: 'amb_c3_aq_shinkai', song: 'bgm_suizokukan', stage: 0, room: 3, role: 'bed', underMin: 0, where: '深海の展示室' },
+  { amb: 'amb_c3_aq_esa', song: 'bgm_suizokukan', stage: 0, room: 4, role: 'bed', underMin: 4, where: 'えさの部屋' },
+  // (the store room has no song: measured against the deep-sea room's, nearly silent)
+  { amb: 'amb_c3_aq_souko', song: 'bgm_suizokukan', stage: 0, room: 3, role: 'bed', underMin: -10, where: 'えさの倉庫（曲なし）' },
+  { amb: 'amb_c3_aq_hall', song: 'bgm_tsugao_hall', stage: 0, role: 'bed', underMin: 3, where: '大水槽のホール' },
 ];
 
 export interface AmbRow { amb: string; song: string; role: string; where: string; underMin?: number; margin: number; band: number; need: number; ambLufs: number; songLufs: number; under: number; peak: number; ok: boolean; bands: number[] }
@@ -1250,7 +1258,7 @@ export function currentTrims() {
 /** Chapter 2's songs (53_ch2_audio): the closing chime's fourth note is sealed in these. */
 const CH2_SONGS = new Set(['bgm_hoshi_night', 'bgm_boss_yobimodoshi', 'bgm_hoshi_morning', 'bgm_tsugao']);
 /** 63 16.1: 海ぞいの町's songs and the truck's (no M7 in them; M9′ only after 12:01). */
-const CH3_TOWN_SONGS = new Set(['bgm_umi_noon', 'bgm_tsugaobin', 'bgm_boss_nariosame', 'bgm_hirugohan']);
+const CH3_TOWN_SONGS = new Set(['bgm_umi_noon', 'bgm_tsugaobin', 'bgm_boss_nariosame', 'bgm_hirugohan', 'bgm_suizokukan', 'bgm_boss_madamada', 'bgm_jingle_yakisoban']);
 const GOCHISOU_OK = new Set(['bgm_umi_noon/harmonica_noon', 'bgm_umi_noon/harmonica', 'bgm_umi_noon/mbox_uw', 'bgm_umi_noon/ichi_lead', 'bgm_hirugohan/lead', 'bgm_hirugohan/ichi_lead']);
 
 /**

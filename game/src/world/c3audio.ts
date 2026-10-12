@@ -34,11 +34,12 @@ interface C3Audio {
 }
 
 const UMI = 'bgm_umi_noon';
+const AQ = 'bgm_suizokukan';
 /** The town's beds outdoors (4.3): 12:00 and 12:01. */
 const OUT_1200 = ['amb_c3_umi', 'amb_c3_semi', 'amb_c3_tori', 'amb_c3_siren_hold', 'amb_c3_minato', 'amb_c3_ichiba_out', 'amb_c3_shokudo_out', 'amb_c3_himono', 'amb_c3_siren_hum', 'amb_c3_bouhatei', 'amb_c3_kaisui', 'amb_c3_mikan'];
 const OUT_1201 = ['amb_c3_umi', 'amb_c3_semi', 'amb_c3_tori', 'amb_c3_minato', 'amb_c3_ichiba_out', 'amb_c3_himono', 'amb_c3_bouhatei', 'amb_c3_kaisui', 'amb_c3_mikan'];
 
-/** 63 4.2 (海ぞいの町 and its rooms; the old aquarium follows with the third period). */
+/** 63 4.2 (海ぞいの町 and its rooms, and the old aquarium). */
 const C3_AUDIO: Record<string, C3Audio> = {
   map_umizoi: {
     space: 'minato',
@@ -109,6 +110,37 @@ const C3_AUDIO: Record<string, C3Audio> = {
     amb: { 1: ['amb_c3_suichu'], 2: ['amb_c3_suichu'] },
     phase: 1,
   },
+  // ---- 旧水族館 (63 4.2, stage 3): bgm_suizokukan moves room to room by its form (0.8 s);
+  // the ceiling speakers (kannai); inside it is still 12:00
+  map_c3_aq_iriguchi: {
+    space: 'suizoku',
+    pa: 'kannai',
+    bgm: { 3: AQ },
+    variant: 'iriguchi',
+    // the sea outside the glass door (12:01 out there)
+    amb: { 3: ['amb_c3_aq_kan', 'amb_c3_umi'] },
+    ambVol: { amb_c3_umi: { vol: 0.3, lp: 1200 } },
+    phase: 2,
+  },
+  map_c3_aq_kairo: { space: 'suizoku', pa: 'kannai', bgm: { 3: AQ }, variant: 'kairo', amb: { 3: ['amb_c3_aq_kan'] }, phase: 2 },
+  map_c3_aq_diorama: { space: 'suizoku', pa: 'kannai', bgm: { 3: AQ }, variant: 'diorama', amb: { 3: ['amb_c3_aq_diorama'] }, phase: 2 },
+  map_c3_aq_shinkai: { space: 'shinkai', pa: 'kannai', bgm: { 3: AQ }, variant: 'shinkai', amb: { 3: ['amb_c3_aq_shinkai'] }, phase: 2 },
+  map_c3_aq_esa: {
+    space: 'room',
+    pa: 'kannai',
+    bgm: { 3: AQ },
+    variant: 'esa',
+    amb: { 3: ['amb_c3_aq_esa', 'amb_c3_umi'] },
+    ambVol: { amb_c3_umi: { vol: 0.2, lp: 800 } },
+    phase: 2,
+  },
+  // the feed store (S21–S23): no song; the events run the night and ヤキソバン
+  map_c3_aq_souko: { space: 'soko', pa: 'kannai', bgm: { 3: null }, amb: { 3: ['amb_c3_aq_souko'] }, phase: 2 },
+  // the corridor outside the store: the events stop the song before S24 (12.18)
+  map_c3_aq_rouka: { space: 'suizoku', pa: 'kannai', bgm: { 3: AQ }, variant: 'rouka', amb: { 3: ['amb_c3_aq_kan'] }, phase: 2 },
+  // 事務所 = chapter 2's cut 7 room (S25): its own song and bed
+  map_c3_aq_jimusho: { space: 'room', pa: 'kannai', bgm: { 3: 'bgm_tsugao' }, amb: { 3: ['amb_tsugao_room'] }, phase: 2 },
+  map_c3_aq_hall: { space: 'suizoku', pa: 'kannai', bgm: { 3: 'bgm_tsugao_hall' }, amb: { 3: ['amb_c3_aq_hall'] }, phase: 2 },
 };
 
 /** Does chapter 3 decide this map's sound now? */
@@ -301,6 +333,8 @@ export function c3Positional(f: FieldScene, playing: string[]): void {
   let indoor = false;
   if (def.id === 'map_umizoi') d = outdoorD = clamp01(Math.hypot(x - TOWER[0], y - TOWER[1]) / 30);
   else if (def.id === 'map_c3_siren') d = 0;
+  // 旧水族館 (3.3): a ceiling speaker in every room — d 0.2 (the deep-sea room has few: 0.5)
+  else if (def.id.startsWith('map_c3_aq')) d = def.id === 'map_c3_aq_shinkai' ? 0.5 : 0.2;
   else if (def.kind === 'indoor') indoor = true;
   if (Math.abs(d - paLast) >= 0.02 || indoor !== paIndoorLast) {
     paLast = d;

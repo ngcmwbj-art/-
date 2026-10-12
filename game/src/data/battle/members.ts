@@ -47,18 +47,36 @@ const KANENARI: GrowthRow[] = [
   { hp: 151, mp: 0, atk: 27, def: 30, spd: 14, luck: 13 },
 ];
 
+/**
+ * ヤキソバン（61 3.4。Lv8〜10 が 本の 値。Lv1〜7 は デバッグで 加えた ときの ための 下の 段で、
+ * 本の ◎の 基準に 合わせて 逆算した 仮の 値）。力持ちで、遅い。
+ */
+const YAKISOBAN: GrowthRow[] = [
+  { hp: 60, mp: 0, atk: 9, def: 8, spd: 3, luck: 4 },
+  { hp: 72, mp: 0, atk: 11, def: 10, spd: 4, luck: 5 },
+  { hp: 84, mp: 0, atk: 14, def: 12, spd: 5, luck: 6 },
+  { hp: 96, mp: 0, atk: 16, def: 14, spd: 6, luck: 7 },
+  { hp: 106, mp: 0, atk: 18, def: 16, spd: 6, luck: 8 },
+  { hp: 117, mp: 0, atk: 20, def: 18, spd: 7, luck: 9 },
+  { hp: 128, mp: 0, atk: 23, def: 20, spd: 8, luck: 11 },
+  { hp: 140, mp: 0, atk: 25, def: 22, spd: 9, luck: 12 },
+  { hp: 152, mp: 0, atk: 27, def: 24, spd: 10, luck: 13 },
+  { hp: 166, mp: 0, atk: 30, def: 26, spd: 11, luck: 14 },
+];
+
 /** 通知表「よくできる◎」thresholds (5.4). */
 export const EXCELLENT: Record<string, Record<StatKey, number>> = {
   minato: { hp: 10, mp: 4, atk: 3, def: 3, spd: 2, luck: 2 },
   kanenari: { hp: 12, mp: 4, atk: 3, def: 3, spd: 2, luck: 2 },
+  yakisoban: { hp: 12, mp: 4, atk: 3, def: 3, spd: 2, luck: 2 },
 };
 
 /** ★2026-09-29 依頼主の指示で カネナリくん→グソっ君（id は 'kanenari' のまま）。 */
-export const MEMBER_NAMES: Record<string, string> = { minato: 'しゅん', kanenari: 'グソっ君' };
+export const MEMBER_NAMES: Record<string, string> = { minato: 'しゅん', kanenari: 'グソっ君', yakisoban: 'ヤキソバン' };
 
 /** Growth-table values for a member at a level (1..10). */
 export function statsFor(memberId: string, level: number): GrowthRow {
-  const t = memberId === 'kanenari' ? KANENARI : MINATO;
+  const t = memberId === 'kanenari' ? KANENARI : memberId === 'yakisoban' ? YAKISOBAN : MINATO;
   const i = Math.max(1, Math.min(t.length, Math.floor(level))) - 1;
   return { ...t[i] };
 }
@@ -171,6 +189,7 @@ export function syncProgressSkills(): void {
     for (const s of ['skill_tackle', 'skill_fuusen', 'skill_kane']) learnSkill('kanenari', s);
     if (k.level >= 3) learnSkill('kanenari', 'skill_goaisatsu');
   }
+  if (state.party.some((m) => m.id === 'yakisoban')) for (const s of YAKISOBAN_SKILLS) learnSkill('yakisoban', s);
 }
 
 /**
@@ -375,4 +394,27 @@ export function newChapter3Party(): void {
   ];
   state.money = 500;
   syncProgressSkills();
+}
+
+// ---- ヤキソバン（61 5.1・21.2） ------------------------------------------------------------------
+
+/** ヤキソバンの わざ（ぜんぶ 加入の ときから）：ヘラ（ふつうの 攻撃）、こそげる、鉄板、大盛り。 */
+export const YAKISOBAN_SKILLS = ['skill_yk_hera', 'skill_yk_kosogeru', 'skill_yk_teppan', 'skill_yk_oomori'];
+
+/**
+ * 61 5.1 `addYakisoban()`（S23 の 終わりに イベントが 呼ぶ）：しゅんと 同じ level と exp、HP は 満タン。
+ * 隊列は しゅん → グソっ君 → ヤキソバン。何度 呼んでも 1人。
+ */
+export function addYakisoban(): Member {
+  const existing = state.party.find((m) => m.id === 'yakisoban');
+  if (existing) return existing;
+  const mi = state.party.find((m) => m.id === 'minato');
+  const y = makeMember('yakisoban', mi?.level ?? 8, mi?.exp ?? CH3_START_EXP, [...YAKISOBAN_SKILLS]);
+  state.party.push(y);
+  return y;
+}
+
+/** 61 21.2 `removeYakisoban()`：S29 から 隊列に いない（経験値と 成長は 残さない：クリア後に 戦闘は ない）。 */
+export function removeYakisoban(): void {
+  state.party = state.party.filter((m) => m.id !== 'yakisoban');
 }

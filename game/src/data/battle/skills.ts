@@ -76,6 +76,23 @@ const party: SkillDef[] = [
     id: 'skill_kane', name: 'まるくなる', user: 'kanenari', kind: 'pr', ct: 0, target: 'none', input: 'none',
     noDamage: true, desc: ['まるく なる。……なれない。', 'すべった 空気で キレが たまる。'],
   },
+  // ---- ヤキソバン（61 5.3〜5.6。文は 60 7.3） ----
+  {
+    id: 'skill_yk_hera', name: 'ヘラ', user: 'yakisoban', kind: 'attack', ct: 0, target: 'enemy', power: 1.0,
+    attr: 'da', input: 'ring', desc: ['両手の ヘラで、焼きそばを', '返すように 打つ。輪で いい音。'],
+  },
+  {
+    id: 'skill_yk_kosogeru', name: 'こそげる', user: 'yakisoban', kind: 'pr', ct: 2, target: 'ally', input: 'none',
+    noDamage: true, desc: ['ヘラで 焦げを こそげる。味方の', '状態を 治す／敵の 強さを 戻す。'],
+  },
+  {
+    id: 'skill_yk_teppan', name: '鉄板', user: 'yakisoban', kind: 'pr', ct: 1, target: 'none', input: 'none',
+    noDamage: true, desc: ['鉄板を あたためる。熱は 3まで。', '熱で 味方が あたたまる。'],
+  },
+  {
+    id: 'skill_yk_oomori', name: '大盛り', user: 'yakisoban', kind: 'pr', ct: 2, target: 'ally', input: 'none',
+    noDamage: true, desc: ['大盛りを よそう。熱が 多いほど', 'よく 回復。使うと 熱は 0に。'],
+  },
   {
     id: 'skill_noritsukkomi', name: 'ノリツッコミ', user: 'both', kind: 'combo', target: 'enemies', attr: 'wara',
     input: 'none', desc: ['グソっ君が ボケて、しゅんが', '全力で ツッコむ。敵全体に 大ダメージ。'],
@@ -255,6 +272,17 @@ const enemies: SkillDef[] = [
     id: 'skill_yoko_pihyoro', name: 'ピーヒョロロ', target: 'allies', windupMs: 700, tsukkomi: [2], noDamage: true,
     status: { id: 'buff_spd', chance: 0.6, turns: 3, stage: -1 },
   }),
+  // ジュンロ（任意。旧水族館。61 9.5）
+  enemy({ id: 'skill_junro_kochira', name: '順路は こちら', target: 'allies', power: 0.4, hits: [0], windupMs: 600, tsukkomi: [1] }),
+  enemy({ id: 'skill_junro_modoru', name: '入口へ もどす', target: 'enemy', power: 1.1, hits: [0], windupMs: 500, tsukkomi: [2] }),
+  // ツガオ初戦（61 12。「！」なし）
+  enemy({ id: 'skill_tsugao_aori', name: '煽る', target: 'none', noDamage: true }),
+  // ヒロスケ・ポコシャ（61 13。攻撃しない）
+  enemy({ id: 'skill_hiro_yakiimo', name: '焼き芋 食うか？', target: 'none', noDamage: true }),
+  enemy({ id: 'skill_hiro_dandori', name: '段取り', target: 'self', windupMs: 500, tsukkomi: [1], noDamage: true }),
+  enemy({ id: 'skill_pokosha_mimawari', name: '見回り', target: 'none', noDamage: true }),
+  enemy({ id: 'skill_pokosha_mamoru', name: '身を 守る', target: 'none', noDamage: true }),
+  enemy({ id: 'skill_c3_kakaricho', name: '係長の 声', target: 'none', noDamage: true }),
   // ヒキヅナ（夕鳴小学校の 校庭、段階2。二人十五脚 02 #82）
   enemy({ id: 'skill_hiki_tsuna', name: '綱引き', target: 'enemy', power: 1.0, hits: [0], windupMs: 450, tsukkomi: [1] }),
   enemy({ id: 'skill_hiki_oesu', name: 'オーエス', target: 'allies', power: 0.45, hits: [0, 18], windupMs: 450, tsukkomi: [1] }),

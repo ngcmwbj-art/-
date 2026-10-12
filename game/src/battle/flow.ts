@@ -24,6 +24,8 @@ import { hideSticky, precacheRestored, resetKire, sayFallen, statusText } from '
 import { yobiBlack, yobiMemory } from './boss_yobimodoshi';
 import { ch3AfterAction, ch3Opening, ch3RoundEnd, ch3RoundStart, ch3Start, ch3Won } from './ch3rules';
 import { roundSeal } from './art/stamps';
+import { doHera, doYaki } from './party_ch3';
+import { aqBeforeParty, aqLoseFinish, aqOrder, doKoe } from './boss_c3aq';
 
 interface Act {
   side: 'party' | 'enemy';
@@ -55,16 +57,18 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
   // セミファイナル is already lying there playing dead (11.2)
   semiRound(s, 1);
   const music = s.opts.music ?? first?.def.bgm ?? 'bgm_battle';
+  // 61 1.9: ツガオ初戦 keeps the hall's song (no tape brake, no encounter sting)
+  const keep = music === 'keep';
   // 40_audio 12.1: tape brake on the field song at contact (the boss room has no BGM)
   s.prevSpace = currentSpace();
-  if (!s.isBoss) musicEncounter();
+  if (!s.isBoss && !keep) musicEncounter();
   // weaker enemies (party level ≥ enemy level + 2): faster messages
   const lv = Math.max(...s.party.map((u) => u.m.level), 1);
   if (first && lv >= first.def.lvl + 2 && !s.isEvent) s.msg.minShow = 900;
   yield* transitionIn(s, s.isBoss);
   // 500ms: battle space, the battle song from its intro bar
   setSpace('battle');
-  playBgm(music);
+  if (!keep) playBgm(music);
   s.showUi = true;
   // enemies pop in (0 → 1.15 → 1.0, 80ms apart); the boss rises out of darkness
   const retry = s.isBoss && bossTriesOf(s).lost > 0;
@@ -149,14 +153,19 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
       }
     }
     const acts: Act[] = [];
+    // 第3章 (61 9.5・13.3): 順路は こちら / 段取り turn this round's party order round
+    const reverse = s.memo.reverseRound === s.round;
     for (const c of cmds) {
       let spd = spdOf(c.u.m.spd, c.u.stages.spd.lv);
-      if (c.kind === 'nori') spd = Math.max(s.minato?.m.spd ?? 0, s.kanenari?.m.spd ?? 0);
-      // まもる / にげる, and holding up the tomato (51 10.3: priority +2)
+      if (c.kind === 'nori') spd = Math.max(s.minato?.m.spd ?? 0, s.kanenari?.m.spd ?? 0, s.yakisoban?.canAct ? s.yakisoban.m.spd : 0);
+      // まもる / にげる, and holding up the tomato (51 10.3: priority +2); ツッコむ (61 13.5) +2
       const itemPrio = c.kind === 'item' ? getItem(c.item)?.priority ?? 0 : 0;
-      const prio = (c.kind === 'guard' || c.kind === 'flee' ? 2 : itemPrio) + (s.qaPartyFirst ? 10 : 0);
-      acts.push({ side: 'party', prio, spd: spd * rng.range(0.9, 1.1), order: c.u.id === 'minato' ? -2 : -1, cmd: c });
+      const prio = (c.kind === 'guard' || c.kind === 'flee' || c.kind === 'koe' ? 2 : itemPrio) + (s.qaPartyFirst ? 10 : 0);
+      // the tie: しゅん → グソっ君 → ヤキソバン (61 4.1)
+      const order = c.u.id === 'minato' ? -3 : c.u.id === 'kanenari' ? -2 : -1;
+      acts.push({ side: 'party', prio, spd: (reverse ? 100 - spd : spd) * rng.range(0.9, 1.1), order: reverse ? -order : order, cmd: c });
     }
+    aqOrder(s, plans);
     acts.push(...plans);
     acts.sort((a, b) => b.prio - a.prio || b.spd - a.spd || (a.side === b.side ? a.order - b.order : a.side === 'party' ? -1 : 1));
     // guard takes effect for the whole round as soon as it is chosen
@@ -224,6 +233,8 @@ function* runParty(s: BattleScene, c: PartyCmd): Co<BattleResult | null> {
   const u = c.u;
   if (c.kind === 'skip') {
     s.noteActing('');
+    // 第3章 (61 12.2): グソっ君's feet will not move — said once, at the first round (ch3 aq)
+    if (c.reason === 'status_c3_ashi') return null;
     const t = u.has('status_nemuri') ? 'status_nemuri' : u.has('status_tsukamare') ? 'status_tsukamare' : u.has('status_toosenbo') ? 'status_toosenbo' : u.has('status_henji') ? 'status_henji' : '';
     if (t && u.alive) {
       s.memo['blocked_' + u.id] = 1;
@@ -233,6 +244,7 @@ function* runParty(s: BattleScene, c: PartyCmd): Co<BattleResult | null> {
   }
   if (c.kind !== 'nori') {
     if (!u.alive || u.has('status_rusu')) return null;
+    if (u.has('status_c3_ashi')) return null;
     if (!u.canAct) {
       const t = u.has('status_nemuri') ? 'status_nemuri' : u.has('status_tsukamare') ? 'status_tsukamare' : u.has('status_henji') ? 'status_henji' : 'status_toosenbo';
       s.memo['blocked_' + u.id] = 1;
@@ -242,15 +254,26 @@ function* runParty(s: BattleScene, c: PartyCmd): Co<BattleResult | null> {
   } else if (!(s.minato?.canAct && s.kanenari?.canAct)) {
     return null;
   }
+  // 第3章 (61 12.2・13.5): the hits that cannot land on a person, the ツッコむ, the はなまる on the name tag
+  const aq = yield* aqBeforeParty(s, c);
+  if (aq) return null;
   // the acting member's panel lifts 3px and turns vermilion (reaction ≤ 10f)
   u.acting = true;
   noteMove(s, c);
   if (c.kind === 'nori' && s.kanenari) s.kanenari.acting = true;
   if (c.kind === 'nori' && s.minato) s.minato.acting = true;
+  if (c.kind === 'nori' && s.yakisoban?.canAct) s.yakisoban.acting = true;
   let result: BattleResult | null = null;
   switch (c.kind) {
     case 'attack':
-      yield* doAttack(s, u, c.target);
+      if (u.id === 'yakisoban') yield* doHera(s, u, c.target);
+      else yield* doAttack(s, u, c.target);
+      break;
+    case 'yaki':
+      yield* doYaki(s, u, c.skill, c.target);
+      break;
+    case 'koe':
+      yield* doKoe(s, u);
       break;
     case 'hanko':
       yield* doHanko(s, c);
@@ -281,7 +304,14 @@ function* runParty(s: BattleScene, c: PartyCmd): Co<BattleResult | null> {
 function noteMove(s: BattleScene, c: PartyCmd): void {
   switch (c.kind) {
     case 'attack':
-      s.noteActing(c.u.id === 'kanenari' ? 'タックル' : 'たたく', c.u.id === 'kanenari' ? 'tackle' : 'tataku');
+      if (c.u.id === 'yakisoban') s.noteActing('ヘラ', 'hera');
+      else s.noteActing(c.u.id === 'kanenari' ? 'タックル' : 'たたく', c.u.id === 'kanenari' ? 'tackle' : 'tataku');
+      break;
+    case 'yaki':
+      s.noteActing(getSkill(c.skill)?.name ?? 'わざ', 'waza');
+      break;
+    case 'koe':
+      s.noteActing('ツッコむ', 'tsukkomu');
       break;
     case 'hanko':
       s.noteActing(getSkill(c.skill)?.name ?? 'ハンコ', c.skill === 'skill_okaerinasai' ? 'okaeri' : 'hanko');
@@ -307,6 +337,8 @@ function noteMove(s: BattleScene, c: PartyCmd): void {
 }
 
 function* checkEnd(s: BattleScene): Co<BattleResult | null> {
+  // ツガオ初戦 (61 12.4): four rounds, then always 'lose' (no wipe, no game over)
+  if (s.memo.aqLose) return 'lose';
   if (s.memo.kanenariWin || s.memo.bossWon || ch3Won(s)) return 'win';
   if (enemiesWiped(s)) return 'win';
   if (partyWiped(s)) return 'lose';
@@ -420,6 +452,7 @@ function* finish(s: BattleScene, result: BattleResult): Co<BattleResult> {
     if (s.prevSpace) setSpace(s.prevSpace);
     return 'flee';
   }
+  if (s.memo.aqLose) return yield* aqLoseFinish(s);
   // wipe (18.4): the battle side plays up to the dark screen; evt_gameover follows
   if (s.isBoss) bossTriesOf(s).lost++;
   yield* wipeOut(s);

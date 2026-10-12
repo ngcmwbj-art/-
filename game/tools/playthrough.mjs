@@ -42,7 +42,10 @@
 //                                                     bed → S05 the harbour at noon → S06 the children → 海ぞいの町 (the
 //                                                     people's talk, the post) → S10 the first run of ツガオ便 → S07 市場
 //                                                     → S08 食堂 → S09 海水浴場 (the dive, the lens) → S11 いただきます →
-//                                                     S12 ナリオサメ・S13 → S14 the trap, up to the old aquarium. Checks: the five tapes, 11:10 / 12:00, the
+//                                                     S12 ナリオサメ・S13 → S14 the trap → (第3期) S15 旧水族館 → S16 回廊 →
+//                                                     S17 ジオラマ → S18 深海 → S19 えさの部屋 → S20 ツガオ初戦 → S21・S22
+//                                                     倉庫 → S23 ヤキソバン → S24 ヒロスケ・ポコシャ (stops before S25;
+//                                                     --real tsugao1,hp fights those with keys). Checks: the five tapes, 11:10 / 12:00, the
 //                                                     talked records (flag_talked_*, made from a chapter-1/2 save too),
 //                                                     the chapter-3 pages (textcheck2). --from <beat> starts at
 //                                                     jump('ch3:<beat>')
@@ -1582,6 +1585,25 @@ async function examineHere(dir, label) {
   await advance({ label, shotEvery: 2 });
 }
 
+/** Wait for a choice and take the option `downs` below the first. */
+async function pickChoice(downs, timeout = 15000) {
+  const t0 = Date.now();
+  for (;;) {
+    const open = await page.evaluate(() => window.__game.game.ui.widgets.some((w) => w.constructor.name === 'ChoiceBox' && !w.done));
+    if (open) break;
+    if (late(t0, timeout)) throw new Error('pickChoice: no choice');
+    await tap('KeyZ');
+    await sleep(300);
+  }
+  await sleep(250);
+  for (let i = 0; i < downs; i++) {
+    await tap('ArrowDown');
+    await sleep(120);
+  }
+  await tap('KeyZ');
+  await sleep(400);
+}
+
 /** A value of the game state (money, an item count). */
 const stateOf = () =>
   page.evaluate(async () => {
@@ -2561,12 +2583,160 @@ const BEATS3 = [
       await sleep(300);
       await walk('down', (s) => !s.ctrl, 3000).catch(() => {});
       await advance({ shotEvery: 3, label: 'trap', max: 120000 });
-      await need(['flag_ch3_truck_trap'], 'S14');
+      await need(['flag_ch3_truck_trap', 'flag_ch3_aq_enter'], 'S14・S15');
       const s = await st();
-      const ok = s.map === 'map_umizoi' && s.x >= 68 && s.ctrl;
-      checks.push({ check: 'S14: at the old aquarium, the door shut (the end of the second part)', ok, map: s.map, x: s.x, y: s.y });
-      if (!ok) throw new Error(`trap: ${JSON.stringify(s)}`);
-      await shot('aqmae');
+      const t = await hudTime();
+      const inv = (await stateOf()).inventory;
+      const ok = s.map === 'map_c3_aq_iriguchi' && s.ctrl && t === '12:00' && (await flag('flag_ch3_stage')) === 3 && inv.includes('item_c3_nyukanken');
+      checks.push({ check: 'S14・S15: into the old aquarium (12:00 inside, the ticket)', ok, map: s.map, x: s.x, y: s.y, time: t });
+      if (!ok) throw new Error(`trap: ${JSON.stringify(s)} ${t}`);
+      await shot('aq_iriguchi');
+    },
+  },
+  // ---- 第3期（S15〜S24。60_ch3_story 10.15〜10.24）：最低の数で（伝票★4枚、日誌は札のヒントの4枚）
+  {
+    name: 'kairo',
+    async run() {
+      // S16: up the 「順路 →」 into the corridor of slips; the four ★ notes; ヒロスケ at the east end
+      await enterDoor(10, 2, 'up', 'map_c3_aq_kairo');
+      await advance({ label: 'kairo_in' });
+      for (const k of [0, 3, 6, 11]) {
+        await travel(4 + 3 * k, 3);
+        await examineHere('up', `denpyo${k + 1}`);
+      }
+      const n = await flag('flag_ch3_denpyo_n');
+      if (n < 4) throw new Error(`denpyo ${n}`);
+      // (the fourth, read beside ヒロスケ, starts him; else walk up to him)
+      await advance({ shotEvery: 3, label: 'kairo_end' });
+      if (!(await flag('flag_ch3_kairo_done'))) {
+        await travel(32, 4);
+        await travel(35, 4).catch(async (e) => {
+          if ((await st()).ctrl) throw e;
+        });
+        await advance({ shotEvery: 3, label: 'kairo_end' });
+      }
+      await need(['flag_ch3_kairo_done'], 'S16');
+      checks.push({ check: 'S16: the slips (4/12), ヒロスケ, the blank day', ok: true, denpyo: n });
+    },
+  },
+  {
+    name: 'diorama',
+    async run() {
+      // S17: through the east end; a doll on each model (3 → ゆれ1); マフィ屋 from (3,7)
+      await enterDoor(38, 3, 'right', 'map_c3_aq_diorama');
+      await advance({ shotEvery: 2, label: 'diorama_in' });
+      for (const [x, y, label] of [[5, 7, 'yunari'], [15, 7, 'hoshi'], [8, 11, 'umi']]) {
+        await travel(x, y);
+        await examineHere('up', label);
+      }
+      const dolls = await flag('flag_ch3_diorama_n');
+      await travel(3, 7);
+      await examineHere('up', 'mafiya');
+      await advance({ shotEvery: 3, label: 'mafiya' });
+      await need(['flag_ch3_diorama_done', 'flag_ch3_mafiya'], 'S17');
+      checks.push({ check: 'S17: the dolls light, マフィ屋', ok: dolls >= 3, dolls });
+      if (dolls < 3) throw new Error(`diorama: ${dolls} dolls`);
+    },
+  },
+  {
+    name: 'shinkai',
+    async run() {
+      // S18: behind the black curtain, グソっ君 a tile ahead; four scraps of the diary (the tags' hint), the empty tank
+      await enterDoor(22, 3, 'right', 'map_c3_aq_shinkai');
+      await advance({ label: 'shinkai_in' });
+      await shot('shinkai');
+      const lead = await page.evaluate(() => {
+        const f = window.__game.cmd.fieldRef();
+        const k = f.actorById('kanenari');
+        return k ? { guide: !!k.data.guide, kx: k.tileX, ky: k.tileY, px: f.player.tileX, py: f.player.tileY } : null;
+      });
+      for (const [x, y] of [[16, 16], [1, 16], [10, 4], [18, 5]]) {
+        await travel(x, y);
+        await sleep(200);
+        await tap('KeyZ');
+        await sleep(300);
+        await advance({ label: 'nisshi' });
+      }
+      const nisshi = await flag('flag_ch3_nisshi_n');
+      await travel(12, 3);
+      await walk('up', (s) => !s.ctrl, 3000).catch(() => {});
+      await advance({ shotEvery: 2, label: 'kara' });
+      await need(['flag_ch3_shinkai_done'], 'S18');
+      checks.push({ check: 'S18: グソっ君 walks ahead, the diary, the empty tank', ok: !!lead?.guide && nisshi >= 4, lead, nisshi });
+      if (!lead?.guide) throw new Error(`shinkai: グソっ君 not leading ${JSON.stringify(lead)}`);
+    },
+  },
+  {
+    name: 'esa',
+    async run() {
+      // S19: ポコシャ's story on the way in; the feeding tags in the day's order; the key; the autosave
+      await enterDoor(1, 2, 'left', 'map_c3_aq_esa');
+      await advance({ shotEvery: 3, label: 'esa_in' });
+      await travel(10, 6);
+      await page.evaluate(() => (window.__game.cmd.fieldRef().player.dir = 'down'));
+      await sleep(150);
+      await tap('KeyZ');
+      // the tags lie 12:00, 9:00, 15:00, 11:00: hang 9:00, 11:00, 12:00, 15:00
+      for (const downs of [1, 2, 0, 0]) await pickChoice(downs);
+      await advance({ label: 'fuda' });
+      await talkTo('npc_pokosha', { side: 'right' });
+      await advance({ shotEvery: 2, label: 'key' });
+      await need(['flag_ch3_esa_done', 'flag_ch3_esa_fuda'], 'S19');
+      await sleep(1200);
+      const saved = await page.evaluate(() => !!localStorage.getItem('yugure-rpg-save-v1'));
+      checks.push({ check: 'S19: the tags, the key, the autosave', ok: saved, saved });
+    },
+  },
+  {
+    name: 'hall',
+    async run() {
+      // S20: to the bench → ツガオ → the first battle (never won, never game over) → taken → S21・S22
+      await enterDoor(5, 8, 'down', 'map_c3_aq_hall');
+      await advance({ label: 'hall_in' });
+      await travel(12, 10);
+      await walk('up', (s) => !s.ctrl, 3000).catch(() => {});
+      const real = REAL.has('tsugao1');
+      await advance({ shotEvery: 4, label: 'tsugao1', max: 480000, battles: real ? 'keys' : 'win' });
+      await need(['flag_ch3_tsugao1', 'flag_ch3_souko', 'flag_ch3_ego_night'], 'S20〜S22');
+      const s = await st();
+      const ok = s.map === 'map_c3_aq_souko' && s.ctrl;
+      checks.push({ check: 'S20〜S22: the first battle, taken, the sweet potato, エゴ', ok, map: s.map });
+      if (!ok) throw new Error(`hall: ${JSON.stringify(s)}`);
+      await shot('souko');
+    },
+  },
+  {
+    name: 'yakisoban',
+    async run() {
+      // S23: the door → ヤキソバン → the case on the corridor's desk → three
+      await travel(5, 7);
+      await examineHere('down', 'yk');
+      await advance({ shotEvery: 3, label: 'yakisoban' });
+      await need(['flag_ch3_yakisoban'], 'S23');
+      const party = await page.evaluate(async () => (await import('/src/game/state.ts')).state.party.map((m) => m.id));
+      const s = await st();
+      const ok = s.map === 'map_c3_aq_rouka' && party.includes('yakisoban');
+      checks.push({ check: 'S23: ヤキソバン joins (three)', ok, party, map: s.map });
+      if (!ok) throw new Error(`yakisoban: ${JSON.stringify({ party, s })}`);
+      await shot('rouka');
+    },
+  },
+  {
+    name: 'hp',
+    async run() {
+      // S24: down the corridor → ヒロスケ・ポコシャ → the end of the third part (the west door's usual line)
+      await travel(7, 4);
+      await walk('right', (s) => !s.ctrl, 3000).catch(() => {});
+      const real = REAL.has('hp');
+      await advance({ shotEvery: 4, label: 'hp', max: 600000, battles: real ? 'keys' : 'win' });
+      await need(['flag_ch3_hp_beaten'], 'S24');
+      await travel(1, 3);
+      await examineHere('left', 'ura');
+      const s = await st();
+      const ok = s.map === 'map_c3_aq_rouka' && s.ctrl && !(await flag('flag_ch3_minna'));
+      checks.push({ check: 'S24: ヒロスケ・ポコシャ, stopped before S25', ok, map: s.map });
+      if (!ok) throw new Error(`hp: ${JSON.stringify(s)}`);
+      await shot('aq_end');
     },
   },
   {

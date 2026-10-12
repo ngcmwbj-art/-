@@ -257,6 +257,10 @@ export const BGM_TARGET: Record<string, number> = {
   bgm_umi_noon: -5, bgm_tsugaobin: -6,
   // the second period: ナリオサメ just under the fights (its siren included), the lunch on the breakwater at the town's level
   bgm_boss_nariosame: -1, bgm_hirugohan: -5,
+  // the third period: 旧水族館 low under the footsteps and the paper (measured in the entrance's
+  // form), the great tank's hall under ツガオ's voice, ヒロスケ・ポコシャ戦 at the fights' level,
+  // and ヤキソバン's name the chapter's loudest moment (+1)
+  bgm_suizokukan: -8, bgm_tsugao_hall: -6, bgm_boss_madamada: 0, bgm_jingle_yakisoban: 1,
 };
 
 /**
@@ -282,6 +286,7 @@ export const REF_PART: Record<string, string> = {
   bgm_title: 'mbox', bgm_title_clear: 'mbox', bgm_home: 'melody', bgm_shop: 'melody', bgm_ending: 'melody', bgm_night: 'stars',
   bgm_hoshi_night: 'lantern', bgm_hoshi_morning: 'lead', bgm_boss_yobimodoshi: 'lead', bgm_tsugao: 'bass',
   bgm_umi_noon: 'harmonica', bgm_tsugaobin: 'marimba', bgm_boss_nariosame: 'lead', bgm_hirugohan: 'lead',
+  bgm_suizokukan: 'vibes', bgm_tsugao_hall: 'bass', bgm_boss_madamada: 'lead', bgm_jingle_yakisoban: 'brass',
 };
 /** Parts whose colour is the point of the song: a closer target than their role. */
 export const TARGET_OVERRIDE: Record<string, number> = {
@@ -461,6 +466,7 @@ export const BGM_TRIM: Record<string, number> = {
   bgm_hoshi_night: 12, bgm_tsugao: 10, bgm_boss_yobimodoshi: 10.5, bgm_hoshi_morning: 12,
   // chapter 3
   bgm_umi_noon: 13, bgm_tsugaobin: 19, bgm_boss_nariosame: 8.5, bgm_hirugohan: 9,
+  bgm_suizokukan: 16.5, bgm_tsugao_hall: 10, bgm_boss_madamada: 8.5, bgm_jingle_yakisoban: 11,
 };
 
 export const SE_TRIM: Record<string, number> = {
@@ -520,6 +526,12 @@ export const SE_TRIM: Record<string, number> = {
   se_c3_nefuda: 34, se_c3_wing: 36, se_c3_pump: 36, se_c3_signboard: 36, se_c3_gassho: 34, se_c3_nari_kaze: 16,
   se_c3_nari_yobu: 7, se_c3_part: 20, se_c3_hanko_float: 11.5, se_c3_itadakimasu: 27, se_c3_gochisousama: 24.5,
   se_c3_wana_m7: 8.5,
+  // chapter 3, third period (audioMixSuggest: 旧水族館 over bgm_suizokukan, the fights over bgm_battle)
+  se_c3_hajiku: 31, se_c3_chokin: 36, se_c3_fubuki: 36, se_c3_koe: 32.5, se_c3_koe_break: 36, se_c3_spatula: 12.5,
+  se_c3_teppan: 11.5, se_c3_kosogeru: 33, se_c3_oomori: 15.5, se_piichan_big: 20, se_c3_aq_door: 36, se_c3_aq_ticket: 36,
+  se_c3_aq_pa_chime: -1, se_c3_aq_denpyo: 32.5, se_c3_aq_hakushi: 36, se_c3_aq_ningyo: 34.5, se_c3_aq_glass: 36,
+  se_c3_aq_nisshi: 36, se_c3_aq_esa_fuda: 29.5, se_c3_aq_esa_bell: 26.5, se_c3_aq_key: 30.5, se_c3_aq_akubi: 19,
+  se_c3_aq_reizo: 26, se_c3_aq_hasso: 36, se_c3_aq_imo_waru: 36, se_c3_aq_card: 27.5, se_c3_aq_kachi: 28.5, se_c3_curtain: 36,
 };
 export const VOICE_TRIM: Record<string, number> = {
   narr: 24, mother: 15, maruyama: 8, obaa: 15, mamekichi: 15.5, inui: 17, tsurumi: 16, sae: 17, jk: 15.5,
@@ -547,6 +559,9 @@ export const VOICE_TRIM: Record<string, number> = {
   c3_kanshiin: 18, c3_himono_otto: 15, c3_himono_tsuma: 14, c3_tsuri: 14.5, c3_uketsuke: 16, c3_kid: 18.5,
   c3_kid_a: 18.5, c3_kid_b: 18, c3_kid_c: 17.5,
   nariosame: 6.5, okawarinabe: 17.5,
+  // the third period: the variants keep their parent's trim so their own ×0.7 / ×1.4 is heard
+  // (ポコシャ on the ceiling speakers: the PA's level +3 dB); 係長 2 dB under its suggestion (never frightening)
+  pokosha_pa: 12, tsugao_omote: 19.5, gusokkun_yowai: 13.5, gusokkun_nurui: 13.5, kakaricho: 11.5,
 };
 export const AMB_TRIM: Record<string, number> = {
   amb_higurashi: 17, amb_still: 25, amb_s2_town: -1, amb_train_far: 0, amb_night_insects: 22.5, amb_fan: 16.5,
@@ -570,6 +585,8 @@ export const AMB_TRIM: Record<string, number> = {
   amb_c3_mikan: 23.5, amb_c3_siren_hum: 20, amb_c3_siren_hold: 13, amb_c3_keitora: 9.5, amb_c3_hirumae: 17,
   // the second period's rooms (the lighthouse and the beach hut at their caps: quiet rooms by design)
   amb_c3_siren_room: 14.5, amb_c3_toudai: 28, amb_c3_uminoie: 33.5, amb_c3_suichu: 20,
+  // 旧水族館 (63 10.2: very small beds; the ones already heard over their song stay at 0)
+  amb_c3_aq_kan: 0, amb_c3_aq_diorama: 0, amb_c3_aq_shinkai: 0, amb_c3_aq_esa: 22.5, amb_c3_aq_souko: 0, amb_c3_aq_hall: 7.5,
 };
 
 /** A song's output level in dB: its own master gain plus the mix trim. */

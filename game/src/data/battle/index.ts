@@ -27,6 +27,9 @@ export {
   syncProgressSkills,
   gainExp,
   setMemberLevel,
+  addYakisoban,
+  removeYakisoban,
+  YAKISOBAN_SKILLS,
 } from './members';
 export { canUseItemInField, useItemInField, canUseSkillInField, useSkillInField, healMember, hanamaruAmount, yakiimoFirst } from './field';
 export { SYS, TUT, BOSS_RETRY_FLIP, GAMEOVER, LABEL, NORI, NORI_COMMON, NORI_HOSHI, REPORT, ITEM_TEXT, FIELD_TEXT, fill, fillAll } from './text';

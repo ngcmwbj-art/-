@@ -27,3 +27,4 @@ import './c3_nefuda';
 import './c3_okawarinabe';
 import './c3_nariosame';
 import './c3_minor';
+import './c3_aq';

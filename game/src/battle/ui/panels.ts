@@ -37,6 +37,26 @@ export const KIRE_TAB: [number, number] = [203, 144];
 export const ROW = { cmdDx: 0, cmdDy: 0, slotDx: 0, listX: 4, listY: 58, fixed: false };
 let rowVer = -1;
 
+/**
+ * 第3章（61 16.1・16.2）：ヤキソバンが いる 3人の 戦闘。枠は 92 幅で 3つ（104／196／288。
+ * 2人の ときの 136＋4＋136 と 同じ 276 の かたまり）、名札は 枠の 上の テープの 列、
+ * キレの タブは コマンド窓の 上（4,132）。2人の ときは 第1章・第2章の まま。
+ */
+let trio = false;
+/** The panel width now (136 for two, 92 for three). */
+export function panelW(): number {
+  return trio ? 92 : 136;
+}
+export function isTrio(): boolean {
+  return trio;
+}
+/** The battle scene sets this from its party (`state.party.length` 3 → the trio row). */
+export function setTrio(v: boolean): void {
+  if (trio === v) return;
+  trio = v;
+  rowVer = -1;
+}
+
 /** Lay the bottom row out for the touch buttons on screen now (cheap when nothing changed). */
 export function syncBattleRow(): void {
   const v = buttonZonesVersion();
@@ -58,11 +78,25 @@ export function syncBattleRow(): void {
     ROW.cmdDy = Math.min(0, buttonsTop(4, 100) - 2 - 212);
     ROW.listX = 104;
   }
+  if (trio) {
+    // three panels of 92 side by side; the tags on the tape row right of each photo
+    PANEL_POS.minato = [px, 150];
+    PANEL_POS.kanenari = [px + 92, 150];
+    PANEL_POS.yakisoban = [px + 184, 150];
+    TAG.minato = [px + 30, 144, 56];
+    TAG.kanenari = [px + 122, 144, 60];
+    TAG.yakisoban = [px + 214, 144, 62];
+    KIRE_TAB[0] = 4 + ROW.cmdDx;
+    KIRE_TAB[1] = 132 + ROW.cmdDy;
+    ROW.slotDx = px + 92 - 244;
+    return;
+  }
   PANEL_POS.minato = [px, 150];
   PANEL_POS.kanenari = [px + 140, 150];
   TAG.minato = [px + 36, 144, 56];
   TAG.kanenari = [px + 176, 144, 100];
   KIRE_TAB[0] = px + 99;
+  KIRE_TAB[1] = 144;
   ROW.slotDx = px + 140 - 244;
 }
 
@@ -119,7 +153,11 @@ export function drawPanel(g: Gfx, u: PartyUnit, pc: PanelCtx): void {
   let border = C.ink;
   if (u.acting) border = C.shu;
   if (u.flashT > 0 && Math.floor((267 - u.flashT) / 67) % 2 === 0) border = C.shu;
-  const bw = u.guard ? 3 : 2;
+  const bw: 2 | 3 = u.guard ? 3 : 2;
+  if (trio) {
+    drawPanelTrio(g, u, pc, x, y, border, bw, heba, dx, dy);
+    return;
+  }
   drawNote(g, x, y, 136, 62, { border, borderW: bw, paper: heba ? C.grid : C.paper }, pc.alpha);
   g.alpha(pc.alpha, () => {
     // face with tape photo corners
@@ -223,6 +261,99 @@ export function drawPanel(g: Gfx, u: PartyUnit, pc: PanelCtx): void {
   g.img(tapeCanvas(tw, 18, u.name, C.tape, u.id === 'minato' ? 2 : 4), tx0 + dx, ty0 + dy, pc.alpha < 1 ? { alpha: pc.alpha } : {});
 }
 
+/**
+ * 61 16.2: the 92-wide panel of the trio row — the photo at 24×24 (the 32 face
+ * drawn small), HP and its bar right of it, the second row (朱肉 / the CT of
+ * グソっ君's and ヤキソバン's moves), up to four state icons under the photo.
+ */
+function drawPanelTrio(g: Gfx, u: PartyUnit, pc: PanelCtx, x: number, y: number, border: string, bw: 2 | 3, heba: boolean, dx: number, dy: number): void {
+  drawNote(g, x, y, 92, 62, { border, borderW: bw, paper: heba ? C.grid : C.paper }, pc.alpha);
+  g.alpha(pc.alpha, () => {
+    const mood = moodOf(u, pc.t);
+    const face = portrait(u.id, mood) ?? (u.id === 'yakisoban' ? trioFallbackFace?.(mood) ?? null : null);
+    const fx = x + 4;
+    const fy = y + 8;
+    if (face) g.ctx.drawImage(face, 0, 0, face.width, face.height, fx, fy, 24, 24);
+    else {
+      g.rect(fx, fy, 24, 24, heba ? '#D8C8A4' : '#F4E6C8');
+      g.frame(fx, fy, 24, 24, C.grid);
+      g.text(u.name[0], fx + 12, fy + 4, { color: C.ink, align: 'center' });
+    }
+    g.img(tapeCorner(), fx - 1, fy - 1);
+    g.img(tapeCorner(), fx + 21, fy + 21);
+    if (u.hanamaruMark) g.img(hanamaruFrame(12, 1, false, 1), fx + 15, fy - 3);
+    const tx = x + 31;
+    const rx = x + 88;
+    g.text('HP', tx, y + ROW_HP, { color: C.ink, spacing: -1 });
+    const hpStr = `${Math.round(u.hpShown)}/${u.m.maxHp}`;
+    g.text(hpStr, rx, y + ROW_HP, { color: heba ? C.shuDark : u.hpRate <= 0.25 ? C.shuDark : C.ink, align: 'right', spacing: -1 });
+    const rate = Math.max(0, Math.min(1, u.m.hp / u.m.maxHp));
+    const trail = Math.max(0, Math.min(1, u.hpTrail / u.m.maxHp));
+    let fill = hpColor(rate);
+    if (u.hpGrowT > 0) fill = C.greenLight;
+    drawBar(g, tx, y + ROW_HPBAR, 57, 5, rate, fill, C.grid, trail, C.white);
+    if (u.m.maxMp > 0) {
+      g.img(inkPot(), tx, y + ROW_SUB + 2);
+      g.text(`${Math.round(u.mpShown)}/${u.m.maxMp}`, rx, y + ROW_SUB, { color: C.ink, align: 'right', spacing: -1 });
+      drawBar(g, tx, y + ROW_SUBBAR, 57, 3, u.m.mp / u.m.maxMp, C.shu, C.grid);
+      if (u.inkPreview > 0 && Math.floor(pc.t / 260) % 2 === 0) {
+        const bwid = 57;
+        if (u.m.mp >= u.inkPreview) {
+          const x1 = Math.round((bwid * u.m.mp) / u.m.maxMp);
+          const x0 = Math.round((bwid * (u.m.mp - u.inkPreview)) / u.m.maxMp);
+          if (x1 > x0) g.rect(tx + x0, y + ROW_SUBBAR, x1 - x0, 3, C.flash);
+        } else g.rect(tx, y + ROW_SUBBAR, bwid, 3, C.gray);
+      }
+    } else {
+      const slot = (ix: number, icon: HTMLCanvasElement, skill: string) => {
+        g.img(icon, ix, y + ROW_SUB + 2);
+        const ct = u.ct[skill] ?? 0;
+        const nx = ix + icon.width + 1;
+        if (ct > 0) g.text(String(ct), nx, y + ROW_SUB, { color: C.gray });
+        else g.img(checkStamp(), nx, y + ROW_SUB + 4);
+      };
+      if (u.id === 'kanenari') {
+        slot(tx, balloonIcon(), 'skill_fuusen');
+        if (u.m.skills.includes('skill_goaisatsu')) slot(tx + 29, bowIcon(), 'skill_goaisatsu');
+      } else if (u.id === 'yakisoban' && trioCtIcons) {
+        const [teppan, hera, yama] = trioCtIcons();
+        slot(tx, teppan, 'skill_yk_teppan');
+        slot(tx + 19, hera, 'skill_yk_kosogeru');
+        slot(tx + 38, yama, 'skill_yk_oomori');
+      }
+    }
+    const icons: HTMLCanvasElement[] = [];
+    for (const id of ['status_konran', 'status_nemuri', 'status_tsukamare', 'status_toosenbo', 'status_henji', 'status_c3_mada', 'status_c3_ashi', 'status_mamoru']) {
+      if (id === 'status_mamoru' ? u.guard : u.has(id)) {
+        const ic = statusIcon(id);
+        if (ic) icons.push(ic);
+      }
+    }
+    for (const k of ['atk', 'def', 'hit', 'spd'] as const) {
+      const st = u.stages[k];
+      if (st.lv !== 0) {
+        const ippai = k === 'spd' && st.lv < 0 && u.has('status_c3_ippai') ? statusIcon('status_c3_ippai') : null;
+        icons.push(ippai ?? buffIcon(k, st.lv > 0));
+      }
+    }
+    icons.slice(0, 4).forEach((ic, i) => g.img(ic, x + 4 + (i % 2) * 12, y + 34 + Math.floor(i / 2) * 12));
+    if (u.away) {
+      g.rect(x + 2, y + 2, 88, 58, '#9AA0A8', 0.55);
+      g.img(roundSeal('るす', 30), x + 46, y + 16);
+    }
+  });
+  const [tx0, ty0, tw] = TAG[u.id] ?? [x + 30, y - 6, 56];
+  g.img(tapeCanvas(tw, 18, u.name, C.tape, u.id === 'minato' ? 2 : 4), tx0 + dx, ty0 + dy, pc.alpha < 1 ? { alpha: pc.alpha } : {});
+}
+
+/** ヤキソバン's own pictures (battle/art/yakisoban.ts registers them: no import cycle). */
+let trioCtIcons: (() => HTMLCanvasElement[]) | null = null;
+let trioFallbackFace: ((mood: string) => HTMLCanvasElement | null) | null = null;
+export function setTrioArt(ct: () => HTMLCanvasElement[], face: (mood: string) => HTMLCanvasElement | null): void {
+  trioCtIcons = ct;
+  trioFallbackFace = face;
+}
+
 /** Kire tab with three "!" icons. `pops[i]` = remaining pop time (ms). */
 export function drawKire(g: Gfx, kire: number, pops: number[], t: number, alpha: number): void {
   const [kx, ky] = KIRE_TAB;
@@ -254,6 +385,8 @@ export interface CmdView {
   noriTab: boolean;
   onTab: boolean;
   tutorialPulse?: string;
+  /** ヤキソバンも 動ける：3人の ノリツッコミ（61 5.8）。 */
+  noriThree?: boolean;
 }
 
 export function drawCommand(g: Gfx, v: CmdView, t: number, alpha: number): void {
@@ -265,7 +398,7 @@ export function drawCommand(g: Gfx, v: CmdView, t: number, alpha: number): void 
       // on the ノリツッコミ tab (QA round 2: the rows stood empty): the three
       // lit "!" it spends, and what it does — both of us, every enemy
       for (let i = 0; i < 3; i++) g.img(kireIcon(true, Math.floor(t / 500) % 2 === 0), 36 + i * 12, 157);
-      g.text('ふたりで', 10, 176, { color: C.ink });
+      g.text(trio && v.noriThree ? 'さんにんで' : 'ふたりで', 10, 176, { color: C.ink });
       g.text('敵 全員に', 10, 193, { color: C.shuDark });
       return;
     }

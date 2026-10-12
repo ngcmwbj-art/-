@@ -17,6 +17,7 @@ import { impactBurst, statArrow } from './art/fxart';
 import { PANEL_POS } from './ui/panels';
 import { statusIcon } from './art/icons';
 import { ch3HpFloor } from './ch3rules';
+import { aqHurt } from './boss_c3aq';
 
 const FRAME_MS = 1000 / 60;
 
@@ -350,6 +351,8 @@ export function hurtEnemy(s: BattleScene, e: EnemyUnit, dmg: number, o: EnemyHit
     return false;
   }
   if (e.def.invulnerable) return false;
+  // 第3章 (61 4.3・12.2): the people — no number; ツガオ・ポコシャ take nothing, ヒロスケ's black gauge
+  if (aqHurt(s, e, dmg)) return false;
   const before = e.hp;
   e.hp = Math.max(0, e.hp - Math.max(0, Math.round(dmg)));
   // boss HP floor before the final phase (13.7)

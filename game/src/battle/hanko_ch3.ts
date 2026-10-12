@@ -20,10 +20,11 @@ import { emptyBowl, gochisouSeal, itadakiSeal } from './art/fxart_ch3';
 import { hanamaruFrame } from './art/stamps';
 import { CH3_MIDBOSS } from '../data/battle';
 import { nariItadaki } from './ch3rules';
+import { aqGochisou } from './boss_c3aq';
 import { tapeCanvas } from './ui/note';
 
 /** The moves that repeat — and heal — which ごちそうさま ends (61 6.2). */
-const REPEATING = new Set(['enemy_okawarinabe', 'enemy_nariosame']);
+const REPEATING = new Set(['enemy_okawarinabe', 'enemy_nariosame', 'enemy_junro']);
 
 function* dropSeal(s: BattleScene, img: HTMLCanvasElement, x: number, y: number): Co {
   const st = { p: 0 };
@@ -152,12 +153,17 @@ export function* hankoGochisousama(s: BattleScene, _u: PartyUnit, e: EnemyUnit, 
   e.shear = 2;
   yield 300;
   e.shear = 0;
+  // ヒロスケ (61 13.3・13.4): the finishing move once his 『まだ』 shows, else his own potato put away
+  if (e.id === 'boss_hirosuke') {
+    yield* aqGochisou(s, e);
+    return;
+  }
   const pages: string[] = [...SYS3.gochisou];
   // ① its repeating, healing move is over (every judgement)
   if (REPEATING.has(e.id) && !e.status.c3_gochisou) {
     e.status.c3_gochisou = true;
     e.params.tapeAt_gochisou = s.t;
-    pages.push(...fillAll(SYS3.gochisouSeal, { enemy: e.name }));
+    pages.push(...fillAll(e.def.texts.extra.gochisouSeal ?? SYS3.gochisouSeal, { enemy: e.name }));
   } else pages.push(...fillAll(SYS3.gochisouNone, { enemy: e.name }));
   // ② raised steps down one (not on かすれ)
   if (j !== 'kasure')

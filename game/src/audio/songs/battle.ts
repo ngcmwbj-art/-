@@ -175,6 +175,27 @@ export const hatOrCricket = (pat: (b: BarCtx) => string | null) => ({
  * 第3章 (63_ch3_audio 5.11, 6.7): c3_phase 1 is the sea version (海ぞいの町),
  * 2 the old aquarium's. 0 everywhere else, so chapters 1 and 2 never hear it.
  */
+/**
+ * 63_ch3_audio 6.5: the teppan's heat (ヤキソバン's 「鉄板」, 0–3, lands on the
+ * next beat). 1: sauce spitting「ジュッ」 on the off-beats of 2 and 4; 2: on
+ * every sixteenth off-beat; 3: and the spatula「カン」 on beat 4. Silent at 0,
+ * so every battle can carry it (only fights with ヤキソバン raise it).
+ */
+export function teppanLayers(): PartDef[] {
+  return [
+    hits(
+      'teppan',
+      [
+        { when: (b, s) => b.p.teppan === 1 && (s === 6 || s === 14), fn: (_b, t, rt) => DRM.drm_jyu({ t, vel: 0.5, dest: rt.input, rev: rt.rev, pan: 0.35 }) },
+        { when: (b, s) => b.p.teppan >= 2 && s % 2 === 1, fn: (_b, t, rt, s) => DRM.drm_jyu({ t, vel: s === 7 || s === 15 ? 0.5 : 0.35, dest: rt.input, rev: rt.rev, pan: s % 4 === 1 ? 0.25 : 0.45 }) },
+        { when: (b, s) => b.p.teppan >= 3 && s === 12, fn: (_b, t, rt) => DRM.drm_hera({ t, vel: 0.6, dest: rt.input, rev: rt.rev, pan: 0.3 }) },
+      ],
+      1,
+      { aware: ['teppan'] },
+    ),
+  ];
+}
+
 export const c3sea = (b: BarCtx) => b.p.c3_phase === 1;
 export const c3kan = (b: BarCtx) => b.p.c3_phase === 2;
 
@@ -223,6 +244,7 @@ function battleDef(): SongDef {
       { when: (b, s) => c3sea(b) && !b.inIntro && b.barNo % 2 === 1 && s === 6, fn: (_b, t, rt) => DRM.drm_fender({ t, vel: 1, dest: rt.input, rev: rt.rev, pan: -0.3 }) },
     ]),
     ...kireLayers(),
+    ...teppanLayers(),
   ];
   return {
     id: 'bgm_battle',

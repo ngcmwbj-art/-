@@ -110,6 +110,21 @@ const items: ItemDef[] = [
   { id: 'item_c3_megane', name: `${c3Name('npc_c3_sirenban')}のめがね`, key: true, target: 'none', desc: ['古い めがね。', `ふちに 小さく『${c3Name('npc_c3_sirenban').slice(0, 1)}』。`], battleText: ['めがねを 見せた。\n……度が 合わない。'] },
   { id: 'item_c3_shikake', name: '切れた仕掛け', key: true, target: 'none', desc: [`${c3Name('npc_c3_tsuri')}の 釣りの 仕掛け。`, '針は ついていない。'], battleText: ['仕掛けを 見せた。\n……針が ないので、釣れない。'] },
   { id: 'item_c3_bracelet', name: '貝のブレスレット', key: true, target: 'none', desc: [`${c3Name('npc_c3_mago')}が 去年 落とした もの。`, '白い 貝が 7つ。'], battleText: [`ブレスレットを 見せた。\n……これは、${c3Name('npc_c3_mago')}の 分だ。`] },
+  // 第3章 S15〜S19（旧水族館）の 大事なもの（60 7.1）。メモと切れはしは 数を 名前に
+  { id: 'item_c3_nyukanken', name: '入館券', key: true, target: 'none', desc: ['切り取り線つきの 配達伝票。', 'お届け先：大水槽ホール。'], battleText: ['入館券を 見せた。\n……ここは、順路の とちゅうだ。'] },
+  {
+    id: 'item_c3_denpyo', key: true, target: 'none', desc: ['ツガオ便の 伝票の 端。', '3つの 字。'], battleText: ['メモを 見せた。\n$enemyは 日付を 数えている。'],
+    get name(): string {
+      return `伝票のメモ ${flag('flag_ch3_denpyo_n')}/12`;
+    },
+  },
+  {
+    id: 'item_c3_nisshi', key: true, target: 'none', desc: ['太い 字。だれの ことかは', '書いていない。'], battleText: ['切れはしを 見せた。\n……字が 太すぎて、読めない。'],
+    get name(): string {
+      return `飼育日誌の切れはし ${flag('flag_ch3_nisshi_n')}/6`;
+    },
+  },
+  { id: 'item_c3_hall_key', name: '大水槽ホールの鍵', key: true, target: 'none', desc: ['飼育係の 名札つきの 鍵。', '『ポコシャ』。'], battleText: ['鍵を 見せた。\n……ここに、鍵穴は ない。'] },
   // 沢の上（02 #65）：セキトメがほどけたあと、岸に残った平たい石。トマじいに見せると、あずかる
   { id: 'item_namae_ishi', name: '名前の石', key: true, target: 'none', desc: ['沢の 岸の、平たい 石。', '『とまたろう』と、小さく『マル』。'], battleText: ['石を 見せた。\n$enemyは 字の 大きさを 見くらべた。'] },
   // 朝の ほうだけ 光る 星（02 #77）：まつ先生から 天文台の 鍵、望遠鏡の カバーから タクミの カード

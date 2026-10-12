@@ -122,7 +122,7 @@ export function* victory(s: BattleScene): Co {
   // (第3章の 中ボス: settled, not knocked down — the pot's はなまる, the siren rung out)
   const exp = s.enemies.reduce((a, e) => a + (e.dead || e.hp <= 0 || e.id === 'enemy_kanenari' || e.mem.settled ? e.def.exp : 0), 0);
   // ナリオサメ (61 19.2): no jingle, the band alone over the siren's last echo
-  const siren = s.enemies.some((e) => e.id === 'enemy_nariosame');
+  const siren = s.enemies.some((e) => e.id === 'enemy_nariosame' || e.id === 'boss_hirosuke');
   const money = s.enemies.reduce((a, e) => a + (e.dead ? e.def.money : 0), 0);
   s.cmd = null;
   if (event) {
@@ -411,6 +411,10 @@ function* stickItemCard(s: BattleScene, id: string, body: () => Co): Co {
 function* levelUpSequence(s: BattleScene, list: LevelUpResult[], quiet = false): Co {
   const levels = [...new Set(list.map((r) => r.to))].sort((a, b) => a - b);
   let first = true;
+  // ヤキソバン gets no report card (61 3.4: grown-ups don't): one page instead
+  const yaki = list.some((r) => r.memberId === 'yakisoban');
+  list = list.filter((r) => r.memberId !== 'yakisoban');
+  levels.splice(0, levels.length, ...[...new Set(list.map((r) => r.to))].sort((a, b) => a - b));
   for (const lv of levels) {
     const rs = list.filter((r) => r.to === lv);
     for (const r of rs) yield* say(s, fillAll(SYS.levelUp, { actor: r.memberId === 'minato' ? 'しゅん' : 'グソっ君', n: r.to }));
@@ -422,6 +426,7 @@ function* levelUpSequence(s: BattleScene, list: LevelUpResult[], quiet = false):
     const learned = learnedAt(lv, rs);
     if (learned.length) yield* say(s, learned);
   }
+  if (yaki) yield* say(s, SYS3.yakiLevel);
 }
 
 /** Apply what reaching `lv` teaches (ごあいさつ at 3) and return its band pages. */

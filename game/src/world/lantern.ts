@@ -445,6 +445,7 @@ export class LightState {
    */
   darkK(): number {
     const m = this.f.map;
+    if (m.def.darkCond && !condOk(m.def.darkCond)) return 0;
     if (!isCh2Map(m.def)) return 1;
     if (m.def.kind === 'indoor') return 1 - roomMorningK(this.f);
     return currentStage() <= 2 ? 1 : 0;

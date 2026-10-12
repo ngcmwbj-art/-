@@ -38,6 +38,7 @@ import { onBossPartBreak, onBossBodyMimashita, bossUndo, doOkaerinasai, doOyasum
 import { raiseTomato, yobiLit } from './boss_yobimodoshi';
 import { ch3AfterMimashita, potReady } from './ch3rules';
 import { hankoGochisousama, hankoItadakimasu, potHanamaru } from './hanko_ch3';
+import { aqHankoOn } from './boss_c3aq';
 import { hankoOtsukaresama, hatoMeishiKacho, kaneKon, konRing, otsukareBlock, pekeHamidashi, shockBack, shockLine } from './party_ch2';
 
 // ---- helpers -----------------------------------------------------------------------
@@ -51,7 +52,7 @@ function randomAlive<T extends { alive: boolean }>(list: T[]): T | undefined {
   return a.length ? rng.pick(a) : undefined;
 }
 
-function retarget(s: BattleScene, e: EnemyUnit): EnemyUnit | undefined {
+export function retarget(s: BattleScene, e: EnemyUnit): EnemyUnit | undefined {
   if (e.alive) return e;
   return randomAlive(s.enemies);
 }
@@ -292,7 +293,7 @@ function consumeBokemake(e: EnemyUnit, used: boolean): void {
 
 // ---- たたく ----------------------------------------------------------------------------
 
-function* strikeOnce(
+export function* strikeOnce(
   s: BattleScene,
   u: PartyUnit,
   target: EnemyUnit,
@@ -932,6 +933,8 @@ export function* doHanko(s: BattleScene, cmd: Extract<PartyCmd, { kind: 'hanko' 
   s.post(fillAll(SYS.hankoReady, { skill: sk.name }));
   u.m.mp = Math.max(0, u.m.mp - (sk.cost ?? 0));
   const judge = yield* holdStamp(s, u, lowInk);
+  // 第3章 (61 12.2・13.5): the stamp on the people — bounced off ツガオ, ポコシャ's name tag
+  if (target.kind === 'enemy' && (yield* aqHankoOn(s, u, cmd.skill, target as EnemyUnit, judge))) return;
   switch (cmd.skill) {
     case 'skill_peke':
       yield* hankoPeke(s, u, target as EnemyUnit, judge);
@@ -2197,7 +2200,9 @@ export function* doNori(s: BattleScene): Co {
     e.whiteFrames = 5;
     noriStruck(s, e);
     if (e.def.invulnerable) return;
-    const dmg = fixedDamage((atkM + atkK) * 2.5, attrMul(e, 'wara'));
+    // 第3章 (61 5.8・4.2): ヤキソバンも 動けたら 3人版 — (3人の ちから) × 2.0
+    const yk = s.yakisoban?.canAct ? s.yakisoban.m.atk : 0;
+    const dmg = yk ? fixedDamage((atkM + atkK + yk) * 2.0, attrMul(e, 'wara')) : fixedDamage((atkM + atkK) * 2.5, attrMul(e, 'wara'));
     if (hurtEnemy(s, e, dmg, { big: true, stack: 0, noNumber: true })) killed.push(e);
     else e.status.bokemake = true;
     // QA round 2: the numbers pop right after the flash, over the manga

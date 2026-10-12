@@ -514,13 +514,26 @@ function hiroFront(f: Fig, p: Pose) {
     }
     f.part('glove', { shade: 'rb', light: 't' });
     f.rect(3, 14 + u, 2, 2).rect(11, 14 + u, 2, 2);
+  } else if (act === 'arms') {
+    // chapter 3's other face (62 10.5): arms folded, back straight
+    f.part('shirt', { shade: 'rb', light: 't' });
+    f.rect(3, 11 + u, 2, 3).rect(11, 11 + u, 2, 3);
+    f.rect(4, 13 + u, 8, 2);
+    f.part('shirt', { flat: true });
+    f.t(-1).hl(5, 10, 14 + u).t(null);
+    f.part('glove', { shade: 'rb', light: 't' });
+    f.px(4, 13 + u).px(11, 14 + u);
   } else hangArms(f, p, { lx: 3, rx: 12, sy: 11, hy: 16, segs: HIRO_ARM }, u);
   head(f, p, HIRO_HEAD, hy);
   f.part('gloss', { flat: true, rim: false });
   f.px(6, hy + (p.lookUp ? 2 : 1));
   const lu = p.lookUp;
   hiroShades(f, 'down', hy, lu);
-  hiroSmile(f, hy + (lu ? -1 : 0), act === 'laugh' || act === 'wave');
+  if (act === 'arms') {
+    // the mouth not smiling: a 1px line (62 10.5)
+    f.part('mouth', { flat: true, rim: false });
+    f.hl(6, 9, hy + 6 + (lu ? -1 : 0));
+  } else hiroSmile(f, hy + (lu ? -1 : 0), act === 'laugh' || act === 'wave');
   const bs = act === 'stroke' ? p.ph : act === 'laugh' ? (p.ph === 1 ? 1 : 0) : 0;
   hiroBeard(f, 'down', hy, bs, lu);
   if (act === 'stroke') {
@@ -639,6 +652,7 @@ registerChar('npc_hirosuke', () =>
       yakiimo: { dirs: ['down', 'left', 'right'] },
       aori: { dirs: ['down'] },
       carry_box: { dirs: 'all' },
+      arms: { dirs: ['down'] },
     },
     anims: {
       wave: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 0 }, { ph: 1 }, { ph: 0 }], ms: [180, 180, 180, 180, 400], loop: false, dirs: ['down', 'left', 'right'] },
@@ -1202,13 +1216,29 @@ const SUIT_HEAD: HeadT = {
   hairL: [3, 0, ['.HHHHHHh..', 'Hhhhhhhhd.', 'hhhhhhhhhd', '....hhhhd.', '.....hhd..'], T],
 };
 
+/** Seated on the bench (62 10.5 'sit', back straight) / getting up slowly ('stand_slow' ph 0..2): how far down (px). */
+function sitDrop(p: Pose): number {
+  if (p.act === 'sit' || p.act === 'nightcap') return 3;
+  if (p.act === 'stand_slow') return [3, 2, 1][p.ph] ?? 0;
+  return 0;
+}
+
 function suitDraw(f: Fig, p: Pose) {
-  const u = upper(p);
-  const b = p.bob;
+  const drop = sitDrop(p);
+  const u = upper(p) + drop;
+  const b = p.bob + drop;
   const hy = 1 + u;
   const act = p.act;
   const L: LegSpec = { cx: 8, hip: 17, foot: 22, w: 3, gap: 2, mat: 'suit', shoe: 'shoe', shoeLen: 4 };
-  legs(f, p, L);
+  if (drop && p.view !== 'up') {
+    // seated: the thighs come forward (short, foreshortened), the shins straight down to the shoes
+    f.part('suit', { shade: 'rb', light: 't' });
+    if (p.view === 'left') f.rect(2, 17 + drop - 1, 8, 3).rect(2, 19 + drop - 1, 3, 22 - (19 + drop - 1));
+    else f.rect(3, 17 + drop - 1, 4, 3).rect(9, 17 + drop - 1, 4, 3).rect(4, 19 + drop, 3, Math.max(1, 21 - (19 + drop))).rect(9, 19 + drop, 3, Math.max(1, 21 - (19 + drop)));
+    f.part('shoe', { shade: 'rb', light: 't' });
+    if (p.view === 'left') f.rect(0, 21, 5, 2);
+    else f.rect(3, 21, 4, 2).rect(9, 21, 4, 2);
+  } else legs(f, p, L);
   const side = p.view === 'left';
   const back = p.view === 'up';
   if (side) {
@@ -1260,8 +1290,15 @@ function suitDraw(f: Fig, p: Pose) {
     f.part('ink', { flat: true, rim: false });
     f.px(2, 18 + u + (p.mode === 'walk' ? [0, 1, 0, -1][p.step % 4] : 0));
   }
-  head(f, act === 'sleep' ? { ...p, blink: true, blinkClosed: true } : p, SUIT_HEAD, hy);
-  if (act === 'sleep') nightcap(f, back ? 'up' : 'down', hy);
+  if ((act === 'sit' || act === 'nightcap') && !back) {
+    // on his knees: the black 回覧板 and the cold yakisoba pack on it (62 4.15)
+    f.part('stampH', { flat: true });
+    f.rect(4, 17 + p.bob + 2, 8, 3);
+    f.part('cuff', { flat: true, rim: false });
+    f.hl(6, 9, 18 + p.bob + 2);
+  }
+  head(f, act === 'sleep' || act === 'nightcap' ? { ...p, blink: true, blinkClosed: true } : p, SUIT_HEAD, hy);
+  if (act === 'sleep' || act === 'nightcap') nightcap(f, back ? 'up' : 'down', hy);
 }
 
 registerChar('npc_tsugao_suit', () =>
@@ -1272,8 +1309,17 @@ registerChar('npc_tsugao_suit', () =>
     walkFrameMs: 190,
     idle: rep([{ breath: 0 }, { breath: 0 }, { breath: 0 }, { breath: 1 }, { breath: 1 }, { breath: 1 }, { breath: 0 }, { breath: 0, blink: true }], 2),
     idleFrameMs: 300,
-    extras: { sleep: { dirs: 'all' }, stamp: { dirs: ['down'], p: { ph: 1 } } },
-    anims: { stamp: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 1 }, { ph: 0 }], ms: [200, 120, 400, 200], loop: false } },
+    extras: {
+      sleep: { dirs: 'all' },
+      stamp: { dirs: ['down'], p: { ph: 1 } },
+      // chapter 3 (62 10.5): on the bench, back straight; 'nightcap' = seated with the nightcap on (S20's end)
+      sit: { dirs: ['down', 'left', 'right'] },
+      nightcap: { dirs: ['down'] },
+    },
+    anims: {
+      stamp: { frames: [{ ph: 0 }, { ph: 1 }, { ph: 1 }, { ph: 0 }], ms: [200, 120, 400, 200], loop: false },
+      stand_slow: { frames: [{ act: 'stand_slow', ph: 0 }, { act: 'stand_slow', ph: 1 }, { act: 'stand_slow', ph: 2 }, { act: '' }], ms: [400, 400, 400, 200], loop: false },
+    },
     shadow: 12,
     keep: ['#C98A6A', '#A86A4E'],
   }),
@@ -1362,5 +1408,74 @@ registerChar('npc_dakoku', () =>
       gachan: { frames: [{ act: '' }, { act: 'gachan' }], ms: [80, 600], loop: false },
     },
     shadow: 18,
+  }),
+);
+
+// =============================================================================
+// エゴ on his trolley (npc_dakoku_daisha, 62 10.5・7.4 prop_c3_aq_daisha): in the
+// old aquarium he rides an old grey trolley (24×10, four little wheels that
+// turn in 2 frames as it rolls), so the time recorder stands still on it while
+// it moves. Extras: dakoku (= gachan), card_half (S22: the blank card pushed
+// half out of the slot), taikin (S28: the first 「退勤」 — the hands start).
+
+const DAISHA: Mats = {
+  ...DAKOKU,
+  deck: mat('#8E95A6', { shade: '#6B7186', light: '#A8AEB6', dark: '#3A3F48' }),
+  wheel: flat('#2A2440'),
+  hub: flat('#9AA0A8'),
+  bar: flat('#6B7186'),
+};
+
+function daishaDraw(f: Fig, p: Pose) {
+  const rolling = p.mode === 'walk';
+  const ph = rolling ? p.step % 2 : 0;
+  // the trolley: a grey deck, the push bar at its back, four small wheels
+  f.offset(0, 0);
+  f.part('deck', { shade: 'rb', light: 't' });
+  f.rect(1, 30, 22, 3);
+  f.part('bar', { flat: true });
+  if (p.view === 'left') f.vl(21, 22, 30).hl(20, 22, 22);
+  f.part('wheel', { flat: true });
+  for (const x of [3, 8, 15, 20]) f.rect(x - 1, 33, 3, 2);
+  f.part('hub', { flat: true, rim: false });
+  for (const x of [3, 8, 15, 20]) f.px(x - 1 + ph * 2, 33);
+  // エゴ on it, his legs together (he does not walk here)
+  f.offset(0, 2);
+  const act = p.act === 'dakoku' ? 'gachan' : p.act;
+  dakokuDraw(f, { ...p, mode: 'idle', step: 0, act });
+  f.offset(0, 0);
+  if (p.view === 'down' && (p.act === 'card_half' || p.act === 'taikin')) {
+    // the card half out of the slot (a white card, its date box)
+    f.offset(0, 2);
+    f.part('card', { flat: true, rim: false });
+    f.rect(9, 17, 6, p.act === 'card_half' ? 3 : 4);
+    f.part('rimM', { flat: true, rim: false });
+    f.px(10, 18);
+    if (p.act === 'taikin') {
+      // the hands moving at last: the long hand a quarter on
+      f.part('hand', { flat: true, rim: false });
+      f.hl(11, 13, 10).vl(11, 8, 10);
+    }
+    f.offset(0, 0);
+  }
+}
+
+registerChar('npc_dakoku_daisha', () =>
+  buildSprite({
+    id: 'npc_dakoku_daisha',
+    w: 24,
+    h: 36,
+    mats: DAISHA,
+    draw: daishaDraw,
+    walkFrameMs: 180,
+    walkBob: [0, 0, 0, 0],
+    idle: [{}, {}, {}, {}],
+    idleFrameMs: 400,
+    extras: { dakoku: { dirs: ['down'] }, card_half: { dirs: ['down'] }, taikin: { dirs: ['down'] } },
+    anims: {
+      talk: { frames: [{ ph: 0 }, { ph: 1 }], ms: 160 },
+      dakoku: { frames: [{ act: '' }, { act: 'dakoku' }], ms: [80, 600], loop: false },
+    },
+    shadow: 20,
   }),
 );

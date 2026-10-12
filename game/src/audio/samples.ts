@@ -82,6 +82,11 @@ export const VOICE_SAMPLES: Record<string, string> = {
   c3_kid_a: 'しゅん、どっから 来たん？',
   nariosame: '……マダ、鳴リ終ワリタク ナイ。',
   okawarinabe: 'おかわり……おかわり……。',
+  kakaricho: 'なにを やっとるんだ。まだか。',
+  pokosha_pa: '……そこは、立入禁止です。',
+  tsugao_omote: '……でっけえ エビ、だな。',
+  gusokkun_yowai: '……かっこ悪いな。',
+  gusokkun_nurui: 'ぬるいのに、うまいわ。',
   c3_kid_b: 'それ、でっかい ダンゴムシ？',
   c3_kid_c: 'お昼、まだ 終わらんのよ。',
 };

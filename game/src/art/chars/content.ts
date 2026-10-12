@@ -39,5 +39,7 @@ import './hoshi_restored';
 import './hikizuna';
 // 第3章：海ぞいの町の人（62 10.6）
 import './people/umizoi';
+// 第3章 第3期：ヤキソバン（62 10.3）
+import './people/yakisoban';
 // 第3章の 敵の シンボルと 思いだした 姿（61 15.1）
 import './c3_foes';

@@ -20,10 +20,11 @@ import { DamageNumber, type NumOpts, type NumRect } from './fx/numbers';
 import { MessageBand, type BandPageOpts } from './ui/message';
 import { emptySlotCanvas } from './ui/panels';
 import {
-  CARD_H, CARD_Y, drawActing, drawChimeSticky, drawCommand, drawInfoCard, drawKire, drawList, drawPanel, KIRE_TAB, PANEL_POS, panelOffset, ROW, syncBattleRow, TAG, type CardData, type CmdView, type ListRow,
+  CARD_H, CARD_Y, drawActing, drawChimeSticky, drawCommand, drawInfoCard, drawKire, drawList, drawPanel, KIRE_TAB, PANEL_POS, panelOffset, ROW, setTrio, syncBattleRow, TAG, type CardData, type CmdView, type ListRow,
 } from './ui/panels';
 import { C, cursorStamp, cursorStampSide, drawBar, slantTape, STICKY_PAD, stickyCanvas, tapeCanvas } from './ui/note';
 import { Cues } from './ui/cue';
+import './art/yakisoban';
 import { inkLabel, ovalStamp, pekeMark, petalSprites } from './art/stamps';
 import { hitCrack, hitSplash, sweatDrop } from './art/fxart';
 import { boarIcon, moyamoya } from './art/fxart_ch2';
@@ -206,7 +207,11 @@ export class BattleScene implements Scene {
     this.c3 = (state.map ?? '').startsWith('map_c3_') || state.map === 'map_umizoi' || opts.enemies.some((id) => getEnemy(id)?.chapter === 3);
     this.bg = makeBackground(opts.background ?? first?.bg ?? 'bg_residential', opts.enemies[0]);
     this.kanenariJoined = !!flag('flag_kanenari_joined') && state.party.some((m) => m.id === 'kanenari');
-    this.party = state.party.filter((m) => m.id === 'minato' || (m.id === 'kanenari' && this.kanenariJoined)).map((m) => new PartyUnit(m));
+    // 第3章 (61 5.1・16.1): ヤキソバン makes three — the trio row of 92-wide panels
+    this.party = state.party
+      .filter((m) => m.id === 'minato' || (m.id === 'kanenari' && this.kanenariJoined) || (m.id === 'yakisoban' && this.kanenariJoined && !opts.lesson))
+      .map((m) => new PartyUnit(m));
+    setTrio(this.party.length >= 3);
     const ids = opts.enemies.slice(0, 3);
     syncBattleRow();
     const xs = ids.length >= 3 && ROW.fixed ? SLOTS_FIXED3 : (SLOTS[ids.length] ?? SLOTS[3]);
@@ -247,6 +252,10 @@ export class BattleScene implements Scene {
   }
   get kanenari(): PartyUnit | undefined {
     return this.party.find((u) => u.id === 'kanenari');
+  }
+  /** 第3章: the third member (61 5). */
+  get yakisoban(): PartyUnit | undefined {
+    return this.party.find((u) => u.id === 'yakisoban');
   }
   get aliveEnemies(): EnemyUnit[] {
     return this.enemies.filter((e) => e.alive);
@@ -1826,7 +1835,7 @@ export class BattleScene implements Scene {
    * never inside the band (tall enemies, the boss).
    */
   enemyBarY(e: EnemyUnit): number | null {
-    if (!this.cmd || this.hideEnemyHp || !e.alive || !flag('flag_mimashita_' + e.id) || e.def.invulnerable) return null;
+    if (!this.cmd || this.hideEnemyHp || !e.alive || !flag('flag_mimashita_' + e.id) || e.def.invulnerable || e.def.gauge || e.def.untouchable) return null;
     return Math.max(this.msg.bottom + 3, e.headY - 6 - 3);
   }
 

@@ -16,6 +16,8 @@ import { bossTriesOf } from './boss';
 import { rappaTargetName, yobiCharge, yobiLit } from './boss_yobimodoshi';
 import { keyItemUsable, otsukareBlock } from './party_ch2';
 import { potReady } from './ch3rules';
+import { aqKoeIcon, hiroReady } from './boss_c3aq';
+import { SYS3, YAKISOBAN_SKILLS } from '../data/battle';
 
 type Icon = { id: string; name: string; sub?: string; dim?: boolean };
 
@@ -72,9 +74,23 @@ export function canUndo(s: BattleScene, e: EnemyUnit, part?: BossPart): boolean 
 
 function commandIcons(s: BattleScene, u: PartyUnit): Icon[] {
   if (s.memo.bossFinal && u.id === 'minato') return s.bossKind === 'yobimodoshi' ? [{ id: 'oyasumi', name: 'おやすみなさい' }] : [{ id: 'okaeri', name: 'おかえりなさい' }];
+  // ポコシャ (61 13.5): the three voices untied — the one command is the はなまる on the name tag
+  if (s.memo.nafudaTurn && u.id === 'minato') return [{ id: 'nafuda', name: 'はなまる' }];
+  const koe = aqKoeIcon(s, u);
+  if (u.id === 'yakisoban') {
+    const ready = YAKISOBAN_SKILLS.filter((sk) => sk !== 'skill_yk_hera' && !(u.ct[sk] > 0)).length;
+    return [
+      ...koe,
+      { id: 'hera', name: 'ヘラ' },
+      { id: 'waza', name: 'わざ', sub: `つかえる ${ready}` },
+      { id: 'item', name: 'もちもの', sub: `${usableItems().reduce((a, b) => a + b.count, 0)}こ` },
+      { id: 'guard', name: 'まもる' },
+    ];
+  }
   if (u.id === 'kanenari') {
     const ready = PR_ORDER.filter((sk) => u.m.skills.includes(sk) && !(u.ct[sk] > 0)).length;
     return [
+      ...koe,
       { id: 'tackle', name: 'タックル' },
       // 「PR活動」→「おてつだい」（★2026-09-29 グソっ君。04_gusokkun_plan 5章。id は 'pr' のまま）
       { id: 'pr', name: 'おてつだい', sub: `つかえる ${ready}` },
@@ -94,7 +110,7 @@ function commandIcons(s: BattleScene, u: PartyUnit): Icon[] {
 }
 
 function noriAvailable(s: BattleScene): boolean {
-  if (!s.kanenariJoined || s.kire < 3 || s.memo.bossFinal) return false;
+  if (!s.kanenariJoined || s.kire < 3 || s.memo.bossFinal || s.memo.nafudaTurn) return false;
   const k = s.kanenari;
   const m = s.minato;
   const ok = (u?: PartyUnit) => !!u && u.canAct && !u.has('status_konran');
@@ -105,7 +121,7 @@ function noriAvailable(s: BattleScene): boolean {
 export function* inputCommands(s: BattleScene): Co<PartyCmd[]> {
   if (s.cmdQueue.length) return queuedCommands(s);
   // (in the park's lesson グソっ君 is the teacher: only しゅん chooses)
-  const actors = s.party.filter((u) => u.canAct && !(s.memo.bossFinal && u.id === 'kanenari') && !(s.lesson && u.id !== 'minato'));
+  const actors = s.party.filter((u) => u.canAct && !(s.memo.bossFinal && u.id === 'kanenari') && !(s.lesson && u.id !== 'minato') && !(s.memo.nafudaTurn && u.id !== 'minato'));
   const cmds: PartyCmd[] = [];
   const chosen: (PartyCmd | null)[] = actors.map(() => null);
   let i = 0;
@@ -144,6 +160,7 @@ export function* inputCommands(s: BattleScene): Co<PartyCmd[]> {
     if (last.some((c) => c.kind === 'flee')) continue;
     if (s.memo.bossFinal && u.id === 'kanenari') continue;
     if (s.lesson && u.id !== 'minato') continue;
+    if (s.memo.nafudaTurn && u.id !== 'minato') continue;
     const reason = !u.alive
       ? 'status_hebatta'
       : u.has('status_rusu')
@@ -156,7 +173,11 @@ export function* inputCommands(s: BattleScene): Co<PartyCmd[]> {
               ? 'status_toosenbo'
               : u.has('status_henji')
                 ? 'status_henji'
-                : '';
+                : u.has('status_c3_ashi')
+                  ? 'status_c3_ashi'
+                  : u.has('status_c3_mada')
+                    ? 'status_c3_mada'
+                    : '';
     if (reason) cmds.push({ kind: 'skip', u, reason });
   }
   return cmds;
@@ -207,11 +228,26 @@ function queuedCommands(s: BattleScene): PartyCmd[] {
         break;
       case 'nori':
         return [{ kind: 'nori', u }];
+      // 第3章: ヤキソバンの わざ（target: a member id, or an enemy index）、ツッコむ
+      case 'yaki': {
+        const sk = c.skill ?? 'skill_yk_teppan';
+        const t = sk === 'skill_yk_teppan' ? null : typeof c.target === 'number' ? enemy() : ally();
+        out.push({ kind: 'yaki', u, skill: sk, target: t });
+        break;
+      }
+      case 'koe':
+        out.push({ kind: 'koe', u });
+        break;
+      case 'nafuda': {
+        const po = s.enemies.find((e) => e.id === 'boss_pokosha');
+        if (po) out.push({ kind: 'hanko', u, skill: 'skill_hanamaru', target: po });
+        break;
+      }
     }
   }
   for (const u of s.party) {
     if (out.some((c) => c.u === u)) continue;
-    const reason = !u.alive ? 'status_hebatta' : u.has('status_rusu') ? 'status_rusu' : u.has('status_nemuri') ? 'status_nemuri' : u.has('status_tsukamare') ? 'status_tsukamare' : u.has('status_toosenbo') ? 'status_toosenbo' : u.has('status_henji') ? 'status_henji' : '';
+    const reason = !u.alive ? 'status_hebatta' : u.has('status_rusu') ? 'status_rusu' : u.has('status_nemuri') ? 'status_nemuri' : u.has('status_tsukamare') ? 'status_tsukamare' : u.has('status_toosenbo') ? 'status_toosenbo' : u.has('status_henji') ? 'status_henji' : u.has('status_c3_ashi') ? 'status_c3_ashi' : '';
     if (reason) out.push({ kind: 'skip', u, reason });
   }
   return out;
@@ -279,10 +315,22 @@ function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: R
   if (u.id === 'minato' && !ch2Pulse && potReady(s)) {
     ch2Pulse = 'hanko';
     s.memo.list_hanko = Math.max(0, hankoSkills(u).indexOf('skill_hanamaru'));
+  } else if (u.id === 'minato' && !ch2Pulse && hiroReady(s) && hankoSkills(u).includes('skill_gochisousama')) {
+    // 61 13.3: ヒロスケの 黒い『まだ』 — ごちそうさま pulses
+    ch2Pulse = 'hanko';
+    s.memo.list_hanko = Math.max(0, hankoSkills(u).indexOf('skill_gochisousama'));
   } else if (u.id === 'minato' && !ch2Pulse && s.memo.itadakiTut && hankoSkills(u).includes('skill_itadakimasu')) {
     ch2Pulse = 'hanko';
     s.memo.list_hanko = Math.max(0, hankoSkills(u).indexOf('skill_itadakimasu'));
   }
+  // 61 5.1: ヤキソバンの 最初の コマンド — the cursor on わざ, the list on 鉄板
+  if (u.id === 'yakisoban' && !ch2Pulse && s.memo.yakiTut && lastIndex[u.id] === undefined) {
+    s.memo.yakiTut = 0;
+    ch2Pulse = 'waza';
+    s.memo.list_waza = 1;
+  }
+  // 61 13.5: ツッコむ waits at the top for the one whose turn it is
+  if (!ch2Pulse && aqKoeIcon(s, u).length) ch2Pulse = 'tsukkomu';
   if (ch2Pulse && lastIndex[u.id] === undefined) {
     const pi = commandIcons(s, u).findIndex((ic) => ic.id === ch2Pulse);
     if (pi >= 0) index = pi;
@@ -309,7 +357,7 @@ function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: R
       }
     }
     if (!nori) onTab = false;
-    s.cmd = { icons, index, pressed: false, noriTab: nori, onTab, tutorialPulse: firstTut && !s.memo.cmdTutDone ? 'tataku' : knHint ? 'hanko' : chimeHint ? 'guard' : ch2Pulse };
+    s.cmd = { icons, index, pressed: false, noriTab: nori, noriThree: nori && !!s.yakisoban?.canAct && !s.yakisoban.has('status_konran'), onTab, tutorialPulse: firstTut && !s.memo.cmdTutDone ? 'tataku' : knHint ? 'hanko' : chimeHint ? 'guard' : ch2Pulse };
     s.msg.setStatic(yousuText(s));
     yield null;
     // QA: __game.cmd.bcmd() while the command window is open
@@ -365,9 +413,18 @@ function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: R
 function* runIcon(s: BattleScene, u: PartyUnit, id: string): Co<PartyCmd | null> {
   switch (id) {
     case 'tataku':
-    case 'tackle': {
+    case 'tackle':
+    case 'hera': {
       const t = yield* pickEnemy(s, { parts: false });
       return t ? { kind: 'attack', u, target: t.e } : null;
+    }
+    case 'waza':
+      return yield* yakiMenu(s, u);
+    case 'tsukkomu':
+      return { kind: 'koe', u };
+    case 'nafuda': {
+      const po = s.enemies.find((e) => e.id === 'boss_pokosha');
+      return po ? { kind: 'hanko', u, skill: 'skill_hanamaru', target: po } : null;
     }
     case 'hanko':
       return yield* hankoMenu(s, u);
@@ -615,6 +672,73 @@ function* itemMenu(s: BattleScene, u: PartyUnit): Co<PartyCmd | null> {
   return yield* runList(s, items, 'item');
 }
 
+/** ヤキソバンの わざ (61 5.2): こそげる・鉄板・大盛り, the CT like おてつだい. */
+function* yakiMenu(s: BattleScene, u: PartyUnit): Co<PartyCmd | null> {
+  const heat = s.shared.teppan ?? 0;
+  const items: ListItem[] = ['skill_yk_kosogeru', 'skill_yk_teppan', 'skill_yk_oomori'].filter((sk) => u.m.skills.includes(sk)).map((sk) => {
+    const def = getSkill(sk)!;
+    const ct = u.ct[sk] ?? 0;
+    const hot = sk === 'skill_yk_teppan' && heat >= 3;
+    return {
+      row: { name: def.name, right: ct > 0 ? `あと${ct}` : hot ? 'あつあつ' : sk === 'skill_yk_teppan' ? `熱 ${heat}` : '', dim: ct > 0 || hot },
+      desc: skillDesc(sk),
+      pick: function* (): Co<PartyCmd | null | 'stay'> {
+        if (ct > 0) {
+          s.sfx('se_cancel');
+          return 'stay';
+        }
+        if (hot) {
+          s.sfx('se_cancel');
+          yield* s.say(SYS3.teppanMax);
+          return 'stay';
+        }
+        s.sfx('se_confirm');
+        if (sk === 'skill_yk_teppan') return { kind: 'yaki', u, skill: sk, target: null };
+        if (sk === 'skill_yk_oomori') {
+          const t = yield* pickAlly(s, true);
+          return t ? { kind: 'yaki', u, skill: sk, target: t } : null;
+        }
+        // こそげる: a member (their states), or an enemy (its raised steps)
+        const list: (PartyUnit | EnemyUnit)[] = [...s.party.filter((p) => p.alive && !p.has('status_rusu')), ...s.aliveEnemies.filter((e) => !e.mem.noTarget)];
+        const t = yield* pickAny(s, list);
+        return t ? { kind: 'yaki', u, skill: sk, target: t } : null;
+      },
+    };
+  });
+  return yield* runList(s, items, 'waza');
+}
+
+/** A target among members and enemies (こそげる). */
+function* pickAny(s: BattleScene, list: (PartyUnit | EnemyUnit)[]): Co<PartyUnit | EnemyUnit | null> {
+  const inp = game.input;
+  let index = 0;
+  for (;;) {
+    const t = list[index];
+    s.target = t.kind === 'enemy' ? { kind: 'enemy', e: t } : { kind: 'party', u: t };
+    s.msg.setStatic(t.name);
+    yield null;
+    if (inp.repeat('left') || inp.repeat('up')) {
+      index = (index + list.length - 1) % list.length;
+      s.sfx('se_cursor');
+    } else if (inp.repeat('right') || inp.repeat('down')) {
+      index = (index + 1) % list.length;
+      s.sfx('se_cursor');
+    }
+    if (s.takeCancel()) {
+      s.sfx('se_cancel');
+      s.target = null;
+      s.msg.setStatic('');
+      return null;
+    }
+    if (s.takeConfirm()) {
+      s.sfx('se_confirm');
+      s.target = null;
+      s.msg.setStatic('');
+      return list[index];
+    }
+  }
+}
+
 // ---- targets -------------------------------------------------------------------------
 
 interface EnemyTarget {
@@ -667,6 +791,8 @@ export function* pickEnemy(s: BattleScene, o: { parts: boolean; skill?: string }
   const inp = game.input;
   const list: EnemyTarget[] = [];
   for (const e of [...s.aliveEnemies].sort((a, b) => a.x - b.x)) {
+    // 第3章 (61 13.1): ポコシャ in the back (the first part), ヒロスケ sitting by the wall (the second)
+    if (e.mem.noTarget) continue;
     if (e.id === 'boss_yobimodoshi' && o.parts) {
       // west, north, the body, south, east: left to right, top first
       const at = (k: string) => s.bossParts.find((p) => p.id === 'boss_yobimodoshi_' + k && !p.broken);
@@ -728,7 +854,7 @@ export function* pickEnemy(s: BattleScene, o: { parts: boolean; skill?: string }
     if (t.e.def.boss) t.e.params.hl = boss ? (t.part ? PART_HL[t.part.id] ?? 0 : 5) : 0;
     const darkPart = !!t.part && s.bossKind === 'yobimodoshi' && !yobiLit(s);
     const name = t.part ? (s.bossKind === 'yobimodoshi' ? rappaTargetName(s, t.part) : t.part.name) : t.e.name;
-    const showHp = !t.part && !!flag('flag_mimashita_' + t.e.id) && !t.e.def.invulnerable;
+    const showHp = !t.part && !!flag('flag_mimashita_' + t.e.id) && !t.e.def.invulnerable && !t.e.def.gauge && !t.e.def.untouchable;
     const e = t.e;
     const part = t.part;
     const nameW = measure(name);

@@ -12,4 +12,7 @@ import './ichiba';
 import './shokudo';
 import './kaisui';
 import './siren';
+// 第3期（S15〜S24：旧水族館）
+import './aq';
+import './souko';
 import './debug';

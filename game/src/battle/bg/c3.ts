@@ -19,12 +19,15 @@ import { makeCanvas } from '../../engine/pixel';
 import { drawText } from '../../engine/font';
 import { hash2 } from '../../engine/rng';
 import { Background, BG_H, fillCircle, gradientTexture, mixHex } from './common';
+import { AQ_BG_IDS, makeAqBackground } from './aq';
 
-export const C3_BG_IDS = ['bg_c3_ichiba', 'bg_c3_shokudo', 'bg_c3_siren', 'bg_c3_himono', 'bg_c3_kaisui', 'bg_c3_bouhatei'];
+export const C3_BG_IDS = ['bg_c3_ichiba', 'bg_c3_shokudo', 'bg_c3_siren', 'bg_c3_himono', 'bg_c3_kaisui', 'bg_c3_bouhatei', ...AQ_BG_IDS];
 /** The ones whose 3D place stands under them in HD-2D (a room: the market, the diner's kitchen). */
-export const C3_PLACE_BG_IDS = ['bg_c3_ichiba', 'bg_c3_shokudo', 'bg_c3_himono', 'bg_c3_kaisui', 'bg_c3_bouhatei'];
+export const C3_PLACE_BG_IDS = ['bg_c3_ichiba', 'bg_c3_shokudo', 'bg_c3_himono', 'bg_c3_kaisui', 'bg_c3_bouhatei', ...AQ_BG_IDS];
 
 export function makeC3Background(id: string): Background | null {
+  const aq = makeAqBackground(id);
+  if (aq) return aq;
   switch (id) {
     case 'bg_c3_ichiba':
       return new IchibaBg();

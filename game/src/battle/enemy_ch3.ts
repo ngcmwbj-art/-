@@ -39,6 +39,10 @@ export const CH3_MOVES = new Set([
   'skill_yoko_nerai',
   'skill_yoko_dori',
   'skill_yoko_pihyoro',
+  // 旧水族館（61 9.5・13.3）
+  'skill_junro_kochira',
+  'skill_junro_modoru',
+  'skill_hiro_dandori',
 ]);
 
 export function isCh3Move(id: string): boolean {
@@ -530,6 +534,90 @@ export function* ch3Move(c: BossMoveCtx): Co {
       const hit = spdDown(c, all, sk.status?.chance ?? 0.6);
       if (st.anySuccess) pages.push(...fillAll(SYS.guarded, { target: all.length > 1 ? 'しゅんたち' : all[0]?.name ?? '' }));
       else if (hit.length) pages.push(...e.def.texts.extra.pihyoroResult);
+      break;
+    }
+    // ---- ジュンロ (61 9.5) ------------------------------------------------------
+    case 'skill_junro_kochira': {
+      // the arrow spins three times and a blue line runs round the screen's edge
+      s.sfx('se_c3_signboard');
+      yield* hitLoop(s, {
+        ...common,
+        onFrame: (f, _i, toHit) => {
+          if (f === 0) e.setPose('spin', sk.id);
+          if (toHit === 10) {
+            e.setPose('attack', sk.id);
+            s.addFx({
+              layer: 'top',
+              dur: 500,
+              ui: true,
+              draw: (g, tt) => {
+                const p = tt / 500;
+                const L = 2 * (384 + 216);
+                const n = Math.round(L * p);
+                g.alpha(0.8 * (1 - p * 0.5), () => {
+                  const top = Math.min(n, 384);
+                  g.rect(0, 0, top, 2, '#4AA8E0');
+                  if (n > 384) g.rect(382, 0, 2, Math.min(216, n - 384), '#4AA8E0');
+                  if (n > 600) g.rect(384 - Math.min(384, n - 600), 214, Math.min(384, n - 600), 2, '#4AA8E0');
+                  if (n > 984) g.rect(0, 216 - Math.min(216, n - 984), 2, Math.min(216, n - 984), '#4AA8E0');
+                });
+              },
+            });
+          }
+        },
+        onHit: (i, r) => {
+          resolveGuard(r, i);
+          all.forEach((t) => damageTo(s, e, t, sk.power ?? 0.4, r, i, true));
+        },
+      });
+      // next round the party goes slowest first (a tsukkomi keeps the order)
+      if (!st.anySuccess) {
+        s.memo.reverseRound = s.round + 1;
+        pages.push(...(e.def.texts.extra.kochiraResult ?? []));
+      } else pages.push(...fillAll(SYS.guarded, { target: all.length > 1 ? 'しゅんたち' : all[0]?.name ?? '' }));
+      break;
+    }
+    case 'skill_junro_modoru': {
+      const t = target!;
+      yield* hitLoop(s, {
+        ...common,
+        onFrame: (f, _i, toHit) => {
+          if (f === 0) e.setPose('windup', sk.id);
+          if (toHit === 8) {
+            e.setPose('attack', sk.id);
+            e.offX = -8;
+          }
+        },
+        onHit: (i, r) => {
+          resolveGuard(r, i);
+          damageTo(s, e, t, sk.power ?? 1.1, r);
+        },
+      });
+      e.offX = 0;
+      // back to the entrance: its raised steps go
+      if (!st.anySuccess) {
+        let any = false;
+        for (const k of ['atk', 'def', 'hit', 'spd'] as const)
+          if (t.stages[k].lv > 0) {
+            t.stages[k].lv = 0;
+            t.stages[k].turns = 0;
+            any = true;
+          }
+        if (any) pages.push(...fillAll(e.def.texts.extra.modoruResult ?? [], { target: t.name }));
+      }
+      break;
+    }
+    // ---- ヒロスケの 段取り (61 13.3) --------------------------------------------------
+    case 'skill_hiro_dandori': {
+      yield* c.selfMove(s, common, resolveGuard, () => e.setPose('dandori', sk.id), (f) => {
+        if (f === 0) e.setPose('dandori', sk.id);
+      });
+      if (!st.anySuccess) {
+        // next round: the two first, the party slowest first
+        s.memo.dandoriRound = s.round + 1;
+        s.memo.reverseRound = s.round + 1;
+        pages.push(...(e.def.texts.extra.dandoriResult ?? []));
+      }
       break;
     }
     default:

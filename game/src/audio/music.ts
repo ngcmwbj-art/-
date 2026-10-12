@@ -11,7 +11,8 @@ import { MUSIC_LOOKAHEAD, PARAM_DEFAULTS, SongPlayer, type Params, type SongDef 
 export type MusicParam =
   | 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest' | 'clock' | 'h_deli'
   // chapter 3 (63_ch3_audio 6)
-  | 'c3_noon' | 'c3_ichiba' | 'c3_shokudo' | 'c3_umi' | 'c3_ichi' | 'c3_shio' | 'c3_wana' | 'c3_phase' | 'nari_rewind';
+  | 'c3_noon' | 'c3_ichiba' | 'c3_shokudo' | 'c3_umi' | 'c3_ichi' | 'c3_shio' | 'c3_wana' | 'c3_phase' | 'nari_rewind'
+  | 'teppan' | 'kakaricho';
 
 export interface PlayOpts {
   /** Fade-in (and cross-fade) seconds. */
@@ -48,7 +49,7 @@ const BATCH = 0.15;
 
 /** Songs that continue where they left off by default (12.2; 53 5.1 adds 星見台の夜). */
 // (63 4.2: 海ぞいの町's song carries on between the town and its rooms, and after a battle)
-const RESUMABLE = /^bgm_(town_s[012]|home|shop|mall|hoshi_night|umi_noon)$/;
+const RESUMABLE = /^bgm_(town_s[012]|home|shop|mall|hoshi_night|umi_noon|suizokukan)$/;
 
 function g(): Graph {
   return cur();
@@ -174,7 +175,10 @@ export function playBgm(idIn: string, opts: PlayOpts = {}): void {
   if (hadSong && !fadeIn) fadeIn = 0.05;
   // every boss fight (a retry after a loss too) opens in phase 1; the battle
   // raises it to 2 and 3 as the fight goes on (7.3)
-  if (id === 'bgm_boss' || id === 'bgm_boss_yobimodoshi') params.boss_phase = 1;
+  if (id === 'bgm_boss' || id === 'bgm_boss_yobimodoshi' || id === 'bgm_boss_madamada') params.boss_phase = 1;
+  // 63 6.5 / 6.8: the teppan's heat and 係長's voices belong to one fight
+  params.teppan = 0;
+  params.kakaricho = 0;
   // the light, the name tags and Tetsuya's rest belong to one fight (53 6.2–6.4);
   // h_deli is not among them: the delivery goes on after a fight on the way (6.6)
   params.h_light = 0;
@@ -281,6 +285,39 @@ export function stopBgm(fade = 0.5): void {
   }
   stopActive(current, fade);
   current = null;
+}
+
+/**
+ * Stop the song at the end of the bar now sounding (63 5.6: ツガオ's
+ * 「……この程度じゃあ、寝てしまうわい。」 — the bar finishes, nothing after it).
+ * Returns the seconds until the stop (0 when nothing plays).
+ */
+export function stopBgmAtBarEnd(fade = 0.15): number {
+  pending = null;
+  const a = current;
+  if (!a?.player || !hasGraph()) {
+    stopBgm(fade);
+    return 0;
+  }
+  const p = a.player;
+  const t = p.g.ctx.currentTime;
+  const b = p.barAt(t);
+  const end = b ? Math.max(t, b.time(b.steps)) : t;
+  rememberStop(a);
+  p.stop(fade, end);
+  current = null;
+  return end - t;
+}
+
+/**
+ * 63 5.8: a one-bar insert from the next bar's head — 'yakisoban' (ヤキソバン's
+ * turn: the bar's tune becomes M10 on the brass, the bass goes to D). Songs
+ * that have no such insert ignore it.
+ */
+export function musicSting(id: string): void {
+  const p = current?.player;
+  if (!p) return;
+  p.state.sting = id;
 }
 
 export function flushPending(): void {

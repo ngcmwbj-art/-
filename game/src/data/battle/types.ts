@@ -21,7 +21,7 @@ export interface StatusApply {
 export interface SkillDef {
   id: string;
   name: string;
-  user: 'minato' | 'kanenari' | 'both' | 'enemy';
+  user: 'minato' | 'kanenari' | 'yakisoban' | 'both' | 'enemy';
   kind: SkillKind;
   /** 朱肉 cost. */
   cost?: number;
@@ -172,6 +172,12 @@ export interface EnemyDef {
   duty?: { tape?: string; restSe?: string; restartSe?: string; nightSe?: string; nightPose?: string };
   /** Boss parts (per boss; see BOSS_PARTS). */
   parts?: BossPartDef[];
+  /** 第3章（61 21.1）：何をしても 効かない（ツガオ初戦。ダメージ0・ハンコは はじかれる）。 */
+  untouchable?: boolean;
+  /** 人が 相手：HP を 黒い「まだ」の ゲージで 見せ、数字を 出さない（ヒロスケ）。lock＝錠の 値。 */
+  gauge?: { kind: 'mada'; lock: number };
+  /** 図鑑・みました帳の「あいて」・ツッコミの 記録に 入れない（人が 相手。61 15.4）。 */
+  noBook?: boolean;
 }
 
 /** Boss part definitions (13.2 / 51 10.2). Hit boxes relative to the sprite's top-left. */

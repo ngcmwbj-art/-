@@ -92,7 +92,8 @@ export function* transitionIn(s: BattleScene, boss: boolean): Co {
   // (the boss's E5 is rung by evt_boss_intro before the battle starts — 13.1)
   // 0–100ms: the field freezes; the seal drops 2.0 → 1.0 (easeInQuad)
   yield* frames(100, (_t, p) => (st.sealScale = 2 - ease.quadIn(p)));
-  s.sfx('se_encounter');
+  // (ツガオ初戦 keeps the hall's quiet: no encounter sting — 61 1.9, 63 5.6)
+  if (s.opts.music !== 'keep') s.sfx('se_encounter');
   game.shake(2, 100);
   // the boss holds the seal 200ms longer (900ms total)
   if (boss) yield 200;

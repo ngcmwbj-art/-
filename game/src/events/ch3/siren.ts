@@ -9,8 +9,8 @@
 //       「いただきます！」→ 操作がもどる（グソっ君「……港、なんか 来とる。」）。
 //   S14 港の軽トラのまわり（trig_ch3_truck_trap）→「やり残し ないか？」→ ツガオ便
 //       「送ってくぞ！」→ 黒い回覧板 → ポコシャが あおりを閉める → 荷台（map_c3_nidai、
-//       景色2）→ 町はずれの旧水族館の前に着く（flag_ch3_truck_trap）。第2期はここまで：
-//       入口のガラス戸の前に立って、いつもの〔休館〕の文（S15 は第3期）。
+//       景色2）→ 町はずれの旧水族館の前に着く（flag_ch3_truck_trap）→ そのまま S15
+//       （第3期。aq.ts の aqArrive）。
 
 import type { Co } from '../../engine/co';
 import { game, type Scene } from '../../engine/game';
@@ -34,6 +34,7 @@ import { F, grace, panBack, panTo, stepBack } from '../lib';
 import { ambEvent, hankoLearn, musicParam, se } from '../ch2/compat';
 import { addToMap, c3Battle, inCh3, kita, say3 } from './common';
 import { jumpMap, spawnTruck } from './prologue';
+import { aqArrive } from './aq';
 
 /** A dark page under everything (a room that isn't there yet). */
 class DarkPage implements Scene {
@@ -353,7 +354,7 @@ export function* truckTrap(): Co {
   yield* arriveAq();
 }
 
-/** At the old aquarium on the cape: the engine stops, M7 once. The second part ends here. */
+/** At the old aquarium on the cape: the engine stops, M7 once, then S15 (aq.ts). */
 function* arriveAq(): Co {
   const f = F();
   stopBgm(0.3);
@@ -371,9 +372,11 @@ function* arriveAq(): Co {
   yield* game.fadeIn(900);
   f.player.dir = 'up';
   setClockText(null);
+  // S15（第3期）：ポコシャが ガラス戸を開ける → 旧水族館の中へ
+  yield* aqArrive();
 }
 
-// the truck stays parked before the aquarium (S15 is the third part's)
+// the truck stays parked before the aquarium until S15
 addToMap('map_umizoi', [
   {
     t: 'npc', id: 'c3_truck_aq', sprite: 'npc_tsugao', vehicle: 'tsugao_truck_empty', x: 70, y: 31, dir: 'up', noTurn: true,

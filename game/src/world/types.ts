@@ -367,6 +367,11 @@ export interface MapDef {
    * brings back its warm colour and detail.
    */
   dark?: TileRect[];
+  /**
+   * When the dark is there (default always): chapter 3's store room is dark
+   * only through S22's night (62 1.7, flag_c3_souko_night, the scenario's).
+   */
+  darkCond?: Cond;
   /** The dark's colour in the light map when not DARK_COL (the barn's one dim pen under a dead tube). */
   darkCol?: string;
   /** How deep (px) the dark's dithered edge runs into it (default 12; a small dark wants less). */

@@ -118,6 +118,22 @@ export function musicPosition(): { id: string; label: string; beat: number; bpm:
 }
 
 /**
+ * 63 5.6: stop the song at the end of the bar now sounding (ツガオの初戦の
+ * 終わり). Returns the seconds until it stops.
+ */
+export function stopBgmAtBarEnd(fade = 0.15): number {
+  return music.stopBgmAtBarEnd(fade);
+}
+
+/**
+ * 63 5.8: musicSting('yakisoban') — from the next bar's head, one bar of
+ * bgm_boss_madamada becomes M10 on the brass (ヤキソバン chose an action).
+ */
+export function musicSting(id: 'yakisoban'): void {
+  music.musicSting(id);
+}
+
+/**
  * 63 13 waitBar: resolves when the playing song reaches the head of the bar
  * `label` (S13: the breakwater's 「いただきます」 lands on bgm_hirugohan's H5).
  * Resolves at once when nothing plays, and after `timeout` seconds at most.
@@ -190,7 +206,10 @@ export function setMusicParam(
     // bars), 'c3_ichi' 0..3 (あぜ道市), 'c3_shio' 0/1 (the sea seen from the truck bed),
     // 'c3_wana' 0..2 (S14), 'c3_phase' 0 / 1 海ぞいの町 / 2 旧水族館,
     // 'nari_rewind' 1 (ナリオサメの「正午の 音」: bgm_boss_nariosame goes back two bars; the song resets it)
-    | 'c3_noon' | 'c3_ichiba' | 'c3_shokudo' | 'c3_umi' | 'c3_ichi' | 'c3_shio' | 'c3_wana' | 'c3_phase' | 'nari_rewind',
+    | 'c3_noon' | 'c3_ichiba' | 'c3_shokudo' | 'c3_umi' | 'c3_ichi' | 'c3_shio' | 'c3_wana' | 'c3_phase' | 'nari_rewind'
+    // 'teppan' 0..3 (ヤキソバンの鉄板の熱: jyu / hera layers from the next beat; a new song resets it),
+    // 'kakaricho' 0..3 (係長の声の吹き出しの残り: bgm_boss_madamada shrinks — LP 900 / 1800 / 3600 Hz)
+    | 'teppan' | 'kakaricho',
   value: number,
 ): void {
   music.setMusicParam(name, value);
@@ -238,7 +257,7 @@ export function musicFlee(): void {
 
 export { playChimeMotif, playMorningChime, playSirenFull } from './chime';
 /** 63 9.2: the whole town says 「いただきます」 / 「ごちそうさま」 at once (voice ids, ≤ 12 heard). */
-export { chorusBlips } from './voices';
+export { chorusBlips, setVoicePan } from './voices';
 
 // ---- the PA speaker (40_audio 3.6 bus_pa; 53_ch2_audio 3.3) --------------------------
 
