@@ -1257,6 +1257,22 @@ function* hankoYarinaoshi(s: BattleScene, e: EnemyUnit, j: Judge, partId?: strin
     yield* s.say(e.def.texts.extra.noYarinaoshi ?? SYS.yarinaoshiNone);
     return;
   }
+  // ホシスギ: back in the water (61 9.2) — its まもり steps to 0, no basking for 2 turns
+  if (e.id === 'enemy_hoshisugi' && e.stages.def.lv > 0) {
+    e.stages.def.lv = 0;
+    e.stages.def.turns = 0;
+    e.mem.wetUntil = s.round + 2;
+    e.mem.wet = 1;
+    e.params.wet = 1;
+    for (let k = 0; k < 8; k++) s.burst(e.coreX + rng.int(-14, 14), e.top + 4, { count: 1, speed: [10, 30], angle: [Math.PI * 0.4, Math.PI * 0.6], life: [400, 600], colors: ['#DFF4FA', '#6FC3E0'], gravity: 200, shape: 'sq', size: [1, 1] });
+    if (j === 'kukkiri') {
+      e.status.bokemake = true;
+      bokemakeLabel(s, e);
+    }
+    yield 300;
+    yield* s.say(e.def.texts.extra.modosu ?? []);
+    return;
+  }
   if (e.status.tame) {
     const move = getSkill(e.status.tame === 'skill_ojigi_press' ? 'skill_ojigi_press' : e.status.tame)?.name ?? '';
     // sticky gets struck through and peels off
@@ -1420,6 +1436,12 @@ function* prKane(s: BattleScene, u: PartyUnit): Co {
   yield 90;
   back.frame = 'idle';
   yield () => !s.msg.busy;
+  // アソビタリン (60 6.3): グソっ君 knows when he's beaten at being round (once a battle)
+  const ukiwa = s.aliveEnemies.find((e) => e.id === 'enemy_asobitarin');
+  if (ukiwa && !s.memo.ukiwaKane) {
+    s.memo.ukiwaKane = 1;
+    yield* knSay(s, ukiwa.def.texts.extra.kane ?? []);
+  }
   // Lv8 (61 3.5): one time in four, all the way round (once a battle): キレ+3
   if (kaneFull(s, u)) {
     s.memo.kaneFull = 1;

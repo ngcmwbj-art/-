@@ -185,7 +185,8 @@ export function* gochisouTown(): Co {
   const onUmi = hasMap('map_umizoi');
   if (onUmi) {
     setFollowerVisible(true);
-    jumpMap('map_umizoi', GOZA_SHUN.x, GOZA_SHUN.y, 'down');
+    // (the tower's plaza first: the mats on the breakwater come out with 「ござ 出して！」)
+    jumpMap('map_umizoi', 34, 8, 'down');
     playBgm('bgm_umi_noon', { fade: 0.6, variant: 'outdoor' });
     playAmbient('amb_c3_umi', { fade: 0.6 });
   }

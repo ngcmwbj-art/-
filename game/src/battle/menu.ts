@@ -62,6 +62,8 @@ export function canUndo(s: BattleScene, e: EnemyUnit, part?: BossPart): boolean 
   if (s.bossKind === 'yobimodoshi' && e.def.boss) return !part && s.bossChime.lit > 0;
   // ナリオサメ (61 11.3): it can be tried — and says why it cannot work
   if (e.id === 'enemy_nariosame' && e.status.c3_maki) return true;
+  // ホシスギ (61 9.2): its dried-up まもり can be put back in water
+  if (e.id === 'enemy_hoshisugi' && e.stages.def.lv > 0) return true;
   if (part) return part.glow && !part.broken;
   if (e.status.tame) return true;
   if (e.def.boss) return s.bossChime.lit > 0 || s.bossParts.some((p) => p.glow && !p.broken);

@@ -93,3 +93,61 @@ registerChar('restored_enemy_nefuda', (): CharSprite => {
   for (const d of DIRS) walk[d] = [c];
   return { id: 'restored_enemy_nefuda', w: 16, h: 12, walk, idle: walk, shadow: 0 };
 });
+
+// ---- 任意の 敵の シンボル（61 15.1・15.2） ----------------------------------------------------
+//  enemy_hoshisugi   16×14  干し台の 上の、反りかえった アジの 開き（ひれが ぱたぱた 2コマ）
+//  enemy_asobitarin  16×16  赤と 白の 浮き輪（ぽよんと 跳ねる 2コマ）
+//  enemy_yokodori    24×12  地面の 影だけ（翼の 形、#1E3A4A α45%。本体は 空）
+
+function simple(id: string, w: number, h: number, frames: HTMLCanvasElement[], shadow = 0): CharSprite {
+  const walk = {} as Record<Dir, HTMLCanvasElement[]>;
+  for (const d of DIRS) walk[d] = frames;
+  return { id, w, h, walk, idle: walk, idleFrameMs: 260, walkFrameMs: 160, shadow };
+}
+
+registerChar('enemy_hoshisugi', (): CharSprite => {
+  const frames = [0, 1].map((k) => {
+    const p = new PixelCanvas(16, 14);
+    p.ellipse(8, 6, 6, 4, '#C8884A');
+    p.hline(3, 12, 3 - k, '#F2C88A');
+    p.vline(8, 3, 9, '#E8D8B8');
+    p.set(6, 4, '#E8E4D8');
+    p.set(10, 5, '#F4F1E8');
+    p.line(7, 10, 5, 13 - k, '#8A5A2A');
+    p.line(9, 10, 11, 13 - (1 - k), '#8A5A2A');
+    p.outline(INK);
+    return p.toCanvas();
+  });
+  return simple('enemy_hoshisugi', 16, 14, frames, 8);
+});
+
+registerChar('enemy_asobitarin', (): CharSprite => {
+  const frames = [0, 2].map((dy) => {
+    const p = new PixelCanvas(16, 16);
+    for (let y = -7; y <= 7; y++)
+      for (let x = -7; x <= 7; x++) {
+        const d = Math.hypot(x / 7, y / 6);
+        if (d > 1 || d < 0.45) continue;
+        const a = Math.atan2(y, x);
+        p.set(8 + x, 9 - dy + y, Math.floor(((a + Math.PI) / (Math.PI * 2)) * 8) % 2 ? '#E23B2E' : '#F4F1E8');
+      }
+    p.outline(INK);
+    return p.toCanvas();
+  });
+  return simple('enemy_asobitarin', 16, 16, frames, 8);
+});
+
+registerChar('enemy_yokodori', (): CharSprite => {
+  const p = new PixelCanvas(24, 12);
+  p.ellipse(12, 6, 3, 3, '#1E3A4A');
+  p.poly([[12, 4], [0, 3], [2, 7], [12, 8]], '#1E3A4A');
+  p.poly([[12, 4], [23, 3], [21, 7], [12, 8]], '#1E3A4A');
+  p.rect(11, 8, 3, 3, '#1E3A4A');
+  const c = p.toCanvas();
+  const ctx = c.getContext('2d')!;
+  // (only the shadow: 45%)
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillRect(0, 0, 24, 12);
+  return simple('enemy_yokodori', 24, 12, [c], 0);
+});

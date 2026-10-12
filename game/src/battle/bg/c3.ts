@@ -20,9 +20,9 @@ import { drawText } from '../../engine/font';
 import { hash2 } from '../../engine/rng';
 import { Background, BG_H, fillCircle, gradientTexture, mixHex } from './common';
 
-export const C3_BG_IDS = ['bg_c3_ichiba', 'bg_c3_shokudo', 'bg_c3_siren'];
+export const C3_BG_IDS = ['bg_c3_ichiba', 'bg_c3_shokudo', 'bg_c3_siren', 'bg_c3_himono', 'bg_c3_kaisui', 'bg_c3_bouhatei'];
 /** The ones whose 3D place stands under them in HD-2D (a room: the market, the diner's kitchen). */
-export const C3_PLACE_BG_IDS = ['bg_c3_ichiba', 'bg_c3_shokudo'];
+export const C3_PLACE_BG_IDS = ['bg_c3_ichiba', 'bg_c3_shokudo', 'bg_c3_himono', 'bg_c3_kaisui', 'bg_c3_bouhatei'];
 
 export function makeC3Background(id: string): Background | null {
   switch (id) {
@@ -32,6 +32,10 @@ export function makeC3Background(id: string): Background | null {
       return new ShokudoBg();
     case 'bg_c3_siren':
       return new SirenBg();
+    case 'bg_c3_himono':
+    case 'bg_c3_kaisui':
+    case 'bg_c3_bouhatei':
+      return new SeasideBg(id);
   }
   return null;
 }
@@ -342,5 +346,108 @@ class SirenBg extends Background {
 
   protected paintL1(ctx: CanvasRenderingContext2D): void {
     ctx.drawImage(this.rail, 0, BG_H - 30);
+  }
+}
+
+// ---- 町の 外：干物屋の 路地・海水浴場・防波堤（任意の 敵。61 18.3〜18.5） --------------------------
+
+/**
+ * One noon seaside for the three: the sky (#8FD3E8 → white), then by place —
+ * 干物屋: drying racks of fish and the 『干物』 noren; 浜: the still mirror sea,
+ * sand, the swimming flag (white with a blue wave, 03 #12) on the lifeguard's
+ * chair; 防波堤: the sea, concrete, tetrapods, the red lighthouse far off. Over
+ * the HD-2D place: the sun's white lines (干物屋), the sand's glare (浜), a far
+ * kite's shadow wheeling (防波堤).
+ */
+class SeasideBg extends Background {
+  private still: HTMLCanvasElement;
+
+  constructor(id: string) {
+    super(id);
+    this.wave = { A: 1, lambda: 80, f: 0.1, A2: 0, lambda2: 40, f2: 0.3, interlace: false };
+    this.bottom = id === 'bg_c3_kaisui' ? '#8A7A5A' : '#4A4A55';
+    const [c, ctx] = makeCanvas(384, BG_H);
+    ctx.drawImage(gradientTexture(['#7EC6E0', '#8FD3E8', '#F4F6F8'], 70), 0, 0);
+    if (id === 'bg_c3_himono') {
+      // the alley: the shop's wall, its noren, racks of fish in the sun
+      px(ctx, 0, 54, 384, 50, '#C8B898');
+      for (let x = 0; x < 384; x += 6) px(ctx, x, 54, 1, 50, '#B8A888');
+      px(ctx, 250, 54, 70, 30, '#2F4A8A');
+      drawText(ctx, '干物', 268, 58, { color: '#F4F1E8' });
+      for (const rx of [20, 130]) {
+        px(ctx, rx, 70, 100, 2, '#6B5A4A');
+        px(ctx, rx, 72, 100, 22, '#9AA0A8', 0.35);
+        for (let k = 0; k < 6; k++) {
+          px(ctx, rx + 4 + k * 16, 76, 10, 14, '#C8884A');
+          px(ctx, rx + 4 + k * 16, 76, 10, 1, '#F2C88A');
+          px(ctx, rx + 8 + k * 16, 78, 1, 11, '#E8D8B8');
+        }
+        px(ctx, rx, 94, 2, 30, '#6B5A4A');
+        px(ctx, rx + 98, 94, 2, 30, '#6B5A4A');
+      }
+      ctx.drawImage(gradientTexture(['#B8B0A0', '#A8A090', '#988E7E'], BG_H - 104), 0, 104);
+    } else if (id === 'bg_c3_kaisui') {
+      // the mirror sea, the sand, the flag on the lifeguard's chair
+      ctx.drawImage(gradientTexture(['#BEE6F2', '#6FB8D8', '#5AA4C8'], 44), 0, 56);
+      px(ctx, 0, 56, 384, 1, '#F4F6F8');
+      for (let y = 60; y < 100; y += 4) px(ctx, 0, y, 384, 1, '#DFF4FA', 0.3);
+      ctx.drawImage(gradientTexture(['#F2E4C0', '#E8D8B0', '#D8C49A'], BG_H - 100), 0, 100);
+      for (let x = 0; x < 384; x += 2) if (hash2(x, 7, 341) < 0.2) px(ctx, x, 104 + (x % 40), 1, 1, '#C8B488');
+      px(ctx, 320, 66, 3, 48, '#F4F1E8');
+      px(ctx, 330, 66, 3, 48, '#F4F1E8');
+      px(ctx, 316, 84, 22, 4, '#E23B2E');
+      px(ctx, 323, 50, 1, 16, '#6B7186');
+      px(ctx, 324, 50, 14, 9, '#F4F1E8');
+      for (let k = 0; k < 14; k++) px(ctx, 324 + k, 54 + Math.round(Math.sin(k * 0.9)), 1, 1, '#4A6AB0');
+    } else {
+      // the breakwater: the sea, the concrete top, tetrapods, the lighthouse
+      ctx.drawImage(gradientTexture(['#9ED8EC', '#6FB8D8', '#4A94B8'], 50), 0, 54);
+      px(ctx, 0, 54, 384, 1, '#F4F6F8');
+      px(ctx, 330, 34, 8, 20, '#E23B2E');
+      px(ctx, 329, 32, 10, 2, '#F4F1E8');
+      for (let k = 0; k < 9; k++) {
+        const tx = 10 + k * 42;
+        ctx.fillStyle = '#A8A8A0';
+        ctx.beginPath();
+        ctx.moveTo(tx, 104);
+        ctx.lineTo(tx + 12, 92);
+        ctx.lineTo(tx + 24, 104);
+        ctx.closePath();
+        ctx.fill();
+        px(ctx, tx + 10, 92, 4, 1, '#E0E0D8');
+      }
+      ctx.drawImage(gradientTexture(['#D0D0C8', '#B8B8B0', '#A0A098'], BG_H - 104), 0, 104);
+      px(ctx, 0, 104, 384, 1, '#F0F0E8');
+      for (let x = 0; x < 384; x += 48) px(ctx, x, 104, 1, BG_H - 104, '#98988E');
+    }
+    this.still = c;
+  }
+
+  protected paintL0(ctx: CanvasRenderingContext2D): void {
+    ctx.drawImage(this.still, 0, 0);
+  }
+
+  protected paintL1(): void {}
+
+  protected drawL2(g: Gfx): void {
+    const ctx = g.ctx;
+    if (this.id === 'bg_c3_himono') {
+      // straight-down white lines of sun, slowly (α20%)
+      for (let i = 0; i < 3; i++) {
+        const x = 90 + i * 100 + Math.sin(this.t * 0.3 + i) * 10;
+        px(ctx, x, 0, 1, BG_H, '#FFF6D8', 0.2);
+      }
+    } else if (this.id === 'bg_c3_kaisui') {
+      ctx.globalAlpha = 0.12;
+      ctx.drawImage(gradientTexture(['#F4F6F8', '#FFF1B8'], 30), 0, BG_H - 30);
+      ctx.globalAlpha = 1;
+    } else {
+      // a far kite wheeling high over the sea (2 s a turn), its tiny shape
+      const a = this.t * Math.PI;
+      const x = 120 + Math.cos(a) * 40;
+      const y = 22 + Math.sin(a) * 6;
+      px(ctx, x - 3, y, 7, 1, '#5A3A2A');
+      px(ctx, x, y + 1, 1, 1, '#5A3A2A');
+    }
   }
 }

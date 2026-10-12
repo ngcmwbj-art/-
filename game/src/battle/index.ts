@@ -545,6 +545,11 @@ const CH3_BATTLES: Record<string, { opts: Partial<BattleOpts> & { enemies: strin
   nefuda: { opts: { enemies: ['enemy_nefuda'], background: 'bg_c3_ichiba', canLose: true }, map: 'map_c3_ichiba' },
   okawari: { opts: { enemies: ['enemy_okawarinabe'], music: 'bgm_midboss', background: 'bg_c3_shokudo', canLose: true }, map: 'map_c3_shokudo' },
   nari: { opts: { enemies: ['enemy_nariosame'], music: 'bgm_boss_nariosame', background: 'bg_c3_siren', canLose: true }, map: 'map_c3_siren', flags: ['flag_ch3_got_itadakimasu'] },
+  // 任意の 敵（61 9.2〜9.4・15.1）
+  hoshi: { opts: { enemies: ['enemy_hoshisugi'], background: 'bg_c3_himono' }, map: 'map_umizoi' },
+  hoshi2: { opts: { enemies: ['enemy_hoshisugi', 'enemy_hoshisugi'], background: 'bg_c3_himono' }, map: 'map_umizoi' },
+  ukiwa: { opts: { enemies: ['enemy_asobitarin'], background: 'bg_c3_kaisui' }, map: 'map_umizoi' },
+  tonbi: { opts: { enemies: ['enemy_yokodori'], background: 'bg_c3_bouhatei' }, map: 'map_umizoi' },
 };
 
 /** A fresh chapter-3 QA party (newChapter3Party + chapter3Adjust) at Lv n (8–10). */
@@ -601,7 +606,7 @@ registerDebug('c3textcheck', () => {
     if (ls.length > lines) bad.push(`${where}: ${ls.length} lines`);
     for (const l of ls) if (measure(l) > w) bad.push(`${where}: ${measure(l)}px ${l}`);
   };
-  for (const id of ['enemy_nefuda', 'enemy_okawarinabe', 'enemy_nariosame']) {
+  for (const id of ['enemy_nefuda', 'enemy_okawarinabe', 'enemy_nariosame', 'enemy_hoshisugi', 'enemy_asobitarin', 'enemy_yokodori']) {
     const e = getEnemy(id);
     if (!e) continue;
     const t = e.texts;

@@ -274,7 +274,9 @@ export function* victory(s: BattleScene): Co {
       if (!it) continue;
       const ok = addItem(d.item);
       if (ok) {
-        yield* stickItemCard(s, d.item, () => say(s, fillAll(SYS.drop, { item: it.name })));
+        // (ヨコドリ: the おにぎり it fumbled, 61 19.1)
+        const dropText = e.def.texts.extra.drop ?? SYS.drop;
+        yield* stickItemCard(s, d.item, () => say(s, fillAll(dropText, { item: it.name })));
       } else yield* say(s, fillAll(SYS.dropFull, { item: it.name }));
     }
   }

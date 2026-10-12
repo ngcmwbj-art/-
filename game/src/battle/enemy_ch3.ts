@@ -115,7 +115,7 @@ export function* ch3Move(c: BossMoveCtx): Co {
     case 'skill_nefuda_hyaku': {
       // 言いよどんだら、ツッコミで 決めて あげよう (the first time)
       showSticky(s, 'nefuda', 'flag_tut_nefuda');
-      s.sfx('se_c3_seri_bell', { vol: 0.8 });
+      s.sfx('se_c3_seri_bell', { level: 1 });
       yield* c.selfMove(
         s,
         common,
@@ -313,7 +313,7 @@ export function* ch3Move(c: BossMoveCtx): Co {
       yield* c.selfMove(s, common, resolveGuard, () => {
         // the blades stop dead and the body shrinks a pixel (holding the sound in)
         e.setPose('hold', sk.id);
-        s.sfx('se_c3_siren_head', { vol: 0.35, pitch: 0.8 });
+        s.sfx('se_c3_nari_kaze', { level: 1 });
       });
       changeStage(s, e, 'def', 1, 3, true);
       pages.push(...e.def.texts.extra.madaResult);

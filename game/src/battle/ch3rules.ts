@@ -13,7 +13,7 @@ import type { Co } from '../engine/co';
 import type { Gfx } from '../engine/gfx';
 import { ease } from '../engine/tween';
 import { setFlag, state } from '../game/state';
-import { stopBgm, textBlip } from '../audio';
+import { chorusBlips, stopBgm, textBlip } from '../audio';
 import { charSprite, hasChar, poseFrame, walkFrame } from '../art/chars';
 import { c3Name, c3Voice } from '../data/text/c3_names';
 import type { BattleScene } from './scene';
@@ -98,6 +98,14 @@ export function decideNefuda(s: BattleScene, e: EnemyUnit): void {
 
 /** After a みました on a chapter-3 enemy (61 9.1: seen, the price is read off the tag). */
 export function* ch3AfterMimashita(s: BattleScene, e: EnemyUnit): Co {
+  // ヨコドリ (61 9.4): seen, it is too shy to go on aiming (the charge goes too)
+  if (e.id === 'enemy_yokodori' && !e.mem.shy) {
+    e.mem.shy = 1;
+    e.status.tame = undefined;
+    e.status.stareAt = undefined;
+    e.setPose('idle');
+    yield* s.say(e.def.texts.extra.mimashitaAfter ?? []);
+  }
   if (e.id === 'enemy_nefuda' && e.status.c3_mayoi) {
     decideNefuda(s, e);
     yield 250;
@@ -442,8 +450,10 @@ function* gasshoCut(s: BattleScene): Co {
   }
   st.a = 1;
   // hands coming together all over town (as many as there are people, staggered)
-  const count = Math.min(12, 12 + came.length);
-  for (let i = 0; i < count; i++) s.sfxLater('se_c3_gassho', { vol: 0.5 + (i % 3) * 0.1, pitch: 0.95 + (i % 5) * 0.03 }, i * 80);
+  // (63 / A: the whistle, then the hands together town-wide and the town's voices)
+  s.sfx('se_c3_fue');
+  s.sfxLater('se_c3_gassho', { count: 12 }, 200);
+  void chorusBlips(['c3_shokudo', 'c3_jouren', 'c3_seri', 'c3_seri_deshi', 'c3_sirenban', 'c3_toudai', 'c3_mago', 'c3_kanshiin', 'c3_himono_otto', 'c3_himono_tsuma', 'c3_tsuri', 'c3_uketsuke', ...came], 'itadakimasu');
   yield 1700;
   for (let i = 0; i < 18; i++) {
     st.a = 1 - i / 18;
@@ -771,6 +781,11 @@ export function ch3Yousu(s: BattleScene, e: EnemyUnit, r: number): string {
     case 'enemy_okawarinabe':
       if (potReady(s) && sp2.ready) return sp2.ready;
       if (!e.status.c3_futa && sp2.closed && r % 2 === 0) return sp2.closed;
+      return rot(t.yousu);
+    case 'enemy_asobitarin':
+      return (e.mem.air ?? 0) >= 3 && sp2.full ? sp2.full : rot(t.yousu);
+    case 'enemy_yokodori':
+      if (e.status.tame && e.status.stareAt && sp2.tame) return sp2.tame.replace('$target', s.party.find((u) => u.id === e.status.stareAt)?.name ?? 'こっち');
       return rot(t.yousu);
     case 'enemy_nariosame':
       if (shougoNext(s) && sp2.shougo) return sp2.shougo;

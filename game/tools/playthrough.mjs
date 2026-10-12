@@ -2323,9 +2323,23 @@ const BEATS3 = [
       }
       await need(['flag_ch3_ichiba_start'], 'S07 start');
       // three scraps of the note (62 4.2): stand beside, face, Z
-      for (const [x, y, dx, dy, d] of [[1, 5, 0, 1, 'up'], [6, 9, 0, 1, 'up'], [13, 10, -1, 0, 'right']]) {
-        await travel(x + dx, y + dy);
-        await examineHere(d, 'fucho');
+      // (a short teleport next to each one, like inside the other rooms)
+      for (const [x, y] of [[1, 5], [17, 3], [6, 9]]) {
+        await page.evaluate(([x, y]) => {
+          const f = window.__game.cmd.fieldRef();
+          for (const [dx, dy, d] of [[0, 1, 'up'], [1, 0, 'left'], [-1, 0, 'right'], [0, -1, 'down']])
+            if (f.free(f.player, (x + dx) * 16 + 8, (y + dy) * 16 + 16, true)) {
+              f.player.x = (x + dx) * 16 + 8;
+              f.player.y = (y + dy) * 16 + 16;
+              f.player.dir = d;
+              f.syncFollower?.(true);
+              return;
+            }
+        }, [x, y]);
+        await sleep(300);
+        await tap('KeyZ');
+        await sleep(300);
+        await advance({ label: 'fucho', shotEvery: 2 });
       }
       const n = await flag('flag_ch3_fucho_n');
       if (n < 3) throw new Error(`fucho ${n}`);

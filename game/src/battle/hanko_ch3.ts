@@ -75,7 +75,7 @@ export function* hankoItadakimasu(s: BattleScene, u: PartyUnit, j: Judge): Co {
   const x = 192;
   const y = 92;
   yield* dropSeal(s, itadakiSeal(j === 'kasure' ? 0.4 : 0), x, y);
-  s.sfx('se_c3_itadakimasu', { grade: sfxGrade(j) });
+  s.sfx('se_c3_itadakimasu', { grade: sfxGrade(j), count: Math.max(2, s.party.length) });
   landFeel(s, x, y, j);
   // vermilion steam off each panel (3 threads); くっきり: rice-white dots drift down
   for (const p of s.party) {
