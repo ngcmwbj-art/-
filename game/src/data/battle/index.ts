@@ -34,6 +34,6 @@ export {
 export { canUseItemInField, useItemInField, canUseSkillInField, useSkillInField, healMember, hanamaruAmount, yakiimoFirst } from './field';
 export { SYS, TUT, BOSS_RETRY_FLIP, GAMEOVER, LABEL, NORI, NORI_COMMON, NORI_HOSHI, REPORT, ITEM_TEXT, FIELD_TEXT, fill, fillAll } from './text';
 export { SYS2, TENKO_NAMES, REPORT_CH2 } from './text_ch2';
-export { SYS3 } from './text_ch3';
+export { SYS3, GAMEOVER_C3 } from './text_ch3';
 // 第3章 第4期：ツガオ決戦の「よぶ」（61 14.3〜14.5）
 export { YOBU_KITA, YOBU_TOWN, yobuPeople, type YobuCome, type YobuMark } from './yobu';

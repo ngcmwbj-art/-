@@ -10,7 +10,7 @@
 // south like a handheld RPG's town view (HD-2D: a narrow lens, tilted).
 
 import * as THREE from 'three';
-import { ch3Graded } from '../world/umizoi';
+import { ch3Graded, ch3TownTime } from '../world/umizoi';
 import { H, W } from '../engine/screen';
 import type { Actor } from '../world/actor';
 import type { FieldScene } from '../world/field';
@@ -50,6 +50,16 @@ const NOON_SUN = new THREE.Color('#fffaf0');
 const NOON_SKY = new THREE.Color('#d8e6ff');
 const NOON_GROUND = new THREE.Color('#d8ccb0');
 const NOON_FOG = '#dce8f2';
+// chapter 3's last morning (5:10, pal_c3_akegata, flag_c3_end_light 2) and after the clear: a pale,
+// cool first light from the east, a little pink — not the evening's orange
+const DAWN_SUN = new THREE.Color('#ffe4d4');
+const DAWN_SKY = new THREE.Color('#c4d0f0');
+const DAWN_GROUND = new THREE.Color('#c8bcb8');
+const DAWN_FOG = '#d4d4e6';
+/** Which outdoor light a map takes: chapter 3's noon, 夕鳴町's last morning, or the evening. */
+function lightOf(def: Parameters<typeof ch3Graded>[0]): 'noon' | 'dawn' | 'eve' {
+  return ch3Graded(def) ? 'noon' : ch3TownTime(def) === 2 ? 'dawn' : 'eve';
+}
 const MAX_LAMPS = 4;
 /**
  * Inside (the rooms, room.ts) the camera looks down a little more than in
@@ -237,7 +247,8 @@ export class Hd2dView {
     this.scene.add(this.world.group);
     const bg = new THREE.Color(f.map.def.outside ?? (room ? ROOM_BG : '#1b1733'));
     this.scene.background = bg;
-    this.scene.fog = room ? null : new THREE.Fog(new THREE.Color(ch3Graded(f.map.def) ? NOON_FOG : '#e0a080'), 38, 130);
+    const lt = lightOf(f.map.def);
+    this.scene.fog = room ? null : new THREE.Fog(new THREE.Color(lt === 'noon' ? NOON_FOG : lt === 'dawn' ? DAWN_FOG : '#e0a080'), 38, 130);
     return this.world;
   }
 
@@ -293,17 +304,17 @@ export class Hd2dView {
 
   /** The sun from the field's grade: shadows fall east and a little north, longer as shadowLen grows. */
   /** Is the outdoor light chapter 3's noon (placeSun)? */
-  private noonLit = false;
+  private noonLit: 'noon' | 'dawn' | 'eve' = 'eve';
 
   private placeSun(f: FieldScene, t: THREE.Vector3): number {
     const g = f.grade;
     // chapter 3: the noon's white light; elsewhere the evening's (rooms set their own, room.ts)
-    const noon = ch3Graded(f.map.def);
-    if (noon !== this.noonLit) {
-      this.noonLit = noon;
-      this.sun.color.copy(noon ? NOON_SUN : SUN_COLOUR);
-      this.hemi.color.copy(noon ? NOON_SKY : SKY);
-      this.hemi.groundColor.copy(noon ? NOON_GROUND : GROUND);
+    const lt = lightOf(f.map.def);
+    if (lt !== this.noonLit) {
+      this.noonLit = lt;
+      this.sun.color.copy(lt === 'noon' ? NOON_SUN : lt === 'dawn' ? DAWN_SUN : SUN_COLOUR);
+      this.hemi.color.copy(lt === 'noon' ? NOON_SKY : lt === 'dawn' ? DAWN_SKY : SKY);
+      this.hemi.groundColor.copy(lt === 'noon' ? NOON_GROUND : lt === 'dawn' ? DAWN_GROUND : GROUND);
     }
     const len = Math.max(0.4, g.shadowLen || 1.3);
     let el = Math.atan(1 / (len * 1.55));

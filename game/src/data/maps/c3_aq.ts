@@ -41,7 +41,7 @@ function gated(d: Record<string, unknown>, closed: string): MapObj[] {
 /** Until みんなが来る (S25): the staff doors stay shut (the chapter's third part stops before it). */
 const MINNA = { flag: 'flag_ch3_minna' };
 /** The cold yakisoba pack on the hall's bench (S15 on, until たかし takes it in S28). */
-const PACK = { flag: 'flag_ch3_aq_enter', notFlag: 'flag_c3_hall_pack_taken' };
+const PACK = { flag: 'flag_ch3_aq_enter', notFlag: ['flag_c3_hall_pack_taken', 'flag_c3_tsugao_neru', 'flag_ch3_clear'] };
 const SHUT = 'かぎが かかっている。';
 
 const COMMON = {

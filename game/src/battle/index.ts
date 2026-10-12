@@ -12,7 +12,7 @@ import {
 } from '../data/battle';
 import { setBattleImpl, startBattle, type BattleOpts, type BattleResult } from './api';
 import { measure } from '../engine/font';
-import { addYakisoban, SYS3, TUT, YOBU_KITA, YOBU_TOWN } from '../data/battle';
+import { addYakisoban, GAMEOVER_C3, SYS3, TUT, YOBU_KITA, YOBU_TOWN } from '../data/battle';
 import { yobuNext } from './boss_tsugao';
 import { BattleScene } from './scene';
 import { battleFlow, getGameOverHook, setGameOverHook, type GameOverHook } from './flow';
@@ -637,6 +637,8 @@ registerDebug('c3textcheck', () => {
     for (const l of e.tsukkomi) page(`${id}.tsukkomi`, l, 1, 300);
   }
   for (const [k, v] of Object.entries(SYS3)) v.forEach((x, i) => page(`SYS3.${k}[${i}]`, x));
+  // 60 10.31: the game-over pages (the field's dialog box: 3 lines)
+  for (const [k, v] of Object.entries(GAMEOVER_C3)) page(`GAMEOVER_C3.${k}`, v.text, 3, 300);
   for (const k of ['nefuda', 'okawari', 'potHanamaru', 'itadaki', 'yakisoban', 'teppan', 'gochisou', 'koe', 'yobu'] as const) page(`TUT.${k}`, TUT[k], 3, 300);
   return { total, bad };
 });

@@ -189,8 +189,10 @@ export const GRADES_C: Record<GradeCKey, Grade> = {
     glare: hx('#F8C8C0'), glareA: 0.12, topDark: hx('#3A4A7A'), topA: 0.08,
     shadow: hx('#5A5A8A'), shadowA: 0.24, shadowLen: 1.1, rim: hx('#FFD8B8'), motion: 1, desat: 0.06,
   },
-  // S32: 夕鳴町 at 17:00, chapter 1's own first light (pal_stage0) — the day comes round (62 5.3)
-  c6: { ...GRADES[0] },
+  // S32: 夕鳴町 at 17:00, chapter 1's first light (pal_stage0) — the day comes round (62 5.3). Coming
+  // straight from the noon and the afternoon by the sea it has to read as evening at a glance: the
+  // same sky and shadows, a warmer multiply, more of the west's warm bleed, a touch of dusk from the top
+  c6: { ...GRADES[0], mul: hx('#FFD2A6'), glareA: 0.4, topDark: hx('#5A3A6E'), topA: 0.14, shadowLen: 1.4 },
 };
 
 /** The pal_c3_* preset of a chapter-3 stage. */

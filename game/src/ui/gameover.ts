@@ -20,7 +20,7 @@ import { flag, hasSave } from '../game/state';
 import { playBgm, sfx, stopAllAmbient } from '../audio';
 import { registerScene } from '../boot';
 import { setGameOverHook } from '../battle';
-import { GAMEOVER } from '../data/battle';
+import { GAMEOVER, GAMEOVER_C3 } from '../data/battle';
 import { say } from './dialog';
 import { SPEAKERS } from '../world/msg';
 import { toTitle } from './flow';
@@ -414,13 +414,17 @@ class GameOverScene implements Scene {
  * evt_gameover. Shows the page and returns the choice; the caller restores
  * the party / loads (the battle's hook does both).
  */
-export function* runGameOver(o: { boss?: boolean } = {}): Co<GameOverChoice> {
+export function* runGameOver(o: { boss?: boolean; c3?: keyof typeof GAMEOVER_C3 } = {}): Co<GameOverChoice> {
   const sc = new GameOverScene(!!o.boss && flag('flag_lost_count') >= 2);
   game.fadeAlpha = 0;
   game.push(sc);
   yield () => sc.done;
   if (sc.choice === 'retry' && o.boss && flag('flag_lost_count') >= 2) {
     yield* say('いっぺん、ベンチで 休もか。\n負けたって、また 行ったら ええねん。', SPEAKERS.npc_kanenari);
+  } else if (sc.choice === 'retry' && o.c3) {
+    // 第3章 (60 10.31): the one page, by the place — グソっ君 in the town, ヤキソバン in the aquarium
+    const l = GAMEOVER_C3[o.c3];
+    yield* say(l.text, l.who === 'yakisoban' ? { name: 'ヤキソバン', voice: 'maruyama' } : SPEAKERS.npc_kanenari);
   }
   const i = game.scenes.indexOf(sc);
   if (i === game.scenes.length - 1) game.pop();
@@ -429,7 +433,16 @@ export function* runGameOver(o: { boss?: boolean } = {}): Co<GameOverChoice> {
 }
 
 // the battle hands its wipes to this screen
-setGameOverHook((s) => runGameOver({ boss: s.isBoss }));
+setGameOverHook((s) => runGameOver({ boss: s.isBoss, c3: c3GameOverPlace(s) }));
+
+/** 60 10.31: which chapter-3 line goes with this wipe (none outside chapter 3). */
+function c3GameOverPlace(s: { c3: boolean; enemies: { id: string }[]; yakisoban?: unknown }): keyof typeof GAMEOVER_C3 | undefined {
+  if (!s.c3) return undefined;
+  const ids = s.enemies.map((e) => e.id);
+  if (ids.includes('boss_tsugao')) return 'boss';
+  if (s.yakisoban && ids.some((id) => id === 'boss_hirosuke' || id === 'boss_pokosha' || id === 'enemy_junro')) return 'aq';
+  return 'umi';
+}
 
 // QA: ?scene=gameover (standalone: the choice goes back to the title)
 registerScene('gameover', () => {
