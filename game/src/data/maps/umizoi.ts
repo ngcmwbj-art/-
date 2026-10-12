@@ -288,7 +288,15 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_hirosuke', script: 'c3_hirosuke_umi', x: 18, y: 24, dir: 'down', cond: { ...S12, flag: 'flag_ch3_arrived' } },
   { t: 'npc', id: 'npc_pokosha', script: 'c3_pokosha_umi', x: 71, y: 31, dir: 'up', cond: { ...S1, flag: 'flag_ch3_arrived' } },
 
-  // ======================================================== triggers (62 1.6)
+  // ======================================================== the town's own symbols (62 1.5・60 5.5; stage 1 only — at 12:01
+  // they are what they were again). Moved off the ways everyone walks: ヨコドリ circles the children's open ground on
+  // the hill (62: the breakwater, the way to the lighthouse), アソビタリン rolls along the beach's east edge (62: y24)
+  { t: 'sym', id: 'sym_c3_01', enemies: ['enemy_hoshisugi'], x: 21, y: 13, dir: 'down', move: 'cone', to: [21, 15], cond: S1, restoreAt: [22, 12] },
+  { t: 'sym', id: 'sym_c3_02', enemies: ['enemy_hoshisugi', 'enemy_hoshisugi'], x: 23, y: 11, dir: 'down', move: 'cone', to: [23, 13], phase: 1.5, cond: S1, restoreAt: [22, 14] },
+  { t: 'sym', id: 'sym_c3_03', enemies: ['enemy_asobitarin'], x: 66, y: 25, dir: 'down', move: 'cone', to: [66, 29], cond: S1, restoreAt: [61, 23] },
+  { t: 'sym', id: 'sym_c3_04', enemies: ['enemy_yokodori'], x: 4, y: 8, dir: 'right', move: 'cone', to: [10, 8], cond: S1, restoreAt: [9, 8] },
+
+
   { t: 'trig', id: 'trig_ch3_kids', x: 18, y: 16, w: 9, h: 3, script: 'evt_ch3_kids', cond: { flag: 'flag_ch3_arrived', notFlag: 'flag_ch3_kids' } },
   { t: 'trig', id: 'trig_ch3_edge_road', x: 0, y: 16, w: 1, h: 3, on: 'bump' },
   // the quay's and the breakwater's edges over the water (pushing towards the sea; not the harbour steps)

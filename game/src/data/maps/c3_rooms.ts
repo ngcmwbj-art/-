@@ -126,6 +126,9 @@ registerMap({
     ]),
     { t: 'door', id: 'door_c3_seri_out', x: 5, y: 11, w: 2, to: 'map_umizoi', tx: 10, ty: 24, dir: 'down' },
     { t: 'door', id: 'door_c3_azemichi_out', x: 33, y: 11, w: 2, to: 'map_umizoi', tx: 25, ty: 24, dir: 'down' },
+    // ネフダマヨイ along the empty shops' back aisle (62 1.5 sym_c3_ichiba_01; stage 1; kept off the shop fronts
+    // and the mouth's way in: y9, x20–26 instead of y10, x20–33)
+    { t: 'sym', id: 'sym_c3_ichiba_01', enemies: ['enemy_nefuda'], x: 26, y: 9, dir: 'left', move: 'cone', to: [20, 9], cond: S1, restoreAt: [27, 8] },
     // ゲン in front of the auction stand, ツグミ beside him (62 4.2)
     { t: 'npc', id: 'npc_c3_seri', x: 9, y: 4, dir: 'down', cond: S1 },
     { t: 'npc', id: 'npc_c3_seri_deshi', x: 11, y: 4, dir: 'down', cond: S1 },

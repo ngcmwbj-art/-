@@ -151,3 +151,55 @@ registerChar('enemy_yokodori', (): CharSprite => {
   ctx.fillRect(0, 0, 24, 12);
   return simple('enemy_yokodori', 24, 12, [c], 0);
 });
+
+// ---- 任意の 敵の 思いだした 姿（61 9.2〜9.4。restoreAt に 置かれる） ------------------------
+//  restored_enemy_hoshisugi   20×12  干し台に もどった アジの 開き（ほどよい 色）
+//  restored_enemy_asobitarin  18×10  海の家の 軒下に たたまれた 浮き輪（赤と 白の しま）
+//  restored_enemy_yokodori    14×14  羽を 休める トンビ（とまって 目を 細める）
+
+function still(id: string, p: PixelCanvas): CharSprite {
+  p.outline(INK);
+  return simple(id, p.w, p.h, [p.toCanvas()], 0);
+}
+
+registerChar('restored_enemy_hoshisugi', (): CharSprite => {
+  const p = new PixelCanvas(20, 12);
+  // the drying rack's mesh
+  p.rect(1, 8, 18, 2, '#8A7A5A');
+  for (let x = 1; x < 19; x += 3) p.set(x, 7, '#C8C2B4');
+  p.vline(2, 10, 11, '#6B5A4A');
+  p.vline(17, 10, 11, '#6B5A4A');
+  // the fish, opened flat, a good colour
+  p.ellipse(10, 5, 7, 3, '#D8A060');
+  p.hline(5, 15, 3, '#F2C88A');
+  p.vline(10, 2, 8, '#E8D8B8');
+  p.set(6, 4, '#E8E4D8');
+  return still('restored_enemy_hoshisugi', p);
+});
+
+registerChar('restored_enemy_asobitarin', (): CharSprite => {
+  const p = new PixelCanvas(18, 10);
+  // folded flat: two layers of stripes
+  for (let x = 1; x < 17; x++) {
+    const c = Math.floor((x - 1) / 3) % 2 ? '#E23B2E' : '#F4F1E8';
+    p.vline(x, 3, 5, c);
+    p.vline(x, 6, 8, Math.floor(x / 3) % 2 ? '#B8241E' : '#D8D2C4');
+  }
+  p.hline(1, 16, 3, '#FFFFFF');
+  p.rect(14, 1, 2, 2, '#F4F1E8');
+  return still('restored_enemy_asobitarin', p);
+});
+
+registerChar('restored_enemy_yokodori', (): CharSprite => {
+  const p = new PixelCanvas(14, 16);
+  // perched, wings folded, eyes half shut
+  p.ellipse(7, 9, 4, 5, '#8A5A3A');
+  p.hline(4, 9, 6, '#B88A5A');
+  p.ellipse(8, 3, 3, 2, '#8A5A3A');
+  p.hline(8, 9, 3, INK);
+  p.rect(10, 3, 2, 1, '#E8C878');
+  p.rect(5, 13, 4, 2, '#7A4A2A');
+  p.set(6, 15, '#E8C878');
+  p.set(8, 15, '#E8C878');
+  return still('restored_enemy_yokodori', p);
+});

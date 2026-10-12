@@ -692,7 +692,7 @@ class UiHud implements FieldHud {
       const from = this.lastMap ?? '';
       const arriving = f.map.id !== from && (!from || from === 'map_c3_nidai' || !from.startsWith('map_c3_'));
       if (arriving) place = '海ぞいの町';
-      else if (place === '海ぞいの町' && f.map.id === from) place = this.lastPlace;
+      else if (place === '海ぞいの町' && f.map.id === from && f.player.tileY >= 16 && f.player.tileY <= 18) place = this.lastPlace;
     }
     if (f.map.id !== this.lastMap) {
       this.lastMap = f.map.id;
