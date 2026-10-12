@@ -110,3 +110,16 @@ registerScript('c3_ego_c4', function* (): Co {
 
 // the glass door opens from inside again after the clear (in: W's door_c3_aq, stage 3+)
 addToMap('map_c3_aq_iriguchi', [{ t: 'door', id: 'door_c3_aq_glass_out_c4', x: 7, y: 11, w: 2, to: 'map_umizoi', tx: 74, ty: 29, dir: 'down', se: 'se_door_glass', cond: CLEAR } as unknown as MapObj]);
+
+// ---------------------------------------------------------------- 事務所の物（60 9.5。S25 は通るだけ、調べるのはクリア後）
+
+for (const [id, text] of Object.entries(T.JIMU))
+  registerScript(id, function* (): Co {
+    se('se_examine');
+    yield* say3(text);
+  });
+registerScript('obj_c3_jimu_kairan', function* (): Co {
+  se('se_examine');
+  // the last page says 『解散』 after S28
+  yield* say3(flag('flag_ch3_boss_beaten') ? T.JIMU_KAIRAN : T.JIMU_KAIRAN_BEFORE);
+});

@@ -132,7 +132,9 @@ export const FUSHIGI3: Record<string, Fushigi3> = {
 export function fushigiRewardCh3(n: number): string {
   return `@sys
 朱肉が 2 たまった。
-みました帳 ③に 書きこんだ。（ふしぎ ${n}/10）`;
+/
+みました帳に 書きこんだ。
+（ふしぎ③ ${n}/10）`;
 }
 
 /** 調べる物：ゴロウの茶わんの山（62 4.3 obj_c3_chawan。60 9.3 の文がないので、60 8章の文）。 */

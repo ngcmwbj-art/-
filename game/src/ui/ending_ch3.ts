@@ -22,7 +22,7 @@ const COVER = { x: 20, y: 6, w: 344, h: 204 };
 const CASE_AT = { x: 150, y: 108 };
 /** The lid, opened up behind the case: its inside faces us. */
 const LID = { x: 150, y: 64, w: CASE_W, h: 42 };
-const SEAL = { size: 40 };
+const SEAL = { size: 52 };
 const PRESS_MS = 170;
 /** 海の青（62 12.10 のマステの色）。 */
 const SEA = '#3A7EA8';
@@ -99,7 +99,7 @@ class NotebookCh3Scene implements Scene {
   }
 
   private sealAt(): [number, number] {
-    return [LID.x + LID.w - 30, LID.y + LID.h / 2 + 1];
+    return [LID.x + LID.w - 34, LID.y + LID.h / 2 + 1];
   }
 
   draw(g: Gfx): void {
@@ -125,19 +125,19 @@ class NotebookCh3Scene implements Scene {
     for (let yy = 2; yy < h; yy += 6) for (let xx = 18; xx < w; xx += 9) g.px(x + xx + (yy % 12 ? 0 : 4), y + yy, '#4A8EB8');
     // the label
     const lx = x + 60;
-    const ly = y + 12;
+    const ly = y + 6;
     const lw = 250;
-    const lh = 48;
+    const lh = 44;
     rectA(g, lx + 2, ly + 2, lw, lh, '#0B0B14', 0.3);
     g.rect(lx, ly, lw, lh, '#F4F1E8');
     g.rect(lx, ly, lw, 1, '#FFFFFF');
     g.rect(lx, ly + lh - 1, lw, 1, '#D8D0B8');
     const chars = [...NOTE3_TITLE].slice(0, this.written).join('');
     const full = textW(NOTE3_TITLE);
-    g.text(chars, lx + Math.round(lw / 2 - full / 2), ly + 10, { color: UI.text });
+    g.text(chars, lx + Math.round(lw / 2 - full / 2), ly + 6, { color: UI.text });
     // the class and the name
-    g.text('5年2組　小林 しゅん', lx + 12, ly + 28, { color: UI.pencil });
-    drawCircledNum(g, 3, lx + lw - 18, ly + 31, SEA);
+    g.text('5年2組　小林 しゅん', lx + 12, ly + 24, { color: UI.pencil });
+    drawCircledNum(g, 3, lx + lw - 18, ly + 27, SEA);
     // a small lighthouse sticker (62 12.10)
     const sx = x + w - 34;
     const sy = y + h - 40;
