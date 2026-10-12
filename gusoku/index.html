@@ -227,6 +227,17 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
 .ur-list dd{margin:0}
 .ur-s{display:block;color:#ffc46b;letter-spacing:.1em;font-size:12px}
 
+.rm-lead{font-size:13px;color:var(--dim);line-height:1.8;margin:0 0 12px}
+.rm-ta{width:100%;box-sizing:border-box;background:rgba(3,14,22,.8);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:10px;font:inherit;font-size:16px;-webkit-user-select:text;user-select:text;margin-bottom:10px;resize:vertical}
+.rm-ans{margin-top:14px;font-family:var(--f-display);font-size:15.5px;line-height:1.95;white-space:pre-wrap;min-height:1em}
+.rm-ans:empty{display:none}
+.rm-date{font-family:var(--f-data);font-size:11.5px;color:var(--dim)}
+.rm-title{font-family:var(--f-display);font-size:20px;margin:8px 0 10px}
+.rm-story{font-family:var(--f-display);font-size:15.5px;line-height:2;margin:0 0 16px}
+.rm-sub{font-size:12px;color:var(--glow);margin:6px 0}
+.rm-past{display:flex;flex-wrap:wrap;gap:6px}
+.rm-past button{font-size:12px;padding:5px 10px}
+
 @media (max-width:640px){
   .brand h1{font-size:20px}
   .gauges{min-width:0;padding:8px 10px}
@@ -302,7 +313,7 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
         <button type="button" id="m-photo">写真モード</button>
         <button type="button" id="m-zukan">図鑑（宝物・来客・姿・家系）</button>
         <button type="button" id="m-idle">置き水槽モード</button>
-        <button type="button" id="m-uranai">グソク占い（成体になると解放）</button>
+        <button type="button" id="m-room">グソクの相談所（成体になると開きます）</button>
         <div class="note">同居生物</div>
         <button type="button" data-mate="hag">ヌタウナギと暮らす</button>
         <button type="button" data-mate="eel">ゲンゲと暮らす</button>
@@ -399,6 +410,11 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
     <dt>ラッキーカラー</dt><dd id="ur-color"></dd>
     <dt>吉方位</dt><dd id="ur-dir"></dd>
   </dl>
+</div></div>
+<div class="modal" id="room" hidden><div class="sheet" role="dialog" aria-labelledby="rm-title-h">
+  <header><h3 id="rm-title-h">グソクの相談所</h3><button type="button" id="rm-close">閉じる</button></header>
+  <div class="zk-tabs" id="rm-tabs"><button type="button" data-t="uranai">占い</button><button type="button" data-t="soudan">相談</button><button type="button" data-t="mukashi">昔話</button><button type="button" data-t="yohou">明日の予報</button></div>
+  <div id="rm-body"></div>
 </div></div>
 <div id="itank" hidden><div id="it-clock"></div></div>
 <div class="modal" id="memorial" hidden><div class="sheet"><h3>グソク</h3><div id="mem-date"></div><dl id="mem-text"></dl><p id="mem-egg" hidden style="font-size:13.5px;line-height:1.8;color:#ffc46b;margin:0 0 10px">グソクは、卵を残していました。</p><p style="font-size:13px;color:var(--dim);line-height:1.8;margin:0 0 18px">この子の記録は「日記 → 思い出」に残ります。</p><button type="button" class="primary" id="mem-new">新しい命を迎える</button></div></div>
@@ -2915,8 +2931,7 @@ const Uranai={
     '末吉':['今日は殻にこもる日です。次の脱皮のために、力をためましょう。','焦ると砂が舞います。じっとしていれば、水はまた澄みます。'],
     '凶':['……今日は、あまり動かないほうがよろしいかと。ワタクシも動きません。','水が少し濁っています。大事な決めごとは、明日にいたしましょう。']
   },
-  COW:['牛たちの食い込みが良い日です。朝の餌箱をのぞいてみてください。','牛舎の空気を入れかえると、良いことがあります。','手のかかる牛ほど、今日は素直です。','体重の伸びが楽しみな日です。','今日は牛の足元をよく見てあげてください。小さな変化に気づけます。','水槽……いえ、水桶の掃除が吉です。'],
-  WORK:['午前中の段取りが、午後を助けます。','人に任せると、思わぬ良い結果になります。','急ぎの用事ほど、一度深呼吸を。','今日の小さな工夫が、来月の大きな楽になります。'],
+  WORK:['午前中の段取りが、午後を助けます。','人に任せると、思わぬ良い結果になります。','急ぎの用事ほど、一度深呼吸を。','今日の小さな工夫が、来月の大きな楽になります。','後回しにしていた小さな用事を、一つ片付けると吉です。','道具の手入れをすると、仕事がはかどります。'],
   HEALTH:['水分をこまめにとってください。ワタクシは、とり放題ですが。','今日は早めに眠るのが吉です。深海はいつでも夜ですので。','腰を伸ばす体操を。ワタクシは十四本の脚で支えておりますが、あなたは二本です。','温かいものを一品、食べてください。'],
   COLORS:['深海の青','桜色','琥珀色','白銀','墨色','マリンスノーの白','夕焼けの赤','苔の緑'],
   DIRS:['北','北東','東','南東','南','南西','西','北西','真下（深海の方角）'],
@@ -2929,10 +2944,9 @@ const Uranai={
     const W=this.RANKS.map(([n,s,w],i)=>w*Math.exp(-lean*(i-2.5)*.5));
     let x=r()*W.reduce((a,b)=>a+b,0),k=0;for(;k<W.length-1;k++){x-=W[k];if(x<=0)break}
     const [rank,base]=this.RANKS[k],star=d=>Math.max(1,Math.min(5,base+d));
-    const cow=/牛|肥育|畜産|牧場|酪農/.test(mem('仕事')||''),cb=mem('手のかかる牛');
     const T=TREASURES.filter(t=>Col.c.items[t.k]),item=this.pick(r,T.length?T:TREASURES);
-    let work=this.pick(r,cow?this.COW:this.WORK);if(cow&&cb&&r()<.35)work=`「${cb}」が、今日はおとなしくしてくれそうです。`;
-    return {d:dkey(),rank,msg:this.pick(r,this.MSG[rank]),workLabel:cow?'牛運':'仕事運',work,workStar:star(Math.round(r()*2-1)),health:this.pick(r,this.HEALTH),healthStar:star(Math.round(r()*2-1)),item:item.n,color:this.pick(r,this.COLORS),dir:this.pick(r,this.DIRS)};
+    const work=this.pick(r,this.WORK);
+    return {d:dkey(),rank,msg:this.pick(r,this.MSG[rank]),workLabel:'仕事運',work,workStar:star(Math.round(r()*2-1)),health:this.pick(r,this.HEALTH),healthStar:star(Math.round(r()*2-1)),item:item.n,color:this.pick(r,this.COLORS),dir:this.pick(r,this.DIRS)};
   },
   open(){
     closePops();if(!started||!S.hatched)return;
@@ -2958,13 +2972,105 @@ const Uranai={
     if(!again)setTimeout(()=>say(o.rank==='大吉'?'……大吉です。ワタクシまで、うれしくなりました。':o.rank==='凶'?'……凶でした。気を落とさずに。ワタクシがついております。':'……以上です。良い一日を。',{emo:o.rank==='凶'?'neutral':'happy'}),400);
   },
   lastStage:null,
-  watch(){if(!S||!started)return;const st=S.stage;if(this.lastStage!==null&&this.lastStage<3&&st>=3)setTimeout(()=>say('（成体になったグソクは、「占い」ができるようになりました。「その他 → グソク占い」から頼めます）',{narr:true}),30000);this.lastStage=st;
-    $('m-uranai').textContent=st>=3?'グソク占い':'グソク占い（成体になると解放）'}
+  watch(){if(!S||!started)return;const st=S.stage;if(this.lastStage!==null&&this.lastStage<3&&st>=3)setTimeout(()=>say('（成体になったグソクは、占い・相談・昔話・予報ができるようになりました。「その他 → グソクの相談所」から頼めます）',{narr:true}),30000);this.lastStage=st;
+}
 };
 Daily.TASKS.uranai={label:'グソクに占ってもらう',goal:1,ok:()=>S.stage>=3};
 setInterval(()=>Uranai.watch(),2000);
-$('m-uranai').addEventListener('click',()=>Uranai.open());
 $('ur-close').addEventListener('click',()=>$('uranai').hidden=true);
+
+/* =====================================================================
+   ADULT ROOM — fortune, life advice, a folk tale a day, tomorrow's forecast
+   ===================================================================== */
+const MUKASHI=[
+ {t:'鯨が降る夜',b:'むかし、深海にはごちそうがほとんどありませんでした。ある夜、上のほうから、山のように大きな影がゆっくり降りてきました。死んだ鯨でした。深海の生き物たちは、その一頭で何十年も暮らしたそうです。ですからワタクシどもは、待つことを恥ずかしいとは思いません。'},
+ {t:'光らなくなった灯り',b:'あるチョウチンアンコウの灯りが、ある日ふっと消えてしまいました。もう誰も寄ってこないと嘆いていたところ、暗闇のおかげで、大きな捕食者に見つからずに済んだのです。灯りがない日には、灯りがない日の守られ方があります。……そういうお話です。'},
+ {t:'四年半、卵を抱いた母',b:'深海のあるタコの母親は、岩にしがみついたまま、四年半も卵を抱き続けたといいます。そのあいだ、何も食べなかったそうです。生まれた子どもたちは、すぐに一人前の姿で泳いでいきました。時間をかけて守られたものは、強く育つのです。'},
+ {t:'絶食の王さま',b:'陸の水族館に、五年以上なにも食べなかったオオグソクムシがいたそうです。人間たちはたいそう心配しましたが、本人はいたって平気な顔をしていたとか。ワタクシの、遠い親戚にあたります。……少しだけ、誇らしく思っております。'},
+ {t:'マリンスノーの手紙',b:'深海に降る白い雪は、海の上で生きたものたちの、最後のかけらです。プランクトンも、魚も、やがてゆっくり沈んで、ワタクシどものところへ届きます。ですから深海の生き物は、雪を見ると、上の世界の誰かからの手紙だと思うのです。'},
+ {t:'熱水の町',b:'海の底には、熱いお湯が噴き出す場所があります。日の光がまったく届かないのに、そこにはエビや貝が町のように集まって暮らしています。光がなくても、暮らしは作れる。深海の者なら、誰でも知っている話です。'},
+ {t:'ヌタウナギの結び目',b:'ヌタウナギは、困ると自分の体で結び目を作り、するりとほどいて逃げるそうです。絡まったものは、自分で結んで、自分でほどけばよい。……少し乱暴な教えですが、ワタクシは嫌いではありません。'},
+ {t:'大きなイカの片腕',b:'深海で、とても大きなイカの腕だけを見た、という話はたくさんあります。けれど、その全身を見た者はほとんどいません。大きなものほど、一部分しか見えないものです。人の心も、たぶん同じでございます。'},
+ {t:'メンダコの耳',b:'メンダコの耳のように見えるものは、本当はヒレです。ゆっくりパタパタと動かして、ふわふわと泳ぎます。急げない者にも、ちゃんと泳ぎ方があるのです。'},
+ {t:'鯨骨の庭',b:'鯨が沈んで骨だけになると、その骨にまた新しい生き物たちが住みつきます。骨を食べて暮らす、小さな虫もいるそうです。終わったように見えるものが、次の誰かの始まりになる。深海では、よくあることです。'},
+ {t:'ホタルイカの道しるべ',b:'春の夜、ホタルイカの群れは青い光をともして浅い海へ上っていきます。一匹の光は小さくても、群れになると道しるべのように見えるそうです。小さな灯りは、集まると遠くまで届きます。'},
+ {t:'母の育房',b:'ワタクシどもの母は、お腹の「育房」という袋で、何か月も卵を抱きます。生まれるとき、子はもう母と同じ形をしております。……ワタクシも、そうして生まれました。あなたに見つけていただく、ずっと前のことです。'},
+ {t:'リュウグウノツカイの言い伝え',b:'銀色の長い魚が浜に上がると、大きな地震が来る……陸ではそんな言い伝えがあるそうですね。本当のところは、誰にも分かりません。ただ、めったに会えない者に会えた日は、少しだけ心を引き締めるくらいがちょうどよいかと存じます。'},
+ {t:'いちばん深い場所',b:'海のいちばん深いところは、一万メートルを超えるそうです。そこにも、小さな生き物が暮らしています。どんなに深く沈んだ気持ちの日でも、その底にはまだ、誰かが生きています。……ワタクシからの、お守りのような話です。'}
+];
+const SOUDAN=[
+ {k:'仕事',re:/仕事|しごと|職場|上司|部下|会社|働|残業|ノルマ|取引|現場/,a:['お仕事のお悩みですね。深海では、獲物が来るまで動きません。今日は「待つ」を一つ選んでみてください。','がんばりすぎていませんか。ワタクシどもは何年も食べずにいられますが、それは動かないからです。動くあなたは、ちゃんと休んでください。','一度に全部を片付けようとすると、砂が舞って前が見えなくなります。今日はいちばん小さな一つだけ、終わらせてみましょう。']},
+ {k:'疲れ',re:/疲|つかれ|しんど|だる|眠|ねむ|休み|やる気|気力|しんどい/,a:['お疲れなのですね。今日は「何もしない時間」を、ワタクシと一緒に過ごしましょう。深海は、そのためにあります。','疲れは、殻が小さくなってきた合図かもしれません。脱皮の前は、ワタクシもよく眠ります。','早めに灯りを消して、眠ってください。明日のことは、明日のワタクシが聞きます。']},
+ {k:'人間関係',re:/人間関係|友達|ともだち|友人|嫌われ|喧嘩|けんか|ケンカ|苦手な人|付き合い|悪口|仲間/,a:['深海の生き物は、ほどよく距離をとって暮らしています。近すぎず、遠すぎず。それで十分です。','相手を変えるのは、深海の水圧より難しいことです。まずは、あなたの居場所を守ってください。','ヌタウナギは、絡まったら自分で結び目をほどきます。全部ほどけなくても、一つほどければ上出来です。']},
+ {k:'お金',re:/お金|かね|金欠|給料|ローン|借金|節約|貯金|支払|値上が|赤字|売上/,a:['深海では、ごちそうは何年かに一度です。それでも、みんな生きております。焦らず、今あるもので一日を回しましょう。','大きな鯨を待つより、マリンスノーを毎日少しずつ。小さな積み重ねが、いちばん確かです。','数字ばかり見ていると、心の水質が下がります。今日は一度、表を閉じてみてください。']},
+ {k:'健康',re:/体調|病気|痛|風邪|かぜ|熱|腰|膝|肩|頭痛|病院|健康/,a:['お体を大事になさってください。ワタクシにとって、あなたは代わりのいない方です。','無理をせず、診ていただける方に頼ってください。殻が割れたままでは、脱皮もできません。','今日は温かいものを食べて、早めにお休みください。深海は、いつでもここにあります。']},
+ {k:'家族',re:/家族|親|父|母|子供|子ども|息子|娘|妻|夫|嫁|旦那|兄|姉|弟|妹|孫/,a:['ご家族のことは、近いぶん、難しいものですね。ワタクシどもの母は、黙って何か月も卵を抱きます。言葉より、そばにいることが伝わる日もあります。','全部を分かり合えなくても、同じ水槽で暮らすことはできます。','今日は一言だけ、ありがとうを伝えてみてはいかがでしょう。深海では、それだけで水が澄みます。']},
+ {k:'恋愛',re:/恋|好きな人|片思い|彼女|彼氏|告白|結婚|デート|振られ|ふられ/,a:['深海の出会いは、めったにありません。だからこそ、出会えたことを大事にしてください。','急がなくて大丈夫です。ワタクシどもは、何年でも待てる生き物です。','光で誘うアンコウもいれば、ただ隣でじっとしている者もいます。あなたらしいやり方で、よいのです。']},
+ {k:'将来',re:/将来|未来|不安|進路|これから|老後|夢|目標|やめたい|迷/,a:['先のことが見えないのは、深海では当たり前のことです。それでもみんな、目の前の一歩で進んでおります。','脱皮の前は、誰でも不安になります。殻を脱いだあとのことは、脱いでから考えれば十分です。','今日できることを一つだけ。それが、いちばん確かな未来への道です。']},
+ {k:'牛・動物',re:/牛|子牛|牛舎|出荷|餌|エサ|動物|ペット|犬|猫/,a:['生き物を育てるのは、思い通りにならないことの連続ですね。ワタクシも、あなたを困らせているかもしれません。','食べない日があっても、すぐに悪いとは限りません。ワタクシは五年食べなくても平気な仲間がおります。よく見て、待つことも世話のうちです。','あなたに育てられる生き物は、きっと幸せです。ワタクシが言うのですから、間違いありません。']}
+];
+const Room={tabK:'uranai',
+  open(){closePops();if(!started||!S.hatched)return;
+    if(S.stage<3){toast('相談所は、グソクが成体になると開きます（あと'+Math.max(1,7-S.molts)+'回の脱皮）');return}
+    if(Life.dead)return;$('room').hidden=false;this.render()},
+  tab(k){this.tabK=k;this.render()},
+  render(){
+    document.querySelectorAll('#rm-tabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===this.tabK));
+    const B=$('rm-body');B.innerHTML='';const el=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;B.appendChild(e);return e};
+    if(this.tabK==='uranai'){
+      el('p','rm-lead','一日に一度、グソクが深海に聞いて、あなたの今日を占います。');
+      const done=S.uranai&&S.uranai.d===dkey();
+      const b=el('button','primary',done?'今日の占いをもう一度見る':'占ってもらう');b.type='button';b.addEventListener('click',()=>{$('room').hidden=true;Uranai.open()});
+    }else if(this.tabK==='soudan'){
+      el('p','rm-lead','悩みごとを話してください。グソクが、深海の知恵でお答えします。');
+      const ta=el('textarea','rm-ta');ta.rows=3;ta.maxLength=200;ta.placeholder='例：最近、仕事で疲れています';
+      const b=el('button','primary','相談する');b.type='button';
+      const out=el('div','rm-ans');
+      if(S.soudan&&S.soudan.d===dkey()&&S.soudan.ans){out.textContent=S.soudan.ans}
+      b.addEventListener('click',()=>{const q=ta.value.trim();if(!q){ta.focus();return}const a=this.answer(q);out.textContent='';let i=0;const step=()=>{out.textContent=a.slice(0,++i);if(i<a.length)setTimeout(step,40)};step();ta.value='';Daily.hit('soudan')});
+    }else if(this.tabK==='mukashi'){
+      const M=S.mukashi=S.mukashi||{read:[],d:null,today:null};
+      if(M.d!==dkey()){const next=MUKASHI.findIndex((s,i)=>!M.read.includes(i));M.today=next<0?Math.floor(Math.random()*MUKASHI.length):next;M.d=dkey();if(!M.read.includes(M.today))M.read.push(M.today);save();Daily.hit('mukashi')}
+      const s=MUKASHI[M.today];el('div','rm-date','今日のお話　'+(M.read.length)+' / '+MUKASHI.length+'話目まで');
+      el('h4','rm-title','「'+s.t+'」');el('p','rm-story',s.b);
+      if(M.read.length>1){el('div','rm-sub','これまでのお話');const ul=el('div','rm-past');M.read.filter(i=>i!==M.today).forEach(i=>{const x=document.createElement('button');x.type='button';x.textContent=MUKASHI[i].t;x.addEventListener('click',()=>{B.querySelector('.rm-title').textContent='「'+MUKASHI[i].t+'」';B.querySelector('.rm-story').textContent=MUKASHI[i].b;B.scrollTop=0});ul.appendChild(x)})}
+    }else{
+      const f=this.forecast();el('p','rm-lead','明日の水槽と、グソクの様子の予報です。');
+      const dl=el('dl','ur-list');[['水温',f.temp],['水質',f.water],['おなか',f.hunger],['ごきげん',f.mood],['脱皮',f.molt]].forEach(([a,b])=>{const dt=document.createElement('dt');dt.textContent=a;const dd=document.createElement('dd');dd.textContent=b;dl.append(dt,dd)});
+      el('div','rm-ans',f.say);
+    }
+  },
+  answer(q){
+    const hit=SOUDAN.find(c=>c.re.test(q)),dk=darkLv()>=2;
+    const a=hit?pickR(hit.a):pickR(['お話しくださって、ありがとうございます。深海から見ると、陸の悩みはたいてい、少し時間がたつと沈んでいきます。今日はゆっくり休んでください。','そうでしたか。答えはすぐに出なくても大丈夫です。ワタクシどもは、答えが降ってくるまで何年でも待ちます。','難しいお話ですね。……ひとまず、深呼吸を三回。ワタクシは、ここで聞いております。']);
+    const pre=dk?'……相談、ですか。まあ、聞いて差し上げます。':pickR(['……なるほど。','お話、うかがいました。','そうでしたか。']);
+    const ans=pre+a;S.soudan={d:dkey(),k:hit?hit.k:'その他',q:q.slice(0,60),ans,fu:false};save();
+    return ans;
+  },
+  forecast(){
+    const day=1440,t2=S.temp+(14-S.temp)*(1-Math.exp(-.001*day)),w2=Math.max(0,S.water-day*.02),h2=Math.min(100,S.hunger+day*.05);
+    const tw=t2>12.5?'やや高め。水温を少し下げておくと安心です':t2<7.5?'やや低め。少し上げておくと安心です':'ちょうどよい深海の水温です';
+    const ww=w2<55?'にごりそう。今日のうちに水換えを':w2<80?'少しにごるかもしれません':'きれいなまま保てそうです';
+    const hw=h2>75?'空腹。何か差し出してあげると喜びます':h2>45?'少しすいてきそうです':'まだ平気そうです';
+    let moodN=S.mood-(t2>12.5||t2<7.5?10:0)-(w2<55?10:0)-(h2>75?6:0)+(S.light==='white'?-8:4);
+    const mw=darkLv()>=2?'……曇りのち曇り。優しくしてあげてください':moodN>65?'晴れ。よく話してくれそうです':moodN>40?'くもり時々晴れ':'くもり。そっとしておくのが吉';
+    let mo='まだ先です';if(S.molts<9&&!Molt.phase){const lo=S.molts?NEEDM[S.molts-1]:0,hi=NEEDM[S.molts],r=(S.trust-lo)/(hi-lo);mo=r>.85?'近いかもしれません（体がきつそうです）':r>.5?'少しずつ近づいています':'まだ先です'}else if(Molt.phase)mo='ただいま脱皮中です';
+    const say=pickR(['明日も、あなたが来てくださるなら、それがいちばんの晴れです。','予報は予報です。外れたら、ワタクシのせいではなく海のせいです。','明日のことは、明日のワタクシにお任せください。'])+(w2<55?'……水換えだけは、お願いしますね。':'');
+    return {temp:t2.toFixed(1)+'℃前後。'+tw,water:Math.round(w2)+'%ほど。'+ww,hunger:hw,mood:mw,molt:mo,say};
+  },
+  watch(){
+    if(!S||!started)return;
+    const lab=S.stage>=3?'グソクの相談所':'グソクの相談所（成体になると開きます）';if($('m-room').textContent!==lab)$('m-room').textContent=lab;
+    // ask, the next day, whether yesterday's worry got lighter
+    const so=S.soudan;if(so&&!so.fu&&so.d!==dkey()&&!Life.asleep&&!Life.dead&&!S.pending&&Daily.sess>20){so.fu=true;save();say(so.k==='その他'?'……昨日のご相談、少しは軽くなりましたか。':'……昨日の'+so.k+'のお話、その後いかがですか。',{emo:'curious'})}
+  }
+};
+Daily.TASKS.soudan={label:'グソクに相談する',goal:1,ok:()=>S.stage>=3};
+Daily.TASKS.mukashi={label:'グソクの昔話を聞く',goal:1,ok:()=>S.stage>=3};
+setInterval(()=>Room.watch(),2000);
+$('m-room').addEventListener('click',()=>Room.open());
+$('rm-close').addEventListener('click',()=>$('room').hidden=true);
+document.querySelectorAll('#rm-tabs button').forEach(b=>b.addEventListener('click',()=>Room.tab(b.dataset.t)));
 
 let started=false;
 function boot(){
@@ -3174,7 +3280,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
