@@ -2681,7 +2681,7 @@ const BEATS3 = [
       // S17: through the east end; a doll on each model (3 → ゆれ1); マフィ屋 from (3,7)
       await enterDoor(38, 3, 'right', 'map_c3_aq_diorama');
       await advance({ shotEvery: 2, label: 'diorama_in' });
-      for (const [x, y, label] of [[5, 7, 'yunari'], [15, 7, 'hoshi'], [8, 11, 'umi']]) {
+      for (const [x, y, label] of [[5, 7, 'yunari'], [15, 7, 'hoshi'], [6, 7, 'yunari2'], [8, 11, 'umi']]) {
         await travel(x, y);
         await examineHere('up', label);
       }

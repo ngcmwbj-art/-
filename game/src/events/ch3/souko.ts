@@ -164,7 +164,7 @@ function* evtYakisoban(): Co {
   yield* say3(T.YK_A);
   // 1 s; then, before anyone is seen, the sauce on a hot plate beyond the door
   yield 1000;
-  const fry = seLoop('se_fry', { vol: 0.5 });
+  se('se_fry', { vol: 0.6 });
   yield 1200;
   yield* say3(T.YK_NIOI);
   // a steel spatula through the gap scrapes the black 「まだ」 off, slowly (3 times)
@@ -173,7 +173,6 @@ function* evtYakisoban(): Co {
     yield 700;
   }
   yield* say3(T.YK_KOGE);
-  fry.stop(0.6);
   setFlag('flag_ch3_souko_open', 1);
   yield 500;
   se('se_door_heavy');
