@@ -283,8 +283,9 @@ registerWorldFx({
     if (!flag('flag_ch3_tomato_given') || flag('flag_ch3_truck_go')) return;
     if (!f.actorById('c3_truck')) {
       spawnTruck('c3_truck', TRUCK_TOWN.x, TRUCK_TOWN.y, 'down', flag('flag_ch3_truck_wait') ? 'tsugao_truck_nap' : 'tsugao_truck');
-      // ヒロスケ by the bed (the truck is seen from the front: he stands at its side to be seen)
-      const h = spawn('c3_hirosuke', TRUCK_TOWN.x + 1, TRUCK_TOWN.y - 2, { sprite: 'npc_hirosuke', dir: 'left' });
+      // ヒロスケ on the road right behind the bed (the truck is seen from the front). Not at its east
+      // side: that is the shuttered shop's roof (46,26–31) and the building hid him in 2D (W, 2026-10-12)
+      const h = spawn('c3_hirosuke', TRUCK_TOWN.x, TRUCK_TOWN.y - 2, { sprite: 'npc_hirosuke', dir: 'down' });
       h.data.scripted = true;
     }
     if (flag('flag_ch3_truck_wait') || !f.controllable) return;
