@@ -906,7 +906,8 @@ class UiHud implements FieldHud {
       if (k >= 1) fn();
       else if (k > 0) g.alpha(k, fn);
     };
-    if (flag('flag_got_hanko') && !flag('flag_hud_hidden')) under('hanko', () => this.drawHanko(g));
+    // (第3章 61 8.4: not while the case is gone — the store room, S21〜S23)
+    if (flag('flag_got_hanko') && !flag('flag_hud_hidden') && !(flag('flag_ch3_souko') && !flag('flag_ch3_yakisoban'))) under('hanko', () => this.drawHanko(g));
     const banner = this.banner;
     if (banner) under('place', () => this.drawBanner(g, banner));
     // the notes stay clear of a conversation: under a window at the top, and

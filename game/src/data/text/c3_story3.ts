@@ -748,6 +748,7 @@ export const HP_STANDIN = `@npc_hirosuke
 export const HP_END_A = `@npc_pokosha
 ……自分は、
 悪く ない！
+!se se_piichan_big
 @npc_piichan
 {shake}コケーーッ！{/shake}
 @narr

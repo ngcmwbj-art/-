@@ -92,7 +92,7 @@ registerMap({
     // ポコシャ's arrows on the floor at each room's way on (60 5.3, decal_c3_pokosha_ya)
     PR('prop_c3_aq_ya', 10, 2, { dir: 'up' }),
     // the sunfish under the ceiling, dusty on its strings (a foreground part)
-    PR('prop_c3_aq_manbou', 13, 5),
+    PR('prop_c3_aq_manbou', 0, 0),
     ...gated({ id: 'door_c3_aq_glass_out', x: 7, y: 11, w: 2, to: 'map_umizoi', tx: 74, ty: 29, dir: 'down', se: 'se_door_glass', cond: { notFlag: 'flag_ch3_aq_enter' } }, 'ガラス戸は、外から／かぎが かけられている。'),
     { t: 'door', id: 'door_c3_aq_kairo', x: 10, y: 1, to: 'map_c3_aq_kairo', tx: 1, ty: 5, dir: 'up' },
     // the staff passage to the corridor outside the store (S25 on)
@@ -346,6 +346,8 @@ registerMap({
     ...gated({ id: 'door_c3_aq_hall_w_in', x: 0, y: 11, to: 'map_c3_aq_jimusho', tx: 12, ty: 5, dir: 'left', se: 'se_door', cond: MINNA }, SHUT),
     O('obj_c3_hall_suisou', 1, 4, { w: 24, face: 'up' }),
     O('obj_c3_hall_bench', 10, 7, { w: 5 }),
+    // the pack left on the bench after S28 (60 9.5)
+    O('obj_c3_hall_pack', 13, 7, { priority: 1, cond: { flag: 'flag_ch3_boss_beaten' } }),
   ] as MapObj[],
 });
 

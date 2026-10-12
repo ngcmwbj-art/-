@@ -59,6 +59,11 @@ export function nearbyFushigi(): string | null {
   return null;
 }
 
+/** 61 8.4: from エゴ taking the case in the store room (S21) until it is back on the corridor's desk (S23). */
+function caseAway(): boolean {
+  return !!flag('flag_ch3_souko') && !flag('flag_ch3_yakisoban');
+}
+
 export class HankoPage implements MenuPage {
   private sel = 0;
   private popup: Popup | null = null;
@@ -78,6 +83,14 @@ export class HankoPage implements MenuPage {
       if (r >= 0) {
         const target = state.party[r];
         if (target) m.run(this.hanamaruCo(target.id));
+      }
+      return true;
+    }
+    // 第3章 (61 8.4): taken away in the store room — nothing to choose
+    if (caseAway()) {
+      if (input.pressed('cancel')) {
+        sfx('se_cancel');
+        return false;
       }
       return true;
     }
@@ -154,7 +167,8 @@ export class HankoPage implements MenuPage {
 
   draw(g: Gfx, m: MenuCtx): void {
     drawHeader(g, 'ハンコケース', LP.x, SP.y + 6, '#E0567A', 1, 5);
-    if (!flag('flag_got_hanko') && !ownsHanko('skill_mimashita')) {
+    const away = caseAway();
+    if (away || (!flag('flag_got_hanko') && !ownsHanko('skill_mimashita'))) {
       // before evt_hanko_given: only a pencil outline where the case will go
       g.alpha(0.35, () => {
         for (let i = 0; i < CASE_W; i += 3) {
@@ -166,7 +180,7 @@ export class HankoPage implements MenuPage {
           g.px(CX + CASE_W - 1, CY + j, UI.pencil);
         }
       });
-      g.text('まだ、なにも ない。', CX + CASE_W / 2, CY + 44, { color: UI.textDim, align: 'center' });
+      g.text(away ? 'ハンコケースが ない。' : 'まだ、なにも ない。', CX + CASE_W / 2, CY + 44, { color: UI.textDim, align: 'center' });
       return;
     }
     // ink left (朱肉) at the top right

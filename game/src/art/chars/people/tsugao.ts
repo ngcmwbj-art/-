@@ -860,17 +860,38 @@ function pokoFront(f: Fig, p: PokoPose) {
     pokoArm(f, p, 0, 11, -1, u);
     f.part('skin', { shade: 'rb', light: 't', shift: -1 });
     f.rect(12, 10 + u, 3, 3);
+  } else if (act === 'nafuda' || act === 'nafuda_hana') {
+    // chapter 3 (62 10.5, S19): one hand holds his vest open — the old badge 『飼育係 ポコシャ』 inside
+    pokoArm(f, p, 12, 11, 1, u, -1);
+    f.part('vest', { shade: 'rb', light: 't' });
+    f.rect(1, 12 + u, 3, 5);
+    f.part('skin', { shade: 'rb', light: 't' });
+    f.rect(0, 13 + u, 2, 2);
+    f.part('#F4F1E8', { flat: true });
+    f.rect(4, 13 + u, 4, 3);
+    f.part('#6B7186', { flat: true, rim: false });
+    f.hl(5, 6, 14 + u).px(7, 13 + u);
+    if (act === 'nafuda_hana') {
+      // S24: しゅん's はなまる on it (the black 「まだ」 gone)
+      f.part('#E23B2E', { flat: true, rim: false });
+      f.px(4, 13 + u).px(7, 15 + u).px(5, 15 + u);
+    }
+  } else if (act === 'shrink') {
+    // the 係長's voice: shoulders in, both arms tight to his sides
+    pokoArm(f, p, 1, 12, -1, u);
+    pokoArm(f, p, 11, 12, 1, u, -1);
   } else {
     pokoArm(f, p, 0, 11, -1, u);
     pokoArm(f, p, 12, 11, 1, u, -1);
   }
-  // shy: the head a little down
-  const hdy = act === 'hide' || act === 'hide2' ? 1 : 0;
+  // shy: the head a little down (the 係長's voice: further down; 「悪く ない！」: up)
+  const hdy = act === 'hide' || act === 'hide2' ? 1 : act === 'shrink' ? 2 : act === 'shout' ? -1 : 0;
   head(f, p, POKO_HEAD, hy + hdy);
   if (!p.lookUp) pokoCrop(f, 'down', hy + hdy);
   pokoShades(f, 'down', hy + hdy, p.lookUp);
   f.part('mouth', { flat: true, rim: false });
   f.px(7, hy + hdy + 7 + (p.lookUp ? -1 : 0));
+  if (act === 'shout') f.hl(6, 8, hy + hdy + 7).px(7, hy + hdy + 8);
   // the ears (red after 「さすが 師匠！」)
   if (act === 'blush' || act === 'hide2') {
     f.part('ear', { flat: true, rim: false });
@@ -1036,6 +1057,11 @@ function pokoSpec(id: string, asleep: boolean, carrying: number): SpriteSpec {
       shh: { dirs: ['down', 'left', 'right'] },
       give: { dirs: ['down'] },
       carry2: { dirs: 'all' },
+      // chapter 3 (62 10.5): the badge shown (S19), with the はなまる (S24), the 係長's voice, 「……自分は、悪く ない！」
+      nafuda: { dirs: ['down'] },
+      nafuda_hana: { dirs: ['down'] },
+      shrink: { dirs: ['down'] },
+      shout: { dirs: ['down'] },
       ...(carrying ? { carry: { dirs: 'all' as const } } : {}),
     },
     anims: {

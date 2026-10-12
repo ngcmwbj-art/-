@@ -21,7 +21,7 @@ import { ease } from '../engine/tween';
 import { rng } from '../engine/rng';
 import { game } from '../engine/game';
 import { flag, setFlag, state } from '../game/state';
-import { setSpace, stopBgm } from '../audio';
+import { duckMusic, muteMusic, setSpace, stopBgm, stopBgmAtBarEnd } from '../audio';
 import { fillAll, getSkill, getItem, SYS3 } from '../data/battle';
 import type { BattleResult } from './api';
 import type { BattleScene } from './scene';
@@ -136,7 +136,7 @@ function* koeFall(s: BattleScene, p: EnemyUnit, n: number): Co {
   s.setMusicParam('kakaricho', 3 - n);
   yield 400;
   // the voice: no name tag (60 0.4 npc_c3_kakaricho_voice)
-  yield* s.say(X(p)['koe' + (n + 1)] ?? []);
+  yield* s.say(X(p)['koe' + (n + 1)] ?? [], false, { voice: 'kakaricho' });
   yield* s.say(X(p).koeResult ?? [], false, { autoMs: 700 });
   if (n === 0) showSticky(s, 'koe', 'flag_tut_koe', false, 0, 0, 'right');
 }
@@ -360,6 +360,8 @@ function* aori(s: BattleScene, e: EnemyUnit): Co {
   s.noteActing('煽る', undefined, true);
   e.setPose(n === 4 ? 'yawn' : 'aori');
   if (n === 4) s.sfx('se_c3_aq_akubi');
+  // (63 / A: the hall's song ducks under his taunts)
+  duckMusic(0.7, 2.5);
   yield 300;
   yield* s.say(X(e)['aori' + n] ?? [], false, n === 4 ? {} : { voice: 'tsugao' });
   e.setPose('idle');
@@ -367,8 +369,9 @@ function* aori(s: BattleScene, e: EnemyUnit): Co {
 
 function* tsugaoEnd(s: BattleScene, e: EnemyUnit): Co {
   // the song fades over 1.5 s (61 12.4) — the hall's song is the field's: E fades it back in
-  stopBgm(1.5);
   yield 600;
+  // the song stops at the end of its bar on 「……この程度じゃあ、寝てしまうわい。」 (A)
+  stopBgmAtBarEnd();
   yield* s.say(X(e).end ?? [], false, { voice: 'tsugao' });
   e.setPose('lean');
   yield 300;
@@ -410,7 +413,8 @@ function* yakiimo(s: BattleScene, e: EnemyUnit): Co {
   e.lastSkills.push('skill_hiro_yakiimo');
   e.setPose('imo');
   s.post(X(e).yakiimo ?? []);
-  s.sfx('se_c3_yakiimo');
+  // (se_yakiimo: the song turns its next bar to marimba — A)
+  s.sfx('se_yakiimo');
   yield 600;
   // newspaper and foil: a sweet potato to every panel
   for (const u of s.party) {
@@ -662,6 +666,20 @@ function* nafudaHanamaru(s: BattleScene, p: EnemyUnit, j: Judge): Co {
   s.petals(x, y, 12, 16, false);
   yield 400;
   yield* s.say(X(p).hanamaru ?? []);
+  // 61 13.6: he stands up straight and, for the first time, says it out loud (no shake)
+  muteMusic(0.43);
+  yield 500;
+  p.setPose('tall');
+  p.params.nameMada = 0;
+  yield* s.say(X(p).shout ?? [], false, { tag: 'ポコシャ', voice: 'pokosha' });
+  s.sfx('se_piichan_big');
+  s.setMusicParam('boss_phase', 3);
+  p.params.henWings = 1;
+  yield* s.say(X(p).kokee ?? [], false, { tag: 'ぴーちゃん', voice: 'piichan' });
+  yield* s.say(X(p).kokeeNarr ?? []);
+  p.params.henWings = 0;
+  stopBgm(2.0);
+  s.sfx('se_star');
   s.memo.ch3Won = 1;
   p.mem.settled = 1;
   const h = hiro(s);

@@ -17,6 +17,7 @@ import { rappaTargetName, yobiCharge, yobiLit } from './boss_yobimodoshi';
 import { keyItemUsable, otsukareBlock } from './party_ch2';
 import { potReady } from './ch3rules';
 import { aqKoeIcon, hiroReady } from './boss_c3aq';
+import { musicSting } from '../audio';
 import { SYS3, YAKISOBAN_SKILLS } from '../data/battle';
 
 type Icon = { id: string; name: string; sub?: string; dim?: boolean };
@@ -399,6 +400,8 @@ function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: R
       continue;
     }
     const r = yield* runIcon(s, u, ic.id);
+    // 63 / A: ヤキソバン chose — the next bar of bgm_boss_madamada is his brass (M10)
+    if (r && u.id === 'yakisoban' && s.enemies.some((e) => e.id === 'boss_hirosuke')) musicSting('yakisoban');
     if (r) {
       if (firstTut) {
         s.memo.cmdTutDone = 1;

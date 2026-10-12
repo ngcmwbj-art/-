@@ -336,6 +336,10 @@ registerProp('prop_c3_aq_ya', (opts) => {
   return { ox: 1, oy: 2, w: 14, h: 12, foot: 0, flat: true, img: () => img } satisfies PropArt;
 });
 
+/** Where the sunfish hangs (picture px from the map's corner). */
+export const MANBOU_X = 13 * 16 - 16;
+export const MANBOU_Y = 5 * 16 - 60;
+
 /** The sunfish hanging from the ceiling (62 4.8・7.4): faded grey-blue, its strings; drawn over everyone. */
 registerProp('prop_c3_aq_manbou', () => {
   const p = new PixelCanvas(48, 44);
@@ -355,14 +359,17 @@ registerProp('prop_c3_aq_manbou', () => {
   p.line(24, 17, 26, 35, '#6A7A8A');
   outline(p, { soft: true });
   const img = p.toCanvas();
+  // anchored at the map's corner (a flat prop with its fg part where it hangs: over (13,4), its
+  // belly 24 px over the floor; the HD-2D hangs it there, room_tune.ts HANG)
   return {
-    ox: -16,
-    oy: -60,
-    w: 48,
-    h: 44,
-    foot: 15,
+    ox: 0,
+    oy: 0,
+    w: MANBOU_X + 48,
+    h: MANBOU_Y + 44,
+    foot: 0,
+    flat: true,
     img: () => null,
-    fg: [{ ox: -16, oy: -60, img: () => img }],
+    fg: [{ ox: MANBOU_X, oy: MANBOU_Y, img: () => img }],
   } satisfies PropArt;
 });
 

@@ -362,7 +362,6 @@ function* evtHp(): Co {
   // 〔2段目のあと〕evt_ch3_hp_end
   if (po) po.dir = 'left';
   if (hi) hi.dir = 'left';
-  se('se_c3_pokosha_big', { vol: 0.8 });
   yield* say3(T.HP_END_A);
   yield* say3(T.HP_END);
   stopBgm(2.0);

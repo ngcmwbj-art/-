@@ -68,6 +68,8 @@ export const HANG: Record<string, HangBand[]> = {
     { y0: 60, y1: 80, foot: 98 },
     { y0: 118, y1: 140, foot: 156 },
   ],
+  // 旧水族館の 入口: the sunfish on its strings over the hall (art/props/c3_aq.ts, rows 20–63), its belly ~24 px up
+  prop_c3_aq_manbou: [{ y0: 20, y1: 64, foot: 88 }],
 };
 
 /**

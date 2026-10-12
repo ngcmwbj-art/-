@@ -472,7 +472,7 @@ function buildPoko(o: PokoPose): PixelCanvas {
   p.hline(X(28), X(31), Y(hy + 1), '#C8CDD4');
   p.hline(X(29), X(31), Y(hy + 5), '#A8605A');
   // ぴーちゃん on his left shoulder
-  hen(p, X(42), Y(14 - b), o.peek, false);
+  hen(p, X(42), Y(14 - b), o.peek, o.tall);
   aqFinish(p, 0.45);
   return p;
 }
