@@ -18,7 +18,7 @@ import { css, HOSHI_INDOOR_BASE, HOSHI_INDOOR_MORNING, INDOOR_MUL, INDOOR_MUL_C0
 import { cellAt, groundAt, isCh2Map, isCh3Map } from './maps';
 import { c3Positional, c3PositionalBeds } from './c3audio';
 import { c3DarkHere, paintC3Lights } from './c3dark';
-import { ch3Hirumae } from './umizoi';
+import { ch3Hirumae, ch3TownTime } from './umizoi';
 import type { Actor } from './actor';
 import { hud } from './hud';
 import { fxDraw, fxUpdate } from './fx';
@@ -1793,7 +1793,8 @@ export class Renderer {
     lx.globalAlpha = 1;
     lx.globalCompositeOperation = 'source-over';
     // (夕鳴町's rooms at 11:10 in chapter 3, 62 5.2: the day through the windows)
-    const dayRoom = indoor && !ch2 && ch3Hirumae();
+    // (and in the ending's morning and after the clear, flag_c3_end_light 2: the morning through them)
+    const dayRoom = indoor && !ch2 && (ch3Hirumae() || ch3TownTime(f.map.def) === 2);
     // (the old aquarium's rooms, chapter 3 stage 3: each room's own dimness, 62 1.1)
     const c3Base = indoor && !ch2 && isCh3Map(f.map.def) ? f.map.def.lightBase : undefined;
     const base = ch2 ? hoshiBase(f) : c3Base ?? (dayRoom ? css(INDOOR_MUL_C0) : indoor ? css(indoorMul(st, gd.night, this.mapLit)) : css(gd.mul));

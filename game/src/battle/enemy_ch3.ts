@@ -18,6 +18,7 @@ import { decideNefuda, lidClose, lidOpen } from './ch3rules';
 import { hitDown } from './enemy_ch2';
 import { state } from '../game/state';
 import { getItem } from '../data/battle';
+import { tgMoves } from './boss_tsugao';
 
 export const CH3_MOVES = new Set([
   'skill_nefuda_hyaku',
@@ -43,6 +44,10 @@ export const CH3_MOVES = new Set([
   'skill_junro_kochira',
   'skill_junro_modoru',
   'skill_hiro_dandori',
+  // ツガオ決戦（61 14.2。第4期）
+  'skill_tsugao_mada',
+  'skill_tsugao_denpyo',
+  'skill_tsugao_chokin',
 ]);
 
 export function isCh3Move(id: string): boolean {
@@ -114,6 +119,10 @@ function windLines(c: BossMoveCtx, n: number): void {
 
 export function* ch3Move(c: BossMoveCtx): Co {
   const { s, e, sk, common, resolveGuard, target, all, pages, damageTo, st } = c;
+  if (sk.id.startsWith('skill_tsugao_')) {
+    yield* tgMoves(c);
+    return;
+  }
   switch (sk.id) {
     // ---- ネフダマヨイ (61 9.1) -------------------------------------------------
     case 'skill_nefuda_hyaku': {

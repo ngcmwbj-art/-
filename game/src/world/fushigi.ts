@@ -78,11 +78,19 @@ export function fushigiCh2Count(): number {
   return n;
 }
 
+/** A chapter's own rule for when its ふしぎ are stampable (by id prefix; 第3章: events/ch3/fushigi.ts). */
+const activeRules: { prefix: string; fn: (id: string) => boolean }[] = [];
+export function setFushigiActiveRule(prefix: string, fn: (id: string) => boolean): void {
+  activeRules.push({ prefix, fn });
+}
+
 /** Is it currently an active (stampable) anomaly? */
 export function fushigiActive(id: string): boolean {
   const d = defs.get(id);
   if (!d) return false;
   if (fushigiDone(id)) return false;
+  const rule = activeRules.find((r) => id.startsWith(r.prefix));
+  if (rule) return rule.fn(id);
   // 星見台's ふしぎ (みました帳 ②) follow flag_ch2_stage and are over in the
   // morning (h3); chapter 1's follow flag_stage (02_ch2 6.2)
   const ch2 = isCh2Fushigi(id);

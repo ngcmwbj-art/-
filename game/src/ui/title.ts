@@ -66,6 +66,8 @@ import {
 import { dottedLine, drawCursor, drawTape, drawWindow, rectA, textW, UI } from './window';
 import { coverToFade, ditherOut } from './transition';
 import { markText } from '../engine/textzones';
+import { clearRecordCh3, type ClearRecordCh3 } from './clear_ch3';
+import { titleThanks } from '../data/text/c3_story4';
 import { buttonZones, freeSpan } from '../engine/safezones';
 
 type MenuId = 'new' | 'continue' | 'ch2' | 'ch3' | 'settings';
@@ -97,6 +99,8 @@ export class TitleScene implements Scene {
   private readonly kind: SaveKind = saveKind();
   private readonly canLoad = this.kind !== 'none';
   private readonly clear2: ClearRecord | null = clearRecordCh2();
+  /** Chapter 3's counts (みました帳 ③) and the people who came (60_ch3_story 10.30). */
+  private readonly clear3: ClearRecordCh3 | null = clearRecordCh3();
   /** Chapter 1's counts after its ending (an empty card if only chapter 2's record survived). */
   private readonly clear: ClearRecord | null = clearRecord() ?? (this.clear2 ? { fushigi: 0, aite: 0, tsukkomi: 0, tsukkomiTotal: 19 } : null);
   /**
@@ -536,7 +540,8 @@ export class TitleScene implements Scene {
     if (this.asking) return;
     const c = this.clear!;
     const c2 = this.clear2;
-    const pages: (1 | 2 | 0)[] = c2 ? [1, 2, 0] : [1, 0];
+    const c3 = this.clear3;
+    const pages: (1 | 2 | 3 | 0)[] = c3 ? [1, 2, 3, 0] : c2 ? [1, 2, 0] : [1, 0];
     const lt = this.t - MENU_AT;
     const k = Math.min(1, lt / 300);
     const { x, y: cy, w, h } = clearCardAt();
@@ -558,12 +563,14 @@ export class TitleScene implements Scene {
       const lx = x + 7 + dx;
       const rx = x + w - 7 + dx;
       if (page === 0) {
-        ['ここまで', '見てくれて、', 'ありがとう。'].forEach((l, i) => g.text(l, lx, y + 6 + i * 17, { color: UI.sys }));
+        // 60_ch3_story 10.30: after chapter 3 the last page thanks the people who came (flag_ch3_yobu_n)
+        const lines = c3 ? thanksLines(c3.yobu ?? 0) : ['ここまで', '見てくれて、', 'ありがとう。'];
+        lines.forEach((l, i) => g.text(l, lx, y + 6 + i * 17, { color: UI.sys }));
         return;
       }
-      const r = page === 1 ? c : c2!;
-      // ② あいて 7 with セキトメ of the stream (02 #65), ツッコミ 19
-      const tot = page === 1 ? [12, 7, r.tsukkomiTotal || 19] : [10, 7, r.tsukkomiTotal || 19];
+      const r = page === 1 ? c : page === 2 ? c2! : c3!;
+      // ② あいて 7 with セキトメ of the stream (02 #65), ツッコミ 19; ③ ふしぎ 10, あいて 7
+      const tot = page === 1 ? [12, 7, r.tsukkomiTotal || 19] : page === 2 ? [10, 7, r.tsukkomiTotal || 19] : [10, 7, r.tsukkomiTotal || 0];
       const row = (label: string, v: string, ry: number) => {
         g.text(label, lx, ry, { color: UI.text });
         drawDigits(g, v, rx, ry + 5, { color: UI.accent, align: 'right' });
@@ -587,20 +594,22 @@ export class TitleScene implements Scene {
    * edge; the one whose counts are showing stands 3 px taller. ② carries
    * the tomato (8×8).
    */
-  private drawCardFlags(g: Gfx, x: number, y: number, a: number, page: 0 | 1 | 2): void {
+  private drawCardFlags(g: Gfx, x: number, y: number, a: number, page: 0 | 1 | 2 | 3): void {
     g.alpha(a, () => {
-      ([1, 2] as const).forEach((n, i) => {
+      ((this.clear3 ? [1, 2, 3] : [1, 2]) as (1 | 2 | 3)[]).forEach((n, i) => {
         const on = page === n;
-        const fx = x + 8 + i * 24;
+        const fx = x + 8 + i * 24 + (n === 3 ? 10 : 0);
         const fy = y - 9 - (on ? 3 : 0);
-        const col = n === 1 ? (on ? '#7FD1E8' : '#B8DDE6') : on ? '#9BCB6B' : '#C3D9AE';
-        rectA(g, fx + 1, fy + 2, n === 2 ? 26 : 16, 12, UI.night, 0.3);
-        const fw = n === 2 ? 26 : 16;
+        // ③ in the sea's blue with the little lighthouse (62 12.10)
+        const col = n === 1 ? (on ? '#7FD1E8' : '#B8DDE6') : n === 2 ? (on ? '#9BCB6B' : '#C3D9AE') : on ? '#5A9EC8' : '#A8C8DC';
+        rectA(g, fx + 1, fy + 2, n === 1 ? 16 : 26, 12, UI.night, 0.3);
+        const fw = n === 1 ? 16 : 26;
         g.rect(fx, fy, fw, 13, UI.border);
         g.rect(fx + 1, fy + 1, fw - 2, 12, col);
         g.rect(fx + 1, fy + 1, fw - 2, 1, '#FFFFFF');
         drawCircledNum(g, n, fx + 3, fy + 2, on ? UI.text : UI.pencil);
         if (n === 2) g.img(tomatoIcon8(), fx + 14, fy + 3);
+        if (n === 3) drawLighthouse8(g, fx + 15, fy + 2);
       });
     });
   }
@@ -663,3 +672,21 @@ export function showTitle(): void {
   game.replaceAll(new TitleScene(true));
 }
 
+
+/** The last page of the card after chapter 3: the thanks line, broken into the card's lines. */
+function thanksLines(n: number): string[] {
+  const t = titleThanks(n);
+  const m = /^(\d+人の) (はなまる、)(ありがとう。)$/.exec(t);
+  if (m) return [m[1], m[2], m[3]];
+  return ['みんなに、', 'ありがとう。'];
+}
+
+/** A little lighthouse (8×8, 62 12.10): red and white bands, a lit top. */
+function drawLighthouse8(g: Gfx, x: number, y: number): void {
+  g.rect(x + 3, y, 2, 1, '#FFE7A3');
+  g.rect(x + 2, y + 1, 4, 2, '#E23B2E');
+  g.rect(x + 2, y + 3, 4, 1, '#F4F1E8');
+  g.rect(x + 2, y + 4, 4, 1, '#E23B2E');
+  g.rect(x + 2, y + 5, 4, 1, '#F4F1E8');
+  g.rect(x + 1, y + 6, 6, 2, '#5A6A8A');
+}

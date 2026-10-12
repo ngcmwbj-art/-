@@ -1258,8 +1258,8 @@ export function currentTrims() {
 /** Chapter 2's songs (53_ch2_audio): the closing chime's fourth note is sealed in these. */
 const CH2_SONGS = new Set(['bgm_hoshi_night', 'bgm_boss_yobimodoshi', 'bgm_hoshi_morning', 'bgm_tsugao']);
 /** 63 16.1: 海ぞいの町's songs and the truck's (no M7 in them; M9′ only after 12:01). */
-const CH3_TOWN_SONGS = new Set(['bgm_umi_noon', 'bgm_tsugaobin', 'bgm_boss_nariosame', 'bgm_hirugohan', 'bgm_suizokukan', 'bgm_boss_madamada', 'bgm_jingle_yakisoban']);
-const GOCHISOU_OK = new Set(['bgm_umi_noon/harmonica_noon', 'bgm_umi_noon/harmonica', 'bgm_umi_noon/mbox_uw', 'bgm_umi_noon/ichi_lead', 'bgm_hirugohan/lead', 'bgm_hirugohan/ichi_lead']);
+const CH3_TOWN_SONGS = new Set(['bgm_umi_noon', 'bgm_tsugaobin', 'bgm_boss_nariosame', 'bgm_hirugohan', 'bgm_suizokukan', 'bgm_boss_madamada', 'bgm_jingle_yakisoban', 'bgm_c3_ending']);
+const GOCHISOU_OK = new Set(['bgm_umi_noon/harmonica_noon', 'bgm_umi_noon/harmonica', 'bgm_umi_noon/mbox_uw', 'bgm_umi_noon/ichi_lead', 'bgm_hirugohan/lead', 'bgm_hirugohan/ichi_lead', 'bgm_c3_ending/lead', 'bgm_c3_ending/mbox']);
 
 /**
  * The sealed shapes (16.1): the town chime's "answer" (−2, −3, +3) must not
@@ -1282,6 +1282,8 @@ export function sealedCheck(): string[] {
       if (CH2_SONGS.has(id) && id !== 'bgm_tsugao' && findShape(seq, TSUGAO_SHAPE) >= 0) leaks.push(`${id}/${part.id}: M7 (ツガオの動機)`);
       if (CH3_TOWN_SONGS.has(id) && findShape(seq, TSUGAO_SHAPE) >= 0) leaks.push(`${id}/${part.id}: M7 (ツガオの動機)`);
       if (!GOCHISOU_OK.has(`${id}/${part.id}`) && findShape(seq, GOCHISOU_SHAPE) >= 0) leaks.push(`${id}/${part.id}: M9′（ごちそうさま）`);
+      // M7′ (63 1.3): M7 going on to its home note D (−7) — only ツガオ's clock-out
+      if (id !== 'bgm_c3_taikin' && findShape(seq, [...TSUGAO_SHAPE, -7]) >= 0) leaks.push(`${id}/${part.id}: M7′（ツガオの退勤）`);
     }
   }
   return leaks;

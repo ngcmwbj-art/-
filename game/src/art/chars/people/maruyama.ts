@@ -228,3 +228,54 @@ registerChar('npc_maruyama', () =>
     shadow: 12,
   }),
 );
+
+// ---- たかし after S23 (npc_maruyama_hige, 60 10.29・62 12.8): the yakisoba headgear off and the
+// cook's hat back on, but ソワカ's painted moustache still there (brushed black #3A2B24, one side
+// 1px longer), and the green cape folded over his left shoulder.
+
+const MH: Mats = {
+  ...M,
+  stache: flat('#3A2B24'),
+  cape: mat('#3F8A4A', { shade: '#2A5A34', light: '#5AA45E', dark: '#1E4228' }),
+};
+
+function higeDraw(f: Fig, p: Pose) {
+  if (p.view === 'down') front(f, p);
+  else if (p.view === 'up') back(f, p);
+  else side(f, p);
+  const u = upper(p);
+  const hy = 4 + u;
+  f.offset(2, 0);
+  if (p.view === 'down') {
+    if (!p.lookUp) {
+      f.part('stache', { flat: true, rim: false });
+      f.hl(4, 7, hy + 5).hl(8, 10, hy + 5).px(4, hy + 6);
+    }
+    // the folded cape over his left shoulder (viewer-right)
+    f.part('cape', { shade: 'rb', light: 't' });
+    f.rect(12, 12 + u, 3, 4);
+  } else if (p.view === 'up') {
+    f.part('cape', { shade: 'rb', light: 't' });
+    f.rect(1, 12 + u, 3, 4);
+  } else {
+    if (!p.lookUp) {
+      f.part('stache', { flat: true, rim: false });
+      f.hl(1, 3, hy + 5);
+    }
+    f.part('cape', { shade: 'rb', light: 't' });
+    f.rect(6, 12 + u, 4, 3);
+  }
+  f.offset(0, 0);
+}
+
+registerChar('npc_maruyama_hige', () =>
+  buildSprite({
+    id: 'npc_maruyama_hige',
+    w: 20,
+    mats: MH,
+    draw: higeDraw,
+    idle: { down: IDLE, left: IDLE, right: IDLE, up: breathingIdle() },
+    extras: { fry: { dirs: ['down', 'left', 'right'] }, peek: { dirs: ['down'] }, surprised: { dirs: ['down'] }, towel: { dirs: ['down'] }, pat: { dirs: ['down'] } },
+    shadow: 12,
+  }),
+);

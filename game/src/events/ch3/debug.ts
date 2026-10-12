@@ -10,7 +10,8 @@
 //   'kaisui' 'moguri' 'lens' 'umi_last' (S09), 'itadaki' (S11), 'siren' 'nari_end' (S12・S13),
 //   'trap' (S14), 'aqmae' (S14 → S15). 第3期: 'kairo' 'kairo_end' (S16), 'diorama' (S17),
 //   'shinkai' (S18), 'esa' (S19), 'hall' (S20), 'souko' (S21・S22), 'yakisoban' (S23), 'hp' (S24),
-//   'aq_end' (the end of the third part). __game.cmd.kita(n) / kitaNext()
+//   'aq_end' (S24 done → S25). 第4期: 'taikin' (S26〜S28 → the ending), 'ending' (S29〜S33 → おわり →
+//   the title), 'clear' (S34, after the clear). __game.cmd.kita(n) / kitaNext()
 //   for the people who came; flag('flag_qa_c3_nobattle', 1) skips the story battles (DEV)
 //   __game.cmd.beat3()             the furthest chapter-3 beat the flags have reached
 //   __game.cmd.ch3sounds()         cue-sheet sounds the scripts asked for that aren't registered
@@ -31,6 +32,7 @@ import { fnOf, missingSounds } from '../ch2/compat';
 import * as battleData from '../../data/battle';
 import { MUST_TALK, deriveTalked } from './talked';
 import { runBin, waiting } from './azemichi';
+import { yobuCount } from './minna';
 
 type Step = () => void;
 
@@ -262,9 +264,41 @@ export const CHAIN3: Beat3[] = [
     steps: [set('flag_ch3_hp_beaten')],
     at: ['map_c3_aq_rouka', 3, 3, 'left'],
     alt: ['map_umizoi', 73, 30, 'up'],
-    desc: '第3期の終わり（廊下。西の戸は S25 から）',
+    desc: '★廊下（S24 のあと → S25 みんなが来る：館内放送・最後の集荷・入館の打刻・回廊と事務所）',
+  },
+  // ---- 第4期（S25〜S34）
+  {
+    beat: 'taikin',
+    steps: [set('flag_ch3_minna')],
+    at: ['map_c3_aq_hall', 1, 11, 'right'],
+    alt: ['map_umizoi', 73, 30, 'up'],
+    desc: '★大水槽のホール（S26 タイキンの時間 → S27 決戦 → S28 決着のあと → エンディング）',
+  },
+  {
+    beat: 'ending',
+    steps: [set('flag_ch3_boss_beaten', 'flag_c3_tsugao_neru'), val('flag_ch3_stage', 4), yobuN],
+    at: ['map_c3_aq_hall', 12, 10, 'up'],
+    alt: ['map_umizoi', 29, 32, 'down'],
+    run: 'evt_ch3_ending',
+    desc: '★エンディング（S29 昼ごはん → S30 真相 → S31 集合写真 → S32 帰り道 → S33 → おわり → タイトル）',
+  },
+  {
+    beat: 'clear',
+    steps: [set('flag_ch3_truth', 'flag_ch3_yk_left', 'flag_ch3_clear', 'flag_follower_hidden'), val('flag_c3_end_light', 2), dropYaki],
+    at: ['map_town', 27, 24, 'up'],
+    desc: 'クリア後（S34：銀座の朝。焼きそばのたかしのグソっ君、ツガオ便）',
   },
 ];
+
+/** ヤキソバン out of the line (S29; B's removeYakisoban when it is there). */
+function dropYaki(): void {
+  fnOf(battleData, 'removeYakisoban')?.();
+}
+
+/** よぶで来た人の数（B が書かないとき：来た人＋話した町の人）。 */
+function yobuN(): void {
+  if (!flag('flag_ch3_yobu_n')) setFlag('flag_ch3_yobu_n', yobuCount());
+}
 
 /** ヤキソバン joins (61 5.1; B's addYakisoban when it is there). */
 function addYaki(): void {
@@ -350,6 +384,9 @@ export function listCh3(): string[] {
 /** The furthest chapter-3 beat the flags have reached. */
 export function beatCh3(): { beat: string; stage: number; map?: string } {
   const order: [string, string][] = [
+    ['flag_ch3_clear', 'clear'],
+    ['flag_ch3_boss_beaten', 'ending'],
+    ['flag_ch3_minna', 'taikin'],
     ['flag_ch3_hp_beaten', 'aq_end'],
     ['flag_ch3_yakisoban', 'hp'],
     ['flag_ch3_ego_night', 'yakisoban'],

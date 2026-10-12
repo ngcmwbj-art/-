@@ -147,7 +147,7 @@ export function gradeHKey(stage: number): GradeHKey {
  * afternoon). The sun's direction is the maps' shadowVec (straight north at
  * noon); its height is the shadow's length (0.35 at noon: about 63°).
  */
-export type GradeCKey = 'c0' | 'c1' | 'c2' | 'c3' | 'c4';
+export type GradeCKey = 'c0' | 'c1' | 'c2' | 'c3' | 'c4' | 'c5' | 'c6';
 
 const DAY_C = {
   horizon: hx('#FFF6D8'), horizonA: 0, glare: hx('#FFFFFF'), glareA: 0, topDark: hx('#FFFFFF'), topA: 0,
@@ -181,6 +181,16 @@ export const GRADES_C: Record<GradeCKey, Grade> = {
     skyTop: hx('#5AA8E8'), skyBot: hx('#E0F0F8'), mul: hx('#FFF8EE'),
     shadow: hx('#4A5A7A'), shadowA: 0.3, shadowLen: 0.45, rim: hx('#FFF6D8'), motion: 1, desat: 0,
   },
+  // pal_c3_akegata (62 5.3・8.2, S33 and after the clear): 夕鳴町 at 5:10 the next morning — a pale
+  // sky warming at the bottom, long soft shadows, the first light a little pink on the walls
+  c5: {
+    ...DAY_C,
+    skyTop: hx('#7AA4D8'), skyBot: hx('#F8DCC0'), mul: hx('#F0EEF6'), horizon: hx('#FFD8B8'), horizonA: 0.12,
+    glare: hx('#F8C8C0'), glareA: 0.12, topDark: hx('#3A4A7A'), topA: 0.08,
+    shadow: hx('#5A5A8A'), shadowA: 0.24, shadowLen: 1.1, rim: hx('#FFD8B8'), motion: 1, desat: 0.06,
+  },
+  // S32: 夕鳴町 at 17:00, chapter 1's own first light (pal_stage0) — the day comes round (62 5.3)
+  c6: { ...GRADES[0] },
 };
 
 /** The pal_c3_* preset of a chapter-3 stage. */

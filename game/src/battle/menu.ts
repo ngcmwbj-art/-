@@ -17,6 +17,7 @@ import { rappaTargetName, yobiCharge, yobiLit } from './boss_yobimodoshi';
 import { keyItemUsable, otsukareBlock } from './party_ch2';
 import { potReady } from './ch3rules';
 import { aqKoeIcon, hiroReady } from './boss_c3aq';
+import { tgFind, tgPhase, tgWaits, yobuNext } from './boss_tsugao';
 import { musicSting } from '../audio';
 import { SYS3, YAKISOBAN_SKILLS } from '../data/battle';
 
@@ -77,6 +78,8 @@ function commandIcons(s: BattleScene, u: PartyUnit): Icon[] {
   if (s.memo.bossFinal && u.id === 'minato') return s.bossKind === 'yobimodoshi' ? [{ id: 'oyasumi', name: 'おやすみなさい' }] : [{ id: 'okaeri', name: 'おかえりなさい' }];
   // ポコシャ (61 13.5): the three voices untied — the one command is the はなまる on the name tag
   if (s.memo.nafudaTurn && u.id === 'minato') return [{ id: 'nafuda', name: 'はなまる' }];
+  // ツガオ決戦 (61 14.6): the finale — the one command is みんなの はなまる
+  if (u.id === 'minato' && tgFind(s) && tgPhase(s) >= 3) return [{ id: 'minna', name: 'みんなの はなまる' }];
   const koe = aqKoeIcon(s, u);
   if (u.id === 'yakisoban') {
     const ready = YAKISOBAN_SKILLS.filter((sk) => sk !== 'skill_yk_hera' && !(u.ct[sk] > 0)).length;
@@ -103,7 +106,9 @@ function commandIcons(s: BattleScene, u: PartyUnit): Icon[] {
   if (flag('flag_got_hanko') && hankoSkills(u).some(usableHanko)) icons.push({ id: 'hanko', name: 'ハンコ', sub: `ink:${u.m.mp}` });
   icons.push({ id: 'item', name: 'もちもの', sub: `${usableItems().reduce((a, b) => a + b.count, 0)}こ` });
   icons.push({ id: 'guard', name: 'まもる' });
-  icons.push({ id: 'flee', name: 'にげる' });
+  // ツガオ決戦の 2段目 (61 14.3): にげるの 位置に「よぶ」
+  if (yobuNext(s)) icons.push({ id: 'yobu', name: 'よぶ' });
+  else icons.push({ id: 'flee', name: 'にげる' });
   // the park's lesson: only the command being taught works
   const only = s.lesson?.icon;
   if (only) for (const ic of icons) if (ic.id !== only) ic.dim = true;
@@ -122,7 +127,7 @@ function noriAvailable(s: BattleScene): boolean {
 export function* inputCommands(s: BattleScene): Co<PartyCmd[]> {
   if (s.cmdQueue.length) return queuedCommands(s);
   // (in the park's lesson グソっ君 is the teacher: only しゅん chooses)
-  const actors = s.party.filter((u) => u.canAct && !(s.memo.bossFinal && u.id === 'kanenari') && !(s.lesson && u.id !== 'minato') && !(s.memo.nafudaTurn && u.id !== 'minato'));
+  const actors = s.party.filter((u) => u.canAct && !(s.memo.bossFinal && u.id === 'kanenari') && !(s.lesson && u.id !== 'minato') && !(s.memo.nafudaTurn && u.id !== 'minato') && !tgWaits(s, u));
   const cmds: PartyCmd[] = [];
   const chosen: (PartyCmd | null)[] = actors.map(() => null);
   let i = 0;
@@ -162,6 +167,7 @@ export function* inputCommands(s: BattleScene): Co<PartyCmd[]> {
     if (s.memo.bossFinal && u.id === 'kanenari') continue;
     if (s.lesson && u.id !== 'minato') continue;
     if (s.memo.nafudaTurn && u.id !== 'minato') continue;
+    if (tgWaits(s, u)) continue;
     const reason = !u.alive
       ? 'status_hebatta'
       : u.has('status_rusu')
@@ -244,11 +250,21 @@ function queuedCommands(s: BattleScene): PartyCmd[] {
         if (po) out.push({ kind: 'hanko', u, skill: 'skill_hanamaru', target: po });
         break;
       }
+      // ツガオ決戦 (61 14.3・14.6)
+      case 'yobu':
+        out.push({ kind: 'yobu', u });
+        break;
+      case 'minna': {
+        const tg = tgFind(s);
+        if (tg) out.push({ kind: 'hanko', u, skill: 'skill_minna_hanamaru', target: tg });
+        break;
+      }
     }
   }
   for (const u of s.party) {
     if (out.some((c) => c.u === u)) continue;
-    const reason = !u.alive ? 'status_hebatta' : u.has('status_rusu') ? 'status_rusu' : u.has('status_nemuri') ? 'status_nemuri' : u.has('status_tsukamare') ? 'status_tsukamare' : u.has('status_toosenbo') ? 'status_toosenbo' : u.has('status_henji') ? 'status_henji' : u.has('status_c3_ashi') ? 'status_c3_ashi' : '';
+    if (tgWaits(s, u)) continue;
+    const reason = !u.alive ? 'status_hebatta' : u.has('status_rusu') ? 'status_rusu' : u.has('status_nemuri') ? 'status_nemuri' : u.has('status_tsukamare') ? 'status_tsukamare' : u.has('status_toosenbo') ? 'status_toosenbo' : u.has('status_henji') ? 'status_henji' : u.has('status_c3_ashi') ? 'status_c3_ashi' : u.has('status_c3_mada') ? 'status_c3_mada' : '';
     if (reason) out.push({ kind: 'skip', u, reason });
   }
   return out;
@@ -332,6 +348,9 @@ function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: R
   }
   // 61 13.5: ツッコむ waits at the top for the one whose turn it is
   if (!ch2Pulse && aqKoeIcon(s, u).length) ch2Pulse = 'tsukkomu';
+  // ツガオ決戦: よぶ pulses (and the cursor waits on it), then みんなの はなまる
+  if (!ch2Pulse && u.id === 'minato' && yobuNext(s)) ch2Pulse = 'yobu';
+  if (!ch2Pulse && u.id === 'minato' && tgFind(s) && tgPhase(s) >= 3) ch2Pulse = 'minna';
   if (ch2Pulse && lastIndex[u.id] === undefined) {
     const pi = commandIcons(s, u).findIndex((ic) => ic.id === ch2Pulse);
     if (pi >= 0) index = pi;
@@ -428,6 +447,12 @@ function* runIcon(s: BattleScene, u: PartyUnit, id: string): Co<PartyCmd | null>
     case 'nafuda': {
       const po = s.enemies.find((e) => e.id === 'boss_pokosha');
       return po ? { kind: 'hanko', u, skill: 'skill_hanamaru', target: po } : null;
+    }
+    case 'yobu':
+      return { kind: 'yobu', u };
+    case 'minna': {
+      const tg = tgFind(s);
+      return tg ? { kind: 'hanko', u, skill: 'skill_minna_hanamaru', target: tg } : null;
     }
     case 'hanko':
       return yield* hankoMenu(s, u);

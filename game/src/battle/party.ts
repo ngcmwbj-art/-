@@ -30,6 +30,7 @@ import { infoCardWidth, kireIconXY, PANEL_POS, panelOffset, ROW, type CardData }
 import { C, STICKY_PAD, tapeCanvas } from './ui/note';
 import { cueSize } from './ui/cue';
 import { FLAG_PAD, kanenariBack, kanenariFront, MIC_AT } from '../art/enemies/kanenari';
+import { yakisobanBack } from './art/yakisoban';
 import { knOpts, knSay, riceBall } from './gusokkun';
 import { portrait } from '../art/chars';
 import { bokemakeLabel, NORI_MIN_MS, NORI_READ_MS, noriLetterMs, timingSlow, tsukkomiWindows } from './tsukkomi';
@@ -1869,7 +1870,9 @@ export function* doNori(s: BattleScene): Co {
   const first = !s.memo.noriCount;
   s.memo.noriCount = (s.memo.noriCount ?? 0) + 1;
   // 星見台 adds ボケD: straw on his head, the scarecrow (50 6.9, 51 14.13)
-  const bokes = s.hoshi ? [...NORI, NORI_HOSHI] : NORI;
+  const bokes = s.hoshi ? [...NORI, NORI_HOSHI] : [...NORI];
+  // 第3章 (61 5.8・17.5): with ヤキソバン able to act, his boke ④ joins the draw
+  if (s.yakisoban?.canAct) bokes.push({ boke: SYS3.noriYakiBoke, upper: SYS3.noriYaki[0], line: SYS3.noriYaki[1], pose: 'yaki' });
   let pick = rng.int(0, bokes.length - 1);
   if (pick === s.memo.noriLast) pick = (pick + 1) % bokes.length;
   // QA: __game.cmd.bnori(n) picks the boke (1 sing, 2 flag, 3 flip, 4 scarecrow)
@@ -1949,7 +1952,8 @@ export function* doNori(s: BattleScene): Co {
   const spot = noriSpot(s);
   const kf = { x: 440, hop: 0, sq: 0, pose: 'kime', t0: 0, board: 0, boardT: -1, leave: 0 };
   const notes: { x: number; y: number; vx: number; t: number; i: number }[] = [];
-  const bodyCx = (pose: string) => (pose === 'flag' ? FLAG_PAD.x : 0) + 28;
+  const yakiBoke = nori.pose === 'yaki';
+  const bodyCx = (pose: string) => (yakiBoke ? 24 : (pose === 'flag' ? FLAG_PAD.x : 0) + 28);
   const bokeFx = s.addFx({
     layer: 'top',
     dur: 0,
@@ -1995,7 +1999,9 @@ export function* doNori(s: BattleScene): Co {
       ctx.rect(0, top + 2, 384, 216 - top - 2);
       ctx.clip();
       // the performer (squash on landings, anchored on his feet)
-      const img = kanenariFront(kf.pose, t - kf.t0);
+      // ボケ④: ヤキソバン tosses his noodles up and catches them on his head in the statue's pose
+      const yt = t - kf.t0;
+      const img = yakiBoke ? yakisobanBack(kf.pose === 'yaki' && yt >= 600 ? 'pose' : 'front') : kanenariFront(kf.pose, t - kf.t0);
       const sx = sc * (1 + 0.14 * kf.sq);
       const sy = sc * (1 - 0.12 * kf.sq);
       const w = img.width * sx;
@@ -2003,6 +2009,19 @@ export function* doNori(s: BattleScene): Co {
       const x = lx - bodyCx(kf.pose) * sx;
       const y = spot.foot - kf.hop - h;
       g.alpha(1 - kf.leave, () => ctx.drawImage(img, Math.round(x), Math.round(y), Math.round(w), Math.round(h)));
+      if (yakiBoke && kf.pose === 'yaki' && yt < 600) {
+        // the heap of noodles (24×16) up off the top of the screen and down onto his head
+        const q = yt / 600;
+        const hy = y + 6 * sy - Math.sin(q * Math.PI) * 110 * sc;
+        const hx = lx - 12 * sc;
+        g.alpha(1 - kf.leave, () => {
+          g.rect(Math.round(hx + 3 * sc), Math.round(hy), Math.round(18 * sc), Math.round(4 * sc), '#E8C878');
+          g.rect(Math.round(hx), Math.round(hy + 4 * sc), Math.round(24 * sc), Math.round(8 * sc), '#D8B060');
+          g.rect(Math.round(hx + 4 * sc), Math.round(hy + 6 * sc), Math.round(3 * sc), Math.round(2 * sc), '#8A5A2A');
+          g.rect(Math.round(hx + 14 * sc), Math.round(hy + 5 * sc), Math.round(3 * sc), Math.round(2 * sc), '#3F7A3A');
+          g.rect(Math.round(hx + 10 * sc), Math.round(hy - 1 * sc), Math.round(3 * sc), Math.round(2 * sc), '#E0567A');
+        });
+      }
       // ボケC 『深海から 来ました〜』: presenting himself, bubbles rise round
       // him as from the deep (the flip board is gone, ★2026-09-29)
       if (kf.boardT >= 0 && kf.leave === 0) {
@@ -2078,6 +2097,7 @@ export function* doNori(s: BattleScene): Co {
       if (nori.pose === 'sing') singLoop = sfxLoop('se_nori_sing');
       // ボケB: the claps are heard on the claps (below; the banner's flap is gone)
       else if (nori.pose === 'flag') s.sfx('se_hit_pashi', { vol: 0.4, pitch: 1.35 });
+      else if (nori.pose === 'yaki') s.sfx('se_c3_spatula');
       else if (nori.pose === 'kakashi') {
         // the straw drops on him with a whump; arms out like the crossbar, on one leg
         s.sfx('se_umbrella_open', { pitch: 0.7 });

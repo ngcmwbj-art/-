@@ -152,118 +152,7 @@ registerEnemyArt('enemy_junro', (): EnemyArt => {
   };
 });
 
-// ---- ツガオ（初戦。長いすに すわった まま） --------------------------------------------------------
-
-interface TsugaoPose {
-  breath: number;
-  watch: boolean;
-  hand: number;
-  yawn: number;
-  lean: boolean;
-}
-const GW = 64;
-const GH = 104;
-const GOX = 4;
-const GOY = 4;
-const SUIT = ['#1E1A30', '#2A2440', '#3A3F48'];
-const SKIN = ['#B8846A', '#D8A888', '#E8C0A0'];
-
-function buildTsugao(o: TsugaoPose): PixelCanvas {
-  const p = new PixelCanvas(GW, GH);
-  const X = (v: number) => Math.round(v + GOX);
-  const Y = (v: number) => Math.round(v + GOY + (o.lean ? 2 : 0));
-  const b = o.breath;
-  // the bench under him (front edge, legs)
-  p.rect(X(0), Y(70), 56, 6, '#6B5A4A');
-  p.hline(X(0), X(55), Y(70), '#8A7A6A');
-  p.rect(X(4), Y(76), 4, 20, '#4A3A2E');
-  p.rect(X(48), Y(76), 4, 20, '#4A3A2E');
-  // legs: seated, knees forward, shoes
-  p.rect(X(14), Y(66), 12, 10, SUIT[1]);
-  p.rect(X(30), Y(66), 12, 10, SUIT[1]);
-  p.rect(X(14), Y(76), 10, 16, SUIT[0]);
-  p.rect(X(32), Y(76), 10, 16, SUIT[0]);
-  p.rect(X(12), Y(90), 13, 4, '#0B0B14');
-  p.rect(X(31), Y(90), 13, 4, '#0B0B14');
-  // the cold yakisoba pack on his knees
-  p.rect(X(20), Y(62), 16, 5, '#F4F1E8');
-  p.rect(X(21), Y(63), 14, 2, '#C8A060');
-  p.set(X(30), Y(63), '#E0567A');
-  // torso: broad, straight back; the double-breasted suit, thin stripes
-  p.rect(X(8), Y(30 - b), 40, 36 + b, SUIT[1]);
-  for (let x = 10; x < 48; x += 4) p.vline(X(x), Y(31 - b), Y(64), SUIT[2]);
-  p.rect(X(8), Y(30 - b), 4, 36 + b, SUIT[0]);
-  // shirt and the black tie, the lapels
-  p.poly([[X(22), Y(30 - b)], [X(34), Y(30 - b)], [X(28), Y(46)]], '#E8E4D8');
-  p.rect(X(27), Y(32 - b), 3, 14, '#0B0B14');
-  p.line(X(22), Y(30 - b), X(27), Y(48), SUIT[0]);
-  p.line(X(34), Y(30 - b), X(29), Y(48), SUIT[0]);
-  p.set(X(24), Y(52), '#C8CDD4');
-  p.set(X(32), Y(52), '#C8CDD4');
-  // arms: right hand up with the black seal when he taunts, left on the knee with the watch
-  const hy = [0, -6, -10][o.hand];
-  p.rect(X(2), Y(34 - b), 7, 24 + hy * 0, SUIT[1]);
-  p.rect(X(2), Y(56 + hy), 8, 6, SKIN[1]);
-  p.rect(X(1), Y(50 + hy), 8, 6, '#8A5A3A');
-  p.rect(X(1), Y(48 + hy), 8, 3, '#1B1733');
-  p.rect(X(47), Y(34 - b), 7, 26, SUIT[1]);
-  p.rect(X(46), Y(58), 8, 6, SKIN[1]);
-  p.rect(X(46), Y(56), 8, 2, o.watch ? '#FFD23F' : '#D9A441');
-  // the head: square-cut hair, thick brows, narrow sleepy eyes, the mouth a straight line
-  const hx = 28;
-  const hyy = 16 - b;
-  p.rect(X(hx - 9), Y(hyy - 8), 18, 20, SKIN[1]);
-  p.vline(X(hx + 8), Y(hyy - 6), Y(hyy + 10), SKIN[0]);
-  p.rect(X(hx - 9), Y(hyy - 12), 18, 6, '#2A2440');
-  p.hline(X(hx - 9), X(hx + 8), Y(hyy - 12), '#4A4A55');
-  p.rect(X(hx - 9), Y(hyy - 6), 2, 4, '#2A2440');
-  p.rect(X(hx + 7), Y(hyy - 6), 2, 4, '#2A2440');
-  // brows a little down at the ends (tired, not scary)
-  p.hline(X(hx - 7), X(hx - 3), Y(hyy - 3), '#1B1733');
-  p.hline(X(hx + 2), X(hx + 6), Y(hyy - 3), '#1B1733');
-  p.set(X(hx - 7), Y(hyy - 2), '#1B1733');
-  p.set(X(hx + 6), Y(hyy - 2), '#1B1733');
-  if (o.yawn > 0) {
-    p.hline(X(hx - 7), X(hx - 3), Y(hyy), '#1B1733');
-    p.hline(X(hx + 2), X(hx + 6), Y(hyy), '#1B1733');
-    p.rect(X(hx - 2), Y(hyy + 4), 5, 2 + o.yawn * 2, '#5A2A2A');
-  } else {
-    p.hline(X(hx - 6), X(hx - 4), Y(hyy), '#1B1733');
-    p.hline(X(hx + 3), X(hx + 5), Y(hyy), '#1B1733');
-    p.hline(X(hx - 3), X(hx + 3), Y(hyy + 6), '#7A4A3A');
-  }
-  p.set(X(hx), Y(hyy + 3), SKIN[0]);
-  aqFinish(p, 0.5);
-  return p;
-}
-
-registerEnemyArt('boss_tsugao_1', (): EnemyArt => {
-  const get = cached(buildTsugao);
-  let restored: HTMLCanvasElement | null = null;
-  return {
-    id: 'boss_tsugao_1',
-    w: GW,
-    h: GH,
-    ox: GOX,
-    oy: GOY,
-    frame(v: EnemyView): HTMLCanvasElement {
-      const breath = loop(v.gt, 600, 2);
-      const watch = Math.floor(v.gt / 4000) !== Math.floor((v.gt - 400) / 4000);
-      const base: TsugaoPose = { breath, watch, hand: 0, yawn: 0, lean: false };
-      if (v.pose === 'aori') return get({ ...base, hand: v.t < 200 ? 1 : v.t < 600 ? 2 : 1 });
-      if (v.pose === 'yawn') return get({ ...base, yawn: Math.min(3, 1 + Math.floor(v.t / 200)) });
-      if (v.pose === 'lean') return get({ ...base, lean: true });
-      if (v.pose === 'hurt') return get(base);
-      return get(base);
-    },
-    restored(): HTMLCanvasElement {
-      if (restored) return restored;
-      restored = new PixelCanvas(4, 4).toCanvas();
-      return restored;
-    },
-    gallery: [{ pose: 'idle' }, { pose: 'aori', t: 300 }, { pose: 'yawn', t: 600 }],
-  };
-});
+// ツガオ（初戦・決戦）は c3_tsugao.ts（第4期に 描き直し）。
 
 // ---- ヒロスケ -----------------------------------------------------------------------------------
 
@@ -285,14 +174,18 @@ const SHIRT = ['#B8B098', '#D8D0B8', '#E8E0C8'];
 const APRON = ['#4A5634', '#6B7A4A', '#8A9A62'];
 const HSKIN = ['#C89878', '#E8C8A8', '#F4DCC4'];
 
-function glove(p: PixelCanvas, x: number, y: number, yur: number, imo: boolean): void {
-  // 0: a hand holding a sweet potato; 3: the palm open, the potato just lying on it
+function glove(p: PixelCanvas, x: number, y: number, yur: number, imo: boolean, right: boolean): void {
+  // cotton work gloves (軍手: off-white, a grey cuff band). 0: closed on a sweet potato; 3: the palm open
   p.rect(x, y, 8, 7, '#F4F1E8');
+  p.hline(x, x + 7, y, '#8E95A6');
+  p.vline(right ? x + 7 : x, y + 1, y + 6, '#C8C2B4');
   p.hline(x, x + 7, y + 6, '#C8C2B4');
-  for (let i = 0; i < 3; i++) if (i < yur) p.vline(x + 1 + i * 2, y - 3, y, '#F4F1E8');
+  for (let i = 0; i < 3; i++) if (i < yur) p.vline(x + 1 + i * 2, y - 3, y - 1, '#E8E4D8');
   if (imo || yur >= 3) {
-    p.rect(x + 1, y - 2 - (yur >= 3 ? 1 : 0), 7, 3, '#8A3A5A');
-    p.hline(x + 2, x + 6, y - 2 - (yur >= 3 ? 1 : 0), '#B85A7A');
+    const yy = y - 2 - (yur >= 3 ? 1 : 0);
+    p.rect(x + 1, yy, 7, 3, '#7A2E4A');
+    p.hline(x + 2, x + 6, yy, '#B85A7A');
+    p.set(x + 6, yy + 1, '#E8C060');
   }
 }
 
@@ -301,56 +194,98 @@ function buildHiro(o: HiroPose): PixelCanvas {
   const X = (v: number) => Math.round(v + HOX + (o.hurt ? 1 : 0));
   const Y = (v: number) => Math.round(v + HOY + (o.sit ? 22 : 0));
   const b = o.breath;
+  const TR = ['#3E3E32', '#55553F', '#6B6B52'];
   if (o.sit) {
     // sitting by the wall, knees up, the potato in both hands, looking down
-    p.rect(X(10), Y(48), 28, 10, '#5A5A48');
-    p.rect(X(10), Y(56), 10, 6, '#3A3A30');
-    p.rect(X(28), Y(56), 10, 6, '#3A3A30');
+    p.rect(X(9), Y(46), 30, 10, TR[1]);
+    p.hline(X(9), X(38), Y(46), TR[2]);
+    p.rect(X(9), Y(54), 11, 6, '#2A2440');
+    p.rect(X(28), Y(54), 11, 6, '#2A2440');
   } else {
-    // legs: work trousers, boots
-    p.rect(X(12), Y(56), 10, 20, '#5A5A48');
-    p.rect(X(26), Y(56), 10, 20, '#5A5A48');
-    p.rect(X(11), Y(74), 12, 4, '#2A2440');
-    p.rect(X(25), Y(74), 12, 4, '#2A2440');
+    // legs: work trousers (a knee patch), boots with a pale toe
+    p.rect(X(12), Y(56), 10, 19, TR[1]);
+    p.rect(X(26), Y(56), 10, 19, TR[0]);
+    p.vline(X(12), Y(56), Y(74), TR[2]);
+    p.rect(X(14), Y(64), 6, 4, TR[2]);
+    p.rect(X(10), Y(74), 13, 5, '#2A2440');
+    p.rect(X(25), Y(74), 13, 5, '#2A2440');
+    p.hline(X(10), X(14), Y(74), '#5A5468');
+    p.hline(X(25), X(29), Y(74), '#5A5468');
   }
-  // body: the work shirt, the olive apron with its pocket (newspaper and foil)
-  p.rect(X(8), Y(24 - b), 32, 34 + b, SHIRT[1]);
-  p.rect(X(8), Y(24 - b), 3, 34 + b, SHIRT[0]);
-  p.rect(X(13), Y(32), 22, 26, APRON[1]);
-  p.rect(X(13), Y(32), 22, 1, APRON[2]);
-  p.rect(X(13), Y(32), 2, 26, APRON[0]);
-  p.rect(X(18), Y(44), 12, 8, APRON[0]);
-  p.rect(X(19), Y(42), 5, 3, '#C8C8C0');
-  p.rect(X(24), Y(42), 4, 3, '#C8CDD4');
+  // the work shirt: broad shoulders, sleeves rolled to the elbow
+  for (let y = 0; y < 34 + b; y++) {
+    const hw = y < 3 ? 13 + y * 2 : 17;
+    for (let x = -hw; x < hw; x++) p.set(X(24 + x), Y(24 - b + y), x < -hw + 3 ? SHIRT[2] : x > hw - 4 ? SHIRT[0] : SHIRT[1]);
+  }
+  p.hline(X(10), X(37), Y(24 - b), SHIRT[2]);
+  // the olive apron with its bib and pocket (newspaper and foil), the strings
+  p.rect(X(13), Y(31), 22, 28, APRON[1]);
+  p.rect(X(13), Y(31), 2, 28, APRON[2]);
+  p.rect(X(33), Y(31), 2, 28, APRON[0]);
+  p.hline(X(13), X(34), Y(31), APRON[2]);
+  p.hline(X(13), X(34), Y(44), APRON[0]);
+  p.rect(X(17), Y(46), 14, 9, APRON[0]);
+  p.hline(X(17), X(30), Y(46), APRON[2]);
+  p.rect(X(18), Y(43), 6, 4, '#C8C8C0');
+  p.hline(X(18), X(23), Y(44), '#8A8A92');
+  p.rect(X(24), Y(43), 5, 4, '#D8DCE4');
+  p.set(X(26), Y(43), '#FFFFFF');
   // a curl of steam off the pocket
-  p.set(X(22), Y(39), '#F4F1E8');
-  p.set(X(23), Y(37), '#F4F1E8');
-  if (o.seen) madaStamp(p, X(24), Y(36), 10, 8, 11);
-  // arms and gloves
+  p.set(X(22), Y(41), '#F4F1E8');
+  p.set(X(23), Y(39), '#F4F1E8');
+  p.set(X(22), Y(37), '#E8E4D8');
+  if (o.seen) madaStamp(p, X(25), Y(36), 10, 8, 11);
+  // arms: rolled sleeves, then the forearms, then the gloves
   const imoY = o.imo ? -8 : 0;
-  p.rect(X(2), Y(28 - b), 7, 22, SHIRT[1]);
-  p.rect(X(39), Y(28 - b), 7, 22, SHIRT[0]);
-  glove(p, X(1), Y(50 + imoY), o.yur, o.imo);
-  glove(p, X(39), Y(50), o.yur, false);
+  p.rect(X(2), Y(26 - b), 8, 12, SHIRT[2]);
+  p.rect(X(38), Y(26 - b), 8, 12, SHIRT[0]);
+  p.hline(X(2), X(9), Y(37 - b), SHIRT[0]);
+  p.hline(X(38), X(45), Y(37 - b), '#A8A088');
+  p.rect(X(3), Y(38 - b), 6, 12 + imoY + b, HSKIN[1]);
+  p.vline(X(8), Y(38 - b), Y(49 + imoY), HSKIN[0]);
+  p.rect(X(39), Y(38 - b), 6, 12 + b, HSKIN[0]);
+  glove(p, X(1), Y(50 + imoY), o.yur, o.imo, false);
+  glove(p, X(39), Y(50), o.yur, false, true);
   if (o.dandori) {
     // a finger up, setting the order right
     p.vline(X(44), Y(42), Y(50), '#F4F1E8');
+    p.set(X(44), Y(42), '#C8C2B4');
   }
-  // head: shaved and shining, square black glasses, the beard to the chest (a red band)
+  // head: shaved and shining, ears, the thick neck, square black glasses, the beard to the chest
   const hx = 24;
   const hy = 12 - b;
-  p.ellipse(X(hx), Y(hy), 9, 10, HSKIN[1]);
-  p.ellipse(X(hx - 2), Y(hy - 4), 4, 3, HSKIN[2]);
-  p.vline(X(hx + 8), Y(hy - 4), Y(hy + 6), HSKIN[0]);
-  p.rect(X(hx - 8), Y(hy - 1), 16, 4, '#2A2440');
-  p.set(X(hx - 5), Y(hy), AQ_RIM);
-  p.set(X(hx + 4), Y(hy), AQ_RIM);
-  if (o.sit) p.set(X(hx + 4), Y(hy + 2), AQ_RIM);
-  for (let y = 0; y < 18; y++) {
-    const w = Math.max(1, 7 - Math.floor(y / 3));
-    p.hline(X(hx - w), X(hx + w - 1), Y(hy + 5 + y), y % 3 ? '#5A4A3A' : '#6A5A4A');
+  p.rect(X(hx - 6), Y(hy + 6), 12, 6, HSKIN[0]);
+  p.ellipse(X(hx), Y(hy), 10, 11, HSKIN[1]);
+  p.rect(X(hx - 11), Y(hy - 1), 2, 5, HSKIN[0]);
+  p.rect(X(hx + 10), Y(hy - 1), 2, 5, HSKIN[0]);
+  p.ellipse(X(hx + 4), Y(hy + 2), 5, 7, HSKIN[0]);
+  p.ellipse(X(hx), Y(hy), 8, 9, HSKIN[1]);
+  p.ellipse(X(hx - 3), Y(hy - 5), 4, 3, HSKIN[2]);
+  p.set(X(hx - 4), Y(hy - 6), '#FFFFFF');
+  // brows (a little frown kept inside), the glasses
+  p.hline(X(hx - 7), X(hx - 2), Y(hy - 3), '#6A5040');
+  p.hline(X(hx + 2), X(hx + 7), Y(hy - 3), '#6A5040');
+  p.rect(X(hx - 8), Y(hy - 1), 7, 5, '#1B1733');
+  p.rect(X(hx + 1), Y(hy - 1), 7, 5, '#1B1733');
+  p.hline(X(hx - 1), X(hx), Y(hy), '#1B1733');
+  p.set(X(hx - 6), Y(hy), AQ_RIM);
+  p.set(X(hx + 3), Y(hy), AQ_RIM);
+  if (o.sit) p.set(X(hx + 4), Y(hy + 3), AQ_RIM);
+  p.vline(X(hx), Y(hy + 4), Y(hy + 5), HSKIN[0]);
+  // the moustache and the beard (strands, to the chest), its tip in a red rubber band
+  p.hline(X(hx - 5), X(hx + 4), Y(hy + 6), '#4A3A2E');
+  for (let y = 0; y < 20; y++) {
+    const w = y < 4 ? 8 : Math.max(1, Math.round(8 - (y - 4) * 0.42));
+    for (let x = -w; x < w; x++) {
+      const strand = (x + 40 + (y >> 1)) % 3;
+      p.set(X(hx + x), Y(hy + 7 + y), strand === 0 ? '#4A3A2E' : strand === 1 ? '#5E4A3A' : '#73604C');
+    }
   }
-  p.hline(X(hx - 2), X(hx + 1), Y(hy + 19), '#E23B2E');
+  p.set(X(hx - 1), Y(hy + 8), '#7A4A3A');
+  p.set(X(hx), Y(hy + 8), '#7A4A3A');
+  p.hline(X(hx - 2), X(hx + 1), Y(hy + 22), '#E23B2E');
+  p.set(X(hx - 1), Y(hy + 26), '#5E4A3A');
+  p.set(X(hx), Y(hy + 26), '#4A3A2E');
   aqFinish(p, 0.5);
   return p;
 }
@@ -399,19 +334,31 @@ const POX = 4;
 const POY = 4;
 
 function hen(p: PixelCanvas, x: number, y: number, peek: boolean, wings: boolean): void {
-  // ぴーちゃん (10×10): white hen, red comb, yellow beak, an olive scarf
-  p.ellipse(x + 5, y + 6, 5, 4, '#F4F1E8');
+  // ぴーちゃん (12×11): a white hen (grey under the wing), red comb and wattle, a yellow beak, an olive scarf
+  p.ellipse(x + 5, y + 7, 6, 4, '#F4F1E8');
+  p.ellipse(x + 4, y + 8, 3, 2, '#D8D4C8');
+  p.rect(x - 1, y + 4, 2, 3, '#F4F1E8');
+  p.set(x - 2, y + 4, '#E8E4D8');
   if (wings) {
-    p.rect(x - 2, y + 4, 3, 3, '#F4F1E8');
-    p.rect(x + 9, y + 4, 3, 3, '#F4F1E8');
+    p.rect(x - 3, y + 5, 3, 3, '#F4F1E8');
+    p.rect(x + 10, y + 5, 3, 3, '#F4F1E8');
   }
-  const hx = x + (peek ? 9 : 7);
+  const hx = x + (peek ? 10 : 8);
   p.ellipse(hx, y + 2, 2, 2, '#F4F1E8');
-  p.rect(hx - 1, y - 1, 2, 2, '#E23B2E');
-  p.rect(hx + 2, y + 2, 2, 1, '#E8C878');
-  p.set(hx, y + 2, INK);
-  p.hline(x + 3, x + 7, y + 5, '#6B7A4A');
+  p.rect(hx - 1, y - 2, 3, 2, '#E23B2E');
+  p.set(hx, y - 3, '#E23B2E');
+  p.rect(hx + 2, y + 2, 2, 1, '#E8C060');
+  p.set(hx + 1, y + 4, '#E23B2E');
+  p.set(hx, y + 1, INK);
+  p.hline(x + 3, x + 8, y + 5, '#6B7A4A');
+  p.hline(x + 7, x + 7, y + 6, '#5A6A3A');
+  p.set(x + 4, y + 11, '#E8C060');
+  p.set(x + 6, y + 11, '#E8C060');
 }
+
+const VEST = ['#4E5A30', '#6B7A4A', '#86965E'];
+const KHAKI = ['#6E6E46', '#8A8A5A', '#A2A270'];
+const PSKIN = ['#B8846A', '#D8A888', '#ECC4A0'];
 
 function buildPoko(o: PokoPose): PixelCanvas {
   const p = new PixelCanvas(PW, PH);
@@ -421,58 +368,101 @@ function buildPoko(o: PokoPose): PixelCanvas {
   if (o.curl >= 2) {
     // sitting small, hugging his knees (not hiding his head): the hen up on his head, wings a little out
     const top = 38;
-    p.rect(X(12), Y(top + 18), 32, 22, '#8A8A5A');
-    p.rect(X(10), Y(top + 6), 36, 18, '#6B7A4A');
-    p.rect(X(14), Y(top + 22), 28, 6, '#E8C8A8');
-    p.ellipse(X(28), Y(top), 8, 8, '#E8C8A8');
-    p.rect(X(20), Y(top - 8), 16, 4, '#2A2440');
-    p.rect(X(21), Y(top - 1), 14, 3, '#2A2440');
-    p.set(X(22), Y(top), '#C8CDD4');
-    p.set(X(33), Y(top), '#C8CDD4');
-    hen(p, X(23), Y(top - 20), false, true);
+    p.rect(X(12), Y(top + 18), 32, 22, KHAKI[1]);
+    p.rect(X(12), Y(top + 18), 32, 2, KHAKI[2]);
+    p.rect(X(10), Y(top + 6), 36, 16, VEST[1]);
+    p.rect(X(10), Y(top + 6), 3, 16, VEST[2]);
+    p.rect(X(12), Y(top + 20), 32, 7, PSKIN[1]);
+    p.hline(X(12), X(43), Y(top + 26), PSKIN[0]);
+    p.rect(X(10), Y(top + 38), 14, 4, '#4A4A55');
+    p.rect(X(32), Y(top + 38), 14, 4, '#4A4A55');
+    p.ellipse(X(28), Y(top), 8, 8, PSKIN[1]);
+    p.rect(X(20), Y(top - 8), 16, 4, '#1B1733');
+    p.rect(X(21), Y(top - 1), 6, 3, '#2A2440');
+    p.rect(X(29), Y(top - 1), 6, 3, '#2A2440');
+    p.set(X(21), Y(top - 2), '#C8CDD4');
+    p.set(X(34), Y(top - 2), '#C8CDD4');
+    hen(p, X(22), Y(top - 21), false, true);
     // the name tag peeks out over his arms
-    p.rect(X(30), Y(top + 12), 8, 4, '#F4F1E8');
-    p.hline(X(30), X(37), Y(top + 12), '#4AA8E0');
+    p.rect(X(30), Y(top + 12), 9, 5, '#F4F1E8');
+    p.hline(X(30), X(38), Y(top + 12), '#4AA8E0');
     aqFinish(p, 0.45);
     return p;
   }
-  // legs: khaki trousers, safety boots
-  p.rect(X(16), Y(56), 12, 22, '#8A8A5A');
-  p.rect(X(32), Y(56), 12, 22, '#8A8A5A');
-  p.rect(X(15), Y(76), 14, 4, '#4A4A55');
-  p.rect(X(31), Y(76), 14, 4, '#4A4A55');
-  // body: broad shoulders, the white running shirt, the olive vest of pockets
-  p.rect(X(10), Y(24 - b), 40, 34 + b, '#F4F1E8');
-  p.rect(X(10), Y(24 - b), 8, 34 + b, '#6B7A4A');
-  p.rect(X(42), Y(24 - b), 8, 34 + b, '#6B7A4A');
-  for (const [x, y] of [[11, 34], [43, 34], [11, 46], [43, 46]]) p.rect(X(x), Y(y), 6, 5, '#5A6A3A');
+  // legs: khaki work trousers (a side pocket), safety boots
+  p.rect(X(15), Y(56), 13, 21, KHAKI[1]);
+  p.rect(X(32), Y(56), 13, 21, KHAKI[0]);
+  p.vline(X(15), Y(56), Y(76), KHAKI[2]);
+  p.rect(X(16), Y(62), 4, 6, KHAKI[2]);
+  p.rect(X(13), Y(75), 16, 5, '#4A4A55');
+  p.rect(X(31), Y(75), 16, 5, '#3A3A48');
+  p.hline(X(13), X(18), Y(75), '#8E95A6');
+  // the belt
+  p.rect(X(13), Y(54), 34, 3, '#3A2B24');
+  p.rect(X(28), Y(54), 4, 3, '#C8CDD4');
+  // body: very broad shoulders, the white running shirt under an olive vest of pockets
+  for (let y = 0; y < 31 + b; y++) {
+    const hw = y < 3 ? 15 + y * 2 : 20 - Math.floor(Math.max(0, y - 16) / 6);
+    for (let x = -hw; x < hw; x++) {
+      const open = Math.abs(x + 0.5) < 9 - (y < 6 ? 6 - y : 0) * 0.6;
+      p.set(X(30 + x), Y(24 - b + y), open ? (x > 4 ? '#E0DCD0' : '#F4F1E8') : x < 0 ? (x < -hw + 2 ? VEST[2] : VEST[1]) : x >= hw - 3 ? VEST[0] : VEST[1]);
+    }
+  }
+  // the vest's front edges, the shirt's neck
+  p.vline(X(21), Y(28 - b), Y(54), VEST[2]);
+  p.vline(X(39), Y(28 - b), Y(54), VEST[0]);
+  p.hline(X(26), X(33), Y(24 - b), '#D8D4C8');
+  for (const [x, y] of [[11, 33], [42, 33], [11, 44], [42, 44]]) {
+    p.rect(X(x), Y(y), 7, 6, VEST[0]);
+    p.hline(X(x), X(x + 6), Y(y), VEST[2]);
+  }
   // the old name tag on his chest (16×6): white, blue edge, a line for the letters
-  p.rect(X(22), Y(32), 16, 6, '#F4F1E8');
+  p.rect(X(22), Y(32), 16, 7, '#F4F1E8');
   p.hline(X(22), X(37), Y(32), '#4AA8E0');
-  p.hline(X(22), X(37), Y(37), '#4AA8E0');
-  p.hline(X(24), X(35), Y(35), '#6B7186');
+  p.hline(X(22), X(37), Y(38), '#4AA8E0');
+  p.hline(X(24), X(31), Y(35), '#6B7186');
+  p.set(X(34), Y(35), '#E23B2E');
   if (o.mada) madaStamp(p, X(36), Y(36), 6, 5, 13);
   if (o.glow) p.rect(X(21), Y(31), 18, 1, '#FFF6D8');
-  // thick arms (one stroking the hen's back)
-  p.rect(X(2), Y(26 - b), 9, 26, '#E8C8A8');
-  p.rect(X(49), Y(26 - b), 9, 26, '#E8C8A8');
+  // thick arms (bare from the shoulder; one stroking the hen's back)
+  for (let y = 0; y < 30; y++) {
+    // the shoulder round, the upper arm thick, the forearm a little thinner, the fist
+    const w = y < 3 ? 7 + y : y < 14 ? 10 : y < 26 ? 9 : 8;
+    const lx = 11 - w + (y > 14 ? 1 : 0);
+    p.hline(X(lx), X(lx + w - 1), Y(26 - b + y), PSKIN[1]);
+    p.set(X(lx), Y(26 - b + y), PSKIN[2]);
+    p.set(X(lx + w - 1), Y(26 - b + y), PSKIN[0]);
+    const rx = 49 - (y > 14 ? 1 : 0);
+    p.hline(X(rx), X(rx + w - 1), Y(26 - b + y), PSKIN[0]);
+    p.set(X(rx), Y(26 - b + y), PSKIN[1]);
+  }
+  p.hline(X(3), X(9), Y(39 - b), PSKIN[0]);
+  p.hline(X(50), X(56), Y(39 - b), '#A87458');
   if (o.curl === 1) {
     // flinching: shoulders up, arms in
-    p.rect(X(8), Y(30), 6, 18, '#E8C8A8');
-    p.rect(X(46), Y(30), 6, 18, '#E8C8A8');
+    p.rect(X(8), Y(30), 7, 18, PSKIN[1]);
+    p.rect(X(45), Y(30), 7, 18, PSKIN[0]);
   }
-  // head: short-cropped black hair, the sunglasses with tipped-up corners, a shy small mouth
+  // head: a thick neck, 刈り上げ (black on top, the sides shaved grey), the sunglasses with tipped-up corners
   const hy = 12 - b + (o.curl === 1 ? 3 : 0);
-  p.ellipse(X(30), Y(hy), 9, 10, '#E8C8A8');
-  p.rect(X(21), Y(hy - 10), 18, 5, '#1B1733');
-  p.rect(X(22), Y(hy - 1), 6, 3, '#2A2440');
-  p.rect(X(32), Y(hy - 1), 6, 3, '#2A2440');
-  p.set(X(21), Y(hy - 2), '#C8CDD4');
-  p.set(X(38), Y(hy - 2), '#C8CDD4');
-  p.hline(X(28), X(31), Y(hy + 1), '#C8CDD4');
+  p.rect(X(25), Y(hy + 7), 10, 6, PSKIN[0]);
+  p.ellipse(X(30), Y(hy), 9, 10, PSKIN[1]);
+  p.ellipse(X(33), Y(hy + 2), 5, 7, PSKIN[0]);
+  p.ellipse(X(30), Y(hy), 7, 9, PSKIN[1]);
+  p.rect(X(21), Y(hy - 6), 2, 6, '#6B6B78');
+  p.rect(X(38), Y(hy - 6), 2, 6, '#5A5A66');
+  p.rect(X(22), Y(hy - 10), 16, 5, '#1B1733');
+  p.hline(X(23), X(36), Y(hy - 10), '#3A3A48');
+  p.rect(X(23), Y(hy - 1), 6, 3, '#2A2440');
+  p.rect(X(31), Y(hy - 1), 6, 3, '#2A2440');
+  p.hline(X(29), X(30), Y(hy - 1), '#2A2440');
+  p.set(X(22), Y(hy - 2), '#C8CDD4');
+  p.set(X(37), Y(hy - 2), '#C8CDD4');
+  p.set(X(24), Y(hy - 1), AQ_RIM);
+  p.vline(X(30), Y(hy + 2), Y(hy + 3), PSKIN[0]);
   p.hline(X(29), X(31), Y(hy + 5), '#A8605A');
   // ぴーちゃん on his left shoulder
-  hen(p, X(42), Y(14 - b), o.peek, o.tall);
+  hen(p, X(42), Y(13 - b), o.peek, o.tall);
   aqFinish(p, 0.45);
   return p;
 }

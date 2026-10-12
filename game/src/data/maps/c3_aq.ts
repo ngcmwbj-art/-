@@ -40,6 +40,8 @@ function gated(d: Record<string, unknown>, closed: string): MapObj[] {
 
 /** Until みんなが来る (S25): the staff doors stay shut (the chapter's third part stops before it). */
 const MINNA = { flag: 'flag_ch3_minna' };
+/** The cold yakisoba pack on the hall's bench (S15 on, until たかし takes it in S28). */
+const PACK = { flag: 'flag_ch3_aq_enter', notFlag: 'flag_c3_hall_pack_taken' };
 const SHUT = 'かぎが かかっている。';
 
 const COMMON = {
@@ -340,14 +342,15 @@ registerMap({
     PR('prop_c3_aq_hall_bench', 10, 7),
     PR('prop_c3_aq_hall_dai', 3, 10, { v: 0 }),
     PR('prop_c3_aq_hall_dai', 19, 10, { v: 1 }),
-    // the cold yakisoba pack left on the bench after S28 (obj_c3_hall_pack is the scenario's to show)
-    PR('prop_c3_aq_yakisoba', 13, 7, {}, { flag: 'flag_ch3_boss_beaten' }),
+    // the cold yakisoba pack on the bench beside him (62 4.15) until たかし takes it to warm it up again
+    // (60 S28: the scenario sets flag_c3_hall_pack_taken)
+    PR('prop_c3_aq_yakisoba', 13, 7, {}, PACK),
     ...gated({ id: 'door_c3_aq_hall_back', x: 12, y: 17, w: 2, to: 'map_c3_aq_esa', tx: 5, ty: 8, dir: 'down', se: 'se_door_heavy', cond: { notFlag: 'flag_ch3_tsugao1' } }, SHUT),
     ...gated({ id: 'door_c3_aq_hall_w_in', x: 0, y: 11, to: 'map_c3_aq_jimusho', tx: 12, ty: 5, dir: 'left', se: 'se_door', cond: MINNA }, SHUT),
     O('obj_c3_hall_suisou', 1, 4, { w: 24, face: 'up' }),
     O('obj_c3_hall_bench', 10, 7, { w: 5 }),
     // the pack left on the bench after S28 (60 9.5)
-    O('obj_c3_hall_pack', 13, 7, { priority: 1, cond: { flag: 'flag_ch3_boss_beaten' } }),
+    O('obj_c3_hall_pack', 13, 7, { priority: 1, cond: PACK }),
   ] as MapObj[],
 });
 

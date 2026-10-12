@@ -13,6 +13,7 @@ import { makeCanvas, PixelCanvas } from '../engine/pixel';
 import { hash2 } from '../engine/rng';
 import { hanamaruFrame, ovalStamp, pekeMark } from '../battle/art/stamps';
 import { flag, state } from '../game/state';
+import { yobuPeople } from '../data/battle';
 import { rectA, UI } from './window';
 
 export const CASE_W = 192;
@@ -401,7 +402,7 @@ export function imprintFor(id: string): HTMLCanvasElement | null {
     case 'skill_gochisousama':
       return ownsAny('skill_gochisousama') ? gochisouImprint() : gochisouOutline();
     case 'skill_minna_hanamaru':
-      return hanamaruFrame(22, 1, false, 1);
+      return minnaImprint();
   }
   return null;
 }
@@ -492,4 +493,25 @@ function dottedRect(g: Gfx, x: number, y: number, w: number, h: number, color: s
       g.px(x + w - 1, y + j, color);
     }
   });
+}
+
+/**
+ * 61 6.3: the 10th imprint (32×32) — everyone who came as a dot of their colour round the rim,
+ * しゅん's はなまる in the middle (rebuilt when the number changes).
+ */
+let minnaC: { key: string; c: HTMLCanvasElement } | null = null;
+function minnaImprint(): HTMLCanvasElement {
+  const people = yobuPeople(Object.keys(state.flags ?? {}));
+  const key = people.map((p) => p.id).join(',');
+  if (minnaC?.key === key) return minnaC.c;
+  const [c, ctx] = makeCanvas(24, 24);
+  ctx.drawImage(hanamaruFrame(14, 1, false, 1), 5, 5);
+  const n = Math.max(1, people.length);
+  people.forEach((p, i) => {
+    const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(Math.round(11 + Math.cos(a) * 10), Math.round(11 + Math.sin(a) * 10), 2, 2);
+  });
+  minnaC = { key, c };
+  return c;
 }

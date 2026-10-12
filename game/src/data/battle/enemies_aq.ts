@@ -166,7 +166,76 @@ const pokosha: EnemyDef = {
   book: { short: 'ポコシャ', shotai: 'ツガオ便の ポコシャ。', weak: '', hitokoto: '『飼育係 ポコシャ』の 名札' },
 };
 
-export const AQ_ENEMIES: EnemyDef[] = [junro, tsugao1, hirosuke, pokosha];
+/**
+ * ツガオ決戦 (61 14・60 6.10・10.27)：1段目は「まだ」の ゲージ 640（錠 320）。ハンコは 半分しか しみこまない
+ * （こそげた 直後と、眠っている あいだは まるごと）。2段目は 攻撃しない。しゅんの「よぶ」で 来た人が 回覧板に
+ * はなまるを 描き、10マス うまったら「みんなの はなまる」で 決着（'win'。黒い 判が 落ちる 所からは E の フィールド）。しくみは src/battle/boss_tsugao.ts。
+ */
+const tsugao: EnemyDef = {
+  id: 'boss_tsugao', name: 'ツガオ', lvl: 10, size: [64, 112], core: [32, 56], face: [32, 18], chapter: 3,
+  footY: 160, hp: 640, atk: 26, def: 20, spd: 11, luck: 10, exp: 0, money: 0, attr: NO_WEAK, drops: [], noFlee: true, noCrit: true,
+  restActions: 0, gauge: { kind: 'mada', lock: 320 }, noBook: true,
+  bg: 'bg_c3_aq_hall', bgm: 'bgm_boss_tsugao', tsukkomiCount: 3,
+  tsukkomi: ['まだって 言うな！', '貯金 使うな！', '何年分だよ！'],
+  skills: ['skill_tsugao_mada', 'skill_tsugao_denpyo', 'skill_tsugao_chokin', 'skill_tsugao_neru', 'skill_idle'],
+  colors: ['#1E1A30', '#2A2440', '#E8E4D8', '#1B1733', '#6FC3E0'],
+  ai: (c: AiCtx) => {
+    // 2段目からは 攻撃しない（見守る）
+    if ((c.shared.tgPhase ?? 1) >= 2) return 'skill_idle';
+    if (c.acts === 0) return 'skill_tsugao_mada';
+    const chokin = c.hpRate >= 0.9 || c.has('c3_gochisou') ? 0 : 20;
+    const neru = c.lastSkill === 'skill_tsugao_neru' || (c.mem.neruN ?? 0) >= 2 ? 0 : 15;
+    return c.pick([['skill_tsugao_mada', 30], ['skill_tsugao_denpyo', 35], ['skill_tsugao_chokin', chokin], ['skill_tsugao_neru', neru]]);
+  },
+  texts: {
+    appear: ['ツガオが 立ちあがった！'],
+    yousu: ['ツガオの 背中の 回覧板が、\nまっ黒に 光っている。', '大水槽の 青い 光が、\nツガオの 肩に ゆれている。'],
+    yousuSpecial: { yobu: 'ツガオは 回覧板を 胸に 持って、\nこちらを 見ている。' },
+    tele: {
+      skill_tsugao_mada: ['ツガオは 黒い 判を かまえた！\n『まだ』！'],
+      skill_tsugao_denpyo: ['40年 ぶんの 伝票が、\nホールに ふぶいた！'],
+      skill_tsugao_chokin: ['ツガオは 休みの 貯金を\n少し 引き出した！'],
+    },
+    extra: {
+      madaResult: ['$targetは まだ 動けない！'],
+      madaHajiku: ['黒い 判が、はじかれて\nツガオの 手に もどった。'],
+      chokinGuard: ['ツガオは 通帳を、\nそっと しまった。'],
+      neru: ['ツガオ「……つがおちゃん 寝る〜♪」'],
+      neruResult: ['ツガオは 眠って しまった！'],
+      neruKn: ['戦いの とちゅうやで！'],
+      neruWake: ['ツガオは 目を さました。'],
+      half: ['朱の はなまるが、黒い『まだ』に\n半分だけ しみこんだ。'],
+      full: ['『まだ』が はがれた 所に、\n朱が まるごと しみこんだ！'],
+      sleepFull: ['眠っている あいだは、\n『まだ』が ゆるんでいる。'],
+      lockHold: ['ツガオは、ふんばっている。\n……まだ、打刻せん。'],
+      gochisouSeal: ['ツガオは、貯金の 通帳を\nそっと 閉じた。'],
+      otsukare: ['ツガオ「……わしゃあ、\nまだ 打刻せん。」'],
+      mimashita: ['ツガオの 左の 腕時計は、\n12時で 止まった まま。'],
+      // 2段目（60 6.10〔よぶ が出る〕。よぶ①〜④）
+      yobuAppear: ['しゅんの 手に、\nふしぎな 気持ちが わいてきた。', '……だれかを、よべる 気が する。'],
+      yobu1: ['しゅんは 夕鳴町の 人を よんだ！'],
+      yobu1Tg: ['ツガオ「……夕鳴町の もんか。」'],
+      yobu2: ['しゅんは 星見台の 人を よんだ！'],
+      yobu2Tg: ['ツガオ「……山の 上から、わざわざ。」'],
+      yobu3: ['しゅんは 海ぞいの 町の 人を よんだ！'],
+      yobu3Tg: ['ツガオ「……正午の 町の もんまで。」'],
+      yobu4: ['しゅんと グソっ君と ヤキソバンが、\n最後の はなまるを 描いた！'],
+      yobu4Two: ['しゅんと グソっ君が、\n最後の はなまるを 描いた！'],
+      yobu4Tg: ['ツガオ「……ハンコじゃ、ないんか。」'],
+      notYet: ['朱の はなまるが、黒い『まだ』に\nしみこまない。', '……だれかを、よぼう。'],
+      nothing: ['ツガオは 回覧板を 胸に、\nじっと 待っている。'],
+      full10: ['黒い 回覧板が、\nはなまるで いっぱいに なった！', 'ハンコケースの 10番目が、\n光って いる！'],
+      prompt: ['――『みんなの はなまる』を 押す。'],
+      minna: ['しゅんは『みんなの はなまる』を\n押した！'],
+    },
+    idle: [['ツガオは 回覧板を 胸に、\nじっと 待っている。']],
+    defeat: [],
+    noFlee: ['みんなが、うしろで 見ている。'],
+  },
+  book: { short: 'ツガオ', shotai: 'ツガオ便の 親分。', weak: '', hitokoto: '' },
+};
+
+export const AQ_ENEMIES: EnemyDef[] = [junro, tsugao1, hirosuke, pokosha, tsugao];
 
 /** 人が 相手の 戦闘（第3章の 中ボスと 同じく、ラスボスの しくみは 通さない）。 */
-export const AQ_PEOPLE = new Set(['boss_tsugao_1', 'boss_hirosuke', 'boss_pokosha']);
+export const AQ_PEOPLE = new Set(['boss_tsugao_1', 'boss_hirosuke', 'boss_pokosha', 'boss_tsugao']);

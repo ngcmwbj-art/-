@@ -118,6 +118,8 @@ export const TUT = {
   teppan: '熱で 手が ゆるむ。\nもっと あたためよう。',
   gochisou: '黒い『まだ』に、\n『ごちそうさま』！',
   koe: '黒い 吹き出しに、\n『ツッコむ』！',
+  // 第3章 第4期（61 17.11。60 の 仮の 文）
+  yobu: 'みんなを、よぼう。',
 };
 
 /**
@@ -171,10 +173,12 @@ export const REPORT = {
   school: '夕鳴小学校',
   coverClass: '5年 2組',
   coverName: '小林 しゅん',
-  nameLine1: { minato: '夕鳴小学校 5年2組', kanenari: 'オオグソクムシ' } as Record<string, string>,
-  nameLine2: { minato: '小林 しゅん', kanenari: 'グソっ君' } as Record<string, string>,
+  nameLine1: { minato: '夕鳴小学校 5年2組', kanenari: 'オオグソクムシ', yakisoban: '焼きそばの たかし' } as Record<string, string>,
+  nameLine2: { minato: '小林 しゅん', kanenari: 'グソっ君', yakisoban: 'ヤキソバン' } as Record<string, string>,
   stats: ['HP', '朱肉', 'ちから', 'まもり', 'すばやさ', 'うん'],
   kanenariMp: '（記入なし）',
+  // 61 3.4: ヤキソバンは おとななので 通知表を もらわない（第3章 第4期。仮の 文）
+  noReport: '（おとなは なし）',
   fromTeacher: 'せんせいより',
   teacher: {
     minato: ['', '', 'ツッコミが 板について きました。', '人の話を、目で 聞けて います。', '夕方に 強い子です。', 'はなまる。もう 言うことは ありません。', '夜道でも、まっすぐ 歩けます。', '人の がんばりを、見のがしません。', '海の 町でも、まっすぐ 話を 聞けます。', 'ほかの 人の「まだ」に、気づけます。', '言い終わるまで、ちゃんと 待てます。'],

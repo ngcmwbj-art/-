@@ -35,6 +35,7 @@ import { madaMark } from './art/fxart_ch3';
 import { heatOf, showYakiLine, yakiSay } from './party_ch3';
 import { hanamaruFrame } from './art/stamps';
 import { makeCanvas } from '../engine/pixel';
+import { tgAfterAction, tgBeforeParty, tgDrawBack, tgDrawOver, tgFind, tgHankoOn, tgHurt, tgMove, tgRoundStart, tgStart } from './boss_tsugao';
 import { drawText, measure } from '../engine/font';
 
 // ---- who is here --------------------------------------------------------------------------------
@@ -47,7 +48,7 @@ const hiro = (s: BattleScene) => find(s, 'boss_hirosuke');
 const poko = (s: BattleScene) => find(s, 'boss_pokosha');
 
 export function isAqPeople(s: BattleScene): boolean {
-  return !!(tsugao(s) || hiro(s) || poko(s));
+  return !!(tsugao(s) || hiro(s) || poko(s) || tgFind(s));
 }
 
 function phase(s: BattleScene): number {
@@ -67,6 +68,12 @@ const snaps = new WeakMap<BattleScene, Map<string, Snap>>();
 
 /** ch3Start: the statuses, the places, the stickies' hooks. */
 export function aqStart(s: BattleScene): void {
+  // 第4期: ツガオ決戦 (61 14)
+  if (tgFind(s)) {
+    tgStart(s);
+    s.boss = hooks(s);
+    return;
+  }
   const t = tsugao(s);
   if (t) {
     // 負けで 何も 失わない: the party as it came in (61 12.4)
@@ -92,7 +99,36 @@ export function aqStart(s: BattleScene): void {
     s.setMusicParam('boss_phase', 1);
     s.setMusicParam('kakaricho', 0);
     s.boss = hooks(s);
+    trioSlide(s);
   }
+}
+
+/**
+ * 61 17.19: the first battle of three — the two panels show as ever, then ヤキソバンの 枠 slides in
+ * from the right (250 ms, easeOutBack) while グソっ君's closes up to the left. From then on, three from the start.
+ */
+function trioSlide(s: BattleScene): void {
+  const y = s.yakisoban;
+  const k = s.kanenari;
+  if (!y || flag('flag_c3_trio_seen')) return;
+  setFlag('flag_c3_trio_seen', 1);
+  y.slideX = 400;
+  if (k) k.slideX = 48;
+  s.run(
+    (function* () {
+      yield () => s.showUi;
+      yield 350;
+      s.sfx('se_flip');
+      for (let i = 1; i <= 15; i++) {
+        const q = ease.backOut(i / 15);
+        y.slideX = 400 * (1 - q);
+        if (k) k.slideX = 48 * (1 - q);
+        yield null;
+      }
+      y.slideX = 0;
+      if (k) k.slideX = 0;
+    })(),
+  );
 }
 
 /** After the appearance pages: ヤキソバンの 付箋, the cursor on 鉄板 (61 5.1). */
@@ -107,6 +143,7 @@ export function* aqOpening(s: BattleScene): Co {
 // ---- the round --------------------------------------------------------------------------------
 
 export function* aqRoundStart(s: BattleScene): Co {
+  yield* tgRoundStart(s);
   const t = tsugao(s);
   if (t && s.round === 1 && s.kanenari) {
     // 「……あかん。足が、動かへん。」 before the first command (60 6.8)
@@ -174,6 +211,7 @@ const acted = new WeakMap<BattleScene, { actor: string; move: string }>();
 /** Before a party action: who does what (for 「$actorの $move！」), and the guarded ones. */
 export function* aqBeforeParty(s: BattleScene, c: PartyCmd): Co<boolean> {
   if (!isAqPeople(s)) return false;
+  if (yield* tgBeforeParty(s, c)) return true;
   const move = c.kind === 'attack' ? (c.u.id === 'yakisoban' ? 'ヘラ' : c.u.id === 'kanenari' ? 'こうらタックル' : 'たたく') : c.kind === 'nori' ? 'ノリツッコミ' : '';
   acted.set(s, { actor: c.kind === 'nori' ? 'しゅんたち' : c.u.name, move });
   // ぴーちゃん looked at this one: ポコシャ steps in and takes half (61 13.3)
@@ -205,6 +243,7 @@ export function aqHurt(s: BattleScene, e: EnemyUnit, dmg: number): boolean {
     // (sitting by the wall in the second part: nothing reaches him)
     if (e.mem.noTarget) return true;
     let d = Math.max(0, Math.round(dmg));
+    if (e.id === 'boss_tsugao') d = tgHurt(s, e, d);
     if (s.memo.halve) {
       d = Math.round(d / 2);
       s.memo.halveSaid = (s.memo.halveSaid ?? 0) + 1;
@@ -275,6 +314,7 @@ function letterImg(ch: string): HTMLCanvasElement {
 
 /** After each action: the lines the people's rules owe (びくとも しない, 半分, 手の ゆるみ, 『まだ』). */
 export function* aqAfterAction(s: BattleScene): Co {
+  yield* tgAfterAction(s);
   const t = tsugao(s);
   if (t && s.memo.bikutomo) {
     s.memo.bikutomo = 0;
@@ -327,6 +367,7 @@ export function hiroReady(s: BattleScene): boolean {
 
 /** doEnemyAction's first word: the moves that are not attacks. Returns true when handled. */
 export function* aqMove(s: BattleScene, e: EnemyUnit, skillId: string): Co<boolean> {
+  if (yield* tgMove(s, e, skillId)) return true;
   switch (skillId) {
     case 'skill_tsugao_aori':
       yield* aori(s, e);
@@ -519,6 +560,7 @@ export function* doKoe(s: BattleScene, u: PartyUnit): Co {
 
 /** doHanko after the press: returns true when the people's rules took the stamp. */
 export function* aqHankoOn(s: BattleScene, _u: PartyUnit, skill: string, e: EnemyUnit, j: Judge): Co<boolean> {
+  if (yield* tgHankoOn(s, _u, skill, e, j)) return true;
   if (e.id === 'boss_tsugao_1') {
     if (skill === 'skill_mimashita') {
       yield* s.say(X(e).mimashita ?? []);
@@ -694,7 +736,9 @@ const koeFx = new WeakMap<BattleScene, { t0: number; n: number; untie: number }>
 
 function hooks(s: BattleScene): NonNullable<BattleScene['boss']> {
   return {
+    drawUnder: (g) => tgDrawBack(s, g),
     drawOver: (g) => {
+      tgDrawOver(s, g, (gg, e) => drawGauge(s, gg, e));
       const t = tsugao(s);
       if (t && t.params.film) drawFilm(g, t);
       const h = hiro(s);

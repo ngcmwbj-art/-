@@ -436,4 +436,6 @@ export type PartyCmd =
   | { kind: 'skip'; u: PartyUnit; reason: string }
   // 第3章 (61 5.4〜5.6・13.5): ヤキソバンの わざ, and ツッコむ on the 係長の 声
   | { kind: 'yaki'; u: PartyUnit; skill: string; target: PartyUnit | EnemyUnit | null }
-  | { kind: 'koe'; u: PartyUnit };
+  | { kind: 'koe'; u: PartyUnit }
+  // 第3章 第4期 (61 14.3): ツガオ決戦の「よぶ」
+  | { kind: 'yobu'; u: PartyUnit };

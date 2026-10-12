@@ -44,8 +44,10 @@
 //                                                     → S08 食堂 → S09 海水浴場 (the dive, the lens) → S11 いただきます →
 //                                                     S12 ナリオサメ・S13 → S14 the trap → (第3期) S15 旧水族館 → S16 回廊 →
 //                                                     S17 ジオラマ → S18 深海 → S19 えさの部屋 → S20 ツガオ初戦 → S21・S22
-//                                                     倉庫 → S23 ヤキソバン → S24 ヒロスケ・ポコシャ (stops before S25;
-//                                                     --real tsugao1,hp fights those with keys). Checks: the five tapes, 11:10 / 12:00, the
+//                                                     倉庫 → S23 ヤキソバン → S24 ヒロスケ・ポコシャ → (第4期) S25 みんなが
+//                                                     来る → S26 → S27 決戦 → S28 → S29〜S33 エンディング → おわり → the
+//                                                     title (the clear record ③) → S34 つづきから (--real tsugao1,hp,boss
+//                                                     fights those with keys; --kita 0|6|all how many come). Checks: the five tapes, 11:10 / 12:00, the
 //                                                     talked records (flag_talked_*, made from a chapter-1/2 save too),
 //                                                     the chapter-3 pages (textcheck2). --from <beat> starts at
 //                                                     jump('ch3:<beat>')
@@ -90,6 +92,8 @@ const FUSHIGI_ALL = args.includes('--fushigi-all');
 /** Chapter 2's optional beats to run instead of the story (each from its own jump): barnwork, delivery. */
 const SIDE = opt('--side', '').split(',').filter(Boolean);
 const CHAPTER = Number(opt('--chapter', '1'));
+/** --chapter 3: how many of the 24 people come (0〜24; 'all' = 24). Default: the chain's own. */
+const KITA_N = opt('--kita', '') === '' ? null : opt('--kita', '') === 'all' ? 24 : Number(opt('--kita', ''));
 /** HD-2D (--hd2d; --hd2dq light|normal) or 2D (default). */
 const HD2D = args.includes('--hd2d');
 const HD2DQ = opt('--hd2dq', 'light');
@@ -2784,16 +2788,111 @@ const BEATS3 = [
       await travel(7, 4);
       await walk('right', (s) => !s.ctrl, 3000).catch(() => {});
       const real = REAL.has('hp');
-      await advance({ shotEvery: 4, label: 'hp', max: 600000, battles: real ? 'keys' : 'win' });
+      await advance({ shotEvery: 4, label: 'hp', max: 600000, battles: real ? 'keys' : 'win', stopAt: async () => !!(await flag('flag_ch3_hp_beaten')) });
       await need(['flag_ch3_hp_beaten'], 'S24');
-      await travel(1, 3);
-      await walk('left', (s) => !s.ctrl, 3000).catch(() => {});
-      await advance({ label: 'ura', shotEvery: 1 });
-      const s = await st();
-      const ok = s.map === 'map_c3_aq_rouka' && s.ctrl && !(await flag('flag_ch3_minna'));
-      checks.push({ check: 'S24: ヒロスケ・ポコシャ, stopped before S25', ok, map: s.map });
-      if (!ok) throw new Error(`hp: ${JSON.stringify(s)}`);
+      checks.push({ check: 'S24: ヒロスケ・ポコシャ (S25 follows)', ok: true });
       await shot('aq_end');
+    },
+  },
+  // ---- 第4期（S25〜S34。60_ch3_story 10.25〜10.30）。--kita n：来た人の数（0〜24。既定は chain のまま）
+  {
+    name: 'aq_end',
+    async run() {
+      if (KITA_N !== null) {
+        const who = await page.evaluate((n) => window.__game.cmd.kita(n), KITA_N);
+        log(`  --kita ${KITA_N}: ${who.length} came`);
+      }
+      // S25: the PA, the last pickup, エゴ stamps them in → the corridors → the hall (S26 starts)
+      await advance({ shotEvery: 5, label: 'minna', max: 600000, battles: 'stop', stopAt: async (s) => s.map === 'map_c3_aq_hall' && !(await flag('flag_c3_minna_walk')) && !!(await flag('flag_ch3_minna')) });
+      await need(['flag_ch3_minna'], 'S25');
+      const kita = await flag('flag_ch3_kita_n');
+      checks.push({ check: 'S25: みんなが来る (the doors, the stamping, the walk to the hall)', ok: true, kita });
+      await shot('hall');
+    },
+  },
+  {
+    name: 'taikin',
+    async run() {
+      // S26 タイキンの時間 → S27 決戦（--real boss: keys）→ evt_ch3_boss_final → S28 → (the ending starts)
+      await advance({ shotEvery: 5, label: 'boss', max: 900000, battles: REAL.has('boss') ? 'keys' : 'win', stopAt: async () => !!(await flag('flag_ch3_boss_beaten')) });
+      await need(['flag_ch3_boss_beaten'], 'S27');
+      const v = await flags(['flag_ch3_yobu_n', 'flag_ch3_kita_n']);
+      const skills = await page.evaluate(async () => (await import('/src/game/state.ts')).state.party[0]?.skills ?? []);
+      const ok = skills.includes('skill_minna_hanamaru');
+      checks.push({ check: 'S27: 決戦 → みんなの はなまる (10番目)', ok, ...v });
+      if (!ok) throw new Error(`boss: ${JSON.stringify({ v, skills })}`);
+    },
+  },
+  {
+    name: 'ending',
+    async run() {
+      // S28 → S29〜S33 → みました帳 ③ → おわり → the title
+      let lastTop = '';
+      let lastMap = '';
+      let lastShot = 0;
+      const t0 = Date.now();
+      for (;;) {
+        const s = await st();
+        if (s.top === 'TitleScene') break;
+        if (late(t0, 600000)) throw new Error('the ending did not reach the title');
+        if (s.top !== lastTop || s.map !== lastMap || Date.now() - lastShot > 2500) {
+          lastTop = s.top;
+          lastMap = s.map;
+          lastShot = Date.now();
+          await shot(s.top === 'FieldScene' ? (s.map ?? '').replace('map_', '') : s.top.replace('Scene', '').toLowerCase());
+        }
+        if (s.modal) await tap('KeyZ');
+        await sleep(300);
+      }
+      await sleep(4500);
+      await shot('title_clear');
+      const rec = await page.evaluate(() => localStorage.getItem('hanamaru-clear-ch3-v1'));
+      const slot = await page.evaluate(() => {
+        const s = JSON.parse(localStorage.getItem('yugure-rpg-save-v1') ?? '{}');
+        return { map: s.map, x: s.x, y: s.y, clear: s.flags?.flag_ch3_clear, truth: s.flags?.flag_ch3_truth, yk: s.flags?.flag_ch3_yk_left };
+      });
+      const t = await page.evaluate(() => {
+        const top = window.__game.game.top;
+        return { menu: top?.menu ?? [], clear3: !!top?.clear3 };
+      });
+      log('  chapter 3 clear record:', rec, JSON.stringify(slot), JSON.stringify(t));
+      const ok = !!rec && slot.clear === 1 && slot.truth === 1 && slot.map === 'map_town' && t.clear3;
+      checks.push({ check: 'chapter 3 clear: the record, the slot (銀座の朝), the title card ③', ok, rec, slot, title: t });
+      if (!ok) throw new Error(`chapter 3 clear: ${JSON.stringify({ rec, slot, t })}`);
+    },
+  },
+  {
+    name: 'clear',
+    async run() {
+      // S34: つづきから → 銀座の朝; グソっ君 at 焼きそばのたかし, ツガオ便
+      if ((await st()).top === 'TitleScene') {
+        // (with a save the cursor rests on つづきから)
+        if ((await page.evaluate(() => window.__game.game.top.phase)) === 'press') {
+          await tap('KeyZ');
+          await sleep(2600);
+        }
+        const t = await page.evaluate(() => ({ menu: window.__game.game.top.menu, index: window.__game.game.top.index }));
+        const i = t.menu.indexOf('continue');
+        for (let k = t.index; k < i; k++) {
+          await tap('ArrowDown');
+          await sleep(250);
+        }
+        for (let k = t.index; k > i; k--) {
+          await tap('ArrowUp');
+          await sleep(250);
+        }
+        await tap('KeyZ');
+        await waitFor((s) => s.top === 'FieldScene' && s.ctrl, 20000, 'つづきから after the clear');
+      }
+      await sleep(800);
+      await shot('ginza_asa');
+      const s = await st();
+      const ok = s.map === 'map_town' && (await flag('flag_ch3_clear')) === 1;
+      checks.push({ check: 'S34: つづきから → 夕鳴町（クリア後）', ok, map: s.map, x: s.x, y: s.y });
+      if (!ok) throw new Error(`clear: ${JSON.stringify(s)}`);
+      await talkTo('c3_kn_shop', { side: 'below' }).catch((e) => log(`  (グソっ君 at the shop: ${e.message ?? e})`));
+      await advance({ label: 'c4', shotEvery: 1, max: 30000 });
+      await shot('c4');
     },
   },
   {

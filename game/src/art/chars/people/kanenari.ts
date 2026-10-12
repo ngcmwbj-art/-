@@ -14,7 +14,7 @@
 
 import { flat, mat, type Fig, type Mats } from '../fig';
 import { buildSprite, rep, type IdleKey, type Pose, type SpriteSpec } from '../rig';
-import { charSprite, registerChar, type CharSprite } from '../registry';
+import { charSprite, registerChar, type CharAnim, type CharSprite } from '../registry';
 import { PixelCanvas } from '../../../engine/pixel';
 
 // 30_level_art 9.2 (グソっ君): ochre shell, burnt shade, dark-brown line
@@ -40,6 +40,12 @@ export const KANENARI_MATS: Mats = {
   noodle: mat('#C8A06A', { shade: '#8A5A3A', light: '#F6D98A', dark: '#5A3A2A' }),
   band2: flat('#E84E3C'),
   nori: flat('#5FA85A'),
+  // chapter 3's ending: たかしの ヘラ (steel blade, wooden grip); the black 「まだ」 under his armour
+  // and the vermilion 「おかえりなさい」 over it (S30, 62 10.2: only in that scene)
+  hera: mat('#C8CDD4', { shade: '#9AA0A8', light: '#F4F6F8', dark: '#5A3A2A' }),
+  grip: flat('#8A5A3A'),
+  madaHan: flat('#0B0B14'),
+  shuHan: flat('#E23B2E'),
 };
 
 const H = 26;
@@ -70,7 +76,7 @@ function earAt(f: Fig, x: number, y: number, mode: Ant, dir: -1 | 1, sway = 0) {
 
 // ---- the head --------------------------------------------------------------------------
 
-type Eyes = 'open' | 'blink' | 'hurt' | 'happy' | 'flash' | 'wide' | 'soft' | 'sad' | 'down' | 'up' | 'none';
+type Eyes = 'open' | 'blink' | 'hurt' | 'happy' | 'flash' | 'wide' | 'soft' | 'sad' | 'down' | 'up' | 'none' | 'dull';
 
 interface HeadO {
   eyes: Eyes;
@@ -109,6 +115,8 @@ function eyeFront(f: Fig, x: number, y: number, e: Eyes, glintRight: boolean) {
     return;
   }
   f.rect(x, y, 3, 3);
+  // (freeze: the light gone out of his eyes — no glint)
+  if (e === 'dull') return;
   f.part('eyeS', { flat: true, rim: false });
   f.px(x, y + 2).px(x + 2, y + 2);
   f.part(e === 'flash' ? 'flash' : 'glint', { flat: true, rim: false });
@@ -597,6 +605,24 @@ function lookOf(p: Pose, walking: boolean): Look {
       return { head: { ...base, eyes: 'down', ant: 'fwd', sway: 0 }, tip: 1 };
     case 'washa':
       return { head: { ...base, eyes: 'down', sway: p.ph ? 1 : 0 }, tip: 0 };
+    case 'gassho':
+      return { head: { ...base, eyes: 'blink', ant: 'normal', sway: 0, cheek: 1 }, tip: 1 };
+    // 62 10.2: frozen before ツガオ (the ear plates down, the light out of his eyes)
+    case 'freeze':
+      return { head: { ...base, eyes: 'dull', ant: 'droop', sway: 0, cheek: 0 }, tip: 0 };
+    // sitting down in the store, head bowed, pincers together at his chest (S21)
+    case 'weak':
+      return { head: { ...base, eyes: 'sad', ant: 'droop', sway: 0, cheek: 0 }, tip: 1 };
+    // leading the way: leaning forward, looking ahead
+    case 'lead':
+      return { head: { ...base, eyes: 'open', ant: 'fwd', cheek: 1 }, tip: 1 };
+    // a pincer on the empty tank's glass (S18)
+    case 'glass':
+      return { head: { ...base, eyes: 'soft', ant: 'normal', sway: 0, cheek: 1 }, tip: 0 };
+    case 'fry':
+      return { head: { ...base, eyes: p.ph === 1 ? 'wide' : 'down', ant: 'perk', sway: 0, shortUp: p.ph === 1, mouth: p.ph === 1 ? 'o' : '' }, tip: 0 };
+    case 'hera':
+      return { head: { ...base, eyes: 'open', ant: 'perk', sway: 0, shortUp: true, mouth: 'smile' }, tip: 0 };
     default:
       return { head: base, tip: 0 };
   }
@@ -608,7 +634,7 @@ function front(f: Fig, p: Pose) {
   const u = p.bob - p.breath;
   const act = p.act;
   const lk = lookOf(p, walking);
-  const crouch = act === 'crouch_hand' ? 3 : 0;
+  const crouch = act === 'crouch_hand' || act === 'weak' ? 3 : 0;
   const low = act === 'hurt' ? 1 : 0;
   const by = 10 + u + crouch + low;
   const hy = 2 + u + crouch + low + (act === 'bow_small' || act === 'bow30' ? 1 : 0);
@@ -705,11 +731,50 @@ function front(f: Fig, p: Pose) {
       hangL();
       R(16, sy + 1);
       break;
+    case 'gassho':
+    case 'weak':
+      // いただきます (and, sitting in the store, the pincers held together the same way)
+      L(6, sy);
+      R(9, sy);
+      break;
+    case 'freeze':
+      // stiff, the arms pressed to his sides
+      L(2, sy + 5);
+      R(13, sy + 5);
+      break;
+    case 'fry': {
+      // 返してみろ: the ヘラ under the noodles (ph 0), flicked up (ph 1), down again (ph 2)
+      L(4, sy + 3);
+      const hyR = [sy + 3, sy - 1, sy + 2][p.ph % 3];
+      R(13, hyR);
+      heraAt(f, 14, hyR, p.ph % 3 === 1 ? 'up' : 'flat');
+      break;
+    }
+    case 'hera':
+      // holding the ヘラ up beside him (the ending, the shop)
+      hangL();
+      R(15, sy - 3);
+      heraAt(f, 15, sy - 3, 'up');
+      break;
     default:
       hangL();
       hangR();
   }
   if (act === 'shock' || act === 'shock_pack' || (act === 'glow' && p.ph === 1)) flashLines(f, hy, act === 'glow');
+}
+
+/** たかしの ヘラ in the hand at (x, y): 'up' = blade raised, 'flat' = blade out level to the right. */
+function heraAt(f: Fig, x: number, y: number, how: 'up' | 'flat') {
+  f.part('grip', { flat: true, rim: false });
+  if (how === 'up') {
+    f.vl(x + 1, y - 2, y);
+    f.part('hera', { shade: 'rb', light: 't' });
+    f.rect(x, y - 6, 3, 4);
+  } else {
+    f.hl(x + 1, x + 2, y);
+    f.part('hera', { shade: 'rb', light: 't' });
+    f.rect(x + 3, y, 4, 2);
+  }
 }
 
 /** Three short rays off each side of the head (the ぱっ of the flash). No outline. */
@@ -728,7 +793,7 @@ function back(f: Fig, p: Pose) {
   const st = p.step % 4;
   const u = p.bob - p.breath;
   const act = p.act;
-  const crouch = act === 'crouch_hand' ? 3 : 0;
+  const crouch = act === 'crouch_hand' || act === 'weak' ? 3 : 0;
   const by = 10 + u + crouch;
   const hy = 2 + u + crouch + (p.lookUp ? 1 : 0);
   const fsw = walking ? (st === 1 ? 1 : st === 3 ? -1 : 0) : 0;
@@ -746,6 +811,16 @@ function back(f: Fig, p: Pose) {
   const sway = walking ? (st === 1 || st === 3 ? 1 : 0) : p.breath ? 1 : 0;
   headBack(f, hy, { eyes: 'open', ant: banzai ? 'up' : p.lookUp ? 'back' : 'normal', sway }, p.lookUp ? -1 : 0);
   bodyBack(f, by);
+  if (act === 'back_han' || act === 'back_shu') {
+    // S30 only (62 10.2): in the gap between two back plates, the small black 「まだ」 — or the
+    // vermilion 「おかえりなさい」 pressed over it
+    f.part(act === 'back_han' ? 'madaHan' : 'shuHan', { flat: true, rim: false });
+    f.rect(6, by + 4, 4, 3);
+    if (act === 'back_shu') {
+      f.part('band', { flat: true, rim: false });
+      f.px(7, by + 5);
+    }
+  }
   fanBack(f, by, fsw);
   if (!banzai && act !== 'crouch_hand') {
     hangArm(f, 'L', by + 2 + (swing > 0 ? 1 : 0), 0, -1);
@@ -764,11 +839,11 @@ function side(f: Fig, p: Pose) {
   const u = p.bob - p.breath;
   const act = p.act;
   const lk = lookOf(p, walking);
-  const crouch = act === 'crouch_hand' ? 3 : 0;
+  const crouch = act === 'crouch_hand' || act === 'weak' ? 3 : 0;
   const low = act === 'hurt' ? 1 : 0;
   const by = 10 + u + crouch + low;
-  const hy = 2 + u + crouch + low + (act === 'bow_small' ? 1 : 0);
-  const hx = act === 'bow_small' || act === 'crouch_hand' ? -1 : 0;
+  const hy = 2 + u + crouch + low + (act === 'bow_small' || act === 'lead' ? 1 : 0);
+  const hx = act === 'bow_small' || act === 'crouch_hand' || act === 'lead' ? -1 : 0;
   const fsw = walking ? (st === 1 ? 1 : st === 3 ? -1 : 0) : 0;
   const swing = walking ? (st === 1 ? 1 : st === 3 ? -1 : 0) : 0;
   const sy = by + 3;
@@ -795,6 +870,26 @@ function side(f: Fig, p: Pose) {
       break;
     case 'flip':
       A(0, sy - 4);
+      break;
+    case 'gassho':
+    case 'weak':
+      A(1, sy);
+      break;
+    case 'glass':
+      A(-2, sy - 2);
+      break;
+    case 'fry': {
+      const hyS = [sy + 2, sy - 2, sy + 1][p.ph % 3];
+      A(0, hyS);
+      f.part('hera', { shade: 'rb', light: 't' });
+      if (p.ph % 3 === 1) f.rect(-2, hyS - 4, 2, 3);
+      else f.rect(-4, hyS, 4, 1);
+      break;
+    }
+    case 'hera':
+      A(0, sy - 3);
+      f.part('hera', { shade: 'rb', light: 't' });
+      f.rect(-1, sy - 8, 2, 4);
       break;
     case 'flip_hold':
       A(-1, sy);
@@ -969,8 +1064,20 @@ export const KANENARI_SPEC: SpriteSpec = {
     shock_pack: { dirs: ['down', 'left', 'right'], p: { bob: -1 } },
     crouch_hand: { dirs: 'all' },
     handshake: { dirs: ['down', 'left', 'right'] },
+    // chapter 3's ending (62 10.2): いただきます, the ヘラ, the stamp under his armour
+    gassho: { dirs: ['down', 'left', 'right'] },
+    hera: { dirs: ['down', 'left', 'right'] },
+    fry: { dirs: ['down', 'left', 'right'] },
+    back_han: { dirs: ['up'] },
+    freeze: { dirs: ['down', 'left', 'right'] },
+    weak: { dirs: ['down', 'left', 'right'] },
+    lead: { dirs: ['down', 'left', 'right'] },
+    glass: { dirs: ['left', 'right'] },
+    back_shu: { dirs: ['up'] },
   },
   anims: {
+    // 返してみろ: under → flick up (the noodles fly a little) → down; loops while he cooks
+    fry: { frames: [{ act: 'fry', ph: 0 }, { act: 'fry', ph: 1 }, { act: 'fry', ph: 2 }, { act: 'fry', ph: 0 }], ms: [260, 160, 220, 400], dirs: ['down', 'left', 'right'] },
     bow_small: { frames: [{ act: '' }, { act: 'bow_small' }, { act: 'bow_small' }, { act: '' }], ms: [120, 700, 300, 200], loop: false, dirs: ['down', 'left', 'right'] },
     // stand → 30° → deep → 90° held → back up through the same beats
     bow: {
@@ -1071,3 +1178,75 @@ function buildKanenari(): CharSprite {
 
 registerChar('kanenari', buildKanenari);
 registerChar('npc_kanenari', () => ({ ...charSprite('kanenari'), id: 'npc_kanenari' }));
+
+// ---- グソっ君 in たかしの 店 (npc_kanenari_cook, 62 10.2 'cook': S29・S33・after the clear) ----
+// a small white cook's cap set on top of his headband (たかしの 帽子の 小さい版) on every frame.
+
+/** Every frame of a sprite through `fn` (same frame shared → same result). */
+function mapFrames(s: CharSprite, id: string, fn: (c: HTMLCanvasElement) => HTMLCanvasElement): CharSprite {
+  const memo = new Map<HTMLCanvasElement, HTMLCanvasElement>();
+  const m = (c: HTMLCanvasElement) => {
+    let r = memo.get(c);
+    if (!r) memo.set(c, (r = fn(c)));
+    return r;
+  };
+  const dirs = <T,>(o: Partial<Record<string, T>> | undefined, g: (v: T) => T) =>
+    o ? (Object.fromEntries(Object.entries(o).map(([k, v]) => [k, g(v as T)])) as Record<string, T>) : undefined;
+  const anim = (a: CharAnim) => ({ ...a, frames: a.frames.map(m) });
+  return {
+    ...s,
+    id,
+    walk: dirs(s.walk, (fs: HTMLCanvasElement[]) => fs.map(m)) as CharSprite['walk'],
+    idle: dirs(s.idle, (fs: HTMLCanvasElement[]) => fs.map(m)) as CharSprite['idle'],
+    run: dirs(s.run, (fs: HTMLCanvasElement[]) => fs.map(m)) as CharSprite['run'],
+    extra: dirs(s.extra, m),
+    extraDir: s.extraDir ? Object.fromEntries(Object.entries(s.extraDir).map(([k, v]) => [k, dirs(v, m)!])) : undefined,
+    anims: dirs(s.anims, anim),
+    animsDir: s.animsDir ? Object.fromEntries(Object.entries(s.animsDir).map(([k, v]) => [k, dirs(v, anim)!])) : undefined,
+  };
+}
+
+/** The cook's cap: puffed white crown over a band, 8 wide, set on the top of his head. */
+function withCookCap(c: HTMLCanvasElement): HTMLCanvasElement {
+  const w = c.width;
+  const h = c.height;
+  // lying down (the fallen frames are turned a quarter round): no cap
+  if (w > h) return c;
+  const src = c.getContext('2d')!.getImageData(0, 0, w, h).data;
+  // the head's top: the first row with art in the middle columns
+  let top = -1;
+  let l = w;
+  let r = -1;
+  for (let y = 0; y < h && top < 0; y++)
+    for (let x = 4; x < w - 4; x++)
+      if (src[(y * w + x) * 4 + 3]) {
+        top = y;
+        break;
+      }
+  if (top < 0) return c;
+  for (let x = 0; x < w; x++) if (src[(top * w + x) * 4 + 3]) ((l = Math.min(l, x)), (r = Math.max(r, x)));
+  const mid = Math.round((l + r) / 2);
+  const UP = 5;
+  const out = document.createElement('canvas');
+  out.width = w;
+  out.height = h + UP;
+  const g = out.getContext('2d')!;
+  g.drawImage(c, 0, UP);
+  const ty = top + UP;
+  const px = (x: number, y: number, col: string, ww = 1, hh = 1) => {
+    g.fillStyle = col;
+    g.fillRect(x, y, ww, hh);
+  };
+  // outline, the puffed crown, the band
+  px(mid - 4, ty - 5, '#5A3A2A', 8, 1);
+  px(mid - 5, ty - 4, '#5A3A2A', 10, 3);
+  px(mid - 4, ty - 4, '#FFFFFF', 8, 2);
+  px(mid - 3, ty - 5, '#F4F1E8', 6, 1);
+  px(mid - 4, ty - 2, '#E8E4D8', 8, 1);
+  px(mid - 4, ty - 1, '#5A3A2A', 8, 1);
+  px(mid - 4, ty - 1, '#D8D4C8', 8, 1);
+  px(mid + 2, ty - 4, '#D8D4C8', 2, 1);
+  return out;
+}
+
+registerChar('npc_kanenari_cook', () => mapFrames(charSprite('kanenari'), 'npc_kanenari_cook', withCookCap));

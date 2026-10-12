@@ -77,14 +77,16 @@ export class StatsPage implements MenuPage {
 
   drawBehind(g: Gfx, m: MenuCtx): void {
     // one sticky tab per member on the notebook's top edge
-    let x = SP.x + 72;
+    // (three members, 第3章: the tabs start further left and sit closer, clear of the clock)
+    const three = state.party.length >= 3;
+    let x = SP.x + (three ? 36 : 72);
     state.party.forEach((p, i) => {
       const sel = i === this.who;
       const label = p.id === 'kanenari' ? 'グソっ君' : p.name;
-      const w = textW(label) + 14;
+      const w = textW(label) + (three ? 10 : 14);
       const y = SP.y - 18 - (sel ? 2 : 0);
       drawTape(g, x, y, w, 20, '', { color: sel ? '#D8F0B8' : '#D8CBA8', seed: 10 + i });
-      g.text(label, x + 7, y + 1, { color: sel ? UI.text : UI.pencil });
+      g.text(label, x + (three ? 5 : 7), y + 1, { color: sel ? UI.text : UI.pencil });
       if (sel && m.focus && state.party.length > 1) g.rect(x + 2, y + 17, w - 4, 1, UI.accent);
       x += w + 2;
     });
@@ -175,6 +177,6 @@ export class StatsPage implements MenuPage {
       const lines = wrap(comment, w - 4);
       // (beside an iPad's touch button: a little tighter, pageText)
       lines.slice(0, 3).forEach((l, i) => pageText(g, l, x + 2, y + 16 + i * NOTE_ROW, { color: UI.accent }));
-    } else g.text('（まだ 空らん）', x + 2, y + 17, { color: UI.textDim });
+    } else g.text(mem.id === 'yakisoban' ? REPORT.noReport : '（まだ 空らん）', x + 2, y + 17, { color: UI.textDim });
   }
 }

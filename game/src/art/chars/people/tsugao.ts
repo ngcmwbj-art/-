@@ -1519,3 +1519,167 @@ registerChar('npc_tsugao_nightcap', () =>
     keep: ['#C98A6A', '#A86A4E'],
   }),
 );
+
+// =============================================================================
+// ツガオ after S28 (npc_tsugao_shirt, 60 10.28〜10.30・62 12.7): the suit's jacket off, the
+// white shirt's sleeves rolled up to the elbow, the suit trousers, and the olive work cap
+// (表の顔) back on. The ending's ツガオ: on the bench asleep in the nightcap ('nightcap'),
+// at the goza eating ('eat'), under the lighthouse with the cap held at his chest
+// ('cap_chest'), bowing deep with it ('bow', anim 'bow_deep'), his thick hand out ('give').
+
+const SHIRT: Mats = {
+  ...SUIT,
+  cap: OLIVE,
+  shirtW: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFFFFF', dark: '#6B7186' }),
+  trousers: mat('#2A2440', { shade: '#1B1733', light: '#3A3F48', dark: '#0B0B14' }),
+  plate: mat('#F4F1E8', { shade: '#C8C2B4', light: '#FFFFFF', dark: '#9AA0A8' }),
+  noodle: flat('#C8A06A'),
+  watch: flat('#D9A441'),
+};
+
+function shirtDraw(f: Fig, p: Pose) {
+  const act = p.act;
+  const seated = act === 'sit' || act === 'nightcap' || act === 'eat';
+  const drop = seated ? 3 : 0;
+  const bow = act === 'bow' ? 2 : 0;
+  const u = upper(p) + drop + bow;
+  const b = p.bob + drop;
+  const hy = 1 + u;
+  const L: LegSpec = { cx: 8, hip: 17, foot: 22, w: 3, gap: 2, mat: 'trousers', shoe: 'shoe', shoeLen: 4 };
+  const side = p.view === 'left';
+  const back = p.view === 'up';
+  if (drop && !back) {
+    f.part('trousers', { shade: 'rb', light: 't' });
+    if (side) f.rect(2, 17 + drop - 1, 8, 3).rect(2, 19 + drop - 1, 3, 22 - (19 + drop - 1));
+    else f.rect(3, 17 + drop - 1, 4, 3).rect(9, 17 + drop - 1, 4, 3).rect(4, 19 + drop, 3, Math.max(1, 21 - (19 + drop))).rect(9, 19 + drop, 3, Math.max(1, 21 - (19 + drop)));
+    f.part('shoe', { shade: 'rb', light: 't' });
+    if (side) f.rect(0, 21, 5, 2);
+    else f.rect(3, 21, 4, 2).rect(9, 21, 4, 2);
+  } else legs(f, p, L);
+  // rolled sleeves: white to the elbow, then the forearm's skin
+  const ARM: Seg[] = [{ mat: 'shirtW', n: 3 }, { mat: 'skin', n: 2 }, { mat: 'skin' }];
+  const capOff = act === 'cap_chest' || act === 'bow';
+  const sleeping = act === 'nightcap';
+  if (side) {
+    sideArm(f, 10, 11 + u, 4, -sideSwing(p), ARM, -1, 2);
+    f.part('shirtW', { shade: 'rb', light: 't' });
+    f.hl(5, 10, 10 + u);
+    f.rect(3, 11 + u, 9, 17 + b - (11 + u));
+    f.part('trousers', { shade: 'rb', light: '' });
+    f.rect(4, 16 + b, 8, 2);
+    if (act === 'give') {
+      f.part('shirtW', { shade: 'rb', light: 't' });
+      f.rect(3, 12 + u, 4, 2);
+      f.part('skin', { shade: 'rb', light: 't' });
+      f.rect(0, 12 + u, 3, 2);
+      f.part('ink', { flat: true, rim: false });
+      f.px(0, 13 + u);
+    } else if (capOff) {
+      // the cap at his chest, both hands on its brim
+      f.part('cap', { shade: 'rb', light: 't' });
+      f.rect(2, 12 + u, 4, 3);
+      f.part('skin', { shade: 'rb', light: 't' });
+      f.rect(5, 13 + u, 2, 2);
+    } else {
+      f.part('shirtW', { shade: 'rb', light: 'tl' });
+      f.rect(6, 11 + u, 4, 2);
+      sideArm(f, 7, 13 + u, 3, sideSwing(p), [{ mat: 'shirtW', n: 1 }, { mat: 'skin' }], 0, 2);
+    }
+    const hp = sleeping || act === 'bow' ? { ...p, blink: true, blinkClosed: true } : p;
+    head(f, hp, capOff ? SUIT_HEAD : TSUGAO_HEAD, hy, act === 'bow' ? -1 : 0);
+    f.offset(act === 'bow' ? -1 : 0, 0);
+    if (sleeping) nightcap(f, 'left', hy);
+    else if (!capOff) workCap(f, 'left', hy);
+    f.offset(0, 0);
+    return;
+  }
+  // the shirt: broad shoulders, the placket down the middle, an open collar
+  f.part('shirtW', { shade: 'rb', light: 't' });
+  f.hl(3, 12, 10 + u);
+  f.rect(2, 11 + u, 12, 17 + b - (11 + u));
+  f.part('trousers', { shade: 'rb', light: '' });
+  f.rect(3, 16 + b, 10, 2);
+  if (!back) {
+    f.part('shirtW', { flat: true });
+    f.t(-2).vl(8, 13 + u, 15 + b).t(null);
+    f.part('skin', { flat: true, rim: false });
+    f.px(7, 11 + u).px(8, 11 + u);
+    f.t(-1).px(4, 12 + u).px(11, 12 + u).t(null);
+  }
+  if (back) hangArms(f, p, { lx: 2, rx: 13, sy: 11, hy: 16, segs: ARM }, u);
+  else if (act === 'give') {
+    hangArms(f, p, { lx: 2, rx: 13, sy: 11, hy: 16, segs: ARM }, u, 'R');
+    f.part('shirtW', { shade: 'rb', light: 't' });
+    f.rect(1, 11 + u, 2, 3);
+    f.part('skin', { shade: 'rb', light: 't' });
+    f.rect(1, 14 + u, 2, 2).rect(4, 14 + u, 3, 2);
+    f.part('ink', { flat: true, rim: false });
+    f.px(4, 15 + u);
+  } else if (capOff) {
+    // both hands at his chest, the work cap held against it
+    f.part('shirtW', { shade: 'rb', light: 't' });
+    f.rect(1, 11 + u, 2, 3).rect(13, 11 + u, 2, 3);
+    f.part('cap', { shade: 'rb', light: 't' });
+    f.rows(4, 12 + u, ['.######.', '########', '.DDDDDD.'], T);
+    f.part('skin', { shade: 'rb', light: 't' });
+    f.rect(3, 13 + u, 2, 2).rect(11, 13 + u, 2, 2);
+  } else if (act === 'eat') {
+    // the plate on his knees, chopsticks up to his mouth every other beat
+    f.part('shirtW', { shade: 'rb', light: 't' });
+    f.rect(1, 11 + u, 2, 4).rect(13, 11 + u, 2, 4);
+    f.part('plate', { shade: 'rb', light: 't' });
+    f.rect(4, 17 + b, 8, 2);
+    f.part('noodle', { flat: true, rim: false });
+    f.hl(5, 10, 17 + b);
+    f.part('skin', { shade: 'rb', light: 't' });
+    f.rect(3, 16 + b, 2, 2);
+    const up = p.ph === 1;
+    f.rect(11, up ? 10 + u : 15 + u, 2, 2);
+    f.part('ink', { flat: true, rim: false });
+    f.vl(11, up ? 8 + u : 13 + u, up ? 9 + u : 14 + u);
+  } else {
+    hangArms(f, p, { lx: 2, rx: 13, sy: 11, hy: 16, segs: ARM }, u);
+    if (!seated) {
+      f.part('watch', { flat: true, rim: false });
+      f.px(13, 14 + u + (p.mode === 'walk' ? [0, 1, 0, -1][p.step % 4] : 0));
+    }
+  }
+  if (sleeping && !back) {
+    // the hands folded on his belly
+    f.part('skin', { shade: 'rb', light: 't' });
+    f.rect(6, 15 + u, 4, 2);
+  }
+  const hp = sleeping || act === 'bow' ? { ...p, blink: true, blinkClosed: true } : p;
+  head(f, hp, capOff ? SUIT_HEAD : TSUGAO_HEAD, hy);
+  if (sleeping) nightcap(f, back ? 'up' : 'down', hy, p.breath ? 1 : 0);
+  else if (!capOff) workCap(f, back ? 'up' : 'down', hy + hatLift(p));
+}
+
+registerChar('npc_tsugao_shirt', () =>
+  buildSprite({
+    id: 'npc_tsugao_shirt',
+    mats: SHIRT,
+    draw: shirtDraw,
+    walkFrameMs: 185,
+    idle: rep([{ breath: 0 }, { breath: 0 }, { breath: 0 }, { breath: 1 }, { breath: 1 }, { breath: 1 }, { breath: 0 }, { breath: 0, blink: true }], 2),
+    idleFrameMs: 300,
+    extras: {
+      sit: { dirs: ['down', 'left', 'right'] },
+      nightcap: { dirs: ['down'] },
+      eat: { dirs: ['down'] },
+      cap_chest: { dirs: ['down', 'left', 'right'] },
+      bow: { dirs: ['down', 'left', 'right'] },
+      give: { dirs: ['down', 'left', 'right'] },
+    },
+    anims: {
+      eat: { frames: [{ act: 'eat', ph: 0 }, { act: 'eat', ph: 1 }], ms: [700, 500] },
+      // cap at the chest → the deep bow, held → up again
+      bow_deep: { frames: [{ act: 'cap_chest' }, { act: 'bow' }, { act: 'bow' }, { act: 'cap_chest' }], ms: [300, 900, 900, 400], loop: false, dirs: ['down', 'left', 'right'] },
+    },
+    poses: {
+      nightcap: rep([{ act: 'nightcap', breath: 0 }, { act: 'nightcap', breath: 0 }, { act: 'nightcap', breath: 0 }, { act: 'nightcap', breath: 1 }, { act: 'nightcap', breath: 1 }, { act: 'nightcap', breath: 1 }], 1),
+    },
+    shadow: 12,
+    keep: ['#C98A6A', '#A86A4E', ...OLIVE_KEEP],
+  }),
+);

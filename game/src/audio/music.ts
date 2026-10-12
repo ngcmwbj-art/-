@@ -12,7 +12,7 @@ export type MusicParam =
   | 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest' | 'clock' | 'h_deli'
   // chapter 3 (63_ch3_audio 6)
   | 'c3_noon' | 'c3_ichiba' | 'c3_shokudo' | 'c3_umi' | 'c3_ichi' | 'c3_shio' | 'c3_wana' | 'c3_phase' | 'nari_rewind'
-  | 'teppan' | 'kakaricho';
+  | 'teppan' | 'kakaricho' | 'yobu';
 
 export interface PlayOpts {
   /** Fade-in (and cross-fade) seconds. */
@@ -175,10 +175,12 @@ export function playBgm(idIn: string, opts: PlayOpts = {}): void {
   if (hadSong && !fadeIn) fadeIn = 0.05;
   // every boss fight (a retry after a loss too) opens in phase 1; the battle
   // raises it to 2 and 3 as the fight goes on (7.3)
-  if (id === 'bgm_boss' || id === 'bgm_boss_yobimodoshi' || id === 'bgm_boss_madamada') params.boss_phase = 1;
+  if (id === 'bgm_boss' || id === 'bgm_boss_yobimodoshi' || id === 'bgm_boss_madamada' || id === 'bgm_boss_tsugao') params.boss_phase = 1;
   // 63 6.5 / 6.8: the teppan's heat and 係長's voices belong to one fight
   params.teppan = 0;
   params.kakaricho = 0;
+  // 63 6.6: the people who came to draw belong to one fight too (a retry starts with none)
+  params.yobu = 0;
   // the light, the name tags and Tetsuya's rest belong to one fight (53 6.2–6.4);
   // h_deli is not among them: the delivery goes on after a fight on the way (6.6)
   params.h_light = 0;
@@ -318,6 +320,20 @@ export function musicSting(id: string): void {
   const p = current?.player;
   if (!p) return;
   p.state.sting = id;
+}
+
+/**
+ * 63 5.9 / 9.3: someone drew their hanamaru on the black 回覧板 — their voice
+ * (the speaker's voice id; 'shun' for しゅん, who has none: the stamp's 「ぽん」)
+ * joins bgm_boss_tsugao from the next bar, held on a note of the chord. Call
+ * it just before setMusicParam('yobu', n). Other songs ignore it.
+ */
+export function addVoiceLayer(voiceId: string): void {
+  const p = current?.player;
+  if (!p) return;
+  const list = (p.state.layers as string[] | undefined) ?? [];
+  list.push(voiceId);
+  p.state.layers = list;
 }
 
 export function flushPending(): void {

@@ -24,6 +24,8 @@ export interface SfxOpts {
   level?: number;
   /** How many at once (se_c3_gassho: hands clapped together, 1–12). */
   count?: number;
+  /** 63 8.11: who drew (se_c3_draw: their npc id — 'npc_obaa', 'shun', 'gusokkun', 'yakisoban'). */
+  who?: string;
 }
 
 export type SfxFn = (opts?: SfxOpts) => void;

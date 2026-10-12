@@ -134,6 +134,24 @@ export function musicSting(id: 'yakisoban'): void {
 }
 
 /**
+ * 63 12.19 (S25): エゴ clocks everyone in — se_dakoku once a person (0.45 s
+ * apart; 0.3 past 10, 0.22 past 20), the music −8 dB under it. Resolves 0.6 s
+ * after the last 「ガチャン」 (at once when n is 0 or the sound is off).
+ */
+export function dakokuRun(n: number): Promise<void> {
+  const k = Math.max(0, Math.min(24, Math.round(n)));
+  if (!k || !hasGraph()) return Promise.resolve();
+  sfx('se_c3_nyukan', { count: k });
+  const gap = k > 20 ? 0.22 : k > 10 ? 0.3 : 0.45;
+  return new Promise((res) => setTimeout(res, ((k - 1) * gap + 0.6) * 1000));
+}
+
+/** 63 5.9: a voice joins bgm_boss_tsugao (「よぶ」; 'shun' for しゅん). Before setMusicParam('yobu', n). */
+export function addVoiceLayer(voiceId: string): void {
+  music.addVoiceLayer(voiceId);
+}
+
+/**
  * 63 13 waitBar: resolves when the playing song reaches the head of the bar
  * `label` (S13: the breakwater's 「いただきます」 lands on bgm_hirugohan's H5).
  * Resolves at once when nothing plays, and after `timeout` seconds at most.
@@ -257,7 +275,7 @@ export function musicFlee(): void {
 
 export { playChimeMotif, playMorningChime, playSirenFull } from './chime';
 /** 63 9.2: the whole town says 「いただきます」 / 「ごちそうさま」 at once (voice ids, ≤ 12 heard). */
-export { chorusBlips, setVoicePan } from './voices';
+export { chorusBlips, setVoicePan, setVoiceFaceRule, type VoiceFace } from './voices';
 
 // ---- the PA speaker (40_audio 3.6 bus_pa; 53_ch2_audio 3.3) --------------------------
 

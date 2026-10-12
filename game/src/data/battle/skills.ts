@@ -283,6 +283,11 @@ const enemies: SkillDef[] = [
   enemy({ id: 'skill_pokosha_mimawari', name: '見回り', target: 'none', noDamage: true }),
   enemy({ id: 'skill_pokosha_mamoru', name: '身を 守る', target: 'none', noDamage: true }),
   enemy({ id: 'skill_c3_kakaricho', name: '係長の 声', target: 'none', noDamage: true }),
+  // ツガオ決戦（61 14.2。攻撃は「止める」技。2段目は 攻撃しない）
+  enemy({ id: 'skill_tsugao_mada', name: '『まだ』', target: 'enemy', hits: [0], windupMs: 700, tsukkomi: [1], noDamage: true }),
+  enemy({ id: 'skill_tsugao_denpyo', name: '40年の 伝票', target: 'allies', power: 0.6, hits: [0], windupMs: 500, tsukkomi: [3], big: true }),
+  enemy({ id: 'skill_tsugao_chokin', name: '休みの 貯金', target: 'self', windupMs: 500, tsukkomi: [2], noDamage: true }),
+  enemy({ id: 'skill_tsugao_neru', name: 'つがおちゃん 寝る〜♪', target: 'none', noDamage: true }),
   // ヒキヅナ（夕鳴小学校の 校庭、段階2。二人十五脚 02 #82）
   enemy({ id: 'skill_hiki_tsuna', name: '綱引き', target: 'enemy', power: 1.0, hits: [0], windupMs: 450, tsukkomi: [1] }),
   enemy({ id: 'skill_hiki_oesu', name: 'オーエス', target: 'allies', power: 0.45, hits: [0, 18], windupMs: 450, tsukkomi: [1] }),

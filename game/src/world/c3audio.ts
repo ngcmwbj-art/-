@@ -140,8 +140,39 @@ const C3_AUDIO: Record<string, C3Audio> = {
   map_c3_aq_rouka: { space: 'suizoku', pa: 'kannai', bgm: { 3: AQ }, variant: 'rouka', amb: { 3: ['amb_c3_aq_kan'] }, phase: 2 },
   // 事務所 = chapter 2's cut 7 room (S25): its own song and bed
   map_c3_aq_jimusho: { space: 'room', pa: 'kannai', bgm: { 3: 'bgm_tsugao' }, amb: { 3: ['amb_tsugao_room'] }, phase: 2 },
-  map_c3_aq_hall: { space: 'suizoku', pa: 'kannai', bgm: { 3: 'bgm_tsugao_hall' }, amb: { 3: ['amb_c3_aq_hall'] }, phase: 2 },
+  map_c3_aq_hall: { space: 'suizoku', pa: 'kannai', bgm: { 3: 'bgm_tsugao_hall', 4: null }, amb: { 3: ['amb_c3_aq_hall'], 4: ['amb_c3_aq_hall'] }, phase: 2 },
 };
+
+/**
+ * 63 12.19 (S25 みんなが来る, flag_ch3_minna): everyone brings 海ぞいの町's song
+ * in with them — bgm_umi_noon ('outdoor', 12:01) from the entrance to the
+ * corridor, carried on from room to room; only 事務所 keeps bgm_tsugao
+ * (no エゴ on the desk now). After the clock-out (stage 4) the hall is quiet:
+ * ツガオ asleep, the empty tank's hum fading in the noon light ('hiru').
+ */
+const AQ_MINNA: Record<string, { bgm: string | null; variant?: string }> = {
+  map_c3_aq_iriguchi: { bgm: UMI, variant: 'outdoor' },
+  map_c3_aq_kairo: { bgm: UMI, variant: 'outdoor' },
+  map_c3_aq_diorama: { bgm: UMI, variant: 'outdoor' },
+  map_c3_aq_shinkai: { bgm: UMI, variant: 'outdoor' },
+  map_c3_aq_esa: { bgm: UMI, variant: 'outdoor' },
+  map_c3_aq_rouka: { bgm: UMI, variant: 'outdoor' },
+  map_c3_aq_jimusho: { bgm: 'bgm_tsugao' },
+  map_c3_aq_hall: { bgm: 'bgm_tsugao_hall' },
+};
+
+/**
+ * 63 9.2 (第4期): the faces the voices wear, read from the story's flags.
+ * ヒロスケ is himself again once S24 is over (S25 「ども！ ……最後の 集荷です！」);
+ * ツガオ from the clock-out (stage 4, or flag_c3_tsugao_omote set by the event
+ * just before 「……おう。頼むわ。」) to the end; エゴ speaks for himself from S26.
+ */
+audio.setVoiceFaceRule((id) => {
+  if (id === 'hirosuke') return flag('flag_ch3_hp_beaten') ? 'omote' : null;
+  if (id === 'tsugao') return flag('flag_ch3_stage') >= 4 || flag('flag_c3_tsugao_omote') ? 'omote' : null;
+  if (id === 'dakoku') return flag('flag_ch3_minna') ? 'jibun' : null;
+  return null;
+});
 
 /** Does chapter 3 decide this map's sound now? */
 export function isC3AudioMap(def: MapDef | undefined | null): boolean {
@@ -207,8 +238,16 @@ function planOf(def: MapDef): { bgm: string | null | undefined; variant?: string
     // a chapter-3 map this table does not know yet: the map's own data
     return { bgm: def.bgm?.[s], variant: def.variant, amb: def.amb?.[s] ?? [], ambVol: def.ambVol ?? {}, space: def.space ?? (def.kind === 'indoor' ? 'room' : 'minato'), pa: def.id.startsWith('map_c3_aq') ? 'kannai' : 'umi' };
   }
-  const variant = typeof t.variant === 'function' ? t.variant(s) : t.variant;
-  return { bgm: t.bgm[s], variant, amb: t.amb[s] ?? def.amb?.[s] ?? [], ambVol: { ...(def.ambVol ?? {}), ...(t.ambVol ?? {}) }, space: t.space, pa: t.pa };
+  let variant = typeof t.variant === 'function' ? t.variant(s) : t.variant;
+  let bgm = t.bgm[s];
+  const minna = s === 3 && flag('flag_ch3_minna') ? AQ_MINNA[def.id] : undefined;
+  if (minna) {
+    bgm = minna.bgm;
+    variant = minna.variant;
+  }
+  // the ending (stage 4) runs its own songs: a map change under them leaves them playing
+  if (s >= 4 && (audio.currentBgmId() === 'bgm_c3_ending' || audio.currentBgmId() === 'bgm_hirugohan')) bgm = undefined;
+  return { bgm, variant, amb: t.amb[s] ?? def.amb?.[s] ?? [], ambVol: { ...(def.ambVol ?? {}), ...(t.ambVol ?? {}) }, space: t.space, pa: t.pa };
 }
 
 /** Beds whose level follows where しゅん stands. */
@@ -263,6 +302,8 @@ export function applyC3Audio(f: FieldScene, entering: boolean, music = true): vo
     }
     snd.playAmbient(id, opts);
   }
+  // S28〜: the noon light comes into the empty tank — its hum fades to half over 20 s (63 7.5)
+  if (def.id === 'map_c3_aq_hall' && stageOf(def) >= 4) callAudio('ambientEvent', 'amb_c3_aq_hall', 'hiru');
   paLast = -1;
   c3Positional(f, amb);
 }

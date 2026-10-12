@@ -12,7 +12,8 @@ import {
 } from '../data/battle';
 import { setBattleImpl, startBattle, type BattleOpts, type BattleResult } from './api';
 import { measure } from '../engine/font';
-import { addYakisoban, SYS3, TUT } from '../data/battle';
+import { addYakisoban, SYS3, TUT, YOBU_KITA, YOBU_TOWN } from '../data/battle';
+import { yobuNext } from './boss_tsugao';
 import { BattleScene } from './scene';
 import { battleFlow, getGameOverHook, setGameOverHook, type GameOverHook } from './flow';
 import { lessonFlow } from './lesson';
@@ -557,6 +558,8 @@ const CH3_BATTLES: Record<string, { opts: Partial<BattleOpts> & { enemies: strin
   junro3: { opts: { enemies: ['enemy_junro'], background: 'bg_c3_aq_kairo' }, map: 'map_c3_aq_kairo', flags: ['flag_ch3_got_itadakimasu', 'flag_ch3_got_gochisou', 'flag_ch3_yakisoban'] },
   tsugao1: { opts: { enemies: ['boss_tsugao_1'], music: 'keep', background: 'bg_c3_aq_hall', canLose: true }, map: 'map_c3_aq_hall', flags: ['flag_ch3_got_itadakimasu', 'flag_ch3_got_gochisou'] },
   hp: { opts: { enemies: ['boss_hirosuke', 'boss_pokosha'], music: 'bgm_boss_madamada', background: 'bg_c3_aq_rouka', canLose: true }, map: 'map_c3_aq_rouka', flags: ['flag_ch3_got_itadakimasu', 'flag_ch3_got_gochisou', 'flag_ch3_yakisoban'] },
+  // 第4期：ツガオ決戦（61 14。kita＝来た人の 数 0〜24 を opts で）
+  tsugao: { opts: { enemies: ['boss_tsugao'], music: 'bgm_boss_tsugao', background: 'bg_c3_aq_hall', canLose: true }, map: 'map_c3_aq_hall', flags: ['flag_ch3_got_itadakimasu', 'flag_ch3_got_gochisou', 'flag_ch3_yakisoban', 'flag_ch3_hp_beaten'] },
 };
 
 /** A fresh chapter-3 QA party (newChapter3Party + chapter3Adjust) at Lv n (8–10). */
@@ -579,7 +582,7 @@ export function setupCh3(lv = 8, flags: string[] = []): void {
  * okawari / nari (いただきます learned for nari). `lv` 0 keeps the party.
  * `{ gochisou: 1 }` in opts also learns ごちそうさま.
  */
-registerDebug('ch3battle', (name = 'nefuda', lv = 8, o: Partial<BattleOpts> & { gochisou?: number; itadaki?: number } = {}) => {
+registerDebug('ch3battle', (name = 'nefuda', lv = 8, o: Partial<BattleOpts> & { gochisou?: number; itadaki?: number; kita?: number; town?: number } = {}) => {
   const b = CH3_BATTLES[name];
   if (!b) return `unknown: ${Object.keys(CH3_BATTLES).join(' ')}`;
   const flags = [...(b.flags ?? [])];
@@ -592,8 +595,14 @@ registerDebug('ch3battle', (name = 'nefuda', lv = 8, o: Partial<BattleOpts> & { 
   }
   // (S23 の あと: ヤキソバン)
   if (flags.includes('flag_ch3_yakisoban')) addYakisoban();
+  // ツガオ決戦: the first `kita` of the 24 came (60 3.4 の 順), and `town` of the 13 in the town were talked to
+  if (name === 'tsugao' && (o.kita !== undefined || o.town !== undefined)) {
+    for (const k of Object.keys(state.flags)) if (k.startsWith('flag_ch3_kita_npc') || k.startsWith('flag_talked_npc_c3_')) delete state.flags[k];
+    YOBU_KITA.slice(0, o.kita ?? 0).forEach((p) => setFlag(`flag_ch3_kita_${p.id}`, 1));
+    YOBU_TOWN.slice(0, o.town ?? 0).forEach((p) => setFlag(`flag_talked_${p.id}`, 1));
+  }
   state.map = b.map;
-  const { gochisou: _g, itadaki: _i, ...rest } = o;
+  const { gochisou: _g, itadaki: _i, kita: _k, town: _t, ...rest } = o;
   game.scripts.run(
     (function* () {
       yield* startBattle({ ...b.opts, ...rest });
@@ -615,7 +624,7 @@ registerDebug('c3textcheck', () => {
     if (ls.length > lines) bad.push(`${where}: ${ls.length} lines`);
     for (const l of ls) if (measure(l) > w) bad.push(`${where}: ${measure(l)}px ${l}`);
   };
-  for (const id of ['enemy_nefuda', 'enemy_okawarinabe', 'enemy_nariosame', 'enemy_hoshisugi', 'enemy_asobitarin', 'enemy_yokodori', 'enemy_junro', 'boss_tsugao_1', 'boss_hirosuke', 'boss_pokosha']) {
+  for (const id of ['enemy_nefuda', 'enemy_okawarinabe', 'enemy_nariosame', 'enemy_hoshisugi', 'enemy_asobitarin', 'enemy_yokodori', 'enemy_junro', 'boss_tsugao_1', 'boss_hirosuke', 'boss_pokosha', 'boss_tsugao']) {
     const e = getEnemy(id);
     if (!e) continue;
     const t = e.texts;
@@ -628,7 +637,7 @@ registerDebug('c3textcheck', () => {
     for (const l of e.tsukkomi) page(`${id}.tsukkomi`, l, 1, 300);
   }
   for (const [k, v] of Object.entries(SYS3)) v.forEach((x, i) => page(`SYS3.${k}[${i}]`, x));
-  for (const k of ['nefuda', 'okawari', 'potHanamaru', 'itadaki', 'yakisoban', 'teppan', 'gochisou', 'koe'] as const) page(`TUT.${k}`, TUT[k], 3, 300);
+  for (const k of ['nefuda', 'okawari', 'potHanamaru', 'itadaki', 'yakisoban', 'teppan', 'gochisou', 'koe', 'yobu'] as const) page(`TUT.${k}`, TUT[k], 3, 300);
   return { total, bad };
 });
 /** `addYaki()`: ヤキソバンを 仲間に（61 21.5）。`teppan(n)`: 戦闘中の 鉄板の 熱を n に。 */
@@ -654,6 +663,9 @@ registerDebug('c3aq', () => {
     koeN: s.memo.koeN ?? 0,
     koeActive: s.memo.koeActive ?? 0,
     nafuda: s.memo.nafudaTurn ?? 0,
+    // ツガオ決戦（61 14）
+    tgPhase: s.shared.tgPhase ?? 0,
+    yobuNext: yobuNext(s),
     won: s.memo.ch3Won ?? 0,
     lose: s.memo.aqLose ?? 0,
     party: s.party.map((u) => ({ id: u.id, hp: u.m.hp, max: u.m.maxHp, st: u.m.status, ct: u.ct })),

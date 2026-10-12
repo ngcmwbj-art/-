@@ -61,6 +61,7 @@ import { HOKOKUSHO_TEXTS } from '../../data/text/hokokusho';
 import { c3Texts } from '../../data/text/c3_events';
 import { c3Texts2 } from '../../data/text/c3_story2';
 import { c3Texts3 } from '../../data/text/c3_story3';
+import { c3Texts4 } from '../../data/text/c3_story4';
 
 type Step = () => void;
 
@@ -484,6 +485,7 @@ function collectTexts(): [string, string][] {
   walk('c3', c3Texts());
   walk('c3b', c3Texts2());
   walk('c3c', c3Texts3());
+  walk('c3d', c3Texts4());
   // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line
   // lines shown without a speaker (HOUKI_LINE's float note: the same 336 px)
   for (const [k, v] of Object.entries(EV)) if (typeof v === 'string' && (v.startsWith('@') || v.startsWith('!cue') || v.includes('\n'))) out.push([`ev.${k}`, v]);

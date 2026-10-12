@@ -3,10 +3,15 @@
 
 import { flag } from '../../game/state';
 import { registerMap } from '../../world/maps';
-import { ch3Hirumae } from '../../world/umizoi';
+import { ch3Hirumae, ch3TownTime } from '../../world/umizoi';
 import type { MapDef, MapObj, TileSpec } from '../../world/types';
 import { OBJ, OBJ2, REWARD_TEXT, TALK } from './town_text';
 import { SCHOOL_OBJ } from '../text/school';
+
+/** 焼きそばのたかし's shutter is down: 9月1日 11:10 (62 5.1), and on the way home at 17:00 (S32, flag_c3_end_light 1). */
+function takashiShut(): boolean {
+  return ch3Hirumae() || (flag('flag_ch3_started') > 0 && flag('flag_c3_end_light') === 1);
+}
 
 const ROWS = [
   'HHHHHHHHHHHHHHHHHHUHHHHHHHHHHHHHHH^^^^^^^^^^^^^^^^^^^^^^^^FbRbF,', // 0 U: 夕鳴小学校の 裏門 (map_school, 02 #72)
@@ -142,10 +147,11 @@ const OBJECTS: MapObj[] = [
   {
     t: 'door', id: 'door_town_maruyama', x: 27, y: 21, to: 'map_maruyama', tx: 4, ty: 5, dir: 'up', se: ['se_door_glass', 'se_shop_bell'],
     // (chapter 3, 9月1日 11:10: shut — たかし is out buying 青のり, 62 5.1)
-    cond: { when: () => !ch3Hirumae() },
+    cond: { when: () => !takashiShut() },
   },
   // 第3章 段階0（9月1日 11:10、62 5.1）：焼きそばのたかしのシャッターと貼り紙、店の前のヤキソバンの置物
-  { t: 'prop', prop: 'prop_c3_takashi_shutter', x: 24, y: 21, cond: { when: ch3Hirumae } },
+  // (S32, 17:00 on the way home: still down — たかし came home on the truck; up from S33's morning)
+  { t: 'prop', prop: 'prop_c3_takashi_shutter', x: 24, y: 21, cond: { when: takashiShut } },
   { t: 'obj', id: 'obj_c3_takashi_harigami', x: 27, y: 21, face: 'up', cond: { when: ch3Hirumae } },
   { t: 'npc', id: 'npc_cow_statue', script: 'obj_c3_yakisoban_statue', x: 26, y: 22, dir: 'down', noTurn: true, statue: true, cond: { when: ch3Hirumae } },
   // 第3章 段階0 の町の人（62 5.1：平日の昼前は お店の人と お年寄りだけ。ランドセルの子・踏切の高校生はいない）。
@@ -713,7 +719,8 @@ const TOWN_DEF: MapDef = {
 
 // 第3章の 9月1日 11:10（62 5.1・8.3 pal_c3_hirumae）：南南東の 高い 太陽、影は 短く 北北西へ
 Object.defineProperty(TOWN_DEF, 'shadowVec', {
-  get: (): [number, number] | undefined => (ch3Hirumae() ? [-0.36, -0.93] : undefined),
+  // (S33's 5:10 and after the clear, pal_c3_akegata: the low sun in the east, long shadows west)
+  get: (): [number, number] | undefined => (ch3Hirumae() ? [-0.36, -0.93] : ch3TownTime(TOWN_DEF) === 2 ? [-0.95, -0.3] : undefined),
   enumerable: true,
 });
 

@@ -73,10 +73,12 @@ export interface Params {
   teppan: number;
   /** 63 6.8: 係長's voice balloons still over ポコシャ (0–3): bgm_boss_madamada shrinks. */
   kakaricho: number;
+  /** 63 6.6: how many have drawn a hanamaru on ツガオ's black 回覧板 (0–27): bgm_boss_tsugao's voices. */
+  yobu: number;
 }
 
 /** Every param's resting value (the chapter-1 state: nothing of chapter 2 is on). */
-export const PARAM_DEFAULTS: Readonly<Params> = { stage: 0, kire: 0, boss_phase: 1, h_stage: -1, h_light: 0, tenko: 0, h_rest: 0, h_room: 0, clock: 0, h_deli: 0, c3_noon: 0, c3_ichiba: 0, c3_shokudo: 0, c3_umi: 0, c3_ichi: 0, c3_shio: 0, c3_wana: 0, c3_phase: 0, nari_rewind: 0, teppan: 0, kakaricho: 0 };
+export const PARAM_DEFAULTS: Readonly<Params> = { stage: 0, kire: 0, boss_phase: 1, h_stage: -1, h_light: 0, tenko: 0, h_rest: 0, h_room: 0, clock: 0, h_deli: 0, c3_noon: 0, c3_ichiba: 0, c3_shokudo: 0, c3_umi: 0, c3_ichi: 0, c3_shio: 0, c3_wana: 0, c3_phase: 0, nari_rewind: 0, teppan: 0, kakaricho: 0, yobu: 0 };
 
 /**
  * Changes that land on the next beat instead of the next bar: a kire rise

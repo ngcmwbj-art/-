@@ -5,7 +5,7 @@
 
 import { activeAmbients } from './ambience';
 import { cur, dbToGain, hasGraph, midiHz, noteMidi, voice, type VoiceOpts, type Wave } from './engine';
-import { currentId, duck, duckAmbience, musicParams } from './music';
+import { currentId, currentPlayer, duck, duckAmbience, musicParams } from './music';
 import { sfxTable, type SfxOpts } from './registry';
 import { setTextBlip } from './index';
 import { trimOr1, voiceTrim } from './mix';
@@ -186,6 +186,8 @@ VOICES.broadcast.calls = true;
 VOICES.pokosha_pa = { ...VOICES.pokosha, label: 'ポコシャ（館内放送）', v: VOICES.pokosha.v * 1.4, pa: true };
 VOICES.tsugao_omote = { ...VOICES.tsugao, label: 'ツガオ（表の声。S20 の「でっけえ エビ」）' };
 VOICES.gusokkun_yowai = { ...VOICES.gusokkun, label: 'グソっ君（弱る。S21）', scale: [0, 2, 4], every: 3, v: VOICES.gusokkun.v * 0.7, scoop: undefined };
+// 第4期 (63 5.9, 9.2): 「おつかれさま でした！」 — everyone who drew, at once (no blips of its own)
+VOICES.minna = { label: 'みんなの声（おつかれさま。来た人の声が同時に）', wave: 'none', base: 0, scale: [0], len: 0, every: 99, v: 0 };
 VOICES.gusokkun_nurui = { ...VOICES.gusokkun, label: 'グソっ君（はずみが半分もどる。S21）', scoop: [35, 16] };
 
 const ALIAS: Record<string, string> = {
@@ -312,6 +314,12 @@ interface State {
   /** ポコシャ's 「……自分は、悪く ない！」: how far into 悪く ない (1–4), 5 done; and the small page after it. */
   ookii?: number;
   ookiiAfter?: boolean;
+  /** グソっ君's 「……いただきます。」 (S29): how far into M9 (0–5). */
+  itaI?: number;
+  /** ツガオ's 「……すまんかった。」 (S30). */
+  suman?: boolean;
+  /** エゴ speaking for himself (S26〜: 「ツガオ ダンチョウ。……タイキン ノ ジカン デス。」). */
+  jibun?: boolean;
 }
 
 interface Hen {
@@ -464,7 +472,32 @@ function sayHen(h: Hen, at: number): void {
   if (!g.offline && !isBattle()) duck(dbToGain(-2), 0.15, 0.35, 0.4);
 }
 
+/**
+ * 63 9.2 (第4期): which face a voice wears, decided by the story (the world
+ * registers it, reading the flags): 'ura' / 'omote' for ツガオ and ヒロスケ
+ * (null: the old aquarium's rule — 裏 while c3_phase is 2), 'jibun' for エゴ
+ * once he speaks for himself (S26〜).
+ */
+export type VoiceFace = 'omote' | 'ura' | 'jibun' | null;
+let faceRule: ((id: string) => VoiceFace) | null = null;
+export function setVoiceFaceRule(fn: ((id: string) => VoiceFace) | null): void {
+  faceRule = fn;
+}
+
+/** 「おつかれさま でした！」 (S27, voice 'minna'): everyone's voice at once, a page once. */
+let minnaAt = -9;
+function minnaChorus(now: number): void {
+  if (now - minnaAt < 1.2) return;
+  minnaAt = now;
+  const layers = ((currentPlayer()?.state.layers as string[] | undefined) ?? []).filter((v) => v !== 'shun');
+  void chorusBlips(layers.length ? layers : ['gusokkun', 'maruyama'], 'otsukaresama');
+}
+
 function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
+  if (id === 'minna') {
+    if (!SILENT.has(ch)) minnaChorus(now);
+    return;
+  }
   const def = VOICES[id] ?? VOICES.default;
   const g = cur();
   const s = (st[id] ??= { last: -1, lastSemi: 99, repeat: 0, seqI: 0, lastMidi: 60, lastT: 0, hist: [], lineStart: true });
@@ -496,6 +529,9 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
     s.yk = s.yk === 1 ? 2 : 0;
     s.ookiiAfter = !!s.ookii && s.ookii >= 2;
     s.ookii = 0;
+    // 第4期 (63 9.2)
+    s.itaI = undefined;
+    s.suman = false;
   }
   if (id === 'piichan') {
     henChar(s, ch, now, pageStart);
@@ -514,7 +550,8 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
   }
   if (mode === 'chan') s.chan = true;
   // 旧水族館 (63 9.2: S15〜S24): ツガオ and ヒロスケ speak with their 裏の顔
-  const ura = (id === 'tsugao' || id === 'hirosuke') && musicParams().c3_phase === 2;
+  const face = faceRule?.(id) ?? null;
+  const ura = (id === 'tsugao' || id === 'hirosuke') && (face === 'ura' || (face !== 'omote' && musicParams().c3_phase === 2));
   // エゴの「ガチャン」: the machine punches the card where the word stands (53 9.2)
   if (mode === 'gachan') {
     s.gachan = 2;
@@ -736,13 +773,35 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
     }
     if (s.ookiiAfter) c3Vol *= 0.6;
   }
+  // 第4期 (63 9.2): グソっ君's 「……いただきます。」 on M9 (0 0 +2 +4 +7 +4) from C4, fast;
+  // ツガオ's 「……すまんかった。」 in his own voice, ×0.8, the last た −2 held 200 ms
+  if (id.startsWith('gusokkun') && mode === undefined) {
+    if (s.firstVoiced && s.headDots && ch === 'い') s.itaI = 0;
+    if (s.itaI !== undefined) {
+      const i = s.itaI;
+      if (i < 6 && 'いただきます'[i] === ch) {
+        c3Semi = [0, 0, 2, 4, 7, 4][i];
+        s.itaI = i + 1;
+      } else s.itaI = undefined;
+    }
+  }
+  let sumanTail = false;
+  if (id === 'tsugao' && mode === undefined) {
+    if (s.firstVoiced && s.headDots && ch === 'す') s.suman = true;
+    if (s.suman && ch === 'た') {
+      c3Semi = -2;
+      sumanTail = true;
+    }
+  }
   if (c3Semi !== null) forced = true;
   const loud = id === 'pokosha' && !!s.sasuga && s.sasugaForm === 'loud';
   if (loud || domo >= 0 || mode === 'laugh' || mode === 'imo' || mode === 'stam' || (id === 'hirosuke' && s.laugh)) forced = true;
   const lineHead = !!s.lineHead;
   s.lineHead = false;
   // spacing: the voice's interval in characters at 40 chars/s (ツガオさん waking: 4)
-  const every = s.tsukkomi || s.chan || loud || s.yk === 1 || (!!s.ookii && s.ookii <= 5) ? 1 : s.yk === 2 ? 3 : s.wake || (ura && id === 'tsugao') ? 4 : ura ? 3 : def.every;
+  if (id === 'dakoku' && face === 'jibun' && pageHead && ch === 'ツ') s.jibun = true;
+  else if (pageStart) s.jibun = false;
+  const every = s.tsukkomi || s.chan || loud || s.yk === 1 || (!!s.ookii && s.ookii <= 5) || s.itaI !== undefined || s.jibun ? 1 : s.yk === 2 ? 3 : s.wake || (ura && id === 'tsugao') ? 4 : ura ? 3 : def.every;
   const minGap = every * 0.025 * 0.9;
   const allowed = now - s.last >= minGap;
   // ハモ区長's 「えー」 and ペロ's 「なぁ」: the next character decides
@@ -805,6 +864,10 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
   // 裏の顔 (63 9.2): ツガオ takes 250 ms before each page (筋を通す間); ヒロスケ ×0.9, no bounce
   if (ura && id === 'tsugao' && !s.chan && headOfPage) delay += 0.25;
   if (ura && id === 'hirosuke') volK *= 0.9;
+  if (s.suman) volK *= 0.8;
+  if (s.jibun) volK *= 1.1;
+  // S28: 「……ほいじゃ、つがおちゃん 寝る〜♪」 — he really sleeps this time (×0.7)
+  if (id === 'tsugao' && s.chan && face === 'omote') volK *= 0.7;
   volK *= c3Vol;
   delay += c3Delay;
   if (id === 'pokosha') {
@@ -855,6 +918,8 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
     if (currentId() === 'bgm_hoshi_morning') volK = 0.9;
   } else if (c3Semi !== null) {
     semi = c3Semi;
+    if (sumanTail) longMs = 200;
+    if (s.itaI !== undefined) longMs = 50;
   } else if (s.nameLine) {
     const i = s.nameI ?? 0;
     s.nameI = i + 1;
@@ -1147,36 +1212,109 @@ export function setVoicePan(pan: number | null): void {
 // At most 12 voices (more are thinned), v .008 each and .06 together. A hum
 // of vowels, never words (1.7).
 
-const CHORUS: Record<'itadakimasu' | 'gochisousama', { semis: number[]; vowels: string }> = {
+const CHORUS: Record<'itadakimasu' | 'gochisousama' | 'otsukaresama', { semis: number[]; vowels: string }> = {
   itadakimasu: { semis: [0, 0, 2, 4, 7, 4], vowels: 'iaaiau' },
   gochisousama: { semis: [7, 4, 2, 0, 2, 0], vowels: 'oiouaa' },
+  // 63 5.9 / 9.2 (S27's last moment): no figure — each voice stays on its own
+  // note of the D6/9 chord, so the six blips are one chord said six times
+  otsukaresama: { semis: [0, 0, 0, 0, 0, 0], vowels: 'ouaeaa' },
 };
+
+/** A voice's own note (midi) — its base. */
+export function voiceBaseMidi(voiceId: string): number | null {
+  const def = VOICES[resolve(voiceId)];
+  if (!def || def.wave === 'none' || def.wave === 'noise') return null;
+  return typeof def.base === 'number' ? 69 + 12 * Math.log2(def.base / 440) : noteMidi(def.base);
+}
+
+/** The nearest note to `m` whose pitch class is in `pcs`. */
+export function nearestPc(m: number, pcs: number[]): number {
+  let best = m;
+  let bd = 99;
+  for (let d = 0; d <= 6; d++)
+    for (const c of d ? [m - d, m + d] : [m]) {
+      if (pcs.includes(((Math.round(c) % 12) + 12) % 12) && d < bd) {
+        best = Math.round(c);
+        bd = d;
+      }
+    }
+  return best;
+}
+
+/** D6/9 (D F# A B E): the chord everyone's voices make at the end of S27 (63 5.9). */
+export const D69 = [2, 6, 9, 11, 4];
+
+/**
+ * 63 9.3: a voice of 「よぶ」's layer — the speaker's own wave, filter, base
+ * and vibrato, the vowel 「あ」, held (A 200 ms, S 1, R 600 ms) instead of a
+ * blip. Played by bgm_boss_tsugao into its own part (so the song's fades
+ * and stop take it too).
+ */
+export function voiceLayerTone(voiceId: string, o: { t: number; midi: number; dur: number; dest: AudioNode; rev?: AudioNode; vol: number; attack?: number; release?: number; det?: AudioNode | null }): void {
+  const id = resolve(voiceId);
+  const def = VOICES[id];
+  if (!def || def.wave === 'none' || def.wave === 'noise' || !hasGraph()) return;
+  const k = def.child ? 1.2 : 1;
+  const [f1, f2] = FORMANT.a;
+  const base: VoiceOpts = {
+    at: o.t,
+    dest: o.dest,
+    freq: midiHz(o.midi),
+    dur: Math.max(0.05, o.dur),
+    attack: o.attack ?? 0.2,
+    decay: 0.1,
+    sustain: 1,
+    release: o.release ?? 0.6,
+    vol: o.vol,
+    detuneSrc: o.det ?? null,
+    reverb: o.rev ? 0.3 : undefined,
+    revDest: o.rev,
+  };
+  if (def.vib) base.vibrato = { rate: def.vib[0], depth: def.vib[1], delay: 0.15 };
+  if (def.lp) base.filter = { type: 'lowpass', freq: def.lp, q: def.lpQ ?? 0.7 };
+  if (def.bp) base.filter = { type: 'bandpass', freq: def.bp[0], q: def.bp[1] };
+  if (def.formant) base.formant = { f1: f1 * k, f2: f2 * k, q1: 5, q2: 7, mix: 0.4 };
+  if (id === 'maruyama') base.fm = { ratio: 1, index: 1.2 };
+  voice({ ...base, wave: def.wave });
+  if (def.wave2) voice({ ...base, wave: def.wave2[0], vol: o.vol * def.wave2[1], formant: undefined });
+}
+
+/** The town a voice belongs to (1 夕鳴町, 2 星見台, 3 海ぞいの町, 4 しゅん・グソっ君・ヤキソバン) — 「よぶ」 ①〜④. */
+export function voiceTown(voiceId: string): 1 | 2 | 3 | 4 {
+  const id = resolve(voiceId);
+  if (id === 'shun' || id.startsWith('gusokkun') || id === 'maruyama') return 4;
+  if (id.startsWith('h_')) return 2;
+  if (id.startsWith('c3_')) return 3;
+  return 1;
+}
 
 /**
  * The town's voices together (the ids are voice or speaker ids: aliases are
  * resolved; duplicates count once). Resolves after the last blip.
  */
-export function chorusBlips(voiceIds: string[], motif: 'itadakimasu' | 'gochisousama' = 'itadakimasu', gap = 0.16): Promise<void> {
+export function chorusBlips(voiceIds: string[], motif: 'itadakimasu' | 'gochisousama' | 'otsukaresama' = 'itadakimasu', gap = 0.16): Promise<void> {
   if (!hasGraph()) return Promise.resolve();
   const g = cur();
   const ids = [...new Set(voiceIds.map((v) => resolve(v)))].filter((id) => VOICES[id] && VOICES[id].wave !== 'none' && VOICES[id].wave !== 'noise');
   // thin evenly down to 12
   const pick = ids.length <= 12 ? ids : Array.from({ length: 12 }, (_, i) => ids[Math.floor((i * ids.length) / 12)]);
   const n = Math.max(1, pick.length);
-  const each = Math.min(0.008, 0.06 / n);
+  const otsu = motif === 'otsukaresama';
+  // 「おつかれさま」: .01 each, .08 together (5.9)
+  const each = otsu ? Math.min(0.01, 0.08 / n) : Math.min(0.008, 0.06 / n);
   const f = CHORUS[motif];
   const t0 = g.ctx.currentTime + 0.05;
   pick.forEach((id, k) => {
     const def = VOICES[id];
     const base = typeof def.base === 'number' ? 69 + 12 * Math.log2(def.base / 440) : noteMidi(def.base);
     // the G nearest the voice's own note (G is the tonic of 海ぞいの町)
-    const g0 = 67 + 12 * Math.round((base - 67) / 12);
+    const g0 = otsu ? nearestPc(base, D69) : 67 + 12 * Math.round((base - 67) / 12);
     const volK = each / Math.max(0.001, def.v);
     // a few ms apart: many people, one breath
     const lag = g.offline ? 0 : (k % 4) * 0.006;
     f.semis.forEach((s, i) => {
       const last = i === f.semis.length - 1;
-      play(def, id, g0 + s, t0 + lag + i * gap, 0, volK, f.vowels[i], false, undefined, last ? 260 : Math.max(0, gap * 1000 - def.len - 10));
+      play(def, id, g0 + s, t0 + lag + i * gap, 0, volK, f.vowels[i], false, undefined, last ? (otsu ? 700 : 260) : Math.max(0, gap * 1000 - def.len - 10));
     });
   });
   const end = t0 + gap * f.semis.length + 0.4;

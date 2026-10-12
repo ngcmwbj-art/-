@@ -223,6 +223,9 @@ const OBJECTS: MapObj[] = [
   PR('prop_c3_ishi_bench', 42, 31, { c: '#C8C4B8' }),
   // the real lunch's mats (S13 and the ending, 62 3.3・12.6): from the moment the town says ごちそうさま
   { t: 'prop', prop: 'prop_c3_goza', x: 22, y: 31, cond: { flag: 'flag_ch3_got_gochisou' } } as MapObj,
+  // the ending (60 10.29): the griddle at the goza (S29) and the photographer's tripod (S31), the scenario's flags
+  PR('prop_c3_end_teppan', 30, 32, {}, { cond: { flag: 'flag_c3_end_goza' } }),
+  PR('prop_c3_end_tripod', 31, 33, {}, { cond: { flag: 'flag_c3_end_tripod' } }),
   O('obj_c3_bouhatei', 4, 31, { h: 2, face: 'left', fushigi: 'fushigi_ch3_03' }),
   PR('prop_c3_shibuki', 20, 33),
   PR('prop_c3_shibuki', 33, 33),

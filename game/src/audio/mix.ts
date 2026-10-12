@@ -261,6 +261,9 @@ export const BGM_TARGET: Record<string, number> = {
   // form), the great tank's hall under ツガオ's voice, ヒロスケ・ポコシャ戦 at the fights' level,
   // and ヤキソバン's name the chapter's loudest moment (+1)
   bgm_suizokukan: -8, bgm_tsugao_hall: -6, bgm_boss_madamada: 0, bgm_jingle_yakisoban: 1,
+  // the fourth period: ツガオ決戦 at the fights' level (measured in stage 1; the voices of 「よぶ」
+  // stay under −11 dBFS together), the last song a little under the towns, M7′ alone in the hall
+  bgm_boss_tsugao: 0, bgm_c3_ending: -3, bgm_c3_taikin: -6,
 };
 
 /**
@@ -287,6 +290,7 @@ export const REF_PART: Record<string, string> = {
   bgm_hoshi_night: 'lantern', bgm_hoshi_morning: 'lead', bgm_boss_yobimodoshi: 'lead', bgm_tsugao: 'bass',
   bgm_umi_noon: 'harmonica', bgm_tsugaobin: 'marimba', bgm_boss_nariosame: 'lead', bgm_hirugohan: 'lead',
   bgm_suizokukan: 'vibes', bgm_tsugao_hall: 'bass', bgm_boss_madamada: 'lead', bgm_jingle_yakisoban: 'brass',
+  bgm_boss_tsugao: 'lead', bgm_c3_ending: 'lead', bgm_c3_taikin: 'taikin',
 };
 /** Parts whose colour is the point of the song: a closer target than their role. */
 export const TARGET_OVERRIDE: Record<string, number> = {
@@ -378,6 +382,12 @@ export const PART_TRIM: Record<string, number> = {
   'bgm_umi_noon/umi_swirl': 18, 'bgm_umi_noon/ichi_marimba': 8.5, 'bgm_umi_noon/ichi_shaker': 15, 'bgm_umi_noon/ichi_lead': 8,
   'bgm_umi_noon/mbox_uw': 2,
   'bgm_tsugaobin/bass': -11, 'bgm_tsugaobin/drums': 17, 'bgm_tsugaobin/pad': -6.5,
+  // the fourth period (audioBalance): M7 stays the floor of ツガオ決戦 but under the lead;
+  // the ending's bass and M10 step back under the harmonica, its brushes come up
+  'bgm_boss_tsugao/bass': -5.5, 'bgm_boss_tsugao/bass_grit': -1.5, 'bgm_boss_tsugao/sub': 4.5, 'bgm_boss_tsugao/pad': -2,
+  'bgm_boss_tsugao/drums': -3,
+  'bgm_c3_ending/marimba': 5.5, 'bgm_c3_ending/pad': -3.5, 'bgm_c3_ending/bass': -5.5, 'bgm_c3_ending/bass_m10': -6,
+  'bgm_c3_ending/drums': 6,
 };
 /** (Not bypassed by mixState: the part balance is part of the arrangement.) */
 export function partTrim(song: string, part: string): number {
@@ -467,6 +477,7 @@ export const BGM_TRIM: Record<string, number> = {
   // chapter 3
   bgm_umi_noon: 13, bgm_tsugaobin: 19, bgm_boss_nariosame: 8.5, bgm_hirugohan: 9,
   bgm_suizokukan: 16.5, bgm_tsugao_hall: 10, bgm_boss_madamada: 8.5, bgm_jingle_yakisoban: 11,
+  bgm_boss_tsugao: 7.5, bgm_c3_ending: 9, bgm_c3_taikin: 8,
 };
 
 export const SE_TRIM: Record<string, number> = {
@@ -532,6 +543,16 @@ export const SE_TRIM: Record<string, number> = {
   se_c3_aq_pa_chime: -1, se_c3_aq_denpyo: 32.5, se_c3_aq_hakushi: 36, se_c3_aq_ningyo: 34.5, se_c3_aq_glass: 36,
   se_c3_aq_nisshi: 36, se_c3_aq_esa_fuda: 29.5, se_c3_aq_esa_bell: 26.5, se_c3_aq_key: 30.5, se_c3_aq_akubi: 19,
   se_c3_aq_reizo: 26, se_c3_aq_hasso: 36, se_c3_aq_imo_waru: 36, se_c3_aq_card: 27.5, se_c3_aq_kachi: 28.5, se_c3_curtain: 36,
+  // the fourth period (audioMixSuggest): 「よぶ」, みんなの はなまる, the ending; each person's
+  // little sound after the pen (se_c3_e_*) sits 6 dB under the suggestion — an accent under the pen
+  se_c3_yobu: 25, se_c3_minna_hanamaru: -8, se_c3_photo: 29, se_c3_mantle: 36, se_c3_nyukan: 20.5,
+  se_c3_aq_bench: 30.5, se_c3_aq_cart: 33.5,
+  se_c3_e_obaa: 30, se_c3_e_mamekichi: 15, se_c3_e_hoshi_mitsu: 13.5, se_c3_e_hoshi_gen: 30, se_c3_e_hoshi_fumi: 30,
+  se_c3_e_hoshi_kucho: 9, se_c3_e_tsurumi: 30, se_c3_e_sae: 30, se_c3_e_ojii: 30, se_c3_e_tamotsu: 19.5,
+  se_c3_e_tokio: 15, se_c3_e_master: 30, se_c3_e_madam: 13, se_c3_e_bu_body: 26, se_c3_e_maru: 28,
+  se_c3_e_hoshi_tome: 29.5, se_c3_e_hoshi_sawako: 30, se_c3_e_hoshi_yoshie: 18, se_c3_e_jk: 28.5,
+  se_c3_e_hoshi_busdriver: 10, se_c3_e_hoshi_traindriver: 30, se_c3_e_fudeno: 30, se_c3_e_photo_master: 28,
+  se_c3_e_mizumaki: 18, se_c3_e_shun: 5.5, se_c3_e_gusokkun: 28.5, se_c3_e_yakisoban: 7.5,
 };
 export const VOICE_TRIM: Record<string, number> = {
   narr: 24, mother: 15, maruyama: 8, obaa: 15, mamekichi: 15.5, inui: 17, tsurumi: 16, sae: 17, jk: 15.5,

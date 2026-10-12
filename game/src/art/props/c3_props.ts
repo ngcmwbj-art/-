@@ -1074,3 +1074,70 @@ registerProp('prop_c3_uwaya', () => {
     contact: 0,
   } satisfies PropArt;
 });
+
+// ---------------------------------------------------------------- the ending on the breakwater (S29・S31)
+
+/**
+ * S29 (60 10.29 カット1, 62 5.4): ナミエの 店から 運んだ 鉄板 on a low gas stand at the goza
+ * (30–31,32): the yakisoba on it, the 青のり kept apart in a little dish (「……青のりは、別。」),
+ * the steam rising. Shown while flag_c3_end_teppan (the scenario's).
+ */
+registerProp('prop_c3_end_teppan', () =>
+  standProp(34, 20, (p) => {
+    // the stand's legs and the gas bottle behind
+    p.rect(3, 12, 2, 8, '#3A3F48');
+    p.rect(29, 12, 2, 8, '#3A3F48');
+    p.rect(14, 12, 6, 7, '#C8452E');
+    p.hline(14, 19, 12, '#E8705A');
+    // the iron plate, seen a little from above
+    p.rect(0, 5, 34, 7, '#2A2440');
+    p.rect(1, 6, 32, 5, '#3A3F48');
+    p.hline(1, 32, 6, '#6B7186');
+    // the noodles in a heap, sauce-brown, the cabbage's green
+    for (let x = 6; x < 26; x++) {
+      const h = 3 - Math.round(Math.abs(x - 15) / 5);
+      for (let y = 0; y < h; y++) p.set(x, 8 - y, (x + y) % 3 === 0 ? '#F6D98A' : '#C8A06A');
+    }
+    for (const x of [9, 14, 19, 22]) p.set(x, 7, '#7AB84A');
+    p.set(17, 6, '#E0567A');
+    // the 青のり's little dish at the corner, apart
+    p.ellipse(29, 4, 3, 1, '#F4F1E8');
+    p.hline(28, 30, 4, '#3F7A3A');
+  }, {
+    cx: 16,
+    base: 16,
+    shadow: 24,
+    extra: {
+      over: (g, x, y, env) => {
+        // the steam: soft wisps rising and leaning with the sea breeze
+        for (let k = 0; k < 6; k++) {
+          const t = ((env.t / 1400 + k / 6) % 1 + 1) % 1;
+          const sx = x + 16 + (k % 3) * 5 - 5 + Math.round(Math.sin(env.t / 500 + k) * 1.5 + t * 4);
+          const sy = y - 4 - Math.round(t * 18);
+          g.rect(sx, sy, 2, 1, '#FFFFFF', 0.55 * (1 - t));
+        }
+      },
+    },
+  }),
+);
+
+/**
+ * S31 (60 10.29 カット3, 62 12.8): 写真館の 主人's old wooden tripod and box camera, standing on
+ * the breakwater's sea edge looking north at everyone (the lens toward them). Shown while
+ * flag_c3_end_tripod (the scenario's).
+ */
+registerProp('prop_c3_end_tripod', () =>
+  standProp(16, 30, (p) => {
+    // three wooden legs
+    p.line(8, 12, 2, 29, '#8A5A3A');
+    p.line(8, 12, 14, 29, '#8A5A3A');
+    p.line(8, 12, 8, 29, '#6A4A2A');
+    // the box camera, its brass lens facing us (north = the people; we see its back and side)
+    p.rect(3, 4, 10, 8, '#2A2440');
+    p.rect(4, 5, 8, 6, '#3A3F48');
+    p.hline(4, 11, 5, '#6B7186');
+    p.rect(6, 2, 4, 2, '#D9A441');
+    // the shutter release's cable
+    p.line(12, 9, 15, 16, '#1B1733');
+  }, { cx: 8, base: 16, shadow: 12 }),
+);

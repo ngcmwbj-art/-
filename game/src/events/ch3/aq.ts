@@ -794,7 +794,7 @@ addToMap('map_c3_aq_hall', [
   BUMP('trig_c3_aq_hall_w_shut', 1, 11, 1, { notFlag: 'flag_ch3_minna' }),
 ]);
 addToMap('map_c3_aq_iriguchi', [
-  BUMP('trig_c3_aq_glass_shut', 7, 10, 2, { flag: 'flag_ch3_aq_enter' }),
+  BUMP('trig_c3_aq_glass_shut', 7, 10, 2, { flag: 'flag_ch3_aq_enter', notFlag: 'flag_ch3_clear' }),
   BUMP('trig_c3_aq_ura_in_shut', 18, 3, 1, { notFlag: 'flag_ch3_minna' }),
 ]);
 addToMap('map_c3_aq_rouka', [

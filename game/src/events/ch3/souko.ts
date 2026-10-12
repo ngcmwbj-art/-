@@ -392,6 +392,12 @@ function* evtHp(): Co {
     // (their cond is over now: the map takes them off)
     delete a.data.scripted;
   }
+  // S25 straight on (minna.ts)
+  const minna = getScript('evt_ch3_minna');
+  if (minna) {
+    yield 800;
+    yield* minna({ source: 'evt_ch3_hp', map: F().map.id, runDefault: function* () {} });
+  }
   grace();
 }
 registerScript('trig_ch3_hp', function* (): Co {

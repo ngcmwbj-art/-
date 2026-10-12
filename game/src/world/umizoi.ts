@@ -11,7 +11,7 @@ import type { FieldScene } from './field';
 
 /** 夕鳴町 at 11:10 on 9月1日 (flag_ch3_stage 0 once chapter 3 has started, 62 5.1). */
 export function ch3Hirumae(): boolean {
-  return flag('flag_ch3_started') > 0 && flag('flag_ch3_stage') === 0 && !flag('flag_ch3_clear');
+  return flag('flag_ch3_started') > 0 && flag('flag_ch3_stage') === 0 && !flag('flag_ch3_clear') && !flag('flag_c3_end_light');
 }
 
 /**
@@ -22,6 +22,18 @@ export function ch3Graded(def: MapDef | undefined | null): boolean {
   if (!def) return false;
   if (isCh3Map(def)) return true;
   return !isCh2Map(def) && ch3Hirumae();
+}
+
+/**
+ * 夕鳴町 in chapter 3's ending and after it (62 5.3): flag_c3_end_light (the scenario's) 1 = 17:00
+ * on the way home (S32: chapter 1's evening light, 'c6'), 2 = 5:10 the next morning (S33,
+ * pal_c3_akegata 'c5'); after the clear the town stays in its morning. 0 = not this.
+ */
+export function ch3TownTime(def: MapDef | undefined | null): 0 | 1 | 2 {
+  if (!def || isCh3Map(def) || isCh2Map(def) || !flag('flag_ch3_started')) return 0;
+  const t = flag('flag_c3_end_light');
+  if (t === 1 || t === 2) return t;
+  return flag('flag_ch3_clear') ? 2 : 0;
 }
 
 /** The chapter-3 stage a ch3-graded map shows (0 for 夕鳴町 at 11:10). */

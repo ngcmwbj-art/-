@@ -802,6 +802,10 @@ export function ch3Yousu(s: BattleScene, e: EnemyUnit, r: number): string {
     case 'boss_hirosuke':
       if (e.mem.madaSeen && sp2.seen && r % 2 === 0) return sp2.seen;
       return rot(t.yousu);
+    case 'boss_tsugao':
+      // 61 14.3: the second part — he holds the board and watches
+      if ((s.shared.tgPhase ?? 1) >= 2 && sp2.yobu) return sp2.yobu;
+      return rot(t.yousu);
     case 'enemy_nariosame':
       if (shougoNext(s) && sp2.shougo) return sp2.shougo;
       if (!e.status.c3_maki && sp2.after && r % 2 === 0) return sp2.after;

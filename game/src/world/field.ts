@@ -15,7 +15,7 @@ import { Actor, DIR_VEC, dirFromVec } from './actor';
 import * as snd from './audio';
 import { GroundCache } from './ground_cache';
 import { cloneGrade, GRADES, GRADES_C, GRADES_H, gradeCKey, gradeHKey, lerpGrade, type Grade, type GradeCKey, type GradeHKey } from './lighting';
-import { ch3GradeStage, ch3Graded } from './umizoi';
+import { ch3GradeStage, ch3Graded, ch3TownTime } from './umizoi';
 import { applyC3Audio, isC3AudioMap, leaveC3Audio } from './c3audio';
 import { cellAt, condOk, currentStage, hasMap, isCh2Map, isCh3Map, loadMap, setStageSource, stageFlagOf, type LoadedMap } from './maps';
 import { LightState } from './lantern';
@@ -295,8 +295,9 @@ export class FieldScene implements Scene {
   /** Crossing between chapter 1 and 星見台 maps: jump straight to the right grade family. */
   private snapGradeFamily(): void {
     // chapter 3 (62 8.3): 海ぞいの町's maps, and 夕鳴町 at 11:10 (stage 0), take the pal_c3_* presets
-    if (ch3Graded(this.map?.def)) {
-      const g = GRADES_C[gradeCKey(ch3GradeStage(this.map.def))];
+    const townTime = ch3TownTime(this.map?.def);
+    if (townTime || ch3Graded(this.map?.def)) {
+      const g = GRADES_C[townTime === 1 ? 'c6' : townTime === 2 ? 'c5' : gradeCKey(ch3GradeStage(this.map.def))];
       if (this.gradeFamily === 3 && this.gradeT < 1) return;
       this.gradeFamily = 3;
       this.grade = cloneGrade(g);

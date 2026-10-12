@@ -26,6 +26,7 @@ import { ch3AfterAction, ch3Opening, ch3RoundEnd, ch3RoundStart, ch3Start, ch3Wo
 import { roundSeal } from './art/stamps';
 import { doHera, doYaki } from './party_ch3';
 import { aqBeforeParty, aqLoseFinish, aqOrder, doKoe } from './boss_c3aq';
+import { doYobu, tgWinFinish } from './boss_tsugao';
 
 interface Act {
   side: 'party' | 'enemy';
@@ -173,6 +174,8 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
     const finalAtStart = !!s.memo.bossFinal;
     for (const a of acts) {
       if (result) break;
+      // ツガオ決戦 (61 14.3): the gauge at its lock calls off the rest of the round
+      if (s.memo.roundCut === s.round) break;
       // entering the final phase cancels everything left in the round
       if (s.memo.bossFinal && !finalAtStart) break;
       if (s.memo.bossFinal && !(a.cmd?.kind === 'hanko' && (a.cmd.skill === 'skill_okaerinasai' || a.cmd.skill === 'skill_oyasuminasai'))) continue;
@@ -235,7 +238,7 @@ function* runParty(s: BattleScene, c: PartyCmd): Co<BattleResult | null> {
     s.noteActing('');
     // 第3章 (61 12.2): グソっ君's feet will not move — said once, at the first round (ch3 aq)
     if (c.reason === 'status_c3_ashi') return null;
-    const t = u.has('status_nemuri') ? 'status_nemuri' : u.has('status_tsukamare') ? 'status_tsukamare' : u.has('status_toosenbo') ? 'status_toosenbo' : u.has('status_henji') ? 'status_henji' : '';
+    const t = u.has('status_nemuri') ? 'status_nemuri' : u.has('status_tsukamare') ? 'status_tsukamare' : u.has('status_toosenbo') ? 'status_toosenbo' : u.has('status_henji') ? 'status_henji' : u.has('status_c3_mada') ? 'status_c3_mada' : '';
     if (t && u.alive) {
       s.memo['blocked_' + u.id] = 1;
       yield* s.say(statusText(t, 'act', u.name));
@@ -246,7 +249,7 @@ function* runParty(s: BattleScene, c: PartyCmd): Co<BattleResult | null> {
     if (!u.alive || u.has('status_rusu')) return null;
     if (u.has('status_c3_ashi')) return null;
     if (!u.canAct) {
-      const t = u.has('status_nemuri') ? 'status_nemuri' : u.has('status_tsukamare') ? 'status_tsukamare' : u.has('status_henji') ? 'status_henji' : 'status_toosenbo';
+      const t = u.has('status_nemuri') ? 'status_nemuri' : u.has('status_tsukamare') ? 'status_tsukamare' : u.has('status_henji') ? 'status_henji' : u.has('status_c3_mada') ? 'status_c3_mada' : 'status_toosenbo';
       s.memo['blocked_' + u.id] = 1;
       yield* s.say(statusText(t, 'act', u.name));
       return null;
@@ -274,6 +277,9 @@ function* runParty(s: BattleScene, c: PartyCmd): Co<BattleResult | null> {
       break;
     case 'koe':
       yield* doKoe(s, u);
+      break;
+    case 'yobu':
+      yield* doYobu(s, u);
       break;
     case 'hanko':
       yield* doHanko(s, c);
@@ -312,6 +318,9 @@ function noteMove(s: BattleScene, c: PartyCmd): void {
       break;
     case 'koe':
       s.noteActing('ツッコむ', 'tsukkomu');
+      break;
+    case 'yobu':
+      s.noteActing('よぶ', 'yobu');
       break;
     case 'hanko':
       s.noteActing(getSkill(c.skill)?.name ?? 'ハンコ', c.skill === 'skill_okaerinasai' ? 'okaeri' : 'hanko');
@@ -371,7 +380,7 @@ function* roundEnd(s: BattleScene): Co {
     // つかまった／とおせんぼ cost exactly one turn: they come off at the end of
     // the round in which the member's own turn was actually skipped — never
     // in the round they were put on (the victim may already have acted)
-    for (const id of ['status_tsukamare', 'status_toosenbo', 'status_henji']) {
+    for (const id of ['status_tsukamare', 'status_toosenbo', 'status_henji', 'status_c3_mada']) {
       if (!st[id]) continue;
       if (s.memo['blocked_' + u.id]) {
         delete st[id];
@@ -415,6 +424,8 @@ function* finish(s: BattleScene, result: BattleResult): Co<BattleResult> {
   s.list = null;
   s.msg.clearStatic();
   for (const u of s.party) u.acting = false;
+  // ツガオ決戦 (61 14.6): no results, no black — the hall's blue
+  if (result === 'win' && s.memo.tgFinal) return yield* tgWinFinish(s);
   if (result === 'win') {
     yield* victory(s);
     resetKire(s);

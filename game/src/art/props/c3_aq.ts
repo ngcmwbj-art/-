@@ -1384,6 +1384,9 @@ registerProp('prop_c3_aq_shoukaki', () =>
 
 // ================================================================ 4.9 事務所（52 12.5 の部屋）
 
+/** The office's three clocks (tile x): 夕鳴町, 星見台, 海ぞいの町. */
+const JIMU_CLOCKS = [3, 6, 9] as const;
+
 registerProp('prop_c3_aq_jimusho_shell', () => {
   const rows = getMapDef('map_c3_aq_jimusho')?.rows ?? [];
   const wood = boards({ bh: 6, lit: '#6A5A48', base: '#5A4A3A', shade: '#4A3A2E', gap: '#2A2420', nail: '#3A3028', seed: 7211 });
@@ -1400,9 +1403,16 @@ registerProp('prop_c3_aq_jimusho_shell', () => {
     section: '#1B1733',
   });
   const p = sh.p;
-  // the three clocks with their name plates (3,1) 夕鳴町・(6,1) 星見台・(9,1) 海ぞいの町
-  for (const [tx, h, m] of [[3, 5, 0], [6, 4, 59], [9, 12, 0]] as const) {
-    clockFace(p, tx * 16 + 8, 14, 6, h, m);
+  // the three clocks with their name plates (3,1) 夕鳴町・(6,1) 星見台・(9,1) 海ぞいの町: the faces
+  // only — the hands are drawn live (S25: all three running, 60 10.25)
+  for (const tx of JIMU_CLOCKS) {
+    const cx = tx * 16 + 8;
+    p.ellipse(cx, 14, 7, 7, '#3A3F48');
+    p.ellipse(cx, 14, 6, 6, '#F4F1E8');
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2;
+      p.set(Math.round(cx + Math.sin(a) * 5), Math.round(14 - Math.cos(a) * 5), '#6B7186');
+    }
     notice(p, tx * 16 + 2, 23, 12, 4, '#C8C4B8', '#3A3F48', 1);
   }
   // the frosted glass door (13,5)
@@ -1416,6 +1426,24 @@ registerProp('prop_c3_aq_jimusho_shell', () => {
     foot: 0,
     flat: true,
     img: () => img,
+    over: (g, x, y, env) => {
+      // the three run together (the towns share the hour): 12:01 on, 13:00 on once 退勤 is punched (stage 4);
+      // the minute hand creeps with the world's time, the second hand ticks
+      const base = env.flag('flag_ch3_stage') >= 4 ? 13 * 60 : 12 * 60 + 1;
+      const mins = base + Math.floor(env.t / 60000);
+      const sec = Math.floor(env.t / 1000) % 60;
+      for (const tx of JIMU_CLOCKS) {
+        const cx = x + tx * 16 + 8;
+        const cy = y + 14;
+        const hand = (a: number, len: number, c: string) => {
+          for (let k = 1; k <= len; k++) g.rect(Math.round(cx + Math.sin(a) * k), Math.round(cy - Math.cos(a) * k), 1, 1, c);
+        };
+        hand((((mins / 60) % 12) / 12) * Math.PI * 2, 3, '#1B1733');
+        hand(((mins % 60) / 60) * Math.PI * 2, 5, '#1B1733');
+        hand((sec / 60) * Math.PI * 2, 5, AQ.shu);
+        g.rect(cx, cy, 1, 1, '#1B1733');
+      }
+    },
     light: (g, x, y) => warmPool(g, x + 6.5 * 16, y + 4 * 16, 40, 28, '#F6D98A', 0.9),
   } satisfies PropArt;
 });

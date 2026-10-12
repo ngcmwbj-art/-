@@ -8,7 +8,7 @@ import { charIds, charSprite } from '../art/chars';
 import { flag, setFlag } from '../game/state';
 import { ease } from '../engine/tween';
 import { rng } from '../engine/rng';
-import { fillAll, SYS, SYS2, TUT } from '../data/battle';
+import { fillAll, SYS, SYS2, SYS3, TUT } from '../data/battle';
 import type { BattleScene } from './scene';
 import { blankStages, STAT_NAME, type EnemyUnit, type PartyUnit, type Stages } from './model';
 import { ovalStamp } from './art/stamps';
@@ -240,6 +240,8 @@ export function statusText(id: string, kind: 'on' | 'act' | 'off', target: strin
     if (kind === 'on') return [...(target === 'カネナリくん' || target === 'グソっ君' ? SYS2.henjiOnKanenari : SYS2.henjiOnMinato)];
     return fillAll(kind === 'act' ? SYS2.henjiAct : SYS2.henjiOff, { target });
   }
+  // 第3章 (61 8.1): ツガオの 黒い判『まだ』 — 1回の 行動を 失う
+  if (id === 'status_c3_mada') return fillAll(kind === 'on' ? SYS3.madaOn : kind === 'act' ? SYS3.madaAct : SYS3.madaOff, { target });
   const k = STATUS_TEXT[id];
   if (!k) return [];
   return fillAll(SYS[k[kind]], { target });

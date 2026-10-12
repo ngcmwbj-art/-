@@ -15,4 +15,13 @@ import './siren';
 // 第3期（S15〜S24：旧水族館）
 import './aq';
 import './souko';
+// 第4期（S25〜S34：みんなが来る・決戦・エンディング・クリア後）
+import './cuts';
+import '../../ui/cut_c3'; // W: the stills (cut_c3_shuuka・cut_c3_photo・cut_c3_kioku)
+import './minna';
+import './ending';
+import './after';
+import { wrapFushigiObjects } from './fushigi';
 import './debug';
+// (last: みました帳 ③ goes on top of every scenario script of its things)
+wrapFushigiObjects();

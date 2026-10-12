@@ -15,11 +15,11 @@ import { DRM, INS, sirenNote } from './instruments';
 import { cur, dbToGain, midiHz, noteMidi } from './engine';
 import { c3Noon1201, registerSfx, registerSfxLoop } from './index';
 import { seTrim, trimOr1 } from './mix';
-import { duck, duckAmbience } from './music';
-import { layer, parseLayer, se, sub, type SeCtx } from './recipe';
+import { currentPlayer, duck, duckAmbience } from './music';
+import { layer, parseLayer, se, seDefs, sub, type SeCtx } from './recipe';
 import { sfxInfo, sfxTable, type LoopHandle, type SfxOpts } from './registry';
 import { atTime } from './clock';
-import { VOICES } from './voices';
+import { D69, nearestPc, voiceBaseMidi as voiceNote, VOICES } from './voices';
 
 const G_OPEN = '第3章：序・夕鳴町の昼前・荷台';
 const G_MINATO = '第3章：港と町';
@@ -568,7 +568,6 @@ for (const [id, to, label] of [
   ['se_c3_rewind', 'se_rewind', '（別名）巻きもどし ＝ se_rewind'],
   ['se_c3_yakiimo', 'se_yakiimo', '（別名）焼き芋 ＝ se_yakiimo'],
   ['se_c3_mada_stamp', 'se_mada_stamp', '（別名）まだ ＝ se_mada_stamp'],
-  ['se_c3_draw', 'se_hanamaru_draw', '（別名）はなまるを描く ＝ se_hanamaru_draw'],
 ] as const) {
   registerSfx(id, (o) => sfxTable.get(to)?.(o));
   sfxInfo.set(id, { label, group: G_BATTLE });
@@ -1010,4 +1009,185 @@ function cartLoop(opts?: SfxOpts): LoopHandle {
       setTimeout(() => out.disconnect(), (fade + 1.5) * 1000);
     },
   };
+}
+
+
+// ============================================================================
+// 8.11 よぶ・みんなのはなまる・エンディング（第4期）
+
+const G_END = '第3章：よぶ・みんなのはなまる・エンディング';
+CH3_SE_GROUPS.push(G_END);
+
+/** Another recipe inside this one, through this one's fader (sub); a plain registerSfx as it is. */
+function play(c: SeCtx, id: string, o: { at?: number; vol?: number; pitch?: number } = {}): void {
+  if (seDefs.has(id)) {
+    sub(c, id, o);
+    return;
+  }
+  sfxTable.get(id)?.({ at: c.t + (o.at ?? 0) / 1000, vol: c.vol * (o.vol ?? 1), pitch: c.pitch * (o.pitch ?? 1), pan: c.pan });
+}
+
+/**
+ * よぶ (cmd_yobu, 61 14.4 t=0): someone far off answers — footsteps coming
+ * closer on their own ground (level 1 夕鳴町 asphalt, 2 星見台 dirt, 3 海ぞいの町
+ * stone; 4 しゅんたち the hall's tile) and a breath 「はっ」. No voice (61).
+ */
+se('se_c3_yobu', {
+  label: 'よぶ（遠くから足音と、返事の息）',
+  group: G_END,
+  fn(c) {
+    const lv = Math.max(1, Math.min(4, Math.round(c.opts.level ?? 1)));
+    const step = ['se_step_asphalt', 'se_step_dirt', 'se_step_stone', 'se_step_tile'][lv - 1];
+    for (let i = 0; i < 4; i++) play(c, step, { at: i * 220, vol: 0.4 + (0.6 * i) / 3 });
+    layer(c, 'noise env=60/200/0/150 dur=150 v=.004 flt=BP900q1 at=900');
+  },
+});
+
+/**
+ * 61 14.4 / 63 8.11: what each person adds after the pen (se_c3_draw) — the
+ * thing they drew with. se_c3_e_<npc id without npc_> (se_c3_e_obaa,
+ * se_c3_e_hoshi_mitsu …; se_c3_e_shun / _gusokkun / _yakisoban for ④).
+ */
+const DRAW_EXTRA: [string, string, (c: SeCtx) => void][] = [
+  ['obaa', '赤ペンの採点', (c) => play(c, 'se_pen_write', { vol: 0.5 })],
+  ['mamekichi', '豆腐の水を切る「ちゃぷ」', (c) => play(c, 'se_drip', { pitch: 0.8, vol: 0.6 })],
+  ['hoshi_mitsu', 'トマトのへた「ぷちっ」', (c) => play(c, 'se_wakime_poki', { pitch: 1.3, vol: 0.5 })],
+  ['hoshi_gen', '牛の鼻輪「ちん」', (c) => void layer(c, 'sine f=1700 env=0/300/0/80 dur=10 v=.006')],
+  ['hoshi_fumi', '星（灯りの1音）', (c) => void layer(c, 'tri f=1568 env=2/260/0/120 dur=20 v=.006')],
+  ['hoshi_kucho', '回覧板のはんこ風', (c) => play(c, 'se_stamp_light', { vol: 0.4 })],
+  ['tsurumi', '靴をそろえる「ざっ」', (c) => void layer(c, 'noise env=0/40/0/20 dur=30 v=.026 flt=LP600')],
+  ['sae', '筆を水入れでゆすぐ「ちゃぽ」', (c) => void layer(c, 'sine f=700→1100/60 env=0/90/0/40 dur=30 v=.006')],
+  ['ojii', 'みかんの皮「ぴりっ」', (c) => void layer(c, 'noise env=0/60/0/20 dur=40 v=.016 flt=BP3000q1.5')],
+  ['tamotsu', 'ザリガニのはさみ', (c) => play(c, 'se_tsuri_pochan', { vol: 0.4 })],
+  ['tokio', '時計の針（チッ）', (c) => DRM.drm_tick({ t: c.t, vel: 0.8 * c.vol, dest: c.dest })],
+  ['master', 'カップを置く「かちゃ」', (c) => void layer(c, 'tri f=2600 env=0/50/0/20 dur=8 v=.006')],
+  ['madam', '日傘を開く', (c) => play(c, 'se_umbrella_open', { vol: 0.3 })],
+  ['bu_body', '影と本体で2つ', (c) => play(c, 'se_hanamaru_draw', { at: 250, pitch: 0.9, vol: 0.6 })],
+  ['maru', 'おにぎりののり「ぱり」', (c) => void layer(c, 'noise env=0/30/0/15 dur=20 v=.006 flt=HP3000 rep=2x40')],
+  ['hoshi_tome', '稲穂のさらっ', (c) => void layer(c, 'noise env=10/80/0/40 dur=60 v=.005 flt=HP4000')],
+  ['hoshi_sawako', '筆をはらう「すっ」', (c) => void layer(c, 'noise env=20/120/0/40 dur=80 v=.013 flt=BP2500q1')],
+  ['hoshi_yoshie', '湯のみ', (c) => play(c, 'se_h_yunomi', { vol: 0.4 })],
+  ['jk', '包丁の「とん」', (c) => void layer(c, 'tri f=420→300/20 env=0/50/0/20 dur=10 v=.008')],
+  ['hoshi_busdriver', '消印', (c) => play(c, 'se_stamp_light', { pitch: 1.3, vol: 0.4 })],
+  ['hoshi_traindriver', '切符の穴「ぱちん」', (c) => play(c, 'se_h_seiriken', { pitch: 1.2, vol: 0.5 })],
+  ['fudeno', '墨をする「しゅっ」', (c) => void layer(c, 'noise env=30/150/0/50 dur=120 v=.022 flt=BP1800q0.8 am=8/.5')],
+  ['photo_master', 'レンズのふた「ぽこ」', (c) => void layer(c, 'sine f=500→600/30 env=0/80/0/30 dur=20 v=.008')],
+  ['mizumaki', 'じょうろの水（3つ）', (c) => [0, 110, 230].forEach((at, i) => play(c, 'se_drip', { at, pitch: 1 + i * 0.12, vol: 0.4 }))],
+  ['shun', 'しゅんの朱', (c) => play(c, 'se_stamp_light', { vol: 0.6 })],
+  ['gusokkun', 'グソっ君のはさみ「ちょき」', (c) => void layer(c, 'tri f=2200 env=0/25/0/10 dur=6 v=.008 rep=2x70')],
+  ['yakisoban', 'ヤキソバンのヘラ', (c) => DRM.drm_hera({ t: c.t, vel: 0.7 * c.vol, dest: c.dest })],
+];
+for (const [key, label, fn] of DRAW_EXTRA) se(`se_c3_e_${key}`, { label: `よぶ：${label}`, group: G_END, fn });
+
+/**
+ * 「みんなの はなまる」 lands (skill_minna_hanamaru, 8.8): the heavy 「どん」, then a
+ * petal for everyone who came — a sine on each one's own voice note (60 ms
+ * apart, 24 at most) — and しゅん's 「ぽん」 and the star last. The voices are
+ * the ones bgm_boss_tsugao was given (addVoiceLayer); count overrides how many.
+ */
+se('se_c3_minna_hanamaru', {
+  label: '「みんなの はなまる」の着弾（来た人の数の花びら）',
+  group: G_END,
+  max: 1,
+  fn(c) {
+    play(c, 'se_stamp_heavy', { pitch: 0.85 });
+    const asked = ((currentPlayer()?.state.layers as string[] | undefined) ?? []).filter((v) => v !== 'shun');
+    const notes = asked.map((v) => voiceNote(v)).filter((m): m is number => m !== null);
+    const n = Math.max(0, Math.min(24, Math.round(c.opts.count ?? notes.length)));
+    for (let i = 0; i < n; i++) {
+      const m = notes.length ? notes[i % notes.length] : [62, 66, 69, 71, 76][i % 5] + 12 * (i % 2);
+      layer(c, `sine f=${midiHz(nearestPc(m, D69)).toFixed(1)} env=2/300/0/120 dur=40 v=.006 at=${200 + 60 * i}`);
+    }
+    const end = 200 + 60 * Math.max(0, n - 1);
+    play(c, 'se_stamp_light', { at: end + 200, vol: 0.8 });
+    play(c, 'se_star', { at: end + 250 });
+  },
+});
+
+/** 写真館の主人のカメラ (S31): the big old shutter 「カシャッ」 and the lens cap 「ぽこ」. No flash sound. */
+se('se_c3_photo', {
+  label: '集合写真のシャッター（カシャッ、ぽこ）',
+  group: G_END,
+  layers: [
+    'tri f=1400 env=0/20/0/8 dur=6 v=.016',
+    'noise env=0/50/0/20 dur=30 v=.012 flt=BP2200q1.2 at=8',
+    'tri f=900 env=0/30/0/10 dur=8 v=.010 at=60',
+    'sine f=500→600/30 env=0/80/0/30 dur=20 v=.008 at=600',
+  ],
+});
+
+/** ヤキソバンがマントをたたむ (S29: たかしにもどる): the flap and the fold. */
+se('se_c3_mantle', {
+  label: 'マントをたたむ（ばさっ、たたむ）',
+  group: G_END,
+  layers: ['noise env=5/120/0/60 dur=80 v=.010 flt=BP1200q0.9 am=20/.6', 'noise env=50/300/0/150 dur=200 v=.006 flt=BP2000q0.6 at=350'],
+});
+
+/**
+ * S25 の入館の打刻 (8.9, 10.3): エゴ clocks everyone in — se_dakoku once a
+ * person, 0.45 s apart (0.3 s past 10, 0.22 s past 20; about 6 s at most),
+ * the music −8 dB under it. count = how many came. dakokuRun(n) in index.ts
+ * waits for it (0.6 s after the last).
+ */
+export function dakokuGap(n: number): number {
+  return n > 20 ? 0.22 : n > 10 ? 0.3 : 0.45;
+}
+se('se_c3_nyukan', {
+  label: 'S25 入館の打刻（来た人の数だけ。count）',
+  group: G_END,
+  max: 1,
+  fn(c) {
+    const n = Math.max(0, Math.min(24, Math.round(c.opts.count ?? 1)));
+    if (!n) return;
+    const gap = dakokuGap(n);
+    duck(dbToGain(-8), 0.3, gap * n, 1.0, c.t);
+    for (let i = 0; i < n; i++) play(c, 'se_dakoku', { at: i * gap * 1000, vol: 0.85 });
+  },
+});
+
+/**
+ * 回覧板にはなまるを描く (61 14.4, 63 8.11): se_hanamaru_draw with the size of
+ * the hand (pitch: a child 1.15, an adult 1.0, the old 0.92 — from `who`
+ * unless pitch is given), then that person's own small sound (se_c3_e_<who>).
+ * sfx('se_c3_draw', { who: 'npc_obaa' }).
+ */
+const CHILD = new Set(['sae', 'hoshi_sawako', 'c3_mago', 'c3_kid', 'shun']);
+const ELDER = new Set(['obaa', 'ojii', 'maru', 'hoshi_tome', 'hoshi_yoshie', 'fudeno', 'photo_master', 'c3_toudai', 'c3_jouren', 'c3_tsuri']);
+registerSfx('se_c3_draw', (o) => {
+  const who = (o?.who ?? '').replace(/^npc_/, '');
+  const hand = CHILD.has(who) ? 1.15 : ELDER.has(who) ? 0.92 : 1;
+  sfxTable.get('se_hanamaru_draw')?.({ ...o, pitch: o?.pitch ?? hand });
+  if (!who) return;
+  const at = (o?.at ?? cur().ctx.currentTime) + 0.25;
+  sfxTable.get(`se_c3_e_${who}`)?.({ at, vol: o?.vol });
+});
+sfxInfo.set('se_c3_draw', { label: 'よぶ：回覧板にはなまるを描く（＝ se_hanamaru_draw ＋その人の小さな音。who）', group: G_END });
+
+/** 長いすの木のきしみ (amb_c3_aq_hall ③ once, loud: S26 ツガオが立つ・S27 座る). */
+se('se_c3_aq_bench', {
+  label: 'ホールの長いすがきしむ',
+  group: G_AQ,
+  layers: ['sine f=400→380/200 env=10/200/0/120 dur=200 v=.012', 'noise env=20/150/0/80 dur=120 v=.003 flt=BP700q2'],
+});
+
+/** エゴの台車が近づいて止まる (the one-shot of se_c3_aq_cart's loop: about 2 s). */
+se('se_c3_aq_cart', {
+  label: 'エゴの台車（近づいて止まる。1回）',
+  group: G_AQ,
+  layers: [
+    'noise env=600/0/1/300 dur=1500 v=.006 flt=LP800 am=14/.4',
+    'tri f=300 env=0/40/0/20 dur=10 v=.004 at=200',
+    'tri f=300 env=0/40/0/20 dur=10 v=.006 at=850',
+    'tri f=300 env=0/40/0/20 dur=10 v=.008 at=1500',
+  ],
+});
+
+// The names the ending's script asks for (E): the same sounds as before.
+for (const [id, to, label, o] of [
+  ['se_shock', 'se_emote', '（別名）衝撃の「！」＝ se_emote（焼きそばの3回目。第1章・第2章と同じ音）', {}],
+  ['se_emote_exclaim', 'se_emote', '（別名）「！」＝ se_emote', {}],
+  ['se_plate', 'se_c3_donburi', '（別名）焼きそばの皿を置く ＝ se_c3_donburi（高く、軽く）', { pitch: 1.4, vol: 0.6 }],
+] as const) {
+  registerSfx(id, (x) => sfxTable.get(to)?.({ ...x, pitch: (x?.pitch ?? 1) * ((o as SfxOpts).pitch ?? 1), vol: (x?.vol ?? 1) * ((o as SfxOpts).vol ?? 1) }));
+  sfxInfo.set(id, { label, group: G_END });
 }

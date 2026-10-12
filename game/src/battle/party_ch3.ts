@@ -350,6 +350,13 @@ function* yakiKosogeru(s: BattleScene, _u: PartyUnit, t: PartyUnit | EnemyUnit):
       arrows(s, e, false);
       pages.push(...fillAll(SYS3.kosogeruEnemy, { enemy: e.name }));
     }
+    // 61 14.2: ツガオ決戦の 1段目 — 回覧板の 黒い「まだ」が 1枚 はがれ、次の ハンコ 1回は まるごと しみこむ
+    if (e.id === 'boss_tsugao' && (s.shared.tgPhase ?? 1) === 1) {
+      s.memo.tgFree = 1;
+      e.params.kairanPeel = s.t;
+      did = true;
+      pages.unshift(...SYS3.kosogeruMada);
+    }
   }
   yield 200;
   yield* slide(b, 300, 236, 1, 12);
