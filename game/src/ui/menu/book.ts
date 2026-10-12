@@ -27,6 +27,7 @@ import { charSprite, hasChar, idleFrame } from '../../art/chars';
 import { enemyArt } from '../../art/enemies';
 import { hanamaruFrame, kakimojiSmall, ovalStamp } from '../../battle/art/stamps';
 import { getFushigi } from '../../world/fushigi';
+import { FUSHIGI3 } from '../../data/text/c3_fushigi';
 import { digitsWidth, drawDigits } from '../digits';
 import { tomatoIcon } from '../icons';
 import { ctxText, drawCursor, drawMarker, dottedLine, drawTape, fitWrap, pencilLine, phraseWrap as wrap, rectA, textW, UI } from '../window';
@@ -177,6 +178,17 @@ export const BOOK2_ENEMIES = ['enemy_sune_tomato', 'enemy_henoheno_kacho', 'enem
 /** ② ツッコミ: 19 lines (6.9), with the boss (セキトメ's two, 02 #65). */
 export const TSUKKOMI2_ENEMIES = [...BOOK2_ENEMIES, 'boss_yobimodoshi'];
 
+// ---- data: ③ 海ぞいの町 (60_ch3_story 8章・6.0) -----------------------------------------------
+
+/** ③ ふしぎ: 見出し, place, and what is written on its page (60 8章). */
+export const FUSHIGI3_BOOK: [string, string, string][] = Object.values(FUSHIGI3).map((f) => [f.title, f.place, f.book]);
+
+/** The seven 「あいて」 of ③ (通常5・中ボス2, 60 6.0). */
+export const BOOK3_ENEMIES = ['enemy_nefuda', 'enemy_hoshisugi', 'enemy_asobitarin', 'enemy_yokodori', 'enemy_junro', 'enemy_okawarinabe', 'enemy_nariosame'];
+
+/** ③ ツッコミ: the seven and the four battles of the people (ツガオ初戦・ヒロスケ・ポコシャ・決戦). */
+export const TSUKKOMI3_ENEMIES = [...BOOK3_ENEMIES, 'boss_tsugao_1', 'boss_hirosuke', 'boss_pokosha', 'boss_tsugao'];
+
 interface BookText {
   name: string;
   shotai: string;
@@ -200,7 +212,7 @@ export interface TsukkomiEntry {
 }
 
 interface Volume {
-  n: 1 | 2;
+  n: 1 | 2 | 3;
   fushigi: [string, string, string][];
   done(i: number): boolean;
   pressed(i: number): string;
@@ -212,9 +224,13 @@ interface Volume {
   flag: string;
 }
 
-function fushigiId(vol: 1 | 2, i: number): string {
+function fushigiId(vol: 1 | 2 | 3, i: number): string {
   const nn = String(i + 1).padStart(2, '0');
-  return vol === 1 ? `fushigi_${nn}` : `fushigi_ch2_${nn}`;
+  return vol === 1 ? `fushigi_${nn}` : vol === 2 ? `fushigi_ch2_${nn}` : `fushigi_ch3_${nn}`;
+}
+
+export function fushigi3Done(i: number): boolean {
+  return flag(`flag_fushigi_ch3_${String(i + 1).padStart(2, '0')}`) > 0;
 }
 
 export function fushigiDoneN(i: number): boolean {
@@ -273,6 +289,18 @@ const VOL2: Volume = {
   tape: '#9BCB6B',
   tabOn: '#D6EDB8',
   flag: '#9BCB6B',
+};
+
+const VOL3: Volume = {
+  n: 3,
+  fushigi: FUSHIGI3_BOOK,
+  done: fushigi3Done,
+  pressed: (i) => FUSHIGI3_BOOK[i][2],
+  enemies: BOOK3_ENEMIES,
+  tsukkomiEnemies: TSUKKOMI3_ENEMIES,
+  tape: '#5A9EC8',
+  tabOn: '#CBE6F5',
+  flag: '#5A9EC8',
 };
 
 function linesOf(id: string, vol: Volume): string[] {
@@ -336,7 +364,29 @@ export function bookCountsCh2(): { fushigi: number; aite: number; tsukkomi: numb
 
 /** Chapter 2 has begun: the book has its second notebook. */
 export function hasBook2(): boolean {
-  return flag('flag_ch2_started') > 0;
+  return flag('flag_ch2_started') > 0 || flag('flag_ch3_started') > 0;
+}
+
+/** Chapter 3 has begun: the third notebook 「海ぞいの町 みました帳 ③」. */
+export function hasBook3(): boolean {
+  return flag('flag_ch3_started') > 0;
+}
+
+/** ③'s counts (ふしぎ /10, あいて /7, ツッコミ). */
+export function bookCountsCh3(): { fushigi: number; aite: number; tsukkomi: number } {
+  let f = 0;
+  for (let i = 0; i < FUSHIGI3_BOOK.length; i++) if (fushigi3Done(i)) f++;
+  const a = BOOK3_ENEMIES.filter((id) => flag('flag_book_' + id)).length;
+  return { fushigi: f, aite: a, tsukkomi: seenIn(VOL3).length };
+}
+
+export function tsukkomiTotalCh3(): number {
+  return totalIn(VOL3, 0);
+}
+
+/** The notebooks there are now, in order. */
+function vols(): (1 | 2 | 3)[] {
+  return hasBook3() ? [1, 2, 3] : hasBook2() ? [1, 2] : [1];
 }
 
 // ---- covers ---------------------------------------------------------------------------------
@@ -356,7 +406,7 @@ const coverCache = new Map<string, HTMLCanvasElement>();
  * (`tag`), the vegetable delivery ぴーちゃん's white feather (`feather`),
  * tucked in at the top right and sticking out 3px over the edge (52 13.2).
  */
-export function bookCover(vol: 1 | 2, done: boolean, tag = false, feather = false, mizube = false, uribo = false): HTMLCanvasElement {
+export function bookCover(vol: 1 | 2 | 3, done: boolean, tag = false, feather = false, mizube = false, uribo = false): HTMLCanvasElement {
   const key = `${vol}:${done}:${tag}:${feather}:${mizube}:${uribo}`;
   let c = coverCache.get(key);
   if (c) return c;
@@ -369,9 +419,10 @@ export function bookCover(vol: 1 | 2, done: boolean, tag = false, feather = fals
     ctx.fillRect(x, y + T, ww, hh);
     ctx.globalAlpha = 1;
   };
-  const base = vol === 1 ? '#2F4A8A' : '#2E6B4A';
-  const dark = vol === 1 ? '#22386C' : '#1F4E36';
-  const light = vol === 1 ? '#4A6AB0' : '#3FA66B';
+  // ③ in the sea's blue (62 12.10)
+  const base = vol === 1 ? '#2F4A8A' : vol === 2 ? '#2E6B4A' : '#2E6A96';
+  const dark = vol === 1 ? '#22386C' : vol === 2 ? '#1F4E36' : '#1F4E72';
+  const light = vol === 1 ? '#4A6AB0' : vol === 2 ? '#3FA66B' : '#4A8EBE';
   r(3, 3, w, h, '#0B0B14', 0.45);
   r(1, 0, w - 2, h, UI.border);
   r(0, 1, w, h - 2, UI.border);
@@ -403,7 +454,8 @@ export function bookCover(vol: 1 | 2, done: boolean, tag = false, feather = fals
   r(lx, ly, lw, 1, '#FFFFFF');
   drawText(ctx, PRINTED, lx + 4, ly + 3 + T, { color: base, spacing: -2 });
   // hand-written title (pencil, doubled 1px like the ending's cover), a line apart
-  const lines = vol === 1 ? ['夕鳴町', 'みました帳 ①'] : done ? ['星見台', 'みました帳 ②'] : ['', 'みました帳 ②'];
+  const lines =
+    vol === 1 ? ['夕鳴町', 'みました帳 ①'] : vol === 2 ? (done ? ['星見台', 'みました帳 ②'] : ['', 'みました帳 ②']) : done ? ['海ぞいの町', 'みました帳 ③'] : ['', 'みました帳 ③'];
   lines.forEach((l, i) => {
     if (!l) return;
     const tw = textW(l);
@@ -423,7 +475,23 @@ export function bookCover(vol: 1 | 2, done: boolean, tag = false, feather = fals
   const nx = lx + lw - textW(name) - 2;
   drawSmall(ctx, name, nx, cy + 18 + T, '#FBF3DC');
   r(nx - 4, cy + 35, lx + lw - nx + 4, 1, light);
-  if (vol === 2) {
+  if (vol === 3) {
+    // a little red-and-white lighthouse sticker (62 12.10), and the はなまる once chapter 3 is finished
+    const sx = lx + lw - 8;
+    const sy = ly - 9;
+    r(sx + 2, sy, 4, 2, '#FFE7A3');
+    r(sx + 1, sy + 2, 6, 3, '#E23B2E');
+    r(sx + 1, sy + 5, 6, 2, '#F4F1E8');
+    r(sx + 1, sy + 7, 6, 2, '#E23B2E');
+    r(sx + 1, sy + 9, 6, 2, '#F4F1E8');
+    r(sx, sy + 11, 8, 2, '#5A6A8A');
+    if (done) {
+      const hm = hanamaruFrame(30, 1, false, 2);
+      ctx.globalAlpha = 0.95;
+      ctx.drawImage(hm, w - 40, h - 36 + T);
+      ctx.globalAlpha = 1;
+    }
+  } else if (vol === 2) {
     // a red tomato sticker and a gold star sticker, a little crooked
     ctx.drawImage(stickerTomato(), lx + lw - 9, ly - 7 + T);
     ctx.drawImage(stickerStar(), 22, h - 30 + T);
@@ -562,7 +630,7 @@ export function bookLabelW(): number {
 /** Where an index row's number starts (the list's left edge). */
 const NUM_X = LP.x - 1;
 /** The notebook flags on the left edge (16×12). */
-const FLAG_Y = [SP.y + 34, SP.y + 50];
+const FLAG_Y = [SP.y + 34, SP.y + 50, SP.y + 66];
 /** Changing notebooks: the cover lies there, then opens. */
 const COVER_IN = 110;
 const COVER_HOLD = 600;
@@ -578,20 +646,24 @@ const ROW_H = 18;
 const LIST_Y = SP.y + 30;
 
 export class BookPage implements MenuPage {
-  private vol: 1 | 2 = 1;
+  private vol: 1 | 2 | 3 = 1;
   private sec = 0;
   // (one per section: ② has six with 『むし』, 『みずべ』 and 『はじめて』, 02 #81・#89)
   private sel = [
+    [0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0],
   ];
   private scroll = [
     [0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0],
   ];
 
   /** The sections of the open notebook (② gets 『むし』 once 捕まえない自由研究 has begun, 02_ch2_index #64). */
-  private sections(vol: 1 | 2 = this.vol): string[] {
+  private sections(vol: 1 | 2 | 3 = this.vol): string[] {
+    // ③: ふしぎ・あいて・ツッコミ
+    if (vol === 3) return SECTIONS;
     const base = vol === 2 && hasMushi() ? [...SECTIONS, MUSHI_TAB] : SECTIONS;
     // 『みずべ』（02 #81）：① ② の いちばん うしろ
     const mz = hasMizube(vol) ? [...base, MIZUBE_TAB] : base;
@@ -612,10 +684,14 @@ export class BookPage implements MenuPage {
   private secT = 999;
   /** Since the notebooks were swapped (the cover animation). */
   private volT = 999;
-  private fromVol: 1 | 2 = 1;
+  private fromVol: 1 | 2 | 3 = 1;
 
   private get v(): Volume {
-    return this.vol === 2 ? VOL2 : VOL1;
+    return this.vol === 3 ? VOL3 : this.vol === 2 ? VOL2 : VOL1;
+  }
+  /** ① ② for the side pages (『みずべ』『むし』『はじめて』 are not in ③). */
+  private get v12(): 1 | 2 {
+    return this.vol === 1 ? 1 : 2;
   }
 
   private opened = false;
@@ -624,10 +700,10 @@ export class BookPage implements MenuPage {
     // the notebook of the chapter being played is the one on top when the menu opens
     if (!this.opened) {
       this.opened = true;
-      this.vol = hasBook2() ? 2 : 1;
+      this.vol = hasBook3() ? 3 : hasBook2() ? 2 : 1;
       this.sec = 0;
     }
-    if (!hasBook2()) this.vol = 1;
+    if (!vols().includes(this.vol)) this.vol = 1;
     // with two notebooks (chapter 2 on), the one on top lies closed on its cover — its
     // stickers showing — until the cursor goes in (chapter 1's page opens as it always did)
     this.closed = hasBook2();
@@ -635,7 +711,7 @@ export class BookPage implements MenuPage {
   }
 
   enter(m: MenuCtx): boolean {
-    if (!hasBook2()) this.vol = 1;
+    if (!vols().includes(this.vol)) this.vol = 1;
     // opened: the cover turns over (after it has been seen for half a second at least)
     if (this.closed) {
       this.closed = false;
@@ -653,11 +729,11 @@ export class BookPage implements MenuPage {
 
   private count(): number {
     const v = this.v;
-    if (this.isMizube) return mizubeRows(this.vol).length;
-    if (this.isHajimete) return hajimeteRows(this.vol).length;
+    if (this.isMizube) return mizubeRows(this.v12).length;
+    if (this.isHajimete) return hajimeteRows(this.v12).length;
     if (this.isMushi) return mushiRows().length;
     if (this.sec === 0) return v.fushigi.length + (v.n === 2 ? corner2().length : 0) + (v.n === 1 && hasTokeiPage() ? 1 : 0);
-    return this.sec === 1 ? v.enemies.length : totalIn(v, v.n === 1 ? 19 : 17);
+    return this.sec === 1 ? v.enemies.length : Math.max(1, totalIn(v, v.n === 1 ? 19 : v.n === 2 ? 17 : 1));
   }
 
   update(_m: MenuCtx, dt: number, input: Input): boolean {
@@ -673,7 +749,7 @@ export class BookPage implements MenuPage {
     }
     if (input.repeat('right')) this.turn(1);
     else if (input.repeat('left')) this.turn(-1);
-    else if (input.pressed('dash') && hasBook2()) this.swap(this.vol === 1 ? 2 : 1, 0);
+    else if (input.pressed('dash') && hasBook2()) this.swap(this.nextVol(1), 0);
     const n = this.count();
     if (input.repeat('down')) this.move(1, n);
     else if (input.repeat('up')) this.move(-1, n);
@@ -690,7 +766,7 @@ export class BookPage implements MenuPage {
     const next = this.sec + d;
     const last = this.sections().length - 1;
     if (hasBook2() && (next > last || next < 0)) {
-      const other = this.vol === 1 ? 2 : 1;
+      const other = this.nextVol(next > last ? 1 : -1);
       this.swap(other, next > last ? 0 : this.sections(other).length - 1);
       return;
     }
@@ -699,7 +775,14 @@ export class BookPage implements MenuPage {
     sfx('se_page');
   }
 
-  private swap(vol: 1 | 2, sec: number): void {
+  /** The next notebook along (① → ② → ③ → ①). */
+  private nextVol(d: number): 1 | 2 | 3 {
+    const vs = vols();
+    const i = vs.indexOf(this.vol);
+    return vs[(i + d + vs.length) % vs.length];
+  }
+
+  private swap(vol: 1 | 2 | 3, sec: number): void {
     if (vol === this.vol) return;
     this.fromVol = this.vol;
     this.vol = vol;
@@ -727,10 +810,10 @@ export class BookPage implements MenuPage {
       g.text('みました帳', LP.x + 8, SP.y + 7, { color: UI.text });
       drawCircledNum(g, v.n, LP.x + 8 + textW('みました帳') + 2, SP.y + 11, UI.text);
     } else drawHeader(g, 'みました帳', LP.x, SP.y + 6, v.tape, 1, 9 + v.n);
-    const c = v.n === 1 ? bookCounts() : bookCountsCh2();
-    const have = this.isHajimete ? hajimeteHave(this.vol)[0] : this.isMizube ? mizubeHave(this.vol)[0] : this.isMushi ? mushiSeenCount() : this.sec === 0 ? c.fushigi : this.sec === 1 ? c.aite : c.tsukkomi;
+    const c = v.n === 1 ? bookCounts() : v.n === 2 ? bookCountsCh2() : bookCountsCh3();
+    const have = this.isHajimete ? hajimeteHave(this.v12)[0] : this.isMizube ? mizubeHave(this.v12)[0] : this.isMushi ? mushiSeenCount() : this.sec === 0 ? c.fushigi : this.sec === 1 ? c.aite : c.tsukkomi;
     // (『むし』 counts the five: the beetle is a bonus)
-    const total = this.isHajimete ? hajimeteHave(this.vol)[1] : this.isMizube ? mizubeHave(this.vol)[1] : this.isMushi ? 5 : this.sec === 0 ? v.fushigi.length : this.count();
+    const total = this.isHajimete ? hajimeteHave(this.v12)[1] : this.isMizube ? mizubeHave(this.v12)[1] : this.isMushi ? 5 : this.sec === 0 ? v.fushigi.length : this.count();
     drawDigits(g, `${have}/${total}`, FOLD - (two ? 6 : 12), SP.y + 12, { color: UI.pencil, align: 'right' });
     const k = Math.min(1, this.secT / 120);
     g.alpha(k, () => {
@@ -777,16 +860,16 @@ export class BookPage implements MenuPage {
    * stickers; the open one sticks out 3 px further and is the brighter.
    */
   private drawFlags(g: Gfx, m: MenuCtx): void {
-    ([1, 2] as const).forEach((n, i) => {
+    vols().forEach((n, i) => {
       const on = n === this.vol;
-      const col = n === 1 ? VOL1.flag : VOL2.flag;
+      const col = n === 1 ? VOL1.flag : n === 2 ? VOL2.flag : VOL3.flag;
       const x = SP.x - 14 - (on ? 3 : 0);
       const y = FLAG_Y[i];
       rectA(g, x + 1, y + 2, 20, 12, UI.night, 0.35);
-      g.rect(x, y, 20, 12, n === 1 ? '#4A8AA0' : '#4E7A36');
+      g.rect(x, y, 20, 12, n === 1 ? '#4A8AA0' : n === 2 ? '#4E7A36' : '#2E6A96');
       g.rect(x + 1, y + 1, 19, 10, on ? col : blendFlag(col));
       g.rect(x + 1, y + 1, 19, 1, '#FFFFFF');
-      g.rect(x + 1, y + 9, 19, 2, n === 1 ? '#5FB0C8' : '#6FA04A');
+      g.rect(x + 1, y + 9, 19, 2, n === 1 ? '#5FB0C8' : n === 2 ? '#6FA04A' : '#7AB8DC');
       drawCircledNum(g, n, x + 3, y + 1, on ? UI.text : UI.pencil);
       // the page is open on this one: a 朱 tick by its number
       if (on && m.focus) g.rect(x + 1, y + 4, 1, 3, UI.accent);
@@ -798,7 +881,8 @@ export class BookPage implements MenuPage {
    * a moment and is opened like a page (0.23 s) onto the new index.
    */
   private drawCoverSwap(g: Gfx, m: MenuCtx): void {
-    const img = bookCover(this.vol, !!flag('flag_ch2_clear'), this.vol === 2 && hasEarTag(), this.vol === 2 && hasFeather(), zukanSticker(this.vol), this.vol === 2 && flag('flag_ashiato_uribo') > 0);
+    const done = this.vol === 3 ? !!flag('flag_ch3_clear') : !!flag('flag_ch2_clear');
+    const img = bookCover(this.vol, done, this.vol === 2 && hasEarTag(), this.vol === 2 && hasFeather(), this.vol !== 3 && zukanSticker(this.v12), this.vol === 2 && flag('flag_ashiato_uribo') > 0);
     const x0 = SP.x + 5;
     const y0 = SP.y + 6 - COVER_TOP;
     if (this.closed && !m.focus) {
@@ -840,8 +924,8 @@ export class BookPage implements MenuPage {
     };
     const num = (i: number) => String(i + 1).padStart(2, '0');
     // 『むし』: the five by name (the beetle, a bonus, after them without a number)
-    if (this.isMizube) return mizubeRows(this.vol).map((r) => wrapRow(r.name, r.done, r.num, r.pencil ? UI.pencil : UI.text));
-    if (this.isHajimete) return hajimeteRows(this.vol).map((r) => wrapRow(r.name, r.done, r.num, r.pencil ? UI.pencil : UI.text));
+    if (this.isMizube) return mizubeRows(this.v12).map((r) => wrapRow(r.name, r.done, r.num, r.pencil ? UI.pencil : UI.text));
+    if (this.isHajimete) return hajimeteRows(this.v12).map((r) => wrapRow(r.name, r.done, r.num, r.pencil ? UI.pencil : UI.text));
     if (this.isMushi) return mushiRows().map((b, i) => wrapRow(b.name, mushiSeenKind(b.kind), b.kind === 'kabuto' ? '' : num(i), UI.text));
     if (this.sec === 0) {
       const r = v.fushigi.map((f, i) => wrapRow(f[0], v.done(i), num(i), UI.text));
@@ -930,8 +1014,8 @@ export class BookPage implements MenuPage {
       dottedLine(g, x, y + 32, x + w - 40, UI.textDim, 3);
       g.text('まだ 書いていない。', x, y + 44, { color: UI.textDim });
     };
-    if (this.isMizube) return drawMizubePage(g, mizubeRows(this.vol)[i], x, y, w, this.vol);
-    if (this.isHajimete) return drawHajimetePage(g, hajimeteRows(this.vol)[i], x, y, w, this.vol);
+    if (this.isMizube) return drawMizubePage(g, mizubeRows(this.v12)[i], x, y, w, this.v12);
+    if (this.isHajimete) return drawHajimetePage(g, hajimeteRows(this.v12)[i], x, y, w, this.v12);
     if (this.isMushi) {
       drawMushiPage(g, mushiRows()[i], x, y, w);
       return;
@@ -1078,7 +1162,7 @@ function nameOf(id: string, v: Volume): string {
 }
 
 function blendFlag(col: string): string {
-  return col === VOL1.flag ? '#B8DDE6' : '#C3D9AE';
+  return col === VOL1.flag ? '#B8DDE6' : col === VOL2.flag ? '#C3D9AE' : '#B4D2E6';
 }
 
 /** ① / ② in 5×7 pixels inside a 9×9 ring. */
