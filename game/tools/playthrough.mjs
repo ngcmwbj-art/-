@@ -2455,13 +2455,16 @@ const BEATS3 = [
       if (await page.evaluate(async () => (await import('/src/world/maps.ts')).hasMap('map_c3_siren'))) {
         await enterDoor(34, 6, 'up', 'map_c3_siren');
         await advance({ label: 'siren_in' });
-        await travel(6, 3);
+        if (!REAL.has('nariosame')) await page.evaluate(() => window.__game.cmd.flag('flag_qa_c3_nobattle', 1));
+        // out through the iron doorway to just below the siren: one more step up starts it
+        // (S12 → S13 then moves on to map_umizoi by itself)
+        await travel(6, 5);
         await walk('up', (s) => !s.ctrl, 3000).catch(() => {});
       } else {
+        if (!REAL.has('nariosame')) await page.evaluate(() => window.__game.cmd.flag('flag_qa_c3_nobattle', 1));
         await travel(34, 7);
         await walk('up', (s) => !s.ctrl, 3000).catch(() => {});
       }
-      if (!REAL.has('nariosame')) await page.evaluate(() => window.__game.cmd.flag('flag_qa_c3_nobattle', 1));
       await advance({ shotEvery: 5, label: 'nariosame', max: 240000, battles: REAL.has('nariosame') ? 'keys' : 'win' });
       await page.evaluate(() => window.__game.cmd.flag('flag_qa_c3_nobattle', 0));
       await need(['flag_ch3_nariosame_beaten', 'flag_ch3_got_gochisou'], 'S12・S13');
