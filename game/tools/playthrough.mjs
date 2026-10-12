@@ -797,6 +797,11 @@ async function battleLesson(maxMs = 150000) {
 
 /** Shortened battle: guard for everyone, then __game.cmd.win(). */
 /** オカワリナベ / ナリオサメ (第3章, 61 10・11): their own way to the end, not the key bot's. */
+async function isAqStory() {
+  const b = await page.evaluate(() => window.__game.cmd.bstate?.()).catch(() => null);
+  return !!b && b.enemies.some((e) => ['boss_tsugao_1', 'boss_hirosuke', 'boss_pokosha'].includes(e.id));
+}
+
 async function isC3Special() {
   const b = await page.evaluate(() => window.__game.cmd.bstate?.()).catch(() => null);
   return !!b && b.enemies.some((e) => e.id === 'enemy_okawarinabe' || e.id === 'enemy_nariosame');
@@ -855,6 +860,57 @@ async function battleC3(maxMs = 300000) {
   // back on the field
   await waitFor((s) => s.top === 'FieldScene', 30000, 'after the chapter-3 battle').catch(() => {});
   return { real: true, presses, rounds, ms: Date.now() - t0 };
+}
+
+/**
+ * --real tsugao1,hp (第3期, 61 12・13): the old aquarium's two story battles with real commands.
+ * ツガオ初戦: attack / ペケ / みました — it ends by itself after four rounds ('lose', no game over).
+ * ヒロスケ・ポコシャ: ヤキソバンの 鉄板 up to 3 while the two attack; once ヒロスケ's 「まだ」 shows
+ * and his gauge is ≤108, ごちそうさま; then ツッコむ on each of the three voices, and the name tag.
+ */
+async function battleAq(maxMs = 360000) {
+  const t0 = Date.now();
+  let rounds = 0;
+  let planned = -1;
+  await page.evaluate(() => window.__game.cmd.bauto({ tsuk: 'just', ring: 'good', hold: 'kukkiri' }));
+  for (;;) {
+    const b = await page.evaluate(() => window.__game.cmd.bstate?.()).catch(() => null);
+    if (!b) break;
+    if (late(t0, maxMs)) {
+      log('  real aquarium battle took too long: finishing with __game.cmd.win()');
+      await battleWin();
+      return { real: false, rounds };
+    }
+    rounds = Math.max(rounds, b.round ?? 0);
+    if (b.input && planned !== b.round) {
+      planned = b.round;
+      const a = await page.evaluate(() => window.__game.cmd.c3aq?.()).catch(() => null);
+      let cmds;
+      if (b.enemies.some((e) => e.id === 'boss_tsugao_1')) {
+        cmds = [{ who: 'minato', cmd: b.round === 2 || b.round === 3 ? 'hanko' : 'attack', skill: b.round === 2 ? 'skill_peke' : 'skill_mimashita', target: 0 }];
+      } else if (a && (a.hpPhase === 2 || a.nafuda)) {
+        if (a.nafuda) cmds = [{ who: 'minato', cmd: 'nafuda' }];
+        else {
+          const who = a.koeN === 1 ? 'yakisoban' : 'kanenari';
+          cmds = [{ who: 'minato', cmd: 'guard' }, { who, cmd: 'koe' }, { who: who === 'kanenari' ? 'yakisoban' : 'kanenari', cmd: 'guard' }];
+        }
+      } else {
+        const hiro = a?.enemies.find((e) => e.id === 'boss_hirosuke');
+        if (hiro?.mem?.madaSeen && hiro.hp <= 108) cmds = [{ who: 'minato', cmd: 'hanko', skill: 'skill_gochisousama', target: 0 }, { who: 'kanenari', cmd: 'guard' }, { who: 'yakisoban', cmd: 'guard' }];
+        else {
+          const ready = !(a?.party.find((p) => p.id === 'yakisoban')?.ct?.skill_yk_teppan > 0) && (a?.teppan ?? 0) < 3;
+          cmds = [{ who: 'minato', cmd: 'attack', target: 0 }, { who: 'kanenari', cmd: 'attack', target: 0 }, { who: 'yakisoban', cmd: ready ? 'yaki' : 'attack', skill: 'skill_yk_teppan', target: 0 }];
+        }
+      }
+      await page.evaluate((c) => window.__game.cmd.bcmd(c), cmds);
+      log(`  round ${b.round}: ${cmds.map((c) => c.skill ?? c.cmd).join(' + ')}${a ? ` (teppan ${a.teppan}, phase ${a.hpPhase}, koe ${a.koeN})` : ''}`);
+      if (b.round % 3 === 0) await shot(`battle_r${b.round}`);
+    }
+    await tap('KeyZ', 40);
+    await sleep(250);
+  }
+  await waitFor((s) => s.top === 'FieldScene', 30000, 'after the aquarium battle').catch(() => {});
+  return { real: true, rounds, ms: Date.now() - t0 };
 }
 
 async function battleWin(maxMs = 60000) {
@@ -967,7 +1023,7 @@ async function advance({ max = 60000, gap = 260, shotEvery = 0, label = 'ev', ba
           ? await battleLesson()
           : (await battleWin(), { real: false, lesson: true })
         : battles === 'keys'
-          ? (await isC3Special()) ? await battleC3() : await battleByKeys()
+          ? (await isC3Special()) ? await battleC3() : (await isAqStory()) ? await battleAq() : await battleByKeys()
           : (await battleWin(), { real: false });
       out.battles.push(b);
       battleLog.push({ beat: beatName, ...b });
