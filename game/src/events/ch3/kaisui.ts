@@ -34,7 +34,8 @@ import { talkC3 } from './umizoi';
 /** The two ways into the sea and the land side each comes back to. */
 const ENTRY = {
   minato: { under: [2, 11, 'right'] as [number, number, Dir], land: [28, 26, 'down'] as [number, number, Dir] },
-  hama: { under: [45, 1, 'left'] as [number, number, Dir], land: [60, 30, 'up'] as [number, number, Dir] },
+  // (beside ウミ, who stands on (60,30))
+  hama: { under: [45, 1, 'left'] as [number, number, Dir], land: [61, 30, 'left'] as [number, number, Dir] },
 };
 type Entry = keyof typeof ENTRY;
 

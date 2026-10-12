@@ -793,6 +793,67 @@ async function battleLesson(maxMs = 150000) {
 }
 
 /** Shortened battle: guard for everyone, then __game.cmd.win(). */
+/** オカワリナベ / ナリオサメ (第3章, 61 10・11): their own way to the end, not the key bot's. */
+async function isC3Special() {
+  const b = await page.evaluate(() => window.__game.cmd.bstate?.()).catch(() => null);
+  return !!b && b.enemies.some((e) => e.id === 'enemy_okawarinabe' || e.id === 'enemy_nariosame');
+}
+
+/**
+ * --real okawari,nariosame: fought with real commands. Every ツッコミ lands (bauto just), the
+ * stamps are くっきり. オカワリナベ: attack until the pot is at half and its lid shut, then
+ * はなまる on the pot. ナリオサメ: attack; いただきます once the noon has gone back (or from
+ * round 3), and again at the finale. Anyone under 40% guards.
+ */
+async function battleC3(maxMs = 300000) {
+  const t0 = Date.now();
+  let presses = 0;
+  let rounds = 0;
+  let itadaki = false;
+  let planned = -1;
+  await page.evaluate(() => window.__game.cmd.bauto({ tsuk: 'just', hold: 'kukkiri' }));
+  for (;;) {
+    const b = await page.evaluate(() => window.__game.cmd.bstate?.()).catch(() => null);
+    if (!b) break;
+    if (late(t0, maxMs)) {
+      log('  real chapter-3 battle took too long: finishing with __game.cmd.win()');
+      await battleWin();
+      return { real: false, presses, rounds };
+    }
+    rounds = Math.max(rounds, b.round ?? 0);
+    if (b.input && planned !== b.round) {
+      planned = b.round;
+      const e = b.enemies.find((x) => !x.dead) ?? b.enemies[0];
+      const hp = (id) => b.party.find((p) => p.id === id)?.hp ?? 0;
+      // はなまる (the ally heal) on whoever is low: しゅん under 40, グソっ君 under 50
+      const hurt = hp('minato') < 40 ? 'minato' : hp('kanenari') < 50 ? 'kanenari' : null;
+      const cmds = [];
+      const phase = await flag('flag_ch3_nari_phase');
+      if (e.id === 'enemy_okawarinabe' && !e.status?.c3_futa && e.hp <= 140) cmds.push({ who: 'minato', cmd: 'hanko', skill: 'skill_hanamaru', target: 'pot' });
+      else if (e.id === 'enemy_nariosame' && (phase >= 3 || (!itadaki && (b.memo?.itadakiTut || b.round >= 3)))) {
+        itadaki = true;
+        cmds.push({ who: 'minato', cmd: 'hanko', skill: 'skill_itadakimasu' });
+      } else if (hurt) cmds.push({ who: 'minato', cmd: 'hanko', skill: 'skill_hanamaru', target: hurt });
+      else cmds.push({ who: 'minato', cmd: 'attack' });
+      cmds.push({ who: 'kanenari', cmd: 'attack' });
+      await page.evaluate((c) => window.__game.cmd.bcmd(c), cmds);
+      log(`  round ${b.round}: ${cmds.map((c) => c.skill ?? c.cmd).join(' + ')} (${e.id.replace('enemy_', '')} ${e.hp})`);
+      if (b.round % 3 === 0) await shot(`battle_r${b.round}`);
+    }
+    // Z only where a page or a menu waits for it: a Z during an enemy's move would be a
+    // ツッコミ pressed too early (かぶせ) and the lid would never shut
+    // (from the siren's finale on, phase 3, no enemy moves are left: Z through its pages)
+    if (b.input || b.choosing || b.interactive || (await flag('flag_ch3_nari_phase')) >= 3) {
+      await tap('KeyZ', 40);
+      presses++;
+    }
+    await sleep(240);
+  }
+  // back on the field
+  await waitFor((s) => s.top === 'FieldScene', 30000, 'after the chapter-3 battle').catch(() => {});
+  return { real: true, presses, rounds, ms: Date.now() - t0 };
+}
+
 async function battleWin(maxMs = 60000) {
   const t0 = Date.now();
   let won = false;
@@ -903,7 +964,7 @@ async function advance({ max = 60000, gap = 260, shotEvery = 0, label = 'ev', ba
           ? await battleLesson()
           : (await battleWin(), { real: false, lesson: true })
         : battles === 'keys'
-          ? await battleByKeys()
+          ? (await isC3Special()) ? await battleC3() : await battleByKeys()
           : (await battleWin(), { real: false });
       out.battles.push(b);
       battleLog.push({ beat: beatName, ...b });
@@ -2375,7 +2436,7 @@ const BEATS3 = [
       // without --real okawari it is skipped (DEV flag_qa_c3_nobattle; B's __game.cmd.ch3battle tries it)
       if (!REAL.has('okawari')) await page.evaluate(() => window.__game.cmd.flag('flag_qa_c3_nobattle', 1));
       await talkTo('npc_c3_shokudo', { side: 'below' });
-      await advance({ shotEvery: 4, label: 'okawari', max: 180000, battles: REAL.has('okawari') ? 'keys' : 'win' });
+      await advance({ shotEvery: 4, label: 'okawari', max: 480000, battles: REAL.has('okawari') ? 'keys' : 'win' });
       await page.evaluate(() => window.__game.cmd.flag('flag_qa_c3_nobattle', 0));
       await need(['flag_ch3_shokudo_done', 'flag_ch3_part_gassho', 'flag_ch3_okawari_beaten'], 'S08');
       checks.push({ check: 'S08: the set meal, オカワリナベ, ごちそうさま', ok: true, dishes: await flag('flag_ch3_teishoku_n') });
@@ -2391,9 +2452,10 @@ const BEATS3 = [
       await advance({ label: 'kaito' });
       await need(['flag_ch3_kaisui_start'], 'S09 start');
       // into the sea from the beach: グソっ君 alone
-      // to the water's edge (the dive asks when pushing south from there; a run that bumps into
-      // the sea on the way has its question answered already — that is where we were going)
-      await travel(60, 30).catch(async (e) => {
+      // to the water's edge beside ウミ (she stands on (60,30)); the dive asks when pushing south
+      // from the edge (a run that bumps into the sea on the way has its question answered
+      // already — that is where we were going)
+      await travel(62, 30).catch(async (e) => {
         if ((await st()).map !== 'map_c3_umi') throw e;
       });
       if ((await st()).map === 'map_umizoi') {
@@ -2472,7 +2534,7 @@ const BEATS3 = [
         await travel(34, 7);
         await walk('up', (s) => !s.ctrl, 3000).catch(() => {});
       }
-      await advance({ shotEvery: 5, label: 'nariosame', max: 240000, battles: REAL.has('nariosame') ? 'keys' : 'win' });
+      await advance({ shotEvery: 5, label: 'nariosame', max: 480000, battles: REAL.has('nariosame') ? 'keys' : 'win' });
       await page.evaluate(() => window.__game.cmd.flag('flag_qa_c3_nobattle', 0));
       await need(['flag_ch3_nariosame_beaten', 'flag_ch3_got_gochisou'], 'S12・S13');
       const t = await hudTime();

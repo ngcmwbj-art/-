@@ -318,6 +318,8 @@ registerDebug('win', (drop = false) => {
   current.memo.kanenariWin = current.enemies.some((e) => e.id === 'enemy_kanenari') ? 1 : 0;
   // the park's lesson ends at its next step (lesson.ts)
   current.memo.qaWin = 1;
+  // 第3章 (61 10.4・11.8): オカワリナベ and ナリオサメ end only by their own finish — QA settles it
+  if (current.enemies.some((e) => e.id === 'enemy_okawarinabe' || e.id === 'enemy_nariosame')) current.memo.ch3Won = 1;
   return 'ok';
 });
 registerDebug('lose', () => {
