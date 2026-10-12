@@ -73,6 +73,8 @@ import { buttonZones, freeSpan } from '../engine/safezones';
 type MenuId = 'new' | 'continue' | 'ch2' | 'ch3' | 'settings';
 /** The chapter-2 release page: 「第2章から」 without a chapter-1 clear (see menu). */
 const CH2_OPEN = import.meta.env.VITE_CH2_OPEN === '1';
+/** The page with chapter 3 (VITE_CH3_OPEN=1): 「第2章から」 and 「第3章から」 without any clear (see menu). */
+const CH3_OPEN = import.meta.env.VITE_CH3_OPEN === '1';
 const LABELS: Record<MenuId, string> = { new: 'はじめる', continue: 'つづきから', ch2: '第2章から', ch3: '第3章から', settings: 'せってい' };
 /** 「第3章から」's tape (62_ch3_level_art 12.10): the sea's blue with a white wave line. */
 const CH3_TAPE = { on: '#4F95BF', off: '#3A7EA8', ink: '#FBF3DC', wave: '#E8F4FA' };
@@ -107,13 +109,15 @@ export class TitleScene implements Scene {
    * 「第2章から」 needs chapter 1 cleared on this device, except in the
    * chapter-2 release page (VITE_CH2_OPEN=1): that page is a new origin with
    * no records, so the tape is there from the start (50 1.4, standard data).
+   * The page with chapter 3 (VITE_CH3_OPEN=1) shows both 「第2章から」 and
+   * 「第3章から」 from the start, for the same reason.
    */
   private readonly menu: MenuId[] = [
     'new',
     'continue',
-    ...(chapter1Cleared() || CH2_OPEN ? (['ch2'] as MenuId[]) : []),
+    ...(chapter1Cleared() || CH2_OPEN || CH3_OPEN ? (['ch2'] as MenuId[]) : []),
     // 60_ch3_story 1.4: once chapter 2 has been finished on this device, 「第3章から」 (five tapes)
-    ...(chapter2Cleared() ? (['ch3'] as MenuId[]) : []),
+    ...(chapter2Cleared() || CH3_OPEN ? (['ch3'] as MenuId[]) : []),
     'settings',
   ];
   /** 「第2章から」 is asking (the tapes step back like under the settings sheet). */

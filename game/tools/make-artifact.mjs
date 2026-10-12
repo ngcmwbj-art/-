@@ -9,6 +9,9 @@
 //   VITE_CH2_OPEN=1 npm run build && node tools/make-artifact.mjs --ch2
 //                                                   → dist-artifact/shun-ch2.html (the chapter-2 page:
 //                                                     「第2章から」 on the title from the start)
+//   VITE_CH2_OPEN=1 VITE_CH3_OPEN=1 npm run build && node tools/make-artifact.mjs --ch3
+//                                                   → dist-artifact/shun-ch3.html (the game's page with chapter 3:
+//                                                     「第2章から」「第3章から」 on the title from the start)
 //   VITE_HD2D_DEMO=1 npm run build && node tools/make-artifact.mjs --hd2d
 //                                                   → dist-artifact/shun-hd2d.html (the HD-2D prototype:
 //                                                     HD-2D on, 「はじめる」 opens in 夕鳴銀座; src/hd2d)
@@ -16,7 +19,7 @@
 //                                                     beside the shared dist/, e.g. vite build --outDir)
 //
 // Every page carries the HD-2D layer (src/hd2d with three.js, 02 #85 2026-10-06: chapter 1 in
-// HD-2D from the start, せってい「表示」 to go back to 2D); main.ts runs it only once the title is up.
+// HD-2D from the start; since 2026-10-13 always, with no switch in せってい); main.ts runs it only once the title is up.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -39,10 +42,11 @@ js = js.replace(fontRef, '`data:font/woff2;base64,' + font + '`');
 // A literal "</script" inside the bundle would end the inline script early.
 js = js.replace(/<\/script/gi, '<\\/script');
 
-const ch2 = process.argv.includes('--ch2');
+const ch3 = process.argv.includes('--ch3');
+const ch2 = !ch3 && process.argv.includes('--ch2');
 const hd2d = process.argv.includes('--hd2d');
 if (!js.includes('WebGLRenderer')) throw new Error('the bundle has no three.js: the HD-2D layer (src/hd2d) is missing');
-const title = hd2d ? 'しゅんの夕暮れあぜ道戦記 HD-2D 試作' : ch2 ? 'しゅんの夕暮れあぜ道戦記 第2章' : 'しゅんの夕暮れあぜ道戦記';
+const title = hd2d ? 'しゅんの夕暮れあぜ道戦記 HD-2D 試作' : ch3 ? 'しゅんの夕暮れあぜ道戦記' : ch2 ? 'しゅんの夕暮れあぜ道戦記 第2章' : 'しゅんの夕暮れあぜ道戦記';
 const page = `<title>${title}</title>
 <style>
   html, body { background: #0b0a12; height: 100%; margin: 0; overflow: hidden; }
@@ -60,6 +64,6 @@ ${js}
 
 const outDir = argOf('--out', path.join(root, 'dist-artifact'));
 fs.mkdirSync(outDir, { recursive: true });
-const out = path.join(outDir, hd2d ? 'shun-hd2d.html' : ch2 ? 'shun-ch2.html' : 'hanamaru-sunset.html');
+const out = path.join(outDir, hd2d ? 'shun-hd2d.html' : ch3 ? 'shun-ch3.html' : ch2 ? 'shun-ch2.html' : 'hanamaru-sunset.html');
 fs.writeFileSync(out, page);
 console.log(`artifact page → ${path.relative(root, out)} (${Math.round(page.length / 1024)} KB)`);

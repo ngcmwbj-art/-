@@ -10,7 +10,6 @@ import { commitTextZones, uiBands } from './engine/textzones';
 import { buttonZones } from './engine/safezones';
 import { field } from './world/field';
 import { firstScene } from './boot';
-import { settings, view as viewSetting } from './ui/settings';
 import './modules';
 
 /** The HD-2D layer (src/hd2d, three.js with it), once loading has begun. */
@@ -19,25 +18,21 @@ let hd2d: Promise<unknown> | null = null;
 function loadHd2d(): void {
   hd2d ??= import('./hd2d').catch((e) => {
     console.warn('[hd2d] not loaded, staying 2D', e);
-    viewSetting.webgl = false;
   });
 }
 
 /**
- * HD-2D (02 #85, 2026-10-06: chapter 1, then chapter 2 too): every build carries the layer,
- * but its code (three.js) only runs once the title is on screen — the first
- * frames don't wait for it — and only when せってい「表示」 (or ?hd2d=1)
- * wants it; otherwise the first time HD-2D is chosen. ?hd2d=0 (a QA run in
- * 2D) leaves it out. The dev server loads it up front as before (the QA
- * commands), the HD-2D demo page too (its 「はじめる」).
+ * HD-2D (02 #85, 2026-10-06: chapter 1, then chapter 2 too; 2026-10-13
+ * 依頼主の決定: always, せってい has no 表示 any more): every build carries the
+ * layer and runs its code (three.js) once the title is on screen — the first
+ * frames don't wait for it. ?hd2d=0 (a QA run in 2D, tools/playthrough.mjs)
+ * leaves it out. Where it fails to load or WebGL can't draw, the 2D pictures
+ * go on. The dev server loads it up front as before (the QA commands), the
+ * HD-2D demo page too (its 「はじめる」).
  */
 function startHd2d(): void {
-  const q = new URLSearchParams(location.search).get('hd2d');
-  if (q === '0') return;
-  viewSetting.listeners.push((on) => {
-    if (on) loadHd2d();
-  });
-  if (q === '1' || settings.hd2d) requestAnimationFrame(() => setTimeout(loadHd2d, 30));
+  if (new URLSearchParams(location.search).get('hd2d') === '0') return;
+  requestAnimationFrame(() => setTimeout(loadHd2d, 30));
 }
 
 async function boot(): Promise<void> {

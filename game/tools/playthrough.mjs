@@ -20,7 +20,7 @@
 //   node tools/playthrough.mjs --hd2d                 in HD-2D (02 #85: the places of chapters 1 and 2 in 3D, src/hd2d;
 //                                                     the page opens with ?hd2d=1&hd2dq=light — --hd2dq normal for the
 //                                                     full quality, much slower under swiftshader). Without it the run
-//                                                     is 2D as before (?hd2d=0: the setting's HD-2D default is
+//                                                     is 2D as before (?hd2d=0: the game's own HD-2D is
 //                                                     overridden, for speed and steadiness). Checks with --hd2d: each
 //                                                     beat's field is drawn in 3D where it should be, and (since
 //                                                     2026-10-06) chapter 2's outdoor places — 星見台, the hill, the

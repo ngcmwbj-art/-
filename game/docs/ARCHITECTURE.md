@@ -86,15 +86,17 @@ A 3D picture of the field, made with three.js (the one library added, with the c
 the picture changes: walking, collisions, talking, events, menus and battles are the 2D game's own.
 
 - **Where it runs**: since 2026-10-06 (依頼主「第1章全部HD-2Dにして」) every build has it. `main.ts` imports
-  `src/hd2d/` once the title is up, when HD-2D is wanted (せってい「表示 HD-2D／2D」, `ui/settings.ts`
-  `settings.hd2d`, saved, default HD-2D; someone who chose 2D never loads three.js). It draws chapter 1's places
+  `src/hd2d/` once the title is up. せってい has no switch (「表示 HD-2D／2D」 was there from 2026-10-06 and is gone
+  since 2026-10-13, 依頼主の決定「ゲームから 2D の切りかえをなくす」): the game is always HD-2D, and an old saved
+  `hd2d: false` is not read. It draws chapter 1's places
   (`map_town`, the 5 outdoor places of `places.ts`, the 24 rooms of `room.ts`), chapter 1's battle backgrounds
   (`battle.ts`, `src/battle/bg/place.ts`) and the ending's cuts (`cut.ts`, `cut_night.ts`), and since the same
   day (依頼主「第２章もHD-2Dにしてみよう」, 02 #85 直し6) chapter 2's too: the 4 outdoor places (`map_hoshimidai`,
   `map_hoshi_hill`, `map_hoshi_sawa`, `map_hoshi_urayama`), the 22 rooms of `room.ts` `CH2_ROOMS`, the battle
   backgrounds of `src/battle/bg/hoshi*.ts` and the cuts (`cut_ch2.ts`: the prologue's crossing, the ending's
-  `CH2_SHOTS`, the sunrise and the village lit up). No WebGL → 2D, and the settings page says so. `?hd2d=0|1`
-  (`&hd2dq=light|normal`) and `__game.cmd.hd2d(true|false|null)` override it for the session. The demo build
+  `CH2_SHOTS`, the sunrise and the village lit up). No WebGL (or the layer fails to load) → the 2D pictures, as before.
+  For QA only, `?hd2d=0|1` (`&hd2dq=light|normal`) and `__game.cmd.hd2d(true|false|null)` override it for the session
+  (nothing a player sees). The demo build
   (`VITE_HD2D_DEMO=1`, `npm run artifact:hd2d`) starts 「はじめる」 in 夕鳴銀座 (`ui/flow.ts` `setNewGameStart`).
   The playthrough runs 2D (`?hd2d=0`) unless `--hd2d` (`--slow n` for its waits). (The paragraphs below were
   written for the prototype; where they say "map_town only" read "chapter 1".)

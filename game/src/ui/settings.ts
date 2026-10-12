@@ -1,8 +1,8 @@
 // せってい (10_narrative 12.4, 40_audio 11.6, 20_systems_battle 19.5):
 // おんがく / こうかおん (0..10), 文字の はやさ (おそい・ふつう・はやい),
-// ツッコミ判定 (ふつう・ひろい) and 表示 (HD-2D・2D, 02 #85: chapter 1 and,
-// since 2026-10-06, chapter 2 in 3D from the start, src/hd2d). Kept in localStorage apart from the save
-// file, so they survive a new game; ツッコミ判定 is mirrored into
+// and ツッコミ判定 (ふつう・ひろい). (表示 HD-2D／2D is gone: the game is always
+// HD-2D, src/hd2d — 2026-10-13 依頼主の決定; an old saved hd2d is not read.) Kept in
+// localStorage apart from the save file, so they survive a new game; ツッコミ判定 is mirrored into
 // flag_opt_tsukkomi_wide for the battle system.
 
 import { flag, setFlag } from '../game/state';
@@ -18,13 +18,11 @@ export interface Settings {
   speed: TextSpeed;
   /** ツッコミ判定 ひろい */
   wide: boolean;
-  /** 表示 HD-2D (the places of chapters 1 and 2 drawn in 3D; false: the 2D pictures) */
-  hd2d: boolean;
 }
 
 const KEY = 'hanamaru-settings-v1';
 
-export const settings: Settings = { bgm: getVolume('bgm'), se: getVolume('se'), speed: 1, wide: false, hd2d: true };
+export const settings: Settings = { bgm: getVolume('bgm'), se: getVolume('se'), speed: 1, wide: false };
 
 function load(): void {
   // On a touch screen the 「！」 is harder to hit in time: start with ひろい
@@ -38,7 +36,6 @@ function load(): void {
     if (typeof s.se === 'number') settings.se = clamp(s.se);
     if (s.speed === 0 || s.speed === 1 || s.speed === 2) settings.speed = s.speed;
     if (typeof s.wide === 'boolean') settings.wide = s.wide;
-    if (typeof s.hd2d === 'boolean') settings.hd2d = s.hd2d;
   } catch {
     /* private mode etc. */
   }
@@ -76,22 +73,6 @@ export function textSpeedMul(): number {
 
 export const SPEED_LABELS = ['おそい', 'ふつう', 'はやい'];
 export const WIDE_LABELS = ['ふつう', 'ひろい'];
-export const VIEW_LABELS = ['HD-2D', '2D'];
-
-/**
- * 表示 and the HD-2D layer (src/hd2d, loaded apart: main.ts): `webgl` turns
- * false when this device can't draw it (the page then notes that it stays
- * 2D); `listeners` hear each change of the setting (main.ts loads the layer
- * the first time HD-2D is chosen).
- */
-export const view = { webgl: true, listeners: [] as ((hd2d: boolean) => void)[] };
-
-/** Choose 表示 (saved at once, like every setting). */
-export function setView(hd2d: boolean): void {
-  settings.hd2d = hd2d;
-  saveSettings();
-  for (const fn of view.listeners) fn(hd2d);
-}
 
 load();
 applySettings();

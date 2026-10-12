@@ -11,6 +11,7 @@
     "font": "python3 tools/subset-font.py",
     "artifact": "npm run build && node tools/make-artifact.mjs",
     "artifact:ch2": "VITE_CH2_OPEN=1 npm run build && node tools/make-artifact.mjs --ch2",
+    "artifact:ch3": "VITE_CH2_OPEN=1 VITE_CH3_OPEN=1 npm run build && node tools/make-artifact.mjs --ch3",
     "artifact:hd2d": "VITE_HD2D_DEMO=1 npm run build && node tools/make-artifact.mjs --hd2d"
   },
   "devDependencies": {

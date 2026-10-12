@@ -11,11 +11,12 @@
 //
 // In every build since 2026-10-06 (依頼主「第1章全部HD-2Dにして」): the game
 // is HD-2D from the start (chapter 1, and chapter 2 with it, where it comes
-// back to chapter 1's town too). main.ts loads this layer
-// (three.js with it) once the title is up, when HD-2D is wanted — the
-// first frames don't wait for it. Whether it draws:
-//   せってい「表示」 HD-2D／2D   (ui/settings.ts settings.hd2d, saved; default HD-2D)
-//   ?hd2d=1 / ?hd2d=0           in the URL: this visit only (QA; ?hd2dq=light|normal picks the quality)
+// back to chapter 1's town too). Since 2026-10-13 (依頼主の決定「ゲームから 2D の
+// 切りかえをなくす」) there is no switch in せってい: it is always HD-2D (an old
+// saved 表示 2D is not read). main.ts loads this layer (three.js with it) once
+// the title is up — the first frames don't wait for it. Only QA turns it off:
+//   ?hd2d=1 / ?hd2d=0           in the URL: this visit only (QA, tools/playthrough.mjs runs ?hd2d=0
+//                               by default; ?hd2dq=light|normal picks the quality)
 //   __game.cmd.hd2d(true|false)  in the console: the same, this visit only (QA)
 //   the demo build              (VITE_HD2D_DEMO=1: on, and 「はじめる」 opens in 夕鳴銀座)
 // and never where WebGL fails (the 2D pictures, as before). hd2dOn() /
@@ -35,7 +36,6 @@ import { field, FieldScene, setFieldDrawer } from '../world/field';
 import { fxDraw } from '../world/fx';
 import { hud } from '../world/hud';
 import { resetForNewGame, setNewGameStart } from '../ui/flow';
-import { settings, view as viewSetting } from '../ui/settings';
 import { closeUp } from '../events/stage';
 import type { Quality } from './post';
 import { CAM, Hd2dView, ROOM_CAM } from './view';
@@ -60,7 +60,7 @@ const MAPS = new Set([
 ]);
 
 const params = new URLSearchParams(location.search);
-/** This visit's override of せってい「表示」 (the demo page, ?hd2d=0|1, __game.cmd.hd2d): null → the setting. */
+/** This visit's override (the demo page, ?hd2d=0|1, __game.cmd.hd2d): null → on (the game's own). */
 let override: boolean | null = DEMO ? true : params.has('hd2d') ? params.get('hd2d') === '1' : null;
 const qParam = params.get('hd2dq');
 /** Phones start light; tablets and computers start normal and step down once if frames drop. */
@@ -82,20 +82,19 @@ function getView(): Hd2dView | null {
   return view;
 }
 
-/** WebGL can't draw here (or a frame failed): 2D from now on, and せってい says so. */
+/** WebGL can't draw here (or a frame failed): the 2D pictures from now on. */
 function fail(): void {
   failed = true;
   view = null;
-  viewSetting.webgl = false;
 }
 
 /**
- * HD-2D is on: せってい「表示」 (or this visit's override) and WebGL works —
+ * HD-2D is on: always (but for this visit's QA override) where WebGL works —
  * in chapter 2 too since 2026-10-06 (its prologue and ending back in
  * chapter 1's town and home with it). Read every frame, so a change shows at once.
  */
 export function hd2dOn(): boolean {
-  return (override ?? settings.hd2d) && !failed;
+  return (override ?? true) && !failed;
 }
 
 /** Is field f drawn in HD-2D now: hd2dOn(), one of the places stood up in 3D (MAPS, room.ts rooms), not blown up. */
@@ -250,11 +249,11 @@ installBattlePlaces(() => (hd2dOn() ? getView() : null), hd2dField);
 // the WebGL side is made while the title is up (main.ts loads this then), not on the first field's frame
 if (hd2dOn()) setTimeout(() => hd2dOn() && getView(), 0);
 
-/** QA: HD-2D on or off for this visit (null: back to せってい「表示」). */
+/** QA: HD-2D on or off for this visit (null: back to on). */
 registerDebug('hd2d', (v?: boolean | null) => {
   if (v !== undefined) override = v === null ? null : !!v;
   const f = field();
-  return { on: hd2dOn(), field: !!f && hd2dField(f), frames, setting: settings.hd2d, override, quality, webgl: !failed, maps: [...MAPS] };
+  return { on: hd2dOn(), field: !!f && hd2dField(f), frames, override, quality, webgl: !failed, maps: [...MAPS] };
 });
 registerDebug('hd2dQuality', (q?: Quality) => {
   if (q === 'light' || q === 'normal') {
