@@ -1,6 +1,6 @@
 // 天災：重ね合わせ竜巻・飛来物（トタン板）・落雷
 import * as THREE from 'three';
-import { heightAt, groundAt, coastX } from './world.js';
+import { heightAt, groundAt, coastX, BOUNDS } from './world.js';
 import { toToon } from './toon.js';
 import { Minion } from './minions.js';
 import { rand, GLSL_NOISE } from './util.js';
@@ -113,7 +113,11 @@ class Tornado {
         this.target = cab.nearestAlive(this.pos.x + rand(-30, 30), this.pos.z + rand(-30, 30));
         this.retarget = 6;
       }
-      const spd = this.group.speed * (sys.slow ? 0.35 : 1);
+      // 結界で位置を縛られている間は動けない（解けたら不確定な方向へ飛ぶ）
+      if (this.frozen > 0) { this.frozen -= dt; if (this.frozen <= 0) sys.fling(this); }
+      const zeno = this.zenoT > 0 ? 0.4 : 1;
+      this.zenoT = (this.zenoT || 0) - dt;
+      const spd = this.frozen > 0 ? 0 : this.group.speed * (sys.slow ? 0.35 : 1) * zeno;
       if (this.target >= 0) {
         const c = cab.list[this.target];
         const dx = c.x - this.pos.x, dz = c.z - this.pos.z, d = Math.hypot(dx, dz);
@@ -128,7 +132,7 @@ class Tornado {
       this.obj.position.copy(this.pos);
 
       // 実体のみがキャベツを破壊。未観測なら接触でデコヒーレンス（自動収束）
-      if (this.real && !this.group.practice) {
+      if (this.real && !this.group.practice && !(this.frozen > 0)) {
         const near = cab.nearestAlive(this.pos.x, this.pos.z, 6 * Math.max(0.5, this.baseScale));
         if (near >= 0 && !this.group.collapsed) sys.collapse(this.group, 'decoherence');
         if (this.group.collapsed) {
@@ -304,7 +308,7 @@ export class Threats {
     this.scene = game.scene; this.weather = game.weather; this.cabbages = game.cabbages;
     this.player = game.player; this.fx = game.fx; this.audio = game.audio; this.hud = game.hud;
     this.towers = null;
-    this.groups = []; this.tornados = []; this.debris = []; this.strikes = []; this.minions = [];
+    this.groups = []; this.tornados = []; this.debris = []; this.strikes = []; this.minions = []; this.threads = [];
     this.minionKills = 0; this.boss = null;
     this.slow = false;
     this.dmgMul = 1;
@@ -348,7 +352,43 @@ export class Threats {
       this.groups.push(group);
       return;
     }
+    if (type === 'pair') {
+      // 量子もつれの二人組：赤い糸で結ばれ、片方を叩くともう片方も傷つく
+      const a = new Minion(this, 'mushi', wave), b = new Minion(this, Math.random() < 0.5 ? 'karasu' : 'mushi', wave);
+      a.partner = b; b.partner = a;
+      this.minions.push(a, b);
+      const geo = new THREE.BufferGeometry().setFromPoints([a.pos, b.pos]);
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: '#ff3a5a', transparent: true, opacity: 0.9, fog: false }));
+      line.frustumCulled = false;
+      this.scene.add(line);
+      this.threads.push({ a, b, line });
+      this.game.memo('entangle');
+      return;
+    }
     this.minions.push(new Minion(this, type, wave));
+  }
+
+  // 不確定性原理：縛っていた位置がほどけると、どこへ飛ぶかわからない
+  fling(e) {
+    const a = Math.random() * Math.PI * 2, d = rand(18, 34);
+    e.pos.x += Math.cos(a) * d; e.pos.z += Math.sin(a) * d;
+    if (e.type) {
+      e.pos.x = Math.max(BOUNDS.xMin + 10, Math.min(coastX(e.pos.z) - 5, e.pos.x));
+      e.pos.z = Math.max(BOUNDS.zMin + 10, Math.min(BOUNDS.zMax - 10, e.pos.z));
+    }
+    this.fx.burst(e.pos.clone().add(new THREE.Vector3(0, 2, 0)), '#ffd36a', 24, 9, 0.7, 0.35, 2);
+    e.retarget = 0;
+  }
+
+  // 結界：半径内の敵の位置を縛る
+  bind(center, radius, time) {
+    let n = 0;
+    for (const e of [...this.tornados, ...this.minions]) {
+      if (!e.alive || e.group?.practice) continue;
+      if (Math.hypot(e.pos.x - center.x, e.pos.z - center.z) > radius) continue;
+      e.frozen = time; n++;
+    }
+    return n;
   }
 
   // 大ボス：台風の目（巨大な重ね合わせ竜巻）
@@ -356,6 +396,7 @@ export class Threats {
     const g = this.spawnGroup(wave, baseAngle);
     g.boss = true;
     g.scale = 1.7;
+    this.game.memo('superposition');
     for (const m of g.members) {
       m.hp = m.maxHp = 380 + wave * 190;
       m.baseScale = 1.7;
@@ -386,9 +427,14 @@ export class Threats {
   }
 
   // 敵にダメージを与え、倒したら報酬
-  hitEnemy(e, dmg) {
+  hitEnemy(e, dmg, viaThread = false) {
     const p = e.pos.clone().add(new THREE.Vector3(0, e.type ? 1.5 : 8 * (e.baseScale || 1), 0));
-    this.hud.floater(`-${Math.round(dmg)}`, p, this.game.camera, '#ffb84a');
+    this.hud.floater(`${viaThread ? '縁 ' : ''}-${Math.round(dmg)}`, p, this.game.camera, viaThread ? '#ff7a9a' : '#ffb84a');
+    // もつれた相方にも同じだけ伝わる
+    if (!viaThread && e.partner && e.partner.alive) {
+      this.fx.burst(e.partner.pos.clone().add(new THREE.Vector3(0, 1.5, 0)), '#ff3a5a', 14, 5, 0.5, 0.3, 0);
+      this.hitEnemy(e.partner, dmg, true);
+    }
     if (!e.damage(dmg)) return false;
     if (e.type || e.group.mini) {
       this.minionKills++;
@@ -440,6 +486,7 @@ export class Threats {
       }
     }
     this.audio.collapse();
+    this.game.memo(reason === 'decoherence' ? 'decoherence' : 'observe');
     const msg = {
       observe: '観測！波動関数が収束した ― 実体はこいつだ！',
       tower: '観測塔が竜巻を観測。波動関数が収束！',
@@ -561,6 +608,8 @@ export class Threats {
     for (const t of this.tornados) t.vanish();
     for (const m of this.minions) if (m.alive) m.remove();
     this.minions = [];
+    for (const th of this.threads) this.scene.remove(th.line);
+    this.threads = [];
     for (const d of this.debris) if (d.alive) d.remove();
     for (const s of this.strikes) if (s.alive) { s.alive = false; this.scene.remove(s.mesh); }
   }
@@ -573,6 +622,15 @@ export class Threats {
     this.debris = this.debris.filter((d) => d.alive);
     for (const m of this.minions) if (m.alive) m.update(dt);
     this.minions = this.minions.filter((m) => m.alive);
+    // 赤い糸（もつれ）を描き直す
+    this.threads = this.threads.filter((th) => {
+      if (!th.a.alive || !th.b.alive) { this.scene.remove(th.line); th.line.geometry.dispose(); return false; }
+      const p = th.line.geometry.attributes.position;
+      p.setXYZ(0, th.a.pos.x, th.a.pos.y + 1.2, th.a.pos.z); p.setXYZ(1, th.b.pos.x, th.b.pos.y + 1.2, th.b.pos.z);
+      p.needsUpdate = true;
+      th.line.material.opacity = 0.6 + Math.sin(t * 6) * 0.3;
+      return true;
+    });
     if (this.boss && !this.bossAlive) this.boss = null;
     for (const s of this.strikes) if (s.alive) s.update(dt, t);
     this.strikes = this.strikes.filter((s) => s.alive);

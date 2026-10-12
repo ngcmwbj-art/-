@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { clamp, lerp, smoothstep, fbm, vnoise, mulberry32, GLSL_NOISE } from './util.js';
 import { buildHouse, buildKeiTruck, buildBarn, buildGreenhouse, buildLighthouse } from './buildings.js';
+import { buildShrine } from './quantum.js';
 
 // キャベツ畑（u: 列方向, v: 畝方向）。台地いっぱいにパッチワーク状に並べる（下で生成）
 export const FIELDS = [];
@@ -56,6 +57,7 @@ export const LIGHTHOUSE = { x: coastX(-95) - 17, z: -95 };
 export const HOUSE = { x: -18, z: -42 };
 export const GREENHOUSE = { x: 32, z: -40 };
 export const BARN = { x: -40, z: -34 };
+export const SHRINE = { x: -40, z: -58 };
 export const SPAWN = { x: 6, z: -22 };
 
 const FLATS = [
@@ -63,6 +65,7 @@ const FLATS = [
   { ...HOUSE, r: 14 },
   { ...GREENHOUSE, r: 12 },
   { ...BARN, r: 8 },
+  { ...SHRINE, r: 9 },
 ];
 for (const f of FLATS) f.h = rawHeight(f.x, f.z) + 0.1;
 
@@ -617,6 +620,9 @@ export function buildWorld(scene, Q, windU) {
   const house = place(buildHouse(), HOUSE);
   place(buildKeiTruck(), { x: HOUSE.x + 10, z: HOUSE.z + 9 }, 0.5);
   place(buildBarn(), BARN, 0.35);
+  const shrine = place(buildShrine(), SHRINE, Math.PI * 0.15);
+  group.updateMatrixWorld(true);
+  shrine.userData.prayWorld = shrine.localToWorld(shrine.userData.prayPoint.clone());
   place(buildGreenhouse(), GREENHOUSE, 0.2);
   const lighthouse = place(buildLighthouse(), LIGHTHOUSE, Math.atan2(LIGHTHOUSE.x, LIGHTHOUSE.z) + Math.PI);
   group.add(buildRocks(Q.trees));
@@ -625,7 +631,7 @@ export function buildWorld(scene, Q, windU) {
   group.add(ocean);
 
   return {
-    group, ocean, terrain,
+    group, ocean, terrain, shrine,
     update(dt, t, w) {
       const u = ocean.material.uniforms;
       u.uTime.value = t;

@@ -17,6 +17,7 @@ import { HUD } from './hud.js';
 import { clamp, rand } from './util.js';
 import { IS_TOUCH, setupTouch, updateTouch } from './touch.js';
 import { toonify, addOutline } from './toon.js';
+import { MEMOS, BLESSINGS } from './quantum.js';
 
 const QUALITY = {
   low: { low: true, fps: 30, cabNear: 12, cabMid: 35, pr: 1, shadow: 0, grass: 6000, trees: 0.5, rain: 3000, bloom: false, msaa: 0 },
@@ -116,7 +117,8 @@ class Game {
     this.phase = 'title';
     this.phaseT = 0;
     this.buildSel = null;
-    this.cd = { teleport: 0, observe: 0, chord: 0 };
+    this.cd = { teleport: 0, observe: 0, chord: 0, kekkai: 0 };
+    this.memoSeen = new Set(); this.blessing = null; this.prayT = 0; this.prayed = false;
     this.lastBeat = -1;
     this.score = { just: 0, chords: 0 };
     this.combo = 0; this.maxCombo = 0; this.lastJustBeat = -99; this.fovKick = 0;
@@ -152,9 +154,10 @@ class Game {
         case 'KeyR': this.doTeleport(); break;
         case 'KeyF': this.doObserve(); break;
         case 'KeyQ': this.doSolo(); break;
+        case 'KeyG': this.doKekkai(); break;
         case 'KeyE': this.doBuild(); break;
         case 'KeyX': this.buildSel = null; this.towers.hidePreview(); break;
-        case 'Digit1': case 'Digit2': case 'Digit3': {
+        case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': {
           this.selectTower(TOWER_TYPES[+e.code.slice(-1) - 1].id);
           break;
         }
@@ -226,52 +229,33 @@ class Game {
 
   doChord() {
     if (this.cd.chord > 0 || this.phase === 'result' || this.phase === 'gameover') return;
-    this.cd.chord = 0.18;
-    const b = this.audio.beatInfo();
-    const just = b.offset < 0.11;
-    this.audio.chord(just);
+    this.cd.chord = 0.22;
+    this.audio.chord(true);
     this.score.chords++;
-    // コンボ：拍に合わせて続けて弾くほど伸びる（2拍以上あくか外すと途切れる）
-    if (just) {
-      this.combo = b.idx - this.lastJustBeat <= 2 ? this.combo + 1 : 1;
-      this.lastJustBeat = b.idx;
-    } else {
-      this.combo = 0;
-    }
-    const mult = 1 + Math.min(this.combo, 20) * 0.1;
-    // 演奏アクション：外すと小さく、JUST で大きく、10コンボごとにギターを掲げる
-    let kind = 'small';
-    if (just) kind = this.combo % 10 === 0 ? 'raise' : this.combo >= 3 && this.combo % 2 ? 'jump' : 'windmill';
+    // 続けて弾くほどアクションが派手に（8 連続ごとにギターを掲げる）
+    this.streak = this.time - (this.lastStrumAt || -9) < 1.4 ? (this.streak || 0) + 1 : 1;
+    this.lastStrumAt = this.time;
+    const kind = this.streak % 8 === 0 ? 'raise' : this.streak % 2 ? 'windmill' : 'jump';
     this.player.model.strum(kind);
     const p = this.player.pos.clone();
     const f = this.player.forward();
-    const dmg = (just ? 46 : 22) * mult;
-    const reach = just ? 17 + Math.min(this.combo, 20) * 0.3 : 13;
-    const res = this.threats.blast(p, reach, dmg, { cone: new THREE.Vector2(f.x, f.z), inner: 9, push: just ? 5 : 2, from: p });
+    const dmg = 34 * (this.blessing === 'hado' ? 1.3 : 1);
+    const reach = 16;
+    const res = this.threats.blast(p, reach, dmg, { cone: new THREE.Vector2(f.x, f.z), inner: 9, push: 4, from: p });
     const gpos = p.clone().add(new THREE.Vector3(0, 1.3, 0));
-    this.fx.ring(p, just ? '#ffd36a' : '#ff8a3d', reach, 0.45, 0.7);
-    this.fx.soundWave(p, f, just ? '#ffd36a' : '#ff9a5a', reach, just ? 3 : 1);
-    this.fx.notes(gpos, just ? 4 + Math.min(Math.floor(this.combo / 3), 4) : 2, undefined, just ? 1.2 : 0.7, f);
-    if (just) {
-      this.score.just++;
-      this.maxCombo = Math.max(this.maxCombo, this.combo);
-      this.hud.judge(this.combo >= 2 ? `JUST! ×${this.combo}` : 'JUST!', 'just');
-      this.hud.combo(this.combo, mult);
-      this.fovKick = kind === 'raise' ? 1 : 0.55;
-      this.player.shake = Math.max(this.player.shake, kind === 'raise' ? 0.5 : 0.28);
-      this.addSolo(res.hits ? 9 : 4);
-      this.cabbages.heal(p.x, p.z, 10, 6);
-      this.threats.tryReflect(p);
-      if (kind === 'raise') {
-        this.fx.beam(p, '#ffd36a', 30, 1.6, 0.8, 0.6);
-        this.fx.notes(gpos.clone().add(new THREE.Vector3(0, 1, 0)), 10, undefined, 1.8);
-        this.hud.toast(`${this.combo} コンボ！ 会場（畑）が沸いている！`, 'good');
-      }
-      this.mission?.onJust?.();
-    } else {
-      this.hud.judge(b.frac < 0.5 ? 'おそい…' : 'はやい…', 'miss');
-      this.hud.combo(0, 1);
+    this.fx.ring(p, '#ffd36a', reach, 0.45, 0.7);
+    this.fx.soundWave(p, f, '#ffd36a', reach, 3);
+    this.fx.notes(gpos, 4, undefined, 1.1, f);
+    this.fovKick = kind === 'raise' ? 0.9 : 0.35;
+    this.player.shake = Math.max(this.player.shake, kind === 'raise' ? 0.45 : 0.2);
+    this.addSolo(res.hits ? 7 : 2);
+    this.cabbages.heal(p.x, p.z, 10, 4);
+    this.threats.tryReflect(p);
+    if (kind === 'raise') {
+      this.fx.beam(p, '#ffd36a', 30, 1.6, 0.8, 0.6);
+      this.fx.notes(gpos.clone().add(new THREE.Vector3(0, 1, 0)), 10, undefined, 1.8);
     }
+    this.mission?.onStrum?.();
     if (res.unobserved && !res.hits) this.hud.toast('紫の竜巻（幻かも）には効かない！［F］観測で正体を暴こう', 'bad');
   }
 
@@ -291,11 +275,86 @@ class Game {
     if (this.cd.teleport > 0) return;
     const from = this.player.teleport(24);
     if (!from) return;
-    this.cd.teleport = 3;
+    this.cd.teleport = this.blessing === 'en' ? 1.5 : 3;
+    this.memo('tunnel');
     this.fx.beam(from, '#6fe3ff', 6, 1.2, 0.5);
     this.fx.burst(from.clone().add(new THREE.Vector3(0, 1, 0)), '#6fe3ff', 40, 6, 0.6, 0.25, 0);
     this.fx.beam(this.player.pos, '#6fe3ff', 6, 1.2, 0.6);
     this.audio.teleport();
+  }
+
+  // 結界（不確定性原理）：周りの敵の位置を縛る。ほどけた瞬間、どこへ飛ぶかわからない
+  doKekkai() {
+    if (this.cd.kekkai > 0 || this.phase === 'result' || this.phase === 'gameover') return;
+    if (this.q < 20) { this.hud.toast('Qビットが足りない（結界には 20Q）', 'bad'); return; }
+    this.q -= 20;
+    this.cd.kekkai = this.blessing === 'en' ? 6 : 12;
+    const p = this.player.pos.clone();
+    const n = this.threats.bind(p, 18, 2.5);
+    this.fx.ring(p, '#ffe9a8', 18, 0.9, 1.4);
+    this.fx.ring(p, '#ffffff', 14, 0.6, 1.0);
+    this.fx.beam(p, '#ffe9a8', 10, 18, 0.6, 0.15);
+    this.player.model.strum('raise');
+    this.audio.observe();
+    this.player.shake = 0.3;
+    this.hud.toast(n ? `結界！ ${n} 体の位置を縛った ― 解けると不確定な方向へ飛ぶ` : '結界を張った（範囲 18m に敵はいなかった）', n ? 'q' : '');
+    this.memo('uncertainty');
+  }
+
+  // 量子メモ：初めて起きた量子現象を、本当の物理とゲームでの扱いで説明する
+  memo(key) {
+    if (this.memoSeen.has(key) || !MEMOS[key] || this.phase === 'title') return;
+    this.memoSeen.add(key);
+    this.hud.memo(MEMOS[key]);
+  }
+
+  // 量子の祠：準備タイムに手を合わせると、次の台風のあいだ御利益が宿る
+  updateShrine(dt) {
+    const sh = this.world.shrine;
+    if (!sh) return;
+    const ud = sh.userData;
+    ud.orb.material.emissiveIntensity = 1.6 + Math.sin(this.time * 2) * 0.6;
+    ud.ring.material.opacity = this.phase === 'prep' && !this.prayed ? 0.45 + Math.sin(this.time * 3) * 0.25 : 0.12;
+    if (this.phase !== 'prep' || this.mission || this.prayed || this.paused) { this.prayT = 0; return; }
+    const pp = ud.prayWorld;
+    const d = Math.hypot(this.player.pos.x - pp.x, this.player.pos.z - pp.z);
+    if (d > 3.2) { this.prayT = 0; return; }
+    if (this.prayT === 0) this.hud.toast('祠の前で手を合わせている…（そのまま 2 秒）', 'q');
+    this.prayT += dt;
+    if (this.prayT < 2) return;
+    this.prayed = true;
+    const b = BLESSINGS[Math.floor(Math.random() * BLESSINGS.length)];
+    this.blessing = b.id;
+    this.blessingName = b.name;
+    this.fx.beam(pp, '#c9b8ff', 60, 3, 1.6, 0.3);
+    this.fx.sphere(pp.clone().add(new THREE.Vector3(0, 1.5, 0)), '#c9b8ff', 14, 1.2);
+    this.fx.burst(pp.clone().add(new THREE.Vector3(0, 2, 0)), '#ffe9a8', 60, 8, 1.2, 0.3, 3);
+    this.audio.fanfare();
+    this.hud.banner(`御利益「${b.name}」`, `${b.text}（次の台風のあいだ）`);
+    this.memo('shrine');
+  }
+
+  // 台風一過：シュレディンガーの箱を開ける
+  openBoxes() {
+    const boxes = this.towers.list.filter((t) => t.id === 'box');
+    if (!boxes.length) return;
+    let gold = 0;
+    for (const b of boxes) {
+      const p = b.pos.clone().add(new THREE.Vector3(0, 1.5, 0));
+      if (Math.random() < 0.5) {
+        gold++;
+        this.fx.burst(p, '#ffd36a', 50, 10, 1.2, 0.35, 4);
+        this.fx.beam(b.pos, '#ffd36a', 30, 2, 1.2);
+        this.hud.floater('黄金キャベツ +120Q', p, this.camera, '#ffd36a');
+      } else {
+        this.fx.burst(p, '#8a8a99', 20, 5, 0.8, 0.3, 1);
+        this.hud.floater('からっぽ…', p, this.camera, '#b0b0c0');
+      }
+      this.towers.remove(b);
+    }
+    if (gold) this.addQ(gold * 120);
+    this.hud.toast(`シュレディンガーの箱を開けた：${boxes.length} 箱中 ${gold} 箱が黄金キャベツ`, gold ? 'good' : '');
+    this.memo('schrodinger');
   }
 
   doSolo() {
@@ -338,7 +397,7 @@ class Game {
     const wv = this.wave;
     const a = rand(-0.6, 0.6);
     const z0 = Math.max(-110, Math.min(110, Math.sin(a) * 150 + rand(-30, 30)));
-    const counts = { mushi: 6 + wv * 3, karasu: 3 + wv * 2, tsumuji: 2 + wv };
+    const counts = { mushi: 6 + wv * 3, karasu: 3 + wv * 2, tsumuji: 2 + wv, pair: 1 + wv };
     this.plan = { angle: a, z0, counts, ghosts: 2 + Math.floor(wv / 2) };
     // 上陸予想地点の赤い柱
     if (this.landMarker) this.scene.remove(this.landMarker);
@@ -367,13 +426,14 @@ class Game {
     const lost = this.cabbages.lostCount();
     const T = IS_TOUCH;
     const items = [
+      [this.prayed, this.prayed ? `量子の祠：御利益「${this.blessingName}」を授かった` : '量子の祠（家の裏の鳥居）で手を合わせる（紫の輪の中に 2 秒）'],
       [amp, '赤い柱（上陸予想地点）の近くにスピーカーを建てる'],
       [lost === 0, lost ? `やられたキャベツを植え直す（跡地を歩くだけ・1玉 1Q）残り ${lost} 玉` : 'キャベツ畑は無傷'],
       [false, T ? `準備ができたら上のボタンで迎え撃つ（今なら +${left * 2}Q）` : `準備ができたら［Enter］で迎え撃つ（今なら +${left * 2}Q）`],
     ];
     const c = p.counts;
     this.hud.prep(`準備タイム ― ${this.waveName()}まで <b>${left}</b> 秒`,
-      `予報：雑魚 ${c.mushi + c.karasu + c.tsumuji} 匹（青虫 ${c.mushi}・カラス ${c.karasu}・つむじ風 ${c.tsumuji}）→ 大ボス（分身 ${p.ghosts} 体）`, items);
+      `予報：雑魚 ${c.mushi + c.karasu + c.tsumuji + c.pair * 2} 匹（青虫 ${c.mushi}・カラス ${c.karasu}・つむじ風 ${c.tsumuji}・もつれた二人組 ${c.pair}）→ 大ボス（分身 ${p.ghosts} 体）`, items);
   }
 
   skipPrep() {
@@ -396,7 +456,7 @@ class Game {
   phaseLabel() {
     return { prep: this.mission ? '練習中：操作を覚えよう' : '準備タイム：次の台風に備えよう', storm: '台風接近中 ― キャベツを守り抜け！', clear: '台風一過', result: '収穫', gameover: '全滅', title: '' }[this.phase];
   }
-  minionsLeft() { return this.spawn.pool.length + this.threats.minionsAlive; }
+  minionsLeft() { return this.spawn.pool.reduce((n, t) => n + (t === 'pair' ? 2 : 1), 0) + this.threats.minionsAlive; }
 
   timerLabel() {
     if (this.phase === 'prep') return `上陸まで ${Math.ceil(this.prepLength() - this.phaseT)} 秒  ［Enter］で迎え撃つ`;
@@ -415,6 +475,7 @@ class Game {
     for (let i = 0; i < c.mushi; i++) pool.push('mushi');
     for (let i = 0; i < c.karasu; i++) pool.push('karasu');
     for (let i = 0; i < c.tsumuji; i++) pool.push('tsumuji');
+    for (let i = 0; i < (c.pair || 0); i++) pool.push('pair');
     pool.sort(() => Math.random() - 0.5);
     this.spawn = { pool, total: pool.length, next: 1.5, boss: false, debris: 6, strike: 14 };
     this.threats.minionKills = 0;
@@ -425,15 +486,16 @@ class Game {
     this.weather.typhoonCenter.set(Math.cos(a) * 1500, Math.sin(a) * 1500);
     this.weather.windDir.set(-Math.cos(a), -Math.sin(a)).normalize();
     this.weather.setStorm(w.peak * 0.7);
-    this.threats.dmgMul = 1 + this.wave * 0.08;
-    this.hud.banner(`${w.name} 接近！`, `まずは前ぶれの雑魚 ${pool.length} 匹が畑を狙ってくる！`);
+    this.threats.dmgMul = (1 + this.wave * 0.08) * (this.blessing === 'kekkai' ? 0.7 : 1);
+    this.hud.banner(`${w.name} 接近！`, `まずは前ぶれの雑魚 ${this.minionsLeft()} 匹が畑を狙ってくる！${this.blessing ? `（御利益「${this.blessingName}」が宿っている）` : ''}`);
     this.audio.thunder(0.5);
   }
 
   spawnBoss() {
     const w = WAVES[this.wave];
     this.spawn.boss = true;
-    this.threats.spawnBoss(this.wave, this.stormAngle);
+    const g = this.threats.spawnBoss(this.wave, this.stormAngle);
+    if (this.blessing === 'senrigan') { this.threats.collapse(g, 'senrigan'); this.hud.toast('千里眼！ 大ボスの正体が最初から見えている', 'good'); }
     this.weather.setStorm(w.peak);
     this.hud.banner(`大ボス出現！`, `「${w.name}の目」が上陸！ 紫に揺れる分身から本物を観測して倒せ`);
     this.audio.thunder(0.2);
@@ -445,6 +507,8 @@ class Game {
     this.phaseT = 0;
     this.weather.setStorm(0);
     this.threats.clearAll();
+    this.openBoxes();
+    this.blessing = null; this.blessingName = null; this.prayed = false;
     const bonus = 30 + Math.floor(this.cabbages.alive / this.cabbages.total * 50);
     this.addQ(bonus);
     this.hud.banner('台風一過！', `キャベツ ${this.cabbages.alive} 玉を守り抜いた  +${bonus}Q`);
@@ -458,7 +522,7 @@ class Game {
     const cab = this.cabbages, st = this.threats.stats;
     const ratio = cab.alive / cab.total;
     const rank = !win ? '—' : ratio >= 0.9 ? 'S' : ratio >= 0.75 ? 'A' : ratio >= 0.55 ? 'B' : 'C';
-    const score = cab.alive * 1000 + this.score.just * 50 + st.tornados * 500 + st.reflected * 300 + st.absorbed * 100;
+    const score = cab.alive * 1000 + this.score.chords * 5 + st.tornados * 500 + st.reflected * 300 + st.absorbed * 100;
     const el = document.getElementById('result');
     el.querySelector('h2').textContent = win ? '収穫だ！ キャベツを守り抜いた！' : 'キャベツ畑が壊滅してしまった…';
     el.querySelector('.rank').textContent = rank;
@@ -467,9 +531,13 @@ class Game {
       <li><span>到達した台風</span><b>${Math.min(this.wave + 1, WAVES.length)} / ${WAVES.length}</b></li>
       <li><span>消滅させた竜巻</span><b>${st.tornados}</b></li>
       <li><span>波動関数の収束</span><b>${st.collapsed} 回</b></li>
-      <li><span>JUST 判定</span><b>${this.score.just} / ${this.score.chords}</b></li>
+      <li><span>弾いた回数</span><b>${this.score.chords}</b></li>
       <li><span>弾き返した雷 / 吸収した雷</span><b>${st.reflected} / ${st.absorbed}</b></li>
       <li class="total"><span>スコア</span><b>${score.toLocaleString()}</b></li>`;
+    document.getElementById('retry').textContent = win ? 'もう一度遊ぶ' : '別の世界線でやり直す';
+    // 多世界解釈：負けても別の世界線がある
+    const mw = MEMOS.manyworlds;
+    el.querySelector('.worlds').innerHTML = win ? '' : `<b>${mw.title}</b>${mw.physics}<br><span>${mw.game}</span><em>― ${mw.lore}</em>`;
     el.classList.add('show');
     document.getElementById('hud').classList.remove('show');
     if (win) this.audio.fanfare();
@@ -528,9 +596,9 @@ class Game {
         done: () => this.marker && this.player.pos.distanceTo(this.marker.position) < 4,
       },
       {
-        text: T ? 'ギターボタンが光った瞬間に押そう！ JUST を3回' : '下のレーンの音符が輪に重なる瞬間にクリック！ JUST を3回',
+        text: T ? '「ギター」ボタンで弾いてみよう！ 前に音波が飛ぶ（3回）' : 'クリックでギターを弾いてみよう！ 前に音波が飛ぶ（3回）',
         start: () => { this.clearMarker(); this.mJust = 0; },
-        onJust: () => { this.mJust++; },
+        onStrum: () => { this.mJust++; },
         done: () => this.mJust >= 3,
         progress: () => `${Math.min(3, this.mJust)} / 3`,
       },
@@ -611,6 +679,7 @@ class Game {
     if (!this.paused && this.phase !== 'title') {
       this.updatePhase(dt);
       for (const k in this.cd) this.cd[k] = Math.max(0, this.cd[k] - dt);
+      this.updateShrine(dt);
 
       // ソロ中
       if (this.soloT > 0) {
@@ -658,7 +727,7 @@ class Game {
     gu.uStorm.value = w.storm;
     gu.uFlash.value = w.flash;
     gu.uSolo.value = this.player.soloOn ? 1 : Math.max(0, gu.uSolo.value - rawDt * 2);
-    // JUST の瞬間にカメラをぐっと寄せる
+    // 弾いた瞬間にカメラをぐっと寄せる
     this.fovKick = Math.max(0, this.fovKick - rawDt * 3.5);
     const fov = 62 - this.fovKick * 9 + (this.player.soloOn ? -6 : 0);
     if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }

@@ -93,6 +93,15 @@ export class Minion {
   update(dt) {
     const sys = this.sys, cab = sys.cabbages;
     this.t += dt;
+    // 結界で位置を縛られている間：その場で震える
+    if (this.frozen > 0) {
+      this.frozen -= dt;
+      this.obj.position.set(this.pos.x + (Math.random() - 0.5) * 0.15, this.pos.y, this.pos.z + (Math.random() - 0.5) * 0.15);
+      if (this.frozen <= 0) sys.fling(this);
+      return;
+    }
+    const zeno = this.zenoT > 0 ? 0.4 : 1;
+    this.zenoT = (this.zenoT || 0) - dt;
     this.hit = Math.max(0, this.hit - dt * 5);
     this.retarget -= dt;
     if (this.target < 0 || cab.state[this.target] || this.retarget <= 0) {
@@ -102,7 +111,7 @@ export class Minion {
     if (this.target < 0) return;
     const c = cab.list[this.target];
     const dx = c.x - this.pos.x, dz = c.z - this.pos.z, d = Math.hypot(dx, dz);
-    const spd = this.speed * (sys.slow ? 0.35 : 1);
+    const spd = this.speed * (sys.slow ? 0.35 : 1) * zeno;
     if (this.type === 'mushi') {
       if (d > 0.9) {
         this.pos.x += dx / d * spd * dt; this.pos.z += dz / d * spd * dt;

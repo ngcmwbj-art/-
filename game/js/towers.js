@@ -1,15 +1,18 @@
 // 量子デバイス（タワー）：観測塔・量子アンプ・トンネル避雷塔
 import * as THREE from 'three';
 import { toonify } from './toon.js';
+import { buildBox } from './quantum.js';
 import { heightAt, groundAt, isWalkable, FIELDS, fieldRectDist } from './world.js';
 
 export const TOWER_TYPES = [
   { id: 'amp', key: '1', name: 'スピーカー', short: '近くの敵を自動で撃つ', cost: 50, radius: 24, color: '#ff8a3d',
     desc: '音楽に合わせて、範囲に入った雑魚や竜巻へ自動で音波を撃つ。畑の守りの基本' },
-  { id: 'observer', key: '2', name: '観測ライト', short: '紫の竜巻の正体を暴く', cost: 40, radius: 34, color: '#b48cff',
-    desc: '範囲に入った紫の竜巻（重ね合わせ）を照らして観測。本物なら攻撃が効くようになり、幻なら消える' },
+  { id: 'observer', key: '2', name: '観測ライト', short: '正体を暴き、動きを鈍らせる', cost: 40, radius: 34, color: '#b48cff',
+    desc: '範囲の紫の竜巻を観測して正体を暴く。見つめ続けた敵は量子ゼノン効果で動きが鈍る' },
   { id: 'rod', key: '3', name: '避雷針', short: '雷を防いで Q に変える', cost: 50, radius: 30, color: '#6fe3ff',
-    desc: '範囲に落ちる雷を吸い取って Qビットに変える。近づいた竜巻は東の沖へ飛ばす' },
+    desc: '範囲に落ちる雷を吸い取って Qビットに変える。近づいた竜巻はトンネル効果で東の沖へ飛ばす' },
+  { id: 'box', key: '4', name: 'シュレディンガーの箱', short: '開けるまで中身は重ね合わせ', cost: 30, radius: 3, color: '#c9b8ff',
+    desc: '台風が過ぎたら自動で開く。半分の確率で黄金キャベツ（+120Q）、半分は空っぽ。開けるまで中身は決まらない' },
 ];
 
 const MAT = {
@@ -96,7 +99,7 @@ function buildRod(def) {
   return g;
 }
 
-const BUILDERS = { observer: buildObserver, amp: buildAmp, rod: buildRod };
+const BUILDERS = { observer: buildObserver, amp: buildAmp, rod: buildRod, box: () => buildBox() };
 
 export class Towers {
   constructor(game) {
@@ -157,6 +160,11 @@ export class Towers {
     return t;
   }
 
+  remove(t) {
+    this.scene.remove(t.mesh);
+    this.list = this.list.filter((x) => x !== t);
+  }
+
   findRod(pos) {
     let best = null, bd = Infinity;
     for (const t of this.list) {
@@ -198,11 +206,23 @@ export class Towers {
       if (tw.id === 'observer') {
         ud.spin.rotation.y = t * 0.9;
         ud.rings[0].rotation.x = t * 1.3; ud.rings[1].rotation.y = t * 1.7;
-        if (tw.age > 1) th.measure(tw.pos, tw.def.radius, 'tower');
+        if (tw.age > 1) {
+          th.measure(tw.pos, tw.def.radius, 'tower');
+          // 量子ゼノン効果：見つめ続けた敵の動きを鈍らせる
+          const r2 = tw.def.radius * tw.def.radius;
+          let slowed = false;
+          for (const e of [...th.tornados, ...th.minions]) {
+            if (!e.alive) continue;
+            if ((e.pos.x - tw.pos.x) ** 2 + (e.pos.z - tw.pos.z) ** 2 < r2) { e.zenoT = 0.25; slowed = true; }
+          }
+          if (slowed) this.game.memo('zeno');
+        }
       } else if (tw.id === 'amp') {
         tw.pulse = Math.max(0, (tw.pulse || 0) - dt * 5);
         ud.cones.forEach((c) => { c.position.z = 0.85 + tw.pulse * 0.12; });
         ud.glow.emissiveIntensity = 0.6 + tw.pulse * 6;
+      } else if (tw.id === 'box') {
+        for (const m of ud.ghosts) m.material.opacity = 0.35 + Math.sin(t * 3 + tw.pos.x) * 0.25;
       } else if (tw.id === 'rod') {
         ud.rings.forEach((r, i) => { r.rotation.x = t * (1 + i * 0.6); r.rotation.y = t * (1.4 - i * 0.3); r.position.y = 4 + i * 3.5 + Math.sin(t * 2 + i) * 0.4; });
         ud.tip.material.emissiveIntensity = 3 + Math.sin(t * 8) * 1.5;
@@ -221,6 +241,7 @@ export class Towers {
               this.game.fx.beam(tor.pos, '#6fe3ff', 50, 9, 0.9);
               this.game.audio.teleport();
               this.game.hud.toast('トンネル効果！竜巻が障壁をすり抜けて沖へ飛んだ', 'q');
+              this.game.memo('tunnel');
               tw.cd = 7;
               break;
             }

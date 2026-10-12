@@ -73,6 +73,7 @@ export function setupTouch(game) {
   bind('tb-observe', () => game.doObserve());
   bind('tb-teleport', () => game.doTeleport());
   bind('tb-solo', () => game.doSolo());
+  bind('tb-kekkai', () => game.doKekkai());
   bind('tb-jump', () => { game.input.jump = true; });
   bind('tb-build', () => game.doBuild());
   bind('tb-go', () => game.skipPrep());
@@ -98,7 +99,6 @@ export function updateTouch(game) {
   if (go.textContent !== label) go.textContent = label;
   document.getElementById('tb-solo').classList.toggle('ready', game.solo >= 100);
   document.getElementById('tb-observe').style.setProperty('--p', Math.max(0, game.cd.observe / 4));
-  document.getElementById('tb-teleport').style.setProperty('--p', Math.max(0, game.cd.teleport / 3));
-  const beat = game.audio.beatInfo();
-  document.getElementById('tb-guitar').classList.toggle('beat', beat.offset < 0.11);
+  document.getElementById('tb-teleport').style.setProperty('--p', Math.max(0, game.cd.teleport / (game.blessing === 'en' ? 1.5 : 3)));
+  document.getElementById('tb-kekkai').style.setProperty('--p', Math.max(0, game.cd.kekkai / (game.blessing === 'en' ? 6 : 12)));
 }

@@ -13,7 +13,7 @@ export class HUD {
       wave: $('hud-wave'), phase: $('hud-phase'), timer: $('hud-timer'), windv: $('hud-wind'), windbar: $('hud-windbar'),
       cab: $('hud-cab'), cabbar: $('hud-cabbar'), q: $('hud-q'), solo: $('hud-solo'), soloLabel: $('hud-solo-label'),
       beat: $('hud-beat'), toasts: $('toasts'), bars: $('bars'), hotbar: $('hotbar'), judge: $('judge'),
-      cdR: $('cd-r'), cdF: $('cd-f'), floaters: $('floaters'), hint: $('hud-hint'),
+      cdR: $('cd-r'), cdF: $('cd-f'), cdG: $('cd-g'), floaters: $('floaters'), hint: $('hud-hint'),
     };
     this.map = $('minimap');
     this.mctx = this.map.getContext('2d');
@@ -30,7 +30,7 @@ export class HUD {
     this.el.lane = $('lane'); this.el.arrows = $('arrows'); this.el.bossbar = $('bossbar');
     // 拍のレーン：右から流れてくる音符
     this.laneNotes = [];
-    for (let i = 0; i < 6; i++) { const n = document.createElement('i'); n.className = 'lnote'; n.textContent = '♪'; this.el.lane.appendChild(n); this.laneNotes.push(n); }
+    if (this.el.lane) for (let i = 0; i < 6; i++) { const n = document.createElement('i'); n.className = 'lnote'; n.textContent = '♪'; this.el.lane.appendChild(n); this.laneNotes.push(n); }
     this.arrowEls = [];
     this.mapBg = this.renderMapBg();
   }
@@ -77,6 +77,26 @@ export class HUD {
     while (this.el.toasts.children.length > 4) this.el.toasts.lastChild.remove();
     setTimeout(() => d.classList.add('out'), 2600);
     setTimeout(() => d.remove(), 3200);
+  }
+
+  // 量子メモ：本当の物理／ゲームでは／言い伝え（ゲームの中の世界観）
+  memo(card) {
+    (this.memoQ ||= []).push(card);
+    if (!this.memoOn) this.nextMemo();
+  }
+  nextMemo() {
+    const el = $('memo');
+    const card = this.memoQ.shift();
+    if (!card) { this.memoOn = false; el.className = ''; document.body.classList.remove('memo-on'); return; }
+    this.memoOn = true;
+    document.body.classList.add('memo-on');
+    el.innerHTML = `<span class="tag">量子メモ</span><h4>${card.title}</h4>
+      <dl><dt>本当の量子力学</dt><dd>${card.physics}</dd><dt>ゲームでは</dt><dd>${card.game}</dd></dl>
+      <p class="lore"><small>言い伝え（ゲームの中の世界観）</small>${card.lore}</p><i class="close">×</i>`;
+    el.className = ''; void el.offsetWidth; el.className = 'show';
+    const done = () => { clearTimeout(this._mt); el.onpointerdown = null; el.className = 'out'; setTimeout(() => this.nextMemo(), 400); };
+    el.onpointerdown = (e) => { e.stopPropagation(); done(); };
+    this._mt = setTimeout(done, 11000);
   }
 
   // 画面中央の大きな見出し（台風接近・台風一過など）
@@ -164,8 +184,9 @@ export class HUD {
     el.solo.style.width = game.solo + '%';
     el.soloLabel.classList.toggle('ready', game.solo >= 100);
     this.setHotbar(game.buildSel, game.q);
-    el.cdR.style.setProperty('--p', Math.max(0, game.cd.teleport / 3));
+    el.cdR.style.setProperty('--p', Math.max(0, game.cd.teleport / (game.blessing === 'en' ? 1.5 : 3)));
     el.cdF.style.setProperty('--p', Math.max(0, game.cd.observe / 4));
+    el.cdG.style.setProperty('--p', Math.max(0, game.cd.kekkai / (game.blessing === 'en' ? 6 : 12)));
 
     // 拍インジケーター
     const b = game.audio.beatInfo();
@@ -174,6 +195,7 @@ export class HUD {
     el.beat.classList.toggle('on', b.offset < 0.11);
 
     // 拍のレーン（音符が輪に重なった瞬間が JUST）
+    if (this.el.lane) {
     const laneW = this.el.lane.clientWidth || 260;
     const now = b.idx + b.frac;
     this.laneNotes.forEach((n, i) => {
@@ -184,6 +206,7 @@ export class HUD {
       n.style.opacity = dt < -0.15 ? 0 : 1;
     });
     this.el.lane.classList.toggle('on', b.offset < 0.11);
+    }
 
     // 画面外の竜巻の方向を示す矢印
     let ai = 0;

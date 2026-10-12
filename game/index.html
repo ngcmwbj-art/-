@@ -30,8 +30,8 @@
       <p class="sub">迫り来る台風から、<em>量子力学</em>と<em>ギター</em>でキャベツを守り抜け！</p>
       <ol class="howto">
         <li><b>雑魚の次に、台風の大ボスが来る</b><span>青虫・カラス・つむじ風がキャベツを食べにくる。全部倒すと大ボス「台風の目」が上陸</span></li>
-        <li><b>ギターで音波を撃って倒す</b><span>弾くと前に音波が飛ぶ。♪が輪に重なった瞬間に弾くと JUST で威力2倍、続けるとコンボ</span></li>
-        <li><b>タワーで畑を守り、ボスは観測で暴く</b><span>スピーカーは近くの敵を自動で撃つ。大ボスは紫の分身に化けるので、観測して本物を倒そう</span></li>
+        <li><b>ギターで音波を撃って倒す</b><span>弾くと前に音波が飛ぶ。続けて弾くほどマサトのアクションが派手になる</span></li>
+        <li><b>量子の力で本物を暴き、祠に祈る</b><span>大ボスは「重ね合わせ」の紫の分身。観測すると本物がひとつに定まる。準備タイムは量子の祠で手を合わせて御利益を</span></li>
       </ol>
       <div class="menu">
         <button id="start" disabled>ゲームスタート</button>
@@ -72,18 +72,17 @@
       <div class="skills">
         <div class="skill" id="cd-f"><b>F</b><span>観測</span></div>
         <div class="skill" id="cd-r"><b>R</b><span>テレポ</span></div>
+        <div class="skill" id="cd-g"><b>G</b><span>結界</span></div>
       </div>
     </div>
     <div id="crosshair"></div>
     <div id="objective" hidden></div>
     <div id="banner"></div>
-    <div id="combo"></div>
-    <div id="lane-cap">♪が左の輪に重なった瞬間に弾くと <b>JUST</b>（威力2倍）</div>
-    <div id="lane"><span class="target"></span></div>
     <div id="bossbar" hidden><b></b><div class="g"><i></i></div><em></em></div>
     <div id="arrows"></div>
     <div id="judge"></div>
     <div id="toasts"></div>
+    <div id="memo"></div>
     <div id="bars"></div>
     <div id="floaters"></div>
     <div id="hud-hint">［H］操作説明</div>
@@ -100,6 +99,7 @@
       <button id="tb-observe" class="cd">観測</button>
       <button id="tb-teleport" class="cd">テレポ</button>
       <button id="tb-solo">ソロ</button>
+      <button id="tb-kekkai" class="cd">結界</button>
     </div>
     <button id="tb-build" hidden>ここに建てる</button>
     <button id="tb-go" hidden>台風を迎え撃つ ▶</button>
@@ -113,11 +113,12 @@
     <dl>
       <dt>WASD / Shift / Space</dt><dd>移動 / ダッシュ / ジャンプ</dd>
       <dt>マウス</dt><dd>視点</dd>
-      <dt>左クリック</dt><dd>ギター（パワーコード衝撃波）。拍に合わせると JUST で威力2倍・キャベツ回復・雷を弾き返す</dd>
+      <dt>左クリック</dt><dd>ギター：前方に音波を撃つ。近くのキャベツを少し回復し、落雷の予告円の中なら雷を弾き返す</dd>
       <dt>F / 右クリック</dt><dd>観測パルス（8Q）：48m 以内の重ね合わせ竜巻を測定</dd>
       <dt>R</dt><dd>量子テレポート（前方 24m）</dd>
+      <dt>G</dt><dd>結界（20Q）：周り 18m の敵の位置を 2.5 秒縛る。不確定性原理で、ほどけた瞬間どこへ飛ぶかわからない</dd>
       <dt>Q</dt><dd>量子ギターソロ（ゲージ満タン）：時間減速＋広範囲観測＋連続攻撃</dd>
-      <dt>1 / 2 / 3 → E</dt><dd>スピーカー（近くの敵を自動で撃つ）／観測ライト（紫の竜巻の正体を暴く）／避雷針（雷を防ぐ）を選んで建設（X で解除）</dd>
+      <dt>1 / 2 / 3 / 4 → E</dt><dd>スピーカー（近くの敵を自動で撃つ）／観測ライト（正体を暴き、ゼノン効果で足止め）／避雷針（雷を防ぎ、竜巻をトンネル効果で沖へ）／シュレディンガーの箱（台風一過に開けると半分の確率で黄金キャベツ）を選んで建設（X で解除）</dd>
       <dt>Enter</dt><dd>準備を切り上げて台風を迎え撃つ</dd>
       <dt>M / H / Esc</dt><dd>BGM 切替 / この画面 / 一時停止</dd>
     </dl>
@@ -125,7 +126,7 @@
     <dl>
       <dt>画面の左半分</dt><dd>触れた所にスティックが出て移動（端まで倒すとダッシュ）</dd>
       <dt>画面の右半分</dt><dd>スワイプで視点</dd>
-      <dt>右下のボタン</dt><dd>ギター（光った瞬間に押すと JUST）・観測・テレポ・ソロ・ジャンプ</dd>
+      <dt>右下のボタン</dt><dd>ギター・観測・テレポ・ソロ・結界・ジャンプ</dd>
       <dt>上のタワー欄</dt><dd>タップで選び、「ここに建てる」で建設</dd>
     </dl>
     <h3>量子のルール</h3>
@@ -134,6 +135,9 @@
       <li><b>観測</b>した範囲に実体があれば収束して攻撃可能に。いなければ、その分岐だけが消える。</li>
       <li>放っておくと、実体がキャベツに触れた瞬間に<b>デコヒーレンス</b>で実体化して畑を荒らす。</li>
       <li>未観測の竜巻にはギターもアンプも効かない。トンネル効果だけは分岐ごと飛ばせる。</li>
+      <li>赤い糸で結ばれた<b>もつれた二人組</b>は、片方を叩くともう片方も傷つく。</li>
+      <li>準備タイムに<b>量子の祠</b>で手を合わせると、次の台風のあいだ御利益が宿る（ゲームの中のおまじない）。</li>
+      <li>初めて起きた量子現象は、右に<b>量子メモ</b>が出る。本当の物理と、ゲームでの扱いを並べて書いてある。</li>
     </ul>
   </section>
 
@@ -146,6 +150,7 @@
     <h2></h2>
     <div class="rank"></div>
     <ul class="stats"></ul>
+    <p class="worlds"></p>
     <button id="retry">もう一度</button>
   </section>
 
