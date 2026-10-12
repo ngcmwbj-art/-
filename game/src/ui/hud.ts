@@ -503,6 +503,9 @@ class UiHud implements FieldHud {
   /** Current clock text. */
   timeText(): string {
     if (this.override) return this.override;
+    // 第3章（60_ch3_story 4.4）：夕鳴町の昼前 11:10 → 海ぞいの町 12:00（止まる）→ 12:01
+    const c3 = ch3Time();
+    if (c3) return c3;
     // 星見台 (50 1.2): stopped at 4:59; 5:00 when the morning comes
     // (on the train and on the platform, until the arrival, it still says 夕鳴町's 19:30)
     if (this.onHoshi) return flag('flag_ch2_arrived') || flag('flag_ch2_stage') > 0 ? CLOCK_TIMES_H[Math.max(0, Math.min(1, flag('flag_ch2_clock')))] : '19:30';
@@ -525,6 +528,23 @@ class UiHud implements FieldHud {
   }
 
   clockView(): ClockView {
+    if (ch3Time()) {
+      // 第3章：12:00 はコロンが点滅しない（段階1・3）。夜の灯りはない
+      const stopped = ch3Stopped() && !this.override;
+      return {
+        time: this.shown || this.timeText(),
+        prev: this.prevShown,
+        flipT: this.flipT,
+        stage: 0,
+        t: this.t,
+        sec: stopped ? 0 : this.backT > 0 ? Math.max(0, this.sec - 1) : this.sec,
+        sink: this.sinkT < 120 ? 1 : 0,
+        colon: stopped ? 1 : undefined,
+        flap: true,
+        flips: this.flips,
+        glow: false,
+      };
+    }
     const ch2 = this.onHoshi || !!flag('flag_ch2_started');
     const stopped = this.hoshiStopped();
     return {
@@ -978,6 +998,25 @@ class UiHud implements FieldHud {
 }
 
 export const uiHud = new UiHud();
+
+/**
+ * 第3章の時計（60_ch3_story 4.4）。null: 第3章ではない（またはエンディングで
+ * イベントが setClockText で出す）。段階0 11:10、1 と 3 は 12:00、2 は 12:01。
+ */
+function ch3Time(): string | null {
+  if (!flag('flag_ch3_started') || flag('flag_ch3_clear')) return null;
+  const st = flag('flag_ch3_stage');
+  if (st <= 0) return '11:10';
+  if (st === 2) return '12:01';
+  if (st === 1 || st === 3) return '12:00';
+  return null;
+}
+
+/** 第3章の止まった正午（段階1・3）：コロンも秒も動かない。 */
+function ch3Stopped(): boolean {
+  const st = flag('flag_ch3_stage');
+  return st === 1 || st === 3;
+}
 
 /** Show the clock plate for a while (events, menu). */
 export function showClock(ms = 4000): void {

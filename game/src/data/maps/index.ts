@@ -30,3 +30,7 @@ import './hoshi_dome';
 // 分校の 裏の 丘（天文台を 星見の丘から 移した。★2026-10-01 依頼主の指示、02_ch2_index #80）
 import './hoshi_urayama';
 import './hoshi_fx';
+// 第3章『海ぞいの町の いただきます』（62_ch3_level_art）：海ぞいの町と軽トラの荷台
+import './umizoi';
+import './c3_nidai';
+import './c3_rooms';

@@ -146,7 +146,28 @@ export const VOICES: Record<string, VoiceDef> = {
   piichan: { label: 'ぴーちゃん（めんどり）', wave: 'none', base: 0, scale: [0], len: 0, every: 99, v: 0 },
   // the branch school's broadcast room: its own small speaker, not the hill's (ふしぎ10, 53 8.9)
   broadcast_room: { label: '放送室のスピーカー', wave: 'sine', base: 'A4', scale: [0, 2, 4], len: 45, every: 2, v: 0.04, lp: 800, noise: { bp: 900, q: 3, level: 0.4 }, rev: 0.15 },
+  // ---- chapter 3 (63_ch3_audio 9.1): 海ぞいの町. The names are provisional, so the
+  // voices are named by role (npc_c3_shokudo → c3_shokudo) and never follow a
+  // renamed name tag. No two share base, wave, set and pace with each other or
+  // with the voices of chapters 1–2 (16.2)
+  c3_shokudo: { label: 'ナミエ（食堂かもめのおかみ）', wave: 'triangle', wave2: ['sine', 0.4], base: 'G4', scale: [0, 2, 4, 7, 9, 12], len: 30, A: 2, D: 20, S: 0.5, R: 12, every: 2, v: 0.06, lp: 2600, scoop: [60, 15], formant: true },
+  c3_jouren: { label: 'ゴロウ（常連の漁師）', wave: 'sawtooth', wave2: ['triangle', 0.5], base: 'F#3', scale: [0, 3, 5], len: 58, A: 6, every: 3, v: 0.065, lp: 1100, formant: true },
+  c3_seri: { label: 'ゲン（セリ人）', wave: 'pulse25', base: 'B3', scale: [0, 2, 4, 5, 7], len: 26, A: 1, D: 18, S: 0.4, R: 8, every: 1, v: 0.07, lp: 2400, formant: true },
+  c3_seri_deshi: { label: 'ツグミ（若いセリ人）', wave: 'sine', wave2: ['triangle', 0.3], base: 'C#5', scale: [0, 2, 4, 7], len: 26, A: 4, every: 3, v: 0.035, lp: 2200, formant: true },
+  c3_sirenban: { label: 'ミナト（サイレン塔の番人）', wave: 'pulse12', wave2: ['triangle', 0.4], base: 'E3', scale: [0, 2, 5, 7], len: 40, A: 0, D: 25, S: 0, every: 2, v: 0.06, lp: 1600, formant: true },
+  c3_toudai: { label: 'テル（灯台のおばあ）', wave: 'triangle', base: 'F#4', scale: [0, 2, 4, 7], len: 52, A: 6, every: 3, v: 0.055, vib: [5, 16], formant: true },
+  c3_mago: { label: 'ウミ（ミナトとテルの孫）', wave: 'pulse25', wave2: ['triangle', 0.3], base: 'F5', scale: [0, 2, 4, 7, 9], len: 22, A: 1, every: 2, v: 0.05, formant: true, child: true },
+  c3_kanshiin: { label: 'カイト（監視員）', wave: 'square', base: 'D#4', scale: [0, 4, 7], len: 24, A: 0, D: 18, S: 0, every: 2, v: 0.05, lp: 2800, formant: true },
+  c3_himono_otto: { label: 'ホシオ（干物屋の夫）', wave: 'sawtooth', base: 'A3', scale: [0, 3, 5], len: 30, every: 2, v: 0.055, lp: 1600, formant: true },
+  c3_himono_tsuma: { label: 'ホシミ（干物屋の妻）', wave: 'sawtooth', base: 'A4', scale: [0, 3, 5], len: 30, every: 2, v: 0.05, lp: 2000, formant: true },
+  c3_tsuri: { label: 'ツリノ（防波堤の釣り人）', wave: 'triangle', wave2: ['sine', 0.5], base: 'G#3', scale: [0, 2, 5], len: 75, A: 8, every: 4, v: 0.06, vib: [4, 10], formant: true },
+  c3_uketsuke: { label: 'ハキコ（元・受付）', wave: 'sine', wave2: ['triangle', 0.25], base: 'A#4', scale: [0, 2, 4], len: 34, A: 3, every: 2, v: 0.045, lp: 2200, rev: 0.15, formant: true },
+  c3_kid: { label: '防波堤の子ども', wave: 'square', base: 'A5', scale: [0, 2, 4, 7], len: 20, every: 2, v: 0.045, formant: true, child: true },
 };
+// the three children of the breakwater: the same voice at +0 / +2 / −2 (63 9.1)
+VOICES.c3_kid_a = { ...VOICES.c3_kid, label: '防波堤の子ども（1）' };
+VOICES.c3_kid_b = { ...VOICES.c3_kid, label: '防波堤の子ども（2）', base: 'B5' };
+VOICES.c3_kid_c = { ...VOICES.c3_kid, label: '防波堤の子ども（3）', base: 'G5' };
 // 星見台 calls the names on the same speaker as the town's broadcast (53 9.2)
 VOICES.broadcast.calls = true;
 
@@ -251,6 +272,21 @@ interface State {
   hen?: Hen;
   /** グソっ君: blips since his phrase began (low / high sets in turn). */
   bounce?: number;
+  /** 海ぞいの町 (63 9.2): the last voiced characters of the page (「ごちそう……」). */
+  c3recent?: string;
+  /** The siren already cut this line short. */
+  c3siren?: boolean;
+  /** A fixed figure under way on this page: its notes and how far into it. */
+  c3fig?: number[];
+  c3figI?: number;
+  /** ゲン's 「ひゃく」: 1 after the ひ. */
+  hyaku?: number;
+  /** ツグミ's 「売った！」 out loud (1), and the page after it (2: small). */
+  utta?: number;
+  /** カイト's page that opened with his whistle (the rest ×0.8). */
+  fue?: boolean;
+  /** ゴロウ's 「……もう」 page (a breath before it, a sigh at the end). */
+  mou?: boolean;
 }
 
 interface Hen {
@@ -423,6 +459,14 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
     s.quietUntil = undefined;
     // ポコシャさん: the page after his outburst is small; the one after that, his usual
     s.shy = s.shy === 1 ? 2 : 0;
+    // 海ぞいの町 (63 9.2)
+    s.c3recent = '';
+    s.c3siren = false;
+    s.c3fig = undefined;
+    s.hyaku = 0;
+    s.utta = s.utta === 1 ? 2 : 0;
+    s.fue = false;
+    s.mou = false;
   }
   if (id === 'piichan') {
     henChar(s, ch, now, pageStart);
@@ -503,6 +547,22 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
     s.bounce = 0;
     return;
   }
+  // 海ぞいの町 (63 9.2): 「ごちそう……」 — at 12:00 every townsperson who starts
+  // to say it is cut short by the head of the siren (once a line); ゴロウ's
+  // 「……もう 1杯。」 ends on a sigh (−2, 120 ms)
+  if (id.startsWith('c3_')) {
+    if (!SILENT.has(ch) && ch.trim()) s.c3recent = ((s.c3recent ?? '') + ch).slice(-6);
+    if ((ch === '…' || ch === '‥') && !s.c3siren && (s.c3recent ?? '').endsWith('ごちそう') && musicParams().c3_noon !== 1 && now - s.lastT < 0.5) {
+      s.c3siren = true;
+      s.c3recent = '';
+      sfxTable.get('se_c3_siren_head')?.({ at: now + 0.01 });
+    }
+    if (ch === '。' && id === 'c3_jouren' && s.mou && now - s.lastT < 0.5) {
+      play(def, id, s.lastMidi - 2, now + 0.01, 0, 0.8, 'u', false, undefined, 120);
+      s.mou = false;
+      return;
+    }
+  }
   // sentence endings: a little rise for "？", a push for "！"
   if (ch === '？' || ch === '?' || ch === '！' || ch === '!') {
     if (now - s.lastT < 0.5 && def.wave !== 'none' && id !== 'narr') {
@@ -557,6 +617,60 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
     } else if (s.sasuga && mode === undefined) s.sasuga++;
     if (s.stam === ch && mode === undefined) forced = true;
   }
+  // 海ぞいの町's fixed figures (63 9.2): ナミエ's 「おかわり」 bounces up 0 +4 +7 +12;
+  // the dried-fish couple's 「干しすぎ！」「干したりない！」 run 0 +3 +5 +3 +5; ゲン's
+  // 「ひゃく」 is always 0 +2; ツグミ's 「売った！」 says it out loud (+7, +12, ×2);
+  // カイト's 「ピッ」 is his whistle, not a blip
+  let c3Semi: number | null = null;
+  let c3Vol = 1;
+  let c3Delay = 0;
+  if (id.startsWith('c3_') && mode === undefined) {
+    if (pageHead && id === 'c3_shokudo' && ch === 'お') s.c3fig = [0, 4, 7, 12];
+    if (pageHead && (id === 'c3_himono_otto' || id === 'c3_himono_tsuma') && ch === '干') s.c3fig = [0, 3, 5, 3, 5, 3];
+    if (pageHead) s.c3figI = 0;
+    if (s.c3fig) {
+      const i = s.c3figI ?? 0;
+      const want = id === 'c3_shokudo' ? 'おかわり'[i] : undefined;
+      if (i < s.c3fig.length && (want === undefined || want === ch)) {
+        c3Semi = s.c3fig[i];
+        s.c3figI = i + 1;
+      } else s.c3fig = undefined;
+    }
+    if (id === 'c3_seri') {
+      if (ch === 'ひ') {
+        c3Semi = 0;
+        s.hyaku = 1;
+      } else if (ch === 'く' && s.hyaku === 1) {
+        c3Semi = 2;
+        s.hyaku = 0;
+      } else s.hyaku = 0;
+    }
+    if (id === 'c3_seri_deshi') {
+      if (ch === '売') s.utta = 1;
+      if (s.utta === 1 && (ch === '売' || ch === 'た')) {
+        c3Semi = ch === '売' ? 7 : 12;
+        c3Vol = 2;
+      }
+      if (s.utta === 2) c3Vol = 0.7;
+    }
+    if (id === 'c3_kanshiin') {
+      if (pageHead && ch === 'ピ') {
+        s.fue = true;
+        s.lastT = now;
+        s.last = now;
+        sfxTable.get('se_c3_fue')?.({ at: now + 0.005 });
+        return;
+      }
+      if (s.fue) c3Vol = 0.8;
+    }
+    if (id === 'c3_jouren' && s.firstVoiced && s.headDots && ch === 'も') {
+      // 「……もう」: a breath before it (what is said in that breath is swallowed)
+      s.mou = true;
+      c3Delay = 0.3;
+      s.quietUntil = now + 0.33;
+    } else if (id === 'c3_jouren' && s.quietUntil !== undefined && now < s.quietUntil) return;
+  }
+  if (c3Semi !== null) forced = true;
   const loud = id === 'pokosha' && !!s.sasuga && s.sasugaForm === 'loud';
   if (loud || domo >= 0 || mode === 'laugh' || mode === 'imo' || mode === 'stam' || (id === 'hirosuke' && s.laugh)) forced = true;
   const lineHead = !!s.lineHead;
@@ -622,6 +736,8 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
   let glide = 0;
   let lpOverride: number | undefined;
   if (s.wake && id === 'tsugao' && !s.chan) volK *= 0.85;
+  volK *= c3Vol;
+  delay += c3Delay;
   if (id === 'pokosha') {
     if (inTsugaoRoom()) {
       // 「……さすが 師匠。」 from the dark behind the frosted door
@@ -668,6 +784,8 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
     semi = [0, 4, 7, 12][oha];
     if (oha === 3) longMs = 120;
     if (currentId() === 'bgm_hoshi_morning') volK = 0.9;
+  } else if (c3Semi !== null) {
+    semi = c3Semi;
   } else if (s.nameLine) {
     const i = s.nameI ?? 0;
     s.nameI = i + 1;
@@ -703,7 +821,8 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
       scale = b % 2 === 1 ? def.scale.slice(0, 3) : def.scale.slice(3);
     }
     semi = scale[hashCh(ch) % scale.length];
-    if (semi === s.lastSemi) {
+    // ミナト (63 9.2): as exact as his clock — the same note may come again
+    if (semi === s.lastSemi && id !== 'c3_sirenban') {
       s.repeat++;
       if (s.repeat >= 2) {
         semi = scale[(scale.indexOf(semi) + 1) % scale.length];

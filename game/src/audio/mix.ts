@@ -82,6 +82,11 @@ const SE_TARGET: Record<string, number> = {
   // ツガオ便 and the delivery (the hen as small as the town's pigeons and cats)
   se_h_deli_put: -16, se_truck_aori: -14, se_truck_key: -18, se_yakiimo: -16, se_piichan_flap: -14,
   se_piichan_koko: -18, se_piichan_koke: -17, se_piichan_kuu: -20,
+  // ---- chapter 3 (63_ch3_audio 8, 10): the noon siren's head is a far speaker (under
+  // the 17:00 chime: seLoudMusic), the town's small sounds sit with the sparrows and the cats
+  se_c3_siren_head: -14, se_c3_title_wave: -14, se_c3_harigami: -18, se_c3_nidai_gata: -16, se_c3_shio: -18, se_c3_fender: -18,
+  se_c3_kamome: -18, se_c3_tonbi: -18, se_c3_noren: -18, se_c3_torobako: -18, se_c3_donburi: -16, se_c3_fue: -12,
+  se_c3_himono: -16, se_step_wet: -22,
 };
 
 const GROUP_TARGET: Record<string, number> = {
@@ -103,6 +108,9 @@ const GROUP_TARGET: Record<string, number> = {
   '第2章：戦闘・ハンコ・能力': SKILL,
   '第2章：足音・シンボル・エンディング': -14,
   '第2章：ツガオ便と野菜の配達': UI,
+  '第3章：序・夕鳴町の昼前・荷台': UI,
+  '第3章：港と町': UI,
+  '第3章：足音': STEP,
 };
 
 /** SEs that are silent by design (a cut): never trimmed. */
@@ -169,7 +177,10 @@ export const SE_LOUD_LIKE: Record<string, string> = { se_mada_stamp: 'se_stamp' 
  */
 export function seLoudMusic(id: string, group: string | undefined): string | null {
   const g = group ?? '';
-  if (SE_LOUD_BELLS.has(id) || SE_LOUD_MOMENT_GROUPS.has(g) || /^se_(pa_chime|chime_note|h_pa_|h_morning_chime)/.test(id)) return null;
+  if (SE_LOUD_BELLS.has(id) || SE_LOUD_MOMENT_GROUPS.has(g) || /^se_(pa_chime|chime_note|h_pa_|h_morning_chime|c3_siren_)/.test(id)) return null;
+  // chapter 3: the truck bed's sounds over its song, the town's over 海ぞいの町の正午
+  if (g === '第3章：序・夕鳴町の昼前・荷台') return 'bgm_tsugaobin';
+  if (/^第3章：/.test(g)) return 'bgm_umi_noon';
   if (g === '第2章：プロローグ・電車・駅') return null;
   if (g === '第2章：戦闘・ボス') return 'bgm_boss_yobimodoshi';
   if (/^第2章：戦闘/.test(g)) return 'bgm_battle';
@@ -185,7 +196,7 @@ export function seLoudMusic(id: string, group: string | undefined): string | nul
  * seTooLoudCh1) — a note for the lead, not a failure of this chapter.
  */
 export function seLoudFrozen(group: string | undefined): boolean {
-  return !/^第2章：/.test(group ?? '');
+  return !/^第[23]章：/.test(group ?? '');
 }
 /** The fixed ceiling of an SE that is a moment (seLoudMusic gave null). */
 export function seLoudFixed(id: string): number {
@@ -227,6 +238,9 @@ export const BGM_TARGET: Record<string, number> = {
   bgm_boss_yobimodoshi: 0, bgm_hoshi_morning: -4, bgm_hoshi_night: -6,
   // ツガオの部屋 after 「つづく」: a small dark room, at bgm_night's level
   bgm_tsugao: -8,
+  // chapter 3 (63_ch3_audio 10.1): measured at 12:00 with nothing undone (it reads ~3 dB
+  // quieter than with every part back, as it should); the truck bed's engine lies under its song
+  bgm_umi_noon: -5, bgm_tsugaobin: -6,
 };
 
 /**
@@ -251,6 +265,7 @@ export const ROLE_TARGET: Record<PartRole, number | null> = {
 export const REF_PART: Record<string, string> = {
   bgm_title: 'mbox', bgm_title_clear: 'mbox', bgm_home: 'melody', bgm_shop: 'melody', bgm_ending: 'melody', bgm_night: 'stars',
   bgm_hoshi_night: 'lantern', bgm_hoshi_morning: 'lead', bgm_boss_yobimodoshi: 'lead', bgm_tsugao: 'bass',
+  bgm_umi_noon: 'harmonica', bgm_tsugaobin: 'marimba',
 };
 /** Parts whose colour is the point of the song: a closer target than their role. */
 export const TARGET_OVERRIDE: Record<string, number> = {
@@ -276,6 +291,11 @@ const ROLE_OVERRIDE: Record<string, PartRole> = {
   'bgm_hoshi_morning/mbox': 'counter', 'bgm_hoshi_morning/mbox_hi': 'counter', 'bgm_hoshi_morning/marimba': 'melody',
   'bgm_hoshi_morning/chime': 'melody', 'bgm_hoshi_morning/pedal': 'bass', 'bgm_hoshi_morning/pad_dawn': 'pads',
   'bgm_tsugao/bass': 'melody', 'bgm_tsugao/marimba': 'counter', 'bgm_tsugao/sub': 'bass', 'bgm_tsugao/clock': 'drums',
+  // chapter 3
+  'bgm_umi_noon/harmonica': 'melody', 'bgm_umi_noon/mbox_uw': 'melody', 'bgm_umi_noon/koe': 'counter', 'bgm_umi_noon/slap': 'bass',
+  'bgm_umi_noon/ichiba': 'drums', 'bgm_umi_noon/daidokoro': 'drums', 'bgm_umi_noon/ichi_shaker': 'drums',
+  'bgm_umi_noon/ichi_marimba': 'counter', 'bgm_umi_noon/ichi_lead': 'counter',
+  'bgm_tsugaobin/marimba': 'melody', 'bgm_tsugaobin/harmonica': 'counter', 'bgm_tsugaobin/hera': 'drums',
 };
 export function partRole(song: string, part: string): PartRole {
   const o = ROLE_OVERRIDE[`${song}/${part}`];
@@ -326,6 +346,14 @@ export const PART_TRIM: Record<string, number> = {
   'bgm_hoshi_morning/mbox_hi': 2.5, 'bgm_hoshi_morning/chime': 4, 'bgm_hoshi_morning/marimba': 2.5,
   'bgm_hoshi_morning/epiano': -4, 'bgm_hoshi_morning/pad': -3, 'bgm_hoshi_morning/bass': -6, 'bgm_hoshi_morning/drums': 1.5,
   'bgm_hoshi_morning/pedal': -10, 'bgm_hoshi_morning/mbox': 4,
+  // chapter 3 (audioParts with every 「まだ」 undone and あぜ道市 full, 12:01; then by role):
+  // the returning parts are clearly there but under the harmonica — the market's
+  // claps and the kitchen's knife at a hat's level, the sea's swirl a breath
+  'bgm_umi_noon/koe': 0, 'bgm_umi_noon/comp': -3.5, 'bgm_umi_noon/bass': -7, 'bgm_umi_noon/slap': -1.5,
+  'bgm_umi_noon/drums': 4, 'bgm_umi_noon/ichiba': 16, 'bgm_umi_noon/daidokoro': 16, 'bgm_umi_noon/umi_pad': -2,
+  'bgm_umi_noon/umi_swirl': 18, 'bgm_umi_noon/ichi_marimba': 8.5, 'bgm_umi_noon/ichi_shaker': 15, 'bgm_umi_noon/ichi_lead': 8,
+  'bgm_umi_noon/mbox_uw': 2,
+  'bgm_tsugaobin/bass': -11, 'bgm_tsugaobin/drums': 17, 'bgm_tsugaobin/pad': -6.5,
 };
 /** (Not bypassed by mixState: the part balance is part of the arrangement.) */
 export function partTrim(song: string, part: string): number {
@@ -412,6 +440,8 @@ export const BGM_TRIM: Record<string, number> = {
   bgm_jingle_gameover: 10.5,
   // chapter 2
   bgm_hoshi_night: 12, bgm_tsugao: 10, bgm_boss_yobimodoshi: 10.5, bgm_hoshi_morning: 12,
+  // chapter 3
+  bgm_umi_noon: 13, bgm_tsugaobin: 19,
 };
 
 export const SE_TRIM: Record<string, number> = {
@@ -458,6 +488,10 @@ export const SE_TRIM: Record<string, number> = {
   se_dakoku: 21.5, se_mada_stamp: 24, se_lamp_click: 20, se_clock_restart: 11.5, se_clock_tick: 23.5,
   se_h_deli_put: 19.5, se_truck_aori: 21, se_truck_key: 28.5, se_yakiimo: 27, se_piichan_flap: 28.5,
   se_piichan_koko: 18, se_piichan_koke: 23, se_piichan_kuu: 25,
+  // chapter 3 (audioMixSuggest over the 第3章 groups; the kite and the whistle stopped by their loudness ceiling)
+  se_c3_title_wave: 29.5, se_c3_harigami: 32, se_c3_nidai_gata: 18, se_c3_shio: 36, se_c3_fender: 33, se_c3_kamome: 25.5, se_c3_tonbi: 25.5,
+  se_c3_noren: 36, se_c3_siren_head: 10, se_c3_torobako: 36, se_c3_donburi: 24, se_c3_fue: 31.5, se_c3_himono: 36,
+  se_step_wet: 18,
 };
 export const VOICE_TRIM: Record<string, number> = {
   narr: 24, mother: 15, maruyama: 8, obaa: 15, mamekichi: 15.5, inui: 17, tsurumi: 16, sae: 17, jk: 15.5,
@@ -480,6 +514,10 @@ export const VOICE_TRIM: Record<string, number> = {
   // ツガオ便: set on their everyday lines (ポコシャさん's outburst ×1.8 and ヒロスケさん's laugh ride above)
   hirosuke: 16.5, pokosha: 13.5,
   h_driver: 17, h_kucho: 14, h_yoshie: 17, h_fumi: 14, h_mitsu: 16, h_gen: 12.5, h_tome: 16, h_sawako: 18,
+  // chapter 3 (audioMixSuggest on samples.ts' everyday lines)
+  c3_shokudo: 11, c3_jouren: 14.5, c3_seri: 14.5, c3_seri_deshi: 18, c3_sirenban: 19, c3_toudai: 16, c3_mago: 15,
+  c3_kanshiin: 18, c3_himono_otto: 15, c3_himono_tsuma: 14, c3_tsuri: 14.5, c3_uketsuke: 16, c3_kid: 18.5,
+  c3_kid_a: 18.5, c3_kid_b: 18, c3_kid_c: 17.5,
 };
 export const AMB_TRIM: Record<string, number> = {
   amb_higurashi: 17, amb_still: 25, amb_s2_town: -1, amb_train_far: 0, amb_night_insects: 22.5, amb_fan: 16.5,
@@ -493,6 +531,14 @@ export const AMB_TRIM: Record<string, number> = {
   amb_h_hachi: 26.5, amb_h_fence: 29.5, amb_h_barn_out: 32, amb_h_barn: 16, amb_h_house: 27, amb_h_tomato: 21.5,
   amb_h_school: 28.5, amb_h_boukatou: 19, amb_h_tetsuya: 22, amb_h_train: 17, amb_h_pa_hum: 21, amb_h_dawn: 16, amb_tsugao_room: 19.5,
   amb_h_tsugaobin: 28,
+  // chapter 3 (audioMixSuggest over bgm_umi_noon / bgm_tsugaobin / bgm_town_s0; the
+  // beds that only sound from 12:01 — the birds, the boats, the breakwater, the
+  // beach — calibrated at 12:01. The sea between its 12:01 value (17.5: the
+  // waves) and its 12:00 one (38: the far swell alone would need it) — 12:00 is
+  // meant to be nearly silent (10.2). The street outside the 食堂 at its cap)
+  amb_c3_umi: 22, amb_c3_semi: 13, amb_c3_tori: 24, amb_c3_minato: 35.5, amb_c3_ichiba: 16.5, amb_c3_ichiba_out: 26,
+  amb_c3_shokudo: 21.5, amb_c3_shokudo_out: 37, amb_c3_himono: 33.5, amb_c3_bouhatei: 22, amb_c3_kaisui: 22,
+  amb_c3_mikan: 23.5, amb_c3_siren_hum: 20, amb_c3_siren_hold: 13, amb_c3_keitora: 9.5, amb_c3_hirumae: 17,
 };
 
 /** A song's output level in dB: its own master gain plus the mix trim. */

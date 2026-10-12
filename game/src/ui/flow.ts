@@ -27,7 +27,7 @@ import type { Gfx } from '../engine/gfx';
 import { makeCanvas } from '../engine/pixel';
 import { H, W } from '../engine/screen';
 import { flag, loadGame, loadSnapshot, resetState, saveGame, saveSnapshot, setFlag, state } from '../game/state';
-import { chapter2Adjust, newChapter2Party, newGameParty, syncProgressSkills, type LevelUpResult } from '../data/battle';
+import { chapter2Adjust, chapter3Adjust, newChapter2Party, newChapter3Party, newGameParty, syncProgressSkills, type LevelUpResult } from '../data/battle';
 import { stopAllAmbient, stopBgm } from '../audio';
 import { FieldScene } from '../world/field';
 import { hasMap } from '../world/maps';
@@ -165,7 +165,7 @@ class BlackScene implements Scene {
  *
  * What the slot holds decides where it goes (50_ch2_story 1.4):
  *  - the chapter 1 clear data (flag_clear, no flag_ch2_started) → evt_ch2_prologue
- *  - the chapter 2 clear data → 「つづきは、また こんど。」 and back to the title
+ *  - the chapter 2 clear data (no flag_ch3_started) → evt_ch3_prologue (60_ch3_story 1.4)
  *  - anything else → the field where it was saved
  */
 export function* continueGame(): Co {
@@ -176,7 +176,13 @@ export function* continueGame(): Co {
   resetAutosave();
   syncProgressSkills();
   syncSettingFlags();
-  if (flag('flag_ch2_clear')) {
+  if (flag('flag_ch2_clear') && !flag('flag_ch3_started')) {
+    // 第3章（60 1.4）：第2章のクリアデータの「つづきから」は evt_ch3_prologue へ。
+    // 第3章の台本がない版（ほかの章だけの公開ページ）は、今までどおり1ページ。
+    if (hasScript('evt_ch3_prologue')) {
+      yield* startChapter3('continue');
+      return true;
+    }
     yield* chapter2ClearedPage();
     return true;
   }
@@ -215,6 +221,8 @@ export const SAVE_SLOT_KEY = 'yugure-rpg-save-v1';
 export const CH2_START_KEY = 'hanamaru-ch2-start-v1';
 const CLEAR_KEY = 'hanamaru-clear-v1';
 const CLEAR_CH2_KEY = 'hanamaru-clear-ch2-v1';
+/** The state right after chapter3Adjust(), kept apart from the slot (60_ch3_story 1.4). */
+export const CH3_START_KEY = 'hanamaru-ch3-start-v1';
 
 export interface SavePeek {
   flags: Record<string, number>;
@@ -240,13 +248,15 @@ export function peekSave(): SavePeek | null {
 /**
  * The slot at a glance:
  *   'none' empty · 'ch1' chapter 1 in progress · 'ch1clear' the chapter 1
- *   clear data · 'ch2' chapter 2 in progress · 'ch2clear' the chapter 2 clear data
+ *   clear data · 'ch2' chapter 2 in progress · 'ch2clear' the chapter 2 clear data ·
+ *   'ch3' chapter 3 in progress (60_ch3_story 1.4)
  */
-export type SaveKind = 'none' | 'ch1' | 'ch1clear' | 'ch2' | 'ch2clear';
+export type SaveKind = 'none' | 'ch1' | 'ch1clear' | 'ch2' | 'ch2clear' | 'ch3';
 
 export function saveKind(p: SavePeek | null = peekSave()): SaveKind {
   if (!p) return 'none';
   const f = p.flags;
+  if (f.flag_ch3_started) return 'ch3';
   if (f.flag_ch2_clear) return 'ch2clear';
   if (f.flag_ch2_started) return 'ch2';
   if (f.flag_clear) return 'ch1clear';
@@ -266,6 +276,13 @@ export function chapter1Cleared(): boolean {
   if (hasKey(CLEAR_KEY)) return true;
   const p = peekSave();
   return !!p?.flags.flag_clear;
+}
+
+/** Chapter 2 has been finished on this device (its record, or the slot says so). 60_ch3_story 1.4. */
+export function chapter2Cleared(): boolean {
+  if (hasKey(CLEAR_CH2_KEY)) return true;
+  const p = peekSave();
+  return !!p?.flags.flag_ch2_clear;
 }
 
 // ---- clear records (title after an ending) ------------------------------------------------
@@ -468,6 +485,82 @@ export function* startChapter2(from: 'continue' | 'title'): Co {
   yield* playChapterDoor();
   setFlag('flag_ch2_prologue_done', 1);
   if (hasMap('map_hoshi_train')) game.replaceAll(new FieldScene('map_hoshi_train', 2, 3, 'right'));
+  yield* game.fadeIn(800);
+}
+
+// ---- chapter 3: the start (60_ch3_story 1.4・1.5, 61 3.1・3.2) -------------------------------
+
+let lastLevelUps3: LevelUpResult[] = [];
+
+/** Level-ups made by chapter3Adjust() at the last start (the prologue's 通知表). */
+export function chapter3LevelUps(): LevelUpResult[] {
+  return lastLevelUps3;
+}
+
+/**
+ * Hooks run once the chapter-3 start state is in place and before the
+ * snapshot (src/events/ch3: the talked records from chapters 1–2, 60 3.4).
+ * `standard` = the 「第3章から」 standard data (no chapter-2 save behind it).
+ */
+const ch3StartHooks: ((standard: boolean) => void)[] = [];
+export function registerChapter3StartHook(fn: (standard: boolean) => void): void {
+  ch3StartHooks.push(fn);
+}
+
+/**
+ * Start chapter 3 (60_ch3_story 1.4). `from`:
+ *  - 'continue': the slot's chapter 2 clear data has just been loaded
+ *  - 'title': 「第3章から」 — the start snapshot, else the slot's chapter 2
+ *    clear data, else the standard start (newChapter3Party)
+ * Then chapter3Adjust(), flag_ch3_started / _stage 0, the talked records,
+ * the snapshot, and evt_ch3_prologue (S00 the chapter's door → S01) from
+ * black. The prologue runs as a field script on map_home_1f at the front
+ * door, with the screen still black (game.fadeAlpha = 1).
+ */
+export function* startChapter3(from: 'continue' | 'title'): Co {
+  uiHud.reset();
+  resetAutosave();
+  let fromSnapshot = false;
+  let standard = false;
+  if (from === 'title') {
+    if (loadSnapshot(CH3_START_KEY) && flag('flag_ch3_started') && state.party.length) fromSnapshot = true;
+    else if (!(loadGame() && flag('flag_ch2_clear') && !flag('flag_ch3_started'))) {
+      resetState();
+      newChapter3Party();
+      standard = true;
+    }
+  }
+  lastLevelUps3 = [];
+  if (!fromSnapshot) {
+    lastLevelUps3 = chapter3Adjust();
+    setFlag('flag_ch3_started', 1);
+    setFlag('flag_ch3_stage', 0);
+    setFlag('flag_ch3_clock', 0);
+    setFlag('flag_hud_hidden', 0);
+    restAll();
+    for (const h of ch3StartHooks) h(standard);
+    saveSnapshot(CH3_START_KEY);
+  }
+  if (from === 'title') setFlag('flag_ch3_from_title', 1);
+  syncProgressSkills();
+  syncSettingFlags();
+  stopBgm(0.4);
+  stopAllAmbient(0.4);
+  if (ditherLevel() > 0 || game.fadeAlpha < 1) yield* ditherOut(ditherLevel() >= 1 || game.fadeAlpha >= 1 ? 1 : 350, '#0B0B14');
+  game.fadeColor = '#0B0B14';
+  game.fadeAlpha = 1;
+  yield* ditherIn(1);
+  // S01: in at the front door of 小林家 (map_home_1f), 9月1日 11:10
+  state.map = 'map_home_1f';
+  state.x = 2;
+  state.y = 7;
+  state.dir = 'up';
+  const f = new FieldScene('map_home_1f', 2, 7, 'up');
+  game.replaceAll(f);
+  if (hasScript('evt_ch3_prologue')) {
+    f.runScriptId('evt_ch3_prologue', 'chapter3');
+    return;
+  }
   yield* game.fadeIn(800);
 }
 

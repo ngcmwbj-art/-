@@ -58,6 +58,7 @@ import { KOTEI_TEXTS } from '../../data/text/kotei';
 import { TOKEI_TEXTS } from '../../data/text/tokei7';
 import { HAJIMETE_TEXTS } from '../../data/text/hajimete';
 import { HOKOKUSHO_TEXTS } from '../../data/text/hokokusho';
+import { c3Texts } from '../../data/text/c3_events';
 
 type Step = () => void;
 
@@ -477,6 +478,8 @@ function collectTexts(): [string, string][] {
   walk('hokokusho', HOKOKUSHO_TEXTS);
   // げむきか10/5の改1（水辺の 図鑑：夜振り・たも網・沢ガニ・駅ノート。50 3.10・10.25, 02_ch2_index #81）
   walk('mizube_ch2', MIZUBE_CH2_TEXTS);
+  // 第3章『海ぞいの町の いただきます』の 第1期（60_ch3_story 10.0〜10.6・3.2・9章。名前は C3_NAMES を差しこんだ形）
+  walk('c3', c3Texts());
   // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line
   // lines shown without a speaker (HOUKI_LINE's float note: the same 336 px)
   for (const [k, v] of Object.entries(EV)) if (typeof v === 'string' && (v.startsWith('@') || v.startsWith('!cue') || v.includes('\n'))) out.push([`ev.${k}`, v]);

@@ -124,16 +124,23 @@ export function groundAt(m: LoadedMap, x: number, y: number): Ground {
 // flag the current map uses when it loads a map (setStageSource), and every
 // stage-dependent lookup (conditions, talk keys, stage texts, bgm/amb per
 // stage, grading, fushigi) reads currentStage(). Default: flag_stage, i.e.
-// chapter 1 behaves exactly as before.
+// chapter 1 behaves exactly as before. Chapter 3 (海ぞいの町, 60 0.5 / 62 0.2)
+// keeps its stage in flag_ch3_stage (0 夕鳴町の昼前, 1 正午 12:00, 2 12:01,
+// 3 旧水族館, 4 エンディング) and its talk keys start with `c` (c1_1, 'c1-2').
 
-export type StageFlag = 'flag_stage' | 'flag_ch2_stage';
+export type StageFlag = 'flag_stage' | 'flag_ch2_stage' | 'flag_ch3_stage';
 
 let stageSource: StageFlag = 'flag_stage';
 
 /** The stage flag of a map definition (MapDef.stageFlag, else by chapter). */
 export function stageFlagOf(def: MapDef | undefined | null): StageFlag {
   if (!def) return 'flag_stage';
-  return def.stageFlag ?? (def.chapter === 2 ? 'flag_ch2_stage' : 'flag_stage');
+  return def.stageFlag ?? (def.chapter === 2 ? 'flag_ch2_stage' : def.chapter === 3 ? 'flag_ch3_stage' : 'flag_stage');
+}
+
+/** Is this a chapter-3 (海ぞいの町) map? (The reused 夕鳴町 maps of S01–S04 stay chapter 1.) */
+export function isCh3Map(def: MapDef | undefined | null): boolean {
+  return !!def && (def.chapter === 3 || def.stageFlag === 'flag_ch3_stage');
 }
 
 /** Is this a chapter-2 (星見台) map? */
@@ -156,9 +163,9 @@ export function currentStage(): number {
   return flag(stageSource);
 }
 
-/** Talk-table key prefix of the current stage source: 's' (chapter 1) or 'h' (星見台). */
-export function stageKeyPrefix(): 's' | 'h' {
-  return stageSource === 'flag_ch2_stage' ? 'h' : 's';
+/** Talk-table key prefix of the current stage source: 's' (chapter 1), 'h' (星見台) or 'c' (海ぞいの町). */
+export function stageKeyPrefix(): 's' | 'h' | 'c' {
+  return stageSource === 'flag_ch2_stage' ? 'h' : stageSource === 'flag_ch3_stage' ? 'c' : 's';
 }
 
 // ---- conditions -------------------------------------------------------------
@@ -188,15 +195,17 @@ export function condOk(c: Cond | undefined, stage = currentStage()): boolean {
 /**
  * Pick the entry of a stage-keyed record for the current stage. Keys are
  * s0, s1-2, s2+, s0,1 … and, on 星見台 maps, the same with `h` (h0, h1-2);
- * there the `h` keys win and `s` keys are read as a fallback.
+ * there the `h` keys win and `s` keys are read as a fallback (on 海ぞいの町
+ * maps the same with `c`).
  */
 export function pickStage<T>(v: T | Record<string, T> | undefined, stage = currentStage()): T | undefined {
   if (v === undefined || v === null) return undefined;
   if (typeof v !== 'object' || Array.isArray(v)) return v as T;
   const rec = v as Record<string, T>;
   const keys = Object.keys(rec);
-  if (!keys.some((k) => k === 'default' || /^[sh]\d/.test(k))) return v as T;
-  const prefixes = stageKeyPrefix() === 'h' ? ['h', 's'] : ['s'];
+  if (!keys.some((k) => k === 'default' || /^[shc]\d/.test(k))) return v as T;
+  const kp = stageKeyPrefix();
+  const prefixes = kp === 'h' ? ['h', 's'] : kp === 'c' ? ['c', 's'] : ['s'];
   for (const pre of prefixes) {
     const own = keys.filter((k) => k.startsWith(pre) && /^\d/.test(k.slice(1)));
     if (!own.length) continue;

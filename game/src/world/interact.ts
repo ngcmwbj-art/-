@@ -33,7 +33,9 @@ function ctxFor(f: FieldScene, source: string, runDefault: () => Co, defaultText
 export function pickTalk(npcId: string, table: TalkTable): string | null {
   const stage = currentStage();
   const keys = Object.keys(table);
-  const pre = stageKeyPrefix() === 'h' && keys.some((k) => /^h\d/.test(k)) ? 'h' : 's';
+  const kp = stageKeyPrefix();
+  // 星見台 reads `h` keys, 海ぞいの町 `c` keys (flag_ch3_stage), when the table has them
+  const pre = kp !== 's' && keys.some((k) => new RegExp(`^${kp}\\d`).test(k)) ? kp : 's';
   for (let s = stage; s >= 0; s--) {
     // numbered keys sN_1, sN_2, ... (hN_1 on 星見台)
     const numbered: string[] = [];
@@ -99,6 +101,8 @@ export function* interactActor(f: FieldScene, a: Actor): Co {
   }
   const def = a.data.def as NpcObj | undefined;
   if (!def) return;
+  // 話しかけた記録（60_ch3_story 3.0・3.4：第3章で「来る人」を決める。第1章から記録して、セーブに残す）
+  setFlag(`flag_talked_${def.id}`, 1);
   f.talking = a;
   const turns = !def.noTurn;
   const prevDir = a.dir;

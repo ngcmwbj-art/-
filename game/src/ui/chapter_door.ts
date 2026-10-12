@@ -123,6 +123,8 @@ class ChapterDoor implements Widget {
   constructor(
     private readonly chapter: string,
     private readonly title: string,
+    /** The hanamaru tomato after the last letter (chapter 2's door; chapter 3 has none). */
+    private readonly icon = true,
   ) {
     this.letters = [...title];
     this.seal = chapterSeal(chapter);
@@ -285,7 +287,7 @@ class ChapterDoor implements Widget {
       this.drawPen(g, x, TITLE_Y + 6, lift);
     }
     // the tomato, set down after the last letter, with one ring of light
-    if (this.iconT >= 0) {
+    if (this.icon && this.iconT >= 0) {
       const icon = tomatoIcon('ready');
       const ix = Math.round(W / 2 + tw / 2 + 6);
       const iy = TITLE_Y + 3;
@@ -303,8 +305,8 @@ class ChapterDoor implements Widget {
  * Stamp the chapter's door and wait until it has faded (about 4.5 s).
  * Default: 「第2章」『星見台の トマト』.
  */
-export function* playChapterDoor(o: { chapter?: string; title?: string } = {}): Co {
-  const d = new ChapterDoor(o.chapter ?? CH2_TITLE_STAMP, o.title ?? CH2_TITLE_NAME);
+export function* playChapterDoor(o: { chapter?: string; title?: string; icon?: boolean } = {}): Co {
+  const d = new ChapterDoor(o.chapter ?? CH2_TITLE_STAMP, o.title ?? CH2_TITLE_NAME, o.icon ?? true);
   game.ui.push(d);
   yield () => d.done;
 }

@@ -8,7 +8,10 @@ import { songGainDb } from './mix';
 import { legacyBgm, noteUnknown, songTable } from './registry';
 import { MUSIC_LOOKAHEAD, PARAM_DEFAULTS, SongPlayer, type Params, type SongDef } from './sequencer';
 
-export type MusicParam = 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest' | 'clock' | 'h_deli';
+export type MusicParam =
+  | 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest' | 'clock' | 'h_deli'
+  // chapter 3 (63_ch3_audio 6)
+  | 'c3_noon' | 'c3_ichiba' | 'c3_shokudo' | 'c3_umi' | 'c3_ichi' | 'c3_shio' | 'c3_wana' | 'c3_phase';
 
 export interface PlayOpts {
   /** Fade-in (and cross-fade) seconds. */
@@ -44,7 +47,8 @@ const RESUME_WINDOW = 90_000;
 const BATCH = 0.15;
 
 /** Songs that continue where they left off by default (12.2; 53 5.1 adds 星見台の夜). */
-const RESUMABLE = /^bgm_(town_s[012]|home|shop|mall|hoshi_night)$/;
+// (63 4.2: 海ぞいの町's song carries on between the town and its rooms, and after a battle)
+const RESUMABLE = /^bgm_(town_s[012]|home|shop|mall|hoshi_night|umi_noon)$/;
 
 function g(): Graph {
   return cur();
@@ -213,6 +217,8 @@ function applyVariant(p: SongPlayer | null, v: string | undefined): void {
     p.out.gain.setTargetAtTime(dbToGain(songGainDb(p.def.id, p.def.gainDb)), t, 0.05);
   }
   p.state.muffledVariant = v === 'muffled';
+  // 63_ch3_audio 5.11: 夕鳴町 before noon (bgm_home / bgm_town_s0 'hirumae'); the parts read it
+  p.state.hirumae = v === 'hirumae';
 }
 
 function playJingle(id: string, def: SongDef, opts: PlayOpts): void {
@@ -372,6 +378,8 @@ function setStage(n: number): void {
 export const stageListeners: ((stage: number) => void)[] = [];
 /** 53 6.1: the ambience hears 星見台's stage the same way (hStageListeners). */
 export const hStageListeners: ((stage: number) => void)[] = [];
+/** 63 6.1–6.2: the chapter-3 beds hear the clock (c3_noon) and the 「まだ」 undone the same way. */
+export const c3ParamListeners: ((name: string, value: number) => void)[] = [];
 
 export function setMusicParam(name: MusicParam, value: number): void {
   if (name === 'h_stage') {
@@ -404,8 +412,10 @@ export function setMusicParam(name: MusicParam, value: number): void {
     current?.player?.setUserDetune(value, 0.3);
     return;
   }
+  const was = params[name];
   params[name] = value;
   current?.player?.setParam(name, value);
+  if (name.startsWith('c3_') && was !== value) c3ParamListeners.forEach((f) => f(name, value));
 }
 
 // ---- transitions (12) ---------------------------------------------------------

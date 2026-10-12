@@ -284,7 +284,7 @@ const KHAKI = '#8A7A4A';
 /** His sideburns under the cap. */
 const HAIR = '#1B1733';
 
-type Driver = 'cap' | 'nap';
+type Driver = 'cap' | 'nap' | 'none';
 
 /** A yellow crate (収穫コンテナ): the pale top edge, the brass side, a hand hole. */
 function crate(p: PixelCanvas, x: number, y: number, w: number, h: number): void {
@@ -311,6 +311,8 @@ function produce(p: PixelCanvas, x: number, y: number, kind: 'tomato' | 'green')
 
 /** ツガオ at the side window (the window is x41–49, y5–11). `b`: the sleeper's head 1px down. */
 function sideDriver(p: PixelCanvas, d: Driver, b: number): void {
+  // (chapter 3: parked on the quay, the cab empty — ツガオ is off on his round)
+  if (d === 'none') return;
   p.rect(44, 10, 5, 2, KHAKI); // shoulders
   if (d === 'cap') {
     // the olive work cap, its brim forward; a sideburn, a thin eye, a still face
@@ -433,8 +435,11 @@ function tsugaoFront(k: number, d: Driver, b: number): HTMLCanvasElement {
   p.rect(5, 5, 20, 8, P.navy);
   p.hline(5, 24, 5, P.blue);
   p.line(6, 11, 10, 7, P.aqua);
-  p.rect(16, 11, 6, 2, KHAKI);
-  if (d === 'cap') {
+  if (d !== 'none') p.rect(16, 11, 6, 2, KHAKI);
+  if (d === 'none') {
+    // the empty seat's headrest
+    p.rect(17, 10, 4, 2, P.charcoal);
+  } else if (d === 'cap') {
     p.rect(17, 9, 4, 2, P.skin4);
     p.set(17, 9, HAIR);
     p.set(20, 9, HAIR);
@@ -527,10 +532,12 @@ function tsugaoBack(k: number): HTMLCanvasElement {
 /** Vehicle ids: the white truck of the first build, and ツガオ便 awake / asleep. */
 export const TSUGAO_TRUCK = 'tsugao_truck';
 export const TSUGAO_TRUCK_NAP = 'tsugao_truck_nap';
+/** Chapter 3 (62 3.4): parked on the quay in front of the harbour store, nobody in the cab. */
+export const TSUGAO_TRUCK_EMPTY = 'tsugao_truck_empty';
 
 function build(id: string): VehicleArt {
-  if (id === TSUGAO_TRUCK || id === TSUGAO_TRUCK_NAP) {
-    const d: Driver = id === TSUGAO_TRUCK_NAP ? 'nap' : 'cap';
+  if (id === TSUGAO_TRUCK || id === TSUGAO_TRUCK_NAP || id === TSUGAO_TRUCK_EMPTY) {
+    const d: Driver = id === TSUGAO_TRUCK_NAP ? 'nap' : id === TSUGAO_TRUCK_EMPTY ? 'none' : 'cap';
     const right = [tsugaoSide(0, d, 0), tsugaoSide(1, d, 0)];
     const art: VehicleArt = {
       frames: {

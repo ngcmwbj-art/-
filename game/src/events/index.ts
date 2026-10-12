@@ -47,4 +47,7 @@ import './tokei7';
 import './hajimete';
 // 「ダンゴムシ ちゃうで」の 報告書（02 #93）：巡査・聞き込みの 8人・さや・母・コタロウを 包むので、hajimete の あとに import する
 import './hokokusho';
+// 第3章『海ぞいの町の いただきます』（60_ch3_story。第1期：S00〜S06）。母・テレビ・おばあ・置物の 台本を
+// 夕鳴町の 段階0だけ 包むので、第1章・第2章の すべての あとに import する
+import './ch3';
 import './debug';

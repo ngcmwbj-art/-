@@ -23,6 +23,7 @@
 import * as THREE from 'three';
 import { P } from '../art/tiles/palette';
 import { structureCell, type CellArt, type CellMask } from '../art/tiles/structures';
+import { C3_WOODS } from '../art/tiles/c3_struct';
 import { cellAt, charAt, type LoadedMap } from '../world/maps';
 import { Atlas, box, extrude, litMaterial, Mask, PX, Quads, solidFace, type Face } from './solid';
 import type { Slab, Solid } from './overlap';
@@ -73,7 +74,7 @@ const EXTRA: Record<string, { x: number; y: number; w: number; h: number; ch: st
 };
 
 /** 星見台's woods and thickets: a card a cell (card()), and an area that goes on past the map's edges. */
-const WOODS = new Set(['sugi', 'sugi_down', 'sugi_sawa', 'take', 'zoki', 'zoki_grove', 'yabu', 'kuzu', 'kuzu_low']);
+const WOODS = new Set(['sugi', 'sugi_down', 'sugi_sawa', 'take', 'zoki', 'zoki_grove', 'yabu', 'kuzu', 'kuzu_low', ...C3_WOODS]);
 /** How far a wood at a map's edge goes on past it (tiles: west and east, north, south); the land beyond is outskirts.ts's. */
 const WOOD_MARGIN = { x: 16, n: 11, s: 5 };
 

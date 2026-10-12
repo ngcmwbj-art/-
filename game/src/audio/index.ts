@@ -152,7 +152,13 @@ export function muteMusic(seconds: number): void {
  * Only changes are acted on.
  */
 export function setMusicParam(
-  name: 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest' | 'clock' | 'h_deli',
+  name:
+    | 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest' | 'clock' | 'h_deli'
+    // chapter 3 (63_ch3_audio 6): 'c3_noon' 0/1 (12:00 → 12:01), 'c3_ichiba' 'c3_shokudo'
+    // 'c3_umi' 0/1 (the three 「まだ」 undone: a part of bgm_umi_noon comes back over two
+    // bars), 'c3_ichi' 0..3 (あぜ道市), 'c3_shio' 0/1 (the sea seen from the truck bed),
+    // 'c3_wana' 0..2 (S14), 'c3_phase' 0 / 1 海ぞいの町 / 2 旧水族館
+    | 'c3_noon' | 'c3_ichiba' | 'c3_shokudo' | 'c3_umi' | 'c3_ichi' | 'c3_shio' | 'c3_wana' | 'c3_phase',
   value: number,
 ): void {
   music.setMusicParam(name, value);
@@ -218,7 +224,8 @@ function applyPa(ramp: number): void {
  * echoes already on their way ring out.
  */
 export function setPaMode(mode: PaMode): void {
-  if (mode !== 'town' && mode !== 'yama') return;
+  // (63_ch3_audio 3.3: 'umi' — 海ぞいの町's siren tower; 'kannai' — 旧水族館's ceiling speakers)
+  if (mode !== 'town' && mode !== 'yama' && mode !== 'umi' && mode !== 'kannai') return;
   pa.mode = mode;
   liveGraph()?.pa.setMode(mode, 0.3);
 }

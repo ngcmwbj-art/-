@@ -54,10 +54,23 @@ export interface Params {
    * a battle on the way does not end the delivery.
    */
   h_deli: number;
+  /** 63_ch3_audio 6.1: 12:00 (0) or 12:01 and after (1) in 海ぞいの町. */
+  c3_noon: number;
+  /** 63 6.2: the three 「まだ」 undone — 市場, 食堂, 海水浴場 (0 / 1 each). */
+  c3_ichiba: number;
+  c3_shokudo: number;
+  c3_umi: number;
+  /** 63 6.3: how many came to あぜ道市 (0–3, a step of the count). */
+  c3_ichi: number;
+  /** 63 6.8: the sea seen from the truck bed (0 / 1) and the trap (0–2). */
+  c3_shio: number;
+  c3_wana: number;
+  /** 63 6.7: 0 outside chapter 3 or 夕鳴町, 1 海ぞいの町, 2 旧水族館 (the battle songs' forms). */
+  c3_phase: number;
 }
 
 /** Every param's resting value (the chapter-1 state: nothing of chapter 2 is on). */
-export const PARAM_DEFAULTS: Readonly<Params> = { stage: 0, kire: 0, boss_phase: 1, h_stage: -1, h_light: 0, tenko: 0, h_rest: 0, h_room: 0, clock: 0, h_deli: 0 };
+export const PARAM_DEFAULTS: Readonly<Params> = { stage: 0, kire: 0, boss_phase: 1, h_stage: -1, h_light: 0, tenko: 0, h_rest: 0, h_room: 0, clock: 0, h_deli: 0, c3_noon: 0, c3_ichiba: 0, c3_shokudo: 0, c3_umi: 0, c3_ichi: 0, c3_shio: 0, c3_wana: 0, c3_phase: 0 };
 
 /**
  * Changes that land on the next beat instead of the next bar: a kire rise

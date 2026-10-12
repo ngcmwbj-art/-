@@ -145,8 +145,8 @@ function townDef(stage: 0 | 1 | 2): SongDef {
       vel: { drm_shaker: s1 ? 0.5 : 1, drm_kick_soft: 1.35 },
     }),
     hits('fx', [
-      // the triangle at A1: a hint of the chime to come
-      { when: (b, s) => b.label === 'A1' && s === 0, fn: (b, t, rt) => DRM.drm_triangle({ t, vel: 1, vol: 0.015, dest: rt.input, rev: rt.rev }) },
+      // the triangle at A1: a hint of the chime to come (not before noon: the chime is the evening's, 63 5.11)
+      { when: (b, s) => b.label === 'A1' && s === 0 && !b.song.state.hirumae, fn: (b, t, rt) => DRM.drm_triangle({ t, vel: 1, vol: 0.015, dest: rt.input, rev: rt.rev }) },
       // C8 beat 4: reverse cymbal back into A
       {
         when: (b, s) => b.label === 'C8' && s === 12,

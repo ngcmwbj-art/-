@@ -12,6 +12,8 @@ import { fbm, h01, ihash, valueNoise } from './noise';
 import { P } from './palette';
 import { paintDecals, type DecalContext } from './decals';
 import { H_GREEN, H_GROUNDS, H_HARD, H_NVAR, H_PRIO, H_SOFT, H_TEX, texHoshiDirt, type HTexCtx } from './hoshi_ground';
+// chapter 3 (海ぞいの町, 62 7.1)
+import { C3_GREEN, C3_GROUNDS, C3_HARD, C3_NVAR, C3_PRIO, C3_SOFT, C3_TEX } from './c3_ground';
 
 export interface GroundSource {
   /** Map size in tiles. */
@@ -92,14 +94,15 @@ const PRIO: Partial<Record<Ground, number>> = {
   water: 0, paddy: 1, asphalt: 2, lot: 2, crosswalk: 2, crossing: 2, gutter: 3, bridge: 4, sidewalk: 4, plaza: 4,
   arcade: 4, ballast: 3, rail: 3, gravel: 5, dirt: 6, sand: 7, grass: 8, weeds: 9, reeds: 9, hedge: 10,
   ...(H_PRIO as Partial<Record<Ground, number>>),
+  ...(C3_PRIO as Partial<Record<Ground, number>>),
 };
-const SOFT = new Set<Ground>(['grass', 'weeds', 'dirt', 'sand', 'gravel', 'reeds', 'hedge', 'paddy', ...(H_SOFT as unknown as Ground[])]);
+const SOFT = new Set<Ground>(['grass', 'weeds', 'dirt', 'sand', 'gravel', 'reeds', 'hedge', 'paddy', ...(H_SOFT as unknown as Ground[]), ...(C3_SOFT as unknown as Ground[])]);
 /** Chapter 2 materials with built edges (canal, stream, terraces, platform, floors): never wandered. */
-const HARD = new Set<Ground>(H_HARD as unknown as Ground[]);
+const HARD = new Set<Ground>([...(H_HARD as unknown as Ground[]), ...(C3_HARD as unknown as Ground[])]);
 // Paved materials that sit one step above the road and get a curb.
 const RAISED = new Set<Ground>(['sidewalk', 'plaza', 'arcade', 'bridge']);
 const ROADISH = new Set<Ground>(['asphalt', 'lot', 'crosswalk', 'gutter']);
-const GREEN = new Set<Ground>(['grass', 'weeds', 'hedge', 'reeds', ...(H_GREEN as unknown as Ground[])]);
+const GREEN = new Set<Ground>(['grass', 'weeds', 'hedge', 'reeds', ...(H_GREEN as unknown as Ground[]), ...(C3_GREEN as unknown as Ground[])]);
 
 function amp(a: Ground, b: Ground): number {
   const sa = SOFT.has(a);
@@ -114,6 +117,7 @@ const GIDS: Ground[] = [
   'bridge', 'plaza', 'water', 'paddy', 'ballast', 'rail', 'crossing', 'hedge', 'reeds', 'wood', 'wood_bare', 'engawa',
   'tatami', 'kitchen', 'genkan', 'shopwood', 'tile_floor', 'mall', 'void',
   ...(H_GROUNDS as unknown as Ground[]),
+  ...(C3_GROUNDS as unknown as Ground[]),
 ];
 const GINDEX = new Map(GIDS.map((g, i) => [g, i]));
 
@@ -608,6 +612,7 @@ const TEX: Partial<Record<Ground, Tex>> = {
 const NVAR: Partial<Record<Ground, number>> = {
   asphalt: 4, lot: 3, gutter: 4, sidewalk: 3, grass: 4, weeds: 3, dirt: 3, sand: 2, gravel: 3, ballast: 2, rail: 2,
   ...(H_NVAR as Partial<Record<Ground, number>>),
+  ...(C3_NVAR as Partial<Record<Ground, number>>),
 };
 
 // ---- baking -----------------------------------------------------------------------
@@ -715,7 +720,9 @@ export function bakeGround(src: GroundSource, x0: number, y0: number, w: number,
       const tx = Math.floor(wx / 16);
       const ty = Math.floor(wy / 16);
       const th = src.theme(Math.max(0, Math.min(src.w - 1, tx)), Math.max(0, Math.min(src.h - 1, ty)));
-      const htex = (H_TEX as Record<string, ((x: number, y: number, v: number, c: HTexCtx) => number) | undefined>)[g];
+      const htex =
+        (H_TEX as Record<string, ((x: number, y: number, v: number, c: HTexCtx) => number) | undefined>)[g] ??
+        (C3_TEX as Record<string, ((x: number, y: number, v: number, c: HTexCtx) => number) | undefined>)[g];
       let col: number;
       if (htex) col = htex(wx, wy, variant(tx, ty, g), hctx);
       else if (g === 'dirt' && th.startsWith('area_hoshi')) col = texHoshiDirt(wx, wy, variant(tx, ty, g));

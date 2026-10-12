@@ -118,6 +118,9 @@ export const ROOM_MAPS = new Set([
   'map_mall_health',
   'map_mall_2f',
   'map_mall_maigo',
+  // chapter 3 (海ぞいの町, 62 4.0): the rooms of the first part
+  'map_c3_shokudo',
+  'map_c3_ichiba',
 ]);
 
 // the rooms' own entries of the town's table of bodies (room_tune.ts ROOM_SOLID; the town's win)

@@ -7,7 +7,7 @@
 // `cur()` is the graph voice() writes into; it is the live graph except while
 // an offline render is being scheduled (withGraph()).
 
-export type SpaceId = 'outdoor' | 'room' | 'hall' | 'maigo' | 'battle' | 'night' | 'yama' | 'barn';
+export type SpaceId = 'outdoor' | 'room' | 'hall' | 'maigo' | 'battle' | 'night' | 'yama' | 'barn' | 'minato' | 'suizoku' | 'shinkai' | 'soko';
 
 /**
  * The master sits this much above 11.1's 0.8. At the default volumes (BGM 7,
@@ -31,6 +31,13 @@ export const SPACES: Record<SpaceId, { len: number; decay: number; hp: number; s
   // off the far slopes) and the cattle barn (a concrete floor under a steel roof)
   yama: { len: 2.2, decay: 3.0, hp: 250, send: 0.3 },
   barn: { len: 1.0, decay: 3.6, hp: 300, send: 0.22 },
+  // 63_ch3_audio 3.4: the open seaside of 海ぞいの町 (the quays and the warehouse
+  // walls answer short), the closed aquarium's halls, its pitch-dark deep-sea
+  // room (a long, low ring) and the metal-lined bait freezer
+  minato: { len: 1.2, decay: 3.4, hp: 300, send: 0.18 },
+  suizoku: { len: 2.8, decay: 2.6, hp: 220, send: 0.32 },
+  shinkai: { len: 4.0, decay: 2.2, hp: 120, send: 0.25 },
+  soko: { len: 0.5, decay: 4.5, hp: 400, send: 0.2 },
 };
 
 // ---------------------------------------------------------------------------
@@ -194,7 +201,7 @@ export class Reverb {
 // PA speaker chain (40_audio 3.6 bus_pa; 53_ch2_audio 3.3 the mountain type)
 
 /** The shape of the valley the speaker sings into (53_ch2_audio 3.3). */
-export type PaMode = 'town' | 'yama';
+export type PaMode = 'town' | 'yama' | 'umi' | 'kannai';
 
 interface PaModeDef {
   /** Echo taps: delay (s), level (dB), pan. */
@@ -210,6 +217,12 @@ export const PA_MODES: Record<PaMode, PaModeDef> = {
   town: { taps: [[0.14, -9, -0.3], [0.31, -14, 0.4], [0.62, -20, -0.1]], rev: 1.8, lp: 3800, drive: 1.6 },
   // 星見台: the far slope of the valley answers late; an old, rounder speaker
   yama: { taps: [[0.45, -8, -0.3], [0.95, -13, 0.4], [1.5, -19, -0.1]], rev: 2.6, lp: 3200, drive: 1.3 },
+  // 海ぞいの町 (63_ch3_audio 3.3): the siren tower's horns over the sea — the
+  // breakwater and the far cape answer; a short, open seaside ring; the
+  // siren's high partials get through (4.2 kHz)
+  umi: { taps: [[0.22, -8, 0.3], [0.52, -12, -0.4], [0.88, -18, 0.1]], rev: 1.4, lp: 4200, drive: 1.0 },
+  // 旧水族館's ceiling speakers, one after another down the corridor; an old amp
+  kannai: { taps: [[0.035, -6, -0.5], [0.07, -9, 0.5], [0.14, -14, 0]], rev: 3.0, lp: 2800, drive: 1.8 },
 };
 
 /** One voicing of the speaker: drive → band → echo taps → its own reverb. */

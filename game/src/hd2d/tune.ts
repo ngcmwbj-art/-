@@ -201,6 +201,18 @@ export const SOLID: Record<string, PropSolid> = {
   obj_broken_guide: slab(4),
   prop_sch_uramon: slab(3),
   obj_bridge: slab(3),
+  // chapter 3 (海ぞいの町, 62 8.9): the tall things of the town stand as columns —
+  // the siren tower's shaft and the red lighthouse — their tops (the siren, the
+  // lamp room, the rails) pushed back; gulls in the air, the spray, the steam stay pictures
+  prop_c3_siren_tower: pole(6),
+  prop_c3_toudai: pole(5),
+  prop_c3_kanshidai: pole(3),
+  prop_c3_kamome_sora: FLAT,
+  prop_c3_shibuki: FLAT,
+  prop_c3_yuge: FLAT,
+  prop_c3_noren: slab(1),
+  prop_c3_fune: slab(10),
+  prop_c3_mikan: { kind: 'tree', depth: 3 },
 };
 
 /** The solid of a prop: the table, else trees by id, else a slab as deep as a third of its smaller side. */

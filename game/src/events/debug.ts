@@ -21,6 +21,7 @@ import { resetStamp } from './stamp';
 import { GUIDE_MENU, GUIDE_MOVE } from '../data/text/events';
 import { animFrame, charSprite, poseFrame, walkFrame } from '../art/chars';
 import { beatCh2, jumpCh2, listCh2 } from './ch2/debug';
+import { jumpCh3, listCh3 } from './ch3/debug';
 
 type Step = () => void;
 
@@ -181,7 +182,13 @@ function applyUpTo(beat: string): (typeof CHAIN)[number] | null {
 }
 
 const JUMP = (beat?: string, noRun = false): unknown => {
-  if (!beat) return [...CHAIN.map((c) => `${c.beat}: ${c.desc}`), ...listCh2().map((l) => `ch2:${l}`)];
+  if (!beat) return [...CHAIN.map((c) => `${c.beat}: ${c.desc}`), ...listCh2().map((l) => `ch2:${l}`), ...listCh3().map((l) => `ch3:${l}`)];
+  // chapter 3's beats (60_ch3_story 5.1: CHAIN3): 'ch3:<beat>' only
+  if (beat.startsWith('ch3:')) {
+    const ch3 = jumpCh3(beat.slice(4), noRun);
+    if (ch3) return ch3;
+    return `unknown beat ${beat}; ch3 beats: ${listCh3().map((l) => 'ch3:' + l.split(':')[0]).join(' ')}`;
+  }
   // chapter 2's beats (02_ch2 4.5: CHAIN2): 'ch2:<beat>', or a beat name
   // chapter 1 doesn't have (its 'boss' stays chapter 1's: 'ch2:boss')
   if (beat.startsWith('ch2:') || !CHAIN.some((c) => c.beat === beat)) {

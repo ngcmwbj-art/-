@@ -14,8 +14,10 @@ import type { PropArt, PropEnv } from '../art/props/types';
 import { Actor, DIR_VEC, dirFromVec } from './actor';
 import * as snd from './audio';
 import { GroundCache } from './ground_cache';
-import { cloneGrade, GRADES, GRADES_H, gradeHKey, lerpGrade, type Grade, type GradeHKey } from './lighting';
-import { cellAt, condOk, currentStage, hasMap, isCh2Map, loadMap, setStageSource, stageFlagOf, type LoadedMap } from './maps';
+import { cloneGrade, GRADES, GRADES_C, GRADES_H, gradeCKey, gradeHKey, lerpGrade, type Grade, type GradeCKey, type GradeHKey } from './lighting';
+import { ch3GradeStage, ch3Graded } from './umizoi';
+import { applyC3Audio, isC3AudioMap, leaveC3Audio } from './c3audio';
+import { cellAt, condOk, currentStage, hasMap, isCh2Map, isCh3Map, loadMap, setStageSource, stageFlagOf, type LoadedMap } from './maps';
 import { LightState } from './lantern';
 import {
   applyHoshiParams,
@@ -218,7 +220,7 @@ export class FieldScene implements Scene {
   /** Time spent inside each 'stay' trigger (ms). */
   private stayT = new Map<string, number>();
   /** The grade family the current grade belongs to (chapter-1 stages or the pal_h* presets). */
-  private gradeFamily: 1 | 2 = 1;
+  private gradeFamily: 1 | 2 | 3 = 1;
 
   constructor(mapId: string, tx: number, ty: number, dir: Dir = 'down') {
     current = this;
@@ -292,6 +294,17 @@ export class FieldScene implements Scene {
 
   /** Crossing between chapter 1 and 星見台 maps: jump straight to the right grade family. */
   private snapGradeFamily(): void {
+    // chapter 3 (62 8.3): 海ぞいの町's maps, and 夕鳴町 at 11:10 (stage 0), take the pal_c3_* presets
+    if (ch3Graded(this.map?.def)) {
+      const g = GRADES_C[gradeCKey(ch3GradeStage(this.map.def))];
+      if (this.gradeFamily === 3 && this.gradeT < 1) return;
+      this.gradeFamily = 3;
+      this.grade = cloneGrade(g);
+      this.gradeTo = cloneGrade(g);
+      this.gradeFrom = cloneGrade(g);
+      this.gradeT = 1;
+      return;
+    }
     const fam: 1 | 2 = this.ch2 ? 2 : 1;
     // between 星見台 maps at night the grade is the stage's preset (a scene
     // may have written flag_ch2_stage before the warp); the dawn of the
@@ -303,7 +316,7 @@ export class FieldScene implements Scene {
       this.gradeFrom = cloneGrade(g);
       return;
     }
-    if (fam === this.gradeFamily) return;
+    if (fam === this.gradeFamily && (this.gradeFamily as number) !== 3) return;
     this.gradeFamily = fam;
     const g = fam === 2 ? GRADES_H[gradeHKey(flag('flag_ch2_stage'))] : GRADES[flag('flag_stage')] ?? GRADES[0];
     this.grade = cloneGrade(g);
@@ -497,6 +510,12 @@ export class FieldScene implements Scene {
       this.applyHoshiAudio(entering);
       return;
     }
+    // chapter 3 (63_ch3_audio 4.2): 海ぞいの町's maps, and 夕鳴町 before noon on 9月1日
+    if (isC3AudioMap(this.map.def)) {
+      applyC3Audio(this, entering);
+      return;
+    }
+    leaveC3Audio();
     applyHoshiParams(this.map.def);
     const s = flag('flag_stage');
     const def = this.map.def;
@@ -618,6 +637,10 @@ export class FieldScene implements Scene {
       this.setStageH(n, ms);
       return;
     }
+    if (isCh3Map(this.map?.def)) {
+      this.setStageC(n, ms);
+      return;
+    }
     const prev = flag('flag_stage');
     setFlag('flag_stage', n);
     this.gradeFrom = cloneGrade(this.grade);
@@ -648,6 +671,34 @@ export class FieldScene implements Scene {
     // the beds of the new stage (53 4.2: amb_h_yama from h1, the open line's
     // hum in h2); the song goes on by itself (h_stage), a scene may hold it
     if (this.ch2 && n <= 2) this.applyHoshiAudio(false, false);
+  }
+
+  /**
+   * 海ぞいの町 (62 8.3): flag_ch3_stage and the pal_c3_* presets (1 → 2: the
+   * town starts moving again, 3 s like fx_c3_ugokidasu; the others 0.8 s).
+   */
+  private setStageC(n: number, ms?: number): void {
+    const prev = flag('flag_ch3_stage');
+    setFlag('flag_ch3_stage', n);
+    this.setGradeC(gradeCKey(n), ms ?? (n === 2 ? 3000 : 800));
+    snd.setMusicParam('c3_stage', n);
+    // the beds and the params of the new stage (63 4.2); the music is the events'
+    if (isC3AudioMap(this.map.def)) applyC3Audio(this, false, false);
+    this.refreshPresence();
+    if (prev !== n) this.reportOcclusion();
+  }
+
+  /** Tween to one of the pal_c3_* presets. */
+  setGradeC(key: GradeCKey, ms = 800): void {
+    this.gradeFamily = 3;
+    this.gradeFrom = cloneGrade(this.grade);
+    this.gradeTo = cloneGrade(GRADES_C[key]);
+    this.gradeDur = ms;
+    this.gradeT = 0;
+    if (ms <= 0) {
+      this.grade = cloneGrade(this.gradeTo);
+      this.gradeT = 1;
+    }
   }
 
   /** Tween to one of the pal_h* presets (the dawn of the ending: h3a → h3b 3.0 s → h3c). */
@@ -784,7 +835,7 @@ export class FieldScene implements Scene {
       this.grade = lerpGrade(this.gradeFrom, this.gradeTo, this.gradeT);
     }
     // stage 0: shadows grow slowly (+0.02 per 10s, max 1.5)
-    if (!this.ch2 && flag('flag_stage') === 0 && this.gradeT >= 1) this.grade.shadowLen = Math.min(1.5, this.grade.shadowLen + (0.02 * dt) / 10000);
+    if (!this.ch2 && this.gradeFamily === 1 && flag('flag_stage') === 0 && this.gradeT >= 1) this.grade.shadowLen = Math.min(1.5, this.grade.shadowLen + (0.02 * dt) / 10000);
     this.mt += dt * this.grade.motion;
     if (this.wave.amp > 0 || this.wave.t > 0) this.wave.t += dt;
 

@@ -55,6 +55,8 @@ const DEMO = import.meta.env.VITE_HD2D_DEMO === '1';
 const MAPS = new Set([
   'map_town', 'map_school', 'map_school_kotei', 'map_aze', 'map_seki', 'map_mall_roof',
   'map_hoshimidai', 'map_hoshi_hill', 'map_hoshi_sawa', 'map_hoshi_urayama',
+  // chapter 3 (62 8.9): 海ぞいの町 at noon
+  'map_umizoi',
 ]);
 
 const params = new URLSearchParams(location.search);

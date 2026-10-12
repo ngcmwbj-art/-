@@ -65,6 +65,23 @@ export const VOICE_SAMPLES: Record<string, string> = {
   hirosuke: 'ども！ おれは ヒロスケ。わはは！ ……焼き芋 食うか？',
   pokosha: '……あ。こ、こんばんは……。さすが 師匠！',
   piichan: 'ココッ？',
+  // chapter 3 (63_ch3_audio 9.1, 9.2): 海ぞいの町
+  c3_shokudo: 'おかわり、あるよ！ 遠慮 せんで 食べんさい。',
+  c3_jouren: '……もう 1杯。',
+  c3_seri: '……はい、ひゃくえん、ひゃく……',
+  c3_seri_deshi: '……はい、売った！',
+  c3_sirenban: '正午は、1秒も ずらさん。',
+  c3_toudai: '昼の 灯台は、ひと休み しとるんよ。',
+  c3_mago: 'じいちゃん、また 時計 見とる！',
+  c3_kanshiin: 'ピッ！ ……あ、つい。',
+  c3_himono_otto: '干しすぎ！ 干物は 干しすぎ くらいが ええ。',
+  c3_himono_tsuma: '干したりない！ やわらかいのが ええの。',
+  c3_tsuri: '釣れん ねえ。……まあ、ええか。',
+  c3_uketsuke: 'ようこそ、お越し くださいました。',
+  c3_kid: 'しゅん、どっから 来たん？',
+  c3_kid_a: 'しゅん、どっから 来たん？',
+  c3_kid_b: 'それ、でっかい ダンゴムシ？',
+  c3_kid_c: 'お昼、まだ 終わらんのよ。',
 };
 
 /**
@@ -76,6 +93,11 @@ export const VOICE_SAMPLES: Record<string, string> = {
 export const VOICE_CAL: Record<string, string> = {
   hirosuke: '師匠は、寝てるよ。朝の 5時に 起こす 決まりでね。',
   pokosha: '自分、ポコシャ、です。ツガオ師匠の、弟子を して います。',
+  // 海ぞいの町: their everyday lines (the whistle, 「売った！」 and the sigh ride apart)
+  c3_kanshiin: '遊泳 区域は、旗の 内側 です。',
+  c3_seri_deshi: 'セリは 朝です。いまは、止まって います。',
+  c3_jouren: 'わしは 毎日、ここで 食う。',
+  c3_seri: 'きょうの 最後の 1箱 じゃ。',
 };
 
 /** Characters per second of the dialog box (10.1: 40 chars/s; {spd=0.4} for the last line). */

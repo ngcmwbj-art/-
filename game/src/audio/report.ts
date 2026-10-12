@@ -620,6 +620,26 @@ export const AMB_CONTEXT: {
   { amb: 'amb_h_tsugaobin', song: 'bgm_hoshi_night', stage: 3, hStage: 1, role: 'character', underMin: 2, where: '転回場のツガオ便' },
   // ツガオの部屋: the lamp's hum is felt more than heard (its clocks and the siren come with events)
   { amb: 'amb_tsugao_room', song: 'bgm_tsugao', stage: 3, role: 'bed', need: -8, where: 'ツガオの部屋（スタンド）' },
+  // chapter 3 (63_ch3_audio 4.2, 10.2): 海ぞいの町 at 12:00 is quiet on purpose — the
+  // sea's floor and the stopped siren are beds; the beds that only sound from
+  // 12:01 (the birds, the moored boats, the breakwater) are calibrated with
+  // c3_noon set to 1 (audioMixSuggest after musicParam('c3_noon', 1))
+  { amb: 'amb_c3_umi', song: 'bgm_umi_noon', stage: 0, role: 'bed', underMin: 2, where: '海ぞいの町・屋外' },
+  { amb: 'amb_c3_semi', song: 'bgm_umi_noon', stage: 0, role: 'bed', underMin: 2, where: '海ぞいの町・屋外' },
+  { amb: 'amb_c3_tori', song: 'bgm_umi_noon', stage: 0, role: 'character', underMin: 2, where: '港（12:01）' },
+  { amb: 'amb_c3_minato', song: 'bgm_umi_noon', stage: 0, role: 'character', underMin: 2, where: '港' },
+  { amb: 'amb_c3_ichiba', song: 'bgm_umi_noon', stage: 0, room: 1, role: 'character', underMin: 2, where: '市場' },
+  { amb: 'amb_c3_ichiba_out', song: 'bgm_umi_noon', stage: 0, role: 'character', underMin: 2, where: '市場の前' },
+  { amb: 'amb_c3_shokudo', song: 'bgm_umi_noon', stage: 0, room: 2, role: 'character', underMin: 2, where: '食堂かもめ' },
+  { amb: 'amb_c3_shokudo_out', song: 'bgm_umi_noon', stage: 0, role: 'character', underMin: 2, where: '食堂の前' },
+  { amb: 'amb_c3_himono', song: 'bgm_umi_noon', stage: 0, role: 'character', underMin: 2, where: '干物屋の路地' },
+  { amb: 'amb_c3_bouhatei', song: 'bgm_umi_noon', stage: 0, role: 'bed', underMin: 2, where: '防波堤' },
+  { amb: 'amb_c3_kaisui', song: 'bgm_umi_noon', stage: 0, role: 'character', underMin: 2, where: '海水浴場' },
+  { amb: 'amb_c3_mikan', song: 'bgm_umi_noon', stage: 0, role: 'bed', underMin: 2, where: '段々のみかん畑' },
+  { amb: 'amb_c3_siren_hum', song: 'bgm_umi_noon', stage: 0, role: 'bed', underMin: 2, need: -8, where: 'サイレン塔の足もと' },
+  { amb: 'amb_c3_siren_hold', song: 'bgm_umi_noon', stage: 0, role: 'bed', underMin: 4, need: -6, where: '海ぞいの町（止まったサイレン、塔の広場）' },
+  { amb: 'amb_c3_keitora', song: 'bgm_tsugaobin', stage: 0, role: 'character', underMin: 1, where: 'ツガオ便の荷台' },
+  { amb: 'amb_c3_hirumae', song: 'bgm_town_s0', stage: 0, role: 'bed', where: '夕鳴町・昼前' },
 ];
 
 export interface AmbRow { amb: string; song: string; role: string; where: string; underMin?: number; margin: number; band: number; need: number; ambLufs: number; songLufs: number; under: number; peak: number; ok: boolean; bands: number[] }

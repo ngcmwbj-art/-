@@ -14,8 +14,10 @@ import { drawWater, fillSkyBase, hasWaterRuns, skyBaseStops, type Reflector, typ
 import { drawGroundLife } from '../art/tiles/groundlife';
 import { CHUNK } from './ground_cache';
 import type { FieldScene, PropInst } from './field';
-import { css, HOSHI_INDOOR_BASE, HOSHI_INDOOR_MORNING, INDOOR_MUL, shadowDir, type RGB } from './lighting';
-import { cellAt, groundAt, isCh2Map } from './maps';
+import { css, HOSHI_INDOOR_BASE, HOSHI_INDOOR_MORNING, INDOOR_MUL, INDOOR_MUL_C0, shadowDir, type RGB } from './lighting';
+import { cellAt, groundAt, isCh2Map, isCh3Map } from './maps';
+import { c3Positional, c3PositionalBeds } from './c3audio';
+import { ch3Hirumae } from './umizoi';
 import type { Actor } from './actor';
 import { hud } from './hud';
 import { fxDraw, fxUpdate } from './fx';
@@ -164,6 +166,7 @@ export class Renderer {
   /** The beds whose level positionalAmbience() sets on this map and stage. */
   positionalBeds(): string[] {
     if (isCh2Map(this.f.map.def)) return hoshiPositionalBeds(this.f.map.def);
+    if (isCh3Map(this.f.map.def)) return c3PositionalBeds(this.f.map.def);
     if (this.f.map.id !== 'map_town') return [];
     const beds = ['amb_kawabe', 'amb_arcade', 'amb_wind', 'amb_train_far'];
     if (flag('flag_stage') === 0) beds.push('amb_higurashi');
@@ -175,6 +178,11 @@ export class Renderer {
     const m = this.f.map;
     if (isCh2Map(m.def)) {
       hoshiPositional(this.f, this.ambient);
+      return;
+    }
+    // 海ぞいの町 (63 4.3): its beds by area and the noon siren's distance
+    if (isCh3Map(m.def)) {
+      c3Positional(this.f, this.ambient);
       return;
     }
     if (m.id !== 'map_town') return;
@@ -1783,7 +1791,9 @@ export class Renderer {
     const ch2 = isCh2Map(f.map.def);
     lx.globalAlpha = 1;
     lx.globalCompositeOperation = 'source-over';
-    const base = ch2 ? hoshiBase(f) : indoor ? css(indoorMul(st, gd.night, this.mapLit)) : css(gd.mul);
+    // (夕鳴町's rooms at 11:10 in chapter 3, 62 5.2: the day through the windows)
+    const dayRoom = indoor && !ch2 && ch3Hirumae();
+    const base = ch2 ? hoshiBase(f) : dayRoom ? css(INDOOR_MUL_C0) : indoor ? css(indoorMul(st, gd.night, this.mapLit)) : css(gd.mul);
     lx.fillStyle = base;
     lx.fillRect(0, 0, W, H);
     if (ch2) {
@@ -1862,9 +1872,9 @@ export class Renderer {
     }
     // left sunset bleed (星見台: the dawn bleeds in from the right, 52 8.3)
     ctx.globalCompositeOperation = 'screen';
-    const ga = plainRoom ? 0 : indoor ? 0.12 * (1 - gd.night) : gd.glareA;
+    const ga = plainRoom ? 0 : dayRoom ? 0.06 : indoor ? 0.12 * (1 - gd.night) : gd.glareA;
     if (ga > 0.001) {
-      const col = indoor ? [247, 194, 122] as [number, number, number] : gd.glare;
+      const col = dayRoom ? ([255, 250, 236] as [number, number, number]) : indoor ? ([247, 194, 122] as [number, number, number]) : gd.glare;
       const gw = W * (ch2 ? gd.glareW : 0.45);
       if (ch2 && gd.glareRight > 0.5) {
         const lg = ctx.createLinearGradient(W, 0, W - gw, 0);
@@ -1897,7 +1907,7 @@ export class Renderer {
     }
     // top darkness
     ctx.globalCompositeOperation = 'source-over';
-    const ta = plainRoom ? 0 : indoor ? 0.1 : gd.topA;
+    const ta = plainRoom ? 0 : dayRoom ? 0.04 : indoor ? 0.1 : gd.topA;
     if (ta > 0.001) {
       const tg = ctx.createLinearGradient(0, 0, 0, H * 0.35);
       tg.addColorStop(0, css(gd.topDark, ta));

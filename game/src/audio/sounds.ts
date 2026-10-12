@@ -15,6 +15,9 @@ import './songs/hoshi_night';
 import './songs/boss2';
 import './songs/hoshi_morning';
 import './songs/tsugao';
+// chapter 3 (63_ch3_audio)
+import './songs/umi_noon';
+import './songs/tsugaobin';
 import './sfx';
 import './sfx_ch2';
 // 捕まえない自由研究の虫の声（02_ch2_index #64）
@@ -31,4 +34,7 @@ import './sfx_matsuri';
 // 二人十五脚・ハンチングの 値札（02_ch2_index #82・#83）
 import './sfx_kotei';
 import './ambience_ch2';
+// chapter 3 (63_ch3_audio)
+import './sfx_ch3';
+import './ambience_ch3';
 import './voices';

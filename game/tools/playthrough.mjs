@@ -36,6 +36,14 @@
 //                                                     the dark corridor, the symbols in the dark drawn outside the
 //                                                     lantern too (a pixel diff), the hill door h1/h2, the clear record,
 //                                                     the title after it, the cue-sheet sounds registered
+//   node tools/playthrough.mjs --chapter 3            chapter 3『海ぞいの町の いただきます』の第1期 (60_ch3_story
+//                                                     10.0〜10.6): the title's 「第3章から」 → S00 the chapter's door →
+//                                                     S01 小林家 → S02 ひのや → S03 焼きそばのたかし → S04 ツガオ便 and its
+//                                                     bed → S05 the harbour at noon → S06 the children → 海ぞいの町 (the
+//                                                     people's talk, the post). Checks: the five tapes, 11:10 / 12:00, the
+//                                                     talked records (flag_talked_*, made from a chapter-1/2 save too),
+//                                                     the chapter-3 pages (textcheck2). --from <beat> starts at
+//                                                     jump('ch3:<beat>')
 //   node tools/playthrough.mjs --chapter 2 --side barnwork,delivery
 //                                                     the optional beats instead (牛舎のおてつだい, 野菜の配達),
 //                                                     each from its own jump('ch2:<beat>')
@@ -2155,13 +2163,171 @@ const BEATS2 = [
   },
 ];
 
+// ------------------------------------------------------------------ chapter 3 (--chapter 3, 60_ch3_story 10.0〜10.6)
+
+const hudTime = () => page.evaluate(async () => (await import('/src/ui/hud.ts')).uiHud.timeText());
+
+const BEATS3 = [
+  {
+    name: 'title',
+    async run() {
+      await page.waitForFunction(() => window.__game?.game?.top?.constructor?.name === 'TitleScene', null, { timeout: 30000 });
+      await sleep(600);
+      await tap('KeyZ');
+      await sleep(2600);
+      const menu = await page.evaluate(() => window.__game.game.top.menu);
+      const ok = JSON.stringify(menu) === JSON.stringify(['new', 'continue', 'ch2', 'ch3', 'settings']);
+      checks.push({ check: 'title: five tapes with 第3章から', ok, menu });
+      if (!ok) throw new Error(`title: ${JSON.stringify(menu)}`);
+      await shot('menu');
+      // はじめる／つづきから（no save: greyed, stepped over）／第2章から／第3章から／せってい
+      await tap('ArrowDown');
+      await sleep(250);
+      await tap('ArrowDown');
+      await sleep(250);
+      await shot('ch3tape');
+      await tap('KeyZ');
+      await sleep(900);
+      await shot('ask');
+      // the question defaults to やめる: up to はじめる
+      await tap('ArrowUp');
+      await sleep(200);
+      await tap('KeyZ');
+      await waitFor((s) => s.top === 'FieldScene' && s.map === 'map_home_1f', 20000, 'chapter 3 from the title');
+    },
+  },
+  {
+    name: 'ch3',
+    async run() {
+      await need(['flag_ch3_started'], 'ch3 start');
+      const lv = await page.evaluate(async () => (await import('/src/game/state.ts')).state.party.map((m) => `${m.id}:${m.level}/${m.exp}`));
+      const talked = await page.evaluate(() => window.__game.cmd.talked());
+      const ok = lv.join() === 'minato:8/450,kanenari:8/450' && ['npc_obaa', 'npc_mamekichi', 'npc_hoshi_mitsu', 'npc_hoshi_gen', 'npc_hoshi_fumi', 'npc_hoshi_kucho'].every((i) => talked.includes(i));
+      checks.push({ check: 'ch3 standard start: Lv8 (450), the six talked to', ok, lv, talked });
+      if (!ok) throw new Error(`ch3 start: ${JSON.stringify({ lv, talked })}`);
+      await sleep(3000);
+      await shot('door');
+      await advance({ shotEvery: 3, label: 'home', max: 90000 });
+      await need(['flag_ch3_prologue_done'], 'prologue');
+      const t = await hudTime();
+      checks.push({ check: 'S01: 11:10', ok: t === '11:10', time: t });
+      if (t !== '11:10') throw new Error(`S01 clock ${t}`);
+      await shot('home');
+    },
+  },
+  {
+    name: 'hinoya',
+    async run() {
+      await leaveRoom('map_town');
+      await enterDoor(32, 21, 'up', 'map_hinoya');
+      await advance({ shotEvery: 3, label: 'hinoya', max: 90000 });
+      await need(['flag_ch3_tomato_given'], 'hinoya');
+      const inv = (await stateOf()).inventory;
+      checks.push({ check: 'S02: the tomato with おばあ', ok: !inv.includes('item_tomato_omiyage'), inventory: inv });
+    },
+  },
+  {
+    name: 'ginza',
+    async run() {
+      await leaveRoom('map_town');
+      // past 焼きそばのたかし (S03: グソっ君's bubble)
+      await travel(26, 23);
+      await sleep(500);
+      await shot('takashi');
+      await need(['flag_ch3_takashi_bubble'], 'S03 bubble');
+      // to the east corner: the truck's talk starts on the way (S04)
+      // (travel presses through what starts on the way: the scene may already be over, on the bed or at the harbour)
+      await travel(45, 25).catch(async (e) => {
+        const s = await st();
+        if (s.ctrl && s.map === 'map_town' && !(await flag('flag_ch3_truck_go'))) throw e;
+      });
+      if ((await st()).ctrl && !(await flag('flag_ch3_truck_go'))) {
+        // not started yet: step toward the truck (the talk starts within a few tiles of it)
+        await walk('down', (x) => !x.ctrl, 3000).catch(() => {});
+      }
+      await advance({ shotEvery: 3, label: 'truck', max: 120000, stopAt: async () => !!(await page.evaluate(() => window.__game.cmd.flag('flag_ch3_kids'))) });
+      await advance({ label: 'kids', max: 60000 });
+      await need(['flag_ch3_truck_go', 'flag_ch3_arrived', 'flag_ch3_kids'], 'S04〜S06');
+    },
+  },
+  {
+    name: 'umizoi',
+    async run() {
+      const v = await flags(['flag_ch3_stage']);
+      const t = await hudTime();
+      const inv = (await stateOf()).inventory;
+      const s = await st();
+      const ok = v.flag_ch3_stage === 1 && t === '12:00' && inv.includes('item_c3_map');
+      checks.push({ check: 'S05・S06: stage 1, 12:00, the map', ok, ...v, time: t, map: s.map });
+      if (!ok) throw new Error(`umizoi: ${JSON.stringify({ ...v, t, inv })}`);
+      await shot('noon');
+      if (s.map !== 'map_umizoi') {
+        log('  (map_umizoi is not registered yet: the people of the town are not tried)');
+        checks.push({ check: 'umizoi: the town (map_umizoi)', ok: true, skipped: 'map not registered' });
+        return;
+      }
+      // everyone of the town answers (c1_1 / c1_2) and is recorded (flag_talked_*)
+      const ids = await page.evaluate(() =>
+        window.__game.cmd
+          .fieldRef()
+          .actors.filter((a) => a.kind === 'npc' && a.visible && a.data?.def && a.id.startsWith('npc_c3_'))
+          .map((a) => a.id),
+      );
+      const silent = [];
+      for (const id of [...new Set(ids)]) {
+        for (let i = 0; i < 2; i++) {
+          const r = await talkTo(id, { side: 'below' }).catch((e) => ({ err: String(e.message ?? e) }));
+          if (r.err || r.ctrl) {
+            silent.push(`${id}${r.err ? ': ' + r.err : ' #' + (i + 1)}`);
+            break;
+          }
+          if (i === 0) await shot(`talk_${id.replace('npc_c3_', '')}`);
+          await advance({ label: `talk_${id}` });
+        }
+      }
+      const talked = await page.evaluate(() => window.__game.cmd.talked());
+      const unrec = ids.filter((i) => !talked.includes(i));
+      const ok2 = !silent.length && !unrec.length;
+      checks.push({ check: 'umizoi: the people answer and are recorded', ok: ok2, people: ids.length, silent, unrec });
+      log(`  talk: ${ids.length} people${silent.length ? `; silent: ${silent.join(', ')}` : ''}`);
+      if (!ok2) throw new Error(`umizoi talk: ${JSON.stringify({ silent, unrec })}`);
+    },
+  },
+  {
+    name: 'talked',
+    async run() {
+      // a chapter-1/2 save without talked records (12.1 #2): the records are made at the start of chapter 3
+      const got = await page.evaluate(async () => {
+        const { state } = await import('/src/game/state.ts');
+        for (const k of Object.keys(state.flags)) if (k.startsWith('flag_talked_')) delete state.flags[k];
+        Object.assign(state.flags, { flag_clear: 1, flag_ch2_clear: 1, flag_seen_npc_sae_s0_1: 1, flag_seen_npc_hoshi_tome_h1: 2, flag_got_tankan: 1, flag_zari_tsure: 1 });
+        return window.__game.cmd.deriveTalked(false);
+      });
+      const want = ['npc_sae', 'npc_hoshi_tome', 'npc_ojii', 'npc_tamotsu', 'npc_obaa', 'npc_hoshi_kucho'];
+      const ok = want.every((i) => got.includes(i)) && !got.includes('npc_tsurumi');
+      checks.push({ check: 'talked: made from an old save', ok, got });
+      if (!ok) throw new Error(`talked: ${JSON.stringify(got)}`);
+    },
+  },
+];
+
 // ------------------------------------------------------------------ run
 
 const results = [];
 let failed = false;
 
-const LIST = CHAPTER === 2 ? (SIDE.length ? SIDE2.filter((b) => SIDE.includes(b.name)).map((b) => ({ ...b, jump: true })) : BEATS2) : BEATS;
+const LIST = CHAPTER === 3 ? BEATS3 : CHAPTER === 2 ? (SIDE.length ? SIDE2.filter((b) => SIDE.includes(b.name)).map((b) => ({ ...b, jump: true })) : BEATS2) : BEATS;
 if (CHAPTER === 2 && SIDE.length && LIST.length !== SIDE.length) throw new Error(`--side: unknown beat in ${SIDE.join(',')}; side beats: ${SIDE2.map((b) => b.name).join(' ')}`);
+if (CHAPTER === 3) {
+  // a player who has seen chapter 2's ending: the title shows 「第2章から」 and 「第3章から」
+  await page.addInitScript(() => {
+    try {
+      localStorage.clear();
+      localStorage.setItem('hanamaru-clear-v1', JSON.stringify({ fushigi: 8, aite: 7, tsukkomi: 12, tsukkomiTotal: 19 }));
+      localStorage.setItem('hanamaru-clear-ch2-v1', JSON.stringify({ fushigi: 6, aite: 6, tsukkomi: 10, tsukkomiTotal: 17 }));
+    } catch {}
+  });
+}
 if (CHAPTER === 2) {
   // a player who has seen chapter 1's ending: the title shows 「第2章から」
   await page.addInitScript(() => {
@@ -2189,7 +2355,7 @@ try {
     // (a slow page — HD-2D under swiftshader — may still be turning the title over the 決定 when
     // the jump lands: once settled, the field must be on top, else jump again)
     for (let k = 0; ; k++) {
-      await page.evaluate(([b, run]) => window.__game.cmd.jump(b, !run), [JUMP_AS[FROM] ?? FROM, CHAPTER === 2 && (FROM === 'ch2' || FROM === 'ending')]);
+      await page.evaluate(([b, run]) => window.__game.cmd.jump(b, !run), [CHAPTER === 3 ? `ch3:${FROM === 'title' ? 'ch3' : FROM === 'ginza' ? 'ginza' : FROM}` : (JUMP_AS[FROM] ?? FROM), (CHAPTER === 2 && (FROM === 'ch2' || FROM === 'ending')) || (CHAPTER === 3 && FROM === 'ch3')]);
       await waitFor((s) => s.top === 'FieldScene', 8000, 'jump');
       await sleep(600 * SLOW);
       if ((await st()).top === 'FieldScene' || k >= 2) break;
@@ -2230,15 +2396,22 @@ try {
   results.push({ beat: 'setup', ok: false, error: String(e.message ?? e) });
 }
 
+if (CHAPTER === 3) {
+  const missing = await page.evaluate(() => window.__game?.cmd?.ch3sounds?.() ?? []).catch(() => []);
+  checks.push({ check: 'cue-sheet sounds registered (chapter 3, first part)', ok: !missing.length, missing });
+  log(`  sounds not registered: ${missing.length ? missing.join(' ') : 'none'}`);
+}
 if (CHAPTER === 2) {
   // 02 4.5 ⑤: every sound the cue sheet asked for is registered (the audio team adds them as they go)
   const missing = await page.evaluate(() => window.__game?.cmd?.ch2sounds?.() ?? []).catch(() => []);
   checks.push({ check: 'cue-sheet sounds registered', ok: !missing.length, missing });
   log(`  sounds not registered: ${missing.length ? missing.join(' ') : 'none'}`);
-  // 10 13.4: every chapter-2 page at most 3 lines of 336 px
+}
+if (CHAPTER === 2 || CHAPTER === 3) {
+  // 10 13.4: every chapter-2 (and chapter-3) page at most 3 lines of 336 px
   const tc = await page.evaluate(() => window.__game?.cmd?.textcheck2?.() ?? null).catch(() => null);
   if (tc) {
-    checks.push({ check: 'chapter-2 pages: 3 lines × 336 px', ok: !tc.bad.length, total: tc.total, bad: tc.bad });
+    checks.push({ check: 'chapter-2/3 pages: 3 lines × 336 px', ok: !tc.bad.length, total: tc.total, bad: tc.bad });
     log(`  text: ${tc.total} pages, ${tc.bad.length} over the limits${tc.bad.length ? ': ' + tc.bad.slice(0, 5).join(' / ') : ''}`);
   }
 }

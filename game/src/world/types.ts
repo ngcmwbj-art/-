@@ -354,13 +354,13 @@ export interface MapDef {
    * (星見台) default their stage flag to flag_ch2_stage, grade with the
    * pal_h* presets and set the 星見台 audio (h_stage, PA 'yama').
    */
-  chapter?: 1 | 2;
+  chapter?: 1 | 2 | 3;
   /**
    * The flag that holds this map's stage (02_ch2 6.2). Default 'flag_stage'
    * (chapter 1), or 'flag_ch2_stage' when chapter is 2. Conditions, talk
    * keys, bgm/amb per stage, grading and fushigi stages all read it.
    */
-  stageFlag?: 'flag_stage' | 'flag_ch2_stage';
+  stageFlag?: 'flag_stage' | 'flag_ch2_stage' | 'flag_ch3_stage';
   /**
    * Dark tiles (52 1.7 / 8.5): tile rects, a step darker than the ordinary
    * night (DARK_COL). What stands in them is still drawn; the tomato light

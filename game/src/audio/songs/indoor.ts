@@ -67,7 +67,8 @@ function homeDef(): SongDef {
       id: 'double',
       ins: 'ins_lead_p12',
       bars: home.part('melody'),
-      o: (b) => ({ vol: 0.035, lp: 2000, vib: st(b) >= 1 ? { rate: 5, depth: 16, delay: 0.2 } : undefined }),
+      // (before noon on 9月1日 the room is brighter: 2.4 kHz, 63 5.11)
+      o: (b) => ({ vol: 0.035, lp: b.song.state.hirumae ? 2400 : 2000, vib: st(b) >= 1 ? { rate: 5, depth: 16, delay: 0.2 } : undefined }),
       when: (b) => late(b),
       keep: (b, e) => !(st(b) === 2 && e.step >= 8 && e.step <= 11),
       gate: 0.9,

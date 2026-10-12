@@ -10,6 +10,7 @@
 // south like a handheld RPG's town view (HD-2D: a narrow lens, tilted).
 
 import * as THREE from 'three';
+import { ch3Graded } from '../world/umizoi';
 import { H, W } from '../engine/screen';
 import type { Actor } from '../world/actor';
 import type { FieldScene } from '../world/field';
@@ -40,6 +41,15 @@ export const CAM: CamParams = { pitch: PITCH, fov: 26, dist: 25, lookN: 1.5 };
 const SUN_COLOUR = new THREE.Color('#ffc890');
 const SKY = new THREE.Color('#b8b0e8');
 const GROUND = new THREE.Color('#d89060');
+/**
+ * Chapter 3's light (62 8.3・8.9): the noon over 海ぞいの町 (and 夕鳴町 at 11:10)
+ * — a white sun high in the south, a blue-white sky, the ground's bounce
+ * pale; a light sea haze in place of the evening's warm one.
+ */
+const NOON_SUN = new THREE.Color('#fffaf0');
+const NOON_SKY = new THREE.Color('#d8e6ff');
+const NOON_GROUND = new THREE.Color('#d8ccb0');
+const NOON_FOG = '#dce8f2';
 const MAX_LAMPS = 4;
 /**
  * Inside (the rooms, room.ts) the camera looks down a little more than in
@@ -227,7 +237,7 @@ export class Hd2dView {
     this.scene.add(this.world.group);
     const bg = new THREE.Color(f.map.def.outside ?? (room ? ROOM_BG : '#1b1733'));
     this.scene.background = bg;
-    this.scene.fog = room ? null : new THREE.Fog(new THREE.Color('#e0a080'), 38, 130);
+    this.scene.fog = room ? null : new THREE.Fog(new THREE.Color(ch3Graded(f.map.def) ? NOON_FOG : '#e0a080'), 38, 130);
     return this.world;
   }
 
@@ -268,8 +278,19 @@ export class Hd2dView {
   }
 
   /** The sun from the field's grade: shadows fall east and a little north, longer as shadowLen grows. */
+  /** Is the outdoor light chapter 3's noon (placeSun)? */
+  private noonLit = false;
+
   private placeSun(f: FieldScene, t: THREE.Vector3): number {
     const g = f.grade;
+    // chapter 3: the noon's white light; elsewhere the evening's (rooms set their own, room.ts)
+    const noon = ch3Graded(f.map.def);
+    if (noon !== this.noonLit) {
+      this.noonLit = noon;
+      this.sun.color.copy(noon ? NOON_SUN : SUN_COLOUR);
+      this.hemi.color.copy(noon ? NOON_SKY : SKY);
+      this.hemi.groundColor.copy(noon ? NOON_GROUND : GROUND);
+    }
     const len = Math.max(0.4, g.shadowLen || 1.3);
     let el = Math.atan(1 / (len * 1.55));
     // towards the sun: west (2D shadows point +x) and a little south, so the

@@ -6,7 +6,7 @@
 
 import { addTask } from './clock';
 import { cur, dbToGain, hasGraph, liveGraph, midiHz, noiseSource, onSample, PaChain, makeIRMono, monoSum, spread, voice, type Graph, type VoiceOpts } from './engine';
-import { chimeNote, DRM } from './instruments';
+import { chimeNote, DRM, sirenNote } from './instruments';
 import { ambTrim, trimOr1 } from './mix';
 import { hStageListeners, musicParams, stageListeners } from './music';
 import { noteUnknown, sfxTable } from './registry';
@@ -512,8 +512,24 @@ const AMB: Record<string, AmbFactory> = {
       tone.gain.gain.setTargetAtTime(s === 2 ? 0.003 : 0, at, 0.05);
     };
     apply(stage, c.t0);
+    // 63_ch3_audio 12.1: ambientEvent('amb_tv', 'c3_siren') — the news from
+    // 海ぞいの町: inside the TV, far, the noon siren hanging short of its top
+    // (amb_c3_siren_hold at ×.3 through the set's small speaker, 600–3000 Hz)
+    let siren: { stop(at: number, fade?: number): void } | null = null;
+    const sirenBox = g.ctx.createBiquadFilter();
+    sirenBox.type = 'bandpass';
+    sirenBox.frequency.value = 1340;
+    sirenBox.Q.value = 0.6;
+    sirenBox.connect(c.dest);
     return {
       setStage: apply,
+      event(name, _p, at) {
+        if (name === 'c3_siren' && !siren) siren = sirenNote({ t: at, dest: sirenBox, f0: 185, semis: 14, rise: 2.4, hold: Infinity, vol: 0.0025 * 0.3 * 4 });
+        else if (name === 'c3_siren_off' && siren) {
+          siren.stop(at, 0.4);
+          siren = null;
+        }
+      },
       pump(u) {
         if (stage === 2) return;
         while (next < u) {
@@ -530,6 +546,7 @@ const AMB: Record<string, AmbFactory> = {
       },
       stop(t) {
         tone.stop(t);
+        siren?.stop(t, 0.05);
       },
     };
   },

@@ -3,7 +3,8 @@
 
 import { flag } from '../../game/state';
 import { registerMap } from '../../world/maps';
-import type { MapObj, TileSpec } from '../../world/types';
+import { ch3Hirumae } from '../../world/umizoi';
+import type { MapDef, MapObj, TileSpec } from '../../world/types';
 import { OBJ, OBJ2, REWARD_TEXT, TALK } from './town_text';
 import { SCHOOL_OBJ } from '../text/school';
 
@@ -138,7 +139,15 @@ const OBJECTS: MapObj[] = [
 
   // ======================================================== doors
   { t: 'door', id: 'door_town_home', x: 4, y: 30, to: 'map_home_1f', tx: 2, ty: 7, dir: 'up', se: 'se_door' },
-  { t: 'door', id: 'door_town_maruyama', x: 27, y: 21, to: 'map_maruyama', tx: 4, ty: 5, dir: 'up', se: ['se_door_glass', 'se_shop_bell'] },
+  {
+    t: 'door', id: 'door_town_maruyama', x: 27, y: 21, to: 'map_maruyama', tx: 4, ty: 5, dir: 'up', se: ['se_door_glass', 'se_shop_bell'],
+    // (chapter 3, 9月1日 11:10: shut — たかし is out buying 青のり, 62 5.1)
+    cond: { when: () => !ch3Hirumae() },
+  },
+  // 第3章 段階0（9月1日 11:10、62 5.1）：焼きそばのたかしのシャッターと貼り紙、店の前のヤキソバンの置物
+  { t: 'prop', prop: 'prop_c3_takashi_shutter', x: 24, y: 21, cond: { when: ch3Hirumae } },
+  { t: 'obj', id: 'obj_c3_takashi_harigami', x: 27, y: 21, face: 'up', cond: { when: ch3Hirumae } },
+  { t: 'npc', id: 'npc_cow_statue', script: 'obj_c3_yakisoban_statue', x: 26, y: 22, dir: 'down', noTurn: true, statue: true, cond: { when: ch3Hirumae } },
   { t: 'door', id: 'door_town_hinoya', x: 32, y: 21, to: 'map_hinoya', tx: 4, ty: 6, dir: 'up', se: ['se_door', 'se_shop_bell'] },
   { t: 'door', id: 'door_town_laundry', x: 26, y: 31, to: 'map_laundry', tx: 3, ty: 5, dir: 'up', se: 'se_door_glass' },
   { t: 'door', id: 'door_town_koban', x: 51, y: 31, to: 'map_koban', tx: 4, ty: 5, dir: 'up', se: 'se_door_glass' },
@@ -587,7 +596,7 @@ const OBJECTS: MapObj[] = [
   { t: 'trig', id: 'trig_ginza_exit_e', x: 56, y: 25, w: 2, h: 2, script: 'evt_obaa_park_hint', cond: { flag: 'flag_got_hanko', notFlag: 'flag_park_hint' } },
 ];
 
-registerMap({
+const TOWN_DEF: MapDef = {
   id: 'map_town',
   name: '夕鳴町',
   kind: 'outdoor',
@@ -684,7 +693,15 @@ registerMap({
     { x: 58, y: 0, w: 1, h: 44, mat: 'railfence' },
     { x: 62, y: 0, w: 1, h: 44, mat: 'railfence' },
   ],
+};
+
+// 第3章の 9月1日 11:10（62 5.1・8.3 pal_c3_hirumae）：南南東の 高い 太陽、影は 短く 北北西へ
+Object.defineProperty(TOWN_DEF, 'shadowVec', {
+  get: (): [number, number] | undefined => (ch3Hirumae() ? [-0.36, -0.93] : undefined),
+  enumerable: true,
 });
+
+registerMap(TOWN_DEF);
 
 /** Whether the parking-lot chains are down (stage 2). */
 export function chainsDown(): boolean {

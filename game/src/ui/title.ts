@@ -34,8 +34,9 @@ import { ease } from '../engine/tween';
 import { audioReady, musicPosition, playAmbient, playBgm, sfx, stopAllAmbient, stopBgm } from '../audio';
 import { registerScene } from '../boot';
 import { digitsWidth, drawDigits } from './digits';
-import { chapter1Cleared, clearRecord, clearRecordCh2, continueGame, msgPages, saveKind, startChapter2, startNewGame, type ClearRecord, type SaveKind } from './flow';
+import { chapter1Cleared, chapter2Cleared, clearRecord, clearRecordCh2, continueGame, msgPages, saveKind, startChapter2, startChapter3, startNewGame, type ClearRecord, type SaveKind } from './flow';
 import { CH2_TITLE_CONFIRM, CH2_TITLE_CONFIRM_OPTIONS, CH2_TITLE_OVERWRITE } from '../data/text/hoshi_events';
+import { CH3_TITLE_CONFIRM, CH3_TITLE_CONFIRM_OPTIONS, CH3_TITLE_OVERWRITE } from '../data/text/c3_events';
 import { runSettings } from './menu';
 import { ask } from './dialog';
 import { tomatoIcon8 } from './icons';
@@ -67,10 +68,12 @@ import { coverToFade, ditherOut } from './transition';
 import { markText } from '../engine/textzones';
 import { buttonZones, freeSpan } from '../engine/safezones';
 
-type MenuId = 'new' | 'continue' | 'ch2' | 'settings';
+type MenuId = 'new' | 'continue' | 'ch2' | 'ch3' | 'settings';
 /** The chapter-2 release page: 「第2章から」 without a chapter-1 clear (see menu). */
 const CH2_OPEN = import.meta.env.VITE_CH2_OPEN === '1';
-const LABELS: Record<MenuId, string> = { new: 'はじめる', continue: 'つづきから', ch2: '第2章から', settings: 'せってい' };
+const LABELS: Record<MenuId, string> = { new: 'はじめる', continue: 'つづきから', ch2: '第2章から', ch3: '第3章から', settings: 'せってい' };
+/** 「第3章から」's tape (62_ch3_level_art 12.10): the sea's blue with a white wave line. */
+const CH3_TAPE = { on: '#4F95BF', off: '#3A7EA8', ink: '#FBF3DC', wave: '#E8F4FA' };
 /** The tapes' column (30 11.4): right-aligned block ending at y206. */
 const MENU_X = 284;
 const MENU_BOTTOM = 206;
@@ -101,7 +104,14 @@ export class TitleScene implements Scene {
    * chapter-2 release page (VITE_CH2_OPEN=1): that page is a new origin with
    * no records, so the tape is there from the start (50 1.4, standard data).
    */
-  private readonly menu: MenuId[] = chapter1Cleared() || CH2_OPEN ? ['new', 'continue', 'ch2', 'settings'] : ['new', 'continue', 'settings'];
+  private readonly menu: MenuId[] = [
+    'new',
+    'continue',
+    ...(chapter1Cleared() || CH2_OPEN ? (['ch2'] as MenuId[]) : []),
+    // 60_ch3_story 1.4: once chapter 2 has been finished on this device, 「第3章から」 (five tapes)
+    ...(chapter2Cleared() ? (['ch3'] as MenuId[]) : []),
+    'settings',
+  ];
   /** 「第2章から」 is asking (the tapes step back like under the settings sheet). */
   private asking = false;
   private stamped = false;
@@ -264,6 +274,10 @@ export class TitleScene implements Scene {
       this.askChapter2();
       return;
     }
+    if (id === 'ch3') {
+      this.askChapter3();
+      return;
+    }
     this.leave(id);
   }
 
@@ -277,7 +291,7 @@ export class TitleScene implements Scene {
     this.asking = true;
     const self = this;
     const q = msgPages(CH2_TITLE_CONFIRM);
-    const pages = this.kind === 'ch1' || this.kind === 'ch2' ? [...msgPages(CH2_TITLE_OVERWRITE), ...q] : q;
+    const pages = this.kind === 'ch1' || this.kind === 'ch2' || this.kind === 'ch3' ? [...msgPages(CH2_TITLE_OVERWRITE), ...q] : q;
     game.scripts.run(
       (function* (): Co {
         yield 140;
@@ -295,7 +309,35 @@ export class TitleScene implements Scene {
     );
   }
 
-  /** Leave the title for a new game, the save, or chapter 2. */
+  /**
+   * 「第3章から」 (60_ch3_story 1.4): the same two pages as 「第2章から」, with
+   * the chapter's own title; the first page only when a game in progress
+   * (chapter 1, 2 or 3 under way) would be written over.
+   */
+  private askChapter3(): void {
+    this.busy = true;
+    this.asking = true;
+    const self = this;
+    const q = msgPages(CH3_TITLE_CONFIRM);
+    const pages = this.kind === 'ch1' || this.kind === 'ch2' || this.kind === 'ch3' ? [...msgPages(CH3_TITLE_OVERWRITE), ...q] : q;
+    game.scripts.run(
+      (function* (): Co {
+        yield 140;
+        const i = yield* ask(pages, CH3_TITLE_CONFIRM_OPTIONS, { voice: 'sys', cancel: 1, index: 1 });
+        self.asking = false;
+        if (i === 0) {
+          self.busy = false;
+          self.leave('ch3');
+          return;
+        }
+        yield 120;
+        self.busy = false;
+        self.pickT = -1;
+      })(),
+    );
+  }
+
+  /** Leave the title for a new game, the save, or chapter 2 / 3. */
   private leave(id: MenuId): void {
     this.phase = 'leaving';
     const self = this;
@@ -309,6 +351,7 @@ export class TitleScene implements Scene {
         yield 250;
         if (id === 'new') yield* startNewGame();
         else if (id === 'ch2') yield* startChapter2('title');
+        else if (id === 'ch3') yield* startChapter3('title');
         else {
           const ok = yield* continueGame();
           if (!ok) {
@@ -465,8 +508,17 @@ export class TitleScene implements Scene {
       // a game in chapter 2: the sticky 「第2章」 stuck to the back of the tape, peeking out on the left
       const note = id === 'continue' && this.kind === 'ch2';
       if (note) drawChapterNote(g, x - NOTE_W + 5, y + 1, k, sel);
-      drawTape(g, x, y, 88, 18, '', { color: sel ? UI.tapeOn : UI.tapeOff, seed: 40 + i, alpha: a });
-      g.text(LABELS[id], x + 44, y + 1, { color: dim ? UI.textDim : UI.text, align: 'center', alpha: k });
+      if (id === 'ch3') {
+        // the sea's blue with a white wave line along its lower edge (62_ch3_level_art 12.10)
+        drawTape(g, x, y, 88, 18, '', { color: sel ? CH3_TAPE.on : CH3_TAPE.off, seed: 40 + i, alpha: a });
+        g.alpha(a * 0.85, () => {
+          for (let wx = 4; wx < 84; wx++) g.px(x + wx, y + 14 + (Math.floor((wx + 1) / 3) % 4 === 0 ? -1 : 0), CH3_TAPE.wave);
+        });
+        g.text(LABELS[id], x + 44, y + 1, { color: CH3_TAPE.ink, align: 'center', alpha: k });
+      } else {
+        drawTape(g, x, y, 88, 18, '', { color: sel ? UI.tapeOn : UI.tapeOff, seed: 40 + i, alpha: a });
+        g.text(LABELS[id], x + 44, y + 1, { color: dim ? UI.textDim : UI.text, align: 'center', alpha: k });
+      }
       if (sel && k >= 1) drawCursor(g, (note ? x - NOTE_W + 5 : x) - 12, y, this.t, this.pickT >= 0 ? this.pickT : -1);
     });
   }

@@ -1,5 +1,6 @@
 // Items (20_systems_battle.md 7, 10_narrative.md 10).
 
+import { flag } from '../../game/state';
 import type { ItemDef } from './types';
 
 const items: ItemDef[] = [
@@ -64,7 +65,21 @@ const items: ItemDef[] = [
   },
   { id: 'item_kairan_map', name: '回覧板の地図', key: true, target: 'none', desc: ['星見台の 回覧板。うらに 区長の 地図。', ''], battleText: ['回覧板を 見せた。\n……回す 相手が いない。'] },
   { id: 'item_seiriken', name: '整理券', key: true, target: 'none', desc: ['整理券。番号は『1』。', '……2人で 乗ったのに。'], battleText: ['整理券を 見せた。\n番号を 呼ばれる 気配は ない。'] },
-  { id: 'item_tomato_omiyage', name: 'トマト（4つ）', key: true, target: 'none', desc: ['ペロの トマト。4つ。', '……1つは おまけ。'], battleText: ['これは おみやげだ。'] },
+  {
+    id: 'item_tomato_omiyage',
+    // 第2章のあと、夕飯で 3つ 食べて 残った おまけの 1つ（60 1.5：「トマト（おまけ）」）
+    get name(): string {
+      return flag('flag_ch2_clear') ? 'トマト（おまけ）' : 'トマト（4つ）';
+    },
+    key: true,
+    target: 'none',
+    get desc(): [string, string] {
+      return flag('flag_ch2_clear') ? ['星見台の トマト。', 'おまけの 1つ。'] : ['ペロの トマト。4つ。', '……1つは おまけ。'];
+    },
+    battleText: ['これは おみやげだ。'],
+  },
+  // 第3章（60 7.1・4.3）：防波堤の子どもたちの 地図（S06）
+  { id: 'item_c3_map', name: '海ぞいの町の地図', key: true, target: 'none', desc: ['子どもの 手描き。', '印が 3つ。'], battleText: ['地図を 見せた。\n……ここは、地図の 外だ。'] },
   // 沢の上（02 #65）：セキトメがほどけたあと、岸に残った平たい石。トマじいに見せると、あずかる
   { id: 'item_namae_ishi', name: '名前の石', key: true, target: 'none', desc: ['沢の 岸の、平たい 石。', '『とまたろう』と、小さく『マル』。'], battleText: ['石を 見せた。\n$enemyは 字の 大きさを 見くらべた。'] },
   // 朝の ほうだけ 光る 星（02 #77）：まつ先生から 天文台の 鍵、望遠鏡の カバーから タクミの カード

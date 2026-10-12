@@ -34,6 +34,7 @@ import { C, cardArt, deskArt, hankoArt, keyArt, pageArt, pencilArtV, pencilBar, 
 import { cancelCue, currentCue, CUES, startCue, type Cue } from './cues';
 import { CH2_CUES, stopCueLoops } from './cues_ch2';
 import { CH2_AMBIENCE_IDS } from '../ambience_ch2';
+import { CH3_AMBIENCE_IDS } from '../ambience_ch3';
 import { CH2_SE_GROUPS } from '../sfx_ch2';
 import { f5, f5Width } from './font5';
 
@@ -200,20 +201,29 @@ const CH2_SAMPLES: Record<string, string> = {
   gusokkun: 'トマトも 美味いやんけ！',
 };
 const isCh2Se = (group: string) => CH2_SE_GROUPS.includes(group);
+/**
+ * Chapter 3's sounds (63_ch3_audio) wait for their own page (14.5: the second
+ * period); until then they stay off 第1章's and 第2章's pages.
+ */
+const isCh3Song = (id: string) => CH3_SONG_IDS.has(id);
+const CH3_SONG_IDS = new Set(['bgm_umi_noon', 'bgm_tsugaobin']);
+const isCh3Se = (group: string) => /^第3章：/.test(group);
+const isCh3Amb = (id: string) => CH3_AMBIENCE_IDS.includes(id);
+const isCh3Voice = (id: string) => /^c3_/.test(id);
 
 function rowsFor(tab: TabId, ch: Chapter): Row[] {
   const two = ch === 2;
   switch (tab) {
     case 'bgm': {
       if (two) return CH2_BGM.filter((r) => songTable.has(r.id.split('@')[0])).map((r) => ({ kind: 'item', id: r.id, label: r.label }));
-      const ids = [...BGM_ORDER.filter((id) => songTable.has(id)), ...[...songTable.keys()].filter((id) => !BGM_ORDER.includes(id) && !CH2_SONG_IDS.has(id))];
+      const ids = [...BGM_ORDER.filter((id) => songTable.has(id)), ...[...songTable.keys()].filter((id) => !BGM_ORDER.includes(id) && !CH2_SONG_IDS.has(id) && !isCh3Song(id))];
       return ids.map((id) => ({ kind: 'item', id, label: songTable.get(id)!.title }));
     }
     case 'se': {
       const out: Row[] = [];
       let g = '';
       for (const [id, info] of sfxInfo) {
-        if (isCh2Se(info.group) !== two) continue;
+        if (isCh2Se(info.group) !== two || isCh3Se(info.group)) continue;
         if (info.group !== g) {
           g = info.group;
           // (the page already says 第2章; a heading too long for the page says it shorter)
@@ -225,9 +235,9 @@ function rowsFor(tab: TabId, ch: Chapter): Row[] {
       return out;
     }
     case 'amb':
-      return AMBIENCE_IDS.filter((id) => CH2_AMBIENCE_IDS.includes(id) === two).map((id) => ({ kind: 'item', id, label: AMB_LABEL[id] ?? id }));
+      return AMBIENCE_IDS.filter((id) => CH2_AMBIENCE_IDS.includes(id) === two && !isCh3Amb(id)).map((id) => ({ kind: 'item', id, label: AMB_LABEL[id] ?? id }));
     case 'voice': {
-      const ids = Object.keys(VOICES).filter((id) => id !== 'sys' && CH2_VOICE_RE.test(id) === two);
+      const ids = Object.keys(VOICES).filter((id) => id !== 'sys' && CH2_VOICE_RE.test(id) === two && !isCh3Voice(id));
       if (two) ids.push(...CH2_VOICE_REUSED.filter((id) => id in VOICES));
       return ids.map((id) => ({ kind: 'item', id, label: VOICES[id].label }));
     }

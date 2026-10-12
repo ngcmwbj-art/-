@@ -3,7 +3,7 @@
 // Music notes pass `det` (the song's pitch bus: stage detune, tape wobble,
 // the mid-boss bow) so every oscillator — FM modulators included — follows it.
 
-import { arand, cachedWave, captured, cur, hasGraph, midiHz, noteLog, onRelease, sharedLfo, startTimeFor, voice, type VoiceHandle, type VoiceOpts } from './engine';
+import { arand, cachedWave, captured, cur, driveCurve, hasGraph, midiHz, noteLog, onRelease, sharedLfo, startTimeFor, voice, type VoiceHandle, type VoiceOpts } from './engine';
 
 export interface InsOpts {
   /** Override the patch's base v. */
@@ -907,6 +907,231 @@ function reedOrgan(n: NoteCtx): void {
   voice(base(n, { ...env, wave: 'noise', vol: v * 0.33, filter: { type: 'bandpass', freq: 1200, q: 1 }, reverb: 0 }));
 }
 
+// ---------------------------------------------------------------------------
+// chapter 3 (63_ch3_audio 3.1)
+
+/**
+ * ins_harmonica — 港町のハーモニカ: a reed in a small wooden comb. A 25 % pulse
+ * with a saw a few cents up and a triangle under it, through the two body
+ * resonances (900 Hz and 2.3 kHz), a breath of noise that follows the
+ * envelope, the breath's sway (0.9 Hz ±7 %) and the reed finding its pitch
+ * at the attack (−25 cents → 0 in 50 ms). Long notes get a vibrato after
+ * 400 ms. Two notes at most at a time (two holes side by side).
+ */
+function harmonica(n: NoteCtx): void {
+  const f = midiHz(n.midi);
+  const v = (n.o?.vol ?? 0.08) * n.vel;
+  const common = base(n, {
+    freq: f,
+    dur: n.dur,
+    attack: 0.03,
+    decay: 0.12,
+    sustain: 0.8,
+    release: n.o?.release ?? 0.14,
+    scoop: -25,
+    scoopTime: 0.05,
+    vibrato: n.dur > 0.35 ? vib(n, 5.5, 10, 0.4) : undefined,
+    am: { rate: 0.9, depth: 0.07 },
+    reverb: n.o?.rev ?? 0.25,
+    detune: n.o?.detune,
+  });
+  voice({
+    ...common,
+    wave: 'pulse25',
+    vol: v,
+    layerMain: 0.5,
+    layers: [
+      { wave: 'sawtooth', vol: 0.3, detune: 6 },
+      { wave: 'triangle', vol: 0.4 },
+    ],
+    filter: { type: 'lowpass', freq: n.o?.lp ?? 3400, q: 0.6 },
+    formant: { f1: 900, f2: 2300, q1: 1.0, q2: 1.4, mix: 0.45 },
+  });
+  // the breath through the reed plate
+  voice(
+    base(n, {
+      wave: 'noise',
+      dur: n.dur,
+      attack: 0.03,
+      decay: 0.12,
+      sustain: 0.8,
+      release: 0.1,
+      vol: v * 0.19,
+      filter: { type: 'bandpass', freq: 1800, q: 1 },
+      reverb: 0.2,
+    }),
+  );
+}
+
+/** Where ins_siren may sing its tail (63 1.4, 14.2): only playSirenFull. */
+export const sirenSeal = { tailFrom: '' };
+
+/**
+ * ins_siren — 正午のサイレン, a motor siren (63 1.4, 3.1). Not a tune: one
+ * glissando only. The impeller spins up — the pitch rises fast at first and
+ * slows near the top (a rotor's run-up) — holds with a ±8 cent wobble
+ * (0.7 Hz), and either stops dead (`cut`: the whole thing, reverb included
+ * downstream, closed in 80 ms — the way the chime is cut in chapter 1) or,
+ * once in the whole game, runs down: the power goes off and the pitch sinks
+ * with the level while the low end is what stays (`tail`, playSirenFull only).
+ * Saw + square 50 % (0.6), the impeller's roughness (AM at half the pitch,
+ * depth .35), a band at twice the pitch (Q .8) beside the dry sound (0.5),
+ * LP 4 kHz, a soft drive (0.8). Returns a stop(at, fade).
+ */
+export function sirenNote(o: {
+  t: number;
+  dest: AudioNode;
+  /** Base pitch (Hz) at rest (F#3 ≈ 185 Hz). */
+  f0?: number;
+  /** How far the head rises (semitones) and in how long (s). */
+  semis: number;
+  rise: number;
+  /** Seconds held at the top (Infinity: until stop). */
+  hold: number;
+  /** Seconds of the tail; 0 = cut in 80 ms. Only playSirenFull may pass a tail. */
+  tail?: number;
+  vol?: number;
+  /** Where the tail is asked from (the seal, 14.2). */
+  from?: string;
+}): { stop(at: number, fade?: number): void; end: number } {
+  const g = cur();
+  const c = g.ctx;
+  const t = o.t;
+  const f0 = o.f0 ?? 185;
+  const f1 = f0 * Math.pow(2, o.semis / 12);
+  let tail = o.tail ?? 0;
+  if (tail > 0 && o.from !== 'playSirenFull') {
+    if (import.meta.env.DEV) console.warn('[audio] ins_siren: the tail is sealed until playSirenFull (63 1.4)');
+    tail = 0;
+  }
+  const vol = o.vol ?? 0.05;
+  const topAt = t + o.rise;
+  const holdEnd = Number.isFinite(o.hold) ? topAt + o.hold : Infinity;
+  const end = Number.isFinite(holdEnd) ? holdEnd + (tail > 0 ? tail : 0.08) : Infinity;
+  const nodes: AudioNode[] = [];
+  const oscs: OscillatorNode[] = [];
+  // the pitch curve, shared by both oscillators and the impeller AM (at half)
+  // (curves in semitones: the head 1 − (1 − x)^2.2, fast then slow; the tail
+  // the rotor's run-down, an exponential that lands on the rest pitch)
+  const N = 64;
+  const up = new Float32Array(N);
+  const down = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const x = i / (N - 1);
+    up[i] = f0 * Math.pow(2, (o.semis * (1 - Math.pow(1 - x, 2.2))) / 12);
+    down[i] = f0 * Math.pow(2, (o.semis * (Math.exp(-3 * x) - Math.exp(-3))) / (1 - Math.exp(-3)) / 12);
+  }
+  const pitch = (p: AudioParam, k: number) => {
+    p.value = f0 * k;
+    p.setValueCurveAtTime(k === 1 ? up : up.map((v) => v * k), t, Math.max(0.01, o.rise));
+    if (Number.isFinite(holdEnd) && tail > 0) p.setValueCurveAtTime(k === 1 ? down : down.map((v) => v * k), holdEnd, tail);
+  };
+  const sum = c.createGain();
+  nodes.push(sum);
+  for (const [type, lv] of [
+    ['sawtooth', 1],
+    ['square', 0.6],
+  ] as [OscillatorType, number][]) {
+    const os = c.createOscillator();
+    os.type = type;
+    pitch(os.frequency, 1);
+    const k = c.createGain();
+    k.gain.value = lv * 0.5;
+    os.connect(k);
+    k.connect(sum);
+    oscs.push(os);
+    nodes.push(k);
+  }
+  // ±8 cents, 0.7 Hz: the rotor's uneven turning
+  const wob = c.createOscillator();
+  wob.frequency.value = 0.7;
+  const wobG = c.createGain();
+  wobG.gain.value = 8;
+  wob.connect(wobG);
+  for (const os of oscs) wobG.connect(os.detune);
+  oscs.push(wob);
+  nodes.push(wobG);
+  // the impeller's roughness: AM at half the pitch, depth .35
+  const am = c.createGain();
+  am.gain.value = 0.65;
+  const amOsc = c.createOscillator();
+  pitch(amOsc.frequency, 0.5);
+  const amDepth = c.createGain();
+  amDepth.gain.value = 0.35;
+  amOsc.connect(amDepth);
+  amDepth.connect(am.gain);
+  oscs.push(amOsc);
+  nodes.push(am, amDepth);
+  sum.connect(am);
+  // a band at twice the pitch beside the dry sound
+  const bp = c.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.Q.value = 0.8;
+  pitch(bp.frequency, 2);
+  const dry = c.createGain();
+  dry.gain.value = 0.5;
+  const mix = c.createGain();
+  am.connect(bp);
+  bp.connect(mix);
+  am.connect(dry);
+  dry.connect(mix);
+  nodes.push(bp, dry, mix);
+  const lp = c.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(4000, t);
+  if (Number.isFinite(holdEnd) && tail > 0) {
+    lp.frequency.setValueAtTime(4000, holdEnd);
+    lp.frequency.exponentialRampToValueAtTime(900, holdEnd + tail);
+  }
+  const sh = c.createWaveShaper();
+  sh.curve = driveCurve(0.8);
+  const env = c.createGain();
+  env.gain.value = 0;
+  env.gain.setValueAtTime(0, t);
+  env.gain.linearRampToValueAtTime(vol, t + 0.3);
+  if (Number.isFinite(holdEnd)) {
+    env.gain.setValueAtTime(vol, holdEnd);
+    if (tail > 0) env.gain.setTargetAtTime(0, holdEnd, tail / 4);
+    else env.gain.linearRampToValueAtTime(0, holdEnd + 0.08);
+  }
+  mix.connect(lp);
+  lp.connect(sh);
+  sh.connect(env);
+  env.connect(o.dest);
+  nodes.push(lp, sh, env);
+  const startAt = Math.max(t, c.currentTime);
+  for (const os of oscs) os.start(startAt);
+  const stopAll = (at: number) => {
+    for (const os of oscs) {
+      try {
+        os.stop(at);
+      } catch {
+        /* already */
+      }
+    }
+  };
+  if (Number.isFinite(end)) stopAll(end + 0.05);
+  oscs[0].onended = () => {
+    for (const nd of nodes) {
+      try {
+        nd.disconnect();
+      } catch {
+        /* gone */
+      }
+    }
+  };
+  return {
+    end,
+    stop(at: number, fade = 0.08) {
+      const p = env.gain;
+      p.cancelScheduledValues(at);
+      p.setValueAtTime(p.value, at);
+      p.linearRampToValueAtTime(0, at + Math.max(0.005, fade));
+      stopAll(at + fade + 0.05);
+    },
+  };
+}
+
 export const INS: Record<string, Instrument> = {
   ins_lead_sq50: leadSq50,
   ins_lead_p25: leadP25,
@@ -931,6 +1156,12 @@ export const INS: Record<string, Instrument> = {
   ins_choir: choir,
   ins_lantern: lantern,
   ins_reed_organ: reedOrgan,
+  // chapter 3 (63_ch3_audio 3.1)
+  ins_harmonica: harmonica,
+  // a held siren note at the note's pitch (the sound test): the head rises to it and is cut
+  ins_siren: (n) => {
+    sirenNote({ t: n.t, dest: n.dest, f0: midiHz(n.midi - 19), semis: 19, rise: Math.min(3, n.dur * 0.6), hold: Math.max(0, n.dur - Math.min(3, n.dur * 0.6)), vol: n.o?.vol ?? 0.05 });
+  },
 };
 
 /** Vibes-through-a-PA chime (used by the title song's own PA chain and SFX). */
@@ -1081,6 +1312,30 @@ export const DRM: Record<string, Drum> = {
     const v = dv(d, 0.03);
     const k = 1 + (arand() * 2 - 1) * 0.02;
     voice(dbase(d, { wave: 'sine', freq: 4400 * k, dur: 0.03, attack: 0.001, decay: 0.01, sustain: 0.9, release: 0.004, vol: v, am: { rate: 40, depth: 1, shape: 'square' }, reverb: 0.12 }));
+  },
+  // ---- chapter 3 (63_ch3_audio 3.2)
+  /** An iron spatula on the teppan「カン」: the plate's ring and its thickness. */
+  drm_hera: (d) => {
+    const v = dv(d, 0.05);
+    for (const [f, k] of [
+      [2300, 1],
+      [3550, 0.6],
+      [5100, 0.3],
+    ])
+      voice(dbase(d, { wave: 'sine', freq: f, dur: 0.004, attack: 0.0006, decay: 0.18, sustain: 0, release: 0.04, vol: v * k, reverb: 0.15 }));
+    voice(dbase(d, { wave: 'noise', dur: 0.003, attack: 0.0005, decay: 0.006, sustain: 0, release: 0.003, vol: v * 0.5, filter: { type: 'highpass', freq: 3000 } }));
+    voice(dbase(d, { wave: 'sine', freq: 600, dur: 0.004, attack: 0.0005, decay: 0.01, sustain: 0, release: 0.005, vol: v * 0.4 }));
+  },
+  /** Sauce spitting on the teppan「ジュッ」: a hiss chopped by a fast, uneven flutter. */
+  drm_jyu: (d) => {
+    voice(dbase(d, { wave: 'noise', dur: 0.01, attack: 0.004, decay: 0.16, sustain: 0, release: 0.04, vol: dv(d, 0.03), filter: { type: 'bandpass', freq: 4200, q: 0.9 }, am: { rate: 20 + arand() * 15, depth: 0.5, shape: 'square' } }));
+  },
+  /** The siren tower's big clock「コトン」(the minute hand's works): only the diorama and 12:01. */
+  drm_tower: (d) => {
+    const v = dv(d, 0.07);
+    voice(dbase(d, { wave: 'sine', freq: 420, dur: 0.004, attack: 0.0008, decay: 0.06, sustain: 0, release: 0.02, vol: v, reverb: 0.2 }));
+    voice(dbase(d, { wave: 'triangle', freq: 140, dur: 0.004, attack: 0.001, decay: 0.09, sustain: 0, release: 0.03, vol: v * 0.6 }));
+    voice(dbase(d, { wave: 'noise', dur: 0.015, attack: 0.001, decay: 0.015, sustain: 0, release: 0.005, vol: v * 0.4, filter: { type: 'lowpass', freq: 700 } }));
   },
   /** The walking tractor's air-cooled single "ドッ" (follows the song's pitch bus: the engine sags with the bow). */
   drm_putt: (d) => {

@@ -37,3 +37,5 @@ import './hoshi_sawa_chars';
 import './hoshi_restored';
 // 夕鳴小学校の 校庭の ヒキヅナの シンボルと、直したあとの とぐろ（二人十五脚、02 #82）
 import './hikizuna';
+// 第3章：海ぞいの町の人（62 10.6）
+import './people/umizoi';

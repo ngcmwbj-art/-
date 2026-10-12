@@ -36,3 +36,6 @@ import './cape_coffee';
 import './matsuri_art';
 // 夜の 足あと帳の 足あと・畦豆（02_ch2_index #87）
 import './ashiato_art';
+// Chapter 3 『海ぞいの町の いただきます』 (62_ch3_level_art 7章): the buildings and the things of 海ぞいの町
+import './c3_bld';
+import './c3_props';

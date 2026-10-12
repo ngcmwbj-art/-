@@ -139,6 +139,59 @@ export function gradeHKey(stage: number): GradeHKey {
 }
 
 /**
+ * Chapter 3 (海ぞいの町, 62 8.3): pal_c3_hirumae (stage 0, 9月1日 11:10 in
+ * 夕鳴町 — its town and rooms by day, whatever chapter 1's flag_stage says),
+ * pal_c3_noon (stage 1, 8月31日 12:00 stopped: white haze from the top, the
+ * colour a touch drained, nothing moves), pal_c3_1201 (stage 2), pal_c3_aq
+ * (stage 3, the old aquarium inside) and pal_c3_gogo (stage 4, the ending's
+ * afternoon). The sun's direction is the maps' shadowVec (straight north at
+ * noon); its height is the shadow's length (0.35 at noon: about 63°).
+ */
+export type GradeCKey = 'c0' | 'c1' | 'c2' | 'c3' | 'c4';
+
+const DAY_C = {
+  horizon: hx('#FFF6D8'), horizonA: 0, glare: hx('#FFFFFF'), glareA: 0, topDark: hx('#FFFFFF'), topA: 0,
+  toMall: 0, night: 0, lit: 0.3, ...CH1_EXTRA, sunX: 0,
+};
+
+export const GRADES_C: Record<GradeCKey, Grade> = {
+  c0: {
+    ...DAY_C,
+    skyTop: hx('#6AB0E8'), skyBot: hx('#CDE6F6'), mul: hx('#FFFCF4'),
+    shadow: hx('#5A6A8A'), shadowA: 0.28, shadowLen: 0.6, rim: hx('#FFF6D8'), motion: 1, desat: 0,
+  },
+  c1: {
+    ...DAY_C,
+    skyTop: hx('#5AA8E8'), skyBot: hx('#E8F4FA'), mul: hx('#FFFFFA'), topA: 0.08,
+    shadow: hx('#4A5A7A'), shadowA: 0.3, shadowLen: 0.35, rim: hx('#FFFFFF'), motion: 0, desat: 0.1,
+  },
+  c2: {
+    ...DAY_C,
+    skyTop: hx('#4A9CE0'), skyBot: hx('#D6EEF8'), mul: hx('#FFFDF6'), topA: 0.04,
+    shadow: hx('#4A5A7A'), shadowA: 0.3, shadowLen: 0.35, rim: hx('#FFFFFF'), motion: 1, desat: 0,
+  },
+  c3: {
+    ...DAY_C,
+    skyTop: hx('#4A9CE0'), skyBot: hx('#D6EEF8'), mul: hx('#C8D8DC'), topDark: hx('#1A2A3A'), topA: 0.2,
+    glare: hx('#FFF6D8'), glareA: 0.14,
+    shadow: hx('#1A2A3A'), shadowA: 0.3, shadowLen: 0, rim: hx('#FFF6D8'), motion: 0, desat: 0.05,
+  },
+  c4: {
+    ...DAY_C,
+    skyTop: hx('#5AA8E8'), skyBot: hx('#E0F0F8'), mul: hx('#FFF8EE'),
+    shadow: hx('#4A5A7A'), shadowA: 0.3, shadowLen: 0.45, rim: hx('#FFF6D8'), motion: 1, desat: 0,
+  },
+};
+
+/** The pal_c3_* preset of a chapter-3 stage. */
+export function gradeCKey(stage: number): GradeCKey {
+  return stage <= 0 ? 'c0' : stage === 1 ? 'c1' : stage === 2 ? 'c2' : stage === 3 ? 'c3' : 'c4';
+}
+
+/** 夕鳴町's rooms at 11:10 (62 5.2): the day through the windows, no lamps. */
+export const INDOOR_MUL_C0: RGB = hx('#FFF8EE');
+
+/**
  * Chapter-2 indoor light-map bases (52 4.0): 星見台's rooms don't grade by
  * stage, only by their own light (a dark part and lamps on top). Per map,
  * used when the map doesn't give MapDef.lightBase. 2026-09-26: the barn's
