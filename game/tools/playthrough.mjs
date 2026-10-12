@@ -2391,8 +2391,15 @@ const BEATS3 = [
       await advance({ label: 'kaito' });
       await need(['flag_ch3_kaisui_start'], 'S09 start');
       // into the sea from the beach: グソっ君 alone
-      await travel(60, 31);
-      await walk('down', (s) => !s.ctrl, 3000).catch(() => {});
+      // to the water's edge (the dive asks when pushing south from there; a run that bumps into
+      // the sea on the way has its question answered already — that is where we were going)
+      await travel(60, 30).catch(async (e) => {
+        if ((await st()).map !== 'map_c3_umi') throw e;
+      });
+      if ((await st()).map === 'map_umizoi') {
+        await walk('down', (s) => !s.ctrl || s.y === 31, 3000).catch(() => {});
+        await walk('down', (s) => !s.ctrl, 3000).catch(() => {});
+      }
       await advance({ label: 'dive' });
       if ((await st()).map === 'map_c3_umi') {
         await shot('umi');
@@ -2480,7 +2487,16 @@ const BEATS3 = [
     name: 'trap',
     async run() {
       // S14: by ツガオ便 on the quay → 「だいじょうぶ」 (the first choice) → the bed → the old aquarium
-      await travel(45, 23);
+      // (from the mats on the breakwater the crowd may stand in the way: a short teleport to the
+      // quay north of the truck, then into the ring round it)
+      await page.evaluate(() => {
+        const f = window.__game.cmd.fieldRef();
+        f.player.x = 43 * 16 + 8;
+        f.player.y = 22 * 16 + 16;
+        f.player.dir = 'down';
+        f.syncFollower?.(true);
+      });
+      await sleep(300);
       await walk('down', (s) => !s.ctrl, 3000).catch(() => {});
       await advance({ shotEvery: 3, label: 'trap', max: 120000 });
       await need(['flag_ch3_truck_trap'], 'S14');
