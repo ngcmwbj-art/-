@@ -28,6 +28,8 @@ import { Gfx } from '../engine/gfx';
 import type { FieldScene } from '../world/field';
 import { HOSHI_INDOOR_BASE, HOSHI_INDOOR_MORNING, type Grade } from '../world/lighting';
 import { drawRoomDawnFx, paintRoomLight, roomMorningK } from '../world/hoshi';
+import { isCh3Map } from '../world/maps';
+import { paintC3Lights } from '../world/c3dark';
 import { haloImage, LANTERN_HZ, STARLIGHT_ROOM } from '../world/lantern';
 import { SV } from './town';
 
@@ -106,6 +108,8 @@ export class HoshiLight {
   /** The room's base (render.ts hoshiBase): the night's, going over to the morning's as the morning comes in. */
   private base(): string {
     const def = this.f.map.def;
+    // the old aquarium (chapter 3, stage 3): each room's own dimness, no morning
+    if (isCh3Map(def)) return def.lightBase ?? '#C8D8DC';
     const night = def.lightBase ?? HOSHI_INDOOR_BASE[def.id] ?? '#9894C4';
     const k = roomMorningK(this.f);
     if (k <= 0) return night;
@@ -144,8 +148,14 @@ export class HoshiLight {
     const star = f.map.def.darkStar;
     f.light.paint(ctx, X0, Y0, star === false ? base : (star ?? STARLIGHT_ROOM), W, H);
     ctx.restore();
-    // the starlight through the night train's windows
+    // the starlight through the night train's windows; the old aquarium's 朱 and グソっ君's eyes (world/c3dark.ts)
     paintRoomLight(f, ctx, X0, Y0);
+    if (isCh3Map(f.map.def)) {
+      ctx.save();
+      ctx.clip(this.clip);
+      paintC3Lights(f, ctx, X0, Y0);
+      ctx.restore();
+    }
     // every lamp's pool (added), inside the room
     ctx.save();
     ctx.clip(this.clip);

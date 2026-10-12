@@ -168,9 +168,6 @@ registerScript('obj_c3_aq_ticket', function* (): Co {
   const ok = yield* saveWithStamp();
   if (ok) yield* say3(T.SAVE_TICKET_DONE);
 });
-registerScript('obj_c3_aq_glass_out_shut', function* (): Co {
-  yield* say3(T.AQ_GLASS_SHUT);
-});
 
 // the plain things of the old aquarium (9.5)
 for (const id of ['obj_c3_aq_penguin', 'obj_c3_aq_speaker', 'obj_c3_hall_suisou', 'obj_c3_hall_bench', 'obj_c3_hall_pack', 'obj_c3_esa_board', 'obj_c3_esa_clock', 'obj_c3_esa_bucket'])
@@ -259,9 +256,6 @@ addToMap('map_c3_aq_kairo', [
 ]);
 registerScript('trig_ch3_kairo_end', function* (): Co {
   if (inCh3() && !flag('flag_ch3_kairo_done')) yield* kairoEnd(true);
-});
-registerScript('obj_c3_aq_diorama_shut', function* (): Co {
-  if (inCh3() && !flag('flag_ch3_kairo_done')) yield* kairoEnd();
 });
 
 // ヒロスケ in the old aquarium (his chapter-2 talk elsewhere)
@@ -383,9 +377,6 @@ registerScript('evt_ch3_diorama', function* (): Co {
   yield 400;
   F().player.dir = 'right';
   yield* say3(T.DIORAMA_A);
-});
-registerScript('obj_c3_aq_shinkai_shut', function* (): Co {
-  yield* say3(T.DIORAMA_DOOR_SHUT);
 });
 
 // ================================================================ S18 深海の展示室
@@ -592,9 +583,6 @@ registerScript('trig_ch3_shinkai_tank', function* (): Co {
 registerScript('obj_c3_kara_suisou', function* (): Co {
   yield* karaSuisou();
 });
-registerScript('obj_c3_aq_esa_shut', function* (): Co {
-  yield* say3(T.SHINKAI_DOOR_SHUT);
-});
 
 // ================================================================ S19 えさの時間の部屋
 
@@ -650,9 +638,6 @@ registerScript('npc_pokosha', function* (ctx): Co {
     return;
   }
   if (pokoBefore) yield* pokoBefore(ctx);
-});
-registerScript('obj_c3_aq_hall_shut', function* (): Co {
-  yield* say3(T.ESA_DOOR_SHUT);
 });
 
 /** えさの札（任意）：4つのかけ金に、朝から順に（E 作の謎）。 */
@@ -777,6 +762,60 @@ registerScript('npc_tsugao', function* (ctx): Co {
     return;
   }
   if (tsugaoBefore) yield* tsugaoBefore(ctx);
+});
+
+// ================================================================ the people and the shut doors (E's, on W's maps)
+
+const NPC = (o: Record<string, unknown>): MapObj => ({ t: 'npc', ...o }) as unknown as MapObj;
+const BUMP = (id: string, x: number, y: number, w: number, cond: Record<string, unknown>): MapObj =>
+  ({ t: 'trig', id, x, y, w, h: 1, on: 'bump', script: id, cond }) as unknown as MapObj;
+
+addToMap('map_c3_aq_kairo', [
+  NPC({ id: 'npc_hirosuke', x: 37, y: 4, dir: 'left', pose: 'arms', cond: { flag: 'flag_ch3_aq_enter', notFlag: 'flag_ch3_kairo_done' } }),
+  BUMP('trig_c3_aq_diorama_shut', 38, 3, 1, { notFlag: 'flag_ch3_kairo_done' }),
+  BUMP('trig_c3_aq_jimusho_shut', 20, 5, 1, { notFlag: 'flag_ch3_minna' }),
+]);
+addToMap('map_c3_aq_diorama', [
+  NPC({ id: 'npc_hirosuke', x: 11, y: 11, dir: 'up', pose: 'arms', cond: { flag: 'flag_ch3_kairo_done', notFlag: 'flag_ch3_diorama_done' } }),
+  BUMP('trig_c3_aq_shinkai_shut', 22, 3, 1, { notFlag: 'flag_ch3_diorama_done' }),
+]);
+addToMap('map_c3_aq_shinkai', [BUMP('trig_c3_aq_esa_shut', 1, 2, 1, { notFlag: 'flag_ch3_shinkai_done' })]);
+addToMap('map_c3_aq_esa', [
+  NPC({ id: 'npc_pokosha', x: 7, y: 6, dir: 'up', cond: { flag: 'flag_ch3_aq_enter', notFlag: 'flag_ch3_esa_done' } }),
+  BUMP('trig_c3_aq_hall_shut', 5, 8, 1, { notFlag: 'flag_ch3_esa_done' }),
+]);
+addToMap('map_c3_aq_hall', [
+  NPC({ id: 'npc_tsugao', sprite: 'npc_tsugao_suit', x: 12, y: 7, dir: 'down', pose: 'sit', noTurn: true, cond: { flag: 'flag_ch3_aq_enter', notFlag: 'flag_ch3_boss_beaten' } }),
+  BUMP('trig_c3_aq_hall_w_shut', 1, 11, 1, { notFlag: 'flag_ch3_minna' }),
+]);
+addToMap('map_c3_aq_iriguchi', [
+  BUMP('trig_c3_aq_glass_shut', 7, 10, 2, { flag: 'flag_ch3_aq_enter' }),
+  BUMP('trig_c3_aq_ura_in_shut', 18, 3, 1, { notFlag: 'flag_ch3_minna' }),
+]);
+addToMap('map_c3_aq_rouka', [
+  NPC({ id: 'npc_hirosuke', x: 10, y: 3, dir: 'left', pose: 'arms', cond: { flag: 'flag_ch3_yakisoban', notFlag: 'flag_ch3_hp_beaten' } }),
+  NPC({ id: 'npc_pokosha', x: 12, y: 3, dir: 'left', cond: { flag: 'flag_ch3_yakisoban', notFlag: 'flag_ch3_hp_beaten' } }),
+  BUMP('trig_c3_aq_ura_shut', 1, 3, 1, { notFlag: 'flag_ch3_minna' }),
+]);
+
+const SHUT_TEXT: Record<string, () => string> = {
+  trig_c3_aq_shinkai_shut: () => T.DIORAMA_DOOR_SHUT,
+  trig_c3_aq_esa_shut: () => T.SHINKAI_DOOR_SHUT,
+  trig_c3_aq_hall_shut: () => T.ESA_DOOR_SHUT,
+  trig_c3_aq_glass_shut: () => T.AQ_GLASS_SHUT,
+  trig_c3_aq_jimusho_shut: () => T.JIMUSHO_SHUT,
+  trig_c3_aq_ura_in_shut: () => T.AQ_LOCKED,
+  trig_c3_aq_hall_w_shut: () => T.AQ_LOCKED,
+  trig_c3_aq_ura_shut: () => (flag('flag_ch3_hp_beaten') ? T.ROUKA_URA : T.ROUKA_URA_BEFORE),
+};
+for (const [id, text] of Object.entries(SHUT_TEXT))
+  registerScript(id, function* (): Co {
+    if (!inCh3()) return;
+    se('se_examine', { vol: 0.5 });
+    yield* say3(text());
+  });
+registerScript('trig_c3_aq_diorama_shut', function* (): Co {
+  if (inCh3() && !flag('flag_ch3_kairo_done')) yield* kairoEnd();
 });
 
 // ================================================================ onEnter（W's maps; events/ch3 adds them）

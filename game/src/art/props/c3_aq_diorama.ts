@@ -42,6 +42,33 @@ const DOLLS: Record<Town, string[]> = {
 };
 
 const cache = new Map<string, PixelCanvas>();
+const spotCache = new Map<string, [number, number][]>();
+
+/** Where the model's dolls stand (px in the w × h model): on walkable ground, spread by a hash; 10 of them. */
+export function dollSpots(town: Town, w: number, h: number): [number, number][] {
+  const key = `${town}:${w}x${h}`;
+  const hit = spotCache.get(key);
+  if (hit) return hit;
+  const out: [number, number][] = [];
+  const m = loadMap(MAP_OF[town]);
+  if (m) {
+    const s = Math.min(w / m.w, h / m.h);
+    const x0 = Math.floor((w - Math.round(m.w * s)) / 2);
+    const y0 = Math.floor((h - Math.round(m.h * s)) / 2);
+    for (let k = 0; out.length < 10 && k < 600; k++) {
+      const tx = ihash(k, 1, 7303 + town.length) % m.w;
+      const ty = ihash(k, 2, 7305 + town.length) % m.h;
+      if (cellAt(m, tx, ty).solid) continue;
+      const x = x0 + Math.round(tx * s);
+      const y = y0 + Math.round(ty * s);
+      if (x < 1 || y < 3 || x > w - 2 || y > h - 1) continue;
+      if (out.some(([a, b]) => Math.abs(a - x) + Math.abs(b - y) < 4)) continue;
+      out.push([x, y]);
+    }
+  }
+  spotCache.set(key, out);
+  return out;
+}
 
 /** The model of `town` fitted to w × h px (top-down, a modeller's 1/8). */
 export function dioramaTown(town: Town, w: number, h: number): PixelCanvas {
@@ -81,20 +108,11 @@ export function dioramaTown(town: Town, w: number, h: number): PixelCanvas {
   p.strokeRect(x0 - 1, y0 - 1, ow + 2, oh + 2, '#4A3A2E');
   // the dolls (3 px people, a head and a coloured body), spread over the walkable ground
   const dolls = DOLLS[town];
-  let placed = 0;
-  for (let k = 0; placed < dolls.length && k < 400; k++) {
-    const tx = ihash(k, 1, 7303 + town.length) % m.w;
-    const ty = ihash(k, 2, 7305 + town.length) % m.h;
-    const cell = cellAt(m, tx, ty);
-    if (cell.solid) continue;
-    const x = x0 + Math.round(tx * s);
-    const y = y0 + Math.round(ty * s);
-    if (x < 1 || y < 3 || x > w - 2 || y > h - 1) continue;
+  dollSpots(town, w, h).forEach(([x, y], i) => {
     p.set(x, y - 2, '#E8C8A0');
-    p.set(x, y - 1, dolls[placed]);
-    p.set(x, y, dolls[placed]);
-    placed++;
-  }
+    p.set(x, y - 1, dolls[i % dolls.length]);
+    p.set(x, y, dolls[i % dolls.length]);
+  });
   if (town === 'yunari') {
     // マフィ屋: the ginza's south-west corner of the model (3×3, the shutter down, a muffin sign)
     const mx = x0 + Math.round(ow * 0.08);

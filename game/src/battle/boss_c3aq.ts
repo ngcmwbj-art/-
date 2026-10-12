@@ -138,7 +138,7 @@ function* koeFall(s: BattleScene, p: EnemyUnit, n: number): Co {
   // the voice: no name tag (60 0.4 npc_c3_kakaricho_voice)
   yield* s.say(X(p)['koe' + (n + 1)] ?? []);
   yield* s.say(X(p).koeResult ?? [], false, { autoMs: 700 });
-  if (n === 0) showSticky(s, 'koe', 'flag_tut_koe');
+  if (n === 0) showSticky(s, 'koe', 'flag_tut_koe', false, 0, 0, 'right');
 }
 
 /** The enemies' order this round (61 12.2: ツガオ last; 13.3: 段取り puts the two first). */
@@ -461,7 +461,8 @@ function* pokoAct(s: BattleScene, e: EnemyUnit): Co {
     return;
   }
   if (s.memo.nafudaTurn) return;
-  if (e.status.c3_chijimu) {
+  if (s.memo.koeActive) {
+    // the voice still over him (nobody answered it): he keeps himself small
     yield* s.say(X(e).koeResult ?? [], false, { autoMs: 600 });
     return;
   }
@@ -760,13 +761,14 @@ const koeImgs = new Map<string, HTMLCanvasElement>();
 function koeImg(text: string): HTMLCanvasElement {
   let c = koeImgs.get(text);
   if (c) return c;
-  const [cv, ctx] = makeCanvas(112, 28);
-  ctx.fillStyle = '#4A4A55';
-  ctx.fillRect(0, 0, 112, 28);
-  ctx.fillStyle = '#1B1733';
-  ctx.fillRect(1, 1, 110, 26);
   const w = measure(text);
-  drawText(ctx, text, Math.round(56 - w / 2), 5, { color: '#E8E4D8' });
+  const bw = Math.max(112, w + 16);
+  const [cv, ctx] = makeCanvas(bw, 28);
+  ctx.fillStyle = '#4A4A55';
+  ctx.fillRect(0, 0, bw, 28);
+  ctx.fillStyle = '#1B1733';
+  ctx.fillRect(1, 1, bw - 2, 26);
+  drawText(ctx, text, Math.round(bw / 2 - w / 2), 5, { color: '#E8E4D8' });
   c = cv;
   koeImgs.set(text, c);
   return c;
@@ -779,17 +781,18 @@ function drawKoe(s: BattleScene, g: Gfx, p: EnemyUnit, k: { t0: number; n: numbe
   const t = s.t - k.t0;
   const fall = Math.min(1, t / 300);
   const y = Math.round(-30 + (s.msg.bottom + 8 + 30) * ease.backOut(fall));
-  const x = 192 - 56;
+  const bw = img.width;
+  const x = Math.round(p.x - bw / 2);
   // the tail: up, off the screen (whose voice it is is not shown)
-  g.rect(x + 80, 0, 3, Math.max(0, y), '#1B1733');
+  g.rect(x + Math.round(bw * 0.7), 0, 3, Math.max(0, y), '#1B1733');
   if (k.untie < 0) {
     g.img(img, x, y);
     return;
   }
   // it comes apart from the left in strips that fall
   const u = Math.min(1, (s.t - k.untie) / 500);
-  const cut = Math.round(112 * u);
-  g.ctx.drawImage(img, cut, 0, 112 - cut, 28, x + cut, y, 112 - cut, 28);
+  const cut = Math.round(bw * u);
+  if (cut < bw) g.ctx.drawImage(img, cut, 0, bw - cut, 28, x + cut, y, bw - cut, 28);
   for (let i = 0; i < cut; i += 6) g.rect(x + i, Math.round(y + 28 * u + ((i * 7) % 11)), 4, 2, '#1B1733', 1 - u);
   void FRAME;
 }

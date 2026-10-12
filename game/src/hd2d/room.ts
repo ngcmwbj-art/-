@@ -91,6 +91,24 @@ export const CH2_ROOMS = new Set([
   'map_hoshi_house2',
 ]);
 
+/**
+ * The old aquarium's rooms (chapter 3's third part, 62 4.8〜4.17): lit as
+ * 星見台's are, by the 2D's light map alone (room_hoshi.ts) — each room's
+ * own dim base (MapDef.lightBase), the deep-sea room's dark with the stamp
+ * case's 朱 and グソっ君's eyes (world/c3dark.ts), the lamps' pools.
+ */
+export const AQ_ROOMS = new Set([
+  'map_c3_aq_iriguchi',
+  'map_c3_aq_kairo',
+  'map_c3_aq_diorama',
+  'map_c3_aq_shinkai',
+  'map_c3_aq_esa',
+  'map_c3_aq_hall',
+  'map_c3_aq_souko',
+  'map_c3_aq_rouka',
+  'map_c3_aq_jimusho',
+]);
+
 /** The rooms drawn in HD-2D: chapter 1's houses, shops and the mall, and chapter 2's (CH2_ROOMS). */
 export const ROOM_MAPS = new Set([
   ...CH2_ROOMS,
@@ -125,6 +143,8 @@ export const ROOM_MAPS = new Set([
   'map_c3_siren',
   'map_c3_toudai',
   'map_c3_uminoie',
+  // the third part (62 4.8〜4.17): the old aquarium's rooms
+  ...AQ_ROOMS,
 ]);
 
 // the rooms' own entries of the town's table of bodies (room_tune.ts ROOM_SOLID; the town's win)
@@ -370,7 +390,7 @@ export class RoomWorld {
     this.lightTex.magFilter = THREE.LinearFilter;
     this.lightTex.minFilter = THREE.LinearFilter;
     // (星見台's rooms: lit by the 2D's whole light map instead, room_hoshi.ts)
-    if (CH2_ROOMS.has(m.id)) this.hoshi = new HoshiLight(f, this.X0, this.Y0, this.EW, this.EH, (tx, ty) => this.kind(tx, ty) !== 'void' || this.partition(tx, ty) || this.lowAt(tx, ty));
+    if (CH2_ROOMS.has(m.id) || AQ_ROOMS.has(m.id)) this.hoshi = new HoshiLight(f, this.X0, this.Y0, this.EW, this.EH, (tx, ty) => this.kind(tx, ty) !== 'void' || this.partition(tx, ty) || this.lowAt(tx, ty));
     // the side walls' bands from the back wall's face (before the light goes on it)
     this.paint(0, false);
     this.strip = this.wallBands();

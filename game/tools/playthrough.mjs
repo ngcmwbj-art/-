@@ -2731,7 +2731,8 @@ const BEATS3 = [
       await advance({ shotEvery: 4, label: 'hp', max: 600000, battles: real ? 'keys' : 'win' });
       await need(['flag_ch3_hp_beaten'], 'S24');
       await travel(1, 3);
-      await examineHere('left', 'ura');
+      await walk('left', (s) => !s.ctrl, 3000).catch(() => {});
+      await advance({ label: 'ura', shotEvery: 1 });
       const s = await st();
       const ok = s.map === 'map_c3_aq_rouka' && s.ctrl && !(await flag('flag_ch3_minna'));
       checks.push({ check: 'S24: ヒロスケ・ポコシャ, stopped before S25', ok, map: s.map });

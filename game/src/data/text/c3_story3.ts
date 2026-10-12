@@ -49,6 +49,12 @@ export const AQ_GLASS_SHUT = `@narr
 ガラス戸は、外から
 閉まっている。`;
 
+/** 鍵のかかった戸（E 作）。 */
+export const AQ_LOCKED = `@narr
+かぎが かかっている。`;
+export const JIMUSHO_SHUT = `@narr
+『関係者以外 立入禁止』。`;
+
 /** 券売所の窓：セーブ（10.32。S15〜S19）。 */
 export const SAVE_TICKET = ['券売所の 窓。\nここで、きろくを 書く？'];
 export const SAVE_TICKET_OPTIONS = ['書く', '書かない'];
@@ -819,7 +825,7 @@ export function c3Texts3(): Record<string, unknown> {
     typeof v === 'string' ? fillNames(v) : Array.isArray(v) ? v.map(fill) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fill(x)])) : v;
   const bubble = (t: string) => `@npc_kanenari\n${t}`;
   return fill({
-    s15: { S15_A, S15_HARIGAMI, S15_B, S15_GOT, S15_KEN, AQ_GLASS_SHUT, ticket: '@narr\n' + SAVE_TICKET[0], SAVE_TICKET_DONE },
+    s15: { AQ_LOCKED, JIMUSHO_SHUT, S15_A, S15_HARIGAMI, S15_B, S15_GOT, S15_KEN, AQ_GLASS_SHUT, ticket: '@narr\n' + SAVE_TICKET[0], SAVE_TICKET_DONE },
     s16: {
       denpyo: DENPYO.map((_, i) => denpyoRead(i)),
       got: denpyoGot(12),

@@ -31,7 +31,8 @@ import { outline } from './kit';
 import { standProp } from './hoshi_kit';
 import { registerProp } from './registry';
 import type { PropArt, PropEnv } from './types';
-import { dioramaTown } from './c3_aq_diorama';
+import { dioramaTown, dollSpots } from './c3_aq_diorama';
+import { state } from '../../game/state';
 
 /** Frames cached by key. */
 function cached<K>(make: (k: K) => HTMLCanvasElement): (k: K) => HTMLCanvasElement {
@@ -621,14 +622,36 @@ registerProp('prop_c3_aq_diorama', (opts) => {
     shadow: 6,
     contact: W - 4,
     contactX: W / 2,
-    glow: (g, x, y) => {
+    glow: (g, x, y, env) => {
       // the small lamp over the model and its light on the town
       g.rect(x + W / 2 - 2, y - 2, 4, 2, lamp, 0.9);
       screenPool(g, x + W / 2, y + topH / 2, W * 0.45, topH * 0.45, lamp, 0.22);
+      // fx_c3_doll_glow (60 S17): the dolls examined so far, each where its clock had stopped — a small
+      // warm light that pulses (the scenario sets flag_ch3_doll_<npc id>; this town's are counted)
+      const lit = litDolls(town);
+      const spots = dollSpots(town, W - 6, topH - 4);
+      for (let i = 0; i < Math.min(lit, spots.length); i++) {
+        const [dx, dy] = spots[i];
+        const a = 0.55 + 0.35 * Math.sin(env.t / 260 + i);
+        g.rect(x + 3 + dx, y + 2 + dy, 1, 2, '#FFF6D8', a);
+        screenPool(g, x + 3 + dx, y + 3 + dy, 4, 3, '#F6D98A', a * 0.6);
+      }
     },
     light: (g, x, y) => warmPool(g, x + W / 2, y + topH / 2, W * 0.6, topH * 0.6, lamp, 0.85),
   } satisfies PropArt;
 });
+
+/** How many of `town`'s dolls are lit (flag_ch3_doll_<npc id>: 星見台's are npc_hoshi_*, this town's npc_c3_*). */
+function litDolls(town: 'yunari' | 'hoshi' | 'umi'): number {
+  let n = 0;
+  for (const [k, v] of Object.entries(state.flags)) {
+    if (!v || !k.startsWith('flag_ch3_doll_')) continue;
+    const id = k.slice('flag_ch3_doll_'.length);
+    const t = id.startsWith('npc_hoshi_') ? 'hoshi' : id.startsWith('npc_c3_') ? 'umi' : 'yunari';
+    if (t === town) n++;
+  }
+  return n;
+}
 
 /** The explanation boards (3,12)・(20,12): a lectern with a faded panel (strokes, a little map of the cape). */
 registerProp('prop_c3_aq_setsumei', (opts) =>

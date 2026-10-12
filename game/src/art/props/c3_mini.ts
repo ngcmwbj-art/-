@@ -13,12 +13,21 @@
 //  - lensView(lit, aim): the sea from the lamp room (S09), 384×216 — the
 //    three marked buoys, the waves woken round those already lit, the beam
 //    towards `aim` with its arrow.
+//  - denpyoSlip(k): a collection slip from the corridor's wall (S16), 160×96 —
+//    ツガオ便's form, the paper's age, whose hand (01〜12, 60 10.16), the
+//    red-pencil corner where the note is (the note's words are the window's);
+//  - nisshiScrap(k): a torn scrap of the keeper's diary (S18), 128×72 — the
+//    same thick hand as the oldest slips (only the player may notice);
+//  - fudaRack(order): the feeding-time tags on their rack (S19), 192×96 —
+//    the four tags (9:00・11:00・12:00・15:00) hung in `order` (indexes into
+//    FUDA_TIMES; missing ones leave an empty hook).
 
 import { mix, PixelCanvas } from '../../engine/pixel';
 import { h01, valueNoise } from '../tiles/noise';
 import { CP } from '../tiles/c3_ground';
 import { outline } from './kit';
 import { blend } from './ishell';
+import { fontTextSmall } from './text';
 
 function memo<K extends string | number>(make: (k: K) => HTMLCanvasElement): (k: K) => HTMLCanvasElement {
   const m = new Map<K, HTMLCanvasElement>();
@@ -296,3 +305,124 @@ const lensMemo = memo((key: string) => {
   p.rect(W - 6, 0, 6, H, '#3A3F48');
   return p.toCanvas();
 });
+
+
+// ---------------------------------------------------------------- 回廊の 伝票・飼育日誌・えさの 札 (S16・S18・S19)
+
+/** Whose hand each of the twelve slips is in (60 10.16): t = ツガオ (thick), h = ヒロスケ (thin), p = ポコシャ (round). */
+const DENPYO_HAND = ['t', 't', 't', 't', 'h', 'h', 't', 'p', 'p', 't', 't', 'p'] as const;
+
+/** Thick, thin or round strokes in a box (the hand, not letters). */
+function handStrokes(p: PixelCanvas, x: number, y: number, w: number, rows: number, hand: 't' | 'h' | 'p', seed: number): void {
+  for (let r = 0; r < rows; r++) {
+    let cx = x;
+    const yy = y + r * 8;
+    while (cx < x + w - 6) {
+      const len = 3 + Math.floor(h01(cx, yy, seed) * 6);
+      if (hand === 't') {
+        p.rect(cx, yy, len, 2, '#1B1733');
+        if (h01(cx, yy, seed + 1) > 0.6) p.rect(cx + 1, yy - 2, 2, 2, '#1B1733');
+      } else if (hand === 'h') {
+        p.hline(cx, cx + len, yy, '#3A3F48');
+        if (h01(cx, yy, seed + 1) > 0.5) p.line(cx + 1, yy - 3, cx + 2, yy, '#3A3F48');
+      } else {
+        p.ring(cx + 2, yy, 2, 2, '#3A3F48');
+        if (len > 5) p.ring(cx + 6, yy, 2, 2, '#3A3F48');
+      }
+      cx += len + 3;
+    }
+  }
+}
+
+/** A slip of the corridor's wall, close up (k = 1..12; 13 = the blank day). */
+export const denpyoSlip = memo((k: number): HTMLCanvasElement => {
+  const W = 160;
+  const H = 96;
+  const p = new PixelCanvas(W, H);
+  const blank = k === 13;
+  const age = blank ? 1 : (k - 1) / 11;
+  const paper = blank ? '#FFFFFF' : mix('#E8D9B5', '#F4F1E8', age);
+  p.rect(2, 2, W - 4, H - 4, paper);
+  // the paper's age: foxing and a bent corner
+  for (let y = 2; y < H - 2; y++)
+    for (let x = 2; x < W - 2; x++) if (!blank && valueNoise(x / 9, y / 9, 7401 + k) > 0.78 - (1 - age) * 0.1) blend(p, x, y, '#C8A06A', 0.18);
+  p.poly([[W - 14, 2], [W - 2, 2], [W - 2, 14]], mix(paper, '#8A7A60', 0.3));
+  // ツガオ便's form: the title band, the boxes (date, from, to, goods), the stamp circle
+  const ink = '#C8452E';
+  p.rect(6, 6, W - 12, 10, mix(paper, ink, 0.15));
+  p.hline(6, W - 7, 16, ink);
+  for (const [x, y, w, h] of [[6, 20, 46, 14], [56, 20, 98, 14], [6, 38, 148, 14], [6, 56, 100, 30]] as const) p.strokeRect(x, y, w, h, ink);
+  p.ring(132, 70, 12, 12, mix(paper, ink, 0.5));
+  if (!blank) {
+    const hand = DENPYO_HAND[(k - 1) % 12];
+    handStrokes(p, 10, 27, 40, 1, hand, 7403 + k);
+    handStrokes(p, 60, 27, 90, 1, hand, 7405 + k);
+    handStrokes(p, 10, 45, 140, 1, hand, 7407 + k);
+    // the note in the corner box, ticked in red pencil (its words are the window's)
+    handStrokes(p, 10, 64, 92, 3, hand, 7409 + k);
+    p.line(108, 58, 112, 84, '#E84E3C');
+    p.line(109, 58, 113, 84, '#E84E3C');
+    // ツガオ便's own stamp in the circle (black, an old one)
+    p.ring(132, 70, 9, 9, '#2A2440');
+    p.hline(128, 136, 70, '#2A2440');
+  } else {
+    // only the date's box ruled; a slanting light falls on the white
+    for (let y = 2; y < H - 2; y++) for (let x = 2; x < W - 2; x++) if (x - y * 0.4 > 70 && x - y * 0.4 < 110 && (x + y) % 2 === 0) blend(p, x, y, '#FFF6D8', 0.35);
+  }
+  outline(p, { soft: true });
+  return p.toCanvas();
+});
+
+/** A scrap of the keeper's diary (k = 1..6): torn edges, a ruled page, ツガオ's thick strokes. */
+export const nisshiScrap = memo((k: number): HTMLCanvasElement => {
+  const W = 128;
+  const H = 72;
+  const p = new PixelCanvas(W, H);
+  const paper = '#E8D9B5';
+  for (let y = 4; y < H - 4; y++)
+    for (let x = 4; x < W - 4; x++) {
+      // the torn edge: in by a few px, ragged
+      const edge = 4 + Math.floor(valueNoise(x / 3, y / 3, 7411 + k) * 6);
+      if (x < edge || x > W - edge || y < edge - 2 || y > H - edge + 1) continue;
+      let c = paper;
+      if ((y - 6) % 10 === 0) c = '#B8C8D8';
+      if (valueNoise(x / 12, y / 12, 7413 + k) > 0.74) c = mix(c, '#A8742A', 0.25);
+      p.set(x, y, c);
+    }
+  handStrokes(p, 14, 21, 100, 4, 't', 7415 + k);
+  outline(p, { soft: true });
+  return p.toCanvas();
+});
+
+/** The feeding times on the tags (60 10.19). */
+export const FUDA_TIMES = ['9:00', '11:00', '12:00', '15:00'] as const;
+
+/** The tag rack, close up: tags hung in `order` (indexes into FUDA_TIMES), the empty hooks after them. */
+export function fudaRack(order: number[]): HTMLCanvasElement {
+  const W = 192;
+  const H = 96;
+  const p = new PixelCanvas(W, H);
+  // the board on the wall
+  p.rect(0, 0, W, H, '#C4C8C0');
+  p.rect(8, 8, W - 16, 22, '#8A6A4A');
+  p.hline(8, W - 9, 8, '#A88A62');
+  p.hline(8, W - 9, 29, '#5A4A3A');
+  for (let i = 0; i < 4; i++) {
+    const hx = 30 + i * 44;
+    p.rect(hx - 1, 26, 3, 6, '#9AA0A8');
+    const t = order[i];
+    if (t === undefined) continue;
+    // a wooden tag on its string, the time in black
+    p.line(hx, 30, hx, 36, '#5A4A3A');
+    p.rect(hx - 16, 36, 32, 44, '#D8C8A0');
+    p.hline(hx - 16, hx + 15, 36, '#E8D9B5');
+    p.hline(hx - 16, hx + 15, 79, '#A89870');
+    p.vline(hx + 15, 37, 79, '#A89870');
+    p.ring(hx, 40, 2, 2, '#8A6A4A');
+    const label = FUDA_TIMES[t];
+    const lw = label.length * 6;
+    fontTextSmall(p, label, hx - Math.floor(lw / 2), 54, '#2A2440', 1);
+  }
+  outline(p, { soft: true });
+  return p.toCanvas();
+}

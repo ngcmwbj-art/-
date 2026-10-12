@@ -83,9 +83,9 @@ export function syncBattleRow(): void {
     PANEL_POS.minato = [px, 150];
     PANEL_POS.kanenari = [px + 92, 150];
     PANEL_POS.yakisoban = [px + 184, 150];
-    TAG.minato = [px + 30, 144, 56];
-    TAG.kanenari = [px + 122, 144, 60];
-    TAG.yakisoban = [px + 214, 144, 62];
+    TAG.minato = [px + 18, 144, 56];
+    TAG.kanenari = [px + 110, 144, 64];
+    TAG.yakisoban = [px + 202, 144, 72];
     KIRE_TAB[0] = 4 + ROW.cmdDx;
     KIRE_TAB[1] = 132 + ROW.cmdDy;
     ROW.slotDx = px + 92 - 244;
@@ -223,7 +223,7 @@ export function drawPanel(g: Gfx, u: PartyUnit, pc: PanelCtx): void {
         }
       }
     }
-    for (const id of ['status_c3_mada']) {
+    for (const id of ['status_c3_mada', 'status_c3_ashi']) {
       if (!u.has(id)) continue;
       const ic = statusIcon(id);
       if (ic) {
@@ -272,7 +272,7 @@ function drawPanelTrio(g: Gfx, u: PartyUnit, pc: PanelCtx, x: number, y: number,
     const mood = moodOf(u, pc.t);
     const face = portrait(u.id, mood) ?? (u.id === 'yakisoban' ? trioFallbackFace?.(mood) ?? null : null);
     const fx = x + 4;
-    const fy = y + 8;
+    const fy = y + 14;
     if (face) g.ctx.drawImage(face, 0, 0, face.width, face.height, fx, fy, 24, 24);
     else {
       g.rect(fx, fy, 24, 24, heba ? '#D8C8A4' : '#F4E6C8');
@@ -284,7 +284,6 @@ function drawPanelTrio(g: Gfx, u: PartyUnit, pc: PanelCtx, x: number, y: number,
     if (u.hanamaruMark) g.img(hanamaruFrame(12, 1, false, 1), fx + 15, fy - 3);
     const tx = x + 31;
     const rx = x + 88;
-    g.text('HP', tx, y + ROW_HP, { color: C.ink, spacing: -1 });
     const hpStr = `${Math.round(u.hpShown)}/${u.m.maxHp}`;
     g.text(hpStr, rx, y + ROW_HP, { color: heba ? C.shuDark : u.hpRate <= 0.25 ? C.shuDark : C.ink, align: 'right', spacing: -1 });
     const rate = Math.max(0, Math.min(1, u.m.hp / u.m.maxHp));
@@ -336,7 +335,7 @@ function drawPanelTrio(g: Gfx, u: PartyUnit, pc: PanelCtx, x: number, y: number,
         icons.push(ippai ?? buffIcon(k, st.lv > 0));
       }
     }
-    icons.slice(0, 4).forEach((ic, i) => g.img(ic, x + 4 + (i % 2) * 12, y + 34 + Math.floor(i / 2) * 12));
+    icons.slice(0, 4).forEach((ic, i) => g.img(ic, x + 4 + (i % 2) * 12, y + 40 + Math.floor(i / 2) * 10));
     if (u.away) {
       g.rect(x + 2, y + 2, 88, 58, '#9AA0A8', 0.55);
       g.img(roundSeal('るす', 30), x + 46, y + 16);

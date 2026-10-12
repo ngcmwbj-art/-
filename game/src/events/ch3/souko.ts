@@ -107,6 +107,8 @@ function* evtSouko(): Co {
   se('se_heal', { vol: 0.5 });
   yield* say3(T.SOUKO_HEAL);
   setFlag('flag_ch3_souko', 1);
+  // the store's own night (W's dark and the bulb out)
+  setFlag('flag_c3_souko_night', 1);
 }
 
 // ================================================================ S22 evt_ch3_ego
@@ -142,6 +144,7 @@ function* evtEgo(): Co {
   yield 1000;
   yield* say3(T.EGO_KACHI);
   setFlag('flag_ch3_ego_night', 1);
+  setFlag('flag_c3_souko_night', 0);
 }
 
 // ================================================================ S23 evt_ch3_yakisoban
@@ -388,8 +391,3 @@ registerScript('evt_ch3_hp_intro', function* (): Co {
   if (inCh3() && flag('flag_ch3_yakisoban') && !flag('flag_ch3_hp_beaten')) yield* evtHp();
 });
 
-/** The end of the third part: the staff door at the corridor's west end (S25 opens it). */
-registerScript('obj_c3_aq_ura_shut', function* (): Co {
-  se('se_examine');
-  yield* say3(flag('flag_ch3_hp_beaten') ? T.ROUKA_URA : T.ROUKA_URA_BEFORE);
-});
