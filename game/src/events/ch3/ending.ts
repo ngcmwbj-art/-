@@ -33,6 +33,7 @@ import { ditherIn, ditherOut } from '../../ui/transition';
 import * as T from '../../data/text/c3_story4';
 import { C3_NAMES } from '../../data/text/c3_names';
 import { F } from '../lib';
+import { endingView } from '../ending';
 import { fnOf, se } from '../ch2/compat';
 import { say3 } from './common';
 import { spawnTruck } from './prologue';
@@ -44,9 +45,11 @@ import { playEndingNotebookCh3 } from '../../ui/ending_ch3';
 // ---------------------------------------------------------------- staging helpers
 
 /** Load a map for a cut: everyone of the map out of the frame, the player at (x, y) (shown or not). */
-function cutTo(map: string, x: number, y: number, o: { show?: boolean; dir?: Dir } = {}): void {
+function cutTo(map: string, x: number, y: number, o: { show?: boolean; dir?: Dir; shot?: string } = {}): void {
   const f = F();
   if (hasMap(map)) f.loadMap(map, x, y, o.dir ?? 'down');
+  // (HD-2D: the shot's lens, src/hd2d/cut_c3.ts; 2D: nothing)
+  endingView.shot(f, o.shot ?? 'e3_out');
   setFollowerVisible(false);
   f.player.visible = !!o.show;
   f.player.alpha = 1;
@@ -130,7 +133,7 @@ function placeBreakwater(center: number, fixed: [string, number, number, Dir, st
 
 function* cut1Lunch(): Co {
   setFlag('flag_c3_end_goza', 1);
-  cutTo('map_umizoi', 29, 32, { show: true, dir: 'down' });
+  cutTo('map_umizoi', 29, 32, { show: true, dir: 'down', shot: 'e3_goza' });
   placeBreakwater(30, [
     ['npc_maruyama', 30, 31, 'down', 'npc_maruyama_hige', 'fry'],
     ['kanenari', 31, 31, 'down', 'kanenari', 'hera'],
@@ -278,7 +281,7 @@ function* memories(): Co {
 }
 
 function* cut2Truth(): Co {
-  cutTo('map_umizoi', 9, 30, { show: true, dir: 'left' });
+  cutTo('map_umizoi', 9, 30, { show: true, dir: 'left', shot: 'e3_toudai' });
   put('npc_tsugao', 8, 30, 'down', 'npc_tsugao_shirt');
   put('kanenari', 7, 30, 'right', 'kanenari');
   playAmbient('amb_c3_umi', { fade: 1.0 });
@@ -381,7 +384,7 @@ function* cut3Photo(): Co {
   const master = kita.includes('npc_photo_master');
   // (W's tripod at (31,33) on the sea's edge, facing everyone to the north)
   setFlag('flag_c3_end_tripod', 1);
-  cutTo('map_umizoi', 31, 32, { show: true, dir: 'down' });
+  cutTo('map_umizoi', 31, 32, { show: true, dir: 'down', shot: 'e3_photo' });
   placeBreakwater(31, [
     ['kanenari', 32, 32, 'down', 'kanenari'],
     ['npc_maruyama', 33, 32, 'down', 'npc_maruyama_hige'],
@@ -456,7 +459,7 @@ function* cut4Home(): Co {
   // 銀座の角, 16:59 → 17:00, the chime rings to its last note (62 5.3: the light of chapter 1's start)
   // 夕鳴町 in chapter 1's 17:00 light (W: flag_c3_end_light 1, read when the map loads)
   setFlag('flag_c3_end_light', 1);
-  cutTo('map_town', 44, 26, { show: true, dir: 'down' });
+  cutTo('map_town', 44, 26, { show: true, dir: 'down', shot: 'e3_ginza_eve' });
   put('kanenari', 43, 26, 'down', 'kanenari');
   spawnTruck('e3_truck', 45, 30, 'down');
   setFlag('flag_hud_hidden', 0);
@@ -477,7 +480,7 @@ function* cut4Home(): Co {
   despawn('e3_truck');
   clearCast();
   // 小林家の玄関
-  cutTo('map_home_1f', 2, 7, { show: true, dir: 'up' });
+  cutTo('map_home_1f', 2, 7, { show: true, dir: 'up', shot: 'e3_home' });
   put('kanenari', 3, 7, 'up', 'kanenari');
   stopBgm(2.0);
   stopAllAmbient(1.0);
@@ -503,7 +506,7 @@ function* cut5Morning(): Co {
   // 5:10 the next morning (W: flag_c3_end_light 2, pal_c3_akegata; たかし's shutter is up)
   setFlag('flag_c3_end_light', 2);
   stopBgm(0.5);
-  cutTo('map_town', 27, 25, { show: false, dir: 'up' });
+  cutTo('map_town', 27, 25, { show: false, dir: 'up', shot: 'e3_ginza_asa' });
   setClockText('5:10', { cut: true });
   spawnTruck('e3_truck', 31, 24, 'left');
   put('npc_tsugao', 30, 23, 'left', 'npc_tsugao');
@@ -564,9 +567,11 @@ export function* evtEnding(): Co {
   yield* cut4Home();
   yield* cut5Morning();
   setFlag('flag_hud_hidden', 1);
+  endingView.shot(F(), 'e3_out');
   // カット6: the notebook ③ and the case, 「おわり」; the clear data is written
   yield* playEndingNotebookCh3();
   setFlag('flag_bgm_hold', 0);
+  endingView.shot(F(), null);
   markClearCh3();
   stopBgm(0.3);
   stopAllAmbient(0.3);

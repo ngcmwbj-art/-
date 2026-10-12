@@ -806,6 +806,11 @@ async function isAqStory() {
   return !!b && b.enemies.some((e) => ['boss_tsugao_1', 'boss_hirosuke', 'boss_pokosha'].includes(e.id));
 }
 
+async function isTsugaoFinal() {
+  const b = await page.evaluate(() => window.__game.cmd.bstate?.()).catch(() => null);
+  return !!b && b.enemies.some((e) => e.id === 'boss_tsugao');
+}
+
 async function isC3Special() {
   const b = await page.evaluate(() => window.__game.cmd.bstate?.()).catch(() => null);
   return !!b && b.enemies.some((e) => e.id === 'enemy_okawarinabe' || e.id === 'enemy_nariosame');
@@ -915,6 +920,52 @@ async function battleAq(maxMs = 360000) {
   }
   await waitFor((s) => s.top === 'FieldScene', 30000, 'after the aquarium battle').catch(() => {});
   return { real: true, rounds, ms: Date.now() - t0 };
+}
+
+/**
+ * --real boss (第4期, 61 14): ツガオ決戦 with real commands. 1段目: しゅん たたく（3ラウンドごとに
+ * ペケ）、グソっ君 たたく、ヤキソバン こそげる／たたく、ゲージが 320 の錠まで。2段目: しゅんの よぶ
+ * （ほかの2人は入力なし）。回覧板が うまったら（tgPhase 3）『みんなの はなまる』。
+ */
+async function battleTsugao(maxMs = 600000) {
+  const t0 = Date.now();
+  let rounds = 0;
+  let planned = '';
+  let yobu = 0;
+  await page.evaluate(() => window.__game.cmd.bauto({ tsuk: 'just', ring: 'good', hold: 'kukkiri' }));
+  for (;;) {
+    const b = await page.evaluate(() => window.__game.cmd.bstate?.()).catch(() => null);
+    if (!b) break;
+    if (late(t0, maxMs)) {
+      log('  real final battle took too long: finishing with __game.cmd.win()');
+      await battleWin();
+      return { real: false, rounds, yobu };
+    }
+    rounds = Math.max(rounds, b.round ?? 0);
+    const a = await page.evaluate(() => window.__game.cmd.c3aq?.()).catch(() => null);
+    const key = `${b.round}:${a?.tgPhase}`;
+    if (b.input && planned !== key) {
+      planned = key;
+      let cmds;
+      if ((a?.tgPhase ?? 1) >= 3) cmds = [{ who: 'minato', cmd: 'hanko', skill: 'skill_minna_hanamaru', target: 0 }];
+      else if ((a?.tgPhase ?? 1) === 2) {
+        cmds = [{ who: 'minato', cmd: 'yobu' }];
+        yobu++;
+      } else
+        cmds = [
+          b.round % 3 === 2 ? { who: 'minato', cmd: 'hanko', skill: 'skill_peke', target: 0 } : { who: 'minato', cmd: 'attack', target: 0 },
+          { who: 'kanenari', cmd: 'attack', target: 0 },
+          b.round % 2 === 1 ? { who: 'yakisoban', cmd: 'yaki', skill: 'skill_yk_kosogeru', target: 0 } : { who: 'yakisoban', cmd: 'attack', target: 0 },
+        ];
+      await page.evaluate((c) => window.__game.cmd.bcmd(c), cmds);
+      log(`  round ${b.round} (phase ${a?.tgPhase ?? '?'}, gauge ${a?.enemies?.[0]?.hp ?? '?'}): ${cmds.map((c) => c.skill ?? c.cmd).join(' + ')}`);
+      if (b.round % 3 === 0 || (a?.tgPhase ?? 1) >= 2) await shot(`boss_r${b.round}_p${a?.tgPhase ?? 0}`);
+    }
+    await tap('KeyZ', 40);
+    await sleep(250);
+  }
+  await waitFor((s) => s.top === 'FieldScene', 30000, 'after the final battle').catch(() => {});
+  return { real: true, rounds, yobu, ms: Date.now() - t0 };
 }
 
 async function battleWin(maxMs = 60000) {
@@ -1027,7 +1078,7 @@ async function advance({ max = 60000, gap = 260, shotEvery = 0, label = 'ev', ba
           ? await battleLesson()
           : (await battleWin(), { real: false, lesson: true })
         : battles === 'keys'
-          ? (await isC3Special()) ? await battleC3() : (await isAqStory()) ? await battleAq() : await battleByKeys()
+          ? (await isC3Special()) ? await battleC3() : (await isAqStory()) ? await battleAq() : (await isTsugaoFinal()) ? await battleTsugao() : await battleByKeys()
           : (await battleWin(), { real: false });
       out.battles.push(b);
       battleLog.push({ beat: beatName, ...b });
