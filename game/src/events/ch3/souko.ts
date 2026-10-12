@@ -296,6 +296,14 @@ registerWorldFx({
       a = placeFollowYk(f, lead.tileX, lead.tileY, p.dir);
       a.x = lead.x;
       a.y = lead.y;
+      // a step off グソっ君 (behind him, else beside), not on top of him
+      const [dx, dy] = p.dir === 'up' ? [0, 1] : p.dir === 'down' ? [0, -1] : p.dir === 'left' ? [1, 0] : [-1, 0];
+      for (const [ex, ey] of [[dx, dy], [dy, dx], [-dy, -dx]] as const)
+        if (f.free(a, lead.x + ex * 16, lead.y + ey * 16, true) && Math.hypot(lead.x + ex * 16 - p.x, lead.y + ey * 16 - p.y) > 8) {
+          a.x = lead.x + ex * 16;
+          a.y = lead.y + ey * 16;
+          break;
+        }
     }
     if (a.data.scripted) return;
     if (lead.moving) {

@@ -21,7 +21,7 @@ import type { Co } from '../../engine/co';
 import { game } from '../../engine/game';
 import { addItem, flag, setFlag, state, type Dir } from '../../game/state';
 import { ambientEvent, duckMusic, playBgm, stopBgm } from '../../audio';
-import { despawn, registerScript, setSprite, spawn, walk } from '../../world/api';
+import { despawn, pose, registerScript, setSprite, spawn, walk } from '../../world/api';
 import { getScript } from '../../world/scripts';
 import { getMapDef, hasMap } from '../../world/maps';
 import { registerWorldFx } from '../../world/fx';
@@ -741,7 +741,7 @@ function* tsugao1End(ts: Actor | null): Co {
   yield 600;
   yield* say3(T.T1END_B);
   // the nightcap; the tank's light a little dimmer
-  if (ts && hasChar('npc_tsugao_nightcap')) setSprite('npc_tsugao', 'npc_tsugao_nightcap');
+  if (ts) pose('npc_tsugao', 'nightcap'); // npc_tsugao_suit's extra (seated, nightcap on)
   yield* say3(T.T1END_C);
   se('se_c3_aq_reizo');
   yield* game.fadeOut(1200, '#0B1420');
