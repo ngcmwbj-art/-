@@ -216,6 +216,17 @@ body.kbd .daily,body.kbd .dpanel,body.cine .daily,body.photo .daily{display:none
 #it-clock{position:absolute;right:calc(env(safe-area-inset-right,0px) + 22px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);font-family:var(--f-data);font-size:22px;letter-spacing:.12em;color:rgba(220,234,242,.45)}
 body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibility:hidden}
 
+.sheet.ur{width:min(420px,100%);text-align:center;background:linear-gradient(180deg,#0b1d29,#06121a);border-color:rgba(143,211,255,.3)}
+.ur-date{font-family:var(--f-data);font-size:11.5px;color:var(--dim);margin:-6px 0 6px}
+.ur-rank{font-family:var(--f-display);font-weight:800;font-size:72px;line-height:1.15;letter-spacing:.1em;margin:4px 0 6px;color:#fff;text-shadow:0 0 26px rgba(143,211,255,.5)}
+.ur-rank.r0{color:#ffd27a;text-shadow:0 0 30px rgba(255,210,122,.7)}
+.ur-rank.r5{color:#9fb0bb;text-shadow:none}
+.ur-msg{font-family:var(--f-display);font-size:16px;line-height:1.9;margin:0 0 14px;padding:0 6px}
+.ur-list{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;text-align:left;margin:0;font-size:13.5px;line-height:1.7;border-top:1px solid var(--line);padding-top:12px}
+.ur-list dt{color:var(--glow);font-size:12px;white-space:nowrap}
+.ur-list dd{margin:0}
+.ur-s{display:block;color:#ffc46b;letter-spacing:.1em;font-size:12px}
+
 @media (max-width:640px){
   .brand h1{font-size:20px}
   .gauges{min-width:0;padding:8px 10px}
@@ -291,6 +302,7 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
         <button type="button" id="m-photo">写真モード</button>
         <button type="button" id="m-zukan">図鑑（宝物・来客・姿・家系）</button>
         <button type="button" id="m-idle">置き水槽モード</button>
+        <button type="button" id="m-uranai">グソク占い（成体になると解放）</button>
         <div class="note">同居生物</div>
         <button type="button" data-mate="hag">ヌタウナギと暮らす</button>
         <button type="button" data-mate="eel">ゲンゲと暮らす</button>
@@ -374,6 +386,19 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
   <header><h3 id="zk-title">図鑑</h3><button type="button" id="zk-close">閉じる</button></header>
   <div class="zk-tabs" id="zk-tabs"><button type="button" data-t="items">宝物</button><button type="button" data-t="vis">来客</button><button type="button" data-t="morph">姿</button><button type="button" data-t="line">家系</button></div>
   <div id="zk-body"></div>
+</div></div>
+<div class="modal" id="uranai" hidden><div class="sheet ur" role="dialog" aria-labelledby="ur-title">
+  <header><h3 id="ur-title">深海みくじ</h3><button type="button" id="ur-close">閉じる</button></header>
+  <div class="ur-date" id="ur-date"></div>
+  <div class="ur-rank" id="ur-rank"></div>
+  <p class="ur-msg" id="ur-msg"></p>
+  <dl class="ur-list">
+    <dt id="ur-work-l">仕事運</dt><dd><span class="ur-s" id="ur-work-s"></span><span id="ur-work"></span></dd>
+    <dt>健康運</dt><dd><span class="ur-s" id="ur-health-s"></span><span id="ur-health"></span></dd>
+    <dt>ラッキーアイテム</dt><dd id="ur-item"></dd>
+    <dt>ラッキーカラー</dt><dd id="ur-color"></dd>
+    <dt>吉方位</dt><dd id="ur-dir"></dd>
+  </dl>
 </div></div>
 <div id="itank" hidden><div id="it-clock"></div></div>
 <div class="modal" id="memorial" hidden><div class="sheet"><h3>グソク</h3><div id="mem-date"></div><dl id="mem-text"></dl><p id="mem-egg" hidden style="font-size:13.5px;line-height:1.8;color:#ffc46b;margin:0 0 10px">グソクは、卵を残していました。</p><p style="font-size:13px;color:var(--dim);line-height:1.8;margin:0 0 18px">この子の記録は「日記 → 思い出」に残ります。</p><button type="button" class="primary" id="mem-new">新しい命を迎える</button></div></div>
@@ -2726,7 +2751,7 @@ const World={acc:0,vis:null,deco:null,lastM:undefined,
   },
   dig(){
     const T=Col.pick(),none=!Object.keys(Col.c.items).length,first=Col.addItem(T.k);
-    puff(C.pos.clone(),10);shape&&shape(1,0);
+    puff(C.pos.clone(),10);
     say('（グソクが砂を掘って、何かを見つけました。……'+T.n+'です）',{narr:true});
     if(S.stage>=2)setTimeout(()=>say(pickR(['……拾いました。差し上げます。','砂の中に、こんなものがございました。']),{emo:'happy'}),400);
     if(none)say('（見つけた物は「その他 → 図鑑」にしまわれます。水槽に飾ることもできます）',{narr:true});
@@ -2876,6 +2901,70 @@ const IdleTank={on:false,lock:null,iv:0,
 $('m-idle').addEventListener('click',e=>{e.stopPropagation();IdleTank.open()});
 $('itank').addEventListener('pointerdown',()=>IdleTank.close());
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&IdleTank.on)IdleTank.wake()});
+
+/* =====================================================================
+   FORTUNE — only a fully grown (成体) creature can read the deep for you, once a day
+   ===================================================================== */
+const Uranai={
+  RANKS:[['大吉',5,12],['中吉',4,20],['小吉',3,22],['吉',3,22],['末吉',2,16],['凶',1,8]],
+  MSG:{
+    '大吉':['今日は、潮の流れがあなたの味方です。迷っていたことは、思いきって進めてください。','何十年に一度、鯨が降ってくるような日です。いただけるものは、遠慮なくいただきましょう。'],
+    '中吉':['深海の生き物は急ぎません。それでも今日は、ほんの少しだけ早足で大丈夫です。','良い知らせは、光の届かないところから来ます。足元をよく見てください。'],
+    '小吉':['小さな得が、静かに積もる日です。マリンスノーのように。','今日は八分目で止めておくと、ちょうどよく終わります。'],
+    '吉':['特別なことがなくても、無事がいちばんの吉です。','いつも通りの一日を、いつも通り丁寧に。それで十分です。'],
+    '末吉':['今日は殻にこもる日です。次の脱皮のために、力をためましょう。','焦ると砂が舞います。じっとしていれば、水はまた澄みます。'],
+    '凶':['……今日は、あまり動かないほうがよろしいかと。ワタクシも動きません。','水が少し濁っています。大事な決めごとは、明日にいたしましょう。']
+  },
+  COW:['牛たちの食い込みが良い日です。朝の餌箱をのぞいてみてください。','牛舎の空気を入れかえると、良いことがあります。','手のかかる牛ほど、今日は素直です。','体重の伸びが楽しみな日です。','今日は牛の足元をよく見てあげてください。小さな変化に気づけます。','水槽……いえ、水桶の掃除が吉です。'],
+  WORK:['午前中の段取りが、午後を助けます。','人に任せると、思わぬ良い結果になります。','急ぎの用事ほど、一度深呼吸を。','今日の小さな工夫が、来月の大きな楽になります。'],
+  HEALTH:['水分をこまめにとってください。ワタクシは、とり放題ですが。','今日は早めに眠るのが吉です。深海はいつでも夜ですので。','腰を伸ばす体操を。ワタクシは十四本の脚で支えておりますが、あなたは二本です。','温かいものを一品、食べてください。'],
+  COLORS:['深海の青','桜色','琥珀色','白銀','墨色','マリンスノーの白','夕焼けの赤','苔の緑'],
+  DIRS:['北','北東','東','南東','南','南西','西','北西','真下（深海の方角）'],
+  rng(seed){let h=2166136261;for(const c of seed)h=Math.imul(h^c.charCodeAt(0),16777619);return()=>{h=Math.imul(h^h>>>15,2246822507);h=Math.imul(h^h>>>13,3266489909);h^=h>>>16;return (h>>>0)/4294967296}},
+  pick(r,a){return a[Math.floor(r()*a.length)]},
+  draw(){
+    const r=this.rng(dkey()+'|'+(mem('名前')||'')+'|'+(S.gen||1)+'|'+S.born);
+    // luck leans with the bond between you: trust and mood lift it, the dark side drags it down
+    const lean=(S.trust-50)/100+(S.mood-50)/200-darkLv()*.35;
+    const W=this.RANKS.map(([n,s,w],i)=>w*Math.exp(-lean*(i-2.5)*.5));
+    let x=r()*W.reduce((a,b)=>a+b,0),k=0;for(;k<W.length-1;k++){x-=W[k];if(x<=0)break}
+    const [rank,base]=this.RANKS[k],star=d=>Math.max(1,Math.min(5,base+d));
+    const cow=/牛|肥育|畜産|牧場|酪農/.test(mem('仕事')||''),cb=mem('手のかかる牛');
+    const T=TREASURES.filter(t=>Col.c.items[t.k]),item=this.pick(r,T.length?T:TREASURES);
+    let work=this.pick(r,cow?this.COW:this.WORK);if(cow&&cb&&r()<.35)work=`「${cb}」が、今日はおとなしくしてくれそうです。`;
+    return {d:dkey(),rank,msg:this.pick(r,this.MSG[rank]),workLabel:cow?'牛運':'仕事運',work,workStar:star(Math.round(r()*2-1)),health:this.pick(r,this.HEALTH),healthStar:star(Math.round(r()*2-1)),item:item.n,color:this.pick(r,this.COLORS),dir:this.pick(r,this.DIRS)};
+  },
+  open(){
+    closePops();if(!started||!S.hatched)return;
+    if(S.stage<3){const left=Math.max(1,7-S.molts);toast('占いは、成体になると見てもらえます（あと'+left+'回の脱皮）');return}
+    if(Life.dead)return;
+    if(Life.asleep){toast('グソクは眠っています。起きている時に頼んでみましょう');return}
+    if(S.uranai&&S.uranai.d===dkey()){this.show(S.uranai,true);return}
+    const res=this.draw();S.uranai=res;save();Daily.hit('uranai');
+    // a short ritual before the card: antennae up, sand stirred, a low chime
+    say(darkLv()>=2?'……よろしいでしょう。占って差し上げます。良い結果とは限りませんが。':pickR(['……では、深海に聞いてみましょう。','少々お待ちください。砂に、聞いてみます。']),{emo:'curious'});
+    for(let i=0;i<3;i++)setTimeout(()=>{puff(C.pos.clone(),8);Audio2.tone(330*(i+1)*.75,330*(i+1)*.74,1.2,'sine',.06)},600+i*700);
+    C.wave=2.6;C.waveDur=2.6;
+    setTimeout(()=>this.show(res,false),2900);
+  },
+  show(o,again){
+    const st='★★★★★☆☆☆☆☆',stars=n=>st.slice(5-n,10-n);
+    $('ur-rank').textContent=o.rank;$('ur-rank').className='ur-rank r'+this.RANKS.findIndex(x=>x[0]===o.rank);
+    $('ur-msg').textContent=o.msg;$('ur-date').textContent=o.d.replace(/-/g,'.')+(again?'　（今日の占いは、もう出ています）':'');
+    $('ur-work-l').textContent=o.workLabel;$('ur-work-s').textContent=stars(o.workStar);$('ur-work').textContent=o.work;
+    $('ur-health-s').textContent=stars(o.healthStar);$('ur-health').textContent=o.health;
+    $('ur-item').textContent=o.item;$('ur-color').textContent=o.color;$('ur-dir').textContent=o.dir;
+    $('uranai').hidden=false;
+    if(!again)setTimeout(()=>say(o.rank==='大吉'?'……大吉です。ワタクシまで、うれしくなりました。':o.rank==='凶'?'……凶でした。気を落とさずに。ワタクシがついております。':'……以上です。良い一日を。',{emo:o.rank==='凶'?'neutral':'happy'}),400);
+  },
+  lastStage:null,
+  watch(){if(!S||!started)return;const st=S.stage;if(this.lastStage!==null&&this.lastStage<3&&st>=3)setTimeout(()=>say('（成体になったグソクは、「占い」ができるようになりました。「その他 → グソク占い」から頼めます）',{narr:true}),30000);this.lastStage=st;
+    $('m-uranai').textContent=st>=3?'グソク占い':'グソク占い（成体になると解放）'}
+};
+Daily.TASKS.uranai={label:'グソクに占ってもらう',goal:1,ok:()=>S.stage>=3};
+setInterval(()=>Uranai.watch(),2000);
+$('m-uranai').addEventListener('click',()=>Uranai.open());
+$('ur-close').addEventListener('click',()=>$('uranai').hidden=true);
 
 let started=false;
 function boot(){
@@ -3085,7 +3174,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
