@@ -439,7 +439,6 @@ function* arrive(): Co {
   }
   se('se_keitora_stop');
   stopAmbient('amb_c3_keitora', 1.0);
-  stopAmbient('amb_c3_siren_hold', 1.0);
   stopBgm(1.5);
   yield 200;
   yield* game.fadeIn(700);
