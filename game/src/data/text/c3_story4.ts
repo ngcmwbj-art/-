@@ -9,6 +9,7 @@
 // グソっ君の生まれ（真相）は S30 の文（SHINSO_*）だけに書く。
 
 import { fillNames } from './c3_names';
+import { CHAWAN, CHAWAN_LATER, FUSHIGI3, fushigiRewardCh3 } from './c3_fushigi';
 
 // ================================================================ 10.25 S25 みんなが来る
 
@@ -510,6 +511,13 @@ export function c3Texts4(): Record<string, unknown> {
     s34: {
       C4_KN_ASK, C4_KN_EAT, C4_KN_LATER, C4_TSUGAO, C4_TSUGAO_ASK, C4_POKOSHA, C4_HIROSUKE, C4_EGO, JIMU_KAIRAN, JIMU_KAIRAN_BEFORE, jimu: JIMU, FUSHIGI10_SEEN, FUSHIGI10_PRESSED,
       thanks: [`@narr\n${titleThanks(24)}`, `@narr\n${titleThanks(3)}`],
+    },
+    fushigi3: {
+      pressed: Object.values(FUSHIGI3).map((f) => f.pressed),
+      after: Object.values(FUSHIGI3).map((f) => f.after),
+      reward: fushigiRewardCh3(10),
+      CHAWAN,
+      CHAWAN_LATER,
     },
   }) as Record<string, unknown>;
 }

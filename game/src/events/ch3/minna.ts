@@ -134,17 +134,18 @@ function* passBy(ids: string[], path: [number, number][], gap: number): Co {
     if (line)
       game.scripts.run(
         (function* (): Co {
-          yield 600;
+          yield 500;
           // a long line in two bubbles, one after the other
           for (const part of line) {
             if (!F().actorById(aid)) return;
-            showBubble(aid, part, line.length > 1 ? 1300 : 2000);
-            yield line.length > 1 ? 1350 : 0;
+            showBubble(aid, part, line.length > 1 ? 1100 : 1500);
+            yield line.length > 1 ? 1150 : 0;
           }
         })(),
       );
     se('se_step_tile', { vol: 0.25 });
-    yield gap;
+    // (one who speaks keeps the next one far enough behind that the bubbles don't meet)
+    yield line ? Math.max(gap, line.length > 1 ? 1700 : 1400) : gap;
   }
   yield () => tasks.every((t) => t.done);
 }

@@ -35,7 +35,7 @@ import { allItems, getEnemy, getSkill, HANKO_CASE_ORDER, PR_ORDER } from '../dat
 import { fitWrap, phraseWrapInfo, textW } from './window';
 import { lessonTextIssues } from '../data/battle/text_lesson';
 import { FOLD, LP, RP, rightW, SP, squeezable } from './menu/notebook';
-import { BOOK2_ENEMIES, BOOK_ENEMIES, bookLabelW, FUSHIGI2_BOOK, FUSHIGI_BOOK, fushigiPageFit, pressedText, pressedText2, TSUKKOMI2_ENEMIES, TSUKKOMI_ENEMIES } from './menu/book';
+import { BOOK2_ENEMIES, BOOK3_ENEMIES, BOOK_ENEMIES, bookLabelW, FUSHIGI2_BOOK, FUSHIGI3_BOOK, FUSHIGI_BOOK, fushigiPageFit, pressedText, pressedText2, TSUKKOMI2_ENEMIES, TSUKKOMI3_ENEMIES, TSUKKOMI_ENEMIES } from './menu/book';
 import { itemNameLines, itemNameRoom } from './menu/items';
 import { hankoInfo } from './menu/hanko';
 import { statsNoteW } from './menu/stats';
@@ -278,6 +278,25 @@ registerDebug('wrapCheck', () => {
     if (a + b > 6) issues.push(`②あいて ${e.name}: 正体 ${a} + ひとこと ${b} lines > 6`);
   }
   for (const id of TSUKKOMI2_ENEMIES) for (const l of getEnemy(id)?.tsukkomi ?? []) check(`②ツッコミ 一覧`, l, labelW, 2);
+  // みました帳 ③（60_ch3_story 8章）
+  FUSHIGI3_BOOK.forEach(([title, place, text], i) => {
+    check(`③ふしぎ${i + 1} 一覧`, title, labelW, 2);
+    check(`③ふしぎ${i + 1} 題`, title, RP.w, 2);
+    const body = fitWrap(text, RP.w);
+    const fit = fushigiPageFit(title, place, text);
+    n++;
+    if (fit.body > fit.room) issues.push(`③ふしぎ${i + 1} 本文: ${body.map((l) => l.text).join('／')} (${fit.body}/${fit.room} lines)`);
+  });
+  for (const id of BOOK3_ENEMIES) {
+    const e = getEnemy(id);
+    if (!e?.book) continue;
+    check(`③あいて ${e.name} 一覧`, e.name, labelW, 2);
+    const a = phraseWrapInfo(e.book.shotai, RP.w + 11).lines.length;
+    const b = phraseWrapInfo(e.book.hitokoto, RP.w + 5).lines.length;
+    n++;
+    if (a + b > 6) issues.push(`③あいて ${e.name}: 正体 ${a} + ひとこと ${b} lines > 6`);
+  }
+  for (const id of TSUKKOMI3_ENEMIES) for (const l of getEnemy(id)?.tsukkomi ?? []) check(`③ツッコミ 一覧`, l, labelW, 2);
   const infoW = SP.x + SP.w - 14 - LP.x;
   for (const id of [...HANKO_CASE_ORDER, ...PR_ORDER]) {
     const s = getSkill(id);

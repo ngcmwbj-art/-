@@ -25,6 +25,7 @@ import { FieldScene, field } from '../../world/field';
 import { hasMap } from '../../world/maps';
 import { getScript, registerScript } from '../../world/scripts';
 import { setFieldCurtain, uiHud } from '../../ui/hud';
+import { dismissDialog } from '../../ui/dialog';
 import { stopAllAmbient, stopBgm } from '../../audio';
 import { resetStaging } from '../stage';
 import { resetStamp } from '../stamp';
@@ -341,6 +342,9 @@ export function applyUpTo3(beat: string): Beat3 | null {
 export function jumpCh3(beat: string, noRun = false): string | null {
   const c = applyUpTo3(beat);
   if (!c) return null;
+  // a dialog window of the scene the jump cuts off (its box would stay the singleton, off the
+  // widget list, and swallow the next say())
+  dismissDialog();
   game.scripts.clear();
   for (const w of game.ui.widgets) {
     const o = (w as { overlay?: unknown }).overlay;
