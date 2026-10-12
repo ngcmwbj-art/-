@@ -1266,7 +1266,15 @@ registerProp('prop_c3_aq_souko_door', () => {
     h: 20,
     foot: 0,
     flat: true,
-    img: (env) => (env.flag('flag_ch3_souko') && !env.flag('flag_ch3_yakisoban') ? on : off),
+    img: (env) => (env.flag('flag_ch3_souko') && !env.flag('flag_ch3_yakisoban') && !env.flag('flag_ch3_souko_open') ? on : off),
+    // S22: エゴ at the little window (flag_c3_ego_window) — his clock face behind the glass, faintly lit
+    glow: (g, x, y, env) => {
+      if (!env.flag('flag_c3_ego_window')) return;
+      g.rect(x + 13, y - 6 + 6, 6, 2, '#F6D98A', 0.9);
+      g.rect(x + 15, y - 6 + 6, 1, 2, '#1B1733', 1);
+      g.rect(x + 15, y - 6 + 7, 2, 1, '#1B1733', 1);
+      screenPool(g, x + 16, y + 2, 12, 9, '#F6D98A', 0.45);
+    },
   } satisfies PropArt;
 });
 

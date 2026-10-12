@@ -185,7 +185,7 @@ registerMap({
     O('obj_c3_diorama_hoshi', 14, 4, { w: 5, h: 3 }),
     O('obj_c3_diorama_umi', 7, 8, { w: 9, h: 3 }),
     // マフィ屋: the 夕鳴町 model's south-west corner, examined from (3,7) facing up (60 S17, required)
-    O('obj_c3_diorama_mafiya', 3, 6, { face: 'up' }),
+    O('obj_c3_diorama_mafiya', 3, 6, { face: 'up', priority: 1 }),
     // the three clocks over the models (5,1) 夕鳴町・(11,1) 海ぞいの町・(16,1) 星見台
     O('obj_c3_diorama_clock', 5, 1, { face: 'up', fushigi: 'fushigi_ch3_08' }),
     O('obj_c3_diorama_clock', 11, 1, { face: 'up', fushigi: 'fushigi_ch3_08' }),

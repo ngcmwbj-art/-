@@ -1505,3 +1505,17 @@ registerChar('npc_dakoku_daisha', () =>
     shadow: 20,
   }),
 );
+
+// ツガオ asleep on the bench at S20's end (「つがおちゃん 寝る〜♪」): the suit, seated, the nightcap on
+// (npc_tsugao_nightcap, for setSprite; every frame is the seated, capped pose)
+registerChar('npc_tsugao_nightcap', () =>
+  buildSprite({
+    id: 'npc_tsugao_nightcap',
+    mats: SUIT,
+    draw: (f, p) => suitDraw(f, { ...p, act: 'nightcap', mode: p.mode === 'walk' ? 'idle' : p.mode, step: 0, blink: true, blinkClosed: true }),
+    idle: rep([{ breath: 0 }, { breath: 0 }, { breath: 1 }, { breath: 1 }], 2),
+    idleFrameMs: 600,
+    shadow: 12,
+    keep: ['#C98A6A', '#A86A4E'],
+  }),
+);

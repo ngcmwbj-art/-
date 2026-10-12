@@ -111,7 +111,7 @@ const items: ItemDef[] = [
   { id: 'item_c3_shikake', name: '切れた仕掛け', key: true, target: 'none', desc: [`${c3Name('npc_c3_tsuri')}の 釣りの 仕掛け。`, '針は ついていない。'], battleText: ['仕掛けを 見せた。\n……針が ないので、釣れない。'] },
   { id: 'item_c3_bracelet', name: '貝のブレスレット', key: true, target: 'none', desc: [`${c3Name('npc_c3_mago')}が 去年 落とした もの。`, '白い 貝が 7つ。'], battleText: [`ブレスレットを 見せた。\n……これは、${c3Name('npc_c3_mago')}の 分だ。`] },
   // 第3章 S15〜S19（旧水族館）の 大事なもの（60 7.1）。メモと切れはしは 数を 名前に
-  { id: 'item_c3_nyukanken', name: '入館券', key: true, target: 'none', desc: ['切り取り線つきの 配達伝票。', 'お届け先：大水槽ホール。'], battleText: ['入館券を 見せた。\n……ここは、順路の とちゅうだ。'] },
+  { id: 'item_c3_nyukanken', name: '入館券', key: true, target: 'none', desc: ['配達伝票の 形の 入館券。', 'お届け先は、大水槽 ホール。'], battleText: ['入館券を 見せた。\n……ここは、順路の とちゅうだ。'] },
   {
     id: 'item_c3_denpyo', key: true, target: 'none', desc: ['ツガオ便の 伝票の 端。', '3つの 字。'], battleText: ['メモを 見せた。\n$enemyは 日付を 数えている。'],
     get name(): string {

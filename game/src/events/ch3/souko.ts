@@ -360,11 +360,13 @@ function* evtHp(): Co {
     ? yield* c3Battle({ enemies: ['boss_hirosuke', 'boss_pokosha'], boss: true, music: 'bgm_boss_madamada', background: 'bg_c3_aq_rouka', canLose: true })
     : 'standin';
   if (r === 'load') return;
-  if (r === 'standin') yield* say3(T.HP_STANDIN);
-  // 〔2段目のあと〕evt_ch3_hp_end
   if (po) po.dir = 'left';
   if (hi) hi.dir = 'left';
-  yield* say3(T.HP_END_A);
+  // 〔2段目のあと〕：ポコシャの大きな声とぴーちゃんは戦闘の中（B）。戦闘が無いときだけここで
+  if (r === 'standin' || (import.meta.env.DEV && flag('flag_qa_c3_nobattle'))) {
+    yield* say3(T.HP_STANDIN);
+    yield* say3(T.HP_END_A);
+  }
   yield* say3(T.HP_END);
   stopBgm(2.0);
   se('se_star', { vol: 0.6 });
