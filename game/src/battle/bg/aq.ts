@@ -10,7 +10,7 @@
 
 import type { Gfx } from '../../engine/gfx';
 import { makeCanvas } from '../../engine/pixel';
-import { drawText } from '../../engine/font';
+import { drawText, measure as measureText } from '../../engine/font';
 import { hash2 } from '../../engine/rng';
 import { Background, BG_H, gradientTexture } from './common';
 
@@ -113,9 +113,10 @@ class AqBg extends Background {
       }
     } else {
       // the little 『マフィ屋』 sign in the corner, faded (the real one the diorama showed)
-      px(ctx, 10, 62, 36, 18, '#6B4A2A');
-      px(ctx, 11, 63, 34, 16, '#C8A878', 0.85);
-      drawText(ctx, 'マフィ屋', 12, 63, { color: '#5A3A2A' });
+      const w = measureText('マフィ屋') + 6;
+      px(ctx, 10, 62, w, 18, '#6B4A2A');
+      px(ctx, 11, 63, w - 2, 16, '#C8A878', 0.85);
+      drawText(ctx, 'マフィ屋', 13, 63, { color: '#5A3A2A' });
     }
   }
 }

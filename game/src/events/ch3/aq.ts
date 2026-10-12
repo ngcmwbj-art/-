@@ -20,7 +20,7 @@
 import type { Co } from '../../engine/co';
 import { game } from '../../engine/game';
 import { addItem, flag, setFlag, state, type Dir } from '../../game/state';
-import { duckMusic, playBgm, stopBgm } from '../../audio';
+import { ambientEvent, duckMusic, playBgm, stopBgm } from '../../audio';
 import { despawn, registerScript, setSprite, spawn, walk } from '../../world/api';
 import { getScript } from '../../world/scripts';
 import { getMapDef, hasMap } from '../../world/maps';
@@ -104,7 +104,7 @@ function* goInside(): Co {
   const f = F();
   const p = f.player;
   if (p.tileX !== 74 || p.tileY !== 29) yield* walk('player', [[p.tileX, 29], [74, 29]], { speed: 2.8, face: 'up' });
-  se('se_door_glass');
+  se('se_c3_aq_door');
   yield* game.fadeOut(400, '#0B0B14');
   setFlag('flag_ch3_stage', 3);
   if (hasMap('map_c3_aq_iriguchi')) {
@@ -308,7 +308,7 @@ function* diorama(town: Town): Co {
   }
   setFlag(`flag_ch3_doll_${next}`, 1);
   setFlag('flag_ch3_diorama_n', n + 1);
-  se('se_c3_aq_ningyo');
+  ambientEvent('amb_c3_aq_diorama', 'hikari', speakerOf(next).voice ?? next);
   yield* say3(T.dollLine(speakerOf(next).name ?? ''));
   yield* say3(T.dollCount(n + 1));
   // ヒロスケ wavers (3 and 6 lit), while he is there
@@ -511,6 +511,8 @@ registerScript('trig_ch3_shinkai_pa', function* (): Co {
   setFlag('flag_c3_shinkai_pa', 1);
   se('se_c3_aq_pa_chime');
   yield 900;
+  se('se_c3_aq_pa_open');
+  yield 300;
   yield* say3(T.SHINKAI_PA);
   se('se_h_pa_close');
 });
@@ -686,6 +688,8 @@ function* evtHall(): Co {
   const f = F();
   const p = f.player;
   const ts = f.actorById('npc_tsugao');
+  // the hall's song after a second of nothing (63 12.15)
+  setFlag('flag_bgm_hold', 1);
   stopBgm(1.5);
   if (p.tileX !== 12 || p.tileY !== 9) yield* walk('player', [[12, p.tileY], [12, 9]], { speed: 2.4, face: 'up' });
   p.dir = 'up';
@@ -744,6 +748,7 @@ function* tsugao1End(ts: Actor | null): Co {
   despawn('c3_t1_hiro');
   despawn('c3_t1_poko');
   setFlag('flag_ch3_tsugao1', 1);
+  setFlag('flag_bgm_hold', 0);
   holdKn(false);
   void f;
   yield* capturedToSouko();

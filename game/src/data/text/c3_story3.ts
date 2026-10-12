@@ -520,7 +520,7 @@ export const HALL_A = `@npc_tsugao
 ここは、わしの
 最後の 休み場じゃ。`;
 /** 表の口調が一度だけもれる（表の声で）。 */
-export const HALL_EBI = `@npc_tsugao
+export const HALL_EBI = `@ツガオ:tsugao_omote
 {w=600}……でっけえ エビ、だな。`;
 export const HALL_B = `@npc_tsugao
 ……いや。{w=300}
@@ -588,7 +588,7 @@ export const SOUKO_EGO_NARR = `@narr
 扉の 小窓の 外を、
 台車が 横切っていく。
 {w=300}上に、しゅんの ハンコケース。`;
-export const SOUKO_B = `@npc_kanenari
+export const SOUKO_B = `@グソっ君:gusokkun_yowai
 ……わい、あの 人の 前で、
 足が 動かへんかった。
 /
@@ -598,7 +598,7 @@ export const SOUKO_B = `@npc_kanenari
 export const SOUKO_IMO = `@narr
 しゅんは、冷めた 焼き芋を
 半分に 割って、わたした。`;
-export const SOUKO_C = `@npc_kanenari
+export const SOUKO_C = `@グソっ君:gusokkun_nurui
 ……ぬるいわ。
 /
 {w=600}ぬるいのに、うまいわ。`;

@@ -30,7 +30,7 @@ import { getEnemy } from '../../data/battle';
 import { autosaveSoon } from '../../ui/autosave';
 import * as T from '../../data/text/c3_story3';
 import { F, grace, panBack, panTo } from '../lib';
-import { fnOf, se, seLoop } from '../ch2/compat';
+import { ambEvent, fnOf, se, seLoop } from '../ch2/compat';
 import { addToMap, c3Battle, inCh3, say3 } from './common';
 import { jumpMap } from './prologue';
 
@@ -109,6 +109,7 @@ function* evtSouko(): Co {
   setFlag('flag_ch3_souko', 1);
   // the store's own night (W's dark and the bulb out)
   setFlag('flag_c3_souko_night', 1);
+  ambEvent('amb_c3_aq_souko', 'yoru');
 }
 
 // ================================================================ S22 evt_ch3_ego
@@ -145,6 +146,7 @@ function* evtEgo(): Co {
   yield* say3(T.EGO_KACHI);
   setFlag('flag_ch3_ego_night', 1);
   setFlag('flag_c3_souko_night', 0);
+  ambEvent('amb_c3_aq_souko', 'asa');
 }
 
 // ================================================================ S23 evt_ch3_yakisoban
