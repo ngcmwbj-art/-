@@ -52,7 +52,7 @@ function bandTile(t: number, n: number): number {
  * A picture redrawn every `every` ms (world px rect x0, y0, w × h) laid over
  * a set of tiles at their ground's height (+ `up`), as one mesh.
  */
-class LiveSheet {
+export class LiveSheet {
   readonly mesh: THREE.Mesh;
   readonly c: HTMLCanvasElement;
   readonly ctx: CanvasRenderingContext2D;
@@ -658,5 +658,5 @@ export function flatGlows(f: FieldScene, heightAt: (x: number, z: number) => num
   return out;
 }
 
-export type { LiveSheet };
+
 export { PX };

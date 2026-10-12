@@ -8,9 +8,11 @@ import { registerScene } from '../boot';
 import { registerDebug } from '../debug';
 import { addItem, setFlag, state } from '../game/state';
 import {
-  chapter2Adjust, EXP_TABLE, gainExp, getEnemy, joinKanenari, newChapter2Party, newGameParty, setMemberLevel, syncProgressSkills, type LevelUpResult,
+  chapter2Adjust, chapter3Adjust, newChapter3Party, EXP_TABLE, gainExp, getEnemy, joinKanenari, newChapter2Party, newGameParty, setMemberLevel, syncProgressSkills, type LevelUpResult,
 } from '../data/battle';
 import { setBattleImpl, startBattle, type BattleOpts, type BattleResult } from './api';
+import { measure } from '../engine/font';
+import { SYS3, TUT } from '../data/battle';
 import { BattleScene } from './scene';
 import { battleFlow, getGameOverHook, setGameOverHook, type GameOverHook } from './flow';
 import { lessonFlow } from './lesson';
@@ -534,6 +536,97 @@ registerDebug('bphase', (n = 2) => {
   if (!current || !e) return 'no boss';
   e.hp = n >= 3 ? Math.floor(e.maxHp * 0.2) - 8 : Math.floor(e.maxHp * 0.5) - 5;
   return e.hp;
+});
+
+// ---- chapter 3 (61 21.5) --------------------------------------------------------------------
+
+/** The chapter-3 battles by name (61 21.4). */
+const CH3_BATTLES: Record<string, { opts: Partial<BattleOpts> & { enemies: string[] }; map: string; flags?: string[] }> = {
+  nefuda: { opts: { enemies: ['enemy_nefuda'], background: 'bg_c3_ichiba', canLose: true }, map: 'map_c3_ichiba' },
+  okawari: { opts: { enemies: ['enemy_okawarinabe'], music: 'bgm_midboss', background: 'bg_c3_shokudo', canLose: true }, map: 'map_c3_shokudo' },
+  nari: { opts: { enemies: ['enemy_nariosame'], music: 'bgm_boss_nariosame', background: 'bg_c3_siren', canLose: true }, map: 'map_c3_siren', flags: ['flag_ch3_got_itadakimasu'] },
+};
+
+/** A fresh chapter-3 QA party (newChapter3Party + chapter3Adjust) at Lv n (8–10). */
+export function setupCh3(lv = 8, flags: string[] = []): void {
+  state.flags = {};
+  newChapter3Party();
+  chapter3Adjust();
+  for (const f of ['flag_tut_tsukkomi', 'flag_tut_ring', 'flag_tut_hanko', 'flag_tut_kire']) setFlag(f, 1);
+  for (const f of flags) setFlag(f, 1);
+  for (const m of state.party) {
+    setMemberLevel(m, Math.max(8, Math.min(10, lv)));
+    m.exp = EXP_TABLE[Math.max(8, Math.min(10, lv))] ?? 450;
+  }
+  syncProgressSkills();
+  for (const it of ['item_c3_onigiri', 'item_c3_onigiri', 'item_c3_kakigori']) addItem(it);
+}
+
+/**
+ * `ch3battle(name, lv, opts)`: straight into a chapter-3 battle — nefuda /
+ * okawari / nari (いただきます learned for nari). `lv` 0 keeps the party.
+ * `{ gochisou: 1 }` in opts also learns ごちそうさま.
+ */
+registerDebug('ch3battle', (name = 'nefuda', lv = 8, o: Partial<BattleOpts> & { gochisou?: number; itadaki?: number } = {}) => {
+  const b = CH3_BATTLES[name];
+  if (!b) return `unknown: ${Object.keys(CH3_BATTLES).join(' ')}`;
+  const flags = [...(b.flags ?? [])];
+  if (o.gochisou) flags.push('flag_ch3_got_itadakimasu', 'flag_ch3_got_gochisou');
+  if (o.itadaki) flags.push('flag_ch3_got_itadakimasu');
+  if (lv) setupCh3(lv, flags);
+  else {
+    for (const f of flags) setFlag(f, 1);
+    syncProgressSkills();
+  }
+  state.map = b.map;
+  const { gochisou: _g, itadaki: _i, ...rest } = o;
+  game.scripts.run(
+    (function* () {
+      yield* startBattle({ ...b.opts, ...rest });
+    })(),
+  );
+  return 'started ' + name;
+});
+/**
+ * `c3textcheck()`: every chapter-3 battle page (the band: 2 lines × 352 px;
+ * the balloons of ナリオサメ one line) and the stickies. Returns the offenders.
+ */
+registerDebug('c3textcheck', () => {
+  const bad: string[] = [];
+  let total = 0;
+  const strip = (t: string) => t.replace(/\{[^}]*\}/g, '');
+  const page = (where: string, t: string, lines = 2, w = 352) => {
+    total++;
+    const ls = strip(t).split('\n');
+    if (ls.length > lines) bad.push(`${where}: ${ls.length} lines`);
+    for (const l of ls) if (measure(l) > w) bad.push(`${where}: ${measure(l)}px ${l}`);
+  };
+  for (const id of ['enemy_nefuda', 'enemy_okawarinabe', 'enemy_nariosame']) {
+    const e = getEnemy(id);
+    if (!e) continue;
+    const t = e.texts;
+    const walk = (k: string, v: unknown) => {
+      if (typeof v === 'string') page(`${id}.${k}`, v, k.includes('voice') ? 1 : 2, k.includes('voice') ? 300 : 352);
+      else if (Array.isArray(v)) v.forEach((x, i) => walk(`${k}[${i}]`, x));
+      else if (v && typeof v === 'object') for (const [kk, x] of Object.entries(v)) walk(`${k}.${kk}`, x);
+    };
+    walk('texts', t);
+    for (const l of e.tsukkomi) page(`${id}.tsukkomi`, l, 1, 300);
+  }
+  for (const [k, v] of Object.entries(SYS3)) v.forEach((x, i) => page(`SYS3.${k}[${i}]`, x));
+  for (const k of ['nefuda', 'okawari', 'potHanamaru', 'itadaki'] as const) page(`TUT.${k}`, TUT[k], 3, 300);
+  return { total, bad };
+});
+/** `c3state()`: the chapter-3 enemies' own state (QA). */
+registerDebug('c3state', () => {
+  const s = current;
+  if (!s) return null;
+  return {
+    round: s.round,
+    won: !!s.memo.ch3Won,
+    phase: s.shared.nariPhase ?? 0,
+    enemies: s.enemies.map((e) => ({ id: e.id, hp: e.hp, mayoi: !!e.status.c3_mayoi, futa: !!e.status.c3_futa, maki: !!e.status.c3_maki, lock: e.mem.lock ?? 0, def: e.stages.def.lv, rewinds: e.mem.rewinds ?? 0, settled: e.mem.settled ?? 0 })),
+  };
 });
 
 export { current as _battle };

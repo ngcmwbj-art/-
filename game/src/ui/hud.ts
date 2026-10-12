@@ -378,9 +378,27 @@ export function hoshiAreaAt(tx: number, ty: number): HoshiArea | null {
   return best;
 }
 
+/**
+ * 海ぞいの町 (62 1.2・13.1): the area (area_c3_*) at a tile — the narrowest of
+ * the map's zones holding it — or the town's name where there is none.
+ */
+function c3AreaName(tx: number, ty: number): string {
+  let best = '海ぞいの町';
+  let bestA = Infinity;
+  for (const z of getMapDef('map_umizoi')?.zones ?? []) {
+    if (tx < z.x || ty < z.y || tx >= z.x + z.w || ty >= z.y + z.h || !z.name) continue;
+    if (z.w * z.h < bestA) {
+      best = z.name;
+      bestA = z.w * z.h;
+    }
+  }
+  return best;
+}
+
 export function placeNameFor(mapId: string, tx: number, ty: number, fallback = ''): string {
   if (mapId === 'map_town') return areaAt(tx, ty) ?? '夕鳴町';
   if (mapId === 'map_hoshimidai') return hoshiAreaAt(tx, ty)?.name ?? '星見台';
+  if (mapId === 'map_umizoi') return c3AreaName(tx, ty);
   return MAP_PLACE[mapId] ?? HOSHI_PLACE[mapId] ?? fallback;
 }
 
@@ -667,6 +685,14 @@ class UiHud implements FieldHud {
       const arriving = f.map.id !== this.lastMap && (!this.lastMap || !this.lastMap.startsWith('map_hoshi') || this.lastMap === 'map_hoshi_train');
       if (arriving) place = '星見台';
       else if (!area || area.pass) place = f.map.id !== this.lastMap ? '星見台' : this.lastPlace;
+    }
+    if (f.map.id === 'map_umizoi') {
+      // 海ぞいの町 (62 13.1): off the truck, its name; out of a room, the area; the
+      // road between the areas keeps the last name (no banner for every few steps)
+      const from = this.lastMap ?? '';
+      const arriving = f.map.id !== from && (!from || from === 'map_c3_nidai' || !from.startsWith('map_c3_'));
+      if (arriving) place = '海ぞいの町';
+      else if (place === '海ぞいの町' && f.map.id === from) place = this.lastPlace;
     }
     if (f.map.id !== this.lastMap) {
       this.lastMap = f.map.id;

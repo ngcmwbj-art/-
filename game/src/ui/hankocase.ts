@@ -12,7 +12,7 @@ import type { Gfx } from '../engine/gfx';
 import { makeCanvas, PixelCanvas } from '../engine/pixel';
 import { hash2 } from '../engine/rng';
 import { hanamaruFrame, ovalStamp, pekeMark } from '../battle/art/stamps';
-import { flag } from '../game/state';
+import { flag, state } from '../game/state';
 import { rectA, UI } from './window';
 
 export const CASE_W = 192;
@@ -31,14 +31,18 @@ export const CASE_SLOTS: (string | null)[] = [
   'skill_oyasuminasai',
   'skill_otsukaresama',
   'skill_itadakimasu',
-  null,
-  null,
+  // 第3章 (61 6.4): ごちそうさま (S13)、みんなの はなまる (S27)
+  'skill_gochisousama',
+  'skill_minna_hanamaru',
 ];
 
 /** Slots that show a breathing outline before they are filled: おやすみなさい, いただきます. */
 export function outlineShown(id: string | null, clear: boolean): boolean {
   if (id === 'skill_oyasuminasai') return clear || !!flag('flag_clear');
   if (id === 'skill_itadakimasu') return !!flag('flag_ch2_clear');
+  // 61 6.4: ごちそうさま from いただきます on, みんなの はなまる after S24
+  if (id === 'skill_gochisousama') return !!flag('flag_ch3_got_itadakimasu');
+  if (id === 'skill_minna_hanamaru') return !!flag('flag_ch3_hp_beaten');
   return false;
 }
 
@@ -278,6 +282,60 @@ function itadakiOutline(): HTMLCanvasElement {
   return itaC;
 }
 
+/** Has しゅん learned it (the case's own read of the party, for the imprint vs the outline). */
+function ownsAny(id: string): boolean {
+  return !!state.party.find((m) => m.id === 'minato')?.skills.includes(id);
+}
+
+let itaImpC: HTMLCanvasElement | null = null;
+/** いただきます (61 6.1): the oval 「いただき」 with the joined hands under it (32×32 card). */
+function itadakiImprint(): HTMLCanvasElement {
+  if (itaImpC) return itaImpC;
+  const oval = ovalStamp('いただき', 24, 14, 0.04, 11);
+  const [c, ctx] = makeCanvas(oval.width, 24);
+  ctx.drawImage(oval, 0, 0);
+  ctx.fillStyle = UI.accent;
+  const mid = Math.floor(oval.width / 2);
+  for (let y = 0; y < 8; y++) {
+    const w = y < 2 ? 1 : y < 6 ? 2 : 3;
+    ctx.fillRect(mid - w, 15 + y, 1, 1);
+    ctx.fillRect(mid + w - 1, 15 + y, 1, 1);
+  }
+  itaImpC = c;
+  return c;
+}
+
+let gocImpC: HTMLCanvasElement | null = null;
+/** ごちそうさま (61 6.2): the oval 「ごちそう」 and two chopsticks laid at its lower right. */
+function gochisouImprint(): HTMLCanvasElement {
+  if (gocImpC) return gocImpC;
+  const oval = ovalStamp('ごちそう', 24, 14, 0.04, 13);
+  const [c, ctx] = makeCanvas(oval.width + 2, 22);
+  ctx.drawImage(oval, 0, 2);
+  ctx.fillStyle = UI.accent;
+  for (let i = 0; i < 10; i++) {
+    ctx.fillRect(oval.width - 9 + i, 18 + Math.floor(i / 4), 1, 1);
+    ctx.fillRect(oval.width - 10 + i, 20 + Math.floor(i / 4), 1, 1);
+  }
+  gocImpC = c;
+  return c;
+}
+
+let gocOutC: HTMLCanvasElement | null = null;
+/** ごちそうさま's outline (S11 to S13): an oval too faint to read. */
+function gochisouOutline(): HTMLCanvasElement {
+  if (gocOutC) return gocOutC;
+  const p = new PixelCanvas(24, 16);
+  for (let a = 0; a < 80; a++) {
+    const an = (a / 80) * Math.PI * 2;
+    if (a % 4 !== 3) p.set(Math.round(12 + Math.cos(an) * 11), Math.round(8 + Math.sin(an) * 7), UI.accent);
+  }
+  for (const [x, y, w] of [[6, 7, 3], [11, 7, 3], [16, 7, 2]] as [number, number, number][])
+    for (let i = 0; i < w; i++) if (hash2(x + i, y, 9) < 0.7) p.set(x + i, y, UI.accent);
+  gocOutC = p.toCanvas();
+  return gocOutC;
+}
+
 const squareCache = new Map<string, HTMLCanvasElement>();
 /**
  * A square 認め印 (24×24): a 2px rounded frame and four kana in two rows
@@ -339,7 +397,11 @@ export function imprintFor(id: string): HTMLCanvasElement | null {
     case 'skill_otsukaresama':
       return otsukareImprint();
     case 'skill_itadakimasu':
-      return itadakiOutline();
+      return ownsAny('skill_itadakimasu') ? itadakiImprint() : itadakiOutline();
+    case 'skill_gochisousama':
+      return ownsAny('skill_gochisousama') ? gochisouImprint() : gochisouOutline();
+    case 'skill_minna_hanamaru':
+      return hanamaruFrame(22, 1, false, 1);
   }
   return null;
 }
@@ -383,7 +445,7 @@ export function drawCase(g: Gfx, x: number, y: number, v: CaseView): void {
     const id = CASE_SLOTS[i];
     const ax = x + sx;
     const ay = y + sy;
-    const own = !!id && id !== 'skill_itadakimasu' && v.owned(id);
+    const own = !!id && v.owned(id);
     if (own) {
       const k = v.appear ? v.appear(i) : 1;
       if (k <= 0) continue;

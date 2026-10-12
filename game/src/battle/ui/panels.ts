@@ -185,10 +185,20 @@ export function drawPanel(g: Gfx, u: PartyUnit, pc: PanelCtx): void {
         }
       }
     }
-    for (const k of ['atk', 'def', 'hit'] as const) {
+    for (const id of ['status_c3_mada']) {
+      if (!u.has(id)) continue;
+      const ic = statusIcon(id);
+      if (ic) {
+        icons.push(ic);
+        pops.push(u.statusPop.find((s) => s.id === id)?.t ?? 0);
+      }
+    }
+    for (const k of ['atk', 'def', 'hit', 'spd'] as const) {
       const st = u.stages[k];
       if (st.lv !== 0) {
-        icons.push(buffIcon(k, st.lv > 0));
+        // (第3章: おかわりの すばやさ↓ is おなか いっぱい — a bowl)
+        const ippai = k === 'spd' && st.lv < 0 && u.has('status_c3_ippai') ? statusIcon('status_c3_ippai') : null;
+        icons.push(ippai ?? buffIcon(k, st.lv > 0));
         pops.push(0);
       }
     }

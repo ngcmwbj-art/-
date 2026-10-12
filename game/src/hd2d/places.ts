@@ -38,6 +38,16 @@ export interface PlaceDef {
   nightSky?: boolean;
   /** How far down the floor under everything lies (units; default 1, or `drop`). */
   floor?: number;
+  /** 海ぞいの町: the sea's waves once it moves (c3sea3d.ts). */
+  c3sea?: boolean;
+  /**
+   * The ground's height (px of a picture's rows) by tile, where it is not
+   * one per map character (海ぞいの町's hill, its stairs): undefined → `steps`
+   * / the ground kind. Tiles past the edges ask for the nearest edge tile.
+   */
+  stepAt?: (tx: number, ty: number, ch: string) => number | undefined;
+  /** The camera rises and falls with the ground under Minato (a hill of several tiles). */
+  camLift?: boolean;
 }
 
 /** The ground's step (px of a picture's rows) for a fall of `u` units. */
@@ -62,6 +72,22 @@ const hilltop = (w: number, plateau: number): PlaceDef => ({
  * parapet — high enough that the town below reads small.
  */
 export const ROOF_DROP = 10;
+
+/**
+ * 海ぞいの町's hill (62 8.9 の3): the hill (y ≤ 9: the open ground, the siren
+ * tower's plaza, the mikan terraces, the pines) 3 tiles over the harbour road;
+ * the round-stone wall (y 10, `B`) stands up its face (walls.ts); the three
+ * flights of steps (`n`, x12–13・34–35・56–57) come down a step a row to the
+ * road; the pines east of the houses keep the hill's height down to the cape.
+ */
+export const UMIZOI_HILL = 48;
+function umizoiStep(tx: number, ty: number, ch: string): number | undefined {
+  if (ty <= 9) return UMIZOI_HILL;
+  if (ty > 15) return undefined;
+  if (ch === 'n') return Math.round(UMIZOI_HILL - ((ty - 9) * UMIZOI_HILL) / 7);
+  if (ty === 10 && ch === 'H') return UMIZOI_HILL;
+  return undefined;
+}
 
 export const PLACES: Record<string, PlaceDef> = {
   map_town: { water: true },
@@ -109,7 +135,9 @@ export const PLACES: Record<string, PlaceDef> = {
   // 海ぞいの町 (chapter 3, 62 8.9): the harbour and the sea lie lower than the
   // quay (8 px: the quay's and the breakwater's faces stand over the water);
   // the boats float on it. Past the south edge the sea goes on (the edge rows).
-  map_umizoi: { steps: { w: -8, '~': -8, b: -8 } },
+  map_umizoi: { steps: { w: -8, '~': -8, b: -8 }, c3sea: true, stepAt: umizoiStep, camLift: true },
+  // 海の 中 (62 4.7): the rocks stand up from the floor; past the edges, rock
+  map_c3_umi: { steps: { R: 14 }, outside: () => 'R' },
 };
 
 export function placeOf(mapId: string): PlaceDef {

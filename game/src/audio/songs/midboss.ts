@@ -3,8 +3,9 @@
 // semitones and lands back with a thud. C is the vending machine's hold music.
 
 import { DRM, INS } from '../instruments';
-import { bass, comp, drums, hits, melody, type BarCtx, type PartDef, type SongDef } from '../sequencer';
-import { BATTLE_LOOP, SLAP_A, battle, hat8, hatOrCricket, kireAware, kireLayers, night } from './battle';
+import { voice } from '../engine';
+import { bass, bed, comp, drums, hits, melody, type BarCtx, type PartDef, type SongDef } from '../sequencer';
+import { BATTLE_LOOP, SLAP_A, battle, c3sea, hat8, hatOrCricket, kireAware, kireLayers, night } from './battle';
 import { chimeQuote, registerSong, score, transposedBars } from './common';
 
 export const MIDBOSS_MML = `
@@ -132,10 +133,10 @@ function midbossDef(): SongDef {
       { aware: ['h_rest'] },
     ),
     hits('bow', [
-      // the vending machine's "コン" (cowbell)
+      // the vending machine's "コン" (cowbell); by the sea (63 5.11, オカワリナベ) the ladle on the pot's rim
       {
         when: (b, s) => !night(b) && (b.section === 'C' ? s % 4 === 0 : is78(b) ? [0, 3, 6, 10].includes(s) : b.section !== 'MI' && s === 0),
-        fn: (b, t, rt) => INS.ins_fm_cowbell({ t, midi: 60, dur: 0.1, vel: 1, dest: rt.input, rev: rt.rev }),
+        fn: (b, t, rt) => (c3sea(b) ? DRM.drm_otama({ t, vel: 0.8, dest: rt.input, rev: rt.rev }) : INS.ins_fm_cowbell({ t, midi: 60, dur: 0.1, vel: 1, dest: rt.input, rev: rt.rev })),
       },
       // MI2: the machine thuds on 0 and 8
       {
@@ -174,6 +175,11 @@ function midbossDef(): SongDef {
       },
     ]),
     ...kireLayers(),
+    // the sea version: the big pot simmering「ぐつぐつ」 under the song (silent unless c3_phase 1)
+    bed('nabe', (t, dest) => {
+      const h = voice({ at: t, dest, wave: 'noise', dur: 3600, attack: 0.5, decay: 0, sustain: 1, release: 0.3, vol: 0.006, filter: { type: 'lowpass', freq: 700, q: 0.7 }, am: { rate: 8, depth: 0.7 } });
+      return (at, fade) => h.stop(fade, at);
+    }),
   ];
   return {
     id: 'bgm_midboss',
@@ -186,6 +192,12 @@ function midbossDef(): SongDef {
     gainDb: 0,
     reverb: { len: 1.1, decay: 3.4, level: 0.22 },
     battle: true,
+    setup(sp) {
+      sp.partGain('nabe', sp.params.c3_phase === 1 ? 1 : 0, 0.01, sp.g.ctx.currentTime);
+    },
+    onParam(sp, name, value) {
+      if (name === 'c3_phase') sp.partGain('nabe', value === 1 ? 1 : 0, 0.5, sp.g.ctx.currentTime);
+    },
   };
 }
 

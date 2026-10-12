@@ -164,12 +164,24 @@ export const hat8 = (b: BarCtx) => (b.p.kire >= 2 ? 'x.x.x.x.x.x.x...' : 'x.x.x.
 export const night = (b: BarCtx) => b.p.h_stage >= 0;
 /** A hat line that turns into crickets at night: [hat pattern, cricket pattern]. */
 export const hatOrCricket = (pat: (b: BarCtx) => string | null) => ({
-  drm_hat_c: (b: BarCtx) => (night(b) ? null : pat(b)),
+  drm_hat_c: (b: BarCtx) => (night(b) || c3sea(b) || c3kan(b) ? null : pat(b)),
   drm_cricket: (b: BarCtx) => (night(b) ? pat(b) : null),
+  // 第3章 (63 5.11): by the sea the hat is the sand at the water's edge; in the old aquarium, its clock
+  drm_wave_hat: (b: BarCtx) => (c3sea(b) && !night(b) ? pat(b) : null),
+  drm_tick: (b: BarCtx) => (c3kan(b) && !night(b) ? pat(b) : null),
 });
+
+/**
+ * 第3章 (63_ch3_audio 5.11, 6.7): c3_phase 1 is the sea version (海ぞいの町),
+ * 2 the old aquarium's. 0 everywhere else, so chapters 1 and 2 never hear it.
+ */
+export const c3sea = (b: BarCtx) => b.p.c3_phase === 1;
+export const c3kan = (b: BarCtx) => b.p.c3_phase === 2;
 
 function battleDef(): SongDef {
   const AB = (b: BarCtx) => b.section === 'A' || b.section === 'B' || b.label === 'BI2';
+  const snareOf = (b: BarCtx) =>
+    b.label === 'BI1' ? '....g.g.x.x.xxXX' : b.label === 'C8' ? '....g.g.x.xxxxXX' : AB(b) ? '....x..g....x..g' : '........x.......';
   const kireUp = (b: BarCtx) => (b.p.kire >= 3 ? 12 : 0);
   const parts: PartDef[] = [
     melody({ id: 'lead', ins: 'ins_lead_p25', bars: battle.part('lead'), o: { vol: 0.09 }, fx: { delay: { steps: 3, fb: 0.22, send: 0.18 } } }),
@@ -198,13 +210,18 @@ function battleDef(): SongDef {
       id: 'drums',
       kit: {
         drm_kick: (b) => (b.label === 'BI1' ? 'x.......x.......' : AB(b) ? 'x.....x...x..x..' : 'x.........x.....'),
-        drm_snare_tight: (b) =>
-          b.label === 'BI1' ? '....g.g.x.x.xxXX' : b.label === 'C8' ? '....g.g.x.xxxxXX' : AB(b) ? '....x..g....x..g' : '........x.......',
+        drm_snare_tight: (b) => (c3kan(b) ? null : snareOf(b)),
+        // the old aquarium: a brush instead (lighter, 63 5.11)
+        drm_snare_brush: (b) => (c3kan(b) ? snareOf(b) : null),
         ...hatOrCricket((b) => (b.label === 'BI1' ? null : AB(b) ? hat8(b) : 'x...x...x...x...')),
       },
       vel: { drm_kick: 1.1 },
     })),
-    hits('fx', [{ when: (b, s) => b.label === 'C1' && s === 0, fn: (_b, t, rt) => DRM.drm_crash({ t, vel: 1, dest: rt.input, rev: rt.rev }) }]),
+    hits('fx', [
+      { when: (b, s) => b.label === 'C1' && s === 0, fn: (_b, t, rt) => DRM.drm_crash({ t, vel: 1, dest: rt.input, rev: rt.rev }) },
+      // the sea version: once every two bars a moored boat's fender「ギュッ」 against the quay
+      { when: (b, s) => c3sea(b) && !b.inIntro && b.barNo % 2 === 1 && s === 6, fn: (_b, t, rt) => DRM.drm_fender({ t, vel: 1, dest: rt.input, rev: rt.rev, pan: -0.3 }) },
+    ]),
     ...kireLayers(),
   ];
   return {

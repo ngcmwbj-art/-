@@ -40,6 +40,7 @@ import { crownBoards, standUp, type Stood } from './props3d';
 import { flatShapeOf, shapeOf } from './shapes';
 import { placeOf } from './places';
 import { flatGlows, litDecals, liveFlat, skyWater, waterSheet, type LiveSheet } from './water3d';
+import { c3SeaSheet } from './c3sea3d';
 import { charAt } from '../world/maps';
 import { buildWalls, type Walls } from './walls';
 import { BelowTown, NightSky, Outskirts, outskirtsGround, skyBackdrop } from './outskirts';
@@ -933,6 +934,9 @@ export class TownWorld {
     const hAt = (x: number, z: number) => this.heightAt(x, z);
     const water = place.water ? waterSheet(f, MARGIN, hAt, light) : null;
     if (water) this.live.push(water);
+    // (海ぞいの町: the sea's waves once it moves, world/c3sea.ts)
+    const sea = place.c3sea ? c3SeaSheet(f, MARGIN, hAt, light) : null;
+    if (sea) this.live.push(sea);
     const outsideChar = (tx: number, ty: number) => {
       const edge = charAt(m, Math.max(0, Math.min(m.w - 1, tx)), Math.max(0, Math.min(m.h - 1, ty)));
       return place.outside ? place.outside(tx, ty, edge) : edge;
@@ -1120,7 +1124,7 @@ export class TownWorld {
         const ty = Math.max(0, Math.min(m.h - 1, y));
         const edge = charAt(m, tx, ty);
         const ch = (x !== tx || y !== ty) && place.outside ? place.outside(x, y, edge) : edge;
-        const step = place.steps?.[ch] ?? (ch === edge ? STEP[src.ground(tx, ty)] : STEP[m.def.legend[ch]?.ground ?? '']);
+        const step = place.stepAt?.(tx, ty, edge) ?? place.steps?.[ch] ?? (ch === edge ? STEP[src.ground(tx, ty)] : STEP[m.def.legend[ch]?.ground ?? '']);
         a[j * w + i] = (step ?? 0) * PX * SV;
       }
     this.heights = a;

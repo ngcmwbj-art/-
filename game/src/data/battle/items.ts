@@ -2,6 +2,7 @@
 
 import { flag } from '../../game/state';
 import type { ItemDef } from './types';
+import { c3Name } from '../text/c3_names';
 
 const items: ItemDef[] = [
   // QA round 1 balance: with 500円 (and the yakisoba shop's tab) the bag could
@@ -79,7 +80,36 @@ const items: ItemDef[] = [
     battleText: ['これは おみやげだ。'],
   },
   // 第3章（60 7.1・4.3）：防波堤の子どもたちの 地図（S06）
-  { id: 'item_c3_map', name: '海ぞいの町の地図', key: true, target: 'none', desc: ['子どもの 手描き。', '印が 3つ。'], battleText: ['地図を 見せた。\n……ここは、地図の 外だ。'] },
+  // 第3章の 回復（61 7.1。名前と ID は 60 7.1。文は 60 が正。仮の 文）
+  { id: 'item_c3_onigiri', name: 'おにぎり', price: 100, target: 'ally', heal: 60, shopLimit: 3, desc: ['海の家の 塩むすび。のりは 別。', 'HPを 60 回復。'] },
+  { id: 'item_c3_mikan_kanzume', name: 'みかんの缶詰', price: 200, target: 'allies', heal: 40, shopLimit: 1, desc: ['シロップまで 飲む 派。', 'みんなの HPを 40 回復。'] },
+  { id: 'item_c3_aonori_senbei', name: '青のりせんべい', price: 80, target: 'minato', mp: 8, shopLimit: 2, desc: ['ひのやの 出張所の 品。', '朱肉を 8 回復。'] },
+  {
+    id: 'item_c3_kakigori', name: 'かき氷', price: 100, target: 'ally', heal: 20, cure: ['status_konran', 'status_nemuri', 'status_c3_mada'], special: 'kakigori', shopLimit: 2,
+    desc: ['頭が キーンと する。目が さめる。', 'こんらん・ねむり・すばやさ↓を 治す。'],
+  },
+  // 印は ①〜③ がほどけるたびに はなまるへ。3つで まん中の サイレン塔に 印（60 4.3）
+  {
+    id: 'item_c3_map', name: '海ぞいの町の地図', key: true, target: 'none', battleText: ['地図を 見せた。\n……ここは、地図の 外だ。'],
+    get desc(): [string, string] {
+      if (flag('flag_ch3_nariosame_beaten')) return ['はなまるが 4つ。', 'どこも、ほどけた。'];
+      const n = ['flag_ch3_ichiba_done', 'flag_ch3_shokudo_done', 'flag_ch3_umi_done'].filter((f) => flag(f)).length;
+      if (n >= 3) return ['はなまるが 3つ。', 'まん中の 塔に、印が 1つ。'];
+      return n ? ['子どもの 手描き。', `はなまる ${n}つ、印 ${3 - n}つ。`] : ['子どもの 手描き。', '印が 3つ。'];
+    },
+  },
+  // 第3章 S07〜S09 の 大事なもの（60 7.1）。切れはしは 数を 名前に
+  {
+    id: 'item_c3_fucho', key: true, target: 'none', desc: [`${c3Name('npc_c3_seri')}の 字。指の 形と 数。`, '買い手の 手が 読める。'], battleText: ['切れはしを 見せた。\n$enemyは 指を 数えている。'],
+    get name(): string {
+      return `符丁ノートの切れはし ${flag('flag_ch3_fucho_n')}/5`;
+    },
+  },
+  { id: 'item_c3_hashi', name: '割り箸', key: true, target: 'none', desc: ['市場の 割り箸。', '部品①。'], battleText: ['割り箸を 見せた。\n……まだ ごはんじゃ ない。'] },
+  { id: 'item_c3_kanban_ka', name: '『か』の字', key: true, target: 'none', desc: ['看板の『か』。', '食堂かもめの もの。'], battleText: ['『か』を 見せた。\n$enemyは 読めずに いる。'] },
+  { id: 'item_c3_megane', name: `${c3Name('npc_c3_sirenban')}のめがね`, key: true, target: 'none', desc: ['古い めがね。', `ふちに 小さく『${c3Name('npc_c3_sirenban').slice(0, 1)}』。`], battleText: ['めがねを 見せた。\n……度が 合わない。'] },
+  { id: 'item_c3_shikake', name: '切れた仕掛け', key: true, target: 'none', desc: [`${c3Name('npc_c3_tsuri')}の 釣りの 仕掛け。`, '針は ついていない。'], battleText: ['仕掛けを 見せた。\n……針が ないので、釣れない。'] },
+  { id: 'item_c3_bracelet', name: '貝のブレスレット', key: true, target: 'none', desc: [`${c3Name('npc_c3_mago')}が 去年 落とした もの。`, '白い 貝が 7つ。'], battleText: [`ブレスレットを 見せた。\n……これは、${c3Name('npc_c3_mago')}の 分だ。`] },
   // 沢の上（02 #65）：セキトメがほどけたあと、岸に残った平たい石。トマじいに見せると、あずかる
   { id: 'item_namae_ishi', name: '名前の石', key: true, target: 'none', desc: ['沢の 岸の、平たい 石。', '『とまたろう』と、小さく『マル』。'], battleText: ['石を 見せた。\n$enemyは 字の 大きさを 見くらべた。'] },
   // 朝の ほうだけ 光る 星（02 #77）：まつ先生から 天文台の 鍵、望遠鏡の カバーから タクミの カード

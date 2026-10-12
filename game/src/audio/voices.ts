@@ -163,6 +163,11 @@ export const VOICES: Record<string, VoiceDef> = {
   c3_tsuri: { label: 'ツリノ（防波堤の釣り人）', wave: 'triangle', wave2: ['sine', 0.5], base: 'G#3', scale: [0, 2, 5], len: 75, A: 8, every: 4, v: 0.06, vib: [4, 10], formant: true },
   c3_uketsuke: { label: 'ハキコ（元・受付）', wave: 'sine', wave2: ['triangle', 0.25], base: 'A#4', scale: [0, 2, 4], len: 34, A: 3, every: 2, v: 0.045, lp: 2200, rev: 0.15, formant: true },
   c3_kid: { label: '防波堤の子ども', wave: 'square', base: 'A5', scale: [0, 2, 4, 7], len: 20, every: 2, v: 0.045, formant: true, child: true },
+  // the two that are not people (9.1): the retiring siren speaks through its own
+  // tower's speaker (bus_pa 'umi'), each blip rising like the head of the siren;
+  // the big pot whose lid never closes bubbles after every blip
+  nariosame: { label: 'ナリオサメ（引退するサイレン）', wave: 'sawtooth', wave2: ['square', 0.6], base: 'E4', scale: [0, 3, 7], len: 55, every: 3, v: 0.04, bp: [659, 0.8], pa: true, scoopAll: [-400, 50] },
+  okawarinabe: { label: 'オカワリナベ（ふたの閉まらない大鍋）', wave: 'square', base: 'C3', scale: [0, 0, 5], len: 45, every: 3, v: 0.04, lp: 800 },
 };
 // the three children of the breakwater: the same voice at +0 / +2 / −2 (63 9.1)
 VOICES.c3_kid_a = { ...VOICES.c3_kid, label: '防波堤の子ども（1）' };
@@ -563,6 +568,13 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
       return;
     }
   }
+  // ナリオサメ (63 9.2): at the end of a page its voice turns back into the siren's
+  // head (×.3) — not once the final phase has come (its last words let go), nor after 12:01
+  if (id === 'nariosame' && ch === '。') {
+    const mp = musicParams();
+    if (now - s.lastT < 0.5 && mp.c3_noon !== 1 && mp.boss_phase < 3) sfxTable.get('se_c3_siren_head')?.({ at: now + 0.01, vol: 0.3, level: 1 });
+    return;
+  }
   // sentence endings: a little rise for "？", a push for "！"
   if (ch === '？' || ch === '?' || ch === '！' || ch === '!') {
     if (now - s.lastT < 0.5 && def.wave !== 'none' && id !== 'narr') {
@@ -866,6 +878,8 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
     play(d, id, midi, at, 0, volK, mode === 'ee' ? 'e' : vowelOf(ch), false, roomRev(id), longMs, glide);
   }
   if (id === 'yobimodoshi') openLineHum(now);
+  // オカワリナベ: a little bubble after each blip (sine 300 → 520 Hz, 20 ms)
+  if (id === 'okawarinabe') voice({ at: now + 0.005 + delay + def.len / 1000, dest: g.voiceBus, wave: 'sine', freq: 300, freqEnd: 520, glide: 0.02, dur: 0.02, attack: 0.002, decay: 0.02, sustain: 0, release: 0.01, vol: 0.004 * trimOr1(voiceTrim(id)) });
   if (g.offline) return;
   if (id === 'kanenari_voice') {
     // the night song leans back (−4 dB) under the four hums
@@ -882,7 +896,7 @@ function blipAt(id: string, ch: string, now: number, mode?: BlipMode): void {
       duck(dbToGain(-4), 0.2, 0.5, 0.6);
       duckAmbience(dbToGain(-2), 0.2, 0.5, 0.6);
     }
-  } else if (def.pa) {
+  } else if (def.pa && id !== 'nariosame') {
     duck(dbToGain(-9), 0.3, 0.5, 0.8);
     duckAmbience(dbToGain(-6), 0.3, 0.5, 0.8);
     if (id === 'broadcast_child') schedulePaSwell();
@@ -1049,3 +1063,48 @@ function play(def: VoiceDef, id: string, midi: number, t: number, bend: number, 
 }
 
 setTextBlip(blip);
+
+// ---------------------------------------------------------------------------
+// 63_ch3_audio 9.2: the whole town at once — 「いただきます」 (S12's clasped
+// hands, S13 and S29 on the breakwater) and 「ごちそうさま でした！」 (S13). Each
+// voice says the six blips at the same moment, on the same figure (M9 or
+// M9′) in its own octave: the pitches are everyone's own, the turn is shared.
+// At most 12 voices (more are thinned), v .008 each and .06 together. A hum
+// of vowels, never words (1.7).
+
+const CHORUS: Record<'itadakimasu' | 'gochisousama', { semis: number[]; vowels: string }> = {
+  itadakimasu: { semis: [0, 0, 2, 4, 7, 4], vowels: 'iaaiau' },
+  gochisousama: { semis: [7, 4, 2, 0, 2, 0], vowels: 'oiouaa' },
+};
+
+/**
+ * The town's voices together (the ids are voice or speaker ids: aliases are
+ * resolved; duplicates count once). Resolves after the last blip.
+ */
+export function chorusBlips(voiceIds: string[], motif: 'itadakimasu' | 'gochisousama' = 'itadakimasu', gap = 0.16): Promise<void> {
+  if (!hasGraph()) return Promise.resolve();
+  const g = cur();
+  const ids = [...new Set(voiceIds.map((v) => resolve(v)))].filter((id) => VOICES[id] && VOICES[id].wave !== 'none' && VOICES[id].wave !== 'noise');
+  // thin evenly down to 12
+  const pick = ids.length <= 12 ? ids : Array.from({ length: 12 }, (_, i) => ids[Math.floor((i * ids.length) / 12)]);
+  const n = Math.max(1, pick.length);
+  const each = Math.min(0.008, 0.06 / n);
+  const f = CHORUS[motif];
+  const t0 = g.ctx.currentTime + 0.05;
+  pick.forEach((id, k) => {
+    const def = VOICES[id];
+    const base = typeof def.base === 'number' ? 69 + 12 * Math.log2(def.base / 440) : noteMidi(def.base);
+    // the G nearest the voice's own note (G is the tonic of 海ぞいの町)
+    const g0 = 67 + 12 * Math.round((base - 67) / 12);
+    const volK = each / Math.max(0.001, def.v);
+    // a few ms apart: many people, one breath
+    const lag = g.offline ? 0 : (k % 4) * 0.006;
+    f.semis.forEach((s, i) => {
+      const last = i === f.semis.length - 1;
+      play(def, id, g0 + s, t0 + lag + i * gap, 0, volK, f.vowels[i], false, undefined, last ? 260 : Math.max(0, gap * 1000 - def.len - 10));
+    });
+  });
+  const end = t0 + gap * f.semis.length + 0.4;
+  if (g.offline) return Promise.resolve();
+  return new Promise((res) => atTime(end, res));
+}

@@ -7,6 +7,7 @@ import { startClock } from './clock';
 import { installKeepAlive, onRebuild, soundLive } from './keepalive';
 import { audioCtx, hasGraph, initAudio, liveGraph, setSpaceOn, volCurve, type PaMode, type SpaceId } from './engine';
 import * as amb from './ambience';
+import { c3NoonStagger } from './ambience_ch3';
 import * as music from './music';
 import { hooks, legacyBgm, loopTable, noteUnknown, sfxTable, type LoopHandle, type SfxFn, type SfxOpts, type Song } from './registry';
 import type { SongDef } from './sequencer';
@@ -117,6 +118,36 @@ export function musicPosition(): { id: string; label: string; beat: number; bpm:
 }
 
 /**
+ * 63 13 waitBar: resolves when the playing song reaches the head of the bar
+ * `label` (S13: the breakwater's 「いただきます」 lands on bgm_hirugohan's H5).
+ * Resolves at once when nothing plays, and after `timeout` seconds at most.
+ */
+export function waitBar(label: string, timeout = 60): Promise<void> {
+  return new Promise((res) => {
+    const t0 = Date.now();
+    let was = musicPosition()?.label;
+    const tick = () => {
+      const p = musicPosition();
+      if (!p || (p.label === label && was !== label) || Date.now() - t0 > timeout * 1000) return res();
+      was = p.label;
+      setTimeout(tick, 30);
+    };
+    tick();
+  });
+}
+
+/**
+ * 12:01 (S12, 63 12.10): the clock moves on — c3_noon 1, and the town comes
+ * back in order (waves, then the birds with the first gull's call 4 s later,
+ * the cicadas at 8 s, the market at 12 s). Call it with the tower clock's
+ * se_c3_clock_1201, after the full siren has died away.
+ */
+export function c3Noon1201(): void {
+  c3NoonStagger();
+  music.setMusicParam('c3_noon', 1);
+}
+
+/**
  * Lower the ambience beds for a moment (linear level, e.g. −4 dB = 0.63):
  * ramp down over `attack`, hold, come back over `release` (seconds). The
  * calls from the hill take this room under the insects (53 7.4, 10.3).
@@ -157,8 +188,9 @@ export function setMusicParam(
     // chapter 3 (63_ch3_audio 6): 'c3_noon' 0/1 (12:00 → 12:01), 'c3_ichiba' 'c3_shokudo'
     // 'c3_umi' 0/1 (the three 「まだ」 undone: a part of bgm_umi_noon comes back over two
     // bars), 'c3_ichi' 0..3 (あぜ道市), 'c3_shio' 0/1 (the sea seen from the truck bed),
-    // 'c3_wana' 0..2 (S14), 'c3_phase' 0 / 1 海ぞいの町 / 2 旧水族館
-    | 'c3_noon' | 'c3_ichiba' | 'c3_shokudo' | 'c3_umi' | 'c3_ichi' | 'c3_shio' | 'c3_wana' | 'c3_phase',
+    // 'c3_wana' 0..2 (S14), 'c3_phase' 0 / 1 海ぞいの町 / 2 旧水族館,
+    // 'nari_rewind' 1 (ナリオサメの「正午の 音」: bgm_boss_nariosame goes back two bars; the song resets it)
+    | 'c3_noon' | 'c3_ichiba' | 'c3_shokudo' | 'c3_umi' | 'c3_ichi' | 'c3_shio' | 'c3_wana' | 'c3_phase' | 'nari_rewind',
   value: number,
 ): void {
   music.setMusicParam(name, value);
@@ -204,7 +236,9 @@ export function musicFlee(): void {
 
 // ---- chime --------------------------------------------------------------------------
 
-export { playChimeMotif, playMorningChime } from './chime';
+export { playChimeMotif, playMorningChime, playSirenFull } from './chime';
+/** 63 9.2: the whole town says 「いただきます」 / 「ごちそうさま」 at once (voice ids, ≤ 12 heard). */
+export { chorusBlips } from './voices';
 
 // ---- the PA speaker (40_audio 3.6 bus_pa; 53_ch2_audio 3.3) --------------------------
 
@@ -287,6 +321,27 @@ export function playAmbience(id: string, opts?: { vol?: number; fade?: number; l
 export function stopAmbience(id?: string, fade?: number): void {
   if (id) amb.stopAmbient(id, fade);
   else amb.stopAllAmbient(fade);
+}
+
+/**
+ * 海の中 (63_ch3_audio 3.5): 0..1 (0.5 near the surface), over 0.4 s. The
+ * music goes under water (LP 700 Hz, −3 dB at 1). The land's beds are the
+ * map's business (map_c3_umi plays amb_c3_suichu, not them); グソっ君's
+ * voice is never muffled (he is at home there).
+ */
+let underwater = 0;
+export function setUnderwater(amount: number): void {
+  const a = Math.max(0, Math.min(1, amount));
+  if (a === underwater) return;
+  underwater = a;
+  const g = liveGraph();
+  if (!g) return;
+  const t = g.ctx.currentTime;
+  g.musicFilter.frequency.setTargetAtTime(a > 0 ? 20000 * Math.pow(700 / 20000, a) : 20000, t, 0.4 / 3);
+  g.musicMuffle.gain.setTargetAtTime(Math.pow(10, (-3 * a) / 20), t, 0.4 / 3);
+}
+export function getUnderwater(): number {
+  return underwater;
 }
 
 let space: SpaceId = 'outdoor';

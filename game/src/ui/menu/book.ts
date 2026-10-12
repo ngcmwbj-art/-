@@ -1082,12 +1082,14 @@ function blendFlag(col: string): string {
 }
 
 /** ① / ② in 5×7 pixels inside a 9×9 ring. */
-export function drawCircledNum(g: Gfx, n: 1 | 2, x: number, y: number, color: string): void {
+export function drawCircledNum(g: Gfx, n: 1 | 2 | 3, x: number, y: number, color: string): void {
   const ring = ['..xxxxx..', '.x.....x.', 'x.......x', 'x.......x', 'x.......x', 'x.......x', 'x.......x', '.x.....x.', '..xxxxx..'];
   const one = ['.x.', 'xx.', '.x.', '.x.', 'xxx'];
   const two = ['xx.', '..x', '.x.', 'x..', 'xxx'];
+  // ③ (chapter 3's save card)
+  const three = ['xx.', '..x', '.x.', '..x', 'xx.'];
   ring.forEach((r, j) => [...r].forEach((c, i) => c === 'x' && g.px(x + i, y + j, color)));
-  (n === 1 ? one : two).forEach((r, j) => [...r].forEach((c, i) => c === 'x' && g.px(x + 3 + i, y + 2 + j, color)));
+  (n === 1 ? one : n === 2 ? two : three).forEach((r, j) => [...r].forEach((c, i) => c === 'x' && g.px(x + 3 + i, y + 2 + j, color)));
 }
 
 function chevron(g: Gfx, x: number, y: number, dir: number): void {

@@ -20,6 +20,7 @@ import { standProp } from './hoshi_kit';
 import { fontTextSmall } from './text';
 import { registerProp } from './registry';
 import type { PropArt } from './types';
+import { AZE_SHOPS } from './c3_bld';
 
 // ---------------------------------------------------------------- 食堂 かもめ
 
@@ -125,15 +126,15 @@ registerProp('prop_c3_shokudo_fridge', () =>
  * counter: the bowls of the meal that never ends, and in front of the
  * regular's seat (3,5) his tower of tea bowls (fushigi_ch3_02, 41 on top).
  */
-registerProp('prop_c3_shokudo_counter', () =>
-  standProp(96, 26, (p) => {
+registerProp('prop_c3_shokudo_counter', () => {
+  const make = (closed: boolean) => standProp(96, 26, (p) => {
     p.rect(0, 6, 96, 6, '#C8A06A');
     p.hline(0, 95, 6, '#E8C890');
     p.rect(0, 12, 96, 12, '#8A5A3A');
     for (let x = 0; x < 96; x += 8) p.vline(x, 12, 23, '#6A4A3A');
     p.hline(0, 95, 12, '#5A3A2A');
-    // bowls and plates along it
-    for (let k = 0; k < 6; k++) {
+    // bowls and plates along it (cleared away at 12:01)
+    for (let k = 0; k < 6 && !closed; k++) {
       if (k === 2) continue;
       const x = 6 + k * 16;
       p.ellipse(x, 7, 4, 2, '#F4F1E8');
@@ -144,17 +145,43 @@ registerProp('prop_c3_shokudo_counter', () =>
       p.rect(37, 6 - k, 6, 1, k % 2 ? '#9AAAB4' : '#C8D2DA');
       p.set(37, 6 - k, '#6B7186');
     }
-  }, { cx: 48, base: 16, shadow: 0, foot: 15 }),
-);
+  }, { cx: 48, base: 16, shadow: 0, foot: 15 });
+  const open = make(false);
+  const closed = make(true);
+  return { ...open, img: (env) => (env.flag('flag_ch3_stage') >= 2 ? closed.img(env) : open.img(env)) } satisfies PropArt;
+});
 
-registerProp('prop_c3_stool', () =>
-  standProp(10, 12, (p) => {
-    p.ellipse(5, 3, 4, 2, '#C8452E');
-    p.ellipse(5, 2, 3, 1, '#E06A4E');
-    p.vline(5, 5, 10, '#9AA0A8');
-    p.hline(2, 8, 10, '#9AA0A8');
-  }, { cx: 8, base: 16, shadow: 8 }),
-);
+/** A round stool; at 12:01 (S13: the shop closed) it is up on the counter, legs in the air (62 4.3). */
+registerProp('prop_c3_stool', () => {
+  // (one 10×28 picture each: the stool on the floor at its foot, or up on the counter a tile north)
+  const down = standProp(10, 28, (p) => {
+    p.ellipse(5, 19, 4, 2, '#C8452E');
+    p.ellipse(5, 18, 3, 1, '#E06A4E');
+    p.vline(5, 21, 26, '#9AA0A8');
+    p.hline(2, 8, 26, '#9AA0A8');
+  }, { cx: 8, base: 16, shadow: 8, contact: 0 });
+  const up = standProp(10, 28, (p) => {
+    p.ellipse(5, 8, 4, 2, '#C8452E');
+    p.ellipse(5, 9, 3, 1, '#8A2E22');
+    p.vline(5, 1, 6, '#9AA0A8');
+    p.hline(2, 8, 1, '#9AA0A8');
+  }, { cx: 8, base: 16, shadow: 0, contact: 0 });
+  return { ...down, img: (env) => (env.flag('flag_ch3_stage') >= 2 ? up.img(env) : down.img(env)) } satisfies PropArt;
+});
+
+/** The noren taken in at 12:01, hung on the shop's wall (62 4.3: the shop has closed; the blackboard keeps its lines). */
+registerProp('prop_c3_noren_in', () => {
+  const p = new PixelCanvas(30, 22);
+  p.hline(0, 29, 0, '#8A5A3A');
+  for (let k = 0; k < 3; k++) {
+    p.rect(1 + k * 10, 1, 8, 19, '#C8452E');
+    p.vline(1 + k * 10, 1, 19, '#E06A4E');
+    p.hline(1 + k * 10, 8 + k * 10, 19, '#8A2E22');
+  }
+  fontTextSmall(p, 'かもめ', 3, 6, '#F4F1E8');
+  const img = p.toCanvas();
+  return { ox: 0, oy: 4, w: 30, h: 22, foot: 0, flat: true, img: (env) => (env.flag('flag_ch3_stage') >= 2 ? img : null) } satisfies PropArt;
+});
 
 /** 小上がり (10–14,2–5): the raised tatami, two low tables, cushions (customers' bowls on them). */
 registerProp('prop_c3_shokudo_tatami', () => {
@@ -252,8 +279,8 @@ registerProp('prop_c3_sakanabako', (opts) =>
       for (let k = 0; k < 4; k++) {
         const x = k * 16 + 1;
         const y = r * 16 + 6;
-        p.rect(x, y, 14, 12, '#F4F1E8');
-        p.hline(x, x + 13, y, '#FFFFFF');
+        p.rect(x, y, 14, 12, '#E2E0D8');
+        p.hline(x, x + 13, y, '#F0EEE6');
         p.vline(x + 13, y + 1, y + 11, '#C8C2B4');
         p.hline(x, x + 13, y + 11, '#C8C2B4');
         p.rect(x + 2, y + 2, 10, 6, '#C8E8F4');
@@ -284,28 +311,144 @@ registerProp('prop_c3_seridai', () =>
   }, { cx: 16, base: 16, shadow: 20 }),
 );
 
+/** The shutter of an empty shop: a faded hand-painted fish on it (62 4.2: the empty ones are not sad). */
+function shutter(p: PixelCanvas, v: number): void {
+  p.rect(0, 0, 80, 18, '#9AA0A8');
+  for (let y = 1; y < 18; y += 2) p.hline(0, 79, y, '#8A9098');
+  p.rect(0, 0, 80, 3, '#6B7186');
+  p.hline(0, 79, 0, '#B8BCC4');
+  const fx = 22 + v * 9;
+  p.poly([[fx, 10], [fx + 14, 6], [fx + 22, 10], [fx + 14, 14]], mix('#3A7EA8', '#9AA0A8', 0.4));
+  p.poly([[fx + 22, 10], [fx + 28, 5], [fx + 28, 15]], mix('#3A7EA8', '#9AA0A8', 0.4));
+  p.set(fx + 5, 9, '#3A3F48');
+  // the old paper 『貸し店舗』 (strokes)
+  p.rect(6, 6, 9, 8, '#FBF3DC');
+  for (let y = 8; y < 13; y += 2) p.hline(8, 12, y, '#2A2440');
+}
+
+/** The counter in front (the S row). */
+function counter(p: PixelCanvas, top = '#B8A888', face = '#8A7A60'): void {
+  p.rect(0, 18, 80, 16, face);
+  p.rect(0, 18, 80, 4, top);
+  p.hline(0, 79, 18, mix(top, '#FFFFFF', 0.35));
+  for (let x = 0; x < 80; x += 16) p.vline(x, 22, 33, mix(face, '#2A2440', 0.25));
+}
+
 /**
- * An empty shop of あぜ道市 (5 tiles): its shutter down, a faded hand-painted
- * fish on it; the counter in front (S, the row below). `v` varies the fish.
+ * An open shop: the shutter rolled up into its box, the dim inside with its
+ * shelf, a short noren across the top, the goods on the counter, the shop's
+ * board — printed letters, or ソワカ's brush once she has come (`brush`).
  */
-registerProp('prop_c3_akimise', (opts) =>
-  standProp(80, 34, (p) => {
-    const v = Number(opts.v ?? 0);
-    p.rect(0, 0, 80, 18, '#9AA0A8');
-    for (let y = 1; y < 18; y += 2) p.hline(0, 79, y, '#8A9098');
-    p.rect(0, 0, 80, 3, '#6B7186');
-    p.hline(0, 79, 0, '#B8BCC4');
-    const fx = 22 + v * 9;
-    p.poly([[fx, 10], [fx + 14, 6], [fx + 22, 10], [fx + 14, 14]], mix('#3A7EA8', '#9AA0A8', 0.4));
-    p.poly([[fx + 22, 10], [fx + 28, 5], [fx + 28, 15]], mix('#3A7EA8', '#9AA0A8', 0.4));
-    p.set(fx + 5, 9, '#3A3F48');
-    // the counter (empty)
-    p.rect(0, 18, 80, 16, '#8A7A60');
-    p.rect(0, 18, 80, 4, '#B8A888');
-    p.hline(0, 79, 18, '#D8C8A8');
-    for (let x = 0; x < 80; x += 16) p.vline(x, 22, 33, '#6A5A48');
-  }, { cx: 40, base: 32, shadow: 0, foot: 31 }),
-);
+function openShop(p: PixelCanvas, shop: string, brush: boolean): void {
+  // inside: the back of the empty shop, a shelf, the shutter's box overhead
+  p.rect(0, 0, 80, 18, '#4A4E58');
+  p.rect(0, 9, 80, 2, '#6A5A48');
+  p.rect(0, 0, 80, 3, '#6B7186');
+  p.hline(0, 79, 0, '#B8BCC4');
+  p.hline(0, 79, 2, '#3A3F48');
+  const noren = (col: string, n = 5) => {
+    for (let k = 0; k < n; k++) {
+      const x = 4 + k * Math.floor(72 / n);
+      p.rect(x, 3, Math.floor(72 / n) - 2, 6, col);
+      p.hline(x, x + Math.floor(72 / n) - 3, 3, mix(col, '#FFFFFF', 0.25));
+    }
+  };
+  const board = (x: number, w: number, bg: string, ink: string) => {
+    p.rect(x, 19, w, 7, bg);
+    p.strokeRect(x, 19, w, 7, mix(bg, '#2A2440', 0.4));
+    if (brush) {
+      // ソワカ's hand: thick, lively strokes
+      for (let i = x + 2; i < x + w - 3; i += 4) p.line(i, 24, i + 2, 21, ink);
+    } else for (let i = x + 2; i < x + w - 3; i += 3) p.rect(i, 21, 2, 3, ink);
+  };
+  counter(p);
+  if (shop === 'hinoya') {
+    // 『ひのや 出張所』: candy bags hung up, the ramune crate, a red gacha machine
+    noren('#E84E3C');
+    for (let k = 0; k < 7; k++) p.rect(6 + k * 10, 10, 6, 7, ['#FFD23F', '#F2894B', '#7FD1E8', '#E8A0C8'][k % 4]);
+    p.rect(8, 26, 18, 6, '#3A7EA8');
+    for (let k = 0; k < 4; k++) p.rect(10 + k * 4, 23, 2, 4, '#B8E8F4');
+    p.rect(60, 16, 10, 12, '#E23B2E');
+    p.ellipse(65, 18, 4, 3, '#F4F1E8');
+    board(30, 26, '#FBF3DC', '#E23B2E');
+  } else if (shop === 'tofu') {
+    // the tofu stall: the water tank with the white blocks, a ladle
+    noren('#2F4A8A', 3);
+    p.rect(10, 20, 36, 8, '#7FD1E8');
+    p.hline(10, 45, 20, '#B8E8F4');
+    for (let k = 0; k < 4; k++) p.rect(13 + k * 8, 23, 6, 4, '#F4F1E8');
+    p.line(52, 18, 58, 24, '#C8A06A');
+    board(56, 20, '#F4F1E8', '#2F4A8A');
+  } else if (shop === 'cafe') {
+    // 『喫茶 初日の出 海の店』: the siphon, bags of beans, white cups
+    noren('#5A3A2A', 3);
+    p.rect(12, 12, 6, 6, '#B8E8F4');
+    p.rect(14, 8, 2, 4, '#B8E8F4');
+    p.rect(11, 18, 8, 2, '#3A3F48');
+    for (let k = 0; k < 3; k++) p.rect(26 + k * 8, 12, 6, 6, '#A87A4A');
+    for (let k = 0; k < 4; k++) {
+      p.rect(8 + k * 7, 21, 5, 3, '#F4F1E8');
+      p.set(8 + k * 7, 21, '#5A3A2A');
+    }
+    board(46, 28, '#5A3A2A', '#F4F1E8');
+  } else if (shop === 'tomato') {
+    // the tomato stall: crates of red, the hand-written price (ソワカ's shape)
+    noren('#C8452E', 4);
+    for (let c = 0; c < 3; c++) {
+      p.rect(6 + c * 22, 20, 18, 7, '#A87A4A');
+      for (let k = 0; k < 4; k++) p.ellipse(9 + c * 22 + k * 4, 20, 2, 2, k % 2 ? '#E23B2E' : '#C8302A');
+    }
+    board(70, 9, '#FBF3DC', '#E23B2E');
+  } else if (shop === 'yasumi') {
+    // the rest corner: a long bench, the tea things, a small dish of pickles
+    noren('#9ACB9A', 3);
+    p.rect(6, 12, 68, 4, '#A87A4A');
+    p.rect(30, 20, 8, 5, '#C8A06A');
+    p.ellipse(34, 19, 4, 1, '#8A5A3A');
+    for (let k = 0; k < 3; k++) p.rect(44 + k * 6, 21, 4, 4, '#E8E4D8');
+    p.ellipse(16, 23, 4, 2, '#F4F1E8');
+    p.ellipse(16, 22, 2, 1, '#E8D04A');
+    board(56, 18, '#F4F1E8', '#3FA66B');
+  } else {
+    // 『チクタク堂 出張修理』: the little bench, clock parts, the loupe, a clock face on the wall
+    noren('#D9A441', 3);
+    p.ellipse(60, 12, 5, 5, '#F4F1E8');
+    p.vline(60, 8, 12, '#2A2440');
+    p.line(60, 12, 62, 12, '#2A2440');
+    for (let k = 0; k < 6; k++) p.ellipse(10 + k * 6, 23, 1, 1, ['#D9A441', '#C8CDD4'][k % 2]);
+    p.ellipse(42, 22, 3, 3, '#3A3F48');
+    p.ellipse(42, 22, 2, 2, '#B8E8F4');
+    board(52, 24, '#2A2440', '#D9A441');
+  }
+}
+
+/**
+ * A shop space of あぜ道市 (5 tiles): its shutter down until the one who opens
+ * it has come (AZE_SHOPS: `shop`), then open (62 4.2・7.3); the counter in
+ * front (the S row). `v` varies the empty shutter's fish.
+ */
+registerProp('prop_c3_akimise', (opts) => {
+  const v = Number(opts.v ?? 0);
+  const shop = String(opts.shop ?? '');
+  const make = (state: 'shut' | 'open' | 'brush') =>
+    standProp(80, 34, (p) => {
+      if (state === 'shut') {
+        shutter(p, v);
+        counter(p);
+      } else openShop(p, shop, state === 'brush');
+    }, { cx: 40, base: 32, shadow: 0, foot: 31 });
+  const shut = make('shut');
+  const open = shop ? make('open') : shut;
+  const brush = shop ? make('brush') : shut;
+  return {
+    ...shut,
+    img: (env) => {
+      const f = AZE_SHOPS[shop];
+      if (!f || !env.flag(f)) return shut.img(env);
+      return (env.flag('flag_ch3_kita_npc_hoshi_sawako') ? brush : open).img(env);
+    },
+  } satisfies PropArt;
+});
 
 /** The ice box and the platform scale in the auction floor's west corner (1–2,10). */
 registerProp('prop_c3_hakari', () =>

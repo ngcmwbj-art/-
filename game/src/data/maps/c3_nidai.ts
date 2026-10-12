@@ -23,12 +23,15 @@ const OBJECTS: MapObj[] = [
   { t: 'prop', prop: 'prop_c3_nidai_back', x: 0, y: 0 },
   { t: 'prop', prop: 'prop_c3_nidai_container', x: 1, y: 1, opts: { n: 6 } },
   { t: 'prop', prop: 'prop_c3_nidai_container', x: 1, y: 2, opts: { n: 2 } },
+  // S14 (the trap): the black board's corner under the basket (60 9.2; until the aquarium)
+  { t: 'prop', prop: 'prop_c3_nidai_kairan', x: 4, y: 4, cond: { flag: 'flag_ch3_got_gochisou', stage: '1-2' } },
   { t: 'prop', prop: 'prop_c3_nidai_cabbage', x: 5, y: 4 },
   { t: 'prop', prop: 'prop_c3_nidai_front', x: 0, y: 5 },
   // examine (60 9.1, events/ch3/umizoi.ts)
   { t: 'obj', id: 'obj_c3_nidai_container', x: 1, y: 1, w: 6, h: 2 },
   { t: 'obj', id: 'obj_c3_nidai_cabbage', x: 5, y: 4, w: 2 },
   { t: 'obj', id: 'obj_c3_nidai_aori', x: 1, y: 0, w: 8, face: 'up' },
+  { t: 'obj', id: 'obj_c3_nidai_kairan', x: 5, y: 4, w: 2, priority: 1, cond: { flag: 'flag_ch3_got_gochisou', stage: '1-2' } },
 ] as MapObj[];
 
 registerMap({

@@ -26,7 +26,7 @@ const TABLE_OF: Record<string, string> = {
   npc_c3_kid_c: 'npc_c3_kid',
 };
 
-function* talkC3(id: string): Co {
+export function* talkC3(id: string): Co {
   const tid = TABLE_OF[id] ?? id;
   const table = C3_TALK[tid];
   if (!table) return;

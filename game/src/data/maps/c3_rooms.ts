@@ -20,7 +20,8 @@ const PR = (prop: string, x: number, y: number, opts?: Record<string, unknown>):
   ({ t: 'prop', prop, x, y, ...(opts ? { opts } : {}) }) as MapObj;
 const O = (id: string, x: number, y: number, extra: Record<string, unknown> = {}): MapObj => ({ t: 'obj', id, x, y, ...extra }) as unknown as MapObj;
 
-const S12 = { stage: '1-2' };
+// (at 12:01 the cook, the regular and the auctioneers are outside: umizoi.ts)
+const S1 = { stage: 1 };
 
 // ================================================================ 4.3 map_c3_shokudo（食堂 かもめ、16×9）
 
@@ -63,13 +64,17 @@ registerMap({
     ...[1, 2, 4, 5, 6].map((x) => PR('prop_c3_stool', x, 5)),
     PR('prop_c3_shokudo_tatami', 10, 2),
     PR('prop_c3_shokudo_reji', 13, 7),
+    PR('prop_c3_noren_in', 9, 0),
     { t: 'door', id: 'door_c3_shokudo_out', x: 7, y: 8, w: 2, to: 'map_umizoi', tx: 30, ty: 16, dir: 'down', se: 'se_door_glass' },
     // examine (60 9.3): the blackboard from the counter's end, the menu cards over the tatami's edge
     O('obj_c3_kokuban', 4, 1, { face: 'up' }),
     O('obj_c3_menu', 10, 5, { w: 5, face: 'up' }),
     // ナミエ behind the counter, ゴロウ on his stool (62 4.3)
-    { t: 'npc', id: 'npc_c3_shokudo', x: 4, y: 3, dir: 'down', cond: S12 },
-    { t: 'npc', id: 'npc_c3_jouren', x: 3, y: 5, dir: 'up', pose: 'sit', off: [0, 1], cond: S12 },
+    { t: 'npc', id: 'npc_c3_shokudo', x: 4, y: 3, dir: 'down', cond: S1 },
+    { t: 'npc', id: 'npc_c3_jouren', x: 3, y: 5, dir: 'up', pose: 'sit', off: [0, 1], cond: S1 },
+    // two of the town on the tatami, eating the meal that never ends (62 4.3: eat_loop; not to be spoken to)
+    { t: 'npc', id: 'c3_kyaku_1', sprite: 'c3_kyaku_a', x: 11, y: 3, dir: 'right', pose: 'eat', off: [0, -2], passerby: true, noTurn: true, cond: S1 },
+    { t: 'npc', id: 'c3_kyaku_2', sprite: 'c3_kyaku_b', x: 13, y: 4, dir: 'left', pose: 'eat', off: [0, -2], passerby: true, noTurn: true, cond: S1 },
   ] as MapObj[],
   bgm: { 1: 'bgm_umi_noon', 2: 'bgm_umi_noon' },
 });
@@ -114,12 +119,16 @@ registerMap({
     PR('prop_c3_seridai', 9, 3),
     PR('prop_c3_hakari', 1, 10),
     PR('prop_c3_hose', 34, 10),
-    ...[20, 25, 30].flatMap((x, i) => [PR('prop_c3_akimise', x, 3, { v: i }), PR('prop_c3_akimise', x, 7, { v: i + 1 })]),
+    // あぜ道市: the six shop spaces, opened by who came (62 4.2: 上 ひのや・豆腐・喫茶 / 下 トマト・休み所・時計)
+    ...[20, 25, 30].flatMap((x, i) => [
+      PR('prop_c3_akimise', x, 3, { v: i, shop: ['hinoya', 'tofu', 'cafe'][i] }),
+      PR('prop_c3_akimise', x, 7, { v: i + 1, shop: ['tomato', 'yasumi', 'tokei'][i] }),
+    ]),
     { t: 'door', id: 'door_c3_seri_out', x: 5, y: 11, w: 2, to: 'map_umizoi', tx: 10, ty: 24, dir: 'down' },
     { t: 'door', id: 'door_c3_azemichi_out', x: 33, y: 11, w: 2, to: 'map_umizoi', tx: 25, ty: 24, dir: 'down' },
     // ゲン in front of the auction stand, ツグミ beside him (62 4.2)
-    { t: 'npc', id: 'npc_c3_seri', x: 9, y: 4, dir: 'down', cond: S12 },
-    { t: 'npc', id: 'npc_c3_seri_deshi', x: 11, y: 4, dir: 'down', cond: S12 },
+    { t: 'npc', id: 'npc_c3_seri', x: 9, y: 4, dir: 'down', cond: S1 },
+    { t: 'npc', id: 'npc_c3_seri_deshi', x: 11, y: 4, dir: 'down', cond: S1 },
   ] as MapObj[],
   bgm: { 1: 'bgm_umi_noon', 2: 'bgm_umi_noon' },
 });

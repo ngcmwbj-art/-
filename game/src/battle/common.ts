@@ -16,6 +16,7 @@ import { PixelCanvas } from '../engine/pixel';
 import { impactBurst, statArrow } from './art/fxart';
 import { PANEL_POS } from './ui/panels';
 import { statusIcon } from './art/icons';
+import { ch3HpFloor } from './ch3rules';
 
 const FRAME_MS = 1000 / 60;
 
@@ -353,6 +354,9 @@ export function hurtEnemy(s: BattleScene, e: EnemyUnit, dmg: number, o: EnemyHit
   e.hp = Math.max(0, e.hp - Math.max(0, Math.round(dmg)));
   // boss HP floor before the final phase (13.7)
   if (e.def.boss && !s.memo.bossFinal && e.hp < 1) e.hp = 1;
+  // 第3章の 中ボス (61 10.4・11.1): the pot's 140 while its lid is up, the siren's lock at 260
+  const floor = ch3HpFloor(s, e);
+  if (floor && e.hp < floor) e.hp = Math.min(before, floor);
   // the lesson's 練習台 always stands up again
   if (s.lesson && e.hp < 1) e.hp = 1;
   e.trailWait = 400;

@@ -34,3 +34,5 @@ import './hoshi_fx';
 import './umizoi';
 import './c3_nidai';
 import './c3_rooms';
+// 第2期：サイレン塔の上・灯台・海の家・海の中
+import './c3_rooms2';

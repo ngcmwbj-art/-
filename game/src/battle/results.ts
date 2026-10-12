@@ -10,7 +10,7 @@ import { hash2, rng } from '../engine/rng';
 import { ease } from '../engine/tween';
 import { addItem, setFlag, flag, state } from '../game/state';
 import { duckMusic, playBgm, sfx, stopBgm } from '../audio';
-import { EXCELLENT, fillAll, gainExp, getItem, REPORT, REPORT_CH2, SYS, SYS2, type LevelUpResult, type StatKey } from '../data/battle';
+import { EXCELLENT, fillAll, gainExp, getItem, REPORT, REPORT_CH2, SYS, SYS2, SYS3, type LevelUpResult, type StatKey } from '../data/battle';
 import type { BattleScene } from './scene';
 import { FRAME } from './scene';
 import { gradeMark, hanamaruFrame, miniText, victorySeal } from './art/stamps';
@@ -119,7 +119,10 @@ export function* victory(s: BattleScene): Co {
   const yobi = s.bossKind === 'yobimodoshi';
   const quiet = s.isBoss && !yobi;
   const event = s.enemies.some((e) => e.id === 'enemy_kanenari');
-  const exp = s.enemies.reduce((a, e) => a + (e.dead || e.hp <= 0 || e.id === 'enemy_kanenari' ? e.def.exp : 0), 0);
+  // (第3章の 中ボス: settled, not knocked down — the pot's はなまる, the siren rung out)
+  const exp = s.enemies.reduce((a, e) => a + (e.dead || e.hp <= 0 || e.id === 'enemy_kanenari' || e.mem.settled ? e.def.exp : 0), 0);
+  // ナリオサメ (61 19.2): no jingle, the band alone over the siren's last echo
+  const siren = s.enemies.some((e) => e.id === 'enemy_nariosame');
   const money = s.enemies.reduce((a, e) => a + (e.dead ? e.def.money : 0), 0);
   s.cmd = null;
   if (event) {
@@ -141,7 +144,7 @@ export function* victory(s: BattleScene): Co {
       sfx('se_hanko_learn', { vol: 0.35, pitch: 1.2 + i * 0.1 });
       yield 300;
     }
-  } else if (!quiet && !yobi) {
+  } else if (!quiet && !yobi && !siren) {
     yield 200;
     // 16.12, made the moment it should be (QA round 1): a big seal in 32px
     // lettering slams down (1.7 → 0.92 → 1.06 → 1.0), vermilion spatters off
@@ -206,6 +209,22 @@ export function* victory(s: BattleScene): Co {
     for (const u of s.party) u.moodHold = null;
     return;
   }
+  if (siren) {
+    for (const u of s.party) {
+      if (u.m.hp <= 0) {
+        u.m.hp = 1;
+        delete u.m.status.status_hebatta;
+        u.drop = 0;
+      }
+    }
+    yield 300;
+    yield* countUp(s, SYS.exp, exp);
+    const ups: LevelUpResult[] = [];
+    for (const u of s.party) ups.push(...gainExp(u.m, exp));
+    if (ups.length) yield* levelUpSequence(s, ups, true);
+    for (const u of s.party) u.moodHold = null;
+    return;
+  }
   if (yobi) {
     // the night is asleep: on black, the band alone — the experience counts
     // up (se_count), a level-up's report card on black without its jingle,
@@ -238,6 +257,9 @@ export function* victory(s: BattleScene): Co {
     // ヘノヘノ課長: 「背広の ポケットに 入っていた。」 (51 16.1)
     const kacho = s.enemies.find((e) => e.dead && e.id === 'enemy_henoheno_kacho');
     if (kacho?.def.texts.extra.money) yield* say(s, kacho.def.texts.extra.money);
+    // ネフダマヨイ: 「値札の 裏に、はって あった。」 (61 19.1)
+    const nefuda = s.enemies.find((e) => e.dead && e.id === 'enemy_nefuda');
+    if (nefuda?.def.texts.extra.money) yield* say(s, nefuda.def.texts.extra.money);
   } else {
     // ムジン販売員: no money — and that is the point (51 8.5)
     const mujin = s.enemies.find((e) => e.dead && e.id === 'enemy_mujin_hanbaiin');
@@ -384,13 +406,13 @@ function* stickItemCard(s: BattleScene, id: string, body: () => Co): Co {
 }
 
 /** Group results by target level and run the report card + learned pages. */
-function* levelUpSequence(s: BattleScene, list: LevelUpResult[]): Co {
+function* levelUpSequence(s: BattleScene, list: LevelUpResult[], quiet = false): Co {
   const levels = [...new Set(list.map((r) => r.to))].sort((a, b) => a - b);
   let first = true;
   for (const lv of levels) {
     const rs = list.filter((r) => r.to === lv);
     for (const r of rs) yield* say(s, fillAll(SYS.levelUp, { actor: r.memberId === 'minato' ? 'しゅん' : 'グソっ君', n: r.to }));
-    const card = new ReportCard(rs, first, s.party.some((u) => u.id === 'kanenari'), s.isBoss);
+    const card = new ReportCard(rs, first, s.party.some((u) => u.id === 'kanenari'), s.isBoss || quiet);
     first = false;
     const fx = s.addFx({ layer: 'top', dur: 0, ui: true, draw: (g) => card.draw(g) });
     yield* card.run(s.msg, () => s.takeConfirm(), (ms) => s.hitstop(ms / FRAME), (x, y, n) => s.petals(x, y, n, 10));
@@ -418,6 +440,10 @@ function learnedAt(lv: number, rs: LevelUpResult[]): string[] {
 function ch2Rewards(lv: number, rs: LevelUpResult[]): string[] {
   if (lv === 6 && rs.some((r) => r.memberId === 'kanenari')) return [...SYS2.lv6];
   if (lv === 7 && rs.some((r) => r.memberId === 'minato')) return [...SYS2.lv7];
+  // 第3章 (61 19.4): Lv8 まるく なれた, Lv9 はなまるの おすそわけ, Lv10 海の こうら
+  if (lv === 8 && rs.some((r) => r.memberId === 'kanenari')) return [...SYS3.lv8];
+  if (lv === 9 && rs.some((r) => r.memberId === 'minato')) return [...SYS3.lv9];
+  if (lv === 10 && rs.some((r) => r.memberId === 'kanenari')) return [...SYS3.lv10];
   return [];
 }
 
@@ -722,7 +748,7 @@ const coverCache = new Map<string, HTMLCanvasElement>();
  * school, and the class and name written in pencil at the bottom.
  */
 function coverCanvas(heading: string, ch2: boolean): HTMLCanvasElement {
-  const key = heading + (ch2 ? ':2' : '');
+  const key = heading + (ch2 ? ':2' : '') + (flag('flag_ch3_started') ? ':3' : '');
   const hit = coverCache.get(key);
   if (hit) return hit;
   const W = 144;
@@ -770,7 +796,8 @@ function coverCanvas(heading: string, ch2: boolean): HTMLCanvasElement {
     const ox = Math.round(W / 2) + 2 + 20;
     const oy = 26;
     const ring = ['..###..', '.#...#.', '#.....#', '#.....#', '#.....#', '#.....#', '#.....#', '.#...#.', '..###..'];
-    const two = ['.##.', '#..#', '...#', '..#.', '.#..', '####'];
+    // 第3章: ③ (61 3.4)
+    const two = flag('flag_ch3_started') ? ['###.', '...#', '.##.', '...#', '...#', '###.'] : ['.##.', '#..#', '...#', '..#.', '.#..', '####'];
     ring.forEach((row, yy) => [...row].forEach((v, xx) => v === '#' && r(ox + xx, oy + yy, 1, 1, C.ink)));
     two.forEach((row, yy) => [...row].forEach((v, xx) => v === "#" && r(ox + 2 + xx, oy + 2 + yy, 1, 1, C.ink)));
   }

@@ -111,6 +111,11 @@ const GROUP_TARGET: Record<string, number> = {
   '第3章：序・夕鳴町の昼前・荷台': UI,
   '第3章：港と町': UI,
   '第3章：足音': STEP,
+  '第3章：①市場': UI,
+  '第3章：②食堂かもめ': UI,
+  '第3章：③海水浴場・潜り・灯台': UI,
+  '第3章：戦闘（敵・ナリオサメ）': SKILL,
+  '第3章：ハンコ': SKILL,
 };
 
 /** SEs that are silent by design (a cut): never trimmed. */
@@ -161,6 +166,12 @@ export const SE_LOUD_TARGET: Record<string, number> = {
   se_h_morning_chime: -13.5,
   // the last train's 「ガタン・ゴトン」 through the speaker: an attack you feel over the boss song (its loudest −19.5)
   se_h_ressha: -21,
+  // 63 10.2: the one full siren over a silent song — under chapter 1's 17:00 chime at the tower's top (d 0)
+  se_c3_siren_full: -15,
+  // ゴロウ's 「ごちそうさま。」 and the children's 「いただきます」: a voice-sized tune over the town's song
+  se_c3_gochisou: -20,
+  se_c3_part_koe: -20,
+  se_c3_hanko_float: -19,
 };
 /** Chapter 2's SEs of the ending, heard over the dawn of bgm_hoshi_morning (53 12). */
 const SE_LOUD_MORNING = /^se_h_(tomato_rise|sunrise|ripen|side_roll|moo|feed_cart|barn_light|bus_)/;
@@ -180,6 +191,9 @@ export function seLoudMusic(id: string, group: string | undefined): string | nul
   if (SE_LOUD_BELLS.has(id) || SE_LOUD_MOMENT_GROUPS.has(g) || /^se_(pa_chime|chime_note|h_pa_|h_morning_chime|c3_siren_)/.test(id)) return null;
   // chapter 3: the truck bed's sounds over its song, the town's over 海ぞいの町の正午
   if (g === '第3章：序・夕鳴町の昼前・荷台') return 'bgm_tsugaobin';
+  // the town's fights and the two hanko are heard over the battle song (ナリオサメ's over its own)
+  if (/^se_c3_nari_/.test(id)) return 'bgm_boss_nariosame';
+  if (g === '第3章：戦闘（敵・ナリオサメ）' || g === '第3章：ハンコ') return 'bgm_battle';
   if (/^第3章：/.test(g)) return 'bgm_umi_noon';
   if (g === '第2章：プロローグ・電車・駅') return null;
   if (g === '第2章：戦闘・ボス') return 'bgm_boss_yobimodoshi';
@@ -241,6 +255,8 @@ export const BGM_TARGET: Record<string, number> = {
   // chapter 3 (63_ch3_audio 10.1): measured at 12:00 with nothing undone (it reads ~3 dB
   // quieter than with every part back, as it should); the truck bed's engine lies under its song
   bgm_umi_noon: -5, bgm_tsugaobin: -6,
+  // the second period: ナリオサメ just under the fights (its siren included), the lunch on the breakwater at the town's level
+  bgm_boss_nariosame: -1, bgm_hirugohan: -5,
 };
 
 /**
@@ -265,7 +281,7 @@ export const ROLE_TARGET: Record<PartRole, number | null> = {
 export const REF_PART: Record<string, string> = {
   bgm_title: 'mbox', bgm_title_clear: 'mbox', bgm_home: 'melody', bgm_shop: 'melody', bgm_ending: 'melody', bgm_night: 'stars',
   bgm_hoshi_night: 'lantern', bgm_hoshi_morning: 'lead', bgm_boss_yobimodoshi: 'lead', bgm_tsugao: 'bass',
-  bgm_umi_noon: 'harmonica', bgm_tsugaobin: 'marimba',
+  bgm_umi_noon: 'harmonica', bgm_tsugaobin: 'marimba', bgm_boss_nariosame: 'lead', bgm_hirugohan: 'lead',
 };
 /** Parts whose colour is the point of the song: a closer target than their role. */
 export const TARGET_OVERRIDE: Record<string, number> = {
@@ -296,6 +312,9 @@ const ROLE_OVERRIDE: Record<string, PartRole> = {
   'bgm_umi_noon/ichiba': 'drums', 'bgm_umi_noon/daidokoro': 'drums', 'bgm_umi_noon/ichi_shaker': 'drums',
   'bgm_umi_noon/ichi_marimba': 'counter', 'bgm_umi_noon/ichi_lead': 'counter',
   'bgm_tsugaobin/marimba': 'melody', 'bgm_tsugaobin/harmonica': 'counter', 'bgm_tsugaobin/hera': 'drums',
+  'bgm_boss_nariosame/siren': 'counter', 'bgm_boss_nariosame/te': 'drums', 'bgm_boss_nariosame/tokei': 'drums',
+  'bgm_hirugohan/marimba': 'chords', 'bgm_hirugohan/ichi_marimba': 'counter', 'bgm_hirugohan/ichi_lead': 'counter', 'bgm_hirugohan/ichi_shaker': 'drums',
+  'bgm_midboss/nabe': 'fx',
 };
 export function partRole(song: string, part: string): PartRole {
   const o = ROLE_OVERRIDE[`${song}/${part}`];
@@ -441,7 +460,7 @@ export const BGM_TRIM: Record<string, number> = {
   // chapter 2
   bgm_hoshi_night: 12, bgm_tsugao: 10, bgm_boss_yobimodoshi: 10.5, bgm_hoshi_morning: 12,
   // chapter 3
-  bgm_umi_noon: 13, bgm_tsugaobin: 19,
+  bgm_umi_noon: 13, bgm_tsugaobin: 19, bgm_boss_nariosame: 8.5, bgm_hirugohan: 9,
 };
 
 export const SE_TRIM: Record<string, number> = {
@@ -492,6 +511,15 @@ export const SE_TRIM: Record<string, number> = {
   se_c3_title_wave: 29.5, se_c3_harigami: 32, se_c3_nidai_gata: 18, se_c3_shio: 36, se_c3_fender: 33, se_c3_kamome: 25.5, se_c3_tonbi: 25.5,
   se_c3_noren: 36, se_c3_siren_head: 10, se_c3_torobako: 36, se_c3_donburi: 24, se_c3_fue: 31.5, se_c3_himono: 36,
   se_step_wet: 18,
+  // chapter 3, second period (audioMixSuggest: the town's over bgm_umi_noon, the fights and the hanko over bgm_battle)
+  se_c3_noren_down: 28.5, se_c3_siren_full: 7, se_c3_siren_btn: 19.5, se_c3_clock_1201: 12.5, se_c3_goza: 36,
+  se_c3_stairs_up: 16, se_c3_seri_bell: 23.5, se_c3_kori: 31, se_c3_fucho: 32, se_c3_seri_fuda: 29.5, se_c3_utta: 22,
+  se_c3_kouika: 36, se_c3_hashi: 28, se_c3_otama: 36, se_c3_teishoku: 28.5, se_c3_nabe: 36, se_c3_futa: 30.5,
+  se_c3_gochisou: 13, se_c3_flag: 33, se_c3_dive_in: 21.5, se_c3_dive_out: 33, se_c3_moguri_get: 24.5,
+  se_c3_gusoku_eye: 31.5, se_c3_step_uw: 16, se_c3_lens_polish: 36, se_c3_lens_beam: 28.5, se_c3_part_koe: 6,
+  se_c3_nefuda: 34, se_c3_wing: 36, se_c3_pump: 36, se_c3_signboard: 36, se_c3_gassho: 34, se_c3_nari_kaze: 16,
+  se_c3_nari_yobu: 7, se_c3_part: 20, se_c3_hanko_float: 11.5, se_c3_itadakimasu: 27, se_c3_gochisousama: 24.5,
+  se_c3_wana_m7: 8.5,
 };
 export const VOICE_TRIM: Record<string, number> = {
   narr: 24, mother: 15, maruyama: 8, obaa: 15, mamekichi: 15.5, inui: 17, tsurumi: 16, sae: 17, jk: 15.5,
@@ -518,6 +546,7 @@ export const VOICE_TRIM: Record<string, number> = {
   c3_shokudo: 11, c3_jouren: 14.5, c3_seri: 14.5, c3_seri_deshi: 18, c3_sirenban: 19, c3_toudai: 16, c3_mago: 15,
   c3_kanshiin: 18, c3_himono_otto: 15, c3_himono_tsuma: 14, c3_tsuri: 14.5, c3_uketsuke: 16, c3_kid: 18.5,
   c3_kid_a: 18.5, c3_kid_b: 18, c3_kid_c: 17.5,
+  nariosame: 6.5, okawarinabe: 17.5,
 };
 export const AMB_TRIM: Record<string, number> = {
   amb_higurashi: 17, amb_still: 25, amb_s2_town: -1, amb_train_far: 0, amb_night_insects: 22.5, amb_fan: 16.5,
@@ -539,6 +568,8 @@ export const AMB_TRIM: Record<string, number> = {
   amb_c3_umi: 22, amb_c3_semi: 13, amb_c3_tori: 24, amb_c3_minato: 35.5, amb_c3_ichiba: 16.5, amb_c3_ichiba_out: 26,
   amb_c3_shokudo: 21.5, amb_c3_shokudo_out: 37, amb_c3_himono: 33.5, amb_c3_bouhatei: 22, amb_c3_kaisui: 22,
   amb_c3_mikan: 23.5, amb_c3_siren_hum: 20, amb_c3_siren_hold: 13, amb_c3_keitora: 9.5, amb_c3_hirumae: 17,
+  // the second period's rooms (the lighthouse and the beach hut at their caps: quiet rooms by design)
+  amb_c3_siren_room: 14.5, amb_c3_toudai: 28, amb_c3_uminoie: 33.5, amb_c3_suichu: 20,
 };
 
 /** A song's output level in dB: its own master gain plus the mix trim. */

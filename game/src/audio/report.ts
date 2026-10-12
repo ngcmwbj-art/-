@@ -46,7 +46,7 @@ import { PART_TRIM, partRole, QA_PARAMS, REF_PART, ROLE_TARGET, TARGET_OVERRIDE,
 import { sfxInfo, sfxTable, songTable, type SfxOpts } from './registry';
 import { VOICE_CAL, VOICE_SAMPLES, voiceCps } from './samples';
 import { MUSIC_LOOKAHEAD, PARAM_DEFAULTS, SongPlayer, type Params, type SongDef } from './sequencer';
-import { CLOSING_FOURTH_SHAPES, findSealedAnswer, findShape, mmlErrors, MORNING_CHIME_SHAPE, TSUGAO_SHAPE } from './theory';
+import { CLOSING_FOURTH_SHAPES, findSealedAnswer, findShape, GOCHISOU_SHAPE, mmlErrors, MORNING_CHIME_SHAPE, TSUGAO_SHAPE } from './theory';
 import { AMBIENCE_IDS } from './ambience';
 import { blip, resetVoiceState, VOICES } from './voices';
 
@@ -640,6 +640,12 @@ export const AMB_CONTEXT: {
   { amb: 'amb_c3_siren_hold', song: 'bgm_umi_noon', stage: 0, role: 'bed', underMin: 4, need: -6, where: '海ぞいの町（止まったサイレン、塔の広場）' },
   { amb: 'amb_c3_keitora', song: 'bgm_tsugaobin', stage: 0, role: 'character', underMin: 1, where: 'ツガオ便の荷台' },
   { amb: 'amb_c3_hirumae', song: 'bgm_town_s0', stage: 0, role: 'bed', where: '夕鳴町・昼前' },
+  // the second period's rooms: the tower's top has no music (its wind and the stopwatch carry it;
+  // measured against the town's song through the lighthouse's walls, which is about as quiet)
+  { amb: 'amb_c3_siren_room', song: 'bgm_umi_noon', stage: 0, room: 3, role: 'character', underMin: -10, where: 'サイレン塔の上（曲なし）' },
+  { amb: 'amb_c3_toudai', song: 'bgm_umi_noon', stage: 0, room: 3, role: 'character', underMin: 2, where: '灯台の中' },
+  { amb: 'amb_c3_uminoie', song: 'bgm_umi_noon', stage: 0, room: 4, role: 'bed', underMin: 2, where: '海の家' },
+  { amb: 'amb_c3_suichu', song: 'bgm_umi_noon', stage: 0, room: 5, role: 'bed', underMin: 1, where: '海の中' },
 ];
 
 export interface AmbRow { amb: string; song: string; role: string; where: string; underMin?: number; margin: number; band: number; need: number; ambLufs: number; songLufs: number; under: number; peak: number; ok: boolean; bands: number[] }
@@ -1243,6 +1249,9 @@ export function currentTrims() {
 
 /** Chapter 2's songs (53_ch2_audio): the closing chime's fourth note is sealed in these. */
 const CH2_SONGS = new Set(['bgm_hoshi_night', 'bgm_boss_yobimodoshi', 'bgm_hoshi_morning', 'bgm_tsugao']);
+/** 63 16.1: 海ぞいの町's songs and the truck's (no M7 in them; M9′ only after 12:01). */
+const CH3_TOWN_SONGS = new Set(['bgm_umi_noon', 'bgm_tsugaobin', 'bgm_boss_nariosame', 'bgm_hirugohan']);
+const GOCHISOU_OK = new Set(['bgm_umi_noon/harmonica_noon', 'bgm_umi_noon/harmonica', 'bgm_umi_noon/mbox_uw', 'bgm_umi_noon/ichi_lead', 'bgm_hirugohan/lead', 'bgm_hirugohan/ichi_lead']);
 
 /**
  * The sealed shapes (16.1): the town chime's "answer" (−2, −3, +3) must not
@@ -1263,6 +1272,8 @@ export function sealedCheck(): string[] {
       if (CH2_SONGS.has(id) && CLOSING_FOURTH_SHAPES.some((sh) => findShape(seq, sh) >= 0)) leaks.push(`${id}/${part.id}: the closing chime's fourth note`);
       // M7 belongs to ツガオの部屋 alone (53 1.3): not in 星見台's songs, not in the delivery's marimba
       if (CH2_SONGS.has(id) && id !== 'bgm_tsugao' && findShape(seq, TSUGAO_SHAPE) >= 0) leaks.push(`${id}/${part.id}: M7 (ツガオの動機)`);
+      if (CH3_TOWN_SONGS.has(id) && findShape(seq, TSUGAO_SHAPE) >= 0) leaks.push(`${id}/${part.id}: M7 (ツガオの動機)`);
+      if (!GOCHISOU_OK.has(`${id}/${part.id}`) && findShape(seq, GOCHISOU_SHAPE) >= 0) leaks.push(`${id}/${part.id}: M9′（ごちそうさま）`);
     }
   }
   return leaks;

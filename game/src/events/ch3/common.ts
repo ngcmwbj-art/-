@@ -9,6 +9,12 @@ import { SPEAKERS, runMsg } from '../../world/msg';
 import { field } from '../../world/field';
 import type { Actor } from '../../world/actor';
 import { C3_NAMES, c3Voice, fillNames } from '../../data/text/c3_names';
+import { getMapDef, registerMap } from '../../world/maps';
+import type { MapObj } from '../../world/types';
+import { game } from '../../engine/game';
+import type { BattleOpts } from '../../battle/api';
+import { getEnemy } from '../../data/battle';
+import { eventBattle } from '../lib';
 
 // ---------------------------------------------------------------- speakers (60 0.4, 63 9.1)
 
@@ -78,4 +84,54 @@ export function knOnce(objId: string): boolean {
   if (flag(f)) return false;
   setFlag(f, 1);
   return true;
+}
+
+// ---------------------------------------------------------------- 第2期（S07〜S14）
+
+
+/**
+ * Add the scenario's own objects (triggers, things to pick up, the people who
+ * came) to a map W registered — W's map files are left alone. Re-registering
+ * drops the parsed cache. A map that isn't there (yet) is skipped; `onEnter`
+ * scripts are appended once.
+ */
+export function addToMap(id: string, objects: MapObj[], onEnter: string[] = []): boolean {
+  const def = getMapDef(id);
+  if (!def) return false;
+  const have = new Set(def.objects.map((o) => o.id));
+  for (const o of objects) if (!o.id || !have.has(o.id)) def.objects.push(o);
+  if (onEnter.length) def.onEnter = [...new Set([...(def.onEnter ?? []), ...onEnter])];
+  registerMap(def);
+  return true;
+}
+
+/** ①市場・②食堂・③海水浴場 — how many are done (60 5.1). */
+export function partsDone(): number {
+  return ['flag_ch3_ichiba_done', 'flag_ch3_shokudo_done', 'flag_ch3_umi_done'].filter((f) => flag(f)).length;
+}
+
+/** The town at noon, before S12 (stage 1). */
+export function noon(): boolean {
+  return inCh3() && c3Stage() === 1;
+}
+
+/** Came to 海ぞいの町 on ヒロスケ's truck (S10). */
+export function kita(id: string): boolean {
+  return flag(`flag_ch3_kita_${id}`) > 0;
+}
+
+/**
+ * A story battle of chapter 3 (61 21.4) that ends only by winning: a loss is
+ * 「戦う前から やりなおす」 again (evt_gameover), a loaded save stops the scene
+ * ('load'). Skipped (as won) while the enemy isn't registered, and in QA with
+ * __game.cmd.flag('flag_qa_c3_nobattle', 1).
+ */
+export function* c3Battle(o: BattleOpts): Co<'win' | 'load'> {
+  if (!getEnemy(o.enemies[0]) || (import.meta.env.DEV && flag('flag_qa_c3_nobattle'))) return 'win';
+  for (;;) {
+    const r = yield* eventBattle(o);
+    if (r === 'load') return 'load';
+    if (r === 'win') return 'win';
+    yield* game.fadeIn(400);
+  }
 }

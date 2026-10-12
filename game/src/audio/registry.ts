@@ -22,6 +22,8 @@ export interface SfxOpts {
   dur?: number;
   /** se_kire_up 1..3. */
   level?: number;
+  /** How many at once (se_c3_gassho: hands clapped together, 1–12). */
+  count?: number;
 }
 
 export type SfxFn = (opts?: SfxOpts) => void;

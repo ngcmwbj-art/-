@@ -24,10 +24,11 @@
 // never words (1.7).
 
 import { cur, hasGraph, PaChain, voice, type VoiceOpts, type Wave } from './engine';
-import { sirenNote } from './instruments';
-import { c3ParamListeners, musicParams } from './music';
+import { DRM, sirenNote } from './instruments';
+import { c3ParamListeners, currentId, musicParams } from './music';
+import { sfxTable } from './registry';
 import { layer, seDefs, type SeCtx } from './recipe';
-import { Every, modBuffer, modulate, noiseBed, registerAmbience, smoothRandom, toneBed, type AmbCtx } from './ambience';
+import { activeAmbients, Every, modBuffer, modulate, noiseBed, registerAmbience, smoothRandom, toneBed, type AmbCtx } from './ambience';
 
 // ---------------------------------------------------------------------------
 // helpers
@@ -89,13 +90,31 @@ c3ParamListeners.push((name, value) => {
   // (before the first touch there is no AudioContext and no bed to tell)
   if (!c3Hooks.size || !hasGraph()) return;
   const at = cur().ctx.currentTime + 0.02;
+  // S12 (10.2, 12.10): 12:01 comes while the music is silent (the battle's
+  // final phase) — the town comes back in order, 4 s apart: the waves, the
+  // birds (the first gull's call), the cicadas, the market. Anywhere else (a
+  // load) it is simply whole.
+  if (name === 'c3_noon' && value === 1 && (staggerNext || currentId() === null || currentId() === 'bgm_boss_nariosame')) {
+    staggerNext = false;
+    noonFrom = at;
+    if (activeAmbients().some((id) => id.startsWith('amb_c3_'))) sfxTable.get('se_c3_kamome')?.({ at: at + NOON_LAG.tori, vol: 0.6, pan: -0.3 });
+  }
   for (const h of [...c3Hooks]) h(name, value, at);
 });
 function onC3(h: C3Hook): () => void {
   c3Hooks.add(h);
   return () => c3Hooks.delete(h);
 }
-const noonNow = (): boolean => musicParams().c3_noon === 1;
+/** 12:01 returns in this order (10.2): seconds after the clock moves. */
+const NOON_LAG = { umi: 0, tori: 4, semi: 8, ichiba: 12 };
+let noonFrom = -Infinity;
+let staggerNext = false;
+/** The next c3_noon 0 → 1 brings the town back in order (index.ts c3Noon1201). */
+export function c3NoonStagger(): void {
+  staggerNext = true;
+}
+/** Is it 12:01 for this part of the town yet? */
+const noonNow = (grp: keyof typeof NOON_LAG = 'umi'): boolean => musicParams().c3_noon === 1 && (!hasGraph() || cur().ctx.currentTime >= noonFrom + NOON_LAG[grp]);
 
 /** A voice of the town said into a bed: one blip per entry (semitones from the base), `gap` s apart. */
 interface BlipVoice {
@@ -243,7 +262,8 @@ registerAmbience('amb_c3_umi', (c) => {
  * and try again 10–20 s later (the cicadas are 「まだ」 too). 12:01: all whole.
  */
 registerAmbience('amb_c3_semi', (c) => {
-  const tsuku = new Every(c, 20, 40, (t) => tsukutsuku(c, t, 0.006, c.rng.range(-0.6, 0.6), c.dest, !noonNow()), 1, 12);
+  const grp = 'semi';
+  const tsuku = new Every(c, 20, 40, (t) => tsukutsuku(c, t, 0.006, c.rng.range(-0.6, 0.6), c.dest, !noonNow(grp)), 1, 12);
   const abura = [-0.5, 0.45].map((pan) => {
     let next = c.t0 + c.rng.range(1, 10);
     return {
@@ -251,7 +271,7 @@ registerAmbience('amb_c3_semi', (c) => {
         let guard = 0;
         while (next < u && guard++ < 8) {
           const t = Math.max(next, c.g.ctx.currentTime);
-          const whole = noonNow();
+          const whole = noonNow(grp);
           const len = whole ? c.rng.range(15, 30) : 2;
           v(c, { at: t, wave: 'noise', dur: len, attack: whole ? 1.2 : 0.4, decay: 0, sustain: 1, release: whole ? 1.5 : 0.05, vol: 0.004, filter: { type: 'bandpass', freq: 4800, q: 1.2 }, am: { rate: c.rng.range(60, 90), depth: 0.7 }, pan });
           next = t + len + (whole ? c.rng.range(5, 15) : c.rng.range(10, 20));
@@ -260,7 +280,7 @@ registerAmbience('amb_c3_semi', (c) => {
     };
   });
   const minmin = new Every(c, 25, 50, (t) => {
-    const whole = noonNow();
+    const whole = noonNow(grp);
     const len = whole ? 3.2 : 2;
     v(c, { at: t, wave: 'sine', freq: 3400, dur: len, attack: 0.3, decay: 0, sustain: 1, release: whole ? 0.4 : 0.05, vol: 0.003, vibrato: { rate: 4, depth: 100 }, pan: c.rng.range(-0.5, 0.5) });
   }, 4, 20);
@@ -281,14 +301,15 @@ registerAmbience('amb_c3_semi', (c) => {
  * 12:01: they call again.
  */
 registerAmbience('amb_c3_tori', (c) => {
+  const grp = 'tori';
   const gull = new Every(c, 8, 20, (t) => {
-    if (noonNow() !== true) return;
+    if (noonNow(grp) !== true) return;
     const pan = c.rng.range(-0.7, 0.7);
     seIn(c, 'se_c3_kamome', t, 0.6 * c.rng.range(0.7, 1), c.dest, pan);
     if (c.rng.chance(0.35)) seIn(c, 'se_c3_kamome', t + c.rng.range(0.6, 1.1), 0.45, c.dest, pan + c.rng.range(-0.3, 0.3));
   }, 1, 8);
   const tonbi = new Every(c, 30, 60, (t) => {
-    if (noonNow() !== true) return;
+    if (noonNow(grp) !== true) return;
     seIn(c, 'se_c3_tonbi', t, 0.5, c.dest, c.rng.range(-0.5, 0.5));
   }, 6, 30);
   return {
@@ -665,7 +686,8 @@ registerAmbience('amb_c3_siren_hold', (c) => {
  * the sea is in sight (c3_shio): far waves and the gulls (on the way there
  * it is not yet noon: they call). ambientEvent(…, 'idle'): idling at the
  * corner of 銀座 (① ×.5, LP 400 Hz, no wind, no bumps); 'run': off we go;
- * 'noon': the clock stops at 12:00 — the gulls and the waves go in 0.5 s
+ * 'noon': the clock stops at 12:00 — the gulls and the waves go in 0.5 s;
+ * 'hako' (S14): the tailgate shut — no wind, no sea, the engine through the box (LP 300 Hz)
  * (the engine runs on).
  */
 registerAmbience('amb_c3_keitora', (c) => {
@@ -714,7 +736,15 @@ registerAmbience('amb_c3_keitora', (c) => {
     event(name, _p, at) {
       if (name === 'idle') setRun(false, at);
       else if (name === 'run') setRun(true, at);
-      else if (name === 'noon') {
+      else if (name === 'hako') {
+        // S14 (7.2): the tailgate shut — inside the box: no wind, no sea, the engine through the walls
+        noon = true;
+        setLevel(seaLvl.gain, 0, at, 0.3);
+        setLevel(windLvl.gain, 0, at, 0.3);
+        engF.frequency.cancelScheduledValues(at);
+        engF.frequency.setTargetAtTime(300, at, 0.1);
+        speed.stop(at);
+      } else if (name === 'noon') {
         // 12:00 on the way in (S04, 12.3): the gulls and the waves go, in 0.5 s
         noon = true;
         setLevel(seaLvl.gain, 0, at, 0.5);
@@ -756,9 +786,131 @@ registerAmbience('amb_c3_hirumae', (c) => {
   };
 });
 
+// ---------------------------------------------------------------------------
+// 第2期：部屋の環境音（塔の上・灯台・海の家・海の中）
+
+/**
+ * amb_c3_siren_room — the top of the siren tower (map_c3_siren): ① the wind
+ * up high, in gusts ② the impeller about to turn and not turning (the hum
+ * of the tower's foot ×3, 12:00) ③ ミナト's stopwatch, one tick a second —
+ * in the stopped time only the stopwatch runs (「正午は、1秒も ずらさん」).
+ * The far town (amb_c3_umi through the window) is the map's second bed.
+ * ambientEvent(…, 'unari'): the siren groans low (S12, ナリオサメ wakes: ② ×2).
+ * At 12:01 ② runs down (retired) and the stopwatch stops (it has done its job).
+ */
+registerAmbience('amb_c3_siren_room', (c) => {
+  const wind = noiseBed(c, 'lowpass', 700, 0.5, 0.005);
+  const gust = modulate(c.g, c.t0, modBuffer(c.g, 40, smoothRandom(c.rng, 0.1, 0.35)), wind.gain.gain, 0.004);
+  const humLvl = sub(c, 1);
+  const hum = sirenHum(c, humLvl, 3);
+  let noon = noonNow();
+  const tick = new Every(c, 1, 1, (t) => {
+    if (!noon) DRM.drm_tick({ t, vel: 1, vol: 0.3 * 0.03, dest: c.dest, pan: -0.25 });
+  }, 0.5, 0.5);
+  const off = onC3((name, value) => {
+    if (name === 'c3_noon') noon = value === 1;
+  });
+  return {
+    pump: (u) => tick.pump(u),
+    event(name, _p, at) {
+      if (name === 'unari') setLevel(humLvl.gain, 2, at, 1.5);
+    },
+    stop(t) {
+      wind.stop(t);
+      gust.stop(t);
+      hum.stop(t);
+      off();
+    },
+  };
+});
+
+/**
+ * amb_c3_toudai — inside the lighthouse (thick stone): ① the tower's low
+ * resonance ② the sea wind whistling in a window's gap, only in gusts ③ テル
+ * polishing the lens (se_c3_lens_polish ×.3 every 6–10 s; 'polish_off' stops
+ * it when she leaves the lens room, 'polish_on' starts it again).
+ */
+registerAmbience('amb_c3_toudai', (c) => {
+  const low = noiseBed(c, 'lowpass', 200, 0.5, 0.004);
+  const whistleLvl = sub(c, 0);
+  const whistle = toneBed(c, 'sine', 620, 0.0015, whistleLvl);
+  const gust = modulate(c.g, c.t0, modBuffer(c.g, 30, (t) => Math.max(0, Math.sin(t * Math.PI * 2 * 0.07) * 1.6 - 0.6)), whistleLvl.gain, 1);
+  let polish = true;
+  const cloth = new Every(c, 6, 10, (t) => {
+    if (polish) seIn(c, 'se_c3_lens_polish', t, 0.3, c.dest, 0.3);
+  }, 2, 6);
+  return {
+    pump: (u) => cloth.pump(u),
+    event(name) {
+      if (name === 'polish_off') polish = false;
+      else if (name === 'polish_on') polish = true;
+    },
+    stop(t) {
+      low.stop(t);
+      whistle.stop(t);
+      gust.stop(t);
+    },
+  };
+});
+
+/**
+ * amb_c3_uminoie — the beach hut in the reed screens' shade: ① an electric
+ * fan (no shaved-ice machine: 9月1日, the hut is closing for the year). The
+ * beach outside is the map's second bed (amb_c3_umi through the screens).
+ */
+registerAmbience('amb_c3_uminoie', (c) => {
+  const fan = noiseBed(c, 'lowpass', 800, 0.5, 0.002);
+  const motor = toneBed(c, 'sine', 48, 0.0015);
+  const sway = modulate(c.g, c.t0, modBuffer(c.g, 16, (t) => Math.sin(t * Math.PI * 2 * 0.125)), fan.gain.gain, 0.0008);
+  return {
+    stop(t) {
+      fan.stop(t);
+      motor.stop(t);
+      sway.stop(t);
+    },
+  };
+});
+
+/**
+ * amb_c3_suichu — under the sea (map_c3_umi, グソっ君's dive): ① a low
+ * underwater rumble, slowly breathing ② a boat's engine far off (12:01
+ * only: at 12:00 it is stopped) ③ sand shifting now and then ④ a high
+ * 「しゃらん」 with the light on the surface. No bubbles (グソっ君 breathes
+ * with gills, 1.6); not dark, not frightening.
+ */
+registerAmbience('amb_c3_suichu', (c) => {
+  const rumble = noiseBed(c, 'lowpass', 250, 0.6, 0.006);
+  const breath = modulate(c.g, c.t0, modBuffer(c.g, 25, (t) => Math.sin(t * Math.PI * 2 * 0.08)), rumble.gain.gain, 0.004);
+  const boatLvl = sub(c, noonNow() ? 1 : 0);
+  const boat = toneBed(c, 'sine', 55, 0.002, boatLvl);
+  const boatAm = modulate(c.g, c.t0, modBuffer(c.g, 1, (t) => Math.sin(t * Math.PI * 2 * 12)), boat.gain.gain, 0.0008);
+  const sand = new Every(c, 4, 9, (t) => v(c, { at: t, wave: 'noise', dur: 0.015, attack: 0.002, decay: 0.015, sustain: 0, release: 0.01, vol: 0.002, filter: { type: 'bandpass', freq: 2000, q: 1 }, pan: c.rng.range(-0.6, 0.6) }), 1, 5);
+  const shine = new Every(c, 10, 20, (t) => {
+    const pan = c.rng.range(-0.5, 0.5);
+    v(c, { at: t, wave: 'sine', freq: 3100, dur: 0.01, attack: 0.004, decay: 0.9, sustain: 0, release: 0.2, vol: 0.002, pan, reverb: 0.4 });
+    v(c, { at: t, wave: 'sine', freq: 4700, dur: 0.01, attack: 0.004, decay: 0.7, sustain: 0, release: 0.2, vol: 0.0008, pan, reverb: 0.4 });
+  }, 3, 10);
+  const off = onC3((name, value, at) => {
+    if (name === 'c3_noon') setLevel(boatLvl.gain, value === 1 ? 1 : 0, at, 4);
+  });
+  return {
+    pump(u) {
+      sand.pump(u);
+      shine.pump(u);
+    },
+    stop(t) {
+      rumble.stop(t);
+      breath.stop(t);
+      boat.stop(t);
+      boatAm.stop(t);
+      off();
+    },
+  };
+});
+
 export const CH3_AMBIENCE_IDS = [
   'amb_c3_umi', 'amb_c3_semi', 'amb_c3_tori', 'amb_c3_mikan', 'amb_c3_minato', 'amb_c3_ichiba', 'amb_c3_ichiba_out',
   'amb_c3_shokudo', 'amb_c3_shokudo_out', 'amb_c3_himono', 'amb_c3_bouhatei', 'amb_c3_kaisui', 'amb_c3_siren_hum',
-  'amb_c3_siren_hold', 'amb_c3_keitora', 'amb_c3_hirumae',
+  'amb_c3_siren_hold', 'amb_c3_keitora', 'amb_c3_hirumae', 'amb_c3_siren_room', 'amb_c3_toudai', 'amb_c3_uminoie', 'amb_c3_suichu',
 ];
 

@@ -9,7 +9,7 @@ import { ease } from '../engine/tween';
 import { markText } from '../engine/textzones';
 import { Gfx } from '../engine/gfx';
 import { BAYER4, makeCanvas } from '../engine/pixel';
-import { CAPSULE_TABLE, fillAll, getItem, getSkill, ITEM_TEXT, LABEL, NORI, NORI_COMMON, NORI_HOSHI, SYS, SYS2, yakiimoFirst } from '../data/battle';
+import { CAPSULE_TABLE, fillAll, getItem, getSkill, ITEM_TEXT, LABEL, NORI, NORI_COMMON, NORI_HOSHI, SYS, SYS2, SYS3, yakiimoFirst } from '../data/battle';
 import type { BattleScene } from './scene';
 import { FRAME, STAGE_TOP } from './scene';
 import {
@@ -36,6 +36,8 @@ import { bokemakeLabel, NORI_MIN_MS, NORI_READ_MS, noriLetterMs, timingSlow, tsu
 import { textSpeedMul } from '../ui/settings';
 import { onBossPartBreak, onBossBodyMimashita, bossUndo, doOkaerinasai, doOyasuminasai } from './boss';
 import { raiseTomato, yobiLit } from './boss_yobimodoshi';
+import { ch3AfterMimashita, potReady } from './ch3rules';
+import { hankoGochisousama, hankoItadakimasu, potHanamaru } from './hanko_ch3';
 import { hankoOtsukaresama, hatoMeishiKacho, kaneKon, konRing, otsukareBlock, pekeHamidashi, shockBack, shockLine } from './party_ch2';
 
 // ---- helpers -----------------------------------------------------------------------
@@ -339,6 +341,8 @@ function* strikeOnce(
   if (good) s.labelForHit(LABEL.iioto, e, false, 'shu', o.two && !o.second ? 300 : 560);
   if (boke && s.enemies[0]?.id === 'enemy_hato_kakaricho') showSticky(s, 'bokemake', undefined, false, 2600);
   const killed = hurtEnemy(s, e, dmg, { crit, stack: o.stack });
+  // Lv10 (61 3.5): 海の こうら — a good-sounding こうらタックル rings like the sea: キレ +1
+  if (good && o.tackle && u.m.level >= 10 && flag('flag_ch3_started')) umiKoura(s, e);
   return { killed, hit: true, boke };
 }
 
@@ -936,7 +940,19 @@ export function* doHanko(s: BattleScene, cmd: Extract<PartyCmd, { kind: 'hanko' 
       yield* hankoMimashita(s, u, target as EnemyUnit, judge, cmd.part);
       break;
     case 'skill_hanamaru':
-      yield* hankoHanamaru(s, u, target as PartyUnit, judge);
+      // オカワリナベ (61 10.4): the はなまる on the pot settles it
+      if (target.kind === 'enemy') {
+        const pot = potReady(s);
+        if (pot) yield* potHanamaru(s, u, pot, judge);
+        else yield* s.say((target as EnemyUnit).def.texts.extra.potSlip ?? []);
+      } else yield* hankoHanamaru(s, u, target as PartyUnit, judge);
+      break;
+    // 第3章 (61 6.1・6.2)
+    case 'skill_itadakimasu':
+      yield* hankoItadakimasu(s, u, judge);
+      break;
+    case 'skill_gochisousama':
+      yield* hankoGochisousama(s, u, target as EnemyUnit, judge);
       break;
     case 'skill_yarinaoshi':
       yield* hankoYarinaoshi(s, target as EnemyUnit, judge, cmd.part);
@@ -991,6 +1007,26 @@ function* hankoPeke(s: BattleScene, u: PartyUnit, e: EnemyUnit, j: Judge): Co {
   // a finishing stamp goes straight into 思いだす (its hitstop overrides the hit's)
   if (down.length) yield* killSequence(s, down);
   else yield 400;
+}
+
+/** Lv10 海の こうら: a thin sea-blue ring off the shell (r 4 → 14, 240 ms), a wave's slap, キレ +1. */
+function umiKoura(s: BattleScene, e: EnemyUnit): void {
+  const x = e.coreX;
+  const y = e.coreY;
+  s.addFx({
+    layer: 'top',
+    dur: 240,
+    draw: (g, t) => {
+      const r = 4 + (t / 240) * 10;
+      g.alpha(1 - t / 240, () => g.ring(x, y, r, '#8FD3E8'));
+    },
+  });
+  s.sfx('se_hit_pashi', { pitch: 0.8, vol: 0.5 });
+  addKire(s, 1);
+  if (!s.memo.umiKoura) {
+    s.memo.umiKoura = 1;
+    s.post(SYS3.umiKoura);
+  }
 }
 
 function sk(id: string) {
@@ -1073,6 +1109,8 @@ function* hankoMimashita(s: BattleScene, u: PartyUnit, e: EnemyUnit, j: Judge, p
   else if (again) yield* s.say(fillAll(SYS.mimashitaAgain, { enemy: e.name }));
   else yield* s.say(fillAll(SYS.mimashita, { enemy: e.name }));
   void first;
+  // 第3章: ネフダマヨイ's price is read off the tag (61 9.1)
+  yield* ch3AfterMimashita(s, e);
   // スネトマト (51 8.1): seen, it stops sulking and turns round to face us
   if (e.status.sune) {
     e.status.sune = false;
@@ -1146,6 +1184,13 @@ function* hankoHanamaru(s: BattleScene, u: PartyUnit, t: PartyUnit, j: Judge): C
   const wasDown = !t.alive;
   healParty(s, t, n);
   s.petals(fx, fy, j === 'kukkiri' ? 28 : j === 'kasure' ? 6 : 12, 16);
+  // Lv9 (61 3.5): はなまるの おすそわけ — a くっきり one scatters petals on the one beside (×0.4)
+  const share = j === 'kukkiri' && u.m.level >= 9 && flag('flag_ch3_started') ? s.party.filter((p) => p !== t && p.alive && !p.has('status_rusu')) : [];
+  for (const p of share) {
+    const [qx, qy] = PANEL_POS[p.id];
+    s.petals(qx + 20, qy + 22, 10, 14);
+    healParty(s, p, Math.max(1, Math.round(n * 0.4)));
+  }
   t.hanamaruMark = true;
   s.mood(t, 'happy', 1000);
   // the judgement goes on the stage side of the green number, never on the tags
@@ -1155,6 +1200,7 @@ function* hankoHanamaru(s: BattleScene, u: PartyUnit, t: PartyUnit, j: Judge): C
   yield 300;
   yield* s.say(fillAll(SYS.hanamaru, { target: t.name }));
   if (wasDown && t.alive) yield* s.say(fillAll(SYS.revived, { target: t.name }));
+  if (share.length) yield* s.say(SYS3.osusowake);
 }
 
 function* hankoYarinaoshi(s: BattleScene, e: EnemyUnit, j: Judge, partId?: string): Co {
@@ -1204,6 +1250,11 @@ function* hankoYarinaoshi(s: BattleScene, e: EnemyUnit, j: Judge, partId?: strin
   stampFeel(s, e, cx, cy, j, false);
   if (e.def.boss) {
     yield* bossUndo(s, e, j, partId);
+    return;
+  }
+  // ナリオサメ: time against time (61 11.3, 24 #22)
+  if (e.id === 'enemy_nariosame') {
+    yield* s.say(e.def.texts.extra.noYarinaoshi ?? SYS.yarinaoshiNone);
     return;
   }
   if (e.status.tame) {
@@ -1369,6 +1420,48 @@ function* prKane(s: BattleScene, u: PartyUnit): Co {
   yield 90;
   back.frame = 'idle';
   yield () => !s.msg.busy;
+  // Lv8 (61 3.5): one time in four, all the way round (once a battle): キレ+3
+  if (kaneFull(s, u)) {
+    s.memo.kaneFull = 1;
+    s.freezeMs = 300;
+    yield null;
+    // the back rolls up into a ball, rolls once and opens again (600 ms)
+    back.frame = 'bow3';
+    for (let i = 0; i < 3; i++) {
+      konRing(s, 304 + (i - 1) * 10, Math.round(back.y) - 30);
+      yield 200;
+    }
+    back.frame = 'idle';
+    const bangK = kireIcon(true, true);
+    for (let i = 0; i < 3; i++) {
+      s.addFx({
+        layer: 'top',
+        dur: 900 + i * 80,
+        ui: true,
+        draw: (g, t) => {
+          const tt = t - i * 80;
+          if (tt < 0) return;
+          const sc = tt < 90 ? 1.8 - 0.8 * (tt / 90) : 1;
+          const w = bangK.width * sc;
+          const h = bangK.height * sc;
+          g.alpha(tt > 700 ? (900 - tt) / 200 : 1, () => g.ctx.drawImage(bangK, Math.round(304 + i * 12 - w / 2), Math.round(back.y - 62 - h / 2), Math.round(w), Math.round(h)));
+        },
+      });
+    }
+    yield* s.say(SYS3.kaneFull.slice(0, 1));
+    addKire(s, 3);
+    yield* s.say(SYS3.kaneFull.slice(1));
+    s.msgInteractive = false;
+    for (let i = 0; i <= 8; i++) {
+      back.y = 142 + 88 * ease.quadIn(i / 8);
+      yield null;
+    }
+    fx.done = true;
+    const fullK = kireFullPages(s);
+    if (fullK.length) yield* s.say(fullK);
+    else yield 200;
+    return;
+  }
   // Lv6 (51 3.5): one time in four, a small 「コン」 — no crow, キレ+2
   if (kaneKon(s, u)) {
     muteMusic(0.3);
@@ -1485,6 +1578,13 @@ function* prKane(s: BattleScene, u: PartyUnit): Co {
   else yield 200;
 }
 
+/** Lv8 (61 3.5): 25% for 「ぜんぶ まるく なれた」, once a battle (chapter 3). */
+function kaneFull(s: BattleScene, u: PartyUnit): boolean {
+  if (u.id !== 'kanenari' || u.m.level < 8 || !flag('flag_ch3_started') || s.memo.kaneFull) return false;
+  if (s.memo.forceKon) return s.memo.forceKon >= 2;
+  return rng.next() < 0.25;
+}
+
 // ---- items ---------------------------------------------------------------------------------
 
 export function* doItem(s: BattleScene, u: PartyUnit, itemId: string, target0: PartyUnit | null): Co {
@@ -1561,6 +1661,12 @@ export function* doItem(s: BattleScene, u: PartyUnit, itemId: string, target0: P
       // 朱肉 only goes into Minato (梅干し given to グソっ君: just sour)
       if (def.mp && d.m.maxMp > 0) healParty(s, d, def.mp, { mp: true });
       if (def.cure) for (const c of def.cure) if (d.has(c)) cureStatus(s, d, c);
+      // かき氷 (61 7.1): the speed that おかわり / まかり took comes back too
+      if (def.special === 'kakigori' && d.stages.spd.lv < 0) {
+        d.stages.spd.lv = 0;
+        d.stages.spd.turns = 0;
+        delete d.m.status.status_c3_ippai;
+      }
       if (def.special === 'shippu')
         for (const k of ['atk', 'def', 'hit'] as const)
           if (d.stages[k].lv < 0) {

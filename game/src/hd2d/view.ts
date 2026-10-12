@@ -246,8 +246,22 @@ export class Hd2dView {
     // (a room: where the 2D camera centres it or stops, no look ahead; a
     // hall wider than the 3D frame follows Minato across, room.ts roomPan)
     const room = roomMap(f.map.id);
-    return new THREE.Vector3((f.camX + W / 2) / 16 + (room ? roomPan(f) : 0), 0, (f.camY + H / 2) / 16 - (room ? 0 : lookN));
+    // (a place with a hill: the camera rises with the ground under Minato, eased — 海ぞいの町)
+    let y = 0;
+    if (!room && placeOf(f.map.id).camLift && this.world instanceof TownWorld) {
+      const want = this.world.heightAt(f.player.x / 16, (f.player.y - 1) / 16);
+      const now = performance.now();
+      const k = this.liftAt < 0 || now - this.liftAt > 500 ? 1 : 1 - Math.pow(0.0025, (now - this.liftAt) / 1000);
+      this.liftAt = now;
+      this.lift += (want - this.lift) * k;
+      y = this.lift;
+    } else this.liftAt = -1;
+    return new THREE.Vector3((f.camX + W / 2) / 16 + (room ? roomPan(f) : 0), y, (f.camY + H / 2) / 16 - (room ? 0 : lookN));
   }
+
+  /** The camera's eased rise over a hill (target()). */
+  private lift = 0;
+  private liftAt = -1;
 
   /**
    * `crop`: a story close-up (events/stage.ts ZoomView) — the rect of the

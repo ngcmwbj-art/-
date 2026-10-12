@@ -67,10 +67,12 @@ export interface Params {
   c3_wana: number;
   /** 63 6.7: 0 outside chapter 3 or 夕鳴町, 1 海ぞいの町, 2 旧水族館 (the battle songs' forms). */
   c3_phase: number;
+  /** 63 6.8: ナリオサメ's 「正午の 音」 rewinds bgm_boss_nariosame two bars (1, set back to 0 by the song). */
+  nari_rewind: number;
 }
 
 /** Every param's resting value (the chapter-1 state: nothing of chapter 2 is on). */
-export const PARAM_DEFAULTS: Readonly<Params> = { stage: 0, kire: 0, boss_phase: 1, h_stage: -1, h_light: 0, tenko: 0, h_rest: 0, h_room: 0, clock: 0, h_deli: 0, c3_noon: 0, c3_ichiba: 0, c3_shokudo: 0, c3_umi: 0, c3_ichi: 0, c3_shio: 0, c3_wana: 0, c3_phase: 0 };
+export const PARAM_DEFAULTS: Readonly<Params> = { stage: 0, kire: 0, boss_phase: 1, h_stage: -1, h_light: 0, tenko: 0, h_rest: 0, h_room: 0, clock: 0, h_deli: 0, c3_noon: 0, c3_ichiba: 0, c3_shokudo: 0, c3_umi: 0, c3_ichi: 0, c3_shio: 0, c3_wana: 0, c3_phase: 0, nari_rewind: 0 };
 
 /**
  * Changes that land on the next beat instead of the next bar: a kire rise

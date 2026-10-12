@@ -19,7 +19,7 @@ import { h01, ihash } from '../tiles/noise';
 import { P } from '../tiles/palette';
 import { CP } from '../tiles/c3_ground';
 import { KAWARA_IBUSHI, KAWARA_OLD, norenFrames, registerBuilding, roofFlat, roofKawara, roofSlate, type Bld } from './bkit';
-import { dk, lt, shadeRect } from './kit';
+import { dk, lt, outline, shadeRect } from './kit';
 import { darkWin, footing, hikido, hyousatsu, roofTinH, starVerge, TIN_GRAY, TIN_RUST, wall, wallLap, wallPlain, type WallFn } from './hoshi_kit';
 import type { RoofPal } from './bkit';
 import { fontTextSmall } from './text';
@@ -298,7 +298,11 @@ registerBuilding((opts) => ({
   },
 }));
 
-/** 食堂かもめののれん: red with 「かもめ」 in white and a small gull (32×20); it hangs still at 12:00 (motion 0). */
+/**
+ * 食堂かもめののれん: red with 「かもめ」 in white and a small gull (32×20); it
+ * hangs still at 12:00 (motion 0). At 12:01 it is taken in (ナミエ holds it
+ * at the door, S13: 62 6.2).
+ */
 registerProp('prop_c3_noren', () => {
   const fr = norenFrames(30, 19, '#C8452E', 3, (p) => {
     fontTextSmall(p, 'かもめ', 3, 6, '#F4F1E8');
@@ -310,12 +314,15 @@ registerProp('prop_c3_noren', () => {
     h: 20,
     // (in front of the building, whose foot is this row's bottom)
     foot: 17,
-    img: (env: PropEnv) => fr.f[Math.floor(env.mt / fr.ms) % fr.f.length],
+    img: (env: PropEnv) => (env.flag('flag_ch3_stage') >= 2 ? null : fr.f[Math.floor(env.mt / fr.ms) % fr.f.length]),
     contact: 0,
   };
 });
 
-/** The steam from the fan, stopped in a white column at 12:00 (it rises again at 12:01). */
+/**
+ * The steam from the fan: stopped in a white column at 12:00; at 12:01 it
+ * rises again, puffs drifting up and thinning (6 frames, 62 8.8).
+ */
 registerProp('prop_c3_yuge', () => {
   const still = new PixelCanvas(10, 22);
   for (const [cx, cy, r] of [[5, 18, 2.5], [4, 13, 2.5], [5, 8, 2], [6, 4, 1.5]] as const) {
@@ -323,7 +330,29 @@ registerProp('prop_c3_yuge', () => {
     still.set(cx - 1, cy - 1, '#F4F1E8');
   }
   const img = still.toCanvas();
-  return { ox: 3, oy: -18, w: 10, h: 22, foot: 33, img: () => img, contact: 0 };
+  const rising: HTMLCanvasElement[] = [];
+  for (let k = 0; k < 6; k++) {
+    const p = new PixelCanvas(10, 22);
+    for (let i = 0; i < 4; i++) {
+      // each puff climbs a quarter of the column per frame, smaller as it goes, drifting with the breeze
+      const ph = ((k / 6 + i / 4) % 1);
+      const cy = Math.round(20 - ph * 18);
+      const cx = Math.round(5 + Math.sin(ph * 5 + i) * 1.5 + ph * 2);
+      const r = 2.6 - ph * 1.6;
+      if (r < 0.8) continue;
+      p.ellipse(cx, cy, r + 0.5, r, ph > 0.6 ? '#F4F1E8' : '#FFFFFF');
+    }
+    rising.push(p.toCanvas());
+  }
+  return {
+    ox: 3,
+    oy: -18,
+    w: 10,
+    h: 22,
+    foot: 33,
+    img: (env: PropEnv) => (env.flag('flag_ch3_stage') >= 2 && env.motion > 0.3 ? rising[Math.floor(env.t / 160) % 6] : img),
+    contact: 0,
+  };
 });
 
 // ---------------------------------------------------------------- houses on the harbour road
@@ -398,13 +427,58 @@ house('prop_c3_bld_toudai', 'kawara', wallYakisugi(4), 61, (b) => {
 
 // ---------------------------------------------------------------- 市場 (4,19) 29×(3+2)
 
+/** あぜ道市's six shop spaces and who opens each (60 3.4・62 4.2): the flag of the one who came. */
+export const AZE_SHOPS: Record<string, string> = {
+  hinoya: 'flag_ch3_kita_npc_obaa',
+  tofu: 'flag_ch3_kita_npc_mamekichi',
+  cafe: 'flag_ch3_kita_npc_master',
+  tomato: 'flag_ch3_kita_npc_hoshi_mitsu',
+  yasumi: 'flag_ch3_kita_npc_hoshi_yoshie',
+  tokei: 'flag_ch3_kita_npc_tokio',
+};
+
+/**
+ * あぜ道市's banners (62 3.11・7.3 prop_c3_nobori, 8×28): one more for each
+ * shop that opens, standing along the market's back edge under its sign —
+ * seen from the harbour road. Each in its shop's colour (ひのや 朱, 豆腐 紺,
+ * 喫茶 こげ茶, トマト 赤, 休み所 うすい緑, 時計 金), the letters unreadable
+ * strokes. Still at 12:00, flapping at 12:01 (3 frames).
+ */
+const NOBORI_COL = ['#E84E3C', '#2F4A8A', '#5A3A2A', '#C8302A', '#9ACB9A', '#D9A441'];
+const noboriFrames: HTMLCanvasElement[][] = NOBORI_COL.map((col) =>
+  [0, 1, 2].map((f) => {
+    const p = new PixelCanvas(12, 32);
+    p.vline(2, 0, 31, '#9AA0A8');
+    p.hline(2, 10, 1, '#9AA0A8');
+    for (let y = 2; y < 28; y++) {
+      const sway = f === 0 ? 0 : Math.round(Math.sin(y / 5 + f * 2) * (y / 28) * 1.5);
+      for (let x = 3; x < 10; x++) p.set(x + sway, y, x === 3 ? mix(col, '#FFFFFF', 0.4) : col);
+      if (y % 4 === 1 && y < 25) p.set(6 + sway, y, mix(col, '#FFFFFF', 0.75));
+    }
+    outline(p, { bottom: false, soft: true });
+    return p.toCanvas();
+  }),
+);
+/** Where they stand along the back edge (image px of the market), in the order they come. */
+const NOBORI_X = [96, 128, 286, 318, 64, 350];
+
 registerBuilding({
   id: 'prop_c3_bld_ichiba',
   W: 29,
   R: 3,
   F: 2,
-  top: 10,
+  // (the strip over the roof holds the sign and あぜ道市's banners: over() below)
+  top: 34,
   band: 0,
+  over(g, x, y, env, b) {
+    let n = 0;
+    for (const f of Object.values(AZE_SHOPS)) if (env.flag(f)) n++;
+    const flap = env.flag('flag_ch3_stage') >= 2 && env.motion > 0.5;
+    for (let k = 0; k < n; k++) {
+      const fr = noboriFrames[k];
+      g.img(fr[flap ? 1 + (Math.floor(env.t / 200 + k) % 2) : 0], x + NOBORI_X[k], y + b.roofY - 31);
+    }
+  },
   paint(b: Bld) {
     const p = b.p;
     const rY = b.roofY;
@@ -417,10 +491,15 @@ registerBuilding({
     for (const x of [160, 258]) p.vline(x, rY + 2, rY + 6, P.steel);
     // folded plate roof: ribs running north–south, the skylight strips white
     roofTinH(p, 0, rY, w, 48, SEPPAN, 61, { rust: 0.05, ridgeFrac: 0.22, patches: 0 });
+    // (the skylights: translucent corrugated sheets, milky — not white: they glared in HD-2D)
     for (const sx of [60, 180, 300, 420]) {
       for (let j = rY + 14; j < rY + 44; j++)
-        for (let i = sx; i < sx + 12; i++) p.set(i, j, (i % 4 === 0) ? '#FFFFFF' : (i % 4 === 3) ? '#C8D8E0' : '#E8F0F4');
+        for (let i = sx; i < sx + 12; i++) p.set(i, j, (i % 4 === 0) ? '#D8E0E4' : (i % 4 === 3) ? '#A8B4BC' : '#C4CED4');
+      p.hline(sx, sx + 11, rY + 14, '#7A8088');
     }
+    // the gutter along the front edge, so the roof reads as a roof from the road
+    p.hline(0, w - 1, rY + 46, '#6B7186');
+    p.hline(0, w - 1, rY + 47, '#4A4E58');
     // the walls: corrugated sheets
     wall(p, 0, fY, w, 32, wallNamiita('#C8CCD2'));
     noonEave(p, 0, fY, w, 4);
@@ -684,8 +763,10 @@ registerProp('prop_c3_kamome_sora', (opts) => {
     w: 15,
     h: h + 8,
     foot: 16 + 40,
-    img: () => img,
-    over: (g, x, y) => {
+    // (at 12:01 it flies: world/c3sea.ts draws it circling round here)
+    img: (env) => (env.flag('flag_ch3_stage') >= 2 && env.motion > 0.5 ? null : img),
+    over: (g, x, y, env) => {
+      if (env.flag('flag_ch3_stage') >= 2 && env.motion > 0.5) return;
       g.ctx.save();
       g.ctx.globalAlpha = 0.12;
       g.ctx.drawImage(shImg, Math.round(x + 2), Math.round(y + 12));

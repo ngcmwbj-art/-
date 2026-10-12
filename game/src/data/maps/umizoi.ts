@@ -118,6 +118,14 @@ function PR(prop: string, x: number, y: number, opts?: Record<string, unknown>, 
 
 /** 12:00 and 12:01 (the town's stages 1–2, 62 3.4). */
 const S12 = { stage: '1-2' };
+const S1 = { stage: 1 };
+const S2 = { stage: 2 };
+
+/**
+ * テル is up in the lamp room while the lens is turned (S09: once the bracelet
+ * is back, until the three waves move — map_c3_toudai), on the plinth otherwise.
+ */
+export const teruInside = (): boolean => flag('flag_ch3_moguri_bracelet') > 0 && flag('flag_ch3_lens_n') < 3;
 
 const OBJECTS: MapObj[] = [
   // ======================================================== buildings (62 3.3・7.1)
@@ -213,6 +221,8 @@ const OBJECTS: MapObj[] = [
 
   // ======================================================== 防波堤・灯台 (y27–33)
   PR('prop_c3_ishi_bench', 42, 31, { c: '#C8C4B8' }),
+  // the real lunch's mats (S13 and the ending, 62 3.3・12.6): from the moment the town says ごちそうさま
+  { t: 'prop', prop: 'prop_c3_goza', x: 22, y: 31, cond: { flag: 'flag_ch3_got_gochisou' } } as MapObj,
   O('obj_c3_bouhatei', 4, 31, { h: 2, face: 'left', fushigi: 'fushigi_ch3_03' }),
   PR('prop_c3_shibuki', 20, 33),
   PR('prop_c3_shibuki', 33, 33),
@@ -242,11 +252,14 @@ const OBJECTS: MapObj[] = [
   PR('prop_c3_kamome_sora', 25, 31, { v: 1, h: 36 }),
   PR('prop_c3_kamome_sora', 60, 29, { v: 0, h: 30 }),
 
-  // ======================================================== people (62 3.4, stage 1 = 12:00)
-  { t: 'npc', id: 'npc_c3_toudai', x: 9, y: 30, dir: 'left', cond: S12 },
-  { t: 'npc', id: 'npc_c3_mago', x: 60, y: 30, dir: 'down', cond: S12 },
-  // カイト up on the lifeguard chair (spoken to from (57,28))
-  { t: 'npc', id: 'npc_c3_kanshiin', x: 57, y: 27, dir: 'down', pose: 'sit', off: [0, -18], noTurn: false, cond: S12 },
+  // ======================================================== people (62 3.4: stage 1 = 12:00, stage 2 = 12:01, S13–S14)
+  { t: 'npc', id: 'npc_c3_toudai', x: 9, y: 30, dir: 'left', cond: { ...S1, when: () => !teruInside() } },
+  { t: 'npc', id: 'npc_c3_toudai', x: 10, y: 30, dir: 'left', cond: S2 },
+  { t: 'npc', id: 'npc_c3_mago', x: 60, y: 30, dir: 'down', cond: S1 },
+  { t: 'npc', id: 'npc_c3_mago', x: 34, y: 31, dir: 'down', cond: S2 },
+  // カイト up on the lifeguard chair (spoken to from (57,28)); at 12:01 under it, the flag folded
+  { t: 'npc', id: 'npc_c3_kanshiin', x: 57, y: 27, dir: 'down', pose: 'sit', off: [0, -18], noTurn: false, cond: S1 },
+  { t: 'npc', id: 'npc_c3_kanshiin', x: 57, y: 28, dir: 'down', cond: S2 },
   { t: 'npc', id: 'npc_c3_himono_otto', x: 17, y: 14, dir: 'down', cond: S12 },
   { t: 'npc', id: 'npc_c3_himono_tsuma', x: 19, y: 14, dir: 'down', cond: S12 },
   { t: 'npc', id: 'npc_c3_tsuri', x: 21, y: 32, dir: 'down', pose: 'sit', cond: S12 },
@@ -254,16 +267,26 @@ const OBJECTS: MapObj[] = [
     t: 'npc', id: 'npc_c3_uketsuke', x: 73, y: 30, dir: 'left', cond: S12,
     move: { kind: 'patrol', points: [[71, 30], [77, 30]], speed: 0.6, wait: 2000 },
   },
-  // the three children: at the breakwater's root until they run to the newcomers (S06), then on the open ground
-  { t: 'npc', id: 'npc_c3_kid_a', x: 44, y: 29, dir: 'down', cond: { ...S12, notFlag: 'flag_ch3_kids' } },
-  { t: 'npc', id: 'npc_c3_kid_b', x: 45, y: 30, dir: 'left', cond: { ...S12, notFlag: 'flag_ch3_kids' } },
-  { t: 'npc', id: 'npc_c3_kid_c', x: 44, y: 31, dir: 'up', cond: { ...S12, notFlag: 'flag_ch3_kids' } },
-  { t: 'npc', id: 'npc_c3_kid_a', x: 6, y: 6, dir: 'right', cond: { ...S12, flag: 'flag_ch3_kids' } },
-  { t: 'npc', id: 'npc_c3_kid_b', x: 9, y: 4, dir: 'down', cond: { ...S12, flag: 'flag_ch3_kids' } },
-  { t: 'npc', id: 'npc_c3_kid_c', x: 12, y: 7, dir: 'left', cond: { ...S12, flag: 'flag_ch3_kids' } },
+  // 12:01: the cook and the regular at the shop's door (the noren in her hands), the auctioneers
+  // at the auction floor's mouth, the siren keeper at the breakwater's root
+  { t: 'npc', id: 'npc_c3_shokudo', x: 29, y: 16, dir: 'down', cond: S2 },
+  { t: 'npc', id: 'npc_c3_jouren', x: 31, y: 16, dir: 'down', cond: S2 },
+  { t: 'npc', id: 'npc_c3_seri', x: 9, y: 24, dir: 'down', cond: S2 },
+  { t: 'npc', id: 'npc_c3_seri_deshi', x: 12, y: 24, dir: 'down', cond: S2 },
+  { t: 'npc', id: 'npc_c3_sirenban', x: 44, y: 28, dir: 'down', cond: S2 },
+  // the three children: at the breakwater's root until they run to the newcomers (S06), then on the open ground; at 12:01 on the breakwater
+  { t: 'npc', id: 'npc_c3_kid_a', x: 44, y: 29, dir: 'down', cond: { ...S1, notFlag: 'flag_ch3_kids' } },
+  { t: 'npc', id: 'npc_c3_kid_b', x: 45, y: 30, dir: 'left', cond: { ...S1, notFlag: 'flag_ch3_kids' } },
+  { t: 'npc', id: 'npc_c3_kid_c', x: 44, y: 31, dir: 'up', cond: { ...S1, notFlag: 'flag_ch3_kids' } },
+  { t: 'npc', id: 'npc_c3_kid_a', x: 6, y: 6, dir: 'right', cond: { ...S1, flag: 'flag_ch3_kids' } },
+  { t: 'npc', id: 'npc_c3_kid_b', x: 9, y: 4, dir: 'down', cond: { ...S1, flag: 'flag_ch3_kids' } },
+  { t: 'npc', id: 'npc_c3_kid_c', x: 12, y: 7, dir: 'left', cond: { ...S1, flag: 'flag_ch3_kids' } },
+  { t: 'npc', id: 'npc_c3_kid_a', x: 33, y: 32, dir: 'down', cond: S2 },
+  { t: 'npc', id: 'npc_c3_kid_b', x: 36, y: 31, dir: 'down', cond: S2 },
+  { t: 'npc', id: 'npc_c3_kid_c', x: 38, y: 32, dir: 'down', cond: S2 },
   // ツガオ便's two (the scenario's lines: script ids of their own so chapter 2's never answer here)
   { t: 'npc', id: 'npc_hirosuke', script: 'c3_hirosuke_umi', x: 18, y: 24, dir: 'down', cond: { ...S12, flag: 'flag_ch3_arrived' } },
-  { t: 'npc', id: 'npc_pokosha', script: 'c3_pokosha_umi', x: 71, y: 31, dir: 'up', cond: { ...S12, flag: 'flag_ch3_arrived' } },
+  { t: 'npc', id: 'npc_pokosha', script: 'c3_pokosha_umi', x: 71, y: 31, dir: 'up', cond: { ...S1, flag: 'flag_ch3_arrived' } },
 
   // ======================================================== triggers (62 1.6)
   { t: 'trig', id: 'trig_ch3_kids', x: 18, y: 16, w: 9, h: 3, script: 'evt_ch3_kids', cond: { flag: 'flag_ch3_arrived', notFlag: 'flag_ch3_kids' } },
@@ -272,6 +295,7 @@ const OBJECTS: MapObj[] = [
   { t: 'trig', id: 'trig_ch3_edge_sea', x: 2, y: 26, w: 26, h: 1, on: 'bump', script: 'trig_ch3_edge_sea' },
   { t: 'trig', id: 'trig_ch3_edge_sea_2', x: 30, y: 26, w: 22, h: 1, on: 'bump', script: 'trig_ch3_edge_sea' },
   { t: 'trig', id: 'trig_ch3_edge_sea_3', x: 5, y: 31, w: 1, h: 2, on: 'bump', script: 'trig_ch3_edge_sea' },
+  // (the two ways into the sea, trig_ch3_dive_minato / _hama, and the trap's trigger are the scenario's: events/ch3)
 ];
 
 /** Areas (62 1.2): the place on the HUD, Kanenari's place key, the beds of sound (63 4.3). Narrowest first. */

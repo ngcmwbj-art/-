@@ -15,6 +15,7 @@ import { yousuText } from './texts';
 import { bossTriesOf } from './boss';
 import { rappaTargetName, yobiCharge, yobiLit } from './boss_yobimodoshi';
 import { keyItemUsable, otsukareBlock } from './party_ch2';
+import { potReady } from './ch3rules';
 
 type Icon = { id: string; name: string; sub?: string; dim?: boolean };
 
@@ -27,9 +28,11 @@ const KEEPSAKE = new Set(['skill_okaerinasai', 'skill_oyasuminasai']);
  * boss, おやすみなさい (grey) — the case is full of what was already pressed.
  */
 function hankoSkills(u: PartyUnit): string[] {
-  const own = u.m.skills.filter((sk) => getSkill(sk)?.kind === 'hanko' && sk !== 'skill_itadakimasu');
+  // (いただきます is a skill only once chapter 3 filled its outline: syncProgressSkills)
+  const own = u.m.skills.filter((sk) => getSkill(sk)?.kind === 'hanko' && sk !== 'skill_minna_hanamaru');
   if (!flag('flag_ch2_started')) return own.filter((sk) => !KEEPSAKE.has(sk));
-  const order = ['skill_mimashita', 'skill_peke', 'skill_hanamaru', 'skill_yarinaoshi', 'skill_otsukaresama', 'skill_okaerinasai', 'skill_oyasuminasai'];
+  // 第3章 (61 6.5): いただきます・ごちそうさま after おつかれさま, the keepsakes last
+  const order = ['skill_mimashita', 'skill_peke', 'skill_hanamaru', 'skill_yarinaoshi', 'skill_otsukaresama', 'skill_itadakimasu', 'skill_gochisousama', 'skill_okaerinasai', 'skill_oyasuminasai'];
   return order.filter((sk) => own.includes(sk) && (sk !== 'skill_oyasuminasai' || !!flag('flag_ch2_boss_beaten')));
 }
 
@@ -57,6 +60,8 @@ function keyItems(): string[] {
 export function canUndo(s: BattleScene, e: EnemyUnit, part?: BossPart): boolean {
   // ヨビモドシ: only a lit name tag can be undone (the ラッパ are for みました)
   if (s.bossKind === 'yobimodoshi' && e.def.boss) return !part && s.bossChime.lit > 0;
+  // ナリオサメ (61 11.3): it can be tried — and says why it cannot work
+  if (e.id === 'enemy_nariosame' && e.status.c3_maki) return true;
   if (part) return part.glow && !part.broken;
   if (e.status.tame) return true;
   if (e.def.boss) return s.bossChime.lit > 0 || s.bossParts.some((p) => p.glow && !p.broken);
@@ -182,7 +187,8 @@ function queuedCommands(s: BattleScene): PartyCmd[] {
       case 'hanko': {
         const def = getSkill(c.skill ?? '');
         if (!def) break;
-        out.push({ kind: 'hanko', u, skill: def.id, target: def.target === 'ally' ? ally() : enemy(), part: c.part });
+        // (target 'pot': the はなまる on オカワリナベ, 61 10.4)
+        out.push({ kind: 'hanko', u, skill: def.id, target: def.target === 'ally' && c.target !== 'pot' ? ally() : def.target === 'allies' ? u : enemy(), part: c.part });
         break;
       }
       case 'pr':
@@ -266,6 +272,14 @@ function* chooseFor(s: BattleScene, u: PartyUnit, canBack: boolean, lastIndex: R
     }
     ch2Pulse = 'item';
     s.memo.list_item = 0;
+  }
+  // 第3章 (61 10.4・11.3): the pot ready for the はなまる; the noon going back (いただきます)
+  if (u.id === 'minato' && !ch2Pulse && potReady(s)) {
+    ch2Pulse = 'hanko';
+    s.memo.list_hanko = Math.max(0, hankoSkills(u).indexOf('skill_hanamaru'));
+  } else if (u.id === 'minato' && !ch2Pulse && s.memo.itadakiTut && hankoSkills(u).includes('skill_itadakimasu')) {
+    ch2Pulse = 'hanko';
+    s.memo.list_hanko = Math.max(0, hankoSkills(u).indexOf('skill_itadakimasu'));
   }
   if (ch2Pulse && lastIndex[u.id] === undefined) {
     const pi = commandIcons(s, u).findIndex((ic) => ic.id === ch2Pulse);
@@ -492,6 +506,14 @@ function* hankoMenu(s: BattleScene, u: PartyUnit): Co<PartyCmd | null> {
           return 'stay';
         }
         s.sfx('se_confirm');
+        // いただきます: everyone at once (61 6.1)
+        if (def.target === 'allies') return { kind: 'hanko', u, skill: sk, target: u };
+        // オカワリナベ (61 10.4): the pot heads the list while it can take the はなまる
+        const pot = sk === 'skill_hanamaru' ? potReady(s) : null;
+        if (pot) {
+          const t = yield* pickPotOrAlly(s, pot);
+          return t ? { kind: 'hanko', u, skill: sk, target: t } : null;
+        }
         if (def.target === 'ally') {
           const t = yield* pickAlly(s, true);
           return t ? { kind: 'hanko', u, skill: sk, target: t } : null;
@@ -773,6 +795,38 @@ function partTag(glow: boolean): HTMLCanvasElement {
   }
   partTags[k] = img;
   return img;
+}
+
+/** The pot first, then the party (61 10.4: the only battle where はなまる goes on an enemy). */
+function* pickPotOrAlly(s: BattleScene, pot: EnemyUnit): Co<EnemyUnit | PartyUnit | null> {
+  const inp = game.input;
+  const list: (EnemyUnit | PartyUnit)[] = [pot, ...s.party.filter((u) => !u.has('status_rusu'))];
+  let index = 0;
+  for (;;) {
+    const t = list[index];
+    s.target = t.kind === 'enemy' ? { kind: 'enemy', e: t } : { kind: 'party', u: t };
+    s.msg.setStatic(t.name);
+    yield null;
+    if (inp.repeat('left') || inp.repeat('up')) {
+      index = (index + list.length - 1) % list.length;
+      s.sfx('se_cursor');
+    } else if (inp.repeat('right') || inp.repeat('down')) {
+      index = (index + 1) % list.length;
+      s.sfx('se_cursor');
+    }
+    if (s.takeCancel()) {
+      s.sfx('se_cancel');
+      s.target = null;
+      s.msg.setStatic('');
+      return null;
+    }
+    if (s.takeConfirm()) {
+      s.sfx('se_confirm');
+      s.target = null;
+      s.msg.setStatic('');
+      return list[index];
+    }
+  }
 }
 
 export function* pickAlly(s: BattleScene, includeDown: boolean, only?: string): Co<PartyUnit | null> {

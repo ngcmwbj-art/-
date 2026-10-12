@@ -1337,6 +1337,27 @@ export const DRM: Record<string, Drum> = {
     voice(dbase(d, { wave: 'triangle', freq: 140, dur: 0.004, attack: 0.001, decay: 0.09, sustain: 0, release: 0.03, vol: v * 0.6 }));
     voice(dbase(d, { wave: 'noise', dur: 0.015, attack: 0.001, decay: 0.015, sustain: 0, release: 0.005, vol: v * 0.4, filter: { type: 'lowpass', freq: 700 } }));
   },
+  /** The sea version of the battle hat (63 5.11): the sand at the water's edge「さら」. */
+  drm_wave_hat: (d) => {
+    voice(dbase(d, { wave: 'noise', dur: 0.02, attack: 0.02, decay: 0.09, sustain: 0, release: 0.02, vol: dv(d, 0.03), filter: { type: 'bandpass', freq: 5000, q: 0.8 } }));
+  },
+  /** A boat's fender against the quay「ギュッ」, the woodblock's height ×0.6 (63 5.11). */
+  drm_fender: (d) => {
+    const v = dv(d, 0.06);
+    voice(dbase(d, { wave: 'sine', freq: 720, freqEnd: 640, glide: 0.04, dur: 0.01, attack: 0.002, decay: 0.07, sustain: 0, release: 0.02, vol: v, reverb: 0.12 }));
+    voice(dbase(d, { wave: 'sawtooth', freq: 140, freqEnd: 110, glide: 0.06, dur: 0.03, attack: 0.004, decay: 0.06, sustain: 0, release: 0.02, vol: v * 0.25, filter: { type: 'bandpass', freq: 600, q: 1.5 } }));
+  },
+  /** The ladle on the pot's rim「カン」(drm_hera at pitch 0.8: bgm_midboss's cowbell by the sea). */
+  drm_otama: (d) => {
+    const v = dv(d, 0.04);
+    for (const [f, k] of [
+      [1840, 1],
+      [2840, 0.6],
+      [4080, 0.3],
+    ])
+      voice(dbase(d, { wave: 'sine', freq: f, dur: 0.004, attack: 0.0006, decay: 0.2, sustain: 0, release: 0.04, vol: v * k, reverb: 0.18 }));
+    voice(dbase(d, { wave: 'sine', freq: 480, dur: 0.004, attack: 0.0005, decay: 0.012, sustain: 0, release: 0.005, vol: v * 0.4 }));
+  },
   /** The walking tractor's air-cooled single "ドッ" (follows the song's pitch bus: the engine sags with the bow). */
   drm_putt: (d) => {
     const v = dv(d, 0.12);

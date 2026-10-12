@@ -22,3 +22,7 @@ import './sekitome';
 // 夕鳴小学校の 校庭の ヒキヅナ（第1章 段階2、02 #82）
 import './hikizuna';
 import './yobimodoshi';
+// 第3章（海ぞいの町。61 9.1・10.7・11.7）
+import './c3_nefuda';
+import './c3_okawarinabe';
+import './c3_nariosame';

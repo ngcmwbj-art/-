@@ -41,9 +41,24 @@ const party: SkillDef[] = [
     noDamage: true, desc: ['長い 夜に、押す ハンコ。', '（最後に 使った）'],
   },
   {
-    // 51 5.3: an outline only (chapter 3); never learned, never in a battle list
-    id: 'skill_itadakimasu', name: '？？？', user: 'minato', kind: 'hanko', cost: 0, target: 'none', input: 'none',
-    noDamage: true, desc: ['（輪郭だけが、うっすら 見える）', '―'],
+    // 51 5.3: an outline from the chapter-2 ending (the menus show ？？？ while it
+    // is one); 61 6.1: learned in chapter 3 (S11, flag_ch3_got_itadakimasu) —
+    // everyone is healed, ordinary enemies skip their next move, and against
+    // ナリオサメ it stops the rewinding (61 11.4)
+    id: 'skill_itadakimasu', name: 'いただきます', user: 'minato', kind: 'hanko', cost: 6, target: 'allies', input: 'hold',
+    noDamage: true, desc: ['手を 合わせる ハンコ。正午の 合図。', 'みんなを 回復。敵は ごはんで 1回 休む。'],
+  },
+  {
+    // 61 6.2: the 9th slot (S13, flag_ch3_got_gochisou) — ends an enemy's
+    // repeating move (its healing for the rest of the battle) and takes its
+    // raised steps down one; くっきり: ボケ負け as well
+    id: 'skill_gochisousama', name: 'ごちそうさま', user: 'minato', kind: 'hanko', cost: 5, target: 'enemy', input: 'hold',
+    noDamage: true, desc: ['食べ終わった ハンコ。ありがとうの 判。', 'くり返す わざを、終わらせる。'],
+  },
+  {
+    // 61 6.3: the 10th slot, learned in the last battle (S27, 第3期)
+    id: 'skill_minna_hanamaru', name: 'みんなの はなまる', user: 'minato', kind: 'hanko', cost: 0, target: 'enemy', input: 'hold',
+    noDamage: true, desc: ['みんなが 手で 描いた', 'はなまるの ハンコ。'],
   },
   {
     id: 'skill_tackle', name: 'こうらタックル', user: 'kanenari', kind: 'attack', ct: 0, target: 'enemy', power: 1.0,
@@ -195,6 +210,51 @@ const enemies: SkillDef[] = [
   enemy({ id: 'skill_yobi_amado', name: '雨戸', target: 'enemy', power: 1.6, hits: [0], windupMs: 600, tsukkomi: [3], big: true }),
   enemy({ id: 'skill_yobi_yamabiko', name: '山びこ', target: 'self', windupMs: 500, tsukkomi: [3], noDamage: true }),
   enemy({ id: 'skill_yobi_onamae', name: 'おなまえ よびだし', target: 'enemy', power: 0.8, hits: [0], windupMs: 700, tsukkomi: [2] }),
+  // ---- 第3章（61 1.4・9.1・10.6・11.6） ----
+  // ネフダマヨイ
+  enemy({ id: 'skill_nefuda_hyaku', name: 'ひゃく……', target: 'self', windupMs: 600, tsukkomi: [1], noDamage: true }),
+  enemy({ id: 'skill_nefuda_harikae', name: '値札はりかえ', target: 'enemy', power: 1.0, hits: [0], windupMs: 500, tsukkomi: [2] }),
+  enemy({
+    id: 'skill_nefuda_makari', name: 'まかり……', target: 'allies', power: 0.5, hits: [0], windupMs: 550, tsukkomi: [2],
+    status: { id: 'buff_spd', chance: 0.6, turns: 3, stage: -1 },
+  }),
+  // オカワリナベ（中ボス1）
+  enemy({
+    id: 'skill_okawari_okawari', name: 'おかわり', target: 'enemy', windupMs: 500, tsukkomi: [1], noDamage: true,
+    status: { id: 'status_c3_ippai', chance: 1, turns: 3, stage: -1 },
+  }),
+  enemy({ id: 'skill_okawari_yuge', name: '湯気', target: 'allies', power: 0.5, hits: [0], windupMs: 600, tsukkomi: [2] }),
+  enemy({ id: 'skill_okawari_futa', name: 'ふたが 閉まらない', target: 'self', windupMs: 700, noDamage: true }),
+  // ナリオサメ（中ボス2）
+  enemy({ id: 'skill_nari_kaze', name: '羽根の 風', target: 'allies', power: 0.6, hits: [0], windupMs: 700, tsukkomi: [1] }),
+  enemy({
+    id: 'skill_nari_yobu', name: '町を 呼ぶ', target: 'allies', power: 0.4, hits: [0], windupMs: 800, tsukkomi: [2],
+    status: { id: 'status_konran', chance: 0.3, turns: 2 },
+  }),
+  enemy({ id: 'skill_nari_mada', name: 'まだ 鳴り終わりたくない', target: 'self', windupMs: 500, tsukkomi: [3], noDamage: true }),
+  enemy({ id: 'skill_nari_shougo', name: '正午の 音', target: 'none', noDamage: true }),
+  // ホシスギ（任意。61 9.2）
+  enemy({ id: 'skill_hoshi_hinata', name: '日なたぼっこ', target: 'self', windupMs: 500, tsukkomi: [1], noDamage: true }),
+  enemy({
+    id: 'skill_hoshi_shio', name: '塩', target: 'allies', power: 0.5, hits: [0], windupMs: 550, tsukkomi: [2],
+    status: { id: 'buff_hit', chance: 0.5, turns: 3, stage: -1 },
+  }),
+  enemy({ id: 'skill_hoshi_sori', name: 'そりかえり', target: 'enemy', power: 1.05, hits: [0], windupMs: 450, tsukkomi: [1] }),
+  // アソビタリン（任意。61 9.3）
+  enemy({ id: 'skill_asobi_kuuki', name: '空気を 入れる', target: 'self', windupMs: 500, tsukkomi: [2], noDamage: true }),
+  enemy({
+    id: 'skill_asobi_wa', name: 'すっぽり', target: 'enemy', power: 1.0, hits: [0], windupMs: 600, tsukkomi: [1],
+    status: { id: 'status_konran', chance: 0.3, turns: 2 },
+  }),
+  enemy({ id: 'skill_asobi_mada', name: 'まだ 遊ぶ', target: 'allies', power: 0.6, hits: [0], windupMs: 450, tsukkomi: [1] }),
+  // ヨコドリ（任意。61 9.4）
+  // (ねらう names the one it stares at: a target, no damage)
+  enemy({ id: 'skill_yoko_nerai', name: 'ねらう', target: 'enemy', windupMs: 400, tsukkomi: [2], noDamage: true, big: true }),
+  enemy({ id: 'skill_yoko_dori', name: '急降下', target: 'enemy', power: 1.2, hits: [0], windupMs: 650, tsukkomi: [1], big: true }),
+  enemy({
+    id: 'skill_yoko_pihyoro', name: 'ピーヒョロロ', target: 'allies', windupMs: 700, tsukkomi: [2], noDamage: true,
+    status: { id: 'buff_spd', chance: 0.6, turns: 3, stage: -1 },
+  }),
   // ヒキヅナ（夕鳴小学校の 校庭、段階2。二人十五脚 02 #82）
   enemy({ id: 'skill_hiki_tsuna', name: '綱引き', target: 'enemy', power: 1.0, hits: [0], windupMs: 450, tsukkomi: [1] }),
   enemy({ id: 'skill_hiki_oesu', name: 'オーエス', target: 'allies', power: 0.45, hits: [0, 18], windupMs: 450, tsukkomi: [1] }),
@@ -217,6 +277,7 @@ export function allSkills(): SkillDef[] {
  * Party ability ids that live in the ハンコケース, in case-slot order (51 5.4):
  * the おやすみなさい outline keeps the 6th slot it had since chapter 1, so
  * おつかれさま (learned first) takes the 7th and the いただきます outline the 8th.
+ * 第3章 (61 6.4): ごちそうさま the 9th, みんなの はなまる the 10th.
  */
 export const HANKO_CASE_ORDER = [
   'skill_mimashita',
@@ -227,6 +288,9 @@ export const HANKO_CASE_ORDER = [
   'skill_oyasuminasai',
   'skill_otsukaresama',
   'skill_itadakimasu',
+  // 第3章（61 6.4）：9番目 ごちそうさま（S13）、10番目 みんなの はなまる（S27）
+  'skill_gochisousama',
+  'skill_minna_hanamaru',
 ];
 
 /** おてつだい (was PR活動) order in the list. */

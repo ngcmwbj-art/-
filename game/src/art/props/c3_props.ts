@@ -411,7 +411,8 @@ registerProp('prop_c3_keijiban', () =>
 registerProp('prop_c3_mikan', (opts) => {
   const tankan = !!opts.tankan;
   const w = tankan ? 22 : 30;
-  return standProp(
+  // (still at 12:00; at 12:01 the leaves stir: the lit tips shift a pixel, 3 frames — 62 6.2 screen_c3_dandan)
+  const frame = (stir: number) => standProp(
     w,
     28,
     (p) => {
@@ -439,9 +440,23 @@ registerProp('prop_c3_mikan', (opts) => {
         p.rect(fx, fy, 2, tankan ? 3 : 2, CP.mikanGreen);
         p.set(fx, fy, '#9BCB6B');
       }
+      // the breeze turning a few leaves over (their pale undersides)
+      if (stir)
+        for (let k = 0; k < 9; k++) {
+          const lx = 2 + ((k * 13 + stir * 5) % (w - 4));
+          const ly = 3 + ((k * 9 + stir * 3) % 14);
+          p.set(lx, ly, '#9BC88A');
+          p.set(lx + (stir === 1 ? 1 : -1), ly, CP.mikanLeafLt);
+        }
     },
     { cx: tankan ? 8 : 16, base: 16, shadow: 24 },
   );
+  const still = frame(0);
+  const stir = [frame(1), frame(2)];
+  return {
+    ...still,
+    img: (env) => (env.flag('flag_ch3_stage') >= 2 && env.motion > 0.5 ? stir[Math.floor(env.t / 600 + env.seed * 3) % 2].img(env) : still.img(env)),
+  } satisfies PropArt;
 });
 
 /** トベラ: a round, glossy coastal shrub. */
@@ -615,10 +630,88 @@ registerProp('prop_c3_shibuki', () => {
     if (k % 4 === 0) p.set(x + 1, y, '#E8F4FA');
   }
   const img = p.toCanvas();
-  return { ox: -2, oy: -14, w: 20, h: 20, foot: 15, img: (env) => (c3stage(env) >= 2 ? null : img), contact: 0 } satisfies PropArt;
+  // 12:01: the spray falls and comes up again with the next wave (8 frames, 2 s)
+  const loop: (HTMLCanvasElement | null)[] = [];
+  for (let f = 0; f < 8; f++) {
+    if (f >= 6) {
+      loop.push(null);
+      continue;
+    }
+    const q = new PixelCanvas(20, 20);
+    const up = f < 2 ? (f + 1) / 2 : 1;
+    const fall = f >= 2 ? (f - 2) / 4 : 0;
+    for (let k = 0; k < 18; k++) {
+      const x = 3 + ((k * 7) % 14) + Math.round((((k * 7) % 14) - 7) * fall * 0.3);
+      const y0 = 2 + ((k * 11) % 14);
+      const y = Math.round(19 - (19 - y0) * up + fall * fall * 16);
+      if (y < 0 || y > 19 || (fall > 0.5 && k % 2)) continue;
+      q.set(x, y, k % 3 ? '#F4F1E8' : '#FFFFFF');
+    }
+    loop.push(q.toCanvas());
+  }
+  return {
+    ox: -2,
+    oy: -14,
+    w: 20,
+    h: 20,
+    foot: 15,
+    img: (env) => (c3stage(env) >= 2 && env.motion > 0.5 ? loop[Math.floor(env.t / 250 + env.seed * 8) % 8] : img),
+    contact: 0,
+  } satisfies PropArt;
 });
 
 void h01;
+
+// ---------------------------------------------------------------- 防波堤の ござ (S13・S29: 62 3.3・12.6)
+
+/**
+ * The mats laid along the breakwater for the real lunch (22–40,31–32): rush
+ * mats in a row, and on them the town's food — rice balls, the dried fish,
+ * tofu, tomatoes, tea, a big plate — the people stand and sit on top (they
+ * are the scenario's). Flat; from S13 (flag_ch3_got_gochisou).
+ */
+registerProp('prop_c3_goza', () => {
+  const W = 19 * 16;
+  const H = 32;
+  const p = new PixelCanvas(W, H);
+  // four mats, each 4–5 tiles, a little apart and askew
+  const mats: [number, number, number][] = [[0, 2, 72], [76, 0, 76], [156, 3, 70], [230, 1, 74]];
+  for (const [mx, my, mw] of mats) {
+    for (let y = my; y < my + 28; y++)
+      for (let x = mx; x < mx + mw; x++) {
+        let c = (x + y * 3) % 4 === 0 ? '#C8B070' : (y - my) % 6 === 0 ? '#A89050' : '#D8C080';
+        if (x === mx || x === mx + mw - 1 || y === my || y === my + 27) c = '#2F6A4A';
+        p.set(x, y, c);
+      }
+  }
+  // the food: plates, rice balls, the dried fish, tofu, tomatoes, tea
+  const plate = (x: number, y: number, rx: number, ry: number) => {
+    p.ellipse(x, y + 1, rx, ry, '#9AA0A8');
+    p.ellipse(x, y, rx, ry, '#F4F1E8');
+  };
+  for (const [x, y] of [[20, 12], [110, 10], [190, 14], [262, 12]] as const) {
+    plate(x, y, 9, 4);
+    for (let k = 0; k < 3; k++) {
+      p.poly([[x - 6 + k * 5, y + 1], [x - 4 + k * 5, y - 3], [x - 2 + k * 5, y + 1]], '#FFFFFF');
+      p.hline(x - 6 + k * 5, x - 2 + k * 5, y + 1, '#2A3A2A');
+    }
+  }
+  for (const [x, y] of [[48, 18], [140, 16], [214, 20]] as const) {
+    plate(x, y, 8, 3);
+    p.ellipse(x, y, 5, 2, '#C89A6A');
+    p.hline(x - 3, x + 3, y, '#E8C8A0');
+  }
+  plate(84, 20, 6, 3);
+  p.rect(81, 18, 6, 3, '#F4F1E8');
+  plate(240, 22, 6, 3);
+  for (const dx of [-2, 1, 4]) p.ellipse(240 + dx - 1, 21, 1, 1, '#E23B2E');
+  for (const x of [32, 66, 124, 172, 228, 286]) {
+    p.rect(x, 20, 3, 4, '#E8E4D8');
+    p.set(x + 1, 20, '#8A6A2A');
+  }
+  const img = p.toCanvas();
+  return { ox: 0, oy: 0, w: W, h: H, foot: 0, flat: true, img: () => img } satisfies PropArt;
+});
 
 // ---------------------------------------------------------------- 夕鳴町 at 11:10 (62 5.1)
 
@@ -715,6 +808,22 @@ registerProp('prop_c3_nidai_back', () => {
   return { ox: 0, oy: -16, w: 208, h: 112, foot: 0, img: () => img, contact: 0 } satisfies PropArt;
 });
 
+/**
+ * S14 (60 9.2 obj_c3_nidai_kairan, 62 4.1): under the vegetable basket
+ * (5–6,4) the corner of a black circular board shows, 2 px — nobody would
+ * see it who wasn't looking.
+ */
+registerProp('prop_c3_nidai_kairan', () => {
+  const p = new PixelCanvas(32, 16);
+  // (just the corner, past the basket's west side)
+  p.rect(13, 13, 4, 2, '#2A2440');
+  p.set(13, 13, '#3A3458');
+  p.set(15, 14, '#F4F1E8');
+  const img = p.toCanvas();
+  // (sorted just after the basket, so its corner shows at the basket's foot)
+  return { ox: 0, oy: 0, w: 32, h: 16, foot: 16, img: () => img, contact: 0 } satisfies PropArt;
+});
+
 /** The near gate (row 5), in front of the people. */
 registerProp('prop_c3_nidai_front', () => {
   const p = new PixelCanvas(160, 20);
@@ -794,7 +903,7 @@ registerProp('prop_c3_nidai_view', () => {
     ctx.fillRect(266, 6, 18, 4);
     // the far band (y 22–44): slow
     const far = (s * 14) % 384;
-    const sea = view === 1 || view === 3;
+    const sea = view === 1 || view === 3 || view === 2;
     for (let k = -1; k < 3; k++) {
       const bx = Math.round(k * 192 - far);
       if (sea) {
@@ -807,6 +916,17 @@ registerProp('prop_c3_nidai_view', () => {
         ctx.fillStyle = '#6B8A6A';
         ctx.fillRect(bx + 120, 26, 18, 4);
         ctx.fillRect(bx + 124, 24, 8, 2);
+        if (view === 2 && k % 2 === 0) {
+          // S14: up on the cape ahead, the old white building with its blue band (the old aquarium)
+          ctx.fillStyle = '#6B6A66';
+          ctx.fillRect(bx + 40, 24, 40, 8);
+          ctx.fillStyle = '#E8E4D8';
+          ctx.fillRect(bx + 48, 14, 24, 12);
+          ctx.fillStyle = '#3A7EA8';
+          ctx.fillRect(bx + 48, 19, 24, 2);
+          ctx.fillStyle = '#9AA0A8';
+          ctx.fillRect(bx + 66, 10, 4, 4);
+        }
       } else {
         // mountains, then the town's roofs or the cutting by phase
         ctx.fillStyle = '#5A7A6A';
@@ -847,10 +967,22 @@ registerProp('prop_c3_nidai_view', () => {
         ctx.fillRect(bx + 20, 36, 30, 10);
         ctx.fillRect(bx + 80, 34, 24, 12);
       } else if (view === 2) {
-        ctx.fillStyle = '#3A3530';
-        ctx.fillRect(bx + 8, 40, 50, 18);
-        ctx.fillStyle = '#5A5E66';
-        ctx.fillRect(bx + 4, 36, 58, 6);
+        // the harbour town's houses going by (焼き杉 and いぶし瓦), then pines on the slope to the cape
+        if (k % 3 === 2) {
+          ctx.fillStyle = '#2E5A3A';
+          ctx.fillRect(bx + 20, 36, 14, 12);
+          ctx.fillRect(bx + 70, 34, 16, 14);
+          ctx.fillStyle = '#7A4A3A';
+          ctx.fillRect(bx + 26, 48, 2, 10);
+          ctx.fillRect(bx + 77, 48, 2, 10);
+        } else {
+          ctx.fillStyle = '#3A3530';
+          ctx.fillRect(bx + 8, 40, 50, 18);
+          ctx.fillStyle = '#5A5E66';
+          ctx.fillRect(bx + 4, 36, 58, 6);
+          ctx.fillStyle = '#C8C4B8';
+          ctx.fillRect(bx + 20, 46, 8, 5);
+        }
       } else {
         // sand, a pine now and then
         ctx.fillStyle = '#2E5A3A';

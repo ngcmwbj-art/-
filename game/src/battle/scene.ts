@@ -13,7 +13,7 @@ import { flag, state } from '../game/state';
 import { sfx, type SfxOpts } from '../audio';
 import * as audio from '../audio';
 import type { BattleOpts, BattleResult } from './api';
-import { getEnemy } from '../data/battle';
+import { CH3_MIDBOSS, getEnemy } from '../data/battle';
 import { makeBackground, type Background } from './bg';
 import { EnemyUnit, PartyUnit, type BossPart, type LessonGate } from './model';
 import { DamageNumber, type NumOpts, type NumRect } from './fx/numbers';
@@ -131,6 +131,8 @@ export class BattleScene implements Scene {
   bossKind: '' | 'omukaemachi' | 'yobimodoshi' = '';
   /** A battle on the 星見台 maps (第2章: the tomato's light, ボケD). */
   hoshi: boolean;
+  /** A battle in 海ぞいの町 (第3章: the noon sun from straight above, 61 9.0). */
+  c3 = false;
   /** Only the band on black (ヨビモドシ's quiet results). */
   blackStage = false;
   // ui state
@@ -196,10 +198,12 @@ export class BattleScene implements Scene {
 
   constructor(public opts: BattleOpts) {
     const first = getEnemy(opts.enemies[0]);
-    this.isBoss = !!opts.boss || !!first?.boss;
+    // (第3章の 中ボス: never the last boss's ways, whatever the event passes — 61 10・11)
+    this.isBoss = (!!opts.boss || !!first?.boss) && !CH3_MIDBOSS.has(opts.enemies[0]);
     this.bossKind = !this.isBoss ? '' : opts.enemies.includes('boss_yobimodoshi') ? 'yobimodoshi' : 'omukaemachi';
     this.hoshi = (state.map ?? '').startsWith('map_hoshi') || opts.enemies.some((id) => getEnemy(id)?.chapter === 2);
-    this.isEvent = opts.enemies.some((id) => id === 'enemy_kanenari' || id === 'enemy_hato_kakaricho' || id === 'enemy_ojigi_jihanki') || this.isBoss;
+    this.isEvent = opts.enemies.some((id) => id === 'enemy_kanenari' || id === 'enemy_hato_kakaricho' || id === 'enemy_ojigi_jihanki' || CH3_MIDBOSS.has(id)) || this.isBoss;
+    this.c3 = (state.map ?? '').startsWith('map_c3_') || state.map === 'map_umizoi' || opts.enemies.some((id) => getEnemy(id)?.chapter === 3);
     this.bg = makeBackground(opts.background ?? first?.bg ?? 'bg_residential', opts.enemies[0]);
     this.kanenariJoined = !!flag('flag_kanenari_joined') && state.party.some((m) => m.id === 'kanenari');
     this.party = state.party.filter((m) => m.id === 'minato' || (m.id === 'kanenari' && this.kanenariJoined)).map((m) => new PartyUnit(m));
@@ -583,7 +587,7 @@ export class BattleScene implements Scene {
     const list: { text: string; color: string; kind: string }[] = [];
     if (e.status.kyuukei || (e.status.kyuukeiSkipped && !e.status.tetsuya)) list.push({ text: '休憩中', color: '#9BCB6B', kind: 'kyuukei' });
     else if (e.status.tetsuya) list.push({ text: e.def.duty?.tape ?? '徹夜中', color: '#F6D98A', kind: 'tetsuya' });
-    if (e.status.tame) list.push({ text: '溜め中', color: C.tape, kind: 'tame' });
+    if (e.status.tame) list.push({ text: e.id === 'enemy_yokodori' ? 'ねらい中' : '溜め中', color: C.tape, kind: 'tame' });
     if (!list.length) return [];
     let y = e.headY - 10 - 16;
     let x = Math.round(e.x - 26);
@@ -1327,6 +1331,18 @@ export class BattleScene implements Scene {
       (e.appearT >= 0 && e.appearT < 300 ? e.appearT / 300 : e.appearT < 0 && e.appearT !== -1 ? 0 : 1) *
       // shrinks away with the silhouette of もとにもどる
       (e.dying ? Math.max(0, Math.min(1, (e.sx - 0.15) / 0.85)) : 1);
+    if (this.c3) {
+      // 61 9.0: noon — a white glow of sun behind it from above (#FFF6D8 α18%,
+      // w×0.9 h×0.6, 8px over the core) and a small dark shadow straight down
+      const bl = noonBacklight(e.sizeW, e.sizeH);
+      g.alpha(e.alpha * appear, () => g.img(bl, Math.round(e.coreX - bl.width / 2), Math.round(e.coreY - 8 - bl.height / 2)));
+      const fw = Math.round(e.sizeW * 0.55);
+      g.alpha(0.45 * e.alpha * appear, () => {
+        g.ctx.fillStyle = '#1E3A4A';
+        ellipse(g.ctx, e.x + e.offX, e.footY - 2, fw / 2, 2.5);
+      });
+      return;
+    }
     if (this.hoshi) {
       // 51 8.0: at night the light behind the enemy is the tomato's — a warm
       // orange ellipse (w×0.9, h×0.6) a little down-left of the core; in the
@@ -2131,4 +2147,35 @@ function shuDropBits(): HTMLCanvasElement[] {
     mk(['..k..', '.kHk.', 'kHlrk', 'krrrk', 'krrRk', '.kkk.']),
   ];
   return shuDropC;
+}
+
+const noonCache = new Map<string, HTMLCanvasElement>();
+/** 61 9.0: the white noon glow behind a chapter-3 enemy (#FFF6D8, α18% at its heart, w×0.9 h×0.6). */
+function noonBacklight(w: number, h: number): HTMLCanvasElement {
+  const key = `${w}x${h}`;
+  let c = noonCache.get(key);
+  if (c) return c;
+  const rx = Math.max(8, Math.round((w * 0.9) / 2));
+  const ry = Math.max(6, Math.round((h * 0.6) / 2));
+  const [cv, ctx] = makeCanvas(rx * 2, ry * 2);
+  const img = ctx.createImageData(rx * 2, ry * 2);
+  for (let y = 0; y < ry * 2; y++)
+    for (let x = 0; x < rx * 2; x++) {
+      const dx = (x + 0.5 - rx) / rx;
+      const dy = (y + 0.5 - ry) / ry;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d >= 1) continue;
+      const v = (1 - d) * 4;
+      const step = Math.floor(v) + (BAYER4[y & 3][x & 3] < Math.round((v % 1) * 16) ? 1 : 0);
+      if (!step) continue;
+      const i = (y * rx * 2 + x) * 4;
+      img.data[i] = 0xff;
+      img.data[i + 1] = 0xf6;
+      img.data[i + 2] = 0xd8;
+      img.data[i + 3] = Math.round(255 * 0.18 * (Math.min(4, step) / 4));
+    }
+  ctx.putImageData(img, 0, 0);
+  noonCache.set(key, cv);
+  c = cv;
+  return c;
 }

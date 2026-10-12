@@ -18,6 +18,8 @@ import './songs/tsugao';
 // chapter 3 (63_ch3_audio)
 import './songs/umi_noon';
 import './songs/tsugaobin';
+import './songs/boss3';
+import './songs/hirugohan';
 import './sfx';
 import './sfx_ch2';
 // 捕まえない自由研究の虫の声（02_ch2_index #64）

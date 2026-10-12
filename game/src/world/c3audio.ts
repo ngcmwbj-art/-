@@ -38,7 +38,7 @@ const UMI = 'bgm_umi_noon';
 const OUT_1200 = ['amb_c3_umi', 'amb_c3_semi', 'amb_c3_tori', 'amb_c3_siren_hold', 'amb_c3_minato', 'amb_c3_ichiba_out', 'amb_c3_shokudo_out', 'amb_c3_himono', 'amb_c3_siren_hum', 'amb_c3_bouhatei', 'amb_c3_kaisui', 'amb_c3_mikan'];
 const OUT_1201 = ['amb_c3_umi', 'amb_c3_semi', 'amb_c3_tori', 'amb_c3_minato', 'amb_c3_ichiba_out', 'amb_c3_himono', 'amb_c3_bouhatei', 'amb_c3_kaisui', 'amb_c3_mikan'];
 
-/** 63 4.2 (the first period's maps; the rest follow with the second). */
+/** 63 4.2 (海ぞいの町 and its rooms; the old aquarium follows with the third period). */
 const C3_AUDIO: Record<string, C3Audio> = {
   map_umizoi: {
     space: 'minato',
@@ -67,7 +67,8 @@ const C3_AUDIO: Record<string, C3Audio> = {
   map_c3_shokudo: {
     space: 'room',
     pa: 'umi',
-    bgm: { 1: UMI, 2: UMI },
+    // 12:01: the noren is down — the little radio plays the lunch on the breakwater (63 4.2)
+    bgm: { 1: UMI, 2: 'bgm_hirugohan' },
     variant: 'shokudo',
     amb: { 1: ['amb_c3_shokudo', 'amb_c3_siren_hold'], 2: ['amb_c3_shokudo'] },
     phase: 1,
@@ -75,9 +76,10 @@ const C3_AUDIO: Record<string, C3Audio> = {
   map_c3_siren: {
     space: 'room',
     pa: 'umi',
+    // no song up the tower: the wind and the siren's machine (4.2)
     bgm: { 1: null, 2: null },
-    amb: { 1: ['amb_c3_siren_hum', 'amb_c3_siren_hold', 'amb_c3_umi'], 2: ['amb_c3_umi'] },
-    ambVol: { amb_c3_umi: { vol: 0.5, lp: 1500 } },
+    amb: { 1: ['amb_c3_siren_room', 'amb_c3_siren_hold', 'amb_c3_umi', 'amb_c3_tori'], 2: ['amb_c3_siren_room', 'amb_c3_umi', 'amb_c3_tori'] },
+    ambVol: { amb_c3_umi: { vol: 0.5, lp: 1500 }, amb_c3_tori: { vol: 0.5, lp: 1500 } },
     phase: 1,
   },
   map_c3_toudai: {
@@ -85,7 +87,7 @@ const C3_AUDIO: Record<string, C3Audio> = {
     pa: 'umi',
     bgm: { 1: UMI, 2: UMI },
     variant: 'toudai',
-    amb: { 1: ['amb_c3_umi', 'amb_c3_siren_hold'], 2: ['amb_c3_umi'] },
+    amb: { 1: ['amb_c3_toudai', 'amb_c3_umi', 'amb_c3_siren_hold'], 2: ['amb_c3_toudai', 'amb_c3_umi'] },
     ambVol: { amb_c3_umi: { vol: 0.4, lp: 1200 } },
     phase: 1,
   },
@@ -94,8 +96,17 @@ const C3_AUDIO: Record<string, C3Audio> = {
     pa: 'umi',
     bgm: { 1: UMI, 2: UMI },
     variant: 'uminoie',
-    amb: { 1: ['amb_c3_umi', 'amb_c3_kaisui', 'amb_c3_siren_hold'], 2: ['amb_c3_umi', 'amb_c3_kaisui'] },
+    amb: { 1: ['amb_c3_uminoie', 'amb_c3_umi', 'amb_c3_kaisui', 'amb_c3_siren_hold'], 2: ['amb_c3_uminoie', 'amb_c3_umi', 'amb_c3_kaisui'] },
     ambVol: { amb_c3_umi: { vol: 0.6, lp: 2500 }, amb_c3_kaisui: { vol: 0.5, lp: 2500 } },
+    phase: 1,
+  },
+  // 海の中 (グソっ君's dive, S09): the song's underwater form, the sea's own bed, setUnderwater(1) (3.5)
+  map_c3_umi: {
+    space: 'minato',
+    pa: 'umi',
+    bgm: { 1: UMI, 2: UMI },
+    variant: 'suichu',
+    amb: { 1: ['amb_c3_suichu'], 2: ['amb_c3_suichu'] },
     phase: 1,
   },
 };
@@ -130,6 +141,7 @@ export function applyC3Params(def: MapDef): void {
 /** Leaving chapter 3's maps: the battle songs' forms go back (c3_phase 0); the rest are kept. */
 export function leaveC3Audio(): void {
   snd.setMusicParam('c3_phase', 0);
+  callAudio('setUnderwater', 0);
 }
 
 /** 夕鳴町 before noon: the map's stage-0 sound, in the 'hirumae' light. */
@@ -182,6 +194,8 @@ export function applyC3Audio(f: FieldScene, entering: boolean, music = true): vo
   const plan = planOf(def);
   snd.setSpace(plan.space);
   callAudio('setPaMode', plan.pa);
+  // under the sea the music is under water too (63 3.5); anywhere else it is not
+  callAudio('setUnderwater', def.id === 'map_c3_umi' ? 1 : 0);
   if (!isCh3Map(def)) snd.setMusicParam('stage', 0);
   applyC3Params(def);
   if (music && plan.bgm !== undefined && !flag('flag_bgm_hold')) {

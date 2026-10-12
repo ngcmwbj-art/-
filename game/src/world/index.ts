@@ -13,6 +13,8 @@ import '../art/props';
 import './places';
 import './life';
 import './hoshi_debug';
+// 海ぞいの町 starts moving again (62 6.3・8.7・8.8): the sea, the ring, the gulls, the sea floor
+import './c3sea';
 import { FieldScene, field } from './field';
 import { hasMap, mapIds } from './maps';
 import { setMsgHooks } from './msg';

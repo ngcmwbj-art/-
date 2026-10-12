@@ -1,6 +1,7 @@
 // Public battle-data API (20_systems_battle.md 19.2). UI / events / world use these.
 export type { Attr, SkillDef, EnemyDef, ItemDef, GrowthRow, LevelUpResult, StatKey, EnemyBook, BossPartDef } from './types';
 export { getEnemy, allEnemies, BOSS_PARTS } from './enemies';
+export { CH3_MIDBOSS } from './enemies_ch3';
 export { getSkill, allSkills, HANKO_CASE_ORDER, PR_ORDER } from './skills';
 export { getItem, allItems, isKeyItem, shopLimit, CAPSULE_TABLE } from './items';
 export {
@@ -30,3 +31,4 @@ export {
 export { canUseItemInField, useItemInField, canUseSkillInField, useSkillInField, healMember, hanamaruAmount, yakiimoFirst } from './field';
 export { SYS, TUT, BOSS_RETRY_FLIP, GAMEOVER, LABEL, NORI, NORI_COMMON, NORI_HOSHI, REPORT, ITEM_TEXT, FIELD_TEXT, fill, fillAll } from './text';
 export { SYS2, TENKO_NAMES, REPORT_CH2 } from './text_ch2';
+export { SYS3 } from './text_ch3';

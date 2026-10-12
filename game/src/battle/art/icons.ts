@@ -405,6 +405,31 @@ export function bellIcon(on: boolean): HTMLCanvasElement {
 // ---- status icons 10×10 -----------------------------------------------------------
 
 export const STATUS_ICON_ROWS: Record<string, string[]> = {
+  // 第3章 (61 8.1): おなか いっぱい — a steaming bowl; まだ — the black seal with 「ま」
+  status_c3_ippai: [
+    '..a..a....',
+    '...a..a...',
+    '..a..a....',
+    'kkkkkkkkk.',
+    'kaaaaaaak.',
+    'kDDDDDDDk.',
+    '.kNNNNNk..',
+    '..kDDDk...',
+    '...kkk....',
+    '..........',
+  ],
+  status_c3_mada: [
+    '..kkkkk...',
+    '.kJJJJJk..',
+    'kJJaJJJJk.',
+    'kJaaaJJJk.',
+    'kJJaJaJJk.',
+    'kJJaaaJJk.',
+    'kJJJJaJJk.',
+    '.kJJJJJk..',
+    '..kkkkk...',
+    '..........',
+  ],
   status_konran: [
     '..kkkkkk..',
     '.kvvvvvvk.',
@@ -498,8 +523,10 @@ export function statusIcon(id: string): HTMLCanvasElement | null {
 }
 
 /** Buff icons 12×10: fist / shield / eye + arrow. */
-export function buffIcon(stat: 'atk' | 'def' | 'hit', up: boolean): HTMLCanvasElement {
+export function buffIcon(stat: 'atk' | 'def' | 'hit' | 'spd', up: boolean): HTMLCanvasElement {
   const pics: Record<string, string[]> = {
+    // 第3章 (61 8.1): a footprint (すばやさ), on the party too
+    spd: ['......', '.kkk..', 'kNNNk.', 'kNNNk.', '.kNk..', '......', '.kk...', 'kNNk..', '.kk...', '......'],
     atk: ['......', '.kkkk.', 'ksssk.', 'kssssk', 'kSsssk', 'kSsssk', 'kSSssk', '.kSSk.', '..kk..', '......'],
     def: ['kkkkk.', 'kNnnk.', 'kNnnk.', 'kNnnk.', 'kNnnk.', '.kNk..', '..k...', '......', '......', '......'],
     hit: ['......', '.kkkk.', 'kwwwwk', 'kwkkwk', 'kwkkwk', 'kwwwwk', '.kkkk.', '......', '......', '......'],

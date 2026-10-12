@@ -5,6 +5,7 @@ import type { EnemyUnit } from './model';
 import { measure } from '../engine/font';
 import { fill } from '../data/battle';
 import { yobiLit } from './boss_yobimodoshi';
+import { ch3Yousu } from './ch3rules';
 
 /** Width of one line of the band (x22–374). */
 const BAND_LINE_W = 352;
@@ -34,6 +35,7 @@ export function yousuText(s: BattleScene): string {
   const sp = t.yousuSpecial ?? {};
   if (e.id === 'boss_yobimodoshi') return yobiYousu(s, e, r);
   if (e.def.chapter === 2) return ch2Yousu(s, e, r);
+  if (e.def.chapter === 3) return ch3Yousu(s, e, r);
   if (e.def.boss) {
     // the climax: the band keeps the one thing left to do (13.7)
     if (s.memo.bossFinal) return t.extra.finalPrompt?.[0] ?? '';

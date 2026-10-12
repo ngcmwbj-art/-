@@ -102,14 +102,15 @@ export class HankoPage implements MenuPage {
 
   private use(m: MenuCtx): void {
     const id = CASE_SLOTS[this.sel];
-    if (!id || id === 'skill_itadakimasu' || !ownsHanko(id)) {
+    if (!id || !ownsHanko(id)) {
       sfx('se_buzzer');
       return;
     }
-    // the last stamps of each night are not for the field (50 7.4)
-    if (id === 'skill_oyasuminasai' || id === 'skill_okaerinasai') {
+    // the last stamps of each night are not for the field (50 7.4); nor the
+    // table's two of chapter 3 (61 6.1・6.2), nor the last one (61 6.3)
+    if (id === 'skill_oyasuminasai' || id === 'skill_okaerinasai' || id === 'skill_itadakimasu' || id === 'skill_gochisousama' || id === 'skill_minna_hanamaru') {
       sfx('se_buzzer');
-      m.run(say(id === 'skill_oyasuminasai' ? '……いまは、押す ときじゃ ない。' : FIELD_TEXT.noTarget, { voice: 'sys' }));
+      m.run(say(id === 'skill_okaerinasai' ? FIELD_TEXT.noTarget : '……いまは、押す ときじゃ ない。', { voice: 'sys' }));
       return;
     }
     if (id === 'skill_hanamaru') {

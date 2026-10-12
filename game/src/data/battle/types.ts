@@ -102,7 +102,7 @@ export interface AiCtx {
   /** The enemy's previous action (skill id, '' before the first). */
   lastSkill: string;
   /** Party members that can be targeted. */
-  targets: { id: string; hpRate: number; grabbed: boolean; canAct: boolean; blocked: boolean; henji: boolean; hitDown: boolean }[];
+  targets: { id: string; hpRate: number; grabbed: boolean; canAct: boolean; blocked: boolean; henji: boolean; hitDown: boolean; spd: number }[];
   /** Is status X active on self. */
   has(status: string): boolean;
   /** Weighted pick with the 3-in-a-row rule; entries with weight 0 are skipped. */
@@ -153,7 +153,7 @@ export interface EnemyDef {
   /** Target the member with the highest HP ratio (モミスギ). */
   boss?: boolean;
   /** 第2章の敵（初戦から技に結びついた台詞、夜の戦闘の光）. */
-  chapter?: 1 | 2;
+  chapter?: 1 | 2 | 3;
   /** Statuses on at the start of the battle ('status_sune' | 'status_tetsuya'). */
   startStatus?: string[];
   /** Fixed damage a 打 hit gives back to the attacker (ビリビリ番: 3, charged 5). */
@@ -194,7 +194,7 @@ export interface ItemDef {
   healRate?: number;
   mp?: number;
   cure?: string[];
-  special?: 'kinakobou' | 'shippu' | 'capsule' | 'tomato' | 'umeboshi' | 'corn' | 'kairan';
+  special?: 'kinakobou' | 'shippu' | 'capsule' | 'tomato' | 'umeboshi' | 'corn' | 'kairan' | 'kakigori';
   /** A key item that can still be used in these battles (はなまるトマト: ['boss_yobimodoshi']). */
   usableInBattleWith?: string[];
   /** Action-order priority in battle (トマト: 2, same as まもる). */

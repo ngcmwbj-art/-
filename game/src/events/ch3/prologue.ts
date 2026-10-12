@@ -64,7 +64,7 @@ const ARRIVE = { x: 21, y: 17, truckX: 23, truckY: 18 };
  * makeVehicle): side / front / rear view by its direction. `kind`
  * 'tsugao_truck' (ツガオ at the wheel in his cap) or 'tsugao_truck_nap'.
  */
-function spawnTruck(id: string, x: number, y: number, dir: VehicleView, kind = 'tsugao_truck'): Actor {
+export function spawnTruck(id: string, x: number, y: number, dir: VehicleView, kind = 'tsugao_truck'): Actor {
   const a = spawn(id, x, y, { sprite: 'npc_tsugao', dir });
   (a.data.def as NpcObj).noTurn = true;
   a.data.scripted = true;
@@ -88,7 +88,7 @@ function spawnTruck(id: string, x: number, y: number, dir: VehicleView, kind = '
 }
 
 /** Change the field's map under a black screen (the scene's own fades; no enter scripts). */
-function jumpMap(id: string, x: number, y: number, dir: Dir): void {
+export function jumpMap(id: string, x: number, y: number, dir: Dir): void {
   const f = F();
   const from = f.map.id;
   const prevKind = f.map.def.kind;

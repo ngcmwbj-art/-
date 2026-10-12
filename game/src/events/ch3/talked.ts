@@ -57,7 +57,8 @@ export function seenNpc(flagId: string): string | null {
   return m ? m[1] : null;
 }
 
-function anyFlag(spec: string): boolean {
+/** A flag is set (`*` at the end: any flag with that start). */
+export function anyFlag(spec: string): boolean {
   if (!spec.endsWith('*')) return flag(spec) > 0;
   const pre = spec.slice(0, -1);
   return Object.entries(state.flags).some(([k, v]) => k.startsWith(pre) && v > 0);

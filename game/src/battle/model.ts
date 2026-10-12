@@ -157,6 +157,14 @@ export interface EnemyStatus {
   restImmuneRound?: number;
   /** チョトツ: the member it glares at while charging (Member.id). */
   stareAt?: string;
+  /** 第3章 (61 8.2): status_c3_mayoi 値段が 決まらない (まもり ×1.5). */
+  c3_mayoi?: boolean;
+  /** status_c3_futa ふたが 閉まらない (オカワリナベ). */
+  c3_futa?: boolean;
+  /** status_c3_makimodoshi 巻きもどし (ナリオサメ; いただきますで 止まる). */
+  c3_maki?: boolean;
+  /** ごちそうさま: its repeating (healing) move is over for this battle (61 6.2). */
+  c3_gochisou?: boolean;
 }
 
 /**
@@ -264,6 +272,12 @@ export class EnemyUnit {
     f.defUp = this.stages.def.lv;
     f.atkUp = this.stages.atk.lv;
     f.mimaEver = this.mimaEver ? 1 : 0;
+    // 第3章 (61 8.2)
+    f.mayoi = this.status.c3_mayoi ? 1 : 0;
+    f.futa = this.status.c3_futa ? 1 : 0;
+    f.maki = this.status.c3_maki ? 1 : 0;
+    f.gochisou = this.status.c3_gochisou ? 1 : 0;
+    f.settled = this.mem.settled ? 1 : 0;
     return { pose: this.pose, t: this.poseT, gt, skill: this.skill, hpRate: this.hpRate, flags: f, params: this.params };
   }
   /** Canvas size & the logical sprite rect. */
@@ -383,8 +397,9 @@ export function enemyDefIn(e: EnemyUnit): Pick<DamageIn, 'def' | 'defStage' | 'm
     defStage: e.stages.def.lv,
     mimaCoef: e.status.mimasareta?.coef,
     hiraki: !!e.status.hiraki,
-    // 51 4.1: すねている ×2.5 (never together with みました: it ends the sulk)
-    defMul: e.status.sune ? 2.5 : 1,
+    // 51 4.1: すねている ×2.5 (never together with みました: it ends the sulk);
+    // 61 4.1: 値段が 決まらない ×1.5
+    defMul: e.status.sune ? 2.5 : e.status.c3_mayoi ? 1.5 : 1,
   };
 }
 

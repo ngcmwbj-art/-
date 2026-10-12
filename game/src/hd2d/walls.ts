@@ -182,7 +182,10 @@ export function buildWalls(m: LoadedMap, sv: number, mg: Margin, solids: Solid[]
       else if (kind === 'wall' && !mat.startsWith('h_')) {
         let d = dims.get(mat);
         if (!d) dims.set(mat, (d = wallDims(mat)));
-        wallCell(q, atlas, art, kind, mat, tx, ty, mk, d, Y);
+        // (a wall holding up higher ground behind it — 海ぞいの町's hill: its face goes up to that ground)
+        const lift = groundAt ? Math.max(0, groundAt(tx, ty - 1) - groundAt(tx, ty)) : 0;
+        if (lift > 0 && !mk.n) retainingCell(q, atlas, kind, mat, tx, ty, mk, d, Y, lift);
+        else wallCell(q, atlas, art, kind, mat, tx, ty, mk, d, Y);
       } else if (kind === 'hedge' && mat !== 'reeds') hedgeCell(q, atlas, art, mat, tx, ty, mk, Y);
       else if (kind === 'fence' && mat === 'railfence') railFenceCell(q, atlas, tx, ty, mk, Y);
       else if (kind === 'fence' && mat === 'mesh') {
@@ -321,6 +324,39 @@ function wallCell(q: Quads, atlas: Atlas, art: CellArt, kind: string, mat: strin
       right: side,
       // the south end of the run: its end face as drawn
       front: !horiz && !mk.s ? { uv, c0: VX0, r0: hh - d.H, c1: VX0 + 4, r1: hh } : undefined,
+    });
+  }
+}
+
+/**
+ * A retaining wall (海ぞいの町's round-stone wall under the hill, 62 8.9 の3):
+ * the wall's face stacked course on course from the road up to the ground it
+ * holds (`lift` units over this cell's), the whole cell deep, its cap on top
+ * level with the hill.
+ */
+function retainingCell(q: Quads, atlas: Atlas, kind: string, mat: string, tx: number, ty: number, mk: CellMask, d: { H: number; cap: number }, Y: (px: number) => number, lift: number): void {
+  const plain = structureCell(kind, mat, tx, ty, { n: false, s: false, e: mk.e, w: mk.w });
+  const art = structureCell(kind, mat, tx, ty, mk);
+  const puv = atlas.add(plain.img);
+  const uv = atlas.add(art.img);
+  const ph = plain.img.height;
+  const ox = tx * 16;
+  const foot = ty * 16 + 16;
+  const top = lift + Y(2);
+  const H = Y(d.H);
+  const n = Math.max(1, Math.ceil(top / H));
+  for (let k = 0; k < n; k++) {
+    const y0 = k * H;
+    const y1 = Math.min(top, (k + 1) * H);
+    const rows = ((y1 - y0) / H) * d.H;
+    const last = k === n - 1;
+    note(ox, ox + 16, (y0 / H) * d.H, (y1 / H) * d.H, ty * 16, foot);
+    box(q, ox * PX, (ox + 16) * PX, y0, y1, ty * 16 * PX, foot * PX, {
+      front: { uv: puv, c0: 0, r0: ph - rows, c1: 16, r1: ph },
+      // (the coping: the stone's own colour, the hill's grass running up to it)
+      top: last ? solidFace(atlas.swatch('#A8A49A')) : undefined,
+      left: mk.w ? undefined : { uv: puv, c0: 1.5, r0: ph - rows, c1: 1.5, r1: ph },
+      right: mk.e ? undefined : { uv: puv, c0: 14.5, r0: ph - rows, c1: 14.5, r1: ph },
     });
   }
 }

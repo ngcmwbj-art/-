@@ -6,4 +6,10 @@ import './common';
 import './talked';
 import './prologue';
 import './umizoi';
+// 第2期（S07〜S14）
+import './azemichi';
+import './ichiba';
+import './shokudo';
+import './kaisui';
+import './siren';
 import './debug';

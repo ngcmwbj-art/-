@@ -373,6 +373,8 @@ export const CLOSING_FOURTH_SHAPES = [
  * says it (T1, T5); the village — ツガオ便, the delivery's marimba — never does.
  */
 export const TSUGAO_SHAPE = [1, -1, -5];
+/** 63 1.3: M9′「ごちそうさま」(D5 B4 A4 G4 A4 G4) — sealed until ナミエ's diner lets it out (S08). */
+export const GOCHISOU_SHAPE = [-3, -2, -2, 2, -2];
 
 /** First index where `seq`'s successive intervals are `shape`, or −1. */
 export function findShape(seq: number[], shape: number[]): number {

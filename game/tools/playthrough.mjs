@@ -36,11 +36,13 @@
 //                                                     the dark corridor, the symbols in the dark drawn outside the
 //                                                     lantern too (a pixel diff), the hill door h1/h2, the clear record,
 //                                                     the title after it, the cue-sheet sounds registered
-//   node tools/playthrough.mjs --chapter 3            chapter 3『海ぞいの町の いただきます』の第1期 (60_ch3_story
-//                                                     10.0〜10.6): the title's 「第3章から」 → S00 the chapter's door →
+//   node tools/playthrough.mjs --chapter 3            chapter 3『海ぞいの町の いただきます』の第1期・第2期 (60_ch3_story
+//                                                     10.0〜10.14): the title's 「第3章から」 → S00 the chapter's door →
 //                                                     S01 小林家 → S02 ひのや → S03 焼きそばのたかし → S04 ツガオ便 and its
 //                                                     bed → S05 the harbour at noon → S06 the children → 海ぞいの町 (the
-//                                                     people's talk, the post). Checks: the five tapes, 11:10 / 12:00, the
+//                                                     people's talk, the post) → S10 the first run of ツガオ便 → S07 市場
+//                                                     → S08 食堂 → S09 海水浴場 (the dive, the lens) → S11 いただきます →
+//                                                     S12 ナリオサメ・S13 → S14 the trap, up to the old aquarium. Checks: the five tapes, 11:10 / 12:00, the
 //                                                     talked records (flag_talked_*, made from a chapter-1/2 save too),
 //                                                     the chapter-3 pages (textcheck2). --from <beat> starts at
 //                                                     jump('ch3:<beat>')
@@ -2163,7 +2165,7 @@ const BEATS2 = [
   },
 ];
 
-// ------------------------------------------------------------------ chapter 3 (--chapter 3, 60_ch3_story 10.0〜10.6)
+// ------------------------------------------------------------------ chapter 3 (--chapter 3, 60_ch3_story 10.0〜10.14)
 
 const hudTime = () => page.evaluate(async () => (await import('/src/ui/hud.ts')).uiHud.timeText());
 
@@ -2291,6 +2293,185 @@ const BEATS3 = [
       checks.push({ check: 'umizoi: the people answer and are recorded', ok: ok2, people: ids.length, silent, unrec });
       log(`  talk: ${ids.length} people${silent.length ? `; silent: ${silent.join(', ')}` : ''}`);
       if (!ok2) throw new Error(`umizoi talk: ${JSON.stringify({ silent, unrec })}`);
+    },
+  },
+  // ---- 第2期（S07〜S14。60_ch3_story 10.7〜10.14）
+  {
+    name: 'bin',
+    async run() {
+      // S10: the first run of ツガオ便 (30 s of walking after S06) brings the six of the main line
+      if ((await st()).map !== 'map_umizoi') return checks.push({ check: 'bin', ok: true, skipped: 'no map_umizoi' });
+      const t0 = Date.now();
+      while (!(await flag('flag_ch3_bin_n'))) {
+        if (late(t0, 60000)) throw new Error('bin: the first run did not come');
+        await walk((Date.now() / 1000) % 2 < 1 ? 'left' : 'right', (s) => !s.ctrl, 1500).catch(() => {});
+        await advance({ shotEvery: 4, label: 'bin' });
+      }
+      const n = await flag('flag_ch3_kita_n');
+      checks.push({ check: 'S10: the first run brings the six', ok: n === 6, kita: n });
+      if (n !== 6) throw new Error(`bin: ${n} came`);
+    },
+  },
+  {
+    name: 'ichiba',
+    async run() {
+      await enterDoor(10, 23, 'up', 'map_c3_ichiba');
+      await advance({ label: 'ichiba_in' });
+      for (let i = 0; i < 2; i++) {
+        await talkTo('npc_c3_seri_deshi', { side: 'below' });
+        await advance({ label: `tsugumi${i}` });
+      }
+      await need(['flag_ch3_ichiba_start'], 'S07 start');
+      // three scraps of the note (62 4.2): stand beside, face, Z
+      for (const [x, y, dx, dy, d] of [[1, 5, 0, 1, 'up'], [6, 9, 0, 1, 'up'], [13, 10, -1, 0, 'right']]) {
+        await travel(x + dx, y + dy);
+        await examineHere(d, 'fucho');
+      }
+      const n = await flag('flag_ch3_fucho_n');
+      if (n < 3) throw new Error(`fucho ${n}`);
+      await talkTo('npc_c3_seri_deshi', { side: 'below' });
+      await advance({ shotEvery: 4, label: 'seri', max: 180000 });
+      await need(['flag_ch3_ichiba_done', 'flag_ch3_part_hashi', 'flag_ch3_nefuda_beaten'], 'S07');
+      checks.push({ check: 'S07: the auction, ネフダマヨイ, 割り箸', ok: true });
+      await shot('ichiba_done');
+      await leaveRoom('map_umizoi');
+    },
+  },
+  {
+    name: 'shokudo',
+    async run() {
+      await enterDoor(30, 15, 'up', 'map_c3_shokudo');
+      await advance({ label: 'shokudo_in' });
+      await talkTo('npc_c3_shokudo', { side: 'below' });
+      await advance({ label: 'namie' });
+      await talkTo('npc_c3_jouren', { side: 'right' });
+      await advance({ label: 'goro' });
+      await talkTo('npc_c3_shokudo', { side: 'below' });
+      await advance({ label: 'teishoku' });
+      await need(['flag_ch3_shokudo_start'], 'S08 start');
+      if ((await flag('flag_ch3_teishoku_n')) < 2) {
+        // 干物屋: 「どっちも ほどよい」 (the first choice)
+        await leaveRoom('map_umizoi');
+        await talkTo('npc_c3_himono_otto', { side: 'below' });
+        await advance({ label: 'himono' });
+        await enterDoor(30, 15, 'up', 'map_c3_shokudo');
+        await advance({ label: 'shokudo_in2' });
+      }
+      // オカワリナベ ends only with はなまる on the pot (61 10.4): __game.cmd.win() can't end it —
+      // without --real okawari it is skipped (DEV flag_qa_c3_nobattle; B's __game.cmd.ch3battle tries it)
+      if (!REAL.has('okawari')) await page.evaluate(() => window.__game.cmd.flag('flag_qa_c3_nobattle', 1));
+      await talkTo('npc_c3_shokudo', { side: 'below' });
+      await advance({ shotEvery: 4, label: 'okawari', max: 180000, battles: REAL.has('okawari') ? 'keys' : 'win' });
+      await page.evaluate(() => window.__game.cmd.flag('flag_qa_c3_nobattle', 0));
+      await need(['flag_ch3_shokudo_done', 'flag_ch3_part_gassho', 'flag_ch3_okawari_beaten'], 'S08');
+      checks.push({ check: 'S08: the set meal, オカワリナベ, ごちそうさま', ok: true, dishes: await flag('flag_ch3_teishoku_n') });
+      await leaveRoom('map_umizoi');
+    },
+  },
+  {
+    name: 'kaisui',
+    async run() {
+      await talkTo('npc_c3_mago', { side: 'above' });
+      await advance({ label: 'umi' });
+      await talkTo('npc_c3_kanshiin', { side: 'below' });
+      await advance({ label: 'kaito' });
+      await need(['flag_ch3_kaisui_start'], 'S09 start');
+      // into the sea from the beach: グソっ君 alone
+      await travel(60, 31);
+      await walk('down', (s) => !s.ctrl, 3000).catch(() => {});
+      await advance({ label: 'dive' });
+      if ((await st()).map === 'map_c3_umi') {
+        await shot('umi');
+        await travel(29, 11);
+        await examineHere('down', 'bracelet');
+        await travel(45, 1);
+        await walk('right', (s) => !s.ctrl, 3000).catch(() => {});
+        await advance({ label: 'up' });
+      }
+      await advance({ label: 'bracelet' });
+      await need(['flag_ch3_bracelet_given', 'flag_ch3_lens_ok'], 'S09 bracelet');
+      // the lens: テル (outside, or in the lighthouse); 東・光、西・西・光、西・西・光
+      const choiceUp = () => page.evaluate(() => window.__game.game.ui.widgets.some((w) => w.constructor.name === 'ChoiceBox' && !w.done));
+      const choose = async (n, label) => {
+        await advance({ label, stopAt: choiceUp });
+        if (!(await choiceUp())) throw new Error(`lens: no choice (${label})`);
+        await sleep(600);
+        for (let i = 0; i < n; i++) {
+          await tap('ArrowDown');
+          await sleep(200);
+        }
+        await tap('KeyZ');
+        await sleep(300);
+      };
+      if (await page.evaluate(() => window.__game.cmd.flag('flag_ch3_toudai_open'))) {
+        await enterDoor(8, 29, 'up', 'map_c3_toudai');
+        await advance({ label: 'toudai' });
+        await talkTo('npc_c3_toudai', { side: 'left' }).catch(async () => {
+          await travel(4, 4);
+          await page.evaluate(() => (window.__game.cmd.fieldRef().player.dir = 'up'));
+          await tap('KeyZ');
+        });
+      } else await talkTo('npc_c3_toudai', { side: 'below' });
+      for (const n of [1, 2, 0, 0, 2, 0, 0, 2]) await choose(n, 'lens');
+      await advance({ label: 'lens_done' });
+      await need(['flag_ch3_lens_0', 'flag_ch3_lens_1', 'flag_ch3_lens_2'], 'S09 lens');
+      if ((await st()).map !== 'map_umizoi') await leaveRoom('map_umizoi');
+      await talkTo('npc_c3_mago', { side: 'above' });
+      await advance({ shotEvery: 3, label: 'last_sea' });
+      await need(['flag_ch3_umi_done', 'flag_ch3_part_koe'], 'S09');
+      checks.push({ check: 'S09: the dive, the lens, the last sea', ok: true, bins: await flag('flag_ch3_bin_n'), kita: await flag('flag_ch3_kita_n') });
+    },
+  },
+  {
+    name: 'itadaki',
+    async run() {
+      // S11: into 食堂かもめ with the three parts
+      await advance({ label: 'pre_itadaki' });
+      await enterDoor(30, 15, 'up', 'map_c3_shokudo');
+      await advance({ shotEvery: 2, label: 'itadaki', max: 90000 });
+      await need(['flag_ch3_got_itadakimasu'], 'S11');
+      checks.push({ check: 'S11: いただきます', ok: true });
+      await leaveRoom('map_umizoi');
+    },
+  },
+  {
+    name: 'siren',
+    async run() {
+      await advance({ label: 'pre_siren' });
+      if (await page.evaluate(async () => (await import('/src/world/maps.ts')).hasMap('map_c3_siren'))) {
+        await enterDoor(34, 6, 'up', 'map_c3_siren');
+        await advance({ label: 'siren_in' });
+        await travel(6, 3);
+        await walk('up', (s) => !s.ctrl, 3000).catch(() => {});
+      } else {
+        await travel(34, 7);
+        await walk('up', (s) => !s.ctrl, 3000).catch(() => {});
+      }
+      if (!REAL.has('nariosame')) await page.evaluate(() => window.__game.cmd.flag('flag_qa_c3_nobattle', 1));
+      await advance({ shotEvery: 5, label: 'nariosame', max: 240000, battles: REAL.has('nariosame') ? 'keys' : 'win' });
+      await page.evaluate(() => window.__game.cmd.flag('flag_qa_c3_nobattle', 0));
+      await need(['flag_ch3_nariosame_beaten', 'flag_ch3_got_gochisou'], 'S12・S13');
+      const t = await hudTime();
+      const v = await flags(['flag_ch3_stage', 'flag_ch3_clock']);
+      const ok = t === '12:01' && v.flag_ch3_stage === 2;
+      checks.push({ check: 'S12・S13: 12:01, ごちそうさま', ok, time: t, ...v });
+      if (!ok) throw new Error(`siren: ${t} ${JSON.stringify(v)}`);
+      await shot('goza');
+    },
+  },
+  {
+    name: 'trap',
+    async run() {
+      // S14: by ツガオ便 on the quay → 「だいじょうぶ」 (the first choice) → the bed → the old aquarium
+      await travel(45, 23);
+      await walk('down', (s) => !s.ctrl, 3000).catch(() => {});
+      await advance({ shotEvery: 3, label: 'trap', max: 120000 });
+      await need(['flag_ch3_truck_trap'], 'S14');
+      const s = await st();
+      const ok = s.map === 'map_umizoi' && s.x >= 68 && s.ctrl;
+      checks.push({ check: 'S14: at the old aquarium, the door shut (the end of the second part)', ok, map: s.map, x: s.x, y: s.y });
+      if (!ok) throw new Error(`trap: ${JSON.stringify(s)}`);
+      await shot('aqmae');
     },
   },
   {

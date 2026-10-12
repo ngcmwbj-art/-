@@ -141,6 +141,11 @@ interface Look {
   bent?: boolean;
   /** Has a seated pose. */
   sit?: boolean;
+  /**
+   * Eats (62 3.4・7.3 eat_loop): seated with a bowl, the chopsticks to the
+   * mouth, the hands almost together — stopped 0.2 s — and back to the bowl.
+   */
+  eat?: boolean;
   shoe: string;
   keep?: string[];
 }
@@ -363,7 +368,7 @@ function makeDraw(L: Look): (f: Fig, p: Pose) => void {
   const LEGS = legSpec(L);
   const sleeve = LIMB[L.sleeve]('sleeve');
   return (f, p) => {
-    const seated = !!L.sit && (p.act === 'sit');
+    const seated = !!L.sit && (p.act === 'sit' || p.act === 'eat');
     const drop = seated ? 3 : 0;
     const d = L.kid ? 4 + Math.max(0, L.short - 5) : Math.min(2, L.short);
     const bentX = L.bent && p.view === 'left' ? -1 : 0;
@@ -420,7 +425,40 @@ function makeDraw(L: Look): (f: Fig, p: Pose) => void {
     }
     hat(f, p, L, hy + (L.bent && p.view === 'left' ? 1 : 0));
     things(f, p, L, u, hy);
+    if (p.act === 'eat') eating(f, p, u, hy);
   };
+}
+
+/**
+ * eat_loop's hands (62 7.3): ph 0 the bowl at the chest and the chopsticks
+ * in it, ph 1 the chopsticks up at the mouth, ph 2 the hands almost
+ * together in front of the chest (the いただきます that never comes).
+ */
+function eating(f: Fig, p: Pose, u: number, hy: number): void {
+  const v = p.view;
+  if (v === 'up') return;
+  const top = 11 + u;
+  if (p.ph === 2) {
+    // both hands meeting at the chest, a gap of a pixel between them
+    f.part('skin', { flat: true, rim: false });
+    if (v === 'down') f.rect(6, top + 3, 1, 3).rect(9, top + 3, 1, 3);
+    else f.rect(2, top + 3, 2, 3);
+    return;
+  }
+  // the bowl (white, a red rim) held at the chest
+  f.part('bowl', { shade: 'rb', light: 't' });
+  if (v === 'down') f.rect(4, top + 5, 4, 2);
+  else f.rect(1, top + 5, 3, 2);
+  f.part('bowlrim', { flat: true, rim: false });
+  if (v === 'down') f.hl(4, 7, top + 5);
+  else f.hl(1, 3, top + 5);
+  // the chopsticks: in the bowl, or up at the mouth
+  f.part('hashi', { flat: true, rim: false });
+  if (v === 'down') {
+    if (p.ph === 1) f.line(9, hy + 9, 11, top + 5);
+    else f.line(6, top + 4, 9, top + 1);
+  } else if (p.ph === 1) f.line(2, hy + 8, 4, top + 4);
+  else f.line(2, top + 4, 4, top + 1);
 }
 
 // ---------------------------------------------------------------- the people
@@ -576,10 +614,36 @@ const LOOKS: Look[] = [
     }),
     head: kidHead('pig'), short: 6, kid: true, sleeve: 'short', bottom: 'shorts', hat: null, things: ['pigtails'], shoe: 'shoe',
   },
+  // 食堂かもめ's two customers on the tatami (62 4.3: 町の人2人, eat_loop): not to be spoken to
+  {
+    id: 'c3_kyaku_a',
+    mats: P({
+      skin: SKIN_DEEP, hair: HAIR_GREYMIX,
+      top: cloth('#5A7A8A', '#3A5A6A', '#7A9AAA', '#2A3A4A'), sleeve: cloth('#5A7A8A', '#3A5A6A', '#7A9AAA', '#2A3A4A'),
+      pants: cloth('#3A3F48', '#2A2440', '#6B7186', '#1B1733'), hat: flat('#F4F1E8'), band2: flat('#3A7EA8'),
+      bowl: cloth('#F4F1E8', '#C8C2B4', '#FFFFFF', '#9AA0A8'), bowlrim: flat('#C8452E'), hashi: flat('#C8A06A'), shoe: flat('#3A3F48'),
+    }),
+    head: adultHead('bozu'), short: 1, sleeve: 'short', bottom: 'pants', hat: 'hachimaki', things: [], shoe: 'shoe', sit: true, eat: true,
+  },
+  {
+    id: 'c3_kyaku_b',
+    mats: P({
+      skin: SKIN_PALE, hair: HAIR_BLACK,
+      top: cloth('#E8A0A0', '#C87A7A', '#F4C0C0', '#8A4A4A'), sleeve: cloth('#E8A0A0', '#C87A7A', '#F4C0C0', '#8A4A4A'),
+      pants: cloth('#5A5E66', '#3A3F48', '#7A8088', '#2A2440'),
+      bowl: cloth('#F4F1E8', '#C8C2B4', '#FFFFFF', '#9AA0A8'), bowlrim: flat('#2F4A8A'), hashi: flat('#5A3A2A'), shoe: flat('#3A3F48'),
+    }),
+    head: adultHead('short'), short: 3, sleeve: 'short', bottom: 'pants', hat: null, things: [], shoe: 'shoe', sit: true, eat: true,
+  },
 ];
 
 // idle loops: a working gesture for some (the ladle bobs, the cloth polishes, the broom sweeps)
 const WORK: IdleKey[] = [...rep([{ ph: 0 }, { ph: 0 }, { ph: 1 }, { ph: 1 }], 3), { ph: 0, blink: true }, { ph: 0 }, { ph: 1 }, { ph: 1 }];
+/** eat_loop: to the mouth (2 frames), the hands almost together (stopped 0.2 s), back to the bowl. */
+const EAT: IdleKey[] = [
+  { act: 'eat', ph: 0 }, { act: 'eat', ph: 0, breath: 1 }, { act: 'eat', ph: 1 }, { act: 'eat', ph: 1 },
+  { act: 'eat', ph: 0 }, { act: 'eat', ph: 0, blink: true }, { act: 'eat', ph: 2 }, { act: 'eat', ph: 0 },
+];
 const SIT: IdleKey[] = [
   { act: 'sit', breath: 0 }, { act: 'sit', breath: 0 }, { act: 'sit', breath: 0 }, { act: 'sit', breath: 1 },
   { act: 'sit', breath: 1 }, { act: 'sit', breath: 1 }, { act: 'sit', breath: 0, blink: true }, { act: 'sit', breath: 0 },
@@ -593,8 +657,8 @@ for (const L of LOOKS) {
       mats: L.mats,
       draw: makeDraw(L),
       idle: working ? WORK : breathingIdle(16, [11]),
-      extras: L.sit ? { sit: { p: { act: 'sit' }, dirs: 'all' } } : undefined,
-      poses: L.sit ? { sit: SIT } : undefined,
+      extras: L.sit ? { sit: { p: { act: 'sit' }, dirs: 'all' }, ...(L.eat ? { eat: { p: { act: 'eat' }, dirs: 'all' } } : {}) } : undefined,
+      poses: L.sit ? { sit: SIT, ...(L.eat ? { eat: EAT } : {}) } : undefined,
     } satisfies SpriteSpec),
   );
 }

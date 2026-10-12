@@ -121,6 +121,10 @@ export const ROOM_MAPS = new Set([
   // chapter 3 (海ぞいの町, 62 4.0): the rooms of the first part
   'map_c3_shokudo',
   'map_c3_ichiba',
+  // the second part (62 4.4〜4.6): the siren tower's top, the lamp room, the beach house
+  'map_c3_siren',
+  'map_c3_toudai',
+  'map_c3_uminoie',
 ]);
 
 // the rooms' own entries of the town's table of bodies (room_tune.ts ROOM_SOLID; the town's win)
@@ -717,6 +721,8 @@ export class RoomWorld {
     const foot = p.y + a.foot;
     const front = wf * 16 + 1;
     if (foot >= front) return;
+    // (standing north of the wall altogether — the siren tower's open lookout past its little room: left where it is)
+    if (foot < this.wallTop[tx] * 16) return;
     const id = p.obj.t === 'prop' ? p.obj.prop : (p.obj.prop ?? p.obj.id);
     const name = `${id}@${p.x / 16},${p.y / 16}`;
     if (!NUDGE[name]) NUDGE[name] = { z: front - foot };

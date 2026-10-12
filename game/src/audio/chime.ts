@@ -1,9 +1,10 @@
 // 夕鳴町の五時チャイム (40_audio 1.3, 9.6): the town PA chime, the
 // "question" half (G4 A4 C5 E5) and — only at the ending — the "answer".
 
+import { activeAmbients, stopAmbient } from './ambience';
 import { atTime } from './clock';
 import { cur, dbToGain, hasGraph, noteMidi } from './engine';
-import { chimeNote } from './instruments';
+import { chimeNote, sirenNote } from './instruments';
 import { seTrim, trimOr1 } from './mix';
 import { duck, duckAmbience } from './music';
 
@@ -114,5 +115,47 @@ export function playMorningChime(opts: MorningChimeOpts = {}): Promise<void> {
   const endT = t0 + ring + 0.9 + 2.2;
   g.pa.wake(endT);
   if (g.offline) return Promise.resolve();
+  return new Promise((res) => atTime(endT, res));
+}
+
+// ---------------------------------------------------------------------------
+// 海ぞいの町の正午のサイレン (63_ch3_audio 1.4, M8): the one time it sounds
+// to the end — head 3.0 s (0 → +19 semitones), hold 5.0 s, and the tail
+// (6.0 s down to rest, LP 4 k → 900 Hz, fading to nothing). The tail is
+// sealed everywhere else (sirenNote warns); only this function passes it.
+// Through the tower's speaker (bus_pa 'umi'). The music is already silent
+// (the battle's final phase stopped it); the beds lean back −4 dB (10.3) and
+// the stuck siren (amb_c3_siren_hold) goes in 0.5 s if it is still there.
+
+export interface SirenFullOpts {
+  /** Distance from the tower (0 = on top of it, 63 7.3). Default: the PA's current distance. */
+  d?: number;
+  /** Called the moment the tail begins (the white band unravels into the sky). */
+  onTail?: () => void;
+  /** Start time (ctx time; default now). */
+  at?: number;
+}
+
+/** Resolves when the tail has died away (about 14 s, plus the speaker's echoes). */
+export function playSirenFull(opts: SirenFullOpts = {}): Promise<void> {
+  if (!hasGraph()) return Promise.resolve();
+  const g = cur();
+  if (g.pa.mode !== 'umi') g.pa.setMode('umi', 0.02);
+  const t0 = Math.max(opts.at ?? g.ctx.currentTime, g.ctx.currentTime) + 0.05;
+  if (opts.d !== undefined) g.pa.overrideDistance(Math.max(0, Math.min(1, opts.d)), 0.05, t0 - 0.04);
+  const RISE = 3.0;
+  const HOLD = 5.0;
+  const TAIL = 6.0;
+  const vol = 0.06 * trimOr1(seTrim('se_c3_siren_full'));
+  g.pa.open(t0);
+  const h = sirenNote({ t: t0, dest: g.pa.input, f0: 185, semis: 19, rise: RISE, hold: HOLD, tail: TAIL, vol, from: 'playSirenFull' });
+  const tailAt = t0 + RISE + HOLD;
+  const endT = Math.max(h.end, tailAt + TAIL) + 1.6;
+  g.pa.wake(endT);
+  duckAmbience(dbToGain(-4), 0.5, RISE + HOLD + TAIL, 2.0);
+  if (g.offline) return Promise.resolve();
+  if (activeAmbients().includes('amb_c3_siren_hold')) stopAmbient('amb_c3_siren_hold', 0.5);
+  if (opts.d !== undefined) atTime(endT, () => g.pa.overrideDistance(null, 0.3));
+  if (opts.onTail) atTime(tailAt, opts.onTail);
   return new Promise((res) => atTime(endT, res));
 }

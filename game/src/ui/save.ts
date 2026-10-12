@@ -11,6 +11,7 @@
 //
 // In chapter 2 (flag_ch2_started) the card counts みました帳 ②'s ふしぎ (/10)
 // and says so with a little ② and the tomato; the place names are 星見台's.
+// In chapter 3 (flag_ch3_started) it counts みました帳 ③'s (/10) with a little ③.
 
 import type { Co } from '../engine/co';
 import { game, type Widget } from '../engine/game';
@@ -38,6 +39,15 @@ interface SaveInfo {
   fushigi: number;
   /** Counted in みました帳 ② (chapter 2): out of 10, not 12. */
   ch2: boolean;
+  /** Chapter 3 (flag_ch3_started): みました帳 ③'s ふしぎ (fushigi_ch3_01〜10, 60_ch3_story 8章), out of 10. */
+  ch3?: boolean;
+}
+
+/** みました帳 ③ (chapter 3): the ふしぎ stamped so far, out of 10. */
+function fushigiCh3(flags: Record<string, number> | undefined): number {
+  let n = 0;
+  for (let i = 1; i <= 10; i++) if (flags?.[`flag_fushigi_ch3_${String(i).padStart(2, '0')}`]) n++;
+  return n;
 }
 
 function fmtTime(ms: number): string {
@@ -48,6 +58,8 @@ function fmtTime(ms: number): string {
 
 function infoNow(): SaveInfo {
   const ch2 = !!flag('flag_ch2_started');
+  if (flag('flag_ch3_started'))
+    return { place: placeNameFor(state.map, state.x, state.y, ''), time: fmtTime(state.playTimeMs), level: state.party[0]?.level ?? 1, fushigi: fushigiCh3(state.flags), ch2: true, ch3: true };
   return {
     place: placeNameFor(state.map, state.x, state.y, ''),
     time: fmtTime(state.playTimeMs),
@@ -64,6 +76,8 @@ function infoSaved(): SaveInfo | null {
     if (!raw) return null;
     const s = JSON.parse(raw) as { map?: string; x?: number; y?: number; playTimeMs?: number; party?: { level: number }[]; flags?: Record<string, number> };
     const ch2 = !!s.flags?.flag_ch2_started;
+    if (s.flags?.flag_ch3_started)
+      return { place: placeNameFor(s.map ?? '', s.x ?? 0, s.y ?? 0, ''), time: fmtTime(s.playTimeMs ?? 0), level: s.party?.[0]?.level ?? 1, fushigi: fushigiCh3(s.flags), ch2: true, ch3: true };
     let f = 0;
     for (let i = 1; i <= (ch2 ? 10 : 12); i++) if (s.flags?.[`flag_fushigi_${ch2 ? 'ch2_' : ''}${String(i).padStart(2, '0')}`]) f++;
     return { place: placeNameFor(s.map ?? '', s.x ?? 0, s.y ?? 0, ''), time: fmtTime(s.playTimeMs ?? 0), level: s.party?.[0]?.level ?? 1, fushigi: f, ch2 };
@@ -116,7 +130,11 @@ class SaveCard implements Widget {
       row('いま', this.now, yy + 7, false);
       g.text('ふしぎ', x + 10, yy + 26, { color: UI.pencil });
       let fx = x + 10 + textW('ふしぎ') + 5;
-      if (this.now.ch2) {
+      if (this.now.ch3) {
+        // みました帳 ③: its number in a ring (the sea's notebook has no tomato)
+        drawCircledNum(g, 3, fx - 1, yy + 30, UI.pencil);
+        fx += 12;
+      } else if (this.now.ch2) {
         // みました帳 ②: its number in a ring and the tomato, like the notebook's own flag
         drawCircledNum(g, 2, fx - 1, yy + 30, UI.pencil);
         g.img(tomatoIcon8(), fx + 10, yy + 31);

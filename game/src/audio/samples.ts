@@ -80,6 +80,8 @@ export const VOICE_SAMPLES: Record<string, string> = {
   c3_uketsuke: 'ようこそ、お越し くださいました。',
   c3_kid: 'しゅん、どっから 来たん？',
   c3_kid_a: 'しゅん、どっから 来たん？',
+  nariosame: '……マダ、鳴リ終ワリタク ナイ。',
+  okawarinabe: 'おかわり……おかわり……。',
   c3_kid_b: 'それ、でっかい ダンゴムシ？',
   c3_kid_c: 'お昼、まだ 終わらんのよ。',
 };

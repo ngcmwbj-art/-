@@ -49,6 +49,7 @@ export function aiContext(s: BattleScene, e: EnemyUnit, round: number): AiCtx {
         blocked: u.has('status_toosenbo'),
         henji: u.has('status_henji'),
         hitDown: u.stages.hit.lv <= -1,
+        spd: u.stages.spd.lv,
       })),
     has: (st: string) =>
       !!(e.status as Record<string, unknown>)[st.replace('status_', '')] || (st === 'status_hiraki' && !!e.status.hiraki) || (st === 'status_tame' && !!e.status.tame),
@@ -97,6 +98,16 @@ function pickTarget(s: BattleScene, e: EnemyUnit, sk: SkillDef): PartyUnit | und
   if (sk.id === 'skill_cho_totsu' && e.status.stareAt) {
     const other = list.filter((u) => u.id !== e.status.stareAt);
     if (other.length) return rng.pick(other);
+  }
+  // 61 9.4: the dive goes at the one ヨコドリ stared at
+  if (sk.id === 'skill_yoko_dori' && e.status.stareAt) {
+    const t = list.find((u) => u.id === e.status.stareAt);
+    if (t) return t;
+  }
+  // 61 10.5: おかわり never goes to one already as full as they get (すばやさ −2)
+  if (sk.id === 'skill_okawari_okawari') {
+    const free = list.filter((u) => u.stages.spd.lv > -2);
+    if (free.length) return rng.pick(free);
   }
   // 51 10.5: the name is never called on someone already answering
   if (sk.id === 'skill_yobi_onamae') {
@@ -1156,6 +1167,7 @@ export function* doEnemyAction(s: BattleScene, e: EnemyUnit, skillId: string, ex
         rush, leanBack, towardX, voiceRings, soundWave, selfMove, applyStatusOne, applyStatusAll, extra,
       };
       if (isCh2Move(skillId)) yield* ch2Move(ctx);
+      else if (isCh3Move(skillId)) yield* ch3Move(ctx);
       else yield* bossMoveImpl(ctx);
       if (ctx.skipFlush) return;
       break;
@@ -1255,6 +1267,7 @@ function* callCone(s: BattleScene): Co<boolean> {
 
 import { bossMoveImpl } from './boss';
 import { ch2Move, isCh2Move } from './enemy_ch2';
+import { ch3Move, isCh3Move } from './enemy_ch3';
 
 /** Everything a move implementation outside this file needs (bosses, chapter 2). */
 export type BossMoveCtx = {

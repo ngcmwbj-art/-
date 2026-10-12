@@ -22,6 +22,7 @@ import { showKnLine } from './gusokkun';
 import { victory, wipeOut } from './results';
 import { hideSticky, precacheRestored, resetKire, sayFallen, statusText } from './common';
 import { yobiBlack, yobiMemory } from './boss_yobimodoshi';
+import { ch3AfterAction, ch3Opening, ch3RoundEnd, ch3RoundStart, ch3Start, ch3Won } from './ch3rules';
 import { roundSeal } from './art/stamps';
 
 interface Act {
@@ -48,6 +49,8 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
   if (s.isBoss) initBoss(s);
   // 第2章: enemies that start sulking / working all night (51 8.1, 9.2)
   applyStartStatus(s);
+  // 第3章: 値段が 決まらない, ふた, 巻きもどし, the stickies and the speakers (61 9.1・10・11)
+  ch3Start(s);
   for (const e of s.enemies) e.appearT = -2;
   // セミファイナル is already lying there playing dead (11.2)
   semiRound(s, 1);
@@ -98,6 +101,8 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
       yield* s.say(first.def.texts.extra.opening);
     }
   }
+  // ナリオサメ's first words in its balloon (61 11.6)
+  yield* ch3Opening(s);
   // a retry: グソっ君 says what beat them last time (a balloon over his panel)
   if (retry && s.kanenari) {
     s.mood(s.kanenari, 'tsukkomi', 2000);
@@ -127,6 +132,7 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
     }
     if (s.isBoss) yield* bossRoundStart(s);
     yield* ch2RoundStart(s);
+    yield* ch3RoundStart(s);
     // commands
     s.noteActing('');
     const cmds = yield* inputCommands(s);
@@ -175,6 +181,8 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
       if (fallen.length) yield* killSequence(s, fallen);
       // a member knocked down by their own side (こんらん) — enemy moves say it themselves
       yield* sayFallen(s);
+      // 第3章: ナリオサメ's lock, second phase and finale (61 11.2・11.8)
+      if (!result) yield* ch3AfterAction(s);
       if (!result) result = yield* checkEnd(s);
     }
     if (result) break;
@@ -185,6 +193,10 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
       result = yield* checkEnd(s);
       if (result) break;
     }
+    // 第3章: the noon sound's rewind first, then the pot's lid (61 11.3・10.3)
+    yield* ch3RoundEnd(s);
+    result = yield* checkEnd(s);
+    if (result) break;
     yield* roundEnd(s);
     result = yield* checkEnd(s);
     if (result) break;
@@ -295,7 +307,7 @@ function noteMove(s: BattleScene, c: PartyCmd): void {
 }
 
 function* checkEnd(s: BattleScene): Co<BattleResult | null> {
-  if (s.memo.kanenariWin || s.memo.bossWon) return 'win';
+  if (s.memo.kanenariWin || s.memo.bossWon || ch3Won(s)) return 'win';
   if (enemiesWiped(s)) return 'win';
   if (partyWiped(s)) return 'lose';
   return null;

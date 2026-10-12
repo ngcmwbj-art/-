@@ -206,10 +206,10 @@ const isCh2Se = (group: string) => CH2_SE_GROUPS.includes(group);
  * period); until then they stay off 第1章's and 第2章's pages.
  */
 const isCh3Song = (id: string) => CH3_SONG_IDS.has(id);
-const CH3_SONG_IDS = new Set(['bgm_umi_noon', 'bgm_tsugaobin']);
+const CH3_SONG_IDS = new Set(['bgm_umi_noon', 'bgm_tsugaobin', 'bgm_boss_nariosame', 'bgm_hirugohan']);
 const isCh3Se = (group: string) => /^第3章：/.test(group);
 const isCh3Amb = (id: string) => CH3_AMBIENCE_IDS.includes(id);
-const isCh3Voice = (id: string) => /^c3_/.test(id);
+const isCh3Voice = (id: string) => /^c3_/.test(id) || id === 'nariosame' || id === 'okawarinabe';
 
 function rowsFor(tab: TabId, ch: Chapter): Row[] {
   const two = ch === 2;

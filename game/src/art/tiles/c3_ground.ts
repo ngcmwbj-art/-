@@ -71,6 +71,9 @@ export const C3_GROUNDS = [
   'c3_umi',
   'c3_iwa',
   'c3_nidai',
+  // 海の 中 (map_c3_umi, 62 4.7・8.7): the floor of the harbour (mud) and of the beach (white sand), the rocks
+  'c3_soko',
+  'c3_soko_iwa',
 ] as const;
 export type C3Ground = (typeof C3_GROUNDS)[number];
 
@@ -489,6 +492,61 @@ const texNidai: C3Tex = (x, y, v) => {
   return col;
 };
 
+// ---------------------------------------------------------------- 海の 中 (map_c3_umi)
+
+const U = {
+  mud: c('#4E6E70'),
+  mudLt: c('#628486'),
+  mudDk: c('#3A585C'),
+  sand: c('#8EB8BE'),
+  sandLt: c('#A8CED0'),
+  sandDk: c('#76A0AA'),
+  pebble: c('#5A7A84'),
+  shell: c('#C8E0E0'),
+  rock: c('#3E5A66'),
+  rockLt: c('#56747E'),
+  rockDk: c('#2A4250'),
+  weed: c('#3E6A4E'),
+};
+
+/**
+ * 海の 中: the floor seen through the water (pal_c3_suichu: everything a
+ * step bluer). West of the rock wall (x < 22) the harbour's soft mud with
+ * stones, east of it the beach's white sand in ripples; the light's net is
+ * a layer over it (art/props/c3_rooms2.ts prop_c3_umi_shell).
+ */
+const texSoko: C3Tex = (x, y, v) => {
+  const n = fbm(x / 14, y / 14, 3211 + v);
+  const g = h01(x, y, 3213);
+  if (x < 22 * 16 + 8) {
+    let col = n > 0.6 && g < (n - 0.5) * 1.4 ? U.mudLt : n < 0.34 && g < (0.4 - n) * 1.5 ? U.mudDk : U.mud;
+    if (ihash(x >> 2, y >> 2, 3215) % 61 === 0 && (x & 3) < 3 && (y & 3) < 2) col = U.pebble;
+    return col;
+  }
+  // ripples of the sand: soft bands that bend
+  const r = (y + valueNoise(x / 30, y / 30, 3217) * 10) % 9;
+  let col = r < 1 ? U.sandLt : r > 7 ? U.sandDk : U.sand;
+  if (n < 0.3 && g < 0.5) col = U.sandDk;
+  if (ihash(x, y, 3219) % 211 === 0) col = U.shell;
+  return col;
+};
+
+/** 海の 中の 岩: dark rounded rock, its tops catching the light from above, a fringe of weed. */
+const texSokoIwa: C3Tex = (x, y, v, ctx) => {
+  const n = fbm(x / 7, y / 7, 3221 + v);
+  const ly = lyOf(y);
+  let col = n > 0.62 ? U.rockLt : n < 0.36 ? U.rockDk : U.rock;
+  const tx = txOf(x);
+  const ty = tyOf(y);
+  // the top lit where the rock's edge faces the light above; the face in shade where it meets the floor
+  if (ctx.ground(tx, ty - 1) !== 'c3_soko_iwa' && ly < 3 && h01(x, y, 3223) < 0.7) col = U.rockLt;
+  if (ctx.ground(tx, ty + 1) !== 'c3_soko_iwa' && ctx.ground(tx, ty + 1) !== '') {
+    if (ly >= 9) col = ly === 9 ? U.rockLt : h01(x, y, 3227) < 0.3 ? U.weed : U.rockDk;
+  }
+  if (ly > 13 && h01(x, y, 3225) < 0.35) col = U.weed;
+  return col;
+};
+
 export const C3_TEX: Record<C3Ground, C3Tex> = {
   c3_road: texRoad,
   c3_quay: texQuay,
@@ -504,6 +562,8 @@ export const C3_TEX: Record<C3Ground, C3Tex> = {
   c3_umi: texUmi,
   c3_iwa: texIwa,
   c3_nidai: texNidai,
+  c3_soko: texSoko,
+  c3_soko_iwa: texSokoIwa,
 };
 
 /** Variants per material (the no-repeat rule of ground.ts). */
@@ -517,6 +577,8 @@ export const C3_NVAR: Partial<Record<C3Ground, number>> = {
   c3_hiroba: 2,
   c3_kusa: 3,
   c3_iwa: 3,
+  c3_soko: 2,
+  c3_soko_iwa: 2,
 };
 
 /** Priority at soft borders (higher spreads over lower). */
@@ -530,7 +592,7 @@ export const C3_PRIO: Partial<Record<C3Ground, number>> = {
 /** Soft materials (their borders wander); everything else here has built edges. */
 export const C3_SOFT: C3Ground[] = ['c3_sand', 'c3_kusa', 'c3_mikan', 'c3_alley'];
 export const C3_GREEN: C3Ground[] = ['c3_kusa'];
-export const C3_HARD: C3Ground[] = ['c3_road', 'c3_quay', 'c3_bouhatei', 'c3_nagisa', 'c3_ishidan', 'c3_hiroba', 'c3_minato', 'c3_umi', 'c3_iwa', 'c3_nidai'];
+export const C3_HARD: C3Ground[] = ['c3_road', 'c3_quay', 'c3_bouhatei', 'c3_nagisa', 'c3_ishidan', 'c3_hiroba', 'c3_minato', 'c3_umi', 'c3_iwa', 'c3_nidai', 'c3_soko', 'c3_soko_iwa'];
 
 export function isC3Ground(g: string): g is C3Ground {
   return (C3_GROUNDS as readonly string[]).includes(g);

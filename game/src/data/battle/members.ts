@@ -141,7 +141,7 @@ export function learnSkill(memberId: string, skillId: string): boolean {
  * Make learned skills consistent with story flags (events may set the flag
  * without calling learnSkill). Safe to call any time. The hanko keep the
  * case order (HANKO_CASE_ORDER; 51 5.4). 「いただきます」 is an outline only
- * and never becomes a learned skill.
+ * until chapter 3 fills it (flag_ch3_got_itadakimasu, 61 6.1).
  */
 export function syncProgressSkills(): void {
   const mi = state.party.find((m) => m.id === 'minato');
@@ -156,9 +156,13 @@ export function syncProgressSkills(): void {
     if (flag('flag_boss_beaten') || flag('flag_clear')) learnSkill('minato', 'skill_okaerinasai');
     if (flag('flag_ch2_got_otsukare')) learnSkill('minato', 'skill_otsukaresama');
     if (flag('flag_ch2_boss_beaten')) learnSkill('minato', 'skill_oyasuminasai');
+    // 第3章 (61 6.1・6.2): いただきます (S11) and ごちそうさま (S13); the outline before S11 is never a skill
+    const ita = !!flag('flag_ch3_got_itadakimasu');
+    if (ita) learnSkill('minato', 'skill_itadakimasu');
+    if (flag('flag_ch3_got_gochisou')) learnSkill('minato', 'skill_gochisousama');
     // keep hanko in case order
-    const order = HANKO_CASE_ORDER.filter((id) => id !== 'skill_itadakimasu');
-    mi.skills = mi.skills.filter((s) => s !== 'skill_itadakimasu');
+    const order = HANKO_CASE_ORDER.filter((id) => ita || id !== 'skill_itadakimasu');
+    if (!ita) mi.skills = mi.skills.filter((s) => s !== 'skill_itadakimasu');
     const rest = mi.skills.filter((s) => !order.includes(s));
     mi.skills = [...rest, ...order.filter((s) => mi.skills.includes(s))];
   }
