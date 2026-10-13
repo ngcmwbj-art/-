@@ -33,6 +33,8 @@ import { hash2 } from '../engine/rng';
 import { ROOM2_PLACE } from '../data/maps/hoshi_rooms2_names';
 import { markText } from '../engine/textzones';
 import { buttonZones, freeSpan } from '../engine/safezones';
+import { onPgBand, pgBand, pgBandDef, pgOn, type PgBand } from '../world/postgame';
+import { pgBadgeImg, pgClockFace, pgRunFace } from './pg_clock';
 
 // ---- clock -------------------------------------------------------------------------
 
@@ -428,6 +430,8 @@ interface ItemCard {
   id: string;
   t: number;
   n: number;
+  /** A note with words only (no item): 「みました帳に『やり残し』が ふえた。」 */
+  text?: string;
 }
 
 // ---- the HUD ---------------------------------------------------------------------------
@@ -506,6 +510,10 @@ class UiHud implements FieldHud {
   private hillT = 0;
   private picturesReady = false;
   private colonDipNow = false;
+  // クリア後（05 3.2）：時間帯の知らせ（場所の名前の帯の所）と、印のはね
+  private pgNotice: string | null = null;
+  private pgNoticeWait = 0;
+  private pgHopT = 999;
 
   show(ms = 4000): void {
     this.showT = Math.max(this.showT, ms);
@@ -523,6 +531,9 @@ class UiHud implements FieldHud {
   /** Current clock text. */
   timeText(): string {
     if (this.override) return this.override;
+    // クリア後（05 3.2）：いつも動く時計「6:40」（10分きざみ。早回りの間はその数字）
+    const pg = pgRunFace() ?? pgClockFace();
+    if (pg) return pg;
     // 第3章（60_ch3_story 4.4）：夕鳴町の昼前 11:10 → 海ぞいの町 12:00（止まる）→ 12:01
     const c3 = ch3Time();
     if (c3) return c3;
@@ -548,6 +559,20 @@ class UiHud implements FieldHud {
   }
 
   clockView(): ClockView {
+    if (pgOn()) {
+      // クリア後：コロンは1秒ごとに点滅（動いているしるし）、秒の点も進む。夜の灯りはない
+      return {
+        time: this.shown || this.timeText(),
+        prev: this.prevShown,
+        flipT: this.flipT,
+        stage: 0,
+        t: this.t,
+        sec: this.sec,
+        sink: this.sinkT < 120 ? 1 : 0,
+        flips: this.flips,
+        glow: false,
+      };
+    }
     if (ch3Time()) {
       // 第3章：12:00 はコロンが点滅しない（段階1・3）。夜の灯りはない
       const stopped = ch3Stopped() && !this.override;
@@ -625,21 +650,23 @@ class UiHud implements FieldHud {
     }
     if (this.showT > 0) this.showT -= dt;
     // 星見台: the plate stays up while the village is stopped (the time that doesn't move is the point)
-    const always = this.onHoshi ? this.hoshiStopped() : st >= 1 && st < 3 && !flag('flag_ch2_started');
+    // クリア後：時計はいつも動いているので、札もいつも出ている（05 3.2。仮）
+    const pg = pgOn();
+    const always = pg || (this.onHoshi ? this.hoshiStopped() : st >= 1 && st < 3 && !flag('flag_ch2_started'));
     const hidden = !!flag('flag_hud_hidden');
     const want = (this.showT > 0 || always || !!this.override) && !hidden;
     const target = want ? 6 : -26;
     this.y += Math.sign(target - this.y) * Math.min(Math.abs(target - this.y), (dt / 300) * 32);
     // seconds hand: ticks in stage 0 and at night, stuck in stages 1–2;
     // in stage 2 it sometimes steps back one second
-    if (st === 0 || st >= 3) {
+    if (st === 0 || st >= 3 || pg) {
       this.secAcc += dt;
       while (this.secAcc >= 1000) {
         this.secAcc -= 1000;
         this.sec = (this.sec + 1) % 13;
       }
     } else this.sec = 12; // stopped on the minute: the row is full
-    if (st === 2) {
+    if (st === 2 && !pg) {
       this.nextBack -= dt;
       if (this.nextBack <= 0) {
         this.backT = 1000;
@@ -647,6 +674,7 @@ class UiHud implements FieldHud {
       }
     }
     if (this.backT > 0) this.backT -= dt;
+    this.pgHopT += dt;
     // ---- fushigi proximity (2 tiles)
     let near: string | null = null;
     if (flag('flag_got_hanko')) {
@@ -736,6 +764,21 @@ class UiHud implements FieldHud {
       this.banner.t += dt;
       if (this.banner.t > this.banner.dur) this.banner = null;
     }
+    // ---- クリア後の時間帯の知らせ（05 3.2）：操作がもどって、場所の名前が済んでから
+    if (this.pgNotice) {
+      if (!pg) this.pgNotice = null;
+      else if (free && !this.banner && !this.pendingPlace && !corner) {
+        this.pgNoticeWait -= dt;
+        if (this.pgNoticeWait <= 0) {
+          if (!flag('flag_hud_hidden')) {
+            this.banner = this.placeBanner(this.pgNotice, 1500);
+            this.pgHopT = 0;
+            this.show(4000);
+          }
+          this.pgNotice = null;
+        }
+      }
+    }
     // ---- items picked up while walking around (not in battle, menu or shop)
     this.watchInventory(frameGap <= 2 && game.top === f);
     for (const cd of this.cards) cd.t += dt;
@@ -824,9 +867,37 @@ class UiHud implements FieldHud {
     this.inv.clear();
     this.skips.clear();
     this.lastFrame = -10;
+    this.pgNotice = null;
+    this.pgHopT = 999;
     curtain.a = 0;
     clearCallBubbleUi();
     hideChoreCard(0);
+  }
+
+  /**
+   * クリア後：時間帯が変わった（world/postgame.ts onPgBand）。知らせ「夕方に なった。」は
+   * 操作できるようになってから（ツガオ便・待つの黒のあとは、着いた所で）出す。
+   */
+  pgBandChanged(b: PgBand, prev: PgBand | null): void {
+    if (prev === null || b === prev) return;
+    this.pgNotice = `${pgBandDef(b).name}に なった。`;
+    this.pgNoticeWait = 300;
+    this.show(4000);
+  }
+
+  /** A sticky note with words only (the item notes' make, no icon). */
+  pushNote(text: string, delay = 0): void {
+    const cd: ItemCard = { id: '', t: 0, n: 1, text };
+    if (this.cards.length < CARDS_MAX) {
+      cd.t = -delay - this.cards.filter((c) => c.t < 100).length * 180;
+      this.cards.push(cd);
+    } else this.cardQueue.push(cd);
+  }
+
+  /** 時間帯の印の今のはね（px、上へ）：知らせのとき1回はねる。 */
+  pgHop(): number {
+    const k = this.pgHopT / 420;
+    return k >= 1 ? 0 : Math.round(Math.sin(k * Math.PI) * 4);
   }
 
   /** Forget the place banner and item notes (a menu or shop covers the field). */
@@ -900,6 +971,11 @@ class UiHud implements FieldHud {
       // the plate where it rests (y6, 52×18 and its shadow): the touch controls keep off it
       markText(324, 6, 52, 20);
       drawClockPlate(g, 324, y, this.clockView());
+      // クリア後：札の左に時間帯の印（05 3.2）。知らせのとき1回はねる
+      if (pgOn()) {
+        markText(PG_BADGE_X, 2, 12, 20);
+        drawPgBadge(g, PG_BADGE_X, y + 3 - this.pgHop());
+      }
     }
     // hanko icon (bottom left) and the place name beside it: under the
     // curtain they go with the world (only the parts `keep` names stay)
@@ -986,6 +1062,10 @@ class UiHud implements FieldHud {
 
   private drawCard(g: Gfx, c: ItemCard, y0: number): void {
     if (c.t < 0) return;
+    if (c.text !== undefined) {
+      this.drawTextCard(g, c, y0);
+      return;
+    }
     const it = getItem(c.id);
     if (!it) return;
     // 付箋のカード: sticks on in 0.1 s (1.2 → 1.0), peels off at the end
@@ -1018,6 +1098,33 @@ class UiHud implements FieldHud {
       g.img(itemIcon24(c.id), x + 4, y + 3);
       const tw = g.text(name, x + 32, y + 7, { color: UI.text });
       if (count) drawNumerals(g, count, x + 32 + tw + 5, y + 7, { color: UI.accentDark });
+    });
+  }
+
+  /** A words-only note: the same sticky note as an item's, without the icon. */
+  private drawTextCard(g: Gfx, c: ItemCard, y0: number): void {
+    const text = c.text ?? '';
+    const w = textW(text) + 20;
+    const h = 24;
+    const stick = Math.min(1, c.t / 100);
+    const peel = c.t > 2500 ? (c.t - 2500) / 300 : 0;
+    const x = 8;
+    const y = y0 - Math.round(peel * 10);
+    const a = 1 - peel;
+    markText(x - Math.ceil(w * 0.1) - 1, y0 - 10 - Math.ceil(h * 0.1), Math.ceil(w * 1.2) + 5, Math.ceil(h * 1.2) + 13, true);
+    const s = 1.2 - 0.2 * ease.cubicOut(stick);
+    const cw = Math.round(w * s);
+    const ch = Math.round(h * s);
+    const cx = x + Math.round((w - cw) / 2);
+    const cy = y + Math.round((h - ch) / 2);
+    g.alpha(a, () => {
+      rectA(g, cx + 2, cy + 2, cw, ch, UI.shadow, 0.45 * (0.4 + 0.6 * stick));
+      g.rect(cx, cy, cw, ch, '#D9A441');
+      g.rect(cx + 1, cy + 1, cw - 2, ch - 2, UI.tape);
+      g.rect(cx + 1, cy + 1, cw - 2, 1, '#FBD9A0');
+      g.rect(cx + cw - 4, cy + ch - 4, 3, 3, '#E9B866');
+      g.px(cx + cw - 1, cy + ch - 1, blend(UI.tape, UI.shadow, 0.3));
+      g.text(text, x + 10, y + 4, { color: UI.text });
     });
   }
 
@@ -1055,6 +1162,28 @@ export function showClock(ms = 4000): void {
 /** Show a place-name banner now. */
 export function showPlaceName(text: string, ms = 2600): void {
   uiHud.showBanner(text, ms);
+}
+
+/** x of the 時間帯の印 (left of the clock plate). */
+const PG_BADGE_X = 324 - 14;
+
+/** クリア後の時間帯の印（12×12 の札）を (x,y) に。メニューの札の横にも使う。 */
+export function drawPgBadge(g: Gfx, x: number, y: number, alpha = 1): void {
+  if (!pgOn()) return;
+  g.img(pgBadgeImg(pgBand()), x, y, alpha < 1 ? { alpha } : {});
+}
+
+/**
+ * 小さな知らせ（持ち物の付箋と同じ形の、字だけの付箋。左上に 2.8秒）。
+ *   notifyNote('みました帳に『やり残し』が ふえた。')
+ */
+export function notifyNote(text: string): void {
+  uiHud.pushNote(text);
+}
+
+/** グソっ君の合流（05 7.2）：「みました帳に『やり残し』が ふえた。」 */
+export function notifyYarinokoshi(): void {
+  uiHud.pushNote('みました帳に『やり残し』が ふえた。', CARD_SETTLE_MS);
 }
 
 /** Pop the item sticky note (e.g. for things handed over outside the field). */
@@ -1144,6 +1273,7 @@ export function setClockText(s: string | null, o: { cut?: boolean } = {}): void 
 export function installHud(): void {
   setFieldHud(uiHud);
   setAutosaveClock(() => uiHud.clockBottom());
+  onPgBand((b, prev) => uiHud.pgBandChanged(b, prev));
   worldHud.show = (ms = 4000) => uiHud.show(ms);
   worldHud.setTime = (s) => uiHud.setTime(s);
 }
