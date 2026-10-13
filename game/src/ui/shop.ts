@@ -119,6 +119,8 @@ registerShop({
   goods: () => {
     const g = ['item_ramune', 'item_kinakobou', 'item_fugashi', 'item_hakka_ame'];
     if (flag('flag_got_hanko')) g.push('item_stamp_pad');
+    // 型ぬき 番付（2026-10-13）：レジの 横の『型ぬき 1枚 10円』の 箱（番付を グソっ君と 見た あと、段階2）
+    if (flag('flag_katanuki_seen') && flag('flag_stage') === 2) g.push('item_katanuki');
     return g;
   },
   onBuy: (id, n) => {

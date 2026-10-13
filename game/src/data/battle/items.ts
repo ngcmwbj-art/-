@@ -11,6 +11,8 @@ const items: ItemDef[] = [
   { id: 'item_ramune', name: 'ラムネ', price: 60, target: 'ally', heal: 20, shopLimit: 2, desc: ['ビー玉が からん と鳴る。', 'HPを 20 回復。'] },
   { id: 'item_kinakobou', name: 'きなこぼう', price: 20, target: 'ally', heal: 12, special: 'kinakobou', shopLimit: 3, desc: ['あたりは 入ってない らしい。', 'HPを 12 回復。たまに あたり。'] },
   { id: 'item_fugashi', name: 'ふがし', price: 90, target: 'ally', heal: 40, shopLimit: 1, desc: ['軽い。回復量は 重い。', 'HPを 40 回復。'] },
+  // 型ぬき 番付（2026-10-13）：ひのやの 品書き（番付を 見た あと、段階2）。買うと その場で ぬく（events/katanuki.ts）
+  { id: 'item_katanuki', name: '型ぬき', price: 10, target: 'ally', heal: 8, desc: ['うす桃色の おかしの 板。型の 線つき。', 'HPを 8 回復。'] },
   { id: 'item_hakka_ame', name: 'ハッカあめ', price: 30, target: 'ally', cure: ['status_konran', 'status_nemuri'], desc: ['すーっと する。目も さめる。', 'こんらん・ねむりを 治す。'] },
   { id: 'item_stamp_pad', name: 'ちびたスタンプ台', price: 70, target: 'minato', mp: 12, desc: ['使いこまれて、まんなかが へこんでいる。', '朱肉を 12 回復。'] },
   { id: 'item_oden_can', name: '八月のおでん缶', target: 'allies', healRate: 0.5, desc: ['温度だけは 本気。', '全員の HPを 半分 回復。'] },
@@ -131,6 +133,8 @@ const items: ItemDef[] = [
   { id: 'item_dome_key', name: '天文台の鍵', key: true, target: 'none', desc: ['村営 天文台の 鍵。白い 札つき。', 'まつ先生から、朝まで あずかった。'], battleText: ['鍵を 見せた。\n……開ける 扉は、ここには ない。'] },
   { id: 'item_kanbo_card', name: 'タクミの観望会カード', key: true, target: 'none', desc: ['10年前の『観望会 カード』。', '答えの 欄は 白い。『くもり』。'], battleText: ['カードを 見せた。\n$enemyは 空の ほうを 見た。'] },
   { id: 'item_kanbo_card_done', name: 'タクミの観望会カード', key: true, target: 'none', desc: ['3つの 欄に、しゅんの 字。', '1つめは、半分の 丸。'], battleText: ['カードを 見せた。\n$enemyは 空の ほうを 見た。'] },
+  // 上の 柵ぞいの 見回り（02 #99）：マサルから 見回りの あいだだけ 借りる（針の 色だけ 見る。電圧の 数字は 出さない）
+  { id: 'item_saku_tester', name: '柵のテスター', key: true, target: 'none', desc: ['マサルの 電気柵の テスター。', '針が 赤・黄・緑の どこに 来るか。'], battleText: ['テスターを 見せた。\n$enemyは 針の 色を のぞきこんだ。'] },
   // 70年の 色紙と 小さな 夏祭り（02 #84）：ぴょん夫人から あずかる 色紙（そろうと 返す）、区の 倉庫の 提灯（校庭の 桜に かける）
   { id: 'item_shikishi', name: '70年の色紙', key: true, target: 'none', desc: ['ぴょん夫人から あずかった。', 'ひとことは 7つ。10年に 1つずつ。'], battleText: ['色紙を 見せた。\n$enemyは 少し 背すじを のばした。'] },
   { id: 'item_matsuri_chochin', name: '夏祭りの提灯', key: true, target: 'none', desc: ['『星見台 夏祭り』の 箱の 1つ。', 'トマトの 灯りで、紙が 橙に すける。'], battleText: ['提灯を 見せた。\n$enemyは 祭りの 音に 耳を すませた。'] },

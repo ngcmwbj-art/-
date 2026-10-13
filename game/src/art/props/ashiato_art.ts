@@ -270,7 +270,7 @@ const BEAN = {
  * 1株（9×13）：根元から 3本の 枝、3枚ずつの 葉（三つ葉）、枝の つけ根に 小さな さや。
  * bitten：上の 葉が なく、かじられた 茎の 先と 葉の ふち（明るい 切り口）。
  */
-function bean(p: PixelCanvas, x0: number, base: number, bitten: boolean, seed: number): void {
+export function bean(p: PixelCanvas, x0: number, base: number, bitten: boolean, seed: number): void {
   const top = bitten ? base - 7 : base - 12;
   p.vline(x0 + 4, top + 1, base, BEAN.stem);
   // a broad oval leaflet (not a rice blade): 3 wide, a light top, a dark underside

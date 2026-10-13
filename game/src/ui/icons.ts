@@ -463,6 +463,23 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// 柵のテスター（上の 柵ぞいの 見回り、02_ch2_index #99）：黄色い 箱、白い 目盛りの 窓（赤・緑）と 針、
+// 黒と 赤の 2本の 線（先は 線と 地面へ）
+Object.assign(ITEM_ROWS, {
+  item_saku_tester: [
+    '..........',
+    '.hhhhhhh..',
+    'hOOOOOOOh.',
+    'hOaaaaaOh.',
+    'hOrakaFOh.',
+    'hOaakaaOh.',
+    'hOOOOOOOh.',
+    'hOOxOOOOhr',
+    '.hhxhhhh.r',
+    '...x....r.',
+  ],
+});
+
 // 名前の石 (沢の上, 50 10.22, 02_ch2_index #65): a flat grey stone from the stream, two
 // names scratched in it — a long one (とまたろう) and, under it, a short one (マル) — moss
 Object.assign(ITEM_ROWS, {

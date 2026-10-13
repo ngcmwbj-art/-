@@ -1524,6 +1524,26 @@
 - 星見の丘（5章）からは天文台・戸・小窓・倒れた案内板を外した（同じ天文台が2つにならないように）。
 
 
+### 4.9 map_hoshi_sakuzoi（上の 柵ぞい、30×14）★2026-10-13 追加（依頼主の採用、02 #99）
+
+棚田の いちばん 上の 電気柵の 外、杉の 森の すそに そった 細い 道（50 10.34 上の 柵ぞいの 見回り）。地図は `src/data/maps/hoshi_sakuzoi.ts`、絵は `src/art/props/sakuzoi_art.ts`。HD-2D の MAPS に 入れる（`src/hd2d/index.ts`）。
+
+```
+   x 0         1         2
+     012345678901234567890123456789
+ y0  HHHHHHHHHHHHHHHHHHHHHHHHHHHHHH   杉の 森（sugi）
+  3  YYYYYYYYYYYYYYYYYYYYYYYYYYYYYY   森の すそ（yabu。ススキ・アキノキリンソウ・クヌギ）。森の 目は ここ
+  4  ::::::::::::::::::::::::::::::   細い 道。西の はし (0,4) → 村 (14,2)（棚田の 戸が 開いて いれば）、東の はし (29,4) → 村 (44,1)
+  5  ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,o   柵の 前の 草（柵から 1マス）。区間の スイッチ prop_saku_switch (29,5)
+  6  EEEEEEEEEEEEEEEEEEEEEEEEEEEEEE   電気柵（efence。カウンター：柵ごしに 話す）。番号札 prop_saku_fuda 1 (28) … 8 (0)、4マスごと
+  7  AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA   いちばん 上の 段の 畦（内側。歩けない）。畦豆 prop_ashiato_azemame (0,7)(5,7)
+  8  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   棚田（h_tanada）、行11 は 1段 下の 畦
+```
+
+- 直す 所（柵の 行を 道 (y5) から 調べる、2マス幅）：掘られた 土 prop_saku_hole (22)、杉の 枝 prop_saku_eda (17)、クズの つる prop_saku_kuzu (13・10)、内側の 畦草 prop_saku_azekusa (6・2、行7)。直すと 絵が かわる（土は ならして 細かい 足の あと、クズは 切り株と しおれた 葉、畦草は 短い 株）。
+- 村の 側：杉の すきま (44,0)（山道の 入口 (48–49,0) の 西）。見回りの 前は 調べるだけ「杉の あいだに、細い 道。電気柵の 外を、西へ つづいている。」、あとは 段階1〜2 で 扉。
+- 暗がり：行0〜5（森と 道）。音：bgm_hoshi_night、`amb_h_insects` `amb_h_wind` `amb_h_tanada` `amb_h_fence`（スイッチを 切って いる あいだは カチッが 鳴らない）、段階2 は `amb_h_pa_hum`。区域 `area_hoshi_sakuzoi`『上の 柵ぞい』。
+
 ## 5. map_hoshi_hill（星見の丘、24×20）
 
 ```

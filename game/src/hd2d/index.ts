@@ -55,6 +55,8 @@ const DEMO = import.meta.env.VITE_HD2D_DEMO === '1';
 const MAPS = new Set([
   'map_town', 'map_school', 'map_school_kotei', 'map_aze', 'map_seki', 'map_mall_roof',
   'map_hoshimidai', 'map_hoshi_hill', 'map_hoshi_sawa', 'map_hoshi_urayama',
+  // 上の 柵ぞい（棚田の 上の 電気柵の 外、02_ch2_index #99）
+  'map_hoshi_sakuzoi',
   // chapter 3 (62 8.9): 海ぞいの町 at noon, and the sea floor under it (グソっ君 alone, S09)
   'map_umizoi', 'map_c3_umi',
 ]);

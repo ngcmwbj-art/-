@@ -213,6 +213,13 @@ export const SOLID: Record<string, PropSolid> = {
   prop_c3_noren: slab(1),
   prop_c3_fune: slab(10),
   prop_c3_mikan: { kind: 'tree', depth: 3 },
+  // 上の 柵ぞい (02 #99): what lies on the fence's wires is thin; the hollow under it lies on the ground
+  prop_saku_kuzu: slab(3),
+  prop_saku_eda: slab(2),
+  prop_saku_azekusa: slab(2),
+  prop_saku_hole: FLAT,
+  prop_saku_fuda: slab(1),
+  prop_saku_switch: slab(4),
 };
 
 /** The solid of a prop: the table, else trees by id, else a slab as deep as a third of its smaller side. */
@@ -245,6 +252,9 @@ export interface PropNudge {
 export const nudging = { on: true };
 
 export const NUDGE: Record<string, PropNudge> = {
+  // 上の 柵ぞい (02 #99): the number plates on the posts a px behind the kudzu and the branch on the wires
+  'prop_saku_fuda@12,6': { z: -1 },
+  'prop_saku_fuda@16,6': { z: -1 },
   // 2026-10-05 依頼主「ようこその看板も建物に入り込んでる」: its board (an fg
   // part, at the post's foot line) stood 1 px behind 百瀬's facade
   'obj_arch_sign@23,21': { fgView: 3 },

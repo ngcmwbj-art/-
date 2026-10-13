@@ -16,9 +16,10 @@ import { registerMap } from '../../world/maps';
 import type { MapDef, MapObj, TileSpec } from '../../world/types';
 import { hg, htalk, htext, narrowFirst, O, O2, PR } from './hoshi_common';
 import { ROOM2_OUTSIDE, ROOM2_VILLAGE_DOORS } from './hoshi_rooms2';
+import { SAKU_SUKIMA as SAKU_SUKIMA_TEXT } from '../text/hoshi_sakuzoi';
 
 const ROWS = [
-  'HHHHHHHHHHHHHsPHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHPPHHHHHHHHHH', // 0  (14,0) 沢の上への口 (02 #65)
+  'HHHHHHHHHHHHHsPHHHHHHHHHHHHHHHHHHHHHHHHHHHHHPHHHPPHHHHHHHHHH', // 0  (14,0) 沢の上への口 (02 #65)、(44,0) 上の 柵ぞいへの 杉の すきま (02 #99)
   'HHHHHHHHHHHHHsgEEEEEEEEEEEEEEEEEEEEEEKKKKKKK:::o::::::KKKKKK', // 1  (14,1) 電気柵の戸
   'HHHHHHHHHHHHHsaaaaannaaaaaaaaaaaaaaaEKKKKKKK::::::::::KKKKKK', // 2
   'HHHHHHHHHHHHHs~~~~~nn~~~~~~~~~~~~~~~EkuuuuuuuuuuuuuuuuuuuuKK', // 3
@@ -179,6 +180,10 @@ const OBJECTS: MapObj[] = [
   PR('prop_h_sawa_gate', 14, 1),
   { t: 'obj', id: 'obj_hoshi_sawa_gate', x: 14, y: 1, face: 'up', script: 'obj_hoshi_sawa_gate' } as MapObj,
   { t: 'trig', id: 'trig_ch2_sawa_back', x: 14, y: 2, w: 1, h: 1, script: 'evt_ch2_sawa_back', cond: { flag: 'flag_ch2_sawa_seki', notFlag: 'flag_ch2_sawa_back' } },
+  // 上の 柵ぞいの 見回り (02 #99, 52 4.9): the gap in the cedars (44,0) west of the hill path's mouth, open once
+  // マサル and しゅん have been round the upper fence (before that, only a look at the narrow path past it)
+  { t: 'door', id: 'door_hoshi_sakuzoi', x: 44, y: 0, to: 'map_hoshi_sakuzoi', tx: 28, ty: 4, dir: 'left', se: 'se_step_dirt', cond: { flag: 'flag_saku_done', stage: '1-2' } },
+  { t: 'obj', id: 'obj_saku_sukima', x: 44, y: 0, face: 'up', text: SAKU_SUKIMA_TEXT, cond: { notFlag: 'flag_saku_done' } } as MapObj,
   // the houses, sheds and greenhouses (02 #61), and what is found outside them
   ...ROOM2_VILLAGE_DOORS,
   ...ROOM2_OUTSIDE,
@@ -422,6 +427,8 @@ const OBJECTS: MapObj[] = [
   },
   { t: 'npc', id: 'npc_hoshi_gen', x: 50, y: 19, dir: 'left', talk: htalk('npc_hoshi_gen'), cond: s2 },
   { t: 'npc', id: 'npc_hoshi_fumi', x: 47, y: 2, dir: 'down', talk: htalk('npc_hoshi_fumi'), cond: s2 },
+  // 分校の 鉄棒と『懸垂、1回』（02 #100）：練習の あいだ、まつ先生は 鉄棒の 横（集会所の 席は 空く。events/ch2/tetsubou.ts）
+  { t: 'npc', id: 'npc_hoshi_fumi', x: 33, y: 30, dir: 'left', talk: htalk('npc_hoshi_fumi'), cond: { ...s01, flag: 'flag_tetsu_away' } },
   { t: 'npc', id: 'npc_hoshi_tome', x: 21, y: 11, dir: 'down', talk: htalk('npc_hoshi_tome'), cond: { stage: '0-1', notFlag: 'flag_ch2_sawa_wait' } },
   { t: 'npc', id: 'npc_hoshi_tome', x: 21, y: 11, dir: 'up', pose: 'look_hill', talk: htalk('npc_hoshi_tome'), cond: { stage: 2, notFlag: 'flag_ch2_sawa_wait' } },
   // 沢の頼み (02 #65): he waits by the fence's door until しゅん comes back down (h1–h2)

@@ -24,6 +24,7 @@ import type { MenuCtx, MenuPage } from './types';
 import { UKI_DESC_LINE } from '../../data/text/mizube';
 // 「ダンゴムシ ちゃうで」の 報告書（02 #93）：写しの 2行目と、つかうと カード
 import { hkItemDesc } from '../../data/text/hokokusho';
+import { HANAMARU_DESC } from '../../data/text/hoshi_tetsubou';
 import { viewCard } from '../hokokusho_card';
 
 export const BAG_MAX = 14;
@@ -111,6 +112,8 @@ export function itemDesc(id: string): [string, string] {
   // おぴぃの浮き：堰の 片手の 大将に 会ったら 2行目が かわる（水辺の 図鑑、02 #81）
   if (id === 'item_tamotsu_uki' && flag('flag_mizube_uki_line')) return [it?.desc[0] ?? '', UKI_DESC_LINE];
   if (id === 'item_hokokusho') return hkItemDesc();
+  // はなまる『懸垂挑戦！』：第2章の 鉄棒で まつ先生が『1回 星見台』と 書き足した あと（02 #100）
+  if (id === 'item_hanamaru_kensui' && flag('flag_tetsu_hanamaru')) return HANAMARU_DESC;
   return [it?.desc[0] ?? '', it?.desc[1] ?? ''];
 }
 

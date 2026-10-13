@@ -330,7 +330,10 @@ registerDebug('wrapCheck', () => {
   // 「ダンゴムシ ちゃうで」の 報告書（02 #93）hokokushoText（台詞の 決まりも。開発サーバーだけ）
   // 無人販売所の 店番（02 #94）tenbanText・tenbanBookText、ふくじんづけと 耳の あいさつ（02 #95）mimiText・mimiBookText（開発サーバーだけ）
   // 堆肥の 中の 親戚（02 #97）taihiText・taihiBookText（開発サーバーだけ）
-  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText', 'nihyakuBookText', 'domeText', 'huntingText', 'koteiText', 'shikishiText', 'shikishiBookText', 'mizubeText', 'yoburiText', 'mizubeBookText', 'tokei7Text', 'tokei7BookText', 'ashiatoText', 'ashiatoBookText', 'hajimeteText', 'hajimeteBookText', 'tenbanText', 'tenbanBookText', 'mimiText', 'mimiBookText', 'taihiText', 'taihiBookText', 'hokokushoText']) {
+  // 上の 柵ぞいの 見回り（02 #99）sakuzoiText・sakuzoiBookText（開発サーバーだけ）
+  // 分校の 鉄棒と『懸垂、1回』（02 #100）tetsuText・tetsuBookText（開発サーバーだけ）
+  // 型ぬき 番付（01 の 変更の 記録 2026-10-13）katanukiText（台詞の 決まりも）・katanukiBookText（開発サーバーだけ）
+  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText', 'nihyakuBookText', 'domeText', 'huntingText', 'koteiText', 'shikishiText', 'shikishiBookText', 'mizubeText', 'yoburiText', 'mizubeBookText', 'tokei7Text', 'tokei7BookText', 'ashiatoText', 'ashiatoBookText', 'hajimeteText', 'hajimeteBookText', 'tenbanText', 'tenbanBookText', 'mimiText', 'mimiBookText', 'taihiText', 'taihiBookText', 'sakuzoiText', 'sakuzoiBookText', 'tetsuText', 'tetsuBookText', 'hokokushoText', 'katanukiText', 'katanukiBookText']) {
     const r = cmds[name]?.();
     if (!r) continue;
     n += r.pages ?? r.total ?? 0;

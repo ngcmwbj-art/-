@@ -53,9 +53,12 @@ import { ASHIATO_TEXTS } from '../../data/text/hoshi_ashiato';
 import { TENBAN_TEXTS } from '../../data/text/hoshi_tenban';
 import { MIMI_TEXTS } from '../../data/text/hoshi_mimi';
 import { TAIHI_TEXTS } from '../../data/text/hoshi_taihi';
+import { SAKU_TEXTS } from '../../data/text/hoshi_sakuzoi';
+import { TETSU_TEXTS } from '../../data/text/hoshi_tetsubou';
 import { HUNTING_TEXTS } from '../../data/text/hunting';
 import { KOTEI_TEXTS } from '../../data/text/kotei';
 import { TOKEI_TEXTS } from '../../data/text/tokei7';
+import { KATANUKI_TEXTS } from '../../data/text/katanuki';
 import { HAJIMETE_TEXTS } from '../../data/text/hajimete';
 import { HOKOKUSHO_TEXTS } from '../../data/text/hokokusho';
 import { c3Texts } from '../../data/text/c3_events';
@@ -249,6 +252,14 @@ export const CHAIN2: Beat2[] = [
     steps: [set('flag_ch2_barn_work', 'flag_seen_npc_hoshi_gen_h1_1', 'flag_seen_npc_hoshi_gen_h1_2'), val('flag_seen_npc_hoshi_gen_h1', 2)],
     at: ['map_hoshi_barn', 19, 6, 'right'],
     desc: '（任意）夜の 足あと帳（マサル〔ashiato〕→ 足あと 6つ → 知らせる → マサル → ゲートの 内側で うり坊を 数える）',
+    side: 'houki',
+  },
+  // optional (02 #99, sakuzoi.ts): stage 1 past the gate — the power unit's lamp by the gate (47,19), then マサル in the barn
+  {
+    beat: 'sakuzoi',
+    steps: [set('flag_seen_npc_hoshi_gen_h1_1')],
+    at: ['map_hoshimidai', 47, 20, 'up'],
+    desc: '（任意）上の 柵ぞいの 見回り（電源の 箱 (47,19) → 牛舎の マサル → 柵ぞいで 6つ 直す → スイッチ → 西の はしで 測る）',
     side: 'houki',
   },
 ];
@@ -469,12 +480,18 @@ function collectTexts(): [string, string][] {
   walk('mimi', MIMI_TEXTS);
   // げむきか10/10の案2（堆肥の 中の 親戚 → カブトムシの 幼虫。50 10.32, 02_ch2_index #97）
   walk('taihi', TAIHI_TEXTS);
+  // げむきか10/11の案3（上の 柵ぞいの 見回り。50 10.34, 02_ch2_index #99）
+  walk('sakuzoi', SAKU_TEXTS);
+  // げむきか10/11の案5（分校の 鉄棒と『懸垂、1回』。第1章で 懸垂に 挑んだ 人だけ。50 10.33, 02_ch2_index #100）
+  walk('tetsu', TETSU_TEXTS);
   // げむきか10/5の新5（ハンチングの 値札。第1章の くりこ〔chichi〕も。10 6.8, 50 3.8・9.9, 02_ch2_index #83）
   walk('hunting', HUNTING_TEXTS);
   // げむきか10/5の新1（二人十五脚。第1章の ピー・コック・なんばるわん・校庭。10 6.12・6.23・7.24, 02_ch2_index #82）
   walk('kotei', KOTEI_TEXTS);
   // げむきか10/6の案4（チクタク堂の ばらばら時計。第1章の 時計店・6人、第2章の 駅ノートの 1行。10 6.22・7.19, 50 8.1, 02_ch2_index #88）
   walk('tokei7', TOKEI_TEXTS);
+  // げむきか10/13の案3（型ぬき 番付。第1章の ひのや・番付の 5人・書きかえ。01 の 変更の 記録 2026-10-13）
+  walk('katanuki', KATANUKI_TEXTS);
   // げむきか10/7の案5（グソっ君の はじめて帳。第1章の 町の 8人、第2章の 村の 6人と 裏表紙。10 6.27, 50 10.29, 02_ch2_index #89）
   walk('hajimete', HAJIMETE_TEXTS);
   // げむきか10/9の案2（「ダンゴムシ ちゃうで」の 報告書。第1章の 交番・8人・さや・母。10 6.28, 02_ch2_index #93）

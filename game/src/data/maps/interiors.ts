@@ -131,6 +131,8 @@ registerMap({
   objects: [
     PR('in_hi_shell', 0, 0),
     PR('in_hi_clock', 1, 0),
+    // 型ぬき 番付（2026-10-13）：クラス写真の 下に 貼った『型ぬき 名人 番付』（調べるのは 写真と 同じ (2,2)）
+    PR('in_hi_banzuke', 2, 1),
     PR('in_hi_back', 2, 2),
     PR('in_hi_fan', 6, 2),
     PR('in_hi_bungu', 1, 2),

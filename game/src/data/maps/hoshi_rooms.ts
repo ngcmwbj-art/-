@@ -453,7 +453,8 @@ const SCHOOL_OBJ: MapObj[] = [
   O('obj_hoshi_uraguchi', 24, 2, { face: 'up' }),
   // the people of the meeting (52 4.4)
   { t: 'npc', id: 'npc_hoshi_kucho', x: 6, y: 3, dir: 'down', talk: htalk('npc_hoshi_kucho') },
-  { t: 'npc', id: 'npc_hoshi_fumi', x: 9, y: 3, dir: 'up', talk: htalk('npc_hoshi_fumi'), cond: { stage: '0-1' } },
+  // 分校の 鉄棒と『懸垂、1回』（02 #100）：練習の あいだは 校庭の 鉄棒の 横（flag_tetsu_away、hoshi_village.ts）
+  { t: 'npc', id: 'npc_hoshi_fumi', x: 9, y: 3, dir: 'up', talk: htalk('npc_hoshi_fumi'), cond: { stage: '0-1', notFlag: 'flag_tetsu_away' } },
   { t: 'npc', id: 'npc_hoshi_yoshie', x: 2, y: 5, dir: 'left', talk: htalk('npc_hoshi_yoshie'), script: 'evt_ch2_rest_yoriai' },
   // the dark corridor: pushed back until the lantern (52 1.6: the floor is bad
   // and the rooms at its end are dark); facing it from the lit end says the same

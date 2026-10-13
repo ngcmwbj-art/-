@@ -48,10 +48,14 @@ import { drawTenbanPage, hasTenbanPage, TENBAN_ROW_LABEL } from './book_tenban';
 import { drawMimiPage, hasMimiPage, MIMI_ROW_LABEL } from './book_mimi';
 // ② の すみの 1ページ『堆肥の 山の 住人』（堆肥の 中の 親戚、02_ch2_index #97）
 import { drawTaihiPage, hasTaihiPage, TAIHI_ROW_LABEL } from './book_taihi';
+// ② の すみの 1ページ『鉄棒』（分校の 鉄棒と『懸垂、1回』、02_ch2_index #100）
+// ② の すみの 1ページ『上の 柵』（上の 柵ぞいの 見回り、02_ch2_index #99）
+import { drawSakuPage, hasSakuPage, SAKU_ROW_LABEL } from './book_sakuzoi';
+import { drawTetsuPage, hasTetsuPage, TETSU_ROW_LABEL } from './book_tetsubou';
 
 /**
  * ② の すみの ページ、一覧の いちばん下に この 順：『二百十日の 前の 晩』（02 #78）、『70年の 色紙』（#84）、
- * 『よるの 足あと』（#87）、『店番の 下絵』（#94）、『耳の あいさつ』（#95）、『堆肥の 山の 住人』（#97）。番号なし・鉛筆の 字。
+ * 『よるの 足あと』（#87）、『店番の 下絵』（#94）、『耳の あいさつ』（#95）、『堆肥の 山の 住人』（#97）、『上の 柵』（#99）、『鉄棒』（#100）。番号なし・鉛筆の 字。
  */
 function corner2(): { label: string; draw: (g: Gfx, x: number, y: number, w: number) => void }[] {
   const r: { label: string; draw: (g: Gfx, x: number, y: number, w: number) => void }[] = [];
@@ -61,11 +65,23 @@ function corner2(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasTenbanPage()) r.push({ label: TENBAN_ROW_LABEL, draw: drawTenbanPage });
   if (hasMimiPage()) r.push({ label: MIMI_ROW_LABEL, draw: drawMimiPage });
   if (hasTaihiPage()) r.push({ label: TAIHI_ROW_LABEL, draw: drawTaihiPage });
+  if (hasSakuPage()) r.push({ label: SAKU_ROW_LABEL, draw: drawSakuPage });
+  if (hasTetsuPage()) r.push({ label: TETSU_ROW_LABEL, draw: drawTetsuPage });
   return r;
 }
 import { stickerUribo } from '../../art/props/ashiato_art';
 // ① の すみの 1ページ『チクタク堂の 7つの 時計』（02_ch2_index #88）：ふしぎの 一覧の いちばん下、番号なし・数に 入れない。決定で めくる
 import { drawTokeiPage, hasTokeiPage, TOKEI_ROW_LABEL, tokeiTurn } from './book_tokei7';
+// ① の すみの 1ページ『型ぬき 番付』（型ぬき 番付、01 の 変更の 記録 2026-10-13）：『チクタク堂』の 下。決定で めくる
+import { drawKatanukiPage, hasKatanukiPage, KATANUKI_ROW_LABEL, katanukiTurn } from './book_katanuki';
+
+/** ① の すみの ページ（一覧の いちばん下、この 順。番号なし・鉛筆の 字・数に 入れない。決定で めくる）。 */
+function corner1(): { label: string; draw: (g: Gfx, x: number, y: number, w: number) => void; turn: () => void }[] {
+  const r: { label: string; draw: (g: Gfx, x: number, y: number, w: number) => void; turn: () => void }[] = [];
+  if (hasTokeiPage()) r.push({ label: TOKEI_ROW_LABEL, draw: drawTokeiPage, turn: tokeiTurn });
+  if (hasKatanukiPage()) r.push({ label: KATANUKI_ROW_LABEL, draw: drawKatanukiPage, turn: katanukiTurn });
+  return r;
+}
 // ① ② の『はじめて』（グソっ君の はじめて帳、02_ch2_index #89）：『みずべ』の うしろの 欄
 import { drawHajimetePage, HAJIMETE_TAB_NAME, hajimeteHave, hajimeteRows, hasHajimete } from './book_hajimete';
 
@@ -732,7 +748,7 @@ export class BookPage implements MenuPage {
     if (this.isMizube) return mizubeRows(this.v12).length;
     if (this.isHajimete) return hajimeteRows(this.v12).length;
     if (this.isMushi) return mushiRows().length;
-    if (this.sec === 0) return v.fushigi.length + (v.n === 2 ? corner2().length : 0) + (v.n === 1 && hasTokeiPage() ? 1 : 0);
+    if (this.sec === 0) return v.fushigi.length + (v.n === 2 ? corner2().length : 0) + (v.n === 1 ? corner1().length : 0);
     return this.sec === 1 ? v.enemies.length : Math.max(1, totalIn(v, v.n === 1 ? 19 : v.n === 2 ? 17 : 1));
   }
 
@@ -742,9 +758,9 @@ export class BookPage implements MenuPage {
     this.volT += dt;
     // a key while the cover still lies there opens it at once
     if (this.volT < COVER_IN + COVER_HOLD && (input.pressed('confirm') || input.pressed('up') || input.pressed('down'))) this.volT = COVER_IN + COVER_HOLD;
-    // 『チクタク堂の 7つの 時計』（02 #88）：決定で ページを めくる
-    else if (input.pressed('confirm') && this.vol === 1 && this.sec === 0 && !this.isMizube && !this.isHajimete && !this.isMushi && hasTokeiPage() && this.sel[0][0] === this.v.fushigi.length) {
-      tokeiTurn();
+    // 『チクタク堂の 7つの 時計』（02 #88）・『型ぬき 番付』：決定で ページを めくる
+    else if (input.pressed('confirm') && this.vol === 1 && this.sec === 0 && !this.isMizube && !this.isHajimete && !this.isMushi && corner1()[this.sel[0][0] - this.v.fushigi.length]) {
+      corner1()[this.sel[0][0] - this.v.fushigi.length].turn();
       sfx('se_page', { pitch: 1.08 });
     }
     if (input.repeat('right')) this.turn(1);
@@ -932,7 +948,7 @@ export class BookPage implements MenuPage {
       // ② の すみの ページ（二百十日・色紙・足あと・店番・耳の あいさつ）：corner2()
       if (v.n === 2) for (const c of corner2()) r.push(wrapRow(c.label, true, '', UI.pencil));
       // 『チクタク堂の 7つの 時計』（02 #88）：① の いちばん下
-      if (v.n === 1 && hasTokeiPage()) r.push(wrapRow(TOKEI_ROW_LABEL, true, '', UI.pencil));
+      if (v.n === 1) for (const c of corner1()) r.push(wrapRow(c.label, true, '', UI.pencil));
       return r;
     }
     if (this.sec === 1) return v.enemies.map((id, i) => wrapRow(nameOf(id, v), !!flag('flag_book_' + id), num(i), UI.text));
@@ -1021,7 +1037,7 @@ export class BookPage implements MenuPage {
       return;
     }
     if (s === 0) {
-      if (v.n === 1 && i >= v.fushigi.length && hasTokeiPage()) return drawTokeiPage(g, x, y, w);
+      if (v.n === 1 && i >= v.fushigi.length) return corner1()[i - v.fushigi.length]?.draw(g, x, y, w);
       if (v.n === 2 && i >= v.fushigi.length) return corner2()[i - v.fushigi.length]?.draw(g, x, y, w);
       if (!v.done(i)) return empty();
       const [title, place] = v.fushigi[i];

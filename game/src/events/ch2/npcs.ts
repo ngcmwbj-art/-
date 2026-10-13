@@ -361,6 +361,8 @@ export function hoshiPlaceKey(f: FieldScene): string {
   if (m === 'map_hoshi_hill') return 'hoshi_hill';
   // 沢の上 (02 #65): its line is data/text/maru.ts's SAWA_FLIP
   if (m === 'map_hoshi_sawa') return 'hoshi_sawa';
+  // 上の 柵ぞい (02 #99): its line is data/text/hoshi_sakuzoi.ts's SAKU_FLIP (events/ch2/sakuzoi.ts adds it)
+  if (m === 'map_hoshi_sakuzoi') return 'hoshi_sakuzoi';
   return '';
 }
 
