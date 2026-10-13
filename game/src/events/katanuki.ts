@@ -531,6 +531,14 @@ if (import.meta.env.DEV) {
       reset();
       return 'katanuki: reset';
     }
+    if (step === 'where') {
+      const out: Record<string, string> = {};
+      for (const id of [...Object.values(TIP_NPC), 'npc_kotaro', 'player']) {
+        const a = id === 'player' ? field()?.player : actor(id);
+        if (a) out[id] = `${a.tileX},${a.tileY} ${a.dir}`;
+      }
+      return out;
+    }
     if (step === 'flags') {
       const out: Record<string, number> = {};
       for (const [k, v] of Object.entries(state.flags)) if (k.startsWith('flag_katanuki')) out[k] = v as number;
