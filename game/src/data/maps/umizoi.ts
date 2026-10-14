@@ -313,9 +313,6 @@ const OBJECTS: MapObj[] = [
   { t: 'trig', id: 'trig_ch3_edge_sea_2', x: 30, y: 26, w: 22, h: 1, on: 'bump', script: 'trig_ch3_edge_sea' },
   { t: 'trig', id: 'trig_ch3_edge_sea_3', x: 5, y: 31, w: 1, h: 2, on: 'bump', script: 'trig_ch3_edge_sea' },
   // (the two ways into the sea, trig_ch3_dive_minato / _hama, and the trap's trigger are the scenario's: events/ch3)
-  // after the clear (05_postgame 2.3 yr_c3_moguri): the harbour steps — pushing down them, the scenario's
-  // pg_moguri (events: グソっ君 with Minato → 「潜ってくる？」 → map_c3_umi). Nothing happens without it
-  { t: 'trig', id: 'trig_pg_moguri', x: 28, y: 27, w: 2, h: 1, on: 'bump', script: 'pg_moguri', cond: { when: pgOn } },
 ];
 
 /** Areas (62 1.2): the place on the HUD, Kanenari's place key, the beds of sound (63 4.3). Narrowest first. */

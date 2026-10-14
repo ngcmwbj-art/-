@@ -31,9 +31,10 @@
 //   __game.cmd.capeText()   every page against 3 lines × 336 px (textcheck2 walks them too)
 
 import type { Co } from '../engine/co';
+import { pgOn } from '../world/postgame';
 import { animate, ease } from '../engine/tween';
 import { measure } from '../engine/font';
-import { flag, setFlag } from '../game/state';
+import { flag, setFlag, state } from '../game/state';
 import { registerDebug } from '../debug';
 import type { Actor } from '../world/actor';
 import { actor, despawn, face, msg, registerScript, spawn, stage } from '../world/api';
@@ -347,7 +348,9 @@ function* coffeeScene(): Co {
 const masterBase = base('npc_master');
 registerScript('npc_master', function* (ctx: ScriptCtx): Co {
   const tankanDue =
-    (flag('flag_tankan_heard') && !flag('flag_got_tankan')) || (!flag('flag_tankan_heard') && flag('flag_seen_tankan_label') && !flag('flag_master_not_yet'));
+    (flag('flag_tankan_heard') && !flag('flag_got_tankan')) || (!flag('flag_tankan_heard') && flag('flag_seen_tankan_label') && !flag('flag_master_not_yet')) ||
+    // クリア後：消えた たんかんの もう1つ（rooms_north.ts）が 先
+    (pgOn() && flag('flag_got_tankan') > 0 && !flag('flag_tankan_given') && !state.inventory.includes('item_tankan'));
   if (stage() === 2 && !tankanDue) {
     if (!flag('flag_bu_left') && once('flag_master_bu_before')) {
       yield* msg(C.MASTER_BU.before);

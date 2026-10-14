@@ -6,7 +6,7 @@
 // 第1期は下じきだけ：段階のフラグ（postgame.ts applyPgStages）で、
 //   夕鳴町 夕方 = 第1章の段階2、星見台 夜 = h1、海ぞいの町 = 段階4、夕鳴町 朝 = 今のクリア後
 // がそのまま出る。ここでは、それだけでは足りない所を書く：
-//   - 夕鳴町 昼 = 第3章の段階0（62 5.1）の背景の人（c3_hm_* の買い物の人・猫・ハト。話せる人は表の本人）
+//   - 夕鳴町 昼 = 第3章の段階0（62 5.1）の背景の人（c3_hm_* の買い物の人・猫。話せる人とハトは表の本人）
 //   - ツガオ便の止まる所（8.1）と重なる第1章の軽トラ、第2章の運転席のツガオは出さない
 //   - 敵のシンボルは出さない（5.3）
 // 人ごとの表（PG_SCHEDULE）は第2期（夕鳴町・星見台・海ぞいの町の外の人。部屋の人は下じき）。
@@ -23,7 +23,7 @@ const at = (map: string, x: number, y: number, dir?: PgSpot['dir']): PgSpot => (
  * 下じき：夕鳴町の夕方は第1章の段階2、星見台の夜は h1、部屋の中の人（店の主・家の人）はどの帯も家にいる。
  * 居場所はその人の物がある地図に限る（その地図の、同じ座標の物、なければ最初の物がそこへ動く）。
  * 第2章の表の寄り道の相手は、窓の帯にその場所にいる（夕方は下じきのまま）。
- * E の会話（`p`・`pa/ph/py/pn`）は、ここでいる帯の分だけ書けばよい（一覧：handoff/pg_people.md）。
+ * E の会話（data/text/pg_talk.ts の pa/ph/py/pn）を書いた帯には、その人がいるようにしてある。
  */
 export const PG_SCHEDULE: Record<string, Partial<Record<PgBand, PgSpot | null>>> = {
   // ================================================ 夕鳴町（朝・昼・夜。夕方は第1章の段階2のまま）
@@ -33,15 +33,17 @@ export const PG_SCHEDULE: Record<string, Partial<Record<PgBand, PgSpot | null>>>
   npc_madam: { asa: at('map_town', 17, 22), hiru: at('map_town', 17, 22), yoru: null },
   npc_kotaro: { asa: at('map_town', 16, 22), hiru: at('map_town', 16, 22), yoru: null },
   npc_mamekichi: { asa: at('map_town', 36, 20), hiru: at('map_town', 36, 20), yoru: null },
-  npc_postman: { asa: at('map_town', 46, 24), hiru: null, yoru: null },
+  npc_postman: { asa: at('map_town', 46, 24), hiru: at('map_town', 46, 24), yoru: null },
   npc_chugaku: { asa: at('map_town', 3, 18), hiru: null, yoru: null },
   npc_jk: { asa: at('map_town', 57, 23), hiru: null, yoru: null },
   npc_cat_sauce: { asa: at('map_town', 15, 24), hiru: null, yoru: at('map_town', 15, 24) },
   npc_cat_mike: { asa: null, hiru: null, yoru: null },
   // 昼：学校の子はいない（62 5.1）。夕方だけの人（第1章の段階2の寄り道の相手）は昼・朝・夜はいない
-  npc_sae: { asa: null, hiru: null, yoru: null },
-  npc_sand_girl: { asa: null, hiru: null, yoru: null },
-  npc_gacha_boy: { asa: null, hiru: null, yoru: null },
+  npc_sae: { asa: at('map_town', 14, 11), hiru: null, yoru: null },
+  npc_sand_girl: { asa: null, hiru: at('map_town', 22, 9), yoru: null },
+  npc_gacha_boy: { asa: null, hiru: at('map_town', 31, 23), yoru: null },
+  // ハト：朝・昼は銀座で えさを つつく（昼の背景の c3_hm_hato の代わり）
+  npc_hato: { asa: at('map_town', 33, 22), hiru: at('map_town', 33, 22), yoru: null },
   npc_tamotsu: { asa: at('map_town', 21, 39), hiru: null, yoru: null },
   npc_maru: { asa: null, hiru: null, yoru: null },
   npc_crow: { asa: null, hiru: null, yoru: null },
@@ -63,11 +65,11 @@ export const PG_SCHEDULE: Record<string, Partial<Record<PgBand, PgSpot | null>>>
   npc_hoshi_fumi: { asa: at('map_hoshi_school', 9, 3), hiru: at('map_hoshi_school', 9, 3), yu: at('map_hoshimidai', 33, 30) },
   // ポコシャ：昼は旧水族館（海ぞいの町、c3_poko_c4）。夜は転回場で荷を積む（h1 のまま）
   npc_pokosha: { asa: null, hiru: null, yu: null },
-  // ヒロスケ：昼は海ぞいの港（c3_hiro_c4）。夜は星見台の軽トラのそば（h1 のまま）
-  npc_hirosuke: { asa: null, hiru: null, yu: null },
+  // ヒロスケ：朝・夕方は星見台の転回場、昼は海ぞいの港で焼き芋（c3_hiro_c4）。夜は軽トラのそば（h1 のまま）
+  npc_hirosuke: { asa: at('map_hoshimidai', 43, 43), hiru: null, yu: at('map_hoshimidai', 43, 43) },
 
   // ================================================ 海ぞいの町（第3章の段階4の上に、町 × 帯）
-  c3_hiro_c4: { asa: at('map_umizoi', 22, 16), hiru: at('map_umizoi', 22, 16), yu: at('map_umizoi', 22, 16), yoru: null },
+  c3_hiro_c4: { asa: null, hiru: at('map_umizoi', 22, 16), yu: null, yoru: null },
   // 旧水族館：開館の準備（9:00〜16:59。帯では朝・昼・夕方）
   c3_poko_c4: { asa: at('map_c3_aq_iriguchi', 6, 9), hiru: at('map_c3_aq_iriguchi', 6, 9), yu: at('map_c3_aq_iriguchi', 6, 9), yoru: null },
   c3_ego_c4: { asa: at('map_c3_aq_iriguchi', 9, 5), hiru: at('map_c3_aq_iriguchi', 9, 5), yu: at('map_c3_aq_iriguchi', 9, 5), yoru: null },
@@ -77,7 +79,7 @@ export const PG_SCHEDULE: Record<string, Partial<Record<PgBand, PgSpot | null>>>
   npc_c3_himono_tsuma: { asa: at('map_umizoi', 19, 14), hiru: at('map_umizoi', 19, 14), yu: at('map_umizoi', 19, 14), yoru: null },
   // 食堂かもめ：朝はのれんを出す、昼・夕方は店の中、夜は片づけ（05 4.2）
   npc_c3_shokudo: { asa: at('map_umizoi', 29, 16), hiru: at('map_c3_shokudo', 4, 3), yu: at('map_c3_shokudo', 4, 3), yoru: at('map_c3_shokudo', 4, 3) },
-  npc_c3_jouren: { asa: null, hiru: at('map_c3_shokudo', 3, 5), yu: at('map_umizoi', 31, 16), yoru: null },
+  npc_c3_jouren: { asa: at('map_umizoi', 31, 16), hiru: at('map_c3_shokudo', 3, 5), yu: at('map_umizoi', 31, 16), yoru: null },
   // セリ：朝は市場（セリの場は人だけ、遊びは無い）、昼は市場の前
   npc_c3_seri: { asa: at('map_c3_ichiba', 9, 4), hiru: at('map_umizoi', 9, 24), yu: null, yoru: null },
   npc_c3_seri_deshi: { asa: at('map_c3_ichiba', 11, 4), hiru: at('map_umizoi', 12, 24), yu: null, yoru: null },
@@ -100,12 +102,12 @@ type BaseRule = (o: MapObj, band: PgBand) => boolean | null;
 
 /** 夕鳴町 昼：第3章の段階0の町の人（話しかけない背景の人）。 */
 const HIRUMAE = /^c3_hm_/;
-const HIRUMAE_BG = new Set(['c3_hm_shufu', 'c3_hm_cat', 'c3_hm_hato']);
+const HIRUMAE_BG = new Set(['c3_hm_shufu', 'c3_hm_cat']);
 
 const BASE: Record<string, BaseRule> = {
   map_town: (o, band) => {
     if (o.t !== 'npc') return null;
-    // (昼の話せる人は PG_SCHEDULE の本人。c3_hm_* は背景の人と動物だけ：買い物の人・猫・ハト)
+    // (昼の話せる人は PG_SCHEDULE の本人。c3_hm_* は背景の人と猫だけ：買い物の人・猫)
     if (HIRUMAE.test(o.id)) return band === 'hiru' && HIRUMAE_BG.has(o.id);
     // 第1章の軽トラ（段階0の走る便・段階1〜2の昼寝）：止まる所は c3_truck_c4（after.ts、PG_TRUCK_STOPS）
     if (o.id === 'veh_kei_truck' || o.id === 'veh_tsugao_nap') return false;
