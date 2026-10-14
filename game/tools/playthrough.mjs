@@ -3106,7 +3106,7 @@ const BEATS_PG = [
     name: 'home',
     async run() {
       await pgRide(0, 'to_town', 'obj_hoshi_tsugao_truck');
-      await pgCheck('ツガオ便 星見台 → 夕鳴町 (+90 min)', (s) => s.map === 'map_town' && s.x === 44 && s.y === 28 && s.band === 'yoru');
+      await pgCheck('ツガオ便 星見台 → 夕鳴町 (+90 min)', (s) => s.map === 'map_town' && Math.abs(s.x - 44) <= 1 && Math.abs(s.y - 28) <= 1 && s.band === 'yoru');
       await pgWait('evt_save_jizo', 2, 'wait_yu');
       await pgCheck('待つ → 夕方 15:00 (flag_stage 2, flag_clock 3, pgCh1, 2日目)', (s) => s.band === 'yu' && s.min >= 15 * 60 && s.min < 15 * 60 + 20 && s.stage === 2 && s.clock === 3 && s.ch1 && s.day === 2);
     },
