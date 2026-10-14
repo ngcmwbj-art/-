@@ -410,6 +410,8 @@ interface Banner {
   text: string;
   t: number;
   dur: number;
+  /** The name of the map it was put up on (a name left over from another map is taken down). */
+  map?: string;
   /** Where the tape is stuck: chosen once, clear of the party (placeBanner). */
   x: number;
   y: number;
@@ -725,6 +727,9 @@ class UiHud implements FieldHud {
       else if (place === '海ぞいの町' && f.map.id === from && f.player.tileY >= 16 && f.player.tileY <= 18) place = this.lastPlace;
     }
     if (f.map.id !== this.lastMap) {
+      // the previous map's name still up (a warp with no fade, the ツガオ便 to another town in
+      // the postgame): take it down, the new map's name follows
+      if (this.banner?.map && this.banner.map !== f.map.id && this.banner.text !== place) this.banner = null;
       this.lastMap = f.map.id;
       this.pendingPlace = place;
       this.placeDelay = 250;
@@ -753,7 +758,7 @@ class UiHud implements FieldHud {
         this.pendingPlace = null;
         const seen = this.placeSeen.get(p) ?? -1e9;
         if (flag('flag_opening_done') && this.t - seen > 25000 && !flag('flag_hud_hidden')) {
-          this.banner = this.placeBanner(p, 2600);
+          this.banner = { ...this.placeBanner(p, 2600), map: f.map.id };
           this.placeSeen.set(p, this.t);
         }
       }
