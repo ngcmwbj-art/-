@@ -122,7 +122,8 @@ export function* interactActor(f: FieldScene, a: Actor): Co {
   if (!def) return;
   // 話しかけた記録（60_ch3_story 3.0・3.4：第3章で「来る人」を決める。第1章から記録して、セーブに残す）。
   // 第3章の段階0（夕鳴町の昼前）では記録しない：来る人は第1章・第2章で話した人だけ（fix1014 F3）
-  if (!ch3Hirumae()) setFlag(`flag_talked_${def.id}`, 1);
+  // 名前のある人（npc_*）だけ：名前のない町の人（市場のお客 c3_ichiba_kyaku など、fix1015 G2）は記録しない
+  if (!ch3Hirumae() && def.id.startsWith('npc_')) setFlag(`flag_talked_${def.id}`, 1);
   f.talking = a;
   const turns = !def.noTurn;
   const prevDir = a.dir;
