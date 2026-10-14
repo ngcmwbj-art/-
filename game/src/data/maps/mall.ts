@@ -26,6 +26,9 @@ const MALL_LEGEND: Record<string, TileSpec> = {
   e: { ground: 'mall', tag: 'escalator', step: 'se_escalator_step' },
   // 清掃中の看板: solid until the 2F ソウジロウ is beaten (lv_logic flips `solid`)
   C: CLEANING_SPEC,
+  // 迷子センターの忘れ物の山（M5 x8–11, y3–5）: the heap rises as オムカエマチ and is gone after
+  // flag_boss_beaten (lvTime.pileHidden), so its cells are floor from then on (field.ts tileSolid 'pile')
+  P: { ground: 'mall', solid: true, tag: 'pile' },
   F: { ground: 'void', solid: true, tag: 'rail' },
 };
 
@@ -330,9 +333,9 @@ export const ROWS_M5 = [
   '#WWWWWWWWWWWW#',
   '#WWWWWWWWWWWW#',
   '#WWWWWWWWWWWW#',
-  '#mmSSSSSooooo#',
-  '#mmmmmmmoooom#',
-  '#mmmmmmmoooom#',
+  '#mmSSSSSPPPPo#',
+  '#mmmmmmmPPPPm#',
+  '#mmmmmmmPPPPm#',
   '#mmmmmmmmmmmm#',
   '#moommmmmmmmm#',
   '#mmmmmmmmmmmm#',
@@ -364,7 +367,7 @@ registerMap({
     O('obj_maigo_log', 4, 3),
     O('obj_broadcast_mic', 6, 3),
     O('obj_maigo_counter', 3, 3, { w: 5 }),
-    O('obj_lost_pile', 8, 3, { w: 4, h: 3 }),
+    O('obj_lost_pile', 8, 3, { w: 4, h: 3, cond: { notFlag: 'flag_boss_beaten' } }),
     O('obj_maigo_poster', 1, 2, { face: 'up' }),
     { t: 'trig', id: 'trig_boss_intro', x: 5, y: 6, w: 3, h: 1, script: 'evt_boss_intro', cond: { notFlag: 'flag_boss_beaten' } },
     { t: 'door', id: 'door_m4_m5', x: 6, y: 10, to: 'map_mall_2f', tx: 19, ty: 2, dir: 'down', se: 'se_door_heavy' },

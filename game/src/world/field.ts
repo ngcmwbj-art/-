@@ -827,6 +827,8 @@ export class FieldScene implements Scene {
     if (!c.solid) return false;
     if (c.tag === 'chain') return !(flag('flag_parking_open') > 0 || flag('flag_stage') >= 2);
     if (c.tag === 'barricade') return flag('flag_stage') === 0;
+    // 迷子センターの忘れ物の山 (mall.ts `P`): gone with オムカエマチ after the first chapter's boss
+    if (c.tag === 'pile') return !flag('flag_boss_beaten');
     // 星見台's electric-fence gate (52 7.1 `G`): shut until マサルさん opens it
     if (c.tag === 'egate') return !flag('flag_ch2_gate_open');
     // the fence's door up to the stream (14,1), 02 #65: shut until トマじい unhooks it
