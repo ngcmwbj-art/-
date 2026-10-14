@@ -52,6 +52,7 @@ import { cellKind, type CellKind } from '../art/props/ishell';
 import type { FieldScene, PropInst } from '../world/field';
 import { INDOOR_MUL, INDOOR_MUL_C0, type Grade } from '../world/lighting';
 import { pgRoomTone } from '../world/postgame';
+import { isCh3Map } from '../world/maps';
 import { registerDebug } from '../debug';
 import { CasterSet, CutoutView, PropBatch, ShadowSet, SV, type Box, type CasterSpec, type LightSpot } from './town';
 import { NUDGE, SOLID, solidOf } from './tune';
@@ -218,6 +219,10 @@ export function indoorGrade(f: FieldScene, stage: number): Grade {
   // after the clear (05 4.1): 夕鳴町's rooms by the clock — the day through the windows in the
   // morning and at noon (render.ts dayRoom), the evening's at the evening and the night
   const pgRoom = pgRoomTone(f.map.def);
+  // 港の 市場 (62 4.2・8.6, fix1015 G2): a bright room of its own — the skylights and the tubes, not the
+  // stage's evening indoor colour (its MapDef.lightBase, gone in the evening and at night after the clear)
+  const bright = brightBase(f.map.def);
+  if (bright) return { ...g, mul: bright, glare: [255, 252, 240], glareA: 0.05, glareW: 0.45, topA: 0 };
   if (pgRoom === 'day') return { ...g, mul: [INDOOR_MUL_C0[0], INDOOR_MUL_C0[1], INDOOR_MUL_C0[2]], glare: [255, 250, 236], glareA: 0.06, glareW: 0.45, topA: 0 };
   const st = pgRoom ? 0 : Math.max(0, Math.min(2, Math.floor(stage)));
   const day = INDOOR_MUL[st] ?? INDOOR_MUL[0];
@@ -229,6 +234,16 @@ export function indoorGrade(f: FieldScene, stage: number): Grade {
     glareW: 0.45,
     topA: 0.1,
   };
+}
+
+/**
+ * A chapter-3 day room's own bright base (MapDef.lightBase: 港の 市場, 62 4.2「明るい（天窓と蛍光灯）」),
+ * as the 2D's light map takes it (render.ts c3Base). The old aquarium's dim rooms are room_hoshi.ts'.
+ */
+function brightBase(def: FieldScene['map']['def']): [number, number, number] | null {
+  if (!isCh3Map(def) || AQ_ROOMS.has(def.id) || !def.lightBase) return null;
+  const c = new THREE.Color(def.lightBase);
+  return [Math.round(c.r * 255), Math.round(c.g * 255), Math.round(c.b * 255)];
 }
 
 /** The ceiling light's direction (towards the light): from above, a little from the front and the west. */
@@ -647,7 +662,8 @@ export class RoomWorld {
     const ends: [V3, V3, V3, V3, V3, V3, V3, V3][] = [];
     for (const p of this.f.props) {
       const id = p.obj.t === 'prop' ? p.obj.prop : (p.obj.prop ?? p.obj.id);
-      if (id !== 'mall_shaft') continue;
+      // (港の 市場's skylights at noon, art/props/c3_rooms.ts prop_c3_tenmado: the same band, white)
+      if (id !== 'mall_shaft' && id !== 'prop_c3_tenmado') continue;
       const o = (p.obj as { opts?: Record<string, unknown> }).opts ?? {};
       const num = (k: string, d: number) => (o[k] === undefined ? d : Number(o[k]));
       const fx = p.x + num('fx', 0);
@@ -1367,8 +1383,10 @@ export class RoomWorld {
     const rel = [0, 1, 2].map((i) => toLinear(nb[i] / Math.max(1, day[i])));
     const top = Math.max(...rel);
     this.nightSky.setRGB(rel[0] / top, rel[1] / top, rel[2] / top, THREE.LinearSRGBColorSpace);
-    hemi.color.set('#fff6ec').lerp(this.nightSky, night);
-    hemi.groundColor.set('#a898b8').lerp(this.nightSky, night * 0.6);
+    // (港の 市場: the white of its skylights and tubes bounced off the wet floor, not the evening's mauve)
+    const bright = !!brightBase(this.f.map.def);
+    hemi.color.set(bright ? '#fbfcff' : '#fff6ec').lerp(this.nightSky, night);
+    hemi.groundColor.set(bright ? '#c4ccd0' : '#a898b8').lerp(this.nightSky, night * 0.6);
     hemi.intensity = 2.3 + (top * Math.PI - 2.3) * night;
     // the pendant lights come on at night (as their glow and light in 2D)
     this.lampsOn(night > 0.05);
@@ -1382,7 +1400,9 @@ export class RoomWorld {
     }
     // the skylight shafts: the evening's orange, gone at night (as their 2D glow)
     if (this.shaftMat && this.dust) {
-      this.shaftMat.color.set(P.sun).lerp(SHAFT_RIM, 0.35).multiplyScalar(SHAFT.k * (1 - night));
+      // (chapter 3's are noon's: #FFF6D8, 62 8.6)
+      if (isCh3Map(this.f.map.def)) this.shaftMat.color.set('#FFF6D8').multiplyScalar(SHAFT.k * (1 - night));
+      else this.shaftMat.color.set(P.sun).lerp(SHAFT_RIM, 0.35).multiplyScalar(SHAFT.k * (1 - night));
       (this.dust.pts.material as THREE.PointsMaterial).opacity = 0.8 * (1 - night);
     }
     return Math.atan2(d.x, d.z);
@@ -1436,7 +1456,8 @@ export class RoomWorld {
     for (const l of this.lying) l.update(f);
     lap('props');
     // (the dust stands still with time, as the 2D's: drawn at t = 0 then)
-    if (this.dust) this.placeDust(f.propEnv(null).stage === 1 ? 0 : t);
+    // (chapter 3: still at 12:00 — the town's motion — and in the old aquarium, 62 8.6)
+    if (this.dust) this.placeDust((isCh3Map(f.map.def) ? f.grade.motion < 0.5 : f.propEnv(null).stage === 1) ? 0 : t);
     // 星見台: the light map again (the rings go with Minato), the halos, the ring
     this.hoshi?.update(this.group.scale.y);
     lap('light');

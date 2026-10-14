@@ -14,7 +14,8 @@
 // the tetrapods outside the breakwater `X` (the rocks stay `K`), and the
 // aquarium's plaza `q` (the hill's plaza stays `%`: HD-2D lifts the hill), and the
 // breakwater's (20,31) is breakwater (its `o` had no prop: an unseen wall that, with
-// the angler sitting at (21,32), shut the way west; fix1015).
+// the angler sitting at (21,32), shut the way west; fix1015), and the dried-fish shop's
+// (15–20,13) is facade `W` (its open front is two tiles tall, c3_bld.ts; fix1015).
 //
 // The people and the things say what the scenario registers by their ids
 // (events/ch3/umizoi.ts, 60 3.2・9.3); this map only places them.
@@ -42,7 +43,7 @@ const ROWS = [
   'BBBBBBBBBBBBnnBBBBBBBBBBBBBBBBBBBBnnBBBBBBBBBBBBBBBBBBBBnnBBBBBBBBHHHHHHHHHHHHHH', // 10
   '^^^^^^^^^^HHnnH^^^^^^:::HH^^^^^^^^nnHH^^^^^^^^HH^^^^^^^^nn^^^^^^^^HHHHHHHHHHHHHH', // 11
   '^^^^^^^^^^HHnnH^^^^^^:o:HH^^^^^^^^nnHH^^^^^^^^HH^^^^^^^^nn^^^^^^^^HHHHHHHHHHHHHH', // 12
-  '^^^^^^^^^^HHnnH^^^^^^:::HH^^^^^^^^nnHH^^^^^^^^HH^^^^^^^^nn^^^^^^^^HHHHHHHHHHHHHH', // 13
+  '^^^^^^^^^^HHnnHWWWWWW:::HH^^^^^^^^nnHH^^^^^^^^HH^^^^^^^^nn^^^^^^^^HHHHHHHHHHHHHH', // 13
   'WWWWWWWWWWHHnnHWWWWWW:o:HHWWWWWWWWnnHHWWWWWWWWHHWWWWWWWWnnWWWWWWWWHHHHHHHHHHHHHH', // 14
   'WWWWWWWWWWHHnnHSSSSSS:::HHWWWWDWWWnnHHWWWWWWWWHHWWWWWWWWnnWWWWWWWWHHHHHHHHHHHHHH', // 15
   '........Y...............Y............o.........Y................Y.....HHHHHHHHHH', // 16

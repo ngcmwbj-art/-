@@ -48,8 +48,8 @@ interface Kita {
 
 /**
  * 60 3.4, in the order of the runs. On the breakwater (two tiles wide) they stand on its sea side y32 and
- * leave y31 for walking, and never beside the stone bench (42,31) or in the lighthouse's corner; on the quay never right under the post
- * box (38,24) or the bench (41,24), where the quay's last row is all that is left (fix1015).
+ * leave y31 for walking (one standing keeps the tile south of him too), never beside the stone bench (42,31) or in
+ * the lighthouse's corner; on the quay not at x37–39 by the post box (38,24), the only way along the quay there (fix1015).
  */
 export const KITA: Kita[] = [
   { id: 'npc_obaa', map: 'map_c3_ichiba', x: 22, y: 3, dir: 'down' },
@@ -74,7 +74,7 @@ export const KITA: Kita[] = [
   { id: 'npc_hoshi_sawako', map: 'map_c3_ichiba', x: 27, y: 5, dir: 'up', yori: ['flag_tenban_done'] },
   { id: 'npc_hoshi_yoshie', map: 'map_c3_ichiba', x: 27, y: 7, dir: 'down' },
   { id: 'npc_jk', map: 'map_c3_ichiba', x: 23, y: 7, dir: 'down', yori: ['flag_hunting_got'] },
-  { id: 'npc_hoshi_busdriver', map: 'map_umizoi', x: 39, y: 25, dir: 'up', yori: ['flag_ch2_tegami'] },
+  { id: 'npc_hoshi_busdriver', map: 'map_umizoi', x: 40, y: 25, dir: 'up', yori: ['flag_ch2_tegami'] },
   { id: 'npc_hoshi_traindriver', map: 'map_umizoi', x: 41, y: 25, dir: 'up' },
   { id: 'npc_fudeno', map: 'map_c3_ichiba', x: 31, y: 5, dir: 'up' },
   { id: 'npc_photo_master', map: 'map_umizoi', x: 12, y: 32, dir: 'up' },

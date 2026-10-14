@@ -120,7 +120,7 @@ function kidHead(style: 'short' | 'bozu' | 'pig'): HeadT {
 // ---------------------------------------------------------------- the look of a person
 
 type Hat = 'cap' | 'cap_red' | 'sankaku' | 'hachimaki' | 'mugiwara' | 'hiyoke' | 'workcap' | 'goggles' | 'kid_mugi' | null;
-type Thing = 'otama' | 'stopwatch' | 'whistle' | 'houki' | 'nuno' | 'gloves' | 'nafuda' | 'hand_up' | 'beard' | 'pigtails' | null;
+type Thing = 'otama' | 'stopwatch' | 'whistle' | 'houki' | 'nuno' | 'gloves' | 'nafuda' | 'hand_up' | 'beard' | 'pigtails' | 'kago' | 'fukuro' | 'hako' | null;
 
 interface Look {
   id: string;
@@ -146,6 +146,12 @@ interface Look {
    * mouth, the hands almost together — stopped 0.2 s — and back to the bowl.
    */
   eat?: boolean;
+  /**
+   * A customer of the market (港の 市場, fix1015 G2): has the held 'reach'
+   * pose — a hand out over the fish boxes, an アジ in it — one frame, still
+   * (12:00: the town stopped where it was, 60 4.4).
+   */
+  reach?: boolean;
   shoe: string;
   keep?: string[];
 }
@@ -351,6 +357,55 @@ function things(f: Fig, p: Pose, L: Look, u: number, hy: number): void {
           f.hl(3, 5, hy + 8).px(4, hy + 9);
         }
         break;
+      case 'kago': {
+        // the shopping basket on the left arm (woven, a handle over the forearm)
+        f.part('kago', { shade: 'rb', light: 't' });
+        if (v === 'down') {
+          f.rect(0, 16 + u, 4, 3);
+          f.part('kagoD', { flat: true, rim: false });
+          f.hl(0, 3, 17 + u);
+          f.px(1, 15 + u).px(2, 15 + u);
+        } else if (v === 'up') {
+          f.rect(12, 16 + u, 4, 3);
+          f.part('kagoD', { flat: true, rim: false });
+          f.hl(12, 15, 17 + u);
+        } else {
+          f.rect(8, 17 + u, 4, 3);
+          f.part('kagoD', { flat: true, rim: false });
+          f.hl(8, 11, 18 + u);
+          f.px(9, 16 + u).px(10, 16 + u);
+        }
+        break;
+      }
+      case 'fukuro':
+        // a white plastic bag in the right hand, its tail of green (the leek of the evening)
+        f.part('fukuro', { shade: 'rb', light: 't' });
+        if (v === 'down') {
+          f.rect(12, 17 + u, 3, 4);
+          f.part('negi', { flat: true, rim: false });
+          f.px(13, 16 + u).px(14, 15 + u);
+        } else if (v === 'up') f.rect(1, 17 + u, 3, 4);
+        else {
+          f.rect(6, 17 + u, 3, 4);
+          f.part('negi', { flat: true, rim: false });
+          f.px(7, 16 + u).px(6, 15 + u);
+        }
+        break;
+      case 'hako':
+        // a foam fish box carried at the chest (bought by the box), the ice white over its rim
+        f.part('hako', { shade: 'rb', light: 't' });
+        if (v === 'down') {
+          f.rect(3, 14 + u, 10, 4);
+          f.part('ice', { flat: true, rim: false });
+          f.hl(4, 11, 14 + u);
+        } else if (v === 'up') {
+          f.rect(2, 14 + u, 2, 3).rect(12, 14 + u, 2, 3);
+        } else {
+          f.rect(1, 14 + u, 7, 4);
+          f.part('ice', { flat: true, rim: false });
+          f.hl(2, 7, 14 + u);
+        }
+        break;
       case 'pigtails':
         f.part('hair', { shade: 'rb', light: 't' });
         if (v === 'down') f.rect(2, hy + 5, 2, 4).rect(12, hy + 5, 2, 4);
@@ -426,7 +481,40 @@ function makeDraw(L: Look): (f: Fig, p: Pose) => void {
     hat(f, p, L, hy + (L.bent && p.view === 'left' ? 1 : 0));
     things(f, p, L, u, hy);
     if (p.act === 'eat') eating(f, p, u, hy);
+    if (p.act === 'reach') reaching(f, p, u);
   };
+}
+
+/**
+ * The market customer's held hand (Look.reach): out over the fish box, an
+ * アジ held up by the tail to look at its eye — and stopped there.
+ */
+function reaching(f: Fig, p: Pose, u: number): void {
+  const v = p.view;
+  if (v === 'up') return;
+  const top = 11 + u;
+  if (v === 'down') {
+    f.part('sleeve', { shade: 'rb', light: 't' });
+    f.vl(12, top + 2, top + 4);
+    f.part('skin', { shade: 'rb', light: 't' });
+    f.rect(12, top + 5, 2, 2);
+    f.part('aji', { flat: true, rim: false });
+    f.vl(13, top + 7, top + 10);
+    f.px(12, top + 10).px(14, top + 10);
+    f.part('eye', { flat: true, rim: false });
+    f.px(13, top + 10);
+    return;
+  }
+  // the side: the arm straight out in front, the fish hanging from the fingers
+  f.part('sleeve', { shade: 'rb', light: 't' });
+  f.hl(2, 6, top + 3);
+  f.part('skin', { shade: 'rb', light: 't' });
+  f.rect(0, top + 3, 2, 2);
+  f.part('aji', { flat: true, rim: false });
+  f.vl(1, top + 5, top + 8);
+  f.px(0, top + 8).px(2, top + 8);
+  f.part('eye', { flat: true, rim: false });
+  f.px(1, top + 8);
 }
 
 /**
@@ -635,6 +723,53 @@ const LOOKS: Look[] = [
     }),
     head: adultHead('short'), short: 3, sleeve: 'short', bottom: 'pants', hat: null, things: [], shoe: 'shoe', sit: true, eat: true,
   },
+  // 港の 市場's customers (fix1015 G2, 依頼主「お客がいる雰囲気が欲しい」): out for the day's fish with a basket, a bag,
+  // a box bought whole; rubber boots (ゴム長) on the floor of the wet market. One of them can be spoken to
+  // (c3_ichiba_kyaku: events/ch3/umizoi.ts); the others walk by (passerby)
+  {
+    id: 'c3_ichiba_kyaku',
+    mats: P({
+      skin: SKIN_SEA, hair: HAIR_GREYMIX,
+      top: cloth('#8E7AA8', '#6A5A88', '#B0A0C8', '#3A2E5A'), sleeve: cloth('#8E7AA8', '#6A5A88', '#B0A0C8', '#3A2E5A'),
+      apron: cloth('#E8A0A0', '#C87A7A', '#F4C0C0', '#8A4A4A'), pants: cloth('#3A3F48', '#2A2440', '#6B7186', '#1B1733'),
+      kago: cloth('#C8A06A', '#A87A4A', '#E8C890', '#7A5A3A'), kagoD: flat('#7A5A3A'), aji: flat('#C8CDD4'),
+      shoe: cloth('#E8C83A', '#B8981A', '#FFE07A', '#7A6410'),
+    }),
+    head: adultHead('bun'), short: 4, sleeve: 'long', bottom: 'pants', apron: 'maekake', hat: null, things: ['kago'], shoe: 'boot', reach: true,
+  },
+  {
+    id: 'c3_ichiba_okyaku_a',
+    mats: P({
+      skin: SKIN_DEEP, hair: HAIR_WHITE,
+      top: cloth('#E8E4D8', '#C8C2B4', '#F4F1E8', '#9AA0A8'), sleeve: cloth('#E8E4D8', '#C8C2B4', '#F4F1E8', '#9AA0A8'),
+      pants: cloth('#5A6B7A', '#3A4A5A', '#7A8B9A', '#2A3440'), hat: flat('#F4F1E8'), band2: flat('#2F4A8A'),
+      hako: cloth('#F4F1E8', '#C8C2B4', '#FFFFFF', '#9AA0A8'), ice: flat('#C8E8F4'), aji: flat('#C8CDD4'),
+      shoe: cloth('#3A3F48', '#2A2440', '#6B7186', '#1B1733'),
+    }),
+    head: adultHead('white_short'), short: 2, sleeve: 'long', bottom: 'pants', hat: 'hachimaki', things: ['hako'], shoe: 'boot', reach: true,
+  },
+  {
+    id: 'c3_ichiba_okyaku_b',
+    mats: P({
+      skin: SKIN_YOUNG, hair: HAIR_BLACK,
+      top: cloth('#7FB8C8', '#5A98A8', '#A8D8E4', '#2F6A7A'), sleeve: cloth('#7FB8C8', '#5A98A8', '#A8D8E4', '#2F6A7A'),
+      pants: cloth('#C8B890', '#A89870', '#E8D8B0', '#6A5A3A'),
+      fukuro: cloth('#F4F1E8', '#C8C2B4', '#FFFFFF', '#9AA0A8'), negi: flat('#3FA66B'), aji: flat('#C8CDD4'),
+      shoe: flat('#E84E3C'),
+    }),
+    head: adultHead('short'), short: 3, sleeve: 'short', bottom: 'pants', hat: null, things: ['fukuro'], shoe: 'shoe', reach: true,
+  },
+  {
+    id: 'c3_ichiba_okyaku_c',
+    mats: P({
+      skin: SKIN_PALE, hair: HAIR_WHITE,
+      top: cloth('#E8E4D8', '#C8C2B4', '#F4F1E8', '#9AA0A8'), sleeve: cloth('#E8E4D8', '#C8C2B4', '#F4F1E8', '#9AA0A8'),
+      apron: cloth('#E8E4D8', '#C8C2B4', '#F4F1E8', '#9AA0A8'), pants: cloth('#5A5E66', '#3A3F48', '#7A8088', '#2A2440'),
+      kago: cloth('#C8A06A', '#A87A4A', '#E8C890', '#7A5A3A'), kagoD: flat('#7A5A3A'), aji: flat('#C8CDD4'),
+      shoe: cloth('#3A3F48', '#2A2440', '#6B7186', '#1B1733'),
+    }),
+    head: adultHead('hikkume'), short: 4, sleeve: 'long', bottom: 'mompe', apron: 'kappogi', hat: null, things: ['kago'], shoe: 'boot', bent: true, reach: true,
+  },
 ];
 
 // idle loops: a working gesture for some (the ladle bobs, the cloth polishes, the broom sweeps)
@@ -657,8 +792,13 @@ for (const L of LOOKS) {
       mats: L.mats,
       draw: makeDraw(L),
       idle: working ? WORK : breathingIdle(16, [11]),
-      extras: L.sit ? { sit: { p: { act: 'sit' }, dirs: 'all' }, ...(L.eat ? { eat: { p: { act: 'eat' }, dirs: 'all' } } : {}) } : undefined,
-      poses: L.sit ? { sit: SIT, ...(L.eat ? { eat: EAT } : {}) } : undefined,
+      extras: L.sit
+        ? { sit: { p: { act: 'sit' }, dirs: 'all' }, ...(L.eat ? { eat: { p: { act: 'eat' }, dirs: 'all' } } : {}) }
+        : L.reach
+          ? { reach: { p: { act: 'reach' }, dirs: 'all' } }
+          : undefined,
+      // (the reach is one frame: held still, no breath — 12:00)
+      poses: L.sit ? { sit: SIT, ...(L.eat ? { eat: EAT } : {}) } : L.reach ? { reach: [{ act: 'reach' }] } : undefined,
     } satisfies SpriteSpec),
   );
 }

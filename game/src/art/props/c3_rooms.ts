@@ -19,8 +19,12 @@ import { outline } from './kit';
 import { standProp } from './hoshi_kit';
 import { fontTextSmall } from './text';
 import { registerProp } from './registry';
-import type { PropArt } from './types';
+import type { PropArt, PropEnv } from './types';
+import type { Gfx } from '../../engine/gfx';
 import { AZE_SHOPS } from './c3_bld';
+import { shaftQuad } from './mall_kit';
+import { drawLight, poolEllipse } from './light';
+import { HLIGHT } from './hoshi_kit';
 
 // ---------------------------------------------------------------- 食堂 かもめ
 
@@ -290,6 +294,14 @@ registerProp('prop_c3_sakanabako', (opts) =>
           p.hline(x + 3, x + 10, y + 3 + f * 2, fc);
           p.set(x + 3, y + 3 + f * 2, '#2A2440');
         }
+        // the hand-written price tag stuck in the ice (a wooden slip, brush strokes; fix1015 G2)
+        if ((k + r) % 2 === 0) {
+          p.rect(x + 9, y - 3, 4, 6, '#F6E8C0');
+          p.vline(x + 13, y - 2, y + 2, '#C8A06A');
+          p.vline(x + 10, y - 2, y + 1, '#2A2440');
+          p.set(x + 11, y, '#2A2440');
+          p.set(x + 11, y + 2, '#C8452E');
+        }
       }
   }, { cx: 32, base: 32, shadow: 0, foot: 31 }),
 );
@@ -470,6 +482,148 @@ registerProp('prop_c3_hose', () =>
     p.ellipse(7, 7, 3, 3, '#2E6B4A');
     p.ellipse(7, 7, 1, 1, '#3A3F48');
   }, { cx: 8, base: 16, shadow: 8 }),
+);
+
+// ---------------------------------------------------------------- 港の 市場: the light and the floor's things (fix1015 G2)
+//
+// 依頼主「市場の中をもっと明るく」(62 4.2・8.6: 明るい、天窓と蛍光灯): the 逆富士 fluorescent fittings
+// hung over the fish boxes and the aisle, the bare bulbs over あぜ道市's counters (lit over a shop
+// that has opened), the skylight's shafts of noon light, rubber boots, the crushed ice and its scoop.
+
+/** The fluorescent fittings (x of the west end, y) and the bulbs (x, y, the shop under it). */
+const TUBES: [number, number][] = [
+  [22, 72], [62, 72], [230, 72], [262, 72],
+  [36, 120], [116, 120], [190, 120], [252, 120],
+];
+const BULBS: [number, number, string][] = [
+  [360, 60, 'hinoya'], [440, 60, 'tofu'], [520, 60, 'cafe'],
+  [360, 118, 'tomato'], [440, 118, 'yasumi'], [520, 118, 'tokei'],
+];
+/** The cords of the bulbs start here (under the roof's beams). */
+const BULB_TOP = [44, 100];
+
+const bulbOn = (env: PropEnv, shop: string) => !!env.flag(AZE_SHOPS[shop] ?? '');
+
+registerProp('prop_c3_ichiba_lights', () => {
+  const W = 37 * 16;
+  const p = new PixelCanvas(W, 132);
+  const fitting = (x: number, y: number) => {
+    // two chains to the roof, the grey body, the bare tube under it (as the barn's, art/props/hoshi_room_b.ts)
+    for (const cx of [x + 4, x + 19]) for (let yy = y - 8; yy <= y - 1; yy++) p.set(cx, yy, (yy & 1) === 0 ? P.charcoal : P.steel);
+    p.hline(x + 3, x + 20, y - 1, P.charcoal);
+    p.hline(x + 2, x + 21, y, P.concreteLt);
+    p.hline(x, x + 23, y + 1, P.steel);
+    p.hline(x, x + 23, y + 2, P.glint);
+    p.hline(x, x + 23, y + 3, P.white);
+    for (const ex of [x - 1, x + 24]) for (let yy = y + 1; yy <= y + 3; yy++) p.set(ex, yy, P.charcoal);
+    p.hline(x + 1, x + 22, y + 4, mix(P.white, P.steel, 0.4));
+  };
+  for (const [x, y] of TUBES) fitting(x, y);
+  for (const [x, y] of BULBS) {
+    // the cord down from the beam, the socket, the round glass
+    const top = y < 100 ? BULB_TOP[0] : BULB_TOP[1];
+    p.vline(x, top, y - 3, '#2A2440');
+    p.rect(x - 1, y - 3, 3, 2, '#3A3F48');
+    p.rect(x - 2, y - 1, 5, 4, '#F6E8C0');
+    p.hline(x - 1, x + 1, y + 3, '#E8D9A0');
+    p.set(x - 1, y, '#FFFFFF');
+  }
+  const img = p.toCanvas();
+  return {
+    ox: 0,
+    oy: 0,
+    w: 0,
+    h: 0,
+    foot: 0,
+    flat: true,
+    img: () => null,
+    fg: [{ ox: 0, oy: 0, img: () => img }],
+    glowFg: true,
+    glow(g: Gfx, x: number, y: number, env: PropEnv) {
+      for (const [tx, ty] of TUBES) {
+        g.rect(x + tx, y + ty + 2, 24, 2, '#F4F8FF', 0.8);
+        g.rect(x + tx - 1, y + ty + 2, 26, 2, '#E8ECF0', 0.2);
+        g.rect(x + tx + 1, y + ty + 5, 22, 1, '#F4F8FF', 0.22);
+        g.rect(x + tx + 3, y + ty + 6, 18, 1, '#F4F8FF', 0.1);
+      }
+      for (const [bx, by, shop] of BULBS) {
+        if (!bulbOn(env, shop)) continue;
+        g.rect(x + bx - 2, y + by - 1, 5, 4, '#FFE7A3', 0.9);
+        g.rect(x + bx - 3, y + by - 2, 7, 6, '#FFE7A3', 0.25);
+      }
+    },
+    light(g: Gfx, x: number, y: number, env: PropEnv) {
+      // the pools on the wet floor under them (white under the tubes, warm under a lit bulb)
+      for (const [tx, ty] of TUBES) drawLight(g, poolEllipse(30, 22, HLIGHT.led), x + tx + 12, y + ty + 40, 0.45);
+      for (const [bx, by, shop] of BULBS) if (bulbOn(env, shop)) drawLight(g, poolEllipse(26, 16, HLIGHT.bulb), x + bx, y + by + 36, 0.4);
+    },
+  } satisfies PropArt;
+});
+
+/**
+ * The skylight's shaft of noon light (62 8.6: #FFF6D8 α25%, from the roof onto
+ * the square on the floor; the shell paints the square): `mall_shaft`'s band
+ * in the noon's white, nearly upright (the sun high in the south). Its body
+ * and its dust in HD-2D are hd2d/room.ts buildShafts' (the dust still at 12:00).
+ */
+registerProp('prop_c3_tenmado', (o) => {
+  const fx = Number(o.fx ?? 0);
+  const fy = Number(o.fy ?? 0);
+  const fw = Number(o.fw ?? 48);
+  const fh = Number(o.fh ?? 32);
+  const rise = Number(o.rise ?? 96);
+  const shear = Number(o.shear ?? 0.15);
+  const a0 = Number(o.a ?? 0.22);
+  return {
+    ox: Math.floor(fx - rise * shear) - 2,
+    oy: Math.floor(fy - rise) - 2,
+    w: Math.ceil(fw + (rise + fh) * shear) + 4,
+    h: Math.ceil(rise + fh) + 4,
+    foot: 0,
+    flat: true,
+    glowFg: true,
+    img: () => null,
+    glow(g: Gfx, x: number, y: number, env: PropEnv) {
+      const a = a0 * (1 - env.grade.night);
+      if (a <= 0.005) return;
+      const top = y + fy - rise;
+      const len = rise + fh * 0.5;
+      for (let k = 0; k < 3; k++) {
+        const y0 = top + (len * k) / 3;
+        const x0 = x + fx - rise * shear + (len * k * shear) / 3;
+        shaftQuad(g, x0, y0, fw, len / 3, shear, '#FFF6D8', a * (0.6 + k * 0.2), '#FFFFFF', a * (0.5 + k * 0.25));
+      }
+    },
+    light(g: Gfx, x: number, y: number, env: PropEnv) {
+      const a = a0 * 1.4 * (1 - env.grade.night);
+      drawLight(g, poolEllipse(fw * 0.6, fh * 0.75, '255,246,216'), x + fx + fw / 2, y + fy + fh / 2, a);
+    },
+  } satisfies PropArt;
+});
+
+/** A pair of rubber boots (ゴム長) left by the wall, the yellow and the black. */
+registerProp('prop_c3_gomunaga', (opts) =>
+  standProp(16, 14, (p) => {
+    const cols = Number(opts.v ?? 0) ? ['#3A3F48', '#5A5E66', '#1B1733'] : ['#E8C83A', '#FFE07A', '#7A6410'];
+    for (const bx of [2, 8]) {
+      p.rect(bx, 1, 5, 10, cols[0]);
+      p.vline(bx, 1, 10, cols[1]);
+      p.hline(bx, bx + 4, 1, cols[2]);
+      p.rect(bx, 10, 7, 3, cols[0]);
+      p.hline(bx, bx + 6, 12, cols[2]);
+    }
+  }, { cx: 8, base: 16, shadow: 6 }),
+);
+
+/** The heap of crushed ice by the boxes, a shovel stuck in it (the fish keep cold under it). */
+registerProp('prop_c3_koori', () =>
+  standProp(24, 16, (p) => {
+    p.ellipse(11, 11, 10, 4, '#C8E8F4');
+    p.ellipse(10, 9, 7, 3, '#E8F6FA');
+    for (let k = 0; k < 9; k++) p.set(3 + ((k * 7) % 17), 8 + ((k * 3) % 5), '#FFFFFF');
+    p.line(15, 1, 13, 8, '#C8A06A');
+    p.rect(11, 8, 5, 3, '#9AA0A8');
+  }, { cx: 12, base: 16, shadow: 0 }),
 );
 
 void outline;

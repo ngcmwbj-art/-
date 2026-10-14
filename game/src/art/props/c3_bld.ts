@@ -164,23 +164,32 @@ registerBuilding({
   },
 });
 
-// ---------------------------------------------------------------- 干物屋 (15,11) 6×(3+1) — the open front
+// ---------------------------------------------------------------- 干物屋 (15,11) 6×(2+2) — the open front
+// (fix1015: the open front is two tiles tall, so the two keepers standing in it at y14 stand under
+// the eave — with one tile their heads went up through the eave and the roof, in 2D and in HD-2D)
 
 registerBuilding({
   id: 'prop_c3_bld_himono',
   W: 6,
-  R: 3,
-  F: 1,
+  R: 2,
+  F: 2,
   top: 4,
   band: 0,
   paint(b: Bld) {
     const p = b.p;
     const rY = b.roofY;
     const fY = b.faceY;
-    roofTinH(p, 0, rY, 96, 48, TIN_GRAY, 41, { rust: 0.25, ridgeFrac: 0.3 });
+    roofTinH(p, 0, rY, 96, 32, TIN_GRAY, 41, { rust: 0.25, ridgeFrac: 0.3 });
     // the open front: a dark shop behind the counter, the dried fish hung on lines
-    p.rect(0, fY, 96, 16, '#4A3A30');
+    p.rect(0, fY, 96, 32, '#4A3A30');
     p.rect(0, fY, 96, 3, '#2A2420');
+    // the back wall's shelves (low: the keepers stand in front of them)
+    p.rect(2, fY + 19, 92, 1, '#3A2E26');
+    p.rect(2, fY + 26, 92, 1, '#3A2E26');
+    for (let x = 5; x < 90; x += 11) {
+      p.rect(x, fY + 21, 7, 5, '#6A5444');
+      p.hline(x, x + 6, fY + 21, '#8A6E58');
+    }
     for (let x = 4; x < 92; x += 3) {
       const y = fY + 3 + (x % 2);
       p.vline(x, y, y + 5, '#C89A6A');
@@ -190,8 +199,8 @@ registerBuilding({
     p.hline(2, 93, fY + 3, P.steel);
     // the posts of the open front
     for (const x of [0, 46, 94]) {
-      p.rect(x, fY, 2, 16, P.wood);
-      p.vline(x, fY, fY + 15, P.woodLt);
+      p.rect(x, fY, 2, 32, P.wood);
+      p.vline(x, fY, fY + 31, P.woodLt);
     }
     noonEave(p, 0, fY, 96, 3);
     // a wooden sign board along the eave (letters as unreadable strokes)
