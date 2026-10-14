@@ -25,7 +25,7 @@ import type { MapObj } from '../world/types';
 import { pgBand, pgMin, pgOn, pgAdvance, pgSkipTo, pgTownOf, type PgBand, type PgTown } from '../world/postgame';
 import { fieldCurtain, notifyYarinokoshi } from '../ui/hud';
 import { pgClockRun } from '../ui/pg_clock';
-import { pgRideArrive, pgRideBoard } from '../world/pgaudio';
+import { pgKizami, pgRideArrive, pgRideBoard } from '../world/pgaudio';
 import { se } from './ch2/compat';
 import { F } from './lib';
 import { addToMap, say3 } from './ch3/common';
@@ -185,7 +185,7 @@ export function* pgTruck(): Co {
   const at = ARRIVE[to];
   jumpMap(at.map, at.x, at.y, at.dir);
   F().syncFollower(true);
-  yield* pgClockRun(from, pgMin());
+  yield* pgClockRun(from, pgMin(), 1500, pgKizami);
   pgRideArrive();
   yield* fieldCurtain(0, 600);
   yield* arrived(to);
@@ -243,7 +243,7 @@ function* waitMenu(): Co<boolean> {
   const from = pgMin();
   yield* fieldCurtain(1, 500);
   pgSkipTo(b);
-  yield* pgClockRun(from, pgMin());
+  yield* pgClockRun(from, pgMin(), 1500, pgKizami);
   yield* fieldCurtain(0, 500);
   return true;
 }
@@ -300,7 +300,7 @@ wrapRest('obj_park_bench', false);
     yield* fieldCurtain(1, 700);
     yield* say3(T.PG_BED_SLEEP);
     pgSkipTo('asa');
-    yield* pgClockRun(from, pgMin());
+    yield* pgClockRun(from, pgMin(), 1500, pgKizami);
     for (const m of state.party) {
       m.hp = m.maxHp;
       m.mp = m.maxMp;

@@ -154,7 +154,8 @@ export function pgRunFace(): string | null {
  *   const from = pgMin(); pgAdvance(90);
  *   yield* fieldCurtain(1, 400); yield* pgClockRun(from, pgMin()); …
  */
-export function* pgClockRun(from: number, to: number, ms = 1500): Co {
+/** onStep(i, n)：10分ごと（i = 1〜n）。音の刻み（A の pgKizami）を合わせて鳴らすとき（E が渡す）。 */
+export function* pgClockRun(from: number, to: number, ms = 1500, onStep?: (i: number, n: number) => void): Co {
   let d = to - from;
   if (d < 0) d += PG_DAY_MIN;
   const a = Math.floor(from / 10);
@@ -164,6 +165,7 @@ export function* pgClockRun(from: number, to: number, ms = 1500): Co {
   for (let i = 1; i <= steps; i++) {
     runMin = (a + i) * 10;
     runFace = pgFaceAt(runMin);
+    onStep?.(i, steps);
     // めくる音は数を絞って（10分ごとに鳴らすと うるさい）
     if (i === steps || i - ticked >= Math.max(1, Math.round(steps / 5))) {
       sfx('se_clock_flip', { pitch: 1 + Math.min(0.2, i * 0.01) });
