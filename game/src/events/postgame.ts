@@ -65,8 +65,12 @@ function setKn(on: boolean): void {
 }
 
 /** 7.2 焼きそばのたかしのグソっ君（after.ts の〔c4〕を、クリア後はこちらで）。 */
-registerScript('c3_kn_shop', function* (): Co {
-  if (!pgOn()) return;
+const knShopBefore = getScript('c3_kn_shop');
+registerScript('c3_kn_shop', function* (ctx: ScriptCtx): Co {
+  if (!pgOn()) {
+    if (knShopBefore) yield* knShopBefore(ctx);
+    return;
+  }
   const night = F().map.id === 'map_maruyama';
   const i = yield* say3(night ? T.PG_KN_ASK_NIGHT : T.PG_KN_ASK);
   if (i === 0) {
@@ -186,9 +190,16 @@ function* arrived(to: PgTown): Co {
 }
 
 // 夕鳴町・海ぞいの町の軽トラ（after.ts の c3_truck_c4。クリア後だけ出る）
-registerScript('c3_truck_c4', function* (): Co {
-  yield* pgTruck();
-});
+{
+  const before = getScript('c3_truck_c4');
+  registerScript('c3_truck_c4', function* (ctx: ScriptCtx): Co {
+    if (!pgOn()) {
+      if (before) yield* before(ctx);
+      return;
+    }
+    yield* pgTruck();
+  });
+}
 // 星見台の転回場：ツガオ（W の配置が使う）と、止まっている軽トラ（第2章の絵）
 registerScript('pg_tsugao_hoshi', function* (): Co {
   yield* pgTruck();
