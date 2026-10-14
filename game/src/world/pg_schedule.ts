@@ -12,6 +12,7 @@
 // 人ごとの表（PG_SCHEDULE）は第2期（夕鳴町・星見台・海ぞいの町の外の人。部屋の人は下じき）。
 
 import type { MapObj } from './types';
+import { flag } from '../game/state';
 import { pgBand, pgOn, pgTruckKind, setPgScheduleImpl, type PgBand, type PgSpot } from './postgame';
 import { getMapDef } from './maps';
 import { registerWorldFx } from './fx';
@@ -89,11 +90,12 @@ export const PG_SCHEDULE: Record<string, Partial<Record<PgBand, PgSpot | null>>>
   npc_c3_toudai: { asa: at('map_umizoi', 10, 30), hiru: at('map_umizoi', 10, 30), yu: at('map_umizoi', 10, 30), yoru: at('map_c3_toudai', 6, 4) },
   // 監視員のカイト：昼は監視台の上、朝・夕方はその下
   npc_c3_kanshiin: { asa: at('map_umizoi', 57, 28), hiru: at('map_umizoi', 57, 27), yu: at('map_umizoi', 57, 28), yoru: null },
-  npc_c3_mago: { asa: null, hiru: at('map_umizoi', 60, 30), yu: at('map_umizoi', 34, 31), yoru: null },
+  // (防波堤は2マス。立つ人は海側の y32 に：y31 を通り道に空ける、fix1015)
+  npc_c3_mago: { asa: null, hiru: at('map_umizoi', 60, 30), yu: at('map_umizoi', 34, 32), yoru: null },
   npc_c3_tsuri: { asa: at('map_umizoi', 21, 32), hiru: null, yu: at('map_umizoi', 21, 32), yoru: null },
   // 子ども3人：朝と夕方は丘の広っぱ、昼は防波堤
   npc_c3_kid_a: { asa: at('map_umizoi', 6, 6), hiru: at('map_umizoi', 33, 32), yu: at('map_umizoi', 6, 6), yoru: null },
-  npc_c3_kid_b: { asa: at('map_umizoi', 9, 4), hiru: at('map_umizoi', 36, 31), yu: at('map_umizoi', 9, 4), yoru: null },
+  npc_c3_kid_b: { asa: at('map_umizoi', 9, 4), hiru: at('map_umizoi', 35, 32), yu: at('map_umizoi', 9, 4), yoru: null },
   npc_c3_kid_c: { asa: at('map_umizoi', 12, 7), hiru: at('map_umizoi', 38, 32), yu: at('map_umizoi', 12, 7), yoru: null },
 };
 
@@ -134,6 +136,9 @@ export function pgObjPresent(o: MapObj, mapId: string): boolean | null {
   if (!pgOn()) return null;
   // 敵のシンボルは出さない（05 5.3。もとにもどった姿 restored はそのまま）
   if (o.t === 'sym') return false;
+  // シークレットエンディングの日（flag_pg_secret 2、05 10.2）：公園の時計塔の下は、ツガオ・グソっ君・しゅん
+  // の場面（world/pg_secret.ts PG_SECRET_PARK）。そこに立つ夕方のさや（14,11）は出さない
+  if (flag('flag_pg_secret') === 2 && objId(o) === 'npc_sae' && mapId === 'map_town') return false;
   const band = pgBand();
   const row = PG_SCHEDULE[objId(o)];
   if (row && band in row) {

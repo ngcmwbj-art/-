@@ -12,7 +12,9 @@
 // the boats' cells `b` (they float on the harbour), the truck's spot on the
 // quay (46–48,24–25) is quay (the parked truck collides while it is there),
 // the tetrapods outside the breakwater `X` (the rocks stay `K`), and the
-// aquarium's plaza `q` (the hill's plaza stays `%`: HD-2D lifts the hill).
+// aquarium's plaza `q` (the hill's plaza stays `%`: HD-2D lifts the hill), and the
+// breakwater's (20,31) is breakwater (its `o` had no prop: an unseen wall that, with
+// the angler sitting at (21,32), shut the way west; fix1015).
 //
 // The people and the things say what the scenario registers by their ids
 // (events/ch3/umizoi.ts, 60 3.2・9.3); this map only places them.
@@ -58,7 +60,7 @@ const ROWS = [
   'KKwwwwwLLLwwbbbbwbbbbwwwwwwwwwwwwwwwbbbbwwww--X~~~~~KssssssssssssssK..WWSWDDWWWW', // 28
   'KKwwwwwLdLwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww--X~~~~~KssssssssssssssKqqqqqqqqqqoq', // 29
   'KKwww------wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww--X~~~~~KssosssssssssssKqqqqqqqqqqqq', // 30
-  'KK~~~---------------o---------------------o---X~~~~~KzzzzzzzzzzzzzzKqqqqqqqqqqqq', // 31
+  'KK~~~-------------------------------------o---X~~~~~KzzzzzzzzzzzzzzKqqqqqqqqqqqq', // 31
   'KK~~~-----------------------------------------X~~~~~K~~~~~~~~~~~~~~Kqqqqqqqqqqqq', // 32
   'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX~~~~~K~~~~~~~~~~~~~~Kqqoqqqqqqoqq', // 33
   'KK~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~K~~~~~~~~~~~~~~KKKKKKKKKKKKK', // 34
@@ -265,7 +267,7 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_c3_toudai', x: 9, y: 30, dir: 'left', cond: { ...S1, when: () => !teruInside() } },
   { t: 'npc', id: 'npc_c3_toudai', x: 10, y: 30, dir: 'left', cond: S2 },
   { t: 'npc', id: 'npc_c3_mago', x: 60, y: 30, dir: 'down', cond: S1 },
-  { t: 'npc', id: 'npc_c3_mago', x: 34, y: 31, dir: 'down', cond: S2 },
+  { t: 'npc', id: 'npc_c3_mago', x: 34, y: 32, dir: 'down', cond: S2 },
   // カイト up on the lifeguard chair (spoken to from (57,28)); at 12:01 under it, the flag folded
   { t: 'npc', id: 'npc_c3_kanshiin', x: 57, y: 27, dir: 'down', pose: 'sit', off: [0, -18], noTurn: false, cond: S1 },
   { t: 'npc', id: 'npc_c3_kanshiin', x: 57, y: 28, dir: 'down', cond: S2 },
@@ -283,15 +285,17 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_c3_seri', x: 9, y: 24, dir: 'down', cond: S2 },
   { t: 'npc', id: 'npc_c3_seri_deshi', x: 12, y: 24, dir: 'down', cond: S2 },
   { t: 'npc', id: 'npc_c3_sirenban', x: 44, y: 28, dir: 'down', cond: S2 },
-  // the three children: at the breakwater's root until they run to the newcomers (S06), then on the open ground; at 12:01 on the breakwater
+  // the three children: at the breakwater's root until they run to the newcomers (S06), then on the open ground; at 12:01 on the breakwater.
+  // The breakwater is two tiles wide (y31–32): whoever stands on it keeps to the sea side (y32) and leaves y31
+  // free, and the root (x44–45) keeps x45 free — nobody shuts the way to the lighthouse (fix1015 ④)
   { t: 'npc', id: 'npc_c3_kid_a', x: 44, y: 29, dir: 'down', cond: { ...S1, notFlag: 'flag_ch3_kids' } },
-  { t: 'npc', id: 'npc_c3_kid_b', x: 45, y: 30, dir: 'left', cond: { ...S1, notFlag: 'flag_ch3_kids' } },
+  { t: 'npc', id: 'npc_c3_kid_b', x: 43, y: 31, dir: 'right', cond: { ...S1, notFlag: 'flag_ch3_kids' } },
   { t: 'npc', id: 'npc_c3_kid_c', x: 44, y: 31, dir: 'up', cond: { ...S1, notFlag: 'flag_ch3_kids' } },
   { t: 'npc', id: 'npc_c3_kid_a', x: 6, y: 6, dir: 'right', cond: { ...S1, flag: 'flag_ch3_kids' } },
   { t: 'npc', id: 'npc_c3_kid_b', x: 9, y: 4, dir: 'down', cond: { ...S1, flag: 'flag_ch3_kids' } },
   { t: 'npc', id: 'npc_c3_kid_c', x: 12, y: 7, dir: 'left', cond: { ...S1, flag: 'flag_ch3_kids' } },
   { t: 'npc', id: 'npc_c3_kid_a', x: 33, y: 32, dir: 'down', cond: S2 },
-  { t: 'npc', id: 'npc_c3_kid_b', x: 36, y: 31, dir: 'down', cond: S2 },
+  { t: 'npc', id: 'npc_c3_kid_b', x: 35, y: 32, dir: 'down', cond: S2 },
   { t: 'npc', id: 'npc_c3_kid_c', x: 38, y: 32, dir: 'down', cond: S2 },
   // ツガオ便's two (the scenario's lines: script ids of their own so chapter 2's never answer here)
   { t: 'npc', id: 'npc_hirosuke', script: 'c3_hirosuke_umi', x: 18, y: 24, dir: 'down', cond: { ...S12, flag: 'flag_ch3_arrived' } },

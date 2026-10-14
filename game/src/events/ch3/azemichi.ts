@@ -46,7 +46,10 @@ interface Kita {
   sprite?: () => string;
 }
 
-/** 60 3.4, in the order of the runs. */
+/**
+ * 60 3.4, in the order of the runs. On the breakwater (two tiles wide) they stand on its sea side y32 and
+ * leave y31 for walking, and never beside the stone bench (42,31) or in the lighthouse's corner (fix1015).
+ */
 export const KITA: Kita[] = [
   { id: 'npc_obaa', map: 'map_c3_ichiba', x: 22, y: 3, dir: 'down' },
   { id: 'npc_mamekichi', map: 'map_c3_ichiba', x: 27, y: 3, dir: 'down', yori: ['flag_kitsune_*'] },
@@ -55,7 +58,7 @@ export const KITA: Kita[] = [
     sprite: () => (flag('flag_hunting_got') ? 'npc_hoshi_mitsu_hunting' : 'npc_hoshi_mitsu'),
   },
   { id: 'npc_hoshi_gen', map: 'map_umizoi', x: 15, y: 25, dir: 'down', yori: ['flag_ch2_barn_work', 'flag_ashiato_*'] },
-  { id: 'npc_hoshi_fumi', map: 'map_umizoi', x: 10, y: 31, dir: 'up', yori: ['flag_kanbo_report'] },
+  { id: 'npc_hoshi_fumi', map: 'map_umizoi', x: 7, y: 31, dir: 'up', yori: ['flag_kanbo_report'] },
   { id: 'npc_hoshi_kucho', map: 'map_umizoi', x: 24, y: 24, dir: 'down' },
   { id: 'npc_tsurumi', map: 'map_umizoi', x: 64, y: 24, dir: 'up', yori: ['flag_got_hanamaru_kensui'] },
   { id: 'npc_sae', map: 'map_umizoi', x: 16, y: 32, dir: 'down', yori: ['flag_toban_done'] },
@@ -64,7 +67,7 @@ export const KITA: Kita[] = [
   { id: 'npc_tokio', map: 'map_c3_ichiba', x: 32, y: 7, dir: 'down', yori: ['flag_tokei7_done'] },
   { id: 'npc_master', map: 'map_c3_ichiba', x: 32, y: 3, dir: 'down', yori: ['flag_bu_left'] },
   { id: 'npc_madam', map: 'map_umizoi', x: 40, y: 32, dir: 'down', yori: ['flag_kotei_done'] },
-  { id: 'npc_bu_body', map: 'map_umizoi', x: 42, y: 32, dir: 'up', yori: true },
+  { id: 'npc_bu_body', map: 'map_umizoi', x: 39, y: 32, dir: 'up', yori: true },
   { id: 'npc_maru', map: 'map_umizoi', x: 36, y: 32, dir: 'down', yori: ['flag_ch2_maru_told'] },
   { id: 'npc_hoshi_tome', map: 'map_umizoi', x: 37, y: 32, dir: 'down', yori: ['flag_yoburi_report'] },
   { id: 'npc_hoshi_sawako', map: 'map_c3_ichiba', x: 27, y: 5, dir: 'up', yori: ['flag_tenban_done'] },
