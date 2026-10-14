@@ -18,11 +18,19 @@ import * as T from '../../data/text/c3_story2';
 import { C3_TALK } from '../../data/text/c3_events';
 import { grace } from '../lib';
 import { hankoLearn, musicParam, se } from '../ch2/compat';
-import { addToMap, c3Battle, c3Stage, inCh3, kita, partsDone, pickC3, say3 } from './common';
+import { addToMap, c3Battle, c3Stage, inCh3, kitaSay, partsDone, pickC3, say3 } from './common';
 import { talkC3 } from './umizoi';
 import { addDish } from './azemichi';
 
 const dishes = (): number => flag('flag_ch3_teishoku_n');
+
+/**
+ * fix1016 H3: the people who came lend a hand in here only once they are in the room — in at the door
+ * (7–8,7), up beside the counter, the line, and back out to their place (all four stand in the market: azemichi.ts KITA).
+ */
+const SHOKUDO = 'map_c3_shokudo';
+const IN_L: [number, number][] = [[7, 7], [7, 6], [6, 6]];
+const IN_R: [number, number][] = [[8, 7], [8, 6], [5, 6]];
 
 // ---------------------------------------------------------------- ナミエ
 
@@ -62,7 +70,7 @@ function* talkNamie(): Co {
 export function* evtShokudo(): Co {
   if (flag('flag_ch3_shokudo_start')) return;
   yield* say3(T.S08_START_A);
-  if (kita('npc_obaa')) yield* say3(T.S08_OBAA);
+  yield* kitaSay('npc_obaa', T.S08_OBAA, SHOKUDO, IN_L);
   yield* say3(T.S08_START_B);
   setFlag('flag_ch3_shokudo_start', 1);
   // what's already at hand: the fish of ①, the ほどよい 干物
@@ -131,8 +139,8 @@ for (const id of ['npc_c3_himono_otto', 'npc_c3_himono_tsuma'])
 export function* evtOkawari(): Co {
   if (flag('flag_ch3_shokudo_done')) return;
   if (!flag('flag_ch3_mori_done')) {
-    if (kita('npc_hoshi_sawako')) yield* say3(T.S08_SAWAKO);
-    if (kita('npc_fudeno')) yield* say3(T.S08_FUDENO);
+    yield* kitaSay('npc_hoshi_sawako', T.S08_SAWAKO, SHOKUDO, IN_L);
+    yield* kitaSay('npc_fudeno', T.S08_FUDENO, SHOKUDO, IN_R);
     yield* say3(T.MORI_INTRO);
     for (const step of T.MORI_STEPS) {
       const i = yield* say3(step.ask);
@@ -165,7 +173,7 @@ function* gochisou(): Co {
   yield 500;
   yield* say3(T.S08_GOCHISOU_C);
   playBgm('bgm_umi_noon', { fade: 2.0, variant: 'shokudo' });
-  if (kita('npc_master')) yield* say3(T.S08_COFFEE);
+  yield* kitaSay('npc_master', T.S08_COFFEE, SHOKUDO, IN_L);
   setFlag('flag_ch3_shokudo_done', 1);
   setFlag('flag_ch3_part_gassho', 1);
   se('se_c3_part', { level: 1 });

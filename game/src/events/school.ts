@@ -203,6 +203,16 @@ registerScript('lv_in_school', function* (): Co {
   if (t && onDuty()) yield* msg(t);
 });
 
+// 公園の 側の 裏門 (18,0)–(19,0) が しまっている時期（段階0・3）に、北へ 押すと そう 言う（2026-10-15）
+registerScript('trig_sch_uramon_shut', function* (): Co {
+  const f = field();
+  if (!f || f.player.dir !== 'up') return;
+  const t = pickStage(SCHOOL_OBJ.obj_sch_uramon as Record<string, string>);
+  if (!t) return;
+  snd.se('se_examine');
+  yield* msg(t);
+});
+
 // ================================================================ 当番表 (8,4)
 
 registerScript('obj_sch_toban', function* (): Co {

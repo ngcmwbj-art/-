@@ -33,7 +33,7 @@ import { castRight, finish, lt, shadeRect } from './kit';
 import { drainPipe, eaveShadow, facadeFoot, fillWall, glassPane, registerBuilding, wallMortar, type Bld } from './bkit';
 import { flat, stand } from './pkit';
 import { registerProp } from './registry';
-import { printLines } from './text';
+import { fontSmallWidth, fontTextSmall, handGlyph, printLines } from './text';
 import type { PropArt, PropEnv } from './types';
 import { FROG_BUCKET } from '../../data/text/school';
 
@@ -1111,72 +1111,104 @@ registerProp('prop_sch_chalk', () => {
   return a;
 });
 
-// ================================================================ 裏門 prop_sch_uramon_in (14,13) / prop_sch_uramon (town (18,0))
+// ================================================================ 裏門 prop_sch_uramon_in (14,13)–(15,13) / prop_sch_uramon (town (18,0)–(19,0))
+//
+// 2026-10-15 依頼主「この扉もっと分かりやすく大きくして」: a gate 2 tiles wide — two square concrete
+// posts, the iron lattice leaves (open: swung back against the posts; shut: across the gap with the
+// latch and the duty card), an iron bar over the top and on it a small board 『夕鳴小 うら門』 (the park side; from the yard only the posts and leaves). The gap
+// between the posts is left clear (HD-2D shows the school beyond; in 2D the camera stops at y 0, so
+// there only the lower part shows). Anchored on the two tiles' common edge.
 
-/** Two concrete gate posts at a 1-tile gap and the iron lattice gate (open = swung aside). */
-function gatePosts(p: PixelCanvas, base: number, hgt: number, open: boolean, plate: boolean): void {
-  for (const px of [0, 13]) {
-    p.rect(px, base - hgt, 3, hgt, P.concrete);
-    p.vline(px, base - hgt, base, P.concreteLt);
-    p.vline(px + 2, base - hgt, base, P.steel);
-    p.hline(px, px + 2, base - hgt, P.white);
+const GATE_W = 36;
+const GATE_H = 47;
+
+/** 小, 9×10, to sit beside the hand-set 夕 and 鳴 (text.ts) on the gate's board. */
+const SHO = ['....#....', '....#....', '....#....', '.#..#..#.', '.#..#..#.', '#...#...#', '#...#...#', '....#....', '....#....', '...##....'];
+
+/** The gate, 36×47 (posts x0–5 and x30–35, the gap x6–29; the base row is the last). */
+function gate2(open: boolean, front: boolean): HTMLCanvasElement {
+  const p = pc(GATE_W, GATE_H);
+  const base = GATE_H - 1;
+  const top = 18;
+  // the iron bar from post to post (under the board)
+  p.rect(1, 22, GATE_W - 2, 2, P.charcoal);
+  p.hline(1, GATE_W - 2, 22, P.steel);
+  // the posts: concrete, lit on the west, a cap
+  for (const px of [0, 30]) {
+    p.rect(px, top, 6, base - top + 1, P.concrete);
+    p.vline(px, top, base, P.concreteLt);
+    p.vline(px + 4, top, base, P.steel);
+    p.vline(px + 5, top, base, P.asphalt);
+    p.hline(px, px + 5, base - 3, P.steel);
   }
-  if (plate) {
-    // 『夕鳴小学校』 on the west post, a slim white plate
-    p.rect(0, base - hgt + 2, 3, 7, P.white);
-    for (let y = base - hgt + 3; y < base - hgt + 8; y += 2) p.set(1, y, P.ink);
+  // the board on the bar: 『夕鳴小』 over 『うら門』 (white, navy and red letters) — its back plain from inside
+  const bx = 2;
+  const bw = GATE_W - 4;
+  if (front) {
+    p.rect(bx, 0, bw, 22, P.white);
+    p.strokeRect(bx, 0, bw, 22, P.navy);
+    const x0 = bx + Math.floor((bw - 29) / 2);
+    handGlyph(p, '夕9', x0, 2, P.navy);
+    handGlyph(p, '鳴', x0 + 10, 2, P.navy);
+    for (let j = 0; j < SHO.length; j++) for (let i = 0; i < 9; i++) if (SHO[j][i] === '#') p.set(x0 + 20 + i, 2 + j, P.navy);
+    const w2 = fontSmallWidth('うら門');
+    fontTextSmall(p, 'うら門', bx + Math.floor((bw - w2) / 2), 13, P.verm);
   }
-  const gy = base - Math.min(hgt - 3, 10);
+  // the lattice leaves
+  const gy = 26;
   if (open) {
-    // the leaf swung back against the east post: seen edge-on, a narrow lattice
-    for (let y = gy; y < base; y++) {
-      p.set(10, y, P.charcoal);
-      p.set(11, y, (y & 1) ? P.asphalt : P.charcoal);
-      p.set(12, y, P.ink);
+    // each leaf swung back against its post: seen at a slant, a narrow lattice
+    for (const [x0, x1] of [[6, 10], [25, 29]]) {
+      p.hline(x0, x1, gy, P.steel);
+      p.hline(x0, x1, base - 2, P.steel);
+      for (let x = x0; x <= x1; x++) if ((x - x0) % 2 === 0) p.vline(x, gy, base - 2, P.charcoal);
+      for (let y = gy + 4; y < base - 2; y += 5) p.hline(x0, x1, y, P.asphalt);
     }
-    p.hline(9, 12, gy, P.steel);
-    p.hline(9, 12, base - 2, P.steel);
   } else {
-    // closed: the lattice across the gap, the latch
-    for (let x = 3; x < 13; x++) {
-      p.set(x, gy, P.steel);
-      p.set(x, base - 2, P.asphalt);
+    p.hline(6, 29, gy, P.steel);
+    p.hline(6, 29, base - 2, P.asphalt);
+    for (let x = 6; x <= 29; x += 2) p.vline(x, gy, base - 2, P.charcoal);
+    for (let y = gy + 5; y < base - 2; y += 6) p.hline(6, 29, y, P.asphalt);
+    p.vline(17, gy, base - 2, P.ink);
+    p.vline(18, gy, base - 2, P.ink);
+    p.rect(16, gy + 8, 4, 3, P.steel);
+    if (front) {
+      // the card on the west leaf: 『夏休みの 水やり当番は 5時まで』 (white, a line of blue and red)
+      p.rect(8, gy + 3, 7, 5, P.white);
+      p.hline(9, 13, gy + 4, P.navy);
+      p.hline(9, 12, gy + 6, P.verm);
+      p.strokeRect(8, gy + 3, 7, 5, P.steel);
     }
-    for (let x = 4; x < 13; x += 2) p.vline(x, gy, base - 2, P.charcoal);
-    p.rect(11, gy + 3, 2, 2, P.steel);
   }
+  finish(p, { soft: true });
+  const c = p.toCanvas();
+  if (front) return c;
+  // from inside the yard: the posts and the leaves only (the board faces the park; standing on the yard's
+  // last row it would hide the gravel way in front of the gate)
+  const out = document.createElement('canvas');
+  out.width = GATE_W;
+  out.height = GATE_H - 21;
+  out.getContext('2d')!.drawImage(c, 0, -21);
+  return out;
 }
 
+/** Open while the door is (stage 1–2; after the clear the evening is stage 2 but the props see 3). */
+const gateOpen = (env: PropEnv): boolean => {
+  const s = env.flag('flag_stage');
+  return s === 1 || s === 2;
+};
+
 registerProp('prop_sch_uramon_in', () => {
-  const W = 16;
-  const H = 20;
-  const p = pc(W, H);
-  // the park's grass beyond, then the posts and the open leaf
-  gatePosts(p, H - 3, 16, true, false);
-  finish(p, { soft: true });
-  return stand(p.toCanvas(), { cx: 8, base: 16, shadow: 12, contact: 0 });
+  const imgs = [gate2(false, false), gate2(true, false)];
+  const a = stand(imgs[1], { cx: 16, base: 16, shadow: GATE_H - 21, contact: 0 });
+  a.img = (env) => imgs[gateOpen(env) ? 1 : 0];
+  return a;
 });
 
 registerProp('prop_sch_uramon', () => {
-  // in the park's north hedge: the camera stops at y 0, so everything fits in the tile's 16px
-  const W = 16;
-  const H = 16;
-  const mk = (open: boolean): HTMLCanvasElement => {
-    const p = pc(W, H);
-    // the school's bare earth through the gap
-    for (let y = 0; y < H - 2; y++) for (let x = 3; x < 13; x++) p.set(x, y, ihash(x, y, 8897) % 6 === 0 ? P.woodLt : P.brassOld);
-    gatePosts(p, H - 1, 14, open, true);
-    // the sign on the leaf: 『夏休みの 水やり当番は 5時まで』 (white, a line of blue and red)
-    const sx = open ? 5 : 5;
-    p.rect(sx, 5, 6, 4, P.white);
-    p.hline(sx + 1, sx + 4, 6, P.navy);
-    p.hline(sx + 1, sx + 3, 7, P.verm);
-    p.strokeRect(sx, 5, 6, 4, P.steel);
-    return p.toCanvas();
-  };
-  const imgs = [mk(false), mk(true)];
-  const a = stand(imgs[1], { cx: 8, base: 16, shadow: 0, contact: 0 });
-  a.img = (env) => imgs[env.stage === 1 || env.stage === 2 ? 1 : 0];
+  const imgs = [gate2(false, true), gate2(true, true)];
+  const a = stand(imgs[1], { cx: 16, base: 16, shadow: GATE_H, contact: 0 });
+  a.img = (env) => imgs[gateOpen(env) ? 1 : 0];
   return a;
 });
 

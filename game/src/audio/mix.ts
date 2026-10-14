@@ -566,7 +566,7 @@ export const VOICE_TRIM: Record<string, number> = {
   // かずゆき（喫茶 初日の出。★2026-09-30 マスター→かずゆき）・ぶーさんの本体（02 #71。audioMixSuggest、
   // samples.ts の見本の台詞で。ものさし：tokio 13.5・h_mitsu 16・mother 15 は 表の値と 同じ）
   kazuyuki: 12.5, bu: 16.5,
-  // マル（02 #65）・おぴぃ（02 #66）・よね・とよぞう（02 #67）：足したときに trim が
+  // マル（02 #65）・おぴぃ（02 #66）・いつき・あさひ（02 #67）：足したときに trim が
   // 入っておらず、ほかの声より 15〜19 dB 小さかった（audioMixSuggest、samples.ts の見本の台詞で）
   maru: 19, tamotsu: 15.5, yone: 17, toyozou: 11.5,
   // chapter 2

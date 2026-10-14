@@ -65,7 +65,7 @@
 | `yr_c1_kensui` | ワイスタ巡査の懸垂（はなまる） | events/kensui.ts | 段階1〜2、公園の鉄棒 → 交番 | `flag_got_hanamaru_kensui` | そのまま | S |
 | `yr_c1_zari` | 浮きを 見ている だけ／ザリガニ釣り | events/tamotsu.ts、tsuri.ts、mizube_zari.ts | 対岸の水口のおぴぃ | `flag_zari_ramune`（はじめての1ぴき） | そのまま | S |
 | `yr_c1_mizube` | 水辺の 図鑑①（テナガエビ、おぴぃの 由来） | events/mizube.ts、seki_tsuri.ts、mizube_yurai.ts | ザリガニのあと、堰。由来は台所の母 | `flag_mizube_yurai_done` | 母の台本（home.ts）が段階で分かれる所を確認。母は夕方の家にいる形にする | S〜M |
-| `yr_c1_suito` | 水の はなまる（よねと とよぞうの水筒） | events/aze.ts | 段階2のはじめの1回 | `flag_aze_suito` | そのまま。ただし「水が北東へ寄る」は段階2のおかしさ（5.3）→ クリア後の文に1ページ差しかえ | S |
+| `yr_c1_suito` | 水の はなまる（いつきと あさひの水筒） | events/aze.ts | 段階2のはじめの1回 | `flag_aze_suito` | そのまま。ただし「水が北東へ寄る」は段階2のおかしさ（5.3）→ クリア後の文に1ページ差しかえ | S |
 | `yr_c1_kitsune` | きつねの 常連（祠の小皿と油揚げ） | events/aze.ts | くま吉の油揚げ → 祠 | `flag_abura_eaten` | そのまま（段階2で `eaten` が立つ） | S |
 | `yr_c1_toban` | 8月31日の 水やり当番 | events/school.ts | 段階1〜2、さや → 裏庭 | `flag_toban_done` | そのまま（「8月31日」の当番表は、クリア後は「あの日の ますが 白いまま」として読む。文は変えない） | S |
 | `yr_c1_kotei` | 二人十五脚 | events/kotei.ts | 段階1〜2、KN | `flag_kotei_done` | そのまま | S |

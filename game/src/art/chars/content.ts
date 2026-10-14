@@ -24,7 +24,7 @@ import './people/tsugao';
 import './people/maru';
 // おぴぃ（閉店した つりえさ屋の元店主、40代の女性。対岸の水口、02 #66。IDは npc_tamotsu のまま）
 import './people/tamotsu';
-// よねと とよぞう（畦道の先の 分水、02 #67）
+// いつきと あさひ（畦道の先の 分水、02 #67）
 import './people/aze';
 // ぶーさんの本体（喫茶 初日の出の窓ぎわの席と公園のベンチ、02 #71）
 import './people/bu';

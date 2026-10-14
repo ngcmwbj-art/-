@@ -26,7 +26,7 @@ import { C3_TALK } from '../../data/text/c3_events';
 import { fillNames } from '../../data/text/c3_names';
 import { F, getKeyItem } from '../lib';
 import { ambEvent, musicParam, se } from '../ch2/compat';
-import { addToMap, c3Stage, inCh3, kita, partsDone, pickC3, say3 } from './common';
+import { addToMap, c3Stage, inCh3, kitaSay, npc, partsDone, pickC3, say3 } from './common';
 import { talkC3 } from './umizoi';
 import { pgBand, pgOn } from '../../world/postgame';
 
@@ -362,7 +362,8 @@ export function* lens(): Co {
     setFlag('flag_ch3_lens_teru', 1);
     se('se_c3_lens_polish');
     yield* say3(T.LENS_TERU);
-    if (kita('npc_hoshi_fumi')) yield* say3(T.LENS_FUMI);
+    // (fix1016 H3: the people who came speak in the lamp room only once they have climbed up into it)
+    yield* kitaSay('npc_hoshi_fumi', T.LENS_FUMI, 'map_c3_toudai', [[4, 5], [4, 4], [1, 4]], 'right');
   }
   if (!flag('flag_ch3_lens_dir_set')) {
     setFlag('flag_ch3_lens_dir_set', 1);
@@ -395,7 +396,7 @@ export function* lens(): Co {
     setFlag('flag_ch3_lens_n', n + 1);
     ambEvent('amb_c3_umi', 'wave_on', n + 1);
     yield* say3(T.lensHit(T.LENS_BUOYS[b].place, n + 1));
-    if (n === 0 && kita('npc_hoshi_gen')) yield* say3(T.LENS_GEN);
+    if (n === 0) yield* kitaSay('npc_hoshi_gen', T.LENS_GEN, 'map_c3_toudai', [[4, 5], [4, 4], [1, 4], [1, 3]], 'right');
   }
   yield* say3(T.LENS_DONE);
 }
@@ -410,7 +411,14 @@ function* lastSea(): Co {
   se('se_c3_dive_in', { pitch: 1.3, vol: 0.6 });
   yield 700;
   yield* say3(T.S09_FIN_C);
-  if (kita('npc_sae')) yield* say3(T.S09_SAE);
+  // (fix1016 H3: サエ comes over from the quay onto the beach, beside しゅん, before her line)
+  {
+    const p = F().player;
+    const m = npc('npc_c3_mago');
+    let tx = p.tileX - 1;
+    if (m && m.tileX === tx && m.tileY === p.tileY) tx = p.tileX + 1;
+    yield* kitaSay('npc_sae', T.S09_SAE, 'map_umizoi', [[52, 25], [tx, 25], [tx, p.tileY]], tx < p.tileX ? 'right' : 'left');
+  }
   se('se_c3_flag');
   yield 600;
   yield* say3(T.S09_FIN_D);

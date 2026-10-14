@@ -170,22 +170,26 @@ export function* evtSeri(): Co {
       yield 180;
     }
     // 3.4: ハモ区長 and なんばるわん among the buyers if they came
+    // (fix1016 H3: they walk in from the south side like the buyers, not pop up in place)
     if (kita('npc_hoshi_kucho')) {
-      const a = spawn('c3_seri_kucho', 6, 7, { sprite: 'npc_hoshi_kucho', dir: 'up', ghost: true });
+      const a = spawn('c3_seri_kucho', 6, 10, { sprite: 'npc_hoshi_kucho', dir: 'up', ghost: true });
       a.data.scripted = true;
       staged.push(a.id);
+      game.scripts.run(walk(a.id, [[6, 7]], { speed: 4, face: 'up' }));
     }
     if (kita('npc_madam')) {
-      const a = spawn('c3_seri_madam', 13, 7, { sprite: 'npc_madam', dir: 'up', ghost: true });
+      const a = spawn('c3_seri_madam', 13, 10, { sprite: 'npc_madam', dir: 'up', ghost: true });
       a.data.scripted = true;
       staged.push(a.id);
+      game.scripts.run(walk(a.id, [[13, 7]], { speed: 4, face: 'up' }));
     }
     yield 900;
   }
   yield* say3(T.S07_SERI_GO);
   yield* say3(T.S07_SERI_BUYERS);
-  if (kita('npc_hoshi_kucho')) yield* say3(T.S07_SERI_KUCHO);
-  if (kita('npc_madam')) yield* say3(T.S07_SERI_MADAM);
+  // (fix1016 H3: their lines only when they stand among the buyers)
+  if (onMap && kita('npc_hoshi_kucho')) yield* say3(T.S07_SERI_KUCHO);
+  if (onMap && kita('npc_madam')) yield* say3(T.S07_SERI_MADAM);
   const start = flag('flag_ch3_seri_n');
   for (let r = start; r < 3; r++) {
     if (r === 2 && !flag('flag_ch3_nefuda_beaten')) {

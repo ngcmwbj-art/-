@@ -9,7 +9,7 @@
 // inner cylinder, spills over its round crest the same height all round, and the ring
 // outside it is parted 6 (夕鳴町, east) : 4 (となり町, west) by the paddies' areas; a channel
 // leaves each part (row 7). South of it the plank bench straddles the boundary stone, and
-// よね (夕鳴町, facing east) and とよぞう (となり町, facing west) sit on it back to back.
+// いつき (夕鳴町, facing east) and あさひ (となり町, facing west) sit on it back to back.
 //
 //   000000000011111111112222
 //   012345678901234567890123
@@ -21,7 +21,7 @@
 // 7 cccccccc:FBBBBBF:ccccccc   the two channels (となり町 west, 夕鳴町 east); slabs at (8,7), (16,7)
 // 10 ~~~~~~~~:FFFFFFF:~~~~~~~  the sign on the south fence (14,10)
 // 11 ~~~~~~~~:::::::::~~~~~~~
-// 12 ~~~~~~~~~~:bbb:~~~~~~~~~  the bench (11–13,12): とよぞう (11) / the stone (12) / よね (13)
+// 12 ~~~~~~~~~~:bbb:~~~~~~~~~  the bench (11–13,12): あさひ (11) / the stone (12) / いつき (13)
 // 13 ~~~~~~~~~~:::::~~~~~~~~~  the south end (12,13): 「畦道の 先は、となり町。」
 
 import '../../art/props/aze';
@@ -110,7 +110,7 @@ const OBJECTS: MapObj[] = [
   ...TA.map(([x, y, w, h], i) => ({ ...O('obj_aze_ta', x, y, { w, h, script: 'obj_aze_ta' }), id: i ? `obj_aze_ta${i + 1}` : 'obj_aze_ta' }) as MapObj),
 
   // ======================================================== the pair (events/aze.ts sets their poses)
-  // とよぞう (となり町) on the west half facing west, よね (夕鳴町) on the east half facing east;
+  // あさひ (となり町) on the west half facing west, いつき (夕鳴町) on the east half facing east;
   // drawn 8px in toward the stone so their backs meet over it
   { t: 'npc', id: 'npc_toyozou', x: 11, y: 12, dir: 'left', noTurn: true, pose: 'sit', off: [8, 0], script: 'npc_toyozou' } as MapObj,
   { t: 'npc', id: 'npc_yone', x: 13, y: 12, dir: 'right', noTurn: true, pose: 'sit_t', off: [-8, 0], script: 'npc_yone' } as MapObj,

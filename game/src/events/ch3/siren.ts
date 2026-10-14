@@ -32,7 +32,7 @@ import * as T from '../../data/text/c3_story2';
 import { C3_OBJ } from '../../data/text/c3_events';
 import { F, grace, panBack, panTo, stepBack } from '../lib';
 import { ambEvent, hankoLearn, musicParam, se } from '../ch2/compat';
-import { addToMap, c3Battle, inCh3, kita, say3 } from './common';
+import { addToMap, c3Battle, inCh3, kita, kitaSay, say3 } from './common';
 import { jumpMap, spawnTruck } from './prologue';
 import { aqArrive } from './aq';
 
@@ -99,7 +99,8 @@ export function* sirenTop(): Co {
   yield 500;
   if (!flag('flag_ch3_siren_told')) {
     yield* say3(T.S12_B);
-    if (kita('npc_tokio')) yield* say3(T.S12_TOKIO);
+    // (fix1016 H3: トキオ climbs up through the iron doorway before he speaks)
+    yield* kitaSay('npc_tokio', T.S12_TOKIO, 'map_c3_siren', [[6, 9], [6, 4], [10, 4]], 'left');
     setFlag('flag_ch3_siren_told', 1);
   } else yield* say3(T.S12_RETRY);
   if (getEnemy('enemy_nariosame') && !(import.meta.env.DEV && flag('flag_qa_c3_nobattle'))) {

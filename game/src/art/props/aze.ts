@@ -522,7 +522,7 @@ export const azeRt = {
 /**
  * A plank bench three tiles long across the boundary stone: the stone (『境』
  * cut in its face, knee-high) stands on the line (world x 196–203) and the
- * seat straddles it, so it rises between the two backs. よね and とよぞう sit
+ * seat straddles it, so it rises between the two backs. いつき and あさひ sit
  * back to back over it (their sprites: backs at x 195 and 204); the flask's
  * cap, the one cup they share, sits on top of the stone.
  */

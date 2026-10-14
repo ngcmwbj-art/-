@@ -4,7 +4,7 @@
 // the lines, and the chapter's state.
 
 import type { Co } from '../../engine/co';
-import { flag, setFlag } from '../../game/state';
+import { flag, setFlag, type Dir } from '../../game/state';
 import { SPEAKERS, runMsg } from '../../world/msg';
 import { field } from '../../world/field';
 import type { Actor } from '../../world/actor';
@@ -14,7 +14,8 @@ import type { MapObj } from '../../world/types';
 import { game } from '../../engine/game';
 import type { BattleOpts } from '../../battle/api';
 import { getEnemy } from '../../data/battle';
-import { eventBattle } from '../lib';
+import { eventBattle, sendAway } from '../lib';
+import { spawn, walk } from '../../world/api';
 
 // ---------------------------------------------------------------- speakers (60 0.4, 63 9.1)
 
@@ -118,6 +119,54 @@ export function noon(): boolean {
 /** Came to 海ぞいの町 on ヒロスケ's truck (S10). */
 export function kita(id: string): boolean {
   return flag(`flag_ch3_kita_${id}`) > 0;
+}
+
+/**
+ * fix1016 H3（依頼主「食堂でおばあとの会話が入るけど、おばあいない」）: someone who came steps into the
+ * scene before their line. False (say nothing) unless they came (flag_ch3_kita_<id>) and the scene
+ * is on `mapId` (the room, or right outside it). They walk in along `path` (tiles; the first is where
+ * they appear: the room's door, the way in) and face `face`; the one standing at their own place on
+ * this map (62 3.11) is hidden meanwhile. kitaGoOut sends them back the way they came.
+ */
+export function* kitaComeIn(id: string, map: string, path: [number, number][], face: Dir = 'up'): Co<boolean> {
+  const f = field();
+  if (!kita(id) || !f || f.map.id !== map || !path.length) return false;
+  const aid = `c3_kc_${id}`;
+  if (f.actorById(aid)) return true;
+  const home = f.actorById(id);
+  if (home) home.visible = false;
+  const [sx, sy] = path[0];
+  const a = spawn(aid, sx, sy, { sprite: id, dir: 'up', ghost: true });
+  a.data.scripted = true;
+  a.data.kcPath = path;
+  if (path.length > 1) yield* walk(aid, path.slice(1), { speed: 3, face });
+  else a.dir = face;
+  yield 150;
+  return true;
+}
+
+/** The one kitaComeIn brought goes back out (without holding the scene); their own place shows them again after. */
+export function kitaGoOut(id: string): void {
+  const f = field();
+  const a = f?.actorById(`c3_kc_${id}`);
+  if (!f || !a) return;
+  const path = ((a.data.kcPath as [number, number][] | undefined) ?? []).slice().reverse();
+  sendAway(a, path.length ? path : [[a.tileX, a.tileY]], 3, 0, true);
+  const home = f.actorById(id);
+  if (home)
+    game.scripts.run(
+      (function* (): Co {
+        yield () => !f.actors.includes(a);
+        home.visible = true;
+      })(),
+    );
+}
+
+/** kitaComeIn → the line → kitaGoOut; nothing when they aren't there. */
+export function* kitaSay(id: string, text: string, map: string, path: [number, number][], face: Dir = 'up'): Co {
+  if (!(yield* kitaComeIn(id, map, path, face))) return;
+  yield* say3(text);
+  kitaGoOut(id);
 }
 
 /**

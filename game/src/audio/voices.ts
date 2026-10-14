@@ -72,7 +72,7 @@ export const VOICES: Record<string, VoiceDef> = {
   // おぴぃ (02 #66, 40 10。★2026-09-29 依頼主の指示で たもつ→おぴぃ、40代の女性。IDは 据え置き)：
   // 閉店した つりえさ屋。さっぱり・さばさば、口数 少なめで ぼそっと。中低音の C#4、
   // 間隔2の 歯切れで、各ブリップの 語尾を 少し 落とす（ぼそっと）。ビブラートなし。
-  // ふでの先生（C4・ビブラート・リバーブ）、よね（D4・頭が はずむ）、きぬ（B4）、
+  // ふでの先生（C4・ビブラート・リバーブ）、いつき（D4・頭が はずむ）、きぬ（B4）、
   // 母（A4）、ちず・おかみ（F4）と、音の 高さ・語尾の 落ち・こもりで 分ける
   tamotsu: { label: 'おぴぃ（元つりえさ屋）', wave: 'triangle', wave2: ['square', 0.12], base: 'C#4', scale: [0, 2, 5, 7], len: 32, A: 2, D: 22, S: 0.4, R: 10, every: 2, v: 0.055, lp: 1900, fall: -45, formant: true },
   // ゆう (02 #69, 40 10。★2026-09-29 依頼主の指示で 時計店の ときお→ゆう、40代の女性。
@@ -80,13 +80,13 @@ export const VOICES: Record<string, VoiceDef> = {
   // 丁寧で 落ち着いた 中音。三角波に サインを 重ねた まるい F#4、2文字に1音、
   // 各ブリップを +30セント 上げて 終える（語尾が 少し 上がる、ていねいな 声）。
   // ちず・おかみ（F4・矩形波25%・頭で はずむ）、母（A4・三角波だけ）、おぴぃ（C#4・
-  // 語尾が 落ちる）、ふでの先生（C4・ビブラート）、よね（D4）、きぬ（B4）と 分ける
+  // 語尾が 落ちる）、ふでの先生（C4・ビブラート）、いつき（D4）、きぬ（B4）と 分ける
   tokio: { label: 'ゆう（時計店チクタク堂）', wave: 'triangle', wave2: ['sine', 0.4], base: 'F#4', scale: [0, 2, 5, 7, 9], len: 34, A: 3, D: 22, S: 0.5, R: 12, every: 2, v: 0.055, lp: 2400, fall: 30, formant: true },
-  // よねと とよぞう (02 #67, 40 10): 円筒分水の 2人、70代。よねは 口が 早い 中音
+  // いつきと あさひ (02 #67, 40 10): 円筒分水の 2人、70代。いつきは 口が 早い 中音
   // （おばあ E4・かすれ、マル G4・ゆっくり と、速さと 声の 立ちあがりで 分ける）、
-  // とよぞうは 低くて 言葉少な（トマじい E3、しんご G3 より 低く、まるい）
-  yone: { label: 'よね（分水）', wave: 'triangle', wave2: ['square', 0.1], base: 'D4', scale: [0, 2, 4, 7, 9], len: 30, A: 2, every: 2, v: 0.055, vib: [6, 10], formant: true, scoop: [60, 15] },
-  toyozou: { label: 'とよぞう（分水）', wave: 'triangle', wave2: ['sine', 0.5], base: 'A2', scale: [0, 2, 5, 7], len: 62, A: 6, every: 3, v: 0.07, vib: [4, 10], lp: 1500, formant: true },
+  // あさひは 低くて 言葉少な（トマじい E3、しんご G3 より 低く、まるい）
+  yone: { label: 'いつき（分水）', wave: 'triangle', wave2: ['square', 0.1], base: 'D4', scale: [0, 2, 4, 7, 9], len: 30, A: 2, every: 2, v: 0.055, vib: [6, 10], formant: true, scoop: [60, 15] },
+  toyozou: { label: 'あさひ（分水）', wave: 'triangle', wave2: ['sine', 0.5], base: 'A2', scale: [0, 2, 5, 7], len: 62, A: 6, every: 3, v: 0.07, vib: [4, 10], lp: 1500, formant: true },
   mizumaki: { label: 'ちず', wave: 'pulse25', base: 'F4', scale: [0, 4, 7, 12], len: 30, every: 2, v: 0.05, scoop: [100, 20] },
   shadow: { label: 'ぶーさん', wave: 'square', base: 'A3', scale: [0, 2, 3, 7], len: 40, every: 2, v: 0.05, lp: 500, lpQ: 2, rev: 0.3 },
   // ぶーさんの本体 (02 #71): the shadow's own voice without the muffle — the same

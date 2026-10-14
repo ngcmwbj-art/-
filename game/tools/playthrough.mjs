@@ -39,8 +39,8 @@
 //   node tools/playthrough.mjs --chapter 3            chapter 3『海ぞいの町の いただきます』の第1期・第2期 (60_ch3_story
 //                                                     10.0〜10.14): the title's 「第3章から」 → S00 the chapter's door →
 //                                                     S01 小林家 → S02 ひのや → S03 焼きそばのたかし → S04 ツガオ便 and its
-//                                                     bed → S05 the harbour at noon → S06 the children → 海ぞいの町 (the
-//                                                     people's talk, the post) → S10 the first run of ツガオ便 → S07 市場
+//                                                     bed → S05 the harbour at noon → S06 the children → S10 the first run of
+//                                                     ツガオ便 → 海ぞいの町 (the people's talk, the post) → S07 市場
 //                                                     → S08 食堂 → S09 海水浴場 (the dive, the lens) → S11 いただきます →
 //                                                     S12 ナリオサメ・S13 → S14 the trap → (第3期) S15 旧水族館 → S16 回廊 →
 //                                                     S17 ジオラマ → S18 深海 → S19 えさの部屋 → S20 ツガオ初戦 → S21・S22
@@ -2513,17 +2513,15 @@ const BEATS3 = [
   {
     name: 'bin',
     async run() {
-      // S10: the first run of ツガオ便 (30 s of walking after S06) brings the six of the main line
+      // S10: the first run of ツガオ便 comes straight after S06 (fix1016 依頼主「しゅん達が子供達と
+      // 話したあとすぐ 町のみんなを降ろす描写にして」: the 'ginza' step's advance went through it) and
+      // brings the six of the main line
       if ((await st()).map !== 'map_umizoi') return checks.push({ check: 'bin', ok: true, skipped: 'no map_umizoi' });
-      const t0 = Date.now();
-      while (!(await flag('flag_ch3_bin_n'))) {
-        if (late(t0, 60000)) throw new Error('bin: the first run did not come');
-        await walk((Date.now() / 1000) % 2 < 1 ? 'left' : 'right', (s) => !s.ctrl, 1500).catch(() => {});
-        await advance({ shotEvery: 4, label: 'bin' });
-      }
+      const bins = await flag('flag_ch3_bin_n');
       const n = await flag('flag_ch3_kita_n');
-      checks.push({ check: 'S10: the first run brings the six', ok: n === 6, kita: n });
-      if (n !== 6) throw new Error(`bin: ${n} came`);
+      const ok = bins === 1 && n === 6;
+      checks.push({ check: 'S10: the first run comes right after S06 and brings the six', ok, bins, kita: n });
+      if (!ok) throw new Error(`bin: ${JSON.stringify({ bins, kita: n })}`);
     },
   },
   {

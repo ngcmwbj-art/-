@@ -25,7 +25,7 @@
 // 10 Hkkkkkkkkkkkk::::::::::KKKKH  garden fence; the sports shed (23–26,10–11)
 // 11 H::T:::::::::::ooo::::cKKKKH  cherry (3,11); half-buried tyres (15–17,11); cones (22,11)
 // 12 H::::::::::::::::::::::::::H
-// 13 FFFFFFFFFFFFFFDFFFFFFFFFFFFF  the school's mesh fence; D (14,13): the back gate → map_town (18,1)
+// 13 FFFFFFFFFFFFFFDDFFFFFFFFFFFF  the school's mesh fence; D (14,13)–(15,13): the back gate → map_town (18,1)–(19,1)
 
 import '../../art/props/school';
 import { flag } from '../../game/state';
@@ -48,7 +48,7 @@ export const ROWS_SCHOOL = [
   'Hkkkkkkkkkkkk::::::::::KKKKH', // 10
   'VggT::f::::::::ooo::::cKKKKH', // 11  V (0,11)–(0,12): the gap in the west hedge, 2 tiles; f (6,11) the 立て札『← 校庭』
   'Vggggggggggggg:::::::::::::H', // 12  g: the gravel way from the back gate to the gap, round the building's west end → 校庭 map_school_kotei (02 #82)
-  'FFFFFFFFFFFFFFDFFFFFFFFFFFFF', // 13
+  'FFFFFFFFFFFFFFDDFFFFFFFFFFFF', // 13
 ];
 
 const SCHOOL_LEGEND: Record<string, TileSpec> = {
@@ -157,7 +157,7 @@ const OBJECTS: MapObj[] = [
   { t: 'obj', id: 'obj_sch_cone', x: 22, y: 11, script: 'obj_sch_cone' } as MapObj,
   O('obj_sch_sakura', 3, 11),
   O('obj_sch_taiya', 15, 11, { w: 3 }),
-  O('obj_sch_uramon_in', 14, 13, { face: 'down' }),
+  O('obj_sch_uramon_in', 14, 13, { w: 2, face: 'down' }),
 
   // ======================================================== enemy symbols (20_systems 14; reused)
   // セミファイナル on its back under the cherry (stage 1–2); put right, it clings to the trunk
@@ -177,6 +177,7 @@ const OBJECTS: MapObj[] = [
 
   // ======================================================== the way out
   { t: 'door', id: 'door_sch_town', x: 14, y: 13, to: 'map_town', tx: 18, ty: 1, dir: 'down', se: 'se_door_heavy' },
+  { t: 'door', id: 'door_sch_town2', x: 15, y: 13, to: 'map_town', tx: 19, ty: 1, dir: 'down', se: 'se_door_heavy' },
   // 二人十五脚 (02 #82, 30 3.17): the gap in the west hedge past the cherry, the gravel way round the
   // building's west end to the school ground (pushed west from (1,12))
   { t: 'prop', prop: 'prop_kotei_nishi', x: 0, y: 12 },

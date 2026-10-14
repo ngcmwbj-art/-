@@ -14,7 +14,7 @@ function takashiShut(): boolean {
 }
 
 const ROWS = [
-  'HHHHHHHHHHHHHHHHHHUHHHHHHHHHHHHHHH^^^^^^^^^^^^^^^^^^^^^^^^FbRbF,', // 0 U: 夕鳴小学校の 裏門 (map_school, 02 #72)
+  'HHHHHHHHHHHHHHHHHHUUHHHHHHHHHHHHHH^^^^^^^^^^^^^^^^^^^^^^^^FbRbF,', // 0 UU: 夕鳴小学校の 裏門 (map_school, 02 #72; 2 tiles since 2026-10-15)
   'H^^^^,T,,,,T,,,,,,,,,,,,T,,,,T,HHHWWWWWWWWWWWWWWWWWWWWWWWWFbRbF,', // 1
   'HWWWW,,,,,,,,,,,,,,,,,,,,,,,,,,HHHWWWWWWWWWWWWWWWWWWWWWWWWFbRbF,', // 2
   'HWWWW,:oooo:--------:ooo:,,o,,,HHHWWWWWWWWWWWWWWWWWWWWWWWWFbRbF,', // 3
@@ -409,14 +409,22 @@ const OBJECTS: MapObj[] = [
   O('obj_shrubs', 0, 8, { face: 'left' }),
   { ...O('obj_clocktower_base', 15, 7, { w: 2, face: 'up' }), prop: 'prop_clocktower', fushigi: 'fushigi_08' } as MapObj,
   O('obj_tetsubo', 21, 3, { w: 3 }),
-  // 夕鳴小学校の 裏門 (10 7.23, 02 #72): the iron gate in the north hedge, half open in stage 1–2;
-  // pushed north from (18,1) (the lawn north-east of the clock tower) into the school's back yard
+  // 夕鳴小学校の 裏門 (10 7.23, 02 #72): the iron gate in the north hedge, open in stage 1–2;
+  // pushed north from (18,1)–(19,1) (the lawn north-east of the clock tower) into the school's back yard.
+  // 2026-10-15 依頼主「この扉もっと分かりやすく大きくして」: 2 tiles wide (18,0)–(19,0), two posts, the
+  // leaves swung open and a small board 『夕鳴小 うら門』 on top; shut (stage 0, 3: 第3章・クリア後の
+  // 夕方のほか) pushing against it says so (trig_sch_uramon_shut, events/school.ts)
   { t: 'prop', prop: 'prop_sch_uramon', x: 18, y: 0 },
-  { t: 'obj', id: 'obj_sch_uramon', x: 18, y: 0, face: 'up', text: SCHOOL_OBJ.obj_sch_uramon } as MapObj,
+  { t: 'obj', id: 'obj_sch_uramon', x: 18, y: 0, w: 2, face: 'up', text: SCHOOL_OBJ.obj_sch_uramon } as MapObj,
   {
     t: 'door', id: 'door_town_school', x: 18, y: 0, to: 'map_school', tx: 14, ty: 12, dir: 'up', se: 'se_door_heavy',
     cond: { stage: '1-2' },
   },
+  {
+    t: 'door', id: 'door_town_school2', x: 19, y: 0, to: 'map_school', tx: 15, ty: 12, dir: 'up', se: 'se_door_heavy',
+    cond: { stage: '1-2' },
+  },
+  { t: 'trig', id: 'trig_sch_uramon_shut', x: 18, y: 1, w: 2, h: 1, on: 'bump', script: 'trig_sch_uramon_shut', cond: { stage: [0, 3] } } as MapObj,
   O('obj_speaker_pole', 27, 3),
   { ...O('obj_sandbox', 24, 9), flat: true } as MapObj,
   O('obj_kids_bike', 25, 10),

@@ -196,7 +196,7 @@ const LAYOUT: Record<string, Far[]> = {
   // 夕鳴小学校 裏庭 (28×14, 2026-10-05): the school building goes on west and
   // east (its end bays); south of its mesh fence the park — its north hedge
   // (walls.ts) with the iron back gate, the trees of its north row, the toilet
-  // (the town's own places: the gate is map_town (18,0), 4 tiles east of here)
+  // (the town's own places: the gate is map_town (18,0)–(19,0), 4 tiles east of here)
   map_school: [
     { id: 'bld_sch_kousha', x: -4, y: 0, depth: 9, crop: [0, 64] },
     { id: 'bld_sch_kousha', x: 28, y: 0, depth: 9, crop: [384, 448] },
@@ -206,7 +206,7 @@ const LAYOUT: Record<string, Far[]> = {
     { id: 'tree_sakura', x: 33, y: 5, opts: { v: 1 } },
     { id: 'tree_kusu', x: 36, y: 10, opts: { v: 0 } },
     { id: 'bld_madam', x: 33, y: 7, flip: true },
-    { id: 'prop_sch_uramon', x: 14, y: 14 },
+    // (the gate itself is the map's prop_sch_uramon_in (14,13)–(15,13), 2 tiles wide since 2026-10-15)
     { id: 'tree_sakura', x: 2, y: 15, opts: { v: 0 } },
     { id: 'tree_kusu', x: 7, y: 15, opts: { v: 0 } },
     { id: 'tree_sakura', x: 20, y: 15, opts: { v: 1 } },

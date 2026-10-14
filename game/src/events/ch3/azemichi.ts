@@ -2,7 +2,9 @@
 // to in chapters 1 and 2 (flag_talked_<npc_id>) come to 海ぞいの町 on ツガオ便,
 // ヒロスケ at the wheel (表の顔):
 //
-//   - 1便 30 s of walking after S06; 2〜4便 each time ①〜③ is done, as soon as
+//   - 1便 right after S06 (fix1016 依頼主「しゅん達が子供達と話したあとすぐ 町のみんなを
+//     降ろす描写にして」: evtCh3Kids runs binAfterKids; a load between them: as soon as
+//     しゅん can walk in map_umizoi); 2〜4便 each time ①〜③ is done, as soon as
 //     しゅん is back out in the town (map_umizoi). Each brings, in 3.4's order,
 //     up to 6 of those who were talked to and haven't come yet.
 //   - Who came: flag_ch3_kita_<npc_id>, flag_ch3_kita_n; flag_ch3_bin_n counts
@@ -195,20 +197,32 @@ const QUAY = { x: 47, y: 25 };
 /** Where they line up for their one line (the quay south of the truck). */
 const LINE_UP = (i: number): [number, number] => [43 + i, 26];
 
-let walkedMs = 0;
-
-/** How many runs should have come by now. */
+/** How many runs should have come by now (the first one as soon as S06 is over). */
 function binsDue(): number {
   if (!flag('flag_ch3_kids')) return 0;
-  return Math.min(BINS, (walkedMs >= 30000 || flag('flag_ch3_bin_n') > 0 ? 1 : 0) + partsDone());
+  return Math.min(BINS, 1 + partsDone());
+}
+
+/**
+ * 1便, straight after S06 (prologue.ts evtCh3Kids): the truck pulls in while the children
+ * run back to their play. Nobody to bring: the run is counted and nothing is shown.
+ */
+export function* binAfterKids(): Co {
+  if (!inCh3() || !flag('flag_ch3_kids') || flag('flag_ch3_bin_n') > 0) return;
+  if (F().map.id !== 'map_umizoi') return;
+  const who = waiting().slice(0, PER_BIN);
+  if (!who.length) {
+    setFlag('flag_ch3_bin_n', 1);
+    return;
+  }
+  yield* runBin(who);
 }
 
 registerWorldFx({
   map: 'map_umizoi',
-  update(f: FieldScene, dt: number) {
+  update(f: FieldScene) {
     if (!inCh3() || !flag('flag_ch3_kids') || flag('flag_ch3_got_gochisou')) return;
     if (!f.controllable) return;
-    walkedMs += dt;
     const n = flag('flag_ch3_bin_n');
     if (n >= binsDue()) return;
     const who = waiting().slice(0, PER_BIN);

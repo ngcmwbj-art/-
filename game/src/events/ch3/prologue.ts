@@ -40,6 +40,7 @@ import { getScript } from '../../world/scripts';
 import type { Dir } from '../../game/state';
 import { ambEvent, musicParam, reportCard, se } from '../ch2/compat';
 import { c3Town, inCh3, npc, say3 } from './common';
+import { binAfterKids } from './azemichi';
 
 // ---------------------------------------------------------------- places (62 1.4・3.9・5.1)
 
@@ -569,6 +570,8 @@ export function* evtCh3Kids(): Co {
     const a = f.actorById(k.id);
     if (a) delete a.data.scripted;
   }
+  // (fix1016 依頼主「しゅん達が子供達と話したあとすぐ 町のみんなを降ろす描写にして」) 1便 now
+  yield* binAfterKids();
 }
 // a load (or a jump) between S05 and S06: the children come as soon as しゅん can walk
 registerWorldFx({

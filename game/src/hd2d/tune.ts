@@ -199,7 +199,9 @@ export const SOLID: Record<string, PropSolid> = {
   obj_koban_lamp: slab(3),
   obj_barricade: slab(4),
   obj_broken_guide: slab(4),
-  prop_sch_uramon: slab(3),
+  // 夕鳴小の 裏門（2マス幅の 門、2026-10-15）：門柱・格子・札が 4px の 厚み
+  prop_sch_uramon: slab(4),
+  prop_sch_uramon_in: slab(4),
   obj_bridge: slab(3),
   // chapter 3 (海ぞいの町, 62 8.9): the tall things of the town stand as columns —
   // the siren tower's shaft and the red lighthouse — their tops (the siren, the

@@ -1,15 +1,15 @@
-// 水の はなまる（畦道の先の 円筒分水・よねと とよぞう）と、きつねの 常連（祠の小皿と
+// 水の はなまる（畦道の先の 円筒分水・いつきと あさひ）と、きつねの 常連（祠の小皿と
 // くま吉の 油揚げ）— 2026-09-29 依頼主の採用：げむきかの対岸の案3・5（02_ch2_index #67。
 // 10_narrative 6.26・7.22、30_level_art 3.14）。
 //
 // map_aze（data/maps/aze.ts）：
-//   ・よね（夕鳴町、東向き）と とよぞう（となり町、西向き）が 境の石のベンチで 背中あわせ。
+//   ・いつき（夕鳴町、東向き）と あさひ（となり町、西向き）が 境の石のベンチで 背中あわせ。
 //     1つの水筒のお茶を 肩ごしに 注いで、石の上の コップで 飲む（world fx の 振りつけ）。
 //     段階1は 注ぐ 途中で 止まる（pour_hold / reach_hold。お茶のすじが 宙に のこる）。
 //   ・話すたびに 少しずつ（段階ごとの〔_1〕〔_2〕…）。段階2の はじめの1回は〔水筒〕：
 //     水が 北東へ 寄って、となり町の 分が 減る → 「ほんなら お茶を 多めに くれ。」→
-//     しゅんが 水筒を 受けとって ベンチを 回り、とよぞうに 渡す（選択肢「渡す」）→
-//     よねの ハッカあめが 肩ごしに 飛んでくる。そのあとは とよぞうが 水筒を 持って 注ぐ。
+//     しゅんが 水筒を 受けとって ベンチを 回り、あさひに 渡す（選択肢「渡す」）→
+//     いつきの ハッカあめが 肩ごしに 飛んでくる。そのあとは あさひが 水筒を 持って 注ぐ。
 //   ・分水を グソっ君と 調べると「上から 見たら、はなまるやん。」（1回）。
 //   ・赤とんぼ（world fx 'fg'）：境を 行ったり 来たり。段階1は 宙で 止まる、段階2は 北東を 向く。
 // map_town：
@@ -48,8 +48,8 @@ import { F, getKeyItem, grace, settle, tileRoute } from './lib';
 import { zoomIn, zoomOut, type ZoomView } from './stage';
 
 // the name tags and the voices (10_narrative 1.5)
-SPEAKERS.npc_yone ??= { name: 'よね', voice: 'yone' };
-SPEAKERS.npc_toyozou ??= { name: 'とよぞう', voice: 'toyozou' };
+SPEAKERS.npc_yone ??= { name: 'いつき', voice: 'yone' };
+SPEAKERS.npc_toyozou ??= { name: 'あさひ', voice: 'toyozou' };
 
 const MAP = 'map_aze';
 
@@ -61,7 +61,7 @@ function kanenariHere(): boolean {
 
 // ================================================================ the pair's choreography (world fx)
 
-/** Who holds the flask: よね until Minato carries it round to とよぞう (stage 2). */
+/** Who holds the flask: いつき until Minato carries it round to あさひ (stage 2). */
 function holderIds(): [string, string] {
   return flag('flag_aze_suito') ? ['npc_toyozou', 'npc_yone'] : ['npc_yone', 'npc_toyozou'];
 }
@@ -233,7 +233,7 @@ function* firstMeeting(): Co<ZoomView | null> {
   return yield* zoomIn(200, 196, 300);
 }
 
-/** The flask goes round: Minato takes it from よね, walks round the bench and gives it to とよぞう. */
+/** The flask goes round: Minato takes it from いつき, walks round the bench and gives it to あさひ. */
 function* carryFlask(): Co {
   const f = F();
   const p = f.player;
@@ -251,13 +251,13 @@ function* carryFlask(): Co {
       }
       p.dir = face;
     };
-    // to よね for the flask
+    // to いつき for the flask
     yield* go(E, 'left');
     yield 200;
     snd.se('se_paper_bag', { vol: 0.5 });
     if (yone) yone.pose = 'sit';
     yield 350;
-    // round the bench (the south side) to とよぞう
+    // round the bench (the south side) to あさひ
     yield* go(Wt, 'right');
     yield 200;
     snd.se('se_h_yunomi');
@@ -287,7 +287,7 @@ function* suitoScene(): Co {
   grace();
 }
 
-/** よねの ハッカあめ (over her shoulder: they don't look round). A full bag: next time. */
+/** いつきの ハッカあめ (over her shoulder: they don't look round). A full bag: next time. */
 function* yoneCandy(): Co {
   yield* msg(AZE_TALK.suito_ame);
   if (addItem('item_hakka_ame')) {

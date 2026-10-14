@@ -6,6 +6,8 @@
 // - 店と家の中：第1章の人（えすけ・ワイスタ巡査・ゆず・ふでの先生・きぬ・ゆう・かずゆき・
 //   おかみ・ちずの母・ピー・コック・写真館の主人）は、段階0のあいだだけ第3章の昼前の台詞に
 //   する（第1章のままだと flag_stage 3 の「止まった町」の台詞が出る）。ほかの章ではもとのまま。
+// - 畦道の先の 分水（map_aze）のベンチの いつき・あさひも 同じ形（fix1016 依頼主「水のところにいる
+//   おじいさん2人に話しかけられない」：第1章の台本は段階3では黙っていた）。
 // - 会話キーは第3章の形（c0_1, c0_2：pickC3）。記録は flag_seen_<npc>_c0（`c` なので
 //   talked.ts の seenNpc は拾わない）。
 // - 来る人の決まり（60 3.4）：段階0で話しても flag_talked_ は立てない（world/interact.ts）。
@@ -57,6 +59,9 @@ const INSIDE = [
   'npc_chizu_haha',
   'npc_kazuo',
   'npc_photo_master',
+  // 畦道の先の 分水のベンチの2人（fix1016：events/aze.ts の台本は 段階3〈止まった町〉で 何も 言わない）
+  'npc_yone',
+  'npc_toyozou',
 ];
 for (const id of INSIDE) {
   // src/events/index.ts imports chapter 3 last: the chapter-1/2 scripts are already registered

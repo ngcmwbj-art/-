@@ -52,7 +52,7 @@ export const YR_ROWS: YrRow[] = [
   { ...C1, id: 'yr_c1_kensui', kn: false, done: f('flag_got_hanamaru_kensui'), name: '巡査の 懸垂', hint: ['夕方。公園の 鉄棒と、交番。', 'ワイスタ巡査に。'], npcs: ['npc_tsurumi'] },
   { ...C1, id: 'yr_c1_zari', kn: false, done: f('flag_zari_ramune'), name: '浮きを 見ている だけ', hint: ['夕方。川の 向こう岸。', '水口の おぴぃに。'], npcs: ['npc_tamotsu'] },
   { ...C1, id: 'yr_c1_mizube', kn: false, done: f('flag_mizube_yurai_done'), name: '水辺の 図鑑①', hint: ['夕方。堰と、家の 台所。', 'おぴぃと、母に。'], npcs: ['npc_tamotsu', 'npc_mother'] },
-  { ...C1, id: 'yr_c1_suito', kn: false, done: f('flag_aze_suito'), name: '水の はなまる', hint: ['夕方。畦道の 先の 分水。', 'よねと とよぞうに。'], npcs: ['npc_yone', 'npc_toyozou'] },
+  { ...C1, id: 'yr_c1_suito', kn: false, done: f('flag_aze_suito'), name: '水の はなまる', hint: ['夕方。畦道の 先の 分水。', 'いつきと あさひに。'], npcs: ['npc_yone', 'npc_toyozou'] },
   { ...C1, id: 'yr_c1_kitsune', kn: false, done: f('flag_abura_eaten'), name: 'きつねの 常連', hint: ['夕方。豆腐屋と、畦道の 祠。', 'くま吉に。'], npcs: ['npc_mamekichi'] },
   { ...C1, id: 'yr_c1_toban', kn: false, done: f('flag_toban_done'), name: '8月31日の 水やり当番', hint: ['夕方。小学校の 裏庭。', 'さやに。'], npcs: ['npc_sae'] },
   { ...C1, id: 'yr_c1_kotei', kn: true, done: f('flag_kotei_done'), name: '二人十五脚', hint: ['夕方。坂の なんばるわんの 家。', 'グソっ君と いっしょに。'], npcs: ['npc_madam', 'npc_kazuo'] },
