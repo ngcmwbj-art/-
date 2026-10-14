@@ -73,8 +73,8 @@
 | `yr_c1_hajimete` | グソっ君の はじめて帳①（町の8人） | events/hajimete.ts | 段階1〜2、KN、`ch1()`＝`!flag_ch2_started` | 8人の `flag_hajimete_<id>` | **直す**：`ch1()` を「第1章の時間か」（5.2 `pgCh1()`）に | M |
 | `yr_c1_hokoku` | 「ダンゴムシ ちゃうで」の 報告書 | events/hokokusho.ts | 段階2、KN、`ch1()` | `flag_hk_closed` | **直す**：同上 | M |
 | `yr_c1_katanuki` | 型ぬき 番付 | events/katanuki.ts | 段階2、KN、`!inCh3()` | `flag_katanuki_rank`（番付の書きかえ） | そのまま（`inCh3()` はクリアで false） | S |
-| `yr_c1_cape` | ふろしきの マント（たかしの〔cape〕） | events/cape_coffee.ts | 段階2、KN | `flag_cape_takashi` | そのまま。ヤキソバンの正体を知ったあとの文としておかしくないか、E が読む | S |
-| `yr_c1_bu` | 減らない コーヒー（ぶーさん） | events/cape_coffee.ts | 喫茶 初日の出 | `flag_bu_left` | そのまま（条件は E が確認） | S |
+| `yr_c1_cape` | ふろしきの マント（たかしの〔cape〕） | events/cape_coffee.ts | 段階2、KN | `flag_cape_takashi` | そのまま（E が読んだ：たかしの「いまの オレの マントは、これよ」はクリア後も通る。10-14） | S |
+| `yr_c1_bu` | 減らない コーヒー（ぶーさん） | events/cape_coffee.ts | 喫茶 初日の出 | `flag_bu_left` | そのまま（喫茶の段階2。E 確認 10-14） | S |
 | `yr_c1_hera` | 置物の ヘラ | events/cape_coffee.ts | 2回目から、どの段階でも | `flag_hera_look` | そのまま | S |
 | `yr_c1_tankan` | しんごの たんかん | events/rooms_north.ts | 喫茶のマスター → しんご | `flag_tankan_given` | **確認**：第1章クリアで `item_tankan` は袋から消える（flow.ts `writeChapter1ClearData`）。持ったまま第1章を終えた人は、マスターからもう1つもらえる形にする | S〜M |
 | `yr_c1_hunting` | ハンチングの 値札①（踏切のくりこ） | events/hunting.ts | 段階1〜2、KN | `flag_hunting_chichi` | そのまま（夕方の踏切にくりこが立つこと） | S |
@@ -94,7 +94,7 @@
 | `yr_c2_wakime` | 脇芽は 朝に かく | events/ch2/wakime.ts | h1〜2、灯り | `flag_ch2_wakime_done` | 灯りが直れば動く | S |
 | `yr_c2_nihyaku` | 二百十日の 前の 晩（4人） | events/ch2/nihyaku.ts | h1〜2 | `flag_nihyaku_done` | そのまま | S |
 | `yr_c2_dome` | 朝の ほうだけ 光る 星（天文台） | events/ch2/dome.ts | h1〜2、灯り、まつ先生の鍵 | `flag_kanbo_report` | **直す**：`flag_ch2_boss_beaten` を見ている所がある（丘・裏山の地図）。クリア後の扱いを足す | M |
-| `yr_c2_ekinote` | 駅ノートの 前の ページ | events/ch2/ekinote.ts | `fushigi_ch2_01` のあと | 5ページ見た印（`flag_ekinote_read`。E が確認） | そのまま | S |
+| `yr_c2_ekinote` | 駅ノートの 前の ページ | events/ch2/ekinote.ts | `fushigi_ch2_01` のあと | `flag_ekinote_read` ≧ 5（いちばん古いほうへ めくった数。E 確認 10-14） | そのまま | S |
 | `yr_c2_shikishi` | 70年の 色紙と 小さな 夏祭り | events/ch2/shikishi.ts | h1〜2、灯り | `flag_shikishi_done` | 灯りが直れば動く | S |
 | `yr_c2_yoburi` | 夜振りの ドジョウ（水辺の 図鑑②） | events/ch2/yoburi.ts | 灯り、トマじい | `flag_yoburi_report` | 灯りが直れば動く | S |
 | `yr_c2_ashiato` | 夜の 足あと帳（6つ、うり坊） | events/ch2/ashiato.ts、uribo.ts | 灯り、おてつだいのあと | `flag_ashiato_six` | 灯りが直れば動く。うり坊の小窓の h2 の呼び声は出さない（5.3） | S |
@@ -105,7 +105,7 @@
 | `yr_c2_saku` | 上の 柵ぞいの 見回り | events/ch2/sakuzoi.ts | 灯り、ゲートのあと、KN | `flag_saku_done` | 灯りが直れば動く | S |
 | `yr_c2_tetsu` | 分校の 鉄棒と『懸垂、1回』 | events/ch2/tetsubou.ts | h0〜1、KN、`flag_kensui_try` | `flag_tetsu_done` | **確認**：`flag_ch2_boss_beaten` を見ている所。第1章で懸垂に挑んでいない人は、クリア後の夕方に挑めば開く（依頼主の厳選「第1章で挑んだ人だけ」のまま） | S〜M |
 | `yr_c2_hunting` | ハンチングの 値札②（ペロ） | events/hunting.ts | h1〜2、KN | `flag_hunting_on` | そのまま | S |
-| `yr_c2_sawako` | ソワカの 色見本 | events/ch2/sawako_yk.ts | 壁のスケッチ2回目 → ソワカ | `YK.yk` の印 | そのまま。ヤキソバンの「バレない程度」の決まりは第2章用。クリア後は正体を知っているので、グソっ君の1回の文だけ E が読む | S |
+| `yr_c2_sawako` | ソワカの 色見本 | events/ch2/sawako_yk.ts | 壁のスケッチ2回目 → ソワカ | `flag_ch2_sawako_yk`（E 確認 10-14） | そのまま。ヤキソバンの「バレない程度」の決まりは第2章用。クリア後は正体を知っているので、グソっ君の1回の文だけ E が読む | S |
 | `yr_c2_tegami` | 『あした』宛ての 手紙 | events/ch2/npcs.ts | `item_ashita_tegami` を持って さんかどへ | `flag_ch2_tegami` | **確認**：手紙の手に入れ方（第1章の迷子センター）がクリア後にもできるか | S〜M |
 | `fushigi_ch2_01〜10` | 第2章のふしぎ 10 | events/ch2/fushigi.ts | h0〜2。07〜10 は暗い所（灯り） | `flag_fushigi_ch2_01`〜`_10` | `world/fushigi.ts` は h3 以上で押せない作り。クリア後は h1 にするので押せる。06 は本筋で必ず済む | S |
 
