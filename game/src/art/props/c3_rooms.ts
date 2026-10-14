@@ -492,21 +492,24 @@ registerProp('prop_c3_hose', () =>
 
 /** The fluorescent fittings (x of the west end, y) and the bulbs (x, y, the shop under it). */
 const TUBES: [number, number][] = [
-  [22, 72], [62, 72], [230, 72], [262, 72],
-  [36, 120], [116, 120], [190, 120], [252, 120],
+  [22, 74], [62, 74], [230, 74], [262, 74],
+  [36, 124], [116, 124], [190, 124], [252, 124],
 ];
 const BULBS: [number, number, string][] = [
-  [360, 60, 'hinoya'], [440, 60, 'tofu'], [520, 60, 'cafe'],
-  [360, 118, 'tomato'], [440, 118, 'yasumi'], [520, 118, 'tokei'],
+  [360, 76, 'hinoya'], [440, 76, 'tofu'], [520, 76, 'cafe'],
+  [360, 126, 'tomato'], [440, 126, 'yasumi'], [520, 126, 'tokei'],
 ];
-/** The cords of the bulbs start here (under the roof's beams). */
-const BULB_TOP = [44, 100];
+/**
+ * The cords of the bulbs start here (the room's ceiling: everything hung stays within 32 px over
+ * the line it hangs over, hd2d/room_tune.ts HANG prop_c3_ichiba_lights).
+ */
+const BULB_TOP = [66, 116];
 
 const bulbOn = (env: PropEnv, shop: string) => !!env.flag(AZE_SHOPS[shop] ?? '');
 
 registerProp('prop_c3_ichiba_lights', () => {
   const W = 37 * 16;
-  const p = new PixelCanvas(W, 132);
+  const p = new PixelCanvas(W, 140);
   const fitting = (x: number, y: number) => {
     // two chains to the roof, the grey body, the bare tube under it (as the barn's, art/props/hoshi_room_b.ts)
     for (const cx of [x + 4, x + 19]) for (let yy = y - 8; yy <= y - 1; yy++) p.set(cx, yy, (yy & 1) === 0 ? P.charcoal : P.steel);
@@ -514,14 +517,14 @@ registerProp('prop_c3_ichiba_lights', () => {
     p.hline(x + 2, x + 21, y, P.concreteLt);
     p.hline(x, x + 23, y + 1, P.steel);
     p.hline(x, x + 23, y + 2, P.glint);
-    p.hline(x, x + 23, y + 3, P.white);
+    p.hline(x, x + 23, y + 3, '#FFFFFF');
     for (const ex of [x - 1, x + 24]) for (let yy = y + 1; yy <= y + 3; yy++) p.set(ex, yy, P.charcoal);
     p.hline(x + 1, x + 22, y + 4, mix(P.white, P.steel, 0.4));
   };
   for (const [x, y] of TUBES) fitting(x, y);
   for (const [x, y] of BULBS) {
     // the cord down from the beam, the socket, the round glass
-    const top = y < 100 ? BULB_TOP[0] : BULB_TOP[1];
+    const top = y < 110 ? BULB_TOP[0] : BULB_TOP[1];
     p.vline(x, top, y - 3, '#2A2440');
     p.rect(x - 1, y - 3, 3, 2, '#3A3F48');
     p.rect(x - 2, y - 1, 5, 4, '#F6E8C0');
@@ -554,8 +557,8 @@ registerProp('prop_c3_ichiba_lights', () => {
     },
     light(g: Gfx, x: number, y: number, env: PropEnv) {
       // the pools on the wet floor under them (white under the tubes, warm under a lit bulb)
-      for (const [tx, ty] of TUBES) drawLight(g, poolEllipse(30, 22, HLIGHT.led), x + tx + 12, y + ty + 40, 0.45);
-      for (const [bx, by, shop] of BULBS) if (bulbOn(env, shop)) drawLight(g, poolEllipse(26, 16, HLIGHT.bulb), x + bx, y + by + 36, 0.4);
+      for (const [tx, ty] of TUBES) drawLight(g, poolEllipse(30, 22, HLIGHT.led), x + tx + 12, y + ty + 24, 0.45);
+      for (const [bx, by, shop] of BULBS) if (bulbOn(env, shop)) drawLight(g, poolEllipse(26, 16, HLIGHT.bulb), x + bx, y + by + 22, 0.4);
     },
   } satisfies PropArt;
 });
@@ -595,7 +598,7 @@ registerProp('prop_c3_tenmado', (o) => {
       }
     },
     light(g: Gfx, x: number, y: number, env: PropEnv) {
-      const a = a0 * 1.4 * (1 - env.grade.night);
+      const a = a0 * 0.7 * (1 - env.grade.night);
       drawLight(g, poolEllipse(fw * 0.6, fh * 0.75, '255,246,216'), x + fx + fw / 2, y + fy + fh / 2, a);
     },
   } satisfies PropArt;

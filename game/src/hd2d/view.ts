@@ -429,8 +429,9 @@ export class Hd2dView {
     this.tint.setRGB(1.04, 1.0, 0.97);
     this.actors.update(f, sunYaw, this.tint, world, this.sunDir);
     // the tilt-shift's sharp row: where Minato stands on screen (in a
-    // close-up, what it looks at)
-    const foot = subject ?? this.project(new THREE.Vector3((f.player.x + f.player.ox) / 16, 0.6, f.player.y / 16));
+    // close-up, what it looks at; in a scene about other people, f.focusAt)
+    const fa = f.focusAt;
+    const foot = subject ?? this.project(fa ? new THREE.Vector3(fa[0] / 16, 0.6, fa[1] / 16) : new THREE.Vector3((f.player.x + f.player.ox) / 16, 0.6, f.player.y / 16));
     const fy = foot && crop ? ((foot[1] - crop[1]) / crop[3]) * H : foot?.[1];
     const focus = fy !== undefined ? Math.max(0.25, Math.min(0.75, 1 - fy / H)) : 0.5;
     this.post!.setGrade(world instanceof RoomWorld ? world.grade() : nightGrade(f.grade), f.wave.amp, f.wave.t / 1000, focus);

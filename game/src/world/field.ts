@@ -175,6 +175,11 @@ export class FieldScene implements Scene {
   camOverride: { x: number; y: number } | null = null;
   camFollow: Actor | null = null;
   /**
+   * HD-2D: the tilt-shift's sharp row on these world px (someone's feet) instead of the player's —
+   * a scene that looks at other people (ツガオ便's arrivals, fix1015). null: the player.
+   */
+  focusAt: [number, number] | null = null;
+  /**
    * Room close-up (QA round 1): small rooms are shown at an integer 2× —
    * the frame is rendered at 1× as always and the renderer presents the
    * (W/2 × H/2) world rect at (viewX, viewY) blown up. 1 = normal view.
@@ -289,6 +294,7 @@ export class FieldScene implements Scene {
     this.trail = [];
     this.camOverride = null;
     this.camFollow = null;
+    this.focusAt = null;
     this.structures = buildStructures(m);
     this.buildProps();
     this.pgPresBand = pgOn() ? pgBand() : null;

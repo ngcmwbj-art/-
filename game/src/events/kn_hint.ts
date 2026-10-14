@@ -247,4 +247,4 @@ for (const m of mapIds()) {
   });
 }
 
-if (import.meta.env.DEV) registerDebug('knHint', () => knHint());
+if (import.meta.env.DEV) registerDebug('knHint', (adv?: boolean) => knHint(!!adv));

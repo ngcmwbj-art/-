@@ -70,6 +70,13 @@ export const HANG: Record<string, HangBand[]> = {
   ],
   // 旧水族館の 入口: the sunfish on its strings over the hall (art/props/c3_aq.ts, rows 20–63), its belly ~24 px up
   prop_c3_aq_manbou: [{ y0: 20, y1: 64, foot: 88 }],
+  // 港の 市場 (fix1015 G2, art/props/c3_rooms.ts): the fluorescent fittings over the north boxes and the
+  // bulbs over あぜ道市's upper counters hang over y6, the south row and the lower bulbs over y9 — under
+  // the room's ceiling (its 2 wall rows: 32 px; underCeiling cuts what is higher)
+  prop_c3_ichiba_lights: [
+    { y0: 66, y1: 84, foot: 98 },
+    { y0: 116, y1: 134, foot: 148 },
+  ],
 };
 
 /**

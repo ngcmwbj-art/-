@@ -5,7 +5,8 @@
 // (S08) and あぜ道市's shops (S10) are the second part's.
 
 import '../../art/props/c3_rooms';
-import { registerMap } from '../../world/maps';
+import { getMapDef, registerMap } from '../../world/maps';
+import { pgBand, pgOn, pgRoomTone } from '../../world/postgame';
 import type { MapObj, TileSpec } from '../../world/types';
 
 const WALLS: Record<string, TileSpec> = {
@@ -22,6 +23,11 @@ const O = (id: string, x: number, y: number, extra: Record<string, unknown> = {}
 
 // (at 12:01 the cook, the regular and the auctioneers are outside: umizoi.ts)
 const S1 = { stage: 1 };
+/**
+ * 港の 市場's customers (fix1015 G2): at 12:00 where they stood (S1), from 12:01 on and after
+ * the clear moving (S2P); after the clear only while the market is open (the morning and the day).
+ */
+const S2P = { stage: '2+', when: () => !pgOn() || pgBand() === 'asa' || pgBand() === 'hiru' };
 
 // ================================================================ 4.3 map_c3_shokudo（食堂 かもめ、16×9）
 
@@ -119,6 +125,14 @@ registerMap({
     PR('prop_c3_seridai', 9, 3),
     PR('prop_c3_hakari', 1, 10),
     PR('prop_c3_hose', 34, 10),
+    // the light (fix1015 G2, 依頼主「市場の中をもっと明るく」; 62 4.2・8.6): the fluorescent fittings and the bulbs,
+    // the skylights' shafts onto the squares the shell paints (the auction ring, the arcade); boots and ice on the floor
+    PR('prop_c3_ichiba_lights', 0, 0),
+    PR('prop_c3_tenmado', 0, 0, { fx: 112, fy: 64, fw: 96, fh: 64, rise: 110, shear: 0.15, a: 0.12, motes: 14, seed: 3651 }),
+    PR('prop_c3_tenmado', 0, 0, { fx: 336, fy: 80, fw: 208, fh: 32, rise: 96, shear: 0.15, a: 0.14, motes: 16, seed: 3652 }),
+    PR('prop_c3_gomunaga', 1, 3),
+    PR('prop_c3_gomunaga', 35, 3, { v: 1 }),
+    PR('prop_c3_koori', 8, 10),
     // あぜ道市: the six shop spaces, opened by who came (62 4.2: 上 ひのや・豆腐・喫茶 / 下 トマト・休み所・時計)
     ...[20, 25, 30].flatMap((x, i) => [
       PR('prop_c3_akimise', x, 3, { v: i, shop: ['hinoya', 'tofu', 'cafe'][i] }),
@@ -132,6 +146,42 @@ registerMap({
     // ゲン in front of the auction stand, ツグミ beside him (62 4.2)
     { t: 'npc', id: 'npc_c3_seri', x: 9, y: 4, dir: 'down', cond: S1 },
     { t: 'npc', id: 'npc_c3_seri_deshi', x: 11, y: 4, dir: 'down', cond: S1 },
+    // the customers (fix1015 G2, 依頼主「お客がいる雰囲気が欲しい」). 12:00: each stopped where the noon caught
+    // them — an アジ held up to the eye over the boxes (pose 'reach', one still frame; passers-by can't be
+    // spoken to and don't block). The one who can be spoken to (events/ch3/umizoi.ts) stands by the west boxes.
+    // Kept off the auction ring and its trigger (x7–12, y4–7), the 符丁 notes, the shops' talking spots and
+    // where あぜ道市's people stand (events/ch3/azemichi.ts)
+    { t: 'npc', id: 'c3_ichiba_kyaku', x: 6, y: 7, dir: 'left', pose: 'reach', noTurn: true, cond: S1 },
+    { t: 'npc', id: 'c3_ichiba_okyaku_c', x: 6, y: 4, dir: 'left', pose: 'reach', passerby: true, noTurn: true, cond: S1 },
+    { t: 'npc', id: 'c3_ichiba_okyaku_b', x: 18, y: 4, dir: 'left', pose: 'reach', passerby: true, noTurn: true, cond: S1 },
+    { t: 'npc', id: 'c3_ichiba_okyaku_a', x: 13, y: 8, dir: 'right', pose: 'reach', passerby: true, noTurn: true, cond: S1 },
+    { t: 'npc', id: 'c3_ichiba_okyaku_d', sprite: 'c3_ichiba_okyaku_b', x: 24, y: 6, dir: 'up', pose: 'reach', passerby: true, noTurn: true, cond: S1 },
+    // 12:01 and after: looking over the boxes, walking the aisles, one going home with a whole box
+    { t: 'npc', id: 'c3_ichiba_kyaku', x: 6, y: 8, dir: 'left', move: { kind: 'look', dirs: ['left', 'left', 'down', 'right'], every: [2500, 5000] }, cond: S2P },
+    {
+      t: 'npc', id: 'c3_ichiba_okyaku_c', x: 1, y: 6, dir: 'right', passerby: true, cond: S2P,
+      move: { kind: 'route', points: [[1, 6], [6, 6]], speed: 0.45, wait: 3200 },
+    },
+    {
+      t: 'npc', id: 'c3_ichiba_okyaku_a', x: 13, y: 6, dir: 'down', passerby: true, cond: S2P,
+      move: { kind: 'route', points: [[16, 6], [13, 6], [13, 9], [6, 9], [6, 10]], speed: 0.7, wait: 3500, hide: [4] },
+    },
+    {
+      t: 'npc', id: 'c3_ichiba_okyaku_b', x: 20, y: 6, dir: 'right', passerby: true, cond: S2P,
+      move: { kind: 'route', points: [[20, 6], [34, 6]], speed: 0.6, wait: 2600, phase: 1.2 },
+    },
+    {
+      t: 'npc', id: 'c3_ichiba_okyaku_d', sprite: 'c3_ichiba_okyaku_c', x: 34, y: 9, dir: 'left', passerby: true, cond: S2P,
+      move: { kind: 'route', points: [[34, 9], [20, 9]], speed: 0.5, wait: 3000, phase: 2.5 },
+    },
   ] as MapObj[],
   bgm: { 1: 'bgm_umi_noon', 2: 'bgm_umi_noon' },
 });
+
+// 港の 市場 is bright (62 1.1・4.2: 天窓と蛍光灯、下地 #EEF2EE; fix1015 G2, 依頼主「市場の中をもっと明るく」): the base of
+// its light (render.ts c3Base, hd2d/room.ts brightBase) in place of the stage's evening indoor colour. After the
+// clear, in the evening and at night (postgame.ts pgRoomTone), the room takes the time of day's colour instead.
+{
+  const def = getMapDef('map_c3_ichiba');
+  if (def) Object.defineProperty(def, 'lightBase', { get: () => (pgRoomTone(def) ? undefined : '#EEF2EE'), enumerable: true, configurable: true });
+}

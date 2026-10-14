@@ -13,6 +13,7 @@ import { hasMap, registerScript, setFlag } from '../../world/api';
 import { saveConfirm, saveWithStamp } from '../../ui/save';
 import { C3_KID_AGAIN, C3_OBJ, C3_TALK, C3_TSUGAOBIN, EDGE_ROAD, EDGE_SEA, SAVE_POST, SAVE_POST_DONE, SAVE_POST_OPTIONS } from '../../data/text/c3_events';
 import { se } from '../ch2/compat';
+import { SPEAKERS } from '../../world/msg';
 import { c3Stage, knOnce, pickC3, say3 } from './common';
 
 // ---------------------------------------------------------------- the people (3.2)
@@ -64,6 +65,13 @@ for (const id of [
   registerScript(id, function* (): Co {
     yield* talkC3(id);
   });
+
+// 港の 市場's customer (fix1015 G2, map_c3_ichiba): a nameless one of the town — her name tag is the
+// role, and she is not in C3_NAMES (the people who come and よぶ count only those, minna.ts・yobu.ts)
+SPEAKERS.c3_ichiba_kyaku = { name: 'お客', voice: 'c3_himono_tsuma' };
+registerScript('c3_ichiba_kyaku', function* (): Co {
+  yield* talkC3('c3_ichiba_kyaku');
+});
 
 // ミナト stays up the tower till S12 (60 3.2): if a map stands him at its door, the door's paper speaks
 registerScript('npc_c3_sirenban', function* (): Co {

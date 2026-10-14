@@ -227,7 +227,10 @@ export function* runBin(who: Kita[]): Co {
   setFlag('flag_ch3_bin_n', n + 1);
   se('se_keitora_go', { vol: 0.5 });
   yield 500;
-  yield* panTo(QUAY.x - 2, QUAY.y, 900);
+  // (fix1015 依頼主「降りる時ボヤけてて見づらい」: the camera a little south of the truck, so the line
+  // stands in the middle of the screen above the message box, and the tilt-shift sharp on the line)
+  yield* panTo(QUAY.x - 2, QUAY.y + 2, 900);
+  f.focusAt = [(LINE_UP(2)[0] * 16), LINE_UP(0)[1] * 16 + 16];
   se('se_keitora_stop');
   yield 400;
   se('se_truck_aori');
@@ -264,6 +267,7 @@ export function* runBin(who: Kita[]): Co {
   for (const id of staged) despawn(id);
   despawn('c3_bin_hiro');
   if (mapHiro) mapHiro.visible = true;
+  f.focusAt = null;
   yield* panBack(700);
 }
 
