@@ -32,6 +32,8 @@ import { sparkle } from '../fx';
 import { setDeliGuide } from './deli_guide';
 import { hasUi, musicParam, se, seAt, ui, uiCo } from './compat';
 import { hStage, npc, pickHText, poseAny, poseIf, routeTiles, runCue, unpose, type Cues } from './common';
+import { pgCh2, pgOn } from '../../world/postgame';
+import { PG_DELI_INVITE, PG_DELI_LATER } from '../../data/text/postgame';
 
 // ---------------------------------------------------------------- name tags
 
@@ -64,7 +66,23 @@ export function deliveryOn(): boolean {
 
 /** The delivery can be offered: stage 1 (the tomato, テツヤ still out), not done yet. */
 function deliveryOpen(): boolean {
-  return hStage() === 1 && flag('flag_ch2_got_tomato') > 0 && !flag('flag_ch2_tetsuya_beaten') && !flag('flag_ch2_delivery') && !deliveryOn();
+  // クリア後（05_postgame 2.2 yr_c2_deli）：夜の星見台なら、テツヤのあとでも 頼まれる
+  return hStage() === 1 && flag('flag_ch2_got_tomato') > 0 && (!flag('flag_ch2_tetsuya_beaten') || pgCh2()) && !flag('flag_ch2_delivery') && !deliveryOn();
+}
+
+/** クリア後のツガオ（表の顔）が話すとき：運転席で寝るツガオ（npc_tsugao）の名札を表の顔に。 */
+function pgVoice(src: string): string {
+  return pgOn() ? src.replace(/^@npc_tsugao$/gm, '@ツガオ:tsugao_omote') : src;
+}
+
+/**
+ * クリア後の夜、転回場のツガオ（events/postgame.ts の ツガオ便）が先に聞く：配達が まだなら 頼む。
+ * true = 配達の話をした（ツガオ便の行き先は聞かない）。
+ */
+export function* pgDeliveryOffer(): Co<boolean> {
+  if (!pgOn() || !deliveryOpen()) return false;
+  yield* invite();
+  return true;
 }
 
 function doneStops(): number {
@@ -340,7 +358,8 @@ let wakeTalk = false;
 /** What the bed was last told (a new bed starts asleep). */
 let binSent = false;
 let binT = 0;
-const binWanted = (mapId: string): boolean => mapId === 'map_hoshimidai' && hStage() <= 2;
+// （クリア後は運転席で寝ていない：寝息は鳴らさない）
+const binWanted = (mapId: string): boolean => mapId === 'map_hoshimidai' && hStage() <= 2 && !pgOn();
 
 function syncBin(): void {
   const awake = flag('flag_ch2_tsugao_awake') === 1 || wakeTalk;
@@ -394,7 +413,14 @@ function* invite(): Co<boolean> {
 }
 
 function* inviteTalk(): Co<boolean> {
-  if (flag('flag_ch2_deli_declined')) {
+  if (pgOn()) {
+    // クリア後：ツガオは起きていて、正体も知られている（誘いは1つの形だけ）
+    const i = yield* runMsg(PG_DELI_INVITE);
+    if (i !== 0) {
+      yield* runMsg(PG_DELI_LATER);
+      return false;
+    }
+  } else if (flag('flag_ch2_deli_declined')) {
     // he is the one who speaks first this time
     wake(true);
     const i = yield* runCue(D['誘い・2回目'], cues);
@@ -425,7 +451,7 @@ function* inviteTalk(): Co<boolean> {
       return false;
     }
   }
-  yield* runCue(D['共通2/手伝う'], cues);
+  yield* runCue(pgVoice(D['共通2/手伝う']), cues);
   // the yellow crate on ポコシャさん's right shoulder: he falls in third; ヒロスケさん waves them off
   const f = F();
   const own = npc('npc_pokosha');
@@ -593,7 +619,7 @@ registerScript('trig_ch2_deli_return', function* (): Co {
   const GOT2 = /@sys\n焼き芋を 2つ もらった！\n/;
   yield* runCue(
     // the @sys page says what really went in the bag (a full bag: 1 or 0)
-    D['しめ'].replace(GOT2, '!cue yakiimo_get\n'),
+    pgVoice(D['しめ']).replace(GOT2, '!cue yakiimo_get\n'),
     cuesWith({
       *yakiimo_get() {
         for (let i = 0; i < 2; i++) if (yield* quietItem('item_yakiimo')) got++;

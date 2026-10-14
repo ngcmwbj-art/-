@@ -11,7 +11,7 @@ import { DIR_VEC } from './actor';
 import type { FieldScene } from './field';
 import { fushigiActive, fushigiDone, runFushigi } from './fushigi';
 import { currentStage, pickStage, stageKeyPrefix } from './maps';
-import { pgTalkKey } from './postgame';
+import { pgBand, pgOn, pgTalkKey } from './postgame';
 import { runMsg } from './msg';
 import { ch3Hirumae } from './umizoi';
 import { getScript, type ScriptCtx } from './scripts';
@@ -33,14 +33,18 @@ function ctxFor(f: FieldScene, source: string, runDefault: () => Co, defaultText
  * with no `h` keys at all is read with its `s` keys there.
  */
 export function pickTalk(npcId: string, table: TalkTable): string | null {
-  // クリア後（05 6.2）：p_1 → pa/ph/py/pn → p。無い人はいつもの段階のキー
-  const pk = pgTalkKey(npcId, table);
-  if (pk) return pk;
   const stage = currentStage();
   const keys = Object.keys(table);
   const kp = stageKeyPrefix();
   // 星見台 reads `h` keys, 海ぞいの町 `c` keys (flag_ch3_stage), when the table has them
   const pre = kp !== 's' && keys.some((k) => new RegExp(`^${kp}\\d`).test(k)) ? kp : 's';
+  // クリア後（05 6.2）：p_1 → pa/ph/py/pn → p。無い人はいつもの段階のキー。ただし寄り道の窓の中で、
+  // その段階の番号つきの台詞（sN_1, sN_2 …：寄り道の入口が flag_seen_* を読む）をまだ言い切っていない人は、
+  // 先にそれを言う（言い切ったら p キー）
+  if (!pgWindowFirst(npcId, table, pre, stage)) {
+    const pk = pgTalkKey(npcId, table);
+    if (pk) return pk;
+  }
   for (let s = stage; s >= 0; s--) {
     // numbered keys sN_1, sN_2, ... (hN_1 on 星見台)
     const numbered: string[] = [];
@@ -57,6 +61,16 @@ export function pickTalk(npcId: string, table: TalkTable): string | null {
     if (direct) return direct;
   }
   return table.default !== undefined ? 'default' : null;
+}
+
+/** クリア後、寄り道の窓の中で、この段階の番号つきの台詞がまだ残っているか（残っていれば段階のキーを先に）。 */
+function pgWindowFirst(npcId: string, table: TalkTable, pre: string, stage: number): boolean {
+  if (!pgOn()) return false;
+  const band = pgBand();
+  if (band !== (pre === 'h' ? 'yoru' : pre === 'c' ? 'hiru' : 'yu')) return false;
+  let n = 0;
+  while (table[`${pre}${stage}_${n + 1}`] !== undefined) n++;
+  return n > 0 && flag(`flag_seen_${npcId}_${pre}${stage}`) < n;
 }
 
 function matchRange(spec: string, s: number): boolean {

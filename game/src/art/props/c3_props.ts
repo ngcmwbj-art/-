@@ -14,6 +14,7 @@ import { outline } from './kit';
 import { standProp } from './hoshi_kit';
 import { fontTextSmall } from './text';
 import { registerProp } from './registry';
+import { drawLight, halo, LIGHT, poolEllipse } from './light';
 import type { PropArt, PropEnv } from './types';
 
 const c3stage = (env: PropEnv): number => env.flag('flag_ch3_stage');
@@ -181,9 +182,53 @@ function toudai(): HTMLCanvasElement {
   return p.toCanvas();
 }
 
+/** The lighthouse's beam goes round once in this long (ms): after the clear, at night (05_postgame 4.1). */
+const TOUDAI_TURN = 8000;
+/** The lamp room's glass, from the art's top-left (px). */
+const TOUDAI_LAMP: [number, number] = [24, 14];
+
 registerProp('prop_c3_toudai', () => {
   const img = toudai();
-  return { ox: 0, oy: 32 - 112, w: 48, h: 112, foot: 31, img: () => img, shadow: 96, contact: 30, contactX: 24, xray: 0.35 } satisfies PropArt;
+  const a: PropArt = { ox: 0, oy: 32 - 112, w: 48, h: 112, foot: 31, img: () => img, shadow: 96, contact: 30, contactX: 24, xray: 0.35 };
+  // the night (only after the clear: 海ぞいの町 is never night in chapter 3, Grade.night 0): the lamp room
+  // lit, and its beam going round — over the sea in the glow layer, a sweep on the ground in the light map
+  a.glow = (g, x, y, env) => {
+    const n = env.grade.night;
+    if (n <= 0.05) return;
+    const lx = x + a.ox + TOUDAI_LAMP[0];
+    const ly = y + a.oy + TOUDAI_LAMP[1];
+    halo(g, lx, ly, 12, LIGHT.street, 0.7 * n);
+    g.rect(lx - 7, ly - 4, 14, 9, '#FFF6D8', 0.8 * n);
+    const ang = ((env.t % TOUDAI_TURN) / TOUDAI_TURN) * Math.PI * 2;
+    const ctx = g.ctx;
+    ctx.save();
+    ctx.translate(lx, ly);
+    ctx.scale(1, 0.45);
+    ctx.rotate(ang);
+    const len = 150;
+    const grad = ctx.createLinearGradient(0, 0, len, 0);
+    grad.addColorStop(0, `rgba(255,246,216,${(0.45 * n).toFixed(3)})`);
+    grad.addColorStop(1, 'rgba(255,246,216,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(0, -3);
+    ctx.lineTo(len, -16);
+    ctx.lineTo(len, 16);
+    ctx.lineTo(0, 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  };
+  a.light = (g, x, y, env) => {
+    const n = env.grade.night;
+    if (n <= 0.05) return;
+    // the tower's own light round its foot, and the beam's sweep where it passes over the breakwater
+    drawLight(g, poolEllipse(30, 16, LIGHT.street), x + 24, y + 26, 0.35 * n);
+    const ang = ((env.t % TOUDAI_TURN) / TOUDAI_TURN) * Math.PI * 2;
+    const pool = poolEllipse(26, 12, LIGHT.street);
+    for (const d of [48, 84]) drawLight(g, pool, x + 24 + Math.cos(ang) * d, y + 26 + Math.sin(ang) * d * 0.45, (d === 48 ? 0.4 : 0.25) * n);
+  };
+  return a;
 });
 
 // ---------------------------------------------------------------- 漁船 (4×2 tiles)

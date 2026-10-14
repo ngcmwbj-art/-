@@ -25,6 +25,8 @@ import { duckMusic } from '../../audio';
 import { addToMap, c3Battle, inCh3, kita, npc, pickC3, say3 } from './common';
 import { talkC3 } from './umizoi';
 import { addDish } from './azemichi';
+import { pgOn } from '../../world/postgame';
+import { PG_FUCHO_TSUGUMI } from '../../data/text/pg_rows';
 
 // ---------------------------------------------------------------- places (62 4.2)
 
@@ -70,6 +72,11 @@ for (const [i] of FUCHO_AT.entries())
     giveKey('item_c3_fucho');
     se('se_c3_fucho', { level: n - 1 });
     yield* say3(T.fuchoGot(i, n));
+    // クリア後：セリのあとで拾うと、ツグミが1ページ（はじめの1回）
+    if (pgOn() && flag('flag_ch3_ichiba_done') && !flag('flag_pg_fucho_tsugumi')) {
+      setFlag('flag_pg_fucho_tsugumi', 1);
+      yield* say3(PG_FUCHO_TSUGUMI);
+    }
   });
 
 /** The scraps lying on the wet floor: a little white paper with two pencil lines. */
@@ -77,7 +84,8 @@ registerWorldFx({
   map: 'map_c3_ichiba',
   anchored: true,
   draw(f: FieldScene, g, cx, cy, layer) {
-    if (layer !== 'ground' || !flag('flag_ch3_ichiba_start') || flag('flag_ch3_ichiba_done')) return;
+    // （クリア後は セリのあとでも 残りの切れはしが 落ちている：05_postgame 2.3 yr_c3_fucho）
+    if (layer !== 'ground' || !flag('flag_ch3_ichiba_start') || (flag('flag_ch3_ichiba_done') && !pgOn())) return;
     for (const [i, [x, y]] of FUCHO_AT.entries()) {
       if (flag(fid(i))) continue;
       const [sx, sy] = fxAt(f, x * 16 + 8, y * 16 + 11, cx, cy);

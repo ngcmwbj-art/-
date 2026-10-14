@@ -29,7 +29,7 @@
 //   __game.cmd.hajimeteBookText()  みました帳の ページ（wrapCheck も 呼ぶ）
 
 import type { Co } from '../engine/co';
-import { pgCh1 } from '../world/postgame';
+import { pgCh1, pgOn } from '../world/postgame';
 import { game, type Widget } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { H, W } from '../engine/screen';
@@ -187,7 +187,8 @@ function* teach(e: HajimeteEntry): Co {
   const [have, total] = hajimeteCount(e.vol);
   yield* msg(hjCountText(e.vol, have, total));
   // ちず、段階2：打ち水が ぜんぶ 北東へ（らん外）
-  if (e.id === 'uchimizu' && ch1() && stage() === 2) yield* uchimizuNe();
+  // （クリア後の夕方は 打ち水が ふつうに 流れる：らん外は 出さない。05_postgame 5.3）
+  if (e.id === 'uchimizu' && ch1() && stage() === 2 && !pgOn()) yield* uchimizuNe();
   yield* rewards();
   yield* ura();
 }
@@ -304,7 +305,7 @@ for (const e of HAJIMETE) {
       if (!ch1OnDuty() || !onMap(TOWN_MAP[e.id])) return;
       if (hajimeteDone(e.id)) {
         // (ちずの 打ち水を 段階1 に 書いた 人：段階2 で らん外を 1回)
-        if (e.id === 'uchimizu' && stage() === 2 && !hajimeteDone(NE)) yield* uchimizuNe();
+        if (e.id === 'uchimizu' && stage() === 2 && !hajimeteDone(NE) && !pgOn()) yield* uchimizuNe();
         return;
       }
       if (!hajimeteBook(1)) yield* startBook1();

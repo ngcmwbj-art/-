@@ -21,7 +21,8 @@ import type { FieldScene } from '../world/field';
 import { genFlash } from '../world/hoshi';
 import { fanImage } from '../world/lantern';
 import { css, type Grade } from '../world/lighting';
-import { isCh2Map } from '../world/maps';
+import { isCh2Map, isCh3Map } from '../world/maps';
+import { pgOn } from '../world/postgame';
 import { canvas } from './solid';
 
 /**
@@ -213,6 +214,10 @@ const nmQa = { ms: 0, rect: [0, 0, 0, 0] };
 
 /** Does field f's picture take 星見台's night map (its outdoor places)? */
 export function nightMulWanted(f: FieldScene): boolean {
+  // after the clear (05_postgame 4.1): 星見台 and 海ぞいの町 outdoors take the night's map only while
+  // it is night (星見台 by day and at evening: the sun lights it, no map; 海ぞいの町 at night: its
+  // windows, the harbour's lamps and the lighthouse's beam, as in 2D)
+  if (pgOn() && f.map.def.kind !== 'indoor' && (isCh2Map(f.map.def) || isCh3Map(f.map.def))) return f.grade.night > 0.5;
   if (isCh2Map(f.map.def)) return f.map.def.kind !== 'indoor';
   // (chapter 2 back in 夕鳴町 at night — its prologue's crossing at 19:30, its
   // ending's 19:31: the same map as the 2D's, the shop windows' pools and the

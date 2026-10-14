@@ -19,7 +19,7 @@ import { cellAt, groundAt, isCh2Map, isCh3Map } from './maps';
 import { c3Positional, c3PositionalBeds } from './c3audio';
 import { c3DarkHere, paintC3Lights } from './c3dark';
 import { ch3Hirumae, ch3TownTime } from './umizoi';
-import { oddOn, pgShadowVec, pgVisStage, pgYunariRoom } from './postgame';
+import { oddOn, pgShadowVec, pgVisStage, pgRoomTone } from './postgame';
 import type { Actor } from './actor';
 import { hud } from './hud';
 import { fxDraw, fxUpdate } from './fx';
@@ -1796,8 +1796,8 @@ export class Renderer {
     lx.globalCompositeOperation = 'source-over';
     // (夕鳴町's rooms at 11:10 in chapter 3, 62 5.2: the day through the windows)
     // (and in the ending's morning and after the clear, flag_c3_end_light 2: the morning through them)
-    // (after the clear: 夕鳴町's rooms by the clock — the day's in the morning and at noon, the evening's, the night's: postgame pgYunariRoom)
-    const pgRoom = pgYunariRoom(f.map.def);
+    // (after the clear: 夕鳴町's rooms by the clock — the day's in the morning and at noon, the evening's, the night's: postgame pgRoomTone)
+    const pgRoom = pgRoomTone(f.map.def);
     const dayRoom = indoor && !ch2 && (ch3Hirumae() || ch3TownTime(f.map.def) === 2 || pgRoom === 'day');
     // (the old aquarium's rooms, chapter 3 stage 3: each room's own dimness, 62 1.1)
     const c3Base = indoor && !ch2 && isCh3Map(f.map.def) ? f.map.def.lightBase : undefined;

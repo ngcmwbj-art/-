@@ -330,10 +330,7 @@ interface PgLight {
 const L_C = (k: keyof typeof GRADES_C, sun: PgSun): PgLight => ({ id: k, grade: () => GRADES_C[k], sun });
 const L_H = (k: keyof typeof GRADES_H, sun: PgSun): PgLight => ({ id: k, grade: () => GRADES_H[k], sun });
 
-/**
- * 町 × 時間帯の光（05 4.1）。第1期は今あるプリセットだけ：星見台の昼・夕方は h3c、
- * 海ぞいの朝・夕方・夜は c4 で仮（第2期に hd・hy・c7・c8・c9）。
- */
+/** 町 × 時間帯の光（05 4.1）。星見台の昼 hd・夕方 hy、海ぞいの朝 c7・夕方 c8・夜 c9 は第2期の新しい光（lighting.ts）。 */
 export const PG_LIGHT: Record<PgTown, Record<PgBand, PgLight>> = {
   yunari: {
     asa: L_C('c5', 'dawn'),
@@ -343,15 +340,15 @@ export const PG_LIGHT: Record<PgTown, Record<PgBand, PgLight>> = {
   },
   hoshi: {
     asa: L_H('h3c', 'dawn'),
-    hiru: L_H('h3c', 'dawn'), // 仮（第2期 hd）
-    yu: L_H('h3c', 'dawn'), // 仮（第2期 hy）
+    hiru: L_H('hd', 'noon'),
+    yu: L_H('hy', 'eve'),
     yoru: L_H('h1', 'eve'),
   },
   umi: {
-    asa: L_C('c4', 'noon'), // 仮（第2期 c7）
+    asa: L_C('c7', 'dawn'),
     hiru: L_C('c4', 'noon'),
-    yu: L_C('c4', 'noon'), // 仮（第2期 c8）
-    yoru: L_C('c4', 'noon'), // 仮（第2期 c9 と夜の光のマップ）
+    yu: L_C('c8', 'eve'),
+    yoru: L_C('c9', 'eve'),
   },
 };
 
@@ -365,13 +362,17 @@ export function pgLight(def: MapDef | undefined | null): PgLight | null {
 }
 
 /**
- * 夕鳴町の部屋の色（render.ts）：'day' = 昼の窓の光（INDOOR_MUL_C0）、'eve' = 夕方（INDOOR_MUL[0]）、
- * 'night' = グレードの夜のまま。クリア後でない・夕鳴町でなければ null。
+ * 部屋の色（render.ts・hd2d/room.ts）：'day' = 昼の窓の光（INDOOR_MUL_C0）、'eve' = 夕方（INDOOR_MUL[0]）、
+ * 'night' = グレードの夜のまま（夕方の色から夜へ）。夕鳴町は4つの帯、海ぞいの町は夕方と夜だけ
+ * （朝・昼は第3章の部屋のまま）。星見台の部屋は朝・夜の色を持つので null（hoshi.ts roomMorningK）。
  */
-export function pgYunariRoom(def: MapDef | undefined | null): 'day' | 'eve' | 'night' | null {
-  if (!pgOn() || !def || pgTownOf(def) !== 'yunari') return null;
+export function pgRoomTone(def: MapDef | undefined | null): 'day' | 'eve' | 'night' | null {
+  if (!pgOn() || !def) return null;
+  const town = pgTownOf(def);
   const b = pgBand();
-  return b === 'asa' || b === 'hiru' ? 'day' : b === 'yu' ? 'eve' : 'night';
+  if (town === 'yunari') return b === 'asa' || b === 'hiru' ? 'day' : b === 'yu' ? 'eve' : 'night';
+  if (town === 'umi') return b === 'yu' ? 'eve' : b === 'yoru' ? 'night' : null;
+  return null;
 }
 
 /** 影の向きの角度（画面の向き、度）：5:00 東の日（影は西）→ 12:00 真北 → 18:00 東へ。 */
@@ -393,6 +394,14 @@ export function pgShadowVec(def: MapDef | undefined | null): [number, number] | 
   if (!pgOn() || !def || def.kind === 'indoor') return undefined;
   const a = (shadowAngle(pgMin() + carry) * Math.PI) / 180;
   return [Math.cos(a), Math.sin(a)];
+}
+
+// ---------------------------------------------------------------- 旧水族館（3.5・5.3）
+
+/** 旧水族館が開いている時間（開館の準備：9:00〜16:59）。中にいる間は追い出さない（入口の戸だけが閉まる）。 */
+export const PG_AQ_OPEN: readonly [number, number] = [9 * 60, 17 * 60];
+export function pgAqOpen(min = pgMin()): boolean {
+  return min >= PG_AQ_OPEN[0] && min < PG_AQ_OPEN[1];
 }
 
 // ---------------------------------------------------------------- ツガオ便（8.1）

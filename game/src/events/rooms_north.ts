@@ -25,6 +25,8 @@ import { uiHud } from '../ui/hud';
 import { NORTH_MAPS, NORTH_SPOTS } from '../data/maps/interior_north';
 import * as N from '../data/maps/interior_north_text';
 import { getKeyItem, itemName } from './lib';
+import { pgOn } from '../world/postgame';
+import { PG_MASTER_TANKAN } from '../data/text/pg_rows';
 
 const SHINGO = N.SHINGO_TALK;
 
@@ -95,7 +97,21 @@ function* handTankan(): Co {
 ${itemName('item_tankan')}を 手に入れた！`);
 }
 
+/**
+ * クリア後（05_postgame 2.1 yr_c1_tankan）：第1章のクリアで袋から消えた たんかん（flow.ts
+ * writeChapter1ClearData）。しんごに まだ 渡していなければ、もう1つ。
+ */
+function pgTankanAgain(): boolean {
+  return pgOn() && flag('flag_got_tankan') > 0 && !flag('flag_tankan_given') && !state.inventory.includes('item_tankan');
+}
+
 registerScript('npc_master', function* (ctx): Co {
+  if (pgTankanAgain()) {
+    yield* msg(PG_MASTER_TANKAN);
+    yield* getKeyItem('item_tankan', `@sys
+${itemName('item_tankan')}を 手に入れた！`);
+    return;
+  }
   if (flag('flag_tankan_heard') && !flag('flag_got_tankan') && stage() < 3) {
     yield* handTankan();
     return;

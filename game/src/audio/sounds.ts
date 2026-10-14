@@ -44,5 +44,6 @@ import './ambience_ch2';
 import './sfx_ch3';
 // クリア後（05_postgame）
 import './sfx_pg';
+import './ambience_pg';
 import './ambience_ch3';
 import './voices';

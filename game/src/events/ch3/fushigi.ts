@@ -20,6 +20,8 @@ import type { MapObj } from '../../world/types';
 import { FUSHIGI3, fushigiRewardCh3, CHAWAN, CHAWAN_LATER } from '../../data/text/c3_fushigi';
 import { stampFushigi } from '../stamp';
 import { addToMap, say3 } from './common';
+import { pgBand, pgMin, pgOn } from '../../world/postgame';
+import { PG_FUSHIGI3 } from '../../data/text/pg_rows';
 
 export const FUSHIGI_CH3 = Object.keys(FUSHIGI3);
 
@@ -35,12 +37,31 @@ export function fushigiCh3Count(): number {
 export function fushigiCh3Active(id: string): boolean {
   if (fushigiCh3Done(id)) return false;
   if (!flag('flag_ch3_started')) return false;
+  if (pgOn()) return pgFushigiWindow(id);
   const s = flag('flag_ch3_stage');
   const n = Number(id.slice(-2));
   if (n === 10) return s >= 4 && (!!flag('flag_ch3_boss_beaten') || !!flag('flag_ch3_clear'));
   if (n >= 7) return s === 3;
   if (n === 5) return s === 1 || s === 2;
   return s === 1;
+}
+
+/**
+ * クリア後の窓（05_postgame 3.5・6.4）：01 真下の影は 11:30〜12:30、02〜06 は昼、
+ * 07〜09（旧水族館）は 9:00〜16:59、10 は いつでも（after.ts のエゴ）。
+ */
+function pgFushigiWindow(id: string): boolean {
+  const n = Number(id.slice(-2));
+  const m = pgMin();
+  if (n === 10) return true;
+  if (n === 1) return m >= 11 * 60 + 30 && m <= 12 * 60 + 30;
+  if (n >= 7) return m >= 9 * 60 && m < 17 * 60;
+  return pgBand() === 'hiru';
+}
+
+/** クリア後の 01・03・04 の文（窓の中の文・窓の外の文・押したとき・押したあと）。 */
+function pgF3(id: string): (typeof PG_FUSHIGI3)[string] | null {
+  return pgOn() ? (PG_FUSHIGI3[id] ?? null) : null;
 }
 
 function giveMp(n: number): void {
@@ -61,7 +82,7 @@ export function* offerFushigiCh3(id: string): Co<boolean> {
   if (i !== 0) return false;
   yield* stampFushigi(id);
   setFlag('flag_' + id, 1);
-  yield* runMsg(d.pressed);
+  yield* runMsg(pgF3(id)?.pressed ?? d.pressed);
   giveMp(2);
   yield* runMsg(fushigiRewardCh3(fushigiCh3Count()));
   return true;
@@ -100,6 +121,22 @@ export function wrapFushigiObjects(): void {
   for (const [obj, fid] of Object.entries(OBJ)) {
     const before = getScript(obj);
     registerScript(obj, function* (ctx): Co {
+      // クリア後の 01・03・04（6.4）：流れる昼の文。窓の外は ふつうの景色
+      const pg = pgF3(fid);
+      if (pg) {
+        sfx('se_examine');
+        if (!fushigiCh3Active(fid) && !fushigiCh3Done(fid)) {
+          yield* runMsg(pg.off);
+          return;
+        }
+        if (fushigiCh3Done(fid)) {
+          yield* runMsg(pgFushigiWindow(fid) ? pg.after : pg.off);
+          return;
+        }
+        yield* runMsg(pg.seen);
+        yield* offerFushigiCh3(fid);
+        return;
+      }
       if (fushigiCh3Done(fid) && flag(`flag_seen_after_${fid}`) % 2 === 0) {
         setFlag(`flag_seen_after_${fid}`, flag(`flag_seen_after_${fid}`) + 1);
         sfx('se_examine');

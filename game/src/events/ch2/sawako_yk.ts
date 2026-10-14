@@ -21,6 +21,8 @@ import { sfx } from '../../audio';
 import { R2_OBJ } from '../../data/text/hoshi_rooms2';
 import { SAWAKO_YK, SAWAKO_YK_FLIP, SAWAKO_YK_KABE } from '../../data/text/hoshi_sawako_yk';
 import { pickHText } from './common';
+import { pgOn } from '../../world/postgame';
+import { PG_SAWAKO_YK_FLIP } from '../../data/text/pg_rows';
 
 export const YK = {
   /** 下絵（色見本）を 見た（壁の スケッチの 2回目）。 */
@@ -48,7 +50,8 @@ registerScript('obj_hr_sawako_kabe', function* (ctx): Co {
   setFlag(YK.kabe, 1);
   if (!flag(YK.flip) && kanenariHere()) {
     setFlag(YK.flip, 1);
-    yield* runMsg(SAWAKO_YK_FLIP);
+    // クリア後（05_postgame 2.2 yr_c2_sawako）：置物が だれかは、もう 知っている
+    yield* runMsg(pgOn() ? PG_SAWAKO_YK_FLIP : SAWAKO_YK_FLIP);
   }
 });
 

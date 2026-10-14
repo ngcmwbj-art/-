@@ -66,6 +66,10 @@ import { c3Texts2 } from '../../data/text/c3_story2';
 import { c3Texts3 } from '../../data/text/c3_story3';
 import { c3Texts4 } from '../../data/text/c3_story4';
 import { pgTexts } from '../../data/text/postgame';
+import { pgRowTexts } from '../../data/text/pg_rows';
+import { pgTalkTexts } from '../../data/text/pg_talk';
+import { PG_OBJ_TEXT } from '../../data/text/pg_objs';
+import { SPEAKERS } from '../../world/msg';
 
 type Step = () => void;
 
@@ -505,6 +509,9 @@ function collectTexts(): [string, string][] {
   walk('c3c', c3Texts3());
   walk('c3d', c3Texts4());
   walk('pg', pgTexts());
+  walk('pgRows', pgRowTexts());
+  walk('pgTalk', pgTalkTexts());
+  walk('pgObj', PG_OBJ_TEXT);
   // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line
   // lines shown without a speaker (HOUKI_LINE's float note: the same 336 px)
   for (const [k, v] of Object.entries(EV)) if (typeof v === 'string' && (v.startsWith('@') || v.startsWith('!cue') || v.includes('\n'))) out.push([`ev.${k}`, v]);
@@ -529,3 +536,43 @@ export function textCheck2(): { total: number; bad: string[] } {
   return { total, bad };
 }
 registerDebug('textcheck2', () => textCheck2());
+
+/**
+ * クリア後の文の検査（05_postgame 6.1・12 #8。E の第2期）：クリア後に書いた文だけ。
+ * 1ページ3行・1行 336px、止まった時間のことば、地の文の「さん」、名札の「さん」。
+ * __game.cmd.pgText()
+ */
+const PG_STOP_WORDS = ['止まって', '止まった', '止まる', '来ない', '来ん', '正午のまま', '正午の まま', '北東', '17時', '17%', '動かない', '5時の まま', '沈まない'];
+export function pgTextCheck(): { total: number; bad: string[] } {
+  const bad: string[] = [];
+  let total = 0;
+  const list: [string, string][] = [];
+  const walk = (name: string, v: unknown) => {
+    if (typeof v === 'string') {
+      if (v.includes('\n') || v.startsWith('@')) list.push([name, v]);
+    } else if (Array.isArray(v)) v.forEach((x, i) => walk(`${name}[${i}]`, x));
+    else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) walk(`${name}.${k}`, x);
+  };
+  walk('pg', pgTexts());
+  walk('pgRows', pgRowTexts());
+  walk('pgTalk', pgTalkTexts());
+  walk('pgObj', PG_OBJ_TEXT);
+  for (const [name, src] of list) {
+    for (const pg of pagesOf(src)) {
+      total++;
+      if (pg.lines.length > 3) bad.push(`${name}: ${pg.lines.length} lines: ${pg.lines.join('／')}`);
+      for (const l of pg.lines) {
+        const w = lineWidth(l);
+        if (w > 336) bad.push(`${name}: ${w}px: ${l}`);
+        for (const word of PG_STOP_WORDS) if (l.includes(word)) bad.push(`${name}: 「${word}」: ${l}`);
+        if (pg.speaker === 'narr' && /さん/.test(l.replace(/ぶーさん/g, ''))) bad.push(`${name}: 地の文の さん: ${l}`);
+      }
+      const sp = pg.speaker.split(':')[0];
+      const tag = SPEAKERS[sp]?.name ?? (sp.startsWith('npc_') ? '' : sp);
+      // （名前に入っている物：ぶーさん・さんかど。郵便屋さんは第1章からの名札＝職業の呼び名のまま）
+      if (/さん/.test(tag.replace(/ぶーさん|さんかど|郵便屋さん/g, ''))) bad.push(`${name}: 名札の さん: ${tag}`);
+    }
+  }
+  return { total, bad };
+}
+registerDebug('pgText', () => pgTextCheck());

@@ -3118,6 +3118,8 @@ const BEATS_PG = [
   {
     name: 'home',
     async run() {
+      // (the delivery is offered first while it is open: this run rides straight on)
+      await page.evaluate(async () => (await import('/src/game/state.ts')).setFlag('flag_ch2_delivery', 1));
       await pgRide(0, 'to_town', 'obj_hoshi_tsugao_truck');
       await pgCheck('ツガオ便 星見台 → 夕鳴町 (+90 min)', (s) => s.map === 'map_town' && Math.abs(s.x - 44) <= 1 && Math.abs(s.y - 28) <= 1 && s.band === 'yoru');
       await pgWait('evt_save_jizo', 2, 'wait_yu');
@@ -3181,6 +3183,35 @@ const BEATS_PG = [
       const at = await page.evaluate(() => window.__game.cmd.fieldRef().actors.some((a) => a.id === 'c3_kn_shop'));
       checks.push({ check: 'pg: グソっ君 at the shop front again', ok: at });
       if (!at) throw new Error('c3_kn_shop not back');
+    },
+  },
+  {
+    name: 'talk',
+    async run() {
+      // クリア後の会話（6章）：寄り道の入口でない人に話すと、はじめての1回（p_1）
+      const cands = await page.evaluate(() => {
+        const f = window.__game.cmd.fieldRef();
+        const ids = window.__game.cmd.pgTalk();
+        return f.actors.filter((a) => a.kind === 'npc' && ids.includes(a.id)).map((a) => a.id);
+      });
+      let who = null;
+      for (const id of cands) {
+        const r = await page.evaluate((i) => window.__game.cmd.pgTalk(i), id);
+        if (!r.pending && r.key === 'p_1') {
+          who = id;
+          break;
+        }
+      }
+      if (!who) throw new Error(`talk: nobody to talk to (${cands.join(' ')})`);
+      await talkTo(who, { side: 'below' });
+      await advance({ label: 'talk', shotEvery: 1 });
+      const ok = (await flag(`flag_pg_talk_${who}`)) === 1;
+      checks.push({ check: `pg: クリア後の会話（${who} の p_1）`, ok });
+      if (!ok) throw new Error(`talk: flag_pg_talk_${who}`);
+      const tc = await page.evaluate(() => window.__game.cmd.pgText());
+      checks.push({ check: 'pg: クリア後の文の検査（pgText）', ok: !tc.bad.length, total: tc.total, bad: tc.bad });
+      log(`  pgText: ${tc.total} pages, ${tc.bad.length} bad${tc.bad.length ? ': ' + tc.bad.slice(0, 5).join(' / ') : ''}`);
+      if (tc.bad.length) throw new Error('pgText');
     },
   },
 ];

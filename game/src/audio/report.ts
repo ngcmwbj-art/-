@@ -654,6 +654,12 @@ export const AMB_CONTEXT: {
   // (the store room has no song: measured against the deep-sea room's, nearly silent)
   { amb: 'amb_c3_aq_souko', song: 'bgm_suizokukan', stage: 0, room: 3, role: 'bed', underMin: -10, where: 'えさの倉庫（曲なし）' },
   { amb: 'amb_c3_aq_hall', song: 'bgm_tsugao_hall', stage: 0, role: 'bed', underMin: 3, where: '大水槽のホール' },
+  // クリア後（05_postgame 4.3）の時間帯の床：朝は星見台の朝の曲の上、昼は夕鳴町の昼前の曲の上、
+  // 夜（曲なし）は第1章の夜の虫と同じく bgm_night で測る
+  { amb: 'amb_pg_suzume', song: 'bgm_hoshi_morning', stage: 0, hStage: 3, role: 'bed', where: 'クリア後の朝' },
+  { amb: 'amb_pg_kuruma', song: 'bgm_town_s0', stage: 0, role: 'bed', need: -4, where: 'クリア後の朝・昼の夕鳴町' },
+  { amb: 'amb_pg_semi', song: 'bgm_town_s0', stage: 0, role: 'bed', underMin: 2, where: 'クリア後の昼' },
+  { amb: 'amb_pg_mushi', song: 'bgm_night', stage: 3, role: 'bed', where: 'クリア後の夜（曲なし）' },
 ];
 
 export interface AmbRow { amb: string; song: string; role: string; where: string; underMin?: number; margin: number; band: number; need: number; ambLufs: number; songLufs: number; under: number; peak: number; ok: boolean; bands: number[] }

@@ -10,7 +10,9 @@
 // their ids (events/ch3); the triggers (62 1.6) are the scenario's too.
 
 import '../../art/props/c3_aq';
-import { registerMap } from '../../world/maps';
+import { getMapDef, registerMap } from '../../world/maps';
+import { pgOn } from '../../world/postgame';
+import { mix } from '../../engine/pixel';
 import type { MapObj, TileSpec } from '../../world/types';
 
 const WALLS: Record<string, TileSpec> = {
@@ -229,6 +231,8 @@ registerMap({
   lightBase: '#7A8898',
   // the whole room is dark (62 1.7・8.5): ハンコケースの 朱 at his chest and グソっ君's eyes (world/c3dark.ts)
   dark: [{ x: 0, y: 0, w: 23, h: 18 }],
+  // (after the clear, stage 4: the exhibits' lights are on — the dark and グソっ君's lead were S18's, 05_postgame 2.3)
+  darkCond: { notFlag: 'flag_ch3_clear' },
   darkCol: '#2A3A52',
   darkStar: false,
   objects: [
@@ -474,3 +478,13 @@ registerMap({
     O('obj_c3_jimu_kairan', 7, 3, { w: 2 }),
   ] as MapObj[],
 });
+
+// After the clear (05_postgame 2.3・5.3, stage 4: getting ready to open again): the exhibits' lights are on —
+// every room of the old aquarium a good step lighter than its own dimness of chapter 3 (its stage 3).
+for (const id of ['map_c3_aq_iriguchi', 'map_c3_aq_kairo', 'map_c3_aq_diorama', 'map_c3_aq_shinkai', 'map_c3_aq_esa', 'map_c3_aq_hall', 'map_c3_aq_rouka', 'map_c3_aq_jimusho']) {
+  const def = getMapDef(id);
+  if (!def || !def.lightBase) continue;
+  const dim = def.lightBase;
+  const lit = mix(dim, '#F4F1E8', 0.5);
+  Object.defineProperty(def, 'lightBase', { get: () => (pgOn() ? lit : dim), enumerable: true, configurable: true });
+}

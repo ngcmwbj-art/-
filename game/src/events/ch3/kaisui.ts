@@ -28,6 +28,7 @@ import { F, getKeyItem } from '../lib';
 import { ambEvent, musicParam, se } from '../ch2/compat';
 import { addToMap, c3Stage, inCh3, kita, partsDone, pickC3, say3 } from './common';
 import { talkC3 } from './umizoi';
+import { pgBand, pgOn } from '../../world/postgame';
 
 // ---------------------------------------------------------------- places (62 1.4・4.7)
 
@@ -51,6 +52,19 @@ addToMap('map_umizoi', [
   { t: 'trig', id: 'trig_ch3_dive_minato', x: 28, y: 27, w: 2, h: 1, on: 'bump', script: 'trig_ch3_dive_minato', cond: { stage: '1-2' } } as unknown as MapObj,
   { t: 'trig', id: 'trig_ch3_dive_hama', x: 53, y: 31, w: 14, h: 1, on: 'bump', script: 'trig_ch3_dive_hama', cond: { stage: '1-2' } } as unknown as MapObj,
 ]);
+// クリア後（05_postgame 2.3 yr_c3_moguri）：昼の港の階段から、グソっ君が 残りの落とし物を探しに潜る
+const pgDiveOpen = (): boolean => pgOn() && pgBand() === 'hiru' && flag('flag_ch3_moguri_n') < FINDS.length;
+addToMap('map_umizoi', [
+  { t: 'trig', id: 'trig_pg_dive_minato', x: 28, y: 27, w: 2, h: 1, on: 'bump', script: 'trig_pg_dive_minato', cond: { when: pgDiveOpen } } as unknown as MapObj,
+]);
+registerScript('trig_pg_dive_minato', function* (): Co {
+  const f = F();
+  if (!pgDiveOpen() || f.player.dir !== 'down' || !flag('flag_pg_kn') || !f.follower?.visible) return;
+  const i = yield* say3(T.DIVE_ASK);
+  if (i !== 0) return;
+  yield* dive('minato');
+});
+
 addToMap('map_c3_umi', [
   // (W's picture: prop_c3_umi_otoshimono, a glint on the sand)
   ...FINDS.map(
@@ -282,7 +296,7 @@ registerWorldFx({
       f.player.setSprite('kanenari');
       setFollowerVisible(false);
       if (!flag('flag_ch3_diving')) setFlag('flag_ch3_diving', 1);
-    } else if (!under && (isKn || flag('flag_ch3_diving')) && inCh3()) {
+    } else if (!under && (isKn || flag('flag_ch3_diving')) && (inCh3() || pgOn())) {
       if (isKn) f.player.setSprite('minato');
       setFlag('flag_ch3_diving', 0);
       setUnderwater(0);

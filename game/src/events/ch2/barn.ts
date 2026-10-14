@@ -12,6 +12,8 @@ import type { Co } from '../../engine/co';
 import { all } from '../../engine/co';
 import { game } from '../../engine/game';
 import { flag, setFlag, state } from '../../game/state';
+// クリア後の夜（05_postgame 2.2 yr_c2_barn）：テツヤのあとでも おてつだいを 頼まれる
+import { pgCh2 } from '../../world/postgame';
 import { syncProgressSkills } from '../../data/battle';
 import { despawn, face, registerScript, spawn, walk } from '../../world/api';
 import { field, type FieldScene } from '../../world/field';
@@ -266,7 +268,7 @@ export function* genTalkWait(): Co {
     yield* runMsg(T.WORK_TALK);
     return;
   }
-  if (!flag('flag_ch2_barn_work') && flag('flag_ch2_stage') === 1 && !flag('flag_ch2_tetsuya_beaten')) {
+  if (!flag('flag_ch2_barn_work') && flag('flag_ch2_stage') === 1 && (!flag('flag_ch2_tetsuya_beaten') || pgCh2())) {
     const i = yield* runMsg(T.GATE_WAIT_WORK);
     if (i === 0) {
       yield* workStart();
@@ -353,7 +355,7 @@ export function choresOn(): boolean {
 /** 〔誘い〕: offered after 〔h1_1〕 / 〔h1_3〕 while the chores are not done (stage 1, in the barn). */
 function* invite(): Co {
   const f = field();
-  if (!f || f.map.id !== 'map_hoshi_barn' || flag('flag_ch2_barn_work') || flag('flag_ch2_stage') !== 1 || flag('flag_ch2_tetsuya_beaten')) return;
+  if (!f || f.map.id !== 'map_hoshi_barn' || flag('flag_ch2_barn_work') || flag('flag_ch2_stage') !== 1 || (flag('flag_ch2_tetsuya_beaten') && !pgCh2())) return;
   const i = yield* runMsg(T.WORK_ASK);
   if (i !== 0) {
     yield* runMsg(T.WORK_LATER);

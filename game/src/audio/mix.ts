@@ -608,6 +608,9 @@ export const AMB_TRIM: Record<string, number> = {
   amb_c3_siren_room: 14.5, amb_c3_toudai: 28, amb_c3_uminoie: 33.5, amb_c3_suichu: 20,
   // 旧水族館 (63 10.2: very small beds; the ones already heard over their song stay at 0)
   amb_c3_aq_kan: 0, amb_c3_aq_diorama: 0, amb_c3_aq_shinkai: 0, amb_c3_aq_esa: 22.5, amb_c3_aq_souko: 0, amb_c3_aq_hall: 7.5,
+  // クリア後の時間帯の床（05_postgame 4.3。audioMixSuggest、2026-10-14）。遠くの車は案の 44 から
+  // −6（遠い物なので控えめに）
+  amb_pg_suzume: 19, amb_pg_kuruma: 38, amb_pg_semi: 24, amb_pg_mushi: 8.5,
 };
 
 /** A song's output level in dB: its own master gain plus the mix trim. */

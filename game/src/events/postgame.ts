@@ -30,6 +30,7 @@ import { se } from './ch2/compat';
 import { F } from './lib';
 import { addToMap, say3 } from './ch3/common';
 import { jumpMap } from './ch3/prologue';
+import { deliveryOn, pgDeliveryOffer } from './ch2/tsugao';
 import * as C4 from '../data/text/c3_story4';
 import * as T from '../data/text/postgame';
 
@@ -99,7 +100,7 @@ registerScript('c3_kn_shop', function* (ctx: ScriptCtx): Co {
 });
 
 /** たかしの店の前（店の入口のまわり）か、店の中。 */
-function atShop(): boolean {
+export function pgAtShop(): boolean {
   const f = F();
   if (f.map.id === 'map_maruyama') return true;
   if (f.map.id !== 'map_town') return false;
@@ -112,7 +113,7 @@ function atShop(): boolean {
 for (const id of ['map_town', 'map_maruyama']) {
   const before = getScript('kanenari_' + id);
   registerScript('kanenari_' + id, function* (ctx: ScriptCtx): Co {
-    if (pgKnWith() && atShop()) {
+    if (pgKnWith() && pgAtShop()) {
       const i = yield* say3(T.PG_KN_BACK_ASK);
       if (i === 0) {
         yield* say3(T.PG_KN_BACK);
@@ -150,6 +151,13 @@ export function* pgTruck(): Co {
   if (!pgOn()) return;
   const here = town();
   const band = pgBand();
+  // 夜の星見台：配達が まだなら、先に 頼まれる（05 2.2 yr_c2_deli）
+  if (here === 'hoshi' && (yield* pgDeliveryOffer())) return;
+  // 配達の 途中は 乗せない（おとどけの札を 持ったまま 町へ 行かない）
+  if (deliveryOn()) {
+    yield* say3(T.PG_TRUCK_DELI_FIRST);
+    return;
+  }
   // 夕方の夕鳴町：ツガオは昼寝（はじめての1回は長く）
   if (here === 'yunari' && band === 'yu') {
     if (!flag('flag_pg_tsugao_nap')) {
@@ -222,6 +230,10 @@ const WAIT_BANDS: PgBand[] = ['asa', 'hiru', 'yu', 'yoru'];
 
 /** 「待つ」：選んだ時間帯の始まりまで（暗くなって、HUD の時計が早回り 1.5秒）。 */
 function* waitMenu(): Co<boolean> {
+  if (deliveryOn()) {
+    yield* say3(T.PG_WAIT_DELI);
+    return false;
+  }
   const i = yield* say3(T.PG_WAIT_ASK);
   const b = WAIT_BANDS[i];
   if (!b) return false;

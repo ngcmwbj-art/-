@@ -279,6 +279,27 @@ export function c3PgPlan(def: MapDef): { bgm: string | null; variant?: string; a
   };
 }
 
+/**
+ * 05_postgame 4.3（クリア後の段階4、開館の準備中）：旧水族館の部屋の音。
+ * 展示の部屋は bgm_suizokukan をその部屋の形で（静かな形は pgaudio が pg_shizuka で）、
+ * 床は段階3の館の床のまま。ホール・倉庫・事務所は曲なしで床だけ（ツガオの曲は
+ * 鳴らさない）。旧水族館でない地図は null。
+ */
+export function c3PgAqPlan(def: MapDef): { bgm: string | null; variant?: string; amb: string[]; ambVol: Record<string, { vol: number; lp?: number }>; space: string; pa: 'town' | 'umi' | 'kannai' } | null {
+  if (!def.id.startsWith('map_c3_aq')) return null;
+  const t = C3_AUDIO[def.id];
+  if (!t) return { bgm: null, amb: def.amb?.[3] ?? [], ambVol: def.ambVol ?? {}, space: def.space ?? 'suizoku', pa: 'kannai' };
+  const song = t.bgm[3] === AQ ? AQ : null;
+  return {
+    bgm: song,
+    variant: song ? (typeof t.variant === 'function' ? t.variant(3) : t.variant) : undefined,
+    amb: t.amb[4] ?? t.amb[3] ?? [],
+    ambVol: { ...(def.ambVol ?? {}), ...(t.ambVol ?? {}) },
+    space: t.space,
+    pa: t.pa,
+  };
+}
+
 /** Beds whose level follows where しゅん stands. */
 export function c3PositionalBeds(def: MapDef): string[] {
   if (def.id !== 'map_umizoi') return [];

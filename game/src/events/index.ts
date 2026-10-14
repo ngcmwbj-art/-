@@ -55,4 +55,6 @@ import './katanuki';
 import './ch3';
 // クリア後（05_postgame）：グソっ君の合流、ツガオ便、待つ・寝る。第1章〜第3章の 台本を 包むので、./ch3 の あとに import する
 import './postgame';
+// クリア後の会話（05_postgame 6章）：町の人と隊列のグソっ君の台本を 包むので、すべての あとに import する
+import './pg_talk';
 import './debug';

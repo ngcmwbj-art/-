@@ -19,6 +19,7 @@
 
 import { flag } from '../../game/state';
 import { registerMap } from '../../world/maps';
+import { pgAqOpen, pgOn } from '../../world/postgame';
 import type { Ground, MapDef, MapObj, TileSpec } from '../../world/types';
 import type { C3Ground } from '../../art/tiles/c3_ground';
 
@@ -153,11 +154,13 @@ const OBJECTS: MapObj[] = [
   { t: 'door', id: 'door_c3_uminoie', x: 59, y: 22, to: 'map_c3_uminoie', tx: 5, ty: 5, dir: 'up', se: 'se_door_small' },
   { t: 'door', id: 'door_c3_siren', x: 34, y: 6, to: 'map_c3_siren', tx: 6, ty: 9, dir: 'up', se: 'se_door_heavy', cond: { flag: 'flag_ch3_got_itadakimasu' } },
   { t: 'door', id: 'door_c3_toudai', x: 8, y: 29, to: 'map_c3_toudai', tx: 4, ty: 5, dir: 'up', se: 'se_door_small', cond: { flag: 'flag_ch3_toudai_open' } },
-  { t: 'door', id: 'door_c3_aq', x: 74, y: 28, w: 2, to: 'map_c3_aq_iriguchi', tx: 7, ty: 10, dir: 'up', se: 'se_door_glass', cond: { stage: '3+' } },
+  { t: 'door', id: 'door_c3_aq', x: 74, y: 28, w: 2, to: 'map_c3_aq_iriguchi', tx: 7, ty: 10, dir: 'up', se: 'se_door_glass', cond: { stage: '3+', when: () => !pgOn() || pgAqOpen() } },
   // the doors while they are shut: what is read there (60 9.3)
   O('obj_c3_siren_zaishitsu', 34, 6, { face: 'up', cond: { notFlag: 'flag_ch3_got_itadakimasu' } }),
   O('obj_c3_toudai_door', 8, 29, { face: 'up', cond: { notFlag: 'flag_ch3_toudai_open' } }),
   O('obj_c3_aq_harigami', 74, 28, { w: 2, face: 'up', cond: { stage: '0-2' } }),
+  // after the clear: shut outside its hours (9:00–16:59, 05_postgame 5.3)
+  O('obj_c3_aq_pg_shut', 74, 28, { w: 2, face: 'up', text: '@narr\nガラス戸に、札が 下がっている。\n『開館の 準備は、また あした。』', cond: { when: () => pgOn() && !pgAqOpen() } }),
 
   // ======================================================== 丘 (y2–9)
   PR('tree_matsu', 18, 3),
@@ -188,6 +191,9 @@ const OBJECTS: MapObj[] = [
   PR('prop_utility_pole', 47, 16),
   PR('prop_utility_pole', 64, 16),
   PR('obj_vending_normal', 37, 16),
+  // after the clear (05_postgame 4.1): the harbour's lamps along the quay — they light at night (pal_c9);
+  // not there in chapter 3 (its noon never needed them)
+  ...[10, 24, 42].map((x) => PR('prop_park_lamp', x, 26, {}, { cond: { when: pgOn }, solid: [0, 0, 1, 1] })),
 
   // ======================================================== 市場・荷さばき場・岸壁 (y19–26)
   PR('prop_c3_seihyo', 39, 19),
@@ -307,6 +313,9 @@ const OBJECTS: MapObj[] = [
   { t: 'trig', id: 'trig_ch3_edge_sea_2', x: 30, y: 26, w: 22, h: 1, on: 'bump', script: 'trig_ch3_edge_sea' },
   { t: 'trig', id: 'trig_ch3_edge_sea_3', x: 5, y: 31, w: 1, h: 2, on: 'bump', script: 'trig_ch3_edge_sea' },
   // (the two ways into the sea, trig_ch3_dive_minato / _hama, and the trap's trigger are the scenario's: events/ch3)
+  // after the clear (05_postgame 2.3 yr_c3_moguri): the harbour steps — pushing down them, the scenario's
+  // pg_moguri (events: グソっ君 with Minato → 「潜ってくる？」 → map_c3_umi). Nothing happens without it
+  { t: 'trig', id: 'trig_pg_moguri', x: 28, y: 27, w: 2, h: 1, on: 'bump', script: 'pg_moguri', cond: { when: pgOn } },
 ];
 
 /** Areas (62 1.2): the place on the HUD, Kanenari's place key, the beds of sound (63 4.3). Narrowest first. */

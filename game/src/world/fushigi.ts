@@ -8,6 +8,7 @@
 import type { Co } from '../engine/co';
 import { flag, setFlag, state, addItem } from '../game/state';
 import { runMsg } from './msg';
+import { pgBand, pgOn } from './postgame';
 import { hasScript, getScript } from './scripts';
 import * as snd from './audio';
 
@@ -89,6 +90,11 @@ export function fushigiActive(id: string): boolean {
   const d = defs.get(id);
   if (!d) return false;
   if (fushigiDone(id)) return false;
+  // after the clear (05_postgame 2.0・3.5): each chapter's ふしぎ in its window — chapter 1's in the
+  // evening (夕鳴町, flag_stage 2), 星見台's at night (h1); chapter 3's keep their own rule (events/ch3)
+  if (pgOn() && !id.startsWith('fushigi_ch3_')) {
+    if (pgBand() !== (isCh2Fushigi(id) ? 'yoru' : 'yu')) return false;
+  }
   const rule = activeRules.find((r) => id.startsWith(r.prefix));
   if (rule) return rule.fn(id);
   // 星見台's ふしぎ (みました帳 ②) follow flag_ch2_stage and are over in the

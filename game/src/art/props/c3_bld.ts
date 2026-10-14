@@ -20,13 +20,23 @@ import { P } from '../tiles/palette';
 import { CP } from '../tiles/c3_ground';
 import { KAWARA_IBUSHI, KAWARA_OLD, norenFrames, registerBuilding, roofFlat, roofKawara, roofSlate, type Bld } from './bkit';
 import { dk, lt, outline, shadeRect } from './kit';
-import { darkWin, footing, hikido, hyousatsu, roofTinH, starVerge, TIN_GRAY, TIN_RUST, wall, wallLap, wallPlain, type WallFn } from './hoshi_kit';
+import { darkWin as hkDarkWin, footing, hikido, hyousatsu, roofTinH, starVerge, TIN_GRAY, TIN_RUST, wall, wallLap, wallPlain, type WallFn } from './hoshi_kit';
 import type { RoofPal } from './bkit';
 import { fontTextSmall } from './text';
 import { getProp, registerProp } from './registry';
 import type { PropArt, PropEnv } from './types';
 
 // ---------------------------------------------------------------- shared bits
+
+/**
+ * A window (hoshi_kit darkWin) that is lit at night (bkit's night windows and their light on the
+ * street, only while Grade.night > 0: 海ぞいの町 is never night in chapter 3; after the clear its
+ * night is pal_c9, 05_postgame 4.1). About two in three windows have someone home.
+ */
+function darkWin(b: Bld, x: number, y: number, w: number, h: number, o: Parameters<typeof hkDarkWin>[5] = {}): void {
+  hkDarkWin(b, x, y, w, h, o);
+  if ((x * 7 + y * 3 + w) % 10 < 7) b.lights.push([x, y, w, h]);
+}
 
 /** 食堂かもめ's roof: red-brown tin, a touch sun-faded. */
 export const TIN_KAMOME: RoofPal = { hi: '#C8785A', base: '#A85A3A', lo: '#7A3A2A', deep: '#4A2420' };

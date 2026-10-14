@@ -72,12 +72,20 @@ const ROOM: { db: number; parts: Record<string, number> }[] = [
 
 const roomOf = (p: { h_room: number }) => ROOM[p.h_room] ?? ROOM[0];
 
+/**
+ * 05_postgame 4.3（クリア後の段階4：開館の準備中。仮）：pg_shizuka 1 は静かな形 —
+ * 低い sub と廊下のキック・時計をぬき、旋律を少し引いて −3 dB。人が準備で
+ * 立ち働いている館の、遠くで鳴っている感じ。
+ */
+const SHIZUKA: Record<string, number> = { sub: 0, kick: 0, tick: 0, vibes: 0.75, box: 0.75 };
+
 function applyRoom(sp: SongPlayer, ramp: number, p = sp.params): void {
   const r = roomOf(p);
+  const q = p.pg_shizuka === 1;
   const t = sp.g.ctx.currentTime;
   const tc = Math.max(0.005, ramp) / 3;
-  sp.out.gain.setTargetAtTime(dbToGain(songGainDb(sp.def.id, sp.def.gainDb) + r.db), t, tc);
-  for (const rt of sp.parts) sp.partGain(rt.id, r.parts[rt.id] ?? 0, Math.max(0.005, ramp), t);
+  sp.out.gain.setTargetAtTime(dbToGain(songGainDb(sp.def.id, sp.def.gainDb) + r.db + (q ? -3 : 0)), t, tc);
+  for (const rt of sp.parts) sp.partGain(rt.id, (r.parts[rt.id] ?? 0) * (q ? SHIZUKA[rt.id] ?? 1 : 1), Math.max(0.005, ramp), t);
 }
 
 const ESA_FROM = SUIZOKUKAN_LOOP.indexOf('Q9');
@@ -123,6 +131,7 @@ function suizokukanDef(): SongDef {
     onParam(sp, name, value) {
       // a little slower than 星見台's rooms: a big building (0.8 s)
       if (name === 'h_room') applyRoom(sp, 0.8, { ...sp.params, h_room: value });
+      else if (name === 'pg_shizuka') applyRoom(sp, (60 / 80) * 4 * 2, { ...sp.params, pg_shizuka: value });
     },
   };
 }

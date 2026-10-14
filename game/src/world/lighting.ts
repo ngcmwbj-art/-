@@ -95,7 +95,7 @@ export const GRADES: Record<number, Grade> = {
  * the things to examine read anywhere on the 1× screen; it stays blue-violet,
  * the stars a little fewer, and the east edge whitens a little.
  */
-export type GradeHKey = 'h0' | 'h1' | 'h2' | 'h3a' | 'h3b' | 'h3c';
+export type GradeHKey = 'h0' | 'h1' | 'h2' | 'h3a' | 'h3b' | 'h3c' | 'hd' | 'hy';
 
 const NIGHT_H = {
   skyTop: hx('#0B0B14'), skyBot: hx('#1B1733'), horizon: hx('#3A2B5C'), horizonA: 0,
@@ -131,6 +131,26 @@ export const GRADES_H: Record<GradeHKey, Grade> = {
     shadow: hx('#5B4A7A'), shadowA: 0.35, shadowLen: 1.4, night: 0, rim: hx('#F7C27A'), motion: 1, desat: 0,
     rimRight: 1, stars: 0, milky: 0, venus: 0,
   },
+  // after the clear (05_postgame 4.1), 星見台 by day — pal_hd: noon in the mountain village, the sky
+  // high and blue over the terraces, short shadows, the fields' greens at their own colour (no
+  // dawn bleed, no stars); the air of the hills a touch cooler than the sea town's noon
+  hd: {
+    ...NIGHT_H,
+    skyTop: hx('#5AA4E0'), skyBot: hx('#D4ECF4'), horizon: hx('#FFF6D8'), horizonA: 0,
+    mul: hx('#FBFCF4'), glare: hx('#FFFFFF'), glareA: 0, topDark: hx('#FFFFFF'), topA: 0,
+    shadow: hx('#4A5A6A'), shadowA: 0.3, shadowLen: 0.55, night: 0, rim: hx('#FFF6D8'), motion: 1, lit: 0.3, desat: 0,
+    rimRight: 0, stars: 0, milky: 0, venus: 0,
+  },
+  // pal_hy: the evening in the village — the sun goes down behind the west ridge, so the east
+  // slope (the barn, the upper fields) falls into shade first: a dusk from the top, the warm
+  // bleed from the left (the west) and long shadows
+  hy: {
+    ...NIGHT_H,
+    skyTop: hx('#7A6AA8'), skyBot: hx('#F2A060'), horizon: hx('#FFE7A3'), horizonA: 0.5,
+    mul: hx('#ECC4A6'), glare: hx('#F2A060'), glareA: 0.3, glareRight: 0, glareW: 0.42, topDark: hx('#3A2B5C'), topA: 0.2,
+    shadow: hx('#4A3A6E'), shadowA: 0.4, shadowLen: 1.5, night: 0, rim: hx('#F2A060'), motion: 1, lit: 0.6, desat: 0.04,
+    rimRight: 0, stars: 0, milky: 0, venus: 0,
+  },
 };
 
 /** The pal_h* preset of a chapter-2 stage (3 = the morning, pal_h3c). */
@@ -147,7 +167,7 @@ export function gradeHKey(stage: number): GradeHKey {
  * afternoon). The sun's direction is the maps' shadowVec (straight north at
  * noon); its height is the shadow's length (0.35 at noon: about 63°).
  */
-export type GradeCKey = 'c0' | 'c1' | 'c2' | 'c3' | 'c4' | 'c5' | 'c6';
+export type GradeCKey = 'c0' | 'c1' | 'c2' | 'c3' | 'c4' | 'c5' | 'c6' | 'c7' | 'c8' | 'c9';
 
 const DAY_C = {
   horizon: hx('#FFF6D8'), horizonA: 0, glare: hx('#FFFFFF'), glareA: 0, topDark: hx('#FFFFFF'), topA: 0,
@@ -193,6 +213,30 @@ export const GRADES_C: Record<GradeCKey, Grade> = {
   // straight from the noon and the afternoon by the sea it has to read as evening at a glance: the
   // same sky and shadows, a warmer multiply, more of the west's warm bleed, a touch of dusk from the top
   c6: { ...GRADES[0], mul: hx('#FFD2A6'), glareA: 0.4, topDark: hx('#5A3A6E'), topA: 0.14, shadowLen: 1.4 },
+  // after the clear (05_postgame 4.1), 海ぞいの町 — pal_c7: the morning, a low sun out of the eastern
+  // sea: a pale sky warming at its foot, long soft shadows thrown west, a little pink on the walls
+  c7: {
+    ...DAY_C,
+    skyTop: hx('#78ACDC'), skyBot: hx('#F6E2C6'), mul: hx('#F6F2EC'), horizon: hx('#FFE0B8'), horizonA: 0.14,
+    glare: hx('#FFE0C0'), glareA: 0.1, topDark: hx('#3A4A7A'), topA: 0.05,
+    shadow: hx('#566690'), shadowA: 0.26, shadowLen: 1.1, rim: hx('#FFE0B8'), motion: 1, desat: 0.03,
+  },
+  // pal_c8: the evening — the sun goes down behind the western hills, the harbour gold, the
+  // breakwater and the boats in long shadows, a dusk coming down from the top
+  c8: {
+    ...DAY_C,
+    skyTop: hx('#8A6AA8'), skyBot: hx('#F4B070'), mul: hx('#FFCFA2'), horizon: hx('#FFE7A3'), horizonA: 0.4,
+    glare: hx('#F4B070'), glareA: 0.38, topDark: hx('#5A3A6E'), topA: 0.12,
+    shadow: hx('#4A3A6E'), shadowA: 0.36, shadowLen: 1.45, rim: hx('#F4B070'), motion: 1, lit: 0.7, desat: 0.02,
+  },
+  // pal_c9: the night by the sea — a deep blue (bluer than 夕鳴町's violet night), the windows,
+  // the harbour's lamps and the lighthouse's beam in the light map (render.ts / cut_night.ts)
+  c9: {
+    ...DAY_C,
+    skyTop: hx('#0E1428'), skyBot: hx('#22305A'), mul: hx('#6E7AAC'), horizon: hx('#3A4A7A'), horizonA: 0,
+    glare: hx('#F2894B'), glareA: 0, topDark: hx('#0E1428'), topA: 0.22,
+    shadow: hx('#0E1428'), shadowA: 0.3, shadowLen: 0, night: 1, rim: hx('#FFE7A3'), motion: 1, lit: 1, desat: 0.04,
+  },
 };
 
 /** The pal_c3_* preset of a chapter-3 stage. */

@@ -109,6 +109,24 @@ export const PG_PERO_LAMP_KN = `@npc_kanenari
 これや これ。
 夜の 村は、これが ないと。`;
 
+// ================================================================ 2.2 野菜を 一緒に 家に 運ぼう（クリア後の誘い）
+
+/** 夜の転回場で、起きているツガオ（表の顔）が頼む（第2章の〔誘い〕の代わり）。 */
+export const PG_DELI_INVITE = `@ツガオ:tsugao_omote
+おう、しゅん。{w=300}
+今夜も、村の 配達じゃ。
+/
+5軒 ぶん。{w=300}その 灯りで、
+手伝って くれるか？
+? 手伝う | またこんど`;
+/** 配達の 途中に ツガオ便に 乗ろうと したとき。 */
+export const PG_TRUCK_DELI_FIRST = `@ツガオ:tsugao_omote
+配達が 先じゃ。{w=300}
+5軒 回ったら、乗せちゃる。`;
+export const PG_DELI_LATER = `@ツガオ:tsugao_omote
+ほうか。{w=300}
+ほんなら、また 今度じゃな。`;
+
 // ================================================================ 3.4 待つ・寝る
 
 /** 休める所（セーブの所・ベンチ）で、クリア後だけ先に出す。 */
@@ -123,6 +141,9 @@ export const PG_REST_ASK_BENCH = `@narr
 ここで、ひと休み できそうだ。
 ? 待つ | やめておく`;
 
+/** 配達の 途中（待たない）。 */
+export const PG_WAIT_DELI = `@narr
+今は、配達の 途中だ。`;
 export const PG_WAIT_ASK = `@narr
 いつまで 待つ？
 ? 朝まで | 昼まで | 夕方まで | 夜まで | やめておく`;
@@ -163,7 +184,7 @@ export function pgTexts(): Record<string, unknown> {
   ];
   return {
     PG_KN_ASK, PG_KN_ASK_NIGHT, PG_KN_JOIN_FIRST, PG_KN_JOIN, PG_KN_LATER, PG_KN_BACK_ASK, PG_KN_BACK, PG_KN_STAY, PG_KN_SEND,
-    ask, go, PG_TRUCK_NAP, PG_TRUCK_NAP_AGAIN, PG_PERO_LAMP, PG_PERO_LAMP_KN,
-    PG_REST_ASK, PG_REST_ASK_KN, PG_REST_ASK_BENCH, PG_WAIT_ASK, PG_BED_ASK, PG_BED_SLEEP, PG_BED_HEAL, PG_MOM_MORNING,
+    ask, go, PG_DELI_INVITE, PG_DELI_LATER, PG_TRUCK_DELI_FIRST, PG_TRUCK_NAP, PG_TRUCK_NAP_AGAIN, PG_PERO_LAMP, PG_PERO_LAMP_KN,
+    PG_REST_ASK, PG_REST_ASK_KN, PG_REST_ASK_BENCH, PG_WAIT_ASK, PG_WAIT_DELI, PG_BED_ASK, PG_BED_SLEEP, PG_BED_HEAL, PG_MOM_MORNING,
   };
 }

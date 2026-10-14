@@ -26,6 +26,8 @@
 //   __game.cmd.kitsune(state)      'sara' 小皿の前へ / 'abura' 油揚げを 持って / 'offered' のせた あと / 'eaten' 食べた あと
 
 import type { Co } from '../engine/co';
+import { pgOn } from '../world/postgame';
+import { PG_AZE_SUITO_HEAD } from '../data/text/pg_rows';
 import { addItem, flag, hasItem, removeItem, setFlag, state } from '../game/state';
 import { registerDebug } from '../debug';
 import { actor, msg, registerScript, registerWorldFx, stage, walk } from '../world/api';
@@ -270,7 +272,9 @@ function* carryFlask(): Co {
 /** Stage 2 〔水筒〕: the water leans north-east … the flask goes round … the candy over the shoulder. */
 function* suitoScene(): Co {
   const again = flag('flag_aze_suito_no') > 0;
-  yield* msg(again ? AZE_TALK.suito_again : AZE_TALK.suito);
+  // クリア後（05_postgame 2.1 yr_c1_suito）：はじめのページだけ、北東へ寄る水を ふつうの細い水に
+  const head = /^@npc_toyozou\n[^@]*?(?=@npc_yone)/;
+  yield* msg(again ? AZE_TALK.suito_again : pgOn() ? AZE_TALK.suito.replace(head, PG_AZE_SUITO_HEAD + '\n') : AZE_TALK.suito);
   const c = yield* msg(AZE_TALK.suito_ask);
   if (c !== 0) {
     setFlag('flag_aze_suito_no', 1);

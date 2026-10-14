@@ -9,17 +9,19 @@
 //
 // 帯が変わると（onPgBand）、今の曲は小節の終わりから 6秒で落ち、次の曲が 4秒で入る
 // （audio.playBgmBand）。同じ曲は形だけ変わる。会話の duck はそのまま。
-// 環境音は第1期は今ある物の組みかえだけ（時間帯の環境音は第2期）。
+// 環境音（第2期）：朝 スズメ・遠くの車、昼 セミ、夕方 ヒグラシ、夜 コオロギ・カネタタキ
+// （audio/ambience_pg.ts）。海ぞいの町は波とカモメ（夜はカモメなし）。星見台の夜は第2章のまま。
+// 部屋の中は小さく。旧水族館は段階4（開館の準備中）：館の曲の静かな形。
 
 import * as audio from '../audio';
 import { registerDebug } from '../debug';
 import { flag } from '../game/state';
 import * as snd from './audio';
-import { applyC3Params, c3PgPlan, leaveC3Audio } from './c3audio';
+import { applyC3Params, c3PgAqPlan, c3PgPlan, leaveC3Audio } from './c3audio';
 import { ambKept, field, type FieldScene } from './field';
 import { applyHoshiParams, hoshiAmb, hoshiBgm, hoshiSpace, hoshiVariant } from './hoshi';
 import type { MapDef } from './types';
-import { onPgBand, pgBand, pgOn, pgTownOf, type PgBand } from './postgame';
+import { onPgBand, pgBand, pgMin, pgOn, pgTownOf, type PgBand } from './postgame';
 
 type Pa = 'town' | 'yama' | 'umi' | 'kannai';
 
@@ -47,56 +49,133 @@ function defaultSpace(def: MapDef, outdoor: string): string {
   return def.space ?? (def.kind === 'indoor' ? 'room' : outdoor);
 }
 
-/** 夕鳴町（第1章の地図。部屋・店・モールも）。 */
+/** 部屋の中で聞く外の時間帯の床：小さく、こもらせる（05 4.3「部屋の中は小さく」）。 */
+const WALL = { vol: 0.35, lp: 2000 };
+
+/** 時間帯の床（ambience_pg.ts と第1章のヒグラシ）。 */
+const TIME_BEDS: Record<PgBand, string[]> = {
+  asa: ['amb_pg_suzume'],
+  hiru: ['amb_pg_semi'],
+  yu: ['amb_higurashi'],
+  yoru: ['amb_pg_mushi'],
+};
+const ALL_TIME_BEDS = new Set(['amb_pg_suzume', 'amb_pg_semi', 'amb_pg_mushi', 'amb_pg_kuruma', 'amb_higurashi', 'amb_c3_hirumae', 'amb_night_insects', 'amb_train_far']);
+
+/** 外の床を加える（部屋の中なら小さく）。 */
+function addBeds(amb: string[], ambVol: Record<string, { vol: number; lp?: number }>, ids: string[], indoor: boolean, vol?: number): void {
+  for (const id of ids) {
+    if (!amb.includes(id)) amb.push(id);
+    if (indoor) ambVol[id] = { vol: WALL.vol * (vol ?? 1), lp: WALL.lp };
+    else if (vol !== undefined) ambVol[id] = { vol, lp: 20000 };
+  }
+}
+
+/**
+ * 夕鳴町（第1章の地図。部屋・店・モールも）。外の床は：朝 スズメ・遠くの車、昼 セミ・遠くの車、
+ * 夕方 ヒグラシ（第1章の夕方）、夜 コオロギ・カネタタキ・遠い電車（踏切）・まばらな車。
+ * 部屋は、第1章で外のヒグラシが聞こえていた部屋だけ、外の床を小さく。
+ */
 function yunariPlan(def: MapDef, band: PgBand): PgPlan {
   const b0 = def.bgm?.[0];
   const a0 = def.amb?.[0] ?? [];
-  const noHigu = a0.filter((id) => id !== 'amb_higurashi');
+  const indoor = def.kind === 'indoor';
+  // 外が聞こえる地図か（外の地図、またはヒグラシが窓ごしに聞こえていた部屋）
+  const hearsOut = !indoor || a0.includes('amb_higurashi');
+  const own = a0.filter((id) => !ALL_TIME_BEDS.has(id));
   const ambVol: Record<string, { vol: number; lp?: number }> = { ...(def.ambVol ?? {}) };
   const base = { shizuka: 0 as const, space: defaultSpace(def, 'outdoor'), pa: (def.pa ?? 'town') as Pa };
+  const amb = [...own];
+  const add = (ids: string[], vol?: number) => {
+    if (!hearsOut) return;
+    addBeds(amb, ambVol, ids, indoor, vol);
+    // 家の2階は第1章のとおり（窓が近い：.4・2.5 kHz）
+    if (def.id === 'map_home_2f') for (const id of ids) ambVol[id] = { vol: 0.4 * (vol ?? 1), lp: 2500 };
+  };
   switch (band) {
     case 'asa':
       // 今のクリア後の朝（S33 のあと）：曲は鳴っていない
-      return { ...base, bgm: b0 === undefined ? undefined : null, amb: noHigu, ambVol };
+      add(['amb_pg_suzume', 'amb_pg_kuruma']);
+      return { ...base, bgm: b0 === undefined ? undefined : null, amb, ambVol };
     case 'hiru': {
-      // 第3章の昼前（S01〜S04）：段階0の曲を 'hirumae' の形で、ヒグラシ → ツクツクボウシ
-      const amb = a0.map((id) => (id === 'amb_higurashi' ? 'amb_c3_hirumae' : id));
-      if (def.id === 'map_home_2f') ambVol.amb_c3_hirumae = { vol: 0.4, lp: 2500 };
+      // 第3章の昼前（S01〜S04）の曲を 'hirumae' の形で
+      add(['amb_pg_semi', 'amb_pg_kuruma']);
       const variant = b0 === 'bgm_home' || b0 === 'bgm_town_s0' ? 'hirumae' : undefined;
       return { ...base, bgm: b0, variant, amb, ambVol };
     }
     case 'yu':
-      // 第1章の動いている夕方（段階0の曲。s1・s2 は使わない）
-      if (def.id === 'map_home_2f') ambVol.amb_higurashi = { vol: 0.4, lp: 2500 };
-      return { ...base, bgm: b0, amb: a0, ambVol };
+      // 第1章の動いている夕方（段階0の曲と床。s1・s2 は使わない）
+      add(['amb_higurashi']);
+      return { ...base, bgm: b0, amb, ambVol };
     case 'yoru':
-    default:
-      // 曲なし＋第1章の夜の床（無い地図は、ヒグラシをぬいた段階0の床）
-      return { ...base, bgm: b0 === undefined ? undefined : null, amb: def.amb?.[3] ?? noHigu, ambVol };
+    default: {
+      // 曲なし。夜の町が寂しすぎないように：虫を近くに、遠い電車、まばらな車。
+      // 第1章の夜の床（amb[3]）があればその自分の床（川など）、無ければ段階0の床から商店街のざわめきをぬく
+      const night = (def.amb?.[3] ?? own).filter((id) => !ALL_TIME_BEDS.has(id) && id !== 'amb_arcade');
+      const n = [...night];
+      amb.length = 0;
+      amb.push(...n);
+      add(['amb_pg_mushi']);
+      if (!indoor) add(['amb_train_far']);
+      if (!indoor) add(['amb_pg_kuruma'], 0.5);
+      return { ...base, bgm: b0 === undefined ? undefined : null, amb, ambVol };
+    }
   }
 }
 
 /** 星見台（第2章の地図）。 */
 function hoshiPlan(def: MapDef, band: PgBand): PgPlan {
   const night = hoshiBgm(def, 1);
-  const base = { space: hoshiSpace(def), pa: (def.pa ?? 'yama') as Pa, ambVol: { ...(def.ambVol ?? {}) } };
+  const base = { space: hoshiSpace(def), pa: (def.pa ?? 'yama') as Pa, ambVol: { ...(def.ambVol ?? {}) } as Record<string, { vol: number; lp?: number }> };
   if (band === 'yoru') {
     // 第2章の h1 の夜のまま（灯りの夜）
     return { ...base, bgm: night, variant: night === NIGHT ? hoshiVariant(def) : def.variant, shizuka: 0, amb: hoshiAmb(def, 1) };
   }
   // 朝・昼・夕方：第2章のエンディングの朝の曲。朝の外だけ ふつうの形、ほかは静かな形（仮）
   const bgm = night === NIGHT ? MORNING : night;
-  const shizuka: 0 | 1 = band === 'asa' && def.kind !== 'indoor' ? 0 : 1;
+  const indoor = def.kind === 'indoor';
+  const shizuka: 0 | 1 = band === 'asa' && !indoor ? 0 : 1;
   const amb = hoshiAmb(def, 0).filter((id) => !HOSHI_NIGHT_ONLY.has(id));
+  // 外が聞こえる地図（外、または夜に外の虫が聞こえる部屋）に、時間帯の床
+  const hearsOut = !indoor || hoshiAmb(def, 1).includes('amb_h_insects') || hoshiAmb(def, 0).includes('amb_h_insects');
+  if (hearsOut) addBeds(amb, base.ambVol, TIME_BEDS[band], indoor);
   return { ...base, bgm, shizuka, amb };
 }
 
-/** 海ぞいの町（第3章の地図。旧水族館と荷台は null：今の道）。 */
+/** 海ぞいの町の時間帯の床：朝 カモメとスズメ、昼 今の昼の床（セミ・カモメ）、夕方 カモメとヒグラシ、夜 波と港と虫（カモメなし）。 */
+function umiBeds(p: { amb: string[]; ambVol: Record<string, { vol: number; lp?: number }> }, band: PgBand, indoor: boolean): { amb: string[]; ambVol: Record<string, { vol: number; lp?: number }> } {
+  const ambVol = { ...p.ambVol };
+  const hearsOut = !indoor || p.amb.includes('amb_c3_umi');
+  if (band === 'hiru') return { amb: [...p.amb], ambVol };
+  if (band === 'yoru') {
+    const amb = p.amb.filter((id) => UMI_NIGHT_KEEP.has(id));
+    if (hearsOut) addBeds(amb, ambVol, ['amb_pg_mushi'], indoor, 0.5);
+    return { amb, ambVol };
+  }
+  const amb = p.amb.filter((id) => id !== 'amb_c3_semi');
+  if (hearsOut) addBeds(amb, ambVol, band === 'asa' ? ['amb_pg_suzume'] : ['amb_higurashi'], indoor, band === 'asa' ? 0.6 : 0.8);
+  return { amb, ambVol };
+}
+
+/** 旧水族館が開いている時刻（開館の準備：9:00〜16:59。05 3.5）。 */
+function aqOpen(): boolean {
+  const m = pgMin();
+  return m >= 9 * 60 && m < 17 * 60;
+}
+
+/** 海ぞいの町（第3章の地図。荷台は null：今の道）。旧水族館は段階4（開館の準備中）。 */
 function umiPlan(def: MapDef, band: PgBand): PgPlan | null {
+  const indoor = def.kind === 'indoor';
+  const aq = c3PgAqPlan(def);
+  if (aq) {
+    // 開いている間は館の曲の静かな形、閉まったあと（中に残っているとき）は床だけ
+    const open = aqOpen();
+    return { ...aq, bgm: open ? aq.bgm : null, variant: open ? aq.variant : undefined, shizuka: 1 };
+  }
   const p = c3PgPlan(def);
   if (!p) return null;
-  if (band === 'yoru') return { ...p, bgm: null, variant: undefined, shizuka: 1, amb: p.amb.filter((id) => UMI_NIGHT_KEEP.has(id)) };
-  return { ...p, shizuka: band === 'hiru' ? 0 : 1 };
+  const beds = umiBeds(p, band, indoor);
+  if (band === 'yoru') return { ...p, ...beds, bgm: null, variant: undefined, shizuka: 1 };
+  return { ...p, ...beds, shizuka: band === 'hiru' ? 0 : 1 };
 }
 
 /** その地図・その帯の音（null：この地図はいつもの道で）。 */
@@ -136,7 +215,7 @@ let riding = false;
 
 /**
  * field.ts applyAudio の入口。クリア後でなければ false（いつもの道。静かな形も 0 に戻す）。
- * クリア後でも、旧水族館・荷台は false（c3audio の段階4の道。静かな形だけ帯で置く）。
+ * クリア後でも、荷台は false（c3audio の段階4の道。静かな形だけ帯で置く）。
  */
 export function applyPgAudio(f: FieldScene, entering: boolean, music = true): boolean {
   if (!pgOn()) {
@@ -205,6 +284,8 @@ export function applyPgAudio(f: FieldScene, entering: boolean, music = true): bo
     snd.playAmbient(id, opts);
   }
   lastBeds = { map: def.id, ids: [...amb] };
+  // 段階4のホール：昼の光が空の水槽に入り、うなりが半分に（63 7.5。c3audio と同じ）
+  if (def.id === 'map_c3_aq_hall') callAudio('ambientEvent', 'amb_c3_aq_hall', 'hiru');
   f.renderer.positionalAmbience();
   return true;
 }
@@ -219,6 +300,30 @@ onPgBand(() => {
     if (import.meta.env.DEV) console.warn('[world/pgaudio] band change failed', e);
   }
 });
+
+// 旧水族館の 9:00・17:00（帯の変わり目ではない）：中にいるとき、館の曲を出す・落とす
+let aqWasOpen: boolean | null = null;
+if (typeof window !== 'undefined')
+  window.setInterval(() => {
+    if (!pgOn()) {
+      aqWasOpen = null;
+      return;
+    }
+    const f = field();
+    if (!f?.map || !f.map.def.id.startsWith('map_c3_aq')) {
+      aqWasOpen = null;
+      return;
+    }
+    const open = aqOpen();
+    if (aqWasOpen !== null && open !== aqWasOpen) {
+      try {
+        applyPgAudio(f, false);
+      } catch (e) {
+        if (import.meta.env.DEV) console.warn('[world/pgaudio] aquarium hours failed', e);
+      }
+    }
+    aqWasOpen = open;
+  }, 2000);
 
 // ---------------------------------------------------------------- ツガオ便（05 8.2）
 
