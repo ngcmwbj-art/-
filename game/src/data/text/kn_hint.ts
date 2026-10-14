@@ -12,6 +12,7 @@
 import type { PgBand } from '../../world/postgame';
 import { YR_ROWS, type YrRow } from './yarinokoshi';
 import { GUIDE_PARTS } from './c3_story2';
+import { fillNames } from './c3_names';
 
 const kn = (t: string): string => `@npc_kanenari\n${t}`;
 
@@ -242,7 +243,9 @@ export function knHintTexts(): Record<string, unknown> {
     rows[r.id] = khPgRow(r, null, true);
     rows[r.id + '_later'] = khPgRow(r, 'yu', false);
   }
-  return {
+  const fill = (v: unknown): unknown =>
+    typeof v === 'string' ? fillNames(v) : Array.isArray(v) ? v.map(fill) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fill(x)])) : v;
+  return fill({
     ask: KH_ASK,
     c1: KH_C1,
     c2: KH_C2,
@@ -253,5 +256,5 @@ export function knHintTexts(): Record<string, unknown> {
       kairo: KH_C3.kairo(4),
     },
     pg: { rows, f1: khPgFushigi(1), f2: khPgFushigi(2), f3: khPgFushigi(3), secret: KH_PG_SECRET, all: KH_PG_ALL },
-  };
+  }) as Record<string, unknown>;
 }

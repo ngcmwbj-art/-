@@ -81,8 +81,8 @@ export const PG_SCHEDULE: Record<string, Partial<Record<PgBand, PgSpot | null>>>
   // 食堂かもめ：朝はのれんを出す、昼・夕方は店の中、夜は片づけ（05 4.2）
   npc_c3_shokudo: { asa: at('map_umizoi', 29, 16), hiru: at('map_c3_shokudo', 4, 3), yu: at('map_c3_shokudo', 4, 3), yoru: at('map_c3_shokudo', 4, 3) },
   npc_c3_jouren: { asa: at('map_umizoi', 31, 16), hiru: at('map_c3_shokudo', 3, 5), yu: at('map_umizoi', 31, 16), yoru: null },
-  // セリ：朝は市場（セリの場は人だけ、遊びは無い）、昼は市場の前
-  npc_c3_seri: { asa: at('map_c3_ichiba', 9, 4), hiru: at('map_umizoi', 9, 24), yu: null, yoru: null },
+  // セリ：朝は市場（セリの場は人だけ、遊びは無い）、昼は市場の前（灯り (10,26) と並んで岸壁の西をふさがない 8,24）
+  npc_c3_seri: { asa: at('map_c3_ichiba', 9, 4), hiru: at('map_umizoi', 8, 24), yu: null, yoru: null },
   npc_c3_seri_deshi: { asa: at('map_c3_ichiba', 11, 4), hiru: at('map_umizoi', 12, 24), yu: null, yoru: null },
   // サイレン番：朝・夕方は塔、昼は防波堤の根もと
   npc_c3_sirenban: { asa: at('map_c3_siren', 3, 9), hiru: at('map_umizoi', 44, 28), yu: at('map_c3_siren', 3, 9), yoru: null },

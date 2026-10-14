@@ -11,7 +11,7 @@
 //
 // 絵の名前（W）：cut_pg_secret（1枚絵）。W の cut_pg_ichinichi（台詞なしの 1日）は使わない（台詞を 場面ごとに
 // 重ねるため、同じ 場所・時刻・レンズを ここで 回す）。音は A の world/pg_secret_audio.ts（05 10.2 の番号どおり）。
-// 寝ているツガオは この台本が 公園のベンチ (15,11) に 置く（pg_secret_tsugao。座った絵 npc_tsugao_nightcap、off [7,-3]）。
+// 寝ているツガオは この台本が 公園のベンチ (15,11) に 置く（pg_secret_tsugao。座った絵 npc_tsugao_shirt_nightcap〈改心したあとの白シャツ〉、off [7,-3]）。
 //
 // QA（開発サーバーだけ）：__game.cmd.pgSecret('open'|'go'|'replay'|'reset')
 
@@ -178,8 +178,9 @@ function* runSecret(replay: boolean): Co {
     pgSecretPark();
     setUp(P.shun, P.min, P.shot);
     despawn(TSUGAO_ID);
-    const seat = hasChar('npc_tsugao_nightcap');
-    const t = spawn(TSUGAO_ID, P.tsugao.x, P.tsugao.y, { sprite: seat ? 'npc_tsugao_nightcap' : 'npc_tsugao', dir: 'down', pose: seat ? undefined : 'sleep' });
+    const seatId = hasChar('npc_tsugao_shirt_nightcap') ? 'npc_tsugao_shirt_nightcap' : 'npc_tsugao_nightcap';
+    const seat = hasChar(seatId);
+    const t = spawn(TSUGAO_ID, P.tsugao.x, P.tsugao.y, { sprite: seat ? seatId : 'npc_tsugao', dir: 'down', pose: seat ? undefined : 'sleep' });
     t.data.scripted = true;
     if (seat) {
       t.ox = 7;

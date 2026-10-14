@@ -4,7 +4,7 @@
 //   PG_SECRET_CUTS[i]  1日を回るカット（10.2 #2）：地図・しゅんの立つ所・時刻・HD-2D のレンズの名前
 //   PG_SECRET_PARK     公園の時計塔の下（10.2 #3〜#7）：ベンチ、ツガオ、グソっ君としゅんの立つ所
 //   flag_pg_park_pack   = 1  ベンチの上に焼きそばのパック（prop_pg_yakisoba。グソっ君が渡したあと）
-//   ベンチで寝るツガオは E の pg_secret_tsugao（events/pg_secret.ts）。座った絵 npc_tsugao_nightcap がある
+//   ベンチで寝るツガオは E の pg_secret_tsugao（events/pg_secret.ts）。座った絵 npc_tsugao_shirt_nightcap（白シャツ＋ナイトキャップ）がある
 //   1枚絵 'cut_pg_secret'・1日を回るカット 'cut_pg_ichinichi'：ui/cut_pg.ts（playC3Cut）
 
 import type { PgSpot } from './postgame';
@@ -33,7 +33,7 @@ export const PG_SECRET_PARK = {
   /** 17:00 前（チャイムの前）。 */
   min: 16 * 60 + 50,
   bench: { map: 'map_town', x: 15, y: 11 } as PgSpot,
-  /** ベンチで寝るツガオ（ベンチの右の半分：npc_tsugao_nightcap なら off [7, -3] で座る）。 */
+  /** ベンチで寝るツガオ（ベンチの右の半分：npc_tsugao_shirt_nightcap なら off [7, -3] で座る）。 */
   tsugao: { map: 'map_town', x: 15, y: 11, dir: 'down' } as PgSpot,
   /** グソっ君としゅんの立つ所（ベンチの前、左から）。 */
   kanenari: { map: 'map_town', x: 16, y: 12, dir: 'up' } as PgSpot,

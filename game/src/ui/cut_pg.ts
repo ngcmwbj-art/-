@@ -123,8 +123,8 @@ function picture(): HTMLCanvasElement {
     } else g.drawImage(img, Math.round(cx - w / 2), foot - h, w, h);
     g.restore();
   };
-  // ツガオ asleep on the bench's right half (the nightcap's seated frames sit a little low on their foot)
-  put(figure('npc_tsugao_nightcap') ?? figure('npc_tsugao'), 214, 160);
+  // ツガオ asleep on the bench's right half — after the clear: the white shirt and the nightcap, not the suit (the nightcap's seated frames sit a little low on their foot)
+  put(figure('npc_tsugao_shirt_nightcap') ?? figure('npc_tsugao_shirt', 'nightcap') ?? figure('npc_tsugao_shirt'), 214, 160);
   // the yakisoba pack beside him on the seat
   const pack = yakisobaPack();
   g.drawImage(pack, 156, 148 - pack.height * S + 3, pack.width * S, pack.height * S);

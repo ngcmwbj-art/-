@@ -1683,3 +1683,18 @@ registerChar('npc_tsugao_shirt', () =>
     keep: ['#C98A6A', '#A86A4E', ...OLIVE_KEEP],
   }),
 );
+
+// ツガオ after the clear, asleep on the park's bench under the clock tower in the secret ending
+// (05_postgame 10.2 「40年ぶりの 休み」): the white shirt, sleeves rolled up (npc_tsugao_shirt), seated,
+// the nightcap on — every frame the seated, capped pose (as npc_tsugao_nightcap is for the suit)
+registerChar('npc_tsugao_shirt_nightcap', () =>
+  buildSprite({
+    id: 'npc_tsugao_shirt_nightcap',
+    mats: SHIRT,
+    draw: (f, p) => shirtDraw(f, { ...p, act: 'nightcap', mode: p.mode === 'walk' ? 'idle' : p.mode, step: 0, blink: true, blinkClosed: true }),
+    idle: rep([{ breath: 0 }, { breath: 0 }, { breath: 1 }, { breath: 1 }], 2),
+    idleFrameMs: 600,
+    shadow: 12,
+    keep: ['#C98A6A', '#A86A4E', ...OLIVE_KEEP],
+  }),
+);
