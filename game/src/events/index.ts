@@ -57,6 +57,8 @@ import './ch3';
 import './postgame';
 // クリア後の会話（05_postgame 6章）：町の人と隊列のグソっ君の台本を 包むので、すべての あとに import する
 import './pg_talk';
+// 夕鳴小学校の 裏庭・校庭の 第3章の 昼前と クリア後の 文（2026-10-15）：pg_talk の 包んだ 物を 包むので、その あとに import する
+import './school_now';
 // シークレットエンディング「40年ぶりの 休み」（05_postgame 10章）：隊列のグソっ君の台本も 包むので pg_talk の あと
 import './pg_secret';
 // 隊列のグソっ君に「次、どうする？」（fix1015 G3）：地図ごとの グソっ君の台本を 包むので、pg_secret の あと

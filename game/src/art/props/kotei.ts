@@ -269,23 +269,35 @@ registerBuilding({
     const cx = x + kx;
     const cy = y + ky;
     const s = env.stage;
-    // stage 0: 4:58 and going (the frozen-time clock); from stage 1: 5:00 and stopped
-    const min = s === 0 ? 58 + ((env.mt / 60000) % 2) : 60;
-    const hour = 4 + min / 60;
+    // stage 0: 4:58 and going (the frozen-time clock); stage 1–2: 5:00 and stopped. Stage 3 (第3章の 昼前、
+    // クリア後：2026-10-15 裏門が 開いた) the time of day, going (now())
+    const n = s >= 3 ? nowMin(env) : 0;
+    const min = s === 0 ? 58 + ((env.mt / 60000) % 2) : s >= 3 ? n % 60 : 60;
+    const hour = s >= 3 ? Math.floor(n / 60) + min / 60 : 4 + min / 60;
     const ma = (min / 60) * Math.PI * 2;
     const ha = (hour / 12) * Math.PI * 2;
-    if (s >= 2) {
+    if (s === 2) {
       // the hands' shadow alone points north-east
       g.line(cx + 1, cy + 1, Math.round(cx + 1 + 5), Math.round(cy + 1 - 5), P.concrete);
     }
     g.line(cx, cy, Math.round(cx + Math.sin(ha) * 4), Math.round(cy - Math.cos(ha) * 4), P.ink);
     g.line(cx, cy, Math.round(cx + Math.sin(ma) * 7), Math.round(cy - Math.cos(ma) * 7), P.ink);
     // the second hand: going (0), stopped at 12 (1), trembling there (2)
-    const sa = s === 0 ? ((env.mt / 1000) % 60) / 60 * Math.PI * 2 : s === 2 ? (Math.floor(env.t / 90) % 2 ? 0.08 : -0.08) : 0;
+    const sa = s === 0 || s >= 3 ? ((env.mt / 1000) % 60) / 60 * Math.PI * 2 : s === 2 ? (Math.floor(env.t / 90) % 2 ? 0.08 : -0.08) : 0;
     g.line(cx, cy, Math.round(cx + Math.sin(sa) * 7), Math.round(cy - Math.cos(sa) * 7), P.verm);
     g.px(cx, cy, P.verm);
   },
 });
+
+/**
+ * Minutes of the day the clock shows in stage 3 (2026-10-15: the school is open then): after the clear the
+ * postgame clock (flag_pg_min = min + 1), in 第3章の 昼前 11:10 going on.
+ */
+function nowMin(env: PropEnv): number {
+  const pg = env.flag('flag_pg_min');
+  if (env.flag('flag_ch3_clear') && pg > 0) return pg - 1;
+  return 11 * 60 + 10 + Math.floor(env.mt / 60000);
+}
 
 // ================================================================ 朝礼台 prop_kotei_chorei (2,11)
 
@@ -389,7 +401,7 @@ registerProp('prop_kotei_nobori', () => {
   const a = nobori(false);
   const b = nobori(true);
   const art = stand(a, { cx: 40, base: 16, shadow: 40, contact: 76 });
-  return { ...art, img: (env: PropEnv) => (env.stage >= 2 ? b : a) };
+  return { ...art, img: (env: PropEnv) => (env.stage === 2 ? b : a) };
 });
 
 // ================================================================ 砂場 prop_kotei_sunaba (1,17) — flat
@@ -461,7 +473,8 @@ function hidokei(stage: number): HTMLCanvasElement {
 registerProp('prop_kotei_hidokei', () => {
   const imgs = [hidokei(0), hidokei(1), hidokei(2)];
   const art = stand(imgs[0], { cx: 8, base: 16, shadow: 20, contact: 14 });
-  return { ...art, img: (env: PropEnv) => imgs[Math.max(0, Math.min(2, Math.floor(env.stage)))] };
+  // (stage 3 — 第3章の 昼前・クリア後 — as stage 0: no north-east)
+  return { ...art, img: (env: PropEnv) => imgs[env.stage >= 3 ? 0 : Math.max(0, Math.min(2, Math.floor(env.stage)))] };
 });
 
 // ================================================================ 体育倉庫 bld_kotei_souko (1,5)
@@ -511,7 +524,7 @@ registerBuilding({
     souko(b, false);
   },
   stage(b, s) {
-    if (s < 2) return null;
+    if (s !== 2) return null;
     return (p) => {
       const keep = b.p;
       b.p = p;

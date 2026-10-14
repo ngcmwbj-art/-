@@ -38,6 +38,8 @@ import { fxAt } from '../world/fx';
 import { field, type FieldScene } from '../world/field';
 import { getScript } from '../world/scripts';
 import { pickStage } from '../world/maps';
+import { pgOn } from '../world/postgame';
+import { SCHOOL_NOW } from '../data/text/school_now';
 import * as snd from '../world/audio';
 import { measure } from '../engine/font';
 import { OBJ as TOWN_OBJ } from '../data/maps/town_text';
@@ -276,7 +278,8 @@ export function bucketPage(idx: number, st = stage()): string {
   if (d >= 0 && mask() & (1 << d)) line = idx === SHUN_BUCKET ? TOBAN_BUCKET.shun : TOBAN_BUCKET.wet;
   else if (idx === SAYA_BUCKET) line = TOBAN_BUCKET.saya;
   else if (idx === FROG_BUCKET) line = TOBAN_BUCKET.frog;
-  else if (st === 2 && idx % 2 === 0) line = TOBAN_BUCKET.flavor_s2;
+  // (05 5.3：クリア後の 夕方も 段階2 だが、北東へ 寄る 見た目は 出さない)
+  else if (st === 2 && !pgOn() && idx % 2 === 0) line = TOBAN_BUCKET.flavor_s2;
   else line = TOBAN_BUCKET.flavor[(idx * 7 + 3) % TOBAN_BUCKET.flavor.length];
   return `${head}\n${line}`;
 }
@@ -373,7 +376,7 @@ registerScript('obj_sch_hyakuyo', function* (): Co {
 registerScript('obj_sch_cone', function* (): Co {
   snd.se('se_examine');
   const t = SCHOOL_OBJ.obj_sch_cone;
-  if (stage() === 2) yield* msg(state.taken['sym_sch_02'] ? t.back : t.s2);
+  if (stage() === 2 && !pgOn()) yield* msg(state.taken['sym_sch_02'] ? t.back : t.s2);
   else yield* msg(t.s1);
 });
 
@@ -479,6 +482,8 @@ export function schoolTextCheck(): { pages: number; bad: string[] } {
     else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) walkT(`${name}.${k}`, x);
   };
   walkT('school', SCHOOL_TEXTS);
+  // 第3章の 昼前と クリア後の 文（2026-10-15、events/school_now.ts）
+  walkT('school_now', SCHOOL_NOW);
   // the thirty name tags as they are shown (the head with its name and each line it can get)
   BUCKET_NAMES.forEach((name, i) => {
     walkT(`bucket${i + 1}.dry`, TOBAN_BUCKET.dry.replace('{name}', name));

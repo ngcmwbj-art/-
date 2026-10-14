@@ -36,6 +36,9 @@ import { registerProp } from './registry';
 import { fontSmallWidth, fontTextSmall, handGlyph, printLines } from './text';
 import type { PropArt, PropEnv } from './types';
 import { FROG_BUCKET } from '../../data/text/school';
+import { flag } from '../../game/state';
+import { ch3Hirumae } from '../../world/umizoi';
+import { pgBand, pgOn } from '../../world/postgame';
 
 const pc = (w: number, h: number) => new PixelCanvas(w, h);
 
@@ -237,6 +240,16 @@ function kousha(b: Bld, s2: boolean): void {
   facadeFoot(p, 0, bot, W, P.concrete);
 }
 
+/** Minutes of the day on the clock in stage 3: the postgame clock, or 第3章の 昼前 11:10 going on. */
+function clockMin(env: PropEnv): number {
+  const pg = env.flag('flag_pg_min');
+  if (env.flag('flag_ch3_clear') && pg > 0) return pg - 1;
+  return 11 * 60 + 10 + Math.floor(env.mt / 60000);
+}
+
+/** After the clear, at night (19:00–4:59): the teachers have gone home. */
+const staffGone = (): boolean => pgOn() && pgBand() === 'yoru';
+
 /** The teacher's shadow on the frosted glass: [x, y, w, h, alpha] rects (canvas px). */
 function teacher(env: PropEnv): [number, number, number, number, number][] {
   const s = env.stage;
@@ -278,24 +291,38 @@ registerBuilding({
     return (p) => CLASS_WIN.forEach(([x0, x1], i) => curtain(p, x0, x1 - 1, WIN_Y, WIN_H, i, true));
   },
   over(g, x, y, env) {
-    // the teacher's shadow on the staff room's glass
-    for (const [rx, ry, rw, rh, a] of teacher(env)) g.rect(x + rx, y + ry, rw, rh, P.steel, a * 0.8);
-    // the unit's fan: spinning (0), stopped mid-turn (1), slowly backwards (2)
+    // the teacher's shadow on the staff room's glass (after the clear, at night they have gone home)
+    if (!staffGone()) for (const [rx, ry, rw, rh, a] of teacher(env)) g.rect(x + rx, y + ry, rw, rh, P.steel, a * 0.8);
+    // the unit's fan: spinning (0), stopped mid-turn (1), slowly backwards (2); at night after the clear, still
     const fx = x + 327;
     const fy = y + 39;
     const s = env.stage;
-    const ang = s === 1 ? 0.6 : s === 2 ? -env.t / 900 : env.mt / 90;
+    const ang = s === 1 || staffGone() ? 0.6 : s === 2 ? -env.t / 900 : env.mt / 90;
     for (let k = 0; k < 3; k++) {
       const a = ang + (k * Math.PI * 2) / 3;
       g.px(Math.round(fx + Math.cos(a) * 2), Math.round(fy + Math.sin(a) * 2), P.steel);
       g.px(Math.round(fx + Math.cos(a) * 1), Math.round(fy + Math.sin(a) * 1), P.concrete);
+    }
+    // stage 3 (第3章の 昼前・クリア後, 2026-10-15): the painted 5:00 gives way to the time of day
+    if (s >= 3) {
+      const n = clockMin(env);
+      const ma = ((n % 60) / 60) * Math.PI * 2;
+      const ha = (((n / 60) % 12) / 12) * Math.PI * 2;
+      g.circle(x + CLOCK[0], y + CLOCK[1], 4, P.white);
+      g.line(x + CLOCK[0], y + CLOCK[1], Math.round(x + CLOCK[0] + Math.sin(ha) * 3), Math.round(y + CLOCK[1] - Math.cos(ha) * 3), P.ink);
+      g.line(x + CLOCK[0], y + CLOCK[1], Math.round(x + CLOCK[0] + Math.sin(ma) * 5), Math.round(y + CLOCK[1] - Math.cos(ma) * 5), P.ink);
     }
     // the clock's second hand: stopped at 12 in stage 1; in stage 2 it goes back
     const a = s === 2 ? -(((env.t / 1000) % 60) / 60) * Math.PI * 2 : s === 1 ? 0 : ((env.mt / 1000) % 60) / 60 * Math.PI * 2;
     g.line(x + CLOCK[0], y + CLOCK[1], Math.round(x + CLOCK[0] + Math.sin(a) * 5), Math.round(y + CLOCK[1] - Math.cos(a) * 5), P.verm);
   },
   glow(g, x, y, env) {
-    // the tubes behind the frosted glass: always on (a pale light); stage 2 they flicker
+    // the tubes behind the frosted glass: always on (a pale light); stage 2 they flicker. After the clear, at
+    // night, the staff room is dark (events/school_now.ts: 「職員室の 窓は、まっ暗だ」)
+    if (staffGone()) {
+      g.rect(x + 183, y + 11, 4, 2, P.glint, 0.4 + 0.4 * env.grade.night);
+      return;
+    }
     let a = 0.3 + 0.2 * env.grade.night;
     if (env.stage === 2) {
       const k = Math.floor(env.t / 70);
@@ -1192,11 +1219,16 @@ function gate2(open: boolean, front: boolean): HTMLCanvasElement {
   return out;
 }
 
-/** Open while the door is (stage 1–2; after the clear the evening is stage 2 but the props see 3). */
-const gateOpen = (env: PropEnv): boolean => {
-  const s = env.flag('flag_stage');
-  return s === 1 || s === 2;
-};
+/**
+ * Is the back gate open (door_town_school, the gate's picture, trig_sch_uramon_shut)? Chapter 1: stage 1–2
+ * (10 7.23). 2026-10-15 依頼主「校舎裏や校庭に行けない」: also 第3章の 昼前（9月1日、始業式の あと）and
+ * after the clear at any hour (the yard's texts there: events/school_now.ts).
+ */
+export function uramonOpen(): boolean {
+  const s = flag('flag_stage');
+  return (s >= 1 && s <= 2) || ch3Hirumae() || pgOn();
+}
+const gateOpen = (_env: PropEnv): boolean => uramonOpen();
 
 registerProp('prop_sch_uramon_in', () => {
   const imgs = [gate2(false, false), gate2(true, false)];
