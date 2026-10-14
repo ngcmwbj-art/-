@@ -158,6 +158,24 @@ async function tap(key, hold = 60) {
   await sleep(30);
 }
 
+/**
+ * Move the title's cursor onto the tape `id` ('ch2', 'ch3', …) by its name, not by
+ * counting presses: the cursor starts on つづきから when there is a save, on はじめる
+ * when not, and greyed tapes are stepped over.
+ */
+async function pickTitle(id) {
+  const where = () => page.evaluate(() => ({ menu: window.__game.game.top.menu, index: window.__game.game.top.index }));
+  let w = await where();
+  const want = w.menu.indexOf(id);
+  if (want < 0) throw new Error(`title: no ${id} in ${JSON.stringify(w.menu)}`);
+  for (let n = 0; n < 10 && w.index !== want; n++) {
+    await tap(w.index < want ? 'ArrowDown' : 'ArrowUp');
+    await sleep(250);
+    w = await where();
+  }
+  if (w.index !== want) throw new Error(`title: the cursor did not reach ${id} (${JSON.stringify(w)})`);
+}
+
 /** A snapshot of where the game is. */
 function st() {
   return page
@@ -2158,10 +2176,8 @@ const BEATS2 = [
       await tap('KeyZ');
       await sleep(2600);
       await shot('menu');
-      // はじめる／つづきから／第2章から／せってい: with no save つづきから is greyed out
-      // and the cursor steps over it — one step down is 第2章から
-      await tap('ArrowDown');
-      await sleep(250);
+      // はじめる／つづきから／第2章から／せってい: picked by name (pickTitle)
+      await pickTitle('ch2');
       await tap('KeyZ');
       await sleep(900);
       await shot('ask');
@@ -2383,11 +2399,8 @@ const BEATS3 = [
       checks.push({ check: 'title: five tapes with 第3章から', ok, menu });
       if (!ok) throw new Error(`title: ${JSON.stringify(menu)}`);
       await shot('menu');
-      // はじめる／つづきから（no save: greyed, stepped over）／第2章から／第3章から／せってい
-      await tap('ArrowDown');
-      await sleep(250);
-      await tap('ArrowDown');
-      await sleep(250);
+      // はじめる／つづきから／第2章から／第3章から／せってい: picked by name (pickTitle)
+      await pickTitle('ch3');
       await shot('ch3tape');
       await tap('KeyZ');
       await sleep(900);
