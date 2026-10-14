@@ -59,4 +59,6 @@ import './postgame';
 import './pg_talk';
 // シークレットエンディング「40年ぶりの 休み」（05_postgame 10章）：隊列のグソっ君の台本も 包むので pg_talk の あと
 import './pg_secret';
+// 隊列のグソっ君に「次、どうする？」（fix1015 G3）：地図ごとの グソっ君の台本を 包むので、pg_secret の あと
+import './kn_hint';
 import './debug';

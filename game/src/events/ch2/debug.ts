@@ -70,6 +70,7 @@ import { pgRowTexts } from '../../data/text/pg_rows';
 import { pgTalkTexts } from '../../data/text/pg_talk';
 import { PG_OBJ_TEXT } from '../../data/text/pg_objs';
 import { pgSecretTexts } from '../../data/text/pg_secret';
+import { knHintTexts } from '../../data/text/kn_hint';
 import { SPEAKERS } from '../../world/msg';
 
 type Step = () => void;
@@ -514,6 +515,8 @@ function collectTexts(): [string, string][] {
   walk('pgTalk', pgTalkTexts());
   walk('pgObj', PG_OBJ_TEXT);
   walk('pgSecret', pgSecretTexts());
+  // 隊列のグソっ君の「次、どうする？」（fix1015 G3）
+  walk('knHint', knHintTexts());
   // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line
   // lines shown without a speaker (HOUKI_LINE's float note: the same 336 px)
   for (const [k, v] of Object.entries(EV)) if (typeof v === 'string' && (v.startsWith('@') || v.startsWith('!cue') || v.includes('\n'))) out.push([`ev.${k}`, v]);
