@@ -63,7 +63,7 @@ export const YR_ROWS: YrRow[] = [
   { ...C1, id: 'yr_c1_cape', kn: true, done: f('flag_cape_takashi'), name: 'ふろしきの マント', hint: ['夕方。焼きそばの たかしの 店。', 'グソっ君と いっしょに。'], npcs: ['npc_maruyama', 'npc_obaa'] },
   { ...C1, id: 'yr_c1_bu', kn: false, done: f('flag_bu_left'), name: '減らない コーヒー', hint: ['夕方。喫茶 初日の出。', 'すみの 席の 人に。'], npcs: ['npc_bu_body', 'npc_master'] },
   { ...C1, id: 'yr_c1_hera', kn: false, done: f('flag_hera_look'), name: '置物の ヘラ', hint: ['夕方。焼きそばの たかしの 前。', '何度か 見に 行って。'], npcs: [] },
-  { ...C1, id: 'yr_c1_tankan', kn: false, done: f('flag_tankan_given'), name: 'しんごの たんかん', hint: ['夕方。喫茶 初日の出と、しんご。', '冷凍庫の 中を。'], npcs: ['npc_ojii', 'npc_master'] },
+  { ...C1, id: 'yr_c1_tankan', kn: false, done: f('flag_tankan_given'), name: 'しんごの たんかん', hint: ['夕方。しんごの 縁台。', '喫茶の 冷凍庫も。'], npcs: ['npc_ojii', 'npc_master'] },
   { ...C1, id: 'yr_c1_hunting', kn: true, done: f('flag_hunting_chichi'), name: 'ハンチングの 値札①', hint: ['夕方。踏切の そば。', 'グソっ君と いっしょに。'], npcs: ['npc_jk'] },
 
   // ---------------------------------------------------------------- ② 星見台（夜）
