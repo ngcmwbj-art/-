@@ -2,7 +2,10 @@
 
 import { registerDebug } from '../debug';
 import { pgClockRun } from './pg_clock';
-import { registerSecretReplay } from './pg_secret';
+import { YR_ROWS } from '../data/text/yarinokoshi';
+import { yrLabelW } from './menu/book_yarinokoshi';
+import { listDx } from './menu/notebook';
+import { YR_ALL_NOTE } from './hud';
 import { notifyYarinokoshi } from './hud';
 import type { PgBand } from '../world/postgame';
 import { game } from '../engine/game';
@@ -343,6 +346,20 @@ registerDebug('wrapCheck', () => {
     n += r.pages ?? r.total ?? 0;
     for (const b of r.bad) issues.push(`${name}: ${b}`);
   }
+  // クリア後：みました帳の「やり残し」（05_postgame 9章）：名前は左のページに2行まで、ヒントは右のページに各2行まで
+  // （iPad 横で寄ったときも 2px 詰めて おさまる）、HUD の小さな知らせは時計の印の手前まで
+  for (const r of YR_ROWS) {
+    check(`やり残し ${r.id}`, r.name, yrLabelW(0), 2);
+    squeeze(`やり残し ${r.id}`, r.name, yrLabelW(0), yrLabelW(listDx(LP.x - 1)));
+    for (const h of r.hint) {
+      check(`やり残し ${r.id} ヒント`, h, RP.w, 2);
+      squeeze(`やり残し ${r.id} ヒント`, h, RP.w, rw);
+    }
+  }
+  for (const t of ['みました帳に『やり残し』が ふえた。', YR_ALL_NOTE]) {
+    n++;
+    if (8 + textW(t) + 20 > 324 - 14 - 2) issues.push(`HUD の知らせ: ${t} (too wide)`);
+  }
   return { checked: n, issues };
 });
 
@@ -525,7 +542,6 @@ registerDebug('ending2', (auto = 0) => {
 //   __game.cmd.pgUi('notice', 'yu')        「夕方に なった。」と印のはね（時刻は変えない）
 //   __game.cmd.pgUi('run', 660, 750)       HUD の数字の早回り 11:00 → 12:30（1.5秒）
 //   __game.cmd.pgUi('note')                「みました帳に『やり残し』が ふえた。」
-//   __game.cmd.pgUi('replayStub')          やり残しのページの「もう一度 見る」に仮の流れを置く
 // （時刻そのものは W の QA コマンドで置く）
 if (import.meta.env.DEV) {
   registerDebug('pgUi', (what: string, a?: string | number, b?: number) => {
@@ -542,13 +558,6 @@ if (import.meta.env.DEV) {
       notifyYarinokoshi();
       return 'note';
     }
-    // やり残しのページの「もう一度 見る」を試す仮の流れ（E の台本が来るまで）
-    if (what === 'replayStub') {
-      registerSecretReplay(function* () {
-        yield* say('（40年ぶりの 休み を もう一度）', { voice: 'sys' });
-      });
-      return 'replayStub';
-    }
-    return ['notice', 'run', 'note', 'replayStub'];
+    return ['notice', 'run', 'note'];
   });
 }

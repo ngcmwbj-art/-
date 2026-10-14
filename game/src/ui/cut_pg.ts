@@ -3,7 +3,11 @@
 // パック。384×216 をコードで描く（2D・HD-2D とも同じ絵：第3章の集合写真と同じ扱い。HD-2D の
 // フィールドの同じ構図は hd2d/cut_pg.ts の 'pg_park'）。
 //
-//   yield* playC3Cut('cut_pg_yasumi', { ms })     E の台本が呼ぶ（events/ch3/cuts.ts）
+//   yield* playC3Cut('cut_pg_secret', { ms })     1枚絵（E の台本 events/pg_secret.ts が呼ぶ）
+//   yield* playC3Cut('cut_pg_ichinichi', { ms })  1日を回るカット（約60秒）：夜明け前の星見台 → 朝の夕鳴町
+//                                                  → 昼の港 → 旧水族館の入口。今の町とその時刻の光で、
+//                                                  フィールドで撮る（world/pg_secret.ts の所と時刻、HD-2D は
+//                                                  hd2d/cut_pg.ts のレンズ）。黒で始まり、黒で終わる
 //   yasumiArt()                                     絵だけ（openC3Still で台詞を重ねるとき）
 
 import type { Co } from '../engine/co';
@@ -13,6 +17,9 @@ import { charSprite, hasChar, poseFrame } from '../art/chars/registry';
 import { yakisobaPack } from '../art/props/pg_props';
 import { registerC3Cut } from '../events/ch3/cuts';
 import { openC3Still, playC3Still, type StillArt } from './cut_c3';
+import { field } from '../world/field';
+import { pgSetMin } from '../world/postgame';
+import { PG_SECRET_CUTS } from '../world/pg_secret';
 
 const W = 384;
 const H = 216;
@@ -176,4 +183,33 @@ function* cut(ms: number): Co {
   yield* playC3Still(yasumiArt(), { ms: Math.max(0, ms - 600), fade: 300, out: 300 });
 }
 
+registerC3Cut('cut_pg_secret', (o) => cut(o.ms ?? 4000));
 registerC3Cut('cut_pg_yasumi', (o) => cut(o.ms ?? 4000));
+
+/**
+ * 1日を回る（10.2 #2）：each place of PG_SECRET_CUTS in turn — Minato set down there, the clock at
+ * its hour (the light follows at once), the HD-2D lens — out of black and back into it. The people
+ * in them are the scenario's (it stages them with the field's own calls before or round this).
+ */
+function* ichinichi(ms: number): Co {
+  const f = field();
+  if (!f) return;
+  const { endingView } = (yield import('../events/ending')) as typeof import('../events/ending');
+  const per = Math.max(2500, ms / PG_SECRET_CUTS.length);
+  if (game.fadeAlpha < 0.99) yield* game.fadeOut(500);
+  for (const c of PG_SECRET_CUTS) {
+    f.loadMap(c.at.map, c.at.x, c.at.y, c.at.dir ?? 'down');
+    f.renderer.onMapChange();
+    pgSetMin(c.min);
+    f.pgSnap();
+    f.syncFollower(true);
+    f.snapCamera();
+    endingView.shot(f, c.shot);
+    yield* game.fadeIn(600);
+    yield per - 1200;
+    yield* game.fadeOut(600);
+  }
+  endingView.shot(f, null);
+}
+
+registerC3Cut('cut_pg_ichinichi', (o) => ichinichi(o.ms ?? 60000));

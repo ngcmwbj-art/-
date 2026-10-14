@@ -3,9 +3,9 @@
 //
 //   PG_SECRET_CUTS[i]  1日を回るカット（10.2 #2）：地図・しゅんの立つ所・時刻・HD-2D のレンズの名前
 //   PG_SECRET_PARK     公園の時計塔の下（10.2 #3〜#7）：ベンチ、ツガオ、グソっ君としゅんの立つ所
-//   flag_pg_park_tsugao = 1  ベンチでツガオがナイトキャップで寝ている（台本が立てる・下ろす）
-//   flag_pg_park_pack   = 1  ベンチの上に焼きそばのパック（グソっ君が渡したあと）
-//   1枚絵：ui/cut_pg.ts の 'cut_pg_yasumi'（playC3Cut。2D・HD-2D とも同じ絵）
+//   flag_pg_park_pack   = 1  ベンチの上に焼きそばのパック（prop_pg_yakisoba。グソっ君が渡したあと）
+//   ベンチで寝るツガオは E の pg_secret_tsugao（events/pg_secret.ts）。座った絵 npc_tsugao_nightcap がある
+//   1枚絵 'cut_pg_secret'・1日を回るカット 'cut_pg_ichinichi'：ui/cut_pg.ts（playC3Cut）
 
 import type { PgSpot } from './postgame';
 
@@ -24,7 +24,7 @@ export const PG_SECRET_CUTS: readonly PgSecretCut[] = [
   { shot: 'pg_hoshi_yoake', at: { map: 'map_hoshimidai', x: 41, y: 44, dir: 'up' }, min: 4 * 60 + 30, note: '夜明け前の星見台。転回場の軽トラにマサルのキャベツ' },
   { shot: 'pg_ginza_asa', at: { map: 'map_town', x: 28, y: 24, dir: 'up' }, min: 7 * 60, note: '朝の夕鳴町。焼きそばのたかしに卸す' },
   { shot: 'pg_minato_hiru', at: { map: 'map_umizoi', x: 29, y: 18, dir: 'up' }, min: 12 * 60, note: '昼の港。食堂かもめのナミエへ' },
-  { shot: 'pg_aq_iriguchi', at: { map: 'map_c3_aq_iriguchi', x: 6, y: 8, dir: 'left' }, min: 10 * 60, note: '旧水族館の入口。エゴがタイムカードに『休』の欄' },
+  { shot: 'pg_aq_iriguchi', at: { map: 'map_c3_aq_iriguchi', x: 6, y: 7, dir: 'left' }, min: 14 * 60 + 30, note: '旧水族館の入口。エゴがタイムカードに『休』の欄' },
 ];
 
 /** 公園の時計塔の下（map_town）。ベンチは prop_park_bench (15,11)、時計塔は (15,7)。 */
@@ -33,7 +33,7 @@ export const PG_SECRET_PARK = {
   /** 17:00 前（チャイムの前）。 */
   min: 16 * 60 + 50,
   bench: { map: 'map_town', x: 15, y: 11 } as PgSpot,
-  /** ベンチで寝るツガオ（pg_tsugao_bench：ベンチの右の半分）。 */
+  /** ベンチで寝るツガオ（ベンチの右の半分：npc_tsugao_nightcap なら off [7, -3] で座る）。 */
   tsugao: { map: 'map_town', x: 15, y: 11, dir: 'down' } as PgSpot,
   /** グソっ君としゅんの立つ所（ベンチの前、左から）。 */
   kanenari: { map: 'map_town', x: 16, y: 12, dir: 'up' } as PgSpot,

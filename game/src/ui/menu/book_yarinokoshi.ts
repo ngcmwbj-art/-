@@ -42,6 +42,11 @@ const TOTAL_Y = LIST_Y + VISIBLE * ROW_H + 2;
 const ICON_X = LP.x - 1;
 const LABEL_X = LP.x + 14;
 
+/** 左のページの名前の幅（`dx`：iPad 横で一覧が寄った分。wrapCheck も読む）。 */
+export function yrLabelW(dx: number): number {
+  return FOLD - 4 - LABEL_X - dx;
+}
+
 /** ページが出ているか：クリア後で、グソっ君と合流して開いた。 */
 export function hasYarinokoshi(): boolean {
   return pgOn() && flag('flag_pg_yarinokoshi') > 0;
@@ -84,7 +89,7 @@ export class YarinokoshiBook {
   }
 
   private labelW(): number {
-    return FOLD - 4 - LABEL_X - listDx(ICON_X);
+    return yrLabelW(listDx(ICON_X));
   }
 
   private linesOf(it: Item): number {
@@ -196,7 +201,7 @@ export class YarinokoshiBook {
         } else {
           // まだ：窓の時間帯の印（今あいている窓は明るい）と「…………」
           const open = yrWindowOpen(r, band);
-          g.img(pgBandIcon(r.band, !open), ICON_X + dx, y + 4);
+          g.img(pgBandIcon(r.band, !open), ICON_X + dx + 1, y + 4);
           if (sel) drawMarker(g, lx - 2, y + 1, 70, 15, mk, mc);
           dottedLine(g, lx, y + 12, lx + 64, UI.textDim, 3);
         }
@@ -212,25 +217,27 @@ export class YarinokoshiBook {
   private drawTotal(g: Gfx, m: MenuCtx): void {
     const dx = listDx(ICON_X);
     const y = TOTAL_Y;
-    const x = LABEL_X + dx;
+    // （合計の行は 一覧より左から：「ぜんぶ はなまる！」が 左のページに おさまるように）
+    const x = LP.x + 4 + dx;
     g.rect(LP.x + dx, y - 3, FOLD - 8 - LP.x - dx, 1, UI.bg2);
     const sel = this.sel === -1;
     const all = allDone();
     const left = yrLeft();
     const text = all ? 'ぜんぶ はなまる！' : left > 0 ? 'やり残し あと' : 'ふしぎ あと';
-    const w = textW(text);
-    if (sel) drawMarker(g, x - 2, y + 1, w + (all ? 4 : 30), 15, m.focus ? Math.min(1, this.moveT / 70) : 1, m.focus ? UI.marker : '#EFE4C6');
     let sp = 0;
     while (sp > -2 && x + measure(text, sp) > FOLD - 6) sp--;
+    const w = measure(text, sp);
+    if (sel) drawMarker(g, x - 2, y + 1, w + (all ? 4 : 30), 15, m.focus ? Math.min(1, this.moveT / 70) : 1, m.focus ? UI.marker : '#EFE4C6');
     g.text(text, x, y, { color: all ? UI.accent : UI.text, spacing: sp });
     if (!all) {
       const n = left > 0 ? left : ([1, 2, 3] as const).reduce((a, ch) => a + yrFushigi(ch)[1] - yrFushigi(ch)[0], 0);
       drawDigits(g, String(n), x + measure(text, sp) + 5, y + 5, { color: UI.accent });
     }
-    if (sel && m.focus) drawCursor(g, listCursorX(ICON_X), y, m.t);
+    // （iPad 横で一覧が寄ったときは、ハンコのカーソルの所に字が来るので、黄色の線だけで選んでいるのを見せる）
+    if (sel && m.focus && !dx) drawCursor(g, listCursorX(ICON_X), y, m.t);
     // シークレットエンディングを見たあと：「ぜんぶ はなまる」の朱の判（10.4）
     if (all && secretSeen()) {
-      const seal = ovalStamp('ぜんぶ はなまる', 60, 22, 0.1, 44);
+      const seal = ovalStamp('ぜんぶ はなまる', 104, 24, 0.1, 44);
       // 右のページの上のすみ（本文は SP.y+28 から）
       const sy = SP.y + 3;
       g.img(seal, Math.min(SP.x + SP.w - 14 - seal.width, clearRight(999, sy, sy + seal.height) + 1 - seal.width), sy, { alpha: 0.92 });
@@ -258,13 +265,12 @@ export class YarinokoshiBook {
     }
     pencilLine(g, x, y, w - 6, 1, UI.pencil, this.sel);
     y += 6;
-    // 窓の時間帯の印と、ヒント2行（時間帯と場所、だれと）
-    const open = yrWindowOpen(r, pgBand());
-    g.img(pgBandIcon(r.band, !open && !done), x, y + 5);
+    // ヒント2行（時間帯と場所、だれと）。まだの行は 右上のすみに 窓の時間帯の印（今あいている窓は明るい）
+    if (!done) g.img(pgBandIcon(r.band, !yrWindowOpen(r, pgBand())), clearRight(x + w - 10, SP.y + 8, SP.y + 18) - 8, SP.y + 10);
     for (const h of r.hint) {
-      const hl = fitWrap(h, w - 12).slice(0, 2);
+      const hl = fitWrap(h, w).slice(0, 2);
       hl.forEach((l) => {
-        pageText(g, l.text, x + 12, y, { color: UI.pencil, spacing: l.spacing });
+        pageText(g, l.text, x, y, { color: UI.pencil, spacing: l.spacing });
         y += 17;
       });
       y += 2;
@@ -288,12 +294,13 @@ export class YarinokoshiBook {
       y += 17;
       g.text('ふしぎ', x + 12, y, { color: UI.pencil });
       drawDigits(g, `${fa}/${fb}`, clearRight(x + w - 4, y, y + 16), y + 5, { color: fa >= fb ? UI.accent : UI.pencil, align: 'right' });
-      y += 21;
+      y += 18;
     }
     if (allDone() && secretSeen() && secretReplayFn() && flag('flag_pg_secret') >= 3) {
-      pencilLine(g, x, y - 2, w - 6, 1, UI.pencil, 77);
-      pageText(g, '40年ぶりの 休み', x, y + 2, { color: UI.text });
-      pageText(g, 'けっていで もう一度。', x + 4, y + 20, { color: UI.pencil });
+      // （iPad 横：右下の もどる の上に かからない 短さ）
+      pencilLine(g, x, y, w - 6, 1, UI.pencil, 77);
+      pageText(g, '40年ぶりの 休み', x, y + 3, { color: UI.text });
+      pageText(g, 'もう一度 見る。', x + 4, y + 20, { color: UI.accent });
     }
   }
 }

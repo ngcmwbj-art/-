@@ -1,21 +1,16 @@
-// クリア後のシークレットエンディング「40年ぶりの 休み」の画面の口（05_postgame 10章）。
-// 台本（E）と絵（W）と画面（U）をつなぐ所。しくみの状態は flag_pg_secret（E が書く）。
+// クリア後のシークレットエンディング「40年ぶりの 休み」の、画面の側の読み口（05_postgame 10.4）。
+// 台本・記録を書くのは E（src/events/pg_secret.ts：SECRET_KEY、flag_pg_secret 1 入口・2 約束・3 見た、
+// 'evt_pg_secret_replay'）。1枚絵は W が registerC3Cut('cut_pg_secret') で置き、E の台本が名前で呼ぶ。
+// ここは タイトル・セーブのカード・みました帳 が読むだけの小さな口（events を import しない）。
 //
-//   secretSeen()                         見た記録（localStorage hanamaru-secret-v1。新しく始めても残る）
-//   markSecretSeen()                     見た（E の台本の最後で。flag_pg_secret 3 と いっしょに）
-//   registerPgStill('pg_secret_park', () => art)   W：1枚絵（StillArt）を名前で置く
-//   yield* playPgStill('pg_secret_park', { ms })   E：名前で出す（無ければ false。フィールドで代わりに）
-//   const s = yield* openPgStill('pg_secret_park'); …台詞…; yield* s.close()
-//   registerSecretReplay(() => evtSecret())        E：やり残しのページの合計の行（決定）から、もう一度見る
-//
-// 第3章の registerC3Cut（events/ch3/cuts.ts）と同じ形。1枚絵の出し入れは cut_c3.ts の openC3Still。
+//   secretSeen()           この端末で見た（localStorage hanamaru-secret-v1。新しく始めても残る）
+//   secretReplayFn()       やり残しのページの合計の行から もう一度 見る流れ（E の 'evt_pg_secret_replay'）
 
 import type { Co } from '../engine/co';
-import { openC3Still, playC3Still, type StillArt } from './cut_c3';
+import { getScript } from '../world/scripts';
 
-// ---------------------------------------------------------------- 見た記録（10.4）
-
-export const SECRET_KEY = 'hanamaru-secret-v1';
+/** E の events/pg_secret.ts SECRET_KEY と同じ。 */
+const SECRET_KEY = 'hanamaru-secret-v1';
 
 /** シークレットエンディングを この端末で 見た（記録だけ。セーブ枠とは別）。 */
 export function secretSeen(): boolean {
@@ -26,53 +21,9 @@ export function secretSeen(): boolean {
   }
 }
 
-/** 見た印を書く（10.4。日付だけ）。 */
-export function markSecretSeen(): void {
-  try {
-    localStorage.setItem(SECRET_KEY, JSON.stringify({ seen: 1, at: Date.now() }));
-  } catch {
-    /* ignore */
-  }
-}
-
-// ---------------------------------------------------------------- 1枚絵（10.2）
-
-const stills = new Map<string, () => StillArt>();
-
-/** W：1枚絵を名前で置く（作るのは最初に出すとき）。 */
-export function registerPgStill(id: string, make: () => StillArt): void {
-  stills.set(id, make);
-}
-
-export function hasPgStill(id: string): boolean {
-  return stills.has(id);
-}
-
-/** E：名前で出して、`ms` 見せて、しまう。置かれていなければ false（台本がフィールドで代わりに見せる）。 */
-export function* playPgStill(id: string, o: { ms?: number; flash?: boolean; fade?: number; out?: number } = {}): Co<boolean> {
-  const make = stills.get(id);
-  if (!make) return false;
-  yield* playC3Still(make(), o);
-  return true;
-}
-
-/** E：名前で開いて、台詞のあいだ出しておく（無ければ null）。 */
-export function* openPgStill(id: string, o: { flash?: boolean; fade?: number } = {}): Co<{ close(ms?: number): Co } | null> {
-  const make = stills.get(id);
-  if (!make) return null;
-  return yield* openC3Still(make(), o);
-}
-
-// ---------------------------------------------------------------- もう一度見る（10.4）
-
-let replay: (() => Co) | null = null;
-
-/** E：もう一度見る流れ（メニューを閉じたあと、フィールドの台本として走る）。 */
-export function registerSecretReplay(fn: () => Co): void {
-  replay = fn;
-}
-
-/** やり残しのページから もう一度見られるか（見た・流れが置かれている・クリア後の記録の 3）。 */
+/** もう一度 見る流れ（メニューを閉じたあと、フィールドの台本として走る）。台本が無い版は null。 */
 export function secretReplayFn(): (() => Co) | null {
-  return replay;
+  const fn = getScript('evt_pg_secret_replay');
+  if (!fn) return null;
+  return () => fn({ source: 'menu', map: '', runDefault: function* () {} } as never) as Co;
 }

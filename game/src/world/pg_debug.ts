@@ -6,7 +6,7 @@
 //   __game.cmd.pg('speed', 10)      時計の速さ（1 = ふつう）
 //   __game.cmd.pg('snap')           光と人を今の帯にすぐ（20秒の移りを待たない）
 //   __game.cmd.pgWho()              今の地図で、表（pgSchedule と下じき）が決めている物
-//   __game.cmd.pgCut('yasumi', ms)  シークレットエンディングの1枚絵（cut_pg_yasumi）を見せる
+//   __game.cmd.pgCut('secret', ms)  シークレットエンディングの1枚絵（cut_pg_secret）、'ichinichi' で1日を回るカット
 //   __game.cmd.pgShot(i)            1日を回るカット i（0〜3）・'park' の所と時刻へ（HD-2D はそのレンズ）
 
 import { registerDebug } from '../debug';
@@ -90,7 +90,7 @@ if (import.meta.env.DEV) {
 }
 
 if (import.meta.env.DEV) {
-  registerDebug('pgCut', (name = 'yasumi', ms = 4000) => {
+  registerDebug('pgCut', (name = 'secret', ms = 4000) => {
     game.scripts.run(playC3Cut('cut_pg_' + name, { ms }));
     return 'cut_pg_' + name;
   });
