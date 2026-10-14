@@ -3099,6 +3099,34 @@ const BEATS_PG = [
     },
   },
   {
+    name: 'dive',
+    async run() {
+      // 潜り（05 2.3 yr_c3_moguri）：昼の港の階段から、グソっ君が潜る → 上がり口から もどる
+      await page.evaluate(() => window.__game.cmd.pg('12:00'));
+      await page.evaluate(() => window.__game.cmd.warp('map_umizoi', 28, 26, 'down'));
+      await waitFor((s) => s.top === 'FieldScene' && s.ctrl && s.map === 'map_umizoi', 10000, 'the harbour steps');
+      await sleep(600);
+      await page.evaluate(() => window.__game.cmd.fieldRef().syncFollower(true));
+      await runScript('trig_pg_dive_minato');
+      await pgPick(0);
+      await advance({ label: 'dive', shotEvery: 2 });
+      const under = await pgState();
+      checks.push({ check: 'pg: 潜り（港の階段 → 海の底）', ok: under.map === 'map_c3_umi', map: under.map });
+      if (under.map !== 'map_c3_umi') throw new Error(`dive: ${under.map}`);
+      await shot('under');
+      await page.evaluate(() => {
+        const f = window.__game.cmd.fieldRef();
+        f.player.x = 2 * 16 + 8;
+        f.player.y = 11 * 16 + 16;
+        f.player.dir = 'left';
+      });
+      await runScript('trig_ch3_umi_up');
+      await pgPick(0);
+      await advance({ label: 'up' });
+      await pgCheck('潜りから もどる（グソっ君は 隊列に）', (s) => s.map === 'map_umizoi' && s.follower && s.kn === 1);
+    },
+  },
+  {
     name: 'wait',
     async run() {
       await pgWait('obj_c3_post', 3, 'wait_yoru');
