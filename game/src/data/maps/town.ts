@@ -426,6 +426,13 @@ const OBJECTS: MapObj[] = [
   O('obj_rules_sign', 17, 14),
   O('obj_park_board', 21, 14),
   { t: 'prop', prop: 'prop_park_bench', x: 15, y: 11 },
+  // after the clear, the secret ending (05_postgame 10.2, world/pg_secret.ts): ツガオ asleep on the bench under the
+  // clock tower in his nightcap (its right half), and the yakisoba pack beside him — the scenario's flags
+  {
+    t: 'npc', id: 'pg_tsugao_bench', sprite: 'npc_tsugao_nightcap', x: 15, y: 11, dir: 'down', noTurn: true, off: [7, -3],
+    cond: { flag: ['flag_ch3_clear', 'flag_pg_park_tsugao'] },
+  },
+  { t: 'prop', prop: 'prop_pg_yakisoba', x: 15, y: 11, cond: { flag: ['flag_ch3_clear', 'flag_pg_park_pack'] } },
   { t: 'prop', prop: 'prop_park_lamp', x: 12, y: 3 },
   { t: 'prop', prop: 'prop_park_lamp', x: 19, y: 3 },
   { t: 'prop', prop: 'prop_park_lamp', x: 12, y: 10 },

@@ -6,8 +6,13 @@
 //   __game.cmd.pg('speed', 10)      時計の速さ（1 = ふつう）
 //   __game.cmd.pg('snap')           光と人を今の帯にすぐ（20秒の移りを待たない）
 //   __game.cmd.pgWho()              今の地図で、表（pgSchedule と下じき）が決めている物
+//   __game.cmd.pgCut('yasumi', ms)  シークレットエンディングの1枚絵（cut_pg_yasumi）を見せる
+//   __game.cmd.pgShot(i)            1日を回るカット i（0〜3）・'park' の所と時刻へ（HD-2D はそのレンズ）
 
 import { registerDebug } from '../debug';
+import { game } from '../engine/game';
+import { playC3Cut } from '../events/ch3/cuts';
+import { PG_SECRET_CUTS, PG_SECRET_PARK } from './pg_secret';
 import { flag } from '../game/state';
 import { field } from './field';
 import { pgObjPresent } from './pg_schedule';
@@ -81,5 +86,33 @@ if (import.meta.env.DEV) {
       if (v !== null) out[(o.t === 'prop' ? o.prop : o.id) + `@${o.x},${o.y}`] = v;
     }
     return out;
+  });
+}
+
+if (import.meta.env.DEV) {
+  registerDebug('pgCut', (name = 'yasumi', ms = 4000) => {
+    game.scripts.run(playC3Cut('cut_pg_' + name, { ms }));
+    return 'cut_pg_' + name;
+  });
+
+  registerDebug('pgShot', async (i: number | 'park' = 0) => {
+    // (loaded here: events/ending is the scenario's module, not to be pulled in by the world's)
+    const { endingView } = await import('../events/ending');
+    const f = field();
+    if (!f) return null;
+    const c = i === 'park' ? { shot: PG_SECRET_PARK.shot, at: PG_SECRET_PARK.shun, min: PG_SECRET_PARK.min } : PG_SECRET_CUTS[i];
+    if (!c) return null;
+    f.loadMap(c.at.map, c.at.x, c.at.y, c.at.dir ?? 'down');
+    pgSetMin(c.min);
+    f.pgSnap();
+    // (the lens holds while a script runs: a long wait keeps it up for QA)
+    game.scripts.run(
+      (function* () {
+        endingView.shot(f, c.shot);
+        yield 30000;
+        endingView.shot(f, null);
+      })(),
+    );
+    return c;
   });
 }

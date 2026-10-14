@@ -31,6 +31,7 @@ import { F } from './lib';
 import { addToMap, say3 } from './ch3/common';
 import { jumpMap } from './ch3/prologue';
 import { deliveryOn, pgDeliveryOffer } from './ch2/tsugao';
+import { pgSecretAtTruck } from './pg_secret';
 import * as C4 from '../data/text/c3_story4';
 import * as T from '../data/text/postgame';
 
@@ -149,6 +150,8 @@ const ORDER: PgTown[] = ['yunari', 'hoshi', 'umi'];
 /** 乗る（どの町のツガオ便からも）。 */
 export function* pgTruck(): Co {
   if (!pgOn()) return;
+  // シークレットエンディング（05 10章）：入口が開いていれば、ツガオが先に ページを見る
+  if (yield* pgSecretAtTruck()) return;
   const here = town();
   const band = pgBand();
   // 夜の星見台：配達が まだなら、先に 頼まれる（05 2.2 yr_c2_deli）

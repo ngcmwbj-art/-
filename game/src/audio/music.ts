@@ -614,7 +614,7 @@ export function musicReturnToField(fadeIn = 0.8): void {
 
 /** What the music was doing when the AudioContext was replaced. */
 export interface MusicSnapshot {
-  song: { id: string; fromLoopBar?: number; muffled: boolean; haltIn: number | null; battle: boolean } | null;
+  song: { id: string; fromLoopBar?: number; muffled: boolean; hirumae?: boolean; haltIn: number | null; battle: boolean } | null;
   legacy: string | null;
   /** The ambience duck (a battle holds it at −12 dB). */
   ambDuck: number;
@@ -645,6 +645,8 @@ export function detachForRebuild(): MusicSnapshot {
         // in the intro (or before the first bar): from the top again
         fromLoopBar: au && !au.intro ? au.loopIndex : undefined,
         muffled: !!p.state.muffledVariant,
+        // 63 5.11 / 05_postgame 4.3: 夕鳴町の昼前の形も、アプリの切りかえから戻ったときに
+        hirumae: !!p.state.hirumae,
         // a song that has stopped scheduling (the boss falling asleep) stays silent
         haltIn: Number.isFinite(p.haltAt) ? Math.max(0, p.haltAt - now) : null,
         battle: !!p.def.battle,
@@ -690,6 +692,7 @@ export function restoreAfterRebuild(s: MusicSnapshot): void {
   const room = def.variants ? songRoom.get(so.id) ?? 0 : 0;
   const p = startPlayer(def, { fadeIn: 0.6, fromLoopBar: so.fromLoopBar, room, haltIn: so.haltIn ?? undefined });
   if (so.muffled) applyVariant(p, 'muffled');
+  else if (so.hirumae) applyVariant(p, 'hirumae');
   current = { id: so.id, player: p };
 }
 

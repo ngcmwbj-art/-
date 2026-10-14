@@ -57,4 +57,6 @@ import './ch3';
 import './postgame';
 // クリア後の会話（05_postgame 6章）：町の人と隊列のグソっ君の台本を 包むので、すべての あとに import する
 import './pg_talk';
+// シークレットエンディング「40年ぶりの 休み」（05_postgame 10章）：隊列のグソっ君の台本も 包むので pg_talk の あと
+import './pg_secret';
 import './debug';

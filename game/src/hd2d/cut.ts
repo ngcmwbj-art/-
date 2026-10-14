@@ -35,6 +35,7 @@ import type { CamParams, Hd2dView, StillPose } from './view';
 // (chapter 2's shots and pictures)
 import { CH2_SHOTS } from './cut_ch2';
 import { C3_SHOTS } from './cut_c3';
+import { PG_SHOTS } from './cut_pg';
 
 /** A shot's camera: the field's (view.ts CAM), and `lift` — how high over the ground it aims (units). */
 export interface Lens extends CamParams {
@@ -82,6 +83,8 @@ const SHOTS: Record<string, ShotDef> = {
 Object.assign(SHOTS, CH2_SHOTS);
 // chapter 3's ending (cut_c3.ts)
 Object.assign(SHOTS, C3_SHOTS);
+// the secret ending after the clear (cut_pg.ts)
+Object.assign(SHOTS, PG_SHOTS);
 
 /**
  * cut_night_sky's town (Hd2dView.still): from the paddies' path south of the

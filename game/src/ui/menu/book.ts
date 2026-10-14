@@ -52,6 +52,9 @@ import { drawTaihiPage, hasTaihiPage, TAIHI_ROW_LABEL } from './book_taihi';
 // ② の すみの 1ページ『上の 柵』（上の 柵ぞいの 見回り、02_ch2_index #99）
 import { drawSakuPage, hasSakuPage, SAKU_ROW_LABEL } from './book_sakuzoi';
 import { drawTetsuPage, hasTetsuPage, TETSU_ROW_LABEL } from './book_tetsubou';
+// クリア後：4つ目のふせん「やり残し」（05_postgame 9章）
+import { hasYarinokoshi, YarinokoshiBook, YR_FLAG, YR_FLAG_DARK, YR_TAB } from './book_yarinokoshi';
+import { secretSeen } from '../pg_secret';
 
 /**
  * ② の すみの ページ、一覧の いちばん下に この 順：『二百十日の 前の 晩』（02 #78）、『70年の 色紙』（#84）、
@@ -423,7 +426,9 @@ const coverCache = new Map<string, HTMLCanvasElement>();
  * tucked in at the top right and sticking out 3px over the edge (52 13.2).
  */
 export function bookCover(vol: 1 | 2 | 3, done: boolean, tag = false, feather = false, mizube = false, uribo = false): HTMLCanvasElement {
-  const key = `${vol}:${done}:${tag}:${feather}:${mizube}:${uribo}`;
+  // （③：シークレットエンディングを見たら、はなまるがもう1つ。05_postgame 10.4）
+  const secret = vol === 3 && done && secretSeen();
+  const key = `${vol}:${done}:${tag}:${feather}:${mizube}:${uribo}:${secret}`;
   let c = coverCache.get(key);
   if (c) return c;
   const { w, h } = COVER;
@@ -505,6 +510,8 @@ export function bookCover(vol: 1 | 2 | 3, done: boolean, tag = false, feather = 
       const hm = hanamaruFrame(30, 1, false, 2);
       ctx.globalAlpha = 0.95;
       ctx.drawImage(hm, w - 40, h - 36 + T);
+      // 40年ぶりの 休み を見た：その横に、もう1つ（少し小さく、少し傾いた位置に）
+      if (secret) ctx.drawImage(hanamaruFrame(24, 1, false, 2), w - 64, h - 30 + T);
       ctx.globalAlpha = 1;
     }
   } else if (vol === 2) {
@@ -698,6 +705,9 @@ export class BookPage implements MenuPage {
   }
   private moveT = 999;
   private secT = 999;
+  /** クリア後：「やり残し」のふせんが開いている（①②③ のどれでもない）。 */
+  private yr = false;
+  private readonly yrBook = new YarinokoshiBook();
   /** Since the notebooks were swapped (the cover animation). */
   private volT = 999;
   private fromVol: 1 | 2 | 3 = 1;
@@ -720,6 +730,7 @@ export class BookPage implements MenuPage {
       this.sec = 0;
     }
     if (!vols().includes(this.vol)) this.vol = 1;
+    if (!hasYarinokoshi()) this.yr = false;
     // with two notebooks (chapter 2 on), the one on top lies closed on its cover — its
     // stickers showing — until the cursor goes in (chapter 1's page opens as it always did)
     this.closed = hasBook2();
@@ -752,10 +763,27 @@ export class BookPage implements MenuPage {
     return this.sec === 1 ? v.enemies.length : Math.max(1, totalIn(v, v.n === 1 ? 19 : v.n === 2 ? 17 : 1));
   }
 
-  update(_m: MenuCtx, dt: number, input: Input): boolean {
+  update(m: MenuCtx, dt: number, input: Input): boolean {
     this.moveT += dt;
     this.secT += dt;
     this.volT += dt;
+    // 「やり残し」：→・ダッシュで ① へ、← で ③ の いちばん うしろへ
+    if (this.yr) {
+      if (!hasYarinokoshi()) this.yr = false;
+      else {
+        const vs = vols();
+        if (input.repeat('right') || input.pressed('dash')) {
+          this.leaveYr(vs[0], 0);
+          return true;
+        }
+        if (input.repeat('left')) {
+          const last = vs[vs.length - 1];
+          this.leaveYr(last, this.sections(last).length - 1);
+          return true;
+        }
+        return this.yrBook.update(m, dt, input);
+      }
+    }
     // a key while the cover still lies there opens it at once
     if (this.volT < COVER_IN + COVER_HOLD && (input.pressed('confirm') || input.pressed('up') || input.pressed('down'))) this.volT = COVER_IN + COVER_HOLD;
     // 『チクタク堂の 7つの 時計』（02 #88）・『型ぬき 番付』：決定で ページを めくる
@@ -765,7 +793,10 @@ export class BookPage implements MenuPage {
     }
     if (input.repeat('right')) this.turn(1);
     else if (input.repeat('left')) this.turn(-1);
-    else if (input.pressed('dash') && hasBook2()) this.swap(this.nextVol(1), 0);
+    else if (input.pressed('dash') && hasBook2()) {
+      if (hasYarinokoshi() && this.vol === vols()[vols().length - 1]) this.enterYr();
+      else this.swap(this.nextVol(1), 0);
+    }
     const n = this.count();
     if (input.repeat('down')) this.move(1, n);
     else if (input.repeat('up')) this.move(-1, n);
@@ -782,6 +813,12 @@ export class BookPage implements MenuPage {
     const next = this.sec + d;
     const last = this.sections().length - 1;
     if (hasBook2() && (next > last || next < 0)) {
+      // クリア後：③ の うしろ（① の まえ）に「やり残し」
+      const vs = vols();
+      if (hasYarinokoshi() && ((next > last && this.vol === vs[vs.length - 1]) || (next < 0 && this.vol === vs[0]))) {
+        this.enterYr();
+        return;
+      }
       const other = this.nextVol(next > last ? 1 : -1);
       this.swap(other, next > last ? 0 : this.sections(other).length - 1);
       return;
@@ -789,6 +826,26 @@ export class BookPage implements MenuPage {
     this.sec = (next + last + 1) % (last + 1);
     this.secT = 0;
     sfx('se_page');
+  }
+
+  /** 「やり残し」のふせんを開く。 */
+  private enterYr(): void {
+    this.yr = true;
+    this.yrBook.opened();
+    this.secT = 0;
+    this.volT = 999;
+    sfx('se_page', { pitch: 0.85 });
+  }
+
+  /** 「やり残し」から帳面へ（表紙がのって、ひらく）。 */
+  private leaveYr(vol: 1 | 2 | 3, sec: number): void {
+    this.yr = false;
+    this.fromVol = vol;
+    this.vol = vol;
+    this.sec = Math.max(0, Math.min(sec, this.sections(vol).length - 1));
+    this.secT = 0;
+    this.volT = 0;
+    sfx('se_page', { pitch: 0.8 });
   }
 
   /** The next notebook along (① → ② → ③ → ①). */
@@ -818,6 +875,10 @@ export class BookPage implements MenuPage {
   }
 
   draw(g: Gfx, m: MenuCtx): void {
+    if (this.yr) {
+      this.yrBook.draw(g, m);
+      return;
+    }
     const v = this.v;
     const two = hasBook2();
     if (two) {
@@ -842,7 +903,7 @@ export class BookPage implements MenuPage {
   drawBehind(g: Gfx, m: MenuCtx): void {
     // section tabs sticking out of the notebook's top edge (four — with 『むし』 —
     // sit a little tighter and further left, clear of the clock)
-    const secs = this.sections();
+    const secs = this.yr ? [YR_TAB] : this.sections();
     const pad = secs.length > 4 ? 4 : secs.length > 3 ? 8 : 14;
     // (six — ② with 『むし』『みずべ』『はじめて』 — are set 2px a letter tighter to stay on the screen, 02 #89)
     const sp = secs.length > 5 ? -2 : 0;
@@ -859,9 +920,9 @@ export class BookPage implements MenuPage {
     }
     secs.forEach((name, i) => {
       const w = tw(name) + pad;
-      const sel = i === this.sec;
+      const sel = this.yr || i === this.sec;
       const y = SP.y - 18 - (sel ? 2 : 0);
-      drawTape(g, tx, y, w, 20, '', { color: sel ? v.tabOn : '#D8CBA8', seed: 20 + i });
+      drawTape(g, tx, y, w, 20, '', { color: this.yr ? YR_FLAG : sel ? v.tabOn : '#D8CBA8', seed: 20 + i });
       g.text(name, tx + pad / 2, y + 1, { color: sel ? UI.text : UI.pencil, spacing: sp });
       if (sel && m.focus) {
         g.rect(tx + 2, y + 17, w - 4, 1, UI.accent);
@@ -876,8 +937,20 @@ export class BookPage implements MenuPage {
    * stickers; the open one sticks out 3 px further and is the brighter.
    */
   private drawFlags(g: Gfx, m: MenuCtx): void {
+    // クリア後：③ の下に4つ目のふせん「やり残し」（朱。小さなはなまる）
+    if (hasYarinokoshi()) {
+      const on = this.yr;
+      const x = SP.x - 14 - (on ? 3 : 0);
+      const y = FLAG_Y[2] + 16;
+      rectA(g, x + 1, y + 2, 20, 12, UI.night, 0.35);
+      g.rect(x, y, 20, 12, YR_FLAG_DARK);
+      g.rect(x + 1, y + 1, 19, 10, on ? YR_FLAG : blendFlag(YR_FLAG));
+      g.rect(x + 1, y + 1, 19, 1, '#FFFFFF');
+      g.img(hanamaruFrame(9, 1, false, 1), x + 4, y + 1);
+      if (on && m.focus) g.rect(x + 1, y + 4, 1, 3, UI.accent);
+    }
     vols().forEach((n, i) => {
-      const on = n === this.vol;
+      const on = !this.yr && n === this.vol;
       const col = n === 1 ? VOL1.flag : n === 2 ? VOL2.flag : VOL3.flag;
       const x = SP.x - 14 - (on ? 3 : 0);
       const y = FLAG_Y[i];

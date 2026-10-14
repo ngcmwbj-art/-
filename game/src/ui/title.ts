@@ -26,6 +26,7 @@
 //    (① 夕鳴町, ② 星見台) before its thank-you page. The music doesn't change.
 
 import type { Co } from '../engine/co';
+import { secretSeen } from './pg_secret';
 import { game, type Scene } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { Particles } from '../engine/particles';
@@ -103,6 +104,8 @@ export class TitleScene implements Scene {
   private readonly clear2: ClearRecord | null = clearRecordCh2();
   /** Chapter 3's counts (みました帳 ③) and the people who came (60_ch3_story 10.30). */
   private readonly clear3: ClearRecordCh3 | null = clearRecordCh3();
+  /** 05_postgame 10.4：シークレットエンディング「40年ぶりの 休み」を この端末で 見た。 */
+  private readonly secret: boolean = !!this.clear3 && secretSeen();
   /** Chapter 1's counts after its ending (an empty card if only chapter 2's record survived). */
   private readonly clear: ClearRecord | null = clearRecord() ?? (this.clear2 ? { fushigi: 0, aite: 0, tsukkomi: 0, tsukkomiTotal: 19 } : null);
   /**
@@ -410,6 +413,8 @@ export class TitleScene implements Scene {
       g.img(img, Math.round(x > W ? x - span : x), c.y + slide(1));
     });
     this.drawSun(g, slide(1));
+    // 05_postgame 10.4：40年ぶりの 休み を見たあと、空の右下のすみ（地平線のあたり）に小さな朱のはなまる
+    if (this.secret) g.img(hanamaruFrame(10, 1, false, 1), 364, 90 + slide(2), { alpha: 0.9 });
     const dawn = !!this.clear2;
     g.translated(0, slide(2), () => drawHoshimiNight(g, t, false, dawn ? 'dawn' : 'night'));
     g.img(farCanvas(this.sky), 0, 104 + slide(2));
@@ -545,7 +550,8 @@ export class TitleScene implements Scene {
     const c = this.clear!;
     const c2 = this.clear2;
     const c3 = this.clear3;
-    const pages: (1 | 2 | 3 | 0)[] = c3 ? [1, 2, 3, 0] : c2 ? [1, 2, 0] : [1, 0];
+    // 05_postgame 10.4：シークレットエンディングを見たあと、さいごのページに「ツガオ便は、あしたも 走る。」
+    const pages: (1 | 2 | 3 | 0 | 4)[] = c3 ? (this.secret ? [1, 2, 3, 0, 4] : [1, 2, 3, 0]) : c2 ? [1, 2, 0] : [1, 0];
     const lt = this.t - MENU_AT;
     const k = Math.min(1, lt / 300);
     const { x, y: cy, w, h } = clearCardAt();
@@ -566,6 +572,10 @@ export class TitleScene implements Scene {
     g.alpha(ca, () => {
       const lx = x + 7 + dx;
       const rx = x + w - 7 + dx;
+      if (page === 4) {
+        SECRET_LINES.forEach((l, i) => g.text(l, lx, y + 6 + i * 17, { color: UI.sys }));
+        return;
+      }
       if (page === 0) {
         // 60_ch3_story 10.30: after chapter 3 the last page thanks the people who came (flag_ch3_yobu_n)
         const lines = c3 ? thanksLines(c3.yobu ?? 0) : ['ここまで', '見てくれて、', 'ありがとう。'];
@@ -598,7 +608,7 @@ export class TitleScene implements Scene {
    * edge; the one whose counts are showing stands 3 px taller. ② carries
    * the tomato (8×8).
    */
-  private drawCardFlags(g: Gfx, x: number, y: number, a: number, page: 0 | 1 | 2 | 3): void {
+  private drawCardFlags(g: Gfx, x: number, y: number, a: number, page: 0 | 1 | 2 | 3 | 4): void {
     g.alpha(a, () => {
       ((this.clear3 ? [1, 2, 3] : [1, 2]) as (1 | 2 | 3)[]).forEach((n, i) => {
         const on = page === n;
@@ -676,6 +686,9 @@ export function showTitle(): void {
   game.replaceAll(new TitleScene(true));
 }
 
+
+/** 05_postgame 10.4：見たあとのカードのさいごのページ（カードの幅に3行）。 */
+export const SECRET_LINES = ['ツガオ便は、', 'あしたも', '走る。'];
 
 /** The last page of the card after chapter 3: the thanks line, broken into the card's lines. */
 function thanksLines(n: number): string[] {

@@ -21,7 +21,9 @@
 // collected — the clocks show the link with their second hands only).
 
 import { DRM, INS } from '../instruments';
-import { hits, melody, pads, type BarCtx, type PartDef, type SongDef } from '../sequencer';
+import { dbToGain } from '../engine';
+import { songGainDb } from '../mix';
+import { hits, melody, pads, type BarCtx, type PartDef, type SongDef, type SongPlayer } from '../sequencer';
 import { registerSong, score } from './common';
 
 export const TSUGAO_MML = `
@@ -100,7 +102,24 @@ function tsugaoDef(): SongDef {
     gainDb: -8,
     // a small dark room
     reverb: { len: 0.9, decay: 3.6, level: 0.2 },
+    // 05_postgame 10.2（シークレットエンディングの1枚絵。仮）：pg_shizuka 1 は静かな形 —
+    // 夕方の公園で寝ぼけたツガオ：フレットレスは引いて、マリンバの「ぽこ、ぽこ」と、
+    // 動きだした2つの町の時計（clock 2）が前に。M7 は A2 で止まったまま（M7′ の封印はそのまま）
+    setup(sp) {
+      if (sp.params.pg_shizuka === 1) tsugaoShizuka(sp, true, 0);
+    },
+    onParam(sp, name, value, old) {
+      if (name === 'pg_shizuka' && value !== old) tsugaoShizuka(sp, value === 1, (60 / 72) * 4);
+    },
   };
+}
+
+const TSUGAO_SHIZUKA: Record<string, number> = { bass: 0.55, bass_grit: 0.8, sub: 0.4 };
+
+function tsugaoShizuka(sp: SongPlayer, on: boolean, ramp: number): void {
+  const t = sp.g.ctx.currentTime;
+  sp.out.gain.setTargetAtTime(dbToGain(songGainDb(sp.def.id, sp.def.gainDb) + (on ? -2 : 0)), t, Math.max(0.005, ramp) / 3);
+  for (const [id, k] of Object.entries(TSUGAO_SHIZUKA)) sp.partGain(id, on ? k : 1, Math.max(0.005, ramp), t);
 }
 
 export const TSUGAO_DEF = registerSong(tsugaoDef());

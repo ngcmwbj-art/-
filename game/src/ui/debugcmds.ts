@@ -2,6 +2,7 @@
 
 import { registerDebug } from '../debug';
 import { pgClockRun } from './pg_clock';
+import { registerSecretReplay } from './pg_secret';
 import { notifyYarinokoshi } from './hud';
 import type { PgBand } from '../world/postgame';
 import { game } from '../engine/game';
@@ -524,6 +525,7 @@ registerDebug('ending2', (auto = 0) => {
 //   __game.cmd.pgUi('notice', 'yu')        「夕方に なった。」と印のはね（時刻は変えない）
 //   __game.cmd.pgUi('run', 660, 750)       HUD の数字の早回り 11:00 → 12:30（1.5秒）
 //   __game.cmd.pgUi('note')                「みました帳に『やり残し』が ふえた。」
+//   __game.cmd.pgUi('replayStub')          やり残しのページの「もう一度 見る」に仮の流れを置く
 // （時刻そのものは W の QA コマンドで置く）
 if (import.meta.env.DEV) {
   registerDebug('pgUi', (what: string, a?: string | number, b?: number) => {
@@ -540,6 +542,13 @@ if (import.meta.env.DEV) {
       notifyYarinokoshi();
       return 'note';
     }
-    return ['notice', 'run', 'note'];
+    // やり残しのページの「もう一度 見る」を試す仮の流れ（E の台本が来るまで）
+    if (what === 'replayStub') {
+      registerSecretReplay(function* () {
+        yield* say('（40年ぶりの 休み を もう一度）', { voice: 'sys' });
+      });
+      return 'replayStub';
+    }
+    return ['notice', 'run', 'note', 'replayStub'];
   });
 }

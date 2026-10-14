@@ -212,6 +212,12 @@ function callAudio(name: string, ...args: unknown[]): void {
 let lastBeds: { map: string; ids: string[] } = { map: '', ids: [] };
 /** ツガオ便に乗っている間（黒の中）：帯が変わっても曲を出さない。 */
 let riding = false;
+/** 場面が音を持っている間（シークレットエンディング）：地図が変わっても、帯が変わっても触らない。 */
+let sceneHold = false;
+/** シークレットエンディングの台本の音（pg_secret_audio.ts）が、始まりで true、終わりで false。 */
+export function pgAudioHold(on: boolean): void {
+  sceneHold = on;
+}
 
 /**
  * field.ts applyAudio の入口。クリア後でなければ false（いつもの道。静かな形も 0 に戻す）。
@@ -221,8 +227,10 @@ export function applyPgAudio(f: FieldScene, entering: boolean, music = true): bo
   if (!pgOn()) {
     setShizuka(0);
     riding = false;
+    sceneHold = false;
     return false;
   }
+  if (sceneHold) return true;
   const def = f.map.def;
   const band = pgBand();
   const plan = pgAudioPlan(def, band);

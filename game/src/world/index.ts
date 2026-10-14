@@ -14,6 +14,8 @@ import './places';
 // クリア後（05_postgame）：人の配置の表と QA コマンド
 import './pg_schedule';
 import './pg_debug';
+// the secret ending's still (cut_pg_yasumi, 05_postgame 10.2)
+import '../ui/cut_pg';
 import './life';
 import './hoshi_debug';
 // 海ぞいの町 starts moving again (62 6.3・8.7・8.8): the sea, the ring, the gulls, the sea floor

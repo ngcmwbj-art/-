@@ -69,6 +69,7 @@ import { pgTexts } from '../../data/text/postgame';
 import { pgRowTexts } from '../../data/text/pg_rows';
 import { pgTalkTexts } from '../../data/text/pg_talk';
 import { PG_OBJ_TEXT } from '../../data/text/pg_objs';
+import { pgSecretTexts } from '../../data/text/pg_secret';
 import { SPEAKERS } from '../../world/msg';
 
 type Step = () => void;
@@ -512,6 +513,7 @@ function collectTexts(): [string, string][] {
   walk('pgRows', pgRowTexts());
   walk('pgTalk', pgTalkTexts());
   walk('pgObj', PG_OBJ_TEXT);
+  walk('pgSecret', pgSecretTexts());
   // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line
   // lines shown without a speaker (HOUKI_LINE's float note: the same 336 px)
   for (const [k, v] of Object.entries(EV)) if (typeof v === 'string' && (v.startsWith('@') || v.startsWith('!cue') || v.includes('\n'))) out.push([`ev.${k}`, v]);
@@ -557,6 +559,7 @@ export function pgTextCheck(): { total: number; bad: string[] } {
   walk('pgRows', pgRowTexts());
   walk('pgTalk', pgTalkTexts());
   walk('pgObj', PG_OBJ_TEXT);
+  walk('pgSecret', pgSecretTexts());
   for (const [name, src] of list) {
     for (const pg of pagesOf(src)) {
       total++;

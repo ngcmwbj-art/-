@@ -3242,6 +3242,21 @@ const BEATS_PG = [
       if (tc.bad.length) throw new Error('pgText');
     },
   },
+  {
+    name: 'secret',
+    async run() {
+      // シークレットエンディング（05 10章）：入口を開けて ツガオに話す → 次の日 → 夕方の公園 → 17:10
+      await page.evaluate(() => window.__game.cmd.pgSecret('go'));
+      await advance({ label: 'secret', shotEvery: 4, max: 180000, stopAt: async () => (await flag('flag_pg_secret')) === 3 && (await st()).ctrl });
+      await advance({ label: 'secret_end' });
+      const r = await page.evaluate(() => ({ rec: localStorage.getItem('hanamaru-secret-v1'), ...window.__game.cmd.pgSecret() }));
+      await shot('secret_end');
+      const s = await pgState();
+      const ok = r.secret === 3 && !!r.rec && s.map === 'map_town' && s.min >= 17 * 60 + 10 && s.min < 17 * 60 + 30;
+      checks.push({ check: 'pg: シークレットエンディング（flag_pg_secret 3、hanamaru-secret-v1、17:10 の公園）', ok, r, state: s });
+      if (!ok) throw new Error(`secret: ${JSON.stringify({ r, s })}`);
+    },
+  },
 ];
 
 // ------------------------------------------------------------------ run

@@ -804,6 +804,32 @@ export const LAPTOP_SONGS = ['bgm_battle', 'bgm_boss', 'bgm_town_s0', 'bgm_title
 export const LAPTOP_AMB = ['amb_h_barn', 'amb_h_barn_out', 'amb_h_tetsuya', 'amb_h_train'];
 export const PHONE_MAX = { song: 6, amb: 8, se: 13 };
 type SpeakerRow = { before: number; after: number; loss: number; phone: number; ok: boolean };
+/**
+ * 05_postgame（クリア後）を小さいスピーカーで（laptopCheck と同じ物差し）：静かな形
+ * （pg_shizuka 1）の曲、時間帯の床、クリア後の SE。
+ */
+export async function pgSpeakerCheck(): Promise<Record<string, SpeakerRow>> {
+  const out: Record<string, SpeakerRow> = {};
+  const row = async (buf: AudioBuffer, key: 'momentaryMax' | 'lufs', from: number, phoneMax: number): Promise<SpeakerRow> => {
+    const a = measure(buf, from)[key];
+    const b = measure(await highpass(buf, 180), from)[key];
+    const c = measure(await highpass(buf, 500), from)[key];
+    const loss = round(a - b);
+    const phone = round(a - c);
+    return { before: a, after: b, loss, phone, ok: loss <= 3 && phone <= phoneMax };
+  };
+  const songs: [string, Partial<Params>][] = [
+    ['bgm_umi_noon', { c3_noon: 1, c3_ichiba: 1, c3_shokudo: 1, c3_umi: 1, pg_shizuka: 1 }],
+    ['bgm_hoshi_morning', { h_stage: 3, pg_shizuka: 1 }],
+    ['bgm_suizokukan', { h_room: 1, pg_shizuka: 1 }],
+    ['bgm_tsugao', { clock: 2, pg_shizuka: 1 }],
+  ];
+  for (const [id, params] of songs) out[`${id}(shizuka)`] = await row((await renderSong(id, 16, { bypass: true, params })).buffer, 'lufs', 1, PHONE_MAX.song);
+  for (const id of ['amb_pg_suzume', 'amb_pg_kuruma', 'amb_pg_semi', 'amb_pg_mushi'])
+    out[id] = await row((await renderAmbient(id, 20, 0, { bypass: true })).buffer, 'lufs', 1, PHONE_MAX.amb);
+  for (const id of ['se_pg_kizami', 'se_pg_yasumi_hanamaru']) out[id] = await row((await renderSfx(id, {}, 2.5, undefined, { bypass: true })).buffer, 'momentaryMax', 0, PHONE_MAX.se);
+  return out;
+}
 export async function laptopCheck(o: { sfx?: string[]; songs?: string[]; amb?: string[] } = {}) {
   const out: Record<string, SpeakerRow> = {};
   const row = async (buf: AudioBuffer, key: 'momentaryMax' | 'lufs', from: number, phoneMax: number): Promise<SpeakerRow> => {
@@ -1426,6 +1452,8 @@ export function registerReportCommands(): void {
     laptop: what.includes('laptop') ? await laptopCheck({ sfx: o.sfx }) : undefined,
     voicing: what.includes('voicing') ? await voicingCheck({ songs: o.songs }) : undefined,
   })) as never);
+  /** クリア後（05_postgame）の音を小さいスピーカーで：pgSpeaker()。静かな形・時間帯の床・新しい SE。 */
+  registerDebug('pgSpeaker', (() => pgSpeakerCheck()) as never);
   registerDebug('audioMixSuggest', ((o?: Parameters<typeof audioMixSuggest>[0]) => audioMixSuggest(o)) as never);
   /** The SEs' loudness against their ceilings (mix.ts): audioLoud() or audioLoud(['se_h_howl', …]); `over` > 0 is too loud. */
   registerDebug('audioLoud', (async (ids?: string[]) => {

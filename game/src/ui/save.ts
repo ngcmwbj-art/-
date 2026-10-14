@@ -29,6 +29,7 @@ import { tomatoIcon8 } from './icons';
 import { registerScript } from '../world/scripts';
 import { drawTape, drawWindow, textW, UI } from './window';
 import { markText } from '../engine/textzones';
+import { secretSeen } from './pg_secret';
 
 const SAVE_KEY = 'yugure-rpg-save-v1';
 
@@ -94,6 +95,7 @@ class SaveCard implements Widget {
   private closing = -1;
   private readonly now = infoNow();
   private readonly prev = infoSaved();
+  private readonly secret = !!flag('flag_ch3_clear') && secretSeen();
   constructor() {}
 
   close(): void {
@@ -134,6 +136,11 @@ class SaveCard implements Widget {
         // みました帳 ③: its number in a ring (the sea's notebook has no tomato)
         drawCircledNum(g, 3, fx - 1, yy + 30, UI.pencil);
         fx += 12;
+        // 05_postgame 10.4：40年ぶりの 休み を見たあと、③ の横に朱の「休」の小さな判
+        if (this.secret) {
+          drawKyuSeal(g, fx, yy + 25);
+          fx += 22;
+        }
       } else if (this.now.ch2) {
         // みました帳 ②: its number in a ring and the tomato, like the notebook's own flag
         drawCircledNum(g, 2, fx - 1, yy + 30, UI.pencil);
@@ -147,6 +154,15 @@ class SaveCard implements Widget {
       }
     });
   }
+}
+
+/** 朱の「休」の小さな判（18×18、角の丸い四角に白ぬきの字。少し傾いて押した風に1px ずらす）。 */
+function drawKyuSeal(g: Gfx, x: number, y: number): void {
+  g.rect(x + 1, y, 16, 18, UI.accent);
+  g.rect(x, y + 1, 18, 16, UI.accent);
+  g.rect(x + 2, y + 16, 15, 1, UI.accentDark);
+  g.px(x + 3, y + 2, UI.accentLight);
+  g.text('休', x + 1, y + 1, { color: UI.cream });
 }
 
 /**

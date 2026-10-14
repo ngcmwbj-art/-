@@ -516,6 +516,8 @@ class UiHud implements FieldHud {
   private pgNotice: string | null = null;
   private pgNoticeWait = 0;
   private pgHopT = 999;
+  /** flag_pg_secret as last seen (-1: not yet looked this session). */
+  private pgSecretSeen = -1;
 
   show(ms = 4000): void {
     this.showT = Math.max(this.showT, ms);
@@ -769,6 +771,12 @@ class UiHud implements FieldHud {
       this.banner.t += dt;
       if (this.banner.t > this.banner.dur) this.banner = null;
     }
+    // ---- クリア後：やり残しが ぜんぶ そろった（E が flag_pg_secret 1 を書いた。05 10.1）
+    if (pg) {
+      const sc = flag('flag_pg_secret');
+      if (this.pgSecretSeen === 0 && sc >= 1) this.pushNote(YR_ALL_NOTE, CARD_SETTLE_MS);
+      this.pgSecretSeen = sc;
+    }
     // ---- クリア後の時間帯の知らせ（05 3.2）：操作がもどって、場所の名前が済んでから
     if (this.pgNotice) {
       if (!pg) this.pgNotice = null;
@@ -874,6 +882,7 @@ class UiHud implements FieldHud {
     this.lastFrame = -10;
     this.pgNotice = null;
     this.pgHopT = 999;
+    this.pgSecretSeen = -1;
     pgClockRunReset();
     curtain.a = 0;
     clearCallBubbleUi();
@@ -1186,6 +1195,9 @@ export function drawPgBadge(g: Gfx, x: number, y: number, alpha = 1): void {
 export function notifyNote(text: string): void {
   uiHud.pushNote(text);
 }
+
+/** やり残しが ぜんぶ そろったときの小さな知らせ（05 10.1。HUD が flag_pg_secret 0 → 1 を見て出す）。 */
+export const YR_ALL_NOTE = 'やり残し、ぜんぶ はなまる！';
 
 /** グソっ君の合流（05 7.2）：「みました帳に『やり残し』が ふえた。」 */
 export function notifyYarinokoshi(): void {

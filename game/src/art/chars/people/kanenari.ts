@@ -1249,4 +1249,110 @@ function withCookCap(c: HTMLCanvasElement): HTMLCanvasElement {
   return out;
 }
 
-registerChar('npc_kanenari_cook', () => mapFrames(charSprite('kanenari'), 'npc_kanenari_cook', withCookCap));
+/** The cap alone (10×6, its outline included), as withCookCap draws it on his head. */
+function cookCap(g: CanvasRenderingContext2D, mid: number, ty: number): void {
+  const px = (x: number, y: number, col: string, ww = 1, hh = 1) => {
+    g.fillStyle = col;
+    g.fillRect(x, y, ww, hh);
+  };
+  px(mid - 4, ty - 5, '#5A3A2A', 8, 1);
+  px(mid - 5, ty - 4, '#5A3A2A', 10, 3);
+  px(mid - 4, ty - 4, '#FFFFFF', 8, 2);
+  px(mid - 3, ty - 5, '#F4F1E8', 6, 1);
+  px(mid - 4, ty - 2, '#E8E4D8', 8, 1);
+  px(mid - 4, ty - 1, '#D8D4C8', 8, 1);
+  px(mid + 2, ty - 4, '#D8D4C8', 2, 1);
+}
+
+/**
+ * グソっ君 takes off the cook's cap (05_postgame 7.1・7.2: going with しゅん — and on again, back at the
+ * shop): from the front, 3 frames on the cook's canvas (the same size as withCookCap's, so he does not
+ * jump): 0 the cap on, 1 lifted off his head in his right hand, 2 held at his side, the headband bare.
+ */
+function capOffFrames(c: HTMLCanvasElement): HTMLCanvasElement[] {
+  const w = c.width;
+  const h = c.height;
+  const src = c.getContext('2d')!.getImageData(0, 0, w, h).data;
+  let top = -1;
+  let l = w;
+  let r = -1;
+  for (let y = 0; y < h && top < 0; y++)
+    for (let x = 4; x < w - 4; x++)
+      if (src[(y * w + x) * 4 + 3]) {
+        top = y;
+        break;
+      }
+  for (let x = 0; x < w; x++) if (src[(Math.max(0, top) * w + x) * 4 + 3]) ((l = Math.min(l, x)), (r = Math.max(r, x)));
+  const mid = Math.round((l + r) / 2);
+  // his own colour at the side of his body (the hand that holds the cap)
+  const sy = Math.min(h - 1, top + 12);
+  let hand = '#8A6A4A';
+  for (let x = w - 1; x >= 0; x--) {
+    const i = (sy * w + x) * 4;
+    if (src[i + 3]) {
+      hand = `rgb(${src[i]},${src[i + 1]},${src[i + 2]})`;
+      break;
+    }
+  }
+  const UP = 5;
+  /** The rightmost painted column of row y of the frame (its own px). */
+  const rightAt = (y: number): number => {
+    for (let x = w - 1; x >= 0; x--) if (src[(Math.max(0, Math.min(h - 1, y)) * w + x) * 4 + 3]) return x;
+    return r;
+  };
+  const frame = (fn: (g: CanvasRenderingContext2D, ty: number) => void): HTMLCanvasElement => {
+    const out = document.createElement('canvas');
+    out.width = w;
+    out.height = h + UP;
+    const g = out.getContext('2d')!;
+    g.drawImage(c, 0, UP);
+    fn(g, top + UP);
+    return out;
+  };
+  const on = withCookCap(c);
+  const lifted = frame((g, ty) => {
+    // his right arm up along the side of his head (outline, then his colour), the cap 3 px off his head
+    const y0 = ty + 9;
+    const x0 = Math.min(w - 2, rightAt(y0 - UP) + 1);
+    const x1 = Math.min(w - 2, Math.max(mid + 6, rightAt(top + 2) + 1));
+    const y1 = ty - 4;
+    const n = Math.max(1, y0 - y1);
+    for (let k = 0; k <= n; k++) {
+      const x = Math.round(x0 + ((x1 - x0) * k) / n);
+      const y = y0 - k;
+      g.fillStyle = '#3A2A22';
+      g.fillRect(x - 1, y, 3, 1);
+      g.fillStyle = hand;
+      g.fillRect(x, y, 1, 1);
+    }
+    cookCap(g, mid + 1, ty - 3);
+    g.fillStyle = hand;
+    g.fillRect(x1, y1 - 1, 2, 2);
+  });
+  const held = frame((g, ty) => {
+    const hy = ty + 13;
+    const hx = Math.min(w - 4, rightAt(hy - UP));
+    // the cap held by its band at his side, crown down a little
+    g.fillStyle = '#5A3A2A';
+    g.fillRect(hx - 3, hy - 1, 7, 5);
+    g.fillStyle = '#FFFFFF';
+    g.fillRect(hx - 2, hy, 5, 2);
+    g.fillStyle = '#D8D4C8';
+    g.fillRect(hx - 2, hy + 2, 5, 1);
+    g.fillStyle = hand;
+    g.fillRect(hx - 3, hy - 2, 2, 2);
+  });
+  return [on, lifted, held];
+}
+
+registerChar('npc_kanenari_cook', () => {
+  const s = mapFrames(charSprite('kanenari'), 'npc_kanenari_cook', withCookCap);
+  const base = charSprite('kanenari').walk.down[0];
+  const [on, lifted, held] = capOffFrames(base);
+  return {
+    ...s,
+    // 'cap_off' / 'cap_on' (one-shot, they hold their last frame), 'cap_hand': standing with it in his hand
+    anims: { ...(s.anims ?? {}), cap_off: { frames: [on, lifted, held], ms: [240, 320, 400], loop: false }, cap_on: { frames: [held, lifted, on], ms: [240, 320, 400], loop: false } },
+    extra: { ...(s.extra ?? {}), cap_hand: held },
+  };
+});
