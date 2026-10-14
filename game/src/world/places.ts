@@ -23,6 +23,7 @@ import { addFushigiSpots, field, type FieldScene } from './field';
 import { fxAt, fxElsewhere, registerWorldFx } from './fx';
 import { fushigiDone, onFushigiPressed } from './fushigi';
 import { initNpc, stepToward, type NpcWorld } from './npc';
+import { pgVisStage } from './postgame';
 import * as snd from './audio';
 
 // ---------------------------------------------------------------- fushigi_01: the curve mirror
@@ -347,7 +348,8 @@ registerWorldFx({
   anchored: true,
   update(f, dt) {
     if (f.map.id !== lastMap) resetMap(f);
-    const stage = flag('flag_stage');
+    // (after the clear the evening is stage 2 for the side-quests only: the town moves as it does — postgame pgVisStage)
+    const stage = pgVisStage(flag('flag_stage'));
     // mirror history (player frames), view centre and close-up
     if (f.map.id === 'map_town') updateMirror(f, dt);
     // cat shadow lag (fushigi_02): 30 frames behind from stage 1 until stamped
@@ -409,7 +411,7 @@ registerWorldFx({
   },
   draw(f, g, cx, cy, layer) {
     if (f.map.id !== 'map_town') return;
-    const stage = flag('flag_stage');
+    const stage = pgVisStage(flag('flag_stage'));
     if (layer === 'top') drawMirrorInset(f, g, cx, cy);
     if (layer === 'ground') mirrorScreen = null;
     if (layer === 'fg') {

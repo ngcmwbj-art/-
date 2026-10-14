@@ -632,3 +632,14 @@ KN が条件の寄り道で、合流していないとき：今の各ファイ�
 - 夜の星見台の灯りはペロが貸す。
 - やり残しのページの形、数える物の範囲（あいて・隠し物は数えない）、タイトルとセーブのカードの差分。
 - 新しい曲は作らない（今ある曲の割りあてと形ちがい）。
+
+---
+
+## 14. 変更の記録
+
+| 日付 | 担当 | 変えたこと |
+|---|---|---|
+| 2026-10-13 | U（第1期） | HUD の時計（`pgOn()` の間「6:40」10分きざみ・コロン点滅・札はいつも出す（仮）、時間帯の印は札の左の 12×12 の丸札〈3.2 の「数字の左」を札の外に〉）、時間帯の知らせ（場所の名前の帯・1.5秒・印が1回はねる。ツガオ便・待つの黒のあとは着いて操作がもどってから）、早回り `pgClockRun`、壁の時計の読み口 `ui/pg_wallclock.ts` `pgWallTime`、合流の知らせ `notifyYarinokoshi`、「つづきから」で `pgOnLoad()`。ui/pg_clock.ts・hud.ts・menu/index.ts・flow.ts・api.ts・debugcmds.ts（`pgUi`、開発サーバーだけ） |
+| 2026-10-14 | A（第1期） | 町 × 時間帯の曲（4.3）を `world/pgaudio.ts`（`applyPgAudio`。field の `applyAudio` の頭で `pgOn()` の間だけ）。夕鳴町の朝は「今のクリア後の朝」＝今は曲が鳴っていないので**曲なし**（相談）。星見台の朝・昼・夕方は `bgm_hoshi_morning`（昼・夕方と部屋は静かな形。仮）、海ぞいの朝・夕方は `bgm_umi_noon` の静かな形（仮）：音楽パラメータ `pg_shizuka`（太鼓をぬく・2小節で移る）。帯の変わり目は `playBgmBand`（小節の終わりから6秒で落とし、次は4秒で入る。同じ曲は形だけ）。床は第1期は今ある物の組みかえだけ。ツガオ便の音 `pgRideBoard`・`pgRideArrive`、早回りの刻み `se_pg_kizami`（`pgKizami`）。QA `pgAudio()` |
+| 2026-10-14 | W（第1期） | `world/postgame.ts`（時計・帯の表 `PG_BANDS`・`applyPgStages`・章の門・`pgTick`〈field の「操作できる間」だけ〉・`onPgBand`・光の表 `PG_LIGHT`〈第1期は今あるプリセット：星見台の昼・夕方は h3c、海ぞいの朝・夕方・夜は c4 で仮〉・20秒の移り・影の向きを時刻で回す `pgShadowVec`・夕鳴町の部屋 `pgYunariRoom`・`p` キー `pgPickKey`/`pgTalkKey`・`pgLantern`・`oddOn`/`pgVisStage`）、`world/pg_schedule.ts`（`PG_SCHEDULE`〈第2期で全員〉と下じき：夕鳴町の昼は第3章の段階0の町の人、第1章の軽トラ・第2章の運転席のツガオは出さない、敵のシンボルは出さない。画面の中の人は帯の変わり目にすぐ消さない）、夕鳴町の夕方のツガオ便は昼寝の絵、星見台のツガオ `pg_tsugao_hoshi` (41,43)、`map_hoshi_train` に入れない、防災無線を止める、壁の時計は `pgWallTime`。段階2の見た目（構造物の北東・赤とんぼ・ほこり・街灯・水・HUD のちらつき・影だけの人・PropEnv.stage）はクリア後は出さない（ふしぎ09 のカートはそのまま）。QA `pg()`・`pgWho()`（開発サーバーだけ） |
+| 2026-10-14 | E（第1期） | 合流・別れ（`events/postgame.ts`：c3_kn_shop に「いっしょに 行く」、夜は店の中 (7,5)、たかしの前で隊列のグソっ君に話すと「店に もどる？」、ほかの町の休める所で「グソっ君を 先に 帰す」〈仮〉）、ツガオ便（今の町をのぞく2つ、60・90・150分、着く所 夕鳴町 (44,28)・海ぞい (21,17)・星見台 (41,44)〈W のツガオ (41,43) の下〉、夕方の昼寝の1ページ、夜の星見台のペロの灯り）、待つ（休める所に「セーブ｜待つ｜…」を先に。公園のベンチは「待つ」だけ）・寝る（家のふとん → 5:00・全回復・母の朝）、章の門（hajimete・hokokusho の `ch1()` → `pgCh1()`、ch2/common.ts `ch2Open()`・`lanternOn()`、dome・mimi・tetsubou の `flag_ch2_boss_beaten` → `ch2Open()`）、文は `data/text/postgame.ts`（textcheck2 に入れた）、通し `tools/playthrough.mjs --chapter pg` |

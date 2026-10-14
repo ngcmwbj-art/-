@@ -59,6 +59,15 @@
 //                                              at n = total 「軽トラへ」 and 「済」; it goes by
 //                                              itself when 〔しめ〕 writes flag_ch2_delivery
 //   cut_h_village_lit is registered with the battle (registerBattleCut)
+//
+// クリア後（05_postgame。しくみは world/postgame.ts）:
+//   （HUD の札は pgOn() のあいだ「6:40」と時間帯の印。時間帯が変わると「夕方に なった。」が自分で出る）
+//   const from = pgMin(); pgAdvance(90);       ツガオ便・待つ：時刻を先に進めてから
+//   yield* fieldCurtain(1, 400); yield* pgClockRun(from, pgMin()); yield* …
+//                                              黒の上で HUD の数字が早く回る（1.5秒）
+//   notifyYarinokoshi()                        「みました帳に『やり残し』が ふえた。」（合流のとき）
+//   notifyNote(text)                           字だけの小さな知らせ（持ち物の付箋の形）
+//   pgWallTime(env)                            壁の時計の読み口（int_* の絵。ui/pg_wallclock.ts）
 
 export { say, choose, ask, caption, dialogVisible, dialogSpeech, dismissDialog, retagDialog, type SayOpts, type ChooseOpts } from './dialog';
 export { openShop, registerShop, type ShopDef } from './shop';
@@ -91,7 +100,12 @@ export {
   completeDeliveryCard,
   hideDeliveryCard,
   deliveryCardShowing,
+  notifyNote,
+  notifyYarinokoshi,
+  drawPgBadge,
 } from './hud';
+export { pgClockRun, pgBandIcon, pgFaceAt } from './pg_clock';
+export { pgWallTime } from './pg_wallclock';
 export {
   registerNewGameHook,
   startNewGame,

@@ -6,6 +6,7 @@
 
 import { flag, state } from '../game/state';
 import type { Cond, Ground, MapDef, MapObj, TileSpec } from './types';
+import { pgPickKey } from './postgame';
 
 const registry = new Map<string, MapDef>();
 
@@ -202,6 +203,9 @@ export function pickStage<T>(v: T | Record<string, T> | undefined, stage = curre
   if (v === undefined || v === null) return undefined;
   if (typeof v !== 'object' || Array.isArray(v)) return v as T;
   const rec = v as Record<string, T>;
+  // クリア後（05 6.2）：`p` キーが先（無ければ下の段階のキー）
+  const pk = pgPickKey(rec);
+  if (pk !== undefined) return pk;
   const keys = Object.keys(rec);
   if (!keys.some((k) => k === 'default' || /^[shc]\d/.test(k))) return v as T;
   const kp = stageKeyPrefix();

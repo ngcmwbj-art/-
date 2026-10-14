@@ -5,6 +5,7 @@
 // どのページも 3行 × 336px まで（__game.cmd.textcheck2 が見る）。
 
 import { fillNames } from './c3_names';
+import { C3_HIRUMAE } from './c3_hirumae';
 
 // ================================================================ 1.4 タイトル・つづきから（UI が使う）
 
@@ -613,6 +614,7 @@ export function c3Texts(): Record<string, unknown> {
     s05: { S05_A, S05_B },
     s06: { S06_A, S06_B, S06_GOT, S06_C },
     talk: C3_TALK,
+    hirumae: C3_HIRUMAE,
     kid: C3_KID_AGAIN,
     tsugaobin: C3_TSUGAOBIN,
     obj: C3_OBJ,

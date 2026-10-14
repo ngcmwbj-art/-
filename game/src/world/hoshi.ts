@@ -31,6 +31,7 @@ import { fushigiDone, onFushigiPressed } from './fushigi';
 import { registerWorldFx } from './fx';
 import { callBubble, clearCallBubble } from './hud';
 import { condOk, isCh2Map, type LoadedMap } from './maps';
+import { pgOn } from './postgame';
 import { getScript } from './scripts';
 import * as hoshiNpcText from '../data/text/hoshi_npcs';
 import type { MapDef } from './types';
@@ -384,7 +385,8 @@ export function callBusy(): boolean {
 
 function callsActive(f: FieldScene): boolean {
   if (!onHoshi(f) || f.map.id === 'map_hoshi_train') return false;
-  if (!flag('flag_ch2_arrived') || flag('flag_ch2_boss_beaten') || flag('flag_ch2_calls_off')) return false;
+  // (after the clear the loudspeaker never calls: 05 5.3)
+  if (!flag('flag_ch2_arrived') || flag('flag_ch2_boss_beaten') || flag('flag_ch2_calls_off') || pgOn()) return false;
   return flag('flag_ch2_stage') <= 2;
 }
 

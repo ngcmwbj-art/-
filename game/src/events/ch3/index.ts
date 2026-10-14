@@ -5,6 +5,7 @@
 import './common';
 import './talked';
 import './prologue';
+import './hirumae'; // fix1014 F3: 段階0（昼前）の夕鳴町の人と話す
 import './umizoi';
 // 第2期（S07〜S14）
 import './azemichi';

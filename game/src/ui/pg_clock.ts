@@ -11,7 +11,7 @@
 import type { Co } from '../engine/co';
 import { PixelCanvas } from '../engine/pixel';
 import { sfx } from '../audio';
-import { pgMin, pgOn, PG_DAY_MIN, type PgBand } from '../world/postgame';
+import { pgBandAt, pgMin, pgOn, PG_DAY_MIN, type PgBand } from '../world/postgame';
 import { UI } from './window';
 
 // ---------------------------------------------------------------- 時刻の文字
@@ -139,6 +139,7 @@ function toPixel(src: HTMLCanvasElement): PixelCanvas {
 // ---------------------------------------------------------------- 早回り（3.4・8.2）
 
 let runFace: string | null = null;
+let runMin = 0;
 
 /** 早回りの間の札の文字（hud.ts が読む）。null：いつもの時刻。 */
 export function pgRunFace(): string | null {
@@ -161,7 +162,8 @@ export function* pgClockRun(from: number, to: number, ms = 1500): Co {
   const each = ms / steps;
   let ticked = 0;
   for (let i = 1; i <= steps; i++) {
-    runFace = pgFaceAt((a + i) * 10);
+    runMin = (a + i) * 10;
+    runFace = pgFaceAt(runMin);
     // めくる音は数を絞って（10分ごとに鳴らすと うるさい）
     if (i === steps || i - ticked >= Math.max(1, Math.round(steps / 5))) {
       sfx('se_clock_flip', { pitch: 1 + Math.min(0.2, i * 0.01) });
@@ -171,6 +173,11 @@ export function* pgClockRun(from: number, to: number, ms = 1500): Co {
   }
   yield 250;
   runFace = null;
+}
+
+/** 早回りの間の時間帯（札の左の印もいっしょに回る）。null：いつもの時間帯。 */
+export function pgRunBand(): PgBand | null {
+  return runFace === null ? null : pgBandAt(runMin);
 }
 
 /** 早回りを途中でやめた（場面の飛ばし・タイトルへ）。 */

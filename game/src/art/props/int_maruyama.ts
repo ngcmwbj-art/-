@@ -23,6 +23,7 @@ import { mkFrames, stand } from './pkit';
 import { registerProp } from './registry';
 import { fontSmallWidth, fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
+import { pgWallTime } from '../../ui/pg_wallclock';
 
 // ---------------------------------------------------------------- shell
 
@@ -300,6 +301,9 @@ function sauceCalendar(p: PixelCanvas, x: number, y: number): void {
 // ---------------------------------------------------------------- wall clock & wall fan (flat, animated)
 
 function clockTime(env: PropEnv): [number, number] {
+  // (after the clear the wall clocks tell the postgame clock: 05_postgame 3.2)
+  const pg = pgWallTime(env);
+  if (pg) return [pg[0], pg[1]];
   if (env.stage >= 3) return [5, 1];
   if (env.stage >= 1) return [5, 0];
   const c = env.flag('flag_clock');

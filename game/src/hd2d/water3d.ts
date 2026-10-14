@@ -17,6 +17,7 @@ import { rgba32 } from '../engine/pixel';
 import { drawWater, type Reflector, type WaterCtx } from '../art/tiles/water';
 import { P } from '../art/tiles/palette';
 import { flag } from '../game/state';
+import { pgVisStage } from '../world/postgame';
 import type { FieldScene, PropInst } from '../world/field';
 import { charAt, groundAt, isCh2Map } from '../world/maps';
 import { fushigiDone } from '../world/fushigi';
@@ -233,7 +234,7 @@ export function waterSheet(f: FieldScene, mg: Margin, heightAt: (x: number, z: n
       grade: f.grade,
       t,
       mt: f.mt,
-      stage: flag('flag_stage'),
+      stage: pgVisStage(flag('flag_stage')),
       map: m,
       vis,
       reflect: refl,

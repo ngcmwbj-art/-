@@ -155,21 +155,22 @@ const OBJECTS: MapObj[] = [
   { t: 'obj', id: 'obj_c3_takashi_harigami', x: 27, y: 21, face: 'up', cond: { when: ch3Hirumae } },
   { t: 'npc', id: 'npc_cow_statue', script: 'obj_c3_yakisoban_statue', x: 26, y: 22, dir: 'down', noTurn: true, statue: true, cond: { when: ch3Hirumae } },
   // 第3章 段階0 の町の人（62 5.1：平日の昼前は お店の人と お年寄りだけ。ランドセルの子・踏切の高校生はいない）。
-  // flag_stage は第1章の 3 のままなので、ここで別に置く（話しかけない背景の人：台詞は第1期にはない）
-  { t: 'npc', id: 'c3_hm_mamekichi', sprite: 'npc_mamekichi', passerby: true, x: 36, y: 20, dir: 'down', off: [0, 2], cond: { when: ch3Hirumae } },
-  { t: 'npc', id: 'c3_hm_ojii', sprite: 'npc_ojii', passerby: true, x: 10, y: 21, dir: 'down', pose: 'sit', off: [0, -2], cond: { when: ch3Hirumae } },
-  { t: 'npc', id: 'c3_hm_mizumaki', sprite: 'npc_mizumaki', passerby: true, x: 11, y: 32, dir: 'down', cond: { when: ch3Hirumae } },
+  // flag_stage は第1章の 3 のままなので、ここで別に置く。主婦の通行人のほかは話しかけられる
+  // （fix1014 F3：台詞は data/text/c3_hirumae.ts、スクリプトは events/ch3/hirumae.ts）
+  { t: 'npc', id: 'c3_hm_mamekichi', sprite: 'npc_mamekichi', x: 36, y: 20, dir: 'down', off: [0, 2], cond: { when: ch3Hirumae } },
+  { t: 'npc', id: 'c3_hm_ojii', sprite: 'npc_ojii', x: 10, y: 21, dir: 'down', pose: 'sit', off: [0, -2], cond: { when: ch3Hirumae } },
+  { t: 'npc', id: 'c3_hm_mizumaki', sprite: 'npc_mizumaki', x: 11, y: 32, dir: 'down', cond: { when: ch3Hirumae } },
   {
-    t: 'npc', id: 'c3_hm_madam', sprite: 'npc_madam', passerby: true, x: 17, y: 22, dir: 'down', cond: { when: ch3Hirumae },
+    t: 'npc', id: 'c3_hm_madam', sprite: 'npc_madam', x: 17, y: 22, dir: 'down', cond: { when: ch3Hirumae },
     move: { kind: 'patrol', points: [[17, 22], [17, 24]], speed: 1.0, wait: 2000 },
   },
-  { t: 'npc', id: 'c3_hm_kotaro', sprite: 'npc_kotaro', passerby: true, animal: true, x: 16, y: 22, dir: 'down', cond: { when: ch3Hirumae }, move: { kind: 'follow', target: 'c3_hm_madam', dx: -1, dy: 0 } },
+  { t: 'npc', id: 'c3_hm_kotaro', sprite: 'npc_kotaro', animal: true, x: 16, y: 22, dir: 'down', cond: { when: ch3Hirumae }, move: { kind: 'follow', target: 'c3_hm_madam', dx: -1, dy: 0 } },
   {
     t: 'npc', id: 'c3_hm_shufu', sprite: 'npc_walker_shufu', passerby: true, x: 24, y: 24, dir: 'right', cond: { when: ch3Hirumae },
     move: { kind: 'route', points: [[24, 24], [54, 24]], speed: 1.1, wait: 2500 },
   },
-  { t: 'npc', id: 'c3_hm_cat', sprite: 'npc_cat_mike', passerby: true, x: 30, y: 32, dir: 'down', noTurn: true, pose: 'sleep', cond: { when: ch3Hirumae } },
-  { t: 'npc', id: 'c3_hm_hato', sprite: 'npc_hato', passerby: true, x: 33, y: 22, dir: 'down', pose: 'peck', cond: { when: ch3Hirumae } },
+  { t: 'npc', id: 'c3_hm_cat', sprite: 'npc_cat_mike', x: 30, y: 32, dir: 'down', noTurn: true, pose: 'sleep', cond: { when: ch3Hirumae } },
+  { t: 'npc', id: 'c3_hm_hato', sprite: 'npc_hato', x: 33, y: 22, dir: 'down', pose: 'peck', cond: { when: ch3Hirumae } },
   { t: 'door', id: 'door_town_hinoya', x: 32, y: 21, to: 'map_hinoya', tx: 4, ty: 6, dir: 'up', se: ['se_door', 'se_shop_bell'] },
   { t: 'door', id: 'door_town_laundry', x: 26, y: 31, to: 'map_laundry', tx: 3, ty: 5, dir: 'up', se: 'se_door_glass' },
   { t: 'door', id: 'door_town_koban', x: 51, y: 31, to: 'map_koban', tx: 4, ty: 5, dir: 'up', se: 'se_door_glass' },

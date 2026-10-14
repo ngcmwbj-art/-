@@ -12,6 +12,7 @@
 // every house, shed and greenhouse has its door `D` (the tool shed's `Q`):
 // the rooms are data/maps/hoshi_rooms2.ts.
 
+import { pgOn } from '../../world/postgame';
 import { registerMap } from '../../world/maps';
 import type { MapDef, MapObj, TileSpec } from '../../world/types';
 import { hg, htalk, htext, narrowFirst, O, O2, PR } from './hoshi_common';
@@ -448,6 +449,9 @@ const OBJECTS: MapObj[] = [
   O('obj_hoshi_pokosha_bike', 45, 44),
   // ツガオさん asleep in the driver's seat (his picture is the truck's): spoken to through the window from (41,42) or (42,43)
   { t: 'obj', id: 'npc_tsugao', x: 42, y: 42, script: 'npc_tsugao', cond: s02 } as MapObj,
+  // クリア後（05_postgame 8.1）：ツガオ便の止まる所。ツガオは軽トラの横に立つ（どの時間帯でも。乗る台本は events/postgame.ts）。
+  // 運転席で寝る第2章のツガオ（npc_tsugao）は、クリア後は出ない（world/pg_schedule.ts）
+  { t: 'npc', id: 'pg_tsugao_hoshi', sprite: 'npc_tsugao', x: 41, y: 43, dir: 'down', script: 'pg_tsugao_hoshi', cond: { when: pgOn } } as MapObj,
   { t: 'npc', id: 'npc_hirosuke', x: 43, y: 43, dir: 'up', talk: htalk('npc_hirosuke'), cond: s02 },
   // ポコシャさん (ぴーちゃん on his left shoulder) behind the truck; while the delivery runs he walks in the line instead
   { t: 'npc', id: 'npc_pokosha', x: 45, y: 42, dir: 'left', talk: htalk('npc_pokosha'), cond: { stage: '0-1', notFlag: 'flag_ch2_delivery_on' } },

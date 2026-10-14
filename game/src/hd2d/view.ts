@@ -11,6 +11,7 @@
 
 import * as THREE from 'three';
 import { ch3Graded, ch3TownTime } from '../world/umizoi';
+import { pgLight, pgShadowVec } from '../world/postgame';
 import { H, W } from '../engine/screen';
 import type { Actor } from '../world/actor';
 import type { FieldScene } from '../world/field';
@@ -21,6 +22,8 @@ import { markShadowPass } from './solid';
 import { placeOf } from './places';
 import { PITCH, SKY_AT, SV, TownWorld } from './town';
 import { ROOM_BG, RoomWorld, roomMap, roomPan } from './room';
+// (the truck's bed on the move, chapter 3: its own 3D, nidai.ts)
+import { NidaiWorld, nidaiMap } from './nidai';
 import { bindView, shotLens } from './cut';
 import { nightGrade, nightMul, patchNight } from './cut_night';
 
@@ -58,6 +61,9 @@ const DAWN_GROUND = new THREE.Color('#c8bcb8');
 const DAWN_FOG = '#d4d4e6';
 /** Which outdoor light a map takes: chapter 3's noon, 夕鳴町's last morning, or the evening. */
 function lightOf(def: Parameters<typeof ch3Graded>[0]): 'noon' | 'dawn' | 'eve' {
+  // after the clear: the town × the band's light (postgame PG_LIGHT, 05 4.1)
+  const pl = pgLight(def);
+  if (pl) return pl.sun;
   return ch3Graded(def) ? 'noon' : ch3TownTime(def) === 2 ? 'dawn' : 'eve';
 }
 const MAX_LAMPS = 4;
@@ -71,7 +77,8 @@ const MAX_LAMPS = 4;
  * a room keeps its 2D proportions too. A battle's backdrop (still()) and the
  * ending's shots (cut.ts) have their own lenses and no stretch.
  */
-export const ROOM_CAM = { pitch: 54 };
+// (2026-10-14 依頼主「建物の中の視点角度をもう少し低くして」: 54° → 48°)
+export const ROOM_CAM = { pitch: 48 };
 const roomStretch = (): number => Math.tan((ROOM_CAM.pitch * Math.PI) / 180) / Math.tan((PITCH * Math.PI) / 180);
 /**
  * The sky light at night (the ending's town; 1.7 by day): white at π, so a
@@ -140,7 +147,7 @@ export class Hd2dView {
   private readonly hemi: THREE.HemisphereLight;
   private readonly lamps: THREE.PointLight[] = [];
   private post: Post | null = null;
-  private world: TownWorld | RoomWorld | null = null;
+  private world: TownWorld | RoomWorld | NidaiWorld | null = null;
   private worldMap = '';
   private worldF: FieldScene | null = null;
   private worldProps: unknown = null;
@@ -228,7 +235,7 @@ export class Hd2dView {
     return [w, Math.round((w * H) / W)];
   }
 
-  private ensureWorld(f: FieldScene): TownWorld | RoomWorld {
+  private ensureWorld(f: FieldScene): TownWorld | RoomWorld | NidaiWorld {
     // (a map loaded again — a warp, a door back — gives the field new props: build again)
     if (this.world && this.worldF === f && this.worldMap === f.map.id && this.worldProps === f.props) return this.world;
     if (this.world) {
@@ -239,7 +246,7 @@ export class Hd2dView {
     const t0 = performance.now();
     // (a room of chapter 1: room.ts)
     const room = roomMap(f.map.id);
-    this.world = room ? new RoomWorld(f, this.quality === 'light') : new TownWorld(f, this.quality === 'light');
+    this.world = room ? new RoomWorld(f, this.quality === 'light') : nidaiMap(f.map.id) ? new NidaiWorld(f, this.quality === 'light') : new TownWorld(f, this.quality === 'light');
     this.buildMs = performance.now() - t0;
     this.worldF = f;
     this.worldMap = f.map.id;
@@ -281,6 +288,11 @@ export class Hd2dView {
    */
   private placeCamera(f: FieldScene, crop: Crop | null): THREE.Vector3 {
     // (a shot of the ending: its own lens, aimed `lift` over the ground — cut.ts)
+    // (the truck's bed: the scene's own camera, nidai.ts)
+    if (this.world instanceof NidaiWorld) {
+      this.setStretch(1);
+      return this.world.placeCamera(f, [this.eye, this.camera], crop, this.camera);
+    }
     const shot = shotLens(f);
     const cam = shot ?? CAM;
     const lift = shot?.lift ?? 0;
@@ -326,11 +338,13 @@ export class Hd2dView {
     // down the screen; the school in stage 2 swung from the evening's
     // direction as far as the 2D swings it (east → north-east), so the turn
     // shows in 3D too (places.ts shadowSwing)
-    const fixed = f.map.def.shadowVec;
+    // (after the clear the sun goes round with the clock: postgame pgShadowVec)
+    const pgVec = pgShadowVec(f.map.def);
+    const fixed = pgVec ?? f.map.def.shadowVec;
     if (fixed) {
       const l = Math.hypot(fixed[0], fixed[1]) || 1;
       let th = Math.atan2(fixed[1], fixed[0]);
-      if (placeOf(f.map.id).shadowSwing) th = Math.atan2(-0.42, g.sunX || 1) + (th - Math.atan2(0.25, g.sunX || 1));
+      if (!pgVec && placeOf(f.map.id).shadowSwing) th = Math.atan2(-0.42, g.sunX || 1) + (th - Math.atan2(0.25, g.sunX || 1));
       az = th + Math.PI;
       el = Math.atan(SV / (len * l * 1.27));
     }
@@ -367,7 +381,7 @@ export class Hd2dView {
   }
 
   /** The few lamps nearest the target get a small warm point light. */
-  private placeLamps(world: TownWorld | RoomWorld, t: THREE.Vector3, lit: number): void {
+  private placeLamps(world: TownWorld | RoomWorld | NidaiWorld, t: THREE.Vector3, lit: number): void {
     const spots = world.spots
       .filter((s) => s.p.present && Math.abs(s.x - t.x) < 14 && Math.abs(s.z - t.z) < 10)
       .sort((a, b) => Math.hypot(a.x - t.x, a.z - t.z) - Math.hypot(b.x - t.x, b.z - t.z));
@@ -401,7 +415,8 @@ export class Hd2dView {
     const world = this.ensureWorld(f);
     const tgt = this.placeCamera(f, crop);
     // (a room: its ceiling light instead of the evening sun, room.ts)
-    const sunYaw = world instanceof RoomWorld ? world.light(this.sun, this.hemi, tgt, this.sunDir) : this.placeSun(f, tgt);
+    // (the truck's bed: the hour's sun of its own, nidai.ts)
+    const sunYaw = world instanceof RoomWorld ? world.light(this.sun, this.hemi, tgt, this.sunDir) : world instanceof NidaiWorld ? world.light(this.sun, this.hemi, this.scene, this.sunDir) : this.placeSun(f, tgt);
     const lit = f.map.def.kind === 'indoor' ? 1 : Math.max(0, Math.min(1, f.grade.lit));
     world.update(f.t, sunYaw, this.sunDir, lit, tgt.x, tgt.z, this.hidesParty(f));
     this.placeLamps(world, tgt, lit);
@@ -475,7 +490,7 @@ export class Hd2dView {
     this.stillNear = c.near;
     c.clearViewOffset();
     c.updateMatrixWorld();
-    const sunYaw = world instanceof RoomWorld ? world.light(this.sun, this.hemi, at, this.sunDir) : this.placeSun(f, at);
+    const sunYaw = world instanceof RoomWorld ? world.light(this.sun, this.hemi, at, this.sunDir) : world instanceof NidaiWorld ? world.light(this.sun, this.hemi, this.scene, this.sunDir) : this.placeSun(f, at);
     const lit = f.map.def.kind === 'indoor' ? 1 : Math.max(0, Math.min(1, f.grade.lit));
     // (the roof's far sky: hung where this lower camera looks past the fence, its middle at row 64)
     if (world instanceof TownWorld) world.skyY = c.position.y - Math.tan(axis + below(64)) * (c.position.z - (at.z - SKY_AT.d));

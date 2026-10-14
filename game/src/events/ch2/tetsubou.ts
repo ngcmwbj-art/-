@@ -45,7 +45,7 @@ import { HANG_MAX, HANG_PASS, KATA_N, KAZU } from '../../data/text/hoshi_tetsubo
 import { addMp, sendAway } from '../lib';
 import { forceBoxPos } from '../stage';
 import { se } from './compat';
-import { hStage, lanternOn, routeTiles } from './common';
+import { ch2Open, hStage, lanternOn, routeTiles } from './common';
 import { DF } from './dome';
 
 export const TF = {
@@ -84,12 +84,12 @@ function onMap(id: string): boolean {
 
 /** 第1章で 公園の 鉄棒に 挑んだ 人だけ、夜の あいだ、グソっ君と いっしょ。 */
 function eligible(): boolean {
-  return flag('flag_kensui_try') > 0 && !flag('flag_ch2_boss_beaten') && kanenariHere();
+  return flag('flag_kensui_try') > 0 && ch2Open() && kanenariHere();
 }
 
 /** まつ先生が 集会所か 鉄棒に いる 段階（段階2 は 山道の 入口）。 */
 function fumiNear(): boolean {
-  return hStage() <= 1 && !flag('flag_ch2_boss_beaten');
+  return hStage() <= 1 && ch2Open();
 }
 
 /** その 人の 物語が 先（mimi.ts の storyFirst('fumi') と 同じ 見方）。 */
@@ -97,7 +97,7 @@ function fumiStoryFirst(): boolean {
   if (!flag('flag_ch2_yoriai')) return true;
   if (flag('flag_ch2_sawa_seki') && !flag('flag_seen_npc_hoshi_fumi_sawa')) return true;
   const s = hStage();
-  const dome = lanternOn() && s >= 1 && s <= 2 && !flag('flag_ch2_boss_beaten');
+  const dome = lanternOn() && s >= 1 && s <= 2 && ch2Open();
   if (dome && (!flag(DF.key) || (flag(DF.n) >= 3 && !flag(DF.report)) || (flag(DF.report) > 0 && !flag(DF.after)))) return true;
   return false;
 }

@@ -35,7 +35,7 @@ import { chapter3LevelUps } from '../../ui/flow';
 import { setClockText, showClock } from '../../ui/hud';
 import { showBubble } from '../../ui/bubble';
 import * as T from '../../data/text/c3_events';
-import { F, getKeyItem, giveKey } from '../lib';
+import { F, getKeyItem, giveKey, tileFree, tileRoute } from '../lib';
 import { getScript } from '../../world/scripts';
 import type { Dir } from '../../game/state';
 import { ambEvent, musicParam, reportCard, se } from '../ch2/compat';
@@ -48,6 +48,13 @@ import { c3Town, inCh3, npc, say3 } from './common';
  * bed reaching back north (in HD-2D the body is ~3 tiles deep), ヒロスケ at its side.
  */
 const TRUCK_TOWN = { x: 45, y: 30 };
+/**
+ * The driver's window (the west side of the cab: the lane's west side, the truck
+ * set a little west to keep off つりえさ — spawnTruck fitLane — so not (44,29), in its body).
+ */
+const TRUCK_WINDOW = { x: 43, y: 29 };
+/** ヒロスケ by the truck's nose (S04). */
+const HIRO_TOWN = { x: 45, y: 31 };
 /** Where the S04 talk starts: on the 東の通り, north or south of the truck. */
 const TRUCK_ZONE = { x0: 43, x1: 47, y0: 24, y1: 31 };
 /** 焼きそばのたかし's front (S03's bubble). */
@@ -72,6 +79,7 @@ export function spawnTruck(id: string, x: number, y: number, dir: VehicleView, k
   a.data.noSpace = true;
   a.solid = true;
   a.bh = 10;
+  fitLane(a);
   const img = () => vehicleFrame(a.data.vehicle as string, a.dir, game.time, a.moving);
   a.bw = 52;
   a.data.shadowFrame = img();
@@ -85,6 +93,31 @@ export function spawnTruck(id: string, x: number, y: number, dir: VehicleView, k
     g.img(im, px - Math.floor(im.width / 2), py - im.height + 1);
   };
   return a;
+}
+
+/**
+ * Parked end-on (seen from the front or the back) in a lane between
+ * buildings, the truck keeps its body inside the lane: its picture (30 px,
+ * tsugaoFront) is wider than the half of the lane it stood in, and its 3D
+ * body (hd2d/actors.ts, 60 px long) went into the shop beside it — 銀座の
+ * 東の角 (45,30): into つりえさ's roof (2026-10-14 依頼主「ツガオの軽トラが
+ * 建物に食い込んでる」). Moved sideways only as far as needed, a px off the walls.
+ */
+function fitLane(a: Actor): void {
+  if (a.dir === 'left' || a.dir === 'right') return;
+  const tx = Math.floor(a.x / 16);
+  const ty = Math.floor((a.y - 1) / 16);
+  // the rows its body covers (60 px north of its front)
+  const open = (x: number) => [0, 1, 2, 3].every((k) => tileFree(x, ty - k));
+  if (!open(tx)) return;
+  let l = tx;
+  let r = tx;
+  while (l > tx - 3 && open(l - 1)) l--;
+  while (r < tx + 3 && open(r + 1)) r++;
+  const half = 16;
+  const x0 = l * 16 + half;
+  const x1 = (r + 1) * 16 - half;
+  if (x0 <= x1) a.x = Math.max(x0, Math.min(x1, a.x));
 }
 
 /** Change the field's map under a black screen (the scene's own fades; no enter scripts). */
@@ -231,6 +264,9 @@ function registerWrap(id: string, fn: () => Co): void {
 
 // ================================================================ S02 evt_ch3_hinoya
 
+/** Where しゅん hands over the tomato: across the counter from おばあ (4,2). */
+const HINOYA_TALK: [number, number] = [4, 4];
+
 export function* evtCh3Hinoya(): Co {
   const obaa = npc('npc_obaa');
   if (obaa) {
@@ -238,7 +274,14 @@ export function* evtCh3Hinoya(): Co {
     obaa.dir = 'down';
   }
   yield 300;
-  yield* walk('player', ['up', 'up'], { speed: 3.5, face: 'up' });
+  // up to the counter in front of おばあ (4,4), round the candy jars (4–5,5) — straight up from the
+  // door (4,6) went through them (2026-10-14 依頼主「真ん中の障害物をすり抜けている」)
+  const p = F().player;
+  if (p.tileX !== HINOYA_TALK[0] || p.tileY !== HINOYA_TALK[1]) {
+    const route = tileRoute([p.tileX, p.tileY], HINOYA_TALK, [], 8);
+    if (route) yield* walk('player', route, { speed: 3.5, face: 'up' });
+  }
+  F().player.dir = 'up';
   yield* say3(T.S02_A);
   // しゅん holds out the tomato
   removeItem('item_tomato_omiyage');
@@ -283,9 +326,11 @@ registerWorldFx({
     if (!flag('flag_ch3_tomato_given') || flag('flag_ch3_truck_go')) return;
     if (!f.actorById('c3_truck')) {
       spawnTruck('c3_truck', TRUCK_TOWN.x, TRUCK_TOWN.y, 'down', flag('flag_ch3_truck_wait') ? 'tsugao_truck_nap' : 'tsugao_truck');
-      // ヒロスケ on the road right behind the bed (the truck is seen from the front). Not at its east
-      // side: that is the shuttered shop's roof (46,26–31) and the building hid him in 2D (W, 2026-10-12)
-      const h = spawn('c3_hirosuke', TRUCK_TOWN.x, TRUCK_TOWN.y - 2, { sprite: 'npc_hirosuke', dir: 'down' });
+      // ヒロスケ by the truck's nose, on its east side of the lane (the truck is seen from the front).
+      // Not at its east side further north: that is the shuttered shop's roof (46,26–31) and the
+      // building hid him in 2D (W, 2026-10-12); not behind the bed: in HD-2D its body (60 px long)
+      // stood round him (2026-10-14); not in the lane's west side: しゅん walks up it to the window
+      const h = spawn('c3_hirosuke', HIRO_TOWN.x, HIRO_TOWN.y, { sprite: 'npc_hirosuke', dir: 'down' });
       h.data.scripted = true;
     }
     if (flag('flag_ch3_truck_wait') || !f.controllable) return;
@@ -303,8 +348,7 @@ export function* evtCh3TruckGo(): Co {
     // up to the driver's window: the west side of the truck, by the cab (the bed reaches
     // back north — in HD-2D he'd stand behind its body)
     const p = F().player;
-    const x = TRUCK_TOWN.x - 1;
-    const y = TRUCK_TOWN.y - 1;
+    const { x, y } = TRUCK_WINDOW;
     if (p.tileX !== x || p.tileY !== y) yield* walk('player', [[x, p.tileY], [x, y]], { speed: 4 });
     p.dir = 'right';
   }

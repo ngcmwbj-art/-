@@ -52,7 +52,7 @@ import { keyGuide } from '../stage';
 import { addMp, F, getKeyItem, giveKey } from '../lib';
 import { puff } from '../fx';
 import { face, walk } from '../../world/api';
-import { hStage, lanternOn, npc, poseIf, routeTiles, unpose } from './common';
+import { ch2Open, hStage, lanternOn, npc, poseIf, routeTiles, unpose } from './common';
 import { scopeSheet } from '../../art/props/dome_art';
 import {
   barrel,
@@ -904,7 +904,7 @@ function* giveDomeKey(): Co {
 
 /** まつ先生 (npcs.ts asks here first, stages 1–2): 〔dome〕, 〔kanbo〕, the after line, the reminder. True when one was said. */
 export function* domeAtFumi(): Co<boolean> {
-  if (!domeOpenNight() || flag('flag_ch2_boss_beaten')) return false;
+  if (!domeOpenNight() || !ch2Open()) return false;
   if (!flag(DF.key)) {
     yield* giveDomeKey();
     return true;
@@ -959,7 +959,7 @@ function* kanboReport(): Co {
 export function* evtDomeCall(): Co {
   const f = field();
   // (not in the middle of the delivery: the cucumbers for ぴょん夫人 come first; she calls the next time)
-  if (!f || flag(DF.key) || !domeOpenNight() || flag('flag_ch2_boss_beaten') || flag('flag_ch2_delivery_on')) return;
+  if (!f || flag(DF.key) || !domeOpenNight() || !ch2Open() || flag('flag_ch2_delivery_on')) return;
   const fumi = npc('npc_hoshi_fumi');
   if (!fumi || !fumi.visible) return;
   const p = f.player;
@@ -984,7 +984,7 @@ registerScript('evt_dome_call', evtDomeCall);
 // ---- 分校の 裏の 丘（map_hoshi_urayama、02 #80）：扉と 小窓
 
 registerScript('obj_hoshi_dome', function* (ctx): Co {
-  if (flag(DF.key) && !flag('flag_ch2_boss_beaten')) {
+  if (flag(DF.key) && ch2Open()) {
     // with the key: straight in (as pushing into the door does)
     sfx('se_examine');
     yield* runMsg(T.DOME_DOOR_OPEN);
@@ -993,7 +993,7 @@ registerScript('obj_hoshi_dome', function* (ctx): Co {
     return;
   }
   yield* ctx.runDefault();
-  if (domeOpenNight() && !flag('flag_ch2_boss_beaten') && !flag(DF.hint)) {
+  if (domeOpenNight() && ch2Open() && !flag(DF.hint)) {
     setFlag(DF.hint, 1);
     yield* runMsg(T.DOME_DOOR_HINT);
   }

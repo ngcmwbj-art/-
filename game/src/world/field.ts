@@ -17,6 +17,7 @@ import { GroundCache } from './ground_cache';
 import { cloneGrade, GRADES, GRADES_C, GRADES_H, gradeCKey, gradeHKey, lerpGrade, type Grade, type GradeCKey, type GradeHKey } from './lighting';
 import { ch3GradeStage, ch3Graded, ch3TownTime } from './umizoi';
 import { applyC3Audio, isC3AudioMap, leaveC3Audio } from './c3audio';
+import { applyPgAudio } from './pgaudio';
 import { cellAt, condOk, currentStage, hasMap, isCh2Map, isCh3Map, loadMap, setStageSource, stageFlagOf, type LoadedMap } from './maps';
 import { LightState } from './lantern';
 import {
@@ -52,6 +53,8 @@ import { P } from '../art/tiles/palette';
 import { BOX, dialogTop, dialogVisible } from '../ui/dialog';
 import { lastMsgPos, lastSpeaker } from './msg';
 import { ROOM_SLIDE } from './roomview';
+import { pgBand, pgLight, pgOn, pgTick, pgVisStage, PG_GRADE_MS, setPgFreeCheck, setPgStageHook, type PgBand } from './postgame';
+import { pgObjPresent, pgObjSpot } from './pg_schedule';
 
 export const WALK_SPEED = 4.5 * 16; // px/s
 export const DASH_SPEED = 7 * 16;
@@ -142,6 +145,12 @@ const ambKeepers: ((mapId: string) => string[])[] = [];
 export function registerAmbKeep(fn: (mapId: string) => string[]): void {
   ambKeepers.push(fn);
 }
+/** The beds a level script keeps playing on this map (registerAmbKeep). */
+export function ambKept(mapId: string): string[] {
+  const out: string[] = [];
+  for (const fn of ambKeepers) out.push(...fn(mapId));
+  return out;
+}
 
 export class FieldScene implements Scene {
   map!: LoadedMap;
@@ -231,6 +240,13 @@ export class FieldScene implements Scene {
     this.renderer = new Renderer(this);
     this.symbols = new SymbolAI(this);
     this.light = new LightState(this);
+    // クリア後の時計（05 3.3）：フィールドで操作できる間だけ進む（ui/autosave.ts の「自由に立っている」と同じ見方）
+    setPgFreeCheck(() => current === this && this.controllable && game.top === this && game.fadeAlpha < 0.05);
+    // 時間帯で段階のフラグが変わったら、今いる地図の物をやり直す（setStage と同じ道。光は postgame が選ぶ）
+    setPgStageHook((changed) => {
+      if (current !== this || !this.map) return;
+      if (changed.includes(stageFlagOf(this.map.def)) || changed.includes('flag_c3_end_light')) this.pgRestage();
+    });
     const s = flag('flag_stage');
     this.grade = cloneGrade(GRADES[s] ?? GRADES[0]);
     this.gradeTo = cloneGrade(this.grade);
@@ -240,6 +256,11 @@ export class FieldScene implements Scene {
   // ------------------------------------------------------------------ map setup
 
   loadMap(mapId: string, tx: number, ty: number, dir: Dir, from?: string): boolean {
+    // クリア後は第2章の夜の電車に入らない（05 5.3：入ると flag_ch2_stage を0に戻す）
+    if (mapId === 'map_hoshi_train' && pgOn()) {
+      if (import.meta.env.DEV) console.warn('[world] map_hoshi_train is closed after the clear');
+      return false;
+    }
     const m = loadMap(mapId);
     if (!m) {
       if (import.meta.env.DEV) console.warn(`[world] map not registered: ${mapId}`);
@@ -270,6 +291,7 @@ export class FieldScene implements Scene {
     this.camFollow = null;
     this.structures = buildStructures(m);
     this.buildProps();
+    this.pgPresBand = pgOn() ? pgBand() : null;
     this.refreshPresence(true);
     this.syncFollower(true);
     // triggers the player spawned inside don't fire until left
@@ -294,6 +316,18 @@ export class FieldScene implements Scene {
 
   /** Crossing between chapter 1 and 星見台 maps: jump straight to the right grade family. */
   private snapGradeFamily(): void {
+    // クリア後（05 4.1）：町 × 時間帯の光（postgame.ts PG_LIGHT）
+    const pl = pgLight(this.map?.def);
+    if (pl) {
+      this.pgLightId = pl.id;
+      this.gradeFamily = isCh3Map(this.map.def) ? 3 : this.ch2 ? 2 : 1;
+      this.grade = cloneGrade(pl.grade());
+      this.gradeTo = cloneGrade(this.grade);
+      this.gradeFrom = cloneGrade(this.grade);
+      this.gradeT = 1;
+      return;
+    }
+    this.pgLightId = null;
     // chapter 3 (62 8.3): 海ぞいの町's maps, and 夕鳴町 at 11:10 (stage 0), take the pal_c3_* presets
     const townTime = ch3TownTime(this.map?.def);
     if (townTime || ch3Graded(this.map?.def)) {
@@ -339,7 +373,7 @@ export class FieldScene implements Scene {
       if (!hasProp(id)) continue;
       const art = getProp(id, o.opts ?? {});
       if (!art) continue;
-      this.props.push({ obj: o, art, x: o.x * 16, y: o.y * 16, seed: (strSeed((o.id ?? id) + ':' + o.x + ',' + o.y) % 1000) / 1000, present: condOk(o.cond) });
+      this.props.push({ obj: o, art, x: o.x * 16, y: o.y * 16, seed: (strSeed((o.id ?? id) + ':' + o.x + ',' + o.y) % 1000) / 1000, present: this.objOk(o) });
     }
     // the `solid` rectangles (the light truck, a tree, sacks by the barn...): cells nobody walks through
     this.propSolid.clear();
@@ -361,23 +395,79 @@ export class FieldScene implements Scene {
   propSolidAt(tx: number, ty: number): boolean {
     const l = this.propSolid.get(ty * 4096 + tx);
     if (!l) return false;
-    for (const e of l) if (e.inst ? e.inst.present : condOk(e.obj.cond)) return true;
+    for (const e of l) if (e.inst ? e.inst.present : this.objOk(e.obj)) return true;
     return false;
+  }
+
+  /** Is the object there now? Its cond, unless the postgame's table says (postgame pgSchedule, 05 4.2). */
+  objOk(o: MapObj): boolean {
+    const pv = pgOn() ? pgObjPresent(o, this.map.id) : null;
+    return pv ?? condOk(o.cond);
+  }
+
+  /** Is the world point (feet, px) on the screen now (with a little margin)? */
+  private onScreen(x: number, y: number): boolean {
+    const m = 24;
+    const sw = W / this.viewScale;
+    const sh = H / this.viewScale;
+    const vx = this.viewScale > 1 ? this.viewX : this.camX;
+    const vy = this.viewScale > 1 ? this.viewY : this.camY;
+    return x > vx - m && x < vx + sw + m && y > vy - m && y - 32 < vy + sh + m;
+  }
+
+  /** QA (postgame pg()): the postgame light at once, no 20 s tween; the people of the band at once. */
+  pgSnap(): void {
+    this.snapGradeFamily();
+    this.pgPresBand = null;
+    this.refreshPresence();
+    this.pgPresBand = pgOn() ? pgBand() : null;
+  }
+
+  /** The band the presence of the actors shows (postgame; null outside it). */
+  private pgPresBand: PgBand | null = null;
+  /** The postgame light shown now (postgame PG_LIGHT id). */
+  private pgLightId: string | null = null;
+
+  /**
+   * クリア後、今いる地図の段階のフラグが時間帯で変わった（postgame applyPgStages）：
+   * setStage と同じ物の出し入れ。光は update が postgame の光へ 20 秒で移す。
+   */
+  private pgRestage(): void {
+    this.refreshPresence();
+    this.reportOcclusion();
+    this.light.refresh();
   }
 
   /** Spawn / despawn objects whose conditions changed. */
   refreshPresence(initial = false): void {
-    for (const p of this.props) p.present = condOk(p.obj.cond);
+    for (const p of this.props) p.present = this.objOk(p.obj);
+    // クリア後、時間帯が変わったばかり（05 4.2）：画面の中の人はすぐには入れかえない
+    // （画面の外に出たら入れかえる。操作できる間だけ：台本の出し入れはすぐ）
+    const pgHold = !initial && this.pgPresBand !== null && pgOn() && this.pgPresBand !== pgBand() && this.controllable;
+    let held = false;
     for (const o of this.map.objects) {
       if (o.t !== 'npc' && o.t !== 'sym') continue;
-      let ok = condOk(o.cond);
+      let ok = this.objOk(o);
       if (o.t === 'sym') ok = ok && !state.taken[(o as SymbolObj).link ?? o.id];
       // passers-by wait for their sprite (char art) — never a stand-in
       if (o.t === 'npc' && o.passerby && !o.vehicle && !hasChar(o.sprite ?? o.id)) ok = false;
       const have = this.objActors.get(o);
-      if (ok && !have) this.spawnFromObj(o, initial);
-      else if (!ok && have && !have.data.scripted) this.removeActor(have);
+      if (ok && !have) {
+        const at = pgObjSpot(o, this.map.id) ?? o;
+        if (pgHold && this.onScreen(at.x * 16 + 8, at.y * 16 + 16)) {
+          held = true;
+          continue;
+        }
+        this.spawnFromObj(o, initial);
+      } else if (!ok && have && !have.data.scripted) {
+        if (pgHold && this.onScreen(have.x, have.y)) {
+          held = true;
+          continue;
+        }
+        this.removeActor(have);
+      }
     }
+    if (!held && pgOn()) this.pgPresBand = pgBand();
     // restored objects for defeated symbols
     for (const o of this.map.objects) {
       if (o.t !== 'sym') continue;
@@ -391,8 +481,10 @@ export class FieldScene implements Scene {
     let a: Actor;
     if (o.t === 'npc') {
       const sprite = o.sprite ?? o.id;
-      a = new Actor(o.id, 'npc', sprite, o.x * 16 + 8, o.y * 16 + 16);
-      a.dir = o.dir ?? 'down';
+      // クリア後の表（pgSchedule）に居場所があれば、そこに立つ
+      const at = pgObjSpot(o, this.map.id);
+      a = new Actor(o.id, 'npc', sprite, (at ?? o).x * 16 + 8, (at ?? o).y * 16 + 16);
+      a.dir = at?.dir ?? o.dir ?? 'down';
       if (o.off) {
         a.ox = o.off[0];
         a.oy = o.off[1];
@@ -507,6 +599,8 @@ export class FieldScene implements Scene {
   // ------------------------------------------------------------------ audio
 
   applyAudio(entering: boolean): void {
+    // after the clear (05_postgame 4.3): the town × time-of-day sound first
+    if (applyPgAudio(this, entering)) return;
     if (this.ch2) {
       this.applyHoshiAudio(entering);
       return;
@@ -830,6 +924,18 @@ export class FieldScene implements Scene {
 
   update(dt: number): void {
     this.t += dt;
+    // クリア後の時計（05 3.3）と、時間帯の光への移り（4.1：実時間 20 秒）
+    if (pgOn()) {
+      pgTick(dt);
+      const pl = pgLight(this.map.def);
+      if (pl && pl.id !== this.pgLightId) {
+        this.pgLightId = pl.id;
+        this.gradeFrom = cloneGrade(this.grade);
+        this.gradeTo = cloneGrade(pl.grade());
+        this.gradeDur = PG_GRADE_MS;
+        this.gradeT = 0;
+      }
+    }
     // grade tween
     if (this.gradeT < 1) {
       this.gradeT = Math.min(1, this.gradeT + dt / this.gradeDur);
@@ -1234,7 +1340,7 @@ export class FieldScene implements Scene {
     let best: ExamineObj | null = null;
     for (const o of this.map.objects) {
       if (o.t !== 'obj') continue;
-      if (!condOk(o.cond)) continue;
+      if (!this.objOk(o)) continue;
       const w = o.w ?? 1;
       const h = o.h ?? 1;
       if (tx < o.x || ty < o.y || tx >= o.x + w || ty >= o.y + h) continue;
@@ -1678,7 +1784,7 @@ export class FieldScene implements Scene {
     const out: { id: string; x: number; y: number }[] = [];
     for (const o of this.map.objects) {
       // a fushigi in the dark only tells of itself inside the light (50 8.0)
-      if (o.t === 'obj' && o.fushigi && condOk(o.cond) && this.light.canExamine(o)) out.push({ id: o.fushigi, x: (o.x + (o.w ?? 1) / 2) * 16, y: (o.y + (o.h ?? 1) / 2) * 16 });
+      if (o.t === 'obj' && o.fushigi && this.objOk(o) && this.light.canExamine(o)) out.push({ id: o.fushigi, x: (o.x + (o.w ?? 1) / 2) * 16, y: (o.y + (o.h ?? 1) / 2) * 16 });
     }
     for (const a of this.actors) {
       const d = a.data.def as NpcObj | undefined;
@@ -1698,7 +1804,7 @@ export class FieldScene implements Scene {
     const l = this.light.lantern;
     return {
       t: this.t,
-      stage: flag('flag_stage'),
+      stage: pgVisStage(flag('flag_stage')),
       grade: this.grade,
       motion: this.grade.motion,
       mt: this.mt,

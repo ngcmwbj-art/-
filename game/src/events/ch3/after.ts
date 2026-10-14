@@ -23,15 +23,19 @@ import { se } from '../ch2/compat';
 import { addToMap, say3 } from './common';
 import { jumpMap, spawnTruck } from './prologue';
 import { offerFushigiCh3 } from './fushigi';
+import { pgBand } from '../../world/postgame';
 
 const after = (): boolean => flag('flag_ch3_clear') > 0;
 const NPC = (o: Record<string, unknown>): MapObj => ({ t: 'npc', ...o }) as unknown as MapObj;
 const CLEAR = { flag: 'flag_ch3_clear' };
+// クリア後（05_postgame 7.1）：合流中（flag_pg_kn）は いない。夜は 店の中（events/postgame.ts）。
+// 台本 c3_kn_shop・c3_truck_c4 は、events/postgame.ts が クリア後の形に 差しかえる。
+const KN_SHOP = { flag: 'flag_ch3_clear', notFlag: 'flag_pg_kn', when: () => pgBand() !== 'yoru' };
 
 // ---------------------------------------------------------------- 夕鳴町 (銀座の朝)
 
 addToMap('map_town', [
-  NPC({ id: 'c3_kn_shop', sprite: hasChar('npc_kanenari_cook') ? 'npc_kanenari_cook' : 'kanenari', x: 28, y: 22, dir: 'down', script: 'c3_kn_shop', cond: CLEAR }),
+  NPC({ id: 'c3_kn_shop', sprite: hasChar('npc_kanenari_cook') ? 'npc_kanenari_cook' : 'kanenari', x: 28, y: 22, dir: 'down', script: 'c3_kn_shop', cond: KN_SHOP }),
 ]);
 
 registerScript('c3_kn_shop', function* (): Co {
@@ -78,7 +82,7 @@ registerScript('c3_truck_c4', function* (): Co {
   se('se_keitora_go', { vol: 0.5 });
   yield 700;
   if (town) jumpMap('map_umizoi', 21, 17, 'left');
-  else jumpMap('map_town', 44, 28, 'up');
+  else jumpMap('map_town', 43, 28, 'up'); // the lane's west side: the truck stands at 44–45 (prologue.ts fitLane)
   F().syncFollower(true);
   yield 300;
   yield* game.fadeIn(600);

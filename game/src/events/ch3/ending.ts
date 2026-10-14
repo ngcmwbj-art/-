@@ -459,8 +459,10 @@ function* cut4Home(): Co {
   // 銀座の角, 16:59 → 17:00, the chime rings to its last note (62 5.3: the light of chapter 1's start)
   // 夕鳴町 in chapter 1's 17:00 light (W: flag_c3_end_light 1, read when the map loads)
   setFlag('flag_c3_end_light', 1);
-  cutTo('map_town', 44, 26, { show: true, dir: 'down', shot: 'e3_ginza_eve' });
-  put('kanenari', 43, 26, 'down', 'kanenari');
+  // (しゅん on the lane's west side and グソっ君 a step behind on his left: the truck now keeps
+  // inside the lane — prologue.ts fitLane — and its body, 60 px long, hid しゅん at (44,26), F1 2026-10-14)
+  cutTo('map_town', 43, 26, { show: true, dir: 'down', shot: 'e3_ginza_eve' });
+  put('kanenari', 42, 25, 'down', 'kanenari');
   spawnTruck('e3_truck', 45, 30, 'down');
   setFlag('flag_hud_hidden', 0);
   setClockText('16:59', { cut: true });

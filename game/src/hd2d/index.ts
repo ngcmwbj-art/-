@@ -42,6 +42,7 @@ import { CAM, Hd2dView, ROOM_CAM } from './view';
 import { overlaps } from './overlap';
 import { nudging } from './tune';
 import { roomMap } from './room';
+import { nidaiMap } from './nidai';
 import { installBattlePlaces } from './battle';
 
 const DEMO = import.meta.env.VITE_HD2D_DEMO === '1';
@@ -101,7 +102,7 @@ export function hd2dOn(): boolean {
 
 /** Is field f drawn in HD-2D now: hd2dOn(), one of the places stood up in 3D (MAPS, room.ts rooms), not blown up. */
 export function hd2dField(f: FieldScene): boolean {
-  return hd2dOn() && f.viewScale === 1 && (MAPS.has(f.map.id) || roomMap(f.map.id));
+  return hd2dOn() && f.viewScale === 1 && (MAPS.has(f.map.id) || roomMap(f.map.id) || nidaiMap(f.map.id));
 }
 
 /** Fields drawn in 3D so far (QA: tools/playthrough.mjs --hd2d sees them go up). */

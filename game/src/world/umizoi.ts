@@ -8,9 +8,11 @@ import { isCh2Map, isCh3Map } from './maps';
 import type { MapDef } from './types';
 import { fxAt, registerWorldFx } from './fx';
 import type { FieldScene } from './field';
+import { pgOn } from './postgame';
 
 /** 夕鳴町 at 11:10 on 9月1日 (flag_ch3_stage 0 once chapter 3 has started, 62 5.1). */
 export function ch3Hirumae(): boolean {
+  // (クリア後は false：flag_ch3_clear を見ている。05 5.2)
   return flag('flag_ch3_started') > 0 && flag('flag_ch3_stage') === 0 && !flag('flag_ch3_clear') && !flag('flag_c3_end_light');
 }
 
@@ -31,6 +33,8 @@ export function ch3Graded(def: MapDef | undefined | null): boolean {
  */
 export function ch3TownTime(def: MapDef | undefined | null): 0 | 1 | 2 {
   if (!def || isCh3Map(def) || isCh2Map(def) || !flag('flag_ch3_started')) return 0;
+  // クリア後（05 5.2）：光は postgame.ts が時刻で選ぶ（pgLight）
+  if (pgOn()) return 0;
   const t = flag('flag_c3_end_light');
   if (t === 1 || t === 2) return t;
   return flag('flag_ch3_clear') ? 2 : 0;

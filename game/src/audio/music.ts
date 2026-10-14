@@ -12,7 +12,9 @@ export type MusicParam =
   | 'stage' | 'kire' | 'boss_phase' | 'muffle' | 'detune' | 'h_stage' | 'h_light' | 'tenko' | 'h_rest' | 'clock' | 'h_deli'
   // chapter 3 (63_ch3_audio 6)
   | 'c3_noon' | 'c3_ichiba' | 'c3_shokudo' | 'c3_umi' | 'c3_ichi' | 'c3_shio' | 'c3_wana' | 'c3_phase' | 'nari_rewind'
-  | 'teppan' | 'kakaricho' | 'yobu';
+  | 'teppan' | 'kakaricho' | 'yobu'
+  // the postgame (05_postgame 4.3)
+  | 'pg_shizuka';
 
 export interface PlayOpts {
   /** Fade-in (and cross-fade) seconds. */
@@ -128,6 +130,7 @@ function stopActive(a: Active | null, fade: number): void {
 }
 
 export function playBgm(idIn: string, opts: PlayOpts = {}): void {
+  cancelBand();
   const id = resolveId(idIn, opts);
   if (!hasGraph()) {
     pending = { id, opts };
@@ -278,6 +281,7 @@ function playJingle(id: string, def: SongDef, opts: PlayOpts): void {
 }
 
 export function stopBgm(fade = 0.5): void {
+  cancelBand();
   pending = null;
   if (!hasGraph()) return;
   if (jingle) {
@@ -287,6 +291,79 @@ export function stopBgm(fade = 0.5): void {
   }
   stopActive(current, fade);
   current = null;
+}
+
+// ---- the postgame's time of day (05_postgame 4.3) ------------------------------
+
+/** A song waiting to come in after a time-of-day change (playBgmBand). */
+let band: { id: string; variant?: string; seq: number } | null = null;
+let bandSeq = 0;
+
+function cancelBand(): void {
+  band = null;
+  bandSeq++;
+}
+
+/** The song a time-of-day change is bringing in (null: none waiting). */
+export function bandPendingId(): string | null {
+  return band?.id ?? null;
+}
+
+/**
+ * 05_postgame 4.3 (クリア後): the time of day changed under the field. The song
+ * now playing finishes its bar, then fades out over `fadeOut` s (4–8); the next
+ * one (null: none) comes in from its head as that fade is half done, over
+ * `fadeIn` s. The same song only changes its form (variant) at once. Ducking
+ * (a window open) is left as it is. Any playBgm / stopBgm meanwhile cancels the
+ * waiting song.
+ */
+export function playBgmBand(id: string | null, opts: { variant?: string; fadeOut?: number; fadeIn?: number } = {}): void {
+  const fadeOut = Math.max(0.5, opts.fadeOut ?? 6);
+  const fadeIn = Math.max(0.3, opts.fadeIn ?? 4);
+  const a = current;
+  const playing = !!a && (!a.player || !a.player.stopped);
+  if (id && playing && a!.id === id) {
+    cancelBand();
+    applyVariant(a!.player, opts.variant);
+    return;
+  }
+  if (band && band.id === id && band.variant === opts.variant) return;
+  if (!id && !playing) {
+    cancelBand();
+    return;
+  }
+  if (!hasGraph()) {
+    if (id) playBgm(id, { variant: opts.variant, fade: fadeIn, resume: true });
+    else stopBgm(fadeOut);
+    return;
+  }
+  cancelBand();
+  pending = null;
+  if (jingle) {
+    jingle.player.stop(0.3);
+    jingle = null;
+    jingleQueue.length = 0;
+  }
+  const t = g().ctx.currentTime;
+  let wait = 0;
+  if (a?.player && !a.player.stopped) {
+    const p = a.player;
+    const b = p.barAt(t);
+    const end = b ? Math.max(t, b.time(b.steps)) : t;
+    rememberStop(a);
+    p.stop(fadeOut, end);
+    wait = end - t + fadeOut * 0.5;
+  } else if (a) stopActive(a, fadeOut);
+  current = null;
+  if (!id) return;
+  const seq = bandSeq;
+  band = { id, variant: opts.variant, seq };
+  atTime(t + wait, () => {
+    if (!band || band.seq !== seq || bandSeq !== seq) return;
+    const v = band.variant;
+    band = null;
+    playBgm(id, { variant: v, fade: fadeIn, resume: true });
+  });
 }
 
 /**

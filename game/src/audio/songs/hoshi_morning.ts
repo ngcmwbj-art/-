@@ -7,7 +7,9 @@
 // in one breath: C D F A | F D C D | F.
 
 import { DRM, INS } from '../instruments';
-import { bass, comp, drums, hits, melody, pads, type BarCtx, type PartDef, type SongDef } from '../sequencer';
+import { dbToGain } from '../engine';
+import { songGainDb } from '../mix';
+import { bass, comp, drums, hits, melody, pads, type BarCtx, type PartDef, type SongDef, type SongPlayer } from '../sequencer';
 import { registerSong, score } from './common';
 
 export const HOSHI_MORNING_MML = `
@@ -60,6 +62,21 @@ Gm9/C = G Bb D F A /C
 export const hoshiMorning = score(HOSHI_MORNING_MML, HOSHI_MORNING_CHORDS);
 
 const LOOP = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8'];
+
+/**
+ * 05_postgame 4.3 (クリア後): 星見台 at noon and in the evening hears the
+ * morning's song in its quiet form (pg_shizuka 1, 仮) — the chores are done:
+ * no drums, no high music box, the marimba and the bass softer. −2 dB.
+ */
+const SHIZUKA: Record<string, number> = { drums: 0, mbox_hi: 0, marimba: 0.5, bass: 0.7, epiano: 0.8 };
+const SHIZUKA_DB = -2;
+const BAR_S = (60 / 88) * 4;
+
+function applyShizuka(sp: SongPlayer, on: boolean, ramp: number): void {
+  const t = sp.g.ctx.currentTime;
+  sp.out.gain.setTargetAtTime(dbToGain(songGainDb(sp.def.id, sp.def.gainDb) + (on ? SHIZUKA_DB : 0)), t, Math.max(0.005, ramp) / 3);
+  for (const [id, k] of Object.entries(SHIZUKA)) sp.partGain(id, on ? k : 1, Math.max(0.005, ramp), t);
+}
 
 const dawn = (b: BarCtx) => b.section === 'MD';
 const mi = (b: BarCtx) => b.section === 'MI';
@@ -134,6 +151,12 @@ function hoshiMorningDef(): SongDef {
       if (morning && next.i < 2) return { intro: true, i: 2 };
       if (!morning && next.i === 2) return { intro: true, i: 0 };
       return undefined;
+    },
+    setup(sp) {
+      if (sp.params.pg_shizuka === 1) applyShizuka(sp, true, 0);
+    },
+    onParam(sp, name, value, old) {
+      if (name === 'pg_shizuka' && value !== old) applyShizuka(sp, value === 1, BAR_S * 2);
     },
     onBar(sp, b) {
       if (!dawn(b)) return;

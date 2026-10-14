@@ -2,6 +2,7 @@
 import type { Dir } from '../game/state';
 import { Actor, DIR_VEC, dirFromVec } from './actor';
 import type { NpcMove, NpcObj } from './types';
+import { pgOn } from './postgame';
 
 export interface NpcWorld {
   t: number;
@@ -273,7 +274,7 @@ function route(a: Actor, mv: Extract<NpcMove, { kind: 'route' }>, def: NpcObj, d
     a.data.vspd = 0;
     return;
   }
-  a.alpha = def.s2 === 'shadow' && w.stage === 2 ? 0 : 1;
+  a.alpha = def.s2 === 'shadow' && w.stage === 2 && !pgOn() ? 0 : 1;
   let i = a.data.pi as number;
   const hideAt = (k: number) => !!mv.hide?.includes(k);
   const wait = (a.data.wait as number) ?? 0;

@@ -14,6 +14,7 @@ import { depthShade, lightPool, paintShell, screenPool, shellProp, tube } from '
 import { castRight, dk, lt } from './kit';
 import { registerProp } from './registry';
 import type { PropArt, PropEnv } from './types';
+import { pgWallTime } from '../../ui/pg_wallclock';
 
 export const pcv = (w: number, h: number) => new PixelCanvas(w, h);
 
@@ -163,8 +164,10 @@ export function wallClock(id: string, o: { r: number; rim: string; face?: string
       flat: true,
       img: (env: PropEnv) => {
         const c = env.flag('flag_clock');
-        const [hh, mm] = env.stage >= 3 ? [5, 1] : env.stage >= 1 ? [5, 0] : [4, c >= 2 ? 58 : c >= 1 ? 55 : 52];
-        const sec = env.stage === 1 ? 0 : env.stage === 2 ? (Math.floor(env.t / 1100) % 3 === 2 ? 59 : 0) : Math.floor(env.t / 1000) % 60;
+        // (after the clear: the postgame clock, 05_postgame 3.2)
+        const pg = pgWallTime(env);
+        const [hh, mm] = pg ? [pg[0], pg[1]] : env.stage >= 3 ? [5, 1] : env.stage >= 1 ? [5, 0] : [4, c >= 2 ? 58 : c >= 1 ? 55 : 52];
+        const sec = pg ? pg[2] : env.stage === 1 ? 0 : env.stage === 2 ? (Math.floor(env.t / 1100) % 3 === 2 ? 59 : 0) : Math.floor(env.t / 1000) % 60;
         // the pendulum: swings in stage 0, stops tilted in stage 1, leans north-east (right) in stage 2
         const sw = !o.pendulum ? 0 : env.stage === 1 ? -2 : env.stage === 2 ? 3 : Math.round(Math.sin(env.mt / 318) * 3);
         const k = `${hh}:${mm}:${sec}:${sw}`;

@@ -33,6 +33,7 @@ import { flag } from '../game/state';
 import type { Actor } from './actor';
 import type { FieldScene, PropInst } from './field';
 import { condOk, currentStage, isCh2Map, type LoadedMap } from './maps';
+import { pgLantern, pgOn } from './postgame';
 import type { DarkLight, ExamineObj, StarlightSpot, TileRect } from './types';
 import { lanternOf } from '../art/chars/nightlight';
 import { roomMorningK } from './hoshi';
@@ -388,6 +389,8 @@ export interface LightCircle {
 export function lanternWanted(f: FieldScene): boolean {
   if (override !== null) return override;
   if (!isCh2Map(f.map.def)) return false;
+  // after the clear (05 5.2): lit on 星見台 at night (the same rule as the scenario's lanternOn())
+  if (pgOn()) return pgLantern() && !flag('flag_ch2_lantern_off');
   if (!flag('flag_ch2_got_tomato')) return false;
   if (flag('flag_ch2_stage') >= 3) return false;
   return !flag('flag_ch2_lantern_off');

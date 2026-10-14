@@ -18,6 +18,7 @@ import { sfx } from '../../audio';
 import { HOSHI_SPEAKERS } from '../../data/text/hoshi_npcs';
 import { GAMEOVER_FLIP_BOSS, GAMEOVER_FLIP_TETSUYA } from '../../data/text/hoshi_events';
 import { grace } from '../lib';
+import { pgCh2 } from '../../world/postgame';
 
 // ---------------------------------------------------------------- name tags (50 2.4)
 
@@ -46,7 +47,15 @@ export function hStage(): number {
 
 /** Does the lantern shine (the tomato is in the net)? */
 export function lanternOn(): boolean {
-  return flag('flag_ch2_got_tomato') > 0 && flag('flag_ch2_boss_beaten') === 0;
+  return flag('flag_ch2_got_tomato') > 0 && ch2Open();
+}
+
+/**
+ * 第2章の夜の寄り道が開いているか：ボスの前、またはクリア後の夜（05_postgame 5.2。
+ * flag_ch2_boss_beaten は消さないので、クリア後の夜だけ開ける）。
+ */
+export function ch2Open(): boolean {
+  return flag('flag_ch2_boss_beaten') === 0 || pgCh2();
 }
 
 /** A map is there to warp to / cut to (the level team adds them as they go). */

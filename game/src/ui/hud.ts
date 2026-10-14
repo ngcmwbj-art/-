@@ -34,7 +34,7 @@ import { ROOM2_PLACE } from '../data/maps/hoshi_rooms2_names';
 import { markText } from '../engine/textzones';
 import { buttonZones, freeSpan } from '../engine/safezones';
 import { onPgBand, pgBand, pgBandDef, pgOn, type PgBand } from '../world/postgame';
-import { pgBadgeImg, pgClockFace, pgRunFace } from './pg_clock';
+import { pgBadgeImg, pgClockFace, pgClockRunReset, pgRunBand, pgRunFace } from './pg_clock';
 
 // ---- clock -------------------------------------------------------------------------
 
@@ -869,6 +869,7 @@ class UiHud implements FieldHud {
     this.lastFrame = -10;
     this.pgNotice = null;
     this.pgHopT = 999;
+    pgClockRunReset();
     curtain.a = 0;
     clearCallBubbleUi();
     hideChoreCard(0);
@@ -1170,7 +1171,7 @@ const PG_BADGE_X = 324 - 14;
 /** クリア後の時間帯の印（12×12 の札）を (x,y) に。メニューの札の横にも使う。 */
 export function drawPgBadge(g: Gfx, x: number, y: number, alpha = 1): void {
   if (!pgOn()) return;
-  g.img(pgBadgeImg(pgBand()), x, y, alpha < 1 ? { alpha } : {});
+  g.img(pgBadgeImg(pgRunBand() ?? pgBand()), x, y, alpha < 1 ? { alpha } : {});
 }
 
 /**

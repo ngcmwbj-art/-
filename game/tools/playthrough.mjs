@@ -51,6 +51,11 @@
 //                                                     talked records (flag_talked_*, made from a chapter-1/2 save too),
 //                                                     the chapter-3 pages (textcheck2). --from <beat> starts at
 //                                                     jump('ch3:<beat>')
+//   node tools/playthrough.mjs --chapter pg           after chapter 3's clear (05_postgame 第1期): the clear data → the clock
+//                                                     → グソっ君 joins at 焼きそばのたかし → ツガオ便 to 海ぞいの町 → 待つ (夜まで)
+//                                                     → ツガオ便 to 星見台 at night (ペロの灯り, the lantern) → back to 夕鳴町
+//                                                     → 待つ (夕方まで: flag_stage 2, pgCh1) → 寝る (5:00, full HP) → グソっ君
+//                                                     back to the shop. Checks the clock, the bands' stage flags and the lantern.
 //   node tools/playthrough.mjs --chapter 2 --side barnwork,delivery
 //                                                     the optional beats instead (牛舎のおてつだい, 野菜の配達),
 //                                                     each from its own jump('ch2:<beat>')
@@ -91,7 +96,9 @@ const HEADED = args.includes('--headed');
 const FUSHIGI_ALL = args.includes('--fushigi-all');
 /** Chapter 2's optional beats to run instead of the story (each from its own jump): barnwork, delivery. */
 const SIDE = opt('--side', '').split(',').filter(Boolean);
-const CHAPTER = Number(opt('--chapter', '1'));
+/** --chapter pg: after chapter 3's clear (05_postgame. E 第1期). */
+const PG = opt('--chapter', '1') === 'pg';
+const CHAPTER = PG ? 'pg' : Number(opt('--chapter', '1'));
 /** --chapter 3: how many of the 24 people come (0〜24; 'all' = 24). Default: the chain's own. */
 const KITA_N = opt('--kita', '') === '' ? null : opt('--kita', '') === 'all' ? 24 : Number(opt('--kita', ''));
 /** HD-2D (--hd2d; --hd2dq light|normal) or 2D (default). */
@@ -2964,12 +2971,213 @@ const BEATS3 = [
   },
 ];
 
+
+// ------------------------------------------------------------------ --chapter pg (05_postgame 第1期)
+
+/** The postgame clock and the bits the checks read. */
+const pgState = () =>
+  page.evaluate(async () => {
+    const pg = await import('/src/world/postgame.ts');
+    const c2 = await import('/src/events/ch2/common.ts');
+    const f = window.__game.cmd.fieldRef();
+    const fl = (k) => window.__game.cmd.flag(k);
+    return {
+      on: pg.pgOn(), min: pg.pgMin(), day: pg.pgDay(), band: pg.pgBand(), ch1: pg.pgCh1(), lantern: c2.lanternOn(),
+      map: f?.map.id, x: f?.player.tileX, y: f?.player.tileY,
+      kn: fl('flag_pg_kn'), hidden: fl('flag_follower_hidden'), yr: fl('flag_pg_yarinokoshi'), follower: !!f?.follower?.visible,
+      stage: fl('flag_stage'), clock: fl('flag_clock'), h: fl('flag_ch2_stage'), c: fl('flag_ch3_stage'),
+      hp: window.__game.cmd.party?.()?.map?.((m) => m.hp) ?? null,
+    };
+  });
+/** Run a registered script where Minato stands (an examine spot that is tested for its script, not its place). */
+async function runScript(id) {
+  await page.evaluate((i) => window.__game.cmd.fieldRef().runScriptId(i, 'qa'), id);
+  await sleep(300);
+}
+async function pgCheck(name, test) {
+  const s = await pgState();
+  const ok = !!test(s);
+  log(`  ${name}: ${ok ? 'ok' : 'NG'} ${JSON.stringify(s)}`);
+  checks.push({ check: `pg: ${name}`, ok, state: s });
+  if (!ok) throw new Error(`pg: ${name}: ${JSON.stringify(s)}`);
+  return s;
+}
+/** pickChoice, but checks the cursor is on option `want` before 決定 (the slide-in may eat a ↓). */
+async function pgPick(want, timeout = 15000) {
+  const t0 = Date.now();
+  const box = () => page.evaluate(() => {
+    const w = window.__game.game.ui.widgets.find((x) => x.constructor.name === 'ChoiceBox' && !x.done);
+    return w ? w.index : null;
+  });
+  while ((await box()) === null) {
+    if (late(t0, timeout)) throw new Error('pgPick: no choice');
+    await tap('KeyZ');
+    await sleep(300);
+  }
+  await sleep(300);
+  for (let k = 0; k < 12; k++) {
+    const i = await box();
+    if (i === want) break;
+    await tap(i < want ? 'ArrowDown' : 'ArrowUp');
+    await sleep(160);
+  }
+  if ((await box()) !== want) throw new Error(`pgPick: cursor not on ${want}`);
+  await tap('KeyZ');
+  await sleep(400);
+}
+/** Ride ツガオ便 from this town: talk to the truck (or run the stop's script), take option `downs`. */
+async function pgRide(downs, label, script = null) {
+  if (script) await runScript(script);
+  else await talkTo('c3_truck_c4', { side: 'below' });
+  await pgPick(downs);
+  await advance({ label, shotEvery: 3 });
+  await sleep(500);
+  await shot(label);
+}
+/** 待つ at a rest spot (its script): セーブ｜待つ｜… → the band `downs` below 朝まで. */
+async function pgWait(script, downs, label) {
+  await runScript(script);
+  await pgPick(1);
+  await pgPick(downs);
+  await advance({ label });
+  await sleep(500);
+  await shot(label);
+}
+
+const BEATS_PG = [
+  {
+    name: 'clear',
+    async run() {
+      // (a title still turning over may start a new game over the jump: settle, check, again)
+      await tap('KeyZ');
+      for (let k = 0; ; k++) {
+        await sleep(1200 * SLOW);
+        await page.evaluate(() => window.__game.cmd.jump('ch3:clear', true));
+        await waitFor((s) => s.top === 'FieldScene' && s.ctrl, 20000, 'the clear data');
+        await sleep(1500 * SLOW);
+        const s = await st();
+        if ((s.top === 'FieldScene' && s.map === 'map_town' && (await flag('flag_ch3_clear')) === 1) || k >= 3) break;
+        log('  (the title came back over the jump; again)');
+      }
+      await shot('ginza_asa');
+      await pgCheck('the clock starts at 5:10 on the clear data (asa)', (s) => s.on && s.band === 'asa' && s.min >= 310 && s.min < 330 && s.stage === 3 && s.h === 3 && s.c === 4);
+    },
+  },
+  {
+    name: 'join',
+    async run() {
+      await talkTo('c3_kn_shop', { side: 'below' });
+      await pgPick(1);
+      await advance({ label: 'join', shotEvery: 2 });
+      await sleep(400);
+      await shot('joined');
+      await pgCheck('グソっ君 joins (flag_pg_kn, やり残し, follower shown)', (s) => s.kn === 1 && s.yr === 1 && s.hidden === 0 && s.follower);
+      const gone = await page.evaluate(() => !window.__game.cmd.fieldRef().actors.some((a) => a.id === 'c3_kn_shop'));
+      checks.push({ check: 'pg: the shop front is empty while he is with Minato', ok: gone });
+      if (!gone) throw new Error('c3_kn_shop still at the shop');
+    },
+  },
+  {
+    name: 'umi',
+    async run() {
+      const before = (await pgState()).min;
+      await pgRide(1, 'to_umi');
+      await pgCheck('ツガオ便 夕鳴町 → 海ぞいの町 (+60 min, グソっ君 along)', (s) => s.map === 'map_umizoi' && ((s.min - before + 1440) % 1440) >= 60 && ((s.min - before + 1440) % 1440) < 75 && s.follower);
+    },
+  },
+  {
+    name: 'wait',
+    async run() {
+      await pgWait('obj_c3_post', 3, 'wait_yoru');
+      await pgCheck('待つ → 夜 19:00 (星見台 h1)', (s) => s.band === 'yoru' && s.min >= 19 * 60 && s.min < 19 * 60 + 20 && s.h === 1 && s.stage === 3);
+    },
+  },
+  {
+    name: 'hoshi',
+    async run() {
+      await pgRide(1, 'to_hoshi');
+      await pgCheck('ツガオ便 海ぞい → 星見台 at night (+150 min, ペロの灯り, the lantern)', (s) => s.map === 'map_hoshimidai' && s.band === 'yoru' && s.min >= 21 * 60 + 30 && s.lantern && s.follower);
+      const pero = await flag('flag_pg_pero_lamp');
+      checks.push({ check: 'pg: ペロの灯り (once)', ok: pero === 1 });
+      if (pero !== 1) throw new Error('flag_pg_pero_lamp');
+    },
+  },
+  {
+    name: 'home',
+    async run() {
+      await pgRide(0, 'to_town', 'obj_hoshi_tsugao_truck');
+      await pgCheck('ツガオ便 星見台 → 夕鳴町 (+90 min)', (s) => s.map === 'map_town' && s.x === 44 && s.y === 28 && s.band === 'yoru');
+      await pgWait('evt_save_jizo', 2, 'wait_yu');
+      await pgCheck('待つ → 夕方 15:00 (flag_stage 2, flag_clock 3, pgCh1, 2日目)', (s) => s.band === 'yu' && s.min >= 15 * 60 && s.min < 15 * 60 + 20 && s.stage === 2 && s.clock === 3 && s.ch1 && s.day === 2);
+    },
+  },
+  {
+    name: 'nap',
+    async run() {
+      // 夕方の夕鳴町：ツガオは昼寝（起こす1ページ）、乗らずに やめておく
+      await talkTo('c3_truck_c4', { side: 'below' });
+      await pgPick(2);
+      await advance({ label: 'nap' });
+      const nap = await flag('flag_pg_tsugao_nap');
+      checks.push({ check: 'pg: 夕方の昼寝を起こす1ページ', ok: nap === 1 });
+      if (nap !== 1) throw new Error('flag_pg_tsugao_nap');
+    },
+  },
+  {
+    name: 'bed',
+    async run() {
+      await page.evaluate(() => window.__game.cmd.warp('map_home_2f', 3, 3, 'left'));
+      await waitFor((s) => s.top === 'FieldScene' && s.ctrl && s.map === 'map_home_2f', 10000, 'home 2f');
+      await page.evaluate(async () => {
+        const { state } = await import('/src/game/state.ts');
+        for (const m of state.party) m.hp = 1;
+      });
+      await runScript('obj_bed');
+      await pgPick(0);
+      await advance({ label: 'bed', shotEvery: 1 });
+      const full = await page.evaluate(async () => {
+        const { state } = await import('/src/game/state.ts');
+        return state.party.every((m) => m.hp === m.maxHp && m.mp === m.maxMp);
+      });
+      checks.push({ check: 'pg: 寝る → HP・朱肉 全回復', ok: full });
+      await pgCheck('寝る → 翌朝 5:00 (3日目)', (s) => full && s.band === 'asa' && s.min >= 300 && s.min < 320 && s.day === 3 && s.stage === 3);
+    },
+  },
+  {
+    name: 'back',
+    async run() {
+      await page.evaluate(() => window.__game.cmd.warp('map_town', 27, 23, 'down'));
+      await waitFor((s) => s.top === 'FieldScene' && s.ctrl && s.map === 'map_town', 10000, 'the shop front');
+      await sleep(400);
+      // グソっ君 one tile below Minato, and Minato faces him
+      await page.evaluate(() => {
+        const f = window.__game.cmd.fieldRef();
+        const k = f.follower;
+        k.x = 27 * 16 + 8;
+        k.y = 24 * 16 + 16;
+        k.path = [];
+        f.player.dir = 'down';
+      });
+      await sleep(150);
+      await tap('KeyZ');
+      await pgPick(0);
+      await advance({ label: 'back' });
+      await sleep(400);
+      await shot('back');
+      await pgCheck('グソっ君 back to the shop (flag_pg_kn 0)', (s) => s.kn === 0 && s.hidden === 1 && !s.follower);
+      const at = await page.evaluate(() => window.__game.cmd.fieldRef().actors.some((a) => a.id === 'c3_kn_shop'));
+      checks.push({ check: 'pg: グソっ君 at the shop front again', ok: at });
+      if (!at) throw new Error('c3_kn_shop not back');
+    },
+  },
+];
+
 // ------------------------------------------------------------------ run
 
 const results = [];
 let failed = false;
 
-const LIST = CHAPTER === 3 ? BEATS3 : CHAPTER === 2 ? (SIDE.length ? SIDE2.filter((b) => SIDE.includes(b.name)).map((b) => ({ ...b, jump: true })) : BEATS2) : BEATS;
+const LIST = PG ? BEATS_PG : CHAPTER === 3 ? BEATS3 : CHAPTER === 2 ? (SIDE.length ? SIDE2.filter((b) => SIDE.includes(b.name)).map((b) => ({ ...b, jump: true })) : BEATS2) : BEATS;
 if (CHAPTER === 2 && SIDE.length && LIST.length !== SIDE.length) throw new Error(`--side: unknown beat in ${SIDE.join(',')}; side beats: ${SIDE2.map((b) => b.name).join(' ')}`);
 if (CHAPTER === 3) {
   // a player who has seen chapter 2's ending: the title shows 「第2章から」 and 「第3章から」
@@ -3060,7 +3268,7 @@ if (CHAPTER === 2) {
   checks.push({ check: 'cue-sheet sounds registered', ok: !missing.length, missing });
   log(`  sounds not registered: ${missing.length ? missing.join(' ') : 'none'}`);
 }
-if (CHAPTER === 2 || CHAPTER === 3) {
+if (CHAPTER === 2 || CHAPTER === 3 || PG) {
   // 10 13.4: every chapter-2 (and chapter-3) page at most 3 lines of 336 px
   const tc = await page.evaluate(() => window.__game?.cmd?.textcheck2?.() ?? null).catch(() => null);
   if (tc) {

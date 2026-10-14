@@ -42,5 +42,7 @@ import './sfx_kotei';
 import './ambience_ch2';
 // chapter 3 (63_ch3_audio)
 import './sfx_ch3';
+// クリア後（05_postgame）
+import './sfx_pg';
 import './ambience_ch3';
 import './voices';

@@ -933,9 +933,10 @@ registerProp('obj_tv', () => {
   p.hline(1, 30, 20, P.wood);
   p.rect(4, 23, 10, 5, P.ink);
   p.rect(18, 23, 10, 5, P.ink);
-  // flat TV
+  // flat TV (its top bezel 2 px: the row under the outline is what HD-2D's
+  // box takes for its top face — the screen there lit it up, 2026-10-14)
   p.rect(3, 3, 26, 16, P.ink);
-  p.rect(4, 4, 24, 13, P.navy);
+  p.rect(4, 5, 24, 12, P.navy);
   p.rect(14, 19, 4, 1, P.charcoal);
   return {
     ...stand(p.toCanvas(), { cx: 16, base: 16, shadow: 0, contact: 0 }),
@@ -945,7 +946,7 @@ registerProp('obj_tv', () => {
       const sy = y + 16 - 32 + 4;
       const f = Math.floor(env.t / 260) % 4;
       const cols = env.stage === 2 ? [P.lilac, P.lilac, P.shade, P.lilac] : [P.aqua, P.blue, P.aqua, P.glow];
-      g.rect(sx, sy, 24, 13, cols[f]);
+      g.rect(sx, sy + 1, 24, 12, cols[f]);
       if (env.stage === 2) {
         g.rect(sx + 4, sy + 4, 16, 5, P.white);
       } else {
@@ -962,7 +963,7 @@ registerProp('obj_tv', () => {
       const sy = y + 16 - 32 + 4;
       const f = Math.floor(env.t / 260) % 4;
       const cols = [P.aqua, P.blue, P.aqua, P.glow];
-      g.rect(sx, sy, 24, 13, cols[f], 0.55 * n);
+      g.rect(sx, sy + 1, 24, 12, cols[f], 0.55 * n);
       g.rect(sx + 14, sy + 3, 8, 6, P.white, 0.6 * n);
       halo(g, x + 16, y - 6, 16, LIGHT.tv, (0.2 + 0.06 * (f % 2)) * n);
     },

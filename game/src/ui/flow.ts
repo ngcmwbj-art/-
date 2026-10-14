@@ -26,6 +26,7 @@ import { game, type Scene } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { makeCanvas } from '../engine/pixel';
 import { H, W } from '../engine/screen';
+import { pgOnLoad } from '../world/postgame';
 import { flag, loadGame, loadSnapshot, resetState, saveGame, saveSnapshot, setFlag, state } from '../game/state';
 import { chapter2Adjust, chapter3Adjust, newChapter2Party, newChapter3Party, newGameParty, syncProgressSkills, type LevelUpResult } from '../data/battle';
 import { stopAllAmbient, stopBgm } from '../audio';
@@ -176,6 +177,9 @@ export function* continueGame(): Co {
   resetAutosave();
   syncProgressSkills();
   syncSettingFlags();
+  // クリア後（05_postgame 5.4）：時計が無ければ 5:10 に、今の時間帯の段階のフラグを書く。
+  // 知らせの基準も今の帯に（読みこんだだけで「朝に なった。」は出さない）。クリア後でなければ何もしない
+  pgOnLoad();
   if (flag('flag_ch2_clear') && !flag('flag_ch3_started')) {
     // 第3章（60 1.4）：第2章のクリアデータの「つづきから」は evt_ch3_prologue へ。
     // 第3章の台本がない版（ほかの章だけの公開ページ）は、今までどおり1ページ。

@@ -12,7 +12,7 @@ import { W, H } from '../../engine/screen';
 import { ease } from '../../engine/tween';
 import { state } from '../../game/state';
 import { sfx } from '../../audio';
-import { drawClockPlate, setMenuOpener, setMenuUp, uiHud } from '../hud';
+import { drawClockPlate, drawPgBadge, setMenuOpener, setMenuUp, uiHud } from '../hud';
 import { UI } from '../window';
 import { drawMoney, drawSheet, drawSpread, drawTabs, TABS } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
@@ -177,6 +177,8 @@ export class MenuScene implements Scene, MenuCtx {
       // (the field under the menu is still: a flip it was in the middle of shows as done)
       const cv = uiHud.clockView();
       drawClockPlate(g, 324, cy, { ...cv, prev: cv.time, flipT: 1e9 });
+      // クリア後：札の左に時間帯の印（05 3.2）
+      drawPgBadge(g, 324 - 14, cy + 3);
     }
   }
 }

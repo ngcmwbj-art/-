@@ -53,4 +53,6 @@ import './katanuki';
 // 第3章『海ぞいの町の いただきます』（60_ch3_story。第1期：S00〜S06）。母・テレビ・おばあ・置物の 台本を
 // 夕鳴町の 段階0だけ 包むので、第1章・第2章の すべての あとに import する
 import './ch3';
+// クリア後（05_postgame）：グソっ君の合流、ツガオ便、待つ・寝る。第1章〜第3章の 台本を 包むので、./ch3 の あとに import する
+import './postgame';
 import './debug';

@@ -20,6 +20,7 @@ import { registerProp } from './registry';
 import { exteriorGlow, exteriorImg, exteriorOver, withExterior } from './iexterior';
 import { fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
+import { pgWallTime } from '../../ui/pg_wallclock';
 
 const BAGS = [P.red, P.gold, P.aqua, P.leaf];
 
@@ -237,6 +238,9 @@ registerProp('in_hi_shell', () => {
 // ---------------------------------------------------------------- pendulum pillar clock (1, 0–1) — flat on the wall
 
 function hinoyaTime(env: PropEnv): [number, number] {
+  // (after the clear the wall clocks tell the postgame clock: 05_postgame 3.2)
+  const pg = pgWallTime(env);
+  if (pg) return [pg[0], pg[1]];
   if (env.stage >= 3) return [5, 1];
   if (env.stage >= 1) return [5, 0];
   const c = env.flag('flag_clock');

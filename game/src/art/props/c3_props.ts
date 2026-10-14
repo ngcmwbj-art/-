@@ -764,31 +764,100 @@ const OLIVE_DK = CP.oliveDk;
  * far gate (obj_c3_nidai_aori: ヒロスケ copied しゅん's stamp, chapter 2).
  */
 registerProp('prop_c3_nidai_back', () => {
-  const p = new PixelCanvas(208, 112);
+  const p = new PixelCanvas(212, 116);
   const ox = 0;
   const oy = 16;
-  // the cab (east of the bed, x 160–200), seen from behind and above
-  p.rect(ox + 160, oy - 12, 40, 96 + 4, OLIVE);
-  p.rect(ox + 162, oy - 10, 36, 30, OLIVE_LT);
-  p.hline(ox + 160, ox + 199, oy - 12, '#9AAA5A');
-  p.vline(ox + 199, oy - 12, oy + 87, OLIVE_DK);
-  // the rear window with ツガオ's cap (and ぴーちゃん's red comb on the passenger side)
-  p.rect(ox + 162, oy + 24, 10, 48, '#2A3A4A');
-  p.vline(ox + 163, oy + 26, oy + 70, '#7FD1E8');
-  p.rect(ox + 165, oy + 30, 5, 6, OLIVE_DK);
-  p.rect(ox + 166, oy + 36, 4, 3, '#C98A6A');
-  p.rect(ox + 166, oy + 58, 3, 2, '#E84E3C');
-  p.rect(ox + 165, oy + 60, 5, 4, '#F4F1E8');
-  // the headboard guard over the cab's back
-  for (let y = oy; y < oy + 96; y += 6) p.hline(ox + 156, ox + 160, y, P.steel);
-  p.vline(ox + 156, oy - 2, oy + 94, P.steel);
+  // ---- the cab (east of the bed, x 158–206), seen from above and the south (2026-10-14
+  // 依頼主「軽トラもツガオが運転してる姿を見せて」): the roof, the windscreen's edge, the
+  // driver's door with its window rolled down — ツガオ at the wheel in his work cap, ポコシャ's
+  // sunglasses and ぴーちゃん's comb beyond him — the mirror, the front wheel
+  const RX0 = ox + 160;
+  const RX1 = ox + 204;
+  // the roof
+  p.rect(RX0, oy - 14, RX1 - RX0 - 4, 64, OLIVE);
+  p.rect(RX0 + 2, oy - 12, RX1 - RX0 - 8, 60, OLIVE_LT);
+  p.hline(RX0, RX1 - 5, oy - 14, '#9AAA5A');
+  p.vline(RX0, oy - 14, oy + 49, '#9AAA5A');
+  for (let y = oy - 6; y < oy + 46; y += 10) p.hline(RX0 + 4, RX1 - 10, y, OLIVE);
+  // the windscreen's slope (east) catching the sky
+  p.rect(RX1 - 4, oy - 12, 4, 62, '#5A8AA8');
+  p.vline(RX1 - 3, oy - 10, oy + 46, '#9CC8E0');
+  p.vline(RX1 - 5, oy - 14, oy + 49, OLIVE_DK);
+  // the side (south face): the open window over the door
+  const SY = oy + 50;
+  p.rect(RX0, SY, RX1 - RX0, 46, OLIVE);
+  p.hline(RX0, RX1 - 1, SY, OLIVE_DK);
+  // the window: the cab's dark inside
+  const wx = RX0 + 4;
+  const wy = SY + 2;
+  p.rect(wx, wy, 34, 15, '#2A2A3A');
+  p.rect(RX1 - 6, wy, 5, 15, '#5A8AA8');
+  p.vline(RX1 - 5, wy + 1, wy + 13, '#9CC8E0');
+  // the seat back behind them
+  p.rect(wx, wy + 3, 4, 12, '#4A5068');
+  // ポコシャ beyond him (the passenger side): the head, the sunglasses; ぴーちゃん's red comb
+  p.rect(wx + 10, wy + 4, 8, 7, '#8E6A4E');
+  p.rect(wx + 12, wy + 6, 5, 2, '#1B1733');
+  p.rect(wx + 8, wy + 2, 3, 2, '#E84E3C');
+  p.rect(wx + 7, wy + 4, 5, 4, '#F4F1E8');
+  // ツガオ in profile (facing east), the work cap, the square jaw, his hands on the wheel
+  const tx = wx + 18;
+  const ty = wy + 1;
+  p.rect(tx, ty + 9, 10, 6, '#8A7A4A'); // the jumper's shoulders
+  p.hline(tx, tx + 9, ty + 9, '#A8986A');
+  p.rect(tx + 2, ty + 3, 7, 7, '#C98A6A'); // the face
+  p.rect(tx + 2, ty + 7, 1, 3, '#A86A4E');
+  p.set(tx + 7, ty + 5, '#1B1733'); // the eye, a line
+  p.set(tx + 8, ty + 5, '#1B1733');
+  p.hline(tx + 6, tx + 8, ty + 4, '#1B1733'); // the brow
+  p.set(tx + 8, ty + 8, '#A86A4E'); // the mouth
+  p.rect(tx + 2, ty + 5, 2, 3, '#1B1733'); // the sideburn
+  p.rect(tx + 1, ty, 9, 4, '#5A6B2A'); // the cap
+  p.hline(tx + 1, tx + 9, ty, '#7A8B3A');
+  p.hline(tx + 8, tx + 12, ty + 3, '#3A4A1A'); // the peak
+  // the arm forward, the hand on the wheel's rim
+  p.rect(tx + 8, ty + 10, 6, 2, '#8A7A4A');
+  p.rect(tx + 14, ty + 9, 2, 3, '#C98A6A');
+  p.line(tx + 13, ty + 6, tx + 15, ty + 14, '#1B1733');
+  // the window frame and the door
+  p.strokeRect(wx - 1, wy - 1, 36, 17, OLIVE_DK);
+  const dy = SY + 19;
+  p.rect(RX0 + 2, dy, RX1 - RX0 - 6, 24, OLIVE);
+  p.vline(RX0 + 6, dy, dy + 20, OLIVE_DK);
+  p.vline(RX1 - 8, dy, dy + 20, OLIVE_DK);
+  p.hline(RX0 + 6, RX1 - 8, dy + 20, OLIVE_DK);
+  p.hline(RX0 + 2, RX1 - 5, dy + 9, '#6B7A3A');
+  p.rect(RX0 + 10, dy + 3, 5, 1, '#C8CCD2');
+  // ツガオ便's mark on the door: the tomato in a white ring
+  p.ellipse(RX0 + 24, dy + 6, 5, 4, '#F4F1E8');
+  p.ellipse(RX0 + 24, dy + 6, 3, 3, '#E84E3C');
+  p.set(RX0 + 23, dy + 5, '#FF8A6A');
+  p.hline(RX0 + 23, RX0 + 25, dy + 3, '#3A7A3A');
+  p.hline(RX0 + 16, RX0 + 32, dy + 13, '#F4F1E8');
+  p.hline(RX0 + 19, RX0 + 29, dy + 15, '#C8C2B4');
+  // the mirror on its stalk, the bumper, the front wheel
+  p.rect(RX1 - 3, SY + 4, 3, 6, '#2A2A30');
+  p.set(RX1 - 4, SY + 9, '#2A2A30');
+  p.rect(RX1 - 2, dy + 18, 4, 4, '#C8CCD2');
+  p.rect(RX0 + 26, SY + 40, 16, 6, '#2A2A30');
+  p.rect(RX0 + 30, SY + 41, 8, 3, '#9AA0A8');
+  // ---- the headboard guard (鳥居) over the cab's back: steel pipes
+  for (let y = oy; y < oy + 96; y += 6) p.hline(ox + 154, ox + 160, y, P.steel);
+  p.vline(ox + 154, oy - 4, oy + 94, '#C8CCD2');
+  p.vline(ox + 159, oy - 4, oy + 94, P.steel);
   // the far gate (row 0) and the side posts
   const gate = (x: number, y: number, w: number, h: number) => {
     p.rect(x, y, w, h, OLIVE);
     p.hline(x, x + w - 1, y, '#9AAA5A');
     p.hline(x, x + w - 1, y + 1, OLIVE_LT);
+    p.hline(x, x + w - 1, y + 8, OLIVE_LT);
+    p.hline(x, x + w - 1, y + 9, OLIVE_DK);
+    p.hline(x, x + w - 1, y + 15, OLIVE_LT);
+    p.hline(x, x + w - 1, y + 16, OLIVE_DK);
     p.hline(x, x + w - 1, y + h - 1, OLIVE_DK);
     for (let i = x + 15; i < x + w; i += 16) p.vline(i, y + 2, y + h - 2, OLIVE_DK);
+    // the rope hooks along the top
+    for (let i = x + 8; i < x + w - 4; i += 32) p.rect(i, y + 2, 2, 2, '#C8CCD2');
   };
   gate(ox, oy - 8, 160, 24);
   // the chalk はなまる on the far gate (12×10 at x 70)
@@ -797,15 +866,25 @@ registerProp('prop_c3_nidai_back', () => {
   p.ring(hx, hy + 2, 5, 4, '#F4F1E8');
   p.ring(hx, hy + 2, 2, 2, '#F4F1E8');
   for (let k = 0; k < 8; k++) p.set(Math.round(hx + Math.cos((k / 8) * Math.PI * 2) * 7), Math.round(hy + 2 + Math.sin((k / 8) * Math.PI * 2) * 5), '#E8E4D8');
-  // the tail gate (col 0) seen from above: a thick olive edge
+  // the tail gate (col 0) seen from above: a thick olive edge, its latches, the tail lamps
   p.rect(ox, oy, 10, 80, OLIVE);
   p.vline(ox, oy, oy + 79, '#9AAA5A');
   p.vline(ox + 9, oy, oy + 79, OLIVE_DK);
-  p.rect(ox + 2, oy + 30, 6, 3, '#E84E3C'); // the tail lamp
+  p.vline(ox + 4, oy, oy + 79, OLIVE_LT);
+  p.rect(ox + 2, oy + 12, 6, 3, '#E84E3C');
+  p.rect(ox + 2, oy + 62, 6, 3, '#E84E3C');
+  p.rect(ox + 3, oy + 34, 4, 12, '#F2D23A'); // the yellow kei plate
+  p.hline(ox + 4, ox + 5, oy + 38, '#2F4A8A');
+  p.hline(ox + 4, ox + 5, oy + 42, '#2F4A8A');
   p.rect(ox + 150, oy, 10, 80, OLIVE);
   p.vline(ox + 150, oy, oy + 79, OLIVE_LT);
+  // the spare rope's coil by the tail gate, the folded blue tarp by the cab
+  p.ring(ox + 18, oy + 72, 4, 3, '#E8D8A0');
+  p.rect(ox + 118, oy + 4, 22, 9, '#3A6AC8');
+  p.hline(ox + 118, ox + 139, oy + 4, '#5A8AE0');
+  p.hline(ox + 118, ox + 139, oy + 8, '#2F4A8A');
   const img = p.toCanvas();
-  return { ox: 0, oy: -16, w: 208, h: 112, foot: 0, img: () => img, contact: 0 } satisfies PropArt;
+  return { ox: 0, oy: -16, w: 212, h: 116, foot: 0, img: () => img, contact: 0 } satisfies PropArt;
 });
 
 /**
@@ -824,21 +903,33 @@ registerProp('prop_c3_nidai_kairan', () => {
   return { ox: 0, oy: 0, w: 32, h: 16, foot: 16, img: () => img, contact: 0 } satisfies PropArt;
 });
 
-/** The near gate (row 5), in front of the people. */
+/** The near gate (row 5), in front of the people: its ribs, the hooks, ツガオ便's mark, the wheels under it. */
 registerProp('prop_c3_nidai_front', () => {
-  const p = new PixelCanvas(160, 20);
+  const p = new PixelCanvas(160, 22);
   p.rect(0, 0, 160, 16, OLIVE);
   p.hline(0, 159, 0, '#9AAA5A');
   p.hline(0, 159, 1, OLIVE_LT);
+  p.hline(0, 159, 6, OLIVE_LT);
+  p.hline(0, 159, 7, OLIVE_DK);
+  p.hline(0, 159, 11, OLIVE_LT);
+  p.hline(0, 159, 12, OLIVE_DK);
   p.hline(0, 159, 15, OLIVE_DK);
   for (let i = 15; i < 160; i += 16) p.vline(i, 2, 14, OLIVE_DK);
-  // the hand-painted strokes of 「青果 ツガオ便」 (not to be read)
-  for (let x = 60; x < 100; x += 6) p.rect(x, 6, 4, 4, '#F4F1E8');
-  // wheels' arches, the mud flap
-  p.rect(30, 16, 22, 4, '#2A2A30');
-  p.rect(118, 16, 22, 4, '#2A2A30');
+  for (let i = 8; i < 156; i += 32) p.rect(i, 13, 2, 2, '#C8CCD2');
+  // ツガオ便's mark, hand-painted: a white board, the tomato, two strokes of a name (not to be read)
+  p.rect(66, 3, 28, 8, '#F4F1E8');
+  p.ellipse(71, 7, 3, 3, '#E84E3C');
+  p.set(70, 6, '#FF8A6A');
+  p.hline(70, 72, 3, '#3A7A3A');
+  p.hline(76, 91, 5, OLIVE_DK);
+  p.hline(76, 88, 8, OLIVE_DK);
+  // under the bed: its shade, the wheels, the mud flap
+  p.rect(4, 16, 150, 2, '#26242C');
+  p.rect(26, 16, 24, 6, '#2A2A30');
+  p.rect(32, 17, 12, 3, '#9AA0A8');
+  p.rect(52, 16, 3, 5, '#2A2A30');
   const img = p.toCanvas();
-  return { ox: 0, oy: 0, w: 160, h: 20, foot: 15, img: () => img, contact: 0 } satisfies PropArt;
+  return { ox: 0, oy: 0, w: 160, h: 22, foot: 15, img: () => img, contact: 0 } satisfies PropArt;
 });
 
 /** The yellow crates (two tiers) and the basket of 星見台's cabbages. */
@@ -852,8 +943,20 @@ registerProp('prop_c3_nidai_container', (opts) => {
       p.rect(x, y, 14, 10, '#FFD23F');
       p.hline(x, x + 13, y, '#F6D98A');
       p.vline(x + 13, y + 1, y + 9, '#D9A441');
+      for (let i = x + 2; i < x + 13; i += 3) p.vline(i, y + 5, y + 8, '#E8B840');
       p.rect(x + 4, y + 3, 6, 2, '#A8742A');
+      // the top tier: the vegetables heaped over the rim (tomatoes, cucumbers, eggplants, peppers)
+      if (k >= n) {
+        const veg = [['#E84E3C', '#FF8A6A'], ['#3A7A3A', '#6AA05A'], ['#4A2A5A', '#7A5A8A'], ['#4A9A3A', '#8ACB6B']][(k + (n === 2 ? 1 : 0)) % 4];
+        for (let j = 0; j < 4; j++) {
+          p.rect(x + 1 + j * 3, y - 2 + (j % 2), 3, 2, veg[0]);
+          p.set(x + 1 + j * 3, y - 2 + (j % 2), veg[1]);
+        }
+      }
     }
+    // the ropes over the stack, tied down to the gate's hooks
+    for (let i = 0; i < n; i += 2) p.vline(i * 16 + 8, 1, 21, '#E8D8A0');
+    p.hline(1, n * 16 - 2, 7, '#E8D8A0');
   }, { cx: n * 8, base: 16, shadow: 18 });
 });
 
@@ -949,16 +1052,39 @@ registerProp('prop_c3_nidai_view', () => {
         // 夕鳴町's houses and poles
         ctx.fillStyle = '#5A5E66';
         ctx.fillRect(bx + 10, 38, 44, 10);
+        ctx.fillStyle = '#6B7186';
+        ctx.fillRect(bx + 10, 38, 44, 2);
         ctx.fillStyle = '#E8E4D8';
         ctx.fillRect(bx + 12, 48, 40, 10);
         ctx.fillStyle = '#2A3A4A';
         ctx.fillRect(bx + 20, 50, 8, 5);
+        ctx.fillRect(bx + 38, 50, 6, 5);
+        ctx.fillStyle = '#9CC8E0';
+        ctx.fillRect(bx + 21, 51, 2, 1);
         ctx.fillStyle = '#8A5A3A';
-        ctx.fillRect(bx + 80, 30, 3, 30);
+        ctx.fillRect(bx + 30, 51, 5, 7);
+        // the block wall, a garden tree
+        ctx.fillStyle = '#B8B4AC';
+        ctx.fillRect(bx + 56, 54, 20, 5);
+        ctx.fillStyle = '#3A7A3A';
+        ctx.fillRect(bx + 60, 42, 10, 8);
+        ctx.fillStyle = '#7A4A3A';
+        ctx.fillRect(bx + 64, 50, 2, 5);
+        // the utility pole
+        ctx.fillStyle = '#A8A49C';
+        ctx.fillRect(bx + 80, 26, 3, 34);
+        ctx.fillStyle = '#8A867E';
+        ctx.fillRect(bx + 76, 29, 11, 2);
       } else if (view === 0 && phase === 1) {
-        // the paddies: rows of green
-        ctx.fillStyle = '#9BCB6B';
-        for (let i = 0; i < 128; i += 6) ctx.fillRect(bx + i, 46, 3, 13);
+        // the paddies: rows of rice in ear (1 September: green going gold), a ridge between the fields
+        ctx.fillStyle = '#8AA040';
+        ctx.fillRect(bx, 45, 128, 15);
+        ctx.fillStyle = '#A8B848';
+        for (let i = 0; i < 128; i += 4) ctx.fillRect(bx + i, 46, 2, 13);
+        ctx.fillStyle = '#D8C860';
+        for (let i = 1; i < 128; i += 4) ctx.fillRect(bx + i, 46 + ((i * 7) % 5), 1, 1);
+        ctx.fillStyle = '#9A8A5A';
+        ctx.fillRect(bx + 100, 45, 3, 15);
       } else if (view === 0) {
         // the cutting: rock and trees close by
         ctx.fillStyle = '#6B6A66';
@@ -991,6 +1117,12 @@ registerProp('prop_c3_nidai_view', () => {
         ctx.fillRect(bx + 65, 46, 2, 10);
       }
     }
+    // the overhead wires along the poles (still: the poles come by evenly)
+    if (view === 0 && phase === 0) {
+      ctx.fillStyle = 'rgba(42,36,64,0.7)';
+      ctx.fillRect(0, 30, 384, 1);
+      ctx.fillRect(0, 34, 384, 1);
+    }
     // the road (y 60–184): asphalt, the centre line's dashes rushing west
     ctx.fillStyle = '#6B7186';
     ctx.fillRect(0, 60, 384, 124);
@@ -1004,10 +1136,14 @@ registerProp('prop_c3_nidai_view', () => {
     ctx.fillStyle = view === 1 || view === 3 ? '#C8B488' : '#5FA85A';
     ctx.fillRect(0, 184, 384, 32);
     const g = (s * 200) % 48;
-    ctx.fillStyle = '#C8CCD2';
-    ctx.fillRect(0, 188, 384, 3);
     ctx.fillStyle = '#9AA0A8';
     for (let x = -48; x < 384 + 48; x += 48) ctx.fillRect(Math.round(x - g), 188, 2, 12);
+    ctx.fillStyle = '#E4E8EC';
+    ctx.fillRect(0, 187, 384, 4);
+    ctx.fillStyle = '#B8BCC4';
+    ctx.fillRect(0, 189, 384, 1);
+    ctx.fillStyle = '#F2A23A';
+    for (let x = -96; x < 384 + 96; x += 96) ctx.fillRect(Math.round(x - ((s * 200) % 96)), 186, 2, 2);
     // the truck's own shadow on the road under the bed
     ctx.fillStyle = 'rgba(26,26,40,0.35)';
     ctx.fillRect(MX + 4, MY + 96, 200, 6);

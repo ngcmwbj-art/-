@@ -4,6 +4,7 @@
 // しくみは全部 pgOn()（flag_ch3_clear）の中だけで動く。第1章〜第3章は変わらない。
 
 import { flag, setFlag } from '../game/state';
+import { GRADES, GRADES_C, GRADES_H, type Grade } from './lighting';
 import { isCh2Map, isCh3Map } from './maps';
 import type { MapDef } from './types';
 
@@ -122,6 +123,15 @@ export function pgCh3(): boolean {
  */
 export function oddOn(): boolean {
   return flag('flag_stage') === 2 && !pgOn();
+}
+
+/**
+ * 絵が読む第1章の段階（PropEnv.stage・水・赤とんぼなど）：クリア後の夕方は段階2だが、
+ * 見た目は動いている町（段階3：今のクリア後の朝と同じ）にする。ふしぎ（09 のカート）は
+ * flag_stage を直に読むので、そのまま押せる。
+ */
+export function pgVisStage(s: number): number {
+  return s === 2 && pgOn() ? 3 : s;
 }
 
 // ---------------------------------------------------------------- 書く（中身は下の実装）
@@ -303,4 +313,146 @@ export function pgBandProgress(min = pgMin()): number {
   const b = pgBandAt(min);
   const d = pgBandDef(b);
   return (((min - d.start + PG_DAY_MIN) % PG_DAY_MIN) + carry) / d.len;
+}
+
+// ---------------------------------------------------------------- 光（4.1）
+
+/** HD-2D の日の光の色（hd2d/view.ts lightOf）。 */
+export type PgSun = 'noon' | 'dawn' | 'eve';
+
+interface PgLight {
+  /** プリセットの名前（同じなら移らない）。 */
+  id: string;
+  grade: () => Grade;
+  sun: PgSun;
+}
+
+const L_C = (k: keyof typeof GRADES_C, sun: PgSun): PgLight => ({ id: k, grade: () => GRADES_C[k], sun });
+const L_H = (k: keyof typeof GRADES_H, sun: PgSun): PgLight => ({ id: k, grade: () => GRADES_H[k], sun });
+
+/**
+ * 町 × 時間帯の光（05 4.1）。第1期は今あるプリセットだけ：星見台の昼・夕方は h3c、
+ * 海ぞいの朝・夕方・夜は c4 で仮（第2期に hd・hy・c7・c8・c9）。
+ */
+export const PG_LIGHT: Record<PgTown, Record<PgBand, PgLight>> = {
+  yunari: {
+    asa: L_C('c5', 'dawn'),
+    hiru: L_C('c0', 'noon'),
+    yu: L_C('c6', 'eve'),
+    yoru: { id: 's3', grade: () => GRADES[3], sun: 'eve' },
+  },
+  hoshi: {
+    asa: L_H('h3c', 'dawn'),
+    hiru: L_H('h3c', 'dawn'), // 仮（第2期 hd）
+    yu: L_H('h3c', 'dawn'), // 仮（第2期 hy）
+    yoru: L_H('h1', 'eve'),
+  },
+  umi: {
+    asa: L_C('c4', 'noon'), // 仮（第2期 c7）
+    hiru: L_C('c4', 'noon'),
+    yu: L_C('c4', 'noon'), // 仮（第2期 c8）
+    yoru: L_C('c4', 'noon'), // 仮（第2期 c9 と夜の光のマップ）
+  },
+};
+
+/** 時間帯の変わり目の光の移り（実時間 ms。05 4.1）。 */
+export const PG_GRADE_MS = 20_000;
+
+/** この地図の今の光（クリア後でなければ null）。 */
+export function pgLight(def: MapDef | undefined | null): PgLight | null {
+  if (!pgOn() || !def) return null;
+  return PG_LIGHT[pgTownOf(def)][pgBand()];
+}
+
+/**
+ * 夕鳴町の部屋の色（render.ts）：'day' = 昼の窓の光（INDOOR_MUL_C0）、'eve' = 夕方（INDOOR_MUL[0]）、
+ * 'night' = グレードの夜のまま。クリア後でない・夕鳴町でなければ null。
+ */
+export function pgYunariRoom(def: MapDef | undefined | null): 'day' | 'eve' | 'night' | null {
+  if (!pgOn() || !def || pgTownOf(def) !== 'yunari') return null;
+  const b = pgBand();
+  return b === 'asa' || b === 'hiru' ? 'day' : b === 'yu' ? 'eve' : 'night';
+}
+
+/** 影の向きの角度（画面の向き、度）：5:00 東の日（影は西）→ 12:00 真北 → 18:00 東へ。 */
+function shadowAngle(min: number): number {
+  const h = min / 60;
+  const A_MORN = -162.5;
+  const A_NOON = -90;
+  const A_EVE = 14;
+  if (h < 5 || h >= 19) return A_EVE;
+  if (h < 12) return A_MORN + ((A_NOON - A_MORN) * (h - 5)) / 7;
+  return A_NOON + ((A_EVE - A_NOON) * Math.min(1, (h - 12) / 6));
+}
+
+/**
+ * 外の地図の影の向き（render.ts の 2D の影・hd2d/view.ts の日）。時刻で回る。
+ * 地図の shadowVec より先に読む。クリア後でない・部屋なら undefined。
+ */
+export function pgShadowVec(def: MapDef | undefined | null): [number, number] | undefined {
+  if (!pgOn() || !def || def.kind === 'indoor') return undefined;
+  const a = (shadowAngle(pgMin() + carry) * Math.PI) / 180;
+  return [Math.cos(a), Math.sin(a)];
+}
+
+// ---------------------------------------------------------------- ツガオ便（8.1）
+
+/**
+ * ツガオ便の止まる所（どの時間帯でもいる。05 8.1）：夕鳴町・海ぞいの町は after.ts の c3_truck_c4
+ * （この座標）。星見台は第2章の転回場の軽トラの絵（prop_tsugao_truck (42,41)）がそのまま止まる所で、
+ * ツガオはその横（pg_tsugao_hoshi (41,43)、data/maps/hoshi_village.ts）。
+ */
+export const PG_TRUCK_STOPS: Record<string, { x: number; y: number; dir: 'down' | 'up' | 'left' | 'right' }> = {
+  map_town: { x: 45, y: 30, dir: 'down' },
+  map_umizoi: { x: 23, y: 18, dir: 'right' },
+  map_hoshimidai: { x: 42, y: 41, dir: 'left' },
+};
+
+/** 止まっているツガオ便の絵：夕鳴町の夕方は昼寝（tsugao_truck_nap）。 */
+export function pgTruckKind(mapId: string): 'tsugao_truck' | 'tsugao_truck_nap' {
+  return pgOn() && mapId === 'map_town' && pgBand() === 'yu' ? 'tsugao_truck_nap' : 'tsugao_truck';
+}
+
+// ---------------------------------------------------------------- 灯り（5.2）
+
+/** クリア後のトマトの灯り：夜の星見台で点く（lanternOn() のクリア後の条件。E と同じ）。 */
+export function pgLantern(): boolean {
+  return pgOn() && pgBand() === 'yoru';
+}
+
+// ---------------------------------------------------------------- 会話のキー（6.2）
+
+/**
+ * `p` キー（調べる物の表：world/maps.ts pickStage）：クリア後だけ、段階のキーより先に読む。
+ * 帯の `pa/ph/py/pn` → `p`。無ければ undefined（いつもの段階のキーへ）。
+ */
+export function pgPickKey<T>(rec: Record<string, T>): T | undefined {
+  if (!pgOn()) return undefined;
+  const k = pgBandDef().key;
+  if (rec[k] !== undefined) return rec[k];
+  if (rec.p !== undefined) return rec.p;
+  return undefined;
+}
+
+/**
+ * `p` キー（人の会話の表：world/interact.ts pickTalk）：はじめての1回は `p_1`
+ * （flag_seen_<id>_p_1 で数える）→ 帯の `pa/ph/py/pn` → `p`。無ければ null。
+ */
+export function pgTalkKey(npcId: string, table: Record<string, unknown>): string | null {
+  if (!pgOn()) return null;
+  const seen = `flag_seen_${npcId}_p_1`;
+  if (table.p_1 !== undefined && !flag(seen)) {
+    setFlag(seen, 1);
+    return 'p_1';
+  }
+  const k = pgBandDef().key;
+  if (table[k] !== undefined) return k;
+  if (table.p !== undefined) return 'p';
+  return null;
+}
+
+/** その表に `p` のキーがあるか。 */
+export function hasPgKeys(rec: Record<string, unknown>): boolean {
+  for (const k of ['p', 'p_1', 'pa', 'ph', 'py', 'pn']) if (rec[k] !== undefined) return true;
+  return false;
 }

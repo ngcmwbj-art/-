@@ -11,7 +11,9 @@ import { DIR_VEC } from './actor';
 import type { FieldScene } from './field';
 import { fushigiActive, fushigiDone, runFushigi } from './fushigi';
 import { currentStage, pickStage, stageKeyPrefix } from './maps';
+import { pgTalkKey } from './postgame';
 import { runMsg } from './msg';
+import { ch3Hirumae } from './umizoi';
 import { getScript, type ScriptCtx } from './scripts';
 import type { ExamineObj, NpcObj, SymbolObj, TalkTable } from './types';
 import * as snd from './audio';
@@ -31,6 +33,9 @@ function ctxFor(f: FieldScene, source: string, runDefault: () => Co, defaultText
  * with no `h` keys at all is read with its `s` keys there.
  */
 export function pickTalk(npcId: string, table: TalkTable): string | null {
+  // クリア後（05 6.2）：p_1 → pa/ph/py/pn → p。無い人はいつもの段階のキー
+  const pk = pgTalkKey(npcId, table);
+  if (pk) return pk;
   const stage = currentStage();
   const keys = Object.keys(table);
   const kp = stageKeyPrefix();
@@ -101,8 +106,9 @@ export function* interactActor(f: FieldScene, a: Actor): Co {
   }
   const def = a.data.def as NpcObj | undefined;
   if (!def) return;
-  // 話しかけた記録（60_ch3_story 3.0・3.4：第3章で「来る人」を決める。第1章から記録して、セーブに残す）
-  setFlag(`flag_talked_${def.id}`, 1);
+  // 話しかけた記録（60_ch3_story 3.0・3.4：第3章で「来る人」を決める。第1章から記録して、セーブに残す）。
+  // 第3章の段階0（夕鳴町の昼前）では記録しない：来る人は第1章・第2章で話した人だけ（fix1014 F3）
+  if (!ch3Hirumae()) setFlag(`flag_talked_${def.id}`, 1);
   f.talking = a;
   const turns = !def.noTurn;
   const prevDir = a.dir;

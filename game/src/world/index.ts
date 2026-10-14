@@ -11,6 +11,9 @@ import { getItem, joinKanenari, newGameParty } from '../data/battle';
 import '../data/maps';
 import '../art/props';
 import './places';
+// クリア後（05_postgame）：人の配置の表と QA コマンド
+import './pg_schedule';
+import './pg_debug';
 import './life';
 import './hoshi_debug';
 // 海ぞいの町 starts moving again (62 6.3・8.7・8.8): the sea, the ring, the gulls, the sea floor

@@ -42,7 +42,7 @@ import { MIMI_WHO, type MimiWho } from '../../data/text/hoshi_mimi';
 import { dogFace, kaneHead, type DogEar } from '../../art/props/mimi_art';
 import { addMp } from '../lib';
 import { se } from './compat';
-import { hStage, lanternOn, npc, poseAny, unpose } from './common';
+import { ch2Open, hStage, lanternOn, npc, poseAny, unpose } from './common';
 import { YK } from './sawako_yk';
 import { DF } from './dome';
 import { deliveryOn } from './tsugao';
@@ -111,7 +111,7 @@ function storyFirst(who: MimiWho): boolean {
       if (!flag('flag_ch2_yoriai')) return true;
       if (flag('flag_ch2_sawa_seki') && !flag('flag_seen_npc_hoshi_fumi_sawa')) return true;
       const s = hStage();
-      const dome = lanternOn() && s >= 1 && s <= 2 && !flag('flag_ch2_boss_beaten');
+      const dome = lanternOn() && s >= 1 && s <= 2 && ch2Open();
       if (dome && (!flag(DF.key) || (flag(DF.n) >= 3 && !flag(DF.report)) || (flag(DF.report) > 0 && !flag(DF.after)))) return true;
       return false;
     }
@@ -123,7 +123,7 @@ function storyFirst(who: MimiWho): boolean {
 
 /** 段階0〜2。 */
 function onNight(): boolean {
-  return hStage() <= 2 && !flag('flag_ch2_boss_beaten');
+  return hStage() <= 2 && ch2Open();
 }
 
 // ================================================================ the five

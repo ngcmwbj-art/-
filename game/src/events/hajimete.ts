@@ -29,6 +29,7 @@
 //   __game.cmd.hajimeteBookText()  みました帳の ページ（wrapCheck も 呼ぶ）
 
 import type { Co } from '../engine/co';
+import { pgCh1 } from '../world/postgame';
 import { game, type Widget } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { H, W } from '../engine/screen';
@@ -71,7 +72,8 @@ import { addMp, onMap } from './lib';
 const NE = 'uchimizu_ne';
 
 /** Chapter 1 (not yet in 星見台). */
-const ch1 = (): boolean => !flag('flag_ch2_started');
+// 第1章の時間か：第2章の前、またはクリア後の夕方（05_postgame 5.2 pgCh1）
+const ch1 = (): boolean => pgCh1();
 const ch1OnDuty = (): boolean => ch1() && stage() >= 1 && stage() <= 2;
 const ch2OnDuty = (): boolean => !!flag('flag_ch2_started') && flag('flag_ch2_stage') <= 2;
 

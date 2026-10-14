@@ -33,6 +33,7 @@
 //   __game.cmd.hokokushoText()  台詞の 3行・336px と 禁句（「17」「まだ」「平和」「3人」、地の文の「さん」）
 
 import '../art/props/hokokusho';
+import { pgCh1 } from '../world/postgame';
 import type { Co } from '../engine/co';
 import { game } from '../engine/game';
 import { measure } from '../engine/font';
@@ -120,7 +121,8 @@ import { FoodGame, LegsGame, SizeGame, SuiriGame } from '../ui/hokokusho_games';
 import { addMp, getKeyItem, onMap, once } from './lib';
 import { keyGuide } from './stage';
 
-const ch1 = (): boolean => !flag('flag_ch2_started');
+// 第1章の時間か：第2章の前、またはクリア後の夕方（05_postgame 5.2 pgCh1）
+const ch1 = (): boolean => pgCh1();
 /** 第1章の 段階2（グソっ君が 仲間の あいだ）。 */
 const onDuty = (): boolean => ch1() && stage() === 2;
 

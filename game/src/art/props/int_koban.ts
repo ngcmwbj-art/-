@@ -21,6 +21,7 @@ import { registerProp } from './registry';
 import { exteriorGlow, exteriorImg, exteriorOver, withExterior } from './iexterior';
 import { fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
+import { pgWallTime } from '../../ui/pg_wallclock';
 
 // ---------------------------------------------------------------- shell
 
@@ -297,10 +298,12 @@ registerProp('in_kb_clock', () => {
     flat: true,
     img: (env: PropEnv) => {
       const c = env.flag('flag_clock');
-      const [h, m] = env.stage >= 3 ? [5, 1] : env.stage >= 1 ? [5, 0] : [4, c >= 2 ? 58 : c >= 1 ? 55 : 52];
+      // (after the clear: the postgame clock, 05_postgame 3.2)
+      const pg = pgWallTime(env);
+      const [h, m] = pg ? [pg[0], pg[1]] : env.stage >= 3 ? [5, 1] : env.stage >= 1 ? [5, 0] : [4, c >= 2 ? 58 : c >= 1 ? 55 : 52];
       // the red second hand runs, and stops dead at 17:00 (stage 1); in
       // stage 2 it keeps slipping back a second and catching again (00 → 59 → 00)
-      const sec = env.stage === 1 ? 0 : env.stage === 2 ? (Math.floor(env.t / 1100) % 3 === 2 ? 59 : 0) : Math.floor(env.t / 1000) % 60;
+      const sec = pg ? pg[2] : env.stage === 1 ? 0 : env.stage === 2 ? (Math.floor(env.t / 1100) % 3 === 2 ? 59 : 0) : Math.floor(env.t / 1000) % 60;
       const k = `${h}:${m}:${sec}`;
       let img = cache.get(k);
       if (!img) {

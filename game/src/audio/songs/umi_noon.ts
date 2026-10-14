@@ -127,10 +127,19 @@ const noon = (b: BarCtx) => b.p.c3_noon === 1;
 const room = (b: BarCtx) => b.p.h_room;
 const uw = (b: BarCtx) => b.p.h_room === 5;
 
-/** A part's level now: its room's factor × whether its 「まだ」 is undone. */
+/**
+ * 05_postgame 4.3 (クリア後): the quiet form for the morning and the evening
+ * (pg_shizuka 1) — the town before and after its busy noon: no drums, no
+ * hand-signals or knife, the radio's guitar half; the harmonica, the bass and
+ * the sea stay. −2 dB.
+ */
+const SHIZUKA: Record<string, number> = { drums: 0, ichiba: 0, daidokoro: 0, ichi_shaker: 0, ichi_lead: 0, comp: 0.5, ichi_marimba: 0.6, bass: 0.75, slap: 0.6 };
+const SHIZUKA_DB = -2;
+
+/** A part's level now: its room's factor × whether its 「まだ」 is undone (× the quiet form). */
 function partLevel(sp: SongPlayer, id: string, p = sp.params): number {
   const r = ROOM[p.h_room] ?? ROOM[0];
-  const k = r.parts[id] ?? 1;
+  const k = (r.parts[id] ?? 1) * (p.pg_shizuka === 1 ? SHIZUKA[id] ?? 1 : 1);
   const ret = RETURNS[id];
   return ret && p[ret] !== 1 ? 0 : k;
 }
@@ -139,7 +148,7 @@ function applyRoom(sp: SongPlayer, ramp: number, p = sp.params): void {
   const r = ROOM[p.h_room] ?? ROOM[0];
   const t = sp.g.ctx.currentTime;
   const tc = Math.max(0.005, ramp) / 3;
-  sp.out.gain.setTargetAtTime(dbToGain(songGainDb(sp.def.id, sp.def.gainDb) + r.db), t, tc);
+  sp.out.gain.setTargetAtTime(dbToGain(songGainDb(sp.def.id, sp.def.gainDb) + r.db + (p.pg_shizuka === 1 ? SHIZUKA_DB : 0)), t, tc);
   sp.filter.frequency.setTargetAtTime(r.lp, t, tc);
   for (const rt of sp.parts) sp.partGain(rt.id, partLevel(sp, rt.id, p), Math.max(0.005, ramp), t);
 }
@@ -267,6 +276,11 @@ function umiNoonDef(): SongDef {
     onParam(sp, name, value, old) {
       if (name === 'h_room') {
         applyRoom(sp, 0.6, { ...sp.params, h_room: value });
+        return;
+      }
+      // 05_postgame 4.3: noon ⇄ morning / evening — the quiet form over two bars
+      if (name === 'pg_shizuka') {
+        applyRoom(sp, (60 / 108) * 4 * 2, { ...sp.params, pg_shizuka: value });
         return;
       }
       // a 「まだ」 undone: from the next bar its part comes back over two bars (6.2)

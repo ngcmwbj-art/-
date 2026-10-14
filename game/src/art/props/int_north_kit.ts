@@ -15,6 +15,7 @@ import { depthShade, dust, lightPool, paintShell, screenPool, screenSpill, shell
 import { castRight, dk, lt } from './kit';
 import { exteriorGlow, exteriorImg, exteriorOver, withExterior, type ExteriorSpec } from './iexterior';
 import type { PropArt, PropEnv } from './types';
+import { pgWallTime } from '../../ui/pg_wallclock';
 
 export function rgbHex(c: [number, number, number]): string {
   const h = (v: number) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
@@ -216,6 +217,9 @@ export function roomShell(s: RoomSpec): PropArt {
 
 /** A chapter-1 wall clock in this stage: [h, m, s]. 16:52 → 16:55 → 16:58 (flag_clock), 17:00 from stage 1. */
 export function stageTime(env: PropEnv): [number, number, number] {
+  // (after the clear the wall clocks tell the postgame clock: 05_postgame 3.2)
+  const pg = pgWallTime(env);
+  if (pg) return pg;
   if (env.stage >= 3) return [5, 1, Math.floor(env.t / 1000) % 60];
   if (env.stage === 1) return [5, 0, 0];
   if (env.stage === 2) return [5, 0, Math.floor(env.t / 1100) % 3 === 2 ? 59 : 0];

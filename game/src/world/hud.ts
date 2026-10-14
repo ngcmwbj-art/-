@@ -12,6 +12,7 @@ import { P } from '../art/tiles/palette';
 import type { FieldScene } from './field';
 import { fushigiActive } from './fushigi';
 import { isCh2Map } from './maps';
+import { oddOn, pgOn } from './postgame';
 import * as snd from './audio';
 import { ROOM2_PLACE } from '../data/maps/hoshi_rooms2_names';
 
@@ -429,7 +430,7 @@ class DefaultHud implements FieldHud {
     }
     if (this.showT > 0) this.showT -= dt;
     const h = ch2Clock(f, f.t);
-    const always = h ? h.always : flag('flag_stage') >= 1 && flag('flag_stage') < 3;
+    const always = h ? h.always : flag('flag_stage') >= 1 && flag('flag_stage') < 3 && !pgOn();
     const want = (this.showT > 0 || always || this.override) && !flag('flag_hud_hidden') ? 4 : -24;
     this.y += Math.sign(want - this.y) * Math.min(Math.abs(want - this.y), dt / 12);
     // fushigi proximity
@@ -453,7 +454,7 @@ class DefaultHud implements FieldHud {
     }
     this.fushigiNear = near;
     // stage 2: the seconds dots sometimes step back
-    if (flag('flag_stage') === 2 && Math.random() < dt / 5000) this.back = 400;
+    if (oddOn() && Math.random() < dt / 5000) this.back = 400;
     if (this.back > 0) this.back -= dt;
   }
 
@@ -468,7 +469,8 @@ class DefaultHud implements FieldHud {
       g.img(plateImg(), x, y);
       const h = ch2Clock(f, f.t);
       const time = h ? h.text : this.override ?? TIMES[Math.max(0, Math.min(4, flag('flag_clock')))];
-      const colonOn = h ? !h.blink || Math.floor(f.t / 500) % 2 === 0 : st >= 1 && st < 3 ? true : Math.floor(f.t / 500) % 2 === 0;
+      const stoppedCh1 = st >= 1 && st < 3 && !pgOn();
+      const colonOn = h ? !h.blink || Math.floor(f.t / 500) % 2 === 0 : stoppedCh1 ? true : Math.floor(f.t / 500) % 2 === 0;
       const [hh, mm] = time.split(':');
       const tx = x + 10 + (hh.length < 2 ? 3 : 0);
       drawDigits(g, hh, tx, y + 5, P.ink);
@@ -481,7 +483,7 @@ class DefaultHud implements FieldHud {
       }
       drawDigits(g, mm, tx + (hh.length < 2 ? 11 : 17), y + 5, P.ink);
       // seconds dots under the plate
-      const stoppedRow = h ? h.stopped : st >= 1 && st < 3;
+      const stoppedRow = h ? h.stopped : stoppedCh1;
       const secs = stoppedRow ? 12 - (this.back > 0 ? 1 : 0) : Math.floor((f.t / 1000) % 13);
       for (let i = 0; i < 12; i++) g.px(x + 8 + i * 3, y + 19, i < secs ? P.ink : P.concrete);
     }

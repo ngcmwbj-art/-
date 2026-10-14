@@ -250,6 +250,35 @@ function planOf(def: MapDef): { bgm: string | null | undefined; variant?: string
   return { bgm, variant, amb: t.amb[s] ?? def.amb?.[s] ?? [], ambVol: { ...(def.ambVol ?? {}), ...(t.ambVol ?? {}) }, space: t.space, pa: t.pa };
 }
 
+/**
+ * 05_postgame 4.3 (クリア後): a 海ぞいの町 map's sound in its everyday form —
+ * the 12:01 town (stage 2's beds; the song as at stage 1, so 食堂かもめ has
+ * bgm_umi_noon on its radio, not the lunch). The old aquarium and the truck
+ * bed keep their own path (null).
+ */
+export function c3PgPlan(def: MapDef): { bgm: string | null; variant?: string; amb: string[]; ambVol: Record<string, { vol: number; lp?: number }>; space: string; pa: 'town' | 'umi' | 'kannai' } | null {
+  if (!isCh3Map(def) || def.id.startsWith('map_c3_aq') || def.id === 'map_c3_nidai') return null;
+  const t = C3_AUDIO[def.id];
+  if (!t) {
+    return {
+      bgm: def.bgm?.[4] ?? def.bgm?.[2] ?? def.bgm?.[1] ?? null,
+      variant: def.variant,
+      amb: def.amb?.[4] ?? def.amb?.[2] ?? [],
+      ambVol: def.ambVol ?? {},
+      space: def.space ?? (def.kind === 'indoor' ? 'room' : 'minato'),
+      pa: 'umi',
+    };
+  }
+  return {
+    bgm: t.bgm[1] ?? null,
+    variant: typeof t.variant === 'function' ? t.variant(1) : t.variant,
+    amb: t.amb[2] ?? t.amb[1] ?? [],
+    ambVol: { ...(def.ambVol ?? {}), ...(t.ambVol ?? {}) },
+    space: t.space,
+    pa: t.pa,
+  };
+}
+
 /** Beds whose level follows where しゅん stands. */
 export function c3PositionalBeds(def: MapDef): string[] {
   if (def.id !== 'map_umizoi') return [];

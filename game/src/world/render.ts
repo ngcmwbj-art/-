@@ -19,6 +19,7 @@ import { cellAt, groundAt, isCh2Map, isCh3Map } from './maps';
 import { c3Positional, c3PositionalBeds } from './c3audio';
 import { c3DarkHere, paintC3Lights } from './c3dark';
 import { ch3Hirumae, ch3TownTime } from './umizoi';
+import { oddOn, pgShadowVec, pgVisStage, pgYunariRoom } from './postgame';
 import type { Actor } from './actor';
 import { hud } from './hud';
 import { fxDraw, fxUpdate } from './fx';
@@ -292,7 +293,7 @@ export class Renderer {
 
     // 5. y-sorted
     const list: Drawable[] = [];
-    const ne = flag('flag_stage') === 2;
+    const ne = oddOn();
     for (const s of f.structures) {
       const x = s.tx * 16 + s.art.ox;
       const y = s.ty * 16 + s.art.oy;
@@ -1527,7 +1528,7 @@ export class Renderer {
           grade: f.grade,
           t: f.t,
           mt: f.mt,
-          stage: flag('flag_stage'),
+          stage: pgVisStage(flag('flag_stage')),
           map: f.map,
           vis: [vx, vy, vw, vh],
           reflect: (refl ??= this.reflectors(cx, cy)),
@@ -1611,7 +1612,8 @@ export class Renderer {
     s.fillStyle = '#000';
     const indoor = f.map.def.kind === 'indoor';
     // a map may fix the direction (the mall's roof: straight down)
-    const fixed = f.map.def.shadowVec;
+    // (after the clear the sun goes round with the clock: postgame pgShadowVec, 05 4.1)
+    const fixed = pgShadowVec(f.map.def) ?? f.map.def.shadowVec;
     const dirAt = (tx: number, ty: number): [number, number] => fixed ?? shadowDir(gd, tx, ty);
     // nothing cast (星見台's night has no sun shadows, rooms none): the
     // layer's colouring and compositing are skipped (four full-frame passes)
@@ -1794,10 +1796,12 @@ export class Renderer {
     lx.globalCompositeOperation = 'source-over';
     // (夕鳴町's rooms at 11:10 in chapter 3, 62 5.2: the day through the windows)
     // (and in the ending's morning and after the clear, flag_c3_end_light 2: the morning through them)
-    const dayRoom = indoor && !ch2 && (ch3Hirumae() || ch3TownTime(f.map.def) === 2);
+    // (after the clear: 夕鳴町's rooms by the clock — the day's in the morning and at noon, the evening's, the night's: postgame pgYunariRoom)
+    const pgRoom = pgYunariRoom(f.map.def);
+    const dayRoom = indoor && !ch2 && (ch3Hirumae() || ch3TownTime(f.map.def) === 2 || pgRoom === 'day');
     // (the old aquarium's rooms, chapter 3 stage 3: each room's own dimness, 62 1.1)
     const c3Base = indoor && !ch2 && isCh3Map(f.map.def) ? f.map.def.lightBase : undefined;
-    const base = ch2 ? hoshiBase(f) : c3Base ?? (dayRoom ? css(INDOOR_MUL_C0) : indoor ? css(indoorMul(st, gd.night, this.mapLit)) : css(gd.mul));
+    const base = ch2 ? hoshiBase(f) : c3Base ?? (dayRoom ? css(INDOOR_MUL_C0) : indoor ? css(indoorMul(pgRoom ? 0 : st, gd.night, this.mapLit)) : css(gd.mul));
     lx.fillStyle = base;
     lx.fillRect(0, 0, W, H);
     if (!ch2 && c3DarkHere(f)) {

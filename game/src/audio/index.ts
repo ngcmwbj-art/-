@@ -105,6 +105,21 @@ export function currentBgmId(): string | null {
 }
 
 /**
+ * 05_postgame 4.3 (クリア後): the time of day changed — the song now playing
+ * finishes its bar and fades over `fadeOut` s (default 6), the next (null: no
+ * song) comes in over `fadeIn` s (default 4). The same song only changes its
+ * form. A playBgm / stopBgm meanwhile cancels the waiting song.
+ */
+export function playBgmBand(id: string | null, opts: { variant?: string; fadeOut?: number; fadeIn?: number } = {}): void {
+  music.playBgmBand(id, opts);
+}
+
+/** The song a time-of-day change is about to bring in (null: none waiting). */
+export function bgmBandPending(): string | null {
+  return music.bandPendingId();
+}
+
+/**
  * Where the music is right now (for syncing visuals, e.g. the title's sun
  * pulsing on the chime notes of bar I3): bar label, beat within the bar
  * (0-based, fractional), tempo. null when nothing plays.
@@ -227,7 +242,10 @@ export function setMusicParam(
     | 'c3_noon' | 'c3_ichiba' | 'c3_shokudo' | 'c3_umi' | 'c3_ichi' | 'c3_shio' | 'c3_wana' | 'c3_phase' | 'nari_rewind'
     // 'teppan' 0..3 (ヤキソバンの鉄板の熱: jyu / hera layers from the next beat; a new song resets it),
     // 'kakaricho' 0..3 (係長の声の吹き出しの残り: bgm_boss_madamada shrinks — LP 900 / 1800 / 3600 Hz)
-    | 'teppan' | 'kakaricho',
+    | 'teppan' | 'kakaricho'
+    // 05_postgame 4.3: 'pg_shizuka' 0/1 — the quiet form of bgm_umi_noon / bgm_hoshi_morning
+    // for a time of day (fewer parts, over two bars). Only the postgame sets it.
+    | 'pg_shizuka',
   value: number,
 ): void {
   music.setMusicParam(name, value);

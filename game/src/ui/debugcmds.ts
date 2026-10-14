@@ -1,6 +1,9 @@
 // QA commands for the UI (window.__game.cmd.*).
 
 import { registerDebug } from '../debug';
+import { pgClockRun } from './pg_clock';
+import { notifyYarinokoshi } from './hud';
+import type { PgBand } from '../world/postgame';
 import { game } from '../engine/game';
 import { ask, caption, choose, dialogSpeech, say } from './dialog';
 import {
@@ -516,3 +519,27 @@ registerDebug('ending2', (auto = 0) => {
   game.scripts.run(playEndingNotebookCh2());
   return 'ending2';
 });
+
+// クリア後の画面（05_postgame 3.2・8.2。開発サーバーだけ）：
+//   __game.cmd.pgUi('notice', 'yu')        「夕方に なった。」と印のはね（時刻は変えない）
+//   __game.cmd.pgUi('run', 660, 750)       HUD の数字の早回り 11:00 → 12:30（1.5秒）
+//   __game.cmd.pgUi('note')                「みました帳に『やり残し』が ふえた。」
+// （時刻そのものは W の QA コマンドで置く）
+if (import.meta.env.DEV) {
+  registerDebug('pgUi', (what: string, a?: string | number, b?: number) => {
+    if (what === 'notice') {
+      const band = (a ?? 'yu') as PgBand;
+      uiHud.pgBandChanged(band, band === 'asa' ? 'yoru' : 'asa');
+      return band;
+    }
+    if (what === 'run') {
+      game.scripts.run(pgClockRun(Number(a ?? 660), Number(b ?? 750)) as Generator<never>);
+      return 'run';
+    }
+    if (what === 'note') {
+      notifyYarinokoshi();
+      return 'note';
+    }
+    return ['notice', 'run', 'note'];
+  });
+}

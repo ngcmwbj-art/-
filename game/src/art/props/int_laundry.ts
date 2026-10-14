@@ -22,6 +22,7 @@ import { registerProp } from './registry';
 import { exteriorGlow, exteriorImg, exteriorOver, withExterior } from './iexterior';
 import { fontTextSmall, printLines, tiny } from './text';
 import type { PropArt, PropEnv } from './types';
+import { pgWallTime } from '../../ui/pg_wallclock';
 
 function rgbHex(c: [number, number, number]): string {
   const h = (v: number) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
@@ -554,6 +555,9 @@ registerProp('in_ld_vend', () => {
 // ---------------------------------------------------------------- wall clock (8,1)
 
 function laundryTime(env: PropEnv): [number, number, number] {
+  // (after the clear the wall clocks tell the postgame clock: 05_postgame 3.2)
+  const pg = pgWallTime(env);
+  if (pg) return pg;
   if (env.stage >= 3) return [5, 1, Math.floor(env.t / 1000) % 60];
   if (env.stage >= 1) {
     // 17:00 — the second hand stamps its feet just before 12

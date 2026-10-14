@@ -50,7 +50,8 @@ import { W } from '../engine/screen';
 import { P } from '../art/tiles/palette';
 import { cellKind, type CellKind } from '../art/props/ishell';
 import type { FieldScene, PropInst } from '../world/field';
-import { INDOOR_MUL, type Grade } from '../world/lighting';
+import { INDOOR_MUL, INDOOR_MUL_C0, type Grade } from '../world/lighting';
+import { pgYunariRoom } from '../world/postgame';
 import { registerDebug } from '../debug';
 import { CasterSet, CutoutView, PropBatch, ShadowSet, SV, type Box, type CasterSpec, type LightSpot } from './town';
 import { NUDGE, SOLID, solidOf } from './tune';
@@ -214,7 +215,11 @@ export interface RoomWindow {
  */
 export function indoorGrade(f: FieldScene, stage: number): Grade {
   const g = f.grade;
-  const st = Math.max(0, Math.min(2, Math.floor(stage)));
+  // after the clear (05 4.1): 夕鳴町's rooms by the clock — the day through the windows in the
+  // morning and at noon (render.ts dayRoom), the evening's at the evening and the night
+  const pgRoom = pgYunariRoom(f.map.def);
+  if (pgRoom === 'day') return { ...g, mul: [INDOOR_MUL_C0[0], INDOOR_MUL_C0[1], INDOOR_MUL_C0[2]], glare: [255, 250, 236], glareA: 0.06, glareW: 0.45, topA: 0 };
+  const st = pgRoom ? 0 : Math.max(0, Math.min(2, Math.floor(stage)));
   const day = INDOOR_MUL[st] ?? INDOOR_MUL[0];
   return {
     ...g,
