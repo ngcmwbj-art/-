@@ -603,6 +603,8 @@ const LOOKS: Look[] = [
       cord: flat('#E84E3C'), steel: cloth('#C8CDD4', '#9AA0A8', '#F4F1E8', '#6B7186'), shoe: flat('#3A3F48'),
     }),
     head: adultHead('white_short', true), short: 3, sleeve: 'long', bottom: 'pants', hat: 'workcap', things: ['stopwatch'], bent: true, shoe: 'shoe',
+    // (灯台の 名のり：夜の 防波堤の 石の ベンチに すわる。events/ch3/nanori.ts)
+    sit: true,
   },
   {
     id: 'npc_c3_toudai',
@@ -673,6 +675,8 @@ const LOOKS: Look[] = [
       stick: flat('#8A5A3A'), broom: cloth('#C8A06A', '#A87A4A', '#E8C890', '#7A5A3A'), shoe: flat('#3A3F48'),
     }),
     head: adultHead('hikkume', true), short: 3, sleeve: 'long', bottom: 'pants', hat: null, things: ['houki', 'nafuda'], shoe: 'shoe',
+    // (本日は、開館です：開館の あとは 入口の 中の ベンチに すわる。events/ch3/iso.ts)
+    sit: true,
   },
   {
     id: 'npc_c3_kid_a',

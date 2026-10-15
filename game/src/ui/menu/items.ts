@@ -25,6 +25,7 @@ import { UKI_DESC_LINE } from '../../data/text/mizube';
 // 「ダンゴムシ ちゃうで」の 報告書（02 #93）：写しの 2行目と、つかうと カード
 import { hkItemDesc } from '../../data/text/hokokusho';
 import { HANAMARU_DESC } from '../../data/text/hoshi_tetsubou';
+import { NN_ITEM_DESC } from '../../data/text/c3_nanori';
 import { viewCard } from '../hokokusho_card';
 
 export const BAG_MAX = 14;
@@ -114,6 +115,8 @@ export function itemDesc(id: string): [string, string] {
   if (id === 'item_hokokusho') return hkItemDesc();
   // はなまる『懸垂挑戦！』：第2章の 鉄棒で まつ先生が『1回 星見台』と 書き足した あと（02 #100）
   if (id === 'item_hanamaru_kensui' && flag('flag_tetsu_hanamaru')) return HANAMARU_DESC;
+  // 予備の ストップウォッチ：止めない 時計の あと（灯台の 名のり）
+  if (id === 'item_nn_stopwatch' && flag('flag_nn_done')) return NN_ITEM_DESC;
   return [it?.desc[0] ?? '', it?.desc[1] ?? ''];
 }
 

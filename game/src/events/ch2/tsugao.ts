@@ -65,7 +65,7 @@ export function deliveryOn(): boolean {
 }
 
 /** The delivery can be offered: stage 1 (the tomato, テツヤ still out), not done yet. */
-function deliveryOpen(): boolean {
+export function deliveryOpen(): boolean {
   // クリア後（05_postgame 2.2 yr_c2_deli）：夜の星見台なら、テツヤのあとでも 頼まれる
   return hStage() === 1 && flag('flag_ch2_got_tomato') > 0 && (!flag('flag_ch2_tetsuya_beaten') || pgCh2()) && !flag('flag_ch2_delivery') && !deliveryOn();
 }

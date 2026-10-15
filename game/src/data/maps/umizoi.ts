@@ -15,7 +15,9 @@
 // aquarium's plaza `q` (the hill's plaza stays `%`: HD-2D lifts the hill), and the
 // breakwater's (20,31) is breakwater (its `o` had no prop: an unseen wall that, with
 // the angler sitting at (21,32), shut the way west; fix1015), and the dried-fish shop's
-// (15–20,13) is facade `W` (its open front is two tiles tall, c3_bld.ts; fix1015).
+// (15–20,13) is facade `W` (its open front is two tiles tall, c3_bld.ts; fix1015), and the rock under
+// the plaza's south end (73,34) is the steps down to the cape's shore (`n`, 本日は、開館です: events/ch3/iso.ts;
+// a rope over them while the shore is not open).
 //
 // The people and the things say what the scenario registers by their ids
 // (events/ch3/umizoi.ts, 60 3.2・9.3); this map only places them.
@@ -64,7 +66,7 @@ const ROWS = [
   'KK~~~-------------------------------------o---X~~~~~KzzzzzzzzzzzzzzKqqqqqqqqqqqq', // 31
   'KK~~~-----------------------------------------X~~~~~K~~~~~~~~~~~~~~Kqqqqqqqqqqqq', // 32
   'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX~~~~~K~~~~~~~~~~~~~~Kqqoqqqqqqoqq', // 33
-  'KK~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~K~~~~~~~~~~~~~~KKKKKKKKKKKKK', // 34
+  'KK~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~K~~~~~~~~~~~~~~KKKKKKnKKKKKK', // 34
   'KK~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~K~~~~~~~~~~~~~~K~~~~~~~~~~~~', // 35
   'KK~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~K~~~~~~~~~~~~~~K~~~~~~~~~~~~', // 36
   'KK~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~K~~~~~~~~~~~~~~K~~~~~~~~~~~~', // 37

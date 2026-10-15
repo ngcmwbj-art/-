@@ -55,6 +55,7 @@ import { MIMI_TEXTS } from '../../data/text/hoshi_mimi';
 import { TAIHI_TEXTS } from '../../data/text/hoshi_taihi';
 import { SAKU_TEXTS } from '../../data/text/hoshi_sakuzoi';
 import { TETSU_TEXTS } from '../../data/text/hoshi_tetsubou';
+import { MG_TEXTS } from '../../data/text/hoshi_mushigomu';
 import { HUNTING_TEXTS } from '../../data/text/hunting';
 import { KOTEI_TEXTS } from '../../data/text/kotei';
 import { TOKEI_TEXTS } from '../../data/text/tokei7';
@@ -70,6 +71,8 @@ import { pgRowTexts } from '../../data/text/pg_rows';
 import { pgTalkTexts } from '../../data/text/pg_talk';
 import { PG_OBJ_TEXT } from '../../data/text/pg_objs';
 import { pgSecretTexts } from '../../data/text/pg_secret';
+import { NN_TEXTS } from '../../data/text/c3_nanori';
+import { ISO_TEXTS } from '../../data/text/c3_iso';
 import { knHintTexts } from '../../data/text/kn_hint';
 import { SPEAKERS } from '../../world/msg';
 
@@ -491,6 +494,8 @@ function collectTexts(): [string, string][] {
   walk('sakuzoi', SAKU_TEXTS);
   // げむきか10/11の案5（分校の 鉄棒と『懸垂、1回』。第1章で 懸垂に 挑んだ 人だけ。50 10.33, 02_ch2_index #100）
   walk('tetsu', TETSU_TEXTS);
+  // げむきか10/15の案2（上へ 降る 雪。02_ch2_index #101）
+  walk('mushigomu', MG_TEXTS);
   // げむきか10/5の新5（ハンチングの 値札。第1章の くりこ〔chichi〕も。10 6.8, 50 3.8・9.9, 02_ch2_index #83）
   walk('hunting', HUNTING_TEXTS);
   // げむきか10/5の新1（二人十五脚。第1章の ピー・コック・なんばるわん・校庭。10 6.12・6.23・7.24, 02_ch2_index #82）
@@ -515,6 +520,9 @@ function collectTexts(): [string, string][] {
   walk('pgTalk', pgTalkTexts());
   walk('pgObj', PG_OBJ_TEXT);
   walk('pgSecret', pgSecretTexts());
+  // 灯台の 名のり（クリア後の 夜）
+  walk('pgNanori', NN_TEXTS);
+  walk('pgIso', ISO_TEXTS);
   // 隊列のグソっ君の「次、どうする？」（fix1015 G3）
   walk('knHint', knHintTexts());
   // msg blocks, blocks that open with a cue (WORK_END …), and the multi-line
@@ -563,6 +571,8 @@ export function pgTextCheck(): { total: number; bad: string[] } {
   walk('pgTalk', pgTalkTexts());
   walk('pgObj', PG_OBJ_TEXT);
   walk('pgSecret', pgSecretTexts());
+  walk('pgNanori', NN_TEXTS);
+  walk('pgIso', ISO_TEXTS);
   for (const [name, src] of list) {
     for (const pg of pagesOf(src)) {
       total++;

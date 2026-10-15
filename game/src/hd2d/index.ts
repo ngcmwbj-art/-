@@ -60,6 +60,8 @@ const MAPS = new Set([
   'map_hoshi_sakuzoi',
   // chapter 3 (62 8.9): 海ぞいの町 at noon, and the sea floor under it (グソっ君 alone, S09)
   'map_umizoi', 'map_c3_umi',
+  // 岬の 磯（本日は、開館です。クリア後の 昼、03_ch3_index）
+  'map_c3_iso',
 ]);
 
 const params = new URLSearchParams(location.search);

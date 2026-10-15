@@ -480,6 +480,67 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// パンク修理の 箱・古い 虫ゴム（上へ 降る 雪、02_ch2_index #101）：緑の ブリキの 小箱（白い 札、ゴムのりの
+// ふた）と、ひびの 入った 茶色い ゴムの 管（ひびが 3つ）
+Object.assign(ITEM_ROWS, {
+  item_mg_hako: [
+    '..........',
+    '..........',
+    '.MMMMMMMM.',
+    'MmmmmmmmmM',
+    'MmwwwwmmmM',
+    'MmwkkwmrrM',
+    'MmwwwwmrrM',
+    'MmmmmmmmmM',
+    'MMMMMMMMMM',
+    '..........',
+  ],
+  item_mg_furui: [
+    '..........',
+    '.........y',
+    '........zy',
+    '.......zZ.',
+    '......zd..',
+    '.....zZ...',
+    '....zd....',
+    '...zZ.....',
+    '..zz......',
+    '..........',
+  ],
+});
+
+// からの 名札（本日は、開館です）：白い 名札が 重なって 6枚、すみに 朱の 点
+Object.assign(ITEM_ROWS, {
+  item_iso_nafuda: [
+    '..........',
+    '...wwwwww.',
+    '..wdddddw.',
+    '.wwwwwwwd.',
+    '.wkkkkwwd.',
+    '.wwwwwwwd.',
+    '.wkkwwwwd.',
+    '.wwwwwrwd.',
+    '.dddddddd.',
+    '..........',
+  ],
+});
+
+// 予備の ストップウォッチ（灯台の 名のり）：銀の 丸い 枠、上の 押しボタン、白い 文字盤と 赤い 針
+Object.assign(ITEM_ROWS, {
+  item_nn_stopwatch: [
+    '....dd....',
+    '...dGGd...',
+    '..dddddd..',
+    '.dwwwwwwd.',
+    'dwwwrwwwwd',
+    'dwwwrwwwwd',
+    'dwwwkwwwwd',
+    'dwwwwwwwwd',
+    '.dwwwwwwd.',
+    '..dddddd..',
+  ],
+});
+
 // 名前の石 (沢の上, 50 10.22, 02_ch2_index #65): a flat grey stone from the stream, two
 // names scratched in it — a long one (とまたろう) and, under it, a short one (マル) — moss
 Object.assign(ITEM_ROWS, {

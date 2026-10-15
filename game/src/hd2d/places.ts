@@ -138,6 +138,8 @@ export const PLACES: Record<string, PlaceDef> = {
   map_umizoi: { steps: { w: -8, '~': -8, b: -8 }, c3sea: true, stepAt: umizoiStep, camLift: true },
   // 海の 中 (62 4.7): the rocks stand up from the floor; past the edges, rock
   map_c3_umi: { steps: { R: 14 }, outside: () => 'R' },
+  // 岬の 磯（本日は、開館です）：潮だまりと 海は 岩場より 低い。南の はしの 先は 海が 続く、北は 崖
+  map_c3_iso: { steps: { '~': -8, p: -5 }, c3sea: true, outside: (_tx, ty, edge) => (ty >= 10 ? '~' : ty < 2 ? 'K' : edge) },
 };
 
 export function placeOf(mapId: string): PlaceDef {

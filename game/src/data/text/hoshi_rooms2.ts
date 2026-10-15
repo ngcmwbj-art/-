@@ -606,7 +606,8 @@ export const R2_OBJ: Record<string, R2Text> = {
 からっぽの 棚。{w=300}
 値札だけが 残っている。
 /
-『マッチ』『ちり紙』『電球』。`,
+『マッチ』『ちり紙』『電球』
+『虫ゴム』。`,
   obj_hr_shoten_menu: `@narr
 品書きの 板。{w=300}
 『とうふ』『たまご』

@@ -139,6 +139,9 @@ export function pgObjPresent(o: MapObj, mapId: string): boolean | null {
   // シークレットエンディングの日（flag_pg_secret 2、05 10.2）：公園の時計塔の下は、ツガオ・グソっ君・しゅん
   // の場面（world/pg_secret.ts PG_SECRET_PARK）。そこに立つ夕方のさや（14,11）は出さない
   if (flag('flag_pg_secret') === 2 && objId(o) === 'npc_sae' && mapId === 'map_town') return false;
+  // 本日は、開館です（events/ch3/iso.ts）：開館の あと、ハキコは 入口を 掃かずに 館の 中の ベンチ（iso_hakiko_bench）。
+  // 開館の 場面の 間も 入口の 前には 場面の ハキコ（iso_hakiko_*）だけ
+  if (objId(o) === 'npc_c3_uketsuke' && (flag('flag_iso_kaikan') > 0 || flag('flag_iso_scene') >= 2)) return false;
   const band = pgBand();
   const row = PG_SCHEDULE[objId(o)];
   if (row && band in row) {

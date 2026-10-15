@@ -233,6 +233,14 @@ const OBJECTS: MapObj[] = [
   PR('prop_h_school_gate', 24, 31),
   O('obj_hoshi_monohoshi', 21, 28, { w: 3, face: 'up', prop: 'prop_h_monohoshi' }),
   O('obj_hoshi_zou', 28, 28, { prop: 'prop_h_zou' }),
+  // 上へ 降る 雪（02 #101、events/ch2/mushigomu.ts）：昇降口の 左に 水道と たらい、右に 空気入れ、
+  // 東に 自転車置き場（古い 子ども用の 2台）。押して きた ポコシャの 自転車と ポコシャ
+  O('obj_mg_tarai', 24, 28, { prop: 'prop_mg_tarai', face: 'up', solid: [0, 0, 1, 1] }),
+  O('obj_mg_kuukiire', 27, 28, { prop: 'prop_mg_kuukiire', face: 'up', solid: [0, 0, 1, 1] }),
+  O('obj_mg_oki', 30, 28, { w: 2, prop: 'prop_mg_jitensha_oki', face: 'up', solid: [0, 0, 2, 1] }),
+  PR('prop_pokosha_bike', 22, 29, {}, { cond: { flag: 'flag_mg_school' } }),
+  O('obj_mg_bike_school', 22, 29, { cond: { flag: 'flag_mg_school' }, solid: [0, 0, 1, 1] }),
+  { t: 'npc', id: 'mg_pokosha', sprite: 'npc_pokosha', x: 23, y: 30, dir: 'up', script: 'mg_pokosha', cond: { flag: 'flag_mg_school' } } as MapObj,
   O('obj_hoshi_taiikukan', 38, 27, { face: 'left' }),
   O('obj_hoshi_fumi_house', 16, 26, { face: 'up' }),
   O('obj_hoshi_akiya_a', 15, 36, { face: 'up' }),
@@ -430,6 +438,8 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_hoshi_fumi', x: 47, y: 2, dir: 'down', talk: htalk('npc_hoshi_fumi'), cond: s2 },
   // 分校の 鉄棒と『懸垂、1回』（02 #100）：練習の あいだ、まつ先生は 鉄棒の 横（集会所の 席は 空く。events/ch2/tetsubou.ts）
   { t: 'npc', id: 'npc_hoshi_fumi', x: 33, y: 30, dir: 'left', talk: htalk('npc_hoshi_fumi'), cond: { ...s01, flag: 'flag_tetsu_away' } },
+  // 上へ 降る 雪（02 #101）：自転車を 分校の 前へ 押して きた あと、まつ先生は たらいの そば（集会所の 席は 空く。events/ch2/mushigomu.ts）
+  { t: 'npc', id: 'npc_hoshi_fumi', x: 28, y: 29, dir: 'left', talk: htalk('npc_hoshi_fumi'), cond: { ...s01, flag: 'flag_mg_school', notFlag: 'flag_tetsu_away' } },
   { t: 'npc', id: 'npc_hoshi_tome', x: 21, y: 11, dir: 'down', talk: htalk('npc_hoshi_tome'), cond: { stage: '0-1', notFlag: 'flag_ch2_sawa_wait' } },
   { t: 'npc', id: 'npc_hoshi_tome', x: 21, y: 11, dir: 'up', pose: 'look_hill', talk: htalk('npc_hoshi_tome'), cond: { stage: 2, notFlag: 'flag_ch2_sawa_wait' } },
   // 沢の頼み (02 #65): he waits by the fence's door until しゅん comes back down (h1–h2)
@@ -444,9 +454,9 @@ const OBJECTS: MapObj[] = [
 
   // ======================================================== ツガオ便 at the turning circle (52 3.4–3.6, 50 3.14–3.16・10.20)
   PR('prop_tsugao_truck', 42, 41),
-  PR('prop_pokosha_bike', 45, 44),
+  PR('prop_pokosha_bike', 45, 44, {}, { cond: { notFlag: 'flag_mg_school' } }),
   O('obj_hoshi_tsugao_truck', 43, 41, { w: 2, h: 2 }),
-  O('obj_hoshi_pokosha_bike', 45, 44),
+  O('obj_hoshi_pokosha_bike', 45, 44, { cond: { notFlag: 'flag_mg_school' } }),
   // ツガオさん asleep in the driver's seat (his picture is the truck's): spoken to through the window from (41,42) or (42,43)
   { t: 'obj', id: 'npc_tsugao', x: 42, y: 42, script: 'npc_tsugao', cond: s02 } as MapObj,
   // クリア後（05_postgame 8.1）：ツガオ便の止まる所。ツガオは軽トラの横に立つ（どの時間帯でも。乗る台本は events/postgame.ts）。
@@ -454,8 +464,9 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'pg_tsugao_hoshi', sprite: 'npc_tsugao', x: 41, y: 43, dir: 'down', script: 'pg_tsugao_hoshi', cond: { when: pgOn } } as MapObj,
   { t: 'npc', id: 'npc_hirosuke', x: 43, y: 43, dir: 'up', talk: htalk('npc_hirosuke'), cond: s02 },
   // ポコシャさん (ぴーちゃん on his left shoulder) behind the truck; while the delivery runs he walks in the line instead
-  { t: 'npc', id: 'npc_pokosha', x: 45, y: 42, dir: 'left', talk: htalk('npc_pokosha'), cond: { stage: '0-1', notFlag: 'flag_ch2_delivery_on' } },
-  { t: 'npc', id: 'npc_pokosha', x: 45, y: 42, dir: 'up', pose: 'look_hill', talk: htalk('npc_pokosha'), cond: s2 },
+  // (上へ 降る 雪〈02 #101〉の 間は、自転車と いっしょに 分校の 前：mg_pokosha)
+  { t: 'npc', id: 'npc_pokosha', x: 45, y: 42, dir: 'left', talk: htalk('npc_pokosha'), cond: { stage: '0-1', notFlag: ['flag_ch2_delivery_on', 'flag_mg_school'] } },
+  { t: 'npc', id: 'npc_pokosha', x: 45, y: 42, dir: 'up', pose: 'look_hill', talk: htalk('npc_pokosha'), cond: { stage: 2, notFlag: 'flag_mg_school' } },
   // the delivery stands (52 3.5): the stand always, its slip and note while the delivery runs (always seen, 2026-09-26), the vegetables once left
   ...DELI.flatMap(([n, x, y]) => {
     const spot = `spot_h_deli_0${n}`;

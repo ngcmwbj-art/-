@@ -3,6 +3,8 @@
 import { flag } from '../../game/state';
 import type { ItemDef } from './types';
 import { c3Name } from '../text/c3_names';
+import { MG_ITEM_FURUI_DESC, MG_ITEM_HAKO_DESC } from '../text/hoshi_mushigomu';
+import { ISO_ITEM_DESC } from '../text/c3_iso';
 
 const items: ItemDef[] = [
   // QA round 1 balance: with 500円 (and the yakisoba shop's tab) the bag could
@@ -109,6 +111,10 @@ const items: ItemDef[] = [
   },
   { id: 'item_c3_hashi', name: '割り箸', key: true, target: 'none', desc: ['市場の 割り箸。', '部品①。'], battleText: ['割り箸を 見せた。\n……まだ ごはんじゃ ない。'] },
   { id: 'item_c3_kanban_ka', name: '『か』の字', key: true, target: 'none', desc: ['看板の『か』。', '食堂かもめの もの。'], battleText: ['『か』を 見せた。\n$enemyは 読めずに いる。'] },
+  // 本日は、開館です（クリア後の 昼、events/ch3/iso.ts）：ポコシャから あずかる からの 名札（6枚 わたすと なくなる）
+  { id: 'item_iso_nafuda', name: 'からの名札', key: true, target: 'none', desc: ISO_ITEM_DESC, battleText: ['名札を 見せた。\n$enemyは 自分の 名前を 考えた。'] },
+  // 灯台の 名のり（クリア後の 夜、events/ch3/nanori.ts）：ミナトの 予備の ストップウォッチ（止めない 時計の あとは 説明が かわる：ui/menu/items.ts）
+  { id: 'item_nn_stopwatch', name: '予備のストップウォッチ', key: true, target: 'none', desc: [`${c3Name('npc_c3_sirenban')}の 予備。`, '光った とき 押す。'], battleText: ['ストップウォッチを 見せた。\n数字が 進んでいる。'] },
   { id: 'item_c3_megane', name: `${c3Name('npc_c3_sirenban')}のめがね`, key: true, target: 'none', desc: ['古い めがね。', `ふちに 小さく『${c3Name('npc_c3_sirenban').slice(0, 1)}』。`], battleText: ['めがねを 見せた。\n……度が 合わない。'] },
   { id: 'item_c3_shikake', name: '切れた仕掛け', key: true, target: 'none', desc: [`${c3Name('npc_c3_tsuri')}の 釣りの 仕掛け。`, '針は ついていない。'], battleText: ['仕掛けを 見せた。\n……針が ないので、釣れない。'] },
   { id: 'item_c3_bracelet', name: '貝のブレスレット', key: true, target: 'none', desc: [`${c3Name('npc_c3_mago')}が 去年 落とした もの。`, '白い 貝が 7つ。'], battleText: [`ブレスレットを 見せた。\n……これは、${c3Name('npc_c3_mago')}の 分だ。`] },
@@ -135,6 +141,9 @@ const items: ItemDef[] = [
   { id: 'item_kanbo_card_done', name: 'タクミの観望会カード', key: true, target: 'none', desc: ['3つの 欄に、しゅんの 字。', '1つめは、半分の 丸。'], battleText: ['カードを 見せた。\n$enemyは 空の ほうを 見た。'] },
   // 上の 柵ぞいの 見回り（02 #99）：マサルから 見回りの あいだだけ 借りる（針の 色だけ 見る。電圧の 数字は 出さない）
   { id: 'item_saku_tester', name: '柵のテスター', key: true, target: 'none', desc: ['マサルの 電気柵の テスター。', '針が 赤・黄・緑の どこに 来るか。'], battleText: ['テスターを 見せた。\n$enemyは 針の 色を のぞきこんだ。'] },
+  // 上へ 降る 雪（02 #101）：まつ先生から 借りる 箱（返さない：自転車置き場の 2台にも 使う）、替えた あとの 古い 虫ゴム
+  { id: 'item_mg_hako', name: 'パンク修理の箱', key: true, target: 'none', desc: MG_ITEM_HAKO_DESC, battleText: ['箱を 見せた。\n$enemyは ゴムのりの ふたを 見た。'] },
+  { id: 'item_mg_furui', name: '古い虫ゴム', key: true, target: 'none', desc: MG_ITEM_FURUI_DESC, battleText: ['古い 虫ゴムを 見せた。\n$enemyは ひびを 数えた。'] },
   // 70年の 色紙と 小さな 夏祭り（02 #84）：ぴょん夫人から あずかる 色紙（そろうと 返す）、区の 倉庫の 提灯（校庭の 桜に かける）
   { id: 'item_shikishi', name: '70年の色紙', key: true, target: 'none', desc: ['ぴょん夫人から あずかった。', 'ひとことは 7つ。10年に 1つずつ。'], battleText: ['色紙を 見せた。\n$enemyは 少し 背すじを のばした。'] },
   { id: 'item_matsuri_chochin', name: '夏祭りの提灯', key: true, target: 'none', desc: ['『星見台 夏祭り』の 箱の 1つ。', 'トマトの 灯りで、紙が 橙に すける。'], battleText: ['提灯を 見せた。\n$enemyは 祭りの 音に 耳を すませた。'] },

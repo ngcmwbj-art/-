@@ -52,6 +52,9 @@ import { drawTaihiPage, hasTaihiPage, TAIHI_ROW_LABEL } from './book_taihi';
 // ② の すみの 1ページ『上の 柵』（上の 柵ぞいの 見回り、02_ch2_index #99）
 import { drawSakuPage, hasSakuPage, SAKU_ROW_LABEL } from './book_sakuzoi';
 import { drawTetsuPage, hasTetsuPage, TETSU_ROW_LABEL } from './book_tetsubou';
+import { drawMgPage, hasMgPage, MG_ROW_LABEL } from './book_mushigomu';
+import { drawNnPage, hasNnPage, NN_ROW_LABEL } from './book_nanori';
+import { drawIsoPage, hasIsoPage, ISO_ROW_LABEL } from './book_iso';
 // クリア後：4つ目のふせん「やり残し」（05_postgame 9章）
 import { hasYarinokoshi, YarinokoshiBook, YR_FLAG, YR_FLAG_DARK, YR_TAB } from './book_yarinokoshi';
 import { secretSeen } from '../pg_secret';
@@ -60,6 +63,14 @@ import { secretSeen } from '../pg_secret';
  * ② の すみの ページ、一覧の いちばん下に この 順：『二百十日の 前の 晩』（02 #78）、『70年の 色紙』（#84）、
  * 『よるの 足あと』（#87）、『店番の 下絵』（#94）、『耳の あいさつ』（#95）、『堆肥の 山の 住人』（#97）、『上の 柵』（#99）、『鉄棒』（#100）。番号なし・鉛筆の 字。
  */
+/** ③ の すみの ページ（クリア後の 寄り道：そとの 展示室・名のり帳）。 */
+function corner3(): { label: string; draw: (g: Gfx, x: number, y: number, w: number) => void }[] {
+  const r: { label: string; draw: (g: Gfx, x: number, y: number, w: number) => void }[] = [];
+  if (hasIsoPage()) r.push({ label: ISO_ROW_LABEL, draw: drawIsoPage });
+  if (hasNnPage()) r.push({ label: NN_ROW_LABEL, draw: drawNnPage });
+  return r;
+}
+
 function corner2(): { label: string; draw: (g: Gfx, x: number, y: number, w: number) => void }[] {
   const r: { label: string; draw: (g: Gfx, x: number, y: number, w: number) => void }[] = [];
   if (hasNihyakuPage()) r.push({ label: NIHYAKU_ROW_LABEL, draw: drawNihyakuPage });
@@ -70,6 +81,7 @@ function corner2(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasTaihiPage()) r.push({ label: TAIHI_ROW_LABEL, draw: drawTaihiPage });
   if (hasSakuPage()) r.push({ label: SAKU_ROW_LABEL, draw: drawSakuPage });
   if (hasTetsuPage()) r.push({ label: TETSU_ROW_LABEL, draw: drawTetsuPage });
+  if (hasMgPage()) r.push({ label: MG_ROW_LABEL, draw: drawMgPage });
   return r;
 }
 import { stickerUribo } from '../../art/props/ashiato_art';
@@ -759,7 +771,7 @@ export class BookPage implements MenuPage {
     if (this.isMizube) return mizubeRows(this.v12).length;
     if (this.isHajimete) return hajimeteRows(this.v12).length;
     if (this.isMushi) return mushiRows().length;
-    if (this.sec === 0) return v.fushigi.length + (v.n === 2 ? corner2().length : 0) + (v.n === 1 ? corner1().length : 0);
+    if (this.sec === 0) return v.fushigi.length + (v.n === 2 ? corner2().length : 0) + (v.n === 1 ? corner1().length : 0) + (v.n === 3 ? corner3().length : 0);
     return this.sec === 1 ? v.enemies.length : Math.max(1, totalIn(v, v.n === 1 ? 19 : v.n === 2 ? 17 : 1));
   }
 
@@ -1022,6 +1034,8 @@ export class BookPage implements MenuPage {
       if (v.n === 2) for (const c of corner2()) r.push(wrapRow(c.label, true, '', UI.pencil));
       // 『チクタク堂の 7つの 時計』（02 #88）：① の いちばん下
       if (v.n === 1) for (const c of corner1()) r.push(wrapRow(c.label, true, '', UI.pencil));
+      // ③ の すみ（クリア後の 寄り道）：corner3()
+      if (v.n === 3) for (const c of corner3()) r.push(wrapRow(c.label, true, '', UI.pencil));
       return r;
     }
     if (this.sec === 1) return v.enemies.map((id, i) => wrapRow(nameOf(id, v), !!flag('flag_book_' + id), num(i), UI.text));
@@ -1112,6 +1126,7 @@ export class BookPage implements MenuPage {
     if (s === 0) {
       if (v.n === 1 && i >= v.fushigi.length) return corner1()[i - v.fushigi.length]?.draw(g, x, y, w);
       if (v.n === 2 && i >= v.fushigi.length) return corner2()[i - v.fushigi.length]?.draw(g, x, y, w);
+      if (v.n === 3 && i >= v.fushigi.length) return corner3()[i - v.fushigi.length]?.draw(g, x, y, w);
       if (!v.done(i)) return empty();
       const [title, place] = v.fushigi[i];
       // (lines beside an iPad's touch buttons are set a little tighter: pageText)

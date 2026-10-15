@@ -34,6 +34,8 @@ import './hoshi_sakuzoi';
 import './hoshi_fx';
 // 第3章『海ぞいの町の いただきます』（62_ch3_level_art）：海ぞいの町と軽トラの荷台
 import './umizoi';
+// 岬の 磯（本日は、開館です。クリア後の 昼、03_ch3_index）
+import './c3_iso';
 import './c3_nidai';
 import './c3_rooms';
 // 第2期：サイレン塔の上・灯台・海の家・海の中

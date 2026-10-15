@@ -38,6 +38,10 @@ import './matsuri_art';
 import './ashiato_art';
 // 上の 柵ぞいの 見回り：柵の 上の クズ・枝・掘られた 土・畦草、番号札、区間の スイッチ（02_ch2_index #99）
 import './sakuzoi_art';
+// 上へ 降る 雪：分校の 前の たらい・空気入れ・自転車置き場（02_ch2_index #101）
+import './mushigomu_art';
+// 本日は、開館です：岬の 磯の 石・杭・取水管・フナムシ・カメノテ、石段の ロープ、入口の 貼り紙（03_ch3_index）
+import './c3_iso_art';
 // Chapter 3 『海ぞいの町の いただきます』 (62_ch3_level_art 7章): the buildings and the things of 海ぞいの町
 import './c3_bld';
 import './c3_props';
