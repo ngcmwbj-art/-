@@ -509,6 +509,22 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// さびた 釘（ええ 色の わけ、02_ch2_index #103）：茶色い 古釘、平たい 頭、さびの 点
+Object.assign(ITEM_ROWS, {
+  item_ir_kugi: [
+    '..........',
+    '.zz.......',
+    '.zDz......',
+    '..zDz.....',
+    '...zSz....',
+    '....zDz...',
+    '.....zSz..',
+    '......zDz.',
+    '.......zz.',
+    '..........',
+  ],
+});
+
 // からの 名札（本日は、開館です）：白い 名札が 重なって 6枚、すみに 朱の 点
 Object.assign(ITEM_ROWS, {
   item_iso_nafuda: [

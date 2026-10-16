@@ -1209,6 +1209,30 @@ furn('obj', {
       p.ellipse(8, 12, 6, 3, P.woodDark);
       p.ellipse(8, 10, 4, 3, P.steel);
       p.set(7, 9, P.concreteLt);
+    } else if (v === 'myoga') {
+      // ええ 色の わけ（02_ch2_index #103）：みょうがの 甘酢漬けの ガラスの びん（うす桃色の つぼみ、赤い ふた）
+      p.rect(4, 10, 10, 15, mix(P.aqua, P.white, 0.6));
+      p.rect(5, 13, 8, 11, mix('#F59AB0', P.white, 0.35));
+      for (const [x, y] of [[6, 15], [10, 17], [7, 20], [10, 21]]) {
+        p.ellipse(x, y, 1.5, 2.5, '#F07A98');
+        p.vline(x, y - 2, y + 2, '#D84A70');
+      }
+      p.vline(4, 10, 24, P.white);
+      p.rect(4, 7, 10, 3, P.red);
+      p.hline(4, 13, 7, P.vermLt);
+      p.hline(4, 13, 25, mix(P.aqua, P.steel, 0.5));
+    } else if (v === 'umekame') {
+      // 梅干しの かめ：茶色い 焼き物、ふたの 紙と 赤い ひも、札に『梅』
+      p.ellipse(8, 18, 7, 7, '#7A4A2E');
+      p.ellipse(8, 17, 6, 6, '#9A6440');
+      p.set(5, 14, '#C8946A');
+      p.set(6, 13, '#C8946A');
+      p.ellipse(8, 11, 5, 2, P.paper);
+      p.hline(3, 13, 12, P.red);
+      p.rect(6, 16, 5, 5, P.paper);
+      p.set(8, 18, P.ink);
+      p.set(7, 18, P.ink);
+      p.set(9, 19, P.ink);
     } else if (v === 'bucket') {
       p.rect(3, 14, 11, 11, P.steel);
       p.hline(3, 13, 14, P.concreteLt);

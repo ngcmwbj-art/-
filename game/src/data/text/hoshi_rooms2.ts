@@ -13,6 +13,8 @@
 // Names in @narr go without さん (50 3.2). The 天丼 of 2.5 are left alone:
 // no clock time, no 「12人」「1日2本」「おまけの 1つ」 and nobody's catchphrase.
 
+import { IR_MYOGA_TEXT, IR_UMEKAME_TEXT } from './hoshi_iro';
+
 export type R2Text = string | Record<string, string>;
 
 export const R2_OBJ: Record<string, R2Text> = {
@@ -373,6 +375,9 @@ export const R2_OBJ: Record<string, R2Text> = {
 /
 ……寄り合いの お茶うけは、
 ここから 来ている。`,
+  // ええ 色の わけ（02_ch2_index #103、events/ch2/iro.ts）：おけの 横の みょうがの びんと 梅干しの かめ
+  obj_hr_kucho_myoga: IR_MYOGA_TEXT,
+  obj_hr_kucho_umekame: IR_UMEKAME_TEXT,
   obj_hr_kucho_kingyo: `@narr
 金魚鉢。{w=300}
 金魚が、式辞の 練習を

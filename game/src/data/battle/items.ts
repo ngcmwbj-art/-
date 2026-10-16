@@ -4,6 +4,7 @@ import { flag } from '../../game/state';
 import type { ItemDef } from './types';
 import { c3Name } from '../text/c3_names';
 import { MG_ITEM_FURUI_DESC, MG_ITEM_HAKO_DESC } from '../text/hoshi_mushigomu';
+import { IR_ITEM_KUGI_DESC } from '../text/hoshi_iro';
 import { ISO_ITEM_DESC } from '../text/c3_iso';
 
 const items: ItemDef[] = [
@@ -144,6 +145,8 @@ const items: ItemDef[] = [
   // 上へ 降る 雪（02 #101）：まつ先生から 借りる 箱（返さない：自転車置き場の 2台にも 使う）、替えた あとの 古い 虫ゴム
   { id: 'item_mg_hako', name: 'パンク修理の箱', key: true, target: 'none', desc: MG_ITEM_HAKO_DESC, battleText: ['箱を 見せた。\n$enemyは ゴムのりの ふたを 見た。'] },
   { id: 'item_mg_furui', name: '古い虫ゴム', key: true, target: 'none', desc: MG_ITEM_FURUI_DESC, battleText: ['古い 虫ゴムを 見せた。\n$enemyは ひびを 数えた。'] },
+  // ええ 色の わけ（02 #103）：区長の 家の 漬物の おけから 1本（色あわせの あと、おけに もどす）
+  { id: 'item_ir_kugi', name: 'さびた釘', key: true, target: 'none', desc: IR_ITEM_KUGI_DESC, battleText: ['釘を 見せた。\n$enemyは ナスの 色を 思いだした。'] },
   // 70年の 色紙と 小さな 夏祭り（02 #84）：ぴょん夫人から あずかる 色紙（そろうと 返す）、区の 倉庫の 提灯（校庭の 桜に かける）
   { id: 'item_shikishi', name: '70年の色紙', key: true, target: 'none', desc: ['ぴょん夫人から あずかった。', 'ひとことは 7つ。10年に 1つずつ。'], battleText: ['色紙を 見せた。\n$enemyは 少し 背すじを のばした。'] },
   { id: 'item_matsuri_chochin', name: '夏祭りの提灯', key: true, target: 'none', desc: ['『星見台 夏祭り』の 箱の 1つ。', 'トマトの 灯りで、紙が 橙に すける。'], battleText: ['提灯を 見せた。\n$enemyは 祭りの 音に 耳を すませた。'] },

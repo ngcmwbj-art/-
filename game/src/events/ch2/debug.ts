@@ -56,6 +56,7 @@ import { TAIHI_TEXTS } from '../../data/text/hoshi_taihi';
 import { SAKU_TEXTS } from '../../data/text/hoshi_sakuzoi';
 import { TETSU_TEXTS } from '../../data/text/hoshi_tetsubou';
 import { MG_TEXTS } from '../../data/text/hoshi_mushigomu';
+import { IR_TEXTS } from '../../data/text/hoshi_iro';
 import { HUNTING_TEXTS } from '../../data/text/hunting';
 import { KOTEI_TEXTS } from '../../data/text/kotei';
 import { TOKEI_TEXTS } from '../../data/text/tokei7';
@@ -496,6 +497,8 @@ function collectTexts(): [string, string][] {
   walk('tetsu', TETSU_TEXTS);
   // げむきか10/15の案2（上へ 降る 雪。02_ch2_index #101）
   walk('mushigomu', MG_TEXTS);
+  // げむきか10/16やり直しの案5（ええ 色の わけ。02_ch2_index #103）
+  walk('iro', IR_TEXTS);
   // げむきか10/5の新5（ハンチングの 値札。第1章の くりこ〔chichi〕も。10 6.8, 50 3.8・9.9, 02_ch2_index #83）
   walk('hunting', HUNTING_TEXTS);
   // げむきか10/5の新1（二人十五脚。第1章の ピー・コック・なんばるわん・校庭。10 6.12・6.23・7.24, 02_ch2_index #82）

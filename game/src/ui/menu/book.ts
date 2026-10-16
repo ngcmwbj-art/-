@@ -53,6 +53,8 @@ import { drawTaihiPage, hasTaihiPage, TAIHI_ROW_LABEL } from './book_taihi';
 import { drawSakuPage, hasSakuPage, SAKU_ROW_LABEL } from './book_sakuzoi';
 import { drawTetsuPage, hasTetsuPage, TETSU_ROW_LABEL } from './book_tetsubou';
 import { drawMgPage, hasMgPage, MG_ROW_LABEL } from './book_mushigomu';
+// ② の すみ『ええ 色の わけ』と 段階2 の かくし『ゆきの 釘』（02_ch2_index #103）
+import { drawIrPage, drawIrYukiPage, hasIrPage, hasIrYukiPage, IR_ROW_LABEL, IR_YUKI_ROW_LABEL } from './book_iro';
 import { drawNnPage, hasNnPage, NN_ROW_LABEL } from './book_nanori';
 import { drawIsoPage, hasIsoPage, ISO_ROW_LABEL } from './book_iso';
 // クリア後：4つ目のふせん「やり残し」（05_postgame 9章）
@@ -82,6 +84,8 @@ function corner2(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasSakuPage()) r.push({ label: SAKU_ROW_LABEL, draw: drawSakuPage });
   if (hasTetsuPage()) r.push({ label: TETSU_ROW_LABEL, draw: drawTetsuPage });
   if (hasMgPage()) r.push({ label: MG_ROW_LABEL, draw: drawMgPage });
+  if (hasIrPage()) r.push({ label: IR_ROW_LABEL, draw: drawIrPage });
+  if (hasIrYukiPage()) r.push({ label: IR_YUKI_ROW_LABEL, draw: drawIrYukiPage });
   return r;
 }
 import { stickerUribo } from '../../art/props/ashiato_art';
