@@ -1,0 +1,19 @@
+[
+ {"name":"kane","setup":[{"eval":"__game.cmd.jump('kanenari')"},{"wait":2500}],"frames":90},
+ {"name":"boss","setup":[{"eval":"__game.cmd.battle(['boss_omukaemachi'],{lv:5,party:2,boss:true,music:'bgm_boss',background:'bg_boss'})"},{"wait":3500},{"eval":"__game.cmd.bauto({tsuk:\"just\",ring:\"good\",hold:\"kukkiri\",crit:true})"}],"frames":210,"keys":[{"f":0,"down":"KeyZ"},{"f":2,"up":"KeyZ"},{"f":10,"down":"KeyZ"},{"f":12,"up":"KeyZ"},{"f":20,"down":"KeyZ"},{"f":22,"up":"KeyZ"},{"f":40,"down":"KeyZ"},{"f":42,"up":"KeyZ"},{"f":70,"down":"KeyZ"},{"f":72,"up":"KeyZ"},{"f":100,"down":"KeyZ"},{"f":102,"up":"KeyZ"},{"f":130,"down":"KeyZ"},{"f":132,"up":"KeyZ"},{"f":160,"down":"KeyZ"},{"f":162,"up":"KeyZ"},{"f":190,"down":"KeyZ"},{"f":192,"up":"KeyZ"}]},
+ {"name":"nori","setup":[{"eval":"__game.cmd.jump('hanko', true)"},{"wait":1200},{"eval":"__game.cmd.battle(['enemy_soujirou'],{lv:4,party:2})"},{"waitFor":"window.__game.cmd.bstate && window.__game.cmd.bstate() && window.__game.cmd.bstate().input","timeout":40000},{"eval":"__game.cmd.ehp(9999)"},{"eval":"__game.cmd.kire(3)"},{"eval":"__game.cmd.bnori(1)"},{"wait":400},{"press":"ArrowUp","after":300}],"frames":200,"keys":[{"f":0,"down":"KeyZ"},{"f":2,"up":"KeyZ"}]},
+ {"name":"tetsuya","setup":[{"eval":"__game.cmd.ch2battle('tetsuya',6)"},{"wait":3500},{"eval":"__game.cmd.bauto({tsuk:\"just\",ring:\"good\",hold:\"kukkiri\",crit:true})"}],"frames":180,"keys":[{"f":0,"down":"KeyZ"},{"f":2,"up":"KeyZ"},{"f":10,"down":"KeyZ"},{"f":12,"up":"KeyZ"},{"f":20,"down":"KeyZ"},{"f":22,"up":"KeyZ"},{"f":40,"down":"KeyZ"},{"f":42,"up":"KeyZ"},{"f":70,"down":"KeyZ"},{"f":72,"up":"KeyZ"},{"f":100,"down":"KeyZ"},{"f":102,"up":"KeyZ"},{"f":130,"down":"KeyZ"},{"f":132,"up":"KeyZ"},{"f":160,"down":"KeyZ"},{"f":162,"up":"KeyZ"},{"f":190,"down":"KeyZ"},{"f":192,"up":"KeyZ"}]},
+ {"name":"yobi","setup":[{"eval":"__game.cmd.ch2battle('yobi',7)"},{"wait":3500},{"eval":"__game.cmd.bauto({tsuk:\"just\",ring:\"good\",hold:\"kukkiri\",crit:true})"}],"frames":210,"keys":[{"f":0,"down":"KeyZ"},{"f":2,"up":"KeyZ"},{"f":10,"down":"KeyZ"},{"f":12,"up":"KeyZ"},{"f":20,"down":"KeyZ"},{"f":22,"up":"KeyZ"},{"f":40,"down":"KeyZ"},{"f":42,"up":"KeyZ"},{"f":70,"down":"KeyZ"},{"f":72,"up":"KeyZ"},{"f":100,"down":"KeyZ"},{"f":102,"up":"KeyZ"},{"f":130,"down":"KeyZ"},{"f":132,"up":"KeyZ"},{"f":160,"down":"KeyZ"},{"f":162,"up":"KeyZ"},{"f":190,"down":"KeyZ"},{"f":192,"up":"KeyZ"}]},
+ {"name":"barn","setup":[{"eval":"__game.cmd.ch2Demo(1)"},{"wait":2500}],"frames":90},
+ {"name":"sky","setup":[{"eval":"__game.cmd.dome('sky',{mode:'rot',n:1})"},{"wait":2500}],"frames":120},
+ {"name":"sunrise","setup":[{"eval":"__game.cmd.cut('sunrise2')"},{"wait":300}],"frames":120},
+ {"name":"title","setup":[{"eval":"__game.cmd.title()"},{"wait":200}],"frames":180},
+ {"name":"tsuri","setup":[{"eval":"__game.cmd.jump('alley')"},{"wait":1500},{"eval":"__game.cmd.warp('map_town',22,39,'left')"},{"wait":800},{"eval":"__game.cmd.tsuri({auto:true})"},{"wait":500}],"frames":240},
+ {"name":"e2_1","setup":[{"eval":"__game.cmd.endcut2(1)"},{"wait":3000}],"frames":1},
+ {"name":"e2_3","setup":[{"eval":"__game.cmd.endcut2(3)"},{"wait":3000}],"frames":1},
+ {"name":"e2_4","setup":[{"eval":"__game.cmd.endcut2(4)"},{"wait":3000}],"frames":1},
+ {"name":"e2_5","setup":[{"eval":"__game.cmd.endcut2(5)"},{"wait":3000}],"frames":1},
+ {"name":"e1_2","setup":[{"eval":"__game.cmd.endcut(2)"},{"wait":3000}],"frames":1},
+ {"name":"e1_3","setup":[{"eval":"__game.cmd.endcut(3)"},{"wait":3000}],"frames":1},
+ {"name":"e1_5","setup":[{"eval":"__game.cmd.endcut(5)"},{"wait":3000}],"frames":1}
+]

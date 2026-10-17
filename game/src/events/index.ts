@@ -1,0 +1,78 @@
+// Story events, NPC scripts and cutscenes (10_narrative 4–8). Imported last
+// (modules.ts), so every registerScript here replaces the maps' fallbacks.
+import './lib';
+import './fx';
+import './stamp';
+import './home';
+import './shops';
+import './chime';
+import './npcs';
+import './town';
+import './tsugao_ch1';
+// 北の列の部屋としんごのたんかん（02 #58）
+import './rooms_north';
+import './park';
+// 公園の鉄棒とワイスタ巡査の懸垂（02 #64）
+import './kensui';
+import './parking';
+// バス停のマル（とまたろうの妻。02 #65）
+import './maru';
+// 対岸の おぴぃと ザリガニ釣り（02 #66）
+import './tamotsu';
+// 畦道の先の 分水（いつきと あさひ）と、祠の きつねの 常連（くま吉の 油揚げ）（02 #67）
+import './aze';
+// げむきか9/30の1・2（第1章）・5：ふろしきの マント、置物の ヘラ、減らない コーヒー（02 #71）。
+// shops・npcs・rooms_north の スクリプトを 包むので、それらの あとに import する
+import './cape_coffee';
+import './mall';
+import './mall_roof';
+import './ending';
+import './ch2';
+// げむきか9/30の3：8月31日の 水やり当番（夕鳴小学校の 裏庭、02 #72）。npcs の さやと
+// 第2章の トマじいの スクリプトを 包むので、ch2 の あとに import する
+import './school';
+// げむきか10/5の新5：ハンチングの 値札（踏切の くりこ、第2章の ペロの 壁の 帽子と ペロ。02 #83）。
+// npcs の くりこと 第2章の ペロ（npcs・wakime・nihyaku が 包んだ もの）を 包むので、ch2 の あとに import する
+import './hunting';
+// げむきか10/5の新1：二人十五脚（なんばるわんの家の ピー・コック、坂の なんばるわん、夕鳴小学校の 校庭。02 #82）。
+// npcs・cape_coffee の なんばるわんと コタロウを 包むので、それらの あとに import する
+import './kotei';
+// げむきか10/5の改1：水辺の 図鑑（夕鳴川の 堰の テナガエビ・『みずべ』・おぴぃの 由来、02 #81）。
+// tamotsu の おぴぃと 対岸の 水口、home の 母、つりえさ屋の 呼びりんを 包むので、それらの あとに import する
+import './mizube';
+// げむきか10/6の案4：チクタク堂の ばらばら時計（時計店の ウィンドウと ゆう、6人、第2章の 駅ノートの 1行。02 #88）。
+// kensui・cape_coffee・rooms_north・kotei・aze・npcs の 6人と くま吉・しんご・なんばるわん、ch2 の 駅ノートを 包むので、それらの あとに import する
+import './tokei7';
+// グソっ君の はじめて帳（02 #89）：町と 村の 14人の 台本を 包むので、tokei7 と ./ch2 の あとに import する
+import './hajimete';
+// 「ダンゴムシ ちゃうで」の 報告書（02 #93）：巡査・聞き込みの 8人・さや・母・コタロウを 包むので、hajimete の あとに import する
+import './hokokusho';
+// 型ぬき 番付（げむきか 10/13 の案3、01 の 変更の 記録 2026-10-13）：ひのやの 写真・おばあ、さや・ひより・ちず・
+// なんばるわん・ピー・コック・コタロウ・テーブルを 包むので、hokokusho の あと（ch3 の 前）に import する
+import './katanuki';
+// 第3章『海ぞいの町の いただきます』（60_ch3_story。第1期：S00〜S06）。母・テレビ・おばあ・置物の 台本を
+// 夕鳴町の 段階0だけ 包むので、第1章・第2章の すべての あとに import する
+import './ch3';
+// クリア後（05_postgame）：グソっ君の合流、ツガオ便、待つ・寝る。第1章〜第3章の 台本を 包むので、./ch3 の あとに import する
+import './postgame';
+// クリア後の会話（05_postgame 6章）：町の人と隊列のグソっ君の台本を 包むので、すべての あとに import する
+import './pg_talk';
+// 夕鳴小学校の 裏庭・校庭の 第3章の 昼前と クリア後の 文（2026-10-15）：pg_talk の 包んだ 物を 包むので、その あとに import する
+import './school_now';
+// シークレットエンディング「40年ぶりの 休み」（05_postgame 10章）：隊列のグソっ君の台本も 包むので pg_talk の あと
+import './pg_secret';
+// 隊列のグソっ君に「次、どうする？」（fix1015 G3）：地図ごとの グソっ君の台本を 包むので、pg_secret の あと
+import './kn_hint';
+// 灯台の 名のり（クリア後の 夜、げむきか 10/15 の 案3）：テルの 台本を クリア後の 会話（pg_talk）の 上から 包むので、その あと
+import './ch3/nanori';
+// 本日は、開館です（クリア後の 昼、げむきか 10/14 の 案3）：券売所の ポコシャ・旧水族館の 前の ハキコを クリア後の 会話の 上から 包む
+import './ch3/iso';
+// 上へ 降る 雪（第2章、げむきか 10/15 の 案2）の クリア後の 夜：まつ先生と ポコシャを クリア後の 会話の 上から 包む
+import './ch2/mushigomu_pg';
+// ええ 色の わけ（第2章、げむきか 10/16 やり直しの 案5）の クリア後の 夜：ぴょん夫人と ハモ区長を クリア後の 会話の 上から 包む
+import './ch2/iro_pg';
+// 朝の 前の 色（第2章、げむきか 10/17 の 案5）の クリア後の 夜：ソワカを クリア後の 会話の 上から 包む
+import './ch2/asairo_pg';
+// 赤子 泣いても（第2章、げむきか 10/17 の 案4）の クリア後の 夜：ペロと かまどを クリア後の 会話の 上から 包む
+import './ch2/hagama_pg';
+import './debug';
