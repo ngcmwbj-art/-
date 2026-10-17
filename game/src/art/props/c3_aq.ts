@@ -1516,3 +1516,197 @@ registerProp('prop_c3_aq_jimu_kasa', () =>
 
 void cached;
 void (null as unknown as PropEnv);
+
+// ================================================================ 水槽の うら（げむきか 10/17 の 案3、03_ch3_index）
+// 順路の 外の 裏方の 通路：灰色の 塗り壁、コンクリートの 床と 排水の みぞ、天井の 裸の 蛍光灯（1本おきに 点いている）、
+// 北の 壁の 東の はしに 搬入口の シャッターと 小窓（外は 12:01 の 白い 光、ゆれる）、南の 壁ぎわを 走る 配管。
+
+const URA_TUBES = [2, 5, 8, 11, 14, 17, 20];
+/** 点いている 蛍光灯（1本おき）。 */
+const URA_LIT = URA_TUBES.filter((_, i) => i % 2 === 0);
+
+registerProp('prop_c3_aq_ura_shell', () => {
+  const rows = getMapDef('map_c3_aq_ura')?.rows ?? [];
+  const sh = paintShell({
+    rows,
+    floor: (x, y) => {
+      const n = valueNoise(x / 9, y / 7, 7301);
+      let c = n > 0.62 ? '#A8A69C' : '#9C9A90';
+      // the drain channel along the pipes, the joints of the slab
+      if (y >= 6 * 16 + 9 && y <= 6 * 16 + 11) c = '#6A6A64';
+      if ((x & 63) === 63) c = '#86847C';
+      if (h01(x, y, 7303) > 0.992) c = '#7A786E';
+      // damp patches under the tanks
+      if (y < 4 * 16 && valueNoise(x / 14, y / 10, 7305) > 0.74) c = mix(c, '#5A6A70', 0.35);
+      return c;
+    },
+    wall: (x, y, fh) => {
+      if (y >= fh - 6) return y === fh - 6 ? '#6A7A6A' : '#4A5A4A';
+      const c = valueNoise(x / 8, y / 6, 7307) > 0.75 ? '#B8BCB0' : '#ACB0A4';
+      return y < fh * 0.3 && valueNoise(x / 11, 0.5, 7309) > 0.7 ? mix(c, '#8A8A7A', 0.4) : c;
+    },
+    trim: '#8A8C80',
+    base: '#3A3E36',
+    baseH: 3,
+  });
+  const p = sh.p;
+  // the bare tubes high on the wall (every other one lit)
+  for (const tx of URA_TUBES) {
+    p.rect(tx * 16 + 1, 17, 14, 3, '#7A7C76');
+    p.hline(tx * 16 + 2, tx * 16 + 13, 18, URA_LIT.includes(tx) ? '#F4F6EE' : '#9A9C96');
+  }
+  // the loading bay's shutter (20–22,1): corrugated steel, the frame, the little window
+  const SX0 = 20 * 16;
+  for (let y = 19; y < 32; y++) p.hline(SX0 + 1, SX0 + 46, y, y % 2 ? '#8A9098' : '#6E747C');
+  p.rect(SX0, 18, 48, 1, '#4A4E56');
+  p.vline(SX0, 18, 31, '#4A4E56');
+  p.vline(SX0 + 47, 18, 31, '#4A4E56');
+  p.rect(SX0 + 19, 22, 10, 6, '#3A3E46');
+  p.rect(SX0 + 20, 23, 8, 4, '#DCEEF4');
+  p.hline(SX0 + 20, SX0 + 27, 26, mix(CP.umi, '#DCEEF4', 0.4));
+  // the tool rack (17,1): a long-handled sponge, the sign 『たわし 禁止』 (strokes)
+  const tx = 17 * 16;
+  p.hline(tx + 2, tx + 13, 20, '#6A6A64');
+  p.vline(tx + 5, 20, 31, '#C8A06A');
+  p.rect(tx + 3, 28, 5, 3, '#E8C840');
+  p.vline(tx + 10, 20, 30, '#8A8A84');
+  notice(p, tx + 8, 22, 7, 5, '#F4F1E8', AQ.shu, 1);
+  // the old notice by the door: 『関係者以外』 (strokes), a pressure gauge on the tank's pipe
+  notice(p, 1 * 16 + 2, 20, 10, 6, '#E8D9B5', AQ.ink, 2);
+  // the pipes along the south wall, two runs and their valves
+  const py = 7 * 16 - 6;
+  p.hline(16, sh.w * 16 - 17, py, '#7A8A8A');
+  p.hline(16, sh.w * 16 - 17, py + 1, '#5A6A6A');
+  p.hline(16, sh.w * 16 - 17, py + 3, '#8A7A6A');
+  p.hline(16, sh.w * 16 - 17, py + 4, '#6A5A4A');
+  for (const vx of [4, 9, 15, 20]) {
+    p.rect(vx * 16 + 6, py - 2, 4, 3, '#C8452E');
+    p.set(vx * 16 + 7, py - 3, '#E86A4E');
+  }
+  const img = p.toCanvas();
+  return {
+    ox: 0,
+    oy: 0,
+    w: sh.w * 16,
+    h: sh.h * 16,
+    foot: 0,
+    flat: true,
+    img: () => img,
+    glow: (g, x, y, env) => {
+      for (const t of URA_LIT) {
+        g.rect(x + t * 16 + 2, y + 18, 12, 1, '#FFFFFF', 0.9);
+        screenPool(g, x + t * 16 + 8, y + 20, 10, 6, '#E8F4EE', 0.35);
+      }
+      // the noon outside the little window (12:01 out there: white, moving)
+      const tw = 0.6 + 0.3 * Math.sin(env.t / 300) + 0.1 * Math.sin(env.t / 77);
+      g.rect(x + SX0 + 20, y + 23, 8, 3, '#FFFFFF', tw);
+      screenPool(g, x + SX0 + 24, y + 25, 9, 6, '#F4FAFC', 0.3 * tw);
+    },
+    light: (g, x, y, env) => {
+      for (const t of URA_LIT) warmPool(g, x + t * 16 + 8, y + 3 * 16 + 8, 44, 26, '#E8F0E4', 0.7);
+      const tw = 0.7 + 0.3 * Math.sin(env.t / 300);
+      warmPool(g, x + SX0 + 24, y + 2 * 16 + 10, 22, 12, '#FFFFFF', 0.45 * tw);
+    },
+  } satisfies PropArt;
+});
+
+/** ① 予備水槽の 棚 (2–5,2)：鉄の 棚に 小さな 水槽が 3つ。からっぽ、ガラスに 白い 塩の 輪。 */
+registerProp('prop_c3_ura_yobi', () =>
+  standProp(64, 30, (p) => {
+    p.rect(1, 6, 62, 2, '#6B7186');
+    p.rect(1, 26, 62, 2, '#6B7186');
+    for (const x of [1, 31, 61]) p.rect(x, 6, 2, 24, '#5A6070');
+    for (let k = 0; k < 3; k++) {
+      const x = 4 + k * 20;
+      p.rect(x, 12, 17, 14, mix(AQ.glass, '#E8F0F4', 0.5));
+      p.strokeRect(x, 12, 17, 14, '#8A96A0');
+      // the rings the water left, one above another
+      for (let r = 0; r < 4 + k; r++) p.hline(x + 1, x + 15, 24 - r * 2 - (k === 1 ? 1 : 0), '#F4F6F2');
+      p.vline(x + 2, 13, 24, '#F4FAFC');
+    }
+    p.rect(4, 0, 12, 5, '#8A8C80');
+  }, { cx: 32, base: 16, shadow: 10 }),
+);
+
+/** ② 真水の タンク (7–8,2)：大きな 青灰色の タンク、水位の 管、札『足し水 ― 真水』。 */
+registerProp('prop_c3_ura_tank', () =>
+  standProp(32, 44, (p) => {
+    p.rect(2, 4, 28, 40, '#6A8A9A');
+    p.ellipse(16, 4, 14, 3, '#8AAAB8');
+    p.vline(3, 4, 43, '#8AAAB8');
+    p.vline(28, 4, 43, '#4A6A7A');
+    for (const y of [14, 28]) p.hline(2, 29, y, '#5A7A8A');
+    // the level tube, the water at the very bottom
+    p.rect(24, 8, 2, 32, '#C8E4EC');
+    p.rect(24, 37, 2, 3, '#4A8AC8');
+    notice(p, 6, 16, 14, 8, '#F4F1E8', AQ.ink, 2);
+    p.rect(14, 40, 4, 4, '#3A3F48');
+  }, { cx: 16, base: 16, shadow: 14 }),
+);
+
+/** ③ 比重計の 棚 (10,2)：小さな 棚に ガラスの 浮き（目もり）と 細い 筒。 */
+registerProp('prop_c3_ura_hijuu', () =>
+  standProp(16, 30, (p) => {
+    p.rect(1, 10, 14, 2, '#8A6A4A');
+    p.rect(1, 22, 14, 2, '#8A6A4A');
+    p.vline(1, 10, 29, '#6A4A2A');
+    p.vline(14, 10, 29, '#6A4A2A');
+    for (const x of [4, 9]) {
+      p.rect(x, 2, 2, 8, '#E8F4FA');
+      p.ellipse(x + 1, 8, 1.5, 2, '#C8E4EC');
+      for (let k = 0; k < 3; k++) p.set(x, 3 + k * 2, AQ.shu);
+    }
+    p.rect(5, 15, 6, 7, mix(AQ.glass, '#E8F0F4', 0.4));
+  }, { cx: 8, base: 16, shadow: 8 }),
+);
+
+/** ④ ろ過槽 (12–15,2)：四角い 槽、のぞき窓に 砂と 小石の 層。 */
+registerProp('prop_c3_ura_roka', () =>
+  standProp(64, 28, (p) => {
+    p.rect(1, 2, 62, 26, '#7A8478');
+    p.hline(1, 62, 2, '#9AA498');
+    p.rect(8, 8, 48, 16, '#2A3438');
+    // the layers: water, fine sand, coarse sand, pebbles
+    p.rect(9, 9, 46, 4, mix(AQ.glass, '#2A3438', 0.4));
+    p.rect(9, 13, 46, 3, '#D8C8A0');
+    p.rect(9, 16, 46, 3, '#B8A47A');
+    for (let x = 9; x < 55; x += 3) p.ellipse(x + 1, 21, 1.5, 1.2, (x / 3) % 2 ? '#8A8478' : '#6A6458');
+    notice(p, 50, 3, 10, 4, '#F4F1E8', AQ.ink, 1);
+  }, { cx: 32, base: 16, shadow: 8 }),
+);
+
+/** 搬入口の 台車 (22,2)：平たい 台車（ヒロスケが 腰かける 所）。 */
+registerProp('prop_c3_ura_daisha', () =>
+  standProp(18, 14, (p) => {
+    p.rect(1, 4, 16, 4, '#4A6AB0');
+    p.hline(1, 16, 4, '#6A8AD0');
+    p.vline(15, 0, 4, '#3A3F48');
+    for (const x of [3, 13]) p.ellipse(x, 11, 2, 2, '#2A2440');
+  }, { cx: 8, base: 16, shadow: 4 }),
+);
+
+/**
+ * 売店の あとの『関係者以外』の 戸 (19,9) の 前の 床 (18,9)：ドアストッパーで 少し 開いた 戸の すきまから
+ * 裏の 蛍光灯の 光が 床に 細く 落ちる、くさびの ストッパー（S15〜S19 の 間だけ：events/ch3/aq_ura.ts）。
+ */
+registerProp('prop_c3_ura_doorgap', () => {
+  const p = new PixelCanvas(16, 16);
+  for (let y = 2; y < 15; y++) p.set(15, y, '#E8F0E4');
+  for (let y = 4; y < 13; y++) p.set(14, y, '#C8D0C4');
+  p.rect(11, 12, 4, 2, '#8A5A3A');
+  p.set(11, 11, '#A8724A');
+  const img = p.toCanvas();
+  return {
+    ox: 0,
+    oy: 0,
+    w: 16,
+    h: 16,
+    foot: 0,
+    flat: true,
+    img: () => img,
+    glow: (g: Gfx, x: number, y: number) => {
+      g.rect(x + 15, y + 2, 1, 13, '#F4FAF0', 0.7);
+      screenPool(g, x + 14, y + 8, 4, 7, '#E8F0E4', 0.3);
+    },
+  } satisfies PropArt;
+});

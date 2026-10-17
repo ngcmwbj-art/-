@@ -16,6 +16,8 @@ import './siren';
 // 第3期（S15〜S24：旧水族館）
 import './aq';
 import './souko';
+// 水槽の うら（げむきか 10/17 の 案3）：入口の 売店の あとの 戸から 裏方の 通路へ（S15〜S19）
+import './aq_ura';
 // 第4期（S25〜S34：みんなが来る・決戦・エンディング・クリア後）
 import './cuts';
 import '../../ui/cut_c3'; // W: the stills (cut_c3_shuuka・cut_c3_photo・cut_c3_kioku)

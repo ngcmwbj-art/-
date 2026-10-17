@@ -134,6 +134,16 @@ const C3_AUDIO: Record<string, C3Audio> = {
     ambVol: { amb_c3_umi: { vol: 0.2, lp: 800 } },
     phase: 2,
   },
+  // 水槽の うら（げむきか 10/17 の 案3）：裏方の 通路。えさの 部屋と 同じ 形、搬入口の 外の 海が 少し
+  map_c3_aq_ura: {
+    space: 'room',
+    pa: 'kannai',
+    bgm: { 3: AQ },
+    variant: 'esa',
+    amb: { 3: ['amb_c3_aq_esa', 'amb_c3_umi'] },
+    ambVol: { amb_c3_umi: { vol: 0.25, lp: 900 } },
+    phase: 2,
+  },
   // the feed store (S21–S23): no song; the events run the night and ヤキソバン
   map_c3_aq_souko: { space: 'soko', pa: 'kannai', bgm: { 3: null }, amb: { 3: ['amb_c3_aq_souko'] }, phase: 2 },
   // the corridor outside the store: the events stop the song before S24 (12.18)

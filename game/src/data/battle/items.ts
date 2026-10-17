@@ -5,6 +5,8 @@ import type { ItemDef } from './types';
 import { c3Name } from '../text/c3_names';
 import { MG_ITEM_FURUI_DESC, MG_ITEM_HAKO_DESC } from '../text/hoshi_mushigomu';
 import { IR_ITEM_KUGI_DESC } from '../text/hoshi_iro';
+import { AS_ITEM_EZARA_DESC } from '../text/hoshi_asairo';
+import { HG_ITEM_BIN_DESC, HG_ITEM_ONIGIRI_DESC } from '../text/hoshi_hagama';
 import { ISO_ITEM_DESC } from '../text/c3_iso';
 
 const items: ItemDef[] = [
@@ -147,6 +149,12 @@ const items: ItemDef[] = [
   { id: 'item_mg_furui', name: '古い虫ゴム', key: true, target: 'none', desc: MG_ITEM_FURUI_DESC, battleText: ['古い 虫ゴムを 見せた。\n$enemyは ひびを 数えた。'] },
   // ええ 色の わけ（02 #103）：区長の 家の 漬物の おけから 1本（色あわせの あと、おけに もどす）
   { id: 'item_ir_kugi', name: 'さびた釘', key: true, target: 'none', desc: IR_ITEM_KUGI_DESC, battleText: ['釘を 見せた。\n$enemyは ナスの 色を 思いだした。'] },
+  // 朝の 前の 色（02 #104）：ソワカから 借りる 絵皿（名場面の あと 返す）
+  { id: 'item_as_ezara', name: 'ソワカの絵皿', key: true, target: 'none', desc: AS_ITEM_EZARA_DESC, battleText: ['絵皿を 見せた。\n$enemyは 露の 光を 見た。'] },
+  // 赤子 泣いても（02 #105）：ペロの 羽釜の おにぎり（非売品、3つ。HP は 焼き芋と きゅうりの 間）、
+  // きつね色の おこげで 炊けた ときの ツガオ便の 分（転回場の ヒロスケに わたす）
+  { id: 'item_hg_onigiri', name: 'ペロのおにぎり', target: 'ally', heal: 50, desc: HG_ITEM_ONIGIRI_DESC },
+  { id: 'item_hg_bin', name: '便の分のおにぎり', key: true, target: 'none', desc: HG_ITEM_BIN_DESC, battleText: ['おにぎりを 見せた。\n$enemyは おこげの においを かいだ。'] },
   // 70年の 色紙と 小さな 夏祭り（02 #84）：ぴょん夫人から あずかる 色紙（そろうと 返す）、区の 倉庫の 提灯（校庭の 桜に かける）
   { id: 'item_shikishi', name: '70年の色紙', key: true, target: 'none', desc: ['ぴょん夫人から あずかった。', 'ひとことは 7つ。10年に 1つずつ。'], battleText: ['色紙を 見せた。\n$enemyは 少し 背すじを のばした。'] },
   { id: 'item_matsuri_chochin', name: '夏祭りの提灯', key: true, target: 'none', desc: ['『星見台 夏祭り』の 箱の 1つ。', 'トマトの 灯りで、紙が 橙に すける。'], battleText: ['提灯を 見せた。\n$enemyは 祭りの 音に 耳を すませた。'] },

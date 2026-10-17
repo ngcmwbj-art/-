@@ -109,6 +109,8 @@ export const AQ_ROOMS = new Set([
   'map_c3_aq_souko',
   'map_c3_aq_rouka',
   'map_c3_aq_jimusho',
+  // 水槽の うら（げむきか 10/17 の 案3、03_ch3_index）
+  'map_c3_aq_ura',
 ]);
 
 /** The rooms drawn in HD-2D: chapter 1's houses, shops and the mall, and chapter 2's (CH2_ROOMS). */

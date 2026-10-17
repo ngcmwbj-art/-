@@ -257,6 +257,17 @@ const OBJECTS: MapObj[] = [
   O('obj_hoshi_post', 27, 37, { prop: 'prop_h_post' }),
   O('obj_hoshi_denchu', 39, 37, { prop: 'prop_h_pole', opts: { ad: 'inoshishi' } }),
   O('obj_hoshi_hinomi', 41, 30, { w: 2, h: 2, prop: 'prop_h_hinomi' }),
+  // 朝の 前の 色（02_ch2_index #104、events/ch2/asairo.ts）：ソワカの 家の 裏の サトイモ 3株（裏の 小道 (21–23,32)。
+  // 小道は 西と 東から 入れて、まん中で 行き止まり）、棚田の トマじいの 東の 稲の 葉の 先の 玉（(22,11) から 下向き）、
+  // 火の見やぐらの 足もとの クモの 巣（(41,32) から 上向き。段階1〜2 は やぐらより 先）
+  PR('prop_as_satoimo', 21, 32, { v: 0 }),
+  PR('prop_as_satoimo', 22, 32, { v: 1 }),
+  PR('prop_as_satoimo', 23, 32, { v: 2 }),
+  O('obj_as_satoimo', 21, 32, { w: 3, script: 'obj_as_satoimo', solid: [0, 0, 3, 1] }),
+  PR('prop_as_tama', 22, 12, undefined, { cond: s12 }),
+  O('obj_as_ine', 22, 12, { face: 'down', script: 'obj_as_ine', priority: 1, cond: s12 }),
+  PR('prop_as_kumonosu', 41, 31),
+  O('obj_as_kumo', 41, 31, { face: 'up', script: 'obj_as_kumo', priority: 1, cond: s12 }),
   O('obj_hoshi_yousui', 40, 21, { face: 'up' }),
   O('obj_hoshi_nagareboshi', 16, 21, { face: 'up', fushigi: 'fushigi_ch2_03' }),
   // 夜振り（水辺の 図鑑、02 #81）：南の 岸 (14–18,22) から 北向きに。流れ星の ふしぎ (16,21) の 両どなり

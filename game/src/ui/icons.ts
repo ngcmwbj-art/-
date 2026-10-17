@@ -525,6 +525,50 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// ソワカの 絵皿（朝の 前の 色、02_ch2_index #104）：白い 小皿、ふちに 青い 線、上に 露の 玉
+Object.assign(ITEM_ROWS, {
+  item_as_ezara: [
+    '..........',
+    '....C.....',
+    '...cC.....',
+    '...CC.....',
+    '.dwwwwwwd.',
+    'dwWwwwwwwd',
+    'dwwwuuwwwd',
+    '.dwwwwwwd.',
+    '..dddddd..',
+    '..........',
+  ],
+});
+
+// ペロの おにぎり・便の 分（赤子 泣いても、02_ch2_index #105）：白い 三角に のり、上に おこげの 色
+Object.assign(ITEM_ROWS, {
+  item_hg_onigiri: [
+    '....kk....',
+    '...kwwk...',
+    '..kwWwwk..',
+    '..kwwwwk..',
+    '.kwwrwwwk.',
+    '.kwwwwwwk.',
+    'kwwMMMMwwk',
+    'kwwMMMMwwk',
+    '.kkMMMMkk.',
+    '..........',
+  ],
+  item_hg_bin: [
+    '....kk....',
+    '...kwwk...',
+    '..kwWwwk..',
+    '..kwooek..',
+    '.kwwoowwk.',
+    '.kwwwwwwk.',
+    'kwwMMMMwwk',
+    'kwwMMMMwwk',
+    '.kkMMMMkk.',
+    '..........',
+  ],
+});
+
 // からの 名札（本日は、開館です）：白い 名札が 重なって 6枚、すみに 朱の 点
 Object.assign(ITEM_ROWS, {
   item_iso_nafuda: [

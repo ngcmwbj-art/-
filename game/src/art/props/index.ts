@@ -42,6 +42,8 @@ import './sakuzoi_art';
 import './mushigomu_art';
 // 本日は、開館です：岬の 磯の 石・杭・取水管・フナムシ・カメノテ、石段の ロープ、入口の 貼り紙（03_ch3_index）
 import './c3_iso_art';
+// 朝の 前の 色：サトイモ・クモの 巣・稲の 葉の 先の 玉（02_ch2_index #104）
+import './asairo_art';
 // Chapter 3 『海ぞいの町の いただきます』 (62_ch3_level_art 7章): the buildings and the things of 海ぞいの町
 import './c3_bld';
 import './c3_props';

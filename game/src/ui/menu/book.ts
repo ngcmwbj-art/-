@@ -55,8 +55,14 @@ import { drawTetsuPage, hasTetsuPage, TETSU_ROW_LABEL } from './book_tetsubou';
 import { drawMgPage, hasMgPage, MG_ROW_LABEL } from './book_mushigomu';
 // ② の すみ『ええ 色の わけ』と 段階2 の かくし『ゆきの 釘』（02_ch2_index #103）
 import { drawIrPage, drawIrYukiPage, hasIrPage, hasIrYukiPage, IR_ROW_LABEL, IR_YUKI_ROW_LABEL } from './book_iro';
+// ② の すみ『朝の 前の 色』（02_ch2_index #104）
+import { drawAsPage, hasAsPage, AS_ROW_LABEL } from './book_asairo';
+// ② の すみ『はじめ ちょろちょろ』（02_ch2_index #105）
+import { drawHgPage, hasHgPage, HG_ROW_LABEL } from './book_hagama';
 import { drawNnPage, hasNnPage, NN_ROW_LABEL } from './book_nanori';
 import { drawIsoPage, hasIsoPage, ISO_ROW_LABEL } from './book_iso';
+// ③ の すみ『水槽の うら』（第3章の クリア前、03_ch3_index）
+import { drawAuPage, hasAuPage, AU_ROW_LABEL } from './book_aqura';
 // クリア後：4つ目のふせん「やり残し」（05_postgame 9章）
 import { hasYarinokoshi, YarinokoshiBook, YR_FLAG, YR_FLAG_DARK, YR_TAB } from './book_yarinokoshi';
 import { secretSeen } from '../pg_secret';
@@ -68,6 +74,7 @@ import { secretSeen } from '../pg_secret';
 /** ③ の すみの ページ（クリア後の 寄り道：そとの 展示室・名のり帳）。 */
 function corner3(): { label: string; draw: (g: Gfx, x: number, y: number, w: number) => void }[] {
   const r: { label: string; draw: (g: Gfx, x: number, y: number, w: number) => void }[] = [];
+  if (hasAuPage()) r.push({ label: AU_ROW_LABEL, draw: drawAuPage });
   if (hasIsoPage()) r.push({ label: ISO_ROW_LABEL, draw: drawIsoPage });
   if (hasNnPage()) r.push({ label: NN_ROW_LABEL, draw: drawNnPage });
   return r;
@@ -86,6 +93,8 @@ function corner2(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasMgPage()) r.push({ label: MG_ROW_LABEL, draw: drawMgPage });
   if (hasIrPage()) r.push({ label: IR_ROW_LABEL, draw: drawIrPage });
   if (hasIrYukiPage()) r.push({ label: IR_YUKI_ROW_LABEL, draw: drawIrYukiPage });
+  if (hasAsPage()) r.push({ label: AS_ROW_LABEL, draw: drawAsPage });
+  if (hasHgPage()) r.push({ label: HG_ROW_LABEL, draw: drawHgPage });
   return r;
 }
 import { stickerUribo } from '../../art/props/ashiato_art';

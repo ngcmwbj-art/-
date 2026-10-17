@@ -341,8 +341,11 @@ registerDebug('wrapCheck', () => {
   // 分校の 鉄棒と『懸垂、1回』（02 #100）tetsuText・tetsuBookText（開発サーバーだけ）
   // 上へ 降る 雪（02 #101）mgText・mgBookText（開発サーバーだけ）
   // ええ 色の わけ（02 #103）irText・irBookText（開発サーバーだけ）
+  // 朝の 前の 色（02 #104）asText・asBookText（開発サーバーだけ）
+  // 赤子 泣いても（02 #105）hgText・hgBookText（開発サーバーだけ）
+  // 水槽の うら（03_ch3_index）auText・auBookText（開発サーバーだけ）
   // 型ぬき 番付（01 の 変更の 記録 2026-10-13）katanukiText（台詞の 決まりも）・katanukiBookText（開発サーバーだけ）
-  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText', 'nihyakuBookText', 'domeText', 'huntingText', 'koteiText', 'shikishiText', 'shikishiBookText', 'mizubeText', 'yoburiText', 'mizubeBookText', 'tokei7Text', 'tokei7BookText', 'ashiatoText', 'ashiatoBookText', 'hajimeteText', 'hajimeteBookText', 'tenbanText', 'tenbanBookText', 'mimiText', 'mimiBookText', 'taihiText', 'taihiBookText', 'sakuzoiText', 'sakuzoiBookText', 'tetsuText', 'tetsuBookText', 'mgText', 'mgBookText', 'irText', 'irBookText', 'nnText', 'nnBookText', 'isoText', 'isoBookText', 'hokokushoText', 'katanukiText', 'katanukiBookText']) {
+  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText', 'nihyakuBookText', 'domeText', 'huntingText', 'koteiText', 'shikishiText', 'shikishiBookText', 'mizubeText', 'yoburiText', 'mizubeBookText', 'tokei7Text', 'tokei7BookText', 'ashiatoText', 'ashiatoBookText', 'hajimeteText', 'hajimeteBookText', 'tenbanText', 'tenbanBookText', 'mimiText', 'mimiBookText', 'taihiText', 'taihiBookText', 'sakuzoiText', 'sakuzoiBookText', 'tetsuText', 'tetsuBookText', 'mgText', 'mgBookText', 'irText', 'irBookText', 'asText', 'asBookText', 'hgText', 'hgBookText', 'auText', 'auBookText', 'nnText', 'nnBookText', 'isoText', 'isoBookText', 'hokokushoText', 'katanukiText', 'katanukiBookText']) {
     const r = cmds[name]?.();
     if (!r) continue;
     n += r.pages ?? r.total ?? 0;

@@ -67,7 +67,7 @@ const ROWS_IRIGUCHI = [
   '#WWWWSff####WWWWWWW#', // 6
   '#eeeeSff#..........#', // 7
   '#eoeeSff#..oo..oo..#', // 8
-  '#eeeeSff#..........#', // 9
+  '#eeeeSff#..........D', // 9  (19,9) 水槽の うらへの『関係者以外』の 戸（events/ch3/aq_ura.ts）
   '#eeee#fff..........#', // 10
   '#######DD###########', // 11
 ];
@@ -476,6 +476,49 @@ registerMap({
     O('obj_c3_jimu_cap', 1, 2),
     O('obj_c3_jimu_lamp', 5, 3, { w: 2 }),
     O('obj_c3_jimu_kairan', 7, 3, { w: 2 }),
+  ] as MapObj[],
+});
+
+// ================================================================ map_c3_aq_ura（水槽の うら、24×8。げむきか 10/17 の 案3、03_ch3_index）
+// 順路の 外の 裏方の 通路。入口と 券売所の 売店の あとの 東の 壁 (19,9) の 戸から、西の はし (0,5) に 出る。
+// 北の 壁ぎわに（西から）① 予備水槽の 棚 (2–5,2) ② 真水の タンク (7–8,2) ③ 比重計の 棚 (10,2) ④ ろ過槽 (12–15,2)
+// ⑤ アクリルふきの 道具かけ（壁 (17,1)）⑥ 搬入口（壁の シャッター (20–22,1)、小窓、台車 (22,2)）。
+// 南の 壁ぎわ (y5–6) は 配管の 通路。人・敵・戸の 開け閉めは events/ch3/aq_ura.ts（S15〜S19 の 間だけ）。
+
+export const ROWS_URA = [
+  '########################', // 0
+  '#WWWWWWWWWWWWWWWWWWWWWW#', // 1
+  '#foooofoofofooooffffffo#', // 2
+  '#ffffffffffffffffffffff#', // 3
+  '#ffffffffffffffffffffff#', // 4
+  'Dffffffffffffffffffffff#', // 5
+  '#ffffffffffffffffffffff#', // 6
+  '########################', // 7
+];
+
+registerMap({
+  ...COMMON,
+  id: 'map_c3_aq_ura',
+  name: '水槽の うら',
+  rows: ROWS_URA,
+  legend: { ...WALLS, f: { ground: 'tile_floor', step: 'se_step_tile' } },
+  camera: 'follow',
+  lightBase: '#8C9088',
+  objects: [
+    PR('prop_c3_aq_ura_shell', 0, 0),
+    PR('prop_c3_ura_yobi', 2, 2),
+    PR('prop_c3_ura_tank', 7, 2),
+    PR('prop_c3_ura_hijuu', 10, 2),
+    PR('prop_c3_ura_roka', 12, 2),
+    PR('prop_c3_ura_daisha', 22, 2),
+    { t: 'door', id: 'door_c3_aq_suisoura_back', x: 0, y: 5, to: 'map_c3_aq_iriguchi', tx: 18, ty: 9, dir: 'left', se: 'se_door' },
+    O('obj_aqura_yobi', 2, 2, { w: 4, script: 'obj_aqura_t' }),
+    O('obj_aqura_tank', 7, 2, { w: 2, script: 'obj_aqura_t' }),
+    O('obj_aqura_hijuu', 10, 2, { script: 'obj_aqura_t' }),
+    O('obj_aqura_roka', 12, 2, { w: 4, script: 'obj_aqura_t' }),
+    O('obj_aqura_acryl', 17, 1, { face: 'up', script: 'obj_aqura_t' }),
+    O('obj_aqura_shutter', 20, 1, { w: 3, face: 'up', script: 'obj_aqura_t' }),
+    O('obj_aqura_daisha', 22, 2, { script: 'obj_aqura_t' }),
   ] as MapObj[],
 });
 

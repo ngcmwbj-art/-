@@ -129,6 +129,8 @@ const HOUSE_OBJ: MapObj[] = [
   O('obj_hoshi_aotomato', 3, 3, { h: 12 }),
   O2('obj_hoshi_aotomato', 1, 5, 3, { h: 12 }),
   O('obj_hoshi_wakime', 1, 15, { face: 'left' }),
+  // 朝の 前の 色（02_ch2_index #104）の かくし：東の 列の いちばん 南の 株の 葉の 先の 玉（絵皿を 持っている 間）
+  O('obj_as_tomato', 7, 14, { face: 'right', script: 'obj_as_tomato', priority: 1, cond: { flag: 'flag_as_start', notFlag: ['flag_as_done', 'flag_as_tsuyu_tomato'] } }),
   O('obj_hoshi_nisshi', 7, 16, { face: 'right' }),
   O('obj_hoshi_makiage', 8, 15, { face: 'right' }),
   O('obj_hoshi_house_door', 4, 17, { face: 'down', cond: { notFlag: 'flag_ch2_got_tomato' } }),

@@ -427,7 +427,9 @@ export const ROOMS2: Room2[] = [
     objects: [
       PR('prop_hr_shelf', 1, 2, { v: 'paint' }),
       PR('prop_hr_workbench', 9, 2, { v: 'fuda' }),
-      PR('prop_hr_easel', 5, 3),
+      // 朝の 前の 色（02_ch2_index #104）：すんだ あとは 東の 空の はしに うすい 墨（flag_as_hake）
+      PR('prop_hr_easel', 5, 3, undefined, { cond: { notFlag: 'flag_as_hake' } }),
+      PR('prop_hr_easel', 5, 3, { sumi: 1 }, { cond: { flag: 'flag_as_hake' } }),
       PR('prop_hr_chabudai', 6, 5, { items: 'sketch' }),
       PR('prop_hr_nagashi', 1, 6),
       PR('prop_hr_senpuki', 10, 6, { on: true }),

@@ -1051,7 +1051,7 @@ furn('easel', {
   w: 30,
   h: 36,
   cx: 8,
-  paint(p) {
+  paint(p, o) {
     p.line(15, 0, 6, 35, P.woodLt);
     p.line(15, 0, 24, 35, P.woodLt);
     p.line(15, 4, 15, 35, P.wood);
@@ -1061,6 +1061,8 @@ furn('easel', {
       for (let i = 0; i < 26; i++) {
         let c: string = j < 8 ? P.navy : j < 12 ? P.nightShade : P.leafShade;
         if (i > 21) c = j < 12 ? P.white : P.leafShade;
+        // 朝の 前の 色（02_ch2_index #104）：東の 空の はしに、うすい 墨の ひとはけ（夜と 朝の あいだの 色）
+        if (o.sumi && i > 20 && j < 12) c = mix(mix(P.navy, P.white, 0.45 + (i - 21) * 0.06), '#C8B8C8', j / 22);
         p.set(2 + i, 5 + j, c);
       }
     for (const [i, j] of [[4, 2], [9, 4], [15, 1], [19, 5]]) p.set(2 + i, 5 + j, P.white);
