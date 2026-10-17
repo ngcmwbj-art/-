@@ -6,7 +6,7 @@
 //   火吹き竹は しゅんが 吹く）。
 //   ・ペロの 家の かまど obj_hr_kominka_kamado を 2回 調べる（flag_hg_look。2回目に グソっ君の 1行）
 //     → 3号ハウスの 前の ペロに 話す → 2 ペロの 頼み → 土間へ（ペロは イベントの 歩き。終わると 外へ）。
-//   ・3 その場で 米を 研ぐ → 水加減（大写し「羽釜の 中」MizuPanel：手首の しわまで）→ 半時間ほど つけて 待つ
+//   ・3 その場で 米を 研ぐ → 水加減（大写し「羽釜の 中」MizuPanel：指の 1つ目の ふしまで）→ 半時間ほど つけて 待つ
 //     （依頼主 2026-10-17：米は 長く 水に つけない。研いだら 半時間ほど）→ 火種（火ばさみと 薪は ペロ）。
 //   ・4 はじめ ちょろちょろ（大写し「かまど」HiPanel）：① ちょろちょろ ② ぱっぱ（足す・吹く）③ ジュウジュウ
 //     ふいたら 引く ④ パチパチで わら ⑤ 蒸らし（何も 押さない）。
@@ -201,7 +201,7 @@ function drawKama(g: Gfx, cx: number, top: number, bot: number, cut: boolean): v
 const MZ_CX = SX + 104;
 const MZ_TOP = 22;
 const MZ_BOT = 104;
-/** 米の 上の 面（窓の 上から）、手首の しわの 高さ（米の 上から px）。 */
+/** 米の 上の 面（窓の 上から）、指の ふしの 高さ（米の 上から px）。 */
 const RICE_TOP = 78;
 const WRIST = 10;
 
@@ -272,28 +272,31 @@ export class MizuPanel extends HgPanel {
         g.rect(MZ_CX - h, y, h * 2, 1, '#4A8AC8');
       }
     });
-    // しゅん's hand flat on the rice (the fingers to the left), the wrist, the arm up out over the rim;
-    // under the water the skin goes a little blue
-    const hx0 = MZ_CX - 28;
-    const hx1 = MZ_CX + 12;
+    // しゅん's index finger stood straight up, its tip on the rice; the fist and the arm above
+    // out over the rim. Under the water the skin goes a little blue
+    const fx = MZ_CX - 2;
     const skinAt = (y: number) => (y >= wl ? '#C8B8B0' : '#F2C8A0');
     const skinDk = '#B88A6A';
-    for (let y = rt - 6; y < rt; y++) g.rect(hx0, y, hx1 - hx0, 1, skinAt(y));
-    for (let k = 0; k < 4; k++) g.rect(hx0 - 9, rt - 5 + k + (k > 1 ? 1 : 0), 9, 1, skinAt(rt - 5 + k));
-    g.rect(hx0 - 9, rt - 1, hx1 - hx0 + 9, 1, skinDk);
-    for (let i = 0; i < 46; i++) {
-      const top = rt - 7 - Math.round(i * 1.15);
-      for (let y = top; y < top + 7; y++) g.rect(hx1 + i, y, 1, 1, skinAt(y));
+    const fTop = rt - 26;
+    for (let y = fTop; y < rt; y++) g.rect(fx, y, 4, 1, skinAt(y));
+    g.rect(fx + 1, rt - 1, 2, 1, skinDk);
+    g.rect(fx + 3, fTop, 1, rt - fTop, skinDk);
+    // the fist (curled fingers) and the arm going up to the right
+    for (let y = fTop - 9; y < fTop; y++) g.rect(fx - 2, y, 11, 1, skinAt(y));
+    for (let k = 0; k < 3; k++) g.rect(fx + 4, fTop - 7 + k * 3, 5, 1, skinDk);
+    for (let i = 0; i < 30; i++) {
+      const top = fTop - 9 - Math.round(i * 0.9);
+      for (let y = top; y < top + 7; y++) g.rect(fx + 7 + i, y, 1, 1, skinAt(y));
     }
-    // the wrist's crease (where the water should reach)
+    // the first joint of the finger (where the water should reach)
     const wy = rt - WRIST;
-    g.rect(hx1 + 3, wy, 7, 1, '#A85A3A');
-    g.rect(hx1 + 4, wy + 1, 5, 1, skinDk);
+    g.rect(fx - 1, wy, 6, 1, '#A85A3A');
+    g.rect(fx, wy + 1, 4, 1, skinDk);
     if (this.lv > 0) {
       const h = half(wl);
       g.rect(MZ_CX - h, wl, h * 2, 1, '#BDEFFA');
     }
-    // the mark of the crease out to the side (a dotted line and its name)
+    // the mark of the joint out to the side (a dotted line and its name)
     for (let x = MZ_CX + 56; x < RX - 8; x += 3) g.px(x, wy, '#FFE7A3');
     // the ladle: pouring (→) or scooping (←) at the upper left
     const lx = MZ_CX - 62;
@@ -306,7 +309,7 @@ export class MizuPanel extends HgPanel {
 
   drawSide(g: Gfx, oy: number): void {
     g.text(HG_UI.wrist, RX, oy + 4, { color: '#F4ECD8' });
-    // a little gauge: the crease line and the water
+    // a little gauge: the joint line and the water
     const gx = RX;
     const gy = oy + 24;
     g.rect(gx, gy, 8, 30, '#1A1626');
