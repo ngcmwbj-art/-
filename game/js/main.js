@@ -577,6 +577,7 @@ class Game {
         this.wave++;
         if (this.wave >= WAVES.length) { this.wave = WAVES.length - 1; this.finish(true); return; }
         this.phase = 'prep';
+        this.hud.prepFolded = false; this.hud.prepTouched = false;
         this.phaseT = 0;
         this.makePlan();
         this.hud.banner('準備タイム', `${this.waveName()}が来る前に、畑を立て直してタワーで備えよう`);
@@ -733,9 +734,12 @@ class Game {
     if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
     if (this.phase === 'storm') {
       const sub = `キャベツ ${this.cabbages.alive} 玉（${Math.ceil(this.cabbages.total * 0.3)} 玉を切ると負け）`;
-      if (this.spawn.boss) this.hud.objective(`大ボス「${WAVES[this.wave].name}の目」を倒せ！`, sub);
-      else this.hud.objective(`前ぶれの雑魚を倒せ！ 残り <b>${this.minionsLeft()}</b> 匹`, sub);
+      // 大ボス戦は画面上の体力バーが目印になるので、目的パネルは出さない
+      if (this.spawn.boss) this.hud.objective(null);
+      else this.hud.objective(`前ぶれの雑魚 残り <b>${this.minionsLeft()}</b> 匹`, sub, true);
     } else if (this.phase === 'prep' && !this.mission) {
+      // スマホ・iPad はやることリストを 8 秒で自動的にたたむ（タップで開ける）
+      if (IS_TOUCH && !this.hud.prepTouched && this.phaseT > 8) this.hud.prepFolded = true;
       this.prepChecklist();
       // やられたキャベツの跡地を歩くと植え直す（1玉 1Q）
       if (!this.paused && this.q >= 1) {

@@ -32,6 +32,12 @@ export class HUD {
     this.laneNotes = [];
     if (this.el.lane) for (let i = 0; i < 6; i++) { const n = document.createElement('i'); n.className = 'lnote'; n.textContent = '♪'; this.el.lane.appendChild(n); this.laneNotes.push(n); }
     this.arrowEls = [];
+    this.prepFolded = false;
+    this.el.obj.addEventListener('pointerdown', (e) => {
+      if (!this.el.obj.classList.contains('prep')) return;
+      e.stopPropagation();
+      this.prepFolded = !this.prepFolded; this.prepTouched = true;
+    });
     this.mapBg = this.renderMapBg();
   }
 
@@ -119,21 +125,29 @@ export class HUD {
   missionProgress(t) { const e = document.getElementById('obj-progress'); if (e) e.textContent = t; }
 
   // 通常時の目的表示
-  objective(html, sub) {
+  objective(html, sub, slim = false) {
     const o = this.el.obj;
     if (!html) { o.hidden = true; return; }
-    const s = `<span class="tag">目的</span><b>${html}</b><em>${sub || ''}</em>`;
+    const s = slim ? `<b>${html}</b>` : `<span class="tag">目的</span><b>${html}</b><em>${sub || ''}</em>`;
     if (o._last !== s) { o.innerHTML = s; o._last = s; }
-    o.className = '';
+    o.className = slim ? 'slim' : '';
     o.hidden = false;
   }
 
   // 準備タイムのやることリスト
   prep(title, forecast, items) {
     const o = this.el.obj;
-    const s = `<span class="tag">準備タイム</span><b>${title}</b><em>${forecast}</em><ul class="todo">${items.map(([done, text]) => `<li class="${done ? 'done' : ''}">${text}</li>`).join('')}</ul>`;
-    if (o._last !== s) { o.innerHTML = s; o._last = s; }
-    o.className = 'prep';
+    // スマホ・iPad では畳める（タップで開く／閉じる）
+    if (this.prepFolded) {
+      const left = items.filter(([d]) => !d).length;
+      const s = `<b>${title}</b><small class="fold">やること 残り ${left} ▼ タップで開く</small>`;
+      if (o._last !== s) { o.innerHTML = s; o._last = s; }
+      o.className = 'prep folded';
+    } else {
+      const s = `<span class="tag">準備タイム</span><b>${title}</b><em>${forecast}</em><ul class="todo">${items.map(([done, text]) => `<li class="${done ? 'done' : ''}">${text}</li>`).join('')}</ul>${document.body.classList.contains('touch') ? '<small class="fold">▲ タップでたたむ</small>' : ''}`;
+      if (o._last !== s) { o.innerHTML = s; o._last = s; }
+      o.className = 'prep';
+    }
     o.hidden = false;
   }
 

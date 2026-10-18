@@ -324,3 +324,14 @@ body.touch *, body.touch *::before, body.touch *::after { backdrop-filter: none 
 body.touch .panel, body.touch #objective, body.touch .toast, body.touch .slot { background: rgba(10,12,16,.78); }
 body.touch #touch button { background: rgba(12,14,18,.62); }
 body.touch .slot.sel { background: rgba(20,40,30,.85); }
+
+/* 目的パネルの小さい表示（雑魚戦）と、たたんだ準備リスト */
+#objective.slim { min-width: 0; padding: 4px 16px; border-radius: 20px; }
+#objective.slim b { font-size: 14px; }
+#objective.slim b b { font-size: 18px; }
+#objective .fold { display: block; text-align: center; font-size: 10.5px; opacity: .65; margin-top: 3px; }
+#objective.prep.folded { padding: 4px 14px 5px; }
+body.touch #objective.prep { pointer-events: auto; }
+body.touch #objective.slim { padding: 3px 12px; }
+body.touch #objective.slim b { font-size: 11.5px; }
+body.touch #objective.slim b b { font-size: 14px; }
