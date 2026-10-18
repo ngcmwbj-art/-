@@ -5,7 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { buildWorld, heightAt, coastX } from './world.js';
+import { buildWorld, heightAt, groundAt, coastX, BOUNDS } from './world.js';
 import { Weather } from './weather.js';
 import { Cabbages } from './cabbages.js';
 import { Player } from './player.js';
@@ -413,7 +413,51 @@ class Game {
     this.scene.add(g);
     this.landMarker = g;
     this.plan.landing = g.position.clone();
+    this.makeGate();
   }
+
+  // 雑魚の来る方角（東西南北のどれか一方）。その辺の幅 60m の「門」からザーッと押し寄せる
+  makeGate() {
+    const dirs = [
+      { key: 'north', name: '北', in: [0, 1] }, { key: 'south', name: '南', in: [0, -1] },
+      { key: 'west', name: '西', in: [1, 0] }, { key: 'east', name: '東（海）', in: [-1, 0] },
+    ];
+    const d = dirs[Math.floor(Math.random() * dirs.length)];
+    let x, z;
+    if (d.key === 'north') { x = rand(-90, 70); z = BOUNDS.zMin + 14; }
+    else if (d.key === 'south') { x = rand(-90, 70); z = BOUNDS.zMax - 14; }
+    else if (d.key === 'west') { x = BOUNDS.xMin + 14; z = rand(-90, 90); }
+    else { z = rand(-90, 90); x = coastX(z) - 8; }
+    const gate = { key: d.key, name: d.name, x, z, in: new THREE.Vector2(d.in[0], d.in[1]), along: new THREE.Vector2(-d.in[1], d.in[0]), width: 60 };
+    this.plan.gate = gate;
+    // 目印：オレンジの光の幕と、内向きの矢印
+    if (this.gateMarker) this.scene.remove(this.gateMarker);
+    const g = new THREE.Group();
+    const yaw = Math.atan2(gate.in.x, gate.in.y);
+    const wallMat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
+      uniforms: { uT: { value: 0 } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
+      fragmentShader: 'uniform float uT; varying vec2 vUv; void main(){ float a=(1.-vUv.y)*(0.35+0.25*sin(vUv.x*40.-uT*4.))*smoothstep(0.,.08,vUv.x)*smoothstep(1.,.92,vUv.x); gl_FragColor=vec4(vec3(1.,.55,.15)*a,a); }',
+    });
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(gate.width, 18), wallMat);
+    wall.position.y = 9; wall.rotation.y = yaw; g.add(wall);
+    const arrowShape = new THREE.Shape();
+    arrowShape.moveTo(-2.2, 0); arrowShape.lineTo(2.2, 0); arrowShape.lineTo(2.2, 7); arrowShape.lineTo(5, 7); arrowShape.lineTo(0, 13); arrowShape.lineTo(-5, 7); arrowShape.lineTo(-2.2, 7); arrowShape.closePath();
+    const arrowMat = new THREE.MeshBasicMaterial({ color: '#ff9a3a', transparent: true, opacity: 0.75, depthWrite: false, fog: false, side: THREE.DoubleSide });
+    for (const off of [-18, 0, 18]) {
+      const ar = new THREE.Mesh(new THREE.ShapeGeometry(arrowShape).rotateX(-Math.PI / 2).rotateY(Math.PI), arrowMat);
+      const ax = x + gate.along.x * off + gate.in.x * 4, az = z + gate.along.y * off + gate.in.y * 4;
+      ar.position.set(ax - x, groundAt(ax, az) + 0.5 - groundAt(x, z), az - z);
+      ar.rotation.y = yaw; g.add(ar);
+    }
+    g.position.set(x, groundAt(x, z), z);
+    g.userData.wallMat = wallMat;
+    this.scene.add(g);
+    this.gateMarker = g;
+  }
+
+  clearGateMarker() { if (this.gateMarker) { this.scene.remove(this.gateMarker); this.gateMarker = null; } }
 
   clearLandMarker() { if (this.landMarker) { this.scene.remove(this.landMarker); this.landMarker = null; } }
 
@@ -422,18 +466,19 @@ class Game {
     const p = this.plan;
     if (!p) return;
     const left = Math.max(0, Math.ceil(this.prepLength() - this.phaseT));
-    const amp = this.towers.list.some((t) => t.id === 'amp' && t.pos.distanceTo(p.landing) < 60);
+    const gp = new THREE.Vector3(p.gate.x, 0, p.gate.z);
+    const amp = this.towers.list.some((t) => t.id === 'amp' && (t.pos.distanceTo(p.landing) < 60 || Math.hypot(t.pos.x - gp.x, t.pos.z - gp.z) < 60));
     const lost = this.cabbages.lostCount();
     const T = IS_TOUCH;
     const items = [
       [this.prayed, this.prayed ? `量子の祠：御利益「${this.blessingName}」を授かった` : '量子の祠（家の裏の鳥居）で手を合わせる（紫の輪の中に 2 秒）'],
-      [amp, '赤い柱（上陸予想地点）の近くにスピーカーを建てる'],
+      [amp, `雑魚の来る${p.gate.name}のオレンジの矢印か、赤い柱（ボスの上陸地点）の近くにスピーカーを建てる`],
       [lost === 0, lost ? `やられたキャベツを植え直す（跡地を歩くだけ・1玉 1Q）残り ${lost} 玉` : 'キャベツ畑は無傷'],
       [false, T ? `準備ができたら上のボタンで迎え撃つ（今なら +${left * 2}Q）` : `準備ができたら［Enter］で迎え撃つ（今なら +${left * 2}Q）`],
     ];
     const c = p.counts;
     this.hud.prep(`準備タイム ― ${this.waveName()}まで <b>${left}</b> 秒`,
-      `予報：雑魚 ${c.mushi + c.karasu + c.tsumuji + c.pair * 2} 匹（青虫 ${c.mushi}・カラス ${c.karasu}・つむじ風 ${c.tsumuji}・もつれた二人組 ${c.pair}）→ 大ボス（分身 ${p.ghosts} 体）`, items);
+      `予報：雑魚は<b>${p.gate.name}</b>からザーッと押し寄せる ${c.mushi + c.karasu + c.tsumuji + c.pair * 2} 匹（青虫 ${c.mushi}・カラス ${c.karasu}・つむじ風 ${c.tsumuji}・もつれた二人組 ${c.pair}）→ 大ボス（分身 ${p.ghosts} 体）`, items);
   }
 
   skipPrep() {
@@ -482,12 +527,14 @@ class Game {
     const a = this.plan.angle; // 予報どおり東の海から
     this.stormAngle = a;
     this.threats.landZ = this.plan.z0;
+    this.threats.gate = this.plan.gate;
+    this.clearGateMarker();
     this.clearLandMarker();
     this.weather.typhoonCenter.set(Math.cos(a) * 1500, Math.sin(a) * 1500);
     this.weather.windDir.set(-Math.cos(a), -Math.sin(a)).normalize();
     this.weather.setStorm(w.peak * 0.7);
     this.threats.dmgMul = (1 + this.wave * 0.08) * (this.blessing === 'kekkai' ? 0.7 : 1);
-    this.hud.banner(`${w.name} 接近！`, `まずは前ぶれの雑魚 ${this.minionsLeft()} 匹が畑を狙ってくる！${this.blessing ? `（御利益「${this.blessingName}」が宿っている）` : ''}`);
+    this.hud.banner(`${w.name} 接近！`, `雑魚 ${this.minionsLeft()} 匹が${this.plan.gate.name}からザーッと押し寄せる！${this.blessing ? `（御利益「${this.blessingName}」が宿っている）` : ''}`);
     this.audio.thunder(0.5);
   }
 
@@ -559,8 +606,8 @@ class Game {
       if (sp.pool.length && sp.next <= 0) {
         const type = sp.pool.pop();
         this.threats.spawnMinion(type, this.wave);
-        sp.next = Math.max(0.5, 2.2 - this.wave * 0.3) * rand(0.6, 1.3);
-        if (sp.pool.length === sp.total - 1) this.hud.toast('雑魚がやってきた！ 近づいてギターで倒そう（スピーカーも自動で撃つ）', 'q');
+        sp.next = rand(0.2, 0.5); // 一方からザーッと
+        if (sp.pool.length === sp.total - 1) this.hud.toast(`雑魚が${this.plan.gate.name}からやってきた！ 近づいてギターで倒そう（スピーカーも自動で撃つ）`, 'q');
       }
       // 雑魚を全部倒すか 80 秒たったら大ボス
       if (!sp.boss && ((!sp.pool.length && this.threats.minionsAlive === 0) || this.phaseT > 80)) this.spawnBoss();
@@ -714,6 +761,7 @@ class Game {
 
     w.update(rawDt, t, this.camera, this.player.pos);
     this.windU.uTime.value = t;
+    if (this.gateMarker) this.gateMarker.userData.wallMat.uniforms.uT.value = t;
     this.windU.uWind.value = w.storm * 1.4;
     this.world.update(rawDt, t, w);
     this.cabbages.update(dt, t, w.storm, this.camera);

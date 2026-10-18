@@ -310,6 +310,17 @@ export class HUD {
     for (const st of game.threats.strikes) dot(st.pos.x, st.pos.z, '#ffd24a', 3);
     // 上陸予想地点
     if (game.phase === 'prep' && game.plan) { const [lx, ly] = this.toMap(game.plan.landing.x, game.plan.landing.z); g.strokeStyle = '#ff5a4a'; g.lineWidth = 2; g.beginPath(); g.arc(lx, ly, 6 + Math.sin(performance.now() / 150) * 1.5, 0, 7); g.stroke(); }
+    // 雑魚の来る方角
+    const gate = (game.phase === 'prep' || (game.phase === 'storm' && !game.spawn.boss)) && game.plan?.gate;
+    if (gate) {
+      const gg = gate, h = gg.width / 2;
+      const [ax, ay] = this.toMap(gg.x - gg.along.x * h, gg.z - gg.along.y * h), [bx, by] = this.toMap(gg.x + gg.along.x * h, gg.z + gg.along.y * h);
+      const [cx, cy] = this.toMap(gg.x, gg.z), [tx, ty] = this.toMap(gg.x + gg.in.x * 30, gg.z + gg.in.y * 30);
+      g.strokeStyle = '#ff9a3a'; g.lineWidth = 3; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke();
+      g.lineWidth = 2; g.beginPath(); g.moveTo(cx, cy); g.lineTo(tx, ty); g.stroke();
+      const ang = Math.atan2(ty - cy, tx - cx);
+      g.fillStyle = '#ff9a3a'; g.beginPath(); g.moveTo(tx, ty); g.lineTo(tx - Math.cos(ang - 0.5) * 6, ty - Math.sin(ang - 0.5) * 6); g.lineTo(tx - Math.cos(ang + 0.5) * 6, ty - Math.sin(ang + 0.5) * 6); g.fill();
+    }
     // 雑魚
     for (const m of game.threats.minions) dot(m.pos.x, m.pos.z, m.type === 'mushi' ? '#9fe05a' : '#222', 2);
     // 飛来物

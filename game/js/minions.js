@@ -75,16 +75,13 @@ export class Minion {
     this.speed = type === 'mushi' ? 2.6 + wave * 0.2 : 8 + wave * 0.5;
     this.target = -1; this.retarget = 0; this.t = Math.random() * 10; this.hit = 0;
     this.obj = type === 'mushi' ? buildMushi() : buildCrow();
-    // 青虫はまわりの森の縁から、カラスは空の遠くから現れる
+    // 予報で決めた方角（東西南北の一方）からザーッと押し寄せる。カラスはその方角の空から
     if (type === 'mushi') {
-      const side = Math.floor(Math.random() * 3);
-      let x, z;
-      if (side === 0) { x = BOUNDS.xMin + 10; z = rand(-130, 130); }
-      else { z = (side === 1 ? BOUNDS.zMin + 10 : BOUNDS.zMax - 10); x = rand(-140, 110); }
-      this.pos = new THREE.Vector3(x, groundAt(x, z), z);
+      this.pos = sys.gatePoint(0);
+      this.pos.y = groundAt(this.pos.x, this.pos.z);
     } else {
-      const a = Math.random() * Math.PI * 2;
-      this.pos = new THREE.Vector3(Math.cos(a) * 170, 24, Math.sin(a) * 150);
+      this.pos = sys.gatePoint(30);
+      this.pos.y = 24;
     }
     this.obj.position.copy(this.pos);
     sys.scene.add(this.obj);

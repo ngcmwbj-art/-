@@ -340,12 +340,21 @@ export class Threats {
     return group;
   }
 
+  // 雑魚の出てくる場所：予報で決めた方角の「門」の幅の中。back だけ外側（カラスは空の遠く）
+  gatePoint(back = 0) {
+    const g = this.gate;
+    if (!g) return new THREE.Vector3(BOUNDS.xMin + 10, 0, rand(-130, 130));
+    const o = rand(-g.width / 2, g.width / 2), b = rand(0, 6) + back;
+    let x = g.x + g.along.x * o - g.in.x * b, z = g.z + g.along.y * o - g.in.y * b;
+    if (g.key === 'east') x = Math.min(x, coastX(z) - 4 + back);
+    return new THREE.Vector3(x, 0, z);
+  }
+
   // 前ぶれの雑魚：青虫・カラス・つむじ風（小さな竜巻。重ね合わせなし）
   spawnMinion(type, wave) {
     if (type === 'tsumuji') {
-      const z = Math.max(-130, Math.min(130, (this.landZ ?? 0) + rand(-45, 45)));
       const group = { members: [], collapsed: true, hp: 40 + wave * 12, speed: 4.5 + wave * 0.3, scale: 0.3, mini: true };
-      const tor = new Tornado(this, new THREE.Vector3(coastX(z) + rand(10, 25), 0, z), true, group);
+      const tor = new Tornado(this, this.gatePoint(4), true, group);
       tor.setGhost(0);
       group.members.push(tor);
       this.tornados.push(tor);
