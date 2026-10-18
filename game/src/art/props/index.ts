@@ -44,6 +44,10 @@ import './mushigomu_art';
 import './c3_iso_art';
 // 朝の 前の 色：サトイモ・クモの 巣・稲の 葉の 先の 玉（02_ch2_index #104）
 import './asairo_art';
+// ごはん 一粒、花 一つ：水口の そばの 遅れた 穂の 光（02_ch2_index #107）
+import './hana_art';
+// 湯を わかしてから：裏の 畑の とうもろこし・板壁・物置、貼り紙、勝手口、大なべ（02_ch2_index #106）
+import './yuwaka_art';
 // Chapter 3 『海ぞいの町の いただきます』 (62_ch3_level_art 7章): the buildings and the things of 海ぞいの町
 import './c3_bld';
 import './c3_props';

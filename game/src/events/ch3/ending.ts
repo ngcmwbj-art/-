@@ -31,6 +31,7 @@ import * as battleData from '../../data/battle';
 import { setClockText, showClock, uiHud } from '../../ui/hud';
 import { ditherIn, ditherOut } from '../../ui/transition';
 import * as T from '../../data/text/c3_story4';
+import { MH_S31 } from '../../data/text/c3_mahiru';
 import { C3_NAMES } from '../../data/text/c3_names';
 import { F } from '../lib';
 import { endingView } from '../ending';
@@ -405,7 +406,11 @@ function* cut3Photo(): Co {
   yield* game.fadeIn(700);
   se('se_step_stone', { vol: 0.4 });
   yield* beat(600);
-  if (master) yield* say3(T.PHOTO_MASTER);
+  if (master) {
+    // 真昼の 顔（03_ch3_index、events/ch3/mahiru.ts）：正午に 照明係を した なら、その 前に 1ページ
+    if (flag('flag_mh_done')) yield* say3(MH_S31);
+    yield* say3(T.PHOTO_MASTER);
+  }
   else {
     yield* say3(T.PHOTO_POKOSHA);
     for (let i = 0; i < 4; i++) {

@@ -29,6 +29,7 @@ import { dialogFrame, dialogVisible, say } from './dialog';
 import { digitsWidth, drawDigits, drawNumerals, numeralsWidth } from './digits';
 import { coinBoxIcon, itemIcon12, itemIcon24, purseIcon } from './icons';
 import { HOSHI_SPEAKERS, MUJIN_SHOP } from '../data/text/hoshi_npcs';
+import { YW_MUJIN } from '../data/text/hoshi_yuwaka';
 import { bagCount, BAG_MAX } from './menu/items';
 import { uiHud } from './hud';
 import { ctxText, rgb, drawCursor, drawMarker, drawTape, drawWindow, dottedVLine, pencilLine, phraseWrap, rectA, tapeImg, textW, UI } from './window';
@@ -166,7 +167,8 @@ registerShop({
   keeper: { name: SAWAKO.name, voice: SAWAKO.voice },
   goods: () => MUJIN_SHOP.goods.filter((id) => !!getItem(id)),
   price: () => MUJIN_SHOP.price,
-  limit: (id) => MUJIN_SHOP.limits[id] ?? 3,
+  // 湯を わかしてから（02 #106）の あとは ゆでとうもろこしが 1つ 多い（スギばあの 畑の 分）
+  limit: (id) => (MUJIN_SHOP.limits[id] ?? 3) + (id === 'item_toumorokoshi' && flag('flag_yw_done') ? 1 : 0),
   perVisit: true,
   signColor: '#D8B888',
   stall: { board: `どれでも ${MUJIN_SHOP.price}円` },
@@ -177,10 +179,13 @@ registerShop({
     // the first ゆでとうもろこし and the first ひろすけの焼き芋 have their own
     // lines; the first purchase ever is the 「まいど」 she didn't mean to say;
     // after that two lines in turn
+    // 湯を わかしてから（02 #106）の あと、はじめて ゆでとうもろこしを 買う とき 1回（いつもの 文の 前に）
+    const yw = id === 'item_toumorokoshi' && flag('flag_yw_done') && !flag('flag_yw_mujin') ? (setFlag('flag_yw_mujin', 1), [YW_MUJIN]) : [];
     if (id === 'item_toumorokoshi' && !flag('flag_ch2_mujin_corn')) {
       setFlag('flag_ch2_mujin_corn', 1);
-      return MUJIN_SHOP.corn;
+      return [...yw, ...MUJIN_SHOP.corn];
     }
+    if (yw.length) return yw;
     if (id === 'item_yakiimo' && !flag('flag_ch2_mujin_imo')) {
       // (グソっ君's word comes when the first one is eaten: data/battle/field.ts)
       setFlag('flag_ch2_mujin_imo', 1);

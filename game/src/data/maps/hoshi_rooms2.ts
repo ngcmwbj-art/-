@@ -249,7 +249,7 @@ export const ROOMS2: Room2[] = [
       '#WWWWWWWWWW#',
       '#OOtttttOtO#',
       '#tttttttttt#',
-      '#tttttttttt#',
+      '#ttttttttttD',
       '#ttttOOtttt#',
       '#Ottttttttt#',
       '#ggttttttOO#',
@@ -286,6 +286,14 @@ export const ROOMS2: Room2[] = [
       X('obj_hr_mk2_chabudai', 5, 5, { w: 2 }),
       X('obj_hr_mk2_zabuton', 4, 5, { flat: true }),
       X('obj_hr_mk2_tansu', 9, 7, { w: 2 }),
+      // 湯を わかしてから（02_ch2_index #106、events/ch2/yuwaka.ts）：茶だんすの 横の 貼り紙（(3,2) から 左向き）と、
+      // 東の 壁 (11,4) の 勝手口（湯が わいてから 裏の とうもろこし畑 map_hoshi_ura_hata へ）
+      PR('prop_yw_harigami', 2, 2),
+      { t: 'obj', id: 'obj_yw_harigami', x: 2, y: 2, face: 'left', priority: 1, script: 'obj_yw_harigami' } as MapObj,
+      PR('prop_yw_uraguchi', 11, 4),
+      PR('prop_yw_uraguchi_to', 11, 4),
+      { t: 'door', id: 'door_yw_ura', x: 11, y: 4, to: 'map_hoshi_ura_hata', tx: 1, ty: 5, dir: 'right', se: 'se_door', cond: { flag: 'flag_yw_door' } } as MapObj,
+      { t: 'obj', id: 'obj_yw_uraguchi', x: 11, y: 4, face: 'right', script: 'obj_yw_uraguchi', cond: { notFlag: 'flag_yw_door' } } as MapObj,
     ],
     out: { x: 43, y: 26, stand: [43, 27], dir: 'up', se: 'se_door_glass' },
     lit: false,

@@ -122,6 +122,15 @@ const s2 = { stage: 2 };
 const s01 = { stage: '0-1' };
 const s12 = { stage: '1-2' };
 const s02 = { stage: '0-2' };
+/** ごはん 一粒、花 一つ（02 #107）の 穂 6か所：[x, y, 向き, 見え方]（events/ch2/hana.ts の HN_SPOTS と 同じ 順） */
+const HN_SPOT_AT: [number, number, 'up' | 'down', string][] = [
+  [14, 3, 'down', 'kore'],
+  [16, 3, 'down', 'kore'],
+  [18, 3, 'down', 'ato'],
+  [14, 4, 'up', 'kore'],
+  [16, 4, 'up', 'mae'],
+  [18, 4, 'up', 'kore'],
+];
 
 /** Kakashi of 52 7.3: tile, dress, and the tile the text is read from. */
 const KAKASHI: [number, number, string][] = [
@@ -324,6 +333,12 @@ const OBJECTS: MapObj[] = [
   PR('prop_h_canal_steps', 24, 21),
   PR('prop_h_canal_steps', 33, 21, { v: 1 }),
   PR('prop_h_intake', 13, 2),
+  // ごはん 一粒、花 一つ（02_ch2_index #107、events/ch2/hana.ts）：いちばん 上の 段の 西の 田、沢の 水口 (13,2) の
+  // そばの 遅れた 穂 6か所（北の 畦 y2 から 下向き・南の 畦 y5 から 上向き）。はじめてから すむまで（トマトの 灯り）
+  ...HN_SPOT_AT.flatMap(([x, y, face, look], i) => [
+    PR('prop_hn_ho', x, y, { i, look }, { cond: s12 }),
+    O(`obj_hn_ho_${i + 1}`, x, y, { face, script: 'obj_hn_ho', priority: 1, cond: { ...s12, flag: 'flag_hn_start', notFlag: 'flag_hn_done' } }),
+  ]),
 
   // ======================================================== 東の台地・電気柵 (area_hoshi_east / fence)
   O('obj_hoshi_barn_out', 56, 31, { face: 'up', cond: s0 }),

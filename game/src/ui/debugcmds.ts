@@ -344,8 +344,12 @@ registerDebug('wrapCheck', () => {
   // 朝の 前の 色（02 #104）asText・asBookText（開発サーバーだけ）
   // 赤子 泣いても（02 #105）hgText・hgBookText（開発サーバーだけ）
   // 水槽の うら（03_ch3_index）auText・auBookText（開発サーバーだけ）
+  // ごはん 一粒、花 一つ（02 #107）hnText・hnBookText（開発サーバーだけ）
+  // 湯を わかしてから（02 #106）ywText・ywBookText（開発サーバーだけ）
+  // 下の 紙の 字（03_ch3_index）shText・shBookText（開発サーバーだけ）
+  // 真昼の 顔（03_ch3_index）mhText・mhBookText（開発サーバーだけ）
   // 型ぬき 番付（01 の 変更の 記録 2026-10-13）katanukiText（台詞の 決まりも）・katanukiBookText（開発サーバーだけ）
-  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText', 'nihyakuBookText', 'domeText', 'huntingText', 'koteiText', 'shikishiText', 'shikishiBookText', 'mizubeText', 'yoburiText', 'mizubeBookText', 'tokei7Text', 'tokei7BookText', 'ashiatoText', 'ashiatoBookText', 'hajimeteText', 'hajimeteBookText', 'tenbanText', 'tenbanBookText', 'mimiText', 'mimiBookText', 'taihiText', 'taihiBookText', 'sakuzoiText', 'sakuzoiBookText', 'tetsuText', 'tetsuBookText', 'mgText', 'mgBookText', 'irText', 'irBookText', 'asText', 'asBookText', 'hgText', 'hgBookText', 'auText', 'auBookText', 'nnText', 'nnBookText', 'isoText', 'isoBookText', 'hokokushoText', 'katanukiText', 'katanukiBookText']) {
+  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText', 'nihyakuBookText', 'domeText', 'huntingText', 'koteiText', 'shikishiText', 'shikishiBookText', 'mizubeText', 'yoburiText', 'mizubeBookText', 'tokei7Text', 'tokei7BookText', 'ashiatoText', 'ashiatoBookText', 'hajimeteText', 'hajimeteBookText', 'tenbanText', 'tenbanBookText', 'mimiText', 'mimiBookText', 'taihiText', 'taihiBookText', 'sakuzoiText', 'sakuzoiBookText', 'tetsuText', 'tetsuBookText', 'mgText', 'mgBookText', 'irText', 'irBookText', 'asText', 'asBookText', 'hgText', 'hgBookText', 'auText', 'auBookText', 'hnText', 'hnBookText', 'ywText', 'ywBookText', 'shText', 'shBookText', 'mhText', 'mhBookText', 'nnText', 'nnBookText', 'isoText', 'isoBookText', 'hokokushoText', 'katanukiText', 'katanukiBookText']) {
     const r = cmds[name]?.();
     if (!r) continue;
     n += r.pages ?? r.total ?? 0;

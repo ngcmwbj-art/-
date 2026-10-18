@@ -58,6 +58,8 @@ const MAPS = new Set([
   'map_hoshimidai', 'map_hoshi_hill', 'map_hoshi_sawa', 'map_hoshi_urayama',
   // 上の 柵ぞい（棚田の 上の 電気柵の 外、02_ch2_index #99）
   'map_hoshi_sakuzoi',
+  // 裏の とうもろこし畑（湯を わかしてから、02_ch2_index #106）
+  'map_hoshi_ura_hata',
   // chapter 3 (62 8.9): 海ぞいの町 at noon, and the sea floor under it (グソっ君 alone, S09)
   'map_umizoi', 'map_c3_umi',
   // 岬の 磯（本日は、開館です。クリア後の 昼、03_ch3_index）

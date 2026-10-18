@@ -411,6 +411,8 @@ const SCHOOL_OBJ: MapObj[] = [
   PR('prop_h_napper', 8, 6, { who: 'kiyo' }),
   PR('prop_h_napper', 6, 7, { who: 'take' }),
   PR('prop_h_ochadai', 1, 4),
+  // 湯を わかしてから（02_ch2_index #106、events/ch2/yuwaka.ts）：お茶の 台の こんろの 大なべ（かけてから すむまで）
+  PR('prop_yw_nabe', 1, 4, {}, { cond: { flag: 'flag_yw_nabe', notFlag: 'flag_yw_done' } }),
   PR('prop_h_kyotaku', 5, 3),
   PR('prop_h_getabako', 1, 10),
   PR('prop_h_kasatate', 6, 10),
@@ -463,6 +465,8 @@ const SCHOOL_OBJ: MapObj[] = [
   // and the rooms at its end are dark); facing it from the lit end says the same
   O('obj_hoshi_rouka_dark', 10, 9, { h: 2, face: 'right', script: 'evt_ch2_dark_block', cond: { notFlag: 'flag_ch2_got_tomato' } }),
   { t: 'trig', id: 'trig_ch2_dark_school', x: 10, y: 9, w: 1, h: 2, script: 'evt_ch2_dark_block', cond: { notFlag: 'flag_ch2_got_tomato' } },
+  // 湯を わかしてから（02 #106）：なべを かけて わく 前に 出ようと すると、グソっ君が とめる
+  { t: 'trig', id: 'trig_yw_leave', x: 5, y: 10, w: 1, h: 1, script: 'trig_yw_leave', cond: { flag: 'flag_yw_nabe', notFlag: 'flag_yw_waita' } },
   { t: 'door', id: 'door_hoshi_school_out', x: 5, y: 11, to: 'map_hoshimidai', tx: 26, ty: 28, dir: 'down', se: 'se_door' },
   { t: 'door', id: 'door_hoshi_school_ura', x: 24, y: 2, to: 'map_hoshi_urayama', tx: 11, ty: 12, dir: 'up', se: 'se_door' },
 ];

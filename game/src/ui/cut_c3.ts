@@ -17,7 +17,7 @@ import type { Co } from '../engine/co';
 import { game, type Widget } from '../engine/game';
 import type { Gfx } from '../engine/gfx';
 import { BAYER4, makeCanvas, PixelCanvas } from '../engine/pixel';
-import { state } from '../game/state';
+import { flag, state } from '../game/state';
 import { charSprite, hasChar, poseFrame } from '../art/chars/registry';
 import { registerC3Cut } from '../events/ch3/cuts';
 
@@ -243,6 +243,7 @@ function photoPicture(came: string[]): HTMLCanvasElement {
   // the rows, back to front (later rows over earlier ones). Who came: at most 24, 12 a row
   const rows: { ids: [string, string?][]; foot: number; gap: number }[] = [];
   const back = came.filter((id) => id !== 'npc_photo_master').map((id) => [id] as [string]);
+  const lid = came.includes('npc_photo_master') && flag('flag_mh_done') > 0;
   const r4 = back.slice(12);
   const r3 = back.slice(0, 12);
   if (r4.length) rows.push({ ids: r4, foot: 104, gap: 22 });
@@ -266,6 +267,17 @@ function photoPicture(came: string[]): HTMLCanvasElement {
       g.fillStyle = 'rgba(42,36,64,0.25)';
       g.fillRect(x + 3, r.foot - 1 + (i % 2 ? -2 : 0), f.width - 6, 2);
       g.drawImage(f, x, y);
+      // 真昼の 顔（03_ch3_index）：正午に 照明係を した グソっ君は、白い トロ箱の ふたを 持って 写る
+      if (id === 'kanenari' && lid) {
+        const lx = x + f.width - 6;
+        const ly = y + Math.round(f.height * 0.45);
+        for (let k = 0; k < 12; k++) {
+          g.fillStyle = k === 0 ? '#FFFFFF' : '#F0F0EC';
+          g.fillRect(lx + k, ly - Math.round(k * 0.4), 1, 9);
+        }
+        g.fillStyle = '#C8C8C4';
+        g.fillRect(lx, ly + 8, 12, 1);
+      }
     });
   }
   // the print's warm cast and a soft vignette (an old camera's photo)

@@ -59,7 +59,11 @@ import { MG_TEXTS } from '../../data/text/hoshi_mushigomu';
 import { IR_TEXTS } from '../../data/text/hoshi_iro';
 import { AS_TEXTS } from '../../data/text/hoshi_asairo';
 import { HG_TEXTS } from '../../data/text/hoshi_hagama';
+import { HN_TEXTS } from '../../data/text/hoshi_hana';
+import { YW_TEXTS } from '../../data/text/hoshi_yuwaka';
 import { AU_TEXTS } from '../../data/text/c3_aq_ura';
+import { SH_TEXTS, SH_TEXTS_S19 } from '../../data/text/c3_shita';
+import { MH_TEXTS } from '../../data/text/c3_mahiru';
 import { HUNTING_TEXTS } from '../../data/text/hunting';
 import { KOTEI_TEXTS } from '../../data/text/kotei';
 import { TOKEI_TEXTS } from '../../data/text/tokei7';
@@ -506,6 +510,10 @@ function collectTexts(): [string, string][] {
   walk('asairo', AS_TEXTS);
   // げむきか10/17の案4（赤子 泣いても。02_ch2_index #105）
   walk('hagama', HG_TEXTS);
+  // げむきか10/18の案5（ごはん 一粒、花 一つ。02_ch2_index #107）
+  walk('hana', HN_TEXTS);
+  // げむきか10/18の案4（湯を わかしてから。02_ch2_index #106）
+  walk('yuwaka', YW_TEXTS);
   // げむきか10/5の新5（ハンチングの 値札。第1章の くりこ〔chichi〕も。10 6.8, 50 3.8・9.9, 02_ch2_index #83）
   walk('hunting', HUNTING_TEXTS);
   // げむきか10/5の新1（二人十五脚。第1章の ピー・コック・なんばるわん・校庭。10 6.12・6.23・7.24, 02_ch2_index #82）
@@ -527,6 +535,11 @@ function collectTexts(): [string, string][] {
   walk('c3d', c3Texts4());
   // げむきか10/17の案3（水槽の うら。第3章の クリア前、03_ch3_index）
   walk('c3AqUra', AU_TEXTS);
+  // げむきか10/18の案3（下の 紙の 字。第3章の クリア前、03_ch3_index）
+  walk('c3Shita', SH_TEXTS);
+  walk('c3ShitaS19', SH_TEXTS_S19);
+  // げむきか10/18の案1（真昼の 顔。第3章の クリア前、03_ch3_index）
+  walk('c3Mahiru', MH_TEXTS);
   walk('pg', pgTexts());
   walk('pgRows', pgRowTexts());
   walk('pgTalk', pgTalkTexts());

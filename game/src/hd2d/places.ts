@@ -132,6 +132,8 @@ export const PLACES: Record<string, PlaceDef> = {
   // 星見台 (chapter 2): the village's canal and paddies keep the 2D's own water (water3d.ts skyWater)
   map_hoshi_hill: hilltop(24, 8),
   map_hoshi_urayama: hilltop(24, 7),
+  // 裏の とうもろこし畑（02_ch2_index #106）：畑の まわりは 草地（東の 林は 林の まま 続く）
+  map_hoshi_ura_hata: { outside: () => ',' },
   // 海ぞいの町 (chapter 3, 62 8.9): the harbour and the sea lie lower than the
   // quay (8 px: the quay's and the breakwater's faces stand over the water);
   // the boats float on it. Past the south edge the sea goes on (the edge rows).

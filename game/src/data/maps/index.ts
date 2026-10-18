@@ -31,6 +31,8 @@ import './hoshi_dome';
 import './hoshi_urayama';
 // 上の 柵ぞい（棚田の いちばん 上の 電気柵の 外。上の 柵ぞいの 見回り、02_ch2_index #99）
 import './hoshi_sakuzoi';
+// 裏の とうもろこし畑（シゲじいと スギばあの 家の 勝手口から。湯を わかしてから、02_ch2_index #106）
+import './hoshi_ura_hata';
 import './hoshi_fx';
 // 第3章『海ぞいの町の いただきます』（62_ch3_level_art）：海ぞいの町と軽トラの荷台
 import './umizoi';

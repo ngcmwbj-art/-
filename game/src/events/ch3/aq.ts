@@ -607,10 +607,17 @@ registerScript('evt_ch3_esa', function* (): Co {
   if (po) delete po.data.scripted;
 });
 
+/**
+ * Pages other files add after 〔鍵〕 and 〔札〕, before 「鍵を 受けとった！」 (下の 紙の 字、03_ch3_index:
+ * events/ch3/shita.ts). Each says nothing when it has nothing to say.
+ */
+export const ESA_KEY_HOOKS: (() => Co)[] = [];
+
 /** 〔鍵〕 talking to ポコシャ after the story. */
 function* esaKey(): Co {
   yield* say3(T.ESA_KEY);
   if (flag('flag_ch3_esa_fuda')) yield* say3(T.ESA_FUDA_LINE);
+  for (const h of ESA_KEY_HOOKS) yield* h();
   se('se_c3_aq_key');
   yield 300;
   addItem('item_c3_hall_key');

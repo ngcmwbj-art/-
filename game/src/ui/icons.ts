@@ -569,6 +569,66 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// もいだ とうもろこし（湯を わかしてから、02_ch2_index #106）：緑の 皮の 実が 2本、先に 茶色い ひげ
+Object.assign(ITEM_ROWS, {
+  item_yw_moigi: [
+    '..zb...zb.',
+    '..bk...bk.',
+    '.kmk..kmk.',
+    '.kmMk.kmMk',
+    '.kmMk.kmMk',
+    '.kmMk.kmMk',
+    '.kmMk.kmMk',
+    '..kmk..kmk',
+    '..kMk..kMk',
+    '...k....k.',
+  ],
+});
+
+// ペンギンの えんぴつ（下の 紙の 字、03_ch3_index）：黄色い えんぴつ、おしりに 小さな ペンギン
+Object.assign(ITEM_ROWS, {
+  item_c3_enpitsu: [
+    '.......kk.',
+    '......kkkk',
+    '......kwkk',
+    '.....kOkk.',
+    '....kOok..',
+    '...kOok...',
+    '..kOok....',
+    '.kOok.....',
+    '.yek......',
+    'xk........',
+  ],
+});
+
+// 古い カメラ・トロ箱の ふた（真昼の 顔、03_ch3_index）
+Object.assign(ITEM_ROWS, {
+  item_c3_camera: [
+    '..........',
+    '..kkk.....',
+    '.kkkkkkkk.',
+    'kGGGGGGGGk',
+    'kGgkkkkgGk',
+    'kGkwccwkGk',
+    'kGkcCCckGk',
+    'kGgkkkkgGk',
+    'kGGGGGGGGk',
+    '.kkkkkkkk.',
+  ],
+  item_c3_futa: [
+    '..........',
+    '..........',
+    '.kkkkkkkk.',
+    'kWwwwwwwwk',
+    'kwwwwwwwdk',
+    'kwwwwwwwdk',
+    'kwwwwwwwdk',
+    'kddddddddk',
+    '.kkkkkkkk.',
+    '..........',
+  ],
+});
+
 // からの 名札（本日は、開館です）：白い 名札が 重なって 6枚、すみに 朱の 点
 Object.assign(ITEM_ROWS, {
   item_iso_nafuda: [
