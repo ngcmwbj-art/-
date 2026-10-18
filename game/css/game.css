@@ -290,10 +290,10 @@ body.touch .todo li { padding-left: 18px; }
 body.touch .todo li::before { width: 9px; height: 9px; top: 4px; }
 
 /* ---------- 量子メモ ---------- */
-#memo { position: absolute; right: 16px; top: 232px; width: 300px; padding: 12px 14px 12px; background: linear-gradient(160deg, rgba(28,20,52,.86), rgba(10,12,22,.86)); border: 1px solid rgba(201,184,255,.55); border-radius: 10px; box-shadow: 0 0 26px rgba(150,120,255,.3); backdrop-filter: blur(6px); pointer-events: auto; opacity: 0; transform: translateX(30px); visibility: hidden; font-size: 12px; line-height: 1.55; }
-#memo.show { opacity: 1; transform: none; visibility: visible; animation: memoin .35s; }
+#memo { position: absolute; right: 16px; top: 232px; width: 300px; padding: 12px 14px 12px; background: linear-gradient(160deg, rgba(28,20,52,.86), rgba(10,12,22,.86)); border: 1px solid rgba(201,184,255,.55); border-radius: 10px; box-shadow: 0 0 26px rgba(150,120,255,.3); pointer-events: auto; opacity: 0; transform: translateX(30px); display: none; font-size: 12px; line-height: 1.55; }
+#memo.show { opacity: 1; transform: none; display: block; animation: memoin .35s; }
 @keyframes memoin { from { opacity: 0; transform: translateX(30px); } }
-#memo.out { opacity: 0; transform: translateX(30px); visibility: visible; transition: opacity .35s, transform .35s; }
+#memo.out { opacity: 0; transform: translateX(30px); display: block; transition: opacity .35s, transform .35s; }
 #memo .tag { font-size: 10px; font-weight: 900; letter-spacing: .14em; color: #1a1030; background: #c9b8ff; border-radius: 3px; padding: 1px 8px; }
 #memo h4 { margin: 6px 0 6px; font-size: 18px; color: #e8deff; }
 #memo dl { margin: 0; }
@@ -317,3 +317,10 @@ body.touch.memo-on #objective { visibility: hidden; }
 #result .worlds em { display: block; font-family: 'Yuji Syuku', serif; font-style: normal; font-size: 16px; margin-top: 4px; }
 #tb-kekkai { right: 172px; bottom: 60px; width: 52px !important; height: 52px !important; border-color: #ffe9a8 !important; font-size: 12px !important; }
 body.touch .bottom #hotbar { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+/* iPad / スマホの Safari では、3D 画面の上のすりガラス（backdrop-filter）が黒い四角になることがあるので使わない。
+   代わりに背景を少し濃くする（描画も軽くなる） */
+body.touch *, body.touch *::before, body.touch *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+body.touch .panel, body.touch #objective, body.touch .toast, body.touch .slot { background: rgba(10,12,16,.78); }
+body.touch #touch button { background: rgba(12,14,18,.62); }
+body.touch .slot.sel { background: rgba(20,40,30,.85); }
