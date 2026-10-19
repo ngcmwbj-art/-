@@ -569,14 +569,24 @@ export function installTouch(input: Input, screen?: Screen): void {
 
     // ---- left: D-pad
     const padX = mode === 'side' ? L.x + (L.w - S) / 2 : L.x + M * 1.4;
-    const padY = L.y + L.h - S - M;
-    place(pad, padX, padY, S, S);
+    let padY = L.y + L.h - S - M;
 
     // ---- right: けってい / もどる in a thumb arc
     const cw = bw * 1.95;
     const left = mode === 'side' ? R.x + (R.w - cw) / 2 : R.x + R.w - cw - M * 1.4;
     const aX = left + bw * 0.95;
-    const aY = R.y + R.h - M - bw * 1.26;
+    let aY = R.y + R.h - M - bw * 1.26;
+    // Upright phone / tablet: lift the controls off the very bottom edge into
+    // the empty band under the picture, where the thumbs rest more easily
+    // (2026-10-19, the client:「ボタン達が下すぎてちょっとやりずらい」).
+    if (mode === 'bottom' && portrait) {
+      const top0 = Math.min(padY, aY, midPills ? padY : padY - pill.h - M, midPills ? aY : aY - pill.h - M);
+      const room = top0 - M - L.y;
+      const lift = Math.round(Math.max(0, Math.min(room * 0.6, vh * 0.1)));
+      padY -= lift;
+      aY -= lift;
+    }
+    place(pad, padX, padY, S, S);
     const bs = bw * 0.84;
     place(btnA, aX, aY, bw, bw, fitFont(font, bw, 4));
     place(btnB, left, aY + bw * 0.42, bs, bs, fitFont(font * 0.92, bs, 3));
