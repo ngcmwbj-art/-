@@ -1062,6 +1062,25 @@ se('se_piichan_flap', {
   layers: ['noise env=2/60/0/30 dur=30 v=.03 flt=BP1200q0.9 am=45/.7 rep=2x90', 'noise env=0/40/0/20 dur=20 v=.012 flt=HP4500 at=10'],
 });
 
+// 2枚の うず（02_ch2_index #108、events/ch2/uzu.ts）：転回場の 蚊・蚊取り線香・マッチ
+se('se_h_ka', {
+  label: '蚊の 羽音（プーン。1匹、近づいて 遠ざかる）',
+  group: G_DELI,
+  layers: ['saw f=610→660/900 env=300/0/1/500 dur=1100 v=.006 flt=BP1300q2 vib=23/.012 pan=-0.4→0.5', 'tri f=1220→1300/900 env=300/0/1/500 dur=1100 v=.003 vib=23/.012 pan=-0.4→0.5'],
+});
+se('se_h_uzu_twist', { label: '蚊取り線香を ねじる（ちりっ）', group: G_DELI, rand: [0.06, 0.1], max: 4, layers: ['noise env=1/30/0/15 dur=15 v=.018 flt=BP3600q1.4'] });
+se('se_h_uzu_pokit', {
+  label: '蚊取り線香が 折れる（ぽきっ）',
+  group: G_DELI,
+  layers: ['noise env=0/18/0/10 dur=8 v=.05 flt=BP2400q1.2', 'tri f=900→520/30 env=0/40/0/20 dur=20 v=.03'],
+});
+se('se_h_uzu_suru', { label: '蚊取り線香が 2枚に わかれる（するっ）', group: G_DELI, layers: ['noise env=20/160/0/60 dur=140 v=.02 flt=BP2200→3400q0.9', 'sine f=1400→1800/120 env=0/80/0/40 dur=60 v=.008 at=80'] });
+se('se_h_match', {
+  label: 'マッチを する（シュッ、ぼっ）',
+  group: G_DELI,
+  layers: ['noise env=0/90/0/30 dur=70 v=.05 flt=BP3000q0.8', 'noise env=20/300/0/150 dur=250 v=.025 flt=LP900 at=80'],
+});
+
 /**
  * ぴーちゃん's three calls (53 9.1): a hen's small talk, never the rooster's
  * crow (1.6). 「ココッ」 two clucks falling 1300 → 1100 Hz with a beak click,

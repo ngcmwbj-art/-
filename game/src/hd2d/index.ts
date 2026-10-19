@@ -62,6 +62,8 @@ const MAPS = new Set([
   'map_hoshi_ura_hata',
   // chapter 3 (62 8.9): 海ぞいの町 at noon, and the sea floor under it (グソっ君 alone, S09)
   'map_umizoi', 'map_c3_umi',
+  // 沖の ブイの 下（海の 水で 寄せる、03_ch3_index 28）
+  'map_c3_umi_oki',
   // 岬の 磯（本日は、開館です。クリア後の 昼、03_ch3_index）
   'map_c3_iso',
 ]);

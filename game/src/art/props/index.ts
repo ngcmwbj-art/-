@@ -48,6 +48,8 @@ import './asairo_art';
 import './hana_art';
 // 湯を わかしてから：裏の 畑の とうもろこし・板壁・物置、貼り紙、勝手口、大なべ（02_ch2_index #106）
 import './yuwaka_art';
+// 2枚の うず：転回場の 窓の 下の 石と 蚊取り線香（02_ch2_index #108）
+import './uzu_art';
 // Chapter 3 『海ぞいの町の いただきます』 (62_ch3_level_art 7章): the buildings and the things of 海ぞいの町
 import './c3_bld';
 import './c3_props';

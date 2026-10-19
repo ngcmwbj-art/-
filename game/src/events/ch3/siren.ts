@@ -240,6 +240,14 @@ export function* gochisouTown(): Co {
       a.dir = 'down';
       a.visible = true;
     }
+    // 海の 水で 寄せる（03_ch3_index 28、yose.ts）：寄せ豆腐が できて いれば、ござの 端に くま吉、前に 寄せ豆腐の 鉢（台詞は 足さない）
+    if (flag('flag_yd_done') && kita('npc_mamekichi')) {
+      const a = spawn('c3_goza_npc_mamekichi', 28, 31, { sprite: 'npc_mamekichi', dir: 'down', ghost: true });
+      a.data.scripted = true;
+      staged.push(a.id);
+      setFlag('flag_yd_s13', 1);
+      f.refreshPresence();
+    }
   }
   se('se_c3_goza');
   playBgm('bgm_hirugohan', { fade: 2.0, variant: 'minna' });
@@ -265,6 +273,10 @@ export function* gochisouTown(): Co {
     delete a.data.scripted;
   }
   for (const id of staged) despawn(id);
+  if (flag('flag_yd_s13')) {
+    setFlag('flag_yd_s13', 0);
+    f.refreshPresence();
+  }
   yield 600;
   showBubble('kanenari', T.S13_BUBBLE, 2600);
 }

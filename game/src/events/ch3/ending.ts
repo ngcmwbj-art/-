@@ -32,6 +32,7 @@ import { setClockText, showClock, uiHud } from '../../ui/hud';
 import { ditherIn, ditherOut } from '../../ui/transition';
 import * as T from '../../data/text/c3_story4';
 import { MH_S31 } from '../../data/text/c3_mahiru';
+import { AB_S33 } from '../../data/text/c3_abura';
 import { C3_NAMES } from '../../data/text/c3_names';
 import { F } from '../lib';
 import { endingView } from '../ending';
@@ -530,6 +531,11 @@ function* cut5Morning(): Co {
   se('se_shutter', { vol: 0.5 });
   playBgm('bgm_c3_ending', { variant: 'asa', fade: 0.6 });
   yield* beat(800);
+  // 毎晩の 油（03_ch3_index 28、events/ch3/abura.ts）：廊下で ヘラの 手入れを した なら、店の 前の 置物に 1ページ
+  if (flag('flag_ab_done')) {
+    yield* say3(AB_S33);
+    yield* beat(400);
+  }
   se('se_pen_write', { vol: 0.5 });
   yield* say3(T.ASA_A);
   // しゅん, with his satchel, on the way to school

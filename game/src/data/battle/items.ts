@@ -11,6 +11,7 @@ import { YW_ITEM_DESC } from '../text/hoshi_yuwaka';
 import { ISO_ITEM_DESC } from '../text/c3_iso';
 import { SH_ITEM_DESC } from '../text/c3_shita';
 import { MH_ITEM_CAMERA_DESC, MH_ITEM_FUTA_DESC } from '../text/c3_mahiru';
+import { YD_ITEM_BIN_DESC, YD_ITEM_DOFU_DESC } from '../text/c3_yose';
 
 const items: ItemDef[] = [
   // QA round 1 balance: with 500円 (and the yakisoba shop's tab) the bag could
@@ -163,6 +164,9 @@ const items: ItemDef[] = [
   // 真昼の 顔（03_ch3_index）：写真館の 主人に かりた カメラと、市場の 前の トロ箱の ふた（すむと 主人に 返す）
   { id: 'item_c3_camera', name: '古いカメラ', key: true, target: 'none', desc: MH_ITEM_CAMERA_DESC, battleText: ['カメラを 向けた。\n$enemyは 少し 背すじを のばした。'] },
   { id: 'item_c3_futa', name: 'トロ箱のふた', key: true, target: 'none', desc: MH_ITEM_FUTA_DESC, battleText: ['白い ふたを かかげた。\n$enemyの 顔が 明るく なった。'] },
+  // 海の 水で 寄せる（03_ch3_index 28）：くま吉に あずかる 空きびん（沖の 水を くむ。豆腐が できると 返す）と、海の 寄せ豆腐（非売品）
+  { id: 'item_c3_akibin', name: '空きびん', key: true, target: 'none', desc: YD_ITEM_BIN_DESC, battleText: ['空きびんを 見せた。\n$enemyは びんの 中の 青を のぞいた。'] },
+  { id: 'item_c3_yosedofu', name: '海の寄せ豆腐', target: 'ally', heal: 70, desc: YD_ITEM_DOFU_DESC },
   // 下の 紙の 字（03_ch3_index）：入口の 売店の 売れ残りの えんぴつ（S28 の あと 消える）
   { id: 'item_c3_enpitsu', name: 'ペンギンのえんぴつ', key: true, target: 'none', desc: SH_ITEM_DESC, battleText: ['えんぴつを 見せた。\n$enemyは おしりの ペンギンを 見た。'] },
   // 70年の 色紙と 小さな 夏祭り（02 #84）：ぴょん夫人から あずかる 色紙（そろうと 返す）、区の 倉庫の 提灯（校庭の 桜に かける）

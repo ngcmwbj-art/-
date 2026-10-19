@@ -585,6 +585,34 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// 空きびん・海の 寄せ豆腐（海の 水で 寄せる、03_ch3_index 28）
+Object.assign(ITEM_ROWS, {
+  item_c3_akibin: [
+    '...kkk....',
+    '...kWk....',
+    '...kgk....',
+    '..kCCCk...',
+    '.kCWCCCk..',
+    '.kWCCCCk..',
+    '.kCCCCuk..',
+    '.kCCCCuk..',
+    '.kCCCuuk..',
+    '..kkkkk...',
+  ],
+  item_c3_yosedofu: [
+    '..........',
+    '...kkkk...',
+    '..kWWWWk..',
+    '.kWWwWWWk.',
+    '.kWwWWwWk.',
+    'kNNNNNNNNk',
+    'kNnnnnnnNk',
+    '.kNNNNNNk.',
+    '..kkkkkk..',
+    '..........',
+  ],
+});
+
 // ペンギンの えんぴつ（下の 紙の 字、03_ch3_index）：黄色い えんぴつ、おしりに 小さな ペンギン
 Object.assign(ITEM_ROWS, {
   item_c3_enpitsu: [

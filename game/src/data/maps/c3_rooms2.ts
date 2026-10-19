@@ -178,7 +178,8 @@ const ROWS_UMI = [
   'RuuuuuuuuuuuuuuuuuuuuuRRuuuuuuuuuuuuuRRuuuuooouR', // 10
   'R^uuuuuuuuuuuuuuuuuuuuRRuuuuuuuuRRuuuuuuuuuuuuuR', // 11
   'RuuuuuuuuuuuuuuuuuuuuuRRuuuuuuuuRRuuuuuuuuuuuuuR', // 12
-  'RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR', // 13
+  // (40,13)：沖の ブイの 下（map_c3_umi_oki）への 岩の すき間（海の 水で 寄せる、03_ch3_index 28。戸は events/ch3/yose.ts）
+  'RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRDRRRRRRR', // 13
 ];
 
 registerMap({
@@ -194,6 +195,7 @@ registerMap({
     '^': { ground: cg('c3_soko'), step: 'se_c3_step_uw' },
     R: { ground: cg('c3_soko_iwa'), solid: true, tag: 'prop' },
     o: { ground: cg('c3_soko'), solid: true, tag: 'prop' },
+    D: { ground: cg('c3_soko'), solid: true, door: true, tag: 'prop' },
   },
   objects: [
     // the light from the surface, the rock wall's faces (one flat picture over the floor)

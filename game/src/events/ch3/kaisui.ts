@@ -290,7 +290,8 @@ function* surface(entry: Entry, onMap: boolean): Co {
 registerWorldFx({
   map: '',
   update(f: FieldScene) {
-    const under = f.map.id === 'map_c3_umi';
+    // (沖の ブイの 下 map_c3_umi_oki も 海の 中：海の 水で 寄せる、03_ch3_index 28)
+    const under = f.map.id === 'map_c3_umi' || f.map.id === 'map_c3_umi_oki';
     const isKn = f.player.spriteId === 'kanenari';
     if (under && !isKn) {
       f.player.setSprite('kanenari');

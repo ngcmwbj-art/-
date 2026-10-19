@@ -74,6 +74,8 @@ export const C3_GROUNDS = [
   // 海の 中 (map_c3_umi, 62 4.7・8.7): the floor of the harbour (mud) and of the beach (white sand), the rocks
   'c3_soko',
   'c3_soko_iwa',
+  // 沖の ブイの 下 (map_c3_umi_oki、海の 水で 寄せる 03_ch3_index 28): the white sand only, a little deeper (bluer) to the south
+  'c3_soko_oki',
 ] as const;
 export type C3Ground = (typeof C3_GROUNDS)[number];
 
@@ -531,6 +533,18 @@ const texSoko: C3Tex = (x, y, v) => {
   return col;
 };
 
+/** 沖の ブイの 下: the beach's white sand in ripples all over, a step bluer to the south (it goes down towards the deep). */
+const texSokoOki: C3Tex = (x, y, v) => {
+  const n = fbm(x / 14, y / 14, 3231 + v);
+  const r = (y + valueNoise(x / 34, y / 34, 3233) * 12) % 10;
+  const deep = y > 7 * 16 && h01(x, y, 3235) < (y - 7 * 16) / 64;
+  let col = r < 1 ? U.sandLt : r > 8 ? U.sandDk : U.sand;
+  if (n < 0.3 && h01(x, y, 3237) < 0.5) col = U.sandDk;
+  if (deep) col = col === U.sandLt ? U.sand : U.sandDk;
+  if (ihash(x, y, 3239) % 233 === 0) col = U.shell;
+  return col;
+};
+
 /** 海の 中の 岩: dark rounded rock, its tops catching the light from above, a fringe of weed. */
 const texSokoIwa: C3Tex = (x, y, v, ctx) => {
   const n = fbm(x / 7, y / 7, 3221 + v);
@@ -564,6 +578,7 @@ export const C3_TEX: Record<C3Ground, C3Tex> = {
   c3_nidai: texNidai,
   c3_soko: texSoko,
   c3_soko_iwa: texSokoIwa,
+  c3_soko_oki: texSokoOki,
 };
 
 /** Variants per material (the no-repeat rule of ground.ts). */
@@ -579,6 +594,7 @@ export const C3_NVAR: Partial<Record<C3Ground, number>> = {
   c3_iwa: 3,
   c3_soko: 2,
   c3_soko_iwa: 2,
+  c3_soko_oki: 2,
 };
 
 /** Priority at soft borders (higher spreads over lower). */
@@ -592,7 +608,7 @@ export const C3_PRIO: Partial<Record<C3Ground, number>> = {
 /** Soft materials (their borders wander); everything else here has built edges. */
 export const C3_SOFT: C3Ground[] = ['c3_sand', 'c3_kusa', 'c3_mikan', 'c3_alley'];
 export const C3_GREEN: C3Ground[] = ['c3_kusa'];
-export const C3_HARD: C3Ground[] = ['c3_road', 'c3_quay', 'c3_bouhatei', 'c3_nagisa', 'c3_ishidan', 'c3_hiroba', 'c3_minato', 'c3_umi', 'c3_iwa', 'c3_nidai', 'c3_soko', 'c3_soko_iwa'];
+export const C3_HARD: C3Ground[] = ['c3_road', 'c3_quay', 'c3_bouhatei', 'c3_nagisa', 'c3_ishidan', 'c3_hiroba', 'c3_minato', 'c3_umi', 'c3_iwa', 'c3_nidai', 'c3_soko', 'c3_soko_iwa', 'c3_soko_oki'];
 
 export function isC3Ground(g: string): g is C3Ground {
   return (C3_GROUNDS as readonly string[]).includes(g);

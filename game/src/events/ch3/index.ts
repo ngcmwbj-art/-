@@ -23,6 +23,11 @@ import './shita';
 // 真昼の 顔（げむきか 10/18 の 案1）：段階1、写真館の 主人（来る人）の カメラと トロ箱の ふたで、カイト・テル・ウミを 撮る。
 // 主人・トロ箱・3人の 台本を 包むので、azemichi・kaisui の あとに import する（S31 の 1ページは ending.ts）
 import './mahiru';
+// 毎晩の 油（げむきか 10/19 の 案3）：段階3、S23 の あと 廊下の 机で ヘラの 手入れ（S24 の 前まで。S33 の 1ページは ending.ts）
+import './abura';
+// 海の 水で 寄せる（げむきか 10/19 の 案1）：段階1、くま吉の 屋台 → 海の 中の 南の はし → 沖の ブイの 下（新しい 地図）。
+// くま吉・カイトの 台本を 包むので、azemichi・kaisui・mahiru の あとに import する（S13 の 鉢は siren.ts）
+import './yose';
 // 第4期（S25〜S34：みんなが来る・決戦・エンディング・クリア後）
 import './cuts';
 import '../../ui/cut_c3'; // W: the stills (cut_c3_shuuka・cut_c3_photo・cut_c3_kioku)

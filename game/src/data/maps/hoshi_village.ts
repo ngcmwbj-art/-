@@ -488,6 +488,10 @@ const OBJECTS: MapObj[] = [
   // クリア後（05_postgame 8.1）：ツガオ便の止まる所。ツガオは軽トラの横に立つ（どの時間帯でも。乗る台本は events/postgame.ts）。
   // 運転席で寝る第2章のツガオ（npc_tsugao）は、クリア後は出ない（world/pg_schedule.ts）
   { t: 'npc', id: 'pg_tsugao_hoshi', sprite: 'npc_tsugao', x: 41, y: 43, dir: 'down', script: 'pg_tsugao_hoshi', cond: { when: pgOn } } as MapObj,
+  // 2枚の うず（02_ch2_index #108、events/ch2/uzu.ts）：運転席の 窓の 下の 平らな 石。(40,43) から 東を 向いて 調べる。
+  // クリア後の 夜は ツガオが ここに 立つので 出さない
+  PR('prop_uz_ishi', 41, 43, {}, { cond: { stage: '0-2', when: () => !pgOn() } }),
+  O('obj_hoshi_tsugao_ishi', 41, 43, { face: 'right', solid: [0, 0, 1, 1], cond: { stage: '0-2', when: () => !pgOn() } }),
   { t: 'npc', id: 'npc_hirosuke', x: 43, y: 43, dir: 'up', talk: htalk('npc_hirosuke'), cond: s02 },
   // ポコシャさん (ぴーちゃん on his left shoulder) behind the truck; while the delivery runs he walks in the line instead
   // (上へ 降る 雪〈02 #101〉の 間は、自転車と いっしょに 分校の 前：mg_pokosha)

@@ -110,6 +110,15 @@ const C3_AUDIO: Record<string, C3Audio> = {
     amb: { 1: ['amb_c3_suichu'], 2: ['amb_c3_suichu'] },
     phase: 1,
   },
+  // 沖の ブイの 下（海の 水で 寄せる、03_ch3_index 28）：海の 中と 同じ
+  map_c3_umi_oki: {
+    space: 'minato',
+    pa: 'umi',
+    bgm: { 1: UMI, 2: UMI },
+    variant: 'suichu',
+    amb: { 1: ['amb_c3_suichu'], 2: ['amb_c3_suichu'] },
+    phase: 1,
+  },
   // ---- 旧水族館 (63 4.2, stage 3): bgm_suizokukan moves room to room by its form (0.8 s);
   // the ceiling speakers (kannai); inside it is still 12:00
   map_c3_aq_iriguchi: {
@@ -326,7 +335,7 @@ export function applyC3Audio(f: FieldScene, entering: boolean, music = true): vo
   snd.setSpace(plan.space);
   callAudio('setPaMode', plan.pa);
   // under the sea the music is under water too (63 3.5); anywhere else it is not
-  callAudio('setUnderwater', def.id === 'map_c3_umi' ? 1 : 0);
+  callAudio('setUnderwater', def.id === 'map_c3_umi' || def.id === 'map_c3_umi_oki' ? 1 : 0);
   if (!isCh3Map(def)) snd.setMusicParam('stage', 0);
   applyC3Params(def);
   if (music && plan.bgm !== undefined && !flag('flag_bgm_hold')) {

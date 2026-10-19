@@ -348,8 +348,11 @@ registerDebug('wrapCheck', () => {
   // 湯を わかしてから（02 #106）ywText・ywBookText（開発サーバーだけ）
   // 下の 紙の 字（03_ch3_index）shText・shBookText（開発サーバーだけ）
   // 真昼の 顔（03_ch3_index）mhText・mhBookText（開発サーバーだけ）
+  // 2枚の うず（02 #108）uzText・uzBookText（開発サーバーだけ）
+  // 毎晩の 油（03_ch3_index 28）abText・abBookText（開発サーバーだけ）
+  // 海の 水で 寄せる（03_ch3_index 28）ydText・ydBookText（開発サーバーだけ）
   // 型ぬき 番付（01 の 変更の 記録 2026-10-13）katanukiText（台詞の 決まりも）・katanukiBookText（開発サーバーだけ）
-  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText', 'nihyakuBookText', 'domeText', 'huntingText', 'koteiText', 'shikishiText', 'shikishiBookText', 'mizubeText', 'yoburiText', 'mizubeBookText', 'tokei7Text', 'tokei7BookText', 'ashiatoText', 'ashiatoBookText', 'hajimeteText', 'hajimeteBookText', 'tenbanText', 'tenbanBookText', 'mimiText', 'mimiBookText', 'taihiText', 'taihiBookText', 'sakuzoiText', 'sakuzoiBookText', 'tetsuText', 'tetsuBookText', 'mgText', 'mgBookText', 'irText', 'irBookText', 'asText', 'asBookText', 'hgText', 'hgBookText', 'auText', 'auBookText', 'hnText', 'hnBookText', 'ywText', 'ywBookText', 'shText', 'shBookText', 'mhText', 'mhBookText', 'nnText', 'nnBookText', 'isoText', 'isoBookText', 'hokokushoText', 'katanukiText', 'katanukiBookText']) {
+  for (const name of ['southText', 'kensuiText', 'mushiBookText', 'tamotsuText', 'wakimeText', 'nihyakuBookText', 'domeText', 'huntingText', 'koteiText', 'shikishiText', 'shikishiBookText', 'mizubeText', 'yoburiText', 'mizubeBookText', 'tokei7Text', 'tokei7BookText', 'ashiatoText', 'ashiatoBookText', 'hajimeteText', 'hajimeteBookText', 'tenbanText', 'tenbanBookText', 'mimiText', 'mimiBookText', 'taihiText', 'taihiBookText', 'sakuzoiText', 'sakuzoiBookText', 'tetsuText', 'tetsuBookText', 'mgText', 'mgBookText', 'irText', 'irBookText', 'asText', 'asBookText', 'hgText', 'hgBookText', 'auText', 'auBookText', 'hnText', 'hnBookText', 'ywText', 'ywBookText', 'shText', 'shBookText', 'mhText', 'mhBookText', 'uzText', 'uzBookText', 'abText', 'abBookText', 'ydText', 'ydBookText', 'nnText', 'nnBookText', 'isoText', 'isoBookText', 'hokokushoText', 'katanukiText', 'katanukiBookText']) {
     const r = cmds[name]?.();
     if (!r) continue;
     n += r.pages ?? r.total ?? 0;
