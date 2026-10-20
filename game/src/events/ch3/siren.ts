@@ -427,7 +427,7 @@ function* arriveAq(): Co {
 // the truck stays parked before the aquarium on the cape until S15
 addToMap('map_c3_misaki', [
   {
-    t: 'npc', id: 'c3_truck_aq', sprite: 'npc_tsugao', vehicle: 'tsugao_truck_empty', x: 22, y: 14, dir: 'up', noTurn: true,
+    t: 'npc', id: 'c3_truck_aq', sprite: 'npc_tsugao', vehicle: 'tsugao_truck_empty', x: 17, y: 13, dir: 'right', noTurn: true,
     cond: { flag: 'flag_ch3_truck_trap', notFlag: 'flag_ch3_aq_enter' },
   } as unknown as MapObj,
 ]);

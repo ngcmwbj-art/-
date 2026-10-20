@@ -53,7 +53,7 @@ const TRUCKS: Record<string, { x: number; y: number; dir: Dir }> = {
   map_town: { x: 45, y: 30, dir: 'down' },
   map_umizoi: { x: 23, y: 18, dir: 'right' },
   // 岬（旧水族館の 前。2026-10-20 町の 外へ 移した）：港から 乗せて もらう（events/postgame.ts pgTruck）
-  map_c3_misaki: { x: 22, y: 14, dir: 'up' },
+  map_c3_misaki: { x: 17, y: 13, dir: 'right' }, // 道の上に横向き（world/postgame.ts PG_TRUCK_STOPS と同じ）
 };
 
 registerWorldFx({

@@ -138,7 +138,7 @@ const ARRIVE: Record<PgTown, { map: string; x: number; y: number; dir: Dir }> = 
 };
 /** 海ぞいの町の 中の 便：岬（旧水族館の 前。2026-10-20 町の 外へ 移した）の 着く所と、かかる 分。 */
 const MISAKI = 'map_c3_misaki';
-const ARRIVE_MISAKI = { map: MISAKI, x: 24, y: 14, dir: 'right' as Dir };
+const ARRIVE_MISAKI = { map: MISAKI, x: 21, y: 14, dir: 'right' as Dir }; // 軽トラ (17,13) 横向きの 前
 const HOP_MIN = 15;
 
 /** かかる時間（ゲームの分。05 8.2。仮）と、ツガオの言い方。 */
