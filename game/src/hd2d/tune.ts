@@ -254,6 +254,11 @@ export interface PropNudge {
 export const nudging = { on: true };
 
 export const NUDGE: Record<string, PropNudge> = {
+  // fix1020c3: 港の 市場 あぜ道市の 店の 奥（c3_rooms.ts prop_c3_akimise_back）は、店番の 人（足もと y+6）より
+  // 北に 立つ 絵。足もと（行18 の 少し 上）の ままだと カウンターの すぐ うしろで ほとんど 隠れるので、
+  // マスの 北の 端まで 下げて 立てる（2D の 絵の 見え方に 近く、のれん・棚が カウンターの 上に 見える）。
+  // 上の 列（y3）だけ：うしろは 壁。下の 列（y7）は うしろが 通路で、下げると 通る人が 隠れるので そのまま
+  ...Object.fromEntries([20, 25, 30].map((x) => [`prop_c3_akimise_back@${x},3`, { z: -13 }])),
   // 上の 柵ぞい (02 #99): the number plates on the posts a px behind the kudzu and the branch on the wires
   'prop_saku_fuda@12,6': { z: -1 },
   'prop_saku_fuda@16,6': { z: -1 },

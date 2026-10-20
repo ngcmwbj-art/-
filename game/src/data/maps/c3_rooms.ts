@@ -135,7 +135,10 @@ registerMap({
     PR('prop_c3_koori', 8, 10),
     // あぜ道市: the six shop spaces, opened by who came (62 4.2: 上 ひのや・豆腐・喫茶 / 下 トマト・休み所・時計)
     ...[20, 25, 30].flatMap((x, i) => [
+      // (fix1020c3: the shop's inside and its counter are two pictures, the keeper between them)
+      PR('prop_c3_akimise_back', x, 3, { v: i, shop: ['hinoya', 'tofu', 'cafe'][i] }),
       PR('prop_c3_akimise', x, 3, { v: i, shop: ['hinoya', 'tofu', 'cafe'][i] }),
+      PR('prop_c3_akimise_back', x, 7, { v: i + 1, shop: ['tomato', 'yasumi', 'tokei'][i] }),
       PR('prop_c3_akimise', x, 7, { v: i + 1, shop: ['tomato', 'yasumi', 'tokei'][i] }),
     ]),
     { t: 'door', id: 'door_c3_seri_out', x: 5, y: 11, w: 2, to: 'map_umizoi', tx: 10, ty: 24, dir: 'down' },

@@ -438,8 +438,15 @@ function openShop(p: PixelCanvas, shop: string, brush: boolean): void {
  * A shop space of あぜ道市 (5 tiles): its shutter down until the one who opens
  * it has come (AZE_SHOPS: `shop`), then open (62 4.2・7.3); the counter in
  * front (the S row). `v` varies the empty shutter's fish.
+ *
+ * fix1020c3（依頼主「市場に出展している3人が見づらい」）: two pictures — the back (the shop's
+ * inside, rows 0–17, prop_c3_akimise_back, its foot behind the keeper) and the counter
+ * (rows 18–33, prop_c3_akimise) — so the one who keeps the shop stands between them
+ * (azemichi.ts KITA `off`): the counter in front of the waist, the upper body seen.
+ * Before, the whole picture stood in front and only the top of the head showed.
  */
-registerProp('prop_c3_akimise', (opts) => {
+const AKIMISE_SPLIT = 18;
+function akimise(opts: Record<string, unknown>, part: 'back' | 'front'): PropArt {
   const v = Number(opts.v ?? 0);
   const shop = String(opts.shop ?? '');
   const make = (state: 'shut' | 'open' | 'brush') =>
@@ -448,7 +455,9 @@ registerProp('prop_c3_akimise', (opts) => {
         shutter(p, v);
         counter(p);
       } else openShop(p, shop, state === 'brush');
-    }, { cx: 40, base: 32, shadow: 0, foot: 31 });
+      // keep only this part's rows
+      for (let y = 0; y < 34; y++) if ((y < AKIMISE_SPLIT) !== (part === 'back')) for (let x = 0; x < 80; x++) p.set(x, y, 0);
+    }, { cx: 40, base: 32, shadow: 0, foot: part === 'back' ? AKIMISE_SPLIT - 3 : 31 });
   const shut = make('shut');
   const open = shop ? make('open') : shut;
   const brush = shop ? make('brush') : shut;
@@ -460,7 +469,9 @@ registerProp('prop_c3_akimise', (opts) => {
       return (env.flag('flag_ch3_kita_npc_hoshi_sawako') ? brush : open).img(env);
     },
   } satisfies PropArt;
-});
+}
+registerProp('prop_c3_akimise', (opts) => akimise(opts, 'front'));
+registerProp('prop_c3_akimise_back', (opts) => akimise(opts, 'back'));
 
 /** The ice box and the platform scale in the auction floor's west corner (1–2,10). */
 registerProp('prop_c3_hakari', () =>

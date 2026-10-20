@@ -109,12 +109,21 @@ export function arrive(id: string): void {
 
 // ---------------------------------------------------------------- placing them (62 3.11)
 
+/** The rows of the market's shop spaces where their keepers stand (c3_rooms.ts あぜ道市, the props' inside). */
+const AKIMISE_ROWS = [3, 7];
+/** How far (px) a keeper stands south into the counter's shade. */
+const KEEPER_OFF = 6;
+
 /** The town at noon and at 12:01, until the trap (S14) takes しゅん away. */
 const PRESENT = (id: string) => ({ flag: `flag_ch3_kita_${id}`, notFlag: 'flag_ch3_truck_trap' });
 
 for (const mapId of ['map_umizoi', 'map_c3_ichiba'] as const) {
   const objs: MapObj[] = KITA.filter((k) => k.map === mapId).map((k) => {
-    const o = { t: 'npc', id: k.id, x: k.x, y: k.y, dir: k.dir, script: `c3_kita_${k.id}`, cond: PRESENT(k.id) };
+    const o: Record<string, unknown> = { t: 'npc', id: k.id, x: k.x, y: k.y, dir: k.dir, script: `c3_kita_${k.id}`, cond: PRESENT(k.id) };
+    // fix1020c3: the shop keepers of あぜ道市 (the inside rows y3・y7 of the market's shop spaces) stand
+    // a few px into the counter's shade — between the shop's inside and its counter (c3_rooms.ts
+    // prop_c3_akimise_back / prop_c3_akimise): the waist behind the counter, the upper body seen
+    if (mapId === 'map_c3_ichiba' && AKIMISE_ROWS.includes(k.y)) o.off = [0, KEEPER_OFF];
     // ペロ in his hunting cap if it went back to him (read when he is spawned)
     if (k.sprite) Object.defineProperty(o, 'sprite', { get: k.sprite, enumerable: true });
     return o as unknown as MapObj;
