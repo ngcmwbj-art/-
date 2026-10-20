@@ -97,3 +97,25 @@ function floatText(text, x, y, parent = document.body) {
   parent.append(el);
   setTimeout(() => el.remove(), 1400);
 }
+
+/* ---------- 野菜の絵 ---------- */
+// data/vegetables.json の icon の書き方：
+//   "🍅"           … 絵文字をそのまま表示
+//   "css:daikon"   … CSS で描いた絵（style.css の .veg-css.daikon）
+//   "img:img/tomato.png" … 画像に差し替えるとき
+function vegIcon(veg) {
+  const icon = veg.icon || '❓';
+  if (icon.startsWith('css:')) return h('span', { class: 'veg-icon veg-css ' + icon.slice(4), 'aria-label': veg.name });
+  if (icon.startsWith('img:')) return h('img', { class: 'veg-icon veg-img', src: icon.slice(4), alt: veg.name });
+  return h('span', { class: 'veg-icon', 'aria-label': veg.name }, icon);
+}
+
+/* ---------- 画面下にしばらく出るお知らせ ---------- */
+let toastTimer = null;
+function toast(text) {
+  const el = document.getElementById('toast');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 4000);
+}

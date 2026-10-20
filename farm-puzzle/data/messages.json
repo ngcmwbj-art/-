@@ -1,5 +1,22 @@
 {
   "title": "はたけパズル",
+  "icons": {
+    "water": "💧",
+    "fertilizer": "🍂",
+    "coin": "🪙"
+  },
+  "common": {
+    "cancel": "やめる"
+  },
+  "tabs": {
+    "puzzle": "パズル",
+    "farm": "はたけ"
+  },
+  "hud": {
+    "water": "水",
+    "fertilizer": "肥料",
+    "coin": "コイン"
+  },
   "puzzle": {
     "score": "スコア",
     "best": "ベスト",
@@ -8,6 +25,33 @@
     "gameOverTitle": "おつかれさまでした",
     "gameOverBody": "今回のスコア：{score}",
     "newBest": "ベストスコア更新！",
-    "retry": "もう一度あそぶ"
+    "seasonChanged": "季節がめぐって {icon}{season} になりました",
+    "retry": "もう一度あそぶ",
+    "toFarm": "はたけを見る"
+  },
+  "farm": {
+    "seasonNow": "いまは {season}",
+    "seasonVeg": "旬の野菜：{list}",
+    "seasonNote": "パズルを1回あそび終えるごとに季節が進みます。旬の野菜は高く売れます。",
+    "emptyPlot": "空いている区画",
+    "sowButton": "種をまく",
+    "waterButton": "水やり {icon}{n}",
+    "fertilizeButton": "追肥 {icon}{n}",
+    "harvestButton": "収穫する",
+    "needMore": "パズルで列を消して集めましょう",
+    "shun": "旬",
+    "pickSeed": "どの野菜を育てる？",
+    "seasonOf": "旬：{season}",
+    "harvested": "{name}を収穫しました！ {coin}+{coins}",
+    "seasonBonus": "旬の野菜なのでボーナス！",
+    "addPlot": "区画をふやす（{coin}{price}）",
+    "plotAdded": "畑が広くなりました",
+    "maxPlots": "畑はこれ以上広げられません",
+    "stepNames": {
+      "sow": "種まき",
+      "water": "水やり",
+      "fertilize": "追肥",
+      "harvest": "収穫"
+    }
   }
 }

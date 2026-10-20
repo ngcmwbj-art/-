@@ -15,7 +15,7 @@ const SaveData = (() => {
       puzzle: null,                                    // 遊びかけの盤面（null なら新しく始める）
       resources: { water: 0, fertilizer: 0, coins: 0 },
       seasonIndex: 0,                                  // 今の季節（data/vegetables.json の seasons の番号）
-      plots: [null, null],                             // 畑の区画。null は空き、{ vegId, stage }
+      plots: [],                                       // 畑の区画。null は空き、{ vegId, stage }
       harvested: {},                                   // 図鑑用 { 野菜ID: 収穫した回数 }
     };
   }

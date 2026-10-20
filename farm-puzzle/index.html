@@ -9,9 +9,15 @@
 </head>
 <body>
   <div id="app">
-    <!-- 上のバー：タイトル -->
+    <!-- 上のバー：タイトルと、季節・資源の表示 -->
     <header class="topbar">
       <h1 class="title" data-msg="title"></h1>
+      <div class="hud">
+        <span id="hud-season" class="hud-item season"></span>
+        <span class="hud-item"><span id="hud-water-icon"></span><b id="hud-water">0</b></span>
+        <span class="hud-item"><span id="hud-fertilizer-icon"></span><b id="hud-fertilizer">0</b></span>
+        <span class="hud-item"><span id="hud-coin-icon"></span><b id="hud-coins">0</b></span>
+      </div>
     </header>
 
     <main>
@@ -35,8 +41,22 @@
           <div class="slot"></div>
         </div>
       </section>
+
+      <!-- 畑画面（中身は js/farm.js が組み立てる） -->
+      <section id="screen-farm" class="screen">
+        <div id="farm"></div>
+      </section>
     </main>
   </div>
+
+  <!-- 画面切り替えのタブ -->
+  <nav class="tabs">
+    <button class="tab active" data-screen="puzzle"><span class="tab-icon">🧩</span><span data-msg="tabs.puzzle"></span></button>
+    <button class="tab" data-screen="farm"><span class="tab-icon">🌱</span><span data-msg="tabs.farm"></span><span class="badge"></span></button>
+  </nav>
+
+  <!-- お知らせ -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <!-- ダイアログ（ゲームオーバーなどで使い回す） -->
   <div id="modal" class="modal-bg hidden">
@@ -56,6 +76,7 @@
   <script src="js/util.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/puzzle.js"></script>
+  <script src="js/farm.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

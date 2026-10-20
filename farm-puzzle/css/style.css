@@ -277,3 +277,255 @@ body {
   background: var(--bg);
 }
 .load-error[hidden] { display: none; }
+
+/* =========================================================
+   上のバーの資源表示
+   ========================================================= */
+.hud {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.hud-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+.hud-item b { min-width: 1.2em; text-align: right; }
+.hud-item.season { color: var(--green-dark); font-weight: bold; }
+
+/* =========================================================
+   タブ（画面下）
+   ========================================================= */
+.tabs {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  background: rgba(255, 253, 248, 0.96);
+  border-top: 1px solid var(--line);
+}
+.tab {
+  position: relative;
+  flex: 1 1 0;
+  max-width: 180px;
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: none;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--sub);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+.tab-icon { font-size: 1.4rem; line-height: 1; }
+.tab.active { background: #eef6e8; color: var(--green-dark); }
+/* できる作業があるときの目印 */
+.tab .badge {
+  display: none;
+  position: absolute;
+  top: 8px;
+  right: calc(50% - 26px);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.tab.has-badge .badge { display: block; }
+
+/* =========================================================
+   お知らせ（トースト）
+   ========================================================= */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(86px + env(safe-area-inset-bottom));
+  z-index: 60;
+  width: min(92vw, 480px);
+  padding: 12px 16px;
+  background: #5a4a3a;
+  color: #fff;
+  border-radius: 14px;
+  line-height: 1.6;
+  white-space: pre-line;
+  text-align: center;
+  box-shadow: 0 6px 18px rgba(60, 40, 20, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 12px);
+  transition: opacity 0.25s, transform 0.25s;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* =========================================================
+   野菜の絵
+   ========================================================= */
+.veg-icon {
+  display: inline-block;
+  line-height: 1;
+}
+.veg-img { width: 1em; height: 1em; object-fit: contain; }
+/* CSS で描いた大根（絵文字がないため） */
+.veg-css.daikon {
+  position: relative;
+  width: 0.42em;
+  height: 0.8em;
+  margin: 0.2em 0.29em 0;
+  background: linear-gradient(#e6f2d8 0 18%, #fbfbf6 30%);
+  border-radius: 45% 45% 50% 50% / 20% 20% 80% 80%;
+  box-shadow: inset -2px -2px 0 rgba(0, 0, 0, 0.06);
+}
+.veg-css.daikon::before,
+.veg-css.daikon::after {
+  content: "";
+  position: absolute;
+  top: -0.28em;
+  width: 0.16em;
+  height: 0.34em;
+  background: #7fb77e;
+  border-radius: 50% 50% 10% 10%;
+}
+.veg-css.daikon::before { left: 0.04em; transform: rotate(-20deg); }
+.veg-css.daikon::after { right: 0.04em; transform: rotate(20deg); }
+
+/* =========================================================
+   畑画面
+   ========================================================= */
+.season-banner {
+  margin: 4px 0 14px;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: 18px;
+  line-height: 1.6;
+}
+.season-now { font-size: 1.15rem; font-weight: bold; color: var(--green-dark); }
+.season-veg { font-weight: bold; }
+.season-note { font-size: 0.85rem; color: var(--sub); }
+
+.plots {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+@media (min-width: 560px) {
+  .plots { grid-template-columns: repeat(3, 1fr); }
+}
+.plot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 10px;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: 18px;
+  text-align: center;
+}
+.plot.ready { border-color: var(--accent); }
+.plot .btn { width: 100%; padding: 8px 10px; font-size: 0.95rem; }
+.plot-soil {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.6rem;
+  border-radius: 12px;
+  /* 畝（うね）っぽいしま模様 */
+  background: repeating-linear-gradient(0deg, #c9a27e 0 10px, #b88f6a 10px 14px);
+}
+.plot-soil.wet {
+  background: repeating-linear-gradient(0deg, #a8825e 0 10px, #97724f 10px 14px);
+}
+.plot.ready .plot-soil .veg-icon { animation: bounce 1.6s ease-in-out infinite; }
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+.plot-icon.dim { font-size: 1.2rem; color: rgba(255, 255, 255, 0.6); letter-spacing: 0.2em; }
+.plot-name { font-weight: bold; }
+.plot-hint { font-size: 0.75rem; color: var(--sub); }
+
+.shun {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 8px;
+  font-size: 0.75rem;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 999px;
+  vertical-align: 2px;
+}
+
+/* 栽培ステップの進み具合 */
+.steps {
+  display: flex;
+  gap: 3px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.68rem;
+}
+.steps li {
+  flex: 1;
+  padding: 3px 0;
+  border-radius: 6px;
+  background: #f1ebe0;
+  color: var(--sub);
+  white-space: nowrap;
+}
+.steps li.done { background: #dcefd3; color: var(--green-dark); }
+.steps li.next { background: #fde7cf; color: #b9773a; font-weight: bold; }
+
+.expand-btn { display: block; width: 100%; margin-top: 16px; }
+.farm-note { text-align: center; color: var(--sub); }
+
+/* 種を選ぶダイアログ */
+.seed-list { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+.seed {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.seed:active { background: #f6f1e6; }
+.seed-icon { font-size: 2rem; width: 2.4rem; text-align: center; }
+.seed-info { display: flex; flex-direction: column; line-height: 1.5; }
+.seed-name { font-weight: bold; }
+.seed-cost, .seed-season { font-size: 0.82rem; color: var(--sub); }
+
+/* ---------- スマホ幅の調整 ---------- */
+.title { white-space: nowrap; }
+.seed { text-align: left; }
+@media (max-width: 480px) {
+  .title { font-size: 1.02rem; letter-spacing: 0.02em; }
+  .hud { gap: 4px; }
+  .hud-item { padding: 2px 7px; font-size: 0.8rem; }
+}
