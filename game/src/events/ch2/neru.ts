@@ -304,6 +304,8 @@ export class YukaPanel implements Widget {
   piles = [0, 1, 4, 1, 0];
   pick: 'here' | 'ok' | 'cancel' | null = null;
   private autoT = 0;
+  private wasActive = false;
+  private armT = 0;
   private autoTried = false;
 
   constructor(mode: 'kaki' | 'shiku') {
@@ -318,7 +320,13 @@ export class YukaPanel implements Widget {
   update(dt: number, input: Input): void {
     this.t += dt;
     if (this.scoop > 0) this.scoop = Math.max(0, this.scoop - dt);
-    if (!this.active || this.pick) return;
+    // (the key that closed the last window must not also pick here: a moment's grace after it opens)
+    if (this.active !== this.wasActive) {
+      this.wasActive = this.active;
+      this.armT = 0;
+    }
+    if (this.active) this.armT += dt;
+    if (!this.active || this.pick || this.armT < 150) return;
     let lr = 0;
     let ud = 0;
     let ok = false;

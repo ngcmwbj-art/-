@@ -156,6 +156,8 @@ export class HaisuiPanel implements Widget {
   /** 選んだ 結果（台本が 読む）。 */
   pick: { kind: 'take' | 'slip' | 'ami' | 'cancel'; layer: number } | null = null;
   private autoT = 0;
+  private wasActive = false;
+  private armT = 0;
 
   constructor(n: number) {
     this.n = n;
@@ -166,7 +168,13 @@ export class HaisuiPanel implements Widget {
     this.t += dt;
     if (this.taking > 0) this.taking = Math.max(0, this.taking - dt);
     if (this.slip > 0) this.slip = Math.max(0, this.slip - dt);
-    if (!this.active || this.pick) return;
+    // (the key that closed the last window must not also pick here: a moment's grace after it opens)
+    if (this.active !== this.wasActive) {
+      this.wasActive = this.active;
+      this.armT = 0;
+    }
+    if (this.active) this.armT += dt;
+    if (!this.active || this.pick || this.armT < 150) return;
     let move = 0;
     let ok = false;
     if (this.auto) {

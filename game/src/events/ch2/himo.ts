@@ -103,16 +103,19 @@ function wrap(id: string, fn: (ctx: ScriptCtx, orig: () => Co) => Co): void {
 
 // ================================================================ 「待って！」（大きな 字）
 
+/** How long the big 「待って！」 stays (ms; QA's 'matte' holds it longer for the picture). */
+let shoutMs = 1500;
+
 class Shout implements Widget {
   modal = false;
   done = false;
   t = 0;
   update(dt: number): void {
     this.t += dt;
-    if (this.t > 1500) this.done = true;
+    if (this.t > shoutMs) this.done = true;
   }
   draw(g: Gfx): void {
-    const a = this.t < 100 ? this.t / 100 : this.t > 1200 ? Math.max(0, 1 - (this.t - 1200) / 300) : 1;
+    const a = this.t < 100 ? this.t / 100 : this.t > shoutMs - 300 ? Math.max(0, 1 - (this.t - shoutMs + 300) / 300) : 1;
     const sh = this.t < 500 ? Math.round(Math.sin(this.t / 25) * 3 * (1 - this.t / 500)) : 0;
     const s = 3;
     const w = textW(T.HM_MATTE) * s;
@@ -174,6 +177,8 @@ export class TsumePanel implements Widget {
   cur = 0;
   pick: 'ok' | 'cancel' | null = null;
   private autoT = 0;
+  private wasActive = false;
+  private armT = 0;
   private hasted = false;
   private naka = false;
 
@@ -190,7 +195,13 @@ export class TsumePanel implements Widget {
     this.t += dt;
     if (this.phase === 'matsu') this.speed = Math.max(0, this.speed - dt / 2600);
     this.ang += (this.speed * dt) / 220;
-    if (!this.active || this.pick) return;
+    // (the key that closed the last window must not also pick here: a moment's grace after it opens)
+    if (this.active !== this.wasActive) {
+      this.wasActive = this.active;
+      this.armT = 0;
+    }
+    if (this.active) this.armT += dt;
+    if (!this.active || this.pick || this.armT < 150) return;
     let lr = 0;
     let ok = false;
     if (this.auto) {
@@ -295,7 +306,8 @@ export class TsumePanel implements Widget {
           const ly = oy + 50;
           g.circle(lx, ly, 42, '#2A2440');
           g.circle(lx, ly, 40, '#1E2A1E');
-          const big = sel && sel.at === 'hashi';
+          // (the start end is always shown big here; its label when it is the one pointed at)
+          const big = !sel || sel.at === 'hashi';
           // the runner wound on the shaft, and (on the start end) its tip and a three-lobed leaf
           g.rect(lx - 40, ly + 6, 80, 8, '#5A5E66');
           for (let w = 0; w < 6; w++) g.line(lx - 30 + w * 12, ly - 4, lx - 22 + w * 12, ly + 22, '#6A7A32');
@@ -305,7 +317,7 @@ export class TsumePanel implements Widget {
             g.circle(lx - 2, ly - 31, 5, '#4E7A32');
             g.circle(lx + 6, ly - 27, 4, '#5E8A3A');
             g.circle(lx - 9, ly - 26, 4, '#5E8A3A');
-            g.text(HM_UI.hashi, lx + 8, ly - 12, { color: '#FFE7A3' });
+            if (sel) g.text(HM_UI.hashi, lx + 8, ly - 12, { color: '#FFE7A3' });
           } else if (sel) g.text(sel.at === 'kire' ? '……' : HM_UI.naka, lx - 14, ly - 20, { color: '#F4ECD8' });
           g.ring(lx, ly, 40, '#9AA0A8');
         }
@@ -448,7 +460,7 @@ function* kagi(): Co {
     yield 200;
     game.ui.push(new Shout());
     game.shake(3, 400);
-    yield 1300;
+    yield shoutMs - 200;
     yield* fumiNear();
     yield* say(T.HM_MATTE_A);
     yield* say(T.HM_MATTE_B);
@@ -573,6 +585,7 @@ if (import.meta.env.DEV) {
     qaAuto = !!auto || step === 'naka' || step === 'haste';
     qaNaka = step === 'naka';
     qaHaste = step === 'haste';
+    shoutMs = step === 'matte' ? 8000 : 1500;
     setFlag('flag_ch2_tetsuya_beaten', 1);
     setFlag('flag_hm_seen_ashi', 1);
     setFlag('flag_hm_seen_manual', 1);
@@ -580,7 +593,7 @@ if (import.meta.env.DEV) {
     const go = (m: string, x: number, y: number, d: string) => cmd().warp?.(m, x, y, d);
     if (step === 'tetsuya') return go('map_hoshimidai', 45, 3, 'up');
     setFlag(HF.look, 1);
-    if (step === 'kagi' || step === 'naka' || step === 'haste') return go('map_hoshimidai', 45, 3, 'up');
+    if (step === 'kagi' || step === 'matte' || step === 'naka' || step === 'haste') return go('map_hoshimidai', 45, 3, 'up');
     setFlag(HF.start, 1);
     if (step === 'tsume') return go('map_hoshimidai', 45, 3, 'up');
     setFlag(HF.tomeru, 1);
