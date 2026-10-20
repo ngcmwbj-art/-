@@ -2529,11 +2529,10 @@ const BEATS3 = [
     async run() {
       await enterDoor(10, 23, 'up', 'map_c3_ichiba');
       await advance({ label: 'ichiba_in' });
-      for (let i = 0; i < 2; i++) {
-        await talkTo('npc_c3_seri_deshi', { side: 'below' });
-        await advance({ label: `tsugumi${i}` });
-      }
-      await need(['flag_ch3_ichiba_start'], 'S07 start');
+      // (fix1020c3: one talk with ゲン or ツグミ starts it — here ゲン, the auction itself with ツグミ)
+      await talkTo('npc_c3_seri', { side: 'below' });
+      await advance({ label: 'gen0' });
+      await need(['flag_ch3_ichiba_start', 'flag_seen_npc_c3_seri_deshi_c1_1'], 'S07 start');
       // three scraps of the note (62 4.2): stand beside, face, Z
       // (a short teleport next to each one, like inside the other rooms)
       for (const [x, y] of [[1, 5], [17, 3], [6, 9]]) {
