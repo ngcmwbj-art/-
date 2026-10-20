@@ -111,6 +111,32 @@ export class FX {
     });
   }
 
+  // 光の粒がマサトへ吸い込まれる（倒した敵の Qビット）。粒が多すぎるときは出さない
+  absorb(pos, target, color = '#b48cff', count = 5) {
+    if (this.items.length > 140) return;
+    const p = new Float32Array(count * 3), start = [];
+    for (let i = 0; i < count; i++) {
+      const o = new THREE.Vector3((Math.random() - 0.5) * 2, Math.random() * 1.5, (Math.random() - 0.5) * 2);
+      start.push(pos.clone().add(o));
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(p, 3));
+    const mat = new THREE.PointsMaterial({ color: new THREE.Color(color).multiplyScalar(2.5), size: 0.45, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    const pts = new THREE.Points(geo, mat);
+    pts.frustumCulled = false;
+    const tmp = new THREE.Vector3();
+    this._add(pts, 0.65, (k) => {
+      const e = k * k * (3 - 2 * k);
+      for (let i = 0; i < count; i++) {
+        const lift = Math.sin(Math.min(1, k * 1.3) * Math.PI) * 2;
+        tmp.copy(start[i]).lerp(target, Math.min(1, e * 1.05 + i * 0.02));
+        p[i * 3] = tmp.x; p[i * 3 + 1] = tmp.y + 1.2 + lift; p[i * 3 + 2] = tmp.z;
+      }
+      geo.attributes.position.needsUpdate = true;
+      mat.opacity = k < 0.85 ? 1 : (1 - k) / 0.15;
+    });
+  }
+
   // 音符（♪♫）が飛び散る
   noteTexture(ch) {
     this._notes = this._notes || {};

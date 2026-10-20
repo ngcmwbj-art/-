@@ -366,3 +366,73 @@ body.early .panel.bl .row.solo, body.early .panel.bl .row.solo + .bar { display:
 body.touch #bigmap .legend { font-size: 11px; line-height: 1.8; padding: 8px 10px; }
 #objective .tip { display: block; color: #7dffb0; font-weight: 700; margin-bottom: 2px; }
 #objective .hl { color: #ffb36a; font-weight: 900; }
+
+/* ---------- 手ごたえ演出 ---------- */
+#vignette { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(255,40,30,0) 55%, rgba(255,40,30,.55) 100%); }
+#vignette.on { animation: hurt .45s ease-out; }
+@keyframes hurt { 0% { opacity: 1; } 100% { opacity: 0; } }
+#streak { position: absolute; right: 22%; top: 32%; font-weight: 900; font-size: 26px; color: #fff; text-shadow: 0 0 14px #b48cff, 0 2px 4px #000; opacity: 0; pointer-events: none; }
+#streak b { font-size: 46px; color: #ffd36a; margin-right: 4px; }
+#streak.show { animation: streak 1.2s ease-out; }
+#streak.hot b { color: #ff7a3a; }
+@keyframes streak { 0% { opacity: 0; transform: scale(.5) rotate(-6deg); } 12% { opacity: 1; transform: scale(1.15) rotate(-3deg); } 25% { transform: scale(1) rotate(-3deg); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px) rotate(-3deg); } }
+
+/* マサトの吹き出し */
+#speech { position: absolute; transform: translate(-50%, -100%); max-width: 260px; padding: 6px 12px; background: #fff; color: #1a1306; border-radius: 14px; font-weight: 900; font-size: 14px; line-height: 1.35; box-shadow: 0 4px 14px rgba(0,0,0,.35); opacity: 0; transition: opacity .2s; pointer-events: none; width: max-content; }
+#speech::after { content: ''; position: absolute; left: 50%; bottom: -8px; margin-left: -8px; border: 8px solid transparent; border-top-color: #fff; border-bottom: 0; }
+#speech.show { opacity: 1; }
+body.touch #speech { font-size: 12px; }
+
+/* 台風情報ニュース（テロップ） */
+#news { position: absolute; left: 50%; bottom: 118px; transform: translate(-50%, 20px); width: min(560px, 62vw); background: rgba(12,20,44,.92); border-left: 6px solid #ff5a4a; border-radius: 6px; padding: 8px 34px 10px 14px; opacity: 0; pointer-events: none; transition: opacity .3s, transform .3s; }
+#news.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+#news .ch { display: inline-block; font-size: 10px; font-weight: 900; letter-spacing: .12em; background: #ff5a4a; color: #fff; padding: 1px 8px; border-radius: 2px; }
+#news b { display: block; font-size: 17px; margin: 4px 0 2px; }
+#news p { margin: 0; font-size: 12.5px; opacity: .9; }
+#news .x { position: absolute; top: 6px; right: 10px; font-style: normal; opacity: .6; }
+body.touch #news { bottom: calc(10px + env(safe-area-inset-bottom, 0px)); width: min(440px, 50vw); }
+body.touch #news b { font-size: 13px; }
+body.touch #news p { font-size: 10.5px; }
+
+/* 量子カード */
+#cards { position: fixed; inset: 0; z-index: 35; display: none; background: rgba(8,6,20,.82); text-align: center; padding-top: 6vh; }
+#cards.show { display: block; }
+#cards h2 { margin: 0; font-size: 26px; color: #e8deff; }
+#cards > p { margin: 4px 0 18px; opacity: .75; }
+#cards .list { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; padding: 0 16px; }
+.qcard { width: 200px; min-height: 230px; padding: 18px 14px; border-radius: 14px; border: 2px solid #c9b8ff; background: linear-gradient(170deg, #2a2050, #12102a); color: #fff; font-family: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 0 24px rgba(150,120,255,.35); transition: transform .15s; }
+.qcard:hover, .qcard:active { transform: translateY(-6px) scale(1.03); border-color: #ffd36a; }
+.qcard i { font-style: normal; font-size: 54px; line-height: 1.1; color: #ffd36a; }
+.qcard b { font-size: 20px; }
+.qcard span { font-size: 14px; line-height: 1.5; opacity: .9; }
+body.touch #cards { padding-top: 3vh; }
+body.touch .qcard { width: 170px; min-height: 180px; padding: 12px 10px; }
+body.touch .qcard i { font-size: 40px; }
+
+/* 設定 */
+#settings { position: fixed; z-index: 45; display: none; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 24px); overflow: auto; background: rgba(12,14,18,.96); border: 1px solid rgba(255,255,255,.2); border-radius: 12px; padding: 18px 22px; }
+#settings.show { display: block; }
+#settings h2 { margin: 0 0 8px; color: var(--gold); }
+#settings .opt { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.1); }
+#settings .opt b { display: block; font-size: 15px; }
+#settings .opt small { opacity: .7; font-size: 12px; }
+#settings .touch-only { display: none; }
+body.touch #settings .touch-only { display: flex; }
+.tog { flex: none; width: 58px; height: 32px; border-radius: 16px; border: 0; background: #444a52; position: relative; cursor: pointer; }
+.tog::after { content: ''; position: absolute; left: 4px; top: 4px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: left .15s; }
+.tog.on { background: #3cbf6a; }
+.tog.on::after { left: 30px; }
+#settings select { font: inherit; padding: 6px; background: #222; color: #fff; border: 1px solid #555; border-radius: 4px; }
+#settings .done { display: block; margin: 14px auto 0; padding: 10px 40px; border: 0; border-radius: 6px; font-weight: 900; background: linear-gradient(180deg, #ffe2a3, #e0a94a); color: #1a1306; }
+button.ghost { padding: 10px 18px; border: 1px solid rgba(255,255,255,.4); border-radius: 6px; background: rgba(0,0,0,.45); color: #fff; font: 700 15px 'Zen Kaku Gothic New', system-ui, sans-serif; cursor: pointer; }
+#pause .ghost { margin-left: 10px; }
+#tb-settings { right: calc(160px + env(safe-area-inset-right, 0px)); top: calc(12px + env(safe-area-inset-top, 0px)); width: 44px; height: 36px; border-radius: 18px !important; font-size: 11px !important; display: none; }
+body.touch #tb-settings { display: block; }
+
+/* ボタンの大きさと左利き */
+.tbtns { transform: scale(var(--btn-scale, 1)); transform-origin: bottom right; }
+body.lefty .tbtns { right: auto; left: calc(16px + env(safe-area-inset-left, 0px)); transform: scale(var(--btn-scale, 1)) translateX(100%) scaleX(-1); transform-origin: bottom left; }
+body.lefty .tbtns button { transform: scaleX(-1); }
+body.lefty .tbtns button.down { transform: scaleX(-1) scale(.92); }
+body.lefty.touch .bottom { left: auto !important; right: calc(8px + env(safe-area-inset-right, 0px)); }
+body.lefty #stick-hint { left: auto; right: 14%; margin: -60px -60px; }

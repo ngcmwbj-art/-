@@ -16,7 +16,8 @@ export function setupTouch(game) {
   zone.addEventListener('touchstart', (e) => {
     e.preventDefault();
     for (const t of e.changedTouches) {
-      if (t.clientX < innerWidth * 0.42 && stickId === null) {
+      const onStickSide = game.settings?.left ? t.clientX > innerWidth * 0.58 : t.clientX < innerWidth * 0.42;
+      if (onStickSide && stickId === null) {
         // 触れた位置にスティックを出す
         stickId = t.identifier; sx = t.clientX; sy = t.clientY;
         stick.style.left = sx + 'px'; stick.style.top = sy + 'px';
@@ -78,6 +79,7 @@ export function setupTouch(game) {
   bind('tb-build', () => game.doBuild());
   bind('tb-go', () => game.skipPrep());
   bind('tb-help', () => document.getElementById('help').classList.toggle('show'));
+  bind('tb-settings', () => game.toggleSettings(true));
 
   // ホットバーをタップでタワー選択（もう一度タップで解除）
   for (const slot of document.querySelectorAll('#hotbar .slot')) {

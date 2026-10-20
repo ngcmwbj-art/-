@@ -111,6 +111,51 @@ export class HUD {
     this._mt = setTimeout(done, 11000);
   }
 
+  // キャベツがやられたとき、画面の端を一瞬赤く
+  hurt() {
+    const now = performance.now();
+    if (now - (this._hurtAt || 0) < 350) return;
+    this._hurtAt = now;
+    const v = $('vignette');
+    v.classList.remove('on'); void v.offsetWidth; v.classList.add('on');
+  }
+
+  // 連続撃破
+  streak(n) {
+    const el = $('streak');
+    el.innerHTML = `<b>${n}</b>体撃破${'！'.repeat(n >= 12 ? 3 : n >= 5 ? 2 : 1)}`;
+    el.className = ''; void el.offsetWidth; el.className = 'show' + (n >= 8 ? ' hot' : '');
+  }
+
+  // マサトの吹き出し
+  say(text) {
+    const el = $('speech');
+    el.textContent = text;
+    el.classList.add('show');
+    clearTimeout(this._st);
+    this._st = setTimeout(() => el.classList.remove('show'), 2800);
+  }
+  updateSpeech(game) {
+    const el = $('speech');
+    if (!el.classList.contains('show')) return;
+    const p = game.player.pos.clone().add(new THREE.Vector3(0, 2.7, 0)).project(game.camera);
+    if (p.z > 1) { el.style.visibility = 'hidden'; return; }
+    el.style.visibility = '';
+    el.style.left = ((p.x + 1) / 2 * innerWidth) + 'px';
+    el.style.top = ((1 - p.y) / 2 * innerHeight) + 'px';
+  }
+
+  // 台風情報ニュース（画面下のテロップ。8 秒かタップで消える）
+  news(title, lines) {
+    const el = $('news');
+    el.innerHTML = `<span class="ch">銚子ローカル 台風情報</span><b>${title}</b>${lines.map((l) => `<p>${l}</p>`).join('')}<i class="x">×</i>`;
+    el.className = ''; void el.offsetWidth; el.className = 'show';
+    clearTimeout(this._nt);
+    const close = () => { el.className = ''; };
+    el.onpointerdown = (e) => { e.stopPropagation(); close(); };
+    this._nt = setTimeout(close, 8000);
+  }
+
   // 画面中央の大きな見出し（台風接近・台風一過など）
   banner(title, sub) {
     const b = this.el.banner;

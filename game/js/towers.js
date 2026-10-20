@@ -189,7 +189,7 @@ export class Towers {
       this.game.fx.soundWave(t.pos.clone().add(new THREE.Vector3(0, 1.2, 0)), dir, t.def.color, dist, 2);
       this.game.fx.notes(from, 2, ['#ff8a3d', '#ffd36a'], 0.6, dir);
       const weak = e.type === 'mushi';
-      th.hitEnemy(e, (14 + this.game.wave * 3) * (weak ? 2 : 1), false, weak ? t.def.color : null);
+      th.hitEnemy(e, (14 + this.game.wave * 3) * (weak ? 2 : 1) * (this.game.cards.has('amp') ? 1.5 : 1), false, weak ? t.def.color : null);
       t.pulse = 1;
       this.game.audio.ampHit();
     }

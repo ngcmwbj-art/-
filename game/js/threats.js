@@ -324,7 +324,7 @@ export class Threats {
 
   // 重ね合わせ状態の竜巻グループを生成
   spawnGroup(wave, baseAngle) {
-    const members = 2 + Math.floor(wave / 2);
+    const members = 2 + Math.floor(wave / 2) + (this.extraGhosts || 0);
     const realIdx = Math.floor(Math.random() * members);
     const group = { members: [], collapsed: false, hp: 110 + wave * 45, speed: 3.6 + wave * 0.45 };
     // 竜巻は東の海から上陸してくる
@@ -450,6 +450,7 @@ export class Threats {
       this.hitEnemy(e.partner, dmg, true);
     }
     if (!e.damage(dmg)) return false;
+    this.game.onKill?.(e, p);
     if (e.type || e.group.mini) {
       this.minionKills++;
       this.fx.burst(e.pos.clone().add(new THREE.Vector3(0, 1, 0)), e.type === 'mushi' ? '#9fe05a' : '#9aa0b0', 30, 8, 0.8, 0.35, 4);

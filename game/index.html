@@ -36,6 +36,7 @@
       <div class="menu">
         <button id="continue" hidden disabled></button>
         <button id="start" disabled>ゲームスタート</button>
+        <button id="open-settings" class="ghost">設定</button>
         <label>はじめる台風
           <select id="startwave">
             <option value="0">台風1号（はじめから）</option>
@@ -93,6 +94,10 @@
     <div id="judge"></div>
     <div id="toasts"></div>
     <div id="memo"></div>
+    <div id="vignette"></div>
+    <div id="streak"></div>
+    <div id="speech"></div>
+    <div id="news"></div>
     <div id="bars"></div>
     <div id="floaters"></div>
     <div id="hud-hint">［H］操作説明</div>
@@ -115,6 +120,7 @@
     <button id="tb-build" hidden>ここに建てる</button>
     <button id="tb-go" hidden>台風を迎え撃つ ▶</button>
     <button id="tb-help">？</button>
+    <button id="tb-settings">設定</button>
   </section>
   <div id="rotate">スマホを横向きにしてください</div>
 
@@ -132,6 +138,7 @@
       <dt>1 / 2 / 3 / 4 → E</dt><dd>スピーカー（近くの敵を自動で撃つ）／観測ライト（正体を暴き、ゼノン効果で足止め）／避雷針（雷を防ぎ、竜巻をトンネル効果で沖へ）／シュレディンガーの箱（台風一過に開けると半分の確率で黄金キャベツ）を選んで建設（X で解除）</dd>
       <dt>Enter</dt><dd>準備を切り上げて台風を迎え撃つ</dd>
       <dt>Tab</dt><dd>大きな地図（開いている間は時間が止まる）</dd>
+      <dt>O</dt><dd>設定（照準アシスト・やさしいモードなど）</dd>
       <dt>M / H / Esc</dt><dd>BGM 切替 / この画面 / 一時停止</dd>
     </dl>
     <h3>スマホ</h3>
@@ -173,9 +180,28 @@
     </div>
   </section>
 
+  <!-- 量子カード（台風一過ごと） -->
+  <section id="cards">
+    <h2>量子カードを 1 枚えらぼう</h2>
+    <p>次の台風から、ずっと効く</p>
+    <div class="list"></div>
+  </section>
+
+  <!-- アシスト設定 -->
+  <section id="settings">
+    <h2>設定</h2>
+    <div class="opt"><div><b>照準アシスト</b><small>ギターを弾くと、近くの敵の方へ自動で向いて撃つ</small></div><button data-key="aim" class="tog"></button></div>
+    <div class="opt"><div><b>やさしいモード</b><small>キャベツの被害が減り、音波が強くなる。照準アシストは全方向に</small></div><button data-key="easy" class="tog"></button></div>
+    <div class="opt touch-only"><div><b>左利き用の配置</b><small>ボタンを左に、移動スティックを右に</small></div><button data-key="left" class="tog"></button></div>
+    <div class="opt touch-only"><div><b>ボタンの大きさ</b><small>右下のボタンの大きさ</small></div>
+      <select data-key="size"><option value="0.85">小さめ</option><option value="1">ふつう</option><option value="1.2">大きめ</option><option value="1.4">特大</option></select></div>
+    <button class="done">とじる</button>
+  </section>
+
   <section id="pause">
     <h2>一時停止中</h2>
     <button id="resume">クリックで再開</button>
+    <button id="pause-settings" class="ghost">設定</button>
   </section>
 
   <section id="result">

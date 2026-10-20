@@ -134,6 +134,7 @@ export class Cows {
             this.rewarded = true;
             game.addQ(80, c.pos.clone().add(new THREE.Vector3(0, 2.5, 0)));
             game.hud.banner('牛がみんな無事！', 'これで台風が来ても安心。ごほうび +80Q');
+            game.say?.('よしよし、いい子だ。台風の間はここにいろよ');
           }
         }
       } else if (c.state === 'home') {

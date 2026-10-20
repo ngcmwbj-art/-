@@ -20,6 +20,8 @@ import { toonify, addOutline } from './toon.js';
 import { MEMOS, BLESSINGS } from './quantum.js';
 import { saveGame, loadSave, clearSave } from './save.js';
 import { Cows } from './cows.js';
+import { CARDS, drawCards } from './cards.js';
+import { loadSettings, bindSettingsPanel } from './settings.js';
 
 const QUALITY = {
   low: { low: true, fps: 30, cabNear: 12, cabMid: 35, pr: 1, shadow: 0, grass: 6000, trees: 0.5, rain: 3000, bloom: false, msaa: 0 },
@@ -29,11 +31,12 @@ const QUALITY = {
 };
 
 const WAVES = [
-  { name: '台風1号', cls: '強い台風', peak: 0.6, groups: 2, debris: 3.6, strike: 6.5, wind: 33 },
-  { name: '台風2号', cls: '非常に強い台風', peak: 0.72, groups: 3, debris: 3.0, strike: 5.2, wind: 44 },
-  { name: '台風3号', cls: '非常に強い台風', peak: 0.82, groups: 4, debris: 2.4, strike: 4.2, wind: 50 },
-  { name: '台風4号', cls: '猛烈な台風', peak: 0.92, groups: 5, debris: 1.9, strike: 3.4, wind: 58 },
-  { name: '台風5号「量子嵐」', cls: '観測史上最大', peak: 1.0, groups: 6, debris: 1.5, strike: 2.6, wind: 72 },
+  // trait：台風ごとの個性（形は同じ。速さ・分身の数・雷の多さだけを変える）
+  { name: '台風1号', cls: '強い台風', peak: 0.6, groups: 2, debris: 3.6, strike: 6.5, wind: 33, trait: 'ふつうの台風' },
+  { name: '台風2号', cls: '非常に強い台風', peak: 0.72, groups: 3, debris: 3.0, strike: 5.2, wind: 44, trait: '足が速い。上陸したらすぐ畑へ', bossSpeed: 1.4 },
+  { name: '台風3号', cls: '非常に強い台風', peak: 0.82, groups: 4, debris: 2.4, strike: 4.2, wind: 50, trait: '分身が多い。観測ライトが頼り', ghosts: 2 },
+  { name: '台風4号', cls: '猛烈な台風', peak: 0.92, groups: 5, debris: 1.9, strike: 3.4, wind: 58, trait: '雷がとても多い。避雷針を', strikeMul: 0.55 },
+  { name: '台風5号「量子嵐」', cls: '観測史上最大', peak: 1.0, groups: 6, debris: 1.5, strike: 2.6, wind: 72, trait: '速い・分身が多い・雷も多い', bossSpeed: 1.25, ghosts: 2, strikeMul: 0.7 },
 ];
 
 const GradeShader = {
@@ -93,7 +96,14 @@ class Game {
     this.towers = new Towers(this);
     this.threats = new Threats(this);
     this.threats.towers = this.towers;
-    this.cabbages.onLost = () => this.audio.lost();
+    this.cabbages.onLost = () => {
+      this.audio.lost();
+      // キャベツがやられたら画面の端を赤く。まとめてやられたらマサトが叫ぶ
+      this.hud.hurt();
+      this.lostRecent = (this.lostRecent || []).filter((t) => this.time - t < 3);
+      this.lostRecent.push(this.time);
+      if (this.lostRecent.length >= 25) this.say('やべえ、畑が！');
+    };
     // BotW 風のトゥーン表現に置き換え、マサトに輪郭線
     addOutline(this.player.model.root);
     toonify(this.scene);
@@ -122,6 +132,8 @@ class Game {
     this.buildSel = null;
     this.cd = { teleport: 0, observe: 0, chord: 0, kekkai: 0 };
     this.memoSeen = new Set(); this.blessing = null; this.prayT = 0; this.prayed = false;
+    this.cards = new Set(); this.hitstop = 0; this.killStreak = 0; this.lastKillAt = -9;
+    this.settings = loadSettings();
     this.lastBeat = -1;
     this.score = { just: 0, chords: 0 };
     this.combo = 0; this.maxCombo = 0; this.lastJustBeat = -99; this.fovKick = 0;
@@ -133,6 +145,7 @@ class Game {
     this.paused = true;
 
     this.bindInput();
+    bindSettingsPanel(this);
     addEventListener('resize', () => this.resize());
     this.clock = new THREE.Clock();
     renderer.setAnimationLoop(() => this.frame());
@@ -166,6 +179,7 @@ class Game {
         }
         case 'Enter': this.skipPrep(); break;
         case 'Tab': e.preventDefault(); this.toggleMap(); break;
+        case 'KeyO': this.toggleSettings(!this.settingsOpen); break;
         case 'KeyH': document.getElementById('help').classList.toggle('show'); break;
         case 'KeyM': this.audio.musicOn = !this.audio.musicOn; this.hud.toast(this.audio.musicOn ? 'BGM オン' : 'BGM オフ'); break;
       }
@@ -223,6 +237,7 @@ class Game {
       this.score.chords = r.chords || 0;
       Object.assign(this.threats.stats, r.stats || {});
       (r.memo || []).forEach((k) => this.memoSeen.add(k));
+      (r.cards || []).forEach((k) => this.cards.add(k));
       this.cabbages.restore(r.cab);
       for (const t of r.towers || []) { const tw = this.towers.build(t.id, new THREE.Vector3(t.x, t.y, t.z)); tw.age = 5; }
       this.makePlan();
@@ -239,6 +254,7 @@ class Game {
     }
     this.cows.reset(this.wave > 0);
     this.applyUnlocks();
+    if (this.wave > 0) setTimeout(() => this.showNews(), 2500);
   }
 
   // ---------- アクション ----------
@@ -249,7 +265,7 @@ class Game {
   }
   addSolo(n) {
     const before = this.solo;
-    this.solo = Math.min(100, this.solo + n);
+    this.solo = Math.min(100, this.solo + n * (this.cards.has('solo') ? 1.5 : 1));
     if (before < 100 && this.solo >= 100) this.hud.toast('量子ギターソロ 準備完了！［Q］', 'good');
   }
 
@@ -264,9 +280,17 @@ class Game {
     const kind = this.streak % 8 === 0 ? 'raise' : this.streak % 2 ? 'windmill' : 'jump';
     this.player.model.strum(kind);
     const p = this.player.pos.clone();
-    const f = this.player.forward();
-    const dmg = 34 * (this.blessing === 'hado' ? 1.3 : 1);
-    const reach = 16;
+    let f = this.player.forward();
+    const reach = 16 * (this.cards.has('reach') ? 1.4 : 1);
+    // 照準アシスト：前方（やさしいモードは全方向）の一番近い敵へ体ごと向けて撃つ
+    if (this.settings.aim) {
+      const tgt = this.aimTarget(p, f, reach + 6);
+      if (tgt) {
+        f = new THREE.Vector3(tgt.pos.x - p.x, 0, tgt.pos.z - p.z).normalize();
+        this.player.facing = Math.atan2(f.x, f.z);
+      }
+    }
+    const dmg = 34 * (this.blessing === 'hado' ? 1.3 : 1) * (this.cards.has('loud') ? 1.3 : 1) * (this.settings.easy ? 1.25 : 1);
     const res = this.threats.blast(p, reach, dmg, { cone: new THREE.Vector2(f.x, f.z), inner: 9, push: 4, from: p });
     const gpos = p.clone().add(new THREE.Vector3(0, 1.3, 0));
     this.fx.ring(p, '#ffd36a', reach, 0.45, 0.7);
@@ -285,6 +309,20 @@ class Game {
     if (res.unobserved && !res.hits) this.hud.toast('紫の竜巻（幻かも）には効かない！［F］観測で正体を暴こう', 'bad');
   }
 
+  aimTarget(p, f, range) {
+    const cosLim = this.settings.easy ? -1 : Math.cos(1.2);
+    let best = null, bd = range * range;
+    const consider = (e) => {
+      const dx = e.pos.x - p.x, dz = e.pos.z - p.z, d2 = dx * dx + dz * dz;
+      if (d2 > bd || d2 < 0.01) return;
+      if ((dx * f.x + dz * f.z) / Math.sqrt(d2) < cosLim) return;
+      bd = d2; best = e;
+    };
+    for (const m of this.threats.minions) if (m.alive) consider(m);
+    for (const t of this.threats.tornados) if (t.alive && t.group.collapsed && !t.group.practice) consider(t);
+    return best;
+  }
+
   doObserve() {
     if (this.cd.observe > 0) return;
     if (this.q < 8) { this.hud.toast('Qビットが足りない（観測には 8Q）', 'bad'); return; }
@@ -294,6 +332,18 @@ class Game {
     this.fx.sphere(p, '#b48cff', 48, 1.0);
     this.audio.observe();
     const n = this.threats.measure(p, 48, 'observe');
+    if (this.cards.has('thunder')) {
+      // 観測の雷：正体の見えた敵に雷
+      let k = 0;
+      for (const e of [...this.threats.minions, ...this.threats.tornados]) {
+        if (!e.alive || (e.group && !e.group.collapsed) || k >= 6) continue;
+        if (Math.hypot(e.pos.x - p.x, e.pos.z - p.z) > 48) continue;
+        k++;
+        this.fx.beam(e.pos, '#ffe66a', 40, 0.6, 0.35, 1.5);
+        this.threats.hitEnemy(e, 40);
+      }
+      if (k) { this.weather.flash = Math.max(this.weather.flash || 0, 0.5); this.audio.thunder(0.1, 0.4); }
+    }
     if (!n) this.hud.toast('観測範囲（48m）に重ね合わせ状態の竜巻はなかった');
   }
 
@@ -308,6 +358,7 @@ class Game {
     this.fx.burst(from.clone().add(new THREE.Vector3(0, 1, 0)), '#6fe3ff', 40, 6, 0.6, 0.25, 0);
     this.fx.beam(this.player.pos, '#6fe3ff', 6, 1.2, 0.6);
     this.audio.teleport();
+    if (this.cards.has('warpwave')) { this.threats.blast(this.player.pos.clone(), 9, 30, { push: 5, from: this.player.pos.clone() }); this.fx.ring(this.player.pos, '#6fe3ff', 9, 0.5, 0.8); }
   }
 
   // 結界（不確定性原理）：周りの敵の位置を縛る。ほどけた瞬間、どこへ飛ぶかわからない
@@ -318,7 +369,8 @@ class Game {
     this.q -= 20;
     this.cd.kekkai = this.blessing === 'en' ? 6 : 12;
     const p = this.player.pos.clone();
-    const n = this.threats.bind(p, 18, 2.5);
+    const strong = this.cards.has('bind');
+    const n = this.threats.bind(p, strong ? 24 : 18, strong ? 4 : 2.5);
     this.fx.ring(p, '#ffe9a8', 18, 0.9, 1.4);
     this.fx.ring(p, '#ffffff', 14, 0.6, 1.0);
     this.fx.beam(p, '#ffe9a8', 10, 18, 0.6, 0.15);
@@ -358,6 +410,7 @@ class Game {
     this.fx.sphere(pp.clone().add(new THREE.Vector3(0, 1.5, 0)), '#c9b8ff', 14, 1.2);
     this.fx.burst(pp.clone().add(new THREE.Vector3(0, 2, 0)), '#ffe9a8', 60, 8, 1.2, 0.3, 3);
     this.audio.fanfare();
+    this.say('お願いします…！ キャベツを守らせてください', true);
     this.hud.banner(`御利益「${b.name}」`, `${b.text}（次の台風のあいだ）`);
     this.memo('shrine');
   }
@@ -429,7 +482,7 @@ class Game {
     const z0 = Math.max(-110, Math.min(110, Math.sin(a) * 150 + rand(-30, 30)));
     // 最初の台風は練習を兼ねて、弱い雑魚が少しだけ
     const counts = wv === 0 ? { mushi: 5, karasu: 2, tsumuji: 0, pair: 0 } : { mushi: 6 + wv * 3, karasu: 3 + wv * 2, tsumuji: 2 + wv, pair: 1 + wv };
-    this.plan = { angle: a, z0, counts, ghosts: 2 + Math.floor(wv / 2) };
+    this.plan = { angle: a, z0, counts, ghosts: 2 + Math.floor(wv / 2) + (WAVES[Math.min(wv, WAVES.length - 1)].ghosts || 0) };
     // 上陸予想地点の赤い柱
     if (this.landMarker) this.scene.remove(this.landMarker);
     const g = new THREE.Group();
@@ -567,7 +620,8 @@ class Game {
     this.weather.typhoonCenter.set(Math.cos(a) * 1500, Math.sin(a) * 1500);
     this.weather.windDir.set(-Math.cos(a), -Math.sin(a)).normalize();
     this.weather.setStorm(w.peak * 0.7);
-    this.threats.dmgMul = (1 + this.wave * 0.08) * (this.blessing === 'kekkai' ? 0.7 : 1);
+    this.threats.dmgMul = (1 + this.wave * 0.08) * (this.blessing === 'kekkai' ? 0.7 : 1) * (this.cards.has('tough') ? 0.8 : 1) * (this.settings.easy ? 0.6 : 1);
+    this.say('来たな…キャベツには指一本触れさせねえ！', true);
     this.hud.banner(`${w.name} 接近！`, `雑魚 ${this.minionsLeft()} 匹が${this.plan.gate.name}からザーッと押し寄せる！${this.blessing ? `（御利益「${this.blessingName}」が宿っている）` : ''}`);
     this.audio.thunder(0.5);
   }
@@ -575,7 +629,11 @@ class Game {
   spawnBoss() {
     const w = WAVES[this.wave];
     this.spawn.boss = true;
+    this.threats.extraGhosts = w.ghosts || 0;
     const g = this.threats.spawnBoss(this.wave, this.stormAngle);
+    this.threats.extraGhosts = 0;
+    if (w.bossSpeed) g.speed *= w.bossSpeed;
+    this.say('でけぇ…！ でも負けねえ！', true);
     if (this.blessing === 'senrigan') { this.threats.collapse(g, 'senrigan'); this.hud.toast('千里眼！ 大ボスの正体が最初から見えている', 'good'); }
     this.weather.setStorm(w.peak);
     this.hud.banner(`大ボス出現！`, `「${w.name}の目」が上陸！ 紫に揺れる分身から本物を観測して倒せ`);
@@ -592,6 +650,7 @@ class Game {
     this.blessing = null; this.blessingName = null; this.prayed = false;
     const bonus = 30 + Math.floor(this.cabbages.alive / this.cabbages.total * 50);
     this.addQ(bonus);
+    this.say('ふぅ…守り切ったぜ', true);
     this.hud.banner('台風一過！', `キャベツ ${this.cabbages.alive} 玉を守り抜いた  +${bonus}Q`);
     this.audio.fanfare();
   }
@@ -628,13 +687,13 @@ class Game {
   updatePhase(dt) {
     this.phaseT += dt;
     if (this.phase === 'prep') {
-      this.q += dt * 1.5;
+      this.q += dt * 1.5 * (this.cards.has('income') ? 2 : 1);
       if (this.mission) { this.updateMission(); this.phaseT = Math.min(this.phaseT, this.prepLength() - 5); }
       if (this.phaseT >= this.prepLength()) this.startStorm();
     } else if (this.phase === 'storm') {
       const w = WAVES[this.wave];
       const sp = this.spawn;
-      this.q += dt * 0.6;
+      this.q += dt * 0.6 * (this.cards.has('income') ? 2 : 1);
       if (this.phaseT > 6 && Math.random() < dt * 0.12 * w.peak) { this.weather.distantFlash(); this.audio.thunder(rand(0.8, 2), 0.35); }
       // 雑魚を少しずつ送り込む
       sp.next -= dt;
@@ -651,13 +710,77 @@ class Game {
         if (sp.debris <= 0) { this.threats.spawnDebris(); sp.debris = w.debris * rand(0.7, 1.3); }
       }
       sp.strike -= dt;
-      if (sp.strike <= 0 && this.phaseT > 15) { this.threats.spawnStrike(); sp.strike = w.strike * rand(0.8, 1.5); }
+      if (sp.strike <= 0 && this.phaseT > 15) { this.threats.spawnStrike(); sp.strike = w.strike * (w.strikeMul || 1) * rand(0.8, 1.5); }
       if (sp.boss && !this.threats.bossAlive) this.endStorm();
       if (this.phaseT > 260) this.endStorm();
     } else if (this.phase === 'clear') {
-      if (this.phaseT > 8) {
+      if (this.phaseT > 8 && !this.choosing) {
+        if (this.wave + 1 >= WAVES.length) { this.finish(true); return; }
+        this.offerCards();
+      }
+    }
+    if ((this.phase === 'storm' || this.phase === 'clear') && this.cabbages.alive < this.cabbages.total * 0.3) this.finish(false);
+  }
+
+  // 敵を倒した瞬間：ほんの一瞬止める（ヒットストップ）・Qの光の粒・連続撃破
+  onKill(e, pos) {
+    const big = e.group && e.group.boss;
+    this.hitstop = Math.max(this.hitstop, big ? 0.18 : 0.045);
+    this.fx.absorb(pos, this.player.pos, big ? '#ffd36a' : '#b48cff', big ? 14 : 5);
+    this.killStreak = this.time - this.lastKillAt < 2.2 ? this.killStreak + 1 : 1;
+    this.lastKillAt = this.time;
+    const n = this.killStreak;
+    if (n === 3 || n === 5 || n === 8 || n === 12 || n === 20 || (n > 20 && n % 10 === 0)) {
+      this.hud.streak(n);
+      if (n >= 5) this.say(n >= 12 ? 'まだまだァ！！' : 'まだまだァ！');
+    }
+  }
+
+  // マサトの吹き出し（force でなければ 6 秒に 1 回まで）
+  say(text, force = false) {
+    if (!force && this.time - (this.saidAt || -99) < 6) return;
+    this.saidAt = this.time;
+    this.hud.say(text);
+  }
+
+  // 台風情報ニュース：準備タイムの始めに、今回の台風の特徴を伝える（タップで閉じる）
+  showNews() {
+    if (!this.plan || this.wave === 0) return;
+    const w = WAVES[this.wave], p = this.plan;
+    const land = p.z0 < -40 ? '灯台の近くの浜' : p.z0 > 40 ? '南の浜' : '畑の東の浜';
+    this.hud.news(`${w.name}（${w.cls}）が接近中`, [`今回の特徴：${w.trait}`, `雑魚は${p.gate.name}から押し寄せる見込み／大ボスの上陸予想：${land}`]);
+  }
+
+  toggleSettings(v) {
+    this.settingsOpen = v;
+    document.getElementById('settings').classList.toggle('show', v);
+  }
+
+  // 台風一過：量子カードを 3 枚から 1 枚選ぶ（選んでいる間は時間が止まる）
+  offerCards() {
+    const picks = drawCards(this.cards);
+    if (!picks.length) { this.nextPrep(); return; }
+    this.choosing = true;
+    this.paused = true;
+    const el = document.getElementById('cards');
+    el.querySelector('.list').innerHTML = picks.map((c) => `<button class="qcard" data-id="${c.id}"><i>${c.mark}</i><b>${c.name}</b><span>${c.text}</span></button>`).join('');
+    el.classList.add('show');
+    this.say('どれにすっかな…');
+    el.querySelectorAll('.qcard').forEach((b) => b.addEventListener('click', () => {
+      this.cards.add(b.dataset.id);
+      el.classList.remove('show');
+      this.choosing = false;
+      this.paused = false;
+      const c = CARDS.find((x) => x.id === b.dataset.id);
+      this.hud.toast(`量子カード「${c.name}」：${c.text}`, 'good');
+      this.nextPrep();
+    }, { once: true }));
+  }
+
+  nextPrep() {
+    {
+      {
         this.wave++;
-        if (this.wave >= WAVES.length) { this.wave = WAVES.length - 1; this.finish(true); return; }
         this.phase = 'prep';
         this.hud.prepFolded = false; this.hud.prepTouched = false;
         this.phaseT = 0;
@@ -667,9 +790,10 @@ class Game {
         if (this.weaknessTip()) this.hud.toast(`今回のコツ：${this.weaknessTip()}`, 'tip');
         if (saveGame(this)) this.hud.toast('自動保存しました（閉じても、ここから「つづきから」で再開できます）');
         this.hud.banner('準備タイム', `${this.waveName()}が来る前に、畑を立て直してタワーで備えよう`);
+        this.showNews();
+        this.say('次の台風まで、準備しとくか');
       }
     }
-    if ((this.phase === 'storm' || this.phase === 'clear') && this.cabbages.alive < this.cabbages.total * 0.3) this.finish(false);
   }
 
   // 敵ごとの弱点：台風ごとに 1 つずつ紹介する
@@ -698,6 +822,7 @@ class Game {
     this.setMarker(p);
     this.tut = { stage: 'move' };
     this.hud.banner('がんばれマサトくん！', `台風の前ぶれの雑魚が${g.name}からやってくる！`);
+    setTimeout(() => this.say('よっしゃ、やるか！', true), 3000);
   }
 
   // いま覚えることだけを、画面上の一言と光るボタンで案内する
@@ -857,9 +982,10 @@ class Game {
       if (now - (this.lastFrameAt || 0) < 1000 / this.Q.fps - 3) return;
       this.lastFrameAt = now;
     }
-    if (this.mapOpen) { this.clock.getDelta(); return; }
+    if (this.mapOpen || this.settingsOpen) { this.clock.getDelta(); return; }
     const rawDt = Math.min(this.clock.getDelta(), 0.05);
-    const dt = this.paused ? 0 : rawDt;
+    let dt = this.paused ? 0 : rawDt;
+    if (this.hitstop > 0) { this.hitstop -= rawDt; dt *= 0.08; }
     this.time += rawDt;
     const t = this.time;
 
@@ -931,15 +1057,17 @@ class Game {
       if (IS_TOUCH && !this.hud.prepTouched && this.phaseT > 8) this.hud.prepFolded = true;
       this.prepChecklist();
       // やられたキャベツの跡地を歩くと植え直す（1玉 1Q）
-      if (!this.paused && this.q >= 1) {
-        const n = this.cabbages.replantNear(this.player.pos.x, this.player.pos.z, 3.2, Math.floor(this.q));
-        if (n) { this.q -= n; this.replantFx = (this.replantFx || 0) + n; }
+      if (!this.paused && (this.q >= 1 || this.cards.has('replant'))) {
+        const free = this.cards.has('replant');
+        const n = this.cabbages.replantNear(this.player.pos.x, this.player.pos.z, 3.2, free ? 9999 : Math.floor(this.q));
+        if (n) { if (!free) this.q -= n; this.replantFx = (this.replantFx || 0) + n; }
         if (this.replantFx >= 5) { this.hud.floater(`植え直し ×${this.replantFx}`, this.player.pos.clone().add(new THREE.Vector3(0, 2.5, 0)), this.camera, '#9fe05a'); this.replantFx = 0; }
       }
     }
     if (this.bloom) this.bloom.strength = 0.3 + w.flash * 0.8 + (this.player.soloOn ? 0.25 : 0);
 
-    if (this.phase !== 'title') { this.hud.update(this); if (IS_TOUCH) updateTouch(this); }
+    if (this.phase !== 'title') { this.hud.updateSpeech(this);
+      this.hud.update(this); if (IS_TOUCH) updateTouch(this); }
     // 低画質は仕上げ処理（ブルーム・色調補正）を省いて直接描く
     if (this.Q.low) this.renderer.render(this.scene, this.camera);
     else this.composer.render();
@@ -993,6 +1121,8 @@ if (saved) {
   contBtn.innerHTML = `つづきから<small>${WAVES[Math.min(saved.wave, WAVES.length - 1)].name}の準備タイム（${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')} 保存）</small>`;
   contBtn.addEventListener('click', () => game && game.start({ resume: saved }));
 }
+document.getElementById('open-settings').addEventListener('click', () => game && game.toggleSettings(true));
+document.getElementById('pause-settings').addEventListener('click', (e) => { e.stopPropagation(); game && game.toggleSettings(true); });
 document.getElementById('minimap').addEventListener('pointerdown', (e) => { e.stopPropagation(); game && game.toggleMap(true); });
 document.getElementById('bigmap').addEventListener('pointerdown', (e) => { e.stopPropagation(); game && game.toggleMap(false); });
 document.getElementById('retry').addEventListener('click', () => location.reload());
