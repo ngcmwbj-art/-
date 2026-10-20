@@ -414,6 +414,8 @@ export function pgAqOpen(min = pgMin()): boolean {
 export const PG_TRUCK_STOPS: Record<string, { x: number; y: number; dir: 'down' | 'up' | 'left' | 'right' }> = {
   map_town: { x: 45, y: 30, dir: 'down' },
   map_umizoi: { x: 23, y: 18, dir: 'right' },
+  // 岬（旧水族館の 前。2026-10-20 町の 外へ 移した）：港と 岬の あいだも ツガオ便
+  map_c3_misaki: { x: 22, y: 14, dir: 'up' },
   map_hoshimidai: { x: 42, y: 41, dir: 'left' },
 };
 

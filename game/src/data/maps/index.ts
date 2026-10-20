@@ -36,6 +36,8 @@ import './hoshi_ura_hata';
 import './hoshi_fx';
 // 第3章『海ぞいの町の いただきます』（62_ch3_level_art）：海ぞいの町と軽トラの荷台
 import './umizoi';
+// 岬（旧水族館の 正面と 前の 広場。2026-10-20 町の 東の はしから 移した）
+import './c3_misaki';
 // 岬の 磯（本日は、開館です。クリア後の 昼、03_ch3_index）
 import './c3_iso';
 import './c3_nidai';

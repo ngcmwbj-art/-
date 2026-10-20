@@ -406,6 +406,16 @@ registerWorldFx({
   },
 });
 
+// 岬（map_c3_misaki、2026-10-20 旧水族館を 移した）：崖の 下の 海も 12:01 から 動く（2D の 波。HD-2D は c3sea3d.ts）
+registerWorldFx({
+  map: 'map_c3_misaki',
+  anchored: true,
+  draw(f, g, cx, cy, layer) {
+    if (layer !== 'ground' || fxElsewhere(f) || !seaAwake()) return;
+    paintSea(g.ctx, cx, cy, cx, cy, 384, 216, f.t, (tx, ty) => seaKind(f.map, tx, ty), (tx, ty) => seaFace(f.map, tx, ty));
+  },
+});
+
 // ---------------------------------------------------------------- 海の 中
 
 let bubbles: { x: number; y: number; z: number; t: number }[] = [];

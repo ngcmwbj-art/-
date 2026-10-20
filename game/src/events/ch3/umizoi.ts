@@ -11,9 +11,10 @@ import type { Co } from '../../engine/co';
 import { flag } from '../../game/state';
 import { hasMap, registerScript, setFlag } from '../../world/api';
 import { saveConfirm, saveWithStamp } from '../../ui/save';
-import { C3_KID_AGAIN, C3_OBJ, C3_TALK, C3_TSUGAOBIN, EDGE_ROAD, EDGE_SEA, SAVE_POST, SAVE_POST_DONE, SAVE_POST_OPTIONS } from '../../data/text/c3_events';
+import { C3_KID_AGAIN, C3_OBJ, C3_TALK, C3_TSUGAOBIN, EDGE_MISAKI, EDGE_MISAKI_SOLO, EDGE_ROAD, EDGE_SEA, SAVE_POST, SAVE_POST_DONE, SAVE_POST_OPTIONS } from '../../data/text/c3_events';
 import { se } from '../ch2/compat';
 import { SPEAKERS } from '../../world/msg';
+import { field } from '../../world/field';
 import { c3Stage, knOnce, pickC3, say3 } from './common';
 
 // ---------------------------------------------------------------- the people (3.2)
@@ -129,4 +130,10 @@ registerScript('trig_ch3_edge_sea', function* (): Co {
 });
 registerScript('trig_ch3_edge_road', function* (): Co {
   yield* say3(EDGE_ROAD);
+});
+// the road between the town's east end and the cape (map_c3_misaki): ツガオ便's truck goes there, not feet
+registerScript('trig_c3_misaki_edge', function* (): Co {
+  const f = field();
+  const kn = !flag('flag_follower_hidden') && !!f?.follower?.visible;
+  yield* say3(kn ? EDGE_MISAKI : EDGE_MISAKI_SOLO);
 });

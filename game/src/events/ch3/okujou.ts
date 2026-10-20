@@ -586,7 +586,7 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  *   'haisui'  ハキコの あと、南西の 排水口の 前（大写し）。'wrong' は auto で いちど 下の 物を 引く
  *   'half'    2つ 取った ところで やめた あと（続きから）
  *   'ball'    網まで 来た あと（ボールから）
- *   'pg'      クリア後、ボールを 持って 旧水族館の 前の ハキコの 前
+ *   'pg'      クリア後、ボールを 持って 旧水族館の 前（岬）の ハキコの 前
  */
 if (import.meta.env.DEV) {
   registerDebug('okujou', (step = 'to', auto = false) => {
@@ -598,7 +598,7 @@ if (import.meta.env.DEV) {
       cmd().pg?.('11:30', false);
       setFlag(OF.ball, 2);
       giveKey(BALL);
-      return cmd().warp?.('map_umizoi', 73, 31, 'up');
+      return cmd().warp?.('map_c3_misaki', 25, 14, 'up');
     }
     cmd().jump?.('ch3:kairo', true);
     for (const id of Object.values(OF)) setFlag(id, 0);

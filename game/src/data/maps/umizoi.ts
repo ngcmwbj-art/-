@@ -5,26 +5,28 @@
 // along the harbour road, the market, the dried-goods shop, the unloading
 // shed and the harbour store, the quay, the harbour's water and its boats,
 // the breakwater running west to the red lighthouse, and the beach east of
-// the rocks; the old aquarium on the cape at the east end.
+// the rocks; at the east end the harbour road runs on out of the town to the
+// cape (2026-10-20: the old aquarium is out there now, map_c3_misaki — by
+// ツガオ便's truck; the sign 『岬 →』, and walking it グソっ君 turns back).
 //
 // Rows are 62 3.1 verbatim (the collision of stages 1–2), except: the
 // lighthouse's cells are `L` (its door `d`) so its ground is the breakwater's,
 // the boats' cells `b` (they float on the harbour), the truck's spot on the
 // quay (46–48,24–25) is quay (the parked truck collides while it is there),
-// the tetrapods outside the breakwater `X` (the rocks stay `K`), and the
-// aquarium's plaza `q` (the hill's plaza stays `%`: HD-2D lifts the hill), and the
+// the tetrapods outside the breakwater `X` (the rocks stay `K`), and the hill's
+// plaza stays `%` (HD-2D lifts the hill; `q` was the old aquarium's plaza), and the
 // breakwater's (20,31) is breakwater (its `o` had no prop: an unseen wall that, with
 // the angler sitting at (21,32), shut the way west; fix1015), and the dried-fish shop's
-// (15–20,13) is facade `W` (its open front is two tiles tall, c3_bld.ts; fix1015), and the rock under
-// the plaza's south end (73,34) is the steps down to the cape's shore (`n`, 本日は、開館です: events/ch3/iso.ts;
-// a rope over them while the shore is not open).
+// (15–20,13) is facade `W` (its open front is two tiles tall, c3_bld.ts; fix1015), and the east end
+// (x68–79, y16–34: the old aquarium, its plaza and the steps to the shore until 2026-10-20) is the road
+// on out of the town, grass and pines and the rocks by the sea.
 //
 // The people and the things say what the scenario registers by their ids
 // (events/ch3/umizoi.ts, 60 3.2・9.3); this map only places them.
 
 import { flag } from '../../game/state';
 import { registerMap } from '../../world/maps';
-import { pgAqOpen, pgOn } from '../../world/postgame';
+import { pgOn } from '../../world/postgame';
 import type { Ground, MapDef, MapObj, TileSpec } from '../../world/types';
 import type { C3Ground } from '../../art/tiles/c3_ground';
 
@@ -48,25 +50,25 @@ const ROWS = [
   '^^^^^^^^^^HHnnHWWWWWW:::HH^^^^^^^^nnHH^^^^^^^^HH^^^^^^^^nn^^^^^^^^HHHHHHHHHHHHHH', // 13
   'WWWWWWWWWWHHnnHWWWWWW:o:HHWWWWWWWWnnHHWWWWWWWWHHWWWWWWWWnnWWWWWWWWHHHHHHHHHHHHHH', // 14
   'WWWWWWWWWWHHnnHSSSSSS:::HHWWWWDWWWnnHHWWWWWWWWHHWWWWWWWWnnWWWWWWWWHHHHHHHHHHHHHH', // 15
-  '........Y...............Y............o.........Y................Y.....HHHHHHHHHH', // 16
-  '......................................................................HHHHHHHHHH', // 17
-  '......................................................................HHHHHHHHHH', // 18
-  'HHHH^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^_oo___^^^^^^__Ksss^^^^^^^ssssK..^^^^^^^^^^', // 19
-  'HHHH^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^______^^^^^^__Ksss^^^^^^^ssssK..^^^^^^^^^^', // 20
-  'HHHH^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^____o_^^^^^^__KsssWWWWWWWssssK..^^^^^^^^^^', // 21
-  'HHHHWWWWWWWWWWWWWWWWWWWWWWWWWWWWWvvvvv______WWWWWW__KsssWWWDWWWssssK..^^^^^^^^^^', // 22
-  'HHHHWWWWWWDDWWWWWWWWWWWWWDDWWWWWWSSSSS______WWooWW__KsosssssssssossK..^^^^^^^^^^', // 23
-  'KK__________________o_________________o__o__________nssssssssssssssK..^^^^^^^^^^', // 24
-  'KK__________________________________________________nssssssssssssssK..^^^^^^^^^^', // 25
-  'KK_o___________o____________________o_____________o_KssssssssssssssK..WWWWWWWWWW', // 26
-  'KKwwwwwwwwwwbbbbwbbbbwwwwwwwnnwwwwwwbbbbwwww--X~~~~~KssssosssssssosK..WWWWWWWWWW', // 27
-  'KKwwwwwLLLwwbbbbwbbbbwwwwwwwwwwwwwwwbbbbwwww--X~~~~~KssssssssssssssK..WWSWDDWWWW', // 28
-  'KKwwwwwLdLwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww--X~~~~~KssssssssssssssKqqqqqqqqqqoq', // 29
-  'KKwww------wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww--X~~~~~KssosssssssssssKqqqqqqqqqqqq', // 30
-  'KK~~~-------------------------------------o---X~~~~~KzzzzzzzzzzzzzzKqqqqqqqqqqqq', // 31
-  'KK~~~-----------------------------------------X~~~~~K~~~~~~~~~~~~~~Kqqqqqqqqqqqq', // 32
-  'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX~~~~~K~~~~~~~~~~~~~~Kqqoqqqqqqoqq', // 33
-  'KK~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~K~~~~~~~~~~~~~~KKKKKKnKKKKKK', // 34
+  '........Y...............Y............o.........Y................Y...........Y...', // 16
+  '................................................................................', // 17
+  '................................................................................', // 18
+  'HHHH^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^_oo___^^^^^^__Ksss^^^^^^^ssssK,,,,,,,,,o,,', // 19
+  'HHHH^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^______^^^^^^__Ksss^^^^^^^ssssK,,,,,,,,,,,,', // 20
+  'HHHH^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^____o_^^^^^^__KsssWWWWWWWssssK,,,HHH,,,,,,', // 21
+  'HHHHWWWWWWWWWWWWWWWWWWWWWWWWWWWWWvvvvv______WWWWWW__KsssWWWDWWWssssK,,HHHHH,,,HH', // 22
+  'HHHHWWWWWWDDWWWWWWWWWWWWWDDWWWWWWSSSSS______WWooWW__KsosssssssssossK,,HHHHH,,HHH', // 23
+  'KK__________________o_________________o__o__________nssssssssssssssK,,,HHH,,,HHH', // 24
+  'KK__________________________________________________nssssssssssssssK,,,,,,,,,,,,', // 25
+  'KK_o___________o____________________o_____________o_KssssssssssssssK,,,,,T,,,,,,', // 26
+  'KKwwwwwwwwwwbbbbwbbbbwwwwwwwnnwwwwwwbbbbwwww--X~~~~~KssssosssssssosK,,,,,,,,,,,,', // 27
+  'KKwwwwwLLLwwbbbbwbbbbwwwwwwwwwwwwwwwbbbbwwww--X~~~~~KssssssssssssssK,,,,,,,,,,HH', // 28
+  'KKwwwwwLdLwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww--X~~~~~KssssssssssssssK,,,,,,,,,,HH', // 29
+  'KKwww------wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww--X~~~~~KssosssssssssssKK,,,,,,,,,,K', // 30
+  'KK~~~-------------------------------------o---X~~~~~KzzzzzzzzzzzzzzKKK,,,,,,,,KK', // 31
+  'KK~~~-----------------------------------------X~~~~~K~~~~~~~~~~~~~~KKKK,,,,,,KKK', // 32
+  'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX~~~~~K~~~~~~~~~~~~~~KKKKKKKKKKKKK', // 33
+  'KK~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~K~~~~~~~~~~~~~~KKKKKKKKKKKKK', // 34
   'KK~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~K~~~~~~~~~~~~~~K~~~~~~~~~~~~', // 35
   'KK~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~K~~~~~~~~~~~~~~K~~~~~~~~~~~~', // 36
   'KK~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~K~~~~~~~~~~~~~~K~~~~~~~~~~~~', // 37
@@ -148,7 +150,6 @@ const OBJECTS: MapObj[] = [
   PR('prop_c3_bld_kanbutsu', 33, 19),
   PR('prop_c3_bld_souko', 44, 19),
   PR('prop_c3_bld_uminoie', 56, 19),
-  PR('prop_c3_bld_aq', 70, 19),
   PR('prop_c3_siren_tower', 33, 2),
   PR('prop_c3_toudai', 7, 28),
 
@@ -159,13 +160,9 @@ const OBJECTS: MapObj[] = [
   { t: 'door', id: 'door_c3_uminoie', x: 59, y: 22, to: 'map_c3_uminoie', tx: 5, ty: 5, dir: 'up', se: 'se_door_small' },
   { t: 'door', id: 'door_c3_siren', x: 34, y: 6, to: 'map_c3_siren', tx: 6, ty: 9, dir: 'up', se: 'se_door_heavy', cond: { flag: 'flag_ch3_got_itadakimasu' } },
   { t: 'door', id: 'door_c3_toudai', x: 8, y: 29, to: 'map_c3_toudai', tx: 4, ty: 5, dir: 'up', se: 'se_door_small', cond: { flag: 'flag_ch3_toudai_open' } },
-  { t: 'door', id: 'door_c3_aq', x: 74, y: 28, w: 2, to: 'map_c3_aq_iriguchi', tx: 7, ty: 10, dir: 'up', se: 'se_door_glass', cond: { stage: '3+', when: () => !pgOn() || pgAqOpen() } },
   // the doors while they are shut: what is read there (60 9.3)
   O('obj_c3_siren_zaishitsu', 34, 6, { face: 'up', cond: { notFlag: 'flag_ch3_got_itadakimasu' } }),
   O('obj_c3_toudai_door', 8, 29, { face: 'up', cond: { notFlag: 'flag_ch3_toudai_open' } }),
-  O('obj_c3_aq_harigami', 74, 28, { w: 2, face: 'up', cond: { stage: '0-2' } }),
-  // after the clear: shut outside its hours (9:00–16:59, 05_postgame 5.3)
-  O('obj_c3_aq_pg_shut', 74, 28, { w: 2, face: 'up', text: '@narr\nガラス戸に、札が 下がっている。\n『開館の 準備は、また あした。』', cond: { when: () => pgOn() && !pgAqOpen() } }),
 
   // ======================================================== 丘 (y2–9)
   PR('tree_matsu', 18, 3),
@@ -254,10 +251,10 @@ const OBJECTS: MapObj[] = [
   PR('prop_c3_buoy', 55, 31),
   O('obj_c3_umi_kagami', 53, 31, { w: 14, flat: true }),
 
-  // ======================================================== 旧水族館の前 (x68–79)
-  O('obj_c3_aq_kanban', 78, 29, { prop: 'prop_c3_aq_kanban' }),
-  PR('prop_c3_tobera', 70, 33),
-  PR('prop_c3_tobera', 77, 33),
+  // ======================================================== 町はずれ (x68–79)：港通りが 町の 外へ（旧水族館は 岬、map_c3_misaki）
+  O('obj_c3_misaki_fuda', 77, 19, { prop: 'prop_c3_misaki_fuda', opts: { to: 'misaki' }, text: '@narr\n道の 札。\n『岬 →』' }),
+  PR('tree_matsu', 73, 26),
+  PR('prop_utility_pole', 76, 16),
 
   // ======================================================== カモメ, stopped in the air (62 8.8)
   PR('prop_c3_kamome_sora', 18, 21, { v: 0, h: 34 }),
@@ -277,10 +274,6 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_c3_himono_otto', x: 17, y: 14, dir: 'down', cond: S12 },
   { t: 'npc', id: 'npc_c3_himono_tsuma', x: 19, y: 14, dir: 'down', cond: S12 },
   { t: 'npc', id: 'npc_c3_tsuri', x: 21, y: 32, dir: 'down', pose: 'sit', cond: S12 },
-  {
-    t: 'npc', id: 'npc_c3_uketsuke', x: 73, y: 30, dir: 'left', cond: S12,
-    move: { kind: 'patrol', points: [[71, 30], [77, 30]], speed: 0.6, wait: 2000 },
-  },
   // 12:01: the cook and the regular at the shop's door (the noren in her hands), the auctioneers
   // at the auction floor's mouth, the siren keeper at the breakwater's root
   { t: 'npc', id: 'npc_c3_shokudo', x: 29, y: 16, dir: 'down', cond: S2 },
@@ -302,7 +295,6 @@ const OBJECTS: MapObj[] = [
   { t: 'npc', id: 'npc_c3_kid_c', x: 38, y: 32, dir: 'down', cond: S2 },
   // ツガオ便's two (the scenario's lines: script ids of their own so chapter 2's never answer here)
   { t: 'npc', id: 'npc_hirosuke', script: 'c3_hirosuke_umi', x: 18, y: 24, dir: 'down', cond: { ...S12, flag: 'flag_ch3_arrived' } },
-  { t: 'npc', id: 'npc_pokosha', script: 'c3_pokosha_umi', x: 71, y: 31, dir: 'up', cond: { ...S1, flag: 'flag_ch3_arrived' } },
 
   // ======================================================== the town's own symbols (62 1.5・60 5.5; stage 1 only — at 12:01
   // they are what they were again). Moved off the ways everyone walks: ヨコドリ circles the children's open ground on
@@ -315,6 +307,8 @@ const OBJECTS: MapObj[] = [
 
   { t: 'trig', id: 'trig_ch3_kids', x: 18, y: 16, w: 9, h: 3, script: 'evt_ch3_kids', cond: { flag: 'flag_ch3_arrived', notFlag: 'flag_ch3_kids' } },
   { t: 'trig', id: 'trig_ch3_edge_road', x: 0, y: 16, w: 1, h: 3, on: 'bump' },
+  // the road east to the cape: too far to walk (グソっ君's line, events/ch3/umizoi.ts)
+  { t: 'trig', id: 'trig_c3_misaki_edge_umi', x: 79, y: 16, w: 1, h: 3, on: 'bump', script: 'trig_c3_misaki_edge' },
   // the quay's and the breakwater's edges over the water (pushing towards the sea; not the harbour steps)
   { t: 'trig', id: 'trig_ch3_edge_sea', x: 2, y: 26, w: 26, h: 1, on: 'bump', script: 'trig_ch3_edge_sea' },
   { t: 'trig', id: 'trig_ch3_edge_sea_2', x: 30, y: 26, w: 22, h: 1, on: 'bump', script: 'trig_ch3_edge_sea' },
@@ -327,7 +321,7 @@ const ZONES: NonNullable<MapDef['zones']> = [
   { id: 'area_c3_ichiba_mae', x: 4, y: 24, w: 29, h: 2, name: '市場の 前' },
   { id: 'area_c3_himono', x: 14, y: 11, w: 12, h: 8, name: '干物屋' },
   { id: 'area_c3_shokudo_mae', x: 24, y: 16, w: 17, h: 3, name: '食堂かもめ' },
-  { id: 'area_c3_suizokukan', x: 68, y: 16, w: 12, h: 19, name: '旧水族館' },
+  { id: 'area_c3_machihazure', x: 68, y: 16, w: 12, h: 19, name: '町はずれ' },
   { id: 'area_c3_kaisui', x: 52, y: 19, w: 16, h: 13, name: '海水浴場' },
   { id: 'area_c3_siren', x: 25, y: 2, w: 20, h: 9, name: 'サイレン塔' },
   { id: 'area_c3_dandan', x: 46, y: 2, w: 20, h: 9, name: 'みかん畑' },

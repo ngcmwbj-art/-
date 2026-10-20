@@ -664,6 +664,38 @@ registerProp('prop_c3_aq_kanban', () =>
   }, { cx: 16, base: 16, shadow: 26 }),
 );
 
+/**
+ * The road sign on the coast road between the town and the cape (2026-10-20: the old aquarium moved
+ * out to the cape): a blue board on a steel post, white letters. opts.to 'misaki' (the town's east
+ * end): 「岬」 and an arrow east; 'machi' (on the cape): an arrow west and 「町」.
+ */
+registerProp('prop_c3_misaki_fuda', (opts) => {
+  const west = opts.to === 'machi';
+  return standProp(24, 28, (p) => {
+    p.rect(11, 12, 2, 16, '#8E95A6');
+    p.vline(11, 12, 27, '#C8CCD2');
+    p.rect(0, 0, 24, 13, '#E8E4D8');
+    p.rect(1, 1, 22, 11, '#2F5A9A');
+    p.hline(1, 22, 1, '#4A7AB8');
+    const arrow = (x0: number, right: boolean) => {
+      p.hline(x0, x0 + 6, 6, '#F4F1E8');
+      const tip = right ? x0 + 6 : x0;
+      const d = right ? -1 : 1;
+      for (let k = 1; k <= 2; k++) {
+        p.set(tip + d * k, 6 - k, '#F4F1E8');
+        p.set(tip + d * k, 6 + k, '#F4F1E8');
+      }
+    };
+    if (west) {
+      arrow(3, false);
+      fontTextSmall(p, '町', 13, 2, '#F4F1E8');
+    } else {
+      fontTextSmall(p, '岬', 3, 2, '#F4F1E8');
+      arrow(13, true);
+    }
+  }, { cx: 8, base: 16, shadow: 10 });
+});
+
 // ---------------------------------------------------------------- the frozen spray on the tetrapods (stage 1)
 
 registerProp('prop_c3_shibuki', () => {

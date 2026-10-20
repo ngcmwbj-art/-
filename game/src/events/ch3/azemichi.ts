@@ -307,6 +307,8 @@ function placeKeyC3(f: FieldScene): string {
   if (m === 'map_c3_siren') return 'c3_siren';
   if (m === 'map_c3_toudai') return 'c3_bouhatei';
   if (m === 'map_c3_uminoie') return 'c3_kaisui';
+  // 岬（2026-10-20 旧水族館を 町の 東の はしから 移した）
+  if (m === 'map_c3_misaki') return 'c3_suizokukan';
   if (m !== 'map_umizoi') return '';
   if (inR(5, 46, 27, 33)) return 'c3_bouhatei';
   if (inR(52, 67, 19, 31)) return 'c3_kaisui';
@@ -315,7 +317,6 @@ function placeKeyC3(f: FieldScene): string {
   if (inR(14, 25, 11, 18)) return 'c3_himono';
   if (inR(25, 44, 2, 10)) return 'c3_siren';
   if (inR(46, 65, 2, 10)) return 'c3_dandan';
-  if (inR(68, 79, 16, 34)) return 'c3_suizokukan';
   if (inR(2, 51, 19, 26)) return 'c3_minato';
   return 'c3_machi';
 }
@@ -333,7 +334,7 @@ function* knTalkC3(f: FieldScene): Co {
   yield* say3(`@npc_kanenari\n${T.KN_USUAL3[n % T.KN_USUAL3.length]}`);
 }
 
-for (const id of ['map_umizoi', 'map_c3_ichiba', 'map_c3_shokudo', 'map_c3_siren', 'map_c3_toudai', 'map_c3_uminoie'])
+for (const id of ['map_umizoi', 'map_c3_ichiba', 'map_c3_shokudo', 'map_c3_siren', 'map_c3_toudai', 'map_c3_uminoie', 'map_c3_misaki'])
   registerScript('kanenari_' + id, function* (ctx): Co {
     const f = F();
     if (!inCh3()) {

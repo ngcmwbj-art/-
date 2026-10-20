@@ -49,6 +49,16 @@ const C3_AUDIO: Record<string, C3Audio> = {
     amb: { 1: OUT_1200, 2: OUT_1201, 3: OUT_1201 },
     phase: 1,
   },
+  // 岬（旧水族館の 前。2026-10-20 町の 東の はしから 移した）：町の 歌、海と 松の 蝉と 鳥
+  map_c3_misaki: {
+    space: 'minato',
+    pa: 'umi',
+    bgm: { 1: UMI, 2: UMI },
+    variant: 'outdoor',
+    amb: { 1: ['amb_c3_umi', 'amb_c3_semi', 'amb_c3_tori'], 2: ['amb_c3_umi', 'amb_c3_semi', 'amb_c3_tori'], 3: ['amb_c3_umi', 'amb_c3_semi', 'amb_c3_tori'] },
+    ambVol: { amb_c3_umi: { vol: 0.8 }, amb_c3_semi: { vol: 0.6 }, amb_c3_tori: { vol: 0.5 } },
+    phase: 1,
+  },
   map_c3_nidai: {
     space: 'outdoor',
     pa: 'town',
@@ -430,10 +440,10 @@ export function c3Positional(f: FieldScene, playing: string[]): void {
   };
   if (def.id === 'map_umizoi') {
     const dz = (id: string) => distZone(def, id, x, y);
-    // the alleys away from the sea hear less of it (0.5); the aquarium's front 0.7
+    // the alleys away from the sea hear less of it (0.5); the town's east end, up the road behind the pines, 0.7
     const inAlley = dz('area_c3_himono') === 0;
-    const nearAq = dz('area_c3_suizokukan') === 0;
-    set('amb_c3_umi', inAlley ? 0.5 : nearAq ? 0.7 : 1);
+    const edge = dz('area_c3_machihazure') === 0;
+    set('amb_c3_umi', inAlley ? 0.5 : edge ? 0.7 : 1);
     // no trees on the breakwater's end or the beach: fewer cicadas
     set('amb_c3_semi', dz('area_c3_bouhatei') === 0 || dz('area_c3_kaisui') === 0 ? 0.4 : 1);
     const port = dz('area_c3_minato');

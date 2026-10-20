@@ -136,6 +136,10 @@ const ARRIVE: Record<PgTown, { map: string; x: number; y: number; dir: Dir }> = 
   umi: { map: 'map_umizoi', x: 21, y: 17, dir: 'left' },
   hoshi: { map: 'map_hoshimidai', x: 41, y: 44, dir: 'up' },
 };
+/** 海ぞいの町の 中の 便：岬（旧水族館の 前。2026-10-20 町の 外へ 移した）の 着く所と、かかる 分。 */
+const MISAKI = 'map_c3_misaki';
+const ARRIVE_MISAKI = { map: MISAKI, x: 24, y: 14, dir: 'right' as Dir };
+const HOP_MIN = 15;
 
 /** かかる時間（ゲームの分。05 8.2。仮）と、ツガオの言い方。 */
 function ride(a: PgTown, b: PgTown): { min: number; say: string } {
@@ -172,7 +176,24 @@ export function* pgTruck(): Co {
     yield* say3(C4.C4_TSUGAO);
   }
   const dests = ORDER.filter((t) => t !== here);
-  const i = yield* say3(T.pgTruckAsk(T.PG_TOWN_NAME[dests[0]], T.PG_TOWN_NAME[dests[1]]));
+  // 海ぞいの町では 3つめ：港から 岬へ、岬から 港へ（町の 中の 短い 便）
+  const onMisaki = F().map.id === MISAKI;
+  const hop = here === 'umi' ? (onMisaki ? '港' : '岬') : undefined;
+  const i = yield* say3(T.pgTruckAsk(T.PG_TOWN_NAME[dests[0]], T.PG_TOWN_NAME[dests[1]], hop));
+  if (hop && i === 2) {
+    yield* say3(T.pgTruckHop(hop));
+    pgRideBoard();
+    const from = pgMin();
+    yield* fieldCurtain(1, 500);
+    pgAdvance(HOP_MIN);
+    const at = onMisaki ? ARRIVE.umi : ARRIVE_MISAKI;
+    jumpMap(at.map, at.x, at.y, at.dir);
+    F().syncFollower(true);
+    yield* pgClockRun(from, pgMin(), 800, pgKizami);
+    pgRideArrive();
+    yield* fieldCurtain(0, 600);
+    return;
+  }
   if (i !== 0 && i !== 1) return;
   const to = dests[i];
   const r = ride(here, to);

@@ -66,6 +66,8 @@ const MAPS = new Set([
   'map_c3_umi_oki',
   // 岬の 磯（本日は、開館です。クリア後の 昼、03_ch3_index）
   'map_c3_iso',
+  // 岬（旧水族館の 正面と 前の 広場。2026-10-20 町の 東の はしから 移した）
+  'map_c3_misaki',
 ]);
 
 const params = new URLSearchParams(location.search);

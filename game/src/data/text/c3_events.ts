@@ -402,7 +402,7 @@ export const C3_KID_AGAIN: Record<string, string> = {
 };
 
 /**
- * ツガオ便の2人（表の顔、62 3.4：ヒロスケは市場の前の岸壁、ポコシャは旧水族館の前）。
+ * ツガオ便の2人（表の顔、62 3.4：ヒロスケは市場の前の岸壁、ポコシャは旧水族館の前＝岬 map_c3_misaki）。
  * S10 の〔ヒロスケ c1〕（あぜ道市）までの つなぎ。ヒロスケの「焼き芋 食うか？」は
  * 天丼の回数（2.6）を守って言わせない。
  */
@@ -631,6 +631,15 @@ export const EDGE_ROAD = `@narr
 この 先は、山へ 向かう 道。
 ……今日は、海の 町に 用が ある。`;
 
+/**
+ * trig_c3_misaki_edge：海ぞいの町の 東の はし・岬の 西の はし（2026-10-20 旧水族館を 岬へ 移した）。
+ * 町と 岬の あいだは 軽トラで 行く 道：歩いて 行こうと すると もどされる。グソっ君が いなければ 地の文。
+ */
+export const EDGE_MISAKI = `@npc_kanenari
+歩いたら、日が 暮れるで。`;
+export const EDGE_MISAKI_SOLO = `@narr
+歩いて 行くには、遠すぎる。`;
+
 // ================================================================ QA（文の検査に渡す）
 
 
@@ -651,7 +660,7 @@ export function c3Texts(): Record<string, unknown> {
     tsugaobin: C3_TSUGAOBIN,
     obj: C3_OBJ,
     save: { post: '@narr\n' + SAVE_POST[0], SAVE_POST_DONE },
-    edge: { EDGE_SEA, EDGE_ROAD },
+    edge: { EDGE_SEA, EDGE_ROAD, EDGE_MISAKI, EDGE_MISAKI_SOLO },
     bubble: '@npc_kanenari\n' + S03_BUBBLE,
   }) as Record<string, unknown>;
 }

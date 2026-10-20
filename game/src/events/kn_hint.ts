@@ -303,7 +303,7 @@ const DEST = new Map<string, Dest>([
   [KH_C3.umi.lens, [['*', { npc: 'npc_c3_toudai' }], ['map_umizoi', { door: 'door_c3_toudai' }]]],
   [KH_C3.umi.d, [['*', { npc: 'npc_c3_mago' }]]],
   [KH_C3.siren, [['map_umizoi', { door: 'door_c3_siren' }]]],
-  [KH_C3.aqDoor, [['map_umizoi', { door: 'door_c3_aq' }]]],
+  [KH_C3.aqDoor, [['map_c3_misaki', { door: 'door_c3_aq' }]]],
   [KH_C3.kairoEnd, [['*', { npc: 'npc_hirosuke' }]]],
   [KH_C3.esa, [['*', { npc: 'npc_pokosha' }]]],
 ]);

@@ -258,7 +258,7 @@ export const HM_REWARD = `@sys
 
 // ================================================================ 道具・大写し・帳面
 
-export const HM_ITEM_HANA_DESC: [string, string] = ['テツヤの 爪に からんでいた つるの 花。', 'ぶどうの ような におい。'];
+export const HM_ITEM_HANA_DESC: [string, string] = ['テツヤの 爪に からんでいた 花。', 'ぶどうの ような におい。'];
 
 export const HM_UI = {
   place: '爪',

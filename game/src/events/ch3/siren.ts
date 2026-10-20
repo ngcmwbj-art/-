@@ -9,8 +9,9 @@
 //       「いただきます！」→ 操作がもどる（グソっ君「……港、なんか 来とる。」）。
 //   S14 港の軽トラのまわり（trig_ch3_truck_trap）→「やり残し ないか？」→ ツガオ便
 //       「送ってくぞ！」→ 黒い回覧板 → ポコシャが あおりを閉める → 荷台（map_c3_nidai、
-//       景色2）→ 町はずれの旧水族館の前に着く（flag_ch3_truck_trap）→ そのまま S15
-//       （第3期。aq.ts の aqArrive）。
+//       景色2：港 → 海ぞいの 道 → 岬への 坂。2026-10-20 旧水族館を 町の 外の 岬へ 移し、
+//       道中を 長く した）→ 岬（map_c3_misaki）の 旧水族館の前に着く（flag_ch3_truck_trap）
+//       → そのまま S15（第3期。aq.ts の aqArrive）。
 
 import type { Co } from '../../engine/co';
 import { game, type Scene } from '../../engine/game';
@@ -372,7 +373,7 @@ export function* truckTrap(): Co {
   despawn('c3_trap_pokosha');
   if (kn) delete kn.data.scripted;
   setFlag('flag_ch3_truck_trap', 1);
-  // ◆ the bed: 港 → 町はずれの坂 → 岬の上の古い建物
+  // ◆ the bed: 港 → 海ぞいの道 → 岬への坂 → 岬の上の古い建物 (hd2d/nidai.ts zoneOf, view 2)
   se('se_keitora_go');
   let page: DarkPage | null = null;
   if (hasMap('map_c3_nidai')) {
@@ -390,10 +391,11 @@ export function* truckTrap(): Co {
   ambEvent('amb_c3_keitora', 'hako');
   yield 300;
   yield* game.fadeIn(700);
-  yield 3500;
+  // (out of the harbour and along the coast road: the sea on the right, the cape far ahead)
+  yield 5500;
   yield* say3(T.S14_KN_OYA);
-  // no answer: 1 s of nothing (the cap off onto the passenger seat — only a hand)
-  yield 3000;
+  // no answer: 1 s of nothing (the cap off onto the passenger seat — only a hand); then up the slope to the cape
+  yield 4500;
   yield* game.fadeOut(700, '#0B0B14');
   if (page && game.top === page) game.pop();
   despawn('c3_trap_kn');
@@ -404,8 +406,8 @@ export function* truckTrap(): Co {
 function* arriveAq(): Co {
   const f = F();
   stopBgm(0.3);
-  if (hasMap('map_umizoi')) {
-    jumpMap('map_umizoi', 73, 30, 'up');
+  if (hasMap('map_c3_misaki')) {
+    jumpMap('map_c3_misaki', 25, 13, 'up');
     setFollowerVisible(true);
   }
   se('se_keitora_stop');
@@ -422,10 +424,10 @@ function* arriveAq(): Co {
   yield* aqArrive();
 }
 
-// the truck stays parked before the aquarium until S15
-addToMap('map_umizoi', [
+// the truck stays parked before the aquarium on the cape until S15
+addToMap('map_c3_misaki', [
   {
-    t: 'npc', id: 'c3_truck_aq', sprite: 'npc_tsugao', vehicle: 'tsugao_truck_empty', x: 70, y: 31, dir: 'up', noTurn: true,
+    t: 'npc', id: 'c3_truck_aq', sprite: 'npc_tsugao', vehicle: 'tsugao_truck_empty', x: 22, y: 14, dir: 'up', noTurn: true,
     cond: { flag: 'flag_ch3_truck_trap', notFlag: 'flag_ch3_aq_enter' },
   } as unknown as MapObj,
 ]);

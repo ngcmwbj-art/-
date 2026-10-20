@@ -144,6 +144,8 @@ export const PLACES: Record<string, PlaceDef> = {
   map_c3_umi_oki: { steps: { R: 14, d: -12 }, outside: (_tx, ty) => (ty >= 11 ? 'd' : 'R') },
   // 岬の 磯（本日は、開館です）：潮だまりと 海は 岩場より 低い。南の はしの 先は 海が 続く、北は 崖
   map_c3_iso: { steps: { '~': -8, p: -5 }, c3sea: true, outside: (_tx, ty, edge) => (ty >= 10 ? '~' : ty < 2 ? 'K' : edge) },
+  // 岬（旧水族館の 正面、2026-10-20）：海は 崖の 下。南の はしの 先は 海が 続く、北は 松林、西は 町へ 続く 道
+  map_c3_misaki: { steps: { '~': -8 }, c3sea: true, outside: (_tx, ty, edge) => (ty >= 18 ? '~' : ty < 2 ? 'H' : edge) },
 };
 
 export function placeOf(mapId: string): PlaceDef {

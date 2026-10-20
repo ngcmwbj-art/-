@@ -7,6 +7,7 @@
 > **名前は仮**：海ぞいの町の人の名前（ナミエ・ゴロウ・ゲン・ツグミ・ミナト・テル・ウミ・カイト・ホシオ／ホシミ・ツリノ・ハキコ・子ども3人）は**仮の名前**（依頼主が変える予定、2026-10-10）。**ID は役目の英語**（`npc_c3_shokudo` など）にして、**表示名（名札）だけ変えられるように**する。台詞の中で名前を呼ぶ所は、実装では表示名の表（`C3_NAMES`）から差しこむ（12.1）。
 > **ゲーム内テキストはすべて日本語。1メッセージは3行まで、1行は全角21文字（336px）まで（目安は18字）。戦闘の帯は2行まで。間は `{w=300}`（溜め600・決め900）。名札と地の文で名前に「さん」をつけない。改行位置はこのファイルの行のとおり。**
 > **最初から HD-2D**：第3章のすべての場所は、`docs/ARCHITECTURE.md` の HD-2D layer と `02_ch2_index.md` #85 の直し5・直し6 のしくみ（外は `MAPS`、部屋は `room.ts`、戦闘は始まった場所の立体、1枚絵の場面は `cut_*.ts`）をそのまま使う。せっていで 2D を選んだ人・WebGL のない端末は **2D で最後まで遊べる**（台詞・時間・音のきっかけは 2D と同じ）。
+> **変更の記録**：2026-10-20 旧水族館を海ぞいの町の東のはしから、町の外の **岬（`map_c3_misaki`）** へ移した（依頼主「車で移動するほどの距離じゃないのが違和感。なんなら最初から旧水族館は無くって違う場所にあっても良いかも」）。S14 の荷台は港 → 海ぞいの道 → 岬への坂（約12秒）で、岬の停まる所 → 旧水族館の入口（S15）。ハキコ・ポコシャ（段階1）・看板・石段（磯への入口）も岬へ。台詞は変えていない。
 > **状態**：2026-10-11 初版（担当S）。ほかの担当（B・L・A）は、敵の名前、マップの名前と ID、フラグ、場面番号を、この本の **0.3〜0.6 の一覧** と 11章に合わせる。
 
 ---
@@ -96,7 +97,7 @@
 | `map_c3_aq_jimusho` | 旧水族館：事務所（第2章カット7「ツガオの部屋」と同じ部屋。S25 で通る） | 屋内 |
 | `map_c3_aq_hall` | 旧水族館：大水槽のホール | 屋内 |
 
-区域（`map_umizoi`。範囲は62）：`area_c3_minato`（港）`area_c3_ichiba_mae`（市場の前の通り）`area_c3_shokudo_mae`（食堂の通り）`area_c3_himono`（干物屋の路地）`area_c3_siren`（サイレン塔の広場）`area_c3_bouhatei`（防波堤と灯台）`area_c3_kaisui`（海水浴場）`area_c3_dandan`（斜面のみかん畑。任意）`area_c3_suizokukan`（町はずれ・旧水族館の前）。
+区域（`map_umizoi`。範囲は62）：`area_c3_minato`（港）`area_c3_ichiba_mae`（市場の前の通り）`area_c3_shokudo_mae`（食堂の通り）`area_c3_himono`（干物屋の路地）`area_c3_siren`（サイレン塔の広場）`area_c3_bouhatei`（防波堤と灯台）`area_c3_kaisui`（海水浴場）`area_c3_dandan`（斜面のみかん畑。任意）`area_c3_machihazure`（町はずれ。港通りが岬へ続く）。`area_c3_suizokukan`（旧水族館の前）は 2026-10-20 から岬の地図 `map_c3_misaki`。
 
 ## 0.4 人物ID（くわしくは3章・11.2）
 
@@ -801,7 +802,7 @@ S06 で町を案内する（10.6）。ふだんは防波堤の根もとで遊ん
 | `area_c3_bouhatei` 防波堤と灯台 | 赤い灯台、防波堤の先 | ツリノ、テル、子どもたち、おぴぃ・さや・なんばるわん・ぶーさん・マル・トマじい（来たら） | S06 の案内、S13 の昼ごはん、S29〜S31 のエンディング。ヨコドリ（任意） |
 | `area_c3_kaisui` 海水浴場 | 監視台、遊泳旗、鏡のような海 | ウミ、カイト、ワイスタ巡査（来たら） | ③。海の中への入口2（波打ちぎわ）。アソビタリン（任意） |
 | `area_c3_dandan` 斜面のみかん畑 | 段々の畑、たんかんの木 | しんご・ゆず（来たら） | 任意 |
-| `area_c3_suizokukan` 町はずれ・旧水族館の前 | 岬の上の古い建物、『本日 休館』 | ハキコ | S14 まで外から見るだけ |
+| `area_c3_suizokukan` 岬・旧水族館の前（2026-10-20 から `map_c3_misaki`。町の東のはしは `area_c3_machihazure` 町はずれ） | 岬の上の古い建物、『本日 休館』 | ハキコ | S14 まで行けない（町の東のはしの札『岬 →』。歩くとグソっ君が戻す）。S14 の軽トラで着く |
 
 - **導線**：S06 の子どもたちが『海ぞいの町の 地図』（大事なもの `item_c3_map`）に3つの印（市場・食堂・海水浴場）をつけてくれる。①〜③はどの順でも。ほどいた所の印は、はなまるになる（第2章の回覧板の地図と同じ形）。3つそろうと、地図のまん中のサイレン塔に印が足される。
 - 町の東の旧水族館は、S05 から外に見えている（『本日 休館』の貼り紙の黒い判は、調べると見える：`obj_c3_aq_harigami`）。
@@ -3260,7 +3261,7 @@ $target は まだ 動けない！
 | 種類 | id |
 |---|---|
 | マップ | `map_c3_nidai` `map_umizoi` `map_c3_ichiba` `map_c3_shokudo` `map_c3_siren` `map_c3_toudai` `map_c3_uminoie` `map_c3_umi` `map_c3_aq_iriguchi` `map_c3_aq_kairo` `map_c3_aq_diorama` `map_c3_aq_shinkai` `map_c3_aq_esa` `map_c3_aq_souko` `map_c3_aq_rouka` `map_c3_aq_jimusho` `map_c3_aq_hall`（再利用：`map_home_1f` `map_home_2f` `map_town` `map_hinoya` `map_maruyama`〈S33 のみ〉） |
-| 区域（map_umizoi） | `area_c3_minato` `area_c3_ichiba_mae` `area_c3_shokudo_mae` `area_c3_himono` `area_c3_siren` `area_c3_bouhatei` `area_c3_kaisui` `area_c3_dandan` `area_c3_suizokukan` |
+| 区域（map_umizoi） | `area_c3_minato` `area_c3_ichiba_mae` `area_c3_shokudo_mae` `area_c3_himono` `area_c3_siren` `area_c3_bouhatei` `area_c3_kaisui` `area_c3_dandan` `area_c3_machihazure`（岬 `map_c3_misaki`：`area_c3_suizokukan` `area_c3_misaki`。2026-10-20） |
 | 出入口（案。座標は62） | `door_c3_ichiba` `door_c3_shokudo` `door_c3_siren`（`flag_ch3_got_itadakimasu`） `door_c3_toudai` `door_c3_uminoie` `door_c3_umi_minato` `door_c3_umi_kaisui`（グソっ君だけ。S09 の `evt_ch3_kaisui` のあと） `door_c3_aq_*`（館の中の部屋のつなぎ。一方通行は4.2） |
 
 ### 11.2 NPC

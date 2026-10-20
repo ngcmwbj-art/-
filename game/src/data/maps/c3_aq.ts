@@ -97,7 +97,7 @@ registerMap({
     PR('prop_c3_aq_ya', 10, 2, { dir: 'up' }),
     // the sunfish under the ceiling, dusty on its strings (a foreground part)
     PR('prop_c3_aq_manbou', 0, 0),
-    ...gated({ id: 'door_c3_aq_glass_out', x: 7, y: 11, w: 2, to: 'map_umizoi', tx: 74, ty: 29, dir: 'down', se: 'se_door_glass', cond: { notFlag: 'flag_ch3_aq_enter' } }, 'ガラス戸は、外から／かぎが かけられている。'),
+    ...gated({ id: 'door_c3_aq_glass_out', x: 7, y: 11, w: 2, to: 'map_c3_misaki', tx: 26, ty: 12, dir: 'down', se: 'se_door_glass', cond: { notFlag: 'flag_ch3_aq_enter' } }, 'ガラス戸は、外から／かぎが かけられている。'),
     { t: 'door', id: 'door_c3_aq_kairo', x: 10, y: 1, to: 'map_c3_aq_kairo', tx: 1, ty: 5, dir: 'up' },
     // the staff passage to the corridor outside the store (S25 on)
     ...gated({ id: 'door_c3_aq_ura_in', x: 19, y: 3, to: 'map_c3_aq_rouka', tx: 1, ty: 3, dir: 'right', se: 'se_door', cond: MINNA }, SHUT),

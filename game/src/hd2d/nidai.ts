@@ -12,8 +12,10 @@
 // scenario's flag_c3_nidai_view the stretches of 60 4.1 —
 //   0 夕鳴町's houses → the paddies → the mountain road and its cutting
 //   1 over the pass: the sea all along (12.2)
-//   2 the harbour town (焼き杉 and いぶし瓦) → the slope to the cape, the old
-//     aquarium up ahead (S14)
+//   2 the harbour town (焼き杉 and いぶし瓦) → the coast road out of the town,
+//     the sea alongside → the slope to the cape, the old aquarium up ahead
+//     (S14; 2026-10-20 the aquarium moved out of the town to the cape: the
+//     ride is longer and has the road between)
 //   3 the way home: the sea, then 夕鳴町 (the ending sets 1 then 0)
 // The near land comes in chunks from ahead (east) and goes off behind (west),
 // each as the stretch the truck will be in when it gets there; the far land
@@ -78,7 +80,7 @@ type Kind = 'town' | 'paddy' | 'yama' | 'touge' | 'umi' | 'minato' | 'saka';
 /** The stretch of road at `tv` s since the view was set (60 4.1). */
 function zoneOf(view: number, tv: number): Kind {
   if (view === 1) return tv < 0.6 ? 'touge' : 'umi';
-  if (view === 2) return tv < 15 ? 'minato' : 'saka';
+  if (view === 2) return tv < 3 ? 'minato' : tv < 11 ? 'umi' : 'saka';
   if (view === 3) return tv < 12 ? 'umi' : 'town';
   return tv < 9 ? 'town' : tv < 21 ? 'paddy' : 'yama';
 }

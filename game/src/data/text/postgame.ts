@@ -68,12 +68,22 @@ export const PG_KN_SEND = `@npc_kanenari
 
 export const PG_TOWN_NAME: Record<string, string> = { yunari: '夕鳴町', hoshi: '星見台', umi: '海ぞいの 町' };
 
-/** 8.3 乗るとき（行き先は、今いる町をのぞいた2つ）。 */
-export function pgTruckAsk(a: string, b: string): string {
+/**
+ * 8.3 乗るとき（行き先は、今いる町をのぞいた2つ。海ぞいの町では 3つめに 岬／港：
+ * 2026-10-20 旧水族館を 町の 外の 岬へ 移した）。
+ */
+export function pgTruckAsk(a: string, b: string, c?: string): string {
   return `@ツガオ:tsugao_omote
 乗ってくか？{w=300}
 どこへ 行く？
-? ${a} | ${b} | やめておく`;
+? ${a} | ${b} | ${c ? `${c} | ` : ''}やめておく`;
+}
+
+/** 海ぞいの町の 中の 便（港 ⇔ 岬。かかる時間は 15分）。 */
+export function pgTruckHop(dest: string): string {
+  return `@ツガオ:tsugao_omote
+${dest}じゃな。{w=300}
+車なら、すぐじゃ。`;
 }
 
 /** 選んだあと（かかる時間：8.2）。 */
@@ -176,6 +186,8 @@ export const PG_MOM_MORNING: string[] = [
 
 export function pgTexts(): Record<string, unknown> {
   const ask = pgTruckAsk('星見台', '海ぞいの 町');
+  const askUmi = [pgTruckAsk('夕鳴町', '星見台', '岬'), pgTruckAsk('夕鳴町', '星見台', '港')];
+  const hop = [pgTruckHop('岬'), pgTruckHop('港')];
   const go = [
     pgTruckGo('夕鳴町', '1時間'),
     pgTruckGo('海ぞいの 町', '1時間'),
@@ -184,7 +196,7 @@ export function pgTexts(): Record<string, unknown> {
   ];
   return {
     PG_KN_ASK, PG_KN_ASK_NIGHT, PG_KN_JOIN_FIRST, PG_KN_JOIN, PG_KN_LATER, PG_KN_BACK_ASK, PG_KN_BACK, PG_KN_STAY, PG_KN_SEND,
-    ask, go, PG_DELI_INVITE, PG_DELI_LATER, PG_TRUCK_DELI_FIRST, PG_TRUCK_NAP, PG_TRUCK_NAP_AGAIN, PG_PERO_LAMP, PG_PERO_LAMP_KN,
+    ask, askUmi, hop, go, PG_DELI_INVITE, PG_DELI_LATER, PG_TRUCK_DELI_FIRST, PG_TRUCK_NAP, PG_TRUCK_NAP_AGAIN, PG_PERO_LAMP, PG_PERO_LAMP_KN,
     PG_REST_ASK, PG_REST_ASK_KN, PG_REST_ASK_BENCH, PG_WAIT_ASK, PG_WAIT_DELI, PG_BED_ASK, PG_BED_SLEEP, PG_BED_HEAL, PG_MOM_MORNING,
   };
 }

@@ -91,11 +91,11 @@ export const YR_ROWS: YrRow[] = [
 
   // ---------------------------------------------------------------- ③ 海ぞいの町（昼）
   { ...C3, id: 'yr_c3_moguri', kn: true, done: () => flag('flag_ch3_moguri_n') >= 4, name: 'グソっ君の 潜り', hint: ['昼。港の 階段から 海へ。', 'グソっ君が 潜る。'], npcs: [] },
-  { ...C3, id: 'yr_c3_denpyo', kn: false, win: aq, done: () => flag('flag_ch3_denpyo_n') >= 12, name: '回廊の 伝票', hint: ['朝から 夕方まで。旧水族館。', '回廊の 壁を。'], npcs: [] },
-  { ...C3, id: 'yr_c3_nisshi', kn: false, win: aq, done: () => flag('flag_ch3_nisshi_n') >= 6, name: '深海の 飼育日誌', hint: ['朝から 夕方まで。旧水族館。', '深海の 展示室の 床を。'], npcs: [] },
-  { ...C3, id: 'yr_c3_esa', kn: false, win: aq, done: f('flag_ch3_esa_fuda'), name: 'えさの 札', hint: ['朝から 夕方まで。旧水族館。', 'えさの 部屋を。'], npcs: [] },
+  { ...C3, id: 'yr_c3_denpyo', kn: false, win: aq, done: () => flag('flag_ch3_denpyo_n') >= 12, name: '回廊の 伝票', hint: ['朝から 夕方まで。岬の 旧水族館。', '回廊の 壁を。'], npcs: [] },
+  { ...C3, id: 'yr_c3_nisshi', kn: false, win: aq, done: () => flag('flag_ch3_nisshi_n') >= 6, name: '深海の 飼育日誌', hint: ['朝から 夕方まで。岬の 旧水族館。', '深海の 展示室の 床を。'], npcs: [] },
+  { ...C3, id: 'yr_c3_esa', kn: false, win: aq, done: f('flag_ch3_esa_fuda'), name: 'えさの 札', hint: ['朝から 夕方まで。岬の 旧水族館。', 'えさの 部屋を。'], npcs: [] },
   // 本日は、開館です（events/ch3/iso.ts）：券売所の ポコシャから。磯は 昼だけ、名札と 開館は 館の 時間（9:00〜16:59）
-  { ...C3, id: 'yr_c3_iso', kn: true, done: f('flag_iso_kaikan'), name: '本日は、開館です', hint: ['昼。旧水族館の 券売所。', 'グソっ君と いっしょに。'], npcs: [] },
+  { ...C3, id: 'yr_c3_iso', kn: true, done: f('flag_iso_kaikan'), name: '本日は、開館です', hint: ['昼。岬の 旧水族館の 券売所。', 'グソっ君と いっしょに。'], npcs: [] },
   { ...C3, id: 'yr_c3_fucho', kn: false, done: () => flag('flag_ch3_fucho_n') >= 5, name: '符丁の 切れはし', hint: ['昼。市場の 床。', '足もとを よく 見て。'], npcs: ['npc_c3_seri_deshi'] },
 ];
 

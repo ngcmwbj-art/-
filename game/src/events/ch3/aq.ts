@@ -75,23 +75,23 @@ function holdKn(on: boolean): Actor | null {
 // ================================================================ S15 evt_ch3_aq_enter
 
 /**
- * From S14's arrival in front of the old aquarium (map_umizoi (73,30), facing
- * up, the screen just faded in): ポコシャ opens the tailgate and the glass door,
- * しゅん and グソっ君 go in.
+ * From S14's arrival in front of the old aquarium on the cape (map_c3_misaki
+ * (25,13), facing up, the screen just faded in): ポコシャ opens the tailgate and
+ * the glass door, しゅん and グソっ君 go in.
  */
 export function* aqArrive(): Co {
   const f = F();
   if (flag('flag_ch3_aq_enter')) return;
-  if (f.map.id !== 'map_umizoi') {
+  if (f.map.id !== 'map_c3_misaki') {
     yield* aqInside();
     return;
   }
-  // the tailgate (the truck stands at (69–71,30–31), facing north)
+  // the tailgate (the truck stands at (21–23,13–14), facing north)
   se('se_truck_aori');
-  const po = spawn('c3_aq_pokosha', 72, 31, { sprite: 'npc_pokosha', dir: 'up', ghost: true });
+  const po = spawn('c3_aq_pokosha', 24, 14, { sprite: 'npc_pokosha', dir: 'up', ghost: true });
   po.data.scripted = true;
   yield 500;
-  yield* walk('c3_aq_pokosha', [[72, 29], [74, 29]], { speed: 2.4, face: 'up' });
+  yield* walk('c3_aq_pokosha', [[24, 12], [26, 12]], { speed: 2.4, face: 'up' });
   se('se_c3_aq_door');
   yield 400;
   despawn('c3_aq_pokosha');
@@ -103,7 +103,7 @@ export function* aqArrive(): Co {
 function* goInside(): Co {
   const f = F();
   const p = f.player;
-  if (p.tileX !== 74 || p.tileY !== 29) yield* walk('player', [[p.tileX, 29], [74, 29]], { speed: 2.8, face: 'up' });
+  if (p.tileX !== 26 || p.tileY !== 12) yield* walk('player', [[p.tileX, 12], [26, 12]], { speed: 2.8, face: 'up' });
   se('se_c3_aq_door');
   yield* game.fadeOut(400, '#0B0B14');
   setFlag('flag_ch3_stage', 3);
@@ -148,9 +148,9 @@ function* aqInside(): Co {
 registerScript('evt_ch3_aq_enter', function* (): Co {
   if (inCh3() && flag('flag_ch3_truck_trap') && !flag('flag_ch3_aq_enter')) yield* aqArrive();
 });
-// a save made between S14 and S15 (the town, the door shut): pushing into the glass door
-addToMap('map_umizoi', [
-  { t: 'trig', id: 'trig_ch3_aq_door', x: 74, y: 29, w: 2, h: 1, on: 'bump', script: 'trig_ch3_aq_door', cond: { flag: 'flag_ch3_truck_trap', notFlag: 'flag_ch3_aq_enter' } } as unknown as MapObj,
+// a save made between S14 and S15 (the cape, the door shut): pushing into the glass door
+addToMap('map_c3_misaki', [
+  { t: 'trig', id: 'trig_ch3_aq_door', x: 26, y: 12, w: 2, h: 1, on: 'bump', script: 'trig_ch3_aq_door', cond: { flag: 'flag_ch3_truck_trap', notFlag: 'flag_ch3_aq_enter' } } as unknown as MapObj,
 ]);
 registerScript('trig_ch3_aq_door', function* (): Co {
   if (!flag('flag_ch3_truck_trap') || flag('flag_ch3_aq_enter')) return;

@@ -52,6 +52,8 @@ registerScript('c3_kn_shop', function* (): Co {
 const TRUCKS: Record<string, { x: number; y: number; dir: Dir }> = {
   map_town: { x: 45, y: 30, dir: 'down' },
   map_umizoi: { x: 23, y: 18, dir: 'right' },
+  // 岬（旧水族館の 前。2026-10-20 町の 外へ 移した）：港から 乗せて もらう（events/postgame.ts pgTruck）
+  map_c3_misaki: { x: 22, y: 14, dir: 'up' },
 };
 
 registerWorldFx({
@@ -113,7 +115,7 @@ registerScript('c3_ego_c4', function* (): Co {
 });
 
 // the glass door opens from inside again after the clear (in: W's door_c3_aq, stage 3+)
-addToMap('map_c3_aq_iriguchi', [{ t: 'door', id: 'door_c3_aq_glass_out_c4', x: 7, y: 11, w: 2, to: 'map_umizoi', tx: 74, ty: 29, dir: 'down', se: 'se_door_glass', cond: CLEAR } as unknown as MapObj]);
+addToMap('map_c3_aq_iriguchi', [{ t: 'door', id: 'door_c3_aq_glass_out_c4', x: 7, y: 11, w: 2, to: 'map_c3_misaki', tx: 26, ty: 12, dir: 'down', se: 'se_door_glass', cond: CLEAR } as unknown as MapObj]);
 
 // ---------------------------------------------------------------- 事務所の物（60 9.5。S25 は通るだけ、調べるのはクリア後）
 

@@ -4,7 +4,7 @@
 //
 //   ・券売所の ポコシャ（c3_poko_c4。クリア後、グソっ君と いっしょ）→ 1 開館の 準備中（flag_iso_start、
 //     item_iso_nafuda）。旧水族館の 前の ハキコ → 2（flag_iso_hakiko）。
-//   ・旧水族館の 前の 広場の 南の はし (73,33) の 石段 (73,34)：クリア後の 昼（11:00〜14:59）、グソっ君と、
+//   ・岬（map_c3_misaki）の 旧水族館の 前の 広場の 南の はし (25,16) の 石段 (25,17)：クリア後の 昼（11:00〜14:59）、グソっ君と、
 //     その 日 まだ 満ちていない 間だけ 下りられる（door_c3_iso）。第3章の 段階1〜2 は ロープ『潮が 止まって います』。
 //   ・岬の 磯 map_c3_iso：石・潮だまり・割れ目・乾いた 岩を 調べる → 大写し「石めくり」（IsoPanel）。
 //     石は けってい で めくる → 見る → もう 1回で もどす（自分で もどした 石 flag_iso_ishi_<i> = 1、
@@ -122,18 +122,19 @@ function tideNow(extraS = 0): number {
 const NPC = (o: Record<string, unknown>): MapObj => ({ t: 'npc', ...o }) as unknown as MapObj;
 const sc = (n: number) => (): boolean => flag(IF.scene) === n;
 
-addToMap('map_umizoi', [
+// (on the cape since 2026-10-20: map_c3_misaki, the old aquarium's front moved out of the town)
+addToMap('map_c3_misaki', [
   // the steps down to the cape's shore (south end of the aquarium's plaza): the stones of the steps, always
-  { t: 'prop', prop: 'prop_iso_dan', x: 73, y: 34 } as unknown as MapObj,
-  { t: 'door', id: 'door_c3_iso', x: 73, y: 34, step: true, to: 'map_c3_iso', tx: 23, ty: 2, dir: 'down', se: 'se_step_stone', cond: { when: () => isoOpen() && knWith() } } as unknown as MapObj,
-  { t: 'prop', prop: 'prop_iso_rope', x: 73, y: 34, solid: [0, 0, 1, 1], cond: { when: () => !pgOn() || pgBand() !== 'hiru' || flag(IF.mitsuDay) === pgDay() } } as unknown as MapObj,
-  { t: 'obj', id: 'obj_iso_ishidan', x: 73, y: 34, face: 'down', script: 'obj_iso_ishidan', cond: { when: () => !(isoOpen() && knWith()) } } as unknown as MapObj,
+  { t: 'prop', prop: 'prop_iso_dan', x: 25, y: 17 } as unknown as MapObj,
+  { t: 'door', id: 'door_c3_iso', x: 25, y: 17, step: true, to: 'map_c3_iso', tx: 23, ty: 2, dir: 'down', se: 'se_step_stone', cond: { when: () => isoOpen() && knWith() } } as unknown as MapObj,
+  { t: 'prop', prop: 'prop_iso_rope', x: 25, y: 17, solid: [0, 0, 1, 1], cond: { when: () => !pgOn() || pgBand() !== 'hiru' || flag(IF.mitsuDay) === pgDay() } } as unknown as MapObj,
+  { t: 'obj', id: 'obj_iso_ishidan', x: 25, y: 17, face: 'down', script: 'obj_iso_ishidan', cond: { when: () => !(isoOpen() && knWith()) } } as unknown as MapObj,
   // after the opening: ポコシャ's paper on the glass door
-  { t: 'prop', prop: 'prop_iso_harigami', x: 75, y: 27, cond: { flag: IF.kaikan } } as unknown as MapObj,
-  { t: 'obj', id: 'obj_iso_harigami', x: 75, y: 27, face: 'up', script: 'obj_iso_harigami', cond: { flag: IF.kaikan } } as unknown as MapObj,
+  { t: 'prop', prop: 'prop_iso_harigami', x: 27, y: 10, cond: { flag: IF.kaikan } } as unknown as MapObj,
+  { t: 'obj', id: 'obj_iso_harigami', x: 27, y: 10, face: 'up', script: 'obj_iso_harigami', cond: { flag: IF.kaikan } } as unknown as MapObj,
   // the last scene at the door (7): ハキコ and ポコシャ in front of the glass
-  NPC({ id: 'iso_hakiko_front', sprite: 'npc_c3_uketsuke', x: 74, y: 29, dir: 'up', script: 'iso_hakiko_bench', cond: { when: sc(5) } }),
-  NPC({ id: 'iso_poko_front', sprite: 'npc_pokosha', x: 76, y: 29, dir: 'left', script: 'iso_poko_quiet', cond: { when: sc(5) } }),
+  NPC({ id: 'iso_hakiko_front', sprite: 'npc_c3_uketsuke', x: 26, y: 12, dir: 'up', script: 'iso_hakiko_bench', cond: { when: sc(5) } }),
+  NPC({ id: 'iso_poko_front', sprite: 'npc_pokosha', x: 28, y: 12, dir: 'left', script: 'iso_poko_quiet', cond: { when: sc(5) } }),
 ]);
 
 addToMap('map_c3_aq_iriguchi', [
@@ -556,7 +557,7 @@ function* upTheSteps(text: string): Co {
     setFlag(IF.mitsuDay, pgDay());
     yield* say(text);
     yield* game.fadeOut(400, '#0B0B14');
-    jumpMap('map_umizoi', 73, 33, 'up');
+    jumpMap('map_c3_misaki', 25, 16, 'up');
     field()?.syncFollower(true);
     yield 300;
     yield* game.fadeIn(500);
@@ -714,7 +715,7 @@ function* kaikanScene(): Co {
   yield* fadeTo('map_c3_iso', 10, 5, 'left', 4);
   yield* say(T.ISO_JUNRO_ISO);
   if (isoSelfAll()) yield* say(T.ISO_JUNRO_YANE);
-  yield* fadeTo('map_umizoi', 75, 31, 'up', 5);
+  yield* fadeTo('map_c3_misaki', 27, 14, 'up', 5);
   se('se_c3_harigami', { vol: 0.6 });
   yield* say(T.ISO_HONJITSU);
   setFlag(IF.kaikan, 1);
@@ -786,7 +787,7 @@ const cmd = (): Cmd => (window as unknown as { __game: { cmd: Cmd } }).__game.cm
  * QA: __game.cmd.iso(step = 'start', auto = false)（クリア後の 昼 11:30、グソっ君と）
  *   'start'   券売所の ポコシャの 前（1）
  *   'hakiko'  1 の あと、旧水族館の 前の ハキコの 前（2）
- *   'stairs'  石段の 上 (73,33)（下へ 進むと 磯）
+ *   'stairs'  石段の 上 (25,16)（岬。下へ 進むと 磯）
  *   'iso'     磯の 石の 前（大写し。auto：12の 石と 6つの 所を 順に）
  *   'cards'   6つ 見た あと、券売所の ポコシャの 前（4 → 5 いちばん 奥）
  *   'kaikan'  いちばん 奥の あと、券売所の ポコシャの 前（6・7）
@@ -813,8 +814,8 @@ if (import.meta.env.DEV) {
     if (step === 'start') return booth();
     setFlag(IF.start, 1);
     giveKey('item_iso_nafuda');
-    if (step === 'hakiko') return cmd().warp?.('map_umizoi', 73, 31, 'up');
-    if (step === 'stairs') return cmd().warp?.('map_umizoi', 73, 33, 'down');
+    if (step === 'hakiko') return cmd().warp?.('map_c3_misaki', 25, 14, 'up');
+    if (step === 'stairs') return cmd().warp?.('map_c3_misaki', 25, 16, 'down');
     setFlag(IF.hakiko, 1);
     if (step === 'iso') return cmd().warp?.('map_c3_iso', 4, 4, 'up');
     for (const id of [...CARD_IDS, 'agohaze']) setFlag(seenF(id), 1);
@@ -827,7 +828,7 @@ if (import.meta.env.DEV) {
     setFlag(IF.oku, 1);
     if (step === 'kaikan') return booth();
     setFlag(IF.kaikan, 1);
-    return cmd().warp?.('map_umizoi', 74, 31, 'up');
+    return cmd().warp?.('map_c3_misaki', 26, 14, 'up');
   });
 
   registerDebug('isoState', () => {

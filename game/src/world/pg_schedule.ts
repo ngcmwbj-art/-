@@ -64,7 +64,7 @@ export const PG_SCHEDULE: Record<string, Partial<Record<PgBand, PgSpot | null>>>
   npc_hoshi_busdriver: { asa: at('map_hoshimidai', 36, 40), hiru: null, yu: at('map_hoshimidai', 36, 40) },
   // まつ先生：朝・昼は分校、夕方は村の道
   npc_hoshi_fumi: { asa: at('map_hoshi_school', 9, 3), hiru: at('map_hoshi_school', 9, 3), yu: at('map_hoshimidai', 33, 30) },
-  // ポコシャ：昼は旧水族館（海ぞいの町、c3_poko_c4）。夜は転回場で荷を積む（h1 のまま）
+  // ポコシャ：昼は旧水族館（岬、c3_poko_c4）。夜は転回場で荷を積む（h1 のまま）
   npc_pokosha: { asa: null, hiru: null, yu: null },
   // ヒロスケ：朝・夕方は星見台の転回場、昼は海ぞいの港で焼き芋（c3_hiro_c4）。夜は軽トラのそば（h1 のまま）
   npc_hirosuke: { asa: at('map_hoshimidai', 43, 43), hiru: null, yu: at('map_hoshimidai', 43, 43) },
@@ -74,7 +74,8 @@ export const PG_SCHEDULE: Record<string, Partial<Record<PgBand, PgSpot | null>>>
   // 旧水族館：開館の準備（9:00〜16:59。帯では朝・昼・夕方）
   c3_poko_c4: { asa: at('map_c3_aq_iriguchi', 6, 9), hiru: at('map_c3_aq_iriguchi', 6, 9), yu: at('map_c3_aq_iriguchi', 6, 9), yoru: null },
   c3_ego_c4: { asa: at('map_c3_aq_iriguchi', 9, 5), hiru: at('map_c3_aq_iriguchi', 9, 5), yu: at('map_c3_aq_iriguchi', 9, 5), yoru: null },
-  npc_c3_uketsuke: { asa: at('map_umizoi', 73, 30), hiru: at('map_umizoi', 73, 30), yu: null, yoru: null },
+  // ハキコ：旧水族館の 前（岬 map_c3_misaki、2026-10-20 町の 東の はしから 移した）
+  npc_c3_uketsuke: { asa: at('map_c3_misaki', 25, 13), hiru: at('map_c3_misaki', 25, 13), yu: null, yoru: null },
   // 干物屋の夫婦：朝から夕方まで店先
   npc_c3_himono_otto: { asa: at('map_umizoi', 17, 14), hiru: at('map_umizoi', 17, 14), yu: at('map_umizoi', 17, 14), yoru: null },
   npc_c3_himono_tsuma: { asa: at('map_umizoi', 19, 14), hiru: at('map_umizoi', 19, 14), yu: at('map_umizoi', 19, 14), yoru: null },

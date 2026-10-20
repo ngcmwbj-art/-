@@ -1,12 +1,12 @@
 // map_c3_iso — 岬の 磯（本日は、開館です。げむきか 10/14 の 案3、2026-10-15 依頼主の 採用。03_ch3_index、
 // 05_postgame 2.3 yr_c3_iso）。30×14、旧水族館の 裏の 岬の 下。台本は events/ch3/iso.ts、文は data/text/c3_iso.ts。
 //
-//   北（行0〜1）：岬の 岩の 崖。(23,0–1) は 旧水族館の 前の 広場の 南の はしからの 石段（door_c3_iso_up）。
+//   北（行0〜1）：岬の 岩の 崖。(23,0–1) は 旧水族館の 前の 広場（岬 map_c3_misaki）の 南の はしからの 石段（door_c3_iso_up）。
 //   行2〜9：引き潮の 岩場。潮だまり 6つ（p）、めくれる 石 12（prop_iso_ishi）、乾いた 大きな 岩 2つ（K）。
 //   東の はし (27,2–10)：旧水族館の 古い 取水管（札『取水口 さわらない』）。
 //   行10：波の 来る 線（なぎさ）。行11〜：海。西の はし (0,5) から 防波堤と 赤い 灯台が 見える（地の文）。
 //
-// クリア後の 昼（11:00〜14:59）だけ 入れる（umizoi.ts の 石段 (73,34)）。満ちたら 石段へ 上がる。
+// クリア後の 昼（11:00〜14:59）だけ 入れる（岬 c3_misaki.ts の 石段 (25,17)、events/ch3/iso.ts）。満ちたら 石段へ 上がる。
 
 import { registerMap } from '../../world/maps';
 import type { MapObj, TileSpec } from '../../world/types';
@@ -96,7 +96,7 @@ const OBJECTS: MapObj[] = [
   // the view west (the breakwater and the red lighthouse, far)
   OBJ({ t: 'obj', id: 'obj_iso_nishi', x: 0, y: 5, h: 5, face: 'left', script: 'obj_iso_nishi' }),
   // the steps up to the aquarium's plaza
-  { t: 'door', id: 'door_c3_iso_up', x: 23, y: 1, step: true, to: 'map_umizoi', tx: 73, ty: 33, dir: 'up', se: 'se_step_stone' } as MapObj,
+  { t: 'door', id: 'door_c3_iso_up', x: 23, y: 1, step: true, to: 'map_c3_misaki', tx: 25, ty: 16, dir: 'up', se: 'se_step_stone' } as MapObj,
 ];
 
 registerMap({
