@@ -1,20 +1,23 @@
 'use strict';
 /* =========================================================
    畑部分
-   - パズルで列を消すと資源（水・肥料）が貯まる
-   - 区画ごとに 種まき → 水やり → 追肥 → 収穫 の順に育てる
+   - パズルで列を消すと資源（水・肥料）が貯まる。上限あり
+   - 区画ごとに 種まき → 水やり → 追肥 → （列を消して育つのを待つ）→ 収穫
    - 収穫するとコインが入り、コインで区画を増やせる
    ========================================================= */
 const Farm = (() => {
-  // 栽培のステップ（plot.stage の番号と対応）
-  //   空き区画 → 種まき → stage 0 → 水やり → stage 1 → 追肥 → stage 2 → 収穫 → 空き区画
+  // 栽培のステップ（表示用）
   const STEPS = ['sow', 'water', 'fertilize', 'harvest'];
-  // 育っている途中の見た目（最後は野菜そのものの絵になる）
-  const GROWING_ICONS = ['🌱', '🌿'];
+  // plot.stage の意味
+  //   0：種まき済み（次は水やり） 1：水やり済み（次は追肥）
+  //   2：育ち中（パズルで列を growLeft 本消すと実る） 3：収穫どき
+  const READY = 3;
+  // 育っている途中の見た目（収穫どきは野菜そのものの絵になる）
+  const GROWING_ICONS = ['🌱', '🌿', '🌼'];
 
   let data = null;    // 保存データ全体
   let cfg = null;     // data/vegetables.json の中身
-  let hooks = {};     // { onChange, onHarvest }
+  let hooks = {};     // { onChange, onAction, onHarvest }
   let root = null;
 
   function init(options) {
@@ -52,6 +55,11 @@ const Farm = (() => {
     return cfg.rules.plotPrices[data.plots.length - cfg.rules.startPlots];
   }
 
+  // 資源の上限 { water, fertilizer }
+  function limits() {
+    return { water: cfg.rules.waterMax, fertilizer: cfg.rules.fertilizerMax };
+  }
+
   // 次の作業に必要な資源 { water, fertilizer }
   function costOf(plot) {
     const v = veg(plot.vegId);
@@ -64,22 +72,54 @@ const Farm = (() => {
     return data.resources.water >= cost.water && data.resources.fertilizer >= cost.fertilizer;
   }
 
-  // 何かできる作業があるか（タブの目印に使う）
+  // 今できる作業があるか（タブの目印に使う）。育ち中は待つだけなので数えない
   function hasAction() {
-    return data.plots.some((p) => !p || canAfford(costOf(p)));
+    return data.plots.some((p) => !p || (p.stage !== 2 && canAfford(costOf(p))));
   }
 
   /* ---------- パズルから資源を受け取る ---------- */
-  // 消した列数・コンボが多いほどたくさんもらえる。表示用の文字を返す
+  // 消した列数・コンボが多いほどたくさんもらえる。上限をこえた分はあふれる。表示用の文字を返す
   function gainFromLines({ lines, combo }) {
     const r = cfg.rules;
+    const max = limits();
     const mul = 1 + r.multiLineBonus * (lines - 1) + r.comboBonus * (combo - 1);
-    const water = Math.round(r.waterPerLine * lines * mul);
-    const fertilizer = Math.round(r.fertilizerPerLine * lines * mul);
-    data.resources.water += water;
-    data.resources.fertilizer += fertilizer;
+    const before = { ...data.resources };
+    data.resources.water = Math.min(max.water, before.water + Math.round(r.waterPerLine * lines * mul));
+    data.resources.fertilizer = Math.min(max.fertilizer, before.fertilizer + Math.round(r.fertilizerPerLine * lines * mul));
+    const water = data.resources.water - before.water;
+    const fertilizer = data.resources.fertilizer - before.fertilizer;
+
+    // 育ち中の野菜は、消した列の数だけ育つ
+    const ripened = [];
+    data.plots.forEach((p) => {
+      if (!p || p.stage !== 2) return;
+      p.growLeft = Math.max(0, p.growLeft - lines);
+      if (p.growLeft === 0) {
+        p.stage = READY;
+        ripened.push(veg(p.vegId).name);
+      }
+    });
+
+    // お知らせ（実った > あふれそう の順に大事）
+    if (ripened.length) {
+      toast(Msg.t('farm.ripened', { list: ripened.join('・') }));
+      Sound.play('ripen');
+    } else if (crossedNearFull(before, max)) {
+      toast(Msg.t('farm.nearFull'));
+    }
+
     changed();
-    return `${Msg.t('icons.water')}+${water} ${Msg.t('icons.fertilizer')}+${fertilizer}`;
+    const parts = [];
+    if (water) parts.push(`${Msg.t('icons.water')}+${water}`);
+    if (fertilizer) parts.push(`${Msg.t('icons.fertilizer')}+${fertilizer}`);
+    if (!water && !fertilizer) parts.push(Msg.t('farm.full'));
+    return parts.join(' ');
+  }
+
+  // 今回の追加で「もうすぐいっぱい」を初めてこえたか
+  function crossedNearFull(before, max) {
+    const rate = cfg.rules.nearFullRate;
+    return ['water', 'fertilizer'].some((k) => before[k] < max[k] * rate && data.resources[k] >= max[k] * rate);
   }
 
   // ゲームオーバーごとに季節を1つ進める
@@ -91,27 +131,34 @@ const Farm = (() => {
 
   /* ---------- 作業 ---------- */
   function sow(index, vegId) {
-    data.plots[index] = { vegId, stage: 0 };
+    data.plots[index] = { vegId, stage: 0, growLeft: 0 };
     tellStep(veg(vegId), 'sow');
-    changed();
+    acted();
   }
 
   function work(index) {
     const plot = data.plots[index];
-    const v = veg(plot.vegId);
-    const cost = costOf(plot);
-    if (!canAfford(cost)) return;
-
-    if (plot.stage < 2) {
-      data.resources.water -= cost.water;
-      data.resources.fertilizer -= cost.fertilizer;
-      tellStep(v, STEPS[plot.stage + 1]);
-      plot.stage += 1;
-    } else {
+    if (plot.stage === READY) {
       harvest(index);
       return;
     }
-    changed();
+    const cost = costOf(plot);
+    if (plot.stage === 2 || !canAfford(cost)) return;
+
+    data.resources.water -= cost.water;
+    data.resources.fertilizer -= cost.fertilizer;
+    const v = veg(plot.vegId);
+    if (plot.stage === 0) {
+      tellStep(v, 'water');
+    } else {
+      // 追肥したら育ち時間スタート。いちばん最初だけ短く
+      tellStep(v, 'fertilize');
+      plot.growLeft = data.firstGrowDone ? cfg.rules.growLines : cfg.rules.firstGrowLines;
+      data.firstGrowDone = true;
+    }
+    plot.stage += 1;
+    Sound.play('work');
+    acted();
   }
 
   function harvest(index) {
@@ -127,7 +174,8 @@ const Farm = (() => {
     if (bonus) text += '\n' + Msg.t('farm.seasonBonus');
     text += '\n' + v.steps.harvest;
     toast(text);
-    changed();
+    Sound.play('harvest');
+    acted();
     if (hooks.onHarvest) hooks.onHarvest(v, first);
   }
 
@@ -137,12 +185,19 @@ const Farm = (() => {
     data.resources.coins -= price;
     data.plots.push(null);
     toast(Msg.t('farm.plotAdded'));
-    changed();
+    Sound.play('work');
+    acted();
   }
 
   // 作業のたびに、その作業のコツを表示（遊びながら覚えられるように）
   function tellStep(v, step) {
     toast(`${Msg.t('farm.stepNames.' + step)}：${v.steps[step]}`);
+  }
+
+  // プレイヤーが畑で作業したとき
+  function acted() {
+    changed();
+    if (hooks.onAction) hooks.onAction();
   }
 
   function changed() {
@@ -197,32 +252,38 @@ const Farm = (() => {
     }
 
     const v = veg(plot.vegId);
-    const ready = plot.stage === 2;
+    const ready = plot.stage === READY;
+    const growing = plot.stage === 2;
     const icon = ready ? vegIcon(v) : h('span', { class: 'plot-icon' }, GROWING_ICONS[plot.stage]);
     const cost = costOf(plot);
     let label;
     if (plot.stage === 0) label = Msg.t('farm.waterButton', { n: cost.water, icon: Msg.t('icons.water') });
     else if (plot.stage === 1) label = Msg.t('farm.fertilizeButton', { n: cost.fertilizer, icon: Msg.t('icons.fertilizer') });
+    else if (growing) label = Msg.t('farm.growingButton', { n: plot.growLeft });
     else label = Msg.t('farm.harvestButton');
 
     const enough = canAfford(cost);
-    return h('div', { class: 'plot' + (ready ? ' ready' : '') },
+    let hint = null;
+    if (growing) hint = Msg.t('farm.growingHint');
+    else if (!enough) hint = Msg.t('farm.needMore');
+
+    return h('div', { class: 'plot' + (ready ? ' ready' : '') + (growing ? ' growing' : '') },
       h('div', { class: 'plot-soil' + (plot.stage >= 1 ? ' wet' : '') }, icon),
       h('div', { class: 'plot-name' }, v.name, inSeason(v) ? h('span', { class: 'shun' }, Msg.t('farm.shun')) : null),
-      stepDots(plot.stage),
+      stepDots(Math.min(plot.stage, 2)),
       h('button', {
         class: 'btn' + (ready ? ' primary' : ''),
-        disabled: enough ? null : '',
+        disabled: growing || !enough ? '' : null,
         onclick: () => work(index),
       }, label),
-      enough ? null : h('div', { class: 'plot-hint' }, Msg.t('farm.needMore'))
+      hint ? h('div', { class: 'plot-hint' }, hint) : null
     );
   }
 
   // 種まき・水やり・追肥・収穫 のどこまで進んだかを表示
-  function stepDots(stage) {
+  function stepDots(doneUpTo) {
     return h('ol', { class: 'steps' },
-      STEPS.map((step, i) => h('li', { class: i <= stage ? 'done' : (i === stage + 1 ? 'next' : '') },
+      STEPS.map((step, i) => h('li', { class: i <= doneUpTo ? 'done' : (i === doneUpTo + 1 ? 'next' : '') },
         Msg.t('farm.stepNames.' + step)))
     );
   }
@@ -256,5 +317,5 @@ const Farm = (() => {
     });
   }
 
-  return { init, render, gainFromLines, advanceSeason, hasAction, season, inSeason, seasonNames, veg };
+  return { init, render, gainFromLines, advanceSeason, hasAction, limits, season, inSeason, seasonNames, veg };
 })();

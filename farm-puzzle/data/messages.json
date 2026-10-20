@@ -22,9 +22,11 @@
     "gameOverTitle": "おつかれさまでした",
     "gameOverBody": "今回のスコア：{score}",
     "newBest": "ベストスコア更新！",
-    "seasonChanged": "季節がめぐって {icon}{season} になりました",
+    "seasonChanged": "次のプレイは {icon}{season} です（季節がめぐります）",
     "retry": "もう一度あそぶ",
-    "toFarm": "はたけを見る"
+    "toFarm": "はたけを見る",
+    "undo": "↩ 一手もどす",
+    "undone": "一手もどしました（1プレイに1回だけ）"
   },
   "farm": {
     "seasonNow": "いまは {season}",
@@ -49,7 +51,12 @@
       "water": "水やり",
       "fertilize": "追肥",
       "harvest": "収穫"
-    }
+    },
+    "growingButton": "育ち中…あと{n}列",
+    "growingHint": "パズルで列を消すと育ちます",
+    "ripened": "{list}が実りました！「はたけ」で収穫しましょう",
+    "nearFull": "水がめ・肥料袋がもうすぐいっぱい。「はたけ」で使いましょう",
+    "full": "いっぱい！"
   },
   "zukan": {
     "title": "やさい図鑑",
@@ -61,5 +68,39 @@
     "unknownText": "まだ収穫していない野菜です。畑で育てて収穫すると登録されます。",
     "newEntryTitle": "図鑑に登録されました！",
     "open": "図鑑を見る"
+  },
+  "hud": {
+    "water": "水",
+    "fertilizer": "肥料",
+    "help": "遊び方・設定",
+    "soundOn": "音：オン",
+    "soundOff": "音：オフ"
+  },
+  "guide": {
+    "title": "遊び方（{n}/{total}）",
+    "skip": "スキップ",
+    "next": "つぎへ",
+    "start": "はじめる",
+    "pages": [
+      {
+        "icon": "🧩",
+        "text": "下のブロックを指（マウス）で盤面へ運んで置きましょう。\n縦か横の一列がそろうと消えます。"
+      },
+      {
+        "icon": "💧🍂",
+        "text": "列を消すと、上のバーの「水」と「肥料」がたまります。\nいっぺんにたくさん消すほど多くもらえます。"
+      },
+      {
+        "icon": "🌱",
+        "text": "たまったら下の「はたけ」へ。\n種まき → 水やり → 追肥 → 育つのを待って収穫。\n収穫した野菜は「図鑑」に載ります。"
+      }
+    ]
+  },
+  "help": {
+    "title": "遊び方・設定",
+    "body": "音や振動はここで切りかえられます。\n（iPhone は振動しません）",
+    "guide": "遊び方をもう一度見る",
+    "vibrateOn": "振動：オン",
+    "vibrateOff": "振動：オフ"
   }
 }

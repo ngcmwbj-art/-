@@ -4,6 +4,7 @@
    - 8×8 の盤面に、3つずつ出てくるブロックをドラッグで置く（回転なし）
    - 縦・横の一列がそろうと消える。複数列・連続で消すとボーナス
    - 手元のブロックがどこにも置けなくなったらゲームオーバー
+   - 1プレイに1回だけ「一手もどす」ができる
    ========================================================= */
 const Puzzle = (() => {
   const SIZE = 8;
@@ -58,9 +59,10 @@ const Puzzle = (() => {
     comboKeepMoves: 3,   // この手数のあいだ消さないとコンボが切れる
   };
 
-  let st = null;       // 盤面の状態 { board, pieces, score, combo, movesSinceClear, over, bestBefore }
+  let st = null;       // 盤面の状態 { board, pieces, score, combo, movesSinceClear, over, bestBefore, undoUsed }
   let data = null;     // 保存データ全体（highScore と puzzle を読み書きする）
-  let hooks = {};      // 外からの呼び出し先 { onSave, onLinesCleared, onGameOver }
+  let hooks = {};      // 外からの呼び出し先 { onSave, onLinesCleared, onGameOver, onStaleOver, onUndo }
+  let undoSnap = null; // 「一手もどす」用に、置く直前の様子を覚えておく（資源・畑も一緒に）
   const els = {};
   let cellEls = [];
   let pitch = 40;      // マス1つ分の間隔（px）
@@ -75,6 +77,8 @@ const Puzzle = (() => {
     els.score = document.getElementById('score');
     els.best = document.getElementById('best');
     els.combo = document.getElementById('combo');
+    els.undo = document.getElementById('undo-btn');
+    els.undo.addEventListener('click', undo);
 
     buildBoard();
     els.slots.forEach((slot, i) => {
@@ -90,6 +94,8 @@ const Puzzle = (() => {
       st = data.puzzle;
       render();
     } else {
+      // ゲームオーバーの画面のまま閉じていた場合も、終わったものとして扱う
+      if (data.puzzle && data.puzzle.over && hooks.onStaleOver) hooks.onStaleOver();
       newGame();
     }
     requestAnimationFrame(measure);
@@ -126,7 +132,9 @@ const Puzzle = (() => {
       movesSinceClear: 0,
       over: false,
       bestBefore: data.highScore,
+      undoUsed: false,
     };
+    undoSnap = null;
     st.pieces = makePieceSet();
     persist();
     render();
@@ -204,6 +212,15 @@ const Puzzle = (() => {
   }
 
   function place(slot, row, col) {
+    // もどせるように、置く前の様子を覚えておく
+    undoSnap = st.undoUsed ? null : JSON.stringify({
+      puzzle: st,
+      resources: data.resources,
+      plots: data.plots,
+      highScore: data.highScore,
+      firstGrowDone: data.firstGrowDone,
+    });
+
     const piece = st.pieces[slot];
     cellsOf(piece).forEach(([dr, dc]) => { st.board[row + dr][col + dc] = piece.color; });
     st.score += cellsOf(piece).length * RULES.pointPerCell;
@@ -224,7 +241,9 @@ const Puzzle = (() => {
       // 農業側へ「何列消したか」を知らせる（資源の文字が返ってくる）
       const extra = hooks.onLinesCleared ? hooks.onLinesCleared({ lines, combo: st.combo }) : '';
       showClearText(cleared, `+${gained}` + (extra ? `  ${extra}` : ''), lines);
+      Sound.play('clear', lines + st.combo - 1);
     } else {
+      Sound.play('place');
       st.movesSinceClear += 1;
       if (st.movesSinceClear >= RULES.comboKeepMoves) st.combo = 0;
     }
@@ -247,6 +266,34 @@ const Puzzle = (() => {
     }
   }
 
+  /* ---------- 一手もどす ---------- */
+  function canUndo() {
+    return !!undoSnap && !st.undoUsed;
+  }
+
+  function undo() {
+    if (!canUndo() || drag) return;
+    const snap = JSON.parse(undoSnap);
+    st = snap.puzzle;
+    st.over = false;
+    st.undoUsed = true;
+    data.resources = snap.resources;
+    data.plots = snap.plots;
+    data.highScore = snap.highScore;
+    data.firstGrowDone = snap.firstGrowDone;
+    undoSnap = null;
+    persist();
+    render();
+    toast(Msg.t('puzzle.undone'));
+    if (hooks.onUndo) hooks.onUndo();
+  }
+
+  // 畑で作業したら、もどせなくする（資源の使い方と食いちがわないように）
+  function clearUndo() {
+    undoSnap = null;
+    if (st) render();
+  }
+
   /* ---------- 表示 ---------- */
   function render(cleared = []) {
     renderBoard(cleared);
@@ -254,6 +301,7 @@ const Puzzle = (() => {
     els.score.textContent = st.score;
     els.best.textContent = data.highScore;
     els.combo.textContent = st.combo >= 2 ? Msg.t('puzzle.combo', { n: st.combo }) : '';
+    els.undo.hidden = !canUndo() || st.over;
   }
 
   function renderBoard(cleared = []) {
@@ -393,5 +441,5 @@ const Puzzle = (() => {
     renderBoard();
   }
 
-  return { init, newGame, measure };
+  return { init, newGame, measure, canUndo, undo, clearUndo };
 })();

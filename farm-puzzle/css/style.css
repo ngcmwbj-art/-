@@ -28,10 +28,10 @@
   --gap: 4px;
 
   /* 盤面の大きさ：画面幅と高さの両方に収まるように */
-  --board-size: clamp(240px, min(92vw, calc((100vh - 190px) / 1.36)), 480px);
+  --board-size: clamp(240px, min(92vw, calc((100vh - 215px) / 1.36)), 480px);
 }
 @supports (height: 100dvh) {
-  :root { --board-size: clamp(240px, min(92vw, calc((100dvh - 190px) / 1.36)), 480px); }
+  :root { --board-size: clamp(240px, min(92vw, calc((100dvh - 215px) / 1.36)), 480px); }
 }
 
 * { box-sizing: border-box; }
@@ -577,3 +577,61 @@ body {
 .new-entry-icon { font-size: 3.4rem; animation: bounce 1.6s ease-in-out infinite; }
 .new-entry-name { font-size: 1.2rem; font-weight: bold; margin-bottom: 4px; }
 .new-entry p { margin: 0; text-align: left; }
+
+/* =========================================================
+   改善会議 第1回で追加した部分
+   ========================================================= */
+/* 上のバー：タイトル行と資源の行 */
+.topbar { flex-wrap: wrap; }
+.title-row { display: flex; align-items: center; gap: 10px; }
+.corner-btns { display: flex; gap: 6px; }
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--sub);
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+.hud-label { font-size: 0.72rem; color: var(--sub); margin: 0 2px; }
+/* 水がめ・肥料袋のゲージ（--fill がたまり具合） */
+.hud-item.gauge { --fill: 0%; }
+.hud-item.gauge.water { background: linear-gradient(to right, #d3ecf6 var(--fill), var(--panel) var(--fill)); }
+.hud-item.gauge.fertilizer { background: linear-gradient(to right, #f1e0c6 var(--fill), var(--panel) var(--fill)); }
+.hud-item.gauge.full { border-color: var(--accent); }
+@media (max-width: 480px) {
+  .title-row { flex: 1 0 100%; justify-content: space-between; }
+  .hud { flex: 1 0 100%; justify-content: space-between; }
+  .icon-btn { width: 36px; height: 36px; }
+}
+
+/* 一手もどす */
+.score-mid { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.mini-btn {
+  min-height: 36px;
+  padding: 4px 12px;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+.mini-btn[hidden] { display: none; }
+
+/* 育ち中の区画 */
+.plot.growing .plot-icon { animation: sway 2.4s ease-in-out infinite; display: inline-block; }
+@keyframes sway {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+
+/* 初回ガイド */
+.guide-icon { font-size: 2.6rem; margin-bottom: 6px; }
+.guide-text { margin: 0; text-align: left; }

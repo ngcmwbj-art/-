@@ -38,9 +38,14 @@ const Msg = (() => {
   // "puzzle.score" のようなドット区切りのキーで文言を取り出す。
   // 文言の中の {name} は vars.name で置き換える
   function t(key, vars = {}) {
-    const raw = key.split('.').reduce((obj, k) => (obj && obj[k] !== undefined ? obj[k] : undefined), dict);
+    const raw = get(key);
     if (typeof raw !== 'string') return key;
     return raw.replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? vars[k] : m));
+  }
+
+  // 文字以外（配列など）をそのまま取り出す
+  function get(key) {
+    return key.split('.').reduce((obj, k) => (obj && obj[k] !== undefined ? obj[k] : undefined), dict);
   }
 
   // HTML の data-msg="キー" の要素に文言を入れる
@@ -50,7 +55,7 @@ const Msg = (() => {
     });
   }
 
-  return { init, t, applyToDom };
+  return { init, t, get, applyToDom };
 })();
 
 /* ---------- ダイアログ ---------- */

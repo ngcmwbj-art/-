@@ -11,11 +11,21 @@
   <div id="app">
     <!-- 上のバー：タイトルと、季節・資源の表示 -->
     <header class="topbar">
-      <h1 class="title" data-msg="title"></h1>
+      <div class="title-row">
+        <h1 class="title" data-msg="title"></h1>
+        <div class="corner-btns">
+          <button id="sound-btn" class="icon-btn" type="button"></button>
+          <button id="help-btn" class="icon-btn" type="button">？</button>
+        </div>
+      </div>
       <div class="hud">
         <span id="hud-season" class="hud-item season"></span>
-        <span class="hud-item"><span id="hud-water-icon"></span><b id="hud-water">0</b></span>
-        <span class="hud-item"><span id="hud-fertilizer-icon"></span><b id="hud-fertilizer">0</b></span>
+        <span id="hud-water-box" class="hud-item gauge water">
+          <span id="hud-water-icon"></span><span class="hud-label" data-msg="hud.water"></span><b id="hud-water">0</b>
+        </span>
+        <span id="hud-fertilizer-box" class="hud-item gauge fertilizer">
+          <span id="hud-fertilizer-icon"></span><span class="hud-label" data-msg="hud.fertilizer"></span><b id="hud-fertilizer">0</b>
+        </span>
         <span class="hud-item"><span id="hud-coin-icon"></span><b id="hud-coins">0</b></span>
       </div>
     </header>
@@ -28,7 +38,10 @@
             <span class="label" data-msg="puzzle.score"></span>
             <span id="score" class="num">0</span>
           </div>
-          <div id="combo" class="combo"></div>
+          <div class="score-mid">
+            <div id="combo" class="combo"></div>
+            <button id="undo-btn" class="mini-btn" type="button" data-msg="puzzle.undo" hidden></button>
+          </div>
           <div class="score-box">
             <span class="label" data-msg="puzzle.best"></span>
             <span id="best" class="num">0</span>
@@ -81,6 +94,8 @@
 
   <script src="js/util.js"></script>
   <script src="js/storage.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/guide.js"></script>
   <script src="js/puzzle.js"></script>
   <script src="js/farm.js"></script>
   <script src="js/zukan.js"></script>

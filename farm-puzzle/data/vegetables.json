@@ -12,6 +12,11 @@
     "multiLineBonus": 0.5,
     "comboBonus": 0.5,
     "seasonBonus": 1.5,
+    "waterMax": 30,
+    "fertilizerMax": 20,
+    "nearFullRate": 0.8,
+    "growLines": 3,
+    "firstGrowLines": 1,
     "startPlots": 2,
     "plotPrices": [30, 60, 100, 150]
   },
