@@ -1,8 +1,9 @@
 // S07 ① 市場「ひゃくえんの まま」（60_ch3_story 10.7、62 4.2、63 12.5、61 9.1）:
 //
-//   ツグミ〔c1_1〕→ 2回目 evt_ch3_ichiba（符丁ノートが ばらばら）→ 切れはし 5枚
+//   ゲンか ツグミに 1回 話すと〔ゲン c1_1・ツグミ c1_1〕→ そのまま evt_ch3_ichiba（符丁ノートが
+//   ばらばら。fix1020c3：前は ツグミに 2回）→ 切れはし 5枚
 //   （市場のあちこち、最低3枚。flag_ch3_fucho_<01..05>, flag_ch3_fucho_n）→ 3枚以上で
-//   ツグミに話すと evt_ch3_seri: 買い手3人の手（符丁）を見て、いちばん高い人に札を
+//   ゲンか ツグミに話すと（セリの輪に入っても）evt_ch3_seri: 買い手3人の手（符丁）を見て、いちばん高い人に札を
 //   上げる ×3（まちがえても進む）。2回目のあと ネフダマヨイ（必須戦）。3回目のあと
 //   ツグミの「はい、売った！」→ 割り箸＝部品①（flag_ch3_ichiba_done, flag_ch3_part_hashi）。
 //
@@ -103,20 +104,29 @@ registerWorldFx({
 
 // ---------------------------------------------------------------- ツグミ・ゲン
 
-function* talkTsugumi(): Co {
+/**
+ * The auction's one way in (fix1020c3, 依頼主「どちらから話しかけても同じ会話、1回で最後まで」):
+ * ゲン or ツグミ, whoever is spoken to first, gives the same talk — ゲン's stopped voice and
+ * ツグミ's 「セリが 終わらんのです」 (the ones not heard yet), then 〔evt_ch3_ichiba〕 straight on.
+ * Spoken to again, either gives the next step (S07_MORE, or the auction with 3 scraps).
+ */
+function* talkSeri(who: 'npc_c3_seri' | 'npc_c3_seri_deshi'): Co {
   if (flag('flag_ch3_ichiba_done')) {
-    yield* say3(T.C2_TALK.npc_c3_seri_deshi);
+    yield* say3(T.C2_TALK[who]);
     return;
   }
   if (!flag('flag_ch3_ichiba_start')) {
+    if (!flag('flag_seen_npc_c3_seri_c1_1')) {
+      pickC3('npc_c3_seri', C3_TALK.npc_c3_seri, 1);
+      yield* say3(C3_TALK.npc_c3_seri.c1_1, 'npc_c3_seri');
+    }
     if (!flag('flag_seen_npc_c3_seri_deshi_c1_1')) {
       pickC3('npc_c3_seri_deshi', C3_TALK.npc_c3_seri_deshi, 1);
       yield* say3(C3_TALK.npc_c3_seri_deshi.c1_1, 'npc_c3_seri_deshi');
-      return;
     }
-    // evt_ch3_ichiba: the second time
-    yield* say3(T.S07_START);
+    // evt_ch3_ichiba: in the same talk
     setFlag('flag_ch3_ichiba_start', 1);
+    yield* say3(T.S07_START);
     return;
   }
   if (fuchoN() < 3) {
@@ -125,18 +135,19 @@ function* talkTsugumi(): Co {
   }
   yield* evtSeri();
 }
-registerScript('npc_c3_seri_deshi', function* (): Co {
-  if (!inCh3()) return;
-  yield* talkTsugumi();
-});
+for (const who of ['npc_c3_seri', 'npc_c3_seri_deshi'] as const)
+  registerScript(who, function* (): Co {
+    // (outside chapter 3 as before: ゲン his words, ツグミ nothing)
+    if (!inCh3()) {
+      if (who === 'npc_c3_seri') yield* (flag('flag_ch3_ichiba_done') ? say3(T.C2_TALK.npc_c3_seri) : talkC3(who));
+      return;
+    }
+    yield* talkSeri(who);
+  });
 registerScript('evt_ch3_ichiba', function* (): Co {
   if (flag('flag_ch3_ichiba_start')) return;
-  yield* say3(T.S07_START);
   setFlag('flag_ch3_ichiba_start', 1);
-});
-registerScript('npc_c3_seri', function* (): Co {
-  if (flag('flag_ch3_ichiba_done')) yield* say3(T.C2_TALK.npc_c3_seri);
-  else yield* talkC3('npc_c3_seri');
+  yield* say3(T.S07_START);
 });
 
 // ---------------------------------------------------------------- evt_ch3_seri (the auction)

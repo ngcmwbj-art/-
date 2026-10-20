@@ -109,13 +109,13 @@ export const CHAIN3: Beat3[] = [
     run: 'c3_qa_bin',
     desc: 'ツガオ便の1便（S10。★6人が着く）',
   },
-  { beat: 'ichiba', steps: [bins], at: ['map_c3_ichiba', 11, 6, 'up'], alt: ['map_umizoi', 10, 24, 'up'], desc: '★市場のセリ場（ツグミに2回話すと S07）' },
+  { beat: 'ichiba', steps: [bins], at: ['map_c3_ichiba', 11, 6, 'up'], alt: ['map_umizoi', 10, 24, 'up'], desc: '★市場のセリ場（ゲンかツグミに1回話すと S07）' },
   {
     beat: 'seri',
     steps: [set('flag_ch3_ichiba_start', 'flag_seen_npc_c3_seri_deshi_c1_1', 'flag_ch3_fucho_01', 'flag_ch3_fucho_02', 'flag_ch3_fucho_04'), val('flag_ch3_fucho_n', 3), keys('item_c3_fucho')],
     at: ['map_c3_ichiba', 11, 5, 'up'],
     alt: ['map_umizoi', 10, 24, 'up'],
-    desc: '切れはし3枚（ツグミに話すとセリ → ネフダマヨイ）',
+    desc: '切れはし3枚（ゲンかツグミに話すとセリ → ネフダマヨイ）',
   },
   {
     beat: 'shokudo',

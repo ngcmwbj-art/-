@@ -91,7 +91,8 @@ function partHere(p: Part, f: FieldScene): boolean {
 }
 
 function ichibaHint(): string {
-  if (!flag('flag_ch3_ichiba_start')) return seen('npc_c3_seri_deshi') ? KH_C3.ichiba.b : KH_C3.ichiba.a;
+  // (fix1020c3: one talk with ゲン or ツグミ starts it, so there is no 「もう いっぺん」 step)
+  if (!flag('flag_ch3_ichiba_start')) return KH_C3.ichiba.a;
   const n = flag('flag_ch3_fucho_n');
   return n < 3 ? KH_C3.ichiba.c(3 - n) : KH_C3.ichiba.d;
 }
@@ -290,9 +291,9 @@ const DEST = new Map<string, Dest>([
   [KH_C3.tomato, [['map_hinoya', { npc: 'npc_obaa' }]]],
   [KH_C3.truck, [['map_town', { npc: 'c3_truck' }]]],
   [KH_C3.truckNap, [['map_town', { npc: 'c3_truck' }]]],
-  [KH_C3.ichiba.a, [['*', { npc: 'npc_c3_seri_deshi' }]]],
-  [KH_C3.ichiba.b, [['*', { npc: 'npc_c3_seri_deshi' }]]],
-  [KH_C3.ichiba.d, [['*', { npc: 'npc_c3_seri_deshi' }]]],
+  // (fix1020c3: ゲン or ツグミ, either starts it — ツグミ first, ゲン if she can't be seen)
+  [KH_C3.ichiba.a, [['*', { npc: 'npc_c3_seri_deshi' }], ['*', { npc: 'npc_c3_seri' }]]],
+  [KH_C3.ichiba.d, [['*', { npc: 'npc_c3_seri_deshi' }], ['*', { npc: 'npc_c3_seri' }]]],
   [KH_C3.shokudo.a, [['*', { npc: 'npc_c3_shokudo' }]]],
   [KH_C3.shokudo.b, [['*', { npc: 'npc_c3_jouren' }]]],
   [KH_C3.shokudo.c, [['*', { npc: 'npc_c3_shokudo' }]]],

@@ -277,6 +277,8 @@ class ShopScene implements Scene {
   private openT = 0;
   private closeT = -1;
   private sel = 0;
+  /** The first card shown when there are more than the panel holds (fix1020c3). */
+  private top = 0;
   private moveT = 999;
   private busy = false;
   private purseT = 999;
@@ -542,7 +544,7 @@ class ShopScene implements Scene {
    * left corner: then the cards start a little higher and close up (and the
    * sign with them) so nothing written is under メニュー.
    */
-  private cardLayout(): { y0: number; pitch: number; signY: number } {
+  private cardLayout(): { y0: number; pitch: number; signY: number; rows: number } {
     const P = PANEL;
     const tight = this.tight();
     const n = Math.max(1, this.goods.length);
@@ -550,16 +552,34 @@ class ShopScene implements Scene {
     let y0 = CARD_Y - (tight ? 2 : 0);
     let pitch = CARD_H + (tight ? 1 : 2);
     let signY = P.y + P.h - SIGN_H - (tight ? 6 : 10);
-    // the cursor's column to the cards' shadows; a raised or jittered card may sit 1px lower
-    const top = buttonsTop(CARD_X - 16, CARD_X + CARD_W + 6, 999) - 1;
+    // the cursor's column to the cards' shadows; a raised or jittered card may sit 1px lower.
+    // (fix1020c3: the panel's own foot too — 6 cards ran past it, under the 説明欄)
+    const top = Math.min(buttonsTop(CARD_X - 16, CARD_X + CARD_W + 6, 999) - 1, P.y + P.h - 2);
     const bottom = stall ? signY + SIGN_H + 2 : y0 + (n - 1) * pitch + CARD_H + 3;
-    if (bottom <= top) return { y0, pitch, signY };
+    if (bottom <= top) return { y0, pitch, signY, rows: n };
     y0 = P.y + 26;
     if (stall) {
       signY = Math.min(signY, top - SIGN_H - 2);
       pitch = Math.max(CARD_H, Math.min(pitch, Math.floor((signY + 1 - y0 - CARD_H - 1) / Math.max(1, n - 1))));
-    } else pitch = Math.max(CARD_H, Math.min(CARD_H + 2, Math.floor((top - 3 - y0 - CARD_H) / Math.max(1, n - 1))));
-    return { y0, pitch, signY };
+      return { y0, pitch, signY, rows: n };
+    }
+    const room = top - 3 - y0 - CARD_H;
+    pitch = Math.max(CARD_H, Math.min(CARD_H + 2, Math.floor(room / Math.max(1, n - 1))));
+    if (y0 + (n - 1) * pitch + CARD_H + 3 <= top) return { y0, pitch, signY, rows: n };
+    // too many cards for the panel: as many as fit, the rest scroll (fix1020c3)
+    const rows = Math.max(1, Math.min(n, Math.floor(room / CARD_H) + 1));
+    pitch = rows > 1 ? Math.max(CARD_H, Math.min(CARD_H + 2, Math.floor(room / (rows - 1)))) : CARD_H;
+    return { y0, pitch, signY, rows };
+  }
+
+  /** The first card shown when the list scrolls (kept so the chosen card is in view). */
+  private scrollTop(rows: number): number {
+    const n = this.goods.length;
+    if (rows >= n) return (this.top = 0);
+    if (this.sel < this.top) this.top = this.sel;
+    if (this.sel >= this.top + rows) this.top = this.sel - rows + 1;
+    this.top = Math.max(0, Math.min(n - rows, this.top));
+    return this.top;
   }
 
   private drawPanel(g: Gfx): void {
@@ -584,10 +604,11 @@ class ShopScene implements Scene {
     // price cards
     const n = this.goods.length;
     if (!n) g.text('きょうは 売りきれ。', CARD_X + 6, CARD_Y + 8, { color: UI.textDim });
-    const { y0, pitch } = this.cardLayout();
+    const { y0, pitch, rows } = this.cardLayout();
+    const top = this.scrollTop(rows);
     this.goods.forEach((id, i) => {
       const it = getItem(id);
-      if (!it) return;
+      if (!it || i < top || i >= top + rows) return;
       const name = this.nameOf(id);
       const hand = !!this.def.hand?.(id);
       const [jx, jy] = JITTER[i % JITTER.length];
@@ -595,7 +616,7 @@ class ShopScene implements Scene {
       const out = this.left(id) <= 0;
       const wob = sel && this.refuseT < 240 ? Math.round(Math.sin(this.refuseT / 24) * 2 * (1 - this.refuseT / 240)) : 0;
       const x = CARD_X + jx + (sel ? 4 : 0) + wob;
-      const y = y0 + i * pitch + jy - (sel ? 1 : 0);
+      const y = y0 + (i - top) * pitch + jy - (sel ? 1 : 0);
       rectA(g, x + 2, y + 2, CARD_W, CARD_H, UI.night, 0.25);
       g.rect(x, y, CARD_W, CARD_H, UI.border);
       g.rect(x + 1, y + 1, CARD_W - 2, CARD_H - 2, hand ? (out ? '#D8D4C8' : '#E8E4D8') : out ? '#E9E4D6' : UI.flipPaper);
@@ -626,6 +647,13 @@ class ShopScene implements Scene {
       } else drawDigits(g, `${this.price(id)}円`, x + CARD_W - 6, y + 7, { color: UI.accent, align: 'right' });
       if (sel && !this.confirm) drawCursor(g, x - 14, y + 1, this.t);
     });
+    // more cards above / below: little ink triangles beside the column (fix1020c3)
+    if (rows < n) {
+      const ax = CARD_X + CARD_W + 10;
+      const bob = Math.floor(this.t / 400) % 2;
+      vArrow(g, ax, y0 + 2 - bob, -1, top > 0);
+      vArrow(g, ax, y0 + (rows - 1) * pitch + CARD_H - 6 + bob, 1, top + rows < n);
+    }
     this.drawChosen(g);
   }
 
@@ -759,6 +787,15 @@ function arrow(g: Gfx, x: number, y: number, dir: number, on: boolean): void {
   for (let i = 0; i < 5; i++) {
     const cx = dir > 0 ? x + i : x + 4 - i;
     g.rect(cx, y + i, 1, 9 - i * 2, col);
+  }
+}
+
+/** Ink triangle (5×3) pointing up (dir < 0) or down; pale when nothing more is that way. */
+function vArrow(g: Gfx, x: number, y: number, dir: number, on: boolean): void {
+  const col = on ? UI.text : '#CFC6AE';
+  for (let i = 0; i < 3; i++) {
+    const ry = dir > 0 ? y + i : y + 2 - i;
+    g.rect(x + i, ry, 5 - i * 2, 1, col);
   }
 }
 
