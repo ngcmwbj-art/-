@@ -9,7 +9,7 @@ import type { ShotDef } from './cut';
 export const C3_SHOTS: Record<string, ShotDef> = {
   // S29 the lunch on the beach (2026-10-20, events/ch3/ending.ts BEACH): low and near over the griddle in
   // the middle, the half ring of people behind; drifting out a little as the scene goes round the beach
-  e3_goza: { lens: { pitch: 29, fov: 24, dist: 18.5, lookN: 0, lift: 0.7 }, to: { pitch: 31, dist: 21 }, drift: 14000 },
+  e3_goza: { lens: { pitch: 30, fov: 24, dist: 17, lookN: 0, lift: 0.7 }, to: { pitch: 31, dist: 18.5 }, drift: 20000 },
   // S30 under the lighthouse: the three on the plinth, close and quiet
   e3_toudai: { lens: { pitch: 28, fov: 22, dist: 20, lookN: 0.4, lift: 0.7 }, to: { pitch: 27, dist: 18.5 }, drift: 12000 },
   // S31 everyone lined up for the photo: wide, a little low
@@ -22,4 +22,18 @@ export const C3_SHOTS: Record<string, ShotDef> = {
   e3_ginza_asa: { lens: { pitch: 33, fov: 24, dist: 22, lookN: 0.3, lift: 0.6 }, to: { pitch: 31, dist: 20.5 }, drift: 9000 },
   // back to the field's camera
   e3_out: { lens: {} },
+  // S25 the last pick-up (events/ch3/shuuka.ts): the quay by the breakwater, low over the truck and the waiting people
+  c3s_quay: { lens: { pitch: 27, fov: 24, dist: 17.5, lookN: 0, lift: 0.7 }, to: { pitch: 26, dist: 16.5 }, drift: 12000 },
+  // the cape: along the coast road with the truck, a little high to see the sea past the guard rail
+  c3s_misaki: { lens: { pitch: 31, fov: 24, dist: 20, lookN: 0, lift: 0.6 }, to: { pitch: 30, dist: 18.5 }, drift: 12000 },
+  // …and closing in on everyone before the old aquarium
+  c3s_misaki_close: { lens: { pitch: 27, fov: 22, dist: 17, lookN: 0, lift: 0.8 } },
+  // S30 the memories (events/ch3/kioku.ts): the deep sea from above, slowly down; the tank face on, low;
+  // the closing day a little wider; the park at night low under the clock tower
+  k3_deep: { lens: { pitch: 46, fov: 24, dist: 17, lookN: 0, lift: 0.2 }, to: { pitch: 40, dist: 14.5 }, drift: 3000 },
+  k3_tank: { lens: { pitch: 18, fov: 24, dist: 15, lookN: 0, lift: 1.6 }, to: { pitch: 16, dist: 13 }, drift: 3400 },
+  k3_close: { lens: { pitch: 22, fov: 26, dist: 17, lookN: 0, lift: 1.4 }, to: { pitch: 20, dist: 15.5 }, drift: 3600 },
+  k3_park: { lens: { pitch: 26, fov: 24, dist: 16, lookN: 0, lift: 0.4 }, to: { pitch: 24, dist: 14.5 }, drift: 3200 },
+  // (the bed has its own camera, hd2d/nidai.ts)
+  c3s_out: { lens: {} },
 };

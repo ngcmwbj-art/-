@@ -21,7 +21,6 @@ import { despawn, setFollowerVisible, spawn, walk } from '../../world/api';
 import type { Actor } from '../../world/actor';
 import { hasMap } from '../../world/maps';
 import { hasChar } from '../../art/chars/registry';
-import { showBubble } from '../../ui/bubble';
 import { uiHud } from '../../ui/hud';
 import * as T from '../../data/text/c3_story4';
 import { F } from '../lib';
@@ -60,9 +59,11 @@ function stageMap(map: string, x: number, y: number, shot: string): void {
   setFollowerVisible(false);
   f.player.visible = false;
   f.syncFollower(true);
+  // (everyone of the map and the party's followers — グソっ君 and たかし wait in the old house)
   for (const a of f.actors)
-    if (a !== f.player && (a.kind === 'npc' || a.kind === 'sym')) {
+    if (a !== f.player && !a.id.startsWith('c3_sk_')) {
       a.visible = false;
+      if (a === f.follower) continue;
       a.solid = false;
       a.data.scripted = true;
     }
@@ -72,6 +73,21 @@ function stageMap(map: string, x: number, y: number, shot: string): void {
 
 function clearScene(): void {
   for (const a of [...F().actors]) if (a.id.startsWith('c3_sk_')) despawn(a.id);
+}
+
+/**
+ * A walk run beside the scene (game.scripts.run) that ends when the walker is taken away too — a cut to
+ * the next shot despawns whoever is still on the way (world/api walk would wait for them for ever and
+ * keep the field from the player).
+ */
+function* stroll(id: string, to: [number, number][], speed: number): Co {
+  const a = F().actorById(id);
+  if (!a) return;
+  a.pathSpeed = speed * 16;
+  a.data.scripted = true;
+  a.path.push(...to.map(([x, y]) => [x * 16 + 8, y * 16 + 16] as [number, number]));
+  yield () => a.path.length === 0 || F().actorById(id) !== a;
+  a.moving = false;
 }
 
 /** A wait the player can hurry by holding Z (×3), as the ending's. */
@@ -127,65 +143,73 @@ function ride(truck: Actor, ids: string[]): Actor[] {
 
 // ---------------------------------------------------------------- ① the quay
 
-/** The people waiting by the breakwater's mats (the quay's sea side, y26, and the root of the breakwater). */
+/**
+ * The people waiting on the quay by the breakwater's mats, east of where the truck stops (x31–37, y24–26: a
+ * checkerboard, nobody behind anybody; the harbour's front there has no boat in the way of the camera).
+ */
 const WAIT: [number, number][] = [
-  [36, 26], [38, 24], [40, 26], [34, 24], [42, 26], [32, 26], [39, 25], [35, 25], [43, 24], [41, 25], [33, 25], [37, 25],
+  [32, 25], [31, 24], [31, 26], [33, 24], [33, 26], [34, 25], [35, 24], [35, 26], [36, 25], [37, 24], [37, 26],
 ];
+/** Where it stops (side on, facing east: the cab at the east end, the bed's back at the west). */
+const QSTOP = 27;
 
 function* quay(people: string[]): Co {
   stageMap('map_umizoi', 30, 25, 'c3s_quay');
-  camAt(35 * 16 + 8, 26 * 16 - 4);
+  // (the quay above the message window: the camera a little south of it)
+  camAt(31 * 16, 26 * 16 + 14);
   const shown = people.slice(0, WAIT.length);
-  const wait = shown.map((id, i) => who(`c3_sk_w_${i}`, WAIT[i][0], WAIT[i][1], i % 3 === 0 ? 'down' : 'right', spriteOf(id)));
+  const wait = shown.map((id, i) => who(`c3_sk_w_${i}`, WAIT[i][0], WAIT[i][1], i % 3 === 0 ? 'left' : 'down', spriteOf(id)));
   playAmbient('amb_c3_umi', { fade: 1.0 });
   playAmbient('amb_c3_minato', { vol: 0.6, fade: 1.0 });
   yield* game.fadeIn(600);
   yield* beat(500);
-  // ツガオ便 comes along the quay from the east, ヒロスケ at the wheel
-  const truck = spawnTruck(TRUCK, 49, 25, 'left', VEH);
+  // ツガオ便 comes along the quay from the west, ヒロスケ at the wheel (the bed emptied)
+  const truck = spawnTruck(TRUCK, 16, 25, 'right', VEH);
   truck.solid = false;
   se('se_keitora_go', { vol: 0.5 });
-  for (const a of wait) a.dir = 'right';
-  yield* walk(TRUCK, [[38, 25]], { speed: 5.5 });
-  yield* walk(TRUCK, [[35, 25]], { speed: 2.4 });
+  for (const a of wait) a.dir = 'left';
+  yield* walk(TRUCK, [[QSTOP - 3, 25]], { speed: 5.0 });
+  yield* walk(TRUCK, [[QSTOP, 25]], { speed: 2.2 });
   truck.moving = false;
   se('se_keitora_stop', { vol: 0.6 });
   yield* beat(400);
-  // ヒロスケ out of the cab (the west end), round to the gate
-  const hiro = who(HIRO, 33, 26, 'right', 'npc_hirosuke');
-  hiro.alpha = 1;
+  // ヒロスケ out of the cab (its east end), facing them
+  const hiro = who(HIRO, QSTOP + 2, 26, 'right', 'npc_hirosuke');
   se('se_door', { vol: 0.4 });
   yield* beat(300);
   yield* say3(T.S25_SHUUKA);
-  // the gate let down (あおり)
-  hiro.tempPose = null;
+  // round to the back, the gate let down (あおり)
+  yield* walk(HIRO, [[QSTOP - 2, 26]], { speed: 3.4, face: 'right' });
+  hiro.dir = 'up';
   se('se_truck_aori', { vol: 0.6 });
   yield 300;
+  hiro.dir = 'right';
   yield* say3(T.S25_ONIGIRI);
-  const shokudo = wait.find((a) => a.spriteId === 'npc_c3_shokudo');
-  if (shokudo) showBubble(shokudo.id, '♪', 700);
-  // one by one up onto the bed at its back (the east end)
+  // one by one along the truck's near side to its back, and up onto the bed
+  let left = wait.length;
   for (const [i, a] of wait.entries()) {
     game.scripts.run(
       (function* (): Co {
-        yield i * 240;
-        yield* walk(a.id, [[a.tileX, 25 + (a.tileY < 25 ? -1 : 1)], [37, 25 + (a.tileY < 25 ? -1 : 1)], [37, 25]], { speed: 3.4 });
+        yield i * 260;
+        yield* stroll(a.id, [[a.tileX, 26], [QSTOP - 1, 26], [QSTOP - 1, 25]], 3.4);
         se('se_step_metal', { vol: 0.3 });
         despawn(a.id);
+        left--;
       })(),
     );
   }
-  yield* beat(Math.min(3600, 600 + wait.length * 240 + 900));
-  yield () => !wait.some((a) => F().actorById(a.id));
+  yield () => left <= 0;
   se('se_truck_aori', { vol: 0.5 });
-  yield* walk(HIRO, [[32, 26], [32, 25]], { speed: 3 });
+  yield* walk(HIRO, [[QSTOP + 2, 26]], { speed: 3.4 });
   despawn(HIRO);
   se('se_door', { vol: 0.4 });
   const riders = ride(truck, people);
-  yield* beat(300);
+  yield* beat(500);
   se('se_keitora_go', { vol: 0.4 });
-  // off east, toward the cape (the camera stays: the truck goes out of the frame)
-  yield* walk(TRUCK, [[30, 25]], { speed: 2.5 });
+  // off east along the quay, out of the town toward the cape (the camera stays; it goes out of the frame)
+  yield* walk(TRUCK, [[QSTOP + 3, 25]], { speed: 2.0 });
+  game.scripts.run(stroll(TRUCK, [[48, 25]], 4.5));
+  yield* beat(800);
   yield* game.fadeOut(500, '#0B0B14');
   for (const a of riders) despawn(a.id);
   despawn(TRUCK);
@@ -209,10 +233,7 @@ function* bed(people: string[]): Co {
   playAmbient('amb_c3_keitora', { vol: 0.6, fade: 0.5 });
   playBgm('bgm_tsugaobin', { fade: 0.6, variant: 'iki' });
   yield* game.fadeIn(500);
-  const nami = F().actors.find((a) => a.id.startsWith('c3_sk_bed_') && a.spriteId === 'npc_c3_shokudo');
-  yield* beat(900);
-  if (nami) showBubble(nami.id, '♪', 900);
-  yield* beat(1700);
+  yield* beat(2600);
   yield* game.fadeOut(500, '#0B0B14');
   clearScene();
   setFlag('flag_c3_nidai_hiro', 0);
@@ -257,11 +278,11 @@ function* cape(people: string[]): Co {
       F().camFollow = truck;
       yield* walk(TRUCK, [[12, STOP[1]]], { speed: 4.2 });
       F().camFollow = null;
-      game.scripts.run(panPx(22 * 16, 14 * 16 - 4, 1800));
+      game.scripts.run(panPx(22 * 16, 14 * 16 + 8, 1800));
       yield* walk(TRUCK, [STOP], { speed: 2.2 });
     } else {
       // the next run: a moment later (out of the black), the truck coming in to the same place
-      camAt(22 * 16, 14 * 16 - 4);
+      camAt(22 * 16, 14 * 16 + 8);
       yield* game.fadeIn(350);
       se('se_keitora_go', { vol: 0.4 });
       yield* walk(TRUCK, [[14, STOP[1]]], { speed: 4.5 });
@@ -273,8 +294,8 @@ function* cape(people: string[]): Co {
     // ヒロスケ down from the cab, round to the back: the gate
     const hiro = who(HIRO, 19, 14, 'left', 'npc_hirosuke');
     se('se_door', { vol: 0.4 });
-    yield* walk(HIRO, [[15, 14], [15, 12]], { speed: 3.2, face: 'right' });
-    hiro.dir = 'down';
+    yield* walk(HIRO, [[14, 14], [14, 13]], { speed: 3.2, face: 'right' });
+    hiro.dir = 'right';
     se('se_truck_aori', { vol: 0.6 });
     yield* beat(first ? 350 : 200);
     // off the bed one by one, each to a place before the old aquarium
@@ -288,19 +309,17 @@ function* cape(people: string[]): Co {
       }
       const [tx, ty] = spots[placed % spots.length] ?? [24, 14];
       placed++;
-      const a = who(`c3_sk_p_${placed}`, 14, 13, 'right', spriteOf(id));
+      const a = who(`c3_sk_p_${placed}`, 15, 14, 'right', spriteOf(id));
       se('se_step_asphalt', { vol: 0.35 });
       walking++;
       const face: Dir = (tx + ty) % 4 === 0 ? 'down' : 'left';
       game.scripts.run(
         (function* (): Co {
-          yield* walk(a.id, [[14, 14], [Math.min(tx, 19), 14], [tx, 14], [tx, ty]], { speed: 3.0, face });
+          yield* stroll(a.id, [[tx, 14], [tx, ty]], 3.0);
           a.dir = face;
           walking--;
         })(),
       );
-      // the first few say who they are with a small bubble (their own sprite is the face)
-      if (first && i === 0) showBubble(a.id, '……着いた！', 900);
       yield* beat(gap);
     }
     yield () => walking <= 0;
@@ -308,7 +327,7 @@ function* cape(people: string[]): Co {
     if (!last) {
       // ヒロスケ back to the cab, the truck off west for the next ones
       se('se_truck_aori', { vol: 0.4 });
-      yield* walk(HIRO, [[15, 14], [19, 14]], { speed: 3.6 });
+      yield* walk(HIRO, [[14, 14], [19, 14]], { speed: 3.6 });
       despawn(HIRO);
       se('se_keitora_go', { vol: 0.4 });
       yield* game.fadeOut(350, '#0B0B14');
@@ -319,8 +338,9 @@ function* cape(people: string[]): Co {
     // the last run: everyone before the old aquarium; the camera closes in on them
     se('se_truck_aori', { vol: 0.5 });
     endingView.shot(F(), 'c3s_misaki_close', 1600);
-    yield* panPx(25 * 16, 14 * 16, 1600);
-    for (const a of F().actors) if (a.id.startsWith('c3_sk_p_')) a.dir = 'up';
+    yield* panPx(25 * 16, 14 * 16 + 4, 1600);
+    // (the front rows look up at the old house; the rest still face the road they came by)
+    for (const a of F().actors) if (a.id.startsWith('c3_sk_p_') && a.tileY <= 13) a.dir = 'up';
     yield* beat(1400);
   }
   stopBgm(1.5);

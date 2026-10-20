@@ -655,6 +655,10 @@ export function shapeOf(id: string, opts: Record<string, unknown>): Shape | null
       return clocktower;
     case 'prop_tsugao_truck':
       return tsugaoTruck;
+    // chapter 3 S29 (art/props/c3_props.ts): the long table and its griddle on the beach — the plate lies at
+    // the table's height (seen from above in the picture), so the two cooks behind it show from the waist up
+    case 'prop_c3_end_yatai':
+      return boxy(8, 14, 0, 80, 10);
     case 'prop_h_edge_saku':
       return opts.side === 'w' || opts.side === 'e' ? edgeFence : null;
     default:

@@ -39,7 +39,8 @@ const OBJECTS: MapObj[] = [
   // the south edge: the rock's step, the deep blue past it (flat, under everything)
   { t: 'prop', prop: 'prop_yd_dan', x: 1, y: 11, opts: { w: 22 } },
   // the buoy's chain, the seaweed, the school of little fish
-  { t: 'prop', prop: 'prop_yd_kusari', x: 12, y: 5 },
+  // (not in グソっ君's memory of the deep sea, S30: events/ch3/kioku.ts flag_c3_kioku)
+  { t: 'prop', prop: 'prop_yd_kusari', x: 12, y: 5, cond: { notFlag: 'flag_c3_kioku' } },
   { t: 'prop', prop: 'prop_c3_umi_mo', x: 5, y: 3, opts: { v: 0 } },
   { t: 'prop', prop: 'prop_c3_umi_mo', x: 6, y: 3, opts: { v: 1 } },
   { t: 'prop', prop: 'prop_c3_umi_mo', x: 18, y: 7, opts: { v: 1 } },

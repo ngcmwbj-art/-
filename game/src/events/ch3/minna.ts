@@ -1,7 +1,7 @@
 // みんなが来る〜決戦〜決着のあと（60_ch3_story 10.25〜10.28、61 14、62 4.8〜4.15、
 // 63 12.19・12.20）:
 //
-//   S25 evt_ch3_minna：S24 のすぐあと（廊下）。館内放送 → 最後の集荷（W の cut_c3_shuuka
+//   S25 evt_ch3_minna：S24 のすぐあと（廊下）。館内放送 → 最後の集荷（2026-10-20 から shuuka.ts の場面。W の cut_c3_shuuka
 //       があればそれ。なければ黒い画面に文）→ 入口の券売所でエゴが入館の打刻（来た人の
 //       数だけ se_dakoku）→ flag_ch3_minna・オートセーブ → 回廊・事務所を自動で（来た人が
 //       1人ずつ横を通って、ひとことの吹き出し）→ ホール。
@@ -39,6 +39,8 @@ import { jumpMap } from './prologue';
 import { KITA } from './azemichi';
 import { hasC3Cut, playC3Cut } from './cuts';
 import { offerFushigiCh3 } from './fushigi';
+import { lastPickup } from './shuuka';
+import { registerDebug } from '../../debug';
 
 // ---------------------------------------------------------------- who came
 
@@ -211,10 +213,17 @@ function* dakokuRun(n: number): Co {
   }
 }
 
-/** The cut of the last pickup (W's cut_c3_shuuka; else on black). */
+/**
+ * The last pickup: on the field (2026-10-20, shuuka.ts — the quay, the bed, the cape; its lines in their
+ * order), else W's still (cut_c3_shuuka), else on black.
+ */
 function* shuuka(): Co {
   yield* fadeTo(500);
   stopBgm(1.0);
+  if (hasMap('map_umizoi') && hasMap('map_c3_misaki')) {
+    yield* lastPickup(crowdIds());
+    return;
+  }
   if (hasC3Cut('cut_c3_shuuka')) {
     yield* playC3Cut('cut_c3_shuuka', { kita: kitaIds(), town: townIds(), ms: 10000 });
     if (game.fadeAlpha < 1) yield* fadeTo(300);
@@ -487,7 +496,7 @@ function* evtAfter(): Co {
   yield* say3(T.S28_B);
   yield 600;
   yield* fadeTo(1200);
-  // the end of the old aquarium: everyone goes to the breakwater
+  // the end of the old aquarium: everyone goes to the beach (S29, ending.ts)
   clearHall();
   holdKn(false);
   if (yk) delete yk.data.scripted;
@@ -528,3 +537,18 @@ export function* qaTaikin(): Co {
 
 void state;
 void grace;
+
+// QA (dev server): S25's last pick-up alone, now (after jump('ch3:ending', true) and flag('flag_ch3_stage', 3))
+if (import.meta.env.DEV)
+  registerDebug('c3shuuka', () => {
+    F().startScript(
+      (function* (): Co {
+        game.fadeColor = '#0B0B14';
+        yield* game.fadeOut(200, '#0B0B14');
+        yield* lastPickup(crowdIds());
+        if (hasMap('map_c3_aq_iriguchi')) jumpMap('map_c3_aq_iriguchi', 12, 4, 'down');
+        yield* game.fadeIn(300);
+      })(),
+    );
+    return crowdIds().length;
+  });

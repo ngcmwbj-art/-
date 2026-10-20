@@ -101,7 +101,18 @@ function vehicleGeometry(id: string, view: VehicleView): THREE.BufferGeometry {
     const D = vehicleDepth(view);
     const at = (c0: number, r0: number, zf: number) => ({ x0: (c0 - pic.width / 2) * PX, yTop: (pic.height - 1 - r0) * PX * SV, sy: PX * SV, zf });
     const side = view === 'left' || view === 'right';
-    if (side && id.startsWith('tsugao_truck')) {
+    if (side && id === 'tsugao_truck_hiro') {
+      // S25 (events/ch3/shuuka.ts): the bed emptied for the people riding in it — its gates two thin walls
+      // (the near one and the far one) over the chassis, open on top, so the riders show over the near gate
+      const right = view === 'right';
+      const W = pic.width;
+      const [l0, l1] = right ? [0, 37] : [W - 37, W];
+      const [c0, c1] = right ? [37, W] : [0, W - 37];
+      extrude(q, m, c0, 0, c1, pic.height, at(c0, 0, 0), D, uv);
+      extrude(q, m, l0, 21, l1, pic.height, at(l0, 21, 0), D, uv);
+      extrude(q, m, l0, 13, l1, 21, at(l0, 13, 0), 2 * PX, uv);
+      extrude(q, m, l0, 13, l1, 21, at(l0, 13, -(D - 2 * PX)), 2 * PX, uv);
+    } else if (side && id.startsWith('tsugao_truck')) {
       // ツガオ便 (art/props/vehicles.ts tsugaoSide, facing right): the load of
       // crates (columns 0–36, rows 0–12) in three rows across the bed with a
       // px between them, so its top reads as crates, not as long bars; the

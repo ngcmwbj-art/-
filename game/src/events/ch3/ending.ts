@@ -1,7 +1,7 @@
 // evt_ch3_ending（60_ch3_story 10.29・10.30、61 21.2、62 5.3・5.4・12.6〜12.9、63 12.21〜12.24）:
 // 約4分30秒、そのあと「おわり」とタイトル。第3章（シリーズ）の終わり。
 //
-//   カット1 S29 防波堤の昼ごはん（map_umizoi、段階4 の午後）：たかしの鉄板、グソっ君が返す、
+//   カット1 S29 砂浜の昼ごはん（map_umizoi の海水浴場、段階4 の午後。2026-10-20 防波堤から移した）：たかしの鉄板、グソっ君が返す、
 //          「……いただきます。」→ 焼きそばの3回目。カット1b みんなの昼ごはん（吹き出し）。
 //          ヤキソバンは ここで隊列を外れる（removeYakisoban・flag_ch3_yk_left）。
 //   カット2 S30 真相（灯台の台座。ツガオ・グソっ君・しゅんだけ。BGM なし）。
@@ -44,6 +44,7 @@ import { hasC3Cut, playC3Cut } from './cuts';
 import { markClearCh3 } from '../../ui/clear_ch3';
 import { fxAt, registerWorldFx } from '../../world/fx';
 import { camAt, camRelease, panPx } from './stagecam';
+import { canKioku, playKiokuField } from './kioku';
 import { registerDebug } from '../../debug';
 import { playEndingNotebookCh3 } from '../../ui/ending_ch3';
 
@@ -189,6 +190,8 @@ function placeBeach(): void {
   for (const [id, x, y, d, spr, p] of BEACH_FIXED) {
     const a = put(id, x, y, d, spr, p);
     if (id === 'npc_c3_kanshiin') a.oy = -18;
+    // (the two cooks a step back from the table's back edge: from the waist up over the plate)
+    if (id === 'npc_maruyama' || id === 'kanenari') a.y -= 4;
   }
   const others = [...TOWN.filter((id) => !BEACH_FIXED.some((f) => f[0] === id)), ...kitaIds()];
   others.forEach((id, i) => {
@@ -210,9 +213,9 @@ registerWorldFx({
     }
     steamNext -= dt;
     if (steamNext <= 0) {
-      steamNext = 140 + Math.random() * 120;
+      steamNext = 90 + Math.random() * 90;
       const smell = Math.random() < 0.12;
-      steam.push({ x: BEACH.yatai[0] * 16 - 26 + Math.random() * 52, h: 18, t: 0, life: smell ? 2600 : 1900 + Math.random() * 700, kind: smell ? 1 : 0 });
+      steam.push({ x: BEACH.yatai[0] * 16 - 26 + Math.random() * 52, h: 12, t: 0, life: smell ? 2600 : 1900 + Math.random() * 700, kind: smell ? 1 : 0 });
     }
     for (const s of steam) {
       s.t += dt;
@@ -224,7 +227,7 @@ registerWorldFx({
   },
   draw(f, g, cx, cy, layer) {
     if (layer !== 'top' || !steam.length) return;
-    const foot = BEACH.yatai[1] * 16 + 12;
+    const foot = BEACH.yatai[1] * 16 + 10;
     for (const s of steam) {
       const k = s.t / s.life;
       const a = Math.sin(Math.PI * Math.min(1, k * 1.4)) * (1 - k);
@@ -232,9 +235,12 @@ registerWorldFx({
       const [x, y] = fxAt(f, s.x + wob, foot - s.h, cx, cy, foot);
       if (s.kind === 0) {
         // a soft puff: a few px growing wider as it rises
-        const r = 1 + Math.floor(k * 3);
-        g.rect(Math.round(x) - r, Math.round(y), r * 2, 1, '#FFFFFF', 0.42 * a);
-        g.rect(Math.round(x) - r + 1, Math.round(y) - 1, r * 2 - 2, 1, '#FFFFFF', 0.3 * a);
+        const r = 1 + Math.floor(k * 4);
+        const sx = Math.round(x);
+        const sy = Math.round(y);
+        g.rect(sx - r, sy, r * 2, 1, '#FFFFFF', 0.55 * a);
+        g.rect(sx - r + 1, sy - 1, r * 2 - 2, 1, '#FFFFFF', 0.45 * a);
+        if (r > 2) g.rect(sx - r + 1, sy + 1, r * 2 - 2, 1, '#F4F1E8', 0.3 * a);
       } else {
         // the sauce's smell: a brown wavy line drifting up (as the 2D's cartoons draw a smell)
         for (let i = 0; i < 7; i++) g.rect(Math.round(x) + i - 3, Math.round(y + Math.sin(i * 1.1 + s.t / 200) * 1.5), 1, 1, '#B8864A', 0.75 * a);
@@ -250,7 +256,7 @@ function* cut1Lunch(): Co {
   const p = F().player;
   p.dir = 'right';
   // (the griddle in the middle, a little low on the screen, clear of the message window)
-  camAt(BEACH.yatai[0] * 16, BEACH.yatai[1] * 16 + 4);
+  camAt(BEACH.yatai[0] * 16, BEACH.yatai[1] * 16 + 14);
   playAmbient('amb_c3_umi', { fade: 1.5 });
   playAmbient('amb_c3_kaisui', { vol: 0.6, fade: 1.5 });
   setClockText('13:00', { cut: true });
@@ -296,7 +302,7 @@ function* cut1Lunch(): Co {
     const aid = `e3_${id}`;
     const a = F().actorById(aid);
     if (!a) continue;
-    game.scripts.run(panPx(Math.max(BEACH.yatai[0] * 16 - 64, Math.min(BEACH.yatai[0] * 16 + 64, a.x)), BEACH.yatai[1] * 16 + 4, 900));
+    game.scripts.run(panPx(Math.max(BEACH.yatai[0] * 16 - 64, Math.min(BEACH.yatai[0] * 16 + 64, a.x)), BEACH.yatai[1] * 16 + 14, 900));
     const { showBubble } = (yield import('../../ui/bubble')) as typeof import('../../ui/bubble');
     showBubble(aid, line, 1800);
     if (id === 'npc_hirosuke') se('se_yakiimo', { vol: 0.5 });
@@ -309,11 +315,11 @@ function* cut1Lunch(): Co {
   poseOf('npc_pokosha', null);
   poseOf('npc_c3_uketsuke', null);
   // back to the griddle
-  yield* panPx(BEACH.yatai[0] * 16, BEACH.yatai[1] * 16 + 4, 1000);
+  yield* panPx(BEACH.yatai[0] * 16, BEACH.yatai[1] * 16 + 14, 1000);
   yield* say3(T.S29_B);
   // ツガオ, at the end of the mat, eating たかし's yakisoba without a word
   poseOf('npc_tsugao', 'eat');
-  game.scripts.run(panPx(BEACH.yatai[0] * 16 + 56, BEACH.yatai[1] * 16 + 4, 1400));
+  game.scripts.run(panPx(BEACH.yatai[0] * 16 + 56, BEACH.yatai[1] * 16 + 14, 1400));
   yield* say3(T.S29_TSUGAO);
   yield* beat(800);
   stopBgm(3.0);
@@ -366,7 +372,23 @@ class MemoryScene implements Scene {
   }
 }
 
+/**
+ * The memories (2026-10-20 依頼主「フラッシュバックがクオリティ低過ぎるから、ちゃんと作り直して」): on the field —
+ * the deep sea, the tank, the closing day, the park at night (kioku.ts) — and back to the plinth as it was;
+ * else W's stills (cut_c3_kioku), else three tinted frames.
+ */
 function* memories(): Co {
+  if (canKioku()) {
+    yield* playKiokuField(() => {
+      cutTo('map_umizoi', 6, 30, { show: true, dir: 'right', shot: 'e3_toudai' });
+      put('npc_tsugao', 8, 30, 'down', 'npc_tsugao_shirt', 'cap_chest');
+      put('kanenari', 7, 30, 'right', 'kanenari');
+      F().player.dir = 'right';
+      playAmbient('amb_c3_umi', { fade: 0.8 });
+      playAmbient('amb_c3_bouhatei', { vol: 0.5, fade: 0.8 });
+    });
+    return;
+  }
   if (yield* playC3Cut('cut_c3_kioku', { ms: 2400 })) return;
   const under = fnOf(audio, 'setUnderwater');
   for (let i = 0; i < 3; i++) {
