@@ -1,6 +1,6 @@
 """Build standalone pages for GitHub Pages: python3 gusoku/site.py <out_dir>"""
 import sys,os
-here=os.path.dirname(os.path.abspath(__file__));out=sys.argv[1];os.makedirs(out,exist_ok=True)
+here=os.path.dirname(os.path.dirname(os.path.abspath(__file__)));out=sys.argv[1];os.makedirs(out,exist_ok=True)
 HEAD='''<!doctype html>
 <html lang="ja">
 <head>
