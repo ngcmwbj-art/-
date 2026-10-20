@@ -21,7 +21,7 @@ import { startUgokidasu } from '../../world/c3sea';
 import { SPEAKERS } from '../../world/msg';
 import { KITA } from './azemichi';
 import { despawn, registerScript, setFollowerVisible, spawn, walk } from '../../world/api';
-import { getScript } from '../../world/scripts';
+import { getScript, type ScriptCtx } from '../../world/scripts';
 import { hasMap } from '../../world/maps';
 import type { MapObj } from '../../world/types';
 import type { Actor } from '../../world/actor';
@@ -30,7 +30,9 @@ import { showBubble } from '../../ui/bubble';
 import { setClockText, showClock } from '../../ui/hud';
 import * as T from '../../data/text/c3_story2';
 import { C3_OBJ } from '../../data/text/c3_events';
-import { F, grace, panBack, panTo, stepBack } from '../lib';
+import { F, grace, panBack, panTo } from '../lib';
+import { registerWorldFx } from '../../world/fx';
+import type { FieldScene } from '../../world/field';
 import { ambEvent, hankoLearn, musicParam, se } from '../ch2/compat';
 import { addToMap, c3Battle, inCh3, kita, kitaSay, say3 } from './common';
 import { jumpMap, spawnTruck } from './prologue';
@@ -283,14 +285,45 @@ export function* gochisouTown(): Co {
 
 // ---------------------------------------------------------------- S14 evt_ch3_truck_trap
 
-registerScript('trig_ch3_truck_trap', function* (): Co {
-  if (!flag('flag_ch3_got_gochisou') || flag('flag_ch3_truck_trap')) return;
+/**
+ * fix1020c3（依頼主「もう 少し 回る を選ぶと、上へ 行けなくなる」）: the ring (x42–51, y24–26) is the
+ * quay's whole width there — the way east, and the only way up from the south steps (x44–45). The old
+ * 「もう 少し 回る」 stepped しゅん back out of it, so going on asked again and pushed back again. Now
+ * he stays where he is and walks on freely; the question waits till he has gone a little way off
+ * (TRAP_AWAY tiles from the truck) or left the map, and comes again when he walks back to it.
+ */
+let trapDeclined = false;
+const TRAP_AWAY = 7;
+const TRAP_AT = { x: 47, y: 25 };
+function* askTrap(): Co {
   const i = yield* say3(T.S14_CONFIRM);
   if (i !== 0) {
-    stepBack();
+    trapDeclined = true;
     return;
   }
+  trapDeclined = false;
   yield* truckTrap();
+}
+registerScript('trig_ch3_truck_trap', function* (): Co {
+  if (!flag('flag_ch3_got_gochisou') || flag('flag_ch3_truck_trap') || trapDeclined) return;
+  yield* askTrap();
+});
+// (and spoken to, the parked truck asks the same at once: no need to walk off and back to go on)
+registerScript('c3_truck_quay', function* (ctx: ScriptCtx): Co {
+  if (!flag('flag_ch3_got_gochisou') || flag('flag_ch3_truck_trap')) {
+    yield* ctx.runDefault();
+    return;
+  }
+  yield* askTrap();
+});
+registerWorldFx({
+  // every map: on another map (or far enough off on the quay) the question comes again next time
+  map: '',
+  update(f: FieldScene) {
+    if (!trapDeclined) return;
+    const p = f.player;
+    if (f.map.id !== 'map_umizoi' || Math.max(Math.abs(p.tileX - TRAP_AT.x), Math.abs(p.tileY - TRAP_AT.y)) > TRAP_AWAY) trapDeclined = false;
+  },
 });
 registerScript('evt_ch3_truck_trap', function* (): Co {
   if (flag('flag_ch3_got_gochisou') && !flag('flag_ch3_truck_trap')) yield* truckTrap();
