@@ -4,7 +4,7 @@
 
 共通の方針は上の AGENTS.md です。ここには Claude Code だけの道具を書きます。
 
-- Skills（すべて依頼主が明示して始める）：`/project-work`、`/project-check`、`/game-dev`、`/video-produce`、`/note-write`（.claude/skills/）
+- Skills（すべて依頼主が明示して始める）：`/project-work`、`/project-check`、`/game-dev`、`/video-produce`、`/note-write`、`/kaizen-kaigi`（毎日の改善会議。毎朝の定期実行でも使う）（.claude/skills/）
 - 確認役：サブエージェント `project-reviewer`（読むだけ。Read・Grep・Glob）。合格条件・差分・元資料を渡して点検させる。
 - 用途別のルール：.claude/rules/（game・video・note。paths で対象を限定）
 - Stop Hook：.claude/hooks/check_setup.py（このフォルダの AI 用設定ファイルだけを検査する）
