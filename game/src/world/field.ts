@@ -593,6 +593,10 @@ export class FieldScene implements Scene {
       }
       f.dir = p.dir;
       f.moving = false;
+      // fix1020c3（依頼主「水族館に入ってすぐ グソっ君が 右下へ 歩いて どこかへ」）: a step aside begun on
+      // the last map (stepAside: its path is in that map's px) is dropped, or he walks on to it here
+      f.path = [];
+      f.data.aside = undefined;
       this.trail = [];
       // seed the trail so the follower walks from where it stands
       for (let i = 0; i <= FOLLOW_DELAY; i++) {

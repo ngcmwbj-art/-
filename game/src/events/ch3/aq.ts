@@ -357,7 +357,8 @@ registerScript('obj_c3_diorama_mafiya', function* (): Co {
   setFlag('flag_ch3_diorama_done', 1);
   // he steps aside from the black curtain and goes on ahead (60: 奥の扉の前からどく)
   if (hiro) {
-    yield* walk('npc_hirosuke', [[5, 7], [5, 3], [22, 3]], { speed: 2.8, face: 'right' });
+    // (fix1020c3: round 夕鳴町's model (3–7,4–6) by the aisle x9 — x5 went through its case)
+    yield* walk('npc_hirosuke', [[5, 7], [9, 7], [9, 3], [22, 3]], { speed: 2.8, face: 'right' });
     hiro.visible = false;
     delete hiro.data.scripted;
   }
