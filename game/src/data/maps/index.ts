@@ -46,3 +46,5 @@ import './c3_rooms2';
 import './c3_umi_oki';
 // 第3期：旧水族館（入口・回廊・ジオラマ・深海・えさ・ホール・倉庫・廊下・事務所）
 import './c3_aq';
+// 旧水族館の 屋上（入口の 西の 壁の 戸から。掃除は 上から、03_ch3_index）
+import './c3_aq_okujou';

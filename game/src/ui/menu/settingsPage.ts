@@ -11,14 +11,15 @@ import { makeCanvas } from '../../engine/pixel';
 import { hash2 } from '../../engine/rng';
 import { charWidth } from '../../engine/font';
 import { sfx, setVolume } from '../../audio';
-import { saveSettings, settings, SPEED_LABELS, syncSettingFlags, textSpeedMul, WIDE_LABELS } from '../settings';
+import { MARK_LABELS, saveSettings, settings, SPEED_LABELS, syncSettingFlags, textSpeedMul, WIDE_LABELS } from '../settings';
 import { drawDigits } from '../digits';
 import { cursorImg, dottedLine, drawCursor, drawMarker, drawTape, textW, UI } from '../window';
 import { buttonsTop } from '../../engine/safezones';
 import { clearLeft, clearRight, drawHeader, LP, SP } from './notebook';
 import type { MenuCtx, MenuPage } from './types';
 
-const LABELS = ['おんがく', 'こうかおん', '文字の はやさ', 'ツッコミ判定'];
+// しるし（あり・なし）：調べられる物の きらりと、ヒントの行き先の「！」（改善会議 2026-10-20、world/marks.ts）
+const LABELS = ['おんがく', 'こうかおん', '文字の はやさ', 'ツッコミ判定', 'しるし'];
 const ROW_Y = SP.y + 32;
 const ROW_H = 28;
 /** The note at the bottom of the spread (its first line; a dotted line 5px above it). */
@@ -138,6 +139,13 @@ export class SettingsPage implements MenuPage {
       this.sampleT = 0;
       this.knobT = 0;
       sfx('se_stamp_light');
+    } else if (this.row === 4) {
+      // tapes: あり (left) / なし (right)
+      const v = wrap ? !settings.marks : d < 0;
+      if (v === settings.marks && !wrap) return;
+      settings.marks = v;
+      this.knobT = 0;
+      sfx('se_stamp_light');
     } else {
       const v = wrap ? !settings.wide : d > 0;
       if (v === settings.wide && !wrap) return;
@@ -161,7 +169,8 @@ export class SettingsPage implements MenuPage {
       if (sel) drawCursor(g, SP.x + 1 + dx, y, m.t);
       if (i <= 1) this.drawRuler(g, y, i === 0 ? settings.bgm : settings.se, sel, m.t);
       else if (i === 2) this.drawTapes(g, y, SPEED_LABELS, settings.speed, sel);
-      else this.drawTapes(g, y, WIDE_LABELS, settings.wide ? 1 : 0, sel);
+      else if (i === 3) this.drawTapes(g, y, WIDE_LABELS, settings.wide ? 1 : 0, sel);
+      else this.drawTapes(g, y, MARK_LABELS, settings.marks ? 0 : 1, sel);
     });
     // the note at the bottom of the spread
     const ny = NOTE_Y;
@@ -172,6 +181,9 @@ export class SettingsPage implements MenuPage {
     else if (row === 3) {
       g.text('ふつう：いつもの 間。', nx, ny, { color: settings.wide ? UI.textDim : UI.pencil });
       g.text('ひろい：受付が 2倍。', nx, ny + 17, { color: settings.wide ? UI.pencil : UI.textDim });
+    } else if (row === 4) {
+      g.text('調べられる 物と、', nx, ny, { color: UI.pencil });
+      g.text('行き先の 上に「！」を 出す。', nx, ny + 17, { color: UI.pencil });
     } else if (row === 0 || row === 1) g.text('0 に すると、音が 消える。', nx, ny, { color: UI.pencil });
     else g.text('せっていは すぐに 保存される。', nx, ny, { color: UI.pencil });
   }

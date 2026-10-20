@@ -58,6 +58,7 @@ import { CasterSet, CutoutView, PropBatch, ShadowSet, SV, type Box, type CasterS
 import { NUDGE, SOLID, solidOf } from './tune';
 import { box, canvas, litMaterial, pixelTexture, PX, Quads, solidFace, type Face, type V3 } from './solid';
 import { recording, type Solid } from './overlap';
+import type { Hides } from './seethru';
 import { ALOFT, HANG, LIE, ROOM_SOLID, ROOM_TUNE, type HangBand } from './room_tune';
 import { HoshiLight } from './room_hoshi';
 
@@ -147,6 +148,8 @@ export const ROOM_MAPS = new Set([
   'map_c3_siren',
   'map_c3_toudai',
   'map_c3_uminoie',
+  // 旧水族館の 屋上（掃除は 上から、03_ch3_index）：サイレン塔の 上と 同じ 作り
+  'map_c3_aq_okujou',
   // the third part (62 4.8〜4.17): the old aquarium's rooms
   ...AQ_ROOMS,
 ]);
@@ -1443,7 +1446,7 @@ export class RoomWorld {
     this.hoshi?.tintAt(x, z, out);
   }
 
-  update(t: number, sunYaw: number, _sunDir: THREE.Vector3, lit: number, _tx: number, _tz: number, hides: (r: [number, number, number, number, number]) => boolean): void {
+  update(t: number, sunYaw: number, _sunDir: THREE.Vector3, lit: number, _tx: number, _tz: number, hides: Hides): void {
     const f = this.f;
     let t0 = performance.now();
     const lap = (k: string) => {

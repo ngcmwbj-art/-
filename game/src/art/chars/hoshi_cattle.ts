@@ -216,6 +216,8 @@ function cowArt(pose: CowPose, opts: Record<string, unknown>): PropArt {
   const sync = !!opts.sync;
   const reach = String(opts.reach ?? '');
   const seed = Number(opts.n ?? 0) * 0.37 + phase;
+  // 前から 寝る（02_ch2_index、events/ch2/neru.ts）：南4の 3頭は 夜明けに ゆっくり（うしろから 立つのが 見えるように）
+  const riseStep = Number(opts.riseMs ?? 220);
   const [w, h] = SIZE[pose];
   // the dawn: a lying cow gets up once, hind end first, a moment after the
   // morning shows (each cow on its own beat)
@@ -234,7 +236,7 @@ function cowArt(pose: CowPose, opts: Record<string, unknown>): PropArt {
       if (stillNight(env)) riseAt = -1;
       else if (riseAt < 0) riseAt = t + 500 + ((seed * 1000) % 1400);
       if (riseAt >= 0 && t >= riseAt) {
-        const k = Math.floor((t - riseAt) / 220);
+        const k = Math.floor((t - riseAt) / riseStep);
         if (k === 0) return [pose, 'base'];
         if (k === 1) return ['rise', 'r1'];
         if (k === 2) return ['rise', 'r2'];

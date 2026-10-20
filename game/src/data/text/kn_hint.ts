@@ -16,6 +16,14 @@ import { fillNames } from './c3_names';
 
 const kn = (t: string): string => `@npc_kanenari\n${t}`;
 
+/**
+ * 最初に1回だけ（改善会議 2026-10-20 の 1）：ヒントが聞けるように なったところで
+ * （第1章 迷子のお知らせのあと、第2章 星見台に着いたあと、第3章 子どもたちのあと。どれか最初の1回）。
+ */
+export const KH_TOLD = kn(`迷ったら、わいに 聞いてや。
+{w=300}次の 行き先、
+教えたるで。`);
+
 /** 話しかけたときの1ページと選択。0 = ヒント、1 = おしゃべり（今までの台詞）。 */
 export const KH_ASK = kn(`どないした、しゅん？
 ? 次、どうする？ | おしゃべり`);
@@ -247,6 +255,7 @@ export function knHintTexts(): Record<string, unknown> {
     typeof v === 'string' ? fillNames(v) : Array.isArray(v) ? v.map(fill) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fill(x)])) : v;
   return fill({
     ask: KH_ASK,
+    told: KH_TOLD,
     c1: KH_C1,
     c2: KH_C2,
     c3: {

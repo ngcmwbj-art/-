@@ -153,6 +153,15 @@ const C3_AUDIO: Record<string, C3Audio> = {
     ambVol: { amb_c3_umi: { vol: 0.25, lp: 900 } },
     phase: 2,
   },
+  // 旧水族館の 屋上（掃除は 上から、03_ch3_index）：歌は なし。外の 海と 鳥（12:01 の 町）、風
+  map_c3_aq_okujou: {
+    space: 'outdoor',
+    pa: 'kannai',
+    bgm: { 3: null },
+    amb: { 3: ['amb_c3_umi', 'amb_c3_tori'] },
+    ambVol: { amb_c3_umi: { vol: 0.6 }, amb_c3_tori: { vol: 0.5 } },
+    phase: 2,
+  },
   // the feed store (S21–S23): no song; the events run the night and ヤキソバン
   map_c3_aq_souko: { space: 'soko', pa: 'kannai', bgm: { 3: null }, amb: { 3: ['amb_c3_aq_souko'] }, phase: 2 },
   // the corridor outside the store: the events stop the song before S24 (12.18)

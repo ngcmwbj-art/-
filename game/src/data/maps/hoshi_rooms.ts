@@ -189,7 +189,7 @@ const BARN_ROWS = [
   '#..o#pppppppppppppppo#', // 4
   '#...#SSSSSSSSSSSSSSSo#', // 5
   '#o...................#', // 6
-  '#...#SSSSSSSSSSSSSSSo#', // 7
+  '#o..#SSSSSSSSSSSSSSSo#', // 7  (1,7) 給餌車の 横の フォークと ネコ車（前から 寝る、events/ch2/neru.ts）
   '#...#pppppppppppppppo#', // 8
   '#...#pppppppppppppppo#', // 9
   '#...#pppppppppppppppo#', // 10

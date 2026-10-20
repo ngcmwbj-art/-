@@ -67,6 +67,9 @@ import { SH_TEXTS, SH_TEXTS_S19 } from '../../data/text/c3_shita';
 import { MH_TEXTS } from '../../data/text/c3_mahiru';
 import { AB_TEXTS } from '../../data/text/c3_abura';
 import { YD_TEXTS } from '../../data/text/c3_yose';
+import { OJ_TEXTS } from '../../data/text/c3_okujou';
+import { NR_TEXTS } from '../../data/text/hoshi_neru';
+import { HM_TEXTS } from '../../data/text/hoshi_himo';
 import { HUNTING_TEXTS } from '../../data/text/hunting';
 import { KOTEI_TEXTS } from '../../data/text/kotei';
 import { TOKEI_TEXTS } from '../../data/text/tokei7';
@@ -519,6 +522,10 @@ function collectTexts(): [string, string][] {
   walk('yuwaka', YW_TEXTS);
   // げむきか10/19の案5（2枚の うず。02_ch2_index #108）
   walk('uzu', UZ_TEXTS);
+  // げむきか10/20の案4（前から 寝る。02_ch2_index）
+  walk('neru', NR_TEXTS);
+  // げむきか10/20の案5（紐の 番。案の 題は 鍵は ポケットに。02_ch2_index）
+  walk('himo', HM_TEXTS);
   // げむきか10/5の新5（ハンチングの 値札。第1章の くりこ〔chichi〕も。10 6.8, 50 3.8・9.9, 02_ch2_index #83）
   walk('hunting', HUNTING_TEXTS);
   // げむきか10/5の新1（二人十五脚。第1章の ピー・コック・なんばるわん・校庭。10 6.12・6.23・7.24, 02_ch2_index #82）
@@ -549,6 +556,8 @@ function collectTexts(): [string, string][] {
   walk('c3Abura', AB_TEXTS);
   // げむきか10/19の案1（海の 水で 寄せる。第3章の クリア前、03_ch3_index 28）
   walk('c3Yose', YD_TEXTS);
+  // げむきか10/20の案3（掃除は 上から。第3章の クリア前、03_ch3_index）
+  walk('c3Okujou', OJ_TEXTS);
   walk('pg', pgTexts());
   walk('pgRows', pgRowTexts());
   walk('pgTalk', pgTalkTexts());

@@ -263,6 +263,9 @@ export function placeKey(f: FieldScene): string {
 // ---- objects -----------------------------------------------------------------------
 
 export function* interactObject(f: FieldScene, o: ExamineObj): Co {
+  // 調べた記録（しるしの きらりが消える、world/marks.ts）。flag_seen_<id> は物ごとに意味が ちがうので
+  // 別の名前。flag_seen_ で始めるのは、話の進みの記録（hokokusho storySnap など）に数えさせないため
+  if (!flag('flag_seen_look_' + o.id)) setFlag('flag_seen_look_' + o.id, 1);
   const runDefault = function* (): Co {
     yield* objectDefault(f, o);
   };

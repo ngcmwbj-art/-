@@ -15,6 +15,8 @@ import { pgLight, pgShadowVec } from '../world/postgame';
 import { H, W } from '../engine/screen';
 import type { Actor } from '../world/actor';
 import type { FieldScene } from '../world/field';
+import type { NpcObj } from '../world/types';
+import type { Hidden, Hides } from './seethru';
 import { ActorViews } from './actors';
 import { Post, type Quality } from './post';
 import { recording, type Solid } from './overlap';
@@ -495,9 +497,10 @@ export class Hd2dView {
     const lit = f.map.def.kind === 'indoor' ? 1 : Math.max(0, Math.min(1, f.grade.lit));
     // (the roof's far sky: hung where this lower camera looks past the fence, its middle at row 64)
     if (world instanceof TownWorld) world.skyY = c.position.y - Math.tan(axis + below(64)) * (c.position.z - (at.z - SKY_AT.d));
-    world.update(f.t, sunYaw, this.sunDir, lit, at.x, at.z, () => false);
+    world.update(f.t, sunYaw, this.sunDir, lit, at.x, at.z, () => 0);
     if (world instanceof TownWorld) world.skyY = null;
     for (const cu of world.cutouts) cu.opaque();
+    if (world instanceof TownWorld) for (const b of world.buildings) b.opaque();
     this.placeLamps(world, at, lit);
     this.renderer.shadowMap.autoUpdate = this.sun.intensity > 0.001 || !this.sun.shadow.map;
     if (nightMul(f, at.x, at.z, SV, this.scene.fog)) patchNight(this.scene);
@@ -584,19 +587,21 @@ export class Hd2dView {
   }
 
   /**
-   * A test for standing rects (x0, x1, bottom, top, z in units): does it
-   * stand in front of Minato or the follower and cover a fair part of them
-   * on screen?
+   * A test for standing rects (x0, x1, bottom, top, z in units; and the back
+   * z of a deep one, a building): does it stand in front of Minato or the
+   * follower — or (改善会議 2026-10-20 の 4, seethru.ts) a person one can talk
+   * to — and cover a fair part of them on screen? 2 for the party, 1 for the
+   * others. `was`: it is see-through now — it stays so till under 6% is
+   * covered (12% to start), so it doesn't flicker on the edge.
    */
-  private hidesParty(f: FieldScene): (r: [number, number, number, number, number]) => boolean {
-    const boxes: { z: number; b: [number, number, number, number] }[] = [];
+  private hidesParty(f: FieldScene): Hides {
+    const boxes: { z: number; b: [number, number, number, number]; who: Hidden }[] = [];
     const v = new THREE.Vector3();
     const proj = (x: number, y: number, z: number): [number, number] => {
       v.set(x, y, z).project(this.camera);
       return [v.x, v.y];
     };
-    for (const a of [f.player, f.follower]) {
-      if (!a || !a.visible) continue;
+    const add = (a: Actor, who: Hidden) => {
       const x = (a.x + a.ox) / 16;
       const z = a.y / 16;
       const img = a.frame();
@@ -604,20 +609,46 @@ export class Hd2dView {
       const ht = (img.height / 16) * SV * 0.9;
       const p0 = proj(x - hw, 0.1, z);
       const p1 = proj(x + hw, ht, z);
-      boxes.push({ z, b: [p0[0], p0[1], p1[0], p1[1]] });
+      boxes.push({ z, b: [p0[0], p0[1], p1[0], p1[1]], who });
+    };
+    for (const a of [f.player, f.follower]) if (a && a.visible) add(a, 2);
+    // the people one can talk to near Minato (not the passers-by, the vehicles), the nearest 10
+    const px = f.player.x;
+    const py = f.player.y;
+    const near: [number, Actor][] = [];
+    for (const a of f.actors) {
+      if (a.kind !== 'npc' || !a.visible || a.data.passerby || a.data.vehicle || (a.data.def as NpcObj | undefined)?.vehicle) continue;
+      const dx = Math.abs(a.x - px);
+      const dy = Math.abs(a.y - py);
+      if (dx > 14 * 16 || dy > 10 * 16) continue;
+      near.push([dx + dy, a]);
     }
-    return (r) => {
+    near.sort((u, w) => u[0] - w[0]);
+    for (const [, a] of near.slice(0, 10)) add(a, 1);
+    return (r, was) => {
+      const back = r[5] ?? r[4];
+      let hit: Hidden = 0;
+      let q: [number, number, number, number] | null = null;
       for (const s of boxes) {
-        if (r[4] <= s.z + 0.05 || r[4] > s.z + 6) continue;
-        const p0 = proj(r[0], r[2], r[4]);
-        const p1 = proj(r[1], r[3], r[4]);
-        const ox = Math.min(p1[0], s.b[2]) - Math.max(p0[0], s.b[0]);
-        const oy = Math.min(p1[1], s.b[3]) - Math.max(p0[1], s.b[1]);
+        if (s.who <= hit) continue;
+        if (r[4] <= s.z + 0.05 || back > s.z + 6) continue;
+        if (!q) {
+          // its outline on screen (a deep one: its top's back edge too)
+          const p0 = proj(r[0], r[2], r[4]);
+          const p1 = proj(r[1], r[3], r[4]);
+          q = [p0[0], p0[1], p1[0], p1[1]];
+          if (r[5] !== undefined) {
+            const p2 = proj(r[0], r[3], r[5]);
+            q[3] = Math.max(q[3], p2[1]);
+          }
+        }
+        const ox = Math.min(q[2], s.b[2]) - Math.max(q[0], s.b[0]);
+        const oy = Math.min(q[3], s.b[3]) - Math.max(q[1], s.b[1]);
         if (ox <= 0 || oy <= 0) continue;
         const area = (s.b[2] - s.b[0]) * (s.b[3] - s.b[1]);
-        if ((ox * oy) / Math.max(1e-6, area) > 0.12) return true;
+        if ((ox * oy) / Math.max(1e-6, area) > (was ? 0.06 : 0.12)) hit = s.who;
       }
-      return false;
+      return hit;
     };
   }
 

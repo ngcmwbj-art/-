@@ -42,7 +42,10 @@ export function ch3TownTime(def: MapDef | undefined | null): 0 | 1 | 2 {
 
 /** The chapter-3 stage a ch3-graded map shows (0 for 夕鳴町 at 11:10). */
 export function ch3GradeStage(def: MapDef | undefined | null): number {
-  return isCh3Map(def) ? flag('flag_ch3_stage') : 0;
+  if (!isCh3Map(def)) return 0;
+  // 旧水族館の 屋上（掃除は 上から、03_ch3_index）：館の 中と 同じ 止まった 正午の 日ざし（段階3 でも 外の 光）
+  if (def?.id === 'map_c3_aq_okujou' && flag('flag_ch3_stage') === 3) return 1;
+  return flag('flag_ch3_stage');
 }
 
 // ---------------------------------------------------------------- fx_c3_tomaru (62 6.3)

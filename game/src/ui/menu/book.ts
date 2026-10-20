@@ -65,6 +65,10 @@ import { drawHnPage, hasHnPage, HN_ROW_LABEL } from './book_hana';
 import { drawYwPage, hasYwPage, YW_ROW_LABEL } from './book_yuwaka';
 // ② の すみ『2枚の うず』（02_ch2_index #108）
 import { drawUzPage, hasUzPage, UZ_ROW_LABEL } from './book_uzu';
+// ② の すみ『前から 寝る』（02_ch2_index）
+import { drawNrPage, hasNrPage, NR_ROW_LABEL } from './book_neru';
+// ② の すみ『紐の 番』（02_ch2_index）
+import { drawHmPage, hasHmPage, HM_ROW_LABEL } from './book_himo';
 import { drawNnPage, hasNnPage, NN_ROW_LABEL } from './book_nanori';
 import { drawIsoPage, hasIsoPage, ISO_ROW_LABEL } from './book_iso';
 // ③ の すみ『水槽の うら』（第3章の クリア前、03_ch3_index）
@@ -77,6 +81,8 @@ import { drawMhPage, hasMhPage, MH_ROW_LABEL } from './book_mahiru';
 import { drawAbPage, hasAbPage, AB_ROW_LABEL } from './book_abura';
 // ③の すみ『海の 寄せ豆腐』（第3章の クリア前、03_ch3_index 28）
 import { drawYdPage, hasYdPage, YD_ROW_LABEL } from './book_yose';
+// ③の すみ『掃除は 上から』（第3章の クリア前、03_ch3_index）
+import { drawOjPage, hasOjPage, OJ_ROW_LABEL } from './book_okujou';
 // クリア後：4つ目のふせん「やり残し」（05_postgame 9章）
 import { hasYarinokoshi, YarinokoshiBook, YR_FLAG, YR_FLAG_DARK, YR_TAB } from './book_yarinokoshi';
 import { secretSeen } from '../pg_secret';
@@ -92,6 +98,7 @@ function corner3(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasMhPage()) r.push({ label: MH_ROW_LABEL, draw: drawMhPage });
   if (hasYdPage()) r.push({ label: YD_ROW_LABEL, draw: drawYdPage });
   if (hasShPage()) r.push({ label: SH_ROW_LABEL, draw: drawShPage });
+  if (hasOjPage()) r.push({ label: OJ_ROW_LABEL, draw: drawOjPage });
   if (hasAbPage()) r.push({ label: AB_ROW_LABEL, draw: drawAbPage });
   if (hasIsoPage()) r.push({ label: ISO_ROW_LABEL, draw: drawIsoPage });
   if (hasNnPage()) r.push({ label: NN_ROW_LABEL, draw: drawNnPage });
@@ -116,6 +123,8 @@ function corner2(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasYwPage()) r.push({ label: YW_ROW_LABEL, draw: drawYwPage });
   if (hasHnPage()) r.push({ label: HN_ROW_LABEL, draw: drawHnPage });
   if (hasUzPage()) r.push({ label: UZ_ROW_LABEL, draw: drawUzPage });
+  if (hasNrPage()) r.push({ label: NR_ROW_LABEL, draw: drawNrPage });
+  if (hasHmPage()) r.push({ label: HM_ROW_LABEL, draw: drawHmPage });
   return r;
 }
 import { stickerUribo } from '../../art/props/ashiato_art';

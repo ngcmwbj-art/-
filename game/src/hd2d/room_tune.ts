@@ -103,6 +103,10 @@ export const ROOM_SOLID: Record<string, PropSolid> = {
   prop_h_tomato: { kind: 'flat' },
   // チクタク堂の 額の 写真（02 #88）：カウンターに 立てた 薄い 額（厚い 箱に しない）
   prop_tokei7_photo: { kind: 'slab', depth: 2 },
+  // 旧水族館の 屋上（掃除は 上から）：宙に 止まった カモメは 絵の まま
+  prop_oj_kamome: { kind: 'flat' },
+  // 前から 寝る（02_ch2_index）：南4の 寝に いく 牛も 絵の まま（ほかの 牛と 同じ）
+  prop_nr_cow: { kind: 'flat' },
 };
 
 /**

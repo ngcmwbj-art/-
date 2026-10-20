@@ -46,6 +46,7 @@ import { buildWalls, type Walls } from './walls';
 import { BelowTown, NightSky, Outskirts, outskirtsGround, skyBackdrop } from './outskirts';
 import { recording, type Slab, type Solid } from './overlap';
 import { nightGlowK, nightGround, nightGroundMap } from './cut_night';
+import { rectOfBox, SEE_HALF, SEE_PARTY, SeeThrough, seeMaterials, setSee, type Hides, type SeeRect } from './seethru';
 
 export { casterMaterial, pixelTexture } from './solid';
 
@@ -215,6 +216,10 @@ class BuildingView {
   readonly box: Box;
   private readonly masked: { piece: Piece; c: HTMLCanvasElement; ctx: CanvasRenderingContext2D; tex: THREE.CanvasTexture; mat: THREE.MeshLambertMaterial }[] = [];
   readonly spot: LightSpot | null;
+  /** 人の前に来たら半分すける（seethru.ts、改善会議 2026-10-20 の 4）：その箱と、すけぐあい。 */
+  private readonly seeRect: SeeRect;
+  private readonly see = new SeeThrough();
+  private seeMats: THREE.Material[] | null = null;
 
   /** `shadows`: where its shadow goes (a building that is always there); null: its own meshes cast. `solids`: where the room it takes goes (QA). */
   constructor(
@@ -379,6 +384,7 @@ class BuildingView {
     this.spot = null;
     this.cx = (x0 + x1) / 2;
     this.cz = zf;
+    this.seeRect = [x0, x1, 0, hTop + rise + (roofY > 0 && tune.top !== false && !tune.lid ? roofY * PX * SV : 0), zf, zd];
   }
   readonly cx: number;
   readonly cz: number;
@@ -404,12 +410,26 @@ class BuildingView {
     }
   }
 
-  update(f: FieldScene, t: number, lit: number, near: boolean): void {
+  update(f: FieldScene, t: number, lit: number, near: boolean, hides: Hides): void {
     this.group.visible = this.p.present;
     if (!this.p.present || !near) return;
     if (this.skin.refresh(f.propEnv(this.p), t) && this.masked.length) this.refreshMasked();
     // (the ending's night: raised as the 2D's glow over its grading, cut_night.ts)
     if (this.skin.glowTex) this.mat.emissiveIntensity = 1.6 * lit * nightGlowK(f);
+    // someone behind it (its roof over them): half see-through, its faces in their own order (depth kept)
+    const v = this.see.step(hides(this.seeRect, this.see.on) ? SEE_HALF : 1);
+    if (v < 0.999 || this.seeMats) {
+      this.seeMats ??= seeMaterials(this.group);
+      setSee(this.seeMats, v, true);
+      if (v >= 0.999) this.seeMats = null;
+    }
+  }
+
+  /** A battle's backdrop (view.ts still): solid. */
+  opaque(): void {
+    this.see.reset();
+    if (this.seeMats) setSee(this.seeMats, 1, true);
+    this.seeMats = null;
   }
 
   dispose(): void {
@@ -577,14 +597,14 @@ export class CutoutView {
   readonly mat: THREE.MeshLambertMaterial;
   private readonly caster: THREE.Mesh | null = null;
   private readonly fgCasters: THREE.Mesh[] = [];
-  private readonly fg: { part: PropPart; mesh: THREE.Mesh; mat: THREE.MeshLambertMaterial; tex: THREE.CanvasTexture; last: HTMLCanvasElement | null; fade: number }[] = [];
+  private readonly fg: { part: PropPart; mesh: THREE.Mesh; mat: THREE.MeshLambertMaterial; tex: THREE.CanvasTexture; last: HTMLCanvasElement | null; fade: number; see: SeeThrough; rect: SeeRect | null }[] = [];
   readonly spot: LightSpot | null;
   /** Centre of the standing part (for the shadow test). */
   readonly at: V3;
   /** The standing part: x0, x1, bottom, top, z (units), for the see-through test. */
   readonly rect: [number, number, number, number, number] | null;
-  /** 1 = solid; less while it stands in front of the party (the 2D x-ray). */
-  private xray = 1;
+  /** 1 = solid; less while it stands in front of the party (the 2D x-ray) or someone else (seethru.ts). */
+  private readonly xray = new SeeThrough();
   /** It casts and takes the shadow map itself (a body thick enough); else a shadow plane and a tint in a building's shadow. */
   readonly real: boolean;
   /** In a shared batch (a still picture): its vertices there. */
@@ -726,12 +746,20 @@ export class CutoutView {
         this.group.add(c);
         this.fgCasters.push(c);
       }
-      this.fg.push({ part, mesh, mat, tex, last: img, fade: 1 });
+      // (a part that doesn't thin out when one walks under it — a tree's crown, an awning — goes
+      // half see-through while someone stands behind it: seethru.ts)
+      let rect: SeeRect | null = null;
+      if (!part.fade) {
+        mesh.geometry.computeBoundingBox();
+        const bb = mesh.geometry.boundingBox;
+        if (bb && !bb.isEmpty() && bb.max.y - bb.min.y > 0.3) rect = rectOfBox(bb);
+      }
+      this.fg.push({ part, mesh, mat, tex, last: img, fade: 1, see: new SeeThrough(), rect });
     });
     this.spot = a.glow && stand ? { x: cx, y: stand[0] + (stand[1] - stand[0]) * 0.6, z: foot * PX + 0.4, p } : null;
   }
 
-  update(f: FieldScene, t: number, sunYaw: number, lit: number, seers: { x: number; y: number }[], near: boolean, hides: (r: [number, number, number, number, number]) => boolean): void {
+  update(f: FieldScene, t: number, sunYaw: number, lit: number, seers: { x: number; y: number }[], near: boolean, hides: Hides): void {
     // (星見台: a find only the tomato light shows — the insects, the crabs, the hearth — fades in and out with it, lantern.ts)
     const la = this.p.obj.litOnly ? litAlpha(f, this.p) : 1;
     this.group.visible = this.p.present && la > 0.01;
@@ -746,16 +774,17 @@ export class CutoutView {
     // picture itself an x-ray one: the waiting room — goes see-through while
     // they are inside, its front wall standing in front of the bench, 02 #92)
     const inside = this.p.art.xray !== undefined && this.fg.some((fp) => !!fp.part.fade && this.under(fp.part.fade, seers));
-    const tgt = inside || (this.rect && hides(this.rect)) ? 0.25 : 1;
-    this.xray += Math.sign(tgt - this.xray) * Math.min(Math.abs(tgt - this.xray), 16.7 / 150);
-    const tr = this.xray * la < 0.999;
+    // (the party: as far as the 2D x-ray; someone else one can talk to: half, seethru.ts)
+    const who = inside ? 2 : this.rect ? hides(this.rect, this.xray.on) : 0;
+    const xray = this.xray.step(who === 2 ? SEE_PARTY : who === 1 ? SEE_HALF : 1);
+    const tr = xray * la < 0.999;
     if (this.mat.transparent !== tr) {
       this.mat.transparent = tr;
       this.mat.depthWrite = !tr;
       this.mat.alphaTest = tr ? 0.02 : 0.5;
       this.mat.needsUpdate = true;
     }
-    this.mat.opacity = this.xray * la;
+    this.mat.opacity = xray * la;
     for (const fp of this.fg) {
       const img = fp.part.img(env);
       if (img && img !== fp.last) {
@@ -777,6 +806,9 @@ export class CutoutView {
           fp.mat.needsUpdate = true;
         }
         fp.mat.opacity = fp.fade;
+      } else if (fp.rect) {
+        const v = fp.see.step(hides(fp.rect, fp.see.on) ? SEE_HALF : 1);
+        if (v < 0.999 || fp.mat.transparent) setSee([fp.mat], v);
       }
     }
   }
@@ -789,8 +821,11 @@ export class CutoutView {
 
   /** A battle's backdrop (view.ts still): nothing see-through for the party now (the field's frames fade it again). */
   opaque(): void {
-    this.xray = 1;
-    for (const fp of this.fg) fp.fade = 1;
+    this.xray.reset();
+    for (const fp of this.fg) {
+      fp.fade = 1;
+      fp.see.reset();
+    }
     for (const m of [this.mat, ...this.fg.map((fp) => fp.mat)]) {
       m.opacity = 1;
       if (!m.transparent) continue;
@@ -1222,7 +1257,7 @@ export class TownWorld {
   private frame = 0;
 
   /** Per frame: pictures near (tx, tz) are kept up to date (the far ones keep their last picture). */
-  update(t: number, sunYaw: number, sunDir: THREE.Vector3, lit: number, tx: number, tz: number, hides: (r: [number, number, number, number, number]) => boolean): void {
+  update(t: number, sunYaw: number, sunDir: THREE.Vector3, lit: number, tx: number, tz: number, hides: Hides): void {
     const f = this.f;
     if (this.frame++ % 30 === 0) this.buildGround();
     if (this.groundMesh) nightGround(this.groundMesh.material as THREE.MeshLambertMaterial, f, lit);
@@ -1233,7 +1268,7 @@ export class TownWorld {
     this.sky?.position.set(tx, this.skyY ?? SKY_AT.y, tz - SKY_AT.d);
     this.nightSky?.update(f);
     const near = (x: number, z: number) => Math.abs(x - tx) < NEAR_X && Math.abs(z - tz) < NEAR_Z;
-    for (const b of this.buildings) b.update(f, t, lit, near(b.cx, b.cz));
+    for (const b of this.buildings) b.update(f, t, lit, near(b.cx, b.cz), hides);
     const seers = [f.player, ...(f.follower ? [f.follower] : [])].map((a) => ({ x: a.x + a.ox, y: a.y }));
     for (const c of this.cutouts) c.update(f, t, sunYaw, lit, seers, near(c.at[0], c.at[2]), hides);
     this.casters?.turn(sunYaw);

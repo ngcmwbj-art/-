@@ -50,6 +50,8 @@ import './hana_art';
 import './yuwaka_art';
 // 2枚の うず：転回場の 窓の 下の 石と 蚊取り線香（02_ch2_index #108）
 import './uzu_art';
+// 前から 寝る：南4の ぬれた おがくず・フォークと ネコ車・おがくずの 山・寝に いく 牛（02_ch2_index）
+import './neru_art';
 // Chapter 3 『海ぞいの町の いただきます』 (62_ch3_level_art 7章): the buildings and the things of 海ぞいの町
 import './c3_bld';
 import './c3_props';

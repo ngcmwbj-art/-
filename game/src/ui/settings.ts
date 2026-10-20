@@ -1,6 +1,6 @@
 // せってい (10_narrative 12.4, 40_audio 11.6, 20_systems_battle 19.5):
 // おんがく / こうかおん (0..10), 文字の はやさ (おそい・ふつう・はやい),
-// and ツッコミ判定 (ふつう・ひろい). (表示 HD-2D／2D is gone: the game is always
+// ツッコミ判定 (ふつう・ひろい) and しるし (あり・なし: world/marks.ts, 改善会議 2026-10-20). (表示 HD-2D／2D is gone: the game is always
 // HD-2D, src/hd2d — 2026-10-13 依頼主の決定; an old saved hd2d is not read.) Kept in
 // localStorage apart from the save file, so they survive a new game; ツッコミ判定 is mirrored into
 // flag_opt_tsukkomi_wide for the battle system.
@@ -18,11 +18,13 @@ export interface Settings {
   speed: TextSpeed;
   /** ツッコミ判定 ひろい */
   wide: boolean;
+  /** しるし あり（調べられる物の きらり・ヒントの行き先の「！」、改善会議 2026-10-20。world/marks.ts） */
+  marks: boolean;
 }
 
 const KEY = 'hanamaru-settings-v1';
 
-export const settings: Settings = { bgm: getVolume('bgm'), se: getVolume('se'), speed: 1, wide: false };
+export const settings: Settings = { bgm: getVolume('bgm'), se: getVolume('se'), speed: 1, wide: false, marks: true };
 
 function load(): void {
   // On a touch screen the 「！」 is harder to hit in time: start with ひろい
@@ -36,6 +38,7 @@ function load(): void {
     if (typeof s.se === 'number') settings.se = clamp(s.se);
     if (s.speed === 0 || s.speed === 1 || s.speed === 2) settings.speed = s.speed;
     if (typeof s.wide === 'boolean') settings.wide = s.wide;
+    if (typeof s.marks === 'boolean') settings.marks = s.marks;
   } catch {
     /* private mode etc. */
   }
@@ -73,6 +76,7 @@ export function textSpeedMul(): number {
 
 export const SPEED_LABELS = ['おそい', 'ふつう', 'はやい'];
 export const WIDE_LABELS = ['ふつう', 'ひろい'];
+export const MARK_LABELS = ['あり', 'なし'];
 
 load();
 applySettings();

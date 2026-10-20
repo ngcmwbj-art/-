@@ -28,6 +28,9 @@ import './abura';
 // 海の 水で 寄せる（げむきか 10/19 の 案1）：段階1、くま吉の 屋台 → 海の 中の 南の はし → 沖の ブイの 下（新しい 地図）。
 // くま吉・カイトの 台本を 包むので、azemichi・kaisui・mahiru の あとに import する（S13 の 鉢は siren.ts）
 import './yose';
+// 掃除は 上から（げむきか 10/20 の 案3）：段階3、入口の 西の 壁の 戸 → 旧水族館の 屋上（新しい 地図）。
+// （クリア後の ハキコに ボールを 返すのは okujou_pg.ts）
+import './okujou';
 // 第4期（S25〜S34：みんなが来る・決戦・エンディング・クリア後）
 import './cuts';
 import '../../ui/cut_c3'; // W: the stills (cut_c3_shuuka・cut_c3_photo・cut_c3_kioku)

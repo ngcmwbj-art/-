@@ -613,6 +613,38 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// クズの 花（紐の 番、02_ch2_index）：紫の 花の ふさと、つるの 先
+Object.assign(ITEM_ROWS, {
+  item_hoshi_tetsuya_kagi: [
+    '....M.....',
+    '...MmM....',
+    '..kPpk....',
+    '..kpPpk...',
+    '...kPpPk..',
+    '...kpPpk..',
+    '....kPpk..',
+    '.....kPk..',
+    '.....mm...',
+    '......M...',
+  ],
+});
+
+// ゴムボール（掃除は 上から、03_ch3_index）：赤い 小さな ボール、空気が 少し ぬけて へこんでいる
+Object.assign(ITEM_ROWS, {
+  item_c3_ball: [
+    '..........',
+    '...kkkk...',
+    '..kllrrk..',
+    '.klWlrrRk.',
+    '.klllrrRk.',
+    '.krrrrRRk.',
+    '.kRrrRRRk.',
+    '..kRRRRk..',
+    '...kkkk...',
+    '..........',
+  ],
+});
+
 // ペンギンの えんぴつ（下の 紙の 字、03_ch3_index）：黄色い えんぴつ、おしりに 小さな ペンギン
 Object.assign(ITEM_ROWS, {
   item_c3_enpitsu: [
