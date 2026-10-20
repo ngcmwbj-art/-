@@ -1,0 +1,13 @@
+{
+  "title": "はたけパズル",
+  "puzzle": {
+    "score": "スコア",
+    "best": "ベスト",
+    "combo": "コンボ ×{n}",
+    "multiLine": "{n}列いっしょ！",
+    "gameOverTitle": "おつかれさまでした",
+    "gameOverBody": "今回のスコア：{score}",
+    "newBest": "ベストスコア更新！",
+    "retry": "もう一度あそぶ"
+  }
+}

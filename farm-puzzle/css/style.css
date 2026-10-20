@@ -1,0 +1,279 @@
+/* =========================================================
+   はたけパズル スタイル
+   色はここ（:root）でまとめて変えられます
+   ========================================================= */
+:root {
+  --bg: #fbf5e9;          /* 背景：生成り */
+  --panel: #fffdf8;       /* カード */
+  --text: #5a4a3a;        /* 文字：こげ茶 */
+  --sub: #9a8a78;         /* 補足の文字 */
+  --line: #eadfcc;        /* 枠線 */
+  --green: #7fb77e;       /* メインの緑 */
+  --green-dark: #5e9a5d;
+  --soil: #e6d6bb;        /* 盤面の地 */
+  --soil-cell: #f4ecdc;   /* 空きマス */
+  --accent: #f2a65a;      /* 差し色 */
+
+  /* ブロックの色（やさしいパステル） */
+  --c0: #f6a5a5;
+  --c1: #f8c291;
+  --c2: #f3dc84;
+  --c3: #a9d89c;
+  --c4: #98d3e3;
+  --c5: #b7aee8;
+  --c6: #f2b8d6;
+
+  /* マスの大きさ（JS が実際の大きさを測って上書きする） */
+  --cell: 40px;
+  --gap: 4px;
+
+  /* 盤面の大きさ：画面幅と高さの両方に収まるように */
+  --board-size: clamp(240px, min(92vw, calc((100vh - 190px) / 1.36)), 480px);
+}
+@supports (height: 100dvh) {
+  :root { --board-size: clamp(240px, min(92vw, calc((100dvh - 190px) / 1.36)), 480px); }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "BIZ UDPGothic", "Meiryo", system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+#app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 16px calc(88px + env(safe-area-inset-bottom));
+}
+
+/* ---------- 上のバー ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 0 6px;
+}
+.title {
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: 0.08em;
+  color: var(--green-dark);
+}
+
+/* ---------- 画面の切り替え ---------- */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ---------- ボタン ---------- */
+.btn {
+  appearance: none;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: bold;
+  min-height: 48px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 var(--line);
+  transition: transform 0.1s;
+}
+.btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--line); }
+.btn.primary {
+  background: var(--green);
+  border-color: var(--green-dark);
+  color: #fff;
+  box-shadow: 0 3px 0 var(--green-dark);
+}
+.btn:disabled { opacity: 0.45; cursor: default; }
+
+/* =========================================================
+   パズル画面
+   ========================================================= */
+.score-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: var(--board-size);
+  margin: 4px auto 8px;
+}
+.score-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 80px;
+}
+.score-box .label { font-size: 0.75rem; color: var(--sub); }
+.score-box .num { font-size: 1.5rem; font-weight: bold; }
+.combo {
+  color: var(--accent);
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.board {
+  position: relative;
+  width: var(--board-size);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  padding: 6px;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  gap: 4px;
+  background: var(--soil);
+  border-radius: 16px;
+  box-shadow: inset 0 2px 6px rgba(120, 90, 50, 0.15);
+  touch-action: none;
+}
+
+.cell {
+  border-radius: 6px;
+  background: var(--soil-cell);
+}
+.cell.filled {
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.08), inset 0 3px 0 rgba(255, 255, 255, 0.45);
+}
+.c0 { background: var(--c0); }
+.c1 { background: var(--c1); }
+.c2 { background: var(--c2); }
+.c3 { background: var(--c3); }
+.c4 { background: var(--c4); }
+.c5 { background: var(--c5); }
+.c6 { background: var(--c6); }
+
+/* 置く予定の場所 */
+.cell.preview { opacity: 0.5; }
+/* そろって消える予定の列 */
+.cell.will-clear {
+  box-shadow: 0 0 0 2px #fff inset, 0 0 8px rgba(255, 255, 255, 0.9);
+  filter: brightness(1.08);
+}
+/* 消えるときのアニメーション */
+.cell.clearing { animation: pop 0.45s ease forwards; }
+@keyframes pop {
+  0%   { transform: scale(1); opacity: 1; }
+  40%  { transform: scale(1.15); opacity: 1; filter: brightness(1.2); }
+  100% { transform: scale(0.2); opacity: 0; }
+}
+
+/* 手元のブロック置き場 */
+.tray {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: var(--board-size);
+  margin: 10px auto 0;
+}
+.slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(var(--cell) * 2.8);
+  cursor: grab;
+  touch-action: none;
+}
+.slot.dragging .piece { opacity: 0.2; }
+
+.piece, .ghost {
+  display: grid;
+  gap: calc(var(--gap) * 0.5);
+}
+.piece { --size: calc(var(--cell) * 0.5); }
+.piece .cell { border-radius: 4px; }
+.piece.no-fit { opacity: 0.35; filter: grayscale(0.6); }
+
+/* ドラッグ中のブロック */
+.ghost {
+  --size: var(--cell);
+  gap: var(--gap);
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 50;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 8px rgba(90, 70, 40, 0.25));
+}
+
+/* ふわっと浮かぶ文字 */
+.float-text {
+  position: absolute;
+  z-index: 10;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  pointer-events: none;
+  font-weight: bold;
+  font-size: 1.1rem;
+  color: var(--text);
+  background: rgba(255, 253, 248, 0.92);
+  padding: 4px 12px;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(90, 70, 40, 0.15);
+  animation: float-up 1.4s ease-out forwards;
+}
+@keyframes float-up {
+  0%   { opacity: 0; margin-top: 8px; }
+  15%  { opacity: 1; margin-top: 0; }
+  75%  { opacity: 1; }
+  100% { opacity: 0; margin-top: -36px; }
+}
+
+/* =========================================================
+   ダイアログ
+   ========================================================= */
+.modal-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(90, 74, 58, 0.35);
+}
+.modal-bg.hidden { display: none; }
+.modal {
+  width: 100%;
+  max-width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--panel);
+  border-radius: 20px;
+  padding: 22px 20px 18px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(90, 70, 40, 0.25);
+  animation: modal-in 0.25s ease-out;
+}
+@keyframes modal-in {
+  from { transform: translateY(12px) scale(0.97); opacity: 0; }
+}
+.modal-title { margin: 0 0 10px; font-size: 1.2rem; color: var(--green-dark); }
+.modal-body { white-space: pre-line; line-height: 1.7; margin-bottom: 16px; }
+.modal-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.modal-buttons .btn { flex: 1 1 140px; }
+
+.load-error {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+  line-height: 1.8;
+  background: var(--bg);
+}
+.load-error[hidden] { display: none; }
