@@ -18,6 +18,8 @@ import { clamp, rand } from './util.js';
 import { IS_TOUCH, setupTouch, updateTouch } from './touch.js';
 import { toonify, addOutline } from './toon.js';
 import { MEMOS, BLESSINGS } from './quantum.js';
+import { saveGame, loadSave, clearSave } from './save.js';
+import { Cows } from './cows.js';
 
 const QUALITY = {
   low: { low: true, fps: 30, cabNear: 12, cabMid: 35, pr: 1, shadow: 0, grass: 6000, trees: 0.5, rain: 3000, bloom: false, msaa: 0 },
@@ -95,6 +97,7 @@ class Game {
     // BotW 風のトゥーン表現に置き換え、マサトに輪郭線
     addOutline(this.player.model.root);
     toonify(this.scene);
+    this.cows = new Cows(this);
 
     // ポストプロセス
     const rt = new THREE.WebGLRenderTarget(innerWidth * Q.pr, innerHeight * Q.pr, { type: THREE.HalfFloatType, samples: Q.msaa });
@@ -162,6 +165,7 @@ class Game {
           break;
         }
         case 'Enter': this.skipPrep(); break;
+        case 'Tab': e.preventDefault(); this.toggleMap(); break;
         case 'KeyH': document.getElementById('help').classList.toggle('show'); break;
         case 'KeyM': this.audio.musicOn = !this.audio.musicOn; this.hud.toast(this.audio.musicOn ? 'BGM オン' : 'BGM オフ'); break;
       }
@@ -197,7 +201,8 @@ class Game {
     document.getElementById('pause').classList.toggle('show', v && this.phase !== 'result' && this.phase !== 'gameover');
   }
 
-  start() {
+  // opts.resume：保存データから再開 ／ opts.wave：台風を選んで始める（0 始まり）
+  start(opts = {}) {
     this.audio.init();
     document.getElementById('title').classList.add('hide');
     document.getElementById('hud').classList.add('show');
@@ -211,8 +216,29 @@ class Game {
       try { const p = document.documentElement.requestFullscreen?.(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* 非対応 */ }
     }
     this.lockPointer();
-    this.hud.banner('がんばれマサトくん！', '台風から畑のキャベツを守れ！ まずは操作を覚えよう');
-    this.tutorialTimer = setTimeout(() => { if (this.phase === 'prep' && this.wave === 0) this.setMission(0); }, 2600);
+    const r = opts.resume;
+    if (r) {
+      // つづきから：台風の番号・Qビット・キャベツ・タワーを戻す
+      this.wave = r.wave; this.q = r.q; this.solo = r.solo || 0;
+      this.score.chords = r.chords || 0;
+      Object.assign(this.threats.stats, r.stats || {});
+      (r.memo || []).forEach((k) => this.memoSeen.add(k));
+      this.cabbages.restore(r.cab);
+      for (const t of r.towers || []) { const tw = this.towers.build(t.id, new THREE.Vector3(t.x, t.y, t.z)); tw.age = 5; }
+      this.makePlan();
+      this.hud.banner('つづきから', `${this.waveName()}の準備タイムから再開`);
+    } else if (opts.wave > 0) {
+      // 台風を選んで始める：途中の台風から（そのぶん Qビットを多めに）
+      this.wave = Math.min(WAVES.length - 1, opts.wave);
+      this.q = 150 + this.wave * 150;
+      this.makePlan();
+      this.hud.banner(`${this.waveName()}から開始`, `Qビット ${this.q} でスタート。タワーを建てて備えよう`);
+    } else {
+      clearSave();
+      this.startTutorial();
+    }
+    this.cows.reset(this.wave > 0);
+    this.applyUnlocks();
   }
 
   // ---------- アクション ----------
@@ -272,6 +298,7 @@ class Game {
   }
 
   doTeleport() {
+    if (this.wave === 0) return; // 最初の台風では使わない（覚えることを減らす）
     if (this.cd.teleport > 0) return;
     const from = this.player.teleport(24);
     if (!from) return;
@@ -285,6 +312,7 @@ class Game {
 
   // 結界（不確定性原理）：周りの敵の位置を縛る。ほどけた瞬間、どこへ飛ぶかわからない
   doKekkai() {
+    if (this.wave === 0) return; // 最初の台風では使わない（覚えることを減らす）
     if (this.cd.kekkai > 0 || this.phase === 'result' || this.phase === 'gameover') return;
     if (this.q < 20) { this.hud.toast('Qビットが足りない（結界には 20Q）', 'bad'); return; }
     this.q -= 20;
@@ -315,7 +343,7 @@ class Game {
     const ud = sh.userData;
     ud.orb.material.emissiveIntensity = 1.6 + Math.sin(this.time * 2) * 0.6;
     ud.ring.material.opacity = this.phase === 'prep' && !this.prayed ? 0.45 + Math.sin(this.time * 3) * 0.25 : 0.12;
-    if (this.phase !== 'prep' || this.mission || this.prayed || this.paused) { this.prayT = 0; return; }
+    if (this.phase !== 'prep' || this.mission || this.prayed || this.paused || this.wave === 0) { this.prayT = 0; return; }
     const pp = ud.prayWorld;
     const d = Math.hypot(this.player.pos.x - pp.x, this.player.pos.z - pp.z);
     if (d > 3.2) { this.prayT = 0; return; }
@@ -358,6 +386,7 @@ class Game {
   }
 
   doSolo() {
+    if (this.wave === 0) return; // 最初の台風では使わない（覚えることを減らす）
     if (this.solo < 100 || this.soloT > 0) return;
     this.solo = 0;
     this.soloT = 4.5;
@@ -372,6 +401,7 @@ class Game {
 
   // タワーを選ぶと、何をするものか・どう置くかを表示
   selectTower(id) {
+    if (this.wave === 0) { this.hud.toast('タワーは台風1号を乗り切ると使えるようになる'); return; }
     this.buildSel = this.buildSel === id ? null : id;
     if (!this.buildSel) { this.towers.hidePreview(); return; }
     const def = this.towers.def(id);
@@ -397,7 +427,8 @@ class Game {
     const wv = this.wave;
     const a = rand(-0.6, 0.6);
     const z0 = Math.max(-110, Math.min(110, Math.sin(a) * 150 + rand(-30, 30)));
-    const counts = { mushi: 6 + wv * 3, karasu: 3 + wv * 2, tsumuji: 2 + wv, pair: 1 + wv };
+    // 最初の台風は練習を兼ねて、弱い雑魚が少しだけ
+    const counts = wv === 0 ? { mushi: 5, karasu: 2, tsumuji: 0, pair: 0 } : { mushi: 6 + wv * 3, karasu: 3 + wv * 2, tsumuji: 2 + wv, pair: 1 + wv };
     this.plan = { angle: a, z0, counts, ghosts: 2 + Math.floor(wv / 2) };
     // 上陸予想地点の赤い柱
     if (this.landMarker) this.scene.remove(this.landMarker);
@@ -471,14 +502,16 @@ class Game {
     const lost = this.cabbages.lostCount();
     const T = IS_TOUCH;
     const items = [
+      ...(this.cows.active || this.cows.home ? [[this.cows.home === this.cows.list.length, `牛を牛舎へ戻す（近づくとついてくる）${this.cows.home} / ${this.cows.list.length}　全員で +80Q`]] : []),
       [this.prayed, this.prayed ? `量子の祠：御利益「${this.blessingName}」を授かった` : '量子の祠（家の裏の鳥居）で手を合わせる（紫の輪の中に 2 秒）'],
       [amp, `雑魚の来る${p.gate.name}のオレンジの矢印か、赤い柱（ボスの上陸地点）の近くにスピーカーを建てる`],
       [lost === 0, lost ? `やられたキャベツを植え直す（跡地を歩くだけ・1玉 1Q）残り ${lost} 玉` : 'キャベツ畑は無傷'],
       [false, T ? `準備ができたら上のボタンで迎え撃つ（今なら +${left * 2}Q）` : `準備ができたら［Enter］で迎え撃つ（今なら +${left * 2}Q）`],
     ];
     const c = p.counts;
+    const tip = this.weaknessTip();
     this.hud.prep(`準備タイム ― ${this.waveName()}まで <b>${left}</b> 秒`,
-      `予報：雑魚は<b>${p.gate.name}</b>からザーッと押し寄せる ${c.mushi + c.karasu + c.tsumuji + c.pair * 2} 匹（青虫 ${c.mushi}・カラス ${c.karasu}・つむじ風 ${c.tsumuji}・もつれた二人組 ${c.pair}）→ 大ボス（分身 ${p.ghosts} 体）`, items);
+      `${tip ? `<span class="tip">今回のコツ：${tip}</span>` : ''}予報：雑魚は<span class="hl">${p.gate.name}</span>からザーッと押し寄せる ${c.mushi + c.karasu + c.tsumuji + c.pair * 2} 匹（青虫 ${c.mushi}・カラス ${c.karasu}・つむじ風 ${c.tsumuji}・もつれた二人組 ${c.pair}）→ 大ボス（分身 ${p.ghosts} 体）`, items);
   }
 
   skipPrep() {
@@ -491,7 +524,7 @@ class Game {
     this.phaseT = Math.max(this.phaseT, this.prepLength() - 0.5);
   }
 
-  prepLength() { return this.wave === 0 ? 60 : 40; }
+  prepLength() { return this.wave === 0 ? 30 : 40; }
   waveName() { return WAVES[Math.min(this.wave, WAVES.length - 1)].name.replace(/「.*」/, ''); }
 
   waveLabel() {
@@ -528,6 +561,7 @@ class Game {
     this.stormAngle = a;
     this.threats.landZ = this.plan.z0;
     this.threats.gate = this.plan.gate;
+    this.cows.shelterAll();
     this.clearGateMarker();
     this.clearLandMarker();
     this.weather.typhoonCenter.set(Math.cos(a) * 1500, Math.sin(a) * 1500);
@@ -564,6 +598,7 @@ class Game {
 
   finish(win) {
     this.phase = win ? 'result' : 'gameover';
+    if (win) clearSave();
     this.paused = true;
     document.exitPointerLock && document.exitPointerLock();
     const cab = this.cabbages, st = this.threats.stats;
@@ -627,13 +662,116 @@ class Game {
         this.hud.prepFolded = false; this.hud.prepTouched = false;
         this.phaseT = 0;
         this.makePlan();
+        this.cows.reset(true);
+        this.applyUnlocks();
+        if (this.weaknessTip()) this.hud.toast(`今回のコツ：${this.weaknessTip()}`, 'tip');
+        if (saveGame(this)) this.hud.toast('自動保存しました（閉じても、ここから「つづきから」で再開できます）');
         this.hud.banner('準備タイム', `${this.waveName()}が来る前に、畑を立て直してタワーで備えよう`);
       }
     }
     if ((this.phase === 'storm' || this.phase === 'clear') && this.cabbages.alive < this.cabbages.total * 0.3) this.finish(false);
   }
 
-  // ---------- 体験しながら覚えるチュートリアル ----------
+  // 敵ごとの弱点：台風ごとに 1 つずつ紹介する
+  weaknessTip() {
+    return ['', 'スピーカーは青虫に 2 倍効く', '観測ライトの光でカラスが落ちる', '避雷針に近づいたつむじ風は一瞬で消える', '弱点：青虫→スピーカー／カラス→観測ライト／つむじ風→避雷針'][Math.min(this.wave, 4)];
+  }
+  noteWeakness(e) {
+    if (this.weakShown) return;
+    this.weakShown = true;
+    this.hud.toast('弱点を突いた！ タワーごとに得意な敵がいる（タワー欄に書いてある）', 'good');
+  }
+
+  // 大きな地図：見るだけ。開いている間は時間を止め、3D の描画も止める（発熱対策）
+  toggleMap(v = !this.mapOpen) {
+    if (this.phase === 'title' || this.phase === 'result' || this.phase === 'gameover') v = false;
+    this.mapOpen = v;
+    document.getElementById('bigmap').classList.toggle('show', v);
+    if (v) this.hud.drawMap(this, true);
+  }
+
+  // ---------- 最初の台風で、実戦の中で覚える ----------
+  // 最初に教えるのは「歩く・ギター・観測」だけ。タワー・テレポ・結界・ソロ・祠は台風2号の準備から
+  startTutorial() {
+    const g = this.plan.gate;
+    const p = new THREE.Vector3(g.x + g.in.x * 45, 0, g.z + g.in.y * 45);
+    this.setMarker(p);
+    this.tut = { stage: 'move' };
+    this.hud.banner('がんばれマサトくん！', `台風の前ぶれの雑魚が${g.name}からやってくる！`);
+  }
+
+  // いま覚えることだけを、画面上の一言と光るボタンで案内する
+  updateTutorial() {
+    const tu = this.tut;
+    if (!tu) return;
+    // 台風が過ぎたら（または台風1号以外なら）案内はおしまい
+    if (this.wave > 0 || (this.phase !== 'prep' && this.phase !== 'storm')) {
+      this.tut = null;
+      document.querySelectorAll('.glow-hint').forEach((e) => e.classList.remove('glow-hint'));
+      this._glowKey = '';
+      return;
+    }
+    const T = IS_TOUCH, g = this.plan?.gate;
+    let text = '', glow = [];
+    if (tu.stage === 'move') {
+      if (this.phase !== 'prep') tu.stage = 'strum';
+      else {
+        text = T ? `左半分をなぞって歩こう → 光る柱へ（雑魚は${g.name}から来る）` : `WASD で歩こう → 光る柱へ（雑魚は${g.name}から来る）`;
+        glow = T ? ['stick-hint'] : [];
+        if (this.marker) this.marker.rotation.y += 0.02;
+        if (this.marker && this.player.pos.distanceTo(this.marker.position) < 6) {
+          this.clearMarker();
+          this.hud.toast('いい位置！ 雑魚が来るのを待ちかまえよう', 'good');
+          this.phaseT = Math.max(this.phaseT, this.prepLength() - 5);
+          tu.stage = 'wait';
+        }
+      }
+    }
+    if (tu.stage === 'wait') {
+      if (this.phase === 'storm') tu.stage = 'strum';
+      else text = 'もうすぐ雑魚が来る…！';
+    }
+    if (tu.stage === 'strum') {
+      this.clearMarker();
+      text = T ? '「ギター」ボタンで音波！ 雑魚の方を向いて撃とう' : 'クリックでギターの音波！ 雑魚の方を向いて撃とう';
+      glow = ['tb-guitar'];
+      if (this.threats.minionKills >= 3) { tu.stage = 'minions'; this.hud.toast('その調子！ 残りの雑魚も倒そう', 'good'); }
+    }
+    if (tu.stage === 'minions') {
+      if (this.spawn.boss) tu.stage = 'observe';
+      else text = `前ぶれの雑魚 残り <b>${this.minionsLeft()}</b> 匹`;
+    }
+    if (tu.stage === 'observe') {
+      const b = this.threats.boss;
+      if (b && b.collapsed) tu.stage = 'finish';
+      else { text = T ? '紫の分身のどれかが本物。近づいて「観測」ボタン！' : '紫の分身のどれかが本物。近づいて［F］で観測！'; glow = ['tb-observe', 'cd-f']; }
+    }
+    if (tu.stage === 'finish') {
+      if (!this.spawn.boss || !this.threats.bossAlive) { this.tut = null; glow = []; }
+      else { text = '本物が見えた！ ギターで倒そう'; glow = ['tb-guitar']; }
+    }
+    if (text) this.hud.objective(text, '', true);
+    const key = glow.join(',');
+    if (key !== this._glowKey) {
+      document.querySelectorAll('.glow-hint').forEach((e) => e.classList.remove('glow-hint'));
+      glow.forEach((id) => document.getElementById(id)?.classList.add('glow-hint'));
+      this._glowKey = key;
+    }
+  }
+
+  // 最初の台風では、まだ使わないボタン・欄を隠す
+  applyUnlocks() {
+    const early = this.wave === 0;
+    const was = document.body.classList.contains('early');
+    document.body.classList.toggle('early', early);
+    if (was && !early) {
+      this.hud.banner('新しくできること', 'タワー建設・テレポ・結界・ソロが使えるようになった！ 祠にもお参りできる');
+      ['hotbar', 'tb-teleport', 'tb-kekkai', 'cd-r', 'cd-g'].forEach((id) => document.getElementById(id)?.classList.add('glow-hint'));
+      setTimeout(() => { document.querySelectorAll('.glow-hint').forEach((e) => e.classList.remove('glow-hint')); this._glowKey = ''; }, 6000);
+    }
+  }
+
+  // ---------- 体験しながら覚えるチュートリアル（旧：文字の練習ミッション。今は使っていない） ----------
   missions() {
     const T = IS_TOUCH;
     const p0 = () => this.player.pos.clone();
@@ -719,6 +857,7 @@ class Game {
       if (now - (this.lastFrameAt || 0) < 1000 / this.Q.fps - 3) return;
       this.lastFrameAt = now;
     }
+    if (this.mapOpen) { this.clock.getDelta(); return; }
     const rawDt = Math.min(this.clock.getDelta(), 0.05);
     const dt = this.paused ? 0 : rawDt;
     this.time += rawDt;
@@ -728,6 +867,7 @@ class Game {
       this.updatePhase(dt);
       for (const k in this.cd) this.cd[k] = Math.max(0, this.cd[k] - dt);
       this.updateShrine(dt);
+      this.cows.update(dt);
 
       // ソロ中
       if (this.soloT > 0) {
@@ -780,7 +920,8 @@ class Game {
     this.fovKick = Math.max(0, this.fovKick - rawDt * 3.5);
     const fov = 62 - this.fovKick * 9 + (this.player.soloOn ? -6 : 0);
     if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
-    if (this.phase === 'storm') {
+    if (this.tut) this.updateTutorial();
+    else if (this.phase === 'storm') {
       const sub = `キャベツ ${this.cabbages.alive} 玉（${Math.ceil(this.cabbages.total * 0.3)} 玉を切ると負け）`;
       // 大ボス戦は画面上の体力バーが目印になるので、目的パネルは出さない
       if (this.spawn.boss) this.hud.objective(null);
@@ -828,6 +969,7 @@ function boot(q) {
       window.__game = game;
       document.getElementById('loading').classList.remove('show');
       document.getElementById('start').disabled = false;
+      document.getElementById('continue').disabled = false;
     } catch (e) {
       console.error(e);
       document.getElementById('loading').textContent = 'WebGL の初期化に失敗しました：' + e.message;
@@ -841,5 +983,16 @@ qualitySel.addEventListener('change', () => {
   location.hash = qualitySel.value;
   location.reload();
 });
-document.getElementById('start').addEventListener('click', () => game && game.start());
+document.getElementById('start').addEventListener('click', () => game && game.start({ wave: +document.getElementById('startwave').value }));
+// つづきから
+const saved = loadSave();
+const contBtn = document.getElementById('continue');
+if (saved) {
+  const d = new Date(saved.savedAt);
+  contBtn.hidden = false;
+  contBtn.innerHTML = `つづきから<small>${WAVES[Math.min(saved.wave, WAVES.length - 1)].name}の準備タイム（${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')} 保存）</small>`;
+  contBtn.addEventListener('click', () => game && game.start({ resume: saved }));
+}
+document.getElementById('minimap').addEventListener('pointerdown', (e) => { e.stopPropagation(); game && game.toggleMap(true); });
+document.getElementById('bigmap').addEventListener('pointerdown', (e) => { e.stopPropagation(); game && game.toggleMap(false); });
 document.getElementById('retry').addEventListener('click', () => location.reload());

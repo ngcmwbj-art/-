@@ -5,12 +5,12 @@ import { buildBox } from './quantum.js';
 import { heightAt, groundAt, isWalkable, FIELDS, fieldRectDist } from './world.js';
 
 export const TOWER_TYPES = [
-  { id: 'amp', key: '1', name: 'スピーカー', short: '近くの敵を自動で撃つ', cost: 50, radius: 24, color: '#ff8a3d',
-    desc: '音楽に合わせて、範囲に入った雑魚や竜巻へ自動で音波を撃つ。畑の守りの基本' },
-  { id: 'observer', key: '2', name: '観測ライト', short: '正体を暴き、動きを鈍らせる', cost: 40, radius: 34, color: '#b48cff',
-    desc: '範囲の紫の竜巻を観測して正体を暴く。見つめ続けた敵は量子ゼノン効果で動きが鈍る' },
-  { id: 'rod', key: '3', name: '避雷針', short: '雷を防いで Q に変える', cost: 50, radius: 30, color: '#6fe3ff',
-    desc: '範囲に落ちる雷を吸い取って Qビットに変える。近づいた竜巻はトンネル効果で東の沖へ飛ばす' },
+  { id: 'amp', key: '1', name: 'スピーカー', short: '自動で撃つ・青虫に2倍', cost: 50, radius: 24, color: '#ff8a3d', good: 'mushi',
+    desc: '音楽に合わせて、範囲に入った雑魚や竜巻へ自動で音波を撃つ。青虫には 2 倍効く（弱点）' },
+  { id: 'observer', key: '2', name: '観測ライト', short: '正体を暴き・カラスを落とす', cost: 40, radius: 34, color: '#b48cff', good: 'karasu',
+    desc: '範囲の紫の竜巻を観測して正体を暴く。見つめ続けた敵は量子ゼノン効果で動きが鈍る。カラスは光を嫌って落ちていく（弱点）' },
+  { id: 'rod', key: '3', name: '避雷針', short: '雷を防ぐ・つむじ風を消す', cost: 50, radius: 30, color: '#6fe3ff', good: 'tsumuji',
+    desc: '範囲に落ちる雷を吸い取って Qビットに変える。つむじ風は近づくと一瞬で消える（弱点）。大きな竜巻はトンネル効果で東の沖へ飛ばす' },
   { id: 'box', key: '4', name: 'シュレディンガーの箱', short: '開けるまで中身は重ね合わせ', cost: 30, radius: 3, color: '#c9b8ff',
     desc: '台風が過ぎたら自動で開く。半分の確率で黄金キャベツ（+120Q）、半分は空っぽ。開けるまで中身は決まらない' },
 ];
@@ -188,7 +188,8 @@ export class Towers {
       dir.normalize();
       this.game.fx.soundWave(t.pos.clone().add(new THREE.Vector3(0, 1.2, 0)), dir, t.def.color, dist, 2);
       this.game.fx.notes(from, 2, ['#ff8a3d', '#ffd36a'], 0.6, dir);
-      th.hitEnemy(e, 14 + this.game.wave * 3);
+      const weak = e.type === 'mushi';
+      th.hitEnemy(e, (14 + this.game.wave * 3) * (weak ? 2 : 1), false, weak ? t.def.color : null);
       t.pulse = 1;
       this.game.audio.ampHit();
     }
@@ -216,6 +217,14 @@ export class Towers {
             if ((e.pos.x - tw.pos.x) ** 2 + (e.pos.z - tw.pos.z) ** 2 < r2) { e.zenoT = 0.25; slowed = true; }
           }
           if (slowed) this.game.memo('zeno');
+          // 弱点：カラスは観測ライトの光で落ちる（0.5 秒ごと）
+          if (tw.cd <= 0) {
+            tw.cd = 0.5;
+            for (const m of th.minions) {
+              if (!m.alive || m.type !== 'karasu') continue;
+              if ((m.pos.x - tw.pos.x) ** 2 + (m.pos.z - tw.pos.z) ** 2 < r2) th.hitEnemy(m, 14 + this.game.wave * 3, false, tw.def.color);
+            }
+          }
         }
       } else if (tw.id === 'amp') {
         tw.pulse = Math.max(0, (tw.pulse || 0) - dt * 5);
@@ -226,6 +235,14 @@ export class Towers {
       } else if (tw.id === 'rod') {
         ud.rings.forEach((r, i) => { r.rotation.x = t * (1 + i * 0.6); r.rotation.y = t * (1.4 - i * 0.3); r.position.y = 4 + i * 3.5 + Math.sin(t * 2 + i) * 0.4; });
         ud.tip.material.emissiveIntensity = 3 + Math.sin(t * 8) * 1.5;
+        // 弱点：つむじ風は避雷針に近づくと一瞬で消える
+        for (const tor of th.tornados) {
+          if (!tor.alive || !tor.group.mini) continue;
+          if (Math.hypot(tor.pos.x - tw.pos.x, tor.pos.z - tw.pos.z) < 14) {
+            this.game.fx.beam(tor.pos, '#6fe3ff', 30, 4, 0.5);
+            th.hitEnemy(tor, tor.hp + 1, false, tw.def.color);
+          }
+        }
         // トンネル効果：近づいた竜巻を沖へ
         if (tw.cd <= 0) {
           for (const tor of th.tornados) {

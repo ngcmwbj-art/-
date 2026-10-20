@@ -279,6 +279,23 @@ export class Cabbages {
 
   lostCount() { return this.total - this.alive; }
 
+  // 保存用：1玉 1 バイト（0〜100 = 体力、255 = 失われた）
+  snapshot() {
+    const a = new Uint8Array(this.total);
+    for (let i = 0; i < this.total; i++) a[i] = this.state[i] ? 255 : Math.max(1, Math.round(this.hp[i]));
+    return a;
+  }
+  restore(a) {
+    if (!a || a.length !== this.total) return false;
+    this.alive = 0; this.fieldAlive.fill(0);
+    for (let i = 0; i < this.total; i++) {
+      if (a[i] === 255) { this.state[i] = 2; this.hp[i] = 0; }
+      else { this.state[i] = 0; this.hp[i] = a[i]; this.alive++; this.fieldAlive[this.list[i].field]++; }
+    }
+    this.colorDirty = true; this.settled = false;
+    return true;
+  }
+
   // 跡地にキャベツを植え直す（最大 max 玉）
   replantNear(x, z, r, max) {
     let n = 0;

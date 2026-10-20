@@ -1,6 +1,6 @@
 // HUD：ステータス・ミニマップ・拍インジケーター・トースト・体力バー
 import * as THREE from 'three';
-import { FIELDS, coastX, BOUNDS, LIGHTHOUSE, HOUSE } from './world.js';
+import { FIELDS, coastX, BOUNDS, LIGHTHOUSE, HOUSE, BARN, SHRINE } from './world.js';
 import { TOWER_TYPES } from './towers.js';
 import { BEAT } from './audio.js';
 const WAVES_NAME = (game) => game.waveName();
@@ -39,12 +39,18 @@ export class HUD {
       this.prepFolded = !this.prepFolded; this.prepTouched = true;
     });
     this.mapBg = this.renderMapBg();
+    // 大きな地図（ミニマップをタップ／［Tab］で開く。見るだけ・開いている間は時間が止まる）
+    this.bigSize = 800;
+    this.bigCanvas = $('bigmap-c');
+    this.bigCtx = this.bigCanvas.getContext('2d');
+    this.mapBgBig = this.renderMapBg(this.bigSize);
   }
 
-  renderMapBg() {
+  renderMapBg(size = 200) {
     const S = 200, c = document.createElement('canvas');
-    c.width = c.height = S;
+    c.width = c.height = size;
     const g = c.getContext('2d');
+    g.scale(size / S, size / S);
     // 山（外側）→ 台地 → 東の海
     g.fillStyle = '#2c4a26'; g.fillRect(0, 0, S, S);
     const [x0, z0] = this.toMap(BOUNDS.xMin, BOUNDS.zMin), [, z1] = this.toMap(0, BOUNDS.zMax);
@@ -285,12 +291,15 @@ export class HUD {
     if (nowMs - (this._mapAt || 0) > 125) { this._mapAt = nowMs; this.drawMap(game); }
   }
 
-  drawMap(game) {
-    const g = this.mctx, S = 200;
-    g.clearRect(0, 0, S, S);
+  // big=true は全画面の大きな地図（同じ描き方を拡大して描く）
+  drawMap(game, big = false) {
+    const g = big ? this.bigCtx : this.mctx, S = 200, size = big ? this.bigSize : 200;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, size, size);
     g.save();
-    g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 2, 0, Math.PI * 2); g.clip();
-    g.drawImage(this.mapBg, 0, 0);
+    g.setTransform(size / S, 0, 0, size / S, 0, 0);
+    if (!big) { g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 2, 0, Math.PI * 2); g.clip(); }
+    g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(big ? this.mapBgBig : this.mapBg, 0, 0); g.restore();
     const s = this.mapScale();
     // 畑
     FIELDS.forEach((f, i) => {
@@ -321,6 +330,8 @@ export class HUD {
       const ang = Math.atan2(ty - cy, tx - cx);
       g.fillStyle = '#ff9a3a'; g.beginPath(); g.moveTo(tx, ty); g.lineTo(tx - Math.cos(ang - 0.5) * 6, ty - Math.sin(ang - 0.5) * 6); g.lineTo(tx - Math.cos(ang + 0.5) * 6, ty - Math.sin(ang + 0.5) * 6); g.fill();
     }
+    // 牛
+    for (const c of game.cows?.list || []) if (c.obj.visible && c.state !== 'home') dot(c.pos.x, c.pos.z, '#f2c62e', 1.8);
     // 雑魚
     for (const m of game.threats.minions) dot(m.pos.x, m.pos.z, m.type === 'mushi' ? '#9fe05a' : '#222', 2);
     // 飛来物
@@ -338,6 +349,18 @@ export class HUD {
     g.save(); g.translate(px, py); g.rotate(-p.camYaw + Math.PI);
     g.fillStyle = '#ffe66a'; g.beginPath(); g.moveTo(0, 6); g.lineTo(4, -4); g.lineTo(-4, -4); g.closePath(); g.fill();
     g.restore();
+    // 大きな地図だけ：名前のラベル
+    if (big) {
+      g.font = '700 5px "Zen Kaku Gothic New", sans-serif'; g.textAlign = 'center';
+      const label = (x, z, text, c = '#fff', dy = -5) => { const [a, b] = this.toMap(x, z); g.lineWidth = 1.2; g.strokeStyle = 'rgba(0,0,0,.8)'; g.strokeText(text, a, b + dy); g.fillStyle = c; g.fillText(text, a, b + dy); };
+      dot(SHRINE.x, SHRINE.z, '#c9b8ff', 2.5); dot(BARN.x, BARN.z, '#b0703a', 2.5);
+      label(HOUSE.x, HOUSE.z, '家'); label(BARN.x, BARN.z, '牛舎'); label(SHRINE.x, SHRINE.z, '量子の祠', '#d8ccff');
+      label(LIGHTHOUSE.x, LIGHTHOUSE.z, '灯台');
+      label(p.pos.x, p.pos.z, 'マサト', '#ffe66a', -7);
+      if (gate) label(gate.x + gate.in.x * 12, gate.z + gate.in.y * 12, `雑魚は${gate.name}から`, '#ffb36a', 2);
+      if (game.phase === 'prep' && game.plan) label(game.plan.landing.x, game.plan.landing.z, 'ボス上陸地点', '#ff8a7a', -9);
+      for (const t of game.towers.list) label(t.pos.x, t.pos.z, t.def.name, t.def.color, -4.5);
+    }
     // 風向
     const wd = game.weather.windDir;
     g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 2;

@@ -436,9 +436,14 @@ export class Threats {
   }
 
   // 敵にダメージを与え、倒したら報酬
-  hitEnemy(e, dmg, viaThread = false) {
+  // weak：弱点を突いたタワーの色（「弱点！」と表示し、その色で光らせる）
+  hitEnemy(e, dmg, viaThread = false, weak = null) {
     const p = e.pos.clone().add(new THREE.Vector3(0, e.type ? 1.5 : 8 * (e.baseScale || 1), 0));
-    this.hud.floater(`${viaThread ? '縁 ' : ''}-${Math.round(dmg)}`, p, this.game.camera, viaThread ? '#ff7a9a' : '#ffb84a');
+    if (weak) {
+      this.hud.floater(`弱点！ -${Math.round(dmg)}`, p, this.game.camera, weak);
+      this.fx.burst(p, weak, 16, 6, 0.5, 0.35, 0);
+      this.game.noteWeakness?.(e);
+    } else this.hud.floater(`${viaThread ? '縁 ' : ''}-${Math.round(dmg)}`, p, this.game.camera, viaThread ? '#ff7a9a' : '#ffb84a');
     // もつれた相方にも同じだけ伝わる
     if (!viaThread && e.partner && e.partner.alive) {
       this.fx.burst(e.partner.pos.clone().add(new THREE.Vector3(0, 1.5, 0)), '#ff3a5a', 14, 5, 0.5, 0.3, 0);

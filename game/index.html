@@ -34,7 +34,17 @@
         <li><b>量子の力で本物を暴き、祠に祈る</b><span>大ボスは「重ね合わせ」の紫の分身。観測すると本物がひとつに定まる。準備タイムは量子の祠で手を合わせて御利益を</span></li>
       </ol>
       <div class="menu">
+        <button id="continue" hidden disabled></button>
         <button id="start" disabled>ゲームスタート</button>
+        <label>はじめる台風
+          <select id="startwave">
+            <option value="0">台風1号（はじめから）</option>
+            <option value="1">台風2号から</option>
+            <option value="2">台風3号から</option>
+            <option value="3">台風4号から</option>
+            <option value="4">台風5号から</option>
+          </select>
+        </label>
         <label>画質
           <select id="quality">
             <option value="low">低（軽量）</option>
@@ -93,6 +103,7 @@
   <section id="touch" hidden>
     <div id="touch-zone"></div>
     <div id="stick"><i></i></div>
+    <div id="stick-hint"><span>ここをなぞって移動</span></div>
     <div class="tbtns">
       <button id="tb-guitar" class="big">ギター</button>
       <button id="tb-jump">ジャンプ</button>
@@ -120,6 +131,7 @@
       <dt>Q</dt><dd>量子ギターソロ（ゲージ満タン）：時間減速＋広範囲観測＋連続攻撃</dd>
       <dt>1 / 2 / 3 / 4 → E</dt><dd>スピーカー（近くの敵を自動で撃つ）／観測ライト（正体を暴き、ゼノン効果で足止め）／避雷針（雷を防ぎ、竜巻をトンネル効果で沖へ）／シュレディンガーの箱（台風一過に開けると半分の確率で黄金キャベツ）を選んで建設（X で解除）</dd>
       <dt>Enter</dt><dd>準備を切り上げて台風を迎え撃つ</dd>
+      <dt>Tab</dt><dd>大きな地図（開いている間は時間が止まる）</dd>
       <dt>M / H / Esc</dt><dd>BGM 切替 / この画面 / 一時停止</dd>
     </dl>
     <h3>スマホ</h3>
@@ -127,6 +139,7 @@
       <dt>画面の左半分</dt><dd>触れた所にスティックが出て移動（端まで倒すとダッシュ）</dd>
       <dt>画面の右半分</dt><dd>スワイプで視点</dd>
       <dt>右下のボタン</dt><dd>ギター・観測・テレポ・ソロ・結界・ジャンプ</dd>
+      <dt>右上の小さな地図</dt><dd>タップで大きな地図</dd>
       <dt>上のタワー欄</dt><dd>タップで選び、「ここに建てる」で建設</dd>
     </dl>
     <h3>量子のルール</h3>
@@ -139,6 +152,25 @@
       <li>準備タイムに<b>量子の祠</b>で手を合わせると、次の台風のあいだ御利益が宿る（ゲームの中のおまじない）。</li>
       <li>初めて起きた量子現象は、右に<b>量子メモ</b>が出る。本当の物理と、ゲームでの扱いを並べて書いてある。</li>
     </ul>
+  </section>
+
+  <!-- 大きな地図 -->
+  <section id="bigmap">
+    <div class="bm-inner">
+      <canvas id="bigmap-c" width="800" height="800"></canvas>
+      <ul class="legend">
+        <li><i style="background:#ffe66a"></i>マサト</li>
+        <li><i style="background:#ff9a3a"></i>雑魚の来る方角</li>
+        <li><i style="background:#ff5a4a"></i>ボスの上陸地点／実体の竜巻</li>
+        <li><i style="background:#b48cff"></i>重ね合わせの竜巻</li>
+        <li><i style="background:#9fe05a"></i>青虫</li>
+        <li><i style="background:#222"></i>カラス</li>
+        <li><i style="background:#ffd24a"></i>落雷の予告</li>
+        <li><i style="background:#f2c62e"></i>外にいる牛</li>
+        <li><i class="field"></i>畑（赤いほど被害）</li>
+      </ul>
+      <p class="close">タップで閉じる<span class="pc-only">（［Tab］でも閉じる）</span>・地図を開いている間は時間が止まる</p>
+    </div>
   </section>
 
   <section id="pause">
