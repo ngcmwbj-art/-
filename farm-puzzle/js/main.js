@@ -46,6 +46,7 @@
     document.querySelectorAll('.tab').forEach((el) => el.classList.toggle('active', el.dataset.screen === name));
     if (name === 'puzzle') Puzzle.measure();
     if (name === 'farm') Farm.render();
+    if (name === 'zukan') Zukan.render();
     window.scrollTo(0, 0);
   }
   document.querySelectorAll('.tab').forEach((tab) => {
@@ -53,10 +54,17 @@
   });
 
   /* ---------- 各画面の準備 ---------- */
+  Zukan.init({ data: save, config });
+
   Farm.init({
     data: save,
     config,
     onChange: persist,
+    // 初めて収穫した野菜は図鑑に登録
+    onHarvest: (veg, first) => {
+      Zukan.render();
+      if (first) Zukan.announce(veg, () => showScreen('zukan'));
+    },
   });
 
   Puzzle.init({

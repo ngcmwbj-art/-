@@ -46,6 +46,11 @@
       <section id="screen-farm" class="screen">
         <div id="farm"></div>
       </section>
+
+      <!-- 図鑑画面（中身は js/zukan.js が組み立てる） -->
+      <section id="screen-zukan" class="screen">
+        <div id="zukan"></div>
+      </section>
     </main>
   </div>
 
@@ -53,6 +58,7 @@
   <nav class="tabs">
     <button class="tab active" data-screen="puzzle"><span class="tab-icon">🧩</span><span data-msg="tabs.puzzle"></span></button>
     <button class="tab" data-screen="farm"><span class="tab-icon">🌱</span><span data-msg="tabs.farm"></span><span class="badge"></span></button>
+    <button class="tab" data-screen="zukan"><span class="tab-icon">📖</span><span data-msg="tabs.zukan"></span></button>
   </nav>
 
   <!-- お知らせ -->
@@ -77,6 +83,7 @@
   <script src="js/storage.js"></script>
   <script src="js/puzzle.js"></script>
   <script src="js/farm.js"></script>
+  <script src="js/zukan.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

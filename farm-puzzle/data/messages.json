@@ -6,16 +6,13 @@
     "coin": "🪙"
   },
   "common": {
-    "cancel": "やめる"
+    "cancel": "やめる",
+    "close": "とじる"
   },
   "tabs": {
     "puzzle": "パズル",
-    "farm": "はたけ"
-  },
-  "hud": {
-    "water": "水",
-    "fertilizer": "肥料",
-    "coin": "コイン"
+    "farm": "はたけ",
+    "zukan": "図鑑"
   },
   "puzzle": {
     "score": "スコア",
@@ -53,5 +50,16 @@
       "fertilize": "追肥",
       "harvest": "収穫"
     }
+  },
+  "zukan": {
+    "title": "やさい図鑑",
+    "count": "{found} / {total} しゅるい",
+    "season": "旬：{text}",
+    "times": "収穫 {n}回",
+    "howTo": "育て方の流れを見る",
+    "unknownName": "？？？",
+    "unknownText": "まだ収穫していない野菜です。畑で育てて収穫すると登録されます。",
+    "newEntryTitle": "図鑑に登録されました！",
+    "open": "図鑑を見る"
   }
 }

@@ -529,3 +529,51 @@ body {
   .hud { gap: 4px; }
   .hud-item { padding: 2px 7px; font-size: 0.8rem; }
 }
+
+/* =========================================================
+   図鑑画面
+   ========================================================= */
+.zukan-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 4px 0 12px;
+}
+.zukan-title { font-size: 1.15rem; font-weight: bold; color: var(--green-dark); }
+.zukan-count { color: var(--sub); font-weight: bold; }
+.zukan-list { display: flex; flex-direction: column; gap: 12px; }
+.zukan-card {
+  display: flex;
+  gap: 14px;
+  padding: 14px;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: 18px;
+}
+.zukan-icon {
+  flex: 0 0 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.4rem;
+  background: #f4ecdc;
+  border-radius: 16px;
+}
+.zukan-body { flex: 1; min-width: 0; }
+.zukan-name { margin: 0 0 4px; font-size: 1.1rem; }
+.zukan-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; font-size: 0.8rem; }
+.zukan-season { padding: 1px 10px; border-radius: 999px; background: #fde7cf; color: #b9773a; font-weight: bold; }
+.zukan-times { padding: 1px 10px; border-radius: 999px; background: #dcefd3; color: var(--green-dark); }
+.zukan-tips { margin: 0; padding-left: 1.1em; line-height: 1.7; font-size: 0.92rem; }
+.zukan-steps { margin-top: 8px; font-size: 0.88rem; }
+.zukan-steps summary { cursor: pointer; color: var(--green-dark); font-weight: bold; padding: 6px 0; }
+.zukan-steps ol { margin: 4px 0 0; padding-left: 1.3em; line-height: 1.7; }
+.zukan-card.locked { opacity: 0.7; border-style: dashed; }
+.zukan-card.locked .zukan-icon { color: var(--sub); font-weight: bold; }
+.zukan-locked-text { margin: 0; font-size: 0.85rem; color: var(--sub); line-height: 1.6; }
+
+/* 図鑑に登録されたときのお知らせ */
+.new-entry-icon { font-size: 3.4rem; animation: bounce 1.6s ease-in-out infinite; }
+.new-entry-name { font-size: 1.2rem; font-weight: bold; margin-bottom: 4px; }
+.new-entry p { margin: 0; text-align: left; }
