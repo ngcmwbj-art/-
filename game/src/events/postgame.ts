@@ -132,7 +132,7 @@ for (const id of ['map_town', 'map_maruyama']) {
 
 /** 着く所（05 8.1。夕鳴町 (43,28) 上向き、海ぞい (21,17) 左、星見台 転回場のそば）。 */
 const ARRIVE: Record<PgTown, { map: string; x: number; y: number; dir: Dir }> = {
-  yunari: { map: 'map_town', x: 43, y: 28, dir: 'up' }, // (43: 44 is in the truck's body — prologue.ts fitLane, F1 2026-10-14)
+  yunari: { map: 'map_town', x: 46, y: 22, dir: 'left' }, // 軽トラ (44,20) の 鼻先の 右（2026-10-20 路地から 通りへ）
   umi: { map: 'map_umizoi', x: 21, y: 17, dir: 'left' },
   hoshi: { map: 'map_hoshimidai', x: 41, y: 44, dir: 'up' },
 };
