@@ -27,6 +27,8 @@ import { ROOM_BG, RoomWorld, roomMap, roomPan } from './room';
 // (the truck's bed on the move, chapter 3: its own 3D, nidai.ts)
 import { NidaiWorld, nidaiMap } from './nidai';
 import { bindView, shotLens } from './cut';
+import { endingView } from '../events/ending';
+import { game } from '../engine/game';
 import { nightGrade, nightMul, patchNight } from './cut_night';
 
 export interface CamParams {
@@ -437,6 +439,9 @@ export class Hd2dView {
     const fy = foot && crop ? ((foot[1] - crop[1]) / crop[3]) * H : foot?.[1];
     const focus = fy !== undefined ? Math.max(0.25, Math.min(0.75, 1 - fy / H)) : 0.5;
     this.post!.setGrade(world instanceof RoomWorld ? world.grade() : nightGrade(f.grade), f.wave.amp, f.wave.t / 1000, focus);
+    // (a memory's tone: chapter 3 S30's flashback, events/ch3/ending.ts — only while its script runs)
+    const mem = endingView.memory;
+    this.post!.setMemory(game.scripts.busy ? mem.k : 0, mem.tint, mem.mul);
     // (inside, no tilt-shift blur: the whole room sharp)
     this.post!.setTilt(!(world instanceof RoomWorld));
     const t1 = performance.now();
@@ -618,6 +623,9 @@ export class Hd2dView {
     const near: [number, Actor][] = [];
     for (const a of f.actors) {
       if (a.kind !== 'npc' || !a.visible || a.data.passerby || a.data.vehicle || (a.data.def as NpcObj | undefined)?.vehicle) continue;
+      // (a scene's staged people — chapter 3's ending, the last pick-up: data.noSee — stand where the
+      // scene puts them, behind the griddle on purpose; what is in front of them stays as it is)
+      if (a.data.noSee) continue;
       const dx = Math.abs(a.x - px);
       const dy = Math.abs(a.y - py);
       if (dx > 14 * 16 || dy > 10 * 16) continue;

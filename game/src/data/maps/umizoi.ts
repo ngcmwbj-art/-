@@ -231,8 +231,8 @@ const OBJECTS: MapObj[] = [
   PR('prop_c3_ishi_bench', 42, 31, { c: '#C8C4B8' }),
   // the real lunch's mats (S13 and the ending, 62 3.3・12.6): from the moment the town says ごちそうさま
   { t: 'prop', prop: 'prop_c3_goza', x: 22, y: 31, cond: { flag: 'flag_ch3_got_gochisou' } } as MapObj,
-  // the ending (60 10.29): the griddle at the goza (S29) and the photographer's tripod (S31), the scenario's flags
-  PR('prop_c3_end_teppan', 30, 32, {}, { cond: { flag: 'flag_c3_end_goza' } }),
+  // the ending (60 10.29): the photographer's tripod (S31), the scenario's flag (the griddle of S29 is on the beach since
+  // 2026-10-20: 海水浴場 below)
   PR('prop_c3_end_tripod', 31, 33, {}, { cond: { flag: 'flag_c3_end_tripod' } }),
   O('obj_c3_bouhatei', 4, 31, { h: 2, face: 'left', fushigi: 'fushigi_ch3_03' }),
   PR('prop_c3_shibuki', 20, 33),
@@ -250,6 +250,11 @@ const OBJECTS: MapObj[] = [
   PR('prop_c3_rope_kui', 55, 30),
   PR('prop_c3_buoy', 55, 31),
   O('obj_c3_umi_kagami', 53, 31, { w: 14, flat: true }),
+  // the ending's lunch (S29, 60 10.29; 2026-10-20 依頼主「こんな狭い所でなく砂浜で広々と」): ナミエの 長机の 大きな
+  // 鉄板を 手前の まん中に、その 両がわの 手前に ござ 1枚ずつ（the scenario's flag_c3_end_goza）
+  PR('prop_c3_end_yatai', 58, 29, {}, { cond: { flag: 'flag_c3_end_goza' } }),
+  { t: 'prop', prop: 'prop_c3_goza', x: 53, y: 29, opts: { one: true }, cond: { flag: 'flag_c3_end_goza' } } as MapObj,
+  { t: 'prop', prop: 'prop_c3_goza', x: 63, y: 29, opts: { one: true }, cond: { flag: 'flag_c3_end_goza' } } as MapObj,
 
   // ======================================================== 町はずれ (x68–79)：港通りが 町の 外へ（旧水族館は 岬、map_c3_misaki）
   O('obj_c3_misaki_fuda', 77, 19, { prop: 'prop_c3_misaki_fuda', opts: { to: 'misaki' }, text: '@narr\n道の 札。\n『岬 →』' }),

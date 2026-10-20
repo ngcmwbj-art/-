@@ -42,6 +42,9 @@ import { spawnTruck } from './prologue';
 import { kitaIds } from './minna';
 import { hasC3Cut, playC3Cut } from './cuts';
 import { markClearCh3 } from '../../ui/clear_ch3';
+import { fxAt, registerWorldFx } from '../../world/fx';
+import { camAt, camRelease, panPx } from './stagecam';
+import { registerDebug } from '../../debug';
 import { playEndingNotebookCh3 } from '../../ui/ending_ch3';
 
 // ---------------------------------------------------------------- staging helpers
@@ -74,6 +77,8 @@ function put(id: string, x: number, y: number, dir: Dir, spr?: string, p?: strin
   const a = spawn(aid, x, y, { sprite: hasChar(s) ? s : hasChar(id) ? id : 'npc_obaa', dir, ghost: true });
   a.data.scripted = true;
   a.solid = false;
+  // (HD-2D: stood where the scene wants them — behind the griddle on purpose — nothing turns see-through for them)
+  a.data.noSee = true;
   if (p) a.tempPose = p;
   return a;
 }
@@ -131,31 +136,123 @@ function placeBreakwater(center: number, fixed: [string, number, number, Dir, st
   });
 }
 
-// ---------------------------------------------------------------- カット1 S29 防波堤の昼ごはん
+// ---------------------------------------------------------------- カット1 S29 砂浜の昼ごはん
+
+/**
+ * S29 on 海水浴場's sand (2026-10-20 依頼主「人多過ぎてしゅんが誰かと被ってるし、焼きそば焼いてる2人が後ろの方で
+ * 何かやってるなって感じで全く良さが出てない。こんな狭い所でなく砂浜で広々と使えば良いのでは？」; it was the
+ * breakwater's two rows). The beach is x53–66, y23–31 (the beach hut north, the sea south behind the camera):
+ * ナミエの 長机の 鉄板 (prop_c3_end_yatai, x58–62) front and centre on y29, たかし and グソっ君 behind it facing us,
+ * しゅん at its west end; a mat each side in front (53–56, 63–66 × 29–30). Everyone else round them in a wide half
+ * ring, the beach hut's front, the waterline, under the parasol, the lifeguard's chair, and — when many came — the
+ * grass east of the beach and the quay west of the rocks (the camera goes there slowly; not all need be in one frame).
+ * No two stand in one column less than 2 rows apart, nor side by side in a row (nobody hides anybody).
+ */
+const BEACH = { yatai: [60, 29] as const, shun: [57, 29] as const };
+const BEACH_FIXED: [string, number, number, Dir, string?, string?][] = [
+  ['npc_maruyama', 59, 28, 'down', 'npc_maruyama_hige', 'fry'],
+  ['kanenari', 61, 28, 'down', 'kanenari', 'hera'],
+  // the east mat: ツガオ at its end, ゴロウ eating, ナミエ by the griddle with the second helping
+  ['npc_tsugao', 66, 30, 'down', 'npc_tsugao_shirt'],
+  ['npc_c3_jouren', 64, 30, 'down'],
+  ['npc_c3_shokudo', 63, 28, 'down'],
+  // under the parasol (65,27): the dried-fish couple
+  ['npc_c3_himono_otto', 65, 27, 'down'],
+  ['npc_c3_himono_tsuma', 66, 27, 'down'],
+  // the west mat: ヒロスケ, and ポコシャ and ハキコ side by side (they bow together)
+  ['npc_hirosuke', 53, 29, 'down'],
+  ['npc_pokosha', 54, 30, 'down'],
+  ['npc_c3_uketsuke', 55, 30, 'down'],
+  ['npc_dakoku', 55, 27, 'down', 'npc_dakoku_daisha'],
+  // カイト up on his lifeguard chair (57,27), as at noon (umizoi.ts: off −18)
+  ['npc_c3_kanshiin', 57, 27, 'down', undefined, 'sit'],
+  // the children at the waterline
+  ['npc_c3_kid_a', 53, 31, 'down'],
+  ['npc_c3_kid_b', 56, 31, 'down'],
+  ['npc_c3_kid_c', 65, 31, 'down'],
+];
+/** The free places, nearest the griddle first (the ring, the hut's front, the waterline, then farther off). */
+const BEACH_SPOTS: [number, number][] = [
+  // the ring behind (y24–25; the sand right behind the two cooks is left clear)
+  [58, 24], [62, 24], [56, 25], [64, 25], [60, 24], [53, 26], [66, 25],
+  // the beach hut's front
+  [57, 23], [63, 23], [55, 23], [59, 23], [65, 23],
+  // the sides and the waterline
+  [54, 27], [63, 26], [63, 31], [54, 25],
+  // the grass east of the beach (a far ring)
+  [69, 25], [71, 26], [70, 28], [72, 29], [69, 30], [74, 28], [75, 25], [76, 27], [71, 30], [74, 30],
+  // the quay west of the rocks
+  [50, 25], [49, 24], [51, 24], [48, 25], [49, 26], [51, 26], [47, 24], [46, 25],
+];
+
+function placeBeach(): void {
+  for (const [id, x, y, d, spr, p] of BEACH_FIXED) {
+    const a = put(id, x, y, d, spr, p);
+    if (id === 'npc_c3_kanshiin') a.oy = -18;
+  }
+  const others = [...TOWN.filter((id) => !BEACH_FIXED.some((f) => f[0] === id)), ...kitaIds()];
+  others.forEach((id, i) => {
+    const s = BEACH_SPOTS[i];
+    if (s) put(id, s[0], s[1], s[0] > 67 || s[0] < 52 ? (s[0] > 67 ? 'left' : 'right') : 'down');
+  });
+}
+
+/** The griddle's steam and the sauce's smell over the beach while S29 is up (2D and HD-2D: anchored to the plate). */
+const steam: { x: number; h: number; t: number; life: number; kind: 0 | 1 }[] = [];
+let steamNext = 0;
+registerWorldFx({
+  map: 'map_umizoi',
+  anchored: true,
+  update(_f, dt) {
+    if (!flag('flag_c3_end_goza')) {
+      steam.length = 0;
+      return;
+    }
+    steamNext -= dt;
+    if (steamNext <= 0) {
+      steamNext = 140 + Math.random() * 120;
+      const smell = Math.random() < 0.12;
+      steam.push({ x: BEACH.yatai[0] * 16 - 26 + Math.random() * 52, h: 18, t: 0, life: smell ? 2600 : 1900 + Math.random() * 700, kind: smell ? 1 : 0 });
+    }
+    for (const s of steam) {
+      s.t += dt;
+      s.h += dt * (s.kind ? 0.012 : 0.022);
+      // the sea breeze from the south-west leans it east a little
+      s.x += dt * 0.004;
+    }
+    for (let i = steam.length - 1; i >= 0; i--) if (steam[i].t > steam[i].life) steam.splice(i, 1);
+  },
+  draw(f, g, cx, cy, layer) {
+    if (layer !== 'top' || !steam.length) return;
+    const foot = BEACH.yatai[1] * 16 + 12;
+    for (const s of steam) {
+      const k = s.t / s.life;
+      const a = Math.sin(Math.PI * Math.min(1, k * 1.4)) * (1 - k);
+      const wob = Math.sin(s.t / 260 + s.x) * 2;
+      const [x, y] = fxAt(f, s.x + wob, foot - s.h, cx, cy, foot);
+      if (s.kind === 0) {
+        // a soft puff: a few px growing wider as it rises
+        const r = 1 + Math.floor(k * 3);
+        g.rect(Math.round(x) - r, Math.round(y), r * 2, 1, '#FFFFFF', 0.42 * a);
+        g.rect(Math.round(x) - r + 1, Math.round(y) - 1, r * 2 - 2, 1, '#FFFFFF', 0.3 * a);
+      } else {
+        // the sauce's smell: a brown wavy line drifting up (as the 2D's cartoons draw a smell)
+        for (let i = 0; i < 7; i++) g.rect(Math.round(x) + i - 3, Math.round(y + Math.sin(i * 1.1 + s.t / 200) * 1.5), 1, 1, '#B8864A', 0.75 * a);
+      }
+    }
+  },
+});
 
 function* cut1Lunch(): Co {
   setFlag('flag_c3_end_goza', 1);
-  cutTo('map_umizoi', 29, 32, { show: true, dir: 'down', shot: 'e3_goza' });
-  placeBreakwater(30, [
-    ['npc_maruyama', 30, 31, 'down', 'npc_maruyama_hige', 'fry'],
-    ['kanenari', 31, 31, 'down', 'kanenari', 'hera'],
-    ['npc_tsugao', 22, 31, 'down', 'npc_tsugao_shirt'],
-    ['npc_hirosuke', 24, 32, 'down'],
-    ['npc_pokosha', 26, 32, 'down'],
-    ['npc_c3_uketsuke', 27, 32, 'down'],
-    ['npc_dakoku', 25, 31, 'down', 'npc_dakoku_daisha'],
-    ['npc_c3_sirenban', 6, 30, 'down'],
-    ['npc_c3_toudai', 7, 30, 'down'],
-    ['npc_c3_mago', 8, 30, 'down'],
-    ['npc_c3_shokudo', 33, 31, 'down'],
-    ['npc_c3_jouren', 34, 32, 'down'],
-    ['npc_c3_himono_otto', 36, 32, 'down'],
-    ['npc_c3_himono_tsuma', 37, 32, 'down'],
-  ]);
+  cutTo('map_umizoi', BEACH.shun[0], BEACH.shun[1], { show: true, dir: 'right', shot: 'e3_goza' });
+  placeBeach();
   const p = F().player;
-  p.dir = 'down';
+  p.dir = 'right';
+  // (the griddle in the middle, a little low on the screen, clear of the message window)
+  camAt(BEACH.yatai[0] * 16, BEACH.yatai[1] * 16 + 4);
   playAmbient('amb_c3_umi', { fade: 1.5 });
-  playAmbient('amb_c3_bouhatei', { vol: 0.6, fade: 1.5 });
+  playAmbient('amb_c3_kaisui', { vol: 0.6, fade: 1.5 });
   setClockText('13:00', { cut: true });
   yield* game.fadeIn(700);
   se('se_c3_goza', { vol: 0.6 });
@@ -194,10 +291,12 @@ function* cut1Lunch(): Co {
   }
   yield* say3(T.S29_UMAI);
   poseOf('kanenari', 'hera');
-  // カット1b みんなの昼ごはん（各2秒）
+  // カット1b みんなの昼ごはん（各2秒）: the camera goes slowly round the beach to whoever speaks
   for (const [id, line] of T.S29_MINNA) {
     const aid = `e3_${id}`;
-    if (!F().actorById(aid)) continue;
+    const a = F().actorById(aid);
+    if (!a) continue;
+    game.scripts.run(panPx(Math.max(BEACH.yatai[0] * 16 - 64, Math.min(BEACH.yatai[0] * 16 + 64, a.x)), BEACH.yatai[1] * 16 + 4, 900));
     const { showBubble } = (yield import('../../ui/bubble')) as typeof import('../../ui/bubble');
     showBubble(aid, line, 1800);
     if (id === 'npc_hirosuke') se('se_yakiimo', { vol: 0.5 });
@@ -209,13 +308,17 @@ function* cut1Lunch(): Co {
   yield* beat(1200);
   poseOf('npc_pokosha', null);
   poseOf('npc_c3_uketsuke', null);
+  // back to the griddle
+  yield* panPx(BEACH.yatai[0] * 16, BEACH.yatai[1] * 16 + 4, 1000);
   yield* say3(T.S29_B);
   // ツガオ, at the end of the mat, eating たかし's yakisoba without a word
   poseOf('npc_tsugao', 'eat');
+  game.scripts.run(panPx(BEACH.yatai[0] * 16 + 56, BEACH.yatai[1] * 16 + 4, 1400));
   yield* say3(T.S29_TSUGAO);
   yield* beat(800);
   stopBgm(3.0);
   yield* fadeCut(900);
+  camRelease();
   clearCast();
   setFlag('flag_c3_end_goza', 0);
 }
@@ -610,3 +713,24 @@ export const CH3_ENDING_CUTS: Record<number, () => Co> = {
   5: cut5Morning,
 };
 
+
+// QA (dev server): one cut of the ending on the field now (after jump('ch3:ending', true)): __game.cmd.c3cut(1)
+if (import.meta.env.DEV)
+  registerDebug('c3cut', (n: number) => {
+    const cut = CH3_ENDING_CUTS[n];
+    if (!cut) return `cuts: ${Object.keys(CH3_ENDING_CUTS).join(' ')}`;
+    setFlag('flag_ch3_stage', 4);
+    setFlag('flag_hud_hidden', 1);
+    setFlag('flag_bgm_hold', 1);
+    game.fadeColor = '#0B0B14';
+    game.fadeAlpha = 1;
+    F().startScript(
+      (function* (): Co {
+        yield* cut();
+        setFlag('flag_bgm_hold', 0);
+        setFlag('flag_hud_hidden', 0);
+        if (game.fadeAlpha > 0) yield* game.fadeIn(300);
+      })(),
+    );
+    return `cut ${n}`;
+  });

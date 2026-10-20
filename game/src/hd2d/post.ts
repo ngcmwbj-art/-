@@ -76,6 +76,11 @@ const FinishShader = {
     waveAmp: { value: 0 },
     waveT: { value: 0 },
     lift: { value: new THREE.Color(0.012, 0.008, 0.02) },
+    // a memory (chapter 3 S30's flashback, events/ch3/ending.ts): the colour faded toward memTint,
+    // multiplied by memMul (the deep sea's blue, the night's), a haze and a deeper vignette; 0 = off
+    memA: { value: 0 },
+    memTint: { value: new THREE.Color(1.08, 0.98, 0.84) },
+    memMul: { value: new THREE.Color(1, 1, 1) },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -85,8 +90,8 @@ const FinishShader = {
     }`,
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
-    uniform float hstep, vstep, focus, desat, glareA, glareW, glareRight, topA, vignette, waveAmp, waveT;
-    uniform vec3 mul, glare, topDark, lift;
+    uniform float hstep, vstep, focus, desat, glareA, glareW, glareRight, topA, vignette, waveAmp, waveT, memA;
+    uniform vec3 mul, glare, topDark, lift, memTint, memMul;
     varying vec2 vUv;
 
     vec3 toSRGB(vec3 c) {
@@ -140,6 +145,13 @@ const FinishShader = {
       s = s + lift * (1.0 - s);
       vec2 v = (vUv - 0.5) * vec2(1.25, 1.0);
       s *= 1.0 - vignette * smoothstep(0.25, 0.85, dot(v, v) * 1.6);
+      if (memA > 0.0) {
+        float ml = dot(s, vec3(0.299, 0.587, 0.114));
+        s = mix(s, vec3(ml) * memTint, memA * 0.72);
+        s = mix(s, s * memMul, memA);
+        s = s + memA * 0.07 * (1.0 - s);
+        s *= 1.0 - memA * 0.55 * smoothstep(0.12, 0.8, dot(v, v) * 1.6);
+      }
       gl_FragColor = vec4(clamp(s, 0.0, 1.0), 1.0);
     }`,
 };
@@ -218,6 +230,14 @@ export class Post {
     u.waveT.value = waveT;
     u.focus.value = focus;
     if (this.vtilt) this.vtilt.uniforms.focus.value = focus;
+  }
+
+  /** A memory's tone over the frame (a: 0 = off … 1; tint and mul as 0..1 RGB). */
+  setMemory(a: number, tint: readonly [number, number, number], mul: readonly [number, number, number]): void {
+    const u = this.finish.uniforms;
+    u.memA.value = a;
+    (u.memTint.value as THREE.Color).setRGB(tint[0], tint[1], tint[2]);
+    (u.memMul.value as THREE.Color).setRGB(mul[0], mul[1], mul[2]);
   }
 
   render(): void {

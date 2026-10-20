@@ -7,8 +7,9 @@
 import type { ShotDef } from './cut';
 
 export const C3_SHOTS: Record<string, ShotDef> = {
-  // S29 the lunch on the breakwater: low along the goza, the griddle's steam in the middle
-  e3_goza: { lens: { pitch: 30, fov: 26, dist: 23, lookN: 0, lift: 0.5 }, to: { pitch: 28, dist: 21.5 }, drift: 9000 },
+  // S29 the lunch on the beach (2026-10-20, events/ch3/ending.ts BEACH): low and near over the griddle in
+  // the middle, the half ring of people behind; drifting out a little as the scene goes round the beach
+  e3_goza: { lens: { pitch: 29, fov: 24, dist: 18.5, lookN: 0, lift: 0.7 }, to: { pitch: 31, dist: 21 }, drift: 14000 },
   // S30 under the lighthouse: the three on the plinth, close and quiet
   e3_toudai: { lens: { pitch: 28, fov: 22, dist: 20, lookN: 0.4, lift: 0.7 }, to: { pitch: 27, dist: 18.5 }, drift: 12000 },
   // S31 everyone lined up for the photo: wide, a little low

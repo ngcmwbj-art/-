@@ -45,6 +45,11 @@ import { cinema, cinemaOff, forceBoxPos, quietItem, zoomIn, zoomOut, zoomPan, zo
 export const endingView = {
   shot: (_f: FieldScene, _name: string | null, _ms = 0): void => {},
   keepNight: (_f: FieldScene): void => {},
+  /**
+   * A memory's tone over the 3D picture (chapter 3 S30's flashback; the HD-2D view reads it while
+   * a script runs): k 0 = off … 1, the faded colour's tint and a multiply (0..1 RGB).
+   */
+  memory: { k: 0, tint: [1.08, 0.98, 0.84] as [number, number, number], mul: [1, 1, 1] as [number, number, number] },
 };
 
 /** Load a map for a cut (no door, no enter scripts), the player at (x, y). */

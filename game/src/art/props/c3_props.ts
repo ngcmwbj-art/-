@@ -747,12 +747,14 @@ void h01;
  * tofu, tomatoes, tea, a big plate — the people stand and sit on top (they
  * are the scenario's). Flat; from S13 (flag_ch3_got_gochisou).
  */
-registerProp('prop_c3_goza', () => {
-  const W = 19 * 16;
+registerProp('prop_c3_goza', (o) => {
+  // (opts.one: one mat of the four, 4 tiles — the ending's lunch on the beach, S29)
+  const one = !!o?.one;
+  const W = one ? 4 * 16 : 19 * 16;
   const H = 32;
   const p = new PixelCanvas(W, H);
   // four mats, each 4–5 tiles, a little apart and askew
-  const mats: [number, number, number][] = [[0, 2, 72], [76, 0, 76], [156, 3, 70], [230, 1, 74]];
+  const mats: [number, number, number][] = one ? [[1, 2, 62]] : [[0, 2, 72], [76, 0, 76], [156, 3, 70], [230, 1, 74]];
   for (const [mx, my, mw] of mats) {
     for (let y = my; y < my + 28; y++)
       for (let x = mx; x < mx + mw; x++) {
@@ -766,23 +768,33 @@ registerProp('prop_c3_goza', () => {
     p.ellipse(x, y + 1, rx, ry, '#9AA0A8');
     p.ellipse(x, y, rx, ry, '#F4F1E8');
   };
-  for (const [x, y] of [[20, 12], [110, 10], [190, 14], [262, 12]] as const) {
+  const inside = (x: number) => x < W - 6;
+  for (const [x, y] of ([[20, 12], [110, 10], [190, 14], [262, 12]] as const).filter(([x]) => inside(x))) {
     plate(x, y, 9, 4);
     for (let k = 0; k < 3; k++) {
       p.poly([[x - 6 + k * 5, y + 1], [x - 4 + k * 5, y - 3], [x - 2 + k * 5, y + 1]], '#FFFFFF');
       p.hline(x - 6 + k * 5, x - 2 + k * 5, y + 1, '#2A3A2A');
     }
   }
-  for (const [x, y] of [[48, 18], [140, 16], [214, 20]] as const) {
+  for (const [x, y] of ([[48, 18], [140, 16], [214, 20]] as const).filter(([x]) => inside(x))) {
     plate(x, y, 8, 3);
     p.ellipse(x, y, 5, 2, '#C89A6A');
     p.hline(x - 3, x + 3, y, '#E8C8A0');
   }
-  plate(84, 20, 6, 3);
-  p.rect(81, 18, 6, 3, '#F4F1E8');
-  plate(240, 22, 6, 3);
-  for (const dx of [-2, 1, 4]) p.ellipse(240 + dx - 1, 21, 1, 1, '#E23B2E');
-  for (const x of [32, 66, 124, 172, 228, 286]) {
+  if (!one) {
+    plate(84, 20, 6, 3);
+    p.rect(81, 18, 6, 3, '#F4F1E8');
+    plate(240, 22, 6, 3);
+    for (const dx of [-2, 1, 4]) p.ellipse(240 + dx - 1, 21, 1, 1, '#E23B2E');
+  } else {
+    // the yakisoba packs off the griddle, a rubber band round each
+    for (const x of [44, 52]) {
+      p.rect(x - 4, 14, 8, 5, '#F4F1E8');
+      p.rect(x - 3, 15, 6, 3, '#C8A06A');
+      p.vline(x, 14, 18, '#E84E3C');
+    }
+  }
+  for (const x of [32, 66, 124, 172, 228, 286].filter(inside)) {
     p.rect(x, 20, 3, 4, '#E8E4D8');
     p.set(x + 1, 20, '#8A6A2A');
   }
@@ -1333,6 +1345,78 @@ registerProp('prop_c3_end_teppan', () =>
     },
   }),
 );
+
+/**
+ * S29 on the beach (2026-10-20 依頼主「焼きそば焼いてる2人が後ろの方で何かやってるなって感じで全く良さが
+ * 出てない。砂浜で広々と」): ナミエの 店の 長机に のせた 大きな 鉄板、5マス (80 px)。手前の 布は 食堂かもめの
+ * 波の 柄、鉄板の 上に 焼きそばの 山（ソース色、キャベツ、紅しょうが）、左の はしに ソースと 油の びん、右の はしに
+ * 白い パックの 山と 青のりの 小皿（「……青のりは、別。」）。鉄板の 下の ガスの 火が ちらちら。湯気と
+ * ソースの においは events/ch3/ending.ts の 場面の 層（大きく、HD-2D でも 立つ）、ここは 鉄板の 上の 細い 湯気だけ。
+ */
+registerProp('prop_c3_end_yatai', () => {
+  const W = 80;
+  const H = 34;
+  return standProp(W, H, (p) => {
+    // the legs and the gas bottle behind
+    for (const x of [4, 74]) p.rect(x, 20, 2, 14, '#3A3F48');
+    p.rect(36, 22, 8, 11, '#C8452E');
+    p.hline(36, 43, 22, '#E8705A');
+    p.rect(38, 20, 4, 2, '#9AA0A8');
+    // the table top, its front cloth: white with 食堂かもめ's blue waves
+    p.rect(0, 16, W, 3, '#C8C2B4');
+    p.hline(0, W - 1, 16, '#E8E4D8');
+    p.rect(2, 19, W - 4, 11, '#F4F1E8');
+    for (let x = 2; x < W - 2; x++) {
+      const y = 24 + Math.round(Math.sin(x / 3) * 1.2);
+      p.set(x, y, '#3A7EA8');
+      p.set(x, y + 1, '#7AB8E8');
+    }
+    p.hline(2, W - 3, 29, '#C8C2B4');
+    // the iron plate on the table, seen a little from above, its rim
+    p.rect(12, 8, 56, 9, '#2A2440');
+    p.rect(13, 9, 54, 7, '#3A3F48');
+    p.hline(13, 66, 9, '#6B7186');
+    p.hline(12, 67, 16, '#1B1733');
+    // the noodles in a long heap, sauce-brown, the cabbage's green, the red ginger
+    for (let x = 18; x < 62; x++) {
+      const h = 3 - Math.round(Math.abs(x - 40) / 9);
+      for (let y = 0; y < h; y++) p.set(x, 12 - y, (x + y) % 3 === 0 ? '#E8C07A' : (x * 7 + y) % 5 === 0 ? '#8A5A2A' : '#B8864A');
+    }
+    for (const x of [21, 27, 33, 44, 50, 57]) p.set(x, 11, '#7AB84A');
+    for (const x of [30, 47]) p.set(x, 10, '#E0567A');
+    // two spatulas lying at the front edge
+    p.hline(24, 31, 15, '#C8C2B4');
+    p.hline(50, 57, 15, '#C8C2B4');
+    // left: the sauce and the oil bottles
+    p.rect(3, 6, 3, 10, '#5A2A1A');
+    p.rect(4, 4, 1, 2, '#E84E3C');
+    p.rect(7, 9, 3, 7, '#F6D98A');
+    p.set(8, 8, '#E8E4D8');
+    // right: the stack of white packs, the 青のり's little dish apart
+    for (let k = 0; k < 4; k++) p.rect(69, 13 - k * 2, 9, 2, k % 2 ? '#E8E4D8' : '#F4F1E8');
+    p.ellipse(74, 5, 3, 1, '#F4F1E8');
+    p.hline(73, 75, 5, '#3F7A3A');
+  }, {
+    cx: W / 2,
+    base: 16,
+    shadow: 64,
+    extra: {
+      over: (g, x, y, env) => {
+        // the gas flame under the plate, flickering
+        const f = Math.floor(env.t / 90) % 3;
+        g.rect(x + 34, y + 17, 12, 1, f === 0 ? '#F6D98A' : '#E8705A', 0.85);
+        g.rect(x + 36 + f, y + 16, 6, 1, '#7AB8E8', 0.7);
+        // thin wisps over the plate (the big steam is the scene's)
+        for (let k = 0; k < 8; k++) {
+          const t = ((env.t / 1300 + k / 8) % 1 + 1) % 1;
+          const sx = x + 20 + k * 5 + Math.round(Math.sin(env.t / 480 + k) * 1.5 + t * 3);
+          const sy = y + 6 - Math.round(t * 14);
+          g.rect(sx, sy, 2, 1, '#FFFFFF', 0.5 * (1 - t));
+        }
+      },
+    },
+  });
+});
 
 /**
  * S31 (60 10.29 カット3, 62 12.8): 写真館の 主人's old wooden tripod and box camera, standing on

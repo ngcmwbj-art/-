@@ -959,9 +959,13 @@ export class NidaiWorld {
     this.shakeY = tr.shake.map((o) => o.position.y);
     this.steer = tr.wheel;
     // ツガオ at the wheel (the driver's side: south, Japan), ポコシャ and ぴーちゃん beside him
-    const ts = new CabPerson('npc_tsugao', DRIVER_X, BZ1 - 0.3, ROOF - 0.3, true);
-    const po = new CabPerson('npc_pokosha', CX0 + 0.95, BZ0 + 1.6, ROOF - 0.2, false);
-    this.people.push(ts, po);
+    // (S25 the last pick-up, the scenario's flag_c3_nidai_hiro: ヒロスケ drives, alone in the cab)
+    if (flag('flag_c3_nidai_hiro')) this.people.push(new CabPerson('npc_hirosuke', DRIVER_X, BZ1 - 0.3, ROOF - 0.3, true));
+    else {
+      const ts = new CabPerson('npc_tsugao', DRIVER_X, BZ1 - 0.3, ROOF - 0.3, true);
+      const po = new CabPerson('npc_pokosha', CX0 + 0.95, BZ0 + 1.6, ROOF - 0.2, false);
+      this.people.push(ts, po);
+    }
     for (const p of this.people) this.truck.add(p.mesh);
     bake(this.truck, new Set<THREE.Object3D>([...tr.wheels, ...tr.shake, tr.wheel, ...this.people.map((p) => p.mesh)]));
     this.buildParts.truck = Math.round(performance.now() - t0);
