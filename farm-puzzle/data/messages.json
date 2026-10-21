@@ -22,7 +22,6 @@
     "gameOverTitle": "おつかれさまでした",
     "gameOverBody": "今回のスコア：{score}",
     "newBest": "ベストスコア更新！",
-    "seasonChanged": "次のプレイは {icon}{season} です（季節がめぐります）",
     "retry": "もう一度あそぶ",
     "toFarm": "はたけを見る",
     "undo": "↩ 一手もどす",
@@ -30,8 +29,7 @@
   },
   "farm": {
     "seasonNow": "いまは {season}",
-    "seasonVeg": "旬の野菜：{list}",
-    "seasonNote": "パズルを1回あそび終えるごとに季節が進みます。旬の野菜は高く売れます。",
+    "seasonNote": "旬の野菜をぜんぶ収穫すると、次の季節に進みます。旬の野菜は高く売れます。",
     "emptyPlot": "空いている区画",
     "sowButton": "種をまく",
     "waterButton": "水やり {icon}{n}",
@@ -56,7 +54,9 @@
     "growingHint": "パズルで列を消すと育ちます",
     "ripened": "{list}が実りました！「はたけ」で収穫しましょう",
     "nearFull": "水がめ・肥料袋がもうすぐいっぱい。「はたけ」で使いましょう",
-    "full": "いっぱい！"
+    "full": "いっぱい！",
+    "seasonVegLabel": "旬の野菜：",
+    "seasonAdvanced": "{done}の旬をぜんぶ収穫しました！季節がめぐって {icon}{season} になりました"
   },
   "zukan": {
     "title": "やさい図鑑",

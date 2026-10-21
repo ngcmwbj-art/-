@@ -4,6 +4,7 @@
    - パズルで列を消すと資源（水・肥料）が貯まる。上限あり
    - 区画ごとに 種まき → 水やり → 追肥 → （列を消して育つのを待つ）→ 収穫
    - 収穫するとコインが入り、コインで区画を増やせる
+   - 今の季節の旬の野菜をぜんぶ収穫すると、次の季節に進む
    ========================================================= */
 const Farm = (() => {
   // 栽培のステップ（表示用）
@@ -122,10 +123,21 @@ const Farm = (() => {
     return ['water', 'fertilizer'].some((k) => before[k] < max[k] * rate && data.resources[k] >= max[k] * rate);
   }
 
-  // ゲームオーバーごとに季節を1つ進める
-  function advanceSeason() {
+  /* ---------- 季節 ---------- */
+  function seasonalVegs() {
+    return cfg.vegetables.filter(inSeason);
+  }
+
+  // 今の季節の旬の野菜を、まだ収穫していないもの
+  function seasonLeft() {
+    return seasonalVegs().filter((v) => !data.seasonHarvested.includes(v.id));
+  }
+
+  // 旬の野菜をぜんぶ収穫したら季節を1つ進める。進んだら新しい季節を返す
+  function checkSeason() {
+    if (seasonalVegs().length === 0 || seasonLeft().length > 0) return null;
     data.seasonIndex = (data.seasonIndex + 1) % cfg.seasons.length;
-    changed();
+    data.seasonHarvested = [];
     return season();
   }
 
@@ -170,9 +182,14 @@ const Farm = (() => {
     data.harvested[v.id] = (data.harvested[v.id] || 0) + 1;
     data.plots[index] = null;
 
+    const done = season();
+    if (bonus && !data.seasonHarvested.includes(v.id)) data.seasonHarvested.push(v.id);
+    const next = checkSeason();
+
     let text = Msg.t('farm.harvested', { name: v.name, coins, coin: Msg.t('icons.coin') });
     if (bonus) text += '\n' + Msg.t('farm.seasonBonus');
-    text += '\n' + v.steps.harvest;
+    if (next) text += '\n' + Msg.t('farm.seasonAdvanced', { done: done.name, icon: next.icon, season: next.name });
+    else text += '\n' + v.steps.harvest;
     toast(text);
     Sound.play('harvest');
     acted();
@@ -210,13 +227,19 @@ const Farm = (() => {
     if (!root) return;
     root.innerHTML = '';
 
-    // 季節の案内
+    // 季節の案内：旬の野菜と、この季節にもう収穫したか
     const s = season();
-    const seasonal = cfg.vegetables.filter(inSeason).map((v) => v.name).join('・');
     root.append(
       h('div', { class: 'season-banner' },
         h('div', { class: 'season-now' }, `${s.icon} ${Msg.t('farm.seasonNow', { season: s.name })}`),
-        h('div', { class: 'season-veg' }, Msg.t('farm.seasonVeg', { list: seasonal || '―' })),
+        h('div', { class: 'season-veg' },
+          Msg.t('farm.seasonVegLabel'),
+          seasonalVegs().map((v) => {
+            const got = data.seasonHarvested.includes(v.id);
+            return h('span', { class: 'season-chip' + (got ? ' got' : '') },
+              (got ? '✓ ' : '') + v.name);
+          })
+        ),
         h('div', { class: 'season-note' }, Msg.t('farm.seasonNote'))
       )
     );
@@ -317,5 +340,5 @@ const Farm = (() => {
     });
   }
 
-  return { init, render, gainFromLines, advanceSeason, hasAction, limits, season, inSeason, seasonNames, veg };
+  return { init, render, gainFromLines, hasAction, limits, season, inSeason, seasonNames, veg };
 })();

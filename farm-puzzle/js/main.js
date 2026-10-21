@@ -116,9 +116,8 @@
     },
   });
 
-  // 1プレイが終わったら季節を進めて、次のプレイへ
+  // 1プレイが終わったら次のプレイへ（季節は畑で旬の野菜をぜんぶ収穫すると進む）
   function finishGame(next) {
-    Farm.advanceSeason();
     Puzzle.newGame();
     if (next === 'farm') showScreen('farm');
   }
@@ -129,12 +128,9 @@
     // 列を消したら資源が貯まり、畑の野菜が育つ
     onLinesCleared: (info) => Farm.gainFromLines(info),
     onUndo: () => Farm.render(),
-    onStaleOver: () => Farm.advanceSeason(),
     onGameOver: ({ score, isNewBest }) => {
-      const s = config.seasons[(save.seasonIndex + 1) % config.seasons.length];
       const lines = [Msg.t('puzzle.gameOverBody', { score })];
       if (isNewBest) lines.push(Msg.t('puzzle.newBest'));
-      lines.push(Msg.t('puzzle.seasonChanged', { icon: s.icon, season: s.name }));
       const buttons = [];
       // 置き間違えで終わったときのために、ここでも「一手もどす」を選べる
       if (Puzzle.canUndo()) buttons.push({ label: Msg.t('puzzle.undo'), onClick: () => Puzzle.undo() });

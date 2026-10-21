@@ -20,6 +20,7 @@ const SaveData = (() => {
       harvested: {},                                   // 図鑑用 { 野菜ID: 収穫した回数 }
       tutorialDone: false,                             // 初回ガイドを見たか
       firstGrowDone: false,                            // 初めての「育ち時間」を終えたか（1回目は短くする）
+      seasonHarvested: [],                             // 今の季節に収穫した旬の野菜（ぜんぶそろうと次の季節へ）
       settings: { sound: false, vibrate: true },       // 音は最初オフ
     };
   }
