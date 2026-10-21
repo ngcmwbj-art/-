@@ -56,6 +56,7 @@ const Zukan = (() => {
       h('div', { class: 'zukan-body' },
         h('h3', { class: 'zukan-name' }, v.name),
         h('div', { class: 'zukan-meta' },
+          seasonBand(v),
           h('span', { class: 'zukan-season' }, Msg.t('zukan.season', { text: v.seasonText })),
           h('span', { class: 'zukan-times' }, Msg.t('zukan.times', { n: data.harvested[v.id] }))
         ),
@@ -69,6 +70,12 @@ const Zukan = (() => {
     );
   }
 
+  // 春夏秋冬の4つのます。旬の季節に色がつく
+  function seasonBand(v) {
+    return h('span', { class: 'season-band', 'aria-label': Msg.t('zukan.season', { text: v.seasonText }) },
+      cfg.seasons.map((s) => h('span', { class: `band-cell ${s.id}` + (v.seasons.includes(s.id) ? ' on' : '') }, s.name)));
+  }
+
   // まだ収穫していない野菜（名前はかくし、旬の季節だけ見せる）
   function lockedCard(v) {
     const seasons = v.seasons.map((id) => cfg.seasons.find((s) => s.id === id).name).join('・');
@@ -76,13 +83,15 @@ const Zukan = (() => {
       h('div', { class: 'zukan-icon' }, '？'),
       h('div', { class: 'zukan-body' },
         h('h3', { class: 'zukan-name' }, Msg.t('zukan.unknownName')),
+        h('div', { class: 'zukan-meta' }, seasonBand(v)),
         h('p', { class: 'zukan-locked-text' }, Msg.t('zukan.unknownText', { season: seasons }))
       )
     );
   }
 
   // 初めて収穫したときのお知らせ
-  function announce(v, onOpen) {
+  // onOpen：「図鑑を見る」を押したとき、onAfter：どちらのボタンでも閉じたあと
+  function announce(v, onOpen, onAfter) {
     Modal.open({
       title: Msg.t('zukan.newEntryTitle'),
       body: h('div', { class: 'new-entry' },
@@ -91,8 +100,8 @@ const Zukan = (() => {
         h('p', {}, v.tips[0])
       ),
       buttons: [
-        { label: Msg.t('common.close') },
-        { label: Msg.t('zukan.open'), primary: true, onClick: onOpen },
+        { label: Msg.t('common.close'), onClick: () => { if (onAfter) onAfter(); } },
+        { label: Msg.t('zukan.open'), primary: true, onClick: () => { if (onOpen) onOpen(); if (onAfter) onAfter(); } },
       ],
     });
   }

@@ -18,7 +18,7 @@ const Farm = (() => {
 
   let data = null;    // 保存データ全体
   let cfg = null;     // data/vegetables.json の中身
-  let hooks = {};     // { onChange, onAction, onHarvest }
+  let hooks = {};     // { onChange, onAction, onHarvest(veg, first, seasonDone) }
   let root = null;
 
   function init(options) {
@@ -133,6 +133,12 @@ const Farm = (() => {
     return seasonalVegs().filter((v) => !data.seasonHarvested.includes(v.id));
   }
 
+  // 今の季節の進み具合 { got: 収穫した旬の数, total: 旬の数 }
+  function seasonProgress() {
+    const all = seasonalVegs();
+    return { got: all.length - seasonLeft().length, total: all.length };
+  }
+
   // 旬の野菜をぜんぶ収穫したら季節を1つ進める。進んだら新しい季節を返す
   function checkSeason() {
     if (seasonalVegs().length === 0 || seasonLeft().length > 0) return null;
@@ -183,6 +189,7 @@ const Farm = (() => {
     data.plots[index] = null;
 
     const done = season();
+    const doneVegs = seasonalVegs();
     if (bonus && !data.seasonHarvested.includes(v.id)) data.seasonHarvested.push(v.id);
     const next = checkSeason();
 
@@ -193,7 +200,7 @@ const Farm = (() => {
     toast(text);
     Sound.play('harvest');
     acted();
-    if (hooks.onHarvest) hooks.onHarvest(v, first);
+    if (hooks.onHarvest) hooks.onHarvest(v, first, next ? { done, next, vegs: doneVegs } : null);
   }
 
   function buyPlot() {
@@ -231,7 +238,9 @@ const Farm = (() => {
     const s = season();
     root.append(
       h('div', { class: 'season-banner' },
-        h('div', { class: 'season-now' }, `${s.icon} ${Msg.t('farm.seasonNow', { season: s.name })}`),
+        h('div', { class: 'season-now' },
+          `${s.icon} ${Msg.t('farm.seasonNow', { season: s.name })}`,
+          h('span', { class: 'season-count' }, Msg.t('farm.seasonCount', seasonProgress()))),
         h('div', { class: 'season-veg' },
           Msg.t('farm.seasonVegLabel'),
           seasonalVegs().map((v) => {
@@ -353,5 +362,5 @@ const Farm = (() => {
     );
   }
 
-  return { init, render, gainFromLines, hasAction, limits, season, inSeason, seasonNames, veg };
+  return { init, render, gainFromLines, hasAction, limits, season, seasonProgress, inSeason, seasonNames, veg };
 })();

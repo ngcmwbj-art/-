@@ -30,7 +30,10 @@
   function refreshHud() {
     const s = Farm.season();
     const max = Farm.limits();
-    document.getElementById('hud-season').textContent = s.icon + s.name;
+    const prog = Farm.seasonProgress();
+    document.getElementById('hud-season').textContent = `${s.icon}${s.name} ${prog.got}/${prog.total}`;
+    // ⑧ 季節ごとに背景と盤面のふちの色を変える（ブロックとマスの色はそのまま）
+    document.documentElement.dataset.season = s.id;
     document.getElementById('hud-water').textContent = save.resources.water;
     document.getElementById('hud-fertilizer').textContent = save.resources.fertilizer;
     document.getElementById('hud-coins').textContent = save.resources.coins;
@@ -109,12 +112,26 @@
     onChange: persist,
     // 畑で作業したら「一手もどす」はできなくなる
     onAction: () => Puzzle.clearUndo(),
-    // 初めて収穫した野菜は図鑑に登録
-    onHarvest: (veg, first) => {
+    // 初めて収穫した野菜は図鑑に登録。旬をぜんぶそろえたらお祝い（図鑑のお知らせのあとに）
+    onHarvest: (veg, first, seasonDone) => {
       Zukan.render();
-      if (first) Zukan.announce(veg, () => showScreen('zukan'));
+      const celebrate = seasonDone ? () => celebrateSeason(seasonDone) : null;
+      if (first) Zukan.announce(veg, () => showScreen('zukan'), celebrate);
+      else if (celebrate) celebrate();
     },
   });
+
+  function celebrateSeason({ done, next, vegs }) {
+    Sound.play('harvest', 5);
+    Modal.open({
+      title: Msg.t('season.completeTitle', { icon: done.icon, season: done.name }),
+      body: h('div', { class: 'season-complete' },
+        h('div', { class: 'season-complete-vegs' }, vegs.map((v) => vegIcon(v))),
+        h('p', {}, Msg.t('season.completeBody', { done: done.name, icon: next.icon, season: next.name }))
+      ),
+      buttons: [{ label: Msg.t('season.toNext', { icon: next.icon, season: next.name }), primary: true }],
+    });
+  }
 
   // 1プレイが終わったら次のプレイへ（季節は畑で旬の野菜をぜんぶ収穫すると進む）
   function finishGame(next) {

@@ -686,6 +686,48 @@ body {
 }
 .filter-chip.active { background: #eef6e8; border-color: var(--green); color: var(--green-dark); }
 
+/* ① 季節の進み具合 */
+.season-now { display: flex; align-items: baseline; gap: 10px; }
+.season-count {
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #eef6e8;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.season-complete-vegs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 1.8rem;
+}
+.season-complete p { margin: 0; }
+
+/* ② 図鑑の季節の帯 */
+.season-band { display: inline-flex; gap: 2px; }
+.band-cell {
+  width: 1.7em;
+  text-align: center;
+  font-size: 0.72rem;
+  border-radius: 4px;
+  background: #f1ebe0;
+  color: #c9bba6;
+}
+.band-cell.on { color: var(--text); font-weight: bold; }
+.band-cell.spring.on { background: #f8d4d8; }
+.band-cell.summer.on { background: #bfe3ef; }
+.band-cell.autumn.on { background: #f3cf9f; }
+.band-cell.winter.on { background: #d5dcef; }
+
+/* ⑧ 季節で背景と盤面のふちの色を変える（ブロック・マスの色は変えない） */
+:root[data-season="spring"] { --bg: #fcf3f1; --soil: #ecd5d0; }
+:root[data-season="summer"] { --bg: #f2f8f6; --soil: #d2e3dc; }
+:root[data-season="autumn"] { --bg: #fbf3e5; --soil: #e8d4b4; }
+:root[data-season="winter"] { --bg: #f4f5f8; --soil: #dcdfe8; }
+html, body { transition: background-color 0.6s; }
+
 /* 初回ガイド */
 .guide-icon { font-size: 2.6rem; margin-bottom: 6px; }
 .guide-text { margin: 0; text-align: left; }

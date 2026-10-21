@@ -60,7 +60,8 @@
     "seedNow": "いまが旬（{season}）",
     "seedOthers": "ほかの季節の野菜",
     "seedGot": "収穫ずみ",
-    "seedGrow": "育ち{n}列"
+    "seedGrow": "育ち{n}列",
+    "seasonCount": "{got} / {total}"
   },
   "zukan": {
     "title": "やさい図鑑",
@@ -107,5 +108,10 @@
     "guide": "遊び方をもう一度見る",
     "vibrateOn": "振動：オン",
     "vibrateOff": "振動：オフ"
+  },
+  "season": {
+    "completeTitle": "{icon}{season}の旬をコンプリート！",
+    "completeBody": "{done}の旬の野菜を、ぜんぶ収穫しました。\n季節がめぐって {icon}{season} になります。新しい旬の野菜を育てましょう。",
+    "toNext": "{icon}{season}へ"
   }
 }
