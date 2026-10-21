@@ -5,7 +5,7 @@ import { groundAt, isWalkable, FIELDS, fieldRectDist, BARN } from './world.js';
 import { toonify } from './toon.js';
 
 const BARN_ROT = 0.35; // world.js で牛舎を置いた向き
-const STALL_X = [-2.7, -1.3, 3.1]; // 牛舎の中の立ち位置（トラクターを避ける）
+const STALL_X = [-2.7, -1.3, 3.1, 1.2]; // 牛舎の中の立ち位置（トラクターを避ける）
 const rotY = (x, z, a) => ({ x: x * Math.cos(a) + z * Math.sin(a), z: -x * Math.sin(a) + z * Math.cos(a) });
 const barnPoint = (lx, lz) => { const r = rotY(lx, lz, BARN_ROT); return new THREE.Vector3(BARN.x + r.x, 0, BARN.z + r.z); };
 
@@ -47,14 +47,39 @@ function buildCow() {
   return g;
 }
 
+// 牛舎の非常用発電機（停電のサブミッション用）
+function buildGenerator() {
+  const g = new THREE.Group();
+  const body = new THREE.MeshStandardMaterial({ color: '#e0b020', roughness: 0.5 });
+  const dark = new THREE.MeshStandardMaterial({ color: '#2a2a2a', roughness: 0.6 });
+  const b = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 0.8), body); b.position.y = 0.6; g.add(b);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.08, 0.9), dark); frame.position.y = 1.04; g.add(frame);
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.3, 0.05), dark); panel.position.set(0.25, 0.65, 0.42); g.add(panel);
+  for (const sx of [-1, 1]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.1, 12), dark); w.rotation.x = Math.PI / 2; w.position.set(sx * 0.45, 0.18, 0.42); g.add(w); }
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), new THREE.MeshStandardMaterial({ color: '#550000', emissive: '#ff2a1a', emissiveIntensity: 0 }));
+  lamp.position.set(-0.3, 0.75, 0.42); g.add(lamp);
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  g.userData.lamp = lamp;
+  return g;
+}
+
 export class Cows {
   constructor(game) {
     this.game = game;
     this.list = [];
+    // 発電機は牛舎の右わき
+    this.genPos = barnPoint(5.6, 1.5);
+    this.genPos.y = groundAt(this.genPos.x, this.genPos.z);
+    this.generator = buildGenerator();
+    this.generator.position.copy(this.genPos);
+    this.generator.rotation.y = BARN_ROT;
+    game.scene.add(this.generator);
     // 牛舎の前、畑にかからない草地を放牧場に
     this.pasture = this.findPasture();
-    for (let i = 0; i < 3; i++) {
+    // 4 頭目は「来たばかりの素牛」（小さめ。準備タイムの出来事のときだけ出る）
+    for (let i = 0; i < 4; i++) {
       const obj = buildCow();
+      if (i === 3) obj.scale.setScalar(0.78);
       game.scene.add(obj);
       this.list.push({ obj, pos: new THREE.Vector3(), yaw: Math.random() * 6.28, state: 'graze', t: Math.random() * 10, target: null, slot: i });
     }
@@ -77,22 +102,46 @@ export class Cows {
   }
 
   // 準備タイムの始めに外へ出す（visible=false なら隠す）
-  reset(visible = true) {
+  reset(visible = true, extra = false) {
     this.home = 0; this.rewarded = false;
+    this.count = extra ? 4 : 3;
     this.list.forEach((c, i) => {
+      const inPlay = i < this.count;
       const a = i * 2.1 + Math.random();
       c.pos.set(this.pasture.x + Math.cos(a) * 5, 0, this.pasture.z + Math.sin(a) * 5);
       c.pos.y = groundAt(c.pos.x, c.pos.z);
       c.state = 'graze'; c.target = null;
-      c.obj.visible = visible;
+      c.obj.visible = visible && inPlay;
       c.obj.position.copy(c.pos);
     });
     this.active = visible;
   }
 
+  // 準備タイムの出来事：柵から出た牛（1 頭だけ遠くへ）
+  scatter() {
+    const c = this.list[0];
+    for (let k = 0; k < 20; k++) {
+      const a = Math.random() * 6.28, r = 32 + Math.random() * 14;
+      const x = this.pasture.x + Math.cos(a) * r, z = this.pasture.z + Math.sin(a) * r;
+      if (!isWalkable(x, z) || FIELDS.some((f) => fieldRectDist(f, x, z) < 1)) continue;
+      c.pos.set(x, groundAt(x, z), z); c.obj.position.copy(c.pos); c.target = null;
+      return c.pos.clone();
+    }
+    return null;
+  }
+
+  // 素牛を加える（今の準備タイムだけ）
+  addCalf() {
+    const c = this.list[3];
+    this.count = 4;
+    c.state = 'graze'; c.target = null;
+    c.pos.set(this.pasture.x + 3, 0, this.pasture.z - 3); c.pos.y = groundAt(c.pos.x, c.pos.z);
+    c.obj.position.copy(c.pos); c.obj.visible = this.active;
+  }
+
   // 台風が来たら、残っている牛は自分で牛舎へ戻る（ごほうびはなし）
   shelterAll() {
-    this.list.forEach((c) => { if (c.state !== 'home') { c.state = 'home'; const p = barnPoint(STALL_X[c.slot], 0.3); c.pos.copy(p); c.pos.y = groundAt(p.x, p.z) + 0.2; c.obj.position.copy(c.pos); } });
+    this.list.forEach((c) => { if (c.obj.visible && c.state !== 'home') { c.state = 'home'; const p = barnPoint(STALL_X[c.slot], 0.3); c.pos.copy(p); c.pos.y = groundAt(p.x, p.z) + 0.2; c.obj.position.copy(c.pos); } });
     this.active = false;
   }
 
@@ -101,6 +150,7 @@ export class Cows {
     const game = this.game, pp = game.player.pos;
     const door = barnPoint(0, 5);
     for (const c of this.list) {
+      if (!c.obj.visible) continue;
       c.t += dt;
       const ud = c.obj.userData;
       let speed = 0, goal = null;
@@ -128,9 +178,9 @@ export class Cows {
         goal = c.target; speed = 2.5;
         if (Math.hypot(c.target.x - c.pos.x, c.target.z - c.pos.z) < 0.4) {
           c.state = 'home'; this.home++;
-          game.hud.toast(`牛を牛舎に戻した（${this.home} / ${this.list.length}）`, 'good');
+          game.hud.toast(`牛を牛舎に戻した（${this.home} / ${this.count}）`, 'good');
           game.fx.notes(c.pos.clone().add(new THREE.Vector3(0, 2, 0)), 6, ['#ffd36a', '#9fe05a'], 0.8);
-          if (this.home === this.list.length && !this.rewarded) {
+          if (this.home === this.count && !this.rewarded) {
             this.rewarded = true;
             game.addQ(80, c.pos.clone().add(new THREE.Vector3(0, 2.5, 0)));
             game.hud.banner('牛がみんな無事！', 'これで台風が来ても安心。ごほうび +80Q');

@@ -453,7 +453,7 @@ export class Threats {
     this.game.onKill?.(e, p);
     if (e.type || e.group.mini) {
       this.minionKills++;
-      this.fx.burst(e.pos.clone().add(new THREE.Vector3(0, 1, 0)), e.type === 'mushi' ? '#9fe05a' : '#9aa0b0', 30, 8, 0.8, 0.35, 4);
+      this.fx.burst(e.pos.clone().add(new THREE.Vector3(0, 1, 0)), e.type === 'mushi' ? '#9fe05a' : e.type === 'inoshishi' ? '#7a5a40' : '#9aa0b0', 30, 8, 0.8, 0.35, 4);
       this.game.addQ(4, p);
       this.audio.clank(0.4);
     } else {

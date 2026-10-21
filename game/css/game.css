@@ -436,3 +436,9 @@ body.lefty .tbtns button { transform: scaleX(-1); }
 body.lefty .tbtns button.down { transform: scaleX(-1) scale(.92); }
 body.lefty.touch .bottom { left: auto !important; right: calc(8px + env(safe-area-inset-right, 0px)); }
 body.lefty #stick-hint { left: auto; right: 14%; margin: -60px -60px; }
+/* 出荷リザルト */
+#result .stats li.ship b { color: #ffe08a; font-size: 18px; }
+#result .stats li.ship b.up { color: #7dffb0; }
+#result .stats li.ship b.down { color: #ff9a8a; }
+#result .stats li.cow b { text-align: right; }
+#result .stats li.cow small { display: block; font-size: 11px; opacity: .75; font-weight: 500; }

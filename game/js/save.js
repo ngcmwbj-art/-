@@ -8,7 +8,7 @@ export function saveGame(game) {
   try {
     const data = {
       v: 1, savedAt: Date.now(), wave: game.wave, q: Math.floor(game.q), solo: Math.floor(game.solo),
-      chords: game.score.chords, cards: [...game.cards], stats: game.threats.stats, memo: [...game.memoSeen],
+      chords: game.score.chords, cards: [...game.cards], cowLog: game.cowLog, stats: game.threats.stats, memo: [...game.memoSeen],
       cab: toB64(game.cabbages.snapshot()),
       towers: game.towers.list.map((t) => ({ id: t.id, x: +t.pos.x.toFixed(2), y: +t.pos.y.toFixed(2), z: +t.pos.z.toFixed(2) })),
     };
@@ -29,3 +29,12 @@ export function loadSave() {
 }
 
 export function clearSave() { try { localStorage.removeItem(KEY); } catch (e) { /* 保存できない環境 */ } }
+
+// 出荷の記録（前回比のため。プレイをまたいで残す）
+const REC = 'masato-records-v1';
+export function loadRecords() {
+  try { return JSON.parse(localStorage.getItem(REC) || '{}'); } catch (e) { return {}; }
+}
+export function saveRecords(r) {
+  try { localStorage.setItem(REC, JSON.stringify(r)); } catch (e) { /* 保存できない環境 */ }
+}

@@ -378,7 +378,7 @@ export class HUD {
     // 牛
     for (const c of game.cows?.list || []) if (c.obj.visible && c.state !== 'home') dot(c.pos.x, c.pos.z, '#f2c62e', 1.8);
     // 雑魚
-    for (const m of game.threats.minions) dot(m.pos.x, m.pos.z, m.type === 'mushi' ? '#9fe05a' : '#222', 2);
+    for (const m of game.threats.minions) dot(m.pos.x, m.pos.z, m.type === 'mushi' ? '#9fe05a' : m.type === 'inoshishi' ? '#b07040' : '#222', m.type === 'inoshishi' ? 3 : 2);
     // 飛来物
     for (const d of game.threats.debris) dot(d.pos.x, d.pos.z, '#ccc', 1.6);
     // 竜巻
@@ -394,12 +394,15 @@ export class HUD {
     g.save(); g.translate(px, py); g.rotate(-p.camYaw + Math.PI);
     g.fillStyle = '#ffe66a'; g.beginPath(); g.moveTo(0, 6); g.lineTo(4, -4); g.lineTo(-4, -4); g.closePath(); g.fill();
     g.restore();
+    // 停電中の発電機（小さな地図にも）
+    if (game.outage?.state === 'on' && (performance.now() / 250) % 2 < 1.4) { const gp = game.cows.genPos; dot(gp.x, gp.z, '#ffd24a', big ? 3 : 4); }
     // 大きな地図だけ：名前のラベル
     if (big) {
       g.font = '700 5px "Zen Kaku Gothic New", sans-serif'; g.textAlign = 'center';
       const label = (x, z, text, c = '#fff', dy = -5) => { const [a, b] = this.toMap(x, z); g.lineWidth = 1.2; g.strokeStyle = 'rgba(0,0,0,.8)'; g.strokeText(text, a, b + dy); g.fillStyle = c; g.fillText(text, a, b + dy); };
       dot(SHRINE.x, SHRINE.z, '#c9b8ff', 2.5); dot(BARN.x, BARN.z, '#b0703a', 2.5);
-      label(HOUSE.x, HOUSE.z, '家'); label(BARN.x, BARN.z, '牛舎'); label(SHRINE.x, SHRINE.z, '量子の祠', '#d8ccff');
+      label(HOUSE.x, HOUSE.z, '家'); label(BARN.x, BARN.z, '牛舎');
+      if (game.outage?.state === 'on') { const gp = game.cows.genPos; dot(gp.x, gp.z, '#ffd24a', 3); label(gp.x, gp.z, '発電機（停電中）', '#ffd24a', 8); } label(SHRINE.x, SHRINE.z, '量子の祠', '#d8ccff');
       label(LIGHTHOUSE.x, LIGHTHOUSE.z, '灯台');
       label(p.pos.x, p.pos.z, 'マサト', '#ffe66a', -7);
       if (gate) label(gate.x + gate.in.x * 12, gate.z + gate.in.y * 12, `雑魚は${gate.name}から`, '#ffb36a', 2);

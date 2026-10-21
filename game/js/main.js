@@ -18,10 +18,10 @@ import { clamp, rand } from './util.js';
 import { IS_TOUCH, setupTouch, updateTouch } from './touch.js';
 import { toonify, addOutline } from './toon.js';
 import { MEMOS, BLESSINGS } from './quantum.js';
-import { saveGame, loadSave, clearSave } from './save.js';
+import { saveGame, loadSave, clearSave, loadRecords, saveRecords } from './save.js';
 import { Cows } from './cows.js';
 import { CARDS, drawCards } from './cards.js';
-import { loadSettings, bindSettingsPanel } from './settings.js';
+import { loadSettings, saveSettings, bindSettingsPanel } from './settings.js';
 
 const QUALITY = {
   low: { low: true, fps: 30, cabNear: 12, cabMid: 35, pr: 1, shadow: 0, grass: 6000, trees: 0.5, rain: 3000, bloom: false, msaa: 0 },
@@ -33,10 +33,10 @@ const QUALITY = {
 const WAVES = [
   // trait：台風ごとの個性（形は同じ。速さ・分身の数・雷の多さだけを変える）
   { name: '台風1号', cls: '強い台風', peak: 0.6, groups: 2, debris: 3.6, strike: 6.5, wind: 33, trait: 'ふつうの台風' },
-  { name: '台風2号', cls: '非常に強い台風', peak: 0.72, groups: 3, debris: 3.0, strike: 5.2, wind: 44, trait: '足が速い。上陸したらすぐ畑へ', bossSpeed: 1.4 },
-  { name: '台風3号', cls: '非常に強い台風', peak: 0.82, groups: 4, debris: 2.4, strike: 4.2, wind: 50, trait: '分身が多い。観測ライトが頼り', ghosts: 2 },
-  { name: '台風4号', cls: '猛烈な台風', peak: 0.92, groups: 5, debris: 1.9, strike: 3.4, wind: 58, trait: '雷がとても多い。避雷針を', strikeMul: 0.55 },
-  { name: '台風5号「量子嵐」', cls: '観測史上最大', peak: 1.0, groups: 6, debris: 1.5, strike: 2.6, wind: 72, trait: '速い・分身が多い・雷も多い', bossSpeed: 1.25, ghosts: 2, strikeMul: 0.7 },
+  { name: '台風2号', cls: '非常に強い台風', peak: 0.72, groups: 3, debris: 3.0, strike: 5.2, wind: 44, trait: '足が速い。イノシシも出る', bossSpeed: 1.4 },
+  { name: '台風3号', cls: '非常に強い台風', peak: 0.82, groups: 4, debris: 2.4, strike: 4.2, wind: 50, trait: '分身が多い。体力が半分になると反対側へ回り込む', ghosts: 2, phase2: true },
+  { name: '台風4号', cls: '猛烈な台風', peak: 0.92, groups: 5, debris: 1.9, strike: 3.4, wind: 58, trait: '雷がとても多い。イノシシも出る', strikeMul: 0.55 },
+  { name: '台風5号「量子嵐」', cls: '観測史上最大', peak: 1.0, groups: 6, debris: 1.5, strike: 2.6, wind: 72, trait: '速い・分身が多い・雷も多い・回り込む', bossSpeed: 1.25, ghosts: 2, strikeMul: 0.7, phase2: true },
 ];
 
 const GradeShader = {
@@ -132,6 +132,7 @@ class Game {
     this.buildSel = null;
     this.cd = { teleport: 0, observe: 0, chord: 0, kekkai: 0 };
     this.memoSeen = new Set(); this.blessing = null; this.prayT = 0; this.prayed = false;
+    this.cowLog = { storms: 0, allHome: 0, outageFail: 0 };
     this.cards = new Set(); this.hitstop = 0; this.killStreak = 0; this.lastKillAt = -9;
     this.settings = loadSettings();
     this.lastBeat = -1;
@@ -181,7 +182,7 @@ class Game {
         case 'Tab': e.preventDefault(); this.toggleMap(); break;
         case 'KeyO': this.toggleSettings(!this.settingsOpen); break;
         case 'KeyH': document.getElementById('help').classList.toggle('show'); break;
-        case 'KeyM': this.audio.musicOn = !this.audio.musicOn; this.hud.toast(this.audio.musicOn ? 'BGM オン' : 'BGM オフ'); break;
+        case 'KeyM': this.settings.bgm = !this.settings.bgm; saveSettings(this.settings); this.settingsSync?.(); this.applyAudio(); this.hud.toast(this.settings.bgm ? 'BGM オン' : 'BGM オフ'); break;
       }
     });
     addEventListener('keyup', (e) => { if (keymap[e.code]) this.input[keymap[e.code]] = false; });
@@ -218,6 +219,7 @@ class Game {
   // opts.resume：保存データから再開 ／ opts.wave：台風を選んで始める（0 始まり）
   start(opts = {}) {
     this.audio.init();
+    this.applyAudio();
     document.getElementById('title').classList.add('hide');
     document.getElementById('hud').classList.add('show');
     this.phase = 'prep';
@@ -238,6 +240,7 @@ class Game {
       Object.assign(this.threats.stats, r.stats || {});
       (r.memo || []).forEach((k) => this.memoSeen.add(k));
       (r.cards || []).forEach((k) => this.cards.add(k));
+      if (r.cowLog) this.cowLog = r.cowLog;
       this.cabbages.restore(r.cab);
       for (const t of r.towers || []) { const tw = this.towers.build(t.id, new THREE.Vector3(t.x, t.y, t.z)); tw.age = 5; }
       this.makePlan();
@@ -254,7 +257,7 @@ class Game {
     }
     this.cows.reset(this.wave > 0);
     this.applyUnlocks();
-    if (this.wave > 0) setTimeout(() => this.showNews(), 2500);
+    if (this.wave > 0) { setTimeout(() => this.showNews(), 2500); this.evTimer = setTimeout(() => this.prepEvent(), 9000); }
   }
 
   // ---------- アクション ----------
@@ -481,7 +484,8 @@ class Game {
     const a = rand(-0.6, 0.6);
     const z0 = Math.max(-110, Math.min(110, Math.sin(a) * 150 + rand(-30, 30)));
     // 最初の台風は練習を兼ねて、弱い雑魚が少しだけ
-    const counts = wv === 0 ? { mushi: 5, karasu: 2, tsumuji: 0, pair: 0 } : { mushi: 6 + wv * 3, karasu: 3 + wv * 2, tsumuji: 2 + wv, pair: 1 + wv };
+    // イノシシは台風2号と4号だけ（大ボスの第2形態がある台風3号・5号とは重ねない）
+    const counts = wv === 0 ? { mushi: 5, karasu: 2, tsumuji: 0, pair: 0, inoshishi: 0 } : { mushi: 6 + wv * 3, karasu: 3 + wv * 2, tsumuji: 2 + wv, pair: 1 + wv, inoshishi: wv === 1 ? 2 : wv === 3 ? 3 : 0 };
     this.plan = { angle: a, z0, counts, ghosts: 2 + Math.floor(wv / 2) + (WAVES[Math.min(wv, WAVES.length - 1)].ghosts || 0) };
     // 上陸予想地点の赤い柱
     if (this.landMarker) this.scene.remove(this.landMarker);
@@ -555,7 +559,7 @@ class Game {
     const lost = this.cabbages.lostCount();
     const T = IS_TOUCH;
     const items = [
-      ...(this.cows.active || this.cows.home ? [[this.cows.home === this.cows.list.length, `牛を牛舎へ戻す（近づくとついてくる）${this.cows.home} / ${this.cows.list.length}　全員で +80Q`]] : []),
+      ...(this.cows.active || this.cows.home ? [[this.cows.home >= this.cows.count, `牛を牛舎へ戻す（近づくとついてくる）${this.cows.home} / ${this.cows.count}　全員で +80Q`]] : []),
       [this.prayed, this.prayed ? `量子の祠：御利益「${this.blessingName}」を授かった` : '量子の祠（家の裏の鳥居）で手を合わせる（紫の輪の中に 2 秒）'],
       [amp, `雑魚の来る${p.gate.name}のオレンジの矢印か、赤い柱（ボスの上陸地点）の近くにスピーカーを建てる`],
       [lost === 0, lost ? `やられたキャベツを植え直す（跡地を歩くだけ・1玉 1Q）残り ${lost} 玉` : 'キャベツ畑は無傷'],
@@ -564,7 +568,7 @@ class Game {
     const c = p.counts;
     const tip = this.weaknessTip();
     this.hud.prep(`準備タイム ― ${this.waveName()}まで <b>${left}</b> 秒`,
-      `${tip ? `<span class="tip">今回のコツ：${tip}</span>` : ''}予報：雑魚は<span class="hl">${p.gate.name}</span>からザーッと押し寄せる ${c.mushi + c.karasu + c.tsumuji + c.pair * 2} 匹（青虫 ${c.mushi}・カラス ${c.karasu}・つむじ風 ${c.tsumuji}・もつれた二人組 ${c.pair}）→ 大ボス（分身 ${p.ghosts} 体）`, items);
+      `${tip ? `<span class="tip">今回のコツ：${tip}</span>` : ''}${c.inoshishi ? '<span class="tip">イノシシ注意：止まって土煙を上げたら突進の合図。結界［G］で止めよう</span>' : ''}予報：雑魚は<span class="hl">${p.gate.name}</span>からザーッと押し寄せる ${c.mushi + c.karasu + c.tsumuji + c.pair * 2 + (c.inoshishi || 0)} 匹（青虫 ${c.mushi}・カラス ${c.karasu}・つむじ風 ${c.tsumuji}・もつれた二人組 ${c.pair}${c.inoshishi ? `・イノシシ ${c.inoshishi}` : ''}）→ 大ボス（分身 ${p.ghosts} 体${WAVES[Math.min(this.wave, WAVES.length - 1)].phase2 ? '・体力半分で回り込む' : ''}）`, items);
   }
 
   skipPrep() {
@@ -607,13 +611,18 @@ class Game {
     for (let i = 0; i < c.karasu; i++) pool.push('karasu');
     for (let i = 0; i < c.tsumuji; i++) pool.push('tsumuji');
     for (let i = 0; i < (c.pair || 0); i++) pool.push('pair');
+    for (let i = 0; i < (c.inoshishi || 0); i++) pool.push('inoshishi');
     pool.sort(() => Math.random() - 0.5);
     this.spawn = { pool, total: pool.length, next: 1.5, boss: false, debris: 6, strike: 14 };
+    // 停電のサブミッション：台風2号から、10 回に 7 回くらい
+    this.outage = this.wave > 0 && Math.random() < 0.7 ? { at: rand(18, 34), state: 'wait' } : null;
     this.threats.minionKills = 0;
     const a = this.plan.angle; // 予報どおり東の海から
     this.stormAngle = a;
     this.threats.landZ = this.plan.z0;
     this.threats.gate = this.plan.gate;
+    clearTimeout(this.evTimer); this.clearPrepEvent();
+    if (this.wave > 0) { this.cowLog.storms++; if (this.cows.home >= this.cows.count) this.cowLog.allHome++; }
     this.cows.shelterAll();
     this.clearGateMarker();
     this.clearLandMarker();
@@ -646,13 +655,155 @@ class Game {
     this.phaseT = 0;
     this.weather.setStorm(0);
     this.threats.clearAll();
+    if (this.outage && this.outage.state === 'on') this.endOutage(false);
+    if (this.cows.generator) { const l = this.cows.generator.userData.lamp; l.material.emissiveIntensity = 0; }
     this.openBoxes();
     this.blessing = null; this.blessingName = null; this.prayed = false;
     const bonus = 30 + Math.floor(this.cabbages.alive / this.cabbages.total * 50);
     this.addQ(bonus);
     this.say('ふぅ…守り切ったぜ', true);
-    this.hud.banner('台風一過！', `キャベツ ${this.cabbages.alive} 玉を守り抜いた  +${bonus}Q`);
+    this.hud.banner('台風一過！', `キャベツ ${this.cabbages.alive} 玉を守り抜いた（出荷見込み ${this.yen(this.sales())}）  +${bonus}Q`);
     this.audio.fanfare();
+  }
+
+  // 準備タイムの小さな出来事（4 回に 3 回くらい。マサトの吹き出しで知らせる）
+  prepEvent() {
+    this.clearPrepEvent();
+    if (this.phase !== 'prep' || this.wave === 0 || Math.random() > 0.75) return;
+    const list = ['rainbow', 'loose', 'calf', 'seeds', 'snack'];
+    const ev = list[Math.floor(Math.random() * list.length)];
+    this.prepEv = ev;
+    if (ev === 'rainbow') {
+      this.rainbow = this.makeRainbow();
+      this.say('おっ、虹だ！ なんかいいことありそう', true);
+      this.hud.toast('虹が出た：この準備タイムは Qビットのたまる速さが 2 倍', 'tip');
+    } else if (ev === 'loose') {
+      if (!this.cows.scatter()) return;
+      this.say('あっ、1頭柵から出てる！ 連れ戻さねえと', true);
+      this.hud.toast('柵から牛が出ている：地図の黄色い点', 'tip');
+    } else if (ev === 'calf') {
+      this.cows.addCalf();
+      this.say('こないだ来た素牛がそわそわしてる。一緒に牛舎に入れてやるか', true);
+      this.hud.toast('来たばかりの素牛：4 頭とも牛舎へ戻すと +80Q', 'tip');
+    } else if (ev === 'seeds') {
+      this.freeSeeds = 150;
+      this.say('近所のばあちゃんが苗をくれた！ ありがてえ', true);
+      this.hud.toast('苗をもらった：植え直し 150 玉ぶんが無料', 'tip');
+    } else if (ev === 'snack') {
+      this.solo = 100;
+      this.say('差し入れのぬれ煎餅！ 元気出たぜ', true);
+      this.hud.toast('差し入れ：ソロゲージが満タンに', 'tip');
+    }
+  }
+  clearPrepEvent() {
+    this.prepEv = null; this.freeSeeds = 0;
+    if (this.rainbow) { this.scene.remove(this.rainbow); this.rainbow = null; }
+  }
+  // 海の上にかかる虹（半透明の帯を 7 色重ねるだけの軽いもの）
+  makeRainbow() {
+    const g = new THREE.Group();
+    const cols = ['#ff4a4a', '#ff9a3a', '#ffe14a', '#5ad65a', '#4ab0ff', '#4a5aff', '#a04aff'];
+    cols.forEach((c, i) => {
+      const m = new THREE.Mesh(new THREE.TorusGeometry(260 - i * 7, 3.2, 4, 48, Math.PI),
+        new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.32, depthWrite: false, fog: false }));
+      g.add(m);
+    });
+    g.position.set(coastX(0) + 160, -40, 0);
+    g.rotation.y = Math.PI / 2;
+    this.scene.add(g);
+    return g;
+  }
+
+  // 停電：台風で牛舎の電気が止まり、換気扇と給水ポンプが止まる。45 秒以内に発電機を動かす
+  updateOutage(dt) {
+    const o = this.outage;
+    if (!o || o.state === 'done') return;
+    const gen = this.cows.genPos, lamp = this.cows.generator.userData.lamp;
+    if (o.state === 'wait') {
+      if (this.phaseT < o.at) return;
+      o.state = 'on'; o.left = 45; o.hold = 0;
+      this.outageBeam = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 50, 20, 1, true),
+        new THREE.MeshBasicMaterial({ color: '#ffd24a', transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+      this.outageBeam.position.set(gen.x, gen.y + 25, gen.z);
+      this.scene.add(this.outageBeam);
+      this.audio.warn?.();
+      this.hud.banner('牛舎が停電！', '換気扇と給水ポンプが止まった。45 秒以内に牛舎わきの発電機（黄色い光）を動かそう');
+      this.say('まずい、牛舎の電気が落ちた！', true);
+      return;
+    }
+    o.left -= dt;
+    lamp.material.emissiveIntensity = (Math.sin(this.time * 10) > 0 ? 3 : 0.3);
+    const d = Math.hypot(this.player.pos.x - gen.x, this.player.pos.z - gen.z);
+    if (d < 3.2) {
+      if (o.hold === 0) this.hud.toast('発電機を始動中…（そのまま 2 秒）', 'q');
+      o.hold += dt;
+      if (o.hold >= 2) this.endOutage(true);
+    } else o.hold = 0;
+    if (o.state === 'on' && o.left <= 0) this.endOutage(false);
+  }
+  endOutage(ok) {
+    const o = this.outage;
+    o.state = 'done';
+    if (this.outageBeam) { this.scene.remove(this.outageBeam); this.outageBeam = null; }
+    const lamp = this.cows.generator.userData.lamp;
+    lamp.material.color.set(ok ? '#0a5a0a' : '#550000');
+    lamp.material.emissive.set(ok ? '#3aff4a' : '#ff2a1a');
+    lamp.material.emissiveIntensity = ok ? 2 : 0;
+    if (ok) {
+      this.addQ(40, this.cows.genPos.clone().add(new THREE.Vector3(0, 2, 0)));
+      this.fx.burst(this.cows.genPos.clone().add(new THREE.Vector3(0, 1.2, 0)), '#ffe066', 30, 6, 0.8, 0.3, 2);
+      this.say('よし、換気扇が回った！ 頼むぞ', true);
+      this.hud.toast('発電機が動いた：牛舎の換気と給水が戻った +40Q', 'good');
+    } else {
+      this.cowLog.outageFail++;
+      this.say('間に合わなかった…牛たち、暑かったよな', true);
+      this.hud.toast('停電が長引いて、牛たちが少しバテてしまった（出荷リザルトの「牛の様子」に響く）', 'bad');
+    }
+  }
+  outageText() {
+    const o = this.outage;
+    return o && o.state === 'on' ? `　<b>牛舎が停電！</b> 発電機へ 残り ${Math.ceil(o.left)} 秒` : '';
+  }
+
+  // 大ボスの第2形態：体力が半分になると、量子トンネルで反対側（西の山すそ）へ回り込む
+  // 回り込んだ先に赤い柱で予告し、3 秒止まってから再び畑へ
+  updatePhase2(dt) {
+    const sp = this.spawn, b = this.threats.boss;
+    if (!b) return;
+    const real = b.members.find((m) => m.real && m.alive);
+    if (!sp.phase2 && b.collapsed && real && real.hp < real.maxHp * 0.5) {
+      sp.phase2 = true; sp.phase2T = 3; sp.bossSpeed = b.speed; b.speed = 0;
+      const dz = Math.max(-100, Math.min(100, -real.pos.z * 0.8));
+      const dest = new THREE.Vector3(BOUNDS.xMin + 40, 0, dz);
+      for (const m of b.members) {
+        if (!m.alive) continue;
+        this.fx.beam(m.pos.clone(), '#ff5a4a', 80, 10, 0.8);
+        m.pos.set(dest.x + (m.pos.x - real.pos.x) * 0.5, 0, dest.z + (m.pos.z - real.pos.z) * 0.5);
+        m.pos.y = Math.max(heightAt(m.pos.x, m.pos.z), 0);
+        m.obj.position.copy(m.pos); m.retarget = 0;
+      }
+      this.fx.beam(dest.clone().setY(heightAt(dest.x, dest.z)), '#ff5a4a', 90, 12, 3.2, 1.2);
+      this.audio.thunder(0, 0.6); this.player.shake = 0.6;
+      this.hud.banner('台風の目が回り込んだ！', '量子トンネルで反対側（西の山すそ）へ。赤い光の柱から畑へ戻ってくる');
+      this.say('うそだろ、反対側から！？', true);
+      this.memo('tunnel');
+    }
+    if (sp.phase2T > 0) {
+      sp.phase2T -= dt;
+      if (sp.phase2T <= 0) b.speed = sp.bossSpeed;
+    }
+  }
+
+  // 出荷：キャベツ 1 玉 150 円で計算
+  sales() { return this.cabbages.alive * 150; }
+  yen(n) { return n.toLocaleString() + ' 円'; }
+  // 牛の様子（台風のたびに牛舎へ戻せたか・停電を直せたかで変わる。出荷はしない）
+  cowCondition() {
+    const L = this.cowLog;
+    if (L.outageFail >= 2) return { text: '停電が続いて少しバテ気味。ゆっくり休ませよう', gain: 0.75 };
+    if (L.outageFail === 1) return { text: '停電で少し落ち着かなかったけど元気', gain: 0.85 };
+    if (L.storms && L.allHome / L.storms >= 0.8) return { text: '食い込み良好・毛づやもいい', gain: 0.95 };
+    return { text: '元気。台風のときに牛舎へ入れてあげると、もっと落ち着く', gain: 0.9 };
   }
 
   finish(win) {
@@ -665,9 +816,20 @@ class Game {
     const rank = !win ? '—' : ratio >= 0.9 ? 'S' : ratio >= 0.75 ? 'A' : ratio >= 0.55 ? 'B' : 'C';
     const score = cab.alive * 1000 + this.score.chords * 5 + st.tornados * 500 + st.reflected * 300 + st.absorbed * 100;
     const el = document.getElementById('result');
-    el.querySelector('h2').textContent = win ? '収穫だ！ キャベツを守り抜いた！' : 'キャベツ畑が壊滅してしまった…';
+    el.querySelector('h2').textContent = win ? '出荷だ！ キャベツを守り抜いた！' : 'キャベツ畑が壊滅してしまった…';
     el.querySelector('.rank').textContent = rank;
+    // 出荷リザルト：売上と前回比、牛の様子
+    const sales = win ? this.sales() : 0;
+    const rec = loadRecords();
+    const prev = rec.lastSales;
+    const diff = prev != null && win ? sales - prev : null;
+    if (win) { rec.lastSales = sales; rec.bestSales = Math.max(rec.bestSales || 0, sales); saveRecords(rec); }
+    const cow = this.cowCondition();
     el.querySelector('.stats').innerHTML = `
+      <li class="ship"><span>キャベツの売上（1玉 150 円）</span><b>${win ? this.yen(sales) : '出荷できず'}</b></li>
+      ${diff != null ? `<li class="ship"><span>前回とくらべて</span><b class="${diff >= 0 ? 'up' : 'down'}">${diff >= 0 ? '+' : '−'}${this.yen(Math.abs(diff))}</b></li>` : ''}
+      ${rec.bestSales ? `<li><span>これまでの最高売上</span><b>${this.yen(rec.bestSales)}</b></li>` : ''}
+      <li class="cow"><span>牛の様子</span><b>${cow.text}<small>1日の増体 +${cow.gain.toFixed(2)}kg</small></b></li>
       <li><span>守り抜いたキャベツ</span><b>${cab.alive} / ${cab.total} 玉</b></li>
       <li><span>到達した台風</span><b>${Math.min(this.wave + 1, WAVES.length)} / ${WAVES.length}</b></li>
       <li><span>消滅させた竜巻</span><b>${st.tornados}</b></li>
@@ -687,7 +849,7 @@ class Game {
   updatePhase(dt) {
     this.phaseT += dt;
     if (this.phase === 'prep') {
-      this.q += dt * 1.5 * (this.cards.has('income') ? 2 : 1);
+      this.q += dt * 1.5 * (this.cards.has('income') ? 2 : 1) * (this.prepEv === 'rainbow' ? 2 : 1);
       if (this.mission) { this.updateMission(); this.phaseT = Math.min(this.phaseT, this.prepLength() - 5); }
       if (this.phaseT >= this.prepLength()) this.startStorm();
     } else if (this.phase === 'storm') {
@@ -711,6 +873,8 @@ class Game {
       }
       sp.strike -= dt;
       if (sp.strike <= 0 && this.phaseT > 15) { this.threats.spawnStrike(); sp.strike = w.strike * (w.strikeMul || 1) * rand(0.8, 1.5); }
+      if (sp.boss && w.phase2) this.updatePhase2(dt);
+      this.updateOutage(dt);
       if (sp.boss && !this.threats.bossAlive) this.endStorm();
       if (this.phaseT > 260) this.endStorm();
     } else if (this.phase === 'clear') {
@@ -749,6 +913,13 @@ class Game {
     const w = WAVES[this.wave], p = this.plan;
     const land = p.z0 < -40 ? '灯台の近くの浜' : p.z0 > 40 ? '南の浜' : '畑の東の浜';
     this.hud.news(`${w.name}（${w.cls}）が接近中`, [`今回の特徴：${w.trait}`, `雑魚は${p.gate.name}から押し寄せる見込み／大ボスの上陸予想：${land}`]);
+  }
+
+  // 音の設定（BGM のオン・オフ、全体の音量）
+  applyAudio() {
+    const a = this.audio, s = this.settings;
+    a.musicOn = !!s.bgm;
+    if (a.ready && a.master) a.master.gain.setTargetAtTime(s.vol, a.ctx.currentTime, 0.05);
   }
 
   toggleSettings(v) {
@@ -792,6 +963,8 @@ class Game {
         this.hud.banner('準備タイム', `${this.waveName()}が来る前に、畑を立て直してタワーで備えよう`);
         this.showNews();
         this.say('次の台風まで、準備しとくか');
+        clearTimeout(this.evTimer);
+        this.evTimer = setTimeout(() => this.prepEvent(), 9000);
       }
     }
   }
@@ -1050,17 +1223,19 @@ class Game {
     else if (this.phase === 'storm') {
       const sub = `キャベツ ${this.cabbages.alive} 玉（${Math.ceil(this.cabbages.total * 0.3)} 玉を切ると負け）`;
       // 大ボス戦は画面上の体力バーが目印になるので、目的パネルは出さない
-      if (this.spawn.boss) this.hud.objective(null);
-      else this.hud.objective(`前ぶれの雑魚 残り <b>${this.minionsLeft()}</b> 匹`, sub, true);
+      const ot = this.outageText();
+      if (this.spawn.boss) this.hud.objective(ot ? ot.trim() : null, '', true);
+      else this.hud.objective(`前ぶれの雑魚 残り <b>${this.minionsLeft()}</b> 匹${ot}`, sub, true);
     } else if (this.phase === 'prep' && !this.mission) {
       // スマホ・iPad はやることリストを 8 秒で自動的にたたむ（タップで開ける）
       if (IS_TOUCH && !this.hud.prepTouched && this.phaseT > 8) this.hud.prepFolded = true;
       this.prepChecklist();
       // やられたキャベツの跡地を歩くと植え直す（1玉 1Q）
-      if (!this.paused && (this.q >= 1 || this.cards.has('replant'))) {
+      if (!this.paused && (this.q >= 1 || this.cards.has('replant') || this.freeSeeds > 0)) {
         const free = this.cards.has('replant');
-        const n = this.cabbages.replantNear(this.player.pos.x, this.player.pos.z, 3.2, free ? 9999 : Math.floor(this.q));
-        if (n) { if (!free) this.q -= n; this.replantFx = (this.replantFx || 0) + n; }
+        const seeds = this.freeSeeds || 0;
+        const n = this.cabbages.replantNear(this.player.pos.x, this.player.pos.z, 3.2, free ? 9999 : Math.floor(this.q) + seeds);
+        if (n) { if (!free) { const fromSeeds = Math.min(seeds, n); this.freeSeeds = seeds - fromSeeds; this.q -= n - fromSeeds; } this.replantFx = (this.replantFx || 0) + n; }
         if (this.replantFx >= 5) { this.hud.floater(`植え直し ×${this.replantFx}`, this.player.pos.clone().add(new THREE.Vector3(0, 2.5, 0)), this.camera, '#9fe05a'); this.replantFx = 0; }
       }
     }
