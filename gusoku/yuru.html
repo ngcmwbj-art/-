@@ -3427,6 +3427,78 @@ $('tut-skip').addEventListener('click',()=>Tutor.end(false));
 {const f=Game.light;Game.light=function(){const r=f.apply(this,arguments);Tutor.hit('light');return r}}
 $('btn-temp').addEventListener('click',()=>Tutor.hit('temp'));
 
+/* =====================================================================
+   SEASONS — the Japanese calendar, the full moon and the creature's own
+   anniversaries: a greeting once a day, and a small ornament in the tank
+   ===================================================================== */
+const JUGOYA={2026:'09-25',2027:'09-15',2028:'10-03',2029:'09-22',2030:'09-12',2031:'10-01',2032:'09-19',2033:'09-08',2034:'09-27',2035:'09-16'};
+const Season={deco:null,decoK:null,said:false,
+  EV:[
+    {k:'shogatsu',n:'お正月',from:'01-01',to:'01-03',deco:'kagami',say:'あけましておめでとうございます。今年も、深海から見守らせていただきます。'},
+    {k:'setsubun',n:'節分',from:'02-03',to:'02-03',deco:'mame',say:'きょうは節分だそうですね。……ワタクシに豆は投げないでください。殻が硬くても、痛いものは痛いのです。'},
+    {k:'hina',n:'ひな祭り',from:'03-03',to:'03-03',say:'ひな祭りですね。深海にも、お雛さまのように静かに並ぶ貝がおります。'},
+    {k:'hanami',n:'お花見',from:'04-01',to:'04-07',say:'陸では、桜が咲いている頃でしょうか。深海の桜は、マリンスノーでございます。'},
+    {k:'kodomo',n:'こどもの日',from:'05-05',to:'05-05',say:'こどもの日ですね。ワタクシも昔は、脚が六対しかないマンカでした。'},
+    {k:'tanabata',n:'七夕',from:'07-07',to:'07-07',deco:'sasa',say:'きょうは七夕ですね。ワタクシの願いごとは……あなたが、明日も来てくださることです。'},
+    {k:'obon',n:'お盆',from:'08-13',to:'08-16',say:'お盆ですね。ご先祖さまも、深海の底のように静かに見守っていらっしゃるでしょう。'},
+    {k:'halloween',n:'ハロウィン',from:'10-25',to:'10-31',deco:'pumpkin',say:'ハロウィンだそうですね。ワタクシは仮装をしなくても、十分おばけのような見た目だと言われます。'},
+    {k:'xmas',n:'クリスマス',from:'12-24',to:'12-25',deco:'tree',say:'メリークリスマス。サンタさんは、深海までは来てくれないそうです。……あなたが来てくださったので、十分です。'},
+    {k:'omisoka',n:'大晦日',from:'12-31',to:'12-31',say:'今年も一年、ありがとうございました。来年も、どうぞよろしくお願いいたします。'}
+  ],
+  md(d){return String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')},
+  fullMoon(d){const p=((d.getTime()-Date.UTC(2000,0,6,18,14))/86400000)%29.530588853;return Math.abs(p-14.765)<.9},
+  today(d){
+    d=d||new Date();const md=this.md(d),out=[];
+    for(const e of this.EV)if(md>=e.from&&md<=e.to)out.push(e);
+    if(JUGOYA[d.getFullYear()]===md)out.push({k:'jugoya',n:'十五夜',deco:'dango',say:'今夜は十五夜です。月の光は深海まで届きませんが、ワタクシは、ちゃんと感じております。'});
+    else if(this.fullMoon(d))out.push({k:'moon',n:'満月',say:'今夜は満月のようです。満月の夜は、なぜか殻がむずむずいたします。',moon:true});
+    if(S&&S.hatched){
+      const days=Math.floor((d.getTime()-S.born)/DAY)+1;
+      if([100,200,300,500,1000].includes(days))out.push({k:'day'+days,n:'飼育'+days+'日',deco:'cake',say:'飼育'+days+'日目です。ここまで育ててくださって、ありがとうございます。……ワタクシからも、お祝いを申し上げます。'});
+      const b=new Date(S.born),years=d.getFullYear()-b.getFullYear();
+      if(years>=1&&this.md(b)===md)out.push({k:'bday',n:'誕生日',deco:'cake',say:'きょうは、ワタクシが生まれた日です。'+years+'年前の今日、あなたに見つけていただきました。'});
+    }
+    return out;
+  },
+  greet(){
+    if(this.said||!started||!S.hatched||Life.asleep||Life.dead||Cine.on||(Tutor.i!==-1)||S.pending)return;
+    const ev=this.today(),D=dkey();S.seasonSaid=S.seasonSaid||{};
+    const e=ev.find(x=>S.seasonSaid[x.k]!==D);if(!e){this.said=true;return}
+    this.said=true;S.seasonSaid[e.k]=D;
+    if(e.moon&&S.molts<9)S.trust=clamp(S.trust+1,0,100);   // a small nudge toward the next molt, once per full moon
+    save();
+    say(S.stage>=2?e.say:'（きょうは'+e.n+'。グソっ君は、まだよく分かっていないようです）',{emo:'happy',narr:S.stage<2});
+  },
+  MODEL:{
+    kagami(){const g=new THREE.Group(),w=wMat(0xf4f1ea),b=new THREE.Mesh(new THREE.SphereGeometry(.2,20,12),w);b.scale.y=.55;b.position.y=.11;const t=new THREE.Mesh(new THREE.SphereGeometry(.15,20,12),w);t.scale.y=.55;t.position.y=.27;
+      const o=new THREE.Mesh(new THREE.SphereGeometry(.07,14,10),wMat(0xf08a24));o.position.y=.38;const base=new THREE.Mesh(new THREE.BoxGeometry(.5,.06,.5),wMat(0xd9b77a));base.position.y=.03;g.add(base,b,t,o);return g},
+    mame(){const g=new THREE.Group(),m=wMat(0xe0c48f),tray=new THREE.Mesh(new THREE.BoxGeometry(.36,.04,.26),wMat(0xb98b52));tray.position.y=.02;g.add(tray);
+      for(let i=0;i<9;i++){const b=new THREE.Mesh(new THREE.SphereGeometry(.03,8,6),m);b.position.set((i%3-1)*.08,.06,(Math.floor(i/3)-1)*.06);g.add(b)}return g},
+    sasa(){const g=new THREE.Group(),st=new THREE.Mesh(new THREE.CylinderGeometry(.025,.03,1.5,8),wMat(0x6f9b3c));st.position.y=.75;g.add(st);
+      const lf=wMat(0x4f8a2e,{side:THREE.DoubleSide});for(let i=0;i<7;i++){const l=new THREE.Mesh(new THREE.ConeGeometry(.04,.34,4),lf);l.position.set(Math.sin(i*2.3)*.12,.85+i*.09,Math.cos(i*2.3)*.12);l.rotation.z=(i%2?1:-1)*1.1;l.rotation.y=i;g.add(l)}
+      [0xe2483d,0xf1c232,0x3d7be2,0xe28ad6].forEach((c,i)=>{const p=new THREE.Mesh(new THREE.PlaneGeometry(.06,.2),wMat(c,{side:THREE.DoubleSide}));p.position.set((i-1.5)*.1,.7+i*.12,.08);g.add(p)});return g},
+    dango(){const g=new THREE.Group(),w=wMat(0xf7f5ee),base=new THREE.Mesh(new THREE.CylinderGeometry(.2,.17,.12,16),wMat(0xd9b77a));base.position.y=.06;g.add(base);
+      let y=.17;for(const n of [3,2,1]){for(let a=0;a<n;a++)for(let b=0;b<n;b++){const s=new THREE.Mesh(new THREE.SphereGeometry(.055,12,8),w);s.position.set((a-(n-1)/2)*.11,y,(b-(n-1)/2)*.11);g.add(s)}y+=.09}
+      return g},
+    pumpkin(){const g=new THREE.Group(),p=new THREE.Mesh(new THREE.SphereGeometry(.24,20,14),wMat(0xe27a1f));p.scale.set(1.2,.85,1.2);p.position.y=.2;const st=new THREE.Mesh(new THREE.CylinderGeometry(.025,.035,.12,6),wMat(0x4a6b2a));st.position.y=.44;
+      const eye=wMat(0x2a1606);[-.08,.08].forEach(x=>{const e=new THREE.Mesh(new THREE.ConeGeometry(.04,.06,3),eye);e.position.set(x,.25,.27);e.rotation.x=Math.PI/2;g.add(e)});g.add(p,st);return g},
+    tree(){const g=new THREE.Group(),c=wMat(0x2f7a45);[[.32,.4,.35],[.25,.34,.62],[.17,.28,.86]].forEach(([r,h,y])=>{const k=new THREE.Mesh(new THREE.ConeGeometry(r,h,10),c);k.position.y=y;g.add(k)});
+      const tr=new THREE.Mesh(new THREE.CylinderGeometry(.05,.06,.2,8),wMat(0x7a4a26));tr.position.y=.1;const star=new THREE.Mesh(new THREE.OctahedronGeometry(.07),new THREE.MeshBasicMaterial({color:new THREE.Color(1.8,1.5,.6)}));star.position.y=1.06;g.add(tr,star);
+      [0xe2483d,0xf1c232,0x7fc8ff].forEach((col,i)=>{const o=new THREE.Mesh(new THREE.SphereGeometry(.035,8,6),new THREE.MeshBasicMaterial({color:new THREE.Color(col).multiplyScalar(1.4)}));o.position.set(Math.sin(i*2.1)*.22,.42+i*.16,Math.cos(i*2.1)*.22);g.add(o)});return g},
+    cake(){const g=new THREE.Group(),c=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,.18,20),wMat(0xf6efe4));c.position.y=.09;const top=new THREE.Mesh(new THREE.CylinderGeometry(.21,.21,.03,20),wMat(0xe9879a));top.position.y=.19;
+      const cd=new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,.12,6),wMat(0x7fc8ff));cd.position.y=.27;const fl=new THREE.Mesh(new THREE.SphereGeometry(.022,8,6),new THREE.MeshBasicMaterial({color:new THREE.Color(2,1.4,.5)}));fl.position.y=.35;g.add(c,top,cd,fl);return g}
+  },
+  place(){
+    const k=(this.today().find(e=>e.deco)||{}).deco||null;if(k===this.decoK)return;this.decoK=k;
+    if(this.deco){disposeTree(this.deco);this.deco=null}
+    if(!k||!this.MODEL[k])return;
+    const g=this.MODEL[k]();g.traverse(o=>{if(o.isMesh)o.castShadow=true});const x=1.7,z=-.5;g.position.set(x,heightAt(x,z),z);g.rotation.y=-.5;scene.add(g);this.deco=g;
+  },
+  day:null,
+  tick(){if(!S||!ISO)return;const D=dkey();if(D!==this.day){this.day=D;this.said=false;this.place()}if(started&&!this.said&&Daily.sess>12)this.greet()}
+};
+setInterval(()=>Season.tick(),2000);
+
 let started=false;
 function boot(){
   load();
@@ -3635,7 +3707,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
