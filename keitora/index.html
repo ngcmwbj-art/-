@@ -787,7 +787,7 @@ canvas { display: block; width: 100%; height: 100%; }
     const pad = $('pad');
     pad.hidden = !isPortrait;
     const k = state === 'title' ? null : (state === 'over' ? 'over' : 'play');
-    const [a, b] = k ? PAD_TEXT[k] : ['タップで出発', 'トマトを積んで、あぜ道へ'];
+    const [a, b] = k ? PAD_TEXT[k] : ['タップで出発', 'タップでジャンプ・長押しで高く跳ぶ'];
     pad.querySelector('.pad-main').textContent = a;
     pad.querySelector('.pad-sub').textContent = b;
   }
@@ -837,6 +837,8 @@ canvas { display: block; width: 100%; height: 100%; }
   let camY = 0;                  // 段の上に登ったとき、画面を少し上へずらす量
   let clock = 0;                 // 飾りのアニメーション用（一時停止中も進む）
   const REFILL_M = 500;          // エンドレスでトマト畑に寄る間隔
+  const EASY_M = 200;            // まだ 150 m を走れていない人は、最初の 200 m をやさしくする
+  let easyRun = false;
   let truckX = 560;              // 描画上の軽トラの位置（タイトルでは右寄せ）
   const seenTypes = new Set();   // このセッションで説明済みの障害物
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -873,7 +875,7 @@ canvas { display: block; width: 100%; height: 100%; }
   function spacing() {
     const m = cam / PX_PER_M;
     const dense = Math.max(0.62, 1 - m / 3500);
-    return (170 + speed * 0.25 + rng() * speed * 0.9) * dense;
+    return (170 + speed * 0.25 + rng() * speed * 0.9) * dense * (easyRun && m < EASY_M ? 1.7 : 1);
   }
   function pick(list) {
     let sum = 0; for (const [, w] of list) sum += w;
@@ -885,14 +887,16 @@ canvas { display: block; width: 100%; height: 100%; }
     while (nextX < cam + W + 900) {
       const m = nextX / PX_PER_M;
       const sp = cruise(m);
+      const easy = easyRun && m < EASY_M;   // 練習道：イノシシと段差は出さない
       const type = m < 80
         ? pick([['gap', 70], ['puddle', 30]])
+        : easy ? pick([['gap', 50], ['puddle', 30], ['bump', 15]])
         : pick([['gap', 40], ['puddle', 20], ['bump', m > 150 ? 16 : 8], ['boar', m > 200 ? 18 : 0], ['terrace', m > 120 ? 14 : 0]]);
       if (type === 'gap') {
         // 減速していても跳べるよう、少し控えめの速度で幅を決める
         // 500 m を過ぎると、ときどき2段ジャンプ前提の広い穴が混ざる（距離が伸びるほど増える）
         const wide = m > 500 && rng() < Math.min(0.35, (m - 500) / 1500);
-        const w = Math.max(72, sp * 0.92 * ((wide ? AIR2 : AIR) - jumpWindow(m)) * (wide ? rr(0.85, 1) : rr(0.7, 1)));
+        const w = Math.max(72, sp * 0.92 * ((wide ? AIR2 : AIR) - jumpWindow(m)) * (wide ? rr(0.85, 1) : rr(0.7, 1)) * (easy ? 0.8 : 1));
         obs.push({ t: 'gap', x: nextX, w, lv: levelAt(nextX) });
         nextX += w + spacing();
       } else if (type === 'puddle') {
@@ -1064,6 +1068,7 @@ canvas { display: block; width: 100%; height: 100%; }
   function start() {
     restartBgm();
     reset();
+    easyRun = best < 150;
     rk.passed.clear();
     rk.rival = null;
     state = 'play';
@@ -1255,6 +1260,7 @@ canvas { display: block; width: 100%; height: 100%; }
       jumpBuf = 0;
       stats.jumps++;
       sfx('jump');
+      if (easyRun && stats.jumps === 1) popup('空中でもう一度押すと2段ジャンプ!', '#fffbea');
       emit(6, cam + TRUCK_X + 16, truck.y, { vx: [-160, -40], vy: [-160, -40], life: [0.3, 0.6], r: [3, 6], col: '#b89468' });
     } else if (state === 'play' && jumpBuf > 0 && !truck.grounded && truck.airJumps < 1 && slip <= 0) {
       // 2段ジャンプ：空中でもう一度だけ跳べる（1回目より少し弱い）
