@@ -698,6 +698,48 @@ body {
 .veg-draw.leaf .a { transform: rotate(-30deg); }
 .veg-draw.leaf .b { z-index: 1; }
 .veg-draw.leaf .c { transform: rotate(30deg); }
+/* しそ：ふちがぎざぎざの大きな1枚の葉と、まん中のすじ */
+.veg-draw.shiso .a {
+  left: 0.14em; top: 0.06em; width: 0.72em; height: 0.84em;
+  background: var(--c1);
+  clip-path: polygon(50% 0%, 60% 8%, 66% 6%, 72% 16%, 80% 16%, 84% 28%, 92% 32%, 92% 46%, 98% 54%, 90% 64%, 90% 76%, 78% 82%, 70% 92%, 56% 92%, 50% 100%,
+                     44% 92%, 30% 92%, 22% 82%, 10% 76%, 10% 64%, 2% 54%, 8% 46%, 8% 32%, 16% 28%, 20% 16%, 28% 16%, 34% 6%, 40% 8%);
+}
+.veg-draw.shiso .b { left: 0.48em; top: 0.12em; width: 0.04em; height: 0.82em; background: var(--c2); border-radius: 0.02em; }
+.veg-draw.shiso .c { left: 0.3em; top: 0.36em; width: 0.4em; height: 0.26em; border-top: 0.035em solid var(--c2); border-radius: 50% 50% 0 0; }
+/* 春菊：切れこみの深い葉が3枚 */
+.veg-draw.lobed i {
+  left: 0.34em; top: 0.04em; width: 0.32em; height: 0.9em;
+  background: linear-gradient(to top, var(--c2) 0 22%, var(--c1) 22%);
+  transform-origin: 50% 100%;
+  clip-path: polygon(50% 0%, 70% 10%, 56% 18%, 84% 26%, 60% 34%, 90% 44%, 60% 52%, 80% 62%, 56% 70%, 56% 100%,
+                     44% 100%, 44% 70%, 20% 62%, 40% 52%, 10% 44%, 40% 34%, 16% 26%, 44% 18%, 30% 10%);
+}
+.veg-draw.lobed .a { transform: rotate(-32deg); }
+.veg-draw.lobed .b { z-index: 1; }
+.veg-draw.lobed .c { transform: rotate(32deg); }
+/* 小松菜：丸い葉が3枚（細い茎の先に丸い葉） */
+.veg-draw.round i {
+  left: 0.33em; top: 0.06em; width: 0.34em; height: 0.88em;
+  transform-origin: 50% 100%;
+  background:
+    radial-gradient(ellipse 0.15em 0.2em at 50% 0.22em, var(--c1) 96%, transparent 100%),
+    linear-gradient(90deg, transparent 44%, var(--c2) 44% 56%, transparent 56%);
+}
+.veg-draw.round .a { transform: rotate(-30deg); }
+.veg-draw.round .b { z-index: 1; }
+.veg-draw.round .c { transform: rotate(30deg); }
+/* 水菜：細い葉がたくさん（白い茎） */
+.veg-draw.thin i {
+  left: 0.47em; top: 0.12em; width: 0.06em; height: 0.82em;
+  background: linear-gradient(to top, var(--c2) 0 40%, var(--c1) 40%);
+  border-radius: 0.03em;
+  transform-origin: 50% 100%;
+  box-shadow: 0.12em 0.08em 0 -0.005em var(--c1), -0.12em 0.08em 0 -0.005em var(--c1);
+}
+.veg-draw.thin .a { transform: rotate(-26deg); }
+.veg-draw.thin .c { transform: rotate(26deg); }
+
 /* 茎もの（ねぎ・アスパラガス） */
 .veg-draw.stalk i {
   bottom: 0.05em; width: 0.15em;
@@ -876,6 +918,46 @@ body {
 .quiz-q { font-weight: bold; }
 .quiz-choices { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .quiz-choice { width: 100%; }
+
+/* 今日のひとこと（畑の画面の上） */
+.daily-tip {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0 0 14px;
+  padding: 12px 40px 8px 12px;
+  background: #f3f9ee;
+  border: 2px solid #d5eac8;
+  border-radius: 16px;
+}
+.daily-icon { font-size: 2rem; flex: 0 0 auto; line-height: 1; padding-top: 2px; }
+.daily-body { min-width: 0; }
+.daily-title { font-size: 0.82rem; font-weight: bold; color: var(--green-dark); }
+.daily-text { line-height: 1.6; margin-top: 2px; }
+.daily-actions { display: flex; flex-wrap: wrap; gap: 0 4px; margin-left: -8px; }
+.link-btn.sub { color: var(--sub); font-weight: normal; }
+.daily-close {
+  position: absolute; top: 6px; right: 6px;
+  width: 32px; height: 32px;
+  border: none; border-radius: 50%;
+  background: transparent; color: var(--sub);
+  font-size: 1rem; cursor: pointer;
+}
+
+/* はじめてさんにおすすめ */
+.seed-osusume {
+  display: inline-block; margin-left: 6px; padding: 0 8px;
+  font-size: 0.72rem; border-radius: 999px;
+  background: #dcefd3; color: var(--green-dark); vertical-align: 2px;
+}
+
+/* 育て方カードの「ことばの説明」 */
+.howto-words dl { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.howto-words .word { display: flex; flex-wrap: wrap; gap: 0 8px; padding: 4px 0; border-bottom: 1px dashed var(--line); font-size: 0.88rem; }
+.howto-words dt { font-weight: bold; }
+.howto-words .reading { font-weight: normal; color: var(--sub); font-size: 0.8rem; }
+.howto-words dd { margin: 0; flex: 1 1 14em; line-height: 1.6; }
 
 /* 種えらびの見出し */
 .seed-heading { margin-top: 6px; font-size: 0.85rem; font-weight: bold; color: var(--green-dark); }

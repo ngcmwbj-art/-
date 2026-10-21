@@ -24,6 +24,7 @@ const SaveData = (() => {
       unlocked: [],                                    // ミッションで種が手に入ったチャレンジ野菜
       quizDone: [],                                    // 正解した育て方クイズ
       stats: { bestCombo: 0, bestMulti: 0, bestLines: 0, bestMarks: 0 },  // ミッション用のいままでの最高
+      tipHiddenDay: '',                                // 「今日のひとこと」を出さない日（「今日はもう出さない」を押した日）
       settings: { sound: false, vibrate: true },       // 音は最初オフ
     };
   }

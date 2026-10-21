@@ -107,7 +107,7 @@ function floatText(text, x, y, parent = document.body) {
 // data/vegetables.json の icon の書き方：
 //   "🍅"           … 絵文字をそのまま表示
 //   "css:daikon"   … CSS で描いた絵（style.css の .veg-css.daikon）
-//   "draw:ball:#色1:#色2" … CSS で描いた絵の型（ball・tall・leaf・stalk・pod・long・root・imo）と2つの色
+//   "draw:ball:#色1:#色2" … CSS で描いた絵の型（ball・tall・leaf・shiso・lobed・round・thin・stalk・pod・long・root・imo）と2つの色
 //   "mark:キ:#cfe8b0" … 絵文字がない野菜の仮の絵（色つきの丸に1文字）
 //   "img:img/tomato.png" … 画像に差し替えるとき
 function vegIcon(veg) {

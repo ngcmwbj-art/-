@@ -106,6 +106,7 @@
 
   /* ---------- 各画面の準備 ---------- */
   Quiz.init({ config });
+  HowTo.init({ config });
   Missions.init({
     data: save,
     config,

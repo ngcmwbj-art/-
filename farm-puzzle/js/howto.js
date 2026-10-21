@@ -5,10 +5,16 @@
      気をつけたい病気や虫・いちばんのコツ・作業の流れ・ミニ知識」を1枚で見せる
    - 中身は data/vegetables.json の guide・steps・tips
    - 種えらび・畑の区画・図鑑から開ける
+   - カードの文に出てくるむずかしい言葉は、下の「ことばの説明」に読みがなと説明をのせる（data/vegetables.json の glossary）
    ========================================================= */
 const HowTo = (() => {
   const STEPS = ['sow', 'water', 'fertilize', 'harvest'];
   const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  let glossary = [];
+
+  function init(options) {
+    glossary = options.config.glossary || [];
+  }
 
   // options.actions：カードの下に足すボタン [{ label, primary, onClick }]
   // options.onClose：「とじる」を押したあとにすること
@@ -38,6 +44,7 @@ const HowTo = (() => {
         STEPS.map((step) => h('li', {}, h('b', {}, Msg.t('farm.stepNames.' + step)), h('span', {}, v.steps[step])))),
       h('div', { class: 'howto-sub' }, Msg.t('howto.tips')),
       h('ul', { class: 'howto-tips' }, v.tips.map((tip) => h('li', {}, tip))),
+      words(v),
       h('p', { class: 'howto-note' }, Msg.t('howto.region'))
     );
 
@@ -48,6 +55,20 @@ const HowTo = (() => {
     });
     // 長いカードは上から読めるように
     document.querySelector('#modal .modal').scrollTop = 0;
+  }
+
+  // カードの文に出てくる言葉だけを説明する
+  function words(v) {
+    const g = v.guide;
+    const text = [g.sun, g.plant, g.pests, g.point, ...Object.values(v.steps), ...v.tips,
+      Msg.t('farm.stepNames.fertilize')].join(' ');
+    const found = glossary.filter((w) => text.includes(w.term));
+    if (!found.length) return null;
+    return h('div', { class: 'howto-words' },
+      h('div', { class: 'howto-sub' }, Msg.t('howto.words')),
+      h('dl', {}, found.map((w) => h('div', { class: 'word' },
+        h('dt', {}, w.term, w.reading !== w.term ? h('span', { class: 'reading' }, `（${w.reading}）`) : null),
+        h('dd', {}, w.text)))));
   }
 
   function row(label, text) {
@@ -70,5 +91,5 @@ const HowTo = (() => {
     );
   }
 
-  return { open };
+  return { init, open };
 })();

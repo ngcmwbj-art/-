@@ -20,6 +20,7 @@ const Farm = (() => {
   let cfg = null;     // data/vegetables.json の中身
   let hooks = {};     // { onChange, onAction, onHarvest(初めて収穫した野菜の一覧, seasonDone) }
   let root = null;
+  let tipClosed = false;   // ひとことを ✕ で閉じたか（開き直すまで）
 
   function init(options) {
     data = options.data;
@@ -315,6 +316,9 @@ const Farm = (() => {
       )
     );
 
+    const tip = dailyTip();
+    if (tip) root.append(tip);
+
     // 区画
     const grid = h('div', { class: 'plots' });
     data.plots.forEach((plot, i) => grid.append(plotCard(plot, i)));
@@ -468,6 +472,7 @@ const Farm = (() => {
           h('span', { class: 'seed-info' },
             h('span', { class: 'seed-name' }, (locked ? '🔒 ' : '') + v.name,
               inSeason(v) ? h('span', { class: 'shun' }, Msg.t('farm.shun')) : null,
+              isRecommended(v) ? h('span', { class: 'seed-osusume' }, Msg.t('farm.osusume')) : null,
               Missions.isChallenge(v) ? h('span', { class: 'seed-challenge' }, Msg.t('mission.challenge')) : null,
               got ? h('span', { class: 'seed-got' }, Msg.t('farm.seedGot')) : null),
             locked ? h('span', { class: 'seed-mission' }, Msg.t('mission.label') + Missions.text(v) + '　' + Missions.progressText(v)) : null,
@@ -484,6 +489,40 @@ const Farm = (() => {
       h('button', { class: 'seed-guide', type: 'button', onclick: guide },
         Msg.t('howto.short').split(' ').map((part) => h('span', {}, part)))
     );
+  }
+
+  // 今日のひとこと：いまが旬の野菜の豆知識を、日付で決めて1つ（同じ日は同じひとこと）
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  }
+
+  function dailyTip() {
+    if (tipClosed || data.tipHiddenDay === todayKey()) return null;
+    const vegs = cfg.vegetables.filter(inSeason);
+    if (!vegs.length) return null;
+    const pool = [];
+    vegs.forEach((v) => {
+      v.tips.forEach((t) => pool.push({ v, t }));
+      pool.push({ v, t: v.guide.point });
+    });
+    const d = new Date();
+    const n = (d.getFullYear() * 400 + (d.getMonth() + 1) * 32 + d.getDate() + data.seasonIndex * 7) % pool.length;
+    const { v, t } = pool[n];
+    return h('div', { class: 'daily-tip', role: 'note' },
+      h('span', { class: 'daily-icon' }, vegIcon(v)),
+      h('div', { class: 'daily-body' },
+        h('div', { class: 'daily-title' }, Msg.t('daily.title', { name: v.name })),
+        h('div', { class: 'daily-text' }, t),
+        h('div', { class: 'daily-actions' },
+          h('button', { class: 'link-btn', type: 'button', onclick: () => HowTo.open(v) }, Msg.t('howto.open')),
+          h('button', { class: 'link-btn sub', type: 'button', onclick: () => { data.tipHiddenDay = todayKey(); changed(); } }, Msg.t('daily.hideToday')))),
+      h('button', { class: 'daily-close', type: 'button', 'aria-label': Msg.t('common.close'), onclick: () => { tipClosed = true; render(); } }, '✕'));
+  }
+
+  // はじめてさんにおすすめ：育てやすさ★1で、いまが旬の基本の野菜（ほかの印は増やさない）
+  function isRecommended(v) {
+    return v.guide.level === 1 && inSeason(v) && !Missions.isChallenge(v);
   }
 
   // チャレンジ野菜のミッションを見せる（クイズならそのまま挑戦できる）

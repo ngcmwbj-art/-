@@ -77,7 +77,8 @@
     "harvestedMany": "{n}区画をまとめて収穫しました！ {coin}+{coins}",
     "nextTip": "💡 {step}のコツ：",
     "seasonChallengeLabel": "チャレンジ：",
-    "seedChallenge": "いまが旬のチャレンジ野菜（{season}）"
+    "seedChallenge": "いまが旬のチャレンジ野菜（{season}）",
+    "osusume": "はじめてさんにおすすめ"
   },
   "zukan": {
     "title": "やさい図鑑",
@@ -154,7 +155,8 @@
     "tips": "ミニ知識",
     "region": "※時期は関東など、暑すぎず寒すぎない地域の目安です。品種や地域で前後します。",
     "plantThis": "この野菜を植える",
-    "back": "種えらびにもどる"
+    "back": "種えらびにもどる",
+    "words": "ことばの説明"
   },
   "mission": {
     "challenge": "チャレンジ",
@@ -183,5 +185,9 @@
     "wrongBody": "正解は「{answer}」でした。\n{explain}\n育て方カードを見てから、もう一度挑戦してみましょう。",
     "again": "もう一度挑戦",
     "try": "クイズに挑戦"
+  },
+  "daily": {
+    "title": "🌱 今日のひとこと（{name}）",
+    "hideToday": "今日はもう出さない"
   }
 }
