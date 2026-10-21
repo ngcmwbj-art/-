@@ -257,6 +257,9 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
 @keyframes tutGlow{50%{box-shadow:0 0 0 2px rgba(255,210,122,.5),0 0 6px rgba(255,210,122,.3)}}
 #tutchip{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:50%;transform:translateX(-50%);z-index:8;display:flex;gap:8px;align-items:center;background:rgba(40,28,6,.88);border:1px solid rgba(255,210,122,.6);border-radius:999px;padding:3px 4px 3px 12px;font-size:12px;color:#ffe3a6;white-space:nowrap}
 #tutchip[hidden]{display:none}
+#hashichip{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 150px);transform:translateX(-50%);z-index:8;display:flex;gap:8px;align-items:center;background:rgba(6,24,34,.88);border:1px solid rgba(143,211,255,.5);border-radius:999px;padding:4px 5px 4px 14px;font-size:13px;white-space:nowrap}
+#hashichip[hidden]{display:none}
+#hashichip button{font-size:12px;padding:4px 12px;border-radius:999px}
 #tutchip button{font-size:11px;padding:3px 10px;border-radius:999px}
 body.kbd #tutchip{display:none}
 
@@ -446,6 +449,7 @@ body.kbd #tutchip{display:none}
   <div class="zk-tabs" id="rm-tabs"><button type="button" data-t="uranai">占い</button><button type="button" data-t="soudan">相談</button><button type="button" data-t="mukashi">昔話</button><button type="button" data-t="yohou">明日の予報</button></div>
   <div id="rm-body"></div>
 </div></div>
+<div id="hashichip" hidden><span>箸で口元まで運んでください</span><button type="button" id="hashi-drop">上から落とす</button></div>
 <div id="tutchip" hidden><span>はじめての案内 <b id="tut-n"></b></span><button type="button" id="tut-skip">とばす</button></div>
 <div id="itank" hidden><div id="it-clock"></div></div>
 <div class="modal" id="memorial" hidden><div class="sheet"><h3>グソっ君</h3><div id="mem-date"></div><dl id="mem-text"></dl><p id="mem-egg" hidden style="font-size:13.5px;line-height:1.8;color:#ffc46b;margin:0 0 10px">グソっ君は、卵を残していました。</p><p style="font-size:13px;color:var(--dim);line-height:1.8;margin:0 0 18px">この子の記録は「日記 → 思い出」に残ります。</p><button type="button" class="primary" id="mem-new">新しい命を迎える</button></div></div>
@@ -1294,7 +1298,8 @@ function dropFood(kind){
   mesh.traverse(o=>{if(o.isMesh){o.castShadow=true}});
   const r0=.4+2.4*C.size,x=clamp(C.pos.x+(rnd()-.5)*r0+Math.sin(C.yaw)*(1.4*C.size+.35),-6,6),z=clamp(C.pos.z+(rnd()-.5)*r0*.7+Math.cos(C.yaw)*(1.4*C.size+.35),-3.5,3);
   mesh.position.set(x,9.5,z);scene.add(mesh);
-  const f={kind,mesh,vy:0,rest:false,left:1,age:0,x,z,ground:heightAt(x,z)+.06,spin:new V3(rnd()-.5,rnd()-.5,rnd()-.5)};foods.push(f);
+  const f={kind,mesh,vy:0,rest:false,left:1,age:0,x,z,x0:x,z0:z,ground:heightAt(x,z)+.06,spin:new V3(rnd()-.5,rnd()-.5,rnd()-.5)};foods.push(f);
+  if(Hashi.holding){f.held=true;Hashi.f=f}
   Audio2.plop();return f;
 }
 function removeFood(f){scene.remove(f.mesh);foods.splice(foods.indexOf(f),1)}
@@ -1551,8 +1556,8 @@ function updateLights(dt){
    ===================================================================== */
 const CAM={yaw:.18,pitch:.2,dist:3,zoom:1,tYaw:.18,tPitch:.2,focus:new V3(),intro:1};
 let drag=null,pinch=null;
-canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,t:performance.now(),id:e.pointerId};closePops()});
-canvas.addEventListener('pointermove',e=>{if(!drag||drag.id!==e.pointerId||pinch)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
+canvas.addEventListener('pointerdown',e=>{if(Hashi.on)return;canvas.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,t:performance.now(),id:e.pointerId};closePops()});
+canvas.addEventListener('pointermove',e=>{if(Hashi.on)return;if(!drag||drag.id!==e.pointerId||pinch)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
   CAM.tYaw-=dx*.006;CAM.tPitch=clamp(CAM.tPitch+dy*.0045,-.04,1.45)});
 canvas.addEventListener('dblclick',()=>{CAM.tYaw=Math.round(CAM.yaw/TAU)*TAU+.18;CAM.tPitch=.2;CAM.zoom=1;toast('視点をもとに戻しました')});
 canvas.addEventListener('pointerup',e=>{if(!drag)return;const moved=Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0);if(moved<6&&performance.now()-drag.t<400)onTap(e);drag=null});
@@ -2653,12 +2658,13 @@ const Game={
     if(this.molting||Life.asleep)p=0;
     f.accepted=Math.random()<p*(S.mood>25?1:.4);
     const st=S.stage;
-    setTimeout(()=>{
+    const react=()=>{
       if(!foods.includes(f))return;
       if(f.accepted)say(st===0?'（小さな触角が、餌のほうへ向いた）':st===1?'……ゴハン、デス。':pickR(['……まあ、いただかないこともありません。','ほう。悪くない匂いです。','腐りかけなら、もっと良かったのですが。']),{emo:'curious',narr:st===0});
       else{say(st===0?(kind==='krill'?'（見向きもしない）':'（まだ大きすぎて食べられないようだ。オキアミなら……）'):st===1?'……イリマセン。':this.molting?(Molt.phase==='soft'?'殻が硬くなるまで、顎に力が入りません。':'脱皮の前は、何も喉を通りません。'):pickR(['今は、結構です。','ワタクシは食べなくても生きていけます。片づけていただけますか。','その匂いは好みません。……腐ったら水が汚れますよ。']),{emo:'annoyed',narr:st===0});
         f.rotAt=Date.now()+60000}
-    },3800);
+    };
+    if(f.held)f.react=react;else setTimeout(react,3800);
   },
   ate(kind){
     S.hunger=clamp(S.hunger-(kind==='krill'?25:45),0,100);S.mood=clamp(S.mood+8,0,100);S.trust=clamp(S.trust+4,0,100);S.fed++;S.fedSinceMolt++;Morph.ate(kind);this.hinted=false;S.lastAteAt=Date.now();S.fastMiles=[];shape(1.5,0);addDark(-3);ev('fed',{aji:'アジ',ika:'スルメイカ',krill:'オキアミ'}[kind]);
@@ -3499,6 +3505,71 @@ const Season={deco:null,decoK:null,said:false,
 };
 setInterval(()=>Season.tick(),2000);
 
+/* =====================================================================
+   CHOPSTICKS — carry the food to the creature's mouth with a finger.
+   The camera stays still while you hold them; "落とす" keeps the old way.
+   ===================================================================== */
+const Hashi={on:false,f:null,g:null,drag:false,moved:0,x0:0,y0:0,t0:0,idle:0,pos:new V3(),
+  start(kind){
+    if(!started||Life.dead||this.on)return;
+    if(foods.length>=3){toast('水槽に餌がたまっています。水換えで片づけましょう。');return}
+    this.holding=true;Game.feed(kind);this.holding=false;
+    const f=this.f;if(!f)return;
+    this.on=true;this.drag=false;this.idle=0;
+    {const mo=this.mouth(),tc=camera.position.clone().sub(mo);tc.y=0;tc.normalize();this.pos.copy(mo).addScaledVector(tc,.7+.6*C.size);this.pos.y+=.25+.2*C.size;this.place()}
+    if(!this.g)this.g=this.build();scene.add(this.g);this.aim();
+    $('hashichip').hidden=false;
+  },
+  mouth(){const d=1.25*C.size+.12;const x=C.pos.x+Math.sin(C.yaw)*d,z=C.pos.z+Math.cos(C.yaw)*d;return new V3(x,heightAt(x,z)+(ISO&&ISO.chara?(ISO.focusH||.5)*C.size*(S.molts>=4?1.35:.9):.22*C.size+.08),z)},
+  build(){
+    const g=new THREE.Group(),m=wMat(0xc89a62);
+    for(const s of [-1,1]){const c=new THREE.Mesh(new THREE.CylinderGeometry(.03,.012,1.8,8),m);c.position.set(s*.035,.9,0);c.rotation.z=-s*.02;c.castShadow=true;g.add(c)}
+    return g;
+  },
+  place(){const f=this.f;if(!f)return;f.mesh.position.copy(this.pos);f.x=this.pos.x;f.z=this.pos.z},
+  aim(){if(!this.g)return;camera.updateMatrixWorld();const e=camera.matrixWorld.elements,right=new V3(e[0],e[1],e[2]),up=new V3(e[4],e[5],e[6]),back=new V3(e[8],e[9],e[10]);
+    const to=new V3().addScaledVector(right,.55).addScaledVector(up,.75).addScaledVector(back,.35).normalize();this.g.position.copy(this.pos);this.g.quaternion.setFromUnitVectors(new V3(0,1,0),to)},
+  pick(e){
+    const r=canvas.getBoundingClientRect(),m=new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);ray.setFromCamera(m,camera);
+    const h=this.mouth().y+.05,o=ray.ray.origin,d=ray.ray.direction;if(Math.abs(d.y)<1e-3)return null;
+    const t=(h-o.y)/d.y;if(t<0)return null;const p=o.clone().addScaledVector(d,t);p.x=clamp(p.x,-6,6);p.z=clamp(p.z,-3.5,3);p.y=h;return p;
+  },
+  down(e){if(!this.on)return;this.drag=true;this.moved=0;this.x0=e.clientX;this.y0=e.clientY;this.t0=performance.now();try{canvas.setPointerCapture(e.pointerId)}catch(_){}},
+  move(e){if(!this.on||!this.drag)return;this.moved=Math.max(this.moved,Math.hypot(e.clientX-this.x0,e.clientY-this.y0));const p=this.pick(e);if(p){this.pos.lerp(p,.6);this.place();this.idle=0}},
+  up(e){
+    if(!this.on||!this.drag)return;this.drag=false;
+    if(this.moved<8&&performance.now()-this.t0<350)return;      // a plain tap does nothing; keep holding
+    const mo=this.mouth(),dx=this.pos.x-mo.x,dz=this.pos.z-mo.z;
+    if(Math.hypot(dx,dz)<.35+.45*C.size)this.give();else this.drop(false);
+  },
+  // brought right to the mouth: it tastes with its antennae first
+  give(){
+    const f=this.f,mo=this.mouth();this.end();
+    f.held=false;f.x=mo.x;f.z=mo.z;f.mesh.position.set(mo.x,heightAt(mo.x,mo.z)+.06,mo.z);f.ground=f.mesh.position.y;f.rest=true;f.vy=0;puff(f.mesh.position,6);
+    if(S.stage>=1)say('（触角で、そっと確かめている……）',{narr:true});
+    if(f.react)setTimeout(f.react,1600);
+  },
+  // let go away from the mouth (or pressed 落とす): it sinks like before
+  drop(fromTop){
+    const f=this.f;this.end();if(!f)return;f.held=false;f.vy=0;
+    if(fromTop){f.mesh.position.set(f.x0,9.5,f.z0);f.x=f.x0;f.z=f.z0}
+    f.ground=heightAt(f.mesh.position.x,f.mesh.position.z)+.06;
+    if(f.react)setTimeout(f.react,fromTop?3800:2400);
+  },
+  end(){this.on=false;this.drag=false;if(this.g)scene.remove(this.g);$('hashichip').hidden=true;this.f=null},
+  frame(dt){
+    if(!this.on)return;if(!this.f||!foods.includes(this.f)){this.end();return}
+    this.aim();this.f.mesh.rotation.y+=dt*.4;
+    if(!this.drag){this.idle+=dt;if(this.idle>15)this.drop(true)}
+  }
+};
+canvas.addEventListener('pointerdown',e=>Hashi.down(e));
+canvas.addEventListener('pointermove',e=>Hashi.move(e));
+canvas.addEventListener('pointerup',e=>Hashi.up(e));
+canvas.addEventListener('pointercancel',e=>Hashi.up(e));
+$('hashi-drop').addEventListener('click',()=>{if(Hashi.on)Hashi.drop(true)});
+{const wu=World.update;World.update=function(dt,t){wu.call(this,dt,t);Hashi.frame(dt)}}
+
 let started=false;
 function boot(){
   load();
@@ -3540,6 +3611,7 @@ function loop(now){
   else if(started||S.hatched){if(!(Photo.on&&Photo.paused))updateCreature(dt,time);if(!Dream.on)updateCamera(dt,time)}
   else{camera.position.set(Math.sin(time*.05)*6,2.4,7);camera.lookAt(0,.6,-1)}
   foods.slice().forEach(f=>{
+    if(f.held)return;
     if(!f.rest){f.vy=damp(f.vy,-1.1,1.5,dt);f.mesh.position.y+=f.vy*dt;f.mesh.position.x+=Math.sin(time*2+f.x)*.15*dt;f.mesh.rotation.x+=f.spin.x*dt*2;f.mesh.rotation.z+=f.spin.z*dt*2;
       if(f.mesh.position.y<=f.ground){f.mesh.position.y=f.ground;f.rest=true;f.x=f.mesh.position.x;f.z=f.mesh.position.z;f.mesh.rotation.x*=.1;f.mesh.rotation.z*=.1;puff(f.mesh.position,8)}}
     f.mesh.scale.setScalar(Math.max(.05,f.left));
@@ -3672,7 +3744,7 @@ function placePop(b,p){const el=$(p);el.style.cssText=el.dataset.css0===undefine
   else{const r=el.getBoundingClientRect();if(r.left<8){el.style.left='0';el.style.right='auto'}else if(r.right>innerWidth-8){el.style.left='auto';el.style.right='0'}}}
 pops.forEach(([b,p])=>$(b).addEventListener('click',e=>{e.stopPropagation();const h=$(p).hidden;closePops();$(p).hidden=!h;if(h)placePop(b,p)}));
 document.addEventListener('click',e=>{if(!e.target.closest('.menu'))closePops()});
-document.querySelectorAll('[data-food]').forEach(b=>b.addEventListener('click',()=>{closePops();if(started&&!Life.dead)Game.feed(b.dataset.food)}));
+document.querySelectorAll('[data-food]').forEach(b=>b.addEventListener('click',()=>{closePops();if(started&&!Life.dead)Hashi.start(b.dataset.food)}));
 $('btn-light').addEventListener('click',()=>started&&!Life.dead&&Game.light());
 $('m-diary').addEventListener('click',()=>{closePops();if(S&&S.hatched)Diary.open()});
 $('m-photo').addEventListener('click',()=>Photo.open());
@@ -3707,7 +3779,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
