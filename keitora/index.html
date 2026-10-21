@@ -12,6 +12,15 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ビバベジ便">
+<meta name="description" content="トマトを山積みにした軽トラで田んぼ道を爆走！ タップでジャンプ。登録なしですぐ遊べるランゲーム">
+<meta property="og:type" content="website">
+<meta property="og:title" content="爆走！つがおのビバベジ便！">
+<meta property="og:description" content="トマトを山積みにした軽トラで田んぼ道を爆走！ タップでジャンプ。登録なしですぐ遊べるランゲーム">
+<meta property="og:url" content="https://ngcmwbj-art.github.io/-/keitora/">
+<meta property="og:image" content="https://ngcmwbj-art.github.io/-/keitora/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@500;900&display=swap">
@@ -311,6 +320,12 @@ canvas { display: block; width: 100%; height: 100%; }
 }
 .rk-form input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .rk-form .btn { font-size: clamp(13px, min(2cqw, 4cqh), 18px); padding: .3em 1.1em; }
+.btn.share { background: #3fae4a; color: #fff; box-shadow: 0 .18em 0 #23752c; }
+#sharePv { z-index: 3; background: rgba(27, 34, 22, .86); }
+.share-card { gap: 1cqh; padding: 2.4cqh 3cqw; }
+.share-card img { display: block; max-width: min(78cqw, 420px); max-height: 62cqh; width: auto; height: auto; border-radius: 8px; }
+.share-card .btn { font-size: clamp(13px, min(2.2cqw, 4.4cqh), 20px); text-decoration: none; }
+#rkOverForm .btn { padding: .3em .9em; }
 .rk-over { margin: 0; font-size: clamp(12px, min(2cqw, 4cqh), 18px); color: var(--accent); }
 
 /* 縦持ちのとき：ゲームの下を親指で押すパッドにする */
@@ -415,9 +430,14 @@ canvas { display: block; width: 100%; height: 100%; }
         <p class="rank" id="rankLine">称号 <b id="rankName">見習い運転手</b></p>
         <p class="sub" id="bestLine"></p>
         <p class="rk-over" id="rkOver" hidden></p>
+        <form class="rk-form" id="rkOverForm" hidden>
+          <input id="rkOverName" type="text" maxlength="12" autocomplete="nickname" placeholder="ニックネーム" enterkeyhint="done" aria-label="ランキングに載せる名前">
+          <button class="btn" type="submit">ランキングに載せる</button>
+        </form>
         <dl class="stats" id="stats"></dl>
         <div class="btn-row">
           <button class="btn" id="retryBtn" type="button">もう一回</button>
+          <button class="btn share" id="shareBtn" type="button">結果を送る</button>
           <button class="btn ghost" id="rankBtn2" type="button" hidden>ランキング</button>
           <button class="btn ghost" id="toTitleBtn" type="button">タイトル</button>
         </div>
@@ -434,6 +454,18 @@ canvas { display: block; width: 100%; height: 100%; }
           <button class="btn ghost" id="quitBtn" type="button">やめる</button>
         </div>
         <p class="kbd-hint kbd-only">P か Esc でも再開</p>
+      </div>
+    </div>
+
+    <div class="overlay dim" id="sharePv" hidden>
+      <div class="card share-card">
+        <img id="shareImg" alt="結果の画像">
+        <p class="sub" id="shareHint">画像を長押しして保存し、LINE などで送ってね</p>
+        <div class="btn-row">
+          <a class="btn" id="shareSave" download="vivavege.png">画像を保存</a>
+          <button class="btn ghost" id="shareCopy" type="button">URLをコピー</button>
+          <button class="btn ghost" id="shareClose" type="button">閉じる</button>
+        </div>
       </div>
     </div>
 
@@ -490,7 +522,7 @@ canvas { display: block; width: 100%; height: 100%; }
   const app = $('app'), stage = $('stage'), cv = $('cv');
   const mainCtx = cv.getContext('2d');
   let ctx = mainCtx;
-  const titleEl = $('title'), overEl = $('over'), pauseEl = $('pause'), boardEl = $('board');
+  const titleEl = $('title'), overEl = $('over'), pauseEl = $('pause'), boardEl = $('board'), sharePvEl = $('sharePv');
   const soundBtn = $('soundBtn'), pauseBtn = $('pauseBtn');
   const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -961,7 +993,7 @@ canvas { display: block; width: 100%; height: 100%; }
   // ---- 入力 ----
   function press() {
     initAudio();
-    if (paused || !boardEl.hidden) return;
+    if (paused || !boardEl.hidden || !sharePvEl.hidden) return;
     if (state === 'play') { jumpBuf = 0.12; holding = true; }
     else if (state === 'title') start();
     else if (state === 'over' && dieT > 0.7) start();
@@ -973,7 +1005,7 @@ canvas { display: block; width: 100%; height: 100%; }
   app.addEventListener('pointerdown', e => {
     if (e.target.closest('button')) return;
     if (state === 'over' && e.target.closest('.card')) return;
-    if (paused || !boardEl.hidden) return;
+    if (paused || !boardEl.hidden || !sharePvEl.hidden) return;
     e.preventDefault();
     if (state === 'play') $('pad').classList.add('on');
     press();
@@ -983,6 +1015,14 @@ canvas { display: block; width: 100%; height: 100%; }
   window.addEventListener('pointercancel', up);
   const JUMP_KEYS = ['Space', 'ArrowUp', 'KeyW'];
   window.addEventListener('keydown', e => {
+    if (!sharePvEl.hidden) {
+      if (e.code === 'Escape') { e.preventDefault(); closeSharePv(); }
+      return;
+    }
+    if (e.target && e.target.tagName === 'INPUT') {   // 結果画面で名前を入力中
+      if (e.code === 'Escape') e.target.blur();
+      return;
+    }
     if (!boardEl.hidden) {
       if (e.code === 'Escape') { e.preventDefault(); closeBoard(); }
       return;   // 名前の入力中はジャンプにしない
@@ -1034,6 +1074,7 @@ canvas { display: block; width: 100%; height: 100%; }
   }
   function toTitle() {
     closeBoard(true);
+    sharePvEl.hidden = true;
     reset();
     state = 'title';
     overEl.hidden = true;
@@ -1113,6 +1154,8 @@ canvas { display: block; width: 100%; height: 100%; }
     }
     $('newrec').hidden = !rec;
     rk.lastRun = score;
+    rk.lastM = m;
+    share.blob = null;
     renderOverRank();
     if (rec) submitBest(); else refreshRanking();
     overEl.hidden = false;
@@ -3050,6 +3093,12 @@ canvas { display: block; width: 100%; height: 100%; }
     else if (rk.write && !rk.name && bestScore > 0) t = 'ランキングに名前を載せよう';
     el.textContent = t;
     el.hidden = !t;
+    // まだ名前がない人は、結果画面でそのまま名前を入れて載せられる
+    const form = $('rkOverForm');
+    const wasHidden = form.hidden;
+    form.hidden = !(rk.on && rk.write && !rk.name && bestScore > 0);
+    if (wasHidden && !form.hidden) $('rkOverName').value = '';
+    if (state === 'over') makeShareImage();
   }
   function renderBoard() {
     const list = $('rkList');
@@ -3105,19 +3154,110 @@ canvas { display: block; width: 100%; height: 100%; }
   $('rankBtn').addEventListener('click', openBoard);
   $('rankBtn2').addEventListener('click', openBoard);
   $('boardClose').addEventListener('click', () => closeBoard());
-  $('rkForm').addEventListener('submit', e => {
-    e.preventDefault();
-    const name = $('rkName').value.replace(/\s+/g, ' ').trim().slice(0, 12);
-    if (!name) { $('rkName').focus(); return; }
+  function saveName(input) {
+    const name = input.value.replace(/\s+/g, ' ').trim().slice(0, 12);
+    if (!name) { input.focus(); return; }
     rk.name = name;
     store.set('keitora-name', name);
-    $('rkName').blur();
+    input.blur();
     sfx('ui');
     submitBest();
     renderBoard();
-  });
+    renderOverRank();
+  }
+  $('rkForm').addEventListener('submit', e => { e.preventDefault(); saveName($('rkName')); });
+  $('rkOverForm').addEventListener('submit', e => { e.preventDefault(); saveName($('rkOverName')); });
   // 下のゲーム画面に押下を渡さない（タイトルで出発してしまうので）
   boardEl.addEventListener('pointerdown', e => { e.stopPropagation(); if (e.target === boardEl) closeBoard(); });
+
+  // ---- 結果を送る（LINE などに貼れる画像を作る） ----
+  const SHARE_URL = 'https://ngcmwbj-art.github.io/-/keitora/';
+  const share = { blob: null, url: '', n: 0 };
+  function shareText() {
+    const who = rk.name ? `${rk.name}は` : '';
+    return `${who}「爆走！つがおのビバベジ便！」で ${fmtM(rk.lastRun)} 点（${fmtM(rk.lastM || 0)} m）！ 抜けるもんなら抜いてみて ${SHARE_URL}`;
+  }
+  // 幅に収まるまで文字を小さくして書く
+  function fitText(g, text, x, y, maxW, size, weight, family) {
+    let px = size;
+    do { g.font = `${weight} ${px}px ${family}`; px -= 2; } while (g.measureText(text).width > maxW && px > 16);
+    g.fillText(text, x, y);
+  }
+  function makeShareImage() {
+    const S = 1080, PH = 600;
+    const c = document.createElement('canvas');
+    c.width = S; c.height = S;
+    const g = c.getContext('2d');
+    const disp = '"Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", sans-serif';
+    g.fillStyle = '#26301d';
+    g.fillRect(0, 0, S, S);
+    // 上：やられた瞬間のゲーム画面（軽トラが下寄りに来るように切り抜く）
+    const k = cv.width / W, srcW = 560, srcH = srcW * PH / S;
+    const sx = clamp(truckX + TRUCK_W / 2 - srcW * 0.42, 0, W - srcW);
+    const ty = truck.y + (VH - H) + camY - 30;
+    const sy = clamp(ty - srcH * 0.62, 0, Math.max(0, VH - srcH));
+    try { g.drawImage(cv, sx * k, sy * k, srcW * k, srcH * k, 0, 0, S, PH); } catch (e) {}
+    const shade = g.createLinearGradient(0, 0, 0, 150);
+    shade.addColorStop(0, 'rgba(27,34,22,.75)'); shade.addColorStop(1, 'rgba(27,34,22,0)');
+    g.fillStyle = shade; g.fillRect(0, 0, S, 150);
+    g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    g.fillStyle = '#f2b33d';
+    fitText(g, '爆走！つがおのビバベジ便！', 40, 78, S - 80, 52, 900, disp);
+    // 下：結果
+    g.textAlign = 'center';
+    g.fillStyle = '#f6efd9';
+    fitText(g, rk.name ? `${rk.name} さんからの挑戦状!` : 'ビバベジ便の配達結果', S / 2, 676, S - 80, 50, 900, disp);
+    g.fillStyle = '#f2b33d';
+    fitText(g, `${fmtM(rk.lastRun)} 点`, S / 2, 800, S - 80, 120, 'normal', FONT);
+    g.fillStyle = '#d8d2b6';
+    const i = myRank();
+    const line = `${fmtM(rk.lastM || 0)} m 走行 ・ ${rankOf(rk.lastM || 0)}` + (rk.on && rk.mine && i > 0 ? ` ・ みんなのランキング ${i} 位` : '');
+    fitText(g, line, S / 2, 870, S - 80, 40, 500, disp);
+    g.fillStyle = '#f2b33d';
+    g.fillRect(0, 920, S, 160);
+    g.fillStyle = '#2a1d08';
+    fitText(g, '抜けるもんなら抜いてみて!', S / 2, 990, S - 80, 50, 900, disp);
+    fitText(g, '▶ ' + SHARE_URL.replace(/^https:\/\//, ''), S / 2, 1050, S - 80, 40, 'normal', FONT);
+    const n = ++share.n;
+    c.toBlob(b => { if (b && n === share.n) share.blob = b; }, 'image/png');
+  }
+  function openSharePv() {
+    if (share.url) URL.revokeObjectURL(share.url);
+    share.url = URL.createObjectURL(share.blob);
+    $('shareImg').src = share.url;
+    $('shareSave').href = share.url;
+    $('shareHint').textContent = '画像を長押しして保存し、LINE などで送ってね';
+    $('shareCopy').textContent = 'URLをコピー';
+    sharePvEl.hidden = false;
+    focusIfKeyboard($('shareClose'));
+  }
+  function closeSharePv() {
+    sharePvEl.hidden = true;
+    focusIfKeyboard($('shareBtn'));
+  }
+  $('shareBtn').addEventListener('click', async () => {
+    initAudio();
+    sfx('ui');
+    if (!share.blob) {
+      makeShareImage();
+      for (let t = 0; t < 40 && !share.blob; t++) await new Promise(r => setTimeout(r, 25));
+      if (!share.blob) return;
+    }
+    const file = new File([share.blob], 'vivavege.png', { type: 'image/png' });
+    // スマホは「共有」から LINE などを選べる。使えない所では画像を見せて保存してもらう
+    if (navigator.canShare && navigator.share) {
+      try {
+        if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: shareText() }); return; }
+      } catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    openSharePv();
+  });
+  $('shareCopy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(shareText()); $('shareCopy').textContent = 'コピーしました'; }
+    catch (e) { $('shareHint').textContent = SHARE_URL; }
+  });
+  $('shareClose').addEventListener('click', closeSharePv);
+  sharePvEl.addEventListener('pointerdown', e => { e.stopPropagation(); if (e.target === sharePvEl) closeSharePv(); });
 
   // ---- ページが新しい版に差し替わっても、走っている途中から続けられるようにする ----
   function snapshotRun() {
