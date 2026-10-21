@@ -1064,6 +1064,8 @@ canvas { display: block; width: 100%; height: 100%; }
   function start() {
     restartBgm();
     reset();
+    rk.passed.clear();
+    rk.rival = null;
     state = 'play';
     paused = false;
     titleEl.hidden = true;
@@ -1191,6 +1193,14 @@ canvas { display: block; width: 100%; height: 100%; }
         showBanner('ベスト更新!', '#f2b33d');
         sfx('record');
       }
+      // ランキングのライバルを抜いた
+      const rv = rk.rival;
+      if (rv && m >= rv.m) {
+        rk.passed.add(rv.id);
+        popup(`${rv.name || '名無しの運転手'}さんを抜いた!`, '#9fd8ff');
+        sfx('ui');
+      }
+      rk.rival = rivalAhead();
       // 配達スコア：1 m 進むごとに、積んでいるトマトの数だけ加点
       if (m > scoreM) { score += (m - scoreM) * tomatoes; scoreM = m; }
       // エンドレスは 500 m ごとのトマト畑で満杯に積み直す
@@ -2227,6 +2237,45 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.restore();
       }
     }
+    drawRivalFlag();
+  }
+  // ランキングで、今いる地点のすぐ先を走った1人（自分の記録は除く）
+  function rivalAhead() {
+    if (!rk.on || state !== 'play') return null;
+    const m = meters();
+    let r = null;
+    for (const row of rk.rows) {
+      if (row.id === rk.id || rk.passed.has(row.id) || row.m <= m) continue;
+      if (!r || row.m < r.m) r = row;
+    }
+    return r;
+  }
+  // ライバルの旗：BEST の旗より背を高くして、名前を書く
+  function drawRivalFlag() {
+    const rv = state === 'play' ? rk.rival : null;
+    if (!rv) return;
+    const sx = rv.m * PX_PER_M + TRUCK_FRONT - cam;
+    if (sx < -40 || sx > W + 160) return;
+    const name = (rv.name || '名無しの運転手') + 'さん';
+    ctx.save();
+    ctx.translate(0, -levelAt(sx + cam));
+    ctx.font = '12px ' + FONT;
+    const fw = Math.ceil(ctx.measureText(name).width) + 16;
+    const top = GROUND - 96;
+    ctx.fillStyle = '#5b4a3a';
+    ctx.fillRect(sx - 1.5, top, 3, 96);
+    const wave = Math.sin(runTime * 7 + 1) * 3;
+    ctx.fillStyle = '#2f7fc1';
+    ctx.beginPath();
+    ctx.moveTo(sx + 1.5, top);
+    ctx.quadraticCurveTo(sx + fw / 2, top + 4 + wave, sx + fw, top + 6);
+    ctx.lineTo(sx + fw, top + 24);
+    ctx.quadraticCurveTo(sx + fw / 2, top + 22 + wave, sx + 1.5, top + 20);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'left';
+    ctx.fillText(name, sx + 8, top + 16);
+    ctx.restore();
   }
   // トマト畑の直売所（道の奥）
   function drawStand(sx) {
@@ -2941,7 +2990,7 @@ canvas { display: block; width: 100%; height: 100%; }
       get cam() { return cam; }, get speed() { return speed; }, get vel() { return vel; }, get slip() { return slip; },
       get stats() { return stats; }, get paused() { return paused; }, get bumpHits() { return bumpHits; },
       get runTime() { return runTime; },
-      get tomatoes() { return tomatoes; }, get score() { return score; }, get steps() { return steps; },
+      get tomatoes() { return tomatoes; }, get popups() { return popups; }, get rk() { return rk; }, get score() { return score; }, get steps() { return steps; },
       get audio() { return { state: ac && ac.state, music: musicBus && +musicBus.gain.value.toFixed(2), step: mStep, bgm: bgmMode, pos: bgmEl ? bgmEl.currentTime : null, src: !!bgmSrc }; },
       suspendAudio() { return ac && ac.suspend(); }, get clock() { return clock; },
       TRUCK_X, TRUCK_W, W, JUMP_V, GRAV, meters, press, release, start, update, draw, setPaused,
@@ -2953,7 +3002,7 @@ canvas { display: block; width: 100%; height: 100%; }
   // 保存先は2通り。RANK_URL（Googleスプレッドシートの Apps Script）があればそこへ、
   // なければ claude.ai の共有 db へ。どちらも使えない場所ではボタンごと隠れる
   const RK_TOP = 10, RK_WINDOW = 50;
-  const rk = { on: false, via: '', db: null, id: null, key: null, write: false, rows: [], mine: null, name: store.get('keitora-name', ''), busy: false, lastRun: 0, from: null, fail: false };
+  const rk = { passed: new Set(), on: false, via: '', db: null, id: null, key: null, write: false, rows: [], mine: null, name: store.get('keitora-name', ''), busy: false, lastRun: 0, from: null, fail: false };
   // 他の人が書いた行はそのまま信じない（数値と長さを整える）
   const cleanRow = d => ({
     name: String((d && d.name) || '').slice(0, 12),
