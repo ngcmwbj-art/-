@@ -29,6 +29,20 @@ const Zukan = (() => {
       )
     );
 
+    // おさらいクイズの入口（図鑑の上に1つだけ）
+    const known = cfg.vegetables.filter((v) => data.harvested[v.id]);
+    root.append(h('div', { class: 'review-box' },
+      h('div', { class: 'review-info' },
+        h('div', { class: 'review-title' }, Msg.t('quiz.reviewEntry')),
+        h('div', { class: 'review-sub' }, known.length
+          ? Msg.t('quiz.reviewStatus', { title: Quiz.title(), sum: data.quizCorrect })
+          : Msg.t('quiz.reviewEmpty'))),
+      h('button', {
+        class: 'btn primary', type: 'button',
+        disabled: known.length ? null : '',
+        onclick: () => Quiz.review(known),
+      }, Msg.t('quiz.reviewStart'))));
+
     // 季節でしぼりこむボタン
     const chips = h('div', { class: 'zukan-filter' });
     [{ id: 'all', name: Msg.t('zukan.all') }, ...cfg.seasons].forEach((s) => {

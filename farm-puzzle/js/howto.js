@@ -91,5 +91,5 @@ const HowTo = (() => {
     );
   }
 
-  return { init, open };
+  return { init, open, calendar };
 })();

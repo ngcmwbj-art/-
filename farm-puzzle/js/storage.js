@@ -22,7 +22,9 @@ const SaveData = (() => {
       firstGrowDone: false,                            // 初めての「育ち時間」を終えたか（1回目は短くする）
       seasonHarvested: [],                             // 今の季節に収穫した旬の野菜（基本の旬がぜんぶそろうと次の季節へ）
       unlocked: [],                                    // ミッションで種が手に入ったチャレンジ野菜
-      quizDone: [],                                    // 正解した育て方クイズ
+      quizDone: [],                                    // 正解した育て方クイズ（チャレンジ野菜のミッション）
+      quizCorrect: 0,                                  // おさらいクイズで正解した数の合計（称号に使う）
+      showRuby: true,                                  // 画面の言葉に読みがなを付けるか
       stats: { bestCombo: 0, bestMulti: 0, bestLines: 0, bestMarks: 0 },  // ミッション用のいままでの最高
       tipHiddenDay: '',                                // 「今日のひとこと」を出さない日（「今日はもう出さない」を押した日）
       settings: { sound: false, vibrate: true },       // 音は最初オフ

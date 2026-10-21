@@ -959,6 +959,40 @@ body {
 .howto-words .reading { font-weight: normal; color: var(--sub); font-size: 0.8rem; }
 .howto-words dd { margin: 0; flex: 1 1 14em; line-height: 1.6; }
 
+/* 読みがな */
+ruby rt { font-size: 0.55em; font-weight: normal; letter-spacing: 0; opacity: 0.85; }
+
+/* チャレンジのチップは押せる（ミッション一覧が開く） */
+button.season-chip { font: inherit; font-size: 0.9rem; color: inherit; cursor: pointer; }
+.mission-list { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+.mission-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px; border: 2px solid var(--line); border-radius: 14px; background: #fff;
+}
+.mission-item.unlocked { background: #f3f9ee; border-color: #d5eac8; }
+.mission-icon { font-size: 1.9rem; flex: 0 0 auto; }
+.mission-info { flex: 1; min-width: 0; }
+.mission-name { font-weight: bold; }
+.mission-text { font-size: 0.82rem; color: #6b5aa8; line-height: 1.5; }
+.mission-bar { height: 6px; margin-top: 4px; border-radius: 3px; background: #ece6f8; overflow: hidden; }
+.mission-bar span { display: block; height: 100%; background: #9b8ad6; }
+.mission-left { flex: 0 0 auto; font-size: 1.15rem; font-weight: bold; color: #6b5aa8; white-space: nowrap; }
+.mission-done { flex: 0 0 auto; font-size: 0.85rem; font-weight: bold; color: var(--green-dark); white-space: nowrap; }
+.btn.quiz-small { flex: 0 0 auto; min-height: 40px; padding: 4px 10px; font-size: 0.82rem; }
+
+/* おさらいクイズの入口（図鑑の上） */
+.review-box {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-bottom: 12px; padding: 12px 14px;
+  background: #fffaf0; border: 2px solid #f3dfb8; border-radius: 16px;
+}
+.review-title { font-weight: bold; }
+.review-sub { font-size: 0.8rem; color: var(--sub); }
+.review-box .btn { flex: 0 0 auto; padding: 8px 14px; }
+.quiz-name { font-weight: bold; }
+.quiz-answer { font-weight: bold; color: #b9773a; }
+.quiz .howto-cal { width: 100%; }
+
 /* 種えらびの見出し */
 .seed-heading { margin-top: 6px; font-size: 0.85rem; font-weight: bold; color: var(--green-dark); }
 .seed-got {

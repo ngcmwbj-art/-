@@ -35,12 +35,48 @@ const Msg = (() => {
     dict = data;
   }
 
+  // 読みがな：文言の中で {追肥|ついひ} と書いた所に、rich() でふりがなを付ける
+  const RUBY = /\{([^{}|]+)\|([^{}]+)\}/g;
+  let rubyOn = true;
+
+  function setRuby(on) {
+    rubyOn = on;
+  }
+
   // "puzzle.score" のようなドット区切りのキーで文言を取り出す。
-  // 文言の中の {name} は vars.name で置き換える
+  // 文言の中の {name} は vars.name で置き換える（読みがなは外したただの文字になる）
   function t(key, vars = {}) {
-    const raw = get(key);
-    if (typeof raw !== 'string') return key;
-    return raw.replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? vars[k] : m));
+    return raw(key, vars).replace(RUBY, '$1');
+  }
+
+  function raw(key, vars) {
+    const text = get(key);
+    if (typeof text !== 'string') return key;
+    return text.replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? vars[k] : m));
+  }
+
+  // 読みがな付きで取り出す（ボタンや見出し用。要素のまとまりを返す）
+  function rich(key, vars = {}) {
+    const text = raw(key, vars);
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    text.replace(RUBY, (m, word, reading, at) => {
+      frag.append(text.slice(last, at));
+      if (rubyOn) {
+        const ruby = document.createElement('ruby');
+        ruby.append(word);
+        const rt = document.createElement('rt');
+        rt.textContent = reading;
+        ruby.append(rt);
+        frag.append(ruby);
+      } else {
+        frag.append(word);
+      }
+      last = at + m.length;
+      return m;
+    });
+    frag.append(text.slice(last));
+    return frag;
   }
 
   // 文字以外（配列など）をそのまま取り出す
@@ -55,7 +91,7 @@ const Msg = (() => {
     });
   }
 
-  return { init, t, get, applyToDom };
+  return { init, t, rich, get, setRuby, applyToDom };
 })();
 
 /* ---------- ダイアログ ---------- */

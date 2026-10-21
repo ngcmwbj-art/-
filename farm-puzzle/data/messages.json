@@ -33,18 +33,18 @@
   "farm": {
     "seasonNow": "いまは {season}",
     "seasonNote": "基本の旬の野菜をぜんぶ収穫すると、次の季節に進みます。チャレンジ野菜は、ミッションをクリアすると種が手に入る、高く売れる野菜です。",
-    "emptyPlot": "空いている区画",
+    "emptyPlot": "空いている{区画|くかく}",
     "sowButton": "種をまく",
     "waterButton": "水やり {icon}{n}",
-    "fertilizeButton": "追肥 {icon}{n}",
-    "harvestButton": "収穫する",
+    "fertilizeButton": "{追肥|ついひ} {icon}{n}",
+    "harvestButton": "{収穫|しゅうかく}する",
     "needMore": "パズルで列を消して集めましょう",
     "shun": "旬",
     "pickSeed": "どの野菜を育てる？",
     "seasonOf": "旬：{season}",
     "harvested": "{name}を収穫しました！ {coin}+{coins}",
     "seasonBonus": "旬の野菜なのでボーナス！",
-    "addPlot": "区画をふやす（{coin}{price}）",
+    "addPlot": "{区画|くかく}をふやす（{coin}{price}）",
     "plotAdded": "畑が広くなりました",
     "maxPlots": "畑はこれ以上広げられません",
     "stepNames": {
@@ -67,8 +67,8 @@
     "seasonCount": "{got} / {total}",
     "bulk": {
       "water": "ぜんぶ水やり（{n}）",
-      "fertilize": "ぜんぶ追肥（{n}）",
-      "harvest": "ぜんぶ収穫（{n}）"
+      "fertilize": "ぜんぶ{追肥|ついひ}（{n}）",
+      "harvest": "ぜんぶ{収穫|しゅうかく}（{n}）"
     },
     "bulkNone": "対象の区画なし",
     "bulkShortWater": "水が足りません",
@@ -121,10 +121,12 @@
   },
   "help": {
     "title": "遊び方・設定",
-    "body": "音や振動はここで切りかえられます。\n（iPhone は振動しません）",
+    "body": "音・振動・読みがなは、ここで切りかえられます。\n（iPhone は振動しません）",
     "guide": "遊び方をもう一度見る",
     "vibrateOn": "振動：オン",
-    "vibrateOff": "振動：オフ"
+    "vibrateOff": "振動：オフ",
+    "rubyOn": "読みがな：オン",
+    "rubyOff": "読みがな：オフ"
   },
   "season": {
     "completeTitle": "{icon}{season}の旬をコンプリート！",
@@ -173,7 +175,11 @@
     "marks": "1回のプレイで 💧・🍂 のマークを合わせて{n}個消す",
     "score": "1回のプレイで{n}点とる",
     "plots": "畑の区画を{n}つにする",
-    "quiz": "{name}の育て方クイズに正解する"
+    "quiz": "{name}の育て方クイズに正解する",
+    "listOpen": "ミッションを見る",
+    "listTitle": "{icon}{season}のチャレンジ野菜",
+    "left": "あと{n}",
+    "got": "種あり"
   },
   "quiz": {
     "title": "{name}の育て方クイズ",
@@ -184,7 +190,40 @@
     "wrong": "ざんねん…",
     "wrongBody": "正解は「{answer}」でした。\n{explain}\n育て方カードを見てから、もう一度挑戦してみましょう。",
     "again": "もう一度挑戦",
-    "try": "クイズに挑戦"
+    "try": "クイズに挑戦",
+    "reviewEntry": "📝 おさらいクイズ",
+    "reviewStatus": "称号：{title}（正解 {sum}問）",
+    "reviewEmpty": "野菜を収穫して図鑑に登録すると、挑戦できます",
+    "reviewStart": "5問に挑戦",
+    "reviewTitle": "おさらいクイズ（{n}/{total}）",
+    "answerWas": "正解は「{answer}」",
+    "stop": "やめる",
+    "seeResult": "結果を見る",
+    "reviewDone": "おつかれさまでした",
+    "reviewResult": "{total}問中 {right}問 正解！\nこれまでの正解：{sum}問\n称号：{title}",
+    "reviewAgain": "もう一度",
+    "titles": [
+      {
+        "n": 0,
+        "name": "畑の見習い"
+      },
+      {
+        "n": 5,
+        "name": "畑のなかま"
+      },
+      {
+        "n": 15,
+        "name": "野菜名人"
+      },
+      {
+        "n": 30,
+        "name": "野菜はかせ"
+      },
+      {
+        "n": 60,
+        "name": "畑の大先生"
+      }
+    ]
   },
   "daily": {
     "title": "🌱 今日のひとこと（{name}）",

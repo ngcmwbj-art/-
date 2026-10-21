@@ -91,6 +91,16 @@
       buttons: [
         { label: Msg.t('help.guide'), primary: true, onClick: () => Guide.show() },
         {
+          label: Msg.t(save.showRuby ? 'help.rubyOn' : 'help.rubyOff'),
+          onClick: () => {
+            save.showRuby = !save.showRuby;
+            Msg.setRuby(save.showRuby);
+            persist();
+            Farm.render();
+            openHelp();
+          },
+        },
+        {
           label: Msg.t(save.settings.vibrate ? 'help.vibrateOn' : 'help.vibrateOff'),
           onClick: () => {
             save.settings.vibrate = !save.settings.vibrate;
@@ -105,7 +115,8 @@
   }
 
   /* ---------- 各画面の準備 ---------- */
-  Quiz.init({ config });
+  Msg.setRuby(save.showRuby);
+  Quiz.init({ config, data: save, onCorrect: () => { persist(); Zukan.render(); } });
   HowTo.init({ config });
   Missions.init({
     data: save,
