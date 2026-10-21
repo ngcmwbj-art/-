@@ -28,10 +28,10 @@
   --gap: 4px;
 
   /* 盤面の大きさ：画面幅と高さの両方に収まるように */
-  --board-size: clamp(240px, min(92vw, calc((100vh - 215px) / 1.36)), 480px);
+  --board-size: clamp(240px, min(92vw, calc((100vh - 245px) / 1.36)), 480px);
 }
 @supports (height: 100dvh) {
-  :root { --board-size: clamp(240px, min(92vw, calc((100dvh - 215px) / 1.36)), 480px); }
+  :root { --board-size: clamp(240px, min(92vw, calc((100dvh - 245px) / 1.36)), 480px); }
 }
 
 * { box-sizing: border-box; }
@@ -992,6 +992,53 @@ button.season-chip { font: inherit; font-size: 0.9rem; color: inherit; cursor: p
 .quiz-name { font-weight: bold; }
 .quiz-answer { font-weight: bold; color: #b9773a; }
 .quiz .howto-cal { width: 100%; }
+
+/* パズル画面の「次の目標」（1行） */
+.goal {
+  display: block;
+  width: var(--board-size);
+  margin: 0 auto 8px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 999px;
+  background: #f3f9ee;
+  color: var(--green-dark);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.goal:not(.go) { background: #fbf3e6; color: #a8622a; cursor: default; }
+
+/* 畑：季節の帯はふだん1行 */
+.season-banner { padding: 10px 14px; }
+.season-now {
+  width: 100%;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
+  border: none; background: none; padding: 0;
+  font: inherit; font-size: 1.05rem; font-weight: bold; color: var(--green-dark);
+  text-align: left; cursor: pointer;
+}
+.season-challenge-count { font-size: 0.8rem; color: #6b5aa8; background: #ece6f8; padding: 0 10px; border-radius: 999px; }
+.season-toggle { margin-left: auto; color: var(--sub); font-size: 0.8rem; }
+.season-banner.open .season-veg { margin-top: 8px; }
+/* 空き区画は「種をまく」を大きく */
+.plot.empty .sow-btn { min-height: 56px; font-size: 1.05rem; }
+.book-btn {
+  margin-left: 4px; width: 32px; height: 32px;
+  border: 1px solid var(--line); border-radius: 50%;
+  background: #faf6ee; font-size: 0.95rem; cursor: pointer; vertical-align: middle;
+}
+/* 育て方カード：プランターで育てるなら */
+.howto-planter { padding: 10px 12px; border-radius: 12px; background: #f3f9ee; }
+.howto-planter.fit-kufuu { background: #fdf6e9; }
+.howto-planter.fit-no { background: #f6f1ee; }
+.planter-fit { margin-left: 8px; padding: 0 8px; border-radius: 999px; font-size: 0.75rem; background: #fff; color: var(--text); }
+.planter-line { font-weight: bold; line-height: 1.6; }
+.planter-note { font-size: 0.88rem; line-height: 1.6; }
 
 /* 種えらびの見出し */
 .seed-heading { margin-top: 6px; font-size: 0.85rem; font-weight: bold; color: var(--green-dark); }

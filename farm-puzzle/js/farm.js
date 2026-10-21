@@ -21,6 +21,7 @@ const Farm = (() => {
   let hooks = {};     // { onChange, onAction, onHarvest(初めて収穫した野菜の一覧, seasonDone) }
   let root = null;
   let tipClosed = false;   // ひとことを ✕ で閉じたか（開き直すまで）
+  let seasonOpen = false;  // 季節の帯を開いているか（ふだんは1行にたたむ）
 
   function init(options) {
     data = options.data;
@@ -288,36 +289,41 @@ const Farm = (() => {
     if (!root) return;
     root.innerHTML = '';
 
-    // 季節の案内：旬の野菜と、この季節にもう収穫したか
+    // 季節の案内：ふだんは1行（進み具合はいつも見える）。押すと旬の野菜の一覧が開く
     const s = season();
+    const challengeGot = seasonalChallenges().filter((v) => !Missions.isLocked(v)).length;
+    const detail = seasonOpen ? [
+      h('div', { class: 'season-veg' },
+        Msg.t('farm.seasonVegLabel'),
+        seasonalVegs().map((v) => {
+          const got = data.seasonHarvested.includes(v.id);
+          return h('span', { class: 'season-chip' + (got ? ' got' : '') }, (got ? '✓ ' : '') + v.name);
+        })),
+      h('div', { class: 'season-veg' },
+        Msg.t('farm.seasonChallengeLabel'),
+        seasonalChallenges().map((v) => {
+          const locked = Missions.isLocked(v);
+          const got = data.seasonHarvested.includes(v.id);
+          return h('button', {
+            class: 'season-chip challenge' + (got ? ' got' : '') + (locked ? ' locked' : ''),
+            type: 'button',
+            onclick: openMissionList,
+          }, (locked ? '🔒 ' : got ? '✓ ' : '') + v.name);
+        }),
+        h('button', { class: 'link-btn', type: 'button', onclick: openMissionList }, Msg.t('mission.listOpen'))),
+      h('div', { class: 'season-note' }, Msg.t('farm.seasonNote')),
+    ] : [];
     root.append(
-      h('div', { class: 'season-banner' },
-        h('div', { class: 'season-now' },
-          `${s.icon} ${Msg.t('farm.seasonNow', { season: s.name })}`,
-          h('span', { class: 'season-count' }, Msg.t('farm.seasonCount', seasonProgress()))),
-        h('div', { class: 'season-veg' },
-          Msg.t('farm.seasonVegLabel'),
-          seasonalVegs().map((v) => {
-            const got = data.seasonHarvested.includes(v.id);
-            return h('span', { class: 'season-chip' + (got ? ' got' : '') },
-              (got ? '✓ ' : '') + v.name);
-          })
-        ),
-        h('div', { class: 'season-veg' },
-          Msg.t('farm.seasonChallengeLabel'),
-          seasonalChallenges().map((v) => {
-            const locked = Missions.isLocked(v);
-            const got = data.seasonHarvested.includes(v.id);
-            return h('button', {
-              class: 'season-chip challenge' + (got ? ' got' : '') + (locked ? ' locked' : ''),
-              type: 'button',
-              onclick: openMissionList,
-            }, (locked ? '🔒 ' : got ? '✓ ' : '') + v.name);
-          }),
-          h('button', { class: 'link-btn', type: 'button', onclick: openMissionList }, Msg.t('mission.listOpen'))
-        ),
-        h('div', { class: 'season-note' }, Msg.t('farm.seasonNote'))
-      )
+      h('div', { class: 'season-banner' + (seasonOpen ? ' open' : '') },
+        h('button', {
+          class: 'season-now', type: 'button', 'aria-expanded': String(seasonOpen),
+          onclick: () => { seasonOpen = !seasonOpen; render(); },
+        },
+          h('span', {}, `${s.icon} ${Msg.t('farm.seasonNow', { season: s.name })}`),
+          h('span', { class: 'season-count' }, Msg.t('farm.seasonCount', seasonProgress())),
+          h('span', { class: 'season-challenge-count' }, Msg.t('farm.challengeCount', { got: challengeGot, total: seasonalChallenges().length })),
+          h('span', { class: 'season-toggle' }, seasonOpen ? '▲' : '▼')),
+        detail)
     );
 
     const tip = dailyTip();
@@ -328,7 +334,8 @@ const Farm = (() => {
     data.plots.forEach((plot, i) => grid.append(plotCard(plot, i)));
     root.append(grid);
 
-    root.append(bulkBar());
+    // まとめて作業は、対象の区画があるときだけ出す
+    if (data.plots.some((p) => p && p.stage !== 2)) root.append(bulkBar());
 
     // 区画を増やす
     const price = nextPlotPrice();
@@ -386,8 +393,7 @@ const Farm = (() => {
       return h('div', { class: 'plot empty' },
         h('div', { class: 'plot-soil' }, h('span', { class: 'plot-icon dim' }, '・・・')),
         h('div', { class: 'plot-name' }, Msg.rich('farm.emptyPlot')),
-        stepDots(-1),
-        h('button', { class: 'btn primary', onclick: () => openSeedPicker(index) }, Msg.t('farm.sowButton'))
+        h('button', { class: 'btn primary sow-btn', onclick: () => openSeedPicker(index) }, Msg.t('farm.sowButton'))
       );
     }
 
@@ -411,7 +417,8 @@ const Farm = (() => {
 
     return h('div', { class: 'plot' + (ready ? ' ready' : '') + (growing ? ' growing' : '') },
       h('div', { class: 'plot-soil' + (plot.stage >= 1 ? ' wet' : '') }, icon),
-      h('div', { class: 'plot-name' }, v.name, inSeason(v) ? h('span', { class: 'shun' }, Msg.t('farm.shun')) : null),
+      h('div', { class: 'plot-name' }, v.name, inSeason(v) ? h('span', { class: 'shun' }, Msg.t('farm.shun')) : null,
+        h('button', { class: 'book-btn', type: 'button', 'aria-label': Msg.t('howto.open'), onclick: () => HowTo.open(v) }, '📖')),
       stepDots(Math.min(plot.stage, 2)),
       h('button', {
         class: 'btn' + (ready ? ' primary' : ''),
@@ -420,8 +427,7 @@ const Farm = (() => {
       }, label),
       hint ? h('div', { class: 'plot-hint' }, hint) : null,
       h('div', { class: 'plot-tip' },
-        h('b', {}, Msg.t('farm.nextTip', { step: Msg.t('farm.stepNames.' + nextStep) })), v.steps[nextStep]),
-      h('button', { class: 'link-btn', type: 'button', onclick: () => HowTo.open(v) }, Msg.t('howto.open'))
+        h('b', {}, Msg.t('farm.nextTip', { step: Msg.t('farm.stepNames.' + nextStep) })), v.steps[nextStep])
     );
   }
 
@@ -524,6 +530,26 @@ const Farm = (() => {
       h('button', { class: 'daily-close', type: 'button', 'aria-label': Msg.t('common.close'), onclick: () => { tipClosed = true; render(); } }, '✕'));
   }
 
+  // パズル画面に出す「次の目標」を1つ決める { text, go }（go：押すと畑へ行く）
+  function nextGoal() {
+    const plots = data.plots.filter(Boolean);
+    if (plots.some((p) => p.stage === READY)) return { text: Msg.t('goal.harvest'), go: true };
+    const doable = plots.find((p) => p.stage < 2 && canAfford(costOf(p)));
+    if (doable) return { text: Msg.t(doable.stage === 0 ? 'goal.canWater' : 'goal.canFert'), go: true };
+    if (data.plots.some((p) => !p)) return { text: Msg.t('goal.sow'), go: true };
+    // 資源が足りない作業のうち、いちばん近いもの
+    let best = null;
+    plots.filter((p) => p.stage < 2).forEach((p) => {
+      const key = p.stage === 0 ? 'water' : 'fertilizer';
+      const left = costOf(p)[key] - data.resources[key];
+      if (!best || left < best.left) best = { left, key, v: veg(p.vegId) };
+    });
+    if (best) return { text: Msg.t('goal.need.' + best.key, { icon: Msg.t('icons.' + best.key), n: best.left, name: best.v.name }), go: false };
+    const growing = plots.filter((p) => p.stage === 2).sort((a, b) => a.growLeft - b.growLeft)[0];
+    if (growing) return { text: Msg.t('goal.grow', { name: veg(growing.vegId).name, n: growing.growLeft }), go: false };
+    return { text: Msg.t('goal.plot'), go: true };
+  }
+
   // はじめてさんにおすすめ：育てやすさ★1で、いまが旬の基本の野菜（ほかの印は増やさない）
   function isRecommended(v) {
     return v.guide.level === 1 && inSeason(v) && !Missions.isChallenge(v);
@@ -575,5 +601,5 @@ const Farm = (() => {
     });
   }
 
-  return { init, render, gainFromLines, hasAction, limits, season, seasonalVegs, seasonalChallenges, seasonProgress, inSeason, seasonNames, veg };
+  return { init, render, gainFromLines, hasAction, nextGoal, limits, season, seasonalVegs, seasonalChallenges, seasonProgress, inSeason, seasonNames, veg };
 })();

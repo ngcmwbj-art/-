@@ -39,6 +39,7 @@ const HowTo = (() => {
         row(Msg.t('howto.pests'), g.pests),
         row(Msg.t('howto.point'), g.point)
       ),
+      planter(g.planter),
       h('div', { class: 'howto-sub' }, Msg.t('howto.steps')),
       h('ol', { class: 'howto-steps' },
         STEPS.map((step) => h('li', {}, h('b', {}, Msg.t('farm.stepNames.' + step)), h('span', {}, v.steps[step])))),
@@ -57,10 +58,19 @@ const HowTo = (() => {
     document.querySelector('#modal .modal').scrollTop = 0;
   }
 
+  // プランターで育てるなら（3行まで：向き・深さと株数・ひとこと）
+  function planter(p) {
+    if (!p) return null;
+    return h('div', { class: 'howto-planter fit-' + p.fit },
+      h('div', { class: 'howto-sub' }, Msg.t('howto.planter'), h('span', { class: 'planter-fit' }, Msg.t('howto.fit.' + p.fit))),
+      h('div', { class: 'planter-line' }, `🪴 ${p.depth}　/　${p.count}`),
+      h('div', { class: 'planter-note' }, p.note));
+  }
+
   // カードの文に出てくる言葉だけを説明する
   function words(v) {
     const g = v.guide;
-    const text = [g.sun, g.plant, g.pests, g.point, ...Object.values(v.steps), ...v.tips,
+    const text = [g.sun, g.plant, g.pests, g.point, g.planter ? g.planter.note : '', ...Object.values(v.steps), ...v.tips,
       Msg.t('farm.stepNames.fertilize')].join(' ');
     const found = glossary.filter((w) => text.includes(w.term));
     if (!found.length) return null;

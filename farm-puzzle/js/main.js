@@ -42,6 +42,11 @@
     setGauge('hud-water-box', save.resources.water / max.water);
     setGauge('hud-fertilizer-box', save.resources.fertilizer / max.fertilizer);
     document.querySelector('.tab[data-screen="farm"]').classList.toggle('has-badge', Farm.hasAction());
+    // パズル画面の「次の目標」
+    const goal = Farm.nextGoal();
+    const goalEl = document.getElementById('goal');
+    goalEl.textContent = goal.text + (goal.go ? Msg.t('goal.toFarm') : '');
+    goalEl.classList.toggle('go', goal.go);
   }
 
   function setGauge(id, rate) {
@@ -67,6 +72,7 @@
   document.querySelectorAll('.tab').forEach((tab) => {
     tab.addEventListener('click', () => showScreen(tab.dataset.screen));
   });
+  document.getElementById('goal').addEventListener('click', () => showScreen('farm'));
 
   /* ---------- 音・遊び方・設定（画面右上） ---------- */
   const soundBtn = document.getElementById('sound-btn');
