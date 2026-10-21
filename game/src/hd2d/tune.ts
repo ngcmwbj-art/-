@@ -308,6 +308,8 @@ export const NUDGE: Record<string, PropNudge> = {
   'prop_h_deli_bag@37,36': { z: 1 },
   'prop_h_deli_bag@42,26': { z: 1 },
   'prop_h_deli_bag@17,31': { z: 1 },
+  // はく 前に、ふる（02 #111）：農具小屋の 西の 端の 杭（小屋の 壁の 前に 立つ）
+  'prop_h_kutsu_kui@34,13': { z: 4 },
   'prop_h_matsuri_chochin@24,30': { fgView: 1 },
   // 沢の上: the rocks side by side on one line — the eastern one over the western, as the 2D sorts them
   'prop_h_sawa_iwa@14,1': { z: 1 },

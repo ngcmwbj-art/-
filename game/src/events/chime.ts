@@ -32,7 +32,7 @@ import * as T from '../data/text/events';
 import { besideToward, dirTo, eventBattle, F, floatLine, giveKey, holdBgm, holdCamera, panBack, sendAway, settle, tileFree, walkTo } from './lib';
 import { burst, playCaseGift, puff, smallVoice, sparkle } from './fx';
 import { meishi } from './art';
-import { cinema, clearBelow, guideNearHanko, keyGuide, zoomIn, zoomIntoBattle } from './stage';
+import { cinema, clearBelow, guideNearHanko, GUIDE_MENU_UNTIL, keyGuide, zoomIn, zoomIntoBattle } from './stage';
 import { fxAt, registerWorldFx } from '../world/fx';
 import { animate, ease } from '../engine/tween';
 
@@ -506,7 +506,7 @@ registerScript('evt_obaa_park_hint', function* (ctx): Co {
   yield 200;
   if (ob) yield* obaaGoesIn(ob);
   // the walk to the park begins: the dash and the menu, once (right of the HUD hanko)
-  keyGuide(T.GUIDE_MENU, 5000, 38);
+  keyGuide(T.GUIDE_MENU, 5000, 38, GUIDE_MENU_UNTIL);
 });
 
 // ---------------------------------------------------------------- 5.10 evt_alley_open

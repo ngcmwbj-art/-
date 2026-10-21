@@ -1081,6 +1081,13 @@ se('se_h_match', {
   layers: ['noise env=0/90/0/30 dur=70 v=.05 flt=BP3000q0.8', 'noise env=20/300/0/150 dur=250 v=.025 flt=LP900 at=80'],
 });
 
+// はく 前に、ふる（02_ch2_index #111、events/ch2/kutsu.ts）：昇降口の 外の 長靴
+se('se_h_kutsu_furu', { label: '長靴を ふる（ばさっ）', group: G_VILLAGE, rand: [0.05, 0.08], max: 3, layers: ['noise env=4/70/0/40 dur=50 v=.03 flt=BP900q0.7', 'noise env=0/30/0/20 dur=20 v=.012 flt=BP2600q1'] });
+se('se_h_kutsu_poton', { label: '長靴から ぽとん', group: G_VILLAGE, rand: [0.04, 0.06], layers: ['sine f=520→300/60 env=0/50/0/30 dur=30 v=.03', 'noise env=0/40/0/20 dur=20 v=.012 flt=LP700 at=10'] });
+se('se_h_kutsu_peta', { label: '長靴の 中で ぺた', group: G_VILLAGE, layers: ['noise env=0/25/0/15 dur=15 v=.02 flt=BP1800q1.6', 'sine f=900→700/20 env=0/20/0/10 dur=10 v=.008'] });
+se('se_h_kutsu_pyon', { label: 'カマドウマが 跳ぶ', group: G_VILLAGE, layers: ['tri f=600→1500/140 env=0/120/0/40 dur=100 v=.02', 'noise env=0/20/0/10 dur=10 v=.015 flt=BP2400q1'] });
+se('se_h_kutsu_kusa', { label: '草へ 帰す（かさっ）', group: G_VILLAGE, rand: [0.05, 0.08], layers: ['noise env=10/160/0/80 dur=120 v=.02 flt=BP2200q0.8'] });
+
 /**
  * ぴーちゃん's three calls (53 9.1): a hen's small talk, never the rooster's
  * crow (1.6). 「ココッ」 two clucks falling 1300 → 1100 Hz with a beak click,

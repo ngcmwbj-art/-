@@ -70,6 +70,7 @@ import { YD_TEXTS } from '../../data/text/c3_yose';
 import { OJ_TEXTS } from '../../data/text/c3_okujou';
 import { NR_TEXTS } from '../../data/text/hoshi_neru';
 import { HM_TEXTS } from '../../data/text/hoshi_himo';
+import { KU_TEXTS } from '../../data/text/hoshi_kutsu';
 import { HUNTING_TEXTS } from '../../data/text/hunting';
 import { KOTEI_TEXTS } from '../../data/text/kotei';
 import { TOKEI_TEXTS } from '../../data/text/tokei7';
@@ -526,6 +527,8 @@ function collectTexts(): [string, string][] {
   walk('neru', NR_TEXTS);
   // げむきか10/20の案5（紐の 番。案の 題は 鍵は ポケットに。02_ch2_index）
   walk('himo', HM_TEXTS);
+  // げむきか10/21の案4（はく 前に、ふる。02_ch2_index #111）
+  walk('kutsu', KU_TEXTS);
   // げむきか10/5の新5（ハンチングの 値札。第1章の くりこ〔chichi〕も。10 6.8, 50 3.8・9.9, 02_ch2_index #83）
   walk('hunting', HUNTING_TEXTS);
   // げむきか10/5の新1（二人十五脚。第1章の ピー・コック・なんばるわん・校庭。10 6.12・6.23・7.24, 02_ch2_index #82）

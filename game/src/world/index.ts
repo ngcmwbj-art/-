@@ -31,6 +31,7 @@ import * as snd from './audio';
 import { runMsg } from './msg';
 import type { Co } from '../engine/co';
 import { checkOcclusion } from './occlusion';
+import './placecheck';
 
 export { FieldScene, field } from './field';
 

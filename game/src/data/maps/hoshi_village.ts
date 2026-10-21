@@ -12,6 +12,7 @@
 // every house, shed and greenhouse has its door `D` (the tool shed's `Q`):
 // the rooms are data/maps/hoshi_rooms2.ts.
 
+import { flag } from '../../game/state';
 import { pgOn } from '../../world/postgame';
 import { registerMap } from '../../world/maps';
 import type { MapDef, MapObj, TileSpec } from '../../world/types';
@@ -250,6 +251,13 @@ const OBJECTS: MapObj[] = [
   PR('prop_pokosha_bike', 22, 29, {}, { cond: { flag: 'flag_mg_school' } }),
   O('obj_mg_bike_school', 22, 29, { cond: { flag: 'flag_mg_school' }, solid: [0, 0, 1, 1] }),
   { t: 'npc', id: 'mg_pokosha', sprite: 'npc_pokosha', x: 23, y: 30, dir: 'up', script: 'mg_pokosha', cond: { flag: 'flag_mg_school' } } as MapObj,
+  // はく 前に、ふる（02_ch2_index #111、events/ch2/kutsu.ts）：昇降口の 外の 軒の 下、像の 東 (29,28) に 寄り合いの 人と
+  // 座布団で 眠っている 人の 長靴 6足（昇降口の 西は 物干しと たらい、列 29 は 空気入れ・像・自転車置き場を 調べる 所なので
+  // ここに まとめる）。(29,29) から 北向きに 調べる。クリア後の 夜は 出さない。朝（h3）は そろえて あれば 残る（エンディング）
+  PR('prop_h_nagagutsu', 29, 28, {}, { cond: { when: () => !pgOn() && (flag('flag_ch2_stage') <= 2 || flag('flag_ku_done') > 0) } }),
+  O('obj_hoshi_nagagutsu', 29, 28, { face: 'up', solid: [0, 0, 1, 1], cond: { when: () => !pgOn() && (flag('flag_ch2_stage') <= 2 || flag('flag_ku_done') > 0) } }),
+  // 校庭の すみの 下草（自由研究の ウマオイの 所）：手の ひらに 生き物が いる 間だけ、草へ 帰す 所（ウマオイより 先）
+  O('obj_hoshi_kutsu_kusa', 27, 30, { flat: true, priority: 2, cond: { stage: '1-2', when: () => flag('flag_ku_te') > 0 && !pgOn() } }),
   O('obj_hoshi_taiikukan', 38, 27, { face: 'left' }),
   O('obj_hoshi_fumi_house', 16, 26, { face: 'up' }),
   O('obj_hoshi_akiya_a', 15, 36, { face: 'up' }),
@@ -327,6 +335,9 @@ const OBJECTS: MapObj[] = [
   O('obj_hoshi_minakuchi', 22, 12, { face: 'down', prop: 'prop_h_minakuchi' }),
   O('obj_hoshi_koya', 34, 13, { w: 2, face: 'up' }),
   PR('prop_h_koya', 34, 12),
+  // はく 前に、ふる（02 #111）：小屋の 西の 端の 杭に、トマじいの 予備の 長靴が 逆さに（(34,14) から 北向き。小屋の 文は (35,13)）
+  PR('prop_h_kutsu_kui', 34, 13),
+  O('obj_h_kutsu_kui', 34, 13, { face: 'up', priority: 1 }),
   O('obj_hoshi_ishidan', 19, 8, { w: 2, flat: true }),
   O('obj_hoshi_ine', 14, 3, { w: 5, h: 17, face: 'down' }),
   O2('obj_hoshi_ine', 1, 21, 3, { w: 15, h: 17, face: 'down' }),

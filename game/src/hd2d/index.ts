@@ -39,7 +39,8 @@ import { resetForNewGame, setNewGameStart } from '../ui/flow';
 import { closeUp } from '../events/stage';
 import type { Quality } from './post';
 import { CAM, Hd2dView, ROOM_CAM } from './view';
-import { overlaps } from './overlap';
+import { overlaps, type Solid } from './overlap';
+import { opaque } from '../world/occlusion';
 import { nudging } from './tune';
 import { roomMap } from './room';
 import { nidaiMap } from './nidai';
@@ -313,6 +314,39 @@ if (import.meta.env.DEV) {
     const f = field();
     const list = overlaps(view && f && MAPS.has(f.map.id) ? view.solids(f) : [], { ...o, map: f?.map.id });
     return o.area ? list.filter((r) => r.area === o.area) : list;
+  });
+}
+if (import.meta.env.DEV) {
+  /**
+   * QA (改善会議 2026-10-21 の 4): the people standing inside a solid of the 3D
+   * town — each person's picture as an upright board at the feet (as the
+   * view stands them), checked against the room the buildings, props and
+   * walls take (overlap.ts): a board inside another solid is a person sunk
+   * into it in HD-2D, though the 2D shows them in front. Everyone on the map
+   * now (spawned ones too); world/placecheck.ts checks the tiles and the 2D.
+   */
+  registerDebug('hd2dPeople', (o: { min?: number } = {}) => {
+    const f = field();
+    if (!view || !f || !MAPS.has(f.map.id)) return 'not an HD-2D place';
+    const people: Solid[] = [];
+    for (const a of [...f.actors, f.player]) {
+      if (!a.visible || a.alpha <= 0.5) continue;
+      const img = a.drawFn ? (a.data.shadowFrame as HTMLCanvasElement | undefined) : a.frame();
+      if (!img) continue;
+      const left = a.drawFn ? Math.round(a.x + a.ox - Math.floor(img.width / 2)) : a.drawPos(img)[0];
+      const m = opaque(img);
+      const iw = img.width;
+      const ih = img.height;
+      people.push({
+        name: `${a.id} (${a.kind})`,
+        kind: 'prop',
+        foot: a.y,
+        x: a.x,
+        slabs: [{ x0: left, x1: left + iw, h0: 0, h1: ih, z0: a.y, z1: a.y, face: true, at: (x, h) => !!m[(ih - 1 - Math.floor(h)) * iw + Math.floor(x - left)] }],
+      });
+    }
+    const names = new Set(people.map((p) => p.name));
+    return overlaps([...view.solids(f), ...people], { min: o.min ?? 6, map: f.map.id }).filter((r) => names.has(r.front) !== names.has(r.back));
   });
 }
 /** QA: false stands every prop where its picture says (tune.ts NUDGE off), true as tuned; the town is stood up again. */

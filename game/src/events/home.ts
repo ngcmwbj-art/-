@@ -122,7 +122,7 @@ registerScript('evt_opening', function* (): Co {
   yield* zoomOut(z, 450);
   playBgm('bgm_home', { fade: 1.5 });
   setFlag('flag_opening_done', 1);
-  keyGuide(T.GUIDE_MOVE, 4500);
+  keyGuide(T.GUIDE_MOVE, 4500, 8, { until: 'step' });
 });
 
 // 20 s without going down: the second call, once

@@ -33,6 +33,7 @@ import { game, type Scene, type Widget } from '../engine/game';
 import type { Input } from '../engine/input';
 import type { Gfx } from '../engine/gfx';
 import { ease } from '../engine/tween';
+import { touchControlsOn } from '../engine/touch';
 import { ambientEvent, currentSpace, playAmbient, playBgm, setSpace, sfx, stopAllAmbient, stopAmbient, stopBgm } from '../audio';
 import { dialogSpeech, dismissDialog, retagDialog, say, type SayOpts } from './dialog';
 import {
@@ -809,7 +810,7 @@ class SkipWatch implements Widget {
   }
   draw(g: Gfx): void {
     const k = Math.min(1, Math.max(0, this.t - 1500) / 600);
-    if (k > 0) g.text('X：とばす', 378, 2, { color: P.W, align: 'right', alpha: 0.45 * k });
+    if (k > 0) g.text(touchControlsOn() ? 'もどる：とばす' : 'X：とばす', 378, 2, { color: P.W, align: 'right', alpha: 0.45 * k });
   }
 }
 

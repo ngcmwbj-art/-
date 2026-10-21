@@ -32,6 +32,10 @@ import { uiHud } from '../ui/hud';
 import { drawWindow, textW, UI } from '../ui/window';
 import { markText } from '../engine/textzones';
 import { freeSpan } from '../engine/safezones';
+import { touchControlsOn } from '../engine/touch';
+import { registerDebug } from '../debug';
+import { examining } from '../world/interact';
+import { actorAnchor, objAnchor } from '../world/marks';
 
 // ---------------------------------------------------------------- 2× close-ups
 
@@ -267,10 +271,10 @@ function activeZoom(f: FieldScene): ZoomView | null {
 }
 
 /** World → screen, through the close-up when there is one. */
-function screenOf(f: FieldScene, x: number, y: number): [number, number, number] {
+function screenOf(f: FieldScene, x: number, y: number, foot = y): [number, number, number] {
   const z = activeZoom(f);
-  if (z) return [...z.toScreen(f, x, y), z.mag(f)];
-  const p = f.projected(x, y);
+  if (z) return [...z.toScreen(f, x, y, foot), z.mag(f)];
+  const p = f.projected(x, y, foot);
   return p ? [p[0], p[1], 1] : [x - Math.round(f.camX), y - Math.round(f.camY), 1];
 }
 
@@ -312,7 +316,10 @@ registerWorldFx({
       liftMap = f.map.id;
       lift = 0;
     }
-    if (!dialogVisible()) boxPos = 'bottom';
+    if (!dialogVisible()) {
+      boxPos = 'bottom';
+      convPos = null;
+    }
     if (!fixedRoom(f) || activeZoom(f)) {
       lift = 0;
       return;
@@ -341,48 +348,129 @@ export function forceBoxPos(pos: 'top' | 'bottom' | null): void {
 const TOP_BOX_BOTTOM = 8 + BOX.h + 14;
 
 /**
- * Before each speaker's pages: if the people in the scene would stand under
- * the bottom window (a cutscene near the bottom of a room that fits the
- * screen, a close-up), and the room can't simply slide up to clear them, the
- * window goes to the top — unless that would cover them too.
+ * The place chosen for the conversation on screen (2026-10-21 改善会議: the
+ * window doesn't hop up and down while one conversation goes on). Set by the
+ * first msg block's choice; kept while the window stays open (the next
+ * speaker, the next block straight after); cleared when it closes.
  */
-function autoPos(speaker: string): 'top' | 'bottom' | undefined {
-  if (forcedPos) return (boxPos = forcedPos);
-  const f = field();
-  if (!f || game.top !== f || f.map.id !== liftMap) return (boxPos = 'bottom');
-  const who = new Set<Actor>();
-  const add = (a: Actor | null | undefined) => {
-    if (a && a.visible && a.alpha > 0.5 && !a.drawFn) who.add(a);
+let convPos: 'top' | 'bottom' | null = null;
+
+/** Someone (or something) the window should keep clear of, in screen px. */
+interface Seen {
+  id: string;
+  /** Screen x, the top (head / the mark over it) and the feet. */
+  x: number;
+  head: number;
+  feet: number;
+  /** Who speaks or is spoken to / looked at: the one that matters most. */
+  key: boolean;
+}
+
+/**
+ * The people of the scene (and the thing being examined) where the screen
+ * shows them right now — through the HD-2D camera and any close-up
+ * (screenOf); in a 2D fixed room measured from the room's own framing (a
+ * lift already under way doesn't count).
+ */
+function seenOf(f: FieldScene, speakers: readonly string[]): Seen[] {
+  const who = new Map<Actor, boolean>();
+  const add = (a: Actor | null | undefined, key = false) => {
+    if (a && a.visible && a.alpha > 0.5 && !a.drawFn) who.set(a, key || !!who.get(a));
   };
   add(f.player);
   if (f.follower) add(f.follower);
-  add(f.talking);
-  const id = speaker.split(':')[0];
-  if (id === 'flip' || id === 'npc_kanenari') add(f.follower ?? f.actorById('npc_kanenari'));
-  else if (id.startsWith('npc_')) add(f.actorById(id));
-  // in a fixed room, measured from the room's own framing (a lift already
-  // under way doesn't count)
+  add(f.talking, true);
+  for (const sp of speakers) {
+    const id = sp.split(':')[0];
+    if (id === 'flip' || id === 'npc_kanenari') add(f.follower ?? f.actorById('npc_kanenari'), true);
+    else if (id.startsWith('npc_')) add(f.actorById(id), true);
+  }
+  const [, baseY] = f.followTarget();
+  // (HD-2D: where its camera shows them — a room's 2D rows are not where they stand on screen)
+  const room = fixedRoom(f) && !activeZoom(f) && !f.projected(0, 0);
+  const out: Seen[] = [];
+  const push = (id: string, x: number, top: number, foot: number, key: boolean) => {
+    const [sx, sy0, k] = screenOf(f, x, foot);
+    const [, hy0] = screenOf(f, x, top, foot);
+    const sy = room ? foot - baseY : sy0;
+    const hy = room ? top - baseY : hy0;
+    if (sx < -8 || sx > W + 8 || sy < 0 || hy > H || sy > H + 24 * k) return;
+    out.push({ id, x: sx, head: hy, feet: sy, key });
+  };
+  for (const [a, key] of who) {
+    const fy = a.y + Math.max(0, a.oy);
+    // the top of the head (its picture's height: world/marks.ts actorAnchor)
+    push(a.id, a.x + a.ox, Math.min(actorAnchor(a).y + 3, fy - 22), fy, key);
+  }
+  // the thing examined: its picture's top (where its きらり 「！」 stood) to its foot
+  const o = examining();
+  if (o && f.map.objects.includes(o)) {
+    const at = objAnchor(f, o);
+    push(o.id, at.x, at.y, at.foot, true);
+  }
+  return out;
+}
+
+/** Of `seen`, the ones a window at `pos` would cover (the bottom one: their feet; the top one with its tag: their heads). */
+function coveredAt(seen: readonly Seen[], pos: 'top' | 'bottom'): Seen[] {
+  return seen.filter((s) => (pos === 'bottom' ? s.feet > BOX.y - 3 : s.head < TOP_BOX_BOTTOM));
+}
+
+/** QA: the conversations whose window went up or still covers someone (the last 400). */
+const posLog: { map: string; speakers: string; pos: 'top' | 'bottom'; covered: string[] }[] = [];
+
+/**
+ * Before each speaker's pages: if the people in the scene would stand under
+ * the bottom window (a cutscene near the bottom of a room that fits the
+ * screen, a close-up, the HD-2D camera low on the map), and the room can't
+ * simply slide up to clear them, the window goes to the top — unless that
+ * would cover them too (or cover who speaks, when the bottom doesn't). Chosen
+ * for the whole msg block at once, and kept for the rest of the
+ * conversation (convPos).
+ */
+function autoPos(speaker: string, block: readonly string[] = [speaker]): 'top' | 'bottom' | undefined {
+  if (forcedPos) return (boxPos = forcedPos);
+  const f = field();
+  if (!f || game.top !== f || f.map.id !== liftMap) return (boxPos = 'bottom');
+  // the window is still up from the last speaker: it stays where it is
+  if (convPos && dialogVisible()) return (boxPos = convPos);
+  const seen = seenOf(f, block.includes(speaker) ? block : [speaker, ...block]);
   const [, baseY] = f.followTarget();
   const room = fixedRoom(f) && !activeZoom(f);
-  let feet = -1e9;
-  let head = 1e9;
-  for (const a of who) {
-    const fy = a.y + Math.max(0, a.oy);
-    const [x, y0, k] = screenOf(f, a.x, fy);
-    const y = room ? fy - baseY : y0;
-    if (x < -8 || x > W + 8 || y < 0 || y > H + 24 * k) continue;
-    feet = Math.max(feet, y);
-    head = Math.min(head, y - 22 * k);
-  }
   let pos: 'top' | 'bottom' = 'bottom';
-  const need = feet - (BOX.y - 3);
-  if (need > 0) {
+  const under = coveredAt(seen, 'bottom');
+  let lifts = false;
+  if (under.length) {
     // a fixed room slides up by itself when that is enough
-    const lifts = room && !liftOff && wantedLift(f, baseY) >= need - 0.5;
-    if (!lifts && head > TOP_BOX_BOTTOM) pos = 'top';
+    const need = Math.max(...under.map((s) => s.feet)) - (BOX.y - 3);
+    lifts = room && !liftOff && wantedLift(f, baseY) >= need - 0.5;
+    const over = coveredAt(seen, 'top');
+    if (!lifts && (!over.length || (under.some((s) => s.key) && !over.some((s) => s.key)))) pos = 'top';
   }
   boxPos = pos;
+  convPos = pos;
+  // (only what is worth a look: the window moved up, or someone is still under it)
+  const still = pos === 'bottom' && lifts ? [] : coveredAt(seen, pos);
+  if (import.meta.env.DEV && (pos === 'top' || still.length)) {
+    posLog.push({ map: f.map.id, speakers: [...new Set(block)].join(' '), pos, covered: still.map((s) => s.id) });
+    if (posLog.length > 400) posLog.shift();
+  }
   return pos;
+}
+if (import.meta.env.DEV) {
+  /** QA: where the conversations' windows went (`clear`: start a new log). Covered: who the window still hides. */
+  registerDebug('boxPosLog', (clear = false) => {
+    const r = posLog.slice();
+    if (clear) posLog.length = 0;
+    return r;
+  });
+  /** QA: right now, whom each window place would cover (the people of the scene, through the HD-2D camera). */
+  registerDebug('boxCover', (speaker = 'narr') => {
+    const f = field();
+    if (!f) return null;
+    const seen = seenOf(f, [speaker]);
+    return { seen: seen.map((s) => ({ ...s, x: Math.round(s.x), head: Math.round(s.head), feet: Math.round(s.feet) })), bottom: coveredAt(seen, 'bottom').map((s) => s.id), top: coveredAt(seen, 'top').map((s) => s.id) };
+  });
 }
 setMsgPosHook(autoPos);
 
@@ -506,7 +594,42 @@ const ARROW: Record<string, string[]> = {
 };
 
 /** The action each drawn key stands for (a held key sinks in). */
-const KEY_ACTION: Record<string, Action> = { up: 'up', down: 'down', left: 'left', right: 'right', Z: 'confirm', X: 'cancel', C: 'menu', Shift: 'dash' };
+const KEY_ACTION: Record<string, Action> = {
+  up: 'up', down: 'down', left: 'left', right: 'right', Z: 'confirm', X: 'cancel', C: 'menu', Shift: 'dash',
+  けってい: 'confirm', もどる: 'cancel', メニュー: 'menu', ダッシュ: 'dash',
+};
+const ARROWS = ['up', 'down', 'left', 'right'];
+/** On the touch pad the 4 arrows are one control (held: any of them sinks it). */
+const DPAD = '十字キー';
+/** The keyboard's keys as the touch pad names its buttons (engine/touch.ts). */
+const TOUCH_NAME: Record<string, string> = { Z: 'けってい', X: 'もどる', C: 'メニュー', Shift: 'ダッシュ' };
+
+/**
+ * The keys a row shows on this device (2026-10-21 改善会議: with the touch pad
+ * up, 「Z」「X」「Shift」 and the 4 arrows mean nothing — the pad's own names).
+ * PC: as given. Touch: Z→けってい, X→もどる, C→メニュー, Shift→ダッシュ, all four
+ * arrows → 十字キー (one or two arrows stay arrows: they say which way);
+ * 「X / C → メニュー」 is the one メニュー button (もどる steps aside on the field).
+ */
+export function deviceKeys(keys: readonly GuideKey[]): GuideKey[] {
+  if (!touchControlsOn()) return [...keys];
+  const out: GuideKey[] = [];
+  if (ARROWS.every((a) => keys.includes(a))) out.push(DPAD);
+  for (const k of keys) {
+    if (out.includes(DPAD) && ARROWS.includes(k)) continue;
+    const n = TOUCH_NAME[k] ?? k;
+    if (!out.includes(n)) out.push(n);
+  }
+  if (out.includes('メニュー') && out.includes('もどる')) out.splice(out.indexOf('もどる'), 1);
+  return out;
+}
+
+/** Is the control a drawn key stands for held down (十字キー: any arrow)? */
+function keyHeld(k: GuideKey): boolean {
+  if (k === DPAD) return ARROWS.some((a) => game.input.down(a as Action));
+  const act = KEY_ACTION[k];
+  return !!act && game.input.down(act);
+}
 
 const CAPS = new Map<string, HTMLCanvasElement>();
 /**
@@ -541,45 +664,91 @@ function keycap(k: GuideKey): HTMLCanvasElement {
   return c;
 }
 
+/**
+ * When a key guide may go (2026-10-21 改善会議: 「1歩 歩くまで 消さない」):
+ * 'step' — the player has walked one tile; a list of actions — one of them was
+ * pressed; omitted — any action the guide shows was pressed. Until then it
+ * stays past its time (`max`: the longest it waits, ms; 0 = no limit).
+ */
+export interface KeyGuideUntil {
+  until?: 'step' | Action[];
+  max?: number;
+}
+
+/** The menu & dash guide (5.9): until the player runs or opens the menu (40 s at most: both are optional). */
+export const GUIDE_MENU_UNTIL: KeyGuideUntil = { until: ['dash', 'menu', 'cancel'], max: 40000 };
+
 class KeyGuide implements Widget {
   modal = false;
   done = false;
   private t = 0;
+  /** When it starts to fade (ms of t), once the player did what it says. */
+  private outAt = -1;
+  private acted = false;
+  private from: [string, number, number] | null = null;
   constructor(
     private rows: KeyRow[],
     private ms: number,
     private x0: number,
-  ) {}
+    private opt: KeyGuideUntil,
+  ) {
+    const p = field()?.player;
+    if (p) this.from = [field()!.map.id, p.tileX, p.tileY];
+  }
+  /** The actions this guide asks for (its keys' actions). */
+  private actions(): Action[] {
+    if (this.opt.until && this.opt.until !== 'step') return this.opt.until;
+    const out = new Set<Action>();
+    for (const [keys] of this.rows) for (const k of keys) if (KEY_ACTION[k]) out.add(KEY_ACTION[k]);
+    return [...out];
+  }
+  private didIt(): boolean {
+    if (this.opt.until === 'step') {
+      const f = field();
+      const p = f?.player;
+      if (!f || !p || !this.from) return true;
+      return f.map.id !== this.from[0] || p.tileX !== this.from[1] || p.tileY !== this.from[2];
+    }
+    return this.actions().some((a) => game.input.pressed(a) || game.input.down(a));
+  }
   update(dt: number): void {
+    // a conversation over it: it waits (hidden) and doesn't count the time
+    if (dialogVisible()) return;
     this.t += dt;
-    if (this.t > this.ms + 250) this.done = true;
+    if (!this.acted && this.didIt()) this.acted = true;
+    if (this.outAt < 0) {
+      const max = this.opt.max ?? (this.opt.until === 'step' ? 0 : 20000);
+      if (this.acted || (max > 0 && this.t >= max)) this.outAt = Math.max(this.ms, this.t);
+    }
+    if (this.outAt >= 0 && this.t > this.outAt + 250) this.done = true;
   }
   private capsW(keys: GuideKey[]): number {
     return keys.reduce((a, k) => a + keycap(k).width, 0) + (keys.length - 1) * 2;
   }
   draw(g: Gfx): void {
+    if (dialogVisible()) return;
+    const rows = this.rows.map(([k, l]) => [deviceKeys(k), l] as KeyRow);
     const inK = Math.min(1, this.t / 180);
-    const outK = this.t > this.ms ? Math.min(1, (this.t - this.ms) / 250) : 0;
+    const outK = this.outAt >= 0 && this.t > this.outAt ? Math.min(1, (this.t - this.outAt) / 250) : 0;
     const a = inK * (1 - outK);
-    const kw = Math.max(...this.rows.map(([k]) => this.capsW(k)));
-    const w = kw + 8 + Math.max(...this.rows.map(([, l]) => textW(l))) + 20;
+    const kw = Math.max(...rows.map(([k]) => this.capsW(k)));
+    const w = kw + 8 + Math.max(...rows.map(([, l]) => textW(l))) + 20;
     const rh = 22;
-    const h = this.rows.length * rh + 9;
+    const h = rows.length * rh + 9;
     // (iPad held sideways: right of the D-pad fixed in the corner)
     const x = Math.max(this.x0, freeSpan(H - h - 8, H - 2).x0 + 2);
     const y = H - h - 8 + Math.round((1 - ease.cubicOut(inK)) * 6);
-    // brief (4.5s): a touch control in its way fades out while it shows
-    markText(x, H - h - 8, w, h + 6, true);
+    // brief: a touch control in its way fades out while it shows — only for
+    // its first seconds (a guide waiting for the player mustn't hide a button)
+    markText(x, H - h - 8, w, h + 6, this.t < this.ms);
     drawWindow(g, x, y, w, h, UI, a, { curl: false });
-    this.rows.forEach(([keys, label], i) => {
+    rows.forEach(([keys, label], i) => {
       const ry = y + 5 + i * rh;
       // the keys, right-aligned in their column; a key being held sinks in
       let kx = x + 10 + kw - this.capsW(keys);
       for (const k of keys) {
         const img = keycap(k);
-        const act = KEY_ACTION[k];
-        const held = !!act && game.input.down(act);
-        g.img(img, kx, ry + (held ? 1 : 0), { alpha: a });
+        g.img(img, kx, ry + (keyHeld(k) ? 1 : 0), { alpha: a });
         kx += img.width + 2;
       }
       g.text(label, x + 10 + kw + 8, ry + 2, { color: UI.pencil, alpha: a });
@@ -588,11 +757,13 @@ class KeyGuide implements Widget {
 }
 
 /**
- * A control guide at the bottom left, the keys drawn as keycaps. `x` moves
- * it right of the HUD hanko (38) once the case is in the corner.
+ * A control guide at the bottom left, the keys drawn as keycaps (the touch
+ * pad's names when it is up: deviceKeys). `x` moves it right of the HUD
+ * hanko (38) once the case is in the corner. It shows at least `ms`, and
+ * then waits until the player did what it says (`opt`, KeyGuideUntil).
  */
-export function keyGuide(rows: KeyRow[], ms = 4500, x = 8): void {
-  game.ui.push(new KeyGuide(rows, ms, x));
+export function keyGuide(rows: KeyRow[], ms = 4500, x = 8, opt: KeyGuideUntil = {}): void {
+  game.ui.push(new KeyGuide(rows, ms, x, opt));
 }
 
 // ---------------------------------------------------------------- items announced by a message

@@ -43,6 +43,8 @@ export const CH2_SHOTS: Record<string, ShotDef> = {
   h2_tanada: { lens: { pitch: 30, fov: 26, dist: 25, lookN: 0.6, lift: 0.3 }, to: { pitch: 28, dist: 24 }, drift: 4000 },
   // 2d the gathering room: the window opened, the three waking
   h2_school: { lens: { pitch: 38, fov: 26, dist: 23, lift: 0.5 }, to: { dist: 22 }, drift: 4000 },
+  // 2d の あと（はく 前に、ふる、02 #111）：昇降口の 外の そろえ直した 長靴（済んでいる ときだけ）
+  h2_kutsu: { lens: { pitch: 32, fov: 18, dist: 18, lift: 0.4 }, to: { dist: 17 }, drift: 3000 },
   // 2e the path's mouth: まつ先生 looking up at the morning sun
   h2_path: { lens: { pitch: 28, fov: 26, dist: 23, lookN: 0.6, lift: 0.6 }, to: { pitch: 26, dist: 22 }, drift: 4000 },
   // cut 3 the turning circle: the send-off, the bus (not much lower than the field's: the hedge along

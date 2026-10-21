@@ -597,10 +597,24 @@ class ShopScene implements Scene {
     else g.img(purseIcon(open), mx - mw - 20, P.y + 6 - (open ? 1 : 0));
     if (this.def.stall) this.drawStallSign(g, this.def.stall.board);
     // how full the bag is (left of the purse)
+    // (2026-10-21 改善会議: full, it says so in 朱 — a ring round the count, and
+    // the goods that would go in the bag have their prices greyed: no room for them)
     const bag = `${bagCount()}/${BAG_MAX}`;
+    const full = bagCount() >= BAG_MAX;
     const bx = mx - mw - 30;
-    drawDigits(g, bag, bx, P.y + 12, { color: UI.pencil, align: 'right' });
-    g.text('もちもの', bx - digitsWidth(bag) - 4 - textW('もちもの'), P.y + 7, { color: UI.pencil });
+    const bw = digitsWidth(bag);
+    if (full) {
+      rectA(g, bx - bw - 3, P.y + 9, bw + 6, 13, UI.accent, 0.14);
+      g.rect(bx - bw - 3, P.y + 9, bw + 6, 1, UI.accent);
+      g.rect(bx - bw - 3, P.y + 21, bw + 6, 1, UI.accent);
+      g.rect(bx - bw - 4, P.y + 10, 1, 11, UI.accent);
+      g.rect(bx + 3, P.y + 10, 1, 11, UI.accent);
+    }
+    drawDigits(g, bag, bx, P.y + 12, { color: full ? UI.accent : UI.pencil, align: 'right' });
+    // (a long shop name on its tape: just 「いっぱい」)
+    const tapeEnd = P.x + 10 + textW(this.def.title) + 18 + 6;
+    const word = !full ? 'もちもの' : bx - bw - 6 - textW('もちもの いっぱい') >= tapeEnd ? 'もちもの いっぱい' : 'いっぱい';
+    g.text(word, bx - bw - 6 - textW(word), P.y + 7, { color: full ? UI.accent : UI.pencil });
     // price cards
     const n = this.goods.length;
     if (!n) g.text('きょうは 売りきれ。', CARD_X + 6, CARD_Y + 8, { color: UI.textDim });
@@ -644,15 +658,15 @@ class ShopScene implements Scene {
         // a hand-pressed seal: each card's sits a pixel differently, and it
         // may overhang the card's edge (the ink goes where the hand put it)
         g.img(seal, px - 5 - seal.width + (i % 2), y - 1 + (i % 3 === 1 ? 1 : 0), { alpha: 0.92 });
-      } else drawDigits(g, `${this.price(id)}円`, x + CARD_W - 6, y + 7, { color: UI.accent, align: 'right' });
+      } else drawDigits(g, `${this.price(id)}円`, x + CARD_W - 6, y + 7, { color: full && !isKeyItem(id) ? UI.textDim : UI.accent, align: 'right' });
       if (sel && !this.confirm) drawCursor(g, x - 14, y + 1, this.t);
     });
     // more cards above / below: little ink triangles beside the column (fix1020c3)
     if (rows < n) {
-      const ax = CARD_X + CARD_W + 10;
+      const ax = CARD_X + CARD_W + 5;
       const bob = Math.floor(this.t / 400) % 2;
-      vArrow(g, ax, y0 + 2 - bob, -1, top > 0);
-      vArrow(g, ax, y0 + (rows - 1) * pitch + CARD_H - 6 + bob, 1, top + rows < n);
+      vArrow(g, ax, y0 + 1 - bob, -1, top > 0);
+      vArrow(g, ax, y0 + (rows - 1) * pitch + CARD_H - 8 + bob, 1, top + rows < n);
     }
     this.drawChosen(g);
   }
@@ -791,11 +805,24 @@ function arrow(g: Gfx, x: number, y: number, dir: number, on: boolean): void {
 }
 
 /** Ink triangle (5×3) pointing up (dir < 0) or down; pale when nothing more is that way. */
+/**
+ * The list's more-above / more-below mark (fix1020c3; 2026-10-21 改善会議:
+ * big enough to see at a finger's distance): an 11×6 ink triangle filled in
+ * 朱, pale when there is nothing more that way.
+ */
 function vArrow(g: Gfx, x: number, y: number, dir: number, on: boolean): void {
-  const col = on ? UI.text : '#CFC6AE';
-  for (let i = 0; i < 3; i++) {
-    const ry = dir > 0 ? y + i : y + 2 - i;
-    g.rect(x + i, ry, 5 - i * 2, 1, col);
+  const ink = on ? UI.border : '#CFC6AE';
+  const fill = on ? UI.accent : '#E6DFCB';
+  // the flat side (row 0) and the tip (row 5) in ink, the slopes inked, the inside filled
+  for (let i = 0; i < 6; i++) {
+    const ry = dir > 0 ? y + i : y + 5 - i;
+    const w = 11 - i * 2;
+    if (i === 0 || w <= 2) g.rect(x + i, ry, w, 1, ink);
+    else {
+      g.rect(x + i, ry, 1, 1, ink);
+      g.rect(x + i + w - 1, ry, 1, 1, ink);
+      g.rect(x + i + 1, ry, w - 2, 1, fill);
+    }
   }
 }
 

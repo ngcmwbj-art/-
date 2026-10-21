@@ -78,7 +78,7 @@ export function setMsgHooks(h: MsgHooks): void {
  * story scenes move it to the top when the people in the scene stand under
  * the bottom window. Returning undefined keeps the default.
  */
-type MsgPosHook = (speaker: string) => 'top' | 'bottom' | undefined;
+type MsgPosHook = (speaker: string, block: readonly string[]) => 'top' | 'bottom' | undefined;
 let posHook: MsgPosHook | null = null;
 let msgPos: 'top' | 'bottom' = 'bottom';
 let msgSpeaker: string | null = null;
@@ -121,6 +121,8 @@ function lex(src: string): Line[] {
 /** Run a msg block. Returns the index of the last choice made (or -1). */
 export function* runMsg(src: string, defaultSpeaker = 'narr'): Co<number> {
   const lines = lex(src);
+  // every speaker of the block (the window's place is chosen once for all of them)
+  const block = [defaultSpeaker, ...lines.filter((l) => l.kind === 'speaker').map((l) => l.v)];
   let speaker = defaultSpeaker;
   let pages: string[] = [];
   let cur: string[] = [];
@@ -139,7 +141,7 @@ export function* runMsg(src: string, defaultSpeaker = 'narr'): Co<number> {
     const sp = speakerOf(speaker);
     const p = pages;
     pages = [];
-    msgPos = posHook?.(speaker) ?? 'bottom';
+    msgPos = posHook?.(speaker, block) ?? 'bottom';
     msgSpeaker = speaker;
     try {
       yield* say(p, { name: sp.name, voice: sp.voice, pos: msgPos });
@@ -193,7 +195,9 @@ export function* runMsg(src: string, defaultSpeaker = 'narr'): Co<number> {
           const sp = speakerOf(speaker);
           const p = pages;
           pages = [];
-          yield* say(p, { name: sp.name, voice: sp.voice });
+          // (the same place as the rest of the conversation)
+          msgPos = posHook?.(speaker, block) ?? 'bottom';
+          yield* say(p, { name: sp.name, voice: sp.voice, pos: msgPos });
         }
         lastChoice = yield* choose(opts);
         break;

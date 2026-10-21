@@ -472,6 +472,15 @@ function* cut2Morning(): Co {
   yield* runMsg(T.END_2D);
   yield* beat(300);
 
+  // はく 前に、ふる（02_ch2_index #111、kutsu.ts）：済んでいれば、昇降口の 外の そろえ直した 長靴を 1こま（台詞なし）
+  if (flag('flag_ku_done')) {
+    yield* fadeCut(300);
+    cutTo('map_hoshimidai', 29, 29, { shot: 'h2_kutsu' });
+    setGradeH('h3c', 0);
+    yield* game.fadeIn(300);
+    yield* beat(1700);
+  }
+
   // 2e the path's mouth: まつ先生 looks up at the morning sun; the truck has gone
   yield* fadeCut(300);
   cutTo('map_hoshimidai', 48, 4, { shot: 'h2_path' });

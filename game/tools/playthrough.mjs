@@ -3411,7 +3411,9 @@ const summary = {
   shots: shots.length,
   out: OUT,
 };
-fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify({ ...summary, files: shots, ...(HD2D ? { hd2dLog } : {}) }, null, 2));
+// (2026-10-21: the conversations whose window went up or still covers someone — events/stage.ts autoPos)
+const boxPos = await page.evaluate(() => window.__game?.cmd.boxPosLog?.() ?? null).catch(() => null);
+fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify({ ...summary, boxPos, files: shots, ...(HD2D ? { hd2dLog } : {}) }, null, 2));
 console.log(JSON.stringify(summary, null, 2));
 await browser.close();
 process.exit(summary.ok ? 0 : 1);

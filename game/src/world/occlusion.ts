@@ -18,7 +18,7 @@ const FH = 24;
 
 const maskCache = new WeakMap<HTMLCanvasElement, Uint8Array>();
 let scratch: [HTMLCanvasElement, CanvasRenderingContext2D] | null = null;
-function opaque(c: HTMLCanvasElement): Uint8Array {
+export function opaque(c: HTMLCanvasElement): Uint8Array {
   let m = maskCache.get(c);
   if (m) return m;
   // read through one scratch canvas made for readbacks

@@ -52,6 +52,8 @@ import './yuwaka_art';
 import './uzu_art';
 // 前から 寝る：南4の ぬれた おがくず・フォークと ネコ車・おがくずの 山・寝に いく 牛（02_ch2_index）
 import './neru_art';
+// はく 前に、ふる：昇降口の 外の 長靴 6足・農具小屋の 杭（02_ch2_index #111）
+import './kutsu_art';
 // Chapter 3 『海ぞいの町の いただきます』 (62_ch3_level_art 7章): the buildings and the things of 海ぞいの町
 import './c3_bld';
 import './c3_props';

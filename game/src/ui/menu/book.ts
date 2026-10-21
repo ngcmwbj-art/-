@@ -69,6 +69,8 @@ import { drawUzPage, hasUzPage, UZ_ROW_LABEL } from './book_uzu';
 import { drawNrPage, hasNrPage, NR_ROW_LABEL } from './book_neru';
 // ② の すみ『紐の 番』（02_ch2_index）
 import { drawHmPage, hasHmPage, HM_ROW_LABEL } from './book_himo';
+// ② の すみ『はく 前に、ふる』（02_ch2_index #111）
+import { drawKuPage, hasKuPage, KU_ROW_LABEL } from './book_kutsu';
 import { drawNnPage, hasNnPage, NN_ROW_LABEL } from './book_nanori';
 import { drawIsoPage, hasIsoPage, ISO_ROW_LABEL } from './book_iso';
 // ③ の すみ『水槽の うら』（第3章の クリア前、03_ch3_index）
@@ -125,6 +127,7 @@ function corner2(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasUzPage()) r.push({ label: UZ_ROW_LABEL, draw: drawUzPage });
   if (hasNrPage()) r.push({ label: NR_ROW_LABEL, draw: drawNrPage });
   if (hasHmPage()) r.push({ label: HM_ROW_LABEL, draw: drawHmPage });
+  if (hasKuPage()) r.push({ label: KU_ROW_LABEL, draw: drawKuPage });
   return r;
 }
 import { stickerUribo } from '../../art/props/ashiato_art';
