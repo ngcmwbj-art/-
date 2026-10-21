@@ -5,6 +5,8 @@
    - 縦・横の一列がそろうと消える。複数列・連続で消すとボーナス
    - 手元のブロックがどこにも置けなくなったらゲームオーバー
    - 1プレイに1回だけ「一手もどす」と「手元のとりかえ」ができる
+   - ブロックの1マスに 💧（水）や 🍂（肥料）のマークが付くことがある。
+     マークは盤面に残り、そのマスを列ごと消すと水・肥料がおまけでもらえる
    ========================================================= */
 const Puzzle = (() => {
   const SIZE = 8;
@@ -57,10 +59,11 @@ const Puzzle = (() => {
     pointPerCell: 1,     // 置いたマス1つあたり
     pointPerLine: 10,    // 消した列1本あたり
     comboKeepMoves: 3,   // この手数のあいだ消さないとコンボが切れる
+    markChance: 0.6,     // ブロックにマークが付く割合（0.6 = 10個に6個）
     pieceSetTries: 3,    // 3つのうちどれかが置けるまで引き直す回数（多いほどやさしい。1 = 引き直さない）
   };
 
-  let st = null;       // 盤面の状態 { board, pieces, score, combo, movesSinceClear, over, bestBefore, undoUsed }
+  let st = null;       // 盤面の状態 { board, marks, pieces, score, combo, movesSinceClear, over, bestBefore, undoUsed, shuffleUsed }
   let data = null;     // 保存データ全体（highScore と puzzle を読み書きする）
   let hooks = {};      // 外からの呼び出し先 { onSave, onLinesCleared, onGameOver, onStaleOver, onUndo }
   let undoSnap = null; // 「一手もどす」用に、置く直前の様子を覚えておく（資源・畑も一緒に）
@@ -95,6 +98,8 @@ const Puzzle = (() => {
     // 遊びかけのデータがあれば続きから
     if (data.puzzle && !data.puzzle.over) {
       st = data.puzzle;
+      // マークができる前の遊びかけの盤面には、空のマーク表を足す
+      if (!st.marks) st.marks = emptyMarks();
       render();
     } else {
       // ゲームオーバーの画面のまま閉じていた場合も、終わったものとして扱う
@@ -129,6 +134,7 @@ const Puzzle = (() => {
   function newGame() {
     st = {
       board: Array.from({ length: SIZE }, () => Array(SIZE).fill(-1)),
+      marks: emptyMarks(),
       pieces: [],
       score: 0,
       combo: 0,
@@ -157,7 +163,28 @@ const Puzzle = (() => {
       r -= SHAPES[shape].weight;
       if (r < 0) break;
     }
-    return { shape, color: Math.floor(Math.random() * COLOR_COUNT) };
+    const piece = { shape, color: Math.floor(Math.random() * COLOR_COUNT) };
+    if (Math.random() < RULES.markChance) {
+      piece.mark = {
+        cell: Math.floor(Math.random() * SHAPES[shape].cells.length),
+        kind: Math.random() < 0.5 ? 'water' : 'fertilizer',
+      };
+    }
+    return piece;
+  }
+
+  // マークの表（8×8。null か 'water' か 'fertilizer'）
+  function emptyMarks() {
+    return Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
+  }
+
+  // ブロックの i 番目のマスのマーク
+  function markOf(piece, i) {
+    return piece.mark && piece.mark.cell === i ? piece.mark.kind : null;
+  }
+
+  function markIcon(kind) {
+    return kind ? Msg.t('icons.' + kind) : '';
   }
 
   // 3つのブロックを引く。pieceSetTries が 2 以上なら、どれかが置けるまで引き直す
@@ -226,7 +253,10 @@ const Puzzle = (() => {
     });
 
     const piece = st.pieces[slot];
-    cellsOf(piece).forEach(([dr, dc]) => { st.board[row + dr][col + dc] = piece.color; });
+    cellsOf(piece).forEach(([dr, dc], i) => {
+      st.board[row + dr][col + dc] = piece.color;
+      st.marks[row + dr][col + dc] = markOf(piece, i);
+    });
     st.score += cellsOf(piece).length * RULES.pointPerCell;
     st.pieces[slot] = null;
 
@@ -237,13 +267,18 @@ const Puzzle = (() => {
     if (lines > 0) {
       st.combo += 1;
       st.movesSinceClear = 0;
-      cleared = lineCells(full).map((p) => ({ ...p, color: st.board[p.r][p.c] }));
-      cleared.forEach((p) => { st.board[p.r][p.c] = -1; });
+      cleared = lineCells(full).map((p) => ({ ...p, color: st.board[p.r][p.c], mark: st.marks[p.r][p.c] }));
+      const marks = { water: 0, fertilizer: 0 };
+      cleared.forEach((p) => {
+        if (p.mark) marks[p.mark] += 1;
+        st.board[p.r][p.c] = -1;
+        st.marks[p.r][p.c] = null;
+      });
       const gained = lineScore(lines, st.combo);
       st.score += gained;
 
-      // 農業側へ「何列消したか」を知らせる（資源の文字が返ってくる）
-      const extra = hooks.onLinesCleared ? hooks.onLinesCleared({ lines, combo: st.combo }) : '';
+      // 農業側へ「何列消したか・マークをいくつ消したか」を知らせる（資源の文字が返ってくる）
+      const extra = hooks.onLinesCleared ? hooks.onLinesCleared({ lines, combo: st.combo, marks }) : '';
       showClearText(cleared, `+${gained}` + (extra ? `  ${extra}` : ''), lines);
       Sound.play('clear', lines + st.combo - 1);
     } else {
@@ -333,12 +368,17 @@ const Puzzle = (() => {
     for (let r = 0; r < SIZE; r++) {
       for (let c = 0; c < SIZE; c++) {
         const v = st.board[r][c];
-        cellEls[r * SIZE + c].className = 'cell' + (v >= 0 ? ` filled c${v}` : '');
+        const mark = v >= 0 ? st.marks[r][c] : null;
+        const el = cellEls[r * SIZE + c];
+        el.className = 'cell' + (v >= 0 ? ` filled c${v}` : '') + (mark ? ' marked' : '');
+        el.textContent = markIcon(mark);
       }
     }
-    // 消えたマスは、元の色のままはじけるアニメーション
+    // 消えたマスは、元の色（とマーク）のままはじけるアニメーション
     cleared.forEach((p) => {
-      cellEls[p.r * SIZE + p.c].className = `cell filled c${p.color} clearing`;
+      const el = cellEls[p.r * SIZE + p.c];
+      el.className = `cell filled c${p.color} clearing` + (p.mark ? ' marked' : '');
+      el.textContent = markIcon(p.mark);
     });
     // アニメーションが終わったら空きマスの見た目に戻す
     if (cleared.length) {
@@ -366,8 +406,12 @@ const Puzzle = (() => {
     const el = h('div', { class: className });
     el.style.gridTemplateRows = `repeat(${rows}, var(--size))`;
     el.style.gridTemplateColumns = `repeat(${cols}, var(--size))`;
-    cells.forEach(([r, c]) => {
-      el.append(h('div', { class: `cell filled c${piece.color}`, style: `grid-row:${r + 1};grid-column:${c + 1}` }));
+    cells.forEach(([r, c], i) => {
+      const mark = markOf(piece, i);
+      el.append(h('div', {
+        class: `cell filled c${piece.color}` + (mark ? ' marked' : ''),
+        style: `grid-row:${r + 1};grid-column:${c + 1}`,
+      }, markIcon(mark)));
     });
     return el;
   }
@@ -453,9 +497,15 @@ const Puzzle = (() => {
   // 置く予定の場所と、そろって消える列をうっすら表示
   function showPreview(piece, row, col) {
     const temp = st.board.map((line) => line.slice());
-    cellsOf(piece).forEach(([dr, dc]) => {
+    cellsOf(piece).forEach(([dr, dc], i) => {
       temp[row + dr][col + dc] = piece.color;
-      cellEls[(row + dr) * SIZE + col + dc].classList.add('preview', `c${piece.color}`);
+      const el = cellEls[(row + dr) * SIZE + col + dc];
+      const mark = markOf(piece, i);
+      el.classList.add('preview', `c${piece.color}`);
+      if (mark) {
+        el.classList.add('marked');
+        el.textContent = markIcon(mark);
+      }
     });
     lineCells(findFullLines(temp)).forEach((p) => {
       cellEls[p.r * SIZE + p.c].classList.add('will-clear');

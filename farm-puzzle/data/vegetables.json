@@ -22,8 +22,10 @@
     }
   ],
   "rules": {
-    "waterPerLine": 3,
-    "fertilizerPerLine": 2,
+    "waterPerLine": 1,
+    "fertilizerPerLine": 1,
+    "waterPerMark": 3,
+    "fertilizerPerMark": 2,
     "multiLineBonus": 0.5,
     "comboBonus": 0.5,
     "seasonBonus": 1.5,

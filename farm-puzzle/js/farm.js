@@ -79,14 +79,17 @@ const Farm = (() => {
   }
 
   /* ---------- パズルから資源を受け取る ---------- */
-  // 消した列数・コンボが多いほどたくさんもらえる。上限をこえた分はあふれる。表示用の文字を返す
-  function gainFromLines({ lines, combo }) {
+  // 消した列数・消したマーク（💧・🍂）が多いほど、コンボが続くほどたくさんもらえる。
+  // 上限をこえた分はあふれる。表示用の文字を返す
+  function gainFromLines({ lines, combo, marks = { water: 0, fertilizer: 0 } }) {
     const r = cfg.rules;
     const max = limits();
     const mul = 1 + r.multiLineBonus * (lines - 1) + r.comboBonus * (combo - 1);
     const before = { ...data.resources };
-    data.resources.water = Math.min(max.water, before.water + Math.round(r.waterPerLine * lines * mul));
-    data.resources.fertilizer = Math.min(max.fertilizer, before.fertilizer + Math.round(r.fertilizerPerLine * lines * mul));
+    const addWater = (r.waterPerLine * lines + r.waterPerMark * marks.water) * mul;
+    const addFert = (r.fertilizerPerLine * lines + r.fertilizerPerMark * marks.fertilizer) * mul;
+    data.resources.water = Math.min(max.water, before.water + Math.round(addWater));
+    data.resources.fertilizer = Math.min(max.fertilizer, before.fertilizer + Math.round(addFert));
     const water = data.resources.water - before.water;
     const fertilizer = data.resources.fertilizer - before.fertilizer;
 

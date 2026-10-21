@@ -88,6 +88,7 @@ main.js が JSON を読み込む
 | 項目 | 意味 |
 |---|---|
 | `waterPerLine` / `fertilizerPerLine` | 1列消したときにもらえる水・肥料 |
+| `waterPerMark` / `fertilizerPerMark` | 💧・🍂 のマークを1つ消したときのおまけ（マークの出やすさは `js/puzzle.js` の `RULES.markChance`） |
 | `multiLineBonus` | 同時に消した列が1本増えるごとの上乗せ（0.5 = +50%） |
 | `comboBonus` | コンボが1つ続くごとの上乗せ |
 | `seasonBonus` | 旬の野菜を収穫したときのコイン倍率 |
