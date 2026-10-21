@@ -246,6 +246,14 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
 #clock,.actions small{display:none}
 #tval{font-family:var(--f-data);font-size:.9em;opacity:.8}
 
+.t-how{font-size:15px;line-height:1.8;color:var(--ink);margin:12px 0 4px;font-weight:700}
+.tut-glow{position:relative;z-index:6;box-shadow:0 0 0 2px #ffd27a,0 0 18px rgba(255,210,122,.8)!important;animation:tutGlow 1.4s ease-in-out infinite}
+@keyframes tutGlow{50%{box-shadow:0 0 0 2px rgba(255,210,122,.5),0 0 6px rgba(255,210,122,.3)}}
+#tutchip{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:50%;transform:translateX(-50%);z-index:8;display:flex;gap:8px;align-items:center;background:rgba(40,28,6,.88);border:1px solid rgba(255,210,122,.6);border-radius:999px;padding:3px 4px 3px 12px;font-size:12px;color:#ffe3a6;white-space:nowrap}
+#tutchip[hidden]{display:none}
+#tutchip button{font-size:11px;padding:3px 10px;border-radius:999px}
+body.kbd #tutchip{display:none}
+
 @media (max-width:640px){
   .brand h1{font-size:20px}
   .gauges{min-width:0;padding:8px 10px}
@@ -372,6 +380,7 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
       </div>
       <p>母の腹の下で生まれた小さな命を、成体まで育てる。話しかけ、餌をやり、水を守る。心を開くかどうかは、あなた次第。</p>
       <p class="a2hs" id="a2hs" hidden>iPhone・iPadは、共有ボタンから「ホーム画面に追加」して遊ぶと、育てたデータが消えにくくなります。</p>
+      <p class="t-how">話しかけて、餌をやって、水を守る。<br>深海の生き物を、産まれた瞬間から育てるゲームです。</p>
       <div class="t-go">
         <button class="primary" type="button" id="start" disabled>水槽をのぞく</button>
         <span id="loadmsg">水槽を準備しています…</span>
@@ -431,6 +440,7 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
   <div class="zk-tabs" id="rm-tabs"><button type="button" data-t="uranai">占い</button><button type="button" data-t="soudan">相談</button><button type="button" data-t="mukashi">昔話</button><button type="button" data-t="yohou">明日の予報</button></div>
   <div id="rm-body"></div>
 </div></div>
+<div id="tutchip" hidden><span>はじめての案内 <b id="tut-n"></b></span><button type="button" id="tut-skip">とばす</button></div>
 <div id="itank" hidden><div id="it-clock"></div></div>
 <div class="modal" id="memorial" hidden><div class="sheet"><h3>グソク</h3><div id="mem-date"></div><dl id="mem-text"></dl><p id="mem-egg" hidden style="font-size:13.5px;line-height:1.8;color:#ffc46b;margin:0 0 10px">グソクは、卵を残していました。</p><p style="font-size:13px;color:var(--dim);line-height:1.8;margin:0 0 18px">この子の記録は「日記 → 思い出」に残ります。</p><button type="button" class="primary" id="mem-new">新しい命を迎える</button></div></div>
 <div id="toast"></div>
@@ -3122,6 +3132,46 @@ const MoodLine={auto:false,last:'',
 };
 setInterval(()=>MoodLine.update(),1000);
 
+/* =====================================================================
+   FIRST VISIT GUIDE — one thing at a time, the button to press glows
+   ===================================================================== */
+const Tutor={i:-1,t:0,
+  STEPS:[
+    {el:'say',done:'talk',text:'（まずは話しかけてみましょう。下の欄に「こんにちは」と書いて「話す」を押してください。マイクのボタンで、声でも話しかけられます）'},
+    {el:'btn-light',done:'light',text:'（次は照明です。「照明」を押すと、赤色灯・消灯・白色灯が切り替わります。グソクは暗いほうが落ち着き、白い光はまぶしがります）'},
+    {el:'btn-temp',done:'temp',text:'（水温も大事です。好きな水温は8〜12℃。「水温」から上げ下げできます）'},
+    {el:'moodline',auto:7,text:'（左上の「様子」に、今の気持ちや困っていることが出ます。困ったときは、まずここを見てください）'},
+    {el:'daily',auto:8,text:'（「今日のお世話」を3つ終えると、連続記録がのびます。餌は、もう少し大きくなってから。しばらくは、お腹に残った栄養で育ちます）'}
+  ],
+  begin(){if(S.tut)return;S.tut='on';save();this.go(0)},
+  go(i){
+    if(i>2)closePops();
+    document.querySelectorAll('.tut-glow').forEach(e=>e.classList.remove('tut-glow'));
+    this.i=i;this.t=0;
+    if(i>=this.STEPS.length){this.end(true);return}
+    const st=this.STEPS[i],el=$(st.el);if(el)el.classList.add('tut-glow');
+    $('tutchip').hidden=false;$('tut-n').textContent=(i+1)+' / '+this.STEPS.length;
+    queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(st.text,{narr:true});
+  },
+  hit(k){if(this.i<0)return;const st=this.STEPS[this.i];if(st&&st.done===k){const n=this.i+1;this.i=-2;setTimeout(()=>this.go(n),k==='talk'?4200:2600)}},
+  end(ok){
+    document.querySelectorAll('.tut-glow').forEach(e=>e.classList.remove('tut-glow'));
+    this.i=-1;S.tut='done';save();$('tutchip').hidden=true;
+    if(ok)say('（案内はここまでです。分からなくなったら「様子」を見てください。ゆっくり見守ってあげましょう）',{narr:true});
+  },
+  update(){
+    if(!S||!started||Cine.on)return;
+    // brand-new players only; anyone who has already talked to their creature skips it
+    if(!S.tut){if(S.talks>0||!S.hatched){if(S.talks>0){S.tut='done';save()}return}this.t+=1;if(this.t>6)this.begin();return}
+    if(this.i<0)return;const st=this.STEPS[this.i];this.t+=1;if(st.auto&&this.t>=st.auto)this.go(this.i+1);
+  }
+};
+setInterval(()=>Tutor.update(),1000);
+$('tut-skip').addEventListener('click',()=>Tutor.end(false));
+{const f=Game.talk;Game.talk=function(){Tutor.hit('talk');return f.apply(this,arguments)}}
+{const f=Game.light;Game.light=function(){const r=f.apply(this,arguments);Tutor.hit('light');return r}}
+$('btn-temp').addEventListener('click',()=>Tutor.hit('temp'));
+
 let started=false;
 function boot(){
   load();
@@ -3330,7 +3380,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
