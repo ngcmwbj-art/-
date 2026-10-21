@@ -2,11 +2,9 @@
 /* =========================================================
    図鑑
    - 収穫した野菜が登録され、旬と育て方のコツが読める
-   - 中身は data/vegetables.json（seasonText・tips・steps）
+   - 中身は data/vegetables.json（seasonText・tips）。くわしい育て方は育て方カード（js/howto.js）
    ========================================================= */
 const Zukan = (() => {
-  const STEPS = ['sow', 'water', 'fertilize', 'harvest'];
-
   let data = null;   // 保存データ全体
   let cfg = null;    // data/vegetables.json の中身
   let root = null;
@@ -61,11 +59,7 @@ const Zukan = (() => {
           h('span', { class: 'zukan-times' }, Msg.t('zukan.times', { n: data.harvested[v.id] }))
         ),
         h('ul', { class: 'zukan-tips' }, v.tips.map((tip) => h('li', {}, tip))),
-        h('details', { class: 'zukan-steps' },
-          h('summary', {}, Msg.t('zukan.howTo')),
-          h('ol', {}, STEPS.map((step) =>
-            h('li', {}, h('b', {}, Msg.t('farm.stepNames.' + step)), '　', v.steps[step])))
-        )
+        h('button', { class: 'link-btn', type: 'button', onclick: () => HowTo.open(v) }, Msg.t('howto.open'))
       )
     );
   }
@@ -97,7 +91,8 @@ const Zukan = (() => {
       body: h('div', { class: 'new-entry' },
         h('div', { class: 'new-entry-icon' }, vegIcon(v)),
         h('div', { class: 'new-entry-name' }, v.name),
-        h('p', {}, v.tips[0])
+        h('p', {}, v.tips[0]),
+        h('button', { class: 'link-btn', type: 'button', onclick: () => HowTo.open(v, { onClose: onAfter }) }, Msg.t('howto.open'))
       ),
       buttons: [
         { label: Msg.t('common.close'), onClick: () => { if (onAfter) onAfter(); } },

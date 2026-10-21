@@ -79,7 +79,7 @@ const Farm = (() => {
   }
 
   /* ---------- パズルから資源を受け取る ---------- */
-  // 消した列数・消したマーク（💧・🍂）が多いほど、コンボが続くほどたくさんもらえる。
+  // 消したマーク（💧・🍂）の数だけ水・肥料が手に入る。同時に消した列が多いほど、コンボが続くほど増える。
   // 上限をこえた分はあふれる。表示用の文字を返す
   function gainFromLines({ lines, combo, marks = { water: 0, fertilizer: 0 } }) {
     const r = cfg.rules;
@@ -116,7 +116,7 @@ const Farm = (() => {
     const parts = [];
     if (water) parts.push(`${Msg.t('icons.water')}+${water}`);
     if (fertilizer) parts.push(`${Msg.t('icons.fertilizer')}+${fertilizer}`);
-    if (!water && !fertilizer) parts.push(Msg.t('farm.full'));
+    if (!water && !fertilizer && (marks.water || marks.fertilizer)) parts.push(Msg.t('farm.full'));
     return parts.join(' ');
   }
 
@@ -383,6 +383,8 @@ const Farm = (() => {
     let hint = null;
     if (growing) hint = Msg.t('farm.growingHint');
     else if (!enough) hint = Msg.t('farm.needMore');
+    // 次の作業のコツをいつも見せておく（育ち中・収穫どきは収穫のコツ）
+    const nextStep = ['water', 'fertilize', 'harvest', 'harvest'][plot.stage];
 
     return h('div', { class: 'plot' + (ready ? ' ready' : '') + (growing ? ' growing' : '') },
       h('div', { class: 'plot-soil' + (plot.stage >= 1 ? ' wet' : '') }, icon),
@@ -393,7 +395,10 @@ const Farm = (() => {
         disabled: growing || !enough ? '' : null,
         onclick: () => work(index),
       }, label),
-      hint ? h('div', { class: 'plot-hint' }, hint) : null
+      hint ? h('div', { class: 'plot-hint' }, hint) : null,
+      h('div', { class: 'plot-tip' },
+        h('b', {}, Msg.t('farm.nextTip', { step: Msg.t('farm.stepNames.' + nextStep) })), v.steps[nextStep]),
+      h('button', { class: 'link-btn', type: 'button', onclick: () => HowTo.open(v) }, Msg.t('howto.open'))
     );
   }
 
@@ -423,15 +428,18 @@ const Farm = (() => {
 
   function seedButton(v, index) {
     const got = data.seasonHarvested.includes(v.id);
-    return (
-
-        h('button', {
-          class: 'seed',
-          onclick: () => {
-            Modal.close();
-            sow(index, v.id);
-          },
-        },
+    const plant = () => {
+      Modal.close();
+      sow(index, v.id);
+    };
+    const guide = () => HowTo.open(v, {
+      actions: [
+        { label: Msg.t('howto.back'), onClick: () => openSeedPicker(index) },
+        { label: Msg.t('howto.plantThis'), primary: true, onClick: plant },
+      ],
+    });
+    return h('div', { class: 'seed-row' },
+      h('button', { class: 'seed', type: 'button', onclick: plant },
           h('span', { class: 'seed-icon' }, vegIcon(v)),
           h('span', { class: 'seed-info' },
             h('span', { class: 'seed-name' }, v.name,
@@ -441,9 +449,12 @@ const Farm = (() => {
               `${Msg.t('icons.water')}${v.water}  ${Msg.t('icons.fertilizer')}${v.fertilizer}  ` +
               Msg.t('farm.seedGrow', { n: v.grow || cfg.rules.growLines }) +
               `  →  ${Msg.t('icons.coin')}${v.price}`),
-            h('span', { class: 'seed-season' }, Msg.t('farm.seasonOf', { season: seasonNames(v) }))
+            h('span', { class: 'seed-season' },
+              Msg.t('farm.seasonOf', { season: seasonNames(v) }) + '　' +
+              Msg.t('howto.level') + ' ' + '★'.repeat(v.guide.level) + '☆'.repeat(3 - v.guide.level))
           )
-        )
+      ),
+      h('button', { class: 'seed-guide', type: 'button', onclick: guide }, Msg.t('howto.short'))
     );
   }
 

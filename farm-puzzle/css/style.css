@@ -773,6 +773,80 @@ body {
 /* 一手もどす・とりかえ */
 .mini-btns { display: flex; gap: 6px; }
 
+/* 育て方カード */
+.howto { text-align: left; display: flex; flex-direction: column; gap: 10px; }
+.howto-head { display: flex; align-items: center; gap: 12px; }
+.howto-icon {
+  flex: 0 0 64px; height: 64px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.6rem; background: #f4ecdc; border-radius: 16px;
+}
+.howto-level { font-weight: bold; }
+.stars { color: var(--accent); letter-spacing: 0.05em; }
+.howto-season { font-size: 0.85rem; color: var(--sub); }
+.howto-sub { font-size: 0.85rem; font-weight: bold; color: var(--green-dark); margin-bottom: 4px; }
+.cal-row { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 2px; }
+.cal-cell {
+  padding: 4px 0; text-align: center; font-size: 0.72rem;
+  border-radius: 4px; background: #f1ebe0; color: #b8a994;
+  font-variant-numeric: tabular-nums;
+}
+.cal-cell.plant { background: #cfe9c2; color: var(--green-dark); font-weight: bold; }
+.cal-cell.harvest { background: #fbd6ad; color: #a8622a; font-weight: bold; }
+.cal-cell.plant.harvest { background: linear-gradient(135deg, #cfe9c2 50%, #fbd6ad 50%); }
+.cal-legend { display: flex; gap: 12px; margin-top: 4px; font-size: 0.75rem; color: var(--sub); }
+.cal-key::before { content: ""; display: inline-block; width: 0.8em; height: 0.8em; margin-right: 4px; border-radius: 3px; vertical-align: -1px; }
+.cal-key.plant::before { background: #cfe9c2; }
+.cal-key.harvest::before { background: #fbd6ad; }
+.howto-list { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.howto-row { padding: 8px 10px; background: #faf6ee; border-radius: 10px; }
+.howto-row dt { font-size: 0.78rem; color: var(--sub); font-weight: bold; }
+.howto-row dd { margin: 2px 0 0; line-height: 1.6; }
+.howto-steps, .howto-tips { margin: 0; padding-left: 1.3em; line-height: 1.7; font-size: 0.92rem; }
+.howto-steps b { margin-right: 8px; }
+.howto-note { margin: 0; font-size: 0.75rem; color: var(--sub); }
+
+/* 文字だけの小さなボタン（育て方カードを開く） */
+.link-btn {
+  min-height: 36px;
+  padding: 4px 8px;
+  border: none;
+  background: none;
+  color: var(--green-dark);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: bold;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+/* 区画カードの「次の作業のコツ」 */
+.plot-tip {
+  width: 100%;
+  padding: 6px 8px;
+  background: #faf6ee;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  text-align: left;
+}
+.plot-tip b { color: var(--green-dark); }
+/* 種えらびの行（植えるボタン＋育て方ボタン） */
+.seed-row { display: flex; gap: 6px; align-items: stretch; }
+.seed-row .seed { flex: 1; min-width: 0; }
+.seed-guide {
+  flex: 0 0 auto;
+  width: 64px;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: #faf6ee;
+  color: var(--green-dark);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+
 /* 種えらびの見出し */
 .seed-heading { margin-top: 6px; font-size: 0.85rem; font-weight: bold; color: var(--green-dark); }
 .seed-got {

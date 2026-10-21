@@ -74,14 +74,14 @@
     "bulkShortWater": "水が足りません",
     "bulkShortFert": "肥料が足りません",
     "bulkDone": "{step}を{n}区画まとめてしました",
-    "harvestedMany": "{n}区画をまとめて収穫しました！ {coin}+{coins}"
+    "harvestedMany": "{n}区画をまとめて収穫しました！ {coin}+{coins}",
+    "nextTip": "💡 {step}のコツ："
   },
   "zukan": {
     "title": "やさい図鑑",
     "count": "{found} / {total} しゅるい",
     "season": "旬：{text}",
     "times": "収穫 {n}回",
-    "howTo": "育て方の流れを見る",
     "unknownName": "？？？",
     "unknownText": "旬は{season}。まだ収穫していない野菜です。畑で育てて収穫すると登録されます。",
     "newEntryTitle": "図鑑に登録されました！",
@@ -107,7 +107,7 @@
       },
       {
         "icon": "💧🍂",
-        "text": "列を消すと、上のバーの「水」と「肥料」がたまります。\nブロックの 💧 や 🍂 のマークをいっしょに消すと、おまけでたくさんもらえます。"
+        "text": "ブロックには 💧（水）や 🍂（肥料）のマークが付いています。\nマークのあるマスを列ごと消すと、その数だけ水と肥料が上のバーにたまります。"
       },
       {
         "icon": "🌱",
@@ -129,5 +129,28 @@
     "welcomeTitle": "{icon}{season}がやってきました",
     "welcomeBody": "{season}の旬の野菜はこの{n}種類。ぜんぶ収穫すると、次の季節に進みます。旬の野菜は高く売れます。",
     "toFarm": "はたけへ"
+  },
+  "howto": {
+    "title": "{name}の育て方",
+    "open": "📖 育て方カードを見る",
+    "short": "📖 育て方",
+    "level": "育てやすさ",
+    "levelText": [
+      "やさしい",
+      "ふつう",
+      "むずかしめ"
+    ],
+    "calendar": "栽培カレンダー（月）",
+    "legendPlant": "種まき・植えつけ",
+    "legendHarvest": "収穫",
+    "sun": "日当たり",
+    "plant": "植える時期",
+    "pests": "気をつけたい病気・虫",
+    "point": "いちばんのコツ",
+    "steps": "作業の流れ",
+    "tips": "ミニ知識",
+    "region": "※時期は関東など、暑すぎず寒すぎない地域の目安です。品種や地域で前後します。",
+    "plantThis": "この野菜を植える",
+    "back": "種えらびにもどる"
   }
 }
