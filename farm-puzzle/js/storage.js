@@ -20,7 +20,10 @@ const SaveData = (() => {
       harvested: {},                                   // 図鑑用 { 野菜ID: 収穫した回数 }
       tutorialDone: false,                             // 初回ガイドを見たか
       firstGrowDone: false,                            // 初めての「育ち時間」を終えたか（1回目は短くする）
-      seasonHarvested: [],                             // 今の季節に収穫した旬の野菜（ぜんぶそろうと次の季節へ）
+      seasonHarvested: [],                             // 今の季節に収穫した旬の野菜（基本の旬がぜんぶそろうと次の季節へ）
+      unlocked: [],                                    // ミッションで種が手に入ったチャレンジ野菜
+      quizDone: [],                                    // 正解した育て方クイズ
+      stats: { bestCombo: 0, bestMulti: 0, bestLines: 0, bestMarks: 0 },  // ミッション用のいままでの最高
       settings: { sound: false, vibrate: true },       // 音は最初オフ
     };
   }
@@ -53,6 +56,7 @@ const SaveData = (() => {
         ...data,
         resources: { ...base.resources, ...data.resources },
         settings: { ...base.settings, ...data.settings },
+        stats: { ...base.stats, ...data.stats },
       };
     } catch (e) {
       // プライベートモードなどで読めないときは、保存なしで遊べるようにする

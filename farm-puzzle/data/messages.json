@@ -32,7 +32,7 @@
   },
   "farm": {
     "seasonNow": "いまは {season}",
-    "seasonNote": "旬の野菜をぜんぶ収穫すると、次の季節に進みます。旬の野菜は高く売れます。",
+    "seasonNote": "基本の旬の野菜をぜんぶ収穫すると、次の季節に進みます。チャレンジ野菜は、ミッションをクリアすると種が手に入る、高く売れる野菜です。",
     "emptyPlot": "空いている区画",
     "sowButton": "種をまく",
     "waterButton": "水やり {icon}{n}",
@@ -58,9 +58,9 @@
     "ripened": "{list}が実りました！「はたけ」で収穫しましょう",
     "nearFull": "水がめ・肥料袋がもうすぐいっぱい。「はたけ」で使いましょう",
     "full": "いっぱい！",
-    "seasonVegLabel": "旬の野菜：",
+    "seasonVegLabel": "基本の旬：",
     "seasonAdvanced": "{done}の旬をぜんぶ収穫しました！季節がめぐって {icon}{season} になりました",
-    "seedNow": "いまが旬（{season}）",
+    "seedNow": "いまが旬の基本の野菜（{season}）",
     "seedOthers": "ほかの季節の野菜",
     "seedGot": "収穫ずみ",
     "seedGrow": "育ち{n}列",
@@ -75,7 +75,9 @@
     "bulkShortFert": "肥料が足りません",
     "bulkDone": "{step}を{n}区画まとめてしました",
     "harvestedMany": "{n}区画をまとめて収穫しました！ {coin}+{coins}",
-    "nextTip": "💡 {step}のコツ："
+    "nextTip": "💡 {step}のコツ：",
+    "seasonChallengeLabel": "チャレンジ：",
+    "seedChallenge": "いまが旬のチャレンジ野菜（{season}）"
   },
   "zukan": {
     "title": "やさい図鑑",
@@ -86,7 +88,8 @@
     "unknownText": "旬は{season}。まだ収穫していない野菜です。畑で育てて収穫すると登録されます。",
     "newEntryTitle": "図鑑に登録されました！",
     "open": "図鑑を見る",
-    "all": "すべて"
+    "all": "すべて",
+    "challengeText": "🔒 チャレンジ野菜：ミッションをクリアすると種が手に入ります。"
   },
   "hud": {
     "water": "水",
@@ -127,7 +130,7 @@
     "completeBody": "{done}の旬の野菜を、ぜんぶ収穫しました。\n季節がめぐって {icon}{season} になります。新しい旬の野菜を育てましょう。",
     "toNext": "{icon}{season}へ",
     "welcomeTitle": "{icon}{season}がやってきました",
-    "welcomeBody": "{season}の旬の野菜はこの{n}種類。ぜんぶ収穫すると、次の季節に進みます。旬の野菜は高く売れます。",
+    "welcomeBody": "{season}の基本の旬の野菜はこの{n}種類。ぜんぶ収穫すると、次の季節に進みます。\nほかに、ミッションで種が手に入るチャレンジ野菜が{m}種類あります。",
     "toFarm": "はたけへ"
   },
   "howto": {
@@ -152,5 +155,33 @@
     "region": "※時期は関東など、暑すぎず寒すぎない地域の目安です。品種や地域で前後します。",
     "plantThis": "この野菜を植える",
     "back": "種えらびにもどる"
+  },
+  "mission": {
+    "challenge": "チャレンジ",
+    "label": "ミッション：",
+    "title": "🔒 {name}はチャレンジ野菜",
+    "body": "ミッションをクリアすると、種が手に入ります。",
+    "see": "ミッションを見る",
+    "progress": "（いま {now} / {goal}）",
+    "unlocked": "🔓 チャレンジ野菜の種が手に入りました：{list}",
+    "harvest": "{veg}を{n}回収穫する",
+    "combo": "パズルでコンボ ×{n} を出す",
+    "multi": "パズルで{n}列いっしょに消す",
+    "lines": "1回のプレイで{n}列消す",
+    "marks": "1回のプレイで 💧・🍂 のマークを合わせて{n}個消す",
+    "score": "1回のプレイで{n}点とる",
+    "plots": "畑の区画を{n}つにする",
+    "quiz": "{name}の育て方クイズに正解する"
+  },
+  "quiz": {
+    "title": "{name}の育て方クイズ",
+    "plant": "{name}を植える（種まき・植えつけ）のは、何月ごろ？",
+    "harvest": "{name}を収穫するのは、何月ごろ？",
+    "harvestExplain": "収穫は{months}ごろ。{tip}",
+    "right": "正解！",
+    "wrong": "ざんねん…",
+    "wrongBody": "正解は「{answer}」でした。\n{explain}\n育て方カードを見てから、もう一度挑戦してみましょう。",
+    "again": "もう一度挑戦",
+    "try": "クイズに挑戦"
   }
 }

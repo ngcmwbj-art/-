@@ -78,7 +78,8 @@ const Zukan = (() => {
       h('div', { class: 'zukan-body' },
         h('h3', { class: 'zukan-name' }, Msg.t('zukan.unknownName')),
         h('div', { class: 'zukan-meta' }, seasonBand(v)),
-        h('p', { class: 'zukan-locked-text' }, Msg.t('zukan.unknownText', { season: seasons }))
+        h('p', { class: 'zukan-locked-text' }, Msg.t('zukan.unknownText', { season: seasons })),
+        v.unlock ? h('p', { class: 'zukan-locked-text' }, Msg.t('zukan.challengeText')) : null
       )
     );
   }

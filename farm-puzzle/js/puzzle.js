@@ -143,6 +143,8 @@ const Puzzle = (() => {
       bestBefore: data.highScore,
       undoUsed: false,
       shuffleUsed: false,
+      gameLines: 0,     // このプレイで消した列の合計（ミッション用）
+      gameMarks: 0,     // このプレイで消したマークの合計（ミッション用）
     };
     undoSnap = null;
     st.pieces = makePieceSet();
@@ -278,7 +280,11 @@ const Puzzle = (() => {
       st.score += gained;
 
       // 農業側へ「何列消したか・マークをいくつ消したか」を知らせる（資源の文字が返ってくる）
-      const extra = hooks.onLinesCleared ? hooks.onLinesCleared({ lines, combo: st.combo, marks }) : '';
+      st.gameLines = (st.gameLines || 0) + lines;
+      st.gameMarks = (st.gameMarks || 0) + marks.water + marks.fertilizer;
+      const extra = hooks.onLinesCleared
+        ? hooks.onLinesCleared({ lines, combo: st.combo, marks, gameLines: st.gameLines, gameMarks: st.gameMarks })
+        : '';
       showClearText(cleared, `+${gained}` + (extra ? `  ${extra}` : ''), lines);
       Sound.play('clear', lines + st.combo - 1);
     } else {

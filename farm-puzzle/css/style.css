@@ -836,6 +836,12 @@ body {
 .seed-row .seed { flex: 1; min-width: 0; }
 .seed-guide {
   flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  white-space: nowrap;
   width: 64px;
   border: 2px solid var(--line);
   border-radius: 14px;
@@ -846,6 +852,30 @@ body {
   font-weight: bold;
   cursor: pointer;
 }
+
+/* チャレンジ野菜 */
+.season-chip.challenge { border-style: dashed; }
+.season-chip.locked { color: var(--sub); background: #f6f1e6; }
+.seed-row.locked .seed { background: #f8f4ec; }
+.seed-row.locked .seed-icon { filter: grayscale(0.7); opacity: 0.6; }
+.seed-challenge {
+  display: inline-block; margin-left: 6px; padding: 0 8px;
+  font-size: 0.72rem; border-radius: 999px;
+  background: #ece6f8; color: #6b5aa8; vertical-align: 2px;
+}
+.seed-mission { font-size: 0.78rem; color: #6b5aa8; font-weight: bold; }
+.mission { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.mission p { margin: 0; }
+.mission-goal { font-weight: bold; font-size: 1.05rem; color: #6b5aa8; }
+.mission-progress { font-size: 0.9rem; color: var(--sub); }
+
+/* 育て方クイズ */
+.quiz { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.quiz p { margin: 0; text-align: left; }
+.quiz-icon { font-size: 2.8rem; }
+.quiz-q { font-weight: bold; }
+.quiz-choices { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.quiz-choice { width: 100%; }
 
 /* 種えらびの見出し */
 .seed-heading { margin-top: 6px; font-size: 0.85rem; font-weight: bold; color: var(--green-dark); }

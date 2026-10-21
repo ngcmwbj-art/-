@@ -23,6 +23,7 @@
 
   // 保存して、上のバーとタブの表示を最新にする
   function persist() {
+    Missions.check();   // ミッションを満たしたチャレンジ野菜の種を渡す
     SaveData.save(save);
     refreshHud();
   }
@@ -104,6 +105,16 @@
   }
 
   /* ---------- 各画面の準備 ---------- */
+  Quiz.init({ config });
+  Missions.init({
+    data: save,
+    config,
+    onUnlock: (vegs) => {
+      toast(Msg.t('mission.unlocked', { list: vegs.map((v) => v.name).join('・') }));
+      Sound.play('ripen');
+      Farm.render();
+    },
+  });
   Zukan.init({ data: save, config });
 
   Farm.init({
@@ -148,7 +159,7 @@
     Modal.open({
       title: Msg.t('season.welcomeTitle', { icon: s.icon, season: s.name }),
       body: h('div', { class: 'season-complete' },
-        h('p', {}, Msg.t('season.welcomeBody', { season: s.name, n: vegs.length })),
+        h('p', {}, Msg.t('season.welcomeBody', { season: s.name, n: vegs.length, m: Farm.seasonalChallenges().length })),
         h('div', { class: 'season-welcome-list' },
           vegs.map((v) => h('span', { class: 'season-welcome-item' }, vegIcon(v), h('span', {}, v.name))))
       ),
@@ -166,7 +177,10 @@
     data: save,
     onSave: persist,
     // 列を消したら資源が貯まり、畑の野菜が育つ
-    onLinesCleared: (info) => Farm.gainFromLines(info),
+    onLinesCleared: (info) => {
+      Missions.recordClear(info);
+      return Farm.gainFromLines(info);
+    },
     onUndo: () => Farm.render(),
     onGameOver: ({ score, isNewBest }) => {
       const lines = [Msg.t('puzzle.gameOverBody', { score })];
@@ -181,7 +195,8 @@
     },
   });
 
-  refreshHud();
+  // 起動したときにも、ミッションを満たしていれば種を渡して保存
+  persist();
 
   // 初めて遊ぶ人には遊び方を案内
   if (!save.tutorialDone) {

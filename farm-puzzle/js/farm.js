@@ -127,8 +127,14 @@ const Farm = (() => {
   }
 
   /* ---------- 季節 ---------- */
+  // 季節を進めるのに収穫が必要な「基本の旬の野菜」（チャレンジ野菜はふくめない）
   function seasonalVegs() {
-    return cfg.vegetables.filter(inSeason);
+    return cfg.vegetables.filter((v) => inSeason(v) && !Missions.isChallenge(v));
+  }
+
+  // 今の季節のチャレンジ野菜（ミッションで種が手に入る）
+  function seasonalChallenges() {
+    return cfg.vegetables.filter((v) => inSeason(v) && Missions.isChallenge(v));
   }
 
   // 今の季節の旬の野菜を、まだ収穫していないもの
@@ -296,6 +302,15 @@ const Farm = (() => {
               (got ? '✓ ' : '') + v.name);
           })
         ),
+        h('div', { class: 'season-veg' },
+          Msg.t('farm.seasonChallengeLabel'),
+          seasonalChallenges().map((v) => {
+            const locked = Missions.isLocked(v);
+            const got = data.seasonHarvested.includes(v.id);
+            return h('span', { class: 'season-chip challenge' + (got ? ' got' : '') + (locked ? ' locked' : '') },
+              (locked ? '🔒 ' : got ? '✓ ' : '') + v.name);
+          })
+        ),
         h('div', { class: 'season-note' }, Msg.t('farm.seasonNote'))
       )
     );
@@ -416,7 +431,9 @@ const Farm = (() => {
     const now = cfg.vegetables.filter(inSeason);
     const others = cfg.vegetables.filter((v) => !inSeason(v));
     list.append(h('div', { class: 'seed-heading' }, Msg.t('farm.seedNow', { season: season().name })));
-    now.forEach((v) => list.append(seedButton(v, index)));
+    now.filter((v) => !Missions.isChallenge(v)).forEach((v) => list.append(seedButton(v, index)));
+    list.append(h('div', { class: 'seed-heading' }, Msg.t('farm.seedChallenge', { season: season().name })));
+    now.filter((v) => Missions.isChallenge(v)).forEach((v) => list.append(seedButton(v, index)));
     list.append(h('div', { class: 'seed-heading' }, Msg.t('farm.seedOthers')));
     others.forEach((v) => list.append(seedButton(v, index)));
     Modal.open({
@@ -428,23 +445,32 @@ const Farm = (() => {
 
   function seedButton(v, index) {
     const got = data.seasonHarvested.includes(v.id);
+    const locked = Missions.isLocked(v);
     const plant = () => {
+      if (Missions.isLocked(v)) {
+        openMission(v, index);
+        return;
+      }
       Modal.close();
       sow(index, v.id);
     };
     const guide = () => HowTo.open(v, {
       actions: [
         { label: Msg.t('howto.back'), onClick: () => openSeedPicker(index) },
-        { label: Msg.t('howto.plantThis'), primary: true, onClick: plant },
+        locked
+          ? { label: Msg.t('mission.see'), primary: true, onClick: () => openMission(v, index) }
+          : { label: Msg.t('howto.plantThis'), primary: true, onClick: plant },
       ],
     });
-    return h('div', { class: 'seed-row' },
+    return h('div', { class: 'seed-row' + (locked ? ' locked' : '') },
       h('button', { class: 'seed', type: 'button', onclick: plant },
           h('span', { class: 'seed-icon' }, vegIcon(v)),
           h('span', { class: 'seed-info' },
-            h('span', { class: 'seed-name' }, v.name,
+            h('span', { class: 'seed-name' }, (locked ? '🔒 ' : '') + v.name,
               inSeason(v) ? h('span', { class: 'shun' }, Msg.t('farm.shun')) : null,
+              Missions.isChallenge(v) ? h('span', { class: 'seed-challenge' }, Msg.t('mission.challenge')) : null,
               got ? h('span', { class: 'seed-got' }, Msg.t('farm.seedGot')) : null),
+            locked ? h('span', { class: 'seed-mission' }, Msg.t('mission.label') + Missions.text(v) + '　' + Missions.progressText(v)) : null,
             h('span', { class: 'seed-cost' },
               `${Msg.t('icons.water')}${v.water}  ${Msg.t('icons.fertilizer')}${v.fertilizer}  ` +
               Msg.t('farm.seedGrow', { n: v.grow || cfg.rules.growLines }) +
@@ -454,9 +480,32 @@ const Farm = (() => {
               Msg.t('howto.level') + ' ' + '★'.repeat(v.guide.level) + '☆'.repeat(3 - v.guide.level))
           )
       ),
-      h('button', { class: 'seed-guide', type: 'button', onclick: guide }, Msg.t('howto.short'))
+      // 「📖 育て方」を絵と文字の2行に分けて表示
+      h('button', { class: 'seed-guide', type: 'button', onclick: guide },
+        Msg.t('howto.short').split(' ').map((part) => h('span', {}, part)))
     );
   }
 
-  return { init, render, gainFromLines, hasAction, limits, season, seasonalVegs, seasonProgress, inSeason, seasonNames, veg };
+  // チャレンジ野菜のミッションを見せる（クイズならそのまま挑戦できる）
+  function openMission(v, index) {
+    const quiz = v.unlock.type === 'quiz';
+    const back = () => openSeedPicker(index);
+    Modal.open({
+      title: Msg.t('mission.title', { name: v.name }),
+      body: h('div', { class: 'mission' },
+        h('div', { class: 'quiz-icon' }, vegIcon(v)),
+        h('p', {}, Msg.t('mission.body')),
+        h('div', { class: 'mission-goal' }, Missions.text(v)),
+        quiz ? null : h('div', { class: 'mission-progress' }, Missions.progressText(v))
+      ),
+      buttons: [
+        { label: Msg.t('howto.back'), onClick: back },
+        quiz
+          ? { label: Msg.t('quiz.try'), primary: true, onClick: () => Quiz.open(v, () => { Missions.passQuiz(v); changed(); back(); }) }
+          : { label: Msg.t('howto.short'), primary: true, onClick: () => HowTo.open(v, { actions: [{ label: Msg.t('howto.back'), onClick: back }] }) },
+      ],
+    });
+  }
+
+  return { init, render, gainFromLines, hasAction, limits, season, seasonalVegs, seasonalChallenges, seasonProgress, inSeason, seasonNames, veg };
 })();
