@@ -112,6 +112,9 @@
   "season": {
     "completeTitle": "{icon}{season}の旬をコンプリート！",
     "completeBody": "{done}の旬の野菜を、ぜんぶ収穫しました。\n季節がめぐって {icon}{season} になります。新しい旬の野菜を育てましょう。",
-    "toNext": "{icon}{season}へ"
+    "toNext": "{icon}{season}へ",
+    "welcomeTitle": "{icon}{season}がやってきました",
+    "welcomeBody": "{season}の旬の野菜はこの{n}種類。ぜんぶ収穫すると、次の季節に進みます。旬の野菜は高く売れます。",
+    "toFarm": "はたけへ"
   }
 }

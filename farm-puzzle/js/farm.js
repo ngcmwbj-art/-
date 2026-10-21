@@ -362,5 +362,5 @@ const Farm = (() => {
     );
   }
 
-  return { init, render, gainFromLines, hasAction, limits, season, seasonProgress, inSeason, seasonNames, veg };
+  return { init, render, gainFromLines, hasAction, limits, season, seasonalVegs, seasonProgress, inSeason, seasonNames, veg };
 })();

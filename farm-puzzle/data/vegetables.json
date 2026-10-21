@@ -22,15 +22,15 @@
     }
   ],
   "rules": {
-    "waterPerLine": 2,
-    "fertilizerPerLine": 1,
+    "waterPerLine": 3,
+    "fertilizerPerLine": 2,
     "multiLineBonus": 0.5,
     "comboBonus": 0.5,
     "seasonBonus": 1.5,
     "waterMax": 50,
     "fertilizerMax": 30,
     "nearFullRate": 0.8,
-    "growLines": 4,
+    "growLines": 3,
     "firstGrowLines": 1,
     "startPlots": 2,
     "plotPrices": [
@@ -49,7 +49,7 @@
       "icon": "🥔",
       "water": 5,
       "fertilizer": 4,
-      "grow": 5,
+      "grow": 4,
       "price": 20,
       "seasons": [
         "spring"
@@ -72,7 +72,7 @@
       "icon": "🥬",
       "water": 4,
       "fertilizer": 3,
-      "grow": 3,
+      "grow": 2,
       "price": 14,
       "seasons": [
         "winter",
@@ -96,7 +96,7 @@
       "icon": "mark:キ:#cfe8b0",
       "water": 8,
       "fertilizer": 6,
-      "grow": 6,
+      "grow": 4,
       "price": 28,
       "seasons": [
         "spring",
@@ -120,7 +120,7 @@
       "icon": "🧅",
       "water": 5,
       "fertilizer": 4,
-      "grow": 7,
+      "grow": 5,
       "price": 24,
       "seasons": [
         "spring"
@@ -143,7 +143,7 @@
       "icon": "🍓",
       "water": 7,
       "fertilizer": 5,
-      "grow": 7,
+      "grow": 5,
       "price": 34,
       "seasons": [
         "spring"
@@ -166,7 +166,7 @@
       "icon": "🫘",
       "water": 6,
       "fertilizer": 2,
-      "grow": 6,
+      "grow": 4,
       "price": 24,
       "seasons": [
         "spring"
@@ -189,7 +189,7 @@
       "icon": "mark:エ:#bfe3a0",
       "water": 6,
       "fertilizer": 2,
-      "grow": 5,
+      "grow": 4,
       "price": 22,
       "seasons": [
         "spring"
@@ -212,7 +212,7 @@
       "icon": "mark:ア:#c4e0a4",
       "water": 6,
       "fertilizer": 6,
-      "grow": 8,
+      "grow": 6,
       "price": 36,
       "seasons": [
         "spring"
@@ -259,7 +259,7 @@
       "icon": "mark:レ:#d6efb4",
       "water": 5,
       "fertilizer": 2,
-      "grow": 3,
+      "grow": 2,
       "price": 14,
       "seasons": [
         "spring"
@@ -282,7 +282,7 @@
       "icon": "🍅",
       "water": 8,
       "fertilizer": 5,
-      "grow": 6,
+      "grow": 4,
       "price": 30,
       "seasons": [
         "summer"
@@ -305,7 +305,7 @@
       "icon": "🫛",
       "water": 7,
       "fertilizer": 1,
-      "grow": 5,
+      "grow": 4,
       "price": 22,
       "seasons": [
         "summer"
@@ -328,7 +328,7 @@
       "icon": "🥒",
       "water": 10,
       "fertilizer": 6,
-      "grow": 4,
+      "grow": 3,
       "price": 24,
       "seasons": [
         "summer"
@@ -351,7 +351,7 @@
       "icon": "🍆",
       "water": 10,
       "fertilizer": 7,
-      "grow": 6,
+      "grow": 4,
       "price": 30,
       "seasons": [
         "summer"
@@ -374,7 +374,7 @@
       "icon": "🫑",
       "water": 7,
       "fertilizer": 5,
-      "grow": 5,
+      "grow": 4,
       "price": 24,
       "seasons": [
         "summer"
@@ -397,7 +397,7 @@
       "icon": "🌽",
       "water": 9,
       "fertilizer": 7,
-      "grow": 5,
+      "grow": 4,
       "price": 28,
       "seasons": [
         "summer"
@@ -420,7 +420,7 @@
       "icon": "mark:オ:#b5dc95",
       "water": 6,
       "fertilizer": 4,
-      "grow": 4,
+      "grow": 3,
       "price": 20,
       "seasons": [
         "summer"
@@ -443,7 +443,7 @@
       "icon": "mark:ゴ:#a6d48c",
       "water": 8,
       "fertilizer": 5,
-      "grow": 5,
+      "grow": 4,
       "price": 24,
       "seasons": [
         "summer"
@@ -466,7 +466,7 @@
       "icon": "🍉",
       "water": 12,
       "fertilizer": 6,
-      "grow": 8,
+      "grow": 6,
       "price": 40,
       "seasons": [
         "summer"
@@ -489,7 +489,7 @@
       "icon": "mark:し:#bfe0a8",
       "water": 5,
       "fertilizer": 2,
-      "grow": 3,
+      "grow": 2,
       "price": 14,
       "seasons": [
         "summer"
@@ -512,7 +512,7 @@
       "icon": "css:daikon",
       "water": 6,
       "fertilizer": 4,
-      "grow": 5,
+      "grow": 4,
       "price": 22,
       "seasons": [
         "autumn",
@@ -536,7 +536,7 @@
       "icon": "🍠",
       "water": 5,
       "fertilizer": 1,
-      "grow": 6,
+      "grow": 4,
       "price": 22,
       "seasons": [
         "autumn"
@@ -559,7 +559,7 @@
       "icon": "🎃",
       "water": 9,
       "fertilizer": 4,
-      "grow": 7,
+      "grow": 5,
       "price": 32,
       "seasons": [
         "autumn"
@@ -582,7 +582,7 @@
       "icon": "mark:里:#e2d3bd",
       "water": 9,
       "fertilizer": 4,
-      "grow": 7,
+      "grow": 5,
       "price": 28,
       "seasons": [
         "autumn"
@@ -605,7 +605,7 @@
       "icon": "🥕",
       "water": 6,
       "fertilizer": 3,
-      "grow": 6,
+      "grow": 4,
       "price": 22,
       "seasons": [
         "autumn"
@@ -628,7 +628,7 @@
       "icon": "🥜",
       "water": 5,
       "fertilizer": 1,
-      "grow": 6,
+      "grow": 4,
       "price": 22,
       "seasons": [
         "autumn"
@@ -651,7 +651,7 @@
       "icon": "🫚",
       "water": 8,
       "fertilizer": 4,
-      "grow": 7,
+      "grow": 5,
       "price": 26,
       "seasons": [
         "autumn"
@@ -674,7 +674,7 @@
       "icon": "mark:チ:#c8e8b8",
       "water": 4,
       "fertilizer": 3,
-      "grow": 3,
+      "grow": 2,
       "price": 14,
       "seasons": [
         "autumn"
@@ -697,7 +697,7 @@
       "icon": "🥦",
       "water": 7,
       "fertilizer": 6,
-      "grow": 5,
+      "grow": 4,
       "price": 28,
       "seasons": [
         "autumn",
@@ -721,7 +721,7 @@
       "icon": "mark:白:#eef3d8",
       "water": 9,
       "fertilizer": 6,
-      "grow": 6,
+      "grow": 4,
       "price": 30,
       "seasons": [
         "winter"
@@ -744,7 +744,7 @@
       "icon": "mark:ね:#d2ecc0",
       "water": 5,
       "fertilizer": 4,
-      "grow": 6,
+      "grow": 4,
       "price": 22,
       "seasons": [
         "winter"
@@ -767,7 +767,7 @@
       "icon": "mark:か:#f1eef6",
       "water": 5,
       "fertilizer": 3,
-      "grow": 4,
+      "grow": 3,
       "price": 18,
       "seasons": [
         "winter"
@@ -790,7 +790,7 @@
       "icon": "mark:春:#c2e2a2",
       "water": 4,
       "fertilizer": 3,
-      "grow": 3,
+      "grow": 2,
       "price": 14,
       "seasons": [
         "winter"
@@ -813,7 +813,7 @@
       "icon": "mark:小:#b8dea0",
       "water": 4,
       "fertilizer": 2,
-      "grow": 3,
+      "grow": 2,
       "price": 12,
       "seasons": [
         "winter"
@@ -836,7 +836,7 @@
       "icon": "mark:水:#d8efc0",
       "water": 4,
       "fertilizer": 2,
-      "grow": 3,
+      "grow": 2,
       "price": 12,
       "seasons": [
         "winter"

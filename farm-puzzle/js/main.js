@@ -129,7 +129,25 @@
         h('div', { class: 'season-complete-vegs' }, vegs.map((v) => vegIcon(v))),
         h('p', {}, Msg.t('season.completeBody', { done: done.name, icon: next.icon, season: next.name }))
       ),
-      buttons: [{ label: Msg.t('season.toNext', { icon: next.icon, season: next.name }), primary: true }],
+      buttons: [{ label: Msg.t('season.toNext', { icon: next.icon, season: next.name }), primary: true, onClick: () => welcomeSeason(next) }],
+    });
+  }
+
+  // 新しい季節が来たことと、その季節の旬の野菜を知らせる
+  function welcomeSeason(s) {
+    const vegs = Farm.seasonalVegs();
+    const pill = document.getElementById('hud-season');
+    pill.classList.remove('pop');
+    void pill.offsetWidth; // アニメーションをもう一度動かすため
+    pill.classList.add('pop');
+    Modal.open({
+      title: Msg.t('season.welcomeTitle', { icon: s.icon, season: s.name }),
+      body: h('div', { class: 'season-complete' },
+        h('p', {}, Msg.t('season.welcomeBody', { season: s.name, n: vegs.length })),
+        h('div', { class: 'season-welcome-list' },
+          vegs.map((v) => h('span', { class: 'season-welcome-item' }, vegIcon(v), h('span', {}, v.name))))
+      ),
+      buttons: [{ label: Msg.t('season.toFarm'), primary: true, onClick: () => showScreen('farm') }],
     });
   }
 
