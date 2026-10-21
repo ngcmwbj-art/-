@@ -238,6 +238,14 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
 .rm-past{display:flex;flex-wrap:wrap;gap:6px}
 .rm-past button{font-size:12px;padding:5px 10px}
 
+.moodline{margin-top:4px;font-family:var(--f-body);font-size:13px;color:var(--ink);letter-spacing:0;line-height:1.5;max-width:min(320px,60vw)}
+.moodline span{font-family:var(--f-data);font-size:10.5px;color:var(--dim);margin-right:2px}
+.moodline.warn{color:#ffc46b}
+.moodline.good{color:#9fe3b0}
+.moodline.dark{color:#ff8f8f}
+#clock,.actions small{display:none}
+#tval{font-family:var(--f-data);font-size:.9em;opacity:.8}
+
 @media (max-width:640px){
   .brand h1{font-size:20px}
   .gauges{min-width:0;padding:8px 10px}
@@ -262,13 +270,14 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
       <div>飼育 <b id="day">1</b> 日目</div>
       <div>状態 <span class="stage" id="stage">警戒</span></div>
       <div>絶食 <b id="fast">0</b> 日　<span id="pers"></span></div>
+      <div class="moodline" id="moodline"></div>
       <div id="clock">--:--</div>
       <button type="button" class="daily" id="daily" hidden aria-label="今日のお世話"></button>
       <div class="dpanel" id="dpanel" hidden></div>
     </div>
   </div>
-  <details class="gauges" id="gauges" open>
-    <summary><span>Tank Monitor</span><span id="gsum">▾</span></summary>
+  <details class="gauges" id="gauges">
+    <summary><span>水槽の数値</span><span id="gsum">▾</span></summary>
     <div class="g-row"><span>水温</span><div class="bar" id="b-temp"><i></i></div><output id="o-temp">10.0℃</output></div>
     <div class="g-row"><span>水質</span><div class="bar" id="b-water"><i></i></div><output id="o-water">100%</output></div>
     <div class="g-row"><span>空腹</span><div class="bar" id="b-hunger"><i></i></div><output id="o-hunger">20</output></div>
@@ -304,8 +313,14 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
     </div>
     <button type="button" id="btn-light"><span class="lampdot" id="lampdot"></span><span id="lamplabel">白色灯</span></button>
     <button type="button" id="btn-water">水換え</button>
-    <button type="button" id="btn-cool">水温 −</button>
-    <button type="button" id="btn-warm">水温 ＋</button>
+    <div class="menu">
+      <button type="button" id="btn-temp" aria-haspopup="true">水温 <span id="tval">10.0℃</span></button>
+      <div class="pop" id="pop-temp" hidden>
+        <button type="button" id="btn-cool">− 下げる</button>
+        <button type="button" id="btn-warm">＋ 上げる</button>
+        <div class="note">好きな水温は 8〜12℃。</div>
+      </div>
+    </div>
     <div class="menu">
       <button type="button" id="btn-more" aria-haspopup="true">その他</button>
       <div class="pop" id="pop-more" hidden>
@@ -3072,6 +3087,41 @@ $('m-room').addEventListener('click',()=>Room.open());
 $('rm-close').addEventListener('click',()=>$('room').hidden=true);
 document.querySelectorAll('#rm-tabs button').forEach(b=>b.addEventListener('click',()=>Room.tab(b.dataset.t)));
 
+/* =====================================================================
+   CALM SCREEN — one line saying how the creature is and what it needs;
+   the numbers stay folded away unless something is wrong
+   ===================================================================== */
+const MoodLine={auto:false,last:'',
+  text(){
+    if(Life.dead)return['','—'];
+    if(Cine.on)return['',''];
+    if(Life.asleep)return['','眠っています。そっとしておきましょう'];
+    if(Game.molting||Molt.phase)return['','脱皮中です。そっとしておきましょう'];
+    if(Trouble.cur)return['warn','困っています。上の知らせを見てください'];
+    if(S.health<40)return['warn','弱っています。水と水温を整えてあげて'];
+    if(S.water<55)return['warn','水がにごっています（水換えを）'];
+    if(S.temp>12.5)return['warn','水がぬるいようです（水温を下げて）'];
+    if(S.temp<7.5)return['warn','水が冷たすぎるようです（水温を上げて）'];
+    if(S.light==='white'&&S.whiteMin>10)return['warn','まぶしそうです（照明を変えて）'];
+    if(S.stage>=1&&S.hunger>75)return['warn','おなかが空いているようです'];
+    if(darkLv()>=2)return['dark','すねています。やさしくしてあげて'];
+    if(S.mood>70)return['good','ごきげんです'];
+    if(S.mood>40)return['','おだやかです'];
+    return['warn','少しふきげんです'];
+  },
+  danger(){return !!Trouble.cur||S.health<40||S.water<45||S.temp>14||S.temp<6},
+  update(){
+    if(!S)return;const [c,t]=this.text(),el=$('moodline');
+    const key=c+t;if(key!==this.last){this.last=key;el.className='moodline '+c;el.innerHTML=t?'<span>様子</span> '+t:''}
+    // numbers come out by themselves when something is wrong, and fold away again afterwards
+    const g=$('gauges');
+    if(started&&this.danger()){if(!g.open){g.open=true;this.auto=true}}
+    else if(this.auto){g.open=false;this.auto=false}
+    $('tval').textContent=S.temp.toFixed(1)+'℃';
+  }
+};
+setInterval(()=>MoodLine.update(),1000);
+
 let started=false;
 function boot(){
   load();
@@ -3194,7 +3244,7 @@ function start(){
   if(isNight()){Life.asleep=true;Life.sleepT=0;{const a=Daily.awayItems();if(a)Daily.showAway(a,Daily.taskLine())}say('（夜。グソクは眠っている。起こさないように、そっと見守ろう）',{narr:true});return}
   const h=Math.round((Date.now()-S.last)/3600000);
   Daily.greet(h);
-  $('say').focus({preventScroll:true});
+  if(!IS_MOBILE)$('say').focus({preventScroll:true});
 }
 
 /* ---- UI wiring */
@@ -3232,13 +3282,13 @@ $('mic').addEventListener('click',()=>Mic.toggle());
 let kbdOff=0;
 function kbdTrack(){const vv=window.visualViewport;if(!vv)return;const kb=Math.max(0,innerHeight-(vv.offsetTop+vv.height));document.documentElement.style.setProperty('--kb',(kb>40?kb:0)+'px')}
 if(window.visualViewport){visualViewport.addEventListener('resize',kbdTrack);visualViewport.addEventListener('scroll',kbdTrack)}
-$('say').addEventListener('focus',()=>{clearTimeout(kbdOff);document.body.classList.add('kbd');closePops();setTimeout(kbdTrack,350)});
+$('say').addEventListener('focus',()=>{clearTimeout(kbdOff);if(IS_MOBILE)document.body.classList.add('kbd');closePops();setTimeout(kbdTrack,350)});
 $('say').addEventListener('blur',()=>{clearTimeout(kbdOff);kbdOff=setTimeout(()=>{if(document.activeElement!==$('say')){document.body.classList.remove('kbd');document.documentElement.style.setProperty('--kb','0px');try{scrollTo(0,0)}catch(e){}}},250)});
 $('say').addEventListener('input',()=>Mic.onInput());
 $('say').addEventListener('compositionstart',()=>{Mic.composing=true;clearTimeout(Mic.timer)});
 $('say').addEventListener('compositionend',()=>{Mic.composing=false;Mic.onInput()});
 $('vhint-close').addEventListener('click',()=>Mic.endDictation());
-const pops=[['btn-feed','pop-feed'],['btn-set','pop-set'],['btn-more','pop-more']];
+const pops=[['btn-feed','pop-feed'],['btn-set','pop-set'],['btn-more','pop-more'],['btn-temp','pop-temp']];
 function closePops(){pops.forEach(([,p])=>$(p).hidden=true);$('reset-confirm').hidden=true}
 function placePop(b,p){const el=$(p);el.style.cssText=el.dataset.css0===undefined?(el.dataset.css0=el.getAttribute('style')||''):el.dataset.css0;
   if(innerWidth<760){const r=$(b).getBoundingClientRect();Object.assign(el.style,{position:'fixed',left:'16px',right:'16px',bottom:(innerHeight-r.top+6)+'px',top:'auto',maxHeight:(r.top-24)+'px',overflowY:'auto'})}
@@ -3280,7 +3330,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
