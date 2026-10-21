@@ -191,6 +191,10 @@ canvas { display: block; width: 100%; height: 100%; }
 .modes { display: flex; gap: 1.8cqw; flex-wrap: wrap; }
 .start-row { display: flex; align-items: center; gap: 2.4cqw; flex-wrap: wrap; }
 .btn.small { font-size: clamp(13px, 2.1cqw, 20px); padding: .36em 1.1em; }
+.nudge { animation: nudge .4s; color: var(--accent); }
+@keyframes nudge { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+.cargo-row { display: flex; align-items: center; gap: 1.6cqw; flex-wrap: wrap; margin-top: -1cqh; }
+#cargoBtn { font-size: clamp(11px, 1.7cqw, 16px); padding: .3em 1em; }
 .best-chip { font-size: clamp(11px, 1.8cqw, 16px); color: var(--muted); font-variant-numeric: tabular-nums; }
 .best-chip b { color: var(--accent); font-weight: normal; }
 .howto { margin: 0; font-size: clamp(10px, 1.5cqw, 14px); color: var(--muted); }
@@ -417,6 +421,10 @@ canvas { display: block; width: 100%; height: 100%; }
           <button class="btn ghost small" id="rankBtn" type="button" hidden>ランキング</button>
           <span class="best-chip" id="bestEndless">記録なし</span>
         </div>
+        <div class="cargo-row">
+          <button class="btn ghost small" id="cargoBtn" type="button">積み荷：トマト</button>
+          <span class="best-chip" id="cargoHint"></span>
+        </div>
         <p class="howto"><span class="touch-only">画面をタップで</span><span class="kbd-only">クリック か <kbd>Space</kbd> で</span>ジャンプ。長押しで高く、空中でもう一度で2段ジャンプ</p>
       </div>
     </div>
@@ -534,6 +542,14 @@ canvas { display: block; width: 100%; height: 100%; }
   let best = Number(store.get('keitora-best', 0)) || 0;               // エンドレスの最長距離（m）
   let soundOn = store.get('keitora-sound', '1') === '1';
   let bestScore = Number(store.get('keitora-best-score', 0)) || 0;    // エンドレスの配達スコア
+  // 荷台の積み荷（見た目だけ。点数の付き方は同じ）。自己ベストの距離で選べるものが増える
+  const CARGOS = [
+    { id: 'tomato', name: 'トマト', unit: 'トマト', field: 'トマト畑', need: 0, col: '#e0392b' },
+    { id: 'veg', name: '野菜いろいろ', unit: '野菜', field: '野菜畑', need: 300, col: '#6aa83a' },
+    { id: 'hay', name: '牧草ロール', unit: '牧草', field: '牧草地', need: 800, col: '#d9b45a' },
+    { id: 'calf', name: '子牛と牧草', unit: '牧草', field: '牧草地', need: 1500, col: '#d9b45a' },
+  ];
+  let cargo = CARGOS.find(c => c.id === store.get('keitora-cargo', 'tomato') && best >= c.need) || CARGOS[0];
 
   const fmtM = m => m.toLocaleString('ja-JP');
   function fmtTime(sec) {
@@ -981,7 +997,7 @@ canvas { display: block; width: 100%; height: 100%; }
       });
     }
   }
-  const spillTomatoes = (n, wx, y, vx) => emit(n, wx, y, { vx, vy: [-420, -150], life: [0.8, 1.4], r: [4, 6], col: '#e0392b', tomato: true });
+  const spillTomatoes = (n, wx, y, vx) => emit(n, wx, y, { vx, vy: [-420, -150], life: [0.8, 1.4], r: [4, 6], col: cargo.col, tomato: true });
   function loseTomato(n, why) {
     if (tomatoes <= 0 || state !== 'play') return;
     const k = Math.min(n, tomatoes);
@@ -989,7 +1005,7 @@ canvas { display: block; width: 100%; height: 100%; }
     stats.lost += k;
     spillTomatoes(k, cam + TRUCK_X + 22, truck.y - 48, [-240, -80]);
     sfx('tomato');
-    if (why) popup(tomatoes > 0 ? `${why} 残り ${tomatoes} 個` : 'トマトが空っぽ!', '#ff8f7a');
+    if (why) popup(tomatoes > 0 ? `${why} 残り ${tomatoes} 個` : `${cargo.unit}が空っぽ!`, '#ff8f7a');
   }
   function showBanner(text, color, sub) { banner = { text, sub, color, t: 1.6 }; }
   function popup(text, color) { popups.push({ text, color, t: 1.1 }); }
@@ -1093,8 +1109,27 @@ canvas { display: block; width: 100%; height: 100%; }
     focusIfKeyboard($('startBtn'));
   }
   function renderTitleBest() {
+    renderCargo();
     $('bestEndless').innerHTML = bestScore > 0 ? `ベスト <b>${fmtM(bestScore)} 点</b>（${fmtM(best)} m）` : (best > 0 ? `ベスト <b>${fmtM(best)} m</b>` : '記録なし');
   }
+  // 積み荷の選択：押すたびに、選べるものの中で次へ。まだのものは「あと何 m」を出す
+  function renderCargo() {
+    $('cargoBtn').textContent = `積み荷：${cargo.name}`;
+    const next = CARGOS.find(c => best < c.need);
+    const open = CARGOS.filter(c => best >= c.need).length;
+    $('cargoHint').textContent = next ? `ベスト ${fmtM(next.need)} m で「${next.name}」` : '';
+    $('cargoBtn').disabled = open < 2 && !next;
+    $('cargoBtn').title = open < 2 ? `ベスト ${fmtM(CARGOS[1].need)} m で選べるようになります` : '';
+  }
+  $('cargoBtn').addEventListener('click', () => {
+    initAudio();
+    const open = CARGOS.filter(c => best >= c.need);
+    if (open.length < 2) { sfx('ui'); $('cargoHint').classList.remove('nudge'); void $('cargoHint').offsetWidth; $('cargoHint').classList.add('nudge'); return; }
+    cargo = open[(open.indexOf(cargo) + 1) % open.length];
+    store.set('keitora-cargo', cargo.id);
+    sfx('ui');
+    renderCargo();
+  });
 
   // 称号
   const RANKS = [
@@ -1144,7 +1179,7 @@ canvas { display: block; width: 100%; height: 100%; }
     {
       reasonEl.classList.remove('win');
       reasonEl.textContent = REASONS[truck.deathKind][0];
-      $('reasonSub').textContent = REASONS[truck.deathKind][1];
+      $('reasonSub').textContent = REASONS[truck.deathKind][1].replace('トマト', cargo.unit);
       {
         // エンドレスは「運んだトマト × 距離」の合計が配達スコア
         const prev = bestScore;
@@ -1156,7 +1191,7 @@ canvas { display: block; width: 100%; height: 100%; }
         $('rankName').textContent = rankOf(m);
         $('bestLine').textContent = `${fmtM(m)} m 走行　` + (!rec ? `ベスト ${fmtM(bestScore)} 点`
           : prev > 0 ? `ベストを ${fmtM(score - prev)} 点 更新` : 'はじめての記録');
-        $('stats').innerHTML = statHTML([['タイム', fmtTime(runTime)], ['落としたトマト', stats.lost + ' 個'], ['イノシシ回避', stats.boars + ' 頭']]);
+        $('stats').innerHTML = statHTML([['タイム', fmtTime(runTime)], [`落とした${cargo.unit}`, stats.lost + ' 個'], ['イノシシ回避', stats.boars + ' 頭']]);
       }
     }
     $('newrec').hidden = !rec;
@@ -1213,7 +1248,7 @@ canvas { display: block; width: 100%; height: 100%; }
         lastRefill = Math.floor(m / REFILL_M);
         const add = TOMATO_MAX - tomatoes;
         tomatoes = TOMATO_MAX;
-        popup(add > 0 ? `トマト畑で積み直し +${add} 個` : 'トマト畑を通過 全部無事!', '#a8e27f');
+        popup(add > 0 ? `${cargo.field}で積み直し +${add} 個` : `${cargo.field}を通過 全部無事!`, '#a8e27f');
         sfx('dodge');
       }
       const si = seasonAt(m).i;
@@ -1316,7 +1351,7 @@ canvas { display: block; width: 100%; height: 100%; }
           // 目いっぱい跳んでドスンと着地すると、ときどきトマトが落ちる
           // 着地の衝撃が強いほど落ちやすい。石垣から飛び降りるような強い衝撃なら2個
           const hit = truck.vy;
-          if (Math.random() < clamp((hit - 600) / 400, 0, 0.95)) loseTomato(hit > 900 ? 2 : 1, 'ドスン! トマトが落ちた');
+          if (Math.random() < clamp((hit - 600) / 400, 0, 0.95)) loseTomato(hit > 900 ? 2 : 1, `ドスン! ${cargo.unit}が落ちた`);
           sfx('land');
           truck.squash = 1;
           emit(8, cam + TRUCK_X + 20, supportY(), { vx: [-200, 40], vy: [-120, -20], life: [0.3, 0.6], r: [3, 6], col: '#b89468' });
@@ -1351,7 +1386,7 @@ canvas { display: block; width: 100%; height: 100%; }
             truck.grounded = false;
             truck.jumped = false;
             truck.bumpT = rand(0.1, 0.26);
-            if (Math.random() < 0.45) loseTomato(1, 'ガタガタ! トマトが落ちた');
+            if (Math.random() < 0.45) loseTomato(1, `ガタガタ! ${cargo.unit}が落ちた`);
             sfx('bump');
             emit(3, cam + TRUCK_X + 76, GROUND, { vx: [-120, 20], vy: [-150, -60], life: [0.2, 0.4], r: [2, 5], col: '#8a6a45' });
           }
@@ -1361,7 +1396,7 @@ canvas { display: block; width: 100%; height: 100%; }
           slip = SLIP_TIME;
           vel *= 0.45;
           stats.slows++;
-          loseTomato(2, 'ツルッ! トマトが落ちた');
+          loseTomato(2, `ツルッ! ${cargo.unit}が落ちた`);
           sfx('slip');
           emit(18, cx, GROUND, { vx: [-260, 120], vy: [-320, -90], life: [0.4, 0.8], r: [2, 5], col: '#7c9bb0' });
         }
@@ -2305,7 +2340,7 @@ canvas { display: block; width: 100%; height: 100%; }
     for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.arc(sx - 16 + i * 6.4, y - 14, 3, 0, Math.PI * 2); ctx.fill(); }
     ctx.fillStyle = '#fffbea'; ctx.fillRect(sx - 24, y - 58, 48, 13);
     ctx.fillStyle = '#3a2a14'; ctx.font = '10px ' + FONT; ctx.textAlign = 'center';
-    ctx.fillText('トマト畑', sx, y - 48);
+    ctx.fillText(cargo.field, sx, y - 48);
   }
   function drawPuddle(sx, w) {
     ctx.fillStyle = '#5f7f96';
@@ -2537,18 +2572,66 @@ canvas { display: block; width: 100%; height: 100%; }
     for (const x of xs) TOMATOES.push([x, y]);
   }
   const TOMATO_MAX = TOMATOES.length;
+  // 積み荷を1つ描く（x, y が中心）
+  function drawItem(kind, x, y, i) {
+    if (kind === 'veg') {
+      const k = i % 3;
+      if (k === 0) {          // キャベツ
+        ctx.fillStyle = '#6fb544'; ctx.beginPath(); ctx.arc(x, y, 5.6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#a6d97a'; ctx.beginPath(); ctx.arc(x - 1, y - 1, 3, 0, Math.PI * 2); ctx.fill();
+      } else if (k === 1) {   // ナス
+        ctx.fillStyle = '#5a2b78'; ctx.beginPath(); ctx.ellipse(x, y, 6, 3.8, -0.4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fillRect(x - 3, y - 2, 2, 1.5);
+        ctx.fillStyle = '#3f8a2a'; ctx.fillRect(x + 3, y - 4.5, 3, 3);
+      } else {                // ニンジン
+        ctx.fillStyle = '#f08a24'; ctx.beginPath(); ctx.ellipse(x + 1, y, 6.2, 3, 0.25, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#4f9a32'; ctx.fillRect(x - 7, y - 4, 3, 2); ctx.fillRect(x - 6, y - 6, 2, 3);
+      }
+      return;
+    }
+    if (kind === 'hay') {     // 牧草ロール（ラップなしの丸いロール）
+      ctx.fillStyle = i % 3 === 1 ? '#cfae55' : '#dcbc62';
+      ctx.beginPath(); ctx.arc(x, y, 5.4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#b08a3a'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x, y, 3.2, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#9c7832'; ctx.fillRect(x - 0.8, y - 0.8, 1.6, 1.6);
+      return;
+    }
+    ctx.fillStyle = i % 3 === 1 ? '#c92f22' : '#e0392b';
+    ctx.beginPath(); ctx.arc(x, y, 5.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.fillRect(x - 3, y - 3, 2, 2);
+    if (i % 2 === 0 || y < -50) {
+      ctx.fillStyle = '#3f8a2a';
+      ctx.fillRect(x - 2, y - 6, 4, 2);
+      ctx.fillRect(x - 0.5, y - 8, 1.5, 3);
+    }
+  }
+  // 子牛（F1 の黒い子牛。耳に黄色い耳標）。荷台の前寄りに立つ
+  function drawCalf() {
+    const c = '#2b2422';
+    ctx.fillStyle = c;
+    ctx.fillRect(25, -36, 3, 5); ctx.fillRect(31, -36, 3, 5); ctx.fillRect(39, -36, 3, 5); ctx.fillRect(43, -36, 3, 5);
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(23, -50, 25, 15, 5) : ctx.rect(23, -50, 25, 15); ctx.fill();
+    ctx.fillRect(21, -48, 2, 8);                               // しっぽ
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(45, -58, 11, 11, 3) : ctx.rect(45, -58, 11, 11); ctx.fill();
+    ctx.fillStyle = '#6e5b52'; ctx.fillRect(52, -52, 4, 4);   // 鼻先
+    ctx.fillStyle = c; ctx.fillRect(42, -58, 4, 3);            // 耳
+    ctx.fillStyle = '#f2c230'; ctx.fillRect(42.5, -55.5, 3, 3); // 耳標
+    ctx.fillStyle = '#fff'; ctx.fillRect(50, -56, 1.6, 1.6);   // 目
+    ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(26, -49, 18, 3);
+  }
+  const CALF_HAY = TOMATOES.map((p, i) => i).filter(i => TOMATOES[i][0] <= 21);
   function drawTomatoes(n) {
+    if (cargo.id === 'calf') {
+      const k = Math.ceil(n * CALF_HAY.length / TOMATO_MAX);
+      for (let j = 0; j < k; j++) { const [x, y] = TOMATOES[CALF_HAY[j]]; drawItem('hay', x, y, j); }
+      drawCalf();
+      return;
+    }
     for (let i = 0; i < n; i++) {
       const [x, y] = TOMATOES[i];
-      ctx.fillStyle = i % 3 === 1 ? '#c92f22' : '#e0392b';
-      ctx.beginPath(); ctx.arc(x, y, 5.2, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,.55)';
-      ctx.fillRect(x - 3, y - 3, 2, 2);
-      if (i % 2 === 0 || y < -50) {
-        ctx.fillStyle = '#3f8a2a';
-        ctx.fillRect(x - 2, y - 6, 4, 2);
-        ctx.fillRect(x - 0.5, y - 8, 1.5, 3);
-      }
+      drawItem(cargo.id, x, y, i);
     }
   }
 
@@ -2785,7 +2868,7 @@ canvas { display: block; width: 100%; height: 100%; }
         ctx.fill();
         if (!p.flat && p.r > 3.5) { ctx.fillStyle = 'rgba(255,235,210,.35)'; ctx.beginPath(); ctx.arc(p.x - cam - p.r * 0.3, p.y - p.r * 0.3, p.r * 0.3, 0, Math.PI * 2); ctx.fill(); }
       } else { ctx.arc(p.x - cam, p.y, p.r, 0, Math.PI * 2); ctx.fill(); }
-      if (p.tomato) { ctx.fillStyle = '#3f8a2a'; ctx.fillRect(p.x - cam - 1.5, p.y - p.r - 1, 3, 2); }
+      if (p.tomato && (cargo.id === 'tomato' || cargo.id === 'veg')) { ctx.fillStyle = '#3f8a2a'; ctx.fillRect(p.x - cam - 1.5, p.y - p.r - 1, 3, 2); }
     }
     ctx.globalAlpha = 1;
   }
@@ -2871,10 +2954,11 @@ canvas { display: block; width: 100%; height: 100%; }
     const tx = x0 + 60 + BUMP_LIMIT * 22 + 16;
     ctx.fillStyle = 'rgba(27,34,22,.85)';
     ctx.beginPath(); ctx.arc(tx, y0, 9.5, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#e0392b';
-    ctx.beginPath(); ctx.arc(tx, y0 + 1, 7.5, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#3f8a2a';
-    ctx.fillRect(tx - 3, y0 - 7, 6, 2.5);
+    ctx.save();
+    ctx.translate(tx, y0 + 1);
+    ctx.scale(1.4, 1.4);
+    drawItem(cargo.id === 'calf' ? 'hay' : cargo.id, 0, 0, 0);
+    ctx.restore();
     label('×' + tomatoes, tx + 12, y0 + 5, '15px ' + FONT, tomatoes <= 5 ? '#ff8f7a' : '#fffbea', 'left', 'rgba(27,34,22,.85)', 4);
     {
       label(`スコア ${fmtM(score)}`, tx + 48, y0 + 5, '15px ' + FONT, '#f2b33d', 'left', 'rgba(27,34,22,.85)', 4);
