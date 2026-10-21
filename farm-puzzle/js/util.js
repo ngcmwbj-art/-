@@ -107,11 +107,17 @@ function floatText(text, x, y, parent = document.body) {
 // data/vegetables.json の icon の書き方：
 //   "🍅"           … 絵文字をそのまま表示
 //   "css:daikon"   … CSS で描いた絵（style.css の .veg-css.daikon）
+//   "draw:ball:#色1:#色2" … CSS で描いた絵の型（ball・tall・leaf・stalk・pod・long・root・imo）と2つの色
 //   "mark:キ:#cfe8b0" … 絵文字がない野菜の仮の絵（色つきの丸に1文字）
 //   "img:img/tomato.png" … 画像に差し替えるとき
 function vegIcon(veg) {
   const icon = veg.icon || '❓';
   if (icon.startsWith('css:')) return h('span', { class: 'veg-icon veg-css ' + icon.slice(4), 'aria-label': veg.name });
+  if (icon.startsWith('draw:')) {
+    const [, type, c1, c2] = icon.split(':');
+    return h('span', { class: `veg-icon veg-draw ${type}`, style: `--c1:${c1};--c2:${c2}`, role: 'img', 'aria-label': veg.name },
+      h('i', { class: 'a' }), h('i', { class: 'b' }), h('i', { class: 'c' }));
+  }
   if (icon.startsWith('mark:')) {
     const [, char, color] = icon.split(':');
     return h('span', { class: 'veg-icon veg-mark', style: `--mark:${color || '#d6ecc4'}`, 'aria-label': veg.name },

@@ -113,11 +113,16 @@
     // 畑で作業したら「一手もどす」はできなくなる
     onAction: () => Puzzle.clearUndo(),
     // 初めて収穫した野菜は図鑑に登録。旬をぜんぶそろえたらお祝い（図鑑のお知らせのあとに）
-    onHarvest: (veg, first, seasonDone) => {
+    onHarvest: (firsts, seasonDone) => {
       Zukan.render();
-      const celebrate = seasonDone ? () => celebrateSeason(seasonDone) : null;
-      if (first) Zukan.announce(veg, () => showScreen('zukan'), celebrate);
-      else if (celebrate) celebrate();
+      // 初めての野菜を1つずつ知らせ、最後に季節のお祝い
+      const queue = firsts.slice();
+      const next = () => {
+        const v = queue.shift();
+        if (v) Zukan.announce(v, () => showScreen('zukan'), next);
+        else if (seasonDone) celebrateSeason(seasonDone);
+      };
+      next();
     },
   });
 
@@ -169,6 +174,7 @@
       const buttons = [];
       // 置き間違えで終わったときのために、ここでも「一手もどす」を選べる
       if (Puzzle.canUndo()) buttons.push({ label: Msg.t('puzzle.undo'), onClick: () => Puzzle.undo() });
+      if (Puzzle.canShuffle()) buttons.push({ label: Msg.t('puzzle.shuffleOver'), onClick: () => Puzzle.shuffle() });
       buttons.push({ label: Msg.t('puzzle.toFarm'), onClick: () => finishGame('farm') });
       buttons.push({ label: Msg.t('puzzle.retry'), primary: true, onClick: () => finishGame() });
       Modal.open({ title: Msg.t('puzzle.gameOverTitle'), body: lines.join('\n'), buttons });

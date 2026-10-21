@@ -4,7 +4,7 @@
    - 8×8 の盤面に、3つずつ出てくるブロックをドラッグで置く（回転なし）
    - 縦・横の一列がそろうと消える。複数列・連続で消すとボーナス
    - 手元のブロックがどこにも置けなくなったらゲームオーバー
-   - 1プレイに1回だけ「一手もどす」ができる
+   - 1プレイに1回だけ「一手もどす」と「手元のとりかえ」ができる
    ========================================================= */
 const Puzzle = (() => {
   const SIZE = 8;
@@ -80,6 +80,8 @@ const Puzzle = (() => {
     els.combo = document.getElementById('combo');
     els.undo = document.getElementById('undo-btn');
     els.undo.addEventListener('click', undo);
+    els.shuffle = document.getElementById('shuffle-btn');
+    els.shuffle.addEventListener('click', shuffle);
 
     buildBoard();
     els.slots.forEach((slot, i) => {
@@ -134,6 +136,7 @@ const Puzzle = (() => {
       over: false,
       bestBefore: data.highScore,
       undoUsed: false,
+      shuffleUsed: false,
     };
     undoSnap = null;
     st.pieces = makePieceSet();
@@ -257,14 +260,34 @@ const Puzzle = (() => {
 
     persist();
     render(cleared);
+    if (st.over) announceGameOver();
+  }
 
-    if (st.over) {
-      setTimeout(() => {
-        if (hooks.onGameOver) {
-          hooks.onGameOver({ score: st.score, isNewBest: st.score > st.bestBefore && st.score > 0 });
-        }
-      }, 800);
-    }
+  function announceGameOver() {
+    setTimeout(() => {
+      if (hooks.onGameOver) {
+        hooks.onGameOver({ score: st.score, isNewBest: st.score > st.bestBefore && st.score > 0 });
+      }
+    }, 800);
+  }
+
+  /* ---------- 手元のとりかえ ---------- */
+  function canShuffle() {
+    return !!st && !st.shuffleUsed;
+  }
+
+  // 手元の3つを新しい3つに引き直す（1プレイに1回）
+  function shuffle() {
+    if (!canShuffle() || drag) return;
+    st.pieces = makePieceSet();
+    st.shuffleUsed = true;
+    st.over = !st.pieces.some((p) => p && fitsSomewhere(p));
+    // とりかえたあとに「一手もどす」で前の手元に戻せないようにする
+    undoSnap = null;
+    persist();
+    render();
+    toast(Msg.t('puzzle.shuffled'));
+    if (st.over) announceGameOver();
   }
 
   /* ---------- 一手もどす ---------- */
@@ -303,6 +326,7 @@ const Puzzle = (() => {
     els.best.textContent = data.highScore;
     els.combo.textContent = st.combo >= 2 ? Msg.t('puzzle.combo', { n: st.combo }) : '';
     els.undo.hidden = !canUndo() || st.over;
+    els.shuffle.hidden = !canShuffle() || st.over;
   }
 
   function renderBoard(cleared = []) {
@@ -442,5 +466,5 @@ const Puzzle = (() => {
     renderBoard();
   }
 
-  return { init, newGame, measure, canUndo, undo, clearUndo };
+  return { init, newGame, measure, canUndo, undo, clearUndo, canShuffle, shuffle };
 })();

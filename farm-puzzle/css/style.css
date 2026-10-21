@@ -657,6 +657,112 @@ body {
 }
 .veg-mark-char { font-size: 0.5em; font-weight: bold; color: var(--text); line-height: 1; }
 
+/* CSS で描いた野菜（型ごとに3つの部品 a・b・c を並べる。色は --c1・--c2） */
+.veg-draw { position: relative; display: inline-block; width: 1em; height: 1em; vertical-align: middle; }
+.veg-draw i { position: absolute; display: block; }
+/* 玉の野菜（キャベツ・レタス） */
+.veg-draw.ball .a {
+  left: 0.08em; top: 0.1em; width: 0.84em; height: 0.8em; border-radius: 50%;
+  background: radial-gradient(circle at 42% 38%, var(--c1) 0 32%, var(--c2) 100%);
+  box-shadow: inset -0.04em -0.05em 0 rgba(0, 0, 0, 0.12);
+}
+.veg-draw.ball .b { left: 0.22em; top: 0.2em; width: 0.42em; height: 0.62em; border-radius: 50%; border-left: 0.045em solid rgba(255, 255, 255, 0.8); }
+.veg-draw.ball .c { left: 0.4em; top: 0.18em; width: 0.4em; height: 0.64em; border-radius: 50%; border-right: 0.045em solid rgba(60, 100, 40, 0.25); }
+/* 細長い玉（白菜） */
+.veg-draw.tall .a {
+  left: 0.24em; top: 0.04em; width: 0.52em; height: 0.92em;
+  border-radius: 45% 45% 40% 40% / 35% 35% 65% 65%;
+  background: linear-gradient(var(--c2) 0 38%, var(--c1) 68%);
+  box-shadow: inset -0.04em -0.04em 0 rgba(0, 0, 0, 0.1);
+}
+.veg-draw.tall .b { left: 0.475em; top: 0.12em; width: 0.05em; height: 0.76em; border-radius: 0.05em; background: rgba(255, 255, 255, 0.85); }
+.veg-draw.tall .c { left: 0.32em; top: 0.1em; width: 0.16em; height: 0.36em; border-radius: 50%; border-left: 0.04em solid rgba(255, 255, 255, 0.6); }
+/* 葉もの（3枚の葉が根元から広がる。下の色が茎） */
+.veg-draw.leaf i {
+  left: 0.34em; top: 0.05em; width: 0.32em; height: 0.88em;
+  border-radius: 50% 50% 45% 45% / 62% 62% 38% 38%;
+  background: linear-gradient(to top, var(--c2) 0 30%, var(--c1) 30%);
+  transform-origin: 50% 100%;
+  box-shadow: inset -0.03em 0 0 rgba(0, 0, 0, 0.12);
+}
+.veg-draw.leaf .a { transform: rotate(-30deg); }
+.veg-draw.leaf .b { z-index: 1; }
+.veg-draw.leaf .c { transform: rotate(30deg); }
+/* 茎もの（ねぎ・アスパラガス） */
+.veg-draw.stalk i {
+  bottom: 0.05em; width: 0.15em;
+  border-radius: 0.08em 0.08em 0.05em 0.05em;
+  background: linear-gradient(var(--c1) 0 55%, var(--c2) 55%);
+  box-shadow: inset -0.03em 0 0 rgba(0, 0, 0, 0.1);
+}
+.veg-draw.stalk .a { left: 0.24em; height: 0.8em; transform: rotate(-9deg); }
+.veg-draw.stalk .b { left: 0.425em; height: 0.92em; }
+.veg-draw.stalk .c { left: 0.61em; height: 0.76em; transform: rotate(9deg); }
+/* さや（えんどう豆。さやの上に豆が3つ） */
+.veg-draw.pod .a, .veg-draw.pod .b { left: 0.06em; top: 0.33em; width: 0.86em; height: 0.36em; border-radius: 50%; transform: rotate(-28deg); }
+.veg-draw.pod .a { background: var(--c1); box-shadow: inset 0 -0.05em 0 rgba(0, 0, 0, 0.14); }
+.veg-draw.pod .b {
+  background:
+    radial-gradient(circle at 28% 50%, var(--c2) 0 0.085em, transparent 0.095em),
+    radial-gradient(circle at 50% 50%, var(--c2) 0 0.085em, transparent 0.095em),
+    radial-gradient(circle at 72% 50%, var(--c2) 0 0.085em, transparent 0.095em);
+}
+.veg-draw.pod .c { left: 0.84em; top: 0.12em; width: 0.05em; height: 0.18em; border-radius: 0.03em; background: #5f8f45; transform: rotate(35deg); }
+/* 細長い実（オクラ・ゴーヤ。上にへた） */
+.veg-draw.long .a {
+  left: 0.34em; top: 0.14em; width: 0.32em; height: 0.84em;
+  border-radius: 40% 40% 50% 50% / 18% 18% 82% 82%;
+  background: repeating-linear-gradient(90deg, var(--c1) 0 0.065em, var(--c2) 0.065em 0.085em);
+  box-shadow: inset -0.04em 0 0 rgba(0, 0, 0, 0.1);
+}
+.veg-draw.long .b { left: 0.37em; top: 0.06em; width: 0.26em; height: 0.12em; border-radius: 0.06em 0.06em 0.03em 0.03em; background: #4d7d39; }
+.veg-draw.long .c { left: 0.475em; top: 0; width: 0.05em; height: 0.08em; background: #4d7d39; }
+/* 根もの（ラディッシュ・かぶ。丸い根と2枚の葉） */
+.veg-draw.root .a {
+  left: 0.17em; top: 0.32em; width: 0.66em; height: 0.6em;
+  border-radius: 50% 50% 50% 50% / 45% 45% 55% 55%;
+  background: radial-gradient(circle at 36% 36%, rgba(255, 255, 255, 0.6) 0 16%, transparent 38%), var(--c1);
+  box-shadow: inset -0.04em -0.05em 0 rgba(0, 0, 0, 0.14);
+}
+.veg-draw.root .a::after { content: ""; position: absolute; left: 50%; bottom: -0.1em; width: 0.04em; height: 0.12em; background: var(--c1); transform: translateX(-50%); }
+.veg-draw.root .b, .veg-draw.root .c {
+  top: 0.02em; width: 0.2em; height: 0.38em;
+  border-radius: 50% 50% 40% 40% / 62% 62% 38% 38%;
+  background: var(--c2); transform-origin: 50% 100%;
+}
+.veg-draw.root .b { left: 0.3em; transform: rotate(-20deg); }
+.veg-draw.root .c { left: 0.5em; transform: rotate(20deg); }
+/* いも（里芋。しま模様と小さな芽） */
+.veg-draw.imo .a {
+  left: 0.2em; top: 0.14em; width: 0.6em; height: 0.78em;
+  border-radius: 50% 50% 48% 48% / 45% 45% 55% 55%;
+  background: repeating-linear-gradient(0deg, var(--c1) 0 0.1em, var(--c2) 0.1em 0.13em);
+  box-shadow: inset -0.05em -0.05em 0 rgba(0, 0, 0, 0.15);
+}
+.veg-draw.imo .b { left: 0.46em; top: 0.04em; width: 0.08em; height: 0.14em; border-radius: 50% 50% 20% 20%; background: #e6b9a0; }
+
+/* まとめて作業のボタン（親指が届く画面の下に固定） */
+.bulk-bar {
+  position: sticky;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  z-index: 5;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 14px;
+  padding: 8px;
+  background: rgba(255, 253, 248, 0.96);
+  border: 2px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 4px 14px rgba(90, 70, 40, 0.12);
+}
+.bulk-item { display: flex; flex-direction: column; align-items: stretch; gap: 2px; min-width: 0; }
+.bulk-item .btn { padding: 8px 4px; font-size: 0.85rem; min-height: 48px; }
+.bulk-reason { font-size: 0.68rem; color: var(--sub); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 一手もどす・とりかえ */
+.mini-btns { display: flex; gap: 6px; }
+
 /* 種えらびの見出し */
 .seed-heading { margin-top: 6px; font-size: 0.85rem; font-weight: bold; color: var(--green-dark); }
 .seed-got {

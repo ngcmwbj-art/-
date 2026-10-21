@@ -93,7 +93,7 @@
     {
       "id": "cabbage",
       "name": "キャベツ",
-      "icon": "mark:キ:#cfe8b0",
+      "icon": "draw:ball:#dcefd0:#5f9c6a",
       "water": 8,
       "fertilizer": 6,
       "grow": 4,
@@ -186,7 +186,7 @@
     {
       "id": "pea",
       "name": "えんどう豆",
-      "icon": "mark:エ:#bfe3a0",
+      "icon": "draw:pod:#8fcf6a:#c9eba0",
       "water": 6,
       "fertilizer": 2,
       "grow": 4,
@@ -209,7 +209,7 @@
     {
       "id": "asparagus",
       "name": "アスパラガス",
-      "icon": "mark:ア:#c4e0a4",
+      "icon": "draw:stalk:#86bb5c:#b5d58a",
       "water": 6,
       "fertilizer": 6,
       "grow": 6,
@@ -232,7 +232,7 @@
     {
       "id": "radish",
       "name": "ラディッシュ",
-      "icon": "mark:ラ:#f6c1c8",
+      "icon": "draw:root:#e2506a:#6fb85a",
       "water": 3,
       "fertilizer": 2,
       "grow": 2,
@@ -256,7 +256,7 @@
     {
       "id": "lettuce",
       "name": "レタス",
-      "icon": "mark:レ:#d6efb4",
+      "icon": "draw:ball:#f4fbc8:#b4dc5a",
       "water": 5,
       "fertilizer": 2,
       "grow": 2,
@@ -417,7 +417,7 @@
     {
       "id": "okra",
       "name": "オクラ",
-      "icon": "mark:オ:#b5dc95",
+      "icon": "draw:long:#80c05c:#5d9a48",
       "water": 6,
       "fertilizer": 4,
       "grow": 3,
@@ -440,7 +440,7 @@
     {
       "id": "goya",
       "name": "ゴーヤ",
-      "icon": "mark:ゴ:#a6d48c",
+      "icon": "draw:long:#5aa04a:#47863c",
       "water": 8,
       "fertilizer": 5,
       "grow": 4,
@@ -486,7 +486,7 @@
     {
       "id": "shiso",
       "name": "しそ（大葉）",
-      "icon": "mark:し:#bfe0a8",
+      "icon": "draw:leaf:#4f9a5a:#3d7a48",
       "water": 5,
       "fertilizer": 2,
       "grow": 2,
@@ -579,7 +579,7 @@
     {
       "id": "taro",
       "name": "里芋",
-      "icon": "mark:里:#e2d3bd",
+      "icon": "draw:imo:#b38c69:#8d6b4f",
       "water": 9,
       "fertilizer": 4,
       "grow": 5,
@@ -671,7 +671,7 @@
     {
       "id": "chingensai",
       "name": "チンゲン菜",
-      "icon": "mark:チ:#c8e8b8",
+      "icon": "draw:leaf:#7cbf62:#e6f2d2",
       "water": 4,
       "fertilizer": 3,
       "grow": 2,
@@ -718,7 +718,7 @@
     {
       "id": "napa",
       "name": "白菜",
-      "icon": "mark:白:#eef3d8",
+      "icon": "draw:tall:#f7f7e8:#86c060",
       "water": 9,
       "fertilizer": 6,
       "grow": 4,
@@ -741,7 +741,7 @@
     {
       "id": "negi",
       "name": "ねぎ",
-      "icon": "mark:ね:#d2ecc0",
+      "icon": "draw:stalk:#6cb35a:#f4f6ea",
       "water": 5,
       "fertilizer": 4,
       "grow": 4,
@@ -764,7 +764,7 @@
     {
       "id": "turnip",
       "name": "かぶ",
-      "icon": "mark:か:#f1eef6",
+      "icon": "draw:root:#f7f6f1:#6fb85a",
       "water": 5,
       "fertilizer": 3,
       "grow": 3,
@@ -787,7 +787,7 @@
     {
       "id": "shungiku",
       "name": "春菊",
-      "icon": "mark:春:#c2e2a2",
+      "icon": "draw:leaf:#5aa652:#4a8a44",
       "water": 4,
       "fertilizer": 3,
       "grow": 2,
@@ -810,7 +810,7 @@
     {
       "id": "komatsuna",
       "name": "小松菜",
-      "icon": "mark:小:#b8dea0",
+      "icon": "draw:leaf:#4c984c:#8fcb7c",
       "water": 4,
       "fertilizer": 2,
       "grow": 2,
@@ -833,7 +833,7 @@
     {
       "id": "mizuna",
       "name": "水菜",
-      "icon": "mark:水:#d8efc0",
+      "icon": "draw:leaf:#93d36c:#f3f6e6",
       "water": 4,
       "fertilizer": 2,
       "grow": 2,

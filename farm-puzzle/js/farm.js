@@ -18,7 +18,7 @@ const Farm = (() => {
 
   let data = null;    // 保存データ全体
   let cfg = null;     // data/vegetables.json の中身
-  let hooks = {};     // { onChange, onAction, onHarvest(veg, first, seasonDone) }
+  let hooks = {};     // { onChange, onAction, onHarvest(初めて収穫した野菜の一覧, seasonDone) }
   let root = null;
 
   function init(options) {
@@ -154,53 +154,97 @@ const Farm = (() => {
     acted();
   }
 
-  function work(index) {
-    const plot = data.plots[index];
-    if (plot.stage === READY) {
-      harvest(index);
-      return;
-    }
+  // 水やり・追肥を1区画ぶん行う。行った作業の名前を返す（できなければ null）
+  function doWork(plot) {
     const cost = costOf(plot);
-    if (plot.stage === 2 || !canAfford(cost)) return;
-
+    if (plot.stage > 1 || !canAfford(cost)) return null;
     data.resources.water -= cost.water;
     data.resources.fertilizer -= cost.fertilizer;
-    const v = veg(plot.vegId);
-    if (plot.stage === 0) {
-      tellStep(v, 'water');
-    } else {
+    const step = plot.stage === 0 ? 'water' : 'fertilize';
+    if (step === 'fertilize') {
       // 追肥したら育ち時間スタート。いちばん最初だけ短く
-      tellStep(v, 'fertilize');
-      plot.growLeft = data.firstGrowDone ? (v.grow || cfg.rules.growLines) : cfg.rules.firstGrowLines;
+      plot.growLeft = data.firstGrowDone ? (veg(plot.vegId).grow || cfg.rules.growLines) : cfg.rules.firstGrowLines;
       data.firstGrowDone = true;
     }
     plot.stage += 1;
+    return step;
+  }
+
+  function work(index) {
+    const plot = data.plots[index];
+    if (plot.stage === READY) {
+      harvestPlots([index]);
+      return;
+    }
+    const step = doWork(plot);
+    if (!step) return;
+    tellStep(veg(plot.vegId), step);
     Sound.play('work');
     acted();
   }
 
-  function harvest(index) {
-    const v = veg(data.plots[index].vegId);
-    const bonus = inSeason(v);
-    const coins = Math.round(v.price * (bonus ? cfg.rules.seasonBonus : 1));
-    data.resources.coins += coins;
-    const first = !data.harvested[v.id];
-    data.harvested[v.id] = (data.harvested[v.id] || 0) + 1;
-    data.plots[index] = null;
+  // まとめて作業（step：'water' | 'fertilize' | 'harvest'）。お知らせは1件にまとめる
+  function workAll(step) {
+    if (step === 'harvest') {
+      harvestPlots(indicesAt(READY));
+      return;
+    }
+    const stage = step === 'water' ? 0 : 1;
+    let count = 0;
+    let last = null;
+    data.plots.forEach((p) => {
+      if (p && p.stage === stage && doWork(p)) {
+        count += 1;
+        last = p;
+      }
+    });
+    if (!count) return;
+    toast(Msg.t('farm.bulkDone', { step: Msg.t('farm.stepNames.' + step), n: count }) +
+      `\n${Msg.t('farm.stepNames.' + step)}：${veg(last.vegId).steps[step]}`);
+    Sound.play('work');
+    acted();
+  }
 
+  function indicesAt(stage) {
+    return data.plots.map((p, i) => (p && p.stage === stage ? i : -1)).filter((i) => i >= 0);
+  }
+
+  // 収穫（1区画でもまとめてでも）。旬かどうかは収穫を始めたときの季節で決める
+  function harvestPlots(indices) {
+    if (!indices.length) return;
     const done = season();
     const doneVegs = seasonalVegs();
-    if (bonus && !data.seasonHarvested.includes(v.id)) data.seasonHarvested.push(v.id);
+    const firsts = [];
+    const names = indices.map((i) => data.plots[i].vegId);
+    let coins = 0;
+    let bonusAny = false;
+    indices.forEach((i) => {
+      const v = veg(data.plots[i].vegId);
+      const bonus = v.seasons.includes(done.id);
+      coins += Math.round(v.price * (bonus ? cfg.rules.seasonBonus : 1));
+      if (bonus) {
+        bonusAny = true;
+        if (!data.seasonHarvested.includes(v.id)) data.seasonHarvested.push(v.id);
+      }
+      if (!data.harvested[v.id]) firsts.push(v);
+      data.harvested[v.id] = (data.harvested[v.id] || 0) + 1;
+      data.plots[i] = null;
+    });
+    data.resources.coins += coins;
     const next = checkSeason();
 
-    let text = Msg.t('farm.harvested', { name: v.name, coins, coin: Msg.t('icons.coin') });
-    if (bonus) text += '\n' + Msg.t('farm.seasonBonus');
+    const coin = Msg.t('icons.coin');
+    const single = indices.length === 1 ? veg(names[0]) : null;
+    let text = single
+      ? Msg.t('farm.harvested', { name: single.name, coins, coin })
+      : Msg.t('farm.harvestedMany', { n: indices.length, coins, coin });
+    if (bonusAny) text += '\n' + Msg.t('farm.seasonBonus');
     if (next) text += '\n' + Msg.t('farm.seasonAdvanced', { done: done.name, icon: next.icon, season: next.name });
-    else text += '\n' + v.steps.harvest;
+    else if (single) text += '\n' + single.steps.harvest;
     toast(text);
     Sound.play('harvest');
     acted();
-    if (hooks.onHarvest) hooks.onHarvest(v, first, next ? { done, next, vegs: doneVegs } : null);
+    if (hooks.onHarvest) hooks.onHarvest(firsts, next ? { done, next, vegs: doneVegs } : null);
   }
 
   function buyPlot() {
@@ -258,6 +302,8 @@ const Farm = (() => {
     data.plots.forEach((plot, i) => grid.append(plotCard(plot, i)));
     root.append(grid);
 
+    root.append(bulkBar());
+
     // 区画を増やす
     const price = nextPlotPrice();
     if (data.plots.length < maxPlots()) {
@@ -271,6 +317,42 @@ const Farm = (() => {
     } else {
       root.append(h('p', { class: 'farm-note' }, Msg.t('farm.maxPlots')));
     }
+  }
+
+  // 前から順に作業したとき、資源が足りて実際にできる区画（workAll と同じ順・同じ数え方）
+  function doableInOrder(targets) {
+    const left = { ...data.resources };
+    return targets.filter((p) => {
+      const cost = costOf(p);
+      if (left.water < cost.water || left.fertilizer < cost.fertilizer) return false;
+      left.water -= cost.water;
+      left.fertilizer -= cost.fertilizer;
+      return true;
+    });
+  }
+
+  // まとめて作業のボタン。できないときはうすく表示して理由を出す
+  function bulkBar() {
+    const items = [
+      { step: 'water', stage: 0, short: 'farm.bulkShortWater' },
+      { step: 'fertilize', stage: 1, short: 'farm.bulkShortFert' },
+      { step: 'harvest', stage: READY, short: null },
+    ];
+    return h('div', { class: 'bulk-bar' }, items.map(({ step, stage, short }) => {
+      const targets = data.plots.filter((p) => p && p.stage === stage);
+      const affordable = step === 'harvest' ? targets : doableInOrder(targets);
+      let reason = null;
+      if (!targets.length) reason = Msg.t('farm.bulkNone');
+      else if (!affordable.length) reason = Msg.t(short);
+      return h('div', { class: 'bulk-item' },
+        h('button', {
+          class: 'btn' + (step === 'harvest' && affordable.length ? ' primary' : ''),
+          type: 'button',
+          disabled: reason ? '' : null,
+          onclick: () => workAll(step),
+        }, Msg.t('farm.bulk.' + step, { n: affordable.length })),
+        h('span', { class: 'bulk-reason' }, reason || '\u00a0'));
+    }));
   }
 
   function plotCard(plot, index) {

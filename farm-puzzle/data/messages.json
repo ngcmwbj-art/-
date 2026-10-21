@@ -25,7 +25,10 @@
     "retry": "もう一度あそぶ",
     "toFarm": "はたけを見る",
     "undo": "↩ 一手もどす",
-    "undone": "一手もどしました（1プレイに1回だけ）"
+    "undone": "一手もどしました（1プレイに1回だけ）",
+    "shuffle": "🔄 とりかえ",
+    "shuffleOver": "🔄 手元をとりかえる",
+    "shuffled": "手元のブロックをとりかえました（1プレイに1回だけ）"
   },
   "farm": {
     "seasonNow": "いまは {season}",
@@ -61,7 +64,17 @@
     "seedOthers": "ほかの季節の野菜",
     "seedGot": "収穫ずみ",
     "seedGrow": "育ち{n}列",
-    "seasonCount": "{got} / {total}"
+    "seasonCount": "{got} / {total}",
+    "bulk": {
+      "water": "ぜんぶ水やり（{n}）",
+      "fertilize": "ぜんぶ追肥（{n}）",
+      "harvest": "ぜんぶ収穫（{n}）"
+    },
+    "bulkNone": "対象の区画なし",
+    "bulkShortWater": "水が足りません",
+    "bulkShortFert": "肥料が足りません",
+    "bulkDone": "{step}を{n}区画まとめてしました",
+    "harvestedMany": "{n}区画をまとめて収穫しました！ {coin}+{coins}"
   },
   "zukan": {
     "title": "やさい図鑑",
