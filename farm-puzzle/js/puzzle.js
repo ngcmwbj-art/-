@@ -12,44 +12,44 @@ const Puzzle = (() => {
 
   // ブロックの形（[行, 列] の並び）。weight が大きいほど出やすい
   const SHAPES = [
-    { cells: [[0, 0]], weight: 2 },
-    { cells: [[0, 0], [0, 1]], weight: 3 },
-    { cells: [[0, 0], [1, 0]], weight: 3 },
-    { cells: [[0, 0], [0, 1], [0, 2]], weight: 3 },
-    { cells: [[0, 0], [1, 0], [2, 0]], weight: 3 },
+    { cells: [[0, 0]], weight: 1 },
+    { cells: [[0, 0], [0, 1]], weight: 2 },
+    { cells: [[0, 0], [1, 0]], weight: 2 },
+    { cells: [[0, 0], [0, 1], [0, 2]], weight: 2 },
+    { cells: [[0, 0], [1, 0], [2, 0]], weight: 2 },
     { cells: [[0, 0], [0, 1], [0, 2], [0, 3]], weight: 2 },
     { cells: [[0, 0], [1, 0], [2, 0], [3, 0]], weight: 2 },
-    { cells: [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4]], weight: 1 },
-    { cells: [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]], weight: 1 },
+    { cells: [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4]], weight: 2 },
+    { cells: [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]], weight: 2 },
     // 四角
-    { cells: [[0, 0], [0, 1], [1, 0], [1, 1]], weight: 3 },
-    { cells: [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2]], weight: 1 },
-    { cells: [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [2, 1]], weight: 1 },
-    { cells: [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2]], weight: 1 },
+    { cells: [[0, 0], [0, 1], [1, 0], [1, 1]], weight: 2 },
+    { cells: [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2]], weight: 2 },
+    { cells: [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [2, 1]], weight: 2 },
+    { cells: [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2]], weight: 2 },
     // 小さいL（3マス）
     { cells: [[0, 0], [1, 0], [1, 1]], weight: 2 },
     { cells: [[0, 1], [1, 0], [1, 1]], weight: 2 },
     { cells: [[0, 0], [0, 1], [1, 0]], weight: 2 },
     { cells: [[0, 0], [0, 1], [1, 1]], weight: 2 },
     // L（4マス）
-    { cells: [[0, 0], [1, 0], [2, 0], [2, 1]], weight: 1 },
-    { cells: [[0, 1], [1, 1], [2, 1], [2, 0]], weight: 1 },
-    { cells: [[0, 0], [0, 1], [1, 0], [2, 0]], weight: 1 },
-    { cells: [[0, 0], [0, 1], [1, 1], [2, 1]], weight: 1 },
-    { cells: [[0, 0], [0, 1], [0, 2], [1, 0]], weight: 1 },
-    { cells: [[0, 0], [0, 1], [0, 2], [1, 2]], weight: 1 },
-    { cells: [[0, 0], [1, 0], [1, 1], [1, 2]], weight: 1 },
-    { cells: [[0, 2], [1, 0], [1, 1], [1, 2]], weight: 1 },
+    { cells: [[0, 0], [1, 0], [2, 0], [2, 1]], weight: 2 },
+    { cells: [[0, 1], [1, 1], [2, 1], [2, 0]], weight: 2 },
+    { cells: [[0, 0], [0, 1], [1, 0], [2, 0]], weight: 2 },
+    { cells: [[0, 0], [0, 1], [1, 1], [2, 1]], weight: 2 },
+    { cells: [[0, 0], [0, 1], [0, 2], [1, 0]], weight: 2 },
+    { cells: [[0, 0], [0, 1], [0, 2], [1, 2]], weight: 2 },
+    { cells: [[0, 0], [1, 0], [1, 1], [1, 2]], weight: 2 },
+    { cells: [[0, 2], [1, 0], [1, 1], [1, 2]], weight: 2 },
     // T
-    { cells: [[0, 0], [0, 1], [0, 2], [1, 1]], weight: 1 },
-    { cells: [[0, 1], [1, 0], [1, 1], [1, 2]], weight: 1 },
-    { cells: [[0, 0], [1, 0], [1, 1], [2, 0]], weight: 1 },
-    { cells: [[0, 1], [1, 0], [1, 1], [2, 1]], weight: 1 },
+    { cells: [[0, 0], [0, 1], [0, 2], [1, 1]], weight: 2 },
+    { cells: [[0, 1], [1, 0], [1, 1], [1, 2]], weight: 2 },
+    { cells: [[0, 0], [1, 0], [1, 1], [2, 0]], weight: 2 },
+    { cells: [[0, 1], [1, 0], [1, 1], [2, 1]], weight: 2 },
     // S・Z
-    { cells: [[0, 1], [0, 2], [1, 0], [1, 1]], weight: 1 },
-    { cells: [[0, 0], [0, 1], [1, 1], [1, 2]], weight: 1 },
-    { cells: [[0, 0], [1, 0], [1, 1], [2, 1]], weight: 1 },
-    { cells: [[0, 1], [1, 0], [1, 1], [2, 0]], weight: 1 },
+    { cells: [[0, 1], [0, 2], [1, 0], [1, 1]], weight: 2 },
+    { cells: [[0, 0], [0, 1], [1, 1], [1, 2]], weight: 2 },
+    { cells: [[0, 0], [1, 0], [1, 1], [2, 1]], weight: 2 },
+    { cells: [[0, 1], [1, 0], [1, 1], [2, 0]], weight: 2 },
   ];
 
   // 得点のルール
@@ -57,6 +57,7 @@ const Puzzle = (() => {
     pointPerCell: 1,     // 置いたマス1つあたり
     pointPerLine: 10,    // 消した列1本あたり
     comboKeepMoves: 3,   // この手数のあいだ消さないとコンボが切れる
+    pieceSetTries: 1,    // 3つのうちどれかが置けるまで引き直す回数（多いほどやさしい。1 = 引き直さない）
   };
 
   let st = null;       // 盤面の状態 { board, pieces, score, combo, movesSinceClear, over, bestBefore, undoUsed }
@@ -156,10 +157,10 @@ const Puzzle = (() => {
     return { shape, color: Math.floor(Math.random() * COLOR_COUNT) };
   }
 
-  // 3つのうち少なくとも1つは置けるように、何度か引き直す（やさしめ）
+  // 3つのブロックを引く。pieceSetTries が 2 以上なら、どれかが置けるまで引き直す
   function makePieceSet() {
     let set = [];
-    for (let tries = 0; tries < 30; tries++) {
+    for (let tries = 0; tries < RULES.pieceSetTries; tries++) {
       set = [randomPiece(), randomPiece(), randomPiece()];
       if (set.some(fitsSomewhere)) break;
     }

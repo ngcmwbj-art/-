@@ -71,9 +71,10 @@ main.js が JSON を読み込む
 {
   "id": "tomato",              // 英数字の ID（保存データで使うので後から変えない）
   "name": "トマト",
-  "icon": "🍅",                // 絵文字 / "css:daikon"（CSSの絵）/ "img:img/tomato.png"（画像）
+  "icon": "🍅",                // 絵文字 / "mark:キ:#cfe8b0"（色の丸に1文字）/ "css:daikon"（CSSの絵）/ "img:img/tomato.png"（画像）
   "water": 6,                  // 水やりに必要な水
   "fertilizer": 4,             // 追肥に必要な肥料
+  "grow": 6,                   // 追肥してから実るまでに消す列の数（なければ rules.growLines）
   "price": 24,                 // 収穫したときのコイン
   "seasons": ["summer"],       // 旬の季節（spring / summer / autumn / winter）
   "seasonText": "夏（6〜8月ごろ）",  // 図鑑に出る旬の説明
@@ -92,10 +93,12 @@ main.js が JSON を読み込む
 | `seasonBonus` | 旬の野菜を収穫したときのコイン倍率 |
 | `waterMax` / `fertilizerMax` | 水・肥料の上限 |
 | `nearFullRate` | この割合をこえたら「もうすぐいっぱい」と知らせる（0.8 = 8割） |
-| `growLines` / `firstGrowLines` | 追肥してから実るまでに消す列の数（いちばん最初だけ firstGrowLines） |
+| `growLines` / `firstGrowLines` | 野菜に `grow` がないときの実るまでの列数／いちばん最初の1回だけの列数 |
 | `startPlots` / `plotPrices` | 最初の区画数と、区画を増やす値段（並べた数だけ増やせる） |
 
-ブロックの形や出やすさは `js/puzzle.js` の `SHAPES`、得点は `RULES` で変えられます。
+ブロックの形や出やすさは `js/puzzle.js` の `SHAPES`、得点や引き直しの回数（やさしさ）は `RULES` で変えられます。
+
+野菜は35種類。各季節に旬の野菜が10種類ずつあります（2つの季節が旬の野菜もあります）。
 
 ### 文言（`data/messages.json`）
 

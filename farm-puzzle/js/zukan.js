@@ -10,6 +10,7 @@ const Zukan = (() => {
   let data = null;   // 保存データ全体
   let cfg = null;    // data/vegetables.json の中身
   let root = null;
+  let filter = 'all';  // 図鑑のしぼりこみ（all か 季節のID）
 
   function init(options) {
     data = options.data;
@@ -30,8 +31,21 @@ const Zukan = (() => {
       )
     );
 
+    // 季節でしぼりこむボタン
+    const chips = h('div', { class: 'zukan-filter' });
+    [{ id: 'all', name: Msg.t('zukan.all') }, ...cfg.seasons].forEach((s) => {
+      chips.append(h('button', {
+        class: 'filter-chip' + (filter === s.id ? ' active' : ''),
+        type: 'button',
+        onclick: () => { filter = s.id; render(); },
+      }, (s.icon ? s.icon + ' ' : '') + s.name));
+    });
+    root.append(chips);
+
     const list = h('div', { class: 'zukan-list' });
-    cfg.vegetables.forEach((v) => list.append(data.harvested[v.id] ? card(v) : lockedCard()));
+    cfg.vegetables
+      .filter((v) => filter === 'all' || v.seasons.includes(filter))
+      .forEach((v) => list.append(data.harvested[v.id] ? card(v) : lockedCard(v)));
     root.append(list);
   }
 
@@ -55,13 +69,14 @@ const Zukan = (() => {
     );
   }
 
-  // まだ収穫していない野菜（名前はかくす）
-  function lockedCard() {
+  // まだ収穫していない野菜（名前はかくし、旬の季節だけ見せる）
+  function lockedCard(v) {
+    const seasons = v.seasons.map((id) => cfg.seasons.find((s) => s.id === id).name).join('・');
     return h('article', { class: 'zukan-card locked' },
       h('div', { class: 'zukan-icon' }, '？'),
       h('div', { class: 'zukan-body' },
         h('h3', { class: 'zukan-name' }, Msg.t('zukan.unknownName')),
-        h('p', { class: 'zukan-locked-text' }, Msg.t('zukan.unknownText'))
+        h('p', { class: 'zukan-locked-text' }, Msg.t('zukan.unknownText', { season: seasons }))
       )
     );
   }

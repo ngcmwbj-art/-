@@ -165,7 +165,7 @@ const Farm = (() => {
     } else {
       // 追肥したら育ち時間スタート。いちばん最初だけ短く
       tellStep(v, 'fertilize');
-      plot.growLeft = data.firstGrowDone ? cfg.rules.growLines : cfg.rules.firstGrowLines;
+      plot.growLeft = data.firstGrowDone ? (v.grow || cfg.rules.growLines) : cfg.rules.firstGrowLines;
       data.firstGrowDone = true;
     }
     plot.stage += 1;
@@ -311,11 +311,26 @@ const Farm = (() => {
     );
   }
 
-  // 種を選ぶダイアログ
+  // 種を選ぶダイアログ（いまが旬の野菜を先に）
   function openSeedPicker(index) {
     const list = h('div', { class: 'seed-list' });
-    cfg.vegetables.forEach((v) => {
-      list.append(
+    const now = cfg.vegetables.filter(inSeason);
+    const others = cfg.vegetables.filter((v) => !inSeason(v));
+    list.append(h('div', { class: 'seed-heading' }, Msg.t('farm.seedNow', { season: season().name })));
+    now.forEach((v) => list.append(seedButton(v, index)));
+    list.append(h('div', { class: 'seed-heading' }, Msg.t('farm.seedOthers')));
+    others.forEach((v) => list.append(seedButton(v, index)));
+    Modal.open({
+      title: Msg.t('farm.pickSeed'),
+      body: list,
+      buttons: [{ label: Msg.t('common.cancel') }],
+    });
+  }
+
+  function seedButton(v, index) {
+    const got = data.seasonHarvested.includes(v.id);
+    return (
+
         h('button', {
           class: 'seed',
           onclick: () => {
@@ -325,19 +340,17 @@ const Farm = (() => {
         },
           h('span', { class: 'seed-icon' }, vegIcon(v)),
           h('span', { class: 'seed-info' },
-            h('span', { class: 'seed-name' }, v.name, inSeason(v) ? h('span', { class: 'shun' }, Msg.t('farm.shun')) : null),
+            h('span', { class: 'seed-name' }, v.name,
+              inSeason(v) ? h('span', { class: 'shun' }, Msg.t('farm.shun')) : null,
+              got ? h('span', { class: 'seed-got' }, Msg.t('farm.seedGot')) : null),
             h('span', { class: 'seed-cost' },
-              `${Msg.t('icons.water')}${v.water}  ${Msg.t('icons.fertilizer')}${v.fertilizer}  →  ${Msg.t('icons.coin')}${v.price}`),
+              `${Msg.t('icons.water')}${v.water}  ${Msg.t('icons.fertilizer')}${v.fertilizer}  ` +
+              Msg.t('farm.seedGrow', { n: v.grow || cfg.rules.growLines }) +
+              `  →  ${Msg.t('icons.coin')}${v.price}`),
             h('span', { class: 'seed-season' }, Msg.t('farm.seasonOf', { season: seasonNames(v) }))
           )
         )
-      );
-    });
-    Modal.open({
-      title: Msg.t('farm.pickSeed'),
-      body: list,
-      buttons: [{ label: Msg.t('common.cancel') }],
-    });
+    );
   }
 
   return { init, render, gainFromLines, hasAction, limits, season, inSeason, seasonNames, veg };
