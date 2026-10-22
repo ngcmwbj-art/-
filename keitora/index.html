@@ -1087,6 +1087,7 @@ canvas { display: block; width: 100%; height: 100%; }
     easyRun = best < 150;
     rk.passed.clear();
     rk.rival = null;
+    pace = [0];
     state = 'play';
     paused = false;
     titleEl.hidden = true;
@@ -1185,7 +1186,11 @@ canvas { display: block; width: 100%; height: 100%; }
         const prev = bestScore;
         rec = score > bestScore;
         if (rec) { bestScore = score; store.set('keitora-best-score', bestScore); store.set('keitora-best-score-m', m); }
-        if (m > best) { best = m; store.set('keitora-best', best); }
+        if (m > best) {
+          best = m; store.set('keitora-best', best);
+          // 自己ベストの走りの進み方を覚えておく（次からペースの影になる）
+          ghost = pace.slice(); store.set('keitora-ghost', JSON.stringify(ghost));
+        }
         $('result').innerHTML = `${fmtM(score)}<small>点</small>`;
         $('rankLine').hidden = false;
         $('rankName').textContent = rankOf(m);
@@ -1241,6 +1246,7 @@ canvas { display: block; width: 100%; height: 100%; }
         sfx('ui');
       }
       rk.rival = rivalAhead();
+      recordPace();
       // 配達スコア：1 m 進むごとに、積んでいるトマトの数だけ加点
       if (m > scoreM) { score += (m - scoreM) * tomatoes; scoreM = m; }
       // エンドレスは 500 m ごとのトマト畑で満杯に積み直す
@@ -2280,6 +2286,43 @@ canvas { display: block; width: 100%; height: 100%; }
     }
     drawRivalFlag();
   }
+  // ---- 自己ベストのペースの影 ----
+  // 自己ベストの走りで「同じ時間にどこまで進んでいたか」を PACE_DT 秒ごとに覚え、うっすらした軽トラで並走させる
+  const PACE_DT = 0.5;
+  let pace = [0];
+  let ghost = (() => {
+    try { const g = JSON.parse(store.get('keitora-ghost', '[]')); return Array.isArray(g) ? g.map(Number).filter(v => v >= 0) : []; }
+    catch (e) { return []; }
+  })();
+  function recordPace() {
+    while (runTime >= pace.length * PACE_DT) pace.push(cam / PX_PER_M);
+  }
+  function drawGhost() {
+    if (state !== 'play' || ghost.length < 2) return;
+    const f = runTime / PACE_DT, i = Math.floor(f);
+    if (i >= ghost.length - 1) return;      // 前の自分はここで終わった
+    const gm = ghost[i] + (ghost[i + 1] - ghost[i]) * (f - i);
+    const gx = gm * PX_PER_M - cam + truckX;
+    if (gx < -TRUCK_W - 20 || gx > W + 20) return;
+    // 旗の近くでは出さない（重なって見づらいため）
+    const flags = [best * PX_PER_M + TRUCK_FRONT - cam];
+    if (rk.rival) flags.push(rk.rival.m * PX_PER_M + TRUCK_FRONT - cam);
+    if (flags.some(fx => fx > gx - 40 && fx < gx + TRUCK_W + 40)) return;
+    const near = Math.abs(gx - truckX);
+    ctx.save();
+    ctx.globalAlpha = 0.28 * clamp((near - 20) / 60, 0, 1);   // 自分と重なるときは消える
+    if (ctx.globalAlpha > 0.01) {
+      const gy = groundAt(gm * PX_PER_M + TRUCK_X + 40);
+      drawTruck({ x: gx, y: gy, angle: 0, pivot: 0, wob: 0, squash: 0, dent: 0, flat: false, mud: 0, load: TOMATO_MAX, shadow: false });
+      ctx.globalAlpha *= 2.2;
+      ctx.fillStyle = '#fffbea';
+      ctx.font = '11px ' + FONT;
+      ctx.textAlign = 'center';
+      ctx.fillText('ベストの自分', gx + TRUCK_W / 2, gy - 72);
+    }
+    ctx.restore();
+  }
+
   // ランキングで、今いる地点のすぐ先を走った1人（自分の記録は除く）
   function rivalAhead() {
     if (!rk.on || state !== 'play') return null;
@@ -3020,6 +3063,7 @@ canvas { display: block; width: 100%; height: 100%; }
     drawRoad();
     drawMarkers();
     drawHazards();
+    drawGhost();
     drawTruck(mainTruckSpec());
     if (truck.falling && truck.pit) {
       ctx.save();
