@@ -442,3 +442,14 @@ body.lefty #stick-hint { left: auto; right: 14%; margin: -60px -60px; }
 #result .stats li.ship b.down { color: #ff9a8a; }
 #result .stats li.cow b { text-align: right; }
 #result .stats li.cow small { display: block; font-size: 11px; opacity: .75; font-weight: 500; }
+
+/* 戦況の合図（被害の赤い縁とは別：上下の細い帯・オレンジ・ゆっくり） */
+#battleband { position: absolute; inset: 0; pointer-events: none; display: none; }
+#battleband.on { display: block; }
+#battleband i { position: absolute; left: 0; right: 0; height: 14px; opacity: 0; }
+#battleband .top { top: 0; background: linear-gradient(180deg, rgba(255,150,40,.7), rgba(255,150,40,0)); }
+#battleband .bottom { bottom: 0; background: linear-gradient(0deg, rgba(255,150,40,.7), rgba(255,150,40,0)); }
+#battleband.s1 i { animation: band 2.4s ease-in-out infinite; }
+#battleband.s2 i { animation: band 1s ease-in-out infinite; height: 20px; }
+@keyframes band { 0%, 100% { opacity: .15; } 50% { opacity: .75; } }
+#news .map { margin-top: 6px; padding: 4px 12px; border: 1px solid #ff8a7a; border-radius: 14px; background: rgba(255,90,74,.18); color: #fff; font: 700 12px 'Zen Kaku Gothic New', system-ui, sans-serif; cursor: pointer; }

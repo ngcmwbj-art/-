@@ -147,6 +147,7 @@ class Game {
 
     this.bindInput();
     bindSettingsPanel(this);
+    this.hud.onOpenMap = () => this.toggleMap(true);
     addEventListener('resize', () => this.resize());
     this.clock = new THREE.Clock();
     renderer.setAnimationLoop(() => this.frame());
@@ -191,7 +192,7 @@ class Game {
     });
     canvas.addEventListener('mousedown', (e) => {
       if (document.pointerLockElement !== canvas) { this.lockPointer(); return; }
-      if (e.button === 0) this.doChord();
+      if (e.button === 0) { if (!this.pickHarvest(innerWidth / 2, innerHeight / 2)) this.doChord(); }
       if (e.button === 2) this.doObserve();
     });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -241,6 +242,7 @@ class Game {
       (r.memo || []).forEach((k) => this.memoSeen.add(k));
       (r.cards || []).forEach((k) => this.cards.add(k));
       if (r.cowLog) this.cowLog = r.cowLog;
+      this.harvestYen = r.harvestYen || 0;
       this.cabbages.restore(r.cab);
       for (const t of r.towers || []) { const tw = this.towers.build(t.id, new THREE.Vector3(t.x, t.y, t.z)); tw.age = 5; }
       this.makePlan();
@@ -655,6 +657,7 @@ class Game {
     this.phaseT = 0;
     this.weather.setStorm(0);
     this.threats.clearAll();
+    this.harvest = null; this.harvestDone = 0;
     if (this.outage && this.outage.state === 'on') this.endOutage(false);
     if (this.cows.generator) { const l = this.cows.generator.userData.lamp; l.material.emissiveIntensity = 0; }
     this.openBoxes();
@@ -664,6 +667,90 @@ class Game {
     this.say('ふぅ…守り切ったぜ', true);
     this.hud.banner('台風一過！', `キャベツ ${this.cabbages.alive} 玉を守り抜いた（出荷見込み ${this.yen(this.sales())}）  +${bonus}Q`);
     this.audio.fanfare();
+  }
+
+  // 収穫タイム：台風のあと 10 秒だけ、マサトの近くに光る金のキャベツが 10 個。タップ（PC はクリック）か、近くを歩くと収穫
+  startHarvest() {
+    const cab = this.cabbages, p = this.player.pos;
+    const near = [];
+    for (let i = 0; i < cab.total; i++) {
+      if (cab.state[i]) continue;
+      const c = cab.list[i], d = Math.hypot(c.x - p.x, c.z - p.z);
+      if (d > 4 && d < 30) near.push([d + Math.random() * 12, i]);
+    }
+    near.sort((a, b) => a[0] - b[0]);
+    const picks = near.slice(0, 10).map(([, i]) => i);
+    if (!picks.length) { this.harvestDone = this.phaseT; return; }
+    const goldMat = new THREE.MeshStandardMaterial({ color: '#ffd84a', emissive: '#ffb020', emissiveIntensity: 1.4, roughness: 0.3, metalness: 0.4 });
+    const geo = new THREE.IcosahedronGeometry(0.55, 1);
+    const items = picks.map((i) => {
+      const c = cab.list[i];
+      const g = new THREE.Group();
+      const ball = new THREE.Mesh(geo, goldMat); ball.position.y = 0.55; g.add(ball);
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 8, 12, 1, true),
+        new THREE.MeshBasicMaterial({ color: '#ffe066', transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+      beam.position.y = 4; g.add(beam);
+      g.position.set(c.x, c.y, c.z);
+      this.scene.add(g);
+      return { g, ball, pos: new THREE.Vector3(c.x, c.y + 0.6, c.z), got: false, t: Math.random() * 6 };
+    });
+    this.harvest = { left: 10, items, got: 0 };
+    this.say('台風のあとは収穫だ！ 光ってるやつを取るぞ', true);
+    this.audio.qGain();
+  }
+  updateHarvest(dt) {
+    const h = this.harvest;
+    h.left -= dt;
+    for (const it of h.items) {
+      if (it.got) {
+        it.vy -= 25 * dt; it.g.position.y += it.vy * dt; it.g.rotation.y += dt * 12;
+        if (it.g.position.y < it.pos.y - 3) it.g.visible = false;
+        continue;
+      }
+      it.t += dt;
+      it.ball.position.y = 0.55 + Math.abs(Math.sin(it.t * 3)) * 0.25;
+      it.ball.rotation.y += dt * 2;
+      if (Math.hypot(this.player.pos.x - it.pos.x, this.player.pos.z - it.pos.z) < 2.2) this.collectHarvest(it);
+    }
+    const T = IS_TOUCH ? 'タップ' : '照準を合わせてクリック／近くを歩く';
+    this.hud.objective(`収穫タイム！ 光る金のキャベツを${T}（${h.got} / ${h.items.length}） 残り <b>${Math.ceil(Math.max(0, h.left))}</b> 秒`, '', true);
+    if (h.left <= 0 || h.got === h.items.length) this.endHarvest();
+  }
+  // 画面の座標 (x, y) の近くにある金のキャベツを収穫（当たりは大きめ：半径 80px）
+  pickHarvest(x, y) {
+    const h = this.harvest;
+    if (!h || this.paused) return false;
+    let best = null, bd = 80 * 80;
+    const v = new THREE.Vector3();
+    for (const it of h.items) {
+      if (it.got) continue;
+      v.copy(it.pos).project(this.camera);
+      if (v.z > 1) continue;
+      const sx = (v.x + 1) / 2 * innerWidth, sy = (1 - v.y) / 2 * innerHeight;
+      const d2 = (sx - x) ** 2 + (sy - y) ** 2;
+      if (d2 < bd) { bd = d2; best = it; }
+    }
+    if (!best) return false;
+    this.collectHarvest(best);
+    return true;
+  }
+  collectHarvest(it) {
+    const h = this.harvest;
+    it.got = true; it.vy = 9; h.got++;
+    this.audio.pop();
+    this.fx.burst(it.pos.clone(), '#ffd84a', 24, 6, 0.6, 0.35, 3);
+    this.hud.floater('ポンッ！ +1,500円', it.pos.clone().add(new THREE.Vector3(0, 1.5, 0)), this.camera, '#ffd84a');
+    this.harvestYen = (this.harvestYen || 0) + 1500;
+    this.q += 10;
+  }
+  endHarvest() {
+    const h = this.harvest;
+    for (const it of h.items) this.scene.remove(it.g);
+    this.harvest = null;
+    this.harvestDone = this.phaseT;
+    this.hud.objective(null);
+    this.hud.toast(`収穫タイム：金のキャベツ ${h.got} 個（+${(h.got * 1500).toLocaleString()} 円）`, h.got ? 'good' : '');
+    if (h.got === h.items.length) this.say('全部取ったぜ！', true);
   }
 
   // 準備タイムの小さな出来事（4 回に 3 回くらい。マサトの吹き出しで知らせる）
@@ -795,7 +882,7 @@ class Game {
   }
 
   // 出荷：キャベツ 1 玉 150 円で計算
-  sales() { return this.cabbages.alive * 150; }
+  sales() { return this.cabbages.alive * 150 + (this.harvestYen || 0); }
   yen(n) { return n.toLocaleString() + ' 円'; }
   // 牛の様子（台風のたびに牛舎へ戻せたか・停電を直せたかで変わる。出荷はしない）
   cowCondition() {
@@ -826,7 +913,8 @@ class Game {
     if (win) { rec.lastSales = sales; rec.bestSales = Math.max(rec.bestSales || 0, sales); saveRecords(rec); }
     const cow = this.cowCondition();
     el.querySelector('.stats').innerHTML = `
-      <li class="ship"><span>キャベツの売上（1玉 150 円）</span><b>${win ? this.yen(sales) : '出荷できず'}</b></li>
+      <li class="ship"><span>キャベツの売上（1玉 150 円${this.harvestYen ? '＋金のキャベツ' : ''}）</span><b>${win ? this.yen(sales) : '出荷できず'}</b></li>
+      ${this.harvestYen && win ? `<li><span>うち 収穫タイムの金のキャベツ</span><b>${this.yen(this.harvestYen)}</b></li>` : ''}
       ${diff != null ? `<li class="ship"><span>前回とくらべて</span><b class="${diff >= 0 ? 'up' : 'down'}">${diff >= 0 ? '+' : '−'}${this.yen(Math.abs(diff))}</b></li>` : ''}
       ${rec.bestSales ? `<li><span>これまでの最高売上</span><b>${this.yen(rec.bestSales)}</b></li>` : ''}
       <li class="cow"><span>牛の様子</span><b>${cow.text}<small>1日の増体 +${cow.gain.toFixed(2)}kg</small></b></li>
@@ -878,7 +966,10 @@ class Game {
       if (sp.boss && !this.threats.bossAlive) this.endStorm();
       if (this.phaseT > 260) this.endStorm();
     } else if (this.phase === 'clear') {
-      if (this.phaseT > 8 && !this.choosing) {
+      // 台風一過 → 収穫タイム（10 秒）→ 量子カード の順に一本の流れで
+      if (this.phaseT > 1.5 && !this.harvest && !this.harvestDone) this.startHarvest();
+      if (this.harvest) this.updateHarvest(dt);
+      if (this.harvestDone && !this.choosing && this.phaseT > this.harvestDone + 1.5) {
         if (this.wave + 1 >= WAVES.length) { this.finish(true); return; }
         this.offerCards();
       }
@@ -1241,6 +1332,21 @@ class Game {
     }
     if (this.bloom) this.bloom.strength = 0.3 + w.flash * 0.8 + (this.player.soloOn ? 0.25 : 0);
 
+    // 戦況で盛り上がる音楽と、画面の上下の合図（消音でも分かるように）
+    {
+      let stage = 0;
+      const b = this.threats.boss;
+      if (this.phase === 'storm' && this.spawn.boss && b && this.threats.bossAlive) {
+        const real = b.members.find((m) => m.real && m.alive);
+        stage = b.collapsed && real && real.hp < real.maxHp * 0.3 ? 2 : 1;
+      }
+      if (stage !== this.musicStage) {
+        this.musicStage = stage;
+        this.audio.stage = stage;
+        this.hud.battleStage(stage);
+        if (stage === 2) this.say('あと少し！ 押し切るぞ！', true);
+      }
+    }
     if (this.phase !== 'title') { this.hud.updateSpeech(this);
       this.hud.update(this); if (IS_TOUCH) updateTouch(this); }
     // 低画質は仕上げ処理（ブルーム・色調補正）を省いて直接描く

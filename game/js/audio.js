@@ -11,6 +11,7 @@ export class GameAudio {
     this.ctx = null;
     this.ready = false;
     this.intensity = 0;
+    this.stage = 0; // 0:ふつう 1:ボス戦 2:ボス残りわずか（テンポは変えず、刻みを細かくして速く感じさせる）
     this.nextBeat = 0;
     this.beatIndex = 0;
     this.start = 0;
@@ -98,6 +99,18 @@ export class GameAudio {
       this.hat(t, 0.06); this.hat(t + BEAT / 2, busy ? 0.08 : 0.04);
       this.bass(t, mtof(root - 12 + 12), BEAT * 0.9, busy ? 0.32 : 0.2);
       if (busy) this.bass(t + BEAT / 2, mtof(root - 12 + 12), BEAT * 0.4, 0.22);
+      // ボス戦：太鼓を足し、小節の頭でベースを重ねる
+      if (this.stage >= 1) {
+        if (inBar === 1 || inBar === 3) this.kick(t + BEAT / 2);
+        if (inBar === 0) this.bass(t, mtof(root - 24 + 12), BEAT * 1.8, 0.3);
+        this.tom(t + BEAT * 0.75, inBar === 3 ? 110 : 150, 0.25);
+      }
+      // 残りわずか：16 分の刻みと、小節の終わりのスネア連打
+      if (this.stage >= 2) {
+        this.hat(t + BEAT / 4, 0.05); this.hat(t + BEAT * 3 / 4, 0.05);
+        this.kick(t);
+        if (inBar === 3) for (let k = 1; k < 4; k++) this.snare(t + BEAT * k / 4, 0.18 + k * 0.08);
+      }
       this.nextBeat += BEAT;
       this.beatIndex++;
     }
@@ -108,6 +121,12 @@ export class GameAudio {
     o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12);
     g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
     o.connect(g).connect(this.music); o.start(t); o.stop(t + 0.32);
+  }
+  tom(t, freq, v) {
+    const c = this.ctx, o = c.createOscillator(), g = c.createGain();
+    o.frequency.setValueAtTime(freq, t); o.frequency.exponentialRampToValueAtTime(freq * 0.55, t + 0.18);
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+    o.connect(g).connect(this.music); o.start(t); o.stop(t + 0.24);
   }
   snare(t, v) {
     const c = this.ctx, n = c.createBufferSource(); n.buffer = this.noise;
@@ -213,6 +232,15 @@ export class GameAudio {
     this.sweep(90, 30, 1.5, 'sine', 0.5 * v);
   }
   qGain() { if (this.ready) this.chime(this.ctx.currentTime, mtof(96), 0.04); }
+  // 収穫の「ポンッ」
+  pop() {
+    if (!this.ready) return;
+    const c = this.ctx, t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(380, t); o.frequency.exponentialRampToValueAtTime(900, t + 0.08);
+    g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    o.connect(g).connect(this.sfx); o.start(t); o.stop(t + 0.16);
+    this.chime(t + 0.06, mtof(88 + Math.floor(Math.random() * 5)), 0.08);
+  }
   fanfare() {
     if (!this.ready) return;
     const t = this.ctx.currentTime;

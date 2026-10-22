@@ -16,6 +16,7 @@ export function setupTouch(game) {
   zone.addEventListener('touchstart', (e) => {
     e.preventDefault();
     for (const t of e.changedTouches) {
+      if (game.pickHarvest?.(t.clientX, t.clientY)) continue; // 収穫タイムのタップ
       const onStickSide = game.settings?.left ? t.clientX > innerWidth * 0.58 : t.clientX < innerWidth * 0.42;
       if (onStickSide && stickId === null) {
         // 触れた位置にスティックを出す

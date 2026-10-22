@@ -111,6 +111,12 @@ export class HUD {
     this._mt = setTimeout(done, 11000);
   }
 
+  // 戦況の合図：ボス戦はゆっくり、残りわずかは速く、画面の上下の細い帯がオレンジに脈打つ
+  battleStage(stage) {
+    const el = $('battleband');
+    el.className = stage ? 'on s' + stage : '';
+  }
+
   // キャベツがやられたとき、画面の端を一瞬赤く
   hurt() {
     const now = performance.now();
@@ -148,7 +154,8 @@ export class HUD {
   // 台風情報ニュース（画面下のテロップ。8 秒かタップで消える）
   news(title, lines) {
     const el = $('news');
-    el.innerHTML = `<span class="ch">銚子ローカル 台風情報</span><b>${title}</b>${lines.map((l) => `<p>${l}</p>`).join('')}<i class="x">×</i>`;
+    el.innerHTML = `<span class="ch">銚子ローカル 台風情報</span><b>${title}</b>${lines.map((l) => `<p>${l}</p>`).join('')}<button class="map">進路図を見る</button><i class="x">×</i>`;
+    el.querySelector('.map').onpointerdown = (e) => { e.stopPropagation(); el.className = ''; this.onOpenMap?.(); };
     el.className = ''; void el.offsetWidth; el.className = 'show';
     clearTimeout(this._nt);
     const close = () => { el.className = ''; };
@@ -377,6 +384,35 @@ export class HUD {
     }
     // 牛
     for (const c of game.cows?.list || []) if (c.obj.visible && c.state !== 'home') dot(c.pos.x, c.pos.z, '#f2c62e', 1.8);
+    // 台風の進路図（準備タイムの大きな地図）：予報円・進路・上陸までのカウントダウン
+    if (big && game.phase === 'prep' && game.plan && game.plan.landing) {
+      const L = game.plan.landing, a = game.plan.angle;
+      const dx = Math.cos(a), dz = Math.sin(a);
+      const pt = (k) => this.toMap(L.x + dx * k * 13, L.z + dz * k * 13); // 地図の外へはみ出さない間隔
+      // 予報円（遠いほど大きい＝どこへ来るかまだ不確か）
+      for (let k = 4; k >= 1; k--) {
+        const [cx, cy] = pt(k);
+        const r = (5 + k * 4) * s;
+        g.beginPath(); g.arc(cx, cy, r, 0, 7);
+        g.fillStyle = 'rgba(255,90,74,.10)'; g.fill();
+        g.setLineDash([2, 2]); g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 0.6; g.stroke(); g.setLineDash([]);
+      }
+      // 進路の線と矢印
+      const [sx0, sy0] = pt(5), [lx, ly] = this.toMap(L.x, L.z);
+      g.strokeStyle = '#ff5a4a'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(sx0, sy0); g.lineTo(lx, ly); g.stroke();
+      const ang = Math.atan2(ly - sy0, lx - sx0);
+      g.fillStyle = '#ff5a4a'; g.beginPath(); g.moveTo(lx, ly); g.lineTo(lx - Math.cos(ang - 0.45) * 6, ly - Math.sin(ang - 0.45) * 6); g.lineTo(lx - Math.cos(ang + 0.45) * 6, ly - Math.sin(ang + 0.45) * 6); g.fill();
+      // 台風のマーク
+      const [tx, ty] = pt(5);
+      g.font = '900 9px sans-serif'; g.textAlign = 'center'; g.fillStyle = '#ff5a4a'; g.fillText('🌀', tx, ty + 3);
+      // 上陸までのカウントダウン（地図の上のまん中に大きく）
+      const left = Math.max(0, Math.ceil(game.prepLength() - game.phaseT));
+      const msg = `${game.waveName()} 上陸まで ${left} 秒`;
+      g.font = '900 9px "Zen Kaku Gothic New", sans-serif';
+      const w = g.measureText(msg).width + 14;
+      g.fillStyle = 'rgba(160,30,20,.85)'; g.fillRect(100 - w / 2, 6, w, 14);
+      g.fillStyle = '#fff'; g.textAlign = 'center'; g.fillText(msg, 100, 16.5);
+    }
     // 雑魚
     for (const m of game.threats.minions) dot(m.pos.x, m.pos.z, m.type === 'mushi' ? '#9fe05a' : m.type === 'inoshishi' ? '#b07040' : '#222', m.type === 'inoshishi' ? 3 : 2);
     // 飛来物
