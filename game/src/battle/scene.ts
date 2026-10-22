@@ -30,6 +30,7 @@ import { hitCrack, hitSplash, sweatDrop } from './art/fxart';
 import { boarIcon, moyamoya } from './art/fxart_ch2';
 import { syncCh2Bg } from './ch2rules';
 import { markText } from '../engine/textzones';
+import { drawHint } from './hint';
 import { buttonZones } from '../engine/safezones';
 
 export const FRAME = 1000 / 60;
@@ -1280,6 +1281,8 @@ export class BattleScene implements Scene {
     if (this.showUi) this.drawUi(g);
     for (const f of this.fx) if (f.layer === 'top') f.draw(g, f.t, f.dur ? Math.min(1, f.t / f.dur) : 0);
     if (this.showUi) this.drawSticky(g);
+    // (the hint when stuck: hint.ts — never with a sticky)
+    if (this.showUi) drawHint(this, g);
     if (this.showUi) this.cues.draw(g, this.rt);
     // debris, stars, sweat and petals fly over the stage and the panels but
     // pass behind the band (its lines stay whole) and under the numbers —

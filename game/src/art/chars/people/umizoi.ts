@@ -615,6 +615,8 @@ const LOOKS: Look[] = [
       nuno: cloth('#F4F1E8', '#C8C2B4', '#FFF6D8', '#9AA0A8'), shoe: flat('#3A3F48'),
     }),
     head: adultHead('bun', true), short: 4, sleeve: 'long', bottom: 'mompe', hat: 'hiyoke', things: ['nuno'], shoe: 'shoe',
+    // (低う、平たく：小石の 浜の テルの 岩に すわる。events/ch3/mizukiri.ts)
+    sit: true,
   },
   {
     id: 'npc_c3_mago',

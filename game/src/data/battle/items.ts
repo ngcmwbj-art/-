@@ -14,6 +14,7 @@ import { MH_ITEM_CAMERA_DESC, MH_ITEM_FUTA_DESC } from '../text/c3_mahiru';
 import { YD_ITEM_BIN_DESC, YD_ITEM_DOFU_DESC } from '../text/c3_yose';
 import { OJ_ITEM_BALL_DESC } from '../text/c3_okujou';
 import { HM_ITEM_HANA_DESC } from '../text/hoshi_himo';
+import { SS_ITEM_DESC, SS_SARA_DESC } from '../text/hoshi_shishito';
 
 const items: ItemDef[] = [
   // QA round 1 balance: with 500円 (and the yakisoba shop's tab) the bag could
@@ -160,6 +161,9 @@ const items: ItemDef[] = [
   // 赤子 泣いても（02 #105）：ペロの 羽釜の おにぎり（非売品、3つ。HP は 焼き芋と きゅうりの 間）、
   // きつね色の おこげで 炊けた ときの ツガオ便の 分（転回場の ヒロスケに わたす）
   { id: 'item_hg_onigiri', name: 'ペロのおにぎり', target: 'ally', heal: 50, desc: HG_ITEM_ONIGIRI_DESC },
+  // 当たりは、かじって みんと（02_ch2_index）：ペロの 七輪の 焼きシシトウ（非売品、2つ）と、寄り合いへの 皿（集会所の 区長へ）
+  { id: 'item_ss_yaki', name: '焼きシシトウ', target: 'ally', heal: 51, desc: SS_ITEM_DESC },
+  { id: 'item_ss_sara', name: '寄り合いの皿', key: true, target: 'none', desc: SS_SARA_DESC, battleText: ['皿を 見せた。\n$enemyは シシトウの においを かいだ。'] },
   { id: 'item_hg_bin', name: '便の分のおにぎり', key: true, target: 'none', desc: HG_ITEM_BIN_DESC, battleText: ['おにぎりを 見せた。\n$enemyは おこげの においを かいだ。'] },
   // 湯を わかしてから（02 #106）：裏の 畑で もいだ 2本（集会所の ぴょん夫人に とどけると なべへ）
   { id: 'item_yw_moigi', name: 'もいだとうもろこし', key: true, target: 'none', desc: YW_ITEM_DESC, battleText: ['とうもろこしを 見せた。\n$enemyは ひげの 色を 見た。'] },

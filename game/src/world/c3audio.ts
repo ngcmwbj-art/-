@@ -59,6 +59,16 @@ const C3_AUDIO: Record<string, C3Audio> = {
     ambVol: { amb_c3_umi: { vol: 0.8 }, amb_c3_semi: { vol: 0.6 }, amb_c3_tori: { vol: 0.5 } },
     phase: 1,
   },
+  // 小石の 浜（低う、平たく、03_ch3_index）：町の 歌、海と やぶの 蝉（段階1〜2）
+  map_c3_koishi: {
+    space: 'minato',
+    pa: 'umi',
+    bgm: { 1: UMI, 2: UMI },
+    variant: 'outdoor',
+    amb: { 1: ['amb_c3_umi', 'amb_c3_semi'], 2: ['amb_c3_umi', 'amb_c3_semi'] },
+    ambVol: { amb_c3_umi: { vol: 0.9 }, amb_c3_semi: { vol: 0.45 } },
+    phase: 1,
+  },
   map_c3_nidai: {
     space: 'outdoor',
     pa: 'town',

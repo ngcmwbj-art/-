@@ -146,6 +146,8 @@ export const PLACES: Record<string, PlaceDef> = {
   map_c3_iso: { steps: { '~': -8, p: -5 }, c3sea: true, outside: (_tx, ty, edge) => (ty >= 10 ? '~' : ty < 2 ? 'K' : edge) },
   // 岬（旧水族館の 正面、2026-10-20）：海は 崖の 下。南の はしの 先は 海が 続く、北は 松林、西は 町へ 続く 道
   map_c3_misaki: { steps: { '~': -8 }, c3sea: true, outside: (_tx, ty, edge) => (ty >= 18 ? '~' : ty < 2 ? 'H' : edge) },
+  // 小石の 浜（低う、平たく、03_ch3_index）：海は 浜より 低い。南の はしの 先は 海が 続く、北は やぶ、東西は 岩
+  map_c3_koishi: { steps: { '~': -8 }, c3sea: true, outside: (tx, ty, edge) => (ty >= 8 ? '~' : ty < 1 ? 'H' : tx < 0 || tx > 23 ? 'K' : edge) },
 };
 
 export function placeOf(mapId: string): PlaceDef {

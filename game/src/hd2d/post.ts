@@ -18,6 +18,14 @@ import type { Grade } from '../world/lighting';
 
 export type Quality = 'light' | 'normal';
 
+/**
+ * The tilt-shift's strength (px of blur step at the very top / bottom of the frame): the street's
+ * (2026-10-22 改善会議 1「遠くのぼかしを弱める」: 2.2 → 1.4, so the people walking in or getting
+ * off up or down the screen read clearly) and a battle's backdrop's (as before).
+ */
+export const TILT_FIELD = 1.4;
+export const TILT_STILL = 2.2;
+
 /** Sharp band round the focus row, then the blur grows (uv units from the focus). */
 const BAND = 'smoothstep(0.14, 0.52, abs(focus - vUv.y))';
 
@@ -76,6 +84,8 @@ const FinishShader = {
     waveAmp: { value: 0 },
     waveT: { value: 0 },
     lift: { value: new THREE.Color(0.012, 0.008, 0.02) },
+    // the dark places lifted (2026-10-22 改善会議 2: the night, the rooms): the gain at black, 0 = off
+    brighten: { value: 0 },
     // a memory (chapter 3 S30's flashback, events/ch3/ending.ts): the colour faded toward memTint,
     // multiplied by memMul (the deep sea's blue, the night's), a haze and a deeper vignette; 0 = off
     memA: { value: 0 },
@@ -90,7 +100,7 @@ const FinishShader = {
     }`,
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
-    uniform float hstep, vstep, focus, desat, glareA, glareW, glareRight, topA, vignette, waveAmp, waveT, memA;
+    uniform float hstep, vstep, focus, desat, glareA, glareW, glareRight, topA, vignette, waveAmp, waveT, memA, brighten;
     uniform vec3 mul, glare, topDark, lift, memTint, memMul;
     varying vec2 vUv;
 
@@ -143,6 +153,9 @@ const FinishShader = {
       s = mix(s, s * topDark * 1.6, topA * ty);
       // a soft lift in the shadows (the HD-2D haze) and the vignette
       s = s + lift * (1.0 - s);
+      // the dark places: the dark and middle tones raised by a gain (the colour's own hue and
+      // saturation kept — the night's blue stays blue, nothing goes milky), the light ones left as they are
+      if (brighten > 0.0) s *= 1.0 + brighten * (1.0 - smoothstep(0.04, 0.62, dot(s, vec3(0.299, 0.587, 0.114))));
       vec2 v = (vUv - 0.5) * vec2(1.25, 1.0);
       s *= 1.0 - vignette * smoothstep(0.25, 0.85, dot(v, v) * 1.6);
       if (memA > 0.0) {
@@ -165,8 +178,11 @@ export class Post {
   readonly quality: Quality;
   private w = 1;
   private h = 1;
-  /** The tilt-shift blur on (the street) or off (inside: 2026-10-06 依頼主「建物の中でぼかしをしなくても良いと思う」). */
-  private tilt = true;
+  /**
+   * The tilt-shift blur's px step at the very top / bottom: TILT_FIELD on the street, TILT_STILL behind a
+   * battle, 0 inside (2026-10-06 依頼主「建物の中でぼかしをしなくても良いと思う」).
+   */
+  private tilt = TILT_STILL;
 
   constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, quality: Quality, w: number, h: number) {
     this.quality = quality;
@@ -197,18 +213,18 @@ export class Post {
     this.applyTilt();
   }
 
-  /** The tilt-shift blur on or off (inside the rooms it is off; the street and a battle's backdrop keep it). */
-  setTilt(on: boolean): void {
-    if (on === this.tilt) return;
-    this.tilt = on;
+  /** The tilt-shift blur's strength (TILT_FIELD, TILT_STILL; 0 = off: inside the rooms). */
+  setTilt(px: number): void {
+    if (px === this.tilt) return;
+    this.tilt = px;
     this.applyTilt();
   }
 
   private applyTilt(): void {
-    const blur = this.tilt ? 2.2 : 0; // px of blur step at the very top / bottom (normal)
+    const blur = this.tilt; // px of blur step at the very top / bottom (normal)
     if (this.vtilt) {
       this.vtilt.uniforms.vstep.value = blur / this.h;
-      this.vtilt.enabled = this.tilt;
+      this.vtilt.enabled = blur > 0;
     }
     const u = this.finish.uniforms;
     u.hstep.value = this.quality === 'normal' ? blur / this.w : 0;
@@ -230,6 +246,11 @@ export class Post {
     u.waveT.value = waveT;
     u.focus.value = focus;
     if (this.vtilt) this.vtilt.uniforms.focus.value = focus;
+  }
+
+  /** How much the dark places are lifted (BRIGHTEN; 0 = not at all). */
+  setBrighten(k: number): void {
+    this.finish.uniforms.brighten.value = k;
   }
 
   /** A memory's tone over the frame (a: 0 = off … 1; tint and mul as 0..1 RGB). */

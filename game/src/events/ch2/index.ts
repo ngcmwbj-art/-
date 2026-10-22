@@ -80,4 +80,7 @@ import './himo';
 // はく 前に、ふる（げむきか 10/21 の 案4、02_ch2_index #111）。トマじいを 包む（ごはん 一粒、花 一つ の 用は 先に 通す）。
 // hana の あとに import する
 import './kutsu';
+// 当たりは、かじって みんと（げむきか 10/22 の 案5、02_ch2_index）。ペロ（羽釜の 用は 先に 通す）・ハモ区長を 包む。
+// hagama の あとに import する
+import './shishito';
 import './debug';

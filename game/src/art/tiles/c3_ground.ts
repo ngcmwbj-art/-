@@ -76,6 +76,8 @@ export const C3_GROUNDS = [
   'c3_soko_iwa',
   // 沖の ブイの 下 (map_c3_umi_oki、海の 水で 寄せる 03_ch3_index 28): the white sand only, a little deeper (bluer) to the south
   'c3_soko_oki',
+  // 小石の 浜 (map_c3_koishi、低う、平たく 03_ch3_index): round pebbles, grey and beige, packed close
+  'c3_koishi',
 ] as const;
 export type C3Ground = (typeof C3_GROUNDS)[number];
 
@@ -561,6 +563,47 @@ const texSokoIwa: C3Tex = (x, y, v, ctx) => {
   return col;
 };
 
+/**
+ * 小石の 浜: rounded pebbles (grey, beige, a few white) packed close, each lit
+ * on its upper left by the noon sun and shaded below; the gaps between dark.
+ */
+const KOISHI = [c('#A8A49A'), c('#BDB6A6'), c('#8E8C86'), c('#C8C2B4'), c('#9A9284'), c('#D8D4C8')];
+const KOISHI_LT = c('#E8E4D8');
+const KOISHI_DK = c('#6B6A66');
+const KOISHI_GAP = c('#5A564E');
+const texKoishi: C3Tex = (x, y) => {
+  // pebbles on a jittered 5px grid
+  const cy = Math.floor(y / 4);
+  const cx = Math.floor((x + (cy & 1) * 3) / 6);
+  let best = 99;
+  let bk = 0;
+  let bdx = 0;
+  let bdy = 0;
+  for (let j = -1; j <= 1; j++)
+    for (let i = -1; i <= 1; i++) {
+      const h = ihash(cx + i, cy + j, 3241);
+      const row = cy + j;
+      const px = (cx + i) * 6 - (row & 1) * 3 + 3 + ((h & 7) - 3.5) * 0.45;
+      const py = row * 4 + 2 + (((h >>> 3) & 7) - 3.5) * 0.3;
+      const rx = 2.6 + ((h >>> 6) & 3) * 0.4;
+      const ry = 1.7 + ((h >>> 8) & 3) * 0.3;
+      const dx = (x + 0.5 - px) / rx;
+      const dy = (y + 0.5 - py) / ry;
+      const d = dx * dx + dy * dy;
+      if (d < best) {
+        best = d;
+        bk = h;
+        bdx = dx;
+        bdy = dy;
+      }
+    }
+  if (best > 1) return KOISHI_GAP;
+  const base = KOISHI[(bk >>> 10) % KOISHI.length];
+  if (bdy < -0.35 && bdx < 0.3 && best < 0.75) return KOISHI_LT;
+  if (bdy > 0.55) return KOISHI_DK;
+  return base;
+};
+
 export const C3_TEX: Record<C3Ground, C3Tex> = {
   c3_road: texRoad,
   c3_quay: texQuay,
@@ -579,6 +622,7 @@ export const C3_TEX: Record<C3Ground, C3Tex> = {
   c3_soko: texSoko,
   c3_soko_iwa: texSokoIwa,
   c3_soko_oki: texSokoOki,
+  c3_koishi: texKoishi,
 };
 
 /** Variants per material (the no-repeat rule of ground.ts). */
@@ -595,6 +639,7 @@ export const C3_NVAR: Partial<Record<C3Ground, number>> = {
   c3_soko: 2,
   c3_soko_iwa: 2,
   c3_soko_oki: 2,
+  c3_koishi: 2,
 };
 
 /** Priority at soft borders (higher spreads over lower). */
@@ -608,7 +653,7 @@ export const C3_PRIO: Partial<Record<C3Ground, number>> = {
 /** Soft materials (their borders wander); everything else here has built edges. */
 export const C3_SOFT: C3Ground[] = ['c3_sand', 'c3_kusa', 'c3_mikan', 'c3_alley'];
 export const C3_GREEN: C3Ground[] = ['c3_kusa'];
-export const C3_HARD: C3Ground[] = ['c3_road', 'c3_quay', 'c3_bouhatei', 'c3_nagisa', 'c3_ishidan', 'c3_hiroba', 'c3_minato', 'c3_umi', 'c3_iwa', 'c3_nidai', 'c3_soko', 'c3_soko_iwa', 'c3_soko_oki'];
+export const C3_HARD: C3Ground[] = ['c3_road', 'c3_quay', 'c3_bouhatei', 'c3_nagisa', 'c3_ishidan', 'c3_hiroba', 'c3_minato', 'c3_umi', 'c3_iwa', 'c3_nidai', 'c3_soko', 'c3_soko_iwa', 'c3_soko_oki', 'c3_koishi'];
 
 export function isC3Ground(g: string): g is C3Ground {
   return (C3_GROUNDS as readonly string[]).includes(g);

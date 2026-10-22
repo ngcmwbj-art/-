@@ -23,6 +23,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { bootCss, bootHtml } from './boot-splash.mjs';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const argOf = (name, def) => {
@@ -52,11 +53,10 @@ const page = `<title>${title}</title>
   html, body { background: #0b0a12; height: 100%; margin: 0; overflow: hidden; }
   body { display: flex; align-items: center; justify-content: center; touch-action: none; }
   #screen { display: block; outline: none; image-rendering: pixelated; image-rendering: crisp-edges; }
-  #boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
-    color: #6f6a8a; font: 12px/1.4 monospace; letter-spacing: .2em; }
+  ${bootCss}
 </style>
 <canvas id="screen" tabindex="0" aria-label="しゅんの夕暮れあぜ道戦記 ゲーム画面"></canvas>
-<div id="boot">LOADING</div>
+${bootHtml}
 <script type="module">
 ${js}
 </script>

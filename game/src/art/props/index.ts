@@ -54,6 +54,8 @@ import './uzu_art';
 import './neru_art';
 // はく 前に、ふる：昇降口の 外の 長靴 6足・農具小屋の 杭（02_ch2_index #111）
 import './kutsu_art';
+// 当たりは、かじって みんと：ペロの 畑の シシトウの 株・縁側の 七輪・集会所の 皿（02_ch2_index）
+import './shishito_art';
 // Chapter 3 『海ぞいの町の いただきます』 (62_ch3_level_art 7章): the buildings and the things of 海ぞいの町
 import './c3_bld';
 import './c3_props';

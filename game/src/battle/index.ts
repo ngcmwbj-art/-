@@ -28,6 +28,7 @@ import { syncBossFlags } from './boss';
 import { yobiState, raiseTomatoNow, dimNow } from './boss_yobimodoshi';
 import type { Judge, PartyCmd } from './model';
 import { C, drawNote } from './ui/note';
+import { HINTS, hintNow, hintTexts } from './hint';
 import '../art/enemies/all';
 
 export { setGameOverHook };
@@ -396,6 +397,16 @@ registerDebug('bnori', (n = 1) => {
 });
 /** QA: the running BattleScene itself (for frame-exact probes in page evals). */
 registerDebug('bscene', () => current);
+/**
+ * QA (2026-10-22 改善会議 4): the hint of the running battle — `bhint()` what is up / would be said,
+ * `bhint('…')` put a line up now, `bhint(true)` every line it can say with its width (px).
+ */
+registerDebug('bhint', (a?: string | boolean) => {
+  if (a === true) return hintTexts().map((t) => [t, measure(t) + 14]);
+  const s = current;
+  if (!s) return null;
+  return { up: hintNow(s, typeof a === 'string' ? a : undefined), stuck: s.memo.hintStuck ?? 0, done: !!s.memo.hintDone, rule: HINTS.find((h) => h.when(s))?.text ?? null };
+});
 registerDebug('bstate', () => {
   const s = current;
   if (!s) return null;

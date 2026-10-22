@@ -247,6 +247,7 @@ export function* hitLoop(s: BattleScene, o: LoopOpts): Co<(Guarded | null)[]> {
         if (late) late.on = false;
         late = watchLate(s, 24);
       }
+      if (o.tsukkomi && !o.tutorial) hintTsukkomi(s, !!r);
       results.push(r);
       const co = o.onHit(hi, r);
       if (co) yield* co;
@@ -1276,6 +1277,7 @@ import { ch2Move, isCh2Move } from './enemy_ch2';
 import { ch3Move, isCh3Move } from './enemy_ch3';
 import { showYakiTsukkomi } from './party_ch3';
 import { aqMove } from './boss_c3aq';
+import { hintTsukkomi } from './hint';
 
 /** Everything a move implementation outside this file needs (bosses, chapter 2). */
 export type BossMoveCtx = {

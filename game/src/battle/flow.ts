@@ -25,6 +25,7 @@ import { yobiBlack, yobiMemory } from './boss_yobimodoshi';
 import { ch3AfterAction, ch3Opening, ch3RoundEnd, ch3RoundStart, ch3Start, ch3Won } from './ch3rules';
 import { roundSeal } from './art/stamps';
 import { doHera, doYaki } from './party_ch3';
+import { hintCommands, hintRoundStart } from './hint';
 import { aqBeforeParty, aqLoseFinish, aqOrder, doKoe } from './boss_c3aq';
 import { doYobu, tgWinFinish } from './boss_tsugao';
 
@@ -140,7 +141,10 @@ export function* battleFlow(s: BattleScene): Co<BattleResult> {
     yield* ch3RoundStart(s);
     // commands
     s.noteActing('');
+    // (stuck for some rounds: one line of hint while the commands are chosen, hint.ts)
+    hintRoundStart(s);
     const cmds = yield* inputCommands(s);
+    hintCommands(s, cmds);
     hideSticky(s);
     // enemy decisions
     const plans: Act[] = [];

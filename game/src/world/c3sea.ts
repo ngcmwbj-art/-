@@ -416,6 +416,16 @@ registerWorldFx({
   },
 });
 
+// 小石の 浜（map_c3_koishi、低う、平たく 03_ch3_index）：12:01 から 波が 寄せる（2D の 波。HD-2D は c3sea3d.ts）
+registerWorldFx({
+  map: 'map_c3_koishi',
+  anchored: true,
+  draw(f, g, cx, cy, layer) {
+    if (layer !== 'ground' || fxElsewhere(f) || !seaAwake()) return;
+    paintSea(g.ctx, cx, cy, cx, cy, 384, 216, f.t, (tx, ty) => seaKind(f.map, tx, ty), (tx, ty) => seaFace(f.map, tx, ty));
+  },
+});
+
 // ---------------------------------------------------------------- 海の 中
 
 let bubbles: { x: number; y: number; z: number; t: number }[] = [];

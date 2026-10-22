@@ -18,7 +18,7 @@ import type { FieldScene } from '../world/field';
 import type { NpcObj } from '../world/types';
 import type { Hidden, Hides } from './seethru';
 import { ActorViews } from './actors';
-import { Post, type Quality } from './post';
+import { Post, TILT_FIELD, TILT_STILL, type Quality } from './post';
 import { recording, type Solid } from './overlap';
 import { markShadowPass } from './solid';
 import { placeOf } from './places';
@@ -29,6 +29,9 @@ import { NidaiWorld, nidaiMap } from './nidai';
 import { bindView, shotLens } from './cut';
 import { endingView } from '../events/ending';
 import { game } from '../engine/game';
+import { dialogVisible } from '../ui/dialog';
+import { lastSpeaker } from '../world/msg';
+import { settings } from '../ui/settings';
 import { nightGrade, nightMul, patchNight } from './cut_night';
 
 export interface CamParams {
@@ -71,6 +74,20 @@ function lightOf(def: Parameters<typeof ch3Graded>[0]): 'noon' | 'dawn' | 'eve' 
   return ch3Graded(def) ? 'noon' : ch3TownTime(def) === 2 ? 'dawn' : 'eve';
 }
 const MAX_LAMPS = 4;
+/**
+ * How much the finish lifts the dark places (post.ts brighten; 2026-10-22 改善会議 2「暗い場所の明るさ」):
+ * the night outdoors (星見台, the night after the clear) by how night it is, the rooms (lit by their own
+ * lamps, the market's hall too) always a little and more at night; the evening street and the noon not
+ * at all — its glow and colours stay as painted. せってい「明るさ」あかるい: more.
+ */
+function darkLift(f: FieldScene, room: boolean): number {
+  const night = Math.max(0, Math.min(1, f.grade.night));
+  const k = room ? 0.6 + 0.4 * night : night;
+  return k * (settings.bright ? 0.62 : 0.34);
+}
+
+/** Rows (of the frame's height) the tilt-shift's sharp band holds at once: Minato is kept in with the one in focus within it. */
+const FOCUS_NEAR = 0.24;
 /**
  * Inside (the rooms, room.ts) the camera looks down a little more than in
  * the street (2026-10-06 依頼主「建物の中のカメラワークは少し上から目線で良い」):
@@ -134,6 +151,9 @@ export interface FrameStats {
   buildMs: number;
   /** The last build's parts (ms). */
   build: Record<string, number>;
+  /** The tilt-shift's sharp row (0 bottom … 1 top) and how much the dark is lifted (QA, 2026-10-22). */
+  focus?: number;
+  brighten?: number;
 }
 
 export class Hd2dView {
@@ -433,17 +453,20 @@ export class Hd2dView {
     this.tint.setRGB(1.04, 1.0, 0.97);
     this.actors.update(f, sunYaw, this.tint, world, this.sunDir);
     // the tilt-shift's sharp row: where Minato stands on screen (in a
-    // close-up, what it looks at; in a scene about other people, f.focusAt)
+    // close-up, what it looks at; in a scene about other people, f.focusAt;
+    // else the one speaking, or someone a scene walks in: focusRows)
+    const rowOf = (foot: [number, number] | null): number | undefined => (foot && crop ? ((foot[1] - crop[1]) / crop[3]) * H : foot?.[1]);
     const fa = f.focusAt;
-    const foot = subject ?? this.project(fa ? new THREE.Vector3(fa[0] / 16, 0.6, fa[1] / 16) : new THREE.Vector3((f.player.x + f.player.ox) / 16, 0.6, f.player.y / 16));
-    const fy = foot && crop ? ((foot[1] - crop[1]) / crop[3]) * H : foot?.[1];
-    const focus = fy !== undefined ? Math.max(0.25, Math.min(0.75, 1 - fy / H)) : 0.5;
+    const fy = subject || fa ? rowOf(subject ?? this.project(new THREE.Vector3(fa![0] / 16, 0.6, fa![1] / 16))) : this.focusRows(f, rowOf);
+    const focus = this.easeFocus(f, fy !== undefined ? Math.max(0.25, Math.min(0.75, 1 - fy / H)) : 0.5, !!subject);
     this.post!.setGrade(world instanceof RoomWorld ? world.grade() : nightGrade(f.grade), f.wave.amp, f.wave.t / 1000, focus);
     // (a memory's tone: chapter 3 S30's flashback, events/ch3/ending.ts — only while its script runs)
     const mem = endingView.memory;
     this.post!.setMemory(game.scripts.busy ? mem.k : 0, mem.tint, mem.mul);
+    const brighten = darkLift(f, world instanceof RoomWorld) * (1 - (game.scripts.busy ? mem.k : 0));
+    this.post!.setBrighten(brighten);
     // (inside, no tilt-shift blur: the whole room sharp)
-    this.post!.setTilt(!(world instanceof RoomWorld));
+    this.post!.setTilt(world instanceof RoomWorld ? 0 : TILT_FIELD);
     const t1 = performance.now();
     this.renderer.info.reset();
     this.post!.render();
@@ -460,7 +483,62 @@ export class Hd2dView {
       quality: this.quality,
       buildMs: Math.round(this.buildMs),
       build: world.buildParts,
+      focus: Math.round(focus * 1000) / 1000,
+      brighten: Math.round(brighten * 1000) / 1000,
     };
+  }
+
+  /**
+   * The frame row the tilt-shift keeps sharp when no scene names one (2026-10-22 改善会議 1「降りてくる人・
+   * 話している人にピント」): the one speaking in the dialog on screen; else the people a scene walks in
+   * or off (scripted, on a path — ツガオ便's riders getting off, the line coming in); else Minato. Minato
+   * stays in the sharp band too when he stands near enough (rows within NEAR of them).
+   */
+  private focusRows(f: FieldScene, rowOf: (foot: [number, number] | null) => number | undefined): number | undefined {
+    const at = (a: Actor): number | undefined => {
+      if (!a.visible || a.alpha <= 0.5) return undefined;
+      const r = rowOf(this.project(new THREE.Vector3((a.x + a.ox) / 16, 0.6, a.y / 16)));
+      return r !== undefined && r > 8 && r < H + 8 ? r : undefined;
+    };
+    const rows: number[] = [];
+    if (dialogVisible()) {
+      const tag = lastSpeaker()?.split(':')[0];
+      const sp = tag === 'flip' || tag === 'npc_kanenari' ? (f.follower ?? f.actorById('npc_kanenari')) : tag ? f.actorById(tag) : f.talking;
+      const r = sp && sp !== f.player ? at(sp) : undefined;
+      if (r !== undefined) rows.push(r);
+    }
+    if (!rows.length && f.camFollow && f.camFollow !== f.player) {
+      const r = at(f.camFollow);
+      if (r !== undefined) rows.push(r);
+    }
+    if (!rows.length)
+      for (const a of f.actors) {
+        if (a === f.player || a === f.follower || !a.data.scripted || !a.path.length) continue;
+        const r = at(a);
+        if (r !== undefined) rows.push(r);
+      }
+    const me = f.player.visible ? at(f.player) : undefined;
+    if (!rows.length) return me;
+    const lo = Math.min(...rows);
+    const hi = Math.max(...rows);
+    const mid = (lo + hi) / 2;
+    // (Minato as well, when he and they fit in the sharp band together)
+    if (me !== undefined && Math.max(hi, me) - Math.min(lo, me) < FOCUS_NEAR * H) return (Math.max(hi, me) + Math.min(lo, me)) / 2;
+    return mid;
+  }
+
+  private focusK = 0.5;
+  private focusT = -1;
+  private focusMap = '';
+  /** The sharp row slides to a new one (a new speaker, someone walking in) instead of jumping; a new map or a close-up's own row: at once. */
+  private easeFocus(f: FieldScene, want: number, now: boolean): number {
+    const t = performance.now();
+    const dt = this.focusT < 0 ? 1e9 : Math.min(200, t - this.focusT);
+    this.focusT = t;
+    if (now || f.map.id !== this.focusMap || dt > 1000) this.focusK = want;
+    else this.focusK = want + (this.focusK - want) * Math.exp(-dt / 220);
+    this.focusMap = f.map.id;
+    return this.focusK;
   }
 
   /**
@@ -514,8 +592,9 @@ export class Hd2dView {
     if (world instanceof RoomWorld) world.overlays(false);
     const g = world instanceof RoomWorld ? world.grade() : nightGrade(f.grade);
     this.post!.setGrade({ ...g, desat: g.desat + pose.desat }, 0, 0, 1 - pose.focusRow / H);
+    this.post!.setBrighten(darkLift(f, world instanceof RoomWorld));
     // (a battle's backdrop keeps its blur, inside too)
-    this.post!.setTilt(true);
+    this.post!.setTilt(TILT_STILL);
     const t1 = performance.now();
     this.renderer.info.reset();
     try {

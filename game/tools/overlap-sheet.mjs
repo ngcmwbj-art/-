@@ -50,6 +50,7 @@ const SHOTS = [
   { label: 'ch3_kids', jump: 'ch3:arrive', wait: 9000, note: '港に着く（S06 子どもたちを 並べた 場面）' },
   { label: 'misaki', map: 'map_c3_misaki' },
   { label: 'iso', map: 'map_c3_iso' },
+  { label: 'koishi', map: 'map_c3_koishi' },
 ];
 
 fs.mkdirSync(OUT, { recursive: true });

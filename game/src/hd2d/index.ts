@@ -69,6 +69,8 @@ const MAPS = new Set([
   'map_c3_iso',
   // 岬（旧水族館の 正面と 前の 広場。2026-10-20 町の 東の はしから 移した）
   'map_c3_misaki',
+  // 小石の 浜（低う、平たく。段階1〜2、03_ch3_index）
+  'map_c3_koishi',
 ]);
 
 const params = new URLSearchParams(location.search);

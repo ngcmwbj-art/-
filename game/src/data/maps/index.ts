@@ -50,3 +50,5 @@ import './c3_umi_oki';
 import './c3_aq';
 // 旧水族館の 屋上（入口の 西の 壁の 戸から。掃除は 上から、03_ch3_index）
 import './c3_aq_okujou';
+// 小石の 浜（低う、平たく 03_ch3_index、events/ch3/mizukiri.ts）
+import './c3_koishi';
