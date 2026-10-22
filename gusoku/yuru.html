@@ -276,6 +276,11 @@ body.kbd #tutchip{display:none}
 .aw-photo img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#000}
 .aw-photo figcaption{color:#3b2f22;font-size:12.5px;text-align:center;padding-top:6px;font-family:var(--f-display)}
 
+#nadehand{position:fixed;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;pointer-events:none;z-index:9;background:radial-gradient(circle,rgba(255,240,220,.55),rgba(255,210,170,.15) 60%,rgba(255,210,170,0) 72%);box-shadow:0 0 18px rgba(255,220,180,.35)}
+#nadehand[hidden]{display:none}
+.nade-heart{position:fixed;z-index:9;pointer-events:none;color:#ff9fb3;font-size:22px;text-shadow:0 0 8px rgba(255,140,170,.7);animation:nadeUp 1.4s ease-out forwards;opacity:0}
+@keyframes nadeUp{0%{opacity:0;transform:translateY(0) scale(.6)}20%{opacity:1}100%{opacity:0;transform:translateY(-60px) scale(1.2)}}
+
 @media (max-width:640px){
   .brand h1{font-size:20px}
   .gauges{min-width:0;padding:8px 10px}
@@ -464,6 +469,7 @@ body.kbd #tutchip{display:none}
   <div id="rm-body"></div>
 </div></div>
 <div class="modal" id="namebox" hidden><div class="sheet nb" role="dialog" aria-labelledby="nb-title"><header><h3 id="nb-title">名前をつける</h3></header><p id="nb-msg"></p><input id="nb-in" type="text" maxlength="10" autocomplete="off" placeholder="10文字まで"><div class="nb-row"><button type="button" class="primary" id="nb-ok">決める</button><button type="button" id="nb-later">あとで</button></div></div></div>
+<div id="nadehand" hidden></div>
 <div id="hashichip" hidden><span>箸で口元まで運んでください</span><button type="button" id="hashi-drop">上から落とす</button></div>
 <div id="tutchip" hidden><span>はじめての案内 <b id="tut-n"></b></span><button type="button" id="tut-skip">とばす</button></div>
 <div id="itank" hidden><div id="it-clock"></div></div>
@@ -1572,7 +1578,7 @@ function updateLights(dt){
 const CAM={yaw:.18,pitch:.2,dist:3,zoom:1,tYaw:.18,tPitch:.2,focus:new V3(),intro:1};
 let drag=null,pinch=null;
 canvas.addEventListener('pointerdown',e=>{if(Hashi.on)return;canvas.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,t:performance.now(),id:e.pointerId};closePops()});
-canvas.addEventListener('pointermove',e=>{if(Hashi.on)return;if(!drag||drag.id!==e.pointerId||pinch)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
+canvas.addEventListener('pointermove',e=>{if(Hashi.on||Nade.on)return;if(!drag||drag.id!==e.pointerId||pinch)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
   CAM.tYaw-=dx*.006;CAM.tPitch=clamp(CAM.tPitch+dy*.0045,-.04,1.45)});
 canvas.addEventListener('dblclick',()=>{CAM.tYaw=Math.round(CAM.yaw/TAU)*TAU+.18;CAM.tPitch=.2;CAM.zoom=1;toast('視点をもとに戻しました')});
 canvas.addEventListener('pointerup',e=>{if(!drag)return;const moved=Math.hypot(e.clientX-drag.x0,e.clientY-drag.y0);if(moved<6&&performance.now()-drag.t<400)onTap(e);drag=null});
@@ -3668,6 +3674,71 @@ const Rec={
 };
 setInterval(()=>Rec.tick(),60000);
 
+/* =====================================================================
+   STROKING — press and hold the creature, then stroke it.
+   The camera stays still while your hand is on it.
+   ===================================================================== */
+const Nade={on:false,press:null,acc:{back:0,head:0,belly:0},fast:0,lastSay:0,lastX:0,lastY:0,lastT:0,
+  hitAt(x,y){
+    const r=canvas.getBoundingClientRect(),m=new THREE.Vector2((x-r.left)/r.width*2-1,-((y-r.top)/r.height)*2+1);ray.setFromCamera(m,camera);
+    return ray.intersectObject(ISO.root,true).find(h=>h.object.userData.isopod)||null;
+  },
+  region(h){
+    const p=h.point,g=heightAt(C.pos.x,C.pos.z);
+    if(ISO.chara&&S.molts>=4)return (p.y-g)/C.size>1.2?'head':'belly';
+    const rel=p.clone().sub(C.pos),along=(rel.x*Math.sin(C.yaw)+rel.z*Math.cos(C.yaw))/C.size;
+    return along>.95?'head':'back';
+  },
+  down(e){
+    if(!started||Life.dead||Hashi.on||Photo.on||Cine.on||this.on)return;
+    const p={x:e.clientX,y:e.clientY,id:e.pointerId,moved:false};this.press=p;
+    p.timer=setTimeout(()=>{if(this.press!==p||p.moved)return;if(this.hitAt(p.x,p.y))this.start(p)},450);
+  },
+  start(p){
+    this.on=true;drag=null;this.acc={back:0,head:0,belly:0};
+    if(['walk','approach','idle'].includes(C.state))setState('idle',{wait:12});   // stays put while being strokedthis.fast=0;this.lastX=p.x;this.lastY=p.y;this.lastT=performance.now();
+    const h=$('nadehand');h.hidden=false;this.hand(p.x,p.y);
+    if(Life.asleep){toast('眠っているので、起こさないようにそっと');}
+  },
+  hand(x,y){const h=$('nadehand');h.style.left=x+'px';h.style.top=y+'px'},
+  move(e){
+    const p=this.press;if(p&&!this.on&&Math.hypot(e.clientX-p.x,e.clientY-p.y)>10)p.moved=true;
+    if(!this.on)return;
+    const now=performance.now(),d=Math.hypot(e.clientX-this.lastX,e.clientY-this.lastY),dt=Math.max(1,now-this.lastT);
+    this.lastX=e.clientX;this.lastY=e.clientY;this.lastT=now;this.hand(e.clientX,e.clientY);
+    const hit=this.hitAt(e.clientX,e.clientY);if(!hit)return;
+    const rg=this.region(hit);this.acc[rg]+=d;if(d/dt>1.8)this.fast+=d;
+    if(now-this.lastSay<3200)return;
+    if(this.fast>500){this.react('fast');return}
+    if(this.acc.head>260){this.react('head');return}
+    if(this.acc.back>380||this.acc.belly>380)this.react(this.acc.belly>this.acc.back?'belly':'back');
+  },
+  up(){const p=this.press;if(p)clearTimeout(p.timer);this.press=null;if(this.on){this.on=false;$('nadehand').hidden=true}},
+  react(kind){
+    this.lastSay=performance.now();this.acc={back:0,head:0,belly:0};this.fast=0;
+    const st=S.stage,dk=darkLv()>=2,D=dkey();if(!S.nade||S.nade.d!==D)S.nade={d:D,n:0};
+    if(kind==='head'){C.startle=Math.max(C.startle,.6);S.mood=clamp(S.mood-2,0,100);
+      say(st===0?'（触角をすぼめて、少しいやがった）':st===1?'……カオ、ヤ、デス。':pickR(['……顔は、少し苦手です。','触角は、さわらないでいただけますか。']),{emo:'annoyed',narr:st===0});return}
+    if(kind==='fast'){say(st===0?'（びっくりして、体を丸めかけた）':st===1?'……クスグッタイ、デス。':pickR(['……くすぐったいです。','そんなに急がなくても、逃げません。']),{emo:'curious',narr:st===0});return}
+    // a gentle stroke: a little happier, and (a few times a day) a little closer to you
+    S.mood=clamp(S.mood+3,0,100);if(S.nade.n<6){S.nade.n++;S.trust=clamp(S.trust+1,0,100)}addDark(-1);save();
+    Daily.hit('nade');this.hearts();C.face=Math.max(C.face,4);if(st>=1&&ISO.chara){C.wave=1.6;C.waveDur=1.6}
+    Audio2.tone(392,523,.35,'sine',.04);
+    if(Life.asleep)return;
+    say(st===0?'（小さな体が、気持ちよさそうに丸くなった）':st===1?'……キモチイイ、デス。':dk?'……今さら、何ですか。……まあ、続けてもかまいません。':
+      kind==='belly'?pickR(['……おなかは、少しくすぐったいです。でも、悪くありません。','……そこは、ちょうどよいです。']):
+      pickR(['……そこです。そこが、ちょうどよいです。','背中の殻をなでられるのは、悪くありません。','……もう少しだけ、お願いします。']),{emo:'happy',narr:st===0});
+  },
+  hearts(){for(let i=0;i<3;i++){const s=document.createElement('span');s.className='nade-heart';s.textContent='♡';s.style.left=(this.lastX+(i-1)*18)+'px';s.style.top=(this.lastY-20)+'px';s.style.animationDelay=(i*.12)+'s';document.body.appendChild(s);setTimeout(()=>s.remove(),1600)}}
+};
+canvas.addEventListener('pointerdown',e=>Nade.down(e));
+canvas.addEventListener('pointermove',e=>Nade.move(e));
+canvas.addEventListener('pointerup',()=>Nade.up());
+canvas.addEventListener('pointercancel',()=>Nade.up());
+Daily.TASKS.nade={label:DEFNAME+'をなでる',goal:1};
+// tell people it exists, once
+setInterval(()=>{if(!S||!started||S.nadeHint||S.tut!=='done'||Life.asleep||Daily.sess<90||Tutor.i!==-1)return;S.nadeHint=1;save();say('（'+gname()+'を長押しすると、なでられます）',{narr:true})},5000);
+
 let started=false;
 function boot(){
   load();
@@ -3877,7 +3948,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Nade,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
