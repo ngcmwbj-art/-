@@ -257,6 +257,9 @@ body.idle .hud-top,body.idle .console,body.idle #alert,body.idle .daily{visibili
 #tutchip button{font-size:11px;padding:3px 10px;border-radius:999px}
 body.kbd #tutchip{display:none}
 
+.d-week{margin:10px 0 0;padding:8px 10px;border:1px solid var(--line);border-radius:4px;font-size:12.5px;line-height:1.8;color:#9fe3b0;background:rgba(159,227,176,.06)}
+.d-week[hidden]{display:none}
+
 @media (max-width:640px){
   .brand h1{font-size:20px}
   .gauges{min-width:0;padding:8px 10px}
@@ -2003,7 +2006,7 @@ function evText(e){return({fed:`${e.v}を食べた`,molt:`${e.v}回目の脱皮�
   dream:'鯨の夢を見た',woke:'夜中に起こされた',fast:`絶食${e.v}日に達した`,mate:`${e.v}が同居することになった`,mateAte:`${e.v}に餌を取られた`,mateBye:`${e.v}がいなくなった`,slime:'ヌタウナギが粘液を出して水がネバネバになった',hatch:'母の育房から生まれた',sleep:'夜は眠った'})[e.c]||''}
 const Diary={keys:[],page:0,
   ensure(){S.diary=S.diary||{};const today=dkey();Object.keys(S.events||{}).forEach(k=>{if(k<today&&!S.diary[k])S.diary[k]={t:lifeDiaryLocal(k),by:'local'}})},
-  open(){this.ensure();const today=dkey();this.keys=[...new Set(Object.keys(S.diary).concat(today))].sort();this.page=this.keys.length-1;this.tab('diary');$('diary').hidden=false;this.render();save()},
+  open(){this.ensure();const today=dkey();this.keys=[...new Set(Object.keys(S.diary).concat(Object.keys(S.weekly||{}),today))].sort();this.page=this.keys.length-1;this.tab('diary');$('diary').hidden=false;this.render();save()},
   close(){$('diary').hidden=true},
   tab(t){$('d-book').hidden=t!=='diary';$('d-graves').hidden=t!=='graves';$('d-tab-diary').setAttribute('aria-pressed',t==='diary');$('d-tab-graves').setAttribute('aria-pressed',t==='graves');if(t==='graves')this.graves()},
   render(){const k=this.keys[this.page],today=dkey(),d=new Date(k+'T12:00:00');
@@ -2012,7 +2015,8 @@ const Diary={keys:[],page:0,
     $('d-by').textContent=e?(e.by==='ai'?'グソクが書いた':'グソクの記録より'):'';
     $('d-write').hidden=k!==today;$('d-write').textContent=e?'書き直させる':'グソクに書かせる';
     $('d-prev').disabled=this.page<=0;$('d-next').disabled=this.page>=this.keys.length-1;
-    $('d-ev').textContent=((S.events&&S.events[k])||[]).map(evText).filter(Boolean).join('／')||'記録なし';},
+    $('d-ev').textContent=((S.events&&S.events[k])||[]).map(evText).filter(Boolean).join('／')||'記録なし';
+    {let w=$('d-week');if(!w){w=document.createElement('p');w.id='d-week';w.className='d-week';$('d-ev').after(w)}const t=S.weekly&&S.weekly[k];w.hidden=!t;w.textContent=t||''}},
   async write(){
     const k=dkey(),b=$('d-write');b.disabled=true;b.textContent='グソクが書いています…';
     let t=null;
@@ -3315,6 +3319,29 @@ canvas.addEventListener('pointercancel',e=>Hashi.up(e));
 $('hashi-drop').addEventListener('click',()=>{if(Hashi.on)Hashi.drop(true)});
 {const wu=World.update;World.update=function(dt,t){wu.call(this,dt,t);Hashi.frame(dt)}}
 
+/* =====================================================================
+   GROWTH RECORD — one line a day kept quietly; once a week a summary in the diary
+   ===================================================================== */
+const Rec={
+  snap(){
+    if(!S||!S.hatched)return;const D=dkey();S.rec=S.rec||[];let r=S.rec[S.rec.length-1];
+    if(!r||r.d!==D){r={d:D};S.rec.push(r);if(S.rec.length>400)S.rec.shift()}
+    Object.assign(r,{mm:MMS[S.molts],molts:S.molts,fast:fastDays(),trust:Math.round(S.trust),mood:Math.round(S.mood),talks:S.talks||0,fed:S.fed||0});
+  },
+  week(){
+    const R=S.rec||[];if(R.length<2)return;const D=dkey();S.weekly=S.weekly||{};
+    if(!S.weekFrom)S.weekFrom=R[0].d;
+    if((new Date(D)-new Date(S.weekFrom))/DAY<7)return;
+    const a=R.find(r=>r.d>=S.weekFrom)||R[0],b=R[R.length-1],span=R.filter(r=>r.d>=a.d);
+    const dm=Math.max(0,b.molts-a.molts),dt=b.trust-a.trust,talk=Math.max(0,b.talks-a.talks),fed=Math.max(0,b.fed-a.fed),fast=Math.max(...span.map(r=>r.fast||0));
+    const line='今週の成長：体長 '+a.mm+'mm → '+b.mm+'mm'+(dm>0?'（脱皮'+dm+'回）':'')+'・話しかけた回数 '+talk+'回・食べた回数 '+fed+'回・なかよし度 '+(dt>=0?'+':'')+dt+'・いちばん長い絶食 '+fast+'日';
+    S.weekly[D]=line;S.weekFrom=D;save();
+    if(started)setTimeout(()=>say('（今週の成長を、日記に書いておきました）',{narr:true}),9000);
+  },
+  tick(){if(!S||!S.hatched)return;this.snap();this.week();save()}
+};
+setInterval(()=>Rec.tick(),60000);
+
 let started=false;
 function boot(){
   load();
@@ -3524,7 +3551,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
