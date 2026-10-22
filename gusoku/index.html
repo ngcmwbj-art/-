@@ -265,6 +265,11 @@ body.kbd #tutchip{display:none}
 #nb-in{width:100%;box-sizing:border-box;background:rgba(3,14,22,.8);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:10px 12px;font:inherit;font-size:18px;-webkit-user-select:text;user-select:text}
 .nb-row{display:flex;gap:8px;margin-top:12px}
 
+.aw-photo{margin:4px auto 12px;padding:8px 8px 6px;background:#f4efe6;border-radius:3px;width:min(260px,80%);transform:rotate(-2deg);box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.aw-photo[hidden]{display:none}
+.aw-photo img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#000}
+.aw-photo figcaption{color:#3b2f22;font-size:12.5px;text-align:center;padding-top:6px;font-family:var(--f-display)}
+
 @media (max-width:640px){
   .brand h1{font-size:20px}
   .gauges{min-width:0;padding:8px 10px}
@@ -416,7 +421,7 @@ body.kbd #tutchip{display:none}
 <div id="photo" hidden><div class="ph-side"><button type="button" id="ph-pause">動きを止める</button></div><button type="button" id="ph-shoot" aria-label="撮影"></button><div class="ph-side"><button type="button" id="ph-close">写真モードを終える</button></div></div>
 <div id="ph-flash"></div>
 <div class="modal" id="ph-prev" hidden><div class="sheet"><header><h3>撮った写真</h3><button type="button" id="ph-x" aria-label="閉じる">✕ 閉じる</button></header><img id="ph-img" alt="撮影した写真"><p id="ph-tip"></p><div class="d-foot ph-btns"><button type="button" class="primary" id="ph-save">写真に保存</button><button type="button" id="ph-file" hidden>ファイルとして保存</button><button type="button" id="ph-again">もう一枚撮る</button><button type="button" id="ph-done">写真モードを終える</button></div></div></div>
-<div class="modal" id="away" hidden><div class="sheet" role="dialog" aria-labelledby="aw-title"><header><h3 id="aw-title">留守中のできごと</h3></header><div class="aw-time" id="aw-time"></div><ul id="aw-list"></ul><div class="aw-next" id="aw-next" hidden></div><button type="button" class="primary" id="aw-ok">水槽をのぞく</button></div></div>
+<div class="modal" id="away" hidden><div class="sheet" role="dialog" aria-labelledby="aw-title"><header><h3 id="aw-title">留守中のできごと</h3></header><div class="aw-time" id="aw-time"></div><figure class="aw-photo" id="aw-photo" hidden><img id="aw-img" alt="留守中の写真"><figcaption id="aw-cap"></figcaption></figure><ul id="aw-list"></ul><div class="aw-next" id="aw-next" hidden></div><button type="button" class="primary" id="aw-ok">水槽をのぞく</button></div></div>
 <div class="modal" id="bk" hidden><div class="sheet" role="dialog" aria-labelledby="bk-title">
   <header><h3 id="bk-title">データの引き継ぎ</h3><button type="button" id="bk-close">閉じる</button></header>
   <p>育てたデータは、この端末のブラウザの中にだけ保存されています。ブラウザのデータ削除や機種変更に備えて、引き継ぎコードを控えておいてください。</p>
@@ -2529,7 +2534,7 @@ const Daily={pre0:null,sess:0,teased:false,inited:false,afterAway:null,
     const h=a.h,fmt=h>=24?Math.floor(h/24)+'日と'+Math.round(h%24)+'時間':h>=1?Math.floor(h)+'時間'+Math.round(h%1*60)+'分':Math.round(h*60)+'分';
     $('aw-time').textContent='留守にしていた時間　'+fmt;const ul=$('aw-list');ul.innerHTML='';
     a.items.forEach(t=>{const li=document.createElement('li');li.textContent=this.Y(t);ul.appendChild(li)});
-    $('aw-next').hidden=!next;if(next)$('aw-next').textContent=next;$('away').hidden=false;
+    $('aw-next').hidden=!next;if(next)$('aw-next').textContent=next;$('away').hidden=false;Souvenir.show();
   },
   closeAway(){$('away').hidden=true;const f=this.afterAway;this.afterAway=null;if(f)setTimeout(f,300)},
   taskLine(){this.ensure();return '今日のお世話：'+S.daily.list.map(x=>this.TASKS[x.k].label).join('・')},
@@ -2835,9 +2840,9 @@ const World={acc:0,vis:null,deco:null,lastM:undefined,
     if(!$('zukan').hidden)Zukan.render();
   },
   awayFinds(h){
-    const res=[];
-    if(S.stage>=1&&h>=3&&Math.random()<.6){const T=Col.pick();Col.addItem(T.k);res.push('砂の中から、'+T.n+'を掘り出していたようです。（図鑑に入りました）')}
-    if(h>=2&&Math.random()<.5){const V=this.chooseVisitor();if(V){Col.c.vis[V.k]=(Col.c.vis[V.k]||0)+1;const G=TREASURES.find(t=>t.gift===V.k),gift=G&&Math.random()<.6;if(gift)Col.addItem(G.k);save();res.push(V.n+'が訪れていたようです。'+(gift?'（'+G.n+'を残していきました）':''))}}
+    const res=[];this.lastFinds=[];
+    if(S.stage>=1&&h>=3&&Math.random()<.6){const T=Col.pick();Col.addItem(T.k);this.lastFinds.push({t:'item',k:T.k});res.push('砂の中から、'+T.n+'を掘り出していたようです。（図鑑に入りました）')}
+    if(h>=2&&Math.random()<.5){const V=this.chooseVisitor();if(V){this.lastFinds.push({t:'vis',k:V.k});Col.c.vis[V.k]=(Col.c.vis[V.k]||0)+1;const G=TREASURES.find(t=>t.gift===V.k),gift=G&&Math.random()<.6;if(gift)Col.addItem(G.k);save();res.push(V.n+'が訪れていたようです。'+(gift?'（'+G.n+'を残していきました）':''))}}
     return res;
   },
   /* the treasure chosen for display sits on the sand at the front left */
@@ -3144,6 +3149,38 @@ $('nb-in').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.
 $('set-name').addEventListener('click',()=>Name.open('名前を変えられます。',null));
 // players from before names existed get one gentle hint
 setInterval(()=>{if(!S||!started||S.gname||S.nameHint||S.tut!=='done'||Life.asleep||Daily.sess<40)return;S.nameHint=1;save();say('（設定から、'+DEFNAME+'に名前をつけられるようになりました）',{narr:true})},5000);
+
+/* =====================================================================
+   SOUVENIR PHOTO — when you come back, one small picture of what happened
+   while you were away (a visitor or a find, next to the creature)
+   ===================================================================== */
+const Souvenir={
+  make(){
+    try{
+      if(!ISO||!S.hatched)return null;
+      const F=World.lastFinds||[],v=F.find(x=>x.t==='vis'),it=F.find(x=>x.t==='item');
+      camera.updateMatrixWorld();const e=camera.matrixWorld.elements,right=new V3(e[0],0,e[2]).normalize();
+      const toCam=camera.position.clone().sub(C.pos);toCam.y=0;toCam.normalize();
+      const base=C.pos.clone().addScaledVector(toCam,.45+.35*C.size).addScaledVector(right,.5+.35*C.size);base.y=heightAt(base.x,base.z);
+      let obj=null,cap='留守中の'+gname();
+      const small=v&&(v.k==='oarfish'||v.k==='squid');
+      if(v&&!small){const m=VMODEL[v.k]();m.upd(m.dur*.5,0);obj=m.g;obj.position.set(base.x,base.y+(v.k==='angler'?.45:v.k==='hotaru'?.8:.65),base.z);obj.rotation.y=Math.atan2(toCam.x,toCam.z)+(v.k==='angler'?-1.2:0)}
+      else{const k=it?it.k:small?(TREASURES.find(t=>t.gift===v.k)||{}).k:null;if(k&&World.DECO[k]){obj=new THREE.Group();const m=World.DECO[k]();m.scale.setScalar(1.8);obj.add(m);obj.position.set(base.x,base.y+.1,base.z)}}
+      if(v)cap=VISITORS.find(x=>x.k===v.k).n+'が、来ていました';else if(it)cap=Col.T(it.k).n+'を、見つけていました';
+      if(obj)scene.add(obj);
+      composer.render(0);
+      const src=renderer.domElement,W=src.width,H=src.height,p=C.pos.clone();p.y+=.3*C.size;if(obj){p.lerp(obj.position,.45)}p.project(camera);
+      const cw=Math.min(W,H*1.33)*.46,chh=cw*.75,cx=clamp((p.x+1)/2*W-cw/2,0,W-cw),cy=clamp((1-p.y)/2*H-chh/2,0,H-chh);
+      const c=document.createElement('canvas');c.width=480;c.height=360;c.getContext('2d').drawImage(src,cx,cy,cw,chh,0,0,480,360);
+      if(obj)disposeTree(obj);
+      return {url:c.toDataURL('image/jpeg',.85),cap};
+    }catch(err){return null}
+  },
+  show(){
+    const r=this.make(),f=$('aw-photo');if(!r){f.hidden=true;return}
+    $('aw-img').src=r.url;$('aw-cap').textContent=r.cap;f.hidden=false;
+  }
+};
 
 const MoodLine={auto:false,last:'',
   text(){
@@ -3585,7 +3622,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Souvenir,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
