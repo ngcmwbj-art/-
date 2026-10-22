@@ -235,6 +235,7 @@ const Farm = (() => {
     const doneVegs = seasonalVegs();
     const firsts = [];
     const names = indices.map((i) => data.plots[i].vegId);
+    harvestPop(indices);
     let coins = 0;
     let bonusAny = false;
     indices.forEach((i) => {
@@ -259,11 +260,28 @@ const Farm = (() => {
       : Msg.t('farm.harvestedMany', { n: indices.length, coins, coin });
     if (bonusAny) text += '\n' + Msg.t('farm.seasonBonus');
     if (next) text += '\n' + Msg.t('farm.seasonAdvanced', { done: done.name, icon: next.icon, season: next.name });
-    else if (single) text += '\n' + single.steps.harvest;
+    else if (single) text += '\n' + (single.eat ? Msg.t('farm.eat', { text: single.eat }) : single.steps.harvest);
     toast(text);
     Sound.play('harvest');
     acted();
-    if (hooks.onHarvest) hooks.onHarvest(firsts, next ? { done, next, vegs: doneVegs } : null);
+    // 図鑑や季節のお知らせは、ぴょこっと演出が見えてから（0.5秒あと）
+    if (hooks.onHarvest) setTimeout(() => hooks.onHarvest(firsts, next ? { done, next, vegs: doneVegs } : null), 500);
+  }
+
+  // 収穫のぴょこっと演出：区画から野菜が跳ねて消える（0.6秒・まとめて収穫しても1回だけ）
+  // 区画はすぐ描き直されるので、絵は画面の上に浮かせて出す。初めての野菜は少し大きく
+  function harvestPop(indices) {
+    indices.forEach((i) => {
+      const soil = root.querySelector(`[data-plot="${i}"]`);
+      if (!soil) return;
+      const v = veg(data.plots[i].vegId);
+      const r = soil.getBoundingClientRect();
+      const el = h('div', { class: 'harvest-pop' + (data.harvested[v.id] ? '' : ' first') }, vegIcon(v));
+      el.style.left = r.left + r.width / 2 + 'px';
+      el.style.top = r.top + r.height / 2 + 'px';
+      document.body.append(el);
+      setTimeout(() => el.remove(), 700);
+    });
   }
 
   function buyPlot() {
@@ -277,8 +295,16 @@ const Farm = (() => {
   }
 
   // 作業のたびに、その作業のコツを表示（遊びながら覚えられるように）
+  // 作業のお知らせ。文にむずかしい言葉があれば、1つだけ「ことば」の説明を添える
+  // 作業のお知らせで説明しない、よく出てくる言葉（ボタンや読みがなで分かるもの）
+  const EASY_WORDS = ['追肥', '苗', '株', '乾燥', '植えつけ'];
+
   function tellStep(v, step) {
-    toast(`${Msg.t('farm.stepNames.' + step)}：${v.steps[step]}`);
+    const text = v.steps[step];
+    const word = (cfg.glossary || []).find((w) => !EASY_WORDS.includes(w.term) && text.includes(w.term));
+    let msg = `${Msg.t('farm.stepNames.' + step)}：${text}`;
+    if (word) msg += '\n' + Msg.t('farm.word', { term: word.term, reading: word.reading, text: word.text });
+    toast(msg, word ? 6000 : undefined);
   }
 
   // プレイヤーが畑で作業したとき
@@ -428,7 +454,7 @@ const Farm = (() => {
     const nextStep = ['water', 'fertilize', 'harvest', 'harvest'][plot.stage];
 
     return h('div', { class: 'plot' + (ready ? ' ready' : '') + (growing ? ' growing' : '') },
-      h('div', { class: 'plot-soil' + (plot.stage >= 1 ? ' wet' : '') }, icon),
+      h('div', { class: 'plot-soil' + (plot.stage >= 1 ? ' wet' : ''), 'data-plot': index }, icon),
       h('div', { class: 'plot-name' }, v.name, inSeason(v) ? h('span', { class: 'shun' }, Msg.t('farm.shun')) : null,
         h('button', { class: 'book-btn', type: 'button', 'aria-label': Msg.t('howto.open'), onclick: () => HowTo.open(v) }, '📖')),
       stepDots(Math.min(plot.stage, 2)),

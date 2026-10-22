@@ -37,7 +37,8 @@ const HowTo = (() => {
         row(Msg.t('howto.sun'), g.sun),
         row(Msg.t('howto.plant'), g.plant),
         row(Msg.t('howto.pests'), g.pests),
-        row(Msg.t('howto.point'), g.point)
+        row(Msg.t('howto.point'), g.point),
+        v.eat ? row(Msg.t('howto.eat'), v.eat) : null
       ),
       planter(g.planter),
       h('div', { class: 'howto-sub' }, Msg.t('howto.steps')),

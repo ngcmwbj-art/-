@@ -89,6 +89,7 @@ const Zukan = (() => {
           h('span', { class: 'zukan-times' }, Msg.t('zukan.times', { n: data.harvested[v.id] }))
         ),
         h('ul', { class: 'zukan-tips' }, v.tips.map((tip) => h('li', {}, tip))),
+        v.eat ? h('div', { class: 'zukan-eat' }, Msg.t('farm.eat', { text: v.eat })) : null,
         h('button', { class: 'link-btn', type: 'button', onclick: () => HowTo.open(v) }, Msg.t('howto.open'))
       )
     );

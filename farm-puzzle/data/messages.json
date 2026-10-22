@@ -79,7 +79,9 @@
     "seasonChallengeLabel": "チャレンジ：",
     "seedChallenge": "いまが旬のチャレンジ野菜（{season}）",
     "osusume": "はじめてさんにおすすめ",
-    "challengeCount": "チャレンジ {got}/{total}"
+    "challengeCount": "チャレンジ {got}/{total}",
+    "eat": "🍽 おいしい食べ方：{text}",
+    "word": "📘 {term}（{reading}）：{text}"
   },
   "zukan": {
     "title": "やさい図鑑",
@@ -175,7 +177,8 @@
       "ok": "向いています",
       "kufuu": "ひと工夫で",
       "no": "あまり向きません"
-    }
+    },
+    "eat": "おいしい食べ方"
   },
   "mission": {
     "challenge": "チャレンジ",

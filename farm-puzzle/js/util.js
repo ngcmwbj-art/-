@@ -165,10 +165,11 @@ function vegIcon(veg) {
 
 /* ---------- 画面下にしばらく出るお知らせ ---------- */
 let toastTimer = null;
-function toast(text) {
+// ms：表示する時間（長いお知らせは少し長めに）
+function toast(text, ms = 4000) {
   const el = document.getElementById('toast');
   el.textContent = text;
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 4000);
+  toastTimer = setTimeout(() => el.classList.remove('show'), ms);
 }
