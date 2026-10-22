@@ -1040,6 +1040,26 @@ button.season-chip { font: inherit; font-size: 0.9rem; color: inherit; cursor: p
 .planter-line { font-weight: bold; line-height: 1.6; }
 .planter-note { font-size: 0.88rem; line-height: 1.6; }
 
+/* はじめの案内：やさしく光らせる（止めない） */
+.glow { animation: glow 1.6s ease-in-out infinite; }
+.tab.glow { box-shadow: 0 0 0 3px #f6c86e inset; }
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(246, 168, 60, 0.0), 0 3px 0 var(--green-dark); }
+  50% { box-shadow: 0 0 0 6px rgba(246, 168, 60, 0.45), 0 3px 0 var(--green-dark); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glow { animation: none; outline: 3px solid #f6c86e; outline-offset: 2px; }
+}
+/* 種えらび：ほかの季節（たたむ） */
+.seed-fold { width: 100%; text-align: left; border: none; background: none; padding: 8px 0; font: inherit; font-weight: bold; color: var(--green-dark); cursor: pointer; }
+/* 図鑑：今月まける野菜・育てやすい順 */
+.filter-chip.month { border-color: #f3cf9f; }
+.filter-chip.month.active { background: #fdf0dc; border-color: var(--accent); color: #a8622a; }
+.month-note { margin: 0 0 10px; font-size: 0.82rem; color: var(--sub); line-height: 1.6; }
+.month-plant { font-weight: bold; line-height: 1.6; }
+.month-planter { font-size: 0.85rem; color: var(--sub); }
+.month-card .stars { font-size: 0.85rem; }
+
 /* 種えらびの見出し */
 .seed-heading { margin-top: 6px; font-size: 0.85rem; font-weight: bold; color: var(--green-dark); }
 .seed-got {

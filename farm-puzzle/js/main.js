@@ -47,6 +47,8 @@
     const goalEl = document.getElementById('goal');
     goalEl.textContent = goal.text + (goal.go ? Msg.t('goal.toFarm') : '');
     goalEl.classList.toggle('go', goal.go);
+    // はじめの案内中は「はたけ」のタブを光らせる（2歩で終わり）
+    document.querySelector('.tab[data-screen="farm"]').classList.toggle('glow', Farm.onboardStep() < 2);
   }
 
   function setGauge(id, rate) {

@@ -8,7 +8,8 @@ const Zukan = (() => {
   let data = null;   // 保存データ全体
   let cfg = null;    // data/vegetables.json の中身
   let root = null;
-  let filter = 'all';  // 図鑑のしぼりこみ（all か 季節のID）
+  let filter = 'all';  // 図鑑のしぼりこみ（all・季節のID・month＝現実の今月まける野菜）
+  let easyFirst = false;  // 育てやすい順に並べるか
 
   function init(options) {
     data = options.data;
@@ -45,19 +46,32 @@ const Zukan = (() => {
 
     // 季節でしぼりこむボタン
     const chips = h('div', { class: 'zukan-filter' });
-    [{ id: 'all', name: Msg.t('zukan.all') }, ...cfg.seasons].forEach((s) => {
+    const month = new Date().getMonth() + 1;
+    [{ id: 'month', name: Msg.t('zukan.monthChip', { m: month }) }, { id: 'all', name: Msg.t('zukan.all') }, ...cfg.seasons].forEach((s) => {
       chips.append(h('button', {
-        class: 'filter-chip' + (filter === s.id ? ' active' : ''),
+        class: 'filter-chip' + (filter === s.id ? ' active' : '') + (s.id === 'month' ? ' month' : ''),
         type: 'button',
         onclick: () => { filter = s.id; render(); },
       }, (s.icon ? s.icon + ' ' : '') + s.name));
     });
+    chips.append(h('button', {
+      class: 'filter-chip sort' + (easyFirst ? ' active' : ''),
+      type: 'button',
+      onclick: () => { easyFirst = !easyFirst; render(); },
+    }, Msg.t('zukan.easyFirst')));
     root.append(chips);
 
+    let vegs = cfg.vegetables.slice();
+    if (easyFirst) vegs.sort((a, b) => a.guide.level - b.guide.level);   // 同じ★の中は元の順のまま
     const list = h('div', { class: 'zukan-list' });
-    cfg.vegetables
-      .filter((v) => filter === 'all' || v.seasons.includes(filter))
-      .forEach((v) => list.append(data.harvested[v.id] ? card(v) : lockedCard(v)));
+    if (filter === 'month') {
+      // 現実のカレンダーで、今月植えられる野菜（実際の家庭菜園の参考に。名前もそのまま見せる）
+      root.append(h('p', { class: 'month-note' }, Msg.t('zukan.monthNote', { m: month })));
+      vegs.filter((v) => v.guide.plantMonths.includes(month)).forEach((v) => list.append(monthCard(v)));
+    } else {
+      vegs.filter((v) => filter === 'all' || v.seasons.includes(filter))
+        .forEach((v) => list.append(data.harvested[v.id] ? card(v) : lockedCard(v)));
+    }
     root.append(list);
   }
 
@@ -76,6 +90,19 @@ const Zukan = (() => {
         h('button', { class: 'link-btn', type: 'button', onclick: () => HowTo.open(v) }, Msg.t('howto.open'))
       )
     );
+  }
+
+  // 今月まける野菜のカード（植える時期・育てやすさ・プランターの向き・育て方カードへ）
+  function monthCard(v) {
+    const g = v.guide;
+    return h('article', { class: 'zukan-card month-card' },
+      h('div', { class: 'zukan-icon' }, vegIcon(v)),
+      h('div', { class: 'zukan-body' },
+        h('h3', { class: 'zukan-name' }, v.name,
+          h('span', { class: 'stars' }, ' ' + '★'.repeat(g.level) + '☆'.repeat(3 - g.level))),
+        h('div', { class: 'month-plant' }, g.plant),
+        g.planter ? h('div', { class: 'month-planter' }, Msg.t('zukan.planterFit', { fit: Msg.t('howto.fit.' + g.planter.fit) })) : null,
+        h('button', { class: 'link-btn', type: 'button', onclick: () => HowTo.open(v) }, Msg.t('howto.open'))));
   }
 
   // 春夏秋冬の4つのます。旬の季節に色がつく

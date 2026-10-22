@@ -26,6 +26,7 @@ const SaveData = (() => {
       quizCorrect: 0,                                  // おさらいクイズで正解した数の合計（称号に使う）
       showRuby: true,                                  // 画面の言葉に読みがなを付けるか
       stats: { bestCombo: 0, bestMulti: 0, bestLines: 0, bestMarks: 0 },  // ミッション用のいままでの最高
+      onboardStep: null,                               // はじめの案内：0=種まき 1=水やり 2=おわり（null は起動時に決める）
       tipHiddenDay: '',                                // 「今日のひとこと」を出さない日（「今日はもう出さない」を押した日）
       settings: { sound: false, vibrate: true },       // 音は最初オフ
     };

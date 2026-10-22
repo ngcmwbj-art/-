@@ -22,6 +22,7 @@ const Farm = (() => {
   let root = null;
   let tipClosed = false;   // ひとことを ✕ で閉じたか（開き直すまで）
   let seasonOpen = false;  // 季節の帯を開いているか（ふだんは1行にたたむ）
+  let othersOpen = false;  // 種えらびで「ほかの季節の野菜」を開いているか
 
   function init(options) {
     data = options.data;
@@ -30,6 +31,11 @@ const Farm = (() => {
     root = document.getElementById('farm');
     // はじめは startPlots 区画
     while (data.plots.length < cfg.rules.startPlots) data.plots.push(null);
+    // はじめの案内：前から遊んでいる人（何か植えた・収穫した）には出さない
+    if (data.onboardStep == null) {
+      const played = data.plots.some(Boolean) || Object.keys(data.harvested).length > 0;
+      data.onboardStep = played ? 2 : 0;
+    }
     render();
   }
 
@@ -161,6 +167,7 @@ const Farm = (() => {
   /* ---------- 作業 ---------- */
   function sow(index, vegId) {
     data.plots[index] = { vegId, stage: 0, growLeft: 0 };
+    if (data.onboardStep === 0) data.onboardStep = 1;   // 案内：次は水やり
     tellStep(veg(vegId), 'sow');
     acted();
   }
@@ -172,6 +179,7 @@ const Farm = (() => {
     data.resources.water -= cost.water;
     data.resources.fertilizer -= cost.fertilizer;
     const step = plot.stage === 0 ? 'water' : 'fertilize';
+    if (step === 'water' && data.onboardStep === 1) data.onboardStep = 2;   // 案内はここでおわり
     if (step === 'fertilize') {
       // 追肥したら育ち時間スタート。いちばん最初だけ短く
       plot.growLeft = data.firstGrowDone ? (veg(plot.vegId).grow || cfg.rules.growLines) : cfg.rules.firstGrowLines;
@@ -393,7 +401,11 @@ const Farm = (() => {
       return h('div', { class: 'plot empty' },
         h('div', { class: 'plot-soil' }, h('span', { class: 'plot-icon dim' }, '・・・')),
         h('div', { class: 'plot-name' }, Msg.rich('farm.emptyPlot')),
-        h('button', { class: 'btn primary sow-btn', onclick: () => openSeedPicker(index) }, Msg.t('farm.sowButton'))
+        h('button', {
+          // 案内中は、最初の空き区画の「種をまく」を光らせる
+          class: 'btn primary sow-btn' + (data.onboardStep === 0 && index === data.plots.indexOf(null) ? ' glow' : ''),
+          onclick: () => openSeedPicker(index),
+        }, Msg.t('farm.sowButton'))
       );
     }
 
@@ -421,7 +433,8 @@ const Farm = (() => {
         h('button', { class: 'book-btn', type: 'button', 'aria-label': Msg.t('howto.open'), onclick: () => HowTo.open(v) }, '📖')),
       stepDots(Math.min(plot.stage, 2)),
       h('button', {
-        class: 'btn' + (ready ? ' primary' : ''),
+        // 案内中は、最初の水やりボタンを光らせる
+        class: 'btn' + (ready ? ' primary' : '') + (data.onboardStep === 1 && plot.stage === 0 && enough ? ' glow' : ''),
         disabled: growing || !enough ? '' : null,
         onclick: () => work(index),
       }, label),
@@ -448,8 +461,12 @@ const Farm = (() => {
     now.filter((v) => !Missions.isChallenge(v)).forEach((v) => list.append(seedButton(v, index)));
     list.append(h('div', { class: 'seed-heading' }, Msg.t('farm.seedChallenge', { season: season().name })));
     now.filter((v) => Missions.isChallenge(v)).forEach((v) => list.append(seedButton(v, index)));
-    list.append(h('div', { class: 'seed-heading' }, Msg.t('farm.seedOthers')));
-    others.forEach((v) => list.append(seedButton(v, index)));
+    // ほかの季節の野菜はふだんたたんでおく（一覧が長くて迷わないように）
+    list.append(h('button', {
+      class: 'seed-heading seed-fold', type: 'button',
+      onclick: () => { othersOpen = !othersOpen; openSeedPicker(index); },
+    }, Msg.t('farm.seedOthers') + ` (${others.length}) ` + (othersOpen ? '▲' : '▼')));
+    if (othersOpen) others.forEach((v) => list.append(seedButton(v, index)));
     Modal.open({
       title: Msg.t('farm.pickSeed'),
       body: list,
@@ -508,7 +525,8 @@ const Farm = (() => {
   }
 
   function dailyTip() {
-    if (tipClosed || data.tipHiddenDay === todayKey()) return null;
+    // はじめの案内のあいだは出さない（見るところを少なく）
+    if (tipClosed || data.onboardStep < 2 || data.tipHiddenDay === todayKey()) return null;
     const vegs = cfg.vegetables.filter(inSeason);
     if (!vegs.length) return null;
     const pool = [];
@@ -536,7 +554,8 @@ const Farm = (() => {
     if (plots.some((p) => p.stage === READY)) return { text: Msg.t('goal.harvest'), go: true };
     const doable = plots.find((p) => p.stage < 2 && canAfford(costOf(p)));
     if (doable) return { text: Msg.t(doable.stage === 0 ? 'goal.canWater' : 'goal.canFert'), go: true };
-    if (data.plots.some((p) => !p)) return { text: Msg.t('goal.sow'), go: true };
+    // まだ何も植えていないときは種まきから（種まきに水や肥料はいらない）
+    if (!plots.length) return { text: Msg.t('goal.firstSow'), go: true };
     // 資源が足りない作業のうち、いちばん近いもの
     let best = null;
     plots.filter((p) => p.stage < 2).forEach((p) => {
@@ -545,6 +564,7 @@ const Farm = (() => {
       if (!best || left < best.left) best = { left, key, v: veg(p.vegId) };
     });
     if (best) return { text: Msg.t('goal.need.' + best.key, { icon: Msg.t('icons.' + best.key), n: best.left, name: best.v.name }), go: false };
+    if (data.plots.some((p) => !p)) return { text: Msg.t('goal.sow'), go: true };
     const growing = plots.filter((p) => p.stage === 2).sort((a, b) => a.growLeft - b.growLeft)[0];
     if (growing) return { text: Msg.t('goal.grow', { name: veg(growing.vegId).name, n: growing.growLeft }), go: false };
     return { text: Msg.t('goal.plot'), go: true };
@@ -601,5 +621,9 @@ const Farm = (() => {
     });
   }
 
-  return { init, render, gainFromLines, hasAction, nextGoal, limits, season, seasonalVegs, seasonalChallenges, seasonProgress, inSeason, seasonNames, veg };
+  function onboardStep() {
+    return data.onboardStep;
+  }
+
+  return { init, render, gainFromLines, hasAction, nextGoal, onboardStep, limits, season, seasonalVegs, seasonalChallenges, seasonProgress, inSeason, seasonNames, veg };
 })();
