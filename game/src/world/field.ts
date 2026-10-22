@@ -172,7 +172,8 @@ export class FieldScene implements Scene {
   camY = 0;
   private lookX = 0;
   private lookY = 0;
-  camOverride: { x: number; y: number } | null = null;
+  /** `aim`: the world x a scripted pan was asked to centre (an HD-2D hall follows it across, hd2d/room.ts roomPan). */
+  camOverride: { x: number; y: number; aim?: number } | null = null;
   camFollow: Actor | null = null;
   /**
    * HD-2D: the tilt-shift's sharp row on these world px (someone's feet) instead of the player's —

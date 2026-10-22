@@ -137,12 +137,17 @@ export function* panTo(tx: number, ty: number, ms = 800): Co {
   const x0 = f.camX;
   const y0 = f.camY;
   const [x1, y1] = camFor(f, tx * 16 + 8, ty * 16 + 8);
-  f.camOverride = { x: x1 + W / 2, y: y1 + H / 2 };
+  // (aim: where the pan looks, for an HD-2D hall wider than its frame — eased too)
+  const a0 = f.camOverride ? (f.camOverride.aim ?? f.camOverride.x) : f.player.x + f.player.ox;
+  const a1 = tx * 16 + 8;
+  const o = { x: x1 + W / 2, y: y1 + H / 2, aim: a0 };
+  f.camOverride = o;
   yield* animate(
     ms,
     (p) => {
       f.camX = x0 + (x1 - x0) * p;
       f.camY = y0 + (y1 - y0) * p;
+      o.aim = a0 + (a1 - a0) * p;
     },
     ease.sineInOut,
   );
@@ -155,11 +160,14 @@ export function* panBack(ms = 600): Co {
   const x0 = f.camX;
   const y0 = f.camY;
   const [tx, ty] = f.followTarget();
+  const o = f.camOverride;
+  const a0 = o.aim;
   yield* animate(
     ms,
     (p) => {
       f.camX = x0 + (tx - x0) * p;
       f.camY = y0 + (ty - y0) * p;
+      if (a0 !== undefined) o.aim = a0 + (f.player.x + f.player.ox - a0) * p;
     },
     ease.sineInOut,
   );

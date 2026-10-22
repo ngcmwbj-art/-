@@ -173,15 +173,19 @@ export function roomMap(id: string): boolean {
  */
 export function roomPan(f: FieldScene): number {
   const mw = f.map.w * 16;
-  const slack = Math.max(0, mw / 2 - PAN_HALF);
+  // (a scripted pan to the people at the hall's end centres them, a little
+  // of the dark round the room showing: 集会所の 寄り合い, 2026-10-23)
+  const slack = Math.max(0, mw / 2 - (f.camOverride ? PAN_HALF_SCRIPT : PAN_HALF));
   if (!slack) return 0;
   const cx = f.camX + W / 2;
-  const at = f.camOverride?.x ?? f.player.x + f.player.ox;
+  const at = f.camOverride ? (f.camOverride.aim ?? f.camOverride.x) : f.player.x + f.player.ox;
   return Math.max(-slack, Math.min(slack, at - cx)) / 16;
 }
 
 /** Half the width (px) the 3D frame shows near its foot, less a margin (roomPan). */
 const PAN_HALF = 124;
+/** The same for a scripted pan (panTo): it may go nearer the hall's ends. */
+const PAN_HALF_SCRIPT = 80;
 
 /** Round the room, as in 2D (render.ts clears with the map's outside, else the night). */
 export const ROOM_BG = P.night;
