@@ -18,6 +18,7 @@ const HowTo = (() => {
 
   // options.actions：カードの下に足すボタン [{ label, primary, onClick }]
   // options.onClose：「とじる」を押したあとにすること
+  // options.now：畑のその区画で今の作業（sow・water・fertilize・harvest）。作業の流れの行を目立たせる
   function open(v, options = {}) {
     const g = v.guide;
     const body = h('div', { class: 'howto' },
@@ -43,7 +44,10 @@ const HowTo = (() => {
       planter(g.planter),
       h('div', { class: 'howto-sub' }, Msg.t('howto.steps')),
       h('ol', { class: 'howto-steps' },
-        STEPS.map((step) => h('li', {}, h('b', {}, Msg.t('farm.stepNames.' + step)), h('span', {}, v.steps[step])))),
+        STEPS.map((step) => h('li', { class: step === options.now ? 'now' : null },
+          h('b', {}, Msg.t('farm.stepNames.' + step)),
+          step === options.now ? h('span', { class: 'now-tag' }, Msg.t('howto.now')) : null,
+          h('span', {}, v.steps[step])))),
       h('div', { class: 'howto-sub' }, Msg.t('howto.tips')),
       h('ul', { class: 'howto-tips' }, v.tips.map((tip) => h('li', {}, tip))),
       words(v),

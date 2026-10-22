@@ -74,7 +74,13 @@
   document.querySelectorAll('.tab').forEach((tab) => {
     tab.addEventListener('click', () => showScreen(tab.dataset.screen));
   });
-  document.getElementById('goal').addEventListener('click', () => showScreen('farm'));
+  // 次の目標を押すと畑へ。畑ですぐできることなら、その場所を光らせる
+  function goToGoal() {
+    const goal = Farm.nextGoal();
+    showScreen('farm');
+    if (goal.go) Farm.flash(goal.plot);
+  }
+  document.getElementById('goal').addEventListener('click', goToGoal);
 
   /* ---------- 音・遊び方・設定（画面右上） ---------- */
   const soundBtn = document.getElementById('sound-btn');
@@ -226,21 +232,24 @@
       return Farm.gainFromLines(info);
     },
     onUndo: () => Farm.render(),
-    onGameOver: ({ score, isNewBest, water, fertilizer }) => {
+    onGameOver: ({ score, isNewBest, water, fertilizer, marks }) => {
       // 点数より先に「畑に持ち帰ったもの」と、畑で次にできることを見せる（負けではなく前進に）
+      const goal = Farm.nextGoal();
       const lines = [];
       if (water || fertilizer) {
         lines.push(Msg.t('puzzle.brought', { water: `${Msg.t('icons.water')}${water}`, fertilizer: `${Msg.t('icons.fertilizer')}${fertilizer}` }));
-        lines.push(Farm.nextGoal().text);
+      } else if (marks) {
+        lines.push(Msg.t('puzzle.broughtFull'));   // マークは消したが、水がめ・肥料袋がいっぱいだった
       }
+      if (water || fertilizer || marks) lines.push(goal.text);
       lines.push(Msg.t('puzzle.gameOverBody', { score }));
       if (isNewBest) lines.push(Msg.t('puzzle.newBest'));
       const buttons = [];
       // 置き間違えで終わったときのために、ここでも「一手もどす」を選べる
       if (Puzzle.canUndo()) buttons.push({ label: Msg.t('puzzle.undo'), onClick: () => Puzzle.undo() });
       if (Puzzle.canShuffle()) buttons.push({ label: Msg.t('puzzle.shuffleOver'), onClick: () => Puzzle.shuffle() });
-      buttons.push({ label: Msg.t('puzzle.toFarm'), onClick: () => finishGame('farm') });
-      buttons.push({ label: Msg.t('puzzle.retry'), primary: true, onClick: () => finishGame() });
+      buttons.push({ label: Msg.t('puzzle.toFarm'), primary: goal.go, onClick: () => { finishGame('farm'); if (goal.go) Farm.flash(goal.plot); } });
+      buttons.push({ label: Msg.t('puzzle.retry'), primary: !goal.go, onClick: () => finishGame() });
       Modal.open({ title: Msg.t('puzzle.gameOverTitle'), body: lines.join('\n'), buttons });
     },
   });

@@ -425,12 +425,12 @@ const Farm = (() => {
 
   function plotCard(plot, index) {
     if (!plot) {
-      return h('div', { class: 'plot empty' },
+      return h('div', { class: 'plot empty', 'data-index': index },
         h('div', { class: 'plot-soil' }, h('span', { class: 'plot-icon dim' }, '・・・')),
         h('div', { class: 'plot-name' }, Msg.rich('farm.emptyPlot')),
         h('button', {
           // 案内中は、最初の空き区画の「種をまく」を光らせる
-          class: 'btn primary sow-btn' + (data.onboardStep === 0 && index === data.plots.indexOf(null) ? ' glow' : ''),
+          class: 'btn primary sow-btn plot-action' + (data.onboardStep === 0 && index === data.plots.indexOf(null) ? ' glow' : ''),
           onclick: () => openSeedPicker(index),
         }, Msg.t('farm.sowButton'))
       );
@@ -454,14 +454,14 @@ const Farm = (() => {
     // 次の作業のコツをいつも見せておく（育ち中・収穫どきは収穫のコツ）
     const nextStep = ['water', 'fertilize', 'harvest', 'harvest'][plot.stage];
 
-    return h('div', { class: 'plot' + (ready ? ' ready' : '') + (growing ? ' growing' : '') },
+    return h('div', { class: 'plot' + (ready ? ' ready' : '') + (growing ? ' growing' : ''), 'data-index': index },
       h('div', { class: 'plot-soil' + (plot.stage >= 1 ? ' wet' : ''), 'data-plot': index }, icon),
       h('div', { class: 'plot-name' }, v.name, inSeason(v) ? h('span', { class: 'shun' }, Msg.t('farm.shun')) : null,
-        h('button', { class: 'book-btn', type: 'button', 'aria-label': Msg.t('howto.open'), onclick: () => HowTo.open(v) }, '📖')),
+        h('button', { class: 'book-btn', type: 'button', 'aria-label': Msg.t('howto.open'), onclick: () => HowTo.open(v, { now: nextStep }) }, '📖')),
       stepDots(Math.min(plot.stage, 2)),
       h('button', {
         // 案内中は、最初の水やりボタンを光らせる
-        class: 'btn' + (ready ? ' primary' : '') + (data.onboardStep === 1 && plot.stage === 0 && enough ? ' glow' : ''),
+        class: 'btn plot-action' + (ready ? ' primary' : '') + (data.onboardStep === 1 && plot.stage === 0 && enough ? ' glow' : ''),
         disabled: growing || !enough ? '' : null,
         onclick: () => work(index),
       }, label),
@@ -576,13 +576,16 @@ const Farm = (() => {
   }
 
   // パズル画面に出す「次の目標」を1つ決める { text, go }（go：押すと畑へ行く）
+  // 次の目標 { text, go：畑へ行けばできるか, plot：光らせる区画の番号（区画をふやすときは 'expand'）}
   function nextGoal() {
     const plots = data.plots.filter(Boolean);
-    if (plots.some((p) => p.stage === READY)) return { text: Msg.t('goal.harvest'), go: true };
+    const at = (p) => data.plots.indexOf(p);
+    const ready = plots.find((p) => p.stage === READY);
+    if (ready) return { text: Msg.t('goal.harvest'), go: true, plot: at(ready) };
     const doable = plots.find((p) => p.stage < 2 && canAfford(costOf(p)));
-    if (doable) return { text: Msg.t(doable.stage === 0 ? 'goal.canWater' : 'goal.canFert'), go: true };
+    if (doable) return { text: Msg.t(doable.stage === 0 ? 'goal.canWater' : 'goal.canFert'), go: true, plot: at(doable) };
     // まだ何も植えていないときは種まきから（種まきに水や肥料はいらない）
-    if (!plots.length) return { text: Msg.t('goal.firstSow'), go: true };
+    if (!plots.length) return { text: Msg.t('goal.firstSow'), go: true, plot: data.plots.indexOf(null) };
     // 資源が足りない作業のうち、いちばん近いもの
     let best = null;
     plots.filter((p) => p.stage < 2).forEach((p) => {
@@ -591,10 +594,22 @@ const Farm = (() => {
       if (!best || left < best.left) best = { left, key, v: veg(p.vegId) };
     });
     if (best) return { text: Msg.t('goal.need.' + best.key, { icon: Msg.t('icons.' + best.key), n: best.left, name: best.v.name }), go: false };
-    if (data.plots.some((p) => !p)) return { text: Msg.t('goal.sow'), go: true };
+    if (data.plots.some((p) => !p)) return { text: Msg.t('goal.sow'), go: true, plot: data.plots.indexOf(null) };
     const growing = plots.filter((p) => p.stage === 2).sort((a, b) => a.growLeft - b.growLeft)[0];
     if (growing) return { text: Msg.t('goal.grow', { name: veg(growing.vegId).name, n: growing.growLeft }), go: false };
-    return { text: Msg.t('goal.plot'), go: true };
+    return { text: Msg.t('goal.plot'), go: true, plot: 'expand' };
+  }
+
+  // 次の目標の場所を、はじめの案内と同じ光り方で2秒だけ光らせる（1回きり。せかさない）
+  function flash(plot) {
+    if (plot == null) return;
+    const el = plot === 'expand'
+      ? root.querySelector('.expand-btn')
+      : root.querySelector(`.plot[data-index="${plot}"] .plot-action`);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.classList.add('flash');
+    setTimeout(() => el.classList.remove('flash'), 2000);
   }
 
   // はじめてさんにおすすめ：育てやすさ★1で、いまが旬の基本の野菜（ほかの印は増やさない）
@@ -652,5 +667,5 @@ const Farm = (() => {
     return data.onboardStep;
   }
 
-  return { init, render, gainFromLines, hasAction, nextGoal, onboardStep, limits, season, seasonalVegs, seasonalChallenges, seasonProgress, inSeason, seasonNames, veg };
+  return { init, render, gainFromLines, hasAction, nextGoal, flash, onboardStep, limits, season, seasonalVegs, seasonalChallenges, seasonProgress, inSeason, seasonNames, veg };
 })();

@@ -1062,6 +1062,15 @@ button.season-chip { font: inherit; font-size: 0.9rem; color: inherit; cursor: p
     100% { opacity: 0; }
   }
 }
+/* 次の目標の場所を2秒だけ光らせる（はじめの案内と同じ光り方） */
+.flash { animation: glow 1s ease-in-out 2; }
+@media (prefers-reduced-motion: reduce) {
+  .flash { animation: none; outline: 3px solid #f6c86e; outline-offset: 2px; }
+}
+/* 育て方カード：いまの作業 */
+.howto-steps li.now { background: #fdf0dc; border-radius: 8px; box-shadow: 0 0 0 2px #f3cf9f; }
+.now-tag { display: inline-block; margin: 0 6px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 0.72rem; font-weight: bold; vertical-align: 1px; }
+
 /* 季節の畑しごと */
 .season-work { margin-top: 12px; text-align: left; background: #f6f9ef; border-radius: 12px; padding: 10px 12px; }
 .season-work-title { font-weight: bold; color: var(--green-dark); margin-bottom: 4px; }

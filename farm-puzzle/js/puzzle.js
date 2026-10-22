@@ -312,7 +312,7 @@ const Puzzle = (() => {
   function announceGameOver() {
     setTimeout(() => {
       if (hooks.onGameOver) {
-        hooks.onGameOver({ score: st.score, isNewBest: st.score > st.bestBefore && st.score > 0, water: st.gotWater || 0, fertilizer: st.gotFertilizer || 0 });
+        hooks.onGameOver({ score: st.score, isNewBest: st.score > st.bestBefore && st.score > 0, water: st.gotWater || 0, fertilizer: st.gotFertilizer || 0, marks: st.gameMarks || 0 });
       }
     }, 800);
   }
