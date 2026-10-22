@@ -103,9 +103,18 @@ const Zukan = (() => {
     const all = done.every(Boolean);
     return h('div', { class: 'badges' },
       h('span', { class: 'badges-label' }, Msg.t('zukan.badges')),
-      cfg.seasons.map((s, i) => h('span', {
+      // バッジを押すと、その季節の畑しごとを読み返せる
+      cfg.seasons.map((s, i) => h('button', {
         class: 'badge-season' + (done[i] ? ' got' : ''),
+        type: 'button',
         title: Msg.t(done[i] ? 'zukan.badgeGot' : 'zukan.badgeNot', { season: s.name }),
+        onclick: () => Modal.open({
+          title: s.icon + ' ' + Msg.t('season.work', { season: s.name }),
+          body: h('div', { class: 'season-work' },
+            h('p', {}, Msg.t(done[i] ? 'zukan.badgeGot' : 'zukan.badgeNot', { season: s.name })),
+            h('ul', {}, (s.work || []).map((w) => h('li', {}, w)))),
+          buttons: [{ label: Msg.t('common.close'), primary: true }],
+        }),
       }, s.icon)),
       h('span', { class: 'badge-season trophy' + (all ? ' got' : ''), title: Msg.t('zukan.badgeAll') }, '🏆'));
   }

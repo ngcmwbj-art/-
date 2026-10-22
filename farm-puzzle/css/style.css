@@ -1062,6 +1062,13 @@ button.season-chip { font: inherit; font-size: 0.9rem; color: inherit; cursor: p
     100% { opacity: 0; }
   }
 }
+/* 季節の畑しごと */
+.season-work { margin-top: 12px; text-align: left; background: #f6f9ef; border-radius: 12px; padding: 10px 12px; }
+.season-work-title { font-weight: bold; color: var(--green-dark); margin-bottom: 4px; }
+.season-work ul { margin: 0; padding-left: 1.2em; line-height: 1.7; font-size: 0.9rem; }
+.season-work p { margin: 0 0 6px; font-size: 0.85rem; color: var(--sub); }
+button.badge-season { border: none; padding: 0; cursor: pointer; font: inherit; font-size: 1.1rem; }
+
 /* 図鑑：おいしい食べ方 */
 .zukan-eat { margin: 4px 0 6px; font-size: 0.88rem; line-height: 1.6; color: #a8622a; }
 

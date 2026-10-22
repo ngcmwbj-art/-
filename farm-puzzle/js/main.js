@@ -196,10 +196,19 @@
       body: h('div', { class: 'season-complete' },
         h('p', {}, Msg.t('season.welcomeBody', { season: s.name, n: vegs.length, m: Farm.seasonalChallenges().length })),
         h('div', { class: 'season-welcome-list' },
-          vegs.map((v) => h('span', { class: 'season-welcome-item' }, vegIcon(v), h('span', {}, v.name))))
+          vegs.map((v) => h('span', { class: 'season-welcome-item' }, vegIcon(v), h('span', {}, v.name)))),
+        seasonWork(s)
       ),
       buttons: [{ label: Msg.t('season.toFarm'), primary: true, onClick: () => showScreen('farm') }],
     });
+  }
+
+  // その季節の畑しごと（2〜3行。図鑑の季節バッジからも読み返せる）
+  function seasonWork(s) {
+    if (!s.work) return null;
+    return h('div', { class: 'season-work' },
+      h('div', { class: 'season-work-title' }, Msg.t('season.work', { season: s.name })),
+      h('ul', {}, s.work.map((w) => h('li', {}, w))));
   }
 
   // 1プレイが終わったら次のプレイへ（季節は畑で旬の野菜をぜんぶ収穫すると進む）
@@ -217,8 +226,14 @@
       return Farm.gainFromLines(info);
     },
     onUndo: () => Farm.render(),
-    onGameOver: ({ score, isNewBest }) => {
-      const lines = [Msg.t('puzzle.gameOverBody', { score })];
+    onGameOver: ({ score, isNewBest, water, fertilizer }) => {
+      // 点数より先に「畑に持ち帰ったもの」と、畑で次にできることを見せる（負けではなく前進に）
+      const lines = [];
+      if (water || fertilizer) {
+        lines.push(Msg.t('puzzle.brought', { water: `${Msg.t('icons.water')}${water}`, fertilizer: `${Msg.t('icons.fertilizer')}${fertilizer}` }));
+        lines.push(Farm.nextGoal().text);
+      }
+      lines.push(Msg.t('puzzle.gameOverBody', { score }));
       if (isNewBest) lines.push(Msg.t('puzzle.newBest'));
       const buttons = [];
       // 置き間違えで終わったときのために、ここでも「一手もどす」を選べる

@@ -28,7 +28,8 @@
     "undone": "一手もどしました（1プレイに1回だけ）",
     "shuffle": "🔄 とりかえ",
     "shuffleOver": "🔄 手元をとりかえる",
-    "shuffled": "手元のブロックをとりかえました（1プレイに1回だけ）"
+    "shuffled": "手元のブロックをとりかえました（1プレイに1回だけ）",
+    "brought": "畑に持ち帰ったもの：{water}　{fertilizer}"
   },
   "farm": {
     "seasonNow": "いまは {season}",
@@ -147,7 +148,8 @@
     "toNext": "{icon}{season}へ",
     "welcomeTitle": "{icon}{season}がやってきました",
     "welcomeBody": "{season}の基本の旬の野菜はこの{n}種類。ぜんぶ収穫すると、次の季節に進みます。\nほかに、ミッションで種が手に入るチャレンジ野菜が{m}種類あります。",
-    "toFarm": "はたけへ"
+    "toFarm": "はたけへ",
+    "work": "{season}の畑しごと"
   },
   "howto": {
     "title": "{name}の育て方",

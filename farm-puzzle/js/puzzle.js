@@ -145,6 +145,8 @@ const Puzzle = (() => {
       shuffleUsed: false,
       gameLines: 0,     // このプレイで消した列の合計（ミッション用）
       gameMarks: 0,     // このプレイで消したマークの合計（ミッション用）
+      gotWater: 0,      // このプレイで畑に持ち帰った水
+      gotFertilizer: 0, // このプレイで畑に持ち帰った肥料
     };
     undoSnap = null;
     st.pieces = makePieceSet();
@@ -282,9 +284,12 @@ const Puzzle = (() => {
       // 農業側へ「何列消したか・マークをいくつ消したか」を知らせる（資源の文字が返ってくる）
       st.gameLines = (st.gameLines || 0) + lines;
       st.gameMarks = (st.gameMarks || 0) + marks.water + marks.fertilizer;
-      const extra = hooks.onLinesCleared
-        ? hooks.onLinesCleared({ lines, combo: st.combo, marks, gameLines: st.gameLines, gameMarks: st.gameMarks })
-        : '';
+      const got = hooks.onLinesCleared
+        ? hooks.onLinesCleared({ lines, combo: st.combo, marks, gameLines: st.gameLines, gameMarks: st.gameMarks }) || {}
+        : {};
+      st.gotWater = (st.gotWater || 0) + (got.water || 0);
+      st.gotFertilizer = (st.gotFertilizer || 0) + (got.fertilizer || 0);
+      const extra = got.text || '';
       showClearText(cleared, `+${gained}` + (extra ? `  ${extra}` : ''), lines);
       Sound.play('clear', lines + st.combo - 1);
     } else {
@@ -307,7 +312,7 @@ const Puzzle = (() => {
   function announceGameOver() {
     setTimeout(() => {
       if (hooks.onGameOver) {
-        hooks.onGameOver({ score: st.score, isNewBest: st.score > st.bestBefore && st.score > 0 });
+        hooks.onGameOver({ score: st.score, isNewBest: st.score > st.bestBefore && st.score > 0, water: st.gotWater || 0, fertilizer: st.gotFertilizer || 0 });
       }
     }, 800);
   }

@@ -125,7 +125,8 @@ const Farm = (() => {
     if (water) parts.push(`${Msg.t('icons.water')}+${water}`);
     if (fertilizer) parts.push(`${Msg.t('icons.fertilizer')}+${fertilizer}`);
     if (!water && !fertilizer && (marks.water || marks.fertilizer)) parts.push(Msg.t('farm.full'));
-    return parts.join(' ');
+    // text：盤面に出す文字、water・fertilizer：実際にたまった量（ゲームオーバーで「持ち帰ったもの」に使う）
+    return { text: parts.join(' '), water, fertilizer };
   }
 
   // 今回の追加で「もうすぐいっぱい」を初めてこえたか
