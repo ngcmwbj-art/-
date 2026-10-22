@@ -95,7 +95,11 @@
     "monthChip": "📅 {m}月にまける",
     "monthNote": "現実のカレンダーで、{m}月に種まき・植えつけできる野菜です（関東など、暑すぎず寒すぎない地域の目安。ゲームの季節とは別です）。",
     "easyFirst": "★ 育てやすい順",
-    "planterFit": "🪴 プランター：{fit}"
+    "planterFit": "🪴 プランター：{fit}",
+    "badges": "季節のバッジ",
+    "badgeGot": "{season}の基本の野菜をぜんぶ収穫しました",
+    "badgeNot": "{season}の基本の野菜をぜんぶ収穫するともらえます",
+    "badgeAll": "4つの季節がそろうともらえます"
   },
   "hud": {
     "water": "水",
@@ -126,12 +130,14 @@
   },
   "help": {
     "title": "遊び方・設定",
-    "body": "音・振動・読みがなは、ここで切りかえられます。\n（iPhone は振動しません）",
+    "body": "音・振動・読みがな・文字の大きさは、ここで切りかえられます。\n（iPhone は振動しません）",
     "guide": "遊び方をもう一度見る",
     "vibrateOn": "振動：オン",
     "vibrateOff": "振動：オフ",
     "rubyOn": "読みがな：オン",
-    "rubyOff": "読みがな：オフ"
+    "rubyOff": "読みがな：オフ",
+    "bigTextOn": "文字：大きめ",
+    "bigTextOff": "文字：ふつう"
   },
   "season": {
     "completeTitle": "{icon}{season}の旬をコンプリート！",
@@ -234,7 +240,10 @@
         "n": 60,
         "name": "畑の大先生"
       }
-    ]
+    ],
+    "pests": "{name}で気をつけたい病気・虫は、どれ？",
+    "pestsExplain": "{pests}に気をつけます。\nコツ：{point}",
+    "planter": "{name}は、プランターで育てやすい？"
   },
   "daily": {
     "title": "🌱 今日のひとこと（{name}）",

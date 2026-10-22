@@ -30,6 +30,8 @@ const Zukan = (() => {
       )
     );
 
+    root.append(badges());
+
     // おさらいクイズの入口（図鑑の上に1つだけ）
     const known = cfg.vegetables.filter((v) => data.harvested[v.id]);
     root.append(h('div', { class: 'review-box' },
@@ -90,6 +92,21 @@ const Zukan = (() => {
         h('button', { class: 'link-btn', type: 'button', onclick: () => HowTo.open(v) }, Msg.t('howto.open'))
       )
     );
+  }
+
+  // 季節のバッジ：その季節の基本の野菜をぜんぶ収穫したら色がつく。4つそろうと🏆
+  function badges() {
+    const done = cfg.seasons.map((s) => cfg.vegetables
+      .filter((v) => v.seasons.includes(s.id) && !Missions.isChallenge(v))
+      .every((v) => data.harvested[v.id]));
+    const all = done.every(Boolean);
+    return h('div', { class: 'badges' },
+      h('span', { class: 'badges-label' }, Msg.t('zukan.badges')),
+      cfg.seasons.map((s, i) => h('span', {
+        class: 'badge-season' + (done[i] ? ' got' : ''),
+        title: Msg.t(done[i] ? 'zukan.badgeGot' : 'zukan.badgeNot', { season: s.name }),
+      }, s.icon)),
+      h('span', { class: 'badge-season trophy' + (all ? ' got' : ''), title: Msg.t('zukan.badgeAll') }, '🏆'));
   }
 
   // 今月まける野菜のカード（植える時期・育てやすさ・プランターの向き・育て方カードへ）

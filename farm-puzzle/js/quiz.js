@@ -5,6 +5,9 @@
    - まちがいの選択肢は「月が1つも重ならない、ほかの野菜の時期」から選ぶ
    - まちがえても何も減らない。カードを見てから何度でも挑戦できる
    - おさらいクイズ：図鑑に登録した野菜から1回5問。正解するたびにすぐ数えるので、途中でやめても残る
+   - おさらいクイズには「気をつけたい病気・虫」「プランター向き」の問題もまぜる
+     （ミッションのクイズは月の問題だけ。種の手に入りやすさは変えない）
+   - 日当たりは「日なた」の野菜が多く、選択肢が作れないので出さない
    ========================================================= */
 const Quiz = (() => {
   const ROUND = 5;   // おさらいクイズ1回の問題数
@@ -44,7 +47,7 @@ const Quiz = (() => {
       }
       i += 1;
       const v = vegs[Math.floor(Math.random() * vegs.length)];
-      const q = makeQuestion(v);
+      const q = makeQuestion(v, ['plant', 'harvest', 'pests', 'planter']);
       const choose = (c) => {
         const ok = c === q.answer;
         if (ok) {
@@ -108,8 +111,16 @@ const Quiz = (() => {
   }
 
   // 問題を1つ作る { question, answer, choices, explain }
-  function makeQuestion(v) {
-    const kind = Math.random() < 0.5 ? 'plant' : 'harvest';
+  // kinds：出してよい問題の種類（plant・harvest・pests・planter）
+  function makeQuestion(v, kinds = ['plant', 'harvest']) {
+    let kind = kinds[Math.floor(Math.random() * kinds.length)];
+    if (kind === 'pests') {
+      const q = pestQuestion(v);
+      if (q) return q;
+      kind = 'plant';   // まちがいの選択肢が作れないときは月の問題に
+    }
+    if (kind === 'planter' && v.guide.planter) return planterQuestion(v);
+    if (kind !== 'harvest') kind = 'plant';
     const key = kind === 'plant' ? 'plantMonths' : 'harvestMonths';
     const right = v.guide[key];
     const answer = formatMonths(right);
@@ -126,6 +137,38 @@ const Quiz = (() => {
       answer,
       choices: shuffle([answer, ...wrong]),
       explain: kind === 'plant' ? v.guide.plant : Msg.t('quiz.harvestExplain', { months: answer, tip: v.steps.harvest }),
+    };
+  }
+
+  // 気をつけたい病気・虫：まちがいは「1つも重ならない、ほかの野菜の病気・虫」から選ぶ
+  function pestQuestion(v) {
+    const split = (s) => s.split('、').map((x) => x.trim());
+    const right = split(v.guide.pests);
+    const answer = v.guide.pests;
+    const wrong = [];
+    shuffle(cfg.vegetables).forEach((x) => {
+      if (wrong.length >= 2 || x.id === v.id) return;
+      if (split(x.guide.pests).some((p) => right.includes(p))) return;
+      if (!wrong.includes(x.guide.pests)) wrong.push(x.guide.pests);
+    });
+    if (wrong.length < 2) return null;
+    return {
+      question: Msg.t('quiz.pests', { name: v.name }),
+      answer,
+      choices: shuffle([answer, ...wrong]),
+      explain: Msg.t('quiz.pestsExplain', { pests: answer, point: v.guide.point }),
+    };
+  }
+
+  // プランター向き：3つの答え（向いています・ひと工夫で・あまり向きません）から選ぶ
+  function planterQuestion(v) {
+    const p = v.guide.planter;
+    const labels = ['ok', 'kufuu', 'no'].map((k) => Msg.t('howto.fit.' + k));
+    return {
+      question: Msg.t('quiz.planter', { name: v.name }),
+      answer: Msg.t('howto.fit.' + p.fit),
+      choices: labels,   // 並びはいつも同じ（段階なので）
+      explain: `🪴 ${p.depth}　/　${p.count}\n${p.note}`,
     };
   }
 

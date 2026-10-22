@@ -27,11 +27,12 @@
   --cell: 40px;
   --gap: 4px;
 
-  /* 盤面の大きさ：画面幅と高さの両方に収まるように */
-  --board-size: clamp(240px, min(92vw, calc((100vh - 245px) / 1.36)), 480px);
+  /* 盤面の大きさ：画面幅と高さの両方に収まるように（--chrome＝盤面以外の高さ） */
+  --chrome: 245px;
+  --board-size: clamp(240px, min(92vw, calc((100vh - var(--chrome)) / 1.36)), 480px);
 }
 @supports (height: 100dvh) {
-  :root { --board-size: clamp(240px, min(92vw, calc((100dvh - 245px) / 1.36)), 480px); }
+  :root { --board-size: clamp(240px, min(92vw, calc((100dvh - var(--chrome)) / 1.36)), 480px); }
 }
 
 * { box-sizing: border-box; }
@@ -1039,6 +1040,16 @@ button.season-chip { font: inherit; font-size: 0.9rem; color: inherit; cursor: p
 .planter-fit { margin-left: 8px; padding: 0 8px; border-radius: 999px; font-size: 0.75rem; background: #fff; color: var(--text); }
 .planter-line { font-weight: bold; line-height: 1.6; }
 .planter-note { font-size: 0.88rem; line-height: 1.6; }
+
+/* 文字の大きさ：大きめ（rem の文字がまとめて大きくなる） */
+html.big-text { font-size: 112.5%; --chrome: 268px; }   /* 文字が大きいぶん盤面を少し小さく */
+/* クイズの説明は改行をそのまま見せる */
+.quiz p { white-space: pre-line; }
+/* 図鑑：季節のバッジ */
+.badges { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 0.85rem; color: var(--sub); }
+.badges-label { margin-right: 4px; }
+.badge-season { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: #f1ebe0; font-size: 1.1rem; filter: grayscale(1); opacity: 0.45; }
+.badge-season.got { background: #fdf0dc; box-shadow: 0 0 0 2px #f3cf9f; filter: none; opacity: 1; }
 
 /* はじめの案内：やさしく光らせる（止めない） */
 .glow { animation: glow 1.6s ease-in-out infinite; }

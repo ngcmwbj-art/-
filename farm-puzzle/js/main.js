@@ -109,6 +109,15 @@
           },
         },
         {
+          label: Msg.t(save.settings.bigText ? 'help.bigTextOn' : 'help.bigTextOff'),
+          onClick: () => {
+            save.settings.bigText = !save.settings.bigText;
+            applyTextSize();
+            persist();
+            openHelp();
+          },
+        },
+        {
           label: Msg.t(save.settings.vibrate ? 'help.vibrateOn' : 'help.vibrateOff'),
           onClick: () => {
             save.settings.vibrate = !save.settings.vibrate;
@@ -122,8 +131,14 @@
     });
   }
 
+  // 文字の大きさ（大きめ＝文字だけ大きく。盤面の大きさは変えない）
+  function applyTextSize() {
+    document.documentElement.classList.toggle('big-text', !!save.settings.bigText);
+  }
+
   /* ---------- 各画面の準備 ---------- */
   Msg.setRuby(save.showRuby);
+  applyTextSize();
   Quiz.init({ config, data: save, onCorrect: () => { persist(); Zukan.render(); } });
   HowTo.init({ config });
   Missions.init({
