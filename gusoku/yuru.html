@@ -266,6 +266,11 @@ body.kbd #tutchip{display:none}
 .d-week{margin:10px 0 0;padding:8px 10px;border:1px solid var(--line);border-radius:4px;font-size:12.5px;line-height:1.8;color:#9fe3b0;background:rgba(159,227,176,.06)}
 .d-week[hidden]{display:none}
 
+.sheet.nb{width:min(380px,100%)}
+.nb p{font-size:14px;line-height:1.8;margin:0 0 12px}
+#nb-in{width:100%;box-sizing:border-box;background:rgba(3,14,22,.8);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:10px 12px;font:inherit;font-size:18px;-webkit-user-select:text;user-select:text}
+.nb-row{display:flex;gap:8px;margin-top:12px}
+
 @media (max-width:640px){
   .brand h1{font-size:20px}
   .gauges{min-width:0;padding:8px 10px}
@@ -364,6 +369,7 @@ body.kbd #tutchip{display:none}
         <button type="button" id="set-voice">声（グソグソ）：オン</button>
         <button type="button" id="set-tts">日本語読み上げ：オフ</button>
         <button type="button" id="set-ai" hidden>AI会話</button>
+        <button type="button" id="set-name">名前をつける</button>
         <button type="button" id="set-backup">データの引き継ぎ</button>
         <button type="button" id="set-reset">最初からやり直す</button>
         <div class="confirm" id="reset-confirm" hidden>
@@ -452,10 +458,11 @@ body.kbd #tutchip{display:none}
   <div class="zk-tabs" id="rm-tabs"><button type="button" data-t="uranai">占い</button><button type="button" data-t="soudan">相談</button><button type="button" data-t="mukashi">昔話</button><button type="button" data-t="yohou">明日の予報</button></div>
   <div id="rm-body"></div>
 </div></div>
+<div class="modal" id="namebox" hidden><div class="sheet nb" role="dialog" aria-labelledby="nb-title"><header><h3 id="nb-title">名前をつける</h3></header><p id="nb-msg"></p><input id="nb-in" type="text" maxlength="10" autocomplete="off" placeholder="10文字まで"><div class="nb-row"><button type="button" class="primary" id="nb-ok">決める</button><button type="button" id="nb-later">あとで</button></div></div></div>
 <div id="hashichip" hidden><span>箸で口元まで運んでください</span><button type="button" id="hashi-drop">上から落とす</button></div>
 <div id="tutchip" hidden><span>はじめての案内 <b id="tut-n"></b></span><button type="button" id="tut-skip">とばす</button></div>
 <div id="itank" hidden><div id="it-clock"></div></div>
-<div class="modal" id="memorial" hidden><div class="sheet"><h3>グソっ君</h3><div id="mem-date"></div><dl id="mem-text"></dl><p id="mem-egg" hidden style="font-size:13.5px;line-height:1.8;color:#ffc46b;margin:0 0 10px">グソっ君は、卵を残していました。</p><p style="font-size:13px;color:var(--dim);line-height:1.8;margin:0 0 18px">この子の記録は「日記 → 思い出」に残ります。</p><button type="button" class="primary" id="mem-new">新しい命を迎える</button></div></div>
+<div class="modal" id="memorial" hidden><div class="sheet"><h3 id="mem-name">グソっ君</h3><div id="mem-date"></div><dl id="mem-text"></dl><p id="mem-egg" hidden style="font-size:13.5px;line-height:1.8;color:#ffc46b;margin:0 0 10px">グソっ君は、卵を残していました。</p><p style="font-size:13px;color:var(--dim);line-height:1.8;margin:0 0 18px">この子の記録は「日記 → 思い出」に残ります。</p><button type="button" class="primary" id="mem-new">新しい命を迎える</button></div></div>
 <div id="toast"></div>
 <div id="fade"></div>
 <button type="button" id="skip" hidden>スキップ</button>
@@ -1719,9 +1726,9 @@ const queue=[];let typing=null;
 function say(text,opt){opt=opt||{};if(!opt.narr)text=yuru(text);queue.push({text,emo:opt.emo||'neutral',narr:!!opt.narr,who:opt.who});if(!typing)nextLine()}
 function nextLine(){
   const q=queue.shift();if(!q){typing=null;return}
-  whoEl.textContent=q.narr?'':(q.who||'グソっ君');emoEl.textContent=q.narr?'':(EMO[q.emo]||'');
+  whoEl.textContent=q.narr?'':(q.who||gname());emoEl.textContent=q.narr?'':(EMO[q.emo]||'');
   lineEl.className='line'+(q.narr?' narr':'');
-  let i=0;const txt=q.text;typing={q};
+  let i=0;const txt=q.narr?nameNarr(q.text):q.text;typing={q};
   if(!q.narr){if(/^(こんにち|おはよ|やあ|ハロー|……キタ|……戻ったか|……早いな|……オハヨ|バイバイ|またね)/.test(txt)){C.wave=2.6;C.waveDur=2.6}const vd=speak(txt,q.emo);C.talk=Math.max(C.talk,vd||1.2+txt.length*.09);C.face=Math.max(C.face,4)}
   const step=()=>{
     i++;lineEl.textContent=txt.slice(0,i);const c=document.createElement('span');c.className='caret';lineEl.appendChild(c);
@@ -2225,7 +2232,7 @@ const Life={asleep:false,sleepT:0,dead:false,weakSaid:0,
     say(S.stage<=1?'……ドナタ、デスカ。':kind==='hag'?'……ヌタウナギですか。深海の同業者です。粘液だけはご勘弁願いたいものです。':'ゲンゲですか。ぬるっとした方ですね。……まあ、場所は空いています。',{emo:'curious',narr:S.stage===0});save()},
   die(cause){
     this.dead=true;Game.molting=true;$('alert').hidden=true;
-    const rec={name:mem('名前')?'（'+mem('名前')+'のグソっ君）':'グソっ君',born:S.born,died:Date.now(),days:dayNo(),molts:S.molts,mm:MMS[S.molts],fast:S.fastBest||0,pers:persLabel(),cause,gen:S.gen||1,morph:S.morph||'std'};
+    const rec={name:gname(),born:S.born,died:Date.now(),days:dayNo(),molts:S.molts,mm:MMS[S.molts],fast:S.fastBest||0,pers:persLabel(),cause,gen:S.gen||1,morph:S.morph||'std'};
     let gr=[];try{gr=JSON.parse(localStorage.getItem(GKEY)||'[]')}catch(e){}gr.push(rec);try{localStorage.setItem(GKEY,JSON.stringify(gr))}catch(e){}
     C.flip=1;S.health=0;save();
     say(cause==='老衰'?'（長い時間を生きたグソっ君は、静かに動かなくなった）':'（グソっ君は、動かなくなった）',{narr:true});
@@ -2267,7 +2274,7 @@ const Diary={keys:[],page:0,
   render(){const k=this.keys[this.page],today=dkey(),d=new Date(k+'T12:00:00');
     $('d-date').textContent=`${d.getMonth()+1}月${d.getDate()}日（${'日月火水木金土'[d.getDay()]}）`+(k===today?'　今日':'');
     const e=S.diary[k];$('d-text').textContent=e?e.t:'（今日はまだ書いていない）';$('d-text').classList.toggle('empty',!e);
-    $('d-by').textContent=e?(e.by==='ai'?'グソっ君が書いた':'グソっ君の記録より'):'';
+    $('d-by').textContent=e?(e.by==='ai'?gname()+'が書いた':gname()+'の記録より'):'';
     $('d-write').hidden=k!==today;$('d-write').textContent=e?'書き直させる':'グソっ君に書かせる';
     $('d-prev').disabled=this.page<=0;$('d-next').disabled=this.page>=this.keys.length-1;
     $('d-ev').textContent=((S.events&&S.events[k])||[]).map(evText).filter(Boolean).join('／')||'記録なし';
@@ -2299,7 +2306,7 @@ const Photo={on:false,paused:false,blob:null,url:null,
   shoot(){
     composer.render(0);const src=renderer.domElement,c=document.createElement('canvas');c.width=src.width;c.height=src.height;const g=c.getContext('2d');g.drawImage(src,0,0);
     const port=c.height>c.width,s=Math.max(c.width,c.height*.75)/1280,h=(port?96:74)*s;const grd=g.createLinearGradient(0,c.height-h*1.6,0,c.height);grd.addColorStop(0,'rgba(0,0,0,0)');grd.addColorStop(1,'rgba(0,0,0,.55)');g.fillStyle=grd;g.fillRect(0,c.height-h*1.6,c.width,h*1.6);
-    g.fillStyle='#e9f1f4';g.font=`800 ${30*s}px "Shippori Mincho B1",serif`;g.fillText('グソっ君',28*s,c.height-(port?62:28)*s);
+    g.fillStyle='#e9f1f4';g.font=`800 ${30*s}px "Shippori Mincho B1",serif`;g.fillText(gname(),28*s,c.height-(port?62:28)*s);
     g.font=`${(port?13:15)*s}px "IBM Plex Mono",monospace`;g.fillStyle='#b9cbd3';
     g.fillText(`${STAGES[S.stage]}  ${MMS[S.molts]}mm  ${S.molts+1}齢  絶食${fastDays()}日  性格:${persLabel()}  ${dkey().replace(/-/g,'.')}`,(port?28:150)*s,c.height-(port?26:32)*s);
     const f=$('ph-flash');f.classList.remove('go');void f.offsetWidth;f.classList.add('go');Audio2.noise(.06,4000,.25,1);
@@ -2331,7 +2338,7 @@ const Photo={on:false,paused:false,blob:null,url:null,
     }catch(e){if(e&&e.code==='declined')return;toast('保存できませんでした。写真を長押しして保存してください')}
   }
 };
-function showMemorial(rec){$('mem-text').innerHTML='';
+function showMemorial(rec){$('mem-text').innerHTML='';$('mem-name').textContent=rec.name||DEFNAME;
   [['飼育',rec.days+'日'],['齢',(rec.molts+1)+'齢・'+rec.mm+'mm'],['最長絶食',rec.fast+'日'],['性格',rec.pers],['死因',rec.cause]].forEach(([a,b])=>{const dt=document.createElement('dt');dt.textContent=a;const dd=document.createElement('dd');dd.textContent=b;$('mem-text').append(dt,dd)});
   $('mem-date').textContent=dkey(rec.born).replace(/-/g,'.')+' ― '+dkey(rec.died).replace(/-/g,'.');Gen.memo(rec);$('memorial').hidden=false}
 
@@ -3145,7 +3152,7 @@ const Gen={
     const P=S,eggs=(P.molts||0)>=4;
     const facts=(P.memory||[]).filter(x=>!x.startsWith('単語：')&&!/^脱皮/.test(x)),words=eggs?(P.memory||[]).filter(x=>x.startsWith('単語：')).slice(-8):[];
     const o={gen:(P.gen||1)+1,col:P.col,memory:facts.concat(words),asked:(P.asked||[]).filter(k=>!String(k).startsWith('単語')),daily:P.daily,lastBackup:P.lastBackup,
-      parent:{eggs,morph:P.morph||'std',kind:Math.round(70+((P.kind||70)-70)*.5),bold:Math.round(62+((P.bold||62)-62)*.5)}};
+      parent:{eggs,name:gname(),morph:P.morph||'std',kind:Math.round(70+((P.kind||70)-70)*.5),bold:Math.round(62+((P.bold||62)-62)*.5)}};
     if(eggs)o.morph=P.morph||'std';
     try{localStorage.setItem(SKEY,JSON.stringify(o))}catch(e){}
     noSave=true;location.reload();
@@ -3155,6 +3162,7 @@ const Gen={
     if(p.eggs){S.kind=p.kind;S.bold=p.bold}
     save();
     setTimeout(()=>say(p.eggs?'（先代のグソっ君が残した卵から生まれた、第'+S.gen+'世代です。どこか先代の面影があります）':'（第'+S.gen+'世代のグソっ君です）',{narr:true}),2500);
+    setTimeout(()=>{if(!S.gname)Name.open((p.name&&p.name!==DEFNAME?'先代は「'+p.name+'」でした。':'')+'第'+S.gen+'世代の名前をつけてあげてください。')},9000);
   }
 };
 
@@ -3185,9 +3193,9 @@ const Zukan={tabK:'items',
     }else{
       let gr=[];try{gr=JSON.parse(localStorage.getItem(GKEY)||'[]')}catch(e){}
       sum('グソっ君の家系　'+(gr.length+1)+'代');
-      const row=(g,days,molts,mm,morph,pers,end)=>this.card('<b>第'+g+'世代</b><span>飼育'+days+'日・'+(molts+1)+'齢・'+mm+'mm<br>姿：'+((MORPHS[morph]||MORPHS.std).n)+'　性格：'+this.esc(pers)+'<br>'+end+'</span>');
-      gr.forEach((r,i)=>grid.appendChild(row(r.gen||i+1,r.days,r.molts,r.mm,r.morph,r.pers,'死因：'+this.esc(r.cause))));
-      grid.appendChild(row(S.gen||1,S.hatched?dayNo():0,S.molts||0,MMS[S.molts||0],S.morph,persLabel(),'<span class="r">いまの子</span>'));
+      const row=(g,days,molts,mm,morph,pers,end)=>this.card('<b>第'+g+'</b><span>飼育'+days+'日・'+(molts+1)+'齢・'+mm+'mm<br>姿：'+((MORPHS[morph]||MORPHS.std).n)+'　性格：'+this.esc(pers)+'<br>'+end+'</span>');
+      gr.forEach((r,i)=>grid.appendChild(row((r.gen||i+1)+'世代　'+this.esc(r.name||DEFNAME)+'　',r.days,r.molts,r.mm,r.morph,r.pers,'死因：'+this.esc(r.cause))));
+      grid.appendChild(row((S.gen||1)+'世代　'+this.esc(gname())+'　',S.hatched?dayNo():0,S.molts||0,MMS[S.molts||0],S.morph,persLabel(),'<span class="r">いまの子</span>'));
     }
     B.appendChild(grid);
   }
@@ -3366,6 +3374,32 @@ document.querySelectorAll('#rm-tabs button').forEach(b=>b.addEventListener('clic
    CALM SCREEN — one line saying how the creature is and what it needs;
    the numbers stay folded away unless something is wrong
    ===================================================================== */
+/* =====================================================================
+   NAME — the player names their own creature; shown in the name tag,
+   narration, diary, photos, the grave and the family line
+   ===================================================================== */
+const DEFNAME='グソっ君';
+function gname(){return (S&&S.gname)||DEFNAME}
+const NAME_RE=new RegExp('(?<!オオ)'+DEFNAME+'(?!ムシ)','g');
+function nameNarr(t){return S&&S.gname?t.replace(NAME_RE,S.gname):t}
+const Name={cb:null,
+  open(msg,cb){this.cb=cb||null;closePops();$('nb-msg').textContent=msg||'名前をつけてあげてください。';$('nb-in').value=S.gname||'';$('namebox').hidden=false;setTimeout(()=>{try{$('nb-in').focus({preventScroll:true})}catch(e){}},200)},
+  close(wait){$('namebox').hidden=true;const f=this.cb;this.cb=null;if(f)setTimeout(f,wait||400)},
+  set(){
+    const v=$('nb-in').value.replace(/[\s　]+/g,'').slice(0,10);if(!v){$('nb-in').focus();return}
+    const first=!S.gname;S.gname=v;save();this.apply();this.close(5200);
+    const st=S.stage;
+    setTimeout(()=>say(st===0?'（'+v+'。小さな体が、少しだけ動いた）':st===1?'……'+v+'。……ナマエ、ウレシイ、デス。':first?'……'+v+'、ですか。ありがとうございます。大事にいたします。':'……'+v+'。新しい名前も、悪くありません。',{emo:'happy',narr:st===0}),600);
+  },
+  apply(){const n=gname();const h=document.querySelector('.brand h1');if(h)h.textContent=n;const t=document.querySelector('.t-name');if(t&&S.hatched)t.textContent=n;$('set-name').textContent='名前をつける（いま：'+n+'）'}
+};
+$('nb-ok').addEventListener('click',()=>Name.set());
+$('nb-later').addEventListener('click',()=>Name.close());
+$('nb-in').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();Name.set()}});
+$('set-name').addEventListener('click',()=>Name.open('名前を変えられます。',null));
+// players from before names existed get one gentle hint
+setInterval(()=>{if(!S||!started||S.gname||S.nameHint||S.tut!=='done'||Life.asleep||Daily.sess<40)return;S.nameHint=1;save();say('（設定から、'+DEFNAME+'に名前をつけられるようになりました）',{narr:true})},5000);
+
 const MoodLine={auto:false,last:'',
   text(){
     if(Life.dead)return['','—'];
@@ -3408,7 +3442,7 @@ const Tutor={i:-1,t:0,
     {el:'moodline',auto:7,text:'（左上の「様子」に、今の気持ちや困っていることが出ます。困ったときは、まずここを見てください）'},
     {el:'daily',auto:8,text:'（「今日のお世話」を3つ終えると、連続記録がのびます。餌は、もう少し大きくなってから。しばらくは、お腹に残った栄養で育ちます）'}
   ],
-  begin(){if(S.tut)return;S.tut='on';save();this.go(0)},
+  begin(){if(S.tut)return;S.tut='on';save();if(S.gname)this.go(0);else Name.open('この子に名前をつけてあげてください。あとから「設定」でも変えられます。',()=>this.go(0))},
   go(i){
     if(i>2)closePops();
     document.querySelectorAll('.tut-glow').forEach(e=>e.classList.remove('tut-glow'));
@@ -3607,7 +3641,7 @@ function boot(){
   ISO=buildIsopod();buildSlime();
   if(S.molts===undefined)S.molts=[0,1,4,7][S.stage]||0;S.stage=stageOf(S.molts);
   C.pos.set(.4,0,.2);C.size=C.sizeT=sizeOf(S.molts);C.crawl=S.molts<4?1:0;shellTint();
-  applyQuality();darkVis();World.placeDeco();
+  applyQuality();darkVis();World.placeDeco();Name.apply();
   syncLampUI();
   voiceOn=(()=>{try{return localStorage.getItem('gusoku.voice')!=='off'}catch(e){return true}})();$('set-voice').textContent='声（グソグソ）：'+(voiceOn?'オン':'オフ');
   ttsOn=(()=>{try{return localStorage.getItem('gusoku.tts')==='on'}catch(e){return false}})();$('set-tts').textContent='日本語読み上げ：'+(ttsOn?'オン':'オフ');
@@ -3806,7 +3840,7 @@ if(IS_MOBILE)$('gauges').open=false;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S)save()});
 
 window.gusoku={darkVis,Life,Trouble,Dream,Mate,Diary,Photo,Molt,CAM,C,Game,Cine,get S(){return S},settle:()=>updateLights(10),tint:()=>shellTint()};
-Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
+Object.assign(window.gusoku,{World,Col,Zukan,Gen,IdleTank,Morph,Daily,Backup,Uranai,Room,MoodLine,Tutor,Season,Hashi,Rec,Name,Q:()=>Q,say:(t,o)=>say(t,o),sayNow:(t,o)=>{queue.length=0;if(typing){clearTimeout(typing.to);typing=null}say(t,o)},setState:(a,b)=>setState(a,b),resetT:()=>{lastDraw=-1e9;last=performance.now()},cam:()=>camera,feed:k=>dropFood?dropFood(k):0,ISO:()=>ISO,CAMS:()=>CAM});
 setTimeout(()=>{try{boot()}catch(e){console.error(e);$('loadmsg').textContent='読み込みに失敗しました：'+e.message}},30);
 })();
 </script>
