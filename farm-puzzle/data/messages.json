@@ -106,8 +106,8 @@
     "badgeGot": "{season}の基本の野菜をぜんぶ収穫しました",
     "badgeNot": "{season}の基本の野菜をぜんぶ収穫するともらえます",
     "badgeAll": "4つの季節がそろうともらえます",
-    "planterChip": "🪴 ベランダOK",
-    "planterNote": "ベランダのプランターで育てられる野菜です（「向いています」→「ひと工夫で」の順）。深さと株数は目安です。"
+    "planterChip": "🪴 プランターで育つ",
+    "planterNote": "プランターでも育てられる野菜です。「向いています」が先、「ひと工夫で」（大きく深い鉢などが必要）があと。深さと株数は目安です。"
   },
   "hud": {
     "water": "水",
@@ -189,7 +189,9 @@
     "eat": "おいしい食べ方",
     "now": "いまここ",
     "family": "なかま",
-    "familyText": "{family}のなかま"
+    "familyText": "{family}のなかま（{family}科）",
+    "mistake": "失敗しないコツ",
+    "familyOnly": "　※このゲームでは、ほかに同じなかまの野菜はいません"
   },
   "mission": {
     "challenge": "チャレンジ",

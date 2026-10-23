@@ -41,6 +41,7 @@ const HowTo = (() => {
         row(Msg.t('howto.plant'), g.plant),
         row(Msg.t('howto.pests'), g.pests),
         row(Msg.t('howto.point'), g.point),
+        v.mistake ? row(Msg.t('howto.mistake'), v.mistake) : null,
         v.family ? row(Msg.t('howto.family'), familyText(v)) : null,
         v.eat ? row(Msg.t('howto.eat'), v.eat) : null
       ),
@@ -89,10 +90,10 @@ const HowTo = (() => {
         h('dd', {}, w.text)))));
   }
 
-  // なかま：「ナスのなかま（トマト・なす・ピーマン）」のように、同じなかまの野菜も並べる
+  // なかま：「ナスのなかま（ナス科）：トマト・なす・ピーマン」のように、同じなかまの野菜も並べる
   function familyText(v) {
     const others = allVegs.filter((x) => x.family === v.family && x.id !== v.id).map((x) => x.name);
-    return Msg.t('howto.familyText', { family: v.family }) + (others.length ? `（${others.join('・')}）` : '');
+    return Msg.t('howto.familyText', { family: v.family }) + (others.length ? `：${others.join('・')}` : Msg.t('howto.familyOnly'));
   }
 
   function row(label, text) {
