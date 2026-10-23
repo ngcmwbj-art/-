@@ -75,6 +75,8 @@ body {
 }
 .stage.compact { border-radius: 0; box-shadow: none; }
 canvas { display: block; width: 100%; height: 100%; }
+.layer { position: absolute; inset: 0; pointer-events: none; }
+.stage.hd #cv { visibility: hidden; }
 
 /* ---- 右上のボタン ---- */
 .tools {
@@ -384,6 +386,8 @@ canvas { display: block; width: 100%; height: 100%; }
 <div class="app" id="app">
   <div class="stage" id="stage">
     <canvas id="cv"></canvas>
+    <canvas id="hdcv" class="layer" hidden></canvas>
+    <canvas id="hudcv" class="layer" hidden></canvas>
 
     <div class="tools">
       <button class="icon-btn" id="soundBtn" type="button" aria-label="音を消す" aria-pressed="true">
@@ -461,6 +465,7 @@ canvas { display: block; width: 100%; height: 100%; }
           <button class="btn" id="resumeBtn" type="button">再開</button>
           <button class="btn ghost" id="quitBtn" type="button">やめる</button>
         </div>
+        <button class="btn ghost small" id="hdBtn" type="button" hidden>HD-2D：オン</button>
         <p class="kbd-hint kbd-only">P か Esc でも再開</p>
       </div>
     </div>
@@ -530,6 +535,7 @@ canvas { display: block; width: 100%; height: 100%; }
   const app = $('app'), stage = $('stage'), cv = $('cv');
   const mainCtx = cv.getContext('2d');
   let ctx = mainCtx;
+  let baseScale = 1;
   const titleEl = $('title'), overEl = $('over'), pauseEl = $('pause'), boardEl = $('board'), sharePvEl = $('sharePv');
   const soundBtn = $('soundBtn'), pauseBtn = $('pauseBtn');
   const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -836,6 +842,8 @@ canvas { display: block; width: 100%; height: 100%; }
     cv.height = Math.round(sh * dpr);
     const s = (sw / W) * dpr;
     mainCtx.setTransform(s, 0, 0, s, 0, 0);
+    baseScale = s;
+    hdResize();
   }
   window.addEventListener('resize', resize);
   window.addEventListener('orientationchange', () => setTimeout(resize, 200));
@@ -1584,7 +1592,8 @@ canvas { display: block; width: 100%; height: 100%; }
     }
   }
   // カラス（dir = -1 で左向き）。羽ばたきは2枚の三角
-  function drawCrow(x, y, dir, t, carry) {
+  function drawCrow(x, y, dir, t, carry) { pixelated(x - 36, y - 30, 72, 56, () => drawCrowRaw(x, y, dir, t, carry)); }
+  function drawCrowRaw(x, y, dir, t, carry) {
     const flap = Math.sin(t * 22);
     ctx.save();
     ctx.translate(x, y);
@@ -2726,7 +2735,8 @@ canvas { display: block; width: 100%; height: 100%; }
     }
   }
 
-  function drawBoar(x, y, leg, rot) {
+  function drawBoar(x, y, leg, rot) { pixelated(x - 70, y - 110, 140, 125, () => drawBoarRaw(x, y, leg, rot)); }
+  function drawBoarRaw(x, y, leg, rot) {
     ctx.save();
     ctx.translate(x, y - 16);
     ctx.rotate(rot);
@@ -2871,7 +2881,14 @@ canvas { display: block; width: 100%; height: 100%; }
     }
     return pose;
   }
+  // HD-2D のときはドット絵にして描く
   function drawTruck(sp) {
+    const rolling = sp.roll !== undefined;
+    const by = sp.y - (rolling ? 170 : 160);
+    const bottom = Math.max(sp.y, sp.gy ?? sp.y) + (rolling ? 50 : 10);
+    pixelated(sp.x - (rolling ? 80 : 50), by, TRUCK_W + (rolling ? 160 : 140), bottom - by, () => drawTruckRaw(sp));
+  }
+  function drawTruckRaw(sp) {
     const { x, y, angle, pivot, wob, squash: sq } = sp;
     if (sp.shadow) {
       const gy = sp.gy ?? GROUND;
@@ -3069,7 +3086,8 @@ canvas { display: block; width: 100%; height: 100%; }
   }
 
   // F1 の黒い牛（左向き）。白っぽい鼻先、耳に黄色い耳標。ぶつかられると首をかしげて「?」
-  function drawCow(sx, gy, o) {
+  function drawCow(sx, gy, o) { pixelated(sx - 30, gy - 78, 95, 88, () => drawCowRaw(sx, gy, o)); }
+  function drawCowRaw(sx, gy, o) {
     const c = '#2b2422', step = Math.sin(clock * 3 + o.seed);
     ctx.save();
     ctx.translate(sx, gy);
@@ -3359,12 +3377,174 @@ canvas { display: block; width: 100%; height: 100%; }
     drawStepWarning();
     ctx.restore();
 
+    const hdNow = hdActive();
+    if (hdNow) {
+      // 距離やスコアの表示はぼかさないよう、上に重ねた別の canvas に描く
+      hudCtx.setTransform(1, 0, 0, 1, 0, 0);
+      hudCtx.clearRect(0, 0, hudCv.width, hudCv.height);
+      hudCtx.setTransform(baseScale, 0, 0, baseScale, 0, 0);
+      ctx = hudCtx;
+    }
     if (flash > 0) {
       ctx.fillStyle = `rgba(255,250,235,${flash * 2})`;
       ctx.fillRect(0, 0, W, VH);
     }
     drawHUD();
+    ctx = mainCtx;
+    if (hdNow) hdRender();
   }
+
+  // ---- HD-2D 風の仕上げ ----
+  // ・キャラクター（軽トラ・牛・イノシシ・カラス）は粗いドット絵にする
+  // ・画面全体に WebGL の後処理：道のあたりにピントを合わせ、空や手前の田んぼをぼかす（ミニチュア風）、
+  //   明るい所の光のにじみ、色味、周辺を暗く。WebGL が使えない端末や重い端末では自動で普通の絵に戻る
+  const hd = { on: store.get('keitora-hd', '1') === '1', ok: false, slow: false, gl: null, ft: [], w: 0, h: 0 };
+  const hdCv = $('hdcv'), hudCv = $('hudcv'), hudCtx = hudCv.getContext('2d');
+  const hdActive = () => hd.on && hd.ok && !hd.slow;
+  const SPR_PX = 1.75;                 // ドット絵の1ドット＝論理座標で 1.75
+  const sprCv = document.createElement('canvas'), sprCtx = sprCv.getContext('2d');
+  // fn の絵を、低い解像度に描いてから、なめらかにせず拡大して貼る（ドット絵になる）
+  function pixelated(bx, by, bw, bh, fn) {
+    if (!hdActive() || ctx === sprCtx) { fn(); return; }
+    const w = Math.ceil(bw / SPR_PX) + 1, h = Math.ceil(bh / SPR_PX) + 1;
+    if (sprCv.width < w || sprCv.height < h) { sprCv.width = Math.max(sprCv.width, w); sprCv.height = Math.max(sprCv.height, h); }
+    sprCtx.setTransform(1, 0, 0, 1, 0, 0);
+    sprCtx.clearRect(0, 0, w, h);
+    sprCtx.setTransform(1 / SPR_PX, 0, 0, 1 / SPR_PX, -bx / SPR_PX, -by / SPR_PX);
+    const prev = ctx;
+    ctx = sprCtx;
+    try { fn(); } finally { ctx = prev; }
+    prev.save();
+    prev.imageSmoothingEnabled = false;
+    prev.drawImage(sprCv, 0, 0, w, h, bx, by, w * SPR_PX, h * SPR_PX);
+    prev.restore();
+  }
+  function hdInit() {
+    let gl = null;
+    try { gl = hdCv.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: true, premultipliedAlpha: false }); } catch (e) {}
+    if (!gl) return;
+    const VS = 'attribute vec2 p; varying vec2 uv; void main(){ uv = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }';
+    const FS = {
+      // 2x2 の平均で半分の大きさにする
+      down: 'precision mediump float; varying vec2 uv; uniform sampler2D t; uniform vec2 px;' +
+        'void main(){ vec3 c = texture2D(t, uv + px * vec2(-0.5, -0.5)).rgb + texture2D(t, uv + px * vec2(0.5, -0.5)).rgb' +
+        ' + texture2D(t, uv + px * vec2(-0.5, 0.5)).rgb + texture2D(t, uv + px * vec2(0.5, 0.5)).rgb; gl_FragColor = vec4(c * 0.25, 1.0); }',
+      // 9 点のぼかし（縦か横）
+      blur: 'precision mediump float; varying vec2 uv; uniform sampler2D t; uniform vec2 dir;' +
+        'void main(){ vec3 c = texture2D(t, uv).rgb * 0.2270;' +
+        ' c += (texture2D(t, uv + dir * 1.3846).rgb + texture2D(t, uv - dir * 1.3846).rgb) * 0.3162;' +
+        ' c += (texture2D(t, uv + dir * 3.2308).rgb + texture2D(t, uv - dir * 3.2308).rgb) * 0.0703; gl_FragColor = vec4(c, 1.0); }',
+      // 仕上げ：ピントの帯の外はぼかし、光のにじみ、色味、周辺減光
+      final: 'precision mediump float; varying vec2 uv; uniform sampler2D s; uniform sampler2D b; uniform float fy; uniform float fh; uniform float night;' +
+        'void main(){ vec3 sharp = texture2D(s, uv).rgb; vec3 bl = texture2D(b, uv).rgb;' +
+        ' float d = abs(uv.y - fy); float dof = smoothstep(fh, fh + 0.2, d);' +
+        ' vec3 c = mix(sharp, bl, dof);' +
+        ' float bl_l = dot(bl, vec3(0.299, 0.587, 0.114)); c += bl * max(bl_l - 0.74, 0.0) * (1.4 + night * 3.0);' +
+        ' c = (c - 0.5) * 1.07 + 0.5; float l = dot(c, vec3(0.299, 0.587, 0.114)); c = mix(vec3(l), c, 1.12);' +
+        ' c *= vec3(1.03, 1.0, 0.94);' +
+        ' vec2 q = (uv - 0.5) * vec2(1.0, 0.85); c *= 1.0 - 0.36 * pow(clamp(length(q) * 1.35, 0.0, 1.0), 2.4);' +
+        ' gl_FragColor = vec4(c, 1.0); }',
+    };
+    const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+    const progs = {};
+    try {
+      for (const k in FS) {
+        const pr = gl.createProgram();
+        gl.attachShader(pr, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, FS[k]));
+        gl.bindAttribLocation(pr, 0, 'p');
+        gl.linkProgram(pr);
+        if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) throw new Error('link');
+        progs[k] = pr;
+      }
+    } catch (e) { return; }
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    hd.gl = gl; hd.progs = progs; hd.scene = mkTex();
+    hd.ok = true;
+    hdResize();
+  }
+  function mkTex() {
+    const gl = hd.gl, t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return t;
+  }
+  function mkTarget(w, h) {
+    const gl = hd.gl, tex = mkTex();
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    const fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return { tex, fb, w, h };
+  }
+  function hdResize() {
+    hdCv.width = hudCv.width = cv.width;
+    hdCv.height = hudCv.height = cv.height;
+    applyHdView();
+    if (!hd.ok) return;
+    const gl = hd.gl;
+    for (const k of ['half', 'qa', 'qb']) if (hd[k]) { gl.deleteTexture(hd[k].tex); gl.deleteFramebuffer(hd[k].fb); }
+    const w2 = Math.max(1, cv.width >> 1), h2 = Math.max(1, cv.height >> 1);
+    const w4 = Math.max(1, cv.width >> 2), h4 = Math.max(1, cv.height >> 2);
+    hd.half = mkTarget(w2, h2); hd.qa = mkTarget(w4, h4); hd.qb = mkTarget(w4, h4);
+  }
+  function applyHdView() {
+    const on = hdActive();
+    stage.classList.toggle('hd', on);
+    hdCv.hidden = hudCv.hidden = !on;
+    const btn = $('hdBtn');
+    btn.hidden = !hd.ok;
+    btn.textContent = hd.slow ? 'HD-2D：重いので休止中' : `HD-2D：${hd.on ? 'オン' : 'オフ'}`;
+  }
+  function pass(prog, target, uniforms, texs) {
+    const gl = hd.gl;
+    gl.useProgram(prog);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target ? target.fb : null);
+    gl.viewport(0, 0, target ? target.w : hdCv.width, target ? target.h : hdCv.height);
+    texs.forEach((t, i) => { gl.activeTexture(gl.TEXTURE0 + i); gl.bindTexture(gl.TEXTURE_2D, t); });
+    for (const [name, v] of uniforms) {
+      const loc = gl.getUniformLocation(prog, name);
+      if (Array.isArray(v)) gl.uniform2f(loc, v[0], v[1]); else if (typeof v === 'number') gl.uniform1f(loc, v); else gl.uniform1i(loc, v.i);
+    }
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  function hdRender() {
+    const gl = hd.gl, P = hd.progs;
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, hd.scene);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
+    pass(P.down, hd.half, [['t', { i: 0 }], ['px', [1 / cv.width, 1 / cv.height]]], [hd.scene]);
+    pass(P.down, hd.qa, [['t', { i: 0 }], ['px', [1 / hd.half.w, 1 / hd.half.h]]], [hd.half.tex]);
+    for (const k of [1, 2.2]) {
+      pass(P.blur, hd.qb, [['t', { i: 0 }], ['dir', [k / hd.qa.w, 0]]], [hd.qa.tex]);
+      pass(P.blur, hd.qa, [['t', { i: 0 }], ['dir', [0, k / hd.qa.h]]], [hd.qb.tex]);
+    }
+    // ピントは軽トラの少し上（道と軽トラが入る帯）
+    const gy = state === 'title' ? GROUND : supportY();
+    const fyScreen = (gy - 26 + (VH - H) + camY) / VH;
+    pass(P.final, null, [['s', { i: 0 }], ['b', { i: 1 }], ['fy', 1 - fyScreen], ['fh', 0.13], ['night', env ? env.night : 0]], [hd.scene, hd.qa.tex]);
+  }
+  // 重い端末では自動で休止する：HD-2D 中の 1 コマの間隔が、直近 120 コマの平均で 28 ms（約 36 コマ/秒）を超えたら
+  function hdWatch(frameMs) {
+    if (!hdActive() || document.hidden || frameMs > 250) return;
+    hd.ft.push(frameMs);
+    if (hd.ft.length > 120) hd.ft.shift();
+    if (hd.ft.length === 120 && hd.ft.reduce((a, b) => a + b, 0) / 120 > 28) { hd.slow = true; hd.ft = []; applyHdView(); }
+  }
+  $('hdBtn').addEventListener('click', () => {
+    if (hd.slow) { hd.slow = false; hd.ft = []; }
+    else { hd.on = !hd.on; store.set('keitora-hd', hd.on ? '1' : '0'); }
+    applyHdView();
+    sfx('ui');
+  });
 
   // ---- タイトルの障害物アイコン ----
   function drawIcons() {
@@ -3389,6 +3569,7 @@ canvas { display: block; width: 100%; height: 100%; }
   let last = performance.now();
   let simMode = false;   // 試運転用：true の間はループが更新しない
   function frame(now) {
+    hdWatch(now - last);
     const dt = Math.min(0.033, (now - last) / 1000);
     last = now;
     if (!simMode && !paused) update(dt);
@@ -3659,7 +3840,7 @@ canvas { display: block; width: 100%; height: 100%; }
     const sx = clamp(truckX + TRUCK_W / 2 - srcW * 0.42, 0, W - srcW);
     const ty = truck.y + (VH - H) + camY - 30;
     const sy = clamp(ty - srcH * 0.62, 0, Math.max(0, VH - srcH));
-    try { g.drawImage(cv, sx * k, sy * k, srcW * k, srcH * k, 0, 0, S, PH); } catch (e) {}
+    try { g.drawImage(hdActive() ? hdCv : cv, sx * k, sy * k, srcW * k, srcH * k, 0, 0, S, PH); } catch (e) {}
     const shade = g.createLinearGradient(0, 0, 0, 150);
     shade.addColorStop(0, 'rgba(27,34,22,.75)'); shade.addColorStop(1, 'rgba(27,34,22,0)');
     g.fillStyle = shade; g.fillRect(0, 0, S, 150);
@@ -3758,6 +3939,7 @@ canvas { display: block; width: 100%; height: 100%; }
   const hot = window.claude && window.claude.hot;
   if (hot && hot.snapshot) { try { hot.snapshot(snapshotRun); } catch (e) {} }
   if (hot && hot.ready) hot.ready(boot); else boot(hot && hot.data);
+  hdInit();
   resize();
   renderTitleBest();
   initRanking();
