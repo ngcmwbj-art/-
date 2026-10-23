@@ -647,6 +647,7 @@ canvas { display: block; width: 100%; height: 100%; }
       }
       else if (k === 'mud') { sweepNoise(0.6, 0.35, 900, 150, 1, 'lowpass'); tone('sine', 220, 45, 0.5, 0.16); for (let i = 0; i < 3; i++) tone('sine', 300 + i * 40, 110, 0.09, 0.08, 0.2 + i * 0.12); }
       else if (k === 'roll') { noise(0.18, 0.16, 400); tone('sine', 140, 60, 0.15, 0.08); }
+      else if (k === 'moo') { tone('triangle', 150, 112, 0.65, 0.12); tone('sine', 300, 225, 0.6, 0.03); }   // モ〜（低く1回だけ）
       else if (k === 'tomato') { tone('sine', 520, 180, 0.12, 0.08); noise(0.06, 0.1, 900, 'lowpass', 0.06); }
       else if (k === 'pop') { noise(0.12, 0.45, 2000); noise(1.2, 0.12, 5000, 'highpass', 0.1); }
       else if (k === 'land') tone('square', 110, 70, 0.05, 0.04);
@@ -908,7 +909,7 @@ canvas { display: block; width: 100%; height: 100%; }
       const type = m < 80
         ? pick([['gap', 70], ['puddle', 30]])
         : easy ? pick([['gap', 50], ['puddle', 30], ['bump', 15]])
-        : pick([['gap', 40], ['puddle', 20], ['bump', m > 150 ? 16 : 8], ['boar', m > 200 ? 18 : 0], ['terrace', m > 120 ? 14 : 0]]);
+        : pick([['gap', 40], ['puddle', 20], ['bump', m > 150 ? 16 : 8], ['boar', m > 200 ? 18 : 0], ['terrace', m > 120 ? 14 : 0], ['cow', m > 300 ? 7 : 0]]);
       if (type === 'gap') {
         // 減速していても跳べるよう、少し控えめの速度で幅を決める
         // 500 m を過ぎると、ときどき2段ジャンプ前提の広い穴が混ざる（距離が伸びるほど増える）
@@ -925,6 +926,11 @@ canvas { display: block; width: 100%; height: 100%; }
         const w = Math.max(56, sp * 0.85 * (AIR - bumpWindow(m)) * rr(0.6, 1));
         obs.push({ t: 'bump', x: nextX, w, seed: rng() * 100, hit: false, lv: levelAt(nextX) });
         nextX += w + spacing() * 0.8 + sp * 0.8;
+      } else if (type === 'cow') {
+        // 牛：道の上でのそのそ足踏みしている。手前に助走、跳び越えた先にも余裕をとる（すぐ泥の穴にしない）
+        const cx = nextX + sp * 0.4 + 60;
+        obs.push({ t: 'cow', x: cx, w: 46, lv: levelAt(cx), hit: false, passed: false, ht: 0, seed: rng() * 10 });
+        nextX = cx + 46 + spacing() + sp * 1.0;
       } else if (type === 'terrace') {
         // 棚田：段を登って上の田んぼへ。段は登るだけで、下りはない。
         // 350 m を過ぎると、2段ジャンプでないと登れない石垣が混ざる
@@ -1439,6 +1445,7 @@ canvas { display: block; width: 100%; height: 100%; }
     if (truck.dent && Math.random() < dt * 10) steam();
 
     updateBoars(dt);
+    updateCows(dt);
 
     // 初めて見る障害物は、軽トラを通り過ぎたら説明済みにする
     for (const st of steps) if (st.x < cam + TRUCK_X) seenTypes.add(stepKind(st));
@@ -1517,6 +1524,29 @@ canvas { display: block; width: 100%; height: 100%; }
     emit(1, cam + TRUCK_FRONT - 10, truck.y - 30, { vx: [-20, 30], vy: [-90, -40], life: [0.6, 1.1], r: [4, 8], col: 'rgba(240,240,235,.8)', g: -20 });
   }
 
+  // 牛：ぶつかっても終わらず、止まって大きく減速する（牛は首をかしげるだけ）
+  function updateCows(dt) {
+    for (const o of obs) {
+      if (o.t !== 'cow') continue;
+      if (o.hit) o.ht += dt;
+      if (state !== 'play' || truck.falling || o.hit || o.passed) continue;
+      const cs = o.x - cam, cg = GROUND - (o.lv || 0);
+      const tl = TRUCK_X + 10, tr = TRUCK_FRONT - 4, tb = truck.y - 4, tt = truck.y - 46;
+      if (tr > cs + 2 && tl < cs + o.w - 2 && tb > cg - 32 && tt < cg) {
+        o.hit = true;
+        vel = Math.min(vel, speed * 0.3);
+        shake = Math.max(shake, 0.15);
+        truck.squash = 0.8;
+        sfx('moo');
+        popup('モ〜… 牛さん優先!', '#fffbea');
+        setReact('oops', 0.8);
+      } else if (cs + o.w < tl) {
+        o.passed = true;
+        popup('牛を跳び越えた!', '#f2b33d');
+        setReact('cheer', 0.9);
+      }
+    }
+  }
   function updateBoars(dt) {
     for (const o of obs) {
       if (o.t !== 'boar') continue;
@@ -2458,6 +2488,9 @@ canvas { display: block; width: 100%; height: 100%; }
       if (o.t === 'puddle') {
         if (sx > W || sx + o.w < 0) return;
         drawPuddle(sx, o.w);
+      } else if (o.t === 'cow') {
+        if (sx > W + 60 || sx < -80) return;
+        drawCow(sx, GROUND, o);
       } else if (o.t === 'pick') {
         if (o.taken || sx > W + 10 || sx < -20) return;
         // 道に落ちている積み荷（影と、少し傾いた1個）
@@ -2486,7 +2519,7 @@ canvas { display: block; width: 100%; height: 100%; }
   }
 
   // 初めて出てきた障害物に吹き出しで説明を出す
-  const CALLOUTS = { gap: 'タップでジャンプ!', puddle: '水たまり 滑って減速', bump: 'ボコボコ道 3回でパンク', boar: 'イノシシ! 跳び越えろ',
+  const CALLOUTS = { cow: '牛! 跳び越えよう', gap: 'タップでジャンプ!', puddle: '水たまり 滑って減速', bump: 'ボコボコ道 3回でパンク', boar: 'イノシシ! 跳び越えろ',
     stepLo: '段差! ジャンプで登れ', stepHi: '石垣! 2段ジャンプで登れ' };
   function drawCallouts() {
     if (state !== 'play') return;
@@ -2959,6 +2992,49 @@ canvas { display: block; width: 100%; height: 100%; }
     ctx.restore();
   }
 
+  // F1 の黒い牛（左向き）。白っぽい鼻先、耳に黄色い耳標。ぶつかられると首をかしげて「?」
+  function drawCow(sx, gy, o) {
+    const c = '#2b2422', step = Math.sin(clock * 3 + o.seed);
+    ctx.save();
+    ctx.translate(sx, gy);
+    if (o.hit) {
+      // ぶつかられたら、のそのそ奥の田んぼへ下がって道をあける
+      const k = Math.min(1, o.ht * 1.4);
+      ctx.translate(10, -16 * k);
+      ctx.scale(1 - 0.18 * k, 1 - 0.18 * k);
+      ctx.globalAlpha = 1 - 0.55 * k;
+    }
+    ctx.fillStyle = 'rgba(40,30,15,.25)';
+    ctx.beginPath(); ctx.ellipse(22, 0.5, 24, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = c;
+    ctx.fillRect(6 + step, -13, 4, 13); ctx.fillRect(13 - step, -13, 4, 13);
+    ctx.fillRect(31 - step, -13, 4, 13); ctx.fillRect(38 + step, -13, 4, 13);
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(2, -33, 43, 21, 7) : ctx.rect(2, -33, 43, 21); ctx.fill();
+    ctx.fillRect(44, -31, 2, 14);                                  // しっぽ
+    ctx.beginPath(); ctx.arc(45, -16, 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.1)'; ctx.fillRect(8, -31, 30, 3);
+    // 頭（首の付け根を軸に、ぶつかられたら傾ける）
+    const tilt = o.hit ? Math.min(1, o.ht * 4) * 0.4 : Math.sin(clock * 1.2 + o.seed) * 0.05;
+    ctx.save();
+    ctx.translate(-1, -30);
+    ctx.rotate(tilt);
+    ctx.fillStyle = c;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-12, -9, 15, 14, 4) : ctx.rect(-12, -9, 15, 14); ctx.fill();
+    ctx.fillStyle = '#cfc3b8';
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-15, -1, 8, 7, 3) : ctx.rect(-15, -1, 8, 7); ctx.fill();
+    ctx.fillStyle = '#5a4a44'; ctx.fillRect(-14, 1, 1.6, 1.6);
+    ctx.fillStyle = c; ctx.fillRect(1, -9, 5, 3);                 // 耳
+    ctx.fillStyle = '#f2c230'; ctx.fillRect(2, -7, 3, 3);           // 耳標
+    ctx.fillStyle = '#fff'; ctx.fillRect(-6, -5, 1.8, 1.8);         // 目
+    ctx.restore();
+    if (o.hit && o.ht < 1.6) {
+      ctx.fillStyle = '#fffbea';
+      ctx.font = '16px ' + FONT;
+      ctx.textAlign = 'center';
+      ctx.fillText('?', -4, -48 - Math.min(1, o.ht * 3) * 4);
+    }
+    ctx.restore();
+  }
   // 運転手の腕：ガッツポーズ（cheer）、手を振る（wave）、帽子を押さえる（oops）
   function drawDriverArm(dv) {
     const sleeve = '#2f6a3a', hand = '#e2b48c';
