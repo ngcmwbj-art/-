@@ -69,6 +69,8 @@ import { AB_TEXTS } from '../../data/text/c3_abura';
 import { YD_TEXTS } from '../../data/text/c3_yose';
 import { OJ_TEXTS } from '../../data/text/c3_okujou';
 import { MZ_TEXTS } from '../../data/text/c3_mizukiri';
+import { SK_TEXTS } from '../../data/text/c3_sakana';
+import { MK_TEXTS } from '../../data/text/c3_mikan';
 import { NR_TEXTS } from '../../data/text/hoshi_neru';
 import { HM_TEXTS } from '../../data/text/hoshi_himo';
 import { KU_TEXTS } from '../../data/text/hoshi_kutsu';
@@ -567,6 +569,10 @@ function collectTexts(): [string, string][] {
   walk('c3Okujou', OJ_TEXTS);
   // げむきか10/22の案1（低う、平たく。第3章の クリア前、03_ch3_index）
   walk('c3Mizukiri', MZ_TEXTS);
+  // げむきか10/23の案2（やっと、魚の 昼。第3章の クリア前、03_ch3_index）
+  walk('c3Sakana', SK_TEXTS);
+  // げむきか10/23の案1（落とすけえ、甘うなる。第3章の クリア前、03_ch3_index）
+  walk('c3Mikan', MK_TEXTS);
   walk('pg', pgTexts());
   walk('pgRows', pgRowTexts());
   walk('pgTalk', pgTalkTexts());

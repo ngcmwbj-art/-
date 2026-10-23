@@ -1,6 +1,8 @@
 // しるし（改善会議 2026-10-20 の 1・2。docs/kaizen/2026-10-20.md）：
 //   2 きらり　まだ調べていない「調べられる物」に、主人公の近く（3マス）だけ小さな「！」
 //   1 行き先　グソっ君のヒント〔次、どうする？〕を聞いたあと、その行き先の人・扉・物の上に同じ「！」
+//   3 寄り道　短い あいだだけ 遊べる 寄り道の 人の 上に 同じ「！」（addMarkSource。げむきか 10-23 案2 の ツリノ：
+//            第3章 S13〜S14 の 短い 窓で 見のがさないように。遠くからでも 見える）
 // どちらも同じ形・同じ色（会議：印が2種類あると画面がうるさい）。点滅はおだやかに（明るさが 1.8 秒で
 // ゆっくり上下するだけ）。せってい「しるし：あり／なし」で まとめて消せる（ui/settings.ts marks）。
 //
@@ -114,6 +116,15 @@ export function setHintMarkSource(fn: (f: FieldScene) => MarkAnchor | null): voi
   hintMark = fn;
 }
 
+// ---------------------------------------------------------------- 寄り道の しるし（台本が 渡す）
+
+const extraSources: ((f: FieldScene) => MarkAnchor | null)[] = [];
+
+/** 寄り道の 人の 上の「！」を 足す（その寄り道の 台本が 渡す。出さない ときは null）。 */
+export function addMarkSource(fn: (f: FieldScene) => MarkAnchor | null): void {
+  extraSources.push(fn);
+}
+
 // ---------------------------------------------------------------- きらりの選び
 
 interface Shown {
@@ -124,6 +135,7 @@ interface Shown {
 
 const glints = new Map<string, Shown>();
 let hint: Shown | null = null;
+const extras: (Shown | null)[] = [];
 let pickT = 0;
 let mapId = '';
 let showA = 0;
@@ -163,6 +175,7 @@ function update(f: FieldScene, dt: number): void {
     mapId = f.map.id;
     glints.clear();
     hint = null;
+    extras.length = 0;
     pickT = 0;
   }
   const on = settings.marks && f.controllable;
@@ -182,6 +195,21 @@ function update(f: FieldScene, dt: number): void {
       hint.want = true;
     } else hint = { a: 0, at, want: true };
   } else if (hint) hint.want = false;
+  extraSources.forEach((fn, i) => {
+    const xa = settings.marks ? fn(f) : null;
+    let s = extras[i] ?? null;
+    if (xa) {
+      if (s) {
+        s.at = xa;
+        s.want = true;
+      } else s = { a: 0, at: xa, want: true };
+    } else if (s) s.want = false;
+    if (s) {
+      s.a = s.want ? Math.min(1, s.a + dt / 300) : Math.max(0, s.a - dt / 400);
+      if (!s.want && s.a <= 0) s = null;
+    }
+    extras[i] = s;
+  });
   for (const [k, s] of glints) {
     s.a = s.want ? Math.min(1, s.a + dt / 300) : Math.max(0, s.a - dt / 400);
     if (!s.want && s.a <= 0) glints.delete(k);
@@ -240,6 +268,7 @@ registerWorldFx({
       const h = hint?.at;
       for (const s of glints.values()) if (!h || Math.abs(s.at.x - h.x) > 4 || Math.abs(s.at.y - h.y) > 4) drawMark(g, f, s.at, s.a, cx, cy, t);
       if (hint) drawMark(g, f, hint.at, hint.a, cx, cy, t);
+      for (const s of extras) if (s && (!h || Math.abs(s.at.x - h.x) > 4 || Math.abs(s.at.y - h.y) > 4)) drawMark(g, f, s.at, s.a, cx, cy, t);
     });
   },
 });
@@ -249,4 +278,5 @@ if (import.meta.env.DEV)
     on: settings.marks,
     glints: [...glints.entries()].map(([k, s]) => ({ id: k, a: Math.round(s.a * 100) / 100, at: [Math.round(s.at.x), Math.round(s.at.y)] })),
     hint: hint ? { a: Math.round(hint.a * 100) / 100, at: [Math.round(hint.at.x), Math.round(hint.at.y), Math.round(hint.at.foot)] } : null,
+    extras: extras.filter((s): s is Shown => !!s).map((s) => ({ a: Math.round(s.a * 100) / 100, at: [Math.round(s.at.x), Math.round(s.at.y)] })),
   }));

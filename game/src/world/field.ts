@@ -232,6 +232,14 @@ export class FieldScene implements Scene {
   private arrival: [number, number] | null = null;
   /** How long the player has stood still inside a script (ms): the follower steps aside after a moment. */
   private stillT = 0;
+  /**
+   * 改善会議 10-23 の1（はぐれた仲間は追いつく）: how long the follower has been lost (too far, off the
+   * screen, a wall or a fence between him and しゅん; ms), how long a scene has left him held after it
+   * ended (heldT), and his pop back behind しゅん (popT: ms into it, -1 none).
+   */
+  private lostT = 0;
+  private heldT = 0;
+  private popT = -1;
   /** Time spent inside each 'stay' trigger (ms). */
   private stayT = new Map<string, number>();
   /** The grade family the current grade belongs to (chapter-1 stages or the pal_h* presets). */
@@ -575,35 +583,47 @@ export class FieldScene implements Scene {
       f.solid = false;
       this.follower = f;
     } else if (!want && this.follower) this.follower = null;
-    if (snap && this.follower) {
-      // one tile behind the player (opposite the facing), else beside, else in front
-      const p = this.player;
-      const f = this.follower;
-      const [dx, dy] = DIR_VEC[p.dir];
-      const tries: [number, number][] = [[-dx, -dy], [dy, dx], [-dy, -dx], [dx, dy]];
-      f.x = p.x;
-      f.y = p.y;
-      for (const [ex, ey] of tries) {
-        const nx = p.x + ex * 16;
-        const ny = p.y + ey * 16;
-        if (this.free(f, nx, ny, true)) {
-          f.x = nx;
-          f.y = ny;
-          break;
-        }
+    if (snap && this.follower) this.placeBehind();
+  }
+
+  /**
+   * Stand the follower one tile behind the player (opposite the facing), else
+   * beside, else in front, with no walk of his own left over.
+   */
+  private popping = false;
+  private placeBehind(): void {
+    const p = this.player;
+    const f = this.follower;
+    if (!f) return;
+    const [dx, dy] = DIR_VEC[p.dir];
+    const tries: [number, number][] = [[-dx, -dy], [dy, dx], [-dy, -dx], [dx, dy]];
+    f.x = p.x;
+    f.y = p.y;
+    for (const [ex, ey] of tries) {
+      const nx = p.x + ex * 16;
+      const ny = p.y + ey * 16;
+      if (this.free(f, nx, ny, true)) {
+        f.x = nx;
+        f.y = ny;
+        break;
       }
-      f.dir = p.dir;
-      f.moving = false;
-      // fix1020c3（依頼主「水族館に入ってすぐ グソっ君が 右下へ 歩いて どこかへ」）: a step aside begun on
-      // the last map (stepAside: its path is in that map's px) is dropped, or he walks on to it here
-      f.path = [];
-      f.data.aside = undefined;
-      this.trail = [];
-      // seed the trail so the follower walks from where it stands
-      for (let i = 0; i <= FOLLOW_DELAY; i++) {
-        const k = i / FOLLOW_DELAY;
-        this.trail.push([f.x + (p.x - f.x) * k, f.y + (p.y - f.y) * k, p.dir, false]);
-      }
+    }
+    f.dir = p.dir;
+    f.moving = false;
+    // fix1020c3（依頼主「水族館に入ってすぐ グソっ君が 右下へ 歩いて どこかへ」）: a step aside begun on
+    // the last map (stepAside: its path is in that map's px) is dropped, or he walks on to it here
+    f.path = [];
+    f.data.aside = undefined;
+    this.trail = [];
+    this.lostT = 0;
+    if (this.popT >= 0 && !this.popping) {
+      this.popT = -1;
+      f.alpha = 1;
+    }
+    // seed the trail so the follower walks from where it stands
+    for (let i = 0; i <= FOLLOW_DELAY; i++) {
+      const k = i / FOLLOW_DELAY;
+      this.trail.push([f.x + (p.x - f.x) * k, f.y + (p.y - f.y) * k, p.dir, false]);
     }
   }
 
@@ -1197,6 +1217,7 @@ export class FieldScene implements Scene {
     const f = this.follower;
     if (!f) return;
     f.update(dt);
+    if (this.catchUp(f, dt)) return;
     if (f.path.length) {
       this.followPath(f, dt);
       return;
@@ -1246,6 +1267,112 @@ export class FieldScene implements Scene {
       }
     }
     f.moving = false;
+  }
+
+  /**
+   * 改善会議 10-23 の1（はぐれた仲間は追いつく。ドラクエの隊列・ポケモンの連れ歩き）: when グソっ君 is
+   * lost — too far behind once しゅん has stopped (3.5 tiles), out of the picture, or with a wall, a
+   * fence or a drop between them — he goes out for a moment and comes back one tile behind しゅん
+   * (out of the picture: he is just put there). Not while a scene holds him or walks him (scripted, a
+   * walk() of a script); inside a scene only when he is out of the picture and far (5 tiles). A step
+   * aside that no longer ends by しゅん (he was moved since) is dropped: 依頼主「ツガオに 乗せて もらって
+   * 岬に 入って すぐ、グソっ君が 右下へ 歩いて どこかに」(10-20 stepAside). A scene that ended without
+   * letting him go (scripted left on) lets him go once the player has had control for 0.6 s.
+   * Returns true while the pop is on (he stands still for it).
+   */
+  private catchUp(f: Actor, dt: number): boolean {
+    const p = this.player;
+    // ---- the pop: out 0.14 s → one tile behind しゅん → in 0.18 s
+    if (this.popT >= 0) {
+      if (f.data.scripted) {
+        // (a scene took him meanwhile: done at once)
+        this.popping = true;
+        this.placeBehind();
+        this.popping = false;
+        this.popT = -1;
+        f.alpha = 1;
+        return false;
+      }
+      const OUT = 140;
+      const IN = 180;
+      const was = this.popT;
+      this.popT += dt;
+      f.moving = false;
+      if (this.popT < OUT) {
+        f.alpha = Math.max(0, 1 - this.popT / OUT);
+        return true;
+      }
+      if (was < OUT) {
+        this.popping = true;
+        this.placeBehind();
+        this.popping = false;
+      }
+      const k = (this.popT - OUT) / IN;
+      if (k >= 1) {
+        f.alpha = 1;
+        this.popT = -1;
+        return false;
+      }
+      f.alpha = Math.max(0, k);
+      return true;
+    }
+    const scene = this.locks > 0 || game.scripts.busy;
+    // ---- a scene that ended with him still held
+    if (f.data.scripted && !f.path.length && this.controllable && !f.tempPose && !f.anim) {
+      this.heldT += dt;
+      if (this.heldT > 600) delete f.data.scripted;
+    } else this.heldT = 0;
+    // ---- a scene's own business: held, walked by a script, hidden
+    if (f.data.scripted || !f.visible || f.alpha < 0.5 || (f.path.length && !f.data.aside)) {
+      this.lostT = 0;
+      return false;
+    }
+    // ---- a step aside that would take him away from しゅん (しゅん was moved since it began)
+    if (f.data.aside && f.path.length) {
+      const [ex, ey] = f.path[f.path.length - 1];
+      if (Math.hypot(ex - p.x, ey - p.y) > 26) {
+        f.path = [];
+        f.moving = false;
+      }
+    }
+    const d = Math.hypot(p.x - f.x, p.y - f.y);
+    const seen = this.onScreen(f.x, f.y);
+    let lost: boolean;
+    let walled = false;
+    if (scene) lost = !seen && d > 5 * 16;
+    else if (!seen) lost = d > 2 * 16;
+    else if (!p.moving && d > 3.5 * 16) lost = true;
+    else lost = walled = d > 24 && this.wallBetween(f.x, f.y, p.x, p.y);
+    this.lostT = lost ? this.lostT + dt : 0;
+    if (this.lostT < (seen ? 300 : 200)) {
+      // (a wall between: he doesn't walk through it meanwhile)
+      if (walled) f.moving = false;
+      return walled;
+    }
+    this.lostT = 0;
+    if (!seen) {
+      // (nobody sees him go: just there)
+      this.placeBehind();
+      return false;
+    }
+    this.popT = 0;
+    return true;
+  }
+
+  /** A wall, a fence, a building or a solid thing on the straight line between two feet (the first one's tile too). */
+  private wallBetween(x0: number, y0: number, x1: number, y1: number): boolean {
+    const d = Math.hypot(x1 - x0, y1 - y0);
+    const n = Math.max(1, Math.ceil(d / 4));
+    const end = Math.floor(x1 / 16) + Math.floor((y1 - 1) / 16) * 4096;
+    for (let i = 0; i < n; i++) {
+      const x = x0 + ((x1 - x0) * i) / n;
+      const y = y0 - 1 + ((y1 - y0) * i) / n;
+      const tx = Math.floor(x / 16);
+      const ty = Math.floor(y / 16);
+      if (tx + ty * 4096 === end) break;
+      if (this.isSolidTile(tx, ty)) return true;
+    }
+    return false;
   }
 
   /**

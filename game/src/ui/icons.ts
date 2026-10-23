@@ -629,6 +629,22 @@ Object.assign(ITEM_ROWS, {
   ],
 });
 
+// 青い みかん（落とすけえ、甘うなる、03_ch3_index）：摘果した 小さな 青い 実、へたと 葉 1枚
+Object.assign(ITEM_ROWS, {
+  item_c3_ao_mikan: [
+    '.....MM...',
+    '....kMmk..',
+    '...kkbkk..',
+    '..kmffmmk.',
+    '.kmffmmmMk',
+    '.kmfmmmmMk',
+    '.kmmmmmMMk',
+    '..kmmmMMk.',
+    '...kkkkk..',
+    '..........',
+  ],
+});
+
 // ゴムボール（掃除は 上から、03_ch3_index）：赤い 小さな ボール、空気が 少し ぬけて へこんでいる
 Object.assign(ITEM_ROWS, {
   item_c3_ball: [

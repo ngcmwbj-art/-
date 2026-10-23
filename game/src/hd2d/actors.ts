@@ -19,7 +19,7 @@
 
 import * as THREE from 'three';
 import { Gfx } from '../engine/gfx';
-import { vehicleFrame, type VehicleView } from '../art/props/vehicles';
+import { vehicleBodyDepth, vehicleFrame, type VehicleView } from '../art/props/vehicles';
 import type { Actor } from '../world/actor';
 import { charGlow, type CharGlow } from '../art/chars/nightlight';
 import type { FieldScene } from '../world/field';
@@ -79,7 +79,7 @@ const DRAWN_FOOT = 88;
  * (2026-10-06 依頼主「軽トラ幅ありすぎて車道はみ出してるよ」).
  */
 function vehicleDepth(view: VehicleView): number {
-  return view === 'left' || view === 'right' ? 16 * PX : 60 * PX;
+  return vehicleBodyDepth(view) * PX;
 }
 
 const vehicleGeo = new Map<string, THREE.BufferGeometry>();

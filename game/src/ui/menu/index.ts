@@ -22,6 +22,7 @@ import { StatsPage } from './stats';
 import { BookPage } from './book';
 import { SettingsPage } from './settingsPage';
 import { markTextScreen } from '../../engine/textzones';
+import { drawGoalTape, goalLine } from './goal';
 
 const OPEN_MS = 160;
 const CLOSE_MS = 130;
@@ -42,6 +43,8 @@ export class MenuScene implements Scene, MenuCtx {
   private purseT = 999;
   private pages: Record<string, MenuPage>;
   private order: string[];
+  /** つぎの目当て1行（改善会議 2026-10-23 の 4。手帳の 上の テープ。開いたときに 1回 決める）。 */
+  private goal = '';
 
   constructor(readonly titleMode = false, startTab = 'items') {
     this.pages = {
@@ -54,6 +57,7 @@ export class MenuScene implements Scene, MenuCtx {
     this.order = titleMode ? ['settings'] : TABS.map((t) => t.id);
     this.tab = Math.max(0, this.order.indexOf(startTab));
     if (titleMode) this.focus = true;
+    else this.goal = goalLine();
   }
 
   private get pageId(): string {
@@ -171,6 +175,7 @@ export class MenuScene implements Scene, MenuCtx {
     g.alpha(a * pk, () => g.translated(this.dx + Math.round((1 - pk) * 3), 0, () => this.page.draw(g, this)));
     if (!this.titleMode) {
       drawMoney(g, state.money, this.dx, a, this.purseT);
+      drawGoalTape(g, this.goal, this.dx, a);
       // the clock plate slides in from the top while the menu is open
       const ck = Math.min(1, this.openT / 300);
       const cy = Math.round(-26 + ease.cubicOut(ck) * 30) - (this.closeT >= 0 ? Math.round(Math.min(1, this.closeT / CLOSE_MS) * 30) : 0);

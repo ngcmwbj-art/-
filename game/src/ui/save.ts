@@ -30,6 +30,8 @@ import { registerScript } from '../world/scripts';
 import { drawTape, drawWindow, textW, UI } from './window';
 import { markText } from '../engine/textzones';
 import { secretSeen } from './pg_secret';
+import { goalLine } from './menu/goal';
+import { getMapDef } from '../world/maps';
 
 const SAVE_KEY = 'yugure-rpg-save-v1';
 
@@ -85,6 +87,52 @@ function infoSaved(): SaveInfo | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * タイトルの「つづきから」の カード（改善会議 2026-10-23 の 5）：セーブの 章と 場所、つぎの目当て1行
+ * （手帳の 上の テープと 同じ 文。ui/menu/goal.ts）。セーブが 無ければ null。
+ * 目当ては セーブの 中身で 決める：読みこまずに、フラグ・持ち物・場所を いっとき 入れかえて 計る。
+ */
+export interface ContinueInfo {
+  /** 「第3章」「クリア後」「第2章 クリア」など。 */
+  chapter: string;
+  /** 場所（章の クリアデータは 空）。 */
+  place: string;
+  goal: string;
+}
+
+export function continueInfo(): ContinueInfo | null {
+  let s: { map?: string; x?: number; y?: number; flags?: Record<string, number>; inventory?: string[]; taken?: Record<string, boolean> };
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    s = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  const f = s.flags ?? {};
+  const map = s.map ?? '';
+  const x = s.x ?? 0;
+  const y = s.y ?? 0;
+  const cleared = !f.flag_ch3_started && (!!f.flag_ch2_clear || (!!f.flag_clear && !f.flag_ch2_started));
+  const chapter = f.flag_ch3_clear ? 'クリア後' : f.flag_ch3_started ? '第3章' : f.flag_ch2_clear ? '第2章 クリア' : f.flag_ch2_started ? '第2章' : f.flag_clear ? '第1章 クリア' : '第1章';
+  const place = cleared ? '' : placeNameFor(map, x, y, getMapDef(map)?.name ?? '');
+  const keep = { flags: state.flags, inventory: state.inventory, taken: state.taken };
+  let goal = '';
+  try {
+    state.flags = { ...f };
+    state.inventory = [...(s.inventory ?? [])];
+    state.taken = { ...(s.taken ?? {}) };
+    goal = goalLine({ map, tx: x, ty: y });
+  } catch {
+    goal = '';
+  } finally {
+    state.flags = keep.flags;
+    state.inventory = keep.inventory;
+    state.taken = keep.taken;
+  }
+  return { chapter, place, goal };
 }
 
 /** The card shown while asking (top centre). */

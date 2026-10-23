@@ -39,6 +39,7 @@ import { actorAnchor, doorAnchor, objAnchor, setHintMarkSource, type MarkAnchor 
 import type { DoorObj, ExamineObj, NpcObj } from '../world/types';
 import { c3Stage, inCh3, kita, partsDone, say3 } from './ch3/common';
 import { pgAtShop, pgKnWith } from './postgame';
+import { setGoalHint, type GoalWhere } from '../ui/menu/goal';
 
 const seen = (npc: string, key = 'c1_1'): boolean => flag(`flag_seen_${npc}_${key}`) > 0;
 
@@ -56,7 +57,7 @@ function c1Hint(): string | null {
 
 // ================================================================ 第2章
 
-function c2Hint(f: FieldScene): string | null {
+function c2Hint(w: GoalWhere): string | null {
   if (flag('flag_ch2_boss_beaten')) return null;
   if (!flag('flag_ch2_arrived')) return flag('flag_ch2_prologue_done') ? KH_C2.train : null;
   if (!flag('flag_ch2_yoriai')) return KH_C2.yoriai;
@@ -66,7 +67,7 @@ function c2Hint(f: FieldScene): string | null {
   if (!flag('flag_ch2_got_otsukare')) return KH_C2.barn;
   if (!flag('flag_ch2_gate_open')) return KH_C2.gate;
   if (!flag('flag_ch2_tetsuya_beaten')) return KH_C2.tetsuya;
-  return f.map.id === 'map_hoshi_hill' ? KH_C2.hillTop : KH_C2.hill;
+  return w.map === 'map_hoshi_hill' ? KH_C2.hillTop : KH_C2.hill;
 }
 
 // ================================================================ 第3章
@@ -83,11 +84,11 @@ function partStarted(p: Part): boolean {
 }
 
 /** 今いる所が、その場所か（市場・食堂の中、灯台・海の家、海水浴場のあたり）。 */
-function partHere(p: Part, f: FieldScene): boolean {
-  const m = f.map.id;
+function partHere(p: Part, w: GoalWhere): boolean {
+  const m = w.map;
   if (p === 'ichiba') return m === 'map_c3_ichiba';
   if (p === 'shokudo') return m === 'map_c3_shokudo';
-  return m === 'map_c3_toudai' || m === 'map_c3_uminoie' || (m === 'map_umizoi' && f.player.tileX >= 50 && f.player.tileY >= 26);
+  return m === 'map_c3_toudai' || m === 'map_c3_uminoie' || (m === 'map_umizoi' && w.tx >= 50 && w.ty >= 26);
 }
 
 function ichibaHint(): string {
@@ -132,15 +133,15 @@ function umiHint(): string {
 const PART_HINT: Record<Part, () => string> = { ichiba: ichibaHint, shokudo: shokudoHint, umi: umiHint };
 
 /** ①〜③：まだの所の次の一歩（今いる所 → 始めた所 → 地図の順）。どれも始めていなければ「どこからでも」を先に。 */
-function partsHint(f: FieldScene): string {
+function partsHint(w: GoalWhere): string {
   const left = (['ichiba', 'shokudo', 'umi'] as Part[]).filter((p) => !flag(PART_DONE[p]));
-  const pick = left.find((p) => partHere(p, f)) ?? left.find(partStarted) ?? left[0];
+  const pick = left.find((p) => partHere(p, w)) ?? left.find(partStarted) ?? left[0];
   const hint = PART_HINT[pick]();
   const fresh = partsDone() === 0 && !left.some(partStarted);
   return fresh ? `${KH_C3.anyOrder}\n${hint}` : hint;
 }
 
-function c3Hint(f: FieldScene): string | null {
+function c3Hint(w: GoalWhere): string | null {
   const s = c3Stage();
   if (s === 0) {
     if (!flag('flag_ch3_prologue_done') || flag('flag_ch3_truck_go')) return null;
@@ -149,7 +150,7 @@ function c3Hint(f: FieldScene): string | null {
   }
   if (s === 1) {
     if (!flag('flag_ch3_kids')) return null;
-    if (partsDone() < 3) return partsHint(f);
+    if (partsDone() < 3) return partsHint(w);
     if (!flag('flag_ch3_got_itadakimasu')) return KH_C3.itadakimasu;
     return flag('flag_ch3_nariosame_beaten') ? null : KH_C3.siren;
   }
@@ -219,11 +220,20 @@ export function knHint(advance = false): string | null {
   const f = field();
   if (!f) return null;
   if (pgOn()) return pgHint(f, advance);
-  if (inCh3()) return c3Hint(f);
+  return knHintAt({ map: f.map.id, tx: f.player.tileX, ty: f.player.tileY });
+}
+
+/**
+ * 本筋のヒント（クリア後を除く）。field を見ないので、タイトルの「つづきから」でも
+ * セーブの中身から読める（改善会議 2026-10-23 の 4・5：手帳の つぎの目当て1行は、この文から作る）。
+ */
+export function knHintAt(w: GoalWhere): string | null {
+  if (inCh3()) return c3Hint(w);
   if (flag('flag_ch3_started')) return null;
-  if (flag('flag_ch2_started')) return c2Hint(f);
+  if (flag('flag_ch2_started')) return c2Hint(w);
   return c1Hint();
 }
+setGoalHint(knHintAt);
 
 /** 前の台本を先に通す場面（寄り道の山場・店にもどる・見たあとの1ページ・天文台の目の前の物）。 */
 function passThrough(f: FieldScene, m: string): boolean {

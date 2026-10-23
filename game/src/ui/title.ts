@@ -70,6 +70,8 @@ import { markText } from '../engine/textzones';
 import { clearRecordCh3, type ClearRecordCh3 } from './clear_ch3';
 import { titleThanks } from '../data/text/c3_story4';
 import { buttonZones, freeSpan } from '../engine/safezones';
+import { continueInfo, type ContinueInfo } from './save';
+import { drawGoalFlag } from './menu/goal';
 
 type MenuId = 'new' | 'continue' | 'ch2' | 'ch3' | 'settings';
 /** The chapter-2 release page: 「第2章から」 without a chapter-1 clear (see menu). */
@@ -101,6 +103,8 @@ export class TitleScene implements Scene {
   /** What the save slot holds (read once, without loading it). */
   private readonly kind: SaveKind = saveKind();
   private readonly canLoad = this.kind !== 'none';
+  /** 改善会議 2026-10-23 の 5：セーブの 章と 場所、つぎの目当て1行（「つづきから」に カーソルが ある あいだ）。 */
+  private readonly cont: ContinueInfo | null = this.canLoad ? continueInfo() : null;
   private readonly clear2: ClearRecord | null = clearRecordCh2();
   /** Chapter 3's counts (みました帳 ③) and the people who came (60_ch3_story 10.30). */
   private readonly clear3: ClearRecordCh3 | null = clearRecordCh3();
@@ -392,7 +396,41 @@ export class TitleScene implements Scene {
     this.drawLogo(g);
     this.ink.draw(g);
     this.drawMenu(g);
-    if (this.clear && t > MENU_AT) this.drawClearCard(g);
+    const cont = this.drawContinueCard(g);
+    // iPad 横：ボタンを よけた クリアの カードは つづきからの カードと 同じ 高さに 来る。つづきからを 選んで いる あいだは 出さない
+    if (this.clear && t > MENU_AT && !(cont && buttonZones())) this.drawClearCard(g);
+  }
+
+  /**
+   * 「つづきから」に カーソルが ある あいだ、ロゴの 下に 小さな カード：1行目に セーブの 章（朱）と 場所、
+   * 2行目に つぎの目当て（手帳の 上の テープと 同じ 1行。朱の 小旗）。テープの 列の 左に 右を そろえる
+   * （クリアの カードより 上、ロゴの 英字より 下）。出したら true。
+   */
+  private drawContinueCard(g: Gfx): boolean {
+    const c = this.cont;
+    if (!c || this.t < MENU_AT || this.menu[this.index] !== 'continue' || this.asking) return false;
+    const shown = (1 - this.menuHide) * Math.min(1, Math.max(0, (this.t - MENU_AT - 80) / 220));
+    if (shown <= 0) return false;
+    const head = c.place ? `${c.chapter} ${c.place}` : c.chapter;
+    const w = Math.max(textW(head), c.goal ? textW(c.goal) + 10 : 0) + 16;
+    const h = c.goal ? 42 : 24;
+    const n = this.menu.length;
+    const top = MENU_BOTTOM - 18 - (n - 1) * MENU_STEP;
+    const right = menuX(top) - (this.kind === 'ch2' ? NOTE_W - 5 : 0) - 18;
+    const x = Math.max(4, right - w);
+    const y = CONT_Y;
+    markText(x, y, w + 2, h + 2);
+    drawWindow(g, x, y, w, h, UI, shown, { curl: false });
+    g.alpha(shown, () => {
+      const cw = textW(c.chapter);
+      g.text(c.chapter, x + 8, y + 4, { color: UI.accent });
+      if (c.place) g.text(c.place, x + 8 + cw + 8, y + 4, { color: UI.text });
+      if (c.goal) {
+        drawGoalFlag(g, x + 8, y + 26);
+        g.text(c.goal, x + 18, y + 22, { color: UI.text });
+      }
+    });
+    return true;
   }
 
   /**
@@ -659,6 +697,9 @@ function drawChapterNote(g: Gfx, x: number, y: number, a: number, sel: boolean):
     g.text('第2章', x + 6, y - 1, { color: UI.text });
   });
 }
+
+/** 「つづきから」の カードの 上（ロゴの 英字の 下）。 */
+const CONT_Y = 99;
 
 /** The post-ending card: bottom-left, left of the silhouettes on the bridge (x ≥ 118). */
 const CLEAR_CARD = { x: 4, y: 146, w: 112, h: 62 };

@@ -89,6 +89,10 @@ import { drawYdPage, hasYdPage, YD_ROW_LABEL } from './book_yose';
 import { drawOjPage, hasOjPage, OJ_ROW_LABEL } from './book_okujou';
 // ③の すみ『低う、平たく』（第3章の クリア前、03_ch3_index）
 import { drawMzPage, hasMzPage, MZ_ROW_LABEL } from './book_mizukiri';
+// ③の すみ『やっと、魚の 昼』（第3章の クリア前、03_ch3_index）
+import { drawSkPage, hasSkPage, SK_ROW_LABEL } from './book_sakana';
+// ③の すみ『落とすけえ、甘うなる』（第3章の クリア前、03_ch3_index）
+import { drawMkPage, hasMkPage, MK_ROW_LABEL } from './book_mikan';
 // クリア後：4つ目のふせん「やり残し」（05_postgame 9章）
 import { hasYarinokoshi, YarinokoshiBook, YR_FLAG, YR_FLAG_DARK, YR_TAB } from './book_yarinokoshi';
 import { secretSeen } from '../pg_secret';
@@ -106,6 +110,8 @@ function corner3(): { label: string; draw: (g: Gfx, x: number, y: number, w: num
   if (hasShPage()) r.push({ label: SH_ROW_LABEL, draw: drawShPage });
   if (hasOjPage()) r.push({ label: OJ_ROW_LABEL, draw: drawOjPage });
   if (hasMzPage()) r.push({ label: MZ_ROW_LABEL, draw: drawMzPage });
+  if (hasSkPage()) r.push({ label: SK_ROW_LABEL, draw: drawSkPage });
+  if (hasMkPage()) r.push({ label: MK_ROW_LABEL, draw: drawMkPage });
   if (hasAbPage()) r.push({ label: AB_ROW_LABEL, draw: drawAbPage });
   if (hasIsoPage()) r.push({ label: ISO_ROW_LABEL, draw: drawIsoPage });
   if (hasNnPage()) r.push({ label: NN_ROW_LABEL, draw: drawNnPage });

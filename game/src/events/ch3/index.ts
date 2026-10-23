@@ -34,6 +34,12 @@ import './okujou';
 // 低う、平たく（げむきか 10/22 の 案1）：段階1、空き地の 子ども → 灯台の テル → 港の 西の はしの 石段 → 小石の 浜
 // （新しい 地図）。子ども・テル・ミナトの 台本を 包むので、siren・kaisui・mahiru の あとに import する
 import './mizukiri';
+// やっと、魚の 昼（げむきか 10/23 の 案2）：段階2、S13 の あと 防波堤の ツリノ → 大写し「浮き」。ツリノ・子ども・
+// グソっ君（防波堤）の 台本を 包むので、kaisui・mizukiri の あとに import する
+import './sakana';
+// 落とすけえ、甘うなる（げむきか 10/23 の 案1）：段階1、干物屋の 2人 → みかん畑の 作業道の 奥の 石の 段 → 上の 段
+// （新しい 地図）。干物屋の 2人・ナミエの 台本を 包むので、shokudo の あとに import する
+import './mikan';
 // 第4期（S25〜S34：みんなが来る・決戦・エンディング・クリア後）
 import './cuts';
 import '../../ui/cut_c3'; // W: the stills (cut_c3_shuuka・cut_c3_photo・cut_c3_kioku)

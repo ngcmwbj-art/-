@@ -597,3 +597,14 @@ export function vehicleFrame(id: string, view: VehicleView, t: number, moving: b
   const fr = a.frames[view];
   return fr[moving ? Math.floor(t / 90) % fr.length : 0];
 }
+
+/**
+ * How far a vehicle's body reaches north of its feet (world px): a kei truck's
+ * width behind its side, its length behind its front or back. The HD-2D body
+ * (hd2d/actors.ts) is its picture pushed back this far, and a parked one's
+ * collision box (改善会議 10-23 の2、world/npc.ts vehicleBox) is as deep, so
+ * nobody stands inside it.
+ */
+export function vehicleBodyDepth(view: VehicleView): number {
+  return view === 'left' || view === 'right' ? 16 : 60;
+}

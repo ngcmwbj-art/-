@@ -41,6 +41,7 @@ import type { Quality } from './post';
 import { CAM, Hd2dView, ROOM_CAM } from './view';
 import { overlaps, type Solid } from './overlap';
 import { opaque } from '../world/occlusion';
+import { vehicleBodyDepth } from '../art/props/vehicles';
 import { nudging } from './tune';
 import { roomMap } from './room';
 import { nidaiMap } from './nidai';
@@ -71,6 +72,8 @@ const MAPS = new Set([
   'map_c3_misaki',
   // 小石の 浜（低う、平たく。段階1〜2、03_ch3_index）
   'map_c3_koishi',
+  // みかん畑の 上の 段（落とすけえ、甘うなる。段階1〜2、03_ch3_index）
+  'map_c3_mikan_ue',
 ]);
 
 const params = new URLSearchParams(location.search);
@@ -344,7 +347,8 @@ if (import.meta.env.DEV) {
         kind: 'prop',
         foot: a.y,
         x: a.x,
-        slabs: [{ x0: left, x1: left + iw, h0: 0, h1: ih, z0: a.y, z1: a.y, face: true, at: (x, h) => !!m[(ih - 1 - Math.floor(h)) * iw + Math.floor(x - left)] }],
+        // (a vehicle is its body, not a board: its picture pushed back north — actors.ts; 改善会議 10-23 の2)
+        slabs: [{ x0: left, x1: left + iw, h0: 0, h1: ih, z0: a.data.vehicle ? a.y - vehicleBodyDepth(a.dir) : a.y, z1: a.y, face: true, at: (x, h) => !!m[(ih - 1 - Math.floor(h)) * iw + Math.floor(x - left)] }],
       });
     }
     const names = new Set(people.map((p) => p.name));
