@@ -191,6 +191,11 @@ const Puzzle = (() => {
     return kind ? Msg.t('icons.' + kind) : '';
   }
 
+  // マークのマスの見た目（💧は青い丸いふち、🍂は茶色の角ばったふち。色が分かりにくくても形で見分けられる）
+  function markClass(kind) {
+    return kind ? ' marked mark-' + kind : '';
+  }
+
   // 3つのブロックを引く。pieceSetTries が 2 以上なら、どれかが置けるまで引き直す
   function makePieceSet() {
     let set = [];
@@ -381,14 +386,14 @@ const Puzzle = (() => {
         const v = st.board[r][c];
         const mark = v >= 0 ? st.marks[r][c] : null;
         const el = cellEls[r * SIZE + c];
-        el.className = 'cell' + (v >= 0 ? ` filled c${v}` : '') + (mark ? ' marked' : '');
+        el.className = 'cell' + (v >= 0 ? ` filled c${v}` : '') + markClass(mark);
         el.textContent = markIcon(mark);
       }
     }
     // 消えたマスは、元の色（とマーク）のままはじけるアニメーション
     cleared.forEach((p) => {
       const el = cellEls[p.r * SIZE + p.c];
-      el.className = `cell filled c${p.color} clearing` + (p.mark ? ' marked' : '');
+      el.className = `cell filled c${p.color} clearing` + markClass(p.mark);
       el.textContent = markIcon(p.mark);
     });
     // アニメーションが終わったら空きマスの見た目に戻す
@@ -420,7 +425,7 @@ const Puzzle = (() => {
     cells.forEach(([r, c], i) => {
       const mark = markOf(piece, i);
       el.append(h('div', {
-        class: `cell filled c${piece.color}` + (mark ? ' marked' : ''),
+        class: `cell filled c${piece.color}` + markClass(mark),
         style: `grid-row:${r + 1};grid-column:${c + 1}`,
       }, markIcon(mark)));
     });
@@ -514,7 +519,7 @@ const Puzzle = (() => {
       const mark = markOf(piece, i);
       el.classList.add('preview', `c${piece.color}`);
       if (mark) {
-        el.classList.add('marked');
+        el.classList.add('marked', 'mark-' + mark);
         el.textContent = markIcon(mark);
       }
     });

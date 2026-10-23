@@ -83,7 +83,9 @@
     "osusume": "はじめてさんにおすすめ",
     "challengeCount": "チャレンジ {got}/{total}",
     "eat": "🍽 おいしい食べ方：{text}",
-    "word": "📘 {term}（{reading}）：{text}"
+    "word": "📘 {term}（{reading}）：{text}",
+    "mistake": "🌱 失敗しないコツ：{text}",
+    "oneLeft": "{icon}あと1種で次の季節！（のこり：{name}）"
   },
   "zukan": {
     "title": "やさい図鑑",
@@ -150,7 +152,8 @@
     "welcomeTitle": "{icon}{season}がやってきました",
     "welcomeBody": "{season}の基本の旬の野菜はこの{n}種類。ぜんぶ収穫すると、次の季節に進みます。\nほかに、ミッションで種が手に入るチャレンジ野菜が{m}種類あります。",
     "toFarm": "はたけへ",
-    "work": "{season}の畑しごと"
+    "work": "{season}の畑しごと",
+    "workNote": "図鑑の「季節のバッジ」を押すと、いつでも読み返せます。"
   },
   "howto": {
     "title": "{name}の育て方",

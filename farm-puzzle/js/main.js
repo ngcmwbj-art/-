@@ -173,6 +173,7 @@
         const v = queue.shift();
         if (v) Zukan.announce(v, () => showScreen('zukan'), next);
         else if (seasonDone) celebrateSeason(seasonDone);
+        else if (!save.seasonWorkShown) showSeasonWork();
       };
       next();
     },
@@ -192,6 +193,7 @@
 
   // 新しい季節が来たことと、その季節の旬の野菜を知らせる
   function welcomeSeason(s) {
+    save.seasonWorkShown = true;
     const vegs = Farm.seasonalVegs();
     const pill = document.getElementById('hud-season');
     pill.classList.remove('pop');
@@ -206,6 +208,18 @@
         seasonWork(s)
       ),
       buttons: [{ label: Msg.t('season.toFarm'), primary: true, onClick: () => showScreen('farm') }],
+    });
+  }
+
+  // 最初の収穫のあとに1回だけ、今の季節の畑しごと（あとは図鑑の季節バッジから読み返せる）
+  function showSeasonWork() {
+    save.seasonWorkShown = true;
+    persist();
+    const s = Farm.season();
+    Modal.open({
+      title: s.icon + ' ' + Msg.t('season.work', { season: s.name }),
+      body: h('div', {}, seasonWork(s), h('p', { class: 'season-work-note' }, Msg.t('season.workNote'))),
+      buttons: [{ label: Msg.t('common.close'), primary: true }],
     });
   }
 

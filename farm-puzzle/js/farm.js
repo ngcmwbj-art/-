@@ -234,6 +234,7 @@ const Farm = (() => {
     if (!indices.length) return;
     const done = season();
     const doneVegs = seasonalVegs();
+    const leftBefore = seasonLeft().length;
     const firsts = [];
     const names = indices.map((i) => data.plots[i].vegId);
     harvestPop(indices);
@@ -261,6 +262,8 @@ const Farm = (() => {
       : Msg.t('farm.harvestedMany', { n: indices.length, coins, coin });
     if (bonusAny) text += '\n' + Msg.t('farm.seasonBonus');
     if (next) text += '\n' + Msg.t('farm.seasonAdvanced', { done: done.name, icon: next.icon, season: next.name });
+    // 旬の残りが1種になったら、ゴールが近いことを知らせる（その野菜の名前も）
+    else if (leftBefore > 1 && seasonLeft().length === 1) text += '\n' + Msg.t('farm.oneLeft', { name: seasonLeft()[0].name, icon: done.icon });
     else if (single) text += '\n' + (single.eat ? Msg.t('farm.eat', { text: single.eat }) : single.steps.harvest);
     toast(text);
     Sound.play('harvest');
@@ -300,12 +303,15 @@ const Farm = (() => {
   // 作業のお知らせで説明しない、よく出てくる言葉（ボタンや読みがなで分かるもの）
   const EASY_WORDS = ['追肥', '苗', '株', '乾燥', '植えつけ'];
 
+  // 種まきのときは、育てる前に知っておきたい「失敗しないコツ」も1行（data の mistake。ある野菜だけ）
   function tellStep(v, step) {
     const text = v.steps[step];
-    const word = (cfg.glossary || []).find((w) => !EASY_WORDS.includes(w.term) && text.includes(w.term));
+    const tip = step === 'sow' && v.mistake ? v.mistake : '';
+    const word = (cfg.glossary || []).find((w) => !EASY_WORDS.includes(w.term) && (text + tip).includes(w.term));
     let msg = `${Msg.t('farm.stepNames.' + step)}：${text}`;
+    if (tip) msg += '\n' + Msg.t('farm.mistake', { text: tip });
     if (word) msg += '\n' + Msg.t('farm.word', { term: word.term, reading: word.reading, text: word.text });
-    toast(msg, word ? 6000 : undefined);
+    toast(msg, tip && word ? 8000 : tip || word ? 6000 : undefined);
   }
 
   // プレイヤーが畑で作業したとき

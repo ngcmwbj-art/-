@@ -166,6 +166,17 @@ body {
   font-size: calc(var(--cell) * 0.5);
 }
 .piece .cell.marked, .ghost .cell.marked { font-size: calc(var(--size) * 0.62); }
+.cell.mark-water, .piece .cell.mark-water {
+  border-radius: 40%;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.9), inset 0 0 0 4px #4a90c8;
+}
+.cell.mark-fertilizer, .piece .cell.mark-fertilizer {
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.9), inset 0 0 0 4px #a8622a;
+}
+/* 手元の小さいブロックでは、ふちを細めに（マークがつぶれないように） */
+.piece .cell.mark-water { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9), inset 0 0 0 2.5px #4a90c8; }
+.piece .cell.mark-fertilizer { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9), inset 0 0 0 2.5px #a8622a; }
 
 /* 置く予定の場所 */
 .cell.preview { opacity: 0.5; }
@@ -1072,6 +1083,7 @@ button.season-chip { font: inherit; font-size: 0.9rem; color: inherit; cursor: p
 .now-tag { display: inline-block; margin: 0 6px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 0.72rem; font-weight: bold; vertical-align: 1px; }
 
 /* 季節の畑しごと */
+.season-work-note { margin: 8px 0 0; font-size: 0.8rem; color: var(--sub); }
 .season-work { margin-top: 12px; text-align: left; background: #f6f9ef; border-radius: 12px; padding: 10px 12px; }
 .season-work-title { font-weight: bold; color: var(--green-dark); margin-bottom: 4px; }
 .season-work ul { margin: 0; padding-left: 1.2em; line-height: 1.7; font-size: 0.9rem; }
